@@ -8,7 +8,7 @@ export function planPath(world: World, from: Vec2, to: Vec2): Vec2[] {
 }
 
 /** Walks along rt.path at PLAYER_SPEED for dt seconds, consuming reached waypoints. */
-export function advanceAlongPath(p: PlayerState, rt: PlayerRuntime, dt: number): void {
+export function advanceAlongPath(p: PlayerState, rt: PlayerRuntime, dt: number, keepFacing = false): void {
   let budget = PLAYER_SPEED * dt;
   while (budget > 0 && rt.path.length > 0) {
     const target = rt.path[0]!;
@@ -25,7 +25,7 @@ export function advanceAlongPath(p: PlayerState, rt: PlayerRuntime, dt: number):
       p.y += (dy / dist) * budget;
       budget = 0;
     }
-    if (dist > 0.001) p.facing = Math.atan2(dy, dx);
+    if (dist > 0.001 && !keepFacing) p.facing = Math.atan2(dy, dx);
   }
 }
 

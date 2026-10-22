@@ -51,9 +51,26 @@
   text-shadow: 0 1px 2px #000;
 }
 /* index.html's "#ui > *" (auto) outranks a bare class, so the click-through must match its specificity. */
-#ui > .hud, #ui > .banner, #ui > .toasts { pointer-events: none; }
+#ui > .hud, #ui > .banner, #ui > .toasts, #ui > .death-line { pointer-events: none; }
 .hud-status { font-weight: 600; }
 .hud-vitals { color: #c8d0d9; margin-top: 2px; }
+
+.death-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  color: #e57373;
+  text-shadow: 0 2px 6px #000, 0 0 28px rgba(180, 30, 30, 0.6);
+  animation: death-in 500ms ease-out;
+}
+/* A rule that sets `display` would otherwise beat the user-agent [hidden] rule. */
+.death-line[hidden] { display: none; }
+@keyframes death-in { from { opacity: 0; } to { opacity: 1; } }
 
 .outcome-extracted { color: #81c784; }
 .outcome-died { color: #e57373; }

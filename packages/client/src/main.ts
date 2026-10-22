@@ -23,7 +23,12 @@ const game = new Phaser.Game({
   scene: [IdleScene, RaidScene],
 });
 
+/** A killed player sees the "YOU DIED" line on its own this long before the results panel replaces it. */
+const DEATH_RESULTS_DELAY_MS = 1500;
+
 let room: RaidRoom | null = null;
+/** A `died` result waiting out DEATH_RESULTS_DELAY_MS; null otherwise. */
+let pendingResult: { result: RaidResult; timer: ReturnType<typeof setTimeout> } | null = null;
 
 const menu = new Menu({ onStart: (profile) => void startRaid(profile) });
 const results = new ResultsScreen({ onContinue: () => backToMenu() });
@@ -41,7 +46,11 @@ async function startRaid(profile: string): Promise<void> {
   }
   const joined = room;
   await firstState(joined);
-  joined.onMessage("result", (r: RaidResult) => results.show(r));
+  joined.onMessage("result", (r: RaidResult) => {
+    if (r.outcome !== "died") { results.show(r); return; }
+    cancelPendingResult();
+    pendingResult = { result: r, timer: setTimeout(flushPendingResult, DEATH_RESULTS_DELAY_MS) };
+  });
   joined.onMessage("toast", (t: ServerMessages["toast"]) => toasts.show(t.text));
   joined.onDrop(() => banner.show("Connection lost — reconnecting…"));
   joined.onReconnect(() => banner.hide());
@@ -49,11 +58,29 @@ async function startRaid(profile: string): Promise<void> {
     banner.hide();
     if (room !== joined) return;
     room = null;
+    // Losing the room during the death hold must not lose the results: show them now instead of waiting.
+    flushPendingResult();
     if (!results.visible) backToMenu(`Disconnected from raid (code ${code}).`);
   });
   menu.hide();
   game.scene.stop("idle");
-  game.scene.start("raid", { room: joined });
+  game.scene.start("raid", {
+    room: joined,
+    toast: (text: string) => toasts.show(text),
+    resultsVisible: () => results.visible,
+  });
+}
+
+function flushPendingResult(): void {
+  const pending = pendingResult;
+  if (!pending) return;
+  cancelPendingResult();
+  results.show(pending.result);
+}
+
+function cancelPendingResult(): void {
+  if (pendingResult) clearTimeout(pendingResult.timer);
+  pendingResult = null;
 }
 
 /** joinOrCreate resolves before the first full state arrives; scenes assume a populated state. */
@@ -66,6 +93,7 @@ function backToMenu(message = ""): void {
   const leaving = room;
   room = null;
   void leaving?.leave();
+  cancelPendingResult();
   results.hide();
   toasts.clear();
   game.scene.stop("raid");

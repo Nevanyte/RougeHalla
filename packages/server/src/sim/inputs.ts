@@ -5,7 +5,8 @@ import { WORLD_H, WORLD_W, type Vec2 } from "@raid/shared";
 export type MoveCommand = { kind: "move"; x: number; y: number } | { kind: "stop" };
 
 export type ActionCommand =
-  | { kind: "attack"; x: number; y: number }
+  /** `t` is the server time the client was rendering when it clicked; combat clamps it to the rewind window. */
+  | { kind: "attack"; x: number; y: number; t?: number }
   | { kind: "take"; containerId: string; uid: string }
   | { kind: "drop"; uid: string }
   | { kind: "use"; uid: string }
@@ -69,7 +70,11 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown):
     case "attack": {
       const p = parsePoint(msg);
       if (!p) return false;
-      q.pushAction({ kind: "attack", x: p.x, y: p.y });
+      // A bad timestamp only costs the shooter lag compensation; the attack itself still counts.
+      const t = (msg as Record<string, unknown>).t;
+      q.pushAction(typeof t === "number" && Number.isFinite(t)
+        ? { kind: "attack", x: p.x, y: p.y, t }
+        : { kind: "attack", x: p.x, y: p.y });
       return true;
     }
     case "take": {

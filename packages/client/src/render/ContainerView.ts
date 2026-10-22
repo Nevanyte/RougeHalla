@@ -51,6 +51,11 @@ export class ContainerView {
     this.syncLabel();
   }
 
+  /** Hidden while the death that left this body is still ahead of render time. */
+  setHidden(hidden: boolean): void {
+    this.root.setVisible(!hidden);
+  }
+
   /** The ring itself is ContainerHighlight's; this only reveals the name of the interaction target. */
   setHighlight(on: boolean): void {
     if (on === this.highlighted) return;

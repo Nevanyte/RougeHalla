@@ -40,3 +40,5 @@ Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_
 - Interest management: everyone receives every player's inventory and every container's contents. Plan: `StateView` + `.view()` fields, per-client add/remove by distance each tick.
 - No client-side prediction for the local player (0.18 has `Predict`/`room.input()` if needed).
 - Single process only: the "profile already in a raid" guard and the stash file are process-local.
+- Lag compensation trusts the client's `t` anywhere inside `[now − MAX_REWIND_MS, last published tick]`. A cheating client can pick the most favourable `t` in that 300 ms window. Mitigation: bound `t` per client by measured RTT, or require it to be monotonic.
+- `MAX_REWIND_MS = 300` fully covers clients up to ~150 ms RTT (render delay 100 ms + RTT + one tick). Beyond that, shots at moving targets start to miss.

@@ -899,7 +899,7 @@ describe("action dispatch", () => {
     }
     run(world, 6);
     for (const id of ["a", "b"]) {
-      expect(world.players.get(id)!.history.map((h) => h.t)).toEqual([2, 3, 4, 5, 6, 7].map((n) => n * TICK_MS));
+      expect(world.players.get(id)!.history.map((h) => h.t)).toEqual([1, 2, 3, 4, 5, 6, 7].map((n) => n * TICK_MS));
       expect(world.players.get(id)!.path.length).toBeGreaterThan(0);
     }
   });
@@ -982,16 +982,18 @@ describe("action dispatch", () => {
 });
 
 describe("lag-compensation history", () => {
-  it("is empty in the lobby and right after the raid starts", () => {
+  it("is empty in the lobby; the raid start seeds one published sample at the spawn", () => {
     const w = makeWorld({ minPlayers: 2, lobbySeconds: 1000 });
     addPlayer(w, "a", "alice", []);
     run(w, 10);
     expect(w.players.get("a")!.history).toEqual([]);
     addPlayer(w, "b", "bob", []);
-    step(w, TICK_MS); // lobby -> active; the start step itself records nothing
+    step(w, TICK_MS); // lobby -> active
     expect(w.state.phase).toBe("active");
-    expect(w.players.get("a")!.history).toEqual([]);
-    expect(w.players.get("b")!.history).toEqual([]);
+    for (const id of ["a", "b"]) {
+      const p = player(w, id);
+      expect(w.players.get(id)!.history).toEqual([{ t: w.state.serverTime, x: p.x, y: p.y }]);
+    }
   });
 
   it("starting the raid discards any history left over from before it", () => {
@@ -1001,19 +1003,21 @@ describe("lag-compensation history", () => {
     w.players.get("a")!.history.push({ t: -500, x: 1, y: 1 }); // stale: it would let attackers rewind into the lobby
     step(w, TICK_MS);
     expect(w.state.phase).toBe("active");
-    expect(w.players.get("a")!.history).toEqual([]);
+    const a = player(w, "a");
+    expect(w.players.get("a")!.history).toEqual([{ t: w.state.serverTime, x: a.x, y: a.y }]);
   });
 
   it("records every alive player once per step, after movement, including idle ones", () => {
     const { world, a, b, rtA, rtB } = activePair({ raidSeconds: 60 });
     enqueueClientMessage(rtA.inputs, "move", farthestSpawn(world, posOf(a)));
     const bPos = posOf(b);
+    // history[0] is the spawn sample seeded at raid start.
     for (let n = 1; n <= 5; n++) {
       stepChecked(world);
-      expect(rtA.history).toHaveLength(n);
-      expect(rtB.history).toHaveLength(n);
-      expect(rtA.history[n - 1]).toEqual({ t: world.state.serverTime, x: a.x, y: a.y }); // post-move position
-      expect(rtB.history[n - 1]).toEqual({ t: world.state.serverTime, x: bPos.x, y: bPos.y });
+      expect(rtA.history).toHaveLength(n + 1);
+      expect(rtB.history).toHaveLength(n + 1);
+      expect(rtA.history[n]).toEqual({ t: world.state.serverTime, x: a.x, y: a.y }); // post-move position
+      expect(rtB.history[n]).toEqual({ t: world.state.serverTime, x: bPos.x, y: bPos.y });
     }
     // Consecutive samples are one tick apart and a walker's samples are one step apart.
     for (let i = 1; i < 5; i++) {
@@ -1069,11 +1073,11 @@ describe("lag-compensation history", () => {
     const { world, rtA, rtB } = activePair({ raidSeconds: 60 });
     world.actions.attack = (w, pl, r) => { if (r.id === "a") resolvePlayer(w, pl, r, "died"); };
     run(world, 3);
-    expect(rtA.history).toHaveLength(3);
+    expect(rtA.history).toHaveLength(4); // spawn sample + 3 steps
     enqueueClientMessage(rtA.inputs, "attack", { x: 1, y: 1 });
     run(world, 6);
     expect(player(world, "a").status).toBe("dead");
-    expect(rtA.history).toHaveLength(3); // not recorded on the tick they died, nor afterwards
+    expect(rtA.history).toHaveLength(4); // not recorded on the tick they died, nor afterwards
     expect(rtA.history.at(-1)!.t).toBe(4 * TICK_MS); // the start step is the first tick
     expect(rtB.history.at(-1)!.t).toBe(world.state.serverTime);
     expect(world.state.phase).toBe("active");

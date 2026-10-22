@@ -3,9 +3,12 @@ import { PLAYER_RADIUS } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { depthFor, projX, projY } from "./projection";
 
-const BODY_LIFT = 14;
+/** Screen pixels the body disc floats above the ground shadow; shots and floating text are drawn at this height too. */
+export const BODY_LIFT = 14;
 const LOCAL_COLOR = 0x4caf50;
 const REMOTE_COLOR = 0xe5a823;
+const HIT_COLOR = 0xffffff;
+const HIT_FLASH_MS = 120;
 
 /** One player drawn as a raised disc over a ground shadow, y-sorted by ground position. */
 export class PlayerView {
@@ -15,9 +18,14 @@ export class PlayerView {
   private readonly hpBar: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
   private readonly extractRing: Phaser.GameObjects.Graphics;
+  private readonly baseColor: number;
+  /** performance.now() deadline of the hit flash; 0 when idle. Polled in update() so no timer needs cleaning up. */
+  private flashUntil = 0;
+  private flashing = false;
 
   constructor(scene: Phaser.Scene, readonly isLocal: boolean) {
     const color = isLocal ? LOCAL_COLOR : REMOTE_COLOR;
+    this.baseColor = color;
     const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
     this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, color).setStrokeStyle(2, 0x111111, 0.8);
     this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
@@ -29,8 +37,23 @@ export class PlayerView {
     this.root = scene.add.container(0, 0, [shadow, this.body, this.nose, this.extractRing, this.hpBar, this.label]);
   }
 
-  update(x: number, y: number, p: PlayerState): void {
-    const visible = p.status === "alive" || p.status === "lobby";
+  /** Paints the body white for a moment (a hit landed on this player). */
+  flash(ms = HIT_FLASH_MS): void {
+    this.flashUntil = performance.now() + ms;
+    if (!this.flashing) {
+      this.flashing = true;
+      this.body.setFillStyle(HIT_COLOR);
+    }
+  }
+
+  /** `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them. */
+  update(x: number, y: number, p: PlayerState, drawAsAlive = false): void {
+    if (this.flashing && performance.now() >= this.flashUntil) {
+      this.flashing = false;
+      this.flashUntil = 0;
+      this.body.setFillStyle(this.baseColor);
+    }
+    const visible = drawAsAlive || p.status === "alive" || p.status === "lobby";
     this.root.setVisible(visible);
     if (!visible) return;
     this.root.setPosition(projX(x), projY(y));

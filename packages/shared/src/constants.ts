@@ -6,7 +6,10 @@ export const TICK_MS = 1000 / TICK_RATE;
 export const PATCH_MS = TICK_MS;
 /** Clients render this far behind the estimated server clock (two ticks). */
 export const INTERP_DELAY_MS = 100;
-/** How far back the server rewinds targets to match what an attacker saw (lag compensation). */
+/**
+ * How far back the server rewinds targets to match what an attacker saw (lag compensation).
+ * Covers INTERP_DELAY_MS + RTT + one tick for clients up to ~150 ms RTT.
+ */
 export const MAX_REWIND_MS = 300;
 /** A per-tick jump larger than this is treated as a teleport and not interpolated. */
 export const TELEPORT_DISTANCE = 200;

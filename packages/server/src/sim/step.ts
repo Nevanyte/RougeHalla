@@ -111,7 +111,7 @@ export function startRaid(world: World): void {
     p.status = "alive";
     const rt = world.players.get(id)!;
     rt.inputs.drain();
-    rt.history = [];
+    rt.history = [{ t: s.serverTime, x: p.x, y: p.y }];
   }
   emit(world, { type: "raidStarted" });
 }
@@ -171,7 +171,7 @@ function updateActive(world: World, dtMs: number): void {
       world.actions[cmd.kind]?.(world, p, rt, cmd);
       if (p.status !== "alive") break;
     }
-    if (p.status === "alive") advanceAlongPath(p, rt, dt);
+    if (p.status === "alive") advanceAlongPath(p, rt, dt, (rt.aimFacingUntil ?? 0) > s.serverTime);
   }
   // Record after everyone has moved so hit tests see one consistent tick.
   for (const [id, p] of s.players) {

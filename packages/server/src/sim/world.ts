@@ -25,6 +25,8 @@ export interface PlayerRuntime {
   /** Recent authoritative positions (oldest first) for lag-compensated hit tests. */
   history: Sample[];
   nextAttackAt: number;
+  /** While serverTime < this, walking doesn't overwrite `facing` (the player keeps aiming). */
+  aimFacingUntil?: number;
   extracting: { zoneId: string; startedAt: number } | null;
   /** Items this player entered the raid with (for the results screen). */
   broughtIn: ItemDTO[];
