@@ -6,7 +6,7 @@ import {
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, MAX_ACTIONS_PER_TICK } from "../src/sim/inputs";
 import { planPath, positionAt } from "../src/sim/movement";
-import { addPlayer, removePlayer, resolvePlayer, step } from "../src/sim/step";
+import { actionOrder, addPlayer, removePlayer, resolvePlayer, step } from "../src/sim/step";
 import { createWorld, emit, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
@@ -542,6 +542,7 @@ describe("raid spawns", () => {
     let calls = 0;
     const counting = mulberry32(3);
     const w = makeWorld({ minPlayers: 2, lobbySeconds: 1000, fillSeconds: 0 }, 1234, () => { calls++; return counting(); });
+    calls = 0; // createWorld draws the action-order salt
     addPlayer(w, "a", "alice", []);
     expect(run(w, 5)).toEqual([]);
     expect(calls).toBe(0); // the lobby is not random
@@ -863,6 +864,44 @@ describe("action dispatch", () => {
     expect(seen).toEqual(Array.from({ length: MAX_ACTIONS_PER_TICK }, (_, i) => `u${i}`));
     step(world, TICK_MS);
     expect(seen).toHaveLength(MAX_ACTIONS_PER_TICK); // nothing is replayed next tick
+  });
+
+  it("shuffles the per-tick action order so no seat or pair of seats is favoured", () => {
+    const world = makeWorld({ minPlayers: 3, raidSeconds: 60 });
+    for (const [id, name] of [["a", "alice"], ["b", "bob"], ["c", "carol"]] as const) addPlayer(world, id, name, []);
+    step(world, TICK_MS); // lobby -> active
+    let seen: string[] = [];
+    world.actions.extract = (_w, _p, rt) => { seen.push(rt.id); };
+    const firsts = new Map<string, number>();
+    let aBeforeB = 0;
+    const N = 300;
+    for (let i = 0; i < N; i++) {
+      seen = [];
+      for (const id of ["a", "b", "c"]) enqueueClientMessage(world.players.get(id)!.inputs, "extract", {});
+      step(world, TICK_MS);
+      expect([...seen].sort()).toEqual(["a", "b", "c"]); // everyone still acts exactly once
+      expect(seen).toEqual(actionOrder(world)); // the exported order is the one applied
+      firsts.set(seen[0]!, (firsts.get(seen[0]!) ?? 0) + 1);
+      if (seen.indexOf("a") < seen.indexOf("b")) aBeforeB++;
+    }
+    for (const id of ["a", "b", "c"]) expect(firsts.get(id) ?? 0).toBeGreaterThan(N / 3 - 45);
+    // A subset of contenders (a vs b, with c idle) is also fair, unlike a rotation.
+    expect(Math.abs(aBeforeB - N / 2)).toBeLessThan(45);
+  });
+
+  it("still moves and records everyone each tick when the order is shuffled", () => {
+    const world = makeWorld({ minPlayers: 2, raidSeconds: 60 });
+    addPlayer(world, "a", "alice", []);
+    addPlayer(world, "b", "bob", []);
+    step(world, TICK_MS);
+    for (const id of ["a", "b"]) {
+      enqueueClientMessage(world.players.get(id)!.inputs, "move", farthestSpawn(world, posOf(player(world, id))));
+    }
+    run(world, 6);
+    for (const id of ["a", "b"]) {
+      expect(world.players.get(id)!.history.map((h) => h.t)).toEqual([2, 3, 4, 5, 6, 7].map((n) => n * TICK_MS));
+      expect(world.players.get(id)!.path.length).toBeGreaterThan(0);
+    }
   });
 
   it("plans the move before actions run, and moves the player after them", () => {

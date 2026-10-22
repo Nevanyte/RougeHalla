@@ -1,10 +1,13 @@
 // Assembles a fully-featured world: base lifecycle (step.ts) + every gameplay module.
 // Modules expose `install(world)` and register into world.actions / world.systems / world.hooks.
+import { install as installLoot } from "./loot";
 import { createWorld, type World } from "./world";
 
 type CreateOpts = Parameters<typeof createWorld>[0];
 
-const MODULES: Array<(world: World) => void> = [];
+const MODULES: Array<(world: World) => void> = [
+  installLoot,
+];
 
 export function createGameWorld(opts: CreateOpts): World {
   const world = createWorld(opts);

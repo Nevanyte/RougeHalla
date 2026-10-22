@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  isWallAt, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, TICK_MS, TILE_FLOOR,
-  TILE_WALL, tileToWorldCenter, WORLD_H, WORLD_W, type GameMap, type Sample, type Vec2,
+  circleClear, isWallAt, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, TICK_MS, TILE,
+  TILE_FLOOR, TILE_WALL, tileToWorldCenter, WORLD_H, WORLD_W, type GameMap, type Sample, type Vec2,
 } from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
-import { InputQueue } from "../src/sim/inputs";
+import { enqueueClientMessage, InputQueue } from "../src/sim/inputs";
 import { advanceAlongPath, planPath, positionAt, recordHistory } from "../src/sim/movement";
+import { addPlayer, step } from "../src/sim/step";
 import { createWorld, type PlayerRuntime, type World } from "../src/sim/world";
 
 const DT = TICK_MS / 1000;
@@ -532,6 +533,72 @@ describe("walking a planned path (planPath + advanceAlongPath)", () => {
       // Speed is spent along the polyline, so the trip takes exactly length / STEP ticks.
       expect(ticks).toBe(Math.ceil(length / STEP - 1e-9));
     }
+  });
+});
+
+describe("a walking player's disc stays out of the walls", () => {
+  // Clicks aimed at the awkward places: just inside wall faces and corners, at offsets either side of the clamp line.
+  const OFFSETS = [0, 0.001, 1, 6, 11.999, 12, 12.001, 16, 19.999, 20, 20.001, 26, 31, 31.999];
+  const nearWallTiles = (map: GameMap): Array<[number, number]> => {
+    const out: Array<[number, number]> = [];
+    for (let ty = 1; ty < map.h - 1; ty++) {
+      for (let tx = 1; tx < map.w - 1; tx++) {
+        if (map.tiles[ty * map.w + tx] !== TILE_FLOOR) continue;
+        let walls = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) walls += map.tiles[(ty + dy) * map.w + tx + dx]!;
+        if (walls > 0) out.push([tx, ty]);
+      }
+    }
+    return out;
+  };
+
+  it.each([1234, 99, 4242])("seed %i: planPath + advanceAlongPath, chained wall-hugging clicks", (seed) => {
+    const world = makeWorld(seed);
+    const rng = mulberry32(seed);
+    const tiles = nearWallTiles(world.map);
+    const p = makePlayer(world.map.spawns[0]!.x, world.map.spawns[0]!.y);
+    let arrivals = 0;
+    for (let n = 0; n < 150; n++) {
+      const [tx, ty] = tiles[Math.floor(rng() * tiles.length)]!;
+      const click = { x: tx * TILE + OFFSETS[Math.floor(rng() * OFFSETS.length)]!, y: ty * TILE + OFFSETS[Math.floor(rng() * OFFSETS.length)]! };
+      const rt = makeRuntime(planPath(world, p, click));
+      if (rt.path.length === 0) continue;
+      for (let ticks = 0; rt.path.length > 0; ticks++) {
+        advanceAlongPath(p, rt, DT);
+        expect(circleClear(world.map, p, PLAYER_RADIUS), `seed ${seed} click ${n} tick ${ticks} at ${p.x},${p.y}`).toBe(true);
+        expect(ticks).toBeLessThan(1000);
+      }
+      arrivals++;
+    }
+    expect(arrivals).toBeGreaterThan(100);
+  });
+
+  it("through the real step loop: move messages in, a clear disc at every tick and on arrival", () => {
+    const world = makeWorld(1234);
+    world.config.minPlayers = 1;
+    addPlayer(world, "a", "alice", []);
+    step(world, TICK_MS); // lobby -> active
+    expect(world.state.phase).toBe("active");
+    const p = world.state.players.get("a")!;
+    const rt = world.players.get("a")!;
+    const rng = mulberry32(5);
+    const tiles = nearWallTiles(world.map);
+    let walks = 0;
+    for (let n = 0; n < 60; n++) {
+      const [tx, ty] = tiles[Math.floor(rng() * tiles.length)]!;
+      const click = { x: tx * TILE + OFFSETS[Math.floor(rng() * OFFSETS.length)]!, y: ty * TILE + OFFSETS[Math.floor(rng() * OFFSETS.length)]! };
+      const from = { x: p.x, y: p.y };
+      expect(enqueueClientMessage(rt.inputs, "move", click)).toBe(true);
+      step(world, TICK_MS);
+      for (let ticks = 0; rt.path.length > 0; ticks++) {
+        expect(circleClear(world.map, p, PLAYER_RADIUS), `click ${n} tick ${ticks} at ${p.x},${p.y}`).toBe(true);
+        step(world, TICK_MS);
+        expect(ticks).toBeLessThan(1000);
+      }
+      expect(circleClear(world.map, p, PLAYER_RADIUS), `click ${n}: arrival at ${p.x},${p.y}`).toBe(true);
+      if (dist(from, p) > 1) walks++;
+    }
+    expect(walks).toBeGreaterThan(40);
   });
 });
 

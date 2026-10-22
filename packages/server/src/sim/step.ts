@@ -1,6 +1,6 @@
 // Raid lifecycle + the fixed-step update. `step()` is the only entry point the Room ticks.
 import {
-  MAX_PLAYERS, PLAYER_MAX_HP, type ItemDTO, type RaidOutcome, type RaidResult, type Vec2,
+  MAX_PLAYERS, mulberry32, PLAYER_MAX_HP, type ItemDTO, type RaidOutcome, type RaidResult, type Vec2,
 } from "@raid/shared";
 import { ItemState, PlayerState } from "@raid/shared/schema";
 import { InputQueue } from "./inputs";
@@ -136,10 +136,26 @@ function updateLobby(world: World): void {
   if (n >= MAX_PLAYERS || s.serverTime >= s.lobbyEndsAt) startRaid(world);
 }
 
+/**
+ * Order in which players' inputs are applied on `tick`: a shuffle keyed by a server-secret salt
+ * and the tick. With a fixed (or merely rotated) order, earlier joiners would win most same-tick
+ * races for an item; this is fair for any subset of contenders and unpredictable to clients.
+ */
+export function actionOrder(world: World, tick = world.state.tick): string[] {
+  const ids = [...world.state.players.keys()];
+  const rng = mulberry32((world.orderSalt ^ Math.imul(tick, 0x9e3779b1)) >>> 0);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+  }
+  return ids;
+}
+
 function updateActive(world: World, dtMs: number): void {
   const s = world.state;
   const dt = dtMs / 1000;
-  for (const [id, p] of s.players) {
+  for (const id of actionOrder(world)) {
+    const p = s.players.get(id)!;
     const rt = world.players.get(id)!;
     const { move, actions } = rt.inputs.drain();
     if (p.status !== "alive") continue;

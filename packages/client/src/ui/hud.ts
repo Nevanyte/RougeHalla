@@ -1,4 +1,5 @@
-// In-raid DOM overlay: phase/timer line and player vitals.
+// In-raid DOM overlay: phase/timer line and player vitals with equipped gear.
+import { bestArmor, bestWeapon } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { el, uiRoot } from "./dom";
 
@@ -30,7 +31,13 @@ export class Hud {
     }
     if (status !== this.lastStatus) { this.status.textContent = status; this.lastStatus = status; }
 
-    const vitals = me ? `${me.name} · HP ${Math.ceil(me.hp)}/${me.maxHp} · ${me.status}` : "";
+    let vitals = "";
+    if (me) {
+      // Equipped = best carried by the shared rules (items.ts); there is no equip action.
+      const defs = me.inventory.map((it) => it.def);
+      vitals = `${me.name} · HP ${Math.ceil(me.hp)}/${me.maxHp} · ${me.status}`
+        + ` · Weapon: ${bestWeapon(defs).name} · Armor: ${bestArmor(defs)?.name ?? "none"}`;
+    }
     if (vitals !== this.lastVitals) { this.vitals.textContent = vitals; this.lastVitals = vitals; }
   }
 

@@ -1,4 +1,4 @@
-// Small top-center notice (connection state, toasts).
+// Small top-center notice for connection state (toasts live in ui/toast.ts).
 import { el, uiRoot } from "./dom";
 
 export class Banner {

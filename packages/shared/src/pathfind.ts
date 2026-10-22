@@ -1,8 +1,8 @@
 // Grid A* (8-way, no corner cutting) plus string-pulling over segmentClear. Used by bots on the
 // server; deterministic (fixed neighbour order and tie-breaks), no allocation beyond the result.
-import { PLAYER_RADIUS } from "./constants";
-import { segmentClear } from "./geometry";
-import { TILE_FLOOR, tileToWorldCenter, worldToTile } from "./map";
+import { PLAYER_RADIUS, TILE } from "./constants";
+import { circleClear, segmentClear } from "./geometry";
+import { isWallTile, TILE_FLOOR, tileToWorldCenter, worldToTile } from "./map";
 import type { GameMap } from "./map";
 import type { Vec2 } from "./messages";
 
@@ -166,9 +166,31 @@ function snapToFloor(map: GameMap, x: number, y: number): { tx: number; ty: numb
 }
 
 /**
+ * Pulls `p`, which lies in floor tile (gx, gy), just far enough from its walls that a disc of `radius`
+ * fits: each orthogonal wall neighbour clamps that axis to the tile's inner band. A disc that still
+ * touches a diagonal corner falls back to the tile centre, which is always clear while
+ * radius <= TILE / 2. A target that already fits is returned as is.
+ */
+function clampClear(map: GameMap, p: Vec2, gx: number, gy: number, radius: number): Vec2 {
+  if (circleClear(map, p, radius)) return p;
+  const x0 = gx * TILE;
+  const y0 = gy * TILE;
+  let x = p.x;
+  let y = p.y;
+  if (isWallTile(map, gx - 1, gy)) x = Math.max(x, x0 + radius);
+  if (isWallTile(map, gx + 1, gy)) x = Math.min(x, x0 + TILE - radius);
+  if (isWallTile(map, gx, gy - 1)) y = Math.max(y, y0 + radius);
+  if (isWallTile(map, gx, gy + 1)) y = Math.min(y, y0 + TILE - radius);
+  const clamped = { x, y };
+  return circleClear(map, clamped, radius) ? clamped : { x: tileToWorldCenter(gx), y: tileToWorldCenter(gy) };
+}
+
+/**
  * Waypoints (world space, excluding `from`) that walk a disc of `radius` from `from` to `to`.
  * `to` inside a wall snaps to the nearest floor tile within 4 steps; unreachable or unsnappable
- * targets return []. The final waypoint is `to` itself whenever its tile is floor.
+ * targets return []. The final waypoint is `to` itself when a disc of `radius` fits there, otherwise
+ * the nearest in-tile point where it does (see clampClear), so the walker never ends overlapping a wall.
+ * Wall clearance is only guaranteed for radius <= TILE / 2.
  */
 export function findPath(map: GameMap, from: Vec2, to: Vec2, radius: number = PLAYER_RADIUS): Vec2[] {
   if (!Number.isFinite(from.x + from.y + to.x + to.y)) return [];
@@ -195,7 +217,10 @@ export function findPath(map: GameMap, from: Vec2, to: Vec2, radius: number = PL
     target = { x: tileToWorldCenter(gx), y: tileToWorldCenter(gy) };
   }
 
-  if (sx === gx && sy === gy) return [target];
+  if (!goalInWall) target = clampClear(map, to, gx, gy, radius);
+
+  // Within one tile the valid centres are not convex (a diagonal wall corner bites a disc out of
+  // them), so even the same-tile shortcut needs the swept check.
   if (!startInWall && segmentClear(map, from, target, radius)) return [target];
 
   const tilePath = astar(map, sy * map.w + sx, gy * map.w + gx);
@@ -205,7 +230,8 @@ export function findPath(map: GameMap, from: Vec2, to: Vec2, radius: number = PL
   // interior tile centres, the goal tile centre, then the exact target.
   const cand: Vec2[] = [];
   const center = (i: number): Vec2 => ({ x: tileToWorldCenter(i % map.w), y: tileToWorldCenter(Math.floor(i / map.w)) });
-  if (startInWall || Math.abs(from.x - tileToWorldCenter(sx)) > 0.5 || Math.abs(from.y - tileToWorldCenter(sy)) > 0.5) {
+  // (A one-tile route has the start centre as its goal centre, pushed below.)
+  if (tilePath.length > 1 && (startInWall || Math.abs(from.x - tileToWorldCenter(sx)) > 0.5 || Math.abs(from.y - tileToWorldCenter(sy)) > 0.5)) {
     cand.push(center(tilePath[0]));
   }
   for (let i = 1; i < tilePath.length - 1; i++) cand.push(center(tilePath[i]));

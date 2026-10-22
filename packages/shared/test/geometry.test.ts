@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TILE } from "../src/constants";
-import { distPointToSegment, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
+import { circleClear, distPointToSegment, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
 import { TILE_FLOOR, TILE_WALL } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
@@ -169,6 +169,87 @@ describe("hasLineOfSight", () => {
 
   it("is blocked when either end is inside a wall", () => {
     expect(hasLineOfSight(room, { x: 170, y: 120 }, { x: 48, y: 48 })).toBe(false);
+  });
+});
+
+describe("circleClear", () => {
+  const r = 12;
+
+  it("is true on open floor and false when the disc overlaps a wall face by any amount", () => {
+    expect(circleClear(room, { x: 80, y: 80 }, r)).toBe(true);
+    // Left border wall's face is x = 32; pillar west face is x = 160, top face y = 96.
+    expect(circleClear(room, { x: 32 + r, y: 80 }, r)).toBe(true); // tangent
+    expect(circleClear(room, { x: 32 + r - 0.001, y: 80 }, r)).toBe(false);
+    expect(circleClear(room, { x: 160 - r, y: 128 }, r)).toBe(true);
+    expect(circleClear(room, { x: 160 - r + 0.001, y: 128 }, r)).toBe(false);
+    expect(circleClear(room, { x: 176, y: 96 - r }, r)).toBe(true);
+    expect(circleClear(room, { x: 176, y: 96 - r + 0.001, }, r)).toBe(false);
+  });
+
+  it("measures to the corner, not the bounding box, when a disc sits diagonally off a wall vertex", () => {
+    // Pillar vertex (160, 96): 12 away along the diagonal is (160 - 12 / sqrt 2, 96 - 12 / sqrt 2).
+    const k = r / Math.SQRT2;
+    expect(circleClear(room, { x: 160 - k - 0.01, y: 96 - k - 0.01 }, r)).toBe(true);
+    expect(circleClear(room, { x: 160 - k + 0.01, y: 96 - k + 0.01 }, r)).toBe(false);
+    // A box test would call this blocked (both axes are within 12 of the pillar) but the vertex is 12.7 away.
+    expect(circleClear(room, { x: 160 - 9, y: 96 - 9 }, r)).toBe(true);
+    expect(circleClear(room, { x: 160 - 8, y: 96 - 8 }, r)).toBe(false);
+  });
+
+  it("treats everything outside the map as wall", () => {
+    const tiny = asciiMap(["...", "...", "..."]);
+    expect(circleClear(tiny, { x: 48, y: 48 }, r)).toBe(true);
+    expect(circleClear(tiny, { x: r, y: 48 }, r)).toBe(true);
+    expect(circleClear(tiny, { x: r - 0.5, y: 48 }, r)).toBe(false);
+    expect(circleClear(tiny, { x: 3 * TILE - r + 0.5, y: 48 }, r)).toBe(false);
+    expect(circleClear(tiny, { x: 48, y: -50 }, 4)).toBe(false);
+  });
+
+  it("looks more than one tile out for a disc wider than a tile", () => {
+    const hall = asciiMap(["#######", "#.....#", "#.....#", "#.....#", "#.....#", "#.....#", "#######"]);
+    const centre = { x: 3.5 * TILE, y: 3.5 * TILE };
+    expect(circleClear(hall, centre, 2.5 * TILE)).toBe(true);
+    expect(circleClear(hall, centre, 2.5 * TILE + 0.5)).toBe(false);
+  });
+
+  it("is a point-on-floor test for a zero radius, and never clear for non-finite input", () => {
+    expect(circleClear(room, { x: 48, y: 48 }, 0)).toBe(true);
+    expect(circleClear(room, { x: 170, y: 120 }, 0)).toBe(false);
+    expect(circleClear(room, { x: 20, y: 48 }, 0)).toBe(false);
+    expect(circleClear(room, { x: NaN, y: 48 }, r)).toBe(false);
+    expect(circleClear(room, { x: 48, y: Infinity }, r)).toBe(false);
+    expect(circleClear(room, { x: 48, y: 48 }, NaN)).toBe(false);
+  });
+
+  it("agrees with an exact distance-to-wall-rectangles reference on generated maps", () => {
+    const rng = mulberry32(21);
+    const radii = [4, 12, 16, 20, 40, 70];
+    let checked = 0, clear = 0;
+    for (const seed of [3, 8]) {
+      const map = generateMap(seed);
+      for (let i = 0; i < 2500; i++) {
+        const radius = radii[i % radii.length];
+        const p = { x: rng() * map.w * TILE, y: rng() * map.h * TILE };
+        const d = minWallDistance(map, p, p, radius + 1);
+        if (Math.abs(d - radius) < 1e-6) continue;
+        const ok = circleClear(map, p, radius);
+        expect(ok, `seed ${seed} r=${radius} p=${p.x},${p.y} d=${d}`).toBe(d > radius);
+        checked++;
+        if (ok) clear++;
+      }
+    }
+    expect(checked).toBeGreaterThan(4500);
+    expect(clear).toBeGreaterThan(500);
+    expect(checked - clear).toBeGreaterThan(500);
+  });
+
+  it("is what segmentClear uses for a zero-length segment", () => {
+    const rng = mulberry32(5);
+    const map = generateMap(11);
+    for (let i = 0; i < 500; i++) {
+      const p = { x: rng() * map.w * TILE, y: rng() * map.h * TILE };
+      expect(segmentClear(map, p, p, r)).toBe(circleClear(map, p, r));
+    }
   });
 });
 

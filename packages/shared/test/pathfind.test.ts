@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { PLAYER_RADIUS, TILE } from "../src/constants";
-import { distPointToSegment, segmentClear } from "../src/geometry";
-import { TILE_FLOOR, TILE_WALL, tileToWorldCenter } from "../src/map";
+import { PLAYER_RADIUS, PLAYER_SPEED, TICK_RATE, TILE } from "../src/constants";
+import { circleClear, distPointToSegment, segmentClear } from "../src/geometry";
+import { TILE_FLOOR, TILE_WALL, tileToWorldCenter, worldToTile } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
@@ -56,7 +56,9 @@ describe("findPath basics", () => {
 
   it("returns the exact target, not the tile centre", () => {
     const map = asciiMap(["#######", "#.....#", "#.###.#", "#.#...#", "#.#####", "#######"]);
-    const to = { x: 5 * TILE + 7, y: 3 * TILE + 21 };
+    // Tile (5,3) has walls to its right and below: this point keeps the player disc just clear of both.
+    const to = { x: 5 * TILE + 7, y: 3 * TILE + 14 };
+    expect(circleClear(map, to, PLAYER_RADIUS)).toBe(true);
     const path = findPath(map, c(1, 1), to);
     expect(path.length).toBeGreaterThan(0);
     expect(path[path.length - 1]).toEqual(to);
@@ -317,6 +319,196 @@ describe("findPath on generated maps", () => {
     }
   });
 });
+
+/** Ticks a walker along `path` the way the sim does (PLAYER_SPEED / TICK_RATE per tick, spilling into the next waypoint). */
+function walk(map: GameMap, start: Vec2, path: Vec2[], radius = PLAYER_RADIUS): { end: Vec2; bad: Vec2 | null } {
+  const step = PLAYER_SPEED / TICK_RATE;
+  const wps = path.map((w) => ({ ...w }));
+  let x = start.x, y = start.y;
+  while (wps.length > 0) {
+    let budget = step;
+    while (budget > 0 && wps.length > 0) {
+      const dx = wps[0].x - x, dy = wps[0].y - y;
+      const d = Math.hypot(dx, dy);
+      if (d <= budget) { x = wps[0].x; y = wps[0].y; budget -= d; wps.shift(); }
+      else { x += (dx / d) * budget; y += (dy / d) * budget; budget = 0; }
+    }
+    if (!circleClear(map, { x, y }, radius)) return { end: { x, y }, bad: { x, y } };
+  }
+  return { end: { x, y }, bad: null };
+}
+
+describe("findPath final position", () => {
+  const R = PLAYER_RADIUS;
+  const last = (path: Vec2[]) => path[path.length - 1];
+  const open = asciiMap([
+    "#########",
+    "#.......#",
+    "#.......#",
+    "#.......#",
+    "#.......#",
+    "#########",
+  ]);
+
+  it("leaves a target that already fits exactly where it is, tangent included", () => {
+    const tangent = { x: TILE + R, y: 2 * TILE + 16 }; // disc touches the left wall face
+    expect(circleClear(open, tangent, R)).toBe(true);
+    expect(findPath(open, c(4, 3), tangent)).toEqual([tangent]);
+    const inside = { x: 150, y: 90 };
+    expect(findPath(open, c(4, 3), inside)).toEqual([inside]);
+  });
+
+  it("pulls a target hugging a wall face back by exactly the clearance, one axis at a time", () => {
+    const from = c(4, 3);
+    expect(last(findPath(open, from, { x: TILE + 1, y: 2 * TILE + 5 }))).toEqual({ x: TILE + R, y: 2 * TILE + 5 }); // left
+    expect(last(findPath(open, from, { x: 8 * TILE - 0.5, y: 2 * TILE + 5 }))).toEqual({ x: 8 * TILE - R, y: 2 * TILE + 5 }); // right
+    expect(last(findPath(open, from, { x: 3 * TILE + 9, y: TILE + 0.25 }))).toEqual({ x: 3 * TILE + 9, y: TILE + R }); // top
+    expect(last(findPath(open, from, { x: 3 * TILE + 9, y: 5 * TILE - 0.25 }))).toEqual({ x: 3 * TILE + 9, y: 5 * TILE - R }); // bottom
+  });
+
+  it("clamps both axes in a corner and keeps the point inside its tile", () => {
+    const from = c(4, 3);
+    expect(last(findPath(open, from, { x: TILE + 0.5, y: TILE + 0.5 }))).toEqual({ x: TILE + R, y: TILE + R });
+    expect(last(findPath(open, from, { x: 8 * TILE - 0.5, y: 5 * TILE - 0.5 }))).toEqual({ x: 8 * TILE - R, y: 5 * TILE - R });
+  });
+
+  it("squeezes a wall-to-wall target into the band of a one-tile corridor", () => {
+    const corridor = asciiMap(["###", "#.#", "#.#", "#.#", "###"]);
+    expect(last(findPath(corridor, c(1, 1), { x: TILE + 1, y: 4 * TILE - 2 }))).toEqual({ x: TILE + R, y: 4 * TILE - R });
+    const right = last(findPath(corridor, c(1, 1), { x: 2 * TILE - 1, y: 2 * TILE + 8 }));
+    expect(right).toEqual({ x: 2 * TILE - R, y: 2 * TILE + 8 });
+    expect(circleClear(corridor, right, R)).toBe(true);
+  });
+
+  it("falls back to the tile centre when only a diagonal corner is in the way", () => {
+    const pillar = asciiMap([
+      "#######",
+      "#.....#",
+      "#.....#",
+      "#..#..#",
+      "#.....#",
+      "#.....#",
+      "#######",
+    ]);
+    // Tile (2,2) touches the pillar (3,3) only at its bottom-right vertex (96, 96).
+    expect(last(findPath(pillar, c(5, 5), { x: 3 * TILE - 1, y: 3 * TILE - 1 }))).toEqual(c(2, 2));
+    expect(last(findPath(pillar, c(5, 5), { x: 3 * TILE - 8, y: 3 * TILE - 8 }))).toEqual(c(2, 2)); // 11.3 from the vertex
+    const fits = { x: 3 * TILE - 9, y: 3 * TILE - 9 }; // 12.7 from the vertex
+    expect(last(findPath(pillar, c(5, 5), fits))).toEqual(fits);
+  });
+
+  it("always ends on a spot the disc fits, for any radius up to half a tile", () => {
+    const pillar = asciiMap(["#####", "#...#", "#.#.#", "#...#", "#####"]);
+    for (const radius of [0, 4, 12, TILE / 2]) {
+      for (const [tx, ty] of [[1, 1], [3, 1], [1, 3], [3, 3], [2, 1], [1, 2]]) {
+        for (const f of [0, 0.25, 1]) {
+          const to = { x: (tx + f) * TILE - (f === 1 ? 0.01 : 0), y: (ty + f) * TILE - (f === 1 ? 0.01 : 0) };
+          const end = last(findPath(pillar, c(3, 3), to, radius));
+          expect(circleClear(pillar, end, radius), `radius ${radius} to ${to.x},${to.y}`).toBe(true);
+          expect(worldToTile(end.x)).toBe(worldToTile(to.x));
+          expect(worldToTile(end.y)).toBe(worldToTile(to.y));
+        }
+      }
+    }
+  });
+
+  it("clamps the same-tile shortcut too", () => {
+    const from = { x: TILE + 20, y: 2 * TILE + 16 };
+    const to = { x: TILE + 2, y: 2 * TILE + 16 }; // same tile, hugging the left wall
+    expect(findPath(open, from, to)).toEqual([{ x: TILE + R, y: 2 * TILE + 16 }]);
+  });
+
+  it("does not take the same-tile shortcut through a disc-sized bite taken out of the tile by a diagonal wall", () => {
+    const pillar = asciiMap([
+      "#######",
+      "#.....#",
+      "#.....#",
+      "#..#..#",
+      "#.....#",
+      "#.....#",
+      "#######",
+    ]);
+    // Both points are clear and in tile (2,2), either side of the pillar's vertex at (96, 96), but the
+    // straight line between them passes 8.5 from that vertex.
+    const from = { x: 84, y: 95.9 }, to = { x: 95.9, y: 84 };
+    expect(circleClear(pillar, from, R)).toBe(true);
+    expect(circleClear(pillar, to, R)).toBe(true);
+    expect(segmentClear(pillar, from, to, R)).toBe(false);
+    const path = findPath(pillar, from, to);
+    expect(path).toEqual([c(2, 2), to]);
+    expectClearHops(pillar, from, path);
+  });
+
+  it("emits no consecutive duplicate waypoints", () => {
+    const map = generateMap(4);
+    const rng = mulberry32(5);
+    for (let i = 0; i < 300; i++) {
+      const from = map.spawns[i % map.spawns.length];
+      const tile = map.crateSpots[Math.floor(rng() * map.crateSpots.length)];
+      const to = { x: tile.x + (rng() - 0.5) * TILE, y: tile.y + (rng() - 0.5) * TILE };
+      let prev: Vec2 = from;
+      for (const wp of findPath(map, from, to)) {
+        expect(wp.x !== prev.x || wp.y !== prev.y, `${i}: repeated waypoint ${wp.x},${wp.y}`).toBe(true);
+        prev = wp;
+      }
+    }
+  });
+
+  describe("fuzz: the walker is never inside a wall, on arrival or at any tick", () => {
+    // Offsets inside a tile that straddle every boundary that matters for r = 12: the wall face, the
+    // clamp line (12 / 20), the tile edges, and the middle.
+    const OFFSETS = [0, 0.001, 1, 6, 11.999, 12, 12.001, 16, 19.999, 20, 20.001, 26, 31, 31.999];
+
+    it.each([1, 2, 3, 7, 11, 42])("seed %i: chained clicks hugging faces and corners, plus anywhere at all", (seed) => {
+      const map = generateMap(seed);
+      const rng = mulberry32(seed * 1000 + 17);
+      const nearWall: Array<[number, number]> = [];
+      for (let ty = 1; ty < map.h - 1; ty++) {
+        for (let tx = 1; tx < map.w - 1; tx++) {
+          if (map.tiles[ty * map.w + tx] !== TILE_FLOOR) continue;
+          let walls = 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) walls += map.tiles[(ty + dy) * map.w + tx + dx];
+          if (walls > 0) nearWall.push([tx, ty]);
+        }
+      }
+      expect(nearWall.length).toBeGreaterThan(50);
+
+      let pos: Vec2 = { ...map.spawns[0] };
+      let walked = 0, hugged = 0;
+      for (let n = 0; n < 400; n++) {
+        let click: Vec2;
+        if (n % 4 === 3) {
+          click = { x: rng() * map.w * TILE, y: rng() * map.h * TILE };
+        } else {
+          const [tx, ty] = nearWall[Math.floor(rng() * nearWall.length)];
+          click = {
+            x: tx * TILE + OFFSETS[Math.floor(rng() * OFFSETS.length)],
+            y: ty * TILE + OFFSETS[Math.floor(rng() * OFFSETS.length)],
+          };
+        }
+        const path = findPath(map, pos, click);
+        if (path.length === 0) continue; // sealed-off pocket or deep inside rock
+        expectClearHops(map, pos, path);
+        const { end, bad } = walk(map, pos, path);
+        expect(bad, `seed ${seed} click ${n} (${click.x},${click.y}) from ${pos.x},${pos.y}: tick position inside a wall`).toBeNull();
+        expect(end).toEqual(last(path));
+        expect(circleClear(map, end, R), `seed ${seed} click ${n}: arrival`).toBe(true);
+        if (!isWallTileAt(map, click)) {
+          // Same tile as clicked, and exactly the click whenever it was a legal standing spot.
+          expect(worldToTile(end.x)).toBe(worldToTile(click.x));
+          expect(worldToTile(end.y)).toBe(worldToTile(click.y));
+          if (circleClear(map, click, R)) expect(end).toEqual(click); else hugged++;
+        }
+        pos = end;
+        walked++;
+      }
+      expect(walked).toBeGreaterThan(200);
+      expect(hugged).toBeGreaterThan(20); // the fuzz really does exercise the clamp
+    });
+  });
+});
+
+const isWallTileAt = (map: GameMap, p: Vec2) => map.tiles[worldToTile(p.y) * map.w + worldToTile(p.x)] !== TILE_FLOOR;
 
 describe("performance", () => {
   it("answers typical 64x64 queries in under 2 ms on average", () => {

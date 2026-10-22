@@ -61,6 +61,8 @@ export interface World {
   players: Map<string, PlayerRuntime>;
   /** Server-only randomness (loot rolls, spawn assignment). Never derived from the public seed. */
   random: () => number;
+  /** Secret salt for the per-tick player processing order (see actionOrder in step.ts). */
+  orderSalt: number;
   /** Events produced during the current step; drained by step(). */
   events: SimEvent[];
   /** Gameplay modules install themselves here (see sim/gameplay.ts). Unknown actions are ignored. */
@@ -87,6 +89,7 @@ export function createWorld(opts: {
     newItemUid: opts.newItemUid ?? (() => randomUUID()),
     players: new Map(),
     random: opts.random,
+    orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],
     actions: {},
     systems: [],

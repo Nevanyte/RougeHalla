@@ -69,8 +69,16 @@ export function hasLineOfSight(map: GameMap, a: Vec2, b: Vec2): boolean {
   return !raycast(map, a.x, a.y, b.x, b.y).hit;
 }
 
-/** True iff a disc of `radius` centred at (cx, cy) overlaps any wall tile (tangent is not overlap). */
-function circleTouchesWall(map: GameMap, cx: number, cy: number, radius: number): boolean {
+/**
+ * True iff a disc of `radius` centred at `p` overlaps no wall tile: an exact circle-vs-tile-rect test
+ * over the tiles the disc can reach (out-of-bounds counts as wall). Tangent is not overlap. A
+ * zero-radius disc is a point, clear iff it stands on a floor tile. Non-finite input is never clear.
+ */
+export function circleClear(map: GameMap, p: Vec2, radius: number): boolean {
+  const cx = p.x;
+  const cy = p.y;
+  if (!Number.isFinite(cx + cy + radius)) return false;
+  if (radius <= 0) return !isWallTile(map, Math.floor(cx / TILE), Math.floor(cy / TILE));
   const reach = Math.max(1, Math.ceil(radius / TILE));
   const tx = Math.floor(cx / TILE);
   const ty = Math.floor(cy / TILE);
@@ -82,10 +90,10 @@ function circleTouchesWall(map: GameMap, cx: number, cy: number, radius: number)
       const ny = Math.min(Math.max(cy, j * TILE), (j + 1) * TILE);
       const ddx = cx - nx;
       const ddy = cy - ny;
-      if (ddx * ddx + ddy * ddy < r2) return true;
+      if (ddx * ddx + ddy * ddy < r2) return false;
     }
   }
-  return false;
+  return true;
 }
 
 /**
@@ -98,7 +106,7 @@ function circleTouchesWall(map: GameMap, cx: number, cy: number, radius: number)
  * It errs on the blocked side only for exact grazes (a ray touching a tile edge or vertex).
  */
 export function segmentClear(map: GameMap, a: Vec2, b: Vec2, radius: number): boolean {
-  if (circleTouchesWall(map, a.x, a.y, radius) || circleTouchesWall(map, b.x, b.y, radius)) return false;
+  if (!circleClear(map, a, radius) || !circleClear(map, b, radius)) return false;
   if (raycast(map, a.x, a.y, b.x, b.y).hit) return false;
   const dx = b.x - a.x;
   const dy = b.y - a.y;
