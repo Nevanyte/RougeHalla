@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FISTS, generateMap, isWallTile, ITEMS, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, TICK_MS, TILE, TILE_FLOOR,
+  FISTS, generateMap, isWallTile, ITEMS, mapFromTiles, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, TICK_MS, TILE, TILE_FLOOR,
   TILE_WALL, type ArmorDef, type FxEvent, type GameMap, type ItemDTO, type WeaponDef,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -35,10 +35,7 @@ function arena(walls: Array<{ tx: number; ty0: number; ty1: number }> = []): Gam
   for (let i = 0; i < w; i++) { tiles[i] = TILE_WALL; tiles[(h - 1) * w + i] = TILE_WALL; }
   for (let j = 0; j < h; j++) { tiles[j * w] = TILE_WALL; tiles[j * w + w - 1] = TILE_WALL; }
   for (const wall of walls) for (let ty = wall.ty0; ty <= wall.ty1; ty++) tiles[ty * w + wall.tx] = TILE_WALL;
-  return {
-    seed: 1, w, h, tiles, buildings: [], spawns: [{ x: 3 * TILE + 16, y: 3 * TILE + 16 }],
-    extracts: [], crateSpots: [], groundSpots: [],
-  };
+  return { ...mapFromTiles(w, h, tiles, 1), spawns: [{ x: 3 * TILE + 16, y: 3 * TILE + 16 }] };
 }
 
 /** A wall one tile thick covering x in [320, 352), y in [160, 672). */

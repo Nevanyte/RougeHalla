@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TILE } from "../src/constants";
 import { circleClear, distPointToSegment, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
-import { TILE_FLOOR, TILE_WALL } from "../src/map";
+import { TILE_FLOOR, TILE_WALL, mapFromTiles } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
 import { mulberry32 } from "../src/rng";
@@ -13,7 +13,7 @@ function asciiMap(rows: string[]): GameMap {
   rows.forEach((row, y) => {
     for (let x = 0; x < w; x++) tiles[y * w + x] = row[x] === "#" ? TILE_WALL : TILE_FLOOR;
   });
-  return { seed: 0, w, h, tiles, buildings: [], spawns: [], extracts: [], crateSpots: [], groundSpots: [] };
+  return mapFromTiles(w, h, tiles);
 }
 
 // A two-tile pillar at tile x=5, y=3..4  ->  world x in [160, 192), y in [96, 160).

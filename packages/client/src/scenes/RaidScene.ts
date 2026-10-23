@@ -1,6 +1,6 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
-import { TICK_MS, generateMap, type ExtractZoneDef, type RaidResult, type TimedFx } from "@raid/shared";
+import { TICK_MS, generateMap, withGates, type ExtractZoneDef, type RaidResult, type TimedFx } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
 import { EntityInterpolator } from "../net/interpolation";
@@ -172,6 +172,10 @@ export class RaidScene extends Phaser.Scene {
   update(time: number): void {
     const state = this.room.state;
     if (state.seed !== this.mapView?.map.seed) this.buildMap(state.seed);
+    // Read defensively: older servers' RaidState has no gatesLocked, and an absent flag means open gates.
+    const gatesLocked = (state as { gatesLocked?: unknown }).gatesLocked === true;
+    this.mapView?.setGatesLocked(gatesLocked);
+    this.minimap.setGatesLocked(gatesLocked);
 
     const now = performance.now();
     // The one place render time is read: it consumes the clock's pending patch, so everything else this frame
@@ -210,7 +214,9 @@ export class RaidScene extends Phaser.Scene {
     // interpolated one the player is drawn at, which trails it by INTERP_DELAY_MS.
     const me = state.players.get(this.room.sessionId);
     const map = this.mapView?.map;
-    this.nearest = me?.status === "alive" && map ? nearestContainer(state.containers, map, me) : null;
+    // Line of sight (looting) follows the server's walls, closed gates included. mapView.map stays the open map.
+    const sightMap = gatesLocked && map ? withGates(map) : map;
+    this.nearest = me?.status === "alive" && sightMap ? nearestContainer(state.containers, sightMap, me) : null;
     this.syncContainers(state);
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
@@ -225,7 +231,7 @@ export class RaidScene extends Phaser.Scene {
     // Like interaction range, the zone test uses the latest synced position, which is what the server checks.
     this.hud.update(state, me, me?.status === "alive" && map ? extractZoneAt(map.extracts, me) : null);
     this.inventory.update(me);
-    this.lootPanel.update(state, me, map);
+    this.lootPanel.update(state, me, sightMap);
   }
 
   private syncContainers(state: RaidState): void {

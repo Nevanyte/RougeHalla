@@ -25,6 +25,15 @@ export const PLAYER_SPEED = 170;
 export const PLAYER_MAX_HP = 100;
 export const INTERACT_RANGE = 56;
 export const INVENTORY_SLOTS = 6;
+/**
+ * Anti-kiting: mapgen keeps every sight corridor (a straight strip SIGHT_CORRIDOR_WIDTH wide) in the
+ * faction regions, and in the coliseum with its gates closed, at most this long. It equals the bow's
+ * range, so an archer gets its full range of free fire on a chaser but can't backpedal forever.
+ * Narrower gaps between rocks don't count: two moving players can't keep lined up on them. The width
+ * is one tile because that is what the generator's line lattice (half a width apart) certifies.
+ */
+export const MAX_SIGHT_CORRIDOR = 480;
+export const SIGHT_CORRIDOR_WIDTH = 32;
 
 // Raid flow
 export const MAX_PLAYERS = 8;
