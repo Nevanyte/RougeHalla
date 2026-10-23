@@ -354,6 +354,156 @@ describe("SnapshotBuffer", () => {
       expect(b.latest!.cut).toBe(true);
     });
 
+    describe("forced cuts (forceCut): the server said it was a teleport, however short the jump", () => {
+      /** (0,0) -> (10,0) at t=50, then a jump of 10 (far below TELEPORT_DISTANCE) to (20,0) at t=100. */
+      const SHORT = 10;
+      const shortJump = (forceCut: boolean) => {
+        const b = new SnapshotBuffer();
+        b.push(0, 0, 0);
+        b.push(50, 10, 0);
+        b.push(100, 10 + SHORT, 0, forceCut);
+        return b;
+      };
+
+      it("the jump used here really is shorter than a teleport", () => {
+        expect(SHORT).toBeLessThan(TELEPORT_DISTANCE);
+        expect(shortJump(false).latest!.cut).toBeFalsy();
+      });
+
+      it("makes a short jump a cut: only the pre-jump sample survives, and the new one is flagged", () => {
+        const b = shortJump(true);
+        expect(b.size).toBe(2);
+        expect(b.latest).toEqual({ t: 100, x: 20, y: 0, cut: true });
+      });
+
+      it("holds the previous position until render time reaches the sample, then snaps", () => {
+        const b = shortJump(true);
+        const o = out();
+        for (const t of [-100, 0, 50, 51, 75, 99, 99.999]) {
+          expect(b.sample(t, o)).toBe(true);
+          expect(o, `t=${t}`).toEqual({ x: 10, y: 0 });
+        }
+        for (const t of [100, 100.001, 150, 1e6]) {
+          expect(b.sample(t, o)).toBe(true);
+          expect(o, `t=${t}`).toEqual({ x: 20, y: 0 });
+        }
+      });
+
+      it("without the flag the same jump is a plain lerp", () => {
+        const b = shortJump(false);
+        const o = out();
+        b.sample(75, o);
+        expect(o.x).toBeCloseTo(15);
+      });
+
+      it("never produces a position between the two ends", () => {
+        const b = shortJump(true);
+        const o = out();
+        for (let t = 0; t <= 200; t += 0.5) {
+          b.sample(t, o);
+          expect([10, 20], `t=${t}`).toContain(o.x);
+        }
+      });
+
+      it("is a cut even with no movement at all: the history before it is dropped and the sample is flagged", () => {
+        const b = new SnapshotBuffer();
+        b.push(0, 0, 0);
+        b.push(50, 10, 0);
+        b.push(100, 10, 0, true); // the same place
+        expect(b.size).toBe(2);
+        expect(b.latest).toEqual({ t: 100, x: 10, y: 0, cut: true });
+        const o = out();
+        // The walk from (0,0) to (10,0) was thrown away: before the cut the entity just stands where it was last seen.
+        b.sample(25, o);
+        expect(o).toEqual({ x: 10, y: 0 });
+        b.sample(100, o);
+        expect(o).toEqual({ x: 10, y: 0 });
+        // Without the flag the earlier walk is still there to be interpolated.
+        const plain = new SnapshotBuffer();
+        plain.push(0, 0, 0);
+        plain.push(50, 10, 0);
+        plain.push(100, 10, 0);
+        expect(plain.size).toBe(3);
+        expect(plain.latest!.cut).toBeFalsy();
+        plain.sample(25, o);
+        expect(o.x).toBeCloseTo(5);
+      });
+
+      it("resumes normal lerping from the cut sample", () => {
+        const b = shortJump(true);
+        b.push(150, 40, 0);
+        const o = out();
+        b.sample(75, o);
+        expect(o).toEqual({ x: 10, y: 0 });
+        b.sample(100, o);
+        expect(o).toEqual({ x: 20, y: 0 });
+        b.sample(125, o);
+        expect(o.x).toBeCloseTo(30); // halfway from the cut sample to the next one
+        b.sample(150, o);
+        expect(o).toEqual({ x: 40, y: 0 });
+      });
+
+      it("only the sample it is given is a cut: the next short jump is not", () => {
+        const b = shortJump(true);
+        b.push(150, 30, 0); // 10 away, not forced
+        expect(b.latest!.cut).toBeFalsy();
+        expect(b.size).toBe(3);
+      });
+
+      it("a forced first sample has nothing to cut from, so it is an ordinary sample", () => {
+        const b = new SnapshotBuffer();
+        b.push(0, 5, 5, true);
+        expect(b.size).toBe(1);
+        expect(b.latest).toEqual({ t: 0, x: 5, y: 5 });
+        b.push(50, 15, 5);
+        const o = out();
+        b.sample(25, o);
+        expect(o.x).toBeCloseTo(10);
+      });
+
+      it("a forced sample with the same timestamp is judged against the sample before it, like any replacement", () => {
+        const b = new SnapshotBuffer();
+        b.push(0, 0, 0);
+        b.push(50, 10, 0);
+        b.push(50, 12, 0, true); // replaces (50,10) and is a cut from (0,0)
+        expect(b.size).toBe(2);
+        expect(b.latest).toEqual({ t: 50, x: 12, y: 0, cut: true });
+        const o = out();
+        b.sample(25, o);
+        expect(o).toEqual({ x: 0, y: 0 });
+        b.sample(50, o);
+        expect(o).toEqual({ x: 12, y: 0 });
+        // A plain replacement of a forced cut cancels it, as for any near replacement.
+        b.push(50, 12, 0);
+        expect(b.latest!.cut).toBeFalsy();
+        expect(b.size).toBe(2);
+        b.sample(25, o);
+        expect(o.x).toBeCloseTo(6);
+      });
+
+      it("an out-of-order forced sample is ignored like any other", () => {
+        const b = new SnapshotBuffer();
+        b.push(0, 0, 0);
+        b.push(100, 10, 0);
+        b.push(50, 99, 0, true);
+        expect(b.size).toBe(2);
+        expect(b.latest).toEqual({ t: 100, x: 10, y: 0 });
+      });
+
+      it("two forced cuts in a row keep only the latest pre-cut sample", () => {
+        const b = new SnapshotBuffer();
+        b.push(0, 0, 0);
+        b.push(50, 1, 0, true);
+        b.push(100, 2, 0, true);
+        expect(b.size).toBe(2);
+        const o = out();
+        b.sample(75, o);
+        expect(o).toEqual({ x: 1, y: 0 });
+        b.sample(100, o);
+        expect(o).toEqual({ x: 2, y: 0 });
+      });
+    });
+
     describe("same-timestamp pushes re-run the teleport rule against the sample before", () => {
       // Regression: a same-timestamp overwrite used to skip the teleport check and get lerped across.
       it("a far replacement of a near sample becomes a cut: hold, then snap", () => {

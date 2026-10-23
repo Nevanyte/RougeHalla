@@ -20,6 +20,9 @@ const TRACER_MS = 120;
 const SWIPE_MS = 150;
 const DECAL_MS = 2000;
 const HEAL_MS = 800;
+const TELEPORT_FLASH_MS = 400;
+/** Peak opacity of the teleport flash; the camera's default of 1 would white the screen out. */
+const TELEPORT_FLASH_ALPHA = 0.7;
 
 /** Above every y-sorted entity (ground y is at most a few thousand) but below the click marker (1e6). */
 const DEPTH_FX = 8e5;
@@ -54,7 +57,7 @@ export interface FxHost {
   /** Where a player is drawn right now (ground coordinates), for effects that follow them. */
   position(id: string): { x: number; y: number } | undefined;
   name(id: string): string | undefined;
-  /** Optional sink for short text such as "<name> was killed". */
+  /** Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!". */
   announce?(text: string): void;
 }
 
@@ -144,7 +147,25 @@ export class FxView {
       case "heal":
         this.heal(fx.id, fx.amount, now);
         break;
-      case "extracted":
+      case "teleport": {
+        // Everyone jumps at once: the flash covers the cut, and plays when render time reaches the teleport tick, the
+        // same moment the interpolator snaps the bodies.
+        const cam = this.scene.cameras.main;
+        cam.flashEffect.alpha = TELEPORT_FLASH_ALPHA;
+        cam.flash(TELEPORT_FLASH_MS, 255, 255, 255, true);
+        this.host.announce?.("To the coliseum!");
+        break;
+      }
+      case "bounty": {
+        // The server only sends it when the bounty rose, but a malformed event must not announce a nonsense line.
+        const bounty = Math.round(fx.bounty);
+        const name = fx.name || this.host.name(fx.id);
+        if (name && bounty > 0) this.host.announce?.(`${name} is on a rampage — bounty ${bounty} GV`);
+        break;
+      }
+      case "victory":
+        if (fx.name) this.host.announce?.(`${fx.name} is victorious`);
+        else if (fx.draw) this.host.announce?.("Draw");
         break;
     }
   }

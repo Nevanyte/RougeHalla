@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "profiles": {
+    "alice": {
+      "name": "alice",
+      "token": "4f1098dc-ea11-5137-bbd2-1faa9c95dcbb",
+      "stash": [
+        {
+          "uid": "e71db68f-080a-5664-9ca7-654b58bf33c5",
+          "def": "knife"
+        },
+        {
+          "uid": "703b5a0f-d6e6-582b-9b5b-f8d8a4483f51",
+          "def": "bandage"
+        },
+        {
+          "uid": "51511f92-70f9-54b3-9929-f6143fb7ab56",
+          "def": "watch"
+        },
+        {
+          "uid": "379af066-503e-5d3c-ae5e-8e3b263470e8",
+          "def": "rifle"
+        },
+        {
+          "uid": "6479dbcc-9947-5694-b904-439827711bb1",
+          "def": "gold"
+        }
+      ],
+      "stats": {
+        "raids": 14,
+        "extracts": 6,
+        "deaths": 8,
+        "kills": 11
+      }
+    },
+    "BobTheBuilder": {
+      "name": "BobTheBuilder",
+      "token": "bcd03f1d-4a5f-5726-a6f3-534e63c7a4b1",
+      "stash": [
+        {
+          "uid": "45b7f9f1-75b6-5560-b4f8-4ddd9d92e844",
+          "def": "pistol"
+        },
+        {
+          "uid": "783daf60-93b6-5014-8826-946de02756c2",
+          "def": "plate"
+        }
+      ],
+      "stats": {
+        "raids": 3,
+        "extracts": 1,
+        "deaths": 2,
+        "kills": 0
+      }
+    },
+    "zed-9": {
+      "name": "zed-9",
+      "token": "6ba272cc-93e1-560f-89dd-cad84e6fc802",
+      "stash": [],
+      "stats": {
+        "raids": 5,
+        "extracts": 0,
+        "deaths": 5,
+        "kills": 2
+      }
+    },
+    "__proto__": {
+      "name": "__proto__",
+      "token": "ae06caf1-5a14-5bb5-a87e-357ebd7f35df",
+      "stash": [
+        {
+          "uid": "85736320-4021-535f-bd69-d18094f87e3e",
+          "def": "vest"
+        },
+        {
+          "uid": "8f568d89-4ff7-5082-a1c4-539406df7c7c",
+          "def": "medkit"
+        },
+        {
+          "uid": "e4f7d79c-ce51-5801-b69c-4a259a179b75",
+          "def": "gpu"
+        }
+      ],
+      "stats": {
+        "raids": 1,
+        "extracts": 1,
+        "deaths": 0,
+        "kills": 1
+      }
+    },
+    "carol_dev": {
+      "name": "carol_dev",
+      "token": "f3580da3-ed2f-5e76-a113-49910e9f267d",
+      "stash": [
+        {
+          "uid": "60257d73-d00b-543e-8e0c-18247d94dc55",
+          "def": "knife"
+        },
+        {
+          "uid": "08ae6b7d-ed47-5ac2-90c9-7f9726070f6b",
+          "def": "bandage"
+        },
+        {
+          "uid": "b5dc4578-8180-5142-9d6b-795e448b37e0",
+          "def": "watch"
+        },
+        {
+          "uid": "3d437635-6f83-5f3e-8627-b747fe27c689",
+          "def": "pistol"
+        },
+        {
+          "uid": "f1fafbff-27d7-582c-b10c-f21a067abe9a",
+          "def": "vest"
+        },
+        {
+          "uid": "3bf4f6e5-7967-559d-b353-ba200b927dc9",
+          "def": "medkit"
+        },
+        {
+          "uid": "4acca14a-023b-5e54-a5e3-38f8fb37631e",
+          "def": "gold"
+        },
+        {
+          "uid": "706dc816-3978-5243-9fdb-74327bc45885",
+          "def": "gpu"
+        }
+      ],
+      "stats": {
+        "raids": 40,
+        "extracts": 22,
+        "deaths": 18,
+        "kills": 57
+      }
+    },
+    "mallory": {
+      "name": "mallory",
+      "token": "f441fe65-d904-57a5-988d-e883f2f3c7b1",
+      "stash": [
+        {
+          "uid": "6b5d9c7d-1d5b-5d08-858f-00e5b162f292",
+          "def": "knife"
+        },
+        {
+          "uid": "cad3f5c3-2eed-59be-8294-637cfce7522b"
+        }
+      ],
+      "stats": {
+        "raids": 2,
+        "extracts": 0,
+        "deaths": 2,
+        "kills": 0
+      }
+    }
+  }
+}

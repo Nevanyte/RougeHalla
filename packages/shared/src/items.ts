@@ -50,5 +50,5 @@ export function bestArmor(defIds: Iterable<string>): ArmorDef | null {
   return best;
 }
 
-/** What a newly claimed profile finds in its stash. */
-export const STARTER_KIT: readonly string[] = ["knife", "bandage", "watch"];
+/** What every player gets, freshly minted, at the start of each run. Run gear never outlives the run. */
+export const RUN_START_KIT: readonly string[] = ["knife", "bandage"];

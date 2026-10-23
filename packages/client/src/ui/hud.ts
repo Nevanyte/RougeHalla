@@ -1,8 +1,7 @@
-// In-raid DOM overlay: phase/timer line, the zone countdown, player vitals with equipped gear, the extraction prompt,
-// the outside-the-zone warning, and the "you died" line.
-import {
-  EXTRACT_SECONDS, ZONE_FINAL_RADIUS, bestArmor, bestWeapon, isOutside, type ExtractZoneDef, type WeaponDef,
-} from "@raid/shared";
+// In-run DOM overlay: the lobby countdown or the run line (players standing, GV, your bounty), the arena timers (coliseum
+// teleport → locked gates → sudden death), player vitals with equipped gear, the teleport-immunity hint and the
+// "you died" line.
+import { bestArmor, bestWeapon, type WeaponDef } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { el, uiRoot } from "./dom";
 
@@ -19,30 +18,38 @@ function fmtWeapon(w: WeaponDef): string {
 export class Hud {
   private readonly root = el("div", "hud");
   private readonly status = el("div", "hud-status");
+  private readonly statusText = el("span");
+  /** Your own bounty, next to the run GV: what whoever kills you is paid. */
+  private readonly bountyTag = el("span", "hud-bounty");
   private readonly vitals = el("div", "hud-vitals");
-  private readonly zoneLine = el("div", "hud-zone");
-  private lastZone = "";
-  /** Top-center, under the extraction prompt; a sibling of the HUD block for the same reason as `extractLine`. */
-  private readonly zoneWarning = el("div", "zone-warning", "Outside the zone — taking damage");
-  /** "Press X to extract" / the extraction countdown; a sibling of the HUD block so it can sit top-center. */
-  private readonly extractLine = el("div", "extract-line");
-  private lastExtract = "";
+  private readonly arenaLine = el("div", "hud-arena");
+  private readonly arenaHint = el("div", "hud-hint");
+  /** Top-center notices; a sibling of the HUD block so they can sit mid-width. */
+  private readonly center = el("div", "hud-center");
+  private readonly suddenDeath = el("div", "sudden-death", "SUDDEN DEATH");
+  private readonly immuneLine = el("div", "immune-line", "Teleport shield — you can't be hurt yet");
   /** Centered over the world; a sibling of the HUD block (not a child) so it can sit mid-screen. */
   private readonly deathLine = el("div", "death-line", "YOU DIED");
   private lastStatus = "";
+  private lastBounty = 0;
   private lastVitals = "";
+  private lastArena = "";
   /** Set by showDeath(): the server's `result`/death fx arrive before the dead-status patch, so status alone is too late. */
   private deathRequested = false;
   private resultShown = false;
   private deathShown = false;
 
   constructor() {
-    this.root.append(this.status, this.vitals, this.zoneLine);
+    this.status.append(this.statusText, this.bountyTag);
+    this.bountyTag.hidden = true;
+    this.root.append(this.status, this.vitals, this.arenaLine, this.arenaHint);
+    this.center.append(this.suddenDeath, this.immuneLine);
+    this.arenaLine.hidden = true;
+    this.arenaHint.hidden = true;
+    this.suddenDeath.hidden = true;
+    this.immuneLine.hidden = true;
     this.deathLine.hidden = true;
-    this.extractLine.hidden = true;
-    this.zoneLine.hidden = true;
-    this.zoneWarning.hidden = true;
-    uiRoot().append(this.root, this.extractLine, this.zoneWarning, this.deathLine);
+    uiRoot().append(this.root, this.center, this.deathLine);
   }
 
   /** The local player has died (killing result or death fx): show the line now, ahead of the results panel. */
@@ -57,17 +64,33 @@ export class Hud {
     this.setDeathShown(false);
   }
 
-  /** `zone`: the extract zone the local player's latest synced position is inside, if any. */
-  update(state: RaidState, me: PlayerState | undefined, zone: ExtractZoneDef | null = null): void {
+  /**
+   * `serverNow`: the estimated current server time (the clock the interpolator syncs, not the render time, which runs
+   * INTERP_DELAY_MS behind). Every deadline here (lobby, patience, sudden death, immunity) is a server-time value
+   * about the present, so it is counted down against the present; state.serverTime would step in 50 ms jumps.
+   */
+  update(state: RaidState, me: PlayerState | undefined, serverNow: number): void {
     let status: string;
     if (state.phase === "lobby") {
-      status = `Waiting for players ${state.players.size}/${state.minPlayers} — raid starts in ${fmtSeconds(state.lobbyEndsAt - state.serverTime)}`;
+      status = `Waiting for players ${state.players.size}/${state.minPlayers} — run starts in ${fmtSeconds(state.lobbyEndsAt - serverNow)}`;
     } else if (state.phase === "active") {
-      status = `Raid ends in ${fmtSeconds(state.raidEndsAt - state.serverTime)} · ${state.players.size} in raid`;
+      let alive = 0;
+      state.players.forEach((p) => { if (p.status === "alive") alive++; });
+      // Not players.size: leavers (including the dead going back to the hub) drop out of state.players.
+      status = `Alive ${alive}/${state.startedWith}`;
+      if (me) status += ` · Run GV ${me.gv}`;
     } else {
-      status = "Raid over";
+      status = state.winner ? `Run over — ${state.winner} is victorious` : "Run over";
     }
-    if (status !== this.lastStatus) { this.status.textContent = status; this.lastStatus = status; }
+    if (status !== this.lastStatus) { this.statusText.textContent = status; this.lastStatus = status; }
+
+    // A dead player's bounty can't be claimed any more, so it is only shown while they stand.
+    const bounty = state.phase === "active" && me?.status === "alive" && me.bounty > 0 ? Math.floor(me.bounty) : 0;
+    if (bounty !== this.lastBounty) {
+      this.lastBounty = bounty;
+      this.bountyTag.textContent = bounty > 0 ? ` · Bounty ${bounty}` : "";
+      this.bountyTag.hidden = bounty === 0;
+    }
 
     let vitals = "";
     if (me) {
@@ -78,58 +101,50 @@ export class Hud {
     }
     if (vitals !== this.lastVitals) { this.vitals.textContent = vitals; this.lastVitals = vitals; }
 
-    this.updateExtract(state, me, zone);
-    this.updateZone(state, me);
+    this.updateArena(state, serverNow);
+    const immune = me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;
+    if (this.immuneLine.hidden === immune) this.immuneLine.hidden = !immune;
     this.setDeathShown((this.deathRequested || me?.status === "dead") && !this.resultShown);
   }
 
-  private updateExtract(state: RaidState, me: PlayerState | undefined, zone: ExtractZoneDef | null): void {
-    let text = "";
-    let extracting = false;
-    if (me?.status === "alive" && state.phase === "active") {
-      if (me.extractProgress > 0) {
-        // The server's extract duration isn't synced; EXTRACT_SECONDS is its default, so this is a close estimate.
-        const left = Math.max(1, Math.ceil(EXTRACT_SECONDS * (1 - me.extractProgress)));
-        text = `Extracting… ${left}s — moving, stopping (S) or attacking cancels`;
-        extracting = true;
-      } else if (zone) {
-        text = `In ${zone.name} — press X to extract`;
+  /**
+   * The patience timer, the locked gates and sudden death, from the deadlines the server publishes. The hint line is
+   * the rule for the phase the player is looking at (a death resets everything), which is what the timers hang on.
+   */
+  private updateArena(state: RaidState, serverNow: number): void {
+    let line = "";
+    let hint = "";
+    let locked = false;
+    let sudden = false;
+    if (state.phase === "active") {
+      if (state.gatesLocked && state.suddenDeathAt > 0) {
+        if (serverNow >= state.suddenDeathAt) {
+          sudden = true;
+          hint = "Everyone is losing hp, faster every second — a death ends it";
+        } else {
+          locked = true;
+          line = `Gates locked — sudden death in ${fmtSeconds(state.suddenDeathAt - serverNow)}`;
+          hint = "The gates open when someone dies";
+        }
+      } else if (state.patienceEndsAt > 0) {
+        // Gates that opened after a death in the coliseum close again when the timer runs out.
+        line = `${state.inColiseum ? "Gates lock again" : "Coliseum"} in ${fmtSeconds(state.patienceEndsAt - serverNow)}`;
+        // The length follows the players standing (5:00 at 8, 2:00 at 3 or fewer), so say which way it moves.
+        hint = "Any death resets the timer — fewer players left, shorter timer";
       }
     }
-    if (text === this.lastExtract) return;
-    this.lastExtract = text;
-    this.extractLine.textContent = text;
-    this.extractLine.hidden = text === "";
-    this.extractLine.classList.toggle("extracting", extracting);
-  }
 
-  /**
-   * The zone countdown and the outside-the-zone warning. Like the extract test, "outside" uses the latest synced
-   * position (`me.x/y`) and the shared rule the server damages by, not the interpolated spot the player is drawn at.
-   */
-  private updateZone(state: RaidState, me: PlayerState | undefined): void {
-    const z = state.zone;
-    let line = "";
-    let cls = "";
-    let outside = false;
-    if (z && z.stage > 0 && state.phase === "active") {
-      const left = fmtSeconds(z.changeAt - state.serverTime);
-      if (z.shrinking) { line = `Zone closing — ${left}`; cls = "closing"; }
-      else if (z.r <= ZONE_FINAL_RADIUS + 0.5) { line = "Final zone"; cls = "final"; }
-      else line = `Zone shrinks in ${left}`;
-      outside = me?.status === "alive" && isOutside(z, me.x, me.y);
+    // The tone is part of the key so a change of tone with the same text still repaints.
+    const key = `${locked ? "L" : ""}${sudden ? "S" : ""}|${line}|${hint}`;
+    if (key !== this.lastArena) {
+      this.lastArena = key;
+      this.arenaLine.textContent = line;
+      this.arenaLine.hidden = line === "";
+      this.arenaLine.classList.toggle("locked", locked);
+      this.arenaHint.textContent = hint;
+      this.arenaHint.hidden = hint === "";
+      this.suddenDeath.hidden = !sudden;
     }
-
-    // The class is part of the key so a change of tone with the same text still repaints.
-    const key = `${cls}|${line}`;
-    if (key !== this.lastZone) {
-      this.lastZone = key;
-      this.zoneLine.textContent = line;
-      this.zoneLine.hidden = line === "";
-      this.zoneLine.classList.toggle("closing", cls === "closing");
-      this.zoneLine.classList.toggle("final", cls === "final");
-    }
-    if (this.zoneWarning.hidden === outside) this.zoneWarning.hidden = !outside;
   }
 
   private setDeathShown(shown: boolean): void {
@@ -140,8 +155,7 @@ export class Hud {
 
   destroy(): void {
     this.root.remove();
-    this.extractLine.remove();
-    this.zoneWarning.remove();
+    this.center.remove();
     this.deathLine.remove();
   }
 }

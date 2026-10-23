@@ -5,9 +5,9 @@ import {
   bestArmor, bestWeapon, MAX_REWIND_MS, PLAYER_RADIUS, raycast, TICK_MS, type ArmorDef, type WeaponDef,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
+import { applyDamage } from "./arena";
 import { positionAt } from "./movement";
-import { resolvePlayer } from "./step";
-import { cancelExtraction, emit, type ActionHandler, type World } from "./world";
+import { collisionMap, emit, type ActionHandler, type World } from "./world";
 
 /** Extra hit radius on top of PLAYER_RADIUS. Melee is forgiving (swings are wide); bullets are not. */
 export const MELEE_SLACK = 8;
@@ -55,7 +55,6 @@ export const handleAttack: ActionHandler = (world, p, rt, cmd) => {
   rt.nextAttackAt = now + weapon.cooldownMs;
   // Keep facing the target for a moment even while walking (cosmetic; see step.ts).
   rt.aimFacingUntil = now + weapon.cooldownMs;
-  cancelExtraction(world, p, rt);
 
   // The click carries the (interpolated) time the shooter saw; never trust it beyond the rewind window.
   // The upper bound is the last *published* tick: during this tick's action loop some targets may
@@ -66,7 +65,7 @@ export const handleAttack: ActionHandler = (world, p, rt, cmd) => {
     : published;
 
   // Walls are static, so they are tested from the shooter's current position without any rewind.
-  const wall = raycast(world.map, p.x, p.y, p.x + dx * weapon.range, p.y + dy * weapon.range);
+  const wall = raycast(collisionMap(world), p.x, p.y, p.x + dx * weapon.range, p.y + dy * weapon.range);
   const reach = wall.hit ? wall.dist : weapon.range;
   const reachRadius = PLAYER_RADIUS + (weapon.melee ? MELEE_SLACK : RANGED_SLACK);
 
@@ -94,14 +93,8 @@ export const handleAttack: ActionHandler = (world, p, rt, cmd) => {
   });
   if (!victim || victimId === null) return;
 
-  victim.hp = Math.max(0, victim.hp - damageAgainst(weapon, bestArmor(defsOf(victim))));
-  if (victim.hp > 0) return;
-
-  const rtv = world.players.get(victimId)!;
-  rtv.killedBy = p.name;
-  p.kills += 1;
-  emit(world, { type: "fx", fx: { kind: "death", id: victimId, x: victim.x, y: victim.y, by: rt.id } });
-  resolvePlayer(world, victim, rtv, "died");
+  // Kill credit, the death fx and the down all happen in applyDamage; the result waits for the end of the tick.
+  applyDamage(world, victim, world.players.get(victimId)!, damageAgainst(weapon, bestArmor(defsOf(victim))), { id: rt.id, p, rt });
 };
 
 export function install(world: World): void {

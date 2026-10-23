@@ -7,16 +7,26 @@ export class EntityInterpolator {
   private readonly buffers = new Map<string, SnapshotBuffer>();
   /** Newest patch seen since the last frame; the clock observes only that one (bursts after a stall would skew it). */
   private pending: { t: number; at: number } | null = null;
+  /** Server time of a teleport whose patch hasn't arrived yet: that patch is a cut for everyone, however short the jump. */
+  private cutAt = Infinity;
+
+  /** A `teleport` fx arrived. It is sent before the patch of its tick on the same socket, so that patch isn't here yet. */
+  markCut(t: number): void {
+    if (Number.isFinite(t)) this.cutAt = Math.min(this.cutAt, t);
+  }
 
   /** Call from room.onStateChange (once per patch). */
   onPatch(state: RaidState, localNow: number): void {
     if (!state.players) return;
     const t = state.serverTime;
     if (!this.pending || t > this.pending.t) this.pending = { t, at: localNow };
+    // At or after: a catch-up step can publish a later tick than the teleport's.
+    const cut = t >= this.cutAt;
+    if (cut) this.cutAt = Infinity;
     state.players.forEach((p, id) => {
       let buf = this.buffers.get(id);
       if (!buf) { buf = new SnapshotBuffer(); this.buffers.set(id, buf); }
-      buf.push(t, p.x, p.y);
+      buf.push(t, p.x, p.y, cut);
     });
     for (const id of this.buffers.keys()) {
       if (!state.players.has(id)) this.buffers.delete(id);

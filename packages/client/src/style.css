@@ -16,7 +16,6 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 .panel h1 { margin: 0 0 12px; font-size: 22px; letter-spacing: 0.08em; }
-.panel h2 { margin: 16px 0 8px; font-size: 15px; color: #aeb7c2; }
 
 .btn {
   font: inherit;
@@ -34,19 +33,10 @@
 /* A rule that sets `display` would otherwise beat the user-agent [hidden] rule. */
 #ui [hidden] { display: none !important; }
 
-.item-swatch {
-  flex: none;
-  box-sizing: border-box;
-  width: 18px;
-  height: 18px;
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-}
-
-/* Menu: a flex column so the stash list is the part that scrolls and Start Raid stays on screen (down to 800x600). */
+/* Hub menu: a flex column so the body is the part that scrolls and Start Run stays on screen (down to 800x600). */
 .menu {
   box-sizing: border-box;
-  width: min(92vw, 560px);
+  width: min(92vw, 520px);
   display: flex;
   flex-direction: column;
 }
@@ -67,56 +57,49 @@
 }
 .menu-profile:disabled { opacity: 0.6; }
 .menu-placeholder { padding: 18px 0; text-align: center; color: #8d99a6; }
-.menu-body { display: flex; flex-direction: column; margin-bottom: 12px; }
+.menu-body { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; overflow-y: auto; }
 .menu-body > * { flex: none; }
-.menu-body > .stash-grid { flex: 1 1 auto; min-height: 84px; }
 .menu.loading .menu-body { opacity: 0.55; }
 
-.menu-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+/* Glorious Victory: the balance is the biggest thing in the hub. */
+.hub-gv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #1c1a12;
+  border: 1px solid #6b5a1e;
+  border-radius: 6px;
+}
+.hub-gv-main { display: flex; flex-direction: column; }
+.hub-gv-n { font-size: 34px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; color: #ffe082; }
+.hub-gv-l { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #bfa955; }
+.hub-gv-subs { display: flex; gap: 16px; }
+.hub-gv-sub { display: flex; flex-direction: column; align-items: flex-end; }
+.hub-gv-sub-n { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.hub-gv-sub-l { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #8d99a6; }
+
+.menu-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .stat { padding: 4px 6px; text-align: center; background: #161b21; border: 1px solid #2b323c; border-radius: 6px; }
 .stat-n { display: block; font-size: 18px; font-weight: 600; }
 .stat-l { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #8d99a6; }
 
-.menu-stash-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.menu-stash-title { font-weight: 600; color: #aeb7c2; }
-.menu-stash-value { color: #ffe082; }
-.stash-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-  align-content: start;
-  gap: 6px;
-  padding: 2px;
-  overflow-y: auto;
-}
-.stash-empty { padding: 12px 0; color: #8d99a6; }
-.stash-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 6px 8px;
-  font: inherit;
-  text-align: left;
-  color: inherit;
-  background: #1a2027;
-  border: 1px solid #3a434f;
-  border-radius: 6px;
-  cursor: pointer;
-  user-select: none;
-}
-.stash-item:hover { border-color: #90a4ae; background: #212831; }
-.stash-item.selected { border-color: #66bb6a; background: #1f3324; box-shadow: inset 0 0 0 1px #66bb6a; }
-.stash-grid.full .stash-item:not(.selected) { opacity: 0.5; cursor: not-allowed; }
-.stash-grid.locked .stash-item { cursor: default; }
-.item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-kind { font-size: 11px; color: #8d99a6; text-transform: capitalize; }
-.item-value { flex: none; font-variant-numeric: tabular-nums; color: #ffe082; }
+.hub-cosmetics { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; background: #161b21; border: 1px solid #2b323c; border-radius: 6px; }
+.hub-cosmetics-title { font-weight: 600; color: #aeb7c2; }
+.hub-cosmetics-count { flex: 1; color: #8d99a6; }
+.hub-cosmetics-note { font-size: 12px; font-style: italic; color: #8d99a6; }
 
-.menu-loadout { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 10px; }
-.menu-loadout-count { font-weight: 600; }
-.menu-loadout-risk { font-size: 12px; color: #8d99a6; }
-.menu-risk { margin-top: 2px; font-size: 12px; color: #ffb74d; }
+.hub-board { padding: 6px 10px; background: #161b21; border: 1px solid #2b323c; border-radius: 6px; }
+.hub-board-title { margin-bottom: 4px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #8d99a6; }
+.hub-board-list { margin: 0; padding: 0; list-style: none; }
+.hub-board-row { display: flex; align-items: baseline; gap: 8px; padding: 2px 0; }
+.hub-board-row.me { color: #ffe082; font-weight: 600; }
+.hub-board-rank { flex: none; width: 1.4em; text-align: right; color: #8d99a6; }
+.hub-board-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-board-gv { flex: none; font-variant-numeric: tabular-nums; color: #ffe082; }
+
+.menu-rules { font-size: 12px; color: #8d99a6; }
 .menu > .btn.primary { align-self: stretch; padding: 10px 14px; font-weight: 600; }
 .menu-status { margin-top: 10px; min-height: 1.2em; color: #aeb7c2; }
 .menu-status.warn { color: #ffcc80; }
@@ -131,36 +114,13 @@
   text-shadow: 0 1px 2px #000;
 }
 /* index.html's "#ui > *" (auto) outranks a bare class, so the click-through must match its specificity. */
-#ui > .hud, #ui > .banner, #ui > .toasts, #ui > .death-line, #ui > .extract-line,
-#ui > .zone-warning, #ui > .minimap { pointer-events: none; }
+#ui > .hud, #ui > .banner, #ui > .toasts, #ui > .death-line, #ui > .hud-center, #ui > .minimap { pointer-events: none; }
 .hud-status { font-weight: 600; }
+.hud-bounty { color: #ffd54f; }
 .hud-vitals { color: #c8d0d9; margin-top: 2px; }
-.hud-zone { margin-top: 2px; font-weight: 600; color: #ffcc80; }
-.hud-zone.closing { color: #ff8a80; }
-.hud-zone.final { color: #ff5252; }
-
-/* Below the extraction prompt (top 64px, ~33px tall); pulses so it is noticed while the player is looking at the fight. */
-.zone-warning {
-  position: absolute;
-  left: 50%;
-  top: 104px;
-  transform: translateX(-50%);
-  max-width: 92vw;
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-size: 16px;
-  font-weight: 700;
-  white-space: nowrap;
-  color: #ffcdd2;
-  background: rgba(90, 20, 20, 0.9);
-  border: 1px solid #e53935;
-  text-shadow: 0 1px 2px #000;
-  animation: zone-pulse 900ms ease-in-out infinite alternate;
-}
-@keyframes zone-pulse {
-  from { box-shadow: 0 0 0 rgba(229, 57, 53, 0); }
-  to { box-shadow: 0 0 14px rgba(229, 57, 53, 0.75); }
-}
+.hud-arena { margin-top: 2px; font-weight: 600; color: #ffcc80; }
+.hud-arena.locked { color: #ff8a80; }
+.hud-hint { font-size: 12px; color: #aeb7c2; }
 
 /* The backing store (minimap.ts) may be 2x for sharpness; this is the on-screen size. */
 .minimap {
@@ -174,24 +134,47 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 
-.extract-line {
+/* Under the connection banner (top 12px); stacks the sudden-death warning and the teleport-shield hint. */
+.hud-center {
   position: absolute;
   left: 50%;
   top: 64px;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   max-width: 92vw;
+}
+.sudden-death {
+  padding: 6px 18px;
+  border-radius: 6px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  color: #ffcdd2;
+  background: rgba(90, 20, 20, 0.9);
+  border: 1px solid #e53935;
+  text-shadow: 0 1px 2px #000;
+  animation: sudden-pulse 700ms ease-in-out infinite alternate;
+}
+@keyframes sudden-pulse {
+  from { box-shadow: 0 0 0 rgba(229, 57, 53, 0); }
+  to { box-shadow: 0 0 16px rgba(229, 57, 53, 0.85); }
+}
+.immune-line {
   padding: 6px 16px;
   border-radius: 6px;
   font-size: 16px;
   font-weight: 600;
   text-align: center;
   white-space: nowrap;
-  color: #b9f6ca;
+  color: #b3e5fc;
   background: rgba(20, 24, 30, 0.88);
-  border: 1px solid #43a047;
+  border: 1px solid #4fc3f7;
   text-shadow: 0 1px 2px #000;
 }
-.extract-line.extracting { color: #b3e5fc; border-color: #4fc3f7; }
 
 .death-line {
   position: absolute;
@@ -212,40 +195,32 @@
 
 .results {
   box-sizing: border-box;
-  width: min(92vw, 720px);
+  width: min(92vw, 420px);
   display: flex;
   flex-direction: column;
 }
 .results > * { flex: none; }
-.results > .result-lists { flex: 1 1 auto; min-height: 0; }
 .results h1 { margin-bottom: 6px; }
+.result-place { margin: 0 0 2px; font-size: 16px; }
 .result-facts { margin: 0 0 10px; color: #aeb7c2; }
-.result-lists {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  overflow-y: auto;
-}
-.result-col { min-width: 0; padding: 8px 10px; background: #161b21; border: 1px solid #2b323c; border-radius: 6px; }
-.result-col h2 { margin: 0 0 6px; font-size: 13px; }
-.result-col.extracted h2 { color: #81c784; }
-.result-col.lost h2 { color: #e57373; }
-.result-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-top: 1px solid #222a33; }
-.result-item .item-name { flex: 1; min-width: 0; }
-.result-none { padding: 3px 0; color: #6f7b88; }
-.result-total { margin-top: 6px; padding-top: 4px; border-top: 1px solid #2b323c; text-align: right; font-size: 12px; color: #ffe082; }
-.result-net { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
-.result-net-label { color: #aeb7c2; }
-.result-net-n { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.result-net-detail { font-size: 12px; color: #8d99a6; }
-.result-net.gain .result-net-n { color: #81c784; }
-.result-net.loss .result-net-n { color: #e57373; }
-.result-net.even .result-net-n { color: #aeb7c2; }
-@media (max-width: 560px) {
-  .result-lists { grid-template-columns: 1fr; }
+.gv-box { margin-bottom: 14px; padding: 8px 12px; background: #161b21; border: 1px solid #2b323c; border-radius: 6px; }
+.gv-row { display: flex; justify-content: space-between; padding: 3px 0; }
+.gv-row.zero { color: #6f7b88; }
+.gv-amount { font-variant-numeric: tabular-nums; }
+.gv-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #2b323c;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffe082;
 }
 
-.outcome-extracted { color: #81c784; }
+.outcome-won { color: #ffe082; }
+.outcome-draw { color: #b0bec5; }
 .outcome-died { color: #e57373; }
 .outcome-mia { color: #ffb74d; }
 

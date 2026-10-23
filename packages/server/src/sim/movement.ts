@@ -1,10 +1,10 @@
 import { findPath, MAX_REWIND_MS, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, type Vec2 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import type { PlayerRuntime, World } from "./world";
+import { collisionMap, type PlayerRuntime, type World } from "./world";
 
 /** Waypoints from `from` to `to` (excluding `from`). Empty if unreachable. */
 export function planPath(world: World, from: Vec2, to: Vec2): Vec2[] {
-  return findPath(world.map, { x: from.x, y: from.y }, { x: to.x, y: to.y }, PLAYER_RADIUS);
+  return findPath(collisionMap(world), { x: from.x, y: from.y }, { x: to.x, y: to.y }, PLAYER_RADIUS);
 }
 
 /** Walks along rt.path at PLAYER_SPEED for dt seconds, consuming reached waypoints. */

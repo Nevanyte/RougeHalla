@@ -1,10 +1,11 @@
-// CLI: launches N headless bots against a running server and prints how each raid ended.
+// CLI: launches N headless bots against a running server and prints how each run ended. Every bot hunts:
+// it walks at the nearest enemy and fights it, so a run ends with a last one standing (or a draw).
 //   npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--loop] [--verbose]
 // Exits non-zero when a bot failed to play (join refused, connection lost, timeout). With --loop every
-// bot queues into a new raid as soon as its last one is over, until the process is stopped.
+// bot queues into a new run as soon as its last one is over, until the process is stopped.
 //
 // A profile name is claimed once and then needs its token, so tokens are remembered per server in
-// data/bot-tokens.json (next to the stash file, not committed). Running the CLI again reuses the same
+// data/bot-tokens.json (next to the profile file, not committed). Running the CLI again reuses the same
 // bot profiles instead of failing with "taken by someone else". A token is saved the moment the server
 // issues it, so a join that fails afterwards does not orphan the name. The file is replaced atomically,
 // and one that cannot be parsed is left alone (with a warning) rather than overwritten.
@@ -14,7 +15,14 @@ import { fileURLToPath } from "node:url";
 import { PROFILE_RE, SERVER_PORT } from "@raid/shared";
 import { BotClient, type BotRun } from "./BotClient";
 
-const USAGE = "usage: npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--loop] [--verbose]";
+const USAGE = [
+  "usage: npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--loop] [--verbose]",
+  "  <count>     bots to launch, 1-64; they queue into the same lobby and hunt each other",
+  "  --url       server to join (default http://localhost:2567)",
+  "  --prefix    profile names are <prefix>1..<count> (default bot)",
+  "  --loop      queue again after every run until stopped (Ctrl-C)",
+  "  --verbose   log every bot's decisions",
+].join("\n");
 const TOKEN_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../data/bot-tokens.json");
 
 interface Args { count: number; url: string; prefix: string; loop: boolean; verbose: boolean }
@@ -59,7 +67,7 @@ function fail(message: string): never {
 
 const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
-/** Each distinct problem once: a --loop run would otherwise repeat it for every bot and every raid. */
+/** Each distinct problem once: a --loop run would otherwise repeat it for every bot and every run. */
 const warned = new Set<string>();
 function warn(message: string): void {
   if (warned.has(message)) return;
@@ -96,7 +104,7 @@ function savedToken(key: string): string | undefined {
   return typeof token === "string" && token !== "" ? token : undefined;
 }
 
-/** Never throws: a token we cannot save only costs the next run a "taken" error, not this one its raid. */
+/** Never throws: a token we cannot save only costs the next run a "taken" error, not this one its run. */
 function rememberToken(key: string, token: string): void {
   if (token === "") return;
   const tokens = readTokens();
@@ -115,10 +123,12 @@ function rememberToken(key: string, token: string): void {
 }
 
 function formatRun({ profile, result, error, abandoned }: BotRun): string {
-  if (abandoned) return `${profile.padEnd(10)} ABANDONED  left the raid on purpose`;
+  if (abandoned) return `${profile.padEnd(10)} ABANDONED  left the run on purpose`;
   if (!result) return `${profile.padEnd(10)} ERROR      ${error ?? "no result"}`;
   const by = result.killedBy ? `  by ${result.killedBy}` : "";
-  return `${profile.padEnd(10)} ${result.outcome.padEnd(10)} kills ${result.kills}  extracted ${result.extracted.length}  lost ${result.lost.length}  ${result.durationSec}s${by}`;
+  const { kills, mobs, win, total } = result.gv;
+  const gv = `GV +${total} (kills ${kills}, mobs ${mobs}, win ${win})`;
+  return `${profile.padEnd(10)} ${result.outcome.padEnd(10)} place ${result.place}/${result.players}  kills ${result.kills}  ${gv}  ${result.durationSec}s${by}`;
 }
 
 async function playOnce(args: Args, profile: string): Promise<BotRun> {
