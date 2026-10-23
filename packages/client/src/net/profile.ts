@@ -1,10 +1,12 @@
 // Profile REST client: GET /api/profile/:name claims a callsign (first time) or proves ownership of it (token header).
 // The token is the only proof, so it lives in localStorage per callsign and never leaves this device otherwise.
-import { PROFILE_TOKEN_HEADER, itemDef, type ItemDTO, type ProfileResponse } from "@raid/shared";
+import { PROFILE_TOKEN_HEADER, type LeaderboardEntry, type LeaderboardResponse, type ProfileDTO, type ProfileResponse } from "@raid/shared";
 import { apiBase } from "./connection";
 
 const TOKEN_KEY_PREFIX = "raid.token.";
 const REQUEST_TIMEOUT_MS = 8000;
+/** The leaderboard is a garnish on the hub: give up on it sooner than on the profile. */
+const LEADERBOARD_TIMEOUT_MS = 4000;
 const UNREACHABLE = "Can't reach the server";
 
 export type ProfileErrorKind = "taken" | "invalid" | "unavailable";
@@ -34,10 +36,22 @@ function writeToken(name: string, token: string): void {
   }
 }
 
+const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** The v2 shape (GV, stats, cosmetics): an older server's reply fails the check and reads as unreadable instead of rendering half a hub. */
 function isProfileResponse(v: unknown): v is ProfileResponse {
   const r = v as Partial<ProfileResponse> | null;
-  return !!r && typeof r.token === "string" && !!r.profile && typeof r.profile.name === "string"
-    && Array.isArray(r.profile.stash) && !!r.profile.stats;
+  const p: Partial<ProfileDTO> | undefined = r?.profile;
+  return typeof r?.token === "string" && !!p && typeof p.name === "string"
+    && isNum(p.gv) && isNum(p.gvLifetime) && isObject(p.gvByMonth) && isObject(p.stats)
+    && isObject(p.cosmetics) && Array.isArray(p.cosmetics.owned);
+}
+
+function isLeaderboardResponse(v: unknown): v is LeaderboardResponse {
+  const r = v as Partial<LeaderboardResponse> | null;
+  return !!r && typeof r.month === "string" && Array.isArray(r.entries)
+    && r.entries.every((e: Partial<LeaderboardEntry> | null) => !!e && typeof e.name === "string" && isNum(e.gv));
 }
 
 const inFlight = new Map<string, Promise<ProfileResponse>>();
@@ -86,17 +100,22 @@ async function requestProfile(name: string): Promise<ProfileResponse> {
   return body;
 }
 
-/** Catalog value of one item; ids the catalog doesn't know (newer server content) count as 0. */
-export function itemValue(defId: string): number {
-  return itemDef(defId)?.value ?? 0;
+/**
+ * The top of a month's leaderboard, or null for any failure (unreachable, 404 from a server without the route, a bad
+ * body): the hub shows the board only when there is one and never waits on it.
+ */
+export async function fetchLeaderboard(month: string, limit: number): Promise<LeaderboardResponse | null> {
+  try {
+    const query = `month=${encodeURIComponent(month)}&limit=${limit}`;
+    const res = await fetch(`${apiBase()}/api/leaderboard?${query}`, { signal: AbortSignal.timeout(LEADERBOARD_TIMEOUT_MS) });
+    if (!res.ok) return null;
+    const body: unknown = await res.json();
+    return isLeaderboardResponse(body) ? body : null;
+  } catch {
+    return null;
+  }
 }
 
-export function totalValue(items: readonly ItemDTO[]): number {
-  let sum = 0;
-  for (const it of items) sum += itemValue(it.def);
-  return sum;
-}
-
-export function formatValue(n: number): string {
-  return n.toLocaleString("en-US");
+export function formatNumber(n: number): string {
+  return (Number.isFinite(n) ? n : 0).toLocaleString("en-US");
 }

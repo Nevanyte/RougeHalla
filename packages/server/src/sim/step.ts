@@ -1,23 +1,24 @@
-// Raid lifecycle + the fixed-step update. `step()` is the only entry point the Room ticks.
-import {
-  MAX_PLAYERS, mulberry32, PLAYER_MAX_HP, type ItemDTO, type RaidOutcome, type RaidResult, type Vec2,
-} from "@raid/shared";
+// Run lifecycle + the fixed-step update. `step()` is the only entry point the Room ticks; arena.ts decides
+// how a run ends.
+import { MAX_PLAYERS, mulberry32, PLAYER_MAX_HP, RUN_START_KIT, type Vec2 } from "@raid/shared";
 import { ItemState, PlayerState } from "@raid/shared/schema";
+import { beginRun, downPlayer, markTickStart, settle, suddenDeath, unbankedGv } from "./arena";
 import { InputQueue } from "./inputs";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
-import { cancelExtraction, emit, type PlayerRuntime, type SimEvent, type World } from "./world";
+import { emit, type SimEvent, type World } from "./world";
 
-export function addPlayer(world: World, id: string, profile: string, items: ItemDTO[]): PlayerState {
+/** Joins the lobby with a freshly minted RUN_START_KIT. Nothing is brought in from outside the run. */
+export function addPlayer(world: World, id: string, profile: string): PlayerState {
   const s = world.state;
   const p = new PlayerState();
   p.name = profile;
   p.hp = PLAYER_MAX_HP;
   p.maxHp = PLAYER_MAX_HP;
   p.status = "lobby";
-  for (const it of items) {
+  for (const def of RUN_START_KIT) {
     const item = new ItemState();
-    item.uid = it.uid;
-    item.def = it.def;
+    item.uid = world.newItemUid();
+    item.def = def;
     p.inventory.push(item);
   }
   const spot = lobbySpot(world, s.players.size);
@@ -34,9 +35,14 @@ export function addPlayer(world: World, id: string, profile: string, items: Item
     path: [],
     history: [],
     nextAttackAt: 0,
-    extracting: null,
-    broughtIn: items.map((i) => ({ ...i })),
     killedBy: null,
+    gv: { kills: 0, mobs: 0, bounty: 0 },
+    mobKills: 0,
+    lastHit: null,
+    damaged: new Set(),
+    droppedAt: null,
+    hpFracAtTickStart: 1,
+    down: null,
     resolved: false,
   });
   return p;
@@ -58,59 +64,36 @@ function shuffledSpawns(world: World): Vec2[] {
 }
 
 /**
- * Removes a player whose client is gone for good. An alive player in an active raid
- * is resolved as MIA first (they lose what they carried).
+ * Removes a player whose client is gone for good. Leaving an active run counts as a death (MIA): their result
+ * goes out at once and the next tick treats it like any other death.
  */
 export function removePlayer(world: World, id: string): void {
   const p = world.state.players.get(id);
   const rt = world.players.get(id);
-  if (p && rt && p.status === "alive") resolvePlayer(world, p, rt, "mia");
+  if (p && rt && world.state.phase === "active") downPlayer(world, p, rt, "mia");
   world.state.players.delete(id);
   world.players.delete(id);
 }
 
 /**
- * Removes a player without resolving them: no result, no MIA, no body. For a server shutdown, where
- * the raid is void for everyone and the Room hands the player's own items back instead.
+ * Removes a player without resolving them: no result, no MIA, no body, no death. For a server shutdown, where the
+ * run is void: from then on the run is frozen, so a tick between two abandons can't hand the rest a win (or a
+ * death) in a run that no longer counts. Returns the GV they had earned and not yet banked, which the Room still pays.
  */
-export function abandonPlayer(world: World, id: string): void {
+export function abandonPlayer(world: World, id: string): number {
+  const rt = world.players.get(id);
+  const gv = rt ? unbankedGv(rt) : 0;
+  if (rt) rt.resolved = true;
+  if (world.state.phase === "active") world.arena.voided = true;
   world.state.players.delete(id);
   world.players.delete(id);
-}
-
-export function resolvePlayer(
-  world: World, p: PlayerState, rt: PlayerRuntime, outcome: RaidOutcome,
-): void {
-  if (rt.resolved) return;
-  rt.resolved = true;
-  rt.path = [];
-  rt.extracting = null;
-  p.extractProgress = 0;
-  p.status = outcome === "died" ? "dead" : outcome;
-
-  const carried: ItemDTO[] = p.inventory.map((i) => ({ uid: i.uid, def: i.def }));
-  const carriedUids = new Set(carried.map((i) => i.uid));
-  const s = world.state;
-  const result: RaidResult = {
-    outcome,
-    profile: rt.profile,
-    durationSec: s.raidStartedAt > 0 ? Math.round((s.serverTime - s.raidStartedAt) / 1000) : 0,
-    kills: p.kills,
-    killedBy: rt.killedBy,
-    broughtIn: rt.broughtIn,
-    extracted: outcome === "extracted" ? carried : [],
-    lost: outcome === "extracted" ? rt.broughtIn.filter((i) => !carriedUids.has(i.uid)) : carried,
-  };
-  if (outcome === "extracted") p.inventory.clear();
-  else world.hooks.dropBody(world, p);
-  emit(world, { type: "resolved", id: rt.id, result });
+  return gv;
 }
 
 export function startRaid(world: World): void {
   const s = world.state;
   s.phase = "active";
   s.raidStartedAt = s.serverTime;
-  s.raidEndsAt = s.serverTime + world.config.raidSeconds * 1000;
   const spawns = shuffledSpawns(world);
   let i = 0;
   for (const [id, p] of s.players) {
@@ -122,17 +105,9 @@ export function startRaid(world: World): void {
     rt.inputs.drain();
     rt.history = [{ t: s.serverTime, x: p.x, y: p.y }];
   }
+  beginRun(world);
   world.hooks.raidStarted?.(world);
   emit(world, { type: "raidStarted" });
-}
-
-function endRaid(world: World): void {
-  const s = world.state;
-  for (const [id, p] of s.players) {
-    if (p.status === "alive") resolvePlayer(world, p, world.players.get(id)!, "mia");
-  }
-  s.phase = "ended";
-  emit(world, { type: "raidEnded" });
 }
 
 function updateLobby(world: World): void {
@@ -161,9 +136,12 @@ export function actionOrder(world: World, tick = world.state.tick): string[] {
   return ids;
 }
 
+/** Actions → combat/DoT → arena (see arena.ts for why the order matters). */
 function updateActive(world: World, dtMs: number): void {
+  if (world.arena.voided) return;
   const s = world.state;
   const dt = dtMs / 1000;
+  markTickStart(world);
   for (const id of actionOrder(world)) {
     const p = s.players.get(id)!;
     const rt = world.players.get(id)!;
@@ -172,10 +150,7 @@ function updateActive(world: World, dtMs: number): void {
     if (move) {
       // An unreachable click is ignored rather than treated as "stop".
       const path = move.kind === "move" ? planPath(world, p, move) : [];
-      if (move.kind === "stop" || path.length > 0) {
-        rt.path = path;
-        cancelExtraction(world, p, rt);
-      }
+      if (move.kind === "stop" || path.length > 0) rt.path = path;
     }
     for (const cmd of actions) {
       world.actions[cmd.kind]?.(world, p, rt, cmd);
@@ -188,11 +163,8 @@ function updateActive(world: World, dtMs: number): void {
     if (p.status === "alive") recordHistory(world.players.get(id)!, p, s.serverTime);
   }
   for (const sys of world.systems) sys(world, dtMs);
-
-  if (s.serverTime >= s.raidEndsAt) { endRaid(world); return; }
-  let alive = 0;
-  for (const p of s.players.values()) if (p.status === "alive") alive++;
-  if (alive === 0) endRaid(world);
+  suddenDeath(world, dtMs);
+  settle(world);
 }
 
 /** Advances the world by one fixed step and returns the events it produced. */

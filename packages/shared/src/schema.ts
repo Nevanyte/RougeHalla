@@ -19,9 +19,13 @@ export const PlayerState = schema({
   /** PlayerStatus */
   status: t.string().default("lobby"),
   inventory: t.array(ItemState),
-  /** 0..1 while extracting, 0 otherwise. */
-  extractProgress: t.number().default(0),
   kills: t.uint8().default(0),
+  /** GV earned so far this run (kills and mobs; a win bonus is added only when the run resolves). */
+  gv: t.uint16().default(0),
+  /** GV whoever kills this player is paid (see bountyFor); 0 while they aren't fed. */
+  bounty: t.uint16().default(0),
+  /** Server time until which damage to this player is ignored (teleport immunity); 0 = none. */
+  immuneUntil: t.number().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -36,23 +40,6 @@ export const ContainerState = schema({
 }, "ContainerState");
 export type ContainerState = SchemaType<typeof ContainerState>;
 
-export const ZoneState = schema({
-  x: t.number().default(0),
-  y: t.number().default(0),
-  r: t.number().default(0),
-  /** Where the circle is shrinking to during the current stage. */
-  nextX: t.number().default(0),
-  nextY: t.number().default(0),
-  nextR: t.number().default(0),
-  /** 0 until the raid starts (no zone drawn), then 1..N. */
-  stage: t.uint8().default(0),
-  /** True while the circle is moving from (x,y,r) toward (nextX,nextY,nextR). */
-  shrinking: t.boolean().default(false),
-  /** Server time when the current hold or shrink ends (HUD countdown). */
-  changeAt: t.number().default(0),
-}, "ZoneState");
-export type ZoneState = SchemaType<typeof ZoneState>;
-
 export const RaidState = schema({
   /** RaidPhase */
   phase: t.string().default("lobby"),
@@ -62,10 +49,26 @@ export const RaidState = schema({
   tick: t.uint32().default(0),
   lobbyEndsAt: t.number().default(0),
   raidStartedAt: t.number().default(0),
-  raidEndsAt: t.number().default(0),
   minPlayers: t.uint8().default(0),
-  zone: t.ref(ZoneState),
+  /** Players in the run when it started (leavers are removed from `players`, so this is the HUD's N). */
+  startedWith: t.uint8().default(0),
+  /** Server time of the next teleport into the coliseum. 0 while the gates are locked, and outside an active run. */
+  patienceEndsAt: t.number().default(0),
+  /** True from the first teleport to the end of the run. */
+  inColiseum: t.boolean().default(false),
+  /** True from a teleport until the next death. Phase 8b derives the gate geometry from it with `withGates(map)`. */
+  gatesLocked: t.boolean().default(false),
+  /** While the gates are locked, the server time sudden death starts; 0 otherwise. */
+  suddenDeathAt: t.number().default(0),
+  /** Display name of the winner once the run is over; "" before that, and after a draw or a run nobody won. */
+  winner: t.string().default(""),
   players: t.map(PlayerState),
   containers: t.map(ContainerState),
 }, "RaidState");
 export type RaidState = SchemaType<typeof RaidState>;
+
+/**
+ * The shrinking zone is gone; only the minimap (owned by Phase 8b, which rewrites it) still names this type.
+ * Type-only, never synced: callers pass `undefined`.
+ */
+export interface ZoneState { x: number; y: number; r: number; nextX: number; nextY: number; nextR: number; stage: number }

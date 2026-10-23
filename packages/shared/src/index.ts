@@ -9,5 +9,5 @@ export * from "./rng";
 export * from "./mapgen";
 export * from "./geometry";
 export * from "./pathfind";
-export * from "./zone";
+export * from "./rules";
 export * from "./factions";

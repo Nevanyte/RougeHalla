@@ -1,11 +1,13 @@
 import { pathToFileURL } from "node:url";
 import { defineRoom, defineServer, matchMaker } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
+import type { RequestHandler } from "express";
 import {
-  PROFILE_RE, PROFILE_TOKEN_HEADER, ROOM_NAME, type ProfileResponse,
+  LEADERBOARD_DEFAULT_LIMIT, MONTH_RE, PROFILE_RE, PROFILE_TOKEN_HEADER, ROOM_NAME, monthKey,
+  type LeaderboardResponse, type ProfileDTO, type ProfileResponse,
 } from "@raid/shared";
 import { loadConfig, type ServerConfig } from "./config";
-import { JsonStashStore, ProfileForbiddenError, type StashStore } from "./persistence/StashStore";
+import { JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
 
 /** What a cross-origin page may send to /api (the token travels in a header, never a cookie). */
@@ -24,8 +26,26 @@ function allowProfileTokenInPreflight(): void {
   });
 }
 
+/** Field by field, so the record's token can never ride along by accident. */
+function toProfileDTO(r: ProfileRecord): ProfileDTO {
+  return { name: r.name, gv: r.gv, gvLifetime: r.gvLifetime, gvByMonth: r.gvByMonth, stats: r.stats, cosmetics: r.cosmetics };
+}
+
+/**
+ * Express 5 serves HEAD through the GET handlers, which for the profile route would claim the name and throw
+ * the token away. Anything but GET is refused before it can reach them.
+ */
+const getOnly: RequestHandler = (req, res, next) => {
+  if (req.method === "GET") {
+    next();
+    return;
+  }
+  res.set({ Allow: "GET, OPTIONS", "Cache-Control": "no-store" });
+  res.status(405).json({ error: "method not allowed" });
+};
+
 export function createServer(config: ServerConfig = loadConfig()) {
-  const store: StashStore = new JsonStashStore(config.stashFile);
+  const store: ProfileStore = new JsonProfileStore(config.stashFile);
   const profiles = new ActiveProfiles();
   RaidRoom.ctx = { config, store, profiles };
   allowProfileTokenInPreflight();
@@ -51,16 +71,8 @@ export function createServer(config: ServerConfig = loadConfig()) {
         res.json({ ok: true });
       });
 
-      // Express 5 serves HEAD through the GET handler below, which would claim the name and throw the
-      // token away. Anything but GET is refused before it can reach that handler.
-      app.all("/api/profile/:name", (req, res, next) => {
-        if (req.method === "GET") {
-          next();
-          return;
-        }
-        res.set({ Allow: "GET, OPTIONS", "Cache-Control": "no-store" });
-        res.status(405).json({ error: "method not allowed" });
-      });
+      app.all("/api/profile/:name", getOnly);
+      app.all("/api/leaderboard", getOnly);
 
       // Claims a free name (no token header) or returns the profile for its owner. The response
       // carries this profile's token only, never anyone else's.
@@ -73,11 +85,7 @@ export function createServer(config: ServerConfig = loadConfig()) {
         }
         try {
           const { record, token, created } = store.claim(name, req.get(PROFILE_TOKEN_HEADER));
-          const body: ProfileResponse = {
-            profile: { name: record.name, stash: record.stash, stats: record.stats },
-            token,
-            created,
-          };
+          const body: ProfileResponse = { profile: toProfileDTO(record), token, created };
           res.json(body);
         } catch (err) {
           if (err instanceof ProfileForbiddenError) {
@@ -88,6 +96,21 @@ export function createServer(config: ServerConfig = loadConfig()) {
           res.status(500).json({ error: "internal error" });
         }
       });
+
+      // Public: names and monthly GV only. `month` defaults to the current UTC month; a malformed one is an
+      // error, but a malformed `limit` just gets the default (the store clamps whatever integer it is).
+      app.get("/api/leaderboard", (req, res) => {
+        res.set("Cache-Control", "no-store");
+        const { month: rawMonth, limit: rawLimit } = req.query;
+        const month = rawMonth === undefined ? monthKey(Date.now()) : rawMonth;
+        if (typeof month !== "string" || !MONTH_RE.test(month)) {
+          res.status(400).json({ error: "invalid month, expected YYYY-MM" });
+          return;
+        }
+        const limit = typeof rawLimit === "string" && /^[+-]?\d+$/.test(rawLimit) ? Number(rawLimit) : LEADERBOARD_DEFAULT_LIMIT;
+        const body: LeaderboardResponse = { month, entries: store.leaderboard(month, limit) };
+        res.json(body);
+      });
     },
   });
   // Runs after every room is disposed (their onLeave handlers have settled), also on SIGINT/SIGTERM.
@@ -95,12 +118,12 @@ export function createServer(config: ServerConfig = loadConfig()) {
     try {
       await store.flush();
     } catch (err) {
-      console.error("[server] could not flush the stash on shutdown:", err);
+      console.error("[server] could not flush the profiles on shutdown:", err);
     }
   });
   if (config.latencyMs > 0) server.simulateLatency(config.latencyMs);
 
-  /** Shuts the server down without exiting the process and resolves once the stash is on disk. */
+  /** Shuts the server down without exiting the process and resolves once the profiles are on disk. */
   async function stop(): Promise<void> {
     try {
       await server.gracefullyShutdown(false);

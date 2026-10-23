@@ -1,6 +1,6 @@
-// App flow: menu → raid → results → menu. Phaser owns the world canvas; menus are DOM.
+// App flow: hub menu → run → results → hub menu. Phaser owns the world canvas; menus are DOM.
 import Phaser from "phaser";
-import type { RaidResult, ServerMessages } from "@raid/shared";
+import type { RunResult, ServerMessages } from "@raid/shared";
 import "./style.css";
 import { detachRoom, isCallsignBusy, joinErrorMessage, joinRaid, type RaidRoom } from "./net/connection";
 import { RaidScene } from "./scenes/RaidScene";
@@ -18,17 +18,17 @@ const game = new Phaser.Game({
   parent: "game",
   backgroundColor: "#1b1f24",
   scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
-  // Right-click is move-to. Set here once: a per-raid call would add another canvas listener every raid.
+  // Right-click is move-to. Set here once: a per-run call would add another canvas listener every run.
   disableContextMenu: true,
   scene: [IdleScene, RaidScene],
 });
 
-/** A killed player sees the "YOU DIED" line on its own this long before the results panel replaces it. */
+/** A killed player sees the "YOU DIED" line on its own this long before the results panel replaces it (other outcomes show at once). */
 const DEATH_RESULTS_DELAY_MS = 1500;
 
 let room: RaidRoom | null = null;
 /** A `died` result waiting out DEATH_RESULTS_DELAY_MS; null otherwise. */
-let pendingResult: { result: RaidResult; timer: ReturnType<typeof setTimeout> } | null = null;
+let pendingResult: { result: RunResult; timer: ReturnType<typeof setTimeout> } | null = null;
 
 const menu = new Menu({ onStart: (request) => void startRaid(request) });
 const results = new ResultsScreen({ onContinue: () => backToMenu() });
@@ -36,7 +36,7 @@ const banner = new Banner();
 const toasts = new Toasts();
 
 async function startRaid(request: RaidRequest): Promise<void> {
-  menu.setBusy(true, "Joining raid…");
+  menu.setBusy(true, "Joining run…");
   try {
     room = await joinRaid(request);
   } catch (err) {
@@ -45,7 +45,6 @@ async function startRaid(request: RaidRequest): Promise<void> {
       menu.showCallsignBusy();
       return;
     }
-    // show() reloads the profile: a refused join may still have changed what the stash holds.
     menu.show(`Could not join: ${joinErrorMessage(err)}`);
     return;
   }
@@ -56,8 +55,8 @@ async function startRaid(request: RaidRequest): Promise<void> {
     menu.show("Could not join: connection closed");
     return;
   }
-  // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next raid.
-  joined.onMessage("result", (r: RaidResult) => {
+  // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next run.
+  joined.onMessage("result", (r: RunResult) => {
     if (room !== joined) return;
     if (r.outcome !== "died") { results.show(r); return; }
     cancelPendingResult();
@@ -81,7 +80,7 @@ async function startRaid(request: RaidRequest): Promise<void> {
     room = null;
     // Losing the room during the death hold must not lose the results: show them now instead of waiting.
     flushPendingResult();
-    if (!results.visible) backToMenu(`Disconnected from raid (code ${code}).`);
+    if (!results.visible) backToMenu(`Disconnected from the run (code ${code}).`);
   });
   menu.hide();
   game.scene.stop("idle");
@@ -119,7 +118,7 @@ function firstState(r: RaidRoom): Promise<boolean> {
 }
 
 function backToMenu(message = ""): void {
-  // Before the detach: a death result still waiting out its delay must not surface over the menu or the next raid.
+  // Before the detach: a death result still waiting out its delay must not surface over the menu or the next run.
   cancelPendingResult();
   const leaving = room;
   room = null;
@@ -131,7 +130,7 @@ function backToMenu(message = ""): void {
   toasts.clear();
   game.scene.stop("raid");
   game.scene.start("idle");
-  // Reloads the profile, so the stash shows what came home (or no longer has what was lost).
+  // Reloads the profile, so the GV balance includes what this run paid out.
   menu.show(message);
 }
 

@@ -1,25 +1,29 @@
-// A graceful shutdown (a deploy, or every tsx-watch restart in `npm run dev`) with raids in flight.
-// The raid dies with the process, so nobody still in it is MIA: their own items go back to the stash,
-// and no raid or death is recorded. One real server, one scenario set up in beforeAll, then stop();
-// each test checks one fact about what ended up on disk. (Colyseus' matchmaker is a process-wide
-// singleton and cannot be restarted here, which is why this has a file of its own.)
+// A graceful shutdown (a deploy, or every tsx-watch restart in `npm run dev`) with runs in flight.
+// The run dies with the process, so nobody still in it is MIA: no run is recorded and no stats move, but the GV each
+// player had earned so far is paid once, through bankGv. Players whose result was already out were banked then and
+// must not be paid again. One real server, one scenario set up in beforeAll, then stop(); each test checks one fact
+// about what ended up on disk. (Colyseus' matchmaker is a process-wide singleton and cannot be restarted here, which
+// is why this has a file of its own.)
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from "vitest";
 import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
-import { ROOM_NAME, type ItemDTO, type JoinOptions, type ProfileResponse, type ProfileStats, type RaidResult } from "@raid/shared";
+import {
+  GV_KILL, GV_WIN, monthKey, ROOM_NAME, type JoinOptions, type ProfileResponse, type ProfileStats, type RunResult, type Vec2,
+} from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
-import { JsonStashStore } from "../src/persistence/StashStore";
+import { JsonProfileStore, type ProfileRecord } from "../src/persistence/ProfileStore";
 import { startServer, type RaidServer } from "../src/index";
 import type { World } from "../src/sim/world";
 
 type ClientRoom = Room<any, RaidState>;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const sum = (xs: Iterable<number>): number => { let n = 0; for (const x of xs) n += x; return n; };
 
 async function until(pred: () => boolean, what: string, timeoutMs = 5000): Promise<void> {
   const end = Date.now() + timeoutMs;
@@ -43,48 +47,47 @@ async function freePort(): Promise<number> {
   });
 }
 
-interface Account { name: string; token: string; stash: ItemDTO[] }
-interface Player { room: ClientRoom; results: RaidResult[] }
+interface Account { name: string; token: string }
+interface Player { room: ClientRoom; results: RunResult[] }
 
 interface ServerRoomView {
   world: World;
   clients: { getById(id: string): { ref: { terminate(): void } } | undefined };
 }
 
-const PLAYERS_IN_THE_RAID = 6;
+const PLAYERS_IN_THE_RUN = 6;
 
 let server: RaidServer;
 let client: Client;
 let port = 0;
 let dir = "";
-let stashFile = "";
+let profileFile = "";
 let counter = 0;
 
-const sorted = (items: ItemDTO[]) => [...items].sort((a, b) => a.uid.localeCompare(b.uid));
-const zeroStats: ProfileStats = { raids: 0, extracts: 0, deaths: 0, kills: 0 };
+const zeroStats: ProfileStats = { runs: 0, wins: 0, draws: 0, deaths: 0, kills: 0 };
 
 async function claim(): Promise<Account> {
   const res = await fetch(`http://127.0.0.1:${port}/api/profile/sd${++counter}`);
   const body = (await res.json()) as ProfileResponse;
-  return { name: body.profile.name, token: body.token, stash: body.profile.stash };
+  return { name: body.profile.name, token: body.token };
 }
 
 function track(room: ClientRoom): Player {
   const p: Player = { room, results: [] };
   room.reconnection.enabled = false; // the server is about to go away for good
-  room.onMessage("result", (r: RaidResult) => p.results.push(r));
+  room.onMessage("result", (r: RunResult) => p.results.push(r));
   room.onMessage("toast", () => {});
   room.onMessage("fx", () => {});
   return p;
 }
 
-const options = (who: Account, loadout: ItemDTO[]): JoinOptions => ({ profile: who.name, token: who.token, loadout: loadout.map((i) => i.uid) });
+const options = (who: Account): JoinOptions => ({ profile: who.name, token: who.token });
 const serverRoom = (p: Player) => matchMaker.getLocalRoomById(p.room.roomId) as unknown as ServerRoomView;
-const serverPlayer = (p: Player) => serverRoom(p).world.state.players.get(p.room.sessionId)!;
-const carried = (p: Player): ItemDTO[] => Array.from(serverPlayer(p).inventory, (i) => ({ uid: i.uid, def: i.def }));
+const worldOf = (p: Player) => serverRoom(p).world;
+const serverPlayer = (p: Player) => worldOf(p).state.players.get(p.room.sessionId)!;
 
 function placeOnServer(p: Player, x: number, y: number): void {
-  const world = serverRoom(p).world;
+  const world = worldOf(p);
   const sp = serverPlayer(p);
   sp.x = x;
   sp.y = y;
@@ -93,158 +96,241 @@ function placeOnServer(p: Player, x: number, y: number): void {
   rt.history = [{ t: world.state.serverTime, x, y }];
 }
 
-type Saved = { stash: ItemDTO[]; stats: ProfileStats };
-/** What the stash file holds once stop() has returned, and what a restart loading it would see. */
-let disk: Record<string, Saved>;
-let reloaded: Record<string, Saved>;
+/** A spawn point nobody alive is near except the fighters, so the duel cannot hit a bystander. */
+function duelSpot(world: World, fighters: string[]): Vec2 {
+  let best = world.map.spawns[0]!;
+  let bestDistance = -1;
+  for (const spawn of world.map.spawns) {
+    let nearest = Infinity;
+    for (const [id, p] of world.state.players) {
+      if (fighters.includes(id) || p.status !== "alive") continue;
+      nearest = Math.min(nearest, Math.hypot(p.x - spawn.x, p.y - spawn.y));
+    }
+    if (nearest > bestDistance) { bestDistance = nearest; best = spawn; }
+  }
+  return best;
+}
+
+/** `killer` swings at `victim` (brought down to 1 hp) until the victim is dead and has its result. Inputs only. */
+async function kill(killer: Player, victim: Player): Promise<void> {
+  const at = duelSpot(worldOf(killer), [killer.room.sessionId, victim.room.sessionId]);
+  placeOnServer(victim, at.x + 12, at.y);
+  placeOnServer(killer, at.x - 12, at.y);
+  serverPlayer(victim).hp = 1;
+  await sleep(120);
+  const deadline = Date.now() + 10_000;
+  while (victim.results.length === 0 && Date.now() < deadline) {
+    killer.room.send("attack", { x: at.x + 12, y: at.y });
+    await sleep(120);
+  }
+  await until(() => victim.results.length === 1, "the victim's result");
+}
+
+/** What the profile file holds once stop() has returned, and what a restart loading it would see. */
+let disk: Record<string, ProfileRecord>;
+let reloaded: Record<string, ProfileRecord | undefined>;
+let before: Record<string, ProfileRecord>;
 let dataDirListing: string[] = [];
+let months: Set<string>;
+let recordRun: MockInstance<typeof server.store.recordRun>;
+let bankGv: MockInstance<typeof server.store.bankGv>;
+let bankedDuringStop: Array<[string, number]>;
+let recordedDuringStop: number;
 
 // The accounts, by what happens to them.
-let raider: Account;
-let partner: Account;
-let dropped: Account;
-let extractor: Account;
-let victim: Account;
-let killer: Account;
-let lobbyer: Account;
-let loot: ItemDTO;
+let raider: Account; // alive at the stop; killed the trader, so holds GV_KILL not yet banked
+let partner: Account; // alive at the stop, nothing earned
+let dropped: Account; // alive at the stop but disconnected (held in the reconnect window); killed a victim
+let trader: Account; // killed a victim, then was killed: their GV_KILL was banked with their result
+let victim: Account; // killed by the trader
+let victim2: Account; // killed by the dropped player
+let hunter: Account; // in a second run that is down to two alive players when the server stops; killed prey
+let bystander: Account; // the other one of those two
+let prey: Account; // killed by the hunter
+let lobbyer: Account; // waiting in another room's lobby
 
 beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-shutdown-"));
-  stashFile = path.join(dir, "data", "stash.json");
+  profileFile = path.join(dir, "data", "stash.json");
   port = await freePort();
   server = await startServer({
     ...loadConfig({}),
     port,
-    minPlayers: PLAYERS_IN_THE_RAID, // the raid starts when the last of them walks in, so all of them are in it
+    minPlayers: PLAYERS_IN_THE_RUN, // the run starts when the last of them walks in, so all of them are in it
     fillSeconds: 0,
     lobbySeconds: 120,
-    raidSeconds: 120,
-    extractSeconds: 0.3,
+    patienceSeconds: 120, // nothing happens in the arena by itself
+    patienceMinSeconds: 120,
+    suddenDeathSeconds: 120,
     latencyMs: 0,
-    stashFile,
+    stashFile: profileFile,
   });
   client = new Client(`http://127.0.0.1:${port}`);
 
   raider = await claim();
   partner = await claim();
   dropped = await claim();
-  extractor = await claim();
+  trader = await claim();
   victim = await claim();
-  killer = await claim();
+  victim2 = await claim();
+  hunter = await claim();
+  bystander = await claim();
+  prey = await claim();
   lobbyer = await claim();
+  const everyone = [raider, partner, dropped, trader, victim, victim2, hunter, bystander, prey, lobbyer];
+  before = Object.fromEntries(everyone.map((a) => [a.name, server.store.get(a.name)!]));
+  const started = Date.now();
 
-  // --- the raid room: six players, started once the last one joins
-  const first = track(await client.create<RaidState>(ROOM_NAME, options(raider, raider.stash.slice(0, 2))));
-  const join = async (who: Account, loadout: ItemDTO[]) =>
-    track(await client.joinById<RaidState>(first.room.roomId, options(who, loadout)));
-  await join(partner, partner.stash.slice(0, 1));
-  const pDropped = await join(dropped, dropped.stash.slice(0, 2));
-  const pExtractor = await join(extractor, extractor.stash.slice(0, 1));
-  const pVictim = await join(victim, victim.stash.slice(0, 1));
-  const pKiller = await join(killer, []);
-  const world = serverRoom(first).world;
-  await until(() => world.state.phase === "active" && world.state.players.size === PLAYERS_IN_THE_RAID, "the raid to start");
+  // --- the run: six players, started once the last one joins
+  const first = track(await client.create<RaidState>(ROOM_NAME, options(raider)));
+  const join = async (who: Account) => track(await client.joinById<RaidState>(first.room.roomId, options(who)));
+  const pPartner = await join(partner);
+  const pDropped = await join(dropped);
+  const pTrader = await join(trader);
+  const pVictim = await join(victim);
+  const pVictim2 = await join(victim2);
+  const world = worldOf(first);
+  await until(() => world.state.phase === "active" && world.state.players.size === PLAYERS_IN_THE_RUN, "the run to start");
   await until(() => [...world.state.players.values()].every((p) => p.status === "alive"), "everyone to be alive");
 
-  // --- someone who extracted before the shutdown (banked and counted already)
-  const zone = world.map.extracts[0]!;
-  placeOnServer(pExtractor, zone.x, zone.y);
-  pExtractor.room.send("extract", {});
-  await until(() => pExtractor.results.length === 1, "the early extraction");
+  // --- the trader kills (earning GV_KILL), then is killed: that result was banked before the shutdown, GV included
+  await kill(pTrader, pVictim);
+  expect(serverPlayer(pTrader).gv).toBe(GV_KILL);
+  await kill(first, pTrader);
+  expect(pTrader.results[0]).toMatchObject({ outcome: "died", killedBy: raider.name, kills: 1, gv: { kills: GV_KILL, total: GV_KILL } });
+  expect(server.store.get(trader.name)!.gv).toBe(GV_KILL);
+  expect(serverPlayer(first).gv).toBe(GV_KILL); // the raider's is still only in the run
 
-  // --- someone who was killed before the shutdown (lost and counted already)
-  placeOnServer(pVictim, zone.x - 12, zone.y);
-  placeOnServer(pKiller, zone.x + 12, zone.y);
-  serverPlayer(pVictim).hp = 1;
-  await sleep(120);
-  const deadline = Date.now() + 10_000;
-  while (pVictim.results.length === 0 && Date.now() < deadline) {
-    pKiller.room.send("attack", { x: zone.x - 12, y: zone.y });
-    await sleep(120);
-  }
-  await until(() => pVictim.results.length === 1, "the early death");
-
-  // --- the raider loots a crate: that item is theirs only if they extract, so it must not reach the stash
-  const crate = [...world.state.containers.values()].find((c) => c.kind === "crate" && c.items.length > 0)!;
-  loot = { uid: crate.items[0]!.uid, def: crate.items[0]!.def };
-  placeOnServer(first, crate.x, crate.y);
-  await sleep(120);
-  first.room.send("take", { containerId: crate.id, uid: loot.uid });
-  await until(() => carried(first).some((i) => i.uid === loot.uid), "the pickup");
-
-  // --- one raider loses their connection and is held in the reconnect window when the server stops
+  // --- the dropped player kills too, then loses their connection and is held in the reconnect window
+  await kill(pDropped, pVictim2);
+  expect(serverPlayer(pDropped).gv).toBe(GV_KILL);
   const room = serverRoom(pDropped);
   const sid = pDropped.room.sessionId;
   await until(() => !!room.clients.getById(sid), "a live connection");
   room.clients.getById(sid)!.ref.terminate();
   await until(() => room.clients.getById(sid) === undefined, "the room to notice the drop");
   expect(world.players.get(sid)?.resolved).toBe(false);
+  expect(pPartner.results).toEqual([]);
 
-  // --- and a second room that is still in its lobby
-  const pLobby = track(await client.create<RaidState>(ROOM_NAME, options(lobbyer, lobbyer.stash.slice(0, 2))));
+  // --- a second run, down to two alive players: while the server shuts down, leaving one of them must not make the
+  // other the winner of a run that is void
+  const pHunter = track(await client.create<RaidState>(ROOM_NAME, options(hunter)));
+  const duoWorld = worldOf(pHunter);
+  duoWorld.config = { ...duoWorld.config, minPlayers: 3 };
+  const pBystander = track(await client.joinById<RaidState>(pHunter.room.roomId, options(bystander)));
+  const pPrey = track(await client.joinById<RaidState>(pHunter.room.roomId, options(prey)));
+  await until(() => duoWorld.state.phase === "active" && [...duoWorld.state.players.values()].every((p) => p.status === "alive"), "the second run to start");
+  await kill(pHunter, pPrey);
+  expect(serverPlayer(pHunter).gv).toBe(GV_KILL);
+  expect(pBystander.results).toEqual([]);
+  expect(duoWorld.state.phase).toBe("active"); // two alive: the run goes on
+
+  // --- and a third room that is still in its lobby
+  const pLobby = track(await client.create<RaidState>(ROOM_NAME, options(lobbyer)));
   expect(serverPlayer(pLobby).status).toBe("lobby");
   expect(pLobby.room.roomId).not.toBe(first.room.roomId);
-  expect(server.store.get(raider.name)!.stash).toEqual(raider.stash.slice(2)); // their items are out of the stash now
-  expect(server.store.get(lobbyer.name)!.stash).toEqual(lobbyer.stash.slice(2));
+  // raider, partner and dropped are still in the first run, hunter and bystander in the second, and the lobbyer is queued
+  expect(server.profiles.size).toBe(6);
 
-  // --- the shutdown
+  // --- the shutdown: what the store is asked to do from here on is what the shutdown does
+  recordRun = vi.spyOn(server.store, "recordRun");
+  bankGv = vi.spyOn(server.store, "bankGv");
   await server.stop();
-  dataDirListing = fs.readdirSync(path.dirname(stashFile));
-  const file = JSON.parse(fs.readFileSync(stashFile, "utf8")) as { profiles: Record<string, Saved> };
-  const restart = new JsonStashStore(stashFile);
-  const everyone = [raider, partner, dropped, extractor, victim, killer, lobbyer];
+  recordedDuringStop = recordRun.mock.calls.length;
+  bankedDuringStop = bankGv.mock.calls.map(([name, gv]) => [name, gv]);
+  const finished = Date.now();
+  months = new Set([monthKey(started), monthKey(finished)]);
+  dataDirListing = fs.readdirSync(path.dirname(profileFile));
+  const file = JSON.parse(fs.readFileSync(profileFile, "utf8")) as { version: number; profiles: Record<string, ProfileRecord> };
+  expect(file.version).toBe(2);
+  const restart = new JsonProfileStore(profileFile);
   disk = Object.fromEntries(everyone.map((a) => [a.name, file.profiles[a.name]!]));
-  reloaded = Object.fromEntries(everyone.map((a) => [a.name, restart.get(a.name)!]));
+  reloaded = Object.fromEntries(everyone.map((a) => [a.name, restart.get(a.name)]));
 }, 60_000);
 
 afterAll(() => {
+  vi.restoreAllMocks();
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-const stashOf = (a: Account) => disk[a.name]!.stash;
+const gvOf = (a: Account) => disk[a.name]!.gv;
 const statsOf = (a: Account) => disk[a.name]!.stats;
+const monthsOf = (a: Account) => disk[a.name]!.gvByMonth;
 
-describe("stop() with an active raid and a lobby in flight", () => {
-  it("returns the items a raider brought and still carried, none missing and none doubled", () => {
-    expect(raider.stash).toHaveLength(3);
-    expect(sorted(stashOf(raider))).toEqual(sorted(raider.stash));
-    expect(sorted(stashOf(partner))).toEqual(sorted(partner.stash));
+/** `gv` banked once: in the balance, the lifetime total and one of the months the test ran in. */
+function expectPaid(a: Account, gv: number): void {
+  expect(gvOf(a), `${a.name} balance`).toBe(gv);
+  expect(disk[a.name]!.gvLifetime, `${a.name} lifetime`).toBe(gv);
+  expect(Object.keys(monthsOf(a)).every((m) => months.has(m)), `${a.name} months`).toBe(true);
+  expect(sum(Object.values(monthsOf(a))), `${a.name} month`).toBe(gv);
+}
+
+describe("stop() with a run and a lobby in flight", () => {
+  it("pays the GV an alive player had earned so far, once, through bankGv", () => {
+    expectPaid(raider, GV_KILL);
+    expectPaid(dropped, GV_KILL);
+    expectPaid(hunter, GV_KILL);
+    const paid = [[dropped.name, GV_KILL], [hunter.name, GV_KILL], [raider.name, GV_KILL]];
+    expect(bankedDuringStop.slice().sort()).toEqual(paid.sort());
   });
 
-  it("records no raid and no death for them", () => {
-    for (const who of [raider, partner, dropped]) expect(statsOf(who)).toEqual(zeroStats);
+  it("records no run for them: the run is void, so nothing is counted, not even the kill", () => {
+    for (const who of [raider, partner, dropped, hunter, bystander]) expect(statsOf(who), who.name).toEqual(zeroStats);
+    expect(recordedDuringStop).toBe(0);
   });
 
-  it("does not keep what the raider looted in the raid", () => {
-    for (const saved of Object.values(disk)) expect(saved.stash.some((i) => i.uid === loot.uid)).toBe(false);
+  it("pays nothing to an alive player who had earned nothing", () => {
+    for (const who of [partner, bystander]) {
+      expectPaid(who, 0);
+      expect(monthsOf(who)).toEqual({});
+      expect(bankedDuringStop.some(([name]) => name === who.name)).toBe(false);
+    }
   });
 
-  it("also covers a raider whose connection had dropped and whose seat was being held", () => {
-    expect(sorted(stashOf(dropped))).toEqual(sorted(dropped.stash));
+  it("does not make the last one of two alive players the winner of a void run: no win bonus, no recorded win", () => {
+    // The hunter and the bystander were the only two alive in their run, so whoever the shutdown removed first
+    // left the other alone. Neither may be paid GV_WIN or credited a win for it.
+    expect(statsOf(hunter).wins).toBe(0);
+    expect(statsOf(bystander).wins).toBe(0);
+    for (const who of [hunter, bystander]) expect(gvOf(who), who.name).toBeLessThan(GV_WIN);
+    expect(bankedDuringStop.some(([, gv]) => gv >= GV_WIN)).toBe(false);
+    expect(Object.values(disk).some((saved) => saved.stats.wins > 0)).toBe(false);
+  });
+
+  it("also covers a player whose connection had dropped and whose seat was being held", () => {
+    expectPaid(dropped, GV_KILL);
     expect(statsOf(dropped)).toEqual(zeroStats);
   });
 
-  it("still refunds a player who was waiting in a lobby", () => {
-    expect(sorted(stashOf(lobbyer))).toEqual(sorted(lobbyer.stash));
-    expect(statsOf(lobbyer)).toEqual(zeroStats);
+  it("leaves a player who was waiting in a lobby untouched", () => {
+    expect(disk[lobbyer.name]).toEqual(before[lobbyer.name]);
+    expect(bankedDuringStop.some(([name]) => name === lobbyer.name)).toBe(false);
   });
 
-  it("leaves what was settled before the shutdown exactly as it was, counted once", () => {
-    // Extracted earlier: the item came back then, and the raid was counted then.
-    expect(sorted(stashOf(extractor))).toEqual(sorted(extractor.stash));
-    expect(statsOf(extractor)).toEqual({ raids: 1, extracts: 1, deaths: 0, kills: 0 });
-    // Killed earlier: the item stays lost, and the death stays a death.
-    expect(sorted(stashOf(victim))).toEqual(sorted(victim.stash.slice(1)));
-    expect(statsOf(victim)).toEqual({ raids: 1, extracts: 0, deaths: 1, kills: 0 });
-    // The killer was still in the raid when the server stopped.
-    expect(sorted(stashOf(killer))).toEqual(sorted(killer.stash));
-    expect(statsOf(killer)).toEqual(zeroStats);
+  it("leaves what was settled before the shutdown exactly as it was, counted and paid once", () => {
+    // Killed after a kill of their own: their result banked the kill GV then, and the death was counted then.
+    expectPaid(trader, GV_KILL);
+    expect(statsOf(trader)).toEqual({ ...zeroStats, runs: 1, deaths: 1, kills: 1 });
+    // Killed with nothing earned.
+    for (const who of [victim, victim2, prey]) {
+      expectPaid(who, 0);
+      expect(statsOf(who), who.name).toEqual({ ...zeroStats, runs: 1, deaths: 1 });
+    }
+    // None of them was paid again by the shutdown.
+    for (const who of [trader, victim, victim2, prey]) expect(bankedDuringStop.some(([name]) => name === who.name)).toBe(false);
+  });
+
+  it("the ledger balances: every GV earned in the run is on disk exactly once", () => {
+    // Four kills were made; none of them was lost and none was paid twice.
+    const everyone = [raider, partner, dropped, trader, victim, victim2, hunter, bystander, prey];
+    expect(sum(everyone.map(gvOf))).toBe(4 * GV_KILL);
+    expect(sum(everyone.map((a) => disk[a.name]!.gvLifetime))).toBe(4 * GV_KILL);
   });
 
   it("the file a restart loads says the same, token and all", () => {
-    for (const who of [raider, partner, dropped, extractor, victim, killer, lobbyer]) {
-      expect(reloaded[who.name]).toMatchObject({ name: who.name, token: who.token, stash: stashOf(who), stats: statsOf(who) });
+    for (const who of [raider, partner, dropped, trader, victim, victim2, hunter, bystander, prey, lobbyer]) {
+      expect(reloaded[who.name]).toEqual(disk[who.name]);
+      expect(reloaded[who.name]).toMatchObject({ name: who.name, token: who.token });
     }
   });
 
@@ -252,7 +338,7 @@ describe("stop() with an active raid and a lobby in flight", () => {
     expect(server.profiles.size).toBe(0);
   });
 
-  it("leaves the data directory clean: the stash file and nothing half written", () => {
+  it("leaves the data directory clean: the profile file and nothing half written", () => {
     expect(dataDirListing).toEqual(["stash.json"]);
   });
 });

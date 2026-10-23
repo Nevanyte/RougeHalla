@@ -2,7 +2,7 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, type FxEvent, type GameMap, type ItemDTO, type RaidResult, type Sample, type Vec2,
+  generateMap, type FxEvent, type GameMap, type GvReason, type RunResult, type Sample, type Vec2,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { ActionCommand, InputQueue } from "./inputs";
@@ -12,8 +12,12 @@ export interface SimConfig {
   lobbySeconds: number;
   /** Max wait for more players once minPlayers have joined. */
   fillSeconds: number;
-  raidSeconds: number;
-  extractSeconds: number;
+  /** No death for this long teleports everyone alive into the coliseum: this long with PATIENCE_FULL_ALIVE standing... */
+  patienceSeconds: number;
+  /** ...shrinking linearly to this at PATIENCE_MIN_ALIVE or fewer (patienceSecondsFor). Equal to patienceSeconds = flat. */
+  patienceMinSeconds: number;
+  /** Locked in the coliseum this long with no death, sudden death starts. */
+  suddenDeathSeconds: number;
 }
 
 export interface PlayerRuntime {
@@ -27,12 +31,35 @@ export interface PlayerRuntime {
   nextAttackAt: number;
   /** While serverTime < this, walking doesn't overwrite `facing` (the player keeps aiming). */
   aimFacingUntil?: number;
-  extracting: { zoneId: string; startedAt: number } | null;
-  /** Items this player entered the raid with (for the results screen). */
-  broughtIn: ItemDTO[];
   killedBy: string | null;
-  /** Set once the player has left the active raid (dead/extracted/mia) and their result was emitted. */
+  /** GV earned this run, by source. A win bonus is decided when the run resolves and is never kept here. */
+  gv: { kills: number; mobs: number; bounty: number };
+  /** Mobs killed this run (feeds the feed score with FEED_MOB_KILL_WEIGHT; player kills are PlayerState.kills). */
+  mobKills: number;
+  /** hp / maxHp when the tick being simulated began: the tie-break between simultaneous last deaths. */
+  hpFracAtTickStart: number;
+  /** The last player to damage them and when (server ms): a leave soon after counts as that player's kill. */
+  lastHit: { by: string; at: number } | null;
+  /** Different players this one damaged during the run (not themselves, not sudden death): see WIN_BONUS_MIN_OPPONENTS. */
+  damaged: Set<string>;
+  /** When their connection dropped (server ms), while the Room holds the seat for a reconnect; null when connected. */
+  droppedAt: number | null;
+  /** Set when the player goes down (died, or left the run). Their result follows at the end of that tick. */
+  down: { outcome: "died" | "mia" } | null;
+  /** Set once their result has been emitted. */
   resolved: boolean;
+}
+
+/** Arena bookkeeping that is not synced (see arena.ts). */
+export interface ArenaRuntime {
+  /** Players in the run when it started. With fewer than 2 the run is solo: nobody wins and no win bonus is paid. */
+  startedWith: number;
+  /** Players who went down in the step being simulated, in order. arena.settle() resolves them. */
+  downedThisTick: Array<{ p: PlayerState; rt: PlayerRuntime }>;
+  /** Players who went down between steps (a leave). Resolved at once, they still count as the next tick's deaths. */
+  downsBetweenTicks: number;
+  /** Set when a player is abandoned mid-run (a server shutdown): the run is void and the sim stops advancing it. */
+  voided: boolean;
 }
 
 export type SimEvent =
@@ -40,17 +67,23 @@ export type SimEvent =
   | { type: "toast"; to: string; text: string }
   | { type: "raidStarted" }
   | { type: "raidEnded" }
-  /** A player left the raid for good; the Room persists `result` and sends it to them. */
-  | { type: "resolved"; id: string; result: RaidResult };
+  /** Feedback only: GV a player just earned. It is banked through their `resolved` result, never from this. */
+  | { type: "gv"; id: string; amount: number; reason: GvReason }
+  /** A player's run is over; the Room banks `result` (GV and stats) and sends it to them. */
+  | { type: "resolved"; id: string; result: RunResult };
 
 export type ActionHandler = (world: World, p: PlayerState, rt: PlayerRuntime, cmd: ActionCommand) => void;
 export type SimSystem = (world: World, dtMs: number) => void;
 
 export interface WorldHooks {
-  /** A player went down (died/mia) with their inventory still on them. Default: discard it. */
+  /** A player went down (died/mia) with their run gear still on them. Default: discard it. */
   dropBody(world: World, p: PlayerState): void;
   /** The lobby just turned into an active raid: players are placed and `raidStartedAt` is set. */
   raidStarted?(world: World): void;
+  /** Everyone alive was just moved into the coliseum (paths and input queues are already cleared). Phase 9 clears in-flight projectiles here. */
+  teleported?(world: World): void;
+  /** `killer` just claimed `victim`'s bounty (already paid). Phase 11 moves half the victim's buff stacks here. */
+  bountyClaimed?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, bounty: number): void;
 }
 
 export interface World {
@@ -60,7 +93,7 @@ export interface World {
   map: GameMap;
   /** Monotonic counter behind nextId(). */
   idCounter: number;
-  /** Globally unique item uids: looted items can end up in a persistent stash. */
+  /** Item uids. Run gear never leaves the run, but globally unique ids keep that safe to change. */
   newItemUid: () => string;
   players: Map<string, PlayerRuntime>;
   /** Server-only randomness (loot rolls, spawn assignment). Never derived from the public seed. */
@@ -76,6 +109,7 @@ export interface World {
   /** Run every active step after inputs and movement, in registration order. */
   systems: SimSystem[];
   hooks: WorldHooks;
+  arena: ArenaRuntime;
 }
 
 export function createWorld(opts: {
@@ -101,6 +135,7 @@ export function createWorld(opts: {
     actions: {},
     systems: [],
     hooks: { dropBody: (_w, p) => { p.inventory.clear(); } },
+    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false },
   };
 }
 
@@ -109,14 +144,11 @@ export function emit(world: World, ev: SimEvent): void {
 }
 
 /**
- * Stops a running extraction and tells the player, once. A no-op when none is running, so callers
- * (move/stop, attack, leaving the zone) can call it unconditionally without repeating the toast.
+ * The map that blocks movement, line of fire and line of sight. Phase 8b: `withGates(world.map)` while
+ * `state.gatesLocked`, so locked gates seal the coliseum on the server too.
  */
-export function cancelExtraction(world: World, p: PlayerState, rt: PlayerRuntime): void {
-  if (!rt.extracting) return;
-  rt.extracting = null;
-  p.extractProgress = 0;
-  emit(world, { type: "toast", to: rt.id, text: "Extraction cancelled" });
+export function collisionMap(world: World): GameMap {
+  return world.map;
 }
 
 /** Room-unique id for containers and other raid-scoped entities (not items: see newItemUid). */

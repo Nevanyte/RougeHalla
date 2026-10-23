@@ -1,0 +1,1457 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, type RunOutcome } from "@raid/shared";
+import {
+  InvalidProfileNameError, JsonProfileStore, ProfileFileError, ProfileForbiddenError, UnknownProfileError,
+  type Clock, type ProfileRecord,
+} from "../src/persistence/ProfileStore";
+
+const dirs: string[] = [];
+const stores: JsonProfileStore[] = [];
+
+function tmpDir(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-profiles-"));
+  dirs.push(dir);
+  return dir;
+}
+
+let dir: string;
+let file: string;
+/** What the injected clock says; tests move it to cross a month. */
+let now: number;
+const OCT = "2026-10";
+
+function open(f: string, clock: Clock = () => now): JsonProfileStore {
+  const store = new JsonProfileStore(f, { clock });
+  stores.push(store);
+  return store;
+}
+
+beforeEach(() => {
+  dir = tmpDir();
+  file = path.join(dir, "stash.json");
+  now = Date.UTC(2026, 9, 20, 12);
+});
+
+afterEach(async () => {
+  vi.restoreAllMocks();
+  // Let any write still in flight finish before the directory goes away.
+  await Promise.allSettled(stores.splice(0).map((s) => s.flush()));
+  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+});
+
+const readFile = (f = file) => JSON.parse(fs.readFileSync(f, "utf8"));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const withSuffix = (d: string, suffix: string) => fs.readdirSync(d).filter((n) => n.startsWith(`stash.json.${suffix}`));
+const run = (outcome: RunOutcome, kills = 0, gv = 0) => ({ outcome, kills, gv });
+/** Keeps the expected startup chatter out of the test output, and lets a test look at it. */
+const quiet = () => ({
+  log: vi.spyOn(console, "log").mockImplementation(() => {}),
+  error: vi.spyOn(console, "error").mockImplementation(() => {}),
+});
+
+// Captured before any test installs fake timers: lets a test wait for real file I/O while fake time stands still.
+const realSetTimeout = setTimeout;
+const realSleep = (ms: number) => new Promise((r) => realSetTimeout(r, ms));
+async function waitReal(pred: () => boolean, what: string): Promise<void> {
+  for (let i = 0; i < 400; i++) {
+    if (pred()) return;
+    await realSleep(5);
+  }
+  throw new Error(`timed out waiting for: ${what}`);
+}
+
+const zeroStats = { runs: 0, wins: 0, draws: 0, deaths: 0, kills: 0 };
+const emptyRecord = (name: string, token: string): ProfileRecord => ({
+  name, token, gv: 0, gvLifetime: 0, gvByMonth: {}, stats: { ...zeroStats }, cosmetics: { owned: [], equipped: {} },
+});
+
+/** A profile with something in every field, as the v2 file holds it. */
+const goodProfile = {
+  name: "alice", token: "t-alice", gv: 120, gvLifetime: 300,
+  gvByMonth: { "2026-09": 100, "2026-10": 200 },
+  stats: { runs: 9, wins: 2, draws: 1, deaths: 6, kills: 14 },
+  cosmetics: { owned: ["cape-red", "trail-blue"], equipped: { cape: "cape-red" } },
+};
+const bobby = (patch: Record<string, unknown> = {}) => ({ ...goodProfile, name: "bobby", token: "t-bobby", ...patch });
+const v2 = (profiles: unknown) => JSON.stringify({ version: 2, profiles });
+const v1 = (profiles: unknown) => JSON.stringify({ version: 1, profiles });
+
+describe("claim", () => {
+  it("creates an unknown profile with a token, no GV, zeroed stats, no cosmetics and no items of any kind", () => {
+    const store = open(file);
+    const { record, token, created } = store.claim("alice");
+    expect(created).toBe(true);
+    expect(token).toMatch(/^[0-9a-f-]{36}$/);
+    expect(record).toEqual(emptyRecord("alice", token));
+    expect(Object.keys(record).sort()).toEqual(["cosmetics", "gv", "gvByMonth", "gvLifetime", "name", "stats", "token"]);
+  });
+
+  it("gives every profile its own token", () => {
+    const store = open(file);
+    expect(store.claim("alice").token).not.toBe(store.claim("bobby").token);
+  });
+
+  it("returns the same profile for a known name and its exact token", () => {
+    const store = open(file);
+    const first = store.claim("alice");
+    const again = store.claim("alice", first.token);
+    expect(again.created).toBe(false);
+    expect(again.token).toBe(first.token);
+    expect(again.record).toEqual(first.record);
+  });
+
+  it("refuses a known name without the token, with a wrong one, or with another profile's", () => {
+    const store = open(file);
+    const a = store.claim("alice");
+    const b = store.claim("bobby");
+    expect(() => store.claim("alice")).toThrow(ProfileForbiddenError);
+    expect(() => store.claim("alice", "")).toThrow(ProfileForbiddenError);
+    expect(() => store.claim("alice", "nope")).toThrow(ProfileForbiddenError);
+    expect(() => store.claim("alice", b.token)).toThrow(ProfileForbiddenError);
+    expect(() => store.claim("alice", a.token + "x")).toThrow(ProfileForbiddenError);
+    expect(() => store.claim("alice", a.token.toUpperCase())).toThrow(ProfileForbiddenError);
+    expect(store.claim("alice", a.token).created).toBe(false);
+  });
+
+  it("ignores a token supplied for an unknown name and issues a fresh one", () => {
+    const store = open(file);
+    const r = store.claim("alice", "stale-token-from-a-wiped-server");
+    expect(r.created).toBe(true);
+    expect(r.token).not.toBe("stale-token-from-a-wiped-server");
+  });
+
+  it.each(["", "a", "x".repeat(17), "has space", "dot.dot", "../etc", "a/b", "ünï", "tab\t", "nl\n", "ok\n"])(
+    "rejects the invalid name %j",
+    (name) => {
+      const store = open(file);
+      expect(() => store.claim(name)).toThrow(InvalidProfileNameError);
+      expect(store.get(name)).toBeUndefined();
+    },
+  );
+
+  it("treats names as case-sensitive", () => {
+    const store = open(file);
+    const a = store.claim("Alice");
+    const b = store.claim("alice");
+    expect(a.created && b.created).toBe(true);
+    expect(a.token).not.toBe(b.token);
+  });
+
+  it("accepts names that collide with Object.prototype and persists them like any other", async () => {
+    const store = open(file);
+    const names = ["__proto__", "constructor", "toString", "hasOwnProperty"];
+    for (const n of names) expect(store.claim(n).created).toBe(true);
+    expect(store.get("__proto__")?.name).toBe("__proto__");
+    expect(({} as Record<string, unknown>).gv).toBeUndefined();
+    await store.flush();
+    const back = open(file);
+    for (const n of names) expect(back.get(n)?.name).toBe(n);
+    expect(back.get("__proto__")?.token).toBe(store.get("__proto__")?.token);
+    store.bankGv("__proto__", 5);
+    expect(store.leaderboard(OCT, 10)).toEqual([{ name: "__proto__", gv: 5 }]);
+  });
+
+  describe("snapshots", () => {
+    function seeded() {
+      fs.writeFileSync(file, v2({ alice: goodProfile }));
+      return open(file);
+    }
+
+    it("claim() and get() hand out deep copies: changing one never touches the store", () => {
+      const store = open(file);
+      const { record, token } = store.claim("alice");
+      record.gv = 99;
+      record.gvLifetime = 99;
+      record.gvByMonth[OCT] = 99;
+      record.stats.runs = 99;
+      record.cosmetics.owned.push("hat");
+      record.cosmetics.equipped.hat = "hat";
+      record.token = "hijacked";
+      expect(store.get("alice")).toEqual(emptyRecord("alice", token));
+    });
+
+    it("get() copies every nested field of a full profile", () => {
+      const store = seeded();
+      const snap = store.get("alice")!;
+      expect(snap).toEqual(goodProfile);
+      snap.gvByMonth["2026-09"] = 1;
+      delete snap.gvByMonth[OCT];
+      snap.stats.kills = 0;
+      snap.cosmetics.owned.length = 0;
+      snap.cosmetics.equipped.cape = "gone";
+      expect(store.get("alice")).toEqual(goodProfile);
+      expect(store.claim("alice", "t-alice").record).toEqual(goodProfile);
+    });
+
+    it("the copies are plain objects, and two snapshots share nothing", () => {
+      const store = seeded();
+      const a = store.get("alice")!;
+      const b = store.get("alice")!;
+      for (const dict of [a.gvByMonth, a.cosmetics.equipped, a.stats]) expect(Object.getPrototypeOf(dict)).toBe(Object.prototype);
+      expect(a.gvByMonth).not.toBe(b.gvByMonth);
+      expect(a.cosmetics.owned).not.toBe(b.cosmetics.owned);
+      expect(a.cosmetics.equipped).not.toBe(b.cosmetics.equipped);
+      expect(a.stats).not.toBe(b.stats);
+    });
+  });
+});
+
+describe("get / verifyToken", () => {
+  it("get returns undefined for an unknown name", () => {
+    expect(open(file).get("nobody")).toBeUndefined();
+  });
+
+  it("verifyToken is true only for a known profile and its exact token", () => {
+    const store = open(file);
+    const a = store.claim("alice");
+    const b = store.claim("bobby");
+    expect(store.verifyToken("alice", a.token)).toBe(true);
+    expect(store.verifyToken("alice", b.token)).toBe(false);
+    expect(store.verifyToken("alice", "")).toBe(false);
+    expect(store.verifyToken("nobody", a.token)).toBe(false);
+    expect(store.verifyToken("alice", undefined as unknown as string)).toBe(false);
+    expect(store.verifyToken("alice", 123 as unknown as string)).toBe(false);
+  });
+});
+
+describe("recordRun", () => {
+  it("counts a run by outcome: won, draw and died each have a counter, mia is a death", () => {
+    const store = open(file);
+    store.claim("alice");
+    store.recordRun("alice", run("won"));
+    expect(store.get("alice")!.stats).toEqual({ runs: 1, wins: 1, draws: 0, deaths: 0, kills: 0 });
+    store.recordRun("alice", run("draw"));
+    expect(store.get("alice")!.stats).toEqual({ runs: 2, wins: 1, draws: 1, deaths: 0, kills: 0 });
+    store.recordRun("alice", run("died"));
+    expect(store.get("alice")!.stats).toEqual({ runs: 3, wins: 1, draws: 1, deaths: 1, kills: 0 });
+    store.recordRun("alice", run("mia"));
+    expect(store.get("alice")!.stats).toEqual({ runs: 4, wins: 1, draws: 1, deaths: 2, kills: 0 });
+  });
+
+  it("adds kills, and banks the GV into the balance, the lifetime total and the current month", () => {
+    const store = open(file);
+    store.claim("alice");
+    store.recordRun("alice", run("won", 3, 140));
+    store.recordRun("alice", run("died", 1, 25));
+    const r = store.get("alice")!;
+    expect(r.stats).toEqual({ runs: 2, wins: 1, draws: 0, deaths: 1, kills: 4 });
+    expect(r.gv).toBe(165);
+    expect(r.gvLifetime).toBe(165);
+    expect(r.gvByMonth).toEqual({ [OCT]: 165 });
+  });
+
+  it("a run that paid nothing still counts and leaves no month entry", () => {
+    const store = open(file);
+    store.claim("alice");
+    store.recordRun("alice", run("died", 0, 0));
+    const r = store.get("alice")!;
+    expect(r.stats.runs).toBe(1);
+    expect(r.gvByMonth).toEqual({});
+    expect(r.gv + r.gvLifetime).toBe(0);
+  });
+
+  it("leaves the spendable balance alone when it is lower than the lifetime total", () => {
+    fs.writeFileSync(file, v2({ alice: goodProfile })); // 120 spendable of 300 earned
+    const store = open(file);
+    store.recordRun("alice", run("won", 0, 50));
+    const r = store.get("alice")!;
+    expect([r.gv, r.gvLifetime]).toEqual([170, 350]);
+    expect(r.gvByMonth).toEqual({ "2026-09": 100, [OCT]: 250 });
+  });
+
+  it("only touches the profile it names", () => {
+    const store = open(file);
+    store.claim("alice");
+    const bob = store.claim("bobby").record;
+    store.recordRun("alice", run("won", 2, 10));
+    expect(store.get("bobby")).toEqual(bob);
+  });
+
+  it("floors fractional kills and GV; a fraction below 1 is nothing, quietly", () => {
+    const { error } = quiet();
+    const store = open(file);
+    store.claim("alice");
+    store.recordRun("alice", run("died", 1.9, 7.9));
+    store.recordRun("alice", run("died", 0.5, 0.99));
+    const r = store.get("alice")!;
+    expect([r.stats.kills, r.gv, r.gvLifetime, r.gvByMonth[OCT]]).toEqual([1, 7, 7, 7]);
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  describe("garbage amounts", () => {
+    // Policy: ignored (counted as 0) and logged, never thrown. The rest of the run is recorded normally.
+    const garbage: Array<[string, unknown]> = [
+      ["NaN", Number.NaN], ["Infinity", Infinity], ["-Infinity", -Infinity], ["a negative", -4],
+      ["a number too big to stay exact", 1e300], ["a string", "12"], ["null", null], ["undefined", undefined],
+    ];
+
+    it.each(garbage)("a gv of %s is ignored and logged; the run and its kills still land", (_label, bad) => {
+      const { error } = quiet();
+      const store = open(file);
+      store.claim("alice");
+      store.recordRun("alice", { outcome: "won", kills: 3, gv: bad as number });
+      expect(store.get("alice")).toEqual({ ...emptyRecord("alice", store.get("alice")!.token), stats: { ...zeroStats, runs: 1, wins: 1, kills: 3 } });
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(String(error.mock.calls[0]![0])).toMatch(/alice.*gv/);
+    });
+
+    it.each(garbage)("kills of %s are ignored and logged; the GV still lands", (_label, bad) => {
+      const { error } = quiet();
+      const store = open(file);
+      store.claim("alice");
+      store.recordRun("alice", { outcome: "died", kills: bad as number, gv: 30 });
+      const r = store.get("alice")!;
+      expect(r.stats).toEqual({ ...zeroStats, runs: 1, deaths: 1 });
+      expect([r.gv, r.gvLifetime, r.gvByMonth[OCT]]).toEqual([30, 30, 30]);
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(String(error.mock.calls[0]![0])).toMatch(/alice.*kills/);
+    });
+
+    it.each(garbage)("bankGv(%s) is ignored and logged", (_label, bad) => {
+      const { error } = quiet();
+      const store = open(file);
+      const { record } = store.claim("alice");
+      store.bankGv("alice", bad as number);
+      expect(store.get("alice")).toEqual(record);
+      expect(error).toHaveBeenCalledTimes(1);
+    });
+
+    it("never writes a count it would refuse to reload: sums stop at the largest exact integer", async () => {
+      fs.writeFileSync(file, v2({ alice: { ...goodProfile, gv: Number.MAX_SAFE_INTEGER - 3, gvLifetime: Number.MAX_SAFE_INTEGER - 3, gvByMonth: {} } }));
+      const store = open(file);
+      store.recordRun("alice", run("won", 0, 10));
+      store.bankGv("alice", Number.MAX_SAFE_INTEGER);
+      await store.flush();
+      const back = open(file).get("alice")!;
+      expect([back.gv, back.gvLifetime, back.gvByMonth[OCT]]).toEqual([Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]);
+    });
+  });
+
+  it("an outcome it does not know throws before anything changes", () => {
+    const store = open(file);
+    const { record } = store.claim("alice");
+    for (const bad of ["extracted", "__proto__", "", undefined]) {
+      expect(() => store.recordRun("alice", run(bad as RunOutcome, 2, 50))).toThrow(TypeError);
+    }
+    expect(store.get("alice")).toEqual(record);
+  });
+
+  it("a clock that gives no usable date fails the call before anything changes; a run without GV never asks it", () => {
+    const store = open(file, () => Number.NaN);
+    const { record } = store.claim("alice");
+    expect(() => store.recordRun("alice", run("won", 1, 5))).toThrow(RangeError);
+    expect(() => store.bankGv("alice", 5)).toThrow(RangeError);
+    expect(store.get("alice")).toEqual(record);
+    store.recordRun("alice", run("won", 1, 0));
+    expect(store.get("alice")!.stats).toEqual({ ...zeroStats, runs: 1, wins: 1, kills: 1 });
+  });
+
+  it("throws for an unknown profile, and changes nothing", () => {
+    const store = open(file);
+    store.claim("alice");
+    for (const name of ["nobody", "__proto__", "constructor", ""]) {
+      expect(() => store.recordRun(name, run("died", 1, 10))).toThrow(UnknownProfileError);
+    }
+    expect(store.leaderboard(OCT, 10)).toEqual([]);
+  });
+});
+
+describe("bankGv", () => {
+  it("adds to the balance, the lifetime total and the current month, and records no run", () => {
+    const store = open(file);
+    store.claim("alice");
+    store.bankGv("alice", 40);
+    store.bankGv("alice", 2.7);
+    const r = store.get("alice")!;
+    expect([r.gv, r.gvLifetime, r.gvByMonth]).toEqual([42, 42, { [OCT]: 42 }]);
+    expect(r.stats).toEqual(zeroStats);
+  });
+
+  it("zero is a no-op: no month entry, and nothing is written", async () => {
+    const store = open(file);
+    const { record } = store.claim("alice");
+    await store.flush();
+    const rename = vi.spyOn(fs.promises, "rename");
+    store.bankGv("alice", 0);
+    store.bankGv("alice", 0.4);
+    await store.flush();
+    expect(store.get("alice")).toEqual(record);
+    expect(rename).not.toHaveBeenCalled();
+  });
+
+  it("throws for an unknown profile", () => {
+    expect(() => open(file).bankGv("nobody", 5)).toThrow(UnknownProfileError);
+  });
+});
+
+describe("months", () => {
+  it("GV lands in the month the clock says at that moment, in UTC, to the millisecond", () => {
+    const store = open(file);
+    store.claim("alice");
+    now = Date.UTC(2026, 0, 31, 23, 59, 59, 999);
+    store.bankGv("alice", 10);
+    now = Date.UTC(2026, 1, 1, 0, 0, 0, 0);
+    store.bankGv("alice", 20);
+    store.recordRun("alice", run("won", 0, 5));
+    const r = store.get("alice")!;
+    expect(r.gvByMonth).toEqual({ "2026-01": 10, "2026-02": 25 });
+    expect([r.gv, r.gvLifetime]).toEqual([35, 35]);
+    expect(store.leaderboard("2026-01", 10)).toEqual([{ name: "alice", gv: 10 }]);
+    expect(store.leaderboard("2026-02", 10)).toEqual([{ name: "alice", gv: 25 }]);
+  });
+
+  it("rolls over a year", () => {
+    const store = open(file);
+    store.claim("alice");
+    now = Date.UTC(2026, 11, 31, 23, 59, 59, 999);
+    store.bankGv("alice", 1);
+    now += 1;
+    store.bankGv("alice", 2);
+    expect(store.get("alice")!.gvByMonth).toEqual({ "2026-12": 1, "2027-01": 2 });
+  });
+
+  it("a month is a fresh start on the leaderboard while lifetime GV carries on", () => {
+    const store = open(file);
+    store.claim("alice");
+    store.claim("bobby");
+    store.bankGv("alice", 100);
+    store.bankGv("bobby", 50);
+    now = Date.UTC(2026, 10, 2);
+    store.bankGv("bobby", 10);
+    expect(store.leaderboard("2026-11", 10)).toEqual([{ name: "bobby", gv: 10 }]);
+    expect(store.leaderboard(OCT, 10)).toEqual([{ name: "alice", gv: 100 }, { name: "bobby", gv: 50 }]);
+    expect(store.get("bobby")!.gvLifetime).toBe(60);
+  });
+
+  it("the clock is read once per payout and only when there is GV to place", () => {
+    const clock = vi.fn(() => now);
+    const store = open(file, clock);
+    store.claim("alice");
+    store.recordRun("alice", run("died", 2, 0));
+    store.bankGv("alice", 0);
+    expect(clock).not.toHaveBeenCalled();
+    store.recordRun("alice", run("won", 1, 9));
+    store.bankGv("alice", 4);
+    expect(clock).toHaveBeenCalledTimes(2);
+  });
+
+  it("defaults to the system clock", () => {
+    const store = new JsonProfileStore(file);
+    stores.push(store);
+    store.claim("alice");
+    const before = new Date().getUTCMonth();
+    store.bankGv("alice", 5);
+    const months = Object.keys(store.get("alice")!.gvByMonth);
+    expect(months).toHaveLength(1);
+    // Either side of a month change while the test runs is fine.
+    expect([before + 1, new Date().getUTCMonth() + 1]).toContain(Number(months[0]!.slice(5)));
+  });
+});
+
+describe("leaderboard", () => {
+  function seed(rows: Record<string, number>, month = OCT) {
+    const store = open(file, () => Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)) - 1, 10));
+    for (const [name, gv] of Object.entries(rows)) {
+      store.claim(name);
+      store.bankGv(name, gv);
+    }
+    return store;
+  }
+
+  it("lists name and gv, highest first", () => {
+    const store = seed({ alice: 30, bobby: 90, carol: 60 });
+    expect(store.leaderboard(OCT, 10)).toStrictEqual([
+      { name: "bobby", gv: 90 }, { name: "carol", gv: 60 }, { name: "alice", gv: 30 },
+    ]);
+  });
+
+  it("breaks ties by name, ascending, by code unit (so the order never depends on a locale)", () => {
+    const store = seed({ mike: 5, Zed: 5, alice: 5, bobby: 9, "al-ice": 5, al_ice: 5 });
+    expect(store.leaderboard(OCT, 10).map((e) => e.name)).toEqual(["bobby", "Zed", "al-ice", "al_ice", "alice", "mike"]);
+  });
+
+  it("only counts GV banked in that month, and only above zero", () => {
+    fs.writeFileSync(file, v2({
+      alice: { ...goodProfile, gvByMonth: { "2026-09": 100, [OCT]: 200 } },
+      bobby: bobby({ gvByMonth: { "2026-09": 70 } }),
+      carol: { ...goodProfile, name: "carol", token: "t-carol", gvByMonth: { [OCT]: 0 } },
+      dave: { ...goodProfile, name: "dave", token: "t-dave", gvByMonth: {} },
+    }));
+    const store = open(file);
+    expect(store.leaderboard(OCT, 10)).toEqual([{ name: "alice", gv: 200 }]);
+    expect(store.leaderboard("2026-09", 10)).toEqual([{ name: "alice", gv: 100 }, { name: "bobby", gv: 70 }]);
+  });
+
+  it("a month with nobody in it, and a month that is not one, are empty", () => {
+    const store = seed({ alice: 30 });
+    expect(store.leaderboard("2020-01", 10)).toEqual([]);
+    for (const bad of ["", "2026-13", "2026-00", "2026-1", "26-10", "__proto__", "constructor", "toString", "2026-10-01"]) {
+      expect(store.leaderboard(bad, 10)).toEqual([]);
+    }
+    expect(store.leaderboard(undefined as unknown as string, 10)).toEqual([]);
+  });
+
+  it("an empty store has an empty board", () => {
+    expect(open(file).leaderboard(OCT, 10)).toEqual([]);
+  });
+
+  describe("limit", () => {
+    function crowd() {
+      const rows: Record<string, number> = {};
+      for (let i = 0; i < 130; i++) rows[`p${String(i).padStart(3, "0")}`] = i + 1;
+      return seed(rows);
+    }
+
+    it.each<[string, number, number]>([
+      ["a normal limit", 5, 5],
+      ["one", 1, 1],
+      ["zero is raised to 1", 0, 1],
+      ["a negative is raised to 1", -7, 1],
+      ["above the maximum is cut to it", 1000, LEADERBOARD_MAX_LIMIT],
+      ["exactly the maximum", LEADERBOARD_MAX_LIMIT, LEADERBOARD_MAX_LIMIT],
+      ["Infinity is cut to the maximum", Infinity, LEADERBOARD_MAX_LIMIT],
+      ["-Infinity is raised to 1", -Infinity, 1],
+      ["a fraction is floored", 2.9, 2],
+      ["NaN falls back to the default", Number.NaN, LEADERBOARD_DEFAULT_LIMIT],
+    ])("%s", (_label, limit, count) => {
+      const entries = crowd().leaderboard(OCT, limit);
+      expect(entries).toHaveLength(count);
+      expect(entries[0]).toEqual({ name: "p129", gv: 130 }); // the top is always the top
+    });
+
+    it("never returns more than exist", () => {
+      expect(seed({ alice: 1, bobby: 2 }).leaderboard(OCT, 50)).toHaveLength(2);
+    });
+  });
+
+  it("returns fresh data: editing the result does not touch the store", () => {
+    const store = seed({ alice: 30 });
+    store.leaderboard(OCT, 10)[0]!.gv = 9999;
+    expect(store.leaderboard(OCT, 10)).toEqual([{ name: "alice", gv: 30 }]);
+  });
+
+  it("never carries a token", () => {
+    const store = seed({ alice: 30 });
+    expect(JSON.stringify(store.leaderboard(OCT, 10))).not.toContain(store.get("alice")!.token);
+  });
+});
+
+describe("persistence", () => {
+  it("writes the documented v2 file format on flush and leaves no temp file behind", async () => {
+    const store = open(file);
+    const { token } = store.claim("alice");
+    store.recordRun("alice", run("won", 2, 50));
+    await store.flush();
+    expect(readFile()).toEqual({
+      version: 2,
+      profiles: {
+        alice: {
+          name: "alice", token, gv: 50, gvLifetime: 50, gvByMonth: { [OCT]: 50 },
+          stats: { runs: 1, wins: 1, draws: 0, deaths: 0, kills: 2 },
+          cosmetics: { owned: [], equipped: {} },
+        },
+      },
+    });
+    expect(fs.existsSync(`${file}.tmp`)).toBe(false);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+  });
+
+  it("a restart brings back every field, and everything keeps working", async () => {
+    const store = open(file);
+    const a = store.claim("alice");
+    const b = store.claim("bobby");
+    store.claim("carol");
+    store.recordRun("alice", run("won", 3, 200));
+    now = Date.UTC(2026, 10, 3);
+    store.recordRun("alice", run("died", 1, 40));
+    store.recordRun("bobby", run("mia", 0, 0));
+    store.bankGv("bobby", 15);
+    store.recordRun("bobby", run("draw", 2, 60));
+    await store.flush();
+
+    const later = Date.UTC(2026, 11, 1);
+    const back = open(file, () => later);
+    for (const name of ["alice", "bobby", "carol"]) expect(back.get(name)).toEqual(store.get(name));
+    expect(back.get("alice")!.gvByMonth).toEqual({ [OCT]: 200, "2026-11": 40 });
+    expect(back.leaderboard(OCT, 10)).toEqual(store.leaderboard(OCT, 10));
+    expect(back.leaderboard("2026-11", 10)).toEqual([{ name: "bobby", gv: 75 }, { name: "alice", gv: 40 }]);
+    expect(back.claim("alice", a.token).created).toBe(false);
+    expect(back.claim("bobby", b.token).created).toBe(false);
+    expect(() => back.claim("alice", b.token)).toThrow(ProfileForbiddenError);
+
+    // New GV continues the month it falls in; the old months are not disturbed.
+    back.bankGv("alice", 10);
+    await back.flush();
+    const third = open(file);
+    expect(third.get("alice")!.gvByMonth).toEqual({ [OCT]: 200, "2026-11": 40, "2026-12": 10 });
+    expect(third.get("alice")!.gvLifetime).toBe(250);
+  });
+
+  it("cosmetics survive a rewrite untouched", async () => {
+    fs.writeFileSync(file, v2({ alice: goodProfile }));
+    const store = open(file);
+    store.bankGv("alice", 1);
+    await store.flush();
+    expect(open(file).get("alice")!.cosmetics).toEqual(goodProfile.cosmetics);
+    expect(readFile().profiles.alice.cosmetics).toEqual(goodProfile.cosmetics);
+  });
+
+  it("starts empty when the file is missing", () => {
+    const store = open(file);
+    expect(store.get("alice")).toBeUndefined();
+    expect(fs.existsSync(file)).toBe(false);
+  });
+
+  it("creates missing directories", async () => {
+    const nested = path.join(dir, "a", "b", "stash.json");
+    const store = open(nested);
+    store.claim("alice");
+    await store.flush();
+    expect(readFile(nested).profiles.alice.name).toBe("alice");
+  });
+
+  it("a write is a temp file renamed over the target, so the target is never half written", async () => {
+    const store = open(file);
+    store.claim("alice");
+    await store.flush();
+    const rename = vi.spyOn(fs.promises, "rename");
+    const open_ = vi.spyOn(fs.promises, "open");
+    store.bankGv("alice", 5);
+    await store.flush();
+    expect(open_).toHaveBeenCalledWith(`${file}.tmp`, "w");
+    expect(rename).toHaveBeenCalledWith(`${file}.tmp`, file);
+  });
+
+  it("flush resolves immediately when nothing is pending", async () => {
+    const store = open(file);
+    await store.flush();
+    expect(fs.existsSync(file)).toBe(false);
+  });
+
+  it("flush covers changes made while a write was already running", async () => {
+    const store = open(file);
+    store.claim("alice");
+    const flushing = store.flush();
+    store.bankGv("alice", 7); // lands while the first write is in flight
+    await flushing;
+    expect(readFile().profiles.alice.gv).toBe(7);
+  });
+
+  it("a change made right after a flush is written without another flush call", async () => {
+    const store = open(file);
+    store.claim("alice");
+    await store.flush();
+    store.bankGv("alice", 7);
+    await vi.waitFor(() => expect(readFile().profiles.alice.gv).toBe(7));
+  });
+});
+
+describe("a v2 file", () => {
+  it("is not touched, backed up or rewritten at startup, and says nothing", async () => {
+    fs.writeFileSync(file, v2({ alice: goodProfile, bobby: bobby() }));
+    const before = fs.readFileSync(file);
+    const { log, error } = quiet();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const store = open(file);
+    await store.flush();
+    expect(store.get("alice")).toEqual(goodProfile);
+    expect(store.get("bobby")).toEqual(bobby());
+    expect([log, error, warn].map((s) => s.mock.calls.length)).toEqual([0, 0, 0]);
+    expect(fs.readFileSync(file).equals(before)).toBe(true);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+  });
+
+  it("ignores a leftover temp file from a crashed write", async () => {
+    fs.writeFileSync(`${file}.tmp`, "{half");
+    const store = open(file);
+    store.claim("alice");
+    await store.flush();
+    expect(readFile().profiles.alice.name).toBe("alice");
+    expect(fs.existsSync(`${file}.tmp`)).toBe(false);
+  });
+
+  it("keeps a profile that has fields this version does not know, and sheds them on the next write", async () => {
+    fs.writeFileSync(file, v2({ alice: { ...goodProfile, stash: [{ uid: "u", def: "gold" }], nickname: "Al" } }));
+    const { error } = quiet();
+    const store = open(file);
+    expect(store.get("alice")).toEqual(goodProfile);
+    expect(error).not.toHaveBeenCalled();
+    store.bankGv("alice", 1);
+    await store.flush();
+    expect(Object.keys(readFile().profiles.alice).sort()).toEqual(["cosmetics", "gv", "gvByMonth", "gvLifetime", "name", "stats", "token"]);
+  });
+
+  it("a cosmetics slot named __proto__ stays plain data: it survives a restart and pollutes nothing", async () => {
+    const text = JSON.stringify({ version: 2, profiles: { alice: goodProfile } })
+      .replace('"equipped":{"cape":"cape-red"}', '"equipped":{"__proto__":"polluted","cape":"cape-red"}');
+    expect(text).toContain('"__proto__":"polluted"');
+    fs.writeFileSync(file, text);
+    const store = open(file);
+    const equipped = store.get("alice")!.cosmetics.equipped;
+    expect(Object.keys(equipped).sort()).toEqual(["__proto__", "cape"]);
+    expect(Object.getPrototypeOf(equipped)).toBe(Object.prototype);
+    expect(Object.getOwnPropertyDescriptor(equipped, "__proto__")?.value).toBe("polluted");
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+
+    store.bankGv("alice", 1);
+    await store.flush();
+    expect(fs.readFileSync(file, "utf8")).toContain('"__proto__":"polluted"');
+    expect(Object.keys(open(file).get("alice")!.cosmetics.equipped).sort()).toEqual(["__proto__", "cape"]);
+  });
+});
+
+describe("an unusable profile file stops the server instead of wiping every profile", () => {
+  it("moves an unparsable file aside, untouched, and refuses to start", () => {
+    const text = '{"version":2,"profiles":{"alice":';
+    fs.writeFileSync(file, text);
+    let error: unknown;
+    try {
+      new JsonProfileStore(file);
+    } catch (err) {
+      error = err;
+    }
+    expect(error).toBeInstanceOf(ProfileFileError);
+    const [aside, ...rest] = withSuffix(dir, "corrupt");
+    expect(rest).toEqual([]);
+    expect(aside).toMatch(/^stash\.json\.corrupt-\d+$/);
+    expect(fs.readFileSync(path.join(dir, aside!), "utf8")).toBe(text);
+    expect(fs.existsSync(file)).toBe(false);
+    // The operator is told what happened and what to do, with real paths.
+    const message = (error as Error).message;
+    expect(message).toContain("refusing to start");
+    expect(message).toContain(file);
+    expect(message).toContain(path.join(dir, aside!));
+    expect(message).toMatch(/restore/i);
+    expect(withSuffix(dir, "bak")).toEqual([]);
+  });
+
+  it.each([
+    ["an empty file", ""],
+    ["not JSON at all", "stash? what stash?"],
+    ["JSON that is not an object", "[]"],
+    ["null", "null"],
+    ["a version this code does not know", JSON.stringify({ version: 3, profiles: {} })],
+    ["version 0", JSON.stringify({ version: 0, profiles: {} })],
+    ["a version that is a string", JSON.stringify({ version: "2", profiles: {} })],
+    ["a version that is a string (v1)", JSON.stringify({ version: "1", profiles: {} })],
+    ["no version", JSON.stringify({ profiles: {} })],
+    ["no profiles object", JSON.stringify({ version: 2 })],
+    ["profiles that is a list", JSON.stringify({ version: 2, profiles: [] })],
+    ["no profiles object (v1)", JSON.stringify({ version: 1 })],
+    ["profiles that is a list (v1)", JSON.stringify({ version: 1, profiles: [] })],
+  ])("%s: refuses to start and keeps the file for the operator", (_label, text) => {
+    fs.writeFileSync(file, text);
+    expect(() => new JsonProfileStore(file)).toThrow(ProfileFileError);
+    expect(withSuffix(dir, "corrupt")).toHaveLength(1);
+    expect(fs.readFileSync(path.join(dir, withSuffix(dir, "corrupt")[0]!), "utf8")).toBe(text);
+    expect(fs.existsSync(file)).toBe(false);
+    expect(withSuffix(dir, "bak")).toEqual([]); // a file that cannot be read is not migrated either
+  });
+
+  it("names the version it found, so a downgrade is easy to spot", () => {
+    fs.writeFileSync(file, JSON.stringify({ version: 7, profiles: {} }));
+    expect(() => new JsonProfileStore(file)).toThrow(/unsupported version 7, expected 2/);
+  });
+
+  it("the server stays down until the file is put back; then it starts with every profile", async () => {
+    const first = open(file);
+    first.claim("alice");
+    await first.flush();
+    const backup = fs.readFileSync(file, "utf8");
+    fs.writeFileSync(file, "{broken");
+    expect(() => new JsonProfileStore(file)).toThrow(ProfileFileError);
+    expect(() => new JsonProfileStore(file)).not.toThrow(); // nothing left at the path: a fresh, empty start
+
+    fs.writeFileSync(file, backup); // the operator restores a copy
+    expect(open(file).get("alice")?.name).toBe("alice");
+  });
+
+  it("if the file cannot be moved aside it is left in place and the error says so", () => {
+    fs.writeFileSync(file, "{broken");
+    vi.spyOn(fs, "renameSync").mockImplementation(() => { throw new Error("read-only filesystem"); });
+    expect(() => new JsonProfileStore(file)).toThrow(/could not be moved aside \(read-only filesystem\)/);
+    expect(fs.readFileSync(file, "utf8")).toBe("{broken");
+  });
+
+  it("an unreadable path (a directory where the file should be) is an error too, not an empty store", () => {
+    fs.mkdirSync(file);
+    expect(() => new JsonProfileStore(file)).toThrow();
+  });
+});
+
+describe("a v2 file with some malformed profile entries", () => {
+  const damaged: Array<[string, string, unknown]> = [
+    ["a name that does not match its key", "bobby", bobby({ name: "someone-else" })],
+    ["an invalid profile name", "a b", bobby({ name: "a b" })],
+    ["a missing token", "bobby", bobby({ token: undefined })],
+    ["an empty token", "bobby", bobby({ token: "" })],
+    ["a token that is not a string", "bobby", bobby({ token: 12 })],
+    ["a missing gv", "bobby", bobby({ gv: undefined })],
+    ["a negative gv", "bobby", bobby({ gv: -1 })],
+    ["a fractional gv", "bobby", bobby({ gv: 1.5 })],
+    ["a gv that is a string", "bobby", bobby({ gv: "5" })],
+    ["a gv too big to be exact", "bobby", bobby({ gv: 1e300 })],
+    ["a negative gvLifetime", "bobby", bobby({ gvLifetime: -1 })],
+    ["a missing gvLifetime", "bobby", bobby({ gvLifetime: undefined })],
+    ["a missing gvByMonth", "bobby", bobby({ gvByMonth: undefined })],
+    ["a gvByMonth that is null", "bobby", bobby({ gvByMonth: null })],
+    ["a gvByMonth that is a list", "bobby", bobby({ gvByMonth: [5] })],
+    ["a month that is not a month", "bobby", bobby({ gvByMonth: { "2026-13": 5 } })],
+    ["a month without its leading zero", "bobby", bobby({ gvByMonth: { "2026-1": 5 } })],
+    ["a month written in words", "bobby", bobby({ gvByMonth: { october: 5 } })],
+    ["a month named __proto__", "bobby", bobby({ gvByMonth: { ["__proto__"]: 5 } })],
+    ["a negative month amount", "bobby", bobby({ gvByMonth: { [OCT]: -5 } })],
+    ["a fractional month amount", "bobby", bobby({ gvByMonth: { [OCT]: 0.5 } })],
+    ["a month amount that is a string", "bobby", bobby({ gvByMonth: { [OCT]: "5" } })],
+    ["missing stats", "bobby", bobby({ stats: undefined })],
+    ["stats missing a counter", "bobby", bobby({ stats: { runs: 1, wins: 0, draws: 0, deaths: 0 } })],
+    ["v1 style stats", "bobby", bobby({ stats: { raids: 1, extracts: 0, deaths: 0, kills: 0 } })],
+    ["negative stats", "bobby", bobby({ stats: { ...zeroStats, runs: -1 } })],
+    ["fractional stats", "bobby", bobby({ stats: { ...zeroStats, kills: 1.5 } })],
+    ["missing cosmetics", "bobby", bobby({ cosmetics: undefined })],
+    ["cosmetics without owned", "bobby", bobby({ cosmetics: { equipped: {} } })],
+    ["cosmetics without equipped", "bobby", bobby({ cosmetics: { owned: [] } })],
+    ["owned that is not a list", "bobby", bobby({ cosmetics: { owned: {}, equipped: {} } })],
+    ["owned with a non-string", "bobby", bobby({ cosmetics: { owned: ["a", 1], equipped: {} } })],
+    ["owned with a duplicate", "bobby", bobby({ cosmetics: { owned: ["a", "b", "a"], equipped: {} } })],
+    ["equipped that is a list", "bobby", bobby({ cosmetics: { owned: [], equipped: ["a"] } })],
+    ["equipped with a non-string", "bobby", bobby({ cosmetics: { owned: [], equipped: { cape: 3 } } })],
+    ["an entry that is null", "bobby", null],
+    ["an entry that is a string", "bobby", "bobby"],
+    ["an entry that is a number", "bobby", 7],
+    ["an entry that is a list", "bobby", []],
+  ];
+
+  it.each(damaged)("%s: keeps the good profile, drops the bad one, logs it, and rewrites the file", async (_label, key, entry) => {
+    const text = v2({ alice: goodProfile, [key]: entry });
+    fs.writeFileSync(file, text);
+    const { log, error } = quiet();
+
+    const store = open(file);
+    expect(store.get("alice")).toEqual(goodProfile);
+    expect(store.verifyToken("alice", "t-alice")).toBe(true);
+    expect(store.get(key)).toBeUndefined();
+    expect(store.claim("alice", "t-alice").created).toBe(false);
+
+    expect(log).not.toHaveBeenCalled(); // nothing was migrated
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(String(error.mock.calls[0]![0])).toContain(JSON.stringify(key));
+    expect(String(error.mock.calls[0]![0])).toContain("dropped 1 malformed profile");
+
+    // The original is kept next to it, byte for byte, before anything overwrites it.
+    const [backup, ...extra] = withSuffix(dir, "bak");
+    expect(extra).toEqual([]);
+    expect(backup).toMatch(/^stash\.json\.bak-\d+$/);
+    expect(fs.readFileSync(path.join(dir, backup!), "utf8")).toBe(text);
+    expect(String(error.mock.calls[0]![0])).toContain(path.join(dir, backup!));
+    expect(withSuffix(dir, "corrupt")).toEqual([]);
+
+    // And the cleaned file is written at startup, with no mutation and no flush needed.
+    await vi.waitFor(() => expect(readFile()).toEqual({ version: 2, profiles: { alice: goodProfile } }));
+  });
+
+  it("is quiet from then on: the next start sees a clean file", async () => {
+    fs.writeFileSync(file, v2({ alice: goodProfile, bobby: null }));
+    quiet();
+    await open(file).flush();
+    vi.restoreAllMocks();
+    const { log, error } = quiet();
+    const again = open(file);
+    expect(again.get("alice")).toEqual(goodProfile);
+    expect(error).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+    expect(withSuffix(dir, "bak")).toHaveLength(1);
+  });
+
+  it("keeps every good profile when several are bad", async () => {
+    const carol = { ...goodProfile, name: "carol", token: "t-carol" };
+    fs.writeFileSync(file, v2({ x1: null, alice: goodProfile, x2: { name: "x2" }, carol, x3: 7 }));
+    const { error } = quiet();
+    const store = open(file);
+    expect([store.get("alice"), store.get("carol")]).toEqual([goodProfile, carol]);
+    expect(error).toHaveBeenCalledTimes(1);
+    for (const name of ["x1", "x2", "x3"]) expect(String(error.mock.calls[0]![0])).toContain(JSON.stringify(name));
+    expect(String(error.mock.calls[0]![0])).toContain("dropped 3 malformed profile");
+    await vi.waitFor(() => expect(Object.keys(readFile().profiles).sort()).toEqual(["alice", "carol"]));
+  });
+
+  it("when every entry is bad the server still starts, empty, with the original kept", async () => {
+    const text = v2({ x1: null, x2: 4 });
+    fs.writeFileSync(file, text);
+    quiet();
+    const store = open(file);
+    expect(store.get("x1")).toBeUndefined();
+    await vi.waitFor(() => expect(readFile()).toEqual({ version: 2, profiles: {} }));
+    expect(fs.readFileSync(path.join(dir, withSuffix(dir, "bak")[0]!), "utf8")).toBe(text);
+  });
+
+  it("quotes and shortens hostile keys, and stops listing after a screenful", () => {
+    const profiles: Record<string, unknown> = { alice: goodProfile, ["evil\n" + "x".repeat(500)]: null };
+    for (let i = 0; i < 60; i++) profiles[`bad${i}`] = null;
+    fs.writeFileSync(file, v2(profiles));
+    const { error } = quiet();
+    open(file);
+    const line = String(error.mock.calls[0]![0]);
+    expect(line).toContain("dropped 61 malformed profile");
+    expect(line).toContain("and 11 more");
+    expect(line).not.toContain("\n");
+    expect(line.length).toBeLessThan(5000);
+  });
+
+  it("if the backup cannot be written the server refuses to start rather than overwrite the original", () => {
+    const text = v2({ alice: goodProfile, bobby: null });
+    fs.writeFileSync(file, text);
+    quiet();
+    vi.spyOn(fs, "writeFileSync").mockImplementation(() => { throw new Error("no space left on device"); });
+    expect(() => new JsonProfileStore(file)).toThrow("no space left on device");
+    vi.restoreAllMocks();
+    expect(fs.readFileSync(file, "utf8")).toBe(text);
+    expect(withSuffix(dir, "bak")).toEqual([]); // no half-written backup either
+  });
+});
+
+describe("a v1 file (the extraction build's stash format) is migrated", () => {
+  const FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "stash-v1.json");
+  const fixtureBytes = fs.readFileSync(FIXTURE);
+  const fixture = JSON.parse(fixtureBytes.toString("utf8")) as {
+    profiles: Record<string, { name: string; token: string; stash: unknown[]; stats: { raids: number; extracts: number; deaths: number; kills: number } }>;
+  };
+  const migratedNames = ["alice", "BobTheBuilder", "zed-9", "__proto__", "carol_dev"];
+
+  /** Works on a copy: the fixture itself is never touched. */
+  const useFixture = () => fs.copyFileSync(FIXTURE, file);
+
+  it("the fixture is what the tests below assume it is", () => {
+    expect(Object.keys(fixture.profiles)).toEqual([...migratedNames, "mallory"]);
+    expect(fixture.profiles.alice!.stash.length).toBeGreaterThan(3);
+    expect(Object.hasOwn(fixture.profiles, "__proto__")).toBe(true);
+  });
+
+  it("keeps each valid profile's name and token, drops the stash, and maps the stats", () => {
+    useFixture();
+    quiet();
+    const store = open(file);
+    for (const name of migratedNames) {
+      const old = fixture.profiles[name]!;
+      expect(store.get(name)).toEqual({
+        name,
+        token: old.token,
+        gv: 0,
+        gvLifetime: 0,
+        gvByMonth: {},
+        stats: { runs: old.stats.raids, wins: 0, draws: 0, deaths: old.stats.deaths, kills: old.stats.kills },
+        cosmetics: { owned: [], equipped: {} },
+      });
+      expect(store.get(name)).not.toHaveProperty("stash");
+    }
+    expect(store.get("alice")!.stats).toEqual({ runs: 14, wins: 0, draws: 0, deaths: 8, kills: 11 });
+  });
+
+  it("drops the malformed entry and says so", () => {
+    useFixture();
+    const { error } = quiet();
+    const store = open(file);
+    expect(store.get("mallory")).toBeUndefined();
+    expect(error).toHaveBeenCalledTimes(1);
+    const line = String(error.mock.calls[0]![0]);
+    expect(line).toContain('"mallory"');
+    expect(line).toContain("dropped 1 malformed profile");
+    expect(line).toContain("kept 5");
+  });
+
+  it("browsers keep their profile: the old tokens still work, and nobody else's do", () => {
+    useFixture();
+    quiet();
+    const store = open(file);
+    for (const name of migratedNames) {
+      const { token } = fixture.profiles[name]!;
+      expect(store.verifyToken(name, token)).toBe(true);
+      expect(store.claim(name, token).created).toBe(false);
+      expect(() => store.claim(name, "wrong")).toThrow(ProfileForbiddenError);
+    }
+    expect(store.verifyToken("alice", fixture.profiles.carol_dev!.token)).toBe(false);
+    expect(store.verifyToken("mallory", fixture.profiles.mallory!.token)).toBe(false);
+  });
+
+  it("saves the original bytes as .bak-v1 first, and logs one line saying how many and where", () => {
+    useFixture();
+    const { log, error } = quiet();
+    open(file);
+    const backup = `${file}.bak-v1`;
+    expect(fs.readFileSync(backup).equals(fixtureBytes)).toBe(true);
+    expect(log).toHaveBeenCalledTimes(1);
+    const line = String(log.mock.calls[0]![0]);
+    expect(line).toContain("migrated 5 profile(s)");
+    expect(line).toContain(backup);
+    expect(line).not.toContain("\n");
+    expect(String(error.mock.calls[0]![0])).toContain(backup); // the dropped entry's report points at the same copy
+    expect(withSuffix(dir, "bak")).toEqual(["stash.json.bak-v1"]);
+    expect(withSuffix(dir, "corrupt")).toEqual([]);
+  });
+
+  it("writes the migrated v2 file right away: no mutation, no flush", async () => {
+    useFixture();
+    quiet();
+    open(file);
+    await vi.waitFor(() => expect(readFile().version).toBe(2));
+    const disk = readFile();
+    expect(Object.keys(disk.profiles)).toEqual(migratedNames);
+    expect(Object.hasOwn(disk.profiles, "__proto__")).toBe(true);
+    expect(disk.profiles.alice).toEqual({
+      name: "alice", token: fixture.profiles.alice!.token, gv: 0, gvLifetime: 0, gvByMonth: {},
+      stats: { runs: 14, wins: 0, draws: 0, deaths: 8, kills: 11 }, cosmetics: { owned: [], equipped: {} },
+    });
+    expect(fs.readFileSync(file, "utf8")).not.toMatch(/stash|knife|bandage|extracts/);
+  });
+
+  it("the second start reads the v2 file: quiet, no new backup, nothing rewritten", async () => {
+    useFixture();
+    quiet();
+    const first = open(file);
+    await first.flush();
+    vi.restoreAllMocks();
+    const { log, error } = quiet();
+    const again = open(file);
+    await again.flush();
+    expect(again.get("alice")).toEqual(first.get("alice"));
+    expect([log, error].map((s) => s.mock.calls.length)).toEqual([0, 0]);
+    expect(fs.readdirSync(dir).sort()).toEqual(["stash.json", "stash.json.bak-v1"]);
+    expect(fs.readFileSync(`${file}.bak-v1`).equals(fixtureBytes)).toBe(true);
+  });
+
+  it("migrated profiles take part in the new economy like any other", async () => {
+    useFixture();
+    quiet();
+    const store = open(file);
+    store.recordRun("alice", run("won", 4, 150));
+    store.bankGv("__proto__", 30);
+    await store.flush();
+    const back = open(file);
+    expect(back.get("alice")).toMatchObject({
+      gv: 150, gvLifetime: 150, gvByMonth: { [OCT]: 150 }, stats: { runs: 15, wins: 1, deaths: 8, kills: 15 },
+    });
+    expect(back.leaderboard(OCT, 10)).toEqual([{ name: "alice", gv: 150 }, { name: "__proto__", gv: 30 }]);
+  });
+
+  it("never overwrites a backup that is already there: it uses .bak-v1-<time> instead", () => {
+    useFixture();
+    fs.writeFileSync(`${file}.bak-v1`, "an earlier backup, precious");
+    const { log } = quiet();
+    open(file);
+    expect(fs.readFileSync(`${file}.bak-v1`, "utf8")).toBe("an earlier backup, precious");
+    const [second, ...rest] = withSuffix(dir, "bak-v1-");
+    expect(rest).toEqual([]);
+    expect(second).toMatch(/^stash\.json\.bak-v1-\d+$/);
+    expect(fs.readFileSync(path.join(dir, second!)).equals(fixtureBytes)).toBe(true);
+    expect(String(log.mock.calls[0]![0])).toContain(path.join(dir, second!));
+  });
+
+  it("refuses to start if every backup name is taken, with the v1 file untouched", () => {
+    useFixture();
+    quiet();
+    const t = 1_700_000_000_000;
+    fs.writeFileSync(`${file}.bak-v1`, "one");
+    fs.writeFileSync(`${file}.bak-v1-${t}`, "two");
+    vi.spyOn(Date, "now").mockReturnValue(t);
+    expect(() => new JsonProfileStore(file)).toThrow(/could not save a copy/);
+    vi.restoreAllMocks();
+    expect(fs.readFileSync(file).equals(fixtureBytes)).toBe(true);
+    expect(fs.readFileSync(`${file}.bak-v1`, "utf8")).toBe("one");
+    expect(fs.readFileSync(`${file}.bak-v1-${t}`, "utf8")).toBe("two");
+  });
+
+  it("if the backup cannot be written, startup fails and the v1 file is left untouched", async () => {
+    useFixture();
+    quiet();
+    vi.spyOn(fs, "writeFileSync").mockImplementation(() => { throw new Error("no space left on device"); });
+    expect(() => new JsonProfileStore(file)).toThrow(/no space left on device/);
+    vi.restoreAllMocks();
+    expect(fs.readFileSync(file).equals(fixtureBytes)).toBe(true);
+    await sleep(30); // a write that was wrongly started would have landed by now
+    expect(fs.readdirSync(dir)).toEqual(["stash.json"]); // no v2 file, no partial backup, nothing moved aside
+    expect(fs.readFileSync(file).equals(fixtureBytes)).toBe(true);
+  });
+
+  it("if the backup cannot even be created, startup fails and the v1 file is left untouched", async () => {
+    useFixture();
+    quiet();
+    const realOpen = fs.openSync.bind(fs);
+    vi.spyOn(fs, "openSync").mockImplementation(((p: fs.PathLike, ...rest: unknown[]) => {
+      if (!String(p).includes(".bak-v1")) return (realOpen as (...a: unknown[]) => number)(p, ...rest); // readFileSync opens too
+      throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+    }) as typeof fs.openSync);
+    expect(() => new JsonProfileStore(file)).toThrow(/could not save a copy.*EACCES/);
+    vi.restoreAllMocks();
+    await sleep(30);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+    expect(fs.readFileSync(file).equals(fixtureBytes)).toBe(true);
+  });
+
+  it("a v1 file with no profiles is migrated too: a version bump and a backup", async () => {
+    const text = v1({});
+    fs.writeFileSync(file, text);
+    const { log } = quiet();
+    open(file);
+    expect(String(log.mock.calls[0]![0])).toContain("migrated 0 profile(s)");
+    expect(fs.readFileSync(`${file}.bak-v1`, "utf8")).toBe(text);
+    await vi.waitFor(() => expect(readFile()).toEqual({ version: 2, profiles: {} }));
+  });
+
+  it("when every entry is bad the server still starts, empty, with the original kept", async () => {
+    const text = v1({ x1: null, x2: 4 });
+    fs.writeFileSync(file, text);
+    quiet();
+    open(file);
+    await vi.waitFor(() => expect(readFile()).toEqual({ version: 2, profiles: {} }));
+    expect(fs.readFileSync(`${file}.bak-v1`, "utf8")).toBe(text);
+  });
+
+  it("an unparsable v1 file is refused, not migrated, and gets no backup of its own", () => {
+    const text = '{"version":1,"profiles":{"alice":';
+    fs.writeFileSync(file, text);
+    expect(() => new JsonProfileStore(file)).toThrow(ProfileFileError);
+    expect(withSuffix(dir, "bak")).toEqual([]);
+    expect(fs.readFileSync(path.join(dir, withSuffix(dir, "corrupt")[0]!), "utf8")).toBe(text);
+  });
+
+  it("ignores v1 fields it has no use for, and migrates a profile whose stash is empty", () => {
+    const old = { name: "alice", token: "t-alice", stash: [], stats: { raids: 2, extracts: 1, deaths: 1, kills: 3 }, lastSeen: 5 };
+    fs.writeFileSync(file, v1({ alice: old }));
+    quiet();
+    expect(open(file).get("alice")).toEqual({ ...emptyRecord("alice", "t-alice"), stats: { runs: 2, wins: 0, draws: 0, deaths: 1, kills: 3 } });
+  });
+
+  describe("entries the v1 store would have dropped are dropped", () => {
+    const v1Stats = { raids: 2, extracts: 1, deaths: 1, kills: 3 };
+    const v1Alice = { name: "alice", token: "t-alice", stash: [{ uid: "u1", def: "gold" }, { uid: "u2", def: "medkit" }], stats: v1Stats };
+    const migratedAlice = { ...emptyRecord("alice", "t-alice"), stats: { runs: 2, wins: 0, draws: 0, deaths: 1, kills: 3 } };
+    const v1Bob = (patch: Record<string, unknown>) => ({ ...v1Alice, name: "bobby", token: "t-bobby", ...patch });
+    const cases: Array<[string, string, unknown]> = [
+      ["a name that does not match its key", "bobby", v1Bob({ name: "someone-else" })],
+      ["an invalid profile name", "a b", v1Bob({ name: "a b" })],
+      ["a missing token", "bobby", v1Bob({ token: undefined })],
+      ["an empty token", "bobby", v1Bob({ token: "" })],
+      ["negative stats", "bobby", v1Bob({ stats: { ...v1Stats, raids: -1 } })],
+      ["fractional stats", "bobby", v1Bob({ stats: { ...v1Stats, kills: 1.5 } })],
+      ["missing stats", "bobby", v1Bob({ stats: undefined })],
+      ["v2 style stats", "bobby", v1Bob({ stats: zeroStats })],
+      ["a stash that is not a list", "bobby", v1Bob({ stash: {} })],
+      ["a missing stash", "bobby", v1Bob({ stash: undefined })],
+      ["a malformed stash item", "bobby", v1Bob({ stash: [{ uid: 1 }] })],
+      ["a duplicate stash uid", "bobby", v1Bob({ stash: [{ uid: "u", def: "gold" }, { uid: "u", def: "gold" }] })],
+      ["an entry that is null", "bobby", null],
+      ["an entry that is a string", "bobby", "bobby"],
+      ["an entry that is a list", "bobby", []],
+    ];
+
+    it.each(cases)("%s: migrates the good profile, drops the bad one, reports it", async (_label, key, entry) => {
+      const text = v1({ alice: v1Alice, [key]: entry });
+      fs.writeFileSync(file, text);
+      const { log, error } = quiet();
+
+      const store = open(file);
+      expect(store.get("alice")).toEqual(migratedAlice);
+      expect(store.get(key)).toBeUndefined();
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]![0])).toContain("migrated 1 profile(s)");
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(String(error.mock.calls[0]![0])).toContain(JSON.stringify(key));
+      expect(String(error.mock.calls[0]![0])).toContain("dropped 1 malformed profile");
+      expect(fs.readFileSync(`${file}.bak-v1`, "utf8")).toBe(text);
+      expect(withSuffix(dir, "bak")).toEqual(["stash.json.bak-v1"]);
+      await vi.waitFor(() => expect(readFile()).toEqual({ version: 2, profiles: { alice: migratedAlice } }));
+    });
+  });
+});
+
+describe("durability and retry", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("syncs the directory after the rename, so the new entry survives a crash", async () => {
+    const store = open(file);
+    store.claim("alice");
+    await store.flush();
+
+    const order: string[] = [];
+    const realOpen = fs.promises.open.bind(fs.promises);
+    const realRename = fs.promises.rename.bind(fs.promises);
+    vi.spyOn(fs.promises, "open").mockImplementation((async (...args: Parameters<typeof fs.promises.open>) => {
+      const fh = await realOpen(...args);
+      const label = `${path.basename(String(args[0]))}:${args[1]}`;
+      order.push(`open ${label}`);
+      const sync = fh.sync.bind(fh);
+      fh.sync = async () => { order.push(`sync ${label}`); await sync(); };
+      return fh;
+    }) as typeof fs.promises.open);
+    vi.spyOn(fs.promises, "rename").mockImplementation(async (a, b) => { order.push("rename"); await realRename(a, b); });
+
+    store.bankGv("alice", 5);
+    await store.flush();
+    expect(order).toEqual([
+      "open stash.json.tmp:w", "sync stash.json.tmp:w", "rename",
+      `open ${path.basename(dir)}:r`, `sync ${path.basename(dir)}:r`,
+    ]);
+  });
+
+  /** Makes opening the directory (not the temp file) fail with the given errno code. */
+  function failDirOpen(code: string) {
+    const realOpen = fs.promises.open.bind(fs.promises);
+    return vi.spyOn(fs.promises, "open").mockImplementation(((...args: Parameters<typeof fs.promises.open>) => {
+      if (String(args[0]) !== dir) return realOpen(...args);
+      return Promise.reject(Object.assign(new Error(`${code}: cannot open a directory`), { code }));
+    }) as typeof fs.promises.open);
+  }
+
+  it.each(["EISDIR", "EPERM", "EINVAL"])("a platform that cannot open or sync a directory (%s) is not a failed write", async (code) => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    failDirOpen(code);
+    const store = open(file);
+    store.claim("alice");
+    await store.flush();
+    expect(readFile().profiles.alice.name).toBe("alice");
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("any other failure to sync the directory is a failed write", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    failDirOpen("EIO");
+    const store = open(file);
+    store.claim("alice");
+    await expect(store.flush()).rejects.toThrow("EIO");
+  });
+
+  /** Renames fail while `state.failing`; counts every attempt. */
+  function flakyRename() {
+    const state = { failing: true, attempts: 0 };
+    const realRename = fs.promises.rename.bind(fs.promises);
+    vi.spyOn(fs.promises, "rename").mockImplementation((async (...args: Parameters<typeof fs.promises.rename>) => {
+      state.attempts++;
+      if (state.failing) throw new Error("disk full");
+      return realRename(...args);
+    }) as typeof fs.promises.rename);
+    return state;
+  }
+
+  /**
+   * Fake timers for the store's retry only; real file I/O keeps running underneath, and the tests
+   * wait with realSleep/waitReal because the global setTimeout stands still. Returns the delays of
+   * every timer that was unref'd. useRealTimers() (afterEach) puts the real setTimeout back.
+   */
+  function fakeTimers() {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const fake = globalThis.setTimeout as unknown as (...a: unknown[]) => NodeJS.Timeout;
+    const unref: number[] = [];
+    globalThis.setTimeout = ((cb: () => void, ms?: number, ...rest: unknown[]) => {
+      const t = fake(cb, ms, ...rest);
+      const real = t.unref.bind(t);
+      t.unref = () => { unref.push(ms ?? 0); return real(); };
+      return t;
+    }) as unknown as typeof setTimeout;
+    return unref;
+  }
+
+  it("a failed write is retried on its own: 1 s, doubling to a 30 s cap, on an unref'd timer, until it lands", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const unref = fakeTimers();
+    const disk = flakyRename();
+    const store = open(file);
+    store.claim("alice");
+    await waitReal(() => disk.attempts === 1, "the first attempt");
+    expect(fs.existsSync(file)).toBe(false);
+
+    let attempts = 1;
+    for (const delay of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {
+      await vi.advanceTimersByTimeAsync(delay - 1);
+      await realSleep(10);
+      expect(disk.attempts).toBe(attempts); // not a millisecond early
+      await vi.advanceTimersByTimeAsync(1);
+      attempts++;
+      await waitReal(() => disk.attempts === attempts, `the retry after ${delay} ms`);
+    }
+    // One timer per failure, each armed as its attempt failed: the last of them is the pending 30 s one.
+    expect(unref).toEqual([1000, 2000, 4000, 8000, 16000, 30000, 30000, 30000]);
+
+    disk.failing = false;
+    await vi.advanceTimersByTimeAsync(30000);
+    await waitReal(() => fs.existsSync(file), "the retry to succeed");
+    await waitReal(() => vi.getTimerCount() === 0, "the retry timer to be gone");
+    expect(readFile().profiles.alice.name).toBe("alice");
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(disk.attempts).toBe(attempts + 1); // no more attempts once it worked
+  });
+
+  it("after a success the backoff starts over at 1 s", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const unref = fakeTimers();
+    const disk = flakyRename();
+    const store = open(file);
+    store.claim("alice");
+    await waitReal(() => disk.attempts === 1, "the first attempt");
+    await vi.advanceTimersByTimeAsync(1000); // retry 1 fails, the next delay is 2 s
+    await waitReal(() => disk.attempts === 2, "the second attempt");
+    disk.failing = false;
+    await vi.advanceTimersByTimeAsync(2000);
+    await waitReal(() => fs.existsSync(file), "the write to land");
+
+    disk.failing = true;
+    store.bankGv("alice", 5);
+    await waitReal(() => disk.attempts === 4, "the attempt after the next mutation");
+    expect(unref).toEqual([1000, 2000, 1000]);
+  });
+
+  it("while backing off, a mutation does not start another write; flush() writes at once and cancels the timer", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    fakeTimers();
+    const disk = flakyRename();
+    const store = open(file);
+    store.claim("alice");
+    await waitReal(() => disk.attempts === 1, "the first attempt");
+    expect(vi.getTimerCount()).toBe(1);
+
+    store.bankGv("alice", 5);
+    store.recordRun("alice", run("died"));
+    await realSleep(30);
+    expect(disk.attempts).toBe(1); // the timer owns the next attempt
+
+    disk.failing = false;
+    await store.flush();
+    expect(disk.attempts).toBe(2);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(readFile().profiles.alice.gv).toBe(5);
+    expect(readFile().profiles.alice.stats.deaths).toBe(1);
+  });
+
+  it("flush() still rejects while the disk is failing, and each failure arms one timer, never several", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    fakeTimers();
+    flakyRename();
+    const store = open(file);
+    store.claim("alice");
+    await expect(store.flush()).rejects.toThrow("disk full");
+    await expect(store.flush()).rejects.toThrow("disk full");
+    await expect(store.flush()).rejects.toThrow("disk full");
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it("a migration whose first write fails is retried like any other write; the v1 file and its backup wait it out", async () => {
+    fs.copyFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "stash-v1.json"), file);
+    quiet();
+    fakeTimers();
+    const disk = flakyRename();
+    const store = open(file);
+    await waitReal(() => disk.attempts === 1, "the first attempt");
+    expect(readFile().version).toBe(1);
+    expect(fs.existsSync(`${file}.bak-v1`)).toBe(true);
+    disk.failing = false;
+    await store.flush();
+    expect(readFile().version).toBe(2);
+  });
+});
+
+describe("write serialization", () => {
+  /** Slows every write down and records how many writes overlap and how many ran. */
+  function instrument(delayMs = 15) {
+    const stats = { active: 0, maxActive: 0, writes: 0 };
+    const realOpen = fs.promises.open.bind(fs.promises);
+    const realRename = fs.promises.rename.bind(fs.promises);
+    vi.spyOn(fs.promises, "open").mockImplementation(((...args: Parameters<typeof fs.promises.open>) => {
+      // Only the temp-file open starts a write; syncing the directory afterwards also goes through open().
+      if (!String(args[0]).endsWith(".tmp")) return realOpen(...args);
+      stats.active++;
+      stats.writes++;
+      stats.maxActive = Math.max(stats.maxActive, stats.active);
+      return sleep(delayMs).then(() => realOpen(...args));
+    }) as typeof fs.promises.open);
+    vi.spyOn(fs.promises, "rename").mockImplementation((async (...args: Parameters<typeof fs.promises.rename>) => {
+      await sleep(delayMs);
+      try {
+        return await realRename(...args);
+      } finally {
+        stats.active--;
+      }
+    }) as typeof fs.promises.rename);
+    return stats;
+  }
+
+  it("a synchronous burst of mutations costs a single write", async () => {
+    const stats = instrument(1);
+    const store = open(file);
+    store.claim("alice");
+    for (let i = 0; i < 200; i++) store.bankGv("alice", 1);
+    await store.flush();
+    expect(stats.writes).toBe(1);
+    expect(readFile().profiles.alice.gv).toBe(200);
+  });
+
+  it("never has two writes in flight, and coalesces mutations that arrive while one runs", async () => {
+    const stats = instrument();
+    const store = open(file);
+    store.claim("alice");
+    for (let i = 0; i < 60; i++) {
+      store.bankGv("alice", 1);
+      await sleep(2); // each mutation in its own macrotask, many during a single 30 ms write
+    }
+    await store.flush();
+    expect(stats.maxActive).toBe(1);
+    expect(stats.writes).toBeGreaterThan(1);
+    expect(stats.writes).toBeLessThan(30);
+    expect(readFile().profiles.alice.gv).toBe(60);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+  });
+
+  it("the file always ends up equal to the in-memory state", async () => {
+    instrument(3);
+    const store = open(file);
+    const { token } = store.claim("alice");
+    store.claim("bobby");
+    const outcomes: RunOutcome[] = ["won", "draw", "died", "mia"];
+    for (let i = 0; i < 25; i++) {
+      now += 1000 * 3600 * 24 * 3; // drifts across a couple of months
+      store.bankGv("alice", i + 1);
+      store.recordRun("alice", run(outcomes[i % 4]!, i, i * 2));
+      store.recordRun("bobby", run(outcomes[(i + 1) % 4]!, 1, i));
+      if (i % 5 === 0) await sleep(4);
+    }
+    await store.flush();
+    const disk = open(file);
+    expect(disk.get("alice")).toEqual(store.get("alice"));
+    expect(disk.get("bobby")).toEqual(store.get("bobby"));
+    expect(disk.verifyToken("alice", token)).toBe(true);
+    expect(Object.keys(disk.get("alice")!.gvByMonth).length).toBeGreaterThan(1);
+  });
+
+  it("flush rejects when the write fails and the data is retried by the next flush", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const rename = vi.spyOn(fs.promises, "rename").mockRejectedValueOnce(new Error("disk on fire"));
+    const store = open(file);
+    store.claim("alice");
+    await expect(store.flush()).rejects.toThrow("disk on fire");
+    expect(fs.existsSync(file)).toBe(false);
+    await store.flush(); // the mocked failure was one-shot: the retry succeeds
+    expect(rename).toHaveBeenCalledTimes(2);
+    expect(readFile().profiles.alice.name).toBe("alice");
+  });
+
+  it("a failed background write does not leave an unhandled rejection", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(fs.promises, "rename").mockRejectedValueOnce(new Error("nope"));
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    try {
+      const store = open(file);
+      store.claim("alice");
+      await sleep(30);
+      expect(unhandled).not.toHaveBeenCalled();
+      await store.flush();
+      expect(readFile().profiles.alice.name).toBe("alice");
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
+  });
+});

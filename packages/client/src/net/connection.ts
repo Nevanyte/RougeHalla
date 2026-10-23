@@ -1,5 +1,5 @@
 import { Client, type Room } from "@colyseus/sdk";
-import { INVENTORY_SLOTS, ROOM_NAME, SERVER_PORT, type ClientMessages, type JoinOptions } from "@raid/shared";
+import { ROOM_NAME, SERVER_PORT, type ClientMessages, type JoinOptions } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 
 export type RaidRoom = Room<any, RaidState>;
@@ -49,9 +49,9 @@ export function joinErrorMessage(err: unknown): string {
   return msg || "unknown error";
 }
 
-/** The server refused the join because this callsign already has a seat in a raid (typically a duplicated tab). */
+/** The server refused the join because this callsign already has a seat in a run (typically a duplicated tab). */
 export function isCallsignBusy(err: unknown): boolean {
-  return /already in a raid/i.test(joinErrorMessage(err));
+  return /already in a (raid|run)/i.test(joinErrorMessage(err));
 }
 
 /**
@@ -63,7 +63,7 @@ export function detachRoom(room: RaidRoom): void {
   room.removeAllListeners();
   room.reconnection.enabled = false;
   // A retry timer scheduled before this call ignores `enabled` (only the next drop checks it). If its reconnect
-  // succeeds, the room would be back in the raid with no one listening: close that socket again at once.
+  // succeeds, the room would be back in the run with no one listening: close that socket again at once.
   room.onReconnect(() => { void room.leave(false).catch(() => {}); });
   // consented=false closes the socket instead of sending; it only settles once the close event arrives, if ever.
   room.leave(false).catch(() => {});
@@ -71,17 +71,15 @@ export function detachRoom(room: RaidRoom): void {
 
 export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
   client ??= new Client(serverEndpoint());
-  // The server enforces the limit too; trimming here only keeps an over-full request from being refused outright.
-  const joinOptions: JoinOptions = { ...options, loadout: options.loadout.slice(0, INVENTORY_SLOTS) };
-  // A seat reserved in the instant a raid starts is refused ("raid already started");
+  // A seat reserved in the instant a run starts is refused ("raid already started");
   // the next joinOrCreate lands in a fresh lobby.
   for (let attempt = 0; ; attempt++) {
     try {
-      const room = await client.joinOrCreate<RaidState>(ROOM_NAME, joinOptions);
+      const room = await client.joinOrCreate<RaidState>(ROOM_NAME, options);
       tuneReconnection(room);
       return room;
     } catch (err) {
-      if (attempt >= 2 || !joinErrorMessage(err).includes("raid already started")) throw err;
+      if (attempt >= 2 || !/(raid|run) already started/i.test(joinErrorMessage(err))) throw err;
     }
   }
 }

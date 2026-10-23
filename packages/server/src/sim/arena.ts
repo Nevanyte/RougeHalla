@@ -1,0 +1,394 @@
+// Arena lifecycle: how players go down, who wins, the patience timer, the coliseum teleport and sudden death.
+//
+// step.ts runs an active tick as: tick-start snapshot → inputs and actions (shuffled) → movement → history →
+// systems (combat/DoT) → suddenDeath → settle. Everything that takes a player out of the fight goes through
+// downPlayer(), and settle() is the only place where results are emitted during a step and where the run ends,
+// so the shuffled order players were processed in never decides who won:
+//   - Any death (a leave counts) restarts the patience timer, unlocks the gates and cancels sudden death, even in
+//     the tick the timer expires: that tick has no teleport. The timer's length scales with the players standing
+//     (patienceSecondsFor), counted after the deaths that restarted it.
+//   - A player in their reconnect grace is still "alive": they count toward the survivors and can still be hit.
+//   - The run ends when nobody is alive, or, in a contested run (2+ starters), when one player is. A lone
+//     survivor wins. With nobody left, the players who went down in this last tick are compared by hp fraction at
+//     the start of the tick: a single highest wins, an exact tie is a draw for those tied. Solo runs have no winner.
+//   - GV earned during the run (kills, mobs, bounties) is kept whatever the outcome. The winner also gets GV_WIN, but
+//     only when the run went active with WIN_BONUS_MIN_PLAYERS and they damaged WIN_BONUS_MIN_OPPONENTS different
+//     players (so a second callsign can't feed someone wins). All of it banks when the player's result is emitted (the
+//     Room persists `resolved` events).
+//   - Feed and bounty: a player's bounty follows their feed score (bountyFor) and is announced whenever it rises;
+//     whoever kills them is paid it on top of the kill GV. Leaving within KILL_CREDIT_SECONDS of a hit from another
+//     player is that player's kill, so leaving can't dodge a bounty.
+// This module never touches the store, sockets or the Room.
+import {
+  bountyFor, COLISEUM_RING_RADIUS, circleClear, feedScore, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
+  KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION, SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TILE,
+  tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
+  type Vec2,
+} from "@raid/shared";
+import type { PlayerState } from "@raid/shared/schema";
+import { emit, type PlayerRuntime, type World } from "./world";
+
+/** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
+export interface Attacker { id: string; p: PlayerState; rt: PlayerRuntime }
+
+type Entry = { p: PlayerState; rt: PlayerRuntime };
+
+/** Alive and not yet down this tick. */
+const standing = (p: PlayerState, rt: PlayerRuntime | undefined): rt is PlayerRuntime =>
+  p.status === "alive" && !!rt && !rt.down && !rt.resolved;
+
+function alivePlayers(world: World): Entry[] {
+  const out: Entry[] = [];
+  for (const [id, p] of world.state.players) {
+    const rt = world.players.get(id);
+    if (standing(p, rt)) out.push({ p, rt });
+  }
+  return out;
+}
+
+/** Patience timer length in ms with `alive` players standing. */
+export function patienceMs(world: World, alive: number): number {
+  return patienceSecondsFor(alive, world.config.patienceSeconds, world.config.patienceMinSeconds) * 1000;
+}
+
+/** Called by startRaid once players are placed. */
+export function beginRun(world: World): void {
+  const s = world.state;
+  world.arena.startedWith = s.players.size;
+  s.startedWith = s.players.size;
+  world.arena.downedThisTick = [];
+  world.arena.downsBetweenTicks = 0;
+  world.arena.voided = false;
+  s.patienceEndsAt = s.serverTime + patienceMs(world, s.players.size);
+  s.inColiseum = false;
+  s.gatesLocked = false;
+  s.suddenDeathAt = 0;
+  s.winner = "";
+}
+
+/** First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths. */
+export function markTickStart(world: World): void {
+  for (const [id, p] of world.state.players) {
+    const rt = world.players.get(id);
+    if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? p.hp / p.maxHp : 0;
+  }
+}
+
+/**
+ * The one way to hurt a player. Ignored for anyone not standing and during teleport immunity. `source` is the
+ * attacker, or the name of what killed them for the result (SUDDEN_DEATH_KILLER). Returns the hp actually removed.
+ */
+export function applyDamage(
+  world: World, victim: PlayerState, rtv: PlayerRuntime, amount: number, source: Attacker | string,
+): number {
+  // hp 0 while still standing: the killing blow is being processed (a hook hitting the victim again must not re-kill).
+  if (!standing(victim, rtv) || !(amount > 0) || victim.hp <= 0) return 0;
+  if (world.state.serverTime < victim.immuneUntil) return 0;
+  const before = victim.hp;
+  victim.hp = Math.max(0, victim.hp - amount);
+  const by = typeof source === "string" ? null : source;
+  // Hurting yourself (Phase 9 splash, a reflected shot) is never your own kill or leave credit.
+  const rival = by && by.rt !== rtv ? by : null;
+  if (rival) {
+    rtv.lastHit = { by: rival.rt.id, at: world.state.serverTime };
+    rival.rt.damaged.add(rtv.id);
+  }
+  if (victim.hp > 0) return before - victim.hp;
+
+  rtv.killedBy = by ? by.p.name : (source as string);
+  emit(world, { type: "fx", fx: { kind: "death", id: rtv.id, x: victim.x, y: victim.y, by: by?.id ?? null } });
+  if (rival) creditKill(world, rival, victim, rtv);
+  downPlayer(world, victim, rtv, "died");
+  return before;
+}
+
+/**
+ * Kill GV, the victim's bounty and the killer's new bounty. Skipped for a killer whose result is already out (a
+ * projectile outliving its shooter, from Phase 9): nothing could bank it, and their final kills are already reported.
+ */
+function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: PlayerRuntime): void {
+  if (by.rt.resolved) return;
+  by.p.kills += 1;
+  awardGv(world, by.p, by.rt, "kill");
+  const bounty = victim.bounty;
+  if (bounty > 0) {
+    credit(world, by.p, by.rt, "bounty", bounty);
+    world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
+  }
+  updateBounty(world, by.p, by.rt);
+}
+
+/**
+ * Who gets the kill when `rt` leaves now: the last player to hit them, if still in the run and the hit came at most
+ * KILL_CREDIT_SECONDS before the player left. A dropped connection left when it dropped, not when its reconnect grace
+ * ran out (any hit during the grace is later still, so it counts too).
+ */
+function leaveCredit(world: World, rt: PlayerRuntime): Attacker | null {
+  const hit = rt.lastHit;
+  const leftAt = rt.droppedAt ?? world.state.serverTime;
+  if (!hit || leftAt - hit.at > KILL_CREDIT_SECONDS * 1000) return null;
+  const p = world.state.players.get(hit.by);
+  const att = world.players.get(hit.by);
+  return p && att && !att.resolved ? { id: hit.by, p, rt: att } : null;
+}
+
+/**
+ * Credits the fixed GV for a kill or a mob (feedback goes out as a `gv` event; the amount banks with the player's
+ * result). Mob GV stops at GV_MOB_CAP. GV earned by someone whose result is already out is dropped: nothing can bank
+ * it any more.
+ */
+export function awardGv(world: World, p: PlayerState, rt: PlayerRuntime, reason: "kill" | "mob" | "elite"): number {
+  const amount = reason === "kill"
+    ? GV_KILL
+    : Math.min(reason === "elite" ? GV_ELITE : GV_MOB, Math.max(0, GV_MOB_CAP - rt.gv.mobs));
+  return credit(world, p, rt, reason, amount);
+}
+
+function credit(world: World, p: PlayerState, rt: PlayerRuntime, reason: Exclude<GvReason, "win">, amount: number): number {
+  if (rt.resolved || amount <= 0) return 0;
+  if (reason === "kill") rt.gv.kills += amount;
+  else if (reason === "bounty") rt.gv.bounty += amount;
+  else rt.gv.mobs += amount;
+  p.gv = rt.gv.kills + rt.gv.mobs + rt.gv.bounty;
+  emit(world, { type: "gv", id: rt.id, amount, reason });
+  return amount;
+}
+
+/** A mob kill: counts toward the feed score and pays mob GV. Phase 11's mobs call this. */
+export function creditMobKill(world: World, p: PlayerState, rt: PlayerRuntime, elite: boolean): number {
+  if (rt.resolved) return 0;
+  rt.mobKills += 1;
+  const paid = awardGv(world, p, rt, elite ? "elite" : "mob");
+  updateBounty(world, p, rt);
+  return paid;
+}
+
+/** Recomputes the bounty from the feed score and announces it to everyone whenever it rises. */
+function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
+  const bounty = bountyFor(feedScore(p.kills, rt.mobKills));
+  if (bounty <= p.bounty) return;
+  p.bounty = bounty;
+  emit(world, { type: "fx", fx: { kind: "bounty", id: rt.id, name: p.name, bounty } });
+}
+
+/** The Room lost this player's connection and holds the seat for a reconnect (they stay in the fight meanwhile). */
+export function markDropped(world: World, id: string): void {
+  const rt = world.players.get(id);
+  if (rt && rt.droppedAt === null && world.state.phase === "active") rt.droppedAt = world.state.serverTime;
+}
+
+/** They are back within the grace. */
+export function markReconnected(world: World, id: string): void {
+  const rt = world.players.get(id);
+  if (rt) rt.droppedAt = null;
+}
+
+/** GV earned so far and not yet banked: what a run voided by a server shutdown still pays. */
+export function unbankedGv(rt: PlayerRuntime): number {
+  return rt.resolved ? 0 : rt.gv.kills + rt.gv.mobs + rt.gv.bounty;
+}
+
+/**
+ * Takes a standing player out of the fight: they stop acting and leave a body. During a step the result waits for
+ * settle() at the end of the tick; between steps (a leave) there is no tick to wait for, so it goes out now, and
+ * the death still restarts the timer in the next tick.
+ */
+export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outcome: "died" | "mia"): void {
+  if (!standing(p, rt)) return;
+  const credited = outcome === "mia" ? leaveCredit(world, rt) : null;
+  rt.down = { outcome };
+  rt.path = [];
+  p.status = outcome === "died" ? "dead" : "mia";
+  if (credited) creditKill(world, credited, p, rt);
+  world.hooks.dropBody(world, p);
+  if (world.stepping) {
+    world.arena.downedThisTick.push({ p, rt });
+    return;
+  }
+  world.arena.downsBetweenTicks++;
+  resolve(world, p, rt, outcome, alivePlayers(world).length + 1, 0);
+}
+
+function resolve(
+  world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOutcome, place: number, win: number, winBonusWithheld = false,
+): void {
+  if (rt.resolved) return;
+  rt.resolved = true;
+  rt.path = [];
+  const s = world.state;
+  const gv: GvBreakdown = {
+    kills: rt.gv.kills, mobs: rt.gv.mobs, bounty: rt.gv.bounty, win, total: rt.gv.kills + rt.gv.mobs + rt.gv.bounty + win,
+  };
+  const result: RunResult = {
+    outcome,
+    profile: rt.profile,
+    durationSec: s.raidStartedAt > 0 ? Math.round((s.serverTime - s.raidStartedAt) / 1000) : 0,
+    kills: p.kills,
+    killedBy: outcome === "died" ? rt.killedBy : null,
+    place,
+    players: world.arena.startedWith,
+    gv,
+    winBonusWithheld,
+  };
+  emit(world, { type: "resolved", id: rt.id, result });
+}
+
+/**
+ * Sudden death, in the combat/DoT stage. Once the gates have been locked for suddenDeathSeconds with no death, every
+ * standing player loses a share of max hp per second that grows by SUDDEN_DEATH_RAMP_FRACTION each whole second.
+ * Only whole ticks after `suddenDeathAt` burn (it is set on the tick grid), so the ramp is the same at any tick rate.
+ */
+export function suddenDeath(world: World, dtMs: number): void {
+  const s = world.state;
+  if (!s.gatesLocked || s.suddenDeathAt <= 0) return;
+  const tickStart = s.serverTime - dtMs;
+  if (tickStart < s.suddenDeathAt) return;
+  const share = suddenDeathShare(tickStart - s.suddenDeathAt) * (dtMs / 1000);
+  for (const { p, rt } of alivePlayers(world)) applyDamage(world, p, rt, share * p.maxHp, SUDDEN_DEATH_KILLER);
+}
+
+/** Share of max hp per second burnt `elapsedMs` into sudden death. */
+export function suddenDeathShare(elapsedMs: number): number {
+  return SUDDEN_DEATH_START_FRACTION + SUDDEN_DEATH_RAMP_FRACTION * Math.floor(Math.max(0, elapsedMs) / 1000);
+}
+
+/** Last thing in every active tick: results for this tick's downs, the end of the run, the timer and the teleport. */
+export function settle(world: World): void {
+  const s = world.state;
+  const a = world.arena;
+  const downed = a.downedThisTick;
+  a.downedThisTick = [];
+  const deaths = downed.length + a.downsBetweenTicks;
+  a.downsBetweenTicks = 0;
+  const alive = alivePlayers(world);
+  const contested = a.startedWith >= 2;
+
+  if (alive.length === 0 || (contested && alive.length === 1)) {
+    endRun(world, alive, downed, contested);
+    return;
+  }
+  for (const d of downed) resolve(world, d.p, d.rt, d.rt.down!.outcome, alive.length + 1, 0);
+  if (deaths > 0) {
+    s.patienceEndsAt = s.serverTime + patienceMs(world, alive.length);
+    s.gatesLocked = false;
+    s.suddenDeathAt = 0;
+    return;
+  }
+  if (!s.gatesLocked && s.serverTime >= s.patienceEndsAt) teleportToColiseum(world);
+}
+
+function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolean): void {
+  const s = world.state;
+  let winners: Entry[] = [];
+  if (alive.length === 1) {
+    winners = alive;
+  } else if (contested && downed.length > 0) {
+    let best = -Infinity;
+    for (const d of downed) best = Math.max(best, d.rt.hpFracAtTickStart);
+    winners = downed.filter((d) => d.rt.hpFracAtTickStart === best);
+  }
+  const draw = winners.length > 1;
+  const won = new Set(winners.map((w) => w.rt));
+  for (const d of downed) {
+    if (!won.has(d.rt)) resolve(world, d.p, d.rt, d.rt.down!.outcome, winners.length + 1, 0);
+  }
+  for (const w of winners) {
+    if (draw) { resolve(world, w.p, w.rt, "draw", 1, 0); continue; }
+    const earned = contested && earnedWinBonus(world, w.rt);
+    resolve(world, w.p, w.rt, "won", 1, earned ? GV_WIN : 0, !earned);
+  }
+
+  const winner = !draw && winners.length === 1 ? winners[0]! : null;
+  s.winner = winner?.p.name ?? "";
+  s.phase = "ended";
+  s.patienceEndsAt = 0;
+  s.gatesLocked = false;
+  s.suddenDeathAt = 0;
+  emit(world, { type: "fx", fx: { kind: "victory", id: winner?.rt.id ?? null, name: winner?.p.name ?? null, draw } });
+  emit(world, { type: "raidEnded" });
+}
+
+function earnedWinBonus(world: World, rt: PlayerRuntime): boolean {
+  return world.arena.startedWith >= WIN_BONUS_MIN_PLAYERS && rt.damaged.size >= WIN_BONUS_MIN_OPPONENTS;
+}
+
+/**
+ * Everyone standing goes to a distinct coliseum spot (assigned by the server-private RNG), with their path, queued
+ * inputs and rewind history cleared, and TELEPORT_IMMUNITY_MS of immunity. The gates lock and the sudden-death
+ * clock starts. Only settle() calls this, in a tick with no death.
+ */
+export function teleportToColiseum(world: World): void {
+  const s = world.state;
+  const now = s.serverTime;
+  const alive = alivePlayers(world);
+  const spots = coliseumSpots(world.map, alive.length);
+  for (let i = spots.length - 1; i > 0; i--) {
+    const j = Math.floor(world.random() * (i + 1));
+    [spots[i], spots[j]] = [spots[j]!, spots[i]!];
+  }
+  alive.forEach(({ p, rt }, i) => {
+    const spot = spots[i]!;
+    p.x = spot.x;
+    p.y = spot.y;
+    p.immuneUntil = now + TELEPORT_IMMUNITY_MS;
+    rt.path = [];
+    rt.inputs.drain();
+    rt.history = [{ t: now, x: p.x, y: p.y }];
+  });
+  s.gatesLocked = true;
+  s.inColiseum = true;
+  s.patienceEndsAt = 0;
+  s.suddenDeathAt = now + world.config.suddenDeathSeconds * 1000;
+  world.hooks.teleported?.(world);
+  emit(world, { type: "fx", fx: { kind: "teleport" } });
+}
+
+/** How far (in tiles) coliseumSpots looks around each ring point for a free floor tile. */
+const SPOT_SEARCH_TILES = 12;
+
+/**
+ * `n` distinct floor points, each the free tile centre nearest to an even step around a ring of COLISEUM_RING_RADIUS
+ * about the map centre, all reachable from the first spawn. Deterministic for a map. Stands in for mapgen v2's
+ * coliseum spots; on a map where a ring point finds nothing, that player falls back to a spawn.
+ */
+export function coliseumSpots(map: GameMap, n: number): Vec2[] {
+  const cx = (map.w * TILE) / 2;
+  const cy = (map.h * TILE) / 2;
+  const origin = map.spawns[0];
+  const used = new Set<number>();
+  const out: Vec2[] = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (2 * Math.PI * i) / Math.max(1, n);
+    const want = { x: cx + Math.cos(angle) * COLISEUM_RING_RADIUS, y: cy + Math.sin(angle) * COLISEUM_RING_RADIUS };
+    const spot = nearestFreeTile(map, want, used, origin);
+    out.push(spot ?? map.spawns[i % map.spawns.length]!);
+  }
+  return out;
+}
+
+function nearestFreeTile(map: GameMap, want: Vec2, used: Set<number>, origin: Vec2 | undefined): Vec2 | null {
+  const tx0 = worldToTile(want.x);
+  const ty0 = worldToTile(want.y);
+  for (let r = 0; r <= SPOT_SEARCH_TILES; r++) {
+    let best: { key: number; at: Vec2; d: number } | null = null;
+    for (let ty = ty0 - r; ty <= ty0 + r; ty++) {
+      for (let tx = tx0 - r; tx <= tx0 + r; tx++) {
+        if (Math.max(Math.abs(tx - tx0), Math.abs(ty - ty0)) !== r) continue;
+        if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) continue;
+        const key = ty * map.w + tx;
+        if (used.has(key)) continue;
+        const at = { x: tileToWorldCenter(tx), y: tileToWorldCenter(ty) };
+        if (!circleClear(map, at, PLAYER_RADIUS)) continue;
+        const d = Math.hypot(at.x - want.x, at.y - want.y);
+        if (best && d >= best.d) continue;
+        if (origin && (origin.x !== at.x || origin.y !== at.y) && findPath(map, origin, at, PLAYER_RADIUS).length === 0) continue;
+        best = { key, at, d };
+      }
+    }
+    if (best) {
+      used.add(best.key);
+      return best.at;
+    }
+  }
+  return null;
+}

@@ -4,13 +4,14 @@ import {
   type ContainerKind, type GameMap, type HealingDef, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
+import { downPlayer } from "../src/sim/arena";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { dropBody, handleDrop, handleTake, handleUse, install, spawnLoot } from "../src/sim/loot";
 import {
   CRATE_SIZES, GROUND_EXCLUDED, GROUND_TABLE, LOOT_TABLE, rollCrate, rollGroundItem, rollItem,
 } from "../src/sim/lootTables";
-import { actionOrder, addPlayer, removePlayer, resolvePlayer, step } from "../src/sim/step";
+import { actionOrder, addPlayer, removePlayer, step } from "../src/sim/step";
 import { createWorld, nextId, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
@@ -21,8 +22,10 @@ const MEDKIT = ITEMS.medkit as HealingDef;
 /** Loot uids come from a counter so assertions never depend on UUIDs; the "L" prefix can't clash with `gear`. */
 function makeWorld(cfg: Partial<SimConfig> = {}, seed = 1234, random = mulberry32(seed + 1)): World {
   let n = 0;
+  const patienceSeconds = cfg.patienceSeconds ?? 3600;
   const config: SimConfig = {
-    minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, raidSeconds: 360, extractSeconds: 5, ...cfg,
+    minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds, patienceMinSeconds: patienceSeconds,
+    suddenDeathSeconds: 60, ...cfg,
   };
   return createGameWorld({ seed, config, random, newItemUid: () => `L${++n}` });
 }
@@ -35,10 +38,21 @@ const bob = (items: ItemDTO[] = []): Seat => ({ id: "b", name: "bob", items });
 const carol = (items: ItemDTO[] = []): Seat => ({ id: "c", name: "carol", items });
 const SEATS: Record<string, (items?: ItemDTO[]) => Seat> = { a: alice, b: bob, c: carol };
 
+/** addPlayer mints the run kit; tests want exact contents, so the kit is swapped for `items`. */
+function setGear(p: PlayerState, items: ItemDTO[]): void {
+  p.inventory.clear();
+  for (const it of items) {
+    const item = new ItemState();
+    item.uid = it.uid;
+    item.def = it.def;
+    p.inventory.push(item);
+  }
+}
+
 /** Seats join in the given order (which is the order the sim iterates players); the raid starts on the first step. */
 function startRaid(seats: Seat[], cfg: Partial<SimConfig> = {}): World {
   const world = makeWorld({ minPlayers: seats.length, ...cfg });
-  for (const s of seats) addPlayer(world, s.id, s.name, s.items ?? []);
+  for (const s of seats) setGear(addPlayer(world, s.id, s.name), s.items ?? []);
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   return world;
@@ -245,7 +259,7 @@ describe("spawnLoot / install", () => {
 
   it("install() works on a bare world and registers nothing beyond loot", () => {
     const bare = createWorld({
-      seed: 1234, config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, raidSeconds: 360, extractSeconds: 5 },
+      seed: 1234, config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60 },
       random: mulberry32(9),
     });
     expect(bare.state.containers.size).toBe(0);
@@ -320,7 +334,7 @@ describe("spawnLoot / install", () => {
   it("falls back to unique UUIDs for item uids when the world isn't given a counter", () => {
     const world = createGameWorld({
       seed: 5,
-      config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, raidSeconds: 360, extractSeconds: 5 },
+      config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60 },
       random: mulberry32(1),
     });
     const uids = [...world.state.containers.values()].flatMap((c) => c.items.map((i) => i.uid));
@@ -488,9 +502,9 @@ describe("take", () => {
   });
 
   it("lets a player loot a body", () => {
-    const world = startRaid([alice(), bob(gear("rifle"))]);
+    const world = startRaid([alice(), bob(gear("rifle")), carol()]); // carol keeps the run going
     place(world, "b", AT);
-    resolvePlayer(world, P(world, "b"), RT(world, "b"), "died");
+    downPlayer(world, P(world, "b"), RT(world, "b"), "died");
     const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
     place(world, "a", { x: AT.x + 10, y: AT.y });
     step(world, TICK_MS); // created between ticks: clients first see it in this tick's patch
@@ -590,7 +604,7 @@ describe("take", () => {
     place(world, "a", AT);
     const before = dump(world);
     handleTake(world, P(world, "a"), RT(world, "a"), { kind: "drop", uid: crate.items[0]!.uid });
-    handleTake(world, P(world, "a"), RT(world, "a"), { kind: "extract" });
+    handleTake(world, P(world, "a"), RT(world, "a"), { kind: "attack", x: 0, y: 0 });
     expect(dump(world)).toBe(before);
     expect(world.events).toEqual([]);
   });
@@ -656,9 +670,9 @@ describe("take: line of sight", () => {
   });
 
   it("refuses a body behind a wall", () => {
-    const world = startRaid([alice(), bob(gear("rifle"))]);
+    const world = startRaid([alice(), bob(gear("rifle")), carol()]);
     place(world, "b", EAST);
-    resolvePlayer(world, P(world, "b"), RT(world, "b"), "died");
+    downPlayer(world, P(world, "b"), RT(world, "b"), "died");
     step(world, TICK_MS); // flush the 'resolved' event; the body is now an ordinary old container
     const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
     place(world, "a", WEST);
@@ -736,15 +750,15 @@ describe("take: containers created this tick", () => {
   });
 
   it("stops a body being looted in the tick its owner goes down, but not on the next one", () => {
-    const world = startRaid([alice(), bob(gear("rifle"))]);
+    const world = startRaid([alice(), bob(gear("rifle")), carol()]);
     // Stands in for a combat system: acting kills the actor mid-tick.
-    world.actions.extract = (w, p, rt) => resolvePlayer(w, p, rt, "died");
+    world.actions.attack = (w, p, rt) => downPlayer(w, p, rt, "died");
     place(world, "a", AT);
     place(world, "b", AT);
     stepUntilFirst(world, "b");
     const guess = nextContainerId(world);
 
-    send(world, "b", "extract", {});
+    send(world, "b", "attack", { x: 0, y: 0 });
     send(world, "a", "take", { containerId: guess, uid: "rifle#0" });
     expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Item is gone" }]);
     expect(P(world, "b").status).toBe("dead");
@@ -757,7 +771,7 @@ describe("take: containers created this tick", () => {
   });
 
   it("gates the body of a player who disconnected between ticks until clients have seen it", () => {
-    const world = startRaid([alice(), bob(gear("gold"))]);
+    const world = startRaid([alice(), bob(gear("gold")), carol()]);
     place(world, "a", AT);
     place(world, "b", AT);
     removePlayer(world, "b");
@@ -775,7 +789,7 @@ describe("take: containers created this tick", () => {
 
   it("never gates containers spawned with the world, even when asked at tick 0", () => {
     const world = makeWorld();
-    addPlayer(world, "a", "alice", []);
+    setGear(addPlayer(world, "a", "alice"), []);
     const crate = [...world.state.containers.values()].find((c) => c.kind === "crate")!;
     place(world, "a", crate);
     expect(world.state.tick).toBe(0);
@@ -993,17 +1007,17 @@ describe("use", () => {
 });
 
 describe("players who have left the raid", () => {
-  it.each(["died", "extracted"] as const)("a %s player's take, drop, use and move on later ticks change nothing", (outcome) => {
-    const world = startRaid([alice(gear("bandage", "knife")), bob(gear("watch"))]);
+  it.each(["died", "mia"] as const)("a %s player's take, drop, use and move on later ticks change nothing", (outcome) => {
+    const world = startRaid([alice(gear("bandage", "knife")), bob(gear("watch")), carol()]);
     const crate = putContainer(world, "crate", AT, ["gold", "medkit"]);
     const ground = putContainer(world, "ground", AT, ["pistol"]);
     place(world, "a", AT);
     P(world, "a").hp = 50;
-    resolvePlayer(world, P(world, "a"), RT(world, "a"), outcome);
+    downPlayer(world, P(world, "a"), RT(world, "a"), outcome);
     expect(ofType(step(world, TICK_MS), "resolved")).toHaveLength(1); // flush the result; everything after is "later"
     const before = dump(world);
     const status = P(world, "a").status;
-    expect(status).toBe(outcome === "died" ? "dead" : "extracted");
+    expect(status).toBe(outcome === "died" ? "dead" : "mia");
 
     for (let tick = 0; tick < 3; tick++) {
       send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
@@ -1024,11 +1038,11 @@ describe("players who have left the raid", () => {
 
   it("a player who goes down mid-tick drops nothing further from the actions queued behind it", () => {
     const world = startRaid([alice(gear("bandage", "knife")), bob()]);
-    world.actions.extract = (w, p, rt) => resolvePlayer(w, p, rt, "died");
+    world.actions.attack = (w, p, rt) => downPlayer(w, p, rt, "died");
     place(world, "a", AT);
     P(world, "a").hp = 50;
     const existing = new Set(world.state.containers.keys());
-    send(world, "a", "extract", {});
+    send(world, "a", "attack", { x: 0, y: 0 });
     send(world, "a", "drop", { uid: "knife#1" });
     send(world, "a", "use", { uid: "bandage#0" });
 
@@ -1042,7 +1056,7 @@ describe("players who have left the raid", () => {
 });
 
 describe("dropBody", () => {
-  it("leaves a body with every item when a player dies, and the result's lost list matches", () => {
+  it("leaves a body with every item when a player dies, and the player is resolved at once outside a step", () => {
     const items = gear("rifle", "gold", "bandage");
     const world = startRaid([alice(items), bob()]);
     const a = P(world, "a");
@@ -1050,7 +1064,7 @@ describe("dropBody", () => {
     const originals = [...a.inventory];
     const before = new Set(world.state.containers.keys());
 
-    resolvePlayer(world, a, RT(world, "a"), "died");
+    downPlayer(world, a, RT(world, "a"), "died");
 
     const bodies = [...world.state.containers.values()].filter((c) => !before.has(c.id));
     expect(bodies).toHaveLength(1);
@@ -1064,23 +1078,21 @@ describe("dropBody", () => {
 
     const [resolved] = ofType(world.events, "resolved");
     expect(resolved!.id).toBe("a");
-    expect(resolved!.result.outcome).toBe("died");
-    expect(resolved!.result.lost).toEqual(items);
-    expect(resolved!.result.lost).toEqual(dto(body.items));
+    expect(resolved!.result).toMatchObject({ outcome: "died", profile: "alice", place: 2, players: 2 });
   });
 
   it("records the position at the moment of death, not the spawn", () => {
     const world = startRaid([alice(gear("knife")), bob()]);
     const spawn = { x: P(world, "a").x, y: P(world, "a").y };
     place(world, "a", { x: spawn.x + 64, y: spawn.y });
-    resolvePlayer(world, P(world, "a"), RT(world, "a"), "died");
+    downPlayer(world, P(world, "a"), RT(world, "a"), "died");
     const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
     expect({ x: body.x, y: body.y }).toEqual({ x: spawn.x + 64, y: spawn.y });
   });
 
   it("leaves an empty body for a player who died with nothing", () => {
     const world = startRaid([alice(), bob()]);
-    resolvePlayer(world, P(world, "a"), RT(world, "a"), "died");
+    downPlayer(world, P(world, "a"), RT(world, "a"), "died");
     const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
     expect(body.label).toBe("alice");
     expect(body.items).toHaveLength(0);
@@ -1088,33 +1100,23 @@ describe("dropBody", () => {
 
   it("is a second body for a second death, with its own id", () => {
     const world = startRaid([alice(gear("knife")), bob(gear("pistol"))]);
-    resolvePlayer(world, P(world, "a"), RT(world, "a"), "died");
-    resolvePlayer(world, P(world, "b"), RT(world, "b"), "died");
+    downPlayer(world, P(world, "a"), RT(world, "a"), "died");
+    downPlayer(world, P(world, "b"), RT(world, "b"), "died");
     const bodies = [...world.state.containers.values()].filter((c) => c.kind === "body");
     expect(bodies.map((b) => b.label)).toEqual(["alice", "bob"]);
     expect(new Set(bodies.map((b) => b.id)).size).toBe(2);
   });
 
-  it("also covers MIA: a disconnect mid-raid and the raid timing out", () => {
+  it("also covers MIA: a disconnect mid-raid leaves the body", () => {
     const dc = startRaid([alice(gear("gold")), bob()]);
     removePlayer(dc, "a");
     const left = [...dc.state.containers.values()].filter((c) => c.kind === "body");
     expect(left).toHaveLength(1);
     expect(left[0]).toMatchObject({ label: "alice" });
     expect(dto(left[0]!.items)).toEqual(gear("gold"));
-
-    const timeout = startRaid([alice(gear("watch"))], { raidSeconds: 1 });
-    for (let i = 0; i < 25; i++) step(timeout, TICK_MS);
-    expect(timeout.state.phase).toBe("ended");
-    const bodies = [...timeout.state.containers.values()].filter((c) => c.kind === "body");
-    expect(bodies).toHaveLength(1);
-    expect(dto(bodies[0]!.items)).toEqual(gear("watch"));
   });
 
-  it("reports exactly what the body holds as lost, for a disconnect and for the raid timing out", () => {
-    const bodyOf = (w: World, name: string) => [...w.state.containers.values()].find((c) => c.kind === "body" && c.label === name)!;
-
-    // Disconnect after looting: the lost list is the bring-in gear plus what was picked up.
+  it("a disconnect after looting leaves a body holding everything carried, and no death fx", () => {
     const dc = startRaid([alice(gear("gold", "bandage")), bob(gear("watch"))]);
     const crate = putContainer(dc, "crate", AT, ["knife", "vest"]);
     place(dc, "a", AT);
@@ -1125,32 +1127,10 @@ describe("dropBody", () => {
     removePlayer(dc, "a");
     const [left] = ofType(dc.events, "resolved");
     expect(left!.id).toBe("a");
-    expect(left!.result).toMatchObject({ outcome: "mia", extracted: [] });
-    expect(left!.result.lost).toEqual(carried);
-    expect(left!.result.lost).toEqual(dto(bodyOf(dc, "alice").items));
-    expect(ofType(dc.events, "resolved")).toHaveLength(1); // bob is still out there
-
-    // Timeout: every player still alive is resolved on the same step, each with their own body's contents.
-    const timeout = startRaid([alice(gear("watch", "knife")), bob(gear("vest"))], { raidSeconds: 1 });
-    const events: SimEvent[] = [];
-    for (let i = 0; i < 25; i++) events.push(...step(timeout, TICK_MS));
-    expect(timeout.state.phase).toBe("ended");
-    const results = ofType(events, "resolved");
-    expect(results.map((r) => r.id).sort()).toEqual(["a", "b"]);
-    for (const r of results) {
-      expect(r.result.outcome).toBe("mia");
-      expect(r.result.lost).toEqual(dto(bodyOf(timeout, r.result.profile).items));
-      expect(r.result.lost).toEqual(r.result.broughtIn);
-    }
-    expect(results.find((r) => r.id === "a")!.result.lost).toEqual(gear("watch", "knife"));
-  });
-
-  it("makes no body for a player who extracted", () => {
-    const world = startRaid([alice(gear("gold")), bob()]);
-    const before = world.state.containers.size;
-    resolvePlayer(world, P(world, "a"), RT(world, "a"), "extracted");
-    expect(world.state.containers.size).toBe(before);
-    expect(P(world, "a").inventory).toHaveLength(0);
+    expect(left!.result).toMatchObject({ outcome: "mia", place: 2 });
+    const body = [...dc.state.containers.values()].find((c) => c.kind === "body" && c.label === "alice")!;
+    expect(dto(body.items)).toEqual(carried);
+    expect(ofType(dc.events, "fx")).toEqual([]);
   });
 
   it("can be called directly and takes exactly what the player carries", () => {
