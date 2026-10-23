@@ -12,7 +12,7 @@
 //   8 carve each ruin
 //   9 obstacles                                                      10 spawns per region (first pick)
 //  11 chests per region (count, shuffle)
-//  12 cover: one noise draw per tile (W*H, row-major), then one growth coin per rock
+//  12 cover: one noise draw per tile (W*H, row-major), then one growth coin per rock (coarse pass, fine pass, spawn screens)
 //  13 ground spots (shuffle of the open tiles, shuffle of the others when too few, count)
 // A failed attempt (see MAX_ATTEMPTS) restarts the whole sequence on a derived seed.
 import { EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, SIGHT_CORRIDOR_WIDTH, TILE } from "./constants";
@@ -64,25 +64,35 @@ const FAIR_RATIO = 1.45;
 const RIM_MARGIN = 3.5;
 const RIM_LO2 = (SPAWN_BAND[0] * R0 - RIM_MARGIN) * (SPAWN_BAND[0] * R0 - RIM_MARGIN);
 const RIM_HI2 = (SPAWN_BAND[1] * R0 + RIM_MARGIN) * (SPAWN_BAND[1] * R0 + RIM_MARGIN);
+/** The first spawn stages keep to this fraction either side of the median walking distance to the centre; later stages widen it. */
+const WALK_BAND = 0.08;
+/** Tiles from the border that the cover leaves open at each map corner. */
+const CORNER_OPEN = 4;
 /** Two chests never touch, even in a short pool. */
 const CHEST_MIN_GAP = 2;
 
 /**
- * Anti-kiting cover. Lines of one direction are LANE_STEP apart in LANE_DIRS directions over [0, pi), and a lane is
- * the strip between two neighbouring lines where only open tiles (floor of a faction region) touch it. No lane
- * outside the coliseum may be longer than LANE_MAX tiles. Lines are half a SIGHT_CORRIDOR_WIDTH apart because any
- * straight corridor that wide, in a sampled direction, contains a whole strip; narrower slits do not count.
+ * Anti-kiting cover. Lines of one direction are `step` apart in `dirs` directions over [0, pi), and a lane is the
+ * strip between two neighbouring lines where only open tiles (all floor) touch it. No lane may be longer than
+ * LANE_TARGET tiles. SIGHT_LATTICE is the fine lattice that certifies the bound: with 48 directions and lines a
+ * quarter of SIGHT_CORRIDOR_WIDTH apart, a free strip of that width at any angle and offset contains a lattice lane
+ * of nearly its length, so lanes of at most `target` tiles (a hair under MAX_SIGHT_CORRIDOR) bound every such strip by
+ * MAX_SIGHT_CORRIDOR. A coarse lattice (32 directions, lines half a width apart) does the bulk of the cover first.
  */
-const LANE_DIRS = 32;
-const LANE_STEP = SIGHT_CORRIDOR_WIDTH / 2 / TILE;
+export const SIGHT_LATTICE = {
+  dirs: 48,
+  step: SIGHT_CORRIDOR_WIDTH / 4 / TILE,
+  target: MAX_SIGHT_CORRIDOR / TILE - 0.02,
+};
+const COARSE_LATTICE = { dirs: 32, step: SIGHT_CORRIDOR_WIDTH / 2 / TILE };
 const LANE_EPS = 1e-9;
-const LANE_MAX = MAX_SIGHT_CORRIDOR / TILE;
+const COARSE_TARGET = SIGHT_LATTICE.target;
 /** A work-list entry is `strip * LANE_POS + the middle of a corridor on it, in 1/LANE_QUANT tiles`. */
 const LANE_POS = 4096;
 const LANE_QUANT = 4;
 /** Distances along a line are measured from where it crosses the axis through the origin, so they can be negative. */
 const LANE_BIAS = 128;
-/** Most corridors on one strip that can be too long at once (a strip is under 91 tiles long and a corridor over LANE_MAX, with a blocked tile between two). */
+/** Most corridors on one strip that can be too long at once (a strip is under 91 tiles long and a corridor over the lane target, with a blocked tile between two). */
 const LANE_SLOTS = 10;
 /** Ground loot uses tiles with floor on all eight sides unless fewer than this many are left. */
 const GROUND_OPEN_MIN = 60;
@@ -95,7 +105,7 @@ const POCKET_MAX = 30;
 /** Score points a rock gives up per step away from the preferred layout (a tile that sits on one more long lane is worth 1024). */
 const LEVEL_COST = 2048;
 /** The same for standing on a soft-protected tile: more than any number of lanes a rock could cut, so it is a last resort. */
-const SOFT_COST = 1 << 20;
+const SOFT_COST = 1 << 24;
 const penalty = (lvl: number): number => (lvl >= 3 ? SOFT_COST : lvl * LEVEL_COST);
 const EXTRACT_NAMES = ["North Gate", "East Docks", "South Tunnel", "West Road"] as const;
 
@@ -350,13 +360,15 @@ interface LaneTable {
   pairOK: Uint8Array;
 }
 
-let laneTable: LaneTable | null = null;
+const laneTables = new Map<number, LaneTable>();
 
-function getLaneTable(): LaneTable {
-  if (laneTable) return laneTable;
-  const capacity = LANE_DIRS * (4 * W * H + 1024);
+/** The table of `dirs` directions with lines `step` apart, built on first use. */
+function getLaneTable(dirs: number, step: number): LaneTable {
+  const cached = laneTables.get(dirs);
+  if (cached) return cached;
+  const capacity = Math.ceil((dirs * (W * H * 1.5 + 4 * W)) / step);
   const tileBuf = new Uint16Array(capacity);
-  const edgeBuf = new Float64Array(capacity + 16384);
+  const edgeBuf = new Float64Array(capacity + 65536);
   const starts: number[] = [], lineDir: number[] = [], lineOff: number[] = [];
   let c = 0;
 
@@ -408,19 +420,19 @@ function getLaneTable(): LaneTable {
     lineOff.push(j);
   };
 
-  for (let k = 0; k < LANE_DIRS; k++) {
-    // Walk every line towards +x, so k > 16 uses the opposite direction; the set of lines is the same.
+  for (let k = 0; k < dirs; k++) {
+    // Walk every line towards +x, so k > dirs / 2 uses the opposite direction; the set of lines is the same.
     let dx = 1, dy = 0;
-    if (2 * k === LANE_DIRS) { dx = 0; dy = 1; } else if (k !== 0) {
-      const a = (k * PI) / LANE_DIRS;
+    if (2 * k === dirs) { dx = 0; dy = 1; } else if (k !== 0) {
+      const a = (k * PI) / dirs;
       dx = detCos(a); dy = detSin(a);
-      if (2 * k > LANE_DIRS) { dx = -dx; dy = -dy; }
+      if (2 * k > dirs) { dx = -dx; dy = -dy; }
     }
     const nx = -dy, ny = dx;
     const c1 = nx + ny, c2 = nx * (W - 1) + ny, c3 = nx + ny * (H - 1), c4 = nx * (W - 1) + ny * (H - 1);
     const oMin = Math.min(Math.min(c1, c2), Math.min(c3, c4)), oMax = Math.max(Math.max(c1, c2), Math.max(c3, c4));
-    const jHi = Math.floor(oMax / LANE_STEP);
-    for (let j = Math.ceil(oMin / LANE_STEP); j <= jHi; j++) addLine(nx * j * LANE_STEP, ny * j * LANE_STEP, dx, dy, k, j);
+    const jHi = Math.floor(oMax / step);
+    for (let j = Math.ceil(oMin / step); j <= jHi; j++) addLine(nx * j * step, ny * j * step, dx, dy, k, j);
   }
   const lines = starts.length;
   if (c > capacity || lines > 65535) throw new RangeError("lane table overflow");
@@ -443,16 +455,14 @@ function getLaneTable(): LaneTable {
   }
   const pairOK = new Uint8Array(lines);
   for (let l = 0; l + 1 < lines; l++) pairOK[l] = lineDir[l] === lineDir[l + 1] && lineOff[l + 1] === lineOff[l] + 1 ? 1 : 0;
-  laneTable = { lineStart, tile, edge, tileStart, tileLine, tilePos, pairOK };
-  return laneTable;
+  const table = { lineStart, tile, edge, tileStart, tileLine, tilePos, pairOK };
+  laneTables.set(dirs, table);
+  return table;
 }
 
-/** 1 where a tile is floor of a faction region: the tiles the lane metric walks. */
-function openMask(tiles: Uint8Array, regionGrid: Uint8Array, out: Uint8Array, region = 0): Uint8Array {
-  for (let i = 0; i < N; i++) {
-    const r = regionGrid[i];
-    out[i] = tiles[i] === TILE_FLOOR && (region === 0 ? r >= 1 && r <= SECTORS : r === region) ? 1 : 0;
-  }
+/** 1 where a tile is floor that belongs to a region (all floor on a generated map, gates open): the tiles the lane metric walks. */
+function openMask(tiles: Uint8Array, regionGrid: Uint8Array, out: Uint8Array): Uint8Array {
+  for (let i = 0; i < N; i++) out[i] = tiles[i] === TILE_FLOOR && regionGrid[i] !== REGION_NONE ? 1 : 0;
   return out;
 }
 
@@ -469,8 +479,7 @@ function openRuns(lt: LaneTable, open: Uint8Array, l: number, from: Float64Array
 }
 
 /** The longest lane: a strip between two neighbouring lines with only open tiles in it, in tiles. */
-function longestFatLane(open: Uint8Array): number {
-  const lt = getLaneTable();
+function longestFatLane(open: Uint8Array, lt: LaneTable): number {
   const lines = lt.lineStart.length - 1;
   const pa = new Float64Array(128), pb = new Float64Array(128), ca = new Float64Array(128), cb = new Float64Array(128);
   let prevCount = openRuns(lt, open, 0, pa, pb), best = 0;
@@ -489,10 +498,14 @@ function longestFatLane(open: Uint8Array): number {
   return best;
 }
 
-/** Longest sight corridor in the faction regions, in world units. The generator keeps it at MAX_SIGHT_CORRIDOR or less. */
-export function longestLane(map: GameMap, region: RegionId = "none"): number {
+/**
+ * Longest lane of the fine lattice (SIGHT_LATTICE) over all floor, in world units. The generator keeps it at
+ * SIGHT_LATTICE.target tiles or less, which bounds every free strip SIGHT_CORRIDOR_WIDTH wide by MAX_SIGHT_CORRIDOR.
+ */
+export function longestLane(map: GameMap): number {
   if (map.w !== W || map.h !== H) throw new RangeError(`longestLane: expected a ${W}x${H} map`);
-  return longestFatLane(openMask(map.tiles, map.regionGrid, new Uint8Array(N), region === "none" ? 0 : regionCode(region))) * TILE;
+  const lt = getLaneTable(SIGHT_LATTICE.dirs, SIGHT_LATTICE.step);
+  return longestFatLane(openMask(map.tiles, map.regionGrid, new Uint8Array(N)), lt) * TILE;
 }
 
 /**
@@ -523,7 +536,70 @@ const RING_OFF = RING_DX.map((dx, q) => RING_DY[q] * W + dx);
 const NB4 = [-W, 1, W, -1];
 
 /**
- * Anti-kiting cover: drops rocks until no sight corridor is longer than LANE_MAX. A corridor is the strip between
+ * Walking distance from tile `from` to every floor tile over the 8-connected grid, without cutting corners, in fifths of
+ * a tile (a diagonal step costs 7, about 5 * sqrt(2)); -1 where unreachable.
+ */
+function walkDistances(tiles: Uint8Array, from: number): Int32Array {
+  const dist = new Int32Array(N).fill(-1);
+  const best = new Int32Array(N).fill(1 << 30);
+  const buckets: number[][] = [[], [], [], [], [], [], [], []];
+  best[from] = 0;
+  buckets[0].push(from);
+  const DX = [0, 1, 1, 1, 0, -1, -1, -1], DY = [-1, -1, 0, 1, 1, 1, 0, -1];
+  for (let d = 0, left = 1; left > 0; d++) {
+    const bucket = buckets[d & 7];
+    while (bucket.length > 0) {
+      const i = bucket.pop()!;
+      left--;
+      if (dist[i] >= 0 || best[i] !== d) continue;
+      dist[i] = d;
+      const x = i % W, y = (i - x) / W;
+      for (let q = 0; q < 8; q++) {
+        const nx = x + DX[q], ny = y + DY[q];
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || tiles[ny * W + nx] !== TILE_FLOOR) continue;
+        const diagonal = (q & 1) === 1;
+        if (diagonal && (tiles[y * W + nx] !== TILE_FLOOR || tiles[ny * W + x] !== TILE_FLOOR)) continue;
+        const nd = d + (diagonal ? 7 : 5), j = ny * W + nx;
+        if (nd < best[j]) { best[j] = nd; buckets[nd & 7].push(j); left++; }
+      }
+    }
+  }
+  return dist;
+}
+
+/**
+ * Whether the segment between two points (tile units) crosses no wall tile, by the same grid walk as geometry.raycast
+ * (a segment through a tile vertex enters both neighbours; outside the map is wall). `crossed` receives the tiles of
+ * a clear segment in order, with the neighbours of every vertex it passes.
+ */
+function segmentClear(tiles: Uint8Array, x0: number, y0: number, x1: number, y1: number, crossed: number[]): boolean {
+  crossed.length = 0;
+  const wallAt = (tx: number, ty: number): boolean => tx < 0 || ty < 0 || tx >= W || ty >= H || tiles[ty * W + tx] === TILE_WALL;
+  let tx = Math.floor(x0), ty = Math.floor(y0);
+  if (wallAt(tx, ty)) return false;
+  crossed.push(ty * W + tx);
+  const dx = x1 - x0, dy = y1 - y0;
+  if (dx === 0 && dy === 0) return true;
+  const stepX = dx > 0 ? 1 : dx < 0 ? -1 : 0, stepY = dy > 0 ? 1 : dy < 0 ? -1 : 0;
+  let tMaxX = stepX === 0 ? Infinity : (tx + (stepX > 0 ? 1 : 0) - x0) / dx;
+  let tMaxY = stepY === 0 ? Infinity : (ty + (stepY > 0 ? 1 : 0) - y0) / dy;
+  for (;;) {
+    const t = tMaxX < tMaxY ? tMaxX : tMaxY;
+    if (t > 1) return true;
+    const crossX = tMaxX <= t, crossY = tMaxY <= t;
+    if (crossX && crossY) {
+      if (wallAt(tx + stepX, ty) || wallAt(tx, ty + stepY)) return false;
+      crossed.push(ty * W + tx + stepX, (ty + stepY) * W + tx);
+    }
+    if (crossX) { tx += stepX; tMaxX = (tx + (stepX > 0 ? 1 : 0) - x0) / dx; }
+    if (crossY) { ty += stepY; tMaxY = (ty + (stepY > 0 ? 1 : 0) - y0) / dy; }
+    if (wallAt(tx, ty)) return false;
+    crossed.push(ty * W + tx);
+  }
+}
+
+/**
+ * Anti-kiting cover: drops rocks until no lane of lattice `lt` is longer than `target`. A corridor is the strip between
  * two neighbouring lines of one direction with only open tiles in it; the strips that are too long are kept as
  * intervals along their line pair. Every long corridor is cut at the tile beside it that lies on the most long
  * corridors (noise breaks ties); the corridors the tile blocks are split in place, so a rock costs a few thousand
@@ -533,19 +609,20 @@ const NB4 = [-W, 1, W, -1];
  * rocks stay apart, soft-protected tiles stay open. `prot` marks the tiles no rock may take, `ring` the ring road,
  * whose floor must stay one piece that touches all five regions. Returns the number of rocks, or a negative number
  * when some corridor cannot be cut, which is mostly known before the first rock: a stretch of protected ground
- * longer than LANE_MAX has no tile to cut it on (the caller then tries another map).
+ * longer than the target has no tile to cut it on (the caller then tries another map). With `spawns`, a last step
+ * screens every pair of spawns within MAX_SIGHT_CORRIDOR of each other that can see each other with a rock on the
+ * line between them.
  */
 function placeCover(
-  rng: Rng, tiles: Uint8Array, regionGrid: Uint8Array, prot: Uint8Array, soft: Uint8Array,
-  ruinOf: Uint8Array, ruinQuota: number[], ruinBox: number[], ring: Uint8Array,
+  lt: LaneTable, target: number, rng: Rng, noise: Uint16Array, tiles: Uint8Array, regionGrid: Uint8Array, prot: Uint8Array, soft: Uint8Array,
+  ruinOf: Uint8Array, ruinQuota: number[], ruinBox: number[], ring: Uint8Array, spawns: readonly TilePt[] | null,
 ): number {
-  const lt = getLaneTable();
   const { lineStart, tile, edge, tileStart, tileLine, tilePos, pairOK } = lt;
   const lines = lineStart.length - 1;
   const open = openMask(tiles, regionGrid, new Uint8Array(N));
-  const noise = new Uint16Array(N);
-  for (let i = 0; i < N; i++) noise[i] = Math.floor(rng() * 1024);
-  const limit = LANE_MAX + LANE_EPS;
+  const limit = target + LANE_EPS;
+  // A lane through k tiles is at most k * sqrt(2) long, so a shorter run of open tiles is never a long lane.
+  const minRun = Math.floor(limit / 1.4142135623730951) + 1;
 
   // The floor a rock on t would cut off from the rest, when that is only small dead ends holding nothing to
   // keep (their tiles are left in `pocket`); false when it splits big pieces apart or a pocket holds something
@@ -681,17 +758,25 @@ function placeCover(
     for (let l = 0; l < lines; l++) {
       const base = lineStart[l], n = lineStart[l + 1] - base, eb = base + l;
       // open stretches, and stretches of dead tiles longer than a corridor may be
-      let count = 0, a = -1, deadCount = 0, d0 = -1;
-      for (let p = 0; p <= n; p++) {
-        const t = p < n ? tile[base + p] : 0;
-        const isOpen = p < n && open[t] === 1;
-        if (isOpen) { if (a < 0) a = p; } else if (a >= 0) { cA[count] = edge[eb + a]; cB[count++] = edge[eb + p]; a = -1; }
-        if (isOpen && dead[t] === 1) { if (d0 < 0) d0 = p; } else if (d0 >= 0) {
-          if (edge[eb + p] - edge[eb + d0] > limit) {
-            if (deadCount >= 16) return -1;
-            eA[deadCount] = edge[eb + d0]; eB[deadCount++] = edge[eb + p];
+      let count = 0, deadCount = 0;
+      if (n >= minRun) {
+        let a = -1, d0 = -1;
+        for (let p = 0; p <= n; p++) {
+          const t = p < n ? tile[base + p] : 0;
+          if (p < n && open[t] === 1) {
+            if (a < 0) a = p;
+            if (dead[t] === 1) { if (d0 < 0) d0 = p; continue; }
+          } else if (a >= 0) {
+            if (p - a >= minRun) { cA[count] = edge[eb + a]; cB[count++] = edge[eb + p]; }
+            a = -1;
           }
-          d0 = -1;
+          if (d0 >= 0) {
+            if (p - d0 >= minRun && edge[eb + p] - edge[eb + d0] > limit) {
+              if (deadCount >= 16) return -1;
+              eA[deadCount] = edge[eb + d0]; eB[deadCount++] = edge[eb + p];
+            }
+            d0 = -1;
+          }
         }
       }
       if (l > 0 && pairOK[l - 1] === 1) {
@@ -898,7 +983,34 @@ function placeCover(
   };
 
   while (work.length > 0) if (!cut(work.pop()!)) return -1;
-  return longLanes === 0 ? rocks : -1;
+  if (longLanes !== 0) return -1;
+
+  // No two spawns within MAX_SIGHT_CORRIDOR of each other see each other: a rock goes on a tile the sight line
+  // crosses, near the middle of it.
+  if (spawns !== null) {
+    const reach2 = (MAX_SIGHT_CORRIDOR / TILE) * (MAX_SIGHT_CORRIDOR / TILE) + LANE_EPS;
+    const crossed: number[] = [];
+    for (let again = true; again;) {
+      again = false;
+      for (let i = 0; i < spawns.length && !again; i++) {
+        for (let j = i + 1; j < spawns.length && !again; j++) {
+          if (d2(spawns[i], spawns[j]) > reach2 || !segmentClear(tiles, spawns[i].x + 0.5, spawns[i].y + 0.5, spawns[j].x + 0.5, spawns[j].y + 0.5, crossed)) continue;
+          // nearest to the middle first; a rock that keeps to the preferred layout beats one that does not
+          let best = -1, bestLvl = NEVER;
+          for (let step = 0; step < crossed.length && bestLvl > 0; step++) {
+            const mid = crossed.length >> 1, at = (step & 1) === 0 ? mid + (step >> 1) : mid - ((step + 1) >> 1);
+            if (at < 0 || at >= crossed.length) continue;
+            const lvl = levelOf(crossed[at], rocks + 1, 3);
+            if (lvl < bestLvl) { best = crossed[at]; bestLvl = lvl; }
+          }
+          if (best < 0) return -1;
+          place(best, bestLvl);
+          again = true;
+        }
+      }
+    }
+  }
+  return rocks;
 }
 
 interface Boundary { sin: number; cos: number; amp: number; phase: number }
@@ -909,27 +1021,21 @@ interface Boundary { sin: number; cos: number; amp: number; phase: number }
  * derived stream; the result is still a pure function of `seed`. Nearly every seed is built first time.
  */
 /**
- * The generator tiles of the coliseum's pillar layouts (see the pillar step of buildMap). Found offline by trying every
- * set of orbits (a tile and its three 90-degree turns about the centre) that keeps the arena clear where it must stay
- * clear: no one or two orbits cut every sight corridor in the sealed arena down to LANE_MAX, 28 sets of three do. The
- * sets come in pairs that are each other's transpose, so these 14 cover all of them once and the pillar step picks
- * one of the two orientations. The longest corridor left is 454 to 478 u.
+ * The coliseum's pillar layouts (see the pillar step of buildMap): generator tiles, each copied by `turns` equal turns
+ * about the centre (4: quarter turns, 2: half turns), twenty single-tile pillars in all. Found offline by searching
+ * sets of turn orbits that keep the arena clear where it must stay clear. With the gates open, a sight line can run
+ * from outside through a gate and across the arena, so the lattice lanes through coliseum floor, gate tiles and the
+ * first four tiles in front of each gate (ground the cover pass may not touch) must be cut to the lane target by
+ * pillars alone. No set of four quarter-turn orbits does it; of the five-orbit sets only the first layout below (and
+ * its transpose) does; the others are half-turn layouts found by annealing. Each keeps the longest of those lanes
+ * at 437 to 470 u, the centre tile, the inner spawns' 3x3 and the lanes inside the gates clear, and the sealed floor
+ * in one piece.
  */
-const PILLAR_LAYOUTS: readonly (readonly [number, number][])[] = [
-  [[31, 28], [33, 29], [31, 30]],
-  [[30, 28], [33, 29], [31, 30]],
-  [[28, 28], [30, 29], [32, 30]],
-  [[30, 28], [30, 29], [32, 30]],
-  [[30, 28], [31, 29], [32, 30]],
-  [[30, 28], [32, 29], [30, 30]],
-  [[30, 28], [32, 29], [31, 30]],
-  [[30, 28], [32, 29], [32, 30]],
-  [[30, 28], [33, 29], [32, 30]],
-  [[31, 28], [30, 29], [32, 29]],
-  [[31, 28], [30, 29], [32, 30]],
-  [[31, 28], [31, 29], [32, 30]],
-  [[31, 28], [32, 29], [30, 30]],
-  [[31, 28], [32, 29], [31, 30]],
+const PILLAR_LAYOUTS: readonly { turns: number; gens: readonly (readonly [number, number])[] }[] = [
+  { turns: 4, gens: [[27, 27], [28, 28], [29, 29], [31, 29], [32, 30]] },
+  { turns: 2, gens: [[33, 30], [34, 30], [28, 28], [35, 28], [32, 31], [29, 29], [35, 29], [36, 27], [27, 27], [30, 30]] },
+  { turns: 2, gens: [[28, 28], [27, 27], [35, 28], [32, 31], [34, 29], [31, 30], [29, 28], [33, 30], [30, 29], [36, 27]] },
+  { turns: 2, gens: [[29, 29], [35, 28], [33, 30], [28, 28], [34, 29], [29, 30], [36, 27], [32, 31], [30, 31], [27, 27]] },
 ];
 
 /**
@@ -1111,21 +1217,19 @@ function buildMap(seed: number, attempt: number): GameMap | null {
     innerTiles.push({ x: Math.floor(CX + INNER_SPAWN_R * detCos(a)), y: Math.floor(CY + INNER_SPAWN_R * detSin(a)) });
   }
 
-  // Pillars: always, twelve single tiles, a generator tile and its three 90-degree turns about the centre for each of
-  // three generators. The arena is fixed in size, so the layouts are fixed too: with the gates closed no layout leaves
-  // a sight corridor longer than 477 u in it (the empty arena has 548 u), and the floor stays one piece. They keep to
-  // the centre tile, the inner spawns' 3x3 and the lanes inside the gates. A layout may be used transposed (x and y
-  // swapped), which the lane metric does not tell apart from the original.
+  // Pillars: always, twenty single tiles in one of the PILLAR_LAYOUTS (the arena is fixed in size, so its layouts are
+  // fixed too), used as listed or transposed (x and y swapped), which the lane metric does not tell apart.
   const rot = (p: TilePt): TilePt => ({ x: CX + CY - 1 - p.y, y: p.x - CX + CY });
   const pillar = new Uint8Array(N);
   {
     const pickLayout = Math.floor(rng() * PILLAR_LAYOUTS.length * 2);
     const transposed = (pickLayout & 1) === 1;
-    for (const [gx, gy] of PILLAR_LAYOUTS[pickLayout >> 1]) {
+    const { turns, gens } = PILLAR_LAYOUTS[pickLayout >> 1];
+    for (const [gx, gy] of gens) {
       let p: TilePt = transposed ? { x: gy, y: gx } : { x: gx, y: gy };
-      for (let q = 0; q < 4; q++) {
+      for (let q = 0; q < turns; q++) {
         if (coFloor[p.y * W + p.x]) pillar[p.y * W + p.x] = 1;
-        p = rot(p);
+        for (let r = 0; r < 4 / turns; r++) p = rot(p);
       }
     }
   }
@@ -1401,12 +1505,36 @@ function buildMap(seed: number, attempt: number): GameMap | null {
   // touch, so the first stages keep spawns 3 tiles clear of passes.
   const passNear = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (band[i] && !ridge[i]) markRect(passNear, { x: i % W, y: Math.floor(i / W), w: 1, h: 1 }, 3);
+  // Walking distance to the centre, over the ground as it stands before the cover: the first stages pick spawns in a
+  // narrow band of it (centred on the median over the regions of their candidates' median), so the five regions start
+  // about equally far from the centre however the gates lie.
+  const walk = walkDistances(tiles, CY * W + CX);
+  const bandLo2 = (SPAWN_BAND[0] * R0) * (SPAWN_BAND[0] * R0), bandHi2 = (SPAWN_BAND[1] * R0) * (SPAWN_BAND[1] * R0);
+  const medians: number[] = [];
+  for (const faction of REGION_FACTIONS) {
+    const code = regionCode(faction), v: number[] = [];
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = y * W + x, dc = d2({ x, y }, originC);
+        if (regionGrid[i] === code && open3[i] && !ruinGrid[i] && walk[i] >= 0 && dc >= bandLo2 && dc <= bandHi2) v.push(walk[i]);
+      }
+    }
+    v.sort((a, b) => a - b);
+    medians.push(v.length > 0 ? v[v.length >> 1] : 0);
+  }
+  medians.sort((a, b) => a - b);
+  const walkMid = medians[medians.length >> 1];
+  // `walk` is how far, as a fraction of the median, a spawn may lie from it in walking distance (0: not at all restricted).
   const SPAWN_STAGES = [
-    { camp: 7, ext: 7, lo: SPAWN_BAND[0], hi: SPAWN_BAND[1], fair: true, pass: true },
-    { camp: 6, ext: 7, lo: SPAWN_BAND[0], hi: SPAWN_BAND[1], fair: true, pass: true },
-    { camp: 6, ext: 6, lo: SPAWN_BAND[0], hi: SPAWN_BAND[1], fair: true, pass: true },
-    { camp: 6, ext: 5, lo: 0.5, hi: 0.95, fair: true, pass: false },
-    { camp: 6, ext: 5, lo: 0.5, hi: 0.95, fair: false, pass: false },
+    { camp: 7, ext: 7, lo: SPAWN_BAND[0], hi: SPAWN_BAND[1], fair: true, pass: true, walk: WALK_BAND },
+    { camp: 6, ext: 7, lo: SPAWN_BAND[0], hi: SPAWN_BAND[1], fair: true, pass: true, walk: WALK_BAND },
+    { camp: 6, ext: 6, lo: SPAWN_BAND[0], hi: SPAWN_BAND[1], fair: true, pass: true, walk: WALK_BAND },
+    { camp: 6, ext: 5, lo: 0.5, hi: 0.95, fair: true, pass: true, walk: WALK_BAND },
+    { camp: 6, ext: 5, lo: 0.5, hi: 0.95, fair: true, pass: false, walk: WALK_BAND },
+    { camp: 6, ext: 5, lo: 0.5, hi: 0.95, fair: true, pass: false, walk: 2 * WALK_BAND },
+    { camp: 6, ext: 5, lo: 0.5, hi: 0.95, fair: true, pass: false, walk: 3 * WALK_BAND },
+    { camp: 6, ext: 5, lo: 0.5, hi: 0.95, fair: true, pass: false, walk: 0 },
+    { camp: 6, ext: 5, lo: 0.5, hi: 0.95, fair: false, pass: false, walk: 0 },
   ];
   // Three spawns for one region, each at least SPAWN_SEPARATION from `taken` (the other regions' spawns).
   const sep2 = SPAWN_SEPARATION * SPAWN_SEPARATION;
@@ -1420,6 +1548,7 @@ function buildMap(seed: number, attempt: number): GameMap | null {
         for (let x = 1; x < W - 1; x++) {
           const i = y * W + x;
           if (regionGrid[i] !== code || !open3[i] || ruinGrid[i] || (st.pass && passNear[i])) continue;
+          if (st.walk > 0 && (walk[i] < walkMid * (1 - st.walk) || walk[i] > walkMid * (1 + st.walk))) continue;
           const p = { x, y };
           const dc = d2(p, originC);
           if (dc < lo2 || dc > hi2) continue;
@@ -1524,10 +1653,16 @@ function buildMap(seed: number, attempt: number): GameMap | null {
     if (!sound) return null;
   }
 
-  // --- Cover: rocks that cut every open lane down to LANE_MAX --------------------------------------------------
+  // --- Cover: rocks that cut every lane of all floor (the gates open) down to the lane target -------------------
   // `prot` is what no rock may take, `soft` what a rock takes only as a last resort.
   const prot = new Uint8Array(N), soft = new Uint8Array(N);
-  for (let i = 0; i < N; i++) if (border[i]) prot[i] = 1;
+  for (let i = 0; i < N; i++) if (border[i] || fp[i]) prot[i] = 1;
+  // The four corners stay open ground: a click outside the world snaps to floor near the nearest corner.
+  for (let y = 1; y <= CORNER_OPEN; y++) {
+    for (let x = 1; x <= CORNER_OPEN; x++) {
+      for (const [cx, cy] of [[x, y], [W - 1 - x, y], [x, H - 1 - y], [W - 1 - x, H - 1 - y]]) prot[cy * W + cx] = 1;
+    }
+  }
   for (const t of laneOut) prot[t.y * W + t.x] = 1;
   for (const c of campCentres) for (const [ox, oy] of CAMP_HALO) prot[(c.y + oy) * W + c.x + ox] = 1;
   for (const t of allSpawnTiles) { markRect(soft, { x: t.x - 1, y: t.y - 1, w: 3, h: 3 }, 1); markRect(prot, { x: t.x - 1, y: t.y - 1, w: 3, h: 3 }, 0); }
@@ -1554,7 +1689,13 @@ function buildMap(seed: number, attempt: number): GameMap | null {
     ruinQuota.push(Math.max(0, Math.min(RUIN_ROCKS, Math.floor(free - 0.62 * interior))));
     ruinBox.push(b.x + 1, b.y + 1, b.x + b.w - 2, b.y + b.h - 2);
   });
-  const covered = placeCover(rng, tiles, regionGrid, prot, soft, ruinOf, ruinQuota, ruinBox, ring);
+  const noise = new Uint16Array(N);
+  for (let i = 0; i < N; i++) noise[i] = Math.floor(rng() * 1024);
+  let covered = placeCover(getLaneTable(COARSE_LATTICE.dirs, COARSE_LATTICE.step), COARSE_TARGET, rng, noise, tiles, regionGrid, prot, soft, ruinOf, ruinQuota, ruinBox, ring, null);
+  if (covered >= 0) {
+    const fine = placeCover(getLaneTable(SIGHT_LATTICE.dirs, SIGHT_LATTICE.step), SIGHT_LATTICE.target, rng, noise, tiles, regionGrid, prot, soft, ruinOf, ruinQuota, ruinBox, ring, allSpawnTiles);
+    covered = fine < 0 ? fine : covered + fine;
+  }
   if (covered < 0 && !last) return null;
 
   // --- Region records ---------------------------------------------------------------------------------------

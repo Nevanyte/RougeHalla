@@ -145,12 +145,18 @@ describe("raycast", () => {
       const r = raycast(map, x0, y0, x1, y1);
       // Reference: march in 0.25 world-unit steps and find the first wall sample.
       const len = Math.hypot(x1 - x0, y1 - y0);
-      let first = -1;
-      for (let s = 0; s <= len; s += 0.25) {
+      const wallAt = (s: number): boolean => {
         const t = len === 0 ? 0 : s / len;
         const tx = Math.floor((x0 + (x1 - x0) * t) / TILE);
         const ty = Math.floor((y0 + (y1 - y0) * t) / TILE);
-        if (map.tiles[ty * map.w + tx] === TILE_WALL) { first = s; break; }
+        return map.tiles[ty * map.w + tx] === TILE_WALL;
+      };
+      let first = -1;
+      for (let s = 0; s <= len; s += 0.25) if (wallAt(s)) { first = s; break; }
+      // A ray that only clips a wall corner spends less than a sample step inside the wall, which the coarse march steps
+      // over (the exact walk is right). Look again around the reported hit, a thousand times finer.
+      if (first < 0 && r.hit) {
+        for (let s = Math.max(0, r.dist - 0.5); s <= Math.min(len, r.dist + 0.5); s += 0.001) if (wallAt(s)) { first = s; break; }
       }
       if (r.hit !== (first >= 0)) mismatches++;
       else if (r.hit && Math.abs(r.dist - first) > 0.5) mismatches++;

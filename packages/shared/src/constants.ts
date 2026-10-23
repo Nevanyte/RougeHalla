@@ -26,11 +26,11 @@ export const PLAYER_MAX_HP = 100;
 export const INTERACT_RANGE = 56;
 export const INVENTORY_SLOTS = 6;
 /**
- * Anti-kiting: mapgen keeps every sight corridor (a straight strip SIGHT_CORRIDOR_WIDTH wide) in the
- * faction regions, and in the coliseum with its gates closed, at most this long. It equals the bow's
- * range, so an archer gets its full range of free fire on a chaser but can't backpedal forever.
- * Narrower gaps between rocks don't count: two moving players can't keep lined up on them. The width
- * is one tile because that is what the generator's line lattice (half a width apart) certifies.
+ * Anti-kiting: with the coliseum gates open, mapgen guarantees that every straight strip SIGHT_CORRIDOR_WIDTH (one
+ * tile) wide, at any angle and offset, runs at most MAX_SIGHT_CORRIDOR through open floor. Open floor includes every
+ * region, the gates-closed coliseum and lines through the gates. The cap is the bow's range, so an archer gets its
+ * full range of free fire on a chaser but can't backpedal forever. Narrower corridors are not guaranteed: a 24 u gap
+ * (PLAYER_RADIUS is 12, so a player fits) measured up to 473 u and a 16 u gap up to 546 u. The owner deferred those.
  */
 export const MAX_SIGHT_CORRIDOR = 480;
 export const SIGHT_CORRIDOR_WIDTH = 32;

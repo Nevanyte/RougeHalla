@@ -608,6 +608,75 @@ describe("walls", () => {
   });
 });
 
+describe("coliseum gates", () => {
+  const SIDES = ["n", "e", "s", "w"] as const;
+  const OUT = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] } as const;
+
+  /**
+   * A rifle shooter 90 u outside a gate and a target 100 u inside it (190 u apart, well inside the rifle's 400), both on
+   * the gate's axis, half a tile off its middle so the shot runs down the centre of a gate tile, not along a tile edge.
+   */
+  function lineUp(world: World, side: (typeof SIDES)[number]): { shooter: { x: number; y: number }; target: { x: number; y: number }; face: { x: number; y: number } } {
+    const g = world.map.coliseum.gates.find((q) => q.side === side)!;
+    const [ox, oy] = OUT[side];
+    const sx = g.x - oy * (TILE / 2), sy = g.y + ox * (TILE / 2); // the middle of the gate tile beside the centre
+    return {
+      shooter: { x: sx + ox * 90, y: sy + oy * 90 },
+      target: { x: sx - ox * 100, y: sy - oy * 100 },
+      face: { x: sx + ox * (TILE / 2), y: sy + oy * (TILE / 2) },
+    };
+  }
+
+  it("stop a shot from outside a closed gate at the gate's outer face", () => {
+    for (const seed of [1234, 7, 99]) {
+      for (const side of SIDES) {
+        const world = raid([alice(gear("rifle")), bob()], "generated", seed);
+        world.state.gatesLocked = true;
+        const { shooter, target, face } = lineUp(world, side);
+        place(world, "a", shooter.x, shooter.y);
+        place(world, "b", target.x, target.y);
+        const shot = shotOf(swing(world, "a", target.x, target.y));
+        const label = `seed ${seed} gate ${side}`;
+        expect(shot.hit, label).toBe(null);
+        expect(shot.x2, label).toBeCloseTo(face.x, 6);
+        expect(shot.y2, label).toBeCloseTo(face.y, 6);
+        expect(lost(world, "b"), label).toBe(0);
+      }
+    }
+  });
+
+  it("let the same shot through once the gates are open", () => {
+    for (const seed of [1234, 7, 99]) {
+      for (const side of SIDES) {
+        const world = raid([alice(gear("rifle")), bob()], "generated", seed);
+        expect(world.state.gatesLocked).toBe(false);
+        const { shooter, target } = lineUp(world, side);
+        place(world, "a", shooter.x, shooter.y);
+        place(world, "b", target.x, target.y);
+        const shot = shotOf(swing(world, "a", target.x, target.y));
+        const label = `seed ${seed} gate ${side}`;
+        expect(shot.hit, label).toBe("b");
+        expect(lost(world, "b"), label).toBe(WEAPONS.rifle.damage);
+      }
+    }
+  });
+
+  it("do not stop a shot between two players inside the sealed coliseum", () => {
+    // Control for the tests above: locking the gates seals the arena, it does not turn every ray into a hit on a wall.
+    for (const side of SIDES) {
+      const world = raid([alice(gear("rifle")), bob()], "generated");
+      world.state.gatesLocked = true;
+      const g = world.map.coliseum.gates.find((q) => q.side === side)!;
+      const [ox, oy] = OUT[side];
+      // Two spots in the lane just inside the gate (the first three tiles in are always clear), on one tile's centre line.
+      const sx = g.x - oy * (TILE / 2), sy = g.y + ox * (TILE / 2);
+      place(world, "a", sx - ox * TILE, sy - oy * TILE);
+      place(world, "b", sx - ox * 3 * TILE, sy - oy * 3 * TILE);
+      expect(shotOf(swing(world, "a", sx - ox * 3 * TILE, sy - oy * 3 * TILE)).hit, `gate ${side}`).toBe("b");
+    }
+  });
+});
+
 describe("armor", () => {
   // [weapon, armor items, expected damage]. Rounding is to the nearest point (halves up).
   const table: Array<[keyof typeof WEAPONS, string[], number]> = [

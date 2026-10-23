@@ -3037,6 +3037,21 @@ describe("coliseumSpots", () => {
     }
   });
 
+  it("hands out the map's own teleport spots: every spot is one of coliseum.innerSpawns, for n = 1..MAX_PLAYERS", () => {
+    for (const seed of SEEDS) {
+      const map = generateMap(seed);
+      const inner = new Set(map.coliseum.innerSpawns.map(key));
+      expect(inner.size, `seed ${seed}`).toBeGreaterThanOrEqual(MAX_PLAYERS);
+      for (let n = 1; n <= MAX_PLAYERS; n++) {
+        const spots = coliseumSpots(map, n);
+        const label = `seed ${seed} n ${n}`;
+        expect(spots, label).toHaveLength(n);
+        for (const spot of spots) expect(inner.has(key(spot)), `${label}: ${key(spot)} is not an inner spawn`).toBe(true);
+        expect(new Set(spots.map(key)).size, `${label}: distinct`).toBe(n);
+      }
+    }
+  });
+
   it("is deterministic per map", () => {
     for (const seed of SEEDS.slice(0, 10)) {
       for (const n of [1, 4, MAX_PLAYERS]) {

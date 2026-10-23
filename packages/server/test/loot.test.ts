@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  generateMap, INTERACT_RANGE, INVENTORY_SLOTS, isWallTile, ITEMS, mulberry32, TICK_MS, TILE,
-  type ContainerKind, type GameMap, type HealingDef, type ItemDTO, type Vec2,
+  generateMap, hasLineOfSight, INTERACT_RANGE, INVENTORY_SLOTS, isWallTile, ITEMS, mulberry32, TICK_MS, TILE, withGates,
+  type ContainerKind, type GameMap, type GateDef, type GateSide, type HealingDef, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { downPlayer } from "../src/sim/arena";
@@ -710,6 +710,81 @@ describe("take: line of sight", () => {
     send(world, "a", "take", { containerId: crate.id, uid: crate.items[1]!.uid });
     expect(toastsOf(step(world, TICK_MS))).toEqual([]);
     expect(P(world, "a").inventory).toHaveLength(2);
+  });
+});
+
+describe("take: through a closed coliseum gate", () => {
+  const OUT: Record<GateSide, readonly [number, number]> = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
+  const SIDES: GateSide[] = ["n", "e", "s", "w"];
+  const SEEDS = [1234, 7, 99];
+  const gateOf = (map: GameMap, side: GateSide): GateDef => map.coliseum.gates.find((g) => g.side === side)!;
+
+  /** Just outside and just inside the middle of a gate: 8 u past each face of the gate tile, so 48 u apart (in reach). */
+  function gateSpots(g: GateDef): { outside: Vec2; inside: Vec2 } {
+    const [ox, oy] = OUT[g.side];
+    const d = TILE / 2 + 8;
+    return { outside: { x: g.x + ox * d, y: g.y + oy * d }, inside: { x: g.x - ox * d, y: g.y - oy * d } };
+  }
+
+  /** A one-player raid on the map generated from `seed`, with a crate of gold just inside `side`'s gate and the player just outside it. */
+  function setup(seed: number, side: GateSide) {
+    const world = makeWorld({ minPlayers: 1 }, seed);
+    setGear(addPlayer(world, "a", "alice"), []);
+    step(world, TICK_MS);
+    expect(world.state.phase).toBe("active");
+    const { outside, inside } = gateSpots(gateOf(world.map, side));
+    const crate = putContainer(world, "crate", inside, ["gold"]);
+    place(world, "a", outside);
+    return { world, crate, outside };
+  }
+
+  it("has a gate to test with: the crate is within reach, in sight with the gates open and out of sight once they close", () => {
+    for (const seed of SEEDS) {
+      const map = generateMap(seed);
+      expect(map.coliseum.gates.map((g) => g.side)).toEqual(SIDES);
+      for (const side of SIDES) {
+        const { outside, inside } = gateSpots(gateOf(map, side));
+        const label = `seed ${seed} gate ${side}`;
+        expect(Math.hypot(outside.x - inside.x, outside.y - inside.y), label).toBeLessThanOrEqual(INTERACT_RANGE);
+        expect(hasLineOfSight(map, outside, inside), `${label} open`).toBe(true);
+        expect(hasLineOfSight(withGates(map), outside, inside), `${label} closed`).toBe(false);
+      }
+    }
+  });
+
+  it("refuses a crate just inside a closed gate from just outside it, changing nothing, and allows it once the gates open", () => {
+    for (const seed of SEEDS) {
+      for (const side of SIDES) {
+        const label = `seed ${seed} gate ${side}`;
+        const { world, crate } = setup(seed, side);
+        world.state.gatesLocked = true;
+        const before = dump(world);
+
+        send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
+        expect(toastsOf(step(world, TICK_MS)), `${label} locked`).toEqual([{ to: "a", text: "Can't reach that" }]);
+        expect(dump(world), `${label} locked: nothing changed`).toBe(before);
+
+        world.state.gatesLocked = false;
+        send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
+        expect(toastsOf(step(world, TICK_MS)), `${label} open`).toEqual([]);
+        expect(dto(P(world, "a").inventory).map((it) => it.def), `${label} open`).toEqual(["gold"]);
+      }
+    }
+  });
+
+  it("still lets a player take from a crate on their own side of a closed gate", () => {
+    for (const seed of SEEDS) {
+      for (const side of SIDES) {
+        const label = `seed ${seed} gate ${side}`;
+        const { world, outside } = setup(seed, side);
+        world.state.gatesLocked = true;
+        const [ox, oy] = OUT[side];
+        const near = putContainer(world, "crate", { x: outside.x + ox * 8, y: outside.y + oy * 8 }, ["watch"]);
+        send(world, "a", "take", { containerId: near.id, uid: near.items[0]!.uid });
+        expect(toastsOf(step(world, TICK_MS)), label).toEqual([]);
+        expect(dto(P(world, "a").inventory).map((it) => it.def), label).toEqual(["watch"]);
+      }
+    }
   });
 });
 

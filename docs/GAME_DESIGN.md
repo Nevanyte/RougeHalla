@@ -90,10 +90,10 @@ The map is generated from a seed. The server and every client build the same map
 
   Because each region's mobs always carry the same weapon, **the map is a shopping list for counters**. If you're Plague and keep running into shields, you go where the axes are.
 - **The coliseum** sits in the centre, with 4 gates. The gates are wall tiles that close on command. Inside are spawn spots for the teleport.
-- **Cover.** Every region has enough walls and obstacles that open sight lines stay short, so bows and wands can't kite across a whole region.
+- **Cover.** Walls and obstacles keep sight lines short: with the gates open, no straight one-tile-wide (32 u) strip of open floor is longer than a bow's 480-unit range, at any angle. That holds in every region, inside the coliseum and through its gates. Narrower gaps are not guaranteed.
 - **Chests and mob camps** are spread per region; players spawn at the region edges.
 
-**Open point.** The sealed coliseum interior is about 566 units across, longer than a bow's 480-unit range. Archers could kite inside the final arena. Pillars inside the coliseum would fix it.
+The coliseum always has pillars. With the gates open or closed, no 32 u-wide corridor inside or through it is longer than 480 units, so archers can't kite across the final arena.
 
 ---
 
@@ -478,7 +478,7 @@ Hard counters are only fair if you can see them coming.
 |---|---|
 | Long fights and third-partying | In an 8-player arena, long duels invite a third player to clean up. Duel pace ×2 helps; it gets watched in playtests. |
 | Readable counters | Losing to a counter you didn't see coming feels random. Faction colours, weapon silhouettes and the counter hue are the mitigation. |
-| Kiting | Equal move speed lets ranged weapons kite melee. Mitigated by cover, the bow-draw and wand-cast slows, and lower ranged damage. The coliseum interior may need pillars. |
+| Kiting | Equal move speed lets ranged weapons kite melee. Mitigated by cover (which caps 32 u-wide sight corridors at the bow's range), the bow-draw and wand-cast slows, and lower ranged damage. |
 | Frost frustration | Its movement slow makes it the hardest class to escape. That's its identity, but it gets watched. |
 | Sentenced feel | Its weapon hits are nearly zero by design; the brand visual has to carry the class. |
 | Fire's burn | Nearly cosmetic in the current numbers. |
