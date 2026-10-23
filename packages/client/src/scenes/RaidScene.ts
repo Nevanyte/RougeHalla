@@ -11,9 +11,11 @@ import { nearestContainer } from "../render/interact";
 import { MapView } from "../render/MapView";
 import { BODY_LIFT, PlayerView } from "../render/PlayerView";
 import { projX, projY, unproject } from "../render/projection";
+import { ZoneView } from "../render/ZoneView";
 import { Hud } from "../ui/hud";
 import { InventoryBar } from "../ui/inventory";
 import { LootPanel } from "../ui/lootPanel";
+import { Minimap } from "../ui/minimap";
 
 export interface RaidSceneData {
   room: RaidRoom;
@@ -43,6 +45,8 @@ const DAMAGE_FLASH_MAX = 0.4;
 const DAMAGE_FLASH_PER_HP = 0.012;
 /** Hp lost in one frame at or above this restarts a flash already in progress (zone ticks are far below it). */
 const DAMAGE_FLASH_FORCE_HP = 5;
+/** Losses below this per frame (the zone's per-tick burn is ≤ 1.5 hp) don't flash. */
+const DAMAGE_FLASH_MIN_HP = 2;
 
 /** Shortcuts must never fire while the player is typing in a form control. */
 function isTyping(target: EventTarget | null): boolean {
@@ -66,6 +70,8 @@ export class RaidScene extends Phaser.Scene {
   private containerViews = new Map<string, ContainerView>();
   private mapView: MapView | null = null;
   private highlight!: ContainerHighlight;
+  private zoneView!: ZoneView;
+  private minimap!: Minimap;
   private hud!: Hud;
   private inventory!: InventoryBar;
   private lootPanel!: LootPanel;
@@ -123,8 +129,11 @@ export class RaidScene extends Phaser.Scene {
     this.lootPanel = new LootPanel({
       onTake: (containerId, uid) => sendInput(this.room, "take", { containerId, uid }),
     });
+    // Before buildMap: building a map repaints the minimap's static layer.
+    this.minimap = new Minimap();
     this.buildMap(this.room.state.seed);
     this.highlight = new ContainerHighlight(this);
+    this.zoneView = new ZoneView(this);
     this.fx = new FxView(this, {
       view: (id) => this.views.get(id),
       position: (id) => this.rendered.get(id),
@@ -207,6 +216,10 @@ export class RaidScene extends Phaser.Scene {
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
     this.fx.update(renderT, now, this.clockSynced);
     this.trackDamage(me);
+
+    // Both redraw only when the zone (or, for the minimap, the player's dot) actually moved.
+    this.zoneView.update(state.zone);
+    this.minimap.update(now, state.zone, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     // Like interaction range, the zone test uses the latest synced position, which is what the server checks.
@@ -295,11 +308,15 @@ export class RaidScene extends Phaser.Scene {
     // The drop is measured before the status check: the killing blow arrives as hp 0 together with status "dead".
     const lost = this.lastHp >= 0 ? this.lastHp - me.hp : 0;
     this.lastHp = me.status === "alive" ? me.hp : -1;
-    if (lost <= 0.001) return;
+    // Small per-tick losses (zone burn) already have the tint and the HUD warning; only real hits flash.
+    if (lost < DAMAGE_FLASH_MIN_HP) return;
     const cam = this.cameras.main;
+    const force = lost >= DAMAGE_FLASH_FORCE_HP;
+    // Writing alpha while a flash runs would pin it at the peak every frame (a constant red flicker).
+    if (!force && cam.flashEffect.isRunning) return;
     // flashEffect.alpha is the flash's peak opacity; start() reads it, and the default of 1 would white-out the screen.
     cam.flashEffect.alpha = Math.min(DAMAGE_FLASH_MAX, DAMAGE_FLASH_MIN + lost * DAMAGE_FLASH_PER_HP);
-    cam.flash(DAMAGE_FLASH_MS, 220, 20, 20, lost >= DAMAGE_FLASH_FORCE_HP);
+    cam.flash(DAMAGE_FLASH_MS, 220, 20, 20, force);
   }
 
   /**
@@ -333,7 +350,9 @@ export class RaidScene extends Phaser.Scene {
   /** The map is never synced, only its seed; both sides derive it with generateMap. */
   private buildMap(seed: number): void {
     this.mapView?.destroy();
-    this.mapView = new MapView(this, generateMap(seed));
+    const map = generateMap(seed);
+    this.mapView = new MapView(this, map);
+    this.minimap.setMap(map);
   }
 
   private teardown(): void {
@@ -353,6 +372,8 @@ export class RaidScene extends Phaser.Scene {
     this.mapView?.destroy();
     this.mapView = null;
     this.highlight.destroy();
+    this.zoneView.destroy();
+    this.minimap.destroy();
     this.rendered.clear();
     this.deaths.clear();
     this.hud.destroy();

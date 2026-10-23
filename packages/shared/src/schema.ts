@@ -44,7 +44,12 @@ export const ZoneState = schema({
   nextX: t.number().default(0),
   nextY: t.number().default(0),
   nextR: t.number().default(0),
+  /** 0 until the raid starts (no zone drawn), then 1..N. */
   stage: t.uint8().default(0),
+  /** True while the circle is moving from (x,y,r) toward (nextX,nextY,nextR). */
+  shrinking: t.boolean().default(false),
+  /** Server time when the current hold or shrink ends (HUD countdown). */
+  changeAt: t.number().default(0),
 }, "ZoneState");
 export type ZoneState = SchemaType<typeof ZoneState>;
 

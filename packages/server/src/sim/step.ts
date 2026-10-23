@@ -122,6 +122,7 @@ export function startRaid(world: World): void {
     rt.inputs.drain();
     rt.history = [{ t: s.serverTime, x: p.x, y: p.y }];
   }
+  world.hooks.raidStarted?.(world);
   emit(world, { type: "raidStarted" });
 }
 

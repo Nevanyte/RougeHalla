@@ -1,5 +1,8 @@
-// In-raid DOM overlay: phase/timer line, player vitals with equipped gear, the extraction prompt, and the "you died" line.
-import { EXTRACT_SECONDS, bestArmor, bestWeapon, type ExtractZoneDef, type WeaponDef } from "@raid/shared";
+// In-raid DOM overlay: phase/timer line, the zone countdown, player vitals with equipped gear, the extraction prompt,
+// the outside-the-zone warning, and the "you died" line.
+import {
+  EXTRACT_SECONDS, ZONE_FINAL_RADIUS, bestArmor, bestWeapon, isOutside, type ExtractZoneDef, type WeaponDef,
+} from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { el, uiRoot } from "./dom";
 
@@ -17,6 +20,10 @@ export class Hud {
   private readonly root = el("div", "hud");
   private readonly status = el("div", "hud-status");
   private readonly vitals = el("div", "hud-vitals");
+  private readonly zoneLine = el("div", "hud-zone");
+  private lastZone = "";
+  /** Top-center, under the extraction prompt; a sibling of the HUD block for the same reason as `extractLine`. */
+  private readonly zoneWarning = el("div", "zone-warning", "Outside the zone — taking damage");
   /** "Press X to extract" / the extraction countdown; a sibling of the HUD block so it can sit top-center. */
   private readonly extractLine = el("div", "extract-line");
   private lastExtract = "";
@@ -30,10 +37,12 @@ export class Hud {
   private deathShown = false;
 
   constructor() {
-    this.root.append(this.status, this.vitals);
+    this.root.append(this.status, this.vitals, this.zoneLine);
     this.deathLine.hidden = true;
     this.extractLine.hidden = true;
-    uiRoot().append(this.root, this.extractLine, this.deathLine);
+    this.zoneLine.hidden = true;
+    this.zoneWarning.hidden = true;
+    uiRoot().append(this.root, this.extractLine, this.zoneWarning, this.deathLine);
   }
 
   /** The local player has died (killing result or death fx): show the line now, ahead of the results panel. */
@@ -70,6 +79,7 @@ export class Hud {
     if (vitals !== this.lastVitals) { this.vitals.textContent = vitals; this.lastVitals = vitals; }
 
     this.updateExtract(state, me, zone);
+    this.updateZone(state, me);
     this.setDeathShown((this.deathRequested || me?.status === "dead") && !this.resultShown);
   }
 
@@ -93,6 +103,35 @@ export class Hud {
     this.extractLine.classList.toggle("extracting", extracting);
   }
 
+  /**
+   * The zone countdown and the outside-the-zone warning. Like the extract test, "outside" uses the latest synced
+   * position (`me.x/y`) and the shared rule the server damages by, not the interpolated spot the player is drawn at.
+   */
+  private updateZone(state: RaidState, me: PlayerState | undefined): void {
+    const z = state.zone;
+    let line = "";
+    let cls = "";
+    let outside = false;
+    if (z && z.stage > 0 && state.phase === "active") {
+      const left = fmtSeconds(z.changeAt - state.serverTime);
+      if (z.shrinking) { line = `Zone closing — ${left}`; cls = "closing"; }
+      else if (z.r <= ZONE_FINAL_RADIUS + 0.5) { line = "Final zone"; cls = "final"; }
+      else line = `Zone shrinks in ${left}`;
+      outside = me?.status === "alive" && isOutside(z, me.x, me.y);
+    }
+
+    // The class is part of the key so a change of tone with the same text still repaints.
+    const key = `${cls}|${line}`;
+    if (key !== this.lastZone) {
+      this.lastZone = key;
+      this.zoneLine.textContent = line;
+      this.zoneLine.hidden = line === "";
+      this.zoneLine.classList.toggle("closing", cls === "closing");
+      this.zoneLine.classList.toggle("final", cls === "final");
+    }
+    if (this.zoneWarning.hidden === outside) this.zoneWarning.hidden = !outside;
+  }
+
   private setDeathShown(shown: boolean): void {
     if (shown === this.deathShown) return;
     this.deathShown = shown;
@@ -102,6 +141,7 @@ export class Hud {
   destroy(): void {
     this.root.remove();
     this.extractLine.remove();
+    this.zoneWarning.remove();
     this.deathLine.remove();
   }
 }

@@ -49,6 +49,8 @@ export type SimSystem = (world: World, dtMs: number) => void;
 export interface WorldHooks {
   /** A player went down (died/mia) with their inventory still on them. Default: discard it. */
   dropBody(world: World, p: PlayerState): void;
+  /** The lobby just turned into an active raid: players are placed and `raidStartedAt` is set. */
+  raidStarted?(world: World): void;
 }
 
 export interface World {

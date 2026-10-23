@@ -4,6 +4,7 @@ import { install as installCombat } from "./combat";
 import { install as installExtraction } from "./extraction";
 import { install as installLoot } from "./loot";
 import { createWorld, type World } from "./world";
+import { install as installZone } from "./zone";
 
 type CreateOpts = Parameters<typeof createWorld>[0];
 
@@ -11,6 +12,7 @@ const MODULES: Array<(world: World) => void> = [
   installLoot,
   installCombat,
   installExtraction,
+  installZone,
 ];
 
 export function createGameWorld(opts: CreateOpts): World {

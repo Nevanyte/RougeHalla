@@ -40,8 +40,18 @@ export const RECONNECT_SECONDS = 10;
 export const ENDED_LINGER_SECONDS = 5;
 
 // Zone
+/** Damage per second outside the zone at stage 1; zoneDps() multiplies it by the stage number. */
 export const ZONE_DPS = 6;
+/** The last circle, centred on one extract. */
 export const ZONE_FINAL_RADIUS = 96;
+/** Intermediate circles between the whole-map start circle and the final one (shrink stages = this + 1). */
+export const ZONE_STAGES = 4;
+/** The stages share this fraction of the raid; the final circle then holds for the rest. */
+export const ZONE_TIMELINE_FRACTION = 0.85;
+/** Share of each stage spent holding still before it shrinks. */
+export const ZONE_HOLD_FRACTION = 0.5;
+/** Fraction of the allowed region (inside the previous circle, still holding the final one) used when placing each centre. */
+export const ZONE_DRIFT_FRACTION = 0.8;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;
