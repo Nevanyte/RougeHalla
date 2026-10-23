@@ -1,5 +1,5 @@
 // Post-run summary: outcome, placing, run stats and the Glorious Victory the run paid out.
-import type { GvBreakdown, RunOutcome, RunResult } from "@raid/shared";
+import { WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, type RunOutcome, type RunResult } from "@raid/shared";
 import { formatNumber } from "../net/profile";
 import { el, uiRoot } from "./dom";
 
@@ -21,9 +21,14 @@ function fmtPlace(r: RunResult): string {
   return r.outcome === "draw" ? `${base} (shared)` : base;
 }
 
-function gvRows(gv: GvBreakdown): HTMLElement {
+/** Why a winner's bonus row reads +0: the anti alt-farming rule (shared constants, so the text can't drift). */
+const WITHHELD = `Win bonus: needs ${WIN_BONUS_MIN_PLAYERS}+ players and damage on ${WIN_BONUS_MIN_OPPONENTS}+ opponents`;
+
+function gvRows(r: RunResult): HTMLElement {
+  const gv = r.gv;
   const box = el("div", "gv-box");
-  for (const [text, amount] of [["Kills", gv.kills], ["Mobs", gv.mobs], ["Bounties", gv.bounty], ["Win bonus", gv.win]] as const) {
+  const winText = r.winBonusWithheld ? WITHHELD : "Win bonus";
+  for (const [text, amount] of [["Kills", gv.kills], ["Mobs", gv.mobs], ["Bounties", gv.bounty], [winText, gv.win]] as const) {
     // `|| 0`: a field missing from the payload (an older server) reads as nothing earned, not as "+NaN".
     const earned = amount || 0;
     const row = el("div", earned > 0 ? "gv-row" : "gv-row zero");
@@ -53,7 +58,7 @@ export class ResultsScreen {
       el("h1", `outcome-${r.outcome}`, TITLES[r.outcome] ?? "RUN OVER"),
       el("p", "result-place", fmtPlace(r)),
       el("p", "result-facts", facts.join(" · ")),
-      gvRows(r.gv),
+      gvRows(r),
       btn,
     );
     uiRoot().append(this.root);

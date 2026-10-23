@@ -64,6 +64,11 @@ export interface RunResult {
   /** How many players started the run. */
   players: number;
   gv: GvBreakdown;
+  /**
+   * True only for a winner whose win bonus was withheld: the run started with fewer than WIN_BONUS_MIN_PLAYERS, or
+   * they damaged fewer than WIN_BONUS_MIN_OPPONENTS different players.
+   */
+  winBonusWithheld: boolean;
 }
 
 export const SUDDEN_DEATH_KILLER = "sudden death";

@@ -11,15 +11,17 @@
 //   - The run ends when nobody is alive, or, in a contested run (2+ starters), when one player is. A lone
 //     survivor wins. With nobody left, the players who went down in this last tick are compared by hp fraction at
 //     the start of the tick: a single highest wins, an exact tie is a draw for those tied. Solo runs have no winner.
-//   - GV earned during the run (kills, mobs, bounties) is kept whatever the outcome; the winner of a contested run
-//     also gets GV_WIN. All of it banks when the player's result is emitted (the Room persists `resolved` events).
+//   - GV earned during the run (kills, mobs, bounties) is kept whatever the outcome. The winner also gets GV_WIN, but
+//     only when the run went active with WIN_BONUS_MIN_PLAYERS and they damaged WIN_BONUS_MIN_OPPONENTS different
+//     players (so a second callsign can't feed someone wins). All of it banks when the player's result is emitted (the
+//     Room persists `resolved` events).
 //   - Feed and bounty: a player's bounty follows their feed score (bountyFor) and is announced whenever it rises;
 //     whoever kills them is paid it on top of the kill GV. Leaving within KILL_CREDIT_SECONDS of a hit from another
 //     player is that player's kill, so leaving can't dodge a bounty.
 // This module never touches the store, sockets or the Room.
 import {
   bountyFor, COLISEUM_RING_RADIUS, circleClear, feedScore, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
-  KILL_CREDIT_SECONDS, patienceSecondsFor, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION, SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TILE,
+  KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION, SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
   type Vec2,
 } from "@raid/shared";
@@ -87,7 +89,10 @@ export function applyDamage(
   const by = typeof source === "string" ? null : source;
   // Hurting yourself (Phase 9 splash, a reflected shot) is never your own kill or leave credit.
   const rival = by && by.rt !== rtv ? by : null;
-  if (rival) rtv.lastHit = { by: rival.rt.id, at: world.state.serverTime };
+  if (rival) {
+    rtv.lastHit = { by: rival.rt.id, at: world.state.serverTime };
+    rival.rt.damaged.add(rtv.id);
+  }
   if (victim.hp > 0) return before - victim.hp;
 
   rtv.killedBy = by ? by.p.name : (source as string);
@@ -204,7 +209,9 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   resolve(world, p, rt, outcome, alivePlayers(world).length + 1, 0);
 }
 
-function resolve(world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOutcome, place: number, win: number): void {
+function resolve(
+  world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOutcome, place: number, win: number, winBonusWithheld = false,
+): void {
   if (rt.resolved) return;
   rt.resolved = true;
   rt.path = [];
@@ -221,6 +228,7 @@ function resolve(world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOu
     place,
     players: world.arena.startedWith,
     gv,
+    winBonusWithheld,
   };
   emit(world, { type: "resolved", id: rt.id, result });
 }
@@ -284,7 +292,11 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
   for (const d of downed) {
     if (!won.has(d.rt)) resolve(world, d.p, d.rt, d.rt.down!.outcome, winners.length + 1, 0);
   }
-  for (const w of winners) resolve(world, w.p, w.rt, draw ? "draw" : "won", 1, contested && !draw ? GV_WIN : 0);
+  for (const w of winners) {
+    if (draw) { resolve(world, w.p, w.rt, "draw", 1, 0); continue; }
+    const earned = contested && earnedWinBonus(world, w.rt);
+    resolve(world, w.p, w.rt, "won", 1, earned ? GV_WIN : 0, !earned);
+  }
 
   const winner = !draw && winners.length === 1 ? winners[0]! : null;
   s.winner = winner?.p.name ?? "";
@@ -294,6 +306,10 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
   s.suddenDeathAt = 0;
   emit(world, { type: "fx", fx: { kind: "victory", id: winner?.rt.id ?? null, name: winner?.p.name ?? null, draw } });
   emit(world, { type: "raidEnded" });
+}
+
+function earnedWinBonus(world: World, rt: PlayerRuntime): boolean {
+  return world.arena.startedWith >= WIN_BONUS_MIN_PLAYERS && rt.damaged.size >= WIN_BONUS_MIN_OPPONENTS;
 }
 
 /**

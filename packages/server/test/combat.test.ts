@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FISTS, generateMap, GV_KILL, isWallTile, ITEMS, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS,
+  FISTS, generateMap, GV_KILL, GV_WIN, isWallTile, ITEMS, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS,
   TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type ArmorDef, type FxEvent, type GameMap, type ItemDTO, type WeaponDef,
 } from "@raid/shared";
 import { ItemState, type PlayerState } from "@raid/shared/schema";
@@ -10,7 +10,7 @@ import {
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, InputQueue } from "../src/sim/inputs";
 import { handleTake } from "../src/sim/loot";
-import { actionOrder, addPlayer, step } from "../src/sim/step";
+import { actionOrder, addPlayer, removePlayer, step } from "../src/sim/step";
 import { createWorld, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
@@ -737,7 +737,7 @@ describe("kills", () => {
     expect(resolved[0]!.id).toBe("b");
     expect(resolved[0]!.result).toEqual({
       outcome: "died", profile: "bob", durationSec: 0, kills: 0, killedBy: "alice", place: 3, players: 3,
-      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 },
+      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false,
     });
   });
 
@@ -771,7 +771,7 @@ describe("kills", () => {
     expect(P(world, "b").hp).toBe(0);
   });
 
-  it("the kill that leaves one player standing ends the run: loser first, then the winner with their GV", () => {
+  it("the kill that leaves one player standing ends the run: loser first, then the winner with their GV (no win bonus in a 2-player run)", () => {
     const world = raid([alice(gear("rifle")), bob()]);
     place(world, "a", 200, 400);
     place(world, "b", 300, 400);
@@ -782,9 +782,38 @@ describe("kills", () => {
     const [loser, winner] = ofType(events, "resolved");
     expect(loser!.result).toMatchObject({ outcome: "died", killedBy: "alice", place: 2 });
     expect(winner!.id).toBe("a");
-    expect(winner!.result).toMatchObject({ outcome: "won", place: 1, kills: 1 });
-    expect(winner!.result.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 50, total: GV_KILL + 50 });
+    expect(winner!.result).toMatchObject({ outcome: "won", place: 1, kills: 1, winBonusWithheld: true });
+    expect(winner!.result.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
     expect(world.state.phase).toBe("ended");
+    expect(world.state.winner).toBe("alice");
+  });
+
+  it("a winner who shot two different players of three is paid the win bonus", () => {
+    const world = raid([alice(gear("rifle")), bob(), carol()]);
+    place(world, "a", 200, 400);
+    place(world, "b", 300, 400);
+    place(world, "c", 200, 500);
+    P(world, "b").hp = 20;
+    P(world, "c").hp = 20;
+    swing(world, "a", 300, 400);
+    run(world, WEAPONS.rifle.cooldownMs / TICK_MS);
+    const events = swing(world, "a", 200, 500);
+    const winner = ofType(events, "resolved").find((e) => e.id === "a")!;
+    expect(winner.result).toMatchObject({ outcome: "won", place: 1, kills: 2, winBonusWithheld: false });
+    expect(winner.result.gv).toEqual({ kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN });
+  });
+
+  it("a winner who shot only one of the two others wins without the bonus, though the other left", () => {
+    const world = raid([alice(gear("rifle")), bob(), carol()]);
+    place(world, "a", 200, 400);
+    place(world, "b", 300, 400);
+    P(world, "b").hp = 20;
+    swing(world, "a", 300, 400);
+    removePlayer(world, "c"); // never shot: leaving is not damage
+    const events = step(world, TICK_MS);
+    const winner = ofType(events, "resolved").find((e) => e.id === "a")!;
+    expect(winner.result).toMatchObject({ outcome: "won", place: 1, kills: 1, winBonusWithheld: true });
+    expect(winner.result.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
     expect(world.state.winner).toBe("alice");
   });
 

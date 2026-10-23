@@ -67,7 +67,9 @@ does not have the token, and the menu will say the callsign is taken. There is n
    higher hp fraction at the start of that tick wins; an exact tie is a draw. Leaving mid-run counts as a death
    (missing in action); a dropped connection keeps you in the fight (and hittable) for 10 s first. A run that
    started with one player has no winner: it ends when that player goes down.
-7. **GV.** A kill pays 10 GV and winning pays 50 more (solo runs never pay the win bonus). GV earned is kept when
+7. **GV.** A kill pays 10 GV and winning pays 50 more, but only if the run started with 3 or more players and
+   the winner damaged at least 2 different opponents (otherwise you still win, just without the bonus; solo runs
+   have no winner at all). GV earned is kept when
    you die, and banks the moment your run resolves. Mobs (later) pay 2, or 10 for an elite, capped at 30 per run.
 8. **Bounties.** Your feed score is your kills plus a quarter of your mob kills. Past 2 it puts a bounty on you:
    `10 × (feed − 2)^1.5` GV (10 at three kills, 28 at four, 52 at five). Everyone is told "<name> is on a rampage"
@@ -261,9 +263,9 @@ Gameplay and content:
   automatic by highest damage, so a Knife (22) is used in preference to a Pistol (16). There is no ammo,
   weapon switching, equip slots or item stacking.
 - **No shop yet.** GV accumulates but there is nothing to spend it on; cosmetics are an empty placeholder.
-- **GV can be farmed with a second callsign.** A run counts as contested (win bonus) with two starters, and
-  callsigns are free, so a player can feed themselves wins and kills from a second tab. It needs a rule (or
-  real accounts) before the leaderboard means anything.
+- **GV can still be farmed with spare callsigns.** Callsigns are free. The win bonus needs 3+ players and damage on
+  2+ opponents, which stops the cheapest trick (a second tab that leaves), but two throwaway callsigns that stand
+  still and get killed still pay out kills and the bonus. Real accounts or matchmaking limits are the fix.
 - **The coliseum is a ring of spots, and the gates are a flag.** Until map v2 there is no coliseum geometry: a
   teleport moves everyone to spots around the map centre, nothing stops them walking away, and sudden death
   hits everyone standing while the gates are "locked".

@@ -39,6 +39,7 @@ export function addPlayer(world: World, id: string, profile: string): PlayerStat
     gv: { kills: 0, mobs: 0, bounty: 0 },
     mobKills: 0,
     lastHit: null,
+    damaged: new Set(),
     droppedAt: null,
     hpFracAtTickStart: 1,
     down: null,

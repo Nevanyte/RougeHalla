@@ -4,7 +4,7 @@ import {
   RUN_START_KIT, TICK_MS, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ItemState, type PlayerState } from "@raid/shared/schema";
-import { downPlayer } from "../src/sim/arena";
+import { applyDamage, downPlayer } from "../src/sim/arena";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, MAX_ACTIONS_PER_TICK } from "../src/sim/inputs";
 import { planPath, positionAt } from "../src/sim/movement";
@@ -1234,12 +1234,30 @@ describe("end of a run", () => {
     expect([a.x, a.y]).toEqual([x, y]);
   });
 
-  it("a lone survivor wins a contested run with GV_WIN on top of nothing else", () => {
+  it("a lone survivor wins a contested run with GV_WIN on top of nothing else, once they hurt two of the three who started", () => {
+    const { world, a, b, c, rtA, rtB, rtC } = activeTrio();
+    const alice = { id: "a", p: a, rt: rtA };
+    applyDamage(world, b, rtB, 1, alice);
+    applyDamage(world, c, rtC, 1, alice);
+    run(world, 5 * TICKS_PER_SEC + 1); // long enough that leaving now is not credited to alice as a kill
+    removePlayer(world, "b");
+    removePlayer(world, "c");
+    const events = step(world, TICK_MS);
+    const won = ofType(events, "resolved").find((e) => e.id === "a")!;
+    expect(won.result).toMatchObject({
+      outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN }, winBonusWithheld: false,
+    });
+  });
+
+  it("a lone survivor of a two-player run still wins, without the win bonus", () => {
     const { world } = activePair();
     removePlayer(world, "b");
     const events = step(world, TICK_MS);
     const won = ofType(events, "resolved").find((e) => e.id === "a")!;
-    expect(won.result).toMatchObject({ outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN } });
+    expect(won.result).toMatchObject({
+      outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true,
+    });
+    expect(world.state.winner).toBe("alice");
   });
 });
 
@@ -1359,7 +1377,7 @@ describe("removePlayer", () => {
     expect(resolved[0].id).toBe("a");
     expect(resolved[0].result).toEqual({
       outcome: "mia", profile: "alice", durationSec: 2, kills: 0, killedBy: null, place: 3, players: 3,
-      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 },
+      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false,
     });
     // The others keep the run going.
     expect(ofType(events, "raidEnded")).toHaveLength(0);

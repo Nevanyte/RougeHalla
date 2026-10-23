@@ -64,6 +64,12 @@ export const COLISEUM_RING_RADIUS = 5 * TILE;
 
 // Glorious Victory (cosmetics-only currency). Earned GV is kept on death; it banks when the player's run resolves.
 export const GV_WIN = 50;
+/**
+ * Anti alt-farming: the win bonus needs a run that went active with at least this many players, and a winner who
+ * damaged at least WIN_BONUS_MIN_OPPONENTS different players. Otherwise the winner still wins, without the bonus.
+ */
+export const WIN_BONUS_MIN_PLAYERS = 3;
+export const WIN_BONUS_MIN_OPPONENTS = 2;
 export const GV_KILL = 10;
 export const GV_MOB = 2;
 export const GV_ELITE = 10;

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   circleClear, COLISEUM_RING_RADIUS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
   KILL_CREDIT_SECONDS, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
-  SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FxEvent, type GameMap,
-  type RunResult, type Vec2,
+  SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WIN_BONUS_MIN_OPPONENTS,
+  WIN_BONUS_MIN_PLAYERS, type FxEvent, type GameMap, type RunResult, type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -95,6 +95,10 @@ const attacker = (world: World, i: number): Attacker => ({ id: idOf(i), p: P(wor
 function kill(world: World, victim: number, source: Attacker | string = "test"): number {
   return applyDamage(world, P(world, victim), RT(world, victim), P(world, victim).hp + 1000, source);
 }
+
+/** `from` lands a non-lethal blow (1 hp unless told otherwise) on `to`: the cheapest way to have damaged them. */
+const strike = (world: World, from: number, to: number, amount = 1): number =>
+  applyDamage(world, P(world, to), RT(world, to), amount, attacker(world, from));
 
 /** Counts `hooks.teleported` calls. */
 function countTeleports(world: World): { n: number } {
@@ -676,8 +680,8 @@ describe("disconnect and reconnect grace", () => {
     removePlayer(w, idOf(0));
     const events = tick(w);
     expect(resultsOf(events)).toMatchObject({
-      p0: { outcome: "mia", place: 2 },
-      p1: { outcome: "won", place: 1, gv: { win: GV_WIN } },
+      p0: { outcome: "mia", place: 2, winBonusWithheld: false },
+      p1: { outcome: "won", place: 1, gv: { win: 0, total: 0 }, winBonusWithheld: true }, // a 2-player run pays no win bonus
     });
     expect(w.state).toMatchObject({ phase: "ended", winner: "bob" });
   });
@@ -721,9 +725,10 @@ describe("disconnect and reconnect grace", () => {
 });
 
 describe("end of a contested run", () => {
-  /** p1 and p2 go down in the tick at 500, leaving p0 standing. */
+  /** p0 wounds p1 and p2 at 300; both go down in the tick at 500, leaving p0 standing with two opponents damaged. */
   function wipe() {
     const w = startRun(3);
+    atTick(w, 300, (world) => { strike(world, 0, 1); strike(world, 0, 2); });
     atTick(w, 500, (world) => { kill(world, 1); kill(world, 2); });
     runTo(w, 450);
     const events = tick(w);
@@ -735,7 +740,7 @@ describe("end of a contested run", () => {
     const results = resultsOf(events);
     expect(results[idOf(0)]).toEqual({
       outcome: "won", profile: "alice", durationSec: 0, kills: 0, killedBy: null, place: 1, players: 3,
-      gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN },
+      gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN }, winBonusWithheld: false,
     });
     expect(P(w, 0).status).toBe("alive");
     expect(w.state.winner).toBe("alice");
@@ -748,8 +753,8 @@ describe("end of a contested run", () => {
   it("players downed in the final tick get place 2 and their own outcomes", () => {
     const { w, events } = wipe();
     const results = resultsOf(events);
-    expect(results[idOf(1)]).toMatchObject({ outcome: "died", place: 2, killedBy: "test", gv: { win: 0 } });
-    expect(results[idOf(2)]).toMatchObject({ outcome: "died", place: 2, killedBy: "test", gv: { win: 0 } });
+    expect(results[idOf(1)]).toMatchObject({ outcome: "died", place: 2, killedBy: "test", gv: { win: 0 }, winBonusWithheld: false });
+    expect(results[idOf(2)]).toMatchObject({ outcome: "died", place: 2, killedBy: "test", gv: { win: 0 }, winBonusWithheld: false });
     expect(Object.keys(results).sort()).toEqual(["p0", "p1", "p2"]);
     expect([P(w, 1).status, P(w, 2).status]).toEqual(["dead", "dead"]);
   });
@@ -802,14 +807,18 @@ describe("end of a contested run", () => {
   });
 
   it("a kill credited to the winner pays kill GV on top of GV_WIN", () => {
-    const w = startRun(2);
-    atTick(w, 500, (world) => kill(world, 1, attacker(world, 0)));
+    const w = startRun(3);
+    strike(w, 0, 2); // p0 has now hurt two different players: the one it kills and p2, who dies to something else
+    atTick(w, 500, (world) => { kill(world, 1, attacker(world, 0)); kill(world, 2); });
     const events = runTo(w, 500);
     const winner = resultsOf(events)[idOf(0)]!;
-    expect(winner).toMatchObject({ outcome: "won", kills: 1, place: 1 });
+    expect(winner).toMatchObject({ outcome: "won", kills: 1, place: 1, winBonusWithheld: false });
     expect(winner.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: GV_KILL + GV_WIN });
     expect(resultsOf(events)[idOf(1)]).toMatchObject({ outcome: "died", killedBy: "alice", place: 2 });
-    expect(fxOf(events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: idOf(0) }]);
+    expect(fxOf(events, "death")).toEqual([
+      { kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: idOf(0) },
+      { kind: "death", id: idOf(2), x: P(w, 2).x, y: P(w, 2).y, by: null },
+    ]);
   });
 
   it("the survivor of a leave and a death in the same tick wins", () => {
@@ -862,6 +871,8 @@ describe("simultaneous last deaths", () => {
 
   it("the higher hp fraction at the start of the tick wins, even though dead", () => {
     const w = toBurnEdge(3);
+    strike(w, 1, 0, 0.001); // the winner has hurt both opponents, so the win bonus is theirs
+    strike(w, 1, 2, 0.001);
     P(w, 0).hp = 0.05;
     P(w, 1).hp = 0.09;
     P(w, 2).hp = 0.02;
@@ -870,6 +881,7 @@ describe("simultaneous last deaths", () => {
     const results = resultsOf(events);
     expect(results[idOf(1)]).toMatchObject({
       outcome: "won", place: 1, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN },
+      winBonusWithheld: false,
     });
     expect(results[idOf(0)]).toMatchObject({ outcome: "died", place: 2, killedBy: SUDDEN_DEATH_KILLER, gv: { win: 0 } });
     expect(results[idOf(2)]).toMatchObject({ outcome: "died", place: 2, killedBy: SUDDEN_DEATH_KILLER });
@@ -995,11 +1007,12 @@ describe("simultaneous last deaths", () => {
     });
     const events = runTo(w, 500);
     const results = resultsOf(events);
+    // Two starters: the win stands, the bonus does not.
     expect(results[idOf(0)]).toMatchObject({
-      outcome: "won", kills: 1, killedBy: null, place: 1, gv: { kills: GV_KILL, win: GV_WIN, total: GV_KILL + GV_WIN },
+      outcome: "won", kills: 1, killedBy: null, place: 1, gv: { kills: GV_KILL, win: 0, total: GV_KILL }, winBonusWithheld: true,
     });
     expect(results[idOf(1)]).toMatchObject({
-      outcome: "died", kills: 1, killedBy: "alice", place: 2, gv: { kills: GV_KILL, win: 0, total: GV_KILL },
+      outcome: "died", kills: 1, killedBy: "alice", place: 2, gv: { kills: GV_KILL, win: 0, total: GV_KILL }, winBonusWithheld: false,
     });
   });
 
@@ -1059,7 +1072,7 @@ describe("solo runs", () => {
     const events = runTo(w, 500);
     expect(resultsOf(events)[idOf(0)]).toEqual({
       outcome: "died", profile: "alice", durationSec: 0, kills: 0, killedBy: "test", place: 1, players: 1,
-      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 },
+      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false,
     });
     expect(w.state).toMatchObject({ phase: "ended", winner: "" });
     expect(fxOf(events, "victory")).toEqual([{ kind: "victory", id: null, name: null, draw: false }]);
@@ -1416,8 +1429,9 @@ describe("Glorious Victory", () => {
   });
 
   it("p.gv follows what the player has earned, never the win bonus", () => {
-    const w = startRun(2);
-    atTick(w, 200, (world) => kill(world, 1, attacker(world, 0)));
+    const w = startRun(3);
+    strike(w, 0, 2);
+    atTick(w, 200, (world) => { kill(world, 1, attacker(world, 0)); kill(world, 2, "test"); });
     const events = runTo(w, 200);
     expect(P(w, 0).gv).toBe(GV_KILL);
     expect(resultsOf(events)[idOf(0)]!.gv.total).toBe(GV_KILL + GV_WIN);
@@ -1525,7 +1539,13 @@ describe("Glorious Victory", () => {
     expect(sum).toBe(2 * GV_KILL + GV_ELITE);
   });
 
-  interface Melee { w: World; all: SimEvent[]; n: number; teleports: number }
+  /**
+   * `dealt` is what the melee saw land, tracked independently of the sim: for each player, the different opponents
+   * they hurt (applyDamage returned hp removed). `rts` keeps every runtime, leavers included.
+   */
+  interface Melee {
+    w: World; all: SimEvent[]; n: number; teleports: number; dealt: Map<string, Set<string>>; rts: Map<string, PlayerRuntime>;
+  }
 
   /**
    * A seeded melee of kills, mob awards, leaves and sudden death (every fourth seed is peaceful, so sudden death
@@ -1541,6 +1561,15 @@ describe("Glorious Victory", () => {
     const leaveChance = seed % 5 === 0 ? 0.03 : 0.004;
     const w = startRun(n, { patienceSeconds: patience, suddenDeathSeconds: 1 }, { seed, random: mulberry32(seed) });
     const all: SimEvent[] = [];
+    const rts = new Map([...w.players]);
+    const dealt = new Map<string, Set<string>>();
+    const hurt = (world: World, victim: string, amount: number, by: Attacker | string): void => {
+      const landed = applyDamage(world, world.state.players.get(victim)!, world.players.get(victim)!, amount, by);
+      if (landed > 0 && typeof by !== "string" && by.id !== victim) {
+        if (!dealt.has(by.id)) dealt.set(by.id, new Set());
+        dealt.get(by.id)!.add(victim);
+      }
+    };
     const standingIds = () => [...w.state.players.keys()].filter((id) => w.state.players.get(id)!.status === "alive");
     w.systems.push((world) => {
       if (world.state.phase !== "active" || peaceful) return;
@@ -1556,12 +1585,12 @@ describe("Glorious Victory", () => {
         const others = (not: string) => standing.filter((x) => x !== not);
         if (bountyOn(target) > 0 && rnd() < 0.5) {
           const claimers = others(target);
-          if (claimers.length > 0) applyDamage(world, who(target).p, who(target).rt, 150, who(claimers[Math.floor(rnd() * claimers.length)]!));
+          if (claimers.length > 0) hurt(world, target, 150, who(claimers[Math.floor(rnd() * claimers.length)]!));
         } else {
           const prey = others(hunter);
           if (prey.length > 0) {
             const victim = prey[Math.floor(rnd() * prey.length)]!;
-            applyDamage(world, who(victim).p, who(victim).rt, 150, who(hunter));
+            hurt(world, victim, 150, who(hunter));
           }
         }
         return;
@@ -1572,9 +1601,9 @@ describe("Glorious Victory", () => {
         awardGv(world, who(id).p, who(id).rt, rnd() < 0.5 ? "mob" : "elite");
       } else if (r < 0.07) {
         const victim = pick();
-        if (victim !== id) applyDamage(world, who(victim).p, who(victim).rt, 5 + rnd() * 120, who(id));
+        if (victim !== id) hurt(world, victim, 5 + rnd() * 120, who(id));
       } else if (r < 0.08) {
-        applyDamage(world, who(id).p, who(id).rt, 5 + rnd() * 60, "test");
+        hurt(world, id, 5 + rnd() * 60, "test");
       }
     });
     let teleports = 0;
@@ -1618,7 +1647,7 @@ describe("Glorious Victory", () => {
         if (p.status === "alive") expect(p.hp).toBeGreaterThan(0);
       }
     }
-    return { w, all, n, teleports };
+    return { w, all, n, teleports, dealt, rts };
   }
 
   const melees = new Map<number, Melee>();
@@ -1670,7 +1699,7 @@ describe("Glorious Victory", () => {
   }
 
   /** Everything that must hold at the end of any seeded run, whoever won. */
-  function expectRun({ w, all, n }: Melee): void {
+  function expectRun({ w, all, n, dealt, rts }: Melee): void {
     expect(w.state.phase, "the run must end").toBe("ended");
     const results = resultsOf(all); // also fails on a double result
     expect(Object.keys(results).sort()).toEqual(Array.from({ length: n }, (_, i) => idOf(i)).sort());
@@ -1684,14 +1713,21 @@ describe("Glorious Victory", () => {
     expect(winners).toBeLessThanOrEqual(1);
     expect(winners === 1 && draws > 0).toBe(false);
     expect(draws).not.toBe(1);
+    const winnerResult = Object.values(results).find((r) => r.outcome === "won");
+    const winnerId = winnerResult ? `p${NAMES.indexOf(winnerResult.profile)}` : null;
+    // The runtime's own record of who each player hurt is what the melee saw land, leavers and the dead included.
+    for (const [id, rt] of rts) expect([...rt.damaged].sort(), `${id} damaged`).toEqual([...(dealt.get(id) ?? [])].sort());
+    // The bonus is paid to a winner of a run that started with enough players who hurt enough different ones.
+    const eligible = winnerId !== null && n >= WIN_BONUS_MIN_PLAYERS && (dealt.get(winnerId)?.size ?? 0) >= WIN_BONUS_MIN_OPPONENTS;
+    const bonus = eligible ? GV_WIN : 0;
     const banked = Object.values(results).reduce((sum, r) => sum + r.gv.total, 0);
-    expect(banked).toBe(announced + (winners === 1 ? GV_WIN : 0));
+    expect(banked).toBe(announced + bonus);
 
     // The same ledger, built from the kills and the victims' announced bounties rather than from the gv amounts.
     const { kills, claims, bounties } = readKills(all);
     expect(Object.values(results).reduce((sum, r) => sum + r.kills, 0), "kills in the results").toBe(kills);
-    expect(banked, "GV_KILL × kills + mob GV + bounties paid + the win bonus").toBe(
-      GV_KILL * kills + mobGv + bounties + (winners === 1 ? GV_WIN : 0),
+    expect(banked, "GV_KILL × kills + mob GV + bounties paid + the win bonus actually paid").toBe(
+      GV_KILL * kills + mobGv + bounties + bonus,
     );
     expect(Object.values(results).reduce((sum, r) => sum + r.gv.bounty, 0), "bounty GV in the results").toBe(bounties);
     expect(ofType(all, "gv").filter((e) => e.reason === "bounty")).toHaveLength(claims);
@@ -1705,20 +1741,19 @@ describe("Glorious Victory", () => {
         expect(Math.max(...Object.values(results).filter((o) => o !== r).map((o) => o.kills))).toBeGreaterThanOrEqual(3);
       }
       expect(r.gv.mobs).toBeLessThanOrEqual(GV_MOB_CAP);
-      expect(r.gv.win).toBe(r.outcome === "won" ? GV_WIN : 0);
+      expect(r.gv.win).toBe(r.outcome === "won" ? bonus : 0);
+      expect(r.winBonusWithheld, `${r.profile} ${r.outcome}`).toBe(r.outcome === "won" && !eligible);
       expect(r.players).toBe(n);
       expect(r.place).toBeGreaterThanOrEqual(1);
       expect(r.place).toBeLessThanOrEqual(n);
       if (r.outcome === "won" || r.outcome === "draw") expect(r.place).toBe(1);
       else if (winners + draws > 0) expect(r.place, `${r.profile} ${r.outcome}`).toBeGreaterThanOrEqual(2);
     }
-    const winnerResult = Object.values(results).find((r) => r.outcome === "won");
     expect(w.state.winner).toBe(winnerResult ? winnerResult.profile : "");
     const [victory] = fxOf(all, "victory");
     expect(fxOf(all, "victory")).toHaveLength(1);
     expect(victory).toEqual({
-      kind: "victory", id: winnerResult ? `p${NAMES.indexOf(winnerResult.profile)}` : null,
-      name: winnerResult?.profile ?? null, draw: draws > 0,
+      kind: "victory", id: winnerId, name: winnerResult?.profile ?? null, draw: draws > 0,
     });
   }
 
@@ -1739,6 +1774,9 @@ describe("Glorious Victory", () => {
     expect(all.some((m) => ofType(m.all, "gv").some((e) => e.reason === "kill"))).toBe(true);
     expect(all.some((m) => ofType(m.all, "gv").some((e) => e.reason === "elite"))).toBe(true);
     expect(all.some((m) => m.teleports >= 2)).toBe(true);
+    const winnerFlags = all.flatMap((m) => Object.values(resultsOf(m.all)).filter((r) => r.outcome === "won").map((r) => r.winBonusWithheld));
+    expect(winnerFlags).toContain(true); // winners whose bonus was withheld...
+    expect(winnerFlags).toContain(false); // ...and winners who earned it
   });
 
   it("the hunts between them announce bounties, pay them out, pass them on and credit kills on leaves", () => {
@@ -1772,6 +1810,458 @@ describe("Glorious Victory", () => {
     expect([...again.w.state.players.values()].map((p) => [p.name, p.hp, p.status, p.gv, p.kills, p.bounty])).toEqual(
       [...huntFor(seed).w.state.players.values()].map((p) => [p.name, p.hp, p.status, p.gv, p.kills, p.bounty]),
     );
+  });
+});
+
+describe("win bonus eligibility", () => {
+  const LONG = { patienceSeconds: 3600 } as const; // nothing happens in the arena by itself
+  /** The ids the sim has recorded `rt` as having damaged, sorted. */
+  const damagedBy = (rt: PlayerRuntime): string[] => [...rt.damaged].sort();
+  const winnerOf = (events: SimEvent[], i = 0): RunResult => resultsOf(events)[idOf(i)]!;
+  /** Everyone from `from` up dies to something that isn't a player (the "test" source). */
+  const killRest = (world: World, from: number, n: number): void => { for (let i = from; i < n; i++) kill(world, i); };
+
+  it("the rule's numbers: 3 players started and 2 different opponents damaged", () => {
+    expect(WIN_BONUS_MIN_PLAYERS).toBe(3);
+    expect(WIN_BONUS_MIN_OPPONENTS).toBe(2);
+    expect(GV_WIN).toBe(50);
+  });
+
+  describe("who is paid", () => {
+    it("pays GV_WIN at exactly 3 starters when the winner damaged exactly 2 different opponents", () => {
+      const w = startRun(3, LONG);
+      strike(w, 0, 1);
+      strike(w, 0, 2);
+      atTick(w, 200, (world) => killRest(world, 1, 3));
+      const events = runTo(w, 200);
+      const r = winnerOf(events);
+      expect(r).toMatchObject({ outcome: "won", place: 1, players: 3, kills: 0, winBonusWithheld: false });
+      expect(r.gv).toEqual({ kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN });
+      expect(damagedBy(RT(w, 0))).toEqual([idOf(1), idOf(2)]);
+    });
+
+    it("damaging more than the minimum pays the same single GV_WIN", () => {
+      const w = startRun(4, LONG);
+      for (const v of [1, 2, 3]) strike(w, 0, v);
+      atTick(w, 200, (world) => killRest(world, 1, 4));
+      expect(winnerOf(runTo(w, 200)).gv.win).toBe(GV_WIN);
+    });
+
+    it("never pays a 2-player run, even when the winner damaged their only opponent", () => {
+      const w = startRun(2, LONG);
+      strike(w, 0, 1);
+      atTick(w, 200, (world) => kill(world, 1, attacker(world, 0)));
+      const r = winnerOf(runTo(w, 200));
+      expect(damagedBy(RT(w, 0))).toEqual([idOf(1)]);
+      expect(r).toMatchObject({ outcome: "won", place: 1, players: 2, kills: 1, winBonusWithheld: true });
+      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+    });
+
+    it("withholds it from the winner of a 2-player run who did nothing because the other left", () => {
+      const w = startRun(2, LONG);
+      removePlayer(w, idOf(1));
+      const events = tick(w);
+      expect(damagedBy(RT(w, 0))).toEqual([]);
+      expect(winnerOf(events)).toMatchObject({
+        outcome: "won", place: 1, players: 2, gv: { win: 0, total: 0 }, winBonusWithheld: true,
+      });
+      expect(resultsOf(events)[idOf(1)]).toMatchObject({ outcome: "mia", winBonusWithheld: false });
+    });
+
+    it("withholds it at 3 starters from a winner who damaged only 1 opponent, however many times they hit them", () => {
+      const w = startRun(3, LONG);
+      for (let i = 0; i < 25; i++) strike(w, 0, 1, 0.5);
+      expect(P(w, 1).hp).toBe(100 - 25 * 0.5);
+      expect(RT(w, 0).damaged.size).toBe(1); // one opponent, however many blows
+      atTick(w, 200, (world) => { kill(world, 2); kill(world, 1, attacker(world, 0)); });
+      const r = winnerOf(runTo(w, 200));
+      expect(r).toMatchObject({ outcome: "won", place: 1, players: 3, kills: 1, winBonusWithheld: true });
+      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+    });
+
+    it("withholds it from a winner who damaged nobody, in a run of any size", () => {
+      for (const n of [3, 4, MAX_PLAYERS]) {
+        const w = startRun(n, LONG);
+        atTick(w, 200, (world) => killRest(world, 1, n));
+        expect(winnerOf(runTo(w, 200)), `${n} players`).toMatchObject({ outcome: "won", gv: { win: 0 }, winBonusWithheld: true });
+      }
+    });
+
+    // starters, different opponents the winner damaged (and finished off), whether the bonus is paid
+    it.each([
+      [2, 0, false], [2, 1, false],
+      [3, 0, false], [3, 1, false], [3, 2, true],
+      [4, 1, false], [4, 2, true], [4, 3, true],
+      [MAX_PLAYERS, 1, false], [MAX_PLAYERS, 2, true], [MAX_PLAYERS, MAX_PLAYERS - 1, true],
+    ] as const)("%i starters, winner damaged %i different opponents: bonus paid %s", (n, hurt, paid) => {
+      const w = startRun(n, LONG);
+      atTick(w, 200, (world) => {
+        for (let i = 1; i <= hurt; i++) kill(world, i, attacker(world, 0));
+        killRest(world, hurt + 1, n);
+      });
+      const events = runTo(w, 200);
+      const results = resultsOf(events);
+      expect(results[idOf(0)]).toMatchObject({
+        outcome: "won", place: 1, players: n, kills: hurt, winBonusWithheld: !paid,
+        gv: { kills: hurt * GV_KILL, win: paid ? GV_WIN : 0, total: hurt * GV_KILL + (paid ? GV_WIN : 0) },
+      });
+      for (let i = 1; i < n; i++) expect(results[idOf(i)], `p${i}`).toMatchObject({ outcome: "died", winBonusWithheld: false, gv: { win: 0 } });
+      const banked = Object.values(results).reduce((sum, r) => sum + r.gv.total, 0);
+      expect(banked).toBe(hurt * GV_KILL + (paid ? GV_WIN : 0));
+    });
+  });
+
+  describe("the player count is who the run went active with", () => {
+    it("does not count a lobby leaver: 3 joined, 1 left in the lobby, the run went active with 2", () => {
+      const w = createWorld({ seed: 1234, config: makeConfig({ minPlayers: 2 }), random: mulberry32(1) });
+      for (let i = 0; i < 3; i++) addPlayer(w, idOf(i), NAMES[i]!);
+      removePlayer(w, idOf(2));
+      step(w, TICK_MS);
+      expect(w.state.phase).toBe("active");
+      expect(w.arena.startedWith).toBe(2);
+      strike(w, 0, 1);
+      atTick(w, 200, (world) => kill(world, 1, attacker(world, 0)));
+      const r = winnerOf(runTo(w, 200));
+      expect(r).toMatchObject({ outcome: "won", players: 2, kills: 1, winBonusWithheld: true });
+      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+    });
+
+    it("counts the players present when it started: 4 joined, 1 left in the lobby, 3 started", () => {
+      const w = createWorld({ seed: 1234, config: makeConfig({ minPlayers: 3 }), random: mulberry32(1) });
+      for (let i = 0; i < 4; i++) addPlayer(w, idOf(i), NAMES[i]!);
+      removePlayer(w, idOf(3));
+      step(w, TICK_MS);
+      expect(w.arena.startedWith).toBe(3);
+      strike(w, 0, 1);
+      strike(w, 0, 2);
+      atTick(w, 200, (world) => killRest(world, 1, 3));
+      expect(winnerOf(runTo(w, 200))).toMatchObject({ outcome: "won", players: 3, gv: { win: GV_WIN }, winBonusWithheld: false });
+    });
+  });
+
+  describe("what counts as damaging an opponent", () => {
+    it("a blow that lands counts, and so does a lethal blow", () => {
+      const w = startRun(3, LONG);
+      expect(strike(w, 0, 1, 10)).toBe(10);
+      expect(damagedBy(RT(w, 0))).toEqual([idOf(1)]);
+      expect(kill(w, 2, attacker(w, 0))).toBeGreaterThan(0);
+      expect(damagedBy(RT(w, 0))).toEqual([idOf(1), idOf(2)]);
+      expect(P(w, 2).status).toBe("dead");
+    });
+
+    it("a winner of 3 who only ever landed lethal blows has damaged both victims", () => {
+      const w = startRun(3, LONG);
+      atTick(w, 200, (world) => { kill(world, 1, attacker(world, 0)); kill(world, 2, attacker(world, 0)); });
+      const r = winnerOf(runTo(w, 200));
+      expect(r).toMatchObject({ outcome: "won", kills: 2, winBonusWithheld: false });
+      expect(r.gv).toEqual({ kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN });
+    });
+
+    it("damaging someone does not need a kill: the winner can have no kills and still be paid", () => {
+      const w = startRun(3, LONG);
+      strike(w, 0, 1);
+      strike(w, 0, 2);
+      atTick(w, 200, (world) => killRest(world, 1, 3));
+      const r = winnerOf(runTo(w, 200));
+      expect(r.kills).toBe(0);
+      expect(r.gv.win).toBe(GV_WIN);
+    });
+
+    it("damage to an opponent who later left still counts", () => {
+      const w = startRun(3, LONG);
+      const rt0 = RT(w, 0);
+      strike(w, 0, 1);
+      removePlayer(w, idOf(1)); // credited as p0's kill: the hit was just now
+      expect(w.state.players.has(idOf(1))).toBe(false);
+      expect(w.arena.startedWith).toBe(3); // a player who leaves after the start is still one of the starters
+      expect(damagedBy(rt0)).toEqual([idOf(1)]); // the record outlives the leaver
+      strike(w, 0, 2);
+      atTick(w, 200, (world) => kill(world, 2, attacker(world, 0)));
+      const r = winnerOf(runTo(w, 200));
+      expect(r).toMatchObject({ outcome: "won", players: 3, kills: 2, winBonusWithheld: false });
+      expect(r.gv).toEqual({ kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN });
+    });
+
+    it("self-damage does not count, lethal or not", () => {
+      const w = startRun(3, LONG);
+      expect(applyDamage(w, P(w, 0), RT(w, 0), 10, attacker(w, 0))).toBe(10);
+      expect(P(w, 0).hp).toBe(90);
+      expect(RT(w, 0).damaged.size).toBe(0);
+      expect(RT(w, 0).lastHit).toBeNull();
+      kill(w, 0, attacker(w, 0));
+      expect(P(w, 0).status).toBe("dead");
+      expect(P(w, 0).kills).toBe(0);
+      expect(RT(w, 0).damaged.size).toBe(0);
+    });
+
+    it("string sources (the world, sudden death) count for nobody", () => {
+      const w = startRun(3, LONG);
+      for (const source of ["test", SUDDEN_DEATH_KILLER, "lava"]) {
+        for (let i = 0; i < 3; i++) expect(applyDamage(w, P(w, i), RT(w, i), 5, source)).toBe(5);
+      }
+      for (let i = 0; i < 3; i++) expect(damagedBy(RT(w, i)), `p${i}`).toEqual([]);
+    });
+
+    it("the sudden death burn does not count", () => {
+      const w = startRun(3, { suddenDeathSeconds: 1 });
+      runTo(w, 4500); // teleport at 2050, burning from 3100 on
+      expect(w.state.phase).toBe("active");
+      for (let i = 0; i < 3; i++) {
+        expect(P(w, i).hp, `p${i} hp`).toBeLessThan(P(w, i).maxHp);
+        expect(damagedBy(RT(w, i)), `p${i}`).toEqual([]);
+      }
+    });
+
+    it("a run decided by sudden death alone pays nobody the bonus: the last one burning wins without it", () => {
+      const w = startRun(3, { suddenDeathSeconds: 1 });
+      P(w, 1).hp = 30;
+      P(w, 2).hp = 40; // p0, on full hp, outlasts them
+      const events = runTo(w, 2050);
+      for (let i = 0; i < 4000 && w.state.phase === "active"; i++) events.push(...tick(w));
+      expect(w.state.phase).toBe("ended");
+      const results = resultsOf(events);
+      expect(results[idOf(0)]).toMatchObject({
+        outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true,
+      });
+      for (const i of [1, 2]) expect(results[idOf(i)], `p${i}`).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER, winBonusWithheld: false });
+      expect(w.state.winner).toBe("alice");
+    });
+
+    it("a blow absorbed by teleport immunity does not count; the same blow once it ends does", () => {
+      const w = startRun(3, { suddenDeathSeconds: 60 });
+      runTo(w, 2050); // teleported: immune until 2050 + TELEPORT_IMMUNITY_MS
+      expect(w.state.inColiseum).toBe(true);
+      expect(strike(w, 0, 1, 10)).toBe(0);
+      expect(kill(w, 2, attacker(w, 0))).toBe(0); // not even a lethal blow gets through
+      expect(P(w, 1).hp).toBe(100);
+      expect(P(w, 2).status).toBe("alive");
+      expect(RT(w, 0).damaged.size).toBe(0);
+      expect(RT(w, 1).lastHit).toBeNull();
+
+      runTo(w, 2050 + TELEPORT_IMMUNITY_MS);
+      expect(strike(w, 0, 1, 10)).toBe(10);
+      expect(damagedBy(RT(w, 0))).toEqual([idOf(1)]);
+    });
+
+    it("blows with no damage in them do not count", () => {
+      const w = startRun(3, LONG);
+      for (const amount of [0, -5, NaN]) expect(strike(w, 0, 1, amount)).toBe(0);
+      expect(RT(w, 0).damaged.size).toBe(0);
+    });
+
+    it("a blow at someone who is no longer standing does not count", () => {
+      const w = startRun(4, LONG);
+      kill(w, 1, attacker(w, 0)); // p1 is down, result out
+      expect(strike(w, 2, 1)).toBe(0);
+      expect(RT(w, 2).damaged.size).toBe(0);
+      // Same tick, the victim already downed by the first blow: the second attacker's swing finds nobody there.
+      atTick(w, 200, (world) => { kill(world, 3, attacker(world, 0)); strike(world, 2, 3); });
+      runTo(w, 200);
+      expect(RT(w, 2).damaged.size).toBe(0);
+      expect(damagedBy(RT(w, 0))).toEqual([idOf(1), idOf(3)]);
+    });
+
+    it("mob kills do not count as damaging a player", () => {
+      const w = startRun(3, LONG);
+      for (let i = 0; i < 12; i++) creditMobKill(w, P(w, 0), RT(w, 0), i < 3);
+      expect(RT(w, 0).damaged.size).toBe(0);
+      atTick(w, 200, (world) => { kill(world, 1, attacker(world, 0)); kill(world, 2); });
+      const r = winnerOf(runTo(w, 200));
+      expect(r).toMatchObject({ outcome: "won", winBonusWithheld: true });
+      expect(r.gv).toEqual({ kills: GV_KILL, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: GV_KILL + GV_MOB_CAP });
+    });
+  });
+
+  describe("winners decided by the tie-break", () => {
+    /** 3 players at the edge of the first burning tick: `winner` has the highest fraction and has hurt `hurt`. */
+    function burnEdge(winner: number, hurt: number[]) {
+      const w = startRun(3, { suddenDeathSeconds: 2 });
+      runTo(w, 4050);
+      for (const v of hurt) strike(w, winner, v, 0.001);
+      [0, 1, 2].forEach((i) => { P(w, i).hp = i === winner ? 0.09 : 0.02 + i * 0.01; });
+      return { w, events: tick(w) };
+    }
+
+    it.each([0, 1, 2])("p%i, the higher fraction, is paid when they hurt both others", (winner) => {
+      const { w, events } = burnEdge(winner, [0, 1, 2].filter((i) => i !== winner));
+      expect(w.state.serverTime).toBe(4100);
+      expect(winnerOf(events, winner)).toMatchObject({ outcome: "won", gv: { win: GV_WIN }, winBonusWithheld: false });
+      expect(w.state.winner).toBe(NAMES[winner]);
+    });
+
+    it.each([0, 1, 2])("p%i, the higher fraction, is withheld when they hurt only one", (winner) => {
+      const other = (winner + 1) % 3;
+      const { w, events } = burnEdge(winner, [other]);
+      expect(winnerOf(events, winner)).toMatchObject({
+        outcome: "won", place: 1, gv: { win: 0, total: 0 }, winBonusWithheld: true,
+      });
+      expect(w.state.winner).toBe(NAMES[winner]); // still the winner
+    });
+
+    it("two players killing each other in a run of three: the higher fraction wins and the rule applies to them", () => {
+      // p0 killed p2 earlier and now trades with p1, who has only ever hurt p0: p0 has hurt two players, p1 one.
+      const cases = [
+        { hp0: 80, hp1: 20, winner: 0, winnerKills: 2, paid: true },
+        { hp0: 20, hp1: 80, winner: 1, winnerKills: 1, paid: false },
+      ];
+      for (const { hp0, hp1, winner, winnerKills, paid } of cases) {
+        const w = startRun(3, LONG);
+        atTick(w, 300, (world) => kill(world, 2, attacker(world, 0)));
+        runTo(w, 300);
+        P(w, 0).hp = hp0;
+        P(w, 1).hp = hp1;
+        atTick(w, 500, (world) => {
+          kill(world, 1, attacker(world, 0));
+          kill(world, 0, attacker(world, 1)); // p1 is down but its blow in this tick still lands
+        });
+        const results = resultsOf(runTo(w, 500));
+        expect(results[idOf(winner)], `winner p${winner}`).toMatchObject({
+          outcome: "won", place: 1, kills: winnerKills, winBonusWithheld: !paid,
+          gv: { kills: winnerKills * GV_KILL, win: paid ? GV_WIN : 0, total: winnerKills * GV_KILL + (paid ? GV_WIN : 0) },
+        });
+        expect(results[idOf(1 - winner)]).toMatchObject({ outcome: "died", place: 2, winBonusWithheld: false, gv: { win: 0 } });
+        expect(w.state.winner).toBe(NAMES[winner]);
+      }
+    });
+
+    it("a 2-player tie-break winner is withheld", () => {
+      const w = startRun(2, { suddenDeathSeconds: 2 });
+      runTo(w, 4050);
+      strike(w, 1, 0, 0.001);
+      P(w, 0).hp = 0.04;
+      P(w, 1).hp = 0.08;
+      expect(winnerOf(tick(w), 1)).toMatchObject({ outcome: "won", winBonusWithheld: true, gv: { win: 0 } });
+    });
+  });
+
+  describe("draws are never withheld", () => {
+    it("a draw between players who both earned the bonus pays nobody and withholds nothing", () => {
+      const w = startRun(3, { suddenDeathSeconds: 2 });
+      runTo(w, 4050);
+      for (const [from, to] of [[0, 1], [0, 2], [1, 0], [1, 2]] as const) strike(w, from, to, 0.001);
+      P(w, 0).hp = 0.05;
+      P(w, 1).hp = 0.05;
+      P(w, 2).hp = 0.01;
+      const results = resultsOf(tick(w));
+      for (const i of [0, 1]) expect(results[idOf(i)], `p${i}`).toMatchObject({ outcome: "draw", place: 1, gv: { win: 0 }, winBonusWithheld: false });
+      expect(results[idOf(2)]).toMatchObject({ outcome: "died", place: 3, winBonusWithheld: false });
+      expect(w.state.winner).toBe("");
+    });
+
+    it("a draw in a 2-player run, or between players who hurt nobody, is a draw and not a withheld win", () => {
+      const two = startRun(2, { suddenDeathSeconds: 2 });
+      runTo(two, 4050);
+      for (const p of two.state.players.values()) p.hp = 0.05;
+      for (const r of Object.values(resultsOf(tick(two)))) expect(r).toMatchObject({ outcome: "draw", winBonusWithheld: false });
+
+      const three = startRun(3, { suddenDeathSeconds: 2 });
+      runTo(three, 4050);
+      for (const p of three.state.players.values()) p.hp = 0.05;
+      for (const r of Object.values(resultsOf(tick(three)))) expect(r).toMatchObject({ outcome: "draw", winBonusWithheld: false });
+    });
+
+    it("mutual kills with equal hp in a run of two: a draw, not withheld", () => {
+      const w = startRun(2, LONG);
+      atTick(w, 500, (world) => { kill(world, 1, attacker(world, 0)); kill(world, 0, attacker(world, 1)); });
+      for (const r of Object.values(resultsOf(runTo(w, 500)))) {
+        expect(r).toMatchObject({ outcome: "draw", gv: { win: 0 }, winBonusWithheld: false });
+      }
+    });
+  });
+
+  describe("a withheld win is still a win", () => {
+    it("keeps the outcome, place, winner, phase, victory fx and the order of the end of the run", () => {
+      const w = startRun(2, LONG);
+      atTick(w, 500, (world) => kill(world, 1, attacker(world, 0)));
+      const events = runTo(w, 500);
+      expect(winnerOf(events)).toMatchObject({
+        outcome: "won", profile: "alice", kills: 1, killedBy: null, place: 1, players: 2, winBonusWithheld: true,
+      });
+      expect(P(w, 0).status).toBe("alive");
+      expect(w.state).toMatchObject({ phase: "ended", winner: "alice", patienceEndsAt: 0, gatesLocked: false, suddenDeathAt: 0 });
+      expect(fxOf(events, "victory")).toEqual([{ kind: "victory", id: idOf(0), name: "alice", draw: false }]);
+      expect(ofType(events, "raidEnded")).toHaveLength(1);
+      const order = events
+        .filter((e) => e.type === "resolved" || e.type === "raidEnded" || (e.type === "fx" && e.fx.kind === "victory"))
+        .map((e) => (e.type === "resolved" ? e.id : e.type === "fx" ? "victory" : e.type));
+      expect(order).toEqual(["p1", "p0", "victory", "raidEnded"]);
+    });
+
+    it("differs from a paid win only in the flag and the bonus: same events, same result otherwise", () => {
+      const play = (hurtFirst: number[]) => {
+        const w = startRun(3, LONG);
+        for (const v of hurtFirst) strike(w, 0, v);
+        atTick(w, 200, (world) => { kill(world, 1, attacker(world, 0)); kill(world, 2); });
+        return { w, events: runTo(w, 200) };
+      };
+      const paid = play([2]);
+      const withheld = play([]);
+      const kinds = (events: SimEvent[]) => events.map((e) => (e.type === "fx" ? e.fx.kind : e.type));
+      expect(kinds(withheld.events)).toEqual(kinds(paid.events));
+      expect(winnerOf(paid.events)).toMatchObject({ winBonusWithheld: false, gv: { win: GV_WIN } });
+      expect(winnerOf(withheld.events)).toMatchObject({ winBonusWithheld: true, gv: { win: 0 } });
+      const bare = (r: RunResult): RunResult => ({ ...r, gv: { ...r.gv, win: 0, total: r.gv.kills }, winBonusWithheld: false });
+      expect(bare(winnerOf(withheld.events))).toEqual(bare(winnerOf(paid.events)));
+      expect(withheld.w.state.winner).toBe(paid.w.state.winner);
+      expect(P(withheld.w, 0).kills).toBe(P(paid.w, 0).kills);
+    });
+  });
+
+  describe("kill GV and bounties are unaffected, and the ledger balances", () => {
+    it.each([[false], [true]])("a winner who earned the bonus: %s", (paid) => {
+      const w = startRun(5, LONG);
+      if (paid) strike(w, 4, 1); // p4 will have hurt p1 and, below, p0
+      for (const v of [1, 2, 3]) kill(w, v, attacker(w, 0)); // p0: three kills, a bounty of 10
+      for (let i = 0; i < 5; i++) awardGv(w, P(w, 4), RT(w, 4), "mob");
+      expect(P(w, 0).bounty).toBe(10);
+      kill(w, 0, attacker(w, 4)); // p4 claims it, and is the last one standing
+      const events = tick(w);
+      const results = resultsOf(events);
+
+      expect(results[idOf(4)]).toMatchObject({
+        outcome: "won", place: 1, kills: 1, winBonusWithheld: !paid,
+        gv: { kills: GV_KILL, mobs: 5 * GV_MOB, bounty: 10, win: paid ? GV_WIN : 0, total: GV_KILL + 5 * GV_MOB + 10 + (paid ? GV_WIN : 0) },
+      });
+      expect(results[idOf(0)]).toMatchObject({ outcome: "died", kills: 3, winBonusWithheld: false, gv: { kills: 3 * GV_KILL, bounty: 0, win: 0 } });
+      const all = Object.values(results);
+      for (const r of all) expect(r.gv.total).toBe(r.gv.kills + r.gv.mobs + r.gv.bounty + r.gv.win);
+      const announced = ofType(events, "gv").reduce((n, e) => n + e.amount, 0);
+      const kills = all.reduce((n, r) => n + r.kills, 0);
+      expect(kills).toBe(4);
+      expect(announced).toBe(4 * GV_KILL + 5 * GV_MOB + 10);
+      expect(all.reduce((n, r) => n + r.gv.total, 0)).toBe(GV_KILL * kills + 5 * GV_MOB + 10 + (paid ? GV_WIN : 0));
+      expect(P(w, 4).gv).toBe(GV_KILL + 5 * GV_MOB + 10); // the synced gv never includes the win bonus
+    });
+  });
+
+  describe("only a withheld winner is flagged", () => {
+    it("losers, leavers and a winner who earned it are not", () => {
+      const w = startRun(4, LONG);
+      removePlayer(w, idOf(3)); // MIA, never hit: no kill credit for anyone
+      atTick(w, 200, (world) => { kill(world, 2); kill(world, 1, attacker(world, 0)); });
+      const results = resultsOf(runTo(w, 200));
+      expect(results[idOf(0)]).toMatchObject({ outcome: "won", winBonusWithheld: true });
+      expect(results[idOf(1)]).toMatchObject({ outcome: "died", winBonusWithheld: false });
+      expect(results[idOf(2)]).toMatchObject({ outcome: "died", winBonusWithheld: false });
+      expect(results[idOf(3)]).toMatchObject({ outcome: "mia", winBonusWithheld: false });
+      expect(Object.values(results).filter((r) => r.winBonusWithheld).map((r) => r.outcome)).toEqual(["won"]);
+    });
+
+    it("a solo player has no winner, so nothing is withheld whether they die or leave", () => {
+      const died = startRun(1, LONG);
+      atTick(died, 200, (world) => kill(world, 0));
+      expect(winnerOf(runTo(died, 200))).toMatchObject({ outcome: "died", players: 1, winBonusWithheld: false, gv: { win: 0 } });
+      expect(died.state.winner).toBe("");
+
+      const left = startRun(1, LONG);
+      removePlayer(left, idOf(0));
+      expect(winnerOf(tick(left))).toMatchObject({ outcome: "mia", winBonusWithheld: false, gv: { win: 0 } });
+      expect(left.state.winner).toBe("");
+
+      const stays = startRun(1, LONG);
+      expect(ofType(runTo(stays, 10_000), "resolved")).toEqual([]); // alone, alive: the run just goes on
+      expect(stays.state).toMatchObject({ phase: "active", winner: "" });
+    });
   });
 });
 
@@ -1905,6 +2395,7 @@ describe("feed and bounty", () => {
 
     it("the killer's result carries the bounty, and the ledger adds up", () => {
       const w = startRun(5);
+      strike(w, 4, 1); // p4 hurts p1 before p0 finishes them, and p0 after: two different opponents
       atTick(w, 100, (world) => slay(world, 0, [1]));
       atTick(w, 150, (world) => slay(world, 0, [2]));
       atTick(w, 200, (world) => slay(world, 0, [3]));
@@ -1914,6 +2405,7 @@ describe("feed and bounty", () => {
       expect(w.state.winner).toBe("erin");
       expect(results[idOf(4)]).toMatchObject({
         outcome: "won", kills: 1, gv: { kills: GV_KILL, mobs: 0, bounty: 10, win: GV_WIN, total: GV_KILL + 10 + GV_WIN },
+        winBonusWithheld: false,
       });
       expect(results[idOf(0)]).toMatchObject({
         outcome: "died", kills: 3, killedBy: "erin", gv: { kills: 3 * GV_KILL, mobs: 0, bounty: 0, win: 0, total: 3 * GV_KILL },
@@ -1973,6 +2465,7 @@ describe("feed and bounty", () => {
 
     it("a player who goes down in the same tick still collects the bounty they killed for, and banks it", () => {
       const w = startRun(6);
+      strike(w, 5, 1); // p5 hurts p1 first, so the p4 it kills later makes two opponents and the win bonus is theirs
       atTick(w, 100, (world) => slay(world, 0, [1, 2, 3]));
       atTick(w, 300, (world) => {
         slay(world, 4, [0]); // p4 claims p0's bounty...
@@ -1982,7 +2475,9 @@ describe("feed and bounty", () => {
       expect(results[idOf(4)]).toMatchObject({
         outcome: "died", kills: 1, killedBy: "frank", gv: { kills: GV_KILL, bounty: 10, win: 0, total: GV_KILL + 10 },
       });
-      expect(results[idOf(5)]).toMatchObject({ outcome: "won", kills: 1, gv: { kills: GV_KILL, bounty: 0, win: GV_WIN } });
+      expect(results[idOf(5)]).toMatchObject({
+        outcome: "won", kills: 1, gv: { kills: GV_KILL, bounty: 0, win: GV_WIN }, winBonusWithheld: false,
+      });
       expect(w.state.winner).toBe("frank");
     });
   });
@@ -2015,7 +2510,10 @@ describe("feed and bounty", () => {
       expect(w.state.phase).toBe("ended");
       const results = resultsOf([...events, ...rest]);
       expect(results[idOf(0)]).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER, kills: 3 });
-      expect(results[idOf(4)]).toMatchObject({ outcome: "won", gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN } });
+      // p4 never hurt anyone (sudden death killed p0): the win stands, the bonus does not.
+      expect(results[idOf(4)]).toMatchObject({
+        outcome: "won", gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true,
+      });
       expect(ofType(rest, "gv")).toEqual([]);
       expect(claims).toEqual([]);
       expect(RT(w, 4).gv.bounty).toBe(0);
@@ -2031,7 +2529,8 @@ describe("feed and bounty", () => {
       expect(resultsOf(events)[idOf(0)]).toMatchObject({ outcome: "mia", kills: 3, gv: { kills: 3 * GV_KILL, bounty: 0 } });
       expect(ofType(events, "gv")).toEqual([]);
       expect(claims).toEqual([]);
-      expect(resultsOf(events)[idOf(4)]).toMatchObject({ outcome: "won", gv: { bounty: 0, total: GV_WIN } });
+      // p4 won without hurting anyone: no bonus.
+      expect(resultsOf(events)[idOf(4)]).toMatchObject({ outcome: "won", gv: { bounty: 0, win: 0, total: 0 }, winBonusWithheld: true });
     });
 
     it("a killer whose result is already out gets no kill credit at all: no kill, no GV, no bounty, no hook call", () => {
@@ -2238,7 +2737,7 @@ describe("feed and bounty", () => {
       // The leaver's result is the same as any leaver's.
       expect(resultsOf(w.events)[idOf(1)]).toEqual({
         outcome: "mia", profile: "bob", durationSec: 2, kills: 0, killedBy: null, place: 4, players: 4,
-        gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 },
+        gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false,
       });
       expect(fxOf(w.events, "death")).toEqual([]);
     });

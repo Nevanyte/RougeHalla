@@ -3,12 +3,12 @@
 // only. Three play it out; the fourth walks out a second into the run, which the server must settle as
 // MIA (it leaves, so it may never see its result: that one is checked through the store). What is asserted is
 // what must hold whoever wins: the run ended in one winner or a draw, every bot that stayed got exactly one
-// sensible result, the GV ledger balances for every profile (kills pay GV_KILL, the winner gets GV_WIN, all of
-// it banked once, in the profile, its lifetime total and the month), the stats add up, the file on disk says
-// the same, and nothing blew up. The bots must really fight: somebody gets killed by a bot, and the kills the
-// results claim match the deaths they name. The run is played twice: with a patience long enough for the bots to
-// meet first, and with one so short that the arena teleports them into the coliseum before anyone has died,
-// after which they must keep landing hits.
+// sensible result, the GV ledger balances for every profile (kills pay GV_KILL, the winner gets GV_WIN unless the
+// anti alt-farming rule withheld it, all of it banked once, in the profile, its lifetime total and the month), the
+// stats add up, the file on disk says the same, and nothing blew up. The bots must really fight: somebody gets
+// killed by a bot, and the kills the results claim match the deaths they name. The run is played twice: with a
+// patience long enough for the bots to meet first, and with one so short that the arena teleports them into the
+// coliseum before anyone has died, after which they must keep landing hits.
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -17,7 +17,7 @@ import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from
 import { matchMaker, Room } from "@colyseus/core";
 import {
   GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, ROOM_NAME, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS,
-  type ProfileResponse, type RunOutcome, type RunResult, type TimedFx,
+  WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, type ProfileResponse, type RunOutcome, type RunResult, type TimedFx,
 } from "@raid/shared";
 import { BotClient, type BotRun } from "../src/bots/BotClient";
 import { loadConfig } from "../src/config";
@@ -201,6 +201,29 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
     expect(totalKills, "kills against death fx").toBeGreaterThanOrEqual(deathFx.length);
     expect(totalKills, "kills against death fx").toBeLessThanOrEqual(deathFx.length + 1);
 
+    // --- the win bonus. The run started with BOTS (4) players, so the player count never withholds it: the winner
+    // keeps it exactly when they damaged WIN_BONUS_MIN_OPPONENTS different players, and the result says which. A shot
+    // fx with a `hit` is a blow that reached the victim (teleport immunity can still absorb it), so the winner's shot
+    // fx bound it from above; two kills are two different victims, which bounds it from below. Nobody but a winner
+    // is ever told their bonus was withheld.
+    expect(BOTS).toBeGreaterThanOrEqual(WIN_BONUS_MIN_PLAYERS);
+    for (const r of all) {
+      if (r.outcome !== "won") expect(r.winBonusWithheld, `${r.profile} (${r.outcome}) was told a bonus was withheld`).toBe(false);
+    }
+    const winner = winners.length === 1 ? winners[0]! : null;
+    if (winner) {
+      expect(winner.gv.win, `${winner.profile} win bonus`).toBe(winner.winBonusWithheld ? 0 : GV_WIN);
+      if (winner.kills >= 2) expect(winner.winBonusWithheld, `${winner.profile} killed ${winner.kills} players`).toBe(false);
+      const victory = fx.find((f) => f.kind === "victory");
+      expect(victory, "no victory fx").toMatchObject({ kind: "victory", name: winner.profile, draw: false });
+      const winnerSession = (victory as Extract<TimedFx, { kind: "victory" }>).id;
+      const shotAt = new Set(fx.flatMap((f) => (f.kind === "shot" && f.by === winnerSession && f.hit !== null ? [f.hit] : [])));
+      expect(shotAt.has(winnerSession!), "the winner shot themselves").toBe(false);
+      if (!winner.winBonusWithheld) expect(shotAt.size, `${winner.profile} got the bonus without hitting enough players`).toBeGreaterThanOrEqual(WIN_BONUS_MIN_OPPONENTS);
+      if (shotAt.size < WIN_BONUS_MIN_OPPONENTS) expect(winner.winBonusWithheld, `${winner.profile} hit ${shotAt.size} players`).toBe(true);
+    }
+    const bonusPaid = winner && !winner.winBonusWithheld ? GV_WIN : 0;
+
     // --- the GV each result paid
     const winBonus = sum(all.map((r) => r.gv.win));
     for (const r of all) {
@@ -212,10 +235,13 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
         // Only a player with 3 kills carries a bounty, and the bounty is paid to whoever kills them.
         expect(Math.max(...all.filter((o) => o !== r).map((o) => o.kills))).toBeGreaterThanOrEqual(3);
       }
-      expect(r.gv.win, `${r.profile} win bonus`).toBe(r.outcome === "won" ? GV_WIN : 0);
+      expect(r.gv.win, `${r.profile} win bonus`).toBe(r.outcome === "won" && !r.winBonusWithheld ? GV_WIN : 0);
     }
     expect(sum(all.map((r) => r.gv.kills))).toBe(GV_KILL * totalKills);
-    expect(winBonus, "the win bonus is paid once, to the winner").toBe(winners.length === 1 ? GV_WIN : 0);
+    expect(winBonus, "the win bonus is paid at most once, to a winner who earned it").toBe(bonusPaid);
+    expect(sum(all.map((r) => r.gv.total)), "GV_KILL × kills + bounties + the win bonus actually paid").toBe(
+      GV_KILL * totalKills + sum(all.map((r) => r.gv.bounty)) + bonusPaid,
+    );
 
     // --- the ledger in the store: every profile was fresh, so what it holds is exactly this run's payout,
     // once, in the balance, the lifetime total and the month. The quitter never saw its result, but it left

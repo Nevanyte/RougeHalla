@@ -40,6 +40,8 @@ export interface PlayerRuntime {
   hpFracAtTickStart: number;
   /** The last player to damage them and when (server ms): a leave soon after counts as that player's kill. */
   lastHit: { by: string; at: number } | null;
+  /** Different players this one damaged during the run (not themselves, not sudden death): see WIN_BONUS_MIN_OPPONENTS. */
+  damaged: Set<string>;
   /** When their connection dropped (server ms), while the Room holds the seat for a reconnect; null when connected. */
   droppedAt: number | null;
   /** Set when the player goes down (died, or left the run). Their result follows at the end of that tick. */

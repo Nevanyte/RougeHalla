@@ -641,12 +641,13 @@ describe("a run", () => {
     await kill(a!, c!);
     await until(() => a!.results.length === 1 && c!.results.length === 1, "the final results");
 
+    // A hurt both others in a run that started with three: the win bonus is theirs, and the client is told it wasn't held back.
     expect(a!.results[0]).toMatchObject({
       outcome: "won", profile: A.name, kills: 2, killedBy: null, place: 1, players: 3,
-      gv: { kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN },
+      gv: { kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN }, winBonusWithheld: false,
     });
-    expect(b!.results[0]).toMatchObject({ outcome: "died", killedBy: A.name, place: 3, gv: { total: 0 } });
-    expect(c!.results[0]).toMatchObject({ outcome: "died", killedBy: A.name, place: 2, gv: { total: 0 } });
+    expect(b!.results[0]).toMatchObject({ outcome: "died", killedBy: A.name, place: 3, gv: { total: 0 }, winBonusWithheld: false });
+    expect(c!.results[0]).toMatchObject({ outcome: "died", killedBy: A.name, place: 2, gv: { total: 0 }, winBonusWithheld: false });
 
     // Each result paid exactly once, in the balance, the lifetime total and the month.
     expectBanked(A, 2 * GV_KILL + GV_WIN, { runs: 1, wins: 1, kills: 2 });
@@ -654,6 +655,7 @@ describe("a run", () => {
     expectBanked(C, 0, { runs: 1, deaths: 1 });
     expect(sum([A, B, C].map((who) => record(who).gv))).toBe(2 * GV_KILL + GV_WIN); // the ledger balances
     expect(recorded.mock.calls.map(([name]) => name).sort()).toEqual([A.name, B.name, C.name]); // one record per player
+    expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 2, gv: 2 * GV_KILL + GV_WIN });
     expect(banked).not.toHaveBeenCalled(); // bankGv is for voided runs only
     expect([A, B, C].some(isActive)).toBe(false);
     expect((await api(A.name, A.token)).body.profile).toMatchObject({ gv: 2 * GV_KILL + GV_WIN, stats: { runs: 1, wins: 1, kills: 2 } });
@@ -686,6 +688,8 @@ describe("a run", () => {
     const all = [a!, b!, c!, d!, e!];
     const bountyToasts = (p: Player) => p.toasts.filter((t) => t.endsWith("(bounty)"));
 
+    // E hurts B before A finishes them; E later kills A, so E will have hurt two different players and win with the bonus.
+    await swingAt(e!, b!, () => serverPlayer(b!).hp < serverPlayer(b!).maxHp);
     await kill(a!, b!);
     await kill(a!, c!);
     expect(all.some((p) => p.fx.some((f) => f.kind === "bounty"))).toBe(false); // two kills: not yet
@@ -708,6 +712,7 @@ describe("a run", () => {
 
     expect(e!.results[0]).toMatchObject({
       outcome: "won", profile: E.name, kills: 1, gv: { kills: GV_KILL, mobs: 0, bounty: 10, win: GV_WIN, total: GV_KILL + 10 + GV_WIN },
+      winBonusWithheld: false,
     });
     expect(a!.results[0]).toMatchObject({
       outcome: "died", profile: A.name, kills: 3, killedBy: E.name, gv: { kills: 3 * GV_KILL, mobs: 0, bounty: 0, win: 0, total: 3 * GV_KILL },
@@ -717,6 +722,48 @@ describe("a run", () => {
     expectBanked(A, 3 * GV_KILL, { runs: 1, deaths: 1, kills: 3 });
     for (const who of [B, C, D]) expectBanked(who, 0, { runs: 1, deaths: 1 });
     expect(sum([A, B, C, D, E].map((who) => record(who).gv))).toBe(4 * GV_KILL + 10 + GV_WIN); // the ledger balances
+  });
+
+  describe("the win bonus", () => {
+    // A three-player winner who hurt both others is the "last player standing wins" test above.
+    it("a two-player winner is told the bonus was withheld: nothing banked for it, the win still counted", async () => {
+      const [A, B] = [await claim(), await claim()];
+      const [a, b] = await startRun([A, B]);
+      const recorded = vi.spyOn(server.store, "recordRun");
+
+      await kill(a!, b!);
+      await until(() => a!.results.length === 1 && b!.results.length === 1, "both results");
+
+      expect(a!.results[0]).toMatchObject({
+        outcome: "won", profile: A.name, kills: 1, place: 1, players: 2,
+        gv: { kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL }, winBonusWithheld: true,
+      });
+      expect(b!.results[0]).toMatchObject({ outcome: "died", place: 2, gv: { total: 0 }, winBonusWithheld: false });
+      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL });
+      expectBanked(A, GV_KILL, { runs: 1, wins: 1, kills: 1 }); // the win counts, the bonus does not
+      expectBanked(B, 0, { runs: 1, deaths: 1 });
+      expect(worldOf(a!).state.winner).toBe(A.name);
+    });
+
+    it("a three-player winner who hurt only one of the others is told the same, though the other one left", async () => {
+      const [A, B, C] = [await claim(), await claim(), await claim()];
+      const [a, b, c] = await startRun([A, B, C]);
+      const recorded = vi.spyOn(server.store, "recordRun");
+
+      await kill(a!, b!);
+      await leave(c!); // never touched: leaving is not damage
+      await until(() => a!.results.length === 1, "A's result");
+
+      expect(a!.results[0]).toMatchObject({
+        outcome: "won", profile: A.name, kills: 1, place: 1, players: 3,
+        gv: { kills: GV_KILL, win: 0, total: GV_KILL }, winBonusWithheld: true,
+      });
+      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL });
+      expectBanked(A, GV_KILL, { runs: 1, wins: 1, kills: 1 });
+      expectBanked(B, 0, { runs: 1, deaths: 1 });
+      expectBanked(C, 0, { runs: 1, deaths: 1 }); // MIA
+      expect(worldOf(a!).state.winner).toBe(A.name);
+    });
   });
 
   it("a draw banks as a draw: the kill GV is kept, there is no win bonus, and nobody wins", async () => {
@@ -733,9 +780,11 @@ describe("a run", () => {
 
     expect(a!.results[0]).toMatchObject({
       outcome: "draw", profile: A.name, kills: 1, killedBy: null, place: 1, players: 3,
-      gv: { kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL },
+      gv: { kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL }, winBonusWithheld: false, // a draw has no bonus to withhold
     });
-    expect(b!.results[0]).toMatchObject({ outcome: "draw", profile: B.name, kills: 0, killedBy: null, place: 1, gv: { total: 0 } });
+    expect(b!.results[0]).toMatchObject({
+      outcome: "draw", profile: B.name, kills: 0, killedBy: null, place: 1, gv: { total: 0 }, winBonusWithheld: false,
+    });
     expectBanked(A, GV_KILL, { runs: 1, draws: 1, kills: 1 });
     expectBanked(B, 0, { runs: 1, draws: 1 });
     expectBanked(C, 0, { runs: 1, deaths: 1 });
@@ -793,8 +842,11 @@ describe("a run", () => {
       expectBanked(A, 0, { runs: 1, deaths: 1 });
       expect(worldOf(b!).state.players.has(sid)).toBe(false);
       await until(() => b!.results.length === 1, "B's result");
-      expect(b!.results[0]).toMatchObject({ outcome: "won", profile: B.name, players: 2, gv: { kills: 0, win: GV_WIN, total: GV_WIN } });
-      expectBanked(B, GV_WIN, { runs: 1, wins: 1 });
+      // A two-player run: B wins, the win is counted, and the bonus is withheld.
+      expect(b!.results[0]).toMatchObject({
+        outcome: "won", profile: B.name, players: 2, gv: { kills: 0, win: 0, total: 0 }, winBonusWithheld: true,
+      });
+      expectBanked(B, 0, { runs: 1, wins: 1 });
       expect(serverRoom(b!).pendingResults.has(sid)).toBe(false); // nothing kept for a reconnect that can't come
 
       const next = await createRoom(A); // the first room is locked: this is a fresh lobby
@@ -835,8 +887,10 @@ describe("a run", () => {
 
       await kill(a!, b!);
       await until(() => a!.results.length === 1, "the result after reconnecting");
-      expect(a!.results[0]).toMatchObject({ outcome: "won", profile: A.name, kills: 1, gv: { kills: GV_KILL, win: GV_WIN, total: GV_KILL + GV_WIN } });
-      expectBanked(A, GV_KILL + GV_WIN, { runs: 1, wins: 1, kills: 1 });
+      expect(a!.results[0]).toMatchObject({
+        outcome: "won", profile: A.name, kills: 1, gv: { kills: GV_KILL, win: 0, total: GV_KILL }, winBonusWithheld: true, // two players
+      });
+      expectBanked(A, GV_KILL, { runs: 1, wins: 1, kills: 1 });
     });
 
     it("stays alive and hittable during the reconnect grace, and gets its pending result when it reconnects", async () => {
@@ -899,8 +953,11 @@ describe("a run", () => {
 
       // B is the only one left, so B wins the run.
       await until(() => b!.results.length === 1, "B's result");
-      expect(b!.results[0]).toMatchObject({ outcome: "won", profile: B.name, players: 3, gv: { win: GV_WIN, total: GV_WIN } });
-      expectBanked(B, GV_WIN, { runs: 1, wins: 1 });
+      // B won a run of three without hurting anyone: no bonus.
+      expect(b!.results[0]).toMatchObject({
+        outcome: "won", profile: B.name, players: 3, gv: { win: 0, total: 0 }, winBonusWithheld: true,
+      });
+      expectBanked(B, 0, { runs: 1, wins: 1 });
     });
   });
 });

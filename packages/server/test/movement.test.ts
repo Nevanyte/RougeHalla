@@ -24,7 +24,7 @@ function makePlayer(x = 0, y = 0, facing = 0): PlayerState {
 function makeRuntime(path: Vec2[], history: Sample[] = []): PlayerRuntime {
   return {
     id: "p", profile: "p", inputs: new InputQueue(), path: path.map((w) => ({ ...w })), history,
-    nextAttackAt: 0, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0 }, mobKills: 0, lastHit: null, droppedAt: null, hpFracAtTickStart: 1, down: null, resolved: false,
+    nextAttackAt: 0, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0 }, mobKills: 0, lastHit: null, damaged: new Set(), droppedAt: null, hpFracAtTickStart: 1, down: null, resolved: false,
   };
 }
 
