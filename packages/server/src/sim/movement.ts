@@ -1,15 +1,20 @@
-import { findPath, MAX_REWIND_MS, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, type Vec2 } from "@raid/shared";
-import type { PlayerState } from "@raid/shared/schema";
-import { collisionMap, type PlayerRuntime, type World } from "./world";
+import { findPath, MAX_REWIND_MS, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, type Sample, type Vec2 } from "@raid/shared";
+import { collisionMap, type World } from "./world";
+
+/** What walking reads and writes on any fighter's synced state. */
+interface Walker { x: number; y: number; facing: number }
 
 /** Waypoints from `from` to `to` (excluding `from`). Empty if unreachable. */
 export function planPath(world: World, from: Vec2, to: Vec2): Vec2[] {
   return findPath(collisionMap(world), { x: from.x, y: from.y }, { x: to.x, y: to.y }, PLAYER_RADIUS);
 }
 
-/** Walks along rt.path at PLAYER_SPEED for dt seconds, consuming reached waypoints. */
-export function advanceAlongPath(p: PlayerState, rt: PlayerRuntime, dt: number, keepFacing = false): void {
-  let budget = PLAYER_SPEED * dt;
+/**
+ * Walks along rt.path at PLAYER_SPEED x `speedMult` for dt seconds, consuming reached waypoints. `keepFacing`: the
+ * fighter is aiming, so walking doesn't turn it.
+ */
+export function advanceAlongPath(p: Walker, rt: { path: Vec2[] }, dt: number, keepFacing = false, speedMult = 1): void {
+  let budget = PLAYER_SPEED * speedMult * dt;
   while (budget > 0 && rt.path.length > 0) {
     const target = rt.path[0]!;
     const dx = target.x - p.x;
@@ -30,14 +35,14 @@ export function advanceAlongPath(p: PlayerState, rt: PlayerRuntime, dt: number, 
 }
 
 /** Appends this tick's position and forgets anything older than the rewind window. */
-export function recordHistory(rt: PlayerRuntime, p: PlayerState, now: number): void {
+export function recordHistory(rt: { history: Sample[] }, p: Vec2, now: number): void {
   rt.history.push({ t: now, x: p.x, y: p.y });
   const cutoff = now - MAX_REWIND_MS - TICK_MS;
   while (rt.history.length > 2 && rt.history[0]!.t < cutoff) rt.history.shift();
 }
 
-/** Where the player was at server time `t` (lerped between ticks; clamped to recorded history). */
-export function positionAt(rt: PlayerRuntime, p: PlayerState, t: number): Vec2 {
+/** Where the fighter was at server time `t` (lerped between ticks; clamped to recorded history). */
+export function positionAt(rt: { history: Sample[] }, p: Vec2, t: number): Vec2 {
   const h = rt.history;
   if (h.length === 0 || t >= h[h.length - 1]!.t) return { x: p.x, y: p.y };
   if (t <= h[0]!.t) return { x: h[0]!.x, y: h[0]!.y };

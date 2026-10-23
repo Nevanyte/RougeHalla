@@ -1,18 +1,21 @@
-// Loot gameplay module: container spawning plus the take / drop / use actions and the body-drop hook.
+// Loot gameplay module: chests and loose weapons, the pickup action (F) and the body-drop hook.
 // step.ts only runs actions for alive players in an active raid, so handlers don't re-check that.
+//   - A chest holds one weapon and stays (opened, empty) once taken. A loose weapon vanishes when taken. A body holds
+//     what the player carried when they went down.
+//   - Pickup takes the container's first weapon into an empty slot (the weapon in hand doesn't change), or, with both
+//     slots full, replaces the weapon in hand, which drops where the player stands; that counts as a swap
+//     (weaponChanged: the action is cancelled and the cooldown gets SWAP_SECONDS).
 import {
-  hasLineOfSight, INTERACT_RANGE, INVENTORY_SLOTS, itemDef, type ContainerKind, type ItemDTO, type Vec2,
+  hasLineOfSight, INTERACT_RANGE, isWeaponId, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
-import { rollCrate, rollGroundItem } from "./lootTables";
-import { collisionMap, emit, nextId, type ActionHandler, type PlayerRuntime, type World } from "./world";
+import { activeWeapon, setSlot } from "./combatant";
+import { rollChestWeapon, rollGroundWeapon } from "./lootTables";
+import { weaponChanged } from "./weapons";
+import { collisionMap, emit, nextId, type ActionHandler, type World } from "./world";
 
-function itemName(def: string): string {
-  return itemDef(def)?.name ?? def;
-}
-
-function toast(world: World, rt: PlayerRuntime, text: string): void {
-  emit(world, { type: "toast", to: rt.id, text });
+function toast(world: World, to: string, text: string): void {
+  emit(world, { type: "toast", to, text });
 }
 
 /**
@@ -28,13 +31,13 @@ function newItem(uid: string, def: string): ItemState {
 
 /**
  * Tick each container was created in. Container ids are a predictable counter, so without this a
- * scripted client could `take` from a drop or body in the very tick it appears, before any client
+ * scripted client could pick up from a drop or body in the very tick it appears, before any client
  * has been told it exists. Containers made at world creation (tick 0) are never recorded: a step
  * always runs at tick >= 1.
  */
 const bornAt = new WeakMap<World, Map<string, number>>();
 
-function addContainer(world: World, kind: ContainerKind, at: Vec2, label: string, items: ItemDTO[]): ContainerState {
+export function addContainer(world: World, kind: ContainerKind, at: Vec2, label: string, items: ItemDTO[]): ContainerState {
   const c = new ContainerState();
   c.id = nextId(world, "c");
   c.kind = kind;
@@ -63,73 +66,57 @@ function bornThisTick(world: World, id: string): boolean {
   return false;
 }
 
-/** One crate per crate spot (1-3 items) and one loose item per ground spot. */
+/** A loose weapon on the ground at `at`. */
+export function dropWeapon(world: World, at: Vec2, def: string): ContainerState {
+  return addContainer(world, "ground", at, isWeaponId(def) ? WEAPONS[def].name : def, [{ uid: world.newItemUid(), def }]);
+}
+
+/** One chest (one weapon) per chest spot, and a loose weapon on some of the ground spots. */
 export function spawnLoot(world: World): void {
   for (const spot of world.map.crateSpots) {
-    const items = rollCrate(world.random).map((def) => ({ uid: world.newItemUid(), def }));
-    addContainer(world, "crate", spot, "Crate", items);
+    addContainer(world, "chest", spot, "Chest", [{ uid: world.newItemUid(), def: rollChestWeapon(world.random) }]);
   }
   for (const spot of world.map.groundSpots) {
-    const def = rollGroundItem(world.random);
-    addContainer(world, "ground", spot, itemName(def), [{ uid: world.newItemUid(), def }]);
+    const def = rollGroundWeapon(world.random);
+    if (def) dropWeapon(world, spot, def);
   }
 }
 
-export const handleTake: ActionHandler = (world, p, rt, cmd) => {
-  if (cmd.kind !== "take") return;
-  const c = world.state.containers.get(cmd.containerId);
-  if (!c || bornThisTick(world, c.id)) { toast(world, rt, "Item is gone"); return; }
-  if (Math.hypot(p.x - c.x, p.y - c.y) > INTERACT_RANGE) { toast(world, rt, "Too far away"); return; }
-  if (!hasLineOfSight(collisionMap(world), p, c)) { toast(world, rt, "Can't reach that"); return; }
-  const idx = c.items.findIndex((i) => i.uid === cmd.uid);
-  if (idx < 0) { toast(world, rt, "Item is gone"); return; }
-  if (p.inventory.length >= INVENTORY_SLOTS) { toast(world, rt, "Inventory full"); return; }
+export const handlePickup: ActionHandler = (world, c, cmd) => {
+  if (cmd.kind !== "pickup" || c.kind !== "player") return;
+  const p = c.s;
+  const box = world.state.containers.get(cmd.containerId);
+  if (!box || bornThisTick(world, box.id)) { toast(world, c.id, "Nothing there"); return; }
+  if (Math.hypot(p.x - box.x, p.y - box.y) > INTERACT_RANGE) { toast(world, c.id, "Too far away"); return; }
+  if (!hasLineOfSight(collisionMap(world), p, box)) { toast(world, c.id, "Can't reach that"); return; }
+  const item = box.items.length > 0 ? box.items.at(0) : undefined;
+  if (!item || !isWeaponId(item.def)) { toast(world, c.id, "Nothing to take"); return; }
 
-  const { uid, def } = c.items[idx]!;
-  c.items.splice(idx, 1);
-  p.inventory.push(newItem(uid, def));
-  // Loose items vanish once picked up; crates and bodies stay as (empty) props.
-  if (c.kind === "ground" && c.items.length === 0) world.state.containers.delete(c.id);
+  const def = item.def;
+  box.items.splice(0, 1);
+  const empty = p.weapon0 === "" ? 0 : p.weapon1 === "" ? 1 : null;
+  if (empty !== null) {
+    setSlot(p, empty, def);
+  } else {
+    const dropped = activeWeapon(p);
+    setSlot(p, p.slot === 1 ? 1 : 0, def);
+    if (dropped) dropWeapon(world, p, dropped);
+    weaponChanged(world, c);
+  }
+  // Loose weapons vanish once picked up; chests and bodies stay as (empty) props.
+  if (box.kind === "ground" && box.items.length === 0) world.state.containers.delete(box.id);
 };
 
-export const handleDrop: ActionHandler = (world, p, _rt, cmd) => {
-  if (cmd.kind !== "drop") return;
-  const idx = p.inventory.findIndex((i) => i.uid === cmd.uid);
-  if (idx < 0) return;
-
-  const { uid, def } = p.inventory[idx]!;
-  p.inventory.splice(idx, 1);
-  addContainer(world, "ground", p, itemName(def), [{ uid, def }]);
-};
-
-export const handleUse: ActionHandler = (world, p, rt, cmd) => {
-  if (cmd.kind !== "use") return;
-  const idx = p.inventory.findIndex((i) => i.uid === cmd.uid);
-  if (idx < 0) return;
-
-  const itemDefId = p.inventory[idx]!.def;
-  const def = itemDef(itemDefId);
-  if (def?.kind !== "healing") { toast(world, rt, `Can't use ${itemName(itemDefId)}`); return; }
-  if (p.hp >= p.maxHp) { toast(world, rt, "Already at full health"); return; }
-
-  const hp = Math.min(p.maxHp, p.hp + def.heal);
-  const healed = hp - p.hp;
-  p.hp = hp;
-  p.inventory.splice(idx, 1);
-  emit(world, { type: "fx", fx: { kind: "heal", id: rt.id, amount: healed } });
-};
-
-/** Leaves a lootable body where the player went down, holding their run gear. */
+/** Leaves a body where the player went down, holding the weapons they carried. */
 export function dropBody(world: World, p: PlayerState): void {
-  const items = p.inventory.map((i) => ({ uid: i.uid, def: i.def }));
+  const items = [p.weapon0, p.weapon1].filter((w) => w !== "").map((def) => ({ uid: world.newItemUid(), def }));
   addContainer(world, "body", p, p.name, items);
-  p.inventory.clear();
+  p.weapon0 = "";
+  p.weapon1 = "";
 }
 
 export function install(world: World): void {
-  world.actions.take = handleTake;
-  world.actions.drop = handleDrop;
-  world.actions.use = handleUse;
+  world.actions.pickup = handlePickup;
   world.hooks.dropBody = dropBody;
   spawnLoot(world);
 }

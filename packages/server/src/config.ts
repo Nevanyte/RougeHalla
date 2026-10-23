@@ -37,5 +37,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     patienceMinSeconds: Math.max(0, Math.min(patienceSeconds,
       num(env.PATIENCE_MIN_SECONDS, patienceSeconds * (PATIENCE_MIN_SECONDS / PATIENCE_SECONDS)))),
     suddenDeathSeconds: num(env.SUDDEN_DEATH_SECONDS, SUDDEN_DEATH_SECONDS),
+    dummies: env.DUMMIES === "1" || env.DUMMIES === "true",
   };
 }

@@ -4,21 +4,32 @@ import { schema, t, type SchemaType } from "@colyseus/schema";
 
 export const ItemState = schema({
   uid: t.string().default(""),
+  /** A WeaponId. */
   def: t.string().default(""),
 }, "ItemState");
 export type ItemState = SchemaType<typeof ItemState>;
 
+// Players and mobs share these fighter fields (the sim's Combatant reads and writes both the same way).
 export const PlayerState = schema({
   name: t.string().default(""),
   x: t.number().default(0),
   y: t.number().default(0),
-  /** Radians, ground plane. Purely cosmetic (last move/attack direction). */
+  /** Radians, ground plane: where the fighter aims (the shield faces it), or the way it walks when it doesn't aim. */
   facing: t.number().default(0),
   hp: t.number().default(0),
   maxHp: t.number().default(0),
   /** PlayerStatus */
   status: t.string().default("lobby"),
-  inventory: t.array(ItemState),
+  /** FactionId. A server default until the Phase 10 picker. */
+  faction: t.string().default(""),
+  /** The two weapon slots (WeaponId, "" = empty) and which one is in hand. */
+  weapon0: t.string().default(""),
+  weapon1: t.string().default(""),
+  slot: t.uint8().default(0),
+  /** Server time the current bow draw began; 0 when not drawing. Every client draws the pull from it. */
+  drawStartedAt: t.number().default(0),
+  /** Server time the shared attack cooldown ends (the next attack, or draw, may start then). */
+  readyAt: t.number().default(0),
   kills: t.uint8().default(0),
   /** GV earned so far this run (kills and mobs; a win bonus is added only when the run resolves). */
   gv: t.uint16().default(0),
@@ -29,10 +40,53 @@ export const PlayerState = schema({
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
+/** A neutral fighter. Phase 9 has only training dummies ("dummy": no AI, no faction); Phase 11 adds regional mobs. */
+export const MobState = schema({
+  kind: t.string().default("dummy"),
+  name: t.string().default(""),
+  x: t.number().default(0),
+  y: t.number().default(0),
+  facing: t.number().default(0),
+  hp: t.number().default(0),
+  maxHp: t.number().default(0),
+  /** "alive" | "dead" */
+  status: t.string().default("alive"),
+  /** FactionId, or "" for none (no armor or shield). */
+  faction: t.string().default(""),
+  weapon0: t.string().default(""),
+  weapon1: t.string().default(""),
+  slot: t.uint8().default(0),
+  drawStartedAt: t.number().default(0),
+  readyAt: t.number().default(0),
+}, "MobState");
+export type MobState = SchemaType<typeof MobState>;
+
+/**
+ * An arrow or a wand ball, synced once when loosed and never updated: every client computes its straight flight,
+ * position(T) = (x, y) + (vx, vy) * (T - t) / 1000, until a `projEnd` fx gives where it stopped. Removed from the
+ * state when it stops. A reflection removes it and adds a new one.
+ */
+export const ProjectileState = schema({
+  /** ProjectileKind: "arrow" | "ball" */
+  kind: t.string().default("arrow"),
+  /** The combatant who owns it (the shooter, or the shield holder for a reflected arrow). */
+  owner: t.string().default(""),
+  x: t.number().default(0),
+  y: t.number().default(0),
+  /** World units per second. */
+  vx: t.number().default(0),
+  vy: t.number().default(0),
+  /** Server time it left (x, y). */
+  t: t.number().default(0),
+  /** The most it can travel from (x, y). */
+  range: t.number().default(0),
+}, "ProjectileState");
+export type ProjectileState = SchemaType<typeof ProjectileState>;
+
 export const ContainerState = schema({
   id: t.string().default(""),
   /** ContainerKind */
-  kind: t.string().default("crate"),
+  kind: t.string().default("chest"),
   x: t.number().default(0),
   y: t.number().default(0),
   label: t.string().default(""),
@@ -63,6 +117,8 @@ export const RaidState = schema({
   /** Display name of the winner once the run is over; "" before that, and after a draw or a run nobody won. */
   winner: t.string().default(""),
   players: t.map(PlayerState),
+  mobs: t.map(MobState),
+  projectiles: t.map(ProjectileState),
   containers: t.map(ContainerState),
 }, "RaidState");
 export type RaidState = SchemaType<typeof RaidState>;

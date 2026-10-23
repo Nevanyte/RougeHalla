@@ -1,26 +1,33 @@
 // Run lifecycle + the fixed-step update. `step()` is the only entry point the Room ticks; arena.ts decides
 // how a run ends.
-import { MAX_PLAYERS, mulberry32, PLAYER_MAX_HP, RUN_START_KIT, type Vec2 } from "@raid/shared";
-import { ItemState, PlayerState } from "@raid/shared/schema";
+import { AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, mulberry32, SIGNATURE_WEAPONS, type Vec2 } from "@raid/shared";
+import { PlayerState } from "@raid/shared/schema";
 import { beginRun, downPlayer, markTickStart, settle, suddenDeath, unbankedGv } from "./arena";
+import { combatant, standingCombatants, type Combatant } from "./combatant";
 import { InputQueue } from "./inputs";
+import { applyLedger } from "./ledger";
+import { resolveMelee } from "./melee";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
-import { emit, type SimEvent, type World } from "./world";
+import { spawnProjectiles, sweepProjectiles } from "./projectiles";
+import { moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
+import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
 
-/** Joins the lobby with a freshly minted RUN_START_KIT. Nothing is brought in from outside the run. */
+/**
+ * Joins the lobby with a faction (a server default until the Phase 10 picker: round-robin over join order), its hp,
+ * and its signature weapon in the first slot. Nothing is brought in from outside the run.
+ */
 export function addPlayer(world: World, id: string, profile: string): PlayerState {
   const s = world.state;
   const p = new PlayerState();
+  const faction = defaultFaction(world.joined++);
   p.name = profile;
-  p.hp = PLAYER_MAX_HP;
-  p.maxHp = PLAYER_MAX_HP;
+  p.faction = faction;
+  p.hp = FACTIONS[faction].hp;
+  p.maxHp = FACTIONS[faction].hp;
   p.status = "lobby";
-  for (const def of RUN_START_KIT) {
-    const item = new ItemState();
-    item.uid = world.newItemUid();
-    item.def = def;
-    p.inventory.push(item);
-  }
+  p.weapon0 = SIGNATURE_WEAPONS[faction];
+  p.weapon1 = "";
+  p.slot = 0;
   const spot = lobbySpot(world, s.players.size);
   p.x = spot.x;
   p.y = spot.y;
@@ -34,7 +41,7 @@ export function addPlayer(world: World, id: string, profile: string): PlayerStat
     inputs: new InputQueue(),
     path: [],
     history: [],
-    nextAttackAt: 0,
+    weapon: newWeaponRuntime(),
     killedBy: null,
     gv: { kills: 0, mobs: 0, bounty: 0 },
     mobKills: 0,
@@ -104,6 +111,7 @@ export function startRaid(world: World): void {
     const rt = world.players.get(id)!;
     rt.inputs.drain();
     rt.history = [{ t: s.serverTime, x: p.x, y: p.y }];
+    resetWeapons({ kind: "player", id, s: p, rt });
   }
   beginRun(world);
   world.hooks.raidStarted?.(world);
@@ -136,32 +144,54 @@ export function actionOrder(world: World, tick = world.state.tick): string[] {
   return ids;
 }
 
-/** Actions → combat/DoT → arena (see arena.ts for why the order matters). */
+/** One fighter's queued inputs: its path, its aim, then its actions in the order they arrived. */
+function applyInputs(world: World, c: Combatant): void {
+  const { move, aim, actions } = c.rt.inputs.drain();
+  if (c.s.status !== "alive") return;
+  if (move) {
+    // An unreachable click is ignored rather than treated as "stop".
+    const path = move.kind === "move" ? planPath(world, c.s, move) : [];
+    if (move.kind === "stop" || path.length > 0) c.rt.path = path;
+  }
+  if (aim !== null) setAim(world, c, aim);
+  for (const cmd of actions) {
+    world.actions[cmd.kind]?.(world, c, cmd);
+    if (c.s.status !== "alive") break;
+  }
+}
+
+/**
+ * One active tick, in this order (see arena.ts for why the order matters):
+ *   inputs (players in the shuffled actionOrder, then mobs) → weapon state machines → movement → history →
+ *   projectile sweep (present time) → spawns → melee (rewound) → the damage ledger, all at once → systems →
+ *   sudden death → settle.
+ * Damage lands only in the ledger step, so a fighter killed this tick still lands what it started, and simultaneous
+ * deaths are settled by the hp fraction at the start of the tick.
+ */
 function updateActive(world: World, dtMs: number): void {
   if (world.arena.voided) return;
   const s = world.state;
+  const now = s.serverTime;
   const dt = dtMs / 1000;
   markTickStart(world);
-  for (const id of actionOrder(world)) {
-    const p = s.players.get(id)!;
-    const rt = world.players.get(id)!;
-    const { move, actions } = rt.inputs.drain();
-    if (p.status !== "alive") continue;
-    if (move) {
-      // An unreachable click is ignored rather than treated as "stop".
-      const path = move.kind === "move" ? planPath(world, p, move) : [];
-      if (move.kind === "stop" || path.length > 0) rt.path = path;
-    }
-    for (const cmd of actions) {
-      world.actions[cmd.kind]?.(world, p, rt, cmd);
-      if (p.status !== "alive") break;
-    }
-    if (p.status === "alive") advanceAlongPath(p, rt, dt, (rt.aimFacingUntil ?? 0) > s.serverTime);
+  world.combat.ledger = [];
+  world.combat.melee = [];
+  world.combat.spawns = [];
+  for (const id of actionOrder(world)) applyInputs(world, combatant(world, id)!);
+  for (const id of world.mobs.keys()) applyInputs(world, combatant(world, id)!);
+  updateWeapons(world);
+  const fighters = standingCombatants(world);
+  for (const c of fighters) {
+    const w = c.rt.weapon;
+    const aiming = w.aimAt > 0 && now - w.aimAt < AIM_STALE_MS;
+    advanceAlongPath(c.s, c.rt, dt, aiming, moveMultiplierOf(world, c));
   }
   // Record after everyone has moved so hit tests see one consistent tick.
-  for (const [id, p] of s.players) {
-    if (p.status === "alive") recordHistory(world.players.get(id)!, p, s.serverTime);
-  }
+  for (const c of fighters) recordHistory(c.rt, c.s, now);
+  sweepProjectiles(world, dtMs);
+  spawnProjectiles(world);
+  resolveMelee(world);
+  applyLedger(world);
   for (const sys of world.systems) sys(world, dtMs);
   suddenDeath(world, dtMs);
   settle(world);

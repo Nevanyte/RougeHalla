@@ -21,15 +21,17 @@ export const MAP_TILES_H = 64;
 export const WORLD_W = MAP_TILES_W * TILE;
 export const WORLD_H = MAP_TILES_H * TILE;
 export const PLAYER_RADIUS = 12;
-/** Extra hit radius on top of PLAYER_RADIUS. Melee is forgiving (swings are wide); bullets are not. */
-export const MELEE_SLACK = 8;
+/** A projectile's own radius: it hits a body whose centre comes within PLAYER_RADIUS + this of its path. */
 export const RANGED_SLACK = 2;
-/** A ranged shot hits a player whose centre is within this of the aim ray; mapgen's spawn screens use it. */
+/**
+ * A projectile hits a player whose centre comes within this of its path; mapgen's spawn screens use it. Arrows and
+ * balls both use exactly this, so a spawn pair that passes the screen can't be hit from spawn.
+ */
 export const RANGED_HIT_REACH = PLAYER_RADIUS + RANGED_SLACK;
 export const PLAYER_SPEED = 170;
-export const PLAYER_MAX_HP = 100;
+/** Picking up a weapon (F) reaches containers whose centre is this close, with line of sight. */
 export const INTERACT_RANGE = 56;
-export const INVENTORY_SLOTS = 6;
+export const WEAPON_SLOTS = 2;
 /**
  * Anti-kiting: with the coliseum gates open, mapgen guarantees that every straight strip SIGHT_CORRIDOR_WIDTH (one
  * tile) wide, at any angle and offset, runs at most MAX_SIGHT_CORRIDOR through open floor. Open floor includes every
@@ -97,6 +99,36 @@ export const FEED_MOB_KILL_WEIGHT = 0.25;
 export const BOUNTY_SCALE = 10;
 export const BOUNTY_FREE_FEED = 2;
 export const BOUNTY_EXPONENT = 1.5;
+
+// Combat (Phase 9). Weapon numbers and the faction x weapon formula live in weapons.ts; the rules between weapons
+// (blocks, reflections, interceptions, stagger) in interactions.ts.
+/** Duel pace k: every faction damage number is multiplied by k (Sentenced's mark ramp by k squared), hp is not. */
+export const DUEL_PACE = 2;
+/** Projectiles fly in present server time and are swept in steps this long, so a fast arrow can't skip a body. */
+export const PROJECTILE_SUBSTEP_MS = 10;
+/** A wand ball deletes an enemy arrow whose centre comes within this of the ball's. */
+export const BALL_ARROW_RADIUS = 28;
+/** A raised shield covers hits arriving within this angle either side of where it faces (60 degrees). */
+export const SHIELD_HALF_ARC = Math.PI / 3;
+/** A frontal sword hit on a raised shield is negated, and this share of it is dealt back to the swordsman. */
+export const RIPOSTE_SHARE = 0.5;
+/** A sword swing that meets an enemy wand ball scales that ball's damage by this (once per ball). */
+export const SWORD_BALL_SCALE = 0.5;
+/** After a stagger the target can't be staggered again for this long. */
+export const STAGGER_IMMUNITY_SECONDS = 0.5;
+/** Swapping weapons cancels the current action and adds this to the shared attack cooldown. */
+export const SWAP_SECONDS = 0.25;
+/** Move speed multipliers: drawing a bow, a wand's cast slow, and after any ranged attack until the cooldown ends. */
+export const BOW_DRAW_MOVE = 0.75;
+export const WAND_CAST_MOVE = 0.35;
+export const RANGED_RECOVERY_MOVE = 0.5;
+/** A press this long before the cooldown ends still attacks the moment it does, even if released meanwhile. */
+export const ATTACK_BUFFER_MS = 150;
+/** With no aim input for this long, walking turns a fighter again (a client that stopped aiming, such as a bot). */
+export const AIM_STALE_MS = 1000;
+/** Training dummies (server env DUMMIES=1): no faction (no armor or shield), and back to full hp this long after a hit. */
+export const DUMMY_HP = 5000;
+export const DUMMY_RESET_SECONDS = 3;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;
