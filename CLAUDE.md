@@ -8,7 +8,7 @@ npm install            # once, at the root
 npm run dev            # server :2567 + client :5173 (concurrently)
 npm test               # vitest in every workspace (server includes the e2e bot raid)
 npm run typecheck      # tsc --noEmit in every workspace
-npm run bots -- 3      # 3 headless bots join the running dev server
+npm run bots -- 3      # 3 headless bots join the running dev server (also: --url, --prefix, --loop to keep queuing, --verbose)
 ```
 Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_FILE`, `MIN_PLAYERS`, `LOBBY_SECONDS`, `FILL_SECONDS`, `RAID_SECONDS`, `EXTRACT_SECONDS`, `COLYSEUS_LATENCY` (simulated ms).
 
@@ -17,7 +17,7 @@ Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_
   `constants.ts`, `schema.ts` (Colyseus state; import via `@raid/shared/schema`), `messages.ts`, `items.ts`,
   `map.ts` (map types/helpers), `mapgen.ts`, `rng.ts`, `pathfind.ts`, `geometry.ts`, `interp.ts`, `zone.ts`.
 - `packages/server` — `src/index.ts` (`defineServer`), `rooms/RaidRoom.ts` (thin adapter), `sim/` (pure game logic),
-  `persistence/StashStore.ts`, `bots/` (headless clients). Tests in `test/`.
+  `persistence/StashStore.ts`, `bots/` (`BotClient`: a headless player that sends inputs only; `runBots` is its CLI). Tests in `test/`; `e2e.test.ts` plays a whole raid with four bots.
 - `packages/client` — `net/` (connection, clock sync, interpolation), `scenes/RaidScene.ts`, `render/` (2.5D projection), `ui/` (DOM overlay: menu, HUD, loot, results).
 
 ## Architecture rules (do not break)
@@ -40,6 +40,8 @@ Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_
 - Interest management: everyone receives every player's inventory and every container's contents. Plan: `StateView` + `.view()` fields, per-client add/remove by distance each tick.
 - No client-side prediction for the local player (0.18 has `Predict`/`room.input()` if needed).
 - Single process only: the "profile already in a raid" guard and the stash file are process-local.
+- No rate limit on matchmaking (it does verify the profile token before creating a room or reserving a seat, via the static `RaidRoom.onAuth`).
+- HP/status/containers/zone render at the latest patch while positions/fx are 100 ms behind (deaths are held back to match).
 - Lag compensation trusts the client's `t` anywhere inside `[now − MAX_REWIND_MS, last published tick]`. A cheating client can pick the most favourable `t` in that 300 ms window. Mitigation: bound `t` per client by measured RTT, or require it to be monotonic.
 - `MAX_REWIND_MS = 300` fully covers clients up to ~150 ms RTT (render delay 100 ms + RTT + one tick). Beyond that, shots at moving targets start to miss.
 - Only a graceful shutdown (SIGTERM/SIGINT, uncaught exception) hands a raider's loadout back. A hard kill (SIGKILL, power loss, OOM) mid-raid loses it: the items leave the stash on disk at join and nothing records that they are out.

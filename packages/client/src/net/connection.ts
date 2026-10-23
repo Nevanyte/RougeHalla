@@ -49,6 +49,26 @@ export function joinErrorMessage(err: unknown): string {
   return msg || "unknown error";
 }
 
+/** The server refused the join because this callsign already has a seat in a raid (typically a duplicated tab). */
+export function isCallsignBusy(err: unknown): boolean {
+  return /already in a raid/i.test(joinErrorMessage(err));
+}
+
+/**
+ * Abandons a room for good, whatever state its socket is in: no handler fires again, no reconnect is attempted and
+ * the socket is closed. room.leave() alone is not enough: it only sends LEAVE_ROOM, which does nothing on a closed
+ * socket and throws InvalidStateError on a connecting one (mid-reconnect), and it leaves the SDK's retry timers running.
+ */
+export function detachRoom(room: RaidRoom): void {
+  room.removeAllListeners();
+  room.reconnection.enabled = false;
+  // A retry timer scheduled before this call ignores `enabled` (only the next drop checks it). If its reconnect
+  // succeeds, the room would be back in the raid with no one listening: close that socket again at once.
+  room.onReconnect(() => { void room.leave(false).catch(() => {}); });
+  // consented=false closes the socket instead of sending; it only settles once the close event arrives, if ever.
+  room.leave(false).catch(() => {});
+}
+
 export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
   client ??= new Client(serverEndpoint());
   // The server enforces the limit too; trimming here only keeps an over-full request from being refused outright.

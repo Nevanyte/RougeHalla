@@ -2,7 +2,7 @@
 import Phaser from "phaser";
 import type { RaidResult, ServerMessages } from "@raid/shared";
 import "./style.css";
-import { joinErrorMessage, joinRaid, type RaidRoom } from "./net/connection";
+import { detachRoom, isCallsignBusy, joinErrorMessage, joinRaid, type RaidRoom } from "./net/connection";
 import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
 import { Menu, type RaidRequest } from "./ui/menu";
@@ -41,6 +41,10 @@ async function startRaid(request: RaidRequest): Promise<void> {
     room = await joinRaid(request);
   } catch (err) {
     console.error(err);
+    if (isCallsignBusy(err)) {
+      menu.showCallsignBusy();
+      return;
+    }
     // show() reloads the profile: a refused join may still have changed what the stash holds.
     menu.show(`Could not join: ${joinErrorMessage(err)}`);
     return;
@@ -52,17 +56,28 @@ async function startRaid(request: RaidRequest): Promise<void> {
     menu.show("Could not join: connection closed");
     return;
   }
+  // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next raid.
   joined.onMessage("result", (r: RaidResult) => {
+    if (room !== joined) return;
     if (r.outcome !== "died") { results.show(r); return; }
     cancelPendingResult();
     pendingResult = { result: r, timer: setTimeout(flushPendingResult, DEATH_RESULTS_DELAY_MS) };
   });
-  joined.onMessage("toast", (t: ServerMessages["toast"]) => toasts.show(t.text));
-  joined.onDrop(() => banner.show("Connection lost — reconnecting…"));
-  joined.onReconnect(() => banner.hide());
-  joined.onLeave((code) => {
-    banner.hide();
+  joined.onMessage("toast", (t: ServerMessages["toast"]) => {
     if (room !== joined) return;
+    toasts.show(t.text);
+  });
+  joined.onDrop(() => {
+    if (room !== joined) return;
+    banner.show("Connection lost — reconnecting…");
+  });
+  joined.onReconnect(() => {
+    if (room !== joined) return;
+    banner.hide();
+  });
+  joined.onLeave((code) => {
+    if (room !== joined) return;
+    banner.hide();
     room = null;
     // Losing the room during the death hold must not lose the results: show them now instead of waiting.
     flushPendingResult();
@@ -104,10 +119,14 @@ function firstState(r: RaidRoom): Promise<boolean> {
 }
 
 function backToMenu(message = ""): void {
+  // Before the detach: a death result still waiting out its delay must not surface over the menu or the next raid.
+  cancelPendingResult();
   const leaving = room;
   room = null;
-  void leaving?.leave();
-  cancelPendingResult();
+  // Detached rather than left politely: the room may be mid-reconnect, where leave() does nothing or throws, and
+  // its handlers would never run again to hide the "reconnecting" banner.
+  if (leaving) detachRoom(leaving);
+  banner.hide();
   results.hide();
   toasts.clear();
   game.scene.stop("raid");

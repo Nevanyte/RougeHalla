@@ -29,7 +29,8 @@ export const INVENTORY_SLOTS = 6;
 // Raid flow
 export const MAX_PLAYERS = 8;
 export const MIN_PLAYERS_TO_START = 2;
-export const LOBBY_SECONDS = 15;
+/** Lobby timer from the first join; long enough to open a second browser tab and join by hand. */
+export const LOBBY_SECONDS = 30;
 /** Once MIN players are in, the lobby waits at most this long for more before starting. */
 export const LOBBY_FILL_SECONDS = 5;
 export const RAID_SECONDS = 360;

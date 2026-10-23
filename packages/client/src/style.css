@@ -121,6 +121,7 @@
 .menu-status { margin-top: 10px; min-height: 1.2em; color: #aeb7c2; }
 .menu-status.warn { color: #ffcc80; }
 .menu-status.error { color: #ef9a9a; }
+.menu-hint { margin-top: 8px; font-size: 12px; color: #8d99a6; }
 
 .hud {
   position: absolute;

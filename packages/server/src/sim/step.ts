@@ -200,8 +200,13 @@ export function step(world: World, dtMs: number): SimEvent[] {
   const s = world.state;
   s.serverTime += dtMs;
   s.tick++;
-  if (s.phase === "lobby") updateLobby(world);
-  else if (s.phase === "active") updateActive(world, dtMs);
+  world.stepping = true;
+  try {
+    if (s.phase === "lobby") updateLobby(world);
+    else if (s.phase === "active") updateActive(world, dtMs);
+  } finally {
+    world.stepping = false;
+  }
   const out = world.events;
   world.events = [];
   return out;

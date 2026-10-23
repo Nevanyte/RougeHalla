@@ -46,7 +46,9 @@ function addContainer(world: World, kind: ContainerKind, at: Vec2, label: string
   if (world.state.tick > 0) {
     let births = bornAt.get(world);
     if (!births) bornAt.set(world, (births = new Map()));
-    births.set(c.id, world.state.tick);
+    // Created between ticks (a body from a leave): first published with the next tick, so that is
+    // the tick in which it must not be takeable yet.
+    births.set(c.id, world.state.tick + (world.stepping ? 0 : 1));
   }
   return c;
 }
@@ -56,7 +58,7 @@ function bornThisTick(world: World, id: string): boolean {
   const births = bornAt.get(world);
   const born = births?.get(id);
   if (born === undefined) return false;
-  if (born === world.state.tick) return true;
+  if (born >= world.state.tick) return true;
   births!.delete(id);
   return false;
 }

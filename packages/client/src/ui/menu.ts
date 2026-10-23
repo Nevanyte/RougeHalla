@@ -7,6 +7,7 @@ import { describeItem } from "./inventory";
 
 const PROFILE_KEY = "raid.profile";
 const CALLSIGN_RULE = "Callsign: 2–16 letters, digits, _ or -";
+const CALLSIGN_BUSY = "That callsign is still in a raid (another tab, or your last raid is still closing). Try again in a few seconds, or use another callsign.";
 
 /** Stash display order: gear first, then consumables, then valuables; dearer first within a kind. */
 const KIND_ORDER: Record<ItemKind, number> = { weapon: 0, armor: 1, healing: 2, valuable: 3 };
@@ -35,13 +36,17 @@ function saveCallsign(name: string): void {
   }
 }
 
+function randomCallsign(): string {
+  return `op-${Math.random().toString(36).slice(2, 6)}`;
+}
+
 /** `chosen`: the name came from ?profile= or this tab's earlier session, not from the random default. */
 export function initialProfile(): { name: string; chosen: boolean } {
   const fromUrl = new URLSearchParams(location.search).get("profile");
   if (fromUrl && PROFILE_RE.test(fromUrl)) return { name: fromUrl, chosen: true };
   const saved = savedCallsign();
   if (saved && PROFILE_RE.test(saved)) return { name: saved, chosen: true };
-  return { name: `op-${Math.random().toString(36).slice(2, 6)}`, chosen: false };
+  return { name: randomCallsign(), chosen: false };
 }
 
 function stashOrder(a: ItemDTO, b: ItemDTO): number {
@@ -84,6 +89,7 @@ export class Menu {
   private readonly loadoutRisk = el("span", "menu-loadout-risk");
   private readonly startBtn = el("button", "btn primary", "Start Raid");
   private readonly status = el("div", "menu-status");
+  private readonly hint = el("div", "menu-hint", "Playing in two tabs? Open each with ?profile=name in the URL.");
 
   private data: Loaded | null = null;
   private readonly selected = new Set<string>();
@@ -128,7 +134,7 @@ export class Menu {
     const risk = el("div", "menu-risk", "Items you bring are lost if you die.");
     this.body.append(stats, stashHead, this.grid, this.emptyNote, loadout, risk);
 
-    this.root.append(el("h1", undefined, "RAID"), row, this.placeholder, this.body, this.startBtn, this.status);
+    this.root.append(el("h1", undefined, "RAID"), row, this.placeholder, this.body, this.startBtn, this.status, this.hint);
 
     this.loadBtn.addEventListener("click", () => void this.load());
     this.startBtn.addEventListener("click", () => this.start());
@@ -149,6 +155,21 @@ export class Menu {
     uiRoot().append(this.root);
     if (this.chosen && PROFILE_RE.test(this.callsign)) void this.load();
     else this.updateView();
+  }
+
+  /**
+   * The server refused the join because this callsign is already in a raid, usually because "Duplicate tab" copied
+   * sessionStorage and both tabs loaded the same name. Swaps in a fresh suggestion but does not load it: claiming a
+   * name is the player's call.
+   */
+  /**
+   * The server says this callsign is already in a raid: either another tab, or this tab's own raid
+   * still holding its seat for a few seconds after a dropped connection. Keep the name (the second
+   * case resolves itself) and just explain both.
+   */
+  showCallsignBusy(): void {
+    this.show();
+    this.setStatus(CALLSIGN_BUSY, "warn", true);
   }
 
   /** The raid is starting: the loadout has left the stash, so drop the selection and the now-stale stash. */

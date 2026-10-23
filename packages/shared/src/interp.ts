@@ -74,16 +74,21 @@ export class SnapshotBuffer {
 /**
  * Estimates the server clock from patch arrivals. The offset tracks
  * (serverTime − localArrivalTime), so render time follows the arrival stream.
- * A late patch pulls the offset down immediately (render further behind, never
- * starve); early patches only creep it back up, so jitter spikes can't make
- * render time overrun the buffered data.
+ *
+ * The offset only ever slews by a bounded amount per patch in either direction, so the render
+ * clock runs within a few percent of real time even when patches bunch up (e.g. a server step
+ * that ran two ticks at once). A patch that is much later than expected snaps the offset down at
+ * once instead, so render time can't run past the data it has.
  */
 export class ServerClock {
   private offset: number | null = null;
 
   constructor(
-    private readonly smoothing = 0.1,
+    /** Max offset change per observed patch (≈ 2 ms × 20 Hz = 4% clock speed). */
+    private readonly maxSlewMs = 2,
     private readonly resyncThresholdMs = 250,
+    /** A patch this much later than expected is treated as real lag, not jitter. */
+    private readonly lateSnapMs = 20,
   ) {}
 
   get synced(): boolean { return this.offset !== null; }
@@ -92,11 +97,11 @@ export class ServerClock {
     const sample = serverTime - localNow;
     if (this.offset === null || Math.abs(sample - this.offset) > this.resyncThresholdMs) {
       this.offset = sample;
-    } else if (sample < this.offset) {
-      this.offset = sample;
-    } else {
-      this.offset += (sample - this.offset) * this.smoothing;
+      return;
     }
+    const err = sample - this.offset;
+    if (err < -this.lateSnapMs) this.offset = sample;
+    else this.offset += Math.max(-this.maxSlewMs, Math.min(this.maxSlewMs, err));
   }
 
   now(localNow: number): number {

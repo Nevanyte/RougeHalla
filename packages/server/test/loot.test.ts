@@ -493,6 +493,7 @@ describe("take", () => {
     resolvePlayer(world, P(world, "b"), RT(world, "b"), "died");
     const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
     place(world, "a", { x: AT.x + 10, y: AT.y });
+    step(world, TICK_MS); // created between ticks: clients first see it in this tick's patch
 
     send(world, "a", "take", { containerId: body.id, uid: "rifle#0" });
     step(world, TICK_MS);
@@ -755,12 +756,17 @@ describe("take: containers created this tick", () => {
     expect(dto(P(world, "a").inventory)).toEqual(gear("rifle").map((i) => ({ ...i, uid: "rifle#0" })));
   });
 
-  it("lets the next tick loot the body of a player who disconnected between ticks", () => {
+  it("gates the body of a player who disconnected between ticks until clients have seen it", () => {
     const world = startRaid([alice(), bob(gear("gold"))]);
     place(world, "a", AT);
     place(world, "b", AT);
     removePlayer(world, "b");
     const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
+
+    // The next tick is the first patch that carries the body: a take in it can only be a guessed id.
+    send(world, "a", "take", { containerId: body.id, uid: "gold#0" });
+    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Item is gone" }]);
+    expect(P(world, "a").inventory).toHaveLength(0);
 
     send(world, "a", "take", { containerId: body.id, uid: "gold#0" });
     expect(toastsOf(step(world, TICK_MS))).toEqual([]);

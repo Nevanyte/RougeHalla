@@ -453,6 +453,21 @@ describe("ActiveProfiles", () => {
   });
 });
 
+describe("matchmaking without credentials", () => {
+  it("creates no room and reserves no seat for an anonymous or bad-token request", async () => {
+    const before = (await matchMaker.query({ name: ROOM_NAME })).length;
+    for (const body of [{}, { profile: "nobody1", token: "x", loadout: [] }]) {
+      for (const method of ["joinOrCreate", "create"]) {
+        const res = await fetch(url(`/matchmake/${method}/${ROOM_NAME}`), {
+          method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+        });
+        expect(res.ok, `${method} ${JSON.stringify(body)}`).toBe(false);
+      }
+    }
+    expect((await matchMaker.query({ name: ROOM_NAME })).length).toBe(before);
+  });
+});
+
 describe("joining", () => {
   it("takes the loadout out of the stash and puts it in the inventory", async () => {
     const who = await claim();

@@ -69,6 +69,8 @@ export interface World {
   orderSalt: number;
   /** Events produced during the current step; drained by step(). */
   events: SimEvent[];
+  /** True while step() runs. Things created outside it (e.g. a body from a leave) belong to the next tick. */
+  stepping: boolean;
   /** Gameplay modules install themselves here (see sim/gameplay.ts). Unknown actions are ignored. */
   actions: Partial<Record<ActionCommand["kind"], ActionHandler>>;
   /** Run every active step after inputs and movement, in registration order. */
@@ -95,6 +97,7 @@ export function createWorld(opts: {
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],
+    stepping: false,
     actions: {},
     systems: [],
     hooks: { dropBody: (_w, p) => { p.inventory.clear(); } },

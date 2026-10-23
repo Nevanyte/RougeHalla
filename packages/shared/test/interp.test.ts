@@ -538,192 +538,102 @@ describe("ServerClock", () => {
   it("is unsynced at first and falls back to the local clock", () => {
     const c = new ServerClock();
     expect(c.synced).toBe(false);
-    expect(c.now(1234)).toBe(1234);
-    expect(c.renderTime(1234)).toBe(1234 - INTERP_DELAY_MS);
+    expect(c.now(123)).toBe(123);
   });
 
   it("snaps to the first observation exactly", () => {
     const c = new ServerClock();
-    c.observe(1000, 400); // offset 600
+    c.observe(5000, 1000);
     expect(c.synced).toBe(true);
-    expect(c.now(500)).toBe(1100);
+    expect(c.now(1000)).toBe(5000);
   });
 
-  it("smooths small deviations with an EMA", () => {
-    const c = new ServerClock(0.1, 250);
-    c.observe(1000, 400); // offset 600
-    c.observe(1050 + 600 + 50, 1050); // sample offset 650: +50 -> +5
-    expect(c.now(0)).toBeCloseTo(605, 9);
-    c.observe(1100 + 600 + 50, 1100); // sample 650 again: 605 + 45*0.1
-    expect(c.now(0)).toBeCloseTo(609.5, 9);
-  });
-
-  it("resyncs hard when the deviation exceeds the threshold", () => {
-    const c = new ServerClock(0.1, 250);
-    c.observe(1000, 400); // 600
-    c.observe(2000 + 600 + 251, 2000); // offset 851: > 250 away
-    expect(c.now(0)).toBe(851);
-  });
-
-  it("smooths (does not resync) at exactly the threshold", () => {
-    const c = new ServerClock(0.1, 250);
-    c.observe(1000, 400); // 600
-    c.observe(2000 + 850, 2000); // offset 850: exactly 250 away
-    expect(c.now(0)).toBeCloseTo(625, 9);
-  });
-
-  it("resyncs on large negative deviations too", () => {
-    const c = new ServerClock(0.1, 250);
-    c.observe(1000, 400); // 600
-    c.observe(5000 + 100, 5000); // offset 100: 500 below
-    expect(c.now(0)).toBe(100);
+  it("resyncs hard when the deviation exceeds the threshold, in either direction", () => {
+    const c = new ServerClock(2, 250, 20);
+    c.observe(1000, 0);
+    c.observe(1000 + 251, 0); // way early
+    expect(c.now(0)).toBe(1251);
+    c.observe(1251 - 251, 0); // way late
+    expect(c.now(0)).toBe(1000);
   });
 
   it("supports negative offsets (local clock ahead of server)", () => {
     const c = new ServerClock();
-    c.observe(100, 5000);
-    expect(c.now(5050)).toBe(150);
+    c.observe(100, 10_000);
+    expect(c.now(10_000)).toBe(100);
   });
 
-  it("honours custom smoothing and threshold", () => {
-    const c = new ServerClock(0.5, 10);
-    c.observe(100, 0); // 100
-    c.observe(108, 0); // 8 away: smoothed by 0.5 -> 104
-    expect(c.now(0)).toBeCloseTo(104, 9);
-    c.observe(200, 0); // 96 away > 10: resync
-    expect(c.now(0)).toBe(200);
+  it("slews early patches by at most maxSlewMs per observation", () => {
+    const c = new ServerClock(2, 250, 20);
+    c.observe(0, 0);
+    c.observe(50, 0); // 50 ms early
+    expect(c.now(0)).toBe(2);
+    c.observe(50, 0);
+    expect(c.now(0)).toBe(4);
+    c.observe(1, 0); // 3 ms behind the estimate of 4: slews down by at most 2
+    expect(c.now(0)).toBe(2);
+  });
+
+  it("slews small late deviations down gradually but snaps on a clearly late patch", () => {
+    const c = new ServerClock(2, 250, 20);
+    c.observe(1000, 0);
+    c.observe(1000 - 15, 0); // 15 ms late: jitter, slew
+    expect(c.now(0)).toBe(998);
+    c.observe(1000 - 40, 0); // 38 ms behind the estimate: real lag, snap
+    expect(c.now(0)).toBe(960);
   });
 
   it("converges to a new steady offset and keeps now() monotonic in localNow", () => {
-    const c = new ServerClock(0.1, 250);
+    const c = new ServerClock();
     c.observe(0, 0);
-    for (let i = 1; i <= 200; i++) c.observe(i * 50 + 100, i * 50); // steady +100 offset
-    expect(c.now(0)).toBeCloseTo(100, 3);
-    expect(c.now(1000)).toBeLessThan(c.now(1001));
+    for (let i = 1; i <= 200; i++) c.observe(i * 50 + 30, i * 50);
+    expect(c.now(10_000)).toBeCloseTo(10_030, 6);
+    let prev = -Infinity;
+    for (let t = 0; t < 1000; t += 7) {
+      const n = c.now(t);
+      expect(n).toBeGreaterThan(prev);
+      prev = n;
+    }
   });
 
-  it("settles on the late edge of symmetric jitter instead of the mean (min filter)", () => {
-    const c = new ServerClock(0.1, 250);
-    c.observe(500, 0); // true offset 500
-    const seen: number[] = [];
-    for (let i = 1; i <= 400; i++) {
-      const jitter = i % 2 === 0 ? 20 : -20; // arrival delay error, ms
-      c.observe(i * 50 + 500, i * 50 + jitter); // sample offset: 520 on odd i (early), 480 on even i (late)
-      seen.push(c.now(0));
+  it("keeps the render clock near real time when a step bunches two ticks into one patch", () => {
+    // Server interval drifts to ~51.6 ms; every 32nd callback runs two 50 ms steps (one +100 patch).
+    const c = new ServerClock();
+    const patches: Array<{ t: number; at: number }> = [];
+    let serverTime = 0;
+    for (let i = 0; i < 300; i++) {
+      serverTime += i > 0 && i % 32 === 0 ? 100 : 50;
+      patches.push({ t: serverTime, at: i * 51.6 + 5 });
     }
-    // Every late patch snaps to 480; every early patch only creeps 10% of the way back up (484).
-    for (const offset of seen.slice(2)) {
-      expect(offset).toBeGreaterThanOrEqual(480 - 1e-9);
-      expect(offset).toBeLessThanOrEqual(484 + 1e-9);
+    let p = 0;
+    let prevRender: number | null = null;
+    let minSpeed = Infinity;
+    let maxSpeed = -Infinity;
+    const frame = 1000 / 60;
+    for (let now = 0; now < 300 * 51.6; now += frame) {
+      while (p < patches.length && patches[p]!.at <= now) { c.observe(patches[p]!.t, patches[p]!.at); p++; }
+      const r = c.renderTime(now);
+      if (prevRender !== null && now > 2000) {
+        const speed = (r - prevRender) / frame;
+        minSpeed = Math.min(minSpeed, speed);
+        maxSpeed = Math.max(maxSpeed, speed);
+      }
+      prevRender = r;
     }
-    expect(c.now(0)).toBeCloseTo(480, 9); // the last patch (i = 400) was a late one
-    expect(c.now(0)).toBeLessThan(500); // not the mean of the jitter
+    expect(maxSpeed).toBeLessThan(1.15);
+    expect(minSpeed).toBeGreaterThan(0.85);
   });
 
-  describe("late vs. early patches (min filter with slow upward drift)", () => {
-    // A sample is serverTime - localNow; with localNow = 0 it is the serverTime itself.
-    const clockAt600 = (smoothing = 0.1, threshold = 250) => {
-      const c = new ServerClock(smoothing, threshold);
-      c.observe(600, 0);
-      return c;
-    };
-
-    it("a late patch (smaller sample) lowers the offset immediately and exactly", () => {
-      const c = clockAt600();
-      c.observe(560, 0);
-      expect(c.now(0)).toBe(560);
-      c.observe(559.5, 0);
-      expect(c.now(0)).toBe(559.5);
-    });
-
-    it("an early patch (larger sample) moves the offset up by only `smoothing` of the gap", () => {
-      const c = clockAt600();
-      c.observe(640, 0);
-      expect(c.now(0)).toBeCloseTo(604, 9);
-      const c2 = clockAt600(0.5);
-      c2.observe(640, 0);
-      expect(c2.now(0)).toBeCloseTo(620, 9);
-    });
-
-    it("equal-sized deviations are asymmetric: down is immediate, up is damped", () => {
-      const late = clockAt600();
-      const early = clockAt600();
-      late.observe(600 - 40, 0);
-      early.observe(600 + 40, 0);
-      expect(600 - late.now(0)).toBeCloseTo(40, 9);
-      expect(early.now(0) - 600).toBeCloseTo(4, 9);
-    });
-
-    it("an identical sample leaves the offset where it is", () => {
-      const c = clockAt600();
-      c.observe(600, 0);
-      expect(c.now(0)).toBe(600);
-    });
-
-    it("after a late patch, early patches creep back up geometrically and never overshoot", () => {
-      const c = clockAt600();
-      c.observe(560, 0); // late: 560
-      let prev = c.now(0);
-      for (let n = 1; n <= 60; n++) {
-        c.observe(600, 0); // the network is back to normal
-        const cur = c.now(0);
-        expect(cur).toBeGreaterThan(prev);
-        expect(cur).toBeLessThanOrEqual(600);
-        expect(cur).toBeCloseTo(600 - 40 * 0.9 ** n, 9);
-        prev = cur;
-      }
-    });
-
-    it("one late patch dominates a long run of on-time ones for a while", () => {
-      const c = clockAt600();
-      c.observe(570, 0);
-      for (let n = 0; n < 5; n++) c.observe(600, 0);
-      // 5 steps of 10%: still ~41% of the gap remains
-      expect(600 - c.now(0)).toBeCloseTo(30 * 0.9 ** 5, 9);
-      expect(c.now(0)).toBeLessThan(590);
-    });
-
-    it("small early spikes barely move it; only an early spike beyond the threshold resyncs", () => {
-      const c = clockAt600(0.1, 250);
-      c.observe(600 + 200, 0); // 200 early: within threshold
-      expect(c.now(0)).toBeCloseTo(620, 9);
-      const d = clockAt600(0.1, 250);
-      d.observe(600 + 251, 0); // beyond threshold: hard resync upward
-      expect(d.now(0)).toBe(851);
-    });
-
-    it("a late patch within the threshold and one beyond it both land exactly on the sample", () => {
-      const near = clockAt600(0.1, 250);
-      near.observe(600 - 249, 0);
-      expect(near.now(0)).toBe(351);
-      const far = clockAt600(0.1, 250);
-      far.observe(600 - 251, 0);
-      expect(far.now(0)).toBe(349);
-    });
-
-    it("never estimates a server time ahead of the newest patch it has seen (no starving)", () => {
-      const rng = mulberry(4242);
-      const c = new ServerClock(0.1, 250);
-      for (let i = 0; i < 500; i++) {
-        const serverTime = 1000 + i * 50;
-        // Arrival delay: mostly small, with occasional spikes; always >= 0.
-        const delay = 20 + (rng() < 0.1 ? rng() * 120 : rng() * 15);
-        const localNow = serverTime + delay - 700; // arbitrary local epoch
-        c.observe(serverTime, localNow);
-        expect(c.now(localNow)).toBeLessThanOrEqual(serverTime + 1e-9);
-      }
-    });
-
-    it("a delay spike is absorbed immediately, then forgotten slowly", () => {
-      const c = new ServerClock(0.1, 250);
-      const feed = (i: number, delay: number) => c.observe(i * 50, i * 50 + delay);
-      for (let i = 0; i < 20; i++) feed(i, 10); // steady: offset -10
-      expect(c.now(0)).toBeCloseTo(-10, 9);
-      feed(20, 90); // a patch arrives 80ms later than usual
-      expect(c.now(0)).toBeCloseTo(-90, 9);
-      feed(21, 10); // back to normal: only 10% of the gap recovered
-      expect(c.now(0)).toBeCloseTo(-82, 9);
-    });
+  it("never estimates a server time more than lateSnapMs past the newest patch it has seen", () => {
+    const rng = mulberry(4242);
+    const c = new ServerClock(2, 250, 20);
+    for (let i = 0; i < 500; i++) {
+      const serverTime = 1000 + i * 50;
+      const delay = 20 + (rng() < 0.1 ? rng() * 120 : rng() * 15);
+      const localNow = serverTime + delay - 700;
+      c.observe(serverTime, localNow);
+      expect(c.now(localNow)).toBeLessThanOrEqual(serverTime + 20 + 1e-9);
+    }
   });
 
   it("renderTime lags now by the default interpolation delay or a custom one", () => {

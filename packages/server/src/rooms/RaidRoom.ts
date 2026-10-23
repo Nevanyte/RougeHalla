@@ -101,9 +101,30 @@ function parseLoadout(raw: unknown): string[] {
   return raw as string[];
 }
 
+/** Credentials + loadout shape, checked before any room is created or seat reserved. */
+function checkCredentials(options: Partial<JoinOptions> | undefined, store: StashStore): string {
+  const profile = options?.profile;
+  if (typeof profile !== "string" || !PROFILE_RE.test(profile)) throw refuse("invalid profile name");
+  const token = options?.token;
+  if (typeof token !== "string" || !store.verifyToken(profile, token)) throw refuse("unknown profile or bad token");
+  parseLoadout(options?.loadout);
+  return profile;
+}
+
 export class RaidRoom extends Room<{ state: RaidState }> {
   /** Set once by createServer(); rooms are constructed by the matchmaker. */
   static ctx: RoomContext;
+
+  /**
+   * Matchmake-time gate: anonymous HTTP callers can't create rooms or reserve seats. Returning
+   * `true` (not an auth object) makes core still run the instance onAuth at connect time, which
+   * does the phase check and the profile registry claim. (Core logs at startup that the instance
+   * onAuth "will be ignored"; with a `true` result it is not.)
+   */
+  static async onAuth(_token: string, options: Partial<JoinOptions> | undefined): Promise<boolean> {
+    checkCredentials(options, RaidRoom.ctx.store);
+    return true;
+  }
 
   maxClients = MAX_PLAYERS;
   /** Spam guard; legit clients send ≤ ~20/s (move repeat + clicks). Exceeding it disconnects. */
@@ -152,14 +173,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // active raid stuck in "lobby". Reconnections bypass onAuth.
     if (this.world.state.phase !== "lobby") throw refuse("raid already started");
     const { store, profiles } = RaidRoom.ctx;
-    const profile = options?.profile;
-    if (typeof profile !== "string" || !PROFILE_RE.test(profile)) {
-      throw refuse("invalid profile name");
-    }
-    const token = options?.token;
-    if (typeof token !== "string" || !store.verifyToken(profile, token)) {
-      throw refuse("unknown profile or bad token");
-    }
+    const profile = checkCredentials(options, store);
     if (profiles.isActive(profile)) throw refuse("profile already in a raid");
     const loadout = parseLoadout(options?.loadout);
     const stashed = new Set(store.get(profile)?.stash.map((i) => i.uid));
