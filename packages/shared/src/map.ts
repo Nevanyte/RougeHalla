@@ -8,21 +8,131 @@ export const TILE_WALL = 1;
 /** Inclusive-exclusive tile rect: covers tx in [x, x+w), ty in [y, y+h). */
 export interface TileRect { x: number; y: number; w: number; h: number }
 
+/** A tile coordinate (not world units). */
+export interface TilePt { x: number; y: number }
+
 export interface ExtractZoneDef { id: string; name: string; x: number; y: number; r: number }
+
+/** The faction regions, in the same order as FACTION_IDS in factions.ts. */
+export const REGION_FACTIONS = ["fire", "sentenced", "plague", "frost", "holy"] as const;
+export type RegionFaction = (typeof REGION_FACTIONS)[number];
+export type RegionId = RegionFaction | "coliseum" | "none";
+
+/** Weapon ids as weapons.ts (Phase 9) will name them; RegionWeapon becomes an alias of its WeaponId. */
+export type RegionWeapon = "sword" | "axe" | "bow" | "wand" | "shield";
+
+/**
+ * A region's mobs always carry one weapon type, so every type is farmable in exactly one region and the
+ * map doubles as a shopping list for counters. Independent of the factions' signature start weapons.
+ */
+export const REGION_WEAPONS: Readonly<Record<RegionFaction, RegionWeapon>> = {
+  fire: "axe",
+  sentenced: "sword",
+  plague: "bow",
+  frost: "shield",
+  holy: "wand",
+};
+
+/**
+ * `GameMap.regionGrid` stores an index into this table per tile. "none" is 0 so a zeroed grid is
+ * valid, and the faction codes are 1..5 in REGION_FACTIONS order.
+ */
+export const REGION_IDS: readonly RegionId[] = ["none", ...REGION_FACTIONS, "coliseum"];
+export const REGION_NONE = 0;
+export const REGION_COLISEUM = REGION_IDS.length - 1;
+
+export function regionCode(id: RegionId): number {
+  return REGION_IDS.indexOf(id);
+}
+
+export type GateSide = "n" | "e" | "s" | "w";
+
+export interface GateDef {
+  side: GateSide;
+  /**
+   * The wall-ring tiles this gate opens, in order along the wall. They are floor in `map.tiles` and
+   * wall in `withGates(map).tiles`; nothing else differs between the two.
+   */
+  tiles: TilePt[];
+  /** World centre of the opening. */
+  x: number;
+  y: number;
+}
+
+export interface ColiseumDef {
+  /** Bounding box of the footprint, wall ring included. Every footprint tile has region "coliseum". */
+  rect: TileRect;
+  /** World centre of the arena floor (a floor tile centre). */
+  centre: Vec2;
+  /**
+   * One gate per side, in n, e, s, w order. With the gates open they are the only links between the
+   * coliseum floor and the rest of the map; with them closed the coliseum floor is sealed off.
+   */
+  gates: GateDef[];
+  /**
+   * Teleport destinations: at least MAX_PLAYERS distinct floor tile centres inside the coliseum, each
+   * with a clear 3x3 around it, mutually spread out and reachable from `centre` with the gates closed.
+   */
+  innerSpawns: Vec2[];
+}
+
+export interface MobCampDef {
+  /** Unique across the map, e.g. "fire-1". */
+  id: string;
+  region: RegionFaction;
+  /** World centre (a floor tile centre). */
+  x: number;
+  y: number;
+  /** Clearing radius in world units: every tile whose centre lies within `r` of (x, y) is floor in the camp's region. */
+  r: number;
+  /** Rest positions, one per mob: distinct floor tile centres inside the clearing. */
+  spots: Vec2[];
+  /** Exactly one camp per region is elite. */
+  elite: boolean;
+  /** What every mob of this camp carries: REGION_WEAPONS[region]. */
+  weapon: RegionWeapon;
+}
+
+export interface FactionRegionDef {
+  id: RegionFaction;
+  /** A floor tile centre well inside the region: label anchor, wander target. */
+  anchor: Vec2;
+  /**
+   * Player start points on the region's outer rim: floor tile centres with a clear 3x3 around them,
+   * outside every ruin, all at a similar distance from the coliseum in every region so no region
+   * starts closer to it.
+   */
+  spawns: Vec2[];
+  /** Floor tile centres for chests. */
+  chestSpots: Vec2[];
+  mobCamps: MobCampDef[];
+}
 
 export interface GameMap {
   seed: number;
   /** Size in tiles. */
   w: number;
   h: number;
-  /** Row-major, length w*h, TILE_FLOOR / TILE_WALL. Border is always wall. */
+  /** Row-major, length w*h, TILE_FLOOR / TILE_WALL. Border is always wall. Gates are open (floor) here. */
   tiles: Uint8Array;
-  /** Building footprints (including their walls), for floor shading only. */
+  /**
+   * Row-major, length w*h, a REGION_IDS index per tile. On a generated map every floor tile is in a
+   * faction region or the coliseum, and "none" marks only walls that belong to no region (the border
+   * ring, ridges between regions). A hand-built map (mapFromTiles) is "none" throughout.
+   */
+  regionGrid: Uint8Array;
+  coliseum: ColiseumDef;
+  /** One entry per faction, in REGION_FACTIONS order (not map order). Empty on hand-built maps. */
+  regions: FactionRegionDef[];
+  /** Ruins (footprints including their walls), for floor shading and loot placement. */
   buildings: TileRect[];
-  /** World-space points (tile centers), all mutually reachable. */
+  /** Every region's spawns, interleaved region by region, so the first five are in five different regions. */
   spawns: Vec2[];
+  /** Legacy extraction loop: removed with it. */
   extracts: ExtractZoneDef[];
+  /** Legacy extraction loop: every region's chest spots, flattened. */
   crateSpots: Vec2[];
+  /** Legacy extraction loop: scattered floor-loot spots outside ruins and the coliseum. */
   groundSpots: Vec2[];
 }
 
@@ -46,4 +156,65 @@ export function worldToTile(v: number): number {
 
 export function tileToWorldCenter(t: number): number {
   return t * TILE + TILE / 2;
+}
+
+/** Out-of-bounds counts as "none". */
+export function regionAtTile(map: GameMap, tx: number, ty: number): RegionId {
+  if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) return "none";
+  return REGION_IDS[map.regionGrid[ty * map.w + tx]] ?? "none";
+}
+
+export function regionAt(map: GameMap, x: number, y: number): RegionId {
+  return regionAtTile(map, worldToTile(x), worldToTile(y));
+}
+
+/** In the coliseum footprint (its floor, wall ring or a gate). */
+export function inColiseum(map: GameMap, x: number, y: number): boolean {
+  return regionAt(map, x, y) === "coliseum";
+}
+
+const locked = new WeakMap<GameMap, GameMap>();
+const lockedMaps = new WeakSet<GameMap>();
+
+/**
+ * The same map with every gate tile turned to wall. The locked copy is cached per map, so callers can
+ * pass `gatesLocked ? withGates(map) : map` to findPath / raycast / hasLineOfSight every tick, and any
+ * per-map cache keyed on the object stays warm. Idempotent: a locked map maps to itself.
+ * Maps are treated as read-only: the copy shares every field but `tiles` with the original.
+ */
+export function withGates(map: GameMap): GameMap {
+  if (lockedMaps.has(map)) return map;
+  let out = locked.get(map);
+  if (!out) {
+    const tiles = map.tiles.slice();
+    for (const g of map.coliseum.gates) for (const t of g.tiles) tiles[t.y * map.w + t.x] = TILE_WALL;
+    out = { ...map, tiles };
+    locked.set(map, out);
+    lockedMaps.add(out);
+  }
+  return out;
+}
+
+/**
+ * A map from a raw tile grid with no regions, coliseum or spots: test arenas and hand-made maps.
+ * `tiles` is used as is, not copied. The empty coliseum's centre is the middle tile's centre, which
+ * may be a wall here.
+ */
+export function mapFromTiles(w: number, h: number, tiles: Uint8Array, seed = 0): GameMap {
+  if (tiles.length !== w * h) throw new RangeError(`mapFromTiles: ${tiles.length} tiles for ${w}x${h}`);
+  const centre = { x: tileToWorldCenter(Math.floor(w / 2)), y: tileToWorldCenter(Math.floor(h / 2)) };
+  return {
+    seed,
+    w,
+    h,
+    tiles,
+    regionGrid: new Uint8Array(w * h),
+    coliseum: { rect: { x: 0, y: 0, w: 0, h: 0 }, centre, gates: [], innerSpawns: [] },
+    regions: [],
+    buildings: [],
+    spawns: [],
+    extracts: [],
+    crateSpots: [],
+    groundSpots: [],
+  };
 }

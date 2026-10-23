@@ -66,9 +66,3 @@ export const RaidState = schema({
   containers: t.map(ContainerState),
 }, "RaidState");
 export type RaidState = SchemaType<typeof RaidState>;
-
-/**
- * The shrinking zone is gone; only the minimap (owned by Phase 8b, which rewrites it) still names this type.
- * Type-only, never synced: callers pass `undefined`.
- */
-export interface ZoneState { x: number; y: number; r: number; nextX: number; nextY: number; nextR: number; stage: number }

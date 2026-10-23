@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TILE } from "../src/constants";
 import { circleClear, distPointToSegment, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
-import { TILE_FLOOR, TILE_WALL } from "../src/map";
+import { TILE_FLOOR, TILE_WALL, mapFromTiles } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
 import { mulberry32 } from "../src/rng";
@@ -13,7 +13,7 @@ function asciiMap(rows: string[]): GameMap {
   rows.forEach((row, y) => {
     for (let x = 0; x < w; x++) tiles[y * w + x] = row[x] === "#" ? TILE_WALL : TILE_FLOOR;
   });
-  return { seed: 0, w, h, tiles, buildings: [], spawns: [], extracts: [], crateSpots: [], groundSpots: [] };
+  return mapFromTiles(w, h, tiles);
 }
 
 // A two-tile pillar at tile x=5, y=3..4  ->  world x in [160, 192), y in [96, 160).
@@ -145,12 +145,18 @@ describe("raycast", () => {
       const r = raycast(map, x0, y0, x1, y1);
       // Reference: march in 0.25 world-unit steps and find the first wall sample.
       const len = Math.hypot(x1 - x0, y1 - y0);
-      let first = -1;
-      for (let s = 0; s <= len; s += 0.25) {
+      const wallAt = (s: number): boolean => {
         const t = len === 0 ? 0 : s / len;
         const tx = Math.floor((x0 + (x1 - x0) * t) / TILE);
         const ty = Math.floor((y0 + (y1 - y0) * t) / TILE);
-        if (map.tiles[ty * map.w + tx] === TILE_WALL) { first = s; break; }
+        return map.tiles[ty * map.w + tx] === TILE_WALL;
+      };
+      let first = -1;
+      for (let s = 0; s <= len; s += 0.25) if (wallAt(s)) { first = s; break; }
+      // A ray that only clips a wall corner spends less than a sample step inside the wall, which the coarse march steps
+      // over (the exact walk is right). Look again around the reported hit, a thousand times finer.
+      if (first < 0 && r.hit) {
+        for (let s = Math.max(0, r.dist - 0.5); s <= Math.min(len, r.dist + 0.5); s += 0.001) if (wallAt(s)) { first = s; break; }
       }
       if (r.hit !== (first >= 0)) mismatches++;
       else if (r.hit && Math.abs(r.dist - first) > 0.5) mismatches++;

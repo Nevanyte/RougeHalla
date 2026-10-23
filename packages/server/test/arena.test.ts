@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   circleClear, COLISEUM_RING_RADIUS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
-  KILL_CREDIT_SECONDS, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
+  inColiseum, KILL_CREDIT_SECONDS, mapFromTiles, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
   SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WIN_BONUS_MIN_OPPONENTS,
-  WIN_BONUS_MIN_PLAYERS, type FxEvent, type GameMap, type RunResult, type Vec2,
+  WIN_BONUS_MIN_PLAYERS, withGates, type FxEvent, type GameMap, type RunResult, type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -14,7 +14,7 @@ import {
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { abandonPlayer, addPlayer, removePlayer, step } from "../src/sim/step";
-import { createWorld, type PlayerRuntime, type SimConfig, type SimEvent, type World } from "../src/sim/world";
+import { collisionMap, createWorld, type PlayerRuntime, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
@@ -255,11 +255,29 @@ describe("patience timer and the teleport", () => {
     tick(w);
     expect([0, 1].map((i) => posOf(P(w, i)))).toEqual(spots);
 
-    // Input sent after the teleport works normally.
-    const target = w.map.spawns.find((sp) => key(sp) !== key(P(w, 0)))!;
+    // Input sent after the teleport works normally. The gates are locked now, so the target is inside the coliseum.
+    const target = w.map.coliseum.centre;
+    expect(key(target)).not.toBe(key(P(w, 0)));
     expect(enqueueClientMessage(RT(w, 0).inputs, "move", target)).toBe(true);
     tick(w);
     expect(posOf(P(w, 0))).not.toEqual(spots[0]);
+  });
+
+  it("seals the coliseum while the gates are locked, and opens it again when they unlock", () => {
+    const w = startRun(2);
+    expect(collisionMap(w)).toBe(w.map);
+    runTo(w, 2050);
+    expect(w.state.gatesLocked).toBe(true);
+    expect(collisionMap(w)).toBe(withGates(w.map));
+    const at = posOf(P(w, 0));
+    const outside = w.map.spawns[0]!;
+    expect(inColiseum(w.map, outside.x, outside.y)).toBe(false);
+    expect(enqueueClientMessage(RT(w, 0).inputs, "move", outside)).toBe(true);
+    for (let i = 0; i < 5; i++) tick(w);
+    // No path out: the move is refused rather than walked toward a wall.
+    expect(posOf(P(w, 0))).toEqual(at);
+    w.state.gatesLocked = false;
+    expect(collisionMap(w)).toBe(w.map);
   });
 
   it("resets the rewind history to a single sample at the new spot", () => {
@@ -3019,6 +3037,21 @@ describe("coliseumSpots", () => {
     }
   });
 
+  it("hands out the map's own teleport spots: every spot is one of coliseum.innerSpawns, for n = 1..MAX_PLAYERS", () => {
+    for (const seed of SEEDS) {
+      const map = generateMap(seed);
+      const inner = new Set(map.coliseum.innerSpawns.map(key));
+      expect(inner.size, `seed ${seed}`).toBeGreaterThanOrEqual(MAX_PLAYERS);
+      for (let n = 1; n <= MAX_PLAYERS; n++) {
+        const spots = coliseumSpots(map, n);
+        const label = `seed ${seed} n ${n}`;
+        expect(spots, label).toHaveLength(n);
+        for (const spot of spots) expect(inner.has(key(spot)), `${label}: ${key(spot)} is not an inner spawn`).toBe(true);
+        expect(new Set(spots.map(key)).size, `${label}: distinct`).toBe(n);
+      }
+    }
+  });
+
   it("is deterministic per map", () => {
     for (const seed of SEEDS.slice(0, 10)) {
       for (const n of [1, 4, MAX_PLAYERS]) {
@@ -3059,8 +3092,7 @@ describe("coliseumSpots", () => {
     const w = 8;
     const h = 8;
     const walled: GameMap = {
-      seed: 0, w, h, tiles: new Uint8Array(w * h).fill(TILE_WALL), buildings: [],
-      spawns: [{ x: 40, y: 40 }, { x: 100, y: 100 }], extracts: [], crateSpots: [], groundSpots: [],
+      ...mapFromTiles(w, h, new Uint8Array(w * h).fill(TILE_WALL)), spawns: [{ x: 40, y: 40 }, { x: 100, y: 100 }],
     };
     expect(coliseumSpots(walled, 3)).toEqual([walled.spawns[0], walled.spawns[1], walled.spawns[0]]);
   });
@@ -3071,7 +3103,7 @@ describe("coliseumSpots", () => {
     const w = rows[0]!.length;
     const tiles = new Uint8Array(w * h);
     rows.forEach((row, ty) => [...row].forEach((c, tx) => { tiles[ty * w + tx] = c === "#" ? TILE_WALL : TILE_FLOOR; }));
-    return { seed: 0, w, h, tiles, buildings: [], spawns, extracts: [], crateSpots: [], groundSpots: [] };
+    return { ...mapFromTiles(w, h, tiles), spawns };
   }
   const tileCentre = (tx: number, ty: number): Vec2 => ({ x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 });
 
@@ -3103,10 +3135,7 @@ describe("coliseumSpots", () => {
     const cx = (w * TILE) / 2;
     const ringTx = Math.floor((cx + COLISEUM_RING_RADIUS) / TILE);
     tiles[10 * w + ringTx] = TILE_WALL;
-    const map: GameMap = {
-      seed: 0, w, h, tiles, buildings: [], spawns: [{ x: 3 * TILE + 16, y: 3 * TILE + 16 }], extracts: [], crateSpots: [],
-      groundSpots: [],
-    };
+    const map: GameMap = { ...mapFromTiles(w, h, tiles), spawns: [{ x: 3 * TILE + 16, y: 3 * TILE + 16 }] };
     const spots = coliseumSpots(map, 2);
     expect(new Set(spots.map(key)).size).toBe(2);
     for (const s of spots) expect(circleClear(map, s, PLAYER_RADIUS)).toBe(true);

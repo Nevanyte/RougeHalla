@@ -2,7 +2,7 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, type FxEvent, type GameMap, type GvReason, type RunResult, type Sample, type Vec2,
+  generateMap, withGates, type FxEvent, type GameMap, type GvReason, type RunResult, type Sample, type Vec2,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { ActionCommand, InputQueue } from "./inputs";
@@ -144,11 +144,11 @@ export function emit(world: World, ev: SimEvent): void {
 }
 
 /**
- * The map that blocks movement, line of fire and line of sight. Phase 8b: `withGates(world.map)` while
- * `state.gatesLocked`, so locked gates seal the coliseum on the server too.
+ * The map that blocks movement, line of fire and line of sight: while the gates are locked, the locked copy
+ * (cached per map, so this is free every tick), which seals the coliseum.
  */
 export function collisionMap(world: World): GameMap {
-  return world.map;
+  return world.state.gatesLocked ? withGates(world.map) : world.map;
 }
 
 /** Room-unique id for containers and other raid-scoped entities (not items: see newItemUid). */

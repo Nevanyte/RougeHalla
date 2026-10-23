@@ -347,11 +347,14 @@ export function teleportToColiseum(world: World): void {
 const SPOT_SEARCH_TILES = 12;
 
 /**
- * `n` distinct floor points, each the free tile centre nearest to an even step around a ring of COLISEUM_RING_RADIUS
- * about the map centre, all reachable from the first spawn. Deterministic for a map. Stands in for mapgen v2's
- * coliseum spots; on a map where a ring point finds nothing, that player falls back to a spawn.
+ * `n` distinct floor points spread around a ring of COLISEUM_RING_RADIUS about the coliseum: for each even step around
+ * the ring, the nearest unused one of mapgen's coliseum spots. Deterministic for a map. A map with too few coliseum
+ * spots (a hand-built one) takes the free tile centre nearest each ring point about the map centre instead, reachable
+ * from the first spawn, and a player whose ring point finds nothing falls back to a spawn.
  */
 export function coliseumSpots(map: GameMap, n: number): Vec2[] {
+  const inner = map.coliseum.innerSpawns;
+  if (inner.length >= n) return spreadOver(inner, map.coliseum.centre, n);
   const cx = (map.w * TILE) / 2;
   const cy = (map.h * TILE) / 2;
   const origin = map.spawns[0];
@@ -362,6 +365,25 @@ export function coliseumSpots(map: GameMap, n: number): Vec2[] {
     const want = { x: cx + Math.cos(angle) * COLISEUM_RING_RADIUS, y: cy + Math.sin(angle) * COLISEUM_RING_RADIUS };
     const spot = nearestFreeTile(map, want, used, origin);
     out.push(spot ?? map.spawns[i % map.spawns.length]!);
+  }
+  return out;
+}
+
+function spreadOver(spots: readonly Vec2[], centre: Vec2, n: number): Vec2[] {
+  const used = new Set<number>();
+  const out: Vec2[] = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (2 * Math.PI * i) / Math.max(1, n);
+    const wx = centre.x + Math.cos(angle) * COLISEUM_RING_RADIUS;
+    const wy = centre.y + Math.sin(angle) * COLISEUM_RING_RADIUS;
+    let best = -1;
+    let bestD = Infinity;
+    spots.forEach((s, j) => {
+      const d = Math.hypot(s.x - wx, s.y - wy);
+      if (!used.has(j) && d < bestD) { best = j; bestD = d; }
+    });
+    used.add(best);
+    out.push(spots[best]!);
   }
   return out;
 }

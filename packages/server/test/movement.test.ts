@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  circleClear, isWallAt, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, TICK_MS, TILE,
+  circleClear, isWallAt, mapFromTiles, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, tileToWorldCenter, WORLD_H, WORLD_W, type GameMap, type Sample, type Vec2,
 } from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
@@ -264,7 +264,7 @@ function gridMap(rows: string[]): GameMap {
     if (row.length !== w) throw new Error(`row ${ty} has width ${row.length}, expected ${w}`);
     for (let tx = 0; tx < w; tx++) tiles[ty * w + tx] = row[tx] === "#" ? TILE_WALL : TILE_FLOOR;
   });
-  return { seed: 0, w, h, tiles, buildings: [], spawns: [], extracts: [], crateSpots: [], groundSpots: [] };
+  return mapFromTiles(w, h, tiles);
 }
 
 const tileCenter = (tx: number, ty: number): Vec2 => ({ x: tileToWorldCenter(tx), y: tileToWorldCenter(ty) });

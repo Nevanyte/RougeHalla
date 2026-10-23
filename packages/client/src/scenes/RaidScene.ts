@@ -1,6 +1,6 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
-import { TICK_MS, generateMap, type RunResult, type TimedFx } from "@raid/shared";
+import { TICK_MS, generateMap, withGates, type RunResult, type TimedFx } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
 import { EntityInterpolator } from "../net/interpolation";
@@ -167,6 +167,9 @@ export class RaidScene extends Phaser.Scene {
   update(time: number): void {
     const state = this.room.state;
     if (state.seed !== this.mapView?.map.seed) this.buildMap(state.seed);
+    const gatesLocked = state.gatesLocked;
+    this.mapView?.setGatesLocked(gatesLocked);
+    this.minimap.setGatesLocked(gatesLocked);
 
     const now = performance.now();
     // The one place render time is read: it consumes the clock's pending patch, so everything else this frame
@@ -205,21 +208,23 @@ export class RaidScene extends Phaser.Scene {
     // interpolated one the player is drawn at, which trails it by INTERP_DELAY_MS.
     const me = state.players.get(this.room.sessionId);
     const map = this.mapView?.map;
-    this.nearest = me?.status === "alive" && map ? nearestContainer(state.containers, map, me) : null;
+    // Line of sight (looting) follows the server's walls, closed gates included. mapView.map stays the open map.
+    const sightMap = gatesLocked && map ? withGates(map) : map;
+    this.nearest = me?.status === "alive" && sightMap ? nearestContainer(state.containers, sightMap, me) : null;
     this.syncContainers(state);
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
     this.fx.update(renderT, now, this.clockSynced);
     this.trackDamage(me);
 
-    // Redraws only when the player's dot actually moved. No zone any more: `undefined` until minimap.ts drops the argument.
-    this.minimap.update(now, undefined, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
+    // Redraws only when the player's dot (or the gates) actually changed.
+    this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     // The HUD counts server-time deadlines down against the estimated server clock, not renderT (100 ms behind it).
     this.hud.update(state, me, this.clockSynced ? this.interp.clock.now(now) : state.serverTime);
     this.inventory.update(me);
-    this.lootPanel.update(state, me, map);
+    this.lootPanel.update(state, me, sightMap);
   }
 
   private syncContainers(state: RaidState): void {
