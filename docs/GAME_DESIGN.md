@@ -380,7 +380,7 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 
 | Source | GV |
 |---|---|
-| Win (last one standing) | +50 (not in solo runs) |
+| Win (last one standing) | +50, only if the run had at least 3 players and the winner damaged at least 2 different opponents (guards against farming with a second profile). The win still counts either way. |
 | Player kill | +10 |
 | Bounty claimed | Per section 12.4 |
 | Mob kill | +2 (elites +10) × the mob reward curve, at most 30 per run from mobs |
