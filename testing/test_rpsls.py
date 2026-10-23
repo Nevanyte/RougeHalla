@@ -115,13 +115,13 @@ def edge_names(es):
 # (owner, what is removed, is_sub, variant of the owner, flipped edges per the sheet, largest shift per the sheet)
 IDENTITY = [
     ("Fire", "remove burn and backlash", False, lambda p: with_params(p, burn=0, backlash=0),
-     {("Fire", "Sentenced"), ("Fire", "Plague")}, 132),
+     {("Fire", "Sentenced"), ("Fire", "Plague")}, 131),
     ("Fire", "remove backlash only", True, lambda p: with_params(p, backlash=0),
      {("Fire", "Sentenced"), ("Fire", "Plague")}, 127),
     ("Sentenced", "remove the mark", False, lambda p: with_params(p, mark_ramp=0, mark_cap=0),
      {("Sentenced", "Plague"), ("Sentenced", "Frost")}, 152),
     ("Sentenced", "mark at full strength from t=0", True, lambda p: with_params(p, mark_ramp=1e9),
-     set(), 68),
+     set(), 70),
     ("Plague", "remove the execute", False, lambda p: with_params(p, execute=0),
      {("Plague", "Frost")}, 43),
     ("Plague", "remove the flat disease", True, lambda p: with_params(p, plague=0),

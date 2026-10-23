@@ -1,5 +1,5 @@
 // The five factions and the universal combat law, ported 1:1 from testing/engine.py and
-// testing/classes.py (v2 numbers; the design source of truth is testing/CLASS_SHEET.md). Pure: the
+// testing/classes.py (v3 numbers; the design source of truth is testing/CLASS_SHEET.md). Pure: the
 // duel() here must keep reproducing the Python reference results (packages/shared/test/factions.test.ts).
 //
 // Rules of the law: every damage packet splits into physical / magic / true shares (a property of
@@ -40,8 +40,8 @@ export interface FactionSpec {
 export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   fire: {
     id: "fire", name: "Fire", displayName: "Fire", role: "Glass-cannon duelist", theme: "Dragonslayer, living fire", color: 0xff7043,
-    hp: 500, rate: 0.3, hit: 305, phys: 0.0, trueShare: 0.0, armor: 0, shield: 125,
-    mechanic: "dragonslayer", params: { burn: 10, backlash: 210 },
+    hp: 500, rate: 0.6, hit: 150, phys: 0.0, trueShare: 0.0, armor: 0, shield: 125,
+    mechanic: "dragonslayer", params: { burn: 10, backlash: 200 },
   },
   sentenced: {
     id: "sentenced", name: "Sentenced", displayName: "Sentenced", role: "Patient executioner", theme: "Marked for judgment", color: 0x9575cd,
@@ -55,7 +55,7 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   },
   frost: {
     id: "frost", name: "Frost", displayName: "Frost", role: "Control bruiser", theme: "Living wall of ice", color: 0x4fc3f7,
-    hp: 1750, rate: 0.3, hit: 135, phys: 0.9, trueShare: 0.0, armor: 100, shield: 100,
+    hp: 1750, rate: 0.45, hit: 90, phys: 0.9, trueShare: 0.0, armor: 100, shield: 100,
     mechanic: "plain", aura: "wall_of_ice", params: { slow: 0.6 },
   },
   holy: {

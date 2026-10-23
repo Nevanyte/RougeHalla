@@ -2,6 +2,8 @@
 
 *Working title. Version 1 of this document, written from the owner's design board, the class sheet in `testing/`, and the approved build plan.*
 
+*Revision v3 (attack speed). Fire attacks at 0.60/s (hit 305 to 150, base DPS 91.5 to 90, backlash 210 to 200) and Frost at 0.45/s (hit 135 to 90, DPS unchanged at 40.5). A weapon is now a % boost on the faction's base attack speed, so the speed ratios between factions hold on every weapon. Fire's axe swings every 1.19 s (was 2.58 s) and the slowest combo in the game, Frost's axe, every 1.59 s (was 2.58 s). The cost: Fire's backlash reads the foe's attack rate, so a faster Frost feeds it and Frost over Fire gets thinner (59% to 49% HP left). It never flips. Fixed animation timings now scale down with the interval, and a staggered target is immune to stagger for 0.5 s (sections 9.1 and 10.3).*
+
 ---
 
 ## 1. The game in one paragraph
@@ -138,21 +140,23 @@ Five factions form a closed loop: **each beats exactly two and loses to exactly 
 
 No rule mentions a faction by name. Every counter falls out of the numbers.
 
-### 8.2 Stat sheet (v2)
+### 8.2 Stat sheet (v3)
 
 | Faction | Role | HP | Attack rate | Hit | Base DPS | Damage mix (phys / magic / true) | Armor | Shield |
 |---|---|---|---|---|---|---|---|---|
-| Fire | Glass-cannon duelist | 500 | 0.30/s | 305 | 92 | 0 / 100 / 0 | 0 | 125 |
+| Fire | Glass-cannon duelist | 500 | 0.60/s | 150 | 90 | 0 / 100 / 0 | 0 | 125 |
 | Sentenced | Patient executioner | 700 | 0.90/s | 5 | 4.5 | 0 / 100 / 0 | 100 | 50 |
 | Plague | Attrition swarm | 1000 | 1.85/s | 20 | 37 | 80 / 20 / 0 | 200 | 0 |
-| Frost | Control bruiser | 1750 | 0.30/s | 135 | 40.5 | 90 / 10 / 0 | 100 | 100 |
+| Frost | Control bruiser | 1750 | 0.45/s | 90 | 40.5 | 90 / 10 / 0 | 100 | 100 |
 | Holy (Demon Blood) | Sustain juggernaut | 1450 | 0.95/s | 65 | 62 | 100 / 0 / 0 | 0 | 250 |
+
+Attack rate is the faction's base. Each weapon boosts it by a percentage (section 10.2).
 
 ### 8.3 Signatures
 
 | Faction | Signature | What it does | How it feels |
 |---|---|---|---|
-| Fire | **Dragonslayer** | 10 burn per second, plus **210 damage every time the engaged enemy swings** | Punishes fast attackers. Against Plague's flurry it's over in seconds. |
+| Fire | **Dragonslayer** | 10 burn per second, plus **200 backlash for each attack the engaged enemy makes at its base rate** (per real swing 93 to 143 depending on its weapon, section 10.3) | Punishes fast attackers. Against Plague's flurry it's over in seconds. |
 | Sentenced | **Marked** | Bonus damage ramping +35/s for every second in the fight, capped at 275/s (7.9 s to full). The mark is tied to the **weapon the target is holding**; swapping weapons resets it. | Gets worse for the opponent every second. Its own hits barely matter (5 damage). |
 | Plague | **Rat King** | 40 disease per second, plus an execute adding up to 1025/s as the target falls from 50% to 0 HP | A slow squeeze that collapses into a kill |
 | Frost | **Living Wall of Ice** | Anyone engaged with Frost has their **attack rate cut to 40%** and their **movement slowed** | The fight slows down and Frost sets the pace |
@@ -162,15 +166,15 @@ No rule mentions a faction by name. Every counter falls out of the numbers.
 
 | Winner | Loser | Deciding factor | Fight length | Winner HP left |
 |---|---|---|---|---|
-| Fire | Sentenced | Fire's burst ends the fight before the mark builds | 3.6 s | 78% |
-| Fire | Plague | Plague's 1.85 swings/s feed Fire's backlash (about 388 damage per second) | 2.0 s | 72% |
+| Fire | Sentenced | Fire's burst ends the fight before the mark builds | 3.7 s | 77% |
+| Fire | Plague | Plague's 1.85 swings/s feed Fire's backlash (about 370 damage per second) | 2.1 s | 71% |
 | Sentenced | Plague | The mark lands at 100% on Plague's zero shield; Plague's physical damage is cut to 53% | 7.4 s | 56% |
 | Sentenced | Frost | The flat mark ignores Frost's slow; armor halves Frost's hits | 16.6 s | 51% |
 | Plague | Frost | Disease and execute are flat, so the slow barely matters; the execute decides it | 37.0 s | 40% |
 | Plague | Holy | 86% of Plague's damage gets through Holy's zero armor | 15.8 s | 67% |
 | Frost | Holy | The slow cuts Holy's swings, and with them its healing, from 0.95 to 0.38/s | 52.3 s | 63% |
-| Frost | Fire | Frost's 0.3/s barely feeds the backlash, and the slow cuts Fire to 0.12 swings/s | 13.1 s | 59% |
-| Holy | Fire | A 250 shield cuts Fire's all-magic damage to 29% | 8.1 s | 68% |
+| Frost | Fire | Frost's 0.45/s feeds the backlash only 90 damage per second (its shield cuts half), and the slow cuts Fire to 0.24 swings/s | 13.1 s | 49% |
+| Holy | Fire | A 250 shield cuts Fire's all-magic damage to 29% | 8.1 s | 69% |
 | Holy | Sentenced | The shield cuts the mark to 29%; lifesteal decides it | 22.7 s | 27% (tightest) |
 
 **The main axis is damage type against defense type.** Magic damage (Fire, Sentenced) crushes the shieldless (Plague) and bounces off the heavily shielded (Holy). Physical damage (Plague, Frost, Holy) punishes zero armor. On top of that sit rate against flat damage (Frost's slow only hurts rate-based attackers), burst against ramp (Fire ends fights before the mark or execute come online) and HP pool (Holy and Frost win long fights).
@@ -190,10 +194,10 @@ Remove a signature and the class must visibly lose: a main signature has to flip
 
 | Faction | Removed | Wins lost | Largest margin swing |
 |---|---|---|---|
-| Fire | Burn and backlash | vs Sentenced, vs Plague | 132 points |
+| Fire | Burn and backlash | vs Sentenced, vs Plague | 131 points |
 | Fire | Backlash only | vs Sentenced, vs Plague | 127 |
 | Sentenced | The mark | vs Plague, vs Frost | 152 |
-| Sentenced | The ramp (mark full from t = 0) | none | 68 |
+| Sentenced | The ramp (mark full from t = 0) | none | 70 |
 | Plague | Execute | vs Frost | 43 |
 | Plague | Flat disease | vs Frost | 114 |
 | Frost | The slow | vs Holy | 103 |
@@ -201,7 +205,8 @@ Remove a signature and the class must visibly lose: a main signature has to flip
 | Holy | Missing-HP scaling | none | 19 |
 
 ### 8.7 Design notes on the factions
-- **Fire's burn (10/s) is nearly cosmetic.** Backlash does the work. If burn should matter, raise it and retune.
+- **Fire's burn (10/s) is nearly cosmetic.** Backlash does the work: 64% to 79% of Fire's damage against Sentenced, Plague and Frost, against 2% to 7% for burn. If burn should matter, raise it and retune.
+- **Frost over Fire got thinner** (59% to 49% HP left). Fire's backlash reads the foe's attack rate, so a faster Frost feeds it: 90 backlash per second against Frost, up from 63. It never flips. In the 20 Hz check the smallest HP buff on Fire that flips it is now ×1.59 (it was ×1.97). Raising Fire's own rate is free: at equal damage per second it moves no engine result (and at most 3 points in the 20 Hz duels).
 - **Holy beats Sentenced is the tightest edge** (27% HP left); lifesteal decides it.
 - **Fights are long in places** (Frost over Holy is 52 s). Duels are being sped up for the arena (section 10.2).
 - **Robustness.** The engine checks pass with every stat randomly jittered by ±10%, at any global power level, and with names shuffled (proving no matchup is hard-coded).
@@ -218,14 +223,16 @@ Five weapons form a second closed loop; again **each beats two and loses to two.
 |---|---|---|---|---|---|
 | Shape | Quarter-circle (90°) swing, reach 64 | Arrow, fast (900 u/s), range 480 | Magic ball, medium speed (380 u/s), range 420 | Barrier always raised toward the cursor (±60° front); click to bash like a swinging door (120°, reach 44) | Half-circle (180°) swing, reach 60 |
 | Input | Click | Click and hold to draw, release to fire | Click | Shield follows the cursor; click to bash | Click |
-| When damage lands | 0.1 s into the swing | On release | Ball leaves 0.2 s after the click | 0.1 s into the bash | 0.25 s into the swing |
-| Base cooldown | 0.5 s | 0.6 s after release | 0.7 s | 0.8 s | 0.9 s |
-| Movement | Unaffected | Slowed to 75% while drawing; after release, half speed until the cooldown ends | Slowed to 35% for 0.4 s per cast; then half speed until the cooldown ends | Unaffected | Rooted for the 0.5 s swing |
+| When damage lands | 0.1 s into the swing | On release | Ball leaves 0.2 s after the click (at most 40% of the interval) | 0.1 s into the bash | 0.25 s into the swing (at most 25% of the interval) |
+| Attack speed boost | +115% | +95% | +65% | +60% | +40% |
+| Movement | Unaffected | Slowed to 75% while drawing; after release, half speed until the cooldown ends | Slowed to 35% for 0.4 s per cast (at most 45% of the interval); then half speed until the cooldown ends | Unaffected | Rooted for the 0.5 s swing (at most 50% of the interval) |
 | Damage multiplier | 1.0 | 0.8 | 0.85 | 0.75 | 0.9 |
-| Special | A hit that isn't blocked **staggers**: cancels the target's windup and resets a bow draw | Draw time (0.15–0.6 s) scales damage from 40% to 100% | The ball **deletes arrows** within 28 units and **pierces shields** | Blocks frontal hits, **reflects arrows** back (the shield holder owns them), **negates a frontal sword hit and ripostes** 50% of it | **Pierces shields**, **destroys magic balls** its swing meets |
+| Special | A hit that isn't blocked **staggers**: cancels the target's windup and resets a bow draw. A staggered target can't be staggered again for 0.5 s. | Draw time (0.15–0.6 s) scales damage from 40% to 100%. Full draw is at most 70% of the interval, and the minimum draw shrinks with it. | The ball **deletes arrows** within 28 units and **pierces shields** | Blocks frontal hits, **reflects arrows** back (the shield holder owns them), **negates a frontal sword hit and ripostes** 50% of it | **Pierces shields**, **destroys magic balls** its swing meets |
+
+The interval is the time between attacks (section 10.2). The axe, bow and wand animation times above shrink with it, so fast cadences are never rooted or slowed for good.
 
 Ranged weapons can kite, so three things hold them back:
-- Damage starts slightly lower: bow 0.8, wand 0.85. These are maximums: the real-time check found no headroom above them.
+- Damage starts slightly lower: bow 0.8, wand 0.85. These are maximums on the 0.05 grid: in the real-time check, bow 0.85 or wand 0.90 lets the ranged loser out-kite (Fire over Plague, and Holy over Sentenced on the wand).
 - Movement slows while drawing and casting.
 - After each ranged attack you move at half speed until the cooldown ends, so a ranged player backing away while shooting can still be caught.
 
@@ -233,7 +240,7 @@ Ranged weapons can kite, so three things hold them back:
 
 | Weapon | Beats | Why | Loses to | Why |
 |---|---|---|---|---|
-| **Sword** | Axe | Faster swings and stagger: it weaves in more attacks | Bow | Range |
+| **Sword** | Axe | Faster swings (+115% against +40%) and stagger: it weaves in more attacks | Bow | Range |
 | | Wand | Its swing halves the damage of balls it meets | Shield | Blocked and riposted |
 | **Bow** | Sword | Range | Shield | Arrows reflected back |
 | | Axe | Huge range gap; the axe roots to swing | Wand | Balls delete arrows |
@@ -270,31 +277,35 @@ Ranged weapons can kite, so three things hold them back:
 
   - **8 of the 10 openings are contested.** The faction winner starts with the losing weapon, so no fight is decided on the pick screen. The real decision is **which second weapon to go and get**.
   - **Sentenced vs Plague** starts as a bow mirror, so the faction edge decides it.
-  - **Holy vs Sentenced** favours Holy on both loops, on purpose. With Sentenced on the sword this was the thinnest opening in the game (Holy kept about 6% HP in the worst case, so any buff decided it). With Sentenced on the bow, Holy keeps 29%.
+  - **Holy vs Sentenced** favours Holy on both loops, on purpose. With Sentenced on the sword it would be the thinnest opening in the game (Holy keeps about 8% HP in the worst case, so any buff decides it). With Sentenced on the bow, Holy keeps 30%.
   - **Region weapons don't change.** The Sentenced region's mobs still carry swords, so all five weapons can be farmed somewhere.
 
 ### 10.2 The scaling formula
 - **The weapon sets the shape. The faction sets the rhythm and the punch.**
-- **Cooldown** = `max(weapon's animation floor, weapon cooldown × 0.86 ÷ faction attack rate)`.
-  - 0.86 is the average attack rate of the five factions.
-  - Fire and Frost (0.3/s) swing about 2.9× slower than a weapon's base cooldown.
-  - Plague (1.85/s) swings about 2.1× faster, down to each weapon's animation floor: sword and axe 0.5 s, wand 0.3 s, bow 0.25 s.
-- **Damage per hit** = `faction rate × faction hit × cooldown × weapon damage multiplier`. Every faction keeps its own damage per second on every weapon. Weapons change the rhythm and shape, not the class's power.
+- **A weapon is a % boost on the faction's base attack speed**, so the speed ratios between factions hold on every weapon.
+  - Attacks per second = `faction rate × (1 + weapon boost) × attack-speed buffs`.
+  - Seconds between attacks (the interval) = 1 ÷ that, never below the weapon's floor.
+  - Boosts: sword +115%, bow +95%, wand +65%, shield +60%, axe +40%.
+  - Floors (the shortest interval): sword 0.25 s, bow 0.25 s, wand 0.3 s, shield 0.3 s, axe 0.35 s. At base speed none of them binds. They only bind under attack-speed buffs (section 10.3).
+- **Damage per hit** = `faction rate × faction hit × weapon damage multiplier × buffs × interval`. With no buffs that is `faction hit × damage multiplier ÷ (1 + boost)`. Every faction keeps its own damage per second, times the weapon's damage multiplier, on every weapon: faster weapons hit proportionally lighter. Weapons change the rhythm and shape, not the class's power.
 - **Signature bonuses scale with the weapon multiplier too** (burn, backlash, disease, execute, mark). Otherwise a weapon's damage discount would hit some factions much harder than others.
-- **Duel pace (k = 2).** All faction damage is doubled (and Sentenced's mark ramp quadrupled), HP unchanged, so every fight is about **twice as short** while the counter graph holds. For example, Frost beats Holy drops from 52 s to about 26 s.
+- **Duel pace (k = 2).** All faction damage is doubled (and Sentenced's mark ramp quadrupled), HP unchanged, so every fight is **exactly twice as short** while the counter graph holds. For example, Frost over Holy drops from 52 s to about 26 s, and Fire over Plague takes 1.1 s.
 
-Base cooldown and damage per hit, before duel pace (double the hits for in-game values):
+Interval and damage per hit with no buffs, before duel pace (double the hits for in-game values):
 
 | Faction | DPS | Sword | Axe | Bow | Wand | Shield |
 |---|---|---|---|---|---|---|
-| Fire | 91.5 | 1.43 s / 131 | 2.58 s / 212 | 1.72 s / 126 | 2.01 s / 156 | 2.29 s / 157 |
-| Sentenced | 4.5 | 0.50 s / 2 | 0.86 s / 3 | 0.57 s / 2 | 0.67 s / 3 | 0.76 s / 3 |
-| Plague | 37.0 | 0.50 s / 18 | 0.50 s / 17 | 0.28 s / 8 | 0.33 s / 10 | 0.37 s / 10 |
-| Frost | 40.5 | 1.43 s / 58 | 2.58 s / 94 | 1.72 s / 56 | 2.01 s / 69 | 2.29 s / 70 |
-| Holy | 61.8 | 0.50 s / 31 | 0.81 s / 45 | 0.54 s / 27 | 0.63 s / 33 | 0.72 s / 34 |
+| Fire | 90.0 | 0.78 s / 70 | 1.19 s / 96 | 0.85 s / 62 | 1.01 s / 77 | 1.04 s / 70 |
+| Sentenced | 4.5 | 0.52 s / 2 | 0.79 s / 3 | 0.57 s / 2 | 0.67 s / 3 | 0.69 s / 2 |
+| Plague | 37.0 | 0.25 s / 9 | 0.39 s / 13 | 0.28 s / 8 | 0.33 s / 10 | 0.34 s / 9 |
+| Frost | 40.5 | 1.03 s / 42 | 1.59 s / 58 | 1.14 s / 37 | 1.35 s / 46 | 1.39 s / 42 |
+| Holy | 61.8 | 0.49 s / 30 | 0.75 s / 42 | 0.54 s / 27 | 0.64 s / 33 | 0.66 s / 30 |
 
 Reading the table:
-- Fire with an axe swings every 2.6 s for a huge hit; Plague with a bow fires almost 4 arrows a second.
+- Every column has the same speed ratios: on any weapon Plague swings 4.1× as often as Frost and 3.1× as often as Fire.
+- Fire with an axe swings every 1.2 s for a 96-damage hit; Plague with a bow fires 3.6 arrows a second.
+- Frost with an axe is the slowest combo in the game, one swing every 1.6 s. In the 20 Hz duels the longest stretch with no swing from either fighter is also 1.6 s.
+- Plague's sword (0.251 s) sits just above its 0.25 s floor, so any attack-speed buff on it turns into damage per hit at once.
 - Sentenced's weapon hits are near zero on purpose; the mark is its damage.
 
 ### 10.3 Signatures in real time
@@ -307,12 +318,14 @@ The design engine assumes two fighters standing in range forever. The game has m
 | **Bonus damage lingers 1.25 s** after line of sight breaks | Stops peek-fighting (pop out, hit, hide, repeat) |
 | **The mark holds through breaks.** It freezes while hidden and resets on target switch, a weapon swap by the target, death, or 10 s without contact. | Sentenced isn't cheesed by walls |
 | **Frost's chill** applies to everyone engaged with Frost. It doesn't stack, and it stretches cooldowns smoothly every tick (it's never snapshotted at swing time). The **movement** slow only applies within melee reach of Frost (about 100 u). | A small radius would let ranged enemies ignore the attack slow; a ranged Frost slowing its chaser would be uncatchable |
-| **Fire's backlash** hits an engaged enemy each time they swing, sized by how often their weapon swings: sword 90, bow 108, wand 126, shield 144, axe 163 | Literally "damaged when swinging", and over time it matches the design engine exactly. A flat 210 per swing would have over-punished fast weapons. |
+| **Fire's backlash** hits an engaged enemy each time they swing, sized by how often their weapon swings (200 ÷ (1 + the weapon's boost)): sword 93, bow 103, wand 121, shield 125, axe 143 | Literally "damaged when swinging", and over time it matches the design engine exactly. A flat 200 per swing would have over-punished fast weapons. |
 | **HP stays fractional** and cooldown remainders carry over | Avoids rounding cliffs that flip close fights |
 | **Healing** (when added) only works after 3 s out of combat. Holy's lifesteal is exempt. | Mid-duel heals flip faction counters; blocking lifesteal would break Holy |
-| **Attack-speed buffs** above a weapon's animation floor turn into extra damage per hit | Otherwise Plague on a sword or axe gains nothing from attack speed |
+| **Attack-speed buffs** past a weapon's floor (its shortest interval) turn into extra damage per hit. Plague's sword (0.251 s) is just above its 0.25 s floor, so any attack-speed buff on it converts at once. | Otherwise Plague on a sword would gain next to nothing from attack speed |
+| **Animation timings scale with the interval.** Axe root = min(0.5 s, 50% of the interval) and windup = min(0.25 s, 25%). Bow full draw = min(0.6 s, 70%), with the minimum draw kept at the same share of it (0.15 s of 0.6 s). Wand cast = min(0.2 s, 40%) and self-slow = min(0.4 s, 45%). | Plague's axe swings every 0.39 s, shorter than a fixed 0.5 s root. Without this, fast cadences would be rooted or slowed for good. |
+| **Stagger immunity.** After a stagger, the target can't be staggered again for 0.5 s. | Plague's sword swings every 0.25 s and could otherwise stagger-lock a target |
 
-With these rules, a 20-tick-per-second simulation reproduces the full faction cycle in every swing-timing combination.
+A 20-tick-per-second simulation of the damage rules above reproduces the full faction cycle with the same weapon on both sides (all five weapons) and in every signature-weapon opening. It does not model movement, line of sight, stagger or the animation timings.
 
 ---
 
@@ -451,6 +464,8 @@ Hard counters are only fair if you can see them coming.
   - the weapon loop, scripted duels per weapon pair;
   - the faction cycle per weapon (5 weapons × 10 edges);
   - kiting tolerance.
+
+  `python3 testing/realtime_report.py` (needs numpy, about a minute) runs the last two as 20 Hz weapon duels, with signature openings, buff thresholds and the longest stretch with no swing.
   Results go to the designer before any tuning.
 - **Budgets.** Server tick time with 8 players and 60 mobs, and bytes per second per player.
 - **End-to-end.** Bots play full arena runs to a winner, with GV and bounties balancing exactly.
@@ -467,10 +482,11 @@ Hard counters are only fair if you can see them coming.
 | Frost frustration | Its movement slow makes it the hardest class to escape. That's its identity, but it gets watched. |
 | Sentenced feel | Its weapon hits are nearly zero by design; the brand visual has to carry the class. |
 | Fire's burn | Nearly cosmetic in the current numbers. |
+| Frost over Fire | Thinner since v3: Frost keeps 49% HP in the engine (was 59%) and 34% in the worst 20 Hz signature opening at k = 1 (was 47%), because Fire's backlash reads Frost's faster rate. It never flips: the smallest HP buff on Fire that flips it is ×1.59 (was ×1.97). Raising Fire's own rate is free at equal damage per second (no engine result moves, at most 3 points in the 20 Hz duels); it is Frost's rate that feeds the backlash. |
 | Snowballing | Uncapped S-curves plus bounties need playtesting: are fed players fun to fight, and is hunting them worth it? |
 | The faction cycle matters most late | Early fights are mostly weapons, positioning and third parties. The cycle decides the 1v1s, often in the coliseum. |
 | Bounties within a tick | If several players hit a fed player in the same tick, who gets the payout has to be decided by a fair rule. |
-| Buffs past the counters | The real-time check shows about +20% HP, +30% attack speed or +16% move speed on the losing side starts flipping the softest faction edges. The S-curve deliberately goes past that (fed players can beat their counters); bounties are the release valve. |
+| Buffs past the counters | In the 20 Hz check (same weapon on both sides, plus the signature openings) the softest edge, Holy over Sentenced, flips at ×1.31 HP on the losing side, and the softest attack-speed edge, Frost over Holy, at ×1.63 attack speed. Stacked, HP ×1.2 with attack speed ×1.3 holds every edge at 60% or better. HP ×1.3 with attack speed ×1.2 does not: Holy then wins only 45% of duels with both sides on bows and 52% with both on shields. Move speed isn't modelled there. The S-curve deliberately goes past these numbers (fed players can beat their counters); bounties are the release valve. |
 
 ---
 

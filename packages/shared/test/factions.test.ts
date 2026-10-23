@@ -4,28 +4,28 @@ import {
 } from "../src/index";
 
 /**
- * Reference results from the Python design engine (testing/engine.py + classes.py, v2 numbers),
+ * Reference results from the Python design engine (testing/engine.py + classes.py, v3 numbers),
  * dt = 0.002: [a, b, winner index, fight seconds, hp of a, hp of b]. Regenerate if the design
  * numbers change (a scratch script that imports both modules and prints duel(a, b, 0.002) rows).
  */
 const REFERENCE: Array<[FactionId, FactionId, 0 | 1 | null, number, number, number]> = [
-  ["fire", "sentenced", 0, 3.616, 391.126, 0.0],
-  ["fire", "plague", 0, 2.042, 360.236, 0.0],
-  ["fire", "frost", 1, 13.072, 0.0, 1033.654],
-  ["fire", "holy", 1, 8.098, 0.0, 985.784],
-  ["sentenced", "fire", 1, 3.616, 0.0, 391.126],
+  ["fire", "sentenced", 0, 3.75, 383.183, 0.0],
+  ["fire", "plague", 0, 2.128, 354.35, 0.0],
+  ["fire", "frost", 1, 13.072, 0.0, 861.104],
+  ["fire", "holy", 1, 8.098, 0.0, 1006.46],
+  ["sentenced", "fire", 1, 3.75, 0.0, 383.183],
   ["sentenced", "plague", 0, 7.434, 394.71, 0.0],
   ["sentenced", "frost", 0, 16.55, 353.691, 0.0],
   ["sentenced", "holy", 1, 22.674, 0.0, 392.857],
-  ["plague", "fire", 1, 2.042, 0.0, 360.236],
+  ["plague", "fire", 1, 2.128, 0.0, 354.35],
   ["plague", "sentenced", 1, 7.434, 0.0, 394.71],
   ["plague", "frost", 0, 37.028, 400.146, 0.0],
   ["plague", "holy", 0, 15.848, 673.795, 0.0],
-  ["frost", "fire", 0, 13.072, 1033.654, 0.0],
+  ["frost", "fire", 0, 13.072, 861.104, 0.0],
   ["frost", "sentenced", 1, 16.55, 0.0, 353.691],
   ["frost", "plague", 1, 37.028, 0.0, 400.146],
   ["frost", "holy", 0, 52.31, 1103.972, 0.0],
-  ["holy", "fire", 0, 8.098, 985.784, 0.0],
+  ["holy", "fire", 0, 8.098, 1006.46, 0.0],
   ["holy", "sentenced", 0, 22.674, 392.857, 0.0],
   ["holy", "plague", 1, 15.848, 0.0, 673.795],
   ["holy", "frost", 1, 52.31, 0.0, 1103.972],
@@ -76,11 +76,11 @@ describe("faction duel parity with the Python design engine", () => {
   it("matches the design sheet's matchup results (section 6)", () => {
     // [winner, loser, fight seconds, winner HP left in %]
     const sheet: Array<[FactionId, FactionId, number, number]> = [
-      ["fire", "sentenced", 3.6, 78], ["fire", "plague", 2.0, 72],
+      ["fire", "sentenced", 3.7, 77], ["fire", "plague", 2.1, 71],
       ["sentenced", "plague", 7.4, 56], ["sentenced", "frost", 16.6, 51],
       ["plague", "frost", 37.0, 40], ["plague", "holy", 15.8, 67],
-      ["frost", "holy", 52.3, 63], ["frost", "fire", 13.1, 59],
-      ["holy", "fire", 8.1, 68], ["holy", "sentenced", 22.7, 27],
+      ["frost", "holy", 52.3, 63], ["frost", "fire", 13.1, 49],
+      ["holy", "fire", 8.1, 69], ["holy", "sentenced", 22.7, 27],
     ];
     expect(sheet.map(([w, l]) => [w, l])).toEqual(BEATS.map(([w, l]) => [w, l]));
     for (const [w, l, seconds, leftPct] of sheet) {
@@ -123,14 +123,14 @@ describe("identity test: removing a signature changes the matchups", () => {
 
   const VARIANTS: Variant[] = [
     { owner: "fire", label: "remove burn and backlash", kind: "main",
-      flips: ["fire>sentenced", "fire>plague"], sheetShift: 132, params: { burn: 0, backlash: 0 } },
+      flips: ["fire>sentenced", "fire>plague"], sheetShift: 131, params: { burn: 0, backlash: 0 } },
     { owner: "fire", label: "remove backlash only", kind: "sub",
       flips: ["fire>sentenced", "fire>plague"], sheetShift: 127, params: { backlash: 0 } },
     { owner: "sentenced", label: "remove the mark", kind: "main",
       flips: ["sentenced>plague", "sentenced>frost"], sheetShift: 152, params: { mark_ramp: 0 } },
     // A ramp this steep reaches the cap on the first tick, i.e. the mark is at full strength from t = 0.
     { owner: "sentenced", label: "mark appears at full strength (no ramp)", kind: "sub",
-      flips: [], sheetShift: 68, params: { mark_ramp: 1e9 } },
+      flips: [], sheetShift: 70, params: { mark_ramp: 1e9 } },
     { owner: "plague", label: "remove the execute", kind: "main",
       flips: ["plague>frost"], sheetShift: 43, params: { execute: 0 } },
     { owner: "plague", label: "remove the flat disease", kind: "sub",
