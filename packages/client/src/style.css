@@ -31,17 +31,96 @@
 .btn.primary { background: #2e7d32; border-color: #43a047; }
 .btn.small { padding: 3px 10px; font-size: 13px; }
 
-.menu-row { display: block; margin: 8px 0 14px; color: #aeb7c2; }
+/* A rule that sets `display` would otherwise beat the user-agent [hidden] rule. */
+#ui [hidden] { display: none !important; }
+
+.item-swatch {
+  flex: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+/* Menu: a flex column so the stash list is the part that scrolls and Start Raid stays on screen (down to 800x600). */
+.menu {
+  box-sizing: border-box;
+  width: min(92vw, 560px);
+  display: flex;
+  flex-direction: column;
+}
+.menu > * { flex: none; }
+.menu > .menu-body { flex: 1 1 auto; min-height: 0; }
+.menu h1 { margin-bottom: 8px; }
+.menu-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.menu-label { flex: 1; display: flex; align-items: center; gap: 8px; color: #aeb7c2; }
 .menu-profile {
+  flex: 1;
+  min-width: 0;
   font: inherit;
   padding: 6px 8px;
-  margin-left: 6px;
   border-radius: 4px;
   border: 1px solid #4a5563;
   background: #11151a;
   color: #e6e9ed;
 }
-.menu-status { margin-top: 10px; min-height: 1.2em; color: #ffcc80; }
+.menu-profile:disabled { opacity: 0.6; }
+.menu-placeholder { padding: 18px 0; text-align: center; color: #8d99a6; }
+.menu-body { display: flex; flex-direction: column; margin-bottom: 12px; }
+.menu-body > * { flex: none; }
+.menu-body > .stash-grid { flex: 1 1 auto; min-height: 84px; }
+.menu.loading .menu-body { opacity: 0.55; }
+
+.menu-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.stat { padding: 4px 6px; text-align: center; background: #161b21; border: 1px solid #2b323c; border-radius: 6px; }
+.stat-n { display: block; font-size: 18px; font-weight: 600; }
+.stat-l { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #8d99a6; }
+
+.menu-stash-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.menu-stash-title { font-weight: 600; color: #aeb7c2; }
+.menu-stash-value { color: #ffe082; }
+.stash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+  align-content: start;
+  gap: 6px;
+  padding: 2px;
+  overflow-y: auto;
+}
+.stash-empty { padding: 12px 0; color: #8d99a6; }
+.stash-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: #1a2027;
+  border: 1px solid #3a434f;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.stash-item:hover { border-color: #90a4ae; background: #212831; }
+.stash-item.selected { border-color: #66bb6a; background: #1f3324; box-shadow: inset 0 0 0 1px #66bb6a; }
+.stash-grid.full .stash-item:not(.selected) { opacity: 0.5; cursor: not-allowed; }
+.stash-grid.locked .stash-item { cursor: default; }
+.item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-kind { font-size: 11px; color: #8d99a6; text-transform: capitalize; }
+.item-value { flex: none; font-variant-numeric: tabular-nums; color: #ffe082; }
+
+.menu-loadout { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.menu-loadout-count { font-weight: 600; }
+.menu-loadout-risk { font-size: 12px; color: #8d99a6; }
+.menu-risk { margin-top: 2px; font-size: 12px; color: #ffb74d; }
+.menu > .btn.primary { align-self: stretch; padding: 10px 14px; font-weight: 600; }
+.menu-status { margin-top: 10px; min-height: 1.2em; color: #aeb7c2; }
+.menu-status.warn { color: #ffcc80; }
+.menu-status.error { color: #ef9a9a; }
 
 .hud {
   position: absolute;
@@ -51,9 +130,28 @@
   text-shadow: 0 1px 2px #000;
 }
 /* index.html's "#ui > *" (auto) outranks a bare class, so the click-through must match its specificity. */
-#ui > .hud, #ui > .banner, #ui > .toasts, #ui > .death-line { pointer-events: none; }
+#ui > .hud, #ui > .banner, #ui > .toasts, #ui > .death-line, #ui > .extract-line { pointer-events: none; }
 .hud-status { font-weight: 600; }
 .hud-vitals { color: #c8d0d9; margin-top: 2px; }
+
+.extract-line {
+  position: absolute;
+  left: 50%;
+  top: 64px;
+  transform: translateX(-50%);
+  max-width: 92vw;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  color: #b9f6ca;
+  background: rgba(20, 24, 30, 0.88);
+  border: 1px solid #43a047;
+  text-shadow: 0 1px 2px #000;
+}
+.extract-line.extracting { color: #b3e5fc; border-color: #4fc3f7; }
 
 .death-line {
   position: absolute;
@@ -71,6 +169,41 @@
 /* A rule that sets `display` would otherwise beat the user-agent [hidden] rule. */
 .death-line[hidden] { display: none; }
 @keyframes death-in { from { opacity: 0; } to { opacity: 1; } }
+
+.results {
+  box-sizing: border-box;
+  width: min(92vw, 720px);
+  display: flex;
+  flex-direction: column;
+}
+.results > * { flex: none; }
+.results > .result-lists { flex: 1 1 auto; min-height: 0; }
+.results h1 { margin-bottom: 6px; }
+.result-facts { margin: 0 0 10px; color: #aeb7c2; }
+.result-lists {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  overflow-y: auto;
+}
+.result-col { min-width: 0; padding: 8px 10px; background: #161b21; border: 1px solid #2b323c; border-radius: 6px; }
+.result-col h2 { margin: 0 0 6px; font-size: 13px; }
+.result-col.extracted h2 { color: #81c784; }
+.result-col.lost h2 { color: #e57373; }
+.result-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-top: 1px solid #222a33; }
+.result-item .item-name { flex: 1; min-width: 0; }
+.result-none { padding: 3px 0; color: #6f7b88; }
+.result-total { margin-top: 6px; padding-top: 4px; border-top: 1px solid #2b323c; text-align: right; font-size: 12px; color: #ffe082; }
+.result-net { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.result-net-label { color: #aeb7c2; }
+.result-net-n { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.result-net-detail { font-size: 12px; color: #8d99a6; }
+.result-net.gain .result-net-n { color: #81c784; }
+.result-net.loss .result-net-n { color: #e57373; }
+.result-net.even .result-net-n { color: #aeb7c2; }
+@media (max-width: 560px) {
+  .result-lists { grid-template-columns: 1fr; }
+}
 
 .outcome-extracted { color: #81c784; }
 .outcome-died { color: #e57373; }

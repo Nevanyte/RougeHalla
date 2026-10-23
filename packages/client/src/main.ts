@@ -2,10 +2,10 @@
 import Phaser from "phaser";
 import type { RaidResult, ServerMessages } from "@raid/shared";
 import "./style.css";
-import { joinRaid, type RaidRoom } from "./net/connection";
+import { joinErrorMessage, joinRaid, type RaidRoom } from "./net/connection";
 import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
-import { Menu } from "./ui/menu";
+import { Menu, type RaidRequest } from "./ui/menu";
 import { ResultsScreen } from "./ui/results";
 import { Toasts } from "./ui/toast";
 
@@ -30,22 +30,28 @@ let room: RaidRoom | null = null;
 /** A `died` result waiting out DEATH_RESULTS_DELAY_MS; null otherwise. */
 let pendingResult: { result: RaidResult; timer: ReturnType<typeof setTimeout> } | null = null;
 
-const menu = new Menu({ onStart: (profile) => void startRaid(profile) });
+const menu = new Menu({ onStart: (request) => void startRaid(request) });
 const results = new ResultsScreen({ onContinue: () => backToMenu() });
 const banner = new Banner();
 const toasts = new Toasts();
 
-async function startRaid(profile: string): Promise<void> {
+async function startRaid(request: RaidRequest): Promise<void> {
   menu.setBusy(true, "Joining raid…");
   try {
-    room = await joinRaid({ profile, loadout: [] });
+    room = await joinRaid(request);
   } catch (err) {
     console.error(err);
-    menu.show(`Could not join: ${err instanceof Error ? err.message : String(err)}`);
+    // show() reloads the profile: a refused join may still have changed what the stash holds.
+    menu.show(`Could not join: ${joinErrorMessage(err)}`);
     return;
   }
   const joined = room;
-  await firstState(joined);
+  if (!(await firstState(joined))) {
+    // The room closed before its first patch, so the leave handler below was never registered.
+    room = null;
+    menu.show("Could not join: connection closed");
+    return;
+  }
   joined.onMessage("result", (r: RaidResult) => {
     if (r.outcome !== "died") { results.show(r); return; }
     cancelPendingResult();
@@ -83,10 +89,18 @@ function cancelPendingResult(): void {
   pendingResult = null;
 }
 
-/** joinOrCreate resolves before the first full state arrives; scenes assume a populated state. */
-function firstState(r: RaidRoom): Promise<void> {
-  if (r.state?.players) return Promise.resolve();
-  return new Promise((resolve) => r.onStateChange.once(() => resolve()));
+/**
+ * joinOrCreate resolves before the first full state arrives; scenes assume a populated state.
+ * Resolves false instead if the room closes first, which would otherwise leave the caller waiting forever.
+ */
+function firstState(r: RaidRoom): Promise<boolean> {
+  if (r.state?.players) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onState = () => { r.onLeave.remove(onLeave); resolve(true); };
+    const onLeave = () => { r.onStateChange.remove(onState); resolve(false); };
+    r.onStateChange.once(onState);
+    r.onLeave.once(onLeave);
+  });
 }
 
 function backToMenu(message = ""): void {
@@ -98,6 +112,7 @@ function backToMenu(message = ""): void {
   toasts.clear();
   game.scene.stop("raid");
   game.scene.start("idle");
+  // Reloads the profile, so the stash shows what came home (or no longer has what was lost).
   menu.show(message);
 }
 

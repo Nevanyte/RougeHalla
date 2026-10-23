@@ -1,6 +1,6 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
-import { TICK_MS, generateMap, type RaidResult, type TimedFx } from "@raid/shared";
+import { TICK_MS, generateMap, type ExtractZoneDef, type RaidResult, type TimedFx } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
 import { EntityInterpolator } from "../net/interpolation";
@@ -51,6 +51,12 @@ function isTyping(target: EventTarget | null): boolean {
     if (node.isContentEditable || node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT") return true;
   }
   return false;
+}
+
+/** The extract zone whose circle (edge included) contains the point, or null. */
+function extractZoneAt(zones: readonly ExtractZoneDef[], p: { x: number; y: number }): ExtractZoneDef | null {
+  for (const z of zones) if (Math.hypot(p.x - z.x, p.y - z.y) <= z.r) return z;
+  return null;
 }
 
 export class RaidScene extends Phaser.Scene {
@@ -203,7 +209,8 @@ export class RaidScene extends Phaser.Scene {
     this.trackDamage(me);
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();
-    this.hud.update(state, me);
+    // Like interaction range, the zone test uses the latest synced position, which is what the server checks.
+    this.hud.update(state, me, me?.status === "alive" && map ? extractZoneAt(map.extracts, me) : null);
     this.inventory.update(me);
     this.lootPanel.update(state, me, map);
   }
@@ -309,6 +316,8 @@ export class RaidScene extends Phaser.Scene {
     // Shift+digit drops the slot; a plain digit uses it.
     if (e.code === "KeyS") sendInput(this.room, "stop", {});
     else if (e.code === "KeyF") this.lootPanel.toggle(this.nearest);
+    // The server decides whether this player is in a zone; the HUD hint only says when it is worth pressing.
+    else if (e.code === "KeyX") { if (this.localAlive()) sendInput(this.room, "extract", {}); }
     // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
     else if (e.code === "KeyQ") { if (this.aimKnown && this.input.isOver) this.sendAttack(this.input.activePointer); }
     else if (e.code === "Escape") this.lootPanel.close();

@@ -5,7 +5,7 @@ import {
 import { ItemState, PlayerState } from "@raid/shared/schema";
 import { InputQueue } from "./inputs";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
-import { emit, type PlayerRuntime, type SimEvent, type World } from "./world";
+import { cancelExtraction, emit, type PlayerRuntime, type SimEvent, type World } from "./world";
 
 export function addPlayer(world: World, id: string, profile: string, items: ItemDTO[]): PlayerState {
   const s = world.state;
@@ -65,6 +65,15 @@ export function removePlayer(world: World, id: string): void {
   const p = world.state.players.get(id);
   const rt = world.players.get(id);
   if (p && rt && p.status === "alive") resolvePlayer(world, p, rt, "mia");
+  world.state.players.delete(id);
+  world.players.delete(id);
+}
+
+/**
+ * Removes a player without resolving them: no result, no MIA, no body. For a server shutdown, where
+ * the raid is void for everyone and the Room hands the player's own items back instead.
+ */
+export function abandonPlayer(world: World, id: string): void {
   world.state.players.delete(id);
   world.players.delete(id);
 }
@@ -164,7 +173,7 @@ function updateActive(world: World, dtMs: number): void {
       const path = move.kind === "move" ? planPath(world, p, move) : [];
       if (move.kind === "stop" || path.length > 0) {
         rt.path = path;
-        if (rt.extracting) { rt.extracting = null; p.extractProgress = 0; }
+        cancelExtraction(world, p, rt);
       }
     }
     for (const cmd of actions) {

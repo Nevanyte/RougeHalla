@@ -1,5 +1,5 @@
-// In-raid DOM overlay: phase/timer line, player vitals with equipped gear, and the "you died" line.
-import { bestArmor, bestWeapon, type WeaponDef } from "@raid/shared";
+// In-raid DOM overlay: phase/timer line, player vitals with equipped gear, the extraction prompt, and the "you died" line.
+import { EXTRACT_SECONDS, bestArmor, bestWeapon, type ExtractZoneDef, type WeaponDef } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { el, uiRoot } from "./dom";
 
@@ -17,6 +17,9 @@ export class Hud {
   private readonly root = el("div", "hud");
   private readonly status = el("div", "hud-status");
   private readonly vitals = el("div", "hud-vitals");
+  /** "Press X to extract" / the extraction countdown; a sibling of the HUD block so it can sit top-center. */
+  private readonly extractLine = el("div", "extract-line");
+  private lastExtract = "";
   /** Centered over the world; a sibling of the HUD block (not a child) so it can sit mid-screen. */
   private readonly deathLine = el("div", "death-line", "YOU DIED");
   private lastStatus = "";
@@ -29,7 +32,8 @@ export class Hud {
   constructor() {
     this.root.append(this.status, this.vitals);
     this.deathLine.hidden = true;
-    uiRoot().append(this.root, this.deathLine);
+    this.extractLine.hidden = true;
+    uiRoot().append(this.root, this.extractLine, this.deathLine);
   }
 
   /** The local player has died (killing result or death fx): show the line now, ahead of the results panel. */
@@ -44,7 +48,8 @@ export class Hud {
     this.setDeathShown(false);
   }
 
-  update(state: RaidState, me: PlayerState | undefined): void {
+  /** `zone`: the extract zone the local player's latest synced position is inside, if any. */
+  update(state: RaidState, me: PlayerState | undefined, zone: ExtractZoneDef | null = null): void {
     let status: string;
     if (state.phase === "lobby") {
       status = `Waiting for players ${state.players.size}/${state.minPlayers} — raid starts in ${fmtSeconds(state.lobbyEndsAt - state.serverTime)}`;
@@ -64,7 +69,28 @@ export class Hud {
     }
     if (vitals !== this.lastVitals) { this.vitals.textContent = vitals; this.lastVitals = vitals; }
 
+    this.updateExtract(state, me, zone);
     this.setDeathShown((this.deathRequested || me?.status === "dead") && !this.resultShown);
+  }
+
+  private updateExtract(state: RaidState, me: PlayerState | undefined, zone: ExtractZoneDef | null): void {
+    let text = "";
+    let extracting = false;
+    if (me?.status === "alive" && state.phase === "active") {
+      if (me.extractProgress > 0) {
+        // The server's extract duration isn't synced; EXTRACT_SECONDS is its default, so this is a close estimate.
+        const left = Math.max(1, Math.ceil(EXTRACT_SECONDS * (1 - me.extractProgress)));
+        text = `Extracting… ${left}s — moving, stopping (S) or attacking cancels`;
+        extracting = true;
+      } else if (zone) {
+        text = `In ${zone.name} — press X to extract`;
+      }
+    }
+    if (text === this.lastExtract) return;
+    this.lastExtract = text;
+    this.extractLine.textContent = text;
+    this.extractLine.hidden = text === "";
+    this.extractLine.classList.toggle("extracting", extracting);
   }
 
   private setDeathShown(shown: boolean): void {
@@ -75,6 +101,7 @@ export class Hud {
 
   destroy(): void {
     this.root.remove();
+    this.extractLine.remove();
     this.deathLine.remove();
   }
 }

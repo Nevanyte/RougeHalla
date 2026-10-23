@@ -103,6 +103,17 @@ export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
 }
 
+/**
+ * Stops a running extraction and tells the player, once. A no-op when none is running, so callers
+ * (move/stop, attack, leaving the zone) can call it unconditionally without repeating the toast.
+ */
+export function cancelExtraction(world: World, p: PlayerState, rt: PlayerRuntime): void {
+  if (!rt.extracting) return;
+  rt.extracting = null;
+  p.extractProgress = 0;
+  emit(world, { type: "toast", to: rt.id, text: "Extraction cancelled" });
+}
+
 /** Room-unique id for containers and other raid-scoped entities (not items: see newItemUid). */
 export function nextId(world: World, prefix: string): string {
   world.idCounter++;

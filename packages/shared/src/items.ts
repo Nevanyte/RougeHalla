@@ -49,3 +49,6 @@ export function bestArmor(defIds: Iterable<string>): ArmorDef | null {
   }
   return best;
 }
+
+/** What a newly claimed profile finds in its stash. */
+export const STARTER_KIT: readonly string[] = ["knife", "bandage", "watch"];

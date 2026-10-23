@@ -6,7 +6,7 @@ import {
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, MAX_ACTIONS_PER_TICK } from "../src/sim/inputs";
 import { planPath, positionAt } from "../src/sim/movement";
-import { actionOrder, addPlayer, removePlayer, resolvePlayer, step } from "../src/sim/step";
+import { abandonPlayer, actionOrder, addPlayer, removePlayer, resolvePlayer, step } from "../src/sim/step";
 import { createWorld, emit, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
@@ -1404,6 +1404,58 @@ describe("removePlayer", () => {
     removePlayer(w, "a");
     expect(() => run(w, 5)).not.toThrow();
     expect(w.state.players.has("a")).toBe(false);
+  });
+});
+
+describe("abandonPlayer", () => {
+  it("removes an alive player from the state and the runtime without resolving them", () => {
+    const { world: w } = activePair({ raidSeconds: 100 }, gear("rifle", "gpu"), gear("knife"));
+    run(w, 40);
+    abandonPlayer(w, "a");
+    expect(w.state.players.has("a")).toBe(false);
+    expect(w.players.has("a")).toBe(false);
+    expect(w.events).toEqual([]);
+    const events = run(w, 5);
+    expect(ofType(events, "resolved")).toEqual([]);
+    expect(w.state.phase).toBe("active");
+    expect(player(w, "b").status).toBe("alive");
+  });
+
+  it("never drops a body: the Room hands the items back instead", () => {
+    const { world: w } = activePair({ raidSeconds: 100 }, gear("rifle"));
+    const drops: string[] = [];
+    w.hooks.dropBody = (_w, p) => { drops.push(p.name); };
+    abandonPlayer(w, "a");
+    run(w, 5);
+    expect(drops).toEqual([]);
+  });
+
+  it("leaves nobody to resolve when the last alive player is abandoned: the raid just ends", () => {
+    const { world } = activeSolo({ raidSeconds: 100 }, gear("gold"));
+    abandonPlayer(world, "a");
+    const events = step(world, TICK_MS);
+    expect(events.map((e) => e.type)).toEqual(["raidEnded"]);
+    expect(world.state.players.size).toBe(0);
+  });
+
+  it("works in the lobby and for an unknown id", () => {
+    const w = makeWorld({ minPlayers: 2, lobbySeconds: 1000 });
+    addPlayer(w, "a", "alice", gear("gold"));
+    expect(() => abandonPlayer(w, "ghost")).not.toThrow();
+    expect(w.state.players.size).toBe(1);
+    abandonPlayer(w, "a");
+    expect(w.state.players.size).toBe(0);
+    expect(w.players.size).toBe(0);
+    expect(w.events).toEqual([]);
+  });
+
+  it("does not touch a player who was already resolved", () => {
+    const { world: w } = activePair({ raidSeconds: 100 }, gear("gold"));
+    w.actions.attack = (world, p, rt) => resolvePlayer(world, p, rt, "died");
+    enqueueClientMessage(w.players.get("a")!.inputs, "attack", { x: 1, y: 1 });
+    expect(ofType(step(w, TICK_MS), "resolved")).toHaveLength(1);
+    abandonPlayer(w, "a");
+    expect(w.events).toEqual([]);
   });
 });
 

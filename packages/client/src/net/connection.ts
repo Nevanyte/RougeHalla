@@ -1,12 +1,36 @@
 import { Client, type Room } from "@colyseus/sdk";
-import { ROOM_NAME, SERVER_PORT, type ClientMessages, type JoinOptions } from "@raid/shared";
+import { INVENTORY_SLOTS, ROOM_NAME, SERVER_PORT, type ClientMessages, type JoinOptions } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 
 export type RaidRoom = Room<any, RaidState>;
 
-export function serverEndpoint(): string {
+/** VITE_SERVER_URL when set and non-empty; the WebSocket endpoint and the REST base both derive from it. */
+function configuredServerUrl(): string | undefined {
   const fromEnv = import.meta.env.VITE_SERVER_URL as string | undefined;
-  return fromEnv ?? `${location.protocol}//${location.hostname}:${SERVER_PORT}`;
+  return fromEnv || undefined;
+}
+
+export function serverEndpoint(): string {
+  return configuredServerUrl() ?? `${location.protocol}//${location.hostname}:${SERVER_PORT}`;
+}
+
+/**
+ * Prefix for REST paths, without a trailing slash. When VITE_SERVER_URL is set, the http(s) origin of that URL
+ * (ws → http, wss → https), which makes /api cross-origin (the server answers with CORS). Otherwise "", so /api
+ * stays same-origin and goes through Vite's dev proxy.
+ */
+export function apiBase(): string {
+  const configured = configuredServerUrl();
+  if (!configured) return "";
+  try {
+    const url = new URL(configured, location.href);
+    const protocol = url.protocol === "wss:" ? "https:" : url.protocol === "ws:" ? "http:" : url.protocol;
+    // Keep the path: a server mounted under a prefix (reverse proxy) serves /api below it too.
+    const prefix = url.pathname.replace(/\/+$/, "");
+    return protocol === "http:" || protocol === "https:" ? `${protocol}//${url.host}${prefix}` : "";
+  } catch {
+    return "";
+  }
 }
 
 let client: Client | null = null;
@@ -19,18 +43,25 @@ function tuneReconnection(room: RaidRoom): void {
   room.reconnection.maxEnqueuedMessages = 0;
 }
 
+/** The text the server (or the socket layer) gave for a failed join, for the menu to show. */
+export function joinErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg || "unknown error";
+}
+
 export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
   client ??= new Client(serverEndpoint());
+  // The server enforces the limit too; trimming here only keeps an over-full request from being refused outright.
+  const joinOptions: JoinOptions = { ...options, loadout: options.loadout.slice(0, INVENTORY_SLOTS) };
   // A seat reserved in the instant a raid starts is refused ("raid already started");
   // the next joinOrCreate lands in a fresh lobby.
   for (let attempt = 0; ; attempt++) {
     try {
-      const room = await client.joinOrCreate<RaidState>(ROOM_NAME, options);
+      const room = await client.joinOrCreate<RaidState>(ROOM_NAME, joinOptions);
       tuneReconnection(room);
       return room;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (attempt >= 2 || !msg.includes("raid already started")) throw err;
+      if (attempt >= 2 || !joinErrorMessage(err).includes("raid already started")) throw err;
     }
   }
 }

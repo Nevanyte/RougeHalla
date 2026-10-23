@@ -7,7 +7,7 @@ import {
 import type { PlayerState } from "@raid/shared/schema";
 import { positionAt } from "./movement";
 import { resolvePlayer } from "./step";
-import { emit, type ActionHandler, type World } from "./world";
+import { cancelExtraction, emit, type ActionHandler, type World } from "./world";
 
 /** Extra hit radius on top of PLAYER_RADIUS. Melee is forgiving (swings are wide); bullets are not. */
 export const MELEE_SLACK = 8;
@@ -55,7 +55,7 @@ export const handleAttack: ActionHandler = (world, p, rt, cmd) => {
   rt.nextAttackAt = now + weapon.cooldownMs;
   // Keep facing the target for a moment even while walking (cosmetic; see step.ts).
   rt.aimFacingUntil = now + weapon.cooldownMs;
-  if (rt.extracting) { rt.extracting = null; p.extractProgress = 0; }
+  cancelExtraction(world, p, rt);
 
   // The click carries the (interpolated) time the shooter saw; never trust it beyond the rewind window.
   // The upper bound is the last *published* tick: during this tick's action loop some targets may

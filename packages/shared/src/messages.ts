@@ -63,11 +63,20 @@ export interface ServerMessages {
 /** Options for `client.joinOrCreate(ROOM_NAME, options)`. */
 export interface JoinOptions {
   profile: string;
-  /** Stash item uids to bring into the raid (≤ INVENTORY_SLOTS). */
+  /** Proof of ownership issued by GET /api/profile/:name when the profile was first claimed. */
+  token: string;
+  /** Stash item uids to bring into the raid (≤ INVENTORY_SLOTS). They leave the stash at join. */
   loadout: string[];
 }
 
 export interface ProfileStats { raids: number; extracts: number; deaths: number; kills: number }
 export interface ProfileDTO { name: string; stash: ItemDTO[]; stats: ProfileStats }
+
+/**
+ * GET /api/profile/:name with header `x-profile-token` (omit it to claim a new name).
+ * 200 → this body; 403 → the name belongs to someone else; 400 → invalid name.
+ */
+export interface ProfileResponse { profile: ProfileDTO; token: string; created: boolean }
+export const PROFILE_TOKEN_HEADER = "x-profile-token";
 
 export const PROFILE_RE = /^[A-Za-z0-9_-]{2,16}$/;

@@ -42,3 +42,5 @@ Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_
 - Single process only: the "profile already in a raid" guard and the stash file are process-local.
 - Lag compensation trusts the client's `t` anywhere inside `[now − MAX_REWIND_MS, last published tick]`. A cheating client can pick the most favourable `t` in that 300 ms window. Mitigation: bound `t` per client by measured RTT, or require it to be monotonic.
 - `MAX_REWIND_MS = 300` fully covers clients up to ~150 ms RTT (render delay 100 ms + RTT + one tick). Beyond that, shots at moving targets start to miss.
+- Only a graceful shutdown (SIGTERM/SIGINT, uncaught exception) hands a raider's loadout back. A hard kill (SIGKILL, power loss, OOM) mid-raid loses it: the items leave the stash on disk at join and nothing records that they are out.
+- Profile creation has no rate limit or cap: any client can `GET /api/profile/<new name>` as often as it likes, and `/api` answers every origin (`Access-Control-Allow-Origin: *`) so any web page can do it. Each claim adds a profile, a starter kit and a stash-file rewrite.
