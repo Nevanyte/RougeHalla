@@ -258,17 +258,20 @@ Ranged weapons can kite, so three things hold them back:
 - **Rule of thumb: weapons decide reach; factions decide trades.**
   - Who can hit whom, from where, is the weapon's job: range, blocks, interceptions.
   - Once two players are trading blows, the faction loop decides who outlasts whom.
-- **Signature weapons make every opening matchup contested.** Each faction starts with the weapon that **loses** the weapon edge against both factions it beats on stats:
+- **Signature weapons keep almost every opening matchup contested.** Mostly, each faction starts with the weapon that **loses** the weapon edge against the factions it beats on stats:
 
-  | Faction | Starts with | Beats (faction) | …whose weapon beats yours |
+  | Faction | Starts with | Beats (faction) | Weapon matchup in that opening |
   |---|---|---|---|
-  | Fire | Axe | Sentenced (Sword), Plague (Bow) | Sword > Axe, Bow > Axe |
-  | Sentenced | Sword | Plague (Bow), Frost (Shield) | Bow > Sword, Shield > Sword |
-  | Plague | Bow | Frost (Shield), Holy (Wand) | Shield > Bow, Wand > Bow |
-  | Frost | Shield | Holy (Wand), Fire (Axe) | Wand > Shield, Axe > Shield |
-  | Holy | Wand | Fire (Axe), Sentenced (Sword) | Axe > Wand, Sword > Wand |
+  | Fire | Axe | Sentenced (Bow), Plague (Bow) | Bow > Axe in both: contested |
+  | Sentenced | **Bow** | Plague (Bow), Frost (Shield) | Bow vs Bow mirror: neutral; Shield > Bow: contested |
+  | Plague | Bow | Frost (Shield), Holy (Wand) | Shield > Bow, Wand > Bow: contested |
+  | Frost | Shield | Holy (Wand), Fire (Axe) | Wand > Shield, Axe > Shield: contested |
+  | Holy | Wand | Fire (Axe), Sentenced (Bow) | Axe > Wand: contested; Wand > Bow: **favours Holy** |
 
-  So no fight is decided on the pick screen. The real decision is **which second weapon to go and get**.
+  - **8 of the 10 openings are contested.** The faction winner starts with the losing weapon, so no fight is decided on the pick screen. The real decision is **which second weapon to go and get**.
+  - **Sentenced vs Plague** starts as a bow mirror, so the faction edge decides it.
+  - **Holy vs Sentenced** favours Holy on both loops, on purpose. With Sentenced on the sword this was the thinnest opening in the game (Holy kept about 6% HP in the worst case, so any buff decided it). With Sentenced on the bow, Holy keeps 29%.
+  - **Region weapons don't change.** The Sentenced region's mobs still carry swords, so all five weapons can be farmed somewhere.
 
 ### 10.2 The scaling formula
 - **The weapon sets the shape. The faction sets the rhythm and the punch.**
@@ -468,7 +471,6 @@ Hard counters are only fair if you can see them coming.
 | The faction cycle matters most late | Early fights are mostly weapons, positioning and third parties. The cycle decides the 1v1s, often in the coliseum. |
 | Bounties within a tick | If several players hit a fed player in the same tick, who gets the payout has to be decided by a fair rule. |
 | Buffs past the counters | The real-time check shows about +20% HP, +30% attack speed or +16% move speed on the losing side starts flipping the softest faction edges. The S-curve deliberately goes past that (fed players can beat their counters); bounties are the release valve. |
-| Holy (wand) vs Sentenced (sword) opening | The tightest opening: Holy keeps only about 6% HP in the worst case. Options: Sentenced starts with a bow (29%, but that opening is no longer contested), or raise Holy's shield to 275 (14–21%). |
 
 ---
 
