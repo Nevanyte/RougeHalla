@@ -15,7 +15,9 @@
 //  12 cover: one noise draw per tile (W*H, row-major), then one growth coin per rock (coarse pass, fine pass, spawn screens)
 //  13 ground spots (shuffle of the open tiles, shuffle of the others when too few, count)
 // A failed attempt (see MAX_ATTEMPTS) restarts the whole sequence on a derived seed.
-import { EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, SIGHT_CORRIDOR_WIDTH, TILE } from "./constants";
+import {
+  EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE,
+} from "./constants";
 import {
   REGION_COLISEUM, REGION_FACTIONS, REGION_IDS, REGION_NONE, REGION_WEAPONS, TILE_FLOOR, TILE_WALL, regionCode, tileToWorldCenter, worldToTile,
 } from "./map";
@@ -73,8 +75,8 @@ const CHEST_MIN_GAP = 2;
 
 /**
  * Anti-kiting cover. Lines of one direction are `step` apart in `dirs` directions over [0, pi), and a lane is the
- * strip between two neighbouring lines where only open tiles (all floor) touch it. No lane may be longer than
- * LANE_TARGET tiles. SIGHT_LATTICE is the fine lattice that certifies the bound: with 48 directions and lines a
+ * strip between two neighbouring lines where only open tiles (all floor) touch it. No lane may be longer than the
+ * pass's `target` tiles. SIGHT_LATTICE is the fine lattice that certifies the bound: with 48 directions and lines a
  * quarter of SIGHT_CORRIDOR_WIDTH apart, a free strip of that width at any angle and offset contains a lattice lane
  * of nearly its length, so lanes of at most `target` tiles (a hair under MAX_SIGHT_CORRIDOR) bound every such strip by
  * MAX_SIGHT_CORRIDOR. A coarse lattice (32 directions, lines half a width apart) does the bulk of the cover first.
@@ -341,10 +343,10 @@ function pickGroundSpots(rng: Rng, tiles: Uint8Array, skip: Uint8Array, spawns: 
 }
 
 /**
- * Every line of the lane metric, as the tiles it crosses in order. The table depends only on the map size,
- * so it is built once, on first use, and shared by every generateMap call (it is never written afterwards).
+ * Every line of the lane metric, as the tiles it crosses in order. The table depends only on the map size and the
+ * lattice, so each is built once, on first use, and shared by every generateMap call (it is never written afterwards).
  * Lines of one direction are stored in order of offset, so line l + 1 is the neighbour of line l when pairOK[l]:
- * the two bound one strip of the map, LANE_STEP wide.
+ * the two bound one strip of the map, `step` wide.
  */
 interface LaneTable {
   /** Line l crosses tile[lineStart[l] .. lineStart[l + 1]). */
@@ -360,11 +362,12 @@ interface LaneTable {
   pairOK: Uint8Array;
 }
 
-const laneTables = new Map<number, LaneTable>();
+const laneTables = new Map<string, LaneTable>();
 
 /** The table of `dirs` directions with lines `step` apart, built on first use. */
 function getLaneTable(dirs: number, step: number): LaneTable {
-  const cached = laneTables.get(dirs);
+  const key = `${dirs}:${step}`;
+  const cached = laneTables.get(key);
   if (cached) return cached;
   const capacity = Math.ceil((dirs * (W * H * 1.5 + 4 * W)) / step);
   const tileBuf = new Uint16Array(capacity);
@@ -456,7 +459,7 @@ function getLaneTable(dirs: number, step: number): LaneTable {
   const pairOK = new Uint8Array(lines);
   for (let l = 0; l + 1 < lines; l++) pairOK[l] = lineDir[l] === lineDir[l + 1] && lineOff[l + 1] === lineOff[l] + 1 ? 1 : 0;
   const table = { lineStart, tile, edge, tileStart, tileLine, tilePos, pairOK };
-  laneTables.set(dirs, table);
+  laneTables.set(key, table);
   return table;
 }
 
@@ -567,35 +570,70 @@ function walkDistances(tiles: Uint8Array, from: number): Int32Array {
   return dist;
 }
 
+/** The sim hits a ranged target whose centre is within RANGED_HIT_REACH of the aim ray; a hair more here so rounding there can't open a gap. */
+const HIT_REACH = RANGED_HIT_REACH / TILE + LANE_EPS;
+
 /**
- * Whether the segment between two points (tile units) crosses no wall tile, by the same grid walk as geometry.raycast
- * (a segment through a tile vertex enters both neighbours; outside the map is wall). `crossed` receives the tiles of
- * a clear segment in order, with the neighbours of every vertex it passes.
+ * The hit cone of a shooter on tile-unit point (ax, ay) at a target on (bx, by): every aim ray that passes within
+ * HIT_REACH of the target's centre and so could hit it unless a wall cuts the ray first. A direction is described by
+ * its slope `cross / dot` against the unit vector d0 from shooter to target, which is monotone in angle (it is the
+ * tangent of the angle off d0), so the cone is the slopes [-t, t]. Every cone ray passes the target's centre at
+ * `dot >= ahead` (the value on its edge, sqrt(distance² - HIT_REACH²)), so a wall tile whose farthest corner is nearer than that cuts every ray
+ * that crosses it before the target.
  */
-function segmentClear(tiles: Uint8Array, x0: number, y0: number, x1: number, y1: number, crossed: number[]): boolean {
-  crossed.length = 0;
-  const wallAt = (tx: number, ty: number): boolean => tx < 0 || ty < 0 || tx >= W || ty >= H || tiles[ty * W + tx] === TILE_WALL;
-  let tx = Math.floor(x0), ty = Math.floor(y0);
-  if (wallAt(tx, ty)) return false;
-  crossed.push(ty * W + tx);
-  const dx = x1 - x0, dy = y1 - y0;
-  if (dx === 0 && dy === 0) return true;
-  const stepX = dx > 0 ? 1 : dx < 0 ? -1 : 0, stepY = dy > 0 ? 1 : dy < 0 ? -1 : 0;
-  let tMaxX = stepX === 0 ? Infinity : (tx + (stepX > 0 ? 1 : 0) - x0) / dx;
-  let tMaxY = stepY === 0 ? Infinity : (ty + (stepY > 0 ? 1 : 0) - y0) / dy;
-  for (;;) {
-    const t = tMaxX < tMaxY ? tMaxX : tMaxY;
-    if (t > 1) return true;
-    const crossX = tMaxX <= t, crossY = tMaxY <= t;
-    if (crossX && crossY) {
-      if (wallAt(tx + stepX, ty) || wallAt(tx, ty + stepY)) return false;
-      crossed.push(ty * W + tx + stepX, (ty + stepY) * W + tx);
-    }
-    if (crossX) { tx += stepX; tMaxX = (tx + (stepX > 0 ? 1 : 0) - x0) / dx; }
-    if (crossY) { ty += stepY; tMaxY = (ty + (stepY > 0 ? 1 : 0) - y0) / dy; }
-    if (wallAt(tx, ty)) return false;
-    crossed.push(ty * W + tx);
+interface Cone { ax: number; ay: number; dx: number; dy: number; far2: number; t: number; gaps: number[] }
+
+function makeCone(ax: number, ay: number, bx: number, by: number): Cone {
+  const ex = bx - ax, ey = by - ay, len = Math.sqrt(ex * ex + ey * ey);
+  const ahead = Math.sqrt(len * len - HIT_REACH * HIT_REACH);
+  return { ax, ay, dx: ex / len, dy: ey / len, far2: (ahead - LANE_EPS) * (ahead - LANE_EPS), t: HIT_REACH / ahead, gaps: [] };
+}
+
+const tileSlope = [0, 0];
+
+/** The slopes [lo, hi] of the rays that cross tile (tx, ty) seen from the shooter, into tileSlope; false when the tile cannot be counted on to cut a cone ray before the target. */
+function tileSlopes(c: Cone, tx: number, ty: number): boolean {
+  let lo = Infinity, hi = -Infinity;
+  for (let q = 0; q < 4; q++) {
+    const vx = tx + (q & 1) - c.ax, vy = ty + (q >> 1) - c.ay;
+    const dot = c.dx * vx + c.dy * vy;
+    if (dot <= 0 || vx * vx + vy * vy >= c.far2) return false;
+    const slope = (c.dx * vy - c.dy * vx) / dot;
+    if (slope < lo) lo = slope;
+    if (slope > hi) hi = slope;
   }
+  tileSlope[0] = lo;
+  tileSlope[1] = hi;
+  return true;
+}
+
+/** The tiles that can matter to a cone: those the segment between the two points comes within HIT_REACH of. */
+function coneBox(c: Cone, bx: number, by: number): [number, number, number, number] {
+  return [
+    Math.max(0, Math.floor(Math.min(c.ax, bx) - HIT_REACH)), Math.max(0, Math.floor(Math.min(c.ay, by) - HIT_REACH)),
+    Math.min(W - 1, Math.floor(Math.max(c.ax, bx) + HIT_REACH)), Math.min(H - 1, Math.floor(Math.max(c.ay, by) + HIT_REACH)),
+  ];
+}
+
+/** Fills c.gaps with the [from, to] slope ranges of the cone that no wall tile is sure to cut before the target; empty when the target is safe from this shooter. */
+function coneGaps(tiles: Uint8Array, c: Cone, box: readonly number[]): void {
+  const spans: [number, number][] = [];
+  for (let ty = box[1]; ty <= box[3]; ty++) {
+    for (let tx = box[0]; tx <= box[2]; tx++) {
+      if (tiles[ty * W + tx] === TILE_WALL && tileSlopes(c, tx, ty) && tileSlope[1] >= -c.t && tileSlope[0] <= c.t) spans.push([tileSlope[0], tileSlope[1]]);
+    }
+  }
+  spans.sort((p, q) => p[0] - q[0]);
+  const gaps = c.gaps;
+  gaps.length = 0;
+  let covered = -c.t;
+  for (const [lo, hi] of spans) {
+    if (covered >= c.t) break;
+    // Two tiles lined up with the shooter share a slope that rounding can split by an ulp; real corners differ by far more.
+    if (lo > covered + LANE_EPS) gaps.push(covered, lo);
+    if (hi > covered) covered = hi;
+  }
+  if (covered < c.t) gaps.push(covered, c.t);
 }
 
 /**
@@ -610,8 +648,8 @@ function segmentClear(tiles: Uint8Array, x0: number, y0: number, x1: number, y1:
  * whose floor must stay one piece that touches all five regions. Returns the number of rocks, or a negative number
  * when some corridor cannot be cut, which is mostly known before the first rock: a stretch of protected ground
  * longer than the target has no tile to cut it on (the caller then tries another map). With `spawns`, a last step
- * screens every pair of spawns within MAX_SIGHT_CORRIDOR of each other that can see each other with a rock on the
- * line between them.
+ * screens every pair of spawns within MAX_SIGHT_CORRIDOR of each other against the sim's ranged hit cone, with rocks
+ * between them, until no aim ray that could hit the other spawn gets past a wall.
  */
 function placeCover(
   lt: LaneTable, target: number, rng: Rng, noise: Uint16Array, tiles: Uint8Array, regionGrid: Uint8Array, prot: Uint8Array, soft: Uint8Array,
@@ -985,27 +1023,50 @@ function placeCover(
   while (work.length > 0) if (!cut(work.pop()!)) return -1;
   if (longLanes !== 0) return -1;
 
-  // No two spawns within MAX_SIGHT_CORRIDOR of each other see each other: a rock goes on a tile the sight line
-  // crosses, near the middle of it.
+  // No shot from one spawn can hit another within MAX_SIGHT_CORRIDOR: every aim ray in the hit cone of each (see Cone)
+  // must meet a wall first. Where it does not, a rock goes on the tile that closes most of the gaps, near the middle.
   if (spawns !== null) {
     const reach2 = (MAX_SIGHT_CORRIDOR / TILE) * (MAX_SIGHT_CORRIDOR / TILE) + LANE_EPS;
-    const crossed: number[] = [];
-    for (let again = true; again;) {
-      again = false;
-      for (let i = 0; i < spawns.length && !again; i++) {
-        for (let j = i + 1; j < spawns.length && !again; j++) {
-          if (d2(spawns[i], spawns[j]) > reach2 || !segmentClear(tiles, spawns[i].x + 0.5, spawns[i].y + 0.5, spawns[j].x + 0.5, spawns[j].y + 0.5, crossed)) continue;
-          // nearest to the middle first; a rock that keeps to the preferred layout beats one that does not
-          let best = -1, bestLvl = NEVER;
-          for (let step = 0; step < crossed.length && bestLvl > 0; step++) {
-            const mid = crossed.length >> 1, at = (step & 1) === 0 ? mid + (step >> 1) : mid - ((step + 1) >> 1);
-            if (at < 0 || at >= crossed.length) continue;
-            const lvl = levelOf(crossed[at], rocks + 1, 3);
-            if (lvl < bestLvl) { best = crossed[at]; bestLvl = lvl; }
+    for (let i = 0; i < spawns.length; i++) {
+      for (let j = i + 1; j < spawns.length; j++) {
+        if (d2(spawns[i], spawns[j]) > reach2) continue;
+        const ax = spawns[i].x + 0.5, ay = spawns[i].y + 0.5, bx = spawns[j].x + 0.5, by = spawns[j].y + 0.5;
+        const cones = [makeCone(ax, ay, bx, by), makeCone(bx, by, ax, ay)];
+        const box = coneBox(cones[0], bx, by);
+        const mx = (ax + bx) * 0.5, my = (ay + by) * 0.5;
+        // Rocks only add cover, so a pair that is safe stays safe and one pass over the pairs is enough.
+        for (;;) {
+          let before = 0;
+          for (const c of cones) {
+            coneGaps(tiles, c, box);
+            for (let g = 0; g < c.gaps.length; g += 2) before += (c.gaps[g + 1] - c.gaps[g]) / (2 * c.t);
+          }
+          if (before === 0) break;
+          let best = -1, bestKey = Infinity, bestMid = Infinity, bestLvl = NEVER;
+          for (let ty = box[1]; ty <= box[3]; ty++) {
+            for (let tx = box[0]; tx <= box[2]; tx++) {
+              const t = ty * W + tx;
+              if (tiles[t] !== TILE_FLOOR) continue;
+              // the share of the cones' slopes still open if this tile were a rock
+              let left = 0;
+              for (const c of cones) {
+                const cut = tileSlopes(c, tx, ty);
+                for (let g = 0; g < c.gaps.length; g += 2) {
+                  const from = c.gaps[g], to = c.gaps[g + 1];
+                  left += (to - from - (cut ? Math.max(0, Math.min(to, tileSlope[1]) - Math.max(from, tileSlope[0])) : 0)) / (2 * c.t);
+                }
+              }
+              if (left >= before - LANE_EPS) continue;
+              const lvl = levelOf(t, rocks + 1, 3);
+              if (lvl === NEVER) continue;
+              // a rock that closes every gap beats one that closes part (the most first); then the preferred layout; then the middle
+              const key = (left <= LANE_EPS ? 0 : 1 + Math.ceil(left * 20)) * 16 + lvl;
+              const ox = tx + 0.5 - mx, oy = ty + 0.5 - my, mid = ox * ox + oy * oy;
+              if (key < bestKey || (key === bestKey && mid < bestMid)) { best = t; bestKey = key; bestMid = mid; bestLvl = lvl; }
+            }
           }
           if (best < 0) return -1;
           place(best, bestLvl);
-          again = true;
         }
       }
     }

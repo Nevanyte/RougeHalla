@@ -21,6 +21,11 @@ export const MAP_TILES_H = 64;
 export const WORLD_W = MAP_TILES_W * TILE;
 export const WORLD_H = MAP_TILES_H * TILE;
 export const PLAYER_RADIUS = 12;
+/** Extra hit radius on top of PLAYER_RADIUS. Melee is forgiving (swings are wide); bullets are not. */
+export const MELEE_SLACK = 8;
+export const RANGED_SLACK = 2;
+/** A ranged shot hits a player whose centre is within this of the aim ray; mapgen's spawn screens use it. */
+export const RANGED_HIT_REACH = PLAYER_RADIUS + RANGED_SLACK;
 export const PLAYER_SPEED = 170;
 export const PLAYER_MAX_HP = 100;
 export const INTERACT_RANGE = 56;
@@ -30,7 +35,7 @@ export const INVENTORY_SLOTS = 6;
  * tile) wide, at any angle and offset, runs at most MAX_SIGHT_CORRIDOR through open floor. Open floor includes every
  * region, the gates-closed coliseum and lines through the gates. The cap is the bow's range, so an archer gets its
  * full range of free fire on a chaser but can't backpedal forever. Narrower corridors are not guaranteed: a 24 u gap
- * (PLAYER_RADIUS is 12, so a player fits) measured up to 473 u and a 16 u gap up to 546 u. The owner deferred those.
+ * (PLAYER_RADIUS is 12, so a player fits) measured up to 473 u and a 16 u gap up to about 580 u. The owner deferred those.
  */
 export const MAX_SIGHT_CORRIDOR = 480;
 export const SIGHT_CORRIDOR_WIDTH = 32;

@@ -2,16 +2,15 @@
 // item catalog; a player with no weapon fights with FISTS. step.ts only runs actions for alive
 // players in an active raid, so the handler doesn't re-check that for the shooter.
 import {
-  bestArmor, bestWeapon, MAX_REWIND_MS, PLAYER_RADIUS, raycast, TICK_MS, type ArmorDef, type WeaponDef,
+  bestArmor, bestWeapon, MAX_REWIND_MS, MELEE_SLACK, PLAYER_RADIUS, RANGED_SLACK, raycast, TICK_MS, type ArmorDef,
+  type WeaponDef,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { applyDamage } from "./arena";
 import { positionAt } from "./movement";
 import { collisionMap, emit, type ActionHandler, type World } from "./world";
 
-/** Extra hit radius on top of PLAYER_RADIUS. Melee is forgiving (swings are wide); bullets are not. */
-export const MELEE_SLACK = 8;
-export const RANGED_SLACK = 2;
+export { MELEE_SLACK, RANGED_SLACK } from "@raid/shared";
 
 /** Below this the click is on top of the shooter and has no usable direction. */
 const MIN_AIM_LENGTH = 1e-3;

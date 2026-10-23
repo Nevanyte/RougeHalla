@@ -2,7 +2,7 @@
 // Phase 8b spec and the anti-kiting cover spec, never from the generator's internals. The 200 maps are
 // generated once and shared.
 import { describe, expect, it, vi } from "vitest";
-import { EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, SIGHT_CORRIDOR_WIDTH, TILE } from "../src/constants";
+import { EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE } from "../src/constants";
 import {
   REGION_COLISEUM,
   REGION_FACTIONS,
@@ -18,17 +18,20 @@ import {
   worldToTile,
 } from "../src/map";
 import type { FactionRegionDef, GameMap, GateSide, MobCampDef, RegionFaction, TilePt, TileRect } from "../src/map";
-import { hasLineOfSight } from "../src/geometry";
+import { raycast } from "../src/geometry";
 import * as mapgenExports from "../src/mapgen";
 import { generateMap, longestLane } from "../src/mapgen";
 import type { Vec2 } from "../src/messages";
 import { findPath } from "../src/pathfind";
+import { mulberry32, randInt } from "../src/rng";
 
 /** Open tiles between the border ring and ruins/obstacles (v1 constant; the spec keeps it). */
 const EDGE_CLEAR = 3;
 
 const seeds = (n: number, from = 0) => Array.from({ length: n }, (_, i) => from + i);
 const SEEDS = seeds(200);
+/** Timeout for tests that touch many generated maps: the first one to run pays for generating all 200 (about 6 s alone), and the full suite runs under CPU contention. */
+const HEAVY_MS = 60_000;
 
 const cache = new Map<number, GameMap>();
 /** Cached generation: tests below must treat these maps as read-only. */
@@ -624,6 +627,73 @@ function walkLength(m: GameMap, from: Vec2, to: Vec2): number {
   return len;
 }
 
+// The sim's hitscan (server/src/sim/combat.ts) hits a target whose centre projects onto the aim ray at s with
+// 0 <= s <= the wall distance along that ray and sits within RANGED_HIT_REACH of the ray. So a shot needs only the
+// target's centre inside a cone around the line to it, not an unobstructed zero-width line between the two centres.
+const FAN_RAYS = 801;
+
+/**
+ * Sampled check: casts FAN_RAYS aims evenly across the cone from `a` that can hit a target at `b`, with the sim's
+ * conditions and the bow's range (MAX_SIGHT_CORRIDOR), and returns the first aim that would hit (its offset from the
+ * line to the target, degrees) or null. Uses the same `raycast` the sim uses, so it cannot drift from the real wall test.
+ */
+function hittableAim(m: GameMap, a: Vec2, b: Vec2, reach: number): number | null {
+  const L = dist(a, b);
+  const ang0 = Math.atan2(b.y - a.y, b.x - a.x);
+  const maxOff = Math.asin(Math.min(1, reach / L));
+  const half = (FAN_RAYS - 1) / 2;
+  for (let k = 0; k < FAN_RAYS; k++) {
+    const off = ((k - half) / half) * maxOff;
+    const dx = Math.cos(ang0 + off), dy = Math.sin(ang0 + off);
+    const s = (b.x - a.x) * dx + (b.y - a.y) * dy;
+    const perp = Math.abs((b.x - a.x) * dy - (b.y - a.y) * dx);
+    if (s < 0 || perp > reach + 1e-9) continue;
+    const wall = raycast(m, a.x, a.y, a.x + dx * MAX_SIGHT_CORRIDOR, a.y + dy * MAX_SIGHT_CORRIDOR);
+    if (s <= (wall.hit ? wall.dist : MAX_SIGHT_CORRIDOR)) return (off * 180) / Math.PI;
+  }
+  return null;
+}
+
+/**
+ * Exact check (for a pair closer than the bow's range): the aims that hit are the slopes
+ * |cross(d0, v) / dot(d0, v)| <= reach / sqrt(L^2 - reach^2) around d0 = (b - a) / L, and every one of them has its
+ * projection s >= sqrt(L^2 - reach^2). A wall tile whose far corner is nearer than that stops every aim that touches
+ * it, and the aims that touch a tile in front of `a` are exactly the slopes between its extreme corners. So the cone is
+ * safe if such tiles cover the whole slope interval. Returns the first uncovered slope's offset in degrees, or null
+ * when covered. It can only over-report (a tile partly beyond the bound is ignored), never miss a shot.
+ */
+function firstOpenSlope(m: GameMap, a: Vec2, b: Vec2, reach: number): number | null {
+  const L = dist(a, b);
+  const sMin = Math.sqrt(L * L - reach * reach);
+  const edge = reach / sMin;
+  const dx = (b.x - a.x) / L, dy = (b.y - a.y) / L;
+  const tx0 = worldToTile(Math.min(a.x, b.x)) - 1, tx1 = worldToTile(Math.max(a.x, b.x)) + 1;
+  const ty0 = worldToTile(Math.min(a.y, b.y)) - 1, ty1 = worldToTile(Math.max(a.y, b.y)) + 1;
+  const spans: [number, number][] = [];
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      if (!isWallTile(m, tx, ty)) continue;
+      let lo = Infinity, hi = -Infinity, far = 0, front = true;
+      for (let c = 0; c < 4; c++) {
+        const rx = (tx + (c & 1)) * TILE - a.x, ry = (ty + (c >> 1)) * TILE - a.y;
+        const along = rx * dx + ry * dy;
+        if (along <= 0) { front = false; break; }
+        const slope = (dx * ry - dy * rx) / along;
+        lo = Math.min(lo, slope); hi = Math.max(hi, slope);
+        far = Math.max(far, Math.hypot(rx, ry));
+      }
+      if (front && far < sMin && hi >= -edge && lo <= edge) spans.push([lo, hi]);
+    }
+  }
+  spans.sort((p, q) => p[0] - q[0]);
+  let covered = -edge;
+  for (const [lo, hi] of spans) {
+    if (lo > covered + 1e-9) break;
+    if (hi > covered) covered = hi;
+  }
+  return covered >= edge - 1e-9 ? null : (Math.atan(covered) * 180) / Math.PI;
+}
+
 const mean = (v: readonly number[]) => v.reduce((a, b) => a + b, 0) / v.length;
 const median = (v: readonly number[]) => [...v].sort((a, b) => a - b)[Math.floor((v.length - 1) / 2)];
 /** Nearest-rank percentile, q in (0, 1]. */
@@ -642,7 +712,7 @@ describe("determinism", () => {
       expect(a.regionGrid).not.toBe(b.regionGrid);
       expect(a.seed).toBe(s);
     }
-  });
+  }, HEAVY_MS);
 
   it("returns independent objects: mutating one result never changes the next", () => {
     const s = 7;
@@ -675,7 +745,7 @@ describe("determinism", () => {
     const a = mapFor(1), b = mapFor(2);
     expect(a.spawns).not.toEqual(b.spawns);
     expect(a.crateSpots).not.toEqual(b.crateSpots);
-  });
+  }, HEAVY_MS);
 
   it("varies the faction layout rather than rotating one template (200 seeds)", () => {
     const orders = new Set<string>();
@@ -690,12 +760,12 @@ describe("determinism", () => {
     // 24 distinct cyclic orders exist for 5 factions.
     expect(orders.size).toBeGreaterThanOrEqual(10);
     expect(fireOctants.size).toBeGreaterThanOrEqual(7);
-  });
+  }, HEAVY_MS);
 
   it("varies structure across seeds (ruin counts)", () => {
     const counts = new Set(seeds(60).map((s) => mapFor(s).buildings.length));
     expect(counts.size).toBeGreaterThanOrEqual(3);
-  });
+  }, HEAVY_MS);
 
   it("never calls Math.random or an engine-approximated Math function, module setup and lane tables included (client and server may run different engines)", async () => {
     // ECMAScript lets these differ in the last bit between engines; Math.sqrt is exact and allowed.
@@ -754,7 +824,7 @@ describe("grid", () => {
       expect(badCode, `seed ${s}: region code`).toBe(-1);
       expect(badBorder, `seed ${s}: border tile not wall`).toBe(-1);
     });
-  });
+  }, HEAVY_MS);
 
   it("has a sane amount of open floor (200 seeds)", () => {
     eachMap((m, s) => {
@@ -763,7 +833,7 @@ describe("grid", () => {
       expect(floor / m.tiles.length, `seed ${s}`).toBeGreaterThan(0.5);
       expect(floor / m.tiles.length, `seed ${s}`).toBeLessThan(0.95);
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("regions", () => {
@@ -778,7 +848,7 @@ describe("regions", () => {
       expect(floorNone, `seed ${s}: floor tile with region none`).toBe(-1);
       expect(borderNotNone, `seed ${s}: border tile with a region`).toBe(-1);
     });
-  });
+  }, HEAVY_MS);
 
   it("gives each of the five factions at least 8% of all floor tiles (200 seeds)", () => {
     eachMap((m, s) => {
@@ -793,7 +863,7 @@ describe("regions", () => {
         expect(counts[regionCodeOf(f)] / floor, `seed ${s} ${f}`).toBeGreaterThanOrEqual(0.08);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps the coliseum footprint inside coliseum.rect, which is its exact bounding box (200 seeds)", () => {
     eachMap((m, s) => {
@@ -812,7 +882,7 @@ describe("regions", () => {
       expect(2 * m.coliseum.rect.x + m.coliseum.rect.w, `seed ${s}`).toBe(m.w);
       expect(2 * m.coliseum.rect.y + m.coliseum.rect.h, `seed ${s}`).toBe(m.h);
     });
-  });
+  }, HEAVY_MS);
 
   it("makes the footprint symmetric, with a closed wall ring except at the gates (200 seeds)", () => {
     eachMap((m, s) => {
@@ -834,7 +904,7 @@ describe("regions", () => {
       expect(asymmetric, `seed ${s}: asymmetric footprint tiles`).toBe(0);
       expect(leaks, `seed ${s}: open ring tiles that are not gates`).toBe(0);
     });
-  });
+  }, HEAVY_MS);
 
   it("only lets neighbouring sectors touch, never opposite ones (200 seeds)", () => {
     eachMap((m, s) => {
@@ -856,7 +926,7 @@ describe("regions", () => {
       }
       expect(bad, `seed ${s}`).toBe("");
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps the floor of the ring road one connected component touching all five regions, with the gate lanes open (200 seeds)", () => {
     eachMap((m, s) => {
@@ -883,7 +953,7 @@ describe("regions", () => {
       // Nothing covers the lanes in front of the gates.
       for (const t of gateLaneTiles(m)) expect(isFloorTile(m, t.x, t.y), `seed ${s}: gate lane tile ${t.x},${t.y}`).toBe(true);
     });
-  });
+  }, HEAVY_MS);
 
   it("starts the ridges beyond the ring road and leaves region 'none' only on walls (200 seeds)", () => {
     eachMap((m, s) => {
@@ -902,7 +972,7 @@ describe("regions", () => {
       expect(nearRidge, `seed ${s}: ridge tiles closer than 5 to the footprint`).toBe(0);
       expect(interior, `seed ${s}: no ridges at all`).toBeGreaterThanOrEqual(60);
     });
-  });
+  }, HEAVY_MS);
 
   it("opens a pass through every ridge, beyond the ring road (200 seeds)", () => {
     let boundaries = 0, clearOfExtracts = 0;
@@ -939,13 +1009,13 @@ describe("regions", () => {
     });
     // A pass can land under an extract patch; that has to stay a rare coincidence.
     expect(clearOfExtracts / boundaries).toBeGreaterThan(0.98);
-  });
+  }, HEAVY_MS);
 });
 
 describe("connectivity", () => {
   it("has all floor in a single 4-connected component with the gates open (200 seeds)", () => {
     eachMap((m, s) => expect(componentCount(m, m.tiles), `seed ${s}`).toBe(1));
-  });
+  }, HEAVY_MS);
 
   it("withGates differs from the open map exactly at the gate tiles (200 seeds)", () => {
     eachMap((m, s) => {
@@ -961,7 +1031,7 @@ describe("connectivity", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("seals the arena with the gates closed: one coliseum component holding the centre, none escapes (200 seeds)", () => {
     eachMap((m, s) => {
@@ -979,7 +1049,7 @@ describe("connectivity", () => {
       expect(escaped, `seed ${s}: BFS from the centre left the coliseum at tile ${escaped}`).toBe(-1);
       expect(stranded, `seed ${s}: coliseum floor not connected to the centre`).toBe(0);
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps the rest of the map in one component with the gates closed (200 seeds)", () => {
     eachMap((m, s) => {
@@ -987,7 +1057,7 @@ describe("connectivity", () => {
       expect(componentCount(locked, locked.tiles, (i) => m.regionGrid[i] !== REGION_COLISEUM), `seed ${s}`).toBe(1);
       expect(componentCount(locked, locked.tiles), `seed ${s}: arena + outside`).toBe(2);
     });
-  });
+  }, HEAVY_MS);
 
   // A pillar is a wall tile of the arena whose whole 3x3 is coliseum region, so not on the wall ring.
   const pillarTiles = (m: GameMap): TilePt[] => {
@@ -1007,7 +1077,7 @@ describe("connectivity", () => {
     eachMap((m, s) => {
       expect(pillarTiles(m).length, `seed ${s}: no pillar tiles in the arena`).toBeGreaterThan(0);
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps pillars off the centre tile, the inner spawns' 3x3 and the lanes inside the gates, and leaves the sealed arena connected (200 seeds)", () => {
     // The shape is free (it need not be four 2x2 blocks any more); only what must stay clear is checked.
@@ -1033,7 +1103,7 @@ describe("connectivity", () => {
       for (let i = 0; i < locked.tiles.length; i++) if (m.regionGrid[i] === REGION_COLISEUM && locked.tiles[i] === TILE_FLOOR && !fromCentre[i]) stranded++;
       expect(stranded, `seed ${s}: arena floor cut off from the centre by pillars`).toBe(0);
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("gates", () => {
@@ -1068,7 +1138,7 @@ describe("gates", () => {
         expect(g.y, tag).toBeCloseTo(g.tiles.reduce((a, t) => a + tileToWorldCenter(t.y), 0) / 4, 6);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("makes the gates the only links between the coliseum floor and the rest (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1086,7 +1156,7 @@ describe("gates", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("gives every gate tile a coliseum-floor neighbour and an outside-floor neighbour (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1106,7 +1176,7 @@ describe("gates", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps a clear floor lane in front of and behind every gate (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1130,7 +1200,7 @@ describe("gates", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("coliseum interior", () => {
@@ -1144,7 +1214,7 @@ describe("coliseum interior", () => {
       expect(regionAtTile(m, t.x, t.y), `seed ${s}`).toBe("coliseum");
       expect(isFloorTile(withGates(m), t.x, t.y), `seed ${s}`).toBe(true);
     });
-  });
+  }, HEAVY_MS);
 
   it("has at least MAX_PLAYERS distinct, well-spread inner spawns that work with the gates closed (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1167,7 +1237,7 @@ describe("coliseum interior", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("regions array", () => {
@@ -1182,7 +1252,7 @@ describe("regions array", () => {
         expect(inAnyBuilding(m, t.x, t.y), `seed ${s} ${r.id} anchor in a ruin`).toBe(false);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("puts each anchor on the outdoor floor tile nearest its region's floor centroid (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1208,7 +1278,7 @@ describe("regions array", () => {
         expect(Math.hypot(t.x + 0.5 - cx, t.y + 0.5 - cy), `seed ${s} ${r.id}`).toBeLessThanOrEqual(best + 1e-6);
       }
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("spawns", () => {
@@ -1229,7 +1299,7 @@ describe("spawns", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps all 15 distinct and within [0.5, 0.95] of the arena radius from the coliseum (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1242,14 +1312,14 @@ describe("spawns", () => {
         expect(d, `seed ${s} ${ptKey(p)} too far`).toBeLessThanOrEqual(0.95 * R0(m) * TILE);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("is fair: no spawn is more than 1.5x farther from the coliseum than any other (200 seeds)", () => {
     eachMap((m, s) => {
       const ds = m.spawns.map((p) => dist(p, m.coliseum.centre));
       expect(Math.max(...ds) / Math.min(...ds), `seed ${s}`).toBeLessThanOrEqual(1.5);
     });
-  });
+  }, HEAVY_MS);
 
   it("flattens by interleaving the regions, so the first five are in five different regions (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1259,13 +1329,13 @@ describe("spawns", () => {
       const firstFive = m.spawns.slice(0, 5).map((p) => regionOfPoint(m, p));
       expect(new Set(firstFive).size, `seed ${s}`).toBe(5);
     });
-  });
+  }, HEAVY_MS);
 
   it("stays out of every extract zone (200 seeds)", () => {
     eachMap((m, s) => {
       for (const sp of m.spawns) for (const e of m.extracts) expect(dist(sp, e), `seed ${s}`).toBeGreaterThan(EXTRACT_RADIUS * 2);
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps every pair of spawns on the map at least 5 tiles apart, across regions too (200 seeds + known regressions)", () => {
     // 269, 614, 838 and 1563 once put two spawns of neighbouring regions less than 5 tiles apart.
@@ -1277,33 +1347,76 @@ describe("spawns", () => {
         }
       }
     }, [...SEEDS, 269, 614, 838, 1563]);
-  });
+  }, HEAVY_MS);
 
-  it("keeps every pair of spawns within the sight corridor limit out of each other's line of sight, gates open (200 seeds)", () => {
-    // Nobody should open a raid with a bow shot at someone else's spawn. hasLineOfSight is the segment test the sim
-    // uses, on the open map (the gates are open until the arena phase).
-    let minLosDist = Infinity, minLosSeed = -1, losPairs = 0, pairs = 0;
+  it("lets no spawn shoot another within the sight corridor limit: no aim hits across the hitscan's reach, both ways, gates open (200 seeds)", () => {
+    // Nobody should open a raid with a bow shot at someone else's spawn. The sim hits any target whose centre is within
+    // RANGED_HIT_REACH of the aim ray, so the zero-width centre line is not enough: every aim in that cone must be walled off.
+    // Checked two ways: a fan of real raycasts (the oracle, since it is the sim's own wall test) and the exact
+    // slope-interval cover (continuous, so it also catches a gap narrower than the fan's spacing).
+    const t0 = performance.now();
+    let pairs = 0, near = 0;
     const offenders: string[] = [];
     eachMap((m, s) => {
       for (let i = 0; i < m.spawns.length; i++) {
         for (let j = i + 1; j < m.spawns.length; j++) {
+          pairs++;
           const a = m.spawns[i], b = m.spawns[j];
           const d = dist(a, b);
-          pairs++;
-          if (!hasLineOfSight(m, a, b)) continue;
-          losPairs++;
-          if (d < minLosDist) { minLosDist = d; minLosSeed = s; }
-          if (d <= MAX_SIGHT_CORRIDOR) offenders.push(`seed ${s}: spawns ${ptKey(a)} (${regionOfPoint(m, a)}) and ${ptKey(b)} (${regionOfPoint(m, b)}), ${d.toFixed(1)} u apart with line of sight`);
+          if (d > MAX_SIGHT_CORRIDOR) continue;
+          near++;
+          for (const [from, to] of [[a, b], [b, a]] as const) {
+            const fan = hittableAim(m, from, to, RANGED_HIT_REACH);
+            const exact = firstOpenSlope(m, from, to, RANGED_HIT_REACH);
+            const tag = `seed ${s}: ${ptKey(from)} (${regionOfPoint(m, from)}) to ${ptKey(to)} (${regionOfPoint(m, to)}), ${d.toFixed(1)} u`;
+            if (fan !== null) offenders.push(`${tag}: an aim ${fan.toFixed(3)} deg off the centre line hits`);
+            else if (exact !== null) offenders.push(`${tag}: the cone is open at ${exact.toFixed(3)} deg (exact check; the fan found no hit)`);
+          }
         }
       }
     });
     console.info(
-      `[spawn sight] ${losPairs} of ${pairs} spawn pairs have line of sight` +
-      (losPairs > 0 ? `; the closest such pair is ${minLosDist.toFixed(1)} u apart (seed ${minLosSeed})` : "") +
-      `; ${offenders.length} pairs within ${MAX_SIGHT_CORRIDOR} u have it`,
+      `[spawn sight] ${near} of ${pairs} spawn pairs are within ${MAX_SIGHT_CORRIDOR} u; ${2 * near} directions checked ` +
+      `(reach ${RANGED_HIT_REACH} u, ${FAN_RAYS} raycasts each, plus the exact cover); ${offenders.length} can hit; ${(performance.now() - t0).toFixed(0)} ms`,
     );
-    expect(offenders.slice(0, 5), `${offenders.length} spawn pairs within ${MAX_SIGHT_CORRIDOR} u see each other`).toEqual([]);
-  });
+    expect(near, "no spawn pair close enough to test: the check would be vacuous").toBeGreaterThan(0);
+    expect(offenders.slice(0, 5), `${offenders.length} spawn shots possible within ${MAX_SIGHT_CORRIDOR} u`).toEqual([]);
+  }, HEAVY_MS);
+
+  it("agrees with itself: the exact cover never calls a cone shut when a raycast aim gets through (validates the spawn shot check; 12 seeds)", () => {
+    // The spawn check above passes when nothing can hit, which says nothing about whether the checkers can see a hit.
+    // So run them on arbitrary pairs of clear floor points 5-9 tiles apart, where plenty of cones are open.
+    const rng = mulberry32(8_001);
+    const t0 = performance.now();
+    let pairs = 0, open = 0, shut = 0, alarms = 0;
+    const contradictions: string[] = [];
+    for (const s of seeds(12)) {
+      const m = mapFor(s);
+      const spots: TilePt[] = [];
+      for (let ty = 2; ty < m.h - 2; ty++) for (let tx = 2; tx < m.w - 2; tx++) if (clear3x3(m, tx, ty)) spots.push({ x: tx, y: ty });
+      const isSpot = new Set(spots.map((p) => tileIdx(m, p)));
+      for (let n = 0; n < 600; n++) {
+        const t = spots[randInt(rng, 0, spots.length)];
+        const ang = rng() * 2 * Math.PI, len = 5 + rng() * 4;
+        const u = { x: Math.round(t.x + Math.cos(ang) * len), y: Math.round(t.y + Math.sin(ang) * len) };
+        if (!isSpot.has(tileIdx(m, u))) continue;
+        const a = { x: tileToWorldCenter(t.x), y: tileToWorldCenter(t.y) }, b = { x: tileToWorldCenter(u.x), y: tileToWorldCenter(u.y) };
+        if (dist(a, b) < 5 * TILE) continue;
+        pairs++;
+        const fan = hittableAim(m, a, b, RANGED_HIT_REACH);
+        const exact = firstOpenSlope(m, a, b, RANGED_HIT_REACH);
+        if (fan !== null) open++; else shut++;
+        if (fan !== null && exact === null) contradictions.push(`seed ${s}: ${ptKey(a)} to ${ptKey(b)}: a raycast aim at ${fan.toFixed(3)} deg hits but the exact cover says shut`);
+        if (fan === null && exact !== null) alarms++;
+      }
+    }
+    console.info(`[spawn sight] validation: ${pairs} pairs, ${open} with a hitting aim, ${shut} without, ${alarms} where only the exact cover reports an opening; ${(performance.now() - t0).toFixed(0)} ms`);
+    expect(contradictions.slice(0, 5)).toEqual([]);
+    // The cover is conservative (it ignores a tile that reaches past the bound), but it should rarely cry wolf.
+    expect(alarms, `${alarms} of ${pairs} pairs`).toBeLessThanOrEqual(pairs * 0.02);
+    expect(open, "no open cone to find: the validation would be vacuous").toBeGreaterThanOrEqual(50);
+    expect(shut, "no shut cone to find: the validation would be vacuous").toBeGreaterThanOrEqual(50);
+  }, HEAVY_MS);
 
   it("reports how far apart the spawns' walks to the coliseum centre are (gates open; info only, 30 seeds)", () => {
     // Not asserted yet: the lead sets the bound once the generator's numbers are in. The ratio is the longest spawn
@@ -1325,7 +1438,7 @@ describe("spawns", () => {
       `shortest route ${shortest.toFixed(0)} u, longest ${longest.toFixed(0)} u`,
     );
     expect(ratios).toHaveLength(sample.length);
-  });
+  }, HEAVY_MS);
 
   it("spaces a region's spawns at least 5 tiles apart and keeps them 5 tiles from camp centres (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1342,7 +1455,7 @@ describe("spawns", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("chests", () => {
@@ -1367,7 +1480,7 @@ describe("chests", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps chests at least 3 tiles (Chebyshev) from every spawn and 2 from every camp spot (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1388,7 +1501,7 @@ describe("chests", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("spaces a region's chests at least 2 tiles apart (Chebyshev, always), and usually 4 or more (200 seeds)", () => {
     let spaced = 0;
@@ -1408,7 +1521,7 @@ describe("chests", () => {
     });
     // The spec relaxes 4 -> 2 only "if short", so the relaxation must be the exception.
     expect(spaced / SEEDS.length).toBeGreaterThan(0.8);
-  });
+  }, HEAVY_MS);
 
   it("keeps chests off ruin doors, and puts at least one per region inside a ruin, against a wall (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1436,13 +1549,13 @@ describe("chests", () => {
         expect(against, `seed ${s} ${r.id}: no ruin chest against a wall`).toBe(true);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("makes crateSpots every region's chests flattened in REGION_FACTIONS order (200 seeds)", () => {
     eachMap((m, s) => {
       expect(m.crateSpots, `seed ${s}`).toEqual(REGION_FACTIONS.flatMap((f) => regionDef(m, f).chestSpots));
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("mob camps", () => {
@@ -1465,7 +1578,7 @@ describe("mob camps", () => {
         expect(ns.sort((a, b) => a - b), `seed ${s} ${r.id}: ids count up from 1`).toEqual(r.mobCamps.map((_, i) => i + 1));
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("arms every camp with its region's signature weapon (REGION_WEAPONS) (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1476,7 +1589,7 @@ describe("mob camps", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("clears every tile within the radius to floor in the camp's region, away from the coliseum (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1497,7 +1610,7 @@ describe("mob camps", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("gives each camp 3-4 distinct floor tile-centre spots inside the clearing (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1514,7 +1627,7 @@ describe("mob camps", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("makes the camp farthest from coliseum.centre the elite (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1527,7 +1640,7 @@ describe("mob camps", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps a region's camp centres at least 7 tiles apart (9 relaxed to 7) (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1539,7 +1652,7 @@ describe("mob camps", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps the clearing, grown by one tile, inside its sector and clear of ruins, extracts and the border (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1567,7 +1680,7 @@ describe("mob camps", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("reachability", () => {
@@ -1588,7 +1701,7 @@ describe("reachability", () => {
       }
       for (const p of m.groundSpots) check(p, "ground spot");
     });
-  });
+  }, HEAVY_MS);
 
   it("lets findPath walk from every spawn to the coliseum centre with the gates open (20 seeds)", () => {
     eachMap((m, s) => {
@@ -1596,7 +1709,7 @@ describe("reachability", () => {
         expect(findPath(m, p, m.coliseum.centre).length, `seed ${s} spawn ${ptKey(p)}`).toBeGreaterThan(0);
       }
     }, seeds(20));
-  });
+  }, HEAVY_MS);
 });
 
 describe("ruins", () => {
@@ -1624,7 +1737,7 @@ describe("ruins", () => {
         expect(n, `seed ${s} ${f} ruins`).toBeLessThanOrEqual(2);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("varies between 5 and 10 ruins and is not always one per region", () => {
     const totals = new Set<number>();
@@ -1634,7 +1747,7 @@ describe("ruins", () => {
       totals.add(m.buildings.length);
     });
     expect(totals.size).toBeGreaterThanOrEqual(3);
-  });
+  }, HEAVY_MS);
 
   it("is 7-9 tiles on a side, off the border, off the ring road and away from extracts and each other (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1674,7 +1787,7 @@ describe("ruins", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("has solid 1-thick wall rings with 1-3 two-wide doors on distinct sides, never on corners (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1699,7 +1812,7 @@ describe("ruins", () => {
         expect(open / interior, `seed ${s}`).toBeGreaterThan(0.6);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("sometimes carves interior partitions: a straight wall run across the interior with one two-tile gap", () => {
     let withPartition = 0;
@@ -1709,7 +1822,7 @@ describe("ruins", () => {
     // Only ruins 9 tiles on a side have room for a partition (v1 needs a 7-wide interior). Cover can
     // stand inside a ruin too, so this finds partitions by their shape, not by "some interior wall".
     expect(withPartition).toBeGreaterThanOrEqual(10);
-  });
+  }, HEAVY_MS);
 
   it("keeps every ruin door and partition gap open, with floor on both sides of it (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1729,16 +1842,18 @@ describe("ruins", () => {
         }
       }
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("obstacles and cover", () => {
   it("keeps outdoor walls to small blobs: obstacle chunks and rocks, never a long wall (200 seeds)", () => {
     // Obstacle chunks are at most 3 long and rocks 2, but the cover pass only prefers to keep rocks apart and relaxes
-    // that when nothing better is left, so rocks and chunks do chain: the longest straight run is 10 over the first
-    // 200 seeds. A run of MAX_SIGHT_CORRIDOR / TILE = 15 tiles would be a wall as long as the longest open corridor the
-    // rocks exist to cut: a maze-like barrier that blocks paths as well as sight, not cover. The bound is one under that.
+    // that when nothing better is left, so rocks and chunks do chain: the longest straight run is 12 over the first
+    // 200 seeds (seed 99). A run of MAX_SIGHT_CORRIDOR / TILE = 15 tiles would be a wall as long as the longest open
+    // corridor the rocks exist to cut: a maze-like barrier that blocks paths as well as sight, not cover. The bound is
+    // one under that, 14: it keeps 2 tiles of margin over the observed 12 and still fails a wall of 15.
     const MAX_WALL_RUN = MAX_SIGHT_CORRIDOR / TILE - 1;
+    let longest = { run: 0, seed: -1 };
     eachMap((m, s) => {
       // Floor sealed off by a ridge or the border is walled by the connectivity pass and keeps its sector
       // code. Those pockets always touch a region-none tile, so they are not obstacles or rocks.
@@ -1756,12 +1871,14 @@ describe("obstacles and cover", () => {
             if (wall.has((t.y - dy) * m.w + t.x - dx)) continue; // not the start of a run
             let run = 0;
             while (wall.has((t.y + dy * run) * m.w + t.x + dx * run)) run++;
+            if (run > longest.run) longest = { run, seed: s };
             expect(run, `${tag}: straight wall run of ${run} tiles from ${t.x},${t.y}`).toBeLessThanOrEqual(MAX_WALL_RUN);
           }
         }
       }
     });
-  });
+    console.info(`[cover] longest straight outdoor wall run: ${longest.run} tiles (seed ${longest.seed}); bound ${MAX_WALL_RUN}`);
+  }, HEAVY_MS);
 
   it("never walls the tiles that must stay floor: spawn 3x3, chest, camp clearing, gate lanes, extract 5x5 (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1784,7 +1901,7 @@ describe("obstacles and cover", () => {
         for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) expect(isFloorTile(m, tx + i, ty + j), `seed ${s} ${e.id} patch tile ${tx + i},${ty + j}`).toBe(true);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps a pass of at least two tile pairs open through every ridge (200 seeds)", () => {
     // The pass and one tile around it are protected, so cover can never narrow it.
@@ -1810,7 +1927,7 @@ describe("obstacles and cover", () => {
         expect(pairs, `seed ${s}: floor pairs through the ridge ${order[k]} | ${order[(k + 1) % order.length]}`).toBeGreaterThanOrEqual(2);
       }
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("legacy extraction loop", () => {
@@ -1839,7 +1956,7 @@ describe("legacy extraction loop", () => {
       }
       expect(edges.size, `seed ${s}`).toBe(3);
     });
-  });
+  }, HEAVY_MS);
 
   it("scatters 20-30 ground spots outside ruins and the coliseum, 3+ tiles from every spawn (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1855,7 +1972,7 @@ describe("legacy extraction loop", () => {
         for (const sp of m.spawns) expect(dist(p, sp), `seed ${s}`).toBeGreaterThanOrEqual(3 * TILE);
       }
     });
-  });
+  }, HEAVY_MS);
 
   it("keeps ground spots off chests (not within Chebyshev 1) and out of every camp clearing (200 seeds)", () => {
     eachMap((m, s) => {
@@ -1869,7 +1986,7 @@ describe("legacy extraction loop", () => {
         for (const c of camps) expect(dist(g, c), `seed ${s}: ground spot ${ptKey(g)} inside the clearing of ${c.id}`).toBeGreaterThan(c.r);
       }
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("anti-kiting cover", () => {
@@ -1931,7 +2048,7 @@ describe("anti-kiting cover", () => {
       const r = openLane(s);
       expect(u(r.len), `seed ${s}: lattice lane ${u(r.len).toFixed(1)} u (direction ${r.k}/${dirs}, lower line offset ${r.o} tiles), limit ${bound.toFixed(1)} u`).toBeLessThanOrEqual(bound + LANE_SLACK_U);
     }
-  });
+  }, HEAVY_MS);
 
   it("keeps every lattice lane inside the coliseum with the gates closed at the generator's target or less (200 seeds)", () => {
     // Implied by the open-set test above (it is a subset), pinned on its own because the sealed fight is where kiting hurts most.
@@ -1942,20 +2059,22 @@ describe("anti-kiting cover", () => {
       const r = sealedLane(s);
       expect(u(r.len), `seed ${s}: sealed coliseum lattice lane ${u(r.len).toFixed(1)} u (direction ${r.k}/${dirs}, lower line offset ${r.o} tiles), limit ${bound.toFixed(1)} u`).toBeLessThanOrEqual(bound + LANE_SLACK_U);
     }
-  });
+  }, HEAVY_MS);
 
-  it("finds no strip one corridor-width wide longer than 480 u at any angle or offset, gates open (exact check, 5 seeds)", () => {
-    // The lattice only samples directions and offsets; this clips every blocked tile against slabs at dense angles and
-    // fine offsets, so it also covers lines through the gates, off-lattice angles and strips that squeeze between rocks.
-    // Open = floor with a region other than none. Angles: every 1 degree (axis-aligned and diagonal included), plus the
-    // midpoints of every 2 degrees (off every lattice direction); offsets every 1/16 tile. Sampling can only
-    // under-report, never invent a corridor.
+  it("finds no strip one corridor-width wide longer than 480 u at the angles farthest from any lattice direction, gates open (exact check, 40 seeds)", () => {
+    // The lattice tests above only look along the lattice's own directions. This clips every blocked tile against slabs
+    // at the midpoints between neighbouring directions of the 32- and 48-direction lattices, where a strip that fits
+    // between two lattice lanes is hardest to see, minus any midpoint that lands on the other lattice. So no angle here
+    // is a multiple of pi/32 or pi/48. The 40 seeds are what it takes: with the pre-fix lattice (32 directions, lines
+    // half a width apart) seeds 10, 19, 30 (564 u) and 36 fail, and none of the first 5 did. Open = floor with a region other
+    // than none; offsets every 1/16 tile. Sampling can only under-report, never invent a corridor.
     const t0 = performance.now();
-    const sample = seeds(5);
-    const thetas = [
-      ...Array.from({ length: 180 }, (_, k) => (k * Math.PI) / 180),
-      ...Array.from({ length: 90 }, (_, k) => ((k + 0.5) * Math.PI) / 90),
-    ];
+    const sample = seeds(40);
+    const lattices = [...new Set([32, 48, sightLattice().dirs])];
+    const onLattice = (th: number) => lattices.some((n) => Math.abs((th * n) / Math.PI - Math.round((th * n) / Math.PI)) < 1e-9);
+    const thetas = lattices
+      .flatMap((n) => Array.from({ length: n }, (_, k) => ((k + 0.5) * Math.PI) / n))
+      .filter((th) => !onLattice(th));
     const blockedOf = (m: GameMap) => allFloorMask(m).map((v) => 1 - v) as Uint8Array;
     const full = sample.map((s) => {
       const m = mapFor(s);
@@ -1968,9 +2087,10 @@ describe("anti-kiting cover", () => {
       const m = mapFor(s);
       return longestFreeStrip(blockedOf(m), m.w, m.h, wt, coarse, 1 / 8).len * TILE;
     }));
+    const worst = full.reduce((best, r, i) => (r.len > full[best].len ? i : best), 0);
     console.info(
-      `[anti-kiting] exact strips over seeds ${sample.join(",")}: ${SIGHT_CORRIDOR_WIDTH} u wide max ${Math.max(...full.map((r) => r.len * TILE)).toFixed(1)} u ` +
-      `(${full.map((r) => `${(r.len * TILE).toFixed(0)} u at ${r.deg.toFixed(2)} deg`).join("; ")}); ` +
+      `[anti-kiting] exact strips over seeds 0-${sample.length - 1} at ${thetas.length} off-lattice angles: ${SIGHT_CORRIDOR_WIDTH} u wide max ` +
+      `${(full[worst].len * TILE).toFixed(1)} u (seed ${sample[worst]}, ${full[worst].deg.toFixed(2)} deg); ` +
       `24 u wide max ${Math.max(...narrow[0]).toFixed(1)} u, 16 u wide max ${Math.max(...narrow[1]).toFixed(1)} u (seeds 0-2, 2 degrees, 1/8 tile; not asserted); ` +
       `${(tFull - t0).toFixed(0)} + ${(performance.now() - tFull).toFixed(0)} ms`,
     );
@@ -1996,7 +2116,7 @@ describe("anti-kiting cover", () => {
       expect(u(d.faction.len), `seed ${d.s}: faction-region disc segment through tile ${d.faction.x},${d.faction.y} (direction ${d.faction.k}/64) is ${u(d.faction.len).toFixed(1)} u, limit ${DISC_SLACK * MAX_SIGHT_CORRIDOR} u`).toBeLessThanOrEqual(bound);
       expect(u(d.coliseum.len), `seed ${d.s}: coliseum disc segment through tile ${d.coliseum.x},${d.coliseum.y} (direction ${d.coliseum.k}/64) is ${u(d.coliseum.len).toFixed(1)} u, limit ${DISC_SLACK * MAX_SIGHT_CORRIDOR} u`).toBeLessThanOrEqual(bound);
     }
-  });
+  }, HEAVY_MS);
 
   it("puts some cover in every region: at least one separate rock or chunk per region (200 seeds)", () => {
     eachMap((m, s) => {
@@ -2004,7 +2124,7 @@ describe("anti-kiting cover", () => {
       for (const b of outdoorWallBlobs(m)) if (!b.touchesNone) perRegion[b.code]++;
       for (const f of REGION_FACTIONS) expect(perRegion[regionCodeOf(f)], `seed ${s} ${f}: outdoor wall blobs`).toBeGreaterThanOrEqual(1);
     });
-  });
+  }, HEAVY_MS);
 });
 
 describe("performance", () => {
