@@ -126,8 +126,9 @@ function formatRun({ profile, result, error, abandoned }: BotRun): string {
   if (abandoned) return `${profile.padEnd(10)} ABANDONED  left the run on purpose`;
   if (!result) return `${profile.padEnd(10)} ERROR      ${error ?? "no result"}`;
   const by = result.killedBy ? `  by ${result.killedBy}` : "";
-  const { kills, mobs, win, total } = result.gv;
-  const gv = `GV +${total} (kills ${kills}, mobs ${mobs}, win ${win})`;
+  const { kills, mobs, bounty, win, total } = result.gv;
+  const withheld = result.winBonusWithheld ? " withheld" : "";
+  const gv = `GV +${total} (kills ${kills}, mobs ${mobs}, bounty ${bounty}, win ${win}${withheld})`;
   return `${profile.padEnd(10)} ${result.outcome.padEnd(10)} place ${result.place}/${result.players}  kills ${result.kills}  ${gv}  ${result.durationSec}s${by}`;
 }
 
