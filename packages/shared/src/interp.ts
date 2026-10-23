@@ -28,13 +28,14 @@ export class SnapshotBuffer {
 
   clear(): void { this.samples.length = 0; }
 
-  push(t: number, x: number, y: number): void {
+  /** `forceCut`: the server said this sample is a teleport, however short the jump (see EntityInterpolator.markCut). */
+  push(t: number, x: number, y: number, forceCut = false): void {
     let last = this.samples[this.samples.length - 1];
     if (last && t < last.t) return; // out of order: ignore
     // Same timestamp: replace the sample, re-checking the teleport rule against the one before it.
     if (last && t === last.t) { this.samples.pop(); last = this.samples[this.samples.length - 1]; }
     let cut = false;
-    if (last && Math.hypot(x - last.x, y - last.y) > this.teleportDistance) {
+    if (last && (forceCut || Math.hypot(x - last.x, y - last.y) > this.teleportDistance)) {
       // Keep only the pre-teleport sample so the entity stays put until the cut is due.
       this.samples.splice(0, this.samples.length - 1);
       cut = true;

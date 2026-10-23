@@ -42,15 +42,15 @@ describe("InputQueue", () => {
 
   it("keeps the earliest actions, not the latest, when over the cap", () => {
     const q = new InputQueue();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "extract" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "use", uid: "early" });
     q.pushAction({ kind: "drop", uid: "late" });
-    expect(q.actions.every((a) => a.kind === "extract")).toBe(true);
+    expect(q.actions.every((a) => a.kind === "use")).toBe(true);
   });
 
   it("does not let move spam consume the action budget", () => {
     const q = new InputQueue();
     for (let i = 0; i < 100; i++) q.pushMove({ kind: "move", x: i, y: i });
-    q.pushAction({ kind: "extract" });
+    q.pushAction({ kind: "use", uid: "u" });
     const d = q.drain();
     expect(d.move).toEqual({ kind: "move", x: 99, y: 99 });
     expect(d.actions).toHaveLength(1);
@@ -60,10 +60,10 @@ describe("InputQueue", () => {
   it("drain returns the buffered inputs and resets the queue", () => {
     const q = new InputQueue();
     q.pushMove({ kind: "move", x: 5, y: 6 });
-    q.pushAction({ kind: "extract" });
+    q.pushAction({ kind: "use", uid: "u" });
     const first = q.drain();
     expect(first.move).toEqual({ kind: "move", x: 5, y: 6 });
-    expect(first.actions).toEqual([{ kind: "extract" }]);
+    expect(first.actions).toEqual([{ kind: "use", uid: "u" }]);
     expect(q.move).toBeNull();
     expect(q.actions).toEqual([]);
     expect(q.drain()).toEqual({ move: null, actions: [] });
@@ -71,25 +71,25 @@ describe("InputQueue", () => {
 
   it("returns an array that is not aliased by later pushes", () => {
     const q = new InputQueue();
-    q.pushAction({ kind: "extract" });
+    q.pushAction({ kind: "use", uid: "u" });
     const { actions } = q.drain();
     q.pushAction({ kind: "drop", uid: "x" });
-    expect(actions).toEqual([{ kind: "extract" }]);
+    expect(actions).toEqual([{ kind: "use", uid: "u" }]);
   });
 
   it("accepts a full action budget again after a drain", () => {
     const q = new InputQueue();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "extract" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "use", uid: "u" });
     q.drain();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "extract" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "use", uid: "u" });
     expect(q.actions).toHaveLength(MAX_ACTIONS_PER_TICK);
   });
 
   it("keeps `dropped` as a running counter across drains", () => {
     const q = new InputQueue();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 1; i++) q.pushAction({ kind: "extract" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 1; i++) q.pushAction({ kind: "use", uid: "u" });
     q.drain();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 2; i++) q.pushAction({ kind: "extract" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 2; i++) q.pushAction({ kind: "use", uid: "u" });
     expect(q.dropped).toBe(3);
   });
 });
@@ -300,11 +300,12 @@ describe("enqueueClientMessage", () => {
   });
 
   describe("extract", () => {
-    it("queues an extract action regardless of payload", () => {
+    it("is no longer a message type: extraction is gone", () => {
       for (const payload of [{}, null, undefined, "junk"]) {
         const q = fresh();
-        expect(enqueueClientMessage(q, "extract", payload)).toBe(true);
-        expect(q.actions).toEqual([{ kind: "extract" }]);
+        expect(enqueueClientMessage(q, "extract", payload)).toBe(false);
+        expect(q.move).toBeNull();
+        expect(q.actions).toEqual([]);
       }
     });
   });
@@ -331,7 +332,7 @@ describe("enqueueClientMessage", () => {
       const q = fresh();
       for (let i = 0; i < 50; i++) enqueueClientMessage(q, "take", { containerId: "c" });
       expect(q.dropped).toBe(0);
-      expect(enqueueClientMessage(q, "extract", {})).toBe(true);
+      expect(enqueueClientMessage(q, "drop", { uid: "u" })).toBe(true);
       expect(q.actions).toHaveLength(1);
     });
 
@@ -339,9 +340,9 @@ describe("enqueueClientMessage", () => {
       const q = fresh();
       enqueueClientMessage(q, "use", { uid: "a" });
       enqueueClientMessage(q, "attack", { x: 1, y: 2 });
-      enqueueClientMessage(q, "extract", {});
+      enqueueClientMessage(q, "drop", { uid: "b" });
       const kinds = q.drain().actions.map((a: ActionCommand) => a.kind);
-      expect(kinds).toEqual(["use", "attack", "extract"]);
+      expect(kinds).toEqual(["use", "attack", "drop"]);
     });
   });
 });

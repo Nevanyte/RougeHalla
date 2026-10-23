@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  FISTS, generateMap, isWallTile, ITEMS, mapFromTiles, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, TICK_MS, TILE, TILE_FLOOR,
-  TILE_WALL, type ArmorDef, type FxEvent, type GameMap, type ItemDTO, type WeaponDef,
+  FISTS, generateMap, GV_KILL, GV_WIN, isWallTile, ITEMS, mapFromTiles, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS,
+  TELEPORT_IMMUNITY_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type ArmorDef, type FxEvent, type GameMap, type ItemDTO,
+  type WeaponDef,
 } from "@raid/shared";
-import type { PlayerState } from "@raid/shared/schema";
+import { ItemState, type PlayerState } from "@raid/shared/schema";
 import {
   damageAgainst, handleAttack, install, MELEE_SLACK, projectOnRay, RANGED_SLACK,
 } from "../src/sim/combat";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, InputQueue } from "../src/sim/inputs";
 import { handleTake } from "../src/sim/loot";
-import { actionOrder, addPlayer, step } from "../src/sim/step";
+import { actionOrder, addPlayer, removePlayer, step } from "../src/sim/step";
 import { createWorld, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
@@ -42,15 +43,26 @@ function arena(walls: Array<{ tx: number; ty0: number; ty1: number }> = []): Gam
 const WALL_X = 10 * TILE;
 const walledArena = (): GameMap => arena([{ tx: 10, ty0: 5, ty1: 20 }]);
 
+/** addPlayer mints the run kit; the tests want exact gear, so the kit is swapped for `items`. */
+function setGear(p: PlayerState, items: ItemDTO[]): void {
+  p.inventory.clear();
+  for (const it of items) {
+    const item = new ItemState();
+    item.uid = it.uid;
+    item.def = it.def;
+    p.inventory.push(item);
+  }
+}
+
 /** Players start the raid on the first step (minPlayers = seat count). Positions are set by each test via `place`. */
 function raid(seats: Seat[], map: GameMap | "generated" = arena(), seed = 1234): World {
   let n = 0;
   const config: SimConfig = {
-    minPlayers: seats.length, lobbySeconds: 15, fillSeconds: 0, raidSeconds: 360, extractSeconds: 5,
+    minPlayers: seats.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60,
   };
   const world = createGameWorld({ seed, config, random: mulberry32(seed + 1), newItemUid: () => `L${++n}` });
   if (map !== "generated") world.map = map;
-  for (const s of seats) addPlayer(world, s.id, s.name, s.items);
+  for (const s of seats) setGear(addPlayer(world, s.id, s.name), s.items);
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   return world;
@@ -136,7 +148,7 @@ describe("install", () => {
 
   it("registers only the attack action on a bare world", () => {
     const bare = createWorld({
-      seed: 1234, config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, raidSeconds: 360, extractSeconds: 5 },
+      seed: 1234, config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60 },
       random: mulberry32(9),
     });
     const dropBody = bare.hooks.dropBody;
@@ -150,7 +162,7 @@ describe("install", () => {
     const world = raid([alice(), bob()]);
     place(world, "a", 200, 400);
     place(world, "b", 220, 400);
-    handleAttack(world, P(world, "a"), RT(world, "a"), { kind: "extract" });
+    handleAttack(world, P(world, "a"), RT(world, "a"), { kind: "drop", uid: "x" });
     expect(world.events).toEqual([]);
     expect(P(world, "b").hp).toBe(100);
     expect(RT(world, "a").nextAttackAt).toBe(0);
@@ -381,20 +393,15 @@ describe("cooldown", () => {
     expect(lost(world, "b")).toBe(8);
   });
 
-  it("an ignored swing neither turns the player nor cancels extraction", () => {
+  it("an ignored swing does not turn the player", () => {
     const world = raid([alice(), bob()]);
     place(world, "a", 200, 400);
     place(world, "b", 230, 400);
     swing(world, "a", 230, 400);
     const a = P(world, "a");
-    const rt = RT(world, "a");
-    rt.extracting = { zoneId: "z", startedAt: world.state.serverTime };
-    a.extractProgress = 0.4;
     const facing = a.facing;
     swing(world, "a", 200, 100);
     expect(a.facing).toBe(facing);
-    expect(rt.extracting).not.toBeNull();
-    expect(a.extractProgress).toBe(0.4);
   });
 });
 
@@ -511,7 +518,7 @@ describe("line of fire", () => {
   });
 
   it("does not hit players who are not alive", () => {
-    for (const status of ["lobby", "dead", "extracted", "mia"]) {
+    for (const status of ["lobby", "dead", "mia"]) {
       const world = raid([alice(gear("rifle")), bob(), carol()]);
       place(world, "a", 200, 400);
       place(world, "b", 300, 400);
@@ -650,10 +657,12 @@ describe("armor", () => {
 });
 
 describe("kills", () => {
+  /** A bystander keeps the run going after the kill; the finish is covered separately. */
   function killScene() {
-    const world = raid([alice(gear("rifle")), bob(gear("bandage", "watch"))]);
+    const world = raid([alice(gear("rifle")), bob(gear("bandage", "watch")), carol()]);
     place(world, "a", 200, 400);
     place(world, "b", 300, 400);
+    place(world, "c", 1500, 1500);
     P(world, "b").hp = 20;
     const events = swing(world, "a", 300, 400);
     return { world, events };
@@ -668,14 +677,46 @@ describe("kills", () => {
     expect(P(world, "a").kills).toBe(1);
     expect(P(world, "a").status).toBe("alive");
     expect(RT(world, "a").killedBy).toBe(null);
+    expect(RT(world, "a").resolved).toBe(false);
   });
 
-  it("emits the shot and a death fx at the victim, before the result", () => {
+  it("emits the shot, a death fx at the victim, the killer's GV, then the result from settle", () => {
     const { events } = killScene();
     expect(shotOf(events)).toMatchObject({ hit: "b", by: "a" });
     expect(fxOf(events, "death")).toEqual([{ kind: "death", id: "b", x: 300, y: 400, by: "a" }]);
     const order = events.map((e) => (e.type === "fx" ? e.fx.kind : e.type));
-    expect(order).toEqual(["shot", "death", "resolved"]);
+    expect(order).toEqual(["shot", "death", "gv", "resolved"]);
+    expect(ofType(events, "gv")).toEqual([{ type: "gv", id: "a", amount: GV_KILL, reason: "kill" }]);
+  });
+
+  it("downs the victim at once but resolves them only at the end of the tick", () => {
+    const world = raid([alice(gear("rifle")), bob(), carol()]);
+    place(world, "a", 200, 400);
+    place(world, "b", 300, 400);
+    P(world, "b").hp = 20;
+    // Called by hand in the middle of a "tick": the victim is down, their result is not out yet.
+    world.stepping = true;
+    world.state.serverTime += TICK_MS;
+    handleAttack(world, P(world, "a"), RT(world, "a"), { kind: "attack", x: 300, y: 400 });
+    expect(P(world, "b").status).toBe("dead");
+    expect(RT(world, "b").down).toEqual({ outcome: "died" });
+    expect(RT(world, "b").resolved).toBe(false);
+    expect(ofType(world.events, "resolved")).toEqual([]);
+    expect(fxOf(world.events, "death")).toHaveLength(1);
+    world.stepping = false;
+  });
+
+  it("outside a step the kill resolves the victim immediately", () => {
+    const world = raid([alice(gear("rifle")), bob(), carol()]);
+    place(world, "a", 200, 400);
+    place(world, "b", 300, 400);
+    P(world, "b").hp = 20;
+    world.state.serverTime += TICK_MS;
+    handleAttack(world, P(world, "a"), RT(world, "a"), { kind: "attack", x: 300, y: 400 });
+    const resolved = ofType(world.events, "resolved");
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0]!.id).toBe("b");
+    expect(resolved[0]!.result).toMatchObject({ outcome: "died", killedBy: "alice", place: 3 });
   });
 
   it("leaves a body holding everything the victim carried", () => {
@@ -687,15 +728,21 @@ describe("kills", () => {
     expect(P(world, "b").inventory.length).toBe(0);
   });
 
-  it("resolves the victim as died, losing what they carried", () => {
+  it("resolves the victim as died, with the killer's name and a place behind the two still standing", () => {
     const { events } = killScene();
     const resolved = ofType(events, "resolved");
     expect(resolved).toHaveLength(1);
     expect(resolved[0]!.id).toBe("b");
-    expect(resolved[0]!.result).toMatchObject({
-      outcome: "died", profile: "bob", kills: 0, killedBy: "alice", extracted: [],
-      broughtIn: gear("bandage", "watch"), lost: gear("bandage", "watch"),
+    expect(resolved[0]!.result).toEqual({
+      outcome: "died", profile: "bob", durationSec: 0, kills: 0, killedBy: "alice", place: 3, players: 3,
+      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false,
     });
+  });
+
+  it("pays the killer GV_KILL right away on their synced gv, and keeps it for their result", () => {
+    const { world } = killScene();
+    expect(P(world, "a").gv).toBe(GV_KILL);
+    expect(RT(world, "a").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
   });
 
   it("counts kills, and stands over the body for the next shot", () => {
@@ -717,8 +764,55 @@ describe("kills", () => {
     expect(P(world, "a").kills).toBe(2);
     expect(RT(world, "c").killedBy).toBe("alice");
     expect(fxOf(events, "death").map((d) => d.id)).toEqual(["c"]);
-    expect(ofType(events, "resolved").map((r) => r.id)).toEqual(["c"]);
+    // carol was the last opponent, so alice's result comes out with hers.
+    expect(ofType(events, "resolved").map((r) => r.id)).toEqual(["c", "a"]);
     expect(P(world, "b").hp).toBe(0);
+  });
+
+  it("the kill that leaves one player standing ends the run: loser first, then the winner with their GV (no win bonus in a 2-player run)", () => {
+    const world = raid([alice(gear("rifle")), bob()]);
+    place(world, "a", 200, 400);
+    place(world, "b", 300, 400);
+    P(world, "b").hp = 20;
+    const events = swing(world, "a", 300, 400);
+    const order = events.map((e) => (e.type === "fx" ? e.fx.kind : e.type));
+    expect(order).toEqual(["shot", "death", "gv", "resolved", "resolved", "victory", "raidEnded"]);
+    const [loser, winner] = ofType(events, "resolved");
+    expect(loser!.result).toMatchObject({ outcome: "died", killedBy: "alice", place: 2 });
+    expect(winner!.id).toBe("a");
+    expect(winner!.result).toMatchObject({ outcome: "won", place: 1, kills: 1, winBonusWithheld: true });
+    expect(winner!.result.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+    expect(world.state.phase).toBe("ended");
+    expect(world.state.winner).toBe("alice");
+  });
+
+  it("a winner who shot two different players of three is paid the win bonus", () => {
+    const world = raid([alice(gear("rifle")), bob(), carol()]);
+    place(world, "a", 200, 400);
+    place(world, "b", 300, 400);
+    place(world, "c", 200, 500);
+    P(world, "b").hp = 20;
+    P(world, "c").hp = 20;
+    swing(world, "a", 300, 400);
+    run(world, WEAPONS.rifle.cooldownMs / TICK_MS);
+    const events = swing(world, "a", 200, 500);
+    const winner = ofType(events, "resolved").find((e) => e.id === "a")!;
+    expect(winner.result).toMatchObject({ outcome: "won", place: 1, kills: 2, winBonusWithheld: false });
+    expect(winner.result.gv).toEqual({ kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN });
+  });
+
+  it("a winner who shot only one of the two others wins without the bonus, though the other left", () => {
+    const world = raid([alice(gear("rifle")), bob(), carol()]);
+    place(world, "a", 200, 400);
+    place(world, "b", 300, 400);
+    P(world, "b").hp = 20;
+    swing(world, "a", 300, 400);
+    removePlayer(world, "c"); // never shot: leaving is not damage
+    const events = step(world, TICK_MS);
+    const winner = ofType(events, "resolved").find((e) => e.id === "a")!;
+    expect(winner.result).toMatchObject({ outcome: "won", place: 1, kills: 1, winBonusWithheld: true });
+    expect(winner.result.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+    expect(world.state.winner).toBe("alice");
   });
 
   it("a non-lethal hit does not resolve anyone", () => {
@@ -728,8 +822,10 @@ describe("kills", () => {
     const events = swing(world, "a", 230, 400);
     expect(fxOf(events, "death")).toEqual([]);
     expect(ofType(events, "resolved")).toEqual([]);
+    expect(ofType(events, "gv")).toEqual([]);
     expect(RT(world, "b").killedBy).toBe(null);
     expect(P(world, "a").kills).toBe(0);
+    expect(P(world, "a").gv).toBe(0);
   });
 
   it("exactly lethal damage kills", () => {
@@ -758,6 +854,9 @@ describe("kills", () => {
     expect(P(world, alive[0]!).kills).toBe(1);
     expect(fxOf(events, "shot")).toHaveLength(1);
     expect(fxOf(events, "death").map((d) => d.id)).toEqual(dead);
+    // The survivor is the only one left standing, so they win; no draw from the order of play.
+    expect(world.state.winner).toBe(alive[0] === "a" ? "alice" : "bob");
+    expect(ofType(events, "resolved").map((r) => [r.id, r.result.outcome])).toEqual([[dead[0], "died"], [alive[0], "won"]]);
   });
 
   it("a killed player's later attack messages do nothing", () => {
@@ -768,28 +867,33 @@ describe("kills", () => {
   });
 });
 
-describe("attacking while extracting", () => {
-  it("cancels the extraction", () => {
-    const world = raid([alice(), bob()]);
+describe("teleport immunity", () => {
+  it("a swing that connects during immunity shows as a hit but deals no damage", () => {
+    const world = raid([alice(gear("rifle")), bob(), carol()]);
     place(world, "a", 200, 400);
-    place(world, "b", 600, 600);
-    const rt = RT(world, "a");
-    rt.extracting = { zoneId: "z1", startedAt: world.state.serverTime };
-    P(world, "a").extractProgress = 0.6;
-    swing(world, "a", 220, 400);
-    expect(rt.extracting).toBeNull();
-    expect(P(world, "a").extractProgress).toBe(0);
+    place(world, "b", 300, 400);
+    place(world, "c", 1500, 1500);
+    P(world, "b").immuneUntil = world.state.serverTime + TELEPORT_IMMUNITY_MS;
+    P(world, "b").hp = 10;
+    const events = swing(world, "a", 300, 400);
+    expect(shotOf(events).hit).toBe("b");
+    expect(P(world, "b").hp).toBe(10);
+    expect(P(world, "b").status).toBe("alive");
+    expect(fxOf(events, "death")).toEqual([]);
+    expect(P(world, "a").kills).toBe(0);
   });
 
-  it("cancels even when nothing is hit", () => {
-    const world = raid([alice(gear("rifle"))], walledArena());
+  it("hurts again from the tick the immunity ends", () => {
+    const world = raid([alice(gear("rifle")), bob(), carol()]);
     place(world, "a", 200, 400);
-    const rt = RT(world, "a");
-    rt.extracting = { zoneId: "z1", startedAt: 0 };
-    P(world, "a").extractProgress = 0.2;
-    expect(shotOf(swing(world, "a", 500, 400)).hit).toBe(null);
-    expect(rt.extracting).toBeNull();
-    expect(P(world, "a").extractProgress).toBe(0);
+    place(world, "b", 300, 400);
+    place(world, "c", 1500, 1500);
+    P(world, "b").immuneUntil = world.state.serverTime + 2 * TICK_MS;
+    swing(world, "a", 300, 400); // handled at serverTime + 1 tick: still immune
+    expect(lost(world, "b")).toBe(0);
+    run(world, WEAPONS.rifle.cooldownMs / TICK_MS);
+    swing(world, "a", 300, 400);
+    expect(lost(world, "b")).toBe(28);
   });
 });
 

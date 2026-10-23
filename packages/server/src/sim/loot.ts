@@ -5,7 +5,7 @@ import {
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { rollCrate, rollGroundItem } from "./lootTables";
-import { emit, nextId, type ActionHandler, type PlayerRuntime, type World } from "./world";
+import { collisionMap, emit, nextId, type ActionHandler, type PlayerRuntime, type World } from "./world";
 
 function itemName(def: string): string {
   return itemDef(def)?.name ?? def;
@@ -80,7 +80,7 @@ export const handleTake: ActionHandler = (world, p, rt, cmd) => {
   const c = world.state.containers.get(cmd.containerId);
   if (!c || bornThisTick(world, c.id)) { toast(world, rt, "Item is gone"); return; }
   if (Math.hypot(p.x - c.x, p.y - c.y) > INTERACT_RANGE) { toast(world, rt, "Too far away"); return; }
-  if (!hasLineOfSight(world.map, p, c)) { toast(world, rt, "Can't reach that"); return; }
+  if (!hasLineOfSight(collisionMap(world), p, c)) { toast(world, rt, "Can't reach that"); return; }
   const idx = c.items.findIndex((i) => i.uid === cmd.uid);
   if (idx < 0) { toast(world, rt, "Item is gone"); return; }
   if (p.inventory.length >= INVENTORY_SLOTS) { toast(world, rt, "Inventory full"); return; }
@@ -119,7 +119,7 @@ export const handleUse: ActionHandler = (world, p, rt, cmd) => {
   emit(world, { type: "fx", fx: { kind: "heal", id: rt.id, amount: healed } });
 };
 
-/** Leaves a lootable body where the player went down, holding everything they carried. */
+/** Leaves a lootable body where the player went down, holding their run gear. */
 export function dropBody(world: World, p: PlayerState): void {
   const items = p.inventory.map((i) => ({ uid: i.uid, def: i.def }));
   addContainer(world, "body", p, p.name, items);

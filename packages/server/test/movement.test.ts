@@ -24,7 +24,7 @@ function makePlayer(x = 0, y = 0, facing = 0): PlayerState {
 function makeRuntime(path: Vec2[], history: Sample[] = []): PlayerRuntime {
   return {
     id: "p", profile: "p", inputs: new InputQueue(), path: path.map((w) => ({ ...w })), history,
-    nextAttackAt: 0, extracting: null, broughtIn: [], killedBy: null, resolved: false,
+    nextAttackAt: 0, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0 }, mobKills: 0, lastHit: null, damaged: new Set(), droppedAt: null, hpFracAtTickStart: 1, down: null, resolved: false,
   };
 }
 
@@ -250,7 +250,7 @@ describe("advanceAlongPath", () => {
 function makeWorld(seed = 1234): World {
   return createWorld({
     seed,
-    config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, raidSeconds: 360, extractSeconds: 5 },
+    config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60 },
     random: mulberry32(seed),
   });
 }
@@ -576,7 +576,7 @@ describe("a walking player's disc stays out of the walls", () => {
   it("through the real step loop: move messages in, a clear disc at every tick and on arrival", () => {
     const world = makeWorld(1234);
     world.config.minPlayers = 1;
-    addPlayer(world, "a", "alice", []);
+    addPlayer(world, "a", "alice");
     step(world, TICK_MS); // lobby -> active
     expect(world.state.phase).toBe("active");
     const p = world.state.players.get("a")!;

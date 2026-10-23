@@ -9,8 +9,7 @@ export type ActionCommand =
   | { kind: "attack"; x: number; y: number; t?: number }
   | { kind: "take"; containerId: string; uid: string }
   | { kind: "drop"; uid: string }
-  | { kind: "use"; uid: string }
-  | { kind: "extract" };
+  | { kind: "use"; uid: string };
 
 /** Actions beyond this per tick are dropped (spam guard, not a gameplay limit). */
 export const MAX_ACTIONS_PER_TICK = 4;
@@ -93,9 +92,6 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown):
       q.pushAction({ kind: type, uid });
       return true;
     }
-    case "extract":
-      q.pushAction({ kind: "extract" });
-      return true;
     default:
       return false;
   }

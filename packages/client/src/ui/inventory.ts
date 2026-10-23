@@ -24,9 +24,9 @@ export function describeItem(defId: string): { name: string; color: string; info
     case "weapon": info = `Weapon · ${def.damage} dmg · range ${def.range}`; break;
     case "armor": info = `Armor · absorbs ${Math.round(def.reduction * 100)}%`; break;
     case "healing": info = `Heals ${def.heal}`; break;
-    case "valuable": info = "Valuable"; break;
+    case "valuable": info = "No use in a run"; break;
   }
-  return { name: def.name, color: cssColor(def.color), info: `${info} · worth ${def.value}` };
+  return { name: def.name, color: cssColor(def.color), info };
 }
 
 interface Slot {

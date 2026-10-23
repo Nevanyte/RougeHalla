@@ -1,6 +1,6 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
-import { TICK_MS, generateMap, withGates, type ExtractZoneDef, type RaidResult, type TimedFx } from "@raid/shared";
+import { TICK_MS, generateMap, withGates, type RunResult, type TimedFx } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
 import { EntityInterpolator } from "../net/interpolation";
@@ -11,7 +11,6 @@ import { nearestContainer } from "../render/interact";
 import { MapView } from "../render/MapView";
 import { BODY_LIFT, PlayerView } from "../render/PlayerView";
 import { projX, projY, unproject } from "../render/projection";
-import { ZoneView } from "../render/ZoneView";
 import { Hud } from "../ui/hud";
 import { InventoryBar } from "../ui/inventory";
 import { LootPanel } from "../ui/lootPanel";
@@ -43,9 +42,9 @@ const DAMAGE_FLASH_MS = 180;
 const DAMAGE_FLASH_MIN = 0.12;
 const DAMAGE_FLASH_MAX = 0.4;
 const DAMAGE_FLASH_PER_HP = 0.012;
-/** Hp lost in one frame at or above this restarts a flash already in progress (zone ticks are far below it). */
+/** Hp lost in one frame at or above this restarts a flash already in progress (a sudden-death tick is well below it). */
 const DAMAGE_FLASH_FORCE_HP = 5;
-/** Losses below this per frame (the zone's per-tick burn is ≤ 1.5 hp) don't flash. */
+/** Losses below this per frame (sudden death burns under 2 hp a tick for its first ~19 s) don't flash. */
 const DAMAGE_FLASH_MIN_HP = 2;
 
 /** Shortcuts must never fire while the player is typing in a form control. */
@@ -57,12 +56,6 @@ function isTyping(target: EventTarget | null): boolean {
   return false;
 }
 
-/** The extract zone whose circle (edge included) contains the point, or null. */
-function extractZoneAt(zones: readonly ExtractZoneDef[], p: { x: number; y: number }): ExtractZoneDef | null {
-  for (const z of zones) if (Math.hypot(p.x - z.x, p.y - z.y) <= z.r) return z;
-  return null;
-}
-
 export class RaidScene extends Phaser.Scene {
   private room!: RaidRoom;
   private interp!: EntityInterpolator;
@@ -70,7 +63,6 @@ export class RaidScene extends Phaser.Scene {
   private containerViews = new Map<string, ContainerView>();
   private mapView: MapView | null = null;
   private highlight!: ContainerHighlight;
-  private zoneView!: ZoneView;
   private minimap!: Minimap;
   private hud!: Hud;
   private inventory!: InventoryBar;
@@ -85,6 +77,8 @@ export class RaidScene extends Phaser.Scene {
   private unbindResult: (() => void) | null = null;
   /** Server time this frame is drawn at, captured in update(); inputs are stamped with it (see sendAttack). */
   private renderT = 0;
+  /** Server time of the latest teleport fx (0 = none): inputs wait until it is drawn. */
+  private teleportAt = 0;
   private clockSynced = false;
   /** False until Phaser has seen the pointer, so Q cannot fire at its initial (0, 0). */
   private aimKnown = false;
@@ -118,6 +112,7 @@ export class RaidScene extends Phaser.Scene {
     this.lastMoveSentAt = 0;
     this.lastAttackSentAt = 0;
     this.renderT = 0;
+    this.teleportAt = 0;
     this.clockSynced = false;
     this.aimKnown = false;
     this.lastHp = -1;
@@ -133,7 +128,6 @@ export class RaidScene extends Phaser.Scene {
     this.minimap = new Minimap();
     this.buildMap(this.room.state.seed);
     this.highlight = new ContainerHighlight(this);
-    this.zoneView = new ZoneView(this);
     this.fx = new FxView(this, {
       view: (id) => this.views.get(id),
       position: (id) => this.rendered.get(id),
@@ -142,11 +136,12 @@ export class RaidScene extends Phaser.Scene {
     });
     this.unbindFx = this.room.onMessage("fx", (fx: TimedFx) => {
       if (fx?.kind === "death") this.noteDeath(fx.id, fx.t, fx.x, fx.y);
+      if (fx?.kind === "teleport") this.noteTeleport(fx.t);
       this.fx.enqueue(fx);
     });
     // The killing result reaches the client before the dead-status patch, so the death line is driven from it.
     // main.ts holds the results panel back for a moment after a death; update() hides the line once it shows.
-    this.unbindResult = this.room.onMessage("result", (r: RaidResult) => {
+    this.unbindResult = this.room.onMessage("result", (r: RunResult) => {
       if (r.outcome === "died") this.hud.showDeath();
     });
 
@@ -172,8 +167,7 @@ export class RaidScene extends Phaser.Scene {
   update(time: number): void {
     const state = this.room.state;
     if (state.seed !== this.mapView?.map.seed) this.buildMap(state.seed);
-    // Read defensively: older servers' RaidState has no gatesLocked, and an absent flag means open gates.
-    const gatesLocked = (state as { gatesLocked?: unknown }).gatesLocked === true;
+    const gatesLocked = state.gatesLocked;
     this.mapView?.setGatesLocked(gatesLocked);
     this.minimap.setGatesLocked(gatesLocked);
 
@@ -199,7 +193,7 @@ export class RaidScene extends Phaser.Scene {
       let view = this.views.get(id);
       if (!view) { view = new PlayerView(this, id === this.room.sessionId); this.views.set(id, view); }
       if (!this.interp.sample(id, renderT, this.tmp)) { this.tmp.x = p.x; this.tmp.y = p.y; }
-      view.update(this.tmp.x, this.tmp.y, p, this.deathPending(id));
+      view.update(this.tmp.x, this.tmp.y, p, renderT, this.deathPending(id));
       let drawn = this.rendered.get(id);
       if (!drawn) { drawn = { x: 0, y: 0 }; this.rendered.set(id, drawn); }
       drawn.x = this.tmp.x;
@@ -223,13 +217,12 @@ export class RaidScene extends Phaser.Scene {
     this.fx.update(renderT, now, this.clockSynced);
     this.trackDamage(me);
 
-    // Both redraw only when the zone (or, for the minimap, the player's dot) actually moved.
-    this.zoneView.update(state.zone);
-    this.minimap.update(now, state.zone, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
+    // Redraws only when the player's dot (or the gates) actually changed.
+    this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();
-    // Like interaction range, the zone test uses the latest synced position, which is what the server checks.
-    this.hud.update(state, me, me?.status === "alive" && map ? extractZoneAt(map.extracts, me) : null);
+    // The HUD counts server-time deadlines down against the estimated server clock, not renderT (100 ms behind it).
+    this.hud.update(state, me, this.clockSynced ? this.interp.clock.now(now) : state.serverTime);
     this.inventory.update(me);
     this.lootPanel.update(state, me, sightMap);
   }
@@ -275,7 +268,22 @@ export class RaidScene extends Phaser.Scene {
     return false;
   }
 
+  /**
+   * Until render time reaches a teleport, the screen still shows everyone where they were: a click there would aim from
+   * (or walk back to) the old spot, so inputs wait for the cut. The interpolator snaps even a short jump.
+   */
+  private noteTeleport(t: number): void {
+    if (!Number.isFinite(t)) return;
+    this.interp.markCut(t);
+    this.teleportAt = Math.max(this.teleportAt, t);
+  }
+
+  private beforeTeleport(): boolean {
+    return this.renderT < this.teleportAt;
+  }
+
   private sendMove(pointer: Phaser.Input.Pointer, showMarker: boolean): void {
+    if (this.beforeTeleport()) return;
     pointer.updateWorldPoint(this.cameras.main);
     const target = unproject(pointer.worldX, pointer.worldY);
     sendInput(this.room, "move", target);
@@ -293,7 +301,7 @@ export class RaidScene extends Phaser.Scene {
    * unsynced, when it would be meaningless, so the server just uses the present.
    */
   private sendAttack(pointer: Phaser.Input.Pointer, repeat = false): void {
-    if (!this.localAlive()) return;
+    if (!this.localAlive() || this.beforeTeleport()) return;
     pointer.updateWorldPoint(this.cameras.main);
     const target = unproject(pointer.worldX, pointer.worldY + AIM_HEIGHT);
     sendInput(this.room, "attack", this.clockSynced ? { x: target.x, y: target.y, t: this.renderT } : target);
@@ -308,13 +316,13 @@ export class RaidScene extends Phaser.Scene {
     return this.room.state.players.get(this.room.sessionId)?.status === "alive";
   }
 
-  /** Red flash on the camera whenever the local player's hp drops between frames (shots, zone ticks). */
+  /** Red flash on the camera whenever the local player's hp drops between frames (shots, late sudden-death ticks). */
   private trackDamage(me: PlayerState | undefined): void {
     if (!me) { this.lastHp = -1; return; }
     // The drop is measured before the status check: the killing blow arrives as hp 0 together with status "dead".
     const lost = this.lastHp >= 0 ? this.lastHp - me.hp : 0;
     this.lastHp = me.status === "alive" ? me.hp : -1;
-    // Small per-tick losses (zone burn) already have the tint and the HUD warning; only real hits flash.
+    // Small per-tick losses (the start of sudden death) already have the HUD warning; only real hits flash.
     if (lost < DAMAGE_FLASH_MIN_HP) return;
     const cam = this.cameras.main;
     const force = lost >= DAMAGE_FLASH_FORCE_HP;
@@ -339,8 +347,6 @@ export class RaidScene extends Phaser.Scene {
     // Shift+digit drops the slot; a plain digit uses it.
     if (e.code === "KeyS") sendInput(this.room, "stop", {});
     else if (e.code === "KeyF") this.lootPanel.toggle(this.nearest);
-    // The server decides whether this player is in a zone; the HUD hint only says when it is worth pressing.
-    else if (e.code === "KeyX") { if (this.localAlive()) sendInput(this.room, "extract", {}); }
     // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
     else if (e.code === "KeyQ") { if (this.aimKnown && this.input.isOver) this.sendAttack(this.input.activePointer); }
     else if (e.code === "Escape") this.lootPanel.close();
@@ -378,7 +384,6 @@ export class RaidScene extends Phaser.Scene {
     this.mapView?.destroy();
     this.mapView = null;
     this.highlight.destroy();
-    this.zoneView.destroy();
     this.minimap.destroy();
     this.rendered.clear();
     this.deaths.clear();

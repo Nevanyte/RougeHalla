@@ -1,5 +1,5 @@
-// Static map rendering, built once from generateMap(seed): region-tinted floor, extract zones, walls with fake
-// height, and the coliseum gates (built once, shown or hidden by setGatesLocked).
+// Static map rendering, built once from generateMap(seed): region-tinted floor, walls with fake height, and the
+// coliseum gates (built once, shown or hidden by setGatesLocked).
 import Phaser from "phaser";
 import { REGION_IDS, TILE, Y_SCALE, isWallTile, withGates, type GameMap, type RegionId } from "@raid/shared";
 import { depthFor, projX, projY } from "./projection";
@@ -12,11 +12,11 @@ export const WALL_HEIGHT = 14;
 
 /**
  * Anything that stands (players, containers, wall rows) sorts by ground y, which is >= 0, so these
- * layers sit below every one of them. The extract zone and the loot highlight ring are painted on the
- * floor, never over a player.
+ * layers sit below every one of them. The open-gate marking and the loot highlight ring are painted on
+ * the floor, never over a player.
  */
 const DEPTH_FLOOR = -1e6;
-const DEPTH_ZONE = -5e5;
+const DEPTH_GATE_MARK = -5e5;
 export const DEPTH_HIGHLIGHT = -4e5;
 
 const COLOR_OUTDOOR = 0x2a3038;
@@ -25,8 +25,6 @@ const COLOR_INDOOR = 0x1c1612;
 const ALPHA_INDOOR = 0.45;
 const COLOR_WALL_TOP = 0x8a9099;
 const COLOR_WALL_FRONT = 0x555b63;
-const COLOR_ZONE = 0x26a69a;
-const COLOR_ZONE_EDGE = 0x4db6ac;
 /** Closed gates: a portcullis in the wall ring. */
 const COLOR_GATE_TOP = 0xb85c4a;
 const COLOR_GATE_FRONT = 0x7a2e2b;
@@ -101,7 +99,6 @@ export class MapView {
 
   constructor(private readonly scene: Phaser.Scene, readonly map: GameMap) {
     this.drawFloor();
-    this.drawExtractZones();
     this.drawWalls();
     this.drawGates();
   }
@@ -158,24 +155,6 @@ export class MapView {
     for (let ty = 0; ty <= map.h; ty++) g.lineBetween(projX(0), projY(ty * TILE), projX(worldW), projY(ty * TILE));
   }
 
-  private drawExtractZones(): void {
-    const g = this.scene.add.graphics().setDepth(DEPTH_ZONE);
-    this.objects.push(g);
-    for (const z of this.map.extracts) {
-      const cx = projX(z.x);
-      const cy = projY(z.y);
-      const w = z.r * 2;
-      const h = z.r * 2 * Y_SCALE;
-      g.fillStyle(COLOR_ZONE, 0.15).fillEllipse(cx, cy, w, h);
-      g.lineStyle(2, COLOR_ZONE_EDGE, 0.7).strokeEllipse(cx, cy, w, h);
-
-      const label = this.scene.add.text(cx, cy, z.name, {
-        fontFamily: "system-ui, sans-serif", fontSize: "12px", color: "#80cbc4",
-      }).setOrigin(0.5, 0.5).setAlpha(0.9).setDepth(DEPTH_ZONE);
-      this.objects.push(label);
-    }
-  }
-
   /**
    * One Graphics per tile row, depth = ground y of the row's south edge. An entity whose ground y is
    * north of that edge draws under the row (the wall hides it); one south of it draws over the row.
@@ -217,7 +196,7 @@ export class MapView {
   /**
    * Both gate states are built here once. Closed: the gate tiles drawn as walls, one Graphics per tile row
    * at the row's south-edge depth like drawWalls, so players y-sort against the portcullis. Open: a faint
-   * floor marking at zone depth. Walls decide the front faces from the locked copy of the map, so a gate
+   * floor marking under everything that stands. Walls decide the front faces from the locked copy of the map, so a gate
    * tile above another gate tile (the side gates span several rows) shows no front face between them.
    */
   private drawGates(): void {
@@ -251,7 +230,7 @@ export class MapView {
       });
     }
 
-    const mark = this.scene.add.graphics().setDepth(DEPTH_ZONE).setVisible(!this.gatesLocked);
+    const mark = this.scene.add.graphics().setDepth(DEPTH_GATE_MARK).setVisible(!this.gatesLocked);
     this.objects.push(mark);
     this.openGates = mark;
     for (const gate of map.coliseum.gates) {

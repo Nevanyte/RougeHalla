@@ -1,29 +1,32 @@
 # CLAUDE.md — raid-br
 
-Top-down 2.5D extraction battle royale skeleton. Phaser 4 client, Colyseus 0.18 authoritative server, npm workspaces monorepo. Colored shapes only.
+Top-down 2.5D roguelike battle arena skeleton: last one standing wins Glorious Victory (GV, cosmetics-only). Phaser 4 client, Colyseus 0.18 authoritative server, npm workspaces monorepo. Colored shapes only.
 
 ## Commands
 ```
 npm install            # once, at the root
 npm run dev            # server :2567 + client :5173 (concurrently)
-npm test               # vitest in every workspace (server includes the e2e bot raid)
+npm test               # vitest in every workspace (server includes the e2e bot run)
 npm run typecheck      # tsc --noEmit in every workspace
 npm run bots -- 3      # 3 headless bots join the running dev server (also: --url, --prefix, --loop to keep queuing, --verbose)
 ```
-Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_FILE`, `MIN_PLAYERS`, `LOBBY_SECONDS`, `FILL_SECONDS`, `RAID_SECONDS`, `EXTRACT_SECONDS`, `COLYSEUS_LATENCY` (simulated ms).
+Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_FILE` (the profile file; the name predates profiles v2), `MIN_PLAYERS`, `LOBBY_SECONDS`, `FILL_SECONDS`, `PATIENCE_SECONDS` (at 8 alive), `PATIENCE_MIN_SECONDS` (at ≤3 alive), `SUDDEN_DEATH_SECONDS`, `COLYSEUS_LATENCY` (simulated ms).
 
 ## Layout
 - `packages/shared` — TS source consumed directly (no build). Contracts + pure logic used by both sides:
   `constants.ts`, `schema.ts` (Colyseus state; import via `@raid/shared/schema`), `messages.ts`, `items.ts`,
-  `map.ts` (map types/helpers), `mapgen.ts`, `rng.ts`, `pathfind.ts`, `geometry.ts`, `interp.ts`, `zone.ts`.
-- `packages/server` — `src/index.ts` (`defineServer`), `rooms/RaidRoom.ts` (thin adapter), `sim/` (pure game logic),
-  `persistence/StashStore.ts`, `bots/` (`BotClient`: a headless player that sends inputs only; `runBots` is its CLI). Tests in `test/`; `e2e.test.ts` plays a whole raid with four bots.
+  `map.ts` (map types/helpers), `mapgen.ts`, `rng.ts`, `pathfind.ts`, `geometry.ts`, `interp.ts`.
+- `packages/server` — `src/index.ts` (`defineServer`, HTTP API), `rooms/RaidRoom.ts` (thin adapter), `sim/` (pure game logic;
+  `arena.ts` owns the run lifecycle), `persistence/ProfileStore.ts` (profiles v2: GV, stats, cosmetics; migrates v1 stash files),
+  `bots/` (`BotClient`: a headless player that sends inputs only; `runBots` is its CLI). Tests in `test/`; `e2e.test.ts` plays a whole run with four bots.
 - `packages/client` — `net/` (connection, clock sync, interpolation), `scenes/RaidScene.ts`, `render/` (2.5D projection), `ui/` (DOM overlay: menu, HUD, loot, results).
 
 ## Architecture rules (do not break)
-- **Authoritative server.** Clients send inputs only (`move`, `stop`, `attack`, `take`, `drop`, `use`, `extract`). Never accept positions, damage, or outcomes from a client.
+- **Authoritative server.** Clients send inputs only (`move`, `stop`, `attack`, `take`, `drop`, `use`). Never accept positions, damage, or outcomes from a client.
 - **Fixed 20 Hz tick.** Message handlers validate and enqueue; they never mutate game state. The sim consumes input queues at the start of each fixed 50 ms step.
 - **Sim is pure.** `server/src/sim/*` must not import `@colyseus/core` or touch clients/sockets. It mutates the schema state + a non-synced runtime struct and returns events. The Room converts events into messages and persistence. Test the sim headless.
+- **One way down, one place to settle.** All damage goes through `applyDamage` and every exit from the fight (death, leave) through `downPlayer` (`sim/arena.ts`). In-tick results come only from `settle()` at the end of the tick, after combat/DoT, so the shuffled action order never decides a winner (simultaneous last deaths: higher hp fraction at tick start wins, an exact tie draws).
+- **GV banks at resolve.** The sim only accumulates run GV and reports it in `resolved` results; the Room banks it (`recordRun`, or `bankGv` for a run voided by shutdown). Run gear never persists.
 - **The map is never synced.** Only `seed` is in state; both sides call `generateMap(seed)` (must stay deterministic: use `rng.ts`, never `Math.random`, in shared). Loot contents are rolled server-side with a non-public RNG.
 - **Clients render in the past.** Remote and local entities render at `serverNow − INTERP_DELAY_MS` via `SnapshotBuffer` (shared/interp.ts). No client-side prediction yet.
 - **Rendering is separate from logic.** Phaser scenes only read interpolated state and send inputs. Projection lives in `client/src/render/projection.ts` (screenY = worldY · Y_SCALE, height drawn upward, depth = worldY).
@@ -41,8 +44,11 @@ Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_
 - No client-side prediction for the local player (0.18 has `Predict`/`room.input()` if needed).
 - Single process only: the "profile already in a raid" guard and the stash file are process-local.
 - No rate limit on matchmaking (it does verify the profile token before creating a room or reserving a seat, via the static `RaidRoom.onAuth`).
-- HP/status/containers/zone render at the latest patch while positions/fx are 100 ms behind (deaths are held back to match).
+- HP/status/containers/timers render at the latest patch while positions/fx are 100 ms behind (deaths are held back to match).
 - Lag compensation trusts the client's `t` anywhere inside `[now − MAX_REWIND_MS, last published tick]`. A cheating client can pick the most favourable `t` in that 300 ms window. Mitigation: bound `t` per client by measured RTT, or require it to be monotonic.
 - `MAX_REWIND_MS = 300` fully covers clients up to ~150 ms RTT (render delay 100 ms + RTT + one tick). Beyond that, shots at moving targets start to miss.
-- Only a graceful shutdown (SIGTERM/SIGINT, uncaught exception) hands a raider's loadout back. A hard kill (SIGKILL, power loss, OOM) mid-raid loses it: the items leave the stash on disk at join and nothing records that they are out.
-- Profile creation has no rate limit or cap: any client can `GET /api/profile/<new name>` as often as it likes, and `/api` answers every origin (`Access-Control-Allow-Origin: *`) so any web page can do it. Each claim adds a profile, a starter kit and a stash-file rewrite.
+- GV banks when a player's run resolves. A graceful shutdown (SIGTERM/SIGINT, uncaught exception) pays the GV earned so far; a hard kill (SIGKILL, power loss, OOM) mid-run loses it.
+- Gates are only the `gatesLocked` flag until Phase 8b supplies `withGates(map)`; teleport spots are a ring around the map centre (`coliseumSpots`), and sudden death hits everyone standing while locked.
+- GV can be farmed with free callsigns: the win bonus needs 3+ starters and damage on 2+ different opponents (WIN_BONUS_MIN_*), but two throwaway callsigns that get killed still pay kills and the bonus. Bounties are uncapped and mob kills feed them (0.25 each): once Phase 11 mobs exist, a colluding partner could cash a mob-farmed bounty far above GV_WIN. Both are owner decisions.
+- GV earned after a player's result went out is dropped (`awardGv`). Harmless with hitscan; Phase 9 projectiles that kill after their owner died need a rule. They must also be cleared in `hooks.teleported`.
+- Profile creation has no rate limit or cap: any client can `GET /api/profile/<new name>` as often as it likes, and `/api` answers every origin (`Access-Control-Allow-Origin: *`) so any web page can do it. Each claim adds a profile and a file rewrite.
