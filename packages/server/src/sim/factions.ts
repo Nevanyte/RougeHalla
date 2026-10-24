@@ -289,7 +289,9 @@ function signatureDamage(world: World, dtMs: number): void {
     const t = f.engaged && f.target !== null ? byId.get(f.target) : undefined;
     if (spec && weapon && t) {
       const bm = bonusMultiplier(weapon);
-      const dot = now < f.dotPausedUntil ? 0 : bm * dt;
+      // This tick's damage over time covers (now - dt, now]; a stagger pause takes out whatever share of it overlaps.
+      const pausedMs = Math.min(dtMs, Math.max(0, f.dotPausedUntil - (now - dtMs)));
+      const dot = bm * (dtMs - pausedMs) / 1000;
       const foeFrac = sigOf(world, t.id).hpFrac;
       bonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot);
       bonus(world, c, spec, weapon, t, "disease", diseaseDps(spec, foeFrac) * dot);

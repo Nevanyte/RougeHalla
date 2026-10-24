@@ -2026,10 +2026,12 @@ describe("a stagger pauses damage over time", () => {
   }
 
   /**
-   * A tick is paused when it begins after the stagger tick `at` and before `at` + the windup. The stagger tick itself
-   * is not: its damage over time was settled (beforeDamage) before the stagger landed (the ledger).
+   * The share of the tick ending at `now` that a pause over (at, at + pauseMs] covers: a tick's damage over time spans
+   * (now − TICK_MS, now]. The stagger tick itself is never paused: its damage over time was settled (beforeDamage)
+   * before the stagger landed (the ledger).
    */
-  const pausedAt = (now: number, at: number, pauseMs: number): boolean => now > at && now < at + pauseMs;
+  const pausedShare = (now: number, at: number, pauseMs: number): number =>
+    now <= at ? 0 : Math.min(TICK_MS, Math.max(0, at + pauseMs - (now - TICK_MS))) / TICK_MS;
 
   it("a sword's stagger stops a Plague's disease for the windup (0.1 s) and then it resumes at the same rate", () => {
     const world = duel("plague", "sword");
@@ -2044,7 +2046,7 @@ describe("a stagger pauses damage over time", () => {
     expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
 
     const seen = run(world, 6).map((log) => ({ after: log.now - at, disease: sigTotal(log, "disease"), hits: sigHits(log, "disease").length }));
-    expect(seen.filter((s) => s.hits === 0).map((s) => s.after)).toEqual([TICK_MS]);
+    expect(seen.filter((s) => s.hits === 0).map((s) => s.after)).toEqual([TICK_MS, 2 * TICK_MS]);
     for (const s of seen.filter((x) => x.hits > 0)) {
       expect(s.hits).toBe(1);
       expect(s.disease).toBeCloseTo(full, 9);
@@ -2079,13 +2081,13 @@ describe("a stagger pauses damage over time", () => {
     for (let i = 1; i <= 6; i++) {
       const elapsed = signatureState(world, "p")!.markElapsed;
       const log = tick(world);
-      const paused = pausedAt(log.now, at, 100);
-      expect(sigTotal(log, "mark"), `${i} ticks after the stagger`).toBeCloseTo(paused ? 0 : perTick("sentenced", "sword", elapsed), 9);
-      if (!paused) landed++;
+      const share = pausedShare(log.now, at, 100);
+      expect(sigTotal(log, "mark"), `${i} ticks after the stagger`).toBeCloseTo(perTick("sentenced", "sword", elapsed) * (1 - share), 9);
+      if (share < 1) landed++;
       // The clock counts the paused tick too, and the mark that follows is the one the clock has reached.
       expect(signatureState(world, "p")!.markElapsed).toBeCloseTo(elapsed + DT, 9);
     }
-    expect(landed).toBe(5);
+    expect(landed).toBe(4);
     expect(signatureState(world, "p")!.markElapsed).toBeCloseTo(atStagger + 6 * DT, 9);
   });
 
@@ -2102,7 +2104,7 @@ describe("a stagger pauses damage over time", () => {
     expect(C(world, "p").rt.weapon.action).toBeNull();
     expect(signatureState(world, "p")!.dotPausedUntil).toBe(log.now + 100);
     const seen = run(world, 3).map((l) => sigHits(l, "disease").length);
-    expect(seen).toEqual([0, 1, 1]);
+    expect(seen).toEqual([0, 0, 1]);
   });
 
   it("a stagger that cancels nothing (in cooldown, no windup pending, no stagger fx) pauses all the same", () => {
@@ -2117,7 +2119,7 @@ describe("a stagger pauses damage over time", () => {
     const log = staggerTick(world, inj);
     expect(fxOf(log.events, "stagger")).toHaveLength(0);
     expect(signatureState(world, "p")!.dotPausedUntil).toBe(log.now + 100);
-    expect(run(world, 3).map((l) => sigHits(l, "disease").length)).toEqual([0, 1, 1]);
+    expect(run(world, 3).map((l) => sigHits(l, "disease").length)).toEqual([0, 0, 1]);
   });
 
   it("no second stagger inside the immunity extends the pause, and one after it pauses again", () => {
@@ -2134,7 +2136,7 @@ describe("a stagger pauses damage over time", () => {
     expect(second.landed.some((h) => h.victim === "p" && h.sig === undefined), "the hit itself lands").toBe(true);
     expect(C(world, "p").rt.weapon.staggerImmuneUntil).toBe(at + IMMUNITY_MS);
     expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
-    expect(sigHits(second, "disease")).toHaveLength(0); // the one paused tick
+    expect(sigHits(second, "disease")).toHaveLength(0); // the first of the two paused ticks
 
     // More staggers right up to the last tick of the immunity: the disease is back from the end of the first pause.
     const inside: number[] = [];
@@ -2145,13 +2147,14 @@ describe("a stagger pauses damage over time", () => {
       expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
     }
     expect(inside.length).toBeGreaterThan(5);
-    expect(inside.every((n) => n === 1)).toBe(true);
+    expect(inside[0]).toBe(0); // the second paused tick: the pause runs to `at` + 100
+    expect(inside.slice(1).every((n) => n === 1)).toBe(true);
 
     // The immunity ends at `at` + 0.5 s: a stagger on that very tick lands and pauses again.
     const again = staggerTick(world, inj);
     expect(again.now).toBe(at + IMMUNITY_MS);
     expect(signatureState(world, "p")!.dotPausedUntil).toBe(again.now + 100);
-    expect(run(world, 3).map((l) => sigHits(l, "disease").length)).toEqual([0, 1, 1]);
+    expect(run(world, 3).map((l) => sigHits(l, "disease").length)).toEqual([0, 0, 1]);
   });
 
   it("a bow's stagger pauses nothing: the bow has no windup", () => {
@@ -2173,11 +2176,14 @@ describe("a stagger pauses damage over time", () => {
     const at = staggerTick(world, inj).now;
     expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(ms > 0 ? at + ms : 0, 9);
     const full = perTick("plague", weapon);
+    let paused = 0;
     run(world, 12).forEach((log) => {
-      const paused = pausedAt(log.now, at, ms);
-      expect(sigHits(log, "disease"), `${log.now - at} ms after the stagger`).toHaveLength(paused ? 0 : 1);
-      if (!paused) expect(sigTotal(log, "disease")).toBeCloseTo(full, 9);
+      const share = pausedShare(log.now, at, ms);
+      paused += share * TICK_MS;
+      expect(sigHits(log, "disease"), `${log.now - at} ms after the stagger`).toHaveLength(share === 1 ? 0 : 1);
+      if (share < 1) expect(sigTotal(log, "disease")).toBeCloseTo(full * (1 - share), 9);
     });
+    expect(paused).toBeCloseTo(ms, 9); // the whole windup, a share of a tick included
   });
 
   it("the pause is from the weapon in hand when the stagger lands", () => {
@@ -2212,7 +2218,7 @@ describe("a stagger pauses damage over time", () => {
     expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(axe, 9);
     // The pause that runs is the axe's: the sword's would have ended a tick or more earlier.
     const burning = run(world, 6).map((log) => [log.now - at, sigHits(log, "burn").length]);
-    expect(burning.filter(([, n]) => n === 0).map(([ms]) => ms)).toEqual([100, 150, 200]);
+    expect(burning.filter(([, n]) => n === 0).map(([ms]) => ms)).toEqual([100, 150, 200, 250]);
   });
 
   describe("Fire", () => {
@@ -2230,10 +2236,10 @@ describe("a stagger pauses damage over time", () => {
       for (let i = 0; i < pauseMs / TICK_MS + 4; i++) {
         inj.swing("t", "sword");
         const log = tick(world);
-        const paused = pausedAt(log.now, at, pauseMs);
-        if (paused) pausedTicks++;
-        expect(sigHits(log, "burn"), `burn ${log.now - at} ms after the stagger`).toHaveLength(paused ? 0 : 1);
-        if (!paused) expect(sigTotal(log, "burn")).toBeCloseTo(burn, 9);
+        const share = pausedShare(log.now, at, pauseMs);
+        if (share === 1) pausedTicks++;
+        expect(sigHits(log, "burn"), `burn ${log.now - at} ms after the stagger`).toHaveLength(share === 1 ? 0 : 1);
+        if (share < 1) expect(sigTotal(log, "burn")).toBeCloseTo(burn * (1 - share), 9);
         expect(sigHits(log, "backlash"), `backlash ${log.now - at} ms after the stagger`).toHaveLength(1);
         expect(sigTotal(log, "backlash")).toBeCloseTo(backlash, 9);
       }

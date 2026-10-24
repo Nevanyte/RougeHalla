@@ -70,30 +70,30 @@ Lifesteal is back to `0.25 + 1.25 x missing HP`, capped at 100%, in `testing/cla
 
 ## 3. The stagger rule
 
-**The rule** (`staggerPause` in `packages/server/src/sim/factions.ts`). Every stagger that lands (the target's 0.5 s stagger immunity starts that tick, whether or not it cancelled anything) pauses the staggered fighter's burn, disease and mark for its weapon's windup: sword and shield 0.1 s, axe up to 0.25 s, wand cast up to 0.2 s, bow 0 (a bow draw is not cancelled). Fire's backlash never pauses: it is a reply to the enemy's swings. The mark's clock keeps running; only the damage is withheld. It exists only in the real sim: trades mode and `realtime.py` have no staggers, so the 60/60 parity is untouched.
+**The rule** (`staggerPause` in `packages/server/src/sim/factions.ts`). Every stagger that lands (the target's 0.5 s stagger immunity starts that tick, whether or not it cancelled anything) pauses the staggered fighter's burn, disease and mark for its weapon's windup: sword and shield 0.1 s, axe up to 0.25 s, wand cast up to 0.2 s, bow 0 (a bow draw is not cancelled). Fire's backlash never pauses: it is a reply to the enemy's swings. The mark's clock keeps running; only the damage is withheld. The pause covers exactly the windup from the stagger tick on: a tick that lies partly inside it loses that share of its damage over time. It exists only in the real sim: trades mode and `realtime.py` have no staggers, so the 60/60 parity is untouched.
 
 **Why it is principled.** A stagger cancels a swing or cast only while it is winding up. The chance that a stagger lands in a windup is windup / interval, and it then costs the whole hit (damage per second x interval), so on average a stagger costs a hit-based fighter one windup of its weapon's damage. A damage-over-time faction's output has no windup, so a stagger cost it nothing, and a sword's staggers traded only against hit-based factions (Holy). The pause takes the same expected amount from a damage-over-time fighter: one windup of its output.
 
 **Measured**, policy mode, 9.1 weapons, v3 lifesteal:
 
-- Holy > Sentenced with both on swords: before the rule 0% (worst 0.0); after, **100% / 3.8% worst HP**. Holy's lost swings: 19 to 21% before.
+- Holy > Sentenced with both on swords: before the rule 0% (worst 0.0); after, **100% / 11.5% worst HP**. Holy's lost swings: 19 to 21% before.
 - The other Holy > Sentenced cells did not move (bow 23.6, wand 22.6, signature opening 24.7: no sword in them). The axe column cannot be compared: it was measured with the axe at 0.8, before 9.1's last cut to 0.77.
 - Only sword mirrors move among the other cells: only an unblocked sword hit staggers, so no other same-weapon cell has a stagger. Sword mirror, worst winner HP %, before to after the rule:
 
-| Edge | Before | After |
-|---|---|---|
-| Fire > Sentenced | 72.1 | 73.3 |
-| Fire > Plague | 70.7 | 71.8 |
-| Sentenced > Plague | 60.7 | 59.0 |
-| Sentenced > Frost | 49.0 | 49.0 |
-| Plague > Frost | 47.3 | 44.7 |
-| Plague > Holy | 80.3 | 78.8 |
-| Frost > Holy | 63.7 | 63.7 |
-| Frost > Fire | 45.6 | 45.8 |
-| Holy > Fire | 68.0 | 68.1 |
-| Holy > Sentenced | 0.0 (wins 0%) | 3.8 (wins 100%) |
+| Edge | Before | First version | After |
+|---|---|---|---|
+| Fire > Sentenced | 72.1 | 73.3 | 74.6 |
+| Fire > Plague | 70.7 | 71.8 | 72.8 |
+| Sentenced > Plague | 60.7 | 59.0 | 58.8 |
+| Sentenced > Frost | 49.0 | 49.0 | 49.0 |
+| Plague > Frost | 47.3 | 44.7 | 42.2 |
+| Plague > Holy | 80.3 | 78.8 | 77.3 |
+| Frost > Holy | 63.7 | 63.7 | 63.7 |
+| Frost > Fire | 45.6 | 45.8 | 45.9 |
+| Holy > Fire | 68.0 | 68.1 | 68.3 |
+| Holy > Sentenced | 0.0 (wins 0%) | 3.8 (wins 100%) | 11.5 (wins 100%) |
 
-No cell flips, and the set of failing cells is the same five as before (section 6). The "before" column for the Holy rows is the policy run without the retune; for the others it is the run with the retune, which only moves Holy.
+"First version" is the rule as first committed (322df97): it skipped whole ticks that began inside the windup, which left the last tick of it unpaused, so a pause was one tick short (the sword's and shield's 0.1 s paused 50 ms, the axe's 0.25 s paused 200 ms). The adversarial review found it; the pause now covers the windup exactly, pro rata per tick. No cell flips in either version, and the set of failing cells is the same five as before (section 6). The "before" column for the Holy rows is the policy run without the retune; for the others it is the run with the retune, which only moves Holy.
 
 **Rejected variants.**
 
@@ -117,6 +117,16 @@ The chill (Frost's attack-rate cut) stretched four timers: the cooldown (`readyA
 | Plague bow | 0.15 s | 0.40 s |
 
 Now the recovery keeps its unchilled end (`afterWeapons` and `updateChill` no longer touch `recoverUntil`). The chill still stretches the cooldown, the bow draw and the press buffer, so Frost still cuts the attack rate to 40%. Outside the sword column, no policy-mode mirror cell or signature opening differs from the run before the two rules, except Holy's axe cells and the wand/axe opening, which moved with 9.1's axe cut (0.8 to 0.77).
+
+Policy mode has only mirrors and signature openings, and a mirror cannot show this: both sides are chilled or neither is. With mixed weapons it shows, because a Frost melee fighter now chases a chilled shooter that walks at full speed between shots. Same 18 setups, signatures on, k = 2, a scratch run of the Frost cells with a melee weapon against a ranged one (24 cells). Every cell that won before still wins 100%; worst winner HP %, recovery stretched by the chill to not:
+
+| Cell | Stretched | Not stretched (now) |
+|---|---|---|
+| Frost(axe) > Fire(wand) | 36.0 | **2.7** (mean 39.8 to 21.4) |
+| Frost(axe) > Holy(wand) | 58.6 | 22.6 |
+| Frost(axe) > Fire(bow) | 39.3 | 32.1 |
+
+The other 21 cells move by 4 points or less on this change, the largest Plague(wand) > Frost(axe), 40.6 to 44.6 (Plague(bow) > Frost(shield) loses 0% either way, section 6). The cells where Frost's sword staggers the shooter also moved with the stagger-pause fix of section 3: Plague(wand) > Frost(sword) 29.7%, Sentenced(wand) > Frost(sword) 44.4%. Section 8 item 7 has the owner question.
 
 ## 5. Final measurements
 
@@ -180,16 +190,16 @@ Mirror matrix, worst winner HP % (a cell below 100% wins is marked with its win 
 
 | Edge | sword | axe | bow | wand | shield |
 |---|---|---|---|---|---|
-| Fire > Sentenced | 73.3 | 69.9 | 71.3 | 69.0 | 42.0 |
-| Fire > Plague | 71.8 | 70.7 | 64.3 | 66.3 | 81.3 |
-| Sentenced > Plague | 59.0 | 59.7 | 60.8 | 58.8 | 79.7 |
+| Fire > Sentenced | 74.6 | 69.9 | 71.3 | 69.0 | 42.0 |
+| Fire > Plague | 72.8 | 70.7 | 64.3 | 66.3 | 81.3 |
+| Sentenced > Plague | 58.8 | 59.7 | 60.8 | 58.8 | 79.7 |
 | Sentenced > Frost | 49.0 | 48.9 | 50.9 | 48.5 | 100.0 |
-| Plague > Frost | 44.7 | 40.6 | 38.0 | 37.2 | 100.0 |
-| Plague > Holy | 78.8 | 66.6 | 66.2 | 64.3 | 100.0 |
+| Plague > Frost | 42.2 | 40.6 | 38.0 | 37.2 | 100.0 |
+| Plague > Holy | 77.3 | 66.6 | 66.2 | 64.3 | 100.0 |
 | Frost > Holy | 63.7 | 63.2 | 61.9 | 60.4 | **0 (wins 0%)** |
-| Frost > Fire | 45.8 | 44.6 | 41.1 | 40.7 | **0 (wins 0%)** |
-| Holy > Fire | 68.1 | 70.7 | 69.8 | 68.7 | **0 (wins 0%)** |
-| Holy > Sentenced | **3.8** | 27.0 | 23.6 | 22.6 | **0 (wins 0%)** |
+| Frost > Fire | 45.9 | 44.6 | 41.1 | 40.7 | **0 (wins 0%)** |
+| Holy > Fire | 68.3 | 70.7 | 69.8 | 68.7 | **0 (wins 0%)** |
+| Holy > Sentenced | **11.5** | 27.0 | 23.6 | 22.6 | **0 (wins 0%)** |
 
 Signature openings (win % / worst HP % / mean HP % / median fight):
 
@@ -206,7 +216,7 @@ Signature openings (win % / worst HP % / mean HP % / median fight):
 | Holy > Fire | wand/axe | 100% | 64.3 | 71.9 | 6.2 s |
 | Holy > Sentenced | wand/bow | 100% | 24.7 | 26.3 | 15.3 s |
 
-The lowest holding cell is the Holy > Sentenced sword mirror, 3.8% in the worst case. All wins are 100% except the four shield mirrors and the Plague(bow) > Frost(shield) opening (section 6). The run is deterministic: two runs print the same numbers.
+The lowest holding cell is the Holy > Sentenced sword mirror, 11.5% in the worst case. All wins are 100% except the four shield mirrors and the Plague(bow) > Frost(shield) opening (section 6). The run is deterministic: two runs print the same numbers.
 
 ### 5.4 20 Hz model (`realtime.py`)
 
@@ -257,7 +267,7 @@ Policy mode. These are not faction-rule problems and neither the lifesteal nor t
 
 - **The four shield mirrors** Frost > Holy, Frost > Fire, Holy > Fire and Holy > Sentenced win 0%. Two shields facing each other block every bash, so only damage over time lands (Fire's burn, Sentenced's mark, Plague's disease). A designed winner without one (Frost, Holy) does not win; where the designed winner has one (Sentenced > Frost, Plague > Frost, Plague > Holy) it wins and finishes with 100% HP.
 - **The Plague(bow) > Frost(shield) opening** wins 0%. The shield reflects every arrow back into Plague. Phase 9.1 records Shield > Bow as intended to have no counterplay inside the matchup; the answer is the second weapon slot.
-- **Thin but holding:** the Holy > Sentenced sword mirror (3.8% worst HP), the Holy > Sentenced opening (24.7%) and the Fire > Sentenced opening (42.8%, axe/bow).
+- **Thin but holding:** the Holy > Sentenced sword mirror (11.5% worst HP), the Holy > Sentenced opening (24.7%) and the Fire > Sentenced opening (42.8%, axe/bow).
 
 ## 7. Sentenced's signature weapon
 
@@ -302,8 +312,9 @@ Decisions and notes. Nothing here was retuned.
 2. **Backlash per minimum-draw bow tap.** Fire's backlash is charged per swing, and a bow tapped at minimum draw swings more often than its interval: about 2.1 times the designed backlash per second against a tapping bow, which also deals only 0.84 times the designed damage (from the final review; not re-run here).
 3. **Lifesteal counts the whole hit.** Holy heals from the full damage of a hit even on a killing blow (overkill) and from hits on training dummies, which refill. This is kept for parity with `realtime.py`, which counts it the same way. It matters for Phase 11 mobs: Holy would heal from damage beyond a mob's remaining HP, and from a mob that refills.
 4. **The shield mirror stalemate.** Two shields block every bash, so the four shield mirrors and Plague(bow) > Frost(shield) end on damage over time alone or on reflected arrows (section 6). The second weapon slot is the answer the design gives; no number was changed.
-5. **Holy > Sentenced is thin where Sentenced holds a sword.** The sword mirror keeps 3.8% in the worst case, so any buff on Sentenced flips it (x1.30 HP, section 5.4). A stronger lifesteal is not the lever (section 2.3).
+5. **Holy > Sentenced is thin where Sentenced holds a sword.** The sword mirror keeps 11.5% in the worst case, so a modest buff on Sentenced flips it (x1.30 HP, section 5.4). A stronger lifesteal is not the lever (section 2.3).
 6. **Sentenced's weapon** stays on the bow (section 7).
+7. **Frost's axe against a chilled shooter got thin** when the chill stopped stretching the ranged recovery (section 4). Frost(axe) > Fire(wand) still wins every setup but keeps 2.7% HP in the worst case (36.0% before). The change follows the owner's rule that the chill slows movement (x0.7) only within 100 u; if Frost should keep its old hold on shooters, a longer chill-move radius or a Frost-only recovery stretch are the levers. Nothing was retuned.
 
 ## 9. Not re-run
 
