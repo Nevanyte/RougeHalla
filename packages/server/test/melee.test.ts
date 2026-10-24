@@ -632,7 +632,7 @@ describe("sword stagger, through real windups", () => {
     expect(RT(world, 0).weapon.action).toBeNull();
   });
 
-  it("does not interrupt a bow draw: it carries on from where it was, and the hit still staggers (the immunity starts)", () => {
+  it("does not interrupt a bow draw: it carries on from where it was, with no stagger mark, and the hit still starts the immunity", () => {
     const world = arena([fighter("sentenced", "bow", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
     hold(world, 0, 0);
     run(world, 1);
@@ -640,7 +640,7 @@ describe("sword stagger, through real windups", () => {
     tap(world, 1, FACING_WEST); // pressed at 150 ms, lands at 250 ms
     const events = run(world, 3);
     expect(world.state.serverTime).toBe(250);
-    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id: "p0" }]);
+    expect(fxOf(events, "stagger")).toEqual([]); // nothing was cancelled, so nothing is marked
     expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(250 + 500);
     expect(P(world, 0).drawStartedAt).toBe(100);
     expect(RT(world, 0).weapon.action).toMatchObject({ kind: "draw", startedAt: 100 });
@@ -679,41 +679,45 @@ describe("sword stagger, through real windups", () => {
 });
 
 describe("stagger immunity", () => {
-  /** A drawing archer at 40 u from p0: the stagger fx marks each stagger (a sword hit no longer restarts the draw). */
-  function archerWorld(): World {
-    const world = arena([fighter("plague", "sword", ORIGIN), fighter("sentenced", "bow", polar(ORIGIN, 40, 0))]);
-    const now = world.state.serverTime;
-    RT(world, 1).weapon.action = { kind: "draw", weapon: "bow", startedAt: now };
-    P(world, 1).drawStartedAt = now;
+  /** A wand caster 40 u from p0 (the swordsman); `cast` puts a cast in progress on it, which a stagger cancels and marks. */
+  function casterWorld(): World {
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0))]);
+    cast(world);
     return world;
+  }
+  function cast(world: World): void {
+    const now = world.state.serverTime;
+    const p = P(world, 1);
+    RT(world, 1).weapon.action = { kind: "cast", weapon: "wand", startedAt: now, landsAt: now + 60_000, a: 0, packet: PACKET, origin: { x: p.x, y: p.y } };
   }
   const hitIt = (world: World): SimEvent[] => tick(world, [{ by: "p0", weapon: "sword", a: 0 }]);
 
   it("lasts half a second: hits inside it still hurt but do not stagger again", () => {
     expect(STAGGER_IMMUNITY_SECONDS * 1000).toBe(500);
-    const world = archerWorld();
-    const drawStart = P(world, 1).drawStartedAt;
+    const world = casterWorld();
     const first = hitIt(world);
     const t0 = world.state.serverTime;
     expect(fxOf(first, "stagger")).toHaveLength(1);
-    expect(P(world, 1).drawStartedAt).toBe(drawStart); // the draw is not touched
+    expect(RT(world, 1).weapon.action).toBeNull(); // the cast was cancelled
     let lost = hpLost(world, 1);
-    // A hit every tick for the next 450 ms.
+    // A hit every tick for the next 450 ms, each on a caster with a new cast in progress.
     for (let ms = 50; ms <= 450; ms += 50) {
+      cast(world);
       const events = hitIt(world);
       expect(world.state.serverTime).toBe(t0 + ms);
       expect(fxOf(events, "stagger"), `${ms} ms`).toEqual([]);
-      expect(P(world, 1).drawStartedAt, `${ms} ms`).toBe(drawStart);
+      expect(RT(world, 1).weapon.action, `${ms} ms`).not.toBeNull(); // not cancelled again
       expect(hpLost(world, 1), `${ms} ms`).toBeGreaterThan(lost);
       lost = hpLost(world, 1);
     }
   });
 
   it("is over exactly 500 ms after the stagger", () => {
-    const world = archerWorld();
+    const world = casterWorld();
     hitIt(world);
     const t0 = world.state.serverTime;
     for (let i = 0; i < 8; i++) tick(world);
+    cast(world);
     expect(fxOf(hitIt(world), "stagger")).toEqual([]); // t0 + 450
     expect(world.state.serverTime).toBe(t0 + 450);
     const again = hitIt(world); // t0 + 500
@@ -724,22 +728,31 @@ describe("stagger immunity", () => {
 
   it("two swordsmen landing on one target in the same tick stagger it once", () => {
     const world = arena([
-      fighter("plague", "sword", ORIGIN), fighter("sentenced", "bow", polar(ORIGIN, 40, 0)),
-      fighter("plague", "sword", polar(ORIGIN, 40, 30)),
+      fighter("plague", "sword", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0)),
+      fighter("plague", "sword", polar(ORIGIN, 80, 0), { facing: Math.PI }),
     ]);
+    cast(world);
     const events = tick(world, [{ by: "p0", weapon: "sword", a: 0 }, { by: "p2", weapon: "sword", a: Math.PI }]);
+    expect(fxOf(events, "hit").filter((f) => f.id === "p1")).toHaveLength(2);
     expect(fxOf(events, "stagger").filter((f) => f.id === "p1")).toHaveLength(1);
   });
 
+  it("a hit on a fighter with nothing to cancel starts the immunity but marks nothing", () => {
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0))]);
+    const events = hitIt(world);
+    expect(hpLost(world, 1)).toBeGreaterThan(0);
+    expect(fxOf(events, "stagger")).toEqual([]);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+  });
+
   it("a hit that does no damage (teleport immunity) does not stagger", () => {
-    const world = archerWorld();
+    const world = casterWorld();
     P(world, 1).immuneUntil = world.state.serverTime + 1000;
-    const before = P(world, 1).drawStartedAt;
     const events = hitIt(world);
     expect(hpLost(world, 1)).toBe(0);
     expect(fxOf(events, "stagger")).toEqual([]);
     expect(fxOf(events, "hit")).toEqual([]);
-    expect(P(world, 1).drawStartedAt).toBe(before);
+    expect(RT(world, 1).weapon.action).not.toBeNull();
     expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(0);
     // Once the immunity is over the same hit staggers.
     P(world, 1).immuneUntil = 0;
@@ -1063,7 +1076,7 @@ describe("damage through the faction formula", () => {
 // ---- simultaneity -------------------------------------------------------------------------------------------------
 
 describe("simultaneous swings", () => {
-  it("two swords hitting each other in the same tick both land and both stagger", () => {
+  it("two swords hitting each other in the same tick both land and both start the stagger immunity", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     tap(world, 1, Math.PI);
@@ -1071,13 +1084,17 @@ describe("simultaneous swings", () => {
     const each = SWORD_PLAGUE_VS_PLAGUE;
     expect(hpLost(world, 0)).toBeCloseTo(each, 9);
     expect(hpLost(world, 1)).toBeCloseTo(each, 9);
-    expect(fxOf(events, "stagger").map((f) => f.id).sort()).toEqual(["p0", "p1"]);
+    // Each swing had already landed when the other's hit came in, so neither had a windup to cancel: no marks, but both are immune.
+    expect(fxOf(events, "stagger")).toEqual([]);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
   });
 
   it("a fighter that another swing staggers in the same tick still lands its own axe", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("fire", "axe", polar(ORIGIN, 40, 0)), fighter("holy", "wand", FAR)]);
     const events = tick(world, [{ by: "p0", weapon: "sword", a: 0 }, { by: "p1", weapon: "axe", a: Math.PI }]);
-    expect(fxOf(events, "stagger").map((f) => f.id)).toEqual(["p1"]);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(0);
     expect(hpLost(world, 0)).toBeGreaterThan(0);
     expect(hpLost(world, 1)).toBeGreaterThan(0);
   });

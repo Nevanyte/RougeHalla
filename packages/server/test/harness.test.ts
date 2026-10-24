@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { FACTION_IDS, WEAPON_BEATS, type FactionId } from "@raid/shared";
+import { FACTION_IDS, isRanged, WEAPON_BEATS, type FactionId, type WeaponId } from "@raid/shared";
 import { runDuel, type DuelResult } from "../src/harness/duel";
 import { kitingReport } from "../src/harness/kiting";
-import { edgeName, spacingFor, type Cell, type Edge, type Setup } from "../src/harness/matrix";
+import { edgeName, hasGrid, spacingFor, stylesOf, WEAVES, type Cell, type Edge, type Setup } from "../src/harness/matrix";
 import { parityReport } from "../src/harness/parity";
-import { buildReport, HOLD_FACTION, HOLD_OVERALL, HOLD_REPLY, verdictOf } from "../src/harness/report";
+import {
+  buildReport, formatVerdicts, HOLD_FACTION, HOLD_OVERALL, HOLD_REPLY, thinNote, verdictOf, verdictWord, type StyleReply,
+} from "../src/harness/report";
 
 // The harness is report-only: these tests check that it runs and that its parity block agrees with realtime.py. They
 // never look at who wins a duel.
@@ -111,7 +113,11 @@ describe("edge verdicts", () => {
     edge, faction,
     results: Array.from({ length: n }, (_, i) => ({ winner: i < wins ? 0 : 1, end: "kill", seconds: 1, hpFrac: [0.5, 0.5], spec: { faction } }) as unknown as DuelResult),
   });
-  const replies = (...rates: number[]) => rates.map((rate, i) => ({ loser: (["stand", "strafe", "kite"] as const)[i]!, winner: "stand" as const, rate }));
+  /** A reply per way the loser plays; every faction column of it equals the pooled rate unless a test says otherwise. */
+  const replies = (...rates: number[]): StyleReply[] => rates.map((rate, i) => ({
+    loser: (["stand", "strafe", "kite"] as const)[i]!, winner: "stand" as const, rate,
+    perFaction: (["fire", "holy", "frost"] as const).map((faction) => ({ faction, rate })),
+  }));
 
   it("holds when the winner wins 60% overall, 50% in every faction and has a 50% reply to every style", () => {
     expect([HOLD_OVERALL, HOLD_FACTION, HOLD_REPLY]).toEqual([0.6, 0.5, 0.5]);
@@ -134,11 +140,130 @@ describe("edge verdicts", () => {
     expect(v).toMatchObject({ mainHolds: true, gridHolds: false, holds: false });
   });
 
+  it("calls a reply thin in a faction column below the per-faction line even when the pooled reply passes (the thresholds do not move)", () => {
+    const reply: StyleReply = {
+      loser: "strafe", winner: "stand", rate: 0.87,
+      perFaction: [{ faction: "fire", rate: 1 }, { faction: "frost", rate: 0 }, { faction: "holy", rate: 1 }],
+    };
+    const v = verdictOf([cell("fire", 10), cell("holy", 10), cell("frost", 10)], edge, ["fire", "holy", "frost"], [reply]);
+    expect(v).toMatchObject({ mainHolds: true, gridHolds: true, holds: true });
+    expect(thinNote([reply])).toBe("Frost 0% vs strafe");
+    expect(verdictWord(v)).toBe("HOLDS (thin: Frost 0% vs strafe)");
+    expect(formatVerdicts([v], false).join("\n")).toContain("HOLDS (thin: Frost 0% vs strafe)");
+  });
+
+  it("lists every thin faction of every reply, and stays quiet when no column is thin", () => {
+    const weave: StyleReply = {
+      loser: "weave", winner: "stand", rate: 0.51,
+      perFaction: [{ faction: "fire", rate: 0 }, { faction: "holy", rate: 0.11 }, { faction: "frost", rate: 0.67 }],
+    };
+    const strafe: StyleReply = { loser: "strafe", winner: "kite", rate: 0.9, perFaction: [{ faction: "frost", rate: 0.33 }, { faction: "fire", rate: 1 }] };
+    expect(thinNote([weave, strafe])).toBe("Fire 0%, Holy 11% vs weave; Frost 33% vs strafe");
+    expect(thinNote(replies(1, 0.9, 0.5))).toBe("");
+    const quiet = verdictOf([cell("fire", 10)], edge, ["fire"], replies(1, 0.9));
+    expect(verdictWord(quiet)).toBe("HOLDS");
+    // A failing edge keeps its reasons and its thin columns.
+    const failing = verdictOf([cell("fire", 10)], edge, ["fire"], [{ ...weave, rate: 0.47 }]);
+    expect(verdictWord(failing)).toBe("FAILS (styles) (thin: Fire 0%, Holy 11% vs weave)");
+  });
+
   it("reports every designed edge, with a style grid for each one that has a ranged weapon", () => {
     const report = buildReport({ quick: true, factions: ["fire"], setups: [{ distance: 300, delayTicks: [0, 0], angle: 0.1 }], capSeconds: 12 });
     expect(report.verdicts.map((v) => edgeName(v.edge))).toEqual(WEAPON_BEATS.map(edgeName));
     expect(report.text).toContain("EDGE VERDICTS");
     expect(report.text).toMatch(/\d+ of 10 edges hold/);
+  });
+});
+
+describe("melee weave style", () => {
+  it("is a style of every melee weapon and of no ranged one, and only edges with a ranged weapon get a grid", () => {
+    for (const w of ["sword", "axe", "shield"] as WeaponId[]) {
+      expect(stylesOf(w), w).toEqual(["stand", "weave", "jink"]);
+      expect(spacingFor(w, "weave")!.weave, w).toEqual(WEAVES.weave);
+      expect(spacingFor(w, "jink")!.weave, w).toEqual(WEAVES.jink);
+      expect(spacingFor(w, "stand"), w).toBeUndefined();
+    }
+    for (const w of ["bow", "wand"] as WeaponId[]) {
+      expect(stylesOf(w), w).toEqual(["stand", "strafe", "kite"]);
+      expect(spacingFor(w, "weave"), w).toBeUndefined();
+      expect(spacingFor(w, "jink"), w).toBeUndefined();
+    }
+    // Both sit inside the box the review swept: 45-60 degrees off the line, a new side every 0.3-0.6 s; the jink is the quicker.
+    for (const v of Object.values(WEAVES)) {
+      expect(v.angle).toBeGreaterThanOrEqual((45 * Math.PI) / 180);
+      expect(v.angle).toBeLessThanOrEqual((60 * Math.PI) / 180);
+      expect(v.period).toBeGreaterThanOrEqual(0.3);
+      expect(v.period).toBeLessThanOrEqual(0.6);
+    }
+    expect(WEAVES.jink.period).toBeLessThan(WEAVES.weave.period);
+    expect(WEAPON_BEATS.filter(hasGrid).map(edgeName)).toEqual(WEAPON_BEATS.filter((e) => isRanged(e[0]) || isRanged(e[1])).map(edgeName));
+    expect(WEAPON_BEATS.filter((e) => !hasGrid(e)).map(edgeName)).toEqual(["sword > axe", "shield > sword", "axe > shield"].sort((a, b) => order(a) - order(b)));
+  });
+
+  /** The sword fighter's lateral offset from the bow (it starts level with it along x) once a tick, and when it first got in reach. */
+  function charge(style: "stand" | "weave" | "jink"): { offsets: number[]; contact: number | null } {
+    const offsets: number[] = [];
+    let contact: number | null = null;
+    runDuel({
+      faction: "fire", weapons: ["sword", "bow"], distance: 450, angle: 0, capSeconds: 4, seed: 3,
+      spacing: [spacingFor("sword", style), undefined],
+      onTick: (world, tick) => {
+        const a = world.state.players.get("f0")!;
+        const b = world.state.players.get("f1")!;
+        offsets.push(a.y - b.y);
+        if (contact === null && Math.hypot(a.x - b.x, a.y - b.y) <= 60) contact = (tick + 1) / 20;
+      },
+    });
+    return { offsets, contact };
+  }
+
+  it("makes the melee fighter zigzag across the line to its target, changing side on the clock, and arrive later than a straight charge", () => {
+    const straight = charge("stand");
+    expect(Math.max(...straight.offsets.map(Math.abs))).toBeLessThan(1);
+    expect(straight.contact).not.toBeNull();
+    const flipsOf = (offsets: number[]): number => {
+      const lateral = offsets.slice(1).map((y, i) => y - offsets[i]!).filter((dy) => Math.abs(dy) > 0.5);
+      let flips = 0;
+      for (let i = 1; i < lateral.length; i++) if (Math.sign(lateral[i]!) !== Math.sign(lateral[i - 1]!)) flips++;
+      return flips;
+    };
+    const flips: number[] = [];
+    for (const style of ["weave", "jink"] as const) {
+      const run = charge(style);
+      expect(Math.max(...run.offsets.map(Math.abs)), style).toBeGreaterThan(25);
+      expect(run.contact, style).not.toBeNull();
+      expect(run.contact!, style).toBeGreaterThan(straight.contact! + 0.5);
+      flips.push(flipsOf(run.offsets));
+    }
+    // The lateral velocity changes sign over and over on the way in, and more often for the quicker jink.
+    expect(flips[0]!).toBeGreaterThanOrEqual(3);
+    expect(flips[1]!).toBeGreaterThan(flips[0]!);
+  });
+
+  it("repeats exactly: no randomness, only the clock", () => {
+    expect(charge("weave")).toEqual(charge("weave"));
+    expect(charge("jink")).toEqual(charge("jink"));
+    const spec = {
+      faction: "plague" as FactionId, weapons: ["axe", "wand"] as const, distance: 300, angle: 0.8, capSeconds: 6, seed: 5,
+      spacing: [spacingFor("axe", "weave"), spacingFor("wand", "strafe")] as const,
+    };
+    const a = runDuel(spec);
+    const b = runDuel(spec);
+    expect({ ...a, spec: undefined }).toEqual({ ...b, spec: undefined });
+  });
+
+  it("shows up in the grids and the verdicts of a report", () => {
+    const report = buildReport({
+      factions: ["fire"], setups: [{ distance: 300, delayTicks: [0, 0], angle: 0.1 }], capSeconds: 12, core: true, edges: [["bow", "axe"], ["sword", "axe"]],
+    });
+    expect(report.text).toContain("axe weave");
+    expect(report.text).toContain("axe jink");
+    expect(report.text).toContain("weave = a melee approach");
+    const bowAxe = report.verdicts.find((v) => edgeName(v.edge) === "bow > axe")!;
+    expect(bowAxe.replies.map((r) => r.loser)).toEqual(["stand", "weave", "jink"]);
+    expect(bowAxe.replies.every((r) => r.perFaction.length === 1 && r.perFaction[0]!.faction === "fire")).toBe(true);
+    // A melee-against-melee edge has no ranged fighter to grid.
+    expect(report.verdicts.find((v) => edgeName(v.edge) === "sword > axe")!.replies).toEqual([]);
   });
 });
 

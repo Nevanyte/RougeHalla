@@ -252,7 +252,7 @@ Ranged weapons can kite, so four things hold them back (the numbers are the 9.1 
 | **Axe** | Wand | Destroys balls | Bow | Range |
 | | Shield | Pierces it | Sword | Out-swung |
 
-Every edge was checked in the real sim (section 9.4, "Tuning (9.1)"): the designed winner wins at least 60% of the duels, at least 50% in every faction, and has a reply that wins at least 50% against every way the loser can play. **Shield over Sword and Shield over Bow end with the shield at full HP, on purpose:** a raised shield turns the hit back (the riposte, the reflected arrow) and the losing weapon has no way through it. The counterplay is the second weapon slot (section 9.3): swap to the axe or the wand.
+Every edge was checked in the real sim (section 9.4, "Tuning (9.1)"): the designed winner wins at least 60% of the duels, at least 50% in every faction, and has a reply that wins at least 50% against every way the loser can play. **That holds against a melee fighter who charges straight at its target.** Against one who zigzags in (50 to 55 degrees off the line, changing side every 0.3 to 0.4 s) the ranged-over-melee edges are thinner: Bow over Axe falls to 44% against the quick zigzag (a fail; 71% against the slower one) and Bow over Sword and Wand over Shield stay at 82 to 93% but are thin for Fire (section 9.4). **Shield over Sword and Shield over Bow end with the shield at full HP, on purpose:** a raised shield turns the hit back (the riposte, the reflected arrow) and the losing weapon has no way through it. The counterplay is the second weapon slot (section 9.3): swap to the axe or the wand.
 
 ### 9.3 Inventory and pickups
 - **Two weapon slots.** Swap between them. Swapping shares the attack cooldown, adds 0.25 s, and cancels your current action, so it can't be used to cut animations short.
@@ -270,7 +270,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 - **Direction is fixed early.** A swing and a wand cast go where the cursor pointed when the attack started; the bow aims at release.
 
 **Interrupts**
-- **A stagger** cancels the windup or cast; the cooldown stays spent. A bow draw is not interrupted (9.1 tuning; it used to restart).
+- **A stagger** cancels the windup or cast; the cooldown stays spent. A bow draw is not interrupted (9.1 tuning; it used to restart). The stagger mark is shown only when a windup or cast was cancelled, so an archer or an idle fighter that is hit gets the 0.5 s immunity but no mark.
 - **A swap, or a pickup that replaces the weapon in hand,** cancels a pending action (and adds 0.25 s), but never cuts an already-landed root short. A cancelled cast leaves no ranged recovery.
 
 **Shields, swings and balls**
@@ -287,7 +287,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 - **The first faction** is a round-robin default by join order until the faction picker exists (Phase 10).
 - **Training dummies** (server option `DUMMIES=1`) have no faction, so no armor or shield, and never die: a hit that would kill refills them.
 
-**Tuning (9.1): every weapon edge holds, and a melee winner survives the approach.** The full log, with the numbers before and after every change, is `testing/TUNING_9_1.md`. What changed, and why:
+**Tuning (9.1): every weapon edge holds against a straight charge, and a melee winner survives the approach.** The full log, with the numbers before and after every change, is `testing/TUNING_9_1.md`. What changed, and why:
 
 | Change | Before | After | Why |
 |---|---|---|---|
@@ -302,6 +302,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 - **The kiting check.** `python3 testing/realtime_report.py <k = 2 what-if> kite` and `python3 testing/test_kite.py` model a melee faction winner charging a standing ranged loser who fires at full output, signature bonus included. At duel pace, with the old numbers, seven cells were stolen (Fire over Sentenced and Plague, Sentenced over Plague, Holy over Sentenced on the wand); none is now. The tightest, Fire over Plague with the bow, has a tolerance of 1.30 s against 1.06 s of free fire (the weakest melee weapon is the shield). The movement penalties do not change that number (it assumes a standing shooter); they keep the real sim near it, and the harness measures that (below).
 - **Why the ranges are so short.** At duel pace every faction hits twice as hard on the same HP, so a 500-HP Fire has little to spare: against Plague's bow it can absorb 1.3 s of free fire, which is 220 u of approach, not the 420 u a 480 u bow gave. Cutting only the damage would have needed a bow near 0.5, which loses every close trade; cutting only the range needed about 280 u or less. Both together keep the weapons usable.
 - **What each style does.** `stand` is the shared policy: a ranged fighter stands at a good range, backs off when the foe is closer than about half its range and shoots whenever it can. `strafe` sidesteps every 0.8 s. `kite` keeps a longer distance and backs off sooner. With the near-root penalties the three look alike for the bow (it cannot move while it draws), and the wand's strafe reply is its best style against a strafing bow.
+- **Against a weaving melee approach** (open to the owner; nothing was retuned for it). The harness's melee fighters charge straight unless told otherwise, and "every edge holds" is a statement about that. Given a `weave` (55 degrees off the line, a new side every 0.4 s) or a `jink` (50 degrees, every 0.3 s) the melee fighter arrives about a second later, but most of the shooter's arrows on the way in miss. 18 setups x 5 factions: Bow over Axe **fails against a jink (44%, no better reply)** and holds against a weave (64% standing, 71% kiting; Fire 44% and 33%); Bow over Sword holds (89% and 87%; Fire 44% and 33%); Wand over Shield holds (82% and 84%; Fire 11% and 22%); the melee winners (Sword over Wand, Axe over Wand, Shield over Bow) are not hurt. The levers to look at are projectile speed, ranged damage, melee damage and a projectile that leads. `testing/TUNING_9_1.md`, "Against a weaving melee approach", has the grids and a sweep over the angle and the period.
 - **Holy over Sentenced** is the thin faction edge this touched: the wand/bow signature opening leaves Holy 23.6% HP in the worst case (30.4% before), because the wand's multiplier is now level with the bow's. The wand's arrow deletion makes the real opening wider than the stat model says.
 
 ---
@@ -324,7 +325,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 
   - **8 of the 10 openings are contested.** The faction winner starts with the losing weapon, so no fight is decided on the pick screen. The real decision is **which second weapon to go and get**.
   - **Sentenced vs Plague** starts as a bow mirror, so the faction edge decides it.
-  - **Holy vs Sentenced** favours Holy on both loops, on purpose. With Sentenced on the sword it would be the thinnest opening in the game (Holy keeps about 8% HP in the worst case, so any buff decides it). With Sentenced on the bow, Holy keeps 24% in the worst case (30% before the 9.1 tuning cut the wand's damage multiplier from 0.85 to 0.8).
+  - **Holy vs Sentenced** favours Holy on both loops, on purpose. The reason Sentenced starts on the bow was that, with Sentenced on the sword, this would be the thinnest opening in the game (Holy keeping 8.1% HP in the worst case at the old numbers, so any buff decides it; 30.4% on the bow). **That reason is now backwards.** With the 9.1 numbers (`testing/realtime.py`, the Holy wand against each Sentenced weapon, worst case HP Holy keeps): sword 29.4%, shield 29.4%, bow 23.6%, axe 23.6%, wand 23.6%. The sword's cut from 1.0 to 0.75 lifted the sword opening from 8.1% to 29.4%, and the wand's cut from 0.85 to 0.8 lowered the bow opening from 30.4% to 23.6%, so the bow is now the thinner opening for Holy. Phase 10 should revisit `SIGNATURE_WEAPONS` (`shared/src/weapons.ts`) for Sentenced when it builds the picker; it is untouched here.
   - **Region weapons don't change.** The Sentenced region's mobs still carry swords, so all five weapons can be farmed somewhere.
 
 ### 10.2 The scaling formula
@@ -522,7 +523,7 @@ Hard counters are only fair if you can see them coming.
 
   `python3 testing/realtime_report.py` (needs numpy, about a minute) runs the last two as 20 Hz weapon duels, with signature openings, buff thresholds and the longest stretch with no swing. `python3 testing/test_kite.py` (about 5 s) is the kiting guarantee at duel pace, one PASS or FAIL per cell.
   Results go to the designer before any tuning.
-- **The real-sim weapon harness**: `npm run harness -w @raid/server` (`-- --core` for a 30 s run without the sensitivity passes). Every weapon duel plays out in the real sim with two policy-driven clients; it prints the weapon matrix, a style grid for every edge with a ranged weapon, an edge verdict (holds, or fails and why) and the kiting table.
+- **The real-sim weapon harness**: `npm run harness -w @raid/server` (`-- --core` for a 30 s run without the sensitivity passes). Every weapon duel plays out in the real sim with two policy-driven clients; it prints the weapon matrix, a style grid for every edge with a ranged weapon (a ranged fighter can stand, strafe or kite; a melee fighter can charge straight or **weave**, approaching off the line and changing side every 0.4 s), an edge verdict (holds, or fails and why, with the factions where a reply is thin) and the kiting table. `-- --grid-setups full` runs every grid cell on all 18 setups instead of 3 (steadier, about 3 times the time).
 - **Budgets.** Server tick time with 8 players and 60 mobs, and bytes per second per player.
 - **End-to-end.** Bots play full arena runs to a winner, with GV and bounties balancing exactly.
 
@@ -535,6 +536,7 @@ Hard counters are only fair if you can see them coming.
 | Long fights and third-partying | In an 8-player arena, long duels invite a third player to clean up. Duel pace ×2 helps; it gets watched in playtests. |
 | Readable counters | Losing to a counter you didn't see coming feels random. Faction colours, weapon silhouettes and the counter hue are the mitigation. |
 | Kiting | Equal move speed lets ranged weapons kite. Held back by short ranges (bow 240 u, wand 220 u), drawing, casting and recovering at 10% speed, and ranged damage no higher than the melee weapons'. The standing-shooter check passes at duel pace with the thinnest row, Fire over Plague with the bow, at 1.30 s of tolerance against 1.06 s; real kiting gains the shooter at most 12% over standing. Cover caps sight corridors at 480 u, now twice the bow's range, so it could be relaxed. |
+| Weaving melee approach | The weapon edges were tuned against a melee fighter that charges straight. Against a zigzag approach Bow over Axe fails (44% against a quick jink), and Bow over Sword and Wand over Shield are thin for Fire. Retuning for it is an owner decision (section 9.4, `testing/TUNING_9_1.md`). |
 | Frost frustration | Its movement slow makes it the hardest class to escape. That's its identity, but it gets watched. |
 | Sentenced feel | Its weapon hits are nearly zero by design; the brand visual has to carry the class. |
 | Fire's burn | Nearly cosmetic in the current numbers. |

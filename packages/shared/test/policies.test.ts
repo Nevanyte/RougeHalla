@@ -155,3 +155,42 @@ describe("decide, strafing and spacing overrides", () => {
     expect(decide(input({ weapon: "wand", target: { x: 300, y: 0 } })).move).toEqual({ x: 300, y: 0 });
   });
 });
+
+describe("decide, weaving melee approach", () => {
+  const ANGLE = (55 * Math.PI) / 180;
+  const weaving = { ...POLICIES.sword, weave: { angle: ANGLE, period: 0.4, within: 90 } };
+  const at = (time: number, over: Partial<PolicyInput> = {}) =>
+    decide(input({ weapon: "sword", target: { x: 400, y: 0 }, spacing: weaving, time, ...over }));
+  const heading = (m: unknown): number => Math.atan2((m as Vec2).y, (m as Vec2).x);
+
+  it("walks the weave angle off the line to the target and changes side every period", () => {
+    const first = at(0.1).move;
+    const second = at(0.5).move;
+    const third = at(0.9).move;
+    expect(Math.abs(heading(first))).toBeCloseTo(ANGLE, 9);
+    expect(heading(second)).toBeCloseTo(-heading(first), 9);
+    expect(heading(third)).toBeCloseTo(heading(first), 9);
+  });
+
+  it("repeats exactly: the same input gives the same decision", () => {
+    expect(at(1.234)).toEqual(at(1.234));
+  });
+
+  it("charges straight inside `within`, without a clock, and without line of sight", () => {
+    expect(at(0.1, { target: { x: 80, y: 0 } }).move).toEqual({ x: 80, y: 0 });
+    expect(at(0.1, { time: undefined }).move).toEqual({ x: 400, y: 0 });
+    expect(at(0.1, { los: false }).move).toEqual({ x: 400, y: 0 });
+  });
+
+  it("takes the other side when a wall is on this one, and goes straight when both are blocked", () => {
+    const first = at(0.1).move as Vec2;
+    const blocked = at(0.1, { walkable: (_, to) => Math.sign(to.y) !== Math.sign(first.y) }).move as Vec2;
+    expect(Math.sign(blocked.y)).toBe(-Math.sign(first.y));
+    expect(at(0.1, { walkable: () => false }).move).toEqual({ x: 400, y: 0 });
+  });
+
+  it("leaves the default policies alone: nothing weaves unless it is asked to", () => {
+    for (const w of ["sword", "axe", "shield"] as const) expect(POLICIES[w].weave).toBeUndefined();
+    expect(decide(input({ weapon: "sword", target: { x: 400, y: 0 }, time: 0.1 })).move).toEqual({ x: 400, y: 0 });
+  });
+});

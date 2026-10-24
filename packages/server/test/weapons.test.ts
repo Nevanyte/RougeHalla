@@ -1410,11 +1410,42 @@ describe("stagger", () => {
     expect(RT(world).weapon.action).not.toBeNull();
     runTo(world, first + 450);
     expect(stagger(world, C(world))).toBe(false);
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(first + 500);
     tick(world);
     expect(stagger(world, C(world))).toBe(true);
-    expect(RT(world).weapon.action).toBeNull();
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + 500);
     tick(world);
-    expect(fxOf("stagger")).toHaveLength(2); // only the two that took effect
+    // The swing had landed by then, so none of the three found a windup to cancel: no marks (see the next test).
+    expect(fxOf("stagger")).toHaveLength(0);
+  });
+
+  it("marks a stagger (the stagger fx) only when a windup or cast was cancelled: a draw or an idle fighter gets none", () => {
+    const marks = (world: World): number => world.events.filter((e) => e.type === "fx" && e.fx.kind === "stagger").length;
+
+    const bow = startRun();
+    arm(bow, 0, "frost", "bow");
+    press(bow);
+    tick(bow);
+    expect(RT(bow).weapon.action?.kind).toBe("draw");
+    expect(stagger(bow, C(bow))).toBe(true); // still starts the immunity ...
+    expect(RT(bow).weapon.staggerImmuneUntil).toBe(T(bow) + 500);
+    expect(marks(bow)).toBe(0); // ... but nothing was interrupted, so there is no mark
+
+    const idle = startRun();
+    arm(idle, 0, "frost", "sword");
+    expect(stagger(idle, C(idle))).toBe(true);
+    expect(marks(idle)).toBe(0);
+
+    for (const weapon of ["sword", "axe", "wand"] as const) {
+      const busy = startRun();
+      arm(busy, 0, "frost", weapon);
+      tap(busy);
+      tick(busy);
+      expect(RT(busy).weapon.action?.kind, weapon).not.toBe("draw");
+      expect(RT(busy).weapon.action, weapon).not.toBeNull();
+      expect(stagger(busy, C(busy)), weapon).toBe(true);
+      expect(marks(busy), weapon).toBe(1);
+    }
   });
 });
 

@@ -204,6 +204,8 @@ A 20 Hz discrete duel (`realtime.py`) that keeps the engine's damage laws exactl
 | wand | +65% | 0.30 | 0.85 | 420 |
 | shield | +60% | 0.30 | 0.75 | 60 |
 
+*History: this is the v3 weapon table before the 9.1 weapon tuning (`testing/TUNING_9_1.md`), which changed the sword dpsMult to 0.75, the axe's to 0.80 and the wand's to 0.80, and the bow and wand ranges to 240 and 220. The damage-per-hit table below carries the old multipliers too; `python3 testing/weapon_reference.py` prints the current ones.*
+
 Attacks per second = faction rate x (1 + boost) x attack-speed buffs. The interval between attacks is 1 / that, never below the weapon's floor. Damage per hit = faction rate x faction hit x dpsMult x buffs x interval, which is faction hit x dpsMult / (1 + boost) with no buff. So every faction keeps its DPS times dpsMult on every weapon, and faster weapons hit proportionally lighter. The floor is the shortest interval. It binds only under attack-speed buffs, and attack speed past it turns into damage per hit. Resulting intervals and damage per hit at duel pace k = 1 (no floor binds without a buff; k = 2 doubles every hit):
 
 | Faction (rate) | sword | axe | bow | wand | shield |

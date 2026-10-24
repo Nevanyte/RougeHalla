@@ -18,20 +18,36 @@ export interface Setup {
 }
 
 /**
- * How a weapon is played. "stand" is the shared policy (POLICIES): ranged fighters stand and shoot at a good range. "strafe"
- * sidesteps while standing (changing side every 0.8 s); "kite" keeps a longer distance and backs off sooner. Melee
- * weapons have only "stand". "post" is not in the grids: a shooter that never moves, the standing shooter the design's
- * kiting check assumes (kiting.ts).
+ * How a weapon is played. "stand" is the shared policy (POLICIES): ranged fighters stand and shoot at a good range, melee
+ * fighters charge straight at the target. A ranged weapon can also "strafe" (sidestep while standing, changing side
+ * every 0.8 s) or "kite" (keep a longer distance and back off sooner); a melee weapon can "weave" or "jink" (approach off
+ * the line to the target, changing side on a clock, and charge straight inside 90 u: see WEAVES). "post" is not in the
+ * grids: a shooter that never moves, the standing shooter the design's kiting check assumes (kiting.ts).
  */
-export type Style = "stand" | "strafe" | "kite" | "post";
+export type Style = "stand" | "strafe" | "kite" | "weave" | "jink" | "post";
+
+/**
+ * The melee approaches that are not a straight charge. Both are driven by the clock alone, so a duel repeats exactly.
+ * weave: a typical zigzag, 55 degrees off the line, a new side every 0.4 s. jink: a tight, quick one, 50 degrees and
+ * 0.3 s, the worst corner of the box the review swept (45-60 degrees x 0.3-0.6 s; TUNING_9_1.md) for the weakest edge,
+ * Bow > Axe. Straight within 90 u (a swing's reach and a bit).
+ */
+export const WEAVES = {
+  weave: { angle: (55 * Math.PI) / 180, period: 0.4, within: 90 },
+  jink: { angle: (50 * Math.PI) / 180, period: 0.3, within: 90 },
+} as const;
 
 export function stylesOf(w: WeaponId): readonly Style[] {
-  return isRanged(w) ? ["stand", "strafe", "kite"] : ["stand"];
+  return isRanged(w) ? ["stand", "strafe", "kite"] : ["stand", "weave", "jink"];
 }
+
+/** An edge gets a style grid when either weapon is ranged: the ranged fighter's styles and the melee fighter's approach both matter. */
+export const hasGrid = (e: Edge): boolean => isRanged(e[0]) || isRanged(e[1]);
 
 /** The spacing for `w` played in `style`; undefined for the shared default. */
 export function spacingFor(w: WeaponId, style: Style): SpacingPolicy | undefined {
   const base = POLICIES[w];
+  if (style === "weave" || style === "jink") return isRanged(w) ? undefined : { ...base, weave: { ...WEAVES[style] } };
   if (style === "stand" || !isRanged(w)) return undefined;
   if (style === "post") return { ...base, far: Infinity, retreatBelow: 0 };
   if (style === "strafe") return { ...base, strafe: 0.8 };

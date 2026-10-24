@@ -4,7 +4,7 @@
 // reflections, ball-versus-arrow deletion, the teleport clear, a shooter who is gone, and the swing interceptions.
 // Melee is not involved: the swing side of interceptBall is driven by hand, in the slot where the melee phase runs.
 // Worlds are a hand-built open arena (1280 x 640 u); the shots are real inputs (attack, then release after a full draw).
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Decoder, Encoder, getRawChangesCallback, Reflection } from "@colyseus/schema";
 import {
   BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, MAX_ARROW_REFLECTIONS,
@@ -33,13 +33,24 @@ type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
 // tuned numbers. The 9.1 tuning cut the ranges to 240 and 220 u; the long-flight geometry below (far walls, a flight of
 // many substeps, a shot across the arena) was built for the original 480 and 420, so this file flies at those. What the
 // catalog really says is pinned in shared/test/weapons.test.ts and by "flies the catalog's own ranges" below.
+// The catalog is shared module state, so the longer ranges are set only while this file's tests run (beforeAll) and the
+// catalog's own are put back afterwards (afterAll): nothing else that imports @raid/shared in this worker can see them.
 const CATALOG_RANGES = { bow: 0, wand: 0 };
+const TEST_RANGES = { bow: 480, wand: 420 };
+function setRanges(ranges: { bow: number; wand: number }): void {
+  for (const w of ["bow", "wand"] as const) {
+    const shape = WEAPONS[w].shape;
+    if (shape.kind !== "projectile") throw new Error(`${w} is not a projectile weapon`);
+    shape.range = ranges[w];
+  }
+}
 for (const w of ["bow", "wand"] as const) {
   const shape = WEAPONS[w].shape;
   if (shape.kind !== "projectile") throw new Error(`${w} is not a projectile weapon`);
   CATALOG_RANGES[w] = shape.range;
-  shape.range = w === "bow" ? 480 : 420;
 }
+beforeAll(() => setRanges(TEST_RANGES));
+afterAll(() => setRanges(CATALOG_RANGES));
 
 // ---------------------------------------------------------------------------------------------------------------
 // Scenario helpers

@@ -16,6 +16,12 @@ export interface SpacingPolicy {
   leadSpeed: number;
   /** Ranged only: while standing at a good range, sidestep and change side every this many seconds (needs `time`). Off when absent. */
   strafe?: number;
+  /**
+   * Melee only: while closing in from farther than `within`, walk `angle` radians off the straight line to the target and
+   * change side every `period` seconds (needs `time`), then charge straight. A moving approach makes a shooter's lead
+   * miss; the harness uses it to test the ranged edges against more than a straight charge. Off when absent.
+   */
+  weave?: { angle: number; period: number; within: number };
 }
 
 function melee(w: WeaponId): SpacingPolicy {
@@ -68,7 +74,7 @@ export interface PolicyInput {
   windup?: number;
   /** Can a body walk straight from `from` to `to`? Lets a retreat slide along a wall instead of walking into it. */
   walkable?: (from: Vec2, to: Vec2) => boolean;
-  /** Any steadily rising clock in seconds; a strafing policy changes side by it. */
+  /** Any steadily rising clock in seconds; a strafing or weaving policy changes side by it. */
   time?: number;
   /** Spacing to use instead of POLICIES[weapon] (experiments: how much does a different way of playing the weapon change a duel?). */
   spacing?: SpacingPolicy;
@@ -178,6 +184,23 @@ function strafePoint(self: Vec2, threat: Vec2, period: number, time: number, wal
   return null;
 }
 
+/**
+ * Where a weaving melee fighter walks: `angle` off the line to the threat, on the side `time` picks (it flips every
+ * `period` seconds), or the other side when a wall is there, or null when neither is walkable (the caller goes straight).
+ * Pure in its inputs, so a run repeats exactly.
+ */
+function weavePoint(
+  self: Vec2, target: Vec2, weave: NonNullable<SpacingPolicy["weave"]>, time: number, walkable: PolicyInput["walkable"],
+): Vec2 | null {
+  const toward = Math.atan2(target.y - self.y, target.x - self.x);
+  const side = Math.floor(time / weave.period) % 2 === 0 ? 1 : -1;
+  for (const s of [side, -side]) {
+    const p = { x: self.x + Math.cos(toward + s * weave.angle) * STEP, y: self.y + Math.sin(toward + s * weave.angle) * STEP };
+    if (!walkable || walkable(self, p)) return p;
+  }
+  return null;
+}
+
 /** One decision for a fighter holding `in.weapon` against one target. */
 export function decide(input: PolicyInput): PolicyOutput {
   const pol = input.spacing ?? POLICIES[input.weapon];
@@ -198,8 +221,13 @@ export function decide(input: PolicyInput): PolicyOutput {
   const aim = leadAim(origin, targetHit, input.targetVel, pol.leadSpeed);
 
   let move: PolicyOutput["move"];
-  if (!input.los || d > pol.far) move = { x: target.x, y: target.y };
-  else if (d < pol.retreatBelow) move = retreatPoint(self, target, input.walkable) ?? "stop";
+  if (!input.los || d > pol.far) {
+    const { weave } = pol;
+    const off = weave && input.los && input.time !== undefined && d > weave.within
+      ? weavePoint(self, target, weave, input.time, input.walkable)
+      : null;
+    move = off ?? { x: target.x, y: target.y };
+  } else if (d < pol.retreatBelow) move = retreatPoint(self, target, input.walkable) ?? "stop";
   else if (pol.strafe && input.time !== undefined) move = strafePoint(self, target, pol.strafe, input.time, input.walkable) ?? "stop";
   else move = "stop";
 

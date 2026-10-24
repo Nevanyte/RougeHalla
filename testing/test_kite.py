@@ -1,6 +1,6 @@
 """The kiting guarantee at duel pace k = 2 (GAME_DESIGN 9.4, "Tuning (9.1)"): a melee faction winner survives one approach.
 
-    python3 testing/test_kite.py        (needs numpy, like realtime.py; about a minute)
+    python3 testing/test_kite.py        (needs numpy, like realtime.py; about 5 s)
 
 For each faction edge and each ranged weapon (bow, wand) the loser stands and fires at full output, bonus clock running,
 while the winner closes in with a sword, an axe or a shield. The weakest melee weapon must still win at least half of the

@@ -39,7 +39,7 @@ const REFERENCE: Array<[FactionId, WeaponId, number, number]> = [
 
 /** Fire's backlash per enemy swing: the same for every enemy faction, 200 / (1 + boost). */
 const BACKLASH: Record<WeaponId, number> = {
-  sword: 93.023255813953, axe: 142.857142857143, bow: 102.564102564103, wand: 121.212121212121, shield: 125.000000000000
+  sword: 93.023255813954, axe: 142.857142857143, bow: 102.564102564103, wand: 121.212121212121, shield: 125.000000000000,
 };
 
 /**

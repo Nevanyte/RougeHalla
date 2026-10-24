@@ -547,10 +547,10 @@ describe("mobs", () => {
     expect(w.state.phase).toBe("active");
   });
 
-  it("can be staggered", () => {
+  it("can be staggered: the immunity starts, and with no windup or cast to cancel there is no mark", () => {
     const { w, id } = dummyWorld();
     const events = inStep(w, () => hit(w, id, "x", 10, { stagger: true }));
-    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id }]);
+    expect(fxOf(events, "stagger")).toEqual([]);
     expect(w.mobs.get(id)!.weapon.staggerImmuneUntil).toBe(w.state.serverTime + STAGGER_IMMUNITY_SECONDS * 1000);
   });
 });
@@ -568,15 +568,25 @@ describe("stagger", () => {
     return w;
   }
 
-  it("staggers the victim once, however many stagger entries land: the bow draw carries on and the immunity starts", () => {
+  it("staggers the victim once, however many stagger entries land: the bow draw carries on, no mark, and the immunity starts", () => {
     const w = drawing();
     const started = P(w, "v").drawStartedAt;
     const events = inStep(w, () => { hit(w, "v", "x", 10, { stagger: true }); hit(w, "v", "y", 10, { stagger: true }); });
     const now = w.state.serverTime;
-    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id: "v" }]);
+    expect(fxOf(events, "stagger")).toEqual([]); // the draw was not interrupted: nothing to mark
     expect(P(w, "v").drawStartedAt).toBe(started);
     expect(RT(w, "v").weapon.action).toMatchObject({ kind: "draw", startedAt: started });
     expect(RT(w, "v").weapon.staggerImmuneUntil).toBe(now + STAGGER_IMMUNITY_SECONDS * 1000);
+  });
+
+  it("marks a stagger once, however many stagger entries land, when a windup was cancelled", () => {
+    const w = arena([fighter("v", "holy"), fighter("x"), fighter("y")]);
+    const now = w.state.serverTime;
+    RT(w, "v").weapon.action = { kind: "swing", weapon: "sword", startedAt: now, landsAt: now + 5000, a: 0, packet: { raw: 10, phys: 1, magic: 0, true: 0 } };
+    const events = inStep(w, () => { hit(w, "v", "x", 10, { stagger: true }); hit(w, "v", "y", 10, { stagger: true }); });
+    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id: "v" }]);
+    expect(RT(w, "v").weapon.action).toBeNull();
+    expect(RT(w, "v").weapon.staggerImmuneUntil).toBe(w.state.serverTime + STAGGER_IMMUNITY_SECONDS * 1000);
   });
 
   it("does not stagger on a hit that is not a stagger entry", () => {
