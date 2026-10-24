@@ -4,8 +4,6 @@ Five powers, one rulebook, zero matchup rules. Every counter below comes from th
 
 **Revision note (v3).** Fire and Frost now attack faster with lighter hits: Fire 0.3 to 0.6/s at 150 damage (was 305, base DPS 92 to 90), Frost 0.3 to 0.45/s at 90 damage (was 135, DPS unchanged), and Fire's backlash drops from 210 to 200. Sentenced, Plague and Holy, and every HP, share, armor and shield number, are unchanged, so the laws (section 1) and the multiplier matrix (section 5) do not move. Weapons are a % boost on these base rates (see docs/GAME_DESIGN.md section 10). The cost: Frost's faster swings feed Fire's backlash, so Frost over Fire is closer (winner keeps 49%, was 59%). It still does not flip.
 
-**Revision note (Phase 10 retune).** Holy's lifesteal is stronger: `ls1` 1.25 to 1.75 and `ls_cap` 1.0 to 1.5, so it heals `0.25 + 1.75 x missing health` of the damage it deals, capped at 150%. In the real-time game a Sentenced sword hit staggers Holy and cancels its windup, which costs Holy about a fifth of its damage and the lifesteal on it, while the mark is untouched; Holy over Sentenced, the tightest edge, lost a policy-mode duel it wins in the engine. No other number changed, so the laws (section 1) and the multiplier matrix (section 5) do not move. Four edges move: Plague over Holy 67% to 66%, Frost over Holy 63% to 57%, Holy over Fire 69% to 72%, Holy over Sentenced 27% to 34%. The log, with every lever tried and the before and after tables, is `testing/TUNING_10.md`. Where this sheet still quotes a v3 figure it says so.
-
 ## 1. The rulebook (applies identically to every fight)
 
 1. **Attack:** each second a fighter deals `rate x hit` raw damage plus its signature bonus.
@@ -54,27 +52,27 @@ Each card says what the class does, how it feels in a fight, and the **identity 
 
 - **Signature (Rat King):** 40 disease damage per second, plus an execute that adds up to 1025 per second as the target's health falls from 50% to 0 (zero above half health).
 - **Identity:** many small attacks (1.85/s at 20 damage), 1000 HP, heavy armor (200), no shield, 80% physical and 20% magic damage.
-- **Feel:** a slow squeeze that turns into a collapse. It beats Frost in 37.0s, a fight the execute decides (see the identity test), and Holy in 16.7s, where Holy's lack of armor lets 86% of its damage through.
+- **Feel:** a slow squeeze that turns into a collapse. It beats Frost in 37.0s, a fight the execute decides (see the identity test), and Holy in 15.8s, where Holy's lack of armor lets 86% of its damage through.
 - **Loses to** burst and magic. Fire kills it in 2.1s and finishes with 71% of its HP, so Fire never falls under 50% and the execute never opens; Sentenced's mark lands at 100% on a target with no shield.
-- **Identity test:** without the execute Plague loses Plague > Frost (margins shift by 43 points). Without the flat disease it loses Plague > Frost and Plague > Holy (the second since the Phase 10 retune; Holy now heals more of what it takes). Both halves of the signature carry weight.
+- **Identity test:** without the execute Plague loses Plague > Frost (margins shift by 43 points). Without the flat disease it loses Plague > Frost. Both halves of the signature carry weight.
 
 ### Frost: Control bruiser  
 *Living wall of ice*
 
 - **Signature (Living Wall of Ice):** while fighting, the opponent's attack rate is multiplied by 0.4 (a 60% slow), whoever they are.
 - **Identity:** the tankiest power (1750 HP) with slow, heavy swings (0.45/s at 90 damage), balanced defenses (100 armor, 100 shield), 90% physical damage.
-- **Feel:** the fight slows down and Frost sets the pace. It beats Fire in 13.1s with 49% HP left and Holy in 61.5s with 57% left, the longest fight in the system.
+- **Feel:** the fight slows down and Frost sets the pace. It beats Fire in 13.1s with 49% HP left and Holy in 52.3s with 63% left, the longest fight in the system.
 - **Loses to** damage that ignores attack rate. Sentenced's mark and most of Plague's damage (disease and execute) are flat, so slowing them achieves little, and their armor and shield cut Frost's hits to about 52% and 40%.
-- **Identity test:** without the slow Frost loses Frost > Holy; the biggest margin shifts by 108 points.
+- **Identity test:** without the slow Frost loses Frost > Holy; the biggest margin shifts by 103 points.
 
 ### Holy: Sustain juggernaut  
 *Light that burns brighter near death*
 
-- **Signature (Radiant):** heals a fraction of damage dealt equal to `0.25 + 1.75 x missing health`, capped at 150%. At full health it heals 25% of what it deals; by the time it is 43% down it heals everything it deals, and from 71% down it heals one and a half times what it deals.
+- **Signature (Radiant):** heals a fraction of damage dealt equal to `0.25 + 1.25 x missing health`, capped at 100%. At full health it heals 25% of what it deals; by the time it is 60% down it heals everything it deals.
 - **Identity:** 1450 HP behind a 250 shield with no armor, steady attacks (0.95/s at 65 damage), 100% physical damage.
-- **Feel:** hard to finish. Magic barely scratches it (Fire and Sentenced land at 29%), and a long fight against a persistent damage source swings back in its favor as it gets low. It beats Fire in 8.1s and Sentenced in 22.7s, the second finishing with 34% HP left: the closest edge, and the one lifesteal decides.
+- **Feel:** hard to finish. Magic barely scratches it (Fire and Sentenced land at 29%), and a long fight against a persistent damage source swings back in its favor as it gets low. It beats Fire in 8.1s and Sentenced in 22.7s, the second finishing with only 27% HP left: the closest edge, and the one lifesteal decides.
 - **Loses to** damage that finds its weak side and to slows. Plague's damage lands at 86% against its zero armor, and Frost's slow cuts Holy's swings, and with them its healing, from 0.95 to 0.38 per second.
-- **Identity test:** without lifesteal Holy loses Holy > Sentenced (margins shift by 37 points). With flat lifesteal and no missing-health scaling, margins shift by 26 points: the scaling is felt, but it is the smaller half.
+- **Identity test:** without lifesteal Holy loses Holy > Sentenced (margins shift by 30 points). With flat lifesteal and no missing-health scaling, margins shift by 19 points: the scaling is felt, but it is the smaller half.
 
 ## 4. Identity test (what happens if the signature is removed)
 
@@ -87,10 +85,10 @@ Rule: a *main* signature must flip at least one of the owner's four required edg
 | Sentenced | Remove the mark | Sentenced > Plague, Sentenced > Frost | 152 points |
 | Sentenced | Mark appears at full strength (no ramp) (sub) | none | 70 points |
 | Plague | Remove the execute | Plague > Frost | 43 points |
-| Plague | Remove the flat disease (sub) | Plague > Frost, Plague > Holy | 114 points |
-| Frost | Remove the slow | Frost > Holy | 108 points |
-| Holy | Remove lifesteal | Holy > Sentenced | 37 points |
-| Holy | Flat lifesteal (no missing-health scaling) (sub) | none | 26 points |
+| Plague | Remove the flat disease (sub) | Plague > Frost | 114 points |
+| Frost | Remove the slow | Frost > Holy | 103 points |
+| Holy | Remove lifesteal | Holy > Sentenced | 30 points |
+| Holy | Flat lifesteal (no missing-health scaling) (sub) | none | 19 points |
 
 ## 5. Emergent damage multipliers (how much of a packet survives)
 
@@ -113,32 +111,31 @@ Row attacks column. This is the *whole* interaction layer: no table is stored, i
 | Sentenced | Plague | 7.4s | 56% |
 | Sentenced | Frost | 16.6s | 51% |
 | Plague | Frost | 37.0s | 40% |
-| Plague | Holy | 16.7s | 66% |
-| Frost | Holy | 61.5s | 57% |
+| Plague | Holy | 15.8s | 67% |
+| Frost | Holy | 52.3s | 63% |
 | Frost | Fire | 13.1s | 49% |
-| Holy | Fire | 8.1s | 72% |
-| Holy | Sentenced | 22.7s | 34% |
+| Holy | Fire | 8.1s | 69% |
+| Holy | Sentenced | 22.7s | 27% |
 
-Tightest edge: Holy over Sentenced, winner keeps 34%. Longest fight: Frost over Holy, 62s. Every winner finishes with at least a third of its health. (v3, before the Phase 10 retune: 27%, 52s, a quarter.)
+Tightest edge: Holy over Sentenced, winner keeps 27%. Longest fight: Frost over Holy, 52s. Every winner finishes with at least a quarter of its health.
 
 ## 7. Scaling and tuning
 
 **Power level.** `scaled(spec, k)` multiplies HP and every point-damage number by `k`; ratios (rates, shares, armor, shield, slow, lifesteal) are untouched. The graph is invariant under `k`, tested from 0.25x to 20x.
 
 **Tuning knobs.** Measured, not guessed: each knob was moved +-25% and the change in the winner's remaining HP was recorded (points of winner HP; one point = 1% of its max HP).
-No single +-25% change to any knob in this table, or to any core stat (HP, rate, hit, armor, shield), flips an edge, so the design has slack. Two cases are close: Holy's hit or attack rate at -25% keeps Holy > Sentenced with 3% HP left (it flipped before the Phase 10 retune; the edge now flips at -26.5%), and Frost's hit or attack rate at -25% keeps Frost > Holy but the fight takes 107s, near the engine's 120s limit.
+No single +-25% change to any knob in this table flips an edge, so the design has slack. The core stats have one exception: Holy's hit or attack rate at -25% flips Holy > Sentenced.
 
 | Knob | Moves most | Points (per +-25%) |
 |---|---|---|
-| Frost slow | Frost > Holy, Plague > Frost | 38, 6 |
-| Holy shield | Holy > Sentenced, Holy > Fire | 17, 8 |
-| Sentenced mark_cap | Holy > Sentenced, Sentenced > Frost | 16, 10 |
-| Plague plague | Plague > Frost, Plague > Holy | 12, 6 |
+| Frost slow | Frost > Holy, Plague > Frost | 22, 6 |
+| Holy shield | Holy > Sentenced, Holy > Fire | 20, 8 |
+| Sentenced mark_cap | Holy > Sentenced, Sentenced > Frost | 18, 10 |
+| Plague plague | Plague > Frost, Sentenced > Plague | 12, 6 |
 | Fire backlash | Fire > Sentenced, Frost > Fire | 9, 8 |
-| Plague armor | Plague > Holy, Plague > Frost | 9, 9 |
+| Plague armor | Plague > Frost, Plague > Holy | 9, 8 |
 | Sentenced mark_ramp | Sentenced > Plague, Fire > Sentenced | 7, 5 |
-| Holy ls1 | Holy > Sentenced, Frost > Holy | 5, 3 |
-| Holy ls_cap | Frost > Holy, Holy > Sentenced | 4, 2 |
+| Holy ls1 | Holy > Sentenced, Holy > Fire | 4, 2 |
 | Plague execute | Plague > Frost, Plague > Holy | 2, 1 |
 | Holy ls0 | Holy > Sentenced, Holy > Fire | 2, 2 |
 | Fire burn | Frost > Fire, Fire > Sentenced | 1, 0 |

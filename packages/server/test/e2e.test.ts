@@ -36,7 +36,8 @@ const QUITTER = 1;
  * The faction each bot asks for at join, by index, so the run never depends on the server's round-robin default. The
  * first lineup keeps Fire, Plague and Sentenced in the fight (the quitter is Holy): their signatures all come out as
  * `hit` fx with a `sig` (burn and backlash, disease, mark), which is what the run is checked for. The second keeps
- * Frost, Fire and Holy in the fight (the quitter is Sentenced), so the chill and Holy's lifesteal run on a real server too.
+ * Frost, Fire and Holy in the fight (the quitter is Sentenced), so the chill and Holy's lifesteal can run on a real
+ * server too. Nothing asserts them: who fights whom, and for how long, varies from run to run.
  */
 const SIGNATURE_LINEUP: readonly FactionId[] = ["fire", "holy", "plague", "sentenced"];
 const CONTROL_LINEUP: readonly FactionId[] = ["frost", "sentenced", "fire", "holy"];

@@ -4,7 +4,8 @@ import {
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, engageRange, FACTION_IDS, FACTIONS,
   HEAL_LOCKOUT_SECONDS,
   lifestealFraction, mapFromTiles, markDps, markShare, mitigateShares, mulberry32, pacedFaction, PLAYER_SPEED,
-  SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_WEAPONS, TARGET_FORGET_SECONDS, TICK_MS, TILE,
+  SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, TARGET_FORGET_SECONDS,
+  TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
@@ -14,6 +15,7 @@ import { combatant, type Combatant } from "../src/sim/combatant";
 import { heal, noteContact, signatureState, stretchUntil, targetOf } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { recordHit } from "../src/sim/ledger";
+import { addMob } from "../src/sim/mobs";
 import { addPlayer, removePlayer, step } from "../src/sim/step";
 import { packetFor } from "../src/sim/weapons";
 import { chainHook, emit } from "../src/sim/world";
@@ -1982,6 +1984,308 @@ describe("fairness", () => {
         expect(P(world, "b").status, `salt ${salt}`).toBe("dead");
         expect(world.state.winner, `salt ${salt}`).toBe(winner.toUpperCase());
       }
+    });
+  });
+});
+
+// ---- the stagger pause ----
+
+describe("a stagger pauses damage over time", () => {
+  const IMMUNITY_MS = STAGGER_IMMUNITY_SECONDS * 1000;
+  /** Windup seconds per weapon, from the rule's wording (not from weaponTimings): bow has none, so its stagger pauses nothing. */
+  const WINDUP: Record<WeaponId, (interval: number) => number> = {
+    sword: (i) => Math.min(0.1, i),
+    shield: (i) => Math.min(0.1, i),
+    axe: (i) => Math.min(0.25, 0.25 * i),
+    wand: (i) => Math.min(0.2, 0.4 * i),
+    bow: () => 0,
+  };
+  const windupMs = (owner: FactionId, weapon: WeaponId): number => WINDUP[weapon](attackInterval(SPEC[owner], weapon)) * 1000;
+
+  /** `owner` ("p") holding `weapon`, 40 from an empty-handed Holy "t", in contact. */
+  const duel = (owner: FactionId, weapon: WeaponId | null): World => {
+    const world = makeWorld([
+      { id: "p", faction: owner, at: [300, 300], weapon },
+      { id: "t", faction: "holy", at: [340, 300], weapon: null },
+    ]);
+    noteContact(world, "p", "t");
+    return world;
+  };
+
+  /** Raw damage of `sig` for one full tick of `owner` holding `weapon` against a target at full hp (the mark: after `elapsed` s). */
+  const perTick = (owner: FactionId, weapon: WeaponId, elapsed = 0): number => mitigated(owner, "holy", (
+    owner === "fire" ? burnDps(SPEC.fire) : owner === "plague" ? diseaseDps(SPEC.plague, 1) : markDps(SPEC.sentenced, elapsed)
+  ) * bonusMultiplier(weapon) * DT);
+
+  /** Staggers `id` with a hit from `by` and runs that tick; fails unless the stagger landed (its immunity started now). */
+  function staggerTick(world: World, inj: ReturnType<typeof injector>, id = "p", by = "t"): TickLog {
+    inj.hit(by, id, { stagger: true });
+    const log = tick(world);
+    expect(C(world, id).rt.weapon.staggerImmuneUntil, "the stagger landed").toBe(log.now + IMMUNITY_MS);
+    return log;
+  }
+
+  /**
+   * A tick is paused when it begins after the stagger tick `at` and before `at` + the windup. The stagger tick itself
+   * is not: its damage over time was settled (beforeDamage) before the stagger landed (the ledger).
+   */
+  const pausedAt = (now: number, at: number, pauseMs: number): boolean => now > at && now < at + pauseMs;
+
+  it("a sword's stagger stops a Plague's disease for the windup (0.1 s) and then it resumes at the same rate", () => {
+    const world = duel("plague", "sword");
+    const inj = injector(world);
+    const full = perTick("plague", "sword");
+    expect(full).toBeGreaterThan(0);
+    for (const log of run(world, 4)) expect(sigTotal(log, "disease")).toBeCloseTo(full, 9);
+
+    const hit = staggerTick(world, inj);
+    const at = hit.now;
+    expect(sigTotal(hit, "disease")).toBeCloseTo(full, 9);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
+
+    const seen = run(world, 6).map((log) => ({ after: log.now - at, disease: sigTotal(log, "disease"), hits: sigHits(log, "disease").length }));
+    expect(seen.filter((s) => s.hits === 0).map((s) => s.after)).toEqual([TICK_MS]);
+    for (const s of seen.filter((x) => x.hits > 0)) {
+      expect(s.hits).toBe(1);
+      expect(s.disease).toBeCloseTo(full, 9);
+    }
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100); // nothing re-armed it
+  });
+
+  it("the pause holds back only the staggered fighter's damage: its target's signature keeps landing", () => {
+    const world = makeWorld([
+      { id: "p", faction: "plague", at: [300, 300], weapon: "sword" },
+      { id: "q", faction: "plague", at: [340, 300], weapon: "sword" },
+    ]);
+    noteContact(world, "p", "q");
+    const inj = injector(world);
+    run(world, 2);
+    const at = staggerTick(world, inj, "p", "q").now;
+    const log = tick(world);
+    expect(log.now).toBe(at + TICK_MS);
+    expect(sigHits(log, "disease").map((h) => h.by)).toEqual(["q"]);
+  });
+
+  it("a staggered Sentenced pauses its mark while the mark's clock keeps running", () => {
+    const world = duel("sentenced", "sword");
+    const inj = injector(world);
+    run(world, 10); // 0.5 s in reach: the mark has started to ramp
+    const at = staggerTick(world, inj).now;
+    const atStagger = signatureState(world, "p")!.markElapsed;
+    expect(atStagger).toBeCloseTo(11 * DT, 9);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
+
+    let landed = 0;
+    for (let i = 1; i <= 6; i++) {
+      const elapsed = signatureState(world, "p")!.markElapsed;
+      const log = tick(world);
+      const paused = pausedAt(log.now, at, 100);
+      expect(sigTotal(log, "mark"), `${i} ticks after the stagger`).toBeCloseTo(paused ? 0 : perTick("sentenced", "sword", elapsed), 9);
+      if (!paused) landed++;
+      // The clock counts the paused tick too, and the mark that follows is the one the clock has reached.
+      expect(signatureState(world, "p")!.markElapsed).toBeCloseTo(elapsed + DT, 9);
+    }
+    expect(landed).toBe(5);
+    expect(signatureState(world, "p")!.markElapsed).toBeCloseTo(atStagger + 6 * DT, 9);
+  });
+
+  it("a stagger that cancels a windup pauses the same", () => {
+    const world = duel("plague", "sword");
+    const inj = injector(world);
+    RT(world, "p").inputs.pushAction({ kind: "attack", a: Math.PI }); // away from the target
+    RT(world, "p").inputs.pushAction({ kind: "release", a: Math.PI });
+    tick(world);
+    expect(C(world, "p").rt.weapon.action?.kind, "a swing is winding up").toBe("swing");
+    inj.hit("t", "p", { stagger: true });
+    const log = tick(world);
+    expect(fxOf(log.events, "stagger")).toEqual([{ kind: "stagger", id: "p" }]);
+    expect(C(world, "p").rt.weapon.action).toBeNull();
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(log.now + 100);
+    const seen = run(world, 3).map((l) => sigHits(l, "disease").length);
+    expect(seen).toEqual([0, 1, 1]);
+  });
+
+  it("a stagger that cancels nothing (in cooldown, no windup pending, no stagger fx) pauses all the same", () => {
+    const world = duel("plague", "sword");
+    const inj = injector(world);
+    RT(world, "p").inputs.pushAction({ kind: "attack", a: Math.PI }); // swings at nothing
+    RT(world, "p").inputs.pushAction({ kind: "release", a: Math.PI });
+    for (let i = 0; i < 6 && (i === 0 || C(world, "p").rt.weapon.action); i++) tick(world);
+    expect(C(world, "p").rt.weapon.action, "the swing has landed").toBeNull();
+    expect(P(world, "p").readyAt, "and the weapon is in cooldown").toBeGreaterThan(world.state.serverTime);
+
+    const log = staggerTick(world, inj);
+    expect(fxOf(log.events, "stagger")).toHaveLength(0);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(log.now + 100);
+    expect(run(world, 3).map((l) => sigHits(l, "disease").length)).toEqual([0, 1, 1]);
+  });
+
+  it("no second stagger inside the immunity extends the pause, and one after it pauses again", () => {
+    const world = duel("plague", "sword");
+    const inj = injector(world);
+    run(world, 2);
+    const at = staggerTick(world, inj).now;
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
+
+    // A second hit while the first pause is still running: immune, so it lands no stagger and extends nothing.
+    inj.hit("t", "p", { stagger: true });
+    const second = tick(world);
+    expect(second.now).toBe(at + TICK_MS);
+    expect(second.landed.some((h) => h.victim === "p" && h.sig === undefined), "the hit itself lands").toBe(true);
+    expect(C(world, "p").rt.weapon.staggerImmuneUntil).toBe(at + IMMUNITY_MS);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
+    expect(sigHits(second, "disease")).toHaveLength(0); // the one paused tick
+
+    // More staggers right up to the last tick of the immunity: the disease is back from the end of the first pause.
+    const inside: number[] = [];
+    while (world.state.serverTime < at + IMMUNITY_MS - TICK_MS) {
+      inj.hit("t", "p", { stagger: true });
+      const log = tick(world);
+      inside.push(sigHits(log, "disease").length);
+      expect(signatureState(world, "p")!.dotPausedUntil).toBe(at + 100);
+    }
+    expect(inside.length).toBeGreaterThan(5);
+    expect(inside.every((n) => n === 1)).toBe(true);
+
+    // The immunity ends at `at` + 0.5 s: a stagger on that very tick lands and pauses again.
+    const again = staggerTick(world, inj);
+    expect(again.now).toBe(at + IMMUNITY_MS);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(again.now + 100);
+    expect(run(world, 3).map((l) => sigHits(l, "disease").length)).toEqual([0, 1, 1]);
+  });
+
+  it("a bow's stagger pauses nothing: the bow has no windup", () => {
+    const world = duel("plague", "bow");
+    const inj = injector(world);
+    run(world, 2);
+    const hit = staggerTick(world, inj);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBe(0);
+    expect(sigHits(hit, "disease")).toHaveLength(1);
+    for (const log of run(world, 4)) expect(sigHits(log, "disease"), `at ${log.now - hit.now} ms`).toHaveLength(1);
+  });
+
+  it.each(WEAPON_IDS)("holding a %s the pause lasts that weapon's windup", (weapon) => {
+    const ms = windupMs("plague", weapon);
+    expect(ms > 0, weapon).toBe(weapon !== "bow");
+    const world = duel("plague", weapon);
+    const inj = injector(world);
+    run(world, 2);
+    const at = staggerTick(world, inj).now;
+    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(ms > 0 ? at + ms : 0, 9);
+    const full = perTick("plague", weapon);
+    run(world, 12).forEach((log) => {
+      const paused = pausedAt(log.now, at, ms);
+      expect(sigHits(log, "disease"), `${log.now - at} ms after the stagger`).toHaveLength(paused ? 0 : 1);
+      if (!paused) expect(sigTotal(log, "disease")).toBeCloseTo(full, 9);
+    });
+  });
+
+  it("the pause is from the weapon in hand when the stagger lands", () => {
+    const world = makeWorld([
+      { id: "p", faction: "plague", at: [300, 300], weapon: "sword", weapon1: "axe" },
+      { id: "t", faction: "holy", at: [340, 300], weapon: null },
+    ]);
+    noteContact(world, "p", "t");
+    const inj = injector(world);
+    P(world, "p").slot = 1;
+    run(world, 2);
+    const at = staggerTick(world, inj).now;
+    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(at + windupMs("plague", "axe"), 9);
+  });
+
+  it("a longer pause is never cut short by a later stagger with a shorter windup", () => {
+    // Not reachable by play (a second stagger needs the immunity to have run out, long after any windup), so the
+    // immunity is cleared by hand to let it land while the axe's pause is still running.
+    const world = makeWorld([
+      { id: "p", faction: "fire", at: [300, 300], weapon: "axe", weapon1: "sword" },
+      { id: "t", faction: "holy", at: [340, 300], weapon: null },
+    ]);
+    noteContact(world, "p", "t");
+    const inj = injector(world);
+    const at = staggerTick(world, inj).now;
+    const axe = at + windupMs("fire", "axe");
+    expect(axe).toBeGreaterThan(at + TICK_MS + 100);
+    P(world, "p").slot = 1;
+    C(world, "p").rt.weapon.staggerImmuneUntil = 0;
+    const second = staggerTick(world, inj);
+    expect(second.now).toBe(at + TICK_MS);
+    expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(axe, 9);
+    // The pause that runs is the axe's: the sword's would have ended a tick or more earlier.
+    const burning = run(world, 6).map((log) => [log.now - at, sigHits(log, "burn").length]);
+    expect(burning.filter(([, n]) => n === 0).map(([ms]) => ms)).toEqual([100, 150, 200]);
+  });
+
+  describe("Fire", () => {
+    it("keeps the backlash on the target's swings during the pause, while its burn is paused", () => {
+      const world = duel("fire", "axe");
+      const inj = injector(world);
+      const pauseMs = windupMs("fire", "axe");
+      expect(pauseMs).toBeGreaterThanOrEqual(3 * TICK_MS); // room for paused ticks to show the difference
+      const burn = perTick("fire", "axe");
+      const backlash = mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, "sword") * bonusMultiplier("axe"));
+      run(world, 3);
+      const at = staggerTick(world, inj).now;
+
+      let pausedTicks = 0;
+      for (let i = 0; i < pauseMs / TICK_MS + 4; i++) {
+        inj.swing("t", "sword");
+        const log = tick(world);
+        const paused = pausedAt(log.now, at, pauseMs);
+        if (paused) pausedTicks++;
+        expect(sigHits(log, "burn"), `burn ${log.now - at} ms after the stagger`).toHaveLength(paused ? 0 : 1);
+        if (!paused) expect(sigTotal(log, "burn")).toBeCloseTo(burn, 9);
+        expect(sigHits(log, "backlash"), `backlash ${log.now - at} ms after the stagger`).toHaveLength(1);
+        expect(sigTotal(log, "backlash")).toBeCloseTo(backlash, 9);
+      }
+      expect(pausedTicks).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe("fighters that have nothing to pause", () => {
+    it("a training dummy (no faction) can be staggered without a crash and pauses nothing", () => {
+      const world = duel("plague", "sword");
+      const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: { x: 340, y: 380 }, weapon: "sword" });
+      const inj = injector(world);
+      run(world, 2);
+      inj.hit("t", dummy, { stagger: true });
+      const log = tick(world);
+      const at = log.now;
+      expect(C(world, dummy).rt.weapon.staggerImmuneUntil, "the dummy was staggered").toBe(at + IMMUNITY_MS);
+      expect(signatureState(world, dummy)?.dotPausedUntil ?? 0).toBe(0);
+      // Nobody else's pause moved: the Plague holding the sword was not staggered.
+      expect(signatureState(world, "p")!.dotPausedUntil).toBe(0);
+      for (const l of run(world, 3)) expect(sigHits(l, "disease")).toHaveLength(1);
+    });
+
+    it("a player without a faction can be staggered without a crash and pauses nothing", () => {
+      const world = makeWorld([
+        { id: "p", faction: "plague", at: [300, 300], weapon: "sword" },
+        { id: "t", faction: "holy", at: [340, 300], weapon: null },
+        { id: "x", faction: "holy", at: [340, 380], weapon: "sword" },
+      ]);
+      noteContact(world, "p", "t");
+      P(world, "x").faction = "";
+      const inj = injector(world);
+      run(world, 2);
+      const log = staggerTick(world, inj, "x");
+      expect(C(world, "x").rt.weapon.staggerImmuneUntil).toBe(log.now + IMMUNITY_MS);
+      expect(signatureState(world, "x")!.dotPausedUntil).toBe(0);
+      run(world, 3);
+      expect(signatureState(world, "x")!.dotPausedUntil).toBe(0);
+    });
+
+    it("an empty hand can be staggered without a crash and pauses nothing, even once a weapon is picked up", () => {
+      const world = duel("plague", null);
+      const inj = injector(world);
+      run(world, 2);
+      const at = staggerTick(world, inj).now;
+      expect(signatureState(world, "p")!.dotPausedUntil).toBe(0);
+      P(world, "p").weapon0 = "sword";
+      const full = perTick("plague", "sword");
+      run(world, 3).forEach((log) => {
+        expect(log.now).toBeGreaterThan(at);
+        expect(sigTotal(log, "disease")).toBeCloseTo(full, 9);
+      });
     });
   });
 });

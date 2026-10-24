@@ -1,15 +1,6 @@
 # Counter Review: v3 faction cycle
 
-**Phase 10 retune note (2026-10-24).** Holy's Radiant lifesteal changed after this review was written: `ls1` 1.25 to 1.75 and `ls_cap` 1.0 to 1.5, so it heals `0.25 + 1.75 x missing health` of the damage it deals, capped at 150% (it reaches 100% at about 43% missing health). The body below is the v3 analysis before that change. Engine results (dt = 0.002) that moved, before to after:
-
-| Edge | Before | After |
-|---|---|---|
-| Plague > Holy | 15.8 s, 67% | 16.7 s, 66% |
-| Frost > Holy | 52.3 s, 63% | 61.5 s, 57% |
-| Holy > Fire | 8.1 s, 69% | 8.1 s, 72% |
-| Holy > Sentenced | 22.7 s, 27% | 22.7 s, 34% |
-
-The other six edges are unchanged. Every Holy figure below (fight lengths, HP left, lifesteal returns, flip distances, buff caps, the mixed-weapon failures of Holy > Sentenced, the kiting tolerances, the identity-test shifts) is the v3 value. The new values, the levers that were tried and the reason are in `testing/TUNING_10.md`.
+**Phase 10 note (2026-10-24).** A stronger Holy lifesteal (`ls1` 1.25 to 1.75, `ls_cap` 1.0 to 1.5) was tried in Phase 10 to fix Holy > Sentenced in the real sim and then reverted after the final review: with a cap above 100%, a losing Holy at low health heals more than it takes, so Holy against Holy can stall for ever. A Holy dealing 1.0x to 1.5x the other Holy's damage never wins in the design engine within 600 s, and in the real sim 6 of the 10 weapon edges with Holy on both sides hit the 300 s cap in all 18 setups. Lifesteal is back to `0.25 + 1.25 x missing health`, capped at 100%, and everything below is the v3 analysis as written: every Holy figure (fight lengths, HP left, lifesteal returns, flip distances, buff caps, the mixed-weapon cells, the kiting tolerances, the identity-test shifts) is the v3 value. What replaced the retune is a rule in the real sim, not a number: a stagger that lands now pauses the staggered fighter's burn, disease and mark for its weapon's windup (`staggerPause` in `packages/server/src/sim/factions.ts`), which restored Holy > Sentenced on swords (0% to 100%). The 20 Hz model below has no staggers and is untouched by it. The tries, the measurements and the rejected variants are in `testing/TUNING_10.md`.
 
 Written for the author of `CLASS_SHEET.md`. It checks the v3 numbers in `classes.py` against `engine.py`, then checks how the cycle survives the move to a 20 Hz game with weapons.
 
