@@ -9,7 +9,7 @@ Owner's brief: retune the weapons until every designed weapon edge holds in the 
 | Designed weapon edges that hold (real sim) | 8 of 10: Bow > Sword 9% (Fire 44%, the rest 0%), Wand > Bow 100% against a standing bow and 0% against a strafing or kiting one | **10 of 10** |
 | k = 2 kite rows STOLEN (`realtime_report.py <k2.json> kite`) | 7 cells (Fire > Sentenced, Fire > Plague, Sentenced > Plague with both ranged weapons; Holy > Sentenced with the wand) | **0**; tightest cell Fire > Plague with the bow, 1.30 s tolerance against 1.06 s of free fire (ratio 1.22) |
 | Real kiting against the standing-shooter bound (harness KITING) | up to **x2.25** (a kiting bow vs a shield: 5.40 s against 2.40 s) | up to **x1.12** |
-| Tests | 2027 pass (`npm test`: 1586 server, 441 shared) | 2035 pass (1592 server, 443 shared), typecheck clean, `test_rpsls.py` ALL PASS, new `testing/test_kite.py` ALL PASS |
+| Tests | 2027 pass (`npm test`: 1586 server, 441 shared) | 2040 pass (1592 server, 448 shared), typecheck clean, `test_rpsls.py` ALL PASS, new `testing/test_kite.py` ALL PASS |
 
 ## How to reproduce
 
@@ -153,6 +153,8 @@ axe > wand      rows: the axe; columns: how the wand plays
   axe stand        87% (33/100/100/100/100)      87% (33/100/100/100/100)    87% (33/100/100/100/100)
 sword > wand    100% for every way the wand plays
 ```
+
+Robustness (a one-off script over the same `runMatrix`, not in the repo): 160 setups per cell (8 start distances 100-500 u x 5 start offsets x 4 directions), open and pillared arena. Every edge scores the same in both arenas to within a point: sword > axe, sword > wand, wand > bow, shield > sword, shield > bow, axe > shield 100%; bow > sword 97-98%; wand > shield 100%; axe > wand 91%; bow > axe 86%. Weakest faction columns: Fire, 56% (axe > wand) to 63% (bow > axe). By start distance the ranged edges are weakest when the start is inside the weapons' own reach (bow > axe 48% from 100 u, 68% from 150 u, 88-100% from 200 u up): with no range to use, parity decides.
 
 EDGE VERDICTS: all ten HOLD (`10 of 10 edges hold`). Weakest cells: Bow > Axe Fire 56% and Axe > Wand Fire 56% (the short Fire duels are decided by who lands first), Wand > Bow against a strafing bow in the Frost column (0%: Frost's slow wand, 1.35 s a cast against 1.14 s an arrow, covers fewer arrows than the bow throws).
 

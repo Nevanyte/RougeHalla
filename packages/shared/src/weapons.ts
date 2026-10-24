@@ -28,7 +28,11 @@ export interface WeaponSpec {
   boost: number;
   /** Shortest interval in seconds. Binds only under attack-speed buffs. */
   floor: number;
-  /** Damage multiplier on the faction's damage per second. The ranged ones are maxima (kiting). */
+  /**
+   * Damage multiplier on the faction's damage per second. 9.1 tuning: the bow's must be at least the sword's and the axe's
+   * (it wins them on its opening, so it cannot also lose the close trade), the axe's at least the wand's, and the ranged
+   * ones are maxima for the kiting check (testing/test_kite.py); see testing/TUNING_9_1.md.
+   */
   dpsMult: number;
   shape: ArcShape | ProjectileShape;
 }

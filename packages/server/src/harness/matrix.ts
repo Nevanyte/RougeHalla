@@ -20,15 +20,14 @@ export interface Setup {
 /**
  * How a weapon is played. "stand" is the shared policy (POLICIES): ranged fighters stand and shoot at a good range. "strafe"
  * sidesteps while standing (changing side every 0.8 s); "kite" keeps a longer distance and backs off sooner. Melee
- * weapons have only "stand".
+ * weapons have only "stand". "post" is not in the grids: a shooter that never moves, the standing shooter the design's
+ * kiting check assumes (kiting.ts).
  */
 export type Style = "stand" | "strafe" | "kite" | "post";
 
 export function stylesOf(w: WeaponId): readonly Style[] {
   return isRanged(w) ? ["stand", "strafe", "kite"] : ["stand"];
 }
-
-/** "post" is not in the grids: a shooter that never moves, the standing shooter the design's kiting check assumes (kiting.ts). */
 
 /** The spacing for `w` played in `style`; undefined for the shared default. */
 export function spacingFor(w: WeaponId, style: Style): SpacingPolicy | undefined {

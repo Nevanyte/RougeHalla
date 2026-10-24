@@ -42,7 +42,25 @@ const BACKLASH: Record<WeaponId, number> = {
   sword: 93.023255813953, axe: 142.857142857143, bow: 102.564102564103, wand: 121.212121212121, shield: 125.000000000000
 };
 
+/**
+ * testing/realtime.py's weapon table: each weapon's damage multiplier and, for the two ranged ones, the range that sets the
+ * kite check's free-fire time. The model and the game must be the same game (python3 testing/weapon_reference.py).
+ */
+const MODEL_WEAPONS: Record<WeaponId, { dps: number; range: number | null }> = {
+  sword: { dps: 0.75, range: null },
+  bow: { dps: 0.8, range: 240 },
+  wand: { dps: 0.8, range: 220 },
+  shield: { dps: 0.75, range: null },
+  axe: { dps: 0.8, range: null },
+};
+
 describe("parity with testing/realtime.py", () => {
+  it.each(WEAPON_IDS)("%s: damage multiplier and range are the design model's", (w) => {
+    expect(WEAPONS[w].dpsMult).toBe(MODEL_WEAPONS[w].dps);
+    const shape = WEAPONS[w].shape;
+    expect(shape.kind === "projectile" ? shape.range : null).toBe(MODEL_WEAPONS[w].range);
+  });
+
   it.each(REFERENCE)("%s %s: interval and per-hit damage", (f, w, interval, perHit) => {
     expect(attackInterval(FACTIONS[f], w)).toBeCloseTo(interval, 10);
     expect(damagePerHit(FACTIONS[f], w)).toBeCloseTo(perHit, 9);
