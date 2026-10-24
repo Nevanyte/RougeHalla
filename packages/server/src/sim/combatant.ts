@@ -79,8 +79,8 @@ export function timingsOf(s: FighterState, w: WeaponId): WeaponTimings | null {
 }
 
 /**
- * A regional mob walking home (sim/mobAI.ts "return") is evading: nothing hurts it, it hurts nobody, and it is not a body
- * at all, so an arrow or a swing passes through it (no block, no reflect, no riposte) and it takes no signature contact.
+ * A regional mob walking home (sim/mobAI.ts "return") is evading: nothing hurts it, it starts nothing new (a shot already in the air still lands),
+ * and it is not a body at all, so an arrow or a swing passes through it (no block, no reflect, no riposte) and it takes no signature contact.
  */
 export function isEvading(c: Combatant | undefined): boolean {
   return c !== undefined && c.kind === "mob" && c.rt.brain?.mode === "return";

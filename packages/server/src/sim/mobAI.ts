@@ -11,7 +11,7 @@
 //     like). It gives up, and goes "return", when it is farther than MOB_LEASH_RADIUS from home, or MOB_GIVE_UP_SECONDS
 //     pass without it dealing damage (damage it TAKES does not extend the fight, so a shooter out of its reach cannot hold
 //     it), or no standing player is left to fight. "return" is an evade: it walks home ignoring everyone, nothing hurts it
-//     (mobLife.hurtMob), it heals on the way and is back at full hp when it is "idle" again within MOB_HOME_RADIUS of home,
+//     (mobLife.hurtMob), it is whole again the moment it is "idle" within MOB_HOME_RADIUS of home (the walk is shorter than heal()'s lockout),
 //     where it faces homeFacing again. So kiting a mob from outside its leash gains nothing: each round ends with the mob
 //     whole.
 //   - Inputs: aim every tick toward the (led) target while fighting; hold/release the trigger as `decide` says (an `attack`

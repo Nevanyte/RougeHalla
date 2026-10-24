@@ -1006,6 +1006,36 @@ describe("evading", () => {
     expect(brain(mob).threat.size).toBe(0);
   });
 
+  // The give-up has to cancel what the mob has started (a windup, a cast, a drawn bow): releasing it instead would land the
+  // blow, or loose the arrow, while the mob is already walking home.
+  it.each(REGIONS)("a %s mob that gives up in the middle of a swing, cast or draw lands nothing of it", (region) => {
+    const rig = makeRig();
+    const mob = spawn(rig.world, region, HOME, 0);
+    displace(rig.world, mob, HOME.x + 150, HOME.y);
+    put(rig.world, "p0", HOME.x + 150 + 30, HOME.y);
+    aggro(rig.world, mob, "p0", 1);
+    let forcedAt = -1;
+    let landed = 0;
+    let walkedHome = false;
+    for (let i = 0; i < 80; i++) {
+      const act = mob.rt.weapon.action;
+      const pending = act !== null && (act.kind === "draw" || ((act.kind === "swing" || act.kind === "cast") && act.landsAt - rig.world.state.serverTime >= TICK_MS));
+      if (forcedAt < 0 && pending) {
+        brain(mob).lastCombatAt = -1e9; // it has dealt nothing for far longer than MOB_GIVE_UP_SECONDS
+        forcedAt = i;
+      }
+      const events = run(rig, 1);
+      if (forcedAt >= 0) {
+        landed += hitsOn(events, "p0").filter((h) => h.by === mob.id).reduce((sum, h) => sum + h.amount, 0);
+        if (brain(mob).mode === "return") walkedHome = true;
+      }
+    }
+    expect(forcedAt, "the mob never started anything to cancel").toBeGreaterThanOrEqual(0);
+    expect(walkedHome).toBe(true);
+    expect(landed).toBe(0);
+    expect(hpOf(rig.world, "p0")).toBe(1e9);
+  });
+
   it.each(REGIONS)("a %s mob walking home deals nothing, even with a player standing in its way", (region) => {
     const rig = makeRig();
     const mob = spawn(rig.world, region, HOME, 0);

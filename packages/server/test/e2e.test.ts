@@ -331,10 +331,12 @@ async function playRun(
       expect(short, `${r.profile} claims fewer kills than the deaths that name it`).toBeLessThanOrEqual(r.outcome === "died" ? posthumous : 0);
     }
     // Every death by a bot is one player's kill, and every kill is such a death except: a trade in the last tick
-    // (the winner or both drawers were killed by the one they killed, so no `died` result names them), and a hit
-    // the quitter's leave turned into a kill for somebody (it left too soon for that to be likely).
+    // (the winner or both drawers were killed by the one they killed, so no `died` result names them), a hit
+    // the quitter's leave turned into a kill for somebody (it left too soon for that to be likely), and a player a mob
+    // finished after a rival hit them within KILL_CREDIT_SECONDS: the result names the mob, the kill is the rival's.
     const trades = all.filter((r) => r.outcome === "won" || r.outcome === "draw").length;
-    expect(totalKills, "kills without a death behind them").toBeLessThanOrEqual(diedToABot.length + trades + 1);
+    const diedToAMob = all.filter((r) => r.outcome === "died" && r.killedBy !== null && MOB_NAMES.has(r.killedBy)).length;
+    expect(totalKills, "kills without a death behind them").toBeLessThanOrEqual(diedToABot.length + trades + diedToAMob + 1);
     expect(totalKills).toBeGreaterThanOrEqual(diedToABot.length - posthumous);
     // The broadcast agrees: a death fx with a killer is a kill (a leave credited to the last hitter has no fx, and
     // only the quitter leaves), and a `died` result for each of the deaths but the trades and the quitter's.
@@ -342,7 +344,7 @@ async function playRun(
     expect(deathFx.length, "death fx against deaths by a bot").toBeGreaterThanOrEqual(diedToABot.length - posthumous);
     expect(deathFx.length, "death fx against results").toBeLessThanOrEqual(diedToABot.length + trades + 1);
     expect(totalKills, "kills against death fx").toBeGreaterThanOrEqual(deathFx.length);
-    expect(totalKills, "kills against death fx").toBeLessThanOrEqual(deathFx.length + 1);
+    expect(totalKills, "kills against death fx").toBeLessThanOrEqual(deathFx.length + diedToAMob + 1);
 
     // --- the win bonus. The run started with BOTS (4) players, so the player count never withholds it: the winner
     // keeps it exactly when they damaged WIN_BONUS_MIN_OPPONENTS different players, and the result says which. A `hit`

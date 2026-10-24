@@ -557,6 +557,27 @@ describe("killMob: who gets the kill", () => {
       expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
     });
 
+    it("the killing pass counts for the hp it removed, not for its overkill: one huge late hit does not outweigh the work before it", () => {
+      const w = makeBare();
+      // 225 hp: p0 took 120 of it, 105 is left. p1's one hit of 165 removes only those 105.
+      const m = wounded(w, 105, [["p0", 120]]);
+      hurt(w, m, ["p1", 165]);
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
+      // The same hit does win it when what it removed is the larger share.
+      const n = wounded(w, 105, [["p0", 50]]);
+      w.events = [];
+      hurt(w, n, ["p1", 165]);
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p1");
+    });
+
+    it("the overkill is shared out by hit size within the killing pass", () => {
+      const w = makeBare();
+      // 100 hp left, hits of 150 (p0) and 50 (p1) land together: 200 in all, so they count 75 and 25.
+      const m = wounded(w, 100, [["p1", 60]]);
+      hurt(w, m, ["p0", 150], ["p1", 50]);
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p1"); // 60 + 25 = 85 beats 75
+    });
+
     it("an earlier leader who is out of the run (resolved, unknown or a mob) is skipped", () => {
       const w = makeBare({ players: 3 });
       RT(w, 0).resolved = true;

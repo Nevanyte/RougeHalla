@@ -84,7 +84,7 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
   c.s.hp = Math.max(0, before - total);
   c.rt.lastHitAt = world.state.serverTime;
   if (c.s.hp <= 0) {
-    killMob(world, c, entries, amounts);
+    killMob(world, c, entries, amounts, before);
   } else {
     for (let i = 0; i < entries.length; i++) {
       const by = entries[i]!.by.id;
@@ -100,17 +100,24 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
  * with the death fx naming them; with none it simply falls, and its weapon still drops. The spoils (GV and feed, a buff,
  * the weapon, the kill combos) are paid once every victim of the pass has taken their damage (payLater), so they cannot
  * decide who survives it. A player who went down in the same pass still gets the GV and the feed, like any other kill GV.
+ * `hpBefore` is the hp the mob had when this pass reached it: the pass's hits count for the hp they removed, so the
+ * overkill of one big hit cannot make up for the work of someone who did most of it.
  */
-export function killMob(world: World, c: MobCombatant, entries: readonly LedgerEntry[], amounts: readonly number[]): void {
+export function killMob(
+  world: World, c: MobCombatant, entries: readonly LedgerEntry[], amounts: readonly number[], hpBefore: number = c.s.hp,
+): void {
   const brain = c.rt.brain;
   if (!brain || c.s.status !== "alive") return; // a mob dies once, whoever calls
   const inRun = (id: string): boolean => world.state.players.has(id) && world.players.get(id)?.resolved === false;
   const dealt = new Map<string, number>();
   for (const [id, sum] of brain.threat) if (inRun(id)) dealt.set(id, sum);
+  let passTotal = 0;
+  for (const a of amounts) if (a > 0) passTotal += a;
+  const removedShare = passTotal > hpBefore ? hpBefore / passTotal : 1;
   for (let i = 0; i < entries.length; i++) {
     const a = amounts[i]!;
     const id = entries[i]!.by.id;
-    if (a > 0 && inRun(id)) dealt.set(id, (dealt.get(id) ?? 0) + a);
+    if (a > 0 && inRun(id)) dealt.set(id, (dealt.get(id) ?? 0) + a * removedShare);
   }
   let killer: string | null = null;
   let best = 0;
@@ -169,8 +176,8 @@ function payMobKill(world: World, killerId: string, elite: boolean, region: Fact
 const IDLE_REGEN_QUIET_MS = 3000;
 
 /**
- * System: corpses older than MOB_CORPSE_MS leave the state, and a mob walking home heals toward full (it is untouchable
- * on the way, and fully healed when it arrives). An idle mob that is hurt anyway (its attacker went down before it could
+ * System: corpses older than MOB_CORPSE_MS leave the state, and a mob walking home heals through heal() (it is untouchable
+ * on the way; the walk is usually shorter than the 3 s lockout, so it is mostly made whole when it arrives). An idle mob that is hurt anyway (its attacker went down before it could
  * wake onto them) heals once it has been left alone for IDLE_REGEN_QUIET_MS. Walks the plain runtime map and allocates
  * nothing while there is nothing to do.
  */

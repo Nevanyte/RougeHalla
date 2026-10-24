@@ -217,7 +217,7 @@ export class BotClient {
   private stallLoggedAt = 0;
   /** What the last think decided, for the log. */
   private lastHunt = "";
-  /** When a hit fx last showed a player (not a mob, not a signature tick) hurting us: the hunt's "being shot at" evidence. */
+  /** When a hit fx last showed a player (not a mob; a player's damage-over-time hit counts too) hurting us: the hunt's "being shot at" evidence. */
   private playerHitAt = -Infinity;
 
   constructor(private readonly opts: BotOptions = {}) {

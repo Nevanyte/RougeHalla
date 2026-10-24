@@ -95,7 +95,7 @@ export class MobView {
     // On the same clock as the fade: the state is dead ~INTERP_DELAY_MS before the body goes, and the bar and name stay until it does.
     const dying = this.diedAt >= 0 && renderT >= this.diedAt;
     // The dummy keeps its bar and name on. A regional mob shows its bar when hurt or fighting (its cooldown is running or a
-    // bow is drawn), an elite always; a returning mob is hurt until it has healed, so its regen reads too.
+    // bow is drawn), an elite always; a returning mob is hurt until it arrives, where it is whole again.
     const hurt = m.hp < m.maxHp - 0.01;
     const fighting = m.drawStartedAt > 0 || m.readyAt > patchT;
     const calm = m.kind !== "dummy" && !hurt && !fighting;
