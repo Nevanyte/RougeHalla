@@ -176,6 +176,11 @@ export interface CombatScratch {
    * tickX/tickY -> x/y). Melee uses it to meet balls, even one whose hit is already in the ledger.
    */
   swept: ProjectileRuntime[];
+  /**
+   * This tick's secret rank of each player (their place in actionOrder). Exact ties between hits (who gets a kill, which
+   * of two bodies an arrow meets) go to the lower rank, so neither join order nor ledger order decides them.
+   */
+  rank: Map<string, number>;
 }
 
 /** Arena bookkeeping that is not synced (see arena.ts). */
@@ -279,7 +284,7 @@ export function createWorld(opts: {
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [] },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map() },
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],

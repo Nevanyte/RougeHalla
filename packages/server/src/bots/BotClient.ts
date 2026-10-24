@@ -319,9 +319,9 @@ export class BotClient {
 
   /**
    * Hunts `enemy` with the weapon in hand: the policy decides where to walk, where to aim and whether the trigger is down.
-   * A melee swing aims at where the buffered snapshots put both fighters at render time and carries that time as `t`, so
-   * the server's rewind agrees. A projectile leaves the shooter in present server time, so it is led from our latest
-   * position to where the target will be about when it is loosed.
+   * Every aim is measured from where the buffered snapshots put us at render time and carries that time as `t`: the
+   * server swings melee from there and looses projectiles from there too. A projectile flies in present server time,
+   * so the target is led to where it will be about when the shot is loosed.
    */
   private fight(me: PlayerState, enemy: Enemy, now: number): void {
     const s = this.room.state;
@@ -335,7 +335,7 @@ export class BotClient {
     const serverNow = this.serverNow();
     const ranged = isRanged(weapon);
     const seen = this.view(enemy.id, renderT);
-    const seenSelf = ranged ? null : this.view(this.room.sessionId, renderT);
+    const seenSelf = this.view(this.room.sessionId, renderT);
     const self = seenSelf ?? { x: me.x, y: me.y };
     let target: Vec2 = seen ?? enemy.p;
     const targetVel: Vec2 = seen ? { x: seen.vx, y: seen.vy } : { x: 0, y: 0 };

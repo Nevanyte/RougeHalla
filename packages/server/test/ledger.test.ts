@@ -180,9 +180,12 @@ describe("all the hits of a tick land at once", () => {
     expect(P(short, "v")).toMatchObject({ hp: 10, status: "alive" });
 
     const w = arena([fighter("v", "fire", 100), fighter("x"), fighter("y"), fighter("z")]);
+    const order = actionOrder(w, w.state.tick + 1);
     const events = inStep(w, () => { hit(w, "v", "x", 60); hit(w, "v", "y", 60); });
     expect(P(w, "v")).toMatchObject({ hp: 0, status: "dead" });
-    expect(resultsOf(events).v).toMatchObject({ outcome: "died", killedBy: "X" });
+    // An exact tie: the kill goes to whichever of the two comes first in this tick's secret order.
+    const killer = order.indexOf("x") < order.indexOf("y") ? "X" : "Y";
+    expect(resultsOf(events).v).toMatchObject({ outcome: "died", killedBy: killer });
   });
 
   /** a and b each land a lethal hit on the other, recorded as each is processed, so the salt decides who records first. */
@@ -277,11 +280,28 @@ describe("who is credited", () => {
     expect([RT(w, "x").gv.bounty, RT(w, "z").gv.bounty]).toEqual([0, 0]);
   });
 
-  it("breaks a tie between rival hits for the earlier entry", () => {
-    for (const [first, second] of [["x", "y"], ["y", "x"]] as const) {
-      const w = four(90);
-      const events = inStep(w, () => { hit(w, "v", first, 50); hit(w, "v", second, 50); });
-      expect(resultsOf(events).v.killedBy, `${first} then ${second}`).toBe(nameOf(first));
+  it("breaks an exact tie by the tick's secret order, not by entry order or join order", () => {
+    const seen = new Set<string>();
+    for (let salt = 1; salt <= 12; salt++) {
+      for (const [first, second] of [["x", "y"], ["y", "x"]] as const) {
+        const w = arena([fighter("v", "fire", 90), fighter("x"), fighter("y"), fighter("z")], salt);
+        const order = actionOrder(w, w.state.tick + 1);
+        const want = order.indexOf("x") < order.indexOf("y") ? "x" : "y";
+        const events = inStep(w, () => { hit(w, "v", first, 50); hit(w, "v", second, 50); });
+        expect(resultsOf(events).v.killedBy, `salt ${salt}, ${first} then ${second}`).toBe(nameOf(want));
+        seen.add(want);
+      }
+    }
+    expect(seen.size, "both attackers win some ties").toBe(2);
+  });
+
+  it("an arrow starting inside two bodies meets the one whose centre is nearer, whoever joined first", () => {
+    for (const order of [["a", "n", "f"], ["a", "f", "n"]]) {
+      const at: Record<string, Vec2> = { a: { x: 200, y: 320 }, n: { x: 204, y: 320 }, f: { x: 212, y: 324 } };
+      const w = arena(order.map((id) => ({ id, faction: id === "a" ? "sentenced" : "fire", at: at[id] })));
+      loose(w, [{ id: "a", a: 0 }]);
+      const events = untilEvent(w, "projEnd");
+      expect(fxOf(events, "hit").map((h) => h.id), order.join()).toEqual(["n"]);
     }
   });
 

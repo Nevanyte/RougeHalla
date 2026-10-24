@@ -181,7 +181,9 @@ function updateActive(world: World, dtMs: number): void {
   world.combat.ledger = [];
   world.combat.melee = [];
   world.combat.spawns = [];
-  for (const id of actionOrder(world)) applyInputs(world, combatant(world, id)!);
+  const order = actionOrder(world);
+  world.combat.rank = new Map(order.map((id, i) => [id, i]));
+  for (const id of order) applyInputs(world, combatant(world, id)!);
   for (const id of world.mobs.keys()) applyInputs(world, combatant(world, id)!);
   updateWeapons(world);
   const fighters = standingCombatants(world);

@@ -276,7 +276,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 - **A sword halves a ball once.** Swings meet balls in present time (balls fly in present time) and need line of sight to them.
 
 **Credit**
-- **Simultaneous hits land together,** and the kill (and any bounty) goes to the largest rival hit; a tie goes to the earlier hit.
+- **Simultaneous hits land together,** and the kill (and any bounty) goes to the largest rival hit; an exact tie goes to a per-tick secret order, never to join order.
 - **A projectile outlives its shooter.** Its hit still lands; a kill by a shooter who has left or is already out of the run is credited by name only, with no GV.
 
 **Setup**

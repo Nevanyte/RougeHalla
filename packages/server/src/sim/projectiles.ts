@@ -136,13 +136,23 @@ function contactShare(s: Stretch, p: { x: number; y: number }): number | null {
   return u >= 0 && u <= 1 ? u : null;
 }
 
-/** The first standing body (not the owner) the stretch meets at substep time `t`, and the contact point. */
-function firstBody(s: Stretch, bodies: readonly Combatant[], t: number): { c: Combatant; x: number; y: number } | null {
-  let best: { c: Combatant; u: number } | null = null;
+/**
+ * The first standing body (not the owner) the stretch meets at substep time `t`, and the contact point. Bodies met at
+ * the same point (both already within reach when the step began) go by whose centre is nearer the stretch's start,
+ * then by the tick's secret rank, never by join order.
+ */
+function firstBody(
+  s: Stretch, bodies: readonly Combatant[], t: number, rank: ReadonlyMap<string, number>,
+): { c: Combatant; x: number; y: number } | null {
+  let best: { c: Combatant; u: number; d: number; r: number } | null = null;
   for (const c of bodies) {
     if (c.id === s.pr.owner) continue;
-    const u = contactShare(s, positionAt(c.rt, c.s, t));
-    if (u !== null && (!best || u < best.u)) best = { c, u };
+    const at = positionAt(c.rt, c.s, t);
+    const u = contactShare(s, at);
+    if (u === null) continue;
+    const d = Math.hypot(at.x - s.ax, at.y - s.ay);
+    const r = rank.get(c.id) ?? Infinity;
+    if (!best || u < best.u || (u === best.u && (d < best.d || (d === best.d && r < best.r)))) best = { c, u, d, r };
   }
   if (!best) return null;
   return { c: best.c, x: s.ax + (s.bx - s.ax) * best.u, y: s.ay + (s.by - s.ay) * best.u };
@@ -209,7 +219,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
     for (const s of stretches) {
       const pr = s.pr;
       if (pr.ended) continue;
-      const hit = firstBody(s, bodies, t);
+      const hit = firstBody(s, bodies, t, world.combat.rank);
       if (!hit) {
         pr.x = s.bx;
         pr.y = s.by;

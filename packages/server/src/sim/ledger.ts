@@ -36,13 +36,18 @@ export function applyLedger(world: World): void {
     if (list) list.push(e);
     else byVictim.set(e.victim, [e]);
   }
+  // A player's hits reach applyHits in the tick's secret order (players by rank, then anyone else), so an exact tie for
+  // the kill never follows join order or the order the hits were recorded in.
+  const rank = (h: { by: string }) => world.combat.rank.get(h.by) ?? Infinity;
   for (const [id, entries] of byVictim) {
     const c = combatant(world, id);
     if (!c || !standing(c)) continue;
     const def = defenseOf(c.s);
     const amounts = entries.map((e) => (e.scale > 0 ? mitigateShares(e.packet.raw * e.scale, e.packet, def) : 0));
+    const ranked = entries.map((e, i) => ({ by: e.by.id, hit: { amount: amounts[i]!, source: sourceOf(world, e.by) } as Hit }))
+      .sort((a, b) => rank(a) - rank(b));
     const applied = c.kind === "player"
-      ? applyHits(world, c.s, c.rt, entries.map((e, i): Hit => ({ amount: amounts[i]!, source: sourceOf(world, e.by) })))
+      ? applyHits(world, c.s, c.rt, ranked.map((r) => r.hit))
       : damageMob(world, c, amounts);
     // Nothing got through (teleport immunity): no numbers, no stagger.
     if (!(applied > 0)) continue;

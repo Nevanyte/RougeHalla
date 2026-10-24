@@ -97,7 +97,8 @@ export interface Hit { amount: number; source: Attacker | string }
 /**
  * Several hits landing on one player at the same moment (the per-tick ledger, sim/ledger.ts): their sum comes off at
  * once, so no hit is "first". Every player among the sources counts as having damaged the victim. If the sum kills, the
- * kill (and the bounty) goes to the largest hit by a rival player, else to the largest hit; ties go to the earlier one.
+ * kill (and the bounty) goes to the largest hit by a rival player, else to the largest hit; ties go to the earlier one
+ * (the ledger hands them over in the tick's secret order).
  */
 export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime, hits: readonly Hit[]): number {
   // hp 0 while still standing: the killing blow is being processed (a hook hitting the victim again must not re-kill).
@@ -205,6 +206,8 @@ function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
 export function markDropped(world: World, id: string): void {
   const rt = world.players.get(id);
   if (rt && rt.droppedAt === null && world.state.phase === "active") rt.droppedAt = world.state.serverTime;
+  // A press that arrived just before the socket closed would hold the trigger for the whole grace.
+  rt?.inputs.drain();
   releaseHeld(world, id);
 }
 

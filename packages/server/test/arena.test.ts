@@ -744,6 +744,19 @@ describe("disconnect and reconnect grace", () => {
       },
     );
 
+    it("a press still queued when the connection drops is dropped with it, so nothing attacks through the grace", () => {
+      const w = startRun(3, { patienceSeconds: 3600 }, { game: true });
+      const rt = RT(w, 1);
+      P(w, 1).weapon0 = "axe";
+      P(w, 1).slot = 0;
+      enqueueClientMessage(rt.inputs, "attack", { a: 0, t: w.state.serverTime - 100 });
+      markDropped(w, idOf(1));
+      const windups: SimEvent[] = [];
+      for (let i = 0; i < 40; i++) windups.push(...tick(w).filter((e) => e.type === "fx" && e.fx.kind === "windup"));
+      expect(windups).toEqual([]);
+      expect(rt.weapon.held).toBe(false);
+    });
+
     it("a drop still records when the connection went, and a reconnect clears it", () => {
       const w = drawing();
       markDropped(w, idOf(1));
