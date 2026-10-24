@@ -162,6 +162,8 @@ export interface ProjectileRuntime {
   packet: DamagePacket;
   /** A sword already halved this ball (it is halved once at most). */
   halved: boolean;
+  /** How many shields reflected this arrow's chain so far (0 for a fresh shot); see MAX_ARROW_REFLECTIONS. */
+  reflections: number;
   /** Set when it stops; it is then removed from the state. */
   ended: boolean;
 }

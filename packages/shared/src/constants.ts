@@ -112,6 +112,11 @@ export const BALL_ARROW_RADIUS = 28;
 export const SHIELD_HALF_ARC = Math.PI / 3;
 /** A frontal sword hit on a raised shield is negated, and this share of it is dealt back to the swordsman. */
 export const RIPOSTE_SHARE = 0.5;
+/**
+ * An arrow is reflected at most this many times; the next shield front just blocks it. Two shields face to face at
+ * contact range would otherwise bounce one forever (each reflection starts inside the other's reach).
+ */
+export const MAX_ARROW_REFLECTIONS = 2;
 /** A sword swing that meets an enemy wand ball scales that ball's damage by this (once per ball). */
 export const SWORD_BALL_SCALE = 0.5;
 /** After a stagger the target can't be staggered again for this long. */

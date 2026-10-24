@@ -7,7 +7,8 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, getRawChangesCallback, Reflection } from "@colyseus/schema";
 import {
-  BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, mitigateShares, mulberry32,
+  BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, MAX_ARROW_REFLECTIONS,
+  mitigateShares, mulberry32,
   pacedFaction, PLAYER_SPEED, PROJECTILE_SUBSTEP_MS, RANGED_HIT_REACH, reflectVelocity, SIGNATURE_WEAPONS, SWORD_BALL_SCALE, TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, WEAPONS, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -862,12 +863,67 @@ describe("shield reflection", () => {
         if (e.reason === "reflected") ranges.push(lastProjectile(w).state.range);
       }
     }
-    // 86 u to the first shield, then 480 u in all (172 + 172 + 136) however many times it is reflected.
+    // 86 u to the first shield, a full 480 u from there, the second reflection keeps what is left (480 - 172), and the
+    // third shield front just blocks it (MAX_ARROW_REFLECTIONS).
+    expect(MAX_ARROW_REFLECTIONS).toBe(2);
     expect(w.projectiles.size).toBe(0);
-    expect(reasons).toEqual(["reflected", "reflected", "reflected", "range"]);
-    expect(ranges).toEqual([ARROW.range, expect.closeTo(ARROW.range - 172, 6), expect.closeTo(ARROW.range - 344, 6)]);
+    expect(reasons).toEqual(["reflected", "reflected", "blocked"]);
+    expect(ranges).toEqual([ARROW.range, expect.closeTo(ARROW.range - 172, 6)]);
     expect(flown * TICK_MS).toBeLessThan(2000);
     expect([P(w, "holder").hp, P(w, "holder2").hp]).toEqual([FACTIONS.frost.hp, FACTIONS.frost.hp]);
+  });
+
+  /** Two Frost shields face to face, overlapping (A at 300 facing east, B 16 u east facing west), and an archer. */
+  function contactPair(archerAt: Vec2): World {
+    return arena([
+      archer(archerAt), { id: "a", at: { x: 300, y: 320 }, faction: "frost", facing: 0 },
+      { id: "b", at: { x: 316, y: 320 }, faction: "frost", facing: Math.PI },
+    ]);
+  }
+
+  /** Flies until nothing is left or `maxTicks` pass; counts reflections and blocks. */
+  function flyOut(w: World, maxTicks: number): { ticks: number; reflected: number; blocked: number } {
+    let reflected = 0;
+    let blocked = 0;
+    let n = 0;
+    while (w.projectiles.size > 0 && n < maxTicks) {
+      n++;
+      for (const e of fxOf(tick(w), "projEnd")) {
+        if (e.reason === "reflected") reflected++;
+        if (e.reason === "blocked") blocked++;
+      }
+    }
+    return { ticks: n, reflected, blocked };
+  }
+
+  it("ends an arrow that hits two overlapping shields face to face: at most two reflections, then it is blocked", () => {
+    // The exact setup that bounced about five times a tick forever before the cap (every reflection started inside the
+    // other shield's reach, so it hit again at its own start point, and range never shrank).
+    const w = contactPair({ x: 567.8, y: 470 });
+    loose(w, [{ id: "archer", a: -2.653 }]);
+    const out = flyOut(w, 40);
+    expect(w.projectiles.size).toBe(0);
+    expect(out.reflected).toBeLessThanOrEqual(MAX_ARROW_REFLECTIONS);
+    expect(out.ticks).toBeLessThan(20);
+    expect([P(w, "a").hp, P(w, "b").hp]).toEqual([FACTIONS.frost.hp, FACTIONS.frost.hp]);
+  });
+
+  it("ends every arrow chain quickly from any angle around the overlapping pair (a sweep of the geometry)", () => {
+    const mid = { x: 308, y: 320 };
+    let checked = 0;
+    for (let deg = 0; deg < 360; deg += 15) {
+      const rad = (deg * Math.PI) / 180;
+      const from = { x: mid.x + Math.cos(rad) * 300, y: mid.y + Math.sin(rad) * 300 };
+      for (const off of [-12, -4, 0, 4, 12]) {
+        const w = contactPair(from);
+        loose(w, [{ id: "archer", a: Math.atan2(mid.y + off - from.y, mid.x - from.x) }]);
+        const out = flyOut(w, 60);
+        expect(w.projectiles.size, `from ${deg} deg, offset ${off}`).toBe(0);
+        expect(out.reflected, `from ${deg} deg, offset ${off}`).toBeLessThanOrEqual(2);
+        checked++;
+      }
+    }
+    expect(checked).toBe(24 * 5);
   });
 
   it("can hit the archer on the way back, dealing the same packet under the archer's own armor and shield", () => {

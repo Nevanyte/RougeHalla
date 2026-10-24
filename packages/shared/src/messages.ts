@@ -46,6 +46,8 @@ export type ProjectileEnd =
   | "hit" | "wall" | "range"
   /** An arrow off a shield's front: a new arrow, owned by the holder, flies on from the same point. */
   | "reflected"
+  /** An arrow already reflected MAX_ARROW_REFLECTIONS times, stopped by another shield's front (no damage). */
+  | "blocked"
   /** An arrow a wand ball came too close to. */
   | "deleted"
   /** A ball an axe swing met. */
