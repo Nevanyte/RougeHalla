@@ -151,9 +151,14 @@ function payMobKill(world: World, killerId: string, elite: boolean, region: Fact
   onKill(world, p, rt);
 }
 
+/** An idle mob below full hp (hurt by someone who was gone before they could wake it) heals after this long unhurt: the design's heal lockout. */
+const IDLE_REGEN_QUIET_MS = 3000;
+
 /**
  * System: corpses older than MOB_CORPSE_MS leave the state, and a mob walking home heals toward full (it is untouchable
- * on the way, and fully healed when it arrives). Walks the plain runtime map and allocates nothing while there is nothing to do.
+ * on the way, and fully healed when it arrives). An idle mob that is hurt anyway (its attacker went down before it could
+ * wake onto them) heals once it has been left alone for IDLE_REGEN_QUIET_MS. Walks the plain runtime map and allocates
+ * nothing while there is nothing to do.
  */
 export function reapMobs(world: World, dtMs: number): void {
   const now = world.state.serverTime;
@@ -166,7 +171,7 @@ export function reapMobs(world: World, dtMs: number): void {
     if (!m) continue;
     if (m.status === "dead") {
       if (now - brain.diedAt >= MOB_CORPSE_MS) (gone ??= []).push(rt.id);
-    } else if (brain.mode === "return" && m.hp < m.maxHp) {
+    } else if (m.hp < m.maxHp && (brain.mode === "return" || (brain.mode === "idle" && now - rt.lastHitAt >= IDLE_REGEN_QUIET_MS))) {
       m.hp = Math.min(m.maxHp, m.hp + m.maxHp * heal);
     }
   }

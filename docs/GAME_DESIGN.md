@@ -479,6 +479,10 @@ Hard counters are only fair if you can see them coming.
 | Fire | A burst of flame on any enemy who swings while engaged with Fire |
 | Frost | Frost on chilled enemies |
 | Fed players | Crown, rampage announcements, minimap pings |
+| Your buffs | Three rows under your HP (max HP, attack speed, move speed): stacks held, the bonus they give, a bar toward the next combo tier and the combo's name once unlocked. A feed line explains the mob reward: "Feed 2.5 · mobs pay x0.85" |
+| Combos | A toast when a tier unlocks, and a ring in the stat's colour each time a kill sets one off |
+| Kill shield | A pale-blue bubble around the player, a blue segment on the HP bar and "+N shield" in the readout, for everyone to see |
+| Mobs | Faction colour and weapon like a player; the HP bar shows once a mob is hurt or fighting. Elites wear a gold ring and a star over a gold name. A fallen mob shrinks and fades, and its weapon stays on the ground. Living mobs show as dots on the minimap |
 | Patience timer | Always on the HUD; a 30-second warning and a host voice line before the teleport |
 | Counter wheel | In the hub, both pentagrams with your pick highlighted |
 
@@ -514,6 +518,8 @@ Hard counters are only fair if you can see them coming.
   `python3 testing/realtime_report.py` (needs numpy, about a minute) runs the last two as 20 Hz weapon duels, with signature openings, buff thresholds and the longest stretch with no swing.
   Results go to the designer before any tuning.
 - **Budgets.** Server tick time with 8 players and 60 mobs, and bytes per second per player.
+  - **Tick:** `step()` averages about 0.1 ms and its p99 stays under 0.5 ms with 15 mobs fighting (gate: 5 ms average, 15 ms p99). `npx tsx packages/server/bench/stepBench.ts`; `test/perf.test.ts` is the gate.
+  - **Bandwidth:** per client, websocket payload, measured headless with the real encoder: about 10 KB/s with 17 mobs fighting and 16 KB/s with 28 fighting, 4 KB/s with nobody fighting (gate: 20 KB/s). Sleeping mobs cost nothing. Two things hold it down: all of a step's fx travel as one compact message (`fxs`), and the synced numbers are narrow on the wire (float32 positions, uint32 timers). `npx tsx packages/server/bench/bandwidth.ts`; `test/bandwidth.test.ts` is the gate. StateView is not needed yet.
 - **End-to-end.** Bots play full arena runs to a winner, with GV and bounties balancing exactly.
 
 ---

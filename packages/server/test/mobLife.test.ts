@@ -1016,11 +1016,28 @@ describe("reapMobs: regeneration", () => {
     }
   });
 
-  it("an idle mob does not heal, however long ago it was hit", () => {
+  it("an idle mob below full (its attacker went down before it could wake onto them) heals once left alone for 3 s, not before", () => {
     const w = makeBare();
     const m = mobAt(w, 100, "idle");
+    m.s.hp = m.s.maxHp / 2;
+    m.rt.lastHitAt = w.state.serverTime;
+    const hurtHp = m.s.hp;
+    w.state.serverTime += 2900;
+    reapMobs(w, TICK_MS);
+    expect(m.s.hp).toBe(hurtHp);
+    w.state.serverTime += 100;
+    reapMobs(w, TICK_MS);
+    expect(m.s.hp).toBeCloseTo(hurtHp + perTick(m), 9);
     for (let i = 0; i < 200; i++) reapMobs(w, TICK_MS);
-    expect(m.s.hp).toBe(100);
+    expect(m.s.hp).toBe(m.s.maxHp);
+  });
+
+  it("an idle mob at full hp stays as it is", () => {
+    const w = makeBare();
+    const m = mobAt(w, 100, "idle");
+    w.state.serverTime += 10_000;
+    for (let i = 0; i < 50; i++) reapMobs(w, TICK_MS);
+    expect(m.s.hp).toBe(m.s.maxHp);
   });
 
   it("a fighting mob does not heal", () => {
@@ -1060,7 +1077,7 @@ describe("reapMobs: regeneration", () => {
     const mobs = allMobs(w);
     mobs.forEach((m, i) => {
       m.s.hp = m.s.maxHp / 2;
-      m.rt.lastHitAt = 0;
+      m.rt.lastHitAt = 100_000; // hit just now: a hurt idle mob is not left alone long enough to heal yet
       m.rt.brain!.mode = i % 3 === 0 ? "fight" : i % 3 === 1 ? "idle" : "return";
     });
     w.state.serverTime = 100_000;
