@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, PROFILE_TOKEN_HEADER, ROOM_NAME, monthKey,
+  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, LEADERBOARD_MAX_MONTHS, PROFILE_TOKEN_HEADER, ROOM_NAME, monthKey,
   type LeaderboardResponse, type ProfileResponse,
 } from "@raid/shared";
 import { loadConfig } from "../src/config";
@@ -25,6 +25,9 @@ async function freePort(): Promise<number> {
 
 // ---------------------------------------------------------------- seed data
 const stats = (over: Record<string, number> = {}) => ({ runs: 0, wins: 0, draws: 0, deaths: 0, kills: 0, ...over });
+/** The meta layer's defaults: what a profile written before achievements existed reads back as. */
+const zeroProgress = { qualifiedWins: 0, bountyRuns: 0, bestRunKills: 0, winsByFaction: {}, winsByWeapon: {} };
+/** Seeds are written as an older v2 file would have them, without `achievements` or `progress` unless a test gives them. */
 const seedProfile = (name: string, gvByMonth: Record<string, number> = {}, over: Record<string, unknown> = {}) => ({
   name, token: `tok-${name}`, gv: 0, gvLifetime: 0, gvByMonth, stats: stats(), cosmetics: { owned: [], equipped: {} }, ...over,
 });
@@ -37,10 +40,31 @@ const FULL = seedProfile("s_full", { "2017-11": 900 }, {
   stats: stats({ runs: 12, wins: 3, draws: 1, deaths: 8, kills: 21 }),
   cosmetics: { owned: ["cape-red", "trail-blue"], equipped: { cape: "cape-red" } },
 });
+/** Carries the meta fields in full, so the API can be seen serving them. Two wins, one of them qualified. */
+const META = seedProfile("s_meta", {}, {
+  gv: 15, gvLifetime: 15, gvByMonth: { "2017-12": 15 },
+  stats: stats({ runs: 3, wins: 2, deaths: 1, kills: 2 }),
+  cosmetics: { owned: ["title-victor", "skin-laurel"], equipped: { title: "title-victor" } },
+  achievements: { first_win: 1_700_000_000_000 },
+  progress: { qualifiedWins: 1, bountyRuns: 0, bestRunKills: 2, winsByFaction: { fire: 1 }, winsByWeapon: { axe: 1 } },
+});
+/**
+ * Written by the build before `qualifiedWins` existed: four wins, a progress object without the counter. It must read
+ * back as 0 qualified wins (not as 4), with every other counter kept.
+ */
+const OLD_COUNTERS = { bountyRuns: 1, bestRunKills: 3, winsByFaction: { fire: 2 }, winsByWeapon: { sword: 2 } };
+const OLD_PROGRESS = seedProfile("s_oldprog", {}, {
+  stats: stats({ runs: 6, wins: 4, deaths: 2, kills: 5 }),
+  achievements: { first_blood: 1_600_000_000_000 },
+  cosmetics: { owned: ["title-bloodied"], equipped: {} },
+  progress: OLD_COUNTERS,
+});
 const CROWD = "2018-01";
 const crowd = Array.from({ length: 120 }, (_, i) => seedProfile(`crowd${String(i).padStart(3, "0")}`, { [CROWD]: i + 1 }));
 const seeded = [
   FULL,
+  META,
+  OLD_PROGRESS,
   seedProfile("s_bob", { [MARCH]: 500 }),
   seedProfile("s_amy", { [MARCH]: 300 }),
   seedProfile("s_cat", { [MARCH]: 300 }),
@@ -114,14 +138,16 @@ describe("GET /api/profile/:name", () => {
       name: "claim-me", gv: 0, gvLifetime: 0, gvByMonth: {},
       stats: { runs: 0, wins: 0, draws: 0, deaths: 0, kills: 0 },
       cosmetics: { owned: [], equipped: {} },
+      achievements: {}, progress: zeroProgress,
     });
   });
 
   it("the profile has exactly the documented fields: no stash, and the token only beside it", async () => {
     const { body, text } = await api("fields-1");
-    expect(Object.keys(body.profile).sort()).toEqual(["cosmetics", "gv", "gvByMonth", "gvLifetime", "name", "stats"]);
+    expect(Object.keys(body.profile).sort()).toEqual(["achievements", "cosmetics", "gv", "gvByMonth", "gvLifetime", "name", "progress", "stats"]);
     expect(Object.keys(body.profile.stats).sort()).toEqual(["deaths", "draws", "kills", "runs", "wins"]);
     expect(Object.keys(body.profile.cosmetics).sort()).toEqual(["equipped", "owned"]);
+    expect(Object.keys(body.profile.progress).sort()).toEqual(["bestRunKills", "bountyRuns", "qualifiedWins", "winsByFaction", "winsByWeapon"]);
     expect(JSON.stringify(body.profile)).not.toContain(body.token);
     expect(text).not.toContain("stash");
   });
@@ -144,12 +170,40 @@ describe("GET /api/profile/:name", () => {
       name: "s_full", gv: 700, gvLifetime: 900, gvByMonth: { "2017-11": 900 },
       stats: { runs: 12, wins: 3, draws: 1, deaths: 8, kills: 21 },
       cosmetics: { owned: ["cape-red", "trail-blue"], equipped: { cape: "cape-red" } },
+      achievements: {}, progress: zeroProgress, // an older file without the meta fields reads back as none unlocked
     });
+  });
+
+  it("serves the achievements and progress a stored profile has, in full, with qualifiedWins apart from stats.wins", async () => {
+    const { status, body } = await api("s_meta", "tok-s_meta");
+    expect(status).toBe(200);
+    expect(body.profile).toEqual({
+      name: "s_meta", gv: 15, gvLifetime: 15, gvByMonth: { "2017-12": 15 },
+      stats: { runs: 3, wins: 2, draws: 0, deaths: 1, kills: 2 },
+      cosmetics: { owned: ["title-victor", "skin-laurel"], equipped: { title: "title-victor" } },
+      achievements: { first_win: 1_700_000_000_000 },
+      progress: { qualifiedWins: 1, bountyRuns: 0, bestRunKills: 2, winsByFaction: { fire: 1 }, winsByWeapon: { axe: 1 } },
+    });
+    expect(body.profile.progress.qualifiedWins).toBeLessThan(body.profile.stats.wins); // the two are different counters
+    expect(JSON.stringify(body.profile)).not.toContain("tok-s_meta");
+  });
+
+  it("a profile stored before qualifiedWins existed serves 0, not its old win count, and keeps every other counter", async () => {
+    const { status, body } = await api("s_oldprog", "tok-s_oldprog");
+    expect(status).toBe(200);
+    expect(body.profile.stats.wins).toBe(4);
+    expect(body.profile.progress).toEqual({
+      qualifiedWins: 0, bountyRuns: 1, bestRunKills: 3, winsByFaction: { fire: 2 }, winsByWeapon: { sword: 2 },
+    });
+    expect(body.profile.achievements).toEqual({ first_blood: 1_600_000_000_000 });
+    // A file with no progress at all reads the same way.
+    const bare = await api("s_full", "tok-s_full");
+    expect(bare.body.profile.progress.qualifiedWins).toBe(0);
   });
 
   it("reflects what a resolved run banked", async () => {
     const who = await claim();
-    server.store.recordRun(who.name, { outcome: "won", kills: 2, gv: 10 });
+    server.store.recordRun(who.name, { outcome: "won", kills: 2, gv: 10, winQualified: true });
     server.store.recordRun(who.name, { outcome: "mia", kills: 0, gv: 0 });
     const { body } = await api(who.name, who.token);
     expect(body.profile.gv).toBe(10);
@@ -157,6 +211,29 @@ describe("GET /api/profile/:name", () => {
     expect(Object.keys(body.profile.gvByMonth)).toHaveLength(1);
     expect(Object.values(body.profile.gvByMonth)).toEqual([10]);
     expect(body.profile.stats).toEqual({ runs: 2, wins: 1, draws: 0, deaths: 1, kills: 2 });
+    // The same run's achievements and counters, as the store recorded them.
+    expect(Object.keys(body.profile.achievements).sort()).toEqual(["first_blood", "first_win"]);
+    expect(body.profile.progress).toEqual({ ...zeroProgress, qualifiedWins: 1, bestRunKills: 2 });
+    expect(body.profile.cosmetics.owned).toEqual(["title-bloodied", "title-victor", "skin-laurel"]);
+  });
+
+  it("a win that did not pass the gate is a win in stats but not a qualified one: no First Win, no counters", async () => {
+    const who = await claim();
+    server.store.recordRun(who.name, { outcome: "won", kills: 0, gv: 0, faction: "fire", weapon: "axe" });
+    server.store.recordRun(who.name, { outcome: "won", kills: 0, gv: 0, faction: "fire", weapon: "axe", winQualified: false });
+    const { body } = await api(who.name, who.token);
+    expect(body.profile.stats).toEqual({ runs: 2, wins: 2, draws: 0, deaths: 0, kills: 0 });
+    expect(body.profile.progress).toEqual(zeroProgress);
+    expect(body.profile.achievements).toEqual({});
+    expect(body.profile.cosmetics.owned).toEqual([]);
+
+    // The first one that does pass counts from there, and unlocks First Win (and the faction win) then.
+    server.store.recordRun(who.name, { outcome: "won", kills: 0, gv: 0, faction: "fire", weapon: "axe", winQualified: true });
+    const later = (await api(who.name, who.token)).body.profile;
+    expect(later.stats.wins).toBe(3);
+    expect(later.progress).toEqual({ ...zeroProgress, qualifiedWins: 1, winsByFaction: { fire: 1 }, winsByWeapon: { axe: 1 } });
+    expect(Object.keys(later.achievements)).toEqual(["first_win", "win_fire"]);
+    expect(later.cosmetics.owned).toEqual(["title-victor", "skin-laurel", "title-pyre-lord"]);
   });
 
   it("answers 403 to anyone else, and never leaks a token", async () => {
@@ -218,8 +295,12 @@ describe("GET /api/profile/:name", () => {
     expect(disk.profiles[who.name]).toEqual({
       name: who.name, token: who.token, gv: 0, gvLifetime: 0, gvByMonth: {},
       stats: { runs: 0, wins: 0, draws: 0, deaths: 0, kills: 0 }, cosmetics: { owned: [], equipped: {} },
+      achievements: {}, progress: zeroProgress,
     });
-    expect(disk.profiles.s_full).toEqual(FULL); // the seeded profiles came through the rewrite untouched
+    // The seeded profiles came through the rewrite untouched; the older ones only gained the meta defaults.
+    expect(disk.profiles.s_full).toEqual({ ...FULL, achievements: {}, progress: zeroProgress });
+    expect(disk.profiles.s_meta).toEqual(META);
+    expect(disk.profiles.s_oldprog).toEqual({ ...OLD_PROGRESS, progress: { ...OLD_COUNTERS, qualifiedWins: 0 } });
   });
 });
 
@@ -229,15 +310,29 @@ describe("GET /api/leaderboard", () => {
     expect(status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(res.headers.get("content-type")).toMatch(/application\/json/);
-    expect(Object.keys(body).sort()).toEqual(["entries", "month"]);
+    expect(Object.keys(body).sort()).toEqual(["entries", "month", "months"]);
     const response: LeaderboardResponse = body;
-    expect(response).toEqual({
+    expect({ month: response.month, entries: response.entries }).toEqual({
       month: MARCH,
       entries: [
         { name: "s_bob", gv: 500 }, { name: "s_Dan", gv: 300 }, { name: "s_amy", gv: 300 },
         { name: "s_cat", gv: 300 }, { name: "s_eve", gv: 1 },
       ],
     });
+    expect(Array.isArray(response.months)).toBe(true);
+  });
+
+  it("months lists the months anyone banked GV in, newest first, and no month at zero or with nobody", async () => {
+    const { months } = (await board(`?month=${MARCH}`)).body as LeaderboardResponse;
+    expect(months).toEqual([...months].sort().reverse()); // newest first
+    expect(new Set(months).size).toBe(months.length);
+    expect(months.length).toBeLessThanOrEqual(LEADERBOARD_MAX_MONTHS);
+    // The seeded months are all there, in order; the current month (from other tests' runs) sorts above them.
+    const seededMonths = ["2019-04", MARCH, CROWD, "2017-12", "2017-11"];
+    expect(months.filter((m) => seededMonths.includes(m))).toEqual(seededMonths);
+    expect(months).not.toContain("1999-12");
+    // The list does not depend on the month asked about.
+    expect((await board(`?month=1999-12`)).body.months).toEqual(months);
   });
 
   it("an entry is a name and a number: no token, no other profile data", async () => {
@@ -255,7 +350,9 @@ describe("GET /api/leaderboard", () => {
   it("a month nobody played is an empty board, not an error", async () => {
     const { status, body } = await board("?month=1999-12");
     expect(status).toBe(200);
-    expect(body).toEqual({ month: "1999-12", entries: [] });
+    expect(body.month).toBe("1999-12");
+    expect(body.entries).toEqual([]);
+    expect(body.months).not.toContain("1999-12");
   });
 
   describe("limit", () => {

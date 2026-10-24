@@ -400,7 +400,15 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 
 - **Spending.** GV buys **cosmetics only**: colours, trails, titles, golden weapon variants. Nothing that changes combat.
 - **Achievements and titles.** For example, 5 wins holding the same weapon unlocks its golden variant; per-faction milestones unlock titles.
-- **Monthly leaderboard.** Ranks total GV earned this month. Totals are stored per month, so no reset job is needed.
+- **Monthly leaderboard.** Ranks total GV earned this month. Totals are stored per month, so no reset job is needed. Spending GV never lowers your rank. The hub shows any past month, your own place even when you are outside the top 20, and each player's equipped title.
+
+### 13.1 Cosmetics, shop and achievements (as built)
+- **Slots.** Body colour (skin), outline, trail (dots, streak, sparks), title, and one slot per golden variant (five factions, five weapons). All are coloured shapes and text; nothing changes combat.
+- **Prices.** Colours 40 to 100 GV, outlines 50 to 80, trails 100 to 180, titles 30 to 200, golden variants 300 (weapons) or 400 (factions). A win pays 50 and a kill 10, so a plain colour is a few runs of play and a golden look is a goal.
+- **Earned-only items.** Most titles and a few exclusive colours, outlines and trails are not sold. Each is the reward of an achievement.
+- **Golden variants** can be bought, and are also awarded by achievements: 3 wins as a faction gilds that faction, 5 wins holding a weapon gilds that weapon. A golden look is drawn only while you play that faction or hold that weapon.
+- **Achievements** are computed on the server from the banked run, never from anything the client reports: first kill, 10 and 50 kills, 5 kills in one run, a claimed bounty, first win, 5 and 20 wins, 25 runs, 1,000 lifetime GV, a win with each faction (a title each), a win with all five (Cycle Breaker), and the golden-variant goals above. Each unlocks once, and the results screen lists what a run unlocked. Win goals count only wins that earn the win bonus (3+ players, damage on 2+ opponents), so a win against a throwaway second profile unlocks nothing.
+- **Equip.** The equipped set is read when you join a run and sent to everyone as one small number. Changing it in the hub applies from the next run.
 - **Death doesn't erase GV.** You keep what you earned in a run even if you die; the win bonus is the prize for surviving.
 
 ---

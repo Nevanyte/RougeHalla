@@ -7,11 +7,15 @@ import { InputQueue } from "./inputs";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
 import { emit, type SimEvent, type World } from "./world";
 
-/** Joins the lobby with a freshly minted RUN_START_KIT. Nothing is brought in from outside the run. */
-export function addPlayer(world: World, id: string, profile: string): PlayerState {
+/**
+ * Joins the lobby with a freshly minted RUN_START_KIT. Nothing is brought in from outside the run except `look`, the
+ * packed cosmetics word (cosmetics.ts) the Room worked out from the profile: it is shown to everyone and changes nothing else.
+ */
+export function addPlayer(world: World, id: string, profile: string, look = 0): PlayerState {
   const s = world.state;
   const p = new PlayerState();
   p.name = profile;
+  p.look = look >>> 0;
   p.hp = PLAYER_MAX_HP;
   p.maxHp = PLAYER_MAX_HP;
   p.status = "lobby";
