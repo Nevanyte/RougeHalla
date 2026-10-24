@@ -1327,7 +1327,7 @@ describe("Frost (wall of ice)", () => {
     };
 
     it("a chilled fighter within CHILL_MOVE_RADIUS of the Frost walks at the chill multiplier", () => {
-      expect(CHILL_MOVE_MULT).toBe(0.4);
+      expect(CHILL_MOVE_MULT).toBe(0.7);
       expect(walkAt(60)).toBeCloseTo(PLAYER_SPEED * DT * CHILL_MOVE_MULT, 9);
       expect(walkAt(CHILL_MOVE_RADIUS)).toBeCloseTo(PLAYER_SPEED * DT * CHILL_MOVE_MULT, 9);
     });

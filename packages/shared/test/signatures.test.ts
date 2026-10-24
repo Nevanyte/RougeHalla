@@ -23,7 +23,7 @@ describe("timing constants", () => {
     expect(HEAL_LOCKOUT_SECONDS).toBe(3);
     expect(DOT_FX_MS).toBe(500);
     expect(CHILL_MOVE_RADIUS).toBe(100);
-    expect(CHILL_MOVE_MULT).toBe(0.4);
+    expect(CHILL_MOVE_MULT).toBe(0.7);
   });
 
   it("nest: the linger is shorter than the trade window, which is shorter than the forget time", () => {
@@ -31,8 +31,9 @@ describe("timing constants", () => {
     expect(ENGAGE_TRADE_SECONDS).toBeLessThan(TARGET_FORGET_SECONDS);
   });
 
-  it("the chill's walking slow is the same 0.4 as Frost's cooldown slow", () => {
-    expect(CHILL_MOVE_MULT).toBeCloseTo(chillMultiplier(FACTIONS.frost), 12);
+  it("the chill's walking slow is milder than Frost's 0.4 cooldown slow (owner decision)", () => {
+    expect(CHILL_MOVE_MULT).toBeGreaterThan(chillMultiplier(FACTIONS.frost));
+    expect(CHILL_MOVE_MULT).toBeLessThan(1);
   });
 });
 

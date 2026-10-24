@@ -22,8 +22,11 @@ export const ENGAGE_TRADE_SLACK_SECONDS = 0.5;
 export const TARGET_FORGET_SECONDS = 10;
 /** Frost's movement slow reaches only fighters it chills within this distance (centre to centre)... */
 export const CHILL_MOVE_RADIUS = 100;
-/** ...and multiplies their move speed by this (the counter review's kiting check assumed the attack slow's 0.4). */
-export const CHILL_MOVE_MULT = 0.4;
+/**
+ * ...and multiplies their move speed by this (owner decision: milder than the 0.4 attack slow, so a chilled fighter can
+ * still disengage with effort).
+ */
+export const CHILL_MOVE_MULT = 0.7;
 /** Heals (other than Holy's lifesteal) wait until the fighter has been out of combat this long. */
 export const HEAL_LOCKOUT_SECONDS = 3;
 /** Signature damage over time is reported as one `hit` fx per attacker and victim this often, not every tick. */
