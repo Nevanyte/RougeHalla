@@ -9,8 +9,8 @@
 import { randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS,
-  type GvReason, type JoinOptions, type RunResult, type ServerMessages,
+  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS,
+  type FactionId, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { ServerConfig } from "../config";
@@ -79,6 +79,7 @@ export interface RoomContext {
 /** What onAuth hands to onJoin via `client.auth`. */
 interface RoomAuth {
   profile: string;
+  faction: FactionId | null;
 }
 
 /** One joined player's claim on the profile registry. */
@@ -166,15 +167,15 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const profile = checkCredentials(options, store);
     // Last, so a rejected join never holds the profile.
     if (!profiles.tryAcquire(profile, this.ownerKey(client.sessionId))) throw refuse("profile already in a raid");
-    return { profile };
+    return { profile, faction: isFactionId(options?.faction) ? options.faction : null };
   }
 
   onJoin(client: Client) {
     const { profiles } = RaidRoom.ctx;
-    const { profile } = client.auth as RoomAuth;
+    const { profile, faction } = client.auth as RoomAuth;
     const ownerKey = this.ownerKey(client.sessionId);
     try {
-      addPlayer(this.world, client.sessionId, profile);
+      addPlayer(this.world, client.sessionId, profile, faction);
       this.seats.set(client.sessionId, { profile, ownerKey });
       profiles.confirm(profile, ownerKey);
     } catch (err) {

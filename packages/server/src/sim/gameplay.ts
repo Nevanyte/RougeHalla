@@ -1,5 +1,6 @@
 // Assembles a fully-featured world: base lifecycle (step.ts + arena.ts, which also run the combat phases) + every
 // gameplay module. Modules expose `install(world)` and register into world.actions / world.systems / world.hooks.
+import { install as installFactions } from "./factions";
 import { install as installLoot } from "./loot";
 import { install as installMobs } from "./mobs";
 import { install as installProjectiles } from "./projectiles";
@@ -12,6 +13,7 @@ const MODULES: Array<(world: World) => void> = [
   installLoot,
   installWeapons,
   installProjectiles,
+  installFactions,
   installMobs,
 ];
 

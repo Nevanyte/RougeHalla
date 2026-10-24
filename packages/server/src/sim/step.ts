@@ -1,6 +1,8 @@
 // Run lifecycle + the fixed-step update. `step()` is the only entry point the Room ticks; arena.ts decides
 // how a run ends.
-import { AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, mulberry32, SIGNATURE_WEAPONS, type Vec2 } from "@raid/shared";
+import {
+  AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, mulberry32, SIGNATURE_WEAPONS, type FactionId, type Vec2,
+} from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
 import { beginRun, downPlayer, markTickStart, settle, suddenDeath, unbankedGv } from "./arena";
 import { combatant, standingCombatants, type Combatant } from "./combatant";
@@ -13,13 +15,14 @@ import { moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons
 import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
 
 /**
- * Joins the lobby with a faction (a server default until the Phase 10 picker: round-robin over join order), its hp,
- * and its signature weapon in the first slot. Nothing is brought in from outside the run.
+ * Joins the lobby with a faction (the one picked in the hub, else a round-robin default over join order), its hp, and
+ * its signature weapon in the first slot. Nothing is brought in from outside the run.
  */
-export function addPlayer(world: World, id: string, profile: string): PlayerState {
+export function addPlayer(world: World, id: string, profile: string, picked: FactionId | null = null): PlayerState {
   const s = world.state;
   const p = new PlayerState();
-  const faction = defaultFaction(world.joined++);
+  const joinIndex = world.joined++;
+  const faction = picked ?? defaultFaction(joinIndex);
   p.name = profile;
   p.faction = faction;
   p.hp = FACTIONS[faction].hp;
@@ -162,9 +165,9 @@ function applyInputs(world: World, c: Combatant): void {
 
 /**
  * One active tick, in this order (see arena.ts for why the order matters):
- *   inputs (players in the shuffled actionOrder, then mobs) → weapon state machines → movement → history →
- *   projectile sweep (present time) → spawns → melee (rewound) → the damage ledger, all at once → systems →
- *   sudden death → settle.
+ *   inputs (players in the shuffled actionOrder, then mobs) → weapon state machines → afterWeapons → movement →
+ *   history → projectile sweep (present time) → spawns → melee (rewound) → beforeDamage (signature damage joins the
+ *   ledger) → the damage ledger, all at once → systems → sudden death → settle.
  * Damage lands only in the ledger step, so a fighter killed this tick still lands what it started, and simultaneous
  * deaths are settled by the hp fraction at the start of the tick.
  */
@@ -177,20 +180,25 @@ function updateActive(world: World, dtMs: number): void {
   world.combat.ledger = [];
   world.combat.melee = [];
   world.combat.spawns = [];
+  world.combat.landed = [];
   for (const id of actionOrder(world)) applyInputs(world, combatant(world, id)!);
   for (const id of world.mobs.keys()) applyInputs(world, combatant(world, id)!);
   updateWeapons(world);
+  for (const sys of world.afterWeapons) sys(world, dtMs);
   const fighters = standingCombatants(world);
   for (const c of fighters) {
     const w = c.rt.weapon;
     const aiming = w.aimAt > 0 && now - w.aimAt < AIM_STALE_MS;
-    advanceAlongPath(c.s, c.rt, dt, aiming, moveMultiplierOf(world, c));
+    let mult = moveMultiplierOf(world, c);
+    for (const mod of world.moveModifiers) mult *= mod(world, c);
+    advanceAlongPath(c.s, c.rt, dt, aiming, mult);
   }
   // Record after everyone has moved so hit tests see one consistent tick.
   for (const c of fighters) recordHistory(c.rt, c.s, now);
   sweepProjectiles(world, dtMs);
   spawnProjectiles(world);
   resolveMelee(world);
+  for (const sys of world.beforeDamage) sys(world, dtMs);
   applyLedger(world);
   for (const sys of world.systems) sys(world, dtMs);
   suddenDeath(world, dtMs);

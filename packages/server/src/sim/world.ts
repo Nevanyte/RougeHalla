@@ -3,10 +3,11 @@
 import { randomUUID } from "node:crypto";
 import {
   generateMap, withGates, type DamageShares, type FxEvent, type GameMap, type GvReason, type ProjectileKind,
-  type RunResult, type Sample, type Vec2, type WeaponId,
+  type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState, type ProjectileState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
+import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
 
 export interface SimConfig {
@@ -113,6 +114,18 @@ export interface LedgerEntry {
   scale: number;
   /** An unblocked sword hit: the victim is staggered if it isn't immune. */
   stagger: boolean;
+  /** Signature damage (sim/factions.ts). Damage over time gets no `hit` fx of its own (it is reported in chunks). */
+  sig?: SignatureKind;
+}
+
+/** A ledger entry that took hp off its victim this tick (applyLedger), for systems that react to damage. */
+export interface LandedHit {
+  victim: string;
+  by: string;
+  /** After armor and shield. */
+  amount: number;
+  weapon: WeaponId;
+  sig?: SignatureKind;
 }
 
 /** A swing whose windup ended this tick (resolved in the melee phase). */
@@ -170,6 +183,8 @@ export interface CombatScratch {
    * tickX/tickY -> x/y). Melee uses it to meet balls, even one whose hit is already in the ledger.
    */
   swept: ProjectileRuntime[];
+  /** Every ledger entry that landed this tick, in the order applied (both ledger passes; see step.ts). */
+  landed: LandedHit[];
 }
 
 /** Arena bookkeeping that is not synced (see arena.ts). */
@@ -197,6 +212,8 @@ export type SimEvent =
 /** Handles one queued action for a standing fighter (players today; Phase 11 mobs go through the same handlers). */
 export type ActionHandler = (world: World, c: Combatant, cmd: ActionCommand) => void;
 export type SimSystem = (world: World, dtMs: number) => void;
+/** A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. */
+export type MoveModifier = (world: World, c: Combatant) => number;
 
 export interface WorldHooks {
   /** A player went down (died/mia) with their run gear still on them. Default: discard it. */
@@ -241,10 +258,20 @@ export interface World {
   stepping: boolean;
   /** Gameplay modules install themselves here (see sim/gameplay.ts). Unknown actions are ignored. */
   actions: Partial<Record<ActionCommand["kind"], ActionHandler>>;
+  /**
+   * Run every active step right after the weapon state machines, before movement: this tick's swings are in
+   * combat.melee and its arrows and balls in combat.spawns (Fire's backlash reads them).
+   */
+  afterWeapons: SimSystem[];
+  /** Run every active step after melee, before the ledger is applied: they may still add entries to it. */
+  beforeDamage: SimSystem[];
   /** Run every active step after damage is applied, in registration order. */
   systems: SimSystem[];
+  moveModifiers: MoveModifier[];
   hooks: WorldHooks;
   arena: ArenaRuntime;
+  /** Faction signatures (sim/factions.ts); null until that module is installed. */
+  factions: FactionsRuntime | null;
 }
 
 export function createWorld(opts: {
@@ -252,6 +279,8 @@ export function createWorld(opts: {
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
+  /** A hand-made map instead of generateMap(seed) (tests and harnesses). */
+  map?: GameMap;
 }): World {
   const state = new RaidState();
   state.seed = opts.seed >>> 0;
@@ -259,22 +288,26 @@ export function createWorld(opts: {
   return {
     state,
     config: opts.config,
-    map: generateMap(state.seed),
+    map: opts.map ?? generateMap(state.seed),
     idCounter: 0,
     joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [] },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], landed: [] },
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],
     stepping: false,
     actions: {},
+    afterWeapons: [],
+    beforeDamage: [],
     systems: [],
+    moveModifiers: [],
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
     arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false },
+    factions: null,
   };
 }
 

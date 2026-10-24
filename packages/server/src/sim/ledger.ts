@@ -2,7 +2,7 @@
 // them all at once after melee, so the shuffled order fighters were processed in never decides who hit first, and a
 // fighter killed this tick still lands what it started. Each hit is mitigated by the victim's armor and shield
 // (the faction damage law) and then goes through the one way down: applyHits (players) or damageMob (mobs).
-import { mitigateShares } from "@raid/shared";
+import { isDot, mitigateShares } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
 import { damageMob } from "./mobs";
@@ -44,7 +44,12 @@ export function applyLedger(world: World): void {
     // Nothing got through (teleport immunity): no numbers, no stagger.
     if (!(applied > 0)) continue;
     entries.forEach((e, i) => {
-      if (amounts[i]! > 0) emit(world, { type: "fx", fx: { kind: "hit", id, by: e.by.id, amount: amounts[i]!, weapon: e.weapon } });
+      const amount = amounts[i]!;
+      if (!(amount > 0)) return;
+      world.combat.landed.push({ victim: id, by: e.by.id, amount, weapon: e.weapon, sig: e.sig });
+      if (isDot(e.sig)) return; // reported in chunks by sim/factions.ts
+      const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
+      emit(world, { type: "fx", fx: e.sig ? { ...fx, sig: e.sig } : fx });
     });
     if (standing(c) && entries.some((e, i) => e.stagger && amounts[i]! > 0)) stagger(world, c);
   }
