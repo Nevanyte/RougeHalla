@@ -10,7 +10,8 @@ npm test               # vitest in every workspace (server includes the e2e bot 
 npm run typecheck      # tsc --noEmit in every workspace
 npm run bots -- 3      # 3 headless bots join the running dev server
 npm run bots -- -- 3 --url http://host:2567   # flags (--url, --prefix, --loop to keep queuing, --verbose) need the second `--`: the root script nests npm, which eats them
-npm run harness -w @raid/server               # weapon duel harness (report only, never fails; ~1 min); add `-- --quick` for a few seconds
+npm run harness -w @raid/server               # weapon duel harness (report only, never fails; ~45 s): matrix, style grids, edge verdicts (HOLDS/FAILS), kiting; add `-- --core` to skip the sensitivity passes (~30 s) or `-- --quick` for a few seconds
+python3 testing/test_rpsls.py                 # the faction design oracle (needs numpy); python3 testing/test_kite.py is the kiting guarantee at duel pace (~5 s)
 ```
 Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_FILE` (the profile file; the name predates profiles v2), `MIN_PLAYERS`, `LOBBY_SECONDS`, `FILL_SECONDS`, `PATIENCE_SECONDS` (at 8 alive), `PATIENCE_MIN_SECONDS` (at ≤3 alive), `SUDDEN_DEATH_SECONDS`, `COLYSEUS_LATENCY` (simulated ms), `DUMMIES=1` (training dummies and a weapon rack next to every spawn).
 
@@ -52,6 +53,7 @@ Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_
 - Keep comments sparse; explain *why*, not *what*.
 
 ## Known TODOs (keep this list honest)
+- Weapon tuning (9.1, `testing/TUNING_9_1.md`): bow 240 u and wand 220 u against `MAX_SIGHT_CORRIDOR` 480. Mapgen's cover and spawn screens are certified for 480, now twice the bow's range; relaxing them is an owner decision. The ranged move multipliers are 0.1 on purpose (nearly a root). The harness's KITING section and `testing/test_kite.py` guard the kiting guarantee; `python3 testing/weapon_reference.py` regenerates the parity tables (`weapons.test.ts`, `harness/parity.ts`) after any weapon number changes.
 - Interest management: everyone receives every player's weapons, every container's contents, every mob and every projectile, wherever they are. Plan: `StateView` + `.view()` fields, per-client add/remove by distance each tick.
 - Facing is synced for everyone at up to 20 Hz per player (every `aim` input patches `facing`, and `maxMessagesPerSecond` is 100 to allow it). Part of the same interest-management work; a per-client view would cut it.
 - No client-side prediction for the local player (0.18 has `Predict`/`room.input()` if needed).

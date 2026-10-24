@@ -90,10 +90,10 @@ The map is generated from a seed. The server and every client build the same map
 
   Because each region's mobs always carry the same weapon, **the map is a shopping list for counters**. If you're Plague and keep running into shields, you go where the axes are.
 - **The coliseum** sits in the centre, with 4 gates. The gates are wall tiles that close on command. Inside are spawn spots for the teleport.
-- **Cover.** Walls and obstacles keep sight lines short: with the gates open, no straight one-tile-wide (32 u) strip of open floor is longer than a bow's 480-unit range, at any angle. That holds in every region, inside the coliseum and through its gates. Narrower gaps are not guaranteed.
+- **Cover.** Walls and obstacles keep sight lines short: with the gates open, no straight one-tile-wide (32 u) strip of open floor is longer than 480 units (twice the bow's 240-unit range since the 9.1 tuning), at any angle. That holds in every region, inside the coliseum and through its gates. Narrower gaps are not guaranteed.
 - **Chests and mob camps** are spread per region; players spawn at the region edges.
 
-The coliseum always has pillars. With the gates open or closed, no 32 u-wide corridor inside or through it is longer than 480 units, so archers can't kite across the final arena.
+The coliseum always has pillars. With the gates open or closed, no 32 u-wide corridor inside or through it is longer than 480 units, so archers can't kite across the final arena (and the bow's range is 240 u anyway).
 
 ---
 
@@ -221,20 +221,21 @@ Five weapons form a second closed loop; again **each beats two and loses to two.
 
 | | Sword | Bow | Wand | Shield | Axe |
 |---|---|---|---|---|---|
-| Shape | Quarter-circle (90°) swing, reach 64 | Arrow, fast (900 u/s), range 480 | Magic ball, medium speed (380 u/s), range 420 | Barrier always raised toward the cursor (±60° front); click to bash like a swinging door (120°, reach 44) | Half-circle (180°) swing, reach 60 |
+| Shape | Quarter-circle (90°) swing, reach 64 | Arrow, fast (900 u/s), range 240 | Magic ball, medium speed (380 u/s), range 220 | Barrier always raised toward the cursor (±60° front); click to bash like a swinging door (120°, reach 44) | Half-circle (180°) swing, reach 60 |
 | Input | Click | Click and hold to draw, release to fire | Click | Shield follows the cursor; click to bash | Click |
 | When damage lands | 0.1 s into the swing | On release | Ball leaves 0.2 s after the click (at most 40% of the interval) | 0.1 s into the bash | 0.25 s into the swing (at most 25% of the interval) |
 | Attack speed boost | +115% | +95% | +65% | +60% | +40% |
-| Movement | Unaffected | Slowed to 75% while drawing; after release, half speed until the cooldown ends | Slowed to 35% for 0.4 s per cast (at most 45% of the interval); then half speed until the cooldown ends | Unaffected | Rooted for the 0.5 s swing (at most 50% of the interval) |
-| Damage multiplier | 1.0 | 0.8 | 0.85 | 0.75 | 0.9 |
-| Special | A hit that isn't blocked **staggers**: cancels the target's windup and resets a bow draw. A staggered target can't be staggered again for 0.5 s. | Draw time (0.15–0.6 s) scales damage from 40% to 100%. Full draw is at most 70% of the interval, and the minimum draw shrinks with it. | The ball **deletes arrows** within 28 units and **pierces shields** | Blocks frontal hits, **reflects arrows** back (the shield holder owns them), **negates a frontal sword hit and ripostes** 50% of it | **Pierces shields**, **destroys magic balls** its swing meets |
+| Movement | Unaffected | Slowed to 10% while drawing; after release, 10% until the cooldown ends | Slowed to 10% for 0.4 s per cast (at most 45% of the interval); then 10% until the cooldown ends | Unaffected | Rooted for the 0.5 s swing (at most 50% of the interval) |
+| Damage multiplier | 0.75 | 0.8 | 0.8 | 0.75 | 0.8 |
+| Special | A hit that isn't blocked **staggers**: cancels the target's windup or cast (a bow draw carries on). A staggered target can't be staggered again for 0.5 s. | Draw time (0.15–0.6 s) scales damage from 40% to 100%. Full draw is at most 70% of the interval, and the minimum draw shrinks with it. | The ball **deletes arrows** within 28 units and **pierces shields** | Blocks frontal hits, **reflects arrows** back (the shield holder owns them), **negates a frontal sword hit and ripostes** 50% of it | **Pierces shields**, **destroys magic balls** its swing meets |
 
 The interval is the time between attacks (section 10.2). The axe, bow and wand animation times above shrink with it, so fast cadences are never rooted or slowed for good.
 
-Ranged weapons can kite, so three things hold them back:
-- Damage starts slightly lower: bow 0.8, wand 0.85. These are maximums on the 0.05 grid: in the real-time check, bow 0.85 or wand 0.90 lets the ranged loser out-kite (Fire over Plague, and Holy over Sentenced on the wand).
-- Movement slows while drawing and casting.
-- After each ranged attack you move at half speed until the cooldown ends, so a ranged player backing away while shooting can still be caught.
+Ranged weapons can kite, so four things hold them back (the numbers are the 9.1 tuning, see section 9.4):
+- **Short range.** Bow 240 u, wand 220 u (about 7 tiles each). A melee fighter charging a standing shooter takes (range - reach) / move speed of free fire: 1.06 s from the bow, 0.94 s from the wand. At duel pace (k = 2) that is the most free fire a melee faction winner can absorb.
+- **Damage no higher than the melee weapons it must beat:** bow 0.8, wand 0.8 (the sword 0.75, the axe 0.8, the shield 0.75). The bow wins the sword and the axe on its opening alone, so it cannot also out-trade them.
+- **Drawing, casting and recovering move you at 10%.** A bow draw, a wand cast and the recovery after any ranged attack (until the cooldown ends) are nearly a root, so a shooter that backs away while it fires gets at most about 12% more free fire than one that stands.
+- A hit by a sword no longer restarts a bow draw.
 
 ### 9.2 The weapon loop
 
@@ -250,6 +251,8 @@ Ranged weapons can kite, so three things hold them back:
 | | Bow | Reflects arrows | Axe | Axe pierces it |
 | **Axe** | Wand | Destroys balls | Bow | Range |
 | | Shield | Pierces it | Sword | Out-swung |
+
+Every edge was checked in the real sim (section 9.4, "Tuning (9.1)"): the designed winner wins at least 60% of the duels, at least 50% in every faction, and has a reply that wins at least 50% against every way the loser can play. **Shield over Sword and Shield over Bow end with the shield at full HP, on purpose:** a raised shield turns the hit back (the riposte, the reflected arrow) and the losing weapon has no way through it. The counterplay is the second weapon slot (section 9.3): swap to the axe or the wand.
 
 ### 9.3 Inventory and pickups
 - **Two weapon slots.** Swap between them. Swapping shares the attack cooldown, adds 0.25 s, and cancels your current action, so it can't be used to cut animations short.
@@ -267,7 +270,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 - **Direction is fixed early.** A swing and a wand cast go where the cursor pointed when the attack started; the bow aims at release.
 
 **Interrupts**
-- **A stagger** cancels the windup or cast; the cooldown stays spent. A bow draw restarts instead.
+- **A stagger** cancels the windup or cast; the cooldown stays spent. A bow draw is not interrupted (9.1 tuning; it used to restart).
 - **A swap, or a pickup that replaces the weapon in hand,** cancels a pending action (and adds 0.25 s), but never cuts an already-landed root short. A cancelled cast leaves no ranged recovery.
 
 **Shields, swings and balls**
@@ -283,6 +286,23 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 - **Picking up into an empty slot** doesn't change the weapon in hand.
 - **The first faction** is a round-robin default by join order until the faction picker exists (Phase 10).
 - **Training dummies** (server option `DUMMIES=1`) have no faction, so no armor or shield, and never die: a hit that would kill refills them.
+
+**Tuning (9.1): every weapon edge holds, and a melee winner survives the approach.** The full log, with the numbers before and after every change, is `testing/TUNING_9_1.md`. What changed, and why:
+
+| Change | Before | After | Why |
+|---|---|---|---|
+| A sword stagger on a bow draw | restarts it | does nothing to it | Every sword hit cost the archer a whole draw (about 70 per duel), so the bow could never win the close trade |
+| Draw, cast and recovery move speed | 0.75 / 0.35 / 0.5 | 0.1 / 0.1 / 0.1 | Owner's lever for kiting at duel pace: a strafing or backing-off shooter gets at most 12% more free fire than a standing one (it got up to 2.25 times as much) |
+| Sword damage multiplier | 1.0 | 0.75 | The bow can only win a close trade against a weapon that does no more damage than it does |
+| Axe damage multiplier | 0.9 | 0.8 | Same (Bow over Axe) |
+| Wand damage multiplier | 0.85 | 0.8 | Axe over Wand, and the kiting check |
+| Bow range | 480 | 240 | The free-fire time a melee faction winner must absorb: 2.47 s -> 1.06 s |
+| Wand range | 420 | 220 | Same: 2.12 s -> 0.94 s |
+
+- **The kiting check.** `python3 testing/realtime_report.py <k = 2 what-if> kite` and `python3 testing/test_kite.py` model a melee faction winner charging a standing ranged loser who fires at full output, signature bonus included. At duel pace, with the old numbers, seven cells were stolen (Fire over Sentenced and Plague, Sentenced over Plague, Holy over Sentenced on the wand); none is now. The tightest, Fire over Plague with the bow, has a tolerance of 1.30 s against 1.06 s of free fire (the weakest melee weapon is the shield). The movement penalties do not change that number (it assumes a standing shooter); they keep the real sim near it, and the harness measures that (below).
+- **Why the ranges are so short.** At duel pace every faction hits twice as hard on the same HP, so a 500-HP Fire has little to spare: against Plague's bow it can absorb 1.3 s of free fire, which is 220 u of approach, not the 420 u a 480 u bow gave. Cutting only the damage would have needed a bow near 0.5, which loses every close trade; cutting only the range needed about 280 u or less. Both together keep the weapons usable.
+- **What each style does.** `stand` is the shared policy: a ranged fighter stands at a good range, backs off when the foe is closer than about half its range and shoots whenever it can. `strafe` sidesteps every 0.8 s. `kite` keeps a longer distance and backs off sooner. With the near-root penalties the three look alike for the bow (it cannot move while it draws), and the wand's strafe reply is its best style against a strafing bow.
+- **Holy over Sentenced** is the thin faction edge this touched: the wand/bow signature opening leaves Holy 23.6% HP in the worst case (30.4% before), because the wand's multiplier is now level with the bow's. The wand's arrow deletion makes the real opening wider than the stat model says.
 
 ---
 
@@ -304,7 +324,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 
   - **8 of the 10 openings are contested.** The faction winner starts with the losing weapon, so no fight is decided on the pick screen. The real decision is **which second weapon to go and get**.
   - **Sentenced vs Plague** starts as a bow mirror, so the faction edge decides it.
-  - **Holy vs Sentenced** favours Holy on both loops, on purpose. With Sentenced on the sword it would be the thinnest opening in the game (Holy keeps about 8% HP in the worst case, so any buff decides it). With Sentenced on the bow, Holy keeps 30%.
+  - **Holy vs Sentenced** favours Holy on both loops, on purpose. With Sentenced on the sword it would be the thinnest opening in the game (Holy keeps about 8% HP in the worst case, so any buff decides it). With Sentenced on the bow, Holy keeps 24% in the worst case (30% before the 9.1 tuning cut the wand's damage multiplier from 0.85 to 0.8).
   - **Region weapons don't change.** The Sentenced region's mobs still carry swords, so all five weapons can be farmed somewhere.
 
 ### 10.2 The scaling formula
@@ -322,15 +342,15 @@ Interval and damage per hit with no buffs, before duel pace (double the hits for
 
 | Faction | DPS | Sword | Axe | Bow | Wand | Shield |
 |---|---|---|---|---|---|---|
-| Fire | 90.0 | 0.78 s / 70 | 1.19 s / 96 | 0.85 s / 62 | 1.01 s / 77 | 1.04 s / 70 |
-| Sentenced | 4.5 | 0.52 s / 2 | 0.79 s / 3 | 0.57 s / 2 | 0.67 s / 3 | 0.69 s / 2 |
-| Plague | 37.0 | 0.25 s / 9 | 0.39 s / 13 | 0.28 s / 8 | 0.33 s / 10 | 0.34 s / 9 |
-| Frost | 40.5 | 1.03 s / 42 | 1.59 s / 58 | 1.14 s / 37 | 1.35 s / 46 | 1.39 s / 42 |
-| Holy | 61.8 | 0.49 s / 30 | 0.75 s / 42 | 0.54 s / 27 | 0.64 s / 33 | 0.66 s / 30 |
+| Fire | 90.0 | 0.78 s / 52 | 1.19 s / 86 | 0.85 s / 62 | 1.01 s / 73 | 1.04 s / 70 |
+| Sentenced | 4.5 | 0.52 s / 2 | 0.79 s / 3 | 0.57 s / 2 | 0.67 s / 2 | 0.69 s / 2 |
+| Plague | 37.0 | 0.25 s / 7 | 0.39 s / 11 | 0.28 s / 8 | 0.33 s / 10 | 0.34 s / 9 |
+| Frost | 40.5 | 1.03 s / 31 | 1.59 s / 51 | 1.14 s / 37 | 1.35 s / 44 | 1.39 s / 42 |
+| Holy | 61.8 | 0.49 s / 23 | 0.75 s / 37 | 0.54 s / 27 | 0.64 s / 32 | 0.66 s / 30 |
 
 Reading the table:
 - Every column has the same speed ratios: on any weapon Plague swings 4.1× as often as Frost and 3.1× as often as Fire.
-- Fire with an axe swings every 1.2 s for a 96-damage hit; Plague with a bow fires 3.6 arrows a second.
+- Fire with an axe swings every 1.2 s for an 86-damage hit; Plague with a bow fires 3.6 arrows a second.
 - Frost with an axe is the slowest combo in the game, one swing every 1.6 s. In the 20 Hz duels the longest stretch with no swing from either fighter is also 1.6 s.
 - Plague's sword (0.251 s) sits just above its 0.25 s floor, so any attack-speed buff on it turns into damage per hit at once.
 - Sentenced's weapon hits are near zero on purpose; the mark is its damage.
@@ -352,7 +372,7 @@ The design engine assumes two fighters standing in range forever. The game has m
 | **Animation timings scale with the interval.** Axe root = min(0.5 s, 50% of the interval) and windup = min(0.25 s, 25%). Bow full draw = min(0.6 s, 70%), with the minimum draw kept at the same share of it (0.15 s of 0.6 s). Wand cast = min(0.2 s, 40%) and self-slow = min(0.4 s, 45%). | Plague's axe swings every 0.39 s, shorter than a fixed 0.5 s root. Without this, fast cadences would be rooted or slowed for good. |
 | **Stagger immunity.** After a stagger, the target can't be staggered again for 0.5 s. | Plague's sword swings every 0.25 s and could otherwise stagger-lock a target |
 
-A 20-tick-per-second simulation of the damage rules above reproduces the full faction cycle with the same weapon on both sides (all five weapons) and in every signature-weapon opening. It does not model movement, line of sight, stagger or the animation timings.
+A 20-tick-per-second simulation of the damage rules above reproduces the full faction cycle with the same weapon on both sides (all five weapons), in every signature-weapon opening and in all 25 weapon pairings (before the 9.1 tuning, Holy over Sentenced lost with the bow or the shield against a sword). It does not model movement, line of sight, stagger or the animation timings, except one approach: the kiting check (section 9.4) charges a melee winner at a standing ranged loser.
 
 ---
 
@@ -492,8 +512,9 @@ Hard counters are only fair if you can see them coming.
   - the faction cycle per weapon (5 weapons × 10 edges);
   - kiting tolerance.
 
-  `python3 testing/realtime_report.py` (needs numpy, about a minute) runs the last two as 20 Hz weapon duels, with signature openings, buff thresholds and the longest stretch with no swing.
+  `python3 testing/realtime_report.py` (needs numpy, about a minute) runs the last two as 20 Hz weapon duels, with signature openings, buff thresholds and the longest stretch with no swing. `python3 testing/test_kite.py` (about 5 s) is the kiting guarantee at duel pace, one PASS or FAIL per cell.
   Results go to the designer before any tuning.
+- **The real-sim weapon harness**: `npm run harness -w @raid/server` (`-- --core` for a 30 s run without the sensitivity passes). Every weapon duel plays out in the real sim with two policy-driven clients; it prints the weapon matrix, a style grid for every edge with a ranged weapon, an edge verdict (holds, or fails and why) and the kiting table.
 - **Budgets.** Server tick time with 8 players and 60 mobs, and bytes per second per player.
 - **End-to-end.** Bots play full arena runs to a winner, with GV and bounties balancing exactly.
 
@@ -505,7 +526,7 @@ Hard counters are only fair if you can see them coming.
 |---|---|
 | Long fights and third-partying | In an 8-player arena, long duels invite a third player to clean up. Duel pace ×2 helps; it gets watched in playtests. |
 | Readable counters | Losing to a counter you didn't see coming feels random. Faction colours, weapon silhouettes and the counter hue are the mitigation. |
-| Kiting | Equal move speed lets ranged weapons kite melee. Mitigated by cover (which caps 32 u-wide sight corridors at the bow's range), the bow-draw and wand-cast slows, and lower ranged damage. |
+| Kiting | Equal move speed lets ranged weapons kite. Held back by short ranges (bow 240 u, wand 220 u), drawing, casting and recovering at 10% speed, and ranged damage no higher than the melee weapons'. The standing-shooter check passes at duel pace with the thinnest row, Fire over Plague with the bow, at 1.30 s of tolerance against 1.06 s; real kiting gains the shooter at most 12% over standing. Cover caps sight corridors at 480 u, now twice the bow's range, so it could be relaxed. |
 | Frost frustration | Its movement slow makes it the hardest class to escape. That's its identity, but it gets watched. |
 | Sentenced feel | Its weapon hits are nearly zero by design; the brand visual has to carry the class. |
 | Fire's burn | Nearly cosmetic in the current numbers. |
@@ -513,7 +534,7 @@ Hard counters are only fair if you can see them coming.
 | Snowballing | Uncapped S-curves plus bounties need playtesting: are fed players fun to fight, and is hunting them worth it? |
 | The faction cycle matters most late | Early fights are mostly weapons, positioning and third parties. The cycle decides the 1v1s, often in the coliseum. |
 | Bounties within a tick | If several players hit a fed player in the same tick, who gets the payout has to be decided by a fair rule. |
-| Buffs past the counters | In the 20 Hz check (same weapon on both sides, plus the signature openings) the softest edge, Holy over Sentenced, flips at ×1.31 HP on the losing side, and the softest attack-speed edge, Frost over Holy, at ×1.63 attack speed. Stacked, HP ×1.2 with attack speed ×1.3 holds every edge at 60% or better. HP ×1.3 with attack speed ×1.2 does not: Holy then wins only 45% of duels with both sides on bows and 52% with both on shields. Move speed isn't modelled there. The S-curve deliberately goes past these numbers (fed players can beat their counters); bounties are the release valve. |
+| Buffs past the counters | In the 20 Hz check (same weapon on both sides, plus the signature openings) the softest edge, Holy over Sentenced, flips at ×1.30 HP on the losing side, and the softest attack-speed edge, Plague over Frost, at ×1.66 attack speed (after the 9.1 tuning; before, ×1.31 and ×1.63). Stacked, HP ×1.2 with attack speed ×1.3 holds every edge at 60% or better. HP ×1.3 with attack speed ×1.2 does not: Holy then wins only 45% of duels with both sides on bows, 52% with both on shields, 12% on axes and none on swords (the last two held before the sword and axe lost damage). Move speed isn't modelled there. The S-curve deliberately goes past these numbers (fed players can beat their counters); bounties are the release valve. |
 
 ---
 

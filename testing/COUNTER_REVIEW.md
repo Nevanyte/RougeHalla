@@ -298,6 +298,8 @@ On stats alone the loop always picks the intended winner. Fire > Sentenced is lo
 
 ### Kiting
 
+*These are the v3 numbers at duel pace k = 1, with the old weapon table. The 9.1 weapon tuning (testing/TUNING_9_1.md) re-ran the check at k = 2 and changed the ranges, the damage multipliers and the ranged movement penalties; read this section as history.*
+
 Free fire is the time a ranged fighter shoots before a melee chaser reaches 60 u (both move at 170 u/s). One approach with the shooter standing still gives (480 - 60) / 170 = 2.47 s for the bow and (420 - 60) / 170 = 2.12 s for the wand. Backing away while firing is the problem:
 
 | Kiter | Standing, bow / wand | Rule A: root 0.25 s (bow) or 0.30 s (wand) per shot only | Rule B: root, then 50% speed until the next shot is ready |
