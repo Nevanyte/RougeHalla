@@ -2,7 +2,7 @@
 // faction, so only the weapon differs) x a handful of starting setups, one headless duel each (duel.ts). The report
 // is information for the owner: nothing here asserts an outcome or changes a number.
 import {
-  FACTION_IDS, isRanged, POLICIES, WEAPON_BEATS, type FactionId, type SpacingPolicy, type WeaponId,
+  FACTION_IDS, isRanged, POLICIES, WEAPON_BEATS, WEAPONS, type FactionId, type SpacingPolicy, type WeaponId,
 } from "@raid/shared";
 import { runDuel, type Arena, type DuelResult, type Perception } from "./duel";
 
@@ -22,18 +22,25 @@ export interface Setup {
  * sidesteps while standing (changing side every 0.8 s); "kite" keeps a longer distance and backs off sooner. Melee
  * weapons have only "stand".
  */
-export type Style = "stand" | "strafe" | "kite";
+export type Style = "stand" | "strafe" | "kite" | "post";
 
 export function stylesOf(w: WeaponId): readonly Style[] {
   return isRanged(w) ? ["stand", "strafe", "kite"] : ["stand"];
 }
 
+/** "post" is not in the grids: a shooter that never moves, the standing shooter the design's kiting check assumes (kiting.ts). */
+
 /** The spacing for `w` played in `style`; undefined for the shared default. */
 export function spacingFor(w: WeaponId, style: Style): SpacingPolicy | undefined {
   const base = POLICIES[w];
   if (style === "stand" || !isRanged(w)) return undefined;
+  if (style === "post") return { ...base, far: Infinity, retreatBelow: 0 };
   if (style === "strafe") return { ...base, strafe: 0.8 };
-  return w === "bow" ? { ...base, far: 500, retreatBelow: 400 } : { ...base, far: 330, retreatBelow: 280 };
+  // Shares of the weapon's range (the bow keeps a little past its range to approach, the wand a third of it back).
+  const range = WEAPONS[w].shape.kind === "projectile" ? WEAPONS[w].shape.range : 0;
+  return w === "bow"
+    ? { ...base, far: range * (500 / 480), retreatBelow: range * (400 / 480) }
+    : { ...base, far: range * (330 / 420), retreatBelow: range * (280 / 420) };
 }
 
 export interface MatrixOptions {
@@ -90,8 +97,11 @@ export function quickSetups(): Setup[] {
   return [120, 300, 450].map((distance) => ({ distance, delayTicks: [0, 0] as const, angle: 0.1 }));
 }
 
-/** A cap per faction long enough that the mirror duels finish (Frost and Sentenced hit slowly or lightly). */
-export const DEFAULT_CAPS: Readonly<Record<FactionId, number>> = { fire: 60, sentenced: 240, plague: 60, frost: 150, holy: 90 };
+/**
+ * A cap per faction long enough that a duel finishes even when only about a third of one side's shots land (a ranged
+ * fighter against a strafing one): roughly four times the mirror duel (Frost and Sentenced hit slowly or lightly).
+ */
+export const DEFAULT_CAPS: Readonly<Record<FactionId, number>> = { fire: 90, sentenced: 600, plague: 150, frost: 240, holy: 120 };
 
 function capFor(cap: MatrixOptions["capSeconds"], faction: FactionId): number {
   if (typeof cap === "number") return cap;

@@ -69,16 +69,17 @@ describe("decide, seeing the world late", () => {
   });
 
   it("does not start the next draw after a release when the target is out of range", () => {
-    const out = decide(input({ weapon: "bow", target: { x: 470, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 }));
+    const out = decide(input({ weapon: "bow", target: { x: POLICIES.bow.attackRange + 20, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 }));
     expect(out.release).toBe(true);
     expect(out.hold).toBe(false);
-    expect(decide(input({ weapon: "bow", target: { x: 300, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 })).hold).toBe(true);
+    expect(decide(input({ weapon: "bow", target: { x: 150, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 })).hold).toBe(true);
   });
 
   it("does not draw on a target the arrow cannot reach", () => {
-    // 400 u away and backing off at 170 u/s: the arrow meets it past the 480 u range (about 490 u of flight).
-    expect(decide(input({ weapon: "bow", target: { x: 400, y: 0 }, targetVel: { x: 170, y: 0 } })).hold).toBe(false);
-    expect(decide(input({ weapon: "bow", target: { x: 400, y: 0 } })).hold).toBe(true);
+    // Inside the attack range, but backing off at 170 u/s: the arrow meets it past the bow's range.
+    const at = POLICIES.bow.attackRange - 10;
+    expect(decide(input({ weapon: "bow", target: { x: at, y: 0 }, targetVel: { x: 170, y: 0 } })).hold).toBe(false);
+    expect(decide(input({ weapon: "bow", target: { x: at, y: 0 } })).hold).toBe(true);
   });
 });
 
@@ -115,8 +116,10 @@ describe("decide, backing off near walls", () => {
 
 describe("decide, strafing and spacing overrides", () => {
   const strafing = { ...POLICIES.wand, strafe: 0.8 };
+  // Where the wand stands: between backing off and closing in.
+  const SWEET = (POLICIES.wand.retreatBelow + POLICIES.wand.far) / 2;
   const at = (time: number, over: Partial<PolicyInput> = {}) =>
-    decide(input({ weapon: "wand", target: { x: 220, y: 0 }, spacing: strafing, time, ...over }));
+    decide(input({ weapon: "wand", target: { x: SWEET, y: 0 }, spacing: strafing, time, ...over }));
 
   it("sidesteps perpendicular to the target, changing side every period", () => {
     const first = at(0.1).move as Vec2;
@@ -137,12 +140,13 @@ describe("decide, strafing and spacing overrides", () => {
 
   it("stands when it has no clock, and by default", () => {
     expect(at(0, { time: undefined }).move).toBe("stop");
-    expect(decide(input({ weapon: "wand", target: { x: 220, y: 0 }, time: 0.1 })).move).toBe("stop");
+    expect(decide(input({ weapon: "wand", target: { x: SWEET, y: 0 }, time: 0.1 })).move).toBe("stop");
   });
 
   it("still retreats and still closes in", () => {
-    expect((at(0.1, { target: { x: 100, y: 0 } }).move as Vec2).x).toBeLessThan(0);
-    expect(at(0.1, { target: { x: 300, y: 0 } }).move).toEqual({ x: 300, y: 0 });
+    expect((at(0.1, { target: { x: POLICIES.wand.retreatBelow - 30, y: 0 } }).move as Vec2).x).toBeLessThan(0);
+    const far = POLICIES.wand.far + 100;
+    expect(at(0.1, { target: { x: far, y: 0 } }).move).toEqual({ x: far, y: 0 });
   });
 
   it("plays a weapon with the spacing it is given", () => {

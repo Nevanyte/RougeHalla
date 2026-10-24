@@ -38,10 +38,10 @@ REACH = 60.0   # melee reach
 
 # speed: boost on the faction's attack rate; dps: damage multiplier; floor: shortest interval (binds only under buffs)
 WEAPONS = {
-    "sword":  dict(speed=1.15, dps=1.00, floor=0.25, rng=60,  melee=True),
-    "axe":    dict(speed=0.40, dps=0.90, floor=0.35, rng=60,  melee=True),
-    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=480, melee=False),
-    "wand":   dict(speed=0.65, dps=0.85, floor=0.30, rng=420, melee=False),
+    "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=60,  melee=True),
+    "axe":    dict(speed=0.40, dps=0.80, floor=0.35, rng=60,  melee=True),
+    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=260, melee=False),
+    "wand":   dict(speed=0.65, dps=0.75, floor=0.30, rng=240, melee=False),
     "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True),
 }
 WNAMES = list(WEAPONS)

@@ -3,10 +3,10 @@
 // from sim/melee.ts can interfere. Everything is read back from the synced state, the runtime and the emitted fx.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  AIM_STALE_MS, attackInterval, ATTACK_BUFFER_MS, BOW_MIN_DRAW_DAMAGE, damagePerHit, damageShares, FACTIONS,
-  mapFromTiles, MAX_REWIND_MS, mulberry32, pacedFaction, PLAYER_SPEED, RANGED_HIT_REACH, SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS,
-  SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, weaponTimings, wrapAngle, type FactionId, type FxEvent,
-  type GameMap, type Vec2, type WeaponId,
+  AIM_STALE_MS, attackInterval, ATTACK_BUFFER_MS, BOW_DRAW_MOVE, BOW_MIN_DRAW_DAMAGE, damagePerHit, damageShares, FACTIONS,
+  mapFromTiles, MAX_REWIND_MS, mulberry32, pacedFaction, PLAYER_SPEED, RANGED_HIT_REACH, RANGED_RECOVERY_MOVE,
+  SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WAND_CAST_MOVE,
+  weaponTimings, wrapAngle, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { applyDamage, downPlayer } from "../src/sim/arena";
 import { activeWeapon, combatant } from "../src/sim/combatant";
@@ -411,7 +411,7 @@ describe("the wand", () => {
     expect(shots).toHaveLength(1);
     expect(world.state.projectiles.size).toBe(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: S + 200, kind: "ball", owner: "p0", weapon: "wand", t: S + 200, range: 420 });
+    expect(shot).toMatchObject({ at: S + 200, kind: "ball", owner: "p0", weapon: "wand", t: S + 200, range: 240 });
     expect(shot.x).toBe(P(world).x);
     expect(shot.y).toBe(P(world).y);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.4) * 380, 9);
@@ -420,15 +420,15 @@ describe("the wand", () => {
     expect(landed).toHaveLength(0); // a cast is not a swing
   });
 
-  it("slows the caster to 0.35x for its cast slow, then 0.5x until the cooldown ends", () => {
+  it("slows the caster to WAND_CAST_MOVE for its cast slow, then RANGED_RECOVERY_MOVE until the cooldown ends", () => {
     const world = startRun();
     arm(world, 0, "fire", "wand");
     const tm = timings("fire", "wand");
     expect(tm.castSlow).toBeCloseTo(0.4, 12);
     expect(intervalMs("fire", "wand")).toBeCloseTo(1010.1, 1);
-    // Cast at tick 2: 0.35x on ticks S .. S+350 (400 ms), 0.5x on S+400 .. S+1000 (until 1010.1), then full speed.
+    // Cast at tick 2: the cast slow on ticks S .. S+350 (400 ms), the recovery on S+400 .. S+1000 (until 1010.1), then full speed.
     const d = walk(world, 0, 28, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(STEP * 0.35, 8), ...repeat(STEP * 0.5, 13), ...repeat(STEP, 5)]);
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(STEP * WAND_CAST_MOVE, 8), ...repeat(STEP * RANGED_RECOVERY_MOVE, 13), ...repeat(STEP, 5)]);
   });
 
   it("a short interval shortens the slow with it (the cast slow is at most 45% of the interval)", () => {
@@ -440,7 +440,7 @@ describe("the wand", () => {
     const slow = Math.ceil((tm.castSlow * 1000) / TICK_MS - 1e-6);
     const recover = Math.ceil((tm.interval * 1000) / TICK_MS - 1e-6) - slow;
     expectCloseAll(d, [
-      STEP, ...repeat(STEP * 0.35, slow), ...repeat(STEP * 0.5, recover), ...repeat(STEP, 20 - 1 - slow - recover),
+      STEP, ...repeat(STEP * WAND_CAST_MOVE, slow), ...repeat(STEP * RANGED_RECOVERY_MOVE, recover), ...repeat(STEP, 20 - 1 - slow - recover),
     ]);
   });
 });
@@ -519,15 +519,15 @@ describe("the bow", () => {
     expect(P(world).readyAt).toBe(0); // the cooldown only starts at the release
   });
 
-  it("walks at 0.75x while drawing, then 0.5x after the shot until the cooldown ends", () => {
+  it("walks at BOW_DRAW_MOVE while drawing, then RANGED_RECOVERY_MOVE after the shot until the cooldown ends", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
-    // Press on tick 2, release on tick 14 (a 600 ms draw): 0.75x on ticks 2..13, 0.5x for 539.6 ms (ticks 14..24).
+    // Press on tick 2, release on tick 14 (a 600 ms draw): the draw slow on ticks 2..13, the recovery for 539.6 ms (ticks 14..24).
     const d = walk(world, 0, 30, (k) => {
       if (k === 2) press(world);
       if (k === 14) release(world);
     });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(STEP * 0.75, 12), ...repeat(STEP * 0.5, 11), ...repeat(STEP, 5)]);
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(STEP * BOW_DRAW_MOVE, 12), ...repeat(STEP * RANGED_RECOVERY_MOVE, 11), ...repeat(STEP, 5)]);
   });
 
   it("a full draw looses a full-damage arrow at the release, along the release's aim", () => {
@@ -536,7 +536,7 @@ describe("the bow", () => {
     const start = drawAndLoose(world, 600, -0.7);
     expect(shots).toHaveLength(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: start + 600, kind: "arrow", owner: "p0", weapon: "bow", t: start + 600, range: 480 });
+    expect(shot).toMatchObject({ at: start + 600, kind: "arrow", owner: "p0", weapon: "bow", t: start + 600, range: 260 });
     expect(shot.x).toBe(P(world).x);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.7) * 900, 9);
     expect(shot.vy).toBeCloseTo(Math.sin(-0.7) * 900, 9);
@@ -820,13 +820,13 @@ describe("swapping", () => {
     const world = start();
     arm(world, 0, "fire", "wand", "sword");
     expect(timings("fire", "wand").windup).toBeCloseTo(0.2, 12);
-    // Cast in tick 1, ball at tick 5; the swap at tick 6 changes neither the 0.35x (ticks 1..8) nor the 0.5x after it.
+    // Cast in tick 1, ball at tick 5; the swap at tick 6 changes neither the cast slow (ticks 1..8) nor the recovery after it.
     const d = walk(world, 0, 25, (k) => {
       if (k === 1) tap(world);
       if (k === 6) swap(world);
     });
     expect(shots).toHaveLength(1);
-    expectCloseAll(d, [STEP, ...repeat(STEP * 0.35, 8), ...repeat(STEP * 0.5, 13), ...repeat(STEP, 3)]);
+    expectCloseAll(d, [STEP, ...repeat(STEP * WAND_CAST_MOVE, 8), ...repeat(STEP * RANGED_RECOVERY_MOVE, 13), ...repeat(STEP, 3)]);
   });
 
   it("cancels a wand cast: no ball, and neither the cast slow nor a ranged recovery outlives it", () => {
@@ -836,7 +836,7 @@ describe("swapping", () => {
       if (k === 1) tap(world);
       if (k === 2) swap(world);
     });
-    expect(d[1]).toBeCloseTo(STEP * 0.35, 6);
+    expect(d[1]).toBeCloseTo(STEP * WAND_CAST_MOVE, 6);
     // No ball left, so no ranged attack happened: full speed at once.
     expect(d[2]).toBeCloseTo(STEP, 6);
     expect(RT(world).weapon.castSlowUntil).toBeLessThanOrEqual(T(world));
@@ -1112,8 +1112,9 @@ describe("where projectiles leave from", () => {
     const { world, shot, at } = strafeAndLoose(lag, lag);
     expect(shot.x).toBeCloseTo(at(lag).x, 9);
     expect(shot.y).toBeCloseTo(at(lag).y, 9);
-    // The shooter has walked on since: from the present position the same aim would pass it by.
-    expect(dist(shot, P(world))).toBeGreaterThan(RANGED_HIT_REACH);
+    // The shooter has walked on since (slowly: it is drawing a bow): the present position is where the aim would not start from.
+    expect(dist(shot, P(world))).toBeCloseTo((BOW_DRAW_MOVE * PLAYER_SPEED * lag) / 1000, 6);
+    expect(dist(shot, P(world))).toBeGreaterThan(1);
   });
 
   it("clamps a stale timestamp to MAX_REWIND_MS, and a fresher one than a tick (or one in the future) to one tick back", () => {
@@ -1129,8 +1130,8 @@ describe("where projectiles leave from", () => {
     const { world, shot, at } = strafeAndLoose(null, null);
     expect(shot.x).toBeCloseTo(at(TICK_MS).x, 9);
     expect(shot.y).toBeCloseTo(at(TICK_MS).y, 9);
-    // It moved on in the release tick (0.5 x speed after the shot), which the arrow does not include.
-    expect(P(world).y - shot.y).toBeCloseTo(0.5 * STEP, 6);
+    // It moved on in the release tick (RANGED_RECOVERY_MOVE x speed after the shot), which the arrow does not include.
+    expect(P(world).y - shot.y).toBeCloseTo(RANGED_RECOVERY_MOVE * STEP, 6);
   });
 
   it("uses the lag of the release when it carries a timestamp, and the press's when it does not", () => {
@@ -1157,7 +1158,7 @@ describe("where projectiles leave from", () => {
     expect(shots).toHaveLength(1);
     expect(shots[0]!.x).toBeCloseTo(drawn.x, 9);
     expect(shots[0]!.y).toBeCloseTo(drawn.y, 9);
-    expect(dist(shots[0]!, P(world))).toBeGreaterThan(20); // the caster walked on, over the lag and through the cast
+    expect(dist(shots[0]!, P(world))).toBeGreaterThan(RANGED_HIT_REACH); // the caster walked on, over the lag and through the cast
   });
 });
 
@@ -1368,31 +1369,32 @@ describe("stagger", () => {
       if (k === 1) tap(world);
       if (k === 2) expect(stagger(world, C(world))).toBe(true);
     });
-    expect(d[1]).toBeCloseTo(STEP * 0.35, 6);
+    expect(d[1]).toBeCloseTo(STEP * WAND_CAST_MOVE, 6);
     expect(d[2]).toBeCloseTo(STEP, 6);
     expect(RT(world).weapon.recoverUntil).toBeLessThanOrEqual(T(world));
     run(world, 12);
     expect(shots).toHaveLength(0);
   });
 
-  it("restarts a bow draw instead of cancelling it", () => {
+  it("does not interrupt a bow draw (9.1 tuning): it keeps its progress, and the stagger still starts the immunity", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     press(world);
     tick(world);
-    runTo(world, T(world) + 300);
+    const drawStart = T(world);
+    runTo(world, drawStart + 300);
     const hurtAt = T(world);
     expect(stagger(world, C(world))).toBe(true);
-    expect(P(world).drawStartedAt).toBe(hurtAt);
-    expect(RT(world).weapon.action).toMatchObject({ kind: "draw", startedAt: hurtAt });
+    expect(P(world).drawStartedAt).toBe(drawStart);
+    expect(RT(world).weapon.action).toMatchObject({ kind: "draw", startedAt: drawStart });
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(hurtAt + STAGGER_IMMUNITY_SECONDS * 1000);
+    // Released at the full draw it already had: a full-damage arrow, no second draw.
+    runTo(world, drawStart + 600 - TICK_MS);
     release(world);
-    runTo(world, hurtAt + 100);
-    expect(shots).toHaveLength(0);
-    tick(world);
     tick(world);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.at).toBe(hurtAt + 150);
-    expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow") * BOW_MIN_DRAW_DAMAGE, 9);
+    expect(shots[0]!.at).toBe(drawStart + 600);
+    expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow"), 9);
   });
 
   it("is ignored for STAGGER_IMMUNITY_SECONDS after a stagger, then works again", () => {
@@ -1457,9 +1459,9 @@ describe("helpers", () => {
     const now = T(world);
     expect(moveMultiplierOf(world, C(world))).toBe(1);
     RT(world).weapon.recoverUntil = now + 1;
-    expect(moveMultiplierOf(world, C(world))).toBe(0.5);
+    expect(moveMultiplierOf(world, C(world))).toBe(RANGED_RECOVERY_MOVE);
     RT(world).weapon.castSlowUntil = now + 1;
-    expect(moveMultiplierOf(world, C(world))).toBe(0.35);
+    expect(moveMultiplierOf(world, C(world))).toBe(Math.min(WAND_CAST_MOVE, RANGED_RECOVERY_MOVE));
     RT(world).weapon.rootUntil = now + 1;
     expect(moveMultiplierOf(world, C(world))).toBe(0);
   });

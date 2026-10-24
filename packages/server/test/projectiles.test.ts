@@ -29,6 +29,19 @@ type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
 
 // ---------------------------------------------------------------------------------------------------------------
+// These tests pin the projectile mechanics (the netcode contract, 10 ms substeps, walls, gates, reflections), not the
+// tuned numbers. The 9.1 tuning cut the ranges to 260 and 240 u; the long-flight geometry below (far walls, a flight of
+// many substeps, a shot across the arena) was built for the original 480 and 420, so this file flies at those. What the
+// catalog really says is pinned in shared/test/weapons.test.ts and by "flies the catalog's own ranges" below.
+const CATALOG_RANGES = { bow: 0, wand: 0 };
+for (const w of ["bow", "wand"] as const) {
+  const shape = WEAPONS[w].shape;
+  if (shape.kind !== "projectile") throw new Error(`${w} is not a projectile weapon`);
+  CATALOG_RANGES[w] = shape.range;
+  shape.range = w === "bow" ? 480 : 420;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Scenario helpers
 
 const W_TILES = 40;
@@ -523,20 +536,32 @@ describe("where a projectile leaves from", () => {
   const LAG = 250;
   /** The `t` of an input stamped by a client `lag` ms behind the server, processed in the next tick. */
   const stamp = (w: World, lag: number): number => w.state.serverTime + TICK_MS - lag;
+  /**
+   * One tick, then the archer a full-speed step further south. Drawing a bow now slows a walker to BOW_DRAW_MOVE (nearly
+   * a root), so the strafe the origin tests need is moved by hand; its history, which the server reads back, is the
+   * same as if it had walked during that tick.
+   */
+  const strafeTick = (w: World): SimEvent[] => {
+    const out = tick(w);
+    const p = P(w, "archer");
+    p.y += (PLAYER_SPEED * TICK_MS) / 1000;
+    RT(w, "archer").history.at(-1)!.y = p.y;
+    return out;
+  };
 
   it("an arrow looses from the drawn position, so an archer strafing past a still target hits what it aimed at", () => {
     const w = arena([archer({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
     const c = P(w, "archer");
     const q = RT(w, "archer").inputs;
     c.readyAt = 0;
-    RT(w, "archer").path = [{ x: 200, y: 560 }]; // straight south, across the line to the target
+    // Straight south, across the line to the target, at full walking speed.
     q.pushAction({ kind: "attack", a: 0, t: stamp(w, LAG) });
-    tick(w);
-    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS) - 1; i > 0; i--) tick(w);
+    strafeTick(w);
+    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS) - 1; i > 0; i--) strafeTick(w);
     const t = stamp(w, LAG);
     const drawn = positionAt(RT(w, "archer"), c, t);
     q.pushAction({ kind: "release", a: Math.atan2(320 - drawn.y, 500 - drawn.x), t });
-    tick(w);
+    strafeTick(w);
     const arrow = lastProjectile(w);
     expect(arrow.kind).toBe("arrow");
     expect([arrow.state.x, arrow.state.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
@@ -551,12 +576,11 @@ describe("where a projectile leaves from", () => {
     const c = P(w, "archer");
     const q = RT(w, "archer").inputs;
     c.readyAt = 0;
-    RT(w, "archer").path = [{ x: 200, y: 560 }];
     q.pushAction({ kind: "attack", a: 0 });
-    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS); i > 0; i--) tick(w);
+    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS); i > 0; i--) strafeTick(w);
     const latest = { x: c.x, y: c.y };
     q.pushAction({ kind: "release", a: Math.atan2(320 - latest.y, 500 - latest.x) });
-    tick(w);
+    strafeTick(w);
     const arrow = lastProjectile(w);
     expect([arrow.state.x, arrow.state.y]).toEqual([expect.closeTo(latest.x, 9), expect.closeTo(latest.y, 9)]);
     expect(c.y).toBeGreaterThan(latest.y + 3); // it walked on in the release tick; the arrow did not
@@ -720,6 +744,38 @@ describe("walls and gates", () => {
 });
 
 describe("range", () => {
+  it("flies the catalog's own ranges (the 9.1 tuning: bow 260 u, wand 240 u)", () => {
+    expect(CATALOG_RANGES).toEqual({ bow: 260, wand: 240 });
+    const bow = WEAPONS.bow.shape;
+    const wand = WEAPONS.wand.shape;
+    if (bow.kind !== "projectile" || wand.kind !== "projectile") throw new Error("projectile");
+    const [bowTest, wandTest] = [bow.range, wand.range];
+    bow.range = CATALOG_RANGES.bow;
+    wand.range = CATALOG_RANGES.wand;
+    try {
+      const a = arena([archer({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
+      loose(a, [{ id: "archer", a: 0 }]);
+      expect(synced([...a.state.projectiles.values()][0]!).range).toBe(260);
+      const arrow = flyUntilEnd(a);
+      expect(arrow.end.reason).toBe("range");
+      expect(arrow.end.x).toBeCloseTo(100 + 260, 6);
+
+      const m = arena([mage({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
+      castBall(m, "mage", 0);
+      expect(synced([...m.state.projectiles.values()][0]!).range).toBe(240);
+      const ball = flyUntilEnd(m);
+      expect(ball.end).toMatchObject({ proj: "ball", reason: "range" });
+      expect(ball.end.x).toBeCloseTo(100 + 240, 6);
+      // A body just inside the reach of the end of the range is still hit; just outside it is not.
+      const far = arena([archer({ x: 100, y: 320 }), target({ x: 100 + 260 + RANGED_HIT_REACH + 1, y: 320 }), idle()]);
+      loose(far, [{ id: "archer", a: 0 }]);
+      expect(flyUntilEnd(far).end.reason).toBe("range");
+    } finally {
+      bow.range = bowTest;
+      wand.range = wandTest;
+    }
+  });
+
   it("stops an arrow exactly 480 u from where it left, in the tick that covers it", () => {
     const w = arena([archer({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
     loose(w, [{ id: "archer", a: 0 }]);
@@ -987,7 +1043,7 @@ describe("shield reflection", () => {
     const { end, events } = flyUntilEnd(w);
     expect(end).toMatchObject({ proj: "ball", reason: "hit" });
     expect(fxOf(events, "block")).toEqual([]);
-    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo((65 * DUEL_PACE * 0.85) / 1.65 / (1 + 100 / 100), 9);
+    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo((65 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 100 / 100), 9);
   });
 
   it("reflects off a shield held by a mob; a kill by that arrow is credited to its name only", () => {
@@ -1268,7 +1324,7 @@ describe("damage numbers", () => {
     castBall(w, "mage", 0);
     flyUntilEnd(w);
     // hit x pace x wand multiplier / (1 + boost), then Frost's 100 armor.
-    expect(FACTIONS.frost.hp - P(w, "frost").hp).toBeCloseTo((65 * DUEL_PACE * 0.85) / 1.65 / (1 + 100 / 100), 9);
+    expect(FACTIONS.frost.hp - P(w, "frost").hp).toBeCloseTo((65 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 100 / 100), 9);
   });
 });
 

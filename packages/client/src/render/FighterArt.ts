@@ -167,7 +167,7 @@ export class FighterArt {
   /** True while a draw is on screen at `renderT`. */
   private trackDraw(f: FighterFields, renderT: number, patchT: number): boolean {
     if (f.drawStartedAt > 0) {
-      // A new start time is a new draw (the first one, or a stagger restarting it).
+      // A new start time is a new draw (the first one, or the next after a shot).
       if (f.drawStartedAt !== this.drawStart) {
         this.drawStart = f.drawStartedAt;
         this.drawEnd = Infinity;

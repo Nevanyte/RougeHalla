@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, backlashPerSwing, damagePerHit, drawDamageScale, DUEL_PACE, FACTION_IDS, FACTIONS, pacedFaction,
-  SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS, weaponEdge, weaponTimings, type FactionId, type WeaponId,
+  attackInterval, backlashPerSwing, damagePerHit, drawDamageScale, DUEL_PACE, FACTION_IDS, FACTIONS, MAX_SIGHT_CORRIDOR,
+  pacedFaction, PLAYER_RADIUS, RANGED_HIT_REACH, RANGED_SLACK, SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS,
+  weaponEdge, weaponTimings, type FactionId, type WeaponId,
 } from "../src/index";
 
 /**
@@ -9,36 +10,36 @@ import {
  * k = 1]. Regenerate with `python3 testing/weapon_reference.py` if the design numbers change.
  */
 const REFERENCE: Array<[FactionId, WeaponId, number, number]> = [
-  ["fire", "sword", 0.775193798450, 69.767441860465],
-  ["fire", "axe", 1.190476190476, 96.428571428571],
+  ["fire", "sword", 0.775193798450, 52.325581395349],
+  ["fire", "axe", 1.190476190476, 85.714285714286],
   ["fire", "bow", 0.854700854701, 61.538461538462],
-  ["fire", "wand", 1.010101010101, 77.272727272727],
+  ["fire", "wand", 1.010101010101, 68.181818181818],
   ["fire", "shield", 1.041666666667, 70.312500000000],
-  ["sentenced", "sword", 0.516795865633, 2.325581395349],
-  ["sentenced", "axe", 0.793650793651, 3.214285714286],
+  ["sentenced", "sword", 0.516795865633, 1.744186046512],
+  ["sentenced", "axe", 0.793650793651, 2.857142857143],
   ["sentenced", "bow", 0.569800569801, 2.051282051282],
-  ["sentenced", "wand", 0.673400673401, 2.575757575758],
+  ["sentenced", "wand", 0.673400673401, 2.272727272727],
   ["sentenced", "shield", 0.694444444444, 2.343750000000],
-  ["plague", "sword", 0.251414204903, 9.302325581395],
-  ["plague", "axe", 0.386100386100, 12.857142857143],
+  ["plague", "sword", 0.251414204903, 6.976744186047],
+  ["plague", "axe", 0.386100386100, 11.428571428571],
   ["plague", "bow", 0.277200277200, 8.205128205128],
-  ["plague", "wand", 0.327600327600, 10.303030303030],
+  ["plague", "wand", 0.327600327600, 9.090909090909],
   ["plague", "shield", 0.337837837838, 9.375000000000],
-  ["frost", "sword", 1.033591731266, 41.860465116279],
-  ["frost", "axe", 1.587301587302, 57.857142857143],
+  ["frost", "sword", 1.033591731266, 31.395348837209],
+  ["frost", "axe", 1.587301587302, 51.428571428571],
   ["frost", "bow", 1.139601139601, 36.923076923077],
-  ["frost", "wand", 1.346801346801, 46.363636363636],
+  ["frost", "wand", 1.346801346801, 40.909090909091],
   ["frost", "shield", 1.388888888889, 42.187500000000],
-  ["holy", "sword", 0.489596083231, 30.232558139535],
-  ["holy", "axe", 0.751879699248, 41.785714285714],
+  ["holy", "sword", 0.489596083231, 22.674418604651],
+  ["holy", "axe", 0.751879699248, 37.142857142857],
   ["holy", "bow", 0.539811066127, 26.666666666667],
-  ["holy", "wand", 0.637958532695, 33.484848484848],
+  ["holy", "wand", 0.637958532695, 29.545454545455],
   ["holy", "shield", 0.657894736842, 30.468750000000],
 ];
 
 /** Fire's backlash per enemy swing: the same for every enemy faction, 200 / (1 + boost). */
 const BACKLASH: Record<WeaponId, number> = {
-  sword: 93.023255813953, axe: 142.857142857143, bow: 102.564102564103, wand: 121.212121212121, shield: 125.0,
+  sword: 93.023255813953, axe: 142.857142857143, bow: 102.564102564103, wand: 121.212121212121, shield: 125.000000000000
 };
 
 describe("parity with testing/realtime.py", () => {
@@ -55,7 +56,7 @@ describe("parity with testing/realtime.py", () => {
 
   it("turns attack speed past the floor into damage per hit (Plague's sword at x1.3)", () => {
     expect(attackInterval(FACTIONS.plague, "sword", 1.3)).toBeCloseTo(0.25, 12);
-    expect(damagePerHit(FACTIONS.plague, "sword", 1.3)).toBeCloseTo(12.025, 9);
+    expect(damagePerHit(FACTIONS.plague, "sword", 1.3)).toBeCloseTo(9.018750000000, 9);
   });
 
   it("keeps every faction's damage per second x dpsMult on every weapon", () => {
@@ -91,14 +92,29 @@ describe("the weapon table (GAME_DESIGN 9.1)", () => {
   it("has the designed boosts, floors, damage multipliers, shapes and ranges", () => {
     const table = WEAPON_IDS.map((w) => [w, WEAPONS[w].boost, WEAPONS[w].floor, WEAPONS[w].dpsMult]);
     expect(table).toEqual([
-      ["sword", 1.15, 0.25, 1.0], ["bow", 0.95, 0.25, 0.8], ["wand", 0.65, 0.3, 0.85],
-      ["shield", 0.6, 0.3, 0.75], ["axe", 0.4, 0.35, 0.9],
+      ["sword", 1.15, 0.25, 0.75], ["bow", 0.95, 0.25, 0.8], ["wand", 0.65, 0.3, 0.75],
+      ["shield", 0.6, 0.3, 0.75], ["axe", 0.4, 0.35, 0.8],
     ]);
     expect(WEAPONS.sword.shape).toEqual({ kind: "arc", reach: 64, halfArc: Math.PI / 4 });
     expect(WEAPONS.axe.shape).toEqual({ kind: "arc", reach: 60, halfArc: Math.PI / 2 });
     expect(WEAPONS.shield.shape).toEqual({ kind: "arc", reach: 44, halfArc: Math.PI / 3 });
-    expect(WEAPONS.bow.shape).toEqual({ kind: "projectile", projectile: "arrow", speed: 900, range: 480 });
-    expect(WEAPONS.wand.shape).toEqual({ kind: "projectile", projectile: "ball", speed: 380, range: 420 });
+    expect(WEAPONS.bow.shape).toEqual({ kind: "projectile", projectile: "arrow", speed: 900, range: 260 });
+    expect(WEAPONS.wand.shape).toEqual({ kind: "projectile", projectile: "ball", speed: 380, range: 240 });
+  });
+
+  it("keeps the ranged weapons short and light enough for a melee winner to survive the approach (9.1 tuning)", () => {
+    // testing/TUNING_9_1.md: ranged dpsMult is no higher than the melee weapons it must beat in a close trade (the bow
+    // wins the sword and the axe on the lead its range gives it), and the ranges bound the free fire on a charge.
+    const bow = WEAPONS.bow;
+    const wand = WEAPONS.wand;
+    for (const m of ["sword", "axe"] as const) expect(bow.dpsMult).toBeGreaterThanOrEqual(WEAPONS[m].dpsMult);
+    expect(WEAPONS.axe.dpsMult).toBeGreaterThan(wand.dpsMult); // axe > wand needs the closer's dps to be higher
+    expect(wand.dpsMult).toBeGreaterThanOrEqual(WEAPONS.shield.dpsMult);
+    if (bow.shape.kind !== "projectile" || wand.shape.kind !== "projectile") throw new Error("projectile");
+    expect(bow.shape.range).toBeLessThanOrEqual(MAX_SIGHT_CORRIDOR);
+    expect(wand.shape.range).toBeLessThan(bow.shape.range);
+    // Projectile bodies stay within what the spawn screens assume (RANGED_HIT_REACH).
+    expect(PLAYER_RADIUS + RANGED_SLACK).toBe(RANGED_HIT_REACH);
   });
 
   it("starts every faction with its signature weapon", () => {

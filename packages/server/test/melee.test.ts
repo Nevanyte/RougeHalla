@@ -632,16 +632,18 @@ describe("sword stagger, through real windups", () => {
     expect(RT(world, 0).weapon.action).toBeNull();
   });
 
-  it("restarts a bow draw, which carries on", () => {
+  it("does not interrupt a bow draw: it carries on from where it was, and the hit still staggers (the immunity starts)", () => {
     const world = arena([fighter("sentenced", "bow", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
     hold(world, 0, 0);
     run(world, 1);
     expect(P(world, 0).drawStartedAt).toBe(100);
     tap(world, 1, FACING_WEST); // pressed at 150 ms, lands at 250 ms
-    run(world, 3);
+    const events = run(world, 3);
     expect(world.state.serverTime).toBe(250);
-    expect(P(world, 0).drawStartedAt).toBe(250);
-    expect(RT(world, 0).weapon.action).toMatchObject({ kind: "draw", startedAt: 250 });
+    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id: "p0" }]);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(250 + 500);
+    expect(P(world, 0).drawStartedAt).toBe(100);
+    expect(RT(world, 0).weapon.action).toMatchObject({ kind: "draw", startedAt: 100 });
     expect(hpLost(world, 0)).toBeGreaterThan(0);
   });
 
@@ -677,7 +679,7 @@ describe("sword stagger, through real windups", () => {
 });
 
 describe("stagger immunity", () => {
-  /** A drawing archer at 40 u from p0, whose draw restarts whenever a sword stagger lands. */
+  /** A drawing archer at 40 u from p0: the stagger fx marks each stagger (a sword hit no longer restarts the draw). */
   function archerWorld(): World {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("sentenced", "bow", polar(ORIGIN, 40, 0))]);
     const now = world.state.serverTime;
@@ -687,20 +689,21 @@ describe("stagger immunity", () => {
   }
   const hitIt = (world: World): SimEvent[] => tick(world, [{ by: "p0", weapon: "sword", a: 0 }]);
 
-  it("lasts half a second: hits inside it still hurt but do not restart the draw", () => {
+  it("lasts half a second: hits inside it still hurt but do not stagger again", () => {
     expect(STAGGER_IMMUNITY_SECONDS * 1000).toBe(500);
     const world = archerWorld();
+    const drawStart = P(world, 1).drawStartedAt;
     const first = hitIt(world);
     const t0 = world.state.serverTime;
     expect(fxOf(first, "stagger")).toHaveLength(1);
-    expect(P(world, 1).drawStartedAt).toBe(t0);
+    expect(P(world, 1).drawStartedAt).toBe(drawStart); // the draw is not touched
     let lost = hpLost(world, 1);
     // A hit every tick for the next 450 ms.
     for (let ms = 50; ms <= 450; ms += 50) {
       const events = hitIt(world);
       expect(world.state.serverTime).toBe(t0 + ms);
       expect(fxOf(events, "stagger"), `${ms} ms`).toEqual([]);
-      expect(P(world, 1).drawStartedAt, `${ms} ms`).toBe(t0);
+      expect(P(world, 1).drawStartedAt, `${ms} ms`).toBe(drawStart);
       expect(hpLost(world, 1), `${ms} ms`).toBeGreaterThan(lost);
       lost = hpLost(world, 1);
     }
@@ -716,7 +719,7 @@ describe("stagger immunity", () => {
     const again = hitIt(world); // t0 + 500
     expect(world.state.serverTime).toBe(t0 + 500);
     expect(fxOf(again, "stagger")).toHaveLength(1);
-    expect(P(world, 1).drawStartedAt).toBe(t0 + 500);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(t0 + 1000);
   });
 
   it("two swordsmen landing on one target in the same tick stagger it once", () => {
@@ -975,47 +978,47 @@ describe("balls in real fights", () => {
 // ---- exact numbers ------------------------------------------------------------------------------------------------
 
 describe("damage through the faction formula", () => {
-  // Fire's axe: rate 0.6 x hit 150 x DUEL_PACE 2 x dpsMult 0.9 x interval 1 / (0.6 x 1.4) = 96.43 x 2 = 192.857 raw, all
+  // Fire's axe: rate 0.6 x hit 150 x DUEL_PACE 2 x dpsMult 0.8 x interval 1 / (0.6 x 1.4) = 85.71 x 2 = 171.43 raw, all
   // magic. It lands 250 ms after the press: the sixth step.
-  const FIRE_AXE = 162 / 0.84;
-  const SWORD_PLAGUE = 40 / 2.15;
+  const FIRE_AXE = 144 / 0.84;
+  const SWORD_PLAGUE = 30 / 2.15;
 
-  it("Fire's axe on a dummy does 192.857 and moves nobody", () => {
+  it("Fire's axe on a dummy does 171.429 and moves nobody", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("holy", "wand", FAR)]);
     const d = dummy(world, polar(ORIGIN, 40, 0));
     tap(world, 0, 0);
     const events = run(world, 6);
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(FIRE_AXE, 9);
-    expect(FIRE_AXE).toBeCloseTo(192.857, 3);
+    expect(FIRE_AXE).toBeCloseTo(171.429, 3);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: d, by: "p0", amount: expect.closeTo(FIRE_AXE, 9), weapon: "axe" }]);
     run(world, 10);
     expect({ x: mob(world, d).x, y: mob(world, d).y }).toEqual(polar(ORIGIN, 40, 0));
     expect({ x: P(world, 0).x, y: P(world, 0).y }).toEqual(ORIGIN);
   });
 
-  it("Fire's axe on Frost is cut by Frost's shield (100): 96.43", () => {
+  it("Fire's axe on Frost is cut by Frost's shield (100): 85.71", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(96.4286, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(85.7143, 3);
   });
 
-  it("the axe pierces Frost's raised shield for the same 96.43", () => {
+  it("the axe pierces Frost's raised shield for the same 85.71", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
     tap(world, 0, 0);
     const events = run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(96.4286, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(85.7143, 3);
     expect(fxOf(events, "block")).toEqual([]);
   });
 
-  it("Plague's sword (80% physical, 20% magic) on a dummy does 18.605, on Frost 9.302", () => {
+  it("Plague's sword (80% physical, 20% magic) on a dummy does 13.953, on Frost 6.977", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     const d = dummy(world, polar(ORIGIN, 40, 20));
     tap(world, 0, 0);
     run(world, 3); // lands at 200 ms
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(SWORD_PLAGUE, 9);
     expect(hpLost(world, 1)).toBeCloseTo(SWORD_PLAGUE / 2, 9); // armor 100 and shield 100 both halve it
-    expect(SWORD_PLAGUE).toBeCloseTo(18.6047, 4);
+    expect(SWORD_PLAGUE).toBeCloseTo(13.9535, 4);
   });
 
   it("Frost's bash on Demon Blood (shield 250, armor 0): 90% physical, 10% magic", () => {
@@ -1033,7 +1036,7 @@ describe("damage through the faction formula", () => {
     // Plague: armor 200 on its 80% physical, no shield on its 20% magic.
     const riposte = SWORD_PLAGUE * RIPOSTE_SHARE * (0.8 / 3 + 0.2);
     expect(hpLost(world, 0)).toBeCloseTo(riposte, 9);
-    expect(riposte).toBeCloseTo(4.3411, 4);
+    expect(riposte).toBeCloseTo(3.2558, 4);
     expect(hpLost(world, 1)).toBe(0);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "p0", by: "p1", amount: expect.closeTo(riposte, 9), weapon: "shield" }]);
     expect(fxOf(events, "stagger")).toEqual([]);
@@ -1116,5 +1119,5 @@ describe("simultaneous swings", () => {
   });
 });
 
-/** Plague's sword on a Plague body: 18.605 raw, 80% physical through armor 200, 20% magic through shield 0. */
-const SWORD_PLAGUE_VS_PLAGUE = (40 / 2.15) * (0.8 / 3 + 0.2);
+/** Plague's sword on a Plague body: 13.953 raw, 80% physical through armor 200, 20% magic through shield 0. */
+const SWORD_PLAGUE_VS_PLAGUE = (30 / 2.15) * (0.8 / 3 + 0.2);

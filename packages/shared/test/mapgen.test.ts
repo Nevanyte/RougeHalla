@@ -3,6 +3,7 @@
 // generated once and shared.
 import { describe, expect, it, vi } from "vitest";
 import { EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE } from "../src/constants";
+import { WEAPONS } from "../src/weapons";
 import {
   REGION_COLISEUM,
   REGION_FACTIONS,
@@ -2007,10 +2008,15 @@ describe("anti-kiting cover", () => {
     return worst;
   };
 
-  it("pins the corridor constants: MAX_SIGHT_CORRIDOR is the bow's range, SIGHT_CORRIDOR_WIDTH one tile", () => {
-    // 480 is the bow's range (docs/GAME_DESIGN.md, weapons table: "Arrow, fast (900 u/s), range 480"). When Phase 9's
-    // weapons.ts lands, compare MAX_SIGHT_CORRIDOR to the bow's range constant there instead of to this literal.
+  it("pins the corridor constants: MAX_SIGHT_CORRIDOR covers the bow's range, SIGHT_CORRIDOR_WIDTH one tile", () => {
+    // 480 was the bow's range until the 9.1 tuning cut it to 260 (docs/GAME_DESIGN.md 9.1). The cap stays at 480: mapgen's
+    // covers and spawn screens are certified for it, and a longer cap than the bow needs only makes the screens safer.
+    // It must never fall below a projectile's range.
     expect(MAX_SIGHT_CORRIDOR).toBe(480);
+    for (const w of [WEAPONS.bow, WEAPONS.wand]) {
+      if (w.shape.kind !== "projectile") throw new Error("projectile");
+      expect(w.shape.range).toBeLessThanOrEqual(MAX_SIGHT_CORRIDOR);
+    }
     // One tile wide: the width the generator's line lattice certifies (see the containment test below).
     expect(SIGHT_CORRIDOR_WIDTH).toBe(32);
   });

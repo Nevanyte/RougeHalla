@@ -8,11 +8,14 @@ import {
   cellsOf, DEFAULT_CAPS, edgeName, fullSetups, formatEnds, formatHp, formatMatrix, isWatched, pooled, quickSetups,
   runMatrix, statsOf, stylesOf, WATCH, type Cell, type Edge, type MatrixOptions, type Setup, type Style,
 } from "./matrix";
+import { kitingReport } from "./kiting";
 import { formatParity, parityReport, type ParityReport } from "./parity";
 
 export interface ReportOptions {
-  /** Three setups instead of eighteen, and no sensitivity or cluttered-arena passes. */
+  /** Three setups instead of eighteen, and no style grids, sensitivity or cluttered-arena passes. */
   quick?: boolean;
+  /** The full matrix, the style grids, the edge verdicts and the kiting table, without the client-view and cluttered-arena passes (tuning runs). */
+  core?: boolean;
   /** Exactly these setups (a test's reduced matrix). */
   setups?: readonly Setup[];
   edges?: readonly Edge[];
@@ -306,6 +309,13 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   out.push(...formatVerdicts(verdicts, quick));
   out.push("");
 
+  log("kiting");
+  out.push(heading("KITING  the real sim: seconds until a melee fighter's first hit on a shooter that starts at the edge of its range, by how the shooter plays"));
+  const kiting = kitingReport(factions);
+  out.push(...kiting.text.map((l) => `  ${l}`));
+  duels += kiting.cells.length * factions.length;
+  out.push("");
+
   out.push(heading("WHAT EACH WEAPON DID  (main pass, per duel: swings, casts and shots started -> hits landed; the shield's hits include ripostes and reflected arrows)"));
   out.push(...weaponLines(cells));
   out.push("  spacing the clients play with (shared/policies.ts POLICIES, world units, centre to centre):");
@@ -316,7 +326,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   }
   out.push("");
 
-  if (!quick) {
+  if (!quick && !opts.core) {
     const columns: Array<{ name: string; cells: readonly Cell[] }> = [];
     for (const p of ["client", "stale", "present"] as Perception[]) {
       log(`client view pass: ${p}`);

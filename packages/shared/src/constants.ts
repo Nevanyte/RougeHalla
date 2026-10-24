@@ -35,8 +35,10 @@ export const WEAPON_SLOTS = 2;
 /**
  * Anti-kiting: with the coliseum gates open, mapgen guarantees that every straight strip SIGHT_CORRIDOR_WIDTH (one
  * tile) wide, at any angle and offset, runs at most MAX_SIGHT_CORRIDOR through open floor. Open floor includes every
- * region, the gates-closed coliseum and lines through the gates. The cap is the bow's range, so an archer gets its
- * full range of free fire on a chaser but can't backpedal forever. Narrower corridors are not guaranteed: a 24 u gap
+ * region, the gates-closed coliseum and lines through the gates. The cap was the bow's range (480) so an archer could
+ * not backpedal forever; the 9.1 tuning cut the bow to 260 and the wand to 240 (and nearly rooted them while they shoot), so
+ * today it only has to stay at or above every projectile's range, and the spawn screens are certified for the full 480.
+ * Narrower corridors are not guaranteed: a 24 u gap
  * (PLAYER_RADIUS is 12, so a player fits) measured up to 473 u and a 16 u gap up to about 580 u. The owner deferred those.
  */
 export const MAX_SIGHT_CORRIDOR = 480;
@@ -123,10 +125,14 @@ export const SWORD_BALL_SCALE = 0.5;
 export const STAGGER_IMMUNITY_SECONDS = 0.5;
 /** Swapping weapons cancels the current action and adds this to the shared attack cooldown. */
 export const SWAP_SECONDS = 0.25;
-/** Move speed multipliers: drawing a bow, a wand's cast slow, and after any ranged attack until the cooldown ends. */
-export const BOW_DRAW_MOVE = 0.75;
-export const WAND_CAST_MOVE = 0.35;
-export const RANGED_RECOVERY_MOVE = 0.5;
+/**
+ * Move speed multipliers: drawing a bow, a wand's cast slow, and after any ranged attack until the cooldown ends. They are
+ * nearly a root on purpose (9.1 tuning): a shooter that backs away while it fires gets only a few percent more free fire
+ * than one that stands, so the design's standing-shooter check (testing/realtime.py, `kite`) holds in the real sim.
+ */
+export const BOW_DRAW_MOVE = 0.1;
+export const WAND_CAST_MOVE = 0.1;
+export const RANGED_RECOVERY_MOVE = 0.1;
 /** A press this long before the cooldown ends still attacks the moment it does, even if released meanwhile. */
 export const ATTACK_BUFFER_MS = 150;
 /** With no aim input for this long, walking turns a fighter again (a client that stopped aiming, such as a bot). */

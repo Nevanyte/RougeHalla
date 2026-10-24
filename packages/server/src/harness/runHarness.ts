@@ -10,7 +10,8 @@ import { buildReport, type ReportOptions } from "./report";
 
 const USAGE = [
   "usage: npm run harness -w @raid/server [-- options]",
-  "  --quick               three setups per cell, no sensitivity or cluttered-arena passes",
+  "  --quick               three setups per cell, no style grids, sensitivity or cluttered-arena passes",
+  "  --core                the full matrix, grids, verdicts and kiting, without the client-view and cluttered-arena passes",
   "  --faction a,b         only these factions (fire, sentenced, plague, frost, holy)",
   "  --edge w>l,w>l        only these designed edges, e.g. wand>bow,sword>wand",
   "  --perception p        client (default), stale or present: what the clients read (see duel.ts)",
@@ -38,6 +39,7 @@ function parseArgs(argv: string[]): ReportOptions & { quiet: boolean } {
     };
     switch (flag) {
       case "--quick": opts.quick = true; break;
+      case "--core": opts.core = true; break;
       case "--quiet": opts.quiet = true; break;
       case "--faction": {
         const ids = value().split(",");

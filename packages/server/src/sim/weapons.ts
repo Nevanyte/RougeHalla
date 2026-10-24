@@ -128,8 +128,10 @@ function endPending(world: World, c: Combatant): void {
 }
 
 /**
- * An unblocked sword hit landed on `c`: cancel its windup or cast (the cooldown stays spent) or restart its bow draw,
- * then STAGGER_IMMUNITY_SECONDS of immunity. Returns false (and does nothing) while it is immune.
+ * An unblocked sword hit landed on `c`: cancel its windup or cast (the cooldown stays spent), then
+ * STAGGER_IMMUNITY_SECONDS of immunity. A bow draw is not interrupted (9.1 tuning): restarting it made every sword hit
+ * cost the archer a whole draw, ~70 per duel, and the bow could never win the close trade. Returns false (and does
+ * nothing) while it is immune.
  */
 export function stagger(world: World, c: Combatant): boolean {
   const w = c.rt.weapon;
@@ -137,10 +139,7 @@ export function stagger(world: World, c: Combatant): boolean {
   if (now < w.staggerImmuneUntil) return false;
   w.staggerImmuneUntil = staggerImmuneUntil(now);
   const act = w.action;
-  if (act?.kind === "draw") {
-    act.startedAt = now;
-    c.s.drawStartedAt = now;
-  } else if (act) {
+  if (act && act.kind !== "draw") {
     endPending(world, c);
     w.action = null;
   }

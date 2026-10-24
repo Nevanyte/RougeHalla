@@ -25,20 +25,21 @@ function melee(w: WeaponId): SpacingPolicy {
   return { far: reach * 0.85, attackRange: reach + PLAYER_RADIUS - 6, retreatBelow: 0, leadSpeed: 0 };
 }
 
-function ranged(w: WeaponId, far: number, attackShare: number, retreatBelow: number): SpacingPolicy {
+/** Ranged spacing as shares of the weapon's range, so retuning a range carries the way it is played with it. */
+function ranged(w: WeaponId, farShare: number, attackShare: number, retreatShare: number): SpacingPolicy {
   const shape = WEAPONS[w].shape;
   const range = shape.kind === "projectile" ? shape.range : 0;
   const speed = shape.kind === "projectile" ? shape.speed : 0;
-  return { far, attackRange: range * attackShare, retreatBelow, leadSpeed: speed };
+  return { far: range * farShare, attackRange: range * attackShare, retreatBelow: range * retreatShare, leadSpeed: speed };
 }
 
 export const POLICIES: Readonly<Record<WeaponId, SpacingPolicy>> = {
   sword: melee("sword"),
   axe: melee("axe"),
   shield: melee("shield"),
-  bow: ranged("bow", 400, 0.92, 220),
-  // Balls are slow (380 u/s): fight closer, so a target can't simply walk out of the way.
-  wand: ranged("wand", 280, 0.8, 160),
+  bow: ranged("bow", 400 / 480, 0.92, 220 / 480),
+  // Balls are slow: fight closer, so a target can't simply walk out of the way.
+  wand: ranged("wand", 280 / 420, 0.8, 160 / 420),
 };
 
 /** What the fighter sees this moment. Positions are world units; times seconds. */
