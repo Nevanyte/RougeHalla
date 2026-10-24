@@ -14,13 +14,15 @@ import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
 
 /**
  * Joins the lobby with a faction (a server default until the Phase 10 picker: round-robin over join order), its hp,
- * and its signature weapon in the first slot. Nothing is brought in from outside the run.
+ * and its signature weapon in the first slot. Nothing is brought in from outside the run except `look`, the packed
+ * cosmetics word (cosmetics.ts) the Room worked out from the profile: it is shown to everyone and changes nothing else.
  */
-export function addPlayer(world: World, id: string, profile: string): PlayerState {
+export function addPlayer(world: World, id: string, profile: string, look = 0): PlayerState {
   const s = world.state;
   const p = new PlayerState();
   const faction = defaultFaction(world.joined++);
   p.name = profile;
+  p.look = look >>> 0;
   p.faction = faction;
   p.hp = FACTIONS[faction].hp;
   p.maxHp = FACTIONS[faction].hp;

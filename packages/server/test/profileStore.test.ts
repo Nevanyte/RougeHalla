@@ -3,7 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, type RunOutcome } from "@raid/shared";
+import {
+  ACHIEVEMENTS, COSMETICS, COSMETIC_SLOTS, GOLD_FACTIONS, GOLD_WEAPONS, LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT,
+  mulberry32, type RunOutcome,
+} from "@raid/shared";
 import {
   InvalidProfileNameError, JsonProfileStore, ProfileFileError, ProfileForbiddenError, UnknownProfileError,
   type Clock, type ProfileRecord,
@@ -47,6 +50,9 @@ const readFile = (f = file) => JSON.parse(fs.readFileSync(f, "utf8"));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const withSuffix = (d: string, suffix: string) => fs.readdirSync(d).filter((n) => n.startsWith(`stash.json.${suffix}`));
 const run = (outcome: RunOutcome, kills = 0, gv = 0) => ({ outcome, kills, gv });
+/** A win that passed the anti alt-farming gate: the only kind that counts toward win achievements. */
+const qwin = (kills = 0, gv = 0, extra: { faction?: string; weapon?: string; bounty?: number } = {}) =>
+  ({ outcome: "won" as const, kills, gv, winQualified: true, ...extra });
 /** Keeps the expected startup chatter out of the test output, and lets a test look at it. */
 const quiet = () => ({
   log: vi.spyOn(console, "log").mockImplementation(() => {}),
@@ -65,16 +71,26 @@ async function waitReal(pred: () => boolean, what: string): Promise<void> {
 }
 
 const zeroStats = { runs: 0, wins: 0, draws: 0, deaths: 0, kills: 0 };
+const zeroProgress = () => ({ qualifiedWins: 0, bountyRuns: 0, bestRunKills: 0, winsByFaction: {}, winsByWeapon: {} });
 const emptyRecord = (name: string, token: string): ProfileRecord => ({
   name, token, gv: 0, gvLifetime: 0, gvByMonth: {}, stats: { ...zeroStats }, cosmetics: { owned: [], equipped: {} },
+  achievements: {}, progress: zeroProgress(),
 });
 
-/** A profile with something in every field, as the v2 file holds it. */
+const UNLOCKED_AT = 1_700_000_000_000;
+/**
+ * A profile with something in every field, as the v2 file holds it. It is settled: it already holds every achievement
+ * its counters earn, so banking another run in a test unlocks (and grants) nothing behind the test's back.
+ */
 const goodProfile = {
   name: "alice", token: "t-alice", gv: 120, gvLifetime: 300,
   gvByMonth: { "2026-09": 100, "2026-10": 200 },
   stats: { runs: 9, wins: 2, draws: 1, deaths: 6, kills: 14 },
   cosmetics: { owned: ["cape-red", "trail-blue"], equipped: { cape: "cape-red" } },
+  achievements: {
+    first_blood: UNLOCKED_AT, slayer: UNLOCKED_AT, bounty_hunter: UNLOCKED_AT, first_win: UNLOCKED_AT, win_fire: UNLOCKED_AT,
+  },
+  progress: { qualifiedWins: 2, bountyRuns: 1, bestRunKills: 4, winsByFaction: { fire: 2 }, winsByWeapon: { axe: 1 } },
 };
 const bobby = (patch: Record<string, unknown> = {}) => ({ ...goodProfile, name: "bobby", token: "t-bobby", ...patch });
 const v2 = (profiles: unknown) => JSON.stringify({ version: 2, profiles });
@@ -87,7 +103,7 @@ describe("claim", () => {
     expect(created).toBe(true);
     expect(token).toMatch(/^[0-9a-f-]{36}$/);
     expect(record).toEqual(emptyRecord("alice", token));
-    expect(Object.keys(record).sort()).toEqual(["cosmetics", "gv", "gvByMonth", "gvLifetime", "name", "stats", "token"]);
+    expect(Object.keys(record).sort()).toEqual(["achievements", "cosmetics", "gv", "gvByMonth", "gvLifetime", "name", "progress", "stats", "token"]);
   });
 
   it("gives every profile its own token", () => {
@@ -170,6 +186,10 @@ describe("claim", () => {
       record.stats.runs = 99;
       record.cosmetics.owned.push("hat");
       record.cosmetics.equipped.hat = "hat";
+      record.achievements.first_win = 1;
+      record.progress.bountyRuns = 99;
+      record.progress.winsByFaction.fire = 99;
+      record.progress.winsByWeapon.axe = 99;
       record.token = "hijacked";
       expect(store.get("alice")).toEqual(emptyRecord("alice", token));
     });
@@ -183,6 +203,11 @@ describe("claim", () => {
       snap.stats.kills = 0;
       snap.cosmetics.owned.length = 0;
       snap.cosmetics.equipped.cape = "gone";
+      snap.achievements.first_win = 0;
+      delete snap.achievements.slayer;
+      snap.progress.bestRunKills = 0;
+      snap.progress.winsByFaction.fire = 99;
+      snap.progress.winsByWeapon.bow = 1;
       expect(store.get("alice")).toEqual(goodProfile);
       expect(store.claim("alice", "t-alice").record).toEqual(goodProfile);
     });
@@ -191,7 +216,13 @@ describe("claim", () => {
       const store = seeded();
       const a = store.get("alice")!;
       const b = store.get("alice")!;
-      for (const dict of [a.gvByMonth, a.cosmetics.equipped, a.stats]) expect(Object.getPrototypeOf(dict)).toBe(Object.prototype);
+      for (const dict of [a.gvByMonth, a.cosmetics.equipped, a.stats, a.achievements, a.progress, a.progress.winsByFaction, a.progress.winsByWeapon]) {
+        expect(Object.getPrototypeOf(dict)).toBe(Object.prototype);
+      }
+      expect(a.achievements).not.toBe(b.achievements);
+      expect(a.progress).not.toBe(b.progress);
+      expect(a.progress.winsByFaction).not.toBe(b.progress.winsByFaction);
+      expect(a.progress.winsByWeapon).not.toBe(b.progress.winsByWeapon);
       expect(a.gvByMonth).not.toBe(b.gvByMonth);
       expect(a.cosmetics.owned).not.toBe(b.cosmetics.owned);
       expect(a.cosmetics.equipped).not.toBe(b.cosmetics.equipped);
@@ -230,6 +261,84 @@ describe("recordRun", () => {
     expect(store.get("alice")!.stats).toEqual({ runs: 3, wins: 1, draws: 1, deaths: 1, kills: 0 });
     store.recordRun("alice", run("mia"));
     expect(store.get("alice")!.stats).toEqual({ runs: 4, wins: 1, draws: 1, deaths: 2, kills: 0 });
+  });
+
+  describe("qualified wins", () => {
+    const fresh = () => {
+      const store = open(file);
+      store.claim("alice");
+      return store;
+    };
+
+    it("a win without winQualified counts as a win and a run, but in none of the qualified counters", () => {
+      const store = fresh();
+      store.recordRun("alice", { ...run("won", 0, 30), faction: "fire", weapon: "axe" });
+      const r = store.get("alice")!;
+      expect(r.stats).toEqual({ runs: 1, wins: 1, draws: 0, deaths: 0, kills: 0 });
+      expect(r.progress).toEqual(zeroProgress());
+      expect(r.gv).toBe(30);
+      expect(r.achievements).toEqual({});
+      expect(r.cosmetics.owned).toEqual([]);
+    });
+
+    it.each([undefined, false])("winQualified %s is the same as leaving it out", (flag) => {
+      const store = fresh();
+      store.recordRun("alice", { ...run("won"), faction: "fire", weapon: "axe", winQualified: flag });
+      expect(store.get("alice")!.progress).toEqual(zeroProgress());
+      expect(store.get("alice")!.stats.wins).toBe(1);
+    });
+
+    it.each<[string, unknown]>([["1", 1], ["the string true", "true"], ["an object", {}], ["a list", [true]], ["null", null]])(
+      "only the boolean true qualifies a win (%s does not)",
+      (_label, flag) => {
+        const store = fresh();
+        store.recordRun("alice", { ...run("won"), faction: "fire", weapon: "axe", winQualified: flag as boolean });
+        expect(store.get("alice")!.progress).toEqual(zeroProgress());
+      },
+    );
+
+    it("a qualified win counts as a win, a qualified win, a win for its faction and a win for its weapon", () => {
+      const store = fresh();
+      store.recordRun("alice", qwin(2, 40, { faction: "holy", weapon: "wand" }));
+      const r = store.get("alice")!;
+      expect(r.stats).toEqual({ runs: 1, wins: 1, draws: 0, deaths: 0, kills: 2 });
+      expect(r.progress).toEqual({ qualifiedWins: 1, bountyRuns: 0, bestRunKills: 2, winsByFaction: { holy: 1 }, winsByWeapon: { wand: 1 } });
+    });
+
+    it.each(["died", "draw", "mia"] as const)("the flag on a %s counts nothing: only a win can be a qualified win", (outcome) => {
+      const store = fresh();
+      store.recordRun("alice", { ...run(outcome, 0, 10), faction: "fire", weapon: "axe", winQualified: true });
+      expect(store.get("alice")!.progress).toEqual(zeroProgress());
+      expect(store.get("alice")!.stats.wins).toBe(0);
+    });
+
+    it("stats.wins counts every win, the qualified counters only the qualified ones", () => {
+      const store = fresh();
+      for (let i = 0; i < 3; i++) store.recordRun("alice", { ...run("won"), faction: "fire", weapon: "axe" });
+      for (let i = 0; i < 2; i++) store.recordRun("alice", qwin(0, 0, { faction: "fire", weapon: "axe" }));
+      store.recordRun("alice", { ...run("won"), faction: "frost", weapon: "bow" });
+      const r = store.get("alice")!;
+      expect([r.stats.runs, r.stats.wins]).toEqual([6, 6]);
+      expect(r.progress).toEqual({ ...zeroProgress(), qualifiedWins: 2, winsByFaction: { fire: 2 }, winsByWeapon: { axe: 2 } });
+    });
+
+    it("the gate touches only wins: kills, the best run, bounty runs and GV count for a walkover as for anything else", () => {
+      const store = fresh();
+      store.recordRun("alice", { ...run("won", 4, 50), bounty: 20, faction: "fire", weapon: "axe" });
+      const r = store.get("alice")!;
+      expect(r.stats.kills).toBe(4);
+      expect(r.progress).toEqual({ ...zeroProgress(), bestRunKills: 4, bountyRuns: 1 });
+      expect([r.gv, r.gvLifetime, r.gvByMonth[OCT]]).toEqual([50, 50, 50]);
+    });
+
+    it("the counter survives a restart", async () => {
+      const store = fresh();
+      store.recordRun("alice", qwin(0, 0, { faction: "plague", weapon: "bow" }));
+      store.recordRun("alice", { ...run("won"), faction: "plague", weapon: "bow" });
+      await store.flush();
+      expect(readFile().profiles.alice.progress).toEqual({ ...zeroProgress(), qualifiedWins: 1, winsByFaction: { plague: 1 }, winsByWeapon: { bow: 1 } });
+      expect(open(file).get("alice")).toEqual(store.get("alice"));
+    });
   });
 
   it("adds kills, and banks the GV into the balance, the lifetime total and the current month", () => {
@@ -293,8 +402,15 @@ describe("recordRun", () => {
       const { error } = quiet();
       const store = open(file);
       store.claim("alice");
-      store.recordRun("alice", { outcome: "won", kills: 3, gv: bad as number });
-      expect(store.get("alice")).toEqual({ ...emptyRecord("alice", store.get("alice")!.token), stats: { ...zeroStats, runs: 1, wins: 1, kills: 3 } });
+      store.recordRun("alice", { ...qwin(3), gv: bad as number });
+      // No GV anywhere; the first kill and the first (qualified) win still unlock their achievements and grant their rewards.
+      expect(store.get("alice")).toEqual({
+        ...emptyRecord("alice", store.get("alice")!.token),
+        stats: { ...zeroStats, runs: 1, wins: 1, kills: 3 },
+        progress: { ...zeroProgress(), qualifiedWins: 1, bestRunKills: 3 },
+        achievements: { first_blood: now, first_win: now },
+        cosmetics: { owned: ["title-bloodied", "title-victor", "skin-laurel"], equipped: {} },
+      });
       expect(error).toHaveBeenCalledTimes(1);
       expect(String(error.mock.calls[0]![0])).toMatch(/alice.*gv/);
     });
@@ -340,7 +456,7 @@ describe("recordRun", () => {
     expect(store.get("alice")).toEqual(record);
   });
 
-  it("a clock that gives no usable date fails the call before anything changes; a run without GV never asks it", () => {
+  it("a clock that gives no usable date fails the call before anything changes; a run without GV needs no month from it", () => {
     const store = open(file, () => Number.NaN);
     const { record } = store.claim("alice");
     expect(() => store.recordRun("alice", run("won", 1, 5))).toThrow(RangeError);
@@ -427,14 +543,19 @@ describe("months", () => {
     expect(store.get("bobby")!.gvLifetime).toBe(60);
   });
 
-  it("the clock is read once per payout and only when there is GV to place", () => {
+  it("the month is read from the clock once per payout and only when there is GV to place", () => {
+    // Every banked run (but not a zero bankGv) also reads the clock once, for the time its achievements unlock at.
     const clock = vi.fn(() => now);
     const store = open(file, clock);
     store.claim("alice");
     store.recordRun("alice", run("died", 2, 0));
+    expect(clock).toHaveBeenCalledTimes(1); // the unlock stamp only: no GV, no month
+    clock.mockClear();
     store.bankGv("alice", 0);
     expect(clock).not.toHaveBeenCalled();
     store.recordRun("alice", run("won", 1, 9));
+    expect(clock).toHaveBeenCalledTimes(2); // the unlock stamp and the month
+    clock.mockClear();
     store.bankGv("alice", 4);
     expect(clock).toHaveBeenCalledTimes(2);
   });
@@ -540,11 +661,295 @@ describe("leaderboard", () => {
   });
 });
 
+describe("the ranking cache is invisible", () => {
+  const MONTHS = ["2026-09", OCT, "2026-11"] as const;
+  type Board = ReturnType<JsonProfileStore["leaderboard"]>;
+  const rows = (board: Board) => board.map(({ name, gv }) => ({ name, gv }));
+  /** Reads every view of the ranking so that whatever the store caches is warm before the next change. */
+  function warm(store: JsonProfileStore, months: readonly string[] = MONTHS): void {
+    for (const m of months) {
+      store.leaderboard(m, LEADERBOARD_MAX_LIMIT);
+      store.leaderboardRank(m, "alice");
+    }
+    store.leaderboardMonths(24);
+  }
+  function seeded(rowsByName: Record<string, number>): JsonProfileStore {
+    const store = open(file);
+    for (const [name, gv] of Object.entries(rowsByName)) {
+      store.claim(name);
+      store.bankGv(name, gv);
+    }
+    return store;
+  }
+
+  it("GV for a profile that was not on the board shows at once in the board, the rank and the months", () => {
+    const store = seeded({ alice: 30, bobby: 20 });
+    store.claim("carol");
+    store.claim("dave");
+    warm(store);
+    expect(rows(store.leaderboard(OCT, 10))).toEqual([{ name: "alice", gv: 30 }, { name: "bobby", gv: 20 }]);
+    expect(store.leaderboardRank(OCT, "carol")).toBeUndefined();
+
+    store.bankGv("carol", 25);
+    expect(rows(store.leaderboard(OCT, 10))).toEqual([{ name: "alice", gv: 30 }, { name: "carol", gv: 25 }, { name: "bobby", gv: 20 }]);
+    expect(store.leaderboardRank(OCT, "carol")).toEqual({ rank: 2, gv: 25 });
+    expect(store.leaderboardRank(OCT, "bobby")).toEqual({ rank: 3, gv: 20 });
+
+    store.recordRun("dave", run("died", 0, 100));
+    expect(rows(store.leaderboard(OCT, 10)).map((r) => r.name)).toEqual(["dave", "alice", "carol", "bobby"]);
+    expect(store.leaderboardRank(OCT, "dave")).toEqual({ rank: 1, gv: 100 });
+    expect(store.leaderboardRank(OCT, "alice")).toEqual({ rank: 2, gv: 30 });
+  });
+
+  it("GV for a profile that was already ranked moves it at once, whether it comes from bankGv or from a run", () => {
+    const store = seeded({ alice: 30, bobby: 20, carol: 10 });
+    warm(store);
+    store.bankGv("carol", 15); // 25: passes bobby
+    expect(store.leaderboardRank(OCT, "carol")).toEqual({ rank: 2, gv: 25 });
+    expect(store.leaderboardRank(OCT, "bobby")).toEqual({ rank: 3, gv: 20 });
+    store.recordRun("bobby", run("won", 0, 10)); // 30: ties alice, and "alice" < "bobby"
+    expect(rows(store.leaderboard(OCT, 10))).toEqual([{ name: "alice", gv: 30 }, { name: "bobby", gv: 30 }, { name: "carol", gv: 25 }]);
+    store.recordRun("bobby", run("died", 0, 1));
+    expect(store.leaderboardRank(OCT, "bobby")).toEqual({ rank: 1, gv: 31 });
+    expect(store.leaderboardRank(OCT, "alice")).toEqual({ rank: 2, gv: 30 });
+  });
+
+  it("a run that pays nothing leaves the ranking exactly as it was", () => {
+    const store = seeded({ alice: 30, bobby: 20 });
+    warm(store);
+    const before = [store.leaderboard(OCT, 10), store.leaderboardRank(OCT, "bobby"), store.leaderboardMonths(24)];
+    store.recordRun("bobby", run("won", 3, 0));
+    store.bankGv("bobby", 0);
+    expect([store.leaderboard(OCT, 10), store.leaderboardRank(OCT, "bobby"), store.leaderboardMonths(24)]).toEqual(before);
+  });
+
+  it("GV in another month shows at once there, even for a month whose empty board was already read, and leaves the others alone", () => {
+    const store = seeded({ alice: 30, bobby: 20 });
+    warm(store);
+    expect(store.leaderboard("2026-11", 10)).toEqual([]); // an empty board has been read
+    expect(store.leaderboardRank("2026-11", "alice")).toBeUndefined();
+    expect(store.leaderboardMonths(24)).toEqual([OCT]);
+
+    now = Date.UTC(2026, 10, 2);
+    store.bankGv("alice", 7);
+    expect(store.leaderboard("2026-11", 10)).toEqual([{ name: "alice", gv: 7 }]);
+    expect(store.leaderboardRank("2026-11", "alice")).toEqual({ rank: 1, gv: 7 });
+    expect(store.leaderboardMonths(24)).toEqual(["2026-11", OCT]);
+    expect(rows(store.leaderboard(OCT, 10))).toEqual([{ name: "alice", gv: 30 }, { name: "bobby", gv: 20 }]);
+
+    store.claim("carol");
+    store.recordRun("carol", run("died", 0, 9)); // a new profile, first ever GV in the new month
+    expect(rows(store.leaderboard("2026-11", 10))).toEqual([{ name: "carol", gv: 9 }, { name: "alice", gv: 7 }]);
+    now = Date.UTC(2027, 0, 1); // and a month that follows a year change
+    store.bankGv("bobby", 1);
+    expect(store.leaderboard("2027-01", 10)).toEqual([{ name: "bobby", gv: 1 }]);
+    expect(store.leaderboardMonths(24)).toEqual(["2027-01", "2026-11", OCT]);
+  });
+
+  it("a month is listed only once someone has more than 0 GV in it, and reading a board never lists it", () => {
+    quiet(); // the garbage amounts below are logged
+    const store = open(file);
+    store.claim("alice");
+    store.claim("bobby");
+    expect(store.leaderboard("2026-03", 10)).toEqual([]);
+    expect(store.leaderboardMonths(24)).toEqual([]);
+    store.recordRun("alice", run("won", 5, 0));
+    store.bankGv("alice", 0);
+    store.bankGv("alice", 0.9);
+    store.bankGv("alice", -3);
+    store.bankGv("alice", Number.NaN);
+    store.recordRun("bobby", { ...run("died", 0), gv: "12" as unknown as number });
+    expect(store.leaderboardMonths(24)).toEqual([]);
+    expect(store.leaderboard(OCT, 10)).toEqual([]);
+    store.bankGv("alice", 1);
+    expect(store.leaderboardMonths(24)).toEqual([OCT]);
+    expect(store.leaderboardRank(OCT, "bobby")).toBeUndefined(); // a profile with gv 0 never appears
+  });
+
+  it("months that hold only zeros in the file are not listed, and the first real GV lists the month", async () => {
+    fs.writeFileSync(file, v2({
+      alice: { ...goodProfile, gv: 0, gvLifetime: 0, gvByMonth: { "2026-03": 0, "2026-04": 0 } },
+      bobby: bobby({ gvByMonth: {} }),
+    }));
+    const store = open(file);
+    expect(store.leaderboardMonths(24)).toEqual([]);
+    expect(store.leaderboard("2026-03", 10)).toEqual([]);
+    now = Date.UTC(2026, 2, 9);
+    store.bankGv("alice", 4);
+    expect(store.leaderboardMonths(24)).toEqual(["2026-03"]);
+    expect(store.leaderboard("2026-03", 10)).toEqual([{ name: "alice", gv: 4 }]);
+    await store.flush();
+    expect(open(file).leaderboardMonths(24)).toEqual(["2026-03"]);
+  });
+
+  it("spending changes no ranking and removes no month", () => {
+    const store = open(file);
+    const token = store.claim("alice").token;
+    store.bankGv("alice", 200);
+    store.claim("bobby");
+    store.bankGv("bobby", 150);
+    now = Date.UTC(2026, 10, 2);
+    store.bankGv("alice", 100);
+    warm(store);
+    const before = MONTHS.map((m) => [store.leaderboard(m, 10), store.leaderboardRank(m, "alice")]);
+    const months = store.leaderboardMonths(24);
+
+    const bought = store.purchase("alice", token, "trail-ember"); // 100
+    store.purchase("alice", token, "skin-crimson"); // 40
+    expect(bought.ok).toBe(true);
+    expect(store.get("alice")!.gv).toBe(160);
+    expect(MONTHS.map((m) => [store.leaderboard(m, 10), store.leaderboardRank(m, "alice")])).toEqual(before);
+    expect(store.leaderboardMonths(24)).toEqual(months);
+    expect(store.leaderboardRank(OCT, "alice")).toEqual({ rank: 1, gv: 200 });
+  });
+
+  it("wearing a title shows on the next read even though the ranking itself is cached; nothing else about the row changes", () => {
+    const store = open(file);
+    const token = store.claim("alice").token;
+    store.bankGv("alice", 100);
+    store.claim("bobby");
+    store.bankGv("bobby", 50);
+    store.purchase("alice", token, "title-rookie");
+    warm(store);
+    expect(store.leaderboard(OCT, 10)).toStrictEqual([{ name: "alice", gv: 100 }, { name: "bobby", gv: 50 }]);
+    expect(store.equip("alice", token, "title", "title-rookie").ok).toBe(true);
+    expect(store.leaderboard(OCT, 10)).toStrictEqual([{ name: "alice", gv: 100, title: "title-rookie" }, { name: "bobby", gv: 50 }]);
+    expect(store.leaderboardRank(OCT, "alice")).toEqual({ rank: 1, gv: 100 });
+    expect(store.equip("alice", token, "title", null).ok).toBe(true);
+    expect(store.leaderboard(OCT, 10)).toStrictEqual([{ name: "alice", gv: 100 }, { name: "bobby", gv: 50 }]);
+  });
+
+  it("a board a caller has mangled cannot corrupt the next call", () => {
+    const store = seeded({ alice: 30, bobby: 20, carol: 10 });
+    const expected = [{ name: "alice", gv: 30 }, { name: "bobby", gv: 20 }, { name: "carol", gv: 10 }];
+    const first = store.leaderboard(OCT, 10);
+    expect(first).toEqual(expected);
+    first[0]!.gv = 9999;
+    first[1]!.name = "mallory";
+    first.reverse();
+    first.pop();
+    first.length = 0;
+    const second = store.leaderboard(OCT, 10);
+    expect(second).toEqual(expected);
+    expect(second).not.toBe(first);
+    second.splice(0, 2);
+    second.push({ name: "zed", gv: 1 });
+    expect(store.leaderboard(OCT, 10)).toEqual(expected);
+    expect(store.leaderboard(OCT, 2)).toEqual(expected.slice(0, 2));
+    expect(store.leaderboardRank(OCT, "bobby")).toEqual({ rank: 2, gv: 20 });
+    expect(store.leaderboardRank(OCT, "mallory")).toBeUndefined();
+
+    const months = store.leaderboardMonths(10);
+    months.push("1999-01");
+    months.reverse();
+    months.length = 0;
+    expect(store.leaderboardMonths(10)).toEqual([OCT]);
+  });
+
+  it("two stores opened on the same file give the same ranking, rank and months", async () => {
+    const writer = open(file);
+    for (let i = 0; i < 40; i++) {
+      writer.claim(`p${i}`);
+      writer.bankGv(`p${i}`, 1 + (i % 7)); // plenty of ties
+    }
+    now = Date.UTC(2026, 10, 3);
+    for (let i = 0; i < 40; i += 3) writer.bankGv(`p${i}`, 5);
+    await writer.flush();
+    const a = open(file);
+    const b = open(file);
+    for (const m of [...MONTHS, "2020-01"]) {
+      const board = a.leaderboard(m, LEADERBOARD_MAX_LIMIT);
+      expect(b.leaderboard(m, LEADERBOARD_MAX_LIMIT), m).toStrictEqual(board);
+      expect(writer.leaderboard(m, LEADERBOARD_MAX_LIMIT), m).toStrictEqual(board);
+      for (const [i, row] of board.entries()) {
+        expect(a.leaderboardRank(m, row.name)).toEqual({ rank: i + 1, gv: row.gv });
+        expect(b.leaderboardRank(m, row.name)).toEqual({ rank: i + 1, gv: row.gv });
+      }
+    }
+    expect(a.leaderboardMonths(24)).toEqual(["2026-11", OCT]);
+    expect(b.leaderboardMonths(24)).toEqual(a.leaderboardMonths(24));
+    expect(writer.leaderboardMonths(24)).toEqual(a.leaderboardMonths(24));
+  });
+
+  it("a store opened on a file that already holds GV ranks it the same as the store that wrote it, after more GV too", async () => {
+    const first = seeded({ alice: 30, bobby: 20 });
+    warm(first);
+    first.bankGv("bobby", 20);
+    await first.flush();
+    const second = open(file);
+    expect(second.leaderboard(OCT, 10)).toEqual(first.leaderboard(OCT, 10));
+    // Settled one after the other: two stores writing at once would share one temp path.
+    second.bankGv("alice", 15);
+    await second.flush();
+    first.bankGv("alice", 15);
+    await first.flush();
+    expect(second.leaderboard(OCT, 10)).toEqual(first.leaderboard(OCT, 10));
+    expect(second.leaderboardRank(OCT, "alice")).toEqual({ rank: 1, gv: 45 });
+  });
+
+  it("matches a brute-force ranking at every step of a seeded random mix of claims, payouts, purchases, titles and month changes", () => {
+    const rng = mulberry32(20261023);
+    const below = (n: number) => Math.floor(rng() * n);
+    const store = open(file);
+    const names: string[] = [];
+    const tokens = new Map<string, string>();
+    const clocks = [Date.UTC(2026, 8, 5), Date.UTC(2026, 9, 5), Date.UTC(2026, 10, 5)];
+    now = clocks[1]!;
+
+    const oracleBoard = (month: string) =>
+      names
+        .map((n) => store.get(n)!)
+        .filter((r) => (r.gvByMonth[month] ?? 0) > 0)
+        .map((r) => {
+          const title = r.cosmetics.equipped.title;
+          return { name: r.name, gv: r.gvByMonth[month]!, ...(title && r.cosmetics.owned.includes(title) ? { title } : {}) };
+        })
+        .sort((a, b) => b.gv - a.gv || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    const oracleMonths = () =>
+      [...new Set(names.flatMap((n) => Object.entries(store.get(n)!.gvByMonth).filter(([, gv]) => gv > 0).map(([m]) => m)))].sort().reverse();
+
+    for (let step = 0; step < 400; step++) {
+      const roll = below(100);
+      if (roll < 12 || names.length === 0) {
+        const name = `p${names.length}`;
+        tokens.set(name, store.claim(name).token);
+        names.push(name);
+        if (below(2) === 0) store.bankGv(name, 1 + below(30));
+      } else if (roll < 45) {
+        store.bankGv(names[below(names.length)]!, below(30));
+      } else if (roll < 70) {
+        const outcomes: RunOutcome[] = ["won", "died", "draw", "mia"];
+        store.recordRun(names[below(names.length)]!, run(outcomes[below(4)]!, below(4), below(40)));
+      } else if (roll < 80) {
+        const name = names[below(names.length)]!;
+        store.purchase(name, tokens.get(name)!, "title-rookie");
+        if (below(2) === 0) store.equip(name, tokens.get(name)!, "title", below(3) === 0 ? null : "title-rookie");
+      } else if (roll < 85) {
+        const name = names[below(names.length)]!;
+        store.purchase(name, tokens.get(name)!, "skin-crimson");
+      } else {
+        now = clocks[below(clocks.length)]!;
+      }
+
+      for (const month of [...MONTHS, "2020-01"]) {
+        const expected = oracleBoard(month);
+        expect(store.leaderboard(month, LEADERBOARD_MAX_LIMIT), `step ${step} ${month}`).toStrictEqual(expected.slice(0, LEADERBOARD_MAX_LIMIT));
+        const probe = names[below(names.length)]!;
+        const at = expected.findIndex((e) => e.name === probe);
+        expect(store.leaderboardRank(month, probe), `step ${step} ${month} ${probe}`).toEqual(at < 0 ? undefined : { rank: at + 1, gv: expected[at]!.gv });
+      }
+      expect(store.leaderboardMonths(24), `step ${step}`).toEqual(oracleMonths());
+    }
+    expect(names.length).toBeGreaterThan(30);
+    expect(oracleMonths().length).toBeGreaterThan(1);
+  });
+});
+
 describe("persistence", () => {
   it("writes the documented v2 file format on flush and leaves no temp file behind", async () => {
     const store = open(file);
     const { token } = store.claim("alice");
-    store.recordRun("alice", run("won", 2, 50));
+    store.recordRun("alice", qwin(2, 50));
     await store.flush();
     expect(readFile()).toEqual({
       version: 2,
@@ -552,7 +957,10 @@ describe("persistence", () => {
         alice: {
           name: "alice", token, gv: 50, gvLifetime: 50, gvByMonth: { [OCT]: 50 },
           stats: { runs: 1, wins: 1, draws: 0, deaths: 0, kills: 2 },
-          cosmetics: { owned: [], equipped: {} },
+          // The first kill and the first win unlocked their achievements and granted their rewards, in one step.
+          cosmetics: { owned: ["title-bloodied", "title-victor", "skin-laurel"], equipped: {} },
+          achievements: { first_blood: now, first_win: now },
+          progress: { qualifiedWins: 1, bountyRuns: 0, bestRunKills: 2, winsByFaction: {}, winsByWeapon: {} },
         },
       },
     });
@@ -650,6 +1058,150 @@ describe("persistence", () => {
   });
 });
 
+describe("extreme values", () => {
+  const MAX = Number.MAX_SAFE_INTEGER;
+
+  it("saturated counters, a broken-clock unlock time of 0, a full wardrobe and many achievements survive a flush and a reopen untouched", async () => {
+    const { error } = quiet();
+    const wardrobe = COSMETIC_SLOTS.map((slot) => COSMETICS.find((c) => c.slot === slot)?.id);
+    expect(wardrobe.every((id) => id !== undefined)).toBe(true); // a cosmetic for every slot, so all of them can be worn at once
+    const equipped = Object.fromEntries(COSMETIC_SLOTS.map((slot, i) => [slot, wardrobe[i]!]));
+    const unlockTimes = [0, MAX, 1_700_000_000_000];
+    const maxed = {
+      name: "alice", token: "t-alice", gv: MAX, gvLifetime: MAX,
+      gvByMonth: { "2000-01": MAX, "2026-09": 1, [OCT]: MAX, "9999-12": MAX },
+      stats: { runs: MAX, wins: MAX, draws: MAX, deaths: MAX, kills: MAX },
+      cosmetics: { owned: COSMETICS.map((c) => c.id), equipped },
+      achievements: Object.fromEntries(ACHIEVEMENTS.map((a, i) => [a.id, unlockTimes[i % 3]!])),
+      progress: {
+        qualifiedWins: MAX, bountyRuns: MAX, bestRunKills: MAX,
+        winsByFaction: Object.fromEntries(GOLD_FACTIONS.map((f) => [f, MAX])),
+        winsByWeapon: Object.fromEntries(GOLD_WEAPONS.map((w) => [w, MAX])),
+      },
+    };
+    fs.writeFileSync(file, v2({ alice: maxed, zed: { ...maxed, name: "zed", token: "t-zed" } }));
+
+    let broken = false;
+    const store = open(file, () => (broken ? Number.NaN : now));
+    expect(store.get("alice")).toEqual(maxed);
+
+    // Every counter is already at the ceiling: more of everything must stay there, not wrap past it or go to Infinity.
+    store.recordRun("alice", qwin(MAX, MAX, { faction: "fire", weapon: "axe", bounty: MAX }));
+    store.bankGv("alice", MAX);
+    store.recordRun("alice", run("died", 1, 1));
+    expect(store.get("alice")).toEqual(maxed);
+
+    // A profile whose achievements are all stamped 0 because the clock was unusable when it earned them.
+    store.claim("bobby");
+    broken = true;
+    const { unlocked } = store.recordRun("bobby", qwin(60, 0, { faction: "fire", weapon: "axe", bounty: 5 }));
+    broken = false;
+    expect(unlocked).toEqual(["first_blood", "slayer", "reaper", "rampage", "bounty_hunter", "first_win", "win_fire"]);
+    expect(Object.values(store.get("bobby")!.achievements)).toEqual(unlocked.map(() => 0));
+
+    const before = ["alice", "zed", "bobby"].map((n) => store.get(n));
+    await store.flush();
+    const text = fs.readFileSync(file, "utf8");
+    expect(text).toContain(`"gv":${MAX}`);
+
+    const back = open(file);
+    expect(["alice", "zed", "bobby"].map((n) => back.get(n))).toEqual(before);
+    expect(error).not.toHaveBeenCalled(); // nothing was dropped on the way back in
+    expect(Object.keys(readFile().profiles).sort()).toEqual(["alice", "bobby", "zed"]);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+
+    // The ranking copes with amounts at the ceiling: a tie there falls back to the name. The worn title rides along.
+    expect(back.leaderboard(OCT, 10)).toEqual([{ name: "alice", gv: MAX, title: equipped.title }, { name: "zed", gv: MAX, title: equipped.title }]);
+    expect(back.leaderboardRank(OCT, "zed")).toEqual({ rank: 2, gv: MAX });
+    expect(back.leaderboardMonths(2)).toEqual(["9999-12", OCT]);
+    // And it is still a working profile: spending lowers gv only, and the ceiling is a ceiling again afterwards.
+    expect(back.verifyToken("alice", "t-alice")).toBe(true);
+    back.bankGv("alice", 5);
+    expect(back.get("alice")).toEqual(maxed);
+  });
+});
+
+describe("a store with 50,000 profiles", () => {
+  it("answers 200 board and rank lookups fast, and the first call after a payout rebuilds the ranking correctly", { timeout: 30_000 }, () => {
+    const TOTAL = 50_000;
+    const ACTIVE = 2_000;
+    const profile = { qualifiedWins: 0, bountyRuns: 0, bestRunKills: 0, winsByFaction: {}, winsByWeapon: {} };
+    const stats = { runs: 3, wins: 1, draws: 0, deaths: 2, kills: 4 };
+    const cosmetics = { owned: [] as string[], equipped: {} };
+    const profiles: Record<string, unknown> = {};
+    const expected: Array<{ name: string; gv: number }> = [];
+    for (let i = 0; i < TOTAL; i++) {
+      const name = `p${String(i).padStart(5, "0")}`;
+      const active = i % (TOTAL / ACTIVE) === 0;
+      const gv = active ? 1 + ((i * 7919) % 997) : 0; // 2,000 profiles over under 1,000 values: ties all over the board
+      if (active) expected.push({ name, gv });
+      const gvByMonth = active ? { "2026-09": 5, [OCT]: gv } : i % 10 === 0 ? { "2026-09": 3 } : {};
+      profiles[name] = {
+        name, token: `t-${name}`, gv, gvLifetime: gv, gvByMonth, stats, cosmetics, achievements: {}, progress: profile,
+      };
+    }
+    const byGvThenName = (a: { name: string; gv: number }, b: { name: string; gv: number }) =>
+      b.gv - a.gv || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+    expected.sort(byGvThenName);
+    fs.writeFileSync(file, v2(profiles));
+
+    const store = open(file);
+    expect(store.leaderboardMonths(24)).toEqual([OCT, "2026-09"]);
+
+    const probes: Array<{ name: string; gv: number }> = [];
+    const boards: unknown[] = [];
+    const ranks: unknown[] = [];
+    // Counts full passes over a Map (the store keeps its profiles in one). The calls go through; only the count is kept.
+    const mapPasses = [vi.spyOn(Map.prototype, "values"), vi.spyOn(Map.prototype, "entries"), vi.spyOn(Map.prototype, "forEach"), vi.spyOn(Map.prototype, Symbol.iterator)];
+    const passes = () => mapPasses.reduce((n, spy) => n + spy.mock.calls.length, 0);
+    const started = performance.now();
+    for (let i = 0; i < 200; i++) {
+      boards.push(store.leaderboard(OCT, 20));
+      const probe = expected[(i * 37) % expected.length]!;
+      probes.push(probe);
+      ranks.push(store.leaderboardRank(OCT, probe.name));
+    }
+    const elapsed = performance.now() - started;
+    const loopPasses = passes();
+    // The bound is generous so it never flakes; the pass count below is what pins the cache. Without it every one of the
+    // 400 requests would walk all 50,000 profiles.
+    expect(elapsed).toBeLessThan(1500);
+    expect(loopPasses).toBeLessThanOrEqual(2); // the first request builds the month's ranking, the other 399 reuse it
+
+    const top = expected.slice(0, 20);
+    for (const board of boards) expect(board).toStrictEqual(top);
+    expect(ranks).toEqual(probes.map((p) => ({ rank: expected.indexOf(p) + 1, gv: p.gv })));
+
+    // A payout drops that month's cache; the next call rebuilds it and puts the newcomer where it belongs.
+    const sudden = "p00001"; // banked nothing so far
+    expect(store.leaderboardRank(OCT, sudden)).toBeUndefined();
+    store.bankGv(sudden, 5000);
+    const passesBefore = passes();
+    const rebuilt = performance.now();
+    const board = store.leaderboard(OCT, 20);
+    const rebuildMs = performance.now() - rebuilt;
+    const rebuildPasses = passes() - passesBefore;
+    store.leaderboardRank(OCT, sudden);
+    expect(passes() - passesBefore).toBe(rebuildPasses); // one rebuild serves the rank lookup too
+    expect(rebuildMs).toBeLessThan(1500);
+    expect(rebuildPasses).toBeGreaterThanOrEqual(1);
+    expect(rebuildPasses).toBeLessThanOrEqual(2);
+    expect(board).toStrictEqual([{ name: sudden, gv: 5000 }, ...top.slice(0, 19)]);
+    expect(store.leaderboardRank(OCT, sudden)).toEqual({ rank: 1, gv: 5000 });
+    expect(store.leaderboardRank(OCT, expected[0]!.name)).toEqual({ rank: 2, gv: expected[0]!.gv });
+    const last = expected.at(-1)!;
+    expect(store.leaderboardRank(OCT, last.name)).toEqual({ rank: ACTIVE + 1, gv: last.gv });
+
+    // Another month is rebuilt on its own, and the untouched one keeps its ranking.
+    now = Date.UTC(2026, 10, 2);
+    store.bankGv("p00002", 1);
+    expect(store.leaderboard("2026-11", 20)).toEqual([{ name: "p00002", gv: 1 }]);
+    expect(store.leaderboardMonths(24)).toEqual(["2026-11", OCT, "2026-09"]);
+    expect(store.leaderboard(OCT, 20)).toStrictEqual(board);
+    expect(store.leaderboard("2026-09", 3).map((e) => e.gv)).toEqual([5, 5, 5]);
+  });
+});
+
 describe("a v2 file", () => {
   it("is not touched, backed up or rewritten at startup, and says nothing", async () => {
     fs.writeFileSync(file, v2({ alice: goodProfile, bobby: bobby() }));
@@ -663,6 +1215,51 @@ describe("a v2 file", () => {
     expect([log, error, warn].map((s) => s.mock.calls.length)).toEqual([0, 0, 0]);
     expect(fs.readFileSync(file).equals(before)).toBe(true);
     expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+  });
+
+  describe("written before qualifiedWins existed", () => {
+    const { qualifiedWins: _q, ...legacyProgress } = goodProfile.progress;
+    const legacy = { ...goodProfile, stats: { ...goodProfile.stats, wins: 12 }, progress: legacyProgress };
+
+    it("loads with 0 qualified wins, not its old win count, and every other field intact", () => {
+      expect(legacy.progress).not.toHaveProperty("qualifiedWins");
+      fs.writeFileSync(file, v2({ alice: legacy }));
+      const { log, error } = quiet();
+      const r = open(file).get("alice")!;
+      expect(r.progress).toEqual({ ...legacyProgress, qualifiedWins: 0 });
+      expect(r.stats.wins).toBe(12);
+      expect({ ...r, progress: legacy.progress }).toEqual({ ...legacy, progress: legacy.progress });
+      expect([log, error].map((s) => s.mock.calls.length)).toEqual([0, 0]);
+    });
+
+    it("is an older file, not a damaged one: no backup and no rewrite until something changes", async () => {
+      const text = v2({ alice: legacy });
+      fs.writeFileSync(file, text);
+      const store = open(file);
+      await store.flush();
+      expect(fs.readFileSync(file, "utf8")).toBe(text);
+      expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+      store.bankGv("alice", 1);
+      await store.flush();
+      expect(readFile().profiles.alice.progress).toEqual({ ...legacyProgress, qualifiedWins: 0 });
+    });
+
+    it("a profile with no progress block at all loads with 0 as well", () => {
+      const { progress: _p, ...noProgress } = legacy;
+      fs.writeFileSync(file, v2({ alice: noProgress }));
+      expect(open(file).get("alice")!.progress).toEqual(zeroProgress());
+    });
+
+    it("a qualifiedWins of 0 or a large valid one is kept as written", () => {
+      fs.writeFileSync(file, v2({
+        alice: { ...goodProfile, progress: { ...goodProfile.progress, qualifiedWins: 0 } },
+        bobby: bobby({ progress: { ...goodProfile.progress, qualifiedWins: Number.MAX_SAFE_INTEGER } }),
+      }));
+      const { error } = quiet();
+      const store = open(file);
+      expect([store.get("alice")!.progress.qualifiedWins, store.get("bobby")!.progress.qualifiedWins]).toEqual([0, Number.MAX_SAFE_INTEGER]);
+      expect(error).not.toHaveBeenCalled();
+    });
   });
 
   it("ignores a leftover temp file from a crashed write", async () => {
@@ -682,7 +1279,9 @@ describe("a v2 file", () => {
     expect(error).not.toHaveBeenCalled();
     store.bankGv("alice", 1);
     await store.flush();
-    expect(Object.keys(readFile().profiles.alice).sort()).toEqual(["cosmetics", "gv", "gvByMonth", "gvLifetime", "name", "stats", "token"]);
+    expect(Object.keys(readFile().profiles.alice).sort()).toEqual(
+      ["achievements", "cosmetics", "gv", "gvByMonth", "gvLifetime", "name", "progress", "stats", "token"],
+    );
   });
 
   it("a cosmetics slot named __proto__ stays plain data: it survives a restart and pollutes nothing", async () => {
@@ -807,6 +1406,11 @@ describe("a v2 file with some malformed profile entries", () => {
     ["a negative month amount", "bobby", bobby({ gvByMonth: { [OCT]: -5 } })],
     ["a fractional month amount", "bobby", bobby({ gvByMonth: { [OCT]: 0.5 } })],
     ["a month amount that is a string", "bobby", bobby({ gvByMonth: { [OCT]: "5" } })],
+    ["a negative qualifiedWins", "bobby", bobby({ progress: { ...goodProfile.progress, qualifiedWins: -1 } })],
+    ["a fractional qualifiedWins", "bobby", bobby({ progress: { ...goodProfile.progress, qualifiedWins: 1.5 } })],
+    ["a qualifiedWins that is a string", "bobby", bobby({ progress: { ...goodProfile.progress, qualifiedWins: "2" } })],
+    ["a qualifiedWins that is null", "bobby", bobby({ progress: { ...goodProfile.progress, qualifiedWins: null } })],
+    ["a qualifiedWins too big to be exact", "bobby", bobby({ progress: { ...goodProfile.progress, qualifiedWins: 1e300 } })],
     ["missing stats", "bobby", bobby({ stats: undefined })],
     ["stats missing a counter", "bobby", bobby({ stats: { runs: 1, wins: 0, draws: 0, deaths: 0 } })],
     ["v1 style stats", "bobby", bobby({ stats: { raids: 1, extracts: 0, deaths: 0, kills: 0 } })],
@@ -945,6 +1549,8 @@ describe("a v1 file (the extraction build's stash format) is migrated", () => {
         gvByMonth: {},
         stats: { runs: old.stats.raids, wins: 0, draws: 0, deaths: old.stats.deaths, kills: old.stats.kills },
         cosmetics: { owned: [], equipped: {} },
+        achievements: {},
+        progress: zeroProgress(),
       });
       expect(store.get(name)).not.toHaveProperty("stash");
     }
@@ -1004,6 +1610,7 @@ describe("a v1 file (the extraction build's stash format) is migrated", () => {
     expect(disk.profiles.alice).toEqual({
       name: "alice", token: fixture.profiles.alice!.token, gv: 0, gvLifetime: 0, gvByMonth: {},
       stats: { runs: 14, wins: 0, draws: 0, deaths: 8, kills: 11 }, cosmetics: { owned: [], equipped: {} },
+      achievements: {}, progress: zeroProgress(),
     });
     expect(fs.readFileSync(file, "utf8")).not.toMatch(/stash|knife|bandage|extracts/);
   });

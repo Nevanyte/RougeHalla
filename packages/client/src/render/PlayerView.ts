@@ -1,9 +1,12 @@
 import Phaser from "phaser";
-import { PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, barrierStrength } from "@raid/shared";
+import {
+  GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, activeGold, barrierStrength, cssColor, unpackLook, type Look,
+} from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
-import { BodyFlash, FighterArt, HpBar, factionColor } from "./FighterArt";
+import { BodyFlash, FighterArt, HpBar, factionColor, heldWeapon } from "./FighterArt";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
+import { TrailView } from "./TrailView";
 
 const HIT_FLASH_MS = 120;
 const SHIELD_COLOR = 0x4fc3f7;
@@ -23,10 +26,35 @@ const CROWN_BASE_Y = -BODY_LIFT - PLAYER_RADIUS - 33;
 const CROWN_GROWTH = 0.5;
 const CROWN_FULL_BOUNTY = 150;
 
-/** One player drawn as a raised disc over a ground shadow, y-sorted by ground position. The disc takes its faction's colour. */
+/**
+ * A skin is the body's inner core, not its whole fill: the outer disc stays the faction colour, which players need to
+ * read at a distance (see "Readability" in the design doc).
+ */
+const SKIN_CORE_RADIUS = PLAYER_RADIUS * 0.55;
+
+/** The title hangs under the feet, clear of everything above the head: the shadow ellipse ends 0.55 * PLAYER_RADIUS below. */
+const TITLE_Y = Math.ceil(PLAYER_RADIUS * 0.55) + 2;
+
+/** Golden faction: a halo hugging the body that breathes between these alphas. */
+const GOLD_HALO_RADIUS = PLAYER_RADIUS + 3;
+const GOLD_PULSE_MS = 350;
+const GOLD_PULSE_MIN = 0.7;
+/** How much of the equipped outline's colour turns gold under a golden faction. */
+const GOLD_OUTLINE_MIX = 0.5;
+
+function mixColor(a: number, b: number, t: number): number {
+  const ch = (shift: number): number => Math.round(((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+/**
+ * One player drawn as a raised disc over a ground shadow, y-sorted by ground position. The disc takes its faction's
+ * colour; equipped cosmetics (skin core, outline, title, trail, golden looks) come from the synced `look` word.
+ */
 export class PlayerView {
   private readonly root: Phaser.GameObjects.Container;
   private readonly body: Phaser.GameObjects.Arc;
+  private readonly core: Phaser.GameObjects.Arc;
   private readonly nose: Phaser.GameObjects.Rectangle;
   private readonly hpBar: HpBar;
   private readonly barrierRing: Phaser.GameObjects.Graphics;
@@ -34,21 +62,31 @@ export class PlayerView {
   private readonly shieldRing: Phaser.GameObjects.Graphics;
   private readonly crown: Phaser.GameObjects.Graphics;
   private readonly crownLabel: Phaser.GameObjects.Text;
+  private readonly goldHalo: Phaser.GameObjects.Graphics;
+  private readonly title: Phaser.GameObjects.Text;
   private readonly art: FighterArt;
   private readonly flashing: BodyFlash;
   /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
   private crownBounty = 0;
   /** The barrier bubble as last drawn, in BARRIER_STEPS (0 = none). */
   private barrierStep = 0;
+  /** The look word `look` was decoded from; -1 (never a uint32) until the first update, so even word 0 is decoded once. */
+  private lookWord = -1;
+  private look: Look | null = null;
+  private usingFaction: string | undefined;
+  private usingWeapon: string | undefined;
+  private factionGold = false;
+  private trail: TrailView | null = null;
 
-  constructor(scene: Phaser.Scene, readonly isLocal: boolean) {
+  constructor(private readonly scene: Phaser.Scene, readonly isLocal: boolean) {
     const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
     // Local player: a ring around the feet, so it stays recognisable whatever its faction colour is.
     const mark = scene.add.graphics().setVisible(isLocal);
     mark.lineStyle(2, LOCAL_MARK, 0.9).strokeEllipse(0, 0, PLAYER_RADIUS * 2.9, PLAYER_RADIUS * 2.9 * Y_SCALE);
     this.art = new FighterArt(scene);
-    this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor(""))
-      .setStrokeStyle(2, isLocal ? LOCAL_MARK : 0x111111, isLocal ? 0.95 : 0.8);
+    this.goldHalo = scene.add.graphics().setVisible(false);
+    this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor(""));
+    this.core = scene.add.circle(0, -BODY_LIFT, SKIN_CORE_RADIUS, 0xffffff).setVisible(false);
     this.flashing = new BodyFlash(this.body, factionColor(""));
     // Shows the facing while nothing is in hand.
     this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
@@ -70,9 +108,13 @@ export class PlayerView {
       fontFamily: "system-ui, sans-serif", fontSize: "11px", fontStyle: "bold",
       color: "#ffe082", stroke: "#000000", strokeThickness: 3,
     }).setOrigin(0.5, 1).setVisible(false);
+    this.title = scene.add.text(0, TITLE_Y, "", {
+      fontFamily: "system-ui, sans-serif", fontSize: "10px", fontStyle: "bold", stroke: "#000000", strokeThickness: 3,
+    }).setOrigin(0.5, 0).setVisible(false);
+    this.setStroke(null, false);
     this.root = scene.add.container(0, 0, [
-      shadow, mark, this.art.ground, this.body, this.barrierRing, this.nose, this.art.held, this.shieldRing, this.hpBar.g, this.label,
-      this.crown, this.crownLabel,
+      shadow, mark, this.goldHalo, this.art.ground, this.body, this.barrierRing, this.core, this.nose, this.art.held,
+      this.shieldRing, this.hpBar.g, this.label, this.crown, this.crownLabel, this.title,
     ]);
   }
 
@@ -82,17 +124,38 @@ export class PlayerView {
   }
 
   /**
+   * What the player is using right now, for the golden variants (faction and weapon ids as in `GOLD_TARGETS`). update()
+   * reports the weapon in hand; the faction stays unset until the Phase 10 picker makes it the player's own choice, so
+   * no golden faction look is drawn yet. Cheap to call every frame: it only repaints on a change.
+   */
+  setUsing(using: { faction?: string; weapon?: string }): void {
+    if (using.faction === this.usingFaction && using.weapon === this.usingWeapon) return;
+    this.usingFaction = using.faction;
+    this.usingWeapon = using.weapon;
+    if (this.look) this.applyGold(this.look);
+  }
+
+  /**
    * `renderT`: the server time this frame is drawn at. `patchT`: the server time of the newest patch (see FighterArt).
    * `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them.
    */
   update(x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false): void {
+    const now = performance.now();
+    // The look is set once at join and never changes in a run, so this decodes once per player.
+    if (p.look !== this.lookWord) this.applyLook(p.look);
     this.flashing.tick();
     const visible = drawAsAlive || p.status === "alive" || p.status === "lobby";
     this.root.setVisible(visible);
-    if (!visible) return;
+    if (!visible) {
+      this.trail?.reset();
+      return;
+    }
     this.flashing.setColor(factionColor(p.faction));
     this.root.setPosition(projX(x), projY(y));
     this.root.setDepth(depthFor(y));
+    // Before art.update(), so a golden weapon look is on the very frame the weapon is drawn.
+    const held = heldWeapon(p);
+    this.setUsing(held ? { weapon: held } : {});
     const weapon = this.art.update(p, renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(p.facing));
     this.label.setText(p.name);
@@ -115,6 +178,59 @@ export class PlayerView {
 
     // Only a drawn player is marked: the early return above hides the whole container (crown included) for the dead.
     this.setCrown(p.bounty > 0 ? Math.floor(p.bounty) : 0);
+
+    if (this.factionGold) this.goldHalo.setAlpha(GOLD_PULSE_MIN + (1 - GOLD_PULSE_MIN) * (0.5 + 0.5 * Math.sin(now / GOLD_PULSE_MS)));
+    this.trail?.update(x, y, now);
+  }
+
+  /** Decodes `word` and restyles the skin core, title and trail. Runs on the first update and whenever the word changes. */
+  private applyLook(word: number): void {
+    this.lookWord = word;
+    const look = unpackLook(word);
+    this.look = look;
+
+    if (look.skin) this.core.setFillStyle(look.skin.color).setVisible(true);
+    else this.core.setVisible(false);
+
+    if (look.title) this.title.setText(look.title.text).setColor(cssColor(look.title.color)).setVisible(true);
+    else this.title.setVisible(false);
+
+    if (this.trail?.cosmetic !== look.trail) {
+      this.trail?.destroy();
+      this.trail = look.trail ? new TrailView(this.scene, look.trail) : null;
+    }
+
+    this.applyGold(look);
+  }
+
+  /** The body's rim: the equipped outline, else the default (white on the local player). `gold` shifts it toward gold. */
+  private setStroke(outline: Look["outline"] | null, gold: boolean): void {
+    if (outline) {
+      this.body.setStrokeStyle(outline.width, gold ? mixColor(outline.color, GOLD_COLOR, GOLD_OUTLINE_MIX) : outline.color, 1);
+    } else if (gold) {
+      this.body.setStrokeStyle(2.5, GOLD_EDGE, 1);
+    } else {
+      this.body.setStrokeStyle(2, this.isLocal ? LOCAL_MARK : 0x111111, this.isLocal ? 0.95 : 0.8);
+    }
+  }
+
+  /** Rim, golden-faction halo and golden weapon: everything that depends on both the look and what the player is using. */
+  private applyGold(look: Look): void {
+    const using: { faction?: string; weapon?: string } = {};
+    if (this.usingFaction !== undefined) using.faction = this.usingFaction;
+    if (this.usingWeapon !== undefined) using.weapon = this.usingWeapon;
+    const gold = activeGold(look, using);
+
+    this.setStroke(look.outline ?? null, gold.faction !== undefined);
+
+    this.factionGold = gold.faction !== undefined;
+    this.goldHalo.clear().setVisible(this.factionGold).setAlpha(1);
+    if (this.factionGold) {
+      this.goldHalo.fillStyle(GOLD_COLOR, 0.2).fillCircle(0, -BODY_LIFT, GOLD_HALO_RADIUS + 3);
+      this.goldHalo.lineStyle(2, GOLD_COLOR, 0.95).strokeCircle(0, -BODY_LIFT, GOLD_HALO_RADIUS);
+    }
+
+    this.art.setGold(gold.weapon !== undefined);
   }
 
   /** Draws the barrier bubble at `strength` (0..1: how close to the biggest shield any combo gives); 0 clears it. A no-op while the step is unchanged. */
@@ -145,5 +261,7 @@ export class PlayerView {
 
   destroy(): void {
     this.root.destroy();
+    this.trail?.destroy();
+    this.trail = null;
   }
 }

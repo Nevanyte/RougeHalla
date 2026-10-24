@@ -7,8 +7,9 @@ import fs from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import {
-  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, MONTH_RE, PROFILE_RE, monthKey,
-  type CosmeticsDTO, type LeaderboardEntry, type ProfileStats, type RunOutcome,
+  GOLD_FACTIONS, GOLD_WEAPONS, LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, MONTH_RE, PROFILE_RE, cosmeticById,
+  evaluateAchievements, isCosmeticSlot, isForSale, monthKey,
+  type CosmeticsDTO, type LeaderboardEntry, type ProfileProgress, type ProfileStats, type RunOutcome, type ShopErrorCode,
 } from "@raid/shared";
 
 export interface ProfileRecord {
@@ -23,6 +24,9 @@ export interface ProfileRecord {
   gvByMonth: Record<string, number>;
   stats: ProfileStats;
   cosmetics: CosmeticsDTO;
+  /** Achievement id → server time (ms) it unlocked. An id is here at most once, however many runs re-qualify it. */
+  achievements: Record<string, number>;
+  progress: ProfileProgress;
 }
 
 export interface ClaimResult {
@@ -32,8 +36,24 @@ export interface ClaimResult {
   created: boolean;
 }
 
-/** What one resolved run banks. `gv` is the run's whole payout (RunResult.gv.total). */
-export interface RunRecord { outcome: RunOutcome; kills: number; gv: number }
+/**
+ * What one resolved run banks. `gv` is the run's whole payout (RunResult.gv.total); `bounty` is the part of it that came
+ * from claimed bounties. `faction` and `weapon` (the weapon in hand at the end) only matter for a win: they feed the
+ * per-faction and per-weapon win counters. Anything that isn't a known faction or weapon id is ignored.
+ * `winQualified` is true only for a win that passed the anti alt-farming gate (`!RunResult.winBonusWithheld`). Absent
+ * means false: only a qualified win counts toward win achievements and the faction/weapon counters, so a walkover
+ * against a throwaway callsign earns nothing there (it still counts in `stats.wins`).
+ */
+export interface RunRecord {
+  outcome: RunOutcome; kills: number; gv: number; bounty?: number; faction?: string; weapon?: string; winQualified?: boolean;
+}
+
+/** What banking a run changed beyond the counters: the achievements it unlocked (catalog order), already recorded. */
+export interface RunBanked { unlocked: string[] }
+
+/** A shop or wardrobe request the store refused. Expected outcomes, so a value rather than an exception. */
+export interface ShopRefusal { ok: false; code: ShopErrorCode; need?: number; have?: number }
+export type ShopOutcome = { ok: true; record: ProfileRecord } | ShopRefusal;
 
 export interface ProfileStore {
   /** Creates the profile when `name` is unknown; otherwise `token` must match exactly. */
@@ -44,13 +64,30 @@ export interface ProfileStore {
   verifyToken(name: string, token: string): boolean;
   /**
    * Banks one resolved run: stats (`runs`, plus `wins`/`draws`/`deaths` by outcome, mia counting as a death, and
-   * `kills`), and `gv` into the balance, the lifetime total and the current month. Throws UnknownProfileError.
+   * `kills`), the achievement counters, and `gv` into the balance, the lifetime total and the current month; then
+   * unlocks whatever achievements that completes and grants their cosmetics. One synchronous step, one write.
+   * Throws UnknownProfileError.
    */
-  recordRun(name: string, run: RunRecord): void;
+  recordRun(name: string, run: RunRecord): RunBanked;
   /** Banks GV without recording a run: a run voided by a server shutdown still pays what was earned. */
   bankGv(name: string, gv: number): void;
-  /** Profiles by GV banked in `month` ("YYYY-MM"), highest first, ties by name; only months with GV > 0 count. */
+  /**
+   * Buys cosmetic `id` for its price. `token` must be the profile's own. The balance check, the debit and the grant
+   * happen in one synchronous step, so concurrent requests cannot spend the same GV twice. Spending lowers `gv` only,
+   * never `gvLifetime` or the monthly totals.
+   */
+  purchase(name: string, token: string, id: unknown): ShopOutcome;
+  /** Equips owned cosmetic `id` in `slot`, or empties the slot when `id` is null. `token` must be the profile's own. */
+  equip(name: string, token: string, slot: unknown, id: unknown): ShopOutcome;
+  /**
+   * Profiles by GV banked in `month` ("YYYY-MM"), highest first, ties by name; only months with GV > 0 count.
+   * A row carries the id of the profile's equipped title when it owns it.
+   */
   leaderboard(month: string, limit: number): LeaderboardEntry[];
+  /** `name`'s 1-based place in the same ranking, or undefined when it banked nothing in `month` (or is unknown). */
+  leaderboardRank(month: string, name: string): { rank: number; gv: number } | undefined;
+  /** Months in which anyone banked GV, newest first, at most `limit`. */
+  leaderboardMonths(limit: number): string[];
   /** Resolves once everything mutated so far is on disk. Rejects if the write failed. */
   flush(): Promise<void>;
 }
@@ -110,7 +147,23 @@ function copyRecord(r: ProfileRecord): ProfileRecord {
     gvByMonth: copyDict(r.gvByMonth),
     stats: { ...r.stats },
     cosmetics: { owned: [...r.cosmetics.owned], equipped: copyDict(r.cosmetics.equipped) },
+    achievements: copyDict(r.achievements),
+    progress: copyProgress(r.progress),
   };
+}
+
+function copyProgress(p: ProfileProgress): ProfileProgress {
+  return {
+    qualifiedWins: p.qualifiedWins,
+    bountyRuns: p.bountyRuns,
+    bestRunKills: p.bestRunKills,
+    winsByFaction: copyDict(p.winsByFaction),
+    winsByWeapon: copyDict(p.winsByWeapon),
+  };
+}
+
+function newProgress(): ProfileProgress {
+  return { qualifiedWins: 0, bountyRuns: 0, bestRunKills: 0, winsByFaction: {}, winsByWeapon: {} };
 }
 
 function newRecord(name: string, token: string): ProfileRecord {
@@ -122,6 +175,8 @@ function newRecord(name: string, token: string): ProfileRecord {
     gvByMonth: {},
     stats: { runs: 0, wins: 0, draws: 0, deaths: 0, kills: 0 },
     cosmetics: { owned: [], equipped: {} },
+    achievements: {},
+    progress: newProgress(),
   };
 }
 
@@ -139,6 +194,32 @@ function checkEntry(key: string, p: unknown): asserts p is Record<string, unknow
   if (!isObject(p) || p.name !== key || !PROFILE_RE.test(key) || typeof p.token !== "string" || p.token === "") {
     throw new Error("bad profile entry");
   }
+}
+
+/** A dictionary of whole counts. Keys are arbitrary text, so the copy defines them as plain data. */
+function parseCounts(v: unknown, what: string): Record<string, number> {
+  if (!isObject(v)) throw new Error(`bad ${what}`);
+  for (const n of Object.values(v)) if (!isCount(n)) throw new Error(`bad ${what}`);
+  return copyDict(v as Record<string, number>);
+}
+
+/** Absent in files written before the meta layer existed: those profiles start with none unlocked. */
+function parseAchievements(v: unknown): Record<string, number> {
+  return v === undefined ? {} : parseCounts(v, "achievements");
+}
+
+function parseProgress(v: unknown): ProfileProgress {
+  if (v === undefined) return newProgress();
+  if (!isObject(v) || !isCount(v.bountyRuns) || !isCount(v.bestRunKills)) throw new Error("bad progress");
+  // Absent in files written before win achievements were gated: those profiles start at 0, not at their old win count.
+  if (v.qualifiedWins !== undefined && !isCount(v.qualifiedWins)) throw new Error("bad progress");
+  return {
+    qualifiedWins: v.qualifiedWins ?? 0,
+    bountyRuns: v.bountyRuns,
+    bestRunKills: v.bestRunKills,
+    winsByFaction: v.winsByFaction === undefined ? {} : parseCounts(v.winsByFaction, "progress"),
+    winsByWeapon: v.winsByWeapon === undefined ? {} : parseCounts(v.winsByWeapon, "progress"),
+  };
 }
 
 function parseProfileV2(key: string, p: unknown): ProfileRecord {
@@ -176,6 +257,8 @@ function parseProfileV2(key: string, p: unknown): ProfileRecord {
     gvByMonth: copyDict(gvByMonth as Record<string, number>),
     stats: { runs: stats.runs, wins: stats.wins, draws: stats.draws, deaths: stats.deaths, kills: stats.kills },
     cosmetics: { owned: [...owned], equipped: copyDict(cosmetics.equipped as Record<string, string>) },
+    achievements: parseAchievements(p.achievements),
+    progress: parseProgress(p.progress),
   };
 }
 
@@ -268,8 +351,25 @@ function outcomeStat(outcome: RunOutcome): "wins" | "draws" | "deaths" {
 /** Saturates instead of passing 2^53, past which a stored count would stop reloading. */
 const addCount = (a: number, b: number): number => Math.min(a + b, Number.MAX_SAFE_INTEGER);
 
-const byGvThenName = (a: LeaderboardEntry, b: LeaderboardEntry): number =>
-  b.gv - a.gv || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+interface RankedRow { r: ProfileRecord; gv: number }
+
+const byGvThenName = (a: RankedRow, b: RankedRow): number =>
+  b.gv - a.gv || (a.r.name < b.r.name ? -1 : a.r.name > b.r.name ? 1 : 0);
+
+const refuse = (code: ShopErrorCode): ShopRefusal => ({ ok: false, code });
+
+/** One more win for `id` if it is a known faction or weapon id; anything else (undefined included) counts for nothing. */
+function countWin(wins: Record<string, number>, known: readonly string[], id: string | undefined): void {
+  if (id === undefined || !known.includes(id)) return;
+  wins[id] = addCount(Object.hasOwn(wins, id) ? wins[id]! : 0, 1);
+}
+
+/** The id of the equipped title, only if it still is a title the profile owns. */
+function equippedTitle(r: ProfileRecord): string | undefined {
+  const id = Object.hasOwn(r.cosmetics.equipped, "title") ? r.cosmetics.equipped.title : undefined;
+  const c = cosmeticById(id);
+  return c?.slot === "title" && r.cosmetics.owned.includes(c.id) ? c.id : undefined;
+}
 
 /** Write failures are retried after this long, doubling up to the cap, until one succeeds. */
 const RETRY_MIN_MS = 1_000;
@@ -296,6 +396,13 @@ export class JsonProfileStore implements ProfileStore {
   private readonly clock: Clock;
   /** A Map, not an object: "__proto__" is a legal profile name. */
   private readonly profiles: Map<string, ProfileRecord>;
+  /**
+   * Each month's ranking, built on first use and dropped when GV is banked in that month (credit() is the only writer of
+   * gvByMonth). Keeps the unauthenticated leaderboard from scanning every profile, zero-GV ones included, on each request.
+   */
+  private readonly rankCache = new Map<string, RankedRow[]>();
+  /** Months in which anyone has GV banked, kept up to date by credit(). */
+  private readonly monthsWithGv = new Set<string>();
 
   /** True while in-memory state is newer than what the last finished write contained. */
   private dirty = false;
@@ -312,6 +419,9 @@ export class JsonProfileStore implements ProfileStore {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     const { profiles, rewrite } = this.load();
     this.profiles = profiles;
+    for (const r of profiles.values()) {
+      for (const [month, gv] of Object.entries(r.gvByMonth)) if (gv > 0) this.monthsWithGv.add(month);
+    }
     // Rewrite the new file now rather than at the next mutation, so a migration is not repeated (and the dropped
     // entries are not reported and backed up again) on every restart.
     if (rewrite) this.schedulePersist();
@@ -435,38 +545,103 @@ export class JsonProfileStore implements ProfileStore {
     return !!r && typeof token === "string" && tokensEqual(r.token, token);
   }
 
-  recordRun(name: string, run: RunRecord): void {
+  recordRun(name: string, run: RunRecord): RunBanked {
     const r = this.require(name);
     // Everything that can throw comes before the first change, so a bad call leaves the profile as it was.
     const stat = outcomeStat(run.outcome);
     const kills = wholeAmount(name, "kills", run.kills);
     const gv = wholeAmount(name, "gv", run.gv);
+    const bounty = run.bounty === undefined ? 0 : wholeAmount(name, "bounty", run.bounty);
     const month = gv > 0 ? this.currentMonth() : "";
+    const at = this.unlockTime();
     r.stats.runs = addCount(r.stats.runs, 1);
     r.stats[stat] = addCount(r.stats[stat], 1);
     r.stats.kills = addCount(r.stats.kills, kills);
+    r.progress.bestRunKills = Math.max(r.progress.bestRunKills, kills);
+    if (bounty > 0) r.progress.bountyRuns = addCount(r.progress.bountyRuns, 1);
+    if (run.outcome === "won" && run.winQualified === true) {
+      r.progress.qualifiedWins = addCount(r.progress.qualifiedWins, 1);
+      countWin(r.progress.winsByFaction, GOLD_FACTIONS, run.faction);
+      countWin(r.progress.winsByWeapon, GOLD_WEAPONS, run.weapon);
+    }
     this.credit(r, gv, month);
+    const unlocked = this.unlock(r, at);
     this.schedulePersist();
+    return { unlocked };
   }
 
   bankGv(name: string, gv: number): void {
     const r = this.require(name);
     const amount = wholeAmount(name, "gv", gv);
     if (amount === 0) return;
-    this.credit(r, amount, this.currentMonth());
+    const month = this.currentMonth();
+    const at = this.unlockTime();
+    this.credit(r, amount, month);
+    // The lifetime total may have crossed a threshold. Nobody is there to be told, but it is recorded all the same.
+    this.unlock(r, at);
     this.schedulePersist();
+  }
+
+  purchase(name: string, token: string, id: unknown): ShopOutcome {
+    const r = this.authorized(name, token);
+    if (!r) return refuse("forbidden");
+    const c = cosmeticById(id);
+    if (!c) return refuse("unknown_cosmetic");
+    if (!isForSale(c)) return refuse("not_for_sale");
+    if (r.cosmetics.owned.includes(c.id)) return refuse("already_owned");
+    const price = c.price as number;
+    if (r.gv < price) return { ok: false, code: "insufficient_gv", need: price, have: r.gv };
+    // No await between the checks above and these two lines: that is what makes a double spend impossible.
+    r.gv -= price;
+    r.cosmetics.owned.push(c.id);
+    this.schedulePersist();
+    return { ok: true, record: copyRecord(r) };
+  }
+
+  equip(name: string, token: string, slot: unknown, id: unknown): ShopOutcome {
+    const r = this.authorized(name, token);
+    if (!r) return refuse("forbidden");
+    if (!isCosmeticSlot(slot)) return refuse("unknown_slot");
+    if (id === null) {
+      if (Object.hasOwn(r.cosmetics.equipped, slot)) {
+        delete r.cosmetics.equipped[slot];
+        this.schedulePersist();
+      }
+      return { ok: true, record: copyRecord(r) };
+    }
+    if (typeof id !== "string") return refuse("bad_request");
+    const c = cosmeticById(id);
+    if (!c) return refuse("unknown_cosmetic");
+    if (c.slot !== slot) return refuse("slot_mismatch");
+    if (!r.cosmetics.owned.includes(c.id)) return refuse("not_owned");
+    if (r.cosmetics.equipped[slot] !== c.id) {
+      r.cosmetics.equipped[slot] = c.id;
+      this.schedulePersist();
+    }
+    return { ok: true, record: copyRecord(r) };
   }
 
   leaderboard(month: string, limit: number): LeaderboardEntry[] {
     if (typeof month !== "string" || !MONTH_RE.test(month)) return [];
     const whole = Math.floor(limit);
     const n = Number.isNaN(whole) ? LEADERBOARD_DEFAULT_LIMIT : Math.min(Math.max(whole, 1), LEADERBOARD_MAX_LIMIT);
-    const rows: LeaderboardEntry[] = [];
-    for (const r of this.profiles.values()) {
-      const gv = r.gvByMonth[month];
-      if (gv !== undefined && gv > 0) rows.push({ name: r.name, gv });
-    }
-    return rows.sort(byGvThenName).slice(0, n);
+    return this.ranked(month).slice(0, n).map(({ r, gv }) => {
+      const entry: LeaderboardEntry = { name: r.name, gv };
+      const title = equippedTitle(r);
+      if (title) entry.title = title;
+      return entry;
+    });
+  }
+
+  leaderboardRank(month: string, name: string): { rank: number; gv: number } | undefined {
+    if (typeof month !== "string" || !MONTH_RE.test(month)) return undefined;
+    const rows = this.ranked(month);
+    const index = rows.findIndex(({ r }) => r.name === name);
+    return index < 0 ? undefined : { rank: index + 1, gv: rows[index]!.gv };
+  }
+
+  leaderboardMonths(limit: number): string[] {
+    return [...this.monthsWithGv].sort().reverse().slice(0, Math.max(0, Math.floor(limit) || 0));
   }
 
   async flush(): Promise<void> {
@@ -483,6 +658,42 @@ export class JsonProfileStore implements ProfileStore {
     return r;
   }
 
+  /** The live record of `name` when `token` is its exact token; otherwise undefined, whether or not the name exists. */
+  private authorized(name: string, token: string): ProfileRecord | undefined {
+    const r = typeof name === "string" ? this.profiles.get(name) : undefined;
+    return r && typeof token === "string" && tokensEqual(r.token, token) ? r : undefined;
+  }
+
+  /** Everyone with GV banked in `month`, best first. Shared with the cache: callers must not change it. */
+  private ranked(month: string): readonly RankedRow[] {
+    const cached = this.rankCache.get(month);
+    if (cached) return cached;
+    const rows: RankedRow[] = [];
+    for (const r of this.profiles.values()) {
+      const gv = r.gvByMonth[month];
+      if (gv !== undefined && gv > 0) rows.push({ r, gv });
+    }
+    rows.sort(byGvThenName);
+    this.rankCache.set(month, rows);
+    return rows;
+  }
+
+  /** The time stamped on achievements unlocked now. Read before any change so a broken clock can't leave half a run. */
+  private unlockTime(): number {
+    const t = this.clock();
+    return Number.isSafeInteger(t) && t >= 0 ? t : 0;
+  }
+
+  /** Records and grants every achievement the profile now qualifies for. Returns their ids. Cannot throw. */
+  private unlock(r: ProfileRecord, at: number): string[] {
+    const earned = evaluateAchievements({ stats: r.stats, progress: r.progress, gvLifetime: r.gvLifetime }, r.achievements);
+    for (const a of earned) {
+      r.achievements[a.id] = at;
+      for (const id of a.reward) if (!r.cosmetics.owned.includes(id)) r.cosmetics.owned.push(id);
+    }
+    return earned.map((a) => a.id);
+  }
+
   /** The month a payout lands in. A clock that gives an unusable date fails the call before anything changes. */
   private currentMonth(): string {
     const month = monthKey(this.clock());
@@ -495,6 +706,8 @@ export class JsonProfileStore implements ProfileStore {
     r.gv = addCount(r.gv, gv);
     r.gvLifetime = addCount(r.gvLifetime, gv);
     r.gvByMonth[month] = addCount(r.gvByMonth[month] ?? 0, gv);
+    this.rankCache.delete(month);
+    this.monthsWithGv.add(month);
   }
 
   private schedulePersist(): void {
