@@ -17,5 +17,6 @@ export * from "./factions";
 export * from "./buffs";
 export * from "./buffView";
 export * from "./mobs";
+export * from "./signatures";
 export * from "./cosmetics";
 export * from "./achievements";

@@ -29,7 +29,8 @@ import {
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
 import { grantStacks, onKill } from "./buffs";
-import type { Combatant } from "./combatant";
+import { mobScale, type Combatant } from "./combatant";
+import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
 import { dropWeapon } from "./loot";
 import { aggro, newBrain, resetMob } from "./mobAI";
@@ -45,7 +46,7 @@ export type MobCombatant = Extract<Combatant, { kind: "mob" }>;
  */
 export function placeMob(world: World, o: { region: FactionId; elite: boolean; at: Vec2; facing?: number }): string {
   const id = addMob(world, {
-    kind: o.elite ? "elite" : "mob", name: mobName(o.region, o.elite), at: o.at, facing: o.facing, hp: mobFaction(o.region, o.elite).hp,
+    kind: o.elite ? "elite" : "mob", name: mobName(o.region, o.elite), at: o.at, facing: o.facing, hp: mobFaction(o.region, o.elite, mobScale(o.elite)).hp,
     faction: o.region, weapon: mobWeapon(o.region),
   });
   world.mobs.get(id)!.brain = newBrain(o.region, o.elite, o.at, o.facing ?? 0, (world.idCounter * 137) % MOB_REPATH_MS);
@@ -162,7 +163,7 @@ const IDLE_REGEN_QUIET_MS = 3000;
  */
 export function reapMobs(world: World, dtMs: number): void {
   const now = world.state.serverTime;
-  const heal = dtMs / (MOB_REGEN_SECONDS * 1000);
+  const perTick = dtMs / (MOB_REGEN_SECONDS * 1000);
   let gone: string[] | null = null;
   for (const rt of world.mobs.values()) {
     const brain = rt.brain;
@@ -172,7 +173,8 @@ export function reapMobs(world: World, dtMs: number): void {
     if (m.status === "dead") {
       if (now - brain.diedAt >= MOB_CORPSE_MS) (gone ??= []).push(rt.id);
     } else if (m.hp < m.maxHp && (brain.mode === "return" || (brain.mode === "idle" && now - rt.lastHitAt >= IDLE_REGEN_QUIET_MS))) {
-      m.hp = Math.min(m.maxHp, m.hp + m.maxHp * heal);
+      // Through the faction layer's one way up (its 3 s out-of-combat lockout applies), without a heal number every tick.
+      heal(world, { kind: "mob", id: rt.id, s: m, rt }, m.maxHp * perTick, { quiet: true });
     }
   }
   // Removed after the walk, so neither map is ever changed while it is being iterated.

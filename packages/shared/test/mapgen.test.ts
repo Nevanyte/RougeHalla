@@ -3,6 +3,7 @@
 // generated once and shared.
 import { describe, expect, it, vi } from "vitest";
 import { EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE } from "../src/constants";
+import { WEAPONS } from "../src/weapons";
 import {
   REGION_COLISEUM,
   REGION_FACTIONS,
@@ -634,7 +635,8 @@ const FAN_RAYS = 801;
 
 /**
  * Sampled check: casts FAN_RAYS aims evenly across the cone from `a` that can hit a target at `b`, with the sim's
- * conditions and the bow's range (MAX_SIGHT_CORRIDOR), and returns the first aim that would hit (its offset from the
+ * conditions and the sight cap MAX_SIGHT_CORRIDOR (480 u: the bow's range before the 9.1 tuning, twice it now), and
+ * returns the first aim that would hit (its offset from the
  * line to the target, degrees) or null. Uses the same `raycast` the sim uses, so it cannot drift from the real wall test.
  */
 function hittableAim(m: GameMap, a: Vec2, b: Vec2, reach: number): number | null {
@@ -655,7 +657,7 @@ function hittableAim(m: GameMap, a: Vec2, b: Vec2, reach: number): number | null
 }
 
 /**
- * Exact check (for a pair closer than the bow's range): the aims that hit are the slopes
+ * Exact check (for a pair closer than the sight cap MAX_SIGHT_CORRIDOR): the aims that hit are the slopes
  * |cross(d0, v) / dot(d0, v)| <= reach / sqrt(L^2 - reach^2) around d0 = (b - a) / L, and every one of them has its
  * projection s >= sqrt(L^2 - reach^2). A wall tile whose far corner is nearer than that stops every aim that touches
  * it, and the aims that touch a tile in front of `a` are exactly the slopes between its extreme corners. So the cone is
@@ -1991,7 +1993,7 @@ describe("legacy extraction loop", () => {
 
 describe("anti-kiting cover", () => {
   // Owner decision: every usable sight corridor (a strip SIGHT_CORRIDOR_WIDTH wide, at any angle and offset) is at most
-  // MAX_SIGHT_CORRIDOR long, the bow's range, anywhere on the map: the faction regions, the coliseum with its gates
+  // MAX_SIGHT_CORRIDOR long (480 u, the bow's range before the 9.1 tuning cut it to 240), anywhere on the map: the faction regions, the coliseum with its gates
   // closed, and the lines that run through the open gates. All of those are subsets of "all floor, gates open".
   const u = (tiles: number) => tiles * TILE;
 
@@ -2007,10 +2009,15 @@ describe("anti-kiting cover", () => {
     return worst;
   };
 
-  it("pins the corridor constants: MAX_SIGHT_CORRIDOR is the bow's range, SIGHT_CORRIDOR_WIDTH one tile", () => {
-    // 480 is the bow's range (docs/GAME_DESIGN.md, weapons table: "Arrow, fast (900 u/s), range 480"). When Phase 9's
-    // weapons.ts lands, compare MAX_SIGHT_CORRIDOR to the bow's range constant there instead of to this literal.
+  it("pins the corridor constants: MAX_SIGHT_CORRIDOR covers the bow's range, SIGHT_CORRIDOR_WIDTH one tile", () => {
+    // 480 was the bow's range until the 9.1 tuning cut it to 240 (docs/GAME_DESIGN.md 9.4, "Tuning (9.1)"). The cap stays at 480: mapgen's
+    // covers and spawn screens are certified for it, and a longer cap than the bow needs only makes the screens safer.
+    // It must never fall below a projectile's range.
     expect(MAX_SIGHT_CORRIDOR).toBe(480);
+    for (const w of [WEAPONS.bow, WEAPONS.wand]) {
+      if (w.shape.kind !== "projectile") throw new Error("projectile");
+      expect(w.shape.range).toBeLessThanOrEqual(MAX_SIGHT_CORRIDOR);
+    }
     // One tile wide: the width the generator's line lattice certifies (see the containment test below).
     expect(SIGHT_CORRIDOR_WIDTH).toBe(32);
   });

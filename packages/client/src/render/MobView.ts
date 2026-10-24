@@ -4,6 +4,7 @@ import type { MobState } from "@raid/shared/schema";
 import { ELITE_COLOR } from "../ui/buffTheme";
 import { BodyFlash, FighterArt, HpBar, factionColor } from "./FighterArt";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
+import { SignatureArt } from "./SignatureArt";
 
 const HIT_FLASH_MS = 120;
 /** A mob's hp is far larger than a player's, so its bar is wider to match its weight on screen; an elite's wider still. */
@@ -34,6 +35,7 @@ export class MobView {
   private readonly eliteRing: Phaser.GameObjects.Graphics;
   private readonly eliteStar: Phaser.GameObjects.Graphics;
   private readonly art: FighterArt;
+  private readonly signatures: SignatureArt;
   private readonly flashing: BodyFlash;
   /** What the elite marks and name were last set for. */
   private elite = false;
@@ -50,6 +52,7 @@ export class MobView {
     this.eliteRing.lineStyle(2.5, ELITE_COLOR, 0.95).strokeEllipse(0, 0, PLAYER_RADIUS * 3.4, PLAYER_RADIUS * 3.4 * Y_SCALE);
     this.eliteRing.lineStyle(1.5, ELITE_COLOR, 0.5).strokeEllipse(0, 0, PLAYER_RADIUS * 4.2, PLAYER_RADIUS * 4.2 * Y_SCALE);
     this.art = new FighterArt(scene);
+    this.signatures = new SignatureArt(scene, HP_BAR_W / 2);
     this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor("")).setStrokeStyle(2, 0x111111, 0.8);
     this.flashing = new BodyFlash(this.body, factionColor(""));
     this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
@@ -62,7 +65,8 @@ export class MobView {
     traceStar(this.eliteStar, 0, 0, 7, 3);
     this.eliteStar.fillPath().strokePath();
     this.root = scene.add.container(0, 0, [
-      shadow, this.eliteRing, this.art.ground, this.body, this.nose, this.art.held, this.hpBar.g, this.label, this.eliteStar,
+      shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body, this.nose, this.art.held, this.signatures.aura,
+      this.hpBar.g, this.label, this.eliteStar,
     ]);
   }
 
@@ -70,7 +74,8 @@ export class MobView {
     this.flashing.trigger(ms);
   }
 
-  update(x: number, y: number, m: MobState, renderT: number, patchT: number): void {
+  /** `signatures`: draw the faction signature marks (only while a run is active, see PlayerView.update). */
+  update(x: number, y: number, m: MobState, renderT: number, patchT: number, signatures = false): void {
     this.flashing.tick();
     const fade = this.deathFade(m, renderT, patchT);
     this.root.setVisible(fade > 0);
@@ -86,6 +91,7 @@ export class MobView {
     const weapon = this.art.update(m, renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(m.facing));
 
+    this.signatures.update(m.sig, m.brand, signatures);
     const dying = m.status !== "alive";
     // The dummy keeps its bar and name on. A regional mob shows its bar when hurt or fighting (its cooldown is running or a
     // bow is drawn), an elite always; a returning mob is hurt until it has healed, so its regen reads too.

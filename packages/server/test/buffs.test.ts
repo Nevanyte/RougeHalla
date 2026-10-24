@@ -886,18 +886,43 @@ describe("attack speed through the real formulas", () => {
   });
 });
 
-describe("moveMultiplierOf", () => {
+/** What step.ts multiplies into a fighter's walking speed: the weapon's factor times every world.moveModifiers entry. */
+const effectiveMove = (w: World, c: Combatant): number => w.moveModifiers.reduce((m, mod) => m * mod(w, c), moveMultiplierOf(w, c));
+
+describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
+  it("move-speed buffs are a registered moveModifier of a game world, not a part of moveMultiplierOf", () => {
+    const w = startRun(2);
+    expect(w.moveModifiers).toContain(moveSpeedMult);
+    setStacks(w, 0, { moveSpeed: 3 });
+    expect(moveMultiplierOf(w, cOf(w, 0))).toBe(1);
+    expect(effectiveMove(w, cOf(w, 0))).toBeCloseTo(buffMultiplier("moveSpeed", 3), 9);
+  });
+
+  it("a buffed player really walks farther per tick (the step loop applies the modifier)", () => {
+    const run = (stacks: number): number => {
+      const w = startRun(2);
+      setStacks(w, 0, { moveSpeed: stacks });
+      const p = P(w, 0);
+      const x0 = p.x;
+      const y0 = p.y;
+      RT(w, 0).path = [{ x: x0 + 600, y: y0 }];
+      tick(w);
+      return Math.hypot(p.x - x0, p.y - y0);
+    };
+    expect(run(3) / run(0)).toBeCloseTo(buffMultiplier("moveSpeed", 3), 3);
+  });
+
   it("is 1 with nothing on", () => {
     const w = startRun(2);
-    expect(moveMultiplierOf(w, cOf(w, 0))).toBe(1);
+    expect(effectiveMove(w, cOf(w, 0))).toBe(1);
   });
 
   it("includes the move-speed stacks and a running burst", () => {
     const w = startRun(2);
     setStacks(w, 0, { moveSpeed: 3 });
-    expect(moveMultiplierOf(w, cOf(w, 0))).toBeCloseTo(buffMultiplier("moveSpeed", 3), 9);
+    expect(effectiveMove(w, cOf(w, 0))).toBeCloseTo(buffMultiplier("moveSpeed", 3), 9);
     RT(w, 0).boost = { bursts: [{ mult: 2.5, until: w.state.serverTime + 400 }], shieldUntil: 0 };
-    expect(moveMultiplierOf(w, cOf(w, 0))).toBeCloseTo(buffMultiplier("moveSpeed", 3) * 2.5, 9);
+    expect(effectiveMove(w, cOf(w, 0))).toBeCloseTo(buffMultiplier("moveSpeed", 3) * 2.5, 9);
   });
 
   it("is 0 while rooted whatever the buffs say", () => {
@@ -905,15 +930,15 @@ describe("moveMultiplierOf", () => {
     setStacks(w, 0, { moveSpeed: 8 });
     RT(w, 0).boost = { bursts: [{ mult: 2.5, until: w.state.serverTime + 400 }], shieldUntil: 0 };
     RT(w, 0).weapon.rootUntil = w.state.serverTime + 100;
-    expect(moveMultiplierOf(w, cOf(w, 0))).toBe(0);
+    expect(effectiveMove(w, cOf(w, 0))).toBe(0);
     RT(w, 0).weapon.rootUntil = w.state.serverTime; // over at the instant
-    expect(moveMultiplierOf(w, cOf(w, 0))).toBeGreaterThan(1);
+    expect(effectiveMove(w, cOf(w, 0))).toBeGreaterThan(1);
   });
 
   it("a slow multiplies the buffs: a wand's cast slow of 0.35 times the stacks' bonus", () => {
     const w = startRun(2);
     setStacks(w, 0, { moveSpeed: 3 });
     RT(w, 0).weapon.castSlowUntil = w.state.serverTime + 100;
-    expect(moveMultiplierOf(w, cOf(w, 0))).toBeCloseTo(WAND_CAST_MOVE * buffMultiplier("moveSpeed", 3), 9);
+    expect(effectiveMove(w, cOf(w, 0))).toBeCloseTo(WAND_CAST_MOVE * buffMultiplier("moveSpeed", 3), 9);
   });
 });

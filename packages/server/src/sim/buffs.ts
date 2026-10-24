@@ -4,7 +4,8 @@
 //                never leaves you lower on the bar.
 //   attack speed attackSpeedMult() feeds attackInterval/damagePerHit (combatant.ts timingsOf, weapons.ts packetFor), so
 //                speed past a weapon's floor becomes damage per hit by the existing rule.
-//   move speed   moveSpeedMult() feeds moveMultiplierOf (weapons.ts): the stacks' bonus times the strongest running burst.
+//   move speed   moveSpeedMult() is a world.moveModifiers entry (step.ts multiplies them into the weapon's move factor): the
+//                stacks' bonus times the strongest running burst.
 //   kill combos  onKill() runs after every kill (a player's, a mob's): speed bursts, the absorb shield, a cooldown reset.
 //   bounty       half of a bountied victim's stacks go to the killer (the bountyClaimed hook).
 // Only players hold stacks; a mob's multipliers are 1. This module must not import weapons.ts or arena.ts (they import it).
@@ -147,4 +148,5 @@ export function install(world: World): void {
     if (p) onKill(w, p, killer);
   };
   world.systems.push(expireBoosts);
+  world.moveModifiers.push(moveSpeedMult);
 }

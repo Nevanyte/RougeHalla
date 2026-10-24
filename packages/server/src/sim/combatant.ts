@@ -2,7 +2,7 @@
 // Both carry the same fighter fields in their synced state (x, y, facing, hp, faction, weapon slots, readyAt, ...)
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
-  attackInterval, FACTIONS, isFactionId, isRegionalKind, isWeaponId, mobFaction, pacedFaction, weaponTimings, type FactionId,
+  attackInterval, ELITE_K, FACTIONS, isFactionId, isRegionalKind, isWeaponId, MOB_K, mobFaction, pacedFaction, weaponTimings, type FactionId,
   type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
@@ -22,10 +22,27 @@ const PACED: Readonly<Record<FactionId, FactionSpec>> = Object.fromEntries(
 ) as Record<FactionId, FactionSpec>;
 
 /** A regional mob fights as its region's faction scaled down (MOB_K, an elite ELITE_K), paced like any faction. */
-const PACED_MOBS: Readonly<Record<"mob" | "elite", Readonly<Record<FactionId, FactionSpec>>>> = {
-  mob: Object.fromEntries(Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, false))])) as Record<FactionId, FactionSpec>,
-  elite: Object.fromEntries(Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, true))])) as Record<FactionId, FactionSpec>,
-};
+function pacedMobs(k: number, eliteK: number): Record<"mob" | "elite", Record<FactionId, FactionSpec>> {
+  const table = (elite: boolean, scale: number) =>
+    Object.fromEntries(Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, elite, scale))])) as Record<FactionId, FactionSpec>;
+  return { mob: table(false, k), elite: table(true, eliteK) };
+}
+let PACED_MOBS = pacedMobs(MOB_K, ELITE_K);
+let scales = { mob: MOB_K, elite: ELITE_K };
+
+/** The scale mobs of this kind are built with right now (MOB_K and ELITE_K unless a balance sweep changed them). */
+export function mobScale(elite: boolean): number {
+  return elite ? scales.elite : scales.mob;
+}
+
+/**
+ * Balance sweeps and the mob duel harness only: from now on mobs fight (and are built, see placeMob) at these scales.
+ * Call it with no arguments to go back to MOB_K and ELITE_K. The game never calls it.
+ */
+export function setMobScalesForHarness(k: number = MOB_K, eliteK: number = ELITE_K): void {
+  scales = { mob: k, elite: eliteK };
+  PACED_MOBS = pacedMobs(k, eliteK);
+}
 
 /** The faction as fought (DUEL_PACE applied, a regional mob scaled down), or null for a fighter without one (a training dummy). */
 export function factionOf(s: FighterState): FactionSpec | null {

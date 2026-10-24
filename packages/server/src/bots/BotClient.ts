@@ -6,15 +6,16 @@
 // player, except that with no player close the bot farms the regional mobs first (mobHunt.ts decides who: it also drops
 // a mob that cannot be hurt and runs from a fight it is losing). A weapon a mob dropped, or a chest's early in the run,
 // is worth a detour when only one weapon is carried; the bot swaps slot to the better weapon edge against the foe's
-// weapon. The arena (teleport, locked gates, sudden death) needs no handling: after the teleport there are no mobs in
-// reach and the bot just keeps hunting players.
+// weapon. It joins asking for a faction when told to (`faction`), and a pursuit loop between players (three bots on a ring,
+// each chasing the one ahead) is broken by turning on someone else for a while (ORBIT_*). The arena (teleport, locked gates,
+// sudden death) needs no handling: after the teleport there are no mobs in reach and the bot just keeps hunting players.
 import { Client, type Room } from "@colyseus/sdk";
 import {
   bestSlot, decide, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, INTERP_DELAY_MS,
   isFactionId, isRanged, isRegionalKind, isWeaponId, PLAYER_RADIUS, PLAYER_SPEED, PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear,
   SnapshotBuffer, TICK_MS, TILE, unpackFx, withGates, wrapAngle,
-  type ClientMessages, type ClientMessageType, type GameMap, type JoinOptions, type PolicyOutput,
-  type FxBatch, type ProfileResponse, type RunResult, type Vec2, type WeaponId,
+  type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions, type PolicyOutput,
+  type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { bestSlotVsMob, bowFullDraw, mobSpacing, mobWeapon, pathLength, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
@@ -40,6 +41,8 @@ export interface BotOptions {
    * dropped it from the room when it settles the run.
    */
   abandonAfterMs?: number;
+  /** The faction to ask for at join, as the hub's picker does. Left out, the server hands out its round-robin default. */
+  faction?: FactionId;
 }
 
 export interface BotRun {
@@ -107,6 +110,19 @@ const SWAP_EVERY_MS = 2000;
 const SWAP_JITTER_MS = 2000;
 const SWAP_DISTANCE = 600;
 
+/**
+ * A chase that has not got ORBIT_PROGRESS closer to its target for ORBIT_MS (plus up to ORBIT_JITTER_MS, so the bots do not
+ * all turn at once) is a pursuit loop: three bots on a ring, each running after the one ahead at the same speed, never
+ * meet. The bot then goes for another enemy and leaves that one alone for ORBIT_AVOID_MS, unless it comes within
+ * ORBIT_MIN_DISTANCE or hits us (it is attacking us then, not circling). Within ORBIT_MIN_DISTANCE, or while the trigger
+ * is down, it is a fight, not a chase.
+ */
+export const ORBIT_MS = 3000;
+export const ORBIT_JITTER_MS = 1500;
+const ORBIT_PROGRESS = 40;
+export const ORBIT_MIN_DISTANCE = 150;
+const ORBIT_AVOID_MS = 6000;
+
 /** A detour for a chest's weapon only happens this early in the run (server ms)... */
 const GRAB_WINDOW_MS = 25_000;
 /** ...for a weapon this close (straight line, roughly nine in ten spawns have one)... */
@@ -173,6 +189,11 @@ export class BotClient {
 
   // Brain memory.
   private targetId: string | null = null;
+  /** The chase being timed for the orbit breaker: the closest we have been to the target, and since when. */
+  private chase: { id: string; best: number; since: number; limit: number } | null = null;
+  /** The enemy a pursuit loop made us give up on, until `avoidUntil`. */
+  private avoidId: string | null = null;
+  private avoidUntil = 0;
   private dest: Vec2 | null = null;
   private moveSentAt = 0;
   /** We sent a stop to stand and fight; cleared by the next move. */
@@ -232,7 +253,7 @@ export class BotClient {
     this.token = body.token;
     this.opts.onToken?.(body.token);
 
-    const options: JoinOptions = { profile, token: body.token };
+    const options: JoinOptions = { profile, token: body.token, ...(this.opts.faction ? { faction: this.opts.faction } : {}) };
     this.room = await this.join(base, options);
     this.roomId = this.room.roomId;
     const room = this.room;
@@ -246,7 +267,8 @@ export class BotClient {
     room.reconnection.enabled = false; // a bot that drops is simply done
     room.onMessage("result", (r: RunResult) => { this.resultsSeen++; this.log(`result: ${r.outcome} (place ${r.place}/${r.players}, +${r.gv.total} GV)`); this.finish(r); });
     room.onMessage("toast", (m: { text: string }) => this.onToast(m.text));
-    room.onMessage("fxs", (b: FxBatch) => { for (const fx of unpackFx(b)) if (fx.kind === "teleport") { this.teleports++; this.onTeleport(); } });
+    // One batch per server step (the old per-fx message is gone).
+    room.onMessage("fxs", (b: FxBatch) => { for (const fx of unpackFx(b)) this.onFx(fx); });
     room.onStateChange((s) => {
       this.patchAt = Date.now();
       for (const [id, p] of s.players) {
@@ -316,6 +338,14 @@ export class BotClient {
     else if (text === "Too far away" || text === "Can't reach that") g.fails++;
   }
 
+  private onFx(fx: TimedFx): void {
+    if (fx.kind === "teleport") { this.teleports++; this.onTeleport(); return; }
+    // An enemy we gave up chasing that now lands (or fails to land) a blow on us is no longer circling: fight back.
+    if ((fx.kind === "hit" || fx.kind === "block") && fx.id === this.room.sessionId && fx.by !== null && fx.by === this.avoidId) {
+      this.avoidId = null;
+    }
+  }
+
   /**
    * The server clears our path and queued inputs when it teleports us, and our trigger with them: forget what we told it.
    * An attack sent within one RTT before this fx arrived lands after the clear and re-arms the trigger, so a trigger we
@@ -330,6 +360,8 @@ export class BotClient {
     this.loosed = 0;
     this.aimSent = null;
     this.grab = null;
+    this.chase = null;
+    this.avoidId = null;
   }
 
   // ------------------------------------------------------------------ brain
@@ -345,15 +377,25 @@ export class BotClient {
     }
     const now = Date.now();
     this.watchStall(me, now);
-    const enemy = this.pickEnemy(me);
+    const enemy = this.pickEnemy(me, now);
     const hunt = this.huntMobs(me, enemy, now);
     this.logHunt(hunt);
-    if (hunt.kind === "retreat" && this.retreat(me, hunt, now)) return;
+    if (hunt.kind === "retreat" && this.retreat(me, hunt, now)) { this.pauseChase(enemy, now); return; }
     const mob = hunt.kind === "mob" ? this.mobFoe(me, hunt.id) : null;
-    if (this.grabWeapon(me, now, enemy?.d ?? Infinity)) return;
-    if (mob) this.fight(me, mob, now);
-    else if (enemy) this.fight(me, { key: enemy.id, at: enemy.p, d: enemy.d, theirs: inHand(enemy.p), mob: false }, now);
+    if (this.grabWeapon(me, now, enemy?.d ?? Infinity)) { this.pauseChase(enemy, now); return; }
+    if (mob) {
+      this.pauseChase(enemy, now);
+      this.fight(me, mob, now);
+    } else if (enemy) this.fight(me, { key: enemy.id, at: enemy.p, d: enemy.d, theirs: inHand(enemy.p), mob: false }, now);
     else this.stand();
+  }
+
+  /**
+   * A weapon detour, a retreat or a mob fight walks away from the player the orbit breaker is timing on purpose; its time must not
+   * read as a chase going nowhere.
+   */
+  private pauseChase(enemy: Enemy | null, now: number): void {
+    if (enemy && this.chase?.id === enemy.id) { this.chase.best = enemy.d; this.chase.since = now; }
   }
 
   /** Counts how long the bot has stood still doing nothing in a running raid: the longest such stretch is `stats.maxStallMs`. */
@@ -464,19 +506,46 @@ export class BotClient {
     return true;
   }
 
-  /** The nearest standing enemy, sticking with the current target unless another is clearly nearer. */
-  private pickEnemy(me: PlayerState): Enemy | null {
+  /**
+   * The nearest standing enemy, sticking with the current target unless another is clearly nearer. An enemy a pursuit loop
+   * made us give up on is only taken when it is the last one standing, or once it is within ORBIT_MIN_DISTANCE (or hit us,
+   * see onFx), which ends the avoidance.
+   */
+  private pickEnemy(me: PlayerState, now: number): Enemy | null {
     let best: Enemy | null = null;
     let current: Enemy | null = null;
+    let avoided: Enemy | null = null;
     for (const [id, p] of this.room.state.players) {
       if (id === this.room.sessionId || p.status !== "alive") continue;
       const e = { id, p, d: dist(me, p) };
+      if (id === this.avoidId) {
+        if (now < this.avoidUntil && e.d >= ORBIT_MIN_DISTANCE) { avoided = e; continue; }
+        this.avoidId = null;
+      }
       if (!best || e.d < best.d) best = e;
       if (id === this.targetId) current = e;
     }
-    const pick = current && best && best.d >= current.d * SWITCH_RATIO ? current : best;
+    const pick = (current && best && best.d >= current.d * SWITCH_RATIO ? current : best) ?? avoided;
     this.targetId = pick?.id ?? null;
+    this.breakOrbit(pick, now);
     return pick;
+  }
+
+  /** Times the chase of `pick`; one that is not closing in for too long gets its target avoided from the next think on. */
+  private breakOrbit(pick: Enemy | null, now: number): void {
+    const c = this.chase;
+    if (!pick) { this.chase = null; return; }
+    if (!c || c.id !== pick.id) {
+      this.chase = { id: pick.id, best: pick.d, since: now, limit: ORBIT_MS + Math.random() * ORBIT_JITTER_MS };
+    } else if (this.trigger || pick.d < ORBIT_MIN_DISTANCE || pick.d < c.best - ORBIT_PROGRESS) {
+      c.best = pick.d;
+      c.since = now;
+    } else if (now - c.since > c.limit) {
+      this.log(`chase of ${pick.id} is going nowhere: turning on someone else`);
+      this.avoidId = pick.id;
+      this.avoidUntil = now + ORBIT_AVOID_MS;
+      this.chase = null;
+    }
   }
 
   /** The server clock now: the latest patch plus the time since it arrived (at most two ticks, so a stalled stream can't run away). */

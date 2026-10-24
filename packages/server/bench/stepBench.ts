@@ -90,7 +90,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   const ticks = opts.ticks ?? 1200;
 
   for (let n = 0; n < warmup + ticks; n++) {
-    if (n % 20 === 0) topUp(world, targetMobs, camps, cursor);
+    topUp(world, targetMobs, camps, cursor);
     for (const id of ids) {
       const p = world.state.players.get(id)!;
       const rt = world.players.get(id)!;

@@ -14,7 +14,8 @@
 //
 // Tuple layouts ([0] is always the kind code; `W` = weapon code, null where the type allows null):
 //   windup   [by, W, a, ms]                 swing    [by, W, x, y, a]
-//   hit      [id, by|null, amount, W|null]  block    [id, by, W]
+//   hit      [id, by|null, amount, W|null, sig?]   (sig: a SIG code; the element is left off when there is none)
+//   block    [id, by, W, passive?]          (passive: 1; left off when false)
 //   stagger  [id]                           teleport []
 //   projEnd  [id, proj, reason, x, y, x0, y0, t0]   (x0, y0, t0: where and when it was loosed, kept for a projectile no
 //                                            patch ever showed, e.g. an arrow reflected and stopped within one tick)
@@ -23,6 +24,7 @@
 //   combo    [id, combo, proc 0|1]          victory  [id|null, name|null, draw 0|1]
 // Adding a field to an FxEvent means adding it to its tuple here (and to the round-trip test).
 import type { BuffStat, ComboId } from "./buffs";
+import type { SignatureKind } from "./signatures";
 import type { FxBatch, FxEvent, FxTuple, ProjectileEnd, TimedFx } from "./messages";
 import type { ProjectileKind, WeaponId } from "./weapons";
 
@@ -47,7 +49,8 @@ const KIND = table<FxEvent["kind"]>({
 });
 const WEAPON = table<WeaponId>({ sword: 0, bow: 1, wand: 2, shield: 3, axe: 4 });
 const PROJECTILE = table<ProjectileKind>({ arrow: 0, ball: 1 });
-const END = table<ProjectileEnd>({ hit: 0, wall: 1, range: 2, reflected: 3, deleted: 4, destroyed: 5, cleared: 6 });
+const END = table<ProjectileEnd>({ hit: 0, wall: 1, range: 2, reflected: 3, deleted: 4, destroyed: 5, cleared: 6, blocked: 7 });
+const SIG = table<SignatureKind>({ burn: 0, backlash: 1, disease: 2, mark: 3 });
 const STAT = table<BuffStat>({ hp: 0, attackSpeed: 1, moveSpeed: 2 });
 const COMBO = table<ComboId>({ dash: 0, cascade: 1, shield: 2, bulwark: 3, bloodrush: 4, frenzy: 5 });
 
@@ -72,8 +75,16 @@ function packOne(fx: FxEvent): FxTuple | null {
   switch (fx.kind) {
     case "windup": return [KC.windup, fx.by, WEAPON.code[fx.weapon], enc(fx.a, ANGLE), enc(fx.ms, MS)];
     case "swing": return [KC.swing, fx.by, WEAPON.code[fx.weapon], enc(fx.x, POS), enc(fx.y, POS), enc(fx.a, ANGLE)];
-    case "hit": return [KC.hit, fx.id, fx.by ?? null, enc(fx.amount, AMOUNT), wcode(fx.weapon)];
-    case "block": return [KC.block, fx.id, fx.by, WEAPON.code[fx.weapon]];
+    case "hit": {
+      const tuple: FxTuple = [KC.hit, fx.id, fx.by ?? null, enc(fx.amount, AMOUNT), wcode(fx.weapon)];
+      if (fx.sig !== undefined) tuple.push(SIG.code[fx.sig]);
+      return tuple;
+    }
+    case "block": {
+      const tuple: FxTuple = [KC.block, fx.id, fx.by, WEAPON.code[fx.weapon]];
+      if (fx.passive) tuple.push(1);
+      return tuple;
+    }
     case "stagger": return [KC.stagger, fx.id];
     case "projEnd":
       return [
@@ -136,13 +147,15 @@ function unpackOne(tuple: unknown): FxEvent | null {
     }
     case "hit": {
       const id = str(tuple[1]), by = strOrNull(tuple[2]), amount = dec(tuple[3], AMOUNT), weapon = pickOrNull(WEAPON, tuple[4]);
-      return id !== undefined && by !== undefined && amount !== undefined && weapon !== undefined
-        ? { kind, id, by, amount, weapon }
-        : null;
+      if (id === undefined || by === undefined || amount === undefined || weapon === undefined) return null;
+      if (tuple[5] === undefined) return { kind, id, by, amount, weapon };
+      const sig = pick(SIG, tuple[5]);
+      return sig !== undefined ? { kind, id, by, amount, weapon, sig } : null;
     }
     case "block": {
       const id = str(tuple[1]), by = str(tuple[2]), weapon = pick(WEAPON, tuple[3]);
-      return id !== undefined && by !== undefined && weapon !== undefined ? { kind, id, by, weapon } : null;
+      if (id === undefined || by === undefined || weapon === undefined) return null;
+      return tuple[4] === 1 ? { kind, id, by, weapon, passive: true } : { kind, id, by, weapon };
     }
     case "stagger": {
       const id = str(tuple[1]);

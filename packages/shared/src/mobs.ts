@@ -13,9 +13,12 @@ export function isRegionalKind(kind: string): kind is "mob" | "elite" {
   return kind === "mob" || kind === "elite";
 }
 
-/** The faction a regional mob fights as (before DUEL_PACE): its region's faction scaled by MOB_K, an elite's by ELITE_K. */
-export function mobFaction(region: FactionId, elite: boolean): FactionSpec {
-  return scaledFaction(FACTIONS[region], elite ? ELITE_K : MOB_K);
+/**
+ * The faction a regional mob fights as (before DUEL_PACE): its region's faction scaled by MOB_K, an elite's by ELITE_K.
+ * `k` overrides the scale (balance sweeps); the game never passes it.
+ */
+export function mobFaction(region: FactionId, elite: boolean, k: number = elite ? ELITE_K : MOB_K): FactionSpec {
+  return scaledFaction(FACTIONS[region], k);
 }
 
 /** The weapon every mob of the region carries. */

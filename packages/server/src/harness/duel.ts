@@ -28,8 +28,15 @@ export type Perception = "client" | "stale" | "present";
 
 export interface DuelSpec {
   faction: FactionId;
-  /** Fighter 0's and fighter 1's weapon (both hold the same faction, so only the weapon differs). */
+  /** Fighter 0's and fighter 1's faction when they differ (the faction cycle, harness/factionCycle.ts); else `faction`. */
+  factions?: readonly [FactionId, FactionId];
+  /** Fighter 0's and fighter 1's weapon (in the weapon matrix both hold the same faction, so only the weapon differs). */
   weapons: readonly [WeaponId, WeaponId];
+  /**
+   * Faction signatures on (sim/factions.ts). Off by default: the weapon matrix measures weapons alone, and a mirror
+   * faction's signatures (backlash reads the enemy's weapon, the mark and DoT ignore shields) would colour it.
+   */
+  signatures?: boolean;
   /** Start distance, centre to centre, along `angle`. */
   distance: number;
   /** Direction from fighter 0 to fighter 1 (radians). */
@@ -248,13 +255,14 @@ export function runDuel(spec: DuelSpec): DuelResult {
       minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER_SECONDS, patienceMinSeconds: NEVER_SECONDS,
       suddenDeathSeconds: NEVER_SECONDS,
     },
-  });
+  }, { signatures: spec.signatures ?? false });
   // The world builds a map from its seed (about 15 ms, unused here); the duel's hand-built arena replaces it.
   world.map = { ...buildArena(spec.arena ?? "open", starts, seed), spawns: [starts[0], starts[1]] };
   for (let i = 0; i < 2; i++) {
     const p = addPlayer(world, IDS[i]!, IDS[i]!);
-    const f = FACTIONS[spec.faction];
-    p.faction = spec.faction;
+    const faction = spec.factions?.[i] ?? spec.faction;
+    const f = FACTIONS[faction];
+    p.faction = faction;
     p.hp = p.maxHp = f.hp;
     p.weapon0 = spec.weapons[i]!;
     p.weapon1 = "";

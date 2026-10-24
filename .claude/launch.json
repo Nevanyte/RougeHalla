@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "dev-training",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["DUMMIES=1", "npm", "run", "dev"],
+      "port": 5173
     }
   ]
 }

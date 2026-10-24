@@ -1,5 +1,7 @@
 // Wire contracts. Client→server messages are inputs only; the server decides outcomes.
 import type { BuffStat, ComboId } from "./buffs";
+import type { FactionId } from "./factions";
+import type { SignatureKind } from "./signatures";
 import type { ProjectileKind, WeaponId } from "./weapons";
 
 export interface Vec2 { x: number; y: number }
@@ -47,6 +49,8 @@ export type ProjectileEnd =
   | "hit" | "wall" | "range"
   /** An arrow off a shield's front: a new arrow, owned by the holder, flies on from the same point. */
   | "reflected"
+  /** An arrow already reflected MAX_ARROW_REFLECTIONS times, stopped by another shield's front (no damage). */
+  | "blocked"
   /** An arrow a wand ball came too close to. */
   | "deleted"
   /** A ball an axe swing met. */
@@ -63,11 +67,17 @@ export type FxEvent =
   | { kind: "windup"; by: string; weapon: WeaponId; a: number; ms: number }
   /** A melee swing landed now from (x, y), the attacker where its client drew it, toward `a`. */
   | { kind: "swing"; by: string; weapon: WeaponId; x: number; y: number; a: number }
-  /** `id` took `amount` (after armor and shield). `by` is the attacker's id, or null for the arena. */
-  | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null }
-  /** `id`'s shield negated a hit by `by`'s weapon (a sword hit also ripostes: a `hit` on `by` follows). */
-  | { kind: "block"; id: string; by: string; weapon: WeaponId }
-  /** `id` was staggered: its windup or cast was cancelled, or its bow draw restarted. */
+  /**
+   * `id` took `amount` (after armor and shield). `by` is the attacker's id, or null for the arena. `sig`: signature
+   * damage, either Fire's backlash on one swing of `id`, or DOT_FX_MS worth of damage over time (burn, disease, mark).
+   */
+  | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null; sig?: SignatureKind }
+  /**
+   * `id`'s shield negated a hit by `by`'s weapon (a sword hit also ripostes: a `hit` on `by` follows). `passive`: the
+   * blocked hit was not an attack of `by`'s own (an arrow `by` reflected).
+   */
+  | { kind: "block"; id: string; by: string; weapon: WeaponId; passive?: boolean }
+  /** `id` was staggered: its windup or cast was cancelled (a bow draw is not interrupted). */
   | { kind: "stagger"; id: string }
   /**
    * A projectile stopped at (x, y). It also says where and when it was loosed, so a client that never saw it in the
@@ -79,6 +89,7 @@ export type FxEvent =
   }
   /** `by` is the killer's id, or null (sudden death). A player who leaves (MIA) gets no death fx. */
   | { kind: "death"; id: string; x: number; y: number; by: string | null }
+  /** `id` healed `amount` (Holy's lifesteal: one per tick in which its hits landed). */
   | { kind: "heal"; id: string; amount: number }
   /** Everyone alive was moved into the coliseum this tick and the gates locked. */
   | { kind: "teleport" }
@@ -149,6 +160,8 @@ export interface JoinOptions {
   profile: string;
   /** Proof of ownership issued by GET /api/profile/:name when the profile was first claimed. */
   token: string;
+  /** The faction picked in the hub for this run; anything else (or nothing) gets the server default. */
+  faction?: FactionId;
 }
 
 /** `deaths` counts died and mia; `runs` counts every resolved run, including the ones won or drawn. */

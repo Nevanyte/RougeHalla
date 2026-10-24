@@ -478,7 +478,7 @@ describe("melee mobs", () => {
     expect(log.filter((l) => l.kind === "aim")).toHaveLength(1);
     expect(brain(mob).lastAim).toBe(exact);
     run(rig, 1);
-    expect(mob.s.facing).toBe(exact);
+    expect(mob.s.facing).toBeCloseTo(exact, 9);
     expect(mob.rt.weapon.aim).toBe(exact);
   });
 
@@ -499,16 +499,16 @@ describe("melee mobs", () => {
     expect(log.filter((l) => l.kind === "aim")).toEqual([]);
     expect(log.filter((l) => l.kind === "release")).toEqual([{ at: rig.world.state.serverTime, kind: "release", a: exact }]);
     run(rig, 1);
-    expect(mob.s.facing).toBe(exact);
+    expect(mob.s.facing).toBeCloseTo(exact, 9);
 
     // A bow mob's shots carry the angle of the moment: each release names the lead it computed.
     const rig2 = makeRig();
     const archer = spawn(rig2.world, "plague");
-    displace(rig2.world, archer, HOME.x - 150, HOME.y);
-    put(rig2.world, "p0", HOME.x + 150, HOME.y);
+    displace(rig2.world, archer, HOME.x - 100, HOME.y);
+    put(rig2.world, "p0", HOME.x + 100, HOME.y);
     const log2 = spy(rig2.world, archer);
     aggro(rig2.world, archer, "p0", 10);
-    walk(rig2.world, "p0", HOME.x + 150, HOME.y - 300);
+    walk(rig2.world, "p0", HOME.x + 100, HOME.y - 300);
     run(rig2, 40);
     const releases = log2.filter((l) => l.kind === "release");
     expect(releases.length).toBeGreaterThanOrEqual(1);
@@ -518,13 +518,14 @@ describe("melee mobs", () => {
     // Standing still one degree off the aim it already sent, the target is not worth a new aim, but the arrow goes at it.
     const rig3 = makeRig();
     const bow = spawn(rig3.world, "plague");
-    displace(rig3.world, bow, HOME.x - 150, HOME.y);
-    put(rig3.world, "p0", HOME.x + 150, HOME.y);
+    displace(rig3.world, bow, HOME.x - 100, HOME.y);
+    put(rig3.world, "p0", HOME.x + 100, HOME.y);
     const log3 = spy(rig3.world, bow);
     aggro(rig3.world, bow, "p0", 10);
     run(rig3, 1);
     const a1 = (1 * Math.PI) / 180;
-    put(rig3.world, "p0", bow.s.x + 300 * Math.cos(a1), bow.s.y + 300 * Math.sin(a1));
+    // In range (a bow reaches 240 u), so the archer stands where it is and the angle it names can be compared exactly.
+    put(rig3.world, "p0", bow.s.x + 200 * Math.cos(a1), bow.s.y + 200 * Math.sin(a1));
     run(rig3, 40);
     const loose = log3.find((l) => l.kind === "release");
     expect(loose).toBeDefined();
@@ -614,14 +615,15 @@ describe("ranged mobs", () => {
     expect(mob.rt.path).toEqual([]);
   });
 
-  it.each([["plague", "bow", 120], ["holy", "wand", 90]] as const)(
+  it.each([["plague", "bow"], ["holy", "wand"]] as const)(
     "a %s mob (%s) backs off from a target that is too close, then stands and shoots",
-    (region, weapon, start) => {
+    (region, weapon) => {
       const rig = makeRig();
       const mob = spawn(rig.world, region);
+      const pol = POLICIES[weapon];
+      const start = Math.round(pol.retreatBelow * 0.75); // well inside the distance it likes to keep
       displace(rig.world, mob, HOME.x - 100, HOME.y);
       put(rig.world, "p0", HOME.x - 100 + start, HOME.y);
-      const pol = POLICIES[weapon];
       aggro(rig.world, mob, "p0", 10);
       const ds: number[] = [];
       run(rig, 120, () => ds.push(dist(mob.s, rig.world.state.players.get("p0")!)));

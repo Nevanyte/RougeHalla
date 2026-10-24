@@ -83,7 +83,7 @@ function arena(specs: Spec[], map: GameMap = openMap()): World {
     minPlayers: specs.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 300, patienceMinSeconds: 300,
     suddenDeathSeconds: 60,
   };
-  const world = createGameWorld({ seed: 1234, config, random: mulberry32(5) });
+  const world = createGameWorld({ seed: 1234, config, random: mulberry32(5) }, { signatures: false });
   specs.forEach((_, i) => addPlayer(world, idOf(i), NAMES[i]!));
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
@@ -632,16 +632,18 @@ describe("sword stagger, through real windups", () => {
     expect(RT(world, 0).weapon.action).toBeNull();
   });
 
-  it("restarts a bow draw, which carries on", () => {
+  it("does not interrupt a bow draw: it carries on from where it was, with no stagger mark, and the hit still starts the immunity", () => {
     const world = arena([fighter("sentenced", "bow", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
     hold(world, 0, 0);
     run(world, 1);
     expect(P(world, 0).drawStartedAt).toBe(100);
     tap(world, 1, FACING_WEST); // pressed at 150 ms, lands at 250 ms
-    run(world, 3);
+    const events = run(world, 3);
     expect(world.state.serverTime).toBe(250);
-    expect(P(world, 0).drawStartedAt).toBe(250);
-    expect(RT(world, 0).weapon.action).toMatchObject({ kind: "draw", startedAt: 250 });
+    expect(fxOf(events, "stagger")).toEqual([]); // nothing was cancelled, so nothing is marked
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(250 + 500);
+    expect(P(world, 0).drawStartedAt).toBe(100);
+    expect(RT(world, 0).weapon.action).toMatchObject({ kind: "draw", startedAt: 100 });
     expect(hpLost(world, 0)).toBeGreaterThan(0);
   });
 
@@ -677,66 +679,80 @@ describe("sword stagger, through real windups", () => {
 });
 
 describe("stagger immunity", () => {
-  /** A drawing archer at 40 u from p0, whose draw restarts whenever a sword stagger lands. */
-  function archerWorld(): World {
-    const world = arena([fighter("plague", "sword", ORIGIN), fighter("sentenced", "bow", polar(ORIGIN, 40, 0))]);
-    const now = world.state.serverTime;
-    RT(world, 1).weapon.action = { kind: "draw", weapon: "bow", startedAt: now };
-    P(world, 1).drawStartedAt = now;
+  /** A wand caster 40 u from p0 (the swordsman); `cast` puts a cast in progress on it, which a stagger cancels and marks. */
+  function casterWorld(): World {
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0))]);
+    cast(world);
     return world;
+  }
+  function cast(world: World): void {
+    const now = world.state.serverTime;
+    const p = P(world, 1);
+    RT(world, 1).weapon.action = { kind: "cast", weapon: "wand", startedAt: now, landsAt: now + 60_000, a: 0, packet: PACKET, origin: { x: p.x, y: p.y } };
   }
   const hitIt = (world: World): SimEvent[] => tick(world, [{ by: "p0", weapon: "sword", a: 0 }]);
 
-  it("lasts half a second: hits inside it still hurt but do not restart the draw", () => {
+  it("lasts half a second: hits inside it still hurt but do not stagger again", () => {
     expect(STAGGER_IMMUNITY_SECONDS * 1000).toBe(500);
-    const world = archerWorld();
+    const world = casterWorld();
     const first = hitIt(world);
     const t0 = world.state.serverTime;
     expect(fxOf(first, "stagger")).toHaveLength(1);
-    expect(P(world, 1).drawStartedAt).toBe(t0);
+    expect(RT(world, 1).weapon.action).toBeNull(); // the cast was cancelled
     let lost = hpLost(world, 1);
-    // A hit every tick for the next 450 ms.
+    // A hit every tick for the next 450 ms, each on a caster with a new cast in progress.
     for (let ms = 50; ms <= 450; ms += 50) {
+      cast(world);
       const events = hitIt(world);
       expect(world.state.serverTime).toBe(t0 + ms);
       expect(fxOf(events, "stagger"), `${ms} ms`).toEqual([]);
-      expect(P(world, 1).drawStartedAt, `${ms} ms`).toBe(t0);
+      expect(RT(world, 1).weapon.action, `${ms} ms`).not.toBeNull(); // not cancelled again
       expect(hpLost(world, 1), `${ms} ms`).toBeGreaterThan(lost);
       lost = hpLost(world, 1);
     }
   });
 
   it("is over exactly 500 ms after the stagger", () => {
-    const world = archerWorld();
+    const world = casterWorld();
     hitIt(world);
     const t0 = world.state.serverTime;
     for (let i = 0; i < 8; i++) tick(world);
+    cast(world);
     expect(fxOf(hitIt(world), "stagger")).toEqual([]); // t0 + 450
     expect(world.state.serverTime).toBe(t0 + 450);
     const again = hitIt(world); // t0 + 500
     expect(world.state.serverTime).toBe(t0 + 500);
     expect(fxOf(again, "stagger")).toHaveLength(1);
-    expect(P(world, 1).drawStartedAt).toBe(t0 + 500);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(t0 + 1000);
   });
 
   it("two swordsmen landing on one target in the same tick stagger it once", () => {
     const world = arena([
-      fighter("plague", "sword", ORIGIN), fighter("sentenced", "bow", polar(ORIGIN, 40, 0)),
-      fighter("plague", "sword", polar(ORIGIN, 40, 30)),
+      fighter("plague", "sword", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0)),
+      fighter("plague", "sword", polar(ORIGIN, 80, 0), { facing: Math.PI }),
     ]);
+    cast(world);
     const events = tick(world, [{ by: "p0", weapon: "sword", a: 0 }, { by: "p2", weapon: "sword", a: Math.PI }]);
+    expect(fxOf(events, "hit").filter((f) => f.id === "p1")).toHaveLength(2);
     expect(fxOf(events, "stagger").filter((f) => f.id === "p1")).toHaveLength(1);
   });
 
+  it("a hit on a fighter with nothing to cancel starts the immunity but marks nothing", () => {
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0))]);
+    const events = hitIt(world);
+    expect(hpLost(world, 1)).toBeGreaterThan(0);
+    expect(fxOf(events, "stagger")).toEqual([]);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+  });
+
   it("a hit that does no damage (teleport immunity) does not stagger", () => {
-    const world = archerWorld();
+    const world = casterWorld();
     P(world, 1).immuneUntil = world.state.serverTime + 1000;
-    const before = P(world, 1).drawStartedAt;
     const events = hitIt(world);
     expect(hpLost(world, 1)).toBe(0);
     expect(fxOf(events, "stagger")).toEqual([]);
     expect(fxOf(events, "hit")).toEqual([]);
-    expect(P(world, 1).drawStartedAt).toBe(before);
+    expect(RT(world, 1).weapon.action).not.toBeNull();
     expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(0);
     // Once the immunity is over the same hit staggers.
     P(world, 1).immuneUntil = 0;
@@ -975,47 +991,47 @@ describe("balls in real fights", () => {
 // ---- exact numbers ------------------------------------------------------------------------------------------------
 
 describe("damage through the faction formula", () => {
-  // Fire's axe: rate 0.6 x hit 150 x DUEL_PACE 2 x dpsMult 0.9 x interval 1 / (0.6 x 1.4) = 96.43 x 2 = 192.857 raw, all
+  // Fire's axe: rate 0.6 x hit 150 x DUEL_PACE 2 x dpsMult 0.77 x interval 1 / (0.6 x 1.4) = 82.5 x 2 = 165 raw, all
   // magic. It lands 250 ms after the press: the sixth step.
-  const FIRE_AXE = 162 / 0.84;
-  const SWORD_PLAGUE = 40 / 2.15;
+  const FIRE_AXE = 138.6 / 0.84;
+  const SWORD_PLAGUE = 30 / 2.15;
 
-  it("Fire's axe on a dummy does 192.857 and moves nobody", () => {
+  it("Fire's axe on a dummy does 165 and moves nobody", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("holy", "wand", FAR)]);
     const d = dummy(world, polar(ORIGIN, 40, 0));
     tap(world, 0, 0);
     const events = run(world, 6);
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(FIRE_AXE, 9);
-    expect(FIRE_AXE).toBeCloseTo(192.857, 3);
+    expect(FIRE_AXE).toBeCloseTo(165, 3);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: d, by: "p0", amount: expect.closeTo(FIRE_AXE, 9), weapon: "axe" }]);
     run(world, 10);
     expect({ x: mob(world, d).x, y: mob(world, d).y }).toEqual(polar(ORIGIN, 40, 0));
     expect({ x: P(world, 0).x, y: P(world, 0).y }).toEqual(ORIGIN);
   });
 
-  it("Fire's axe on Frost is cut by Frost's shield (100): 96.43", () => {
+  it("Fire's axe on Frost is cut by Frost's shield (100): 82.5", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(96.4286, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(82.5, 3);
   });
 
-  it("the axe pierces Frost's raised shield for the same 96.43", () => {
+  it("the axe pierces Frost's raised shield for the same 82.5", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
     tap(world, 0, 0);
     const events = run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(96.4286, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(82.5, 3);
     expect(fxOf(events, "block")).toEqual([]);
   });
 
-  it("Plague's sword (80% physical, 20% magic) on a dummy does 18.605, on Frost 9.302", () => {
+  it("Plague's sword (80% physical, 20% magic) on a dummy does 13.953, on Frost 6.977", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     const d = dummy(world, polar(ORIGIN, 40, 20));
     tap(world, 0, 0);
     run(world, 3); // lands at 200 ms
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(SWORD_PLAGUE, 9);
     expect(hpLost(world, 1)).toBeCloseTo(SWORD_PLAGUE / 2, 9); // armor 100 and shield 100 both halve it
-    expect(SWORD_PLAGUE).toBeCloseTo(18.6047, 4);
+    expect(SWORD_PLAGUE).toBeCloseTo(13.9535, 4);
   });
 
   it("Frost's bash on Demon Blood (shield 250, armor 0): 90% physical, 10% magic", () => {
@@ -1033,10 +1049,34 @@ describe("damage through the faction formula", () => {
     // Plague: armor 200 on its 80% physical, no shield on its 20% magic.
     const riposte = SWORD_PLAGUE * RIPOSTE_SHARE * (0.8 / 3 + 0.2);
     expect(hpLost(world, 0)).toBeCloseTo(riposte, 9);
-    expect(riposte).toBeCloseTo(4.3411, 4);
+    expect(riposte).toBeCloseTo(3.2558, 4);
     expect(hpLost(world, 1)).toBe(0);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "p0", by: "p1", amount: expect.closeTo(riposte, 9), weapon: "shield" }]);
     expect(fxOf(events, "stagger")).toEqual([]);
+  });
+
+  it("the riposte is passive in the ledger (no attack of the holder's own); the swing that was blocked is not", () => {
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
+    // beforeDamage sees the tick's ledger before it is applied and cleared.
+    const ledger: LedgerEntry[] = [];
+    world.beforeDamage.push((w) => { ledger.push(...w.combat.ledger.map((e) => ({ ...e }))); });
+    tap(world, 0, 0);
+    const events = run(world, 3);
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({ victim: "p0", by: { id: "p1" }, weapon: "shield", passive: true });
+    expect(fxOf(events, "block")).toEqual([{ kind: "block", id: "p1", by: "p0", weapon: "sword" }]);
+    expect(fxOf(events, "block")[0]).not.toHaveProperty("passive");
+  });
+
+  it("an ordinary sword hit is not passive", () => {
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
+    const ledger: LedgerEntry[] = [];
+    world.beforeDamage.push((w) => { ledger.push(...w.combat.ledger.map((e) => ({ ...e }))); });
+    tap(world, 0, 0);
+    run(world, 3);
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({ victim: "p1", by: { id: "p0" }, weapon: "sword" });
+    expect(ledger[0]!.passive).toBeUndefined();
   });
 
   it("agrees with damagePerHit and mitigateShares for every melee faction x weapon x defender", () => {
@@ -1060,7 +1100,7 @@ describe("damage through the faction formula", () => {
 // ---- simultaneity -------------------------------------------------------------------------------------------------
 
 describe("simultaneous swings", () => {
-  it("two swords hitting each other in the same tick both land and both stagger", () => {
+  it("two swords hitting each other in the same tick both land and both start the stagger immunity", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     tap(world, 1, Math.PI);
@@ -1068,13 +1108,17 @@ describe("simultaneous swings", () => {
     const each = SWORD_PLAGUE_VS_PLAGUE;
     expect(hpLost(world, 0)).toBeCloseTo(each, 9);
     expect(hpLost(world, 1)).toBeCloseTo(each, 9);
-    expect(fxOf(events, "stagger").map((f) => f.id).sort()).toEqual(["p0", "p1"]);
+    // Each swing had already landed when the other's hit came in, so neither had a windup to cancel: no marks, but both are immune.
+    expect(fxOf(events, "stagger")).toEqual([]);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
   });
 
   it("a fighter that another swing staggers in the same tick still lands its own axe", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("fire", "axe", polar(ORIGIN, 40, 0)), fighter("holy", "wand", FAR)]);
     const events = tick(world, [{ by: "p0", weapon: "sword", a: 0 }, { by: "p1", weapon: "axe", a: Math.PI }]);
-    expect(fxOf(events, "stagger").map((f) => f.id)).toEqual(["p1"]);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(0);
     expect(hpLost(world, 0)).toBeGreaterThan(0);
     expect(hpLost(world, 1)).toBeGreaterThan(0);
   });
@@ -1116,5 +1160,5 @@ describe("simultaneous swings", () => {
   });
 });
 
-/** Plague's sword on a Plague body: 18.605 raw, 80% physical through armor 200, 20% magic through shield 0. */
-const SWORD_PLAGUE_VS_PLAGUE = (40 / 2.15) * (0.8 / 3 + 0.2);
+/** Plague's sword on a Plague body: 13.953 raw, 80% physical through armor 200, 20% magic through shield 0. */
+const SWORD_PLAGUE_VS_PLAGUE = (30 / 2.15) * (0.8 / 3 + 0.2);

@@ -12,7 +12,7 @@ import {
   ATTACK_BUFFER_MS, damagePerHit, damageShares, drawDamageScale, MAX_REWIND_MS, moveMultiplier, staggerImmuneUntil,
   swapReadyAt, TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
-import { attackSpeedMult, moveSpeedMult } from "./buffs";
+import { attackSpeedMult } from "./buffs";
 import {
   activeWeapon, factionOf, slotWeapon, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
@@ -129,8 +129,11 @@ function endPending(world: World, c: Combatant): void {
 }
 
 /**
- * An unblocked sword hit landed on `c`: cancel its windup or cast (the cooldown stays spent) or restart its bow draw,
- * then STAGGER_IMMUNITY_SECONDS of immunity. Returns false (and does nothing) while it is immune.
+ * An unblocked sword hit landed on `c`: cancel its windup or cast (the cooldown stays spent), then
+ * STAGGER_IMMUNITY_SECONDS of immunity. A bow draw is not interrupted (9.1 tuning): restarting it made every sword hit
+ * cost the archer a whole draw, ~70 per duel, and the bow could never win the close trade. The stagger fx (the mark
+ * over the fighter) is emitted only when something was cancelled, so a mark always means a lost windup or cast.
+ * Returns false (and does nothing) while it is immune.
  */
 export function stagger(world: World, c: Combatant): boolean {
   const w = c.rt.weapon;
@@ -138,18 +141,15 @@ export function stagger(world: World, c: Combatant): boolean {
   if (now < w.staggerImmuneUntil) return false;
   w.staggerImmuneUntil = staggerImmuneUntil(now);
   const act = w.action;
-  if (act?.kind === "draw") {
-    act.startedAt = now;
-    c.s.drawStartedAt = now;
-  } else if (act) {
+  if (act && act.kind !== "draw") {
     endPending(world, c);
     w.action = null;
+    emit(world, { type: "fx", fx: { kind: "stagger", id: c.id } });
   }
-  emit(world, { type: "fx", fx: { kind: "stagger", id: c.id } });
   return true;
 }
 
-/** Move speed multiplier from the fighter's weapon state (root, draw, cast slow, ranged recovery) and its move-speed buffs. */
+/** Move speed multiplier from the fighter's weapon state (root, draw, cast slow, ranged recovery). Buffs and the chill are world.moveModifiers. */
 export function moveMultiplierOf(world: World, c: Combatant): number {
   const w = c.rt.weapon;
   return moveMultiplier({
@@ -158,7 +158,7 @@ export function moveMultiplierOf(world: World, c: Combatant): number {
     castSlowUntil: w.castSlowUntil,
     recoverUntil: w.recoverUntil,
     drawing: w.action?.kind === "draw",
-  }) * moveSpeedMult(world, c);
+  });
 }
 
 /** A fresh state machine and cooldown (the run starts). */

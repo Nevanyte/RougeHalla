@@ -1,6 +1,7 @@
 // Assembles a fully-featured world: base lifecycle (step.ts + arena.ts, which also run the combat phases) + every
 // gameplay module. Modules expose `install(world)` and register into world.actions / world.systems / world.hooks.
 import { install as installBuffs } from "./buffs";
+import { install as installFactions } from "./factions";
 import { install as installFeed } from "./feed";
 import { install as installLoot } from "./loot";
 import { install as installMobAI } from "./mobAI";
@@ -16,6 +17,7 @@ const MODULES: Array<(world: World) => void> = [
   installLoot,
   installWeapons,
   installProjectiles,
+  installFactions,
   installMobs,
   installBuffs,
   installFeed,
@@ -23,8 +25,15 @@ const MODULES: Array<(world: World) => void> = [
   installMobAI,
 ];
 
-export function createGameWorld(opts: CreateOpts): World {
+/**
+ * `signatures: false` leaves faction signatures out (sim/factions.ts): tests that check a weapon's own damage, timing or
+ * fx use it, since the signatures add damage between fighters in contact.
+ */
+export function createGameWorld(opts: CreateOpts, modules: { signatures?: boolean } = {}): World {
   const world = createWorld(opts);
-  for (const install of MODULES) install(world);
+  for (const install of MODULES) {
+    if (install === installFactions && modules.signatures === false) continue;
+    install(world);
+  }
   return world;
 }

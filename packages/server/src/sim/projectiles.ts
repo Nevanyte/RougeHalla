@@ -6,14 +6,15 @@
 //   3. it meets the first body along its step whose centre, where that body was at that moment (history), comes within
 //      RANGED_HIT_REACH. An arrow on a raised shield's front is reflected: it stops, and a new arrow owned by the holder
 //      flies on from the contact point with the mirrored velocity, the full bow range (an arrow reflected before keeps
-//      only the range it has left) and the same damage. Anything else is a hit, recorded in the damage ledger and
-//      applied with every other hit after melee.
+//      only the range it has left) and the same damage; one already reflected MAX_ARROW_REFLECTIONS times is just
+//      blocked. Anything else is a hit, recorded in the damage ledger and applied with every other hit after melee.
 // When it stops it leaves the state, and a `projEnd` fx says exactly where and why. Its owner is never hit by it. It
 // outlives its owner: its hit still lands (credited by name only once the owner has left or is out of the run).
 // Projectiles loosed this tick (spawnProjectiles, after the sweep) leave from where the owner's client drew it and
 // first move in the next tick's sweep.
 import {
-  ballDeletesArrow, PROJECTILE_SUBSTEP_MS, projectileOnShieldFront, RANGED_HIT_REACH, raycast, reflectVelocity,
+  ballDeletesArrow, MAX_ARROW_REFLECTIONS, PROJECTILE_SUBSTEP_MS, projectileOnShieldFront, RANGED_HIT_REACH, raycast,
+  reflectVelocity,
   WEAPONS, type ProjectileEnd, type ProjectileKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { ProjectileState } from "@raid/shared/schema";
@@ -39,6 +40,7 @@ interface Launch {
   t: number;
   range: number;
   packet: DamagePacket;
+  reflections?: number;
 }
 
 function launch(world: World, l: Launch): ProjectileRuntime {
@@ -56,6 +58,7 @@ function launch(world: World, l: Launch): ProjectileRuntime {
   const pr: ProjectileRuntime = {
     id, state: st, kind: l.kind, weapon: l.weapon, owner: l.owner, ownerName: l.ownerName,
     x: l.x, y: l.y, simT: l.t, traveled: 0, tickX: l.x, tickY: l.y, packet: l.packet, halved: false, ended: false,
+    reflections: l.reflections ?? 0,
   };
   world.projectiles.set(id, pr);
   world.combat.swept.push(pr);
@@ -232,6 +235,12 @@ export function sweepProjectiles(world: World, dtMs: number): void {
       }
       const st = pr.state;
       if (pr.kind === "arrow" && activeWeapon(hit.c.s) === "shield" && projectileOnShieldFront(hit.c.s.facing, st.vx, st.vy)) {
+        const block = { kind: "block" as const, id: hit.c.id, by: pr.owner, weapon: pr.weapon };
+        emit(world, { type: "fx", fx: pr.weapon === "shield" ? { ...block, passive: true } : block });
+        if (pr.reflections >= MAX_ARROW_REFLECTIONS) {
+          endProjectile(world, pr, hit.x, hit.y, "blocked");
+          continue;
+        }
         endProjectile(world, pr, hit.x, hit.y, "reflected");
         const v = reflectVelocity(st.vx, st.vy, hit.c.s.facing);
         const bow = WEAPONS.bow.shape;
@@ -241,9 +250,8 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         const range = pr.weapon === "shield" ? Math.max(0, left) : bow.kind === "projectile" ? bow.range : st.range;
         active.push(launch(world, {
           kind: "arrow", weapon: "shield", owner: hit.c.id, ownerName: hit.c.s.name, x: hit.x, y: hit.y,
-          vx: v.vx, vy: v.vy, t, range, packet: pr.packet,
+          vx: v.vx, vy: v.vy, t, range, packet: pr.packet, reflections: pr.reflections + 1,
         }));
-        emit(world, { type: "fx", fx: { kind: "block", id: hit.c.id, by: pr.owner, weapon: pr.weapon } });
         continue;
       }
       recordHit(world, {

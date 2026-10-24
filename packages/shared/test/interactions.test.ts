@@ -312,18 +312,21 @@ describe("moveMultiplier", () => {
     expect(moveMultiplier({ ...idle, recoverUntil: now + 1 })).toBe(RANGED_RECOVERY_MOVE);
   });
 
-  it("drawing a bow, casting and ranged recovery slow to 0.75, 0.35 and 0.5", () => {
+  it("drawing a bow, casting and ranged recovery slow to 0.1 each (9.1 tuning: nearly a root)", () => {
     expect(moveMultiplier({ ...idle, drawing: true })).toBe(BOW_DRAW_MOVE);
-    expect(BOW_DRAW_MOVE).toBe(0.75);
-    expect(WAND_CAST_MOVE).toBe(0.35);
-    expect(RANGED_RECOVERY_MOVE).toBe(0.5);
+    expect(BOW_DRAW_MOVE).toBe(0.1);
+    expect(WAND_CAST_MOVE).toBe(0.1);
+    expect(RANGED_RECOVERY_MOVE).toBe(0.1);
   });
 
   it("the strongest slow wins; they do not stack", () => {
-    expect(moveMultiplier({ ...idle, drawing: true, recoverUntil: now + 1 })).toBe(0.5);
-    expect(moveMultiplier({ ...idle, castSlowUntil: now + 1, recoverUntil: now + 1 })).toBe(0.35);
-    expect(moveMultiplier({ ...idle, drawing: true, castSlowUntil: now + 1 })).toBe(0.35);
-    expect(moveMultiplier({ ...idle, drawing: true, castSlowUntil: now + 1, recoverUntil: now + 1 })).toBe(0.35);
+    expect(moveMultiplier({ ...idle, drawing: true, recoverUntil: now + 1 })).toBe(Math.min(BOW_DRAW_MOVE, RANGED_RECOVERY_MOVE));
+    expect(moveMultiplier({ ...idle, castSlowUntil: now + 1, recoverUntil: now + 1 })).toBe(Math.min(WAND_CAST_MOVE, RANGED_RECOVERY_MOVE));
+    expect(moveMultiplier({ ...idle, drawing: true, castSlowUntil: now + 1 })).toBe(Math.min(BOW_DRAW_MOVE, WAND_CAST_MOVE));
+    expect(moveMultiplier({ ...idle, drawing: true, castSlowUntil: now + 1, recoverUntil: now + 1 }))
+      .toBe(Math.min(BOW_DRAW_MOVE, WAND_CAST_MOVE, RANGED_RECOVERY_MOVE));
+    // A slow never speeds anything up.
+    expect(Math.max(BOW_DRAW_MOVE, WAND_CAST_MOVE, RANGED_RECOVERY_MOVE)).toBeLessThan(1);
   });
 });
 
@@ -404,9 +407,18 @@ describe("POLICIES", () => {
     expect(POLICIES.wand.leadSpeed).toBe(380);
     expect(POLICIES.bow.retreatBelow).toBeGreaterThan(0);
     expect(POLICIES.wand.retreatBelow).toBeGreaterThan(0);
-    // Every range is inside what the projectile can fly.
-    expect(POLICIES.bow.attackRange).toBeLessThan(480);
-    expect(POLICIES.wand.attackRange).toBeLessThan(420);
+    // Every range is inside what the projectile can fly, and follows the weapon's range when it is retuned.
+    const bow = WEAPONS.bow.shape;
+    const wand = WEAPONS.wand.shape;
+    if (bow.kind !== "projectile" || wand.kind !== "projectile") throw new Error("projectile");
+    expect(POLICIES.bow.attackRange).toBeLessThan(bow.range);
+    expect(POLICIES.wand.attackRange).toBeLessThan(wand.range);
+    expect(POLICIES.bow.far).toBeLessThan(POLICIES.bow.attackRange);
+    expect(POLICIES.wand.far).toBeLessThan(POLICIES.wand.attackRange);
+    expect(POLICIES.bow.retreatBelow).toBeLessThan(POLICIES.bow.far);
+    expect(POLICIES.wand.retreatBelow).toBeLessThan(POLICIES.wand.far);
+    // The bow outranges the wand, and the wand fights the closer.
+    expect(POLICIES.bow.attackRange).toBeGreaterThan(POLICIES.wand.attackRange);
   });
 });
 
@@ -461,23 +473,27 @@ describe("decide", () => {
   });
 
   describe("bow", () => {
+    const bow = POLICIES.bow;
+    const sweet = (bow.retreatBelow + bow.far) / 2; // between backing off and closing in
+    const edge = (bow.far + bow.attackRange) / 2; // closing in, but already in range
+
     it("approaches a target beyond far and starts the draw once inside attackRange", () => {
-      const far = decide(input({ weapon: "bow", target: { x: 600, y: 0 } }));
-      expect(far.move).toEqual({ x: 600, y: 0 });
+      const far = decide(input({ weapon: "bow", target: { x: bow.attackRange + 100, y: 0 } }));
+      expect(far.move).toEqual({ x: bow.attackRange + 100, y: 0 });
       expect(far.hold).toBe(false);
-      const near = decide(input({ weapon: "bow", target: { x: 420, y: 0 } })); // far 400 < 420 <= attackRange 441.6
-      expect(near.move).toEqual({ x: 420, y: 0 });
+      const near = decide(input({ weapon: "bow", target: { x: edge, y: 0 } })); // far < edge <= attackRange
+      expect(near.move).toEqual({ x: edge, y: 0 });
       expect(near.hold).toBe(true);
     });
 
     it("stands in its sweet spot and draws", () => {
-      const out = decide(input({ weapon: "bow", target: { x: 300, y: 0 } }));
+      const out = decide(input({ weapon: "bow", target: { x: sweet, y: 0 } }));
       expect(out.move).toBe("stop");
       expect(out.hold).toBe(true);
     });
 
     it("backs off directly away from a target that is too close, while still drawing", () => {
-      const out = decide(input({ weapon: "bow", target: { x: 0, y: 150 } }));
+      const out = decide(input({ weapon: "bow", target: { x: 0, y: bow.retreatBelow - 20 } }));
       expect(out.hold).toBe(true);
       expect(out.move).not.toBe("stop");
       const m = out.move as { x: number; y: number };
@@ -493,29 +509,30 @@ describe("decide", () => {
     });
 
     it("holds the trigger through the draw and looses at full draw, not before", () => {
-      const partway = decide(input({ weapon: "bow", target: { x: 300, y: 0 }, drawSeconds: 0.399, fullDraw: 0.4 }));
+      const partway = decide(input({ weapon: "bow", target: { x: sweet, y: 0 }, drawSeconds: 0.399, fullDraw: 0.4 }));
       expect(partway.hold).toBe(true);
       expect(partway.release).toBe(false);
-      const full = decide(input({ weapon: "bow", target: { x: 300, y: 0 }, drawSeconds: 0.4, fullDraw: 0.4 }));
+      const full = decide(input({ weapon: "bow", target: { x: sweet, y: 0 }, drawSeconds: 0.4, fullDraw: 0.4 }));
       expect(full.hold).toBe(true);
       expect(full.release).toBe(true);
-      expect(decide(input({ weapon: "bow", target: { x: 300, y: 0 }, drawSeconds: 0, fullDraw: 0.4 })).release).toBe(false);
+      expect(decide(input({ weapon: "bow", target: { x: sweet, y: 0 }, drawSeconds: 0, fullDraw: 0.4 })).release).toBe(false);
     });
 
     it("keeps a started draw going when the target steps out of range, and looses at full draw", () => {
-      const drawing = decide(input({ weapon: "bow", target: { x: 470, y: 0 }, drawSeconds: 0.2, fullDraw: 0.4 }));
+      const out = { x: bow.attackRange + 15, y: 0 };
+      const drawing = decide(input({ weapon: "bow", target: out, drawSeconds: 0.2, fullDraw: 0.4 }));
       expect(drawing.hold).toBe(true);
       expect(drawing.release).toBe(false);
-      expect(decide(input({ weapon: "bow", target: { x: 470, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 })).release).toBe(true);
+      expect(decide(input({ weapon: "bow", target: out, drawSeconds: 0.5, fullDraw: 0.4 })).release).toBe(true);
     });
 
     it("does not start a draw on a target out of range or out of sight", () => {
-      expect(decide(input({ weapon: "bow", target: { x: 470, y: 0 } })).hold).toBe(false);
-      expect(decide(input({ weapon: "bow", target: { x: 300, y: 0 }, los: false })).hold).toBe(false);
+      expect(decide(input({ weapon: "bow", target: { x: bow.attackRange + 15, y: 0 } })).hold).toBe(false);
+      expect(decide(input({ weapon: "bow", target: { x: sweet, y: 0 }, los: false })).hold).toBe(false);
     });
 
     it("leads a moving target with the arrow's speed", () => {
-      const target = { x: 300, y: 0 };
+      const target = { x: sweet, y: 0 };
       const vel = { x: 0, y: 120 };
       const out = decide(input({ weapon: "bow", target, targetVel: vel }));
       expect(out.aim).toBeCloseTo(leadAim(self, target, vel, 900), 12);
@@ -524,20 +541,24 @@ describe("decide", () => {
   });
 
   describe("wand", () => {
-    it("fights closer than the bow: stands at 200, backs off under 160, closes in past 280", () => {
-      expect(decide(input({ weapon: "wand", target: { x: 200, y: 0 } })).move).toBe("stop");
-      const back = decide(input({ weapon: "wand", target: { x: 100, y: 0 } })).move as Vec2;
+    const wand = POLICIES.wand;
+
+    it("fights closer than the bow: stands between its back-off and closing-in distances, closes in past far", () => {
+      expect(wand.far).toBeLessThan(POLICIES.bow.far);
+      expect(decide(input({ weapon: "wand", target: { x: (wand.retreatBelow + wand.far) / 2, y: 0 } })).move).toBe("stop");
+      const back = decide(input({ weapon: "wand", target: { x: wand.retreatBelow - 30, y: 0 } })).move as Vec2;
       expect(back.x).toBeCloseTo(-160, 9);
       expect(back.y).toBeCloseTo(0, 9);
-      expect(decide(input({ weapon: "wand", target: { x: 300, y: 0 } })).move).toEqual({ x: 300, y: 0 });
+      expect(decide(input({ weapon: "wand", target: { x: wand.far + 20, y: 0 } })).move).toEqual({ x: wand.far + 20, y: 0 });
     });
 
     it("casts when inside 80% of its range and leads with the ball's speed", () => {
-      expect(decide(input({ weapon: "wand", target: { x: 330, y: 0 } })).hold).toBe(true);
-      expect(decide(input({ weapon: "wand", target: { x: 340, y: 0 } })).hold).toBe(false);
+      expect(decide(input({ weapon: "wand", target: { x: wand.attackRange - 2, y: 0 } })).hold).toBe(true);
+      expect(decide(input({ weapon: "wand", target: { x: wand.attackRange + 8, y: 0 } })).hold).toBe(false);
       const vel = { x: 0, y: -100 };
-      const out = decide(input({ weapon: "wand", target: { x: 250, y: 0 }, targetVel: vel }));
-      expect(out.aim).toBeCloseTo(leadAim(self, { x: 250, y: 0 }, vel, 380), 12);
+      const target = { x: wand.attackRange - 40, y: 0 };
+      const out = decide(input({ weapon: "wand", target, targetVel: vel }));
+      expect(out.aim).toBeCloseTo(leadAim(self, target, vel, 380), 12);
       expect(out.release).toBe(false);
     });
   });

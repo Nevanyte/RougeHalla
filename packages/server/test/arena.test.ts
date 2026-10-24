@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  bountyFor, BOUNTY_ANNOUNCE_MS, feedScore,
+  bountyFor, BOUNTY_ANNOUNCE_MS, BOW_DRAW_MOVE, feedScore,
   circleClear, COLISEUM_RING_RADIUS, defaultFaction, FACTIONS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
   inColiseum, KILL_CREDIT_SECONDS, mapFromTiles, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SIGNATURE_WEAPONS,
   SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
@@ -726,7 +726,7 @@ describe("disconnect and reconnect grace", () => {
   });
 
   describe("a dropped connection lets go of the trigger", () => {
-    // Its release never arrives, so the server lets go itself: otherwise a bow stays at full draw (0.75 x speed) until
+    // Its release never arrives, so the server lets go itself: otherwise a bow stays at full draw (BOW_DRAW_MOVE) until
     // the player is back, and then looses at once.
     function drawing() {
       const w = startRun(3, { patienceSeconds: 3600 }, { game: true });
@@ -734,7 +734,7 @@ describe("disconnect and reconnect grace", () => {
       runTo(w, 200);
       expect(P(w, 1).drawStartedAt).toBeGreaterThan(0);
       expect(RT(w, 1).weapon.held).toBe(true);
-      expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(0.75);
+      expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(BOW_DRAW_MOVE);
       return w;
     }
 

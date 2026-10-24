@@ -108,12 +108,33 @@ describe("fx codec: round trip", () => {
     for (const c of COMBOS) {
       expect(roundTrip({ kind: "combo", id: "a", combo: c.id, proc: false })).toMatchObject({ combo: c.id, proc: false });
     }
-    const ends: ProjectileEnd[] = ["hit", "wall", "range", "reflected", "deleted", "destroyed", "cleared"];
+    const ends: ProjectileEnd[] = ["hit", "wall", "range", "reflected", "blocked", "deleted", "destroyed", "cleared"];
     for (const reason of ends) {
       for (const proj of ["arrow", "ball"] as const) {
         expect(roundTrip({ kind: "projEnd", id: "p", proj, x0: 1, y0: 2, t0: 3, x: 4, y: 5, reason })).toMatchObject({ proj, reason });
       }
     }
+  });
+
+  it("carries a hit's signature and a block's passive flag, and leaves them off when absent", () => {
+    for (const sig of ["burn", "backlash", "disease", "mark"] as const) {
+      expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe", sig })).toEqual(
+        { kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe", sig, t: T },
+      );
+    }
+    const plain = packFx([{ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe" }], T).l[0]!;
+    expect(plain).toHaveLength(5); // no sig element: a plain hit costs nothing extra
+    expect(roundTrip({ kind: "block", id: "a", by: "b", weapon: "shield", passive: true })).toEqual(
+      { kind: "block", id: "a", by: "b", weapon: "shield", passive: true, t: T },
+    );
+    expect(packFx([{ kind: "block", id: "a", by: "b", weapon: "shield" }], T).l[0]).toHaveLength(4);
+    expect(roundTrip({ kind: "block", id: "a", by: "b", weapon: "shield", passive: false })).toEqual(
+      { kind: "block", id: "a", by: "b", weapon: "shield", t: T },
+    );
+  });
+
+  it("skips a hit whose signature code is unknown rather than dropping the signature silently", () => {
+    expect(unpackFx({ t: T, l: [[2, "a", "b", 50, 0, 99]] })).toEqual([]);
   });
 
   it("keeps a reflected arrow's start (it can start and stop inside one tick)", () => {

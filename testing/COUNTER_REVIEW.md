@@ -1,5 +1,7 @@
 # Counter Review: v3 faction cycle
 
+**Phase 10 note (2026-10-24).** A stronger Holy lifesteal (`ls1` 1.25 to 1.75, `ls_cap` 1.0 to 1.5) was tried in Phase 10 to fix Holy > Sentenced in the real sim and then reverted after the final review: with a cap above 100%, a losing Holy at low health heals more than it takes, so Holy against Holy can stall for ever. A Holy dealing 1.0x to 1.5x the other Holy's damage never wins in the design engine within 600 s, and in the real sim 6 of the 10 weapon edges with Holy on both sides hit the 300 s cap in all 18 setups. Lifesteal is back to `0.25 + 1.25 x missing health`, capped at 100%, and everything below is the v3 analysis as written: every Holy figure (fight lengths, HP left, lifesteal returns, flip distances, buff caps, the mixed-weapon cells, the kiting tolerances, the identity-test shifts) is the v3 value. What replaced the retune is a rule in the real sim, not a number: a stagger that lands now pauses the staggered fighter's burn, disease and mark for its weapon's windup (`staggerPause` in `packages/server/src/sim/factions.ts`), which restored Holy > Sentenced on swords (0% to 100%). The 20 Hz model below has no staggers and is untouched by it. The tries, the measurements and the rejected variants are in `testing/TUNING_10.md`.
+
 Written for the author of `CLASS_SHEET.md`. It checks the v3 numbers in `classes.py` against `engine.py`, then checks how the cycle survives the move to a 20 Hz game with weapons.
 
 **v3 revision.** Fire now swings 0.6 times a second for 150 (was 0.3 for 305; DPS 91.5 to 90) and Frost 0.45 times for 90 (was 0.3 for 135; DPS 40.5, unchanged). Fire's backlash drops from 210 to 200. In the 20 Hz model a weapon is now a % boost on the faction's attack speed, replacing `max(anim floor, base cooldown x 0.86 / rate)`. v3 also adopts animation timings that shrink with the interval and a 0.5 s stagger immunity; the 20 Hz model does not include them. Re-run for v3: the four Fire edges (Fire > Sentenced, Fire > Plague, Frost > Fire, Holy > Fire) in sections 1 to 4 and 6, and section 5 except the parts marked v2 or not re-run (the v2-plan subsection, rule 5's line-of-sight run, the move-speed caps, and the heal-item and disengage runs). The six edges without Fire do not move in the engine (Frost's DPS is unchanged and Fire's backlash is the only mechanic that reads an attack rate); only the Frost hit values quoted in section 3 change (90 instead of 135, same percentages). The cost: a faster Frost feeds Fire's backlash, so Frost > Fire keeps 49% HP instead of 59%. It never flips. Figures marked v2 are kept for comparison.
@@ -204,6 +206,8 @@ A 20 Hz discrete duel (`realtime.py`) that keeps the engine's damage laws exactl
 | wand | +65% | 0.30 | 0.85 | 420 |
 | shield | +60% | 0.30 | 0.75 | 60 |
 
+*History: this is the v3 weapon table before the 9.1 weapon tuning (`testing/TUNING_9_1.md`), which changed the sword dpsMult to 0.75, the axe's to 0.80 and the wand's to 0.80, and the bow and wand ranges to 240 and 220. The damage-per-hit table below carries the old multipliers too; `python3 testing/weapon_reference.py` prints the current ones.*
+
 Attacks per second = faction rate x (1 + boost) x attack-speed buffs. The interval between attacks is 1 / that, never below the weapon's floor. Damage per hit = faction rate x faction hit x dpsMult x buffs x interval, which is faction hit x dpsMult / (1 + boost) with no buff. So every faction keeps its DPS times dpsMult on every weapon, and faster weapons hit proportionally lighter. The floor is the shortest interval. It binds only under attack-speed buffs, and attack speed past it turns into damage per hit. Resulting intervals and damage per hit at duel pace k = 1 (no floor binds without a buff; k = 2 doubles every hit):
 
 | Faction (rate) | sword | axe | bow | wand | shield |
@@ -297,6 +301,8 @@ Signature weapons: Fire axe, Sentenced bow, Plague bow, Frost shield, Holy wand.
 On stats alone the loop always picks the intended winner. Fire > Sentenced is lopsided (4.5x). The thinnest are Holy > Sentenced (1.34x), Sentenced > Plague (1.54x), Frost > Fire (1.59x) and Frost > Holy (1.62x); none is near the v2 plan's 1.06x for Holy against a Sentenced sword. Frost > Fire is the one that v3 moved: it keeps 34% worst HP instead of 47%, and a 1.59x damage edge instead of 1.92x.
 
 ### Kiting
+
+*These are the v3 numbers at duel pace k = 1, with the old weapon table. The 9.1 weapon tuning (testing/TUNING_9_1.md) re-ran the check at k = 2 and changed the ranges, the damage multipliers and the ranged movement penalties; read this section as history.*
 
 Free fire is the time a ranged fighter shoots before a melee chaser reaches 60 u (both move at 170 u/s). One approach with the shooter standing still gives (480 - 60) / 170 = 2.47 s for the bow and (420 - 60) / 170 = 2.12 s for the wand. Backing away while firing is the problem:
 

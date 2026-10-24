@@ -13,7 +13,8 @@ import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
 import {
   defaultFaction, ENDED_LINGER_SECONDS, FACTIONS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS,
-  ROOM_NAME, SIGNATURE_WEAPONS, unpackFx, type FxBatch, type JoinOptions, type ProfileStats, type RunResult, type TimedFx, type Vec2,
+  ROOM_NAME, SIGNATURE_WEAPONS, unpackFx, type FactionId, type FxBatch, type JoinOptions, type ProfileStats, type RunResult, type TimedFx,
+  type Vec2,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -189,9 +190,12 @@ const sessionOf = (p: Player) => p.room.sessionId;
 const serverPlayer = (p: Player) => worldOf(p).state.players.get(sessionOf(p))!;
 
 /** What a player starts a run with, given the order they joined their room in (0 = the first): nothing is brought in. */
-function starterKit(joinIndex: number) {
-  const faction = defaultFaction(joinIndex);
+function kitOf(faction: FactionId) {
   return { faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: SIGNATURE_WEAPONS[faction], weapon1: "", slot: 0 };
+}
+
+function starterKit(joinIndex: number) {
+  return kitOf(defaultFaction(joinIndex));
 }
 
 /** The server's player: faction, hp and weapon slots. */
@@ -426,10 +430,16 @@ describe("joining", () => {
     expect(record(who)).toEqual(before);
   });
 
-  it("a loadout, faction or hp in the options is ignored: nothing can be brought in or picked", async () => {
+  it("the faction picked in the hub is taken, with its signature weapon; a loadout or hp in the options is ignored", async () => {
     const who = await claim();
-    const options = { ...joinOptions(who), loadout: ["gpu", "gold", "rifle"], faction: "holy", weapon0: "wand", hp: 99_999 };
+    const options = { ...joinOptions(who), loadout: ["gpu", "gold", "rifle"], faction: "holy", weapon0: "sword", hp: 99_999 };
     const p = track(who, await client.create<RaidState>(ROOM_NAME, options));
+    expect(carried(p)).toEqual(kitOf("holy"));
+  });
+
+  it("a faction that isn't one gets the round-robin default", async () => {
+    const who = await claim();
+    const p = track(who, await client.create<RaidState>(ROOM_NAME, { ...joinOptions(who), faction: "dragon" }));
     expect(carried(p)).toEqual(starterKit(0));
   });
 
