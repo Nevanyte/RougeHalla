@@ -40,8 +40,8 @@ REACH = 60.0   # melee reach
 WEAPONS = {
     "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=60,  melee=True),
     "axe":    dict(speed=0.40, dps=0.80, floor=0.35, rng=60,  melee=True),
-    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=260, melee=False),
-    "wand":   dict(speed=0.65, dps=0.75, floor=0.30, rng=240, melee=False),
+    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False),
+    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False),
     "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True),
 }
 WNAMES = list(WEAPONS)
@@ -204,6 +204,45 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
     if track_gap:
         out["gap"] = gap
     return out
+
+
+def free_fire_time(loser_name, ranged):
+    """Seconds a STANDING shooter fires at a chaser closing at the move speed before it reaches melee reach (the 'Tff' of the
+    kite check). A Frost shooter's chill is counted at range, the conservative way."""
+    return (WEAPONS[ranged]["rng"] - REACH) / (V * chill_of(Side(BY[loser_name], ranged)))
+
+
+def kite_tolerance(a, wa, b, wb, hi=90.0, nmax=50):
+    """Seconds the melee winner a (holding wa) can arrive late and still beat the ranged loser b (holding wb) at least half
+    the time, with b firing at full output, bonus clock running, from the start. 0.0 if it loses even on time, inf if it
+    still wins after `hi` seconds."""
+    def wr(T):
+        return edge_stats(duel(Side(BY[a], wa, act_start=T, fx_start=T), Side(BY[b], wb), nmax=nmax))["rate"]
+
+    if wr(0) < 0.5:
+        return 0.0
+    lo = 0.0
+    if wr(hi) >= 0.5:
+        return float("inf")
+    while hi - lo > 0.025:
+        mid = (lo + hi) / 2
+        if wr(mid) >= 0.5:
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def kite_rows():
+    """The kite check, one row per faction edge: [(winner, loser, {ranged weapon: ({melee weapon: tolerance}, Tff)})].
+    A cell is STOLEN when the weakest melee weapon's tolerance is below the free-fire time of a standing shooter."""
+    rows = []
+    for a, b in BEATS:
+        cells = {}
+        for wb in RANGED:
+            cells[wb] = ({wa: kite_tolerance(a, wa, b, wb) for wa in MELEE}, free_fire_time(b, wb))
+        rows.append((a, b, cells))
+    return rows
 
 
 def edge_stats(r, winner_idx=0):

@@ -206,13 +206,13 @@ export function verdictOf(
 }
 
 function formatVerdicts(verdicts: readonly EdgeVerdict[], quick: boolean): string[] {
-  const lines = [`${"edge".padEnd(16)}${"overall".padStart(9)}  ${"weakest faction".padEnd(22)}${"best reply to each style of the loser".padEnd(52)}verdict`];
+  const lines = [`${"edge".padEnd(16)}${"overall".padStart(9)}  ${"weakest faction".padEnd(22)}${"best reply to each style of the loser".padEnd(64)}verdict`];
   for (const v of verdicts) {
     const replies = v.replies.length
       ? v.replies.map((r) => `${r.loser}: ${pct(r.rate)} (${r.winner})`).join("  ")
       : quick && stylesOf(v.edge[0]).length + stylesOf(v.edge[1]).length > 2 ? "(no grid in a quick report)" : "-";
     lines.push(
-      `${edgeName(v.edge).padEnd(16)}${pct(v.overall).padStart(9)}  ${`${v.worstFaction.faction} ${pct(v.worstFaction.rate)}`.padEnd(22)}${replies.padEnd(52)}` +
+      `${edgeName(v.edge).padEnd(16)}${pct(v.overall).padStart(9)}  ${`${v.worstFaction.faction} ${pct(v.worstFaction.rate)}`.padEnd(22)}${replies.padEnd(64)}` +
       `${v.holds ? "HOLDS" : `FAILS${v.mainHolds ? "" : " (matrix)"}${v.gridHolds ? "" : " (styles)"}`}`,
     );
   }
@@ -322,7 +322,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   for (const w of ["sword", "axe", "shield", "bow", "wand"] as WeaponId[]) {
     const p = POLICIES[w];
     out.push(`    ${w.padEnd(7)} closes in past ${String(Math.round(p.far)).padStart(3)}, attacks within ${String(Math.round(p.attackRange)).padStart(3)}` +
-      `${p.retreatBelow ? `, backs off under ${p.retreatBelow}` : ""}`);
+      `${p.retreatBelow ? `, backs off under ${Math.round(p.retreatBelow)}` : ""}`);
   }
   out.push("");
 

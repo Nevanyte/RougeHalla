@@ -36,7 +36,7 @@ export const WEAPON_SLOTS = 2;
  * Anti-kiting: with the coliseum gates open, mapgen guarantees that every straight strip SIGHT_CORRIDOR_WIDTH (one
  * tile) wide, at any angle and offset, runs at most MAX_SIGHT_CORRIDOR through open floor. Open floor includes every
  * region, the gates-closed coliseum and lines through the gates. The cap was the bow's range (480) so an archer could
- * not backpedal forever; the 9.1 tuning cut the bow to 260 and the wand to 240 (and nearly rooted them while they shoot), so
+ * not backpedal forever; the 9.1 tuning cut the bow to 240 and the wand to 220 (and nearly rooted them while they shoot), so
  * today it only has to stay at or above every projectile's range, and the spawn screens are certified for the full 480.
  * Narrower corridors are not guaranteed: a 24 u gap
  * (PLAYER_RADIUS is 12, so a player fits) measured up to 473 u and a 16 u gap up to about 580 u. The owner deferred those.

@@ -40,11 +40,11 @@ export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
   },
   bow: {
     id: "bow", name: "Bow", color: 0xa1887f, boost: 0.95, floor: 0.25, dpsMult: 0.8,
-    shape: { kind: "projectile", projectile: "arrow", speed: 900, range: 260 },
+    shape: { kind: "projectile", projectile: "arrow", speed: 900, range: 240 },
   },
   wand: {
-    id: "wand", name: "Wand", color: 0xce93d8, boost: 0.65, floor: 0.3, dpsMult: 0.75,
-    shape: { kind: "projectile", projectile: "ball", speed: 380, range: 240 },
+    id: "wand", name: "Wand", color: 0xce93d8, boost: 0.65, floor: 0.3, dpsMult: 0.8,
+    shape: { kind: "projectile", projectile: "ball", speed: 380, range: 220 },
   },
   // The bash; the block cone (SHIELD_HALF_ARC) is always up while the shield is in hand.
   shield: {

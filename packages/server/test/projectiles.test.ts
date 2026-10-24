@@ -30,7 +30,7 @@ type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
 
 // ---------------------------------------------------------------------------------------------------------------
 // These tests pin the projectile mechanics (the netcode contract, 10 ms substeps, walls, gates, reflections), not the
-// tuned numbers. The 9.1 tuning cut the ranges to 260 and 240 u; the long-flight geometry below (far walls, a flight of
+// tuned numbers. The 9.1 tuning cut the ranges to 240 and 220 u; the long-flight geometry below (far walls, a flight of
 // many substeps, a shot across the arena) was built for the original 480 and 420, so this file flies at those. What the
 // catalog really says is pinned in shared/test/weapons.test.ts and by "flies the catalog's own ranges" below.
 const CATALOG_RANGES = { bow: 0, wand: 0 };
@@ -744,8 +744,8 @@ describe("walls and gates", () => {
 });
 
 describe("range", () => {
-  it("flies the catalog's own ranges (the 9.1 tuning: bow 260 u, wand 240 u)", () => {
-    expect(CATALOG_RANGES).toEqual({ bow: 260, wand: 240 });
+  it("flies the catalog's own ranges (the 9.1 tuning: bow 240 u, wand 220 u)", () => {
+    expect(CATALOG_RANGES).toEqual({ bow: 240, wand: 220 });
     const bow = WEAPONS.bow.shape;
     const wand = WEAPONS.wand.shape;
     if (bow.kind !== "projectile" || wand.kind !== "projectile") throw new Error("projectile");
@@ -755,19 +755,19 @@ describe("range", () => {
     try {
       const a = arena([archer({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
       loose(a, [{ id: "archer", a: 0 }]);
-      expect(synced([...a.state.projectiles.values()][0]!).range).toBe(260);
+      expect(synced([...a.state.projectiles.values()][0]!).range).toBe(240);
       const arrow = flyUntilEnd(a);
       expect(arrow.end.reason).toBe("range");
-      expect(arrow.end.x).toBeCloseTo(100 + 260, 6);
+      expect(arrow.end.x).toBeCloseTo(100 + 240, 6);
 
       const m = arena([mage({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
       castBall(m, "mage", 0);
-      expect(synced([...m.state.projectiles.values()][0]!).range).toBe(240);
+      expect(synced([...m.state.projectiles.values()][0]!).range).toBe(220);
       const ball = flyUntilEnd(m);
       expect(ball.end).toMatchObject({ proj: "ball", reason: "range" });
-      expect(ball.end.x).toBeCloseTo(100 + 240, 6);
+      expect(ball.end.x).toBeCloseTo(100 + 220, 6);
       // A body just inside the reach of the end of the range is still hit; just outside it is not.
-      const far = arena([archer({ x: 100, y: 320 }), target({ x: 100 + 260 + RANGED_HIT_REACH + 1, y: 320 }), idle()]);
+      const far = arena([archer({ x: 100, y: 320 }), target({ x: 100 + 240 + RANGED_HIT_REACH + 1, y: 320 }), idle()]);
       loose(far, [{ id: "archer", a: 0 }]);
       expect(flyUntilEnd(far).end.reason).toBe("range");
     } finally {

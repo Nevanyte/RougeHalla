@@ -411,7 +411,7 @@ describe("the wand", () => {
     expect(shots).toHaveLength(1);
     expect(world.state.projectiles.size).toBe(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: S + 200, kind: "ball", owner: "p0", weapon: "wand", t: S + 200, range: 240 });
+    expect(shot).toMatchObject({ at: S + 200, kind: "ball", owner: "p0", weapon: "wand", t: S + 200, range: 220 });
     expect(shot.x).toBe(P(world).x);
     expect(shot.y).toBe(P(world).y);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.4) * 380, 9);
@@ -536,7 +536,7 @@ describe("the bow", () => {
     const start = drawAndLoose(world, 600, -0.7);
     expect(shots).toHaveLength(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: start + 600, kind: "arrow", owner: "p0", weapon: "bow", t: start + 600, range: 260 });
+    expect(shot).toMatchObject({ at: start + 600, kind: "arrow", owner: "p0", weapon: "bow", t: start + 600, range: 240 });
     expect(shot.x).toBe(P(world).x);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.7) * 900, 9);
     expect(shot.vy).toBeCloseTo(Math.sin(-0.7) * 900, 9);
