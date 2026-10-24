@@ -25,8 +25,11 @@ export type ShieldOutcome = "pierce" | "block" | "riposte" | "reflect";
 
 /** Angle wrapped to (-PI, PI]. */
 export function wrapAngle(a: number): number {
-  const w = a - 2 * Math.PI * Math.floor((a + Math.PI) / (2 * Math.PI));
-  return w === -Math.PI ? Math.PI : w;
+  // % is exact for any finite input (a - k * 2PI loses everything once |a| is huge, and clients send angles).
+  let w = a % (2 * Math.PI);
+  if (w > Math.PI) w -= 2 * Math.PI;
+  else if (w <= -Math.PI) w += 2 * Math.PI;
+  return w;
 }
 
 /** Absolute difference between two angles, in [0, PI]. */

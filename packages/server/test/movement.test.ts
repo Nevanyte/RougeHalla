@@ -3,11 +3,11 @@ import {
   circleClear, isWallAt, mapFromTiles, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, tileToWorldCenter, WORLD_H, WORLD_W, type GameMap, type Sample, type Vec2,
 } from "@raid/shared";
-import { PlayerState } from "@raid/shared/schema";
+import { MobState, PlayerState } from "@raid/shared/schema";
 import { enqueueClientMessage, InputQueue } from "../src/sim/inputs";
 import { advanceAlongPath, planPath, positionAt, recordHistory } from "../src/sim/movement";
 import { addPlayer, step } from "../src/sim/step";
-import { createWorld, type PlayerRuntime, type World } from "../src/sim/world";
+import { createWorld, newWeaponRuntime, type PlayerRuntime, type World } from "../src/sim/world";
 
 const DT = TICK_MS / 1000;
 /** Farthest a player may move in one fixed step. */
@@ -24,7 +24,8 @@ function makePlayer(x = 0, y = 0, facing = 0): PlayerState {
 function makeRuntime(path: Vec2[], history: Sample[] = []): PlayerRuntime {
   return {
     id: "p", profile: "p", inputs: new InputQueue(), path: path.map((w) => ({ ...w })), history,
-    nextAttackAt: 0, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0 }, mobKills: 0, lastHit: null, damaged: new Set(), droppedAt: null, hpFracAtTickStart: 1, down: null, resolved: false,
+    weapon: newWeaponRuntime(), killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0 }, mobKills: 0, lastHit: null, damaged: new Set(),
+    droppedAt: null, hpFracAtTickStart: 1, down: null, resolved: false,
   };
 }
 
@@ -215,6 +216,87 @@ describe("advanceAlongPath", () => {
       advanceAlongPath(p, makeRuntime([]), 1);
       expect(p.facing).toBe(0.75);
     });
+  });
+
+  describe("aiming (keepFacing)", () => {
+    it("walks exactly as before but leaves the facing where the aim put it", () => {
+      const p = makePlayer(0, 0, 2.5);
+      const rt = makeRuntime([{ x: 1000, y: 0 }]);
+      advanceAlongPath(p, rt, DT, true);
+      expect(p.x).toBeCloseTo(PLAYER_SPEED * DT, 9);
+      expect(p.facing).toBe(2.5);
+    });
+
+    it("keeps the facing through corners and on arrival", () => {
+      const p = makePlayer(0, 0, -1);
+      advanceAlongPath(p, makeRuntime([{ x: 50, y: 0 }, { x: 50, y: 50 }]), 1, true);
+      expect(p).toMatchObject({ x: 50, y: 50, facing: -1 });
+    });
+
+    it("still consumes waypoints and covers the same ground as a walk that turns", () => {
+      const path = [{ x: 30, y: 0 }, { x: 30, y: 40 }, { x: -20, y: 40 }];
+      const turning = makePlayer(0, 0);
+      const rtTurning = makeRuntime(path);
+      const aiming = makePlayer(0, 0, 0.5);
+      const rtAiming = makeRuntime(path);
+      advanceAlongPath(turning, rtTurning, 0.5);
+      advanceAlongPath(aiming, rtAiming, 0.5, true);
+      expect([aiming.x, aiming.y]).toEqual([turning.x, turning.y]);
+      expect(rtAiming.path).toEqual(rtTurning.path);
+      expect(turning.facing).not.toBe(0.5);
+    });
+  });
+
+  describe("speed multiplier", () => {
+    it.each([0.5, 0.35, 0.75, 2])("x%d scales the distance covered by the same factor", (mult) => {
+      const p = makePlayer(0, 0);
+      const rt = makeRuntime([{ x: 10_000, y: 0 }]);
+      advanceAlongPath(p, rt, 1, false, mult);
+      expect(p.x).toBeCloseTo(PLAYER_SPEED * mult, 9);
+      expect(rt.path).toHaveLength(1);
+    });
+
+    it("defaults to full speed", () => {
+      const a = makePlayer(0, 0);
+      const b = makePlayer(0, 0);
+      advanceAlongPath(a, makeRuntime([{ x: 1000, y: 0 }]), DT);
+      advanceAlongPath(b, makeRuntime([{ x: 1000, y: 0 }]), DT, false, 1);
+      expect(b.x).toBe(a.x);
+    });
+
+    it("a rooted fighter (x0) does not move and keeps its path and facing", () => {
+      const p = makePlayer(5, 5, 0.3);
+      const rt = makeRuntime([{ x: 100, y: 5 }]);
+      advanceAlongPath(p, rt, 1, false, 0);
+      expect([p.x, p.y, p.facing]).toEqual([5, 5, 0.3]);
+      expect(rt.path).toEqual([{ x: 100, y: 5 }]);
+    });
+
+    it("carries the reduced budget across corners and still snaps onto short waypoints", () => {
+      const p = makePlayer(0, 0);
+      const rt = makeRuntime([{ x: 40, y: 0 }, { x: 40, y: 100 }]);
+      advanceAlongPath(p, rt, 1, false, 0.5); // budget 85: 40 along x, then 45 along y
+      expect(p.x).toBeCloseTo(40, 9);
+      expect(p.y).toBeCloseTo(PLAYER_SPEED * 0.5 - 40, 9);
+      expect(rt.path).toEqual([{ x: 40, y: 100 }]);
+    });
+
+    it("combines with keepFacing", () => {
+      const p = makePlayer(0, 0, 1.5);
+      advanceAlongPath(p, makeRuntime([{ x: 1000, y: 0 }]), 1, true, 0.5);
+      expect(p.x).toBeCloseTo(PLAYER_SPEED / 2, 9);
+      expect(p.facing).toBe(1.5);
+    });
+  });
+
+  it("walks any fighter state: a mob moves like a player", () => {
+    const m = new MobState();
+    m.x = 10;
+    m.y = 10;
+    advanceAlongPath(m, makeRuntime([{ x: 10, y: 1000 }]), 1);
+    expect(m.x).toBe(10);
+    expect(m.y).toBeCloseTo(10 + PLAYER_SPEED, 9);
+    expect(m.facing).toBeCloseTo(Math.PI / 2, 9);
   });
 
   it("either finishes the polyline or leaves an untouched suffix of it (random polylines)", () => {

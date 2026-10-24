@@ -1,15 +1,13 @@
 import Phaser from "phaser";
-import { PLAYER_RADIUS, TELEPORT_IMMUNITY_MS } from "@raid/shared";
+import { PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { depthFor, projX, projY } from "./projection";
+import { BodyFlash, FighterArt, drawHpBar, factionColor } from "./FighterArt";
+import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 
-/** Screen pixels the body disc floats above the ground shadow; shots and floating text are drawn at this height too. */
-export const BODY_LIFT = 14;
-const LOCAL_COLOR = 0x4caf50;
-const REMOTE_COLOR = 0xe5a823;
-const HIT_COLOR = 0xffffff;
 const HIT_FLASH_MS = 120;
 const SHIELD_COLOR = 0x4fc3f7;
+/** The local player's marks: a white ring on the ground and a white rim on the body. */
+const LOCAL_MARK = 0xffffff;
 
 // The bounty crown sits above the name label, drawn from its base centre so scaling it grows it upward.
 const CROWN_COLOR = 0xffd54f;
@@ -22,7 +20,7 @@ const CROWN_BASE_Y = -BODY_LIFT - PLAYER_RADIUS - 33;
 const CROWN_GROWTH = 0.5;
 const CROWN_FULL_BOUNTY = 150;
 
-/** One player drawn as a raised disc over a ground shadow, y-sorted by ground position. */
+/** One player drawn as a raised disc over a ground shadow, y-sorted by ground position. The disc takes its faction's colour. */
 export class PlayerView {
   private readonly root: Phaser.GameObjects.Container;
   private readonly body: Phaser.GameObjects.Arc;
@@ -32,23 +30,27 @@ export class PlayerView {
   private readonly shieldRing: Phaser.GameObjects.Graphics;
   private readonly crown: Phaser.GameObjects.Graphics;
   private readonly crownLabel: Phaser.GameObjects.Text;
-  private readonly baseColor: number;
+  private readonly art: FighterArt;
+  private readonly flashing: BodyFlash;
   /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
   private crownBounty = 0;
-  /** performance.now() deadline of the hit flash; 0 when idle. Polled in update() so no timer needs cleaning up. */
-  private flashUntil = 0;
-  private flashing = false;
 
   constructor(scene: Phaser.Scene, readonly isLocal: boolean) {
-    const color = isLocal ? LOCAL_COLOR : REMOTE_COLOR;
-    this.baseColor = color;
     const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
-    this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, color).setStrokeStyle(2, 0x111111, 0.8);
+    // Local player: a ring around the feet, so it stays recognisable whatever its faction colour is.
+    const mark = scene.add.graphics().setVisible(isLocal);
+    mark.lineStyle(2, LOCAL_MARK, 0.9).strokeEllipse(0, 0, PLAYER_RADIUS * 2.9, PLAYER_RADIUS * 2.9 * Y_SCALE);
+    this.art = new FighterArt(scene);
+    this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor(""))
+      .setStrokeStyle(2, isLocal ? LOCAL_MARK : 0x111111, isLocal ? 0.95 : 0.8);
+    this.flashing = new BodyFlash(this.body, factionColor(""));
+    // Shows the facing while nothing is in hand.
     this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
     this.hpBar = scene.add.graphics();
     this.shieldRing = scene.add.graphics();
     this.label = scene.add.text(0, -BODY_LIFT - PLAYER_RADIUS - 18, "", {
-      fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#ffe0a3",
+      fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#eceff1",
+      stroke: "#000000", strokeThickness: 2,
     }).setOrigin(0.5, 1);
     this.crown = scene.add.graphics().setVisible(false);
     this.crown.fillStyle(CROWN_COLOR, 1).lineStyle(1.5, CROWN_EDGE, 1);
@@ -62,43 +64,33 @@ export class PlayerView {
       color: "#ffe082", stroke: "#000000", strokeThickness: 3,
     }).setOrigin(0.5, 1).setVisible(false);
     this.root = scene.add.container(0, 0, [
-      shadow, this.body, this.nose, this.shieldRing, this.hpBar, this.label, this.crown, this.crownLabel,
+      shadow, mark, this.art.ground, this.body, this.nose, this.art.held, this.shieldRing, this.hpBar, this.label,
+      this.crown, this.crownLabel,
     ]);
   }
 
   /** Paints the body white for a moment (a hit landed on this player). */
   flash(ms = HIT_FLASH_MS): void {
-    this.flashUntil = performance.now() + ms;
-    if (!this.flashing) {
-      this.flashing = true;
-      this.body.setFillStyle(HIT_COLOR);
-    }
+    this.flashing.trigger(ms);
   }
 
   /**
-   * `renderT`: the server time this frame is drawn at. `drawAsAlive`: the player's death is still ahead of the render
-   * time they are drawn at, so keep showing them.
+   * `renderT`: the server time this frame is drawn at. `patchT`: the server time of the newest patch (see FighterArt).
+   * `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them.
    */
-  update(x: number, y: number, p: PlayerState, renderT: number, drawAsAlive = false): void {
-    if (this.flashing && performance.now() >= this.flashUntil) {
-      this.flashing = false;
-      this.flashUntil = 0;
-      this.body.setFillStyle(this.baseColor);
-    }
+  update(x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false): void {
+    this.flashing.tick();
     const visible = drawAsAlive || p.status === "alive" || p.status === "lobby";
     this.root.setVisible(visible);
     if (!visible) return;
+    this.flashing.setColor(factionColor(p.faction));
     this.root.setPosition(projX(x), projY(y));
     this.root.setDepth(depthFor(y));
-    this.nose.setRotation(p.facing);
+    const weapon = this.art.update(p, renderT, patchT);
+    this.nose.setVisible(weapon === null).setRotation(screenAngle(p.facing));
     this.label.setText(p.name);
 
-    const w = 28;
-    const frac = p.maxHp > 0 ? Math.max(0, p.hp / p.maxHp) : 0;
-    const top = -BODY_LIFT - PLAYER_RADIUS - 8;
-    this.hpBar.clear();
-    this.hpBar.fillStyle(0x000000, 0.6).fillRect(-w / 2, top, w, 4);
-    this.hpBar.fillStyle(frac > 0.5 ? 0x66bb6a : frac > 0.25 ? 0xffca28 : 0xef5350, 1).fillRect(-w / 2, top, w * frac, 4);
+    drawHpBar(this.hpBar, p.maxHp > 0 ? p.hp / p.maxHp : 0, -BODY_LIFT - PLAYER_RADIUS - 8);
 
     // Immunity runs from the teleport tick `t` to t + TELEPORT_IMMUNITY_MS. `p` is the latest patch, ahead of the delayed
     // positions drawn here, so the ring is judged at render time: it shows from the moment this body lands in the

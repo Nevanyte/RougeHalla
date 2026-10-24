@@ -111,17 +111,24 @@ function duelSpot(world: World, fighters: string[]): Vec2 {
   return best;
 }
 
-/** `killer` swings at `victim` (brought down to 1 hp) until the victim is dead and has its result. Inputs only. */
+/**
+ * `killer` attacks `victim` (brought down to a sliver of hp, so any hit that gets through is lethal) until the victim is
+ * dead and has its result. Inputs only: an `attack` press toward the victim and its `release`, which is one swing, one
+ * cast or one arrow at the minimum draw, whatever the killer holds. A tap the cooldown swallowed is repeated.
+ */
 async function kill(killer: Player, victim: Player): Promise<void> {
   const at = duelSpot(worldOf(killer), [killer.room.sessionId, victim.room.sessionId]);
   placeOnServer(victim, at.x + 12, at.y);
   placeOnServer(killer, at.x - 12, at.y);
-  serverPlayer(victim).hp = 1;
+  serverPlayer(victim).hp = 0.01;
   await sleep(120);
+  const a = Math.atan2(0, 24); // the victim is due east
   const deadline = Date.now() + 10_000;
   while (victim.results.length === 0 && Date.now() < deadline) {
-    killer.room.send("attack", { x: at.x + 12, y: at.y });
-    await sleep(120);
+    killer.room.send("attack", { a });
+    killer.room.send("release", { a });
+    const settle = Date.now() + 300; // a windup, and the flight of whatever it looses
+    while (victim.results.length === 0 && Date.now() < settle) await sleep(20);
   }
   await until(() => victim.results.length === 1, "the victim's result");
 }

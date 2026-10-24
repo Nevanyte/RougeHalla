@@ -8,7 +8,7 @@ import { InputQueue } from "./inputs";
 import { applyLedger } from "./ledger";
 import { resolveMelee } from "./melee";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
-import { spawnProjectiles, sweepProjectiles } from "./projectiles";
+import { clearProjectiles, spawnProjectiles, sweepProjectiles } from "./projectiles";
 import { moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
 import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
 
@@ -58,7 +58,8 @@ export function addPlayer(world: World, id: string, profile: string): PlayerStat
 /** Lobby placement only; real spawns are assigned (shuffled, distinct) when the raid starts. */
 function lobbySpot(world: World, index: number): Vec2 {
   const spawns = world.map.spawns;
-  return spawns[index % spawns.length]!;
+  // A hand-built map may have no spawns at all.
+  return spawns.length > 0 ? spawns[index % spawns.length]! : world.map.coliseum.centre;
 }
 
 function shuffledSpawns(world: World): Vec2[] {
@@ -104,7 +105,8 @@ export function startRaid(world: World): void {
   const spawns = shuffledSpawns(world);
   let i = 0;
   for (const [id, p] of s.players) {
-    const spot = spawns[i++ % spawns.length]!;
+    // No spawns (a hand-built map): players start where the lobby put them.
+    const spot = spawns.length > 0 ? spawns[i++ % spawns.length]! : p;
     p.x = spot.x;
     p.y = spot.y;
     p.status = "alive";
@@ -144,20 +146,22 @@ export function actionOrder(world: World, tick = world.state.tick): string[] {
   return ids;
 }
 
-/** One fighter's queued inputs: its path, its aim, then its actions in the order they arrived. */
+/** One fighter's queued inputs: its path, then its aim and actions in the order they arrived. */
 function applyInputs(world: World, c: Combatant): void {
-  const { move, aim, actions } = c.rt.inputs.drain();
+  const { move, aim, aimBefore, actions } = c.rt.inputs.drain();
   if (c.s.status !== "alive") return;
   if (move) {
     // An unreachable click is ignored rather than treated as "stop".
     const path = move.kind === "move" ? planPath(world, c.s, move) : [];
     if (move.kind === "stop" || path.length > 0) c.rt.path = path;
   }
-  if (aim !== null) setAim(world, c, aim);
-  for (const cmd of actions) {
+  // The latest aim goes in where it arrived, so an attack's own angle never overrides an aim sent after it.
+  actions.forEach((cmd, i) => {
+    if (c.s.status !== "alive") return;
+    if (aim !== null && i === aimBefore) setAim(world, c, aim);
     world.actions[cmd.kind]?.(world, c, cmd);
-    if (c.s.status !== "alive") break;
-  }
+  });
+  if (aim !== null && aimBefore >= actions.length && c.s.status === "alive") setAim(world, c, aim);
 }
 
 /**
@@ -177,7 +181,9 @@ function updateActive(world: World, dtMs: number): void {
   world.combat.ledger = [];
   world.combat.melee = [];
   world.combat.spawns = [];
-  for (const id of actionOrder(world)) applyInputs(world, combatant(world, id)!);
+  const order = actionOrder(world);
+  world.combat.rank = new Map(order.map((id, i) => [id, i]));
+  for (const id of order) applyInputs(world, combatant(world, id)!);
   for (const id of world.mobs.keys()) applyInputs(world, combatant(world, id)!);
   updateWeapons(world);
   const fighters = standingCombatants(world);
@@ -195,6 +201,8 @@ function updateActive(world: World, dtMs: number): void {
   for (const sys of world.systems) sys(world, dtMs);
   suddenDeath(world, dtMs);
   settle(world);
+  // Nothing flies once the run is over: clients would otherwise draw what's left to its full range, through walls.
+  if (s.phase === "ended") clearProjectiles(world, "cleared");
 }
 
 /** Advances the world by one fixed step and returns the events it produced. */

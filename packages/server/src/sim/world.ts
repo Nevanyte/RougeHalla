@@ -29,7 +29,8 @@ export interface SimConfig {
 /** A melee swing or wand cast waiting to land, or a bow being drawn. Times are server ms. */
 export type PendingAction =
   | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket }
-  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket }
+  /** `origin`: where the caster's client drew it when the cast began; the ball leaves from there, along `a`. */
+  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2 }
   | { kind: "draw"; weapon: WeaponId; startedAt: number };
 
 /**
@@ -186,6 +187,11 @@ export interface SpawnRequest {
   weapon: WeaponId;
   a: number;
   packet: DamagePacket;
+  /**
+   * Where it leaves from: the shooter where its client drew it (rewound like a melee origin), since that is where the
+   * client measured `a` from. Defaults to the shooter's present position.
+   */
+  origin?: Vec2;
 }
 
 /** Server-only flight data of one synced ProjectileState (sim/projectiles.ts). */
@@ -224,6 +230,11 @@ export interface CombatScratch {
    */
   swept: ProjectileRuntime[];
   /**
+   * This tick's secret rank of each player (their place in actionOrder). Exact ties between hits (who gets a kill, which
+   * of two bodies an arrow meets) go to the lower rank, so neither join order nor ledger order decides them.
+   */
+  rank: Map<string, number>;
+  /**
    * True while applyLedger applies damage. Rewards for kills (GV, a bounty, stacks, shields) are queued in `payouts` and
    * paid once every victim has taken their damage (payLater), so who is left standing never depends on the order victims
    * happen to be processed in.
@@ -250,6 +261,11 @@ export interface ArenaRuntime {
   downsBetweenTicks: number;
   /** Set when a player is abandoned mid-run (a server shutdown): the run is void and the sim stops advancing it. */
   voided: boolean;
+  /**
+   * Every player's bounty when the tick being simulated began. A kill in a tick pays the victim's bounty from here,
+   * so a bounty raised by another kill in the same tick (whose victim the ledger happened to apply first) isn't paid.
+   */
+  bountyAtTickStart: Map<string, number>;
 }
 
 export type SimEvent =
@@ -322,6 +338,8 @@ export function createWorld(opts: {
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
+  /** A ready map instead of generateMap(seed): hand-built test arenas and the harness skip the generator. */
+  map?: GameMap;
 }): World {
   const state = new RaidState();
   state.seed = opts.seed >>> 0;
@@ -329,14 +347,14 @@ export function createWorld(opts: {
   return {
     state,
     config: opts.config,
-    map: generateMap(state.seed),
+    map: opts.map ?? generateMap(state.seed),
     idCounter: 0,
     joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [], collecting: false, payouts: [], medianFeed: null },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), collecting: false, payouts: [], medianFeed: null },
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],
@@ -344,7 +362,7 @@ export function createWorld(opts: {
     actions: {},
     systems: [],
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
-    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false },
+    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
   };
 }
 

@@ -1,20 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   bountyFor, BOUNTY_ANNOUNCE_MS, feedScore,
-  circleClear, COLISEUM_RING_RADIUS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
-  inColiseum, KILL_CREDIT_SECONDS, mapFromTiles, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
+  circleClear, COLISEUM_RING_RADIUS, defaultFaction, FACTIONS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
+  inColiseum, KILL_CREDIT_SECONDS, mapFromTiles, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SIGNATURE_WEAPONS,
+  SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
   SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WIN_BONUS_MIN_OPPONENTS,
   WIN_BONUS_MIN_PLAYERS, withGates, type FxEvent, type GameMap, type RunResult, type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
 import {
-  applyDamage, awardGv, beginRun, coliseumSpots, creditMobKill, downPlayer, markDropped, markReconnected, markTickStart,
-  patienceMs, suddenDeath, suddenDeathShare, unbankedGv, type Attacker,
+  applyDamage, applyHits, awardGv, beginRun, coliseumSpots, creditMobKill, downPlayer, markDropped, markReconnected, markTickStart,
+  patienceMs, suddenDeath, suddenDeathShare, unbankedGv, type Attacker, type Hit,
 } from "../src/sim/arena";
+import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { abandonPlayer, addPlayer, removePlayer, step } from "../src/sim/step";
+import { moveMultiplierOf } from "../src/sim/weapons";
 import { collisionMap, createWorld, type PlayerRuntime, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
@@ -33,14 +36,28 @@ function makeConfig(cfg: Partial<SimConfig> = {}): SimConfig {
   };
 }
 
-interface RunOpts { seed?: number; random?: () => number; game?: boolean }
+interface RunOpts {
+  seed?: number;
+  random?: () => number;
+  game?: boolean;
+  /**
+   * Every player gets this hp and maxHp instead of their faction's (500 fire, 700 sentenced, 1000 plague, ...). The
+   * tie-break between simultaneous last deaths compares hp *fractions*, so a test that sets literal hp values needs one
+   * shared maxHp for the numbers to mean what they say.
+   */
+  hp?: number;
+}
 
-/** `n` players (p0 alice, p1 bob, ...) in a run that started on the first step, i.e. at serverTime TICK_MS. */
+/**
+ * `n` players (p0 alice, p1 bob, ...) in a run that started on the first step, i.e. at serverTime TICK_MS. Players get
+ * a faction by join order (fire, sentenced, plague, frost, holy, ...) and that faction's hp.
+ */
 function startRun(n: number, cfg: Partial<SimConfig> = {}, opts: RunOpts = {}): World {
   const seed = opts.seed ?? 1234;
   const options = { seed, config: makeConfig({ minPlayers: n, ...cfg }), random: opts.random ?? mulberry32(seed + 1) };
   const world = opts.game ? createGameWorld(options) : createWorld(options);
   for (let i = 0; i < n; i++) addPlayer(world, idOf(i), NAMES[i]!);
+  if (opts.hp !== undefined) for (const p of world.state.players.values()) { p.hp = opts.hp; p.maxHp = opts.hp; }
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   return world;
@@ -118,6 +135,19 @@ describe("beginRun", () => {
     expect(w.state).toMatchObject({ inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "", phase: "active" });
   });
 
+  it("starts everyone at their faction's hp with its signature weapon: join order picks the faction", () => {
+    const w = startRun(6);
+    for (let i = 0; i < 6; i++) {
+      const faction = defaultFaction(i);
+      expect(P(w, i), `p${i}`).toMatchObject({
+        faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: SIGNATURE_WEAPONS[faction], weapon1: "",
+        slot: 0, status: "alive",
+      });
+    }
+    expect(new Set([0, 1, 2, 3, 4].map((i) => P(w, i).faction)).size).toBe(5); // a lobby of five has one of each
+    expect(P(w, 5).faction).toBe(P(w, 0).faction); // and the sixth wraps round
+  });
+
   it("counts the players present when the run starts, not the ones who joined and left in the lobby", () => {
     const w = createWorld({ seed: 1234, config: makeConfig({ minPlayers: 2 }), random: mulberry32(1) });
     for (let i = 0; i < 3; i++) addPlayer(w, idOf(i), NAMES[i]!);
@@ -174,7 +204,7 @@ describe("beginRun", () => {
       patienceEndsAt: w.state.serverTime + 5000, inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "",
       startedWith: 2,
     });
-    expect(w.arena).toEqual({ startedWith: 2, downedThisTick: [], downsBetweenTicks: 0, voided: false });
+    expect(w.arena).toEqual({ startedWith: 2, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() });
   });
 });
 
@@ -244,7 +274,7 @@ describe("patience timer and the teleport", () => {
     atTick(w, 2050, (world) => {
       for (let i = 0; i < 2; i++) {
         RT(world, i).inputs.pushMove({ kind: "move", x: world.map.spawns[0]!.x, y: world.map.spawns[0]!.y });
-        RT(world, i).inputs.pushAction({ kind: "use", uid: "x" });
+        RT(world, i).inputs.pushAction({ kind: "attack", a: 0 });
       }
     });
     runTo(w, 2050);
@@ -684,6 +714,59 @@ describe("disconnect and reconnect grace", () => {
     expect(w.state).toMatchObject({ gatesLocked: false, patienceEndsAt: 4050 });
   });
 
+  describe("a dropped connection lets go of the trigger", () => {
+    // Its release never arrives, so the server lets go itself: otherwise a bow stays at full draw (0.75 x speed) until
+    // the player is back, and then looses at once.
+    function drawing() {
+      const w = startRun(3, { patienceSeconds: 3600 }, { game: true });
+      enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 }); // p1 is Sentenced: a bow
+      runTo(w, 200);
+      expect(P(w, 1).drawStartedAt).toBeGreaterThan(0);
+      expect(RT(w, 1).weapon.held).toBe(true);
+      expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(0.75);
+      return w;
+    }
+
+    it.each([["markDropped", markDropped], ["markReconnected", markReconnected]] as const)(
+      "%s: nothing held or buffered, the draw cancelled, full speed again and no arrow later", (_name, mark) => {
+        const w = drawing();
+        mark(w, idOf(1));
+        const weapon = RT(w, 1).weapon;
+        expect([weapon.held, weapon.bufferedUntil, weapon.action, weapon.releasePending]).toEqual([false, 0, null, false]);
+        expect(P(w, 1).drawStartedAt).toBe(0);
+        expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(1);
+        runTo(w, 1500); // far past a full draw
+        expect(P(w, 1).drawStartedAt).toBe(0);
+        expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+        // The client presses again when it is back: a fresh draw.
+        enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 });
+        tick(w);
+        expect(P(w, 1).drawStartedAt).toBe(w.state.serverTime);
+      },
+    );
+
+    it("a press still queued when the connection drops is dropped with it, so nothing attacks through the grace", () => {
+      const w = startRun(3, { patienceSeconds: 3600 }, { game: true });
+      const rt = RT(w, 1);
+      P(w, 1).weapon0 = "axe";
+      P(w, 1).slot = 0;
+      enqueueClientMessage(rt.inputs, "attack", { a: 0, t: w.state.serverTime - 100 });
+      markDropped(w, idOf(1));
+      const windups: SimEvent[] = [];
+      for (let i = 0; i < 40; i++) windups.push(...tick(w).filter((e) => e.type === "fx" && e.fx.kind === "windup"));
+      expect(windups).toEqual([]);
+      expect(rt.weapon.held).toBe(false);
+    });
+
+    it("a drop still records when the connection went, and a reconnect clears it", () => {
+      const w = drawing();
+      markDropped(w, idOf(1));
+      expect(RT(w, 1).droppedAt).toBe(w.state.serverTime);
+      markReconnected(w, idOf(1));
+      expect(RT(w, 1).droppedAt).toBeNull();
+    });
+  });
+
   it("a leave in the coliseum unlocks the gates and cancels sudden death on the next tick", () => {
     const w = startRun(3);
     runTo(w, 2500);
@@ -719,8 +802,9 @@ describe("disconnect and reconnect grace", () => {
     const w = startRun(3, { suddenDeathSeconds: 5 });
     atTick(w, 500, (world) => kill(world, 1));
     runTo(w, 500);
+    const full = P(w, 2).maxHp;
     expect(applyDamage(w, P(w, 2), RT(w, 2), 30, "test")).toBe(30);
-    expect(P(w, 2).hp).toBe(70);
+    expect(P(w, 2).hp).toBe(full - 30);
 
     runTo(w, 2500); // the death at 500 moved the timer to 2500
     expect(w.state.gatesLocked).toBe(true);
@@ -881,9 +965,12 @@ describe("end of a contested run", () => {
 });
 
 describe("simultaneous last deaths", () => {
-  /** Runs a 2-second sudden death far enough that the first burning tick is the next one; hp is set by the caller. */
+  /**
+   * Runs a 2-second sudden death far enough that the first burning tick is the next one; hp is set by the caller. Every
+   * player has 100 max hp, so the tiny hp values the tests set are fractions of one shared maxHp.
+   */
   function toBurnEdge(n: number) {
-    const w = startRun(n, { suddenDeathSeconds: 2 });
+    const w = startRun(n, { suddenDeathSeconds: 2 }, { hp: 100 });
     runTo(w, 4050); // teleport at 2050, sudden death starts at 4050: the tick at 4100 is the first to burn
     return w;
   }
@@ -983,7 +1070,7 @@ describe("simultaneous last deaths", () => {
   it("the fraction at the start of the tick decides, not hp lost during it", () => {
     // p0 starts the tick healthiest but takes the most damage in it; p1 and p2 are hit exactly lethally.
     for (const order of [[0, 1, 2], [2, 1, 0], [1, 0, 2]]) {
-      const w = startRun(3);
+      const w = startRun(3, {}, { hp: 100 });
       P(w, 0).hp = 60;
       P(w, 1).hp = 50;
       P(w, 2).hp = 40;
@@ -1005,7 +1092,7 @@ describe("simultaneous last deaths", () => {
   });
 
   it("the winner can be the one who took the most damage in the tick", () => {
-    const w = startRun(2);
+    const w = startRun(2, {}, { hp: 100 });
     P(w, 0).hp = 60;
     P(w, 1).hp = 50;
     atTick(w, 500, (world) => {
@@ -1017,7 +1104,7 @@ describe("simultaneous last deaths", () => {
   });
 
   it("two players killing each other in one tick: both get the kill, the higher fraction wins", () => {
-    const w = startRun(2);
+    const w = startRun(2, {}, { hp: 100 });
     P(w, 0).hp = 80;
     P(w, 1).hp = 20;
     atTick(w, 500, (world) => {
@@ -1049,8 +1136,46 @@ describe("simultaneous last deaths", () => {
     expect(w.state.winner).toBe("");
   });
 
+  describe("through the real weapons and the damage ledger", () => {
+    /** Two axe fighters (both fire) 20 u apart on open floor facing each other with `hp0` and `hp1` left, both swinging. */
+    function axeDuel(hp0: number, hp1: number): { w: World; events: SimEvent[] } {
+      const w = startRun(2, { patienceSeconds: 3600 }, { game: true });
+      Object.assign(P(w, 1), { faction: "fire", maxHp: P(w, 0).maxHp, weapon0: "axe" });
+      const at = w.map.spawns[0]!; // a tile centre: both ends of a 20 u line stay inside its tile
+      const fighters = [{ i: 0, x: at.x - 10, hp: hp0, a: 0 }, { i: 1, x: at.x + 10, hp: hp1, a: Math.PI }];
+      for (const { i, x, hp, a } of fighters) {
+        Object.assign(P(w, i), { x, y: at.y, hp });
+        RT(w, i).history = [{ t: w.state.serverTime, x, y: at.y }];
+        enqueueClientMessage(RT(w, i).inputs, "attack", { a });
+      }
+      // The swings start this tick and land a few ticks on, in the same one.
+      const events: SimEvent[] = [];
+      for (let k = 0; k < 12 && w.state.phase === "active"; k++) events.push(...tick(w));
+      expect(w.state.phase).toBe("ended");
+      return { w, events };
+    }
+
+    it("two fighters hitting each other in one tick both land their blows: both die, each is credited, equal fractions draw", () => {
+      const { w, events } = axeDuel(0.01, 0.01);
+      expect(fxOf(events, "death").map((d) => [d.id, d.by]).sort()).toEqual([[idOf(0), idOf(1)], [idOf(1), idOf(0)]]);
+      expect(resultsOf(events)).toMatchObject({
+        p0: { outcome: "draw", place: 1, kills: 1, gv: { kills: GV_KILL, win: 0, total: GV_KILL } },
+        p1: { outcome: "draw", place: 1, kills: 1, gv: { kills: GV_KILL, win: 0, total: GV_KILL } },
+      });
+      expect(w.state.winner).toBe("");
+    });
+
+    it("the higher hp fraction at the start of the tick wins, though both die", () => {
+      const { w, events } = axeDuel(0.01, 0.02);
+      expect(resultsOf(events)).toMatchObject({
+        p1: { outcome: "won", place: 1, kills: 1, killedBy: null }, p0: { outcome: "died", place: 2, kills: 1, killedBy: "bob" },
+      });
+      expect(w.state.winner).toBe("bob");
+    });
+  });
+
   it("markTickStart snapshots every player's hp fraction, and in-tick damage does not change it", () => {
-    const w = startRun(2);
+    const w = startRun(2, {}, { hp: 100 });
     P(w, 0).hp = 25;
     P(w, 1).maxHp = 200;
     P(w, 1).hp = 50;
@@ -1277,6 +1402,7 @@ describe("teleport immunity", () => {
 
   it("works again from the tick serverTime reaches immuneUntil", () => {
     const w = startRun(2);
+    const full = P(w, 1).maxHp;
     P(w, 1).immuneUntil = w.state.serverTime + 100;
     w.state.serverTime += 50;
     expect(applyDamage(w, P(w, 1), RT(w, 1), 10, "test")).toBe(0);
@@ -1285,11 +1411,12 @@ describe("teleport immunity", () => {
     w.state.serverTime += 1;
     expect(w.state.serverTime).toBe(P(w, 1).immuneUntil);
     expect(applyDamage(w, P(w, 1), RT(w, 1), 10, "test")).toBe(10);
-    expect(P(w, 1).hp).toBe(90);
+    expect(P(w, 1).hp).toBe(full - 10);
   });
 
   it("covers the TELEPORT_IMMUNITY_MS after a real teleport and no longer", () => {
     const w = startRun(2, { suddenDeathSeconds: 60 });
+    const full = P(w, 1).maxHp;
     const landed: Array<[number, number]> = [];
     for (const t of [2100, 3500, 3550, 3600]) {
       atTick(w, t, (world) => landed.push([t, applyDamage(world, P(world, 1), RT(world, 1), 1, "test")]));
@@ -1297,7 +1424,7 @@ describe("teleport immunity", () => {
     runTo(w, 3600);
     expect(P(w, 1).immuneUntil).toBe(2050 + TELEPORT_IMMUNITY_MS);
     expect(landed).toEqual([[2100, 0], [3500, 0], [3550, 1], [3600, 1]]);
-    expect(P(w, 1).hp).toBe(98);
+    expect(P(w, 1).hp).toBe(full - 2);
   });
 
   it("does not stop a leave from downing the player", () => {
@@ -1312,16 +1439,17 @@ describe("teleport immunity", () => {
 describe("applyDamage and downPlayer", () => {
   it("returns the hp removed: the amount for a non-lethal hit, the hp left for an overkill", () => {
     const w = startRun(2);
+    const full = P(w, 1).maxHp;
     expect(applyDamage(w, P(w, 1), RT(w, 1), 30, "test")).toBe(30);
-    expect(P(w, 1).hp).toBe(70);
-    expect(applyDamage(w, P(w, 1), RT(w, 1), 500, "test")).toBe(70);
+    expect(P(w, 1).hp).toBe(full - 30);
+    expect(applyDamage(w, P(w, 1), RT(w, 1), full + 500, "test")).toBe(full - 30);
     expect(P(w, 1).hp).toBe(0);
   });
 
   it("ignores zero, negative and non-numeric amounts", () => {
     const w = startRun(2);
     for (const amount of [0, -5, NaN]) expect(applyDamage(w, P(w, 1), RT(w, 1), amount, "test")).toBe(0);
-    expect(P(w, 1).hp).toBe(100);
+    expect(P(w, 1).hp).toBe(P(w, 1).maxHp);
     expect(w.events).toEqual([]);
   });
 
@@ -1334,7 +1462,7 @@ describe("applyDamage and downPlayer", () => {
     RT(w, 1).resolved = true;
     P(w, 1).status = "alive";
     expect(applyDamage(w, P(w, 1), RT(w, 1), 10, "test")).toBe(0);
-    expect(P(w, 1).hp).toBe(100);
+    expect(P(w, 1).hp).toBe(P(w, 1).maxHp);
   });
 
   it("credits the killer's kills, names them as killedBy and sets the death fx's by", () => {
@@ -1388,6 +1516,105 @@ describe("applyDamage and downPlayer", () => {
     downPlayer(w, P(w, 1), RT(w, 1), "died");
     expect(RT(w, 1).path).toEqual([]);
     expect(dropped).toEqual(["bob"]);
+  });
+
+  it("without a body hook, the weapons a downed player carried are discarded", () => {
+    const w = startRun(2);
+    P(w, 1).weapon1 = "sword";
+    expect([P(w, 1).weapon0, P(w, 1).weapon1]).toEqual([SIGNATURE_WEAPONS.sentenced, "sword"]);
+    downPlayer(w, P(w, 1), RT(w, 1), "died");
+    expect([P(w, 1).weapon0, P(w, 1).weapon1]).toEqual(["", ""]);
+    expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual([SIGNATURE_WEAPONS.fire, ""]);
+  });
+});
+
+describe("applyHits", () => {
+  // Several hits landing on one player in the same moment (the per-tick damage ledger): their sum comes off at once, so
+  // no hit is "first", and the kill goes to the largest hit from a rival player.
+  const hit = (amount: number, source: Attacker | string): Hit => ({ amount, source });
+
+  it("takes the sum of the hits at once and returns the hp removed", () => {
+    const w = startRun(3);
+    const full = P(w, 1).maxHp;
+    expect(applyHits(w, P(w, 1), RT(w, 1), [hit(10, attacker(w, 0)), hit(20, attacker(w, 2)), hit(5, "lava")])).toBe(35);
+    expect(P(w, 1).hp).toBe(full - 35);
+    expect(P(w, 1).status).toBe("alive");
+    expect(w.events).toEqual([]);
+  });
+
+  it("counts every player among the sources as having damaged the victim, and the largest rival hit as the last hit", () => {
+    const w = startRun(3);
+    applyHits(w, P(w, 1), RT(w, 1), [hit(10, attacker(w, 0)), hit(20, attacker(w, 2)), hit(500, "lava")]);
+    expect([...RT(w, 0).damaged]).toEqual([idOf(1)]);
+    expect([...RT(w, 2).damaged]).toEqual([idOf(1)]);
+    expect(RT(w, 1).lastHit).toEqual({ by: idOf(2), at: w.state.serverTime });
+  });
+
+  it("a lethal sum credits the largest hit from a rival player, even when a bigger hit came from the world", () => {
+    const w = startRun(3);
+    P(w, 1).hp = 50;
+    expect(applyHits(w, P(w, 1), RT(w, 1), [hit(40, "lava"), hit(30, attacker(w, 0)), hit(20, attacker(w, 2))])).toBe(50);
+    expect(P(w, 1).status).toBe("dead");
+    expect(RT(w, 1).killedBy).toBe("alice");
+    expect([P(w, 0).kills, P(w, 2).kills]).toEqual([1, 0]);
+    expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: idOf(0) }]);
+    expect(fxOf(w.events, "death")).toHaveLength(1);
+  });
+
+  it("equal rival hits go to the earlier one", () => {
+    const w = startRun(3);
+    P(w, 1).hp = 50;
+    applyHits(w, P(w, 1), RT(w, 1), [hit(30, attacker(w, 2)), hit(30, attacker(w, 0))]);
+    expect(RT(w, 1).killedBy).toBe("carol");
+    expect([P(w, 0).kills, P(w, 2).kills]).toEqual([0, 1]);
+  });
+
+  it("a lethal sum from the world alone credits the world by name and no player", () => {
+    const w = startRun(3);
+    P(w, 1).hp = 50;
+    applyHits(w, P(w, 1), RT(w, 1), [hit(40, "lava"), hit(30, "sudden death")]);
+    expect(RT(w, 1).killedBy).toBe("lava");
+    expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: null }]);
+    expect([0, 1, 2].map((i) => P(w, i).kills)).toEqual([0, 0, 0]);
+  });
+
+  it("the victim's own hit is never a rival's: it can't credit them, and a rival's smaller hit still gets the kill", () => {
+    const w = startRun(3);
+    P(w, 1).hp = 50;
+    applyHits(w, P(w, 1), RT(w, 1), [hit(100, attacker(w, 1)), hit(10, attacker(w, 0))]);
+    expect(RT(w, 1).damaged.size).toBe(0);
+    expect(RT(w, 0).damaged.has(idOf(1))).toBe(true);
+    expect(P(w, 1).kills).toBe(0);
+    expect(P(w, 0).kills).toBe(1);
+  });
+
+  it("ignores empty, zero, negative and non-numeric hits, and is ignored for anyone not standing", () => {
+    const w = startRun(3);
+    expect(applyHits(w, P(w, 1), RT(w, 1), [])).toBe(0);
+    expect(applyHits(w, P(w, 1), RT(w, 1), [hit(0, attacker(w, 0)), hit(-5, attacker(w, 0)), hit(NaN, attacker(w, 0))])).toBe(0);
+    expect(RT(w, 0).damaged.size).toBe(0); // a hit with no damage in it does not count
+    expect(applyHits(w, P(w, 1), RT(w, 1), [hit(NaN, "lava"), hit(7, "lava")])).toBe(7);
+    downPlayer(w, P(w, 2), RT(w, 2), "died");
+    expect(applyHits(w, P(w, 2), RT(w, 2), [hit(10, attacker(w, 0))])).toBe(0);
+    expect(RT(w, 0).damaged.has(idOf(2))).toBe(false);
+  });
+
+  it("teleport immunity absorbs the whole batch", () => {
+    const w = startRun(3);
+    P(w, 1).immuneUntil = w.state.serverTime + 100;
+    expect(applyHits(w, P(w, 1), RT(w, 1), [hit(30, attacker(w, 0)), hit(20, attacker(w, 2)), hit(10_000, "lava")])).toBe(0);
+    expect(P(w, 1).hp).toBe(P(w, 1).maxHp);
+    expect(P(w, 1).status).toBe("alive");
+    expect([...RT(w, 0).damaged, ...RT(w, 2).damaged]).toEqual([]);
+    expect(RT(w, 1).lastHit).toBeNull();
+  });
+
+  it("applyDamage is the one-hit case: it credits the same way", () => {
+    const w = startRun(3);
+    P(w, 1).hp = 50;
+    expect(applyDamage(w, P(w, 1), RT(w, 1), 80, attacker(w, 0))).toBe(50);
+    expect(RT(w, 1).killedBy).toBe("alice");
+    expect(P(w, 0).kills).toBe(1);
   });
 });
 
@@ -1894,7 +2121,7 @@ describe("win bonus eligibility", () => {
     it("withholds it at 3 starters from a winner who damaged only 1 opponent, however many times they hit them", () => {
       const w = startRun(3, LONG);
       for (let i = 0; i < 25; i++) strike(w, 0, 1, 0.5);
-      expect(P(w, 1).hp).toBe(100 - 25 * 0.5);
+      expect(P(w, 1).hp).toBe(P(w, 1).maxHp - 25 * 0.5);
       expect(RT(w, 0).damaged.size).toBe(1); // one opponent, however many blows
       atTick(w, 200, (world) => { kill(world, 2); kill(world, 1, attacker(world, 0)); });
       const r = winnerOf(runTo(w, 200));
@@ -2008,7 +2235,7 @@ describe("win bonus eligibility", () => {
     it("self-damage does not count, lethal or not", () => {
       const w = startRun(3, LONG);
       expect(applyDamage(w, P(w, 0), RT(w, 0), 10, attacker(w, 0))).toBe(10);
-      expect(P(w, 0).hp).toBe(90);
+      expect(P(w, 0).hp).toBe(P(w, 0).maxHp - 10);
       expect(RT(w, 0).damaged.size).toBe(0);
       expect(RT(w, 0).lastHit).toBeNull();
       kill(w, 0, attacker(w, 0));
@@ -2056,7 +2283,7 @@ describe("win bonus eligibility", () => {
       expect(w.state.inColiseum).toBe(true);
       expect(strike(w, 0, 1, 10)).toBe(0);
       expect(kill(w, 2, attacker(w, 0))).toBe(0); // not even a lethal blow gets through
-      expect(P(w, 1).hp).toBe(100);
+      expect(P(w, 1).hp).toBe(P(w, 1).maxHp);
       expect(P(w, 2).status).toBe("alive");
       expect(RT(w, 0).damaged.size).toBe(0);
       expect(RT(w, 1).lastHit).toBeNull();
@@ -2077,7 +2304,8 @@ describe("win bonus eligibility", () => {
       kill(w, 1, attacker(w, 0)); // p1 is down, result out
       expect(strike(w, 2, 1)).toBe(0);
       expect(RT(w, 2).damaged.size).toBe(0);
-      // Same tick, the victim already downed by the first blow: the second attacker's swing finds nobody there.
+      // A separate applyDamage on a victim the first call already downed finds nobody there. (The tick's damage ledger
+      // never calls it that way: it hands a victim all of a tick's hits in one applyHits, where every attacker counts.)
       atTick(w, 200, (world) => { kill(world, 3, attacker(world, 0)); strike(world, 2, 3); });
       runTo(w, 200);
       expect(RT(w, 2).damaged.size).toBe(0);
@@ -2098,7 +2326,7 @@ describe("win bonus eligibility", () => {
   describe("winners decided by the tie-break", () => {
     /** 3 players at the edge of the first burning tick: `winner` has the highest fraction and has hurt `hurt`. */
     function burnEdge(winner: number, hurt: number[]) {
-      const w = startRun(3, { suddenDeathSeconds: 2 });
+      const w = startRun(3, { suddenDeathSeconds: 2 }, { hp: 100 });
       runTo(w, 4050);
       for (const v of hurt) strike(w, winner, v, 0.001);
       [0, 1, 2].forEach((i) => { P(w, i).hp = i === winner ? 0.09 : 0.02 + i * 0.01; });
@@ -2128,7 +2356,7 @@ describe("win bonus eligibility", () => {
         { hp0: 20, hp1: 80, winner: 1, winnerKills: 1, paid: false },
       ];
       for (const { hp0, hp1, winner, winnerKills, paid } of cases) {
-        const w = startRun(3, LONG);
+        const w = startRun(3, LONG, { hp: 100 });
         atTick(w, 300, (world) => kill(world, 2, attacker(world, 0)));
         runTo(w, 300);
         P(w, 0).hp = hp0;
@@ -2148,7 +2376,7 @@ describe("win bonus eligibility", () => {
     });
 
     it("a 2-player tie-break winner is withheld", () => {
-      const w = startRun(2, { suddenDeathSeconds: 2 });
+      const w = startRun(2, { suddenDeathSeconds: 2 }, { hp: 100 });
       runTo(w, 4050);
       strike(w, 1, 0, 0.001);
       P(w, 0).hp = 0.04;
@@ -2159,7 +2387,7 @@ describe("win bonus eligibility", () => {
 
   describe("draws are never withheld", () => {
     it("a draw between players who both earned the bonus pays nobody and withholds nothing", () => {
-      const w = startRun(3, { suddenDeathSeconds: 2 });
+      const w = startRun(3, { suddenDeathSeconds: 2 }, { hp: 100 });
       runTo(w, 4050);
       for (const [from, to] of [[0, 1], [0, 2], [1, 0], [1, 2]] as const) strike(w, from, to, 0.001);
       P(w, 0).hp = 0.05;
@@ -2172,12 +2400,12 @@ describe("win bonus eligibility", () => {
     });
 
     it("a draw in a 2-player run, or between players who hurt nobody, is a draw and not a withheld win", () => {
-      const two = startRun(2, { suddenDeathSeconds: 2 });
+      const two = startRun(2, { suddenDeathSeconds: 2 }, { hp: 100 });
       runTo(two, 4050);
       for (const p of two.state.players.values()) p.hp = 0.05;
       for (const r of Object.values(resultsOf(tick(two)))) expect(r).toMatchObject({ outcome: "draw", winBonusWithheld: false });
 
-      const three = startRun(3, { suddenDeathSeconds: 2 });
+      const three = startRun(3, { suddenDeathSeconds: 2 }, { hp: 100 });
       runTo(three, 4050);
       for (const p of three.state.players.values()) p.hp = 0.05;
       for (const r of Object.values(resultsOf(tick(three)))) expect(r).toMatchObject({ outcome: "draw", winBonusWithheld: false });
@@ -2445,6 +2673,43 @@ describe("feed and bounty", () => {
       const sum = Object.values(results).reduce((n, r) => n + r.gv.total, 0);
       expect(sum).toBe(4 * GV_KILL + 10 + GV_WIN);
       for (const r of Object.values(results)) expect(r.gv.total).toBe(r.gv.kills + r.gv.mobs + r.gv.bounty + r.gv.win);
+    });
+
+    it.each([[0, 1], [1, 0]] as const)(
+      "kills in one tick pay the victim's bounty from the start of the tick, whoever was killed first (p%i is killed first, then p%i)",
+      (first, second) => {
+        const w = startRun(3);
+        // p0 has three kills (bounty 10) and p1 four (28): each kill below raises its killer's own bounty (28 and 52).
+        P(w, 0).kills = 3;
+        P(w, 0).bounty = 10;
+        P(w, 1).kills = 4;
+        P(w, 1).bounty = 28;
+        const claims = recordClaims(w);
+        // p2 stands by, so the run goes on past the tick. In this tick p0 and p1 kill each other.
+        atTick(w, 100, (world) => {
+          kill(world, first, attacker(world, second));
+          kill(world, second, attacker(world, first));
+        });
+        const events = runTo(w, 100);
+        expect(P(w, 0).bounty).toBe(28);
+        expect(P(w, 1).bounty).toBe(52);
+        expect(claims.map((c) => [c.killer.id, c.victim.id, c.bounty]).sort()).toEqual([[idOf(0), idOf(1), 28], [idOf(1), idOf(0), 10]]);
+        expect([RT(w, 0).gv.bounty, RT(w, 1).gv.bounty]).toEqual([28, 10]);
+        const results = resultsOf(events);
+        expect([results[idOf(0)]!.gv.bounty, results[idOf(1)]!.gv.bounty]).toEqual([28, 10]);
+        expect(results[idOf(2)]).toMatchObject({ outcome: "won" });
+      },
+    );
+
+    it("a bounty raised by a kill between ticks is paid at once: only kills inside a tick are simultaneous", () => {
+      const w = startRun(3);
+      P(w, 0).kills = 3;
+      P(w, 0).bounty = 10;
+      kill(w, 1, attacker(w, 0)); // p0's 4th kill: its bounty is 28 from now on
+      expect(P(w, 0).bounty).toBe(28);
+      w.events = [];
+      kill(w, 0, attacker(w, 2));
+      expect(RT(w, 2).gv.bounty).toBe(28);
     });
 
     it("calls hooks.bountyClaimed once, after the bounty was paid, with the world, the killer, the victim and the amount", () => {

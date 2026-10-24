@@ -1,18 +1,13 @@
 // In-run DOM overlay: the lobby countdown or the run line (players standing, GV, your bounty), the arena timers (coliseum
-// teleport → locked gates → sudden death), player vitals with equipped gear, the teleport-immunity hint and the
+// teleport → locked gates → sudden death), player vitals (faction and hp), the teleport-immunity hint and the
 // "you died" line.
-import { bestArmor, bestWeapon, type WeaponDef } from "@raid/shared";
+import { FACTIONS, isFactionId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
-import { el, uiRoot } from "./dom";
+import { cssColor, el, uiRoot } from "./dom";
 
 function fmtSeconds(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-/** "Pistol 16dmg range 260": the numbers are the catalog's own (world units), same as the inventory tooltips. */
-function fmtWeapon(w: WeaponDef): string {
-  return `${w.name} ${w.damage}dmg range ${w.range}`;
 }
 
 export class Hud {
@@ -21,7 +16,11 @@ export class Hud {
   private readonly statusText = el("span");
   /** Your own bounty, next to the run GV: what whoever kills you is paid. */
   private readonly bountyTag = el("span", "hud-bounty");
+  /** Name, faction (in its colour) and hp of the local player. */
   private readonly vitals = el("div", "hud-vitals");
+  private readonly vitalsName = el("span");
+  private readonly vitalsFaction = el("span", "hud-faction");
+  private readonly vitalsHp = el("span");
   private readonly arenaLine = el("div", "hud-arena");
   private readonly arenaHint = el("div", "hud-hint");
   /** Top-center notices; a sibling of the HUD block so they can sit mid-width. */
@@ -42,6 +41,7 @@ export class Hud {
   constructor() {
     this.status.append(this.statusText, this.bountyTag);
     this.bountyTag.hidden = true;
+    this.vitals.append(this.vitalsName, this.vitalsFaction, this.vitalsHp);
     this.root.append(this.status, this.vitals, this.arenaLine, this.arenaHint);
     this.center.append(this.suddenDeath, this.immuneLine);
     this.arenaLine.hidden = true;
@@ -92,14 +92,17 @@ export class Hud {
       this.bountyTag.hidden = bounty === 0;
     }
 
-    let vitals = "";
-    if (me) {
-      // Equipped = best carried by the shared rules (items.ts); there is no equip action.
-      const defs = me.inventory.map((it) => it.def);
-      vitals = `${me.name} · HP ${Math.ceil(me.hp)}/${me.maxHp} · ${me.status}`
-        + ` · Weapon: ${fmtWeapon(bestWeapon(defs))} · Armor: ${bestArmor(defs)?.name ?? "none"}`;
+    // hp is fractional on the wire; whole numbers on screen, and a player still standing never reads 0.
+    let key = "";
+    if (me) key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.round(me.maxHp)}|${me.status}`;
+    if (key !== this.lastVitals) {
+      this.lastVitals = key;
+      const faction = me && isFactionId(me.faction) ? FACTIONS[me.faction] : null;
+      this.vitalsName.textContent = me?.name ?? "";
+      this.vitalsFaction.textContent = faction ? ` · ${faction.displayName}` : "";
+      this.vitalsFaction.style.color = faction ? cssColor(faction.color) : "";
+      this.vitalsHp.textContent = me ? ` · HP ${Math.ceil(me.hp)}/${Math.round(me.maxHp)} · ${me.status}` : "";
     }
-    if (vitals !== this.lastVitals) { this.vitals.textContent = vitals; this.lastVitals = vitals; }
 
     this.updateArena(state, serverNow);
     const immune = me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;

@@ -28,11 +28,14 @@ export function recordHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?
   return entry;
 }
 
-/** A player still in the room is credited as such; anyone else (a mob, a shooter who left) by name only. */
+/**
+ * A player still in the run is credited as such; anyone else (a mob, a shooter who left or whose result is already
+ * out) by name only, so a living player's hit in the same tick takes the kill instead of a dead shooter's arrow.
+ */
 function sourceOf(world: World, by: DamageSource): Attacker | string {
   const p = world.state.players.get(by.id);
   const rt = world.players.get(by.id);
-  return p && rt ? { id: by.id, p, rt } : by.name;
+  return p && rt && !rt.resolved ? { id: by.id, p, rt } : by.name;
 }
 
 export function applyLedger(world: World): void {
@@ -69,9 +72,15 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   if (!c || !standing(c)) return;
   const def = defenseOf(c.s);
   const amounts = entries.map((e) => (e.scale > 0 ? mitigateShares(e.packet.raw * e.scale, e.packet, def) : 0));
+  // A player's hits reach the one way down in the tick's secret order (players by rank, then anyone else), so an exact
+  // tie for the kill never follows join order or the order the hits were recorded in. (The hit fx stay in entry order.)
+  const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
+  const order = entries.map((_, i) => i).sort((a, b) => rank(a) - rank(b));
   const applied = c.kind === "player"
-    ? applyHits(world, c.s, c.rt, entries.map((e, i): Hit => ({ amount: amounts[i]!, source: sourceOf(world, e.by) })))
-    : c.s.kind === "dummy" ? damageMob(world, c, amounts) : hurtMob(world, c, amounts, entries);
+    ? applyHits(world, c.s, c.rt, order.map((i): Hit => ({ amount: amounts[i]!, source: sourceOf(world, entries[i]!.by) })))
+    : c.s.kind === "dummy"
+      ? damageMob(world, c, amounts)
+      : hurtMob(world, c, order.map((i) => amounts[i]!), order.map((i) => entries[i]!));
   // Nothing got through (teleport immunity): no numbers, no stagger.
   if (!(applied > 0)) return;
   entries.forEach((e, i) => {

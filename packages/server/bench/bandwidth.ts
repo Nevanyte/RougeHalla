@@ -43,7 +43,7 @@ export const BANDWIDTH_BUDGET_KBPS = 20;
  * balls. Set this to false when resolveMelee is real; with it still on, the first swing fx the stand-in did not make
  * throws, so the numbers can never be counted twice by mistake.
  */
-export const MELEE_STAND_IN = true;
+export const MELEE_STAND_IN = false;
 
 /** The typical load: 4 camps occupied, two players at each. The heavy load: 8 camps, one player at each. */
 export const TYPICAL_CAMPS = 4;
