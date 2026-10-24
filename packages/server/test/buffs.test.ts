@@ -65,7 +65,7 @@ function fxOf<K extends FxEvent["kind"]>(events: SimEvent[], kind: K): Array<Fx<
 /** Damage that is certainly lethal to a player (their kill shield included). */
 function kill(world: World, victim: number, source: Attacker | string = "test"): number {
   const p = P(world, victim);
-  return applyDamage(world, p, RT(world, victim), p.hp + p.shield + 1000, source);
+  return applyDamage(world, p, RT(world, victim), p.hp + p.barrier + 1000, source);
 }
 
 const STAT_FIELD = { hp: "stacksHp", attackSpeed: "stacksAs", moveSpeed: "stacksMs" } as const;
@@ -335,7 +335,7 @@ describe("onKill", () => {
     w.events = [];
     killNow(w, 0);
     expect(RT(w, 0).boost).toBeUndefined();
-    expect(P(w, 0).shield).toBe(0);
+    expect(P(w, 0).barrier).toBe(0);
     expect(P(w, 0).readyAt).toBe(readyAt);
     expect(w.events).toEqual([]);
   });
@@ -349,7 +349,7 @@ describe("onKill", () => {
     killNow(w, 0);
     expect(RT(w, 0).boost).toEqual({ bursts: [{ mult: 2.5, until: now + 400 }], shieldUntil: 0 });
     expect(fxOf(w.events, "combo")).toEqual([{ kind: "combo", id: idOf(0), combo: "dash", proc: true }]);
-    expect(P(w, 0).shield).toBe(0);
+    expect(P(w, 0).barrier).toBe(0);
     expect(P(w, 0).readyAt).toBe(now + 5000); // tier 1 does not reset the cooldown
   });
 
@@ -410,7 +410,7 @@ describe("onKill", () => {
     setStacks(w, 0, { hp: 3 });
     w.events = [];
     killNow(w, 0);
-    expect(P(w, 0).shield).toBeCloseTo(0.15 * P(w, 0).maxHp, 6);
+    expect(P(w, 0).barrier).toBeCloseTo(0.15 * P(w, 0).maxHp, 6);
     expect(RT(w, 0).boost).toEqual({ bursts: [], shieldUntil: now + 5000 });
     expect(fxOf(w.events, "combo")).toEqual([{ kind: "combo", id: idOf(0), combo: "shield", proc: true }]);
   });
@@ -421,7 +421,7 @@ describe("onKill", () => {
     setStacks(w, 0, { hp: 5 });
     w.events = [];
     killNow(w, 0);
-    expect(P(w, 0).shield).toBeCloseTo(0.3 * P(w, 0).maxHp, 6);
+    expect(P(w, 0).barrier).toBeCloseTo(0.3 * P(w, 0).maxHp, 6);
     expect(RT(w, 0).boost!.shieldUntil).toBe(now + 8000);
     expect(fxOf(w.events, "combo")).toEqual([{ kind: "combo", id: idOf(0), combo: "bulwark", proc: true }]);
   });
@@ -430,22 +430,22 @@ describe("onKill", () => {
     const w = startRun(4);
     setStacks(w, 3, { hp: 3 }); // Frost
     killNow(w, 3);
-    expect(P(w, 3).shield).toBeCloseTo(0.15 * 1750 * buffMultiplier("hp", 3), 6);
+    expect(P(w, 3).barrier).toBeCloseTo(0.15 * 1750 * buffMultiplier("hp", 3), 6);
   });
 
   it("a second kill refreshes the shield to full and extends its time, it does not stack", () => {
     const w = startRun(2);
     setStacks(w, 0, { hp: 3 });
     killNow(w, 0);
-    const full = P(w, 0).shield;
-    P(w, 0).shield = full / 3; // mostly absorbed
+    const full = P(w, 0).barrier;
+    P(w, 0).barrier = full / 3; // mostly absorbed
     w.state.serverTime += 2000;
     killNow(w, 0);
-    expect(P(w, 0).shield).toBeCloseTo(full, 6);
+    expect(P(w, 0).barrier).toBeCloseTo(full, 6);
     expect(RT(w, 0).boost!.shieldUntil).toBe(w.state.serverTime + 5000);
     w.state.serverTime += 1000;
     killNow(w, 0); // still full: not doubled
-    expect(P(w, 0).shield).toBeCloseTo(full, 6);
+    expect(P(w, 0).barrier).toBeCloseTo(full, 6);
   });
 
   it("move speed 3 (Bloodrush): 1.5x for 3 s on top of the stacks' own bonus", () => {
@@ -478,7 +478,7 @@ describe("onKill", () => {
     setStacks(w, 0, { hp: 3, attackSpeed: 3, moveSpeed: 5 });
     w.events = [];
     killNow(w, 0);
-    expect(P(w, 0).shield).toBeCloseTo(0.15 * P(w, 0).maxHp, 6);
+    expect(P(w, 0).barrier).toBeCloseTo(0.15 * P(w, 0).maxHp, 6);
     expect(RT(w, 0).boost!.bursts).toEqual([{ mult: 2.5, until: now + 400 }, { mult: 1.8, until: now + 5000 }]);
     expect(fxOf(w.events, "combo").map((fx) => [fx.combo, fx.proc]).sort()).toEqual([
       ["dash", true], ["frenzy", true], ["shield", true],
@@ -512,7 +512,7 @@ describe("onKill", () => {
     killNow(w, 1);
     for (const i of [0, 1]) {
       expect(RT(w, i).boost, `p${i}`).toBeUndefined();
-      expect(P(w, i).shield, `p${i}`).toBe(0);
+      expect(P(w, i).barrier, `p${i}`).toBe(0);
     }
     expect(w.events).toEqual([]);
   });
@@ -523,32 +523,32 @@ describe("the kill shield", () => {
     const w = startRun(2);
     const p = P(w, 0);
     expect(absorbShield(p, 50)).toBe(50);
-    p.shield = 100;
+    p.barrier = 100;
     expect(absorbShield(p, 40)).toBe(0);
-    expect(p.shield).toBe(60);
+    expect(p.barrier).toBe(60);
     expect(absorbShield(p, 100)).toBe(40);
-    expect(p.shield).toBe(0);
+    expect(p.barrier).toBe(0);
     expect(absorbShield(p, 7)).toBe(7);
   });
 
   it("absorbShield: a hit that empties the shield exactly leaves none, and slivers under 0.001 are dropped", () => {
     const w = startRun(2);
     const p = P(w, 0);
-    p.shield = 25;
+    p.barrier = 25;
     expect(absorbShield(p, 25)).toBe(0);
-    expect(p.shield).toBe(0);
-    p.shield = 25.0005;
+    expect(p.barrier).toBe(0);
+    p.barrier = 25.0005;
     expect(absorbShield(p, 25)).toBe(0);
-    expect(p.shield).toBe(0);
+    expect(p.barrier).toBe(0);
   });
 
   it("applyDamage: a hit smaller than the shield only shrinks it: no hp lost, no kill, no stagger-worthy damage returned", () => {
     const w = startRun(3);
-    P(w, 1).shield = 100;
+    P(w, 1).barrier = 100;
     w.events = [];
     expect(applyDamage(w, P(w, 1), RT(w, 1), 40, attacker(w, 0))).toBe(0);
     expect(P(w, 1).hp).toBe(700);
-    expect(P(w, 1).shield).toBe(60);
+    expect(P(w, 1).barrier).toBe(60);
     expect(P(w, 1).status).toBe("alive");
     expect(w.events).toEqual([]);
     // The blow was still dealt by p0: it counts for the win bonus and for leave credit (the shield is a buffer on hp, unlike
@@ -559,28 +559,28 @@ describe("the kill shield", () => {
 
   it("applyDamage: a hit larger than the shield takes the rest off hp, and returns that part", () => {
     const w = startRun(3);
-    P(w, 1).shield = 30;
+    P(w, 1).barrier = 30;
     expect(applyDamage(w, P(w, 1), RT(w, 1), 100, attacker(w, 0))).toBe(70);
     expect(P(w, 1).hp).toBe(630);
-    expect(P(w, 1).shield).toBe(0);
+    expect(P(w, 1).barrier).toBe(0);
   });
 
   it("applyDamage: a hit equal to the shield costs no hp and leaves no shield", () => {
     const w = startRun(3);
-    P(w, 1).shield = 80;
+    P(w, 1).barrier = 80;
     expect(applyDamage(w, P(w, 1), RT(w, 1), 80, attacker(w, 0))).toBe(0);
     expect(P(w, 1).hp).toBe(700);
-    expect(P(w, 1).shield).toBe(0);
+    expect(P(w, 1).barrier).toBe(0);
   });
 
   it("applyDamage: a hit that would be lethal to the hp alone but is fully absorbed does not kill, credit or pay anything", () => {
     const w = startRun(3);
     P(w, 1).hp = 10;
-    P(w, 1).shield = 200;
+    P(w, 1).barrier = 200;
     w.events = [];
     expect(applyDamage(w, P(w, 1), RT(w, 1), 150, attacker(w, 0))).toBe(0);
     expect(P(w, 1).hp).toBe(10);
-    expect(P(w, 1).shield).toBe(50);
+    expect(P(w, 1).barrier).toBe(50);
     expect(P(w, 1).status).toBe("alive");
     expect(RT(w, 1).down).toBeNull();
     expect(P(w, 0).kills).toBe(0);
@@ -588,13 +588,13 @@ describe("the kill shield", () => {
     // The next blow gets through what the shield has left and kills; the hp removed is what there was.
     expect(applyDamage(w, P(w, 1), RT(w, 1), 100, attacker(w, 0))).toBe(10);
     expect(P(w, 1).status).toBe("dead");
-    expect(P(w, 1).shield).toBe(0);
+    expect(P(w, 1).barrier).toBe(0);
     expect(P(w, 0).kills).toBe(1);
   });
 
   it("applyDamage: a blow bigger than shield plus hp kills, and the killer is paid as usual", () => {
     const w = startRun(3);
-    P(w, 1).shield = 100;
+    P(w, 1).barrier = 100;
     w.events = [];
     applyDamage(w, P(w, 1), RT(w, 1), 100 + 700 + 1, attacker(w, 0));
     expect(P(w, 1).status).toBe("dead");
@@ -605,12 +605,12 @@ describe("the kill shield", () => {
 
   it("applyHits: simultaneous hits are summed first, then the shield takes its share of the sum; both attackers count as damagers", () => {
     const w = startRun(4);
-    P(w, 2).shield = 50;
+    P(w, 2).barrier = 50;
     w.events = [];
     const removed = applyHits(w, P(w, 2), RT(w, 2), [{ amount: 40, source: attacker(w, 0) }, { amount: 30, source: attacker(w, 1) }]);
     expect(removed).toBe(20);
     expect(P(w, 2).hp).toBe(980);
-    expect(P(w, 2).shield).toBe(0);
+    expect(P(w, 2).barrier).toBe(0);
     expect([...RT(w, 0).damaged]).toEqual([idOf(2)]);
     expect([...RT(w, 1).damaged]).toEqual([idOf(2)]);
     expect(RT(w, 2).lastHit!.by).toBe(idOf(0)); // the biggest hit
@@ -624,10 +624,10 @@ describe("the kill shield", () => {
     onKill(w, P(w, 0), RT(w, 0));
     expect(RT(w, 0).boost!.shieldUntil).toBe(until);
     runTo(w, until - TICK_MS);
-    expect(P(w, 0).shield).toBeGreaterThan(0);
+    expect(P(w, 0).barrier).toBeGreaterThan(0);
     tick(w);
     expect(w.state.serverTime).toBe(until);
-    expect(P(w, 0).shield).toBe(0);
+    expect(P(w, 0).barrier).toBe(0);
     expect(RT(w, 0).boost!.shieldUntil).toBe(0);
     expect(P(w, 0).hp).toBeCloseTo(P(w, 0).maxHp, 9); // and nothing came off the hp
   });
@@ -636,13 +636,13 @@ describe("the kill shield", () => {
     // What the code does, worth knowing: the shield is not exempt from sudden death, nor immune to it. A 5-8 s shield only delays it.
     const w = startRun(2);
     runTo(w, 500); // suddenDeathAt is 0 when unset, so start it on the tick grid after 0
-    P(w, 0).shield = 10;
+    P(w, 0).barrier = 10;
     const s = w.state;
     s.gatesLocked = true;
     s.suddenDeathAt = s.serverTime - TICK_MS; // the tick being simulated began exactly at suddenDeathAt
     suddenDeath(w, TICK_MS);
     const burn = 0.02 * (TICK_MS / 1000) * 500; // SUDDEN_DEATH_START_FRACTION x dt x max hp
-    expect(P(w, 0).shield).toBeCloseTo(10 - burn, 9);
+    expect(P(w, 0).barrier).toBeCloseTo(10 - burn, 9);
     expect(P(w, 0).hp).toBe(500);
     expect(P(w, 1).hp).toBeCloseTo(700 - 0.02 * (TICK_MS / 1000) * 700, 9); // the unshielded one loses hp
     expect(P(w, 0).status).toBe("alive");
@@ -771,7 +771,7 @@ describe("the bounty moves half the victim's stacks to the killer", () => {
     const w = bountied({ hp: 6 });
     kill(w, 0, attacker(w, 4));
     expect(P(w, 4).stacksHp).toBe(3);
-    expect(P(w, 4).shield).toBeCloseTo(0.15 * 1450 * buffMultiplier("hp", 3), 6);
+    expect(P(w, 4).barrier).toBeCloseTo(0.15 * 1450 * buffMultiplier("hp", 3), 6);
   });
 
   it("every player kill sets off the killer's combos, with a bounty or without", () => {
@@ -780,7 +780,7 @@ describe("the bounty moves half the victim's stacks to the killer", () => {
     const now = w.state.serverTime;
     kill(w, 1, attacker(w, 4)); // victim has no bounty, nothing to transfer
     expect(RT(w, 4).boost!.bursts).toEqual([{ mult: 2.5, until: now + 400 }]);
-    expect(P(w, 4).shield).toBeCloseTo(0.15 * P(w, 4).maxHp, 6);
+    expect(P(w, 4).barrier).toBeCloseTo(0.15 * P(w, 4).maxHp, 6);
     expect(fxOf(w.events, "buff")).toEqual([]);
   });
 

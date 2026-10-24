@@ -15,8 +15,13 @@ export function feedOfPlayer(p: PlayerState, rt: PlayerRuntime): number {
 const standing = (p: PlayerState, rt: PlayerRuntime | undefined): rt is PlayerRuntime =>
   p.status === "alive" && !!rt && !rt.down && !rt.resolved;
 
-/** Median feed of the players still standing: the "lobby" the catch-up bonus is measured against. */
+/**
+ * Median feed of the players still standing: the "lobby" the catch-up bonus is measured against. While the ledger is
+ * being applied it is the median from before the pass (world.combat.medianFeed), so the order kills are paid in cannot
+ * tip anyone over the catch-up line.
+ */
 export function lobbyMedianFeed(world: World): number {
+  if (world.combat.medianFeed !== null) return world.combat.medianFeed;
   const feeds: number[] = [];
   for (const [id, p] of world.state.players) {
     const rt = world.players.get(id);

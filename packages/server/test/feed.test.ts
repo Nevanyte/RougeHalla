@@ -60,7 +60,7 @@ function gvOf(events: SimEvent[]): Array<Extract<SimEvent, { type: "gv" }>> {
 
 function kill(world: World, victim: number, source: Attacker | string = "test"): number {
   const p = P(world, victim);
-  return applyDamage(world, p, RT(world, victim), p.hp + p.shield + 1000, source);
+  return applyDamage(world, p, RT(world, victim), p.hp + p.barrier + 1000, source);
 }
 
 /** Sets a player's feed: `kills` player kills and `mobKills` mob kills (the synced copy too). */

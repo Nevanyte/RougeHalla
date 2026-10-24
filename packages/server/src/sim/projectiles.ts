@@ -114,11 +114,18 @@ function contactShare(s: Stretch, p: { x: number; y: number }): number | null {
   return u >= 0 && u <= 1 ? u : null;
 }
 
-/** The first standing body (not the owner) the stretch meets at substep time `t`, and the contact point. */
-function firstBody(s: Stretch, bodies: readonly Combatant[], t: number): { c: Combatant; x: number; y: number } | null {
+/**
+ * The first standing body (not the owner) the stretch meets at substep time `t`, and the contact point. A mob's shot
+ * flies past other mobs (they never hurt each other), so a camp's archers don't eat their own arrows and a player can't
+ * hide behind a camp-mate.
+ */
+function firstBody(
+  world: World, s: Stretch, bodies: readonly Combatant[], t: number,
+): { c: Combatant; x: number; y: number } | null {
   let best: { c: Combatant; u: number } | null = null;
+  const mobShot = world.mobs.has(s.pr.owner);
   for (const c of bodies) {
-    if (c.id === s.pr.owner) continue;
+    if (c.id === s.pr.owner || (mobShot && c.kind === "mob")) continue;
     const u = contactShare(s, positionAt(c.rt, c.s, t));
     if (u !== null && (!best || u < best.u)) best = { c, u };
   }
@@ -184,7 +191,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
     for (const s of stretches) {
       const pr = s.pr;
       if (pr.ended) continue;
-      const hit = firstBody(s, bodies, t);
+      const hit = firstBody(world, s, bodies, t);
       if (!hit) {
         pr.x = s.bx;
         pr.y = s.by;

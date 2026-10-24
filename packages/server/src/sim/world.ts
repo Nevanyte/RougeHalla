@@ -96,7 +96,7 @@ export interface PlayerRuntime extends CombatRuntime {
 export interface BoostRuntime {
   /** Speed bursts from kills (the dash and the rush): the strongest one still running applies. */
   bursts: Array<{ mult: number; until: number }>;
-  /** When the kill shield (PlayerState.shield) ends. */
+  /** When the kill barrier (PlayerState.barrier) ends. */
   shieldUntil: number;
 }
 
@@ -126,7 +126,10 @@ export interface MobBrain {
   /** The player it fights, and the damage each player has done to it since it last rested (who it turns on next). */
   target: string | null;
   threat: Map<string, number>;
-  /** Server ms it last dealt or took damage (it gives up MOB_GIVE_UP_SECONDS after), and when it started this fight. */
+  /**
+   * Server ms it woke, or last dealt damage to a player (stamped by ledger.recordHit). It gives up MOB_GIVE_UP_SECONDS
+   * after: damage it takes does not count, so a shooter out of its reach cannot keep it fighting.
+   */
   lastCombatAt: number;
   /** Throttle and memory for the inputs it sends: when the last move went out, where to, and whether it is walking or holding the trigger. */
   lastMoveAt: number;
@@ -137,8 +140,8 @@ export interface MobBrain {
   phase: number;
   /** Server ms it died (status "dead"); it is removed MOB_CORPSE_MS later. */
   diedAt: number;
-  /** The `readyAt` the AI saw last tick: a later one means it started an attack, which counts as dealing damage. */
-  lastReadyAt: number;
+  /** The aim it last sent (NaN: none yet), so the AI re-aims only past MOB_AIM_DEADBAND. */
+  lastAim: number;
 }
 
 /** One hit's damage before mitigation: the raw amount and the attacker's damage shares. */
@@ -220,6 +223,21 @@ export interface CombatScratch {
    * tickX/tickY -> x/y). Melee uses it to meet balls, even one whose hit is already in the ledger.
    */
   swept: ProjectileRuntime[];
+  /**
+   * True while applyLedger applies damage. Rewards for kills (GV, a bounty, stacks, shields) are queued in `payouts` and
+   * paid once every victim has taken their damage (payLater), so who is left standing never depends on the order victims
+   * happen to be processed in.
+   */
+  collecting: boolean;
+  payouts: Array<() => void>;
+  /** The lobby's median feed as it stood before the pass (null outside one): every mob reward in the pass reads this one. */
+  medianFeed: number | null;
+}
+
+/** Runs `pay` now, or, while the ledger is being applied, after all of its damage has landed. */
+export function payLater(world: World, pay: () => void): void {
+  if (world.combat.collecting) world.combat.payouts.push(pay);
+  else pay();
 }
 
 /** Arena bookkeeping that is not synced (see arena.ts). */
@@ -318,7 +336,7 @@ export function createWorld(opts: {
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [] },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], collecting: false, payouts: [], medianFeed: null },
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],

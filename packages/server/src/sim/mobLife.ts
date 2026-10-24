@@ -27,7 +27,6 @@
 import {
   MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobBuffStacks, mobFaction, mobName, mobWeapon, rollBuffStat, type FactionId, type Vec2,
 } from "@raid/shared";
-import type { PlayerState } from "@raid/shared/schema";
 import { creditMobKill } from "./arena";
 import { grantStacks, onKill } from "./buffs";
 import type { Combatant } from "./combatant";
@@ -36,12 +35,9 @@ import { dropWeapon } from "./loot";
 import { aggro, newBrain, resetMob } from "./mobAI";
 import { addMob } from "./mobs";
 import { cancelAction } from "./weapons";
-import { chainHook, emit, type LedgerEntry, type PlayerRuntime, type World } from "./world";
+import { chainHook, emit, payLater, type LedgerEntry, type World } from "./world";
 
 export type MobCombatant = Extract<Combatant, { kind: "mob" }>;
-
-/** A mob hit this recently does not heal, so a returning mob a player keeps shooting at cannot out-regen the shots. */
-const REGEN_QUIET_MS = 2000;
 
 /**
  * Adds one regional mob of `region` resting at `at`: state (kind, name, faction, weapon, hp from mobFaction) and runtime
@@ -71,12 +67,15 @@ export function spawnRegionalMobs(world: World): void {
 
 /**
  * The ledger's way down for a regional mob; returns the hp removed. A mob without a brain is a training dummy, which the
- * ledger sends to damageMob instead, so it is left alone here.
+ * ledger sends to damageMob instead, so it is left alone here. A mob walking home is evading: nothing hurts it (the
+ * ledger then shows no number and no stagger), so a shooter out of its reach cannot whittle it down while it leaves.
  */
 export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[], entries: readonly LedgerEntry[]): number {
+  const brain = c.rt.brain;
+  if (!brain || brain.mode === "return" || c.s.status !== "alive") return 0;
   let total = 0;
   for (const a of amounts) if (a > 0) total += a;
-  if (!(total > 0) || c.s.status !== "alive" || !c.rt.brain) return 0;
+  if (!(total > 0)) return 0;
   const before = c.s.hp;
   c.s.hp = Math.max(0, before - total);
   c.rt.lastHitAt = world.state.serverTime;
@@ -92,23 +91,29 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
 }
 
 /**
- * The mob dies this tick and pays whoever dealt its largest hit (ties: the earlier entry) among the players still in the
- * fight; with none it simply falls, with no GV, buff or drop. Players who already went down this tick do not collect.
+ * The mob dies this tick. The kill goes to the player who dealt it the most damage in this ledger pass (summed per
+ * player; ties: whoever hit first) among those still in the run, with the death fx naming them; with none it simply
+ * falls. The spoils (GV and feed, a buff, its weapon, the kill combos) are paid once every victim of the pass has taken
+ * their damage (payLater), so they cannot decide who survives it. A player who went down in the same pass still gets the
+ * GV and the feed, like any other kill GV.
  */
 export function killMob(world: World, c: MobCombatant, entries: readonly LedgerEntry[], amounts: readonly number[]): void {
   const brain = c.rt.brain;
   if (!brain || c.s.status !== "alive") return; // a mob dies once, whoever calls
-  let killer: { p: PlayerState; rt: PlayerRuntime } | null = null;
-  let best = 0;
+  const dealt = new Map<string, number>();
   for (let i = 0; i < entries.length; i++) {
     const a = amounts[i]!;
-    if (!(a > best)) continue;
     const id = entries[i]!.by.id;
-    const p = world.state.players.get(id);
-    const rt = world.players.get(id);
-    if (!p || !rt || p.status !== "alive" || rt.resolved || rt.down) continue;
-    best = a;
-    killer = { p, rt };
+    if (!(a > 0) || !world.state.players.has(id) || world.players.get(id)?.resolved !== false) continue;
+    dealt.set(id, (dealt.get(id) ?? 0) + a);
+  }
+  let killer: string | null = null;
+  let best = 0;
+  for (const [id, sum] of dealt) {
+    if (sum > best) {
+      killer = id;
+      best = sum;
+    }
   }
 
   c.s.status = "dead";
@@ -125,22 +130,30 @@ export function killMob(world: World, c: MobCombatant, entries: readonly LedgerE
   cancelAction(world, c);
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
-  emit(world, { type: "fx", fx: { kind: "death", id: c.id, x: c.s.x, y: c.s.y, by: killer?.rt.id ?? null } });
-  if (!killer) return;
+  emit(world, { type: "fx", fx: { kind: "death", id: c.id, x: c.s.x, y: c.s.y, by: killer } });
+  if (killer === null) return;
 
-  const { p, rt } = killer;
-  // Read before this kill counts toward the feed (creditMobKill reads it the same way), so the drop pays what the killer's feed earned until now.
-  const m = mobRewardFor(world, p, rt);
-  creditMobKill(world, p, rt, brain.elite);
-  grantStacks(world, p, rt, rollBuffStat(brain.region, world.random), mobBuffStacks(brain.elite) * m);
+  const { elite, region } = brain;
   const weapon = c.s.weapon0;
-  if (weapon !== "" && p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, { x: c.s.x, y: c.s.y }, weapon);
+  const at = { x: c.s.x, y: c.s.y };
+  payLater(world, () => payMobKill(world, killer!, elite, region, weapon, at));
+}
+
+function payMobKill(world: World, killerId: string, elite: boolean, region: FactionId, weapon: string, at: Vec2): void {
+  const p = world.state.players.get(killerId);
+  const rt = world.players.get(killerId);
+  if (!p || !rt || rt.resolved) return;
+  // Read before this kill counts toward the feed; the GV and the buff drop of one kill use the same number.
+  const m = mobRewardFor(world, p, rt);
+  creditMobKill(world, p, rt, elite, m);
+  grantStacks(world, p, rt, rollBuffStat(region, world.random), mobBuffStacks(elite) * m);
+  if (weapon !== "" && p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);
   onKill(world, p, rt);
 }
 
 /**
- * System: corpses older than MOB_CORPSE_MS leave the state, and a living mob that is not fighting and has not been hit for
- * REGEN_QUIET_MS heals toward full. Walks the plain runtime map and allocates nothing while there is nothing to do.
+ * System: corpses older than MOB_CORPSE_MS leave the state, and a mob walking home heals toward full (it is untouchable
+ * on the way, and fully healed when it arrives). Walks the plain runtime map and allocates nothing while there is nothing to do.
  */
 export function reapMobs(world: World, dtMs: number): void {
   const now = world.state.serverTime;
@@ -153,7 +166,7 @@ export function reapMobs(world: World, dtMs: number): void {
     if (!m) continue;
     if (m.status === "dead") {
       if (now - brain.diedAt >= MOB_CORPSE_MS) (gone ??= []).push(rt.id);
-    } else if (m.hp < m.maxHp && brain.mode !== "fight" && now - rt.lastHitAt >= REGEN_QUIET_MS) {
+    } else if (brain.mode === "return" && m.hp < m.maxHp) {
       m.hp = Math.min(m.maxHp, m.hp + m.maxHp * heal);
     }
   }

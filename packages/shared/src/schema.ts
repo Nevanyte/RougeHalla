@@ -43,8 +43,8 @@ export const PlayerState = schema({
   stacksHp: t.float32().default(0),
   stacksAs: t.float32().default(0),
   stacksMs: t.float32().default(0),
-  /** Hp an active kill shield (the hp combos) still absorbs; 0 = none. */
-  shield: t.float32().default(0),
+  /** Hp the kill barrier (the hp combos) still absorbs; 0 = none. Not the faction's magic `shield` stat. */
+  barrier: t.float32().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 

@@ -2,7 +2,7 @@
 // Both carry the same fighter fields in their synced state (x, y, facing, hp, faction, weapon slots, readyAt, ...)
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
-  attackInterval, FACTIONS, isFactionId, isWeaponId, mobFaction, pacedFaction, weaponTimings, type FactionId,
+  attackInterval, FACTIONS, isFactionId, isRegionalKind, isWeaponId, mobFaction, pacedFaction, weaponTimings, type FactionId,
   type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
@@ -30,7 +30,7 @@ const PACED_MOBS: Readonly<Record<"mob" | "elite", Readonly<Record<FactionId, Fa
 /** The faction as fought (DUEL_PACE applied, a regional mob scaled down), or null for a fighter without one (a training dummy). */
 export function factionOf(s: FighterState): FactionSpec | null {
   if (!isFactionId(s.faction)) return null;
-  if ("kind" in s && (s.kind === "mob" || s.kind === "elite")) return PACED_MOBS[s.kind][s.faction];
+  if ("kind" in s && isRegionalKind(s.kind)) return PACED_MOBS[s.kind][s.faction];
   return PACED[s.faction];
 }
 

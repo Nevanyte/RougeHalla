@@ -88,7 +88,7 @@ export function onKill(world: World, p: PlayerState, rt: PlayerRuntime): void {
   const boost = boostOf(rt);
   for (const b of fx.bursts) boost.bursts.push({ mult: b.mult, until: now + b.ms });
   if (fx.shield) {
-    p.shield = Math.max(p.shield, fx.shield.share * p.maxHp);
+    p.barrier = Math.max(p.barrier, fx.shield.share * p.maxHp);
     boost.shieldUntil = Math.max(boost.shieldUntil, now + fx.shield.ms);
   }
   if (fx.resetCooldown) {
@@ -101,9 +101,9 @@ export function onKill(world: World, p: PlayerState, rt: PlayerRuntime): void {
 
 /** The part of `amount` a kill shield does not absorb (the shield shrinks by what it took). Called by applyHits. */
 export function absorbShield(p: PlayerState, amount: number): number {
-  if (!(p.shield > 0)) return amount;
-  const taken = Math.min(p.shield, amount);
-  p.shield = p.shield - taken < 1e-3 ? 0 : p.shield - taken;
+  if (!(p.barrier > 0)) return amount;
+  const taken = Math.min(p.barrier, amount);
+  p.barrier = p.barrier - taken < 1e-3 ? 0 : p.barrier - taken;
   return amount - taken;
 }
 
@@ -128,7 +128,7 @@ export function expireBoosts(world: World): void {
       // A player who went down keeps no shield: it would show on their body for up to 8 s.
       if (now >= boost.shieldUntil || (p && p.status !== "alive")) {
         boost.shieldUntil = 0;
-        if (p) p.shield = 0;
+        if (p) p.barrier = 0;
       }
     }
   }

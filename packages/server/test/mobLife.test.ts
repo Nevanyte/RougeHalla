@@ -37,8 +37,6 @@ beforeEach(() => {
 
 const NAMES = ["alice", "bob", "carol", "dave"];
 const SEEDS = [1, 2, 3, 100, 732];
-/** mobLife.ts keeps this one private: a mob hit within this long does not heal. */
-const REGEN_QUIET_MS = 2000;
 
 interface WorldOpts { seed?: number; players?: number; mobs?: boolean; random?: () => number }
 
@@ -84,6 +82,23 @@ const entry = (victim: string, by: string, raw: number): LedgerEntry => ({
 function hurt(w: World, m: MobCombatant, ...hits: Array<[string, number]>): number {
   return hurtMob(w, m, hits.map((h) => h[1]), hits.map((h) => entry(m.id, h[0], h[1])));
 }
+
+/** A hit recorded in the ledger (it lands in the next pass), from `by` with `raw` damage on a victim without mitigation. */
+function strike(w: World, victim: string, by: string, raw: number, stagger = false): void {
+  recordHit(w, { victim, by: { id: by, name: by }, packet: { raw, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger });
+}
+
+/** applyLedger as the step loop runs it: `stepping`, so a death waits for settle() instead of resolving at once. */
+function pass(w: World): void {
+  w.stepping = true;
+  try {
+    applyLedger(w);
+  } finally {
+    w.stepping = false;
+  }
+}
+
+const kindsOf = (events: SimEvent[]): string[] => events.map((e) => (e.type === "fx" ? `fx:${e.fx.kind}` : e.type));
 
 function fxOf<K extends FxEvent["kind"]>(events: SimEvent[], kind: K): Array<Extract<FxEvent, { kind: K }>> {
   return events.flatMap((e) => (e.type === "fx" && e.fx.kind === kind ? [e.fx as Extract<FxEvent, { kind: K }>] : []));
@@ -281,6 +296,39 @@ describe("hurtMob", () => {
     expect(m.s.status).toBe("dead");
   });
 
+  it("a mob walking home is evading: nothing hurts it, nothing is recorded, nobody is woken", () => {
+    const w = makeBare();
+    const m = spawn(w, "plague");
+    m.rt.brain!.mode = "return";
+    m.s.hp = 100;
+    m.rt.lastHitAt = 77;
+    expect(hurt(w, m, ["p0", 40], ["p1", 5])).toBe(0);
+    expect(hurt(w, m, ["p0", 1e9])).toBe(0); // not even a lethal hit
+    expect(m.s.hp).toBe(100);
+    expect(m.s.status).toBe("alive");
+    expect(m.rt.lastHitAt).toBe(77);
+    expect(aggro).not.toHaveBeenCalled();
+    expect(w.events).toEqual([]);
+    expect(RT(w, 0).mobKills).toBe(0);
+  });
+
+  it("through the ledger an evading mob shows no hit number, no stagger and no death", () => {
+    const w = makeBare();
+    const m = spawn(w, "frost");
+    m.rt.brain!.mode = "return";
+    strike(w, m.id, "p0", 1e6, true);
+    applyLedger(w);
+    expect(m.s.hp).toBe(m.s.maxHp);
+    expect(m.s.status).toBe("alive");
+    expect(w.events).toEqual([]);
+    expect(aggro).not.toHaveBeenCalled();
+    m.rt.brain!.mode = "idle"; // once it is home and idle again it can be hurt as before
+    strike(w, m.id, "p0", 10);
+    applyLedger(w);
+    expect(m.s.hp).toBeLessThan(m.s.maxHp);
+    expect(fxOf(w.events, "hit")).toHaveLength(1);
+  });
+
   it("the ledger path: mitigation uses the mob's own armor and shield, the hit fx names the attacker, the AI hears the mitigated amount", () => {
     const w = makeBare();
     const packet = { raw: 100, phys: 0.5, magic: 0.5, true: 0 };
@@ -449,7 +497,7 @@ describe("killMob: the dying mob", () => {
 });
 
 describe("killMob: who gets the kill", () => {
-  it("the largest hit in the ledger pass, whatever its position in it", () => {
+  it("the most damage in the ledger pass, whatever the position of the hits in it", () => {
     const w = makeBare({ players: 3 });
     const m = spawn(w, "fire");
     hurt(w, m, ["p0", 5], ["p2", 30], ["p1", 12], ["p0", m.s.hp]); // the biggest is p0's last
@@ -462,7 +510,18 @@ describe("killMob: who gets the kill", () => {
     expect([RT(w, 0).mobKills, RT(w, 1).mobKills, RT(w, 2).mobKills]).toEqual([1, 0, 1]);
   });
 
-  it("a tie goes to the earlier entry", () => {
+  it("damage is summed per player: two hits of 60 beat one hit of 100", () => {
+    const w = makeBare();
+    const m = spawn(w, "plague");
+    m.s.hp = 220;
+    hurt(w, m, ["p0", 60], ["p1", 100], ["p0", 60]);
+    expect(m.s.status).toBe("dead");
+    expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
+    expect(RT(w, 0).mobKills).toBe(1);
+    expect(RT(w, 1).mobKills).toBe(0);
+  });
+
+  it("a tie goes to whoever hit first, however the hits add up", () => {
     const w = makeBare({ players: 3 });
     const m = spawn(w, "plague");
     const half = m.s.hp / 2;
@@ -470,6 +529,18 @@ describe("killMob: who gets the kill", () => {
     expect(fxOf(w.events, "death")[0]!.by).toBe("p2");
     expect(RT(w, 2).mobKills).toBe(1);
     expect(RT(w, 0).mobKills).toBe(0);
+    // 60 in one hit ties 40 + 20; the single hit came first.
+    const a = spawn(w, "plague");
+    a.s.hp = 120;
+    w.events = [];
+    hurt(w, a, ["p0", 60], ["p1", 40], ["p1", 20]);
+    expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
+    // ...and the other way round, the one who opened wins the tie.
+    const b = spawn(w, "plague");
+    b.s.hp = 120;
+    w.events = [];
+    hurt(w, b, ["p1", 40], ["p0", 60], ["p1", 20]);
+    expect(fxOf(w.events, "death")[0]!.by).toBe("p1");
   });
 
   it("two players landing the lethal ledger pass together: one kill, paid once, to the larger hit", () => {
@@ -487,13 +558,48 @@ describe("killMob: who gets the kill", () => {
     expect(stacksOf(P(w, 0))).toEqual({ hp: 0, attackSpeed: 0, moveSpeed: 0 });
   });
 
-  it("the biggest hitter is skipped when they're no longer in the fight: the next largest collects", () => {
+  it("a player who is dead or down in the same pass still collects the GV and the feed, and the weapon drops; stacks and combos need a living player", () => {
     const w = makeBare({ players: 3 });
-    const m = spawn(w, "frost");
+    w.random = () => 0.1;
+    P(w, 0).stacksAs = 2.5; // would complete the dash if the drop and the combos could reach them
+    P(w, 0).weapon0 = "sword";
+    P(w, 0).weapon1 = "";
     RT(w, 0).down = { outcome: "died" }; // went down earlier in this very ledger pass
     P(w, 0).status = "dead";
+    const containers = w.state.containers.size;
+    const m = spawn(w, "fire");
     hurt(w, m, ["p0", 3 * m.s.hp], ["p1", 100], ["p2", m.s.hp]);
+    expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
+    expect(RT(w, 0).mobKills).toBe(1);
+    expect(P(w, 0).mobKills).toBe(1);
+    expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
+    expect(gvOf(w.events)).toEqual([{ type: "gv", id: "p0", amount: GV_MOB, reason: "mob" }]);
+    expect(w.state.containers.size).toBe(containers + 1);
+    expect(stacksOf(P(w, 0)).attackSpeed).toBe(2.5);
+    expect(fxOf(w.events, "buff")).toEqual([]);
+    expect(fxOf(w.events, "combo")).toEqual([]);
+    expect(RT(w, 0).boost).toBeUndefined();
+    expect(RT(w, 1).mobKills + RT(w, 2).mobKills).toBe(0);
+  });
+
+  it("the same holds for a runtime that is down while the status has not flipped yet", () => {
+    const w = makeBare();
+    const m = spawn(w, "frost");
+    RT(w, 0).down = { outcome: "died" };
+    hurt(w, m, ["p0", 2 * m.s.hp], ["p1", m.s.hp]);
+    expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
+    expect(RT(w, 0).mobKills).toBe(1);
+    expect(RT(w, 1).mobKills).toBe(0);
+  });
+
+  it("a hitter whose result is out is skipped: the next most damaging collects", () => {
+    const w = makeBare({ players: 3 });
+    const m = spawn(w, "frost");
+    RT(w, 0).resolved = true;
+    hurt(w, m, ["p0", 3 * m.s.hp], ["p2", 2 * m.s.hp], ["p1", m.s.hp]);
     expect(fxOf(w.events, "death")[0]!.by).toBe("p2");
+    expect(RT(w, 2).mobKills).toBe(1);
+    expect(RT(w, 0).mobKills).toBe(0);
     const n = spawn(w, "frost");
     RT(w, 2).resolved = true;
     w.events = [];
@@ -502,25 +608,17 @@ describe("killMob: who gets the kill", () => {
     expect(RT(w, 1).mobKills).toBe(1);
   });
 
-  it("a hitter whose runtime is already down is skipped even before their status flips", () => {
-    const w = makeBare();
-    const m = spawn(w, "frost");
-    RT(w, 0).down = { outcome: "died" };
-    hurt(w, m, ["p0", 2 * m.s.hp], ["p1", m.s.hp]);
-    expect(fxOf(w.events, "death")[0]!.by).toBe("p1");
-    expect(RT(w, 0).mobKills).toBe(0);
-  });
-
-  it("pays nobody when the only hitters are dead, resolved, or gone", () => {
+  it("pays nobody when the only hitters are resolved players, unknown ids or mobs", () => {
     const w = makeBare({ players: 3 });
-    P(w, 0).status = "dead";
+    const other = spawn(w, "plague");
+    RT(w, 0).resolved = true;
     RT(w, 1).resolved = true;
     const m = spawn(w, "fire");
-    hurt(w, m, ["p0", 2 * m.s.hp], ["p1", 2 * m.s.hp], ["nobody", m.s.hp]);
+    hurt(w, m, ["p0", 2 * m.s.hp], ["p1", 2 * m.s.hp], ["nobody", m.s.hp], [other.id, m.s.hp]);
     expect(m.s.status).toBe("dead");
     expect(fxOf(w.events, "death")[0]!.by).toBeNull();
     expect(gvOf(w.events)).toEqual([]);
-    expect(RT(w, 0).mobKills + RT(w, 1).mobKills).toBe(0);
+    expect(RT(w, 0).mobKills + RT(w, 1).mobKills + RT(w, 2).mobKills).toBe(0);
     expect(RT(w, 1).gv.mobs).toBe(0);
   });
 
@@ -651,7 +749,7 @@ describe("killMob: rewards", () => {
           expect(random).toHaveBeenCalledTimes(1);
           const stat = REGION_BUFF[region];
           const amount = mobBuffStacks(elite) * mobRewardMultiplier(0, 0);
-          expect(elite ? amount / mobRewardMultiplier(0, 0) : amount / mobRewardMultiplier(0, 0)).toBe(elite ? 2 : 1);
+          expect(amount / mobRewardMultiplier(0, 0)).toBeCloseTo(elite ? ELITE_BUFF_STACKS : MOB_BUFF_STACKS, 12);
           const held = stacksOf(P(w, 0));
           for (const s of BUFF_STATS) expect(held[s], `${region} ${s}`).toBeCloseTo(s === stat ? amount : 0, 9);
           expect(fxOf(w.events, "buff")).toEqual([{ kind: "buff", id: "p0", stat, stacks: amount, total: amount }]);
@@ -671,7 +769,7 @@ describe("killMob: rewards", () => {
         const m = spawn(w, region);
         hurt(w, m, ["p0", m.s.hp]);
         expect(fxOf(w.events, "buff").map((fx) => fx.stat), `${region} ${roll}`).toEqual([stat]);
-        expect(stacksOf(P(w, 0))[stat]).toBeCloseTo(mobRewardMultiplier(0, 0), 9);
+        expect(stacksOf(P(w, 0))[stat]).toBeCloseTo(MOB_BUFF_STACKS * mobRewardMultiplier(0, 0), 9);
       }
     });
 
@@ -682,7 +780,7 @@ describe("killMob: rewards", () => {
       const hp = P(w, 0).hp;
       const max = P(w, 0).maxHp;
       hurt(w, m, ["p0", m.s.hp]);
-      expect(P(w, 0).maxHp).toBeCloseTo(max * buffMultiplier("hp", mobRewardMultiplier(0, 0)), 9);
+      expect(P(w, 0).maxHp).toBeCloseTo(max * buffMultiplier("hp", MOB_BUFF_STACKS * mobRewardMultiplier(0, 0)), 9);
       expect(P(w, 0).hp).toBeGreaterThan(hp);
     });
   });
@@ -776,7 +874,7 @@ describe("killMob: rewards", () => {
       w.state.serverTime = 7000;
       const m = spawn(w, "plague");
       hurt(w, m, ["p0", m.s.hp]);
-      expect(P(w, 0).shield).toBeCloseTo(0.15 * P(w, 0).maxHp, 9);
+      expect(P(w, 0).barrier).toBeCloseTo(0.15 * P(w, 0).maxHp, 9);
       expect(RT(w, 0).boost!.shieldUntil).toBe(12000);
     });
 
@@ -852,8 +950,10 @@ describe("reapMobs: corpses", () => {
 });
 
 describe("reapMobs: regeneration", () => {
-  /** A mob at `hp` that was last hit long ago, in `mode`, at a server time well past the quiet window. */
-  function hurtMobAt(w: World, hp: number, mode: "idle" | "fight" | "return" = "idle", region: FactionId = "fire"): MobCombatant {
+  const perTick = (m: MobCombatant): number => (m.s.maxHp * TICK_MS) / (MOB_REGEN_SECONDS * 1000);
+
+  /** A mob at `hp` in `mode` (walking home unless said otherwise), long after it was last hit. */
+  function mobAt(w: World, hp: number, mode: "idle" | "fight" | "return" = "return", region: FactionId = "fire"): MobCombatant {
     const m = spawn(w, region);
     m.s.hp = hp;
     m.rt.brain!.mode = mode;
@@ -862,11 +962,11 @@ describe("reapMobs: regeneration", () => {
     return m;
   }
 
-  it("an idle mob heals maxHp x dt / MOB_REGEN_SECONDS per tick, capped at maxHp", () => {
+  it("a mob walking home heals maxHp x dt / MOB_REGEN_SECONDS per tick, capped at maxHp", () => {
     const w = makeBare();
-    const m = hurtMobAt(w, 100);
+    const m = mobAt(w, 100);
     reapMobs(w, TICK_MS);
-    expect(m.s.hp).toBeCloseTo(100 + (m.s.maxHp * TICK_MS) / (MOB_REGEN_SECONDS * 1000), 9);
+    expect(m.s.hp).toBeCloseTo(100 + perTick(m), 9);
     m.s.hp = m.s.maxHp - 0.5;
     reapMobs(w, TICK_MS);
     expect(m.s.hp).toBe(m.s.maxHp);
@@ -874,9 +974,9 @@ describe("reapMobs: regeneration", () => {
     expect(m.s.hp).toBe(m.s.maxHp);
   });
 
-  it("is full again after MOB_REGEN_SECONDS, not before", () => {
+  it("is full again after MOB_REGEN_SECONDS of walking home, not before", () => {
     const w = makeBare();
-    const m = hurtMobAt(w, 0.001 * mobFaction("fire", false).hp);
+    const m = mobAt(w, 0.001 * mobFaction("fire", false).hp);
     const ticks = (MOB_REGEN_SECONDS * 1000) / TICK_MS;
     for (let i = 0; i < ticks - 1; i++) reapMobs(w, TICK_MS);
     expect(m.s.hp).toBeLessThan(m.s.maxHp);
@@ -886,62 +986,61 @@ describe("reapMobs: regeneration", () => {
 
   it("works through the step loop: the reaper is a registered system", () => {
     const w = makeBare();
-    const m = hurtMobAt(w, 100);
-    m.rt.lastHitAt = -10_000;
+    const m = mobAt(w, 100);
     step(w, TICK_MS);
-    expect(m.s.hp).toBeGreaterThan(100);
+    expect(m.s.hp).toBeCloseTo(100 + perTick(m), 9);
   });
 
-  it("a mob heading home heals the same", () => {
+  it("heals every region's mobs alike, as a share of its own max hp", () => {
     const w = makeBare();
-    const m = hurtMobAt(w, 100, "return", "plague");
-    reapMobs(w, TICK_MS);
-    expect(m.s.hp).toBeCloseTo(100 + (m.s.maxHp * TICK_MS) / (MOB_REGEN_SECONDS * 1000), 9);
+    for (const region of FACTION_IDS) {
+      const m = mobAt(w, 1, "return", region);
+      reapMobs(w, TICK_MS);
+      expect(m.s.hp).toBeCloseTo(1 + perTick(m), 9);
+      expect(perTick(m)).toBeCloseTo(m.s.maxHp / 80, 9);
+    }
+  });
+
+  it("an idle mob does not heal, however long ago it was hit", () => {
+    const w = makeBare();
+    const m = mobAt(w, 100, "idle");
+    for (let i = 0; i < 200; i++) reapMobs(w, TICK_MS);
+    expect(m.s.hp).toBe(100);
   });
 
   it("a fighting mob does not heal", () => {
     const w = makeBare();
-    const m = hurtMobAt(w, 100, "fight");
-    for (let i = 0; i < 40; i++) reapMobs(w, TICK_MS);
+    const m = mobAt(w, 100, "fight");
+    for (let i = 0; i < 200; i++) reapMobs(w, TICK_MS);
     expect(m.s.hp).toBe(100);
   });
 
-  it("a mob hit within the last 2 s does not heal; at exactly 2 s it does", () => {
+  it("a mob hurt in the field stays hurt until it starts walking home, and heals from then on", () => {
     const w = makeBare();
-    const m = hurtMobAt(w, 100);
-    m.rt.lastHitAt = w.state.serverTime - (REGEN_QUIET_MS - 1);
-    reapMobs(w, TICK_MS);
-    expect(m.s.hp).toBe(100);
-    m.rt.lastHitAt = w.state.serverTime - REGEN_QUIET_MS;
-    reapMobs(w, TICK_MS);
-    expect(m.s.hp).toBeGreaterThan(100);
-  });
-
-  it("hurtMob starts the quiet window", () => {
-    const w = makeBare();
-    const m = hurtMobAt(w, mobFaction("fire", false).hp);
+    const m = mobAt(w, mobFaction("fire", false).hp, "idle");
     hurt(w, m, ["p0", 50]);
     const hp = m.s.hp;
-    w.state.serverTime += REGEN_QUIET_MS - 1;
-    reapMobs(w, TICK_MS);
+    expect(hp).toBe(m.s.maxHp - 50);
+    for (let i = 0; i < 100; i++) reapMobs(w, TICK_MS);
     expect(m.s.hp).toBe(hp);
-    w.state.serverTime += 1;
+    m.rt.brain!.mode = "return";
     reapMobs(w, TICK_MS);
-    expect(m.s.hp).toBeGreaterThan(hp);
+    expect(m.s.hp).toBeCloseTo(hp + perTick(m), 9);
   });
 
   it("a corpse is not healed back to life", () => {
     const w = makeBare();
-    const m = hurtMobAt(w, 100);
+    const m = mobAt(w, 100, "idle");
     hurt(w, m, ["p0", 100]);
     expect(m.s.status).toBe("dead");
+    m.rt.brain!.mode = "return"; // even a corpse that somehow says it is walking home
     w.state.serverTime += 1;
     reapMobs(w, TICK_MS);
     expect(m.s.hp).toBe(0);
     expect(m.s.status).toBe("dead");
   });
 
-  it("many mobs at once: only the ones that qualify change", () => {
+  it("many mobs at once: only the ones walking home change", () => {
     const w = makeRun({ seed: 3 });
     const mobs = allMobs(w);
     mobs.forEach((m, i) => {
@@ -951,9 +1050,132 @@ describe("reapMobs: regeneration", () => {
     });
     w.state.serverTime = 100_000;
     reapMobs(w, TICK_MS);
+    expect(mobs.some((m, i) => i % 3 === 2)).toBe(true);
     mobs.forEach((m, i) => {
-      if (i % 3 === 0) expect(m.s.hp).toBe(m.s.maxHp / 2);
-      else expect(m.s.hp).toBeGreaterThan(m.s.maxHp / 2);
+      if (i % 3 === 2) expect(m.s.hp).toBeCloseTo(m.s.maxHp / 2 + perTick(m), 9);
+      else expect(m.s.hp).toBe(m.s.maxHp / 2);
+    });
+  });
+});
+
+describe("rewards are paid after the whole ledger pass", () => {
+  it.each([["the mob first", true], ["the player first", false]] as const)(
+    "%s in the ledger: the death shows at once, the spoils come after every victim has taken their damage", (_label, mobFirst) => {
+      const w = makeBare();
+      w.random = () => 0.1;
+      P(w, 0).stacksAs = 2.5; // the drop completes the dash, so the combo events are in the pass too
+      P(w, 0).weapon0 = "sword";
+      const m = spawn(w, "fire");
+      const containers = w.state.containers.size;
+      const killMobHit = () => strike(w, m.id, "p0", 1e6);
+      const woundPlayer = () => strike(w, "p1", "p0", 10);
+      if (mobFirst) { killMobHit(); woundPlayer(); } else { woundPlayer(); killMobHit(); }
+      pass(w);
+
+      const kinds = kindsOf(w.events);
+      const firstSpoil = kinds.findIndex((k) => k === "gv" || k === "fx:buff" || k === "fx:combo");
+      expect(kinds.filter((k) => k === "fx:hit")).toHaveLength(2);
+      expect(kinds.lastIndexOf("fx:hit")).toBeLessThan(firstSpoil);
+      expect(kinds.indexOf("fx:death")).toBeLessThan(firstSpoil);
+      expect(kinds.slice(firstSpoil)).toEqual(["gv", "fx:buff", "fx:combo", "fx:combo"]);
+      expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: m.id, x: m.s.x, y: m.s.y, by: "p0" }]);
+      expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
+      expect(stacksOf(P(w, 0)).attackSpeed).toBeGreaterThanOrEqual(3);
+      expect(RT(w, 0).boost!.bursts).toHaveLength(1);
+      expect(w.state.containers.size).toBe(containers + 1);
+      expect(w.combat.payouts).toEqual([]);
+      expect(w.combat.collecting).toBe(false);
+    });
+
+  it("a mob nobody collects dies in the pass with by null and queues nothing", () => {
+    const w = makeBare();
+    const m = spawn(w, "holy");
+    strike(w, m.id, "ghost", 1e6);
+    pass(w);
+    expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: m.id, x: m.s.x, y: m.s.y, by: null }]);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "fx:hit"]);
+    expect(w.combat.payouts).toEqual([]);
+  });
+
+  it("called directly, outside a pass, the spoils are paid on the spot", () => {
+    const w = makeBare();
+    const m = spawn(w, "fire");
+    expect(w.combat.collecting).toBe(false);
+    hurt(w, m, ["p0", m.s.hp]);
+    expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff"]);
+    const n = spawn(w, "fire");
+    w.events = [];
+    killMob(w, n, [entry(n.id, "p1", 4)], [4]);
+    expect(RT(w, 1).gv.mobs).toBe(GV_MOB);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff"]);
+  });
+
+  describe("a killer who dies in the same pass", () => {
+    /** p0 (hp 20, 2.5 hp stacks) kills a plague mob; p1 hits p0 for 60 in the same pass. The spoils would heal and shield them. */
+    function setup(): { w: World; m: MobCombatant } {
+      const w = makeBare();
+      w.random = () => 0.1; // a plague mob's own stat: hp
+      P(w, 0).stacksHp = 2.5;
+      P(w, 0).hp = 20;
+      return { w, m: spawn(w, "plague") };
+    }
+
+    function snapshot(w: World) {
+      return {
+        status: P(w, 0).status,
+        hp: P(w, 0).hp,
+        maxHp: P(w, 0).maxHp,
+        barrier: P(w, 0).barrier,
+        stacksHp: P(w, 0).stacksHp,
+        boosted: RT(w, 0).boost !== undefined,
+        mobGv: RT(w, 0).gv.mobs,
+        mobKills: RT(w, 0).mobKills,
+        buffFx: fxOf(w.events, "buff").length,
+        comboFx: fxOf(w.events, "combo").length,
+        killerKills: RT(w, 1).gv.kills,
+      };
+    }
+
+    function run(mobFirst: boolean): { w: World; snap: ReturnType<typeof snapshot> & { added: string[] } } {
+      const { w, m } = setup();
+      const before = new Set(w.state.containers.keys());
+      const kill = () => strike(w, m.id, "p0", 1e6);
+      const wound = () => strike(w, "p0", "p1", 60);
+      if (mobFirst) { kill(); wound(); } else { wound(); kill(); }
+      pass(w);
+      // The killer's body is a new container too; the mob's weapon is the loose one.
+      const added = [...w.state.containers].filter(([id]) => !before.has(id)).map(([, c]) => `${c.kind}:${c.items.map((it) => it.def)}`);
+      return { w, snap: { ...snapshot(w), added: added.sort() } };
+    }
+
+    it("is not saved by what the kill pays, whichever hit the ledger recorded first", () => {
+      const first = run(true);
+      const second = run(false);
+      expect(second.snap).toEqual(first.snap);
+      expect(first.snap).toEqual({
+        status: "dead", hp: 0, maxHp: 500, barrier: 0, stacksHp: 2.5, boosted: false, mobGv: GV_MOB, mobKills: 1,
+        buffFx: 0, comboFx: 0, killerKills: 10, added: ["body:axe", "ground:bow"],
+      });
+    });
+
+    it("and their result still carries the mob GV when the tick settles", () => {
+      for (const mobFirst of [true, false]) {
+        const { w } = run(mobFirst);
+        const events = step(w, TICK_MS);
+        const result = events.flatMap((e) => (e.type === "resolved" && e.id === "p0" ? [e.result] : []))[0]!;
+        expect(result).toMatchObject({ outcome: "died", killedBy: "bob", gv: { mobs: GV_MOB, total: GV_MOB } });
+      }
+    });
+
+    it("control: had the spoils been paid before the wound, the same wound would not have killed them", () => {
+      const { w, m } = setup();
+      hurt(w, m, ["p0", m.s.hp]); // outside a pass: paid on the spot
+      expect(P(w, 0).barrier).toBeGreaterThan(0);
+      expect(P(w, 0).hp).toBeGreaterThan(60);
+      strike(w, "p0", "p1", 60);
+      pass(w);
+      expect(P(w, 0).status).toBe("alive");
     });
   });
 });

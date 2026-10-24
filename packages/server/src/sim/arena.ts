@@ -29,7 +29,7 @@ import {
 import type { PlayerState } from "@raid/shared/schema";
 import { absorbShield } from "./buffs";
 import { announceBounty, mobRewardFor } from "./feed";
-import { emit, type PlayerRuntime, type World } from "./world";
+import { emit, payLater, type PlayerRuntime, type World } from "./world";
 
 /** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
 export interface Attacker { id: string; p: PlayerState; rt: PlayerRuntime }
@@ -125,7 +125,13 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   const by = typeof killer.source === "string" ? null : killer.source;
   rtv.killedBy = by ? by.p.name : (killer.source as string);
   emit(world, { type: "fx", fx: { kind: "death", id: rtv.id, x: victim.x, y: victim.y, by: by?.id ?? null } });
-  if (topRival) creditKill(world, topRival.source, victim, rtv);
+  if (topRival) {
+    // The bounty is read now, with every other death of the pass still pending, and paid once the pass is over
+    // (payLater): a shield or max hp won by a kill never saves a killer who dies in the same pass.
+    const rival = topRival.source;
+    const bounty = victim.bounty;
+    payLater(world, () => creditKill(world, rival, victim, rtv, bounty));
+  }
   downPlayer(world, victim, rtv, "died");
   return before;
 }
@@ -134,11 +140,10 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
  * Kill GV, the victim's bounty and the killer's new bounty. Skipped for a killer whose result is already out (a
  * projectile outliving its shooter, from Phase 9): nothing could bank it, and their final kills are already reported.
  */
-function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: PlayerRuntime): void {
+function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: PlayerRuntime, bounty = victim.bounty): void {
   if (by.rt.resolved) return;
   by.p.kills += 1;
   awardGv(world, by.p, by.rt, "kill");
-  const bounty = victim.bounty;
   if (bounty > 0) {
     credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
@@ -185,12 +190,14 @@ function credit(world: World, p: PlayerState, rt: PlayerRuntime, reason: Exclude
 }
 
 /**
- * A mob kill: pays mob GV at the reward the player's feed earns (before this kill is counted) and then counts toward
- * the feed score. Returns the GV paid. The mob's buff drop uses the same multiplier (mobLife.ts reads mobRewardFor first).
+ * A mob kill: pays mob GV at `mult`, the reward the player's feed earns (read before this kill is counted; the caller
+ * passes it so the GV and the buff drop of one kill use the same number), and then counts toward the feed score.
+ * Returns the GV paid.
  */
-export function creditMobKill(world: World, p: PlayerState, rt: PlayerRuntime, elite: boolean): number {
+export function creditMobKill(
+  world: World, p: PlayerState, rt: PlayerRuntime, elite: boolean, mult = mobRewardFor(world, p, rt),
+): number {
   if (rt.resolved) return 0;
-  const mult = mobRewardFor(world, p, rt);
   rt.mobKills += 1;
   p.mobKills = rt.mobKills;
   const paid = awardGv(world, p, rt, elite ? "elite" : "mob", mult);

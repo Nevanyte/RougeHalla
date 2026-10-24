@@ -3,23 +3,26 @@
 // step.ts applies them through the same handlers as a player's. It runs as a system (after damage, before the next tick
 // drains the queues), so a mob reacts one tick late, like a client does.
 //
-// Contract (the spine; the track fills the bodies in):
-//   - Modes (MobBrain.mode): "idle" at its home spot, neutral: it ignores everyone. Damage wakes it (`aggro`): it turns on
-//     the player with the most threat (damage done to it since it last rested) that is standing, wherever they stand, and
-//     goes "fight". "fight" chases and attacks that target by the weapon's spacing (policies.ts `decide`: close in while
-//     far or out of sight, stand and attack in range, ranged weapons back off when the target is closer than they like).
-//     It gives up, and goes "return", when it is farther than MOB_LEASH_RADIUS from home, or MOB_GIVE_UP_SECONDS pass with
-//     no damage dealt or taken, or no standing player is left to fight. "return" walks home ignoring everyone (damage
-//     still hurts it but does not wake it), heals (mobLife), and is "idle" again within MOB_HOME_RADIUS of home, where it
-//     faces homeFacing again.
+// Contract:
+//   - Modes (MobBrain.mode): "idle" at its home spot, neutral: it ignores everyone. Damage from a player wakes it (`aggro`):
+//     it turns on the player with the most threat (damage done to it since it last rested) that is standing, wherever they
+//     stand, and goes "fight". "fight" chases and attacks that target by the weapon's spacing (policies.ts `decide`: close
+//     in while far or out of sight, stand and attack in range, ranged weapons back off when the target is closer than they
+//     like). It gives up, and goes "return", when it is farther than MOB_LEASH_RADIUS from home, or MOB_GIVE_UP_SECONDS
+//     pass without it dealing damage (damage it TAKES does not extend the fight, so a shooter out of its reach cannot hold
+//     it), or no standing player is left to fight. "return" is an evade: it walks home ignoring everyone, nothing hurts it
+//     (mobLife.hurtMob), it heals on the way and is back at full hp when it is "idle" again within MOB_HOME_RADIUS of home,
+//     where it faces homeFacing again. So kiting a mob from outside its leash gains nothing: each round ends with the mob
+//     whole.
 //   - Inputs: aim every tick toward the (led) target while fighting; hold/release the trigger as `decide` says (an `attack`
-//     when it starts holding, a `release` when it stops or a bow is at full draw); `move` only when the goal changed or
-//     MOB_REPATH_MS (plus the mob's `phase`) passed since the last one, `stop` once when it should stand. An idle mob sends
-//     nothing at all (sixty idle mobs cost no inputs).
+//     when it starts holding, a `release` when it stops or a bow is at full draw); `move` only when MOB_REPATH_MS (plus
+//     the mob's `phase`) passed since the last one, `stop` once when it should stand. An idle mob sends nothing at all
+//     (sixty idle mobs cost no inputs).
 //   - It only ever targets players; it never attacks another mob.
-//   - On the coliseum teleport (`resetMob`) it drops its fight, its inputs and its path, and walks home.
+//   - On the coliseum teleport (`resetMob`) it drops its fight, its inputs and its path and is put back on its camp spot at
+//     full hp: the gates lock behind the players, so a mob near the coliseum could not walk home.
 import {
-  decide, hasLineOfSight, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, type FactionId, type Vec2,
+  decide, hasLineOfSight, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, wrapAngle, type FactionId, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { activeWeapon, timingsOf } from "./combatant";
@@ -39,7 +42,7 @@ const ON_SPOT = 0.01;
 export function newBrain(region: FactionId, elite: boolean, home: Vec2, homeFacing: number, phase: number): MobBrain {
   return {
     region, elite, home: { x: home.x, y: home.y }, homeFacing, mode: "idle", target: null, threat: new Map(),
-    lastCombatAt: 0, lastMoveAt: 0, goal: null, moving: false, holding: false, phase, diedAt: 0, lastReadyAt: 0,
+    lastCombatAt: 0, lastMoveAt: 0, goal: null, moving: false, holding: false, phase, diedAt: 0, lastAim: NaN,
   };
 }
 
@@ -78,20 +81,25 @@ export function aggro(world: World, c: MobCombatant, attackerId: string, amount:
   // A returning mob ignores everyone, and a mob is never an enemy of a mob.
   if (!b || c.s.status !== "alive" || b.mode === "return" || !(amount > 0) || !world.players.has(attackerId)) return;
   b.threat.set(attackerId, (b.threat.get(attackerId) ?? 0) + amount);
-  b.lastCombatAt = world.state.serverTime;
   if (b.mode !== "idle") return;
   const target = pickTarget(world, b);
   if (target === null) return;
   b.mode = "fight";
   b.target = target;
+  // The give-up timer runs from the wake; from then on only damage the mob deals restarts it (ledger.recordHit).
+  b.lastCombatAt = world.state.serverTime;
   // The first move of a fight goes out at once.
   b.goal = null;
   b.moving = false;
   b.holding = false;
-  b.lastReadyAt = c.s.readyAt;
 }
 
-/** Forget the fight: no target, no threat, no held trigger, no queued inputs or path; walk home. */
+/**
+ * Forget the fight and go home: no target, no threat, no held trigger, no queued inputs or path. Used by the coliseum
+ * teleport, when everyone alive has just left the map and the gates are locked behind them: a mob near the coliseum could
+ * not walk home through them (and one on a gate tile would be inside the wall), so it is put back on its camp spot at full
+ * hp, idle. Nobody is in reach and the arrivals are immune, so nothing can use the pop.
+ */
 export function resetMob(world: World, c: MobCombatant): void {
   const b = c.rt.brain;
   if (!b || c.s.status !== "alive") return;
@@ -101,14 +109,17 @@ export function resetMob(world: World, c: MobCombatant): void {
   b.lastMoveAt = 0;
   b.moving = false;
   b.holding = false;
-  b.lastReadyAt = c.s.readyAt;
   c.rt.inputs.drain();
   c.rt.path = [];
   cancelAction(world, c);
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
-  b.mode = "return";
-  if (Math.hypot(c.s.x - b.home.x, c.s.y - b.home.y) <= MOB_HOME_RADIUS) rest(c.s, c.rt, b);
+  c.s.x = b.home.x;
+  c.s.y = b.home.y;
+  c.s.facing = b.homeFacing;
+  c.s.hp = c.s.maxHp;
+  c.rt.history = [{ t: world.state.serverTime, x: b.home.x, y: b.home.y }];
+  b.mode = "idle";
 }
 
 /** System: every regional mob thinks once per tick. An idle (or dead) mob costs one check and nothing else. */
@@ -130,9 +141,6 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
   // Last tick's trigger input has been applied by now, so this is what the sim holds; if anything else let go of it
   // (a teleport, a swap) the next `hold` presses again.
   b.holding = rt.weapon.held;
-  // Starting an attack counts as dealing damage: a mob that is swinging at someone does not tire of it.
-  if (s.readyAt > b.lastReadyAt) b.lastCombatAt = now;
-  b.lastReadyAt = s.readyAt;
   if (Math.hypot(s.x - b.home.x, s.y - b.home.y) > MOB_LEASH_RADIUS || now - b.lastCombatAt >= MOB_GIVE_UP_SECONDS * 1000) {
     giveUp(s, rt, b, now, dtMs);
     return;
@@ -165,16 +173,24 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
   });
 
   const q = rt.inputs;
-  q.pushAim(out.aim);
+  // Facing is synced to every client, so a mob re-aims only when the angle moved past the deadband; the attack and
+  // release inputs below carry the exact angle, so a shot or a swing is never off.
+  if (!(Math.abs(wrapAngle(out.aim - b.lastAim)) < MOB_AIM_DEADBAND)) {
+    q.pushAim(out.aim);
+    b.lastAim = out.aim;
+  }
   if (out.release) {
     // A bow at full draw: loose it, and press again next tick for the next draw.
     q.pushAction({ kind: "release", a: out.aim });
+    b.lastAim = out.aim;
     b.holding = false;
   } else if (out.hold && !b.holding) {
     q.pushAction({ kind: "attack", a: out.aim });
+    b.lastAim = out.aim;
     b.holding = true;
   } else if (!out.hold && b.holding) {
     q.pushAction({ kind: "release", a: out.aim });
+    b.lastAim = out.aim;
     b.holding = false;
   }
 
@@ -248,6 +264,9 @@ function rest(s: MobState, rt: MobRuntime, b: MobBrain): void {
     else if (end !== null) q.pushMove({ kind: "stop" });
   }
   q.pushAim(b.homeFacing);
+  b.lastAim = b.homeFacing;
+  // Back at its camp it is whole again: it was untouchable on the way.
+  s.hp = s.maxHp;
   b.mode = "idle";
   b.target = null;
   b.threat.clear();

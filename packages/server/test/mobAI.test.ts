@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
-  hasLineOfSight, inArc, mapFromTiles, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, mulberry32, PLAYER_RADIUS, POLICIES,
+  hasLineOfSight, inArc, mapFromTiles, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, mulberry32, PLAYER_RADIUS, POLICIES,
   TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import { downPlayer } from "../src/sim/arena";
 import { combatant, standingCombatants } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
-import { recordHit } from "../src/sim/ledger";
+import { applyLedger, recordHit } from "../src/sim/ledger";
 import { aggro, install, resetMob, thinkMobs } from "../src/sim/mobAI";
-import { placeMob, type MobCombatant } from "../src/sim/mobLife";
+import { hurtMob, placeMob, type MobCombatant } from "../src/sim/mobLife";
 import { positionAt } from "../src/sim/movement";
 import { addPlayer, removePlayer, step } from "../src/sim/step";
 import { createWorld, type MeleeRequest, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Rig: a game world on a small open hand-built map, a raid in progress, and passive players (no weapon, huge hp) that the
-// mobs fight. The AI is driven through `aggro` (mobLife's hurtMob will do that) and its effects are read from the world.
+// mobs fight. The AI is woken by `aggro` directly, or by `shoot` (a hit through the real ledger and mobLife.hurtMob), and
+// its effects are read from the world.
 // ---------------------------------------------------------------------------------------------------------------------
 
 const TILES = 64;
@@ -43,10 +44,11 @@ function arenaMap(cells: Array<{ tx: number; ty: number }> = []): GameMap {
 interface Rig { world: World; swings: MeleeRequest[]; events: SimEvent[] }
 
 /** `players` players p0, p1, ... in an active raid. They have no weapon and 1e9 hp, and stand far from HOME until moved. */
-function makeRig(opts: { players?: number; map?: GameMap; seed?: number } = {}): Rig {
+function makeRig(opts: { players?: number; map?: GameMap; seed?: number; patience?: number } = {}): Rig {
   const n = opts.players ?? 1;
+  const patience = opts.patience ?? 3600;
   const config: SimConfig = {
-    minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60,
+    minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: patience, patienceMinSeconds: patience, suddenDeathSeconds: 60,
   };
   const world = createGameWorld({ seed: 7, config, random: mulberry32(opts.seed ?? 99) });
   world.map = opts.map ?? arenaMap();
@@ -105,6 +107,20 @@ function run(rig: Rig, ticks: number, each?: (tick: number) => void): SimEvent[]
 
 const hitsOn = (events: SimEvent[], victim: string) =>
   events.flatMap((e) => (e.type === "fx" && e.fx.kind === "hit" && e.fx.id === victim ? [e.fx] : []));
+
+/**
+ * A hit on a mob from player `shooter`, through the real path (recordHit, applyLedger, hurtMob, aggro) and outside any
+ * tick. True damage, so the mob's armor does not blur the numbers. Returns the hp it took.
+ */
+function shoot(world: World, shooter: string, mob: MobCombatant, amount: number): number {
+  const before = mob.s.hp;
+  recordHit(world, {
+    victim: mob.id, by: { id: shooter, name: world.state.players.get(shooter)!.name },
+    packet: { raw: amount, phys: 0, magic: 0, true: 1 }, weapon: "bow", stagger: false,
+  });
+  applyLedger(world);
+  return before - mob.s.hp;
+}
 
 interface Logged { at: number; kind: string; x?: number; y?: number; a?: number }
 
@@ -231,6 +247,8 @@ describe("aggro", () => {
     expect(brain(mob).lastCombatAt).toBe(now);
     run(rig, 1);
     expect(moves(log)).toEqual([{ at: now + TICK_MS, kind: "move", x: HOME.x + 150, y: HOME.y }]);
+    // ...and so does its first aim, even though the target is dead ahead of where it already faced (0).
+    expect(log.filter((l) => l.kind === "aim")).toEqual([{ at: now + TICK_MS, kind: "aim", a: 0 }]);
     run(rig, 1);
     expect(mob.rt.path.length).toBeGreaterThan(0);
     expect(mob.s.x).toBeGreaterThan(HOME.x);
@@ -382,16 +400,139 @@ describe("melee mobs", () => {
     expect(mob.s.x).toBeGreaterThan(x + 20);
   });
 
-  it("pushes its aim every tick of a fight, at the target", () => {
+  /** Rotates `p0` about the mob by `deg` degrees (keeping its distance), so its bearing from the mob moves by that much. */
+  function turnTarget(rig: Rig, mob: MobCombatant, deg: number): void {
+    const p = rig.world.state.players.get("p0")!;
+    const d = dist(mob.s, p);
+    const a = Math.atan2(p.y - mob.s.y, p.x - mob.s.x) + (deg * Math.PI) / 180;
+    put(rig.world, "p0", mob.s.x + d * Math.cos(a), mob.s.y + d * Math.sin(a));
+  }
+  const DEADBAND_DEG = (MOB_AIM_DEADBAND * 180) / Math.PI;
+
+  it("aims at once, then re-aims only when its target has moved past the deadband", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced");
     put(rig.world, "p0", HOME.x, HOME.y + 100);
-    aggro(rig.world, mob, "p0", 10);
     const log = spy(rig.world, mob);
+    const woke = rig.world.state.serverTime;
+    aggro(rig.world, mob, "p0", 10);
+    run(rig, 1);
+    // The first aim goes out on the first think, straight at the target.
+    expect(log.filter((l) => l.kind === "aim")).toEqual([{ at: woke + TICK_MS, kind: "aim", a: Math.PI / 2 }]);
+    expect(brain(mob).lastAim).toBe(Math.PI / 2);
+
+    // It walks up and swings with the target dead ahead: nothing new to say about where it faces.
+    run(rig, 14);
+    expect(mob.rt.path).toEqual([]);
+    expect(log.some((l) => l.kind === "attack")).toBe(true);
+    expect(log.filter((l) => l.kind === "aim")).toHaveLength(1);
+
+    // A nudge inside the deadband is not worth a message, however long it lasts...
+    turnTarget(rig, mob, DEADBAND_DEG * 0.5);
     run(rig, 10);
+    expect(log.filter((l) => l.kind === "aim")).toHaveLength(1);
+    // ...but past it, the new aim goes out on the next think, and is measured from there.
+    turnTarget(rig, mob, DEADBAND_DEG * 0.8);
+    run(rig, 1);
     const aims = log.filter((l) => l.kind === "aim");
-    expect(aims).toHaveLength(10);
-    expect(aims.every((l) => Math.abs(l.a! - Math.PI / 2) < 0.2)).toBe(true);
+    expect(aims).toHaveLength(2);
+    const p = rig.world.state.players.get("p0")!;
+    expect(aims[1]!.a).toBeCloseTo(Math.atan2(p.y - mob.s.y, p.x - mob.s.x), 9);
+    expect(Math.abs(aims[1]!.a! - Math.PI / 2)).toBeGreaterThanOrEqual(MOB_AIM_DEADBAND);
+    expect(brain(mob).lastAim).toBe(aims[1]!.a);
+    run(rig, 10);
+    expect(log.filter((l) => l.kind === "aim")).toHaveLength(2);
+    // Rotating back the other way crosses the deadband from the new aim, not from the first.
+    turnTarget(rig, mob, -DEADBAND_DEG * 1.5);
+    run(rig, 1);
+    expect(log.filter((l) => l.kind === "aim")).toHaveLength(3);
+  });
+
+  it("aims a swing exactly, even when the angle is inside the deadband", () => {
+    const rig = makeRig();
+    const mob = spawn(rig.world, "sentenced");
+    put(rig.world, "p0", HOME.x, HOME.y + 100);
+    const log = spy(rig.world, mob);
+    aggro(rig.world, mob, "p0", 10);
+    run(rig, 15);
+    expect(brain(mob).holding).toBe(true);
+    expect(log.filter((l) => l.kind === "aim")).toHaveLength(1);
+    // The target backs off out of reach and the trigger comes up...
+    const at = (deg: number, d: number) => {
+      const a = Math.PI / 2 + (deg * Math.PI) / 180;
+      put(rig.world, "p0", mob.s.x + d * Math.cos(a), mob.s.y + d * Math.sin(a));
+    };
+    at(0, 400);
+    run(rig, 2);
+    expect(brain(mob).holding).toBe(false);
+    // ...and comes back one degree off the aim the mob already sent: no aim goes out, but the swing is pressed exactly.
+    at(1, 50);
+    run(rig, 1);
+    const p = rig.world.state.players.get("p0")!;
+    const exact = Math.atan2(p.y - mob.s.y, p.x - mob.s.x);
+    const press = log.filter((l) => l.kind === "attack").at(-1)!;
+    expect(press.at).toBe(rig.world.state.serverTime);
+    expect(press.a).toBe(exact);
+    expect(Math.abs(exact - Math.PI / 2)).toBeLessThan(MOB_AIM_DEADBAND);
+    expect(Math.abs(exact - Math.PI / 2)).toBeGreaterThan(0.01);
+    expect(log.filter((l) => l.kind === "aim")).toHaveLength(1);
+    expect(brain(mob).lastAim).toBe(exact);
+    run(rig, 1);
+    expect(mob.s.facing).toBe(exact);
+    expect(mob.rt.weapon.aim).toBe(exact);
+  });
+
+  it("lets go of the trigger at the exact angle too, and a bow looses at the angle of the moment", () => {
+    const rig = makeRig();
+    const mob = spawn(rig.world, "sentenced");
+    put(rig.world, "p0", HOME.x, HOME.y + 60);
+    aggro(rig.world, mob, "p0", 10);
+    run(rig, 15);
+    const log = spy(rig.world, mob);
+    expect(brain(mob).holding).toBe(true);
+    // The target steps back along a line one degree off the aim: out of reach, so the trigger comes up, with no aim sent.
+    turnTarget(rig, mob, 1);
+    const p = rig.world.state.players.get("p0")!;
+    put(rig.world, "p0", mob.s.x + (p.x - mob.s.x) * 4, mob.s.y + (p.y - mob.s.y) * 4);
+    run(rig, 1);
+    const exact = Math.atan2(p.y - mob.s.y, p.x - mob.s.x);
+    expect(log.filter((l) => l.kind === "aim")).toEqual([]);
+    expect(log.filter((l) => l.kind === "release")).toEqual([{ at: rig.world.state.serverTime, kind: "release", a: exact }]);
+    run(rig, 1);
+    expect(mob.s.facing).toBe(exact);
+
+    // A bow mob's shots carry the angle of the moment: each release names the lead it computed.
+    const rig2 = makeRig();
+    const archer = spawn(rig2.world, "plague");
+    displace(rig2.world, archer, HOME.x - 150, HOME.y);
+    put(rig2.world, "p0", HOME.x + 150, HOME.y);
+    const log2 = spy(rig2.world, archer);
+    aggro(rig2.world, archer, "p0", 10);
+    walk(rig2.world, "p0", HOME.x + 150, HOME.y - 300);
+    run(rig2, 40);
+    const releases = log2.filter((l) => l.kind === "release");
+    expect(releases.length).toBeGreaterThanOrEqual(1);
+    // The target is running toward -y: each shot is led that way, and none is the plain bearing (0).
+    for (const r of releases) expect(r.a!).toBeLessThan(-0.01);
+
+    // Standing still one degree off the aim it already sent, the target is not worth a new aim, but the arrow goes at it.
+    const rig3 = makeRig();
+    const bow = spawn(rig3.world, "plague");
+    displace(rig3.world, bow, HOME.x - 150, HOME.y);
+    put(rig3.world, "p0", HOME.x + 150, HOME.y);
+    const log3 = spy(rig3.world, bow);
+    aggro(rig3.world, bow, "p0", 10);
+    run(rig3, 1);
+    const a1 = (1 * Math.PI) / 180;
+    put(rig3.world, "p0", bow.s.x + 300 * Math.cos(a1), bow.s.y + 300 * Math.sin(a1));
+    run(rig3, 40);
+    const loose = log3.find((l) => l.kind === "release");
+    expect(loose).toBeDefined();
+    const target = rig3.world.state.players.get("p0")!;
+    expect(loose!.a).toBe(Math.atan2(target.y - bow.s.y, target.x - bow.s.x));
+    expect(loose!.a!).toBeGreaterThan(0.01);
+    expect(log3.filter((l) => l.kind === "aim")).toHaveLength(1);
+    expect(bow.rt.weapon.aim).toBe(loose!.a);
   });
 });
 
@@ -509,7 +650,7 @@ describe("ranged mobs", () => {
     const p = rig.world.state.players.get("p0")!;
     const leads: number[] = [];
     run(rig, 16, () => {
-      const aim = log.filter((l) => l.kind === "aim").at(-1);
+      const aim = log.filter((l) => l.a !== undefined).at(-1);
       if (aim && p.y < HOME.y - 20) leads.push(Math.atan2(p.y - mob.s.y, p.x - mob.s.x) - aim.a!);
     });
     expect(leads.length).toBeGreaterThan(5);
@@ -660,19 +801,51 @@ describe("giving up", () => {
     expect(hitsOn(rig.events, "p0").length).toBeGreaterThan(5);
   });
 
-  it("restarts the give-up timer whenever it is hurt", () => {
-    const rig = makeRig();
+  it("is not kept fighting by a shooter it cannot reach: damage it takes does not restart the timer", () => {
     const cell = { tx: 35, ty: 32 };
-    rig.world.map = arenaMap([cell]);
-    const mob = spawn(rig.world, "sentenced");
+    const rig = makeRig({ map: arenaMap([cell]) });
+    const mob = spawn(rig.world, "sentenced", HOME, HOME_FACING);
+    displace(rig.world, mob, HOME.x - 100, HOME.y);
+    put(rig.world, "p0", tile(cell.tx, cell.ty).x, tile(cell.tx, cell.ty).y);
+    const woke = rig.world.state.serverTime;
+    expect(shoot(rig.world, "p0", mob, mob.s.maxHp / 100)).toBeGreaterThan(0);
+    expect(brain(mob).mode).toBe("fight");
+    expect(brain(mob).lastCombatAt).toBe(woke);
+    const steps = (MOB_GIVE_UP_SECONDS * 1000) / TICK_MS;
+    for (let i = 0; i < steps - 1; i++) {
+      if (i % 10 === 0) shoot(rig.world, "p0", mob, mob.s.maxHp / 1000);
+      run(rig, 1);
+    }
+    expect(brain(mob).mode).toBe("fight");
+    expect(brain(mob).lastCombatAt).toBe(woke);
+    run(rig, 1);
+    expect(brain(mob).mode).toBe("return");
+  });
+
+  it("restarts the give-up timer when it lands a hit on a player, and only then", () => {
+    const cell = { tx: 35, ty: 32 };
+    const rig = makeRig({ map: arenaMap([cell]) });
+    const mob = spawn(rig.world, "sentenced", HOME, HOME_FACING);
+    const other = spawn(rig.world, "holy", tile(40, 40));
+    displace(rig.world, mob, HOME.x - 100, HOME.y);
     put(rig.world, "p0", tile(cell.tx, cell.ty).x, tile(cell.tx, cell.ty).y);
     aggro(rig.world, mob, "p0", 10);
+    const woke = brain(mob).lastCombatAt;
     run(rig, 100);
-    aggro(rig.world, mob, "p0", 1);
-    run(rig, 100);
+    const swing = (victim: string, scale?: number) => recordHit(rig.world, {
+      victim, by: { id: mob.id, name: mob.s.name }, packet: { raw: 1, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false, scale,
+    });
+    // A swing that meets a camp-mate, or one that does nothing, is not damage dealt.
+    swing(other.id);
+    swing("p0", 0);
+    expect(brain(mob).lastCombatAt).toBe(woke);
+    swing("p0");
+    const hitAt = rig.world.state.serverTime;
+    expect(brain(mob).lastCombatAt).toBe(hitAt);
+    run(rig, (MOB_GIVE_UP_SECONDS * 1000) / TICK_MS - 1);
     expect(brain(mob).mode).toBe("fight");
-    run(rig, 21);
-    expect(brain(mob).mode).toBe("idle");
+    run(rig, 1);
+    expect(brain(mob).mode).toBe("return");
   });
 
   it("ignores damage and people while it walks home", () => {
@@ -767,6 +940,92 @@ describe("the trigger", () => {
   });
 });
 
+describe("evading", () => {
+  it("nothing hurts a mob that is walking home: no damage, no number, no wake", () => {
+    const rig = makeRig();
+    const mob = spawn(rig.world, "sentenced");
+    displace(rig.world, mob, HOME.x - 150, HOME.y);
+    put(rig.world, "p0", HOME.x - 150 + 100, HOME.y);
+    brain(mob).mode = "return";
+    mob.s.hp = mob.s.maxHp / 2;
+    const entry = {
+      victim: mob.id, by: { id: "p0", name: "player0" }, packet: { raw: 50, phys: 0, magic: 0, true: 1 }, weapon: "bow" as const,
+      scale: 1, stagger: false,
+    };
+    expect(hurtMob(rig.world, mob, [50], [entry])).toBe(0);
+    rig.world.events = [];
+    const before = mob.s.hp;
+    expect(shoot(rig.world, "p0", mob, 50)).toBe(0);
+    expect(mob.s.hp).toBe(before);
+    expect(hitsOn(rig.world.events, mob.id)).toEqual([]);
+    expect(brain(mob).mode).toBe("return");
+    expect(brain(mob).threat.size).toBe(0);
+    expect(mob.rt.lastHitAt).toBe(0);
+  });
+
+  it("a sniper beyond the leash wakes the mob; it runs to the leash edge, gives up, and is home whole and idle; the next hit wakes it again", () => {
+    const rig = makeRig();
+    const mob = spawn(rig.world, "sentenced", HOME, 1);
+    put(rig.world, "p0", HOME.x + MOB_LEASH_RADIUS + 180, HOME.y);
+    const max = mob.s.maxHp;
+    expect(shoot(rig.world, "p0", mob, max / 2)).toBeCloseTo(max / 2);
+    expect(brain(mob).mode).toBe("fight");
+    expect(brain(mob).target).toBe("p0");
+    let farthest = 0;
+    let returned = 0;
+    for (let i = 0; i < 300 && brain(mob).mode !== "idle"; i++) {
+      run(rig, 1);
+      farthest = Math.max(farthest, dist(mob.s, HOME));
+      if (brain(mob).mode === "return") {
+        returned++;
+        // Shot at again on the way home: it does not feel it.
+        const hp = mob.s.hp;
+        expect(shoot(rig.world, "p0", mob, max / 2)).toBe(0);
+        expect(mob.s.hp).toBe(hp);
+      }
+    }
+    expect(farthest).toBeGreaterThan(MOB_LEASH_RADIUS);
+    expect(farthest).toBeLessThan(MOB_LEASH_RADIUS + 20);
+    expect(returned).toBeGreaterThan(3);
+    expect(brain(mob).mode).toBe("idle");
+    // Healing on the way (MOB_REGEN_SECONDS) is not enough in so short a walk: arriving is what makes it whole.
+    expect(mob.s.hp).toBe(max);
+    run(rig, 5);
+    expect({ x: mob.s.x, y: mob.s.y }).toEqual(HOME);
+    expect(mob.s.facing).toBe(1);
+
+    expect(shoot(rig.world, "p0", mob, max / 2)).toBeCloseTo(max / 2);
+    expect(brain(mob).mode).toBe("fight");
+    expect(brain(mob).target).toBe("p0");
+  });
+
+  it("kiting gains nothing: a shooter hitting a sword mob from 300 u for a minute never kills it, and it is whole every time it is idle", () => {
+    const rig = makeRig();
+    const mob = spawn(rig.world, "sentenced");
+    put(rig.world, "p0", HOME.x + 300, HOME.y);
+    const max = mob.s.maxHp;
+    let wakes = 0;
+    let lowest = max;
+    let was = brain(mob).mode;
+    for (let i = 0; i < (60 * 1000) / TICK_MS; i++) {
+      // Half a second between shots: each eighth of its hp. A round trip to the leash edge and back takes it about 2.7 s.
+      if (i % 10 === 0) shoot(rig.world, "p0", mob, max / 8);
+      expect(mob.s.status).toBe("alive");
+      run(rig, 1);
+      const mode = brain(mob).mode;
+      if (mode === "fight" && was !== "fight") wakes++;
+      was = mode;
+      lowest = Math.min(lowest, mob.s.hp);
+      if (mode === "idle") expect(mob.s.hp).toBe(max);
+    }
+    expect(mob.s.status).toBe("alive");
+    expect(wakes).toBeGreaterThanOrEqual(10);
+    expect(lowest).toBeGreaterThan(0);
+    // The shooter never got more than a few shots into one round.
+    expect(lowest).toBeGreaterThan(max * 0.3);
+  });
+});
+
 describe("retargeting", () => {
   /** Five players on a ring of radius 120 around HOME; the mob fights whoever it must. */
   function ringRig() {
@@ -857,13 +1116,15 @@ describe("retargeting", () => {
 });
 
 describe("resetMob", () => {
-  it("drops the fight, the queued inputs, the path and the trigger, and walks home", () => {
+  it("drops the fight, the queued inputs, the path and the trigger, and puts the mob back on its spot at full hp", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced", HOME, 0.5);
     put(rig.world, "p0", HOME.x + 150, HOME.y);
     aggro(rig.world, mob, "p0", 10);
     run(rig, 12);
     expect(brain(mob).holding || brain(mob).moving).toBe(true);
+    expect(dist(mob.s, HOME)).toBeGreaterThan(MOB_HOME_RADIUS);
+    mob.s.hp = mob.s.maxHp / 3;
     mob.rt.inputs.pushMove({ kind: "move", x: 1, y: 1 });
     mob.rt.inputs.pushAim(1);
     mob.rt.inputs.pushAction({ kind: "attack", a: 1 });
@@ -875,7 +1136,7 @@ describe("resetMob", () => {
 
     resetMob(rig.world, mob);
     const b = brain(mob);
-    expect(b.mode).toBe("return");
+    expect(b.mode).toBe("idle");
     expect(b.target).toBeNull();
     expect(b.threat.size).toBe(0);
     expect([b.holding, b.moving, b.goal]).toEqual([false, false, null]);
@@ -886,16 +1147,68 @@ describe("resetMob", () => {
     expect(mob.rt.weapon.held).toBe(false);
     expect(mob.rt.weapon.action).toBeNull();
     expect(mob.rt.weapon.bufferedUntil).toBe(0);
-
-    // The next think sends it home at once; it ignores the player standing next to it, and arrives.
-    run(rig, 1);
-    expect(moves(log)).toEqual([{ at: rig.world.state.serverTime, kind: "move", x: HOME.x, y: HOME.y }]);
-    const hp = hpOf(rig.world, "p0");
-    run(rig, 120);
-    expect(b.mode).toBe("idle");
     expect({ x: mob.s.x, y: mob.s.y }).toEqual(HOME);
     expect(mob.s.facing).toBe(0.5);
+    expect(mob.s.hp).toBe(mob.s.maxHp);
+    expect(mob.rt.history).toEqual([{ t: rig.world.state.serverTime, x: HOME.x, y: HOME.y }]);
+
+    // It stays there and says nothing, with the player standing next to it.
+    const hp = hpOf(rig.world, "p0");
+    run(rig, 60);
+    expect(log).toEqual([]);
+    expect({ x: mob.s.x, y: mob.s.y }).toEqual(HOME);
     expect(hpOf(rig.world, "p0")).toBe(hp);
+  });
+
+  it.each([
+    ["outside the leash", HOME.x + 3 * MOB_LEASH_RADIUS, HOME.y],
+    ["on a tile that has just become a gate", 20 * TILE + 16, 20 * TILE + 16],
+  ])("puts a mob %s back on its spot at full hp, idle", (_where, x, y) => {
+    const map = arenaMap();
+    map.tiles[20 * TILES + 20] = TILE_WALL; // the gate that locked behind the players
+    const rig = makeRig({ map });
+    const mob = spawn(rig.world, "plague", HOME, 2.5);
+    put(rig.world, "p0", HOME.x + 100, HOME.y);
+    aggro(rig.world, mob, "p0", 10);
+    run(rig, 5);
+    displace(rig.world, mob, x, y);
+    mob.s.hp = 1;
+    mob.rt.weapon.held = true;
+    resetMob(rig.world, mob);
+    expect(brain(mob).mode).toBe("idle");
+    expect({ x: mob.s.x, y: mob.s.y }).toEqual(HOME);
+    expect(mob.s.facing).toBe(2.5);
+    expect(mob.s.hp).toBe(mob.s.maxHp);
+    expect(mob.rt.weapon.held).toBe(false);
+    const log = spy(rig.world, mob);
+    run(rig, 40);
+    expect(log).toEqual([]);
+    expect({ x: mob.s.x, y: mob.s.y }).toEqual(HOME);
+  });
+
+  it("is what the coliseum teleport does to every mob in a fight", () => {
+    const rig = makeRig({ players: 2, patience: 3 });
+    const mob = spawn(rig.world, "sentenced", HOME, 0.5);
+    put(rig.world, "p0", HOME.x + 120, HOME.y);
+    put(rig.world, "p1", HOME.x - 120, HOME.y);
+    aggro(rig.world, mob, "p0", 10);
+    const log = spy(rig.world, mob);
+    mob.s.hp = mob.s.maxHp / 2;
+    let ticks = 0;
+    while (!rig.world.state.gatesLocked && ticks++ < 200) {
+      run(rig, 1);
+      if (!rig.world.state.gatesLocked) expect(brain(mob).mode).toBe("fight");
+    }
+    expect(rig.world.state.gatesLocked).toBe(true);
+    expect(brain(mob).mode).toBe("idle");
+    expect({ x: mob.s.x, y: mob.s.y }).toEqual(HOME);
+    expect(mob.s.facing).toBe(0.5);
+    expect(mob.s.hp).toBe(mob.s.maxHp);
+    expect(mob.rt.weapon.held).toBe(false);
+    expect(brain(mob).threat.size).toBe(0);
+    const n = log.length;
+    run(rig, 40);
+    expect(log.slice(n)).toEqual([]);
   });
 
   it("puts a mob that is already at its camp straight back to idle, facing the way it should", () => {
@@ -959,18 +1272,32 @@ describe("mobs and mobs", () => {
     expect(brain(b).threat.size + brain(c).threat.size).toBe(0);
   });
 
-  it("a camp archer's arrow that meets its neighbour does nothing to it", () => {
-    const rig = makeRig();
-    const archer = spawn(rig.world, "plague", HOME);
-    const neighbour = spawn(rig.world, "sentenced", { x: HOME.x + 100, y: HOME.y });
-    put(rig.world, "p0", HOME.x + 220, HOME.y);
-    const hp = neighbour.s.hp;
-    aggro(rig.world, archer, "p0", 10);
-    run(rig, 160);
-    expect(neighbour.s.hp).toBe(hp);
-    expect(brain(neighbour).mode).toBe("idle");
-    expect(brain(archer).target).toBe("p0");
-  });
+  it.each([["plague", "bow", 220], ["holy", "wand", 250]] as const)(
+    "a camp %s mob's shots fly past its neighbour and hit the player behind it, so it keeps fighting",
+    (region, weapon, range) => {
+      const rig = makeRig();
+      const shooter = spawn(rig.world, region, HOME);
+      const neighbour = spawn(rig.world, "sentenced", { x: HOME.x + 100, y: HOME.y });
+      put(rig.world, "p0", HOME.x + range, HOME.y);
+      const hp = neighbour.s.hp;
+      const woke = rig.world.state.serverTime;
+      aggro(rig.world, shooter, "p0", 10);
+      // Longer than the give-up time: it only keeps fighting because its shots land.
+      const events = run(rig, (MOB_GIVE_UP_SECONDS * 1000) / TICK_MS + 40);
+      const onPlayer = hitsOn(events, "p0");
+      expect(onPlayer.length).toBeGreaterThanOrEqual(4);
+      expect(onPlayer.every((h) => h.by === shooter.id && h.weapon === weapon)).toBe(true);
+      expect(hitsOn(events, neighbour.id)).toEqual([]);
+      expect(neighbour.s.hp).toBe(hp);
+      expect(brain(neighbour).mode).toBe("idle");
+      expect(brain(neighbour).threat.size).toBe(0);
+      expect(brain(shooter).mode).toBe("fight");
+      expect(brain(shooter).target).toBe("p0");
+      // Its last landed shot is recent: the give-up timer keeps being restarted.
+      expect(rig.world.state.serverTime - brain(shooter).lastCombatAt).toBeLessThan(3000);
+      expect(brain(shooter).lastCombatAt).toBeGreaterThan(woke + MOB_GIVE_UP_SECONDS * 500);
+    },
+  );
 });
 
 describe("determinism", () => {

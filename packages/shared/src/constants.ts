@@ -167,11 +167,17 @@ export const MOB_HOME_RADIUS = 10;
 export const MOB_REGEN_SECONDS = 4;
 /** A mob re-plans its walk at most this often (ms); each mob's schedule is offset so they don't all path on one tick. */
 export const MOB_REPATH_MS = 500;
+/** A fighting mob re-aims only when the aim moved more than this (2 degrees): its facing is synced, and a new angle every tick costs bandwidth. */
+export const MOB_AIM_DEADBAND = (2 * Math.PI) / 180;
 /** A dead mob stays in the state this long (ms) so every client sees it fall. */
 export const MOB_CORPSE_MS = 1500;
-/** Buff stacks a mob drops before the reward curve; its stat is the region's own with MOB_PRIMARY_BUFF_SHARE, else another. */
-export const MOB_BUFF_STACKS = 1;
-export const ELITE_BUFF_STACKS = 2;
+/**
+ * Buff stacks a mob drops before the reward curve; its stat is the region's own with MOB_PRIMARY_BUFF_SHARE, else another.
+ * A little over a whole stack, because the curve is at most 0.976: three hungry drops of one stat (3 x 1.1 x ~0.97 = 3.2)
+ * then reach the first combo at 3 stacks, where with 1.0 they would stop at 2.91.
+ */
+export const MOB_BUFF_STACKS = 1.1;
+export const ELITE_BUFF_STACKS = 2.2;
 export const MOB_PRIMARY_BUFF_SHARE = 0.6;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
