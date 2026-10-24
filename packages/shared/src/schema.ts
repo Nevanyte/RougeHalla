@@ -10,14 +10,16 @@ export const ItemState = schema({
 export type ItemState = SchemaType<typeof ItemState>;
 
 // Players and mobs share these fighter fields (the sim's Combatant reads and writes both the same way).
+// float32 and uint32 here are wire widths only: the server's own values keep full double precision, and a client reads
+// them rounded to float32 (positions, angles, hp) or truncated to whole ms (the timers). Timers must stay in 0..2^32.
 export const PlayerState = schema({
   name: t.string().default(""),
-  x: t.number().default(0),
-  y: t.number().default(0),
+  x: t.float32().default(0),
+  y: t.float32().default(0),
   /** Radians, ground plane: where the fighter aims (the shield faces it), or the way it walks when it doesn't aim. */
-  facing: t.number().default(0),
-  hp: t.number().default(0),
-  maxHp: t.number().default(0),
+  facing: t.float32().default(0),
+  hp: t.float32().default(0),
+  maxHp: t.float32().default(0),
   /** PlayerStatus */
   status: t.string().default("lobby"),
   /** FactionId. A server default until the Phase 10 picker. */
@@ -27,16 +29,16 @@ export const PlayerState = schema({
   weapon1: t.string().default(""),
   slot: t.uint8().default(0),
   /** Server time the current bow draw began; 0 when not drawing. Every client draws the pull from it. */
-  drawStartedAt: t.number().default(0),
+  drawStartedAt: t.uint32().default(0),
   /** Server time the shared attack cooldown ends (the next attack, or draw, may start then). */
-  readyAt: t.number().default(0),
+  readyAt: t.uint32().default(0),
   kills: t.uint8().default(0),
   /** GV earned so far this run (kills and mobs; a win bonus is added only when the run resolves). */
   gv: t.uint16().default(0),
   /** GV whoever kills this player is paid (see bountyFor); 0 until they have enough player kills. */
   bounty: t.uint16().default(0),
   /** Server time until which damage to this player is ignored (teleport immunity); 0 = none. */
-  immuneUntil: t.number().default(0),
+  immuneUntil: t.uint32().default(0),
   /** Mobs killed this run (feed = kills + FEED_MOB_KILL_WEIGHT x this; it sets the mob reward curve and the bounty). */
   mobKills: t.uint16().default(0),
   /** Buff stacks per stat (real numbers: mob drops scale with the reward curve). The bonuses follow buffs.ts. */
@@ -56,11 +58,11 @@ export const MobState = schema({
   /** MobKind */
   kind: t.string().default("dummy"),
   name: t.string().default(""),
-  x: t.number().default(0),
-  y: t.number().default(0),
-  facing: t.number().default(0),
-  hp: t.number().default(0),
-  maxHp: t.number().default(0),
+  x: t.float32().default(0),
+  y: t.float32().default(0),
+  facing: t.float32().default(0),
+  hp: t.float32().default(0),
+  maxHp: t.float32().default(0),
   /** "alive" | "dead" */
   status: t.string().default("alive"),
   /** FactionId, or "" for none (no armor or shield). */
@@ -68,8 +70,8 @@ export const MobState = schema({
   weapon0: t.string().default(""),
   weapon1: t.string().default(""),
   slot: t.uint8().default(0),
-  drawStartedAt: t.number().default(0),
-  readyAt: t.number().default(0),
+  drawStartedAt: t.uint32().default(0),
+  readyAt: t.uint32().default(0),
 }, "MobState");
 export type MobState = SchemaType<typeof MobState>;
 
@@ -83,15 +85,15 @@ export const ProjectileState = schema({
   kind: t.string().default("arrow"),
   /** The combatant who owns it (the shooter, or the shield holder for a reflected arrow). */
   owner: t.string().default(""),
-  x: t.number().default(0),
-  y: t.number().default(0),
+  x: t.float32().default(0),
+  y: t.float32().default(0),
   /** World units per second. */
-  vx: t.number().default(0),
-  vy: t.number().default(0),
+  vx: t.float32().default(0),
+  vy: t.float32().default(0),
   /** Server time it left (x, y). */
-  t: t.number().default(0),
+  t: t.uint32().default(0),
   /** The most it can travel from (x, y). */
-  range: t.number().default(0),
+  range: t.uint16().default(0),
 }, "ProjectileState");
 export type ProjectileState = SchemaType<typeof ProjectileState>;
 

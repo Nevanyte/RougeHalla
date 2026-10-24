@@ -123,6 +123,23 @@
 .hud-arena.locked { color: #ff8a80; }
 .hud-hint { font-size: 12px; color: #aeb7c2; }
 
+/* Buff stacks (buffsHud.ts): a row per stat, tinted by --c; the bar fills toward the next combo tier. */
+.hud-buffs { margin-top: 4px; width: 256px; }
+.buff { margin-bottom: 3px; }
+.buff-row { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; }
+.buff-name { flex: none; width: 84px; color: var(--c); font-weight: 600; }
+.buff-stacks { flex: none; min-width: 20px; text-align: right; color: #eceff1; font-variant-numeric: tabular-nums; }
+.buff-next { flex: none; min-width: 12px; margin-left: -4px; color: #78909c; font-variant-numeric: tabular-nums; }
+.buff-bonus { flex: none; width: 36px; text-align: right; color: #c8d0d9; font-variant-numeric: tabular-nums; }
+.buff-bar { flex: 1; min-width: 40px; height: 6px; overflow: hidden; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 3px; }
+.buff-fill { display: block; height: 100%; width: 0; background: var(--c); opacity: 0.8; }
+.buff.maxed .buff-fill { opacity: 1; box-shadow: 0 0 6px var(--c); }
+.buff.idle .buff-name, .buff.idle .buff-bonus { opacity: 0.5; }
+.buff-combo { margin: 0 0 1px 2px; font-size: 11px; line-height: 14px; color: #b0bec5; }
+.buff-combo-name { color: var(--c); font-weight: 600; }
+/* max-content: the line is longer than the block above it and must not wrap. */
+.hud-feed { width: max-content; margin-top: 2px; font-size: 12px; color: #aeb7c2; }
+
 /* The backing store (minimap.ts) may be 2x for sharpness; this is the on-screen size. */
 .minimap {
   position: absolute;
@@ -341,3 +358,14 @@
   transition: opacity 250ms ease-out;
 }
 .toast.fading { opacity: 0; }
+/* The local player's own news: a stack drop in amber, a combo unlocked brighter and bigger. */
+.toast.buff { color: #ffe0b2; border-color: #ffb74d; background: rgba(48, 34, 14, 0.94); }
+.toast.combo {
+  padding: 8px 18px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff8e1;
+  border-color: #ffd54f;
+  background: rgba(58, 44, 10, 0.95);
+  box-shadow: 0 0 14px rgba(255, 213, 79, 0.55);
+}

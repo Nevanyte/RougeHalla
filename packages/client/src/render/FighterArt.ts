@@ -2,9 +2,10 @@
 // PlayerView and MobView, which pass the synced fields and read nothing else; everything here is cosmetic.
 import Phaser from "phaser";
 import {
-  FACTIONS, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, attackInterval, isFactionId, isWeaponId, weaponTimings,
-  type WeaponId,
+  FACTIONS, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, attackInterval, buffMultiplier, hpBarFractions, isFactionId, isWeaponId,
+  weaponTimings, type WeaponId,
 } from "@raid/shared";
+import { BARRIER_COLOR } from "../ui/buffTheme";
 import { traceSector } from "./groundShapes";
 import { BODY_LIFT, screenAngle } from "./projection";
 
@@ -25,6 +26,8 @@ export interface FighterFields {
   weapon1: string;
   slot: number;
   drawStartedAt: number;
+  /** Attack-speed stacks (a player's; a mob has none and attacks at its faction's rate). */
+  stacksAs?: number;
 }
 
 /** The weapon in hand, or null (an empty slot, or an id from newer server content). */
@@ -103,15 +106,14 @@ const BLOCK_EDGE = 0xcfd8dc;
 /** The bow pull is redrawn in this many steps; smoother than the eye can tell at 20 Hz patches. */
 const PULL_STEPS = 16;
 
-const fullDraws = new Map<string, number>();
-/** Seconds to a full draw for this faction's bow (the server's own formula), or 0 without a faction. */
-function fullDrawSeconds(faction: string): number {
-  let v = fullDraws.get(faction);
-  if (v === undefined) {
-    v = isFactionId(faction) ? weaponTimings("bow", attackInterval(FACTIONS[faction], "bow")).fullDraw : 0;
-    fullDraws.set(faction, v);
-  }
-  return v;
+/**
+ * Seconds to a full draw for this fighter's bow (the server's own formula: the interval shrinks with the attack-speed
+ * stacks, and the draw is 70% of it up to 0.6 s), or 0 without a faction. A mob's faction is scaled down in hp and damage
+ * only, so its rate, and with it the draw, is the plain faction's; its multiplier is 1.
+ */
+export function fullDrawSeconds(faction: string, stacksAs = 0): number {
+  if (!isFactionId(faction)) return 0;
+  return weaponTimings("bow", attackInterval(FACTIONS[faction], "bow", buffMultiplier("attackSpeed", stacksAs))).fullDraw;
 }
 
 export class FighterArt {
@@ -139,8 +141,9 @@ export class FighterArt {
     const weapon = heldWeapon(f);
     // Tracked every frame, not only with a bow in hand, so a draw that a swap cancelled can't linger.
     const drawing = this.trackDraw(f, renderT, patchT);
-    const full = fullDrawSeconds(f.faction);
-    const pull = weapon === "bow" && drawing && full > 0 ? Math.min(1, (renderT - this.drawStart) / 1000 / full) : -1;
+    // Only while a bow is being drawn: the time to full draw follows the attack-speed stacks, which change with a drop.
+    const full = weapon === "bow" && drawing ? fullDrawSeconds(f.faction, f.stacksAs) : 0;
+    const pull = full > 0 ? Math.min(1, (renderT - this.drawStart) / 1000 / full) : -1;
 
     this.held.setVisible(weapon !== null).setRotation(screenAngle(f.facing));
     const sig = `${weapon ?? ""}|${pull < 0 ? -1 : Math.round(pull * PULL_STEPS)}`;
@@ -185,12 +188,40 @@ export class FighterArt {
   }
 }
 
-/** The small hp bar over a fighter: `top` is its y in the view's local frame. */
-export function drawHpBar(g: Phaser.GameObjects.Graphics, frac: number, top: number, w = 28): void {
-  const f = Math.max(0, Math.min(1, frac));
-  g.clear();
-  g.fillStyle(0x000000, 0.6).fillRect(-w / 2, top, w, 4);
-  g.fillStyle(f > 0.5 ? 0x66bb6a : f > 0.25 ? 0xffca28 : 0xef5350, 1).fillRect(-w / 2, top, w * f, 4);
+/**
+ * The small hp bar over a fighter: hp in green to red, then the kill barrier in pale blue after it (both as shares of
+ * max hp). `top` is the bar's y in the view's local frame. It repaints only when what it shows moves by half a pixel.
+ */
+export class HpBar {
+  readonly g: Phaser.GameObjects.Graphics;
+  private sig = "";
+
+  constructor(scene: Phaser.Scene) {
+    this.g = scene.add.graphics();
+  }
+
+  draw(hp: number, maxHp: number, barrier: number, top: number, w = 28): void {
+    const share = hpBarFractions(hp, maxHp, barrier);
+    const hpPx = Math.round(share.hp * w * 2);
+    const barrierPx = Math.round(share.barrier * w * 2);
+    const sig = `${hpPx}|${barrierPx}|${w}|${top}`;
+    if (sig === this.sig) return;
+    this.sig = sig;
+    const g = this.g;
+    g.clear();
+    g.fillStyle(0x000000, 0.6).fillRect(-w / 2, top, w, 4);
+    // The colour follows hp against max hp: a barrier that shrinks the bar's scale must not turn healthy hp yellow or red.
+    const f = Math.min(1, Math.max(0, hp / (maxHp > 0 ? maxHp : 1)));
+    if (hpPx > 0) g.fillStyle(f > 0.5 ? 0x66bb6a : f > 0.25 ? 0xffca28 : 0xef5350, 1).fillRect(-w / 2, top, hpPx / 2, 4);
+    if (barrierPx > 0) g.fillStyle(BARRIER_COLOR, 1).fillRect(-w / 2 + hpPx / 2, top, barrierPx / 2, 4);
+  }
+
+  /** Draws nothing (a mob at full health out of a fight). A no-op while already hidden. */
+  hide(): void {
+    if (this.sig === "") return;
+    this.sig = "";
+    this.g.clear();
+  }
 }
 
 /** A white flash on a body disc for a moment; polled from the view's update() so no timer needs cleaning up. */

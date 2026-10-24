@@ -6,8 +6,9 @@
 // What is counted, per client (the room has no StateView, so every client gets the same bytes):
 //   patch  one ROOM_STATE_PATCH frame per tick, encoded by a schema Encoder built right after the world, the way
 //          core's SchemaSerializer does it (`sharedBuffer[0] = ROOM_STATE_PATCH; encode({ offset: 1 })`), then discardChanges().
-//   fx     one ROOM_DATA frame per fx event, packed by core's own `getMessageBytes.raw` (RaidRoom.handleEvents broadcasts
-//          `{ ...fx, t: serverTime }`), so the msgpack options and the type header cannot drift from what core sends.
+//   fx     one ROOM_DATA frame per simulation step that produced any fx: the batch `packFx` builds (the same function
+//          RaidRoom.handleEvents calls), packed by core's own `getMessageBytes.raw`, so the msgpack options and the type
+//          header cannot drift from what core sends. `fxByKind` splits those bytes by kind (a tuple's share of the frame).
 //   Every frame also pays the ws frame header (2 B under 126 B of payload, 4 B under 64 KiB). TCP/IP and TLS framing are
 //   not counted: the budget is ws payload (the owner may want the wire number too; it adds about 52 B per frame).
 // The initial full-state sync a joiner gets is reported but is not part of the rate.
@@ -20,8 +21,8 @@
 import { getMessageBytes, Protocol } from "@colyseus/core";
 import { Encoder } from "@colyseus/schema";
 import {
-  circleClear, decide, inArc, mulberry32, PLAYER_RADIUS, raycast, staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter, WEAPONS,
-  type FactionId, type MobCampDef, type Vec2,
+  circleClear, decide, inArc, mulberry32, packFx, PLAYER_RADIUS, raycast, staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter,
+  WEAPONS, type FactionId, type FxEvent, type MobCampDef, type Vec2,
 } from "@raid/shared";
 import { teleportToColiseum } from "../src/sim/arena";
 import { activeWeapon, combatant, standingCombatants, timingsOf, type Combatant } from "../src/sim/combatant";
@@ -75,6 +76,7 @@ export interface BandwidthResult {
   fxKBps: number;
   totalKBps: number;
   patchFramesPerSecond: number;
+  /** `fxs` messages per second: one per step that had any fx. */
   fxFramesPerSecond: number;
   /** Mean over the measured ticks: mobs fighting, mobs awake (fighting or walking home), arrows and balls in flight. */
   avgFighting: number;
@@ -84,7 +86,7 @@ export interface BandwidthResult {
   mobs: number;
   /** The first full-state sync a joiner gets (protocol byte and ws header included). Not part of the rates. */
   initialSyncBytes: number;
-  /** fx bytes (ws header included) by fx kind, for finding what to shrink. */
+  /** fx bytes by kind, for finding what to shrink: each tuple's share of its frame. "(batch)" is what is left: ws header, message type, `t`. */
   fxByKind: Record<string, { frames: number; bytes: number }>;
 }
 
@@ -399,16 +401,31 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     const events = step(world, TICK_MS);
     const measuring = n >= warmup;
 
-    // RaidRoom.handleEvents broadcasts each fx as its own message, then broadcastPatch() sends the patch.
-    for (const ev of events) {
-      if (ev.type !== "fx" || !measuring) continue;
-      const frame = getMessageBytes.raw(Protocol.ROOM_DATA, "fx", { ...ev.fx, t: world.state.serverTime });
-      const bytes = frame.length + wsHeader(frame.length);
-      fxBytes += bytes;
-      fxFrames++;
-      const k = (fxByKind[ev.fx.kind] ??= { frames: 0, bytes: 0 });
-      k.frames++;
-      k.bytes += bytes;
+    // RaidRoom.handleEvents broadcasts the step's fx as one message, then broadcastPatch() sends the patch.
+    if (measuring) {
+      const fxs: FxEvent[] = [];
+      for (const ev of events) if (ev.type === "fx") fxs.push(ev.fx);
+      if (fxs.length > 0) {
+        const batch = packFx(fxs, world.state.serverTime);
+        if (batch.l.length !== fxs.length) throw new Error("packFx dropped an fx kind it does not know");
+        const frame = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", batch);
+        const bytes = frame.length + wsHeader(frame.length);
+        fxBytes += bytes;
+        fxFrames++;
+        // Each tuple's own share: the frame with only it, minus the frame with nothing.
+        const empty = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", { t: batch.t, l: [] }).length;
+        let attributed = 0;
+        batch.l.forEach((tuple, i) => {
+          const share = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", { t: batch.t, l: [tuple] }).length - empty;
+          const k = (fxByKind[fxs[i]!.kind] ??= { frames: 0, bytes: 0 });
+          k.frames++;
+          k.bytes += share;
+          attributed += share;
+        });
+        const rest = (fxByKind["(batch)"] ??= { frames: 0, bytes: 0 });
+        rest.frames++;
+        rest.bytes += bytes - attributed;
+      }
     }
     if (encoder.hasChanges) {
       encoder.sharedBuffer[0] = Protocol.ROOM_STATE_PATCH;

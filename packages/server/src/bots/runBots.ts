@@ -1,9 +1,12 @@
-// CLI: launches N headless bots against a running server and prints how each run ended. Every bot hunts:
-// it walks at the nearest enemy and fights it with its weapons (swinging, drawing and loosing a bow, swapping
-// slot, picking up a second weapon early on), so a run ends with a last one standing (or a draw).
+// CLI: launches N headless bots against a running server and prints how each run ended. Every bot fights with its
+// weapons (swinging, drawing and loosing a bow, swapping slot, picking up a second weapon, a mob's drop too): it farms the
+// regional mobs early on and while no player is close, and hunts the nearest player otherwise and after the teleport into
+// the coliseum, so a run ends with a last one standing (or a draw).
 //   npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--loop] [--verbose]
 // Exits non-zero when a bot failed to play (join refused, connection lost, timeout). With --loop every
 // bot queues into a new run as soon as its last one is over, until the process is stopped.
+// The server runs the mobs by default; start it with MOBS=0 (or MOBS=false) to leave them out, and the bots simply hunt
+// each other (the result lines show the GV the mobs paid: `mobs N`).
 //
 // A profile name is claimed once and then needs its token, so tokens are remembered per server in
 // data/bot-tokens.json (next to the profile file, not committed). Running the CLI again reuses the same
@@ -18,7 +21,7 @@ import { BotClient, type BotRun } from "./BotClient";
 
 const USAGE = [
   "usage: npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--loop] [--verbose]",
-  "  <count>     bots to launch, 1-64; they queue into the same lobby and hunt each other",
+  "  <count>     bots to launch, 1-64; they queue into the same lobby, farm the mobs and hunt each other",
   "  --url       server to join (default http://localhost:2567)",
   "  --prefix    profile names are <prefix>1..<count> (default bot)",
   "  --loop      queue again after every run until stopped (Ctrl-C)",

@@ -1,6 +1,6 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
-import { angleBetween, generateMap, withGates, type RunResult, type TimedFx } from "@raid/shared";
+import { angleBetween, generateMap, unpackFx, withGates, type FxBatch, type RunResult } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
 import { EntityInterpolator } from "../net/interpolation";
@@ -15,12 +15,13 @@ import { ProjectileView } from "../render/ProjectileView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
+import type { ToastTone } from "../ui/toast";
 import { WeaponBar } from "../ui/weaponBar";
 
 export interface RaidSceneData {
   room: RaidRoom;
   /** Where short announcements ("<name> was killed") go; omitted, they are simply not shown. */
-  toast?: (text: string) => void;
+  toast?: (text: string, tone?: ToastTone) => void;
   /** True once the results panel is on screen; the "YOU DIED" line steps aside for it. Omitted, the line never yields. */
   resultsVisible?: () => boolean;
 }
@@ -170,15 +171,19 @@ export class RaidScene extends Phaser.Scene {
       view: (id) => this.views.get(id) ?? this.mobViews.get(id),
       position: (id) => this.rendered.get(id),
       name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
+      mobKind: (id) => this.room.state.mobs.get(id)?.kind,
       projectileEnded: (id) => this.projectiles.finish(id),
       announce: data.toast,
     });
-    this.unbindFx = this.room.onMessage("fx", (fx: TimedFx) => {
-      if (fx?.kind === "death") this.noteDeath(fx.id, fx.t, fx.x, fx.y);
-      if (fx?.kind === "teleport") this.noteTeleport(fx.t);
-      // The stop point is known on arrival, though the fx plays later: it caps the projectile's drawn flight.
-      if (fx?.kind === "projEnd") this.projectiles.noteEnd(fx);
-      this.fx.enqueue(fx);
+    // One message per server step; unpackFx stamps each event with the step's time and skips what it can't read.
+    this.unbindFx = this.room.onMessage("fxs", (batch: FxBatch) => {
+      for (const fx of unpackFx(batch)) {
+        if (fx.kind === "death") this.noteDeath(fx.id, fx.t, fx.x, fx.y);
+        if (fx.kind === "teleport") this.noteTeleport(fx.t);
+        // The stop point is known on arrival, though the fx plays later: it caps the projectile's drawn flight.
+        if (fx.kind === "projEnd") this.projectiles.noteEnd(fx);
+        this.fx.enqueue(fx);
+      }
     });
     // The killing result reaches the client before the dead-status patch, so the death line is driven from it.
     // main.ts holds the results panel back for a moment after a death; update() hides the line once it shows.
@@ -283,6 +288,7 @@ export class RaidScene extends Phaser.Scene {
     this.trackDamage(me);
 
     // Redraws only when the player's dot (or the gates) actually changed.
+    this.minimap.setMobs(state.mobs);
     this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();

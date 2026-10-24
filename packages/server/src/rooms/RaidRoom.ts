@@ -9,8 +9,8 @@
 import { randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS,
-  type GvReason, type JoinOptions, type RunResult, type ServerMessages,
+  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, MAX_PLAYERS, packFx, PROFILE_RE, RECONNECT_SECONDS, TICK_MS,
+  type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { ServerConfig } from "../config";
@@ -272,10 +272,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   private handleEvents(events: SimEvent[]) {
+    const fxs: FxEvent[] = [];
     for (const ev of events) {
       switch (ev.type) {
         case "fx":
-          this.broadcast("fx", { ...ev.fx, t: this.world.state.serverTime });
+          fxs.push(ev.fx);
           break;
         case "toast":
           this.sendTo(ev.to, "toast", { text: ev.text });
@@ -294,6 +295,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           break;
       }
     }
+    // One message for the whole step, stamped with the step's time and sent before this tick's patch: a `teleport` has to
+    // reach the client ahead of the patch that moves everyone (it marks the cut). A step with no fx sends nothing.
+    if (fxs.length > 0) this.broadcast("fxs", packFx(fxs, this.world.state.serverTime) satisfies ServerMessages["fxs"]);
   }
 
   /** A player's run is over: bank its GV and stats, free the profile, tell them. */

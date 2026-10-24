@@ -1,8 +1,10 @@
 // Top-right minimap: a plain top-down view of the whole map. The region tints and walls are painted once per map onto an
-// offscreen canvas; the closed gates and the local player are repainted on top at a low rate, and only when one of them
-// changed.
-import { REGION_IDS, TILE, WORLD_H, WORLD_W, isWallTile, type GameMap, type RegionId } from "@raid/shared";
-import { el, uiRoot } from "./dom";
+// offscreen canvas; the closed gates, the living regional mobs and the local player are repainted on top at a low rate,
+// and only when one of them changed.
+import {
+  FACTIONS, FACTION_IDS, REGION_IDS, TILE, WORLD_H, WORLD_W, isFactionId, isWallTile, type GameMap, type RegionId,
+} from "@raid/shared";
+import { cssColor, el, uiRoot } from "./dom";
 
 /** CSS pixels; style.css sizes the element to match. */
 const SIZE = 150;
@@ -25,11 +27,19 @@ const COLOR_REGION: Record<RegionId, string | null> = {
 const COLOR_GATE = "#f44336";
 const COLOR_PLAYER = "#69f0ae";
 const COLOR_PLAYER_DOWN = "#78909c";
+const COLOR_ELITE_RIM = "#ffd54f";
+/** Faction colours as CSS, in FACTION_IDS order. */
+const FACTION_CSS = FACTION_IDS.map((id) => cssColor(FACTIONS[id].color));
+/** More than this many mob dots are not drawn (a map has about 40 mobs). */
+const MAX_DOTS = 128;
 
 const TAU = Math.PI * 2;
 
 /** Where the local player is, in world units. */
 export interface MinimapPlayer { x: number; y: number }
+
+/** The fields of a synced mob the minimap reads. */
+export interface MinimapMob { x: number; y: number; kind: string; status: string; faction: string }
 
 export class Minimap {
   private readonly canvas = el("canvas", "minimap");
@@ -41,11 +51,15 @@ export class Minimap {
   private readonly px: number;
   private lastPaint = -Infinity;
   /**
-   * Inputs of the last paint: player x, y (backing pixels); alive; gates locked.
+   * Inputs of the last paint: player x, y (backing pixels); alive; gates locked; a hash of the mob dots.
    * An update whose inputs all match skips the repaint.
    */
-  private readonly last = new Float64Array(4).fill(NaN);
-  private readonly now = new Float64Array(4);
+  private readonly last = new Float64Array(5).fill(NaN);
+  private readonly now = new Float64Array(5);
+  /** Living regional mobs as x, y (backing pixels) and a code: (faction index + 1) * 2, plus 1 for an elite. */
+  private readonly dots = new Float32Array(MAX_DOTS * 3);
+  private dotCount = 0;
+  private dotsHash = 0;
   private hasMap = false;
   private gatesLocked = false;
   /** Gate tiles as x, y, w, h in backing pixels (flat), precomputed per map. */
@@ -66,6 +80,33 @@ export class Minimap {
   /** Whether the coliseum gates are drawn closed; takes effect at the next update(). Cheap to call every frame. */
   setGatesLocked(locked: boolean): void {
     this.gatesLocked = locked;
+  }
+
+  /**
+   * Takes the living regional mobs (training dummies and the dead are left off) as small dots in their faction's colour,
+   * an elite a bigger one with a gold rim; takes effect at the next update(). Cheap to call every frame: it only hashes
+   * the quantised positions, and the repaint waits for a change.
+   */
+  setMobs(mobs: { forEach(cb: (m: MinimapMob) => void): void }): void {
+    const k = this.k;
+    const dots = this.dots;
+    let n = 0;
+    let hash = 17;
+    mobs.forEach((m) => {
+      if (n >= MAX_DOTS || m.status !== "alive" || (m.kind !== "mob" && m.kind !== "elite")) return;
+      const px = Math.round(m.x * k);
+      const py = Math.round(m.y * k);
+      const code = (isFactionId(m.faction) ? FACTION_IDS.indexOf(m.faction) + 1 : 0) * 2 + (m.kind === "elite" ? 1 : 0);
+      dots[n * 3] = px;
+      dots[n * 3 + 1] = py;
+      dots[n * 3 + 2] = code;
+      hash = (Math.imul(hash, 31) + px) | 0;
+      hash = (Math.imul(hash, 31) + py) | 0;
+      hash = (Math.imul(hash, 31) + code) | 0;
+      n++;
+    });
+    this.dotCount = n;
+    this.dotsHash = (Math.imul(hash, 31) + n) | 0;
   }
 
   /** Repaints the static layer for a (new) map; the next update() paints it regardless of the throttle. */
@@ -142,6 +183,7 @@ export class Minimap {
     cur[1] = player ? Math.round(player.y * k) : NaN;
     cur[2] = alive ? 1 : 0;
     cur[3] = this.gatesLocked ? 1 : 0;
+    cur[4] = this.dotsHash;
     this.lastPaint = now;
     if (this.sameAsLast()) return;
     this.last.set(cur);
@@ -178,6 +220,21 @@ export class Minimap {
       c.fillStyle = COLOR_GATE;
       const r = this.gateRects;
       for (let i = 0; i < r.length; i += 4) c.fillRect(r[i], r[i + 1], r[i + 2], r[i + 3]);
+    }
+
+    const dots = this.dots;
+    c.lineWidth = px;
+    for (let i = 0; i < this.dotCount; i++) {
+      const code = dots[i * 3 + 2]!;
+      const elite = code % 2 === 1;
+      c.fillStyle = FACTION_CSS[(code >> 1) - 1] ?? COLOR_WALL;
+      c.beginPath();
+      c.arc(dots[i * 3]!, dots[i * 3 + 1]!, (elite ? 2.4 : 1.4) * px, 0, TAU);
+      c.fill();
+      if (elite) {
+        c.strokeStyle = COLOR_ELITE_RIM;
+        c.stroke();
+      }
     }
 
     if (player) {

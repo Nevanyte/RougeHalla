@@ -661,6 +661,17 @@ describe("loadConfig patience settings", () => {
   });
 });
 
+describe("loadConfig mobs", () => {
+  it("runs the regional mobs unless MOBS is 0 or false", () => {
+    expect(loadConfig({}).mobs).toBe(true);
+    expect(loadConfig({ MOBS: "1" }).mobs).toBe(true);
+    expect(loadConfig({ MOBS: "true" }).mobs).toBe(true);
+    expect(loadConfig({ MOBS: "" }).mobs).toBe(true);
+    expect(loadConfig({ MOBS: "0" }).mobs).toBe(false);
+    expect(loadConfig({ MOBS: "false" }).mobs).toBe(false);
+  });
+});
+
 describe("disconnect and reconnect grace", () => {
   it("a leaver drops out of `players` but not out of the synced startedWith", () => {
     const w = startRun(3);

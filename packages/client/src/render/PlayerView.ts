@@ -1,11 +1,14 @@
 import Phaser from "phaser";
-import { PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE } from "@raid/shared";
+import { PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, barrierStrength } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { BodyFlash, FighterArt, drawHpBar, factionColor } from "./FighterArt";
+import { BARRIER_COLOR } from "../ui/buffTheme";
+import { BodyFlash, FighterArt, HpBar, factionColor } from "./FighterArt";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 
 const HIT_FLASH_MS = 120;
 const SHIELD_COLOR = 0x4fc3f7;
+/** The kill barrier's bubble, redrawn when it moves by one of this many steps of a full (biggest combo) shield. */
+const BARRIER_STEPS = 8;
 /** The local player's marks: a white ring on the ground and a white rim on the body. */
 const LOCAL_MARK = 0xffffff;
 
@@ -25,7 +28,8 @@ export class PlayerView {
   private readonly root: Phaser.GameObjects.Container;
   private readonly body: Phaser.GameObjects.Arc;
   private readonly nose: Phaser.GameObjects.Rectangle;
-  private readonly hpBar: Phaser.GameObjects.Graphics;
+  private readonly hpBar: HpBar;
+  private readonly barrierRing: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
   private readonly shieldRing: Phaser.GameObjects.Graphics;
   private readonly crown: Phaser.GameObjects.Graphics;
@@ -34,6 +38,8 @@ export class PlayerView {
   private readonly flashing: BodyFlash;
   /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
   private crownBounty = 0;
+  /** The barrier bubble as last drawn, in BARRIER_STEPS (0 = none). */
+  private barrierStep = 0;
 
   constructor(scene: Phaser.Scene, readonly isLocal: boolean) {
     const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
@@ -46,7 +52,8 @@ export class PlayerView {
     this.flashing = new BodyFlash(this.body, factionColor(""));
     // Shows the facing while nothing is in hand.
     this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
-    this.hpBar = scene.add.graphics();
+    this.hpBar = new HpBar(scene);
+    this.barrierRing = scene.add.graphics();
     this.shieldRing = scene.add.graphics();
     this.label = scene.add.text(0, -BODY_LIFT - PLAYER_RADIUS - 18, "", {
       fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#eceff1",
@@ -64,7 +71,7 @@ export class PlayerView {
       color: "#ffe082", stroke: "#000000", strokeThickness: 3,
     }).setOrigin(0.5, 1).setVisible(false);
     this.root = scene.add.container(0, 0, [
-      shadow, mark, this.art.ground, this.body, this.nose, this.art.held, this.shieldRing, this.hpBar, this.label,
+      shadow, mark, this.art.ground, this.body, this.barrierRing, this.nose, this.art.held, this.shieldRing, this.hpBar.g, this.label,
       this.crown, this.crownLabel,
     ]);
   }
@@ -90,7 +97,10 @@ export class PlayerView {
     this.nose.setVisible(weapon === null).setRotation(screenAngle(p.facing));
     this.label.setText(p.name);
 
-    drawHpBar(this.hpBar, p.maxHp > 0 ? p.hp / p.maxHp : 0, -BODY_LIFT - PLAYER_RADIUS - 8);
+    // The kill barrier (public state) rides the bar as a pale blue segment and wraps the body as a bubble.
+    const barrier = p.barrier > 0 ? p.barrier : 0;
+    this.hpBar.draw(p.hp, p.maxHp, barrier, -BODY_LIFT - PLAYER_RADIUS - 8);
+    this.setBarrier(barrierStrength(barrier, p.maxHp));
 
     // Immunity runs from the teleport tick `t` to t + TELEPORT_IMMUNITY_MS. `p` is the latest patch, ahead of the delayed
     // positions drawn here, so the ring is judged at render time: it shows from the moment this body lands in the
@@ -105,6 +115,19 @@ export class PlayerView {
 
     // Only a drawn player is marked: the early return above hides the whole container (crown included) for the dead.
     this.setCrown(p.bounty > 0 ? Math.floor(p.bounty) : 0);
+  }
+
+  /** Draws the barrier bubble at `strength` (0..1: how close to the biggest shield any combo gives); 0 clears it. A no-op while the step is unchanged. */
+  private setBarrier(strength: number): void {
+    const step = strength > 0 ? Math.max(1, Math.round(strength * BARRIER_STEPS)) : 0;
+    if (step === this.barrierStep) return;
+    this.barrierStep = step;
+    const g = this.barrierRing;
+    g.clear();
+    if (step === 0) return;
+    const s = step / BARRIER_STEPS;
+    g.fillStyle(BARRIER_COLOR, 0.1 + 0.14 * s).fillCircle(0, -BODY_LIFT, PLAYER_RADIUS + 4);
+    g.lineStyle(2 + s, BARRIER_COLOR, 0.45 + 0.5 * s).strokeCircle(0, -BODY_LIFT, PLAYER_RADIUS + 4);
   }
 
   /** Shows the crown for `bounty` GV, scaled with it; 0 hides it. A no-op while the number is unchanged. */

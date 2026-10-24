@@ -3,7 +3,12 @@
 // together with the positions it was made between. Effects are driven from update(), not tweens or timers: nothing
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
-import { PLAYER_RADIUS, WEAPONS, Y_SCALE, type ProjectileEnd, type TimedFx } from "@raid/shared";
+import {
+  BUFF_LABELS, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffToast, comboById, comboToast, formatGain, type ProjectileEnd, type TimedFx,
+} from "@raid/shared";
+import { ELITE_COLOR, STAT_COLOR } from "../ui/buffTheme";
+import { cssColor } from "../ui/dom";
+import type { ToastTone } from "../ui/toast";
 import { traceRim, traceSector } from "./groundShapes";
 import { BODY_LIFT, depthFor, projX, projY } from "./projection";
 
@@ -19,6 +24,8 @@ const POOL_MAX = 16;
 const SWING_MS = 180;
 const DECAL_MS = 2000;
 const HEAL_MS = 800;
+const FLOAT_MS = 1100;
+const RING_MS = 380;
 const HIT_NUMBER_MS = 700;
 const STAGGER_MS = 500;
 const TELEPORT_FLASH_MS = 400;
@@ -43,6 +50,12 @@ const DECAL_HOLD = 0.25;
 const HEAL_START_HEIGHT = BODY_LIFT + PLAYER_RADIUS + 38;
 const HEAL_RISE = 28;
 const HIT_START_HEIGHT = BODY_LIFT + PLAYER_RADIUS + 20;
+/** Other players' buff and combo news floats above the heal numbers' lane. */
+const FLOAT_START_HEIGHT = HEAL_START_HEIGHT + 14;
+const FLOAT_RISE = 22;
+/** Floats that follow one another (a drop and the combo it unlocks) stack this many pixels apart, over this many lanes. */
+const FLOAT_LANES = 3;
+const FLOAT_LANE_PX = 13;
 const HIT_RISE = 34;
 /** Hit numbers fan out over this many lanes, this many pixels apart, so simultaneous ones don't overprint. */
 const HIT_LANES = 5;
@@ -52,6 +65,7 @@ const HIT_OTHERS = "#cfd8dc";
 const HIT_BY_ME = "#ffd54f";
 const HIT_ON_ME = "#ff5252";
 const HEAL_COLOR = "#81f78b";
+const COMBO_FLOAT_COLOR = "#ffe082";
 
 /** What FxView needs from the scene; kept as callbacks so it never reaches into scene internals. */
 export interface FxHost {
@@ -59,13 +73,18 @@ export interface FxHost {
   readonly localId: string;
   /** The drawn fighter (player or mob), for hit flashes. */
   view(id: string): { flash(): void } | undefined;
+  /** What a mob id is ("dummy" | "mob" | "elite"), or undefined for a player or an unknown id: mob deaths are quieter than players'. */
+  mobKind?(id: string): string | undefined;
   /** Where a fighter is drawn right now (ground coordinates), for effects that follow them. */
   position(id: string): { x: number; y: number } | undefined;
   name(id: string): string | undefined;
   /** A projectile's end is due: stop drawing it (the impact is FxView's). */
   projectileEnded(id: string): void;
-  /** Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!". */
-  announce?(text: string): void;
+  /**
+   * Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!".
+   * `tone` marks the local player's buff and combo news.
+   */
+  announce?(text: string, tone?: ToastTone): void;
 }
 
 type FxOf<K extends TimedFx["kind"]> = Extract<TimedFx, { kind: K }>;
@@ -74,7 +93,7 @@ type FxOf<K extends TimedFx["kind"]> = Extract<TimedFx, { kind: K }>;
 interface CancelWindups { kind: "cancelWindups"; id: string; t: number }
 type Queued = TimedFx | CancelWindups;
 
-type EffectKind = "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number";
+type EffectKind = "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number" | "float" | "ring";
 
 interface Active {
   kind: EffectKind;
@@ -88,7 +107,7 @@ interface Active {
   /** Last ground position it was drawn at. */
   x: number;
   y: number;
-  /** Ground angle (windup, cast) or horizontal pixel offset (number). */
+  /** Ground angle (windup, cast), horizontal pixel offset (number), extra start height in pixels (float) or the size the ring ends at, in body radii (ring). */
   a: number;
 }
 
@@ -100,6 +119,8 @@ interface BurstStyle {
   ms: number;
 }
 
+const MOB_DEATH_BURST: BurstStyle = { color: 0xcfd8dc, radius: 15, rays: 6, ring: true, ms: 300 };
+const ELITE_DEATH_BURST: BurstStyle = { color: ELITE_COLOR, radius: 26, rays: 10, ring: true, ms: 460 };
 const BLOCK_BURST: BurstStyle = { color: 0xb3e5fc, radius: 14, rays: 7, ring: true, ms: 240 };
 const IMPACT_BURSTS: Readonly<Record<ProjectileEnd, BurstStyle>> = {
   hit: { color: 0xffe0b2, radius: 11, rays: 6, ring: false, ms: 200 },
@@ -117,6 +138,7 @@ export class FxView {
   private readonly freeGraphics: Phaser.GameObjects.Graphics[] = [];
   private readonly freeText: Phaser.GameObjects.Text[] = [];
   private lane = 0;
+  private floatLane = 0;
   private destroyed = false;
 
   constructor(private readonly scene: Phaser.Scene, private readonly host: FxHost) {}
@@ -204,6 +226,11 @@ export class FxView {
       }
       case "death": {
         this.cancelWindup(fx.id);
+        const mob = this.host.mobKind?.(fx.id);
+        if (mob === "mob" || mob === "elite") {
+          this.mobDeath(fx, mob === "elite", now);
+          break;
+        }
         this.decal(fx.x, fx.y, now);
         const name = this.host.name(fx.id);
         if (name) this.host.announce?.(`${name} was killed`);
@@ -229,6 +256,12 @@ export class FxView {
         if (name && bounty > 0) this.host.announce?.(`${name} is on a rampage — bounty ${bounty} GV`);
         break;
       }
+      case "buff":
+        this.buff(fx, now);
+        break;
+      case "combo":
+        this.combo(fx, now);
+        break;
       case "victory":
         if (fx.name) this.host.announce?.(`${fx.name} is victorious`);
         else if (fx.draw) this.host.announce?.("Draw");
@@ -358,6 +391,69 @@ export class FxView {
     this.active.push({ kind: "heal", g: null, text, start: now, duration: HEAL_MS, id, x: pos.x, y: pos.y, a: 0 });
   }
 
+  /**
+   * A regional mob went down. Its body fades itself (MobView); no red X, which would lie over the weapon it drops, and no
+   * toast for the crowd of them. An elite gets a bigger gold burst and a line, since it is one of five on the map.
+   */
+  private mobDeath(fx: FxOf<"death">, elite: boolean, now: number): void {
+    this.burst(fx.x, fx.y, elite ? ELITE_DEATH_BURST : MOB_DEATH_BURST, now);
+    if (!elite) return;
+    const name = this.host.name(fx.id);
+    if (!name) return;
+    const killer = fx.by ? this.host.name(fx.by) : undefined;
+    this.host.announce?.(killer ? `${name} was slain by ${killer}` : `${name} was slain`);
+  }
+
+  /** Stacks gained: a toast for the local player, a small floating line over anyone else. */
+  private buff(fx: FxOf<"buff">, now: number): void {
+    if (!(fx.stacks > 0)) return;
+    if (fx.id === this.host.localId) {
+      this.host.announce?.(buffToast(fx.stat, fx.stacks, fx.total), "buff");
+      return;
+    }
+    const color = (STAT_COLOR as Readonly<Record<string, number>>)[fx.stat];
+    const label = (BUFF_LABELS as Readonly<Record<string, string>>)[fx.stat] ?? fx.stat;
+    if (color !== undefined) this.floatText(fx.id, `+${formatGain(fx.stacks)} ${label}`, cssColor(color), now);
+  }
+
+  /**
+   * A combo tier reached (`proc` false) or set off by a kill (`proc` true). The local player is told by a toast for a new
+   * combo; everyone sees a ring on the fighter, in the stat's colour, bigger for the second tier.
+   */
+  private combo(fx: FxOf<"combo">, now: number): void {
+    const spec = comboById(fx.combo);
+    if (!spec) return;
+    const color = STAT_COLOR[spec.stat];
+    if (fx.proc) {
+      this.ring(fx.id, color, spec.tier === 2 ? 2.4 : 2, now);
+      return;
+    }
+    this.ring(fx.id, color, 3.2, now);
+    if (fx.id === this.host.localId) this.host.announce?.(comboToast(spec), "combo");
+    else this.floatText(fx.id, `${spec.name}!`, COMBO_FLOAT_COLOR, now);
+  }
+
+  /** A ring around the fighter that grows to `size` body radii while it fades. */
+  private ring(id: string, color: number, size: number, now: number): void {
+    const pos = this.host.position(id);
+    if (!pos) return;
+    const g = this.acquireGraphics(DEPTH_FX);
+    g.lineStyle(3, color, 1).strokeCircle(0, 0, PLAYER_RADIUS + 2);
+    g.fillStyle(color, 0.18).fillCircle(0, 0, PLAYER_RADIUS + 2);
+    g.setPosition(projX(pos.x), projY(pos.y, BODY_LIFT));
+    this.active.push({ kind: "ring", g, text: null, start: now, duration: RING_MS, id, x: pos.x, y: pos.y, a: size });
+  }
+
+  /** A short line rising over a fighter, above the heal numbers. */
+  private floatText(id: string, text: string, color: string, now: number): void {
+    const pos = this.host.position(id);
+    if (!pos) return;
+    const lift = (this.floatLane++ % FLOAT_LANES) * FLOAT_LANE_PX;
+    const t = this.acquireText(color, 12);
+    t.setText(text).setDepth(DEPTH_FX).setPosition(projX(pos.x), projY(pos.y, FLOAT_START_HEIGHT + lift));
+    this.active.push({ kind: "float", g: null, text: t, start: now, duration: FLOAT_MS, id, x: pos.x, y: pos.y, a: lift });
+  }
+
   /** Drops the telegraph a fighter is showing (its swing landed, or a stagger, a death or a swap cancelled it); everyone's when `by` is omitted. */
   private cancelWindup(by?: string): void {
     const a = this.active;
@@ -417,12 +513,20 @@ export class FxView {
         case "decal":
           e.g!.setAlpha(p < DECAL_HOLD ? 1 : 1 - (p - DECAL_HOLD) / (1 - DECAL_HOLD));
           break;
+        case "ring": {
+          const pos = this.host.position(e.id);
+          if (pos) { e.x = pos.x; e.y = pos.y; }
+          const grow = 1 - (1 - p) * (1 - p);
+          e.g!.setPosition(projX(e.x), projY(e.y, BODY_LIFT)).setScale(1 + (e.a - 1) * grow).setAlpha(1 - p);
+          break;
+        }
         case "heal":
+        case "float":
         case "number": {
           const pos = this.host.position(e.id);
           if (pos) { e.x = pos.x; e.y = pos.y; }
-          const start = e.kind === "heal" ? HEAL_START_HEIGHT : HIT_START_HEIGHT;
-          const rise = (e.kind === "heal" ? HEAL_RISE : HIT_RISE) * (1 - (1 - p) * (1 - p));
+          const start = e.kind === "heal" ? HEAL_START_HEIGHT : e.kind === "float" ? FLOAT_START_HEIGHT + e.a : HIT_START_HEIGHT;
+          const rise = (e.kind === "heal" ? HEAL_RISE : e.kind === "float" ? FLOAT_RISE : HIT_RISE) * (1 - (1 - p) * (1 - p));
           e.text!.setPosition(projX(e.x) + (e.kind === "number" ? e.a : 0), projY(e.y, start + rise)).setAlpha(p < 0.5 ? 1 : 1 - (p - 0.5) / 0.5);
           break;
         }

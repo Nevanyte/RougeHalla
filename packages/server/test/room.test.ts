@@ -13,7 +13,7 @@ import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
 import {
   defaultFaction, ENDED_LINGER_SECONDS, FACTIONS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS,
-  ROOM_NAME, SIGNATURE_WEAPONS, type JoinOptions, type ProfileStats, type RunResult, type TimedFx, type Vec2,
+  ROOM_NAME, SIGNATURE_WEAPONS, unpackFx, type FxBatch, type JoinOptions, type ProfileStats, type RunResult, type TimedFx, type Vec2,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -153,7 +153,7 @@ function track(who: Account, room: ClientRoom): Player {
   const p: Player = { who, room, results: [], toasts: [], fx: [], left: false };
   room.onMessage("result", (r: RunResult) => p.results.push(r));
   room.onMessage("toast", (m: { text: string }) => p.toasts.push(m.text));
-  room.onMessage("fx", (f: TimedFx) => p.fx.push(f));
+  room.onMessage("fxs", (b: FxBatch) => p.fx.push(...unpackFx(b)));
   room.onLeave(() => { p.left = true; });
   players.push(p);
   return p;
@@ -888,6 +888,30 @@ describe("a run", () => {
     expectBanked(A, 0);
     expectBanked(B, 0);
     expect(isActive(A) && isActive(B)).toBe(true);
+  });
+
+  it("sends a step's fx as one `fxs` batch, and the teleport's batch reaches a client before the patch that moves everyone", async () => {
+    const [A, B] = [await claim(), await claim()];
+    const [a] = await startRun([A, B], { patienceSeconds: 2, suddenDeathSeconds: 120 });
+    expect(worldOf(a!).state.gatesLocked).toBe(false);
+    const batches: FxBatch[] = [];
+    const arrivals: string[] = [];
+    let teleportAt = NaN;
+    let lockedPatchAt = NaN;
+    a!.room.onMessage("fxs", (batch: FxBatch) => {
+      batches.push(batch);
+      for (const fx of unpackFx(batch)) if (fx.kind === "teleport") { teleportAt = fx.t; arrivals.push("fx"); }
+    });
+    a!.room.onStateChange((state) => {
+      if (state.gatesLocked && arrivals.at(-1) !== "patch") { lockedPatchAt = state.serverTime; arrivals.push("patch"); }
+    });
+    await until(() => arrivals.includes("patch") && batches.length > 0, "the teleport and its patch", 6000);
+    // The fx came first, stamped with the tick that the patch carries (a catch-up patch may be a later one).
+    expect(arrivals).toEqual(["fx", "patch"]);
+    expect(lockedPatchAt).toBeGreaterThanOrEqual(teleportAt);
+    // A step with no fx sends nothing, and a step sends at most one batch.
+    for (const batch of batches) expect(batch.l.length).toBeGreaterThan(0);
+    expect(new Set(batches.map((batch) => batch.t)).size).toBe(batches.length);
   });
 
   describe("leaving", () => {

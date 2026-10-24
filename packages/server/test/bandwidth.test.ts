@@ -6,12 +6,6 @@ import {
   BANDWIDTH_BUDGET_KBPS, HEAVY_CAMPS, TYPICAL_CAMPS, runBandwidth, type BandwidthResult,
 } from "../bench/bandwidth";
 
-// The heavy case (8 camps fought at once, about 31 mobs fighting) measures 26.6 KB/s on seed 1 today (24 to 29 on other
-// seeds), over the budget: 15.4 of patches and 11.2 of fx. The fix is planned for stage 2 (one batched fx message per
-// tick, a mob aim deadband, narrower wire types; the deadband is already in). Until then it is a known failure
-// (`it.fails`), which also turns red the day it passes. When it does, set this to true: it becomes a hard gate.
-const HEAVY_GATED = false;
-
 // Memoised: each scenario simulates a minute and a half of play, and the tests below only read the numbers.
 const runs = new Map<string, BandwidthResult>();
 function run(name: string, opts: Parameters<typeof runBandwidth>[0]): BandwidthResult {
@@ -23,7 +17,7 @@ const typical = () => run("typical", { camps: TYPICAL_CAMPS });
 const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
 
 describe("bandwidth budget (per client, ws payload)", () => {
-  // Seed 1 measures 18.7 KB/s with about 19 mobs fighting (16.3 to 19.8 over seeds 1 to 5, 732 and 2547).
+  // Seed 1 measures 10.4 KB/s with about 17 mobs fighting (9.8 to 12.2 over seeds 1 to 5, 732 and 2547).
   it("typical: 4 camps fought by 2 players each, 60 mobs: under 20 KB/s", () => {
     const r = typical();
     expect(r.mobs).toBeGreaterThanOrEqual(60);
@@ -31,19 +25,21 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  const heavyGate = HEAVY_GATED ? it : it.fails;
-  heavyGate(`heavy: 8 camps fought by 1 player each, 60 mobs: under 20 KB/s${HEAVY_GATED ? "" : " (known failure until stage 2)"}`, () => {
+  // Seed 1 measures 15.8 KB/s with about 28 mobs fighting (15.8 to 18.3 over the same seeds, up to 34 fighting).
+  it("heavy: 8 camps fought by 1 player each, 60 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  // `it.fails` passes when the test above throws for any reason, so this one makes sure the heavy run really is one.
-  it("heavy: the scenario is loaded (so the known failure above is about bytes, not about a broken run)", () => {
+  // The gate above would also pass for a run in which nothing happens, so this one makes sure the heavy run is loaded.
+  it("heavy: the scenario is loaded (so the gate above is about bytes, not about a broken run)", () => {
     const r = heavy();
     expect(r.mobs).toBeGreaterThanOrEqual(60);
     expect(r.avgFighting).toBeGreaterThan(20);
     expect(r.avgFighting).toBeGreaterThan(typical().avgFighting);
     expect(r.patchFramesPerSecond).toBeGreaterThan(19);
     expect(r.fxFramesPerSecond).toBeGreaterThan(typical().fxFramesPerSecond);
+    // fx are batched: one message per step with any fx, never one per event (that is 100+ frames a second here).
+    expect(r.fxFramesPerSecond).toBeLessThanOrEqual(20.5);
     expect(r.totalKBps).toBeGreaterThan(typical().totalKBps);
   });
 

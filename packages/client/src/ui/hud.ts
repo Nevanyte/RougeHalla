@@ -1,8 +1,9 @@
 // In-run DOM overlay: the lobby countdown or the run line (players standing, GV, your bounty), the arena timers (coliseum
 // teleport → locked gates → sudden death), player vitals (faction and hp), the teleport-immunity hint and the
-// "you died" line.
-import { FACTIONS, isFactionId } from "@raid/shared";
+// "you died" line. The buff stacks, combo progress and feed line are buffsHud.ts, placed under the vitals.
+import { FACTIONS, hpText, isFactionId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
+import { BuffsHud } from "./buffsHud";
 import { cssColor, el, uiRoot } from "./dom";
 
 function fmtSeconds(ms: number): string {
@@ -21,6 +22,7 @@ export class Hud {
   private readonly vitalsName = el("span");
   private readonly vitalsFaction = el("span", "hud-faction");
   private readonly vitalsHp = el("span");
+  private readonly buffs = new BuffsHud();
   private readonly arenaLine = el("div", "hud-arena");
   private readonly arenaHint = el("div", "hud-hint");
   /** Top-center notices; a sibling of the HUD block so they can sit mid-width. */
@@ -42,7 +44,7 @@ export class Hud {
     this.status.append(this.statusText, this.bountyTag);
     this.bountyTag.hidden = true;
     this.vitals.append(this.vitalsName, this.vitalsFaction, this.vitalsHp);
-    this.root.append(this.status, this.vitals, this.arenaLine, this.arenaHint);
+    this.root.append(this.status, this.vitals, this.buffs.root, this.arenaLine, this.arenaHint);
     this.center.append(this.suddenDeath, this.immuneLine);
     this.arenaLine.hidden = true;
     this.arenaHint.hidden = true;
@@ -92,18 +94,21 @@ export class Hud {
       this.bountyTag.hidden = bounty === 0;
     }
 
-    // hp is fractional on the wire; whole numbers on screen, and a player still standing never reads 0.
+    // hp is fractional on the wire; whole numbers on screen, and a player still standing never reads 0. The kill barrier
+    // (hp the hp combos absorb) reads after it: "HP 400/500 +75 shield".
+    const barrier = me && me.status === "alive" && me.barrier > 0 ? Math.ceil(me.barrier) : 0;
     let key = "";
-    if (me) key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.round(me.maxHp)}|${me.status}`;
+    if (me) key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.round(me.maxHp)}|${barrier}|${me.status}`;
     if (key !== this.lastVitals) {
       this.lastVitals = key;
       const faction = me && isFactionId(me.faction) ? FACTIONS[me.faction] : null;
       this.vitalsName.textContent = me?.name ?? "";
       this.vitalsFaction.textContent = faction ? ` · ${faction.displayName}` : "";
       this.vitalsFaction.style.color = faction ? cssColor(faction.color) : "";
-      this.vitalsHp.textContent = me ? ` · HP ${Math.ceil(me.hp)}/${Math.round(me.maxHp)} · ${me.status}` : "";
+      this.vitalsHp.textContent = me ? ` · ${hpText(me.hp, me.maxHp, barrier)} · ${me.status}` : "";
     }
 
+    this.buffs.update(state, me);
     this.updateArena(state, serverNow);
     const immune = me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;
     if (this.immuneLine.hidden === immune) this.immuneLine.hidden = !immune;
@@ -157,6 +162,7 @@ export class Hud {
   }
 
   destroy(): void {
+    this.buffs.destroy();
     this.root.remove();
     this.center.remove();
     this.deathLine.remove();

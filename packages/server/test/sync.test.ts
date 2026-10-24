@@ -30,8 +30,11 @@ function makeWorld(seed: number, players: number): World {
   });
 }
 
-// The wire carries fractional `t.number()` fields as float32, so both sides are compared at that precision.
+// The wire narrows some fields (schema.ts): float32 for positions, angles and hp, whole uint32 ms for the timers, uint16
+// for a projectile's range. The server keeps full doubles, so both sides are compared at the wire's precision.
 const f32 = Math.fround;
+const u32 = (v: number): number => v >>> 0;
+const u16 = (v: number): number => v & 0xffff;
 
 /** The fields players and mobs share (the sim's fighters). */
 interface Fighter {
@@ -42,7 +45,7 @@ interface Fighter {
 function fighter(s: Fighter) {
   return {
     x: f32(s.x), y: f32(s.y), facing: f32(s.facing), hp: f32(s.hp), maxHp: f32(s.maxHp), faction: s.faction,
-    weapon0: s.weapon0, weapon1: s.weapon1, slot: s.slot, drawStartedAt: f32(s.drawStartedAt), readyAt: f32(s.readyAt),
+    weapon0: s.weapon0, weapon1: s.weapon1, slot: s.slot, drawStartedAt: u32(s.drawStartedAt), readyAt: u32(s.readyAt),
   };
 }
 
@@ -52,7 +55,7 @@ function snapshot(state: RaidState) {
   const byKey = (a: { key: string }, b: { key: string }) => a.key.localeCompare(b.key);
   const players = [...state.players]
     .map(([key, p]) => ({
-      key, name: p.name, ...fighter(p), status: p.status, kills: p.kills, gv: p.gv, bounty: p.bounty, immuneUntil: p.immuneUntil,
+      key, name: p.name, ...fighter(p), status: p.status, kills: p.kills, gv: p.gv, bounty: p.bounty, immuneUntil: u32(p.immuneUntil),
     }))
     .sort(byKey);
   const mobs = [...state.mobs]
@@ -60,7 +63,7 @@ function snapshot(state: RaidState) {
     .sort(byKey);
   const projectiles = [...state.projectiles]
     .map(([key, p]) => ({
-      key, kind: p.kind, owner: p.owner, x: f32(p.x), y: f32(p.y), vx: f32(p.vx), vy: f32(p.vy), t: f32(p.t), range: f32(p.range),
+      key, kind: p.kind, owner: p.owner, x: f32(p.x), y: f32(p.y), vx: f32(p.vx), vy: f32(p.vy), t: u32(p.t), range: u16(p.range),
     }))
     .sort(byKey);
   const containers = [...state.containers]

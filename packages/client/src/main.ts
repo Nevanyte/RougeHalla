@@ -7,7 +7,7 @@ import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
 import { Menu, type RaidRequest } from "./ui/menu";
 import { ResultsScreen } from "./ui/results";
-import { Toasts } from "./ui/toast";
+import { Toasts, type ToastTone } from "./ui/toast";
 
 class IdleScene extends Phaser.Scene {
   constructor() { super("idle"); }
@@ -86,7 +86,7 @@ async function startRaid(request: RaidRequest): Promise<void> {
   game.scene.stop("idle");
   game.scene.start("raid", {
     room: joined,
-    toast: (text: string) => toasts.show(text),
+    toast: (text: string, tone?: ToastTone) => toasts.show(text, tone),
     resultsVisible: () => results.visible,
   });
 }

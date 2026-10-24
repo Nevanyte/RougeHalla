@@ -124,11 +124,20 @@ export interface RunResult {
 
 export const SUDDEN_DEATH_KILLER = "sudden death";
 
+/** One fx event as it reaches the renderer: the event plus the server time it happened (`fxs` messages are decoded to these). */
 export type TimedFx = FxEvent & { t: number };
+
+/** One fx on the wire: `[kindCode, ...fields]`, numbers and strings only (see fxCodec.ts for the layout of each kind). */
+export type FxTuple = Array<number | string | null>;
+/**
+ * Every fx one simulation step produced, in order, sharing the step's server time `t`. Built with `packFx` and read with
+ * `unpackFx` (fxCodec.ts). Sent once per step that has any, just before the patch of that tick.
+ */
+export interface FxBatch { t: number; l: FxTuple[] }
 
 /** Server → client. */
 export interface ServerMessages {
-  fx: TimedFx;
+  fxs: FxBatch;
   toast: { text: string };
   result: RunResult;
 }
