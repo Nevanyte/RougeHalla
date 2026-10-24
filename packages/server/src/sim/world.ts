@@ -2,9 +2,11 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, withGates, type FxEvent, type GameMap, type GvReason, type RunResult, type Sample, type Vec2,
+  generateMap, withGates, type DamageShares, type FxEvent, type GameMap, type GvReason, type ProjectileKind,
+  type RunResult, type Sample, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { RaidState, type PlayerState } from "@raid/shared/schema";
+import { RaidState, type PlayerState, type ProjectileState } from "@raid/shared/schema";
+import type { Combatant } from "./combatant";
 import type { ActionCommand, InputQueue } from "./inputs";
 
 export interface SimConfig {
@@ -18,19 +20,54 @@ export interface SimConfig {
   patienceMinSeconds: number;
   /** Locked in the coliseum this long with no death, sudden death starts. */
   suddenDeathSeconds: number;
+  /** Training: place dummies and a rack of every weapon next to each player's spawn when the run starts (sim/mobs.ts). */
+  dummies?: boolean;
 }
 
-export interface PlayerRuntime {
+/** A melee swing or wand cast waiting to land, or a bow being drawn. Times are server ms. */
+export type PendingAction =
+  | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket }
+  /** `origin`: where the caster's client drew it when the cast began; the ball leaves from there, along `a`. */
+  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2 }
+  | { kind: "draw"; weapon: WeaponId; startedAt: number };
+
+/**
+ * A fighter's weapon state machine (sim/weapons.ts). The slots, the one in hand, the cooldown end (`readyAt`) and the
+ * draw start are synced on the fighter's state; this is the rest. Times are server ms.
+ */
+export interface WeaponRuntime {
+  action: PendingAction | null;
+  rootUntil: number;
+  castSlowUntil: number;
+  /** Ranged recovery: half speed until the cooldown that started with the shot ends. */
+  recoverUntil: number;
+  staggerImmuneUntil: number;
+  /** The trigger: held since `pressedAt`; a press is also remembered until `bufferedUntil` (quick clicks). */
+  held: boolean;
+  pressedAt: number;
+  bufferedUntil: number;
+  /** A release arrived for a draw that hasn't reached its minimum yet (or hasn't started): loose it as soon as it can. */
+  releasePending: boolean;
+  /** Latest aim angle and when it arrived (0 = never aimed: walking turns the fighter). */
+  aim: number;
+  aimAt: number;
+  /** How far behind the server the fighter's client renders (server now - its `t`), clamped; melee rewinds by it. */
+  lagMs: number;
+}
+
+/** Server-only combat data every fighter has, player or mob. */
+export interface CombatRuntime {
   id: string;
-  profile: string;
   inputs: InputQueue;
-  /** Remaining waypoints in world units; the player walks toward path[0]. */
+  /** Remaining waypoints in world units; the fighter walks toward path[0]. */
   path: Vec2[];
-  /** Recent authoritative positions (oldest first) for lag-compensated hit tests. */
+  /** Recent authoritative positions (oldest first) for lag-compensated hit tests and present-time projectile sweeps. */
   history: Sample[];
-  nextAttackAt: number;
-  /** While serverTime < this, walking doesn't overwrite `facing` (the player keeps aiming). */
-  aimFacingUntil?: number;
+  weapon: WeaponRuntime;
+}
+
+export interface PlayerRuntime extends CombatRuntime {
+  profile: string;
   killedBy: string | null;
   /** GV earned this run, by source. A win bonus is decided when the run resolves and is never kept here. */
   gv: { kills: number; mobs: number; bounty: number };
@@ -50,6 +87,102 @@ export interface PlayerRuntime {
   resolved: boolean;
 }
 
+export interface MobRuntime extends CombatRuntime {
+  /** Server ms of the last damage taken (a dummy heals back to full DUMMY_RESET_SECONDS after it). */
+  lastHitAt: number;
+}
+
+/** One hit's damage before mitigation: the raw amount and the attacker's damage shares. */
+export interface DamagePacket extends DamageShares { raw: number }
+
+/** Who dealt a ledger entry: a combatant id, and the name to credit if they are gone by the time it lands. */
+export interface DamageSource { id: string; name: string }
+
+/**
+ * One hit landing this tick (sim/ledger.ts). Every damage source writes here and applyLedger() applies them all at
+ * once after melee, so the shuffled player order never decides who hit first.
+ */
+export interface LedgerEntry {
+  victim: string;
+  by: DamageSource;
+  packet: DamagePacket;
+  /** The weapon that dealt it (a riposte and a reflected arrow name the shield). */
+  weapon: WeaponId;
+  /** A projectile hit: a swing landing later in the same tick can still halve or cancel it (see `scale`). */
+  projectile?: string;
+  /** Applied to the packet at resolution: 1, SWORD_BALL_SCALE after a sword met the ball, 0 after an axe destroyed it. */
+  scale: number;
+  /** An unblocked sword hit: the victim is staggered if it isn't immune. */
+  stagger: boolean;
+}
+
+/** A swing whose windup ended this tick (resolved in the melee phase). */
+export interface MeleeRequest {
+  attacker: string;
+  weapon: WeaponId;
+  /** Direction fixed when the swing started. */
+  a: number;
+  /** Server time the attacker's client was drawing when the swing landed: attacker and targets are sampled there. */
+  rewindT: number;
+  packet: DamagePacket;
+}
+
+/** A projectile loosed this tick (the bow on release, the wand when its cast ends); spawned after the sweep. */
+export interface SpawnRequest {
+  owner: string;
+  kind: ProjectileKind;
+  weapon: WeaponId;
+  a: number;
+  packet: DamagePacket;
+  /**
+   * Where it leaves from: the shooter where its client drew it (rewound like a melee origin), since that is where the
+   * client measured `a` from. Defaults to the shooter's present position.
+   */
+  origin?: Vec2;
+}
+
+/** Server-only flight data of one synced ProjectileState (sim/projectiles.ts). */
+export interface ProjectileRuntime {
+  id: string;
+  state: ProjectileState;
+  kind: ProjectileKind;
+  /** What its hits count as: the bow or wand that loosed it, or the shield that reflected it. */
+  weapon: WeaponId;
+  owner: string;
+  /** Credited if the owner is gone when it lands. */
+  ownerName: string;
+  /** Where it was at `simT` (server ms) and how far it has come. */
+  x: number;
+  y: number;
+  simT: number;
+  traveled: number;
+  /** Where it was when this tick's sweep began: a swing landing this tick meets the ball anywhere on that stretch. */
+  tickX: number;
+  tickY: number;
+  packet: DamagePacket;
+  /** A sword already halved this ball (it is halved once at most). */
+  halved: boolean;
+  /** Set when it stops; it is then removed from the state. */
+  ended: boolean;
+}
+
+/** Per-tick combat scratch: filled and drained within one step (step.ts). */
+export interface CombatScratch {
+  ledger: LedgerEntry[];
+  melee: MeleeRequest[];
+  spawns: SpawnRequest[];
+  /**
+   * Every projectile that flew or was loosed this tick, including those that stopped (their path this tick is
+   * tickX/tickY -> x/y). Melee uses it to meet balls, even one whose hit is already in the ledger.
+   */
+  swept: ProjectileRuntime[];
+  /**
+   * This tick's secret rank of each player (their place in actionOrder). Exact ties between hits (who gets a kill, which
+   * of two bodies an arrow meets) go to the lower rank, so neither join order nor ledger order decides them.
+   */
+  rank: Map<string, number>;
+}
+
 /** Arena bookkeeping that is not synced (see arena.ts). */
 export interface ArenaRuntime {
   /** Players in the run when it started. With fewer than 2 the run is solo: nobody wins and no win bonus is paid. */
@@ -60,6 +193,11 @@ export interface ArenaRuntime {
   downsBetweenTicks: number;
   /** Set when a player is abandoned mid-run (a server shutdown): the run is void and the sim stops advancing it. */
   voided: boolean;
+  /**
+   * Every player's bounty when the tick being simulated began. A kill in a tick pays the victim's bounty from here,
+   * so a bounty raised by another kill in the same tick (whose victim the ledger happened to apply first) isn't paid.
+   */
+  bountyAtTickStart: Map<string, number>;
 }
 
 export type SimEvent =
@@ -72,7 +210,8 @@ export type SimEvent =
   /** A player's run is over; the Room banks `result` (GV and stats) and sends it to them. */
   | { type: "resolved"; id: string; result: RunResult };
 
-export type ActionHandler = (world: World, p: PlayerState, rt: PlayerRuntime, cmd: ActionCommand) => void;
+/** Handles one queued action for a standing fighter (players today; Phase 11 mobs go through the same handlers). */
+export type ActionHandler = (world: World, c: Combatant, cmd: ActionCommand) => void;
 export type SimSystem = (world: World, dtMs: number) => void;
 
 export interface WorldHooks {
@@ -80,10 +219,15 @@ export interface WorldHooks {
   dropBody(world: World, p: PlayerState): void;
   /** The lobby just turned into an active raid: players are placed and `raidStartedAt` is set. */
   raidStarted?(world: World): void;
-  /** Everyone alive was just moved into the coliseum (paths and input queues are already cleared). Phase 9 clears in-flight projectiles here. */
+  /**
+   * Everyone alive was just moved into the coliseum (paths and input queues are already cleared). Modules chain onto
+   * it: weapons cancel every action, projectiles clear every flight.
+   */
   teleported?(world: World): void;
   /** `killer` just claimed `victim`'s bounty (already paid). Phase 11 moves half the victim's buff stacks here. */
   bountyClaimed?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, bounty: number): void;
+  /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
+  weaponSwapped?(world: World, c: Combatant): void;
 }
 
 export interface World {
@@ -93,9 +237,16 @@ export interface World {
   map: GameMap;
   /** Monotonic counter behind nextId(). */
   idCounter: number;
+  /** Players who have joined this room so far, in order (the default faction is picked from it). */
+  joined: number;
   /** Item uids. Run gear never leaves the run, but globally unique ids keep that safe to change. */
   newItemUid: () => string;
   players: Map<string, PlayerRuntime>;
+  /** Server-only data of state.mobs, by the same ids. */
+  mobs: Map<string, MobRuntime>;
+  /** Server-only data of state.projectiles, by the same ids. */
+  projectiles: Map<string, ProjectileRuntime>;
+  combat: CombatScratch;
   /** Server-only randomness (loot rolls, spawn assignment). Never derived from the public seed. */
   random: () => number;
   /** Secret salt for the per-tick player processing order (see actionOrder in step.ts). */
@@ -106,7 +257,7 @@ export interface World {
   stepping: boolean;
   /** Gameplay modules install themselves here (see sim/gameplay.ts). Unknown actions are ignored. */
   actions: Partial<Record<ActionCommand["kind"], ActionHandler>>;
-  /** Run every active step after inputs and movement, in registration order. */
+  /** Run every active step after damage is applied, in registration order. */
   systems: SimSystem[];
   hooks: WorldHooks;
   arena: ArenaRuntime;
@@ -117,6 +268,8 @@ export function createWorld(opts: {
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
+  /** A ready map instead of generateMap(seed): hand-built test arenas and the harness skip the generator. */
+  map?: GameMap;
 }): World {
   const state = new RaidState();
   state.seed = opts.seed >>> 0;
@@ -124,23 +277,33 @@ export function createWorld(opts: {
   return {
     state,
     config: opts.config,
-    map: generateMap(state.seed),
+    map: opts.map ?? generateMap(state.seed),
     idCounter: 0,
+    joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),
     players: new Map(),
+    mobs: new Map(),
+    projectiles: new Map(),
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map() },
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],
     stepping: false,
     actions: {},
     systems: [],
-    hooks: { dropBody: (_w, p) => { p.inventory.clear(); } },
-    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false },
+    hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
+    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
   };
 }
 
 export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
+}
+
+/** Adds a hook that runs after whatever was already installed for it. */
+export function chainHook<K extends "teleported" | "raidStarted">(world: World, key: K, fn: (world: World) => void): void {
+  const prev = world.hooks[key];
+  world.hooks[key] = prev ? (w: World) => { prev(w); fn(w); } : fn;
 }
 
 /**
@@ -155,4 +318,12 @@ export function collisionMap(world: World): GameMap {
 export function nextId(world: World, prefix: string): string {
   world.idCounter++;
   return `${prefix}${world.idCounter.toString(36)}`;
+}
+
+/** A fresh weapon state machine: idle, nothing held, never aimed. */
+export function newWeaponRuntime(): WeaponRuntime {
+  return {
+    action: null, rootUntil: 0, castSlowUntil: 0, recoverUntil: 0, staggerImmuneUntil: 0,
+    held: false, pressedAt: 0, bufferedUntil: 0, releasePending: false, aim: 0, aimAt: 0, lagMs: 0,
+  };
 }

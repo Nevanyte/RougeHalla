@@ -1,9 +1,10 @@
 // Arena lifecycle: how players go down, who wins, the patience timer, the coliseum teleport and sudden death.
 //
-// step.ts runs an active tick as: tick-start snapshot → inputs and actions (shuffled) → movement → history →
-// systems (combat/DoT) → suddenDeath → settle. Everything that takes a player out of the fight goes through
-// downPlayer(), and settle() is the only place where results are emitted during a step and where the run ends,
-// so the shuffled order players were processed in never decides who won:
+// step.ts runs an active tick as: tick-start snapshot → inputs (shuffled) → weapon state machines → movement →
+// history → projectile sweep → spawns → melee → the damage ledger, all at once → systems → suddenDeath → settle.
+// Everything that takes a player out of the fight goes through downPlayer(), and settle() is the only place where
+// results are emitted during a step and where the run ends, so the shuffled order players were processed in never
+// decides who won:
 //   - Any death (a leave counts) restarts the patience timer, unlocks the gates and cancels sudden death, even in
 //     the tick the timer expires: that tick has no teleport. The timer's length scales with the players standing
 //     (patienceSecondsFor), counted after the deaths that restarted it.
@@ -26,6 +27,7 @@ import {
   type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
+import { releaseTrigger } from "./weapons";
 import { emit, type PlayerRuntime, type World } from "./world";
 
 /** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
@@ -66,38 +68,66 @@ export function beginRun(world: World): void {
   s.winner = "";
 }
 
-/** First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths. */
+/**
+ * First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths, and the
+ * bounties this tick's kills pay (world.arena.bountyAtTickStart).
+ */
 export function markTickStart(world: World): void {
+  world.arena.bountyAtTickStart.clear();
   for (const [id, p] of world.state.players) {
     const rt = world.players.get(id);
     if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? p.hp / p.maxHp : 0;
+    world.arena.bountyAtTickStart.set(id, p.bounty);
   }
 }
 
 /**
  * The one way to hurt a player. Ignored for anyone not standing and during teleport immunity. `source` is the
- * attacker, or the name of what killed them for the result (SUDDEN_DEATH_KILLER). Returns the hp actually removed.
+ * attacker, or the name of what killed them for the result (SUDDEN_DEATH_KILLER, or a mob or a departed shooter).
+ * Returns the hp actually removed.
  */
 export function applyDamage(
   world: World, victim: PlayerState, rtv: PlayerRuntime, amount: number, source: Attacker | string,
 ): number {
+  return applyHits(world, victim, rtv, [{ amount, source }]);
+}
+
+export interface Hit { amount: number; source: Attacker | string }
+
+/**
+ * Several hits landing on one player at the same moment (the per-tick ledger, sim/ledger.ts): their sum comes off at
+ * once, so no hit is "first". Every player among the sources counts as having damaged the victim. If the sum kills, the
+ * kill (and the bounty) goes to the largest hit by a rival player, else to the largest hit; ties go to the earlier one
+ * (the ledger hands them over in the tick's secret order).
+ */
+export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime, hits: readonly Hit[]): number {
   // hp 0 while still standing: the killing blow is being processed (a hook hitting the victim again must not re-kill).
-  if (!standing(victim, rtv) || !(amount > 0) || victim.hp <= 0) return 0;
+  if (!standing(victim, rtv) || victim.hp <= 0) return 0;
   if (world.state.serverTime < victim.immuneUntil) return 0;
-  const before = victim.hp;
-  victim.hp = Math.max(0, victim.hp - amount);
-  const by = typeof source === "string" ? null : source;
-  // Hurting yourself (Phase 9 splash, a reflected shot) is never your own kill or leave credit.
-  const rival = by && by.rt !== rtv ? by : null;
-  if (rival) {
-    rtv.lastHit = { by: rival.rt.id, at: world.state.serverTime };
-    rival.rt.damaged.add(rtv.id);
+  let total = 0;
+  let top: Hit | null = null;
+  let topRival: (Hit & { source: Attacker }) | null = null;
+  for (const h of hits) {
+    if (!(h.amount > 0)) continue;
+    total += h.amount;
+    if (!top || h.amount > top.amount) top = h;
+    // Hurting yourself is never your own kill or leave credit.
+    if (typeof h.source !== "string" && h.source.rt !== rtv) {
+      h.source.rt.damaged.add(rtv.id);
+      if (!topRival || h.amount > topRival.amount) topRival = h as Hit & { source: Attacker };
+    }
   }
+  if (!top) return 0;
+  if (topRival) rtv.lastHit = { by: topRival.source.rt.id, at: world.state.serverTime };
+  const before = victim.hp;
+  victim.hp = Math.max(0, victim.hp - total);
   if (victim.hp > 0) return before - victim.hp;
 
-  rtv.killedBy = by ? by.p.name : (source as string);
+  const killer = topRival ?? top;
+  const by = typeof killer.source === "string" ? null : killer.source;
+  rtv.killedBy = by ? by.p.name : (killer.source as string);
   emit(world, { type: "fx", fx: { kind: "death", id: rtv.id, x: victim.x, y: victim.y, by: by?.id ?? null } });
-  if (rival) creditKill(world, rival, victim, rtv);
+  if (topRival) creditKill(world, topRival.source, victim, rtv);
   downPlayer(world, victim, rtv, "died");
   return before;
 }
@@ -110,7 +140,8 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
   if (by.rt.resolved) return;
   by.p.kills += 1;
   awardGv(world, by.p, by.rt, "kill");
-  const bounty = victim.bounty;
+  // Kills in one tick are simultaneous: a bounty the victim earned with a kill this same tick isn't paid yet.
+  const bounty = world.stepping ? (world.arena.bountyAtTickStart.get(rtv.id) ?? victim.bounty) : victim.bounty;
   if (bounty > 0) {
     credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
@@ -175,12 +206,23 @@ function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
 export function markDropped(world: World, id: string): void {
   const rt = world.players.get(id);
   if (rt && rt.droppedAt === null && world.state.phase === "active") rt.droppedAt = world.state.serverTime;
+  // A press that arrived just before the socket closed would hold the trigger for the whole grace.
+  rt?.inputs.drain();
+  releaseHeld(world, id);
 }
 
-/** They are back within the grace. */
+/** They are back within the grace. A button they still hold is pressed again by their client. */
 export function markReconnected(world: World, id: string): void {
   const rt = world.players.get(id);
   if (rt) rt.droppedAt = null;
+  releaseHeld(world, id);
+}
+
+/** A release sent while the connection was down never arrives, so the server lets go of the trigger itself. */
+function releaseHeld(world: World, id: string): void {
+  const p = world.state.players.get(id);
+  const rt = world.players.get(id);
+  if (p && rt) releaseTrigger(world, { kind: "player", id, s: p, rt });
 }
 
 /** GV earned so far and not yet banked: what a run voided by a server shutdown still pays. */
@@ -198,6 +240,7 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   const credited = outcome === "mia" ? leaveCredit(world, rt) : null;
   rt.down = { outcome };
   rt.path = [];
+  releaseTrigger(world, { kind: "player", id: rt.id, s: p, rt });
   p.status = outcome === "died" ? "dead" : "mia";
   if (credited) creditKill(world, credited, p, rt);
   world.hooks.dropBody(world, p);

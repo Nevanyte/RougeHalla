@@ -117,8 +117,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   maxClients = MAX_PLAYERS;
-  /** Spam guard; legit clients send ≤ ~20/s (move repeat + clicks). Exceeding it disconnects. */
-  maxMessagesPerSecond = 60;
+  /**
+   * Spam guard; exceeding it disconnects. Legit clients send about 35/s at most (20 Hz aim, 10 Hz move repeat, clicks),
+   * with headroom for a network stall that delivers a couple of seconds of input at once.
+   */
+  maxMessagesPerSecond = 100;
 
   private world!: World;
   private accumulator = 0;
@@ -299,9 +302,15 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private settle(sessionId: string, result: RunResult) {
     const { store, profiles } = RaidRoom.ctx;
     let unlocked: string[] = [];
+    // The weapon in hand when the run ended (the winner is still in the state). The faction is left out until the
+    // Phase 10 picker makes it the player's choice: today's is a round-robin default, so counting wins by it would
+    // hand out faction titles and golden variants by luck of the join order.
+    const p = this.world.state.players.get(sessionId);
+    const held = p ? (p.slot === 1 ? p.weapon1 : p.weapon0) : "";
     try {
       ({ unlocked } = store.recordRun(result.profile, {
         outcome: result.outcome, kills: result.kills, gv: result.gv.total, bounty: result.gv.bounty,
+        weapon: held || undefined,
         // The win bonus gate doubles as the achievements' anti-farming gate (see RunRecord.winQualified).
         winQualified: result.outcome === "won" && !result.winBonusWithheld,
       }));

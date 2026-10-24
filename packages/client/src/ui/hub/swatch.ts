@@ -8,8 +8,6 @@ import { el } from "../dom";
 
 export type SwatchSize = "md" | "sm";
 
-/** The local player's body colour when no skin is worn (PlayerView's LOCAL_COLOR; that module is Phaser-only). */
-const DEFAULT_BODY = 0x4caf50;
 const DEFAULT_EDGE = "2px solid rgba(17, 17, 17, 0.8)";
 /** A neutral body for outline swatches, so the ring reads as an edge around something. */
 const OUTLINE_BODY = "#59636e";
@@ -88,6 +86,8 @@ export function swatch(c: Cosmetic, size: SwatchSize = "md"): HTMLElement {
 export class AvatarPreview {
   readonly root = el("div", "avatar");
   private readonly body = el("span", "avatar-body");
+  /** The skin: in a run it is the body's inner core, so the faction-coloured rim stays readable. */
+  private readonly core = el("span", "avatar-core");
   private readonly trail = el("span", "avatar-trail");
   private readonly title = el("div", "avatar-title");
   private readonly gold = el("div", "avatar-gold");
@@ -95,7 +95,7 @@ export class AvatarPreview {
   constructor() {
     const stage = el("div", "avatar-stage");
     const row = el("div", "avatar-row");
-    this.body.append(el("span", "avatar-nose"));
+    this.body.append(this.core, el("span", "avatar-nose"));
     row.append(this.trail, this.body);
     stage.append(row, this.title);
     this.root.append(stage, this.gold);
@@ -103,7 +103,10 @@ export class AvatarPreview {
   }
 
   update(look: Look): void {
-    this.body.style.background = cssColor(look.skin ? look.skin.color : DEFAULT_BODY);
+    // The faction isn't known in the hub, so the rim is a neutral grey standing in for it.
+    this.body.style.background = OUTLINE_BODY;
+    this.core.hidden = !look.skin;
+    this.core.style.background = look.skin ? cssColor(look.skin.color) : "";
     this.body.style.border = look.outline ? `${look.outline.width * 1.5}px solid ${cssColor(look.outline.color)}` : DEFAULT_EDGE;
     this.trail.replaceChildren(...(look.trail ? [trailPieces(look.trail.color, look.trail.style, 2)] : []));
 

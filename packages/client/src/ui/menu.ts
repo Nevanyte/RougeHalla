@@ -1,7 +1,7 @@
 // Hub menu: callsign → profile load → Glorious Victory balance, stats and the month's top players → Start Run.
 // The server owns the profile; this panel only shows the last loaded copy and sends { profile, token } at join.
 import {
-  PROFILE_RE, RUN_START_KIT, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, itemDef, monthKey,
+  PROFILE_RE, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, monthKey,
   type LeaderboardEntry, type ProfileDTO, type ProfileStats,
 } from "@raid/shared";
 import { ProfileError, fetchLeaderboard, fetchProfile, formatNumber } from "../net/profile";
@@ -150,9 +150,9 @@ export class Menu {
     this.board.hidden = true;
     this.board.append(el("div", "hub-board-title", "Top this month"), this.boardList);
 
-    const kit = RUN_START_KIT.map((id) => itemDef(id)?.name ?? id).join(", ");
-    const rules = el("div", "menu-rules", `Last one standing wins. Every run starts with: ${kit}. GV you earn is yours to keep even if you die. Winning a run of ${WIN_BONUS_MIN_PLAYERS}+ players pays a bonus if you damaged at least ${WIN_BONUS_MIN_OPPONENTS} of them. Three kills put a bounty on your head: whoever ends your rampage collects it.`);
-    this.body.append(this.who, gv, stats, shop, this.board, rules);
+    const rules = el("div", "menu-rules", `Last one standing wins. The server picks your faction; every run starts with its signature weapon, and a second slot is yours to fill from chests and the ground. GV you earn is yours to keep even if you die. Winning a run of ${WIN_BONUS_MIN_PLAYERS}+ players pays a bonus if you damaged at least ${WIN_BONUS_MIN_OPPONENTS} of them. Three kills put a bounty on your head: whoever ends your rampage collects it.`);
+    const controls = el("div", "menu-rules", "Right-click: move. Left-click: attack (hold to keep attacking; with a bow, hold to draw and release to loose). Q or 1/2: swap weapons. F: take a weapon. S: stop.");
+    this.body.append(this.who, gv, stats, shop, this.board, rules, controls);
 
     this.root.append(el("h1", undefined, "RAID"), row, this.placeholder, this.body, this.startBtn, this.status, this.hint);
 

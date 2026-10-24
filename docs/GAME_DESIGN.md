@@ -257,6 +257,33 @@ Ranged weapons can kite, so three things hold them back:
 - **Mob drops.** A mob drops the weapon it carried, unless the killer already holds that weapon type.
 - **Swapping is skill expression.** Changing to the counter weapon mid-fight is the big play. Swapping also **resets a Sentenced mark** on you, so it's the counterplay to Sentenced.
 
+### 9.4 As built (Phase 9): rules the design left open
+Decisions taken while building the weapons. The sections above are unchanged; where they are silent, this is how the game plays.
+
+**Input and timing**
+- **The bow's draw is part of its interval.** The cooldown after release is the interval minus the full draw, so a full-draw shot every interval is the designed rate. A shorter draw looses sooner, for less damage.
+- **Press, hold, release.** A press attacks; holding repeats the attack whenever the cooldown allows; releasing looses the bow. A press up to 150 ms before the cooldown ends is buffered and attacks the moment it ends.
+- **Windups.** Sword and bash windups are a fixed 0.1 s.
+- **Direction is fixed early.** A swing and a wand cast go where the cursor pointed when the attack started; the bow aims at release.
+
+**Interrupts**
+- **A stagger** cancels the windup or cast; the cooldown stays spent. A bow draw restarts instead.
+- **A swap, or a pickup that replaces the weapon in hand,** cancels a pending action (and adds 0.25 s), but never cuts an already-landed root short. A cancelled cast leaves no ranged recovery.
+
+**Shields, swings and balls**
+- **Reflected arrows** mirror about the shield's facing, keep the archer's damage, belong to the shield holder and fly the full bow range. An arrow reflected again keeps only the range it has left.
+- **A riposte** is 50% of the sword hit, with the swordsman's own damage shares, credited to the shield holder. A frontal bash is simply blocked.
+- **A sword halves a ball once.** Swings meet balls in present time (balls fly in present time) and need line of sight to them.
+
+**Credit**
+- **Simultaneous hits land together,** and the kill (and any bounty) goes to the largest rival hit; an exact tie goes to a per-tick secret order, never to join order.
+- **A projectile outlives its shooter.** Its hit still lands; a kill by a shooter who has left or is already out of the run is credited by name only, with no GV.
+
+**Setup**
+- **Picking up into an empty slot** doesn't change the weapon in hand.
+- **The first faction** is a round-robin default by join order until the faction picker exists (Phase 10).
+- **Training dummies** (server option `DUMMIES=1`) have no faction, so no armor or shield, and never die: a hit that would kill refills them.
+
 ---
 
 ## 10. How factions and weapons combine (class scaling)
@@ -403,7 +430,7 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 - **Monthly leaderboard.** Ranks total GV earned this month. Totals are stored per month, so no reset job is needed. Spending GV never lowers your rank. The hub shows any past month, your own place even when you are outside the top 20, and each player's equipped title.
 
 ### 13.1 Cosmetics, shop and achievements (as built)
-- **Slots.** Body colour (skin), outline, trail (dots, streak, sparks), title, and one slot per golden variant (five factions, five weapons). All are coloured shapes and text; nothing changes combat.
+- **Slots.** Body colour (skin), outline, trail (dots, streak, sparks), title, and one slot per golden variant (five factions, five weapons). All are coloured shapes and text; nothing changes combat. A skin colours the inner core of the body disc, not the whole disc: the rim stays the faction colour, because every player must stay readable by faction at a distance (section 15). A golden weapon look tints the weapon in hand and shows while that weapon is held.
 - **Prices.** Colours 40 to 100 GV, outlines 50 to 80, trails 100 to 180, titles 30 to 200, golden variants 300 (weapons) or 400 (factions). A win pays 50 and a kill 10, so a plain colour is a few runs of play and a golden look is a goal.
 - **Earned-only items.** Most titles and a few exclusive colours, outlines and trails are not sold. Each is the reward of an achievement.
 - **Golden variants** can be bought, and are also awarded by achievements: 3 wins as a faction gilds that faction, 5 wins holding a weapon gilds that weapon. A golden look is drawn only while you play that faction or hold that weapon.

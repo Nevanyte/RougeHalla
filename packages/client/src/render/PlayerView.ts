@@ -1,26 +1,16 @@
 import Phaser from "phaser";
-import { GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, activeGold, cssColor, unpackLook, type Look } from "@raid/shared";
+import {
+  GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, activeGold, cssColor, unpackLook, type Look,
+} from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { depthFor, projX, projY } from "./projection";
+import { BodyFlash, FighterArt, drawHpBar, factionColor, heldWeapon } from "./FighterArt";
+import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { TrailView } from "./TrailView";
 
-/** Screen pixels the body disc floats above the ground shadow; shots and floating text are drawn at this height too. */
-export const BODY_LIFT = 14;
-const LOCAL_COLOR = 0x4caf50;
-const REMOTE_COLOR = 0xe5a823;
-const HIT_COLOR = 0xffffff;
-/** The flash on a near-white skin (it would not show): a light red instead. */
-const HIT_COLOR_ON_PALE = 0xff8a80;
 const HIT_FLASH_MS = 120;
-const PALE_SKIN_LUMA = 0.8;
-const DARK_SKIN_LUMA = 0.25;
-const OUTLINE_WIDTH = 2;
-const OUTLINE_COLOR = 0x111111;
-const OUTLINE_ALPHA = 0.8;
-const NOSE_COLOR = 0x111111;
-const NOSE_COLOR_ON_DARK = 0xeceff1;
-const NOSE_ALPHA = 0.8;
 const SHIELD_COLOR = 0x4fc3f7;
+/** The local player's marks: a white ring on the ground and a white rim on the body. */
+const LOCAL_MARK = 0xffffff;
 
 // The bounty crown sits above the name label, drawn from its base centre so scaling it grows it upward.
 const CROWN_COLOR = 0xffd54f;
@@ -33,6 +23,12 @@ const CROWN_BASE_Y = -BODY_LIFT - PLAYER_RADIUS - 33;
 const CROWN_GROWTH = 0.5;
 const CROWN_FULL_BOUNTY = 150;
 
+/**
+ * A skin is the body's inner core, not its whole fill: the outer disc stays the faction colour, which players need to
+ * read at a distance (see "Readability" in the design doc).
+ */
+const SKIN_CORE_RADIUS = PLAYER_RADIUS * 0.55;
+
 /** The title hangs under the feet, clear of everything above the head: the shadow ellipse ends 0.55 * PLAYER_RADIUS below. */
 const TITLE_Y = Math.ceil(PLAYER_RADIUS * 0.55) + 2;
 
@@ -43,20 +39,19 @@ const GOLD_PULSE_MIN = 0.7;
 /** How much of the equipped outline's colour turns gold under a golden faction. */
 const GOLD_OUTLINE_MIX = 0.5;
 
-/** Perceived brightness of a 0xrrggbb colour, 0 to 1. */
-function luma(color: number): number {
-  return (0.299 * ((color >> 16) & 255) + 0.587 * ((color >> 8) & 255) + 0.114 * (color & 255)) / 255;
-}
-
 function mixColor(a: number, b: number, t: number): number {
   const ch = (shift: number): number => Math.round(((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t);
   return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
-/** One player drawn as a raised disc over a ground shadow, y-sorted by ground position. */
+/**
+ * One player drawn as a raised disc over a ground shadow, y-sorted by ground position. The disc takes its faction's
+ * colour; equipped cosmetics (skin core, outline, title, trail, golden looks) come from the synced `look` word.
+ */
 export class PlayerView {
   private readonly root: Phaser.GameObjects.Container;
   private readonly body: Phaser.GameObjects.Arc;
+  private readonly core: Phaser.GameObjects.Arc;
   private readonly nose: Phaser.GameObjects.Rectangle;
   private readonly hpBar: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
@@ -65,11 +60,10 @@ export class PlayerView {
   private readonly crownLabel: Phaser.GameObjects.Text;
   private readonly goldHalo: Phaser.GameObjects.Graphics;
   private readonly title: Phaser.GameObjects.Text;
-  private readonly defaultColor: number;
-  /** What the body is filled with when not flashing: the equipped skin, else the local/remote default. */
-  private baseColor: number;
-  private flashColor = HIT_COLOR;
-  private darkBody = false;
+  private readonly art: FighterArt;
+  private readonly flashing: BodyFlash;
+  /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
+  private crownBounty = 0;
   /** The look word `look` was decoded from; -1 (never a uint32) until the first update, so even word 0 is decoded once. */
   private lookWord = -1;
   private look: Look | null = null;
@@ -77,23 +71,24 @@ export class PlayerView {
   private usingWeapon: string | undefined;
   private factionGold = false;
   private trail: TrailView | null = null;
-  /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
-  private crownBounty = 0;
-  /** performance.now() deadline of the hit flash; 0 when idle. Polled in update() so no timer needs cleaning up. */
-  private flashUntil = 0;
-  private flashing = false;
 
   constructor(private readonly scene: Phaser.Scene, readonly isLocal: boolean) {
-    const color = isLocal ? LOCAL_COLOR : REMOTE_COLOR;
-    this.defaultColor = this.baseColor = color;
     const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
+    // Local player: a ring around the feet, so it stays recognisable whatever its faction colour is.
+    const mark = scene.add.graphics().setVisible(isLocal);
+    mark.lineStyle(2, LOCAL_MARK, 0.9).strokeEllipse(0, 0, PLAYER_RADIUS * 2.9, PLAYER_RADIUS * 2.9 * Y_SCALE);
+    this.art = new FighterArt(scene);
     this.goldHalo = scene.add.graphics().setVisible(false);
-    this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, color).setStrokeStyle(OUTLINE_WIDTH, OUTLINE_COLOR, OUTLINE_ALPHA);
-    this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, NOSE_COLOR, NOSE_ALPHA).setOrigin(0, 0.5);
+    this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor(""));
+    this.core = scene.add.circle(0, -BODY_LIFT, SKIN_CORE_RADIUS, 0xffffff).setVisible(false);
+    this.flashing = new BodyFlash(this.body, factionColor(""));
+    // Shows the facing while nothing is in hand.
+    this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
     this.hpBar = scene.add.graphics();
     this.shieldRing = scene.add.graphics();
     this.label = scene.add.text(0, -BODY_LIFT - PLAYER_RADIUS - 18, "", {
-      fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#ffe0a3",
+      fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#eceff1",
+      stroke: "#000000", strokeThickness: 2,
     }).setOrigin(0.5, 1);
     this.crown = scene.add.graphics().setVisible(false);
     this.crown.fillStyle(CROWN_COLOR, 1).lineStyle(1.5, CROWN_EDGE, 1);
@@ -109,23 +104,22 @@ export class PlayerView {
     this.title = scene.add.text(0, TITLE_Y, "", {
       fontFamily: "system-ui, sans-serif", fontSize: "10px", fontStyle: "bold", stroke: "#000000", strokeThickness: 3,
     }).setOrigin(0.5, 0).setVisible(false);
+    this.setStroke(null, false);
     this.root = scene.add.container(0, 0, [
-      shadow, this.goldHalo, this.body, this.nose, this.shieldRing, this.hpBar, this.label, this.crown, this.crownLabel, this.title,
+      shadow, mark, this.goldHalo, this.art.ground, this.body, this.core, this.nose, this.art.held, this.shieldRing,
+      this.hpBar, this.label, this.crown, this.crownLabel, this.title,
     ]);
   }
 
   /** Paints the body white for a moment (a hit landed on this player). */
   flash(ms = HIT_FLASH_MS): void {
-    this.flashUntil = performance.now() + ms;
-    if (!this.flashing) {
-      this.flashing = true;
-      this.body.setFillStyle(this.flashColor);
-    }
+    this.flashing.trigger(ms);
   }
 
   /**
-   * What the player is using right now, for the golden variants (faction and weapon ids as in `GOLD_TARGETS`). The sim does
-   * not report either yet; until something calls this, nothing glitters. Cheap to call every frame: it only repaints on a change.
+   * What the player is using right now, for the golden variants (faction and weapon ids as in `GOLD_TARGETS`). update()
+   * reports the weapon in hand; the faction stays unset until the Phase 10 picker makes it the player's own choice, so
+   * no golden faction look is drawn yet. Cheap to call every frame: it only repaints on a change.
    */
   setUsing(using: { faction?: string; weapon?: string }): void {
     if (using.faction === this.usingFaction && using.weapon === this.usingWeapon) return;
@@ -135,35 +129,31 @@ export class PlayerView {
   }
 
   /**
-   * `renderT`: the server time this frame is drawn at. `drawAsAlive`: the player's death is still ahead of the render
-   * time they are drawn at, so keep showing them.
+   * `renderT`: the server time this frame is drawn at. `patchT`: the server time of the newest patch (see FighterArt).
+   * `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them.
    */
-  update(x: number, y: number, p: PlayerState, renderT: number, drawAsAlive = false): void {
+  update(x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false): void {
     const now = performance.now();
     // The look is set once at join and never changes in a run, so this decodes once per player.
     if (p.look !== this.lookWord) this.applyLook(p.look);
-    if (this.flashing && now >= this.flashUntil) {
-      this.flashing = false;
-      this.flashUntil = 0;
-      this.body.setFillStyle(this.baseColor);
-    }
+    this.flashing.tick();
     const visible = drawAsAlive || p.status === "alive" || p.status === "lobby";
     this.root.setVisible(visible);
     if (!visible) {
       this.trail?.reset();
       return;
     }
+    this.flashing.setColor(factionColor(p.faction));
     this.root.setPosition(projX(x), projY(y));
     this.root.setDepth(depthFor(y));
-    this.nose.setRotation(p.facing);
+    // Before art.update(), so a golden weapon look is on the very frame the weapon is drawn.
+    const held = heldWeapon(p);
+    this.setUsing(held ? { weapon: held } : {});
+    const weapon = this.art.update(p, renderT, patchT);
+    this.nose.setVisible(weapon === null).setRotation(screenAngle(p.facing));
     this.label.setText(p.name);
 
-    const w = 28;
-    const frac = p.maxHp > 0 ? Math.max(0, p.hp / p.maxHp) : 0;
-    const top = -BODY_LIFT - PLAYER_RADIUS - 8;
-    this.hpBar.clear();
-    this.hpBar.fillStyle(0x000000, 0.6).fillRect(-w / 2, top, w, 4);
-    this.hpBar.fillStyle(frac > 0.5 ? 0x66bb6a : frac > 0.25 ? 0xffca28 : 0xef5350, 1).fillRect(-w / 2, top, w * frac, 4);
+    drawHpBar(this.hpBar, p.maxHp > 0 ? p.hp / p.maxHp : 0, -BODY_LIFT - PLAYER_RADIUS - 8);
 
     // Immunity runs from the teleport tick `t` to t + TELEPORT_IMMUNITY_MS. `p` is the latest patch, ahead of the delayed
     // positions drawn here, so the ring is judged at render time: it shows from the moment this body lands in the
@@ -183,19 +173,14 @@ export class PlayerView {
     this.trail?.update(x, y, now);
   }
 
-  /** Decodes `word` and restyles the body, title and trail. Runs on the first update and whenever the word changes. */
+  /** Decodes `word` and restyles the skin core, title and trail. Runs on the first update and whenever the word changes. */
   private applyLook(word: number): void {
     this.lookWord = word;
     const look = unpackLook(word);
     this.look = look;
 
-    const skin = look.skin?.color;
-    this.baseColor = skin ?? this.defaultColor;
-    const l = skin === undefined ? 0.5 : luma(skin);
-    this.flashColor = l > PALE_SKIN_LUMA ? HIT_COLOR_ON_PALE : HIT_COLOR;
-    this.darkBody = l < DARK_SKIN_LUMA;
-    // A hit flash in progress is restored to the (now correct) base colour by update().
-    if (!this.flashing) this.body.setFillStyle(this.baseColor);
+    if (look.skin) this.core.setFillStyle(look.skin.color).setVisible(true);
+    else this.core.setVisible(false);
 
     if (look.title) this.title.setText(look.title.text).setColor(cssColor(look.title.color)).setVisible(true);
     else this.title.setVisible(false);
@@ -208,22 +193,25 @@ export class PlayerView {
     this.applyGold(look);
   }
 
-  /** Outline, golden-faction halo and nose: everything that depends on both the look and what the player is using. */
+  /** The body's rim: the equipped outline, else the default (white on the local player). `gold` shifts it toward gold. */
+  private setStroke(outline: Look["outline"] | null, gold: boolean): void {
+    if (outline) {
+      this.body.setStrokeStyle(outline.width, gold ? mixColor(outline.color, GOLD_COLOR, GOLD_OUTLINE_MIX) : outline.color, 1);
+    } else if (gold) {
+      this.body.setStrokeStyle(2.5, GOLD_EDGE, 1);
+    } else {
+      this.body.setStrokeStyle(2, this.isLocal ? LOCAL_MARK : 0x111111, this.isLocal ? 0.95 : 0.8);
+    }
+  }
+
+  /** Rim, golden-faction halo and golden weapon: everything that depends on both the look and what the player is using. */
   private applyGold(look: Look): void {
     const using: { faction?: string; weapon?: string } = {};
     if (this.usingFaction !== undefined) using.faction = this.usingFaction;
     if (this.usingWeapon !== undefined) using.weapon = this.usingWeapon;
     const gold = activeGold(look, using);
-    const outline = look.outline;
 
-    if (gold.faction) {
-      if (outline) this.body.setStrokeStyle(outline.width, mixColor(outline.color, GOLD_COLOR, GOLD_OUTLINE_MIX), 1);
-      else this.body.setStrokeStyle(OUTLINE_WIDTH + 0.5, GOLD_EDGE, 1);
-    } else if (outline) {
-      this.body.setStrokeStyle(outline.width, outline.color, 1);
-    } else {
-      this.body.setStrokeStyle(OUTLINE_WIDTH, OUTLINE_COLOR, OUTLINE_ALPHA);
-    }
+    this.setStroke(look.outline ?? null, gold.faction !== undefined);
 
     this.factionGold = gold.faction !== undefined;
     this.goldHalo.clear().setVisible(this.factionGold).setAlpha(1);
@@ -232,8 +220,7 @@ export class PlayerView {
       this.goldHalo.lineStyle(2, GOLD_COLOR, 0.95).strokeCircle(0, -BODY_LIFT, GOLD_HALO_RADIUS);
     }
 
-    if (gold.weapon) this.nose.setFillStyle(GOLD_COLOR, 1).setStrokeStyle(1, GOLD_EDGE, 1);
-    else this.nose.setFillStyle(this.darkBody ? NOSE_COLOR_ON_DARK : NOSE_COLOR, NOSE_ALPHA).setStrokeStyle();
+    this.art.setGold(gold.weapon !== undefined);
   }
 
   /** Shows the crown for `bounty` GV, scaled with it; 0 hides it. A no-op while the number is unchanged. */

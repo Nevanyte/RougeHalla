@@ -2,7 +2,9 @@
 // deliberately not re-exported here: import it from "@raid/shared/schema".
 export * from "./constants";
 export * from "./messages";
-export * from "./items";
+export * from "./weapons";
+export * from "./interactions";
+export * from "./policies";
 export * from "./map";
 export * from "./interp";
 export * from "./rng";

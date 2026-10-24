@@ -1,33 +1,21 @@
-// Weighted loot rolls. Pure: the only entropy is the `random` passed in (server-side, never the public seed).
+// Weighted weapon rolls. Pure: the only entropy is the `random` passed in (server-side, never the public seed).
+import type { WeaponId } from "@raid/shared";
 
 export type Random = () => number;
 
-export interface LootEntry { id: string; weight: number }
+export interface LootEntry { id: WeaponId; weight: number }
 
-/** Weights are relative; ids must exist in the item catalog (checked by the loot tests). */
-export const LOOT_TABLE: readonly LootEntry[] = [
-  { id: "watch", weight: 20 },
-  { id: "gold", weight: 8 },
-  { id: "gpu", weight: 3 },
-  { id: "bandage", weight: 18 },
-  { id: "medkit", weight: 7 },
-  { id: "knife", weight: 8 },
-  { id: "pistol", weight: 8 },
-  { id: "rifle", weight: 3 },
-  { id: "vest", weight: 7 },
-  { id: "plate", weight: 3 },
+/** What a chest holds: one weapon, every type equally likely. (Region mobs carry their region's type in Phase 11.) */
+export const CHEST_TABLE: readonly LootEntry[] = [
+  { id: "sword", weight: 1 },
+  { id: "bow", weight: 1 },
+  { id: "wand", weight: 1 },
+  { id: "shield", weight: 1 },
+  { id: "axe", weight: 1 },
 ];
 
-/** Loose items on the floor are the early-game trickle: the best gear only comes from crates. */
-export const GROUND_EXCLUDED: ReadonlySet<string> = new Set(["rifle", "plate", "gpu"]);
-export const GROUND_TABLE: readonly LootEntry[] = LOOT_TABLE.filter((e) => !GROUND_EXCLUDED.has(e.id));
-
-/** How many items a crate holds. */
-export const CRATE_SIZES: ReadonlyArray<{ count: number; weight: number }> = [
-  { count: 1, weight: 50 },
-  { count: 2, weight: 35 },
-  { count: 3, weight: 15 },
-];
+/** Share of mapgen's ground spots that get a loose weapon; the rest stay empty. */
+export const GROUND_WEAPON_CHANCE = 0.35;
 
 /** Proportional pick; always consumes exactly one `random()` call. */
 function pickWeighted<T extends { weight: number }>(random: Random, entries: readonly T[]): T {
@@ -42,20 +30,14 @@ function pickWeighted<T extends { weight: number }>(random: Random, entries: rea
   return entries[entries.length - 1]!;
 }
 
-/** One item id from the full table. */
-export function rollItem(random: Random): string {
-  return pickWeighted(random, LOOT_TABLE).id;
+/** The weapon in one chest. */
+export function rollChestWeapon(random: Random): WeaponId {
+  return pickWeighted(random, CHEST_TABLE).id;
 }
 
-/** 1–3 item ids (weights 50/35/15); duplicates are allowed. */
-export function rollCrate(random: Random): string[] {
-  const { count } = pickWeighted(random, CRATE_SIZES);
-  const out: string[] = [];
-  for (let i = 0; i < count; i++) out.push(rollItem(random));
-  return out;
-}
-
-/** One item id for a loose floor spawn (never rifle, plate or gpu). */
-export function rollGroundItem(random: Random): string {
-  return pickWeighted(random, GROUND_TABLE).id;
+/** A loose weapon for one ground spot, or null for none. Always consumes exactly two `random()` calls. */
+export function rollGroundWeapon(random: Random): WeaponId | null {
+  const there = random() < GROUND_WEAPON_CHANCE;
+  const w = pickWeighted(random, CHEST_TABLE).id;
+  return there ? w : null;
 }

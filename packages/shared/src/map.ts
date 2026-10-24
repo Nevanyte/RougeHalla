@@ -1,6 +1,7 @@
 // Map contract. `generateMap(seed)` in mapgen.ts must produce identical output on client and server.
 import { TILE } from "./constants";
 import type { Vec2 } from "./messages";
+import type { WeaponId } from "./weapons";
 
 export const TILE_FLOOR = 0;
 export const TILE_WALL = 1;
@@ -18,8 +19,7 @@ export const REGION_FACTIONS = ["fire", "sentenced", "plague", "frost", "holy"] 
 export type RegionFaction = (typeof REGION_FACTIONS)[number];
 export type RegionId = RegionFaction | "coliseum" | "none";
 
-/** Weapon ids as weapons.ts (Phase 9) will name them; RegionWeapon becomes an alias of its WeaponId. */
-export type RegionWeapon = "sword" | "axe" | "bow" | "wand" | "shield";
+export type RegionWeapon = WeaponId;
 
 /**
  * A region's mobs always carry one weapon type, so every type is farmable in exactly one region and the

@@ -3,7 +3,10 @@
 // what the adapter adds on top of the sim: the look word read from the profile when a player joins (and synced to
 // everyone), and the achievements the store unlocks when the Room banks a run, which ride on the `result` message.
 // A win unlocks win goals only when it passed the win bonus gate (3+ starters, 2+ opponents damaged): the Room hands that
-// to the store as `winQualified`, so a two-player walkover is a win in the stats and nothing more.
+// to the store as `winQualified`, so a two-player walkover is a win in the stats and nothing more. The same call carries
+// the weapon in hand at the end (and deliberately no faction: it is a round-robin default until the Phase 10 picker), so
+// a qualified win counts for that weapon only.
+// Fights use the Phase 9 inputs (`attack` + `release`); kills are made by putting the victim on a sliver of hp first.
 // The rules themselves (which goal unlocks what, how a look word packs) have their own tests in shared/ and in
 // profileStore.test.ts. Profiles that need hand-set cosmetics, stats or achievements are written into the profile file
 // before the server starts (the same shape a hand-edited file has); everything else is claimed over HTTP.
@@ -16,8 +19,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  ACHIEVEMENTS, KILL_CREDIT_SECONDS, mulberry32, packLook, PROFILE_TOKEN_HEADER, ROOM_NAME, RUN_START_KIT, TICK_MS, unpackLook,
-  type JoinOptions, type RunResult, type Vec2,
+  ACHIEVEMENTS, defaultFaction, KILL_CREDIT_SECONDS, mulberry32, packLook, PROFILE_TOKEN_HEADER, ROOM_NAME, SIGNATURE_WEAPONS,
+  TICK_MS, unpackLook, type JoinOptions, type RunResult, type Vec2,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -334,30 +337,44 @@ function duelSpot(world: World, fighters: string[]): Vec2 {
   return best;
 }
 
-/** Puts `attacker` next to `victim`, away from everyone else, and swings (inputs only) until `done()`. */
-async function swingAt(attacker: Player, victim: Player, done: () => boolean): Promise<void> {
+/**
+ * Puts `attacker` next to `victim` (due east of them), away from everyone else, and has the attacker strike the way a
+ * client does, with inputs only, until `done()`: an `attack` press toward the victim and its `release`. That is one
+ * swing, one cast or one arrow at the minimum draw, whatever the attacker holds, and a tap the cooldown swallowed is
+ * simply repeated.
+ */
+async function strikeAt(attacker: Player, victim: Player, done: () => boolean): Promise<void> {
   const at = duelSpot(worldOf(attacker), [sessionOf(attacker), sessionOf(victim)]);
   placeOnServer(victim, at.x + 12, at.y);
   placeOnServer(attacker, at.x - 12, at.y);
   await sleep(120); // a tick or two, so the lag-compensation history holds the new spots
+  const a = Math.atan2(0, 24);
   const deadline = Date.now() + 10_000;
   while (!done() && Date.now() < deadline) {
-    attacker.room.send("attack", { x: at.x + 12, y: at.y });
-    await sleep(120);
+    attacker.room.send("attack", { a });
+    attacker.room.send("release", { a });
+    const settle = Date.now() + 300; // a windup, and the flight of whatever it looses
+    while (!done() && Date.now() < settle) await sleep(20);
   }
   expect(done(), "the duel to reach its goal").toBe(true);
 }
 
-/** `killer` takes `victim` down: the victim is brought to 1 hp first, so a swing or two settles it. */
+/** Small enough for any hit that gets through armor and shield to be lethal, whoever lands it. */
+const DOOMED_HP = 0.01;
+
+/** `killer` takes `victim` down. The victim is brought to DOOMED_HP first, so a single hit settles it. */
 async function kill(killer: Player, victim: Player): Promise<void> {
-  serverPlayer(victim).hp = 1;
-  await swingAt(killer, victim, () => serverPlayer(victim).status !== "alive");
+  serverPlayer(victim).hp = DOOMED_HP;
+  await strikeAt(killer, victim, () => serverPlayer(victim).status !== "alive");
   expect(serverPlayer(victim).status).toBe("dead");
 }
 
-/** `attacker` damages `victim` without killing them: the damage counts toward the win bonus gate, and nothing else. */
+/**
+ * `attacker` damages `victim` without killing them: the damage counts toward the win bonus gate, and nothing else. One
+ * hit is a fraction of the smallest faction's hp, so a victim at full health always survives it.
+ */
 async function hurt(attacker: Player, victim: Player): Promise<void> {
-  await swingAt(attacker, victim, () => serverPlayer(victim).hp < serverPlayer(victim).maxHp);
+  await strikeAt(attacker, victim, () => serverPlayer(victim).hp < serverPlayer(victim).maxHp);
   expect(serverPlayer(victim).status).toBe("alive");
 }
 
@@ -373,39 +390,60 @@ function hitsLongAgo(world: World, victims: Player[]): void {
   }
 }
 
-/** The winner's result once it is out, then the winner leaves and the profile is free to queue again. */
-async function finish(winner: Player, accounts: Account[]): Promise<RunResult> {
+/** The weapon a player holds in hand: the slot the Room reads when it banks their run. */
+function inHand(p: Player): string {
+  const s = serverPlayer(p);
+  return s.slot === 1 ? s.weapon1 : s.weapon0;
+}
+
+/** What the first player into a room is given by the server's round-robin default: the weapon of `defaultFaction(0)`. */
+const FIRST_JOINER_WEAPON = SIGNATURE_WEAPONS[defaultFaction(0)];
+
+/** A winner's result and the weapon they held when the run was decided. */
+interface Win { result: RunResult; weapon: string }
+
+/**
+ * The winner's result once it is out, then the winner leaves and the profile is free to queue again. `weapon` is what
+ * the winner held, read by the caller while the run was still on.
+ */
+async function finish(winner: Player, accounts: Account[], weapon: string): Promise<Win> {
   await until(() => winner.results.length === 1, "the winner's result");
   const result = winner.results[0]!;
   await leave(winner);
   await until(() => accounts.every((who) => !isActive(who)), "the profiles to be released");
-  return result;
+  return { result, weapon };
 }
 
 /**
  * A two-player run won by a walkover: `loser` walks out, so `winner` is the last one standing without a single kill.
  * The run started with fewer than WIN_BONUS_MIN_PLAYERS, so the win is not qualified: it counts in stats and nothing else.
+ * The winner joins first, so they hold the first joiner's weapon.
  */
-async function walkover(winner: Account): Promise<RunResult> {
+async function walkover(winner: Account): Promise<Win> {
   const other = await claim();
   const [w, l] = await startRun([winner, other]);
+  const weapon = inHand(w!);
+  expect(weapon).toBe(FIRST_JOINER_WEAPON);
   await leave(l!);
-  return finish(w!, [winner, other]);
+  return finish(w!, [winner, other], weapon);
 }
 
 /**
  * A contested win with no kill: three players start, the winner hurts both others, and both walk out (their hits are
- * old news by then). The win passes the bonus gate, so it is a qualified win.
+ * old news by then). The win passes the bonus gate, so it is a qualified win. The winner joins first, so they hold the
+ * first joiner's weapon.
  */
-async function contestedWalkover(winner: Account): Promise<RunResult> {
+async function contestedWalkover(winner: Account): Promise<Win> {
   const [x, y] = [await claim(), await claim()];
   const [w, px, py] = await startRun([winner, x, y]);
+  const weapon = inHand(w!);
+  expect(weapon).toBe(FIRST_JOINER_WEAPON);
   await hurt(w!, px!);
   await hurt(w!, py!);
   hitsLongAgo(worldOf(w!), [px!, py!]);
   await leave(px!);
   await leave(py!);
-  return finish(w!, [winner, x, y]);
+  return finish(w!, [winner, x, y], weapon);
 }
 
 /** Shrinks the SDK's reconnect delay to `ms`, so a test can change the world while the player is away. */
@@ -533,80 +571,116 @@ describe("the look word", () => {
 });
 
 describe("a look is cosmetic only", () => {
+  // The server hands out factions round-robin by join order, and a faction fixes hp and weapon. So the players compared
+  // here are always the first joiner of a room of their own (or of a world of their own): the same faction, one wearing
+  // a full look and one wearing nothing.
   /** Everything the sim and the schema keep about a player except what a look (or a spawn point) legitimately differs in. */
   function stateOf(p: Player): Record<string, unknown> {
     const json = (serverPlayer(p) as unknown as { toJSON(): Record<string, unknown> }).toJSON();
     for (const key of ["name", "look", "x", "y", "facing"]) delete json[key];
-    json.inventory = (json.inventory as Array<{ def: string }>).map((item) => item.def);
     return json;
   }
 
   function runtimeOf(p: Player) {
     const rt = worldOf(p).players.get(sessionOf(p))!;
     return {
-      keys: Object.keys(rt).sort(), nextAttackAt: rt.nextAttackAt, gv: rt.gv, mobKills: rt.mobKills, killedBy: rt.killedBy,
+      keys: Object.keys(rt).sort(), weapon: rt.weapon, gv: rt.gv, mobKills: rt.mobKills, killedBy: rt.killedBy,
       droppedAt: rt.droppedAt, down: rt.down, resolved: rt.resolved, damaged: rt.damaged.size, hpFracAtTickStart: rt.hpFracAtTickStart,
     };
   }
 
-  it("a player with a full look and one without start with the same hp, kit and sim state", async () => {
+  /** What a client sees of another player's fighter fields. */
+  const seenFighter = (viewer: Player, of: Player) => {
+    const s = viewer.room.state.players.get(sessionOf(of))!;
+    return { hp: s.hp, maxHp: s.maxHp, status: s.status, faction: s.faction, weapon0: s.weapon0, weapon1: s.weapon1, slot: s.slot };
+  };
+
+  it("a player with a full look and one without start with the same faction, hp, weapons and sim state", async () => {
     const F = seedAccount("mFullPair");
     const O = await claim();
-    const C = await claim();
+    const [C1, C2, D1, D2] = [await claim(), await claim(), await claim(), await claim()];
+    // Two rooms, each with its subject as the first joiner (so the same faction) and two others to make the run start.
     const f = await createRoom(F, { minPlayers: 3 });
-    const o = await joinRoom(f, O);
+    const o = await createRoom(O, { minPlayers: 3 });
 
     const same = (phase: string) => {
       expect(serverPlayer(f).look, `${phase}: F wears a look`).toBeGreaterThan(0);
       expect(serverPlayer(o).look, `${phase}: O does not`).toBe(0);
       const [sf, so] = [stateOf(f), stateOf(o)];
-      expect(Object.keys(sf), `${phase}: the fields compared`).toEqual(expect.arrayContaining(["hp", "maxHp", "status", "inventory", "kills", "gv", "bounty", "immuneUntil"]));
+      expect(Object.keys(sf), `${phase}: the fields compared`).toEqual(
+        expect.arrayContaining(["hp", "maxHp", "status", "faction", "weapon0", "weapon1", "slot", "drawStartedAt", "readyAt", "kills", "gv", "bounty", "immuneUntil"]),
+      );
       expect(sf, phase).toEqual(so);
-      expect(sf.inventory).toEqual([...RUN_START_KIT]);
+      expect(sf.faction, `${phase}: the first joiner's faction`).toBe(defaultFaction(0));
+      expect(sf.weapon0, `${phase}: and its weapon`).toBe(FIRST_JOINER_WEAPON);
       expect(runtimeOf(f), `${phase}: runtime`).toEqual(runtimeOf(o));
     };
     same("in the lobby");
 
-    const c = await joinRoom(f, C);
-    await untilActive([f, o, c]);
+    const [c1, c2] = [await joinRoom(f, C1), await joinRoom(f, C2)];
+    const [d1, d2] = [await joinRoom(o, D1), await joinRoom(o, D2)];
+    await untilActive([f, c1, c2]);
+    await untilActive([o, d1, d2]);
     same("when the run starts");
     expect(serverPlayer(f).hp).toBe(serverPlayer(f).maxHp);
 
     // And what the other clients receive agrees.
-    await until(() => seenLook(c, f) !== 0 && seenLook(c, f) !== undefined && seenLook(c, o) === 0, "the clients to sync");
-    const [seenF, seenO] = [c.room.state.players.get(sessionOf(f))!, c.room.state.players.get(sessionOf(o))!];
-    expect([seenF.hp, seenF.maxHp, seenF.status, seenF.inventory.length]).toEqual([seenO.hp, seenO.maxHp, seenO.status, seenO.inventory.length]);
+    await until(() => seenLook(c1, f) !== 0 && seenLook(c1, f) !== undefined && seenLook(d1, o) === 0, "the clients to sync");
+    expect(seenFighter(c1, f)).toEqual(seenFighter(d1, o));
+    expect(seenFighter(c2, f)).toEqual(seenFighter(d2, o));
   });
 
   it("walks the same path at the same speed with a look as without (headless sim)", () => {
     const config: SimConfig = {
       minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60,
     };
-    const world = createGameWorld({ seed: 4242, config, random: mulberry32(4243) });
     const seeded = seedRecord("x", { cosmetics: { owned: [...FULL_OWNED], equipped: { ...FULL_EQUIPPED } } });
-    const wearing = addPlayer(world, "a", "alice", packLook(seeded.cosmetics.equipped, seeded.cosmetics.owned));
-    const bare = addPlayer(world, "b", "bobby");
+    const full = packLook(seeded.cosmetics.equipped, seeded.cosmetics.owned);
+    // Two identical worlds (same map, same shuffle) that differ only in what alice, the first joiner, wears.
+    const build = (look: number) => {
+      const world = createGameWorld({ seed: 4242, config, random: mulberry32(4243) });
+      const alice = addPlayer(world, "a", "alice", look);
+      addPlayer(world, "b", "bobby");
+      return { world, alice };
+    };
+    const { world: wearingWorld, alice: wearing } = build(full);
+    const { world: bareWorld, alice: bare } = build(0);
     expect(wearing.look).toBeGreaterThan(0);
     expect(bare.look).toBe(0);
-    step(world, TICK_MS); // the lobby becomes the run
-    expect(world.state.phase).toBe("active");
-    expect([wearing.hp, wearing.maxHp]).toEqual([bare.hp, bare.maxHp]);
+    for (const world of [wearingWorld, bareWorld]) {
+      step(world, TICK_MS); // the lobby becomes the run
+      expect(world.state.phase).toBe("active");
+    }
+    expect([wearing.faction, wearing.hp, wearing.maxHp, wearing.weapon0, wearing.weapon1, wearing.slot])
+      .toEqual([bare.faction, bare.hp, bare.maxHp, bare.weapon0, bare.weapon1, bare.slot]);
 
-    // Both start on the same spot and are sent to the same target.
-    const from = world.map.groundSpots[0]!;
-    const to = world.map.groundSpots[1]!;
-    for (const [id, p] of [["a", wearing], ["b", bare]] as const) {
+    // Both alices start on the same spot and are sent to the same target.
+    const from = wearingWorld.map.groundSpots[0]!;
+    const to = wearingWorld.map.groundSpots[1]!;
+    for (const [world, p] of [[wearingWorld, wearing], [bareWorld, bare]] as const) {
       p.x = from.x;
       p.y = from.y;
-      const rt = world.players.get(id)!;
+      const rt = world.players.get("a")!;
       rt.path = [];
       rt.history = [];
       expect(enqueueClientMessage(rt.inputs, "move", to)).toBe(true);
     }
-    for (let i = 0; i < 20; i++) step(world, TICK_MS);
+    for (let i = 0; i < 20; i++) {
+      step(wearingWorld, TICK_MS);
+      step(bareWorld, TICK_MS);
+    }
     expect(Math.hypot(wearing.x - from.x, wearing.y - from.y)).toBeGreaterThan(0);
     expect([wearing.x, wearing.y]).toEqual([bare.x, bare.y]);
-    expect(wearing.look).toBeGreaterThan(0); // and the look is still what it was
+    // Nothing else in the sim differs either: every player, field by field, but the look.
+    for (const id of ["a", "b"]) {
+      const [w, b] = [wearingWorld, bareWorld].map((world) => {
+        const json = (world.state.players.get(id) as unknown as { toJSON(): Record<string, unknown> }).toJSON();
+        delete json.look;
+        return json;
+      });
+      expect(w, id).toEqual(b);
+    }
+    expect(wearing.look).toBe(full); // and the look is still what it was
   });
 });
 
@@ -617,6 +691,8 @@ describe("achievements through a run", () => {
     const recorded = vi.spyOn(server.store, "recordRun");
     expect(record(A).achievements).toEqual({});
     expect(record(A).cosmetics.owned).toEqual([]);
+    const weapon = inHand(a!);
+    expect(weapon).toBe(FIRST_JOINER_WEAPON);
 
     // A hurts both of the others (the gate) without a kill, and they walk out.
     await hurt(a!, b!);
@@ -641,9 +717,12 @@ describe("achievements through a run", () => {
     expect(over.cosmetics.owned).toEqual(["title-victor", "skin-laurel"]);
     expect(over.progress.qualifiedWins).toBe(1);
 
-    // The winner's run was banked as a qualified win, the room having read that off the result.
+    // The winner's run was banked as a qualified win, the room having read that off the result, with the weapon in hand.
     const wins = recorded.mock.calls.find(([name]) => name === A.name)![1];
-    expect(wins).toMatchObject({ outcome: "won", kills: 0, winQualified: true });
+    expect(wins).toMatchObject({ outcome: "won", kills: 0, winQualified: true, weapon });
+    expect(wins).not.toHaveProperty("faction"); // the round-robin default is not the player's choice yet
+    expect(after.progress.winsByWeapon).toEqual({ [weapon]: 1 });
+    expect(after.progress.winsByFaction).toEqual({});
 
     // The leavers are MIA: nothing unlocked for them, and nothing granted. (They are gone, so the store is where to look.)
     await until(() => !isActive(B) && !isActive(C), "the leavers' profiles to be released");
@@ -656,13 +735,15 @@ describe("achievements through a run", () => {
       expect(record(who).cosmetics.owned).toEqual([]);
       expect(record(who).stats).toMatchObject({ runs: 1, deaths: 1, wins: 0 });
       expect(record(who).progress.qualifiedWins).toBe(0);
+      expect(record(who).progress.winsByWeapon).toEqual({});
+      expect(record(who).progress.winsByFaction).toEqual({});
     }
   });
 
   it("a two-player walkover is a win in the stats and unlocks nothing: no ids in the result, no timestamp, no cosmetics", async () => {
     const A = await claim();
     const recorded = vi.spyOn(server.store, "recordRun");
-    const result = await walkover(A);
+    const { result, weapon } = await walkover(A);
     expect(result).toMatchObject({ outcome: "won", profile: A.name, kills: 0, players: 2, winBonusWithheld: true });
     expect("achievements" in result).toBe(false);
 
@@ -672,7 +753,7 @@ describe("achievements through a run", () => {
     expect(after.cosmetics.owned).toEqual([]);
     expect(after.progress).toEqual({ qualifiedWins: 0, bountyRuns: 0, bestRunKills: 0, winsByFaction: {}, winsByWeapon: {} });
     const wins = recorded.mock.calls.find(([name]) => name === A.name)!;
-    expect(wins[1]).toMatchObject({ outcome: "won", winQualified: false });
+    expect(wins[1]).toMatchObject({ outcome: "won", winQualified: false, weapon }); // the weapon is handed over; it counts for nothing
     expect(recorded.mock.results[recorded.mock.calls.indexOf(wins)]).toMatchObject({ type: "return", value: { unlocked: [] } });
 
     // What the API serves agrees.
@@ -686,10 +767,12 @@ describe("achievements through a run", () => {
   it("a three-player win over only one of the others is not qualified either: the kill still counts, the win does not", async () => {
     const [A, B, C] = [await claim(), await claim(), await claim()];
     const [a, b, c] = await startRun([A, B, C]);
+    const recorded = vi.spyOn(server.store, "recordRun");
     await kill(a!, b!);
     await leave(c!); // never touched: leaving is not damage
     await until(() => a!.results.length === 1, "A's result");
     expect(a!.results[0]).toMatchObject({ outcome: "won", profile: A.name, kills: 1, players: 3, winBonusWithheld: true });
+    expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toMatchObject({ outcome: "won", winQualified: false, weapon: FIRST_JOINER_WEAPON });
     expect(a!.results[0]!.achievements).toEqual(["first_blood"]); // First Win is not among them
 
     const after = record(A);
@@ -697,26 +780,28 @@ describe("achievements through a run", () => {
     expect(after.cosmetics.owned).toEqual(["title-bloodied"]);
     expect(after.stats).toMatchObject({ runs: 1, wins: 1, kills: 1 });
     expect(after.progress.qualifiedWins).toBe(0);
+    expect(after.progress.winsByWeapon).toEqual({}); // not qualified, so no weapon win either
     await leave(a!);
     await until(() => !isActive(A), "A's profile to be released");
   });
 
   it("a second contested win does not unlock First Win again: no ids in the result, the timestamp and the owned list stay as they were", async () => {
     const A = await claim();
-    const first = await contestedWalkover(A);
+    const { result: first } = await contestedWalkover(A);
     expect(first.achievements).toEqual(["first_win"]);
     const stamp = record(A).achievements.first_win!;
     const ownedAfterFirst = record(A).cosmetics.owned;
     expect(stamp).toBeGreaterThanOrEqual(testStart);
 
     await sleep(20); // a re-stamp would show as a later time
-    const second = await contestedWalkover(A);
+    const { result: second } = await contestedWalkover(A);
     expect(second).toMatchObject({ outcome: "won", profile: A.name, players: 3, winBonusWithheld: false });
     expect("achievements" in second).toBe(false);
 
     const after = record(A);
     expect(after.stats).toMatchObject({ runs: 2, wins: 2 });
     expect(after.progress.qualifiedWins).toBe(2); // counted, but the goal was already met
+    expect(after.progress.winsByWeapon).toEqual({ [FIRST_JOINER_WEAPON]: 2 }); // one per qualified win, no more
     expect(after.achievements).toEqual({ first_win: stamp });
     expect(after.cosmetics.owned).toEqual(ownedAfterFirst);
     expect(new Set(after.cosmetics.owned).size).toBe(after.cosmetics.owned.length);
@@ -725,21 +810,23 @@ describe("achievements through a run", () => {
 
   it("a walkover win followed by a contested win: First Win unlocks on the contested one only, and both count in stats.wins", async () => {
     const A = await claim();
-    const first = await walkover(A);
+    const { result: first } = await walkover(A);
     expect(first).toMatchObject({ outcome: "won", winBonusWithheld: true });
     expect("achievements" in first).toBe(false);
     expect(record(A).stats).toMatchObject({ runs: 1, wins: 1 });
     expect(record(A).achievements).toEqual({});
     expect(record(A).cosmetics.owned).toEqual([]);
     expect(record(A).progress.qualifiedWins).toBe(0);
+    expect(record(A).progress.winsByWeapon).toEqual({});
 
-    const second = await contestedWalkover(A);
+    const { result: second } = await contestedWalkover(A);
     expect(second).toMatchObject({ outcome: "won", profile: A.name, players: 3, winBonusWithheld: false });
     expect(second.achievements).toEqual(["first_win"]);
 
     const after = record(A);
     expect(after.stats).toMatchObject({ runs: 2, wins: 2 });
     expect(after.progress.qualifiedWins).toBe(1);
+    expect(after.progress.winsByWeapon).toEqual({ [FIRST_JOINER_WEAPON]: 1 }); // the walkover's weapon was not counted
     expect(Object.keys(after.achievements)).toEqual(["first_win"]);
     expect(after.cosmetics.owned).toEqual(["title-victor", "skin-laurel"]);
     const over = (await api(A.name, A.token)).body.profile;
@@ -751,6 +838,7 @@ describe("achievements through a run", () => {
   it("a contested win with kills unlocks both goals in catalog order; the players who died get no achievements", async () => {
     const [A, B, C] = [await claim(), await claim(), await claim()];
     const [a, b, c] = await startRun([A, B, C]);
+    const weapon = inHand(a!);
     await kill(a!, b!);
     await kill(a!, c!);
     await until(() => a!.results.length === 1 && b!.results.length === 1 && c!.results.length === 1, "all results");
@@ -762,7 +850,7 @@ describe("achievements through a run", () => {
     expect(ids).toEqual(catalogOrder.filter((id) => ids.includes(id)));
     expect(Object.keys(record(A).achievements).sort()).toEqual(["first_blood", "first_win"]);
     expect(record(A).cosmetics.owned).toEqual(["title-bloodied", "title-victor", "skin-laurel"]); // rewards in the same order
-    expect(record(A).progress).toMatchObject({ qualifiedWins: 1, bestRunKills: 2 });
+    expect(record(A).progress).toMatchObject({ qualifiedWins: 1, bestRunKills: 2, winsByWeapon: { [weapon]: 1 }, winsByFaction: {} });
 
     for (const [p, who] of [[b!, B], [c!, C]] as const) {
       expect(p.results[0], who.name).toMatchObject({ outcome: "died", killedBy: A.name });
@@ -771,6 +859,8 @@ describe("achievements through a run", () => {
       expect(record(who).cosmetics.owned).toEqual([]);
       expect(record(who).stats).toMatchObject({ runs: 1, deaths: 1 });
       expect(record(who).progress.qualifiedWins).toBe(0);
+      expect(record(who).progress.winsByWeapon).toEqual({}); // a loss adds nothing, whatever they held
+      expect(record(who).progress.winsByFaction).toEqual({});
     }
   });
 
@@ -781,6 +871,7 @@ describe("achievements through a run", () => {
     const back = reconnectAfter(a!, 3000);
     const sid = sessionOf(a!);
     const room = serverRoom(a!);
+    const weaponB = inHand(b!); // the second joiner: not the first joiner's weapon
 
     await dropConnection(a!);
     await kill(b!, c!);
@@ -796,6 +887,8 @@ describe("achievements through a run", () => {
     await until(() => b!.results.length === 1, "B's result");
     expect(b!.results[0]).toMatchObject({ outcome: "won", winBonusWithheld: false });
     expect(b!.results[0]!.achievements).toEqual(["first_blood", "first_win"]);
+    expect(weaponB).toBe(SIGNATURE_WEAPONS[defaultFaction(1)]);
+    expect(record(B).progress.winsByWeapon).toEqual({ [weaponB]: 1 });
 
     await until(back.reconnected, "the SDK to reconnect", 8000);
     await until(() => a!.results.length === 1, "the held result to arrive after reconnecting");
@@ -804,6 +897,74 @@ describe("achievements through a run", () => {
     await sleep(200);
     expect(a!.results).toHaveLength(1); // delivered once
     expect(Object.keys(record(A).achievements)).toEqual(["veteran"]); // and unlocked once
+  });
+});
+
+describe("the weapon a win is counted for", () => {
+  // The Room hands the store the weapon in hand when the run ends and no faction (the faction is a round-robin default
+  // until the Phase 10 picker). Only a qualified win counts, so winsByWeapon moves on a contested win and nowhere else.
+  it("a contested win counts one win for the weapon in hand and none for the faction", async () => {
+    const [A, B, C] = [await claim(), await claim(), await claim()];
+    const [a, b, c] = await startRun([A, B, C]);
+    const recorded = vi.spyOn(server.store, "recordRun");
+    const s = serverPlayer(a!);
+    expect([s.slot, s.weapon1]).toEqual([0, ""]);
+    const weapon = inHand(a!);
+    expect(weapon).toBe(s.weapon0);
+
+    await hurt(a!, b!);
+    await hurt(a!, c!);
+    hitsLongAgo(worldOf(a!), [b!, c!]);
+    await leave(b!);
+    await leave(c!);
+    await until(() => a!.results.length === 1, "A's result");
+    expect(a!.results[0]).toMatchObject({ outcome: "won", winBonusWithheld: false });
+
+    const calls = recorded.mock.calls.filter(([name]) => name === A.name);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![1]).toEqual({ outcome: "won", kills: 0, gv: expect.any(Number), bounty: 0, weapon, winQualified: true });
+    expect(record(A).progress.winsByWeapon).toEqual({ [weapon]: 1 });
+    expect(record(A).progress.winsByFaction).toEqual({});
+    expect((await api(A.name, A.token)).body.profile.progress).toMatchObject({ winsByWeapon: { [weapon]: 1 }, winsByFaction: {} });
+  });
+
+  it("it is the weapon in the slot in hand at the end, not the one the run started with", async () => {
+    const [X, W, Y] = [await claim(), await claim(), await claim()];
+    const [x, w, y] = await startRun([X, W, Y]);
+    const recorded = vi.spyOn(server.store, "recordRun");
+    const started = inHand(w!);
+    expect(started).toBe(SIGNATURE_WEAPONS[defaultFaction(1)]); // the second joiner's own: not the first joiner's
+
+    // A second weapon in the other slot, swapped to the way a client does it (the pickup itself is room.test's business).
+    serverPlayer(w!).weapon1 = "sword";
+    w!.room.send("swap", { slot: 1 });
+    await until(() => w!.room.state.players.get(sessionOf(w!))?.slot === 1, "the swap to reach the client");
+    expect(inHand(w!)).toBe("sword");
+    expect(started).not.toBe("sword");
+
+    await hurt(w!, x!);
+    await hurt(w!, y!);
+    hitsLongAgo(worldOf(w!), [x!, y!]);
+    await leave(x!);
+    await leave(y!);
+    await until(() => w!.results.length === 1, "W's result");
+    expect(w!.results[0]).toMatchObject({ outcome: "won", winBonusWithheld: false });
+    expect(recorded.mock.calls.find(([name]) => name === W.name)![1]).toMatchObject({ outcome: "won", winQualified: true, weapon: "sword" });
+    expect(record(W).progress.winsByWeapon).toEqual({ sword: 1 }); // the sword, and not the bow it started with
+    expect(record(W).progress.winsByFaction).toEqual({});
+  });
+
+  it("a loss adds nothing to either counter", async () => {
+    const [A, B, C] = [await claim(), await claim(), await claim()];
+    const [a, b] = await startRun([A, B, C]);
+    const recorded = vi.spyOn(server.store, "recordRun");
+
+    await kill(a!, b!);
+    await until(() => b!.results.length === 1, "B's result");
+    expect(b!.results[0]).toMatchObject({ outcome: "died", killedBy: A.name });
+    expect(recorded.mock.calls.find(([name]) => name === B.name)![1]).toMatchObject({ outcome: "died", winQualified: false });
+    expect(record(B).progress.winsByWeapon).toEqual({});
+    expect(record(B).progress.winsByFaction).toEqual({});
   });
 });
 
@@ -821,6 +982,7 @@ describe("progress carried over from earlier runs", () => {
 
     const after = record(A);
     expect(after.stats).toMatchObject({ runs: 4, wins: 2, kills: 10 });
+    expect(after.progress.winsByWeapon).toEqual({}); // a two-player win is not qualified
     expect(after.achievements.first_blood).toBe(LONG_AGO); // not stamped again
     expect(after.achievements.first_win).toBe(LONG_AGO);
     expect(after.achievements.slayer).toBeGreaterThanOrEqual(testStart);
@@ -830,12 +992,13 @@ describe("progress carried over from earlier runs", () => {
 
   it("a run that stays one kill short unlocks nothing and says nothing; its walkover win counts in stats.wins but not as a qualified one", async () => {
     const A = seedAccount("mNineKillsB");
-    const result = await walkover(A);
+    const { result } = await walkover(A);
     expect(result).toMatchObject({ outcome: "won", kills: 0 });
     expect("achievements" in result).toBe(false);
     const after = record(A);
     expect(after.stats).toMatchObject({ runs: 4, wins: 2, kills: 9 });
     expect(after.progress.qualifiedWins).toBe(1); // the seeded one; the walkover added none
+    expect(after.progress.winsByWeapon).toEqual({});
     expect(Object.keys(after.achievements).sort()).toEqual(["first_blood", "first_win"]);
     expect(after.cosmetics.owned).toEqual(["title-bloodied", "title-victor", "skin-laurel"]);
   });
