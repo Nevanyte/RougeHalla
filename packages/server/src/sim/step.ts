@@ -11,6 +11,7 @@ import { applyLedger } from "./ledger";
 import { resolveMelee } from "./melee";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
 import { clearProjectiles, spawnProjectiles, sweepProjectiles } from "./projectiles";
+import { trainingSettle } from "./training";
 import { moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
 import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
 
@@ -211,8 +212,12 @@ function updateActive(world: World, dtMs: number): void {
   for (const sys of world.beforeDamage) sys(world, dtMs);
   applyLedger(world);
   for (const sys of world.systems) sys(world, dtMs);
-  suddenDeath(world, dtMs);
-  settle(world);
+  if (world.config.training) {
+    trainingSettle(world);
+  } else {
+    suddenDeath(world, dtMs);
+    settle(world);
+  }
   // Nothing flies once the run is over: clients would otherwise draw what's left to its full range, through walls.
   if (s.phase === "ended") clearProjectiles(world, "cleared");
 }

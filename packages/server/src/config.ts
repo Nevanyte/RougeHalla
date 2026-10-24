@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   LOBBY_FILL_SECONDS, LOBBY_SECONDS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, SERVER_PORT,
-  SUDDEN_DEATH_SECONDS,
+  SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS,
 } from "@raid/shared";
 import type { SimConfig } from "./sim/world";
 
@@ -12,6 +12,8 @@ export interface ServerConfig extends SimConfig {
   stashFile: string;
   /** Artificial one-way latency for netcode testing (0 = off). */
   latencyMs: number;
+  /** A training room whose player sends nothing for this long is closed (TRAINING_IDLE_SECONDS). */
+  trainingIdleSeconds: number;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +30,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     port: num(env.RAID_PORT, SERVER_PORT),
     stashFile: env.STASH_FILE || DEFAULT_STASH_FILE,
     latencyMs: num(env.COLYSEUS_LATENCY, 0),
+    trainingIdleSeconds: num(env.TRAINING_IDLE_SECONDS, TRAINING_IDLE_SECONDS),
     minPlayers: num(env.MIN_PLAYERS, MIN_PLAYERS_TO_START),
     lobbySeconds: num(env.LOBBY_SECONDS, LOBBY_SECONDS),
     fillSeconds: num(env.FILL_SECONDS, LOBBY_FILL_SECONDS),

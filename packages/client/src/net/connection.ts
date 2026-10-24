@@ -1,5 +1,5 @@
 import { Client, type Room } from "@colyseus/sdk";
-import { ROOM_NAME, SERVER_PORT, type ClientMessages, type JoinOptions } from "@raid/shared";
+import { ROOM_NAME, SERVER_PORT, TRAINING_ROOM_NAME, type ClientMessages, type JoinOptions } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 
 export type RaidRoom = Room<any, RaidState>;
@@ -82,6 +82,18 @@ export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
       if (attempt >= 2 || !/(raid|run) already started/i.test(joinErrorMessage(err))) throw err;
     }
   }
+}
+
+/**
+ * A training room: always created fresh (never matched with other players), private, one seat. Nothing in it is recorded:
+ * no results, no GV, no stats. `faction` is the hub pick, if any.
+ */
+export async function joinTraining(options: Omit<JoinOptions, "mode">): Promise<RaidRoom> {
+  client ??= new Client(serverEndpoint());
+  // The server's "training" handler forces the mode; nothing the client sends decides it.
+  const room = await client.create<RaidState>(TRAINING_ROOM_NAME, options);
+  tuneReconnection(room);
+  return room;
 }
 
 /** Typed input sender: the only way the client talks to the sim. */

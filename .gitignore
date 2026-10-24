@@ -7,3 +7,4 @@ coverage
 packages/server/scratch/
 __pycache__/
 *.pyc
+packages/server/.vitest/
