@@ -12,23 +12,23 @@ const REFERENCE: Array<[FactionId, FactionId, 0 | 1 | null, number, number, numb
   ["fire", "sentenced", 0, 3.75, 383.183, 0.0],
   ["fire", "plague", 0, 2.128, 354.35, 0.0],
   ["fire", "frost", 1, 13.072, 0.0, 861.104],
-  ["fire", "holy", 1, 8.098, 0.0, 1006.46],
+  ["fire", "holy", 1, 8.098, 0.0, 1040.071],
   ["sentenced", "fire", 1, 3.75, 0.0, 383.183],
   ["sentenced", "plague", 0, 7.434, 394.71, 0.0],
   ["sentenced", "frost", 0, 16.55, 353.691, 0.0],
-  ["sentenced", "holy", 1, 22.674, 0.0, 392.857],
+  ["sentenced", "holy", 1, 22.674, 0.0, 491.416],
   ["plague", "fire", 1, 2.128, 0.0, 354.35],
   ["plague", "sentenced", 1, 7.434, 0.0, 394.71],
   ["plague", "frost", 0, 37.028, 400.146, 0.0],
-  ["plague", "holy", 0, 15.848, 673.795, 0.0],
+  ["plague", "holy", 0, 16.694, 656.382, 0.0],
   ["frost", "fire", 0, 13.072, 861.104, 0.0],
   ["frost", "sentenced", 1, 16.55, 0.0, 353.691],
   ["frost", "plague", 1, 37.028, 0.0, 400.146],
-  ["frost", "holy", 0, 52.31, 1103.972, 0.0],
-  ["holy", "fire", 0, 8.098, 1006.46, 0.0],
-  ["holy", "sentenced", 0, 22.674, 392.857, 0.0],
-  ["holy", "plague", 1, 15.848, 0.0, 673.795],
-  ["holy", "frost", 1, 52.31, 0.0, 1103.972],
+  ["frost", "holy", 0, 61.48, 990.722, 0.0],
+  ["holy", "fire", 0, 8.098, 1040.071, 0.0],
+  ["holy", "sentenced", 0, 22.674, 491.416, 0.0],
+  ["holy", "plague", 1, 16.694, 0.0, 656.382],
+  ["holy", "frost", 1, 61.48, 0.0, 990.722],
 ];
 
 describe("faction duel parity with the Python design engine", () => {
@@ -78,9 +78,9 @@ describe("faction duel parity with the Python design engine", () => {
     const sheet: Array<[FactionId, FactionId, number, number]> = [
       ["fire", "sentenced", 3.7, 77], ["fire", "plague", 2.1, 71],
       ["sentenced", "plague", 7.4, 56], ["sentenced", "frost", 16.6, 51],
-      ["plague", "frost", 37.0, 40], ["plague", "holy", 15.8, 67],
-      ["frost", "holy", 52.3, 63], ["frost", "fire", 13.1, 49],
-      ["holy", "fire", 8.1, 69], ["holy", "sentenced", 22.7, 27],
+      ["plague", "frost", 37.0, 40], ["plague", "holy", 16.7, 66],
+      ["frost", "holy", 61.5, 57], ["frost", "fire", 13.1, 49],
+      ["holy", "fire", 8.1, 72], ["holy", "sentenced", 22.7, 34],
     ];
     expect(sheet.map(([w, l]) => [w, l])).toEqual(BEATS.map(([w, l]) => [w, l]));
     for (const [w, l, seconds, leftPct] of sheet) {
@@ -134,13 +134,13 @@ describe("identity test: removing a signature changes the matchups", () => {
     { owner: "plague", label: "remove the execute", kind: "main",
       flips: ["plague>frost"], sheetShift: 43, params: { execute: 0 } },
     { owner: "plague", label: "remove the flat disease", kind: "sub",
-      flips: ["plague>frost"], sheetShift: 114, params: { plague: 0 } },
+      flips: ["plague>frost", "plague>holy"], sheetShift: 114, params: { plague: 0 } },
     { owner: "frost", label: "remove the slow", kind: "main",
-      flips: ["frost>holy"], sheetShift: 103, params: { slow: 0 } },
+      flips: ["frost>holy"], sheetShift: 108, params: { slow: 0 } },
     { owner: "holy", label: "remove lifesteal", kind: "main",
-      flips: ["holy>sentenced"], sheetShift: 30, params: { ls0: 0, ls1: 0 } },
+      flips: ["holy>sentenced"], sheetShift: 37, params: { ls0: 0, ls1: 0 } },
     { owner: "holy", label: "flat lifesteal (no missing-health scaling)", kind: "sub",
-      flips: [], sheetShift: 19, params: { ls1: 0 } },
+      flips: [], sheetShift: 26, params: { ls1: 0 } },
   ];
 
   const DT = 0.002;
