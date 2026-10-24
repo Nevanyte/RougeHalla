@@ -228,9 +228,12 @@ function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<stri
   const out = new Map<string, Contact[]>();
   const inc = new Map<string, Contact[]>();
   const add = (attacker: string, victim: string, amount: number, passive: boolean): void => {
-    if (attacker === victim || !byId.has(attacker)) return;
+    if (attacker === victim) return;
+    const a = byId.get(attacker);
     const v = byId.get(victim);
-    if (!v || immune(world, v) || evading(v) || evading(byId.get(attacker))) return;
+    if (!a || !v || immune(world, v) || evading(v) || evading(a)) return;
+    // Mobs never hurt each other: a bash that a camp-mate's shield blocks is no contact between them.
+    if (a.kind === "mob" && v.kind === "mob") return;
     push(out, attacker, { other: victim, amount, passive });
     push(inc, victim, { other: attacker, amount, passive });
   };
@@ -257,7 +260,8 @@ function signatureDamage(world: World, dtMs: number): void {
   for (const c of fighters) {
     const f = sigOf(world, c.id);
     f.hpFrac = c.s.maxHp > 0 ? c.s.hp / c.s.maxHp : 0;
-    if (f.target !== null && (!byId.has(f.target) || evading(c))) clearTarget(f);
+    // A fighter loses its target when the target is gone or is walking home, and a mob walking home keeps none.
+    if (f.target !== null && (!byId.has(f.target) || evading(c) || evading(byId.get(f.target)))) clearTarget(f);
   }
 
   const { out, inc } = contactsOf(world, byId);

@@ -143,10 +143,34 @@ export type TimedFx = FxEvent & { t: number };
 /** One fx on the wire: `[kindCode, ...fields]`, numbers and strings only (see fxCodec.ts for the layout of each kind). */
 export type FxTuple = Array<number | string | null>;
 /**
- * Every fx one simulation step produced, in order, sharing the step's server time `t`. Built with `packFx` and read with
- * `unpackFx` (fxCodec.ts). Sent once per step that has any, just before the patch of that tick.
+ * Every fx one simulation step produced, in order, sharing the step's server time `t`, and the projectiles it loosed. Built
+ * with `packFx` and read with `unpackFx` and `unpackLaunches` (fxCodec.ts). Sent once per step that has either, just before
+ * the patch of that tick. Players and mobs are named by their index in `RaidState.roster` where they can be.
  */
-export interface FxBatch { t: number; l: FxTuple[] }
+export interface FxBatch {
+  t: number;
+  l: FxTuple[];
+  /**
+   * The arrows and balls that left during this step and are still flying at its end, one tuple each (see fxCodec.ts;
+   * `unpackLaunches` reads them). Projectiles are not in the state patches, only in the full state a client joins with.
+   */
+  p?: FxTuple[];
+}
+
+/**
+ * A projectile as the client flies it: position(T) = (x, y) + (vx, vy) * (T - t) / 1000, for at most `range` units, until a
+ * `projEnd` fx says where and why it stopped. `id` is the one that `projEnd` names. Same meaning as `ProjectileState`.
+ */
+export interface ProjectileLaunch {
+  id: string;
+  kind: ProjectileKind;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  t: number;
+  range: number;
+}
 
 /** Server → client. */
 export interface ServerMessages {

@@ -17,7 +17,7 @@ const typical = () => run("typical", { camps: TYPICAL_CAMPS });
 const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
 
 describe("bandwidth budget (per client, ws payload)", () => {
-  // Seed 1 measures 10.4 KB/s with about 17 mobs fighting (9.8 to 12.2 over seeds 1 to 5, 732 and 2547).
+  // Seed 1 measures 10.3 KB/s with about 17 mobs fighting (9.4 to 10.5 over seeds 1 to 5, 732 and 2547).
   it("typical: 4 camps fought by 2 players each, 60 mobs: under 20 KB/s", () => {
     const r = typical();
     expect(r.mobs).toBeGreaterThanOrEqual(60);
@@ -25,21 +25,32 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  // Seed 1 measures 15.8 KB/s with about 28 mobs fighting (15.8 to 18.3 over the same seeds, up to 34 fighting).
+  // Seed 1 measures 15.4 KB/s with about 33 mobs fighting (13.7 to 16.5 over the seven seeds, up to 36 fighting).
   it("heavy: 8 camps fought by 1 player each, 60 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+  });
+
+  // The seeds that went over before the projectiles left the patches and fighters were named by roster index (the sim moves
+  // the numbers by a KB/s or so either way, so one seed is not a fair gate). Every run simulates a minute of play.
+  it.each([5, 732, 2547])("heavy, seed %i: under 20 KB/s as well", (seed) => {
+    const r = run(`heavy${seed}`, { camps: HEAVY_CAMPS, seed });
+    expect(r.avgFighting).toBeGreaterThan(20);
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
   // The gate above would also pass for a run in which nothing happens, so this one makes sure the heavy run is loaded.
   it("heavy: the scenario is loaded (so the gate above is about bytes, not about a broken run)", () => {
     const r = heavy();
-    expect(r.mobs).toBeGreaterThanOrEqual(60);
+    expect(r.mobs).toBeGreaterThanOrEqual(58); // topped up to 60 every tick; the last tick's kills are replaced in the next
     expect(r.avgFighting).toBeGreaterThan(20);
     expect(r.avgFighting).toBeGreaterThan(typical().avgFighting);
     expect(r.patchFramesPerSecond).toBeGreaterThan(19);
     expect(r.fxFramesPerSecond).toBeGreaterThan(typical().fxFramesPerSecond);
     // fx are batched: one message per step with any fx, never one per event (that is 100+ frames a second here).
     expect(r.fxFramesPerSecond).toBeLessThanOrEqual(20.5);
+    // arrows and balls travel in those batches: the patches carry none (60 a second here, 50-odd bytes each as a map entry).
+    expect(r.fxByKind.launch!.frames / r.seconds).toBeGreaterThan(20);
+    expect(r.fxByKind.launch!.bytes / r.fxByKind.launch!.frames).toBeLessThan(25);
     expect(r.totalKBps).toBeGreaterThan(typical().totalKBps);
   });
 

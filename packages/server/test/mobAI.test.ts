@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  hasLineOfSight, inArc, mapFromTiles, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, mulberry32, PLAYER_RADIUS, POLICIES,
-  TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, type FactionId, type GameMap, type WeaponId,
+  hasLineOfSight, mapFromTiles, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, mulberry32, PLAYER_RADIUS, POLICIES,
+  TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import { downPlayer } from "../src/sim/arena";
-import { combatant, standingCombatants } from "../src/sim/combatant";
+import { combatant, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { aggro, install, resetMob, thinkMobs } from "../src/sim/mobAI";
 import { hurtMob, placeMob, type MobCombatant } from "../src/sim/mobLife";
-import { positionAt } from "../src/sim/movement";
 import { addPlayer, removePlayer, step } from "../src/sim/step";
-import { createWorld, type MeleeRequest, type SimConfig, type SimEvent, type World } from "../src/sim/world";
+import { createWorld, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Rig: a game world on a small open hand-built map, a raid in progress, and passive players (no weapon, huge hp) that the
@@ -41,7 +40,12 @@ function arenaMap(cells: Array<{ tx: number; ty: number }> = []): GameMap {
   return { ...mapFromTiles(TILES, TILES, tiles), spawns: [tile(6, 6), tile(8, 6), tile(10, 6), tile(12, 6), tile(14, 6), tile(16, 6)] };
 }
 
-interface Rig { world: World; swings: MeleeRequest[]; events: SimEvent[] }
+interface Rig {
+  world: World;
+  events: SimEvent[];
+  /** Every swing that landed so far (the real melee phase emits a `swing` fx for each). */
+  readonly swings: Array<{ attacker: string; weapon: WeaponId; a: number }>;
+}
 
 /** `players` players p0, p1, ... in an active raid. They have no weapon and 1e9 hp, and stand far from HOME until moved. */
 function makeRig(opts: { players?: number; map?: GameMap; seed?: number; patience?: number } = {}): Rig {
@@ -61,8 +65,12 @@ function makeRig(opts: { players?: number; map?: GameMap; seed?: number; patienc
     p.hp = p.maxHp = 1e9;
     put(world, `p${i}`, 200 + 40 * i, 200);
   }
-  const rig: Rig = { world, swings: [], events: [] };
-  landSwingsLocally(rig);
+  const rig: Rig = {
+    world, events: [],
+    get swings() {
+      return this.events.flatMap((e) => (e.type === "fx" && e.fx.kind === "swing" ? [{ attacker: e.fx.by, weapon: e.fx.weapon, a: e.fx.a }] : []));
+    },
+  };
   return rig;
 }
 
@@ -136,35 +144,6 @@ function spy(world: World, m: MobCombatant): Logged[] {
 }
 
 const moves = (log: Logged[]) => log.filter((l) => l.kind === "move");
-
-/**
- * packages/server/src/sim/melee.ts is still a stub in this tree, so no swing would ever land. Until it is implemented
- * this stands in for it: a swing becomes ledger hits on every standing fighter inside its arc (the contract in melee.ts,
- * without shields or stagger, which nothing here uses), and the swing is recorded. Once melee.ts lands the real hits come
- * on top, which only makes the damage assertions easier.
- */
-function landSwingsLocally(rig: Rig): void {
-  const { world } = rig;
-  const land = (r: MeleeRequest): void => {
-    rig.swings.push(r);
-    const shape = WEAPONS[r.weapon].shape;
-    const att = combatant(world, r.attacker);
-    if (!att || shape.kind !== "arc") return;
-    const from = positionAt(att.rt, att.s, r.rewindT);
-    for (const t of standingCombatants(world)) {
-      if (t.id === r.attacker) continue;
-      if (!inArc(from, r.a, shape.reach, shape.halfArc, positionAt(t.rt, t.s, r.rewindT), PLAYER_RADIUS)) continue;
-      recordHit(world, { victim: t.id, by: { id: att.id, name: att.s.name }, packet: r.packet, weapon: r.weapon, stagger: false });
-    }
-  };
-  let list: MeleeRequest[] = [];
-  const watch = (v: MeleeRequest[]): MeleeRequest[] => {
-    v.push = (...items: MeleeRequest[]) => { items.forEach(land); return items.length; };
-    return v;
-  };
-  Object.defineProperty(world.combat, "melee", { configurable: true, get: () => list, set: (v: MeleeRequest[]) => { list = watch(v); } });
-  list = watch(list);
-}
 
 const REGIONS: ReadonlyArray<readonly [FactionId, WeaponId]> = [
   ["sentenced", "sword"], ["fire", "axe"], ["frost", "shield"], ["plague", "bow"], ["holy", "wand"],
@@ -628,12 +607,12 @@ describe("ranged mobs", () => {
       const ds: number[] = [];
       run(rig, 120, () => ds.push(dist(mob.s, rig.world.state.players.get("p0")!)));
       expect(ds[0]!).toBeLessThan(pol.retreatBelow);
-      // It opens the gap (it can only walk, and a bow draw or a cast slows it) and then never lets it close again.
-      const opened = ds.findIndex((d) => d >= pol.retreatBelow);
-      expect(opened).toBeGreaterThan(0);
-      expect(opened).toBeLessThan(100);
-      expect(Math.min(...ds.slice(opened))).toBeGreaterThanOrEqual(pol.retreatBelow - 1);
+      // It backs away, but a bow draw or a cast leaves it nearly rooted (Phase 9.1), so the gap opens slowly; it never
+      // walks into the target, never goes past the edge of its leash (the retreat slides along it), and keeps fighting.
+      expect(Math.min(...ds)).toBeGreaterThan(ds[0]! * 0.85);
+      expect(ds[ds.length - 1]!).toBeGreaterThan(ds[0]!);
       expect(Math.max(...ds)).toBeLessThanOrEqual(pol.far + 1);
+      expect(dist(mob.s, HOME)).toBeLessThanOrEqual(MOB_LEASH_RADIUS);
       expect(brain(mob).mode).toBe("fight");
       run(rig, 120);
       expect(hitsOn(rig.events, "p0").length).toBeGreaterThanOrEqual(2);
@@ -1001,10 +980,11 @@ describe("evading", () => {
     expect(brain(mob).target).toBe("p0");
   });
 
-  it("kiting gains nothing: a shooter hitting a sword mob from 300 u for a minute never kills it, and it is whole every time it is idle", () => {
+  it("kiting gains nothing: a shooter hitting a sword mob from beyond its leash and reach for a minute never kills it, and it is whole every time it is idle", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced");
-    put(rig.world, "p0", HOME.x + 300, HOME.y);
+    // Out of the mob's reach even from the edge of its leash (the stand-in shots ignore range).
+    put(rig.world, "p0", HOME.x + MOB_LEASH_RADIUS + 140, HOME.y);
     const max = mob.s.maxHp;
     let wakes = 0;
     let lowest = max;
@@ -1025,6 +1005,192 @@ describe("evading", () => {
     expect(lowest).toBeGreaterThan(0);
     // The shooter never got more than a few shots into one round.
     expect(lowest).toBeGreaterThan(max * 0.3);
+  });
+});
+
+describe("blocks", () => {
+  /** A Frost mob facing east at its camp, and a player 40 u east of it holding `weapon`. */
+  function frostRig(weapon: WeaponId, gap = 40) {
+    const rig = makeRig();
+    const mob = spawn(rig.world, "frost", HOME, 0);
+    const p = rig.world.state.players.get("p0")!;
+    // A Frost player has no damage-over-time signature (Fire burns, Plague diseases, Sentenced marks whoever it is engaged
+    // with, and a block counts as contact), so nothing but the block itself can wake the mob.
+    p.faction = "frost";
+    p.weapon0 = weapon;
+    put(rig.world, "p0", HOME.x + gap, HOME.y);
+    return { rig, mob };
+  }
+  const blocksOn = (events: SimEvent[], id: string) =>
+    events.flatMap((e) => (e.type === "fx" && e.fx.kind === "block" && e.fx.id === id ? [e.fx] : []));
+
+  it.each([["shield"], ["sword"]] as const)(
+    "an idle Frost mob wakes onto the player whose %s hit it blocked, though nothing damaged it",
+    (weapon) => {
+      const { rig, mob } = frostRig(weapon);
+      enqueueClientMessage(rig.world.players.get("p0")!.inputs, "attack", { a: Math.PI });
+      let blocked: ReturnType<typeof blocksOn> = [];
+      for (let i = 0; i < 20 && blocked.length === 0; i++) {
+        // Until the first block it is untouched, so it stays asleep.
+        expect(brain(mob).mode).toBe("idle");
+        blocked = blocksOn(run(rig, 1), mob.id);
+      }
+      expect(blocked).toHaveLength(1);
+      expect(blocked[0]).toMatchObject({ id: mob.id, by: "p0", weapon });
+      // The block fx and the wake are in the same tick, with the mob still whole.
+      expect(brain(mob).mode).toBe("fight");
+      expect(brain(mob).target).toBe("p0");
+      expect(mob.s.hp).toBe(mob.s.maxHp);
+      expect(hitsOn(rig.events, mob.id)).toEqual([]);
+      // It fights back: it goes on to bash the player (a shield facing it blocks the bash).
+      const events = run(rig, 40);
+      expect(hitsOn(events, "p0").some((h) => h.by === mob.id) || blocksOn(events, "p0").some((b) => b.by === mob.id)).toBe(true);
+    },
+  );
+
+  it("an idle Frost mob wakes onto the archer whose arrow it reflected", () => {
+    const { rig, mob } = frostRig("bow", 160);
+    const inputs = rig.world.players.get("p0")!.inputs;
+    let blocked: ReturnType<typeof blocksOn> = [];
+    const events: SimEvent[] = [];
+    for (let i = 0; i < 60 && blocked.length === 0; i++) {
+      expect(brain(mob).mode).toBe("idle");
+      if (i === 0) enqueueClientMessage(inputs, "attack", { a: Math.PI });
+      if (i === 25) enqueueClientMessage(inputs, "release", { a: Math.PI });
+      const out = run(rig, 1);
+      events.push(...out);
+      blocked = blocksOn(out, mob.id);
+    }
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0]).toMatchObject({ by: "p0", weapon: "bow" });
+    expect(events.some((e) => e.type === "fx" && e.fx.kind === "projEnd" && e.fx.reason === "reflected")).toBe(true);
+    expect(brain(mob).mode).toBe("fight");
+    expect(brain(mob).target).toBe("p0");
+    expect(mob.s.hp).toBe(mob.s.maxHp);
+    // The reflected arrow is the mob's own shot and finds the archer.
+    const later = run(rig, 20);
+    expect(hitsOn(later, "p0").some((h) => h.by === mob.id && h.weapon === "shield")).toBe(true);
+  });
+
+  it("a block on a mob that is walking home does not wake it", () => {
+    const { rig, mob } = frostRig("shield");
+    displace(rig.world, mob, HOME.x - 150, HOME.y);
+    put(rig.world, "p0", HOME.x - 150 + 40, HOME.y);
+    brain(mob).mode = "return";
+    enqueueClientMessage(rig.world.players.get("p0")!.inputs, "attack", { a: Math.PI });
+    const events = run(rig, 6);
+    expect(blocksOn(events, mob.id).length).toBeGreaterThanOrEqual(1);
+    expect(brain(mob).mode).toBe("return");
+    expect(brain(mob).target).toBeNull();
+    expect(brain(mob).threat.size).toBe(0);
+    expect(mob.s.hp).toBe(mob.s.maxHp);
+  });
+});
+
+describe("ranged mobs in a chase", () => {
+  /** The ground where a melee player stops when it runs at the mob: close enough for a sword, never on top of it. */
+  const CONTACT = 40;
+  const regions = [["plague", "bow"], ["holy", "wand"]] as const;
+
+  /** `p0` runs at `mob` every tick of `ticks`, stopping CONTACT short of it. Returns the hits it took, per window of 100 ticks. */
+  function chase(rig: Rig, mob: MobCombatant, weapon: WeaponId, ticks: number, each?: () => void) {
+    const p = rig.world.state.players.get("p0")!;
+    const windows: number[] = [];
+    let farthest = 0;
+    const modes = new Set<string>();
+    for (let i = 0; i < ticks; i++) {
+      if (i % 4 === 0) {
+        const d = dist(mob.s, p) || 1;
+        walk(rig.world, "p0", mob.s.x + ((p.x - mob.s.x) / d) * CONTACT, mob.s.y + ((p.y - mob.s.y) / d) * CONTACT);
+      }
+      const hits = hitsOn(run(rig, 1), "p0").filter((h) => h.by === mob.id && h.weapon === weapon).length;
+      windows[Math.floor(i / 100)] = (windows[Math.floor(i / 100)] ?? 0) + hits;
+      farthest = Math.max(farthest, dist(mob.s, HOME));
+      modes.add(brain(mob).mode);
+      each?.();
+    }
+    return { windows, farthest, modes };
+  }
+
+  it.each([
+    ["plague", "bow", "at its camp", 0],
+    ["plague", "bow", "at the edge of its disc", 250],
+    ["holy", "wand", "at its camp", 0],
+    ["holy", "wand", "at the edge of its disc", 250],
+  ] as const)(
+    "a %s mob (%s) %s, chased by a melee player for half a minute, stays inside its leash and keeps shooting instead of evading",
+    (region, weapon, _where, back) => {
+      const rig = makeRig();
+      const mob = spawn(rig.world, region);
+      displace(rig.world, mob, HOME.x - back, HOME.y);
+      const p = rig.world.state.players.get("p0")!;
+      put(rig.world, "p0", mob.s.x + 150, mob.s.y);
+      aggro(rig.world, mob, "p0", 10);
+      const { windows, farthest, modes } = chase(rig, mob, weapon, 600);
+      expect(farthest).toBeLessThanOrEqual(MOB_LEASH_RADIUS);
+      expect([...modes]).toEqual(["fight"]);
+      // It lands shots throughout: no stretch of five seconds goes by without one, from the first window to the last.
+      expect(windows).toHaveLength(6);
+      for (const w of windows) expect(w).toBeGreaterThanOrEqual(1);
+      // The chaser has been on it all along (it is nearer than the mob likes), yet the mob is still fighting there.
+      expect(dist(mob.s, p)).toBeLessThan(POLICIES[weapon].retreatBelow);
+      expect(dist(mob.s, p)).toBeLessThan(CONTACT + 10);
+    },
+  );
+
+  it.each(regions)("a %s mob (%s) with a wall at its back stands and shoots at the player in front of it", (region, weapon) => {
+    // A dead-end corridor one tile wide: the only way back is through the player.
+    const tiles = new Uint8Array(TILES * TILES).fill(TILE_WALL);
+    for (let tx = 26; tx <= 40; tx++) tiles[32 * TILES + tx] = TILE_FLOOR;
+    const rig = makeRig({ map: { ...mapFromTiles(TILES, TILES, tiles), spawns: [tile(30, 32), tile(31, 32), tile(32, 32)] } });
+    const at = tile(27, 32);
+    const mob = spawn(rig.world, region, at);
+    const p = rig.world.state.players.get("p0")!;
+    put(rig.world, "p0", tile(36, 32).x, at.y);
+    aggro(rig.world, mob, "p0", 10);
+    // The approach: let it settle at its range first, then the player closes in.
+    const { windows, modes } = chase(rig, mob, weapon, 400);
+    expect([...modes]).toEqual(["fight"]);
+    expect(dist(mob.s, p)).toBeLessThan(POLICIES[weapon].retreatBelow);
+    // It is pinned against the dead end and does not walk toward the player either: no path, still, still shooting.
+    const stillAt = { x: mob.s.x, y: mob.s.y };
+    const late = chase(rig, mob, weapon, 200);
+    expect({ x: mob.s.x, y: mob.s.y }).toEqual(stillAt);
+    expect(mob.rt.path).toEqual([]);
+    expect(late.windows[0]! + late.windows[1]!).toBeGreaterThanOrEqual(2);
+    expect(windows.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(2);
+    expect(late.modes.has("fight")).toBe(true);
+    expect(late.modes.size).toBe(1);
+  });
+});
+
+describe("the bow", () => {
+  it("is loosed at full draw, within a tick of it, every time", () => {
+    const rig = makeRig();
+    const mob = spawn(rig.world, "plague");
+    displace(rig.world, mob, HOME.x - 150, HOME.y);
+    put(rig.world, "p0", HOME.x + 150, HOME.y);
+    aggro(rig.world, mob, "p0", 10);
+    const fullDrawMs = timingsOf(mob.s, "bow")!.fullDraw * 1000;
+    const drawn: number[] = [];
+    const packets = new Map<string, number>();
+    let started = 0;
+    for (let i = 0; i < 400; i++) {
+      run(rig, 1);
+      const startedAt = mob.s.drawStartedAt;
+      // drawStartedAt falls back to 0 in the tick the arrow leaves, which is the tick the draw ended.
+      if (started > 0 && startedAt === 0) drawn.push(rig.world.state.serverTime - started);
+      started = startedAt;
+      for (const [id, pr] of rig.world.projectiles) if (pr.owner === mob.id) packets.set(id, pr.packet.raw);
+    }
+    expect(drawn.length).toBeGreaterThanOrEqual(5);
+    for (const d of drawn) {
+      expect(d).toBeGreaterThanOrEqual(fullDrawMs - 1e-6);
+      expect(d).toBeLessThan(fullDrawMs + TICK_MS);
+    }
+    // Every arrow was a full-draw one, so they all carry the same damage (a short draw would carry less).
+    expect(packets.size).toBe(drawn.length);
+    expect(new Set([...packets.values()].map((raw) => raw.toFixed(6))).size).toBe(1);
   });
 });
 

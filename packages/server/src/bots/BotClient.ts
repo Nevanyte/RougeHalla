@@ -268,7 +268,7 @@ export class BotClient {
     room.onMessage("result", (r: RunResult) => { this.resultsSeen++; this.log(`result: ${r.outcome} (place ${r.place}/${r.players}, +${r.gv.total} GV)`); this.finish(r); });
     room.onMessage("toast", (m: { text: string }) => this.onToast(m.text));
     // One batch per server step (the old per-fx message is gone).
-    room.onMessage("fxs", (b: FxBatch) => { for (const fx of unpackFx(b)) this.onFx(fx); });
+    room.onMessage("fxs", (b: FxBatch) => { for (const fx of unpackFx(b, room.state.roster)) this.onFx(fx); });
     room.onStateChange((s) => {
       this.patchAt = Date.now();
       for (const [id, p] of s.players) {

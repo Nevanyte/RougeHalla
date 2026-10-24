@@ -136,7 +136,7 @@ async function playRun(
   const realBroadcast = Room.prototype.broadcast;
   const broadcastSpy = vi.spyOn(Room.prototype, "broadcast").mockImplementation(function (this: unknown, ...args: unknown[]) {
     if (args[0] === "fxs") {
-      const batch = unpackFx(args[1] as FxBatch);
+      const batch = unpackFx(args[1] as FxBatch, (this as Room<{ state: RaidState }>).state.roster);
       fx.push(...batch);
       const mobs = (this as Room<{ state: RaidState }>).state?.mobs;
       for (const f of batch) {

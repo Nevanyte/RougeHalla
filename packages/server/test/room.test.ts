@@ -13,8 +13,8 @@ import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
 import {
   defaultFaction, ENDED_LINGER_SECONDS, FACTIONS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS,
-  ROOM_NAME, SIGNATURE_WEAPONS, unpackFx, type FactionId, type FxBatch, type JoinOptions, type ProfileStats, type RunResult, type TimedFx,
-  type Vec2,
+  raycast, ROOM_NAME, SIGNATURE_WEAPONS, unpackFx, unpackLaunches, type FactionId, type FxBatch, type JoinOptions, type ProfileStats,
+  type ProjectileLaunch, type RunResult, type TimedFx, type Vec2,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -154,7 +154,7 @@ function track(who: Account, room: ClientRoom): Player {
   const p: Player = { who, room, results: [], toasts: [], fx: [], left: false };
   room.onMessage("result", (r: RunResult) => p.results.push(r));
   room.onMessage("toast", (m: { text: string }) => p.toasts.push(m.text));
-  room.onMessage("fxs", (b: FxBatch) => p.fx.push(...unpackFx(b)));
+  room.onMessage("fxs", (b: FxBatch) => p.fx.push(...unpackFx(b, room.state.roster)));
   room.onLeave(() => { p.left = true; });
   players.push(p);
   return p;
@@ -910,7 +910,7 @@ describe("a run", () => {
     let lockedPatchAt = NaN;
     a!.room.onMessage("fxs", (batch: FxBatch) => {
       batches.push(batch);
-      for (const fx of unpackFx(batch)) if (fx.kind === "teleport") { teleportAt = fx.t; arrivals.push("fx"); }
+      for (const fx of unpackFx(batch, a!.room.state.roster)) if (fx.kind === "teleport") { teleportAt = fx.t; arrivals.push("fx"); }
     });
     a!.room.onStateChange((state) => {
       if (state.gatesLocked && arrivals.at(-1) !== "patch") { lockedPatchAt = state.serverTime; arrivals.push("patch"); }
@@ -922,6 +922,56 @@ describe("a run", () => {
     // A step with no fx sends nothing, and a step sends at most one batch.
     for (const batch of batches) expect(batch.l.length).toBeGreaterThan(0);
     expect(new Set(batches.map((batch) => batch.t)).size).toBe(batches.length);
+  });
+
+  it("an arrow reaches every client as a launch in an fxs batch and is never in a patch; its projEnd names it", async () => {
+    const [A, B, C] = [await claim(), await claim(), await claim()];
+    const [a, b, c] = await startRun([A, B, C]); // b is the Sentenced: a bow
+    const world = worldOf(b!);
+    expect(serverPlayer(b!).weapon0).toBe("bow");
+    // An open line from the duel spot, so the arrow flies a few ticks before it stops.
+    const at = duelSpot(world, [sessionOf(b!)]);
+    placeOnServer(b!, at.x, at.y);
+    let aim = 0;
+    let free = -1;
+    for (let k = 0; k < 64; k++) {
+      const angle = (k / 64) * 2 * Math.PI - Math.PI;
+      const ray = raycast(world.map, at.x, at.y, at.x + Math.cos(angle) * 400, at.y + Math.sin(angle) * 400);
+      const run = ray.hit ? ray.dist : 400;
+      if (run > free) { free = run; aim = angle; }
+    }
+    expect(free).toBeGreaterThan(150);
+
+    const seen = new Map<Player, { launches: ProjectileLaunch[]; ends: TimedFx[] }>();
+    for (const p of [a!, c!]) {
+      const mine = { launches: [] as ProjectileLaunch[], ends: [] as TimedFx[] };
+      seen.set(p, mine);
+      p.room.onMessage("fxs", (batch: FxBatch) => {
+        mine.launches.push(...unpackLaunches(batch));
+        mine.ends.push(...unpackFx(batch, p.room.state.roster).filter((f) => f.kind === "projEnd"));
+      });
+    }
+    await sleep(120);
+    const deadline = Date.now() + 10_000;
+    const loosed = () => [...seen.values()].every((s) => s.launches.length > 0 || s.ends.length > 0);
+    while (!loosed() && Date.now() < deadline) {
+      b!.room.send("attack", { a: aim });
+      b!.room.send("release", { a: aim });
+      const settle = Date.now() + 400;
+      while (!loosed() && Date.now() < settle) await sleep(20);
+    }
+    await until(() => [...seen.values()].every((s) => s.ends.length > 0), "the arrow to stop, on every client");
+    for (const [p, mine] of seen) {
+      const label = p.who.name;
+      expect(mine.launches.length, label).toBeGreaterThan(0);
+      const launch = mine.launches[0]!;
+      expect(launch.kind, label).toBe("arrow");
+      expect(Math.hypot(launch.vx, launch.vy), label).toBeCloseTo(900, 0);
+      // It is named by the same id in the launch and in the fx that ends it, which carries no start.
+      const end = mine.ends.find((e) => e.kind === "projEnd" && e.id === launch.id);
+      expect(end, label).toBeDefined();
+      expect(p.room.state.projectiles.size, `${label}: patches carry no projectile`).toBe(0);
+    }
   });
 
   describe("leaving", () => {

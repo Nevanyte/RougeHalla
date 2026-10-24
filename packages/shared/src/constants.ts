@@ -165,12 +165,13 @@ export const BOUNTY_STACK_SHARE = 0.5;
 export const BOUNTY_ANNOUNCE_MS = 10_000;
 
 // Regional mobs (Phase 11, GAME_DESIGN 11). A mob is its region's faction scaled by MOB_K (an elite by ELITE_K) with the
-// region's weapon. Chosen from the faction duel table: at 0.45 a starting player wins all 25 matchups (77% hp left on
-// average, 36% in the worst); an elite at 0.6 beats most but not the faction that counters the player (2 of 25 lose).
+// region's weapon. Measured in the real sim (bench/mobDuel.ts, side-session-notes/phase11-mob-strength-report.md): at 0.45
+// a starting player never loses to a normal mob and finishes 24 of 25 pairings with about 80% hp left; an elite at 0.65 is
+// finished in 23 of 25 with about 58% hp left (at 0.60 it was 24 and 64%, too soft for 10 GV and two stacks).
 export const MOB_K = 0.45;
-export const ELITE_K = 0.6;
+export const ELITE_K = 0.65;
 /** A mob gives up the chase when it is this far from its camp, or has neither dealt nor taken damage for MOB_GIVE_UP_SECONDS. */
-export const MOB_LEASH_RADIUS = 7 * TILE;
+export const MOB_LEASH_RADIUS = 9 * TILE;
 export const MOB_GIVE_UP_SECONDS = 6;
 /** Back within this of its camp spot, a returning mob is home again. */
 export const MOB_HOME_RADIUS = 10;

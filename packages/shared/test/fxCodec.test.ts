@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BUFF_STATS, COMBOS, FX_SCALE, mulberry32, packFx, unpackFx, WEAPON_IDS, type FxBatch, type FxEvent, type ProjectileEnd,
-  type TimedFx,
+  BUFF_STATS, COMBOS, FX_SCALE, mulberry32, packFx, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS, type FxBatch,
+  type FxEvent, type ProjectileEnd, type ProjectileLaunch, type TimedFx,
 } from "../src/index";
 
 type FxOf<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
@@ -23,6 +23,8 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
 };
 
 const T = 123450;
+/** No fighter is named by roster index in most tests: the roster is empty. */
+const NONE: string[] = [];
 const scale = FX_SCALE;
 /** The most a field can move: half a step of its resolution (plus float noise). */
 const within = (got: number, want: number, perUnit: number): void => {
@@ -30,7 +32,7 @@ const within = (got: number, want: number, perUnit: number): void => {
 };
 
 function roundTrip(fx: FxEvent, t = T): TimedFx {
-  const out = unpackFx(packFx([fx], t));
+  const out = unpackFx(packFx([fx], t), NONE);
   expect(out).toHaveLength(1);
   return out[0]!;
 }
@@ -123,7 +125,7 @@ describe("fx codec: round trip", () => {
       );
     }
     const plain = packFx([{ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe" }], T).l[0]!;
-    expect(plain).toHaveLength(5); // no sig element: a plain hit costs nothing extra
+    expect(plain).toHaveLength(5); // weapon and signature share the last element: a signature costs no extra byte
     expect(roundTrip({ kind: "block", id: "a", by: "b", weapon: "shield", passive: true })).toEqual(
       { kind: "block", id: "a", by: "b", weapon: "shield", passive: true, t: T },
     );
@@ -134,7 +136,7 @@ describe("fx codec: round trip", () => {
   });
 
   it("skips a hit whose signature code is unknown rather than dropping the signature silently", () => {
-    expect(unpackFx({ t: T, l: [[2, "a", "b", 50, 0, 99]] })).toEqual([]);
+    expect(unpackFx({ t: T, l: [[2, "a", "b", 50, 99]] }, NONE)).toEqual([]);
   });
 
   it("keeps a reflected arrow's start (it can start and stop inside one tick)", () => {
@@ -156,7 +158,7 @@ describe("fx codec: round trip", () => {
   });
 
   it("stamps every event with the batch time, unrounded", () => {
-    const out = unpackFx(packFx(Object.values(EXAMPLES), 98765.4321));
+    const out = unpackFx(packFx(Object.values(EXAMPLES), 98765.4321), NONE);
     expect(out).toHaveLength(Object.keys(EXAMPLES).length);
     for (const fx of out) expect(fx.t).toBe(98765.4321);
   });
@@ -166,7 +168,7 @@ describe("fx codec: batches", () => {
   it("an empty batch decodes to nothing", () => {
     const batch = packFx([], T);
     expect(batch).toEqual({ t: T, l: [] });
-    expect(unpackFx(batch)).toEqual([]);
+    expect(unpackFx(batch, NONE)).toEqual([]);
   });
 
   it("keeps order across a batch of 100 mixed events", () => {
@@ -176,7 +178,7 @@ describe("fx codec: batches", () => {
       const base = EXAMPLES[kinds[(i * 7) % kinds.length]!];
       list.push({ ...base, ...(base.kind === "hit" ? { amount: i + 0.5 } : {}) } as FxEvent);
     }
-    const out = unpackFx(packFx(list, T));
+    const out = unpackFx(packFx(list, T), NONE);
     expect(out).toHaveLength(100);
     out.forEach((fx, i) => expectSame(fx, list[i]!));
     expect(out.map((f) => f.kind)).toEqual(list.map((f) => f.kind));
@@ -191,7 +193,7 @@ describe("fx codec: batches", () => {
       }
     }
     expect(JSON.parse(JSON.stringify(batch))).toEqual(batch);
-    expect(unpackFx(JSON.parse(JSON.stringify(batch)) as FxBatch)).toEqual(unpackFx(batch));
+    expect(unpackFx(JSON.parse(JSON.stringify(batch)) as FxBatch, NONE)).toEqual(unpackFx(batch, NONE));
   });
 
   it("a teleport is one number", () => {
@@ -205,7 +207,7 @@ describe("fx codec: bad input is skipped, not thrown on", () => {
 
   it("skips an unknown kind code and keeps the rest", () => {
     const batch: FxBatch = { t: T, l: [goodTuple, [99, "x", 1, 2], goodTuple, [-1], [1.5, "x"]] };
-    expect(unpackFx(batch)).toEqual([{ ...good, t: T }, { ...good, t: T }]);
+    expect(unpackFx(batch, NONE)).toEqual([{ ...good, t: T }, { ...good, t: T }]);
   });
 
   it("skips a tuple that is not an array, is empty, or has a missing or mistyped field", () => {
@@ -214,7 +216,11 @@ describe("fx codec: bad input is skipped, not thrown on", () => {
       [0, "a", 1, 100],                    // windup, missing ms
       [0, "a", 77, 100, 200],              // windup, unknown weapon
       [0, "a", 1, "x", 200],               // windup, angle is a string
-      [2, "a", "b", 10, 77],               // hit, unknown weapon
+      [2, "a", "b", 10, 77],               // hit, unknown weapon (and signature)
+      [2, "a", "b", 10, -1],               // hit, negative flags
+      [2, "a", "b", 10, 1.5],              // hit, fractional flags
+      [2, 7, "b", 10, 1],                  // hit, id is a roster index the roster does not have
+      [2, -1, "b", 10, 1],                 // hit, id is a negative number
       [5, "p", 0, 9, 1, 2, 3, 4, 5],       // projEnd, unknown reason
       [11, "a", 0, 2],                     // combo, proc is not 0 or 1
       [12, null, null],                    // victory, no draw flag
@@ -222,19 +228,146 @@ describe("fx codec: bad input is skipped, not thrown on", () => {
       [6, "a", Number.POSITIVE_INFINITY, 0, null], // death, infinite x
       goodTuple,
     ] as unknown as FxBatch["l"];
-    expect(unpackFx({ t: T, l })).toEqual([{ ...good, t: T }]);
+    expect(unpackFx({ t: T, l }, NONE)).toEqual([{ ...good, t: T }]);
   });
 
   it("returns nothing for a batch with no usable time or list", () => {
-    expect(unpackFx({ t: Number.NaN, l: [goodTuple] })).toEqual([]);
-    expect(unpackFx({ t: "5", l: [goodTuple] } as unknown as FxBatch)).toEqual([]);
-    expect(unpackFx({ t: T } as unknown as FxBatch)).toEqual([]);
-    expect(unpackFx(null as unknown as FxBatch)).toEqual([]);
-    expect(unpackFx(undefined as unknown as FxBatch)).toEqual([]);
+    expect(unpackFx({ t: Number.NaN, l: [goodTuple] }, NONE)).toEqual([]);
+    expect(unpackFx({ t: "5", l: [goodTuple] } as unknown as FxBatch, NONE)).toEqual([]);
+    expect(unpackFx({ t: T } as unknown as FxBatch, NONE)).toEqual([]);
+    expect(unpackFx(null as unknown as FxBatch, NONE)).toEqual([]);
+    expect(unpackFx(undefined as unknown as FxBatch, NONE)).toEqual([]);
   });
 
   it("packFx drops an event of a kind it does not know", () => {
     const alien = { kind: "meteor", x: 1 } as unknown as FxEvent;
     expect(packFx([good, alien, good], T).l).toHaveLength(2);
+  });
+});
+
+describe("fx codec: fighter ids by roster index", () => {
+  const roster = ["Ab3dEf9hI", "mob1a", "mob1b"];
+  const index = new Map(roster.map((id, i) => [id, i]));
+
+  it("sends a rostered id as its index and reads it back, and leaves other strings alone", () => {
+    const fx: FxEvent[] = [
+      { kind: "hit", id: "Ab3dEf9hI", by: "mob1a", amount: 12, weapon: "sword" },
+      { kind: "hit", id: "mob1b", by: null, amount: 3, weapon: null, sig: "burn" },
+      { kind: "death", id: "Zz9yXx8wV", x: 1, y: 2, by: "mob1a" }, // joined this tick: not in the roster yet
+      { kind: "bounty", id: "Ab3dEf9hI", name: "mob1b", bounty: 20 }, // a callsign that looks like a roster id
+    ];
+    const batch = packFx(fx, T, { roster: index });
+    expect(batch.l[0]).toEqual([2, 0, 1, 120, 1]);
+    expect(batch.l[1]).toEqual([2, 2, null, 30, 0 + (0 + 1) * (WEAPON_IDS.length + 1)]);
+    expect(batch.l[2]).toEqual([6, "Zz9yXx8wV", 1, 2, 1]);
+    expect(unpackFx(batch, roster)).toEqual(fx.map((f) => ({ ...f, t: T })));
+  });
+
+  it("without a roster the ids stay whole", () => {
+    const batch = packFx([{ kind: "stagger", id: "Ab3dEf9hI" }], T);
+    expect(batch.l).toEqual([[4, "Ab3dEf9hI"]]);
+    expect(unpackFx(batch, NONE)).toEqual([{ kind: "stagger", id: "Ab3dEf9hI", t: T }]);
+  });
+
+  it("skips an event whose index the client's roster does not have (yet)", () => {
+    const batch = packFx([{ kind: "stagger", id: "mob1b" }, { kind: "teleport" }], T, { roster: index });
+    expect(unpackFx(batch, roster.slice(0, 2))).toEqual([{ kind: "teleport", t: T }]);
+    expect(unpackFx(batch, roster)).toHaveLength(2);
+  });
+
+  it("works with an array-like roster (a decoded ArraySchema is not an Array)", () => {
+    const arrayLike = { length: 3, 0: "Ab3dEf9hI", 1: "mob1a", 2: "mob1b" };
+    const batch = packFx([{ kind: "stagger", id: "mob1a" }], T, { roster: index });
+    expect(unpackFx(batch, arrayLike)).toEqual([{ kind: "stagger", id: "mob1a", t: T }]);
+  });
+});
+
+describe("fx codec: hit flags", () => {
+  it("round trips every weapon (or none) with every signature (or none)", () => {
+    const sigs = [undefined, "burn", "backlash", "disease", "mark"] as const;
+    for (const weapon of [null, ...WEAPON_IDS]) {
+      for (const sig of sigs) {
+        const fx: FxEvent = sig ? { kind: "hit", id: "a", by: "b", amount: 4.5, weapon, sig } : { kind: "hit", id: "a", by: "b", amount: 4.5, weapon };
+        expect(roundTrip(fx), `${weapon} ${sig}`).toEqual({ ...fx, t: T });
+      }
+    }
+  });
+
+  it("keeps weapon and signature in one element that fits a byte", () => {
+    for (const weapon of WEAPON_IDS) {
+      for (const sig of ["burn", "backlash", "disease", "mark"] as const) {
+        const flags = packFx([{ kind: "hit", id: "a", by: "b", amount: 1, weapon, sig }], T).l[0]![4] as number;
+        expect(flags).toBeLessThan(128);
+      }
+    }
+  });
+});
+
+describe("fx codec: projEnd start", () => {
+  const end: FxEvent = { kind: "projEnd", id: "p9", proj: "arrow", x0: 512, y0: 640, t0: 7000, x: 530, y: 641, reason: "hit" };
+
+  it("is left off for a projectile whose launch was announced, and decodes as no flight from the stop point at the batch time", () => {
+    const batch = packFx([end], T, { announced: new Set(["p9"]) });
+    expect(batch.l[0]).toHaveLength(6);
+    expect(unpackFx(batch, NONE)).toEqual([{ ...end, x0: 530, y0: 641, t0: T, t: T }]);
+  });
+
+  it("is kept for any other projectile", () => {
+    for (const announced of [undefined, new Set<string>(), new Set(["p1"])]) {
+      const batch = packFx([end], T, { announced });
+      expect(batch.l[0]).toHaveLength(9);
+      expect(unpackFx(batch, NONE)).toEqual([{ ...end, t: T }]);
+    }
+  });
+});
+
+describe("fx codec: projectile launches", () => {
+  const arrowRange = (WEAPONS.bow.shape as { range: number }).range;
+  const ballRange = (WEAPONS.wand.shape as { range: number }).range;
+  const arrow: ProjectileLaunch = { id: "p1a", kind: "arrow", x: 812.345, y: 1234.567, vx: 612.25, vy: -301.55, t: T, range: arrowRange };
+  const ball: ProjectileLaunch = { id: "p1b", kind: "ball", x: -3.04, y: 0.01, vx: -380, vy: 0, t: T, range: ballRange };
+
+  it("round trips within a tenth of a unit, and a step's launches share the batch time", () => {
+    const batch = packFx([], T, { launches: [arrow, ball] });
+    expect(batch.l).toEqual([]);
+    const out = unpackLaunches(batch);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ id: "p1a", kind: "arrow", t: T, range: arrowRange });
+    for (const key of ["x", "y", "vx", "vy"] as const) {
+      expect(Math.abs(out[0]![key] - arrow[key]), key).toBeLessThanOrEqual(0.05 + 1e-9);
+      expect(Math.abs(out[1]![key] - ball[key]), key).toBeLessThanOrEqual(0.05 + 1e-9);
+    }
+    expect(out[1]).toMatchObject({ id: "p1b", kind: "ball", t: T, range: ballRange });
+  });
+
+  it("leaves off the launch time and range when they are the usual ones, and sends them when they are not", () => {
+    const usual = packFx([], T, { launches: [arrow] }).p![0]!;
+    expect(usual).toHaveLength(6);
+    const shortened = packFx([], T, { launches: [{ ...arrow, range: 61.4 }] }).p![0]!;
+    expect(shortened).toHaveLength(8);
+    expect(unpackLaunches({ t: T, l: [], p: [shortened] })[0]).toMatchObject({ range: 61, t: T });
+    const earlier = packFx([], T, { launches: [{ ...arrow, t: T - 50 }] });
+    expect(unpackLaunches(earlier)[0]).toMatchObject({ t: T - 50, range: arrowRange });
+  });
+
+  it("is plain integers apart from the id, and absent when nothing left", () => {
+    const batch = packFx([], T, { launches: [arrow, ball, { ...arrow, range: 12.6, t: T - 100 }] });
+    for (const tuple of batch.p!) for (const v of tuple.slice(1)) expect(Number.isSafeInteger(v), JSON.stringify(tuple)).toBe(true);
+    expect(JSON.parse(JSON.stringify(batch))).toEqual(batch);
+    expect("p" in packFx([], T)).toBe(false);
+    expect("p" in packFx([], T, { launches: [] })).toBe(false);
+    expect(unpackLaunches(packFx([], T))).toEqual([]);
+  });
+
+  it("skips a launch it cannot read, and reads none from a bad batch", () => {
+    const good = packFx([], T, { launches: [arrow] }).p![0]!;
+    const bad = [
+      null, 5, "p", [], ["p1", 7, 1, 2, 3, 4], ["p1", 0, 1, 2, 3], [4, 0, 1, 2, 3, 4], ["p1", 0, "1", 2, 3, 4],
+      ["p1", 0, 1, 2, 3, 4, "x", 5], ["p1", 0, 1, 2, 3, 4, 0],
+    ] as unknown as FxBatch["l"];
+    expect(unpackLaunches({ t: T, l: [], p: [...bad, good] })).toHaveLength(1);
+    expect(unpackLaunches({ t: Number.NaN, l: [], p: [good] })).toEqual([]);
+    expect(unpackLaunches({ t: T, l: [], p: "nope" } as unknown as FxBatch)).toEqual([]);
+    expect(unpackLaunches(null as unknown as FxBatch)).toEqual([]);
   });
 });

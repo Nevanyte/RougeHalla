@@ -9,7 +9,7 @@
 import { randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, packFx, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
+  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
   type FactionId, type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -20,6 +20,7 @@ import { createGameWorld } from "../sim/gameplay";
 import { enqueueClientMessage } from "../sim/inputs";
 import { abandonPlayer, addPlayer, removePlayer, step } from "../sim/step";
 import type { SimEvent, World } from "../sim/world";
+import { FxChannel } from "./FxChannel";
 
 /** Fixed steps run per simulation callback at most; older backlog is dropped. */
 const MAX_CATCHUP_STEPS = 3;
@@ -136,6 +137,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private readonly pendingResults = new Map<string, RunResult>();
   /** sessionId -> seat, from onJoin until onLeave. */
   private readonly seats = new Map<string, Seat>();
+  private readonly fxChannel = new FxChannel();
   /**
    * Factions players picked in the hub, by session, until their run is recorded. A round-robin default (no pick) is
    * not recorded: faction titles and golden variants must not come from luck of the join order.
@@ -275,7 +277,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       steps++;
     }
     if (this.accumulator >= TICK_MS) this.accumulator = 0;
-    if (steps > 0) this.broadcastPatch();
+    if (steps > 0) {
+      this.fxChannel.extendRoster(this.world.state);
+      this.broadcastPatch();
+      this.fxChannel.rosterSent();
+    }
   }
 
   private sendTo<K extends keyof ServerMessages>(sessionId: string, type: K, msg: ServerMessages[K]) {
@@ -307,8 +313,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       }
     }
     // One message for the whole step, stamped with the step's time and sent before this tick's patch: a `teleport` has to
-    // reach the client ahead of the patch that moves everyone (it marks the cut). A step with no fx sends nothing.
-    if (fxs.length > 0) this.broadcast("fxs", packFx(fxs, this.world.state.serverTime) satisfies ServerMessages["fxs"]);
+    // reach the client ahead of the patch that moves everyone (it marks the cut). A step with no fx and no new projectile
+    // sends nothing.
+    const batch = this.fxChannel.batch(fxs, this.world.state.serverTime, this.world.state.projectiles);
+    if (batch) this.broadcast("fxs", batch satisfies ServerMessages["fxs"]);
   }
 
   /** A player's run is over: bank its GV and stats, free the profile, tell them. */

@@ -1,10 +1,11 @@
-// Arrows and wand balls. The server syncs each one once, when it is loosed, and never updates it: every client flies it
-// in a straight line, position(T) = (x, y) + (vx, vy) * (T - t) / 1000, with T the render time. When it stops it
-// leaves the state and a `projEnd` fx says where and why. That fx is played at render time, so the projectile is kept
+// Arrows and wand balls. The server announces each one once, when it is loosed (in the `fxs` batch of that step; the
+// state patches carry none), and never updates it: every client flies it in a straight line,
+// position(T) = (x, y) + (vx, vy) * (T - t) / 1000, with T the render time. When it stops a `projEnd` fx says where
+// and why. That fx is played at render time, so the projectile is kept
 // (flying, then pinned at its stop point) until FxView reports the fx due, and only then removed. One that was
 // reflected, deleted or destroyed does not stay pinned: something else carries on from there (see VANISHES).
 import Phaser from "phaser";
-import { WEAPONS, type ProjectileEnd, type ProjectileKind, type TimedFx } from "@raid/shared";
+import { WEAPONS, type ProjectileEnd, type ProjectileKind, type ProjectileLaunch, type TimedFx } from "@raid/shared";
 import type { ProjectileState } from "@raid/shared/schema";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 
@@ -55,7 +56,10 @@ export class ProjectileView {
 
   constructor(private readonly scene: Phaser.Scene) {}
 
-  /** Once per patch: picks up what was loosed. Entries are immutable, so a known id is skipped. */
+  /**
+   * Picks up what is in the state: the projectiles already flying when this client joined or reconnected (the full state has
+   * them; patches never do, see noteLaunch). Entries are immutable, so a known id is skipped.
+   */
   sync(projectiles: { forEach(cb: (p: ProjectileState, id: string) => void): void }): void {
     projectiles.forEach((p, id) => {
       if (this.tracked.has(id) || this.done.has(id)) return;
@@ -66,9 +70,15 @@ export class ProjectileView {
     });
   }
 
+  /** A `fxs` batch announced a projectile that was just loosed. A known or finished id is skipped. */
+  noteLaunch(l: ProjectileLaunch): void {
+    if (this.tracked.has(l.id) || this.done.has(l.id)) return;
+    this.tracked.set(l.id, { ...l, end: null, g: null });
+  }
+
   /**
    * A projEnd fx arrived (it plays later). Its stop point caps the flight, so a projectile never overshoots a wall or a
-   * body while the fx waits for render time. One never seen in the state (loosed and stopped within a patch) flies its
+   * body while the fx waits for render time. One never announced (loosed and stopped within a step) flies its
    * short path from the fx's own start.
    */
   noteEnd(fx: ProjEndFx): void {

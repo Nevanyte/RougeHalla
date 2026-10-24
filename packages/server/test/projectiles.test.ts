@@ -1,5 +1,6 @@
 // sim/projectiles.ts: arrows and wand balls from the loosing input to the projEnd. What is pinned here is the netcode
-// contract (a projectile is synced once and never updated; the end point and reason arrive as a projEnd), the flight in
+// contract (a projectile is announced once, in the fx batch of the step that loosed it, and never updated; the end point
+// and reason arrive as a projEnd), the flight in
 // present time against where bodies are at that moment, and the interactions: walls and gates, range, shield
 // reflections, ball-versus-arrow deletion, the teleport clear, a shooter who is gone, and the swing interceptions.
 // Melee is not involved: the swing side of interceptBall is driven by hand, in the slot where the melee phase runs.
@@ -10,9 +11,11 @@ import {
   BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, MAX_ARROW_REFLECTIONS,
   mitigateShares, mulberry32,
   pacedFaction, PLAYER_SPEED, PROJECTILE_SUBSTEP_MS, RANGED_HIT_REACH, reflectVelocity, SIGNATURE_WEAPONS, SWORD_BALL_SCALE, TICK_MS, TILE,
-  TILE_FLOOR, TILE_WALL, WEAPONS, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
+  TILE_FLOOR, TILE_WALL, unpackFx, unpackLaunches, WEAPONS, type FactionId, type FxEvent, type GameMap, type ProjectileLaunch,
+  type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { ProjectileState, RaidState } from "@raid/shared/schema";
+import { FxChannel } from "../src/rooms/FxChannel";
 import { applyDamage } from "../src/sim/arena";
 import { activeWeapon, standingCombatants, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -359,61 +362,102 @@ describe("the synced state: written once at spawn, never updated", () => {
 });
 
 describe("what a client sees over the wire", () => {
-  /** The server's encoder with one connected decoder, as in a Room. */
+  /**
+   * The server's encoder with one connected decoder, as in a Room, and the Room's fx channel in front of it: each step's
+   * events become a batch that is read (against the roster of the patches before) ahead of the tick's patch.
+   */
   function wire(world: World) {
     const encoder = new Encoder(world.state);
     const decoder = Reflection.decode(Reflection.encode(encoder)) as Decoder<RaidState>;
     decoder.decode(encoder.encodeAll());
+    const channel = new FxChannel();
     const changes: Array<{ ref: unknown; field?: string }> = [];
     getRawChangesCallback(decoder, (list) => { for (const c of list) changes.push({ ref: c.ref, field: c.field }); });
+    /** What ProjectileView flies: announced by a batch, until a projEnd. */
+    const flying = new Map<string, ProjectileLaunch>();
+    const ends: Array<Extract<TimedFx, { kind: "projEnd" }>> = [];
     return {
+      encoder,
       client: decoder.state,
       changes,
-      flush: () => { decoder.decode(encoder.encode()); encoder.discardChanges(); },
+      flying,
+      ends,
+      flush: (events: SimEvent[] = []) => {
+        const fxs = ofType(events, "fx").map((e) => e.fx);
+        const batch = channel.batch(fxs, world.state.serverTime, world.state.projectiles);
+        if (batch) {
+          for (const l of unpackLaunches(batch)) flying.set(l.id, l);
+          for (const fx of unpackFx(batch, decoder.state.roster)) {
+            if (fx.kind !== "projEnd") continue;
+            flying.delete(fx.id);
+            ends.push(fx);
+          }
+        }
+        channel.extendRoster(world.state);
+        decoder.decode(encoder.encode());
+        encoder.discardChanges();
+        channel.rosterSent();
+      },
     };
   }
 
-  it("sends a projectile once, then no change to it until it is removed", () => {
+  it("announces a projectile once, in a batch and never in a patch, and says nothing more until it ends", () => {
     const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
     const net = wire(w);
     net.flush();
-    loose(w, [{ id: "archer", a: 0.3 }]);
-    net.flush();
+    net.flush(loose(w, [{ id: "archer", a: 0.3 }]));
     const [id, st] = [...w.state.projectiles][0]!;
-    const clientSt = net.client.projectiles.get(id)!;
-    expect(clientSt).toBeDefined();
-    expect(clientSt.owner).toBe("archer");
-    expect(clientSt.t).toBe(st.t);
-    expect(clientSt.range).toBe(480);
-    expect(clientSt.vx).toBeCloseTo(st.vx, 3);
+    expect(net.client.projectiles.size).toBe(0); // the patch of the tick it was loosed in has no trace of it
+    const sent = net.flying.get(id)!;
+    expect(sent).toMatchObject({ id, kind: "arrow", t: st.t, range: st.range });
+    for (const key of ["x", "y", "vx", "vy"] as const) expect(Math.abs(sent[key] - st[key]), key).toBeLessThanOrEqual(0.05 + 1e-9);
+    expect(st.owner).toBe("archer"); // the server keeps who loosed it; no client is told
     net.changes.length = 0;
-    for (let i = 0; i < 6; i++) { tick(w); net.flush(); }
+    for (let i = 0; i < 6; i++) net.flush(tick(w));
     expect(w.projectiles.has(id)).toBe(true);
     expect(net.changes.some((c) => c.field === "serverTime")).toBe(true); // the patches did flow: the room state kept changing
-    expect(net.changes.filter((c) => c.ref === clientSt)).toEqual([]);
+    expect(net.changes.filter((c) => c.field === "projectiles")).toEqual([]);
+    expect(net.client.projectiles.size).toBe(0);
+    expect([...net.flying.keys()]).toEqual([id]);
   });
 
   it("lets a client extrapolate the straight flight to where the server has it, and ends it with the projEnd", () => {
     const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
     const net = wire(w);
-    loose(w, [{ id: "archer", a: 0.3 }]);
-    net.flush();
+    net.flush(loose(w, [{ id: "archer", a: 0.3 }]));
     const [id] = [...w.state.projectiles][0]!;
     const pr = w.projectiles.get(id)!;
     for (let i = 0; i < 8; i++) {
-      tick(w);
-      net.flush();
-      const c = net.client.projectiles.get(id)!;
+      net.flush(tick(w));
+      const c = net.flying.get(id)!;
       const dt = (net.client.serverTime - c.t) / 1000;
-      expect(c.x + c.vx * dt).toBeCloseTo(pr.x, 2);
-      expect(c.y + c.vy * dt).toBeCloseTo(pr.y, 2);
+      expect(Math.abs(c.x + c.vx * dt - pr.x)).toBeLessThan(0.15);
+      expect(Math.abs(c.y + c.vy * dt - pr.y)).toBeLessThan(0.15);
     }
-    const { end } = flyUntilEnd(w);
-    net.flush();
+    const { end, events } = flyUntilEnd(w);
+    net.flush(events);
     expect(end.reason).toBe("range");
+    expect(net.flying.size).toBe(0);
     expect(net.client.projectiles.size).toBe(0);
     expect(end.x0).toBeCloseTo(200, 6);
     expect(Math.hypot(end.x - end.x0, end.y - end.y0)).toBeCloseTo(480, 6);
+    // The client was told where it stopped, to the nearest unit; it was not told where it started (it has the launch).
+    expect(net.ends).toHaveLength(1);
+    expect(Math.hypot(net.ends[0]!.x - end.x, net.ends[0]!.y - end.y)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-9);
+  });
+
+  it("a client that joins while it flies gets it with the full state, without its owner", () => {
+    const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
+    const net = wire(w);
+    net.flush(loose(w, [{ id: "archer", a: 0.3 }]));
+    const [id, st] = [...w.state.projectiles][0]!;
+    const joined = Reflection.decode(Reflection.encode(net.encoder)) as Decoder<RaidState>;
+    joined.decode(net.encoder.encodeAll());
+    const sent = joined.state.projectiles.get(id)!;
+    expect(sent).toBeDefined();
+    expect({ kind: sent.kind, t: sent.t, range: sent.range }).toEqual({ kind: st.kind, t: st.t, range: st.range });
+    expect(Math.fround(st.vx)).toBe(sent.vx);
+    expect((sent as unknown as { owner?: string }).owner).toBeUndefined(); // server only
   });
 });
 

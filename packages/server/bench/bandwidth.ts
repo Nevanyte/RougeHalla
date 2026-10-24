@@ -6,9 +6,12 @@
 // What is counted, per client (the room has no StateView, so every client gets the same bytes):
 //   patch  one ROOM_STATE_PATCH frame per tick, encoded by a schema Encoder built right after the world, the way
 //          core's SchemaSerializer does it (`sharedBuffer[0] = ROOM_STATE_PATCH; encode({ offset: 1 })`), then discardChanges().
-//   fx     one ROOM_DATA frame per simulation step that produced any fx: the batch `packFx` builds (the same function
-//          RaidRoom.handleEvents calls), packed by core's own `getMessageBytes.raw`, so the msgpack options and the type
-//          header cannot drift from what core sends. `fxByKind` splits those bytes by kind (a tuple's share of the frame).
+//   fx     one ROOM_DATA frame per simulation step that produced any fx or loosed a projectile: the batch FxChannel builds
+//          (the same class RaidRoom.handleEvents uses, so the roster, the launches and the short projEnds are counted),
+//          packed by core's own `getMessageBytes.raw`, so the msgpack options and the type header cannot drift from what
+//          core sends. `fxByKind` splits those bytes by kind (a tuple's share of the frame; "launch" is the projectiles).
+//          The projectiles are not in the patches (RaidState.projectiles is full-state only), and the patches carry the
+//          roster entries (a player or mob id the first time the tick sees it).
 //   Every frame also pays the ws frame header (2 B under 126 B of payload, 4 B under 64 KiB). TCP/IP and TLS framing are
 //   not counted: the budget is ws payload (the owner may want the wire number too; it adds about 52 B per frame).
 // The initial full-state sync a joiner gets is reported but is not part of the rate.
@@ -21,9 +24,10 @@
 import { getMessageBytes, Protocol } from "@colyseus/core";
 import { Encoder } from "@colyseus/schema";
 import {
-  circleClear, decide, inArc, mulberry32, packFx, PLAYER_RADIUS, raycast, staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter,
-  WEAPONS, type FactionId, type FxEvent, type MobCampDef, type Vec2,
+  circleClear, decide, inArc, mulberry32, PLAYER_RADIUS, raycast, staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter,
+  WEAPONS, type FactionId, type FxBatch, type FxEvent, type MobCampDef, type Vec2,
 } from "@raid/shared";
+import { FxChannel } from "../src/rooms/FxChannel";
 import { teleportToColiseum } from "../src/sim/arena";
 import { activeWeapon, combatant, standingCombatants, timingsOf, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -66,6 +70,12 @@ export interface BandwidthOptions {
   warmup?: number;
   /** Ms between a player's strafe moves. */
   strafeMs?: number;
+  /** Called after every measured step, before the patch is encoded: for analysis scripts that look at what changed. */
+  probe?: (world: World) => void;
+  /** Called after every measured step with the size of that tick's patch frame (0 when nothing changed). */
+  onPatch?: (bytes: number) => void;
+  /** Called with every fx batch that is counted, and the bytes it cost (message and ws header). */
+  onBatch?: (batch: FxBatch, bytes: number) => void;
 }
 
 export interface BandwidthResult {
@@ -76,7 +86,7 @@ export interface BandwidthResult {
   fxKBps: number;
   totalKBps: number;
   patchFramesPerSecond: number;
-  /** `fxs` messages per second: one per step that had any fx. */
+  /** `fxs` messages per second: one per step that had any fx or loosed a projectile. */
   fxFramesPerSecond: number;
   /** Mean over the measured ticks: mobs fighting, mobs awake (fighting or walking home), arrows and balls in flight. */
   avgFighting: number;
@@ -86,7 +96,7 @@ export interface BandwidthResult {
   mobs: number;
   /** The first full-state sync a joiner gets (protocol byte and ws header included). Not part of the rates. */
   initialSyncBytes: number;
-  /** fx bytes by kind, for finding what to shrink: each tuple's share of its frame. "(batch)" is what is left: ws header, message type, `t`. */
+  /** fx bytes by kind, for finding what to shrink: each tuple's share of its frame; "launch" are the projectiles. "(batch)" is what is left: ws header, message type, `t`. */
   fxByKind: Record<string, { frames: number; bytes: number }>;
 }
 
@@ -395,47 +405,54 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   let awake = 0;
   let projectiles = 0;
   const fxByKind: Record<string, { frames: number; bytes: number }> = {};
+  const channel = new FxChannel();
 
   for (let n = 0; n < warmup + ticks; n++) {
     drivePlayers(world, driver, mobsWanted, strafeMs);
     const events = step(world, TICK_MS);
     const measuring = n >= warmup;
 
-    // RaidRoom.handleEvents broadcasts the step's fx as one message, then broadcastPatch() sends the patch.
-    if (measuring) {
-      const fxs: FxEvent[] = [];
-      for (const ev of events) if (ev.type === "fx") fxs.push(ev.fx);
-      if (fxs.length > 0) {
-        const batch = packFx(fxs, world.state.serverTime);
-        if (batch.l.length !== fxs.length) throw new Error("packFx dropped an fx kind it does not know");
-        const frame = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", batch);
-        const bytes = frame.length + wsHeader(frame.length);
-        fxBytes += bytes;
-        fxFrames++;
-        // Each tuple's own share: the frame with only it, minus the frame with nothing.
-        const empty = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", { t: batch.t, l: [] }).length;
-        let attributed = 0;
-        batch.l.forEach((tuple, i) => {
-          const share = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", { t: batch.t, l: [tuple] }).length - empty;
-          const k = (fxByKind[fxs[i]!.kind] ??= { frames: 0, bytes: 0 });
-          k.frames++;
-          k.bytes += share;
-          attributed += share;
-        });
-        const rest = (fxByKind["(batch)"] ??= { frames: 0, bytes: 0 });
-        rest.frames++;
-        rest.bytes += bytes - attributed;
-      }
+    // RaidRoom.handleEvents broadcasts the step's fx (and the projectiles it loosed) as one message, then broadcastPatch()
+    // sends the patch. The channel runs for every step, measured or not: it remembers which projectiles it announced.
+    const fxs: FxEvent[] = [];
+    for (const ev of events) if (ev.type === "fx") fxs.push(ev.fx);
+    const batch = channel.batch(fxs, world.state.serverTime, world.state.projectiles);
+    if (measuring && batch) {
+      const frame = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", batch);
+      const bytes = frame.length + wsHeader(frame.length);
+      opts.onBatch?.(batch, bytes);
+      fxBytes += bytes;
+      fxFrames++;
+      // Each tuple's own share: the frame with only it, minus the frame with nothing.
+      const empty = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", { t: batch.t, l: [] }).length;
+      let attributed = 0;
+      const share = (tuple: FxBatch["l"][number], kind: string): void => {
+        const own = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", { t: batch.t, l: [tuple] }).length - empty;
+        const k = (fxByKind[kind] ??= { frames: 0, bytes: 0 });
+        k.frames++;
+        k.bytes += own;
+        attributed += own;
+      };
+      batch.l.forEach((tuple, i) => share(tuple, fxs[i]!.kind));
+      for (const tuple of batch.p ?? []) share(tuple, "launch");
+      // The framing (ws header, message type, `t`, the keys) is what is left.
+      const rest = (fxByKind["(batch)"] ??= { frames: 0, bytes: 0 });
+      rest.frames++;
+      rest.bytes += bytes - attributed;
     }
+    if (measuring) opts.probe?.(world);
+    channel.extendRoster(world.state);
     if (encoder.hasChanges) {
       encoder.sharedBuffer[0] = Protocol.ROOM_STATE_PATCH;
       const frame = encoder.encode({ offset: 1 });
       if (measuring) {
         patchBytes += frame.length + wsHeader(frame.length);
         patchFrames++;
+        opts.onPatch?.(frame.length + wsHeader(frame.length));
       }
-    }
+    } else if (measuring) opts.onPatch?.(0);
     encoder.discardChanges();
+    channel.rosterSent();
 
     if (!measuring) continue;
     projectiles += world.projectiles.size;

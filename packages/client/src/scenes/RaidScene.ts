@@ -1,6 +1,6 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
-import { angleBetween, generateMap, unpackFx, withGates, type FxBatch, type RunResult } from "@raid/shared";
+import { angleBetween, generateMap, unpackFx, unpackLaunches, withGates, type FxBatch, type RunResult } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
 import { EntityInterpolator } from "../net/interpolation";
@@ -171,9 +171,11 @@ export class RaidScene extends Phaser.Scene {
       localHit: (fx) => this.feedback.hit(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0, fx.sig),
       announce: data.toast,
     });
-    // One message per server step; unpackFx stamps each event with the step's time and skips what it can't read.
+    // One message per server step; unpackFx stamps each event with the step's time and skips what it can't read. The
+    // patches carry no projectiles: the batch of the step that loosed one announces it.
     this.unbindFx = this.room.onMessage("fxs", (batch: FxBatch) => {
-      for (const fx of unpackFx(batch)) {
+      for (const launch of unpackLaunches(batch)) this.projectiles.noteLaunch(launch);
+      for (const fx of unpackFx(batch, this.room.state.roster)) {
         if (fx.kind === "death") this.noteDeath(fx.id, fx.t, fx.x, fx.y);
         if (fx.kind === "teleport") this.noteTeleport(fx.t);
         // The stop point is known on arrival, though the fx plays later: it caps the projectile's drawn flight.

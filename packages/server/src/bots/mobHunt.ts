@@ -535,7 +535,7 @@ const MOB_STAND_OFF = 330;
 
 /**
  * How a ranged weapon is played against a mob of `theirs`, or undefined for a melee weapon (the usual policy is right). A
- * mob that is hit chases its attacker but gives up at MOB_LEASH_RADIUS (7 tiles) from its camp and walks home untouchable
+ * mob that is hit chases its attacker but gives up at MOB_LEASH_RADIUS (9 tiles) from its camp and walks home untouchable
  * and healing, so the shooter must not drag it out of the leash: against a melee mob it closes in, shoots from a short
  * range and stands its ground; a ranged mob backs away from anything nearer than about 220 u, so against one it stands
  * off at a range both of them can shoot from (and never backs away itself: retreatBelow 0).

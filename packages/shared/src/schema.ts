@@ -84,15 +84,19 @@ export const MobState = schema({
 export type MobState = SchemaType<typeof MobState>;
 
 /**
- * An arrow or a wand ball, synced once when loosed and never updated: every client computes its straight flight,
+ * An arrow or a wand ball, loosed once and never updated: every client computes its straight flight,
  * position(T) = (x, y) + (vx, vy) * (T - t) / 1000, until a `projEnd` fx gives where it stopped. Removed from the
- * state when it stops. A reflection removes it and adds a new one.
+ * state when it stops. A reflection removes it and adds a new one. The server keeps these in `RaidState.projectiles`,
+ * which only a joining client is sent (see there); a connected one gets the same numbers as a `ProjectileLaunch`.
  */
 export const ProjectileState = schema({
   /** ProjectileKind: "arrow" | "ball" */
   kind: t.string().default("arrow"),
-  /** The combatant who owns it (the shooter, or the shield holder for a reflected arrow). */
-  owner: t.string().default(""),
+  /**
+   * The combatant who owns it (the shooter, or the shield holder for a reflected arrow). Server only: no client draws
+   * anything from it, and it was the largest field of every loosed arrow (10 of about 60 bytes).
+   */
+  owner: t.string().noSync().default(""),
   x: t.float32().default(0),
   y: t.float32().default(0),
   /** World units per second. */
@@ -122,7 +126,8 @@ export const RaidState = schema({
   seed: t.uint32().default(0),
   /** Server clock in ms since room creation, stamped every tick. Clients interpolate against it. */
   serverTime: t.number().default(0),
-  tick: t.uint32().default(0),
+  /** Fixed steps run since the room was created. Server only (the sim orders actions by it); clients use `serverTime`. */
+  tick: t.uint32().noSync().default(0),
   lobbyEndsAt: t.number().default(0),
   raidStartedAt: t.number().default(0),
   minPlayers: t.uint8().default(0),
@@ -140,7 +145,18 @@ export const RaidState = schema({
   winner: t.string().default(""),
   players: t.map(PlayerState),
   mobs: t.map(MobState),
-  projectiles: t.map(ProjectileState),
+  /**
+   * Not in the patches, only in the full state a client joins (or reconnects) with: the projectiles in flight at that
+   * moment. A live client learns of an arrow or ball from the `fxs` batch of the step that loosed it (`p`, see fxCodec.ts)
+   * and of its end from a `projEnd` fx, which is about 60 bytes cheaper per projectile than a map entry added and deleted.
+   */
+  projectiles: t.map(ProjectileState).fullStateOnly(),
   containers: t.map(ContainerState),
+  /**
+   * Every player and mob id, in the order the server first saw them; never reordered, shortened or reused. The fx
+   * batches name a fighter by its index here (a byte, against 10 for a session id), see fxCodec.ts. Server code only
+   * appends, through FxChannel.
+   */
+  roster: t.array("string"),
 }, "RaidState");
 export type RaidState = SchemaType<typeof RaidState>;

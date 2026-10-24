@@ -517,7 +517,7 @@ describe("pieces", () => {
     expect(pathLength({ x: 0, y: 0 }, [])).toBe(0);
   });
 
-  it("the leash is what the spacing is about: a mob gives up 7 tiles from home", () => {
-    expect(MOB_LEASH_RADIUS).toBe(224);
+  it("the leash is what the spacing is about: a mob gives up 9 tiles from home", () => {
+    expect(MOB_LEASH_RADIUS).toBe(288);
   });
 });

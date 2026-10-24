@@ -22,7 +22,8 @@
 //   - On the coliseum teleport (`resetMob`) it drops its fight, its inputs and its path and is put back on its camp spot at
 //     full hp: the gates lock behind the players, so a mob near the coliseum could not walk home.
 import {
-  decide, hasLineOfSight, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, wrapAngle, type FactionId, type Vec2,
+  decide, hasLineOfSight, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, PLAYER_RADIUS,
+  segmentClear, TICK_MS, wrapAngle, type FactionId, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { activeWeapon, timingsOf } from "./combatant";
@@ -34,6 +35,8 @@ import { collisionMap, type MobBrain, type MobRuntime, type PlayerRuntime, type 
 
 /** How far back the target's velocity is measured, to lead a projectile. */
 const VELOCITY_WINDOW_MS = 100;
+/** A ranged mob retreats only to points this far inside its leash, so backing away never carries it over the edge. */
+const LEASH_MARGIN = 24;
 /** A path ending this close to the camp spot is a walk to it; a mob this close to it is on it (world units). */
 const HEADING_HOME = 0.5;
 const ON_SPOT = 0.01;
@@ -122,8 +125,23 @@ export function resetMob(world: World, c: MobCombatant): void {
   b.mode = "idle";
 }
 
+/**
+ * A mob whose shield blocked or reflected a player's hit took no damage, so nothing woke it. Being attacked is being
+ * attacked: it wakes onto that player (a Frost mob facing a shield-bashing player would otherwise never fight back).
+ */
+function wakeOnBlocks(world: World): void {
+  for (const ev of world.events) {
+    if (ev.type !== "fx" || ev.fx.kind !== "block") continue;
+    const rt = world.mobs.get(ev.fx.id);
+    const s = world.state.mobs.get(ev.fx.id);
+    if (!rt?.brain || !s || s.status !== "alive" || rt.brain.mode !== "idle") continue;
+    aggro(world, { kind: "mob", id: ev.fx.id, s, rt }, ev.fx.by, 1);
+  }
+}
+
 /** System: every regional mob thinks once per tick. An idle (or dead) mob costs one check and nothing else. */
 export function thinkMobs(world: World, dtMs: number): void {
+  if (world.events.length > 0) wakeOnBlocks(world);
   const now = world.state.serverTime;
   for (const rt of world.mobs.values()) {
     const b = rt.brain;
@@ -161,15 +179,26 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
 
   const self = { x: s.x, y: s.y };
   const at = { x: target.x, y: target.y };
+  const map = collisionMap(world);
+  const tm = timingsOf(s, weapon);
+  const home = b.home;
   const out = decide({
     self,
     target: at,
     targetVel: velocityOf(world.players.get(id)!, target, now),
-    los: hasLineOfSight(collisionMap(world), self, at),
+    los: hasLineOfSight(map, self, at),
     weapon,
     ready: now >= s.readyAt,
     drawSeconds: s.drawStartedAt > 0 ? (now - s.drawStartedAt) / 1000 : 0,
-    fullDraw: timingsOf(s, weapon)?.fullDraw ?? 0,
+    fullDraw: tm?.fullDraw ?? 0,
+    // The mob's inputs take effect on the next tick, like a client's.
+    inputDelay: TICK_MS / 1000,
+    windup: tm?.windup ?? 0,
+    // A ranged mob backs off only inside its leash (past it the fight would end in an evade, and a melee player could
+    // never catch it), and only to points that open the gap; cornered, decide() stands it still to shoot.
+    walkable: (from, to) => Math.hypot(to.x - home.x, to.y - home.y) <= MOB_LEASH_RADIUS - LEASH_MARGIN
+      && Math.hypot(to.x - at.x, to.y - at.y) > Math.hypot(from.x - at.x, from.y - at.y)
+      && segmentClear(map, from, to, PLAYER_RADIUS),
   });
 
   const q = rt.inputs;

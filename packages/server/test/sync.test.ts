@@ -7,9 +7,10 @@ import { describe, expect, it } from "vitest";
 import { $childType, Decoder, Encoder, getRawChangesCallback, Reflection, type DataChange } from "@colyseus/schema";
 import {
   CLIENT_MESSAGE_TYPES, DUMMY_HP, DUMMY_RESET_SECONDS, FACTIONS, GV_KILL, mulberry32, raycast, SIGNATURE_WEAPONS,
-  SWAP_SECONDS, TICK_MS, type FxEvent, type Vec2,
+  SWAP_SECONDS, TICK_MS, unpackFx, unpackLaunches, type FxEvent, type ProjectileLaunch, type TimedFx, type Vec2,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
+import { FxChannel } from "../src/rooms/FxChannel";
 import { applyDamage } from "../src/sim/arena";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -35,6 +36,8 @@ function makeWorld(seed: number, players: number): World {
 const f32 = Math.fround;
 const u32 = (v: number): number => v >>> 0;
 const u16 = (v: number): number => v & 0xffff;
+/** A projectile's launch tuple keeps x, y, vx and vy to a tenth: the most one of them moves. */
+const FLIGHT_STEP = 0.05;
 
 /** The fields players and mobs share (the sim's fighters). */
 interface Fighter {
@@ -61,20 +64,47 @@ function snapshot(state: RaidState) {
   const mobs = [...state.mobs]
     .map(([key, m]) => ({ key, kind: m.kind, name: m.name, status: m.status, ...fighter(m) }))
     .sort(byKey);
-  const projectiles = [...state.projectiles]
-    .map(([key, p]) => ({
-      key, kind: p.kind, owner: p.owner, x: f32(p.x), y: f32(p.y), vx: f32(p.vx), vy: f32(p.vy), t: u32(p.t), range: u16(p.range),
-    }))
-    .sort(byKey);
   const containers = [...state.containers]
     .map(([key, c]) => ({ key, id: c.id, kind: c.kind, x: f32(c.x), y: f32(c.y), label: c.label, items: items(c.items) }))
     .sort(byKey);
   return {
-    phase: state.phase, seed: state.seed, tick: state.tick, serverTime: state.serverTime, lobbyEndsAt: state.lobbyEndsAt,
+    phase: state.phase, seed: state.seed, serverTime: state.serverTime, lobbyEndsAt: state.lobbyEndsAt,
     raidStartedAt: state.raidStartedAt, minPlayers: state.minPlayers, startedWith: state.startedWith,
     patienceEndsAt: state.patienceEndsAt, inColiseum: state.inColiseum, gatesLocked: state.gatesLocked,
-    suddenDeathAt: state.suddenDeathAt, winner: state.winner, players, mobs, projectiles, containers,
+    suddenDeathAt: state.suddenDeathAt, winner: state.winner, players, mobs, containers, roster: [...state.roster],
   };
+}
+
+/**
+ * The projectiles in a state, at the wire's precision. Patches never carry them (a live client is told by an `fxs` batch, see
+ * Wire.flying), so only a client that has just joined, from the full state, can be compared with this. `owner` and
+ * `tick` are not synced at all: the server's own, no client reads them.
+ */
+function projectilesOf(state: RaidState) {
+  return [...state.projectiles]
+    .map(([key, p]) => ({
+      key, kind: p.kind, x: f32(p.x), y: f32(p.y), vx: f32(p.vx), vy: f32(p.vy), t: u32(p.t), range: u16(p.range),
+    }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** The launches a live client holds, as `projectilesOf` lists the server's: what ProjectileView flies. */
+function flightsOf(flying: ReadonlyMap<string, ProjectileLaunch>) {
+  return [...flying.values()]
+    .map((l) => ({ key: l.id, kind: l.kind, x: l.x, y: l.y, vx: l.vx, vy: l.vy, t: l.t, range: l.range }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** The server's projectiles against a live client's flights: the same ids, every number within a launch tuple's precision. */
+function expectFlights(world: World, flying: ReadonlyMap<string, ProjectileLaunch>, label: string): void {
+  const server = [...world.state.projectiles].sort((a, b) => a[0].localeCompare(b[0]));
+  const client = flightsOf(flying);
+  expect(client.map((c) => c.key), label).toEqual(server.map(([id]) => id));
+  server.forEach(([, st], i) => {
+    const c = client[i]!;
+    expect({ kind: c.kind, t: c.t, range: c.range }, label).toEqual({ kind: st.kind, t: st.t, range: Math.round(st.range) });
+    for (const key of ["x", "y", "vx", "vy"] as const) expect(Math.abs(c[key] - st[key]), `${label} ${key}`).toBeLessThanOrEqual(FLIGHT_STEP + 1e-9);
+  });
 }
 
 /** A client the way the SDK builds one: schema classes come from the handshake's reflection, then full state, then patches. */
@@ -85,12 +115,17 @@ function connect(encoder: Encoder<RaidState>, onChanges?: (changes: DataChange[]
   return decoder;
 }
 
-/** One server encoder shared by every connected client, like a Room's. */
+/** One server encoder shared by every connected client, like a Room's, with the Room's fx channel in front of it. */
 class Wire {
   readonly encoder: Encoder<RaidState>;
   private readonly clients: Array<Decoder<RaidState>> = [];
+  private readonly channel = new FxChannel();
+  /** What the first client's ProjectileView flies: announced by a batch, ended by a projEnd. */
+  readonly flying = new Map<string, ProjectileLaunch>();
+  /** Every fx that client was shown, decoded as RaidScene does it (with its own copy of the roster). */
+  readonly shown: TimedFx[] = [];
 
-  constructor(world: World) {
+  constructor(private readonly world: World) {
     this.encoder = new Encoder(world.state);
   }
 
@@ -101,11 +136,26 @@ class Wire {
     return decoder.state;
   }
 
-  /** One tick's patch to every connected client, then the server forgets what it just sent. */
-  flush(): void {
+  /**
+   * What RaidRoom does after a step: the step's `events` become one batch (sent first, so a client reads it against the roster
+   * of the patches before this one), then the tick's patch goes to every connected client, and the server forgets what it sent.
+   */
+  flush(events: readonly SimEvent[] = []): void {
+    const fxs = events.flatMap((e) => (e.type === "fx" ? [e.fx] : []));
+    const batch = this.channel.batch(fxs, this.world.state.serverTime, this.world.state.projectiles);
+    const live = this.clients[0]?.state;
+    if (batch && live) {
+      for (const launch of unpackLaunches(batch)) this.flying.set(launch.id, launch);
+      for (const fx of unpackFx(batch, live.roster)) {
+        this.shown.push(fx);
+        if (fx.kind === "projEnd") this.flying.delete(fx.id);
+      }
+    }
+    this.channel.extendRoster(this.world.state);
     const patch = this.encoder.encode();
     for (const c of this.clients) c.decode(patch);
     this.encoder.discardChanges();
+    this.channel.rosterSent();
   }
 }
 
@@ -368,7 +418,7 @@ describe("schema round trip", () => {
     expect(snapshot(late())).toEqual(snapshot(world.state));
   });
 
-  it("a projectile is synced once when it is loosed and never patched while it flies; only its removal follows", () => {
+  it("a projectile reaches a live client in the batch of the step that loosed it and is never patched; a client that joins mid-flight gets it with the full state", () => {
     const world = makeWorld(71, 2);
     addPlayer(world, "a", "alice");
     addPlayer(world, "b", "bob"); // sentenced: a bow
@@ -378,7 +428,7 @@ describe("schema round trip", () => {
     const early = wire.join(earlyWatch.onChanges);
     let late: RaidState | null = null;
     const events: SimEvent[] = [];
-    const tick = () => { events.push(...step(world, TICK_MS)); wire.flush(); };
+    const tick = () => { const out = step(world, TICK_MS); events.push(...out); wire.flush(out); };
 
     tick(); // the run starts
     const bob = world.state.players.get("b")!;
@@ -387,48 +437,74 @@ describe("schema round trip", () => {
     enqueueClientMessage(inputs, "attack", { a: aim });
     enqueueClientMessage(inputs, "release", { a: aim });
 
-    // The arrow is in the state of the very patch of the tick it was loosed in.
+    // The arrow is announced by the batch of the very step it was loosed in; the patch of that tick has no trace of it.
     for (let i = 0; i < 20 && world.state.projectiles.size === 0; i++) tick();
     expect(world.state.projectiles.size).toBe(1);
     const [id, st] = [...world.state.projectiles][0]!;
-    const sent = early.projectiles.get(id)!;
-    expect(sent).toMatchObject({ kind: "arrow", owner: "b" });
-    expect(snapshot(early)).toEqual(snapshot(world.state));
+    expect(early.projectiles.size).toBe(0);
+    expect([...wire.flying.keys()]).toEqual([id]);
+    expectFlights(world, wire.flying, "at launch");
+    const sent = wire.flying.get(id)!;
+    expect(sent).toMatchObject({ kind: "arrow", t: st.t, range: st.range });
     const decodedAtLaunch = earlyWatch.decodes;
 
-    // It flies for several ticks. A client that joins mid-flight gets it with the full state, and no more patches than the others.
+    // It flies for several ticks, announced once. A client that joins mid-flight gets it with the full state, and no more patches than the others.
     let flight = 0;
     while (world.projectiles.has(id) && flight < 40) {
-      if (flight === 1) late = wire.join(lateWatch.onChanges);
+      if (flight === 1) {
+        late = wire.join(lateWatch.onChanges);
+        expect(projectilesOf(late)).toEqual(projectilesOf(world.state));
+        expect(late.projectiles.size).toBe(1);
+      }
       tick();
       flight++;
       const rt = world.projectiles.get(id);
       if (!rt) break;
       expect(snapshot(early)).toEqual(snapshot(world.state));
       if (late) expect(snapshot(late)).toEqual(snapshot(world.state));
-      // Everything a client needs to draw it is in what was sent once: position(T) = (x, y) + v * (T - t).
+      expect(early.projectiles.size, "patches carry no projectile").toBe(0);
+      // Everything a client needs to draw it is in what was announced once: position(T) = (x, y) + v * (T - t).
       const px = sent.x + sent.vx * (rt.simT - sent.t) / 1000;
       const py = sent.y + sent.vy * (rt.simT - sent.t) / 1000;
-      expect(Math.hypot(px - rt.x, py - rt.y), `tick ${flight}`).toBeLessThan(0.1);
+      expect(Math.hypot(px - rt.x, py - rt.y), `tick ${flight}`).toBeLessThan(0.2);
     }
     expect(flight, "the arrow flew for a few ticks").toBeGreaterThanOrEqual(3);
     expect(world.projectiles.has(id)).toBe(false);
 
-    // Its removal arrives, with the fx that says where and why it stopped.
-    expect(early.projectiles.size).toBe(0);
-    expect(late!.projectiles.size).toBe(0);
+    // Its end arrives as the fx that says where and why it stopped, and the client's flight is over. It carries no start:
+    // the client has the launch.
+    expect(wire.flying.size).toBe(0);
     const end = events.flatMap((e) => (e.type === "fx" && e.fx.kind === "projEnd" ? [e.fx] : []))[0] as Extract<FxEvent, { kind: "projEnd" }>;
     expect(end).toMatchObject({ id, proj: "arrow", x0: st.x, y0: st.y, t0: st.t });
     expect(["wall", "range"]).toContain(end.reason);
+    const shownEnd = wire.shown.find((f) => f.kind === "projEnd") as Extract<TimedFx, { kind: "projEnd" }>;
+    expect(shownEnd).toMatchObject({ id, proj: "arrow", reason: end.reason });
+    expect(Math.hypot(shownEnd.x - end.x, shownEnd.y - end.y)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-9);
+    expect({ x0: shownEnd.x0, y0: shownEnd.y0 }).toEqual({ x0: shownEnd.x, y0: shownEnd.y });
 
-    // Each client saw its ProjectileState fields arrive exactly once, and nothing patched after that.
-    expect(earlyWatch.firstSeen.size).toBe(1);
+    // No client ever saw its fields in a patch.
+    expect(earlyWatch.firstSeen.size).toBe(0);
     expect(earlyWatch.decodes - decodedAtLaunch).toBeGreaterThanOrEqual(3);
     expect(earlyWatch.patched).toEqual([]);
     expect(lateWatch.firstSeen.size).toBe(1);
     expect([...lateWatch.firstSeen.values()]).toEqual([1]); // in the full state it joined with
     expect(lateWatch.patched).toEqual([]);
-    expect(snapshot(connect(wire.encoder).state)).toEqual(snapshot(world.state)); // and a client joining now sees none
+    expect(projectilesOf(connect(wire.encoder).state)).toEqual([]); // and a client joining now sees none
+  });
+
+  it("a projectile loosed and stopped within one step is never announced: its end carries the start", () => {
+    const world = makeWorld(71, 2);
+    addPlayer(world, "a", "alice");
+    addPlayer(world, "b", "bob");
+    const wire = new Wire(world);
+    wire.join();
+    const out = step(world, TICK_MS);
+    wire.flush(out);
+    const channel = new FxChannel();
+    const projEnd: FxEvent = { kind: "projEnd", id: "pgone", proj: "arrow", x0: 300, y0: 400, t0: 1000, x: 330, y: 400, reason: "reflected" };
+    const batch = channel.batch([projEnd], 1000, world.state.projectiles)!;
+    expect(batch.p).toBeUndefined();
+    expect(unpackFx(batch, [])).toEqual([{ ...projEnd, t: 1000 }]);
   });
 
   it.each([1, 2, 3, 4])("seed %i: loot, weapon and mob fuzz through a kill, a leave, two teleports and a win keeps every client equal", (seed) => {
@@ -477,7 +553,10 @@ describe("schema round trip", () => {
         alice.hp = alice.maxHp;
         slay(world, "a", "d");
       }
-      if (tick === 20) late = wire.join(); // joins mid-run: full state, then the same patches as everyone
+      if (tick === 20) { // joins mid-run: full state, then the same patches as everyone
+        late = wire.join();
+        expect(projectilesOf(late), "the full state a late joiner gets has the projectiles in flight").toEqual(projectilesOf(world.state));
+      }
 
       const containers = [...world.state.containers.values()];
       for (const [id, p] of world.state.players) {
@@ -518,14 +597,16 @@ describe("schema round trip", () => {
 
       // Weapon slots only change by a pickup (a swap moves the slot index, a down player's are cleared).
       const slots = new Map([...world.state.players].map(([id, p]) => [id, [p.weapon0, p.weapon1]]));
-      events.push(...step(world, TICK_MS));
+      const stepEvents = step(world, TICK_MS);
+      events.push(...stepEvents);
       for (const [id, p] of world.state.players) {
         const was = slots.get(id);
         if (p.status !== "alive" || !was) continue;
         pickups += Number(p.weapon0 !== was[0]) + Number(p.weapon1 !== was[1]);
       }
       for (const [id, c] of world.state.containers) if (!initialContainers.has(id) && c.kind === "ground") droppedWeapons.add(id);
-      wire.flush();
+      wire.flush(stepEvents);
+      expectFlights(world, wire.flying, `seed ${seed} tick ${tick}`);
 
       const server = snapshot(world.state);
       expect(snapshot(early), `seed ${seed} tick ${tick}`).toEqual(server);
@@ -541,13 +622,14 @@ describe("schema round trip", () => {
       if ([...early.players.values()].some((p) => p.slot === 1)) seen.secondSlot = true;
       if ([...early.players.values()].some((p) => p.drawStartedAt > 0)) seen.draw = true;
       if ([...early.players.values()].some((p) => p.readyAt > early.serverTime)) seen.cooldown = true;
-      if (early.projectiles.size > 0) seen.arrow = true;
+      if (world.state.projectiles.size > 0) seen.arrow = true;
       if ([...early.mobs.values()].some((m) => m.hp < m.maxHp)) seen.hurtMob = true;
     }
 
     // A client that connects now, from nothing, agrees with the ones that followed every patch.
     const fresh = connect(wire.encoder).state;
     expect(snapshot(fresh)).toEqual(snapshot(world.state));
+    expect(projectilesOf(fresh)).toEqual(projectilesOf(world.state));
 
     // The fuzz actually moved things: otherwise equality above proves little.
     expect(seen).toEqual({
