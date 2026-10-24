@@ -991,36 +991,36 @@ describe("balls in real fights", () => {
 // ---- exact numbers ------------------------------------------------------------------------------------------------
 
 describe("damage through the faction formula", () => {
-  // Fire's axe: rate 0.6 x hit 150 x DUEL_PACE 2 x dpsMult 0.8 x interval 1 / (0.6 x 1.4) = 85.71 x 2 = 171.43 raw, all
+  // Fire's axe: rate 0.6 x hit 150 x DUEL_PACE 2 x dpsMult 0.77 x interval 1 / (0.6 x 1.4) = 82.5 x 2 = 165 raw, all
   // magic. It lands 250 ms after the press: the sixth step.
-  const FIRE_AXE = 144 / 0.84;
+  const FIRE_AXE = 138.6 / 0.84;
   const SWORD_PLAGUE = 30 / 2.15;
 
-  it("Fire's axe on a dummy does 171.429 and moves nobody", () => {
+  it("Fire's axe on a dummy does 165 and moves nobody", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("holy", "wand", FAR)]);
     const d = dummy(world, polar(ORIGIN, 40, 0));
     tap(world, 0, 0);
     const events = run(world, 6);
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(FIRE_AXE, 9);
-    expect(FIRE_AXE).toBeCloseTo(171.429, 3);
+    expect(FIRE_AXE).toBeCloseTo(165, 3);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: d, by: "p0", amount: expect.closeTo(FIRE_AXE, 9), weapon: "axe" }]);
     run(world, 10);
     expect({ x: mob(world, d).x, y: mob(world, d).y }).toEqual(polar(ORIGIN, 40, 0));
     expect({ x: P(world, 0).x, y: P(world, 0).y }).toEqual(ORIGIN);
   });
 
-  it("Fire's axe on Frost is cut by Frost's shield (100): 85.71", () => {
+  it("Fire's axe on Frost is cut by Frost's shield (100): 82.5", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(85.7143, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(82.5, 3);
   });
 
-  it("the axe pierces Frost's raised shield for the same 85.71", () => {
+  it("the axe pierces Frost's raised shield for the same 82.5", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
     tap(world, 0, 0);
     const events = run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(85.7143, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(82.5, 3);
     expect(fxOf(events, "block")).toEqual([]);
   });
 

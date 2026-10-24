@@ -30,7 +30,8 @@ export interface WeaponSpec {
   floor: number;
   /**
    * Damage multiplier on the faction's damage per second. 9.1 tuning: the bow's must be at least the sword's and the axe's
-   * (it wins them on its opening, so it cannot also lose the close trade), the axe's at least the wand's, and the ranged
+   * (it wins them on its opening, so it cannot also lose the close trade; against a zigzag approach the axe's must sit
+   * clearly under the bow's, 0.77 against 0.8), the axe's no more than 0.04 under the wand's (Axe > Wand), and the ranged
    * ones are maxima for the kiting check (testing/test_kite.py); see testing/TUNING_9_1.md.
    */
   dpsMult: number;
@@ -56,7 +57,7 @@ export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
     shape: { kind: "arc", reach: 44, halfArc: Math.PI / 3 },
   },
   axe: {
-    id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.8,
+    id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.77,
     shape: { kind: "arc", reach: 60, halfArc: Math.PI / 2 },
   },
 };

@@ -6,8 +6,8 @@ Owner's brief: retune the weapons until every designed weapon edge holds in the 
 
 | | Before (HEAD `b890462`) | After |
 |---|---|---|
-| Designed weapon edges that hold (real sim) | 8 of 10: Bow > Sword 9% (Fire 44%, the rest 0%), Wand > Bow 100% against a standing bow and 0% against a strafing or kiting one | **10 of 10 against a straight melee charge** (the way the harness's melee fighters walk by default). **9 of 10 against a weaving or jinking approach:** Bow > Axe fails (44% against a jink, 71% against a plain weave; see "Against a weaving melee approach") |
-| k = 2 kite rows STOLEN (`realtime_report.py <k2.json> kite`) | 7 cells (Fire > Sentenced, Fire > Plague, Sentenced > Plague with both ranged weapons; Holy > Sentenced with the wand) | **0**; tightest cell Fire > Plague with the bow, 1.30 s tolerance against 1.06 s of free fire (ratio 1.22) |
+| Designed weapon edges that hold (real sim) | 8 of 10: Bow > Sword 9% (Fire 44%, the rest 0%), Wand > Bow 100% against a standing bow and 0% against a strafing or kiting one | **10 of 10 against a straight melee charge, a weave and a jink** (the harness's melee fighters walk straight by default; `weave` and `jink` are the zigzag approaches). After L1-L5 alone it was 9 of 10 against a zigzag: Bow > Axe failed (44% against the jink, 71% against a plain weave); L6 (axe 0.8 -> 0.77) repairs it (82% and 89%; see "Against a weaving melee approach"). Thin cells remain in the Fire column |
+| k = 2 kite rows STOLEN (`realtime_report.py <k2.json> kite`) | 7 cells (Fire > Sentenced, Fire > Plague, Sentenced > Plague with both ranged weapons; Holy > Sentenced with the wand) | **0**; tightest cell Fire > Plague with the bow, 1.23 s tolerance (the axe is the weakest melee weapon since L6) against 1.06 s of free fire (ratio 1.16; 1.30 s and 1.22 after L1-L5) |
 | Real kiting against the standing-shooter bound (harness KITING) | up to **x2.25** (a kiting bow vs a shield: 5.40 s against 2.40 s) | up to **x1.12** |
 | Tests | 2027 pass (`npm test`: 1586 server, 441 shared) | 2040 pass (1592 server, 448 shared) when 9.1 was written; **2733 after the review pass and the merge of main** (2163 server, 570 shared), typecheck clean, `test_rpsls.py` ALL PASS, new `testing/test_kite.py` ALL PASS |
 
@@ -24,7 +24,7 @@ python3 testing/weapon_reference.py                                 # regenerate
 
 `k2.json` is the k = 2 what-if: `{"name":"k=2","factions":{"Fire":{"hit":300,"params":{"burn":20,"backlash":400}},"Sentenced":{"hit":10,"params":{"mark_ramp":140,"mark_cap":550}},"Plague":{"hit":40,"params":{"plague":80,"execute":4100}},"Frost":{"hit":180},"Holy":{"hit":130}}}`; `test_kite.py` embeds it.
 
-**What "holds" means** (the harness's EDGE VERDICTS section, `HOLD_*` in `report.ts`): the designed winner wins at least 60% of all duels, at least 50% in every faction column of the main matrix (18 setups per cell: start distances 120 / 300 / 450 u, start offsets 0 / 0.35 s for either fighter, two directions), and in every style grid it has a reply that wins at least 50% against each way the loser plays (a ranged loser: `stand`, `strafe`, `kite`; a melee loser: `stand` = a straight charge, `weave`, `jink`; pooled over the factions and 3 start distances, or all 18 setups with `--grid-setups full`). Wins are kills inside the time cap. A verdict also names the factions where a reply is thin (below 50% in that faction's column although the pooled reply passes), e.g. `HOLDS (thin: Frost 22% vs strafe)`; the thresholds did not change. **The "10 of 10" in this file is therefore a statement about a straight melee charge; the last section before the open questions says what a zigzag does to it.**
+**What "holds" means** (the harness's EDGE VERDICTS section, `HOLD_*` in `report.ts`): the designed winner wins at least 60% of all duels, at least 50% in every faction column of the main matrix (18 setups per cell: start distances 120 / 300 / 450 u, start offsets 0 / 0.35 s for either fighter, two directions), and in every style grid it has a reply that wins at least 50% against each way the loser plays (a ranged loser: `stand`, `strafe`, `kite`; a melee loser: `stand` = a straight charge, `weave`, `jink`; pooled over the factions and 3 start distances, or all 18 setups with `--grid-setups full`). Wins are kills inside the time cap. A verdict also names the factions where a reply is thin (below 50% in that faction's column although the pooled reply passes), e.g. `HOLDS (thin: Frost 22% vs strafe)`; the thresholds did not change. **Every verdict in this file is read against all three ways a melee fighter can approach.** After L1-L5 the "10 of 10" was a statement about a straight charge only; the section "Against a weaving melee approach" has what a zigzag did to it and how L6 repaired it.
 
 ## Diagnosis: why the edges failed
 
@@ -39,7 +39,7 @@ Measured on the HEAD numbers with the harness before any change.
 
 ## Change log
 
-Each entry: the lever, where, old -> new, why, and the numbers before and after. The levers L1-L5 are numbers in the order they were applied: every "after" is cumulative (`abl0`..`abl5` runs of `runHarness --core`, and `realtime.py` with the same weapon table). Interactions between levers matter (L3 alone breaks Axe > Wand; L5 heals it), so the order is part of the record.
+Each entry: the lever, where, old -> new, why, and the numbers before and after. The levers L1-L6 are numbers in the order they were applied: every "after" is cumulative (`abl0`..`abl5` runs of `runHarness --core`, and `realtime.py` with the same weapon table; L6 is measured with `--core --grid-setups full`). Interactions between levers matter (L3 alone breaks Axe > Wand; L5 heals it), so the order is part of the record.
 
 ### C1. The shooters aim from where the client draws them (measurement, not a weapon number)
 `packages/shared/src/policies.ts`, `decide()`. Old: a projectile weapon aimed from the shooter's *projected* position (`selfHit`). New: from `input.self`, the position the policy sees, which is what the sim reads back through the attack's `t` (a unit test pins it: `policies.test.ts`, "aims a projectile from the position it was given").
@@ -80,6 +80,42 @@ Why: it cost the archer about 70 draws a duel. Before -> after: **Bow > Sword 10
 ### L5. Ranges: bow 480 -> 240, wand 420 -> 220
 `weapons.ts` (the policies and the harness follow). Why: it is the free-fire time a melee winner has to absorb, (range - 60) / 170: 2.47 s -> 1.06 s for the bow, 2.12 s -> 0.94 s for the wand, against tolerances of 1.30 s (Fire > Plague, bow, the weakest melee weapon being the shield) and 1.19-1.34 s (the wand). The owner's levers could not do this alone: the penalties do not enter a standing-shooter model, and damage alone would have needed a bow near 0.5 (see "Rejected levers"). Before -> after: **model STOLEN 6 -> 0**; Axe > Wand 87% -> 91% (Fire 33% -> 56%); Wand > Bow against a strafing bow 53% -> 87%; Bow > Axe Fire 67% -> 56%; **all ten edges hold**; KITING x1.10 -> x1.12 (the standing bound is smaller, so the same walk is a larger share). `MAX_SIGHT_CORRIDOR` stays 480 (see the open questions).
 
+### L6. Axe damage 0.8 -> 0.77 (Bow > Axe against a weaving or jinking melee approach)
+`packages/shared/src/weapons.ts`, with `testing/realtime.py`, the parity tables (`weapons.test.ts`, `harness/parity.ts`, from `weapon_reference.py`) and the exact numbers in `melee.test.ts` (Fire's axe: 171.43 -> 165 raw, 85.71 -> 82.5 against Frost's shield). Nothing else moved: arrow speed stays 900 u/s, the axe's root, windup and reach are as they were.
+Why: a zigzag approach takes the free fire away (most arrows loosed on the way in miss: 0.6-0.8 landed before the first swing, against 2.0 for a straight charge), so the bow has to win the close trade, and at equal dpsMult (0.8 against 0.8) the axe and the bow trade evenly: the long columns (Sentenced, Plague, Frost, Holy; 15-146 s duels) were decided by who landed more of their shots, and the axe, which cannot miss once it is in reach, took half of them. A 3.75% cut of the axe's damage per second is enough to tilt a long trade to the bow, and it is a weapon number, not a policy.
+Before -> after (`--core --grid-setups full`, 18 setups x 5 factions per cell; per faction fire / sentenced / plague / frost / holy):
+
+```
+Bow > Axe, the bow's best reply      axe stand               axe weave               axe jink
+  before (L5)                    84% (kite) 67/89/89/100/78   71% (kite) 33/78/89/89/67   44% (stand) 0/56/44/89/33
+  after  (L6)                    93% (kite) 67/100/100/100/100  89% (stand) 44/100/100/100/100  82% (kite) 11/100/100/100/100
+  verdict                        FAILS (styles)  ->  HOLDS (thin: Fire 44% vs weave; Fire 11% vs jink)
+main matrix, straight charge     82% (56/89/89/100/78)  ->  91% (56/100/100/100/100)
+```
+
+The whole weave box now holds (the one-off sweep of "How sensitive it is", the bow's best of `stand` and `kite`; before -> after): 45 degrees 47 / 64 / 69 / 69% -> **82 / 87 / 91 / 91%**, 50 degrees 44 / 60 / 64 / 80% -> **82 / 87 / 91 / 93%**, 55 degrees 60 / 71 / 69 / 82% -> **82 / 89 / 93 / 93%**, 60 degrees 58 / 84 / 89 / 87% -> **87 / 91 / 98 / 93%** (periods 0.3 / 0.4 / 0.5 / 0.6 s); the Fire column is 11-89% (before 0-89%), no 0% in any best reply. 160 setups per cell (8 start distances x 5 offsets x 4 directions, open arena): Bow > Axe straight 89% -> 94%, against the jink 47% -> 82% (kiting bow 43% -> 82%; Fire 8%, the other four factions 100%), against a kiting bow's weave 78% -> 87%.
+The Fire column is a hit-count cliff, not a damage race: Fire's 500 HP and 125 shield make the axe need 7 hits for any dpsMult from 0.75 to 0.875 and the bow 10, so Bow > Axe in Fire is decided by how many arrows land on the way in and no axe number in the allowed range moves it (11% against the jink, 44% against the weave, 56% against a straight charge: the Fire column of every grid is identical at 0.80, 0.79, 0.78 and 0.77). Below 0.75 the axe needs 8 hits and Axe > Wand loses its Fire column.
+Why 0.77 and not another value (bow's best reply against the jink, pooled / worst non-Fire column; Axe > Wand on the 160-setup pass):
+
+| axe | Bow > Axe vs jink | Bow > Axe vs weave | Axe > Wand (160 setups, stand) |
+|---|---|---|---|
+| 0.80 (L5) | 44% / 33% (Holy) | 71% | 87% (Fire 33, rest 100) |
+| 0.79 | 64% / 33% (Holy) | 78% | 87% |
+| 0.78 | 78% / 89% (Frost) | 84% | 87% |
+| **0.77** | **82% / 100%** | **89%** | **87%** |
+| 0.76 | not run in the grid | not run | 87% |
+| 0.75 | not run in the grid | not run | 84% (Frost 87) |
+| 0.74 | not run in the grid | not run | 77% (Fire 3, Frost 87) |
+| 0.72 / 0.70 | not run in the grid | not run | 73% / 60% (Frost 63 / 16) |
+
+0.77 is one of the two values (0.76 and 0.77) at which both edges have every non-Fire column at 100%, and the one that moves the axe least; the cliffs are at 0.78 (Frost, Bow > Axe side) and 0.75 (Frost, Axe > Wand side). The test pins the window (`weapons.test.ts`: the bow at least 0.03 over the axe, the wand at most 0.04 over it, the axe not under the shield), replacing the L3/L4-era "axe at least the wand's", which the sweep shows is not a law: Axe > Wand holds with the axe up to 4% below the wand.
+Side effects, measured:
+- **Axe > Wand** main matrix unchanged at 91% (Fire 56%, the rest 100%; median seconds 37.5 -> 39.0); the style grid is unchanged (100% against every shooter style when the axe weaves or jinks, 87% straight); the axe wins with less to spare (mean HP left 17% -> 14%, worst 5% -> 0%, in the Frost column) but still wins every non-Fire duel on 160 setups.
+- **Axe > Shield, Sword > Axe** unchanged (100%); the sword wins with a little more HP. **Bow > Sword, Wand > Bow, Wand > Shield, Shield > Bow, Shield > Sword, Sword > Wand:** identical to L5 to the percent (the full harness diff against the L5 run changes only the axe's rows).
+- **KITING** (real sim): unchanged, worst x1.12.
+- **The model's kite check still passes, with less to spare.** `test_kite.py` ALL PASS, no STOLEN, but the tightest cell, Fire > Plague with the bow, now has the axe as its weakest melee weapon: 1.54 s (axe) and 1.30 s (shield) before, **1.23 s** now, against 1.06 s of free fire: ratio **1.16**, down from 1.22 (the kill needs one hit more; the tolerance steps from 1.49 s at 0.79 to 1.23 s at 0.78 and stays there down to 0.75). The real-sim excess for a moving shooter is x1.11 against the axe (x1.12 worst, sword against the bow), so it still fits under 1.16. Other cells that moved: Sentenced > Plague bow/axe 2.24 -> 2.15 s, Sentenced > Frost 11.21 -> 10.90, Plague > Frost 14.94 -> 14.04, Plague > Holy 20.48 -> 20.00, Frost > Holy 22.28 -> 21.64, Holy > Sentenced 4.00 -> 3.14, Holy > Fire 27.95 -> 27.88; Fire > Plague with the bow is the only cell where the axe is now the weakest melee weapon.
+- **Faction model (k = 1)**: every mirror, signature opening and all 25 weapon pairings still hold; signature openings, worst HP of the winner, before -> after: Fire > Plague 69.5 -> 66.3 (axe against bow), Frost > Fire 41.6 -> 43.8, Holy > Fire 68.4 -> 69.8, the rest unchanged; the buff caps are unchanged (Holy > Sentenced x1.30 HP, Plague > Frost x1.66 attack speed). `test_rpsls.py` ALL PASS.
+
 ### Cumulative record
 
 | after | edges holding | failing | KITING worst | model STOLEN (tolerance / free fire, worst cell) |
@@ -89,7 +125,8 @@ Why: it cost the archer about 70 draws a duel. Before -> after: **Bow > Sword 10
 | + L2 penalties | 8 | Bow > Sword 7%, Bow > Axe 13% | x1.10 | 7 |
 | + L3 sword 0.75, axe 0.8 | 9 | Axe > Wand 64% (Fire 33%) | x1.10 | 7 |
 | + L4 wand 0.8 | 9 | Axe > Wand 87% (Fire 33%) | x1.10 | 6 |
-| + L5 ranges 240 / 220 (**final**) | **10** | none | x1.12 | **0** (1.22, Fire > Plague bow) |
+| + L5 ranges 240 / 220 (against a straight charge) | 10 (9 against a weave or jink) | Bow > Axe 44% against the jink, 71% against the weave | x1.12 | **0** (1.22, Fire > Plague bow) |
+| + L6 axe 0.77 (**final**) | **10** (also against a weave and a jink) | none | x1.12 | **0** (1.16, Fire > Plague bow) |
 
 ## Rejected levers (measured, not adopted)
 
@@ -105,8 +142,20 @@ Why: it cost the archer about 70 draws a duel. Before -> after: **Bow > Sword 10
 | Ranges alone (old damage numbers) | bow / wand 400 / 340: 3 stolen; 320 / 280: 2 stolen (Fire > Plague by 0.1 s); at about 280 / 250 and below it passes | Kept as part of L5, but L3 and L4 buy the margin |
 | Wand 0.75 instead of 0.8 | Axe > Wand Fire 100%, Wand > Shield Fire 67% | Holy > Sentenced opening 16.4% against 23.6% (and flips at x1.21 HP against x1.30) |
 | A sword 0.8 instead of 0.75 | Bow > Sword 87% (Fire 78%) | 0.75 costs nothing in the model (the shield, at 0.75, is the weakest melee weapon) |
+| **Against a zigzag approach (the Bow > Axe jink, 44% at L5); `--core --grid-setups full`, the bow's best reply against the jink / the Fire column of that reply** | | |
+| Arrow speed 900 -> 1100 u/s (axe 0.8) | Bow > Axe jink 44% -> 53% (Fire 0%, Holy 22%), weave 71% -> 76%; Wand > Bow against a strafing bow 84% -> 80%, Frost column 22% -> 0% | Passes 50% barely and leaves Fire at 0%; costs Wand > Bow (the mechanism was not isolated) |
+| Arrow speed 1300 u/s (axe 0.8) | jink 58% (Fire 0%, Holy 44%), weave 78%; Wand > Bow against a strafing bow 80%, Frost 0% | Same, with a 2.2x arrow. A faster arrow only shortens the flight (0.27 s -> 0.18 s over 240 u); the other 150 ms between what the shooter sees and where the arrow lands (100 ms render delay, one 50 ms tick) do not change, and a jink flips side every 0.3 s |
+| Arrow speed 1100 with the axe at 0.77 | Bow > Axe grid identical to 900 u/s in every cell (jink 82%, Fire 0% standing, 11% kiting); with 1300, Fire (the only column it can move) kiting 11% -> 22% | Nothing to gain once L6 is in, and it still costs Wand > Bow; kept at 900 |
+| Axe root 0.5 -> 0.8 s (share of the interval 0.5 -> 0.7), axe 0.77, Fire column | Bow > Axe 56 / 44 / 11% (stand / weave / jink) and Axe > Wand 56%: identical to the 0.5 s root | The bow cannot move (0.1 while drawing, 0.1 in recovery), so the root costs the axe nothing against it; the root does not touch the approach |
+| Axe 0.79 | Bow > Axe jink 64% (Holy 33%), weave 78% | Short of the window; Holy still thin |
+| Axe 0.78 | jink 78% (Frost 89% against the jink, 67% against the weave with the bow standing), weave 84% | Holds, but the Frost column sits right at the cliff; 0.77 puts every non-Fire column at 100% |
+| Axe 0.75 and below | Axe > Wand: the Frost column drops from 100% to 87% at 0.75 (160 setups) and the Fire column from 33% to 3% at 0.74 (Fire's axe then needs 8 hits, the same as the wand, and swings slower); 0.70: 60% pooled, Frost 16% | Axe > Wand needs the axe within about 0.04 of the wand's 0.8; the wand's own cut was rejected before (Holy > Sentenced) |
+| A bow minimum-draw tweak (`BOW_MIN_DRAW_SHARE`, `BOW_MIN_DRAW_DAMAGE`) | Not run | The harness's bow policy looses only at full draw (`policies.ts`, `release`), so no draw number can move a harness duel; letting the policy loose early would be a smarter shooter, not a weapon number |
+| A shooter that leads a jink by its average velocity | Not run | Rejected before (the winner's policy gets cleverer than the loser's); L6 did not need it |
 
 ## Side effects on the faction model (`realtime_report.py`, k = 1, unchanged factions)
+
+These are the L1-L5 numbers. L6 (axe 0.77) moved three signature openings (Fire > Plague 69.5 -> 66.3, Frost > Fire 41.6 -> 43.8, Holy > Fire 68.4 -> 69.8) and nothing else here; see its entry.
 
 - Cycle and openings: every mirror, every signature opening and **all 25 weapon pairings hold** (before: Holy > Sentenced lost with the bow (27%) or the shield (0%) against a sword). Signature openings, worst HP of the winner, before -> after: Fire > Sentenced 72.5 -> 65.0, Fire > Plague 72.4 -> 69.5, Plague > Holy 64.3 -> 66.4, Frost > Holy 55.0 -> 58.6, Frost > Fire 34.3 -> 41.6, Holy > Fire 65.5 -> 68.4, **Holy > Sentenced 30.4 -> 23.6** (the one that got thinner: the wand's multiplier is now level with the bow's; the wand's arrow deletion in the real sim helps Holy on top), the rest unchanged.
 - Buff caps: Holy > Sentenced flips at x1.30 HP on the losing side (x1.31 before), the softest attack-speed edge is Plague > Frost with the bow at x1.66 (x1.63 before). HP x1.2 with attack speed x1.3 still holds every edge; HP x1.3 with attack speed x1.2 now also fails Holy > Sentenced with swords (0%) and axes (12%), as well as the bows (45%) and shields (52%) it failed before. The recommended caps (+20% HP, +30% attack speed) are unchanged.
@@ -117,24 +166,24 @@ Why: it cost the archer about 70 draws a duel. Before -> after: **Bow > Sword 10
 - **stand** (the shared policy): a ranged fighter walks to its sweet spot (about 0.83 x the bow's range, 0.67 x the wand's), shoots whenever it is ready, and backs off when the foe is closer than about half its range. **strafe** sidesteps every 0.8 s. **kite** keeps a longer distance (1.04 x / 0.79 x the range) and backs off sooner. Since the ranged move multipliers are 0.1, the three look alike for the bow (it cannot walk while drawing); the wand's strafe is its best reply to a strafing bow (87%).
 - The melee fighters charge straight by default (`stand`), which is what the main matrix, the "10 of 10" and everything above measure. They have two more styles since the review pass, `weave` and `jink` (a zigzag approach, section "Against a weaving melee approach"). A designed winner is never helped by a loser that plays badly on purpose: the losing policies are the same ones the winners face in every row, and the corrected aim only removed a handicap on the shooters.
 - **Shield > Sword and Shield > Bow end at 100% HP with no counterplay inside the matchup. That is intended:** the shield turns the hit back (the riposte, the reflected arrow) and the sword and the bow have no way through it. The counterplay is the second weapon slot (the axe or the wand), which section 9.3 already makes the decision of the game; the harness duels give each fighter one weapon.
-- **Bots** aim with no lead (the "stale" row of WHAT THE CLIENT SEES), so their bows win Bow > Axe 27% and Bow > Sword 87%: informational, not a criterion.
+- **Bots** aim with no lead (the "stale" row of WHAT THE CLIENT SEES), so their bows win Bow > Axe 40% (27% before L6) and Bow > Sword 87%: informational, not a criterion.
 
 ## Final results
 
-Harness, final numbers, `runHarness` (full report), main matrix: the designed winner's win % / median seconds.
+Harness, final numbers (L1-L6), `runHarness` (full report), main matrix: the designed winner's win % / median seconds. (The three axe rows are the ones L6 moved.)
 
 ```
 edge                      fire     sentenced        plague         frost          holy           all
 sword > axe          100%/8.9s   100%/156.2s    100%/39.6s    100%/58.0s    100%/16.4s    100%/39.6s
 sword > wand        100%/10.0s   100%/161.3s    100%/41.1s    100%/58.4s    100%/17.2s    100%/41.1s
 bow > sword           89%/8.8s   100%/146.2s    100%/36.7s    100%/54.6s    100%/15.4s     98%/36.7s
-bow > axe             56%/8.8s    89%/146.2s     89%/36.7s    100%/54.6s     78%/15.4s     82%/36.7s
+bow > axe             56%/8.8s   100%/146.2s    100%/36.7s    100%/54.6s    100%/15.4s     91%/36.7s
 wand > bow            100%/8.6s   100%/146.7s    100%/37.2s    100%/55.4s    100%/15.9s    100%/37.2s
 wand > shield         100%/7.8s   100%/146.2s    100%/36.6s    100%/54.5s    100%/15.3s    100%/36.6s
 shield > sword        100%/6.5s   100%/104.7s    100%/26.8s    100%/38.8s    100%/11.1s    100%/26.8s
 shield > bow          100%/4.8s    100%/76.1s    100%/19.6s    100%/28.4s     100%/8.4s    100%/19.6s
-axe > wand            56%/8.8s   100%/146.8s    100%/37.5s    100%/55.6s    100%/15.9s     91%/37.5s
-axe > shield          100%/8.4s   100%/146.5s    100%/37.1s    100%/55.3s    100%/15.6s    100%/37.1s
+axe > wand            56%/8.8s   100%/152.4s    100%/39.0s    100%/57.3s    100%/16.6s     91%/39.0s
+axe > shield          100%/8.4s   100%/152.1s    100%/38.6s    100%/56.9s    100%/16.3s    100%/38.6s
 ```
 
 Style grids of the edges that changed or that involve a ranged weapon (the designed winner's win %, pooled over 3 start distances x 5 factions; per faction in brackets: fire / sentenced / plague / frost / holy):
@@ -146,7 +195,7 @@ bow > sword     rows: how the bow plays; columns: how the sword plays
   bow strafe              100% (100/100/100/100/100)
   bow kite                100% (100/100/100/100/100)
 bow > axe
-  bow stand/strafe/kite    87% (67/100/100/100/67)        (all three alike: the bow cannot move while it draws)
+  bow stand/strafe/kite    93% (67/100/100/100/100)       (all three alike: the bow cannot move while it draws; 87% (67/100/100/100/67) before L6)
 wand > bow      rows: how the wand plays; columns: how the bow plays
                       bow stand                  bow strafe                   bow kite
   wand stand      100% (100/100/100/100/100)    80% (100/100/100/0/100)    100% (100/100/100/100/100)
@@ -160,9 +209,9 @@ axe > wand      rows: the axe; columns: how the wand plays
 sword > wand    100% for every way the wand plays
 ```
 
-Robustness (a one-off script over the same `runMatrix`, not in the repo): 160 setups per cell (8 start distances 100-500 u x 5 start offsets x 4 directions), open and pillared arena. Every edge scores the same in both arenas to within a point: sword > axe, sword > wand, wand > bow, shield > sword, shield > bow, axe > shield 100%; bow > sword 97-98%; wand > shield 100%; axe > wand 91%; bow > axe 86%. Weakest faction columns: Fire, 56% (axe > wand) to 63% (bow > axe). By start distance the ranged edges are weakest when the start is inside the weapons' own reach (bow > axe 48% from 100 u, 68% from 150 u, 88-100% from 200 u up): with no range to use, parity decides.
+Robustness at L5 (a one-off script over the same `runMatrix`, not in the repo; the L6 re-run is in its entry: Bow > Axe 94%, nothing else moved): 160 setups per cell (8 start distances 100-500 u x 5 start offsets x 4 directions), open and pillared arena. Every edge scores the same in both arenas to within a point: sword > axe, sword > wand, wand > bow, shield > sword, shield > bow, axe > shield 100%; bow > sword 97-98%; wand > shield 100%; axe > wand 91%; bow > axe 86%. Weakest faction columns: Fire, 56% (axe > wand) to 63% (bow > axe). By start distance the ranged edges are weakest when the start is inside the weapons' own reach (bow > axe 48% from 100 u, 68% from 150 u, 88-100% from 200 u up): with no range to use, parity decides.
 
-EDGE VERDICTS of the report as first written, with melee fighters that charge straight: all ten HOLD (`10 of 10 edges hold`). With the weave and jink styles added in the review pass it reads 9 of 10 (next section). Weakest cells: Bow > Axe Fire 56% and Axe > Wand Fire 56% (the short Fire duels are decided by who lands first), Wand > Bow against a strafing bow in the Frost column (0%: Frost's slow wand, 1.35 s a cast against 1.14 s an arrow, covers fewer arrows than the bow throws).
+EDGE VERDICTS of the report as first written, with melee fighters that charge straight: all ten HOLD (`10 of 10 edges hold`). With the weave and jink styles added in the review pass it read 9 of 10 at L5 (Bow > Axe 44% against the jink); with L6 it reads **10 of 10** again, against all three approaches (the verdict block in "Against a weaving melee approach"). Weakest cells: Bow > Axe Fire 56% (11% against the jink, 44% against the weave) and Axe > Wand Fire 56% (the short Fire duels are decided by how many hits each side needs and who lands first), Wand > Bow against a strafing bow in the Frost column (22% best reply: Frost's slow wand, 1.35 s a cast against 1.14 s an arrow, covers fewer arrows than the bow throws).
 
 Harness KITING (the real sim; a shooter that starts at the edge of its range; seconds until the melee fighter is in reach, and the shooter's hits before then as a share of HP; standing bound bow 1.06 s, wand 0.94 s):
 
@@ -178,21 +227,21 @@ Harness KITING (the real sim; a shooter that starts at the edge of its range; se
 ```
 (Before: bow rows `2.30 / 3.70 / 3.70 / 5.05 s` for the sword, worst x2.25.)
 
-Cluttered arena (ten 2x2 pillars, 6 setups x 5 factions): every edge scores the same as in the open arena (Bow > Axe 87%, Axe > Wand 90%, the rest 100%). Client views (3 start distances x 5 factions): `client` and `present` aim agree on every edge (Bow > Axe and Axe > Wand 87%, the rest 100%); the `stale` (no lead) column is the bots' aim and only Bow > Sword 87% and Bow > Axe 27% move.
+Cluttered arena (ten 2x2 pillars, 6 setups x 5 factions; re-run at L6): every edge scores the same as in the open arena (Bow > Axe 90%, Axe > Wand 90%, the rest 100%). Client views (3 start distances x 5 factions; re-run at L6): `client` and `present` aim agree on every edge (Bow > Axe 93%, Axe > Wand 87%, the rest 100%); the `stale` (no lead) column is the bots' aim and only Bow > Sword 87% and Bow > Axe 40% (27% at L5) move.
 
-The k = 2 kite table (`python3 testing/realtime_report.py k2.json kite`; seconds the melee winner can arrive late and still win >= 50%, by melee weapon: sword / axe / shield, against the free-fire time of a standing shooter; no cell prints STOLEN):
+The k = 2 kite table at the final numbers, L6 included (`python3 testing/realtime_report.py k2.json kite`; seconds the melee winner can arrive late and still win >= 50%, by melee weapon: sword / axe / shield, against the free-fire time of a standing shooter; no cell prints STOLEN; L6 changed only the axe column, e.g. Fire > Plague with the bow 1.54 -> 1.23, which makes the axe that cell's weakest melee weapon, where it had been the shield's 1.30 s):
 
 ```
   Fire>Sentenced     bow: sw  1.89 ax  1.89 sh  2.00 (Tff 1.06)  wand: sw  2.09 ax  2.04 sh  1.74 (Tff 0.94)
-  Fire>Plague        bow: sw  1.34 ax  1.54 sh  1.30 (Tff 1.06)  wand: sw  1.23 ax  1.30 sh  1.34 (Tff 0.94)
-  Sentenced>Plague   bow: sw  2.09 ax  2.24 sh  2.09 (Tff 1.06)  wand: sw  2.09 ax  2.24 sh  2.09 (Tff 0.94)
-  Sentenced>Frost    bow: sw 10.68 ax 11.21 sh 10.68 (Tff 2.65)  wand: sw 10.48 ax 11.01 sh 10.48 (Tff 2.35)
-  Plague>Frost       bow: sw 13.38 ax 14.94 sh 13.38 (Tff 2.65)  wand: sw 13.58 ax 15.14 sh 13.58 (Tff 2.35)
-  Plague>Holy        bow: sw 19.69 ax 20.48 sh 19.69 (Tff 1.06)  wand: sw 19.49 ax 20.28 sh 19.49 (Tff 0.94)
-  Frost>Holy         bow: sw 21.05 ax 22.28 sh 21.14 (Tff 1.06)  wand: sw 21.14 ax 22.35 sh 21.18 (Tff 0.94)
+  Fire>Plague        bow: sw  1.34 ax  1.23 sh  1.30 (Tff 1.06)  wand: sw  1.23 ax  1.30 sh  1.34 (Tff 0.94)
+  Sentenced>Plague   bow: sw  2.09 ax  2.15 sh  2.09 (Tff 1.06)  wand: sw  2.09 ax  2.15 sh  2.09 (Tff 0.94)
+  Sentenced>Frost    bow: sw 10.68 ax 10.90 sh 10.68 (Tff 2.65)  wand: sw 10.48 ax 10.70 sh 10.48 (Tff 2.35)
+  Plague>Frost       bow: sw 13.38 ax 14.04 sh 13.38 (Tff 2.65)  wand: sw 13.58 ax 14.24 sh 13.58 (Tff 2.35)
+  Plague>Holy        bow: sw 19.69 ax 20.00 sh 19.69 (Tff 1.06)  wand: sw 19.49 ax 19.80 sh 19.49 (Tff 0.94)
+  Frost>Holy         bow: sw 21.05 ax 21.64 sh 21.14 (Tff 1.06)  wand: sw 21.14 ax 21.69 sh 21.18 (Tff 0.94)
   Frost>Fire         bow: sw  9.69 ax  8.99 sh  8.75 (Tff 1.06)  wand: sw  9.03 ax  9.10 sh  8.94 (Tff 0.94)
-  Holy>Fire          bow: sw 26.39 ax 27.95 sh 26.43 (Tff 1.06)  wand: sw 27.14 ax 27.88 sh 27.05 (Tff 0.94)
-  Holy>Sentenced     bow: sw  2.83 ax  4.00 sh  2.83 (Tff 1.06)  wand: sw  2.83 ax  4.00 sh  2.83 (Tff 0.94)
+  Holy>Fire          bow: sw 26.39 ax 27.88 sh 26.43 (Tff 1.06)  wand: sw 27.14 ax 27.88 sh 27.05 (Tff 0.94)
+  Holy>Sentenced     bow: sw  2.83 ax  3.14 sh  2.83 (Tff 1.06)  wand: sw  2.83 ax  3.14 sh  2.83 (Tff 0.94)
 ```
 
 Before (HEAD numbers, same what-if), the cells that printed STOLEN:
@@ -206,7 +255,7 @@ Before (HEAD numbers, same what-if), the cells that printed STOLEN:
 
 ## Against a weaving melee approach
 
-Added in the review pass; nothing was retuned for it. Every number above is measured against a melee fighter that walks straight at its target, and a straight charge is the easiest thing for a shooter to hit. The harness now plays the melee weapons two more ways (`harness/matrix.ts`, `WEAVES`): **weave**, 55 degrees off the line to the target with a new side every 0.4 s, and **jink**, 50 degrees and every 0.3 s; both charge straight within 90 u. They run off the world clock, so a report repeats exactly. Nothing else about the fighter changes (same weapon, same timings).
+Added in the review pass. Nothing was retuned for it at the time, so the grid, the verdicts and the sensitivity sweep below are the **L5 numbers (axe 0.8)**; L6 (axe 0.77) then repaired the one edge that failed, and "After L6" at the end of this section has the same three blocks again. Every number in L1-L5 and the diagnosis is measured against a melee fighter that walks straight at its target, and a straight charge is the easiest thing for a shooter to hit. The harness now plays the melee weapons two more ways (`harness/matrix.ts`, `WEAVES`): **weave**, 55 degrees off the line to the target with a new side every 0.4 s, and **jink**, 50 degrees and every 0.3 s; both charge straight within 90 u. They run off the world clock, so a report repeats exactly. Nothing else about the fighter changes (same weapon, same timings).
 
 **Why it moves the edges.** The ranged edges are won by the free fire on the way in, and a zigzag approach takes that away without costing the melee fighter much. One-off count, Bow > Axe, 450 u start, no start offsets, 5 factions x 2 directions: the axe first hits at 2.05 s going straight, 3.10 s weaving and 2.80 s jinking, so the shooter has about a second more to shoot, yet it lands **2.0 arrows before that first swing going straight, 0.6 weaving and 0.8 jinking**. Most of the arrows loosed on the way in miss. The likely reason: the side changes every 0.3-0.4 s, an arrow takes up to 0.25 s to fly and the client sees its target 100 ms late, so the lead aim points where the axe was going rather than where it goes. After contact the arrows hit as before (95-100% of all arrows landed). The bow cannot answer by moving (0.1 move speed while drawing), so the only reply it has is a different spacing.
 
@@ -269,12 +318,38 @@ A quick, tight weave (0.3 s at 45-50 degrees) is what breaks Bow > Axe; the harn
 
 **What this does not say.** The harness fighters are policies, not players: a human who zigzags will also lose closing time and mis-time swings, and a human bow will lead differently. The weave here is one rhythm (a metronome); a shooter that aimed at the average of the last second of movement would hit more of it (the earlier "lead by averaged velocity" row in the rejected levers is the same idea). It is a measurement of how much of the edge is the straight charge, not a prediction of play.
 
+### After L6 (axe 0.77)
+
+The same run (`runHarness --core --grid-setups full`, 18 setups x 5 factions a cell). Only the axe's rows move; every other block of the grid is identical to the one above (including Axe > Wand: 91% straight, 100% when the axe weaves or jinks).
+
+```
+bow > axe
+                           axe stand                  axe weave                   axe jink
+  bow stand           91% (56/100/100/100/100)    89% (44/100/100/100/100)    80% (0/100/100/100/100)
+  bow strafe          91% (56/100/100/100/100)    89% (44/100/100/100/100)    80% (0/100/100/100/100)
+  bow kite            93% (67/100/100/100/100)    87% (33/100/100/100/100)    82% (11/100/100/100/100)
+
+bow > sword      stand 98% (stand)   weave 93% (kite)   jink 87% (stand)    HOLDS (thin: Fire 33% vs jink)
+bow > axe        stand 93% (kite)    weave 89% (stand)  jink 82% (kite)     HOLDS (thin: Fire 44% vs weave; Fire 11% vs jink)
+wand > bow       stand 100%  strafe 84% (kite)  kite 100%                    HOLDS (thin: Frost 22% vs strafe)
+wand > shield    stand 100% (stand)  weave 82% (stand)  jink 84% (stand)    HOLDS (thin: Fire 11% vs weave; Fire 22% vs jink)
+sword > wand, shield > bow, sword > axe, shield > sword, axe > wand, axe > shield: HOLD, nothing thin    (10 of 10 edges hold)
+
+Bow > Axe, bow's best reply          0.3 s        0.4 s        0.5 s        0.6 s
+  45 degrees                      82% (F 11)   87% (F 33)   91% (F 56)   91% (F 56)
+  50 degrees                      82% (F 11)   87% (F 33)   91% (F 56)   93% (F 67)
+  55 degrees                      82% (F 11)   89% (F 44)   93% (F 67)   93% (F 67)
+  60 degrees                      87% (F 33)   91% (F 56)   98% (F 89)   93% (F 67)
+```
+
+Bow > Axe now holds with a margin against every zigzag of the box (82% at the worst corner, no 0% in the Fire column of any best reply); the four non-Fire columns are at 100% against all three approaches, and what remains thin is Fire alone: 11% against the jink (0% when the bow stands, 11% when it kites) and 44% against the weave, the cliff described in L6. The sweep is a re-implementation of the L5 one (the bow's best of `stand` and `kite` against a weave of the given angle and period, 18 setups, the harness's seeds and caps); at 50 degrees and 0.3 s it reproduces the harness's own jink cell (82%, Fire 11%).
+
 ## Open questions for the owner
 
-1. **Short ranges.** Bow 240 u and wand 220 u are about half the old ones. Every length below roughly 280 u passes the k = 2 check with the old damage numbers; 240 / 220 buys a 1.22 margin on the tightest cell. `MAX_SIGHT_CORRIDOR` (mapgen's cover, certified for 480 u) is now twice the bow's range: it could be relaxed, which would give the map more open floor, but that is a mapgen change and was not touched.
+1. **Short ranges.** Bow 240 u and wand 220 u are about half the old ones. Every length below roughly 280 u passes the k = 2 check with the old damage numbers; 240 / 220 bought a 1.22 margin on the tightest cell, and L6 (axe 0.77) brought it to 1.16 (Fire > Plague with the bow, the axe now its weakest melee weapon). The real-sim excess for a moving shooter is x1.12 at most, so the check still passes, but a bow range above 240 u or a further axe cut would be tested against that margin. `MAX_SIGHT_CORRIDOR` (mapgen's cover, certified for 480 u) is now twice the bow's range: it could be relaxed, which would give the map more open floor, but that is a mapgen change and was not touched.
 2. **Near-root shooting (0.1).** It is the strongest reading of "stronger ranged penalties". 0.15 would still pass (x1.16 real kiting against the 1.22 margin) and feels less like a root. At 0.1 the bow's three styles play the same; at 0.2 and above they differ a little.
-3. **Sword 1.0 -> 0.75 and axe 0.9 -> 0.8 are the price of Bow > Sword and Bow > Axe** at the bow's 0.8: the bow wins both on its opening, so it cannot also out-trade them. Fire (the axe's faction) and the mobs that carry swords (the Sentenced region's) lose output; the faction cycle itself is unchanged or better.
+3. **Sword 1.0 -> 0.75 and axe 0.9 -> 0.8 -> 0.77 are the price of Bow > Sword and Bow > Axe** at the bow's 0.8: the bow wins both on its opening, so it cannot also out-trade them (and against a zigzag it has no opening, so the axe has to sit a little further under). Fire (the axe's faction) and the mobs that carry swords (the Sentenced region's) lose output; the faction cycle itself is unchanged or better.
 4. **Holy > Sentenced** (wand / bow signature opening) is 23.6% worst HP, 30.4% before. It stays inside the owner's own limit but is the one faction-model number this moved the wrong way; Phase 10 should look at it when the factions get their picker. **The reason Sentenced starts on the bow is now backwards:** at the old numbers the Holy wand against a Sentenced sword left Holy 8.1% (the thinnest opening), and against the bow 30.4%; now it is 29.4% against the sword and 23.6% against the bow (`testing/realtime.py`, worst HP Holy keeps). `SIGNATURE_WEAPONS` (`shared/src/weapons.ts`) is for Phase 10 to revisit; it was not touched.
 5. **Thin cells:** Bow > Axe and Axe > Wand in the Fire column (56%): Fire's 500 HP and 8 s duels turn on who lands first; and Wand > Bow against a strafing bow in the Frost column (0%).
-6. **Phase 10 hook:** the kite model's tolerance for Fire > Plague with the bow did not move when the shield's damage went from 0.75 to 0.8, which suggests it is set by Plague's execute bringing Fire under half HP rather than by the melee weapon; if so Fire's HP (a faction number) is what bounds it from the other side.
-7. **The weave (owner's call; nothing was retuned).** Bow > Axe fails against a quick, tight weave (44% against the harness's jink, best reply no better) and is thin in the Fire column against a plain weave; Bow > Sword and Wand > Shield hold at 82-93% but are thin in Fire (11-33%). The "10 of 10" is a statement about a straight charge. If the owner wants the ranged edges to survive a zigzag, the levers worth measuring are: **projectile speed** (the arrow is already 900 u/s; the wand's 380 u/s is the more exposed; see the ball-speed row in "Rejected levers" for what it did to Wand > Bow); **ranged damage** (more per hit shortens the fight once the melee fighter arrives, but the bow is held at the melee weapons' level by L3); **melee damage** (the axe at 0.8 and the sword at 0.75 are already the price of the straight-charge result; cutting the axe further helps the bow and costs Axe > Wand); and **a projectile that leads** (a short server-side lead assist on the arrow would answer a zigzag directly, at the cost of a new rule). Each is one `--core --grid-setups full` pass to measure.
+6. **Phase 10 hook:** the kite model's tolerance for Fire > Plague with the bow did not move when the shield's damage went from 0.75 to 0.8, which suggested it is set by Plague's execute bringing Fire under half HP rather than by the melee weapon. L6 shows it also steps with the axe: 1.49 s at 0.79, 1.23 s from 0.78 down to 0.75 (one more hit to kill), so it is a hit-count threshold; Fire's HP (a faction number) bounds it from the other side, and the Fire column is where every thin cell of this file is.
+7. **The weave (settled by L6, owner's call to keep or revert).** After L1-L5 Bow > Axe failed against a quick, tight weave (44% against the harness's jink, best reply no better). L6, the axe at 0.77, makes it hold against the straight charge, the weave and the jink (93% / 89% / 82%, the whole 45-60 degree x 0.3-0.6 s box at 82-98%) and changes no other verdict; arrow speed, the axe's root and the bow's draw were measured and left alone (rejected levers). What is left is the Fire column: 11% against the jink and 44% against the weave for Bow > Axe, 33% against the jink for Bow > Sword, 11-22% for Wand > Shield. Those are hit-count cliffs of a 500-HP faction, not damage races; the levers that remain are a faction number (Phase 10) or a projectile that leads (a short server-side lead assist, at the cost of a new rule). If the owner prefers the axe at 0.8, revert `dpsMult` and the tables (`weapon_reference.py`) and accept 9 of 10 against a zigzag.
