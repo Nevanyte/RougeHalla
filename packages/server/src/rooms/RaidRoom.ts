@@ -9,7 +9,7 @@
 import { randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS,
+  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
   type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -173,11 +173,13 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   onJoin(client: Client) {
-    const { profiles } = RaidRoom.ctx;
+    const { profiles, store } = RaidRoom.ctx;
     const { profile } = client.auth as RoomAuth;
     const ownerKey = this.ownerKey(client.sessionId);
     try {
-      addPlayer(this.world, client.sessionId, profile);
+      // Equipped at the moment of joining; changing the wardrobe mid-run takes effect next run.
+      const owned = store.get(profile)?.cosmetics;
+      addPlayer(this.world, client.sessionId, profile, owned ? packLook(owned.equipped, owned.owned) : 0);
       this.seats.set(client.sessionId, { profile, ownerKey });
       profiles.confirm(profile, ownerKey);
     } catch (err) {
@@ -299,15 +301,27 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   /** A player's run is over: bank its GV and stats, free the profile, tell them. */
   private settle(sessionId: string, result: RunResult) {
     const { store, profiles } = RaidRoom.ctx;
+    let unlocked: string[] = [];
+    // The weapon in hand when the run ended (the winner is still in the state). The faction is left out until the
+    // Phase 10 picker makes it the player's choice: today's is a round-robin default, so counting wins by it would
+    // hand out faction titles and golden variants by luck of the join order.
+    const p = this.world.state.players.get(sessionId);
+    const held = p ? (p.slot === 1 ? p.weapon1 : p.weapon0) : "";
     try {
-      store.recordRun(result.profile, { outcome: result.outcome, kills: result.kills, gv: result.gv.total });
+      ({ unlocked } = store.recordRun(result.profile, {
+        outcome: result.outcome, kills: result.kills, gv: result.gv.total, bounty: result.gv.bounty,
+        weapon: held || undefined,
+        // The win bonus gate doubles as the achievements' anti-farming gate (see RunRecord.winQualified).
+        winQualified: result.outcome === "won" && !result.winBonusWithheld,
+      }));
     } catch (err) {
       // Never let a store problem stop the result from reaching the player or the profile from freeing up.
       console.error(`[raid ${this.roomId}] failed to persist the result of ${result.profile}:`, err);
     }
     // Released now rather than at onLeave so the player can queue again while still on the results screen.
     profiles.release(result.profile, this.ownerKey(sessionId));
-    this.pendingResults.set(sessionId, result);
-    this.sendTo(sessionId, "result", result);
+    const sent: RunResult = unlocked.length > 0 ? { ...result, achievements: unlocked } : result;
+    this.pendingResults.set(sessionId, sent);
+    this.sendTo(sessionId, "result", sent);
   }
 }

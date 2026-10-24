@@ -1,5 +1,5 @@
 // Post-run summary: outcome, placing, run stats and the Glorious Victory the run paid out.
-import { WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, type RunOutcome, type RunResult } from "@raid/shared";
+import { WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, achievementById, cosmeticById, type RunOutcome, type RunResult } from "@raid/shared";
 import { formatNumber } from "../net/profile";
 import { el, uiRoot } from "./dom";
 
@@ -41,6 +41,25 @@ function gvRows(r: RunResult): HTMLElement {
   return box;
 }
 
+/**
+ * What the run unlocked: each achievement with the cosmetics it granted. Ids come from the server but only the
+ * catalog's own names are shown, and ids this client doesn't know are skipped.
+ */
+function achievementRows(ids: readonly string[] | undefined): HTMLElement | null {
+  const unlocked = (Array.isArray(ids) ? ids : []).flatMap((id) => achievementById(id) ?? []);
+  if (unlocked.length === 0) return null;
+  const box = el("div", "ach-box");
+  box.append(el("div", "ach-title", "Achievements unlocked"));
+  for (const a of unlocked) {
+    const row = el("div", "ach-row");
+    row.append(el("span", "ach-name", a.name));
+    const rewards = a.reward.flatMap((id) => cosmeticById(id)?.name ?? []);
+    if (rewards.length > 0) row.append(el("span", "ach-reward", `Reward: ${rewards.join(", ")}`));
+    box.append(row);
+  }
+  return box;
+}
+
 export class ResultsScreen {
   private readonly root = el("div", "panel results");
   visible = false;
@@ -51,6 +70,7 @@ export class ResultsScreen {
     const facts = [`Time ${fmtDuration(r.durationSec)}`, `Kills ${r.kills}`];
     if (r.killedBy) facts.push(`Killed by ${r.killedBy}`);
 
+    const unlocked = achievementRows(r.achievements);
     const btn = el("button", "btn primary", "Back to hub");
     btn.addEventListener("click", () => this.handlers.onContinue());
 
@@ -59,6 +79,7 @@ export class ResultsScreen {
       el("p", "result-place", fmtPlace(r)),
       el("p", "result-facts", facts.join(" · ")),
       gvRows(r),
+      ...(unlocked ? [unlocked] : []),
       btn,
     );
     uiRoot().append(this.root);

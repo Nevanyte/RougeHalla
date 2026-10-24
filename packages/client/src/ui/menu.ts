@@ -6,6 +6,8 @@ import {
 } from "@raid/shared";
 import { ProfileError, fetchLeaderboard, fetchProfile, formatNumber } from "../net/profile";
 import { el, uiRoot } from "./dom";
+import { HubPanels, type HubTabId } from "./hub/hubPanels";
+import { equippedTitle, titleTag } from "./hub/hubUtil";
 
 const PROFILE_KEY = "raid.profile";
 const CALLSIGN_RULE = "Callsign: 2–16 letters, digits, _ or -";
@@ -17,6 +19,10 @@ const STAT_LABELS: ReadonlyArray<readonly [keyof ProfileStats, string]> = [
 ];
 
 type Tone = "info" | "warn" | "error";
+
+const HUB_BUTTONS: ReadonlyArray<readonly [HubTabId, string]> = [
+  ["shop", "Shop"], ["wardrobe", "Wardrobe"], ["achievements", "Achievements"], ["leaderboard", "Leaderboard"],
+];
 
 // sessionStorage can throw (blocked site data); the callsign then just isn't remembered.
 function savedCallsign(): string | null {
@@ -73,7 +79,10 @@ export class Menu {
   private readonly gvLifetime = el("span", "hub-gv-sub-n", "0");
   private readonly gvMonth = el("span", "hub-gv-sub-n", "0");
   private readonly statEls = new Map<keyof ProfileStats, HTMLElement>();
+  private readonly who = el("div", "hub-who");
   private readonly cosmetics = el("span", "hub-cosmetics-count");
+  private readonly hubButtons: HTMLButtonElement[] = [];
+  private readonly hub = new HubPanels({ onProfile: (profile) => this.showProfile(profile) });
   private readonly board = el("div", "hub-board");
   private readonly boardList = el("ol", "hub-board-list");
   private readonly startBtn = el("button", "btn primary", "Start Run");
@@ -129,14 +138,21 @@ export class Menu {
     }
 
     const shop = el("div", "hub-cosmetics");
-    shop.append(el("span", "hub-cosmetics-title", "Cosmetics"), this.cosmetics, el("span", "hub-cosmetics-note", "Shop coming soon"));
+    const hubActions = el("div", "hub-cosmetics-actions");
+    for (const [tab, text] of HUB_BUTTONS) {
+      const btn = el("button", "btn small", text);
+      btn.addEventListener("click", () => this.hub.open(tab));
+      this.hubButtons.push(btn);
+      hubActions.append(btn);
+    }
+    shop.append(el("span", "hub-cosmetics-title", "Cosmetics"), this.cosmetics, hubActions);
 
     this.board.hidden = true;
     this.board.append(el("div", "hub-board-title", "Top this month"), this.boardList);
 
     const rules = el("div", "menu-rules", `Last one standing wins. The server picks your faction; every run starts with its signature weapon, and a second slot is yours to fill from chests and the ground. GV you earn is yours to keep even if you die. Winning a run of ${WIN_BONUS_MIN_PLAYERS}+ players pays a bonus if you damaged at least ${WIN_BONUS_MIN_OPPONENTS} of them. Three kills put a bounty on your head: whoever ends your rampage collects it.`);
     const controls = el("div", "menu-rules", "Right-click: move. Left-click: attack (hold to keep attacking; with a bow, hold to draw and release to loose). Q or 1/2: swap weapons. F: take a weapon. S: stop.");
-    this.body.append(gv, stats, shop, this.board, rules, controls);
+    this.body.append(this.who, gv, stats, shop, this.board, rules, controls);
 
     this.root.append(el("h1", undefined, "RAID"), row, this.placeholder, this.body, this.startBtn, this.status, this.hint);
 
@@ -239,17 +255,27 @@ export class Menu {
 
   private setProfile(profile: ProfileDTO, token: string): void {
     this.data = { profile, token };
+    this.showProfile(profile);
+    this.hub.setProfile(profile);
+    void this.loadBoard();
+  }
+
+  /** Draws a profile; also how the hub panels hand back the newer copy a purchase or equip returns. */
+  private showProfile(profile: ProfileDTO): void {
+    if (this.data) this.data.profile = profile;
+    const title = equippedTitle(profile);
+    this.who.replaceChildren(el("span", "hub-who-name", profile.name), ...(title ? [titleTag(title)] : []));
     // `?? 0`: a month nothing was banked in is absent from gvByMonth.
     this.gvBalance.textContent = formatNumber(profile.gv);
     this.gvLifetime.textContent = formatNumber(profile.gvLifetime);
     this.gvMonth.textContent = formatNumber(profile.gvByMonth[monthKey(Date.now())] ?? 0);
     for (const [key] of STAT_LABELS) this.statEls.get(key)!.textContent = formatNumber(profile.stats[key] ?? 0);
     this.cosmetics.textContent = `${formatNumber(profile.cosmetics.owned.length)} owned`;
-    void this.loadBoard();
   }
 
   private clearProfile(): void {
     this.data = null;
+    this.hub.setProfile(null);
     this.boardSeq++;
     this.board.hidden = true;
     this.boardList.replaceChildren();
@@ -293,5 +319,6 @@ export class Menu {
     this.input.disabled = this.busy;
     this.loadBtn.disabled = this.busy || this.loading;
     this.startBtn.disabled = this.busy || this.loading || !loaded;
+    for (const btn of this.hubButtons) btn.disabled = this.busy;
   }
 }

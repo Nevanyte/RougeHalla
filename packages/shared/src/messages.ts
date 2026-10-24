@@ -117,6 +117,8 @@ export interface RunResult {
    * they damaged fewer than WIN_BONUS_MIN_OPPONENTS different players.
    */
   winBonusWithheld: boolean;
+  /** Achievement ids this run unlocked, set by the Room when it banks the run. Absent when nothing unlocked. */
+  achievements?: string[];
 }
 
 export const SUDDEN_DEATH_KILLER = "sudden death";
@@ -140,8 +142,26 @@ export interface JoinOptions {
 /** `deaths` counts died and mia; `runs` counts every resolved run, including the ones won or drawn. */
 export interface ProfileStats { runs: number; wins: number; draws: number; deaths: number; kills: number }
 
-/** Placeholder until the shop exists: cosmetic ids owned, and the id equipped per slot. */
+/** Cosmetic ids owned (see cosmetics.ts), and the id equipped per CosmeticSlot. */
 export interface CosmeticsDTO { owned: string[]; equipped: Record<string, string> }
+
+/** Counters beyond ProfileStats that achievements read. The server keeps them; they only ever grow. */
+export interface ProfileProgress {
+  /**
+   * Wins that passed the anti alt-farming gate (RunResult.winBonusWithheld false: WIN_BONUS_MIN_PLAYERS starters and
+   * WIN_BONUS_MIN_OPPONENTS opponents damaged). Win achievements and the per-faction / per-weapon counters count only
+   * these, so a walkover against a throwaway callsign earns nothing; `ProfileStats.wins` still counts every win.
+   */
+  qualifiedWins: number;
+  /** Runs in which the player claimed at least one bounty. */
+  bountyRuns: number;
+  /** Most kills in a single run. */
+  bestRunKills: number;
+  /** Qualified wins by the faction played, keyed by FactionId. */
+  winsByFaction: Record<string, number>;
+  /** Qualified wins by the weapon in hand when the run ended, keyed by weapon id. */
+  winsByWeapon: Record<string, number>;
+}
 
 export interface ProfileDTO {
   name: string;
@@ -153,6 +173,9 @@ export interface ProfileDTO {
   gvByMonth: Record<string, number>;
   stats: ProfileStats;
   cosmetics: CosmeticsDTO;
+  /** Achievement id → server time (ms) it was unlocked. Ids the client doesn't know are ignored. */
+  achievements: Record<string, number>;
+  progress: ProfileProgress;
 }
 
 /**
@@ -164,9 +187,44 @@ export const PROFILE_TOKEN_HEADER = "x-profile-token";
 
 export const PROFILE_RE = /^[A-Za-z0-9_-]{2,16}$/;
 
-/** GET /api/leaderboard?month=YYYY-MM&limit=N (both optional: the current month, LEADERBOARD_DEFAULT_LIMIT). */
-export interface LeaderboardEntry { name: string; gv: number }
-export interface LeaderboardResponse { month: string; entries: LeaderboardEntry[] }
+/** The shop and wardrobe. Both need the profile's token header; both answer 200 with the updated profile. */
+export const SHOP_PURCHASE_PATH = (name: string): string => `/api/profile/${encodeURIComponent(name)}/purchase`;
+export const SHOP_EQUIP_PATH = (name: string): string => `/api/profile/${encodeURIComponent(name)}/equip`;
+
+/** POST …/purchase. Spends the cosmetic's price from the GV balance. */
+export interface PurchaseRequest { id: string }
+/** POST …/equip. Puts the owned cosmetic `id` on in `slot`, or takes the slot off with `id: null`. */
+export interface EquipRequest { slot: string; id: string | null }
+export interface ShopResponse { profile: ProfileDTO }
+
+/**
+ * Why the shop refused, as `code` in the JSON error body (the HTTP status is in brackets).
+ * forbidden (403): unknown profile or bad token. bad_request (400): malformed body. unknown_cosmetic (404),
+ * unknown_slot (400), not_for_sale (409), already_owned (409), insufficient_gv (402, with `need` and `have`),
+ * not_owned (409), slot_mismatch (400).
+ */
+export type ShopErrorCode =
+  | "forbidden" | "bad_request" | "unknown_cosmetic" | "unknown_slot" | "not_for_sale"
+  | "already_owned" | "insufficient_gv" | "not_owned" | "slot_mismatch";
+export interface ShopError { error: string; code: ShopErrorCode; need?: number; have?: number }
+
+/**
+ * GET /api/leaderboard?month=YYYY-MM&limit=N&name=callsign (all optional: the current month, LEADERBOARD_DEFAULT_LIMIT,
+ * no `you`). `title` is the cosmetic id of the equipped title, left out when there is none.
+ */
+export interface LeaderboardEntry { name: string; gv: number; title?: string }
+export interface LeaderboardResponse {
+  month: string;
+  entries: LeaderboardEntry[];
+  /** Months with any GV banked, newest first (at most LEADERBOARD_MAX_MONTHS). */
+  months: string[];
+  /**
+   * The `name` asked about: 1-based position in `month`'s ranking, whatever the limit. Sent only when the request carries
+   * that profile's own token header; absent without `name`, without a matching token, or without GV that month.
+   */
+  you?: { rank: number; gv: number };
+}
+export const LEADERBOARD_MAX_MONTHS = 24;
 export const LEADERBOARD_DEFAULT_LIMIT = 20;
 export const LEADERBOARD_MAX_LIMIT = 100;
 
