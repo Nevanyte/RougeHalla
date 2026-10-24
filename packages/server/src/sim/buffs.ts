@@ -91,7 +91,11 @@ export function onKill(world: World, p: PlayerState, rt: PlayerRuntime): void {
     p.shield = Math.max(p.shield, fx.shield.share * p.maxHp);
     boost.shieldUntil = Math.max(boost.shieldUntil, now + fx.shield.ms);
   }
-  if (fx.resetCooldown) p.readyAt = Math.min(p.readyAt, now);
+  if (fx.resetCooldown) {
+    p.readyAt = Math.min(p.readyAt, now);
+    // A ranged shooter's half speed lasts until the cooldown ends, so a reset ends it too.
+    rt.weapon.recoverUntil = Math.min(rt.weapon.recoverUntil, now);
+  }
   for (const c of combos) emit(world, { type: "fx", fx: { kind: "combo", id: rt.id, combo: c.id, proc: true } });
 }
 
@@ -119,10 +123,13 @@ export function expireBoosts(world: World): void {
     const boost = rt.boost;
     if (!boost) continue;
     if (boost.bursts.length > 0) boost.bursts = boost.bursts.filter((b) => now < b.until);
-    if (boost.shieldUntil > 0 && now >= boost.shieldUntil) {
-      boost.shieldUntil = 0;
+    if (boost.shieldUntil > 0) {
       const p = world.state.players.get(id);
-      if (p) p.shield = 0;
+      // A player who went down keeps no shield: it would show on their body for up to 8 s.
+      if (now >= boost.shieldUntil || (p && p.status !== "alive")) {
+        boost.shieldUntil = 0;
+        if (p) p.shield = 0;
+      }
     }
   }
 }

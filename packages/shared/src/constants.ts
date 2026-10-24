@@ -155,7 +155,7 @@ export const BOUNTY_ANNOUNCE_MS = 10_000;
 
 // Regional mobs (Phase 11, GAME_DESIGN 11). A mob is its region's faction scaled by MOB_K (an elite by ELITE_K) with the
 // region's weapon. Chosen from the faction duel table: at 0.45 a starting player wins all 25 matchups (77% hp left on
-// average, 36% in the worst); an elite at 0.6 beats most but not the faction that counters the player (3 of 25 lose).
+// average, 36% in the worst); an elite at 0.6 beats most but not the faction that counters the player (2 of 25 lose).
 export const MOB_K = 0.45;
 export const ELITE_K = 0.6;
 /** A mob gives up the chase when it is this far from its camp, or has neither dealt nor taken damage for MOB_GIVE_UP_SECONDS. */

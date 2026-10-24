@@ -24,13 +24,24 @@
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
 //     full hp heals back to full in MOB_REGEN_SECONDS (a fighting mob does not heal).
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
-import { MOB_REPATH_MS, mobFaction, mobName, mobWeapon, type FactionId, type Vec2 } from "@raid/shared";
+import {
+  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobBuffStacks, mobFaction, mobName, mobWeapon, rollBuffStat, type FactionId, type Vec2,
+} from "@raid/shared";
+import type { PlayerState } from "@raid/shared/schema";
+import { creditMobKill } from "./arena";
+import { grantStacks, onKill } from "./buffs";
 import type { Combatant } from "./combatant";
-import { newBrain } from "./mobAI";
+import { mobRewardFor } from "./feed";
+import { dropWeapon } from "./loot";
+import { aggro, newBrain, resetMob } from "./mobAI";
 import { addMob } from "./mobs";
-import type { LedgerEntry, World } from "./world";
+import { cancelAction } from "./weapons";
+import { chainHook, emit, type LedgerEntry, type PlayerRuntime, type World } from "./world";
 
 export type MobCombatant = Extract<Combatant, { kind: "mob" }>;
+
+/** A mob hit this recently does not heal, so a returning mob a player keeps shooting at cannot out-regen the shots. */
+const REGEN_QUIET_MS = 2000;
 
 /**
  * Adds one regional mob of `region` resting at `at`: state (kind, name, faction, weapon, hp from mobFaction) and runtime
@@ -46,11 +57,125 @@ export function placeMob(world: World, o: { region: FactionId; elite: boolean; a
 }
 
 /** Places every camp's mobs. A no-op for a map without camps (a hand-built test map). */
-export function spawnRegionalMobs(_world: World): void {}
-
-/** The ledger's way down for a regional mob; returns the hp removed. */
-export function hurtMob(_world: World, _c: MobCombatant, _amounts: readonly number[], _entries: readonly LedgerEntry[]): number {
-  return 0;
+export function spawnRegionalMobs(world: World): void {
+  for (const region of world.map.regions) {
+    for (const camp of region.mobCamps) {
+      camp.spots.forEach((spot, i) => {
+        placeMob(world, {
+          region: camp.region, elite: camp.elite && i === 0, at: spot, facing: Math.atan2(camp.y - spot.y, camp.x - spot.x),
+        });
+      });
+    }
+  }
 }
 
-export function install(_world: World): void {}
+/**
+ * The ledger's way down for a regional mob; returns the hp removed. A mob without a brain is a training dummy, which the
+ * ledger sends to damageMob instead, so it is left alone here.
+ */
+export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[], entries: readonly LedgerEntry[]): number {
+  let total = 0;
+  for (const a of amounts) if (a > 0) total += a;
+  if (!(total > 0) || c.s.status !== "alive" || !c.rt.brain) return 0;
+  const before = c.s.hp;
+  c.s.hp = Math.max(0, before - total);
+  c.rt.lastHitAt = world.state.serverTime;
+  if (c.s.hp <= 0) {
+    killMob(world, c, entries, amounts);
+  } else {
+    for (let i = 0; i < entries.length; i++) {
+      const by = entries[i]!.by.id;
+      if (amounts[i]! > 0 && world.state.players.has(by)) aggro(world, c, by, amounts[i]!);
+    }
+  }
+  return before - c.s.hp;
+}
+
+/**
+ * The mob dies this tick and pays whoever dealt its largest hit (ties: the earlier entry) among the players still in the
+ * fight; with none it simply falls, with no GV, buff or drop. Players who already went down this tick do not collect.
+ */
+export function killMob(world: World, c: MobCombatant, entries: readonly LedgerEntry[], amounts: readonly number[]): void {
+  const brain = c.rt.brain;
+  if (!brain || c.s.status !== "alive") return; // a mob dies once, whoever calls
+  let killer: { p: PlayerState; rt: PlayerRuntime } | null = null;
+  let best = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const a = amounts[i]!;
+    if (!(a > best)) continue;
+    const id = entries[i]!.by.id;
+    const p = world.state.players.get(id);
+    const rt = world.players.get(id);
+    if (!p || !rt || p.status !== "alive" || rt.resolved || rt.down) continue;
+    best = a;
+    killer = { p, rt };
+  }
+
+  c.s.status = "dead";
+  c.s.hp = 0;
+  brain.diedAt = world.state.serverTime;
+  brain.mode = "idle";
+  brain.target = null;
+  brain.threat.clear();
+  brain.goal = null;
+  brain.moving = false;
+  brain.holding = false;
+  c.rt.inputs.drain();
+  c.rt.path = [];
+  cancelAction(world, c);
+  c.rt.weapon.held = false;
+  c.rt.weapon.bufferedUntil = 0;
+  emit(world, { type: "fx", fx: { kind: "death", id: c.id, x: c.s.x, y: c.s.y, by: killer?.rt.id ?? null } });
+  if (!killer) return;
+
+  const { p, rt } = killer;
+  // Read before this kill counts toward the feed (creditMobKill reads it the same way), so the drop pays what the killer's feed earned until now.
+  const m = mobRewardFor(world, p, rt);
+  creditMobKill(world, p, rt, brain.elite);
+  grantStacks(world, p, rt, rollBuffStat(brain.region, world.random), mobBuffStacks(brain.elite) * m);
+  const weapon = c.s.weapon0;
+  if (weapon !== "" && p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, { x: c.s.x, y: c.s.y }, weapon);
+  onKill(world, p, rt);
+}
+
+/**
+ * System: corpses older than MOB_CORPSE_MS leave the state, and a living mob that is not fighting and has not been hit for
+ * REGEN_QUIET_MS heals toward full. Walks the plain runtime map and allocates nothing while there is nothing to do.
+ */
+export function reapMobs(world: World, dtMs: number): void {
+  const now = world.state.serverTime;
+  const heal = dtMs / (MOB_REGEN_SECONDS * 1000);
+  let gone: string[] | null = null;
+  for (const rt of world.mobs.values()) {
+    const brain = rt.brain;
+    if (!brain) continue;
+    const m = world.state.mobs.get(rt.id);
+    if (!m) continue;
+    if (m.status === "dead") {
+      if (now - brain.diedAt >= MOB_CORPSE_MS) (gone ??= []).push(rt.id);
+    } else if (m.hp < m.maxHp && brain.mode !== "fight" && now - rt.lastHitAt >= REGEN_QUIET_MS) {
+      m.hp = Math.min(m.maxHp, m.hp + m.maxHp * heal);
+    }
+  }
+  // Removed after the walk, so neither map is ever changed while it is being iterated.
+  if (gone) {
+    for (const id of gone) {
+      world.state.mobs.delete(id);
+      world.mobs.delete(id);
+    }
+  }
+}
+
+/** Everyone alive left the map in the teleport, so no mob's fight is still on. */
+function resetAllMobs(world: World): void {
+  for (const rt of world.mobs.values()) {
+    const s = world.state.mobs.get(rt.id);
+    if (rt.brain && s && s.status === "alive") resetMob(world, { kind: "mob", id: rt.id, s, rt });
+  }
+}
+
+export function install(world: World): void {
+  world.systems.push(reapMobs);
+  if (world.config.mobs) chainHook(world, "raidStarted", spawnRegionalMobs);
+  chainHook(world, "teleported", resetAllMobs);
+}

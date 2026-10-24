@@ -1,7 +1,8 @@
 // Buff stacks, combos and the mob reward curve (GAME_DESIGN 12). Pure: the sim, the HUD and the tests all read these.
 //
 // A stat's bonus follows an S-curve in its stacks, so early stacks feel small, the 3rd to 5th is the spike and then it
-// plateaus: bonus = Bmax x (sigmoid((stacks - s0) / w) - sigmoid(-s0 / w)), which is 0 at 0 stacks. Stacks are real
+// plateaus: bonus = Bmax x (sigmoid((stacks - s0) / w) - sigmoid(-s0 / w)), which is 0 at 0 stacks and tops out at
+// Bmax x (1 - sigmoid(-s0 / w)), about 95% of Bmax (+66.7% hp, +47.6% attack speed, +28.6% move speed). Stacks are real
 // numbers: a mob's drop is scaled by the reward curve, and a bounty moves half of a victim's stacks (fractions and all).
 import {
   BOUNTY_STACK_SHARE, BUFF_BMAX_ATTACK_SPEED, BUFF_BMAX_HP, BUFF_BMAX_MOVE_SPEED, BUFF_S0, BUFF_W, CATCHUP_GAP, CATCHUP_MULT,
@@ -130,8 +131,9 @@ export function activeCombos(stacks: Stacks): ComboSpec[] {
 export function killEffects(stacks: Stacks): KillEffects {
   const out: KillEffects = { bursts: [], shield: null, resetCooldown: false };
   for (const c of activeCombos(stacks)) {
-    out.bursts.push(...c.onKill.bursts);
-    if (c.onKill.shield && (!out.shield || c.onKill.shield.share > out.shield.share)) out.shield = c.onKill.shield;
+    // Copies: the catalog's objects are shared, and a caller must not be able to edit a combo through its result.
+    for (const b of c.onKill.bursts) out.bursts.push({ ...b });
+    if (c.onKill.shield && (!out.shield || c.onKill.shield.share > out.shield.share)) out.shield = { ...c.onKill.shield };
     if (c.onKill.resetCooldown) out.resetCooldown = true;
   }
   return out;

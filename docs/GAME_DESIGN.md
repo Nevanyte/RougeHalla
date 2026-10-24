@@ -338,6 +338,9 @@ A 20-tick-per-second simulation of the damage rules above reproduces the full fa
   - a little **GV**;
   - a **stat buff** (max HP, attack speed, or move speed);
   - **its weapon**, unless the killer already holds that weapon type.
+- **Strength.** A mob is its region's faction with hp and every damage number scaled by **0.45**, and an elite by **0.6**. With the starting kit a player beats every normal mob in a straight duel (77% hp left on average, 36% in the worst case, Sentenced against a Fire mob); an elite beats most but not the faction that counters the player (2 of the 25 pairings lose: Fire against a Demon Blood elite, Frost against a Sentenced elite), so it is a choice. Each region has **one elite**: the first mob of its elite camp. The other mobs of that camp are normal.
+- **Drop numbers.** GV is 2 (elite 10) and a buff is 1 stack (elite 2), both times the mob reward curve of section 12.3. The stat of the drop is the region's own 60% of the time (Fire and Demon Blood: attack speed; Plague and Frost: max HP; Sentenced: move speed) and one of the other two otherwise, so the map is also a shopping list for a combo. The weapon lies where the mob fell and anyone can take it.
+- **Leash numbers.** A mob gives up when it is 7 tiles from its camp, or after 6 s with no damage given or taken, or with nobody left to fight. It then walks home ignoring everyone, heals to full in 4 s and is neutral again. Camp mates do not help each other: only the mob that was hit wakes. Mobs never hurt each other. Dead mobs do not respawn.
 - **Same input path as players.** Mobs use the same input rules and combat code as players, so a sword mob and a sword player behave identically.
 - **Later.** Raid-boss mobs and quest NPCs (section 2.2).
 
@@ -363,7 +366,15 @@ Each buff stack you collect adds to that stat along an S-curve: small at first, 
 | 6 | +63% | +45% | +27% |
 | 8+ | about +66% | about +47% | about +28% |
 
-**Combo thresholds.** Reaching 3 and then 5 stacks of one stat unlocks a set bonus, for example a dash on kill from 3× attack speed or a shield on kill from 3× HP. These are the run-defining moments; exact bonuses get tuned when mobs land.
+**Combo thresholds.** Reaching 3 and then 5 stacks of one stat unlocks a set bonus that fires on **every kill** (a player's or a mob's). Stacks are real numbers (a drop is scaled by the reward curve below), and a higher tier replaces the lower tier of the same stat. These are the run-defining moments; the numbers below are the Phase 11 picks and get tuned in playtests.
+
+| Stat | 3 stacks | 5 stacks |
+|---|---|---|
+| Attack speed | **Dash on kill**: 2.5× move speed for 0.4 s | **Cascade**: the dash, and a kill resets your attack cooldown |
+| Max HP | **Shield on kill**: absorbs 15% of max HP for 5 s | **Bulwark**: 30% of max HP for 8 s |
+| Move speed | **Bloodrush**: 1.5× move speed for 3 s | **Frenzy run**: 1.8× for 5 s |
+
+A shield absorbs before HP in the one place all damage goes through, so it also soaks sudden death. A max-HP stack raises HP by the same amount, so you never end up lower on the bar than before.
 
 ### 12.3 Mob rewards fall as you get fed
 Mob GV and buff value are multiplied by a curve that's near full while you're hungry, drops sharply around a feed of 5, and never goes below 30%:
@@ -381,7 +392,7 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 |---|---|---|---|---|---|---|---|---|
 | Bounty (GV) | 0 | 10 | 28 | 52 | 80 | 112 | 147 | 226 |
 
-- **Announcement.** When a player's bounty first appears and every time it grows, the host announces "*name* is on a rampage — bounty N GV".
+- **Announcement.** When a player's bounty first appears and when it grows, the host announces "*name* is on a rampage — bounty N GV", at most once per player per 10 s. A rise inside that window is held back and announced with its value when the window ends.
 - **Crown.** Bountied players wear a crown, and their position flashes on everyone's minimap for 2 s every 10 s.
 - **Shutdown.** Killing a bountied player pays the bounty and **half their buff stacks** to the killer, so comebacks are real.
 - **Trade-off, intended.** A fed player can beat their counters, as in League. Bounties and falling rewards are the release valves.

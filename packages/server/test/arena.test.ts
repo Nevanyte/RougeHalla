@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bountyFor, BOUNTY_ANNOUNCE_MS, feedScore,
   circleClear, COLISEUM_RING_RADIUS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
   inColiseum, KILL_CREDIT_SECONDS, mapFromTiles, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
   SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WIN_BONUS_MIN_OPPONENTS,
@@ -1684,14 +1685,18 @@ describe("Glorious Victory", () => {
   /**
    * Reads the kills and bounties back off the event stream alone. A kill is a gv "kill" event: straight after the
    * victim's death fx, or, for a kill credited on a leave, ahead of the leaver's `mia` result. The bounty it must have
-   * paid is the victim's last announced one (the `bounty` fx), as a gv "bounty" event right behind the kill's own.
+   * paid is what the victim's own kills so far earn (bountyFor; the melee has no mob kills, so feed is kills), as a gv
+   * "bounty" event right behind the kill's own. Announcements are throttled (BOUNTY_ANNOUNCE_MS) and can lag behind the
+   * bounty, so the amount owed is not read from them; each one that does go out must still carry the amount then owed.
    */
   function readKills(all: SimEvent[]) {
-    const announced = new Map<string, number>();
+    const made = new Map<string, number>(); // kills credited so far, by killer
+    const owedBy = (id: string): number => bountyFor(feedScore(made.get(id) ?? 0, 0));
     const out = { kills: 0, leaveKills: 0, claims: 0, bounties: 0 };
     all.forEach((e, i) => {
-      if (e.type === "fx" && e.fx.kind === "bounty") announced.set(e.fx.id, e.fx.bounty);
+      if (e.type === "fx" && e.fx.kind === "bounty") expect(e.fx.bounty, `announced bounty of ${e.fx.id}`).toBe(owedBy(e.fx.id));
       if (e.type !== "gv" || e.reason !== "kill") return;
+      made.set(e.id, (made.get(e.id) ?? 0) + 1);
       out.kills++;
       const before = all[i - 1];
       let victim: string;
@@ -1703,7 +1708,7 @@ describe("Glorious Victory", () => {
         victim = leaver!.id;
         out.leaveKills++;
       }
-      const owed = announced.get(victim) ?? 0;
+      const owed = owedBy(victim);
       const next = all[i + 1];
       if (owed > 0) {
         expect(next, `the bounty on ${victim}`).toEqual({ type: "gv", id: e.id, amount: owed, reason: "bounty" });
@@ -2325,8 +2330,10 @@ describe("feed and bounty", () => {
       for (let i = 1; i < 8; i++) expect(P(w, i).bounty, `p${i}`).toBe(0);
     });
 
-    it("every kill that raises it announces the new amount: 10, 28, 52, 80", () => {
-      const w = startRun(8);
+    // Phase 11: announcements are throttled to one per player per BOUNTY_ANNOUNCE_MS; a rise held back goes out, with the
+    // value then, when the window ends (the flush system, so this needs a game world).
+    it("announces the first rise at once, holds the rises inside the 10 s window and announces the value then: 10, then 80", () => {
+      const w = startRun(8, { patienceSeconds: 3600 }, { game: true });
       const bounties: number[] = [];
       const announced: number[] = [];
       for (const victim of [1, 2, 3, 4, 5, 6]) {
@@ -2337,7 +2344,13 @@ describe("feed and bounty", () => {
         for (const fx of bountyFxOf(w.events)) expect(fx).toMatchObject({ id: idOf(0), name: "alice" });
       }
       expect(bounties).toEqual([0, 0, 10, 28, 52, 80]);
-      expect(announced).toEqual([10, 28, 52, 80]);
+      expect(announced).toEqual([10]); // 28, 52 and 80 came inside the window that the 10 opened at TICK_MS
+      w.events = [];
+      const windowEnd = TICK_MS + BOUNTY_ANNOUNCE_MS;
+      expect(bountyFxOf(runTo(w, windowEnd - TICK_MS))).toEqual([]);
+      expect(bountyFxOf(tick(w))).toEqual([{ kind: "bounty", id: idOf(0), name: "alice", bounty: 80 }]); // the value now, not 28 or 52
+      expect(w.state.serverTime).toBe(windowEnd);
+      expect(bountyFxOf(runTo(w, windowEnd + 5000))).toEqual([]); // and only once
     });
 
     it("announces nothing when the bounty does not rise", () => {
@@ -2596,13 +2609,15 @@ describe("feed and bounty", () => {
       const paid: number[] = [];
       for (let i = 0; i < 3; i++) paid.push(creditMobKill(w, P(w, 0), RT(w, 0), true));
       for (let i = 0; i < 9; i++) paid.push(creditMobKill(w, P(w, 0), RT(w, 0), false));
+      // Elite GV is round(GV_ELITE x reward): 9.8, 9.7 and 9.7 at feeds 0, 0.25 and 0.5 all round to GV_ELITE.
       expect(paid).toEqual([GV_ELITE, GV_ELITE, GV_ELITE, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
       expect(RT(w, 0).mobKills).toBe(12);
       expect(RT(w, 0).gv.mobs).toBe(GV_MOB_CAP); // GV stays capped...
       expect(P(w, 0).gv).toBe(GV_MOB_CAP);
       expect(P(w, 0).bounty).toBe(10); // ...feed doesn't
-      // The bounty fx came with the 9th, 10th, 11th and 12th mob kill: feeds 2.25, 2.5, 2.75, 3.
-      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([1, 4, 6, 10]);
+      // The bounty rose with the 9th, 10th, 11th and 12th mob kill (feeds 2.25, 2.5, 2.75, 3), but only the first is
+      // announced: the rest fall inside the BOUNTY_ANNOUNCE_MS window (this world has no flush system).
+      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([1]);
       expect(ofType(w.events, "gv")).toHaveLength(3); // a capped kill makes no gv event
     });
 
@@ -2616,7 +2631,7 @@ describe("feed and bounty", () => {
         sequence.push(P(w, 0).bounty);
       }
       expect(sequence).toEqual([1, 4, 6, 10]); // feeds 2.25, 2.5, 2.75, 3
-      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([1, 4, 6, 10]);
+      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([1]); // the other rises fall inside the announce window
       slay(w, 0, [3]); // feed 4
       expect(P(w, 0).bounty).toBe(28);
     });

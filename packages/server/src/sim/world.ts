@@ -137,6 +137,8 @@ export interface MobBrain {
   phase: number;
   /** Server ms it died (status "dead"); it is removed MOB_CORPSE_MS later. */
   diedAt: number;
+  /** The `readyAt` the AI saw last tick: a later one means it started an attack, which counts as dealing damage. */
+  lastReadyAt: number;
 }
 
 /** One hit's damage before mitigation: the raw amount and the attacker's damage shares. */
