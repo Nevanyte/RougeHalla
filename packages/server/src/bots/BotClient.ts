@@ -1,19 +1,24 @@
 // A headless player. It talks to the server the way the web client does: HTTP for the profile, then a
 // Colyseus room where it reads synced state and sends inputs only (move, stop, aim, attack, release, swap, pickup).
 // It never touches server internals; the map comes from the public seed. The brain is a hunt, re-evaluated every
-// THINK_MS from the latest state: pick the nearest standing enemy, see where the snapshot buffer puts it, and let the
-// shared weapon policy (decide) say where to walk, where to aim and whether the trigger is down. Early in a run it may
-// detour for a second weapon, and it swaps slot to the better weapon edge against the enemy's. The arena (teleport,
-// locked gates, sudden death) needs no handling: the bot just keeps hunting.
+// THINK_MS from the latest state: pick the foe, see where the snapshot buffer puts it, and let the shared weapon
+// policy (decide) say where to walk, where to aim and whether the trigger is down. The foe is the nearest standing
+// player, except that with no player close the bot farms the regional mobs first (mobHunt.ts decides who: it also drops
+// a mob that cannot be hurt and runs from a fight it is losing). A weapon a mob dropped, or a chest's early in the run,
+// is worth a detour when only one weapon is carried; the bot swaps slot to the better weapon edge against the foe's
+// weapon. It joins asking for a faction when told to (`faction`), and a pursuit loop between players (three bots on a ring,
+// each chasing the one ahead) is broken by turning on someone else for a while (ORBIT_*). The arena (teleport, locked gates,
+// sudden death) needs no handling: after the teleport there are no mobs in reach and the bot just keeps hunting players.
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  attackInterval, bestSlot, decide, FACTIONS, generateMap, hasLineOfSight, INTERACT_RANGE, INTERP_DELAY_MS,
-  isFactionId, isRanged, isWeaponId, PLAYER_SPEED, PROFILE_TOKEN_HEADER, ROOM_NAME, SnapshotBuffer, TICK_MS, TILE,
-  weaponTimings, withGates, wrapAngle,
-  type ClientMessages, type ClientMessageType, type FactionId, type GameMap, type JoinOptions, type PolicyOutput,
+  bestSlot, decide, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, INTERP_DELAY_MS,
+  isFactionId, isRanged, isRegionalKind, isWeaponId, PLAYER_RADIUS, PLAYER_SPEED, PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear,
+  SnapshotBuffer, TICK_MS, TILE, unpackFx, withGates, wrapAngle,
+  type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions, type PolicyOutput,
   type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
+import { bestSlotVsMob, bowFullDraw, mobSpacing, mobWeapon, pathLength, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
 
 type ClientRoom = Room<any, RaidState>;
 
@@ -51,6 +56,24 @@ export interface BotRun {
 
 /** A standing enemy and how far away it is. */
 interface Enemy { id: string; p: PlayerState; d: number }
+
+/** Whatever the bot is fighting this think, a player or a mob: where it is, how far, what it holds and where its snapshots live. */
+interface Foe { key: string; at: Vec2; d: number; theirs: WeaponId | null; mob: boolean }
+
+/** What the bot did, for the tests and `--verbose`. */
+export interface BotStats {
+  /** Mob targets picked, and mobs given up on (they went home, could not be hurt, or took too long). */
+  mobTargets: number;
+  mobDrops: number;
+  /** Retreats from a mob fight at low hp. */
+  retreats: number;
+  /** Time (ms) spent with a mob focus. */
+  mobFocusMs: number;
+  /** Weapons taken from containers. */
+  grabs: number;
+  /** The longest stretch (ms) the bot stood still without attacking, drawing or fetching anything while it was alive in a running raid. */
+  maxStallMs: number;
+}
 
 /** Where the snapshot buffer puts a player at render time, and how fast it was moving over the last VEL_WINDOW_MS. */
 interface View { x: number; y: number; vx: number; vy: number }
@@ -100,12 +123,18 @@ const ORBIT_PROGRESS = 40;
 export const ORBIT_MIN_DISTANCE = 150;
 const ORBIT_AVOID_MS = 6000;
 
-/** A weapon detour only happens this early in the run (server ms)... */
+/** A detour for a chest's weapon only happens this early in the run (server ms)... */
 const GRAB_WINDOW_MS = 25_000;
 /** ...for a weapon this close (straight line, roughly nine in ten spawns have one)... */
 const GRAB_RADIUS = 8 * TILE;
-/** ...with no enemy this close... */
+/**
+ * ...but a loose weapon on the ground (a mob's drop, or one lying about) is worth the walk at any time in the run, and a
+ * bow kills from far off, so the drop can lie that far from where the bot stood.
+ */
+const DROP_RADIUS = 15 * TILE;
+/** ...with no enemy this close, and no awake mob this close (it would chase the bot back and forth)... */
 const GRAB_ENEMY_DISTANCE = 240;
+const GRAB_MOB_DISTANCE = 220;
 /** ...and is dropped for good once it has taken this long, so it can never stall the hunt. */
 const GRAB_BUDGET_MS = 6_000;
 const GRAB_MAX_FAILS = 2;
@@ -113,7 +142,20 @@ const PICKUP_RETRY_MS = 400;
 /** Inside this distance of a container we start taking; keeps a margin under INTERACT_RANGE for stale positions. */
 const PICKUP_DISTANCE = INTERACT_RANGE - 12;
 
-const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
+/** Snapshots are kept for a mob only while it is this close (u): a target is picked within MOB_HUNT.reach (700). */
+const MOB_VIEW_RADIUS = 1300;
+/** A mob's snapshot-buffer key, so it can never collide with a player's session id. */
+const mobKey = (id: string): string => `mob:${id}`;
+/** A stall this long (ms) is logged with --verbose. */
+const STALL_LOG_MS = 1500;
+/** A player behind a wall threatens from this many times its straight-line distance. */
+const BLOCKED_THREAT_FACTOR = 2;
+/** The bot moved less than this (u) between two thinks counts as standing still... */
+const STILL_EPS = 1;
+/** ...and may stand this long (ms) doing nothing before the stall counter starts (a cooldown, a swap, a stopped draw). */
+const STILL_GRACE_MS = 600;
+
+const dist =(a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 const asWeapon = (def: string): WeaponId | null => (isWeaponId(def) ? def : null);
@@ -166,9 +208,37 @@ export class BotClient {
   private grab: { containerId: string; since: number; pickupSentAt: number; fails: number } | null = null;
   /** Containers whose weapon we gave up on. */
   private readonly grabSkipped = new Set<string>();
+  private readonly hunter = new MobHunter(undefined, (msg) => this.log(msg));
+  private grabs = 0;
+  /** Stall watch: where we stood at the last think, since when we have stood there doing nothing, and the longest such stretch. */
+  private lastPos: Vec2 = { x: NaN, y: NaN };
+  private stillSince = 0;
+  private maxStall = 0;
+  private stallLoggedAt = 0;
+  /** What the last think decided, for the log. */
+  private lastHunt = "";
+  /** When a hit fx last showed a player (not a mob; a player's damage-over-time hit counts too) hurting us: the hunt's "being shot at" evidence. */
+  private playerHitAt = -Infinity;
 
   constructor(private readonly opts: BotOptions = {}) {
     this.done = new Promise((resolve) => { this.settle = resolve; });
+  }
+
+  /** This bot's id in the room (what fx and the state call it). Empty until it has joined. */
+  get sessionId(): string {
+    return this.room?.sessionId ?? "";
+  }
+
+  /** The map seed of the room it joined (0 before that). */
+  get seed(): number {
+    return this.room?.state?.seed ?? 0;
+  }
+
+  get stats(): BotStats {
+    const h = this.hunter.stats;
+    return {
+      mobTargets: h.targets, mobDrops: h.drops, retreats: h.retreats, mobFocusMs: h.focusMs, grabs: this.grabs, maxStallMs: this.maxStall,
+    };
   }
 
   /** Claims (or re-opens, given its token) the profile, joins a lobby and starts playing. */
@@ -199,7 +269,8 @@ export class BotClient {
     room.reconnection.enabled = false; // a bot that drops is simply done
     room.onMessage("result", (r: RunResult) => { this.resultsSeen++; this.log(`result: ${r.outcome} (place ${r.place}/${r.players}, +${r.gv.total} GV)`); this.finish(r); });
     room.onMessage("toast", (m: { text: string }) => this.onToast(m.text));
-    room.onMessage("fx", (fx: TimedFx) => this.onFx(fx));
+    // One batch per server step (the old per-fx message is gone).
+    room.onMessage("fxs", (b: FxBatch) => { for (const fx of unpackFx(b, room.state.roster)) this.onFx(fx); });
     room.onStateChange((s) => {
       this.patchAt = Date.now();
       for (const [id, p] of s.players) {
@@ -207,6 +278,7 @@ export class BotClient {
         if (!buf) this.buffers.set(id, (buf = new SnapshotBuffer()));
         buf.push(s.serverTime, p.x, p.y);
       }
+      this.bufferMobs(s);
     });
     room.onLeave((code) => { this.roomClosed = true; this.finish(null, `left the room unexpectedly (code ${code})`); });
     room.onError((code, msg) => this.finish(null, `room error ${code}: ${msg ?? ""}`));
@@ -274,6 +346,9 @@ export class BotClient {
     if ((fx.kind === "hit" || fx.kind === "block") && fx.id === this.room.sessionId && fx.by !== null && fx.by === this.avoidId) {
       this.avoidId = null;
     }
+    if (fx.kind === "hit" && fx.id === this.room.sessionId && fx.by !== null && fx.by !== fx.id && this.room.state.players.has(fx.by)) {
+      this.playerHitAt = Date.now();
+    }
   }
 
   /**
@@ -306,14 +381,135 @@ export class BotClient {
       return;
     }
     const now = Date.now();
+    this.watchStall(me, now);
     const enemy = this.pickEnemy(me, now);
-    if (!enemy) { this.stand(); return; }
-    if (this.grabWeapon(me, now, enemy)) {
-      // The detour walks away from the target on purpose; its time must not read as a chase going nowhere.
-      if (this.chase?.id === enemy.id) { this.chase.best = enemy.d; this.chase.since = now; }
-      return;
+    const hunt = this.huntMobs(me, enemy, now);
+    this.logHunt(hunt);
+    if (hunt.kind === "retreat" && this.retreat(me, hunt, now)) { this.pauseChase(enemy, now); return; }
+    const mob = hunt.kind === "mob" ? this.mobFoe(me, hunt.id) : null;
+    if (this.grabWeapon(me, now, enemy?.d ?? Infinity)) { this.pauseChase(enemy, now); return; }
+    if (mob) {
+      this.pauseChase(enemy, now);
+      this.fight(me, mob, now);
+    } else if (enemy) this.fight(me, { key: enemy.id, at: enemy.p, d: enemy.d, theirs: inHand(enemy.p), mob: false }, now);
+    else this.stand();
+  }
+
+  /**
+   * A weapon detour, a retreat or a mob fight walks away from the player the orbit breaker is timing on purpose; its time must not
+   * read as a chase going nowhere.
+   */
+  private pauseChase(enemy: Enemy | null, now: number): void {
+    if (enemy && this.chase?.id === enemy.id) { this.chase.best = enemy.d; this.chase.since = now; }
+  }
+
+  /** Counts how long the bot has stood still doing nothing in a running raid: the longest such stretch is `stats.maxStallMs`. */
+  private watchStall(me: PlayerState, now: number): void {
+    const busy = this.trigger || me.drawStartedAt > 0 || this.grab !== null;
+    if (this.stillSince === 0 || busy || !(dist(me, this.lastPos) < STILL_EPS)) this.stillSince = now;
+    this.lastPos = { x: me.x, y: me.y };
+    const stalled = now - this.stillSince - STILL_GRACE_MS;
+    this.maxStall = Math.max(this.maxStall, stalled);
+    if (stalled > STALL_LOG_MS && this.opts.verbose && now - this.stallLoggedAt > STALL_LOG_MS) {
+      this.stallLoggedAt = now;
+      this.log(`standing still for ${Math.round(stalled)} ms: ${this.lastHunt}, hp ${Math.round(me.hp)}, dest ${this.dest ? `${Math.round(this.dest.x)},${Math.round(this.dest.y)}` : "none"}, holding ${this.holding}, slot ${me.slot} (${me.weapon0}/${me.weapon1})`);
     }
-    this.fight(me, enemy, now);
+  }
+
+  /**
+   * Who to fight: the mob hunt's call (mobHunt.ts) from the room as the bot sees it. Mobs are only for the bot that has no
+   * player near it; the decision never leaves the bot without a foe it could fight (the player hunt is the fallback).
+   */
+  private huntMobs(me: PlayerState, enemy: Enemy | null, now: number): HuntDecision {
+    const s = this.room.state;
+    const players = this.standingPlayers();
+    return this.hunter.decide({
+      now,
+      self: {
+        faction: isFactionId(me.faction) ? me.faction : null,
+        x: me.x, y: me.y, hp: me.hp, maxHp: me.maxHp, weapons: [asWeapon(me.weapon0), asWeapon(me.weapon1)],
+        stacks: me.stacksHp + me.stacksAs + me.stacksMs, mobKills: me.mobKills,
+      },
+      playerDistance: enemy ? this.threatDistance(me, players) : Infinity,
+      players,
+      inColiseum: s.inColiseum,
+      mobs: s.mobs,
+      walk: (to) => this.walkDistance(me, to),
+      attacking: this.trigger,
+      shotByPlayerAt: this.playerHitAt,
+    });
+  }
+
+  /** Where the other standing players are. */
+  private standingPlayers(): Vec2[] {
+    const out: Vec2[] = [];
+    for (const [id, p] of this.room.state.players) if (id !== this.room.sessionId && p.status === "alive") out.push({ x: p.x, y: p.y });
+    return out;
+  }
+
+  /**
+   * How far the nearest standing player is for the purpose of deciding whether it threatens us: a player behind a wall counts as
+   * twice as far (spawns near each other are screened to have no line of sight, so two bots that start 200 u apart still farm).
+   */
+  private threatDistance(me: Vec2, players: readonly Vec2[]): number {
+    const map = this.collision();
+    let best = Infinity;
+    for (const p of players) {
+      const d = dist(me, p);
+      best = Math.min(best, hasLineOfSight(map, me, p) ? d : d * BLOCKED_THREAT_FACTOR);
+    }
+    return best;
+  }
+
+  /** The map the server walks and shoots on: the gates are walls from the first teleport to the end of the run. */
+  private collision(): GameMap {
+    return this.room.state.gatesLocked ? withGates(this.map) : this.map;
+  }
+
+  /** Length of the walk from `from` to `to`, or null when the server's pathfinder finds none. */
+  private walkDistance(from: Vec2, to: Vec2): number | null {
+    const path = findPath(this.collision(), from, to);
+    return path.length === 0 ? null : pathLength(from, path);
+  }
+
+  /** The mob `id` as a foe, or null when it is gone. */
+  private mobFoe(me: Vec2, id: string): Foe | null {
+    const m = this.room.state.mobs.get(id);
+    if (!m || m.status !== "alive") return null;
+    return { key: mobKey(id), at: m, d: dist(me, m), theirs: mobWeapon(m), mob: true };
+  }
+
+  /** Keeps a snapshot buffer for every mob within MOB_VIEW_RADIUS, so a mob target can be aimed at and led like a player. */
+  private bufferMobs(s: RaidState): void {
+    const me = s.players.get(this.room.sessionId);
+    if (!me) return;
+    for (const [id, m] of s.mobs) {
+      const key = mobKey(id);
+      if (m.status !== "alive" || !isRegionalKind(m.kind) || dist(me, m) > MOB_VIEW_RADIUS) {
+        this.buffers.delete(key);
+        continue;
+      }
+      let buf = this.buffers.get(key);
+      if (!buf) this.buffers.set(key, (buf = new SnapshotBuffer()));
+      buf.push(s.serverTime, m.x, m.y);
+    }
+  }
+
+  private logHunt(hunt: HuntDecision): void {
+    const what = hunt.kind === "mob" ? `going for mob ${hunt.id} (${hunt.why})` : `${hunt.kind} (${hunt.why})`;
+    if (what !== this.lastHunt) this.log(what);
+    this.lastHunt = what;
+  }
+
+  /** Low hp in a mob fight: stop shooting and walk away from the awake mobs and the players. False when there is nowhere to go (cornered): fight on. */
+  private retreat(me: PlayerState, hunt: Extract<HuntDecision, { kind: "retreat" }>, now: number): boolean {
+    const map = this.collision();
+    const to = retreatPoint(me, hunt.from, (a, b) => segmentClear(map, a, b, PLAYER_RADIUS));
+    if (!to) return false;
+    this.grab = null;
+    this.stopTrigger();
+    this.moveTo(to, now);
+    return true;
   }
 
   /**
@@ -379,40 +575,40 @@ export class BotClient {
   }
 
   /**
-   * Hunts `enemy` with the weapon in hand: the policy decides where to walk, where to aim and whether the trigger is down.
-   * Every aim is measured from where the buffered snapshots put us at render time and carries that time as `t`: the
-   * server swings melee from there and looses projectiles from there too. A projectile flies in present server time,
-   * so the target is led to where it will be about when the shot is loosed.
+   * Fights `foe` (a player or a mob; the server treats both the same) with the weapon in hand: the policy decides where to
+   * walk, where to aim and whether the trigger is down. Every aim is measured from where the buffered snapshots put us at
+   * render time and carries that time as `t`: the server swings melee from there and looses projectiles from there too. A
+   * projectile flies in present server time, so the target is led to where it will be about when the shot is loosed.
    */
-  private fight(me: PlayerState, enemy: Enemy, now: number): void {
+  private fight(me: PlayerState, foe: Foe, now: number): void {
     const s = this.room.state;
     const slots: Slots = [asWeapon(me.weapon0), asWeapon(me.weapon1)];
     const weapon = slots[slotOf(me)];
-    const theirs = inHand(enemy.p);
-    if (this.swap(me, slots, theirs, enemy.d, now)) return;
+    if (this.swap(me, slots, foe.theirs, foe.mob, foe.d, now)) return;
     if (!weapon || !isFactionId(me.faction)) { this.stand(); return; }
 
     const renderT = s.serverTime - INTERP_DELAY_MS;
     const serverNow = this.serverNow();
     const ranged = isRanged(weapon);
-    const seen = this.view(enemy.id, renderT);
+    const seen = this.view(foe.key, renderT);
     const seenSelf = this.view(this.room.sessionId, renderT);
     const self = seenSelf ?? { x: me.x, y: me.y };
-    let target: Vec2 = seen ?? enemy.p;
+    let target: Vec2 = seen ?? foe.at;
     const targetVel: Vec2 = seen ? { x: seen.vx, y: seen.vy } : { x: 0, y: 0 };
     if (seen && ranged) {
       const lead = Math.min(MAX_LEAD_MS, serverNow - renderT + TICK_MS / 2) / 1000;
       target = { x: seen.x + seen.vx * lead, y: seen.y + seen.vy * lead };
     }
-    const timings = weaponTimings("bow", attackInterval(FACTIONS[me.faction], "bow"));
     const drawn = me.drawStartedAt > 0 ? Math.max(1e-3, (serverNow - me.drawStartedAt) / 1000) : 0;
     const out = decide({
       self, target, targetVel,
-      los: hasLineOfSight(s.gatesLocked ? withGates(this.map) : this.map, self, target),
+      los: hasLineOfSight(this.collision(), self, target),
       weapon,
+      ...(foe.mob ? { spacing: mobSpacing(weapon, foe.theirs) } : {}),
       ready: serverNow >= me.readyAt,
       drawSeconds: drawn,
-      fullDraw: timings.fullDraw + RELEASE_MARGIN_S,
+      // Attack-speed stacks shorten the bow's draw: holding for the unbuffed draw would over-hold every shot.
+      fullDraw: bowFullDraw(me.faction, me.stacksAs) + RELEASE_MARGIN_S,
     });
 
     if (out.move === "stop") this.hold();
@@ -421,11 +617,11 @@ export class BotClient {
     this.pull(out, me, weapon, renderT, now);
   }
 
-  /** Swaps to the slot with the better weapon edge against the enemy's weapon; true when it did. Never mid-draw. */
-  private swap(me: PlayerState, slots: Slots, theirs: WeaponId | null, d: number, now: number): boolean {
+  /** Swaps to the slot with the better weapon edge against the foe's weapon (against a mob, one that works on it); true when it did. Never mid-draw. */
+  private swap(me: PlayerState, slots: Slots, theirs: WeaponId | null, mob: boolean, d: number, now: number): boolean {
     if (d > SWAP_DISTANCE || now < this.nextSwapAt || me.drawStartedAt > 0) return false;
     const slot = slotOf(me);
-    const want = bestSlot(slots, slot, theirs);
+    const want = mob ? bestSlotVsMob(slots, slot, theirs) : bestSlot(slots, slot, theirs);
     if (want === slot) return false;
     this.log(`swapping ${slots[slot]} for ${slots[want]} against ${theirs}`);
     this.send("swap", { slot: want });
@@ -467,13 +663,15 @@ export class BotClient {
   }
 
   /**
-   * Early in the run, with one weapon carried, a detour for a container's weapon. True while it is going for one (the
-   * hunt waits). It is bounded in time, distance and tries, so it can never stall the hunt.
+   * With one weapon carried, a detour for a weapon lying about: a chest's early in the run, or a loose one (a mob's drop)
+   * at any time. True while it is going for one (the hunt waits). It is bounded in time, distance and tries, so it can
+   * never stall the hunt, and it waits while an enemy or an awake mob is close.
    */
-  private grabWeapon(me: PlayerState, now: number, enemy: Enemy): boolean {
+  private grabWeapon(me: PlayerState, now: number, enemyD: number): boolean {
     const s = this.room.state;
     const carried = (me.weapon0 !== "" ? 1 : 0) + (me.weapon1 !== "" ? 1 : 0);
-    if (carried !== 1 || s.inColiseum || s.serverTime - s.raidStartedAt > GRAB_WINDOW_MS || enemy.d < GRAB_ENEMY_DISTANCE) {
+    if (carried === 2 && this.grab) this.grabs++; // the detour worked
+    if (carried !== 1 || s.inColiseum || enemyD < GRAB_ENEMY_DISTANCE || this.hunter.awakeNear(me, GRAB_MOB_DISTANCE, now).length > 0) {
       this.grab = null;
       return false;
     }
@@ -483,14 +681,14 @@ export class BotClient {
       g = this.grab = null;
     }
     if (!g) {
-      const found = this.findWeapon(me);
+      const found = this.findWeapon(me, s.serverTime - s.raidStartedAt <= GRAB_WINDOW_MS);
       if (!found) return false;
       g = this.grab = { containerId: found, since: now, pickupSentAt: 0, fails: 0 };
       this.log(`going for a weapon in ${found}`);
     }
     this.stopTrigger();
     const c = s.containers.get(g.containerId)!;
-    const map = s.gatesLocked ? withGates(this.map) : this.map;
+    const map = this.collision();
     if (dist(me, c) > PICKUP_DISTANCE || !hasLineOfSight(map, me, c)) {
       this.moveTo(c, now);
     } else if (!this.holding) {
@@ -514,14 +712,20 @@ export class BotClient {
     return this.weaponIn(containerId) !== null;
   }
 
-  /** The nearest container within GRAB_RADIUS holding a weapon other than the one carried. */
-  private findWeapon(me: PlayerState): string | null {
+  /**
+   * The nearest container holding a weapon other than the one carried: a loose weapon within DROP_RADIUS at any time, a chest
+   * or a body within GRAB_RADIUS while the run is `early`.
+   */
+  private findWeapon(me: PlayerState, early: boolean): string | null {
     const have = asWeapon(me.weapon0) ?? asWeapon(me.weapon1);
     let best: string | null = null;
-    let bestD = GRAB_RADIUS;
+    let bestD = Infinity;
+    const others = this.standingPlayers();
     this.room.state.containers.forEach((c) => {
       const d = dist(me, c);
-      if (d >= bestD || this.grabSkipped.has(c.id)) return;
+      const reach = c.kind === "ground" ? DROP_RADIUS : early ? GRAB_RADIUS : 0;
+      if (d >= reach || d >= bestD || this.grabSkipped.has(c.id)) return;
+      if (others.some((p) => dist(p, c) < d)) return; // somebody else is nearer to it: they get there first, and we would meet over it
       const w = this.weaponIn(c.id);
       if (w !== null && w !== have) { best = c.id; bestD = d; }
     });

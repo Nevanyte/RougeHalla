@@ -1,8 +1,9 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
-import { angleBetween, generateMap, withGates, type RunResult, type TimedFx } from "@raid/shared";
+import { angleBetween, generateMap, unpackFx, unpackLaunches, withGates, type FxBatch, type RunResult } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
+import { dropWarner, type FxInbox } from "../net/fxInbox";
 import { EntityInterpolator } from "../net/interpolation";
 import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView } from "../render/ContainerView";
@@ -16,13 +17,16 @@ import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
+import type { ToastTone } from "../ui/toast";
 import { TrainingBar } from "../ui/trainingBar";
 import { WeaponBar } from "../ui/weaponBar";
 
 export interface RaidSceneData {
   room: RaidRoom;
+  /** The room's `fxs` batches, held since the join (main.ts) so none that arrived before this scene started is lost. */
+  fxs: FxInbox;
   /** Where short announcements ("<name> was killed") go; omitted, they are simply not shown. */
-  toast?: (text: string) => void;
+  toast?: (text: string, tone?: ToastTone) => void;
   /** True once the results panel is on screen; the "YOU DIED" line steps aside for it. Omitted, the line never yields. */
   resultsVisible?: () => boolean;
   /** Only for a training room: takes the player back to the hub. It is called at most once. */
@@ -77,6 +81,7 @@ export class RaidScene extends Phaser.Scene {
   private lastMoveSentAt = 0;
   private fx!: FxView;
   private unbindFx: (() => void) | null = null;
+  private readonly warnDropped = dropWarner();
   private unbindResult: (() => void) | null = null;
   /** Server time this frame is drawn at, captured in update(); inputs are stamped with it (see stamped). */
   private renderT = 0;
@@ -110,7 +115,6 @@ export class RaidScene extends Phaser.Scene {
   readonly rendered = new Map<string, { x: number; y: number }>();
   private readonly onState = (state: RaidState) => {
     this.interp.onPatch(state, performance.now());
-    if (state.projectiles) this.projectiles.sync(state.projectiles);
     this.noteWeaponChanges(state);
   };
   // maxEnqueuedMessages is 0 (connection.ts), so whatever was sent while the socket was down is gone, a release included.
@@ -175,26 +179,16 @@ export class RaidScene extends Phaser.Scene {
       view: (id) => this.views.get(id) ?? this.mobViews.get(id),
       position: (id) => this.rendered.get(id),
       name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
+      mobKind: (id) => this.room.state.mobs.get(id)?.kind,
       projectileEnded: (id) => this.projectiles.finish(id),
       // At render time with the flash and the number, not on arrival (~INTERP_DELAY_MS earlier): damageFlash judges the hit against max hp.
       localHit: (fx) => this.feedback.hit(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0, fx.sig),
       announce: data.toast,
     });
-    this.unbindFx = this.room.onMessage("fx", (fx: TimedFx) => {
-      // Training puts a fighter who goes down back on its feet: no body, no decal, no "was killed" line, no death screen.
-      if (fx?.kind === "death" && this.training && fx.id === this.room.sessionId) {
-        this.fx.cancelWindups(fx.id, fx.t);
-        // The server let go of the trigger when it revived us; a button still held must press again, as after a teleport.
-        this.attackSent = false;
-        this.announce?.("Knocked down — back on your feet");
-        return;
-      }
-      if (fx?.kind === "death") this.noteDeath(fx.id, fx.t, fx.x, fx.y);
-      if (fx?.kind === "teleport") this.noteTeleport(fx.t);
-      // The stop point is known on arrival, though the fx plays later: it caps the projectile's drawn flight.
-      if (fx?.kind === "projEnd") this.projectiles.noteEnd(fx);
-      this.fx.enqueue(fx);
-    });
+    // One message per server step; unpackFx stamps each event with the step's time and skips what it can't read. The state
+    // has no projectiles: the batch of the step that loosed one announces it, and a client that joined or reconnected while
+    // some flew was sent them as a batch of its own. Batches that came before this scene did are replayed first.
+    this.unbindFx = data.fxs.attach((batch) => this.onFxBatch(batch));
     // The killing result reaches the client before the dead-status patch, so the death line is driven from it.
     // main.ts holds the results panel back for a moment after a death; update() hides the line once it shows.
     this.unbindResult = this.room.onMessage("result", (r: RunResult) => {
@@ -304,6 +298,7 @@ export class RaidScene extends Phaser.Scene {
     this.feedback.update(now, this.sampleMatchup);
 
     // Redraws only when the player's dot (or the gates) actually changed.
+    this.minimap.setMobs(state.mobs);
     this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();
@@ -544,6 +539,25 @@ export class RaidScene extends Phaser.Scene {
     const map = generateMap(seed);
     this.mapView = new MapView(this, map);
     this.minimap.setMap(map);
+  }
+
+  private onFxBatch(batch: FxBatch): void {
+    for (const launch of unpackLaunches(batch)) this.projectiles.noteLaunch(launch);
+    for (const fx of unpackFx(batch, this.room.state.roster, this.warnDropped)) {
+      // Training puts a fighter who goes down back on its feet: no body, no decal, no "was killed" line, no death screen.
+      if (fx.kind === "death" && this.training && fx.id === this.room.sessionId) {
+        this.fx.cancelWindups(fx.id, fx.t);
+        // The server let go of the trigger when it revived us; a button still held must press again, as after a teleport.
+        this.attackSent = false;
+        this.announce?.("Knocked down — back on your feet");
+        continue;
+      }
+      if (fx.kind === "death") this.noteDeath(fx.id, fx.t, fx.x, fx.y);
+      if (fx.kind === "teleport") this.noteTeleport(fx.t);
+      // The stop point is known on arrival, though the fx plays later: it caps the projectile's drawn flight.
+      if (fx.kind === "projEnd") this.projectiles.noteEnd(fx);
+      this.fx.enqueue(fx);
+    }
   }
 
   private teardown(): void {

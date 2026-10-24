@@ -41,7 +41,7 @@ import {
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import {
-  activeWeapon, allCombatants, combatant, factionOf, standing, standingCombatants, timingsOf, type Combatant,
+  activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { recordHit } from "./ledger";
 import { chainHook, collisionMap, emit, tieRank, type PendingAction, type World } from "./world";
@@ -198,6 +198,9 @@ function immune(world: World, c: Combatant): boolean {
   return c.kind === "player" && world.state.serverTime < c.s.immuneUntil;
 }
 
+/** An evading mob (combatant.ts isEvading) takes no signature target and no contact, so it cannot keep burning, diseasing or chilling a player who follows it. */
+const evading = isEvading;
+
 interface Contact { other: string; amount: number; passive: boolean }
 
 function push(map: Map<string, Contact[]>, id: string, c: Contact): void {
@@ -219,9 +222,12 @@ function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<stri
   const out = new Map<string, Contact[]>();
   const inc = new Map<string, Contact[]>();
   const add = (attacker: string, victim: string, amount: number, passive: boolean): void => {
-    if (attacker === victim || !byId.has(attacker)) return;
+    if (attacker === victim) return;
+    const a = byId.get(attacker);
     const v = byId.get(victim);
-    if (!v || immune(world, v)) return;
+    if (!a || !v || immune(world, v) || evading(v) || evading(a)) return;
+    // Mobs never hurt each other: a bash that a camp-mate's shield blocks is no contact between them.
+    if (a.kind === "mob" && v.kind === "mob") return;
     push(out, attacker, { other: victim, amount, passive });
     push(inc, victim, { other: attacker, amount, passive });
   };
@@ -248,7 +254,8 @@ function signatureDamage(world: World, dtMs: number): void {
   for (const c of fighters) {
     const f = sigOf(world, c.id);
     f.hpFrac = c.s.maxHp > 0 ? c.s.hp / c.s.maxHp : 0;
-    if (f.target !== null && !byId.has(f.target)) clearTarget(f);
+    // A fighter loses its target when the target is gone or is walking home, and a mob walking home keeps none.
+    if (f.target !== null && (!byId.has(f.target) || evading(c) || evading(byId.get(f.target)))) clearTarget(f);
   }
 
   const { out, inc } = contactsOf(world, byId);
@@ -491,9 +498,10 @@ function onWeaponSwapped(world: World, c: Combatant): void {
 
 /**
  * Heals a standing fighter by up to `amount` (never past max hp) and emits a `heal` fx. Heals other than Holy's
- * lifesteal are refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage. Returns the hp gained.
+ * lifesteal are refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage. `quiet` sends no fx
+ * (a mob's regeneration heals every tick, which would be a heal number every tick). Returns the hp gained.
  */
-export function heal(world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean } = {}): number {
+export function heal(world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean; quiet?: boolean } = {}): number {
   if (!(amount > 0) || !standing(c)) return 0;
   const now = world.state.serverTime;
   const f = world.factions?.fighters.get(c.id);
@@ -501,6 +509,6 @@ export function heal(world: World, c: Combatant, amount: number, opts: { lifeste
   const before = c.s.hp;
   c.s.hp = Math.min(c.s.maxHp, c.s.hp + amount);
   const gained = c.s.hp - before;
-  if (gained > 0) emit(world, { type: "fx", fx: { kind: "heal", id: c.id, amount: gained } });
+  if (gained > 0 && !opts.quiet) emit(world, { type: "fx", fx: { kind: "heal", id: c.id, amount: gained } });
   return gained;
 }

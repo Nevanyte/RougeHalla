@@ -117,7 +117,7 @@ function tick(world: World): SimEvent[] {
   for (const pr of world.projectiles.values()) {
     if (seenShots.has(pr.id)) continue;
     seenShots.add(pr.id);
-    const st = pr.state;
+    const st = pr.launch;
     shots.push({
       at, id: pr.id, kind: pr.kind, owner: pr.owner, weapon: pr.weapon, x: st.x, y: st.y, vx: st.vx, vy: st.vy, t: st.t,
       range: st.range, raw: pr.packet.raw,
@@ -406,10 +406,10 @@ describe("the wand", () => {
     const S = T(world);
     expect(fxOf("windup")).toMatchObject([{ by: "p0", weapon: "wand", a: -0.4, ms: 200 }]);
     runTo(world, S + 150);
-    expect(world.state.projectiles.size).toBe(0);
+    expect(world.projectiles.size).toBe(0);
     tick(world);
     expect(shots).toHaveLength(1);
-    expect(world.state.projectiles.size).toBe(1);
+    expect(world.projectiles.size).toBe(1);
     const shot = shots[0]!;
     expect(shot).toMatchObject({ at: S + 200, kind: "ball", owner: "p0", weapon: "wand", t: S + 200, range: 220 });
     expect(shot.x).toBe(P(world).x);

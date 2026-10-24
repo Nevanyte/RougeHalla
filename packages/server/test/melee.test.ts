@@ -653,7 +653,6 @@ describe("sword stagger, through real windups", () => {
     tap(world, 1, FACING_WEST);
     run(world, 8);
     expect(world.projectiles.size).toBe(0);
-    expect(world.state.projectiles.size).toBe(0);
   });
 
   it("the same cast, left alone, does loose its ball at 300 ms", () => {
@@ -807,7 +806,6 @@ describe("balls", () => {
     const events = tick(world, [{ ...SWORD, weapon: "axe" }]);
     expect(ball.ended).toBe(true);
     expect(world.projectiles.has(ball.id)).toBe(false);
-    expect(world.state.projectiles.has(ball.id)).toBe(false);
     expect(fxOf(events, "projEnd")).toHaveLength(1);
     expect(fxOf(events, "projEnd")[0]).toMatchObject({ id: ball.id, proj: "ball", reason: "destroyed" });
     for (let i = 0; i < 10; i++) tick(world);

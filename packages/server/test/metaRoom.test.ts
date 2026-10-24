@@ -242,7 +242,7 @@ function track(who: Account, room: ClientRoom): Player {
   const p: Player = { who, room, results: [], left: false };
   room.onMessage("result", (r: RunResult) => p.results.push(r));
   room.onMessage("toast", () => {});
-  room.onMessage("fx", () => {});
+  room.onMessage("fxs", () => {});
   room.onLeave(() => { p.left = true; });
   players.push(p);
   return p;

@@ -77,6 +77,7 @@ describe("the orbit timer during a weapon detour", () => {
     let detour = true;
     b.grabWeapon = () => detour;
     b.fight = () => {};
+    (b as any).huntMobs = () => ({ kind: "player", why: "" }); // the fake room has no mobs or map for the mob hunt
     const thinkFor = (ms: number) => {
       for (let t = 0; t < ms; t += 50) { b.think(); vi.advanceTimersByTime(50); }
     };

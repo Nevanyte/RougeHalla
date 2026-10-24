@@ -10,7 +10,7 @@ import { randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
   CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
-  type FactionId, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
+  type FactionId, type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { ServerConfig } from "../config";
@@ -21,6 +21,7 @@ import { enqueueClientMessage } from "../sim/inputs";
 import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/step";
 import { installTraining } from "../sim/training";
 import type { SimEvent, World } from "../sim/world";
+import { FxChannel } from "./FxChannel";
 
 /** Fixed steps run per simulation callback at most; older backlog is dropped. */
 const MAX_CATCHUP_STEPS = 3;
@@ -137,6 +138,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private readonly pendingResults = new Map<string, RunResult>();
   /** sessionId -> seat, from onJoin until onLeave. */
   private readonly seats = new Map<string, Seat>();
+  private readonly fxChannel = new FxChannel();
   /**
    * Factions players picked in the hub, by session, until their run is recorded. A round-robin default (no pick) is
    * not recorded: faction titles and golden variants must not come from luck of the join order.
@@ -220,6 +222,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       profiles.release(profile, ownerKey);
       throw err;
     }
+    this.sendInFlight(client);
   }
 
   onDrop(client: Client) {
@@ -239,6 +242,17 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     markReconnected(this.world, client.sessionId);
     const result = this.pendingResults.get(client.sessionId);
     if (result) client.send("result", result);
+    this.sendInFlight(client);
+  }
+
+  /**
+   * The arrows and balls flying right now, for a client that joins or reconnects: the synced state has none, so the full
+   * state it is about to get cannot tell it. The client is still joining here, so core holds this back until the full
+   * state is out and sends it ahead of every batch from the steps in between (the same path as the `result` above).
+   */
+  private sendInFlight(client: Client) {
+    if (this.world.projectiles.size === 0) return;
+    client.send("fxs", this.fxChannel.inFlight(this.world.projectiles, this.world.state.serverTime) satisfies ServerMessages["fxs"]);
   }
 
   /**
@@ -305,7 +319,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       steps++;
     }
     if (this.accumulator >= TICK_MS) this.accumulator = 0;
-    if (steps > 0) this.broadcastPatch();
+    if (steps > 0) {
+      this.fxChannel.extendRoster(this.world.state);
+      this.broadcastPatch();
+      this.fxChannel.rosterSent();
+    }
   }
 
   private sendTo<K extends keyof ServerMessages>(sessionId: string, type: K, msg: ServerMessages[K]) {
@@ -313,10 +331,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   private handleEvents(events: SimEvent[]) {
+    const fxs: FxEvent[] = [];
     for (const ev of events) {
       switch (ev.type) {
         case "fx":
-          this.broadcast("fx", { ...ev.fx, t: this.world.state.serverTime });
+          fxs.push(ev.fx);
           break;
         case "toast":
           this.sendTo(ev.to, "toast", { text: ev.text });
@@ -335,6 +354,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           break;
       }
     }
+    // One message for the whole step, stamped with the step's time and sent before this tick's patch: a `teleport` has to
+    // reach the client ahead of the patch that moves everyone (it marks the cut). A step with no fx and no new projectile
+    // sends nothing.
+    const batch = this.fxChannel.batch(fxs, this.world.state.serverTime, this.world.projectiles);
+    if (batch) this.broadcast("fxs", batch satisfies ServerMessages["fxs"]);
   }
 
   /** A player's run is over: bank its GV and stats, free the profile, tell them. */

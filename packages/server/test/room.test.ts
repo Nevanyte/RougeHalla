@@ -12,14 +12,15 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  defaultFaction, ENDED_LINGER_SECONDS, FACTIONS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS,
-  ROOM_NAME, SIGNATURE_WEAPONS, type JoinOptions, type ProfileStats, type RunResult, type TimedFx, type Vec2,
-  type FactionId,
+  damageShares, defaultFaction, ENDED_LINGER_SECONDS, FACTIONS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS,
+  raycast, ROOM_NAME, SIGNATURE_WEAPONS, unpackFx, unpackLaunches, type FactionId, type FxBatch, type JoinOptions, type ProfileStats,
+  type ProjectileLaunch, type RunResult, type TimedFx, type Vec2,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
 import { startServer, type RaidServer } from "../src/index";
 import { ActiveProfiles } from "../src/rooms/RaidRoom";
+import { spawnProjectiles } from "../src/sim/projectiles";
 import type { SimConfig, World } from "../src/sim/world";
 
 type ClientRoom = Room<any, RaidState>;
@@ -154,7 +155,7 @@ function track(who: Account, room: ClientRoom): Player {
   const p: Player = { who, room, results: [], toasts: [], fx: [], left: false };
   room.onMessage("result", (r: RunResult) => p.results.push(r));
   room.onMessage("toast", (m: { text: string }) => p.toasts.push(m.text));
-  room.onMessage("fx", (f: TimedFx) => p.fx.push(f));
+  room.onMessage("fxs", (b: FxBatch) => p.fx.push(...unpackFx(b, room.state.roster)));
   room.onLeave(() => { p.left = true; });
   players.push(p);
   return p;
@@ -898,6 +899,157 @@ describe("a run", () => {
     expectBanked(A, 0);
     expectBanked(B, 0);
     expect(isActive(A) && isActive(B)).toBe(true);
+  });
+
+  it("sends a step's fx as one `fxs` batch, and the teleport's batch reaches a client before the patch that moves everyone", async () => {
+    const [A, B] = [await claim(), await claim()];
+    const [a] = await startRun([A, B], { patienceSeconds: 2, suddenDeathSeconds: 120 });
+    expect(worldOf(a!).state.gatesLocked).toBe(false);
+    const batches: FxBatch[] = [];
+    const arrivals: string[] = [];
+    let teleportAt = NaN;
+    let lockedPatchAt = NaN;
+    a!.room.onMessage("fxs", (batch: FxBatch) => {
+      batches.push(batch);
+      for (const fx of unpackFx(batch, a!.room.state.roster)) if (fx.kind === "teleport") { teleportAt = fx.t; arrivals.push("fx"); }
+    });
+    a!.room.onStateChange((state) => {
+      if (state.gatesLocked && arrivals.at(-1) !== "patch") { lockedPatchAt = state.serverTime; arrivals.push("patch"); }
+    });
+    await until(() => arrivals.includes("patch") && batches.length > 0, "the teleport and its patch", 6000);
+    // The fx came first, stamped with the tick that the patch carries (a catch-up patch may be a later one).
+    expect(arrivals).toEqual(["fx", "patch"]);
+    expect(lockedPatchAt).toBeGreaterThanOrEqual(teleportAt);
+    // A step with no fx sends nothing, and a step sends at most one batch.
+    for (const batch of batches) expect(batch.l.length).toBeGreaterThan(0);
+    expect(new Set(batches.map((batch) => batch.t)).size).toBe(batches.length);
+  });
+
+  it("an arrow reaches every client as a launch in an fxs batch and is never in a patch; its projEnd names it", async () => {
+    const [A, B, C] = [await claim(), await claim(), await claim()];
+    const [a, b, c] = await startRun([A, B, C]); // b is the Sentenced: a bow
+    const world = worldOf(b!);
+    expect(serverPlayer(b!).weapon0).toBe("bow");
+    // An open line from the duel spot, so the arrow flies a few ticks before it stops.
+    const at = duelSpot(world, [sessionOf(b!)]);
+    placeOnServer(b!, at.x, at.y);
+    let aim = 0;
+    let free = -1;
+    for (let k = 0; k < 64; k++) {
+      const angle = (k / 64) * 2 * Math.PI - Math.PI;
+      const ray = raycast(world.map, at.x, at.y, at.x + Math.cos(angle) * 400, at.y + Math.sin(angle) * 400);
+      const run = ray.hit ? ray.dist : 400;
+      if (run > free) { free = run; aim = angle; }
+    }
+    expect(free).toBeGreaterThan(150);
+
+    const seen = new Map<Player, { launches: ProjectileLaunch[]; ends: TimedFx[] }>();
+    for (const p of [a!, c!]) {
+      const mine = { launches: [] as ProjectileLaunch[], ends: [] as TimedFx[] };
+      seen.set(p, mine);
+      p.room.onMessage("fxs", (batch: FxBatch) => {
+        mine.launches.push(...unpackLaunches(batch));
+        mine.ends.push(...unpackFx(batch, p.room.state.roster).filter((f) => f.kind === "projEnd"));
+      });
+    }
+    await sleep(120);
+    const deadline = Date.now() + 10_000;
+    const loosed = () => [...seen.values()].every((s) => s.launches.length > 0 || s.ends.length > 0);
+    while (!loosed() && Date.now() < deadline) {
+      b!.room.send("attack", { a: aim });
+      b!.room.send("release", { a: aim });
+      const settle = Date.now() + 400;
+      while (!loosed() && Date.now() < settle) await sleep(20);
+    }
+    await until(() => [...seen.values()].every((s) => s.ends.length > 0), "the arrow to stop, on every client");
+    for (const [p, mine] of seen) {
+      const label = p.who.name;
+      expect(mine.launches.length, label).toBeGreaterThan(0);
+      const launch = mine.launches[0]!;
+      expect(launch.kind, label).toBe("arrow");
+      expect(Math.hypot(launch.vx, launch.vy), label).toBeCloseTo(900, 0);
+      // It is named by the same id in the launch and in the fx that ends it, which carries no start.
+      const end = mine.ends.find((e) => e.kind === "projEnd" && e.id === launch.id);
+      expect(end, label).toBeDefined();
+      expect((p.room.state as unknown as Record<string, unknown>).projectiles, `${label}: the state has no projectiles`).toBeUndefined();
+    }
+  });
+
+  /** A ball the sim loosed for real and then held in the air (ended: the sweep skips it), so it is still flying whenever a test looks. */
+  function holdBallAloft(shooter: Player, at: Vec2): { id: string; launch: ProjectileLaunch } {
+    const world = worldOf(shooter);
+    world.combat.spawns.push({
+      owner: sessionOf(shooter), kind: "ball", weapon: "wand", a: 0, packet: { raw: 1, ...damageShares(FACTIONS.holy) }, origin: at,
+    });
+    spawnProjectiles(world);
+    const pr = [...world.projectiles.values()].at(-1)!;
+    pr.ended = true;
+    return { id: pr.id, launch: { ...pr.launch } };
+  }
+
+  it("a client that reconnects mid-flight is sent the projectiles then flying: after its full state, ahead of every later batch", async () => {
+    const [A, B, C] = [await claim(), await claim(), await claim()];
+    const [a, b] = await startRun([A, B, C], { patienceSeconds: 600, patienceMinSeconds: 600, suddenDeathSeconds: 600 });
+    const back = reconnectAfter(a!, 300);
+    const log: Array<"state" | FxBatch> = [];
+    a!.room.onReconnect(() => { log.length = 0; });
+    a!.room.onStateChange(() => { log.push("state"); });
+    a!.room.onMessage("fxs", (batch: FxBatch) => { log.push(batch); });
+
+    await dropConnection(a!);
+    const ball = holdBallAloft(b!, duelSpot(worldOf(b!), [sessionOf(b!)]));
+    await until(back.reconnected, "the SDK to reconnect", 8000);
+    await until(() => log.some((entry) => entry !== "state"), "the batch of the projectiles in flight");
+
+    expect(log[0], "the full state comes first").toBe("state");
+    const first = log.find((entry): entry is FxBatch => entry !== "state")!;
+    expect(first.l, "a batch of its own: no events").toEqual([]);
+    const launches = unpackLaunches(first);
+    expect(launches.map((l) => l.id)).toEqual([ball.id]);
+    expect(launches[0]).toMatchObject({ kind: "ball", range: ball.launch.range });
+    expect(Math.abs(launches[0]!.x - ball.launch.x)).toBeLessThanOrEqual(0.05 + 1e-9);
+    expect(first.t - launches[0]!.t, "how long it has flown by now").toBeGreaterThanOrEqual(250);
+  });
+
+  it("is sent nothing about projectiles when none fly, whether it joins or reconnects", async () => {
+    const A = await claim();
+    const a = await createRoom(A);
+    const room = serverRoom(a) as unknown as { sendInFlight(c: unknown): void }; // what onJoin and onReconnect both call
+    const sent: Array<[string, unknown]> = [];
+    const stub = { sessionId: sessionOf(a), send: (type: string, msg: unknown) => sent.push([type, msg]) };
+    room.sendInFlight(stub);
+    expect(sent).toEqual([]);
+    const ball = holdBallAloft(a, { x: 100, y: 100 });
+    room.sendInFlight(stub);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]![0]).toBe("fxs");
+    expect(unpackLaunches(sent[0]![1] as FxBatch).map((l) => l.id)).toEqual([ball.id]);
+  });
+
+  it("keeps the roster to the run: a lobby that players join and leave over and over adds nothing, and the run fills it", async () => {
+    const [A, B, C, churn] = [await claim(), await claim(), await claim(), await claim()];
+    const lead = await createRoom(A, { minPlayers: 3, patienceSeconds: 600, patienceMinSeconds: 600, suddenDeathSeconds: 600 });
+    for (let i = 0; i < 6; i++) {
+      const visitor = await joinRoom(lead, churn);
+      await until(() => lead.room.state.players.size === 2, "the visitor in the lobby");
+      await leave(visitor);
+      await until(() => lead.room.state.players.size === 1, "the visitor gone");
+      await until(() => !isActive(churn), "the visitor's profile to be free again");
+    }
+    await sleep(120);
+    expect(worldOf(lead).state.roster.length, "nobody in the lobby is rostered").toBe(0);
+    expect(lead.room.state.roster.length).toBe(0);
+
+    const b = await joinRoom(lead, B);
+    const c = await joinRoom(lead, C);
+    await until(() => [lead, b, c].every((p) => p.room.state.phase === "active" && p.room.state.mobs.size > 0), "the run to start");
+    await sleep(120);
+    const roster = [...lead.room.state.roster];
+    expect(new Set(roster.slice(0, 3)), "the three players first").toEqual(new Set([lead, b, c].map(sessionOf)));
+    const mobs = [...lead.room.state.mobs.keys()];
+    expect(mobs.length).toBeGreaterThan(0);
+    expect(roster.slice(3).sort(), "then the mobs, and no one else").toEqual(mobs.sort());
+    expect([...b.room.state.roster], "every client holds the same roster").toEqual(roster);
   });
 
   describe("leaving", () => {

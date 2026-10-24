@@ -79,7 +79,7 @@ describe("duel engine", () => {
     runDuel({
       faction: "fire", weapons: ["bow", "bow"], distance: 300, delayTicks: [20, 0], capSeconds: 4, seed: 5,
       onTick: (world, tick) => {
-        for (const pr of world.state.projectiles.values()) {
+        for (const pr of world.projectiles.values()) {
           const i = pr.owner === "f0" ? 0 : 1;
           if (firstShot[i] < 0) firstShot[i] = tick;
         }

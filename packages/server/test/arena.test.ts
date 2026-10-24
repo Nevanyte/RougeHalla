@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BOW_DRAW_MOVE, circleClear, COLISEUM_RING_RADIUS, defaultFaction, FACTIONS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
+  bountyFor, BOUNTY_ANNOUNCE_MS, BOW_DRAW_MOVE, feedScore,
+  circleClear, COLISEUM_RING_RADIUS, defaultFaction, FACTIONS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
   inColiseum, KILL_CREDIT_SECONDS, mapFromTiles, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SIGNATURE_WEAPONS,
   SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
   SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WIN_BONUS_MIN_OPPONENTS,
@@ -108,8 +109,13 @@ function farthestSpawn(world: World, from: Vec2): Vec2 {
 
 const attacker = (world: World, i: number): Attacker => ({ id: idOf(i), p: P(world, i), rt: RT(world, i) });
 
-/** Damage that is certainly lethal to a player who isn't immune. Returns what applyDamage returned. */
+/**
+ * Damage that is certainly lethal to a player who isn't immune. Returns what applyDamage returned. A source that isn't a
+ * player is a stray death: nobody hit the victim lately (their last hit is forgotten first), so nobody takes the kill.
+ * A mob finishing a player a rival hit within KILL_CREDIT_SECONDS is the "a mob finishes a hunted player" tests below.
+ */
 function kill(world: World, victim: number, source: Attacker | string = "test"): number {
+  if (typeof source === "string") RT(world, victim).lastHit = null;
   return applyDamage(world, P(world, victim), RT(world, victim), P(world, victim).hp + 1000, source);
 }
 
@@ -660,6 +666,17 @@ describe("loadConfig patience settings", () => {
   });
 });
 
+describe("loadConfig mobs", () => {
+  it("runs the regional mobs unless MOBS is 0 or false", () => {
+    expect(loadConfig({}).mobs).toBe(true);
+    expect(loadConfig({ MOBS: "1" }).mobs).toBe(true);
+    expect(loadConfig({ MOBS: "true" }).mobs).toBe(true);
+    expect(loadConfig({ MOBS: "" }).mobs).toBe(true);
+    expect(loadConfig({ MOBS: "0" }).mobs).toBe(false);
+    expect(loadConfig({ MOBS: "false" }).mobs).toBe(false);
+  });
+});
+
 describe("disconnect and reconnect grace", () => {
   it("a leaver drops out of `players` but not out of the synced startedWith", () => {
     const w = startRun(3);
@@ -736,7 +753,7 @@ describe("disconnect and reconnect grace", () => {
         expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(1);
         runTo(w, 1500); // far past a full draw
         expect(P(w, 1).drawStartedAt).toBe(0);
-        expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+        expect(w.projectiles.size).toBe(0);
         // The client presses again when it is back: a fresh draw.
         enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 });
         tick(w);
@@ -1100,6 +1117,38 @@ describe("simultaneous last deaths", () => {
     });
     const results = resultsOf(runTo(w, 500));
     expect(results).toMatchObject({ p0: { outcome: "won", place: 1 }, p1: { outcome: "died", place: 2 } });
+  });
+
+  it("the kill barrier is hp for the tie too: 10 hp and a barrier of 200 beats 50 hp when both fall in one tick", () => {
+    for (const swap of [false, true]) {
+      const w = startRun(2, {}, { hp: 100 });
+      const [shielded, bare] = swap ? [1, 0] : [0, 1];
+      P(w, shielded).hp = 10;
+      P(w, shielded).barrier = 200;
+      P(w, bare).hp = 50;
+      atTick(w, 500, (world) => {
+        kill(world, bare);
+        kill(world, shielded); // far more than the barrier and the hp together
+      });
+      const results = resultsOf(runTo(w, 500));
+      expect(results[idOf(shielded)], `shielded p${shielded}`).toMatchObject({ outcome: "won", place: 1 });
+      expect(results[idOf(bare)], `bare p${bare}`).toMatchObject({ outcome: "died", place: 2 });
+    }
+  });
+
+  it("the barrier is counted as it stood at the start of the tick, not as the tick's hits left it", () => {
+    const w = startRun(2, {}, { hp: 100 });
+    P(w, 0).hp = 20;
+    P(w, 0).barrier = 0;
+    P(w, 1).hp = 50;
+    atTick(w, 500, (world) => {
+      P(world, 0).barrier = 500; // won mid-tick: too late to count
+      kill(world, 1);
+      kill(world, 0);
+    });
+    const results = resultsOf(runTo(w, 500));
+    expect(results[idOf(1)]).toMatchObject({ outcome: "won", place: 1 });
+    expect(results[idOf(0)]).toMatchObject({ outcome: "died", place: 2 });
   });
 
   it("two players killing each other in one tick: both get the kill, the higher fraction wins", () => {
@@ -1911,18 +1960,24 @@ describe("Glorious Victory", () => {
   /**
    * Reads the kills and bounties back off the event stream alone. A kill is a gv "kill" event: straight after the
    * victim's death fx, or, for a kill credited on a leave, ahead of the leaver's `mia` result. The bounty it must have
-   * paid is the victim's last announced one (the `bounty` fx), as a gv "bounty" event right behind the kill's own.
+   * paid is what the victim's own player kills so far earn (bountyFor; mob kills never count), as a gv
+   * "bounty" event right behind the kill's own. Announcements are throttled (BOUNTY_ANNOUNCE_MS) and can lag behind the
+   * bounty, so the amount owed is not read from them; each one that does go out must still carry the amount then owed.
    */
   function readKills(all: SimEvent[]) {
-    const announced = new Map<string, number>();
+    const made = new Map<string, number>(); // kills credited so far, by killer
+    const owedBy = (id: string): number => bountyFor(made.get(id) ?? 0);
     const out = { kills: 0, leaveKills: 0, claims: 0, bounties: 0 };
     all.forEach((e, i) => {
-      if (e.type === "fx" && e.fx.kind === "bounty") announced.set(e.fx.id, e.fx.bounty);
+      if (e.type === "fx" && e.fx.kind === "bounty") expect(e.fx.bounty, `announced bounty of ${e.fx.id}`).toBe(owedBy(e.fx.id));
       if (e.type !== "gv" || e.reason !== "kill") return;
+      made.set(e.id, (made.get(e.id) ?? 0) + 1);
       out.kills++;
       const before = all[i - 1];
       let victim: string;
-      if (before?.type === "fx" && before.fx.kind === "death" && before.fx.by === e.id) {
+      // A death fx with no killer is a mob (or sudden death) finishing someone: when a kill follows it, a player took the credit
+      // for a hit they landed within KILL_CREDIT_SECONDS.
+      if (before?.type === "fx" && before.fx.kind === "death" && (before.fx.by === e.id || before.fx.by === null)) {
         victim = before.fx.id;
       } else {
         const leaver = all.slice(i + 1).find((x): x is EventOf<"resolved"> => x.type === "resolved");
@@ -1930,7 +1985,7 @@ describe("Glorious Victory", () => {
         victim = leaver!.id;
         out.leaveKills++;
       }
-      const owed = announced.get(victim) ?? 0;
+      const owed = owedBy(victim);
       const next = all[i + 1];
       if (owed > 0) {
         expect(next, `the bounty on ${victim}`).toEqual({ type: "gv", id: e.id, amount: owed, reason: "bounty" });
@@ -2553,8 +2608,10 @@ describe("feed and bounty", () => {
       for (let i = 1; i < 8; i++) expect(P(w, i).bounty, `p${i}`).toBe(0);
     });
 
-    it("every kill that raises it announces the new amount: 10, 28, 52, 80", () => {
-      const w = startRun(8);
+    // Phase 11: announcements are throttled to one per player per BOUNTY_ANNOUNCE_MS; a rise held back goes out, with the
+    // value then, when the window ends (the flush system, so this needs a game world).
+    it("announces the first rise at once, holds the rises inside the 10 s window and announces the value then: 10, then 80", () => {
+      const w = startRun(8, { patienceSeconds: 3600 }, { game: true });
       const bounties: number[] = [];
       const announced: number[] = [];
       for (const victim of [1, 2, 3, 4, 5, 6]) {
@@ -2565,7 +2622,13 @@ describe("feed and bounty", () => {
         for (const fx of bountyFxOf(w.events)) expect(fx).toMatchObject({ id: idOf(0), name: "alice" });
       }
       expect(bounties).toEqual([0, 0, 10, 28, 52, 80]);
-      expect(announced).toEqual([10, 28, 52, 80]);
+      expect(announced).toEqual([10]); // 28, 52 and 80 came inside the window that the 10 opened at TICK_MS
+      w.events = [];
+      const windowEnd = TICK_MS + BOUNTY_ANNOUNCE_MS;
+      expect(bountyFxOf(runTo(w, windowEnd - TICK_MS))).toEqual([]);
+      expect(bountyFxOf(tick(w))).toEqual([{ kind: "bounty", id: idOf(0), name: "alice", bounty: 80 }]); // the value now, not 28 or 52
+      expect(w.state.serverTime).toBe(windowEnd);
+      expect(bountyFxOf(runTo(w, windowEnd + 5000))).toEqual([]); // and only once
     });
 
     it("announces nothing when the bounty does not rise", () => {
@@ -2856,40 +2919,61 @@ describe("feed and bounty", () => {
       expect(bountyFxOf(w.events)).toEqual([]); // a feed of 0.5
     });
 
-    it("12 mob kills are a feed of 3 and a bounty of 10, though three elites reached GV_MOB_CAP and the rest paid nothing", () => {
+    // Owner decision: the bounty follows PLAYER kills only (bountyFor(p.kills)); mob kills feed the reward curve, never the bounty.
+    it("12 mob kills are a feed of 3 but no bounty, and three elites reached GV_MOB_CAP and the rest paid nothing", () => {
       const w = startRun(3);
       const paid: number[] = [];
       for (let i = 0; i < 3; i++) paid.push(creditMobKill(w, P(w, 0), RT(w, 0), true));
       for (let i = 0; i < 9; i++) paid.push(creditMobKill(w, P(w, 0), RT(w, 0), false));
+      // Elite GV is round(GV_ELITE x reward): 9.8, 9.7 and 9.7 at feeds 0, 0.25 and 0.5 all round to GV_ELITE.
       expect(paid).toEqual([GV_ELITE, GV_ELITE, GV_ELITE, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
       expect(RT(w, 0).mobKills).toBe(12);
+      expect(P(w, 0).mobKills).toBe(12);
+      expect(feedScore(P(w, 0).kills, RT(w, 0).mobKills)).toBe(3); // the feed counts them...
       expect(RT(w, 0).gv.mobs).toBe(GV_MOB_CAP); // GV stays capped...
       expect(P(w, 0).gv).toBe(GV_MOB_CAP);
-      expect(P(w, 0).bounty).toBe(10); // ...feed doesn't
-      // The bounty fx came with the 9th, 10th, 11th and 12th mob kill: feeds 2.25, 2.5, 2.75, 3.
-      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([1, 4, 6, 10]);
+      expect(P(w, 0).bounty).toBe(0); // ...and the bounty never sees them
+      expect(bountyFxOf(w.events)).toEqual([]);
       expect(ofType(w.events, "gv")).toHaveLength(3); // a capped kill makes no gv event
     });
 
-    it("mob and player kills share one feed: two kills and four mob kills make a feed of 3", () => {
+    it("mob and player kills share one feed, but only player kills make a bounty: two kills and four mob kills are a feed of 3 and a bounty of 0", () => {
       const w = startRun(8);
       slay(w, 0, [1, 2]);
       w.events = [];
-      const sequence: number[] = [];
       for (let i = 0; i < 4; i++) {
         creditMobKill(w, P(w, 0), RT(w, 0), false);
-        sequence.push(P(w, 0).bounty);
+        expect(P(w, 0).bounty).toBe(0);
       }
-      expect(sequence).toEqual([1, 4, 6, 10]); // feeds 2.25, 2.5, 2.75, 3
-      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([1, 4, 6, 10]);
-      slay(w, 0, [3]); // feed 4
+      expect(feedScore(P(w, 0).kills, RT(w, 0).mobKills)).toBe(3);
+      expect(bountyFxOf(w.events)).toEqual([]);
+      slay(w, 0, [3]); // the 3rd player kill: 10, as for anyone (a feed of 4 would have made it 28)
+      expect(P(w, 0).bounty).toBe(10);
+      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([10]);
+      for (let i = 0; i < 8; i++) creditMobKill(w, P(w, 0), RT(w, 0), i < 2); // feed 7: still 10
+      expect(P(w, 0).bounty).toBe(10);
+      slay(w, 0, [4]); // the 4th
       expect(P(w, 0).bounty).toBe(28);
     });
 
-    it("a bounty built from mobs is claimed like any other", () => {
+    it("mob kills alone put no bounty on a player: killing them pays the kill and no bounty, and the claim hook is not called", () => {
       const w = startRun(8);
       const claims = recordClaims(w);
       for (let i = 0; i < 12; i++) creditMobKill(w, P(w, 0), RT(w, 0), i < 3);
+      w.events = [];
+      kill(w, 0, attacker(w, 1));
+      expect(ofType(w.events, "gv")).toEqual([{ type: "gv", id: idOf(1), amount: GV_KILL, reason: "kill" }]);
+      expect(claims).toEqual([]);
+      expect(RT(w, 1).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
+      expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: GV_MOB_CAP });
+    });
+
+    it("a bounty built from player kills is claimed like any other, whatever the mob kills", () => {
+      const w = startRun(8);
+      const claims = recordClaims(w);
+      slay(w, 0, [2, 3, 4]); // 3 player kills: 10
+      for (let i = 0; i < 12; i++) creditMobKill(w, P(w, 0), RT(w, 0), i < 3);
+      expect(P(w, 0).bounty).toBe(10); // a feed of 6 does not change it
       w.events = [];
       kill(w, 0, attacker(w, 1));
       expect(ofType(w.events, "gv")).toEqual([
@@ -2897,7 +2981,9 @@ describe("feed and bounty", () => {
         { type: "gv", id: idOf(1), amount: 10, reason: "bounty" },
       ]);
       expect(claims.map((c) => c.bounty)).toEqual([10]);
-      expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: GV_MOB_CAP });
+      expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({
+        kills: 3 * GV_KILL, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: 3 * GV_KILL + GV_MOB_CAP,
+      });
     });
 
     it("counts nothing for a player whose result is out", () => {
@@ -3247,6 +3333,79 @@ describe("feed and bounty", () => {
       addPlayer(lobby, "x", "xavier");
       markDropped(lobby, "x");
       expect(lobby.players.get("x")!.droppedAt).toBeNull();
+    });
+
+    describe("a mob finishes a hunted player", () => {
+      // The same rule as leaving: running into a camp can't dodge a bounty. A mob (or the arrow of a shooter who has gone)
+      // is a string source; the death fx names no killer, and killedBy stays the mob.
+      const finish = (w: World, victim: number, source: string): void => {
+        applyDamage(w, P(w, victim), RT(w, victim), P(w, victim).hp + 1000, source);
+      };
+
+      it.each([
+        [0, true], [1000, true], [WINDOW_MS, true], [WINDOW_MS + TICK_MS, false], [60_000, false],
+      ] as const)("a finishing blow %i ms after the hit credits the hunter: %s", (afterMs, credited) => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1); // at TICK_MS
+        runTo(w, TICK_MS + afterMs);
+        w.events = [];
+        finish(w, 1, "Warden");
+        expect(RT(w, 1).killedBy).toBe("Warden");
+        expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: null }]);
+        expect(P(w, 0).kills).toBe(credited ? 1 : 0);
+        expect(RT(w, 0).gv.kills).toBe(credited ? GV_KILL : 0);
+        expect(ofType(w.events, "gv")).toHaveLength(credited ? 1 : 0);
+      });
+
+      it("pays the bounty on the victim and counts toward the hunter's own", () => {
+        const w = startRun(4, LONG);
+        P(w, 1).bounty = 80;
+        hit(w, 0, 1);
+        w.events = [];
+        finish(w, 1, "Warden");
+        expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 80 });
+        expect(ofType(w.events, "gv").map((e) => e.reason)).toEqual(["kill", "bounty"]);
+        expect(P(w, 0).kills).toBe(1);
+      });
+
+      it("sudden death credits nobody, whoever hit the victim a moment ago", () => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1);
+        w.events = [];
+        finish(w, 1, SUDDEN_DEATH_KILLER);
+        expect(P(w, 0).kills).toBe(0);
+        expect(ofType(w.events, "gv")).toEqual([]);
+      });
+
+      it("a rival's hit in the killing pass takes the kill, not the hunter from before", () => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1);
+        w.events = [];
+        applyHits(w, P(w, 1), RT(w, 1), [{ amount: 1000, source: "Warden" }, { amount: 1, source: attacker(w, 2) }]);
+        expect(P(w, 2).kills).toBe(1);
+        expect(P(w, 0).kills).toBe(0);
+        expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: idOf(2) }]);
+      });
+
+      it("a hunter who has left the run is paid nothing, and nothing breaks", () => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1);
+        removePlayer(w, idOf(0));
+        w.events = [];
+        finish(w, 1, "Warden");
+        expect(P(w, 1).status).toBe("dead");
+        expect(ofType(w.events, "gv")).toEqual([]);
+      });
+
+      it("the hunter's kill is paid once the pass is over, and only once", () => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1);
+        w.events = [];
+        applyHits(w, P(w, 1), RT(w, 1), [{ amount: 1000, source: "Warden" }]);
+        applyHits(w, P(w, 1), RT(w, 1), [{ amount: 1000, source: "Warden" }]); // already down: ignored
+        expect(P(w, 0).kills).toBe(1);
+        expect(ofType(w.events, "gv")).toHaveLength(1);
+      });
     });
 
     it("hurting yourself is never your own kill or leave credit", () => {

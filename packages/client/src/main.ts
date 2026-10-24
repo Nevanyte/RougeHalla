@@ -1,14 +1,15 @@
 // App flow: walkable hub → run (or training) → results → hub. Phaser owns the world canvas; menus are DOM.
 import Phaser from "phaser";
-import type { JoinOptions, RoomMode, RunResult, ServerMessages } from "@raid/shared";
+import type { FxBatch, JoinOptions, RoomMode, RunResult, ServerMessages } from "@raid/shared";
 import "./style.css";
 import { detachRoom, isCallsignBusy, joinErrorMessage, joinRaid, joinTraining, type RaidRoom } from "./net/connection";
+import { FxInbox } from "./net/fxInbox";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
 import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
 import { Menu, type RaidRequest } from "./ui/menu";
 import { ResultsScreen } from "./ui/results";
-import { Toasts } from "./ui/toast";
+import { Toasts, type ToastTone } from "./ui/toast";
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -80,6 +81,10 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
     return;
   }
   const joined = room;
+  // Before anything is awaited: the server's first batch for a client that joins while arrows fly comes right after the full
+  // state, and the scene is not there yet to take it. The SDK drops a message no handler is registered for.
+  const fxs = new FxInbox();
+  joined.onMessage("fxs", (batch: FxBatch) => fxs.push(batch));
   if (!(await firstState(joined))) {
     // The room closed before its first patch, so the leave handler below was never registered.
     room = null;
@@ -123,7 +128,8 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   game.scene.stop("hub");
   game.scene.start("raid", {
     room: joined,
-    toast: (text: string) => toasts.show(text),
+    fxs,
+    toast: (text: string, tone?: ToastTone) => toasts.show(text, tone),
     resultsVisible: () => results.visible,
     ...(training ? { leaveTraining: () => backToMenu() } : {}),
   });

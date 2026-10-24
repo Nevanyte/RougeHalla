@@ -2,10 +2,11 @@
 // Both carry the same fighter fields in their synced state (x, y, facing, hp, faction, weapon slots, readyAt, ...)
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
-  attackInterval, FACTIONS, isFactionId, isWeaponId, pacedFaction, weaponTimings, type FactionId, type FactionSpec,
-  type Vec2, type WeaponId, type WeaponTimings,
+  attackInterval, ELITE_K, FACTIONS, isFactionId, isRegionalKind, isWeaponId, MOB_K, mobFaction, pacedFaction, weaponTimings, type FactionId,
+  type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
+import { attackSpeedMult } from "./buffs";
 import { positionAt } from "./movement";
 import type { MobRuntime, PlayerRuntime, World } from "./world";
 
@@ -20,9 +21,34 @@ const PACED: Readonly<Record<FactionId, FactionSpec>> = Object.fromEntries(
   Object.entries(FACTIONS).map(([id, spec]) => [id, pacedFaction(spec)]),
 ) as Record<FactionId, FactionSpec>;
 
-/** The faction as fought (DUEL_PACE applied), or null for a fighter without one (a training dummy). */
+/** A regional mob fights as its region's faction scaled down (MOB_K, an elite ELITE_K), paced like any faction. */
+function pacedMobs(k: number, eliteK: number): Record<"mob" | "elite", Record<FactionId, FactionSpec>> {
+  const table = (elite: boolean, scale: number) =>
+    Object.fromEntries(Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, elite, scale))])) as Record<FactionId, FactionSpec>;
+  return { mob: table(false, k), elite: table(true, eliteK) };
+}
+let PACED_MOBS = pacedMobs(MOB_K, ELITE_K);
+let scales = { mob: MOB_K, elite: ELITE_K };
+
+/** The scale mobs of this kind are built with right now (MOB_K and ELITE_K unless a balance sweep changed them). */
+export function mobScale(elite: boolean): number {
+  return elite ? scales.elite : scales.mob;
+}
+
+/**
+ * Balance sweeps and the mob duel harness only: from now on mobs fight (and are built, see placeMob) at these scales.
+ * Call it with no arguments to go back to MOB_K and ELITE_K. The game never calls it.
+ */
+export function setMobScalesForHarness(k: number = MOB_K, eliteK: number = ELITE_K): void {
+  scales = { mob: k, elite: eliteK };
+  PACED_MOBS = pacedMobs(k, eliteK);
+}
+
+/** The faction as fought (DUEL_PACE applied, a regional mob scaled down), or null for a fighter without one (a training dummy). */
 export function factionOf(s: FighterState): FactionSpec | null {
-  return isFactionId(s.faction) ? PACED[s.faction] : null;
+  if (!isFactionId(s.faction)) return null;
+  if ("kind" in s && isRegionalKind(s.kind)) return PACED_MOBS[s.kind][s.faction];
+  return PACED[s.faction];
 }
 
 /** Armor and shield the damage law reads; a fighter without a faction has neither. */
@@ -46,10 +72,18 @@ export function setSlot(s: FighterState, slot: 0 | 1, w: WeaponId | null): void 
   else s.weapon1 = w ?? "";
 }
 
-/** Rhythm of `w` in this fighter's hands (attack-speed buffs arrive in Phase 11), or null without a faction. */
+/** Rhythm of `w` in this fighter's hands (attack-speed buffs applied), or null without a faction. */
 export function timingsOf(s: FighterState, w: WeaponId): WeaponTimings | null {
   const f = factionOf(s);
-  return f ? weaponTimings(w, attackInterval(f, w)) : null;
+  return f ? weaponTimings(w, attackInterval(f, w, attackSpeedMult(s))) : null;
+}
+
+/**
+ * A regional mob walking home (sim/mobAI.ts "return") is evading: nothing hurts it, it starts nothing new (a shot already in the air still lands),
+ * and it is not a body at all, so an arrow or a swing passes through it (no block, no reflect, no riposte) and it takes no signature contact.
+ */
+export function isEvading(c: Combatant | undefined): boolean {
+  return c !== undefined && c.kind === "mob" && c.rt.brain?.mode === "return";
 }
 
 /** Still in the fight: a player alive and not yet down this tick, or a mob alive. */

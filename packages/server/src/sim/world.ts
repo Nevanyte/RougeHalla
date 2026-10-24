@@ -2,10 +2,10 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mulberry32, withGates, type DamageShares, type FxEvent, type GameMap, type GvReason, type ProjectileKind,
-  type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
+  generateMap, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
+  type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { RaidState, type PlayerState, type ProjectileState } from "@raid/shared/schema";
+import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
@@ -23,6 +23,8 @@ export interface SimConfig {
   suddenDeathSeconds: number;
   /** Training: place dummies and a rack of every weapon next to each player's spawn when the run starts (sim/mobs.ts). */
   dummies?: boolean;
+  /** Regional mobs: place a mob at every camp spot when the run starts (sim/mobLife.ts). Off unless set; the server turns it on. */
+  mobs?: boolean;
   /**
    * A training world (sim/training.ts): the run never ends and nothing is recorded: no patience timer, teleport, sudden
    * death, results or GV, and a fighter who goes down is revived. Implies the training setup (`dummies`).
@@ -91,11 +93,62 @@ export interface PlayerRuntime extends CombatRuntime {
   down: { outcome: "died" | "mia" } | null;
   /** Set once their result has been emitted. */
   resolved: boolean;
+  /** Timers of the kill combos (sim/buffs.ts). Created on first use, so a hand-built runtime needs nothing. */
+  boost?: BoostRuntime;
+  /** Rampage announcement throttle (sim/feed.ts). Created on first use. */
+  announce?: AnnounceRuntime;
+}
+
+/** Server-only timers behind a player's buffs. Times are server ms. */
+export interface BoostRuntime {
+  /** Speed bursts from kills (the dash and the rush): the strongest one still running applies. */
+  bursts: Array<{ mult: number; until: number }>;
+  /** When the kill barrier (PlayerState.barrier) ends. */
+  shieldUntil: number;
+}
+
+/** When the player's bounty was last announced, and what it was (a rise since then is still waiting for the window to end). */
+export interface AnnounceRuntime {
+  lastAt: number;
+  sent: number;
 }
 
 export interface MobRuntime extends CombatRuntime {
   /** Server ms of the last damage taken (a dummy heals back to full DUMMY_RESET_SECONDS after it). */
   lastHitAt: number;
+  /** A regional mob's mind and camp (sim/mobLife.ts, sim/mobAI.ts). Absent on a training dummy. */
+  brain?: MobBrain;
+}
+
+/** "idle" at its camp and neutral; "fight" chasing and attacking its target; "return" walking home to heal (it ignores everyone). */
+export type MobMode = "idle" | "fight" | "return";
+
+export interface MobBrain {
+  region: FactionId;
+  elite: boolean;
+  /** The camp spot it rests on and the way it faces there. */
+  home: Vec2;
+  homeFacing: number;
+  mode: MobMode;
+  /** The player it fights, and the damage each player has done to it since it last rested (who it turns on next). */
+  target: string | null;
+  threat: Map<string, number>;
+  /**
+   * Server ms it woke, or last dealt damage to a player (stamped by ledger.recordHit). It gives up MOB_GIVE_UP_SECONDS
+   * after: damage it takes does not count, so a shooter out of its reach cannot keep it fighting.
+   */
+  lastCombatAt: number;
+  /** Throttle and memory for the inputs it sends: when the last move went out, where to, and whether it is walking or holding the trigger. */
+  lastMoveAt: number;
+  goal: Vec2 | null;
+  moving: boolean;
+  holding: boolean;
+  /** Offset into MOB_REPATH_MS, so the mobs of a room don't all path on one tick. */
+  phase: number;
+  /** Server ms it died (status "dead"); it is removed MOB_CORPSE_MS later. */
+  diedAt: number;
+  /** The aim it last sent (NaN: none yet), so the AI re-aims only past MOB_AIM_DEADBAND. */
+  lastAim: number;
 }
 
 /** One hit's damage before mitigation: the raw amount and the attacker's damage shares. */
@@ -164,10 +217,13 @@ export interface SpawnRequest {
   origin?: Vec2;
 }
 
-/** Server-only flight data of one synced ProjectileState (sim/projectiles.ts). */
+/**
+ * A projectile in flight (sim/projectiles.ts). Not in the synced state: clients are told of it by an `fxs` batch, from
+ * `launch`, which is fixed when it leaves and is exactly what they fly it from.
+ */
 export interface ProjectileRuntime {
   id: string;
-  state: ProjectileState;
+  launch: ProjectileLaunch;
   kind: ProjectileKind;
   /** What its hits count as: the bow or wand that loosed it, or the shield that reflected it. */
   weapon: WeaponId;
@@ -187,7 +243,7 @@ export interface ProjectileRuntime {
   halved: boolean;
   /** How many shields reflected this arrow's chain so far (0 for a fresh shot); see MAX_ARROW_REFLECTIONS. */
   reflections: number;
-  /** Set when it stops; it is then removed from the state. */
+  /** Set when it stops; it is then removed from `world.projectiles`. */
   ended: boolean;
 }
 
@@ -208,6 +264,21 @@ export interface CombatScratch {
    * of two bodies an arrow meets) go to the lower rank, so neither join order nor ledger order decides them.
    */
   rank: Map<string, number>;
+  /**
+   * True while applyLedger applies damage. Rewards for kills (GV, a bounty, stacks, shields) are queued in `payouts` and
+   * paid once every victim has taken their damage (payLater), so who is left standing never depends on the order victims
+   * happen to be processed in.
+   */
+  collecting: boolean;
+  payouts: Array<() => void>;
+  /** The lobby's median feed as it stood before the pass (null outside one): every mob reward in the pass reads this one. */
+  medianFeed: number | null;
+}
+
+/** Runs `pay` now, or, while the ledger is being applied, after all of its damage has landed. */
+export function payLater(world: World, pay: () => void): void {
+  if (world.combat.collecting) world.combat.payouts.push(pay);
+  else pay();
 }
 
 /** Arena bookkeeping that is not synced (see arena.ts). */
@@ -255,6 +326,8 @@ export interface WorldHooks {
   teleported?(world: World): void;
   /** `killer` just claimed `victim`'s bounty (already paid). Phase 11 moves half the victim's buff stacks here. */
   bountyClaimed?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, bounty: number): void;
+  /** A player just killed another player (kill GV paid, bounty claimed): the kill combos fire here. Mob kills call them directly. */
+  playerKilled?(world: World, killer: PlayerRuntime): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
   weaponSwapped?(world: World, c: Combatant): void;
 }
@@ -273,7 +346,7 @@ export interface World {
   players: Map<string, PlayerRuntime>;
   /** Server-only data of state.mobs, by the same ids. */
   mobs: Map<string, MobRuntime>;
-  /** Server-only data of state.projectiles, by the same ids. */
+  /** The arrows and balls in flight, by id. Plain objects: nothing here is synced (rooms/FxChannel.ts announces them). */
   projectiles: Map<string, ProjectileRuntime>;
   combat: CombatScratch;
   /** Server-only randomness (loot rolls, spawn assignment). Never derived from the public seed. */
@@ -323,7 +396,7 @@ export function createWorld(opts: {
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [] },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], medianFeed: null },
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],
@@ -363,7 +436,8 @@ export function collisionMap(world: World): GameMap {
 /**
  * Order-free tie-break between equal hits for a fighter's target (sim/factions.ts), players and mobs alike: a hash of
  * the server-secret salt, the tick and the id. It shares orderSalt, so ties a client can stage and observe narrow that
- * salt down (see CLAUDE.md). Kill credit uses combat.rank instead.
+ * salt down (see CLAUDE.md). A player's kill credit uses combat.rank instead; a mob's (sim/mobLife.ts killMob) uses this
+ * for an exact tie in what two players did to it over the whole fight, where one of them may not be in the pass at all.
  */
 export function tieRank(world: World, id: string): number {
   let h = (world.orderSalt ^ Math.imul(world.state.tick, 0x9e3779b1)) >>> 0;

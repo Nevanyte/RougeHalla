@@ -1,6 +1,7 @@
-// Projectiles. An arrow or a ball is synced once when loosed (ProjectileState: kind, owner, start, velocity, time,
-// range) and never updated: every client computes its straight flight from that. The server flies each one in present
-// time, in PROJECTILE_SUBSTEP_MS steps. In each step, in this order:
+// Projectiles. An arrow or a ball is announced once when loosed (a ProjectileLaunch: kind, start, velocity, time, range;
+// rooms/FxChannel.ts puts it in the `fxs` batch of that step) and never updated: every client computes its straight flight
+// from that. It is not in the synced state, only in `world.projectiles`. The server flies each one in present time, in
+// PROJECTILE_SUBSTEP_MS steps. In each step, in this order:
 //   1. it moves, stopping at a wall (collisionMap: closed gates block) or at the end of its range;
 //   2. a ball deletes every enemy arrow that came within BALL_ARROW_RADIUS of it during the step, in line of sight;
 //   3. it meets the first body along its step whose centre, where that body was at that moment (history), comes within
@@ -8,8 +9,8 @@
 //      flies on from the contact point with the mirrored velocity, the full bow range (an arrow reflected before keeps
 //      only the range it has left) and the same damage; one already reflected MAX_ARROW_REFLECTIONS times is just
 //      blocked. Anything else is a hit, recorded in the damage ledger and applied with every other hit after melee.
-// When it stops it leaves the state, and a `projEnd` fx says exactly where and why. Its owner is never hit by it. It
-// outlives its owner: its hit still lands (credited by name only once the owner has left or is out of the run).
+// When it stops it leaves `world.projectiles`, and a `projEnd` fx says exactly where and why. Its owner is never hit by
+// it. It outlives its owner: its hit still lands (credited by name only once the owner has left or is out of the run).
 // Projectiles loosed this tick (spawnProjectiles, after the sweep) leave from where the owner's client drew it and
 // first move in the next tick's sweep.
 import {
@@ -17,8 +18,7 @@ import {
   reflectVelocity,
   WEAPONS, type ProjectileEnd, type ProjectileKind, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { ProjectileState } from "@raid/shared/schema";
-import { activeWeapon, combatant, standingCombatants, type Combatant } from "./combatant";
+import { activeWeapon, combatant, isEvading, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
 import { positionAt } from "./movement";
 import { chainHook, collisionMap, emit, nextId, type DamagePacket, type ProjectileRuntime, type World } from "./world";
@@ -45,18 +45,9 @@ interface Launch {
 
 function launch(world: World, l: Launch): ProjectileRuntime {
   const id = nextId(world, "p");
-  const st = new ProjectileState();
-  st.kind = l.kind;
-  st.owner = l.owner;
-  st.x = l.x;
-  st.y = l.y;
-  st.vx = l.vx;
-  st.vy = l.vy;
-  st.t = l.t;
-  st.range = l.range;
-  world.state.projectiles.set(id, st);
   const pr: ProjectileRuntime = {
-    id, state: st, kind: l.kind, weapon: l.weapon, owner: l.owner, ownerName: l.ownerName,
+    id, launch: { id, kind: l.kind, x: l.x, y: l.y, vx: l.vx, vy: l.vy, t: l.t, range: l.range },
+    kind: l.kind, weapon: l.weapon, owner: l.owner, ownerName: l.ownerName,
     x: l.x, y: l.y, simT: l.t, traveled: 0, tickX: l.x, tickY: l.y, packet: l.packet, halved: false, ended: false,
     reflections: l.reflections ?? 0,
   };
@@ -65,15 +56,14 @@ function launch(world: World, l: Launch): ProjectileRuntime {
   return pr;
 }
 
-/** Stops `pr` at (x, y): out of the state, and a projEnd fx. A no-op for one already stopped. */
+/** Stops `pr` at (x, y): out of `world.projectiles`, and a projEnd fx. A no-op for one already stopped. */
 export function endProjectile(world: World, pr: ProjectileRuntime, x: number, y: number, reason: ProjectileEnd): void {
   if (pr.ended) return;
   pr.ended = true;
   pr.x = x;
   pr.y = y;
   world.projectiles.delete(pr.id);
-  world.state.projectiles.delete(pr.id);
-  const st = pr.state;
+  const st = pr.launch;
   emit(world, {
     type: "fx", fx: { kind: "projEnd", id: pr.id, proj: pr.kind, x0: st.x, y0: st.y, t0: st.t, x, y, reason },
   });
@@ -142,14 +132,16 @@ function contactShare(s: Stretch, p: { x: number; y: number }): number | null {
 /**
  * The first standing body (not the owner) the stretch meets at substep time `t`, and the contact point. Bodies met at
  * the same point (both already within reach when the step began) go by whose centre is nearer the stretch's start,
- * then by the tick's secret rank, never by join order.
+ * then by the tick's secret rank, never by join order. A mob's shot flies past other mobs (they never hurt each other),
+ * so a camp's archers don't eat their own arrows and a player can't hide behind a camp-mate.
  */
 function firstBody(
-  s: Stretch, bodies: readonly Combatant[], t: number, rank: ReadonlyMap<string, number>,
+  world: World, s: Stretch, bodies: readonly Combatant[], t: number, rank: ReadonlyMap<string, number>,
 ): { c: Combatant; x: number; y: number } | null {
   let best: { c: Combatant; u: number; d: number; r: number } | null = null;
+  const mobShot = world.mobs.has(s.pr.owner);
   for (const c of bodies) {
-    if (c.id === s.pr.owner) continue;
+    if (c.id === s.pr.owner || (mobShot && c.kind === "mob") || isEvading(c)) continue;
     const at = positionAt(c.rt, c.s, t);
     const u = contactShare(s, at);
     if (u === null) continue;
@@ -184,7 +176,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
     for (const pr of active) {
       // A reflection made in this substep starts moving in the next one.
       if (pr.ended || pr.simT >= t) continue;
-      const st = pr.state;
+      const st = pr.launch;
       const dt = (t - pr.simT) / 1000;
       let bx = pr.x + st.vx * dt;
       let by = pr.y + st.vy * dt;
@@ -222,7 +214,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
     for (const s of stretches) {
       const pr = s.pr;
       if (pr.ended) continue;
-      const hit = firstBody(s, bodies, t, world.combat.rank);
+      const hit = firstBody(world, s, bodies, t, world.combat.rank);
       if (!hit) {
         pr.x = s.bx;
         pr.y = s.by;
@@ -231,7 +223,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         if (s.stop) endProjectile(world, pr, s.bx, s.by, s.stop);
         continue;
       }
-      const st = pr.state;
+      const st = pr.launch;
       if (pr.kind === "arrow" && activeWeapon(hit.c.s) === "shield" && projectileOnShieldFront(hit.c.s.facing, st.vx, st.vy)) {
         const block = { kind: "block" as const, id: hit.c.id, by: pr.owner, weapon: pr.weapon };
         emit(world, { type: "fx", fx: pr.weapon === "shield" ? { ...block, passive: true } : block });

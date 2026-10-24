@@ -1,5 +1,6 @@
 // sim/projectiles.ts: arrows and wand balls from the loosing input to the projEnd. What is pinned here is the netcode
-// contract (a projectile is synced once and never updated; the end point and reason arrive as a projEnd), the flight in
+// contract (a projectile is announced once, in the fx batch of the step that loosed it, and never updated; the end point
+// and reason arrive as a projEnd), the flight in
 // present time against where bodies are at that moment, and the interactions: walls and gates, range, shield
 // reflections, ball-versus-arrow deletion, the teleport clear, a shooter who is gone, and the swing interceptions.
 // Melee is not involved: the swing side of interceptBall is driven by hand, in the slot where the melee phase runs.
@@ -10,9 +11,11 @@ import {
   BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, MAX_ARROW_REFLECTIONS,
   mitigateShares, mulberry32,
   pacedFaction, PLAYER_SPEED, PROJECTILE_SUBSTEP_MS, RANGED_HIT_REACH, reflectVelocity, SIGNATURE_WEAPONS, SWORD_BALL_SCALE, TICK_MS, TILE,
-  TILE_FLOOR, TILE_WALL, WEAPONS, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
+  TILE_FLOOR, TILE_WALL, unpackFx, unpackLaunches, WEAPONS, type FactionId, type FxEvent, type GameMap, type ProjectileLaunch,
+  type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
-import type { ProjectileState, RaidState } from "@raid/shared/schema";
+import type { RaidState } from "@raid/shared/schema";
+import { FxChannel } from "../src/rooms/FxChannel";
 import { applyDamage } from "../src/sim/arena";
 import { activeWeapon, standingCombatants, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -259,8 +262,10 @@ function substep(world: World): SimEvent[] {
   return out;
 }
 
-const synced = (st: ProjectileState) => ({
-  kind: st.kind, owner: st.owner, x: st.x, y: st.y, vx: st.vx, vy: st.vy, t: st.t, range: st.range,
+/** How a projectile left (what every client is told, see FxChannel) and who the server says owns it (no client is told). */
+const launched = (pr: ProjectileRuntime) => ({
+  kind: pr.launch.kind, owner: pr.owner, x: pr.launch.x, y: pr.launch.y, vx: pr.launch.vx, vy: pr.launch.vy, t: pr.launch.t,
+  range: pr.launch.range,
 });
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -281,44 +286,46 @@ function closestSample(world: World, id: string, at: Vec2): number {
 
 // ---------------------------------------------------------------------------------------------------------------
 
-describe("the synced state: written once at spawn, never updated", () => {
-  it("adds one ProjectileState when an arrow is loosed, with its start, velocity, time and range", () => {
+describe("the launch: written once at spawn, never updated, and not in the synced state", () => {
+  it("records one launch when an arrow is loosed, with its start, velocity, time and range", () => {
     const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
-    expect(w.state.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
     const a = 0.3;
     loose(w, [{ id: "archer", a }]);
-    expect(w.state.projectiles.size).toBe(1);
-    const [id, st] = [...w.state.projectiles][0]!;
-    expect(synced(st)).toEqual({
+    expect(w.projectiles.size).toBe(1);
+    const [id, pr] = [...w.projectiles][0]!;
+    expect(launched(pr)).toEqual({
       kind: "arrow", owner: "archer", x: 200, y: 320, vx: Math.cos(a) * 900, vy: Math.sin(a) * 900, t: w.state.serverTime,
       range: 480,
     });
-    const pr = w.projectiles.get(id)!;
+    expect(pr.launch.id).toBe(id);
     expect(pr).toMatchObject({ id, kind: "arrow", weapon: "bow", owner: "archer", ownerName: "Archer", ended: false, halved: false });
-    expect(pr.state).toBe(st);
+    // It is plain data in the runtime. The room state has no map of projectiles: the schema encoder never lets go of an entry
+    // of a map it does not walk, so each arrow ever loosed would stay in server memory for the room's lifetime.
+    expect((w.state as unknown as Record<string, unknown>).projectiles).toBeUndefined();
   });
 
-  it("adds a ball the same way, with the ball's speed and range", () => {
+  it("records a ball the same way, with the ball's speed and range", () => {
     const w = arena([mage(), target({ x: 900, y: 500 }), idle()]);
     const a = -0.4;
     castBall(w, "mage", a);
-    const [, st] = [...w.state.projectiles][0]!;
-    expect(synced(st)).toEqual({
+    expect(launched(lastProjectile(w))).toEqual({
       kind: "ball", owner: "mage", x: 200, y: 320, vx: Math.cos(a) * 380, vy: Math.sin(a) * 380, t: w.state.serverTime, range: 420,
     });
     expect(lastProjectile(w).weapon).toBe("wand");
   });
 
-  it("never touches the synced fields while it flies", () => {
+  it("never touches the launch while it flies", () => {
     const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
     loose(w, [{ id: "archer", a: 0.3 }]);
-    const [id, st] = [...w.state.projectiles][0]!;
-    const before = synced(st);
+    const pr = lastProjectile(w);
+    const before = launched(pr);
+    const same = pr.launch;
     ticks(w, 6);
-    expect(w.projectiles.has(id)).toBe(true);
-    expect(w.state.projectiles.get(id)).toBe(st);
-    expect(synced(st)).toEqual(before);
-    expect(w.projectiles.get(id)!.x).toBeGreaterThan(before.x + 200); // it did fly: only the runtime moved
+    expect(w.projectiles.has(pr.id)).toBe(true);
+    expect(pr.launch).toBe(same);
+    expect(launched(pr)).toEqual(before);
+    expect(pr.x).toBeGreaterThan(before.x + 200); // it did fly: only the runtime moved
   });
 
   it("first moves in the tick after it was loosed", () => {
@@ -343,12 +350,11 @@ describe("the synced state: written once at spawn, never updated", () => {
     expect(pr.x).toBeCloseTo(200 + 2 * BALL_TICK, 9);
   });
 
-  it("leaves the state when it stops, and a second stop does nothing", () => {
+  it("leaves the world when it stops, and a second stop does nothing", () => {
     const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
     loose(w, [{ id: "archer", a: 0 }]);
     const pr = lastProjectile(w);
     endProjectile(w, pr, 300, 320, "wall");
-    expect(w.state.projectiles.size).toBe(0);
     expect(w.projectiles.size).toBe(0);
     expect(pr.ended).toBe(true);
     endProjectile(w, pr, 999, 999, "range");
@@ -359,61 +365,105 @@ describe("the synced state: written once at spawn, never updated", () => {
 });
 
 describe("what a client sees over the wire", () => {
-  /** The server's encoder with one connected decoder, as in a Room. */
+  /**
+   * The server's encoder with one connected decoder, as in a Room, and the Room's fx channel in front of it: each step's
+   * events become a batch that is read (against the roster of the patches before) ahead of the tick's patch.
+   */
   function wire(world: World) {
     const encoder = new Encoder(world.state);
     const decoder = Reflection.decode(Reflection.encode(encoder)) as Decoder<RaidState>;
     decoder.decode(encoder.encodeAll());
+    const channel = new FxChannel();
     const changes: Array<{ ref: unknown; field?: string }> = [];
     getRawChangesCallback(decoder, (list) => { for (const c of list) changes.push({ ref: c.ref, field: c.field }); });
+    /** What ProjectileView flies: announced by a batch, until a projEnd. */
+    const flying = new Map<string, ProjectileLaunch>();
+    const ends: Array<Extract<TimedFx, { kind: "projEnd" }>> = [];
     return {
+      encoder,
+      channel,
       client: decoder.state,
       changes,
-      flush: () => { decoder.decode(encoder.encode()); encoder.discardChanges(); },
+      flying,
+      ends,
+      flush: (events: SimEvent[] = []) => {
+        const fxs = ofType(events, "fx").map((e) => e.fx);
+        const batch = channel.batch(fxs, world.state.serverTime, world.projectiles);
+        if (batch) {
+          for (const l of unpackLaunches(batch)) flying.set(l.id, l);
+          for (const fx of unpackFx(batch, decoder.state.roster)) {
+            if (fx.kind !== "projEnd") continue;
+            flying.delete(fx.id);
+            ends.push(fx);
+          }
+        }
+        channel.extendRoster(world.state);
+        decoder.decode(encoder.encode());
+        encoder.discardChanges();
+        channel.rosterSent();
+      },
     };
   }
 
-  it("sends a projectile once, then no change to it until it is removed", () => {
+  it("announces a projectile once, in a batch and never in a patch, and says nothing more until it ends", () => {
     const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
     const net = wire(w);
     net.flush();
-    loose(w, [{ id: "archer", a: 0.3 }]);
-    net.flush();
-    const [id, st] = [...w.state.projectiles][0]!;
-    const clientSt = net.client.projectiles.get(id)!;
-    expect(clientSt).toBeDefined();
-    expect(clientSt.owner).toBe("archer");
-    expect(clientSt.t).toBe(st.t);
-    expect(clientSt.range).toBe(480);
-    expect(clientSt.vx).toBeCloseTo(st.vx, 3);
+    net.flush(loose(w, [{ id: "archer", a: 0.3 }]));
+    const pr = lastProjectile(w);
+    const { id, launch: st } = pr;
+    expect((net.client as unknown as Record<string, unknown>).projectiles).toBeUndefined(); // no map of them to patch
+    const sent = net.flying.get(id)!;
+    expect(sent).toMatchObject({ id, kind: "arrow", t: st.t, range: st.range });
+    for (const key of ["x", "y", "vx", "vy"] as const) expect(Math.abs(sent[key] - st[key]), key).toBeLessThanOrEqual(0.05 + 1e-9);
+    expect(pr.owner).toBe("archer"); // the server keeps who loosed it; no client is told
     net.changes.length = 0;
-    for (let i = 0; i < 6; i++) { tick(w); net.flush(); }
+    for (let i = 0; i < 6; i++) net.flush(tick(w));
     expect(w.projectiles.has(id)).toBe(true);
     expect(net.changes.some((c) => c.field === "serverTime")).toBe(true); // the patches did flow: the room state kept changing
-    expect(net.changes.filter((c) => c.ref === clientSt)).toEqual([]);
+    expect(net.changes.map((c) => c.field).filter((f) => f !== "serverTime" && f !== "tick")).toEqual([]); // and carried only the clock
+    expect([...net.flying.keys()]).toEqual([id]);
   });
 
   it("lets a client extrapolate the straight flight to where the server has it, and ends it with the projEnd", () => {
     const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
     const net = wire(w);
-    loose(w, [{ id: "archer", a: 0.3 }]);
-    net.flush();
-    const [id] = [...w.state.projectiles][0]!;
-    const pr = w.projectiles.get(id)!;
+    net.flush(loose(w, [{ id: "archer", a: 0.3 }]));
+    const pr = lastProjectile(w);
+    const id = pr.id;
     for (let i = 0; i < 8; i++) {
-      tick(w);
-      net.flush();
-      const c = net.client.projectiles.get(id)!;
+      net.flush(tick(w));
+      const c = net.flying.get(id)!;
       const dt = (net.client.serverTime - c.t) / 1000;
-      expect(c.x + c.vx * dt).toBeCloseTo(pr.x, 2);
-      expect(c.y + c.vy * dt).toBeCloseTo(pr.y, 2);
+      expect(Math.abs(c.x + c.vx * dt - pr.x)).toBeLessThan(0.15);
+      expect(Math.abs(c.y + c.vy * dt - pr.y)).toBeLessThan(0.15);
     }
-    const { end } = flyUntilEnd(w);
-    net.flush();
+    const { end, events } = flyUntilEnd(w);
+    net.flush(events);
     expect(end.reason).toBe("range");
-    expect(net.client.projectiles.size).toBe(0);
+    expect(net.flying.size).toBe(0);
     expect(end.x0).toBeCloseTo(200, 6);
     expect(Math.hypot(end.x - end.x0, end.y - end.y0)).toBeCloseTo(480, 6);
+    // The client was told where it stopped, to the nearest unit; it was not told where it started (it has the launch).
+    expect(net.ends).toHaveLength(1);
+    expect(Math.hypot(net.ends[0]!.x - end.x, net.ends[0]!.y - end.y)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-9);
+  });
+
+  it("a client that joins while it flies is sent it in a batch of its own, and without its owner", () => {
+    const w = arena([archer(), target({ x: 900, y: 500 }), idle()]);
+    const net = wire(w);
+    net.flush(loose(w, [{ id: "archer", a: 0.3 }]));
+    for (let i = 0; i < 3; i++) net.flush(tick(w));
+    const pr = lastProjectile(w);
+    const batch = net.channel.inFlight(w.projectiles, w.state.serverTime);
+    expect(batch.l).toEqual([]);
+    expect(batch.p).toHaveLength(1);
+    const [sent] = unpackLaunches(batch);
+    expect(sent).toMatchObject({ id: pr.id, kind: "arrow", t: pr.launch.t, range: pr.launch.range });
+    for (const key of ["x", "y", "vx", "vy"] as const) expect(Math.abs(sent![key] - pr.launch[key]), key).toBeLessThanOrEqual(0.05 + 1e-9);
+    expect(JSON.stringify(batch)).not.toContain("archer");
+    // The same launch the clients that were there got when it left: flying it from either lands in the same place.
+    expect(sent).toEqual(net.flying.get(pr.id));
   });
 });
 
@@ -575,7 +625,7 @@ describe("where a projectile leaves from", () => {
     strafeTick(w);
     const arrow = lastProjectile(w);
     expect(arrow.kind).toBe("arrow");
-    expect([arrow.state.x, arrow.state.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
+    expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
     expect(dist(drawn, c)).toBeGreaterThan(RANGED_HIT_REACH); // the present position is nowhere near it
     const hp = P(w, "target").hp;
     expect(flyUntilEnd(w).end.reason).toBe("hit");
@@ -593,7 +643,7 @@ describe("where a projectile leaves from", () => {
     q.pushAction({ kind: "release", a: Math.atan2(320 - latest.y, 500 - latest.x) });
     strafeTick(w);
     const arrow = lastProjectile(w);
-    expect([arrow.state.x, arrow.state.y]).toEqual([expect.closeTo(latest.x, 9), expect.closeTo(latest.y, 9)]);
+    expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(latest.x, 9), expect.closeTo(latest.y, 9)]);
     expect(c.y).toBeGreaterThan(latest.y + 3); // it walked on in the release tick; the arrow did not
     expect(flyUntilEnd(w).end.reason).toBe("hit");
   });
@@ -613,7 +663,7 @@ describe("where a projectile leaves from", () => {
     for (let i = 0; i < 30 && w.projectiles.size === 0; i++) tick(w);
     const ball = lastProjectile(w);
     expect(ball.kind).toBe("ball");
-    expect([ball.state.x, ball.state.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
+    expect([ball.launch.x, ball.launch.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
     expect(dist(drawn, c)).toBeGreaterThan(RANGED_HIT_REACH); // the caster walked on over the lag and the cast
     const hp = P(w, "target").hp;
     expect(flyUntilEnd(w).end.reason).toBe("hit");
@@ -766,14 +816,14 @@ describe("range", () => {
     try {
       const a = arena([archer({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
       loose(a, [{ id: "archer", a: 0 }]);
-      expect(synced([...a.state.projectiles.values()][0]!).range).toBe(240);
+      expect(lastProjectile(a).launch.range).toBe(240);
       const arrow = flyUntilEnd(a);
       expect(arrow.end.reason).toBe("range");
       expect(arrow.end.x).toBeCloseTo(100 + 240, 6);
 
       const m = arena([mage({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
       castBall(m, "mage", 0);
-      expect(synced([...m.state.projectiles.values()][0]!).range).toBe(220);
+      expect(lastProjectile(m).launch.range).toBe(220);
       const ball = flyUntilEnd(m);
       expect(ball.end).toMatchObject({ proj: "ball", reason: "range" });
       expect(ball.end.x).toBeCloseTo(100 + 220, 6);
@@ -795,7 +845,7 @@ describe("range", () => {
     expect(end.x).toBeCloseTo(580, 6);
     expect(end.y).toBeCloseTo(320, 6);
     expect(n).toBe(Math.ceil(ARROW.range / ARROW_TICK));
-    expect(w.state.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
   });
 
   it("stops a ball exactly 420 u out", () => {
@@ -817,14 +867,13 @@ describe("range", () => {
     expect(end.y).toBeCloseTo(320 + Math.sin(a) * 480, 6);
   });
 
-  it("is still in flight a tick before it, and gone from both the state and the runtime after", () => {
+  it("is still in flight a tick before it, and gone after", () => {
     const w = arena([archer({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
     loose(w, [{ id: "archer", a: 0 }]);
     ticks(w, 10);
-    expect(w.state.projectiles.size).toBe(1);
     expect(w.projectiles.size).toBe(1);
     expect(fxOf(tick(w), "projEnd")).toHaveLength(1);
-    expect(w.state.projectiles.size + w.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
   });
 });
 
@@ -832,7 +881,7 @@ describe("the projEnd fx", () => {
   it("carries the projectile's id, kind, origin and launch time, and the exact end point and reason", () => {
     const w = arena([archer({ x: 100, y: 300 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
     loose(w, [{ id: "archer", a: 0.2 }]);
-    const [id, st] = [...w.state.projectiles][0]!;
+    const { id, launch: st } = lastProjectile(w);
     const { end } = flyUntilEnd(w);
     expect(end).toEqual({
       kind: "projEnd", id, proj: "arrow", x0: 100, y0: 300, t0: st.t, x: expect.closeTo(100 + Math.cos(0.2) * 480, 6),
@@ -864,12 +913,11 @@ describe("shield reflection", () => {
     expect(end.x).toBeCloseTo(486, 6);
     expect(end.y).toBeCloseTo(320, 6);
     expect(w.projectiles.has(original.id)).toBe(false);
-    expect(w.state.projectiles.has(original.id)).toBe(false);
 
     const next = lastProjectile(w);
     expect(next.id).not.toBe(original.id);
     const v = reflectVelocity(900, 0, Math.PI);
-    expect(synced(next.state)).toMatchObject({
+    expect(launched(next)).toMatchObject({
       kind: "arrow", owner: "holder", x: expect.closeTo(486, 6), y: expect.closeTo(320, 6), vx: expect.closeTo(v.vx, 6),
       vy: expect.closeTo(v.vy, 6), range: 480,
     });
@@ -878,8 +926,8 @@ describe("shield reflection", () => {
     expect(next.packet).toEqual(packet);
     // It left in the substep of the contact, so its time is on the 10 ms grid inside this tick.
     const tickStart = w.state.serverTime - TICK_MS;
-    expect(next.state.t).toBeGreaterThan(tickStart);
-    expect((next.state.t - tickStart) % 10).toBe(0);
+    expect(next.launch.t).toBeGreaterThan(tickStart);
+    expect((next.launch.t - tickStart) % 10).toBe(0);
     expect(fxOf(events, "block")).toEqual([{ kind: "block", id: "holder", by: "archer", weapon: "bow" }]);
     expect(fxOf(events, "hit")).toEqual([]);
     expect(P(w, "holder").hp).toBe(FACTIONS.frost.hp);
@@ -892,10 +940,10 @@ describe("shield reflection", () => {
     expect(flyUntilEnd(w).end.reason).toBe("reflected");
     const next = lastProjectile(w);
     const v = reflectVelocity(900, 0, facing);
-    expect(next.state.vx).toBeCloseTo(v.vx, 6);
-    expect(next.state.vy).toBeCloseTo(v.vy, 6);
-    expect(Math.hypot(next.state.vx, next.state.vy)).toBeCloseTo(900, 6);
-    expect(next.state.range).toBe(480);
+    expect(next.launch.vx).toBeCloseTo(v.vx, 6);
+    expect(next.launch.vy).toBeCloseTo(v.vy, 6);
+    expect(Math.hypot(next.launch.vx, next.launch.vy)).toBeCloseTo(900, 6);
+    expect(next.launch.range).toBe(480);
     const { end } = flyUntilEnd(w);
     expect(end.reason).toBe("range");
     expect(end.x0).toBeCloseTo(486, 6);
@@ -910,8 +958,8 @@ describe("shield reflection", () => {
     const { end } = flyUntilEnd(w);
     const used = Math.hypot(end.x - end.x0, end.y - end.y0);
     expect(used).toBeCloseTo(286, 6);
-    expect(lastProjectile(w).state.range).toBe(ARROW.range);
-    expect(lastProjectile(w).state.range).toBeGreaterThan(ARROW.range - used);
+    expect(lastProjectile(w).launch.range).toBe(ARROW.range);
+    expect(lastProjectile(w).launch.range).toBeGreaterThan(ARROW.range - used);
   });
 
   it("two shields facing each other cannot bounce an arrow forever: a second reflection keeps only the range it has left", () => {
@@ -927,7 +975,7 @@ describe("shield reflection", () => {
       flown++;
       for (const e of fxOf(tick(w), "projEnd")) {
         reasons.push(e.reason);
-        if (e.reason === "reflected") ranges.push(lastProjectile(w).state.range);
+        if (e.reason === "reflected") ranges.push(lastProjectile(w).launch.range);
       }
     }
     // 86 u to the first shield, a full 480 u from there, the second reflection keeps what is left (480 - 172), and the
@@ -1102,8 +1150,8 @@ describe("balls and arrows meeting in the air", () => {
     const { w, arrow, ball } = headOn(20);
     const { end, events } = flyUntilEnd(w);
     expect(end).toMatchObject({ id: arrow.id, proj: "arrow", reason: "deleted" });
-    // At the substep it went, the ball (where its synced straight line puts it) was within the radius of where the arrow stopped.
-    const st = ball.state;
+    // At the substep it went, the ball (where its announced straight line puts it) was within the radius of where the arrow stopped.
+    const st = ball.launch;
     const ballAt = (t: number): Vec2 => ({ x: st.x + (st.vx * (t - st.t)) / 1000, y: st.y + (st.vy * (t - st.t)) / 1000 });
     const tickStart = w.state.serverTime - TICK_MS;
     const gaps = [1, 2, 3, 4, 5].map((k) => dist(end, ballAt(tickStart + 10 * k)));
@@ -1128,7 +1176,7 @@ describe("balls and arrows meeting in the air", () => {
   describe("where they came closest, and in sight", () => {
     /** Out of the way of every line below. */
     const duelists = (map?: GameMap): World => arena([archer({ x: 1200, y: 500 }), mage({ x: 1200, y: 100 }), idle("idle", { x: 1200, y: 300 })], map);
-    const endOf = (pr: ProjectileRuntime): Vec2 => ({ x: pr.state.x + pr.state.vx / 100, y: pr.state.y + pr.state.vy / 100 });
+    const endOf = (pr: ProjectileRuntime): Vec2 => ({ x: pr.launch.x + pr.launch.vx / 100, y: pr.launch.y + pr.launch.vy / 100 });
 
     /** A ball flying east and an arrow flying west `offset` u to one side of it, 6.4 u apart along the line: they pass in mid-substep. */
     function pass(offset: number) {
@@ -1235,7 +1283,7 @@ describe("the arena teleport", () => {
     const flying = [...w.projectiles.values()].map((p) => ({ id: p.id, proj: p.kind, x: p.x, y: p.y }));
     expect(flying).toHaveLength(2);
     w.hooks.teleported!(w);
-    expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
     const ends = fxOf(tick(w), "projEnd");
     expect(ends.map((e) => ({ id: e.id, proj: e.proj, x: e.x, y: e.y, reason: e.reason }))).toEqual(
       flying.map((f) => ({ ...f, reason: "cleared" })),
@@ -1253,9 +1301,9 @@ describe("the arena teleport", () => {
     expect(fxOf(events, "teleport")).toHaveLength(1);
     expect(w.state.gatesLocked).toBe(true);
     expect(fxOf(events, "projEnd")).toEqual([expect.objectContaining({ id, reason: "cleared" })]);
-    expect(w.state.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
     ticks(w, 20);
-    expect(w.state.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
   });
 
 });
@@ -1273,7 +1321,7 @@ describe("the end of the run", () => {
     const events = tick(w);
     expect(w.state).toMatchObject({ phase: "ended", winner: "Archer" });
     expect(fxOf(events, "projEnd").map((e) => [e.id, e.reason]).sort()).toEqual(flying.map((id) => [id, "cleared"]));
-    expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
     expect(ticks(w, 5).filter((e) => e.type === "fx" && e.fx.kind === "projEnd")).toEqual([]);
   });
 
@@ -1286,7 +1334,7 @@ describe("the end of the run", () => {
     for (let i = 0; i < 20 && w.state.phase === "active"; i++) events.push(...tick(w));
     expect(w.state).toMatchObject({ phase: "ended", winner: "Archer" });
     expect(fxOf(events, "projEnd").map((e) => e.reason).sort()).toEqual(["cleared", "hit"]);
-    expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
   });
 });
 
@@ -1407,7 +1455,7 @@ describe("swing interceptions", () => {
     const at = { x: ball.x, y: ball.y };
     interceptBall(w, ball, "destroy");
     expect(fxOf(w.events, "projEnd")).toEqual([expect.objectContaining({ id: ball.id, ...at, reason: "destroyed" })]);
-    expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+    expect(w.projectiles.size).toBe(0);
     ticks(w, 30);
     expect(P(w, "frost").hp).toBe(FACTIONS.frost.hp);
   });

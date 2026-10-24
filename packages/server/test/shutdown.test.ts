@@ -77,7 +77,7 @@ function track(room: ClientRoom): Player {
   room.reconnection.enabled = false; // the server is about to go away for good
   room.onMessage("result", (r: RunResult) => p.results.push(r));
   room.onMessage("toast", () => {});
-  room.onMessage("fx", () => {});
+  room.onMessage("fxs", () => {});
   return p;
 }
 

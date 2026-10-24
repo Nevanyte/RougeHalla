@@ -28,7 +28,7 @@ import {
   inArc, onShieldFront, PLAYER_RADIUS, RANGED_SLACK, raycast, riposteShare, shieldOutcome, staggers, swingVsBall, WEAPONS,
   type ArcShape, type GameMap, type Vec2,
 } from "@raid/shared";
-import { activeWeapon, combatant, standing, standingCombatants, type Combatant } from "./combatant";
+import { activeWeapon, combatant, isEvading, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
 import { positionAt } from "./movement";
 import { ballsThisTick, interceptBall } from "./projectiles";
@@ -43,7 +43,7 @@ export function resolveMelee(world: World): void {
   if (requests.length === 0) return;
   const map = collisionMap(world);
   // Nobody goes down before the ledger is applied, so one list serves every request.
-  const bodies = standingCombatants(world);
+  const bodies = standingCombatants(world).filter((c) => !isEvading(c));
   for (const req of requests) {
     const attacker = combatant(world, req.attacker);
     const shape = WEAPONS[req.weapon].shape;

@@ -406,6 +406,10 @@ A 20-tick-per-second simulation of the damage rules above reproduces the full fa
   - a little **GV**;
   - a **stat buff** (max HP, attack speed, or move speed);
   - **its weapon**, unless the killer already holds that weapon type.
+- **Strength.** A mob is its region's faction with hp and every damage number scaled by **0.45**, and an elite by **0.65**. Measured in the real simulation (signatures and the Phase 9.1 ranges included, one mob at a time, a scripted player who stands and fights): the starting kit finishes a normal mob in 24 of the 25 starter-against-region pairings, with about 80% hp left (the worst finished pairing, Fire against a Demon Blood mob, 55%). An elite is finished with the starting kit in about 23 of 25 pairings, leaving the player about 58% hp on average; the others are not finishable with the signature weapon alone, so a second weapon is the answer there, and that is the choice. A Frost shield against a Frost shield mob blocks forever, so the weapons you pick up decide which camps you farm. A player who backs away from a melee mob while shooting can lose to it: the mob chases to its leash, gives up, heals and comes back, and in the same simulation that wore a Plague bow down in one duel of three against the Frost mob. Each region has **one elite**: the first mob of its elite camp. The other mobs of that camp are normal.
+- **Drop numbers.** GV is 2 (elite 10) and a buff is 1.1 stacks (elite 2.2, so that three drops reach the three-stack combo), both times the mob reward curve of section 12.3. The stat of the drop is the region's own 60% of the time (Fire and Demon Blood: attack speed; Plague and Frost: max HP; Sentenced: move speed) and one of the other two otherwise, so the map is also a shopping list for a combo. The weapon lies where the mob fell and anyone can take it; it is not dropped when the killer already holds that weapon type.
+- **Who gets the kill.** The player who did the mob the most damage over the whole fight (since it last rested), among those still in the run, so a late shot cannot steal an elite. An exact tie goes by the tick's secret order. A mob that nobody in the run hit drops its weapon and pays nothing.
+- **Leash numbers.** Any hit from a player wakes the mob, wherever the player stands. It gives up when it is 9 tiles from its camp, or 6 s after it last **dealt** damage (damage it takes does not extend the fight), or with nobody left to fight. It then walks home **ignoring everyone and taking no damage**: it starts nothing new (a shot already in the air still lands), and it is not a body, so swings and shots pass through it (its shield neither blocks nor reflects). It is whole again the moment it arrives, and is neutral again. A mob hurt by someone who was gone before it could wake heals after 3 s unhurt. So a shooter out of its reach gains nothing by kiting it: every round ends with a whole mob, and a ranged weapon has to burst a melee mob down inside one round. A mob whose shield blocks or reflects a hit wakes too. A bow or wand mob backs away from a player who is too close, but only inside its leash and only to open the gap; cornered at the edge it stands and shoots. Camp mates do not help each other: only the mob that was hit wakes. Mobs never hurt each other, and their shots fly past each other. Dead mobs do not respawn. When the patience timer teleports everyone into the coliseum, every living mob is put back on its camp spot at full health.
 - **Same input path as players.** Mobs use the same input rules and combat code as players, so a sword mob and a sword player behave identically.
 - **Later.** Raid-boss mobs and quest NPCs (section 2.2).
 
@@ -431,7 +435,15 @@ Each buff stack you collect adds to that stat along an S-curve: small at first, 
 | 6 | +63% | +45% | +27% |
 | 8+ | about +66% | about +47% | about +28% |
 
-**Combo thresholds.** Reaching 3 and then 5 stacks of one stat unlocks a set bonus, for example a dash on kill from 3× attack speed or a shield on kill from 3× HP. These are the run-defining moments; exact bonuses get tuned when mobs land.
+**Combo thresholds.** Reaching 3 and then 5 stacks of one stat unlocks a set bonus that fires on **every kill** (a player's or a mob's). Stacks are real numbers (a drop is scaled by the reward curve below), and a higher tier replaces the lower tier of the same stat. These are the run-defining moments; the numbers below are the Phase 11 picks and get tuned in playtests.
+
+| Stat | 3 stacks | 5 stacks |
+|---|---|---|
+| Attack speed | **Dash on kill**: 2.5× move speed for 0.4 s | **Cascade**: the dash, and a kill resets your attack cooldown |
+| Max HP | **Shield on kill**: absorbs 15% of max HP for 5 s | **Bulwark**: 30% of max HP for 8 s |
+| Move speed | **Bloodrush**: 1.5× move speed for 3 s | **Frenzy run**: 1.8× for 5 s |
+
+A shield absorbs before HP in the one place all damage goes through, so it also soaks sudden death. A max-HP stack raises HP by the same amount, so you never end up lower on the bar than before.
 
 ### 12.3 Mob rewards fall as you get fed
 Mob GV and buff value are multiplied by a curve that's near full while you're hungry, drops sharply around a feed of 5, and never goes below 30%:
@@ -443,17 +455,19 @@ Mob GV and buff value are multiplied by a curve that's near full while you're hu
 Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch-up).
 
 ### 12.4 Bounties (shutdowns)
-`bounty = 10 × max(0, feed − 2)^1.5` GV.
+`bounty = 10 × max(0, player kills − 2)^1.5` GV. **Only player kills count.** Mob kills still raise your feed (section 12.1), and so feed the buffs and set the mob reward curve and the catch-up, but they never raise your bounty.
 
-| Feed | ≤ 2 | 3 | 4 | 5 | 6 | 7 | 8 | 10 |
+**Who gets the kill.** The player whose hit lands in the killing tick (the biggest of them, if several do). When a mob (or a shooter's arrow that outlived them) finishes a player, or a player leaves, the kill and the bounty go to the last player who hit them within 5 s, so walking into a camp or quitting cannot dodge a bounty. Sudden death credits nobody.
+
+| Player kills | ≤ 2 | 3 | 4 | 5 | 6 | 7 | 8 | 10 |
 |---|---|---|---|---|---|---|---|---|
 | Bounty (GV) | 0 | 10 | 28 | 52 | 80 | 112 | 147 | 226 |
 
-- **Announcement.** When a player's bounty first appears and every time it grows, the host announces "*name* is on a rampage — bounty N GV".
-- **Crown.** Bountied players wear a crown, and their position flashes on everyone's minimap for 2 s every 10 s.
+- **Announcement.** When a player's bounty first appears and when it grows, the host announces "*name* is on a rampage — bounty N GV", at most once per player per 10 s. A rise inside that window is held back and announced with its value when the window ends.
+- **Crown.** Bountied players wear a crown. *Not built yet:* their position flashing on everyone's minimap for 2 s every 10 s.
 - **Shutdown.** Killing a bountied player pays the bounty and **half their buff stacks** to the killer, so comebacks are real.
 - **Trade-off, intended.** A fed player can beat their counters, as in League. Bounties and falling rewards are the release valves.
-- A big bounty can be worth more than winning (52 GV at feed 5 against a 50 GV win bonus). That makes hunting the fed player a goal in its own right.
+- A big bounty can be worth more than winning (52 GV at 5 player kills against a 50 GV win bonus). That makes hunting the fed player a goal in its own right.
 
 ---
 
@@ -464,7 +478,7 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 | Win (last one standing) | +50, only if the run had at least 3 players and the winner damaged at least 2 different opponents (guards against farming with a second profile). The win still counts either way. |
 | Player kill | +10 |
 | Bounty claimed | Per section 12.4 |
-| Mob kill | +2 (elites +10) × the mob reward curve, at most 30 per run from mobs |
+| Mob kill | +2 (elites +10) × the mob reward curve (and the ×1.25 catch-up, so a hungry player's elite pays 12), rounded to whole GV, at most 30 per run from mobs |
 
 - **Spending.** GV buys **cosmetics only**: colours, trails, titles, golden weapon variants. Nothing that changes combat.
 - **Achievements and titles.** For example, 5 wins holding the same weapon unlocks its golden variant; per-faction milestones unlock titles.
@@ -508,7 +522,11 @@ Hard counters are only fair if you can see them coming.
 | Plague | A "below half" execute cue on its target |
 | Fire | A burst of flame on any enemy who swings while engaged with Fire |
 | Frost | Frost on chilled enemies |
-| Fed players | Crown, rampage announcements, minimap pings |
+| Fed players | Crown and rampage announcements (minimap pings are not built yet) |
+| Your buffs | Three rows under your HP (max HP, attack speed, move speed): stacks held, the bonus they give, a bar toward the next combo tier and the combo's name once unlocked. A feed line explains the mob reward: "Feed 2.5 (kills + mobs/4) · mobs pay x0.89" |
+| Combos | A toast when a tier unlocks, and a ring in the stat's colour each time a kill sets one off |
+| Kill shield | A pale-blue bubble around the player, a blue segment on the HP bar and "+N shield" in the readout, for everyone to see |
+| Mobs | Faction colour and weapon like a player; the HP bar shows once a mob is hurt or fighting, and an elite's always shows. Elites wear a gold ring and a star over a gold name. A fallen mob shrinks and fades, and its weapon stays on the ground. Living mobs show as dots on the minimap |
 | Patience timer | Always on the HUD; a 30-second warning and a host voice line before the teleport |
 | Counter wheel | In the hub, both pentagrams with your pick highlighted |
 
@@ -546,6 +564,8 @@ Hard counters are only fair if you can see them coming.
 - **The real-sim weapon harness**: `npm run harness -w @raid/server` (`-- --core` for a 30 s run without the sensitivity passes). Every weapon duel plays out in the real sim with two policy-driven clients; it prints the weapon matrix, a style grid for every edge with a ranged weapon (a ranged fighter can stand, strafe or kite; a melee fighter can charge straight or **weave**, approaching off the line and changing side every 0.4 s), an edge verdict (holds, or fails and why, with the factions where a reply is thin) and the kiting table. `-- --grid-setups full` runs every grid cell on all 18 setups instead of 3 (steadier, about 3 times the time).
 - **The faction cycle in the real sim**: `npm run harness:factions -w @raid/server -- --python` plays every edge with the same weapon on both sides and on the signature openings, with each hit and shot landing in the tick it starts, and checks it pair by pair against `testing/realtime.py` (60 of 60 cells agree). `-- --mode policy` plays them as moving fighters by the shared weapon policies from 18 starting setups, with staggers, blocks and projectile flight; its failing cells (the four shield mirrors and Plague's bow against Frost's shield) are weapon-layer problems, listed in `testing/TUNING_10.md` section 6. Both report and never block the build.
 - **Budgets.** Server tick time with 8 players and 60 mobs, and bytes per second per player.
+  - **Tick:** `step()` averages about 0.1 ms and its p99 stays under 0.5 ms with 15 mobs fighting (gate: 5 ms average, 15 ms p99). `npx tsx packages/server/bench/stepBench.ts`; `test/perf.test.ts` is the gate.
+  - **Bandwidth:** per client, websocket payload, measured headless with the real encoder: about 10 KB/s with 13 to 18 mobs fighting (9.1 to 10.5 over seven seeds) and 14.1 to 16.3 KB/s with 30 to 37 fighting, 4 KB/s with nobody fighting (gate: 20 KB/s). Sleeping mobs cost nothing. Two things hold it down: all of a step's fx travel as one compact message (`fxs`, which also announces each arrow and ball: they are not in the synced state), and the synced numbers are narrow on the wire (float32 positions, uint32 timers). `npx tsx packages/server/bench/bandwidth.ts`; `test/bandwidth.test.ts` is the gate. StateView is not needed yet.
 - **End-to-end.** Bots play full arena runs to a winner, with GV and bounties balancing exactly.
 
 ---
@@ -583,7 +603,7 @@ Hard counters are only fair if you can see them coming.
 | **Signature** | A faction's unique mechanic |
 | **Signature weapon** | The weapon each faction starts with |
 | **Engaged** | Fighting a specific enemy: you hit them recently or they hit you |
-| **Feed** | Your run's kill score; drives buffs, mob rewards and bounty |
-| **Bounty / shutdown** | GV and buffs paid for killing a fed player |
+| **Feed** | Your run's kill score (player kills + a quarter per mob kill); sets the mob reward curve and the catch-up. The bounty counts player kills only |
+| **Bounty / shutdown** | GV and buffs paid for killing a player with several player kills |
 | **Edge** | One "A beats B" relationship in a counter loop |
 | **Margin** | Winner's remaining HP fraction minus the loser's, in points |

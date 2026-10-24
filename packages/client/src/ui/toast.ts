@@ -1,5 +1,9 @@
-// Short server messages ("Too far away", "Nothing to take") stacked bottom-center above the weapon bar.
+// Short server messages ("Too far away", "Nothing to take") stacked bottom-center above the weapon bar, and the local
+// player's buff and combo news (a tone only changes how a toast is drawn).
 import { el, uiRoot } from "./dom";
+
+/** "buff": a stack drop, "combo": a combo unlocked. Plain toasts have none. */
+export type ToastTone = "buff" | "combo";
 
 const MAX_VISIBLE = 3;
 /** How long a toast stays fully visible before it starts to fade. */
@@ -23,7 +27,7 @@ export class Toasts {
     uiRoot().append(this.root);
   }
 
-  show(text: string): void {
+  show(text: string, tone?: ToastTone): void {
     // Mashing a key that fails repeats the same message; extend the existing toast instead of stacking copies.
     const same = this.live.find((e) => e.text === text && e.removeTimer === null);
     if (same) {
@@ -33,7 +37,7 @@ export class Toasts {
     }
 
     while (this.live.length >= MAX_VISIBLE) this.dismiss(this.live[0]!);
-    const node = el("div", "toast", text);
+    const node = el("div", tone ? `toast ${tone}` : "toast", text);
     const entry: Entry = { text, node, fadeTimer: setTimeout(() => this.fade(entry), HOLD_MS), removeTimer: null };
     this.live.push(entry);
     this.root.append(node);

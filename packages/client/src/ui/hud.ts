@@ -1,8 +1,10 @@
 // In-run DOM overlay: the lobby countdown or the run line (players standing, GV, your bounty), the arena timers (coliseum
 // teleport → locked gates → sudden death), player vitals (faction and hp), the teleport-immunity hint and the
-// "you died" line. A training room shows none of the run's lines: its banner, your faction, weapon and hp.
-import { FACTIONS, WEAPONS, isFactionId, isWeaponId } from "@raid/shared";
+// "you died" line. A training room shows none of the run's lines: its banner, your faction, weapon and hp. The buff stacks,
+// combo progress and feed line are buffsHud.ts, placed under the vitals.
+import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
+import { BuffsHud } from "./buffsHud";
 import { cssColor, el, uiRoot } from "./dom";
 
 function fmtSeconds(ms: number): string {
@@ -50,6 +52,8 @@ export interface VitalsInput {
   weapon0: string;
   weapon1: string;
   slot: number;
+  /** The kill barrier still held (0 or absent: none). */
+  barrier?: number;
 }
 
 /** The weapon in hand by name; "no weapon" for an empty slot or an id from newer server content. */
@@ -62,9 +66,9 @@ export function heldWeaponName(me: Pick<VitalsInput, "weapon0" | "weapon1" | "sl
  * The hp end of the vitals line (after the name and the faction). hp is fractional on the wire; whole numbers on screen,
  * and a player still standing never reads 0. Training swaps the status word (always "alive" there) for the weapon in hand.
  */
-export function vitalsHpText(me: VitalsInput | undefined, training: boolean): string {
+export function vitalsHpText(me: VitalsInput | undefined, training: boolean, barrier = 0): string {
   if (!me) return "";
-  const hp = `HP ${Math.ceil(me.hp)}/${Math.round(me.maxHp)}`;
+  const hp = hpText(me.hp, me.maxHp, barrier);
   return training ? ` · ${heldWeaponName(me)} · ${hp}` : ` · ${hp} · ${me.status}`;
 }
 
@@ -79,6 +83,7 @@ export class Hud {
   private readonly vitalsName = el("span");
   private readonly vitalsFaction = el("span", "hud-faction");
   private readonly vitalsHp = el("span");
+  private readonly buffs = new BuffsHud();
   private readonly arenaLine = el("div", "hud-arena");
   private readonly arenaHint = el("div", "hud-hint");
   /** Top-center notices; a sibling of the HUD block so they can sit mid-width. */
@@ -102,7 +107,7 @@ export class Hud {
     this.status.append(this.statusText, this.bountyTag);
     this.bountyTag.hidden = true;
     this.vitals.append(this.vitalsName, this.vitalsFaction, this.vitalsHp);
-    this.root.append(this.status, this.vitals, this.arenaLine, this.arenaHint);
+    this.root.append(this.status, this.vitals, this.buffs.root, this.arenaLine, this.arenaHint);
     this.center.append(this.suddenDeath, this.immuneLine);
     this.arenaLine.hidden = true;
     this.arenaHint.hidden = true;
@@ -154,9 +159,11 @@ export class Hud {
       this.bountyTag.hidden = bounty === 0;
     }
 
+    // The kill barrier (hp the hp combos absorb) reads after the hp: "HP 400/500 +75 shield".
+    const barrier = me && me.status === "alive" && me.barrier > 0 ? Math.ceil(me.barrier) : 0;
     let key = "";
     if (me) {
-      key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.round(me.maxHp)}|${me.status}`;
+      key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.round(me.maxHp)}|${barrier}|${me.status}`;
       if (training) key += `|T|${me.slot}|${me.weapon0}|${me.weapon1}`;
     }
     if (key !== this.lastVitals) {
@@ -165,9 +172,10 @@ export class Hud {
       this.vitalsName.textContent = me?.name ?? "";
       this.vitalsFaction.textContent = faction ? ` · ${faction.displayName}` : "";
       this.vitalsFaction.style.color = faction ? cssColor(faction.color) : "";
-      this.vitalsHp.textContent = vitalsHpText(me, training);
+      this.vitalsHp.textContent = vitalsHpText(me, training, barrier);
     }
 
+    this.buffs.update(state, me);
     this.updateArena(state, serverNow);
     const immune = !training && me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;
     if (this.immuneLine.hidden === immune) this.immuneLine.hidden = !immune;
@@ -222,6 +230,7 @@ export class Hud {
   }
 
   destroy(): void {
+    this.buffs.destroy();
     this.root.remove();
     this.center.remove();
     this.deathLine.remove();

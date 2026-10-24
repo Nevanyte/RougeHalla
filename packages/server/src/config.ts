@@ -41,5 +41,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       num(env.PATIENCE_MIN_SECONDS, patienceSeconds * (PATIENCE_MIN_SECONDS / PATIENCE_SECONDS)))),
     suddenDeathSeconds: num(env.SUDDEN_DEATH_SECONDS, SUDDEN_DEATH_SECONDS),
     dummies: env.DUMMIES === "1" || env.DUMMIES === "true",
+    // On by default: a mob rests at every camp spot when a run starts (the headless bots fight them too). MOBS=0 or MOBS=false turns them off.
+    mobs: env.MOBS !== "0" && env.MOBS !== "false",
   };
 }

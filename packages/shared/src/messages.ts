@@ -1,4 +1,5 @@
 // Wire contracts. Client→server messages are inputs only; the server decides outcomes.
+import type { BuffStat, ComboId } from "./buffs";
 import type { FactionId } from "./factions";
 import type { SignatureKind } from "./signatures";
 import type { ProjectileKind, WeaponId } from "./weapons";
@@ -92,8 +93,12 @@ export type FxEvent =
   | { kind: "heal"; id: string; amount: number }
   /** Everyone alive was moved into the coliseum this tick and the gates locked. */
   | { kind: "teleport" }
-  /** A player's bounty rose (first above 0, then on every increase): "<name> is on a rampage — bounty N GV". */
+  /** A player's bounty rose: "<name> is on a rampage — bounty N GV". At most one per player per BOUNTY_ANNOUNCE_MS; a rise held back goes out when the window ends. */
   | { kind: "bounty"; id: string; name: string; bounty: number }
+  /** `id` gained buff stacks (a mob drop or a bounty): `stacks` of `stat`, and the new total. */
+  | { kind: "buff"; id: string; stat: BuffStat; stacks: number; total: number }
+  /** `id` reached a combo tier (`proc` false) or a kill set it off (`proc` true). */
+  | { kind: "combo"; id: string; combo: ComboId; proc: boolean }
   /** The run is over. `id`/`name` are the winner's; both null with `draw` for a draw, and without it when nobody won (a solo run, or everyone left). */
   | { kind: "victory"; id: string | null; name: string | null; draw: boolean };
 
@@ -132,11 +137,46 @@ export interface RunResult {
 
 export const SUDDEN_DEATH_KILLER = "sudden death";
 
+/** One fx event as it reaches the renderer: the event plus the server time it happened (`fxs` messages are decoded to these). */
 export type TimedFx = FxEvent & { t: number };
+
+/** One fx on the wire: `[kindCode, ...fields]`, numbers and strings only (see fxCodec.ts for the layout of each kind). */
+export type FxTuple = Array<number | string | null>;
+/**
+ * Every fx one simulation step produced, in order, sharing the step's server time `t`, and the projectiles it loosed. Built
+ * with `packFx` and read with `unpackFx` and `unpackLaunches` (fxCodec.ts). Sent once per step that has either, just before
+ * the patch of that tick. Players and mobs are named by their index in `RaidState.roster` where they can be.
+ */
+export interface FxBatch {
+  t: number;
+  l: FxTuple[];
+  /**
+   * The arrows and balls that left during this step and are still flying at its end, one tuple each (see fxCodec.ts;
+   * `unpackLaunches` reads them). Projectiles are not in the synced state at all: this is how a connected client learns of
+   * them, and a client that joins or reconnects mid-flight is sent the ones then flying as a batch of its own
+   * (`FxChannel.inFlight`, `l` empty).
+   */
+  p?: FxTuple[];
+}
+
+/**
+ * A projectile as the client flies it: position(T) = (x, y) + (vx, vy) * (T - t) / 1000, for at most `range` units, until a
+ * `projEnd` fx says where and why it stopped. `id` is the one that `projEnd` names. `t` is when it left (x, y).
+ */
+export interface ProjectileLaunch {
+  id: string;
+  kind: ProjectileKind;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  t: number;
+  range: number;
+}
 
 /** Server → client. */
 export interface ServerMessages {
-  fx: TimedFx;
+  fxs: FxBatch;
   toast: { text: string };
   result: RunResult;
 }

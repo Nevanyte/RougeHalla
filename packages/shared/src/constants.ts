@@ -101,12 +101,12 @@ export const GV_ELITE = 10;
 /** Mob GV (normal and elite together) stops counting past this per run, so farming can't beat winning. */
 export const GV_MOB_CAP = 30;
 
-// Feed and bounty (LoL-style shutdown gold): see bountyFor in rules.ts.
-/** Feed score per run = player kills + this × mob kills. */
+// Feed and bounty (LoL-style shutdown gold): see feedScore and bountyFor in rules.ts.
+/** Feed score per run = player kills + this × mob kills. It sets the mob reward curve and the catch-up; the bounty ignores mobs. */
 export const FEED_MOB_KILL_WEIGHT = 0.25;
-/** Bounty GV = BOUNTY_SCALE × max(0, feed − BOUNTY_FREE_FEED)^BOUNTY_EXPONENT, rounded to whole GV. */
+/** Bounty GV = BOUNTY_SCALE × max(0, player kills − BOUNTY_FREE_KILLS)^BOUNTY_EXPONENT, rounded to whole GV. Mob kills don't count. */
 export const BOUNTY_SCALE = 10;
-export const BOUNTY_FREE_FEED = 2;
+export const BOUNTY_FREE_KILLS = 2;
 export const BOUNTY_EXPONENT = 1.5;
 
 // Combat (Phase 9). Weapon numbers and the faction x weapon formula live in weapons.ts; the rules between weapons
@@ -147,6 +147,57 @@ export const AIM_STALE_MS = 1000;
 /** Training dummies (server env DUMMIES=1): no faction (no armor or shield), and back to full hp this long after a hit. */
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;
+
+// Buffs and the feed curve (Phase 11, GAME_DESIGN 12). The maths is in buffs.ts.
+/** Largest bonus each stat's S-curve approaches: +70% max hp, +50% attack speed, +30% move speed. */
+export const BUFF_BMAX_HP = 0.7;
+export const BUFF_BMAX_ATTACK_SPEED = 0.5;
+export const BUFF_BMAX_MOVE_SPEED = 0.3;
+/** The S-curve's midpoint (stacks) and width: the spike is the 3rd to 5th stack. */
+export const BUFF_S0 = 3;
+export const BUFF_W = 1;
+/** Stacks of one stat that unlock a combo tier (GAME_DESIGN 12.2). */
+export const COMBO_TIER1_STACKS = 3;
+export const COMBO_TIER2_STACKS = 5;
+/** Mob rewards (GV and buff stacks) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
+export const REWARD_FLOOR = 0.3;
+export const REWARD_MID = 5;
+export const REWARD_WIDTH = 1.5;
+/** Anyone with a feed more than CATCHUP_GAP below the lobby median gets mob rewards x CATCHUP_MULT. */
+export const CATCHUP_GAP = 2;
+export const CATCHUP_MULT = 1.25;
+/** Killing a bountied player moves this share of their buff stacks, stat by stat, to the killer. */
+export const BOUNTY_STACK_SHARE = 0.5;
+/** A rampage announcement for one player goes out at most this often (ms); a rise held back goes out when the window ends. */
+export const BOUNTY_ANNOUNCE_MS = 10_000;
+
+// Regional mobs (Phase 11, GAME_DESIGN 11). A mob is its region's faction scaled by MOB_K (an elite by ELITE_K) with the
+// region's weapon. Measured in the real sim (bench/mobDuel.ts, side-session-notes/phase11-mob-strength-report.md): at 0.45
+// a starting player who stands and fights finishes a normal mob in 24 of 25 pairings with about 80% hp left; an elite at 0.65 is
+// finished in 23 of 25 with about 58% hp left (at 0.60 it was 24 and 64%, too soft for 10 GV and two stacks).
+export const MOB_K = 0.45;
+export const ELITE_K = 0.65;
+/** A mob gives up the chase when it is this far from its camp, or has not dealt damage for MOB_GIVE_UP_SECONDS (damage it takes does not extend the fight). */
+export const MOB_LEASH_RADIUS = 9 * TILE;
+export const MOB_GIVE_UP_SECONDS = 6;
+/** Back within this of its camp spot, a returning mob is home again. */
+export const MOB_HOME_RADIUS = 10;
+/** The pace of a mob's regeneration, in seconds from empty to full. A mob walking home is whole on arrival (`rest`); an idle one that is hurt anyway heals at this pace once it has been left alone for 3 s. */
+export const MOB_REGEN_SECONDS = 4;
+/** A mob re-plans its walk at most this often (ms); each mob's schedule is offset so they don't all path on one tick. */
+export const MOB_REPATH_MS = 500;
+/** A fighting mob re-aims only when the aim moved more than this (2 degrees): its facing is synced, and a new angle every tick costs bandwidth. */
+export const MOB_AIM_DEADBAND = (2 * Math.PI) / 180;
+/** A dead mob stays in the state this long (ms) so every client sees it fall. */
+export const MOB_CORPSE_MS = 1500;
+/**
+ * Buff stacks a mob drops before the reward curve; its stat is the region's own with MOB_PRIMARY_BUFF_SHARE, else another.
+ * A little over a whole stack, because the curve is at most 0.976: three hungry drops of one stat (3 x 1.1 x ~0.97 = 3.2)
+ * then reach the first combo at 3 stacks, where with 1.0 they would stop at 2.91.
+ */
+export const MOB_BUFF_STACKS = 1.1;
+export const ELITE_BUFF_STACKS = 2.2;
+export const MOB_PRIMARY_BUFF_SHARE = 0.6;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;

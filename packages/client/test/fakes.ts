@@ -1,0 +1,98 @@
+// Stand-ins for Phaser and the DOM, just enough to run the views without a browser. Every method call on a fake game
+// object is recorded and answers the object itself (Phaser's chaining); a `setFoo(v)` also leaves `v` in `state.foo`.
+import { vi } from "vitest";
+
+export type Call = readonly [name: string, args: readonly unknown[]];
+
+export interface FakeObject {
+  /** The factory that made it: "graphics", "text", "container"... */
+  kind: string;
+  /** The factory's arguments. */
+  args: readonly unknown[];
+  /** Calls (and `prop=` assignments) since the last `clear()`. */
+  calls: Call[];
+  /** The last argument of each `setXxx` call, by the lower-cased name (`setAlpha(0.5)` -> `state.alpha`). */
+  state: Record<string, unknown>;
+  /** How many times clear() was called. */
+  clears: number;
+  [method: string]: any;
+}
+
+export function fakeObject(kind: string, args: readonly unknown[] = []): FakeObject {
+  const target = { kind, args, calls: [] as Call[], state: {} as Record<string, unknown>, clears: 0 };
+  const proxy: FakeObject = new Proxy(target, {
+    get(t, prop) {
+      if (prop in t) return (t as Record<string | symbol, unknown>)[prop];
+      if (typeof prop === "symbol" || prop === "then") return undefined;
+      return (...a: unknown[]) => {
+        if (prop === "clear") { t.calls.length = 0; t.clears++; } else t.calls.push([prop, a]);
+        if (/^set[A-Z]/.test(prop) && a.length > 0) t.state[prop[3]!.toLowerCase() + prop.slice(4)] = a.length === 1 ? a[0] : a;
+        return proxy;
+      };
+    },
+    set(t, prop, value) {
+      if (typeof prop === "string") t.calls.push([`${prop}=`, [value]]);
+      (t as Record<string | symbol, unknown>)[prop] = value;
+      return true;
+    },
+  }) as FakeObject;
+  return proxy;
+}
+
+/** A Phaser scene whose `add.*` factories make fake objects, kept in `made` in creation order. */
+export function fakeScene() {
+  const made: FakeObject[] = [];
+  const add = new Proxy({}, {
+    get: (_t, kind: string) => (...args: unknown[]) => {
+      const o = fakeObject(kind, args);
+      made.push(o);
+      return o;
+    },
+  });
+  const scene = { add, cameras: { main: fakeObject("camera") } } as never;
+  return { scene, made, ofKind: (kind: string) => made.filter((o) => o.kind === kind) };
+}
+
+/** The names of the calls in `o.calls`, in order. */
+export const names = (o: FakeObject): string[] => o.calls.map(([n]) => n);
+
+/** The arguments of the calls to `name` in `o.calls`. */
+export const argsOf = (o: FakeObject, name: string): unknown[][] => o.calls.filter(([n]) => n === name).map(([, a]) => [...a]);
+
+// ---------------------------------------------------------------------------------------------------------------- DOM
+
+export class FakeEl {
+  className = "";
+  hidden = false;
+  textContent = "";
+  width = 0;
+  height = 0;
+  children: Array<FakeEl | string> = [];
+  readonly style = { width: "", color: "", props: {} as Record<string, string>, setProperty(k: string, v: string) { this.props[k] = v; } };
+  readonly classes = new Set<string>();
+  readonly classList = {
+    toggle: (name: string, force?: boolean): boolean => {
+      const on = force ?? !this.classes.has(name);
+      if (on) this.classes.add(name); else this.classes.delete(name);
+      return on;
+    },
+    add: (name: string): void => { this.classes.add(name); },
+    contains: (name: string): boolean => this.classes.has(name),
+  };
+  removed = false;
+  private ctx: FakeObject | null = null;
+
+  constructor(readonly tag: string) {}
+
+  append(...nodes: Array<FakeEl | string>): void { this.children.push(...nodes); }
+  remove(): void { this.removed = true; }
+  getContext(): FakeObject { return (this.ctx ??= fakeObject("ctx")); }
+}
+
+/** document and window, as far as ui/dom.ts and the HUD parts read them. Undo with vi.unstubAllGlobals(). */
+export function installFakeDom(): { ui: FakeEl } {
+  const ui = new FakeEl("div");
+  vi.stubGlobal("document", { createElement: (tag: string) => new FakeEl(tag), getElementById: () => ui });
+  vi.stubGlobal("window", { devicePixelRatio: 1 });
+  return { ui };
+}

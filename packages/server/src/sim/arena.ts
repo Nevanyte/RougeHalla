@@ -17,19 +17,21 @@
 //     only when the run went active with WIN_BONUS_MIN_PLAYERS and they damaged WIN_BONUS_MIN_OPPONENTS different
 //     players (so a second callsign can't feed someone wins). All of it banks when the player's result is emitted (the
 //     Room persists `resolved` events).
-//   - Feed and bounty: a player's bounty follows their feed score (bountyFor) and is announced whenever it rises;
+//   - Bounty: a player's bounty follows their player kills (bountyFor; mob kills feed the buffs and the mob reward curve, never the bounty) and is announced (throttled) whenever it rises;
 //     whoever kills them is paid it on top of the kill GV. Leaving within KILL_CREDIT_SECONDS of a hit from another
 //     player is that player's kill, so leaving can't dodge a bounty.
 // This module never touches the store, sockets or the Room.
 import {
-  bountyFor, COLISEUM_RING_RADIUS, circleClear, feedScore, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
+  bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
   KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, suddenDeathShare, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
   type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
+import { absorbShield } from "./buffs";
+import { announceBounty, mobRewardFor } from "./feed";
 import { releaseTrigger } from "./weapons";
-import { emit, type PlayerRuntime, type World } from "./world";
+import { emit, payLater, type PlayerRuntime, type World } from "./world";
 
 /** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
 export interface Attacker { id: string; p: PlayerState; rt: PlayerRuntime }
@@ -70,14 +72,15 @@ export function beginRun(world: World): void {
 }
 
 /**
- * First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths, and the
- * bounties this tick's kills pay (world.arena.bountyAtTickStart).
+ * First thing in every active tick: the (barrier included) hp fractions that break a tie between simultaneous last
+ * deaths, and the bounties this tick's kills pay (world.arena.bountyAtTickStart).
  */
 export function markTickStart(world: World): void {
   world.arena.bountyAtTickStart.clear();
   for (const [id, p] of world.state.players) {
     const rt = world.players.get(id);
-    if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? p.hp / p.maxHp : 0;
+    // The kill barrier is hp for every hit, so it counts here too: effective hp over max hp.
+    if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? (p.hp + p.barrier) / p.maxHp : 0;
     world.arena.bountyAtTickStart.set(id, p.bounty);
   }
 }
@@ -120,6 +123,9 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   }
   if (!top) return 0;
   if (topRival) rtv.lastHit = { by: topRival.source.rt.id, at: world.state.serverTime };
+  // A kill shield (the hp combos) takes its share first; a hit it swallows whole neither hurts nor kills.
+  total = absorbShield(victim, total);
+  if (!(total > 0)) return 0;
   const before = victim.hp;
   victim.hp = Math.max(0, victim.hp - total);
   if (victim.hp > 0) return before - victim.hp;
@@ -128,51 +134,73 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   const by = typeof killer.source === "string" ? null : killer.source;
   rtv.killedBy = by ? by.p.name : (killer.source as string);
   emit(world, { type: "fx", fx: { kind: "death", id: rtv.id, x: victim.x, y: victim.y, by: by?.id ?? null } });
-  if (topRival) creditKill(world, topRival.source, victim, rtv);
+  // A rival's hit in the killing pass takes the kill. Failing that, a mob (or a departed shooter's arrow) that finishes
+  // someone a player has been hunting gives the kill to that player if they hit within KILL_CREDIT_SECONDS: the same
+  // rule as leaving, so running into a camp can't dodge a bounty. Sudden death is the arena's own and credits nobody.
+  const credited = topRival
+    ? topRival.source
+    : typeof top.source === "string" && top.source !== SUDDEN_DEATH_KILLER ? recentRival(world, rtv, world.state.serverTime) : null;
+  if (credited) {
+    // The bounty is read now, with every other death of the pass still pending, and paid once the pass is over
+    // (payLater): a shield or max hp won by a kill never saves a killer who dies in the same pass.
+    const bounty = owedBounty(world, victim, rtv);
+    payLater(world, () => creditKill(world, credited, victim, rtv, bounty));
+  }
   downPlayer(world, victim, rtv, "died");
   return before;
+}
+
+/** Kills in one tick are simultaneous: a bounty the victim earned with a kill this same tick isn't paid yet. */
+function owedBounty(world: World, victim: PlayerState, rtv: PlayerRuntime): number {
+  return world.stepping ? (world.arena.bountyAtTickStart.get(rtv.id) ?? victim.bounty) : victim.bounty;
 }
 
 /**
  * Kill GV, the victim's bounty and the killer's new bounty. Skipped for a killer whose result is already out (a
  * projectile outliving its shooter, from Phase 9): nothing could bank it, and their final kills are already reported.
  */
-function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: PlayerRuntime): void {
+function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: PlayerRuntime, bounty = owedBounty(world, victim, rtv)): void {
   if (by.rt.resolved) return;
   by.p.kills += 1;
   awardGv(world, by.p, by.rt, "kill");
-  // Kills in one tick are simultaneous: a bounty the victim earned with a kill this same tick isn't paid yet.
-  const bounty = world.stepping ? (world.arena.bountyAtTickStart.get(rtv.id) ?? victim.bounty) : victim.bounty;
   if (bounty > 0) {
     credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
   }
+  // After the bounty hook, so stacks just won count toward the combos this kill sets off.
+  world.hooks.playerKilled?.(world, by.rt);
   updateBounty(world, by.p, by.rt);
 }
 
 /**
- * Who gets the kill when `rt` leaves now: the last player to hit them, if still in the run and the hit came at most
- * KILL_CREDIT_SECONDS before the player left. A dropped connection left when it dropped, not when its reconnect grace
- * ran out (any hit during the grace is later still, so it counts too).
+ * The last player to hit `rt`, if they are still in the run and the hit came at most KILL_CREDIT_SECONDS before `at`.
  */
-function leaveCredit(world: World, rt: PlayerRuntime): Attacker | null {
+function recentRival(world: World, rt: PlayerRuntime, at: number): Attacker | null {
   const hit = rt.lastHit;
-  const leftAt = rt.droppedAt ?? world.state.serverTime;
-  if (!hit || leftAt - hit.at > KILL_CREDIT_SECONDS * 1000) return null;
+  if (!hit || at - hit.at > KILL_CREDIT_SECONDS * 1000) return null;
   const p = world.state.players.get(hit.by);
   const att = world.players.get(hit.by);
   return p && att && !att.resolved ? { id: hit.by, p, rt: att } : null;
 }
 
 /**
- * Credits the fixed GV for a kill or a mob (feedback goes out as a `gv` event; the amount banks with the player's
- * result). Mob GV stops at GV_MOB_CAP. GV earned by someone whose result is already out is dropped: nothing can bank
- * it any more.
+ * Who gets the kill when `rt` leaves now: the last player to hit them within KILL_CREDIT_SECONDS of the moment they
+ * left. A dropped connection left when it dropped, not when its reconnect grace ran out (any hit during the grace is
+ * later still, so it counts too).
  */
-export function awardGv(world: World, p: PlayerState, rt: PlayerRuntime, reason: "kill" | "mob" | "elite"): number {
+function leaveCredit(world: World, rt: PlayerRuntime): Attacker | null {
+  return recentRival(world, rt, rt.droppedAt ?? world.state.serverTime);
+}
+
+/**
+ * Credits the fixed GV for a kill or a mob (feedback goes out as a `gv` event; the amount banks with the player's
+ * result). A mob pays its GV times `mult` (the reward curve, see mobRewardFor), rounded to whole GV, and mob GV stops at
+ * GV_MOB_CAP. GV earned by someone whose result is already out is dropped: nothing can bank it any more.
+ */
+export function awardGv(world: World, p: PlayerState, rt: PlayerRuntime, reason: "kill" | "mob" | "elite", mult = 1): number {
   const amount = reason === "kill"
     ? GV_KILL
-    : Math.min(reason === "elite" ? GV_ELITE : GV_MOB, Math.max(0, GV_MOB_CAP - rt.gv.mobs));
+    : Math.min(Math.round((reason === "elite" ? GV_ELITE : GV_MOB) * mult), Math.max(0, GV_MOB_CAP - rt.gv.mobs));
   return credit(world, p, rt, reason, amount);
 }
 
@@ -186,21 +214,26 @@ function credit(world: World, p: PlayerState, rt: PlayerRuntime, reason: Exclude
   return amount;
 }
 
-/** A mob kill: counts toward the feed score and pays mob GV. Phase 11's mobs call this. */
-export function creditMobKill(world: World, p: PlayerState, rt: PlayerRuntime, elite: boolean): number {
+/**
+ * A mob kill: pays mob GV at `mult`, the reward the player's feed earns (read before this kill is counted; the caller
+ * passes it so the GV and the buff drop of one kill use the same number), and then counts toward the feed score.
+ * Returns the GV paid.
+ */
+export function creditMobKill(
+  world: World, p: PlayerState, rt: PlayerRuntime, elite: boolean, mult = mobRewardFor(world, p, rt),
+): number {
   if (rt.resolved) return 0;
   rt.mobKills += 1;
-  const paid = awardGv(world, p, rt, elite ? "elite" : "mob");
-  updateBounty(world, p, rt);
-  return paid;
+  p.mobKills = rt.mobKills;
+  return awardGv(world, p, rt, elite ? "elite" : "mob", mult);
 }
 
-/** Recomputes the bounty from the feed score and announces it to everyone whenever it rises. */
+/** Recomputes the bounty from the player kills; a rise is announced to everyone, at most once per BOUNTY_ANNOUNCE_MS per player (feed.ts). */
 function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
-  const bounty = bountyFor(feedScore(p.kills, rt.mobKills));
+  const bounty = bountyFor(p.kills);
   if (bounty <= p.bounty) return;
   p.bounty = bounty;
-  emit(world, { type: "fx", fx: { kind: "bounty", id: rt.id, name: p.name, bounty } });
+  announceBounty(world, p, rt);
 }
 
 /** The Room lost this player's connection and holds the seat for a reconnect (they stay in the fight meanwhile). */

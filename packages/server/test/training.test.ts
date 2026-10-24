@@ -17,8 +17,8 @@ import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
 import {
   defaultFaction, DUMMY_HP, FACTION_IDS, FACTIONS, GV_KILL, isRanged, MAX_PLAYERS, mulberry32, ROOM_NAME, SIGNATURE_WEAPONS,
-  TICK_MS, TILE, TRAINING_ROOM_NAME, WEAPON_IDS, type FactionId, type FxEvent, type JoinOptions, type RunResult, type TimedFx,
-  type Vec2, type WeaponId,
+  TICK_MS, TILE, TRAINING_ROOM_NAME, unpackFx, WEAPON_IDS, type FactionId, type FxBatch, type FxEvent, type JoinOptions, type RunResult,
+  type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -221,6 +221,24 @@ describe("the training world (headless)", () => {
       expect(world.state.training).toBe(false);
       expect(world.state.mobs.size).toBe(0);
       expect(world.state.patienceEndsAt).toBeGreaterThan(0);
+    });
+
+    it("regional mobs: an arena world with mobs on has them, a training world asked for the same gets only its dummies", () => {
+      const withMobs = (extra: Partial<SimConfig>): World => {
+        const world = createGameWorld({ seed: SEED, config: { ...BASE, minPlayers: 1, mobs: true, ...extra }, random: mulberry32(SEED + 1) });
+        if (extra.training) installTraining(world);
+        addPlayer(world, ME, "alice");
+        startRaid(world);
+        return world;
+      };
+      const regional = (world: World) => [...world.state.mobs.values()].filter((m) => m.kind === "mob" || m.kind === "elite");
+      expect(regional(withMobs({})).length).toBeGreaterThan(10);
+      const training = withMobs({ dummies: true, training: true });
+      expect(regional(training)).toEqual([]);
+      expect([...training.state.mobs.values()].map((m) => m.kind)).toEqual(["dummy", "dummy"]);
+      expect(training.mobs.size).toBe(2);
+      run(training, 40);
+      expect(training.state.mobs.size).toBe(2);
     });
 
     it("DUMMIES=1 alone (dummies without the training flag) is still an arena run", () => {
@@ -566,7 +584,7 @@ describe("the training room (live)", () => {
     const p: Player = { who, room, results: [], toasts: [], fx: [], left: false };
     room.onMessage("result", (r: RunResult) => p.results.push(r));
     room.onMessage("toast", (m: { text: string }) => p.toasts.push(m.text));
-    room.onMessage("fx", (f: TimedFx) => p.fx.push(f));
+    room.onMessage("fxs", (b: FxBatch) => p.fx.push(...unpackFx(b, room.state.roster)));
     room.onLeave(() => { p.left = true; });
     players.push(p);
     return p;
@@ -748,6 +766,10 @@ describe("the training room (live)", () => {
       expect(serverPlayer(p).status).toBe("alive");
       expect(isActive(who)).toBe(true);
       expect(server.profiles.ownerOf(who.name)).toBe(`${p.room.roomId}:${sessionOf(p)}`);
+      // The server runs with mobs on (the default), and a training room still has only its two dummies: no camp, no elite.
+      expect(loadConfig({}).mobs).toBe(true);
+      expect([...s.mobs.values()].map((m) => m.kind)).toEqual(["dummy", "dummy"]);
+      expect(p.room.state.mobs.size).toBe(2);
       // The clients are told: the HUD reads this flag.
       expect(p.room.state.training).toBe(true);
       expect(p.room.state.patienceEndsAt).toBe(0);
@@ -1148,7 +1170,7 @@ describe("the training room (live)", () => {
       const world = worldOf(a);
       await until(() => world.state.phase === "active" && serverPlayer(a).status === "alive" && serverPlayer(b).status === "alive", "the run to start");
       expect(world.state).toMatchObject({ training: false, startedWith: 2 });
-      expect(world.state.mobs.size).toBe(0); // no dummies unless the server config asks for them
+      expect([...world.state.mobs.values()].filter((m) => m.kind === "dummy")).toEqual([]); // no dummies unless the server config asks for them (the camp mobs are the arena's own)
       expect(world.state.patienceEndsAt).toBeGreaterThan(0);
 
       await kill(a, b);

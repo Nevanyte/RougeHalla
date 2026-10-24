@@ -1,9 +1,10 @@
 import Phaser from "phaser";
 import {
-  GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, activeGold, cssColor, unpackLook, type Look,
+  GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, activeGold, barrierStrength, cssColor, unpackLook, type Look,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { BodyFlash, FighterArt, drawHpBar, factionColor, heldWeapon } from "./FighterArt";
+import { BARRIER_COLOR } from "../ui/buffTheme";
+import { BodyFlash, FighterArt, HpBar, factionColor, heldWeapon } from "./FighterArt";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
 import { MarksMemory } from "./signatureLook";
@@ -11,6 +12,8 @@ import { TrailView } from "./TrailView";
 
 const HIT_FLASH_MS = 120;
 const SHIELD_COLOR = 0x4fc3f7;
+/** The kill barrier's bubble, redrawn when it moves by one of this many steps of a full (biggest combo) shield. */
+const BARRIER_STEPS = 8;
 /** The local player's marks: a white ring on the ground and a white rim on the body. */
 const LOCAL_MARK = 0xffffff;
 
@@ -55,7 +58,8 @@ export class PlayerView {
   private readonly body: Phaser.GameObjects.Arc;
   private readonly core: Phaser.GameObjects.Arc;
   private readonly nose: Phaser.GameObjects.Rectangle;
-  private readonly hpBar: Phaser.GameObjects.Graphics;
+  private readonly hpBar: HpBar;
+  private readonly barrierRing: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
   private readonly shieldRing: Phaser.GameObjects.Graphics;
   private readonly crown: Phaser.GameObjects.Graphics;
@@ -68,6 +72,8 @@ export class PlayerView {
   private readonly marks = new MarksMemory();
   /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
   private crownBounty = 0;
+  /** The barrier bubble as last drawn, in BARRIER_STEPS (0 = none). */
+  private barrierStep = 0;
   /** The look word `look` was decoded from; -1 (never a uint32) until the first update, so even word 0 is decoded once. */
   private lookWord = -1;
   private look: Look | null = null;
@@ -89,7 +95,8 @@ export class PlayerView {
     this.flashing = new BodyFlash(this.body, factionColor(""));
     // Shows the facing while nothing is in hand.
     this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
-    this.hpBar = scene.add.graphics();
+    this.hpBar = new HpBar(scene);
+    this.barrierRing = scene.add.graphics();
     this.shieldRing = scene.add.graphics();
     this.label = scene.add.text(0, -BODY_LIFT - PLAYER_RADIUS - 18, "", {
       fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#eceff1",
@@ -111,8 +118,8 @@ export class PlayerView {
     }).setOrigin(0.5, 0).setVisible(false);
     this.setStroke(null, false);
     this.root = scene.add.container(0, 0, [
-      shadow, mark, this.signatures.ground, this.goldHalo, this.art.ground, this.body, this.core, this.nose, this.art.held,
-      this.signatures.aura, this.shieldRing, this.hpBar, this.label, this.crown, this.crownLabel, this.title,
+      shadow, mark, this.signatures.ground, this.goldHalo, this.art.ground, this.body, this.barrierRing, this.core, this.nose,
+      this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.g, this.label, this.crown, this.crownLabel, this.title,
     ]);
   }
 
@@ -162,7 +169,10 @@ export class PlayerView {
     this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
     this.signatures.update(this.marks.sig, this.marks.brand, signatures);
 
-    drawHpBar(this.hpBar, p.maxHp > 0 ? p.hp / p.maxHp : 0, -BODY_LIFT - PLAYER_RADIUS - 8);
+    // The kill barrier (public state) rides the bar as a pale blue segment and wraps the body as a bubble.
+    const barrier = p.barrier > 0 ? p.barrier : 0;
+    this.hpBar.draw(p.hp, p.maxHp, barrier, -BODY_LIFT - PLAYER_RADIUS - 8);
+    this.setBarrier(barrierStrength(barrier, p.maxHp));
 
     // Immunity runs from the teleport tick `t` to t + TELEPORT_IMMUNITY_MS. `p` is the latest patch, ahead of the delayed
     // positions drawn here, so the ring is judged at render time: it shows from the moment this body lands in the
@@ -230,6 +240,19 @@ export class PlayerView {
     }
 
     this.art.setGold(gold.weapon !== undefined);
+  }
+
+  /** Draws the barrier bubble at `strength` (0..1: how close to the biggest shield any combo gives); 0 clears it. A no-op while the step is unchanged. */
+  private setBarrier(strength: number): void {
+    const step = strength > 0 ? Math.max(1, Math.round(strength * BARRIER_STEPS)) : 0;
+    if (step === this.barrierStep) return;
+    this.barrierStep = step;
+    const g = this.barrierRing;
+    g.clear();
+    if (step === 0) return;
+    const s = step / BARRIER_STEPS;
+    g.fillStyle(BARRIER_COLOR, 0.1 + 0.14 * s).fillCircle(0, -BODY_LIFT, PLAYER_RADIUS + 4);
+    g.lineStyle(2 + s, BARRIER_COLOR, 0.45 + 0.5 * s).strokeCircle(0, -BODY_LIFT, PLAYER_RADIUS + 4);
   }
 
   /** Shows the crown for `bounty` GV, scaled with it; 0 hides it. A no-op while the number is unchanged. */
