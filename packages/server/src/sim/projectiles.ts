@@ -2,17 +2,19 @@
 // range) and never updated: every client computes its straight flight from that. The server flies each one in present
 // time, in PROJECTILE_SUBSTEP_MS steps. In each step, in this order:
 //   1. it moves, stopping at a wall (collisionMap: closed gates block) or at the end of its range;
-//   2. a ball deletes every enemy arrow within BALL_ARROW_RADIUS;
+//   2. a ball deletes every enemy arrow that came within BALL_ARROW_RADIUS of it during the step, in line of sight;
 //   3. it meets the first body along its step whose centre, where that body was at that moment (history), comes within
 //      RANGED_HIT_REACH. An arrow on a raised shield's front is reflected: it stops, and a new arrow owned by the holder
-//      flies on from the contact point with the mirrored velocity, the full bow range and the same damage. Anything
-//      else is a hit, recorded in the damage ledger and applied with every other hit after melee.
+//      flies on from the contact point with the mirrored velocity, the full bow range (an arrow reflected before keeps
+//      only the range it has left) and the same damage. Anything else is a hit, recorded in the damage ledger and
+//      applied with every other hit after melee.
 // When it stops it leaves the state, and a `projEnd` fx says exactly where and why. Its owner is never hit by it. It
-// outlives its owner: its hit still lands (credited by name only once the owner has left). Projectiles loosed this
-// tick (spawnProjectiles, after the sweep) first move in the next tick's sweep.
+// outlives its owner: its hit still lands (credited by name only once the owner has left or is out of the run).
+// Projectiles loosed this tick (spawnProjectiles, after the sweep) leave from where the owner's client drew it and
+// first move in the next tick's sweep.
 import {
   ballDeletesArrow, PROJECTILE_SUBSTEP_MS, projectileOnShieldFront, RANGED_HIT_REACH, raycast, reflectVelocity,
-  WEAPONS, type ProjectileEnd, type ProjectileKind, type WeaponId,
+  WEAPONS, type ProjectileEnd, type ProjectileKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { ProjectileState } from "@raid/shared/schema";
 import { activeWeapon, combatant, standingCombatants, type Combatant } from "./combatant";
@@ -78,7 +80,10 @@ export function clearProjectiles(world: World, reason: ProjectileEnd): void {
   for (const pr of [...world.projectiles.values()]) endProjectile(world, pr, pr.x, pr.y, reason);
 }
 
-/** The spawn phase: this tick's arrows and balls leave their owner's current position. */
+/**
+ * The spawn phase: this tick's arrows and balls leave from where their owner's client drew it (the request's origin,
+ * the same rewound position melee swings from), at the present time.
+ */
 export function spawnProjectiles(world: World): void {
   const spawns = world.combat.spawns;
   world.combat.spawns = [];
@@ -87,11 +92,26 @@ export function spawnProjectiles(world: World): void {
     const owner = combatant(world, req.owner);
     const shape = WEAPONS[req.weapon].shape;
     if (!owner || shape.kind !== "projectile") continue;
+    const from = req.origin ?? owner.s;
     launch(world, {
-      kind: req.kind, weapon: req.weapon, owner: owner.id, ownerName: owner.s.name, x: owner.s.x, y: owner.s.y,
+      kind: req.kind, weapon: req.weapon, owner: owner.id, ownerName: owner.s.name, x: from.x, y: from.y,
       vx: Math.cos(req.a) * shape.speed, vy: Math.sin(req.a) * shape.speed, t: now, range: shape.range, packet: req.packet,
     });
   }
+}
+
+/** Where a ball and an arrow came closest during their stretches this substep (both moving straight, in step). */
+function closestApproach(ball: Stretch, arrow: Stretch): { ball: Vec2; arrow: Vec2 } {
+  const rx = ball.ax - arrow.ax;
+  const ry = ball.ay - arrow.ay;
+  const vx = (ball.bx - ball.ax) - (arrow.bx - arrow.ax);
+  const vy = (ball.by - ball.ay) - (arrow.by - arrow.ay);
+  const vv = vx * vx + vy * vy;
+  const s = vv > 0 ? Math.min(1, Math.max(0, -(rx * vx + ry * vy) / vv)) : 1;
+  return {
+    ball: { x: ball.ax + (ball.bx - ball.ax) * s, y: ball.ay + (ball.by - ball.ay) * s },
+    arrow: { x: arrow.ax + (arrow.bx - arrow.ax) * s, y: arrow.ay + (arrow.by - arrow.ay) * s },
+  };
 }
 
 /** One projectile's stretch in the current substep: from (ax, ay) to (bx, by), and whether that is where it stops. */
@@ -178,8 +198,11 @@ export function sweepProjectiles(world: World, dtMs: number): void {
       if (ball.pr.kind !== "ball" || ball.pr.ended) continue;
       for (const arrow of stretches) {
         if (arrow.pr.kind !== "arrow" || arrow.pr.ended || arrow.pr.owner === ball.pr.owner) continue;
-        if (ballDeletesArrow({ x: ball.bx, y: ball.by }, { x: arrow.bx, y: arrow.by })) {
-          endProjectile(world, arrow.pr, arrow.bx, arrow.by, "deleted");
+        // Tested where they came closest, not only where the substep ends (head on they close 13 u per substep), and
+        // never around a wall corner.
+        const at = closestApproach(ball, arrow);
+        if (ballDeletesArrow(at.ball, at.arrow) && !raycast(map, at.ball.x, at.ball.y, at.arrow.x, at.arrow.y).hit) {
+          endProjectile(world, arrow.pr, at.arrow.x, at.arrow.y, "deleted");
         }
       }
     }
@@ -200,9 +223,13 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         endProjectile(world, pr, hit.x, hit.y, "reflected");
         const v = reflectVelocity(st.vx, st.vy, hit.c.s.facing);
         const bow = WEAPONS.bow.shape;
+        // A first reflection flies the full bow range; an arrow already reflected keeps only what it has left, so two
+        // shields facing each other can't bounce one forever.
+        const left = st.range - pr.traveled - Math.hypot(hit.x - s.ax, hit.y - s.ay);
+        const range = pr.weapon === "shield" ? Math.max(0, left) : bow.kind === "projectile" ? bow.range : st.range;
         active.push(launch(world, {
           kind: "arrow", weapon: "shield", owner: hit.c.id, ownerName: hit.c.s.name, x: hit.x, y: hit.y,
-          vx: v.vx, vy: v.vy, t, range: bow.kind === "projectile" ? bow.range : st.range, packet: pr.packet,
+          vx: v.vx, vy: v.vy, t, range, packet: pr.packet,
         }));
         emit(world, { type: "fx", fx: { kind: "block", id: hit.c.id, by: pr.owner, weapon: pr.weapon } });
         continue;

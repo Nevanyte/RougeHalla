@@ -158,7 +158,7 @@ describe("createWorld / addPlayer", () => {
     expect(w.state).toMatchObject({
       patienceEndsAt: 0, inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "", startedWith: 0,
     });
-    expect(w.arena).toEqual({ startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false });
+    expect(w.arena).toEqual({ startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() });
   });
 
   it("generates the map from the (coerced) state seed, exactly as clients do", () => {
@@ -1001,6 +1001,45 @@ describe("aiming during a raid", () => {
     step(world, TICK_MS);
     expect(seen).toHaveLength(MAX_ACTIONS_PER_TICK);
     expect(rt.inputs.dropped).toBe(0);
+  });
+
+  it("applies the latest aim where it arrived among the actions: after those sent before it, before those sent after", () => {
+    const { world, p, rt } = activeSolo();
+    const seen: Array<[string, number]> = [];
+    world.actions.pickup = (_w, c, cmd) => { if (cmd.kind === "pickup") seen.push([cmd.containerId, c.s.facing]); };
+    p.facing = 2;
+    enqueueClientMessage(rt.inputs, "pickup", { containerId: "first" });
+    enqueueClientMessage(rt.inputs, "aim", { a: AIM });
+    enqueueClientMessage(rt.inputs, "pickup", { containerId: "second" });
+    step(world, TICK_MS);
+    expect(seen).toEqual([["first", 2], ["second", AIM]]);
+    expect(p.facing).toBe(AIM);
+  });
+
+  it("an aim that arrived after the last action still applies, after it", () => {
+    const { world, p, rt } = activeSolo();
+    const seen: number[] = [];
+    world.actions.pickup = (_w, c) => { seen.push(c.s.facing); };
+    p.facing = 2;
+    enqueueClientMessage(rt.inputs, "pickup", { containerId: "only" });
+    enqueueClientMessage(rt.inputs, "aim", { a: AIM });
+    step(world, TICK_MS);
+    expect(seen).toEqual([2]);
+    expect(p.facing).toBe(AIM);
+    expect(rt.weapon.aimAt).toBe(world.state.serverTime);
+  });
+
+  it("an aim that arrived after the action which took the player out is not applied", () => {
+    const { world, a, b, rtA } = activeTrio();
+    downOnAttack(world);
+    a.facing = 2;
+    enqueueClientMessage(rtA.inputs, "attack", { a: 1 });
+    enqueueClientMessage(rtA.inputs, "aim", { a: AIM });
+    step(world, TICK_MS);
+    expect(a.status).toBe("dead");
+    expect(a.facing).toBe(2);
+    expect(rtA.weapon.aimAt).toBe(0);
+    expect(b.status).toBe("alive");
   });
 
   it("a walking player keeps facing the aim instead of the way it walks", () => {

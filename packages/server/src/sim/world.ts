@@ -27,7 +27,8 @@ export interface SimConfig {
 /** A melee swing or wand cast waiting to land, or a bow being drawn. Times are server ms. */
 export type PendingAction =
   | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket }
-  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket }
+  /** `origin`: where the caster's client drew it when the cast began; the ball leaves from there, along `a`. */
+  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2 }
   | { kind: "draw"; weapon: WeaponId; startedAt: number };
 
 /**
@@ -133,6 +134,11 @@ export interface SpawnRequest {
   weapon: WeaponId;
   a: number;
   packet: DamagePacket;
+  /**
+   * Where it leaves from: the shooter where its client drew it (rewound like a melee origin), since that is where the
+   * client measured `a` from. Defaults to the shooter's present position.
+   */
+  origin?: Vec2;
 }
 
 /** Server-only flight data of one synced ProjectileState (sim/projectiles.ts). */
@@ -182,6 +188,11 @@ export interface ArenaRuntime {
   downsBetweenTicks: number;
   /** Set when a player is abandoned mid-run (a server shutdown): the run is void and the sim stops advancing it. */
   voided: boolean;
+  /**
+   * Every player's bounty when the tick being simulated began. A kill in a tick pays the victim's bounty from here,
+   * so a bounty raised by another kill in the same tick (whose victim the ledger happened to apply first) isn't paid.
+   */
+  bountyAtTickStart: Map<string, number>;
 }
 
 export type SimEvent =
@@ -276,7 +287,7 @@ export function createWorld(opts: {
     actions: {},
     systems: [],
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
-    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false },
+    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
   };
 }
 

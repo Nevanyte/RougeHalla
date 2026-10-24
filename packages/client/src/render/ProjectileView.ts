@@ -1,9 +1,10 @@
 // Arrows and wand balls. The server syncs each one once, when it is loosed, and never updates it: every client flies it
 // in a straight line, position(T) = (x, y) + (vx, vy) * (T - t) / 1000, with T the render time. When it stops it
 // leaves the state and a `projEnd` fx says where and why. That fx is played at render time, so the projectile is kept
-// (flying, then pinned at its stop point) until FxView reports the fx due, and only then removed.
+// (flying, then pinned at its stop point) until FxView reports the fx due, and only then removed. One that was
+// reflected, deleted or destroyed does not stay pinned: something else carries on from there (see VANISHES).
 import Phaser from "phaser";
-import { WEAPONS, type ProjectileKind, type TimedFx } from "@raid/shared";
+import { WEAPONS, type ProjectileEnd, type ProjectileKind, type TimedFx } from "@raid/shared";
 import type { ProjectileState } from "@raid/shared/schema";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 
@@ -17,6 +18,13 @@ const MIN_FLIGHT = 2;
 const RANGE_SLACK = 40;
 /** Past the reported stop time with its fx still not played (dropped as stale): drop it after this long (ms). */
 const END_GRACE_MS = 1000;
+/**
+ * Stops that end the projectile outright rather than leave it stuck in something: a reflected arrow is replaced by a new
+ * one already flying from the same point, a deleted or destroyed ball is gone. It is hidden on reaching its end point.
+ */
+const VANISHES: ReadonlySet<ProjectileEnd> = new Set<ProjectileEnd>(["reflected", "deleted", "destroyed"]);
+/** How many finished ids are remembered (see `done`). */
+const DONE_MAX = 256;
 
 interface Tracked {
   id: string;
@@ -27,8 +35,8 @@ interface Tracked {
   vy: number;
   t: number;
   range: number;
-  /** Where and when (server time) the stop was reported; set when its projEnd arrives, before it is due. */
-  end: { x: number; y: number; t: number } | null;
+  /** Where, when (server time) and why the stop was reported; set when its projEnd arrives, before it is due. */
+  end: { x: number; y: number; t: number; reason: ProjectileEnd } | null;
   g: Phaser.GameObjects.Graphics | null;
 }
 
@@ -39,13 +47,18 @@ function shapeOf(kind: ProjectileKind): { speed: number; range: number } {
 
 export class ProjectileView {
   private readonly tracked = new Map<string, Tracked>();
+  /**
+   * The last DONE_MAX ids that were finished, oldest first. A late projEnd (or a patch that still lists the projectile)
+   * for one of them must not bring it back as a never-seen projectile drawn frozen at its start.
+   */
+  private readonly done = new Set<string>();
 
   constructor(private readonly scene: Phaser.Scene) {}
 
   /** Once per patch: picks up what was loosed. Entries are immutable, so a known id is skipped. */
   sync(projectiles: { forEach(cb: (p: ProjectileState, id: string) => void): void }): void {
     projectiles.forEach((p, id) => {
-      if (this.tracked.has(id)) return;
+      if (this.tracked.has(id) || this.done.has(id)) return;
       this.tracked.set(id, {
         id, kind: p.kind === "ball" ? "ball" : "arrow", x: p.x, y: p.y, vx: p.vx, vy: p.vy, t: p.t, range: p.range,
         end: null, g: null,
@@ -59,6 +72,7 @@ export class ProjectileView {
    * short path from the fx's own start.
    */
   noteEnd(fx: ProjEndFx): void {
+    if (this.done.has(fx.id)) return;
     let tr = this.tracked.get(fx.id);
     if (!tr) {
       const len = Math.hypot(fx.x - fx.x0, fx.y - fx.y0);
@@ -70,11 +84,13 @@ export class ProjectileView {
       };
       this.tracked.set(fx.id, tr);
     }
-    tr.end = { x: fx.x, y: fx.y, t: fx.t };
+    tr.end = { x: fx.x, y: fx.y, t: fx.t, reason: fx.reason };
   }
 
   /** Its projEnd is due: stop drawing it (FxView draws the impact). */
   finish(id: string): void {
+    this.done.add(id);
+    if (this.done.size > DONE_MAX) this.done.delete(this.done.values().next().value!);
     const tr = this.tracked.get(id);
     if (!tr) return;
     tr.g?.destroy();
@@ -95,6 +111,10 @@ export class ProjectileView {
         continue;
       }
       const limit = tr.end ? Math.hypot(tr.end.x - tr.x, tr.end.y - tr.y) : tr.range;
+      if (tr.end && VANISHES.has(tr.end.reason) && travelled >= limit) {
+        this.finish(tr.id);
+        continue;
+      }
       const d = Math.min(travelled, limit) / speed;
       const x = tr.x + tr.vx * d;
       const y = tr.y + tr.vy * d;
@@ -107,6 +127,7 @@ export class ProjectileView {
   destroy(): void {
     for (const tr of this.tracked.values()) tr.g?.destroy();
     this.tracked.clear();
+    this.done.clear();
   }
 
   private create(tr: Tracked): Phaser.GameObjects.Graphics {

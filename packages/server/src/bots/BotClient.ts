@@ -248,13 +248,17 @@ export class BotClient {
     else if (text === "Too far away" || text === "Can't reach that") g.fails++;
   }
 
-  /** The server clears our path and queued inputs when it teleports us, and our trigger with them: forget what we told it. */
+  /**
+   * The server clears our path and queued inputs when it teleports us, and our trigger with them: forget what we told it.
+   * An attack sent within one RTT before this fx arrived lands after the clear and re-arms the trigger, so a trigger we
+   * think is down is released again; the brain presses it anew when its policy says so.
+   */
   private onTeleport(): void {
     this.log("teleported into the coliseum");
     this.dest = null;
     this.moveSentAt = 0;
     this.holding = false;
-    this.trigger = false;
+    this.stopTrigger();
     this.loosed = 0;
     this.aimSent = null;
     this.grab = null;

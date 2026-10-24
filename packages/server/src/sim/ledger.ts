@@ -16,11 +16,14 @@ export function recordHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?
   return entry;
 }
 
-/** A player still in the room is credited as such; anyone else (a mob, a shooter who left) by name only. */
+/**
+ * A player still in the run is credited as such; anyone else (a mob, a shooter who left or whose result is already
+ * out) by name only, so a living player's hit in the same tick takes the kill instead of a dead shooter's arrow.
+ */
 function sourceOf(world: World, by: DamageSource): Attacker | string {
   const p = world.state.players.get(by.id);
   const rt = world.players.get(by.id);
-  return p && rt ? { id: by.id, p, rt } : by.name;
+  return p && rt && !rt.resolved ? { id: by.id, p, rt } : by.name;
 }
 
 export function applyLedger(world: World): void {

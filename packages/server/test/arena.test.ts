@@ -12,9 +12,11 @@ import {
   applyDamage, applyHits, awardGv, beginRun, coliseumSpots, creditMobKill, downPlayer, markDropped, markReconnected, markTickStart,
   patienceMs, suddenDeath, suddenDeathShare, unbankedGv, type Attacker, type Hit,
 } from "../src/sim/arena";
+import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { abandonPlayer, addPlayer, removePlayer, step } from "../src/sim/step";
+import { moveMultiplierOf } from "../src/sim/weapons";
 import { collisionMap, createWorld, type PlayerRuntime, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
@@ -201,7 +203,7 @@ describe("beginRun", () => {
       patienceEndsAt: w.state.serverTime + 5000, inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "",
       startedWith: 2,
     });
-    expect(w.arena).toEqual({ startedWith: 2, downedThisTick: [], downsBetweenTicks: 0, voided: false });
+    expect(w.arena).toEqual({ startedWith: 2, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() });
   });
 });
 
@@ -709,6 +711,46 @@ describe("disconnect and reconnect grace", () => {
     expect(fxOf(events, "teleport")).toEqual([]);
     expect(teleports.n).toBe(0);
     expect(w.state).toMatchObject({ gatesLocked: false, patienceEndsAt: 4050 });
+  });
+
+  describe("a dropped connection lets go of the trigger", () => {
+    // Its release never arrives, so the server lets go itself: otherwise a bow stays at full draw (0.75 x speed) until
+    // the player is back, and then looses at once.
+    function drawing() {
+      const w = startRun(3, { patienceSeconds: 3600 }, { game: true });
+      enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 }); // p1 is Sentenced: a bow
+      runTo(w, 200);
+      expect(P(w, 1).drawStartedAt).toBeGreaterThan(0);
+      expect(RT(w, 1).weapon.held).toBe(true);
+      expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(0.75);
+      return w;
+    }
+
+    it.each([["markDropped", markDropped], ["markReconnected", markReconnected]] as const)(
+      "%s: nothing held or buffered, the draw cancelled, full speed again and no arrow later", (_name, mark) => {
+        const w = drawing();
+        mark(w, idOf(1));
+        const weapon = RT(w, 1).weapon;
+        expect([weapon.held, weapon.bufferedUntil, weapon.action, weapon.releasePending]).toEqual([false, 0, null, false]);
+        expect(P(w, 1).drawStartedAt).toBe(0);
+        expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(1);
+        runTo(w, 1500); // far past a full draw
+        expect(P(w, 1).drawStartedAt).toBe(0);
+        expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+        // The client presses again when it is back: a fresh draw.
+        enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 });
+        tick(w);
+        expect(P(w, 1).drawStartedAt).toBe(w.state.serverTime);
+      },
+    );
+
+    it("a drop still records when the connection went, and a reconnect clears it", () => {
+      const w = drawing();
+      markDropped(w, idOf(1));
+      expect(RT(w, 1).droppedAt).toBe(w.state.serverTime);
+      markReconnected(w, idOf(1));
+      expect(RT(w, 1).droppedAt).toBeNull();
+    });
   });
 
   it("a leave in the coliseum unlocks the gates and cancels sudden death on the next tick", () => {
@@ -2605,6 +2647,43 @@ describe("feed and bounty", () => {
       const sum = Object.values(results).reduce((n, r) => n + r.gv.total, 0);
       expect(sum).toBe(4 * GV_KILL + 10 + GV_WIN);
       for (const r of Object.values(results)) expect(r.gv.total).toBe(r.gv.kills + r.gv.mobs + r.gv.bounty + r.gv.win);
+    });
+
+    it.each([[0, 1], [1, 0]] as const)(
+      "kills in one tick pay the victim's bounty from the start of the tick, whoever was killed first (p%i is killed first, then p%i)",
+      (first, second) => {
+        const w = startRun(3);
+        // p0 has three kills (bounty 10) and p1 four (28): each kill below raises its killer's own bounty (28 and 52).
+        P(w, 0).kills = 3;
+        P(w, 0).bounty = 10;
+        P(w, 1).kills = 4;
+        P(w, 1).bounty = 28;
+        const claims = recordClaims(w);
+        // p2 stands by, so the run goes on past the tick. In this tick p0 and p1 kill each other.
+        atTick(w, 100, (world) => {
+          kill(world, first, attacker(world, second));
+          kill(world, second, attacker(world, first));
+        });
+        const events = runTo(w, 100);
+        expect(P(w, 0).bounty).toBe(28);
+        expect(P(w, 1).bounty).toBe(52);
+        expect(claims.map((c) => [c.killer.id, c.victim.id, c.bounty]).sort()).toEqual([[idOf(0), idOf(1), 28], [idOf(1), idOf(0), 10]]);
+        expect([RT(w, 0).gv.bounty, RT(w, 1).gv.bounty]).toEqual([28, 10]);
+        const results = resultsOf(events);
+        expect([results[idOf(0)]!.gv.bounty, results[idOf(1)]!.gv.bounty]).toEqual([28, 10]);
+        expect(results[idOf(2)]).toMatchObject({ outcome: "won" });
+      },
+    );
+
+    it("a bounty raised by a kill between ticks is paid at once: only kills inside a tick are simultaneous", () => {
+      const w = startRun(3);
+      P(w, 0).kills = 3;
+      P(w, 0).bounty = 10;
+      kill(w, 1, attacker(w, 0)); // p0's 4th kill: its bounty is 28 from now on
+      expect(P(w, 0).bounty).toBe(28);
+      w.events = [];
+      kill(w, 0, attacker(w, 2));
+      expect(RT(w, 2).gv.bounty).toBe(28);
     });
 
     it("calls hooks.bountyClaimed once, after the bounty was paid, with the world, the killer, the victim and the amount", () => {

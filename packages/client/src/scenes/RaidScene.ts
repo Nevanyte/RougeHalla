@@ -27,9 +27,14 @@ export interface RaidSceneData {
 
 /** Right-button hold re-sends the move target at most this often. */
 const MOVE_REPEAT_MS = 100;
-/** The cursor's aim is streamed at most this often, and only once it has turned by more than AIM_MIN_DELTA. */
+/** The cursor's aim is streamed at most this often, and only once it has turned by more than AIM_MIN_DELTA... */
 const AIM_SEND_MS = 50;
 const AIM_MIN_DELTA = 0.01;
+/**
+ * ...and re-sent unchanged after this long. The camera follows the drawn player, so a still cursor keeps its angle while
+ * walking, yet the server turns a fighter to its path (and a shield away) once the aim is AIM_STALE_MS (1000) old.
+ */
+const AIM_KEEPALIVE_MS = 500;
 /**
  * Attacks travel at body height, so the cursor is read as a point BODY_LIFT pixels above the ground: clicking the
  * middle of a drawn player aims at that player's ground position instead of ~17 world units north of it.
@@ -97,6 +102,8 @@ export class RaidScene extends Phaser.Scene {
    * ahead of render time, so until renderT reaches `t` they are still drawn alive and their body stays hidden.
    */
   private readonly deaths = new Map<string, { t: number; x: number; y: number }>();
+  /** The weapon in hand per player (slot and what it holds) at the previous patch, to notice a swap or a replacing pickup. */
+  private readonly inHand = new Map<string, string>();
   private resultsVisible: (() => boolean) | undefined;
   private readonly tmp = { x: 0, y: 0 };
   /** Last rendered ground position per fighter (players and mobs); read by dev tooling (window.__raid). */
@@ -104,6 +111,17 @@ export class RaidScene extends Phaser.Scene {
   private readonly onState = (state: RaidState) => {
     this.interp.onPatch(state, performance.now());
     if (state.projectiles) this.projectiles.sync(state.projectiles);
+    this.noteWeaponChanges(state);
+  };
+  // maxEnqueuedMessages is 0 (connection.ts), so whatever was sent while the socket was down is gone, a release included.
+  private readonly onReconnect = () => {
+    this.attackSent = false;
+    // Held: the next frame presses again, as after a teleport. Not held: say so, whatever the server remembers.
+    if (this.attackHeld || !this.localAlive()) return;
+    const a = this.lastAimSent ?? this.cursorAngle(this.input.activePointer);
+    if (a === null) return;
+    sendInput(this.room, "release", this.stamped(a));
+    this.noteAimSent(a);
   };
   private readonly onKeyDown = (e: KeyboardEvent) => this.handleKey(e);
   // The trigger release must never be lost: listen on the window (the button may come up off the canvas) and let
@@ -122,6 +140,7 @@ export class RaidScene extends Phaser.Scene {
     this.room = data.room;
     this.resultsVisible = data.resultsVisible;
     this.deaths.clear();
+    this.inHand.clear();
     this.interp = new EntityInterpolator();
     this.views = new Map();
     this.mobViews = new Map();
@@ -170,14 +189,16 @@ export class RaidScene extends Phaser.Scene {
     this.marker = this.add.ellipse(0, 0, 18, 9).setStrokeStyle(2, 0x80deea, 1).setVisible(false).setDepth(1e6);
 
     this.room.onStateChange(this.onState);
+    this.room.onReconnect(this.onReconnect);
     this.onState(this.room.state);
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.aimKnown = true;
       if (!this.pointerStartedOnCanvas(pointer)) return;
       // The button that went down, not the buttons held: a second press while one is held must not read as the first.
+      // macOS reports ctrl+click (a context click) as button 0 with only the right button in `buttons`: not a trigger.
       if (pointer.button === 2) this.sendMove(pointer, true);
-      else if (pointer.button === 0) this.pressAttack();
+      else if (pointer.button === 0 && pointer.leftButtonDown()) this.pressAttack();
     });
     this.input.on("pointermove", () => { this.aimKnown = true; });
     window.addEventListener("keydown", this.onKeyDown);
@@ -230,7 +251,7 @@ export class RaidScene extends Phaser.Scene {
       if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.tmp.x), projY(this.tmp.y));
     });
     for (const [id, view] of this.views) {
-      if (!seen.has(id)) { view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); }
+      if (!seen.has(id)) { view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); this.inHand.delete(id); }
     }
     const seenMobs = new Set<string>();
     state.mobs.forEach((m, id) => {
@@ -360,6 +381,20 @@ export class RaidScene extends Phaser.Scene {
   }
 
   /**
+   * A swap, or a pickup that replaces the weapon in hand, cancels the fighter's action on the server without an fx, so
+   * its telegraph would play to the end. FxView drops it once render time reaches this patch, i.e. after any windup
+   * stamped at or before it.
+   */
+  private noteWeaponChanges(state: RaidState): void {
+    state.players?.forEach((p, id) => {
+      const hand = `${p.slot}:${p.slot === 1 ? p.weapon1 : p.weapon0}`;
+      const before = this.inHand.get(id);
+      this.inHand.set(id, hand);
+      if (before !== undefined && before !== hand) this.fx.cancelWindups(id, state.serverTime);
+    });
+  }
+
+  /**
    * `t` is the server time this frame is drawn at, i.e. the world the player is looking at when they act; the server
    * rewinds targets to it (clamped to MAX_REWIND_MS). Omitted while the clock is unsynced, when it would be
    * meaningless, so the server just uses the present.
@@ -424,7 +459,8 @@ export class RaidScene extends Phaser.Scene {
     if (!alive || !this.aimKnown || this.beforeTeleport() || (!this.input.isOver && !this.attackHeld)) return;
     const a = this.cursorAngle(this.input.activePointer);
     if (a === null || now - this.lastAimSentAt < AIM_SEND_MS) return;
-    if (this.lastAimSent !== null && angleBetween(a, this.lastAimSent) <= AIM_MIN_DELTA) return;
+    const turned = this.lastAimSent === null || angleBetween(a, this.lastAimSent) > AIM_MIN_DELTA;
+    if (!turned && now - this.lastAimSentAt < AIM_KEEPALIVE_MS) return;
     sendInput(this.room, "aim", { a });
     this.noteAimSent(a);
   }
@@ -492,6 +528,7 @@ export class RaidScene extends Phaser.Scene {
     document.removeEventListener("mouseleave", this.onButtonsCheck);
     document.removeEventListener("visibilitychange", this.onVisibility);
     this.room.onStateChange.remove(this.onState);
+    this.room.onReconnect.remove(this.onReconnect);
     this.unbindFx?.();
     this.unbindFx = null;
     this.unbindResult?.();
@@ -512,6 +549,7 @@ export class RaidScene extends Phaser.Scene {
     this.minimap.destroy();
     this.rendered.clear();
     this.deaths.clear();
+    this.inHand.clear();
     this.hud.destroy();
     this.weaponBar.destroy();
     if (import.meta.env.DEV) {

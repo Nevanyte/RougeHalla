@@ -27,6 +27,7 @@ import {
   type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
+import { releaseTrigger } from "./weapons";
 import { emit, type PlayerRuntime, type World } from "./world";
 
 /** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
@@ -67,11 +68,16 @@ export function beginRun(world: World): void {
   s.winner = "";
 }
 
-/** First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths. */
+/**
+ * First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths, and the
+ * bounties this tick's kills pay (world.arena.bountyAtTickStart).
+ */
 export function markTickStart(world: World): void {
+  world.arena.bountyAtTickStart.clear();
   for (const [id, p] of world.state.players) {
     const rt = world.players.get(id);
     if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? p.hp / p.maxHp : 0;
+    world.arena.bountyAtTickStart.set(id, p.bounty);
   }
 }
 
@@ -133,7 +139,8 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
   if (by.rt.resolved) return;
   by.p.kills += 1;
   awardGv(world, by.p, by.rt, "kill");
-  const bounty = victim.bounty;
+  // Kills in one tick are simultaneous: a bounty the victim earned with a kill this same tick isn't paid yet.
+  const bounty = world.stepping ? (world.arena.bountyAtTickStart.get(rtv.id) ?? victim.bounty) : victim.bounty;
   if (bounty > 0) {
     credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
@@ -198,12 +205,21 @@ function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
 export function markDropped(world: World, id: string): void {
   const rt = world.players.get(id);
   if (rt && rt.droppedAt === null && world.state.phase === "active") rt.droppedAt = world.state.serverTime;
+  releaseHeld(world, id);
 }
 
-/** They are back within the grace. */
+/** They are back within the grace. A button they still hold is pressed again by their client. */
 export function markReconnected(world: World, id: string): void {
   const rt = world.players.get(id);
   if (rt) rt.droppedAt = null;
+  releaseHeld(world, id);
+}
+
+/** A release sent while the connection was down never arrives, so the server lets go of the trigger itself. */
+function releaseHeld(world: World, id: string): void {
+  const p = world.state.players.get(id);
+  const rt = world.players.get(id);
+  if (p && rt) releaseTrigger(world, { kind: "player", id, s: p, rt });
 }
 
 /** GV earned so far and not yet banked: what a run voided by a server shutdown still pays. */
@@ -221,6 +237,7 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   const credited = outcome === "mia" ? leaveCredit(world, rt) : null;
   rt.down = { outcome };
   rt.path = [];
+  releaseTrigger(world, { kind: "player", id: rt.id, s: p, rt });
   p.status = outcome === "died" ? "dead" : "mia";
   if (credited) creditKill(world, credited, p, rt);
   world.hooks.dropBody(world, p);

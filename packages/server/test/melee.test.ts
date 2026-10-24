@@ -855,6 +855,23 @@ describe("balls", () => {
     expect(crossing(367).halved).toBe(false);
   });
 
+  it("meets a ball only with a clear line from the attacker: a one-tile wall hides a ball in the arc from a sword or an axe", () => {
+    // The wall is tile (10, 8): x 320..352, y 256..288. p0 stands west of it; the ball flies north just behind it, in the arc.
+    const outcome = (weapon: WeaponId, walls: ReadonlyArray<readonly [number, number]>) => {
+      const world = arena([fighter("plague", "sword", { x: 300, y: 272 }), fighter("holy", "wand", { x: 650, y: 420 })], openMap(walls));
+      const ball = launchBall(world, "p1", { x: 358, y: 281 }, -Math.PI / 2);
+      tick(world, [{ by: "p0", weapon, a: 0 }]);
+      return { halved: ball.halved, ended: ball.ended };
+    };
+    expect(outcome("sword", [[10, 8]])).toEqual({ halved: false, ended: false });
+    expect(outcome("axe", [[10, 8]])).toEqual({ halved: false, ended: false });
+    // The same ball in the open, or with the wall off the line, is halved by the sword and destroyed by the axe.
+    expect(outcome("sword", [])).toEqual({ halved: true, ended: false });
+    expect(outcome("axe", [])).toEqual({ halved: false, ended: true });
+    expect(outcome("sword", [[10, 5]])).toEqual({ halved: true, ended: false });
+    expect(outcome("axe", [[10, 5]])).toEqual({ halved: false, ended: true });
+  });
+
   it("flies in present time: the arc for balls is the attacker's present one, though targets are rewound", () => {
     const world = ballWorld();
     const seen = dummy(world, { x: 140, y: 256 });

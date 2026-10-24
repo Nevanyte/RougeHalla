@@ -70,6 +70,10 @@ export interface FxHost {
 
 type FxOf<K extends TimedFx["kind"]> = Extract<TimedFx, { kind: K }>;
 
+/** Not a server event: a client-side cancel queued among them so it plays in render-time order (see cancelWindups). */
+interface CancelWindups { kind: "cancelWindups"; id: string; t: number }
+type Queued = TimedFx | CancelWindups;
+
 type EffectKind = "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number";
 
 interface Active {
@@ -108,7 +112,7 @@ const IMPACT_BURSTS: Readonly<Record<ProjectileEnd, BurstStyle>> = {
 };
 
 export class FxView {
-  private pending: TimedFx[] = [];
+  private pending: Queued[] = [];
   private readonly active: Active[] = [];
   private readonly freeGraphics: Phaser.GameObjects.Graphics[] = [];
   private readonly freeText: Phaser.GameObjects.Text[] = [];
@@ -120,8 +124,22 @@ export class FxView {
   /** Called for every `fx` message as it arrives; nothing is drawn until update() finds it due. */
   enqueue(fx: TimedFx): void {
     if (this.destroyed || !fx || !Number.isFinite(fx.t)) return;
+    this.push(fx);
+  }
+
+  /**
+   * Drops fighter `id`'s telegraphs once render time reaches `t`. For what cancels an action on the server without an fx
+   * (a swap, or a pickup that replaced the weapon in hand): the caller sees it in the state, which is ahead of render
+   * time, so the cancel waits behind any windup stamped before it.
+   */
+  cancelWindups(id: string, t: number): void {
+    if (this.destroyed || !Number.isFinite(t)) return;
+    this.push({ kind: "cancelWindups", id, t });
+  }
+
+  private push(item: Queued): void {
     if (this.pending.length >= MAX_PENDING) this.pending.shift();
-    this.pending.push(fx);
+    this.pending.push(item);
   }
 
   /**
@@ -156,8 +174,11 @@ export class FxView {
     this.freeText.length = 0;
   }
 
-  private play(fx: TimedFx, now: number): void {
+  private play(fx: Queued, now: number): void {
     switch (fx.kind) {
+      case "cancelWindups":
+        this.cancelWindup(fx.id);
+        break;
       case "windup":
         this.windup(fx, now);
         break;
@@ -182,6 +203,7 @@ export class FxView {
         break;
       }
       case "death": {
+        this.cancelWindup(fx.id);
         this.decal(fx.x, fx.y, now);
         const name = this.host.name(fx.id);
         if (name) this.host.announce?.(`${name} was killed`);
@@ -192,7 +214,8 @@ export class FxView {
         break;
       case "teleport": {
         // Everyone jumps at once: the flash covers the cut, and plays when render time reaches the teleport tick, the
-        // same moment the interpolator snaps the bodies.
+        // same moment the interpolator snaps the bodies. The server cancelled every action in progress with no fx each.
+        this.cancelWindup();
         const cam = this.scene.cameras.main;
         cam.flashEffect.alpha = TELEPORT_FLASH_ALPHA;
         cam.flash(TELEPORT_FLASH_MS, 255, 255, 255, true);
@@ -335,12 +358,12 @@ export class FxView {
     this.active.push({ kind: "heal", g: null, text, start: now, duration: HEAL_MS, id, x: pos.x, y: pos.y, a: 0 });
   }
 
-  /** Drops the telegraph a fighter is showing (its swing landed, or a stagger cancelled it). */
-  private cancelWindup(by: string): void {
+  /** Drops the telegraph a fighter is showing (its swing landed, or a stagger, a death or a swap cancelled it); everyone's when `by` is omitted. */
+  private cancelWindup(by?: string): void {
     const a = this.active;
     for (let i = a.length - 1; i >= 0; i--) {
       const e = a[i]!;
-      if ((e.kind !== "windup" && e.kind !== "cast") || e.id !== by) continue;
+      if ((e.kind !== "windup" && e.kind !== "cast") || (by !== undefined && e.id !== by)) continue;
       this.release(e);
       a[i] = a[a.length - 1]!;
       a.pop();

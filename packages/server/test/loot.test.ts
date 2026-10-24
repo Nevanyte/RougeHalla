@@ -464,7 +464,9 @@ describe("pickup", () => {
       const before = p.readyAt;
       rt.weapon.action = { kind: "draw", weapon: "bow", startedAt: world.state.serverTime };
       p.drawStartedAt = world.state.serverTime;
-      rt.weapon.rootUntil = world.state.serverTime + 5000;
+      // A root left over from an earlier swing that already landed: changing weapons must not cut it short.
+      const rootUntil = world.state.serverTime + 5000;
+      rt.weapon.rootUntil = rootUntil;
       const axe = putContainer(world, "ground", AT, ["axe"]);
 
       pickup(world, "a", axe.id);
@@ -473,7 +475,7 @@ describe("pickup", () => {
       expect(p.readyAt, `lead ${lead}`).toBe(Math.max(before, now) + extra);
       expect(rt.weapon.action, `lead ${lead}`).toBeNull();
       expect(p.drawStartedAt, `lead ${lead}`).toBe(0);
-      expect(rt.weapon.rootUntil, `lead ${lead}`).toBeLessThanOrEqual(now);
+      expect(rt.weapon.rootUntil, `lead ${lead}`).toBe(rootUntil);
     }
   });
 

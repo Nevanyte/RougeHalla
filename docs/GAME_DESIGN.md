@@ -257,6 +257,33 @@ Ranged weapons can kite, so three things hold them back:
 - **Mob drops.** A mob drops the weapon it carried, unless the killer already holds that weapon type.
 - **Swapping is skill expression.** Changing to the counter weapon mid-fight is the big play. Swapping also **resets a Sentenced mark** on you, so it's the counterplay to Sentenced.
 
+### 9.4 As built (Phase 9): rules the design left open
+Decisions taken while building the weapons. The sections above are unchanged; where they are silent, this is how the game plays.
+
+**Input and timing**
+- **The bow's draw is part of its interval.** The cooldown after release is the interval minus the full draw, so a full-draw shot every interval is the designed rate. A shorter draw looses sooner, for less damage.
+- **Press, hold, release.** A press attacks; holding repeats the attack whenever the cooldown allows; releasing looses the bow. A press up to 150 ms before the cooldown ends is buffered and attacks the moment it ends.
+- **Windups.** Sword and bash windups are a fixed 0.1 s.
+- **Direction is fixed early.** A swing and a wand cast go where the cursor pointed when the attack started; the bow aims at release.
+
+**Interrupts**
+- **A stagger** cancels the windup or cast; the cooldown stays spent. A bow draw restarts instead.
+- **A swap, or a pickup that replaces the weapon in hand,** cancels a pending action (and adds 0.25 s), but never cuts an already-landed root short. A cancelled cast leaves no ranged recovery.
+
+**Shields, swings and balls**
+- **Reflected arrows** mirror about the shield's facing, keep the archer's damage, belong to the shield holder and fly the full bow range. An arrow reflected again keeps only the range it has left.
+- **A riposte** is 50% of the sword hit, with the swordsman's own damage shares, credited to the shield holder. A frontal bash is simply blocked.
+- **A sword halves a ball once.** Swings meet balls in present time (balls fly in present time) and need line of sight to them.
+
+**Credit**
+- **Simultaneous hits land together,** and the kill (and any bounty) goes to the largest rival hit; a tie goes to the earlier hit.
+- **A projectile outlives its shooter.** Its hit still lands; a kill by a shooter who has left or is already out of the run is credited by name only, with no GV.
+
+**Setup**
+- **Picking up into an empty slot** doesn't change the weapon in hand.
+- **The first faction** is a round-robin default by join order until the faction picker exists (Phase 10).
+- **Training dummies** (server option `DUMMIES=1`) have no faction, so no armor or shield, and never die: a hit that would kill refills them.
+
 ---
 
 ## 10. How factions and weapons combine (class scaling)

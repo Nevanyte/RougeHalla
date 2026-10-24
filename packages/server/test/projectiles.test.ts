@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, getRawChangesCallback, Reflection } from "@colyseus/schema";
 import {
   BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, mitigateShares, mulberry32,
-  pacedFaction, PLAYER_SPEED, RANGED_HIT_REACH, reflectVelocity, SIGNATURE_WEAPONS, SWORD_BALL_SCALE, TICK_MS, TILE,
+  pacedFaction, PLAYER_SPEED, PROJECTILE_SUBSTEP_MS, RANGED_HIT_REACH, reflectVelocity, SIGNATURE_WEAPONS, SWORD_BALL_SCALE, TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, WEAPONS, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { ProjectileState, RaidState } from "@raid/shared/schema";
@@ -206,6 +206,29 @@ function flyTick(world: World, mid?: (w: World) => void): SimEvent[] {
   spawnProjectiles(world);
   mid?.(world);
   applyLedger(world);
+  const out = world.events;
+  world.events = [];
+  return out;
+}
+
+/**
+ * Launches hand-placed shots in the spawn phase, from the origin the weapon state machine would give them (a request's
+ * `origin`). They first move in the next sweep, from the time of this call.
+ */
+function launchShots(world: World, shots: Array<{ owner: string; kind: "arrow" | "ball"; at: Vec2; a: number }>): ProjectileRuntime[] {
+  world.combat.spawns = shots.map((s) => ({
+    owner: s.owner, kind: s.kind, weapon: s.kind === "arrow" ? "bow" : "wand", a: s.a,
+    packet: { raw: 10, phys: 1, magic: 0, true: 0 }, origin: s.at,
+  }));
+  const before = new Set(world.projectiles.keys());
+  spawnProjectiles(world);
+  return [...world.projectiles.values()].filter((pr) => !before.has(pr.id));
+}
+
+/** One 10 ms substep of the sweep and nothing else: the clock moves on by it. */
+function substep(world: World): SimEvent[] {
+  world.state.serverTime += PROJECTILE_SUBSTEP_MS;
+  sweepProjectiles(world, PROJECTILE_SUBSTEP_MS);
   const out = world.events;
   world.events = [];
   return out;
@@ -450,6 +473,23 @@ describe("flight in present time", () => {
     }
   });
 
+  it("flies in 10 ms substeps, each tested against where the body was at that moment: a body leaving the line mid-tick is hit", () => {
+    expect(PROJECTILE_SUBSTEP_MS).toBe(10);
+    // The arrow covers 45 u a tick and passes the body's x in the middle of tick 7. The body walks off the line at
+    // PLAYER_SPEED (8.5 u a tick): 5.75 u from it when the tick starts, 10 u mid-tick, 14.25 u (past the 14 u reach) at the end.
+    const x = 200 + 6 * ARROW_TICK + ARROW_TICK / 2;
+    const w = arena([archer(), target({ x: 900, y: 560 }), idle()]);
+    loose(w, [{ id: "archer", a: 0 }]);
+    ticks(w, 6);
+    place(w, "target", { x, y: 320 + 5.75 });
+    RT(w, "target").path = [{ x, y: 600 }];
+    const events = tick(w);
+    expect(P(w, "target").y - 320).toBeCloseTo(14.25, 9);
+    expect(P(w, "target").y - 320).toBeGreaterThan(RANGED_HIT_REACH); // tested where it ends the tick, the arrow would pass it by
+    expect(fxOf(events, "projEnd")).toEqual([expect.objectContaining({ proj: "arrow", reason: "hit" })]);
+    expect(P(w, "target").hp).toBeLessThan(FACTIONS.fire.hp);
+  });
+
   it.each([
     ["an arrow passing exactly at the reach", "arrow", 14, "hit"],
     ["an arrow passing exactly at the reach, on the other side", "arrow", -14, "hit"],
@@ -475,6 +515,76 @@ describe("flight in present time", () => {
   });
 });
 
+describe("where a projectile leaves from", () => {
+  // The shooter's client draws it LAG ms behind the server and measures its aim from there, so the shot leaves from that
+  // rewound position (the `t` of the attack or release names it). From the present position the same aim would pass the
+  // target by the shooter's speed times the lag.
+  const LAG = 250;
+  /** The `t` of an input stamped by a client `lag` ms behind the server, processed in the next tick. */
+  const stamp = (w: World, lag: number): number => w.state.serverTime + TICK_MS - lag;
+
+  it("an arrow looses from the drawn position, so an archer strafing past a still target hits what it aimed at", () => {
+    const w = arena([archer({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
+    const c = P(w, "archer");
+    const q = RT(w, "archer").inputs;
+    c.readyAt = 0;
+    RT(w, "archer").path = [{ x: 200, y: 560 }]; // straight south, across the line to the target
+    q.pushAction({ kind: "attack", a: 0, t: stamp(w, LAG) });
+    tick(w);
+    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS) - 1; i > 0; i--) tick(w);
+    const t = stamp(w, LAG);
+    const drawn = positionAt(RT(w, "archer"), c, t);
+    q.pushAction({ kind: "release", a: Math.atan2(320 - drawn.y, 500 - drawn.x), t });
+    tick(w);
+    const arrow = lastProjectile(w);
+    expect(arrow.kind).toBe("arrow");
+    expect([arrow.state.x, arrow.state.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
+    expect(dist(drawn, c)).toBeGreaterThan(RANGED_HIT_REACH); // the present position is nowhere near it
+    const hp = P(w, "target").hp;
+    expect(flyUntilEnd(w).end.reason).toBe("hit");
+    expect(P(w, "target").hp).toBeLessThan(hp);
+  });
+
+  it("without a timestamp an arrow leaves from the latest position: where the shooter stood one tick back", () => {
+    const w = arena([archer({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
+    const c = P(w, "archer");
+    const q = RT(w, "archer").inputs;
+    c.readyAt = 0;
+    RT(w, "archer").path = [{ x: 200, y: 560 }];
+    q.pushAction({ kind: "attack", a: 0 });
+    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS); i > 0; i--) tick(w);
+    const latest = { x: c.x, y: c.y };
+    q.pushAction({ kind: "release", a: Math.atan2(320 - latest.y, 500 - latest.x) });
+    tick(w);
+    const arrow = lastProjectile(w);
+    expect([arrow.state.x, arrow.state.y]).toEqual([expect.closeTo(latest.x, 9), expect.closeTo(latest.y, 9)]);
+    expect(c.y).toBeGreaterThan(latest.y + 3); // it walked on in the release tick; the arrow did not
+    expect(flyUntilEnd(w).end.reason).toBe("hit");
+  });
+
+  it("a ball leaves from the drawn position at the START of the cast, so a strafing caster hits what it aimed at", () => {
+    const w = arena([mage({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
+    const c = P(w, "mage");
+    const q = RT(w, "mage").inputs;
+    c.readyAt = 0;
+    RT(w, "mage").path = [{ x: 200, y: 560 }];
+    ticks(w, 8); // walking at full speed
+    const t = stamp(w, LAG);
+    const drawn = positionAt(RT(w, "mage"), c, t);
+    const a = Math.atan2(320 - drawn.y, 500 - drawn.x);
+    q.pushAction({ kind: "attack", a, t });
+    q.pushAction({ kind: "release", a, t });
+    for (let i = 0; i < 30 && w.projectiles.size === 0; i++) tick(w);
+    const ball = lastProjectile(w);
+    expect(ball.kind).toBe("ball");
+    expect([ball.state.x, ball.state.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
+    expect(dist(drawn, c)).toBeGreaterThan(RANGED_HIT_REACH); // the caster walked on over the lag and the cast
+    const hp = P(w, "target").hp;
+    expect(flyUntilEnd(w).end.reason).toBe("hit");
+    expect(P(w, "target").hp).toBeLessThan(hp);
+  });
+});
+
 describe("bodies on the path", () => {
   it("never hits its owner, which it starts inside, nor a body behind the owner", () => {
     const w = arena([archer({ x: 400, y: 320 }), target({ x: 380, y: 320 }), idle()]);
@@ -493,6 +603,23 @@ describe("bodies on the path", () => {
     const { ticks: n, end } = flyUntilEnd(w);
     expect(n).toBe(1);
     expect(end).toMatchObject({ reason: "hit", x: 400, y: 320 });
+  });
+
+  it("hits a body overlapping the shooter in front, and not one overlapping it from behind, when the arrow leaves", () => {
+    // Within RANGED_HIT_REACH (14 u) of the muzzle either way; only the direction of fire tells them apart.
+    for (const [name, at, reason] of [
+      ["directly in front", { x: 410, y: 320 }, "hit"],
+      ["in front, to the side", { x: 408, y: 328 }, "hit"],
+      ["directly behind", { x: 390, y: 320 }, "range"],
+      ["behind, to the side", { x: 392, y: 328 }, "range"],
+    ] as const) {
+      const w = arena([archer({ x: 400, y: 320 }), target(at), idle()]);
+      loose(w, [{ id: "archer", a: 0 }]);
+      const { end, events } = flyUntilEnd(w);
+      expect(end.reason, name).toBe(reason);
+      expect(fxOf(events, "hit").length, name).toBe(reason === "hit" ? 1 : 0);
+      expect(P(w, "target").hp < FACTIONS.fire.hp, name).toBe(reason === "hit");
+    }
   });
 
   it("hits the first body along the path and no other", () => {
@@ -719,6 +846,30 @@ describe("shield reflection", () => {
     expect(lastProjectile(w).state.range).toBeGreaterThan(ARROW.range - used);
   });
 
+  it("two shields facing each other cannot bounce an arrow forever: a second reflection keeps only the range it has left", () => {
+    // The archer stands between them at x 400, looses east and is gone; the shields at 300 (facing east) and 500 (facing
+    // west) are 172 u apart between their contact points (314 and 486).
+    const w = arena([archer({ x: 400, y: 320 }), holder({ x: 500, y: 320 }), { ...holder({ x: 300, y: 320 }, 0), id: "holder2" }]);
+    loose(w, [{ id: "archer", a: 0 }]);
+    applyDamage(w, P(w, "archer"), RT(w, "archer"), 5000, "test");
+    const reasons: string[] = [];
+    const ranges: number[] = [];
+    let flown = 0;
+    while (w.projectiles.size > 0 && flown < 40) {
+      flown++;
+      for (const e of fxOf(tick(w), "projEnd")) {
+        reasons.push(e.reason);
+        if (e.reason === "reflected") ranges.push(lastProjectile(w).state.range);
+      }
+    }
+    // 86 u to the first shield, then 480 u in all (172 + 172 + 136) however many times it is reflected.
+    expect(w.projectiles.size).toBe(0);
+    expect(reasons).toEqual(["reflected", "reflected", "reflected", "range"]);
+    expect(ranges).toEqual([ARROW.range, expect.closeTo(ARROW.range - 172, 6), expect.closeTo(ARROW.range - 344, 6)]);
+    expect(flown * TICK_MS).toBeLessThan(2000);
+    expect([P(w, "holder").hp, P(w, "holder2").hp]).toEqual([FACTIONS.frost.hp, FACTIONS.frost.hp]);
+  });
+
   it("can hit the archer on the way back, dealing the same packet under the archer's own armor and shield", () => {
     const w = arena([archer(archerAt), holder(holderAt), idle()]);
     loose(w, [{ id: "archer", a: 0 }]);
@@ -837,6 +988,72 @@ describe("balls and arrows meeting in the air", () => {
     expect(ends.get(ball.id)).toBe("range");
   });
 
+  describe("where they came closest, and in sight", () => {
+    /** Out of the way of every line below. */
+    const duelists = (map?: GameMap): World => arena([archer({ x: 1200, y: 500 }), mage({ x: 1200, y: 100 }), idle("idle", { x: 1200, y: 300 })], map);
+    const endOf = (pr: ProjectileRuntime): Vec2 => ({ x: pr.state.x + pr.state.vx / 100, y: pr.state.y + pr.state.vy / 100 });
+
+    /** A ball flying east and an arrow flying west `offset` u to one side of it, 6.4 u apart along the line: they pass in mid-substep. */
+    function pass(offset: number) {
+      const w = duelists();
+      const [ball, arrow] = launchShots(w, [
+        { owner: "mage", kind: "ball", at: { x: 600, y: 320 }, a: 0 },
+        { owner: "archer", kind: "arrow", at: { x: 606.4, y: 320 + offset }, a: Math.PI },
+      ]) as [ProjectileRuntime, ProjectileRuntime];
+      // Head on they close 12.8 u a substep, and at the end of it they are already past each other.
+      expect(dist(endOf(ball), endOf(arrow))).toBeGreaterThan(BALL_ARROW_RADIUS);
+      return { w, ball, arrow, events: substep(w) };
+    }
+
+    it("deletes an arrow whose path passes 27.5 u from the ball's, though the substep ends more than 28 u apart", () => {
+      const { ball, arrow, events } = pass(27.5);
+      expect(arrow.ended).toBe(true);
+      expect(ball.ended).toBe(false);
+      // Where they were closest: the middle of the substep.
+      expect(fxOf(events, "projEnd")).toEqual([
+        expect.objectContaining({ id: arrow.id, proj: "arrow", reason: "deleted", x: expect.closeTo(601.9, 6), y: expect.closeTo(347.5, 6) }),
+      ]);
+    });
+
+    it("lets an arrow pass 28.5 u from the ball's, whatever the substep ends look like", () => {
+      const { ball, arrow, events } = pass(28.5);
+      expect([arrow.ended, ball.ended]).toEqual([false, false]);
+      expect(fxOf(events, "projEnd")).toEqual([]);
+    });
+
+    it("does not delete an arrow 24 u from the ball across a wall corner, where neither can see the other; in the open it does", () => {
+      // The wall is tile (12, 9): x 384..416, y 288..320. The ball climbs its east face (x 418), the arrow runs along its south one (y 322).
+      const pair = (map: GameMap): boolean => {
+        const w = duelists(map);
+        const [ball, arrow] = launchShots(w, [
+          { owner: "mage", kind: "ball", at: { x: 418, y: 303 }, a: -Math.PI / 2 },
+          { owner: "archer", kind: "arrow", at: { x: 401.5, y: 322 }, a: 0 },
+        ]) as [ProjectileRuntime, ProjectileRuntime];
+        expect(dist(endOf(ball), endOf(arrow))).toBeCloseTo(24, 0);
+        substep(w);
+        return arrow.ended;
+      };
+      expect(pair(openMap((tiles) => { tiles[9 * W_TILES + 12] = TILE_WALL; }))).toBe(false);
+      expect(pair(openMap())).toBe(true);
+    });
+
+    it("keeps a pair that skirts a wall corner apart for the whole flight, and the same pair in the open meets", () => {
+      // The same wall; the ball climbs its east face, the arrow runs along its south one and on past the ball's line.
+      const fly = (map: GameMap) => {
+        const w = duelists(map);
+        const [ball, arrow] = launchShots(w, [
+          { owner: "mage", kind: "ball", at: { x: 418, y: 306 }, a: -Math.PI / 2 },
+          { owner: "archer", kind: "arrow", at: { x: 388, y: 322 }, a: 0 },
+        ]) as [ProjectileRuntime, ProjectileRuntime];
+        const reasons = new Map<string, string>();
+        for (let i = 0; i < 40 && w.projectiles.size > 0; i++) for (const e of fxOf(tick(w), "projEnd")) reasons.set(e.id, e.reason);
+        return { arrow: reasons.get(arrow.id), ball: reasons.get(ball.id) };
+      };
+      expect(fly(openMap((tiles) => { tiles[9 * W_TILES + 12] = TILE_WALL; }))).toEqual({ arrow: "range", ball: "wall" });
+      expect(fly(openMap())).toEqual({ arrow: "deleted", ball: "wall" });
+    });
+  });
+
   it("does not delete the arrows of the ball's own owner", () => {
     const w = arena([{ ...mage(), weapons: ["wand", "bow"] }, target({ x: 1100, y: 500 }), idle()]);
     castBall(w, "mage", 0);
@@ -904,6 +1121,36 @@ describe("the arena teleport", () => {
     expect(w.state.projectiles.size).toBe(0);
   });
 
+});
+
+describe("the end of the run", () => {
+  it("removes every projectile still in flight, with the reason cleared, in the tick the run ends", () => {
+    const w = arena([archer(), mage({ x: 200, y: 500 }), target({ x: 900, y: 560 })]);
+    loose(w, [{ id: "archer", a: 0 }]);
+    castBall(w, "mage", 0);
+    const flying = [...w.projectiles.values()].map((pr) => pr.id).sort();
+    expect(flying).toHaveLength(2);
+    // The caster and the target go down between ticks: the next tick leaves the archer the winner.
+    applyDamage(w, P(w, "mage"), RT(w, "mage"), 5000, "test");
+    applyDamage(w, P(w, "target"), RT(w, "target"), 5000, "test");
+    const events = tick(w);
+    expect(w.state).toMatchObject({ phase: "ended", winner: "Archer" });
+    expect(fxOf(events, "projEnd").map((e) => [e.id, e.reason]).sort()).toEqual(flying.map((id) => [id, "cleared"]));
+    expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+    expect(ticks(w, 5).filter((e) => e.type === "fx" && e.fx.kind === "projEnd")).toEqual([]);
+  });
+
+  it("clears the shots of a shooter who is out of the run too, while the arrow that won it stays a hit", () => {
+    const w = arena([archer(), target({ x: 500, y: 320 }, 1), { ...archer({ x: 200, y: 560 }), id: "archer2" }]);
+    loose(w, [{ id: "archer", a: 0 }, { id: "archer2", a: 0 }]);
+    applyDamage(w, P(w, "archer2"), RT(w, "archer2"), 5000, "test");
+    expect(w.projectiles.size).toBe(2);
+    const events: SimEvent[] = [];
+    for (let i = 0; i < 20 && w.state.phase === "active"; i++) events.push(...tick(w));
+    expect(w.state).toMatchObject({ phase: "ended", winner: "Archer" });
+    expect(fxOf(events, "projEnd").map((e) => e.reason).sort()).toEqual(["cleared", "hit"]);
+    expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+  });
 });
 
 describe("a projectile outlives its owner", () => {

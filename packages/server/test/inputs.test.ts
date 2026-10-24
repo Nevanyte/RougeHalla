@@ -48,6 +48,56 @@ describe("InputQueue", () => {
     expect(q.drain().aim).toBeNull();
   });
 
+  it("notes how many actions had arrived when the latest aim did, so the sim can apply it in arrival order", () => {
+    const attack: ActionCommand = { kind: "attack", a: 0 };
+    const release: ActionCommand = { kind: "release", a: 0 };
+    const after = new InputQueue();
+    after.pushAction(attack);
+    after.pushAim(1);
+    after.pushAction(release);
+    expect(after.drain()).toMatchObject({ aim: 1, aimBefore: 1, actions: [attack, release] });
+
+    const before = new InputQueue();
+    before.pushAim(1);
+    before.pushAction(attack);
+    before.pushAction(release);
+    expect(before.drain()).toMatchObject({ aim: 1, aimBefore: 0 });
+
+    const last = new InputQueue();
+    last.pushAction(attack);
+    last.pushAction(release);
+    last.pushAim(1);
+    expect(last.drain()).toMatchObject({ aim: 1, aimBefore: 2 });
+  });
+
+  it("only the latest aim counts: an earlier one's place among the actions is forgotten", () => {
+    const q = new InputQueue();
+    q.pushAim(0.5);
+    q.pushAction({ kind: "attack", a: 0 });
+    q.pushAction({ kind: "release", a: 0 });
+    q.pushAim(1.5);
+    q.pushAction({ kind: "swap" });
+    expect(q.drain()).toMatchObject({ aim: 1.5, aimBefore: 2 });
+  });
+
+  it("counts the actions kept, not those dropped over the cap, and starts again after a drain", () => {
+    const q = new InputQueue();
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 2; i++) q.pushAction(pickup("c"));
+    q.pushAim(1);
+    expect(q.drain().aimBefore).toBe(MAX_ACTIONS_PER_TICK);
+    q.pushAim(2); // no actions: before all of nothing
+    expect(q.drain()).toMatchObject({ aim: 2, aimBefore: 0, actions: [] });
+    expect(q.aimBefore).toBe(0);
+  });
+
+  it("records the order of real messages too: attack, aim, release", () => {
+    const q = new InputQueue();
+    enqueueClientMessage(q, "attack", { a: 0 });
+    enqueueClientMessage(q, "aim", { a: 1 });
+    enqueueClientMessage(q, "release", { a: 0 });
+    expect(q.drain()).toMatchObject({ aim: 1, aimBefore: 1 });
+  });
+
   it("preserves action order and caps actions at MAX_ACTIONS_PER_TICK", () => {
     const q = new InputQueue();
     for (let i = 0; i < MAX_ACTIONS_PER_TICK + 3; i++) q.pushAction(pickup(`c${i}`));
@@ -94,7 +144,7 @@ describe("InputQueue", () => {
     expect(q.move).toBeNull();
     expect(q.aim).toBeNull();
     expect(q.actions).toEqual([]);
-    expect(q.drain()).toEqual({ move: null, aim: null, actions: [] });
+    expect(q.drain()).toEqual({ move: null, aim: null, aimBefore: 0, actions: [] });
   });
 
   it("returns an array that is not aliased by later pushes", () => {

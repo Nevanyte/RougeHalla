@@ -607,6 +607,34 @@ describe("hits from combatants that are gone", () => {
     expect(fxOf(events, "death")).toEqual([expect.objectContaining({ by: null })]);
   });
 
+  it("credits a shooter whose result is already out by name only: a living rival's smaller hit takes the kill and the bounty", () => {
+    const w = arena([fighter("a"), fighter("c", "fire", 100), fighter("d"), fighter("e")]);
+    P(w, "c").bounty = 25;
+    applyDamage(w, P(w, "a"), RT(w, "a"), 5000, "test"); // a is down and its result is out, but it is still in the room
+    expect(RT(w, "a").resolved).toBe(true);
+    w.events = [];
+    const events = inStep(w, () => { hit(w, "c", "a", 90); hit(w, "c", "d", 20); });
+    expect(resultsOf(events).c).toMatchObject({ outcome: "died", killedBy: "D" });
+    expect(fxOf(events, "death")).toEqual([expect.objectContaining({ id: "c", by: "d" })]);
+    expect([P(w, "d").kills, P(w, "d").gv]).toEqual([1, GV_KILL + 25]);
+    expect(RT(w, "d").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 25 });
+    expect([P(w, "a").kills, P(w, "a").gv]).toEqual([0, 0]);
+    expect([...RT(w, "a").damaged]).toEqual([]);
+    expect(RT(w, "c").lastHit).toEqual({ by: "d", at: w.state.serverTime });
+  });
+
+  it("a resolved shooter's hit on its own is nobody's kill: its name, no death credit", () => {
+    const w = arena([fighter("a"), fighter("c", "fire", 100), fighter("d"), fighter("e")]);
+    P(w, "c").bounty = 25;
+    applyDamage(w, P(w, "a"), RT(w, "a"), 5000, "test");
+    w.events = [];
+    const events = inStep(w, () => hit(w, "c", "a", 150));
+    expect(resultsOf(events).c).toMatchObject({ outcome: "died", killedBy: "A" });
+    expect(fxOf(events, "death")).toEqual([expect.objectContaining({ id: "c", by: null })]);
+    expect([...w.state.players.values()].map((p) => [p.kills, p.gv])).toEqual([[0, 0], [0, 0], [0, 0], [0, 0]]);
+    expect(ofType(events, "gv")).toEqual([]);
+  });
+
   it("skips entries for a victim that is not in the room or is already down", () => {
     const w = arena([fighter("v", "fire", 10), fighter("x"), fighter("y")]);
     applyDamage(w, P(w, "v"), RT(w, "v"), 1000, "test");

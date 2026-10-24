@@ -197,19 +197,26 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
     const tally = new Map<string, number>();
     for (const r of diedToABot) tally.set(r.killedBy!, (tally.get(r.killedBy!) ?? 0) + 1);
     if (expectKill) expect(totalKills, "nobody killed anybody: the bots never fought").toBeGreaterThanOrEqual(1);
+    // A projectile outlives its shooter: one that kills after its shooter's own run is over names the shooter but is
+    // nobody's kill, and its death fx has no killer id. Those are the death fx without a killer that sudden death
+    // doesn't account for; usually there are none.
+    const posthumous = fx.filter((f) => f.kind === "death" && f.by === null).length
+      - all.filter((r) => r.killedBy === SUDDEN_DEATH_KILLER).length;
+    expect(posthumous, "deaths without a killer id against sudden-death results").toBeGreaterThanOrEqual(0);
     for (const r of all) {
-      expect(r.kills, `${r.profile} claims fewer kills than the deaths that name it`).toBeGreaterThanOrEqual(tally.get(r.profile) ?? 0);
+      const short = (tally.get(r.profile) ?? 0) - r.kills;
+      expect(short, `${r.profile} claims fewer kills than the deaths that name it`).toBeLessThanOrEqual(r.outcome === "died" ? posthumous : 0);
     }
     // Every death by a bot is one player's kill, and every kill is such a death except: a trade in the last tick
     // (the winner or both drawers were killed by the one they killed, so no `died` result names them), and a hit
     // the quitter's leave turned into a kill for somebody (it left too soon for that to be likely).
     const trades = all.filter((r) => r.outcome === "won" || r.outcome === "draw").length;
     expect(totalKills, "kills without a death behind them").toBeLessThanOrEqual(diedToABot.length + trades + 1);
-    expect(totalKills).toBeGreaterThanOrEqual(diedToABot.length);
+    expect(totalKills).toBeGreaterThanOrEqual(diedToABot.length - posthumous);
     // The broadcast agrees: a death fx with a killer is a kill (a leave credited to the last hitter has no fx, and
     // only the quitter leaves), and a `died` result for each of the deaths but the trades and the quitter's.
     const deathFx = fx.filter((f) => f.kind === "death" && f.by !== null);
-    expect(deathFx.length, "death fx against deaths by a bot").toBeGreaterThanOrEqual(diedToABot.length);
+    expect(deathFx.length, "death fx against deaths by a bot").toBeGreaterThanOrEqual(diedToABot.length - posthumous);
     expect(deathFx.length, "death fx against results").toBeLessThanOrEqual(diedToABot.length + trades + 1);
     expect(totalKills, "kills against death fx").toBeGreaterThanOrEqual(deathFx.length);
     expect(totalKills, "kills against death fx").toBeLessThanOrEqual(deathFx.length + 1);
