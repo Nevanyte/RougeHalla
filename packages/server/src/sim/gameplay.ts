@@ -1,6 +1,10 @@
 // Assembles a fully-featured world: base lifecycle (step.ts + arena.ts, which also run the combat phases) + every
 // gameplay module. Modules expose `install(world)` and register into world.actions / world.systems / world.hooks.
+import { install as installBuffs } from "./buffs";
+import { install as installFeed } from "./feed";
 import { install as installLoot } from "./loot";
+import { install as installMobAI } from "./mobAI";
+import { install as installMobLife } from "./mobLife";
 import { install as installMobs } from "./mobs";
 import { install as installProjectiles } from "./projectiles";
 import { install as installWeapons } from "./weapons";
@@ -13,6 +17,10 @@ const MODULES: Array<(world: World) => void> = [
   installWeapons,
   installProjectiles,
   installMobs,
+  installBuffs,
+  installFeed,
+  installMobLife,
+  installMobAI,
 ];
 
 export function createGameWorld(opts: CreateOpts): World {

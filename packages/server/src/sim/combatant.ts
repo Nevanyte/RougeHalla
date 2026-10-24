@@ -2,10 +2,11 @@
 // Both carry the same fighter fields in their synced state (x, y, facing, hp, faction, weapon slots, readyAt, ...)
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
-  attackInterval, FACTIONS, isFactionId, isWeaponId, pacedFaction, weaponTimings, type FactionId, type FactionSpec,
-  type Vec2, type WeaponId, type WeaponTimings,
+  attackInterval, FACTIONS, isFactionId, isWeaponId, mobFaction, pacedFaction, weaponTimings, type FactionId,
+  type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
+import { attackSpeedMult } from "./buffs";
 import { positionAt } from "./movement";
 import type { MobRuntime, PlayerRuntime, World } from "./world";
 
@@ -20,9 +21,17 @@ const PACED: Readonly<Record<FactionId, FactionSpec>> = Object.fromEntries(
   Object.entries(FACTIONS).map(([id, spec]) => [id, pacedFaction(spec)]),
 ) as Record<FactionId, FactionSpec>;
 
-/** The faction as fought (DUEL_PACE applied), or null for a fighter without one (a training dummy). */
+/** A regional mob fights as its region's faction scaled down (MOB_K, an elite ELITE_K), paced like any faction. */
+const PACED_MOBS: Readonly<Record<"mob" | "elite", Readonly<Record<FactionId, FactionSpec>>>> = {
+  mob: Object.fromEntries(Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, false))])) as Record<FactionId, FactionSpec>,
+  elite: Object.fromEntries(Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, true))])) as Record<FactionId, FactionSpec>,
+};
+
+/** The faction as fought (DUEL_PACE applied, a regional mob scaled down), or null for a fighter without one (a training dummy). */
 export function factionOf(s: FighterState): FactionSpec | null {
-  return isFactionId(s.faction) ? PACED[s.faction] : null;
+  if (!isFactionId(s.faction)) return null;
+  if ("kind" in s && (s.kind === "mob" || s.kind === "elite")) return PACED_MOBS[s.kind][s.faction];
+  return PACED[s.faction];
 }
 
 /** Armor and shield the damage law reads; a fighter without a faction has neither. */
@@ -46,10 +55,10 @@ export function setSlot(s: FighterState, slot: 0 | 1, w: WeaponId | null): void 
   else s.weapon1 = w ?? "";
 }
 
-/** Rhythm of `w` in this fighter's hands (attack-speed buffs arrive in Phase 11), or null without a faction. */
+/** Rhythm of `w` in this fighter's hands (attack-speed buffs applied), or null without a faction. */
 export function timingsOf(s: FighterState, w: WeaponId): WeaponTimings | null {
   const f = factionOf(s);
-  return f ? weaponTimings(w, attackInterval(f, w)) : null;
+  return f ? weaponTimings(w, attackInterval(f, w, attackSpeedMult(s))) : null;
 }
 
 /** Still in the fight: a player alive and not yet down this tick, or a mob alive. */

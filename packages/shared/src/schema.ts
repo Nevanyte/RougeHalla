@@ -37,11 +37,23 @@ export const PlayerState = schema({
   bounty: t.uint16().default(0),
   /** Server time until which damage to this player is ignored (teleport immunity); 0 = none. */
   immuneUntil: t.number().default(0),
+  /** Mobs killed this run (feed = kills + FEED_MOB_KILL_WEIGHT x this; it sets the mob reward curve and the bounty). */
+  mobKills: t.uint16().default(0),
+  /** Buff stacks per stat (real numbers: mob drops scale with the reward curve). The bonuses follow buffs.ts. */
+  stacksHp: t.float32().default(0),
+  stacksAs: t.float32().default(0),
+  stacksMs: t.float32().default(0),
+  /** Hp an active kill shield (the hp combos) still absorbs; 0 = none. */
+  shield: t.float32().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
-/** A neutral fighter. Phase 9 has only training dummies ("dummy": no AI, no faction); Phase 11 adds regional mobs. */
+/**
+ * A neutral fighter: a training dummy ("dummy": no AI, no faction) or a regional mob ("mob" or "elite": its region's
+ * faction scaled down, its region's weapon, an AI; see shared/mobs.ts). A dead mob stays "dead" for MOB_CORPSE_MS, then goes.
+ */
 export const MobState = schema({
+  /** MobKind */
   kind: t.string().default("dummy"),
   name: t.string().default(""),
   x: t.number().default(0),

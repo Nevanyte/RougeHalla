@@ -130,5 +130,49 @@ export const AIM_STALE_MS = 1000;
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;
 
+// Buffs and the feed curve (Phase 11, GAME_DESIGN 12). The maths is in buffs.ts.
+/** Largest bonus each stat's S-curve approaches: +70% max hp, +50% attack speed, +30% move speed. */
+export const BUFF_BMAX_HP = 0.7;
+export const BUFF_BMAX_ATTACK_SPEED = 0.5;
+export const BUFF_BMAX_MOVE_SPEED = 0.3;
+/** The S-curve's midpoint (stacks) and width: the spike is the 3rd to 5th stack. */
+export const BUFF_S0 = 3;
+export const BUFF_W = 1;
+/** Stacks of one stat that unlock a combo tier (GAME_DESIGN 12.2). */
+export const COMBO_TIER1_STACKS = 3;
+export const COMBO_TIER2_STACKS = 5;
+/** Mob rewards (GV and buff stacks) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
+export const REWARD_FLOOR = 0.3;
+export const REWARD_MID = 5;
+export const REWARD_WIDTH = 1.5;
+/** Anyone with a feed more than CATCHUP_GAP below the lobby median gets mob rewards x CATCHUP_MULT. */
+export const CATCHUP_GAP = 2;
+export const CATCHUP_MULT = 1.25;
+/** Killing a bountied player moves this share of their buff stacks, stat by stat, to the killer. */
+export const BOUNTY_STACK_SHARE = 0.5;
+/** A rampage announcement for one player goes out at most this often (ms); a rise held back goes out when the window ends. */
+export const BOUNTY_ANNOUNCE_MS = 10_000;
+
+// Regional mobs (Phase 11, GAME_DESIGN 11). A mob is its region's faction scaled by MOB_K (an elite by ELITE_K) with the
+// region's weapon. Chosen from the faction duel table: at 0.45 a starting player wins all 25 matchups (77% hp left on
+// average, 36% in the worst); an elite at 0.6 beats most but not the faction that counters the player (3 of 25 lose).
+export const MOB_K = 0.45;
+export const ELITE_K = 0.6;
+/** A mob gives up the chase when it is this far from its camp, or has neither dealt nor taken damage for MOB_GIVE_UP_SECONDS. */
+export const MOB_LEASH_RADIUS = 7 * TILE;
+export const MOB_GIVE_UP_SECONDS = 6;
+/** Back within this of its camp spot, a returning mob is home again. */
+export const MOB_HOME_RADIUS = 10;
+/** An idle or returning mob heals back to full in this long. */
+export const MOB_REGEN_SECONDS = 4;
+/** A mob re-plans its walk at most this often (ms); each mob's schedule is offset so they don't all path on one tick. */
+export const MOB_REPATH_MS = 500;
+/** A dead mob stays in the state this long (ms) so every client sees it fall. */
+export const MOB_CORPSE_MS = 1500;
+/** Buff stacks a mob drops before the reward curve; its stat is the region's own with MOB_PRIMARY_BUFF_SHARE, else another. */
+export const MOB_BUFF_STACKS = 1;
+export const ELITE_BUFF_STACKS = 2;
+export const MOB_PRIMARY_BUFF_SHARE = 0.6;
+
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;

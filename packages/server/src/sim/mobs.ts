@@ -9,8 +9,11 @@ import { InputQueue } from "./inputs";
 import { chainHook, newWeaponRuntime, nextId, type World } from "./world";
 
 export interface MobSpec {
-  kind: "dummy";
+  /** A training dummy, or a regional mob / elite (sim/mobLife.ts). */
+  kind: "dummy" | "mob" | "elite";
   name: string;
+  /** A FactionId (a regional mob's region); omitted for a dummy, which has none. */
+  faction?: string;
   at: Vec2;
   /** Where it faces (a shield dummy blocks from that side). */
   facing?: number;
@@ -25,6 +28,7 @@ export function addMob(world: World, spec: MobSpec): string {
   const m = new MobState();
   m.kind = spec.kind;
   m.name = spec.name;
+  m.faction = spec.faction ?? "";
   m.x = spec.at.x;
   m.y = spec.at.y;
   m.facing = spec.facing ?? 0;

@@ -12,6 +12,7 @@ import {
   ATTACK_BUFFER_MS, damagePerHit, damageShares, drawDamageScale, MAX_REWIND_MS, moveMultiplier, staggerImmuneUntil,
   swapReadyAt, TICK_MS, WEAPONS, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
+import { attackSpeedMult, moveSpeedMult } from "./buffs";
 import {
   activeWeapon, factionOf, slotWeapon, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
@@ -37,7 +38,7 @@ export function install(world: World): void {
 export function packetFor(c: Combatant, weapon: WeaponId, scale = 1): DamagePacket {
   const f = factionOf(c.s);
   if (!f) return { raw: 0, phys: 1, magic: 0, true: 0 };
-  return { raw: damagePerHit(f, weapon) * scale, ...damageShares(f) };
+  return { raw: damagePerHit(f, weapon, attackSpeedMult(c.s)) * scale, ...damageShares(f) };
 }
 
 /** The fighter now aims at `a`: the shield faces it, the next attack goes there, and walking no longer turns it. */
@@ -127,7 +128,7 @@ export function stagger(world: World, c: Combatant): boolean {
   return true;
 }
 
-/** Move speed multiplier from the fighter's weapon state (root, draw, cast slow, ranged recovery). */
+/** Move speed multiplier from the fighter's weapon state (root, draw, cast slow, ranged recovery) and its move-speed buffs. */
 export function moveMultiplierOf(world: World, c: Combatant): number {
   const w = c.rt.weapon;
   return moveMultiplier({
@@ -136,7 +137,7 @@ export function moveMultiplierOf(world: World, c: Combatant): number {
     castSlowUntil: w.castSlowUntil,
     recoverUntil: w.recoverUntil,
     drawing: w.action?.kind === "draw",
-  });
+  }) * moveSpeedMult(world, c);
 }
 
 /** A fresh state machine and cooldown (the run starts). */

@@ -27,6 +27,8 @@ import {
   type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
+import { absorbShield } from "./buffs";
+import { announceBounty, mobRewardFor } from "./feed";
 import { emit, type PlayerRuntime, type World } from "./world";
 
 /** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
@@ -112,6 +114,9 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   }
   if (!top) return 0;
   if (topRival) rtv.lastHit = { by: topRival.source.rt.id, at: world.state.serverTime };
+  // A kill shield (the hp combos) takes its share first; a hit it swallows whole neither hurts nor kills.
+  total = absorbShield(victim, total);
+  if (!(total > 0)) return 0;
   const before = victim.hp;
   victim.hp = Math.max(0, victim.hp - total);
   if (victim.hp > 0) return before - victim.hp;
@@ -138,6 +143,8 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
     credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
   }
+  // After the bounty hook, so stacks just won count toward the combos this kill sets off.
+  world.hooks.playerKilled?.(world, by.rt);
   updateBounty(world, by.p, by.rt);
 }
 
@@ -157,13 +164,13 @@ function leaveCredit(world: World, rt: PlayerRuntime): Attacker | null {
 
 /**
  * Credits the fixed GV for a kill or a mob (feedback goes out as a `gv` event; the amount banks with the player's
- * result). Mob GV stops at GV_MOB_CAP. GV earned by someone whose result is already out is dropped: nothing can bank
- * it any more.
+ * result). A mob pays its GV times `mult` (the reward curve, see mobRewardFor), rounded to whole GV, and mob GV stops at
+ * GV_MOB_CAP. GV earned by someone whose result is already out is dropped: nothing can bank it any more.
  */
-export function awardGv(world: World, p: PlayerState, rt: PlayerRuntime, reason: "kill" | "mob" | "elite"): number {
+export function awardGv(world: World, p: PlayerState, rt: PlayerRuntime, reason: "kill" | "mob" | "elite", mult = 1): number {
   const amount = reason === "kill"
     ? GV_KILL
-    : Math.min(reason === "elite" ? GV_ELITE : GV_MOB, Math.max(0, GV_MOB_CAP - rt.gv.mobs));
+    : Math.min(Math.round((reason === "elite" ? GV_ELITE : GV_MOB) * mult), Math.max(0, GV_MOB_CAP - rt.gv.mobs));
   return credit(world, p, rt, reason, amount);
 }
 
@@ -177,21 +184,26 @@ function credit(world: World, p: PlayerState, rt: PlayerRuntime, reason: Exclude
   return amount;
 }
 
-/** A mob kill: counts toward the feed score and pays mob GV. Phase 11's mobs call this. */
+/**
+ * A mob kill: pays mob GV at the reward the player's feed earns (before this kill is counted) and then counts toward
+ * the feed score. Returns the GV paid. The mob's buff drop uses the same multiplier (mobLife.ts reads mobRewardFor first).
+ */
 export function creditMobKill(world: World, p: PlayerState, rt: PlayerRuntime, elite: boolean): number {
   if (rt.resolved) return 0;
+  const mult = mobRewardFor(world, p, rt);
   rt.mobKills += 1;
-  const paid = awardGv(world, p, rt, elite ? "elite" : "mob");
+  p.mobKills = rt.mobKills;
+  const paid = awardGv(world, p, rt, elite ? "elite" : "mob", mult);
   updateBounty(world, p, rt);
   return paid;
 }
 
-/** Recomputes the bounty from the feed score and announces it to everyone whenever it rises. */
+/** Recomputes the bounty from the feed score; a rise is announced to everyone, at most once per BOUNTY_ANNOUNCE_MS per player (feed.ts). */
 function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
   const bounty = bountyFor(feedScore(p.kills, rt.mobKills));
   if (bounty <= p.bounty) return;
   p.bounty = bounty;
-  emit(world, { type: "fx", fx: { kind: "bounty", id: rt.id, name: p.name, bounty } });
+  announceBounty(world, p, rt);
 }
 
 /** The Room lost this player's connection and holds the seat for a reconnect (they stay in the fight meanwhile). */

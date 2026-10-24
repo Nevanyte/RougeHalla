@@ -5,13 +5,19 @@
 import { mitigateShares } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
+import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
 import { stagger } from "./weapons";
 import { emit, type DamageSource, type LedgerEntry, type World } from "./world";
 
-/** Records a hit landing this tick. Returns the entry, so the melee phase can still scale a projectile's hit. */
+/**
+ * Records a hit landing this tick. Returns the entry, so the melee phase can still scale a projectile's hit. Mobs never
+ * hurt each other (a camp's archer must not shoot its neighbour): such a hit is recorded with scale 0, which the ledger
+ * skips, so a swing or an arrow still meets the body but does nothing to it.
+ */
 export function recordHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?: number }): LedgerEntry {
-  const entry: LedgerEntry = { ...e, scale: e.scale ?? 1 };
+  const mobOnMob = world.mobs.has(e.by.id) && world.mobs.has(e.victim);
+  const entry: LedgerEntry = { ...e, scale: mobOnMob ? 0 : e.scale ?? 1 };
   world.combat.ledger.push(entry);
   return entry;
 }
@@ -40,7 +46,7 @@ export function applyLedger(world: World): void {
     const amounts = entries.map((e) => (e.scale > 0 ? mitigateShares(e.packet.raw * e.scale, e.packet, def) : 0));
     const applied = c.kind === "player"
       ? applyHits(world, c.s, c.rt, entries.map((e, i): Hit => ({ amount: amounts[i]!, source: sourceOf(world, e.by) })))
-      : damageMob(world, c, amounts);
+      : c.s.kind === "dummy" ? damageMob(world, c, amounts) : hurtMob(world, c, amounts, entries);
     // Nothing got through (teleport immunity): no numbers, no stagger.
     if (!(applied > 0)) continue;
     entries.forEach((e, i) => {

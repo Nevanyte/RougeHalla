@@ -1,4 +1,5 @@
 // Wire contracts. Client→server messages are inputs only; the server decides outcomes.
+import type { BuffStat, ComboId } from "./buffs";
 import type { ProjectileKind, WeaponId } from "./weapons";
 
 export interface Vec2 { x: number; y: number }
@@ -81,8 +82,12 @@ export type FxEvent =
   | { kind: "heal"; id: string; amount: number }
   /** Everyone alive was moved into the coliseum this tick and the gates locked. */
   | { kind: "teleport" }
-  /** A player's bounty rose (first above 0, then on every increase): "<name> is on a rampage — bounty N GV". */
+  /** A player's bounty rose: "<name> is on a rampage — bounty N GV". At most one per player per BOUNTY_ANNOUNCE_MS; a rise held back goes out when the window ends. */
   | { kind: "bounty"; id: string; name: string; bounty: number }
+  /** `id` gained buff stacks (a mob drop or a bounty): `stacks` of `stat`, and the new total. */
+  | { kind: "buff"; id: string; stat: BuffStat; stacks: number; total: number }
+  /** `id` reached a combo tier (`proc` false) or a kill set it off (`proc` true). */
+  | { kind: "combo"; id: string; combo: ComboId; proc: boolean }
   /** The run is over. `id`/`name` are the winner's; both null with `draw` for a draw, and without it when nobody won (a solo run, or everyone left). */
   | { kind: "victory"; id: string | null; name: string | null; draw: boolean };
 
