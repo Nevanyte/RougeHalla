@@ -3,61 +3,66 @@
 //
 // Targets. Every fighter (player or mob) has at most one target: the last enemy it hit. A fighter with no target takes
 // whoever hits it as its target, so both sides' signatures start at the pair's first contact, whoever swung first. A
-// target is forgotten after TARGET_FORGET_SECONDS without contact (in reach, or a hit either way), once it is no longer
-// standing, and at the coliseum teleport.
+// shield block counts as the attacker's contact; a passive hit (a riposte, a reflected arrow) only gives a target to a
+// fighter that has none. Within one tick the choice never depends on order: a fighter that hit its target keeps it,
+// else the largest hit decides (ties by a salted per-tick hash). A target is forgotten after TARGET_FORGET_SECONDS
+// without a hit or block between the pair, once it is no longer standing, and at the coliseum teleport.
 //
 // Reach and engagement. The target is in reach while within engageRange(the weapon in hand) of the fighter with a clear
-// line of sight (present positions, collisionMap). Engaged = in reach, or in reach within the last
-// ENGAGE_LINGER_SECONDS. While engaged, a fighter's signature acts on its target:
+// line of sight (present positions, collisionMap). Engaged = in reach within the last ENGAGE_LINGER_SECONDS, and a hit
+// or block between the pair within the trade window (tradeWindowMs: ENGAGE_TRADE_SECONDS, longer for a slow chilled
+// pair): signatures need an ongoing trade, so one tag can't keep them running from range. While engaged, a fighter's signature acts on its target:
 //   Fire       burn every tick, and backlash on each attack the target performs (backlashPerSwing of that weapon)
 //   Plague     disease and execute every tick (the execute reads the target's hp fraction at the start of the tick)
-//   Sentenced  the mark every tick at markDps(elapsed): `elapsed` counts the time the target spent in reach, so it
-//              freezes while the target hides; a new target or a weapon swap by the target restarts it
+//   Sentenced  the mark every tick at markDps(elapsed): `elapsed` counts the engaged time in reach, so it freezes
+//              while the target hides; a new target or a weapon swap by the target restarts it
 //   Frost      chills everyone engaged with it either way: its own target, and whoever has it as an engaged target
 //   Holy       heals lifestealFraction(own hp fraction at the start of the tick) of all the damage it lands, on
 //              anyone, with no lockout (it needs no engagement)
 // Every bonus is raw damage x bonusMultiplier(the owner's weapon in hand), mitigated with the owner's damage shares. It
 // joins this tick's ledger (beforeDamage), so it lands at the same moment as the tick's hits and no order decides.
 //
-// The chill. A chilled fighter's cooldown (readyAt), bow draw and ranged recovery advance at chillMultiplier x real
-// time, re-decided every tick (stretchUntil), so nothing is snapshotted at swing time. An attack started this tick from
-// a carried remainder had part of that remainder under the chill too, and is corrected for it. Within
-// CHILL_MOVE_RADIUS of a Frost that chills it, the fighter also moves at that multiplier. Several Frosts don't stack.
+// The chill. A chilled fighter's cooldown (readyAt), bow draw, ranged recovery and press buffer advance at
+// chillMultiplier x real time, re-decided every tick (stretchUntil), so nothing is snapshotted at swing time. These
+// timers stay in unchilled seconds of work, which is what the weapon state machine computes with. An attack started
+// this tick from a carried remainder counted that remainder at full speed and is corrected for the chill of the tick
+// that just ended. Within CHILL_MOVE_RADIUS of a Frost that chills it, a fighter also moves at CHILL_MOVE_MULT. Several
+// Frosts don't stack.
 //
-// In the tick: afterWeapons (note this tick's attacks) → movement (the chill's slow) → ... → beforeDamage (contacts from
-// this tick's hits, reach, signature damage into the ledger) → ledger → systems (lifesteal, the chill for the coming
-// tick, visuals, damage-over-time fx).
+// In the tick: afterWeapons (note this tick's attacks, correct new ones for the chill) → movement (the chill's slow) →
+// ... → beforeDamage (contacts from this tick's hits and blocks, reach, signature damage into the ledger) → ledger →
+// systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
-  backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_RADIUS, chillMultiplier, damageShares, diseaseDps, DOT_FX_MS,
-  ENGAGE_LINGER_SECONDS, engageRange, HEAL_LOCKOUT_SECONDS, hasLineOfSight, isDot, lifestealFraction, markDps,
-  markShare, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, TARGET_FORGET_SECONDS, type FactionSpec,
-  type SignatureKind, type WeaponId,
+  attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
+  damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
+  engageRange, HEAL_LOCKOUT_SECONDS, hasLineOfSight, isDot, lifestealFraction, markDps, markShare, SIG_BURNING,
+  SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import { activeWeapon, allCombatants, combatant, factionOf, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
-import { chainHook, collisionMap, emit, type PendingAction, type World } from "./world";
+import { chainHook, collisionMap, emit, tieRank, type PendingAction, type World } from "./world";
 
 /** One fighter's signature state. Times are server ms. */
 export interface SigFighter {
   target: string | null;
   /** This tick: the target is within reach with a clear line. */
   inReach: boolean;
-  /** This tick: in reach, or lingering. */
+  /** This tick: recently in reach, and trading. */
   engaged: boolean;
   /** When the target was last in reach (-Infinity: not yet). */
   reachAt: number;
-  /** Last contact with the target: in reach, or a hit between them either way. */
+  /** Last hit or block between the fighter and its target, either way (or when it became the target). */
   contactAt: number;
-  /** Seconds the target has spent in reach since the mark (re)started. */
+  /** Seconds the target has spent engaged in reach since the mark (re)started. */
   markElapsed: number;
   /** hp / maxHp when this tick's damage phase began. */
   hpFrac: number;
-  /** Last time this fighter dealt or took damage, or was engaged either way (the heal lockout). */
+  /** Last time this fighter dealt or took damage (the heal lockout). */
   combatAt: number;
   /** Cooldown-progress multiplier for the coming tick (1: not chilled), and the Frosts behind it. */
   chill: number;
   chillers: string[];
-  /** The weapon action at the end of the last tick, to spot one started this tick. */
+  /** The weapon action seen last tick after the weapon phase, to spot one started this tick. */
   seenAction: PendingAction | null;
 }
 
@@ -72,18 +77,15 @@ export interface FactionsRuntime {
 
 export function install(world: World): void {
   world.factions = newRuntime();
-  world.afterWeapons.push(noteAttacks);
+  world.afterWeapons.push(afterWeapons);
   world.beforeDamage.push(signatureDamage);
   world.systems.push(afterDamage);
   world.moveModifiers.push(chillMoveMultiplier);
-  const swapped = world.hooks.weaponSwapped;
-  world.hooks.weaponSwapped = (w, c) => {
-    swapped?.(w, c);
-    onWeaponSwapped(w, c);
-  };
-  // A fresh fight in the coliseum: nobody carries a target, a mark or a chill through the teleport.
-  chainHook(world, "teleported", (w) => resetAll(w));
-  chainHook(world, "raidStarted", (w) => resetAll(w));
+  chainHook(world, "weaponSwapped", onWeaponSwapped);
+  // A fresh fight in the coliseum: nobody carries a target, a mark or a chill through the teleport (the heal lockout
+  // keeps running).
+  chainHook(world, "teleported", (w) => resetAll(w, true));
+  chainHook(world, "raidStarted", (w) => resetAll(w, false));
 }
 
 function newRuntime(): FactionsRuntime {
@@ -108,9 +110,11 @@ function sigOf(world: World, id: string): SigFighter {
   return f;
 }
 
-function resetAll(world: World): void {
+function resetAll(world: World, keepCombat: boolean): void {
   const rt = rtOf(world);
+  const combat = new Map([...rt.fighters].map(([id, f]) => [id, f.combatAt]));
   rt.fighters.clear();
+  if (keepCombat) for (const [id, at] of combat) sigOf(world, id).combatAt = at;
   rt.attacks = [];
   rt.dot.clear();
   rt.dotSince = world.state.serverTime;
@@ -134,24 +138,17 @@ function clearTarget(f: SigFighter): void {
   f.markElapsed = 0;
 }
 
-/** `attacker` hit `victim`: the attacker's target becomes the victim, and a victim with no target answers. */
-function noteHit(world: World, attacker: string, victim: string, now: number): void {
-  const fa = sigOf(world, attacker);
-  if (fa.target !== victim) setTarget(fa, victim, now);
-  fa.contactAt = now;
-  const fv = sigOf(world, victim);
-  if (fv.target === null) setTarget(fv, attacker, now);
-  if (fv.target === attacker) fv.contactAt = now;
-}
-
 /**
- * Starts the pair's contact now, as if they had just hit each other (each targets the other). For harnesses and tests
- * that open a duel in contact from the first tick, as realtime.py does.
+ * Starts the pair's contact now, each targeting the other, as if they had just traded hits. For harnesses and tests that
+ * open a duel in contact from the first tick, as realtime.py does.
  */
 export function noteContact(world: World, a: string, b: string): void {
   const now = world.state.serverTime;
-  noteHit(world, a, b, now);
-  noteHit(world, b, a, now);
+  for (const [x, y] of [[a, b], [b, a]] as const) {
+    const f = sigOf(world, x);
+    if (f.target !== y) setTarget(f, y, now);
+    f.contactAt = now;
+  }
 }
 
 export function targetOf(world: World, id: string): string | null {
@@ -163,16 +160,76 @@ export function signatureState(world: World, id: string): Readonly<SigFighter> |
   return world.factions?.fighters.get(id);
 }
 
-/** afterWeapons: the attacks performed this tick, before the melee and spawn phases consume them. */
-function noteAttacks(world: World): void {
+/**
+ * afterWeapons: the attacks performed this tick (before the melee and spawn phases consume them), and the chill on
+ * attacks that started this tick. Such an attack counted its carried remainder (start..now) at full speed, but that
+ * stretch belongs to the tick that just ended: take its chill back off.
+ */
+function afterWeapons(world: World): void {
   const rt = rtOf(world);
+  const now = world.state.serverTime;
   rt.attacks = [];
   for (const m of world.combat.melee) rt.attacks.push({ by: m.attacker, weapon: m.weapon });
   for (const s of world.combat.spawns) rt.attacks.push({ by: s.owner, weapon: s.weapon });
+  for (const c of standingCombatants(world)) {
+    const f = sigOf(world, c.id);
+    const w = c.rt.weapon;
+    const act = w.action;
+    if (act && act !== f.seenAction && f.chill < 1) {
+      const back = (1 - f.chill) * Math.max(0, now - act.startedAt);
+      if (act.kind === "draw") {
+        act.startedAt += back;
+        c.s.drawStartedAt = act.startedAt;
+      } else {
+        if (w.recoverUntil === c.s.readyAt) w.recoverUntil += back;
+        c.s.readyAt += back;
+      }
+    }
+    f.seenAction = act;
+  }
 }
 
 function immune(world: World, c: Combatant): boolean {
   return c.kind === "player" && world.state.serverTime < c.s.immuneUntil;
+}
+
+interface Contact { other: string; amount: number; passive: boolean }
+
+function push(map: Map<string, Contact[]>, id: string, c: Contact): void {
+  const list = map.get(id);
+  if (list) list.push(c);
+  else map.set(id, [c]);
+}
+
+function largest(world: World, cs: readonly Contact[]): string {
+  let best = cs[0]!;
+  for (const c of cs) {
+    if (c.amount > best.amount || (c.amount === best.amount && tieRank(world, c.other) < tieRank(world, best.other))) best = c;
+  }
+  return best.other;
+}
+
+/** This tick's hits and blocks between standing fighters, by attacker and by victim. */
+function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<string, Contact[]>; inc: Map<string, Contact[]> } {
+  const out = new Map<string, Contact[]>();
+  const inc = new Map<string, Contact[]>();
+  const add = (attacker: string, victim: string, amount: number, passive: boolean): void => {
+    if (attacker === victim || !byId.has(attacker)) return;
+    const v = byId.get(victim);
+    if (!v || immune(world, v)) return;
+    push(out, attacker, { other: victim, amount, passive });
+    push(inc, victim, { other: attacker, amount, passive });
+  };
+  for (const e of world.combat.ledger) {
+    const raw = e.packet.raw * e.scale;
+    if (e.sig || !(raw > 0)) continue;
+    add(e.by.id, e.victim, raw, e.passive === true || (e.projectile !== undefined && e.weapon === "shield"));
+  }
+  // A blocked swing or arrow never reaches the ledger, but the attack met its target.
+  for (const ev of world.events) {
+    if (ev.type === "fx" && ev.fx.kind === "block") add(ev.fx.by, ev.fx.id, 0, ev.fx.passive === true);
+  }
+  return { out, inc };
 }
 
 /** beforeDamage: contacts from this tick's hits, reach and engagement, then the signature damage of the tick. */
@@ -189,28 +246,35 @@ function signatureDamage(world: World, dtMs: number): void {
     if (f.target !== null && !byId.has(f.target)) clearTarget(f);
   }
 
-  for (const e of world.combat.ledger) {
-    if (e.sig || !(e.packet.raw * e.scale > 0) || e.by.id === e.victim) continue;
-    const victim = byId.get(e.victim);
-    if (!victim || !byId.has(e.by.id) || immune(world, victim)) continue;
-    noteHit(world, e.by.id, e.victim, now);
+  const { out, inc } = contactsOf(world, byId);
+  for (const c of fighters) {
+    const f = sigOf(world, c.id);
+    const hit = out.get(c.id) ?? [];
+    const taken = inc.get(c.id) ?? [];
+    if (f.target === null || !hit.some((x) => x.other === f.target)) {
+      const active = hit.filter((x) => !x.passive);
+      if (active.length > 0) setTarget(f, largest(world, active), now);
+    }
+    if (f.target === null && hit.length + taken.length > 0) setTarget(f, largest(world, [...hit, ...taken]), now);
+    if (f.target !== null && (hit.some((x) => x.other === f.target) || taken.some((x) => x.other === f.target))) {
+      f.contactAt = now;
+    }
   }
 
   const map = collisionMap(world);
-  const lingerMs = ENGAGE_LINGER_SECONDS * 1000;
   for (const c of fighters) {
     const f = sigOf(world, c.id);
     const t = f.target !== null ? byId.get(f.target) : undefined;
     if (!t) continue;
-    const d = Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y);
-    f.inReach = d <= engageRange(activeWeapon(c.s)) && hasLineOfSight(map, c.s, t.s);
-    if (f.inReach) f.reachAt = f.contactAt = now;
     if (now - f.contactAt >= TARGET_FORGET_SECONDS * 1000) {
       clearTarget(f);
       continue;
     }
-    f.engaged = now - f.reachAt <= lingerMs + 1e-6;
-    if (f.engaged) f.combatAt = sigOf(world, t.id).combatAt = now;
+    const d = Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y);
+    f.inReach = d <= engageRange(activeWeapon(c.s)) && hasLineOfSight(map, c.s, t.s);
+    if (f.inReach) f.reachAt = now;
+    f.engaged = now - f.reachAt <= ENGAGE_LINGER_SECONDS * 1000 + 1e-6
+      && now - f.contactAt <= tradeWindowMs(world, c, t) + 1e-6;
   }
 
   for (const c of fighters) {
@@ -231,8 +295,21 @@ function signatureDamage(world: World, dtMs: number): void {
         }
       }
     }
-    if (f.inReach) f.markElapsed += dt;
+    if (f.inReach && f.engaged) f.markElapsed += dt;
   }
+}
+
+/** Seconds between this fighter's attacks right now, the chill included (0 without a faction or a weapon). */
+function cadence(world: World, c: Combatant): number {
+  const spec = factionOf(c.s);
+  const w = activeWeapon(c.s);
+  return spec && w ? attackInterval(spec, w) / sigOf(world, c.id).chill : 0;
+}
+
+/** How long a pair may go without a hit or block and stay engaged: never shorter than a trade between them can take. */
+function tradeWindowMs(world: World, a: Combatant, b: Combatant): number {
+  const slowest = Math.max(cadence(world, a), cadence(world, b));
+  return Math.max(ENGAGE_TRADE_SECONDS, slowest + ENGAGE_TRADE_SLACK_SECONDS) * 1000;
 }
 
 function bonus(
@@ -316,18 +393,6 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
   for (const c of fighters) {
     const f = sigOf(world, c.id);
     const w = c.rt.weapon;
-    // An attack started this tick counted its carried remainder (start..now) at full speed: take back the chill of the
-    // tick that just ended over that stretch. A cooldown or draw already running was stretched tick by tick.
-    if (w.action && w.action !== f.seenAction && f.chill < 1) {
-      const back = (1 - f.chill) * Math.max(0, now - w.action.startedAt);
-      if (w.action.kind === "draw") {
-        w.action.startedAt += back;
-        c.s.drawStartedAt = w.action.startedAt;
-      } else {
-        if (w.recoverUntil === c.s.readyAt) w.recoverUntil += back;
-        c.s.readyAt += back;
-      }
-    }
     const from = chillers.get(c.id);
     let m = 1;
     if (from) for (const id of from) m = Math.min(m, chillOf(byId.get(id)!));
@@ -336,27 +401,26 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
     if (m < 1) {
       c.s.readyAt = stretchUntil(c.s.readyAt, now, dtMs, m);
       w.recoverUntil = stretchUntil(w.recoverUntil, now, dtMs, m);
+      w.bufferedUntil = stretchUntil(w.bufferedUntil, now, dtMs, m);
       if (w.action?.kind === "draw") {
         w.action.startedAt += (1 - m) * dtMs;
         c.s.drawStartedAt = w.action.startedAt;
       }
     }
-    f.seenAction = w.action;
   }
 }
 
-/** moveModifiers: inside CHILL_MOVE_RADIUS of a Frost that chills it, a fighter walks at the chill's multiplier. */
+/** moveModifiers: inside CHILL_MOVE_RADIUS of a Frost that chills it, a fighter walks at CHILL_MOVE_MULT. */
 function chillMoveMultiplier(world: World, c: Combatant): number {
   const f = world.factions?.fighters.get(c.id);
   if (!f || f.chillers.length === 0) return 1;
-  let m = 1;
   for (const id of f.chillers) {
     const frost = combatant(world, id);
-    if (!frost || !standing(frost)) continue;
-    if (Math.hypot(frost.s.x - c.s.x, frost.s.y - c.s.y) > CHILL_MOVE_RADIUS) continue;
-    m = Math.min(m, chillOf(frost));
+    if (frost && standing(frost) && Math.hypot(frost.s.x - c.s.x, frost.s.y - c.s.y) <= CHILL_MOVE_RADIUS) {
+      return CHILL_MOVE_MULT;
+    }
   }
-  return m;
+  return 1;
 }
 
 /** The synced `sig` bits and `brand` of every fighter; zero for anyone no longer standing. */
@@ -398,7 +462,7 @@ function onWeaponSwapped(world: World, c: Combatant): void {
 
 /**
  * Heals a standing fighter by up to `amount` (never past max hp) and emits a `heal` fx. Heals other than Holy's
- * lifesteal are refused within HEAL_LOCKOUT_SECONDS of the fighter's last combat. Returns the hp gained.
+ * lifesteal are refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage. Returns the hp gained.
  */
 export function heal(world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean } = {}): number {
   if (!(amount > 0) || !standing(c)) return 0;

@@ -1,7 +1,8 @@
 // Arena lifecycle: how players go down, who wins, the patience timer, the coliseum teleport and sudden death.
 //
-// step.ts runs an active tick as: tick-start snapshot → inputs (shuffled) → weapon state machines → movement →
-// history → projectile sweep → spawns → melee → the damage ledger, all at once → systems → suddenDeath → settle.
+// step.ts runs an active tick as: tick-start snapshot → inputs (shuffled) → weapon state machines → afterWeapons →
+// movement → history → projectile sweep → spawns → melee → beforeDamage (signature damage) → the damage ledger, all at
+// once → systems → suddenDeath → settle.
 // Everything that takes a player out of the fight goes through downPlayer(), and settle() is the only place where
 // results are emitted during a step and where the run ends, so the shuffled order players were processed in never
 // decides who won:
@@ -27,7 +28,7 @@ import {
   type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { emit, type PlayerRuntime, type World } from "./world";
+import { emit, tieRank, type PlayerRuntime, type World } from "./world";
 
 /** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
 export interface Attacker { id: string; p: PlayerState; rt: PlayerRuntime }
@@ -91,7 +92,8 @@ export interface Hit { amount: number; source: Attacker | string }
 /**
  * Several hits landing on one player at the same moment (the per-tick ledger, sim/ledger.ts): their sum comes off at
  * once, so no hit is "first". Every player among the sources counts as having damaged the victim. If the sum kills, the
- * kill (and the bounty) goes to the largest hit by a rival player, else to the largest hit; ties go to the earlier one.
+ * kill (and the bounty) goes to the largest hit by a rival player, else to the largest hit; equal hits are settled by
+ * tieRank, so join order never decides.
  */
 export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime, hits: readonly Hit[]): number {
   // hp 0 while still standing: the killing blow is being processed (a hook hitting the victim again must not re-kill).
@@ -103,11 +105,11 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   for (const h of hits) {
     if (!(h.amount > 0)) continue;
     total += h.amount;
-    if (!top || h.amount > top.amount) top = h;
+    if (!top || beats(world, h, top)) top = h;
     // Hurting yourself is never your own kill or leave credit.
     if (typeof h.source !== "string" && h.source.rt !== rtv) {
       h.source.rt.damaged.add(rtv.id);
-      if (!topRival || h.amount > topRival.amount) topRival = h as Hit & { source: Attacker };
+      if (!topRival || beats(world, h, topRival)) topRival = h as Hit & { source: Attacker };
     }
   }
   if (!top) return 0;
@@ -123,6 +125,15 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   if (topRival) creditKill(world, topRival.source, victim, rtv);
   downPlayer(world, victim, rtv, "died");
   return before;
+}
+
+function sourceId(h: Hit): string {
+  return typeof h.source === "string" ? h.source : h.source.id;
+}
+
+/** `h` outranks `best` for kill credit: larger, or equal and ahead on tieRank. */
+function beats(world: World, h: Hit, best: Hit): boolean {
+  return h.amount > best.amount || (h.amount === best.amount && tieRank(world, sourceId(h)) < tieRank(world, sourceId(best)));
 }
 
 /**

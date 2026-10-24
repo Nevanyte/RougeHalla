@@ -1,6 +1,6 @@
-// The per-tick damage ledger. The projectile sweep and the melee phase only record hits here; applyLedger() applies
-// them all at once after melee, so the shuffled order fighters were processed in never decides who hit first, and a
-// fighter killed this tick still lands what it started. Each hit is mitigated by the victim's armor and shield
+// The per-tick damage ledger. The projectile sweep, the melee phase and the signature damage (beforeDamage, sim/factions.ts)
+// only record hits here; applyLedger() applies them all at once after that, so the shuffled order fighters were
+// processed in never decides who hit first, and a fighter killed this tick still lands what it started. Each hit is mitigated by the victim's armor and shield
 // (the faction damage law) and then goes through the one way down: applyHits (players) or damageMob (mobs).
 import { isDot, mitigateShares } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";

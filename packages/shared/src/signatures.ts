@@ -11,10 +11,19 @@ import { WEAPONS, weaponEdge, type WeaponId } from "./weapons";
 
 /** Bonus damage (and the chill) keep applying this long after the target leaves weapon range or line of sight. */
 export const ENGAGE_LINGER_SECONDS = 1.25;
-/** A target with no contact (in reach, or a hit either way) for this long is forgotten, and a mark on it with it. */
+/**
+ * ...and only while the pair keeps trading: a hit (or a shield block) between them, either way, within this long, or
+ * within the slower of the two fighters' current intervals (chill included) plus ENGAGE_TRADE_SLACK_SECONDS when that
+ * is longer (a chilled Frost-axe mirror swings every 3.97 s). One tag can't keep a signature running from range.
+ */
+export const ENGAGE_TRADE_SECONDS = 3;
+export const ENGAGE_TRADE_SLACK_SECONDS = 0.5;
+/** A target with no hit or block between the pair for this long is forgotten, and a mark on it with it. */
 export const TARGET_FORGET_SECONDS = 10;
-/** Frost's movement slow reaches only fighters it chills within this distance (centre to centre). */
+/** Frost's movement slow reaches only fighters it chills within this distance (centre to centre)... */
 export const CHILL_MOVE_RADIUS = 100;
+/** ...and multiplies their move speed by this (the counter review's kiting check assumed the attack slow's 0.4). */
+export const CHILL_MOVE_MULT = 0.4;
 /** Heals (other than Holy's lifesteal) wait until the fighter has been out of combat this long. */
 export const HEAL_LOCKOUT_SECONDS = 3;
 /** Signature damage over time is reported as one `hit` fx per attacker and victim this often, not every tick. */

@@ -69,8 +69,11 @@ export type FxEvent =
    * damage, either Fire's backlash on one swing of `id`, or DOT_FX_MS worth of damage over time (burn, disease, mark).
    */
   | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null; sig?: SignatureKind }
-  /** `id`'s shield negated a hit by `by`'s weapon (a sword hit also ripostes: a `hit` on `by` follows). */
-  | { kind: "block"; id: string; by: string; weapon: WeaponId }
+  /**
+   * `id`'s shield negated a hit by `by`'s weapon (a sword hit also ripostes: a `hit` on `by` follows). `passive`: the
+   * blocked hit was not an attack of `by`'s own (an arrow `by` reflected).
+   */
+  | { kind: "block"; id: string; by: string; weapon: WeaponId; passive?: boolean }
   /** `id` was staggered: its windup or cast was cancelled, or its bow draw restarted. */
   | { kind: "stagger"; id: string }
   /**

@@ -2,7 +2,7 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, withGates, type DamageShares, type FxEvent, type GameMap, type GvReason, type ProjectileKind,
+  generateMap, mulberry32, withGates, type DamageShares, type FxEvent, type GameMap, type GvReason, type ProjectileKind,
   type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState, type ProjectileState } from "@raid/shared/schema";
@@ -116,6 +116,11 @@ export interface LedgerEntry {
   stagger: boolean;
   /** Signature damage (sim/factions.ts). Damage over time gets no `hit` fx of its own (it is reported in chunks). */
   sig?: SignatureKind;
+  /**
+   * Dealt without an attack of the dealer's own (a riposte). A reflected arrow (`projectile` set, weapon "shield") is
+   * passive too. Passive hits make a target only for a fighter that has none.
+   */
+  passive?: boolean;
 }
 
 /** A ledger entry that took hp off its victim this tick (applyLedger), for systems that react to damage. */
@@ -183,7 +188,7 @@ export interface CombatScratch {
    * tickX/tickY -> x/y). Melee uses it to meet balls, even one whose hit is already in the ledger.
    */
   swept: ProjectileRuntime[];
-  /** Every ledger entry that landed this tick, in the order applied (both ledger passes; see step.ts). */
+  /** Every ledger entry that landed this tick, in the order applied. */
   landed: LandedHit[];
 }
 
@@ -315,10 +320,13 @@ export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
 }
 
+type ChainableHook = "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed";
+
 /** Adds a hook that runs after whatever was already installed for it. */
-export function chainHook<K extends "teleported" | "raidStarted">(world: World, key: K, fn: (world: World) => void): void {
-  const prev = world.hooks[key];
-  world.hooks[key] = prev ? (w: World) => { prev(w); fn(w); } : fn;
+export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {
+  const prev = world.hooks[key] as ((...args: unknown[]) => void) | undefined;
+  const next = fn as (...args: unknown[]) => void;
+  world.hooks[key] = (prev ? (...args: unknown[]) => { prev(...args); next(...args); } : fn) as WorldHooks[K];
 }
 
 /**
@@ -327,6 +335,17 @@ export function chainHook<K extends "teleported" | "raidStarted">(world: World, 
  */
 export function collisionMap(world: World): GameMap {
   return world.state.gatesLocked ? withGates(world.map) : world.map;
+}
+
+/**
+ * Order-free tie-break between equals in one tick (a target choice, a kill between equal hits): a hash of the
+ * server-secret salt, the tick and the id. It shares orderSalt, so ties a client can stage and observe narrow that salt
+ * down (see CLAUDE.md).
+ */
+export function tieRank(world: World, id: string): number {
+  let h = (world.orderSalt ^ Math.imul(world.state.tick, 0x9e3779b1)) >>> 0;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193) >>> 0;
+  return mulberry32(h)();
 }
 
 /** Room-unique id for containers and other raid-scoped entities (not items: see newItemUid). */

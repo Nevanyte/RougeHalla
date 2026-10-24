@@ -202,7 +202,8 @@ export function sweepProjectiles(world: World, dtMs: number): void {
           kind: "arrow", weapon: "shield", owner: hit.c.id, ownerName: hit.c.s.name, x: hit.x, y: hit.y,
           vx: v.vx, vy: v.vy, t, range: bow.kind === "projectile" ? bow.range : st.range, packet: pr.packet,
         }));
-        emit(world, { type: "fx", fx: { kind: "block", id: hit.c.id, by: pr.owner, weapon: pr.weapon } });
+        const block = { kind: "block" as const, id: hit.c.id, by: pr.owner, weapon: pr.weapon };
+        emit(world, { type: "fx", fx: pr.weapon === "shield" ? { ...block, passive: true } : block });
         continue;
       }
       recordHit(world, {

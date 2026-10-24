@@ -186,13 +186,13 @@ function updateActive(world: World, dtMs: number): void {
   updateWeapons(world);
   for (const sys of world.afterWeapons) sys(world, dtMs);
   const fighters = standingCombatants(world);
-  for (const c of fighters) {
+  // Every multiplier is read before anyone moves, so none depends on who moved first (the chill reads distances).
+  const mults = fighters.map((c) => world.moveModifiers.reduce((m, mod) => m * mod(world, c), moveMultiplierOf(world, c)));
+  fighters.forEach((c, i) => {
     const w = c.rt.weapon;
     const aiming = w.aimAt > 0 && now - w.aimAt < AIM_STALE_MS;
-    let mult = moveMultiplierOf(world, c);
-    for (const mod of world.moveModifiers) mult *= mod(world, c);
-    advanceAlongPath(c.s, c.rt, dt, aiming, mult);
-  }
+    advanceAlongPath(c.s, c.rt, dt, aiming, mults[i]!);
+  });
   // Record after everyone has moved so hit tests see one consistent tick.
   for (const c of fighters) recordHistory(c.rt, c.s, now);
   sweepProjectiles(world, dtMs);

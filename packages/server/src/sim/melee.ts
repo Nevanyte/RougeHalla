@@ -13,7 +13,8 @@
 //     (onShieldFront(targetPos, target.facing, origin), both sampled positions, the holder's current facing):
 //     shieldOutcome({ melee: weapon }): "pierce" (axe) is a normal hit; "block" (a bash) is negated; "riposte" (sword)
 //     is negated and riposteShare() of the packet is recorded on the attacker, by the holder, weapon "shield",
-//     no stagger. Negated hits emit { kind: "block", id: holder, by: attacker, weapon } and never stagger.
+//     no stagger, `passive: true` (it is no attack of the holder's own: sim/factions.ts lets it set a target only for a
+//     holder that has none). Negated hits emit { kind: "block", id: holder, by: attacker, weapon } and never stagger.
 //   - A normal hit is recordHit({ victim, by: { id, name }, packet: req.packet, weapon, stagger: staggers({ melee }) }).
 //   - Balls: for every ball in ballsThisTick(world, attacker) whose path this tick (tickX, tickY -> x, y; a point for one
 //     loosed this tick) passes through the arc, sampled at the ATTACKER'S PRESENT position (balls fly in present time),
