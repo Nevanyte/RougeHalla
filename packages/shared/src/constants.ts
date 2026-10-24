@@ -92,12 +92,12 @@ export const GV_ELITE = 10;
 /** Mob GV (normal and elite together) stops counting past this per run, so farming can't beat winning. */
 export const GV_MOB_CAP = 30;
 
-// Feed and bounty (LoL-style shutdown gold): see bountyFor in rules.ts.
-/** Feed score per run = player kills + this × mob kills. */
+// Feed and bounty (LoL-style shutdown gold): see feedScore and bountyFor in rules.ts.
+/** Feed score per run = player kills + this × mob kills. It sets the mob reward curve and the catch-up; the bounty ignores mobs. */
 export const FEED_MOB_KILL_WEIGHT = 0.25;
-/** Bounty GV = BOUNTY_SCALE × max(0, feed − BOUNTY_FREE_FEED)^BOUNTY_EXPONENT, rounded to whole GV. */
+/** Bounty GV = BOUNTY_SCALE × max(0, player kills − BOUNTY_FREE_KILLS)^BOUNTY_EXPONENT, rounded to whole GV. Mob kills don't count. */
 export const BOUNTY_SCALE = 10;
-export const BOUNTY_FREE_FEED = 2;
+export const BOUNTY_FREE_KILLS = 2;
 export const BOUNTY_EXPONENT = 1.5;
 
 // Combat (Phase 9). Weapon numbers and the faction x weapon formula live in weapons.ts; the rules between weapons

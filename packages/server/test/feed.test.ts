@@ -346,17 +346,72 @@ describe("creditMobKill", () => {
     expect(P(w, 2).mobKills).toBe(0);
     expect(w.events).toEqual([]);
   });
+});
 
-  it("raises the bounty from the mob feed, and it is claimed like any other", () => {
-    const w = lobby([[2], [0], [0], [0]]);
-    for (let i = 0; i < 4; i++) creditMobKill(w, P(w, 0), RT(w, 0), false); // feed 3
-    expect(P(w, 0).bounty).toBe(10);
+// Owner decision: the bounty follows PLAYER kills only (bountyFor(p.kills)). Mob kills count in the feed, so in the mob
+// reward curve and the catch-up, but never raise, announce or add to a bounty.
+describe("the bounty ignores mob kills", () => {
+  const bountyFx = (w: World) => fxOf(w.events, "bounty");
+
+  it("feed 12 from mob kills alone is no bounty and no announcement, though the feed still lowers the player's mob rewards", () => {
+    const w = lobby([[0], [0], [0], [0]]);
+    const hungry = mobRewardFor(w, P(w, 0), RT(w, 0));
+    expect(hungry).toBe(rewardCurve(0));
+    for (let i = 0; i < 48; i++) creditMobKill(w, P(w, 0), RT(w, 0), false);
+    expect(feedOfPlayer(P(w, 0), RT(w, 0))).toBe(12);
+    expect(P(w, 0).mobKills).toBe(48);
+    expect(P(w, 0).kills).toBe(0);
+    expect(P(w, 0).bounty).toBe(0);
+    expect(bountyFx(w)).toEqual([]);
+    // The feed does count where it should: this player is paid like a fed one.
+    const fed = mobRewardFor(w, P(w, 0), RT(w, 0));
+    expect(fed).toBe(rewardCurve(12));
+    expect(fed).toBeLessThan(0.31);
+    expect(fed).toBeLessThan(hungry);
+    RT(w, 0).gv.mobs = 0; // under the cap again
+    expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(Math.round(GV_ELITE * rewardCurve(12))); // 3, against 10 for p1
+    expect(creditMobKill(w, P(w, 1), RT(w, 1), true)).toBe(GV_ELITE);
+    expect(P(w, 0).bounty).toBe(0);
+  });
+
+  it("killing a player whose feed is all mobs pays the kill and no bounty, moves no stacks, and never calls the claim hook", () => {
+    const w = lobby([[0], [0], [0], [0]]);
+    let claims = 0;
+    const prev = w.hooks.bountyClaimed;
+    w.hooks.bountyClaimed = (world, killer, victim, bounty) => { claims++; prev?.(world, killer, victim, bounty); };
+    for (let i = 0; i < 48; i++) creditMobKill(w, P(w, 0), RT(w, 0), false); // feed 12
+    P(w, 0).stacksHp = 4;
+    P(w, 0).stacksAs = 6;
+    P(w, 0).stacksMs = 2;
     w.events = [];
     kill(w, 0, attacker(w, 1));
+    expect(gvOf(w.events)).toEqual([{ type: "gv", id: idOf(1), amount: GV_KILL, reason: "kill" }]);
+    expect(claims).toBe(0);
+    expect([P(w, 1).stacksHp, P(w, 1).stacksAs, P(w, 1).stacksMs]).toEqual([0, 0, 0]);
+    expect(fxOf(w.events, "buff")).toEqual([]);
+    expect(RT(w, 1).gv.bounty).toBe(0);
+  });
+
+  it("with player kills too, the bounty follows the player kills only, and a claim pays that amount and half the stacks", () => {
+    const w = startRun(8);
+    let claims = 0;
+    const prev = w.hooks.bountyClaimed;
+    w.hooks.bountyClaimed = (world, killer, victim, bounty) => { claims++; prev?.(world, killer, victim, bounty); };
+    for (const v of [1, 2, 3]) kill(w, v, attacker(w, 0));
+    expect(P(w, 0).bounty).toBe(10);
+    for (let i = 0; i < 20; i++) creditMobKill(w, P(w, 0), RT(w, 0), i < 5); // feed 8: a feed-based bounty would be 147
+    expect(P(w, 0).bounty).toBe(10);
+    kill(w, 4, attacker(w, 0));
+    expect(P(w, 0).bounty).toBe(28); // 4 player kills, not a feed of 9
+    P(w, 0).stacksAs = 4;
+    w.events = [];
+    kill(w, 0, attacker(w, 5));
     expect(gvOf(w.events)).toEqual([
-      { type: "gv", id: idOf(1), amount: GV_KILL, reason: "kill" },
-      { type: "gv", id: idOf(1), amount: 10, reason: "bounty" },
+      { type: "gv", id: idOf(5), amount: GV_KILL, reason: "kill" },
+      { type: "gv", id: idOf(5), amount: 28, reason: "bounty" },
     ]);
+    expect(claims).toBe(1);
+    expect(P(w, 5).stacksAs).toBe(2);
   });
 });
 
@@ -500,16 +555,15 @@ describe("announceBounty and flushAnnouncements", () => {
     installFeed(bare);
     expect(bare.systems).toContain(flushAnnouncements);
 
-    const w = startRun(3);
+    const w = startRun(8);
     const t0 = w.state.serverTime;
-    setFeed(w, 0, 2, 4); // feed 3
-    creditMobKill(w, P(w, 0), RT(w, 0), false); // feed 3.25: a bounty of 14, announced at once
-    expect(P(w, 0).bounty).toBe(14);
-    expect(bountyFx(w).map((fx) => fx.bounty)).toEqual([14]);
-    for (let i = 0; i < 7; i++) creditMobKill(w, P(w, 0), RT(w, 0), false); // feed 5: a bounty of 52, held
+    for (const v of [1, 2, 3]) kill(w, v, attacker(w, 0)); // the 3rd player kill: a bounty of 10, announced at once
+    expect(bountyFx(w).map((fx) => fx.bounty)).toEqual([10]);
+    for (let i = 0; i < 12; i++) creditMobKill(w, P(w, 0), RT(w, 0), false); // mobs change nothing
+    for (const v of [4, 5]) kill(w, v, attacker(w, 0)); // 28, then 52: held
     const grown = P(w, 0).bounty;
     expect(grown).toBe(52);
-    expect(bountyFx(w).map((fx) => fx.bounty)).toEqual([14]);
+    expect(bountyFx(w).map((fx) => fx.bounty)).toEqual([10]);
     w.events = [];
     expect(fxOf(runTo(w, t0 + BOUNTY_ANNOUNCE_MS - TICK_MS), "bounty")).toEqual([]);
     expect(fxOf(tick(w), "bounty")).toEqual([{ kind: "bounty", id: idOf(0), name: "alice", bounty: grown }]);

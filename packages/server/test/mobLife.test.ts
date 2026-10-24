@@ -648,21 +648,36 @@ describe("killMob: rewards", () => {
     expect(P(w, 0).gv).toBe(GV_MOB + GV_ELITE);
   });
 
-  it("the mob counts toward the feed and the bounty afterwards, not toward player kills", () => {
+  it("the mob counts toward the feed (and so the next mob pays less) but not toward player kills, and never raises a bounty", () => {
     const w = makeBare();
+    w.random = () => 0.1;
+    const stacks: number[] = [];
     for (let i = 0; i < 4; i++) {
       const m = spawn(w, "plague");
+      w.events = [];
       hurt(w, m, ["p0", m.s.hp]);
+      stacks.push(fxOf(w.events, "buff")[0]!.stacks);
+      expect(fxOf(w.events, "bounty")).toEqual([]);
     }
     expect(RT(w, 0).mobKills).toBe(4);
     expect(P(w, 0).mobKills).toBe(4);
     expect(P(w, 0).kills).toBe(0);
-    expect(P(w, 0).bounty).toBe(0); // a feed of 1
-    setFeed(w, 0, 3, 4);
+    expect(P(w, 0).bounty).toBe(0);
+    // Each kill was paid at the feed the ones before it left: a quarter point more each time, the lobby median half of that.
+    stacks.forEach((got, i) => expect(got).toBeCloseTo(MOB_BUFF_STACKS * mobRewardMultiplier(0.25 * i, 0.125 * i), 9));
+    for (let i = 1; i < stacks.length; i++) expect(stacks[i]!).toBeLessThan(stacks[i - 1]!);
+
+    // However fed on mobs they are, the bounty stays at zero and nothing is announced.
+    setFeed(w, 0, 0, 400); // a feed of 100
     const m = spawn(w, "plague");
+    w.events = [];
     hurt(w, m, ["p0", m.s.hp]);
-    expect(RT(w, 0).mobKills).toBe(5);
-    expect(P(w, 0).bounty).toBeGreaterThan(0); // a feed of 4.25
+    expect(RT(w, 0).mobKills).toBe(401);
+    expect(P(w, 0).mobKills).toBe(401);
+    expect(P(w, 0).kills).toBe(0);
+    expect(P(w, 0).bounty).toBe(0);
+    expect(fxOf(w.events, "bounty")).toEqual([]);
+    expect(fxOf(w.events, "buff")[0]!.stacks).toBeCloseTo(MOB_BUFF_STACKS * mobRewardMultiplier(100, 50), 9);
   });
 
   it("GV falls for a high-feed killer (feed 8) and the buff drop shrinks with it", () => {

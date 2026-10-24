@@ -386,9 +386,9 @@ Mob GV and buff value are multiplied by a curve that's near full while you're hu
 Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch-up).
 
 ### 12.4 Bounties (shutdowns)
-`bounty = 10 × max(0, feed − 2)^1.5` GV.
+`bounty = 10 × max(0, player kills − 2)^1.5` GV. **Only player kills count.** Mob kills still raise your feed (section 12.1), and so feed the buffs and set the mob reward curve and the catch-up, but they never raise your bounty.
 
-| Feed | ≤ 2 | 3 | 4 | 5 | 6 | 7 | 8 | 10 |
+| Player kills | ≤ 2 | 3 | 4 | 5 | 6 | 7 | 8 | 10 |
 |---|---|---|---|---|---|---|---|---|
 | Bounty (GV) | 0 | 10 | 28 | 52 | 80 | 112 | 147 | 226 |
 
@@ -396,7 +396,7 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 - **Crown.** Bountied players wear a crown, and their position flashes on everyone's minimap for 2 s every 10 s.
 - **Shutdown.** Killing a bountied player pays the bounty and **half their buff stacks** to the killer, so comebacks are real.
 - **Trade-off, intended.** A fed player can beat their counters, as in League. Bounties and falling rewards are the release valves.
-- A big bounty can be worth more than winning (52 GV at feed 5 against a 50 GV win bonus). That makes hunting the fed player a goal in its own right.
+- A big bounty can be worth more than winning (52 GV at 5 player kills against a 50 GV win bonus). That makes hunting the fed player a goal in its own right.
 
 ---
 
@@ -513,7 +513,7 @@ Hard counters are only fair if you can see them coming.
 | **Signature** | A faction's unique mechanic |
 | **Signature weapon** | The weapon each faction starts with |
 | **Engaged** | Fighting a specific enemy: you hit them recently or they hit you |
-| **Feed** | Your run's kill score; drives buffs, mob rewards and bounty |
-| **Bounty / shutdown** | GV and buffs paid for killing a fed player |
+| **Feed** | Your run's kill score (player kills + a quarter per mob kill); sets the mob reward curve and the catch-up. The bounty counts player kills only |
+| **Bounty / shutdown** | GV and buffs paid for killing a player with several player kills |
 | **Edge** | One "A beats B" relationship in a counter loop |
 | **Margin** | Winner's remaining HP fraction minus the loser's, in points |

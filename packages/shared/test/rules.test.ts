@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  BOUNTY_EXPONENT, BOUNTY_FREE_FEED, BOUNTY_SCALE, FEED_MOB_KILL_WEIGHT, PATIENCE_FULL_ALIVE, PATIENCE_MIN_ALIVE,
+  BOUNTY_EXPONENT, BOUNTY_FREE_KILLS, BOUNTY_SCALE, FEED_MOB_KILL_WEIGHT, PATIENCE_FULL_ALIVE, PATIENCE_MIN_ALIVE,
   PATIENCE_MIN_SECONDS, PATIENCE_SECONDS,
 } from "../src/constants";
 import { bountyFor, feedScore, patienceSecondsFor } from "../src/rules";
 import * as shared from "../src/index";
 
 describe("the tunables the formulas read", () => {
-  it("are the design numbers: 5:00 at 8 alive down to 2:00 at 3, bounty 10 × (feed − 2)^1.5, mobs worth a quarter", () => {
+  it("are the design numbers: 5:00 at 8 alive down to 2:00 at 3, bounty 10 × (player kills − 2)^1.5, mobs worth a quarter of a kill in the feed", () => {
     expect([PATIENCE_SECONDS, PATIENCE_MIN_SECONDS, PATIENCE_FULL_ALIVE, PATIENCE_MIN_ALIVE]).toEqual([300, 120, 8, 3]);
-    expect([BOUNTY_SCALE, BOUNTY_FREE_FEED, BOUNTY_EXPONENT, FEED_MOB_KILL_WEIGHT]).toEqual([10, 2, 1.5, 0.25]);
+    expect([BOUNTY_SCALE, BOUNTY_FREE_KILLS, BOUNTY_EXPONENT, FEED_MOB_KILL_WEIGHT]).toEqual([10, 2, 1.5, 0.25]);
   });
 
   it("are reachable from the shared index, with the formulas", () => {
@@ -102,7 +102,7 @@ describe("feedScore", () => {
 });
 
 describe("bountyFor", () => {
-  it("pays nothing until the feed passes 2, then round(10 × (feed − 2)^1.5)", () => {
+  it("pays nothing until the player kills pass 2, then round(10 × (kills − 2)^1.5) (mob kills never count: the sim passes player kills only)", () => {
     const cases: Array<[number, number]> = [[0, 0], [2, 0], [2.25, 1], [3, 10], [4, 28], [5, 52], [6, 80]];
     for (const [feed, bounty] of cases) expect(bountyFor(feed), `feed ${feed}`).toBe(bounty);
   });

@@ -1685,13 +1685,13 @@ describe("Glorious Victory", () => {
   /**
    * Reads the kills and bounties back off the event stream alone. A kill is a gv "kill" event: straight after the
    * victim's death fx, or, for a kill credited on a leave, ahead of the leaver's `mia` result. The bounty it must have
-   * paid is what the victim's own kills so far earn (bountyFor; the melee has no mob kills, so feed is kills), as a gv
+   * paid is what the victim's own player kills so far earn (bountyFor; mob kills never count), as a gv
    * "bounty" event right behind the kill's own. Announcements are throttled (BOUNTY_ANNOUNCE_MS) and can lag behind the
    * bounty, so the amount owed is not read from them; each one that does go out must still carry the amount then owed.
    */
   function readKills(all: SimEvent[]) {
     const made = new Map<string, number>(); // kills credited so far, by killer
-    const owedBy = (id: string): number => bountyFor(feedScore(made.get(id) ?? 0, 0));
+    const owedBy = (id: string): number => bountyFor(made.get(id) ?? 0);
     const out = { kills: 0, leaveKills: 0, claims: 0, bounties: 0 };
     all.forEach((e, i) => {
       if (e.type === "fx" && e.fx.kind === "bounty") expect(e.fx.bounty, `announced bounty of ${e.fx.id}`).toBe(owedBy(e.fx.id));
@@ -2604,7 +2604,8 @@ describe("feed and bounty", () => {
       expect(bountyFxOf(w.events)).toEqual([]); // a feed of 0.5
     });
 
-    it("12 mob kills are a feed of 3 and a bounty of 10, though three elites reached GV_MOB_CAP and the rest paid nothing", () => {
+    // Owner decision: the bounty follows PLAYER kills only (bountyFor(p.kills)); mob kills feed the reward curve, never the bounty.
+    it("12 mob kills are a feed of 3 but no bounty, and three elites reached GV_MOB_CAP and the rest paid nothing", () => {
       const w = startRun(3);
       const paid: number[] = [];
       for (let i = 0; i < 3; i++) paid.push(creditMobKill(w, P(w, 0), RT(w, 0), true));
@@ -2612,34 +2613,52 @@ describe("feed and bounty", () => {
       // Elite GV is round(GV_ELITE x reward): 9.8, 9.7 and 9.7 at feeds 0, 0.25 and 0.5 all round to GV_ELITE.
       expect(paid).toEqual([GV_ELITE, GV_ELITE, GV_ELITE, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
       expect(RT(w, 0).mobKills).toBe(12);
+      expect(P(w, 0).mobKills).toBe(12);
+      expect(feedScore(P(w, 0).kills, RT(w, 0).mobKills)).toBe(3); // the feed counts them...
       expect(RT(w, 0).gv.mobs).toBe(GV_MOB_CAP); // GV stays capped...
       expect(P(w, 0).gv).toBe(GV_MOB_CAP);
-      expect(P(w, 0).bounty).toBe(10); // ...feed doesn't
-      // The bounty rose with the 9th, 10th, 11th and 12th mob kill (feeds 2.25, 2.5, 2.75, 3), but only the first is
-      // announced: the rest fall inside the BOUNTY_ANNOUNCE_MS window (this world has no flush system).
-      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([1]);
+      expect(P(w, 0).bounty).toBe(0); // ...and the bounty never sees them
+      expect(bountyFxOf(w.events)).toEqual([]);
       expect(ofType(w.events, "gv")).toHaveLength(3); // a capped kill makes no gv event
     });
 
-    it("mob and player kills share one feed: two kills and four mob kills make a feed of 3", () => {
+    it("mob and player kills share one feed, but only player kills make a bounty: two kills and four mob kills are a feed of 3 and a bounty of 0", () => {
       const w = startRun(8);
       slay(w, 0, [1, 2]);
       w.events = [];
-      const sequence: number[] = [];
       for (let i = 0; i < 4; i++) {
         creditMobKill(w, P(w, 0), RT(w, 0), false);
-        sequence.push(P(w, 0).bounty);
+        expect(P(w, 0).bounty).toBe(0);
       }
-      expect(sequence).toEqual([1, 4, 6, 10]); // feeds 2.25, 2.5, 2.75, 3
-      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([1]); // the other rises fall inside the announce window
-      slay(w, 0, [3]); // feed 4
+      expect(feedScore(P(w, 0).kills, RT(w, 0).mobKills)).toBe(3);
+      expect(bountyFxOf(w.events)).toEqual([]);
+      slay(w, 0, [3]); // the 3rd player kill: 10, as for anyone (a feed of 4 would have made it 28)
+      expect(P(w, 0).bounty).toBe(10);
+      expect(bountyFxOf(w.events).map((fx) => fx.bounty)).toEqual([10]);
+      for (let i = 0; i < 8; i++) creditMobKill(w, P(w, 0), RT(w, 0), i < 2); // feed 7: still 10
+      expect(P(w, 0).bounty).toBe(10);
+      slay(w, 0, [4]); // the 4th
       expect(P(w, 0).bounty).toBe(28);
     });
 
-    it("a bounty built from mobs is claimed like any other", () => {
+    it("mob kills alone put no bounty on a player: killing them pays the kill and no bounty, and the claim hook is not called", () => {
       const w = startRun(8);
       const claims = recordClaims(w);
       for (let i = 0; i < 12; i++) creditMobKill(w, P(w, 0), RT(w, 0), i < 3);
+      w.events = [];
+      kill(w, 0, attacker(w, 1));
+      expect(ofType(w.events, "gv")).toEqual([{ type: "gv", id: idOf(1), amount: GV_KILL, reason: "kill" }]);
+      expect(claims).toEqual([]);
+      expect(RT(w, 1).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
+      expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: GV_MOB_CAP });
+    });
+
+    it("a bounty built from player kills is claimed like any other, whatever the mob kills", () => {
+      const w = startRun(8);
+      const claims = recordClaims(w);
+      slay(w, 0, [2, 3, 4]); // 3 player kills: 10
+      for (let i = 0; i < 12; i++) creditMobKill(w, P(w, 0), RT(w, 0), i < 3);
+      expect(P(w, 0).bounty).toBe(10); // a feed of 6 does not change it
       w.events = [];
       kill(w, 0, attacker(w, 1));
       expect(ofType(w.events, "gv")).toEqual([
@@ -2647,7 +2666,9 @@ describe("feed and bounty", () => {
         { type: "gv", id: idOf(1), amount: 10, reason: "bounty" },
       ]);
       expect(claims.map((c) => c.bounty)).toEqual([10]);
-      expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: GV_MOB_CAP });
+      expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({
+        kills: 3 * GV_KILL, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: 3 * GV_KILL + GV_MOB_CAP,
+      });
     });
 
     it("counts nothing for a player whose result is out", () => {

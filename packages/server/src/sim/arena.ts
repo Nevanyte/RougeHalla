@@ -16,12 +16,12 @@
 //     only when the run went active with WIN_BONUS_MIN_PLAYERS and they damaged WIN_BONUS_MIN_OPPONENTS different
 //     players (so a second callsign can't feed someone wins). All of it banks when the player's result is emitted (the
 //     Room persists `resolved` events).
-//   - Feed and bounty: a player's bounty follows their feed score (bountyFor) and is announced whenever it rises;
+//   - Bounty: a player's bounty follows their player kills (bountyFor; mob kills feed the buffs and the mob reward curve, never the bounty) and is announced (throttled) whenever it rises;
 //     whoever kills them is paid it on top of the kill GV. Leaving within KILL_CREDIT_SECONDS of a hit from another
 //     player is that player's kill, so leaving can't dodge a bounty.
 // This module never touches the store, sockets or the Room.
 import {
-  bountyFor, COLISEUM_RING_RADIUS, circleClear, feedScore, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
+  bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
   KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION, SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
   type Vec2,
@@ -200,14 +200,12 @@ export function creditMobKill(
   if (rt.resolved) return 0;
   rt.mobKills += 1;
   p.mobKills = rt.mobKills;
-  const paid = awardGv(world, p, rt, elite ? "elite" : "mob", mult);
-  updateBounty(world, p, rt);
-  return paid;
+  return awardGv(world, p, rt, elite ? "elite" : "mob", mult);
 }
 
-/** Recomputes the bounty from the feed score; a rise is announced to everyone, at most once per BOUNTY_ANNOUNCE_MS per player (feed.ts). */
+/** Recomputes the bounty from the player kills; a rise is announced to everyone, at most once per BOUNTY_ANNOUNCE_MS per player (feed.ts). */
 function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
-  const bounty = bountyFor(feedScore(p.kills, rt.mobKills));
+  const bounty = bountyFor(p.kills);
   if (bounty <= p.bounty) return;
   p.bounty = bounty;
   announceBounty(world, p, rt);

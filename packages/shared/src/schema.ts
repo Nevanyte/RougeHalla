@@ -33,7 +33,7 @@ export const PlayerState = schema({
   kills: t.uint8().default(0),
   /** GV earned so far this run (kills and mobs; a win bonus is added only when the run resolves). */
   gv: t.uint16().default(0),
-  /** GV whoever kills this player is paid (see bountyFor); 0 while they aren't fed. */
+  /** GV whoever kills this player is paid (see bountyFor); 0 until they have enough player kills. */
   bounty: t.uint16().default(0),
   /** Server time until which damage to this player is ignored (teleport immunity); 0 = none. */
   immuneUntil: t.number().default(0),
