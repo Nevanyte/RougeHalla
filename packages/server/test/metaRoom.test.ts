@@ -4,8 +4,8 @@
 // everyone), and the achievements the store unlocks when the Room banks a run, which ride on the `result` message.
 // A win unlocks win goals only when it passed the win bonus gate (3+ starters, 2+ opponents damaged): the Room hands that
 // to the store as `winQualified`, so a two-player walkover is a win in the stats and nothing more. The same call carries
-// the weapon in hand at the end (and deliberately no faction: it is a round-robin default until the Phase 10 picker), so
-// a qualified win counts for that weapon only.
+// the weapon in hand at the end, and the faction only if the player picked one at join (these clients do not, so the
+// round-robin default is never recorded), so a qualified win counts for that weapon only.
 // Fights use the Phase 9 inputs (`attack` + `release`); kills are made by putting the victim on a sliver of hp first.
 // The rules themselves (which goal unlocks what, how a look word packs) have their own tests in shared/ and in
 // profileStore.test.ts. Profiles that need hand-set cosmetics, stats or achievements are written into the profile file
@@ -639,7 +639,7 @@ describe("a look is cosmetic only", () => {
     // Two identical worlds (same map, same shuffle) that differ only in what alice, the first joiner, wears.
     const build = (look: number) => {
       const world = createGameWorld({ seed: 4242, config, random: mulberry32(4243) });
-      const alice = addPlayer(world, "a", "alice", look);
+      const alice = addPlayer(world, "a", "alice", { look });
       addPlayer(world, "b", "bobby");
       return { world, alice };
     };
@@ -685,6 +685,29 @@ describe("a look is cosmetic only", () => {
 });
 
 describe("achievements through a run", () => {
+  it("a faction picked in the hub is recorded with the win (counts toward its titles); B and C didn't pick", async () => {
+    const [A, B, C] = [await claim(), await claim(), await claim()];
+    const lead = track(A, await client.create<RaidState>(ROOM_NAME, { ...joinOptions(A), faction: "frost" }));
+    worldOf(lead).config = { ...worldOf(lead).config, minPlayers: 3 };
+    const all = [lead, await joinRoom(lead, B), await joinRoom(lead, C)];
+    await untilActive(all);
+    const [a, b, c] = all;
+    expect(serverPlayer(a!).faction).toBe("frost");
+    const recorded = vi.spyOn(server.store, "recordRun");
+    await hurt(a!, b!);
+    await hurt(a!, c!);
+    hitsLongAgo(worldOf(a!), [b!, c!]);
+    await leave(b!);
+    await leave(c!);
+    await until(() => a!.results.length === 1, "A's result");
+    expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toMatchObject({ outcome: "won", faction: "frost" });
+    expect(record(A).progress.winsByFaction).toEqual({ frost: 1 });
+    for (const who of [B, C]) {
+      const call = recorded.mock.calls.find(([name]) => name === who.name);
+      if (call) expect(call[1]).not.toHaveProperty("faction");
+    }
+  });
+
   it("the last one standing in a contested run unlocks First Win and its rewards; the players who walked out do not", async () => {
     const [A, B, C] = [await claim(), await claim(), await claim()];
     const [a, b, c] = await startRun([A, B, C]);
@@ -720,7 +743,7 @@ describe("achievements through a run", () => {
     // The winner's run was banked as a qualified win, the room having read that off the result, with the weapon in hand.
     const wins = recorded.mock.calls.find(([name]) => name === A.name)![1];
     expect(wins).toMatchObject({ outcome: "won", kills: 0, winQualified: true, weapon });
-    expect(wins).not.toHaveProperty("faction"); // the round-robin default is not the player's choice yet
+    expect(wins).not.toHaveProperty("faction"); // nobody picked one: the round-robin default is not recorded
     expect(after.progress.winsByWeapon).toEqual({ [weapon]: 1 });
     expect(after.progress.winsByFaction).toEqual({});
 
@@ -901,8 +924,9 @@ describe("achievements through a run", () => {
 });
 
 describe("the weapon a win is counted for", () => {
-  // The Room hands the store the weapon in hand when the run ends and no faction (the faction is a round-robin default
-  // until the Phase 10 picker). Only a qualified win counts, so winsByWeapon moves on a contested win and nowhere else.
+  // The Room hands the store the weapon in hand when the run ends, and a faction only when the player picked one (these
+  // clients join without, so none is recorded: a round-robin default must not count toward faction titles). Only a
+  // qualified win counts, so winsByWeapon moves on a contested win and nowhere else.
   it("a contested win counts one win for the weapon in hand and none for the faction", async () => {
     const [A, B, C] = [await claim(), await claim(), await claim()];
     const [a, b, c] = await startRun([A, B, C]);

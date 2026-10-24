@@ -1,7 +1,7 @@
 // CLI: launches N headless bots against a running server and prints how each run ended. Every bot hunts:
 // it walks at the nearest enemy and fights it with its weapons (swinging, drawing and loosing a bow, swapping
 // slot, picking up a second weapon early on), so a run ends with a last one standing (or a draw).
-//   npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--loop] [--verbose]
+//   npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--faction rotate] [--loop] [--verbose]
 // Exits non-zero when a bot failed to play (join refused, connection lost, timeout). With --loop every
 // bot queues into a new run as soon as its last one is over, until the process is stopped.
 //
@@ -13,23 +13,29 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PROFILE_RE, SERVER_PORT } from "@raid/shared";
+import { FACTION_IDS, PROFILE_RE, SERVER_PORT, isFactionId, type FactionId } from "@raid/shared";
 import { BotClient, type BotRun } from "./BotClient";
 
 const USAGE = [
-  "usage: npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--loop] [--verbose]",
+  "usage: npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--faction <id|rotate|random>] [--loop] [--verbose]",
   "  <count>     bots to launch, 1-64; they queue into the same lobby and hunt each other",
   "  --url       server to join (default http://localhost:2567)",
   "  --prefix    profile names are <prefix>1..<count> (default bot)",
+  "  --faction   the faction each bot asks for at join (default rotate)",
+  `              ${FACTION_IDS.join(" | ")}   every bot asks for that one`,
+  `              rotate   bot i asks for faction i mod ${FACTION_IDS.length}, so five bots make a lobby with one of each`,
+  "              random   every bot rolls again before each run",
   "  --loop      queue again after every run until stopped (Ctrl-C)",
   "  --verbose   log every bot's decisions",
 ].join("\n");
 const TOKEN_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../data/bot-tokens.json");
 
-interface Args { count: number; url: string; prefix: string; loop: boolean; verbose: boolean }
+type FactionChoice = FactionId | "rotate" | "random";
+
+interface Args { count: number; url: string; prefix: string; faction: FactionChoice; loop: boolean; verbose: boolean }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { count: NaN, url: `http://localhost:${SERVER_PORT}`, prefix: "bot", loop: false, verbose: false };
+  const args: Args = { count: NaN, url: `http://localhost:${SERVER_PORT}`, prefix: "bot", faction: "rotate", loop: false, verbose: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const eq = arg.startsWith("--") ? arg.indexOf("=") : -1;
@@ -47,7 +53,11 @@ function parseArgs(argv: string[]): Args {
     };
     if (flag === "--url") args.url = value();
     else if (flag === "--prefix") args.prefix = value();
-    else if (flag === "--loop") args.loop = toggle();
+    else if (flag === "--faction") {
+      const v = value();
+      if (v !== "rotate" && v !== "random" && !isFactionId(v)) fail(`--faction "${v}" is not one of: ${FACTION_IDS.join(", ")}, rotate, random`);
+      args.faction = v;
+    } else if (flag === "--loop") args.loop = toggle();
     else if (flag === "--verbose") args.verbose = toggle();
     else if (/^\d+$/.test(arg) && Number.isNaN(args.count)) args.count = Number(arg);
     else fail(`unexpected argument: ${arg}`);
@@ -123,20 +133,27 @@ function rememberToken(key: string, token: string): void {
   }
 }
 
-function formatRun({ profile, result, error, abandoned }: BotRun): string {
+function formatRun({ profile, result, error, abandoned }: BotRun, faction: FactionId): string {
   if (abandoned) return `${profile.padEnd(10)} ABANDONED  left the run on purpose`;
   if (!result) return `${profile.padEnd(10)} ERROR      ${error ?? "no result"}`;
   const by = result.killedBy ? `  by ${result.killedBy}` : "";
   const { kills, mobs, bounty, win, total } = result.gv;
   const withheld = result.winBonusWithheld ? " withheld" : "";
   const gv = `GV +${total} (kills ${kills}, mobs ${mobs}, bounty ${bounty}, win ${win}${withheld})`;
-  return `${profile.padEnd(10)} ${result.outcome.padEnd(10)} place ${result.place}/${result.players}  kills ${result.kills}  ${gv}  ${result.durationSec}s${by}`;
+  return `${profile.padEnd(10)} ${faction.padEnd(9)} ${result.outcome.padEnd(10)} place ${result.place}/${result.players}  kills ${result.kills}  ${gv}  ${result.durationSec}s${by}`;
 }
 
-async function playOnce(args: Args, profile: string): Promise<BotRun> {
+/** The faction bot `index` asks for in its next run. Math.random is fine here: this is tooling, not shared sim code. */
+function factionFor(choice: FactionChoice, index: number): FactionId {
+  if (choice === "rotate") return FACTION_IDS[index % FACTION_IDS.length]!;
+  if (choice === "random") return FACTION_IDS[Math.floor(Math.random() * FACTION_IDS.length)]!;
+  return choice;
+}
+
+async function playOnce(args: Args, profile: string, faction: FactionId): Promise<BotRun> {
   const key = `${args.url}/${profile}`;
   // Saved the moment the server hands it out, before the join that can still fail.
-  const bot = new BotClient({ verbose: args.verbose, onToken: (token) => rememberToken(key, token) });
+  const bot = new BotClient({ verbose: args.verbose, faction, onToken: (token) => rememberToken(key, token) });
   try {
     await bot.connect(args.url, profile, savedToken(key));
   } catch (err) {
@@ -146,11 +163,12 @@ async function playOnce(args: Args, profile: string): Promise<BotRun> {
 }
 
 /** Plays one bot (once, or forever with --loop). Returns how many of its runs failed. */
-async function runBot(args: Args, profile: string): Promise<number> {
+async function runBot(args: Args, profile: string, index: number): Promise<number> {
   let failures = 0;
   do {
-    const run = await playOnce(args, profile);
-    console.log(formatRun(run));
+    const faction = factionFor(args.faction, index);
+    const run = await playOnce(args, profile, faction);
+    console.log(formatRun(run, faction));
     if (run.error) {
       failures++;
       if (args.loop) await new Promise((r) => setTimeout(r, 2000)); // don't hammer a server that is down
@@ -163,7 +181,7 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const names = Array.from({ length: args.count }, (_, i) => `${args.prefix}${i + 1}`);
   console.log(`${names.length} bot(s) -> ${args.url}${args.loop ? " (looping, Ctrl-C to stop)" : ""}`);
-  const failures = (await Promise.all(names.map((name) => runBot(args, name)))).reduce((a, b) => a + b, 0);
+  const failures = (await Promise.all(names.map((name, i) => runBot(args, name, i)))).reduce((a, b) => a + b, 0);
   process.exitCode = failures > 0 ? 1 : 0;
   setTimeout(() => process.exit(), 2000).unref(); // never hang on a socket the SDK forgot
 }

@@ -57,7 +57,7 @@ function arena(fighters: Fighter[], orderSalt?: number): World {
       suddenDeathSeconds: 3600,
     },
     random: mulberry32(SEED + 1),
-  });
+  }, { signatures: false });
   world.map = openMap();
   for (const f of fighters) {
     const p = addPlayer(world, f.id, nameOf(f.id));

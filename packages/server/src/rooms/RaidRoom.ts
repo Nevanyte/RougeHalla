@@ -9,8 +9,8 @@
 import { randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
-  type GvReason, type JoinOptions, type RunResult, type ServerMessages,
+  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
+  type FactionId, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { ServerConfig } from "../config";
@@ -79,6 +79,7 @@ export interface RoomContext {
 /** What onAuth hands to onJoin via `client.auth`. */
 interface RoomAuth {
   profile: string;
+  faction: FactionId | null;
 }
 
 /** One joined player's claim on the profile registry. */
@@ -135,6 +136,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private readonly pendingResults = new Map<string, RunResult>();
   /** sessionId -> seat, from onJoin until onLeave. */
   private readonly seats = new Map<string, Seat>();
+  /**
+   * Factions players picked in the hub, by session, until their run is recorded. A round-robin default (no pick) is
+   * not recorded: faction titles and golden variants must not come from luck of the join order.
+   */
+  private readonly picked = new Map<string, FactionId>();
 
   onCreate() {
     const { config } = RaidRoom.ctx;
@@ -169,18 +175,19 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const profile = checkCredentials(options, store);
     // Last, so a rejected join never holds the profile.
     if (!profiles.tryAcquire(profile, this.ownerKey(client.sessionId))) throw refuse("profile already in a raid");
-    return { profile };
+    return { profile, faction: isFactionId(options?.faction) ? options.faction : null };
   }
 
   onJoin(client: Client) {
     const { profiles, store } = RaidRoom.ctx;
-    const { profile } = client.auth as RoomAuth;
+    const { profile, faction } = client.auth as RoomAuth;
     const ownerKey = this.ownerKey(client.sessionId);
     try {
       // Equipped at the moment of joining; changing the wardrobe mid-run takes effect next run.
       const owned = store.get(profile)?.cosmetics;
-      addPlayer(this.world, client.sessionId, profile, owned ? packLook(owned.equipped, owned.owned) : 0);
+      addPlayer(this.world, client.sessionId, profile, { faction, look: owned ? packLook(owned.equipped, owned.owned) : 0 });
       this.seats.set(client.sessionId, { profile, ownerKey });
+      if (faction) this.picked.set(client.sessionId, faction);
       profiles.confirm(profile, ownerKey);
     } catch (err) {
       removePlayer(this.world, client.sessionId);
@@ -233,6 +240,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // forget the result: settle() stores it for a reconnect that can no longer happen.
     this.handleEvents(this.world.events.splice(0));
     this.pendingResults.delete(sessionId);
+    this.picked.delete(sessionId); // settle() takes it when a run is recorded; a lobby leave or a void run never reaches that
     if (seat) profiles.release(seat.profile, seat.ownerKey);
   }
 
@@ -246,6 +254,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       profiles.release(seat.profile, seat.ownerKey);
     }
     this.seats.clear();
+    this.picked.clear();
   }
 
   private bankVoided(profile: string, gv: number) {
@@ -302,15 +311,16 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private settle(sessionId: string, result: RunResult) {
     const { store, profiles } = RaidRoom.ctx;
     let unlocked: string[] = [];
-    // The weapon in hand when the run ended (the winner is still in the state). The faction is left out until the
-    // Phase 10 picker makes it the player's choice: today's is a round-robin default, so counting wins by it would
-    // hand out faction titles and golden variants by luck of the join order.
+    // The weapon in hand when the run ended (the winner is still in the state), and the faction if it was picked.
     const p = this.world.state.players.get(sessionId);
     const held = p ? (p.slot === 1 ? p.weapon1 : p.weapon0) : "";
+    const faction = this.picked.get(sessionId);
+    this.picked.delete(sessionId);
     try {
       ({ unlocked } = store.recordRun(result.profile, {
         outcome: result.outcome, kills: result.kills, gv: result.gv.total, bounty: result.gv.bounty,
         weapon: held || undefined,
+        ...(faction ? { faction } : {}),
         // The win bonus gate doubles as the achievements' anti-farming gate (see RunRecord.winQualified).
         winQualified: result.outcome === "won" && !result.winBonusWithheld,
       }));

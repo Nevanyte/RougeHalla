@@ -289,8 +289,9 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   out.push(`arena: ${mainArena}, ${ARENA_UNITS} u square | perception: ${perception} | ${setups.length} setups per cell ` +
     `(start distances ${[...new Set(setups.map((s) => s.distance))].join("/")} u${setups.length > 3 ? ", start offsets 0 / 0.35 s for either fighter, two directions" : ""}) | ` +
     `time caps: ${typeof capSeconds === "number" ? `${capSeconds} s` : factions.map((f) => `${f} ${(capSeconds as Record<FactionId, number>)[f]} s`).join(", ")}`);
-  out.push("Faction signatures (burn, backlash, mark, plague, chill, lifesteal) are Phase 10, so these duels are weapon hits only; a faction with");
-  out.push("slow or light hits (Sentenced above all) fights for minutes. Report-only: no outcome is asserted and no number is changed.");
+  out.push("Faction signatures (burn, backlash, mark, plague, chill, lifesteal) are off here (DuelSpec.signatures): these duels measure the weapons");
+  out.push("alone, so a faction with slow or light hits (Sentenced above all) fights for minutes; npm run harness:factions measures the faction loop.");
+  out.push("Report-only: no outcome is asserted and no number is changed.");
   out.push("");
   out.push(heading("MATRIX  the designed winner's win% / median seconds of the duels that finished   (* = some duels hit the time cap)"));
   out.push(formatMatrix(view(cells)));

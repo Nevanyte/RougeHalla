@@ -2,11 +2,12 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, withGates, type DamageShares, type FxEvent, type GameMap, type GvReason, type ProjectileKind,
-  type RunResult, type Sample, type Vec2, type WeaponId,
+  generateMap, mulberry32, withGates, type DamageShares, type FxEvent, type GameMap, type GvReason, type ProjectileKind,
+  type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState, type ProjectileState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
+import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
 
 export interface SimConfig {
@@ -114,6 +115,23 @@ export interface LedgerEntry {
   scale: number;
   /** An unblocked sword hit: the victim is staggered if it isn't immune. */
   stagger: boolean;
+  /** Signature damage (sim/factions.ts). Damage over time gets no `hit` fx of its own (it is reported in chunks). */
+  sig?: SignatureKind;
+  /**
+   * Dealt without an attack of the dealer's own (a riposte). A reflected arrow (`projectile` set, weapon "shield") is
+   * passive too. Passive hits make a target only for a fighter that has none.
+   */
+  passive?: boolean;
+}
+
+/** A ledger entry that took hp off its victim this tick (applyLedger), for systems that react to damage. */
+export interface LandedHit {
+  victim: string;
+  by: string;
+  /** After armor and shield: the whole hit, even past the hp a killing tick removes (as testing/realtime.py counts it). */
+  amount: number;
+  weapon: WeaponId;
+  sig?: SignatureKind;
 }
 
 /** A swing whose windup ended this tick (resolved in the melee phase). */
@@ -178,6 +196,8 @@ export interface CombatScratch {
    * tickX/tickY -> x/y). Melee uses it to meet balls, even one whose hit is already in the ledger.
    */
   swept: ProjectileRuntime[];
+  /** Every ledger entry that landed this tick, in the order applied. */
+  landed: LandedHit[];
   /**
    * This tick's secret rank of each player (their place in actionOrder). Exact ties between hits (who gets a kill, which
    * of two bodies an arrow meets) go to the lower rank, so neither join order nor ledger order decides them.
@@ -215,6 +235,8 @@ export type SimEvent =
 /** Handles one queued action for a standing fighter (players today; Phase 11 mobs go through the same handlers). */
 export type ActionHandler = (world: World, c: Combatant, cmd: ActionCommand) => void;
 export type SimSystem = (world: World, dtMs: number) => void;
+/** A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. */
+export type MoveModifier = (world: World, c: Combatant) => number;
 
 export interface WorldHooks {
   /** A player went down (died/mia) with their run gear still on them. Default: discard it. */
@@ -259,10 +281,20 @@ export interface World {
   stepping: boolean;
   /** Gameplay modules install themselves here (see sim/gameplay.ts). Unknown actions are ignored. */
   actions: Partial<Record<ActionCommand["kind"], ActionHandler>>;
+  /**
+   * Run every active step right after the weapon state machines, before movement: this tick's swings are in
+   * combat.melee and its arrows and balls in combat.spawns (Fire's backlash reads them).
+   */
+  afterWeapons: SimSystem[];
+  /** Run every active step after melee, before the ledger is applied: they may still add entries to it. */
+  beforeDamage: SimSystem[];
   /** Run every active step after damage is applied, in registration order. */
   systems: SimSystem[];
+  moveModifiers: MoveModifier[];
   hooks: WorldHooks;
   arena: ArenaRuntime;
+  /** Faction signatures (sim/factions.ts); null until that module is installed. */
+  factions: FactionsRuntime | null;
 }
 
 export function createWorld(opts: {
@@ -286,15 +318,19 @@ export function createWorld(opts: {
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map() },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [] },
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],
     stepping: false,
     actions: {},
+    afterWeapons: [],
+    beforeDamage: [],
     systems: [],
+    moveModifiers: [],
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
     arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
+    factions: null,
   };
 }
 
@@ -302,10 +338,13 @@ export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
 }
 
+type ChainableHook = "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed";
+
 /** Adds a hook that runs after whatever was already installed for it. */
-export function chainHook<K extends "teleported" | "raidStarted">(world: World, key: K, fn: (world: World) => void): void {
-  const prev = world.hooks[key];
-  world.hooks[key] = prev ? (w: World) => { prev(w); fn(w); } : fn;
+export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {
+  const prev = world.hooks[key] as ((...args: unknown[]) => void) | undefined;
+  const next = fn as (...args: unknown[]) => void;
+  world.hooks[key] = (prev ? (...args: unknown[]) => { prev(...args); next(...args); } : fn) as WorldHooks[K];
 }
 
 /**
@@ -314,6 +353,17 @@ export function chainHook<K extends "teleported" | "raidStarted">(world: World, 
  */
 export function collisionMap(world: World): GameMap {
   return world.state.gatesLocked ? withGates(world.map) : world.map;
+}
+
+/**
+ * Order-free tie-break between equal hits for a fighter's target (sim/factions.ts), players and mobs alike: a hash of
+ * the server-secret salt, the tick and the id. It shares orderSalt, so ties a client can stage and observe narrow that
+ * salt down (see CLAUDE.md). Kill credit uses combat.rank instead.
+ */
+export function tieRank(world: World, id: string): number {
+  let h = (world.orderSalt ^ Math.imul(world.state.tick, 0x9e3779b1)) >>> 0;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193) >>> 0;
+  return mulberry32(h)();
 }
 
 /** Room-unique id for containers and other raid-scoped entities (not items: see newItemUid). */

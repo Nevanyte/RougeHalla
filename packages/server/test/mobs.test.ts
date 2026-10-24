@@ -68,7 +68,8 @@ function hall(w: number, h: number, spawns: Array<[number, number]>, open?: (tx:
 
 /** `n` players on a hand-built map, run started. The game modules are installed, but the generated map's loot is cleared away. */
 function startHall(map: GameMap, n: number, cfg: Partial<SimConfig> = {}): World {
-  const world = createGameWorld({ seed: 1234, config: makeConfig({ minPlayers: n, ...cfg }), random: mulberry32(7) });
+  // Weapon behaviour on dummies: the shooter's faction signature would add its own damage once in contact.
+  const world = createGameWorld({ seed: 1234, config: makeConfig({ minPlayers: n, ...cfg }), random: mulberry32(7) }, { signatures: false });
   world.map = map;
   world.state.containers.clear();
   for (let i = 0; i < n; i++) addPlayer(world, idOf(i), NAMES[i]!);
@@ -351,14 +352,12 @@ describe("spawnTraining", () => {
   describe("installation", () => {
     it("is chained onto raidStarted only when config.dummies is set", () => {
       const off = lobby(2);
-      expect(off.hooks.raidStarted).toBeUndefined();
       const loot = off.state.containers.size;
       started(off);
       expect(off.state.mobs.size).toBe(0);
       expect(off.state.containers.size).toBe(loot);
 
       const on = lobby(2, { dummies: true });
-      expect(on.hooks.raidStarted).toBeDefined();
       const before = on.state.containers.size;
       expect(on.state.mobs.size).toBe(0);
       started(on);

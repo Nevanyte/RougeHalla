@@ -2,12 +2,13 @@
 // The server owns the profile; this panel only shows the last loaded copy and sends { profile, token } at join.
 import {
   PROFILE_RE, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, monthKey,
-  type LeaderboardEntry, type ProfileDTO, type ProfileStats,
+  type FactionId, type LeaderboardEntry, type ProfileDTO, type ProfileStats,
 } from "@raid/shared";
 import { ProfileError, fetchLeaderboard, fetchProfile, formatNumber } from "../net/profile";
 import { el, uiRoot } from "./dom";
 import { HubPanels, type HubTabId } from "./hub/hubPanels";
 import { equippedTitle, titleTag } from "./hub/hubUtil";
+import { FactionPicker } from "./factionPicker";
 
 const PROFILE_KEY = "raid.profile";
 const CALLSIGN_RULE = "Callsign: 2–16 letters, digits, _ or -";
@@ -58,6 +59,8 @@ export interface RaidRequest {
   profile: string;
   /** Proof of ownership returned with the loaded profile. */
   token: string;
+  /** The faction picked in the hub; the server starts the player with it. Null before a first pick: none is asked for. */
+  faction: FactionId | null;
 }
 
 export interface MenuHandlers {
@@ -85,6 +88,7 @@ export class Menu {
   private readonly hub = new HubPanels({ onProfile: (profile) => this.showProfile(profile) });
   private readonly board = el("div", "hub-board");
   private readonly boardList = el("ol", "hub-board-list");
+  private readonly picker = new FactionPicker();
   private readonly startBtn = el("button", "btn primary", "Start Run");
   private readonly status = el("div", "menu-status");
   private readonly hint = el("div", "menu-hint", "Playing in two tabs? Open each with ?profile=name in the URL.");
@@ -150,9 +154,9 @@ export class Menu {
     this.board.hidden = true;
     this.board.append(el("div", "hub-board-title", "Top this month"), this.boardList);
 
-    const rules = el("div", "menu-rules", `Last one standing wins. The server picks your faction; every run starts with its signature weapon, and a second slot is yours to fill from chests and the ground. GV you earn is yours to keep even if you die. Winning a run of ${WIN_BONUS_MIN_PLAYERS}+ players pays a bonus if you damaged at least ${WIN_BONUS_MIN_OPPONENTS} of them. Three kills put a bounty on your head: whoever ends your rampage collects it.`);
+    const rules = el("div", "menu-rules", `Last one standing wins. Pick a faction before each run; you start with its signature weapon, and a second slot is yours to fill from chests and the ground. GV you earn is yours to keep even if you die. Winning a run of ${WIN_BONUS_MIN_PLAYERS}+ players pays a bonus if you damaged at least ${WIN_BONUS_MIN_OPPONENTS} of them. Three kills put a bounty on your head: whoever ends your rampage collects it.`);
     const controls = el("div", "menu-rules", "Right-click: move. Left-click: attack (hold to keep attacking; with a bow, hold to draw and release to loose). Q or 1/2: swap weapons. F: take a weapon. S: stop.");
-    this.body.append(this.who, gv, stats, shop, this.board, rules, controls);
+    this.body.append(this.who, gv, stats, shop, this.board, this.picker.element, rules, controls);
 
     this.root.append(el("h1", undefined, "RAID"), row, this.placeholder, this.body, this.startBtn, this.status, this.hint);
 
@@ -250,7 +254,7 @@ export class Menu {
     const data = this.data;
     if (!data || this.busy || this.loading) return;
     saveCallsign(data.profile.name);
-    this.handlers.onStart({ profile: data.profile.name, token: data.token });
+    this.handlers.onStart({ profile: data.profile.name, token: data.token, faction: this.picker.selected });
   }
 
   private setProfile(profile: ProfileDTO, token: string): void {
@@ -317,6 +321,7 @@ export class Menu {
       : "Press Load to open this callsign's hub.";
     this.root.classList.toggle("loading", this.loading);
     this.input.disabled = this.busy;
+    this.picker.setDisabled(this.busy);
     this.loadBtn.disabled = this.busy || this.loading;
     this.startBtn.disabled = this.busy || this.loading || !loaded;
     for (const btn of this.hubButtons) btn.disabled = this.busy;

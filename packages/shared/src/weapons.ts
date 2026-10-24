@@ -157,7 +157,7 @@ export interface WeaponTimings {
    * so a full-draw shot every interval is its designed rate: cooldown = interval - fullDraw.
    */
   cooldown: number;
-  /** Ranged: moves at RANGED_RECOVERY_MOVE until the cooldown ends. */
+  /** Ranged: moves at RANGED_RECOVERY_MOVE for the cooldown as dealt (a Frost chill stretches the cooldown, not this). */
   ranged: boolean;
 }
 

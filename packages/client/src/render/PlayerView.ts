@@ -5,6 +5,8 @@ import {
 import type { PlayerState } from "@raid/shared/schema";
 import { BodyFlash, FighterArt, drawHpBar, factionColor, heldWeapon } from "./FighterArt";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
+import { SignatureArt } from "./SignatureArt";
+import { MarksMemory } from "./signatureLook";
 import { TrailView } from "./TrailView";
 
 const HIT_FLASH_MS = 120;
@@ -61,7 +63,9 @@ export class PlayerView {
   private readonly goldHalo: Phaser.GameObjects.Graphics;
   private readonly title: Phaser.GameObjects.Text;
   private readonly art: FighterArt;
+  private readonly signatures: SignatureArt;
   private readonly flashing: BodyFlash;
+  private readonly marks = new MarksMemory();
   /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
   private crownBounty = 0;
   /** The look word `look` was decoded from; -1 (never a uint32) until the first update, so even word 0 is decoded once. */
@@ -78,6 +82,7 @@ export class PlayerView {
     const mark = scene.add.graphics().setVisible(isLocal);
     mark.lineStyle(2, LOCAL_MARK, 0.9).strokeEllipse(0, 0, PLAYER_RADIUS * 2.9, PLAYER_RADIUS * 2.9 * Y_SCALE);
     this.art = new FighterArt(scene);
+    this.signatures = new SignatureArt(scene);
     this.goldHalo = scene.add.graphics().setVisible(false);
     this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor(""));
     this.core = scene.add.circle(0, -BODY_LIFT, SKIN_CORE_RADIUS, 0xffffff).setVisible(false);
@@ -106,8 +111,8 @@ export class PlayerView {
     }).setOrigin(0.5, 0).setVisible(false);
     this.setStroke(null, false);
     this.root = scene.add.container(0, 0, [
-      shadow, mark, this.goldHalo, this.art.ground, this.body, this.core, this.nose, this.art.held, this.shieldRing,
-      this.hpBar, this.label, this.crown, this.crownLabel, this.title,
+      shadow, mark, this.signatures.ground, this.goldHalo, this.art.ground, this.body, this.core, this.nose, this.art.held,
+      this.signatures.aura, this.shieldRing, this.hpBar, this.label, this.crown, this.crownLabel, this.title,
     ]);
   }
 
@@ -117,9 +122,8 @@ export class PlayerView {
   }
 
   /**
-   * What the player is using right now, for the golden variants (faction and weapon ids as in `GOLD_TARGETS`). update()
-   * reports the weapon in hand; the faction stays unset until the Phase 10 picker makes it the player's own choice, so
-   * no golden faction look is drawn yet. Cheap to call every frame: it only repaints on a change.
+   * What the player is using right now, for the golden variants (faction and weapon ids as in `GOLD_TARGETS`): update()
+   * reports the faction and the weapon in hand. Cheap to call every frame: it only repaints on a change.
    */
   setUsing(using: { faction?: string; weapon?: string }): void {
     if (using.faction === this.usingFaction && using.weapon === this.usingWeapon) return;
@@ -131,8 +135,9 @@ export class PlayerView {
   /**
    * `renderT`: the server time this frame is drawn at. `patchT`: the server time of the newest patch (see FighterArt).
    * `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them.
+   * `signatures`: draw the faction signature marks (the synced values freeze when a run ends, so only while it is active).
    */
-  update(x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false): void {
+  update(x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false, signatures = false): void {
     const now = performance.now();
     // The look is set once at join and never changes in a run, so this decodes once per player.
     if (p.look !== this.lookWord) this.applyLook(p.look);
@@ -141,6 +146,7 @@ export class PlayerView {
     this.root.setVisible(visible);
     if (!visible) {
       this.trail?.reset();
+      this.marks.read(0, 0, false);
       return;
     }
     this.flashing.setColor(factionColor(p.faction));
@@ -148,10 +154,13 @@ export class PlayerView {
     this.root.setDepth(depthFor(y));
     // Before art.update(), so a golden weapon look is on the very frame the weapon is drawn.
     const held = heldWeapon(p);
-    this.setUsing(held ? { weapon: held } : {});
+    this.setUsing({ faction: p.faction || undefined, weapon: held ?? undefined });
     const weapon = this.art.update(p, renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(p.facing));
     this.label.setText(p.name);
+    // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
+    this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
+    this.signatures.update(this.marks.sig, this.marks.brand, signatures);
 
     drawHpBar(this.hpBar, p.maxHp > 0 ? p.hp / p.maxHp : 0, -BODY_LIFT - PLAYER_RADIUS - 8);
 

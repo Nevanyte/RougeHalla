@@ -22,7 +22,7 @@ export const PlayerState = schema({
   maxHp: t.number().default(0),
   /** PlayerStatus */
   status: t.string().default("lobby"),
-  /** FactionId. A server default until the Phase 10 picker. */
+  /** FactionId: picked in the hub (JoinOptions.faction), else a server default. */
   faction: t.string().default(""),
   /** The two weapon slots (WeaponId, "" = empty) and which one is in hand. */
   weapon0: t.string().default(""),
@@ -39,6 +39,10 @@ export const PlayerState = schema({
   bounty: t.uint16().default(0),
   /** Server time until which damage to this player is ignored (teleport immunity); 0 = none. */
   immuneUntil: t.number().default(0),
+  /** Signatures acting on this fighter (SIG_* bits: chilled, burning, diseased, execute), for visuals. */
+  sig: t.uint8().default(0),
+  /** How far the strongest Sentenced mark on this fighter has grown, in percent (steps of 5); 0 = not marked. */
+  brand: t.uint8().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -60,6 +64,8 @@ export const MobState = schema({
   slot: t.uint8().default(0),
   drawStartedAt: t.number().default(0),
   readyAt: t.number().default(0),
+  sig: t.uint8().default(0),
+  brand: t.uint8().default(0),
 }, "MobState");
 export type MobState = SchemaType<typeof MobState>;
 

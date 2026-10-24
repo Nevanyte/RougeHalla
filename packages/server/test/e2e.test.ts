@@ -1,15 +1,17 @@
 // The whole game, end to end: the real server in this process on a free port, a temp profile file, short
 // timers, and four headless bots (src/bots) that hunt each other through one complete run by sending inputs
-// only: they walk, aim, draw and loose their bows, swing, swap weapons and pick up a second one. Three play it out;
+// only: they walk, aim, draw and loose their bows, swing, swap weapons and pick up a second one. Each asks for its
+// faction at join, as the hub's picker does, and the server must have given it that one. Three play it out;
 // the fourth walks out a second into the run, which the server must settle as MIA (it leaves, so it may never see
 // its result: that one is checked through the store). What is asserted is what must hold whoever wins: the run ended
 // in one winner or a draw, every bot that stayed got exactly one sensible result, the GV ledger balances for every
 // profile (kills pay GV_KILL, the winner gets GV_WIN unless the anti alt-farming rule withheld it, all of it banked
 // once, in the profile, its lifetime total and the month), the stats add up, the file on disk says the same, and
 // nothing blew up. The bots must really fight: somebody gets killed by a bot, and the kills the results claim match
-// the deaths they name. The run is played twice: with a patience long enough for the bots to meet first, and with
-// one so short that the arena teleports them into the coliseum before anyone has died, after which they must keep
-// landing hits.
+// the deaths they name, and the faction signatures fire: damage over time and Fire's backlash are broadcast as `hit`
+// fx with a `sig`, each dealt by a player of the faction that owns it. The run is played twice: with a patience long
+// enough for the bots to meet first, and with one so short that the arena teleports them into the coliseum before
+// anyone has died, after which they must keep landing hits.
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -17,21 +19,30 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from "vitest";
 import { matchMaker, Room } from "@colyseus/core";
 import {
-  GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, ROOM_NAME, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS,
-  WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, type ProfileResponse, type RunOutcome, type RunResult, type TimedFx,
+  GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, ROOM_NAME, SIGNATURE_WEAPONS, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS,
+  WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS,
+  type FactionId, type ProfileResponse, type RunOutcome, type RunResult, type SignatureKind, type TimedFx,
 } from "@raid/shared";
+import type { RaidState } from "@raid/shared/schema";
 import { BotClient, type BotRun } from "../src/bots/BotClient";
 import { loadConfig } from "../src/config";
 import { startServer, type RaidServer } from "../src/index";
 import type { ProfileRecord } from "../src/persistence/ProfileStore";
 
 const BOTS = 4;
-/**
- * Index of the bot that walks out of the run. The bots join one after another, and the server hands out factions round-robin
- * in join order (fire, sentenced, plague, frost), so this is the Sentenced one, whose damage is mostly a mark that does not
- * exist yet: the three who stay are the ones who can actually kill each other. The test asserts nothing about factions.
- */
+/** Index of the bot that walks out of the run. Every faction can kill now, so any lineup leaves three who can fight it out. */
 const QUITTER = 1;
+/**
+ * The faction each bot asks for at join, by index, so the run never depends on the server's round-robin default. The
+ * first lineup keeps Fire, Plague and Sentenced in the fight (the quitter is Holy): their signatures all come out as
+ * `hit` fx with a `sig` (burn and backlash, disease, mark), which is what the run is checked for. The second keeps
+ * Frost, Fire and Holy in the fight (the quitter is Sentenced), so the chill and Holy's lifesteal can run on a real
+ * server too. Nothing asserts them: who fights whom, and for how long, varies from run to run.
+ */
+const SIGNATURE_LINEUP: readonly FactionId[] = ["fire", "holy", "plague", "sentenced"];
+const CONTROL_LINEUP: readonly FactionId[] = ["frost", "sentenced", "fire", "holy"];
+/** Which faction a signature belongs to: its `hit` fx are always dealt by that faction's players. */
+const SIGNATURE_OWNER: Readonly<Record<SignatureKind, FactionId>> = { burn: "fire", backlash: "fire", disease: "plague", mark: "sentenced" };
 /** Server time into the run when it does: too early for anyone to have died, since a kill takes several hits. */
 const QUIT_AFTER_MS = 1_000;
 const OUTCOMES: readonly RunOutcome[] = ["won", "draw", "died", "mia"];
@@ -80,7 +91,9 @@ interface Timers { patienceSeconds: number; suddenDeathSeconds: number }
 interface Played { bots: BotClient[]; players: number[]; fx: TimedFx[] }
 
 /** Plays one run on a fresh server (and fresh profiles) and checks everything that must hold, whoever wins. */
-async function playRun(prefix: string, timers: Timers, expectKill = false): Promise<Played> {
+async function playRun(
+  prefix: string, lineup: readonly FactionId[], timers: Timers, { expectKill = false, expectSignature = false } = {},
+): Promise<Played> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-e2e-"));
   const profileFile = path.join(dir, "data", "stash.json");
   const port = await freePort();
@@ -112,6 +125,7 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
     const bots = names.map((_, i) => new BotClient({
       timeoutMs: 90_000,
       verbose: !!process.env.E2E_VERBOSE,
+      faction: lineup[i],
       ...(i === QUITTER ? { abandonAfterMs: QUIT_AFTER_MS } : {}),
     }));
     const players = names.map((_, i) => i).filter((i) => i !== QUITTER);
@@ -121,6 +135,20 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
     for (const [i, bot] of bots.entries()) await bot.connect(url, names[i]!);
     expect(new Set(bots.map((b) => b.roomId)).size).toBe(1);
     const roomId = bots[0]!.roomId;
+
+    // The server's own player for each bot has the faction it asked for and that faction's signature weapon. Read
+    // before the first await, so even the quitter (which leaves a second into the run) is still in the state.
+    const serverRoom = matchMaker.getLocalRoomById(roomId) as Room<{ state: RaidState }> | undefined;
+    expect(serverRoom, "the room the bots joined").toBeDefined();
+    const factionOfSession = new Map<string, FactionId>();
+    for (const [i, name] of names.entries()) {
+      const entry = [...serverRoom!.state.players].find(([, p]) => p.name === name);
+      expect(entry, `${name} has a player in the room`).toBeDefined();
+      const [id, p] = entry!;
+      expect(p.faction, `${name} asked for ${lineup[i]}`).toBe(lineup[i]);
+      expect(p.weapon0, `${name} (${p.faction}) starts with its signature weapon`).toBe(SIGNATURE_WEAPONS[lineup[i]!]);
+      factionOfSession.set(id, p.faction as FactionId);
+    }
     for (const name of names) {
       const fresh = server.store.get(name)!;
       expect(ledger(fresh), `${name} starts empty`).toEqual({
@@ -161,7 +189,7 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
     const all = [...results.values()];
     const sent = (type: keyof BotClient["sent"]) => sum(bots.map((b) => b.sent[type]));
     console.log(
-      `[e2e] ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}=${results.get(i)?.outcome ?? "quit"}`).join(" ")}`
+      `[e2e] ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}(${lineup[i]})=${results.get(i)?.outcome ?? "quit"}`).join(" ")}`
       + ` (sent ${sent("attack")} attacks, ${sent("release")} releases, ${sent("swap")} swaps, ${sent("pickup")} pickups)`,
     );
 
@@ -190,6 +218,15 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
     // --- the bots fought with their weapons: every one that stayed pulled the trigger, and some hit another
     for (const i of players) expect(bots[i]!.sent.attack, `${names[i]} never attacked`).toBeGreaterThanOrEqual(1);
     expect(fx.some((f) => f.kind === "hit" && f.by !== null), "no bot ever hit another").toBe(true);
+
+    // --- the signatures fired: damage over time and backlash are `hit` fx with a `sig`, and each was dealt by a player
+    // of the faction that owns that signature (never a count: who meets whom, and for how long, is up to the bots)
+    const sigHits = fx.flatMap((f) => (f.kind === "hit" && f.sig !== undefined ? [f] : []));
+    for (const f of sigHits) {
+      expect(factionOfSession.get(f.by ?? ""), `${f.sig} hit on ${f.id} dealt by ${f.by}`).toBe(SIGNATURE_OWNER[f.sig!]);
+    }
+    console.log(`[e2e] signature hits: ${JSON.stringify(Object.fromEntries([...new Set(sigHits.map((f) => f.sig))].map((k) => [k, sigHits.filter((f) => f.sig === k).length])))}`);
+    if (expectSignature) expect(sigHits.length, "no signature damage (burn, backlash, disease or mark) was ever dealt").toBeGreaterThanOrEqual(1);
 
     // --- the kills: the bots really fought, and the kills the results claim are the deaths they name
     const totalKills = sum(all.map((r) => r.kills));
@@ -345,12 +382,12 @@ describe("headless bots hunt through a full run", () => {
     // each other first (a faction's hp is 500-1750 and a hit a fraction of that): with them really fighting the run
     // ends in a kill by a bot, whoever wins (expectKill), where a run decided by sudden death alone would mean they
     // never landed enough hits.
-    await playRun("e2ebot", { patienceSeconds: 8, suddenDeathSeconds: 10 }, true);
+    await playRun("e2ebot", SIGNATURE_LINEUP, { patienceSeconds: 8, suddenDeathSeconds: 10 }, { expectKill: true, expectSignature: true });
   }, 120_000);
 
   it("teleports everyone into the coliseum and the bots keep hunting there", async () => {
     // A patience this short expires before anyone can have died, so the arena always fires.
-    const { bots, players, fx } = await playRun("tpbot", { patienceSeconds: 1, suddenDeathSeconds: 2 });
+    const { bots, players, fx } = await playRun("tpbot", CONTROL_LINEUP, { patienceSeconds: 1, suddenDeathSeconds: 2 });
     for (const i of players) expect(bots[i]!.teleports, `bot ${i} teleports`).toBeGreaterThanOrEqual(1);
 
     // And they fight there: shots that hit somebody after the teleport's immunity is over, so they can do damage.

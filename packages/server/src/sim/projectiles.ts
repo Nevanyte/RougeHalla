@@ -233,7 +233,8 @@ export function sweepProjectiles(world: World, dtMs: number): void {
       }
       const st = pr.state;
       if (pr.kind === "arrow" && activeWeapon(hit.c.s) === "shield" && projectileOnShieldFront(hit.c.s.facing, st.vx, st.vy)) {
-        emit(world, { type: "fx", fx: { kind: "block", id: hit.c.id, by: pr.owner, weapon: pr.weapon } });
+        const block = { kind: "block" as const, id: hit.c.id, by: pr.owner, weapon: pr.weapon };
+        emit(world, { type: "fx", fx: pr.weapon === "shield" ? { ...block, passive: true } : block });
         if (pr.reflections >= MAX_ARROW_REFLECTIONS) {
           endProjectile(world, pr, hit.x, hit.y, "blocked");
           continue;

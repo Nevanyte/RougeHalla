@@ -15,6 +15,7 @@ import { ProjectileView } from "../render/ProjectileView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
+import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import { WeaponBar } from "../ui/weaponBar";
 
 export interface RaidSceneData {
@@ -41,16 +42,6 @@ const AIM_KEEPALIVE_MS = 500;
  */
 const AIM_HEIGHT = BODY_LIFT;
 
-// Red screen flash when the local player loses hp: opacity scales with the hit, within these bounds.
-const DAMAGE_FLASH_MS = 180;
-const DAMAGE_FLASH_MIN = 0.12;
-const DAMAGE_FLASH_MAX = 0.4;
-const DAMAGE_FLASH_PER_HP = 0.012;
-/** Hp lost in one frame at or above this restarts a flash already in progress (a sudden-death tick is well below it). */
-const DAMAGE_FLASH_FORCE_HP = 5;
-/** Losses below this per frame (sudden death burns under 2 hp a tick for its first ~19 s) don't flash. */
-const DAMAGE_FLASH_MIN_HP = 2;
-
 /** Shortcuts must never fire while the player is typing in a form control. */
 function isTyping(target: EventTarget | null): boolean {
   for (const node of [target, document.activeElement]) {
@@ -72,6 +63,7 @@ export class RaidScene extends Phaser.Scene {
   private minimap!: Minimap;
   private hud!: Hud;
   private weaponBar!: WeaponBar;
+  private feedback!: ScreenFeedback;
   /** Container with a weapon the local player could take right now: alive, and in range with line of sight by the server's own rule. */
   private nearest: ContainerState | null = null;
   private marker!: Phaser.GameObjects.Ellipse;
@@ -95,8 +87,8 @@ export class RaidScene extends Phaser.Scene {
   /** Last aim angle streamed or attached to an attack or release, and when. */
   private lastAimSent: number | null = null;
   private lastAimSentAt = 0;
-  /** Local hp at the previous frame while alive, or -1 when unknown (not alive yet). */
-  private lastHp = -1;
+  /** Server time of the newest patch the sudden-death vignette has looked at: one pulse per patch, not per frame. */
+  private lastArenaPatchT = 0;
   /**
    * Players whose death fx is queued but not yet due, keyed by id. The death patch (status "dead", a new body) is
    * ahead of render time, so until renderT reaches `t` they are still drawn alive and their body stays hidden.
@@ -106,6 +98,7 @@ export class RaidScene extends Phaser.Scene {
   private readonly inHand = new Map<string, string>();
   private resultsVisible: (() => boolean) | undefined;
   private readonly tmp = { x: 0, y: 0 };
+  private readonly sampleMatchup = () => matchupTarget(this.room.state, this.room.sessionId, this.rendered, this.mapView?.map);
   /** Last rendered ground position per fighter (players and mobs); read by dev tooling (window.__raid). */
   readonly rendered = new Map<string, { x: number; y: number }>();
   private readonly onState = (state: RaidState) => {
@@ -157,9 +150,10 @@ export class RaidScene extends Phaser.Scene {
     this.attackSent = false;
     this.lastAimSent = null;
     this.lastAimSentAt = 0;
-    this.lastHp = -1;
+    this.lastArenaPatchT = 0;
     this.hud = new Hud();
     this.weaponBar = new WeaponBar();
+    this.feedback = new ScreenFeedback();
     // Before buildMap: building a map repaints the minimap's static layer.
     this.minimap = new Minimap();
     this.buildMap(this.room.state.seed);
@@ -171,6 +165,8 @@ export class RaidScene extends Phaser.Scene {
       position: (id) => this.rendered.get(id),
       name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
       projectileEnded: (id) => this.projectiles.finish(id),
+      // At render time with the flash and the number, not on arrival (~INTERP_DELAY_MS earlier): damageFlash judges the hit against max hp.
+      localHit: (fx) => this.feedback.hit(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0, fx.sig),
       announce: data.toast,
     });
     this.unbindFx = this.room.onMessage("fx", (fx: TimedFx) => {
@@ -241,13 +237,15 @@ export class RaidScene extends Phaser.Scene {
     }
 
     const patchT = state.serverTime;
+    // The sim freezes `sig` and `brand` when a run ends, so the signature marks are only drawn while it is active.
+    const signatures = state.phase === "active";
     const seen = new Set<string>();
     state.players.forEach((p, id) => {
       seen.add(id);
       let view = this.views.get(id);
       if (!view) { view = new PlayerView(this, id === this.room.sessionId); this.views.set(id, view); }
       this.sampleDrawn(id, renderT, p);
-      view.update(this.tmp.x, this.tmp.y, p, renderT, patchT, this.deathPending(id));
+      view.update(this.tmp.x, this.tmp.y, p, renderT, patchT, this.deathPending(id), signatures);
       if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.tmp.x), projY(this.tmp.y));
     });
     for (const [id, view] of this.views) {
@@ -259,7 +257,7 @@ export class RaidScene extends Phaser.Scene {
       let view = this.mobViews.get(id);
       if (!view) { view = new MobView(this); this.mobViews.set(id, view); }
       this.sampleDrawn(id, renderT, m);
-      view.update(this.tmp.x, this.tmp.y, m, renderT, patchT);
+      view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, signatures);
     });
     for (const [id, view] of this.mobViews) {
       if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); }
@@ -280,7 +278,8 @@ export class RaidScene extends Phaser.Scene {
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
     this.fx.update(renderT, now, this.clockSynced);
-    this.trackDamage(me);
+    this.trackArenaDamage(me, state);
+    this.feedback.update(now, this.sampleMatchup);
 
     // Redraws only when the player's dot (or the gates) actually changed.
     this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
@@ -469,21 +468,17 @@ export class RaidScene extends Phaser.Scene {
     return this.room.state.players.get(this.room.sessionId)?.status === "alive";
   }
 
-  /** Red flash on the camera whenever the local player's hp drops between frames (hits, late sudden-death ticks). */
-  private trackDamage(me: PlayerState | undefined): void {
-    if (!me) { this.lastHp = -1; return; }
-    // The drop is measured before the status check: the killing blow arrives as hp 0 together with status "dead".
-    const lost = this.lastHp >= 0 ? this.lastHp - me.hp : 0;
-    this.lastHp = me.status === "alive" ? me.hp : -1;
-    // Small per-tick losses (the start of sudden death) already have the HUD warning; only real hits flash.
-    if (lost < DAMAGE_FLASH_MIN_HP) return;
-    const cam = this.cameras.main;
-    const force = lost >= DAMAGE_FLASH_FORCE_HP;
-    // Writing alpha while a flash runs would pin it at the peak every frame (a constant red flicker).
-    if (!force && cam.flashEffect.isRunning) return;
-    // flashEffect.alpha is the flash's peak opacity; start() reads it, and the default of 1 would white-out the screen.
-    cam.flashEffect.alpha = Math.min(DAMAGE_FLASH_MAX, DAMAGE_FLASH_MIN + lost * DAMAGE_FLASH_PER_HP);
-    cam.flash(DAMAGE_FLASH_MS, 220, 20, 20, force);
+  /**
+   * Sudden death hurts everyone every tick but sends no `hit` fx (the arena isn't an attacker). The hp the state loses
+   * can't stand in for it: that also holds damage over time (which never flashes) and hits that already did. So each
+   * new patch pulses the vignette with what sudden death alone takes from the local player that tick.
+   */
+  private trackArenaDamage(me: PlayerState | undefined, state: RaidState): void {
+    const fresh = state.serverTime > this.lastArenaPatchT;
+    this.lastArenaPatchT = state.serverTime;
+    if (!fresh || me?.status !== "alive" || !state.gatesLocked) return;
+    const lost = suddenDeathLoss(me.maxHp, state.serverTime, state.suddenDeathAt);
+    if (lost > 0) this.feedback.hit(lost, me.maxHp);
   }
 
   /**
@@ -552,6 +547,7 @@ export class RaidScene extends Phaser.Scene {
     this.inHand.clear();
     this.hud.destroy();
     this.weaponBar.destroy();
+    this.feedback.destroy();
     if (import.meta.env.DEV) {
       const w = window as unknown as { __raid?: { scene?: unknown } };
       if (w.__raid?.scene === this) delete w.__raid;

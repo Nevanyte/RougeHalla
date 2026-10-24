@@ -78,8 +78,8 @@ export const BEATS: ReadonlyArray<readonly [FactionId, FactionId]> = [
 ];
 
 /**
- * The faction a player gets until the Phase 10 picker exists: the n-th player to join a room gets the n-th faction in
- * FACTION_IDS order (round-robin), so a lobby of five has one of each.
+ * The faction of a player who joined without picking one (bots, old clients): the n-th player to join a room gets the
+ * n-th faction in FACTION_IDS order (round-robin), so a lobby of five such players has one of each.
  */
 export function defaultFaction(joinIndex: number): FactionId {
   return FACTION_IDS[((joinIndex % FACTION_IDS.length) + FACTION_IDS.length) % FACTION_IDS.length]!;
