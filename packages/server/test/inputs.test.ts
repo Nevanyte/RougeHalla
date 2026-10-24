@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { WORLD_H, WORLD_W } from "@raid/shared";
+import { CLIENT_MESSAGE_TYPES, WORLD_H, WORLD_W, type ClientMessageType } from "@raid/shared";
 import {
-  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseId, parsePoint,
+  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePoint,
   type ActionCommand,
 } from "../src/sim/inputs";
+
+const pickup = (containerId: string): ActionCommand => ({ kind: "pickup", containerId });
 
 describe("InputQueue", () => {
   it("starts empty", () => {
     const q = new InputQueue();
     expect(q.move).toBeNull();
+    expect(q.aim).toBeNull();
     expect(q.actions).toEqual([]);
     expect(q.dropped).toBe(0);
   });
@@ -29,30 +32,52 @@ describe("InputQueue", () => {
     expect(q.drain().move).toEqual({ kind: "stop" });
   });
 
+  it("keeps only the latest aim", () => {
+    const q = new InputQueue();
+    q.pushAim(1);
+    q.pushAim(2);
+    q.pushAim(-0.5);
+    expect(q.drain().aim).toBe(-0.5);
+  });
+
+  it("keeps an aim of exactly 0: null is the only 'no aim'", () => {
+    const q = new InputQueue();
+    q.pushAim(1);
+    q.pushAim(0);
+    expect(q.drain().aim).toBe(0);
+    expect(q.drain().aim).toBeNull();
+  });
+
   it("preserves action order and caps actions at MAX_ACTIONS_PER_TICK", () => {
     const q = new InputQueue();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 3; i++) q.pushAction({ kind: "use", uid: `u${i}` });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 3; i++) q.pushAction(pickup(`c${i}`));
     expect(q.actions).toHaveLength(MAX_ACTIONS_PER_TICK);
     expect(q.dropped).toBe(3);
     const { actions } = q.drain();
-    expect(actions.map((a) => (a as { uid: string }).uid)).toEqual(
-      Array.from({ length: MAX_ACTIONS_PER_TICK }, (_, i) => `u${i}`),
+    expect(actions.map((a) => (a as { containerId: string }).containerId)).toEqual(
+      Array.from({ length: MAX_ACTIONS_PER_TICK }, (_, i) => `c${i}`),
     );
   });
 
   it("keeps the earliest actions, not the latest, when over the cap", () => {
     const q = new InputQueue();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "use", uid: "early" });
-    q.pushAction({ kind: "drop", uid: "late" });
-    expect(q.actions.every((a) => a.kind === "use")).toBe(true);
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction(pickup("early"));
+    q.pushAction({ kind: "swap" });
+    q.pushAction({ kind: "release", a: 0 });
+    expect(q.actions.every((a) => a.kind === "pickup")).toBe(true);
+    expect(q.dropped).toBe(2);
   });
 
-  it("does not let move spam consume the action budget", () => {
+  it("does not let move or aim spam consume the action budget", () => {
     const q = new InputQueue();
-    for (let i = 0; i < 100; i++) q.pushMove({ kind: "move", x: i, y: i });
-    q.pushAction({ kind: "use", uid: "u" });
+    for (let i = 0; i < 100; i++) {
+      q.pushMove({ kind: "move", x: i, y: i });
+      q.pushAim(i / 10);
+    }
+    q.pushAction(pickup("c"));
     const d = q.drain();
     expect(d.move).toEqual({ kind: "move", x: 99, y: 99 });
+    expect(d.aim).toBeCloseTo(9.9, 9);
     expect(d.actions).toHaveLength(1);
     expect(q.dropped).toBe(0);
   });
@@ -60,37 +85,51 @@ describe("InputQueue", () => {
   it("drain returns the buffered inputs and resets the queue", () => {
     const q = new InputQueue();
     q.pushMove({ kind: "move", x: 5, y: 6 });
-    q.pushAction({ kind: "use", uid: "u" });
+    q.pushAim(1.5);
+    q.pushAction(pickup("c"));
     const first = q.drain();
     expect(first.move).toEqual({ kind: "move", x: 5, y: 6 });
-    expect(first.actions).toEqual([{ kind: "use", uid: "u" }]);
+    expect(first.aim).toBe(1.5);
+    expect(first.actions).toEqual([pickup("c")]);
     expect(q.move).toBeNull();
+    expect(q.aim).toBeNull();
     expect(q.actions).toEqual([]);
-    expect(q.drain()).toEqual({ move: null, actions: [] });
+    expect(q.drain()).toEqual({ move: null, aim: null, actions: [] });
   });
 
   it("returns an array that is not aliased by later pushes", () => {
     const q = new InputQueue();
-    q.pushAction({ kind: "use", uid: "u" });
+    q.pushAction(pickup("c"));
     const { actions } = q.drain();
-    q.pushAction({ kind: "drop", uid: "x" });
-    expect(actions).toEqual([{ kind: "use", uid: "u" }]);
+    q.pushAction({ kind: "swap" });
+    expect(actions).toEqual([pickup("c")]);
   });
 
   it("accepts a full action budget again after a drain", () => {
     const q = new InputQueue();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "use", uid: "u" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction(pickup("c"));
     q.drain();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction({ kind: "use", uid: "u" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) q.pushAction(pickup("c"));
     expect(q.actions).toHaveLength(MAX_ACTIONS_PER_TICK);
   });
 
   it("keeps `dropped` as a running counter across drains", () => {
     const q = new InputQueue();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 1; i++) q.pushAction({ kind: "use", uid: "u" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 1; i++) q.pushAction(pickup("c"));
     q.drain();
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 2; i++) q.pushAction({ kind: "use", uid: "u" });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 2; i++) q.pushAction(pickup("c"));
     expect(q.dropped).toBe(3);
+  });
+
+  it("allows six actions a tick: three quick taps (press and release) fit, a fourth is dropped", () => {
+    expect(MAX_ACTIONS_PER_TICK).toBe(6);
+    const q = new InputQueue();
+    for (let tap = 0; tap < 4; tap++) {
+      q.pushAction({ kind: "attack", a: tap });
+      q.pushAction({ kind: "release", a: tap });
+    }
+    expect(q.actions.map((a) => a.kind)).toEqual(["attack", "release", "attack", "release", "attack", "release"]);
+    expect(q.dropped).toBe(2);
   });
 });
 
@@ -147,6 +186,64 @@ describe("parsePoint", () => {
     const msg = { x: 1, y: 2 };
     expect(parsePoint(msg)).not.toBe(msg);
   });
+});
+
+describe("parseAngle", () => {
+  it.each([0, 1, -1, 3, -3, Math.PI / 2, -Math.PI / 2, 1e-9, Math.PI])("accepts the in-range angle %d unchanged", (a) => {
+    expect(parseAngle(a)).toBe(a);
+  });
+
+  it("covers (-PI, PI]: PI stays, -PI becomes PI", () => {
+    expect(parseAngle(Math.PI)).toBe(Math.PI);
+    expect(parseAngle(-Math.PI)).toBe(Math.PI);
+    expect(parseAngle(3 * Math.PI)).toBe(Math.PI);
+  });
+
+  it.each([
+    [7, 7 - 2 * Math.PI],
+    [-7, -7 + 2 * Math.PI],
+    [2 * Math.PI, 0],
+    [-2 * Math.PI, 0],
+    [2 * Math.PI + 1, 1],
+    [-2 * Math.PI - 1, -1],
+    [10 * Math.PI + 0.5, 0.5],
+    [100, 100 - 32 * Math.PI],
+  ])("wraps %d to %d", (a, want) => {
+    expect(parseAngle(a)).toBeCloseTo(want, 9);
+  });
+
+  it("always lands in (-PI, PI] for angles of ordinary size", () => {
+    for (let a = -50; a <= 50; a += 0.37) {
+      const w = parseAngle(a)!;
+      expect(w).toBeGreaterThan(-Math.PI);
+      expect(w).toBeLessThanOrEqual(Math.PI);
+    }
+    for (const a of [1e6, -1e6, 123456.789, -987654.321]) {
+      const w = parseAngle(a)!;
+      expect(w).toBeGreaterThan(-Math.PI);
+      expect(w).toBeLessThanOrEqual(Math.PI);
+    }
+  });
+
+  // SRC ISSUE (not fixed here: tests don't edit src). wrapAngle() in shared/src/interactions.ts subtracts
+  // 2*PI*floor((a+PI)/(2*PI)), which loses all precision once |a| reaches about 1e14: parseAngle(1e16) is -4 and
+  // parseAngle(1e18) is 128, and for some values near MAX_VALUE the result is around 7e283. A client could stamp
+  // that into w.aim and the synced `facing`. Minimal patch in parseAngle: wrapAngle(v % (2 * Math.PI)); an exact
+  // fmod first brought 2 million random angles up to 1e300 back into range.
+  it("wraps huge finite angles into (-PI, PI] too", () => {
+    for (const a of [1e16, 1.5e16, 3e16, 1e18, -1e16, -1.5e16]) {
+      const w = parseAngle(a)!;
+      expect(w, `parseAngle(${a})`).toBeGreaterThan(-Math.PI);
+      expect(w, `parseAngle(${a})`).toBeLessThanOrEqual(Math.PI);
+    }
+  });
+
+  it.each([NaN, Infinity, -Infinity, "1", "", null, undefined, true, {}, [], [1], 1n, Symbol("a")])(
+    "rejects %s",
+    (v) => {
+      expect(parseAngle(v)).toBeNull();
+    },
+  );
 });
 
 describe("parseId", () => {
@@ -225,97 +322,292 @@ describe("enqueueClientMessage", () => {
     });
   });
 
-  describe("attack", () => {
-    it("queues a clamped attack action and leaves movement alone", () => {
+  describe("aim", () => {
+    it("queues the angle, not an action, and leaves movement alone", () => {
       const q = fresh();
-      expect(enqueueClientMessage(q, "attack", { x: WORLD_W * 2, y: 5 })).toBe(true);
-      expect(q.actions).toEqual([{ kind: "attack", x: WORLD_W, y: 5 }]);
+      expect(enqueueClientMessage(q, "aim", { a: 1.25 })).toBe(true);
+      expect(q.aim).toBe(1.25);
+      expect(q.actions).toEqual([]);
       expect(q.move).toBeNull();
     });
 
-    it("rejects malformed targets", () => {
+    it("wraps the angle into (-PI, PI]", () => {
       const q = fresh();
-      expect(enqueueClientMessage(q, "attack", { x: NaN, y: 5 })).toBe(false);
-      expect(enqueueClientMessage(q, "attack", { x: 5 })).toBe(false);
-      expect(enqueueClientMessage(q, "attack", "5,5")).toBe(false);
+      enqueueClientMessage(q, "aim", { a: 7 });
+      expect(q.aim).toBeCloseTo(7 - 2 * Math.PI, 9);
+      enqueueClientMessage(q, "aim", { a: -Math.PI });
+      expect(q.aim).toBe(Math.PI);
+    });
+
+    it("keeps an aim of exactly 0", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "aim", { a: 0 })).toBe(true);
+      expect(q.aim).toBe(0);
+    });
+
+    it("the latest aim wins, within a tick and against rejected ones", () => {
+      const q = fresh();
+      enqueueClientMessage(q, "aim", { a: 1 });
+      enqueueClientMessage(q, "aim", { a: 2 });
+      expect(enqueueClientMessage(q, "aim", { a: NaN })).toBe(false);
+      expect(q.aim).toBe(2);
+      expect(q.drain().aim).toBe(2);
+      expect(q.aim).toBeNull(); // drained: the next tick starts with no aim
+    });
+
+    it("a flood of aims never fills the action budget", () => {
+      const q = fresh();
+      for (let i = 0; i < 200; i++) expect(enqueueClientMessage(q, "aim", { a: i / 100 })).toBe(true);
+      expect(q.dropped).toBe(0);
+      expect(q.actions).toEqual([]);
+      expect(q.aim).toBeCloseTo(1.99, 9);
+      expect(enqueueClientMessage(q, "swap", {})).toBe(true);
+      expect(q.actions).toHaveLength(1);
+    });
+
+    it.each([
+      ["NaN", { a: NaN }],
+      ["Infinity", { a: Infinity }],
+      ["string", { a: "1" }],
+      ["null", { a: null }],
+      ["missing", {}],
+      ["a point, as the old attack sent", { x: 1, y: 2 }],
+      ["null payload", null],
+      ["number payload", 1.5],
+      ["string payload", "1.5"],
+      ["undefined payload", undefined],
+    ])("rejects %s without touching the queue", (_n, msg) => {
+      const q = fresh();
+      q.pushAim(0.5);
+      expect(enqueueClientMessage(q, "aim", msg)).toBe(false);
+      expect(q.aim).toBe(0.5);
       expect(q.actions).toEqual([]);
     });
   });
 
-  describe("take", () => {
-    it("queues containerId + uid", () => {
+  describe.each(["attack", "release"] as const)("%s", (type) => {
+    it("queues the angle as an action and leaves movement and aim alone", () => {
       const q = fresh();
-      expect(enqueueClientMessage(q, "take", { containerId: "c1", uid: "i9" })).toBe(true);
-      expect(q.actions).toEqual([{ kind: "take", containerId: "c1", uid: "i9" }]);
+      expect(enqueueClientMessage(q, type, { a: 0.75 })).toBe(true);
+      expect(q.actions).toEqual([{ kind: type, a: 0.75 }]);
+      expect(q.move).toBeNull();
+      expect(q.aim).toBeNull(); // the handler aims from the action; it isn't also an aim message
+    });
+
+    it("keeps an angle of exactly 0", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, type, { a: 0 })).toBe(true);
+      expect(q.actions).toEqual([{ kind: type, a: 0 }]);
+    });
+
+    it("wraps the angle into (-PI, PI]", () => {
+      const q = fresh();
+      enqueueClientMessage(q, type, { a: 2 * Math.PI + 1 });
+      enqueueClientMessage(q, type, { a: -7 });
+      enqueueClientMessage(q, type, { a: -Math.PI });
+      const [a, b, c] = q.actions as Array<{ a: number }>;
+      expect(a!.a).toBeCloseTo(1, 9);
+      expect(b!.a).toBeCloseTo(-7 + 2 * Math.PI, 9);
+      expect(c!.a).toBe(Math.PI);
+    });
+
+    it("carries a finite timestamp `t` through unchanged", () => {
+      const q = fresh();
+      enqueueClientMessage(q, type, { a: 1, t: 12_345.5 });
+      expect(q.actions).toEqual([{ kind: type, a: 1, t: 12_345.5 }]);
+    });
+
+    it("clamping `t` is the sim's job: any finite number is queued as sent", () => {
+      const q = fresh();
+      enqueueClientMessage(q, type, { a: 1, t: -5 });
+      enqueueClientMessage(q, type, { a: 1, t: 0 });
+      enqueueClientMessage(q, type, { a: 1, t: 1e15 });
+      expect(q.actions.map((x) => (x as { t?: number }).t)).toEqual([-5, 0, 1e15]);
+    });
+
+    it.each([
+      ["NaN", NaN],
+      ["Infinity", Infinity],
+      ["-Infinity", -Infinity],
+      ["a string", "100"],
+      ["null", null],
+      ["a boolean", true],
+      ["an object", {}],
+      ["a bigint", 5n],
+    ])("drops a bad `t` (%s) but still queues the input, without lag compensation", (_n, t) => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, type, { a: 1, t })).toBe(true);
+      expect(q.actions).toEqual([{ kind: type, a: 1 }]);
+      expect("t" in q.actions[0]!).toBe(false);
+    });
+
+    it("omits `t` when none is sent", () => {
+      const q = fresh();
+      enqueueClientMessage(q, type, { a: 1 });
+      expect("t" in q.actions[0]!).toBe(false);
+    });
+
+    it("strips unknown fields and cannot be made another kind", () => {
+      const q = fresh();
+      enqueueClientMessage(q, type, { a: 1, t: 5, kind: "swap", hp: 9999, slot: 1, containerId: "c" });
+      expect(q.actions).toEqual([{ kind: type, a: 1, t: 5 }]);
+    });
+
+    it.each([
+      ["the old point target", { x: 5, y: 5 }],
+      ["NaN", { a: NaN }],
+      ["Infinity", { a: -Infinity }],
+      ["a string angle", { a: "0.5" }],
+      ["null angle", { a: null }],
+      ["a missing angle", { t: 100 }],
+      ["an empty object", {}],
+      ["a bare number", 0.5],
+      ["a string", "0.5"],
+      ["null", null],
+      ["undefined", undefined],
+    ])("rejects %s without queueing anything", (_n, msg) => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, type, msg)).toBe(false);
+      expect(q.actions).toEqual([]);
+      expect(q.dropped).toBe(0);
+      expect(q.aim).toBeNull();
+      expect(q.move).toBeNull();
+    });
+  });
+
+  describe("swap", () => {
+    it("without a slot queues a plain swap (to the other slot)", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "swap", {})).toBe(true);
+      expect(q.actions).toEqual([{ kind: "swap" }]);
+      expect("slot" in q.actions[0]!).toBe(false);
+    });
+
+    it("needs no payload at all, like stop", () => {
+      for (const payload of [undefined, null, 5, "junk"]) {
+        const q = fresh();
+        expect(enqueueClientMessage(q, "swap", payload)).toBe(true);
+        expect(q.actions).toEqual([{ kind: "swap" }]);
+      }
+    });
+
+    it.each([0, 1] as const)("queues slot %i", (slot) => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "swap", { slot })).toBe(true);
+      expect(q.actions).toEqual([{ kind: "swap", slot }]);
+    });
+
+    it("treats a slot explicitly set to undefined as omitted", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "swap", { slot: undefined })).toBe(true);
+      expect(q.actions).toEqual([{ kind: "swap" }]);
     });
 
     it("strips unknown fields", () => {
       const q = fresh();
-      enqueueClientMessage(q, "take", { containerId: "c1", uid: "i9", count: 99 });
-      expect(q.actions[0]).toEqual({ kind: "take", containerId: "c1", uid: "i9" });
+      enqueueClientMessage(q, "swap", { slot: 1, a: 3, containerId: "c", hp: 9 });
+      expect(q.actions).toEqual([{ kind: "swap", slot: 1 }]);
     });
 
     it.each([
-      ["missing uid", { containerId: "c1" }],
-      ["missing containerId", { uid: "i9" }],
-      ["empty uid", { containerId: "c1", uid: "" }],
-      ["empty containerId", { containerId: "", uid: "i9" }],
-      ["numeric ids", { containerId: 1, uid: 2 }],
-      ["oversized uid", { containerId: "c1", uid: "u".repeat(65) }],
-      ["oversized containerId", { containerId: "c".repeat(65), uid: "i9" }],
+      ["2", 2],
+      ["-1", -1],
+      ["0.5", 0.5],
+      ["NaN", NaN],
+      ["Infinity", Infinity],
+      ["the string '0'", "0"],
+      ["the string '1'", "1"],
+      ["null", null],
+      ["true", true],
+      ["a bigint", 1n],
+      ["an array", [0]],
+      ["an object", {}],
+    ])("rejects slot %s without queueing anything", (_n, slot) => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "swap", { slot })).toBe(false);
+      expect(q.actions).toEqual([]);
+      expect(q.dropped).toBe(0);
+    });
+  });
+
+  describe("pickup", () => {
+    it("queues the containerId", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "pickup", { containerId: "c1" })).toBe(true);
+      expect(q.actions).toEqual([{ kind: "pickup", containerId: "c1" }]);
+    });
+
+    it("strips unknown fields", () => {
+      const q = fresh();
+      enqueueClientMessage(q, "pickup", { containerId: "c1", uid: "i9", count: 99, kind: "swap" });
+      expect(q.actions).toEqual([{ kind: "pickup", containerId: "c1" }]);
+    });
+
+    it.each([
+      ["missing containerId", {}],
+      ["only a uid, as the old take sent", { uid: "i9" }],
+      ["empty containerId", { containerId: "" }],
+      ["numeric containerId", { containerId: 1 }],
+      ["null containerId", { containerId: null }],
+      ["oversized containerId", { containerId: "c".repeat(65) }],
+      ["array containerId", { containerId: ["c1"] }],
       ["null payload", null],
+      ["undefined payload", undefined],
       ["string payload", "c1"],
     ])("rejects %s", (_n, msg) => {
       const q = fresh();
-      expect(enqueueClientMessage(q, "take", msg)).toBe(false);
+      expect(enqueueClientMessage(q, "pickup", msg)).toBe(false);
       expect(q.actions).toEqual([]);
     });
 
-    it("accepts ids of exactly 64 chars", () => {
+    it("accepts an id of exactly 64 chars", () => {
       const q = fresh();
-      const id = "z".repeat(64);
-      expect(enqueueClientMessage(q, "take", { containerId: id, uid: id })).toBe(true);
+      expect(enqueueClientMessage(q, "pickup", { containerId: "z".repeat(64) })).toBe(true);
     });
   });
 
-  describe.each(["drop", "use"] as const)("%s", (type) => {
-    it("queues the uid under the matching kind", () => {
-      const q = fresh();
-      expect(enqueueClientMessage(q, type, { uid: "abc" })).toBe(true);
-      expect(q.actions).toEqual([{ kind: type, uid: "abc" }]);
-    });
-
-    it.each([
-      ["missing uid", {}],
-      ["empty uid", { uid: "" }],
-      ["numeric uid", { uid: 5 }],
-      ["oversized uid", { uid: "u".repeat(65) }],
-      ["null", null],
-      ["undefined", undefined],
-    ])("rejects %s", (_n, msg) => {
-      const q = fresh();
-      expect(enqueueClientMessage(q, type, msg)).toBe(false);
-      expect(q.actions).toEqual([]);
-    });
-  });
-
-  describe("extract", () => {
-    it("is no longer a message type: extraction is gone", () => {
-      for (const payload of [{}, null, undefined, "junk"]) {
+  describe("message types that no longer exist", () => {
+    it.each(["take", "drop", "use", "extract"])("%s is not a message type any more", (type) => {
+      for (const payload of [{}, null, undefined, "junk", { uid: "u", containerId: "c", x: 1, y: 2, a: 1 }]) {
         const q = fresh();
-        expect(enqueueClientMessage(q, "extract", payload)).toBe(false);
+        expect(enqueueClientMessage(q, type, payload)).toBe(false);
         expect(q.move).toBeNull();
+        expect(q.aim).toBeNull();
         expect(q.actions).toEqual([]);
       }
     });
   });
 
+  describe("the message contract", () => {
+    // Typed over every client message: adding a message type breaks this until it has a valid example.
+    const VALID: Record<ClientMessageType, unknown> = {
+      move: { x: 10, y: 20 },
+      stop: {},
+      aim: { a: 0.5 },
+      attack: { a: 0.5, t: 100 },
+      release: { a: 0.5, t: 100 },
+      swap: { slot: 1 },
+      pickup: { containerId: "c1" },
+    };
+
+    it("every client message type is accepted with a valid payload", () => {
+      for (const type of CLIENT_MESSAGE_TYPES) {
+        expect(enqueueClientMessage(fresh(), type, VALID[type]), type).toBe(true);
+      }
+    });
+
+    it("lists exactly the message types the examples cover", () => {
+      expect([...CLIENT_MESSAGE_TYPES].sort()).toEqual(Object.keys(VALID).sort());
+    });
+  });
+
   describe("unknown message types", () => {
-    it.each(["", "MOVE", "Move", "move ", "teleport", "setPosition", "damage", "result", "fx",
+    it.each(["", "MOVE", "Move", "move ", "Attack", "teleport", "setPosition", "damage", "result", "fx",
       "__proto__", "constructor", "toString", "hasOwnProperty"])("rejects %j", (type) => {
       const q = fresh();
-      expect(enqueueClientMessage(q, type, { x: 1, y: 1, uid: "u", containerId: "c" })).toBe(false);
+      expect(enqueueClientMessage(q, type, { x: 1, y: 1, a: 1, slot: 0, uid: "u", containerId: "c" })).toBe(false);
       expect(q.move).toBeNull();
+      expect(q.aim).toBeNull();
       expect(q.actions).toEqual([]);
     });
   });
@@ -323,26 +615,47 @@ describe("enqueueClientMessage", () => {
   describe("spam handling", () => {
     it("queues at most MAX_ACTIONS_PER_TICK actions from a flood of valid messages", () => {
       const q = fresh();
-      for (let i = 0; i < 50; i++) enqueueClientMessage(q, "use", { uid: `u${i}` });
+      for (let i = 0; i < 50; i++) enqueueClientMessage(q, "pickup", { containerId: `c${i}` });
       expect(q.actions).toHaveLength(MAX_ACTIONS_PER_TICK);
       expect(q.dropped).toBe(50 - MAX_ACTIONS_PER_TICK);
     });
 
+    it("counts every action kind toward the cap, but never move, stop or aim", () => {
+      const q = fresh();
+      for (let i = 0; i < 20; i++) {
+        enqueueClientMessage(q, "move", { x: i, y: i });
+        enqueueClientMessage(q, "stop", {});
+        enqueueClientMessage(q, "aim", { a: 1 });
+      }
+      expect(q.dropped).toBe(0);
+      for (const [type, msg] of [
+        ["attack", { a: 1 }], ["release", { a: 1 }], ["swap", {}], ["pickup", { containerId: "c" }],
+        ["attack", { a: 2 }], ["release", { a: 2 }], ["swap", { slot: 0 }], ["pickup", { containerId: "d" }],
+      ] as const) {
+        enqueueClientMessage(q, type, msg);
+      }
+      expect(q.actions).toHaveLength(MAX_ACTIONS_PER_TICK);
+      expect(q.dropped).toBe(8 - MAX_ACTIONS_PER_TICK);
+    });
+
     it("rejected messages never count toward the action cap", () => {
       const q = fresh();
-      for (let i = 0; i < 50; i++) enqueueClientMessage(q, "take", { containerId: "c" });
+      for (let i = 0; i < 50; i++) enqueueClientMessage(q, "pickup", { uid: "x" });
+      for (let i = 0; i < 50; i++) enqueueClientMessage(q, "attack", { x: 1, y: 2 });
+      for (let i = 0; i < 50; i++) enqueueClientMessage(q, "swap", { slot: 2 });
       expect(q.dropped).toBe(0);
-      expect(enqueueClientMessage(q, "drop", { uid: "u" })).toBe(true);
+      expect(enqueueClientMessage(q, "release", { a: 1 })).toBe(true);
       expect(q.actions).toHaveLength(1);
     });
 
     it("mixed actions keep arrival order", () => {
       const q = fresh();
-      enqueueClientMessage(q, "use", { uid: "a" });
-      enqueueClientMessage(q, "attack", { x: 1, y: 2 });
-      enqueueClientMessage(q, "drop", { uid: "b" });
+      enqueueClientMessage(q, "swap", { slot: 1 });
+      enqueueClientMessage(q, "attack", { a: 1 });
+      enqueueClientMessage(q, "release", { a: 1.5 });
+      enqueueClientMessage(q, "pickup", { containerId: "b" });
       const kinds = q.drain().actions.map((a: ActionCommand) => a.kind);
-      expect(kinds).toEqual(["use", "attack", "drop"]);
+      expect(kinds).toEqual(["swap", "attack", "release", "pickup"]);
     });
   });
 });

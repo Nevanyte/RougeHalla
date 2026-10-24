@@ -1,14 +1,15 @@
 // The whole game, end to end: the real server in this process on a free port, a temp profile file, short
 // timers, and four headless bots (src/bots) that hunt each other through one complete run by sending inputs
-// only. Three play it out; the fourth walks out a second into the run, which the server must settle as
-// MIA (it leaves, so it may never see its result: that one is checked through the store). What is asserted is
-// what must hold whoever wins: the run ended in one winner or a draw, every bot that stayed got exactly one
-// sensible result, the GV ledger balances for every profile (kills pay GV_KILL, the winner gets GV_WIN unless the
-// anti alt-farming rule withheld it, all of it banked once, in the profile, its lifetime total and the month), the
-// stats add up, the file on disk says the same, and nothing blew up. The bots must really fight: somebody gets
-// killed by a bot, and the kills the results claim match the deaths they name. The run is played twice: with a
-// patience long enough for the bots to meet first, and with one so short that the arena teleports them into the
-// coliseum before anyone has died, after which they must keep landing hits.
+// only: they walk, aim, draw and loose their bows, swing, swap weapons and pick up a second one. Three play it out;
+// the fourth walks out a second into the run, which the server must settle as MIA (it leaves, so it may never see
+// its result: that one is checked through the store). What is asserted is what must hold whoever wins: the run ended
+// in one winner or a draw, every bot that stayed got exactly one sensible result, the GV ledger balances for every
+// profile (kills pay GV_KILL, the winner gets GV_WIN unless the anti alt-farming rule withheld it, all of it banked
+// once, in the profile, its lifetime total and the month), the stats add up, the file on disk says the same, and
+// nothing blew up. The bots must really fight: somebody gets killed by a bot, and the kills the results claim match
+// the deaths they name. The run is played twice: with a patience long enough for the bots to meet first, and with
+// one so short that the arena teleports them into the coliseum before anyone has died, after which they must keep
+// landing hits.
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -25,9 +26,13 @@ import { startServer, type RaidServer } from "../src/index";
 import type { ProfileRecord } from "../src/persistence/ProfileStore";
 
 const BOTS = 4;
-/** Index of the bot that walks out of the run. */
-const QUITTER = 0;
-/** Server time into the run when it does: too early for anyone to have died, since a kill takes a few swings. */
+/**
+ * Index of the bot that walks out of the run. The bots join one after another, and the server hands out factions round-robin
+ * in join order (fire, sentenced, plague, frost), so this is the Sentenced one, whose damage is mostly a mark that does not
+ * exist yet: the three who stay are the ones who can actually kill each other. The test asserts nothing about factions.
+ */
+const QUITTER = 1;
+/** Server time into the run when it does: too early for anyone to have died, since a kill takes several hits. */
 const QUIT_AFTER_MS = 1_000;
 const OUTCOMES: readonly RunOutcome[] = ["won", "draw", "died", "mia"];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -112,8 +117,8 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
     const players = names.map((_, i) => i).filter((i) => i !== QUITTER);
     const started = Date.now();
 
-    // All four walk into the same lobby; the fourth one starts the run.
-    await Promise.all(bots.map((bot, i) => bot.connect(url, names[i]!)));
+    // All four walk into the same lobby, one after another; the fourth one starts the run.
+    for (const [i, bot] of bots.entries()) await bot.connect(url, names[i]!);
     expect(new Set(bots.map((b) => b.roomId)).size).toBe(1);
     const roomId = bots[0]!.roomId;
     for (const name of names) {
@@ -154,7 +159,11 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
       results.set(i, r);
     }
     const all = [...results.values()];
-    console.log(`[e2e] ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}=${results.get(i)?.outcome ?? "quit"}`).join(" ")}`);
+    const sent = (type: keyof BotClient["sent"]) => sum(bots.map((b) => b.sent[type]));
+    console.log(
+      `[e2e] ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}=${results.get(i)?.outcome ?? "quit"}`).join(" ")}`
+      + ` (sent ${sent("attack")} attacks, ${sent("release")} releases, ${sent("swap")} swaps, ${sent("pickup")} pickups)`,
+    );
 
     // --- the run ended: one winner in first place, or a draw in which everyone tied shares first place
     const winners = all.filter((r) => r.outcome === "won");
@@ -177,6 +186,10 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
         expect(r.killedBy, `${r.profile} (${r.outcome})`).toBeNull();
       }
     }
+
+    // --- the bots fought with their weapons: every one that stayed pulled the trigger, and some hit another
+    for (const i of players) expect(bots[i]!.sent.attack, `${names[i]} never attacked`).toBeGreaterThanOrEqual(1);
+    expect(fx.some((f) => f.kind === "hit" && f.by !== null), "no bot ever hit another").toBe(true);
 
     // --- the kills: the bots really fought, and the kills the results claim are the deaths they name
     const totalKills = sum(all.map((r) => r.kills));
@@ -202,10 +215,10 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
     expect(totalKills, "kills against death fx").toBeLessThanOrEqual(deathFx.length + 1);
 
     // --- the win bonus. The run started with BOTS (4) players, so the player count never withholds it: the winner
-    // keeps it exactly when they damaged WIN_BONUS_MIN_OPPONENTS different players, and the result says which. A shot
-    // fx with a `hit` is a blow that reached the victim (teleport immunity can still absorb it), so the winner's shot
-    // fx bound it from above; two kills are two different victims, which bounds it from below. Nobody but a winner
-    // is ever told their bonus was withheld.
+    // keeps it exactly when they damaged WIN_BONUS_MIN_OPPONENTS different players, and the result says which. A `hit`
+    // fx is damage that reached the victim (teleport immunity absorbs a blow without one), so the players the winner's
+    // hits name are the ones it damaged; two kills are two different victims too. Nobody but a winner is ever told
+    // their bonus was withheld.
     expect(BOTS).toBeGreaterThanOrEqual(WIN_BONUS_MIN_PLAYERS);
     for (const r of all) {
       if (r.outcome !== "won") expect(r.winBonusWithheld, `${r.profile} (${r.outcome}) was told a bonus was withheld`).toBe(false);
@@ -217,10 +230,10 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
       const victory = fx.find((f) => f.kind === "victory");
       expect(victory, "no victory fx").toMatchObject({ kind: "victory", name: winner.profile, draw: false });
       const winnerSession = (victory as Extract<TimedFx, { kind: "victory" }>).id;
-      const shotAt = new Set(fx.flatMap((f) => (f.kind === "shot" && f.by === winnerSession && f.hit !== null ? [f.hit] : [])));
-      expect(shotAt.has(winnerSession!), "the winner shot themselves").toBe(false);
-      if (!winner.winBonusWithheld) expect(shotAt.size, `${winner.profile} got the bonus without hitting enough players`).toBeGreaterThanOrEqual(WIN_BONUS_MIN_OPPONENTS);
-      if (shotAt.size < WIN_BONUS_MIN_OPPONENTS) expect(winner.winBonusWithheld, `${winner.profile} hit ${shotAt.size} players`).toBe(true);
+      const hitBy = new Set(fx.flatMap((f) => (f.kind === "hit" && f.by === winnerSession ? [f.id] : [])));
+      expect(hitBy.has(winnerSession!), "the winner hit themselves").toBe(false);
+      if (!winner.winBonusWithheld) expect(hitBy.size, `${winner.profile} got the bonus without hitting enough players`).toBeGreaterThanOrEqual(WIN_BONUS_MIN_OPPONENTS);
+      if (hitBy.size < WIN_BONUS_MIN_OPPONENTS) expect(winner.winBonusWithheld, `${winner.profile} hit ${hitBy.size} players`).toBe(true);
     }
     const bonusPaid = winner && !winner.winBonusWithheld ? GV_WIN : 0;
 
@@ -319,11 +332,13 @@ async function playRun(prefix: string, timers: Timers, expectKill = false): Prom
 
 describe("headless bots hunt through a full run", () => {
   it("ends in one winner (or a draw) and banks exactly the GV it paid", async () => {
-    // Patience 8 s then 3 s locked: even bots that never meet are teleported together and burnt down by sudden
-    // death (about 10 s of ramp from full hp), so the run ends within roughly 40 s whatever they do.
-    // With the bots really fighting this ends in kills, whoever wins (expectKill): a run decided by sudden death alone
-    // would mean they never landed a hit.
-    await playRun("e2ebot", { patienceSeconds: 8, suddenDeathSeconds: 3 }, true);
+    // Patience 8 s, then 10 s locked in the coliseum before sudden death starts: even bots that never meet are
+    // teleported together and burnt down by sudden death (about 10 s of ramp from full hp), so a death is never more
+    // than about 30 s away and the run ends within roughly 60 s whatever they do. The 10 s are what lets the bots kill
+    // each other first (a faction's hp is 500-1750 and a hit a fraction of that): with them really fighting the run
+    // ends in a kill by a bot, whoever wins (expectKill), where a run decided by sudden death alone would mean they
+    // never landed enough hits.
+    await playRun("e2ebot", { patienceSeconds: 8, suddenDeathSeconds: 10 }, true);
   }, 120_000);
 
   it("teleports everyone into the coliseum and the bots keep hunting there", async () => {
@@ -335,7 +350,7 @@ describe("headless bots hunt through a full run", () => {
     const teleport = fx.find((f) => f.kind === "teleport");
     expect(teleport, "no teleport fx was broadcast").toBeDefined();
     const live = teleport!.t + TELEPORT_IMMUNITY_MS;
-    const hits = fx.filter((f) => f.kind === "shot" && f.hit !== null && f.t >= live);
+    const hits = fx.filter((f) => f.kind === "hit" && f.by !== null && f.t >= live);
     expect(hits.length, "the bots never hit each other after the teleport").toBeGreaterThanOrEqual(1);
   }, 120_000);
 });

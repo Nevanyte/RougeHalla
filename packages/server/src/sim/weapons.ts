@@ -70,7 +70,8 @@ export const handleRelease: ActionHandler = (world, c, cmd) => {
   const w = c.rt.weapon;
   const now = world.state.serverTime;
   setAim(world, c, cmd.a);
-  noteLag(world, c, cmd.t);
+  // Without a timestamp the press's lag stands (only the press defaults to the present).
+  if (cmd.t !== undefined) noteLag(world, c, cmd.t);
   w.held = false;
   // A draw in progress, or a quick tap that will start one: loose it as soon as the minimum draw allows.
   if (activeWeapon(c.s) === "bow" && (w.action?.kind === "draw" || now <= w.bufferedUntil)) w.releasePending = true;
@@ -178,6 +179,8 @@ function stepWeapon(world: World, c: Combatant): void {
     if (drawn >= tm.minDraw - 1e-9) loose(world, c, tm, drawn);
   }
   const wants = w.held || now <= w.bufferedUntil;
+  // A click whose buffer ran out before the cooldown did starts nothing, so its release must not loose the next draw.
+  if (!w.action && !wants) w.releasePending = false;
   if (!w.action && wants && now >= c.s.readyAt) startAttack(world, c, weapon, tm);
 }
 

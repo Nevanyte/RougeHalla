@@ -23,13 +23,16 @@ export class EntityInterpolator {
     // At or after: a catch-up step can publish a later tick than the teleport's.
     const cut = t >= this.cutAt;
     if (cut) this.cutAt = Infinity;
-    state.players.forEach((p, id) => {
+    // Players and mobs share one id space (the server's combatants), so one set of buffers serves both.
+    const push = (e: { x: number; y: number }, id: string) => {
       let buf = this.buffers.get(id);
       if (!buf) { buf = new SnapshotBuffer(); this.buffers.set(id, buf); }
-      buf.push(t, p.x, p.y, cut);
-    });
+      buf.push(t, e.x, e.y, cut);
+    };
+    state.players.forEach(push);
+    state.mobs?.forEach(push);
     for (const id of this.buffers.keys()) {
-      if (!state.players.has(id)) this.buffers.delete(id);
+      if (!state.players.has(id) && !state.mobs?.has(id)) this.buffers.delete(id);
     }
   }
 

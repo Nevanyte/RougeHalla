@@ -1,4 +1,4 @@
-// Short server messages ("Inventory full", "Too far away") stacked bottom-center above the inventory bar.
+// Short server messages ("Too far away", "Nothing to take") stacked bottom-center above the weapon bar.
 import { el, uiRoot } from "./dom";
 
 const MAX_VISIBLE = 3;

@@ -7,7 +7,8 @@
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p .",
-    "bots": "tsx src/bots/runBots.ts"
+    "bots": "tsx src/bots/runBots.ts",
+    "harness": "tsx src/harness/runHarness.ts"
   },
   "dependencies": {
     "@colyseus/core": "^0.18.10",

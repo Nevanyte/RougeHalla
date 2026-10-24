@@ -104,7 +104,9 @@ function contactShare(s: Stretch, p: { x: number; y: number }): number | null {
   const fx = s.ax - p.x;
   const fy = s.ay - p.y;
   const c = fx * fx + fy * fy - RANGED_HIT_REACH * RANGED_HIT_REACH;
-  if (c <= 0) return 0;
+  // Starting inside the reach counts only when heading into the body: an arrow loosed past someone overlapping the
+  // shooter from behind doesn't hit them at the muzzle.
+  if (c <= 0) return fx * dx + fy * dy <= 0 ? 0 : null;
   const a = dx * dx + dy * dy;
   if (a === 0) return null;
   const b = 2 * (fx * dx + fy * dy);

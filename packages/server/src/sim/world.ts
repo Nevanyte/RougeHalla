@@ -252,6 +252,8 @@ export function createWorld(opts: {
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
+  /** A ready map instead of generateMap(seed): hand-built test arenas and the harness skip the generator. */
+  map?: GameMap;
 }): World {
   const state = new RaidState();
   state.seed = opts.seed >>> 0;
@@ -259,7 +261,7 @@ export function createWorld(opts: {
   return {
     state,
     config: opts.config,
-    map: generateMap(state.seed),
+    map: opts.map ?? generateMap(state.seed),
     idCounter: 0,
     joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),

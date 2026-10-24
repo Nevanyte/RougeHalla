@@ -58,7 +58,8 @@ export function addPlayer(world: World, id: string, profile: string): PlayerStat
 /** Lobby placement only; real spawns are assigned (shuffled, distinct) when the raid starts. */
 function lobbySpot(world: World, index: number): Vec2 {
   const spawns = world.map.spawns;
-  return spawns[index % spawns.length]!;
+  // A hand-built map may have no spawns at all.
+  return spawns.length > 0 ? spawns[index % spawns.length]! : world.map.coliseum.centre;
 }
 
 function shuffledSpawns(world: World): Vec2[] {
@@ -104,7 +105,8 @@ export function startRaid(world: World): void {
   const spawns = shuffledSpawns(world);
   let i = 0;
   for (const [id, p] of s.players) {
-    const spot = spawns[i++ % spawns.length]!;
+    // No spawns (a hand-built map): players start where the lobby put them.
+    const spot = spawns.length > 0 ? spawns[i++ % spawns.length]! : p;
     p.x = spot.x;
     p.y = spot.y;
     p.status = "alive";
