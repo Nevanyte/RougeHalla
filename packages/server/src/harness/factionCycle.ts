@@ -240,7 +240,7 @@ function policyCell(a: Fighter, b: Fighter): DuelResult[] {
     const r = policyDuel({
       faction: a.faction, factions: [a.faction, b.faction], weapons: [a.weapon, b.weapon],
       distance: setup.distance, angle: setup.angle, delayTicks: setup.delayTicks,
-      arena: "open", perception: "client", capSeconds: POLICY_CAP_SECONDS, seed: 1 + i * 7,
+      arena: "open", perception: "client", capSeconds: POLICY_CAP_SECONDS, seed: 1 + i * 7, signatures: true,
     });
     return { win: r.winner ?? -1, frac0: r.hpFrac[0], frac1: r.hpFrac[1], t: r.seconds };
   });
