@@ -1,22 +1,28 @@
 // Validated, per-player input buffering. Message handlers only call `parse*` + `push*`;
 // the sim drains the queue at the start of each fixed step.
-import { WORLD_H, WORLD_W, type Vec2 } from "@raid/shared";
+import { WORLD_H, WORLD_W, wrapAngle, type Vec2 } from "@raid/shared";
 
 export type MoveCommand = { kind: "move"; x: number; y: number } | { kind: "stop" };
 
 export type ActionCommand =
-  /** `t` is the server time the client was rendering when it clicked; combat clamps it to the rewind window. */
-  | { kind: "attack"; x: number; y: number; t?: number }
-  | { kind: "take"; containerId: string; uid: string }
-  | { kind: "drop"; uid: string }
-  | { kind: "use"; uid: string };
+  /** Trigger pressed toward `a`. `t` is the server time the client was rendering; melee rewinds to it (clamped). */
+  | { kind: "attack"; a: number; t?: number }
+  /** Trigger released (the bow looses). */
+  | { kind: "release"; a: number; t?: number }
+  /** To `slot`, or to the other slot when omitted. */
+  | { kind: "swap"; slot?: 0 | 1 }
+  | { kind: "pickup"; containerId: string };
 
 /** Actions beyond this per tick are dropped (spam guard, not a gameplay limit). */
-export const MAX_ACTIONS_PER_TICK = 4;
+export const MAX_ACTIONS_PER_TICK = 6;
 
 export class InputQueue {
   /** Latest movement intent wins within a tick. */
   move: MoveCommand | null = null;
+  /** Latest aim wins within a tick (radians). */
+  aim: number | null = null;
+  /** How many of `actions` had arrived when that aim did: it is applied just before actions[aimBefore]. */
+  aimBefore = 0;
   actions: ActionCommand[] = [];
   dropped = 0;
 
@@ -24,14 +30,21 @@ export class InputQueue {
     this.move = cmd;
   }
 
+  pushAim(a: number): void {
+    this.aim = a;
+    this.aimBefore = this.actions.length;
+  }
+
   pushAction(cmd: ActionCommand): void {
     if (this.actions.length >= MAX_ACTIONS_PER_TICK) { this.dropped++; return; }
     this.actions.push(cmd);
   }
 
-  drain(): { move: MoveCommand | null; actions: ActionCommand[] } {
-    const out = { move: this.move, actions: this.actions };
+  drain(): { move: MoveCommand | null; aim: number | null; aimBefore: number; actions: ActionCommand[] } {
+    const out = { move: this.move, aim: this.aim, aimBefore: this.aimBefore, actions: this.actions };
     this.move = null;
+    this.aim = null;
+    this.aimBefore = 0;
     this.actions = [];
     return out;
   }
@@ -47,6 +60,11 @@ export function parsePoint(msg: unknown): Vec2 | null {
   const { x, y } = msg;
   if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) return null;
   return { x: Math.min(Math.max(x, 0), WORLD_W), y: Math.min(Math.max(y, 0), WORLD_H) };
+}
+
+/** A finite angle wrapped to (-PI, PI], or null. */
+export function parseAngle(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? wrapAngle(v) : null;
 }
 
 /** Short opaque id string, or null. */
@@ -66,30 +84,32 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown):
     case "stop":
       q.pushMove({ kind: "stop" });
       return true;
-    case "attack": {
-      const p = parsePoint(msg);
-      if (!p) return false;
-      // A bad timestamp only costs the shooter lag compensation; the attack itself still counts.
+    case "aim": {
+      const a = isRecord(msg) ? parseAngle(msg.a) : null;
+      if (a === null) return false;
+      q.pushAim(a);
+      return true;
+    }
+    case "attack":
+    case "release": {
+      const a = isRecord(msg) ? parseAngle(msg.a) : null;
+      if (a === null) return false;
+      // A bad timestamp only costs the attacker lag compensation; the input itself still counts.
       const t = (msg as Record<string, unknown>).t;
-      q.pushAction(typeof t === "number" && Number.isFinite(t)
-        ? { kind: "attack", x: p.x, y: p.y, t }
-        : { kind: "attack", x: p.x, y: p.y });
+      q.pushAction(typeof t === "number" && Number.isFinite(t) ? { kind: type, a, t } : { kind: type, a });
       return true;
     }
-    case "take": {
-      if (!isRecord(msg)) return false;
-      const containerId = parseId(msg.containerId);
-      const uid = parseId(msg.uid);
-      if (!containerId || !uid) return false;
-      q.pushAction({ kind: "take", containerId, uid });
+    case "swap": {
+      const slot = isRecord(msg) ? msg.slot : undefined;
+      if (slot === undefined) { q.pushAction({ kind: "swap" }); return true; }
+      if (slot !== 0 && slot !== 1) return false;
+      q.pushAction({ kind: "swap", slot });
       return true;
     }
-    case "drop":
-    case "use": {
-      if (!isRecord(msg)) return false;
-      const uid = parseId(msg.uid);
-      if (!uid) return false;
-      q.pushAction({ kind: type, uid });
+    case "pickup": {
+      const containerId = isRecord(msg) ? parseId(msg.containerId) : null;
+      if (!containerId) return false;
+      q.pushAction({ kind: "pickup", containerId });
       return true;
     }
     default:

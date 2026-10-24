@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-  generateMap, GV_WIN, isWallAt, MAX_PLAYERS, MAX_REWIND_MS, mulberry32, PLAYER_MAX_HP, PLAYER_RADIUS, PLAYER_SPEED,
-  RUN_START_KIT, TICK_MS, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, type ItemDTO, type Vec2,
+  AIM_STALE_MS, FACTION_IDS, FACTIONS, generateMap, GV_WIN, isWallAt, MAX_PLAYERS, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS,
+  PLAYER_SPEED, SIGNATURE_WEAPONS, TICK_MS, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, wrapAngle, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { ItemState, type PlayerState } from "@raid/shared/schema";
+import type { PlayerState } from "@raid/shared/schema";
 import { applyDamage, downPlayer } from "../src/sim/arena";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, MAX_ACTIONS_PER_TICK } from "../src/sim/inputs";
+import { recordHit } from "../src/sim/ledger";
 import { planPath, positionAt } from "../src/sim/movement";
 import { abandonPlayer, actionOrder, addPlayer, removePlayer, step } from "../src/sim/step";
-import { createWorld, emit, type SimConfig, type SimEvent, type World } from "../src/sim/world";
+import { createWorld, emit, newWeaponRuntime, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
 
@@ -36,21 +37,15 @@ function makeWorld(cfg: Partial<SimConfig> = {}, seed = 1234, random = mulberry3
   return createWorld({ seed, config: makeConfig(cfg), random });
 }
 
-const gear = (...defs: string[]): ItemDTO[] => defs.map((def, i) => ({ uid: `${def}#${i}`, def }));
+/** addPlayer hands out the faction's signature weapon; tests that care what a player carries swap it for these. */
+function arm(p: PlayerState, w0: WeaponId | "", w1: WeaponId | "" = ""): void {
+  p.weapon0 = w0;
+  p.weapon1 = w1;
+}
 
-/** addPlayer mints the run kit; tests that care about exact contents swap it for `items`. */
-function join(world: World, id: string, name: string, items?: ItemDTO[]): PlayerState {
-  const p = addPlayer(world, id, name);
-  if (items) {
-    p.inventory.clear();
-    for (const it of items) {
-      const item = new ItemState();
-      item.uid = it.uid;
-      item.def = it.def;
-      p.inventory.push(item);
-    }
-  }
-  return p;
+/** The `attack` action takes the acting player out of the fight, standing in for a lethal blow. */
+function downOnAttack(world: World): void {
+  world.actions.attack = (w, c) => { if (c.kind === "player") downPlayer(w, c.s, c.rt, "died"); };
 }
 
 function run(world: World, ticks: number): SimEvent[] {
@@ -64,19 +59,19 @@ function ofType<T extends SimEvent["type"]>(events: SimEvent[], type: T): Array<
 }
 
 /** One solo player in a world whose raid starts on the first step. Returns the world after that step. */
-function activeSolo(cfg: Partial<SimConfig> = {}, items?: ItemDTO[]) {
+function activeSolo(cfg: Partial<SimConfig> = {}) {
   const world = makeWorld({ minPlayers: 1, ...cfg });
-  const p = join(world, "a", "alice", items);
+  const p = addPlayer(world, "a", "alice");
   const events = step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   return { world, p, rt: world.players.get("a")!, startEvents: events };
 }
 
 /** Two players, `a` and `b`, in a raid that started on the first step. */
-function activePair(cfg: Partial<SimConfig> = {}, aItems?: ItemDTO[], bItems?: ItemDTO[]) {
+function activePair(cfg: Partial<SimConfig> = {}) {
   const world = makeWorld({ minPlayers: 2, ...cfg });
-  const a = join(world, "a", "alice", aItems);
-  const b = join(world, "b", "bob", bItems);
+  const a = addPlayer(world, "a", "alice");
+  const b = addPlayer(world, "b", "bob");
   const startEvents = step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   return { world, a, b, rtA: world.players.get("a")!, rtB: world.players.get("b")!, startEvents };
@@ -85,9 +80,9 @@ function activePair(cfg: Partial<SimConfig> = {}, aItems?: ItemDTO[], bItems?: I
 /** Three players: one can go down and the run goes on. */
 function activeTrio(cfg: Partial<SimConfig> = {}) {
   const world = makeWorld({ minPlayers: 3, ...cfg });
-  const a = join(world, "a", "alice");
-  const b = join(world, "b", "bob");
-  const c = join(world, "c", "carol");
+  const a = addPlayer(world, "a", "alice");
+  const b = addPlayer(world, "b", "bob");
+  const c = addPlayer(world, "c", "carol");
   const startEvents = step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   return {
@@ -163,7 +158,7 @@ describe("createWorld / addPlayer", () => {
     expect(w.state).toMatchObject({
       patienceEndsAt: 0, inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "", startedWith: 0,
     });
-    expect(w.arena).toEqual({ startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false });
+    expect(w.arena).toEqual({ startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() });
   });
 
   it("generates the map from the (coerced) state seed, exactly as clients do", () => {
@@ -179,33 +174,54 @@ describe("createWorld / addPlayer", () => {
     const p = addPlayer(w, "a", "alice");
     expect(player(w, "a")).toBe(p);
     expect(p).toMatchObject({
-      name: "alice", hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP, status: "lobby", kills: 0, gv: 0, immuneUntil: 0,
+      name: "alice", faction: "fire", hp: FACTIONS.fire.hp, maxHp: FACTIONS.fire.hp, status: "lobby",
+      weapon0: SIGNATURE_WEAPONS.fire, weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0,
+      kills: 0, gv: 0, bounty: 0, immuneUntil: 0,
     });
     const rt = w.players.get("a")!;
     expect(rt).toMatchObject({
       id: "a", profile: "alice", path: [], history: [], resolved: false, killedBy: null,
       gv: { kills: 0, mobs: 0, bounty: 0 }, mobKills: 0, lastHit: null, hpFracAtTickStart: 1, down: null,
     });
+    expect(rt.weapon).toEqual(newWeaponRuntime());
   });
 
-  it("mints RUN_START_KIT for each player with fresh uids from the world's counter", () => {
-    let n = 0;
-    const w = createWorld({ seed: 1234, config: makeConfig(), random: mulberry32(1), newItemUid: () => `U${++n}` });
-    const a = addPlayer(w, "a", "alice");
-    const b = addPlayer(w, "b", "bob");
-    expect(a.inventory.map((i) => i.def)).toEqual([...RUN_START_KIT]);
-    expect(RUN_START_KIT).toEqual(["knife", "bandage"]);
-    expect(a.inventory.map((i) => i.uid)).toEqual(["U1", "U2"]);
-    expect(b.inventory.map((i) => i.def)).toEqual([...RUN_START_KIT]);
-    expect(b.inventory.map((i) => i.uid)).toEqual(["U3", "U4"]);
-    expect(a.inventory[0]).not.toBe(b.inventory[0]);
-  });
-
-  it("uses unique item uids even when the world isn't given a counter", () => {
+  it("gives each joiner the next faction in join order, with its hp and its signature weapon in the first slot", () => {
     const w = makeWorld();
-    const uids = ["a", "b", "c"].flatMap((id) => [...addPlayer(w, id, id).inventory].map((i) => i.uid));
-    expect(uids).toHaveLength(3 * RUN_START_KIT.length);
-    expect(new Set(uids).size).toBe(uids.length);
+    const joined = Array.from({ length: FACTION_IDS.length + 2 }, (_, i) => addPlayer(w, `p${i}`, `p${i}`));
+    joined.forEach((p, i) => {
+      const faction = FACTION_IDS[i % FACTION_IDS.length]!;
+      expect(p).toMatchObject({
+        faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: SIGNATURE_WEAPONS[faction], weapon1: "", slot: 0,
+      });
+    });
+    expect(joined.slice(0, 5).map((p) => p.faction)).toEqual(["fire", "sentenced", "plague", "frost", "holy"]);
+    expect(joined.slice(0, 5).map((p) => p.hp)).toEqual([500, 700, 1000, 1750, 1450]);
+    expect(joined.slice(0, 5).map((p) => p.weapon0)).toEqual(["axe", "bow", "bow", "shield", "wand"]);
+  });
+
+  it("brings nothing in: there is no inventory, only the weapon slots", () => {
+    const w = makeWorld();
+    const p = addPlayer(w, "a", "alice");
+    expect("inventory" in p).toBe(false);
+    expect([p.weapon0, p.weapon1].filter((x) => x !== "")).toEqual([SIGNATURE_WEAPONS.fire]);
+  });
+
+  it("follows the join counter, not the seats: a leave does not hand the next joiner the freed faction", () => {
+    const w = makeWorld({ minPlayers: 5, lobbySeconds: 1000 });
+    addPlayer(w, "a", "alice");
+    addPlayer(w, "b", "bob");
+    removePlayer(w, "a");
+    expect(addPlayer(w, "c", "carol").faction).toBe("plague");
+  });
+
+  it("mints item uids from the world's counter when it has one, and unique ones when it doesn't", () => {
+    let n = 0;
+    const counted = createWorld({ seed: 1234, config: makeConfig(), random: mulberry32(1), newItemUid: () => `U${++n}` });
+    expect([counted.newItemUid(), counted.newItemUid()]).toEqual(["U1", "U2"]);
+    const plain = makeWorld();
+    const uids = Array.from({ length: 3 }, () => plain.newItemUid());
+    expect(new Set(uids).size).toBe(3);
   });
 
   it("places lobby players on the map's spawns in join order", () => {
@@ -267,20 +283,20 @@ describe("per-world registries", () => {
     expect(w1.arena).not.toBe(w2.arena);
 
     const calls: string[] = [];
-    w1.actions.use = () => { calls.push("w1 use"); };
+    w1.actions.swap = () => { calls.push("w1 swap"); };
     w1.systems.push(() => { calls.push("w1 system"); });
 
     for (const w of [w1, w2]) {
       addPlayer(w, "a", "alice");
       step(w, TICK_MS);
-      enqueueClientMessage(w.players.get("a")!.inputs, "use", { uid: "x" });
+      enqueueClientMessage(w.players.get("a")!.inputs, "swap", {});
     }
     run(w2, 3); // the untouched world: no handler, no system
     expect(calls).toEqual([]);
     expect(w2.systems).toEqual([]);
 
     step(w1, TICK_MS);
-    expect(calls).toEqual(["w1 use", "w1 system"]);
+    expect(calls).toEqual(["w1 swap", "w1 system"]);
     expect(w2.actions).toEqual({});
   });
 
@@ -298,8 +314,8 @@ describe("per-world registries", () => {
     downPlayer(w1, alices[0]!, w1.players.get("a")!, "died");
     downPlayer(w2, alices[1]!, w2.players.get("a")!, "died");
     expect(downed).toEqual(["w1:alice"]);
-    expect(alices[0]!.inventory.length).toBe(RUN_START_KIT.length); // w1's hook replaced the default discard
-    expect(alices[1]!.inventory.length).toBe(0); // w2 still uses the default
+    expect(alices[0]!.weapon0).toBe(SIGNATURE_WEAPONS.fire); // w1's hook replaced the default, which clears the slots
+    expect(alices[1]!.weapon0).toBe(""); // w2 still uses the default
   });
 });
 
@@ -326,9 +342,14 @@ describe("createGameWorld", () => {
     expect(g1.hooks).not.toBe(g2.hooks);
     const baseline = g2.systems.length;
     g1.systems.push(() => {});
-    g1.actions.use = () => {};
+    g1.actions.swap = () => {};
     expect(g2.systems).toHaveLength(baseline);
-    expect(g2.actions.use).not.toBe(g1.actions.use);
+    expect(g2.actions.swap).not.toBe(g1.actions.swap);
+  });
+
+  it("installs a handler for every action a client can send", () => {
+    const g = createGameWorld(opts());
+    expect(Object.keys(g.actions).sort()).toEqual(["attack", "pickup", "release", "swap"]);
   });
 
   it("runs a whole run through the shared lifecycle: a kill ends it with a winner", () => {
@@ -336,19 +357,30 @@ describe("createGameWorld", () => {
     const a = addPlayer(g, "a", "alice");
     const b = addPlayer(g, "b", "bob");
     const events = step(g, TICK_MS);
-    // Alice stands on Bob, so her knife reaches him wherever the map put them.
+    // Alice (a bow in hand, so no swing needs a target in reach) stands on Bob: her arrow meets him wherever the map put them.
+    arm(a, "bow");
     b.x = a.x;
     b.y = a.y;
     g.players.get("b")!.history = [];
     b.hp = 10;
-    enqueueClientMessage(g.players.get("a")!.inputs, "attack", { x: a.x + 10, y: a.y });
-    events.push(...step(g, TICK_MS));
+    const inputs = g.players.get("a")!.inputs;
+    enqueueClientMessage(inputs, "attack", { a: 0 });
+    enqueueClientMessage(inputs, "release", { a: 0 });
+    // Draw to the minimum, loose, fly one tick, land: a handful of ticks.
+    for (let i = 0; i < 20 && g.state.phase === "active"; i++) events.push(...step(g, TICK_MS));
     expect(ofType(events, "raidStarted")).toHaveLength(1);
     expect(ofType(events, "raidEnded")).toHaveLength(1);
     expect(g.state.phase).toBe("ended");
     expect(g.state.winner).toBe("alice");
     expect(b.status).toBe("dead");
     expect(a.status).toBe("alive");
+    expect(ofType(events, "resolved").map((e) => [e.id, e.result.outcome])).toEqual([["b", "died"], ["a", "won"]]);
+    // The loot module is installed: Bob's body holds the weapon he carried.
+    const bodies = [...g.state.containers.values()].filter((c) => c.kind === "body");
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]!.label).toBe("bob");
+    expect(bodies[0]!.items.map((i) => i.def)).toEqual([SIGNATURE_WEAPONS.sentenced]);
+    expect([b.weapon0, b.weapon1]).toEqual(["", ""]);
   });
 });
 
@@ -419,15 +451,17 @@ describe("lobby phase", () => {
     const w = makeWorld({ minPlayers: 2, lobbySeconds: 1000 });
     const p = addPlayer(w, "a", "alice");
     const rt = w.players.get("a")!;
-    const { x, y } = p;
+    const { x, y, facing } = p;
     const target = w.map.groundSpots[0]!;
     expect(enqueueClientMessage(rt.inputs, "move", target)).toBe(true);
-    enqueueClientMessage(rt.inputs, "use", { uid: "x" });
+    expect(enqueueClientMessage(rt.inputs, "aim", { a: 1 })).toBe(true);
+    enqueueClientMessage(rt.inputs, "swap", {});
     step(w, TICK_MS);
     expect(rt.inputs.move).toBeNull();
+    expect(rt.inputs.aim).toBeNull();
     expect(rt.inputs.actions).toEqual([]);
     expect(rt.path).toEqual([]);
-    expect([p.x, p.y]).toEqual([x, y]);
+    expect([p.x, p.y, p.facing]).toEqual([x, y, facing]);
   });
 
   it("does not carry lobby-era inputs into the raid", () => {
@@ -435,20 +469,22 @@ describe("lobby phase", () => {
     const p = addPlayer(w, "a", "alice");
     const rt = w.players.get("a")!;
     enqueueClientMessage(rt.inputs, "move", w.map.groundSpots[0]!);
+    enqueueClientMessage(rt.inputs, "aim", { a: 1 });
     step(w, TICK_MS); // lobby -> active
-    const { x, y } = p;
+    const { x, y, facing } = p;
     run(w, 5);
-    expect([p.x, p.y]).toEqual([x, y]);
+    expect([p.x, p.y, p.facing]).toEqual([x, y, facing]);
     expect(rt.path).toEqual([]);
+    expect(rt.weapon.aimAt).toBe(0); // never aimed: the lobby aim was dropped
   });
 
   it("does not run action handlers or systems during the lobby", () => {
     let calls = 0;
     const w = makeWorld({ minPlayers: 2, lobbySeconds: 1000 });
-    w.actions.use = () => { calls++; };
+    w.actions.swap = () => { calls++; };
     w.systems.push(() => { calls++; });
     addPlayer(w, "a", "alice");
-    enqueueClientMessage(w.players.get("a")!.inputs, "use", { uid: "x" });
+    enqueueClientMessage(w.players.get("a")!.inputs, "swap", {});
     run(w, 5);
     expect(calls).toBe(0);
   });
@@ -621,6 +657,23 @@ describe("raid spawns", () => {
     addPlayer(w, "b", "bob");
     step(w, TICK_MS);
     expect(calls).toBeGreaterThan(0);
+  });
+
+  it("starts every fighter with a fresh weapon state and the weapons and hp they joined with", () => {
+    const w = makeWorld({ minPlayers: 2 });
+    const a = addPlayer(w, "a", "alice");
+    const b = addPlayer(w, "b", "bob");
+    const rtA = w.players.get("a")!;
+    rtA.weapon.held = true;
+    rtA.weapon.aim = 2;
+    a.readyAt = 5000;
+    a.drawStartedAt = 99;
+    step(w, TICK_MS);
+    expect(w.state.phase).toBe("active");
+    expect(rtA.weapon).toEqual(newWeaponRuntime());
+    expect([a.readyAt, a.drawStartedAt]).toEqual([0, 0]);
+    expect(a).toMatchObject({ faction: "fire", hp: 500, weapon0: "axe", weapon1: "", slot: 0 });
+    expect(b).toMatchObject({ faction: "sentenced", hp: 700, weapon0: "bow", weapon1: "", slot: 0 });
   });
 
   it("re-spawns players onto map spawns wherever they stood in the lobby", () => {
@@ -900,44 +953,226 @@ describe("movement during a raid", () => {
 });
 
 
+describe("aiming during a raid", () => {
+  const AIM = 1;
+
+  it("turns a standing player to the aim and remembers it", () => {
+    const { world, p, rt } = activeSolo();
+    enqueueClientMessage(rt.inputs, "aim", { a: AIM });
+    step(world, TICK_MS);
+    expect(p.facing).toBe(AIM);
+    expect(rt.weapon.aim).toBe(AIM);
+    expect(rt.weapon.aimAt).toBe(world.state.serverTime);
+  });
+
+  it("an aim of exactly 0 counts: it turns the player to face east", () => {
+    const { world, p, rt } = activeSolo();
+    p.facing = 2;
+    enqueueClientMessage(rt.inputs, "aim", { a: 0 });
+    step(world, TICK_MS);
+    expect(p.facing).toBe(0);
+    expect(rt.weapon.aimAt).toBe(world.state.serverTime);
+  });
+
+  it("stores the wrapped angle", () => {
+    const { world, p, rt } = activeSolo();
+    enqueueClientMessage(rt.inputs, "aim", { a: 7 });
+    step(world, TICK_MS);
+    expect(p.facing).toBeCloseTo(wrapAngle(7), 12);
+    expect(rt.weapon.aim).toBe(p.facing);
+  });
+
+  it("the latest aim of a tick wins, and the aim is drained with the tick", () => {
+    const { world, p, rt } = activeSolo();
+    for (const a of [0.5, 1.5, -2]) enqueueClientMessage(rt.inputs, "aim", { a });
+    step(world, TICK_MS);
+    expect(p.facing).toBe(-2);
+    expect(rt.inputs.aim).toBeNull();
+    step(world, TICK_MS);
+    expect(p.facing).toBe(-2); // not re-applied
+  });
+
+  it("an aim does not use up the tick's action budget", () => {
+    const { world, rt } = activeSolo();
+    const seen: string[] = [];
+    world.actions.pickup = (_w, _c, cmd) => { if (cmd.kind === "pickup") seen.push(cmd.containerId); };
+    for (let i = 0; i < 100; i++) enqueueClientMessage(rt.inputs, "aim", { a: i / 100 });
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK; i++) enqueueClientMessage(rt.inputs, "pickup", { containerId: `c${i}` });
+    step(world, TICK_MS);
+    expect(seen).toHaveLength(MAX_ACTIONS_PER_TICK);
+    expect(rt.inputs.dropped).toBe(0);
+  });
+
+  it("applies the latest aim where it arrived among the actions: after those sent before it, before those sent after", () => {
+    const { world, p, rt } = activeSolo();
+    const seen: Array<[string, number]> = [];
+    world.actions.pickup = (_w, c, cmd) => { if (cmd.kind === "pickup") seen.push([cmd.containerId, c.s.facing]); };
+    p.facing = 2;
+    enqueueClientMessage(rt.inputs, "pickup", { containerId: "first" });
+    enqueueClientMessage(rt.inputs, "aim", { a: AIM });
+    enqueueClientMessage(rt.inputs, "pickup", { containerId: "second" });
+    step(world, TICK_MS);
+    expect(seen).toEqual([["first", 2], ["second", AIM]]);
+    expect(p.facing).toBe(AIM);
+  });
+
+  it("an aim that arrived after the last action still applies, after it", () => {
+    const { world, p, rt } = activeSolo();
+    const seen: number[] = [];
+    world.actions.pickup = (_w, c) => { seen.push(c.s.facing); };
+    p.facing = 2;
+    enqueueClientMessage(rt.inputs, "pickup", { containerId: "only" });
+    enqueueClientMessage(rt.inputs, "aim", { a: AIM });
+    step(world, TICK_MS);
+    expect(seen).toEqual([2]);
+    expect(p.facing).toBe(AIM);
+    expect(rt.weapon.aimAt).toBe(world.state.serverTime);
+  });
+
+  it("an aim that arrived after the action which took the player out is not applied", () => {
+    const { world, a, b, rtA } = activeTrio();
+    downOnAttack(world);
+    a.facing = 2;
+    enqueueClientMessage(rtA.inputs, "attack", { a: 1 });
+    enqueueClientMessage(rtA.inputs, "aim", { a: AIM });
+    step(world, TICK_MS);
+    expect(a.status).toBe("dead");
+    expect(a.facing).toBe(2);
+    expect(rtA.weapon.aimAt).toBe(0);
+    expect(b.status).toBe("alive");
+  });
+
+  it("a walking player keeps facing the aim instead of the way it walks", () => {
+    const { world, p, rt } = activeSolo();
+    const start = posOf(p);
+    const target = farthestSpawn(world, start);
+    const first = planPath(world, start, target)[0]!;
+    expect(Math.atan2(first.y - start.y, first.x - start.x)).not.toBeCloseTo(AIM, 2); // walking would turn it elsewhere
+    enqueueClientMessage(rt.inputs, "aim", { a: AIM });
+    enqueueClientMessage(rt.inputs, "move", target);
+    for (let i = 0; i < 10; i++) {
+      stepChecked(world);
+      expect(p.facing).toBe(AIM);
+    }
+    expect(dist(start, p)).toBeGreaterThan(5 * STEP);
+  });
+
+  it("walking turns the player again once the aim is stale (AIM_STALE_MS), and not a tick sooner", () => {
+    const { world, p, rt } = activeSolo();
+    const start = posOf(p);
+    const target = farthestSpawn(world, start);
+    expect(pathLength(start, planPath(world, start, target))).toBeGreaterThan((AIM_STALE_MS / TICK_MS + 5) * STEP);
+    enqueueClientMessage(rt.inputs, "move", target);
+    enqueueClientMessage(rt.inputs, "aim", { a: AIM });
+    step(world, TICK_MS);
+    const aimedAt = rt.weapon.aimAt;
+    while (world.state.serverTime + TICK_MS - aimedAt < AIM_STALE_MS) {
+      stepChecked(world);
+      expect(p.facing).toBe(AIM); // still fresh
+    }
+    const before = posOf(p);
+    const waypoints = rt.path.length;
+    stepChecked(world);
+    expect(world.state.serverTime - aimedAt).toBe(AIM_STALE_MS);
+    expect(rt.path.length).toBe(waypoints); // no corner on this step: the heading is the straight line walked
+    expect(p.facing).toBeCloseTo(Math.atan2(p.y - before.y, p.x - before.x), 9);
+    expect(p.facing).not.toBeCloseTo(AIM, 2);
+  });
+
+  it("an aim sent every half second keeps a long walk aimed", () => {
+    const { world, p, rt } = activeSolo();
+    const start = posOf(p);
+    const legs = [farthestSpawn(world, start), start];
+    let leg = 0;
+    let walked = 0;
+    for (let tick = 0; tick < 60; tick++) {
+      if (tick % 10 === 0) enqueueClientMessage(rt.inputs, "aim", { a: AIM });
+      if (rt.path.length === 0) enqueueClientMessage(rt.inputs, "move", legs[leg++ % 2]!);
+      const before = posOf(p);
+      stepChecked(world);
+      walked += dist(before, p);
+      expect(p.facing).toBe(AIM);
+    }
+    expect(walked).toBeGreaterThan(40 * STEP);
+  });
+
+  it("a player who is down ignores everything they send", () => {
+    const { world, a, rtA } = activeTrio();
+    downPlayer(world, a, rtA, "died");
+    const { x, y, facing } = a;
+    enqueueClientMessage(rtA.inputs, "aim", { a: AIM });
+    enqueueClientMessage(rtA.inputs, "move", world.map.groundSpots[0]!);
+    enqueueClientMessage(rtA.inputs, "swap", {});
+    run(world, 3);
+    expect([a.x, a.y, a.facing]).toEqual([x, y, facing]);
+    expect(rtA.path).toEqual([]);
+    expect(rtA.inputs.aim).toBeNull();
+    expect(rtA.inputs.actions).toEqual([]);
+  });
+});
+
 describe("action dispatch", () => {
   it("ignores actions that have no registered handler", () => {
     const { world, p, rt } = activeSolo();
-    enqueueClientMessage(rt.inputs, "use", { uid: "x" });
-    enqueueClientMessage(rt.inputs, "attack", { x: 1, y: 1 });
+    enqueueClientMessage(rt.inputs, "swap", {});
+    enqueueClientMessage(rt.inputs, "attack", { a: 1 });
+    enqueueClientMessage(rt.inputs, "pickup", { containerId: "c1" });
     expect(() => run(world, 3)).not.toThrow();
     expect(p.status).toBe("alive");
     expect(rt.inputs.actions).toEqual([]);
   });
 
-  it("calls the handler registered under the action's kind with (world, player, runtime, command)", () => {
+  it("calls the handler registered under the action's kind with (world, combatant, command)", () => {
     const { world, p, rt } = activeSolo();
     const seen: Array<{ kind: string; same: boolean }> = [];
-    for (const kind of ["attack", "take", "drop", "use"] as const) {
-      world.actions[kind] = (w, pl, r, cmd) => {
-        seen.push({ kind: cmd.kind, same: w === world && pl === p && r === rt });
+    const cmds: unknown[] = [];
+    for (const kind of ["attack", "release", "swap", "pickup"] as const) {
+      world.actions[kind] = (w, c, cmd) => {
+        seen.push({ kind: cmd.kind, same: w === world && c.kind === "player" && c.id === "a" && c.s === p && c.rt === rt });
+        cmds.push(cmd);
       };
     }
-    enqueueClientMessage(rt.inputs, "attack", { x: 5, y: 6 });
-    enqueueClientMessage(rt.inputs, "take", { containerId: "c1", uid: "u1" });
-    enqueueClientMessage(rt.inputs, "drop", { uid: "u2" });
-    enqueueClientMessage(rt.inputs, "use", { uid: "u3" });
+    enqueueClientMessage(rt.inputs, "attack", { a: 0.5, t: 40 });
+    enqueueClientMessage(rt.inputs, "release", { a: 0.75 });
+    enqueueClientMessage(rt.inputs, "swap", { slot: 1 });
+    enqueueClientMessage(rt.inputs, "pickup", { containerId: "c1" });
     step(world, TICK_MS);
     expect(seen).toEqual([
-      { kind: "attack", same: true }, { kind: "take", same: true }, { kind: "drop", same: true },
-      { kind: "use", same: true },
+      { kind: "attack", same: true }, { kind: "release", same: true }, { kind: "swap", same: true },
+      { kind: "pickup", same: true },
+    ]);
+    expect(cmds).toEqual([
+      { kind: "attack", a: 0.5, t: 40 }, { kind: "release", a: 0.75 }, { kind: "swap", slot: 1 },
+      { kind: "pickup", containerId: "c1" },
     ]);
   });
 
   it("passes drained actions to their handlers in order, capped at MAX_ACTIONS_PER_TICK", () => {
     const seen: string[] = [];
     const { world, rt } = activeSolo();
-    world.actions.use = (_w, _p, _rt, cmd) => { if (cmd.kind === "use") seen.push(cmd.uid); };
-    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 3; i++) enqueueClientMessage(rt.inputs, "use", { uid: `u${i}` });
+    world.actions.pickup = (_w, _c, cmd) => { if (cmd.kind === "pickup") seen.push(cmd.containerId); };
+    for (let i = 0; i < MAX_ACTIONS_PER_TICK + 3; i++) enqueueClientMessage(rt.inputs, "pickup", { containerId: `c${i}` });
     step(world, TICK_MS);
-    expect(seen).toEqual(Array.from({ length: MAX_ACTIONS_PER_TICK }, (_, i) => `u${i}`));
+    expect(seen).toEqual(Array.from({ length: MAX_ACTIONS_PER_TICK }, (_, i) => `c${i}`));
     step(world, TICK_MS);
     expect(seen).toHaveLength(MAX_ACTIONS_PER_TICK); // nothing is replayed next tick
+  });
+
+  it("applies the aim after planning the move and before the actions run", () => {
+    const { world, p, rt } = activeSolo();
+    const seen: Array<{ facing: number; aim: number; aimAt: number; pathLen: number }> = [];
+    world.actions.attack = (_w, c) => {
+      seen.push({ facing: c.s.facing, aim: c.rt.weapon.aim, aimAt: c.rt.weapon.aimAt, pathLen: c.rt.path.length });
+    };
+    enqueueClientMessage(rt.inputs, "move", farthestSpawn(world, posOf(p)));
+    enqueueClientMessage(rt.inputs, "aim", { a: 1.5 });
+    enqueueClientMessage(rt.inputs, "attack", { a: 2 });
+    step(world, TICK_MS);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.facing).toBe(1.5);
+    expect(seen[0]!.aim).toBe(1.5);
+    expect(seen[0]!.aimAt).toBe(world.state.serverTime);
+    expect(seen[0]!.pathLen).toBeGreaterThan(0);
   });
 
   it("shuffles the per-tick action order so no seat or pair of seats is favoured", () => {
@@ -945,13 +1180,13 @@ describe("action dispatch", () => {
     for (const [id, name] of [["a", "alice"], ["b", "bob"], ["c", "carol"]] as const) addPlayer(world, id, name);
     step(world, TICK_MS); // lobby -> active
     let seen: string[] = [];
-    world.actions.use = (_w, _p, rt) => { seen.push(rt.id); };
+    world.actions.swap = (_w, c) => { seen.push(c.id); };
     const firsts = new Map<string, number>();
     let aBeforeB = 0;
     const N = 300;
     for (let i = 0; i < N; i++) {
       seen = [];
-      for (const id of ["a", "b", "c"]) enqueueClientMessage(world.players.get(id)!.inputs, "use", { uid: "x" });
+      for (const id of ["a", "b", "c"]) enqueueClientMessage(world.players.get(id)!.inputs, "swap", {});
       step(world, TICK_MS);
       expect([...seen].sort()).toEqual(["a", "b", "c"]); // everyone still acts exactly once
       expect(seen).toEqual(actionOrder(world)); // the exported order is the one applied
@@ -982,9 +1217,9 @@ describe("action dispatch", () => {
     const { world, p, rt } = activeSolo();
     const start = posOf(p);
     const seen: Array<{ pathLen: number; pos: Vec2 }> = [];
-    world.actions.use = (_w, pl, r) => { seen.push({ pathLen: r.path.length, pos: posOf(pl) }); };
+    world.actions.swap = (_w, c) => { seen.push({ pathLen: c.rt.path.length, pos: posOf(c.s) }); };
     enqueueClientMessage(rt.inputs, "move", farthestSpawn(world, start));
-    enqueueClientMessage(rt.inputs, "use", { uid: "x" });
+    enqueueClientMessage(rt.inputs, "swap", {});
     step(world, TICK_MS);
     expect(seen).toHaveLength(1);
     expect(seen[0]!.pathLen).toBeGreaterThan(0); // the new path is already in place...
@@ -1022,13 +1257,13 @@ describe("action dispatch", () => {
 
   it("a handler that downs the player stops further actions and movement that tick", () => {
     const { world, p, rt } = activeSolo();
-    world.actions.attack = (w, pl, r) => downPlayer(w, pl, r, "died");
+    downOnAttack(world);
     const calls: string[] = [];
-    world.actions.use = () => { calls.push("use"); };
+    world.actions.swap = () => { calls.push("swap"); };
     const start = posOf(p);
     enqueueClientMessage(rt.inputs, "move", farthestSpawn(world, start));
-    enqueueClientMessage(rt.inputs, "attack", { x: 1, y: 1 });
-    enqueueClientMessage(rt.inputs, "use", { uid: "late" });
+    enqueueClientMessage(rt.inputs, "attack", { a: 1 });
+    enqueueClientMessage(rt.inputs, "swap", {});
     const events = step(world, TICK_MS);
     expect(calls).toEqual([]);
     expect(posOf(p)).toEqual(start);
@@ -1047,8 +1282,8 @@ describe("action dispatch", () => {
     const { world, rt } = activeSolo();
     let runs = 0;
     world.systems.push(() => { runs++; });
-    world.actions.attack = (w, pl, r) => downPlayer(w, pl, r, "died");
-    enqueueClientMessage(rt.inputs, "attack", { x: 1, y: 1 });
+    downOnAttack(world);
+    enqueueClientMessage(rt.inputs, "attack", { a: 1 });
     step(world, TICK_MS);
     expect(runs).toBe(1);
     step(world, TICK_MS); // the run is over: no more system ticks
@@ -1147,10 +1382,10 @@ describe("lag-compensation history", () => {
 
   it("stops recording a player once they are down, while the others carry on", () => {
     const { world, rtA, rtB } = activeTrio();
-    world.actions.attack = (w, pl, r) => { if (r.id === "a") downPlayer(w, pl, r, "died"); };
+    world.actions.attack = (w, c) => { if (c.kind === "player" && c.id === "a") downPlayer(w, c.s, c.rt, "died"); };
     run(world, 3);
     expect(rtA.history).toHaveLength(4); // spawn sample + 3 steps
-    enqueueClientMessage(rtA.inputs, "attack", { x: 1, y: 1 });
+    enqueueClientMessage(rtA.inputs, "attack", { a: 1 });
     run(world, 6);
     expect(player(world, "a").status).toBe("dead");
     expect(rtA.history).toHaveLength(4); // not recorded on the tick they died, nor afterwards
@@ -1180,11 +1415,11 @@ describe("end of a run", () => {
     }
   });
 
-  it("the default dropBody discards a downed player's inventory", () => {
-    const { world, a, rtA } = activePair({}, gear("rifle", "watch"));
-    expect(a.inventory.length).toBe(2);
+  it("the default dropBody clears a downed player's weapon slots", () => {
+    const { world, a, rtA } = activePair();
+    arm(a, "axe", "shield");
     downPlayer(world, a, rtA, "died");
-    expect(a.inventory.length).toBe(0);
+    expect([a.weapon0, a.weapon1]).toEqual(["", ""]);
   });
 
   it.each([[28, 1], [30, 2], [59, 3], [60, 3]])("reports the run duration in rounded whole seconds (%i ticks in: %i)", (ticks, seconds) => {
@@ -1249,6 +1484,64 @@ describe("end of a run", () => {
     });
   });
 
+  describe("players who hit each other dead in the same tick", () => {
+    /**
+     * Both players' `attack` lands a lethal hit on the other through the damage ledger. Which of them acts first
+     * is the per-tick shuffle, and the seed picks it; the outcome must not depend on it.
+     */
+    function mutualKill(seed: number, hpA: number, hpB: number) {
+      const world = makeWorld({ minPlayers: 2 }, 1234, mulberry32(seed));
+      const a = addPlayer(world, "a", "alice");
+      const b = addPlayer(world, "b", "bob");
+      step(world, TICK_MS);
+      const order: string[] = [];
+      world.actions.attack = (w, c) => {
+        if (c.kind !== "player") return;
+        order.push(c.id);
+        recordHit(w, {
+          victim: c.id === "a" ? "b" : "a", by: { id: c.id, name: c.s.name },
+          packet: { raw: 10_000, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false,
+        });
+      };
+      a.hp = hpA;
+      b.hp = hpB;
+      for (const id of ["a", "b"]) enqueueClientMessage(world.players.get(id)!.inputs, "attack", { a: 0 });
+      const events = step(world, TICK_MS);
+      return { world, a, b, events, order: order.join("") };
+    }
+    const SEEDS = Array.from({ length: 16 }, (_, i) => i + 1);
+
+    it("both blows land and the higher hp fraction at the start of the tick wins, whoever acted first", () => {
+      const orders = new Set<string>();
+      for (const [hpA, hpB, winner, loser] of [[100, 350, "b", "a"], [400, 70, "a", "b"]] as const) {
+        for (const seed of SEEDS) {
+          const { world, a, b, events, order } = mutualKill(seed, hpA, hpB);
+          orders.add(order);
+          expect([a.status, b.status]).toEqual(["dead", "dead"]); // neither blow was lost
+          expect(ofType(events, "fx").filter((e) => e.fx.kind === "death")).toHaveLength(2);
+          expect(world.state.winner).toBe(winner === "a" ? "alice" : "bob");
+          const results = new Map(ofType(events, "resolved").map((e) => [e.id, e.result]));
+          expect(results.get(winner)).toMatchObject({ outcome: "won", place: 1 });
+          expect(results.get(loser)).toMatchObject({
+            outcome: "died", place: 2, killedBy: winner === "a" ? "alice" : "bob",
+          });
+          expect(world.state.phase).toBe("ended");
+        }
+      }
+      expect(orders).toEqual(new Set(["ab", "ba"])); // the seeds covered both processing orders
+    });
+
+    it("an exact tie in hp fraction is a draw", () => {
+      for (const seed of SEEDS) {
+        const { world, events } = mutualKill(seed, 250, 350); // 250/500 = 350/700
+        const results = ofType(events, "resolved");
+        expect(results.map((e) => [e.result.outcome, e.result.place])).toEqual([["draw", 1], ["draw", 1]]);
+        expect(world.state.winner).toBe("");
+        expect(ofType(events, "fx").find((e) => e.fx.kind === "victory")!.fx).toMatchObject({ draw: true, id: null });
+      }
+    });
+  });
+
   it("a lone survivor of a two-player run still wins, without the win bonus", () => {
     const { world } = activePair();
     removePlayer(world, "b");
@@ -1263,68 +1556,68 @@ describe("end of a run", () => {
 
 describe("dropBody hook", () => {
   interface Call { world: World; player: unknown; status: string; held: string[] }
-  /** Replaces the world's hook with a recorder that deliberately leaves the inventory alone. */
+  /** Replaces the world's hook with a recorder that deliberately leaves the weapon slots alone. */
   function recordDrops(world: World): Call[] {
     const calls: Call[] = [];
     world.hooks.dropBody = (w, p) => {
-      calls.push({ world: w, player: p, status: p.status, held: p.inventory.map((i) => i.uid) });
+      calls.push({ world: w, player: p, status: p.status, held: [p.weapon0, p.weapon1].filter((x) => x !== "") });
     };
     return calls;
   }
-  const dieOnAttack = (world: World) => {
-    world.actions.attack = (w, p, rt) => downPlayer(w, p, rt, "died");
-  };
 
-  it("runs when a player dies, after their status flips, with the inventory still on them", () => {
-    const { world, a, rtA } = activePair({}, gear("rifle", "watch"));
-    dieOnAttack(world);
+  it("runs when a player dies, after their status flips, with the weapons still on them", () => {
+    const { world, a, rtA } = activePair();
+    arm(a, "sword", "wand");
+    downOnAttack(world);
     const calls = recordDrops(world);
-    enqueueClientMessage(rtA.inputs, "attack", { x: 1, y: 1 });
+    enqueueClientMessage(rtA.inputs, "attack", { a: 1 });
     const events = step(world, TICK_MS);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.world).toBe(world);
     expect(calls[0]!.player).toBe(a);
     expect(calls[0]!.status).toBe("dead");
-    expect(calls[0]!.held).toEqual(["rifle#0", "watch#1"]);
-    // The hook replaces the default discard, so what it leaves behind stays on the player.
-    expect(a.inventory.length).toBe(2);
+    expect(calls[0]!.held).toEqual(["sword", "wand"]);
+    // The hook replaces the default clear, so what it leaves behind stays on the player.
+    expect([a.weapon0, a.weapon1]).toEqual(["sword", "wand"]);
     expect(ofType(events, "resolved").find((e) => e.id === "a")!.result.outcome).toBe("died");
   });
 
-  it("the default hook discards the inventory of a player who died", () => {
-    const { world, a, rtA } = activePair({}, gear("rifle", "watch"));
-    dieOnAttack(world);
-    enqueueClientMessage(rtA.inputs, "attack", { x: 1, y: 1 });
+  it("the default hook clears the weapon slots of a player who died", () => {
+    const { world, a, rtA } = activePair();
+    arm(a, "sword", "wand");
+    downOnAttack(world);
+    enqueueClientMessage(rtA.inputs, "attack", { a: 1 });
     step(world, TICK_MS);
-    expect(a.inventory.length).toBe(0);
+    expect([a.weapon0, a.weapon1]).toEqual(["", ""]);
   });
 
   it("runs the moment a player goes down, not at the end of the tick", () => {
     const { world, rtA } = activePair();
     const order: string[] = [];
     world.hooks.dropBody = () => { order.push("hook"); };
-    world.actions.attack = (w, p, rt) => { order.push("down"); downPlayer(w, p, rt, "died"); };
+    world.actions.attack = (w, c) => { order.push("down"); if (c.kind === "player") downPlayer(w, c.s, c.rt, "died"); };
     world.systems.push(() => { order.push("system"); });
-    enqueueClientMessage(rtA.inputs, "attack", { x: 1, y: 1 });
+    enqueueClientMessage(rtA.inputs, "attack", { a: 1 });
     step(world, TICK_MS);
     expect(order).toEqual(["down", "hook", "system"]);
   });
 
   it("runs synchronously when removePlayer downs an alive player as mia", () => {
-    const { world, a } = activePair({}, gear("rifle"));
+    const { world, a } = activePair();
+    arm(a, "shield");
     const calls = recordDrops(world);
     removePlayer(world, "a");
     expect(calls).toHaveLength(1);
     expect(calls[0]!.player).toBe(a);
     expect(calls[0]!.status).toBe("mia");
-    expect(calls[0]!.held).toEqual(["rifle#0"]);
+    expect(calls[0]!.held).toEqual(["shield"]);
   });
 
   it("runs once per player even if they are removed again later", () => {
     const { world, rtA } = activeTrio();
-    dieOnAttack(world);
+    downOnAttack(world);
     const calls = recordDrops(world);
-    enqueueClientMessage(rtA.inputs, "attack", { x: 1, y: 1 });
+    enqueueClientMessage(rtA.inputs, "attack", { a: 1 });
     step(world, TICK_MS);
     removePlayer(world, "a"); // already dead: no mia on top
     removePlayer(world, "b"); // still standing: mia
@@ -1351,11 +1644,11 @@ describe("dropBody hook", () => {
 
   it("can emit events that are delivered with that step's events", () => {
     const { world, rtA } = activePair();
-    dieOnAttack(world);
+    downOnAttack(world);
     world.hooks.dropBody = (w, p) => {
       emit(w, { type: "toast", to: "b", text: `${p.name} dropped a body` });
     };
-    enqueueClientMessage(rtA.inputs, "attack", { x: 1, y: 1 });
+    enqueueClientMessage(rtA.inputs, "attack", { a: 1 });
     const events = step(world, TICK_MS);
     expect(ofType(events, "toast")).toEqual([{ type: "toast", to: "b", text: "alice dropped a body" }]);
     expect(ofType(events, "resolved").map((e) => e.id)).toEqual(["a", "b"]); // alice died, bob won
@@ -1437,8 +1730,8 @@ describe("removePlayer", () => {
 
   it("does not resolve a player who is already dead", () => {
     const { world: w } = activeTrio();
-    w.actions.attack = (world, p, rt) => downPlayer(world, p, rt, "died");
-    enqueueClientMessage(w.players.get("a")!.inputs, "attack", { x: 1, y: 1 });
+    downOnAttack(w);
+    enqueueClientMessage(w.players.get("a")!.inputs, "attack", { a: 1 });
     const events = step(w, TICK_MS);
     expect(ofType(events, "resolved")).toHaveLength(1);
     removePlayer(w, "a");
@@ -1523,8 +1816,8 @@ describe("abandonPlayer", () => {
 
   it("does not touch a player who was already resolved", () => {
     const { world: w } = activeTrio();
-    w.actions.attack = (world, p, rt) => downPlayer(world, p, rt, "died");
-    enqueueClientMessage(w.players.get("a")!.inputs, "attack", { x: 1, y: 1 });
+    downOnAttack(w);
+    enqueueClientMessage(w.players.get("a")!.inputs, "attack", { a: 1 });
     expect(ofType(step(w, TICK_MS), "resolved")).toHaveLength(1);
     expect(abandonPlayer(w, "a")).toBe(0);
     expect(w.events).toEqual([]);

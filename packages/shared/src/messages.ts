@@ -1,4 +1,5 @@
 // Wire contracts. Client→server messages are inputs only; the server decides outcomes.
+import type { ProjectileKind, WeaponId } from "./weapons";
 
 export interface Vec2 { x: number; y: number }
 
@@ -8,29 +9,74 @@ export type RaidPhase = "lobby" | "active" | "ended";
  * the same last tick, and everyone in a draw, are "dead".
  */
 export type PlayerStatus = "lobby" | "alive" | "dead" | "mia";
-export type ContainerKind = "crate" | "ground" | "body";
+/**
+ * A chest holds one weapon and stays (opened) once emptied; a ground weapon vanishes when taken; a body holds what a
+ * fallen player carried.
+ */
+export type ContainerKind = "chest" | "ground" | "body";
 
-/** Client → server. Keys are the Colyseus message types. */
+/**
+ * Client -> server. Keys are the Colyseus message types. Angles are radians on the ground plane, measured from where
+ * the client draws its own player (its render-time position) to the cursor. `t` is the server time the client was
+ * rendering when the input was made; melee rewinds to it (clamped to MAX_REWIND_MS).
+ */
 export interface ClientMessages {
   /** Walk to a world point (server pathfinds). */
   move: Vec2;
   stop: Record<string, never>;
+  /** Where the cursor is: the shield faces it, held attacks aim at it. Streamed at no more than 20 Hz while it changes. */
+  aim: { a: number };
   /**
-   * Attack toward a world point with the best carried weapon. `t` is the server time the
-   * client was rendering when it clicked; the server rewinds targets to it (clamped).
+   * Trigger pressed: attack with the weapon in hand toward `a` (bow: start drawing). Held, it keeps attacking whenever
+   * the cooldown allows, until `release`. A press shortly before the cooldown ends still attacks when it does.
    */
-  attack: Vec2 & { t?: number };
-  take: { containerId: string; uid: string };
-  drop: { uid: string };
-  use: { uid: string };
+  attack: { a: number; t?: number };
+  /** Trigger released: the bow looses (once at least its minimum draw is reached); other weapons stop repeating. */
+  release: { a: number; t?: number };
+  /** Switch weapon slot: to `slot` (0 or 1), or to the other one when omitted. */
+  swap: { slot?: number };
+  /** Take a weapon from a chest, the ground or a body in reach (F). With both slots full, the one in hand is dropped. */
+  pickup: { containerId: string };
 }
 export type ClientMessageType = keyof ClientMessages;
-export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "attack", "take", "drop", "use"];
+export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "aim", "attack", "release", "swap", "pickup"];
+
+/** Why a projectile stopped (a `projEnd` fx). */
+export type ProjectileEnd =
+  | "hit" | "wall" | "range"
+  /** An arrow off a shield's front: a new arrow, owned by the holder, flies on from the same point. */
+  | "reflected"
+  /** An arrow a wand ball came too close to. */
+  | "deleted"
+  /** A ball an axe swing met. */
+  | "destroyed"
+  /** Removed by the arena (the coliseum teleport). */
+  | "cleared";
 
 /** Visual-only events. The server stamps `t` (server time) so clients can play them in render time. */
 export type FxEvent =
-  | { kind: "shot"; by: string; x1: number; y1: number; x2: number; y2: number; hit: string | null; melee: boolean }
-  /** `by` is the killer's session id, or null (sudden death). A player who leaves (MIA) gets no death fx. */
+  /**
+   * A melee swing or wand cast began: it lands (or the ball leaves) `ms` later unless a stagger or a swap cancels it.
+   * `a` is its direction. Bow draws are synced state instead (drawStartedAt).
+   */
+  | { kind: "windup"; by: string; weapon: WeaponId; a: number; ms: number }
+  /** A melee swing landed now from (x, y), the attacker where its client drew it, toward `a`. */
+  | { kind: "swing"; by: string; weapon: WeaponId; x: number; y: number; a: number }
+  /** `id` took `amount` (after armor and shield). `by` is the attacker's id, or null for the arena. */
+  | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null }
+  /** `id`'s shield negated a hit by `by`'s weapon (a sword hit also ripostes: a `hit` on `by` follows). */
+  | { kind: "block"; id: string; by: string; weapon: WeaponId }
+  /** `id` was staggered: its windup or cast was cancelled, or its bow draw restarted. */
+  | { kind: "stagger"; id: string }
+  /**
+   * A projectile stopped at (x, y). It also says where and when it was loosed, so a client that never saw it in the
+   * state (loosed and stopped within one patch) can still draw its flight.
+   */
+  | {
+    kind: "projEnd"; id: string; proj: ProjectileKind; x0: number; y0: number; t0: number; x: number; y: number;
+    reason: ProjectileEnd;
+  }
+  /** `by` is the killer's id, or null (sudden death). A player who leaves (MIA) gets no death fx. */
   | { kind: "death"; id: string; x: number; y: number; by: string | null }
   | { kind: "heal"; id: string; amount: number }
   /** Everyone alive was moved into the coliseum this tick and the gates locked. */

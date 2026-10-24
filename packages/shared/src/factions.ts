@@ -6,6 +6,7 @@
 // the attacker); armor cuts the physical share, shield the magic share, true ignores both, each as
 // 1 / (1 + stat/100). Signature mechanics read only the attacker's own params and universal state,
 // never the opponent's identity, so counters emerge from the numbers alone.
+import { DUEL_PACE } from "./constants";
 
 export type FactionId = "fire" | "sentenced" | "plague" | "frost" | "holy";
 export type MechanicId = "dragonslayer" | "marked" | "rat_king" | "plain";
@@ -76,6 +77,14 @@ export const BEATS: ReadonlyArray<readonly [FactionId, FactionId]> = [
   ["holy", "fire"], ["holy", "sentenced"],
 ];
 
+/**
+ * The faction a player gets until the Phase 10 picker exists: the n-th player to join a room gets the n-th faction in
+ * FACTION_IDS order (round-robin), so a lobby of five has one of each.
+ */
+export function defaultFaction(joinIndex: number): FactionId {
+  return FACTION_IDS[((joinIndex % FACTION_IDS.length) + FACTION_IDS.length) % FACTION_IDS.length]!;
+}
+
 export function isFactionId(v: unknown): v is FactionId {
   return typeof v === "string" && (FACTION_IDS as readonly string[]).includes(v);
 }
@@ -122,6 +131,18 @@ export function mitigate(raw: number, atk: FactionSpec, dfn: FactionSpec): numbe
   return raw * (atk.phys / (1 + dfn.armor / 100) + magicShare(atk) / (1 + dfn.shield / 100) + atk.trueShare);
 }
 
+/** A hit's damage split into the attacker's shares (they sum to 1). */
+export interface DamageShares { phys: number; magic: number; true: number }
+
+export function damageShares(spec: FactionSpec): DamageShares {
+  return { phys: spec.phys, magic: magicShare(spec), true: spec.trueShare };
+}
+
+/** The damage law for a hit already split into shares; a defender with no faction (a training dummy) passes 0, 0. */
+export function mitigateShares(raw: number, shares: DamageShares, dfn: { armor: number; shield: number }): number {
+  return raw * (shares.phys / (1 + dfn.armor / 100) + shares.magic / (1 + dfn.shield / 100) + shares.true);
+}
+
 const DAMAGE_PARAMS = new Set(["burn", "backlash", "plague", "execute", "mark_ramp", "mark_cap"]);
 
 /** Power-level knob: multiplies hp and every point-damage number by k (ratios untouched). */
@@ -129,6 +150,19 @@ export function scaledFaction(spec: FactionSpec, k: number): FactionSpec {
   const params: Record<string, number> = {};
   for (const [key, v] of Object.entries(spec.params)) params[key] = DAMAGE_PARAMS.has(key) ? v * k : v;
   return { ...spec, hp: spec.hp * k, hit: spec.hit * k, params };
+}
+
+/**
+ * The faction as fought in the arena (DUEL_PACE, GAME_DESIGN 10.2): the hit and every damage param times k, and the
+ * mark ramp times k squared (so the mark is full in 1/k of the time), with hp unchanged. Every fight runs k times
+ * shorter and the counter graph holds. k = 1 is the design sheet (the parity tests).
+ */
+export function pacedFaction(spec: FactionSpec, k: number = DUEL_PACE): FactionSpec {
+  const params: Record<string, number> = {};
+  for (const [key, v] of Object.entries(spec.params)) {
+    params[key] = key === "mark_ramp" ? v * k * k : DAMAGE_PARAMS.has(key) ? v * k : v;
+  }
+  return { ...spec, hit: spec.hit * k, params };
 }
 
 export interface DuelResult { winner: 0 | 1 | null; t: number; hpA: number; hpB: number }
