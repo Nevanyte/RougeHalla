@@ -83,6 +83,8 @@ export class FactionPicker {
     const sig = SIGNATURES[id];
     const card = el("button", "faction-card");
     card.type = "button";
+    // The card's text is long and laid out in parts; a short name reads better to screen readers and tooling.
+    card.setAttribute("aria-label", `${spec.displayName}, ${spec.role}, starts with the ${WEAPONS[SIGNATURE_WEAPONS[id]].name.toLowerCase()}`);
     card.style.setProperty("--faction", cssColor(spec.color));
 
     const head = el("span", "faction-head");
