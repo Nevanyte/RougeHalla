@@ -46,6 +46,8 @@ export type ProjectileEnd =
   | "hit" | "wall" | "range"
   /** An arrow off a shield's front: a new arrow, owned by the holder, flies on from the same point. */
   | "reflected"
+  /** An arrow already reflected MAX_ARROW_REFLECTIONS times, stopped by another shield's front (no damage). */
+  | "blocked"
   /** An arrow a wand ball came too close to. */
   | "deleted"
   /** A ball an axe swing met. */
@@ -66,7 +68,7 @@ export type FxEvent =
   | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null }
   /** `id`'s shield negated a hit by `by`'s weapon (a sword hit also ripostes: a `hit` on `by` follows). */
   | { kind: "block"; id: string; by: string; weapon: WeaponId }
-  /** `id` was staggered: its windup or cast was cancelled, or its bow draw restarted. */
+  /** `id` was staggered: its windup or cast was cancelled (a bow draw is not interrupted). */
   | { kind: "stagger"; id: string }
   /**
    * A projectile stopped at (x, y). It also says where and when it was loosed, so a client that never saw it in the

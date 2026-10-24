@@ -20,6 +20,18 @@ describe("decide, seeing the world late", () => {
     expect(out.aim).toBeGreaterThan(leadAim(self, target, vel, 380));
   });
 
+  it("aims a projectile from the position it was given, not from where a moving shooter will be", () => {
+    // The sim looses the shot from where the shooter's client drew it (the attack's `t`), so a strafing shooter that
+    // aimed from its projected position would miss a standing target by its speed times the lag.
+    const strafing = { selfVel: { x: 0, y: 170 }, viewLag: 0.1, inputDelay: 0.05, windup: 0.2 };
+    for (const weapon of ["bow", "wand"] as const) {
+      expect(decide(input({ weapon, target: { x: 250, y: 0 }, ...strafing })).aim).toBeCloseTo(0, 12);
+    }
+    // A melee swing is judged from the same view, and the walk still starts from where the fighter will be.
+    const walk = decide(input({ weapon: "sword", target: { x: 400, y: 0 }, ...strafing })).move as Vec2;
+    expect(walk.x).toBeCloseTo(400, 9);
+  });
+
   it("walks to where a moving target will be when the move takes effect", () => {
     const out = decide(input({ weapon: "sword", target: { x: 400, y: 0 }, targetVel: { x: 0, y: 100 }, viewLag: 0.1, inputDelay: 0.05 }));
     const m = out.move as Vec2;
@@ -57,16 +69,17 @@ describe("decide, seeing the world late", () => {
   });
 
   it("does not start the next draw after a release when the target is out of range", () => {
-    const out = decide(input({ weapon: "bow", target: { x: 470, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 }));
+    const out = decide(input({ weapon: "bow", target: { x: POLICIES.bow.attackRange + 20, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 }));
     expect(out.release).toBe(true);
     expect(out.hold).toBe(false);
-    expect(decide(input({ weapon: "bow", target: { x: 300, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 })).hold).toBe(true);
+    expect(decide(input({ weapon: "bow", target: { x: 150, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 })).hold).toBe(true);
   });
 
   it("does not draw on a target the arrow cannot reach", () => {
-    // 400 u away and backing off at 170 u/s: the arrow meets it past the 480 u range (about 490 u of flight).
-    expect(decide(input({ weapon: "bow", target: { x: 400, y: 0 }, targetVel: { x: 170, y: 0 } })).hold).toBe(false);
-    expect(decide(input({ weapon: "bow", target: { x: 400, y: 0 } })).hold).toBe(true);
+    // Inside the attack range, but backing off at 170 u/s: the arrow meets it past the bow's range.
+    const at = POLICIES.bow.attackRange - 10;
+    expect(decide(input({ weapon: "bow", target: { x: at, y: 0 }, targetVel: { x: 170, y: 0 } })).hold).toBe(false);
+    expect(decide(input({ weapon: "bow", target: { x: at, y: 0 } })).hold).toBe(true);
   });
 });
 
@@ -103,8 +116,10 @@ describe("decide, backing off near walls", () => {
 
 describe("decide, strafing and spacing overrides", () => {
   const strafing = { ...POLICIES.wand, strafe: 0.8 };
+  // Where the wand stands: between backing off and closing in.
+  const SWEET = (POLICIES.wand.retreatBelow + POLICIES.wand.far) / 2;
   const at = (time: number, over: Partial<PolicyInput> = {}) =>
-    decide(input({ weapon: "wand", target: { x: 220, y: 0 }, spacing: strafing, time, ...over }));
+    decide(input({ weapon: "wand", target: { x: SWEET, y: 0 }, spacing: strafing, time, ...over }));
 
   it("sidesteps perpendicular to the target, changing side every period", () => {
     const first = at(0.1).move as Vec2;
@@ -125,17 +140,57 @@ describe("decide, strafing and spacing overrides", () => {
 
   it("stands when it has no clock, and by default", () => {
     expect(at(0, { time: undefined }).move).toBe("stop");
-    expect(decide(input({ weapon: "wand", target: { x: 220, y: 0 }, time: 0.1 })).move).toBe("stop");
+    expect(decide(input({ weapon: "wand", target: { x: SWEET, y: 0 }, time: 0.1 })).move).toBe("stop");
   });
 
   it("still retreats and still closes in", () => {
-    expect((at(0.1, { target: { x: 100, y: 0 } }).move as Vec2).x).toBeLessThan(0);
-    expect(at(0.1, { target: { x: 300, y: 0 } }).move).toEqual({ x: 300, y: 0 });
+    expect((at(0.1, { target: { x: POLICIES.wand.retreatBelow - 30, y: 0 } }).move as Vec2).x).toBeLessThan(0);
+    const far = POLICIES.wand.far + 100;
+    expect(at(0.1, { target: { x: far, y: 0 } }).move).toEqual({ x: far, y: 0 });
   });
 
   it("plays a weapon with the spacing it is given", () => {
     const keepAway = { ...POLICIES.wand, retreatBelow: 400 };
     expect(decide(input({ weapon: "wand", target: { x: 300, y: 0 }, spacing: keepAway })).move).not.toBe("stop");
     expect(decide(input({ weapon: "wand", target: { x: 300, y: 0 } })).move).toEqual({ x: 300, y: 0 });
+  });
+});
+
+describe("decide, weaving melee approach", () => {
+  const ANGLE = (55 * Math.PI) / 180;
+  const weaving = { ...POLICIES.sword, weave: { angle: ANGLE, period: 0.4, within: 90 } };
+  const at = (time: number, over: Partial<PolicyInput> = {}) =>
+    decide(input({ weapon: "sword", target: { x: 400, y: 0 }, spacing: weaving, time, ...over }));
+  const heading = (m: unknown): number => Math.atan2((m as Vec2).y, (m as Vec2).x);
+
+  it("walks the weave angle off the line to the target and changes side every period", () => {
+    const first = at(0.1).move;
+    const second = at(0.5).move;
+    const third = at(0.9).move;
+    expect(Math.abs(heading(first))).toBeCloseTo(ANGLE, 9);
+    expect(heading(second)).toBeCloseTo(-heading(first), 9);
+    expect(heading(third)).toBeCloseTo(heading(first), 9);
+  });
+
+  it("repeats exactly: the same input gives the same decision", () => {
+    expect(at(1.234)).toEqual(at(1.234));
+  });
+
+  it("charges straight inside `within`, without a clock, and without line of sight", () => {
+    expect(at(0.1, { target: { x: 80, y: 0 } }).move).toEqual({ x: 80, y: 0 });
+    expect(at(0.1, { time: undefined }).move).toEqual({ x: 400, y: 0 });
+    expect(at(0.1, { los: false }).move).toEqual({ x: 400, y: 0 });
+  });
+
+  it("takes the other side when a wall is on this one, and goes straight when both are blocked", () => {
+    const first = at(0.1).move as Vec2;
+    const blocked = at(0.1, { walkable: (_, to) => Math.sign(to.y) !== Math.sign(first.y) }).move as Vec2;
+    expect(Math.sign(blocked.y)).toBe(-Math.sign(first.y));
+    expect(at(0.1, { walkable: () => false }).move).toEqual({ x: 400, y: 0 });
+  });
+
+  it("leaves the default policies alone: nothing weaves unless it is asked to", () => {
+    for (const w of ["sword", "axe", "shield"] as const) expect(POLICIES[w].weave).toBeUndefined();
+    expect(decide(input({ weapon: "sword", target: { x: 400, y: 0 }, time: 0.1 })).move).toEqual({ x: 400, y: 0 });
   });
 });

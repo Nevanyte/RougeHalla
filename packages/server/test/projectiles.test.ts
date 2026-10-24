@@ -4,10 +4,11 @@
 // reflections, ball-versus-arrow deletion, the teleport clear, a shooter who is gone, and the swing interceptions.
 // Melee is not involved: the swing side of interceptBall is driven by hand, in the slot where the melee phase runs.
 // Worlds are a hand-built open arena (1280 x 640 u); the shots are real inputs (attack, then release after a full draw).
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Decoder, Encoder, getRawChangesCallback, Reflection } from "@colyseus/schema";
 import {
-  BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, mitigateShares, mulberry32,
+  BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, MAX_ARROW_REFLECTIONS,
+  mitigateShares, mulberry32,
   pacedFaction, PLAYER_SPEED, PROJECTILE_SUBSTEP_MS, RANGED_HIT_REACH, reflectVelocity, SIGNATURE_WEAPONS, SWORD_BALL_SCALE, TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, WEAPONS, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -26,6 +27,30 @@ import type { ProjectileRuntime, SimEvent, World } from "../src/sim/world";
 
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
+
+// ---------------------------------------------------------------------------------------------------------------
+// These tests pin the projectile mechanics (the netcode contract, 10 ms substeps, walls, gates, reflections), not the
+// tuned numbers. The 9.1 tuning cut the ranges to 240 and 220 u; the long-flight geometry below (far walls, a flight of
+// many substeps, a shot across the arena) was built for the original 480 and 420, so this file flies at those. What the
+// catalog really says is pinned in shared/test/weapons.test.ts and by "flies the catalog's own ranges" below.
+// The catalog is shared module state, so the longer ranges are set only while this file's tests run (beforeAll) and the
+// catalog's own are put back afterwards (afterAll): nothing else that imports @raid/shared in this worker can see them.
+const CATALOG_RANGES = { bow: 0, wand: 0 };
+const TEST_RANGES = { bow: 480, wand: 420 };
+function setRanges(ranges: { bow: number; wand: number }): void {
+  for (const w of ["bow", "wand"] as const) {
+    const shape = WEAPONS[w].shape;
+    if (shape.kind !== "projectile") throw new Error(`${w} is not a projectile weapon`);
+    shape.range = ranges[w];
+  }
+}
+for (const w of ["bow", "wand"] as const) {
+  const shape = WEAPONS[w].shape;
+  if (shape.kind !== "projectile") throw new Error(`${w} is not a projectile weapon`);
+  CATALOG_RANGES[w] = shape.range;
+}
+beforeAll(() => setRanges(TEST_RANGES));
+afterAll(() => setRanges(CATALOG_RANGES));
 
 // ---------------------------------------------------------------------------------------------------------------
 // Scenario helpers
@@ -522,20 +547,32 @@ describe("where a projectile leaves from", () => {
   const LAG = 250;
   /** The `t` of an input stamped by a client `lag` ms behind the server, processed in the next tick. */
   const stamp = (w: World, lag: number): number => w.state.serverTime + TICK_MS - lag;
+  /**
+   * One tick, then the archer a full-speed step further south. Drawing a bow now slows a walker to BOW_DRAW_MOVE (nearly
+   * a root), so the strafe the origin tests need is moved by hand; its history, which the server reads back, is the
+   * same as if it had walked during that tick.
+   */
+  const strafeTick = (w: World): SimEvent[] => {
+    const out = tick(w);
+    const p = P(w, "archer");
+    p.y += (PLAYER_SPEED * TICK_MS) / 1000;
+    RT(w, "archer").history.at(-1)!.y = p.y;
+    return out;
+  };
 
   it("an arrow looses from the drawn position, so an archer strafing past a still target hits what it aimed at", () => {
     const w = arena([archer({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
     const c = P(w, "archer");
     const q = RT(w, "archer").inputs;
     c.readyAt = 0;
-    RT(w, "archer").path = [{ x: 200, y: 560 }]; // straight south, across the line to the target
+    // Straight south, across the line to the target, at full walking speed.
     q.pushAction({ kind: "attack", a: 0, t: stamp(w, LAG) });
-    tick(w);
-    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS) - 1; i > 0; i--) tick(w);
+    strafeTick(w);
+    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS) - 1; i > 0; i--) strafeTick(w);
     const t = stamp(w, LAG);
     const drawn = positionAt(RT(w, "archer"), c, t);
     q.pushAction({ kind: "release", a: Math.atan2(320 - drawn.y, 500 - drawn.x), t });
-    tick(w);
+    strafeTick(w);
     const arrow = lastProjectile(w);
     expect(arrow.kind).toBe("arrow");
     expect([arrow.state.x, arrow.state.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
@@ -550,12 +587,11 @@ describe("where a projectile leaves from", () => {
     const c = P(w, "archer");
     const q = RT(w, "archer").inputs;
     c.readyAt = 0;
-    RT(w, "archer").path = [{ x: 200, y: 560 }];
     q.pushAction({ kind: "attack", a: 0 });
-    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS); i > 0; i--) tick(w);
+    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS); i > 0; i--) strafeTick(w);
     const latest = { x: c.x, y: c.y };
     q.pushAction({ kind: "release", a: Math.atan2(320 - latest.y, 500 - latest.x) });
-    tick(w);
+    strafeTick(w);
     const arrow = lastProjectile(w);
     expect([arrow.state.x, arrow.state.y]).toEqual([expect.closeTo(latest.x, 9), expect.closeTo(latest.y, 9)]);
     expect(c.y).toBeGreaterThan(latest.y + 3); // it walked on in the release tick; the arrow did not
@@ -719,6 +755,38 @@ describe("walls and gates", () => {
 });
 
 describe("range", () => {
+  it("flies the catalog's own ranges (the 9.1 tuning: bow 240 u, wand 220 u)", () => {
+    expect(CATALOG_RANGES).toEqual({ bow: 240, wand: 220 });
+    const bow = WEAPONS.bow.shape;
+    const wand = WEAPONS.wand.shape;
+    if (bow.kind !== "projectile" || wand.kind !== "projectile") throw new Error("projectile");
+    const [bowTest, wandTest] = [bow.range, wand.range];
+    bow.range = CATALOG_RANGES.bow;
+    wand.range = CATALOG_RANGES.wand;
+    try {
+      const a = arena([archer({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
+      loose(a, [{ id: "archer", a: 0 }]);
+      expect(synced([...a.state.projectiles.values()][0]!).range).toBe(240);
+      const arrow = flyUntilEnd(a);
+      expect(arrow.end.reason).toBe("range");
+      expect(arrow.end.x).toBeCloseTo(100 + 240, 6);
+
+      const m = arena([mage({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
+      castBall(m, "mage", 0);
+      expect(synced([...m.state.projectiles.values()][0]!).range).toBe(220);
+      const ball = flyUntilEnd(m);
+      expect(ball.end).toMatchObject({ proj: "ball", reason: "range" });
+      expect(ball.end.x).toBeCloseTo(100 + 220, 6);
+      // A body just inside the reach of the end of the range is still hit; just outside it is not.
+      const far = arena([archer({ x: 100, y: 320 }), target({ x: 100 + 240 + RANGED_HIT_REACH + 1, y: 320 }), idle()]);
+      loose(far, [{ id: "archer", a: 0 }]);
+      expect(flyUntilEnd(far).end.reason).toBe("range");
+    } finally {
+      bow.range = bowTest;
+      wand.range = wandTest;
+    }
+  });
+
   it("stops an arrow exactly 480 u from where it left, in the tick that covers it", () => {
     const w = arena([archer({ x: 100, y: 320 }), idle(), idle("idle2", { x: 1200, y: 100 })]);
     loose(w, [{ id: "archer", a: 0 }]);
@@ -862,12 +930,67 @@ describe("shield reflection", () => {
         if (e.reason === "reflected") ranges.push(lastProjectile(w).state.range);
       }
     }
-    // 86 u to the first shield, then 480 u in all (172 + 172 + 136) however many times it is reflected.
+    // 86 u to the first shield, a full 480 u from there, the second reflection keeps what is left (480 - 172), and the
+    // third shield front just blocks it (MAX_ARROW_REFLECTIONS).
+    expect(MAX_ARROW_REFLECTIONS).toBe(2);
     expect(w.projectiles.size).toBe(0);
-    expect(reasons).toEqual(["reflected", "reflected", "reflected", "range"]);
-    expect(ranges).toEqual([ARROW.range, expect.closeTo(ARROW.range - 172, 6), expect.closeTo(ARROW.range - 344, 6)]);
+    expect(reasons).toEqual(["reflected", "reflected", "blocked"]);
+    expect(ranges).toEqual([ARROW.range, expect.closeTo(ARROW.range - 172, 6)]);
     expect(flown * TICK_MS).toBeLessThan(2000);
     expect([P(w, "holder").hp, P(w, "holder2").hp]).toEqual([FACTIONS.frost.hp, FACTIONS.frost.hp]);
+  });
+
+  /** Two Frost shields face to face, overlapping (A at 300 facing east, B 16 u east facing west), and an archer. */
+  function contactPair(archerAt: Vec2): World {
+    return arena([
+      archer(archerAt), { id: "a", at: { x: 300, y: 320 }, faction: "frost", facing: 0 },
+      { id: "b", at: { x: 316, y: 320 }, faction: "frost", facing: Math.PI },
+    ]);
+  }
+
+  /** Flies until nothing is left or `maxTicks` pass; counts reflections and blocks. */
+  function flyOut(w: World, maxTicks: number): { ticks: number; reflected: number; blocked: number } {
+    let reflected = 0;
+    let blocked = 0;
+    let n = 0;
+    while (w.projectiles.size > 0 && n < maxTicks) {
+      n++;
+      for (const e of fxOf(tick(w), "projEnd")) {
+        if (e.reason === "reflected") reflected++;
+        if (e.reason === "blocked") blocked++;
+      }
+    }
+    return { ticks: n, reflected, blocked };
+  }
+
+  it("ends an arrow that hits two overlapping shields face to face: at most two reflections, then it is blocked", () => {
+    // The exact setup that bounced about five times a tick forever before the cap (every reflection started inside the
+    // other shield's reach, so it hit again at its own start point, and range never shrank).
+    const w = contactPair({ x: 567.8, y: 470 });
+    loose(w, [{ id: "archer", a: -2.653 }]);
+    const out = flyOut(w, 40);
+    expect(w.projectiles.size).toBe(0);
+    expect(out.reflected).toBeLessThanOrEqual(MAX_ARROW_REFLECTIONS);
+    expect(out.ticks).toBeLessThan(20);
+    expect([P(w, "a").hp, P(w, "b").hp]).toEqual([FACTIONS.frost.hp, FACTIONS.frost.hp]);
+  });
+
+  it("ends every arrow chain quickly from any angle around the overlapping pair (a sweep of the geometry)", () => {
+    const mid = { x: 308, y: 320 };
+    let checked = 0;
+    for (let deg = 0; deg < 360; deg += 15) {
+      const rad = (deg * Math.PI) / 180;
+      const from = { x: mid.x + Math.cos(rad) * 300, y: mid.y + Math.sin(rad) * 300 };
+      for (const off of [-12, -4, 0, 4, 12]) {
+        const w = contactPair(from);
+        loose(w, [{ id: "archer", a: Math.atan2(mid.y + off - from.y, mid.x - from.x) }]);
+        const out = flyOut(w, 60);
+        expect(w.projectiles.size, `from ${deg} deg, offset ${off}`).toBe(0);
+        expect(out.reflected, `from ${deg} deg, offset ${off}`).toBeLessThanOrEqual(2);
+        checked++;
+      }
+    }
+    expect(checked).toBe(24 * 5);
   });
 
   it("can hit the archer on the way back, dealing the same packet under the archer's own armor and shield", () => {
@@ -931,7 +1054,7 @@ describe("shield reflection", () => {
     const { end, events } = flyUntilEnd(w);
     expect(end).toMatchObject({ proj: "ball", reason: "hit" });
     expect(fxOf(events, "block")).toEqual([]);
-    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo((65 * DUEL_PACE * 0.85) / 1.65 / (1 + 100 / 100), 9);
+    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo((65 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 100 / 100), 9);
   });
 
   it("reflects off a shield held by a mob; a kill by that arrow is credited to its name only", () => {
@@ -1212,7 +1335,7 @@ describe("damage numbers", () => {
     castBall(w, "mage", 0);
     flyUntilEnd(w);
     // hit x pace x wand multiplier / (1 + boost), then Frost's 100 armor.
-    expect(FACTIONS.frost.hp - P(w, "frost").hp).toBeCloseTo((65 * DUEL_PACE * 0.85) / 1.65 / (1 + 100 / 100), 9);
+    expect(FACTIONS.frost.hp - P(w, "frost").hp).toBeCloseTo((65 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 100 / 100), 9);
   });
 });
 

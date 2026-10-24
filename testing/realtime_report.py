@@ -99,29 +99,9 @@ if "sig" in want:
 
 if "kite" in want:
     print("\n[kite] seconds the melee winner can arrive late and still win (>=50%), vs free-fire time on approach (Tff)")
-
-    def wr(a, wa, b, wb, T):
-        return edge_stats(duel(S(a, wa, act_start=T, fx_start=T), S(b, wb), nmax=50))["rate"]
-
-    def tol(a, wa, b, wb):
-        if wr(a, wa, b, wb, 0) < 0.5:
-            return 0.0
-        lo, hi = 0.0, 90.0
-        if wr(a, wa, b, wb, hi) >= 0.5:
-            return float("inf")
-        while hi - lo > 0.025:
-            mid = (lo + hi) / 2
-            if wr(a, wa, b, wb, mid) >= 0.5:
-                lo = mid
-            else:
-                hi = mid
-        return lo
-
-    for a, b in BEATS:
+    for a, b, cells in W.kite_rows():
         row = ""
-        for wb in RANGED:
-            t = {wa: tol(a, wa, b, wb) for wa in MELEE}
-            tff = (WEAPONS[wb]["rng"] - REACH) / (V * chill_of(Side(BY[b], wb)))
+        for wb, (t, tff) in cells.items():
             row += f"  {wb}: " + " ".join(f"{k[:2]}{v:6.2f}" for k, v in t.items()) + f" (Tff {tff:4.2f}{' STOLEN' if min(t.values()) < tff else ''})"
         print(f"  {a+'>'+b:17s}{row}", flush=True)
 
