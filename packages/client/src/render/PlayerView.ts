@@ -6,6 +6,7 @@ import type { PlayerState } from "@raid/shared/schema";
 import { BodyFlash, FighterArt, drawHpBar, factionColor, heldWeapon } from "./FighterArt";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
+import { MarksMemory } from "./signatureLook";
 import { TrailView } from "./TrailView";
 
 const HIT_FLASH_MS = 120;
@@ -64,6 +65,7 @@ export class PlayerView {
   private readonly art: FighterArt;
   private readonly signatures: SignatureArt;
   private readonly flashing: BodyFlash;
+  private readonly marks = new MarksMemory();
   /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
   private crownBounty = 0;
   /** The look word `look` was decoded from; -1 (never a uint32) until the first update, so even word 0 is decoded once. */
@@ -144,6 +146,7 @@ export class PlayerView {
     this.root.setVisible(visible);
     if (!visible) {
       this.trail?.reset();
+      this.marks.read(0, 0, false);
       return;
     }
     this.flashing.setColor(factionColor(p.faction));
@@ -155,7 +158,9 @@ export class PlayerView {
     const weapon = this.art.update(p, renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(p.facing));
     this.label.setText(p.name);
-    this.signatures.update(p.sig, p.brand, signatures);
+    // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
+    this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
+    this.signatures.update(this.marks.sig, this.marks.brand, signatures);
 
     drawHpBar(this.hpBar, p.maxHp > 0 ? p.hp / p.maxHp : 0, -BODY_LIFT - PLAYER_RADIUS - 8);
 

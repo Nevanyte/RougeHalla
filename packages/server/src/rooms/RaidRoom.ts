@@ -240,6 +240,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // forget the result: settle() stores it for a reconnect that can no longer happen.
     this.handleEvents(this.world.events.splice(0));
     this.pendingResults.delete(sessionId);
+    this.picked.delete(sessionId); // settle() takes it when a run is recorded; a lobby leave or a void run never reaches that
     if (seat) profiles.release(seat.profile, seat.ownerKey);
   }
 

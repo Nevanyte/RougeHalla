@@ -15,7 +15,7 @@ import { ProjectileView } from "../render/ProjectileView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
-import { ScreenFeedback, matchupTarget } from "../ui/screenFeedback";
+import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import { WeaponBar } from "../ui/weaponBar";
 
 export interface RaidSceneData {
@@ -87,8 +87,8 @@ export class RaidScene extends Phaser.Scene {
   /** Last aim angle streamed or attached to an attack or release, and when. */
   private lastAimSent: number | null = null;
   private lastAimSentAt = 0;
-  /** Local hp at the previous frame while alive, or -1 when unknown (not alive yet); feeds the sudden-death vignette. */
-  private lastHp = -1;
+  /** Server time of the newest patch the sudden-death vignette has looked at: one pulse per patch, not per frame. */
+  private lastArenaPatchT = 0;
   /**
    * Players whose death fx is queued but not yet due, keyed by id. The death patch (status "dead", a new body) is
    * ahead of render time, so until renderT reaches `t` they are still drawn alive and their body stays hidden.
@@ -150,7 +150,7 @@ export class RaidScene extends Phaser.Scene {
     this.attackSent = false;
     this.lastAimSent = null;
     this.lastAimSentAt = 0;
-    this.lastHp = -1;
+    this.lastArenaPatchT = 0;
     this.hud = new Hud();
     this.weaponBar = new WeaponBar();
     this.feedback = new ScreenFeedback();
@@ -165,15 +165,13 @@ export class RaidScene extends Phaser.Scene {
       position: (id) => this.rendered.get(id),
       name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
       projectileEnded: (id) => this.projectiles.finish(id),
+      // At render time with the flash and the number, not on arrival (~INTERP_DELAY_MS earlier): damageFlash judges the hit against max hp.
+      localHit: (fx) => this.feedback.hit(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0, fx.sig),
       announce: data.toast,
     });
     this.unbindFx = this.room.onMessage("fx", (fx: TimedFx) => {
       if (fx?.kind === "death") this.noteDeath(fx.id, fx.t, fx.x, fx.y);
       if (fx?.kind === "teleport") this.noteTeleport(fx.t);
-      // Straight on arrival, like the hp in the HUD, not at render time: damageFlash judges the hit against max hp.
-      if (fx?.kind === "hit" && fx.id === this.room.sessionId) {
-        this.feedback.hit(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0, fx.sig);
-      }
       // The stop point is known on arrival, though the fx plays later: it caps the projectile's drawn flight.
       if (fx?.kind === "projEnd") this.projectiles.noteEnd(fx);
       this.fx.enqueue(fx);
@@ -280,7 +278,7 @@ export class RaidScene extends Phaser.Scene {
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
     this.fx.update(renderT, now, this.clockSynced);
-    this.trackArenaDamage(me, state.gatesLocked && state.suddenDeathAt > 0 && serverNow >= state.suddenDeathAt);
+    this.trackArenaDamage(me, state);
     this.feedback.update(now, this.sampleMatchup);
 
     // Redraws only when the player's dot (or the gates) actually changed.
@@ -471,14 +469,16 @@ export class RaidScene extends Phaser.Scene {
   }
 
   /**
-   * Sudden death hurts everyone every tick but sends no `hit` fx (the arena isn't an attacker), so its hp loss feeds the
-   * vignette from the state. Everything else flashes from its fx (see the `fx` handler), and damage over time never does.
+   * Sudden death hurts everyone every tick but sends no `hit` fx (the arena isn't an attacker). The hp the state loses
+   * can't stand in for it: that also holds damage over time (which never flashes) and hits that already did. So each
+   * new patch pulses the vignette with what sudden death alone takes from the local player that tick.
    */
-  private trackArenaDamage(me: PlayerState | undefined, suddenDeath: boolean): void {
-    if (!me) { this.lastHp = -1; return; }
-    const lost = this.lastHp >= 0 ? this.lastHp - me.hp : 0;
-    this.lastHp = me.status === "alive" ? me.hp : -1;
-    if (suddenDeath && lost > 0) this.feedback.hit(lost, me.maxHp);
+  private trackArenaDamage(me: PlayerState | undefined, state: RaidState): void {
+    const fresh = state.serverTime > this.lastArenaPatchT;
+    this.lastArenaPatchT = state.serverTime;
+    if (!fresh || me?.status !== "alive" || !state.gatesLocked) return;
+    const lost = suddenDeathLoss(me.maxHp, state.serverTime, state.suddenDeathAt);
+    if (lost > 0) this.feedback.hit(lost, me.maxHp);
   }
 
   /**

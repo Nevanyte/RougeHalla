@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  MATCHUP_FULL_RANGE, MATCHUP_RANGE, TILE, TILE_WALL, damageFlash, mapFromTiles, matchupTint,
+  MATCHUP_FULL_RANGE, MATCHUP_RANGE, SUDDEN_DEATH_RAMP_FRACTION, SUDDEN_DEATH_START_FRACTION, TICK_MS, TILE, TILE_WALL,
+  damageFlash, mapFromTiles, matchupTint,
   type GameMap, type WeaponId,
 } from "@raid/shared";
 import {
-  DamagePulse, TINT_MAX_ALPHA, VIGNETTE_DECAY_MS, approach, decayed, matchupTarget, nearestFoeTint, tintStyle,
+  DamagePulse, TINT_MAX_ALPHA, VIGNETTE_DECAY_MS, approach, decayed, matchupTarget, nearestFoeTint, suddenDeathLoss, tintStyle,
   type Matchup, type MatchupWorld,
 } from "../src/ui/screenFeedback";
 
@@ -40,6 +41,30 @@ describe("damage vignette", () => {
     }
     expect(p.value(0)).toBe(0);
     expect(damageFlash(500, 700, "backlash")).toBeGreaterThan(0);
+  });
+});
+
+describe("suddenDeathLoss", () => {
+  const at = 100_000;
+  const tickShare = TICK_MS / 1000;
+
+  it("is 0 before sudden death is scheduled or started", () => {
+    expect(suddenDeathLoss(1000, at + TICK_MS, 0)).toBe(0);
+    // The tick that ended at `at` began before it.
+    expect(suddenDeathLoss(1000, at, at)).toBe(0);
+    expect(suddenDeathLoss(0, at + 5000, at)).toBe(0);
+  });
+
+  it("burns the start share of max hp per second in the first second, then ramps by whole seconds", () => {
+    expect(suddenDeathLoss(1000, at + TICK_MS, at)).toBeCloseTo(1000 * SUDDEN_DEATH_START_FRACTION * tickShare, 9);
+    expect(suddenDeathLoss(1000, at + TICK_MS + 999, at)).toBeCloseTo(1000 * SUDDEN_DEATH_START_FRACTION * tickShare, 9);
+    expect(suddenDeathLoss(1000, at + TICK_MS + 1000, at))
+      .toBeCloseTo(1000 * (SUDDEN_DEATH_START_FRACTION + SUDDEN_DEATH_RAMP_FRACTION) * tickShare, 9);
+  });
+
+  it("flashes only once the ramp makes a tick cost damageFlash's threshold (and never at the start)", () => {
+    expect(damageFlash(suddenDeathLoss(700, at + TICK_MS, at), 700)).toBe(0);
+    expect(damageFlash(suddenDeathLoss(700, at + 40_000, at), 700)).toBeGreaterThan(0);
   });
 });
 

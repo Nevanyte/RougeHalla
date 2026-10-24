@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brandLook, life, pulse } from "../src/render/signatureLook";
+import { MarksMemory, brandLook, life, pulse } from "../src/render/signatureLook";
 
 describe("brandLook", () => {
   it("is null for an unmarked fighter", () => {
@@ -57,5 +57,28 @@ describe("pulse and life", () => {
     expect(life(0, 800, 0, 4)).toBe(0);
     expect(life(0, 800, 1, 4)).toBeCloseTo(0.25, 9);
     expect(life(200, 800, 3, 4)).toBeCloseTo(0, 9);
+  });
+});
+
+describe("MarksMemory", () => {
+  it("follows the synced marks", () => {
+    const m = new MarksMemory();
+    m.read(5, 40, false);
+    expect([m.sig, m.brand]).toEqual([5, 40]);
+    m.read(0, 0, false);
+    expect([m.sig, m.brand]).toEqual([0, 0]);
+  });
+
+  it("holds the last marks through the zeros a down fighter's patch carries, while its death is still to be drawn", () => {
+    const m = new MarksMemory();
+    m.read(5, 40, true);
+    m.read(0, 0, true);
+    m.read(0, 0, true);
+    expect([m.sig, m.brand]).toEqual([5, 40]);
+    // Still takes new marks while held, and lets go once the death is drawn.
+    m.read(0, 60, true);
+    expect([m.sig, m.brand]).toEqual([0, 60]);
+    m.read(0, 0, false);
+    expect([m.sig, m.brand]).toEqual([0, 0]);
   });
 });

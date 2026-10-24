@@ -1039,6 +1039,30 @@ describe("damage through the faction formula", () => {
     expect(fxOf(events, "stagger")).toEqual([]);
   });
 
+  it("the riposte is passive in the ledger (no attack of the holder's own); the swing that was blocked is not", () => {
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
+    // beforeDamage sees the tick's ledger before it is applied and cleared.
+    const ledger: LedgerEntry[] = [];
+    world.beforeDamage.push((w) => { ledger.push(...w.combat.ledger.map((e) => ({ ...e }))); });
+    tap(world, 0, 0);
+    const events = run(world, 3);
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({ victim: "p0", by: { id: "p1" }, weapon: "shield", passive: true });
+    expect(fxOf(events, "block")).toEqual([{ kind: "block", id: "p1", by: "p0", weapon: "sword" }]);
+    expect(fxOf(events, "block")[0]).not.toHaveProperty("passive");
+  });
+
+  it("an ordinary sword hit is not passive", () => {
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
+    const ledger: LedgerEntry[] = [];
+    world.beforeDamage.push((w) => { ledger.push(...w.combat.ledger.map((e) => ({ ...e }))); });
+    tap(world, 0, 0);
+    run(world, 3);
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({ victim: "p1", by: { id: "p0" }, weapon: "sword" });
+    expect(ledger[0]!.passive).toBeUndefined();
+  });
+
   it("agrees with damagePerHit and mitigateShares for every melee faction x weapon x defender", () => {
     for (const weapon of ["sword", "axe", "shield"] as const) {
       for (const atk of ["fire", "plague", "frost", "holy"] as const) {

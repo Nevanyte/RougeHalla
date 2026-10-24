@@ -42,3 +42,19 @@ export function life(nowMs: number, periodMs: number, i: number, n: number): num
   const v = nowMs / periodMs + i / n;
   return v - Math.floor(v);
 }
+
+/**
+ * The signature marks to draw on a fighter. The sim zeroes `sig` and `brand` the tick a fighter goes down, but the death
+ * itself is drawn ~INTERP_DELAY_MS later (render time), so the marks would vanish before the body does. While `hold` is
+ * set the last marks seen stay up through a zeroed patch.
+ */
+export class MarksMemory {
+  sig = 0;
+  brand = 0;
+
+  read(sig: number, brand: number, hold: boolean): void {
+    if (hold && sig === 0 && !(brand > 0)) return;
+    this.sig = sig;
+    this.brand = brand;
+  }
+}

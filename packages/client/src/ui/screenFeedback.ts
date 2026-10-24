@@ -2,7 +2,8 @@
 // soft green or red tint for the matchup against the nearest enemy in sight (GAME_DESIGN 15). Display only: the numbers
 // come from the shared helpers (damageFlash, matchupScore, matchupTint), styling is inline so no stylesheet is needed.
 import {
-  MATCHUP_HZ, MATCHUP_RANGE, damageFlash, hasLineOfSight, isFactionId, matchupScore, matchupTint, withGates,
+  MATCHUP_HZ, MATCHUP_RANGE, TICK_MS, damageFlash, suddenDeathShare,
+  hasLineOfSight, isFactionId, matchupScore, matchupTint, withGates,
   type FactionId, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import { heldWeapon } from "../render/FighterArt";
@@ -21,6 +22,19 @@ const TINT_SNAP = 0.002;
 export function decayed(strength: number, elapsedMs: number): number {
   if (!(strength > 0)) return 0;
   return Math.max(0, strength * (1 - Math.max(0, elapsedMs) / VIGNETTE_DECAY_MS));
+}
+
+/**
+ * The hp sudden death takes from a player with `maxHp` in the tick that ended at server time `patchT`, 0 before it starts
+ * (`suddenDeathAt` 0 = not scheduled). It mirrors the server's own burn (sim/arena.ts suddenDeath: a share of max hp per
+ * second, growing each whole second, over the tick that began at `patchT - TICK_MS`). The arena sends no `hit` fx, and the
+ * hp the state loses also holds damage over time and hits that already flashed, so the loss is derived rather than measured.
+ */
+export function suddenDeathLoss(maxHp: number, patchT: number, suddenDeathAt: number): number {
+  const tickStart = patchT - TICK_MS;
+  if (!(suddenDeathAt > 0) || !(maxHp > 0) || tickStart < suddenDeathAt) return 0;
+  const share = suddenDeathShare(tickStart - suddenDeathAt);
+  return share * (TICK_MS / 1000) * maxHp;
 }
 
 /** One decaying pulse; overlapping hits keep the stronger of what is left and what just landed. */

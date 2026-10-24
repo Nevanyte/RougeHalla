@@ -281,7 +281,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 
 **Setup**
 - **Picking up into an empty slot** doesn't change the weapon in hand.
-- **The first faction** is a round-robin default by join order until the faction picker exists (Phase 10).
+- **The faction** is picked in the hub before each run. A player who hasn't picked one (or a bot without `--faction`) gets a round-robin default by join order, which never counts toward faction achievements.
 - **Training dummies** (server option `DUMMIES=1`) have no faction, so no armor or shield, and never die: a hit that would kill refills them.
 
 ---

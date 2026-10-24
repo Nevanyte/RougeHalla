@@ -128,6 +128,67 @@ function fullDrawSeconds(faction: string): number {
   return v;
 }
 
+/** One start of a draw as the server had it, and the server time of the patch that first showed it. */
+interface DrawStart { patchT: number; start: number }
+
+/**
+ * Follows one fighter's bow draw (its synced `drawStartedAt`) for display. The state runs ahead of what is drawn, and a
+ * chill pushes the start later a little every tick, so the pull at render time must use the start the server had back
+ * then: the newest one would understate it by the push made over the render delay.
+ */
+export class DrawTrack {
+  /** The start in effect at render time (0 = no draw). */
+  start = 0;
+  /** Starts not yet passed by render time: the one in effect first, then the newer ones by patch time. */
+  private readonly starts: DrawStart[] = [];
+  /** The newest start, whose pushes a restart is told from. */
+  private latest = 0;
+  /** The server time the draw stopped (Infinity = still on). */
+  private end = Infinity;
+  /** Render time has reached this draw's start at least once; from then on it stays on screen. */
+  private shown = false;
+
+  /** Once per frame with the fighter's synced `drawStartedAt`; true while a draw is on screen at `renderT`. */
+  track(drawStartedAt: number, renderT: number, patchT: number): boolean {
+    if (drawStartedAt > 0) {
+      const ahead = drawStartedAt - this.latest;
+      if (this.latest === 0 || this.end !== Infinity || ahead < 0 || ahead > DRAW_PUSH_SLACK_MS) {
+        // A new draw: the first one, or a stagger restarting it.
+        this.starts.length = 0;
+        this.starts.push({ patchT, start: drawStartedAt });
+        this.end = Infinity;
+        this.shown = false;
+      } else if (drawStartedAt !== this.latest) {
+        // The same draw, its start pushed later by a chill.
+        this.starts.push({ patchT, start: drawStartedAt });
+      }
+      this.latest = drawStartedAt;
+    } else if (this.latest > 0 && this.end === Infinity) {
+      this.end = patchT;
+    }
+    if (this.latest === 0) return false;
+    if (renderT >= this.end) {
+      this.reset();
+      return false;
+    }
+    // Keep the newest start render time has reached, and anything newer.
+    while (this.starts.length > 1 && this.starts[1]!.patchT <= renderT) this.starts.shift();
+    this.start = this.starts[0]!.start;
+    // A pushed start can slip back ahead of render time for a frame or two; once shown, the draw stays up instead of
+    // blinking out and in.
+    if (renderT >= this.start) this.shown = true;
+    return this.shown;
+  }
+
+  private reset(): void {
+    this.start = 0;
+    this.latest = 0;
+    this.starts.length = 0;
+    this.end = Infinity;
+    this.shown = false;
+  }
+}
+
 export class FighterArt {
   /** The shield's block arc on the ground; goes under the body in the view's container. */
   readonly ground: Phaser.GameObjects.Graphics;
@@ -137,11 +198,7 @@ export class FighterArt {
   private arcSig = "";
   /** Draw the weapon in hand in gold (a golden weapon look applies). Part of the redraw signature. */
   private gold = false;
-  /** The bow draw being shown: its server start time (0 = none) and the server time it stopped (Infinity = still on). */
-  private drawStart = 0;
-  private drawEnd = Infinity;
-  /** Render time has reached this draw's start at least once; from then on it stays on screen (see trackDraw). */
-  private drawShown = false;
+  private readonly draw = new DrawTrack();
 
   constructor(scene: Phaser.Scene) {
     this.ground = scene.add.graphics();
@@ -161,10 +218,10 @@ export class FighterArt {
   update(f: FighterFields, renderT: number, patchT: number): WeaponId | null {
     const weapon = heldWeapon(f);
     // Tracked every frame, not only with a bow in hand, so a draw that a swap cancelled can't linger.
-    const drawing = this.trackDraw(f, renderT, patchT);
+    const drawing = this.draw.track(f.drawStartedAt, renderT, patchT);
     const full = fullDrawSeconds(f.faction);
     // Clamped at both ends: a chill can leave the start a few ms ahead of render time while the draw is on screen.
-    const pull = weapon === "bow" && drawing && full > 0 ? Math.max(0, Math.min(1, (renderT - this.drawStart) / 1000 / full)) : -1;
+    const pull = weapon === "bow" && drawing && full > 0 ? Math.max(0, Math.min(1, (renderT - this.draw.start) / 1000 / full)) : -1;
 
     this.held.setVisible(weapon !== null).setRotation(screenAngle(f.facing));
     const sig = `${weapon ?? ""}|${pull < 0 ? -1 : Math.round(pull * PULL_STEPS)}|${this.gold ? 1 : 0}`;
@@ -186,35 +243,6 @@ export class FighterArt {
       }
     }
     return weapon;
-  }
-
-  /** True while a draw is on screen at `renderT`. */
-  private trackDraw(f: FighterFields, renderT: number, patchT: number): boolean {
-    if (f.drawStartedAt > 0) {
-      const ahead = f.drawStartedAt - this.drawStart;
-      if (this.drawStart === 0 || this.drawEnd !== Infinity || ahead < 0 || ahead > DRAW_PUSH_SLACK_MS) {
-        // A new draw: the first one, or a stagger restarting it.
-        this.drawStart = f.drawStartedAt;
-        this.drawEnd = Infinity;
-        this.drawShown = false;
-      } else {
-        // The same draw, its start pushed later by a chill (or unchanged).
-        this.drawStart = f.drawStartedAt;
-      }
-    } else if (this.drawStart > 0 && this.drawEnd === Infinity) {
-      this.drawEnd = patchT;
-    }
-    if (this.drawStart === 0) return false;
-    if (renderT >= this.drawEnd) {
-      this.drawStart = 0;
-      this.drawEnd = Infinity;
-      this.drawShown = false;
-      return false;
-    }
-    // A pushed start can slip back ahead of render time for a frame or two; once shown, the draw stays up instead of
-    // blinking out and in.
-    if (renderT >= this.drawStart) this.drawShown = true;
-    return this.drawShown;
   }
 }
 

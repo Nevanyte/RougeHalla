@@ -38,7 +38,8 @@ const toasts = new Toasts();
 async function startRaid(request: RaidRequest): Promise<void> {
   menu.setBusy(true, "Joining run…");
   try {
-    room = await joinRaid({ profile: request.profile, token: request.token, faction: request.faction });
+    // A faction is sent only after a deliberate pick; without one the server assigns its default.
+    room = await joinRaid({ profile: request.profile, token: request.token, ...(request.faction ? { faction: request.faction } : {}) });
   } catch (err) {
     console.error(err);
     if (isCallsignBusy(err)) {

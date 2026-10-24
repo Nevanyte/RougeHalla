@@ -77,6 +77,8 @@ export interface FxHost {
   name(id: string): string | undefined;
   /** A projectile's end is due: stop drawing it (the impact is FxView's). */
   projectileEnded(id: string): void;
+  /** A hit on the local player is due (at render time, together with its flash and number): drives the screen vignette. */
+  localHit?(fx: FxOf<"hit">): void;
   /** Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!". */
   announce?(text: string): void;
 }
@@ -292,6 +294,7 @@ export class FxView {
   }
 
   private hit(fx: FxOf<"hit">, now: number): void {
+    if (fx.id === this.host.localId) this.host.localHit?.(fx);
     const dot = isDot(fx.sig);
     // Damage over time is a steady drip, not a blow: no body flash for it.
     if (!dot) this.host.view(fx.id)?.flash();

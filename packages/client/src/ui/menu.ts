@@ -59,8 +59,8 @@ export interface RaidRequest {
   profile: string;
   /** Proof of ownership returned with the loaded profile. */
   token: string;
-  /** The faction picked in the hub; the server starts the player with it. */
-  faction: FactionId;
+  /** The faction picked in the hub; the server starts the player with it. Null before a first pick: none is asked for. */
+  faction: FactionId | null;
 }
 
 export interface MenuHandlers {

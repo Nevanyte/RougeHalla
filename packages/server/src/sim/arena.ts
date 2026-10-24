@@ -23,7 +23,7 @@
 // This module never touches the store, sockets or the Room.
 import {
   bountyFor, COLISEUM_RING_RADIUS, circleClear, feedScore, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
-  KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION, SUDDEN_DEATH_START_FRACTION, TELEPORT_IMMUNITY_MS, TILE,
+  KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, suddenDeathShare, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
   type Vec2,
 } from "@raid/shared";
@@ -291,10 +291,7 @@ export function suddenDeath(world: World, dtMs: number): void {
   for (const { p, rt } of alivePlayers(world)) applyDamage(world, p, rt, share * p.maxHp, SUDDEN_DEATH_KILLER);
 }
 
-/** Share of max hp per second burnt `elapsedMs` into sudden death. */
-export function suddenDeathShare(elapsedMs: number): number {
-  return SUDDEN_DEATH_START_FRACTION + SUDDEN_DEATH_RAMP_FRACTION * Math.floor(Math.max(0, elapsedMs) / 1000);
-}
+export { suddenDeathShare };
 
 /** Last thing in every active tick: results for this tick's downs, the end of the run, the timer and the teleport. */
 export function settle(world: World): void {

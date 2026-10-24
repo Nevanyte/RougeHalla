@@ -90,13 +90,14 @@ const SWAP_DISTANCE = 600;
 /**
  * A chase that has not got ORBIT_PROGRESS closer to its target for ORBIT_MS (plus up to ORBIT_JITTER_MS, so the bots do not
  * all turn at once) is a pursuit loop: three bots on a ring, each running after the one ahead at the same speed, never
- * meet. The bot then goes for another enemy and leaves that one alone for ORBIT_AVOID_MS. Within ORBIT_MIN_DISTANCE, or
- * while the trigger is down, it is a fight, not a chase.
+ * meet. The bot then goes for another enemy and leaves that one alone for ORBIT_AVOID_MS, unless it comes within
+ * ORBIT_MIN_DISTANCE or hits us (it is attacking us then, not circling). Within ORBIT_MIN_DISTANCE, or while the trigger
+ * is down, it is a fight, not a chase.
  */
-const ORBIT_MS = 3000;
-const ORBIT_JITTER_MS = 1500;
+export const ORBIT_MS = 3000;
+export const ORBIT_JITTER_MS = 1500;
 const ORBIT_PROGRESS = 40;
-const ORBIT_MIN_DISTANCE = 150;
+export const ORBIT_MIN_DISTANCE = 150;
 const ORBIT_AVOID_MS = 6000;
 
 /** A weapon detour only happens this early in the run (server ms)... */
@@ -198,7 +199,7 @@ export class BotClient {
     room.reconnection.enabled = false; // a bot that drops is simply done
     room.onMessage("result", (r: RunResult) => { this.resultsSeen++; this.log(`result: ${r.outcome} (place ${r.place}/${r.players}, +${r.gv.total} GV)`); this.finish(r); });
     room.onMessage("toast", (m: { text: string }) => this.onToast(m.text));
-    room.onMessage("fx", (fx: TimedFx) => { if (fx.kind === "teleport") { this.teleports++; this.onTeleport(); } });
+    room.onMessage("fx", (fx: TimedFx) => this.onFx(fx));
     room.onStateChange((s) => {
       this.patchAt = Date.now();
       for (const [id, p] of s.players) {
@@ -267,6 +268,14 @@ export class BotClient {
     else if (text === "Too far away" || text === "Can't reach that") g.fails++;
   }
 
+  private onFx(fx: TimedFx): void {
+    if (fx.kind === "teleport") { this.teleports++; this.onTeleport(); return; }
+    // An enemy we gave up chasing that now lands (or fails to land) a blow on us is no longer circling: fight back.
+    if ((fx.kind === "hit" || fx.kind === "block") && fx.id === this.room.sessionId && fx.by !== null && fx.by === this.avoidId) {
+      this.avoidId = null;
+    }
+  }
+
   /**
    * The server clears our path and queued inputs when it teleports us, and our trigger with them: forget what we told it.
    * An attack sent within one RTT before this fx arrived lands after the clear and re-arms the trigger, so a trigger we
@@ -299,13 +308,18 @@ export class BotClient {
     const now = Date.now();
     const enemy = this.pickEnemy(me, now);
     if (!enemy) { this.stand(); return; }
-    if (this.grabWeapon(me, now, enemy)) return;
+    if (this.grabWeapon(me, now, enemy)) {
+      // The detour walks away from the target on purpose; its time must not read as a chase going nowhere.
+      if (this.chase?.id === enemy.id) { this.chase.best = enemy.d; this.chase.since = now; }
+      return;
+    }
     this.fight(me, enemy, now);
   }
 
   /**
    * The nearest standing enemy, sticking with the current target unless another is clearly nearer. An enemy a pursuit loop
-   * made us give up on is only taken when it is the last one standing.
+   * made us give up on is only taken when it is the last one standing, or once it is within ORBIT_MIN_DISTANCE (or hit us,
+   * see onFx), which ends the avoidance.
    */
   private pickEnemy(me: PlayerState, now: number): Enemy | null {
     let best: Enemy | null = null;
@@ -314,7 +328,10 @@ export class BotClient {
     for (const [id, p] of this.room.state.players) {
       if (id === this.room.sessionId || p.status !== "alive") continue;
       const e = { id, p, d: dist(me, p) };
-      if (id === this.avoidId && now < this.avoidUntil) { avoided = e; continue; }
+      if (id === this.avoidId) {
+        if (now < this.avoidUntil && e.d >= ORBIT_MIN_DISTANCE) { avoided = e; continue; }
+        this.avoidId = null;
+      }
       if (!best || e.d < best.d) best = e;
       if (id === this.targetId) current = e;
     }

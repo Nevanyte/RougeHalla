@@ -870,6 +870,20 @@ describe("shield reflection", () => {
     expect([P(w, "holder").hp, P(w, "holder2").hp]).toEqual([FACTIONS.frost.hp, FACTIONS.frost.hp]);
   });
 
+  it("a block of an arrow that was already reflected is passive: it is no attack of the holder that owns it", () => {
+    // Same layout as above: the first shield blocks the archer's own arrow, the second blocks the one the first sent back.
+    const w = arena([archer({ x: 400, y: 320 }), holder({ x: 500, y: 320 }), { ...holder({ x: 300, y: 320 }, 0), id: "holder2" }]);
+    loose(w, [{ id: "archer", a: 0 }]);
+    applyDamage(w, P(w, "archer"), RT(w, "archer"), 5000, "test");
+    const blocks: Array<Fx<"block">> = [];
+    for (let n = 0; n < 40 && blocks.length < 2; n++) blocks.push(...fxOf(tick(w), "block"));
+    expect(blocks).toEqual([
+      { kind: "block", id: "holder", by: "archer", weapon: "bow" },
+      { kind: "block", id: "holder2", by: "holder", weapon: "shield", passive: true },
+    ]);
+    expect(blocks[0]).not.toHaveProperty("passive");
+  });
+
   it("can hit the archer on the way back, dealing the same packet under the archer's own armor and shield", () => {
     const w = arena([archer(archerAt), holder(holderAt), idle()]);
     loose(w, [{ id: "archer", a: 0 }]);

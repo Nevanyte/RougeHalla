@@ -4,8 +4,8 @@
 // everyone), and the achievements the store unlocks when the Room banks a run, which ride on the `result` message.
 // A win unlocks win goals only when it passed the win bonus gate (3+ starters, 2+ opponents damaged): the Room hands that
 // to the store as `winQualified`, so a two-player walkover is a win in the stats and nothing more. The same call carries
-// the weapon in hand at the end (and deliberately no faction: it is a round-robin default until the Phase 10 picker), so
-// a qualified win counts for that weapon only.
+// the weapon in hand at the end, and the faction only if the player picked one at join (these clients do not, so the
+// round-robin default is never recorded), so a qualified win counts for that weapon only.
 // Fights use the Phase 9 inputs (`attack` + `release`); kills are made by putting the victim on a sliver of hp first.
 // The rules themselves (which goal unlocks what, how a look word packs) have their own tests in shared/ and in
 // profileStore.test.ts. Profiles that need hand-set cosmetics, stats or achievements are written into the profile file
@@ -924,8 +924,9 @@ describe("achievements through a run", () => {
 });
 
 describe("the weapon a win is counted for", () => {
-  // The Room hands the store the weapon in hand when the run ends and no faction (the faction is a round-robin default
-  // until the Phase 10 picker). Only a qualified win counts, so winsByWeapon moves on a contested win and nowhere else.
+  // The Room hands the store the weapon in hand when the run ends, and a faction only when the player picked one (these
+  // clients join without, so none is recorded: a round-robin default must not count toward faction titles). Only a
+  // qualified win counts, so winsByWeapon moves on a contested win and nowhere else.
   it("a contested win counts one win for the weapon in hand and none for the faction", async () => {
     const [A, B, C] = [await claim(), await claim(), await claim()];
     const [a, b, c] = await startRun([A, B, C]);
