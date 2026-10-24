@@ -1,16 +1,17 @@
-// The hub's modal: a tab strip over interchangeable panels (shop, wardrobe, titles, achievements, leaderboard).
+// The hub's modal: a tab strip over interchangeable panels (shop, wardrobe, titles, achievements, leaderboard, counters).
 // The server owns the profile. A panel never edits one: it asks for a purchase or an equip, and what comes back from
 // the server is stored, drawn in every panel and handed to the menu.
-import type { ProfileDTO } from "@raid/shared";
+import type { FactionId, ProfileDTO } from "@raid/shared";
 import { ShopRequestError, equipCosmetic, fetchProfile, formatNumber, purchaseCosmetic } from "../../net/profile";
 import { el, uiRoot } from "../dom";
 import { AchievementsPanel } from "./achievementsPanel";
+import { CounterWheel } from "./counterWheel";
 import { LeaderboardPanel } from "./leaderboardPanel";
 import { ShopPanel } from "./shopPanel";
 import { TitlesPanel } from "./titlesPanel";
 import { WardrobePanel } from "./wardrobePanel";
 
-export type HubTabId = "shop" | "wardrobe" | "titles" | "achievements" | "leaderboard";
+export type HubTabId = "shop" | "wardrobe" | "titles" | "achievements" | "leaderboard" | "counters";
 
 /** One tab's contents. Panels build their DOM once and `render` only updates it, so focus and scroll survive a purchase. */
 export interface HubPanel {
@@ -58,6 +59,9 @@ export class HubPanels {
   private readonly tabBar = el("div", "hub-tabs");
   private readonly body = el("div", "hub-body");
   private readonly tabs: Tab[] = [];
+  private readonly wheel = new CounterWheel();
+  /** The faction the menu has picked; the Counters tab shows it whenever it is opened. */
+  private pick: { faction: FactionId | null } = { faction: null };
   private active: Tab | null = null;
   private profile: ProfileDTO | null = null;
   private opened = false;
@@ -100,10 +104,18 @@ export class HubPanels {
     this.register("titles", new TitlesPanel(actions));
     this.register("achievements", new AchievementsPanel());
     this.register("leaderboard", new LeaderboardPanel());
+    this.register("counters", this.wheel);
+    this.setPick(this.pick);
   }
 
   get isOpen(): boolean {
     return this.opened;
+  }
+
+  /** The faction picked on the menu (null for none yet). The Counters tab highlights it and its signature weapon. */
+  setPick(pick: { faction: FactionId | null }): void {
+    this.pick = { faction: pick.faction };
+    this.wheel.setPick(this.pick);
   }
 
   /** Adds a tab (the built-in ones are added by the constructor); works before and while the hub is open. */

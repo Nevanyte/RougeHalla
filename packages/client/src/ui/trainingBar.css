@@ -1,0 +1,60 @@
+/* Training room overlay (trainingBar.ts): bottom-left, clear of the weapon bar (centre), the minimap (top right) and the HUD (top left). */
+.training-bar {
+  position: absolute;
+  left: 12px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  /* Stays left of the centred weapon bar on narrow windows. */
+  max-width: max(160px, min(320px, calc(50vw - 140px)));
+  user-select: none;
+}
+/* index.html's "#ui > *" (auto) outranks a bare class: the tips are display only, so clicks fall through to the world; the buttons take them. */
+#ui > .training-bar { pointer-events: none; }
+.training-bar button { pointer-events: auto; }
+
+.training-tips {
+  position: relative;
+  box-sizing: border-box;
+  padding: 8px 26px 8px 12px;
+  border-radius: 6px;
+  background: rgba(20, 24, 30, 0.92);
+  border: 1px solid #2f6f78;
+  color: #cfd8dc;
+  font-size: 12px;
+  line-height: 1.45;
+  text-shadow: 0 1px 2px #000;
+  opacity: 1;
+  /* Must match HINT_FADE_MS in trainingBar.ts. */
+  transition: opacity 1500ms ease-out;
+}
+.training-tips.fading { opacity: 0; }
+.training-tips ul { margin: 0; padding-left: 16px; }
+.training-tips-close {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: #8d99a6;
+  cursor: pointer;
+}
+.training-tips-close:hover { color: #e6e9ed; }
+
+.training-leave { display: inline-flex; align-items: center; gap: 8px; }
+.training-key {
+  padding: 0 5px;
+  border: 1px solid #4a5563;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #aeb7c2;
+}
+
+/* The HUD's first line (hud.ts) while the room is a training room: the one thing the player must not miss. */
+.hud-status.training { color: #80deea; letter-spacing: 0.02em; }

@@ -69,11 +69,16 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 | Cosmetics shop | Spend GV on colours, trails, titles and golden weapon variants. Cosmetics only. | First playable |
 | Leaderboard | Monthly GV ranking | First playable |
 | Achievements | e.g. 5 wins holding the same weapon unlocks its golden variant | First playable |
-| Training grounds | Try any weapon combination; spar with training mobs (no GV) | Walkable hub phase |
-| Stairs to the Arena | The physical entrance to matchmaking | Walkable hub phase |
+| Training grounds | Try any weapon combination; spar with training dummies (no GV) | Built (Phase 12) |
+| Stairs to the Arena | The physical entrance to matchmaking | Built (Phase 12) |
 | Hub NPCs | Characters who never appear in the Arena | Later |
 | Social | Friends, 1v1s, private matches, chat | Later |
 
+**As built (Phase 12).** The hub is a small walkable room, drawn on the client only (no server room while you are in it). You walk with right-click, WASD or the arrow keys; stepping up to a station shows a prompt, and **E** or a click uses it: the stairs start a run, the training door starts the training grounds, four kiosks open the shop, wardrobe, achievements and leaderboard, five pedestals pick a faction, and the floor in the middle shows the counter wheel. Your avatar wears your equipped cosmetics and your faction's colour and signature weapon. The menu panel sits docked beside it and still offers everything the old menu did (callsign, GV, stats, panels, Start Run).
+
+**Training grounds.** A private room of one, created fresh each time. It has Phase 9's practice setup next to your spawn: a plain dummy, a shield dummy, and a rack with one of each weapon. You pick the faction in the hub first. Nothing is recorded: no GV, no stats, no achievements, no timer, no results, and if you go down you are simply stood back up. Leave with the button or Esc; there is no waiting room and no one else comes in, and a room whose player stays idle for five minutes is closed.
+
+**Counter wheel.** Two pentagrams, the faction cycle and the weapon loop, drawn from the same counter lists the game uses. Your picked faction and its starting weapon are highlighted, with what each beats in green and what beats it in red.
 ---
 
 ## 5. The arena map

@@ -14,5 +14,6 @@ export * from "./pathfind";
 export * from "./rules";
 export * from "./factions";
 export * from "./signatures";
+export * from "./wheel";
 export * from "./cosmetics";
 export * from "./achievements";

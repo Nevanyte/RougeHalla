@@ -16,6 +16,7 @@ import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
+import { TrainingBar } from "../ui/trainingBar";
 import { WeaponBar } from "../ui/weaponBar";
 
 export interface RaidSceneData {
@@ -24,6 +25,8 @@ export interface RaidSceneData {
   toast?: (text: string) => void;
   /** True once the results panel is on screen; the "YOU DIED" line steps aside for it. Omitted, the line never yields. */
   resultsVisible?: () => boolean;
+  /** Only for a training room: takes the player back to the hub. It is called at most once. */
+  leaveTraining?: () => void;
 }
 
 /** Right-button hold re-sends the move target at most this often. */
@@ -64,6 +67,10 @@ export class RaidScene extends Phaser.Scene {
   private hud!: Hud;
   private weaponBar!: WeaponBar;
   private feedback!: ScreenFeedback;
+  /** Created the first frame the room says it is a training room (state.training); null in an arena run. */
+  private trainingBar: TrainingBar | null = null;
+  private leaveTraining: (() => void) | undefined;
+  private announce: ((text: string) => void) | undefined;
   /** Container with a weapon the local player could take right now: alive, and in range with line of sight by the server's own rule. */
   private nearest: ContainerState | null = null;
   private marker!: Phaser.GameObjects.Ellipse;
@@ -132,6 +139,10 @@ export class RaidScene extends Phaser.Scene {
   create(data: RaidSceneData): void {
     this.room = data.room;
     this.resultsVisible = data.resultsVisible;
+    this.leaveTraining = data.leaveTraining;
+    this.announce = data.toast;
+    this.trainingBar?.destroy();
+    this.trainingBar = null;
     this.deaths.clear();
     this.inHand.clear();
     this.interp = new EntityInterpolator();
@@ -170,6 +181,14 @@ export class RaidScene extends Phaser.Scene {
       announce: data.toast,
     });
     this.unbindFx = this.room.onMessage("fx", (fx: TimedFx) => {
+      // Training puts a fighter who goes down back on its feet: no body, no decal, no "was killed" line, no death screen.
+      if (fx?.kind === "death" && this.training && fx.id === this.room.sessionId) {
+        this.fx.cancelWindups(fx.id, fx.t);
+        // The server let go of the trigger when it revived us; a button still held must press again, as after a teleport.
+        this.attackSent = false;
+        this.announce?.("Knocked down — back on your feet");
+        return;
+      }
       if (fx?.kind === "death") this.noteDeath(fx.id, fx.t, fx.x, fx.y);
       if (fx?.kind === "teleport") this.noteTeleport(fx.t);
       // The stop point is known on arrival, though the fx plays later: it caps the projectile's drawn flight.
@@ -217,6 +236,9 @@ export class RaidScene extends Phaser.Scene {
     this.minimap.setGatesLocked(gatesLocked);
 
     const now = performance.now();
+    // Not read in create(): tolerate the flag arriving with a later patch.
+    if (state.training && !this.trainingBar) this.trainingBar = new TrainingBar(this.leaveTraining);
+    this.trainingBar?.update(now);
     // The one place render time is read: it consumes the clock's pending patch, so everything else this frame
     // (fx playback, input timestamps between frames) reuses these values.
     const renderT = this.interp.renderTime(now);
@@ -464,6 +486,11 @@ export class RaidScene extends Phaser.Scene {
     this.noteAimSent(a);
   }
 
+  /** This room is a training room (nothing recorded, no results). Read from the state, so it follows the server. */
+  private get training(): boolean {
+    return this.room.state.training === true;
+  }
+
   private localAlive(): boolean {
     return this.room.state.players.get(this.room.sessionId)?.status === "alive";
   }
@@ -491,6 +518,11 @@ export class RaidScene extends Phaser.Scene {
 
   private handleKey(e: KeyboardEvent): void {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
+    // Esc has no other use in a run; leaving a practice room costs nothing, so one press is enough.
+    if (e.code === "Escape") {
+      this.trainingBar?.leave();
+      return;
+    }
     // Physical keys (e.code), not the produced character, so shortcuts keep working on non-Latin layouts.
     if (e.code === "KeyS") {
       sendInput(this.room, "stop", {});
@@ -546,6 +578,8 @@ export class RaidScene extends Phaser.Scene {
     this.deaths.clear();
     this.inHand.clear();
     this.hud.destroy();
+    this.trainingBar?.destroy();
+    this.trainingBar = null;
     this.weaponBar.destroy();
     this.feedback.destroy();
     if (import.meta.env.DEV) {

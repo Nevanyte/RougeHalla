@@ -23,6 +23,11 @@ export interface SimConfig {
   suddenDeathSeconds: number;
   /** Training: place dummies and a rack of every weapon next to each player's spawn when the run starts (sim/mobs.ts). */
   dummies?: boolean;
+  /**
+   * A training world (sim/training.ts): the run never ends and nothing is recorded: no patience timer, teleport, sudden
+   * death, results or GV, and a fighter who goes down is revived. Implies the training setup (`dummies`).
+   */
+  training?: boolean;
 }
 
 /** A melee swing or wand cast waiting to land, or a bow being drawn. Times are server ms. */

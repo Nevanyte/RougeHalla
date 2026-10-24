@@ -1,0 +1,66 @@
+/* The hub menu over the walkable hub (ui/menu.ts, scenes/HubScene.ts). Loaded after style.css; the rules that override
+   it are written one selector more specific, so they don't depend on that order. */
+
+.menu-head { display: flex; align-items: center; gap: 8px; }
+.menu .menu-head h1 { flex: 1; margin: 0 0 8px; }
+.menu-strip { display: none; align-items: baseline; gap: 10px; min-width: 0; }
+.menu-strip-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-strip-gv { font-weight: 700; font-variant-numeric: tabular-nums; color: #ffe082; white-space: nowrap; }
+.menu-dock-toggle {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  color: #aeb7c2;
+  background: none;
+  border: 1px solid #3a434f;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.menu-dock-toggle:hover { color: #fff; border-color: #4a5563; }
+.menu-dock-toggle:focus-visible { outline: 2px solid #ffe082; outline-offset: 2px; }
+
+/* Start Run and Training side by side; Start Run keeps the primary styling it had as a direct child of the menu. */
+.menu-actions { display: flex; gap: 8px; }
+.menu-actions .btn { padding: 10px 14px; font-weight: 600; }
+.menu-actions .btn.primary { flex: 1 1 auto; }
+
+/* Docked: a compact column on the left, the world visible to its right. The body scrolls, Start Run stays in view. */
+.menu.docked {
+  left: 12px;
+  top: 12px;
+  transform: none;
+  width: 330px;
+  min-width: 0;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  padding: 12px 14px;
+}
+.menu.docked .menu-head h1 { font-size: 18px; margin-bottom: 0; }
+.menu.docked .menu-head { margin-bottom: 8px; }
+.menu.docked .menu-row { margin: 0 0 8px; }
+.menu.docked .menu-body { gap: 8px; margin-bottom: 8px; padding-right: 2px; }
+.menu.docked .hub-gv { padding: 6px 10px; }
+.menu.docked .hub-gv-n { font-size: 26px; }
+.menu.docked .hub-gv-subs { gap: 10px; }
+.menu.docked .hub-gv-sub-n { font-size: 14px; }
+.menu.docked .stat { padding: 2px 4px; }
+.menu.docked .stat-n { font-size: 15px; }
+.menu.docked .stat-l { font-size: 10px; }
+.menu.docked .hub-who-name { font-size: 16px; }
+.menu.docked .faction-card { padding: 5px 8px 5px 10px; }
+/* Only the pick shows its full card; the others are a name, a role and a weapon (the counter wheel has the matchups). */
+.menu.docked .faction-card:not(.selected) .faction-detail { display: none; }
+.menu.docked .menu-status { margin-top: 6px; }
+.menu.docked .menu-hint { margin-top: 6px; font-size: 11px; }
+
+/* Folded: just the callsign and GV strip (and the status line, so a busy or error message is never hidden). */
+.menu.collapsed { width: auto; max-width: min(300px, calc(100vw - 24px)); padding: 8px 10px; }
+.menu.collapsed > :not(.menu-head):not(.menu-status) { display: none; }
+.menu.collapsed .menu-head { margin-bottom: 0; }
+.menu.collapsed .menu-head h1 { display: none; }
+.menu.collapsed .menu-strip { display: flex; flex: 1; }
+.menu.collapsed .menu-status:empty { display: none; }

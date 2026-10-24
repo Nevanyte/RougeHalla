@@ -124,6 +124,8 @@ export const RaidState = schema({
   suddenDeathAt: t.number().default(0),
   /** Display name of the winner once the run is over; "" before that, and after a draw or a run nobody won. */
   winner: t.string().default(""),
+  /** A training room (mode "training"): no timer, no results, no GV; a fighter who goes down is put back on its feet. */
+  training: t.boolean().default(false),
   players: t.map(PlayerState),
   mobs: t.map(MobState),
   projectiles: t.map(ProjectileState),
