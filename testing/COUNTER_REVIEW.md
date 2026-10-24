@@ -1,5 +1,16 @@
 # Counter Review: v3 faction cycle
 
+**Phase 10 retune note (2026-10-24).** Holy's Radiant lifesteal changed after this review was written: `ls1` 1.25 to 1.75 and `ls_cap` 1.0 to 1.5, so it heals `0.25 + 1.75 x missing health` of the damage it deals, capped at 150% (it reaches 100% at about 43% missing health). The body below is the v3 analysis before that change. Engine results (dt = 0.002) that moved, before to after:
+
+| Edge | Before | After |
+|---|---|---|
+| Plague > Holy | 15.8 s, 67% | 16.7 s, 66% |
+| Frost > Holy | 52.3 s, 63% | 61.5 s, 57% |
+| Holy > Fire | 8.1 s, 69% | 8.1 s, 72% |
+| Holy > Sentenced | 22.7 s, 27% | 22.7 s, 34% |
+
+The other six edges are unchanged. Every Holy figure below (fight lengths, HP left, lifesteal returns, flip distances, buff caps, the mixed-weapon failures of Holy > Sentenced, the kiting tolerances, the identity-test shifts) is the v3 value. The new values, the levers that were tried and the reason are in `testing/TUNING_10.md`.
+
 Written for the author of `CLASS_SHEET.md`. It checks the v3 numbers in `classes.py` against `engine.py`, then checks how the cycle survives the move to a 20 Hz game with weapons.
 
 **v3 revision.** Fire now swings 0.6 times a second for 150 (was 0.3 for 305; DPS 91.5 to 90) and Frost 0.45 times for 90 (was 0.3 for 135; DPS 40.5, unchanged). Fire's backlash drops from 210 to 200. In the 20 Hz model a weapon is now a % boost on the faction's attack speed, replacing `max(anim floor, base cooldown x 0.86 / rate)`. v3 also adopts animation timings that shrink with the interval and a 0.5 s stagger immunity; the 20 Hz model does not include them. Re-run for v3: the four Fire edges (Fire > Sentenced, Fire > Plague, Frost > Fire, Holy > Fire) in sections 1 to 4 and 6, and section 5 except the parts marked v2 or not re-run (the v2-plan subsection, rule 5's line-of-sight run, the move-speed caps, and the heal-item and disengage runs). The six edges without Fire do not move in the engine (Frost's DPS is unchanged and Fire's backlash is the only mechanic that reads an attack rate); only the Frost hit values quoted in section 3 change (90 instead of 135, same percentages). The cost: a faster Frost feeds Fire's backlash, so Frost > Fire keeps 49% HP instead of 59%. It never flips. Figures marked v2 are kept for comparison.

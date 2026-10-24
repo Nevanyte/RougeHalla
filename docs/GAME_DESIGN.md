@@ -4,6 +4,8 @@
 
 *Revision v3 (attack speed). Fire attacks at 0.60/s (hit 305 to 150, base DPS 91.5 to 90, backlash 210 to 200) and Frost at 0.45/s (hit 135 to 90, DPS unchanged at 40.5). A weapon is now a % boost on the faction's base attack speed, so the speed ratios between factions hold on every weapon. Fire's axe swings every 1.19 s (was 2.58 s) and the slowest combo in the game, Frost's axe, every 1.59 s (was 2.58 s). The cost: Fire's backlash reads the foe's attack rate, so a faster Frost feeds it and Frost over Fire gets thinner (59% to 49% HP left). It never flips. Fixed animation timings now scale down with the interval, and a staggered target is immune to stagger for 0.5 s (sections 9.1 and 10.3).*
 
+*Revision (Phase 10 retune). Holy's Radiant lifesteal is stronger: it heals `0.25 + 1.75 × missing HP` of the damage it deals, capped at 150% (was `0.25 + 1.25 × missing HP`, capped at 100%). In the real-time game a Sentenced sword hit staggers Holy, which costs it about a fifth of its damage and the lifesteal on it, so Holy over Sentenced, the tightest edge, lost duels the engine says it wins. Four engine results move: Plague over Holy 67% to 66% HP left, Frost over Holy 63% to 57% (52 s to 62 s), Holy over Fire 69% to 72%, Holy over Sentenced 27% to 34%. Every lever tried and every before and after table is in `testing/TUNING_10.md`.*
+
 ---
 
 ## 1. The game in one paragraph
@@ -160,7 +162,7 @@ Attack rate is the faction's base. Each weapon boosts it by a percentage (sectio
 | Sentenced | **Marked** | Bonus damage ramping +35/s for every second in the fight, capped at 275/s (7.9 s to full). The mark is tied to the **weapon the target is holding**; swapping weapons resets it. | Gets worse for the opponent every second. Its own hits barely matter (5 damage). |
 | Plague | **Rat King** | 40 disease per second, plus an execute adding up to 1025/s as the target falls from 50% to 0 HP | A slow squeeze that collapses into a kill |
 | Frost | **Living Wall of Ice** | Anyone engaged with Frost has their **attack rate cut to 40%** and their **movement slowed** | The fight slows down and Frost sets the pace |
-| Holy | **Radiant** | Heals a share of damage dealt equal to `0.25 + 1.25 × missing HP`, capped at 100% | Hardest to finish when nearly dead |
+| Holy | **Radiant** | Heals a share of damage dealt equal to `0.25 + 1.75 × missing HP`, capped at 150%. It heals all of the damage it deals from about 43% missing HP, and the cap applies from about 71% missing. | Hardest to finish when nearly dead |
 
 ### 8.4 Who beats whom, and why
 
@@ -171,11 +173,11 @@ Attack rate is the faction's base. Each weapon boosts it by a percentage (sectio
 | Sentenced | Plague | The mark lands at 100% on Plague's zero shield; Plague's physical damage is cut to 53% | 7.4 s | 56% |
 | Sentenced | Frost | The flat mark ignores Frost's slow; armor halves Frost's hits | 16.6 s | 51% |
 | Plague | Frost | Disease and execute are flat, so the slow barely matters; the execute decides it | 37.0 s | 40% |
-| Plague | Holy | 86% of Plague's damage gets through Holy's zero armor | 15.8 s | 67% |
-| Frost | Holy | The slow cuts Holy's swings, and with them its healing, from 0.95 to 0.38/s | 52.3 s | 63% |
+| Plague | Holy | 86% of Plague's damage gets through Holy's zero armor | 16.7 s | 66% |
+| Frost | Holy | The slow cuts Holy's swings, and with them its healing, from 0.95 to 0.38/s | 61.5 s | 57% |
 | Frost | Fire | Frost's 0.45/s feeds the backlash only 90 damage per second (its shield cuts half), and the slow cuts Fire to 0.24 swings/s | 13.1 s | 49% |
-| Holy | Fire | A 250 shield cuts Fire's all-magic damage to 29% | 8.1 s | 69% |
-| Holy | Sentenced | The shield cuts the mark to 29%; lifesteal decides it | 22.7 s | 27% (tightest) |
+| Holy | Fire | A 250 shield cuts Fire's all-magic damage to 29% | 8.1 s | 72% |
+| Holy | Sentenced | The shield cuts the mark to 29%; lifesteal decides it | 22.7 s | 34% (tightest) |
 
 **The main axis is damage type against defense type.** Magic damage (Fire, Sentenced) crushes the shieldless (Plague) and bounces off the heavily shielded (Holy). Physical damage (Plague, Frost, Holy) punishes zero armor. On top of that sit rate against flat damage (Frost's slow only hurts rate-based attackers), burst against ramp (Fire ends fights before the mark or execute come online) and HP pool (Holy and Frost win long fights).
 
@@ -199,16 +201,17 @@ Remove a signature and the class must visibly lose: a main signature has to flip
 | Sentenced | The mark | vs Plague, vs Frost | 152 |
 | Sentenced | The ramp (mark full from t = 0) | none | 70 |
 | Plague | Execute | vs Frost | 43 |
-| Plague | Flat disease | vs Frost | 114 |
-| Frost | The slow | vs Holy | 103 |
-| Holy | Lifesteal | vs Sentenced | 30 |
-| Holy | Missing-HP scaling | none | 19 |
+| Plague | Flat disease | vs Frost, vs Holy | 114 |
+| Frost | The slow | vs Holy | 108 |
+| Holy | Lifesteal | vs Sentenced | 37 |
+| Holy | Missing-HP scaling | none | 26 |
 
 ### 8.7 Design notes on the factions
 - **Fire's burn (10/s) is nearly cosmetic.** Backlash does the work: 64% to 79% of Fire's damage against Sentenced, Plague and Frost, against 2% to 7% for burn. If burn should matter, raise it and retune.
 - **Frost over Fire got thinner** (59% to 49% HP left). Fire's backlash reads the foe's attack rate, so a faster Frost feeds it: 90 backlash per second against Frost, up from 63. It never flips. In the 20 Hz check the smallest HP buff on Fire that flips it is now ×1.59 (it was ×1.97). Raising Fire's own rate is free: at equal damage per second it moves no engine result (and at most 3 points in the 20 Hz duels).
-- **Holy beats Sentenced is the tightest edge** (27% HP left); lifesteal decides it.
-- **Fights are long in places** (Frost over Holy is 52 s). Duels are being sped up for the arena (section 10.2).
+- **Holy beats Sentenced is the tightest edge** (34% HP left, was 27%); lifesteal decides it. Holy's hit or attack rate has to fall 26.5% to flip it (was 20%), and Sentenced needs ×1.42 damage (was ×1.29).
+- **Holy's lifesteal was strengthened in Phase 10** (second coefficient 1.25 to 1.75, cap 100% to 150%) because stagger in the real-time game costs Holy a fifth of its damage against a Sentenced sword, and in the real-time policy check the sword mirror of Holy over Sentenced lost every duel. It now wins that duel, with 7% HP left in the worst case. The edges where Holy loses pay for it: Frost over Holy is thinner (57% HP left, 62 s) and is now the softest edge against attack-speed buffs (section 10.3). Details in `testing/TUNING_10.md`.
+- **Fights are long in places** (Frost over Holy is 62 s). Duels are being sped up for the arena (section 10.2).
 - **Robustness.** The engine checks pass with every stat randomly jittered by ±10%, at any global power level, and with names shuffled (proving no matchup is hard-coded).
 
 ---
@@ -232,7 +235,7 @@ Five weapons form a second closed loop; again **each beats two and loses to two.
 The interval is the time between attacks (section 10.2). The axe, bow and wand animation times above shrink with it, so fast cadences are never rooted or slowed for good.
 
 Ranged weapons can kite, so three things hold them back:
-- Damage starts slightly lower: bow 0.8, wand 0.85. These are maximums on the 0.05 grid: in the real-time check, bow 0.85 or wand 0.90 lets the ranged loser out-kite (Fire over Plague, and Holy over Sentenced on the wand).
+- Damage starts slightly lower: bow 0.8, wand 0.85. These are maximums on the 0.05 grid: in the real-time check, bow 0.85 or wand 0.90 lets the ranged loser out-kite Fire over Plague. (Holy over Sentenced on the wand did too until the Phase 10 retune; it now holds up to a wand multiplier of about 0.97.)
 - Movement slows while drawing and casting.
 - After each ranged attack you move at half speed until the cooldown ends, so a ranged player backing away while shooting can still be caught.
 
@@ -304,7 +307,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 
   - **8 of the 10 openings are contested.** The faction winner starts with the losing weapon, so no fight is decided on the pick screen. The real decision is **which second weapon to go and get**.
   - **Sentenced vs Plague** starts as a bow mirror, so the faction edge decides it.
-  - **Holy vs Sentenced** favours Holy on both loops, on purpose. With Sentenced on the sword it would be the thinnest opening in the game (Holy keeps about 8% HP in the worst case, so any buff decides it). With Sentenced on the bow, Holy keeps 30%.
+  - **Holy vs Sentenced** favours Holy on both loops, on purpose. With Sentenced on the sword it would still be the thinnest opening in the game (Holy keeps about 19% HP in the worst case, up from 8% before the Phase 10 lifesteal retune, and ×1.25 HP on Sentenced flips it, where ×1.08 did). With Sentenced on the bow, Holy keeps 37% (was 30%).
   - **Region weapons don't change.** The Sentenced region's mobs still carry swords, so all five weapons can be farmed somewhere.
 
 ### 10.2 The scaling formula
@@ -316,7 +319,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
   - Floors (the shortest interval): sword 0.25 s, bow 0.25 s, wand 0.3 s, shield 0.3 s, axe 0.35 s. At base speed none of them binds. They only bind under attack-speed buffs (section 10.3).
 - **Damage per hit** = `faction rate × faction hit × weapon damage multiplier × buffs × interval`. With no buffs that is `faction hit × damage multiplier ÷ (1 + boost)`. Every faction keeps its own damage per second, times the weapon's damage multiplier, on every weapon: faster weapons hit proportionally lighter. Weapons change the rhythm and shape, not the class's power.
 - **Signature bonuses scale with the weapon multiplier too** (burn, backlash, disease, execute, mark). Otherwise a weapon's damage discount would hit some factions much harder than others.
-- **Duel pace (k = 2).** All faction damage is doubled (and Sentenced's mark ramp quadrupled), HP unchanged, so every fight is **exactly twice as short** while the counter graph holds. For example, Frost over Holy drops from 52 s to about 26 s, and Fire over Plague takes 1.1 s.
+- **Duel pace (k = 2).** All faction damage is doubled (and Sentenced's mark ramp quadrupled), HP unchanged, so every fight is **exactly twice as short** while the counter graph holds. For example, Frost over Holy drops from 62 s to about 31 s, and Fire over Plague takes 1.1 s.
 
 Interval and damage per hit with no buffs, before duel pace (double the hits for in-game values):
 
@@ -521,7 +524,7 @@ Hard counters are only fair if you can see them coming.
 | Snowballing | Uncapped S-curves plus bounties need playtesting: are fed players fun to fight, and is hunting them worth it? |
 | The faction cycle matters most late | Early fights are mostly weapons, positioning and third parties. The cycle decides the 1v1s, often in the coliseum. |
 | Bounties within a tick | If several players hit a fed player in the same tick, who gets the payout has to be decided by a fair rule. |
-| Buffs past the counters | In the 20 Hz check (same weapon on both sides, plus the signature openings) the softest edge, Holy over Sentenced, flips at ×1.31 HP on the losing side, and the softest attack-speed edge, Frost over Holy, at ×1.63 attack speed. Stacked, HP ×1.2 with attack speed ×1.3 holds every edge at 60% or better. HP ×1.3 with attack speed ×1.2 does not: Holy then wins only 45% of duels with both sides on bows and 52% with both on shields. Move speed isn't modelled there. The S-curve deliberately goes past these numbers (fed players can beat their counters); bounties are the release valve. |
+| Buffs past the counters | In the 20 Hz check (same weapon on both sides, plus the signature openings) the softest edges for HP, Holy over Sentenced and Frost over Fire, flip at ×1.59 HP on the losing side (Holy over Sentenced was ×1.31 before the Phase 10 retune), and the softest attack-speed edge, Frost over Holy, at ×1.32 attack speed on Holy in the signature opening (was ×1.63: Holy's stronger lifesteal rides on its swings). Stacked, HP ×1.2 with attack speed ×1.2 holds every edge at 60% or better. HP ×1.2 with attack speed ×1.3 does not, nor does HP ×1.3 with attack speed ×1.2: Frost (shield) then wins 0% of signature duels against a Holy (wand) with those buffs. Before the retune the failing cells were Holy over Sentenced on bows (45%) and shields (52%) at HP ×1.3 with attack speed ×1.2. Move speed isn't modelled there. The S-curve deliberately goes past these numbers (fed players can beat their counters); bounties are the release valve. |
 
 ---
 
