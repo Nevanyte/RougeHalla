@@ -387,3 +387,226 @@
   transition: opacity 250ms ease-out;
 }
 .toast.fading { opacity: 0; }
+
+/* ==========================================================================
+   Hub panels (ui/hub/): shop, wardrobe, titles, achievements, leaderboard.
+   A modal over the hub menu: dark cards (#161b21) with #2b323c borders and GV gold (#ffe082), 800x600 and up.
+   ========================================================================== */
+
+/* Menu: the callsign line with the worn title, and the row of buttons that opens the panels. */
+.hub-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-width: 0; }
+.hub-who-name { font-size: 18px; font-weight: 700; overflow-wrap: anywhere; }
+.hub-title-tag { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
+.hub-cosmetics { flex-wrap: wrap; }
+.hub-cosmetics-actions { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+.hub-cosmetics-actions .btn:focus-visible { outline: 2px solid #ffe082; outline-offset: 2px; }
+
+/* The dimmed layer blocks the menu behind it; pressing on it (not inside the panel) closes the hub. */
+.hub-backdrop { position: absolute; inset: 0; background: rgba(8, 10, 13, 0.62); }
+.hub-panel {
+  box-sizing: border-box;
+  width: min(94vw, 760px);
+  max-width: none;
+  height: min(86vh, 680px);
+  max-height: none;
+  padding: 12px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+.hub-panel > * { flex: none; }
+.hub-panel > .hub-body { flex: 1 1 auto; min-height: 0; }
+.hub-panel :focus-visible { outline: 2px solid #ffe082; outline-offset: 2px; }
+
+.hub-head { display: flex; align-items: center; gap: 12px; }
+.hub-head-who { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 12px; }
+.hub-head-name { font-size: 18px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-head-gv { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ffe082; white-space: nowrap; }
+.hub-close {
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  padding: 2px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: #aeb7c2;
+  cursor: pointer;
+}
+.hub-close:hover { color: #fff; border-color: #4a5563; }
+
+.hub-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #2b323c; }
+.hub-tab-btn {
+  font: inherit;
+  margin-bottom: -1px;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: none;
+  color: #aeb7c2;
+  cursor: pointer;
+}
+.hub-tab-btn:hover { color: #fff; }
+.hub-tab-btn[aria-selected="true"] { background: #161b21; border-color: #2b323c; color: #ffe082; font-weight: 600; }
+
+/* The body is the part that scrolls; each tab's status line stays pinned to its top. */
+.hub-body { overflow-y: auto; padding-right: 4px; }
+.hub-status {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 1.4em;
+  padding: 0 0 6px;
+  background: #14181e;
+  font-size: 13px;
+  color: #aeb7c2;
+}
+.hub-status.ok { color: #a5d6a7; }
+.hub-status.error { color: #ef9a9a; }
+.hub-muted { color: #8d99a6; }
+.hub-empty { padding: 10px 0; color: #8d99a6; }
+
+.hub-section { margin-bottom: 14px; }
+.hub-section > h3, .hub-section-bar > h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8d99a6;
+}
+.hub-section > h3 { margin-bottom: 6px; }
+.hub-section-note { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.hub-section-bar { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 6px; }
+.hub-section-bar > h3 { flex: 1 1 auto; }
+.hub-section-current { font-size: 12px; color: #8d99a6; }
+
+/* Shop cards. */
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 8px; }
+.hub-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  text-align: center;
+  background: #161b21;
+  border: 1px solid #2b323c;
+  border-radius: 6px;
+}
+.hub-card.owned { border-color: #34553a; }
+.hub-card.equipped { border-color: #6b5a1e; }
+.hub-card-sw { min-height: 34px; display: flex; align-items: center; justify-content: center; max-width: 100%; }
+.hub-card-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.hub-card-foot { margin-top: auto; min-height: 3.2em; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; }
+.hub-price { font-variant-numeric: tabular-nums; color: #ffe082; }
+.hub-price.short { color: #ef9a9a; }
+.hub-tag { font-size: 12px; color: #a5d6a7; }
+.hub-earn { font-size: 12px; color: #8d99a6; }
+.hub-card .btn.small { min-width: 72px; }
+.hub-card .btn.primary { background: #8d6e0f; border-color: #ffe082; color: #fff8e1; }
+
+/* Swatches (swatch.ts): a coloured disc, a ring, fading trail pieces, title text, a gold disc. */
+.sw { --sw: 30px; display: inline-flex; align-items: center; justify-content: center; flex: none; max-width: 100%; }
+.sw-sm { --sw: 18px; }
+.sw-disc { display: block; box-sizing: border-box; width: var(--sw); height: var(--sw); border-radius: 50%; border: 2px solid rgba(0, 0, 0, 0.55); }
+.sw-sm .sw-disc { border-width: 1px; }
+.sw-gold { box-shadow: 0 0 6px rgba(255, 213, 79, 0.65), inset 0 0 4px rgba(255, 255, 255, 0.55); }
+.sw-wide { min-width: 56px; }
+.sw-sm.sw-wide { min-width: 40px; }
+.sw-trail-pieces { display: inline-flex; align-items: center; gap: 3px; }
+.sw-trail-pieces > span { display: block; flex: none; }
+.sw-text { font-size: 15px; font-weight: 700; letter-spacing: 0.03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Wardrobe: the preview stays in view while the chip lists scroll. */
+.hub-wardrobe { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 0 16px; align-items: start; }
+.hub-wardrobe > .hub-status { grid-column: 1 / -1; }
+.hub-wardrobe-side { position: sticky; top: 28px; }
+.hub-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hub-chip {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px 4px 7px;
+  border-radius: 16px;
+  background: #161b21;
+  border: 1px solid #3a434f;
+  color: #e6e9ed;
+  cursor: pointer;
+}
+.hub-chip:hover:not(:disabled) { border-color: #90a4ae; }
+.hub-chip[aria-pressed="true"] { background: #1c1a12; border-color: #ffe082; color: #ffe082; }
+.hub-chip:disabled { opacity: 0.55; cursor: default; }
+
+.avatar-stage {
+  box-sizing: border-box;
+  height: 128px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #11151a;
+  border: 1px solid #2b323c;
+  border-radius: 8px;
+}
+.avatar-row { display: flex; align-items: center; gap: 4px; }
+.avatar-trail { display: inline-flex; min-width: 48px; justify-content: flex-end; }
+.avatar-body { position: relative; flex: none; box-sizing: border-box; width: 56px; height: 56px; border-radius: 50%; }
+.avatar-core { position: absolute; left: 22.5%; top: 22.5%; width: 55%; height: 55%; border-radius: 50%; }
+.avatar-nose { position: absolute; left: 50%; top: calc(50% - 2px); width: 50%; height: 4px; background: rgba(17, 17, 17, 0.8); }
+.avatar-title { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.avatar-gold { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.avatar-gold-chip { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #ffe082; }
+
+/* Rows: titles and achievements. */
+.hub-list { display: flex; flex-direction: column; gap: 4px; }
+.hub-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #161b21; border: 1px solid #2b323c; border-radius: 6px; }
+.hub-row.locked { opacity: 0.65; }
+.hub-row.equipped { border-color: #6b5a1e; }
+.hub-row-main { flex: 1; min-width: 0; }
+.hub-row-name { font-weight: 600; }
+.hub-row-sub { font-size: 12px; color: #8d99a6; }
+.hub-row-side { flex: none; display: flex; align-items: center; gap: 8px; }
+.hub-titles-current { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; color: #aeb7c2; }
+
+.hub-ach-summary { margin-bottom: 8px; color: #aeb7c2; }
+.hub-ach { flex-wrap: wrap; }
+.hub-ach.done { border-color: #6b5a1e; }
+.hub-ach-side { flex: none; width: 150px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+.hub-bar { height: 8px; overflow: hidden; background: #0f1317; border: 1px solid #2b323c; border-radius: 4px; }
+.hub-bar-fill { width: 0; height: 100%; background: #43a047; }
+.hub-ach.done .hub-bar-fill { background: #ffd54f; }
+.hub-ach-count { font-size: 12px; font-variant-numeric: tabular-nums; color: #aeb7c2; }
+.hub-ach-when { font-size: 11px; color: #8d99a6; }
+.hub-ach.done .hub-ach-when { color: #ffe082; }
+.hub-rewards { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; }
+.hub-reward { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 4px; font-size: 12px; background: #11151a; border: 1px solid #2b323c; border-radius: 10px; }
+
+/* Leaderboard. */
+.hub-lb-nav { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px; }
+.hub-lb-month { min-width: 9em; text-align: center; font-weight: 600; }
+.hub-lb-list { margin: 0; padding: 0; list-style: none; }
+.hub-lb-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 10px; border-bottom: 1px solid #1f252d; }
+.hub-lb-row.me { background: #1c1a12; color: #ffe082; font-weight: 600; }
+.hub-lb-rank { flex: none; width: 2em; text-align: right; color: #8d99a6; font-variant-numeric: tabular-nums; }
+.hub-lb-name { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.hub-lb-callsign { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-lb-gv { flex: none; font-variant-numeric: tabular-nums; color: #ffe082; }
+.hub-lb-you { margin-top: 10px; padding: 6px 10px; background: #1c1a12; border: 1px solid #6b5a1e; border-radius: 6px; color: #ffe082; font-weight: 600; }
+
+/* Results: achievements this run unlocked. */
+.ach-box { margin-bottom: 14px; padding: 8px 12px; background: #1c1a12; border: 1px solid #6b5a1e; border-radius: 6px; }
+.ach-title { margin-bottom: 4px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #bfa955; }
+.ach-row { display: flex; flex-direction: column; padding: 3px 0; }
+.ach-name { font-weight: 600; color: #ffe082; }
+.ach-reward { font-size: 12px; color: #aeb7c2; }
+
+@media (max-width: 600px) {
+  .hub-wardrobe { grid-template-columns: minmax(0, 1fr); }
+  .hub-wardrobe-side { position: static; margin-bottom: 12px; }
+  .hub-ach-side { width: 100%; }
+}

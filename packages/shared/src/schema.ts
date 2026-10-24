@@ -12,6 +12,8 @@ export type ItemState = SchemaType<typeof ItemState>;
 // Players and mobs share these fighter fields (the sim's Combatant reads and writes both the same way).
 export const PlayerState = schema({
   name: t.string().default(""),
+  /** Equipped cosmetics as a packed word (see packLook in cosmetics.ts). Set when the player joins, never changed after. */
+  look: t.uint32().default(0),
   x: t.number().default(0),
   y: t.number().default(0),
   /** Radians, ground plane: where the fighter aims (the shield faces it), or the way it walks when it doesn't aim. */

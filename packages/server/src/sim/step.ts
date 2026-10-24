@@ -15,15 +15,19 @@ import { moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons
 import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
 
 /**
- * Joins the lobby with a faction (the one picked in the hub, else a round-robin default over join order), its hp, and
- * its signature weapon in the first slot. Nothing is brought in from outside the run.
+ * Joins the lobby with a faction (`faction`, picked in the hub; else a round-robin default over join order), its hp, and
+ * its signature weapon in the first slot. Nothing else is brought in from outside the run except `look`, the packed
+ * cosmetics word (cosmetics.ts) the Room worked out from the profile: it is shown to everyone and changes nothing else.
  */
-export function addPlayer(world: World, id: string, profile: string, picked: FactionId | null = null): PlayerState {
+export function addPlayer(
+  world: World, id: string, profile: string, opts: { faction?: FactionId | null; look?: number } = {},
+): PlayerState {
   const s = world.state;
   const p = new PlayerState();
   const joinIndex = world.joined++;
-  const faction = picked ?? defaultFaction(joinIndex);
+  const faction = opts.faction ?? defaultFaction(joinIndex);
   p.name = profile;
+  p.look = (opts.look ?? 0) >>> 0;
   p.faction = faction;
   p.hp = FACTIONS[faction].hp;
   p.maxHp = FACTIONS[faction].hp;

@@ -2,7 +2,7 @@
 // PlayerView and MobView, which pass the synced fields and read nothing else; everything here is cosmetic.
 import Phaser from "phaser";
 import {
-  FACTIONS, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, attackInterval, isFactionId, isWeaponId, weaponTimings,
+  FACTIONS, GOLD_COLOR, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, attackInterval, isFactionId, isWeaponId, weaponTimings,
   type WeaponId,
 } from "@raid/shared";
 import { traceSector } from "./groundShapes";
@@ -46,10 +46,11 @@ export function weaponCenterX(w: WeaponId): number {
 
 /**
  * Draws `w` in the local frame of a body centred on the origin, pointing along +x. `pull` is the bow's draw: -1 for
- * not drawing, else 0 (nocked) to 1 (full draw: the string and arrow glow).
+ * not drawing, else 0 (nocked) to 1 (full draw: the string and arrow glow). `tint` replaces the weapon's own colour
+ * (the golden-weapon cosmetic).
  */
-export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -1): void {
-  const color = WEAPONS[w].color;
+export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -1, tint?: number): void {
+  const color = tint ?? WEAPONS[w].color;
   // A dark, fairly opaque edge on every part so the silhouette holds against both light and dark floors.
   g.lineStyle(1.5, OUTLINE, 0.95);
   switch (w) {
@@ -134,6 +135,8 @@ export class FighterArt {
   readonly held: Phaser.GameObjects.Graphics;
   private heldSig = "";
   private arcSig = "";
+  /** Draw the weapon in hand in gold (a golden weapon look applies). Part of the redraw signature. */
+  private gold = false;
   /** The bow draw being shown: its server start time (0 = none) and the server time it stopped (Infinity = still on). */
   private drawStart = 0;
   private drawEnd = Infinity;
@@ -143,6 +146,11 @@ export class FighterArt {
   constructor(scene: Phaser.Scene) {
     this.ground = scene.add.graphics();
     this.held = scene.add.graphics().setPosition(0, -BODY_LIFT).setScale(HELD_SCALE);
+  }
+
+  /** Golden weapon look on or off; takes effect at the next update(). */
+  setGold(on: boolean): void {
+    this.gold = on;
   }
 
   /**
@@ -159,11 +167,11 @@ export class FighterArt {
     const pull = weapon === "bow" && drawing && full > 0 ? Math.max(0, Math.min(1, (renderT - this.drawStart) / 1000 / full)) : -1;
 
     this.held.setVisible(weapon !== null).setRotation(screenAngle(f.facing));
-    const sig = `${weapon ?? ""}|${pull < 0 ? -1 : Math.round(pull * PULL_STEPS)}`;
+    const sig = `${weapon ?? ""}|${pull < 0 ? -1 : Math.round(pull * PULL_STEPS)}|${this.gold ? 1 : 0}`;
     if (sig !== this.heldSig) {
       this.heldSig = sig;
       this.held.clear();
-      if (weapon) drawWeapon(this.held, weapon, pull);
+      if (weapon) drawWeapon(this.held, weapon, pull, this.gold ? GOLD_COLOR : undefined);
     }
 
     // Ground angles, not screen ones: the arc is built from projected ground points (see groundShapes).
