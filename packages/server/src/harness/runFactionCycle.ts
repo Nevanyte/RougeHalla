@@ -2,7 +2,7 @@
 // the real sim, printed like COUNTER_REVIEW.md's tables, optionally checked pair by pair against testing/realtime.py.
 // Report-only: it never fails the build, it exits non-zero only for bad arguments or a run that throws.
 //
-//   npm run harness:factions -- [--mode trades|full] [--nmax 12] [--sub 1] [--ref path.json | --python] [--json out.json]
+//   npm run harness:factions -- [--mode trades|full|policy] [--nmax 12] [--sub 1] [--ref path.json | --python] [--json out.json]
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -10,15 +10,19 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { BEATS, DUEL_PACE, FACTIONS, SIGNATURE_WEAPONS, type WeaponId } from "@raid/shared";
 import { cellStats, phaseGrid, runCell, type CellStats, type DuelMode, type Fighter } from "./factionCycle";
+import { fullSetups } from "./matrix";
 
-const USAGE = `Usage: harness:factions [--mode trades|full] [--nmax 12] [--sub 1] [--ref path.json | --python] [--json out.json]
+const USAGE = `Usage: harness:factions [--mode trades|full|policy] [--nmax 12] [--sub 1] [--ref path.json | --python] [--json out.json]
 
 Runs the faction cycle through the real sim: every designed edge with the same weapon on both sides (10 x 5 mirror
 cells) and with both on their signature weapons (10 openings).
 
   --mode trades  every swing that lands and every projectile that leaves hits the other fighter in that same tick, so
                  a duel is the faction rules alone; comparable with testing/realtime_paced.py (default)
-  --mode full    real melee arcs and projectile flight. Needs Phase 9 melee: the numbers are degenerate until it lands
+  --mode full    real melee arcs and projectile flight, with blocks, reflections and stagger; the two still stand face
+                 to face, so shields facing each other block every bash (only damage over time gets through)
+  --mode policy  both play their weapon by the shared policies (Phase 9's weapon duel: moving, spacing, strafing),
+                 from the weapon matrix's 18 starting setups per cell (--nmax and --sub don't apply)
   --nmax N       at most N first-swing offsets per fighter, thinned evenly: up to N x N phase pairs per cell (default 12)
   --sub S        refine the first-swing grid S times (default 1)
   --ref FILE     compare with the JSON of \`python3 testing/realtime_paced.py --k 2 --nmax N --sub S --pairs\`
@@ -69,7 +73,9 @@ function parseCli(args: string[]): Options | null {
   }
   if (values.help) return null;
   const mode = values.mode ?? "trades";
-  if (mode !== "trades" && mode !== "full") throw new UsageError(`--mode must be trades or full, not "${mode}"`);
+  if (mode !== "trades" && mode !== "full" && mode !== "policy") {
+    throw new UsageError(`--mode must be trades, full or policy, not "${mode}"`);
+  }
   const int = (name: string, raw: string | undefined, fallback: number, min: number): number => {
     if (raw === undefined) return fallback;
     const n = /^\d+$/.test(raw) ? Number(raw) : NaN;
@@ -120,13 +126,17 @@ function winPct(rate: number): string {
 const hpPct = (frac: number): string => (frac * 100).toFixed(1);
 
 function printHeader(o: Options, specs: CellSpec[]): void {
+  if (o.mode === "policy") {
+    const n = fullSetups().length;
+    console.log(`Faction cycle harness | mode: policy | k (DUEL_PACE): ${DUEL_PACE} | ${n} weapon-matrix setups per cell`);
+    console.log(`${specs.length} cells, ${specs.length * n} duels`);
+    return;
+  }
   const sizes = specs.map((c) => phaseGrid(c.a, c.b, o.sub, o.nmax).offs.length * phaseGrid(c.b, c.a, o.sub, o.nmax).offs.length);
   const total = sizes.reduce((s, n) => s + n, 0);
   console.log(`Faction cycle harness | mode: ${o.mode} | k (DUEL_PACE): ${DUEL_PACE} | grid: nmax ${o.nmax}, sub ${o.sub}`);
   console.log(`${specs.length} cells, ${Math.min(...sizes)}-${Math.max(...sizes)} phase pairs each, ${total} duels`);
-  if (o.mode === "full") {
-    console.log("note: full mode needs Phase 9 melee (arcs, blocks, stagger); its numbers are degenerate until that lands");
-  }
+  if (o.mode === "full") console.log("note: face to face, shields block each other's bashes; see --mode policy for moving fighters");
 }
 
 function printMirror(cells: CellReport[]): void {
@@ -253,7 +263,7 @@ function printComparison(o: Options, report: Report, ref: RefReport, source: str
   if (ref.k !== DUEL_PACE || ref.nmax !== o.nmax || ref.sub !== o.sub) {
     console.log(`warning: the reference was not run at this k, nmax and sub (${DUEL_PACE}, ${o.nmax}, ${o.sub}); pairs may not line up`);
   }
-  if (o.mode === "full") console.log("note: realtime.py is the trades model; in full mode differences are expected");
+  if (o.mode !== "trades") console.log(`note: realtime.py is the trades model; in ${o.mode} mode differences are expected`);
   const byKey = new Map(ref.cells.map((c) => [cellKey(c), c]));
   const diffs = report.cells.map((c) => compare(c, byKey.get(cellKey(c))));
 

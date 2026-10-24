@@ -28,6 +28,8 @@ export type Perception = "client" | "stale" | "present";
 
 export interface DuelSpec {
   faction: FactionId;
+  /** Fighter 0's and fighter 1's faction when they differ (the faction cycle, harness/factionCycle.ts); else `faction`. */
+  factions?: readonly [FactionId, FactionId];
   /** Fighter 0's and fighter 1's weapon (both hold the same faction, so only the weapon differs). */
   weapons: readonly [WeaponId, WeaponId];
   /** Start distance, centre to centre, along `angle`. */
@@ -253,8 +255,9 @@ export function runDuel(spec: DuelSpec): DuelResult {
   world.map = { ...buildArena(spec.arena ?? "open", starts, seed), spawns: [starts[0], starts[1]] };
   for (let i = 0; i < 2; i++) {
     const p = addPlayer(world, IDS[i]!, IDS[i]!);
-    const f = FACTIONS[spec.faction];
-    p.faction = spec.faction;
+    const faction = spec.factions?.[i] ?? spec.faction;
+    const f = FACTIONS[faction];
+    p.faction = faction;
     p.hp = p.maxHp = f.hp;
     p.weapon0 = spec.weapons[i]!;
     p.weapon1 = "";

@@ -6,8 +6,10 @@
 // tick, holding the trigger toward each other (the bow is loosed at full draw). "trades" mode leaves out only where a
 // hit lands: every swing that lands and every arrow or ball that leaves hits the other fighter in that same tick (an
 // afterWeapons system), so a duel is the faction rules alone, as in testing/realtime.py, and the two compare cell by
-// cell on the same grid of first-swing phases (phaseGrid mirrors realtime.phases). "full" mode (Phase 9 melee) keeps
-// arcs and projectile flight, and with them blocks, reflections and stagger.
+// cell on the same grid of first-swing phases (phaseGrid mirrors realtime.phases). "full" mode keeps arcs and projectile
+// flight, and with them blocks, reflections and stagger, with the two still standing face to face. "policy" mode plays
+// each cell through Phase 9's weapon duel (duel.ts): both fighters move and attack by the shared weapon policies, the
+// way the bots do, from the weapon matrix's 18 starting setups (distance, start offset, direction).
 import {
   attackInterval, chillMultiplier, FACTIONS, mapFromTiles, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
   TILE_WALL, WEAPONS, weaponTimings, type FactionId, type GameMap, type WeaponId, type WeaponTimings,
@@ -17,6 +19,8 @@ import { noteContact } from "../sim/factions";
 import { createGameWorld } from "../sim/gameplay";
 import { recordHit } from "../sim/ledger";
 import { addPlayer, step } from "../sim/step";
+import { runDuel as policyDuel } from "./duel";
+import { fullSetups } from "./matrix";
 import { packetFor } from "../sim/weapons";
 import type { World } from "../sim/world";
 
@@ -27,7 +31,7 @@ const EPS = 1e-9;
 const DUEL_GAP = 40;
 const MAP_TILES = 24;
 
-export type DuelMode = "trades" | "full";
+export type DuelMode = "trades" | "full" | "policy";
 
 export interface Fighter { faction: FactionId; weapon: WeaponId }
 
@@ -227,8 +231,27 @@ function queueReleases(world: World, next: number): void {
   }
 }
 
-/** Every phase pair of a cell (a-major, as numpy's meshgrid with indexing="ij"), `a` the intended winner. */
+/** Long enough for the slowest pair to finish after walking into range (Frost against Holy runs about 37 s). */
+const POLICY_CAP_SECONDS = 150;
+
+/** A cell in policy mode: one weapon duel per matrix setup. */
+function policyCell(a: Fighter, b: Fighter): DuelResult[] {
+  return fullSetups().map((setup, i) => {
+    const r = policyDuel({
+      faction: a.faction, factions: [a.faction, b.faction], weapons: [a.weapon, b.weapon],
+      distance: setup.distance, angle: setup.angle, delayTicks: setup.delayTicks,
+      arena: "open", perception: "client", capSeconds: POLICY_CAP_SECONDS, seed: 1 + i * 7,
+    });
+    return { win: r.winner ?? -1, frac0: r.hpFrac[0], frac1: r.hpFrac[1], t: r.seconds };
+  });
+}
+
+/**
+ * Every phase pair of a cell (a-major, as numpy's meshgrid with indexing="ij"), `a` the intended winner. In policy mode,
+ * one duel per matrix setup instead (`sub` and `nmax` don't apply).
+ */
 export function runCell(a: Fighter, b: Fighter, opts: DuelOpts & { sub?: number; nmax?: number } = {}): DuelResult[] {
+  if (opts.mode === "policy") return policyCell(a, b);
   const ga = phaseGrid(a, b, opts.sub ?? 1, opts.nmax);
   const gb = phaseGrid(b, a, opts.sub ?? 1, opts.nmax);
   const out: DuelResult[] = [];
