@@ -28,7 +28,8 @@ import {
   type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { emit, tieRank, type PlayerRuntime, type World } from "./world";
+import { releaseTrigger } from "./weapons";
+import { emit, type PlayerRuntime, type World } from "./world";
 
 /** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
 export interface Attacker { id: string; p: PlayerState; rt: PlayerRuntime }
@@ -68,11 +69,16 @@ export function beginRun(world: World): void {
   s.winner = "";
 }
 
-/** First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths. */
+/**
+ * First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths, and the
+ * bounties this tick's kills pay (world.arena.bountyAtTickStart).
+ */
 export function markTickStart(world: World): void {
+  world.arena.bountyAtTickStart.clear();
   for (const [id, p] of world.state.players) {
     const rt = world.players.get(id);
     if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? p.hp / p.maxHp : 0;
+    world.arena.bountyAtTickStart.set(id, p.bounty);
   }
 }
 
@@ -92,8 +98,8 @@ export interface Hit { amount: number; source: Attacker | string }
 /**
  * Several hits landing on one player at the same moment (the per-tick ledger, sim/ledger.ts): their sum comes off at
  * once, so no hit is "first". Every player among the sources counts as having damaged the victim. If the sum kills, the
- * kill (and the bounty) goes to the largest hit by a rival player, else to the largest hit; equal hits are settled by
- * tieRank, so join order never decides.
+ * kill (and the bounty) goes to the largest hit by a rival player, else to the largest hit; ties go to the earlier one
+ * (the ledger hands them over in the tick's secret order).
  */
 export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime, hits: readonly Hit[]): number {
   // hp 0 while still standing: the killing blow is being processed (a hook hitting the victim again must not re-kill).
@@ -105,11 +111,11 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   for (const h of hits) {
     if (!(h.amount > 0)) continue;
     total += h.amount;
-    if (!top || beats(world, h, top)) top = h;
+    if (!top || h.amount > top.amount) top = h;
     // Hurting yourself is never your own kill or leave credit.
     if (typeof h.source !== "string" && h.source.rt !== rtv) {
       h.source.rt.damaged.add(rtv.id);
-      if (!topRival || beats(world, h, topRival)) topRival = h as Hit & { source: Attacker };
+      if (!topRival || h.amount > topRival.amount) topRival = h as Hit & { source: Attacker };
     }
   }
   if (!top) return 0;
@@ -127,15 +133,6 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   return before;
 }
 
-function sourceId(h: Hit): string {
-  return typeof h.source === "string" ? h.source : h.source.id;
-}
-
-/** `h` outranks `best` for kill credit: larger, or equal and ahead on tieRank. */
-function beats(world: World, h: Hit, best: Hit): boolean {
-  return h.amount > best.amount || (h.amount === best.amount && tieRank(world, sourceId(h)) < tieRank(world, sourceId(best)));
-}
-
 /**
  * Kill GV, the victim's bounty and the killer's new bounty. Skipped for a killer whose result is already out (a
  * projectile outliving its shooter, from Phase 9): nothing could bank it, and their final kills are already reported.
@@ -144,7 +141,8 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
   if (by.rt.resolved) return;
   by.p.kills += 1;
   awardGv(world, by.p, by.rt, "kill");
-  const bounty = victim.bounty;
+  // Kills in one tick are simultaneous: a bounty the victim earned with a kill this same tick isn't paid yet.
+  const bounty = world.stepping ? (world.arena.bountyAtTickStart.get(rtv.id) ?? victim.bounty) : victim.bounty;
   if (bounty > 0) {
     credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
@@ -209,12 +207,23 @@ function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
 export function markDropped(world: World, id: string): void {
   const rt = world.players.get(id);
   if (rt && rt.droppedAt === null && world.state.phase === "active") rt.droppedAt = world.state.serverTime;
+  // A press that arrived just before the socket closed would hold the trigger for the whole grace.
+  rt?.inputs.drain();
+  releaseHeld(world, id);
 }
 
-/** They are back within the grace. */
+/** They are back within the grace. A button they still hold is pressed again by their client. */
 export function markReconnected(world: World, id: string): void {
   const rt = world.players.get(id);
   if (rt) rt.droppedAt = null;
+  releaseHeld(world, id);
+}
+
+/** A release sent while the connection was down never arrives, so the server lets go of the trigger itself. */
+function releaseHeld(world: World, id: string): void {
+  const p = world.state.players.get(id);
+  const rt = world.players.get(id);
+  if (p && rt) releaseTrigger(world, { kind: "player", id, s: p, rt });
 }
 
 /** GV earned so far and not yet banked: what a run voided by a server shutdown still pays. */
@@ -232,6 +241,7 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   const credited = outcome === "mia" ? leaveCredit(world, rt) : null;
   rt.down = { outcome };
   rt.path = [];
+  releaseTrigger(world, { kind: "player", id: rt.id, s: p, rt });
   p.status = outcome === "died" ? "dead" : "mia";
   if (credited) creditKill(world, credited, p, rt);
   world.hooks.dropBody(world, p);

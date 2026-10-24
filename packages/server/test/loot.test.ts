@@ -1,65 +1,96 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  generateMap, hasLineOfSight, INTERACT_RANGE, INVENTORY_SLOTS, isWallTile, ITEMS, mulberry32, TICK_MS, TILE, withGates,
-  type ContainerKind, type GameMap, type GateDef, type GateSide, type HealingDef, type ItemDTO, type Vec2,
+  generateMap, hasLineOfSight, INTERACT_RANGE, mapFromTiles, mulberry32, PLAYER_RADIUS, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR,
+  TILE_WALL, tileToWorldCenter, WEAPON_IDS, WEAPONS, withGates, type ContainerKind, type GameMap, type GateDef, type GateSide, type Vec2,
+  type WeaponId,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { downPlayer } from "../src/sim/arena";
+import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
-import { dropBody, handleDrop, handleTake, handleUse, install, spawnLoot } from "../src/sim/loot";
-import {
-  CRATE_SIZES, GROUND_EXCLUDED, GROUND_TABLE, LOOT_TABLE, rollCrate, rollGroundItem, rollItem,
-} from "../src/sim/lootTables";
+import { dropBody, dropWeapon, handlePickup, install, spawnLoot } from "../src/sim/loot";
+import { CHEST_TABLE, GROUND_WEAPON_CHANCE, rollChestWeapon, rollGroundWeapon } from "../src/sim/lootTables";
+import { addMob } from "../src/sim/mobs";
 import { actionOrder, addPlayer, removePlayer, step } from "../src/sim/step";
 import { createWorld, nextId, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 type EventOf<T extends SimEvent["type"]> = Extract<SimEvent, { type: T }>;
+type Slots = [WeaponId | "", WeaponId | ""];
 
-const BANDAGE = ITEMS.bandage as HealingDef;
-const MEDKIT = ITEMS.medkit as HealingDef;
-
-/** Loot uids come from a counter so assertions never depend on UUIDs; the "L" prefix can't clash with `gear`. */
-function makeWorld(cfg: Partial<SimConfig> = {}, seed = 1234, random = mulberry32(seed + 1)): World {
-  let n = 0;
+function makeConfig(cfg: Partial<SimConfig> = {}): SimConfig {
   const patienceSeconds = cfg.patienceSeconds ?? 3600;
-  const config: SimConfig = {
+  return {
     minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds, patienceMinSeconds: patienceSeconds,
     suddenDeathSeconds: 60, ...cfg,
   };
-  return createGameWorld({ seed, config, random, newItemUid: () => `L${++n}` });
 }
 
-const gear = (...defs: string[]): ItemDTO[] => defs.map((def, i) => ({ uid: `${def}#${i}`, def }));
+const centre = (tx: number, ty: number): Vec2 => ({ x: tileToWorldCenter(tx), y: tileToWorldCenter(ty) });
+const tick = (world: World): SimEvent[] => step(world, TICK_MS);
 
-interface Seat { id: string; name: string; items?: ItemDTO[] }
-const alice = (items: ItemDTO[] = []): Seat => ({ id: "a", name: "alice", items });
-const bob = (items: ItemDTO[] = []): Seat => ({ id: "b", name: "bob", items });
-const carol = (items: ItemDTO[] = []): Seat => ({ id: "c", name: "carol", items });
-const SEATS: Record<string, (items?: ItemDTO[]) => Seat> = { a: alice, b: bob, c: carol };
+/** Item uids come from a counter, so assertions never depend on UUIDs. */
+function counter(): () => string {
+  let n = 0;
+  return () => `L${++n}`;
+}
 
-/** addPlayer mints the run kit; tests want exact contents, so the kit is swapped for `items`. */
-function setGear(p: PlayerState, items: ItemDTO[]): void {
-  p.inventory.clear();
-  for (const it of items) {
-    const item = new ItemState();
-    item.uid = it.uid;
-    item.def = it.def;
-    p.inventory.push(item);
+/** The generated map of `seed` with the game modules installed (and so its chests and loose weapons laid out). */
+function makeWorld(cfg: Partial<SimConfig> = {}, seed = 1234, random = mulberry32(seed + 1)): World {
+  return createGameWorld({ seed, config: makeConfig(cfg), random, newItemUid: counter() });
+}
+
+/** A walled hall of open floor (no ruins), with an optional predicate for the tiles that stay floor. Spawns are tiles. */
+function hall(w: number, h: number, spawns: Array<[number, number]>, open?: (tx: number, ty: number) => boolean): GameMap {
+  const tiles = new Uint8Array(w * h);
+  for (let ty = 0; ty < h; ty++) {
+    for (let tx = 0; tx < w; tx++) {
+      const edge = tx === 0 || ty === 0 || tx === w - 1 || ty === h - 1;
+      tiles[ty * w + tx] = !edge && (open?.(tx, ty) ?? true) ? TILE_FLOOR : TILE_WALL;
+    }
   }
+  const map = mapFromTiles(w, h, tiles, 1);
+  map.spawns = spawns.map(([tx, ty]) => centre(tx, ty));
+  return map;
 }
 
-/** Seats join in the given order (which is the order the sim iterates players); the raid starts on the first step. */
-function startRaid(seats: Seat[], cfg: Partial<SimConfig> = {}): World {
+/** Where players stand in most tests: the middle of the open hall. */
+const AT = centre(10, 10);
+
+interface Seat { id: string; name: string; weapons?: Slots }
+const alice = (weapons?: Slots): Seat => ({ id: "a", name: "alice", weapons });
+const bob = (weapons?: Slots): Seat => ({ id: "b", name: "bob", weapons });
+const carol = (weapons?: Slots): Seat => ({ id: "c", name: "carol", weapons });
+const SEATS: Record<string, (weapons?: Slots) => Seat> = { a: alice, b: bob, c: carol };
+
+function setWeapons(p: PlayerState, [w0, w1]: Slots, slot = 0): void {
+  p.weapon0 = w0;
+  p.weapon1 = w1;
+  p.slot = slot;
+}
+
+/**
+ * Seats join in the given order (which is the order the sim iterates players) on `map` with its generated loot cleared
+ * away; the raid starts on the first step. Weapons default to a sword in hand and an empty second slot, so a pickup
+ * lands in slot 1 without touching the weapon in hand.
+ */
+function startRaid(seats: Seat[], cfg: Partial<SimConfig> = {}, map: GameMap = hall(40, 20, [[10, 10]])): World {
   const world = makeWorld({ minPlayers: seats.length, ...cfg });
-  for (const s of seats) setGear(addPlayer(world, s.id, s.name), s.items ?? []);
-  step(world, TICK_MS);
+  world.map = map;
+  world.state.containers.clear();
+  for (const s of seats) {
+    const p = addPlayer(world, s.id, s.name);
+    setWeapons(p, s.weapons ?? ["sword", ""]);
+  }
+  tick(world);
   expect(world.state.phase).toBe("active");
+  for (const s of seats) place(world, s.id, AT);
   return world;
 }
 
 const P = (world: World, id: string): PlayerState => world.state.players.get(id)!;
 const RT = (world: World, id: string) => world.players.get(id)!;
+const slotsOf = (world: World, id: string): Slots => [P(world, id).weapon0 as WeaponId | "", P(world, id).weapon1 as WeaponId | ""];
 
 /** Puts a player at an exact spot; the sim only moves players that have a path. */
 function place(world: World, id: string, at: Vec2): void {
@@ -70,17 +101,16 @@ function place(world: World, id: string, at: Vec2): void {
 
 const send = (world: World, id: string, type: string, msg: unknown) =>
   expect(enqueueClientMessage(RT(world, id).inputs, type, msg)).toBe(true);
+const pickup = (world: World, id: string, containerId: string) => send(world, id, "pickup", { containerId });
 
 function ofType<T extends SimEvent["type"]>(events: SimEvent[], type: T): Array<EventOf<T>> {
   return events.filter((e): e is EventOf<T> => e.type === type);
 }
 
 const toastsOf = (events: SimEvent[]) => ofType(events, "toast").map((e) => ({ to: e.to, text: e.text }));
+const defsOf = (c: ContainerState): string[] => c.items.map((i) => i.def);
 
-const dto = (items: Iterable<{ uid: string; def: string }>): ItemDTO[] =>
-  Array.from(items, (i) => ({ uid: i.uid, def: i.def }));
-
-/** Hand-built container so tests control exactly what is in it (and don't depend on rolled loot). */
+/** Hand-built container so tests control exactly what is in it, and it is never gated as "born this tick". */
 function putContainer(world: World, kind: ContainerKind, at: Vec2, defs: string[]): ContainerState {
   const c = new ContainerState();
   c.id = nextId(world, "t");
@@ -98,37 +128,25 @@ function putContainer(world: World, kind: ContainerKind, at: Vec2, defs: string[
   return c;
 }
 
-/** Everything a loot action could change, for "nothing happened" assertions. */
+/** Everything a pickup could change, for "nothing happened" assertions. */
 function dump(world: World): string {
   const players: unknown[] = [];
-  for (const [id, p] of world.state.players) players.push([id, p.hp, p.x, p.y, dto(p.inventory)]);
+  for (const [id, p] of world.state.players) players.push([id, p.hp, p.x, p.y, p.weapon0, p.weapon1, p.slot, p.readyAt]);
   const containers: unknown[] = [];
-  for (const [id, c] of world.state.containers) containers.push([id, c.kind, c.x, c.y, c.label, dto(c.items)]);
+  for (const [id, c] of world.state.containers) containers.push([id, c.kind, c.x, c.y, c.label, defsOf(c)]);
   return JSON.stringify({ players, containers });
 }
 
-const AT: Vec2 = { x: 100, y: 100 };
+/** Containers that exist now and did not in `before`. */
+const addedSince = (world: World, before: ReadonlySet<string>): ContainerState[] =>
+  [...world.state.containers.values()].filter((c) => !before.has(c.id));
 
-/** Line-of-sight tests need real geometry: a one-tile-thick wall with floor on both sides, on the default test map. */
-function findSlab(map: GameMap): { west: number; east: number; y: number } {
-  for (let ty = 1; ty < map.h - 1; ty++) {
-    for (let tx = 1; tx < map.w - 3; tx++) {
-      if (!isWallTile(map, tx, ty) && isWallTile(map, tx + 1, ty) && !isWallTile(map, tx + 2, ty)) {
-        // Stand a player radius off each face: the two spots are exactly INTERACT_RANGE apart.
-        return { west: (tx + 1) * TILE - 12, east: (tx + 2) * TILE + 12, y: ty * TILE + TILE / 2 };
-      }
-    }
-  }
-  throw new Error("no one-tile wall on the test map");
-}
-const SLAB = findSlab(generateMap(1234));
-const WEST: Vec2 = { x: SLAB.west, y: SLAB.y };
-const EAST: Vec2 = { x: SLAB.east, y: SLAB.y };
 /** The id the next container will get, for tests playing a client that guesses ids. */
 const nextContainerId = (world: World): string => `c${(world.idCounter + 1).toString(36)}`;
+
 /** Steps until `id` is the first player processed on the following tick (see actionOrder). */
 function stepUntilFirst(world: World, id: string): void {
-  for (let i = 0; i < 1000 && actionOrder(world, world.state.tick + 1)[0] !== id; i++) step(world, TICK_MS);
+  for (let i = 0; i < 1000 && actionOrder(world, world.state.tick + 1)[0] !== id; i++) tick(world);
   expect(actionOrder(world, world.state.tick + 1)[0]).toBe(id);
 }
 
@@ -152,27 +170,41 @@ describe("loot tables", () => {
     return m;
   };
 
-  it("only references real catalog items, once each, with positive weights", () => {
-    const ids = LOOT_TABLE.map((e) => e.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    for (const e of LOOT_TABLE) {
-      expect(ITEMS[e.id], e.id).toBeDefined();
-      expect(e.weight).toBeGreaterThan(0);
-    }
-    expect(CRATE_SIZES.map((s) => s.count)).toEqual([1, 2, 3]);
+  /** How many times `fn` calls the random() it is given. */
+  const callsOf = (fn: (r: () => number) => unknown): number => {
+    let calls = 0;
+    const r = mulberry32(5);
+    fn(() => { calls++; return r(); });
+    return calls;
+  };
+
+  it("holds every weapon type exactly once with equal positive weights", () => {
+    expect(CHEST_TABLE.map((e) => e.id).sort()).toEqual([...WEAPON_IDS].sort());
+    for (const e of CHEST_TABLE) expect(e.weight, e.id).toBeGreaterThan(0);
+    expect(new Set(CHEST_TABLE.map((e) => e.weight)).size).toBe(1);
   });
 
-  it("ships the designed weights", () => {
-    expect(Object.fromEntries(LOOT_TABLE.map((e) => [e.id, e.weight]))).toEqual({
-      watch: 20, gold: 8, gpu: 3, bandage: 18, medkit: 7, knife: 8, pistol: 8, rifle: 3, vest: 7, plate: 3,
-    });
-    expect(CRATE_SIZES.map((s) => s.weight)).toEqual([50, 35, 15]);
+  it("rolls a chest weapon with exactly one random() call, mapping the ends of the unit interval to the first and last entries", () => {
+    expect(callsOf(rollChestWeapon)).toBe(1);
+    expect(rollChestWeapon(() => 0)).toBe(CHEST_TABLE[0]!.id);
+    expect(rollChestWeapon(() => 0.999999999)).toBe(CHEST_TABLE[CHEST_TABLE.length - 1]!.id);
+  });
+
+  it("rolls a ground weapon with exactly two random() calls, the first deciding whether there is one", () => {
+    expect(callsOf(rollGroundWeapon)).toBe(2);
+    // Below the chance there is a weapon, at it there is none; the second call picks the type either way.
+    const roll = (there: number, which: number) => { const seq = [there, which]; return rollGroundWeapon(() => seq.shift()!); };
+    expect(roll(GROUND_WEAPON_CHANCE - 1e-9, 0)).toBe(CHEST_TABLE[0]!.id);
+    expect(roll(GROUND_WEAPON_CHANCE - 1e-9, 0.999999999)).toBe(CHEST_TABLE[CHEST_TABLE.length - 1]!.id);
+    expect(roll(GROUND_WEAPON_CHANCE, 0)).toBeNull();
+    expect(roll(0.999999999, 0.5)).toBeNull();
+    expect(roll(0, 0.5)).toBe(rollChestWeapon(() => 0.5));
   });
 
   it("is deterministic for a given random() and varies with it", () => {
     const rolls = (seed: number) => {
       const r = mulberry32(seed);
-      return Array.from({ length: 200 }, () => [rollItem(r), rollCrate(r), rollGroundItem(r)]);
+      return Array.from({ length: 200 }, () => [rollChestWeapon(r), rollGroundWeapon(r)]);
     };
     expect(rolls(7)).toEqual(rolls(7));
     expect(rolls(7)).not.toEqual(rolls(8));
@@ -182,144 +214,143 @@ describe("loot tables", () => {
     const spy = vi.spyOn(Math, "random").mockImplementation(() => { throw new Error("Math.random used"); });
     try {
       const r = mulberry32(3);
-      for (let i = 0; i < 100; i++) { rollItem(r); rollCrate(r); rollGroundItem(r); }
+      for (let i = 0; i < 100; i++) { rollChestWeapon(r); rollGroundWeapon(r); }
     } finally {
       spy.mockRestore();
     }
   });
 
-  it("maps the ends of the unit interval to the first and last table entries", () => {
-    expect(rollItem(() => 0)).toBe(LOOT_TABLE[0]!.id);
-    expect(rollItem(() => 0.999999999)).toBe(LOOT_TABLE[LOOT_TABLE.length - 1]!.id);
-    expect(rollGroundItem(() => 0)).toBe(GROUND_TABLE[0]!.id);
-    expect(rollGroundItem(() => 0.999999999)).toBe(GROUND_TABLE[GROUND_TABLE.length - 1]!.id);
-    expect(rollCrate(() => 0)).toHaveLength(1);
-    expect(rollCrate(() => 0.999999999)).toHaveLength(3);
-  });
-
-  it("consumes one random() per item, plus one for a crate's size", () => {
-    const counted = (fn: (r: () => number) => unknown) => {
-      let calls = 0;
-      const r = mulberry32(5);
-      fn(() => { calls++; return r(); });
-      return calls;
-    };
-    expect(counted(rollItem)).toBe(1);
-    expect(counted(rollGroundItem)).toBe(1);
-    // Size-first roll: random() below 0.5 is one item, so a constant 0.1 gives 1 size roll + 1 item roll.
-    let calls = 0;
-    expect(rollCrate(() => { calls++; return 0.1; })).toHaveLength(1);
-    expect(calls).toBe(2);
-  });
-
-  it("honors the item weights over 10k rolls", () => {
+  it("honors the chest weights over 10k rolls", () => {
     const r = mulberry32(42);
-    const counts = tally(Array.from({ length: N }, () => rollItem(r)));
-    expectProportional(counts, new Map(LOOT_TABLE.map((e) => [e.id, e.weight])), N);
-    // Sanity on the shape the weights are meant to give.
-    expect(counts.get("watch")!).toBeGreaterThan(counts.get("gold")!);
-    expect(counts.get("bandage")!).toBeGreaterThan(counts.get("medkit")!);
-    expect(counts.get("pistol")!).toBeGreaterThan(counts.get("rifle")!);
+    const counts = tally(Array.from({ length: N }, () => rollChestWeapon(r)));
+    expectProportional(counts, new Map(CHEST_TABLE.map((e) => [e.id, e.weight])), N);
+    expect(new Set(counts.keys())).toEqual(new Set(WEAPON_IDS));
   });
 
-  it("rolls crates of 1-3 valid items, sized 50/35/15", () => {
+  it("puts a weapon on about GROUND_WEAPON_CHANCE of ground rolls, of the same kinds as a chest", () => {
+    expect(GROUND_WEAPON_CHANCE).toBeGreaterThan(0);
+    expect(GROUND_WEAPON_CHANCE).toBeLessThan(1);
     const r = mulberry32(43);
-    const crates = Array.from({ length: N }, () => rollCrate(r));
-    for (const c of crates) {
-      expect(c.length).toBeGreaterThanOrEqual(1);
-      expect(c.length).toBeLessThanOrEqual(3);
-      for (const id of c) expect(ITEMS[id], id).toBeDefined();
-    }
-    const sizes = tally(crates.map((c) => String(c.length)));
-    expectProportional(sizes, new Map([["1", 50], ["2", 35], ["3", 15]]), N);
-    // Items inside crates follow the same table.
-    expectProportional(tally(crates.flat()), new Map(LOOT_TABLE.map((e) => [e.id, e.weight])), crates.flat().length);
-  });
-
-  it("never rolls rifle, plate or gpu for floor items, and keeps the other weights", () => {
-    const r = mulberry32(44);
-    const rolls = Array.from({ length: N }, () => rollGroundItem(r));
-    for (const id of GROUND_EXCLUDED) expect(rolls).not.toContain(id);
-    expect([...GROUND_EXCLUDED].sort()).toEqual(["gpu", "plate", "rifle"]);
-    const weights = new Map(LOOT_TABLE.filter((e) => !GROUND_EXCLUDED.has(e.id)).map((e) => [e.id, e.weight]));
-    expect(new Set(rolls)).toEqual(new Set(weights.keys()));
-    expectProportional(tally(rolls), weights, N);
+    const rolls = Array.from({ length: N }, () => rollGroundWeapon(r));
+    const there = rolls.filter((w): w is WeaponId => w !== null);
+    const sigma = Math.sqrt(N * GROUND_WEAPON_CHANCE * (1 - GROUND_WEAPON_CHANCE));
+    expect(Math.abs(there.length - N * GROUND_WEAPON_CHANCE)).toBeLessThanOrEqual(5 * sigma);
+    expectProportional(tally(there), new Map(CHEST_TABLE.map((e) => [e.id, e.weight])), there.length);
   });
 });
 
 describe("spawnLoot / install", () => {
-  it("is part of createGameWorld: handlers, body hook and containers are installed", () => {
+  /** A world on a hand-built map with exactly these spots, rolling from `random` only. */
+  function lootWorld(random: () => number, crateSpots: Vec2[], groundSpots: Vec2[]): World {
+    const world = createWorld({ seed: 1, config: makeConfig(), random: mulberry32(1), newItemUid: counter() });
+    world.map = hall(8, 8, [[2, 2]]);
+    world.map.crateSpots = crateSpots;
+    world.map.groundSpots = groundSpots;
+    world.random = random;
+    spawnLoot(world);
+    return world;
+  }
+
+  /** Plays `values` in order (then repeats them) and counts the calls. */
+  function scripted(values: number[]) {
+    const out = { calls: 0, random: () => values[out.calls++ % values.length]! };
+    return out;
+  }
+
+  const SPOTS = [centre(1, 1), centre(2, 1), centre(3, 1), centre(4, 1)];
+
+  it("is part of createGameWorld: the handler, the body hook and the containers are installed", () => {
     const world = makeWorld();
-    expect(world.actions.take).toBe(handleTake);
-    expect(world.actions.drop).toBe(handleDrop);
-    expect(world.actions.use).toBe(handleUse);
+    expect(world.actions.pickup).toBe(handlePickup);
     expect(world.hooks.dropBody).toBe(dropBody);
-    expect(world.state.containers.size).toBe(world.map.crateSpots.length + world.map.groundSpots.length);
+    expect(world.state.containers.size).toBeGreaterThan(world.map.crateSpots.length);
   });
 
   it("install() works on a bare world and registers nothing beyond loot", () => {
-    const bare = createWorld({
-      seed: 1234, config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60 },
-      random: mulberry32(9),
-    });
+    const bare = createWorld({ seed: 1234, config: makeConfig(), random: mulberry32(9) });
     expect(bare.state.containers.size).toBe(0);
     install(bare);
-    expect(Object.keys(bare.actions).sort()).toEqual(["drop", "take", "use"]);
+    expect(Object.keys(bare.actions)).toEqual(["pickup"]);
     expect(bare.systems).toEqual([]);
-    expect(bare.state.containers.size).toBe(bare.map.crateSpots.length + bare.map.groundSpots.length);
+    expect(bare.state.containers.size).toBeGreaterThan(0);
   });
 
-  it("creates one container per spot, in spot order, with unique ids and unique item uids", () => {
+  it("puts one chest holding one weapon on every chest spot, in spot order, and loose weapons on some ground spots", () => {
     const world = makeWorld();
     const { crateSpots, groundSpots } = world.map;
     expect(crateSpots.length).toBeGreaterThan(0);
     expect(groundSpots.length).toBeGreaterThan(0);
-
     const all = [...world.state.containers.values()];
-    expect(all).toHaveLength(crateSpots.length + groundSpots.length);
     for (const [key, c] of world.state.containers) expect(c.id).toBe(key);
     expect(new Set(all.map((c) => c.id)).size).toBe(all.length);
 
-    const uids = all.flatMap((c) => c.items.map((i) => i.uid));
-    expect(uids.length).toBeGreaterThan(all.length - 1);
-    expect(new Set(uids).size).toBe(uids.length);
-
-    const crates = all.filter((c) => c.kind === "crate");
+    const chests = all.filter((c) => c.kind === "chest");
     const ground = all.filter((c) => c.kind === "ground");
-    expect(crates.map((c) => ({ x: c.x, y: c.y }))).toEqual(crateSpots);
-    expect(ground.map((c) => ({ x: c.x, y: c.y }))).toEqual(groundSpots);
-    expect(crates.length + ground.length).toBe(all.length);
+    expect(chests.length + ground.length).toBe(all.length);
+    expect(chests.map((c) => ({ x: c.x, y: c.y }))).toEqual(crateSpots);
+    for (const c of chests) {
+      expect(c.label).toBe("Chest");
+      expect(c.items).toHaveLength(1);
+      expect(WEAPON_IDS).toContain(c.items.at(0)!.def);
+    }
+    // Loose weapons sit on a subset of the ground spots, in order, one on each, named after what they are.
+    let next = 0;
+    for (const c of ground) {
+      while (next < groundSpots.length && (groundSpots[next]!.x !== c.x || groundSpots[next]!.y !== c.y)) next++;
+      expect(next, `ground weapon at ${c.x},${c.y} is on a ground spot`).toBeLessThan(groundSpots.length);
+      next++;
+      expect(c.items).toHaveLength(1);
+      expect(c.label).toBe(WEAPONS[c.items.at(0)!.def as WeaponId].name);
+    }
+    expect(ground.length).toBeGreaterThan(0);
+    expect(ground.length).toBeLessThan(groundSpots.length);
+    const uids = all.flatMap((c) => c.items.map((i) => i.uid));
+    expect(new Set(uids).size).toBe(uids.length);
   });
 
-  it("fills crates with 1-3 items and ground spots with one non-premium item named after it", () => {
-    const world = makeWorld();
-    for (const c of world.state.containers.values()) {
-      for (const i of c.items) expect(ITEMS[i.def], i.def).toBeDefined();
-      if (c.kind === "crate") {
-        expect(c.label).toBe("Crate");
-        expect(c.items.length).toBeGreaterThanOrEqual(1);
-        expect(c.items.length).toBeLessThanOrEqual(3);
-      } else {
-        expect(c.kind).toBe("ground");
-        expect(c.items).toHaveLength(1);
-        expect(c.label).toBe(ITEMS[c.items[0]!.def]!.name);
-        expect(GROUND_EXCLUDED.has(c.items[0]!.def)).toBe(false);
-      }
-    }
+  it("rolls a chest from one random() call and a ground spot from two, in spot order", () => {
+    const s = scripted([0.1]);
+    const world = lootWorld(s.random, SPOTS.slice(0, 3), SPOTS);
+    expect(s.calls).toBe(3 + 2 * SPOTS.length);
+    expect(world.state.containers.size).toBe(3 + SPOTS.length);
+  });
+
+  it("maps rolls to weapons: the first entry for a low roll, the last for a high one, and no loose weapon at or above the chance", () => {
+    const first = CHEST_TABLE[0]!.id;
+    const last = CHEST_TABLE[CHEST_TABLE.length - 1]!.id;
+    // chests: low, high; ground (there?, which): present+low, present+high, absent, exactly at the chance (absent)
+    const s = scripted([0, 0.999999999, 0.1, 0, 0.1, 0.999999999, 0.9, 0, GROUND_WEAPON_CHANCE, 0]);
+    const world = lootWorld(s.random, SPOTS.slice(0, 2), SPOTS);
+    expect(s.calls).toBe(10);
+    const boxes = [...world.state.containers.values()];
+    expect(boxes.map((c) => [c.kind, c.x, c.y, defsOf(c)])).toEqual([
+      ["chest", SPOTS[0]!.x, SPOTS[0]!.y, [first]],
+      ["chest", SPOTS[1]!.x, SPOTS[1]!.y, [last]],
+      ["ground", SPOTS[0]!.x, SPOTS[0]!.y, [first]],
+      ["ground", SPOTS[1]!.x, SPOTS[1]!.y, [last]],
+    ]);
+    expect(boxes[2]!.label).toBe(WEAPONS[first].name);
+  });
+
+  it("puts a loose weapon on about GROUND_WEAPON_CHANCE of the ground spots", () => {
+    const n = 20_000;
+    const spots = Array.from({ length: n }, (_, i) => centre(1 + (i % 6), 1 + Math.floor(i / 6) % 6));
+    const world = lootWorld(mulberry32(11), [], spots);
+    const sigma = Math.sqrt(n * GROUND_WEAPON_CHANCE * (1 - GROUND_WEAPON_CHANCE));
+    expect(Math.abs(world.state.containers.size - n * GROUND_WEAPON_CHANCE)).toBeLessThanOrEqual(5 * sigma);
   });
 
   it("is reproducible from world.random alone, and independent of the public map seed", () => {
-    const sameRandom = (seed: number, rnd: number) => dump(makeWorld({}, seed, mulberry32(rnd)));
-    expect(sameRandom(1234, 1)).toBe(sameRandom(1234, 1));
-    expect(sameRandom(1234, 1)).not.toBe(sameRandom(1234, 2));
+    const layout = (w: World) => JSON.stringify([...w.state.containers.values()].map((c) => [c.kind, c.x, c.y, defsOf(c)]));
+    expect(layout(makeWorld({}, 1234, mulberry32(1)))).toBe(layout(makeWorld({}, 1234, mulberry32(1))));
+    expect(layout(makeWorld({}, 1234, mulberry32(1)))).not.toBe(layout(makeWorld({}, 1234, mulberry32(2))));
 
-    // Same public seed (so same map and spots) but a different server rng: same places, different contents.
+    // Same public seed (so same map and spots) but a different server rng: same chests, different contents.
     const a = makeWorld({}, 1234, mulberry32(1));
     const b = makeWorld({}, 1234, mulberry32(2));
-    const places = (w: World) => [...w.state.containers.values()].map((c) => [c.kind, c.x, c.y]);
-    const contents = (w: World) => [...w.state.containers.values()].map((c) => dto(c.items).map((i) => i.def));
-    expect(places(a)).toEqual(places(b));
-    expect(contents(a)).not.toEqual(contents(b));
+    const chests = (w: World) => [...w.state.containers.values()].filter((c) => c.kind === "chest");
+    expect(chests(a).map((c) => [c.x, c.y])).toEqual(chests(b).map((c) => [c.x, c.y]));
+    expect(chests(a).map(defsOf)).not.toEqual(chests(b).map(defsOf));
   });
 
   it("does not touch Math.random", () => {
@@ -332,11 +363,7 @@ describe("spawnLoot / install", () => {
   });
 
   it("falls back to unique UUIDs for item uids when the world isn't given a counter", () => {
-    const world = createGameWorld({
-      seed: 5,
-      config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60 },
-      random: mulberry32(1),
-    });
+    const world = createGameWorld({ seed: 5, config: makeConfig(), random: mulberry32(1) });
     const uids = [...world.state.containers.values()].flatMap((c) => c.items.map((i) => i.uid));
     expect(uids.length).toBeGreaterThan(0);
     expect(new Set(uids).size).toBe(uids.length);
@@ -345,375 +372,273 @@ describe("spawnLoot / install", () => {
   it("draws container ids from the world counter, so a later spawn never overwrites earlier containers", () => {
     const world = makeWorld();
     const before = world.state.containers.size;
+    const chests = world.map.crateSpots.length;
     spawnLoot(world);
-    expect(world.state.containers.size).toBe(before * 2);
+    expect(world.state.containers.size).toBeGreaterThanOrEqual(before + chests);
     const uids = [...world.state.containers.values()].flatMap((c) => c.items.map((i) => i.uid));
     expect(new Set(uids).size).toBe(uids.length);
   });
-});
 
-describe("take", () => {
-  it("moves the item into the inventory as a fresh ItemState with the same uid and def", () => {
-    const world = startRaid([alice()]);
-    const crate = putContainer(world, "crate", AT, ["gold", "knife"]);
-    const original = crate.items[0]!;
-    const { uid, def } = original;
-    place(world, "a", AT);
-
-    send(world, "a", "take", { containerId: crate.id, uid });
-    expect(step(world, TICK_MS)).toEqual([]);
-
-    expect(dto(P(world, "a").inventory)).toEqual([{ uid, def: "gold" }]);
-    expect(P(world, "a").inventory[0]).not.toBe(original);
-    expect(dto(crate.items).map((i) => i.def)).toEqual(["knife"]);
-    expect(crate.items.some((i) => i.uid === uid)).toBe(false);
-  });
-
-  it("works from inside a generated crate, one item at a time, and conserves items", () => {
-    const world = startRaid([alice()]);
-    const crate = [...world.state.containers.values()].find((c) => c.kind === "crate")!;
-    const loot = dto(crate.items);
-    place(world, "a", crate);
-
-    for (const it of loot) send(world, "a", "take", { containerId: crate.id, uid: it.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([]);
-
-    expect(dto(P(world, "a").inventory)).toEqual(loot);
-    expect(crate.items).toHaveLength(0);
-    expect(world.state.containers.get(crate.id)).toBe(crate);
-  });
-
-  it("accepts a player exactly INTERACT_RANGE away and refuses one just beyond it", () => {
-    const world = startRaid([alice(), bob()]);
-    const crate = putContainer(world, "crate", AT, ["gold", "watch"]);
-    place(world, "a", { x: AT.x + INTERACT_RANGE, y: AT.y });
-    place(world, "b", { x: AT.x, y: AT.y + INTERACT_RANGE + 0.5 });
-
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    send(world, "b", "take", { containerId: crate.id, uid: crate.items[1]!.uid });
-    const events = step(world, TICK_MS);
-
-    expect(P(world, "a").inventory).toHaveLength(1);
-    expect(P(world, "b").inventory).toHaveLength(0);
-    expect(toastsOf(events)).toEqual([{ to: "b", text: "Too far away" }]);
-    expect(dto(crate.items).map((i) => i.def)).toEqual(["watch"]);
-  });
-
-  it("toasts 'Too far away' to the actor and changes nothing", () => {
-    const world = startRaid([alice(gear("knife"))]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    place(world, "a", { x: AT.x + 400, y: AT.y });
-    const before = dump(world);
-
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Too far away" }]);
-    expect(dump(world)).toBe(before);
-  });
-
-  it("toasts 'Item is gone' for a uid that isn't in the container, changing nothing", () => {
-    const world = startRaid([alice()]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    place(world, "a", AT);
-    const before = dump(world);
-
-    send(world, "a", "take", { containerId: crate.id, uid: "no-such-uid" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Item is gone" }]);
-    expect(dump(world)).toBe(before);
-  });
-
-  it("refuses a uid that lives in a different container", () => {
-    const world = startRaid([alice()]);
-    const one = putContainer(world, "crate", AT, ["gold"]);
-    const two = putContainer(world, "crate", AT, ["watch"]);
-    place(world, "a", AT);
-    const before = dump(world);
-
-    send(world, "a", "take", { containerId: one.id, uid: two.items[0]!.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Item is gone" }]);
-    expect(dump(world)).toBe(before);
-  });
-
-  it("toasts 'Item is gone' for a container that doesn't exist, changing nothing", () => {
-    const world = startRaid([alice()]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    place(world, "a", AT);
-    const before = dump(world);
-
-    send(world, "a", "take", { containerId: "nope", uid: crate.items[0]!.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Item is gone" }]);
-    expect(dump(world)).toBe(before);
-  });
-
-  it("toasts 'Inventory full' when every slot is used, changing nothing", () => {
-    const full = Array.from({ length: INVENTORY_SLOTS }, (_, i) => ({ uid: `own#${i}`, def: "watch" }));
-    const world = startRaid([alice(full)]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    place(world, "a", AT);
-    const before = dump(world);
-
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Inventory full" }]);
-    expect(dump(world)).toBe(before);
-    expect(P(world, "a").inventory).toHaveLength(INVENTORY_SLOTS);
-  });
-
-  it("fills the last free slot but not one more", () => {
-    const nearlyFull = Array.from({ length: INVENTORY_SLOTS - 1 }, (_, i) => ({ uid: `own#${i}`, def: "watch" }));
-    const world = startRaid([alice(nearlyFull)]);
-    const crate = putContainer(world, "crate", AT, ["gold", "gpu"]);
-    place(world, "a", AT);
-
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[1]!.uid });
-    const events = step(world, TICK_MS);
-
-    expect(P(world, "a").inventory).toHaveLength(INVENTORY_SLOTS);
-    expect(P(world, "a").inventory[INVENTORY_SLOTS - 1]!.def).toBe("gold");
-    expect(toastsOf(events)).toEqual([{ to: "a", text: "Inventory full" }]);
-    expect(dto(crate.items).map((i) => i.def)).toEqual(["gpu"]);
-  });
-
-  it("checks container, then distance, then item, then space", () => {
-    const full = Array.from({ length: INVENTORY_SLOTS }, (_, i) => ({ uid: `own#${i}`, def: "watch" }));
-    const world = startRaid([alice(full)]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    const take = (containerId: string, uid: string) => {
-      send(world, "a", "take", { containerId, uid });
-      return toastsOf(step(world, TICK_MS)).map((t) => t.text);
-    };
-
-    place(world, "a", { x: AT.x + 500, y: AT.y });
-    expect(take("nope", "nope")).toEqual(["Item is gone"]); // no container beats "too far"
-    expect(take(crate.id, "nope")).toEqual(["Too far away"]); // too far beats unknown item
-    place(world, "a", AT);
-    expect(take(crate.id, "nope")).toEqual(["Item is gone"]); // unknown item beats full inventory
-    expect(take(crate.id, crate.items[0]!.uid)).toEqual(["Inventory full"]);
-  });
-
-  it("sends failure toasts only to the player who failed", () => {
-    const world = startRaid([alice(), bob()]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    place(world, "a", { x: AT.x + 500, y: AT.y });
-    place(world, "b", AT);
-
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Too far away" }]);
-    expect(P(world, "b").inventory).toHaveLength(0);
-  });
-
-  it("lets a player loot a body", () => {
-    const world = startRaid([alice(), bob(gear("rifle")), carol()]); // carol keeps the run going
-    place(world, "b", AT);
-    downPlayer(world, P(world, "b"), RT(world, "b"), "died");
-    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
-    place(world, "a", { x: AT.x + 10, y: AT.y });
-    step(world, TICK_MS); // created between ticks: clients first see it in this tick's patch
-
-    send(world, "a", "take", { containerId: body.id, uid: "rifle#0" });
-    step(world, TICK_MS);
-    expect(dto(P(world, "a").inventory)).toEqual([{ uid: "rifle#0", def: "rifle" }]);
-    expect(body.items).toHaveLength(0);
-  });
-
-  /** Seats join in `ids` order, idle `idle` ticks, then all take the same item in one tick. */
-  function contest(ids: string[], kind: ContainerKind, idle: number) {
-    const world = startRaid(ids.map((id) => SEATS[id]!()));
-    for (let i = 0; i < idle; i++) step(world, TICK_MS);
-    const container = putContainer(world, kind, AT, ["gold"]);
-    const { uid } = container.items[0]!;
-    for (const id of ids) { place(world, id, AT); send(world, id, "take", { containerId: container.id, uid }); }
-    const events = step(world, TICK_MS);
-    const winners = ids.filter((id) => P(world, id).inventory.length === 1);
-    return { world, container, uid, events, winners };
-  }
-
-  it("gives an item taken by several players in the same tick to exactly one of them", () => {
-    for (const ids of [["a", "b"], ["b", "a"], ["a", "b", "c"], ["c", "a", "b"]]) {
-      for (let idle = 0; idle < 6; idle++) {
-        const { world, container, uid, events, winners } = contest(ids, "crate", idle);
-        const label = `${ids.join("")} after ${idle} idle ticks`;
-        expect(winners, label).toHaveLength(1);
-        expect(dto(P(world, winners[0]!).inventory), label).toEqual([{ uid, def: "gold" }]);
-        expect(container.items, label).toHaveLength(0);
-        const losers = ids.filter((id) => id !== winners[0]);
-        expect(toastsOf(events).sort((x, y) => x.to.localeCompare(y.to)), label)
-          .toEqual(losers.map((to) => ({ to, text: "Item is gone" })).sort((x, y) => x.to.localeCompare(y.to)));
-        for (const id of losers) expect(P(world, id).inventory, label).toHaveLength(0);
-      }
-    }
-  });
-
-  it("does not favour whoever joined first: over consecutive ticks every contender wins at least once", () => {
-    for (const ids of [["a", "b"], ["b", "a"], ["a", "b", "c"]]) {
-      const wins = new Map<string, number>(ids.map((id) => [id, 0]));
-      for (let idle = 0; idle < ids.length * 3; idle++) {
-        const { winners } = contest(ids, "crate", idle);
-        wins.set(winners[0]!, wins.get(winners[0]!)! + 1);
-      }
-      for (const id of ids) expect(wins.get(id), `${ids.join("")}: wins for ${id}`).toBeGreaterThan(0);
-    }
-  });
-
-  it("does the same for a loose item, whose container disappears under the later taker", () => {
-    const winners = new Set<string>();
-    for (let idle = 0; idle < 16; idle++) {
-      const { world, container, uid, events, winners: won } = contest(["a", "b"], "ground", idle);
-      expect(won).toHaveLength(1);
-      const [winner] = won;
-      const loser = winner === "a" ? "b" : "a";
-      winners.add(winner!);
-      expect(dto(P(world, winner!).inventory)).toEqual([{ uid, def: "gold" }]);
-      expect(P(world, loser).inventory).toHaveLength(0);
-      expect(toastsOf(events)).toEqual([{ to: loser, text: "Item is gone" }]);
-      expect(world.state.containers.has(container.id)).toBe(false);
-    }
-    expect(winners).toEqual(new Set(["a", "b"]));
-  });
-
-  it("deletes a ground container once emptied, but keeps emptied crates and bodies", () => {
-    const world = startRaid([alice()]);
-    const ground = putContainer(world, "ground", AT, ["knife"]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    const body = putContainer(world, "body", AT, ["watch"]);
-    place(world, "a", AT);
-
-    for (const c of [ground, crate, body]) send(world, "a", "take", { containerId: c.id, uid: c.items[0]!.uid });
-    step(world, TICK_MS);
-
-    expect(P(world, "a").inventory).toHaveLength(3);
-    expect(world.state.containers.has(ground.id)).toBe(false);
-    expect(world.state.containers.get(crate.id)).toBe(crate);
-    expect(world.state.containers.get(body.id)).toBe(body);
-    expect(crate.items).toHaveLength(0);
-    expect(body.items).toHaveLength(0);
-  });
-
-  it("keeps a ground container that still holds something", () => {
-    const world = startRaid([alice()]);
-    const ground = putContainer(world, "ground", AT, ["knife", "watch"]);
-    place(world, "a", AT);
-    send(world, "a", "take", { containerId: ground.id, uid: ground.items[0]!.uid });
-    step(world, TICK_MS);
-    expect(world.state.containers.get(ground.id)).toBe(ground);
-    expect(ground.items).toHaveLength(1);
-  });
-
-  it("ignores actions of other kinds when the handler is called directly", () => {
-    const world = startRaid([alice()]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    place(world, "a", AT);
-    const before = dump(world);
-    handleTake(world, P(world, "a"), RT(world, "a"), { kind: "drop", uid: crate.items[0]!.uid });
-    handleTake(world, P(world, "a"), RT(world, "a"), { kind: "attack", x: 0, y: 0 });
-    expect(dump(world)).toBe(before);
-    expect(world.events).toEqual([]);
+  it("dropWeapon makes one loose weapon, named after it, with its own uid", () => {
+    const world = makeWorld();
+    const a = dropWeapon(world, AT, "wand");
+    const b = dropWeapon(world, AT, "wand");
+    expect(a).toMatchObject({ kind: "ground", x: AT.x, y: AT.y, label: "Wand" });
+    expect(defsOf(a)).toEqual(["wand"]);
+    expect(a.id).not.toBe(b.id);
+    expect(a.items.at(0)!.uid).not.toBe(b.items.at(0)!.uid);
+    expect(world.state.containers.get(a.id)).toBe(a);
   });
 });
 
-describe("take: line of sight", () => {
-  it("has a one-tile wall to test with, and its two sides are within reach of each other", () => {
+describe("pickup", () => {
+  it("takes the weapon into an empty second slot and leaves the weapon in hand, the cooldown and the action alone", () => {
+    const world = startRaid([alice(["sword", ""])]);
+    const swapped: string[] = [];
+    world.hooks.weaponSwapped = (_w, c) => swapped.push(c.id);
+    const bow = putContainer(world, "ground", AT, ["bow"]);
+    const p = P(world, "a");
+    p.readyAt = world.state.serverTime + 1000;
+    const readyAt = p.readyAt;
+    const action = { kind: "swing" as const, weapon: "sword" as const, startedAt: 0, landsAt: world.state.serverTime + 5000, a: 0, packet: { raw: 1, phys: 1, magic: 0, true: 0 } };
+    RT(world, "a").weapon.action = action;
+
+    pickup(world, "a", bow.id);
+    expect(toastsOf(tick(world))).toEqual([]);
+    expect(slotsOf(world, "a")).toEqual(["sword", "bow"]);
+    expect(p.slot).toBe(0);
+    expect(p.readyAt).toBe(readyAt);
+    expect(RT(world, "a").weapon.action).toBe(action);
+    expect(swapped).toEqual([]);
+    expect(world.state.containers.has(bow.id)).toBe(false);
+    expect(world.state.containers.size).toBe(0);
+  });
+
+  it("fills an empty slot 0 first, whichever slot is in hand", () => {
+    const world = startRaid([alice(["", "axe"])]);
+    P(world, "a").slot = 1;
+    const sword = putContainer(world, "ground", AT, ["sword"]);
+    pickup(world, "a", sword.id);
+    tick(world);
+    expect(slotsOf(world, "a")).toEqual(["sword", "axe"]);
+    expect(P(world, "a").slot).toBe(1);
+
+    const bare = startRaid([bob(["", ""])]);
+    const wand = putContainer(bare, "ground", AT, ["wand"]);
+    pickup(bare, "b", wand.id);
+    tick(bare);
+    expect(slotsOf(bare, "b")).toEqual(["wand", ""]);
+  });
+
+  it("with both slots full replaces the weapon in hand; the old one drops where the player stands, as a swap", () => {
+    for (const [slot, expected] of [[0, ["axe", "bow"]], [1, ["sword", "axe"]]] as const) {
+      const world = startRaid([alice(["sword", "bow"])]);
+      const swapped: string[] = [];
+      world.hooks.weaponSwapped = (_w, c) => swapped.push(c.id);
+      const p = P(world, "a");
+      p.slot = slot;
+      const axe = putContainer(world, "ground", AT, ["axe"]);
+      const before = new Set(world.state.containers.keys());
+      place(world, "a", { x: AT.x + 5, y: AT.y - 3 });
+
+      pickup(world, "a", axe.id);
+      expect(toastsOf(tick(world)), `slot ${slot}`).toEqual([]);
+      expect(slotsOf(world, "a"), `slot ${slot}`).toEqual(expected);
+      expect(p.slot).toBe(slot);
+      expect(world.state.containers.has(axe.id)).toBe(false);
+      const dropped = addedSince(world, before);
+      expect(dropped, `slot ${slot}: what was in hand lies at the player's feet`).toHaveLength(1);
+      expect(dropped[0]).toMatchObject({ kind: "ground", x: AT.x + 5, y: AT.y - 3, label: WEAPONS[slot === 0 ? "sword" : "bow"].name });
+      expect(defsOf(dropped[0]!)).toEqual([slot === 0 ? "sword" : "bow"]);
+      expect(swapped).toEqual(["a"]);
+    }
+  });
+
+  it("counts that swap like any other: the action is cancelled and the cooldown grows by SWAP_SECONDS", () => {
+    const extra = SWAP_SECONDS * 1000;
+    for (const lead of [-1000, 0, 700]) {
+      const world = startRaid([alice(["sword", "bow"])]);
+      const p = P(world, "a");
+      const rt = RT(world, "a");
+      p.readyAt = world.state.serverTime + 50 + lead;
+      const before = p.readyAt;
+      rt.weapon.action = { kind: "draw", weapon: "bow", startedAt: world.state.serverTime };
+      p.drawStartedAt = world.state.serverTime;
+      // A root left over from an earlier swing that already landed: changing weapons must not cut it short.
+      const rootUntil = world.state.serverTime + 5000;
+      rt.weapon.rootUntil = rootUntil;
+      const axe = putContainer(world, "ground", AT, ["axe"]);
+
+      pickup(world, "a", axe.id);
+      tick(world);
+      const now = world.state.serverTime;
+      expect(p.readyAt, `lead ${lead}`).toBe(Math.max(before, now) + extra);
+      expect(rt.weapon.action, `lead ${lead}`).toBeNull();
+      expect(p.drawStartedAt, `lead ${lead}`).toBe(0);
+      expect(rt.weapon.rootUntil, `lead ${lead}`).toBe(rootUntil);
+    }
+  });
+
+  it("takes a chest's weapon the same way and leaves the chest standing, empty", () => {
+    const world = startRaid([alice(["sword", "bow"])]);
+    const chest = putContainer(world, "chest", AT, ["wand"]);
+    pickup(world, "a", chest.id);
+    expect(toastsOf(tick(world))).toEqual([]);
+    expect(slotsOf(world, "a")).toEqual(["wand", "bow"]);
+    expect(world.state.containers.get(chest.id)).toBe(chest);
+    expect(chest.items).toHaveLength(0);
+
+    pickup(world, "a", chest.id);
+    expect(toastsOf(tick(world))).toEqual([{ to: "a", text: "Nothing to take" }]);
+    expect(slotsOf(world, "a")).toEqual(["wand", "bow"]);
+  });
+
+  it("takes the first weapon of a container and keeps the rest where they are", () => {
     const world = startRaid([alice()]);
-    expect(isWallTile(world.map, Math.floor(SLAB.west / TILE) + 1, Math.floor(SLAB.y / TILE))).toBe(true);
-    expect(Math.hypot(WEST.x - EAST.x, WEST.y - EAST.y)).toBe(INTERACT_RANGE);
+    const pile = putContainer(world, "ground", AT, ["axe", "wand"]);
+    pickup(world, "a", pile.id);
+    tick(world);
+    expect(slotsOf(world, "a")).toEqual(["sword", "axe"]);
+    expect(world.state.containers.get(pile.id)).toBe(pile);
+    expect(defsOf(pile)).toEqual(["wand"]);
   });
 
-  it("refuses a crate that is in range but behind a wall, changing nothing", () => {
-    const world = startRaid([alice(gear("knife"))]);
-    const crate = putContainer(world, "crate", { x: EAST.x - 8, y: EAST.y }, ["gold"]);
-    place(world, "a", WEST);
-    expect(Math.hypot(WEST.x - crate.x, WEST.y - crate.y)).toBeLessThanOrEqual(INTERACT_RANGE);
-    const before = dump(world);
-
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Can't reach that" }]);
-    expect(dump(world)).toBe(before);
+  it("lets a dropped weapon be taken back, and so swaps between the ground and the hand as often as asked", () => {
+    const world = startRaid([alice(["sword", "bow"])]);
+    const axe = putContainer(world, "ground", AT, ["axe"]);
+    let lying = axe.id;
+    const expected: Array<[WeaponId, WeaponId]> = [["axe", "sword"], ["sword", "axe"], ["axe", "sword"]];
+    for (const [inHand, onGround] of expected) {
+      const before = new Set(world.state.containers.keys());
+      pickup(world, "a", lying);
+      expect(toastsOf(tick(world))).toEqual([]);
+      expect(P(world, "a").weapon0).toBe(inHand);
+      const [dropped] = addedSince(world, before);
+      expect(defsOf(dropped!)).toEqual([onGround]);
+      expect(world.state.containers.size).toBe(1);
+      lying = dropped!.id;
+      tick(world); // the drop is first takeable one tick after it appears
+    }
   });
 
-  it("allows the same crate from its own side of the wall, and from the far side once the player has crossed over", () => {
-    const world = startRaid([alice(), bob()]);
-    const crate = putContainer(world, "crate", { x: EAST.x - 8, y: EAST.y }, ["gold", "watch"]);
-    place(world, "a", EAST);
-    place(world, "b", WEST);
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    send(world, "b", "take", { containerId: crate.id, uid: crate.items[1]!.uid });
+  describe("refusals", () => {
+    /** Runs one pickup and returns its toasts, asserting that nothing in the world changed unless `changes`. */
+    function attempt(world: World, id: string, containerId: string, changes = false): string[] {
+      const before = dump(world);
+      pickup(world, id, containerId);
+      const toasts = toastsOf(tick(world));
+      for (const t of toasts) expect(t.to).toBe(id);
+      if (!changes) expect(dump(world)).toBe(before);
+      return toasts.map((t) => t.text);
+    }
 
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "b", text: "Can't reach that" }]);
-    expect(dto(P(world, "a").inventory).map((i) => i.def)).toEqual(["gold"]);
-    expect(P(world, "b").inventory).toHaveLength(0);
+    it("toasts 'Too far away' beyond INTERACT_RANGE and takes at exactly that range", () => {
+      const world = startRaid([alice()]);
+      const bow = putContainer(world, "ground", AT, ["bow"]);
+      place(world, "a", { x: AT.x + INTERACT_RANGE + 0.5, y: AT.y });
+      expect(attempt(world, "a", bow.id)).toEqual(["Too far away"]);
+      place(world, "a", { x: AT.x + INTERACT_RANGE, y: AT.y });
+      expect(attempt(world, "a", bow.id, true)).toEqual([]);
+      expect(slotsOf(world, "a")).toEqual(["sword", "bow"]);
+      // Distance is straight-line, not per axis.
+      const wand = putContainer(world, "ground", AT, ["wand"]);
+      const d = INTERACT_RANGE / Math.SQRT2 + 1;
+      place(world, "a", { x: AT.x + d, y: AT.y + d });
+      expect(attempt(world, "a", wand.id)).toEqual(["Too far away"]);
+    });
 
-    place(world, "b", { x: EAST.x + 6, y: EAST.y });
-    send(world, "b", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([]);
-    expect(dto(P(world, "b").inventory).map((i) => i.def)).toEqual(["watch"]);
-  });
+    it("toasts 'Nothing there' for an id that does not exist, or that was taken while the request waited", () => {
+      const world = startRaid([alice()]);
+      expect(attempt(world, "a", "nope")).toEqual(["Nothing there"]);
+      const bow = putContainer(world, "ground", AT, ["bow"]);
+      expect(attempt(world, "a", bow.id, true)).toEqual([]);
+      expect(attempt(world, "a", bow.id)).toEqual(["Nothing there"]);
+    });
 
-  it("refuses a dropped item across a one-tile wall, then lets it be taken from the same side", () => {
-    const world = startRaid([alice(), bob(gear("pistol"))]);
-    place(world, "b", EAST);
-    place(world, "a", WEST);
-    send(world, "b", "drop", { uid: "pistol#0" });
-    step(world, TICK_MS);
-    const dropped = [...world.state.containers.values()].find((c) => c.kind === "ground" && c.items[0]?.uid === "pistol#0")!;
-    expect(dropped).toMatchObject({ x: EAST.x, y: EAST.y });
-    expect(Math.hypot(WEST.x - dropped.x, WEST.y - dropped.y)).toBeLessThanOrEqual(INTERACT_RANGE);
-    const before = dump(world);
+    it("toasts 'Nothing to take' for an empty container, or one that holds something that is not a weapon", () => {
+      const world = startRaid([alice()]);
+      const empty = putContainer(world, "chest", AT, []);
+      const junk = putContainer(world, "chest", AT, ["gold"]);
+      const body = putContainer(world, "body", AT, []);
+      for (const box of [empty, junk, body]) expect(attempt(world, "a", box.id), box.id).toEqual(["Nothing to take"]);
+      expect(defsOf(junk)).toEqual(["gold"]);
+    });
 
-    send(world, "a", "take", { containerId: dropped.id, uid: "pistol#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Can't reach that" }]);
-    expect(dump(world)).toBe(before);
+    it("toasts 'Can't reach that' for a container in range behind a wall, and allows it from its own side", () => {
+      const map = hall(40, 20, [[10, 10]], (tx) => tx !== 20);
+      const west = { x: 20 * TILE - PLAYER_RADIUS, y: centre(0, 10).y };
+      const east = { x: 21 * TILE + PLAYER_RADIUS, y: west.y };
+      const world = startRaid([alice(), bob()], {}, map);
+      expect(Math.hypot(west.x - east.x, west.y - east.y)).toBe(INTERACT_RANGE);
+      const bow = putContainer(world, "ground", { x: east.x - 8, y: east.y }, ["bow"]);
+      place(world, "a", west);
+      place(world, "b", east);
+      expect(Math.hypot(west.x - bow.x, west.y - bow.y)).toBeLessThanOrEqual(INTERACT_RANGE);
 
-    place(world, "a", { x: EAST.x + 10, y: EAST.y });
-    send(world, "a", "take", { containerId: dropped.id, uid: "pistol#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([]);
-    expect(dto(P(world, "a").inventory)).toEqual([{ uid: "pistol#0", def: "pistol" }]);
-    expect(world.state.containers.has(dropped.id)).toBe(false);
-  });
+      expect(attempt(world, "a", bow.id)).toEqual(["Can't reach that"]);
+      expect(slotsOf(world, "a")).toEqual(["sword", ""]);
+      expect(attempt(world, "b", bow.id, true)).toEqual([]);
+      expect(slotsOf(world, "b")).toEqual(["sword", "bow"]);
+    });
 
-  it("refuses a body behind a wall", () => {
-    const world = startRaid([alice(), bob(gear("rifle")), carol()]);
-    place(world, "b", EAST);
-    downPlayer(world, P(world, "b"), RT(world, "b"), "died");
-    step(world, TICK_MS); // flush the 'resolved' event; the body is now an ordinary old container
-    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
-    place(world, "a", WEST);
-    const before = dump(world);
+    it("does not let a weapon dropped on the near side of a wall be taken from the far side", () => {
+      const map = hall(40, 20, [[10, 10]], (tx) => tx !== 20);
+      const west = { x: 20 * TILE - PLAYER_RADIUS, y: centre(0, 10).y };
+      const east = { x: 21 * TILE + PLAYER_RADIUS, y: west.y };
+      const world = startRaid([alice(["sword", "bow"]), bob()], {}, map);
+      place(world, "a", west);
+      place(world, "b", east);
+      // a swaps at the wall: the sword drops at its feet; b, exactly in range on the other side, cannot take it.
+      pickup(world, "a", putContainer(world, "ground", west, ["wand"]).id);
+      tick(world);
+      const sword = [...world.state.containers.values()].find((c) => defsOf(c)[0] === "sword")!;
+      tick(world);
+      expect(Math.hypot(sword.x - east.x, sword.y - east.y)).toBeLessThanOrEqual(INTERACT_RANGE);
+      expect(attempt(world, "b", sword.id)).toEqual(["Can't reach that"]);
+    });
 
-    send(world, "a", "take", { containerId: body.id, uid: "rifle#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Can't reach that" }]);
-    expect(dump(world)).toBe(before);
-  });
+    it("does not let a body behind a wall be looted", () => {
+      const map = hall(40, 20, [[10, 10]], (tx) => tx !== 20);
+      const west = { x: 20 * TILE - PLAYER_RADIUS, y: centre(0, 10).y };
+      const east = { x: 21 * TILE + PLAYER_RADIUS, y: west.y };
+      const world = startRaid([alice(), bob(), carol(["axe", "wand"])], {}, map);
+      place(world, "c", east);
+      downPlayer(world, P(world, "c"), RT(world, "c"), "died");
+      tick(world); // flush the 'resolved' event; the body is now an ordinary old container
+      const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
+      place(world, "a", west);
+      expect(attempt(world, "a", body.id)).toEqual(["Can't reach that"]);
+      expect(defsOf(body)).toEqual(["axe", "wand"]);
+    });
 
-  it("is checked after distance and before the item and inventory checks", () => {
-    const full = Array.from({ length: INVENTORY_SLOTS }, (_, i) => ({ uid: `own#${i}`, def: "watch" }));
-    const world = startRaid([alice(full)]);
-    const crate = putContainer(world, "crate", { x: EAST.x - 8, y: EAST.y }, ["gold"]);
-    const take = (uid: string) => {
-      send(world, "a", "take", { containerId: crate.id, uid });
-      return toastsOf(step(world, TICK_MS)).map((t) => t.text);
-    };
+    it("checks the container, then the distance, then the line of sight, then the contents", () => {
+      const map = hall(40, 20, [[10, 10]], (tx) => tx !== 20);
+      const west = { x: 20 * TILE - PLAYER_RADIUS, y: centre(0, 10).y };
+      const east = { x: 21 * TILE + PLAYER_RADIUS, y: west.y };
+      const world = startRaid([alice()], {}, map);
+      const empty = putContainer(world, "chest", { x: east.x - 8, y: east.y }, []);
+      place(world, "a", { x: west.x - 100, y: west.y });
+      expect(attempt(world, "a", "nope")).toEqual(["Nothing there"]); // an unknown id beats everything
+      expect(attempt(world, "a", empty.id)).toEqual(["Too far away"]); // out of range beats the wall
+      place(world, "a", west);
+      expect(attempt(world, "a", empty.id)).toEqual(["Can't reach that"]); // the wall beats an empty chest
+      place(world, "a", east);
+      expect(attempt(world, "a", empty.id)).toEqual(["Nothing to take"]);
+    });
 
-    place(world, "a", { x: WEST.x - 100, y: WEST.y });
-    expect(take("nope")).toEqual(["Too far away"]); // out of range beats the wall
-    place(world, "a", WEST);
-    expect(take("nope")).toEqual(["Can't reach that"]); // the wall beats an unknown item
-    expect(take(crate.items[0]!.uid)).toEqual(["Can't reach that"]); // and a full inventory
-    place(world, "a", EAST);
-    expect(take(crate.items[0]!.uid)).toEqual(["Inventory full"]);
-  });
-
-  it("lets a player take from their own feet and from a few units away on the same side", () => {
-    const world = startRaid([alice()]);
-    const crate = putContainer(world, "crate", WEST, ["gold", "watch"]);
-    place(world, "a", WEST);
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-    place(world, "a", { x: WEST.x - 8, y: WEST.y });
-    send(world, "a", "take", { containerId: crate.id, uid: crate.items[1]!.uid });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([]);
-    expect(P(world, "a").inventory).toHaveLength(2);
+    it("lets a player take from their own feet and from a few units away", () => {
+      const world = startRaid([alice(["", ""])]);
+      const a = putContainer(world, "ground", AT, ["bow"]);
+      const b = putContainer(world, "ground", { x: AT.x - 8, y: AT.y }, ["wand"]);
+      pickup(world, "a", a.id);
+      pickup(world, "a", b.id);
+      expect(toastsOf(tick(world))).toEqual([]);
+      expect(slotsOf(world, "a")).toEqual(["bow", "wand"]);
+    });
   });
 });
 
-describe("take: through a closed coliseum gate", () => {
+describe("pickup through a closed coliseum gate", () => {
   const OUT: Record<GateSide, readonly [number, number]> = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
   const SIDES: GateSide[] = ["n", "e", "s", "w"];
   const SEEDS = [1234, 7, 99];
@@ -726,19 +651,19 @@ describe("take: through a closed coliseum gate", () => {
     return { outside: { x: g.x + ox * d, y: g.y + oy * d }, inside: { x: g.x - ox * d, y: g.y - oy * d } };
   }
 
-  /** A one-player raid on the map generated from `seed`, with a crate of gold just inside `side`'s gate and the player just outside it. */
+  /** A one-player raid on the generated map of `seed`, with a loose bow just inside `side`'s gate and the player just outside it. */
   function setup(seed: number, side: GateSide) {
     const world = makeWorld({ minPlayers: 1 }, seed);
-    setGear(addPlayer(world, "a", "alice"), []);
-    step(world, TICK_MS);
+    setWeapons(addPlayer(world, "a", "alice"), ["sword", ""]);
+    tick(world);
     expect(world.state.phase).toBe("active");
     const { outside, inside } = gateSpots(gateOf(world.map, side));
-    const crate = putContainer(world, "crate", inside, ["gold"]);
+    const bow = putContainer(world, "ground", inside, ["bow"]);
     place(world, "a", outside);
-    return { world, crate, outside };
+    return { world, bow, outside };
   }
 
-  it("has a gate to test with: the crate is within reach, in sight with the gates open and out of sight once they close", () => {
+  it("has a gate to test with: the weapon is within reach, in sight with the gates open and out of sight once they close", () => {
     for (const seed of SEEDS) {
       const map = generateMap(seed);
       expect(map.coliseum.gates.map((g) => g.side)).toEqual(SIDES);
@@ -752,530 +677,317 @@ describe("take: through a closed coliseum gate", () => {
     }
   });
 
-  it("refuses a crate just inside a closed gate from just outside it, changing nothing, and allows it once the gates open", () => {
+  it("refuses a weapon just inside a closed gate from just outside it, changing nothing, and allows it once the gates open", () => {
     for (const seed of SEEDS) {
       for (const side of SIDES) {
         const label = `seed ${seed} gate ${side}`;
-        const { world, crate } = setup(seed, side);
+        const { world, bow } = setup(seed, side);
         world.state.gatesLocked = true;
         const before = dump(world);
 
-        send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-        expect(toastsOf(step(world, TICK_MS)), `${label} locked`).toEqual([{ to: "a", text: "Can't reach that" }]);
+        pickup(world, "a", bow.id);
+        expect(toastsOf(tick(world)), `${label} locked`).toEqual([{ to: "a", text: "Can't reach that" }]);
         expect(dump(world), `${label} locked: nothing changed`).toBe(before);
 
         world.state.gatesLocked = false;
-        send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-        expect(toastsOf(step(world, TICK_MS)), `${label} open`).toEqual([]);
-        expect(dto(P(world, "a").inventory).map((it) => it.def), `${label} open`).toEqual(["gold"]);
+        pickup(world, "a", bow.id);
+        expect(toastsOf(tick(world)), `${label} open`).toEqual([]);
+        expect(slotsOf(world, "a"), `${label} open`).toEqual(["sword", "bow"]);
       }
     }
   });
 
-  it("still lets a player take from a crate on their own side of a closed gate", () => {
+  it("still lets a player take a weapon on their own side of a closed gate", () => {
     for (const seed of SEEDS) {
       for (const side of SIDES) {
         const label = `seed ${seed} gate ${side}`;
         const { world, outside } = setup(seed, side);
         world.state.gatesLocked = true;
         const [ox, oy] = OUT[side];
-        const near = putContainer(world, "crate", { x: outside.x + ox * 8, y: outside.y + oy * 8 }, ["watch"]);
-        send(world, "a", "take", { containerId: near.id, uid: near.items[0]!.uid });
-        expect(toastsOf(step(world, TICK_MS)), label).toEqual([]);
-        expect(dto(P(world, "a").inventory).map((it) => it.def), label).toEqual(["watch"]);
+        const near = putContainer(world, "ground", { x: outside.x + ox * 8, y: outside.y + oy * 8 }, ["wand"]);
+        pickup(world, "a", near.id);
+        expect(toastsOf(tick(world)), label).toEqual([]);
+        expect(slotsOf(world, "a"), label).toEqual(["sword", "wand"]);
       }
     }
   });
 });
 
-describe("take: containers created this tick", () => {
-  it("refuses an item dropped earlier in the same tick by a client that guessed the id, then allows it next tick", () => {
-    const world = startRaid([alice(gear("pistol"))]);
-    place(world, "a", AT);
+describe("pickup of containers created this tick", () => {
+  it("refuses a weapon dropped earlier in the same tick by a client that guessed the id, then allows it next tick", () => {
+    const world = startRaid([alice(["sword", "bow"])]);
+    const axe = putContainer(world, "ground", AT, ["axe"]);
     const guess = nextContainerId(world);
 
-    send(world, "a", "drop", { uid: "pistol#0" });
-    send(world, "a", "take", { containerId: guess, uid: "pistol#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Item is gone" }]);
-    expect(P(world, "a").inventory).toHaveLength(0);
-    expect(dto(world.state.containers.get(guess)!.items)).toEqual(gear("pistol"));
+    pickup(world, "a", axe.id); // drops the sword as container `guess`
+    pickup(world, "a", guess);
+    expect(toastsOf(tick(world))).toEqual([{ to: "a", text: "Nothing there" }]);
+    expect(slotsOf(world, "a")).toEqual(["axe", "bow"]);
+    expect(defsOf(world.state.containers.get(guess)!)).toEqual(["sword"]);
 
-    send(world, "a", "take", { containerId: guess, uid: "pistol#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([]);
-    expect(dto(P(world, "a").inventory)).toEqual(gear("pistol"));
-    expect(world.state.containers.has(guess)).toBe(false);
+    pickup(world, "a", guess);
+    expect(toastsOf(tick(world))).toEqual([]);
+    expect(slotsOf(world, "a")).toEqual(["sword", "bow"]);
   });
 
   it("stops a second player grabbing a drop that appears in the same tick, even though they act after the dropper", () => {
-    const world = startRaid([alice(gear("pistol")), bob()]);
-    place(world, "a", AT);
-    place(world, "b", AT);
+    const world = startRaid([alice(["sword", "bow"]), bob()]);
+    const axe = putContainer(world, "ground", AT, ["axe"]);
     stepUntilFirst(world, "a");
     const guess = nextContainerId(world);
 
-    send(world, "a", "drop", { uid: "pistol#0" });
-    send(world, "b", "take", { containerId: guess, uid: "pistol#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "b", text: "Item is gone" }]);
-    expect(P(world, "b").inventory).toHaveLength(0);
+    pickup(world, "a", axe.id);
+    pickup(world, "b", guess);
+    expect(toastsOf(tick(world))).toEqual([{ to: "b", text: "Nothing there" }]);
+    expect(slotsOf(world, "b")).toEqual(["sword", ""]);
     expect(world.state.containers.get(guess)?.items).toHaveLength(1);
 
-    send(world, "b", "take", { containerId: guess, uid: "pistol#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([]);
-    expect(dto(P(world, "b").inventory)).toEqual(gear("pistol"));
+    pickup(world, "b", guess);
+    expect(toastsOf(tick(world))).toEqual([]);
+    expect(slotsOf(world, "b")).toEqual(["sword", "sword"]);
   });
 
   it("stops a body being looted in the tick its owner goes down, but not on the next one", () => {
-    const world = startRaid([alice(), bob(gear("rifle")), carol()]);
+    const world = startRaid([alice(["", ""]), bob(["axe", "wand"]), carol()]);
     // Stands in for a combat system: acting kills the actor mid-tick.
-    world.actions.attack = (w, p, rt) => downPlayer(w, p, rt, "died");
-    place(world, "a", AT);
-    place(world, "b", AT);
+    world.actions.attack = (w, c) => { if (c.kind === "player") downPlayer(w, c.s, c.rt, "died"); };
     stepUntilFirst(world, "b");
     const guess = nextContainerId(world);
 
-    send(world, "b", "attack", { x: 0, y: 0 });
-    send(world, "a", "take", { containerId: guess, uid: "rifle#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Item is gone" }]);
+    send(world, "b", "attack", { a: 0 });
+    pickup(world, "a", guess);
+    expect(toastsOf(tick(world))).toEqual([{ to: "a", text: "Nothing there" }]);
     expect(P(world, "b").status).toBe("dead");
-    expect(P(world, "a").inventory).toHaveLength(0);
+    expect(slotsOf(world, "a")).toEqual(["", ""]);
     expect(world.state.containers.get(guess)).toMatchObject({ kind: "body" });
 
-    send(world, "a", "take", { containerId: guess, uid: "rifle#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([]);
-    expect(dto(P(world, "a").inventory)).toEqual(gear("rifle").map((i) => ({ ...i, uid: "rifle#0" })));
+    pickup(world, "a", guess);
+    expect(toastsOf(tick(world))).toEqual([]);
+    expect(slotsOf(world, "a")).toEqual(["axe", ""]);
   });
 
   it("gates the body of a player who disconnected between ticks until clients have seen it", () => {
-    const world = startRaid([alice(), bob(gear("gold")), carol()]);
-    place(world, "a", AT);
-    place(world, "b", AT);
+    const world = startRaid([alice(["", ""]), bob(["axe", ""]), carol()]);
     removePlayer(world, "b");
     const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
 
-    // The next tick is the first patch that carries the body: a take in it can only be a guessed id.
-    send(world, "a", "take", { containerId: body.id, uid: "gold#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([{ to: "a", text: "Item is gone" }]);
-    expect(P(world, "a").inventory).toHaveLength(0);
+    // The next tick is the first patch that carries the body: a pickup in it can only be a guessed id.
+    pickup(world, "a", body.id);
+    expect(toastsOf(tick(world))).toEqual([{ to: "a", text: "Nothing there" }]);
+    expect(slotsOf(world, "a")).toEqual(["", ""]);
 
-    send(world, "a", "take", { containerId: body.id, uid: "gold#0" });
-    expect(toastsOf(step(world, TICK_MS))).toEqual([]);
-    expect(dto(P(world, "a").inventory)).toEqual(gear("gold"));
+    pickup(world, "a", body.id);
+    expect(toastsOf(tick(world))).toEqual([]);
+    expect(slotsOf(world, "a")).toEqual(["axe", ""]);
   });
 
   it("never gates containers spawned with the world, even when asked at tick 0", () => {
     const world = makeWorld();
-    setGear(addPlayer(world, "a", "alice"), []);
-    const crate = [...world.state.containers.values()].find((c) => c.kind === "crate")!;
-    place(world, "a", crate);
+    setWeapons(addPlayer(world, "a", "alice"), ["sword", ""]);
+    const chest = [...world.state.containers.values()].find((c) => c.kind === "chest")!;
+    place(world, "a", chest);
     expect(world.state.tick).toBe(0);
 
-    handleTake(world, P(world, "a"), RT(world, "a"), { kind: "take", containerId: crate.id, uid: crate.items[0]!.uid });
+    handlePickup(world, combatant(world, "a")!, { kind: "pickup", containerId: chest.id });
     expect(world.events).toEqual([]);
-    expect(P(world, "a").inventory).toHaveLength(1);
+    expect(chest.items).toHaveLength(0);
+    expect(P(world, "a").weapon1).not.toBe("");
   });
 
   it("does not gate hand-placed containers, nor leak births between worlds", () => {
-    const one = startRaid([alice(gear("pistol"))]);
+    const one = startRaid([alice(["sword", "bow"])]);
     const two = startRaid([alice()]);
-    place(one, "a", AT);
-    place(two, "a", AT);
     expect(one.state.tick).toBe(two.state.tick);
 
+    const axe = putContainer(one, "ground", AT, ["axe"]);
     const guess = nextContainerId(one);
-    send(one, "a", "drop", { uid: "pistol#0" });
-    step(one, TICK_MS);
+    pickup(one, "a", axe.id);
+    tick(one); // the drop is container `guess`, born this tick
     // A container with the same id in the other world, at the same tick, is a different container.
-    const twin = putContainer(two, "crate", AT, ["gold"]);
+    const twin = putContainer(two, "ground", AT, ["axe"]);
+    two.state.containers.delete(twin.id);
     twin.id = guess;
     two.state.containers.set(guess, twin);
-    send(two, "a", "take", { containerId: guess, uid: twin.items[0]!.uid });
-    expect(toastsOf(step(two, TICK_MS))).toEqual([]);
-    expect(P(two, "a").inventory).toHaveLength(1);
+    pickup(two, "a", guess);
+    expect(toastsOf(tick(two))).toEqual([]);
+    expect(slotsOf(two, "a")).toEqual(["sword", "axe"]);
   });
 });
 
-describe("drop", () => {
-  it("removes the item and leaves a ground container at the player's position holding a fresh copy", () => {
-    const items = gear("knife", "gold");
-    const world = startRaid([alice(items)]);
-    const original = P(world, "a").inventory[1]!;
-    place(world, "a", { x: 321, y: 654 });
-    const sizeBefore = world.state.containers.size;
-
-    send(world, "a", "drop", { uid: items[1]!.uid });
-    expect(step(world, TICK_MS)).toEqual([]);
-
-    expect(dto(P(world, "a").inventory)).toEqual([items[0]]);
-    expect(world.state.containers.size).toBe(sizeBefore + 1);
-    const dropped = [...world.state.containers.values()].find((c) => c.items.some((i) => i.uid === items[1]!.uid))!;
-    expect(dropped).toMatchObject({ kind: "ground", x: 321, y: 654, label: ITEMS.gold!.name });
-    expect(world.state.containers.get(dropped.id)).toBe(dropped);
-    expect(dto(dropped.items)).toEqual([items[1]]);
-    expect(dropped.items[0]).not.toBe(original);
+describe("bodies", () => {
+  it("hold both weapons a fallen player carried, where they fell, and the player keeps nothing", () => {
+    const world = startRaid([alice(), bob(["axe", "wand"]), carol()]);
+    place(world, "b", { x: AT.x + 7, y: AT.y + 9 });
+    downPlayer(world, P(world, "b"), RT(world, "b"), "died");
+    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
+    expect(body).toMatchObject({ x: AT.x + 7, y: AT.y + 9, label: "bob" });
+    expect(defsOf(body)).toEqual(["axe", "wand"]);
+    expect(slotsOf(world, "b")).toEqual(["", ""]);
+    expect(P(world, "b").status).toBe("dead");
   });
 
-  it("gives every dropped item its own container with a unique id", () => {
-    const items = gear("knife", "gold", "watch");
-    const world = startRaid([alice(items)]);
-    const before = new Set(world.state.containers.keys());
-    place(world, "a", AT);
-    for (const it of items) send(world, "a", "drop", { uid: it.uid });
-    step(world, TICK_MS); // MAX_ACTIONS_PER_TICK is 4, so all three fit
+  it("can be emptied with two pickups, one weapon each, and then hold nothing", () => {
+    for (const sameTick of [false, true]) {
+      const world = startRaid([alice(["", ""]), bob(["axe", "wand"]), carol()]);
+      downPlayer(world, P(world, "b"), RT(world, "b"), "died");
+      const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
+      tick(world); // created between ticks: clients first see it in this tick's patch
 
-    const added = [...world.state.containers.values()].filter((c) => !before.has(c.id));
-    expect(added).toHaveLength(3);
-    expect(new Set(added.map((c) => c.id)).size).toBe(3);
-    expect(added.map((c) => c.label)).toEqual(["Knife", "Gold Bar", "Watch"]);
-    expect(P(world, "a").inventory).toHaveLength(0);
+      pickup(world, "a", body.id);
+      if (!sameTick) { expect(toastsOf(tick(world))).toEqual([]); expect(slotsOf(world, "a")).toEqual(["axe", ""]); }
+      pickup(world, "a", body.id);
+      expect(toastsOf(tick(world)), `same tick ${sameTick}`).toEqual([]);
+      expect(slotsOf(world, "a"), `same tick ${sameTick}`).toEqual(["axe", "wand"]);
+      expect(P(world, "a").slot).toBe(0);
+      expect(world.state.containers.get(body.id)).toBe(body);
+      expect(body.items).toHaveLength(0);
+
+      pickup(world, "a", body.id);
+      expect(toastsOf(tick(world))).toEqual([{ to: "a", text: "Nothing to take" }]);
+    }
   });
 
-  it("can be picked straight back up", () => {
-    const items = gear("pistol");
-    const world = startRaid([alice(items)]);
-    place(world, "a", AT);
-    send(world, "a", "drop", { uid: "pistol#0" });
-    step(world, TICK_MS);
-    const dropped = [...world.state.containers.values()].find((c) => c.items.some((i) => i.uid === "pistol#0"))!;
-
-    send(world, "a", "take", { containerId: dropped.id, uid: "pistol#0" });
-    step(world, TICK_MS);
-    expect(dto(P(world, "a").inventory)).toEqual(items);
-    expect(world.state.containers.has(dropped.id)).toBe(false);
+  it("hold one weapon for a player who carried one, and none for a player who carried none", () => {
+    const world = startRaid([alice(), bob(["", "bow"]), carol(["", ""])]);
+    const dies = (id: string) => { downPlayer(world, P(world, id), RT(world, id), "died"); };
+    const bodies = () => [...world.state.containers.values()].filter((c) => c.kind === "body");
+    dies("b");
+    expect(bodies().map(defsOf)).toEqual([["bow"]]);
+    dies("c");
+    expect(bodies().map(defsOf)).toEqual([["bow"], []]);
+    expect(new Set(bodies().map((c) => c.id)).size).toBe(2);
   });
 
-  it("ignores a uid the player doesn't carry, including one lying in a container", () => {
-    const world = startRaid([alice(gear("knife"))]);
-    const crate = putContainer(world, "crate", AT, ["gold"]);
-    place(world, "a", AT);
-    const before = dump(world);
-
-    send(world, "a", "drop", { uid: "ghost" });
-    send(world, "a", "drop", { uid: crate.items[0]!.uid });
-    expect(step(world, TICK_MS)).toEqual([]);
-    expect(dump(world)).toBe(before);
+  it("are left by a player who disconnects mid-raid too, with no death fx", () => {
+    const world = startRaid([alice(), bob(["shield", "axe"]), carol()]);
+    removePlayer(world, "b");
+    const events = tick(world);
+    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
+    expect(defsOf(body)).toEqual(["shield", "axe"]);
+    expect(ofType(events, "fx").filter((e) => e.fx.kind === "death")).toEqual([]);
   });
 
-  it("works with a full inventory, and drops each uid only once", () => {
-    const full = Array.from({ length: INVENTORY_SLOTS }, (_, i) => ({ uid: `own#${i}`, def: "watch" }));
-    const world = startRaid([alice(full)]);
-    const before = world.state.containers.size;
-    send(world, "a", "drop", { uid: "own#2" });
-    send(world, "a", "drop", { uid: "own#2" });
-    expect(step(world, TICK_MS)).toEqual([]);
-    expect(P(world, "a").inventory).toHaveLength(INVENTORY_SLOTS - 1);
-    expect(world.state.containers.size).toBe(before + 1);
+  it("dropBody called directly takes exactly what the player carries, in slot order", () => {
+    const world = startRaid([alice(["", "wand"]), bob()]);
+    dropBody(world, P(world, "a"));
+    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
+    expect(defsOf(body)).toEqual(["wand"]);
+    expect(body).toMatchObject({ x: AT.x, y: AT.y, label: "alice" });
+    expect(slotsOf(world, "a")).toEqual(["", ""]);
+    expect(body.items.at(0)!.uid).toMatch(/^L\d+$/);
   });
 });
 
-describe("use", () => {
-  const heal = (events: SimEvent[]) => ofType(events, "fx").map((e) => e.fx);
-
-  it("heals, consumes the item and reports the amount actually healed", () => {
-    const world = startRaid([alice(gear("bandage", "knife"))]);
-    P(world, "a").hp = 40;
-
-    send(world, "a", "use", { uid: "bandage#0" });
-    const events = step(world, TICK_MS);
-
-    expect(P(world, "a").hp).toBe(40 + BANDAGE.heal);
-    expect(dto(P(world, "a").inventory)).toEqual([{ uid: "knife#1", def: "knife" }]);
-    expect(events).toEqual([{ type: "fx", fx: { kind: "heal", id: "a", amount: BANDAGE.heal } }]);
-  });
-
-  it("clamps to max HP and reports only the part that was needed", () => {
-    const world = startRaid([alice(gear("medkit"))]);
-    const p = P(world, "a");
-    p.hp = p.maxHp - 7;
-
-    send(world, "a", "use", { uid: "medkit#0" });
-    const events = step(world, TICK_MS);
-
-    expect(MEDKIT.heal).toBeGreaterThan(7);
-    expect(p.hp).toBe(p.maxHp);
-    expect(p.inventory).toHaveLength(0);
-    expect(heal(events)).toEqual([{ kind: "heal", id: "a", amount: 7 }]);
-  });
-
-  it("heals one item per use and leaves duplicates alone", () => {
-    const world = startRaid([alice(gear("bandage", "bandage"))]);
-    P(world, "a").hp = 10;
-    send(world, "a", "use", { uid: "bandage#1" });
-    step(world, TICK_MS);
-    expect(dto(P(world, "a").inventory)).toEqual([{ uid: "bandage#0", def: "bandage" }]);
-    expect(P(world, "a").hp).toBe(10 + BANDAGE.heal);
-  });
-
-  it("uses several in one tick, healing each only as far as needed", () => {
-    const world = startRaid([alice(gear("medkit", "bandage", "bandage"))]);
-    const p = P(world, "a");
-    p.hp = p.maxHp - 70; // medkit heals 60, then one bandage tops up the last 10
-    for (const it of dto(p.inventory)) send(world, "a", "use", { uid: it.uid });
-    const events = step(world, TICK_MS);
-
-    expect(p.hp).toBe(p.maxHp);
-    expect(heal(events).map((f) => (f.kind === "heal" ? f.amount : -1))).toEqual([MEDKIT.heal, 10]);
-    expect(toastsOf(events)).toEqual([{ to: "a", text: "Already at full health" }]);
-    expect(dto(p.inventory)).toEqual([{ uid: "bandage#2", def: "bandage" }]);
-  });
-
-  it("keeps the item and toasts at full health", () => {
-    const world = startRaid([alice(gear("bandage"))]);
-    const p = P(world, "a");
-    expect(p.hp).toBe(p.maxHp);
+describe("who can pick up", () => {
+  it("only players: a mob's pickup, queued or handed straight to the handler, does nothing", () => {
+    const world = startRaid([alice(), bob()]);
+    const bow = putContainer(world, "ground", AT, ["bow"]);
+    const mob = addMob(world, { kind: "dummy", name: "Dummy", at: AT });
     const before = dump(world);
 
-    send(world, "a", "use", { uid: "bandage#0" });
-    const events = step(world, TICK_MS);
-
-    expect(events).toEqual([{ type: "toast", to: "a", text: "Already at full health" }]);
+    world.mobs.get(mob)!.inputs.pushAction({ kind: "pickup", containerId: bow.id });
+    expect(toastsOf(tick(world))).toEqual([]);
+    handlePickup(world, combatant(world, mob)!, { kind: "pickup", containerId: bow.id });
+    expect(world.events).toEqual([]);
     expect(dump(world)).toBe(before);
-  });
-
-  it("toasts for items that can't be used and keeps them", () => {
-    const world = startRaid([alice(gear("knife", "watch", "vest"))]);
-    P(world, "a").hp = 50;
-    const before = dump(world);
-
-    for (const it of gear("knife", "watch", "vest")) send(world, "a", "use", { uid: it.uid });
-    const events = step(world, TICK_MS);
-
-    expect(toastsOf(events)).toEqual([
-      { to: "a", text: "Can't use Knife" },
-      { to: "a", text: "Can't use Watch" },
-      { to: "a", text: "Can't use Vest" },
-    ]);
-    expect(heal(events)).toEqual([]);
-    expect(dump(world)).toBe(before);
-  });
-
-  it("ignores a uid the player doesn't carry", () => {
-    const world = startRaid([alice()]);
-    const crate = putContainer(world, "crate", AT, ["medkit"]);
-    P(world, "a").hp = 10;
-    const before = dump(world);
-
-    send(world, "a", "use", { uid: crate.items[0]!.uid });
-    send(world, "a", "use", { uid: "ghost" });
-    expect(step(world, TICK_MS)).toEqual([]);
-    expect(dump(world)).toBe(before);
-  });
-
-  it("only acts on the sender", () => {
-    const world = startRaid([alice(gear("bandage")), bob()]);
-    P(world, "a").hp = 10;
-    P(world, "b").hp = 10;
-    send(world, "b", "use", { uid: "bandage#0" }); // bob can't use alice's bandage
-    expect(step(world, TICK_MS)).toEqual([]);
-    expect(P(world, "a").inventory).toHaveLength(1);
-    expect(P(world, "b").hp).toBe(10);
+    expect(world.state.mobs.get(mob)).toMatchObject({ weapon0: "", weapon1: "" });
   });
 
   it("ignores actions of other kinds when the handler is called directly", () => {
-    const world = startRaid([alice(gear("bandage"))]);
-    P(world, "a").hp = 10;
-    handleUse(world, P(world, "a"), RT(world, "a"), { kind: "take", containerId: "x", uid: "bandage#0" });
-    handleDrop(world, P(world, "a"), RT(world, "a"), { kind: "use", uid: "bandage#0" });
-    expect(P(world, "a").inventory).toHaveLength(1);
-    expect(P(world, "a").hp).toBe(10);
-    expect(world.events).toEqual([]);
-  });
-});
-
-describe("players who have left the raid", () => {
-  it.each(["died", "mia"] as const)("a %s player's take, drop, use and move on later ticks change nothing", (outcome) => {
-    const world = startRaid([alice(gear("bandage", "knife")), bob(gear("watch")), carol()]);
-    const crate = putContainer(world, "crate", AT, ["gold", "medkit"]);
-    const ground = putContainer(world, "ground", AT, ["pistol"]);
-    place(world, "a", AT);
-    P(world, "a").hp = 50;
-    downPlayer(world, P(world, "a"), RT(world, "a"), outcome);
-    expect(ofType(step(world, TICK_MS), "resolved")).toHaveLength(1); // flush the result; everything after is "later"
+    const world = startRaid([alice()]);
+    const bow = putContainer(world, "ground", AT, ["bow"]);
     const before = dump(world);
-    const status = P(world, "a").status;
-    expect(status).toBe(outcome === "died" ? "dead" : "mia");
-
-    for (let tick = 0; tick < 3; tick++) {
-      send(world, "a", "take", { containerId: crate.id, uid: crate.items[0]!.uid });
-      send(world, "a", "take", { containerId: ground.id, uid: ground.items[0]!.uid });
-      send(world, "a", "drop", { uid: "knife#1" });
-      send(world, "a", "use", { uid: "bandage#0" });
-      send(world, "a", "move", { x: AT.x + 200, y: AT.y });
-      expect(step(world, TICK_MS), `tick ${tick}`).toEqual([]);
-      expect(dump(world), `tick ${tick}`).toBe(before);
-      expect(P(world, "a").status).toBe(status);
-      expect(RT(world, "a").inputs.actions).toEqual([]); // drained, not left to pile up
-      expect(RT(world, "a").path).toEqual([]);
-    }
-    expect(P(world, "a").inventory).toHaveLength(0);
-    expect(P(world, "a").hp).toBe(50);
-    expect(dto(crate.items).map((i) => i.def)).toEqual(["gold", "medkit"]);
-  });
-
-  it("a player who goes down mid-tick drops nothing further from the actions queued behind it", () => {
-    const world = startRaid([alice(gear("bandage", "knife")), bob()]);
-    world.actions.attack = (w, p, rt) => downPlayer(w, p, rt, "died");
-    place(world, "a", AT);
-    P(world, "a").hp = 50;
-    const existing = new Set(world.state.containers.keys());
-    send(world, "a", "attack", { x: 0, y: 0 });
-    send(world, "a", "drop", { uid: "knife#1" });
-    send(world, "a", "use", { uid: "bandage#0" });
-
-    step(world, TICK_MS);
-    const added = [...world.state.containers.values()].filter((c) => !existing.has(c.id));
-    expect(added).toHaveLength(1); // the body, and no ground drop from the queued "drop"
-    expect(added[0]).toMatchObject({ kind: "body" });
-    expect(dto(added[0]!.items)).toEqual(gear("bandage", "knife"));
-    expect(P(world, "a").hp).toBe(50);
+    handlePickup(world, combatant(world, "a")!, { kind: "attack", a: 0 });
+    handlePickup(world, combatant(world, "a")!, { kind: "swap" });
+    expect(world.events).toEqual([]);
+    expect(dump(world)).toBe(before);
+    expect(world.state.containers.has(bow.id)).toBe(true);
   });
 });
 
-describe("dropBody", () => {
-  it("leaves a body with every item when a player dies, and the player is resolved at once outside a step", () => {
-    const items = gear("rifle", "gold", "bandage");
-    const world = startRaid([alice(items), bob()]);
-    const a = P(world, "a");
-    place(world, "a", { x: 480, y: 272 });
-    const originals = [...a.inventory];
-    const before = new Set(world.state.containers.keys());
+describe("pickup races", () => {
+  /** Seats join in `ids` order, idle `idle` ticks, then all take the same weapon in one tick. */
+  function contest(ids: string[], kind: ContainerKind, idle: number) {
+    const world = startRaid(ids.map((id) => SEATS[id]!()));
+    for (let i = 0; i < idle; i++) tick(world);
+    const box = putContainer(world, kind, AT, ["axe"]);
+    for (const id of ids) pickup(world, id, box.id);
+    const events = tick(world);
+    const winners = ids.filter((id) => P(world, id).weapon1 === "axe");
+    return { world, box, events, winners };
+  }
 
-    downPlayer(world, a, RT(world, "a"), "died");
-
-    const bodies = [...world.state.containers.values()].filter((c) => !before.has(c.id));
-    expect(bodies).toHaveLength(1);
-    const body = bodies[0]!;
-    expect(body).toMatchObject({ kind: "body", x: 480, y: 272, label: "alice" });
-    expect(world.state.containers.get(body.id)).toBe(body);
-    expect(dto(body.items)).toEqual(items);
-    body.items.forEach((it, i) => expect(it).not.toBe(originals[i]));
-    expect(a.inventory).toHaveLength(0);
-    expect(a.status).toBe("dead");
-
-    const [resolved] = ofType(world.events, "resolved");
-    expect(resolved!.id).toBe("a");
-    expect(resolved!.result).toMatchObject({ outcome: "died", profile: "alice", place: 2, players: 2 });
+  it("gives a weapon taken by several players in the same tick to exactly one of them, and the rest are told it is gone", () => {
+    for (const ids of [["a", "b"], ["b", "a"], ["a", "b", "c"], ["c", "a", "b"]]) {
+      for (const kind of ["chest", "ground"] as const) {
+        for (let idle = 0; idle < 6; idle++) {
+          const { world, box, events, winners } = contest(ids, kind, idle);
+          const label = `${ids.join("")} ${kind} after ${idle} idle ticks`;
+          expect(winners, label).toHaveLength(1);
+          const losers = ids.filter((id) => id !== winners[0]);
+          // A chest is still there, empty; a loose weapon is gone from under the later taker.
+          const why = kind === "chest" ? "Nothing to take" : "Nothing there";
+          expect(toastsOf(events).sort((x, y) => x.to.localeCompare(y.to)), label)
+            .toEqual(losers.map((to) => ({ to, text: why })).sort((x, y) => x.to.localeCompare(y.to)));
+          for (const id of losers) expect(slotsOf(world, id), label).toEqual(["sword", ""]);
+          expect(world.state.containers.has(box.id), label).toBe(kind === "chest");
+        }
+      }
+    }
   });
 
-  it("records the position at the moment of death, not the spawn", () => {
-    const world = startRaid([alice(gear("knife")), bob()]);
-    const spawn = { x: P(world, "a").x, y: P(world, "a").y };
-    place(world, "a", { x: spawn.x + 64, y: spawn.y });
-    downPlayer(world, P(world, "a"), RT(world, "a"), "died");
-    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
-    expect({ x: body.x, y: body.y }).toEqual({ x: spawn.x + 64, y: spawn.y });
-  });
-
-  it("leaves an empty body for a player who died with nothing", () => {
-    const world = startRaid([alice(), bob()]);
-    downPlayer(world, P(world, "a"), RT(world, "a"), "died");
-    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
-    expect(body.label).toBe("alice");
-    expect(body.items).toHaveLength(0);
-  });
-
-  it("is a second body for a second death, with its own id", () => {
-    const world = startRaid([alice(gear("knife")), bob(gear("pistol"))]);
-    downPlayer(world, P(world, "a"), RT(world, "a"), "died");
-    downPlayer(world, P(world, "b"), RT(world, "b"), "died");
-    const bodies = [...world.state.containers.values()].filter((c) => c.kind === "body");
-    expect(bodies.map((b) => b.label)).toEqual(["alice", "bob"]);
-    expect(new Set(bodies.map((b) => b.id)).size).toBe(2);
-  });
-
-  it("also covers MIA: a disconnect mid-raid leaves the body", () => {
-    const dc = startRaid([alice(gear("gold")), bob()]);
-    removePlayer(dc, "a");
-    const left = [...dc.state.containers.values()].filter((c) => c.kind === "body");
-    expect(left).toHaveLength(1);
-    expect(left[0]).toMatchObject({ label: "alice" });
-    expect(dto(left[0]!.items)).toEqual(gear("gold"));
-  });
-
-  it("a disconnect after looting leaves a body holding everything carried, and no death fx", () => {
-    const dc = startRaid([alice(gear("gold", "bandage")), bob(gear("watch"))]);
-    const crate = putContainer(dc, "crate", AT, ["knife", "vest"]);
-    place(dc, "a", AT);
-    for (const it of crate.items) send(dc, "a", "take", { containerId: crate.id, uid: it.uid });
-    step(dc, TICK_MS);
-    const carried = dto(P(dc, "a").inventory);
-    expect(carried.map((i) => i.def)).toEqual(["gold", "bandage", "knife", "vest"]);
-    removePlayer(dc, "a");
-    const [left] = ofType(dc.events, "resolved");
-    expect(left!.id).toBe("a");
-    expect(left!.result).toMatchObject({ outcome: "mia", place: 2 });
-    const body = [...dc.state.containers.values()].find((c) => c.kind === "body" && c.label === "alice")!;
-    expect(dto(body.items)).toEqual(carried);
-    expect(ofType(dc.events, "fx")).toEqual([]);
-  });
-
-  it("can be called directly and takes exactly what the player carries", () => {
-    const world = startRaid([alice(gear("vest", "medkit"))]);
-    const a = P(world, "a");
-    place(world, "a", AT);
-    dropBody(world, a);
-    const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
-    expect(dto(body.items)).toEqual(gear("vest", "medkit"));
-    expect(a.inventory).toHaveLength(0);
+  it("does not favour whoever joined first: over consecutive ticks every contender wins at least once", () => {
+    for (const ids of [["a", "b"], ["b", "a"], ["a", "b", "c"]]) {
+      const wins = new Map<string, number>(ids.map((id) => [id, 0]));
+      for (let idle = 0; idle < ids.length * 6; idle++) {
+        const { winners } = contest(ids, "ground", idle);
+        wins.set(winners[0]!, wins.get(winners[0]!)! + 1);
+      }
+      for (const id of ids) expect(wins.get(id), `${ids.join("")}: wins for ${id}`).toBeGreaterThan(0);
+    }
   });
 });
 
 describe("loot flow through the sim", () => {
-  it("lets a player loot a crate, heal, drop and re-take over several ticks", () => {
-    const world = startRaid([alice(gear("bandage"))]);
-    const crate = [...world.state.containers.values()].find((c) => c.kind === "crate")!;
-    const loot = dto(crate.items);
-    const p = P(world, "a");
-    place(world, "a", crate);
-    p.hp = 50;
+  it("never duplicates or loses a weapon, whatever players grab from a pile over many ticks", () => {
+    const world = startRaid([alice(["sword", "bow"]), bob(["axe", ""]), carol(["", "wand"])]);
+    putContainer(world, "chest", AT, ["shield"]);
+    putContainer(world, "ground", AT, ["bow"]);
+    putContainer(world, "ground", AT, ["axe"]);
+    putContainer(world, "body", AT, ["wand", "sword"]);
+    const census = (): string[] => {
+      const out: string[] = [];
+      for (const p of world.state.players.values()) for (const w of [p.weapon0, p.weapon1]) if (w) out.push(w);
+      for (const c of world.state.containers.values()) out.push(...defsOf(c));
+      return out.sort();
+    };
+    const expected = census();
+    expect(expected).toHaveLength(9);
 
-    for (const it of loot) send(world, "a", "take", { containerId: crate.id, uid: it.uid });
-    step(world, TICK_MS);
-    expect(dto(p.inventory)).toEqual([...gear("bandage"), ...loot]);
-
-    send(world, "a", "use", { uid: "bandage#0" });
-    const healed = step(world, TICK_MS);
-    expect(p.hp).toBe(50 + BANDAGE.heal);
-    expect(ofType(healed, "fx")).toHaveLength(1);
-
-    const first = loot[0]!;
-    send(world, "a", "drop", { uid: first.uid });
-    step(world, TICK_MS);
-    expect(p.inventory.some((i) => i.uid === first.uid)).toBe(false);
-
-    const dropped = [...world.state.containers.values()].find((c) => c.kind === "ground" && c.items[0]?.uid === first.uid)!;
-    send(world, "a", "take", { containerId: dropped.id, uid: first.uid });
-    step(world, TICK_MS);
-    expect(p.inventory.some((i) => i.uid === first.uid)).toBe(true);
-    expect(world.state.containers.has(dropped.id)).toBe(false);
+    const rnd = mulberry32(99);
+    for (let t = 0; t < 300; t++) {
+      const ids = [...world.state.containers.keys()];
+      for (const id of ["a", "b", "c"]) {
+        if (rnd() < 0.7) pickup(world, id, ids[Math.floor(rnd() * ids.length)]!);
+      }
+      tick(world);
+      expect(census(), `tick ${t}`).toEqual(expected);
+      const uids = [...world.state.containers.values()].flatMap((c) => c.items.map((i) => i.uid));
+      expect(new Set(uids).size, `tick ${t}: uids`).toBe(uids.length);
+    }
   });
 
-  it("never duplicates or loses an item uid across containers and inventories", () => {
-    const world = startRaid([alice(gear("knife")), bob(gear("watch"))]);
-    const census = () => {
-      const uids: string[] = [];
-      for (const p of world.state.players.values()) for (const i of p.inventory) uids.push(i.uid);
-      for (const c of world.state.containers.values()) for (const i of c.items) uids.push(i.uid);
-      return uids.sort();
-    };
-    const start = census();
-    expect(new Set(start).size).toBe(start.length);
-
-    const crates = [...world.state.containers.values()].filter((c) => c.kind === "crate").slice(0, 3);
-    const rnd = mulberry32(77);
-    for (let t = 0; t < 120; t++) {
-      for (const id of ["a", "b"]) {
-        const p = P(world, id);
-        const c = crates[Math.floor(rnd() * crates.length)]!;
-        place(world, id, c);
-        const roll = rnd();
-        if (roll < 0.5 && c.items.length > 0) {
-          send(world, id, "take", { containerId: c.id, uid: c.items[Math.floor(rnd() * c.items.length)]!.uid });
-        } else if (p.inventory.length > 0) {
-          send(world, id, "drop", { uid: p.inventory[Math.floor(rnd() * p.inventory.length)]!.uid });
-        }
-      }
-      step(world, TICK_MS);
-    }
-    expect(census()).toEqual(start);
+  it("lets a player take a chest's weapon on a generated map", () => {
+    const world = makeWorld({ minPlayers: 1 });
+    setWeapons(addPlayer(world, "a", "alice"), ["sword", ""]);
+    tick(world);
+    const chest = [...world.state.containers.values()].find((c) => c.kind === "chest")!;
+    const weapon = defsOf(chest)[0]!;
+    place(world, "a", chest);
+    tick(world);
+    pickup(world, "a", chest.id);
+    expect(toastsOf(tick(world))).toEqual([]);
+    expect(slotsOf(world, "a")).toEqual(["sword", weapon]);
+    expect(chest.items).toHaveLength(0);
   });
 });

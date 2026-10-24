@@ -1,5 +1,6 @@
 // CLI: launches N headless bots against a running server and prints how each run ended. Every bot hunts:
-// it walks at the nearest enemy and fights it, so a run ends with a last one standing (or a draw).
+// it walks at the nearest enemy and fights it with its weapons (swinging, drawing and loosing a bow, swapping
+// slot, picking up a second weapon early on), so a run ends with a last one standing (or a draw).
 //   npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--loop] [--verbose]
 // Exits non-zero when a bot failed to play (join refused, connection lost, timeout). With --loop every
 // bot queues into a new run as soon as its last one is over, until the process is stopped.

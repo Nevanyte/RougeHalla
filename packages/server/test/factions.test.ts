@@ -1875,7 +1875,9 @@ describe("fairness", () => {
     expect(before - hpOf(world, "b")).toBeCloseTo(plain + burn + backlash, 6);
   });
 
-  describe("kill credit between equal hits is settled by the salted per-tick hash, not by order", () => {
+  // Phase 9's contract: applyHits gives exact ties to the earlier hit, and the ledger hands hits over in the tick's
+  // secret rank (combat.rank), so neither join order nor ledger order decides. Signature damage rides the same ledger.
+  describe("kill credit between equal hits follows the tick's secret rank, not the ledger order", () => {
     const SALTS = [1, 2, 3, 4, 5, 6];
     const IDLE_TICKS = [0, 1, 2, 3];
     const grid = SALTS.flatMap((salt) => IDLE_TICKS.map((idle) => [salt, idle] as const));
@@ -1911,19 +1913,23 @@ describe("fairness", () => {
       return RT(world, "v").killedBy;
     };
 
-    it.each([["applyHits", viaApplyHits], ["the ledger", viaLedger]] as const)(
-      "through %s the killer is the same for either order of equal hits, and is not always the same player",
-      (_name, kill) => {
-        const killers = new Set<string | null>();
-        for (const [salt, idle] of grid) {
-          const first = kill(salt, idle, ["p1", "p2"]);
-          expect(kill(salt, idle, ["p2", "p1"]), `salt ${salt}, ${idle} idle ticks`).toBe(first);
-          expect(["P1", "P2"]).toContain(first);
-          killers.add(first);
-        }
-        expect([...killers].sort()).toEqual(["P1", "P2"]);
-      },
-    );
+    it("through the ledger the killer is the same for either order of equal hits, and is not always the same player", () => {
+      const killers = new Set<string | null>();
+      for (const [salt, idle] of grid) {
+        const first = viaLedger(salt, idle, ["p1", "p2"]);
+        expect(viaLedger(salt, idle, ["p2", "p1"]), `salt ${salt}, ${idle} idle ticks`).toBe(first);
+        expect(["P1", "P2"]).toContain(first);
+        killers.add(first);
+      }
+      expect([...killers].sort()).toEqual(["P1", "P2"]);
+    });
+
+    it("applyHits on its own gives an exact tie to the earlier hit (the ledger decides the order)", () => {
+      for (const [salt, idle] of grid) {
+        expect(viaApplyHits(salt, idle, ["p1", "p2"]), `salt ${salt}, ${idle}`).toBe("P1");
+        expect(viaApplyHits(salt, idle, ["p2", "p1"]), `salt ${salt}, ${idle}`).toBe("P2");
+      }
+    });
 
     it.each([["p1", "P1"], ["p2", "P2"]] as const)("the larger hit still takes the kill, whatever the hash says (%s larger)", (larger, name) => {
       const amounts = { p1: LETHAL, p2: LETHAL, [larger]: LETHAL + 1 };

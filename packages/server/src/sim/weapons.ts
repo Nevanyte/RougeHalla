@@ -10,11 +10,12 @@
 // cooldown. So cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
 import {
   ATTACK_BUFFER_MS, damagePerHit, damageShares, drawDamageScale, MAX_REWIND_MS, moveMultiplier, staggerImmuneUntil,
-  swapReadyAt, TICK_MS, WEAPONS, type WeaponId, type WeaponTimings,
+  swapReadyAt, TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import {
   activeWeapon, factionOf, slotWeapon, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
+import { positionAt } from "./movement";
 import {
   chainHook, emit, newWeaponRuntime, type ActionHandler, type DamagePacket, type PendingAction, type World,
 } from "./world";
@@ -23,14 +24,23 @@ export function install(world: World): void {
   world.actions.attack = handlePress;
   world.actions.release = handleRelease;
   world.actions.swap = handleSwap;
-  // Nothing started before the teleport may land after it, and the trigger must be pressed again.
+  // Nothing started before the teleport may land after it, no slow follows anyone in, and the trigger must be pressed again.
   chainHook(world, "teleported", (w) => {
     for (const c of standingCombatants(w)) {
-      cancelAction(w, c);
-      c.rt.weapon.held = false;
-      c.rt.weapon.bufferedUntil = 0;
+      releaseTrigger(w, c);
+      c.rt.weapon.rootUntil = c.rt.weapon.castSlowUntil = c.rt.weapon.recoverUntil = 0;
     }
   });
+}
+
+/**
+ * Lets go of the trigger for a fighter whose client can't (a dropped connection, a teleport, going down) and cancels
+ * what was in progress, so nothing keeps drawing or swinging on its own.
+ */
+export function releaseTrigger(world: World, c: Combatant): void {
+  c.rt.weapon.held = false;
+  c.rt.weapon.bufferedUntil = 0;
+  cancelAction(world, c);
 }
 
 /** The raw damage packet of a hit with `weapon` in this fighter's hands; `scale` is the bow's draw share. */
@@ -70,7 +80,8 @@ export const handleRelease: ActionHandler = (world, c, cmd) => {
   const w = c.rt.weapon;
   const now = world.state.serverTime;
   setAim(world, c, cmd.a);
-  noteLag(world, c, cmd.t);
+  // Without a timestamp the press's lag stands (only the press defaults to the present).
+  if (cmd.t !== undefined) noteLag(world, c, cmd.t);
   w.held = false;
   // A draw in progress, or a quick tap that will start one: loose it as soon as the minimum draw allows.
   if (activeWeapon(c.s) === "bow" && (w.action?.kind === "draw" || now <= w.bufferedUntil)) w.releasePending = true;
@@ -94,15 +105,26 @@ export function weaponChanged(world: World, c: Combatant): void {
   world.hooks.weaponSwapped?.(world, c);
 }
 
-/** Drops whatever was in progress: no landing, no arrow, no root or cast slow left. The cooldown stays spent. */
+/**
+ * Drops whatever is in progress: no landing, no ball, no arrow. The cooldown stays spent. Only an attack still pending
+ * takes its root and cast slow with it (a swap after an axe has landed must not cut its root short), and a cast that
+ * never let its ball go leaves no ranged recovery behind.
+ */
 export function cancelAction(world: World, c: Combatant): void {
   const w = c.rt.weapon;
-  const now = world.state.serverTime;
+  if (w.action && w.action.kind !== "draw") endPending(world, c);
   w.action = null;
   w.releasePending = false;
+  c.s.drawStartedAt = 0;
+}
+
+/** A swing or cast that will never land: its own root and slows end now. */
+function endPending(world: World, c: Combatant): void {
+  const w = c.rt.weapon;
+  const now = world.state.serverTime;
   w.rootUntil = Math.min(w.rootUntil, now);
   w.castSlowUntil = Math.min(w.castSlowUntil, now);
-  c.s.drawStartedAt = 0;
+  if (w.action?.kind === "cast") w.recoverUntil = Math.min(w.recoverUntil, now);
 }
 
 /**
@@ -119,9 +141,8 @@ export function stagger(world: World, c: Combatant): boolean {
     act.startedAt = now;
     c.s.drawStartedAt = now;
   } else if (act) {
+    endPending(world, c);
     w.action = null;
-    w.rootUntil = Math.min(w.rootUntil, now);
-    w.castSlowUntil = Math.min(w.castSlowUntil, now);
   }
   emit(world, { type: "fx", fx: { kind: "stagger", id: c.id } });
   return true;
@@ -151,6 +172,15 @@ export function rewindTime(now: number, lagMs: number): number {
   return now - Math.min(MAX_REWIND_MS, Math.max(TICK_MS, lagMs));
 }
 
+/**
+ * Where the fighter's client draws it right now (its rewound position). Clients measure aim angles from there, so a
+ * projectile leaves from there too; from the present position, a shooter strafing while it draws would miss what it
+ * aimed at by its speed times the render lag.
+ */
+function drawnOrigin(world: World, c: Combatant): Vec2 {
+  return positionAt(c.rt, c.s, rewindTime(world.state.serverTime, c.rt.weapon.lagMs));
+}
+
 export function updateWeapons(world: World): void {
   for (const c of standingCombatants(world)) stepWeapon(world, c);
 }
@@ -170,7 +200,7 @@ function stepWeapon(world: World, c: Combatant): void {
     if (act.kind === "swing") {
       world.combat.melee.push({ attacker: c.id, weapon: act.weapon, a: act.a, rewindT: rewindTime(now, w.lagMs), packet: act.packet });
     } else {
-      world.combat.spawns.push({ owner: c.id, kind: "ball", weapon: act.weapon, a: act.a, packet: act.packet });
+      world.combat.spawns.push({ owner: c.id, kind: "ball", weapon: act.weapon, a: act.a, packet: act.packet, origin: act.origin });
     }
   }
   if (w.action?.kind === "draw" && w.releasePending) {
@@ -178,6 +208,8 @@ function stepWeapon(world: World, c: Combatant): void {
     if (drawn >= tm.minDraw - 1e-9) loose(world, c, tm, drawn);
   }
   const wants = w.held || now <= w.bufferedUntil;
+  // A click whose buffer ran out before the cooldown did starts nothing, so its release must not loose the next draw.
+  if (!w.action && !wants) w.releasePending = false;
   if (!w.action && wants && now >= c.s.readyAt) startAttack(world, c, weapon, tm);
 }
 
@@ -194,10 +226,10 @@ function startAttack(world: World, c: Combatant, weapon: WeaponId, tm: WeaponTim
   }
   w.releasePending = false;
   const landsAt = start + tm.windup * 1000;
-  const act: PendingAction = {
-    kind: WEAPONS[weapon].shape.kind === "arc" ? "swing" : "cast",
-    weapon, startedAt: start, landsAt, a: w.aim, packet: packetFor(c, weapon),
-  };
+  const packet = packetFor(c, weapon);
+  const act: PendingAction = WEAPONS[weapon].shape.kind === "arc"
+    ? { kind: "swing", weapon, startedAt: start, landsAt, a: w.aim, packet }
+    : { kind: "cast", weapon, startedAt: start, landsAt, a: w.aim, packet, origin: drawnOrigin(world, c) };
   w.action = act;
   c.s.readyAt = start + tm.interval * 1000;
   if (tm.root > 0) w.rootUntil = start + tm.root * 1000;
@@ -212,6 +244,7 @@ function loose(world: World, c: Combatant, tm: WeaponTimings, drawn: number): vo
   const w = c.rt.weapon;
   world.combat.spawns.push({
     owner: c.id, kind: "arrow", weapon: "bow", a: w.aim, packet: packetFor(c, "bow", drawDamageScale(drawn, tm)),
+    origin: drawnOrigin(world, c),
   });
   const overhold = Math.min(TICK_MS, Math.max(0, (drawn - tm.fullDraw) * 1000));
   c.s.readyAt = now + tm.cooldown * 1000 - overhold;

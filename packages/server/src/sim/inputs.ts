@@ -21,6 +21,8 @@ export class InputQueue {
   move: MoveCommand | null = null;
   /** Latest aim wins within a tick (radians). */
   aim: number | null = null;
+  /** How many of `actions` had arrived when that aim did: it is applied just before actions[aimBefore]. */
+  aimBefore = 0;
   actions: ActionCommand[] = [];
   dropped = 0;
 
@@ -30,6 +32,7 @@ export class InputQueue {
 
   pushAim(a: number): void {
     this.aim = a;
+    this.aimBefore = this.actions.length;
   }
 
   pushAction(cmd: ActionCommand): void {
@@ -37,10 +40,11 @@ export class InputQueue {
     this.actions.push(cmd);
   }
 
-  drain(): { move: MoveCommand | null; aim: number | null; actions: ActionCommand[] } {
-    const out = { move: this.move, aim: this.aim, actions: this.actions };
+  drain(): { move: MoveCommand | null; aim: number | null; aimBefore: number; actions: ActionCommand[] } {
+    const out = { move: this.move, aim: this.aim, aimBefore: this.aimBefore, actions: this.actions };
     this.move = null;
     this.aim = null;
+    this.aimBefore = 0;
     this.actions = [];
     return out;
   }

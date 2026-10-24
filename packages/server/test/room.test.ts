@@ -12,8 +12,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { matchMaker } from "@colyseus/core";
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  ENDED_LINGER_SECONDS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS, ROOM_NAME, RUN_START_KIT,
-  type ItemDTO, type JoinOptions, type ProfileStats, type RunResult, type TimedFx, type Vec2,
+  defaultFaction, ENDED_LINGER_SECONDS, FACTIONS, GV_KILL, GV_WIN, monthKey, PROFILE_TOKEN_HEADER, RECONNECT_SECONDS,
+  ROOM_NAME, SIGNATURE_WEAPONS, type JoinOptions, type ProfileStats, type RunResult, type TimedFx, type Vec2,
+  type FactionId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
@@ -187,11 +188,27 @@ const serverRoom = (p: Player) => matchMaker.getLocalRoomById(p.room.roomId) as 
 const worldOf = (p: Player) => serverRoom(p).world;
 const sessionOf = (p: Player) => p.room.sessionId;
 const serverPlayer = (p: Player) => worldOf(p).state.players.get(sessionOf(p))!;
-const carried = (p: Player): string[] => Array.from(serverPlayer(p).inventory, (i) => i.def);
 
-/** What the client itself sees of its own inventory (the synced state, not the server's objects). */
-const syncedInventory = (p: Player): ItemDTO[] =>
-  Array.from(p.room.state.players.get(sessionOf(p))!.inventory, (i) => ({ uid: i.uid, def: i.def }));
+/** What a player starts a run with, given the order they joined their room in (0 = the first): nothing is brought in. */
+function kitOf(faction: FactionId) {
+  return { faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: SIGNATURE_WEAPONS[faction], weapon1: "", slot: 0 };
+}
+
+function starterKit(joinIndex: number) {
+  return kitOf(defaultFaction(joinIndex));
+}
+
+/** The server's player: faction, hp and weapon slots. */
+const carried = (p: Player) => {
+  const s = serverPlayer(p);
+  return { faction: s.faction, hp: s.hp, maxHp: s.maxHp, weapon0: s.weapon0, weapon1: s.weapon1, slot: s.slot };
+};
+
+/** What the client itself sees of its own player (the synced state, not the server's objects). */
+const syncedLoadout = (p: Player) => {
+  const s = p.room.state.players.get(sessionOf(p))!;
+  return { faction: s.faction, hp: s.hp, maxHp: s.maxHp, weapon0: s.weapon0, weapon1: s.weapon1, slot: s.slot };
+};
 
 /** The room's world reads its timers per run, so a test can give its own room shorter ones without touching others. */
 function retime(p: Player, timers: Timers): void {
@@ -249,24 +266,34 @@ function duelSpot(world: World, fighters: string[]): Vec2 {
   return best;
 }
 
-/** Puts `killer` next to `victim`, away from everyone else, and swings (as a client would: inputs only) until `done()`. */
-async function swingAt(killer: Player, victim: Player, done: () => boolean): Promise<void> {
+/**
+ * Puts `killer` next to `victim` (due east of them), away from everyone else, and has the killer attack the way a client
+ * does, with inputs only, until `done()`: an `attack` press toward the victim and its `release`. That is one swing, one
+ * cast or one arrow at the minimum draw, whatever the killer holds, and a tap the cooldown swallowed is simply repeated.
+ */
+async function strikeAt(killer: Player, victim: Player, done: () => boolean): Promise<void> {
   const at = duelSpot(worldOf(killer), [sessionOf(killer), sessionOf(victim)]);
   placeOnServer(victim, at.x + 12, at.y);
   placeOnServer(killer, at.x - 12, at.y);
   await sleep(120); // a tick or two, so the lag-compensation history holds the new spots
+  const a = Math.atan2(0, 24);
   const deadline = Date.now() + 10_000;
   while (!done() && Date.now() < deadline) {
-    killer.room.send("attack", { x: at.x + 12, y: at.y });
-    await sleep(120);
+    killer.room.send("attack", { a });
+    killer.room.send("release", { a });
+    const settle = Date.now() + 300; // a windup, and the flight of whatever it looses
+    while (!done() && Date.now() < settle) await sleep(20);
   }
   expect(done(), "the duel to reach its goal").toBe(true);
 }
 
-/** `killer` takes `victim` down. The victim is brought to 1 hp first, so a swing or two settles it. */
+/** Small enough for any hit that gets through armor and shield to be lethal, whoever lands it. */
+const DOOMED_HP = 0.01;
+
+/** `killer` takes `victim` down. The victim is brought to DOOMED_HP first, so a single hit settles it. */
 async function kill(killer: Player, victim: Player): Promise<void> {
-  serverPlayer(victim).hp = 1;
-  await swingAt(killer, victim, () => serverPlayer(victim).status !== "alive");
+  serverPlayer(victim).hp = DOOMED_HP;
+  await strikeAt(killer, victim, () => serverPlayer(victim).status !== "alive");
   expect(serverPlayer(victim).status).toBe("dead");
 }
 
@@ -388,14 +415,14 @@ describe("matchmaking without credentials", () => {
 });
 
 describe("joining", () => {
-  it("takes credentials only: the player starts with RUN_START_KIT, minted by the server, and the store is untouched", async () => {
+  it("takes credentials only: the player starts with their faction's hp and signature weapon, picked by the server, and the store is untouched", async () => {
     const who = await claim();
     const before = record(who);
     const p = await createRoom(who);
 
-    expect(carried(p)).toEqual([...RUN_START_KIT]);
-    await until(() => syncedInventory(p).length === RUN_START_KIT.length, "inventory to sync");
-    expect(syncedInventory(p).map((i) => i.def)).toEqual([...RUN_START_KIT]);
+    expect(carried(p)).toEqual(starterKit(0));
+    await until(() => syncedLoadout(p).weapon0 !== "", "the weapon slots to sync");
+    expect(syncedLoadout(p)).toEqual(starterKit(0));
     expect(serverPlayer(p).name).toBe(who.name);
     expect(serverPlayer(p).status).toBe("lobby");
     expect(isActive(who)).toBe(true);
@@ -403,21 +430,28 @@ describe("joining", () => {
     expect(record(who)).toEqual(before);
   });
 
-  it("a loadout in the options is ignored: nothing can be brought in", async () => {
+  it("the faction picked in the hub is taken, with its signature weapon; a loadout or hp in the options is ignored", async () => {
     const who = await claim();
-    const p = track(who, await client.create<RaidState>(ROOM_NAME, { ...joinOptions(who), loadout: ["gpu", "gold", "rifle"] }));
-    expect(carried(p)).toEqual([...RUN_START_KIT]);
+    const options = { ...joinOptions(who), loadout: ["gpu", "gold", "rifle"], faction: "holy", weapon0: "sword", hp: 99_999 };
+    const p = track(who, await client.create<RaidState>(ROOM_NAME, options));
+    expect(carried(p)).toEqual(kitOf("holy"));
   });
 
-  it("two different profiles can share a lobby, each with a kit of their own", async () => {
+  it("a faction that isn't one gets the round-robin default", async () => {
+    const who = await claim();
+    const p = track(who, await client.create<RaidState>(ROOM_NAME, { ...joinOptions(who), faction: "dragon" }));
+    expect(carried(p)).toEqual(starterKit(0));
+  });
+
+  it("two different profiles can share a lobby, each with a faction of their own by join order", async () => {
     const a = await claim();
     const b = await claim();
     const pa = await createRoom(a, { minPlayers: 3 });
     const pb = await joinRoom(pa, b);
     expect(worldOf(pa).state.players.size).toBe(2);
-    expect(carried(pb)).toEqual([...RUN_START_KIT]);
-    const uids = [...worldOf(pa).state.players.values()].flatMap((p) => Array.from(p.inventory, (i) => i.uid));
-    expect(new Set(uids).size).toBe(uids.length);
+    expect(carried(pa)).toEqual(starterKit(0));
+    expect(carried(pb)).toEqual(starterKit(1));
+    expect(carried(pa).faction).not.toBe(carried(pb).faction);
     expect(isActive(a) && isActive(b)).toBe(true);
   });
 
@@ -449,7 +483,7 @@ describe("joining", () => {
       expect(server.profiles.size).toBe(0);
       // Nothing was left half done: the legitimate join works straight afterwards.
       const p = await createRoom(me);
-      expect(carried(p)).toEqual([...RUN_START_KIT]);
+      expect(carried(p)).toEqual(starterKit(0));
     });
   });
 
@@ -469,11 +503,13 @@ describe("joining", () => {
       expect(server.profiles.ownerOf(first.name)).toBe(`${pa.room.roomId}:${sessionOf(pa)}`);
       expect(world.state.players.size).toBe(1); // no half-added player in the synced state
       expect(world.players.size).toBe(1);
-      expect(carried(pa)).toEqual([...RUN_START_KIT]);
+      expect(carried(pa)).toEqual(starterKit(0));
       expect(world.state.phase).toBe("lobby");
 
+      // addPlayer had already counted the failed join (the faction is picked from that counter), so the player who
+      // joins next gets the third faction, not the second.
       const again = await joinRoom(pa, me);
-      expect(carried(again)).toEqual([...RUN_START_KIT]);
+      expect(carried(again)).toEqual(starterKit(2));
       expect(world.state.players.size).toBe(2);
     });
 
@@ -512,7 +548,7 @@ describe("joining", () => {
       const first = await createRoom(who, { minPlayers: 3 });
       const before = record(who);
       await expect(client.create(ROOM_NAME, joinOptions(who))).rejects.toThrow(/already in a raid/);
-      expect(carried(first)).toEqual([...RUN_START_KIT]);
+      expect(carried(first)).toEqual(starterKit(0));
       expect(server.profiles.ownerOf(who.name)).toBe(`${first.room.roomId}:${sessionOf(first)}`);
       expect(record(who)).toEqual(before);
     });
@@ -523,7 +559,7 @@ describe("joining", () => {
       await leave(first);
       await until(() => !isActive(who), "profile to be released");
       const second = await createRoom(who);
-      expect(carried(second)).toEqual([...RUN_START_KIT]);
+      expect(carried(second)).toEqual(starterKit(0));
     });
   });
 
@@ -578,7 +614,7 @@ describe("leaving during the lobby", () => {
     await leave(await createRoom(who));
     await until(() => !isActive(who), "profile to be released");
     const again = await createRoom(who);
-    expect(carried(again)).toEqual([...RUN_START_KIT]);
+    expect(carried(again)).toEqual(starterKit(0));
     expectBanked(who, 0);
   });
 
@@ -594,7 +630,7 @@ describe("leaving during the lobby", () => {
 describe("a run", () => {
   it("a kill tells the killer in a toast; the dead player's result is banked at once and frees them to queue again", async () => {
     const [A, B, C] = [await claim(), await claim(), await claim()];
-    const [a, b] = await startRun([A, B, C]);
+    const [a, b, c] = await startRun([A, B, C]);
 
     // While the run is on, the profile is committed to it.
     await expect(client.create(ROOM_NAME, joinOptions(B))).rejects.toThrow(/already in a raid/);
@@ -602,6 +638,13 @@ describe("a run", () => {
     await kill(a!, b!);
     await until(() => b!.results.length === 1, "B's result");
     await until(() => a!.toasts.includes(`+${GV_KILL} GV (kill)`), "the kill toast");
+    // The swing and the death reach every client as fx, naming the fighters by session id.
+    await until(() => [a!, b!, c!].every((p) => p.fx.some((f) => f.kind === "death")), "the death fx on every client");
+    for (const p of [a!, b!, c!]) {
+      expect(p.fx.find((f) => f.kind === "windup"), p.who.name).toMatchObject({ by: sessionOf(a!), weapon: SIGNATURE_WEAPONS.fire });
+      expect(p.fx.find((f) => f.kind === "hit"), p.who.name).toMatchObject({ id: sessionOf(b!), by: sessionOf(a!), weapon: SIGNATURE_WEAPONS.fire });
+      expect(p.fx.find((f) => f.kind === "death"), p.who.name).toMatchObject({ id: sessionOf(b!), by: sessionOf(a!) });
+    }
     expect(b!.results[0]).toMatchObject({
       outcome: "died", profile: B.name, kills: 0, killedBy: A.name, place: 3, players: 3,
       gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 },
@@ -626,6 +669,32 @@ describe("a run", () => {
     await leave(next);
     await until(() => !isActive(B), "profile to be released");
     expectBanked(B, 0, { runs: 1, deaths: 1 }); // leaving a lobby records nothing
+  });
+
+  it("pickup and swap reach the sim: a chest's weapon fills the free slot, a swap puts it in hand, and the client sees both", async () => {
+    const [A, B] = [await claim(), await claim()];
+    const [a] = await startRun([A, B]);
+    const world = worldOf(a!);
+    const chest = [...world.state.containers.values()].find((c) => c.kind === "chest" && c.items.length > 0)!;
+    const weapon = chest.items.at(0)!.def;
+    expect(carried(a!)).toEqual(starterKit(0));
+    placeOnServer(a!, chest.x, chest.y);
+    await sleep(120);
+
+    a!.room.send("pickup", { containerId: chest.id });
+    await until(() => syncedLoadout(a!).weapon1 === weapon, "the chest's weapon in the second slot, on the client");
+    expect(syncedLoadout(a!)).toEqual({ ...starterKit(0), weapon1: weapon }); // the weapon in hand did not change
+    expect(chest.items.length).toBe(0); // the chest stays, opened
+
+    a!.room.send("swap", {});
+    await until(() => syncedLoadout(a!).slot === 1, "the swap to reach the client");
+    a!.room.send("swap", { slot: 0 });
+    await until(() => syncedLoadout(a!).slot === 0, "the swap back to reach the client");
+    a!.room.send("swap", { slot: 2 }); // not a slot: refused by the parser, not an error
+    a!.room.send("pickup", { containerId: "no-such-container" });
+    await sleep(150);
+    expect(syncedLoadout(a!)).toEqual({ ...starterKit(0), weapon1: weapon });
+    expect(a!.left).toBe(false);
   });
 
   it("the last player standing wins: kill GV and the win bonus bank once, the room names the winner and then lets everyone go", async () => {
@@ -689,7 +758,7 @@ describe("a run", () => {
     const bountyToasts = (p: Player) => p.toasts.filter((t) => t.endsWith("(bounty)"));
 
     // E hurts B before A finishes them; E later kills A, so E will have hurt two different players and win with the bonus.
-    await swingAt(e!, b!, () => serverPlayer(b!).hp < serverPlayer(b!).maxHp);
+    await strikeAt(e!, b!, () => serverPlayer(b!).hp < serverPlayer(b!).maxHp);
     await kill(a!, b!);
     await kill(a!, c!);
     expect(all.some((p) => p.fx.some((f) => f.kind === "bounty"))).toBe(false); // two kills: not yet
@@ -771,11 +840,11 @@ describe("a run", () => {
     const [a, b, c] = await startRun([A, B, C]);
 
     // The kill restarts the patience timer, now short; the arena then teleports A and B, and sudden death burns
-    // them both from the same low hp in the same tick.
+    // them both from the same low hp in the same tick. The factions have different max hp, and a draw needs the same
+    // hp *fraction* at the start of the tick: 1/1024 of each (exact in binary, so the two fractions compare equal).
     retime(a!, { patienceSeconds: 0.4, suddenDeathSeconds: 0.3 });
     await kill(a!, c!);
-    serverPlayer(a!).hp = 1;
-    serverPlayer(b!).hp = 1;
+    for (const p of [a!, b!]) serverPlayer(p).hp = serverPlayer(p).maxHp / 1024;
     await until(() => a!.results.length === 1 && b!.results.length === 1, "both results", 8000);
 
     expect(a!.results[0]).toMatchObject({
@@ -906,14 +975,13 @@ describe("a run", () => {
       expect(worldOf(a!).players.get(sid)?.resolved).toBe(false);
       expectBanked(A, 0);
 
-      // A swing lands on the absent player...
-      serverPlayer(a!).hp = 30;
-      await swingAt(b!, a!, () => serverPlayer(a!).hp < 30);
-      expect(serverPlayer(a!).hp).toBeLessThan(30);
+      // A hit lands on the absent player...
+      const full = serverPlayer(a!).hp;
+      await strikeAt(b!, a!, () => serverPlayer(a!).hp < full);
+      expect(serverPlayer(a!).hp).toBeLessThan(full);
       expect(serverPlayer(a!).status).toBe("alive");
-      // ...and the next one kills.
-      await swingAt(b!, a!, () => serverPlayer(a!).status !== "alive");
-      expect(serverPlayer(a!).status).toBe("dead");
+      // ...and a lethal one kills.
+      await kill(b!, a!);
       await until(() => room.pendingResults.has(sid), "the death to settle");
       expect(back.reconnected()).toBe(false);
       expect(a!.results).toEqual([]); // the client is not there to hear it

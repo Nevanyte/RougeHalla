@@ -17,8 +17,15 @@ const MODULES: Array<(world: World) => void> = [
   installMobs,
 ];
 
-export function createGameWorld(opts: CreateOpts): World {
+/**
+ * `signatures: false` leaves faction signatures out (sim/factions.ts): tests that check a weapon's own damage, timing or
+ * fx use it, since the signatures add damage between fighters in contact.
+ */
+export function createGameWorld(opts: CreateOpts, modules: { signatures?: boolean } = {}): World {
   const world = createWorld(opts);
-  for (const install of MODULES) install(world);
+  for (const install of MODULES) {
+    if (install === installFactions && modules.signatures === false) continue;
+    install(world);
+  }
   return world;
 }

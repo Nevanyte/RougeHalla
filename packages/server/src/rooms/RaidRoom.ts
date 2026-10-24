@@ -118,8 +118,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   maxClients = MAX_PLAYERS;
-  /** Spam guard; legit clients send ≤ ~20/s (move repeat + clicks). Exceeding it disconnects. */
-  maxMessagesPerSecond = 60;
+  /**
+   * Spam guard; exceeding it disconnects. Legit clients send about 35/s at most (20 Hz aim, 10 Hz move repeat, clicks),
+   * with headroom for a network stall that delivers a couple of seconds of input at once.
+   */
+  maxMessagesPerSecond = 100;
 
   private world!: World;
   private accumulator = 0;

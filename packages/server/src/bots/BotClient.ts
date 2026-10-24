@@ -1,15 +1,17 @@
 // A headless player. It talks to the server the way the web client does: HTTP for the profile, then a
-// Colyseus room where it reads synced state and sends inputs only (move, stop, attack, take, use).
-// It never touches server internals; the map comes from the public seed. The brain is a hunt, re-evaluated
-// every THINK_MS from the latest state: heal when hurt and nobody is close, otherwise walk at the nearest
-// standing enemy and swing once one is in weapon range with a clear line. Early in a run it may detour for a
-// better weapon. The arena (teleport, locked gates, sudden death) needs no handling: the bot just keeps hunting.
+// Colyseus room where it reads synced state and sends inputs only (move, stop, aim, attack, release, swap, pickup).
+// It never touches server internals; the map comes from the public seed. The brain is a hunt, re-evaluated every
+// THINK_MS from the latest state: pick the nearest standing enemy, see where the snapshot buffer puts it, and let the
+// shared weapon policy (decide) say where to walk, where to aim and whether the trigger is down. Early in a run it may
+// detour for a second weapon, and it swaps slot to the better weapon edge against the enemy's. The arena (teleport,
+// locked gates, sudden death) needs no handling: the bot just keeps hunting.
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  bestWeapon, generateMap, hasLineOfSight, INTERACT_RANGE, INTERP_DELAY_MS, INVENTORY_SLOTS, ITEMS,
-  PROFILE_TOKEN_HEADER, ROOM_NAME, SnapshotBuffer, TILE,
-  type ClientMessages, type GameMap, type ItemDTO, type JoinOptions, type ProfileResponse, type RunResult,
-  type TimedFx, type Vec2, type WeaponDef,
+  attackInterval, bestSlot, decide, FACTIONS, generateMap, hasLineOfSight, INTERACT_RANGE, INTERP_DELAY_MS,
+  isFactionId, isRanged, isWeaponId, PLAYER_SPEED, PROFILE_TOKEN_HEADER, ROOM_NAME, SnapshotBuffer, TICK_MS, TILE,
+  weaponTimings, withGates, wrapAngle,
+  type ClientMessages, type ClientMessageType, type GameMap, type JoinOptions, type PolicyOutput,
+  type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 
@@ -48,36 +50,60 @@ export interface BotRun {
 /** A standing enemy and how far away it is. */
 interface Enemy { id: string; p: PlayerState; d: number }
 
-const THINK_MS = 100;
+/** Where the snapshot buffer puts a player at render time, and how fast it was moving over the last VEL_WINDOW_MS. */
+interface View { x: number; y: number; vx: number; vy: number }
+
+type Slots = readonly [WeaponId | null, WeaponId | null];
+
+// A bow has to be released at its full draw, and the draw is 0.4-0.6 s, so the brain runs at the server's tick rate.
+const THINK_MS = 50;
 /** A chase is re-sent at most this often: the server paths from scratch each time and the target keeps moving. */
 const REPLAN_MS = 250;
 /** An unchanged goal is sent again after this long anyway (an unreachable click is ignored, which would leave us idle). */
 const RESEND_MS = 1500;
-/** Heal below this share of max hp... */
-const HEAL_BELOW = 0.5;
-/** ...but not with an enemy closer than this: a swing is worth more than a bandage then. */
-const SAFE_DISTANCE = 160;
-/** Fire only inside this share of the weapon's range, so a target stepping back is still hit. */
-const ENGAGE_FRACTION = 0.9;
 /** The current target is kept unless another is this much nearer (as a share), so two near-equal enemies don't make it dither. */
 const SWITCH_RATIO = 0.75;
 
+/** Aim is streamed at most 10 Hz, only when it moved this much (rad)... */
+const AIM_MS = 100;
+const AIM_EPS = 0.03;
+/** ...and re-sent after this long anyway: walking turns a fighter again once its aim goes stale (AIM_STALE_MS). */
+const AIM_KEEPALIVE_MS = 700;
+/** The target's velocity is the displacement over this long, ending at render time. */
+const VEL_WINDOW_MS = 100;
+/** A velocity beyond this many times PLAYER_SPEED is a teleport across the window, not a runner. */
+const VEL_SANE = 1.25;
+/** Never extrapolate a projectile's target further than this (ms). */
+const MAX_LEAD_MS = 350;
+/** Loose a bow this long after its full draw (s): the estimated server clock can run a little ahead of the real one. */
+const RELEASE_MARGIN_S = 0.015;
+/**
+ * Swap weapons at most this often (ms; a random extra up to SWAP_JITTER_MS), never mid-draw, and only against an enemy this
+ * close. Two bots answering each other's weapon (a rock-paper-scissors loop) would otherwise swap in lockstep forever.
+ */
+const SWAP_EVERY_MS = 2000;
+const SWAP_JITTER_MS = 2000;
+const SWAP_DISTANCE = 600;
+
 /** A weapon detour only happens this early in the run (server ms)... */
 const GRAB_WINDOW_MS = 25_000;
-/** ...for a weapon this close (straight line)... */
-const GRAB_RADIUS = 6 * TILE;
+/** ...for a weapon this close (straight line, roughly nine in ten spawns have one)... */
+const GRAB_RADIUS = 8 * TILE;
 /** ...with no enemy this close... */
 const GRAB_ENEMY_DISTANCE = 240;
 /** ...and is dropped for good once it has taken this long, so it can never stall the hunt. */
 const GRAB_BUDGET_MS = 6_000;
 const GRAB_MAX_FAILS = 2;
-const TAKE_RETRY_MS = 400;
+const PICKUP_RETRY_MS = 400;
 /** Inside this distance of a container we start taking; keeps a margin under INTERACT_RANGE for stale positions. */
-const TAKE_DISTANCE = INTERACT_RANGE - 12;
+const PICKUP_DISTANCE = INTERACT_RANGE - 12;
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
+const asWeapon = (def: string): WeaponId | null => (isWeaponId(def) ? def : null);
+const slotOf = (p: PlayerState): 0 | 1 => (p.slot === 1 ? 1 : 0);
+const inHand = (p: PlayerState): WeaponId | null => asWeapon(slotOf(p) === 0 ? p.weapon0 : p.weapon1);
 
 export class BotClient {
   roomId = "";
@@ -86,6 +112,8 @@ export class BotClient {
   resultsSeen = 0;
   /** `teleport` fx seen: how many times the arena moved everyone into the coliseum. */
   teleports = 0;
+  /** Inputs sent so far, by message type. */
+  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0 };
 
   private profile = "";
   private room!: ClientRoom;
@@ -98,6 +126,9 @@ export class BotClient {
   private settle!: (run: BotRun) => void;
   private timers: NodeJS.Timeout[] = [];
   private readonly buffers = new Map<string, SnapshotBuffer>();
+  /** Local clock at the latest state patch, to estimate the server's clock between patches. */
+  private patchAt = 0;
+  private readonly scratch = { x: 0, y: 0 };
 
   // Brain memory.
   private targetId: string | null = null;
@@ -105,14 +136,16 @@ export class BotClient {
   private moveSentAt = 0;
   /** We sent a stop to stand and fight; cleared by the next move. */
   private holding = false;
-  private nextAttackAt = 0;
-  private lastUseAt = 0;
+  /** What we believe the server thinks of our trigger (it repeats attacks while it is down). */
+  private trigger = false;
+  /** The bow draw (its `drawStartedAt`) we already released, so a draw still showing in the state isn't released twice. */
+  private loosed = 0;
+  private aimSent: { a: number; at: number } | null = null;
+  private nextSwapAt = 0;
   /** The weapon detour in progress, if any. */
-  private grab: { containerId: string; uid: string; since: number; takeSentAt: number; fails: number } | null = null;
+  private grab: { containerId: string; since: number; pickupSentAt: number; fails: number } | null = null;
   /** Containers whose weapon we gave up on. */
   private readonly grabSkipped = new Set<string>();
-  /** Set when the inventory is full: no more detours. */
-  private grabOff = false;
 
   constructor(private readonly opts: BotOptions = {}) {
     this.done = new Promise((resolve) => { this.settle = resolve; });
@@ -148,6 +181,7 @@ export class BotClient {
     room.onMessage("toast", (m: { text: string }) => this.onToast(m.text));
     room.onMessage("fx", (fx: TimedFx) => { if (fx.kind === "teleport") { this.teleports++; this.onTeleport(); } });
     room.onStateChange((s) => {
+      this.patchAt = Date.now();
       for (const [id, p] of s.players) {
         let buf = this.buffers.get(id);
         if (!buf) this.buffers.set(id, (buf = new SnapshotBuffer()));
@@ -200,22 +234,33 @@ export class BotClient {
     if (this.opts.verbose) console.log(`[${this.profile}] ${msg}`);
   }
 
-  private send<K extends keyof ClientMessages>(type: K, payload: ClientMessages[K]): void {
+  private send<K extends ClientMessageType>(type: K, payload: ClientMessages[K]): void {
+    this.sent[type]++;
     this.room.send(type, payload);
   }
 
+  /** The refusals a pickup can get; a refused detour is retried once or twice, then given up on. */
   private onToast(text: string): void {
     this.log(`toast: ${text}`);
-    if (/Too far|reach|gone/.test(text) && this.grab) this.grab.fails++;
-    else if (text === "Inventory full") this.grabOff = true;
+    const g = this.grab;
+    if (!g) return;
+    if (text === "Nothing there" || text === "Nothing to take") g.fails = GRAB_MAX_FAILS; // gone or empty: retrying is pointless
+    else if (text === "Too far away" || text === "Can't reach that") g.fails++;
   }
 
-  /** The server clears our path and queued inputs when it teleports us, so forget what we thought we had told it. */
+  /**
+   * The server clears our path and queued inputs when it teleports us, and our trigger with them: forget what we told it.
+   * An attack sent within one RTT before this fx arrived lands after the clear and re-arms the trigger, so a trigger we
+   * think is down is released again; the brain presses it anew when its policy says so.
+   */
   private onTeleport(): void {
     this.log("teleported into the coliseum");
     this.dest = null;
     this.moveSentAt = 0;
     this.holding = false;
+    this.stopTrigger();
+    this.loosed = 0;
+    this.aimSent = null;
     this.grab = null;
   }
 
@@ -224,29 +269,26 @@ export class BotClient {
     const s = this.room.state;
     const me = s.players.get(this.room.sessionId);
     if (this.finished || s.phase !== "active" || me?.status !== "alive") return;
-    const now = Date.now();
     if (this.opts.abandonAfterMs !== undefined && s.serverTime - s.raidStartedAt >= this.opts.abandonAfterMs) {
       this.log("abandoning the run");
       this.abandoned = true;
       this.finish(null);
       return;
     }
-    const inv = Array.from(me.inventory, (i) => ({ uid: i.uid, def: i.def }));
-    const pos = { x: me.x, y: me.y };
-    const enemy = this.pickEnemy(pos);
-    this.heal(me, inv, enemy, now);
-    if (!enemy) { this.hold(); return; }
-    if (this.grabWeapon(inv, pos, now, enemy)) return;
-    this.hunt(enemy, inv, pos, now);
+    const now = Date.now();
+    const enemy = this.pickEnemy(me);
+    if (!enemy) { this.stand(); return; }
+    if (this.grabWeapon(me, now, enemy)) return;
+    this.fight(me, enemy, now);
   }
 
   /** The nearest standing enemy, sticking with the current target unless another is clearly nearer. */
-  private pickEnemy(pos: Vec2): Enemy | null {
+  private pickEnemy(me: PlayerState): Enemy | null {
     let best: Enemy | null = null;
     let current: Enemy | null = null;
     for (const [id, p] of this.room.state.players) {
       if (id === this.room.sessionId || p.status !== "alive") continue;
-      const e = { id, p, d: dist(pos, p) };
+      const e = { id, p, d: dist(me, p) };
       if (!best || e.d < best.d) best = e;
       if (id === this.targetId) current = e;
     }
@@ -255,101 +297,172 @@ export class BotClient {
     return pick;
   }
 
-  private heal(me: PlayerState, inv: ItemDTO[], enemy: Enemy | null, now: number): void {
-    if (me.hp >= me.maxHp * HEAL_BELOW || now - this.lastUseAt < 600) return;
-    if (enemy && enemy.d < SAFE_DISTANCE) return;
-    let best: ItemDTO | undefined;
-    let bestHeal = 0;
-    for (const i of inv) {
-      const d = ITEMS[i.def];
-      if (d?.kind === "healing" && d.heal > bestHeal) { best = i; bestHeal = d.heal; }
-    }
-    if (!best) return;
-    this.log(`healing at ${Math.round(me.hp)} hp`);
-    this.send("use", { uid: best.uid });
-    this.lastUseAt = now;
+  /** The server clock now: the latest patch plus the time since it arrived (at most two ticks, so a stalled stream can't run away). */
+  private serverNow(): number {
+    return this.room.state.serverTime + Math.min(Date.now() - this.patchAt, 2 * TICK_MS);
+  }
+
+  /** Where `id` was at render time and its velocity then, from the buffered snapshots; null before it has any. */
+  private view(id: string, renderT: number): View | null {
+    const buf = this.buffers.get(id);
+    const at = this.scratch;
+    // The older sample first: sampling drops what is older than the bracket it finds.
+    if (!buf?.sample(renderT - VEL_WINDOW_MS, at)) return null;
+    const x0 = at.x;
+    const y0 = at.y;
+    buf.sample(renderT, at);
+    let vx = ((at.x - x0) * 1000) / VEL_WINDOW_MS;
+    let vy = ((at.y - y0) * 1000) / VEL_WINDOW_MS;
+    if (Math.hypot(vx, vy) > PLAYER_SPEED * VEL_SANE) { vx = 0; vy = 0; }
+    return { x: at.x, y: at.y, vx, vy };
   }
 
   /**
-   * Swings at the nearest enemy that is inside the weapon's engage range with a clear line, standing still
-   * to do it; otherwise walks at the target. The swing aims where the buffered snapshots put the enemy at
-   * render time and carries that same time as `t`, so the server's rewind agrees. One swing per cooldown.
+   * Hunts `enemy` with the weapon in hand: the policy decides where to walk, where to aim and whether the trigger is down.
+   * Every aim is measured from where the buffered snapshots put us at render time and carries that time as `t`: the
+   * server swings melee from there and looses projectiles from there too. A projectile flies in present server time,
+   * so the target is led to where it will be about when the shot is loosed.
    */
-  private hunt(target: Enemy, inv: ItemDTO[], pos: Vec2, now: number): void {
-    const weapon = bestWeapon(inv.map((i) => i.def));
-    const renderT = this.room.state.serverTime - INTERP_DELAY_MS;
-    const aim = this.shootable(weapon, pos, renderT);
-    if (!aim) { this.moveTo(target.p, now); return; }
-    this.hold();
-    if (now < this.nextAttackAt) return;
-    this.log(`attack at ${Math.round(aim.d)} with ${weapon.name}`);
-    this.send("attack", { x: aim.x, y: aim.y, t: renderT });
-    this.nextAttackAt = now + weapon.cooldownMs + 30;
-  }
-
-  /** The nearest standing enemy within engage range and in the clear, at `renderT`. */
-  private shootable(weapon: WeaponDef, pos: Vec2, renderT: number): (Vec2 & { d: number }) | null {
-    const at = { x: 0, y: 0 };
-    let best: (Vec2 & { d: number }) | null = null;
-    let nearest = weapon.range * ENGAGE_FRACTION;
-    for (const [id, q] of this.room.state.players) {
-      if (id === this.room.sessionId || q.status !== "alive" || !this.buffers.get(id)?.sample(renderT, at)) continue;
-      const d = dist(pos, at);
-      if (d < nearest && hasLineOfSight(this.map, pos, at)) { nearest = d; best = { x: at.x, y: at.y, d }; }
-    }
-    return best;
-  }
-
-  /**
-   * Early in the run, a detour for a container's weapon that beats the best one carried. True while it is
-   * going for one (the hunt waits). It is bounded in time, distance and tries, so it can never stall the hunt.
-   */
-  private grabWeapon(inv: ItemDTO[], pos: Vec2, now: number, enemy: Enemy): boolean {
+  private fight(me: PlayerState, enemy: Enemy, now: number): void {
     const s = this.room.state;
-    if (this.grabOff || s.inColiseum || s.serverTime - s.raidStartedAt > GRAB_WINDOW_MS || enemy.d < GRAB_ENEMY_DISTANCE) {
+    const slots: Slots = [asWeapon(me.weapon0), asWeapon(me.weapon1)];
+    const weapon = slots[slotOf(me)];
+    const theirs = inHand(enemy.p);
+    if (this.swap(me, slots, theirs, enemy.d, now)) return;
+    if (!weapon || !isFactionId(me.faction)) { this.stand(); return; }
+
+    const renderT = s.serverTime - INTERP_DELAY_MS;
+    const serverNow = this.serverNow();
+    const ranged = isRanged(weapon);
+    const seen = this.view(enemy.id, renderT);
+    const seenSelf = this.view(this.room.sessionId, renderT);
+    const self = seenSelf ?? { x: me.x, y: me.y };
+    let target: Vec2 = seen ?? enemy.p;
+    const targetVel: Vec2 = seen ? { x: seen.vx, y: seen.vy } : { x: 0, y: 0 };
+    if (seen && ranged) {
+      const lead = Math.min(MAX_LEAD_MS, serverNow - renderT + TICK_MS / 2) / 1000;
+      target = { x: seen.x + seen.vx * lead, y: seen.y + seen.vy * lead };
+    }
+    const timings = weaponTimings("bow", attackInterval(FACTIONS[me.faction], "bow"));
+    const drawn = me.drawStartedAt > 0 ? Math.max(1e-3, (serverNow - me.drawStartedAt) / 1000) : 0;
+    const out = decide({
+      self, target, targetVel,
+      los: hasLineOfSight(s.gatesLocked ? withGates(this.map) : this.map, self, target),
+      weapon,
+      ready: serverNow >= me.readyAt,
+      drawSeconds: drawn,
+      fullDraw: timings.fullDraw + RELEASE_MARGIN_S,
+    });
+
+    if (out.move === "stop") this.hold();
+    else if (out.move) this.moveTo(out.move, now);
+    this.aim(out.aim, now);
+    this.pull(out, me, weapon, renderT, now);
+  }
+
+  /** Swaps to the slot with the better weapon edge against the enemy's weapon; true when it did. Never mid-draw. */
+  private swap(me: PlayerState, slots: Slots, theirs: WeaponId | null, d: number, now: number): boolean {
+    if (d > SWAP_DISTANCE || now < this.nextSwapAt || me.drawStartedAt > 0) return false;
+    const slot = slotOf(me);
+    const want = bestSlot(slots, slot, theirs);
+    if (want === slot) return false;
+    this.log(`swapping ${slots[slot]} for ${slots[want]} against ${theirs}`);
+    this.send("swap", { slot: want });
+    this.nextSwapAt = now + SWAP_EVERY_MS + Math.random() * SWAP_JITTER_MS;
+    return true;
+  }
+
+  /** Streams the aim: at most 10 Hz, when it moved, and now and then regardless. */
+  private aim(a: number, now: number): void {
+    const last = this.aimSent;
+    if (last && now - last.at < AIM_MS) return;
+    if (last && Math.abs(wrapAngle(a - last.a)) < AIM_EPS && now - last.at < AIM_KEEPALIVE_MS) return;
+    this.send("aim", { a });
+    this.aimSent = { a, at: now };
+  }
+
+  /**
+   * Turns the policy's trigger into inputs: `attack` when the hold turns on (the server repeats it while held),
+   * `release` when it turns off, and for the bow a `release` at the full draw, followed at once by a fresh press so the
+   * next draw starts the moment the cooldown allows.
+   */
+  private pull(out: PolicyOutput, me: PlayerState, weapon: WeaponId, renderT: number, now: number): void {
+    const msg = { a: out.aim, t: renderT };
+    if (weapon === "bow" && out.release && me.drawStartedAt > 0 && me.drawStartedAt !== this.loosed) {
+      this.send("release", msg);
+      this.loosed = me.drawStartedAt;
+      this.trigger = false;
+      this.aimSent = { a: out.aim, at: now };
+    }
+    if (out.hold && !this.trigger) {
+      this.send("attack", msg);
+      this.trigger = true;
+      this.aimSent = { a: out.aim, at: now };
+    } else if (!out.hold && this.trigger) {
+      this.send("release", msg);
+      this.trigger = false;
+      this.aimSent = { a: out.aim, at: now };
+    }
+  }
+
+  /**
+   * Early in the run, with one weapon carried, a detour for a container's weapon. True while it is going for one (the
+   * hunt waits). It is bounded in time, distance and tries, so it can never stall the hunt.
+   */
+  private grabWeapon(me: PlayerState, now: number, enemy: Enemy): boolean {
+    const s = this.room.state;
+    const carried = (me.weapon0 !== "" ? 1 : 0) + (me.weapon1 !== "" ? 1 : 0);
+    if (carried !== 1 || s.inColiseum || s.serverTime - s.raidStartedAt > GRAB_WINDOW_MS || enemy.d < GRAB_ENEMY_DISTANCE) {
       this.grab = null;
       return false;
     }
     let g = this.grab;
-    if (g) {
-      const c = s.containers.get(g.containerId);
-      if (!c?.items.some((i) => i.uid === g!.uid) || now - g.since > GRAB_BUDGET_MS || g.fails >= GRAB_MAX_FAILS) {
-        this.grabSkipped.add(g.containerId);
-        g = this.grab = null;
-      }
+    if (g && (!this.holdsWeapon(g.containerId) || now - g.since > GRAB_BUDGET_MS || g.fails >= GRAB_MAX_FAILS)) {
+      this.grabSkipped.add(g.containerId);
+      g = this.grab = null;
     }
     if (!g) {
-      const found = this.findUpgrade(inv, pos);
+      const found = this.findWeapon(me);
       if (!found) return false;
-      g = this.grab = { containerId: found.containerId, uid: found.uid, since: now, takeSentAt: 0, fails: 0 };
-      this.log(`going for a weapon in ${found.containerId}`);
+      g = this.grab = { containerId: found, since: now, pickupSentAt: 0, fails: 0 };
+      this.log(`going for a weapon in ${found}`);
     }
+    this.stopTrigger();
     const c = s.containers.get(g.containerId)!;
-    if (inv.length >= INVENTORY_SLOTS) { this.grabOff = true; this.grab = null; return false; }
-    if (dist(pos, c) > TAKE_DISTANCE || !hasLineOfSight(this.map, pos, c)) {
+    const map = s.gatesLocked ? withGates(this.map) : this.map;
+    if (dist(me, c) > PICKUP_DISTANCE || !hasLineOfSight(map, me, c)) {
       this.moveTo(c, now);
-    } else {
-      this.hold();
-      if (now - g.takeSentAt >= TAKE_RETRY_MS) {
-        this.send("take", { containerId: c.id, uid: g.uid });
-        g.takeSentAt = now;
-      }
+    } else if (!this.holding) {
+      this.hold(); // let the position settle before asking: a pickup from a stale position is refused as too far
+    } else if (now - g.pickupSentAt >= PICKUP_RETRY_MS) {
+      this.send("pickup", { containerId: c.id });
+      g.pickupSentAt = now;
     }
     return true;
   }
 
-  /** The nearest container within GRAB_RADIUS holding a weapon that out-damages everything carried. */
-  private findUpgrade(inv: ItemDTO[], pos: Vec2): { containerId: string; uid: string } | null {
-    const have = bestWeapon(inv.map((i) => i.def)).damage;
-    let best: { containerId: string; uid: string } | null = null;
+  /** The weapon a container still offers (the first item, which is what a pickup takes), or null. */
+  private weaponIn(containerId: string): WeaponId | null {
+    const c = this.room.state.containers.get(containerId);
+    if (!c) return null;
+    for (const item of c.items) return asWeapon(item.def);
+    return null;
+  }
+
+  private holdsWeapon(containerId: string): boolean {
+    return this.weaponIn(containerId) !== null;
+  }
+
+  /** The nearest container within GRAB_RADIUS holding a weapon other than the one carried. */
+  private findWeapon(me: PlayerState): string | null {
+    const have = asWeapon(me.weapon0) ?? asWeapon(me.weapon1);
+    let best: string | null = null;
     let bestD = GRAB_RADIUS;
     this.room.state.containers.forEach((c) => {
-      const d = dist(pos, c);
+      const d = dist(me, c);
       if (d >= bestD || this.grabSkipped.has(c.id)) return;
-      for (const item of c.items) {
-        const def = ITEMS[item.def];
-        if (def?.kind === "weapon" && def.damage > have) { best = { containerId: c.id, uid: item.uid }; bestD = d; return; }
-      }
+      const w = this.weaponIn(c.id);
+      if (w !== null && w !== have) { best = c.id; bestD = d; }
     });
     return best;
   }
@@ -370,5 +483,17 @@ export class BotClient {
     this.holding = true;
     this.dest = null;
     this.send("stop", {});
+  }
+
+  /** Trigger up, if it is down (nothing to fight, or busy with something else). */
+  private stopTrigger(): void {
+    if (!this.trigger) return;
+    this.trigger = false;
+    this.send("release", { a: this.aimSent?.a ?? 0 });
+  }
+
+  private stand(): void {
+    this.hold();
+    this.stopTrigger();
   }
 }

@@ -8,7 +8,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p .",
     "bots": "tsx src/bots/runBots.ts",
-    "harness:factions": "tsx src/harness/runFactionCycle.ts"
+    "harness:factions": "tsx src/harness/runFactionCycle.ts",
+    "harness": "tsx src/harness/runHarness.ts"
   },
   "dependencies": {
     "@colyseus/core": "^0.18.10",

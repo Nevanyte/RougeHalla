@@ -28,7 +28,8 @@ export interface SimConfig {
 /** A melee swing or wand cast waiting to land, or a bow being drawn. Times are server ms. */
 export type PendingAction =
   | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket }
-  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket }
+  /** `origin`: where the caster's client drew it when the cast began; the ball leaves from there, along `a`. */
+  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2 }
   | { kind: "draw"; weapon: WeaponId; startedAt: number };
 
 /**
@@ -151,6 +152,11 @@ export interface SpawnRequest {
   weapon: WeaponId;
   a: number;
   packet: DamagePacket;
+  /**
+   * Where it leaves from: the shooter where its client drew it (rewound like a melee origin), since that is where the
+   * client measured `a` from. Defaults to the shooter's present position.
+   */
+  origin?: Vec2;
 }
 
 /** Server-only flight data of one synced ProjectileState (sim/projectiles.ts). */
@@ -190,6 +196,11 @@ export interface CombatScratch {
   swept: ProjectileRuntime[];
   /** Every ledger entry that landed this tick, in the order applied. */
   landed: LandedHit[];
+  /**
+   * This tick's secret rank of each player (their place in actionOrder). Exact ties between hits (who gets a kill, which
+   * of two bodies an arrow meets) go to the lower rank, so neither join order nor ledger order decides them.
+   */
+  rank: Map<string, number>;
 }
 
 /** Arena bookkeeping that is not synced (see arena.ts). */
@@ -202,6 +213,11 @@ export interface ArenaRuntime {
   downsBetweenTicks: number;
   /** Set when a player is abandoned mid-run (a server shutdown): the run is void and the sim stops advancing it. */
   voided: boolean;
+  /**
+   * Every player's bounty when the tick being simulated began. A kill in a tick pays the victim's bounty from here,
+   * so a bounty raised by another kill in the same tick (whose victim the ledger happened to apply first) isn't paid.
+   */
+  bountyAtTickStart: Map<string, number>;
 }
 
 export type SimEvent =
@@ -284,7 +300,7 @@ export function createWorld(opts: {
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
-  /** A hand-made map instead of generateMap(seed) (tests and harnesses). */
+  /** A ready map instead of generateMap(seed): hand-built test arenas and the harness skip the generator. */
   map?: GameMap;
 }): World {
   const state = new RaidState();
@@ -300,7 +316,7 @@ export function createWorld(opts: {
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [], landed: [] },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [] },
     random: opts.random,
     orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
     events: [],
@@ -311,7 +327,7 @@ export function createWorld(opts: {
     systems: [],
     moveModifiers: [],
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
-    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false },
+    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
   };
 }
@@ -338,9 +354,9 @@ export function collisionMap(world: World): GameMap {
 }
 
 /**
- * Order-free tie-break between equals in one tick (a target choice, a kill between equal hits): a hash of the
- * server-secret salt, the tick and the id. It shares orderSalt, so ties a client can stage and observe narrow that salt
- * down (see CLAUDE.md).
+ * Order-free tie-break between equal hits for a fighter's target (sim/factions.ts), players and mobs alike: a hash of
+ * the server-secret salt, the tick and the id. It shares orderSalt, so ties a client can stage and observe narrow that
+ * salt down (see CLAUDE.md). Kill credit uses combat.rank instead.
  */
 export function tieRank(world: World, id: string): number {
   let h = (world.orderSalt ^ Math.imul(world.state.tick, 0x9e3779b1)) >>> 0;

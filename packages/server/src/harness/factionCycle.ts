@@ -205,8 +205,10 @@ function primeAttack(c: Combatant, weapon: WeaponId, off: number, m: number, t1:
     c.s.readyAt = t1 + m * lead * 1000;
     return;
   }
-  const kind = WEAPONS[weapon].shape.kind === "arc" ? "swing" : "cast";
-  w.action = { kind, weapon, startedAt: t1 + lead * 1000, landsAt: t1 + off * 1000, a, packet: packetFor(c, weapon) };
+  const base = { weapon, startedAt: t1 + lead * 1000, landsAt: t1 + off * 1000, a, packet: packetFor(c, weapon) };
+  w.action = WEAPONS[weapon].shape.kind === "arc"
+    ? { kind: "swing", ...base }
+    : { kind: "cast", ...base, origin: { x: c.s.x, y: c.s.y } };
   c.s.readyAt = t1 + (m * lead + tm.interval) * 1000;
   if (tm.ranged) w.recoverUntil = c.s.readyAt;
 }
