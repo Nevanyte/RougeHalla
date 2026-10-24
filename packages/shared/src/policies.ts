@@ -190,7 +190,11 @@ export function decide(input: PolicyInput): PolicyOutput {
   const dx = target.x - self.x;
   const dy = target.y - self.y;
   const d = Math.hypot(dx, dy);
-  const aim = leadAim(selfHit, targetHit, input.targetVel, pol.leadSpeed);
+  // A projectile leaves from where the shooter's client draws it (the position the policy was given, which the sim reads
+  // back through the attack's `t`), not from where the shooter will be: aiming from the projected position of a
+  // strafing or backing-off shooter misses a standing target by its speed times the lag.
+  const origin = pol.leadSpeed > 0 ? input.self : selfHit;
+  const aim = leadAim(origin, targetHit, input.targetVel, pol.leadSpeed);
 
   let move: PolicyOutput["move"];
   if (!input.los || d > pol.far) move = { x: target.x, y: target.y };
@@ -199,9 +203,9 @@ export function decide(input: PolicyInput): PolicyOutput {
   else move = "stop";
 
   // Melee judges the swing by where the target will be when it lands; a projectile by where the shot will meet it.
-  let reach = Math.hypot(targetHit.x - selfHit.x, targetHit.y - selfHit.y);
+  let reach = Math.hypot(targetHit.x - origin.x, targetHit.y - origin.y);
   if (pol.leadSpeed > 0) {
-    const t = interceptTime(selfHit, targetHit, input.targetVel, pol.leadSpeed);
+    const t = interceptTime(origin, targetHit, input.targetVel, pol.leadSpeed);
     if (t > 0) reach = t * pol.leadSpeed;
   }
   const inRange = input.los && reach <= pol.attackRange;

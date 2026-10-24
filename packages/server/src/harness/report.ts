@@ -6,7 +6,7 @@ import {
 import type { Arena, DuelResult, Perception } from "./duel";
 import {
   cellsOf, DEFAULT_CAPS, edgeName, fullSetups, formatEnds, formatHp, formatMatrix, isWatched, pooled, quickSetups,
-  runMatrix, statsOf, stylesOf, WATCH, type Cell, type Edge, type MatrixOptions, type Setup,
+  runMatrix, statsOf, stylesOf, WATCH, type Cell, type Edge, type MatrixOptions, type Setup, type Style,
 } from "./matrix";
 import { formatParity, parityReport, type ParityReport } from "./parity";
 
@@ -34,6 +34,8 @@ export interface HarnessReport {
   factions: readonly FactionId[];
   /** The main pass: every edge x faction x setup in the open arena. */
   cells: Cell[];
+  /** Whether each designed edge holds (see verdictOf). */
+  verdicts: EdgeVerdict[];
   parity: ParityReport;
   text: string;
 }
@@ -125,7 +127,13 @@ function tradeLines(cells: readonly Cell[], edge: Edge): string[] {
  * How much the result depends on how the weapons are played: the designed winner's win% for each way the winner and the
  * loser can play their weapon (stand, strafe, kite: matrix.ts Style), pooled over the setups, with the factions after it.
  */
-function styleGrid(edge: Edge, base: MatrixOptions, factions: readonly FactionId[]): string[] {
+interface StyleGrid {
+  lines: string[];
+  /** For each way the loser can play: the winner's best reply (the style, and its pooled win rate). */
+  replies: Array<{ loser: Style; winner: Style; rate: number }>;
+}
+
+function styleGrid(edge: Edge, base: MatrixOptions, factions: readonly FactionId[]): StyleGrid {
   const winnerStyles = stylesOf(edge[0]);
   const loserStyles = stylesOf(edge[1]);
   const lines = [`  ${edgeName(edge)}: designed winner's win% (${factions.join("/")}); rows: how the ${edge[0]} plays, columns: how the ${edge[1]} plays`];
@@ -144,6 +152,11 @@ function styleGrid(edge: Edge, base: MatrixOptions, factions: readonly FactionId
     rate.push(rates);
     lines.push(row.join(""));
   }
+  const replies = loserStyles.map((ls, j) => {
+    const col = rate.map((r) => r[j]!);
+    const best = col.indexOf(Math.max(...col));
+    return { loser: ls, winner: winnerStyles[best]!, rate: col[best]! };
+  });
   // The edge as a choice of play: the loser's best way to play against a winner that stands, and what the winner can do about it.
   if (loserStyles.length === 1 && winnerStyles.length > 1) {
     const col = rate.map((r) => r[0]!);
@@ -157,6 +170,51 @@ function styleGrid(edge: Edge, base: MatrixOptions, factions: readonly FactionId
     lines.push(`  -> both standing: ${pct(rate[0]![0]!)}. Worst case for a standing ${edge[0]}: ${pct(rate[0]![worst]!)}, against a ${edge[1]} that plays "${loserStyles[worst]}";` +
       ` the ${edge[0]}'s best reply to that ("${winnerStyles[best]}") gets ${pct(reply[best]!)}`);
   }
+  return { lines, replies };
+}
+
+/** An edge holds (GAME_DESIGN 9.4, "Tuning (9.1)") when the designed winner wins this much overall, in every faction, and with a reply to every style. */
+export const HOLD_OVERALL = 0.6;
+export const HOLD_FACTION = 0.5;
+export const HOLD_REPLY = 0.5;
+
+export interface EdgeVerdict {
+  edge: Edge;
+  overall: number;
+  /** The weakest faction column of the main matrix, and which. */
+  worstFaction: { faction: FactionId; rate: number };
+  /** The style-grid replies (empty for an edge with no ranged weapon, or in a quick report). */
+  replies: StyleGrid["replies"];
+  mainHolds: boolean;
+  gridHolds: boolean;
+  holds: boolean;
+}
+
+/** Does each designed edge hold? Pure bookkeeping over the matrix and the grids: a threshold check, nothing is asserted. */
+export function verdictOf(
+  cells: readonly Cell[], edge: Edge, factions: readonly FactionId[], replies: StyleGrid["replies"],
+): EdgeVerdict {
+  const overall = statsOf(pooled(cellsOf(cells, edge))).winRate;
+  const per = factions.map((f) => ({ faction: f, rate: statsOf(pooled(cellsOf(cells, edge, f))).winRate }));
+  const worstFaction = per.reduce((a, b) => (b.rate < a.rate ? b : a));
+  const mainHolds = overall >= HOLD_OVERALL && worstFaction.rate >= HOLD_FACTION;
+  const gridHolds = replies.every((r) => r.rate >= HOLD_REPLY);
+  return { edge, overall, worstFaction, replies, mainHolds, gridHolds, holds: mainHolds && gridHolds };
+}
+
+function formatVerdicts(verdicts: readonly EdgeVerdict[], quick: boolean): string[] {
+  const lines = [`${"edge".padEnd(16)}${"overall".padStart(9)}  ${"weakest faction".padEnd(22)}${"best reply to each style of the loser".padEnd(52)}verdict`];
+  for (const v of verdicts) {
+    const replies = v.replies.length
+      ? v.replies.map((r) => `${r.loser}: ${pct(r.rate)} (${r.winner})`).join("  ")
+      : quick && stylesOf(v.edge[0]).length + stylesOf(v.edge[1]).length > 2 ? "(no grid in a quick report)" : "-";
+    lines.push(
+      `${edgeName(v.edge).padEnd(16)}${pct(v.overall).padStart(9)}  ${`${v.worstFaction.faction} ${pct(v.worstFaction.rate)}`.padEnd(22)}${replies.padEnd(52)}` +
+      `${v.holds ? "HOLDS" : `FAILS${v.mainHolds ? "" : " (matrix)"}${v.gridHolds ? "" : " (styles)"}`}`,
+    );
+  }
+  const held = verdicts.filter((v) => v.holds).length;
+  lines.push(`${held} of ${verdicts.length} edges hold`);
   return lines;
 }
 
@@ -227,17 +285,25 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   const ranked = edges.map((e) => ({ e, s: statsOf(pooled(cellsOf(cells, e))) })).sort((a, b) => a.s.winRate - b.s.winRate);
   const weak = ranked.filter(({ s }) => s.winRate < 1).slice(0, 3);
   out.push(`  weakest by result: ${weak.length ? weak.map(({ e, s }) => `${edgeName(e)} ${pct(s.winRate)}${isWatched(e) ? " (watched)" : ""}`).join(", ") : "none below 100%"}`);
-  const shown = edges.filter((e) => isWatched(e) || (statsOf(pooled(cellsOf(cells, e))).winRate < 0.75 && stylesOf(e[0]).length + stylesOf(e[1]).length > 2));
+  // Every edge with a ranged weapon on either side gets a style grid: the ranged fighter can stand, strafe or kite.
+  const shown = edges.filter((e) => stylesOf(e[0]).length + stylesOf(e[1]).length > 2);
+  const grids = new Map<string, StyleGrid>();
   if (!quick && shown.length > 0) {
     out.push("");
     out.push(`  How the weapons are played. stand = the shared policy (ranged fighters stand and shoot); strafe = sidestep, changing side every 0.8 s;`);
     out.push(`  kite = keep a longer distance and back off sooner. ${reduced.length} start distances x ${plural(factions.length, "faction")} per cell, ${mainArena} arena.`);
     for (const e of shown) {
       log(`style grid: ${edgeName(e)}`);
-      out.push(...styleGrid(e, { ...base, setups: reduced }, factions));
+      const grid = styleGrid(e, { ...base, setups: reduced }, factions);
+      grids.set(edgeName(e), grid);
+      out.push(...grid.lines);
       duels += reduced.length * factions.length * stylesOf(e[0]).length * stylesOf(e[1]).length;
     }
   }
+  out.push("");
+  const verdicts = edges.map((e) => verdictOf(cells, e, factions, grids.get(edgeName(e))?.replies ?? []));
+  out.push(heading(`EDGE VERDICTS  an edge holds when the designed winner wins at least ${pct(HOLD_OVERALL)} overall, at least ${pct(HOLD_FACTION)} in every faction column, and has a reply that wins at least ${pct(HOLD_REPLY)} against every style of the loser`));
+  out.push(...formatVerdicts(verdicts, quick));
   out.push("");
 
   out.push(heading("WHAT EACH WEAPON DID  (main pass, per duel: swings, casts and shots started -> hits landed; the shield's hits include ripostes and reflected arrows)"));
@@ -279,7 +345,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   out.push(heading(formatParity(parity)));
   out.push("");
   out.push(`${duels} duels in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
-  return { edges, factions, cells, parity, text: out.join("\n") };
+  return { edges, factions, cells, verdicts, parity, text: out.join("\n") };
 }
 
 /** Per weapon: swings, casts or shots started per duel, the hits that landed, and how many ticks went into walking into walls. */

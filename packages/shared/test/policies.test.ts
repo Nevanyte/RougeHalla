@@ -20,6 +20,18 @@ describe("decide, seeing the world late", () => {
     expect(out.aim).toBeGreaterThan(leadAim(self, target, vel, 380));
   });
 
+  it("aims a projectile from the position it was given, not from where a moving shooter will be", () => {
+    // The sim looses the shot from where the shooter's client drew it (the attack's `t`), so a strafing shooter that
+    // aimed from its projected position would miss a standing target by its speed times the lag.
+    const strafing = { selfVel: { x: 0, y: 170 }, viewLag: 0.1, inputDelay: 0.05, windup: 0.2 };
+    for (const weapon of ["bow", "wand"] as const) {
+      expect(decide(input({ weapon, target: { x: 250, y: 0 }, ...strafing })).aim).toBeCloseTo(0, 12);
+    }
+    // A melee swing is judged from the same view, and the walk still starts from where the fighter will be.
+    const walk = decide(input({ weapon: "sword", target: { x: 400, y: 0 }, ...strafing })).move as Vec2;
+    expect(walk.x).toBeCloseTo(400, 9);
+  });
+
   it("walks to where a moving target will be when the move takes effect", () => {
     const out = decide(input({ weapon: "sword", target: { x: 400, y: 0 }, targetVel: { x: 0, y: 100 }, viewLag: 0.1, inputDelay: 0.05 }));
     const m = out.move as Vec2;
