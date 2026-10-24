@@ -166,16 +166,16 @@ export const BOUNTY_ANNOUNCE_MS = 10_000;
 
 // Regional mobs (Phase 11, GAME_DESIGN 11). A mob is its region's faction scaled by MOB_K (an elite by ELITE_K) with the
 // region's weapon. Measured in the real sim (bench/mobDuel.ts, side-session-notes/phase11-mob-strength-report.md): at 0.45
-// a starting player never loses to a normal mob and finishes 24 of 25 pairings with about 80% hp left; an elite at 0.65 is
+// a starting player who stands and fights finishes a normal mob in 24 of 25 pairings with about 80% hp left; an elite at 0.65 is
 // finished in 23 of 25 with about 58% hp left (at 0.60 it was 24 and 64%, too soft for 10 GV and two stacks).
 export const MOB_K = 0.45;
 export const ELITE_K = 0.65;
-/** A mob gives up the chase when it is this far from its camp, or has neither dealt nor taken damage for MOB_GIVE_UP_SECONDS. */
+/** A mob gives up the chase when it is this far from its camp, or has not dealt damage for MOB_GIVE_UP_SECONDS (damage it takes does not extend the fight). */
 export const MOB_LEASH_RADIUS = 9 * TILE;
 export const MOB_GIVE_UP_SECONDS = 6;
 /** Back within this of its camp spot, a returning mob is home again. */
 export const MOB_HOME_RADIUS = 10;
-/** An idle or returning mob heals back to full in this long. */
+/** The pace of a mob's regeneration, in seconds from empty to full. A mob walking home is whole on arrival (`rest`); an idle one that is hurt anyway heals at this pace once it has been left alone for 3 s. */
 export const MOB_REGEN_SECONDS = 4;
 /** A mob re-plans its walk at most this often (ms); each mob's schedule is offset so they don't all path on one tick. */
 export const MOB_REPATH_MS = 500;

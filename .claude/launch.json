@@ -4,13 +4,36 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "dev-training",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["DUMMIES=1", "npm", "run", "dev"],
+      "runtimeArgs": [
+        "DUMMIES=1",
+        "npm",
+        "run",
+        "dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "dev-mobs",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "MIN_PLAYERS=1",
+        "LOBBY_SECONDS=3",
+        "FILL_SECONDS=1",
+        "PATIENCE_SECONDS=900",
+        "SUDDEN_DEATH_SECONDS=120",
+        "npm",
+        "run",
+        "dev"
+      ],
       "port": 5173
     }
   ]

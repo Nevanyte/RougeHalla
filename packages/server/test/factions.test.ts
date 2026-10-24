@@ -897,9 +897,9 @@ describe("Fire (dragonslayer)", () => {
     for (const kind of presses) RT(world, "b").inputs.pushAction({ kind, a: Math.PI / 2 }); // aimed away from the Fire
     const seen: Array<{ backlash: LandedHit[]; spawned: boolean }> = [];
     for (let i = 0; i < 8; i++) {
-      const before = world.state.projectiles.size;
+      const before = world.projectiles.size;
       const log = tick(world);
-      seen.push({ backlash: sigHits(log, "backlash"), spawned: world.state.projectiles.size > before });
+      seen.push({ backlash: sigHits(log, "backlash"), spawned: world.projectiles.size > before });
     }
     const leftAt = seen.findIndex((s) => s.spawned);
     expect(leftAt).toBeGreaterThan(0);

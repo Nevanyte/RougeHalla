@@ -308,7 +308,7 @@ export function runDuel(spec: DuelSpec): DuelResult {
         default: break;
       }
     }
-    for (const [id, pr] of world.state.projectiles) {
+    for (const [id, pr] of world.projectiles) {
       if (seenProjectiles.has(id)) continue;
       seenProjectiles.add(id);
       const i = indexOf(pr.owner);

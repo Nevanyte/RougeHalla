@@ -41,7 +41,7 @@ import {
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import {
-  activeWeapon, allCombatants, combatant, factionOf, standing, standingCombatants, timingsOf, type Combatant,
+  activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { recordHit } from "./ledger";
 import { chainHook, collisionMap, emit, tieRank, type PendingAction, type World } from "./world";
@@ -198,14 +198,8 @@ function immune(world: World, c: Combatant): boolean {
   return c.kind === "player" && world.state.serverTime < c.s.immuneUntil;
 }
 
-/**
- * A regional mob walking home (sim/mobAI.ts "return") is evading: nothing hurts it and it ignores everyone. It takes no
- * signature target either, so it cannot keep burning, diseasing or chilling a player who follows it (or stands by its
- * camp), and hits on it start no contact.
- */
-function evading(c: Combatant | undefined): boolean {
-  return c !== undefined && c.kind === "mob" && c.rt.brain?.mode === "return";
-}
+/** An evading mob (combatant.ts isEvading) takes no signature target and no contact, so it cannot keep burning, diseasing or chilling a player who follows it. */
+const evading = isEvading;
 
 interface Contact { other: string; amount: number; passive: boolean }
 

@@ -13,16 +13,19 @@
 //     damageMob when kind != "dummy"). `amounts[i]` is the mitigated damage of `entries[i]`. It removes the hp (never
 //     below 0), stamps lastHitAt, tells the AI who hit it (aggro) and, when the hp is gone, kills it. Returns the hp removed.
 //   - killMob: status "dead", brain.diedAt = now, input queue and path cleared, a `death` fx (by = the killer's id). The
-//     killer is the player with the largest hit in `entries` (ties go to the earlier entry) who is still in the run and
-//     has not resolved; with none, the mob just dies (no rewards). The killer gets, in this order:
-//       1. the reward multiplier m = mobRewardFor(world, p, rt), read BEFORE the kill is counted;
-//       2. creditMobKill (arena.ts): mob GV (x m, GV_MOB / GV_ELITE, capped) and the feed;
-//       3. one buff drop: rollBuffStat(region, world.random) x mobBuffStacks(elite) x m stacks, through grantStacks;
-//       4. the mob's weapon dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer already holds
+//     killer is the player who did it the most damage over the whole fight (brain.threat: what each did since it last
+//     rested, plus this pass's hits; an exact tie goes to the lower tick rank) among players still in the run with no
+//     result out, so one last arrow cannot take an elite someone else wore down. With none, the mob just dies and its
+//     weapon still drops. The spoils are paid after the ledger pass (payLater), in this order:
+//       1. creditMobKill (arena.ts): mob GV (x m, GV_MOB / GV_ELITE, capped) and the feed, where m is the reward
+//          multiplier read INSIDE the pass (every feed is still its tick-start value there, so the order kills are paid
+//          in never changes it);
+//       2. one buff drop: rollBuffStat(region, world.random) x mobBuffStacks(elite) x m stacks, through grantStacks;
+//       3. the mob's weapon dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer already holds
 //          that weapon type in either slot;
-//       5. onKill (buffs.ts): the kill combos.
+//       4. onKill (buffs.ts): the kill combos.
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
-//     full hp heals back to full in MOB_REGEN_SECONDS (a fighting mob does not heal).
+//     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
 import {
   MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobBuffStacks, mobFaction, mobName, mobWeapon, rollBuffStat, type FactionId, type Vec2,
@@ -36,7 +39,7 @@ import { dropWeapon } from "./loot";
 import { aggro, newBrain, resetMob } from "./mobAI";
 import { addMob } from "./mobs";
 import { cancelAction } from "./weapons";
-import { chainHook, emit, payLater, type LedgerEntry, type World } from "./world";
+import { chainHook, emit, payLater, tieRank, type LedgerEntry, type World } from "./world";
 
 export type MobCombatant = Extract<Combatant, { kind: "mob" }>;
 
@@ -92,30 +95,35 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
 }
 
 /**
- * The mob dies this tick. The kill goes to the player who dealt it the most damage in this ledger pass (summed per
- * player; ties: whoever hit first) among those still in the run, with the death fx naming them; with none it simply
- * falls. The spoils (GV and feed, a buff, its weapon, the kill combos) are paid once every victim of the pass has taken
- * their damage (payLater), so they cannot decide who survives it. A player who went down in the same pass still gets the
- * GV and the feed, like any other kill GV.
+ * The mob dies this tick. The kill goes to the player who did it the most damage over the whole fight (what each did
+ * since it last rested, plus this pass's hits; an exact tie goes to the lower tick rank) among those still in the run,
+ * with the death fx naming them; with none it simply falls, and its weapon still drops. The spoils (GV and feed, a buff,
+ * the weapon, the kill combos) are paid once every victim of the pass has taken their damage (payLater), so they cannot
+ * decide who survives it. A player who went down in the same pass still gets the GV and the feed, like any other kill GV.
  */
 export function killMob(world: World, c: MobCombatant, entries: readonly LedgerEntry[], amounts: readonly number[]): void {
   const brain = c.rt.brain;
   if (!brain || c.s.status !== "alive") return; // a mob dies once, whoever calls
+  const inRun = (id: string): boolean => world.state.players.has(id) && world.players.get(id)?.resolved === false;
   const dealt = new Map<string, number>();
+  for (const [id, sum] of brain.threat) if (inRun(id)) dealt.set(id, sum);
   for (let i = 0; i < entries.length; i++) {
     const a = amounts[i]!;
     const id = entries[i]!.by.id;
-    if (!(a > 0) || !world.state.players.has(id) || world.players.get(id)?.resolved !== false) continue;
-    dealt.set(id, (dealt.get(id) ?? 0) + a);
+    if (a > 0 && inRun(id)) dealt.set(id, (dealt.get(id) ?? 0) + a);
   }
   let killer: string | null = null;
   let best = 0;
   for (const [id, sum] of dealt) {
-    if (sum > best) {
+    if (sum > best || (sum === best && killer !== null && tieRank(world, id) < tieRank(world, killer))) {
       killer = id;
       best = sum;
     }
   }
+  // Read here, in the pass: every feed is still its tick-start value, so the order the payouts run in cannot change it.
+  const kp = killer !== null ? world.state.players.get(killer) : undefined;
+  const krt = killer !== null ? world.players.get(killer) : undefined;
+  const m = kp && krt ? mobRewardFor(world, kp, krt) : 1;
 
   c.s.status = "dead";
   c.s.hp = 0;
@@ -132,20 +140,25 @@ export function killMob(world: World, c: MobCombatant, entries: readonly LedgerE
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
   emit(world, { type: "fx", fx: { kind: "death", id: c.id, x: c.s.x, y: c.s.y, by: killer } });
-  if (killer === null) return;
 
   const { elite, region } = brain;
   const weapon = c.s.weapon0;
   const at = { x: c.s.x, y: c.s.y };
-  payLater(world, () => payMobKill(world, killer!, elite, region, weapon, at));
+  if (killer === null) {
+    // Nobody to pay, but the weapon lies where the mob fell all the same.
+    if (weapon !== "") payLater(world, () => dropWeapon(world, at, weapon));
+    return;
+  }
+  payLater(world, () => payMobKill(world, killer!, elite, region, weapon, at, m));
 }
 
-function payMobKill(world: World, killerId: string, elite: boolean, region: FactionId, weapon: string, at: Vec2): void {
+function payMobKill(world: World, killerId: string, elite: boolean, region: FactionId, weapon: string, at: Vec2, m: number): void {
   const p = world.state.players.get(killerId);
   const rt = world.players.get(killerId);
-  if (!p || !rt || rt.resolved) return;
-  // Read before this kill counts toward the feed; the GV and the buff drop of one kill use the same number.
-  const m = mobRewardFor(world, p, rt);
+  if (!p || !rt || rt.resolved) {
+    if (weapon !== "") dropWeapon(world, at, weapon);
+    return;
+  }
   creditMobKill(world, p, rt, elite, m);
   grantStacks(world, p, rt, rollBuffStat(region, world.random), mobBuffStacks(elite) * m);
   if (weapon !== "" && p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);

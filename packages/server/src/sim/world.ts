@@ -3,9 +3,9 @@
 import { randomUUID } from "node:crypto";
 import {
   generateMap, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
-  type ProjectileKind, type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
+  type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { RaidState, type PlayerState, type ProjectileState } from "@raid/shared/schema";
+import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
@@ -212,10 +212,13 @@ export interface SpawnRequest {
   origin?: Vec2;
 }
 
-/** Server-only flight data of one synced ProjectileState (sim/projectiles.ts). */
+/**
+ * A projectile in flight (sim/projectiles.ts). Not in the synced state: clients are told of it by an `fxs` batch, from
+ * `launch`, which is fixed when it leaves and is exactly what they fly it from.
+ */
 export interface ProjectileRuntime {
   id: string;
-  state: ProjectileState;
+  launch: ProjectileLaunch;
   kind: ProjectileKind;
   /** What its hits count as: the bow or wand that loosed it, or the shield that reflected it. */
   weapon: WeaponId;
@@ -235,7 +238,7 @@ export interface ProjectileRuntime {
   halved: boolean;
   /** How many shields reflected this arrow's chain so far (0 for a fresh shot); see MAX_ARROW_REFLECTIONS. */
   reflections: number;
-  /** Set when it stops; it is then removed from the state. */
+  /** Set when it stops; it is then removed from `world.projectiles`. */
   ended: boolean;
 }
 
@@ -338,7 +341,7 @@ export interface World {
   players: Map<string, PlayerRuntime>;
   /** Server-only data of state.mobs, by the same ids. */
   mobs: Map<string, MobRuntime>;
-  /** Server-only data of state.projectiles, by the same ids. */
+  /** The arrows and balls in flight, by id. Plain objects: nothing here is synced (rooms/FxChannel.ts announces them). */
   projectiles: Map<string, ProjectileRuntime>;
   combat: CombatScratch;
   /** Server-only randomness (loot rolls, spawn assignment). Never derived from the public seed. */
@@ -428,7 +431,8 @@ export function collisionMap(world: World): GameMap {
 /**
  * Order-free tie-break between equal hits for a fighter's target (sim/factions.ts), players and mobs alike: a hash of
  * the server-secret salt, the tick and the id. It shares orderSalt, so ties a client can stage and observe narrow that
- * salt down (see CLAUDE.md). Kill credit uses combat.rank instead.
+ * salt down (see CLAUDE.md). A player's kill credit uses combat.rank instead; a mob's (sim/mobLife.ts killMob) uses this
+ * for an exact tie in what two players did to it over the whole fight, where one of them may not be in the pass at all.
  */
 export function tieRank(world: World, id: string): number {
   let h = (world.orderSalt ^ Math.imul(world.state.tick, 0x9e3779b1)) >>> 0;

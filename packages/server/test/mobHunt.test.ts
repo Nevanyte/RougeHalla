@@ -2,8 +2,14 @@
 // and a straight-line "walk"; time is passed in, so a fight of seconds runs in microseconds.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, buffMultiplier, FACTIONS, MOB_LEASH_RADIUS, POLICIES, weaponTimings, type FactionId, type Vec2, type WeaponId,
+  FACTION_IDS, FACTIONS, MOB_LEASH_RADIUS, mapFromTiles, mulberry32, POLICIES, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  type FactionId, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
+import { BotClient } from "../src/bots/BotClient";
+import { timingsOf } from "../src/sim/combatant";
+import { createGameWorld } from "../src/sim/gameplay";
+import { placeMob } from "../src/sim/mobLife";
+import { addPlayer, step } from "../src/sim/step";
 import {
   bestEdge, bestSlotVsMob, bowFullDraw, matchupShare, MOB_HUNT, MobHunter, mobSpacing, MobTracker, mobWeapon, pathLength, retreatPoint,
   useless, type HuntInput, type HuntSelf, type MobHuntConfig, type MobLike,
@@ -27,6 +33,8 @@ class Scene {
   players: Vec2[] = [];
   inColiseum = false;
   attacking = false;
+  /** When a player last hit the bot (BotClient reads it off the hit fx); never, by default. */
+  shotByPlayerAt = -Infinity;
   /** Pretend there is no path to these ids. */
   unreachable = new Set<string>();
   walkLimit = Infinity;
@@ -50,6 +58,7 @@ class Scene {
       inColiseum: this.inColiseum,
       mobs: this.mobs,
       attacking: this.attacking,
+      shotByPlayerAt: this.shotByPlayerAt,
       walk: (to) => {
         const d = Math.hypot(to.x - this.self.x, to.y - this.self.y);
         for (const [id, m] of this.mobs) if (m.x === to.x && m.y === to.y && this.unreachable.has(id)) return null;
@@ -279,18 +288,58 @@ describe("players first", () => {
     expect(s.step()).toMatchObject({ kind: "mob" });
   });
 
-  it("answers fire from a player: hp lost with one in bow range", () => {
+  it("answers fire from a player: a hit by one while it is in bow range", () => {
     const s = new Scene().add("m", mob("sentenced", 300, 0));
     s.playerDistance = 500;
     expect(s.step()).toMatchObject({ kind: "mob" });
-    s.self = { ...s.self, hp: s.self.hp - 80 };
-    expect(s.step()).toMatchObject({ kind: "player" });
-    // Out of bow range the loss is the mob's doing: it was a mob that hit.
+    s.shotByPlayerAt = s.now;
+    expect(s.step()).toMatchObject({ kind: "player", why: "a player is close" });
+    // The lock holds until the player is clearly gone, as for a close one.
+    s.shotByPlayerAt = -Infinity;
+    s.playerDistance = 440; // inside playerRelease
+    expect(s.step(5000)).toMatchObject({ kind: "player" });
+    s.playerDistance = 460;
+    expect(s.step()).toMatchObject({ kind: "mob" });
+    // A shooter out of bow range is not the one that is hitting: the hit was a stray, so the mob fight goes on.
     const far = new Scene().add("m", mob("sentenced", 300, 0));
     far.playerDistance = 700;
     far.step();
-    far.self = { ...far.self, hp: far.self.hp - 80 };
+    far.shotByPlayerAt = far.now;
     expect(far.step()).toMatchObject({ kind: "mob" });
+    // And a hit from a while ago no longer counts.
+    const old = new Scene().add("m", mob("sentenced", 300, 0));
+    old.playerDistance = 500;
+    old.shotByPlayerAt = old.now - MOB_HUNT.underFireMs - 1;
+    expect(old.step()).toMatchObject({ kind: "mob" });
+  });
+
+  it("hp lost to the mob is not fire from a player: a player in bow range that never hit keeps the mob fight", () => {
+    // The mob is awake (left its camp spot) and trades blows with the bot while another player stands 480 u away, shooting nothing.
+    const s = new Scene().add("m", mob("sentenced", 40, 0));
+    s.playerDistance = 480;
+    s.players = [{ x: 480, y: 0 }];
+    s.attacking = true;
+    expect(s.step()).toMatchObject({ kind: "mob", id: "m" });
+    const m = s.mobs.get("m")!;
+    m.x = 90;
+    for (let t = 0; t < 8; t++) {
+      s.self = { ...s.self, hp: s.self.hp - 40 }; // the mob lands a blow every second...
+      m.hp -= 30; // ...and takes one
+      const d = s.run(1000);
+      expect(d).toMatchObject({ kind: "mob", id: "m" });
+    }
+    expect(s.hunter.target).toBe("m");
+    expect(s.hunter.stats.drops).toBe(0);
+  });
+
+  it("a mob fight does not suppress the retreat at low hp when no player shot", () => {
+    const s = new Scene().add("m", mob("sentenced", 40, 0));
+    s.playerDistance = 480;
+    s.step();
+    s.mobs.get("m")!.x = 90;
+    s.mobs.get("m")!.hp -= 50;
+    s.self = { ...s.self, hp: 300 }; // 30% of 1000
+    expect(s.step()).toMatchObject({ kind: "retreat", why: "low hp" });
   });
 
   it("hunts players inside the coliseum, where no mob can be reached", () => {
@@ -502,14 +551,31 @@ describe("pieces", () => {
     expect(matchupShare("holy", "fire", false)).toBeGreaterThan(0.9);
   });
 
-  it("the bow's full draw shrinks with attack-speed stacks, as the server's does", () => {
-    const base = bowFullDraw("fire", 0);
-    expect(base).toBeCloseTo(weaponTimings("bow", attackInterval(FACTIONS.fire, "bow")).fullDraw, 12);
-    const fed = bowFullDraw("fire", 3);
-    expect(fed).toBeLessThan(base);
-    expect(fed).toBeCloseTo(weaponTimings("bow", attackInterval(FACTIONS.fire, "bow", buffMultiplier("attackSpeed", 3))).fullDraw, 12);
-    // At the interval floor the draw cannot shrink any more.
-    expect(bowFullDraw("plague", 8)).toBeCloseTo(bowFullDraw("plague", 20), 12);
+  it("the bot's bow hold equals the server's full draw: every faction, with attack-speed stacks, and as a mob or an elite", () => {
+    // Held for less, the shot is a weak one loosed early; held for more, it is a shot loosed late. The server is the reference,
+    // read through its own timingsOf on real states (the client's half of this parity is in client/test/fighterArt.test.ts).
+    const world = createGameWorld({
+      seed: 3, random: mulberry32(4),
+      config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 1 },
+    });
+    step(world, TICK_MS);
+    const seen = new Set<number>();
+    for (const f of FACTION_IDS) {
+      const p = addPlayer(world, `p-${f}`, f, { faction: f });
+      for (const stacks of [0, 1.1, 3, 7]) {
+        p.stacksAs = stacks;
+        const server = timingsOf(p, "bow")!.fullDraw;
+        expect(bowFullDraw(f, stacks), `${f} with ${stacks} stacks`).toBeCloseTo(server, 12);
+        seen.add(Math.round(server * 1e6));
+      }
+      for (const elite of [false, true]) {
+        const m = world.state.mobs.get(placeMob(world, { region: f, elite, at: { x: 100, y: 100 } }))!;
+        expect(m.faction).toBe(f);
+        expect(bowFullDraw(f, 0), `${f} ${elite ? "elite" : "mob"}`).toBeCloseTo(timingsOf(m, "bow")!.fullDraw, 12);
+      }
+    }
+    // The comparison can tell stacks from no stacks: most of these draws differ (Frost sits at the 0.6 s cap until 3 stacks).
+    expect(seen.size).toBeGreaterThanOrEqual(12);
   });
 
   it("pathLength adds up the legs", () => {
@@ -519,5 +585,60 @@ describe("pieces", () => {
 
   it("the leash is what the spacing is about: a mob gives up 9 tiles from home", () => {
     expect(MOB_LEASH_RADIUS).toBe(288);
+  });
+});
+
+describe("BotClient: which hits count as a player's fire", () => {
+  /** The brain over a fake room (the private parts the test reaches into, as in botOrbit.test.ts). */
+  function brain() {
+    const b = new BotClient() as unknown as { room: unknown; playerHitAt: number; onFx(fx: TimedFx): void };
+    b.room = { sessionId: "me", state: { players: new Map([["me", {}], ["rival", {}]]), mobs: new Map([["mob1", {}]]) } };
+    return b;
+  }
+  const hit = (id: string, by: string | null): TimedFx => ({ kind: "hit", id, by, amount: 10, weapon: "sword", t: 0 });
+
+  it("records a hit on the bot by another player, and nothing else", () => {
+    const b = brain();
+    expect(b.playerHitAt).toBe(-Infinity);
+    b.onFx(hit("me", "mob1")); // a mob's blow
+    b.onFx(hit("me", null)); // the arena (sudden death, a signature tick without an owner)
+    b.onFx(hit("me", "me")); // its own backlash
+    b.onFx(hit("rival", "me")); // the bot hitting somebody
+    b.onFx({ kind: "block", id: "me", by: "rival", weapon: "sword", t: 0 }); // a blocked blow does no harm: not "being shot"
+    expect(b.playerHitAt).toBe(-Infinity);
+    const before = Date.now();
+    b.onFx(hit("me", "rival"));
+    expect(b.playerHitAt).toBeGreaterThanOrEqual(before);
+  });
+});
+
+describe("BotClient: the bow is loosed at the full draw its attack-speed stacks give", () => {
+  const SERVER_TIME = 20_000;
+  /** A bot with a bow, `drawn` seconds into a draw at a mob 180 u away, over a fake room: the messages it sends in one fight() call. */
+  function loosesAt(faction: FactionId, stacksAs: number, drawn: number): boolean {
+    const sent: string[] = [];
+    const tiles = new Uint8Array(40 * 20).fill(TILE_FLOOR);
+    for (let i = 0; i < 40; i++) { tiles[i] = TILE_WALL; tiles[19 * 40 + i] = TILE_WALL; }
+    const b = new BotClient() as unknown as {
+      room: unknown; map: unknown; patchAt: number; fight(me: unknown, foe: unknown, now: number): void;
+    };
+    b.map = mapFromTiles(40, 20, tiles);
+    b.patchAt = Date.now();
+    b.room = { sessionId: "me", send: (type: string) => sent.push(type), state: { serverTime: SERVER_TIME, gatesLocked: false } };
+    const me = {
+      x: 10 * TILE, y: 10 * TILE, faction, weapon0: "bow", weapon1: "", slot: 0, stacksAs, readyAt: 0,
+      drawStartedAt: SERVER_TIME - drawn * 1000,
+    };
+    const foe = { key: "mob:m", at: { x: 10 * TILE + 180, y: 10 * TILE }, d: 180, theirs: "sword" as WeaponId, mob: true };
+    b.fight(me, foe, Date.now());
+    return sent.includes("release");
+  }
+
+  it("holds to the unbuffed draw with no stacks and looses early with them", () => {
+    // Fire's draw is 0.598 s unbuffed and 0.488 s with 3 attack-speed stacks: 0.55 s in, only the buffed bow is full.
+    expect(loosesAt("fire", 0, 0.55)).toBe(false);
+    expect(loosesAt("fire", 3, 0.55)).toBe(true);
+    expect(loosesAt("fire", 0, 0.65)).toBe(true);
+    expect(loosesAt("fire", 3, 0.3)).toBe(false);
   });
 });

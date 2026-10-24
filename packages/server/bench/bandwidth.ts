@@ -10,7 +10,7 @@
 //          (the same class RaidRoom.handleEvents uses, so the roster, the launches and the short projEnds are counted),
 //          packed by core's own `getMessageBytes.raw`, so the msgpack options and the type header cannot drift from what
 //          core sends. `fxByKind` splits those bytes by kind (a tuple's share of the frame; "launch" is the projectiles).
-//          The projectiles are not in the patches (RaidState.projectiles is full-state only), and the patches carry the
+//          The projectiles are not in the patches (they are not in the synced state at all), and the patches carry the
 //          roster entries (a player or mob id the first time the tick sees it).
 //   Every frame also pays the ws frame header (2 B under 126 B of payload, 4 B under 64 KiB). TCP/IP and TLS framing are
 //   not counted: the budget is ws payload (the owner may want the wire number too; it adds about 52 B per frame).
@@ -416,7 +416,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     // sends the patch. The channel runs for every step, measured or not: it remembers which projectiles it announced.
     const fxs: FxEvent[] = [];
     for (const ev of events) if (ev.type === "fx") fxs.push(ev.fx);
-    const batch = channel.batch(fxs, world.state.serverTime, world.state.projectiles);
+    const batch = channel.batch(fxs, world.state.serverTime, world.projectiles);
     if (measuring && batch) {
       const frame = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", batch);
       const bytes = frame.length + wsHeader(frame.length);

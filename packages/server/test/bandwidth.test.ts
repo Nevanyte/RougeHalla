@@ -17,15 +17,15 @@ const typical = () => run("typical", { camps: TYPICAL_CAMPS });
 const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
 
 describe("bandwidth budget (per client, ws payload)", () => {
-  // Seed 1 measures 10.3 KB/s with about 17 mobs fighting (9.4 to 10.5 over seeds 1 to 5, 732 and 2547).
+  // Seed 1 measures 10.0 KB/s with about 17 mobs fighting (9.1 to 10.5 over seeds 1 to 5, 732 and 2547).
   it("typical: 4 camps fought by 2 players each, 60 mobs: under 20 KB/s", () => {
     const r = typical();
-    expect(r.mobs).toBeGreaterThanOrEqual(60);
+    expect(r.mobs).toBeGreaterThanOrEqual(58); // topped up to 60 every tick; the last tick's kills are replaced in the next
     expect(r.avgFighting).toBeGreaterThan(5);
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  // Seed 1 measures 15.4 KB/s with about 33 mobs fighting (13.7 to 16.5 over the seven seeds, up to 36 fighting).
+  // Seed 1 measures 15.1 KB/s with about 34 mobs fighting (14.1 to 16.3 over the seven seeds, up to 37 fighting).
   it("heavy: 8 camps fought by 1 player each, 60 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });

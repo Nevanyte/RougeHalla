@@ -152,14 +152,16 @@ export interface FxBatch {
   l: FxTuple[];
   /**
    * The arrows and balls that left during this step and are still flying at its end, one tuple each (see fxCodec.ts;
-   * `unpackLaunches` reads them). Projectiles are not in the state patches, only in the full state a client joins with.
+   * `unpackLaunches` reads them). Projectiles are not in the synced state at all: this is how a connected client learns of
+   * them, and a client that joins or reconnects mid-flight is sent the ones then flying as a batch of its own
+   * (`FxChannel.inFlight`, `l` empty).
    */
   p?: FxTuple[];
 }
 
 /**
  * A projectile as the client flies it: position(T) = (x, y) + (vx, vy) * (T - t) / 1000, for at most `range` units, until a
- * `projEnd` fx says where and why it stopped. `id` is the one that `projEnd` names. Same meaning as `ProjectileState`.
+ * `projEnd` fx says where and why it stopped. `id` is the one that `projEnd` names. `t` is when it left (x, y).
  */
 export interface ProjectileLaunch {
   id: string;

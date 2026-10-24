@@ -21,7 +21,7 @@ import {
 } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import { addPlayer, step } from "../src/sim/step";
-import { createWorld, type LedgerEntry, type SimConfig, type SimEvent, type World } from "../src/sim/world";
+import { createWorld, tieRank, type LedgerEntry, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 vi.mock("../src/sim/mobAI", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/sim/mobAI")>()),
@@ -467,7 +467,7 @@ describe("killMob: the dying mob", () => {
     expect(w.state.containers.size).toBe(before.containers);
   });
 
-  it("a mob nobody still in the fight hit just falls: no GV, no feed, no buff, no drop, no random roll", () => {
+  it("a mob nobody still in the fight hit just falls: no GV, no feed, no buff, no random roll, and its weapon lies where it fell", () => {
     const w = makeBare();
     const random = vi.fn(() => 0.1);
     w.random = random;
@@ -478,7 +478,11 @@ describe("killMob: the dying mob", () => {
     expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: m.id, x: m.s.x, y: m.s.y, by: null }]);
     expect(w.events).toHaveLength(1);
     expect(random).not.toHaveBeenCalled();
-    expect(w.state.containers.size).toBe(containers);
+    // Nobody to pay, but nobody holds the weapon either: it is there for the taking.
+    expect(w.state.containers.size).toBe(containers + 1);
+    const drop = [...w.state.containers.values()].at(-1)!;
+    expect(drop).toMatchObject({ kind: "ground", x: m.s.x, y: m.s.y });
+    expect(drop.items.map((it) => it.def)).toEqual([mobWeapon("holy")]);
     for (const i of [0, 1]) {
       expect(RT(w, i).mobKills).toBe(0);
       expect(RT(w, i).gv.mobs).toBe(0);
@@ -521,26 +525,83 @@ describe("killMob: who gets the kill", () => {
     expect(RT(w, 1).mobKills).toBe(0);
   });
 
-  it("a tie goes to whoever hit first, however the hits add up", () => {
+  describe("the whole fight counts, not only the killing pass", () => {
+    /** A plague mob with `hp` left, after `threat` (what each player did to it since it last rested). */
+    function wounded(w: World, hp: number, threat: Array<[string, number]>): MobCombatant {
+      const m = spawn(w, "plague");
+      m.s.hp = hp;
+      for (const [id, sum] of threat) m.rt.brain!.threat.set(id, sum);
+      return m;
+    }
+
+    it("a late finisher does not take the kill from the player who did most of the work", () => {
+      const w = makeBare();
+      const m = wounded(w, 50, [["p0", 200], ["p1", 20]]);
+      hurt(w, m, ["p1", 50]); // 70 in all against p0's 200
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
+      expect([RT(w, 0).mobKills, RT(w, 1).mobKills]).toEqual([1, 0]);
+    });
+
+    it("...unless the finisher's total overtakes: the earlier damage and this pass's add up per player", () => {
+      const w = makeBare();
+      const m = wounded(w, 50, [["p0", 40], ["p1", 20]]);
+      hurt(w, m, ["p1", 50]);
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p1");
+      const n = wounded(w, 50, [["p0", 40], ["p1", 20]]);
+      w.events = [];
+      hurt(w, n, ["p0", 10], ["p1", 40]); // 50 against 60
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p1");
+      const o = wounded(w, 50, [["p0", 40], ["p1", 20]]);
+      w.events = [];
+      hurt(w, o, ["p0", 30], ["p1", 20]); // 70 against 40
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
+    });
+
+    it("an earlier leader who is out of the run (resolved, unknown or a mob) is skipped", () => {
+      const w = makeBare({ players: 3 });
+      RT(w, 0).resolved = true;
+      const other = spawn(w, "fire");
+      const m = wounded(w, 50, [["p0", 500], ["ghost", 400], [other.id, 300], ["p2", 30], ["p1", 20]]);
+      hurt(w, m, ["p1", 50]);
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p1");
+      expect([RT(w, 0).mobKills, RT(w, 1).mobKills, RT(w, 2).mobKills]).toEqual([0, 1, 0]);
+    });
+
+    it("an earlier leader stays the killer with nobody else in the killing pass, and the threat is gone after", () => {
+      const w = makeBare();
+      const m = wounded(w, 10, [["p0", 90], ["p1", 5]]);
+      hurt(w, m, ["ghost", 10]);
+      expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
+      expect(m.rt.brain!.threat.size).toBe(0);
+    });
+
+    it("an exact tie between the earlier leader and the finisher goes to the lower rank, as in any other tie", () => {
+      const w = makeBare();
+      const lower = tieRank(w, "p0") < tieRank(w, "p1") ? "p0" : "p1";
+      const m = wounded(w, 30, [["p0", 60], ["p1", 30]]);
+      hurt(w, m, ["p1", 30]);
+      expect(fxOf(w.events, "death")[0]!.by).toBe(lower);
+    });
+  });
+
+  it("an exact tie in what they did goes to the lower order-free rank of the tick, never to whoever hit first", () => {
     const w = makeBare({ players: 3 });
-    const m = spawn(w, "plague");
-    const half = m.s.hp / 2;
-    hurt(w, m, ["p2", half], ["p0", half]);
-    expect(fxOf(w.events, "death")[0]!.by).toBe("p2");
-    expect(RT(w, 2).mobKills).toBe(1);
-    expect(RT(w, 0).mobKills).toBe(0);
-    // 60 in one hit ties 40 + 20; the single hit came first.
-    const a = spawn(w, "plague");
-    a.s.hp = 120;
-    w.events = [];
-    hurt(w, a, ["p0", 60], ["p1", 40], ["p1", 20]);
-    expect(fxOf(w.events, "death")[0]!.by).toBe("p0");
-    // ...and the other way round, the one who opened wins the tie.
-    const b = spawn(w, "plague");
-    b.s.hp = 120;
-    w.events = [];
-    hurt(w, b, ["p1", 40], ["p0", 60], ["p1", 20]);
-    expect(fxOf(w.events, "death")[0]!.by).toBe("p1");
+    const lower = (x: string, y: string): string => (tieRank(w, x) < tieRank(w, y) ? x : y);
+    const killerOf = (...hits: Array<[string, number]>): string | null => {
+      const m = spawn(w, "plague");
+      m.s.hp = 120;
+      w.events = [];
+      hurt(w, m, ...hits);
+      return fxOf(w.events, "death")[0]!.by;
+    };
+    // 60 in one hit ties 40 + 20, and the order the hits came in changes nothing.
+    expect(killerOf(["p0", 60], ["p1", 40], ["p1", 20])).toBe(lower("p0", "p1"));
+    expect(killerOf(["p1", 40], ["p0", 60], ["p1", 20])).toBe(lower("p0", "p1"));
+    expect(killerOf(["p1", 40], ["p1", 20], ["p0", 60])).toBe(lower("p0", "p1"));
+    // A tie of two out of three.
+    expect(killerOf(["p2", 60], ["p0", 60])).toBe(lower("p0", "p2"));
+    expect(killerOf(["p0", 60], ["p2", 60])).toBe(lower("p0", "p2"));
+    expect(RT(w, 0).mobKills + RT(w, 1).mobKills + RT(w, 2).mobKills).toBe(5);
   });
 
   it("two players landing the lethal ledger pass together: one kill, paid once, to the larger hit", () => {
@@ -847,12 +908,25 @@ describe("killMob: rewards", () => {
       expect(w.state.containers.has(id)).toBe(false);
     });
 
-    it("is never dropped for a mob nobody collects", () => {
+    it("still drops for a mob nobody in the run hit: nobody holds the type, so the weapon lies where it fell", () => {
       const w = makeBare();
       const n = w.state.containers.size;
       const m = spawn(w, "fire");
       hurt(w, m, ["ghost", m.s.hp]);
-      expect(w.state.containers.size).toBe(n);
+      expect(w.state.containers.size).toBe(n + 1);
+    });
+
+    it("drops where the mob fell when its killer is gone by the time the spoils are paid", () => {
+      const w = makeBare();
+      const m = spawn(w, "fire");
+      const n = w.state.containers.size;
+      // The kill is decided in the pass; the payout runs after every victim of the pass has been settled.
+      w.combat.collecting = true;
+      hurt(w, m, ["p0", m.s.hp]);
+      RT(w, 0).resolved = true;
+      for (const pay of w.combat.payouts) pay();
+      expect(w.state.containers.size).toBe(n + 1);
+      expect(RT(w, 0).mobKills).toBe(0);
     });
   });
 
@@ -1118,6 +1192,112 @@ describe("rewards are paid after the whole ledger pass", () => {
       expect(w.combat.payouts).toEqual([]);
       expect(w.combat.collecting).toBe(false);
     });
+
+  describe("the killer's feed is the one the pass started with", () => {
+    /** Feeds 0 / 2 / 3 / 3: the median is 2.5, so p0 (feed 0) is in catch-up. */
+    function lobby(): World {
+      const w = makeBare({ players: 4 });
+      w.random = () => 0.1;
+      [0, 2, 3, 3].forEach((kills, i) => setFeed(w, i, kills));
+      return w;
+    }
+    const gvLine = (w: World): string[] => gvOf(w.events).map((e) => `${e.reason}:${e.amount}`).sort();
+
+    it("p0 killing a player and an elite in one pass is paid the same whichever the ledger reached first", () => {
+      const run = (mobFirst: boolean) => {
+        const w = lobby();
+        const elite = spawn(w, "fire", true);
+        const killElite = () => strike(w, elite.id, "p0", 1e6);
+        const killPlayer = () => strike(w, "p1", "p0", 1e6);
+        if (mobFirst) { killElite(); killPlayer(); } else { killPlayer(); killElite(); }
+        pass(w);
+        return { gv: gvLine(w), stacks: stacksOf(P(w, 0)), banked: RT(w, 0).gv };
+      };
+      const a = run(true);
+      const b = run(false);
+      expect(b).toEqual(a);
+      // The catch-up applied to the elite (the pass started with p0 at feed 0), and the player kill did not eat into it.
+      expect(a.banked.mobs).toBeGreaterThan(GV_ELITE);
+      expect(a.stacks.attackSpeed + a.stacks.hp + a.stacks.moveSpeed).toBeGreaterThan(ELITE_BUFF_STACKS);
+    });
+
+    it("two mob kills in one pass each read the pass's start: neither sees the other's feed", () => {
+      const alone = (region: FactionId) => {
+        const w = lobby();
+        strike(w, spawn(w, region).id, "p0", 1e6);
+        pass(w);
+        return stacksOf(P(w, 0));
+      };
+      const both = (first: FactionId, second: FactionId) => {
+        const w = lobby();
+        strike(w, spawn(w, first).id, "p0", 1e6);
+        strike(w, spawn(w, second).id, "p0", 1e6);
+        pass(w);
+        return stacksOf(P(w, 0));
+      };
+      const fire = alone("fire");
+      const frost = alone("frost");
+      const sum = { hp: fire.hp + frost.hp, attackSpeed: fire.attackSpeed + frost.attackSpeed, moveSpeed: fire.moveSpeed + frost.moveSpeed };
+      for (const [x, y] of [["fire", "frost"], ["frost", "fire"]] as const) {
+        const s = both(x, y);
+        expect(s.hp).toBeCloseTo(sum.hp, 9);
+        expect(s.attackSpeed).toBeCloseTo(sum.attackSpeed, 9);
+        expect(s.moveSpeed).toBeCloseTo(sum.moveSpeed, 9);
+      }
+    });
+  });
+
+  describe("a kill barrier is not hp lost", () => {
+    it("the damage the systems feed on (lifesteal) is only what got past the barrier", () => {
+      const w = makeBare();
+      P(w, 1).hp = P(w, 1).maxHp = 1e6;
+      P(w, 1).barrier = 290;
+      const hp = P(w, 1).hp;
+      strike(w, "p1", "p0", 3000);
+      pass(w);
+      const lost = hp - P(w, 1).hp;
+      const absorbed = 290 - P(w, 1).barrier;
+      const landed = w.combat.landed.filter((l) => l.victim === "p1");
+      expect(landed).toHaveLength(1);
+      expect(absorbed).toBeGreaterThan(0);
+      expect(landed[0]!.amount).toBeCloseTo(lost, 9);
+      // The hit fx still shows the whole hit.
+      expect(fxOf(w.events, "hit").find((h) => h.id === "p1")!.amount).toBeCloseTo(lost + absorbed, 9);
+    });
+
+    it("a hit that gets all the way through is whole", () => {
+      const w = makeBare();
+      const hp = P(w, 1).hp;
+      strike(w, "p1", "p0", 20);
+      pass(w);
+      const landed = w.combat.landed.filter((l) => l.victim === "p1");
+      expect(landed[0]!.amount).toBeCloseTo(hp - P(w, 1).hp, 9);
+    });
+  });
+
+  it("a pass that throws leaves nothing behind: the next one starts with no old payouts and a fresh median", () => {
+    const w = makeBare({ players: 3 });
+    [0, 2, 3].forEach((kills, i) => setFeed(w, i, kills));
+    const m = spawn(w, "fire");
+    strike(w, m.id, "p0", 1e6);
+    strike(w, "p1", "p0", 1e6); // a body to drop: the hook throws
+    const dropBody = w.hooks.dropBody;
+    w.hooks.dropBody = () => { throw new Error("boom"); };
+    expect(() => pass(w)).toThrow("boom");
+    w.hooks.dropBody = dropBody;
+    expect(w.combat.collecting).toBe(false);
+    w.events = [];
+    const banked = { ...RT(w, 0).gv };
+    // The next pass is someone else's hit entirely.
+    setFeed(w, 2, 9);
+    strike(w, "p2", "p1", 5);
+    pass(w);
+    expect(w.combat.payouts).toEqual([]);
+    expect(w.combat.medianFeed).toBeNull();
+    expect(RT(w, 0).gv).toEqual(banked);
+    expect(gvOf(w.events)).toEqual([]);
+    expect(w.combat.medianFeed).toBeNull();
+  });
 
   it("a mob nobody collects dies in the pass with by null and queues nothing", () => {
     const w = makeBare();

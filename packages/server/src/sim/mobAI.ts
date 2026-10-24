@@ -59,8 +59,9 @@ function standingPlayer(world: World, id: string | null): PlayerState | null {
 
 /**
  * The standing player with the most threat (ties go to whoever hit first), or null. Players who are gone or down are
- * dropped from the threat list on the way. The target may stand beyond the leash (a bow reaches 480 u, the leash is 224):
- * the mob still goes for them, and gives up at the leash edge, rather than being shot at for free while it ignores it.
+ * dropped from the threat list on the way. The target may stand beyond the leash (a bow shoots 240 u, so an archer can
+ * hit a mob from outside its 288 u leash): the mob still goes for them, and gives up at the leash edge, rather than
+ * being shot at for free while it ignores it.
  */
 function pickTarget(world: World, b: MobBrain): string | null {
   let best: string | null = null;
@@ -151,7 +152,7 @@ export function thinkMobs(world: World, dtMs: number): void {
     // It walked to where it was going (or the walk was refused): it is standing, whatever it last asked for.
     if (b.moving && rt.path.length === 0) b.moving = false;
     if (b.mode === "fight") fight(world, s, rt, b, now, dtMs);
-    else walkHome(s, rt, b, now, dtMs);
+    else walkHome(world, s, rt, b, now, dtMs);
   }
 }
 
@@ -160,7 +161,7 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
   // (a teleport, a swap) the next `hold` presses again.
   b.holding = rt.weapon.held;
   if (Math.hypot(s.x - b.home.x, s.y - b.home.y) > MOB_LEASH_RADIUS || now - b.lastCombatAt >= MOB_GIVE_UP_SECONDS * 1000) {
-    giveUp(s, rt, b, now, dtMs);
+    giveUp(world, s, rt, b, now, dtMs);
     return;
   }
   let id = b.target;
@@ -169,7 +170,7 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
     id = b.target = pickTarget(world, b);
     target = standingPlayer(world, id);
     if (id === null || target === null) {
-      giveUp(s, rt, b, now, dtMs);
+      giveUp(world, s, rt, b, now, dtMs);
       return;
     }
     b.goal = null; // a new target: set off for it at once
@@ -260,20 +261,32 @@ function sendMove(q: InputQueue, b: MobBrain, x: number, y: number, now: number)
 }
 
 /** The fight is over for this mob: drop the trigger, forget the people and start for home. */
-function giveUp(s: MobState, rt: MobRuntime, b: MobBrain, now: number, dtMs: number): void {
-  if (b.holding) {
-    rt.inputs.pushAction({ kind: "release", a: rt.weapon.aim });
-    b.holding = false;
-  }
+function giveUp(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: number, dtMs: number): void {
+  disarm(world, s, rt, b);
   b.mode = "return";
   b.target = null;
   b.threat.clear();
   b.goal = null;
-  walkHome(s, rt, b, now, dtMs);
+  walkHome(world, s, rt, b, now, dtMs);
 }
 
-function walkHome(s: MobState, rt: MobRuntime, b: MobBrain, now: number, dtMs: number): void {
-  if (Math.hypot(s.x - b.home.x, s.y - b.home.y) <= MOB_HOME_RADIUS) rest(s, rt, b);
+/**
+ * Whatever the mob had started is dropped, not finished: a swing or a cast still winding up never lands, a drawn bow is
+ * not loosed. It also stops aiming, so walking turns it away from the people it was fighting. A mob that is going home
+ * is untouchable and must be harmless too.
+ */
+function disarm(world: World, s: MobState, rt: MobRuntime, b: MobBrain): void {
+  cancelAction(world, { kind: "mob", id: rt.id, s, rt });
+  const w = rt.weapon;
+  w.held = false;
+  w.bufferedUntil = 0;
+  w.releasePending = false;
+  w.aimAt = 0;
+  b.holding = false;
+}
+
+function walkHome(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: number, dtMs: number): void {
+  if (Math.hypot(s.x - b.home.x, s.y - b.home.y) <= MOB_HOME_RADIUS) rest(world, s, rt, b);
   else if (repathDue(b, now, dtMs)) sendMove(rt.inputs, b, b.home.x, b.home.y, now);
 }
 
@@ -281,12 +294,9 @@ function walkHome(s: MobState, rt: MobRuntime, b: MobBrain, now: number, dtMs: n
  * Home again: neutral, facing the way the camp wants. A walk that is already heading for the spot is left to finish its
  * last few units (a `stop` here would leave the mob short of its spot); otherwise it is sent to the spot once.
  */
-function rest(s: MobState, rt: MobRuntime, b: MobBrain): void {
+function rest(world: World, s: MobState, rt: MobRuntime, b: MobBrain): void {
   const q = rt.inputs;
-  if (b.holding) {
-    q.pushAction({ kind: "release", a: b.homeFacing });
-    b.holding = false;
-  }
+  disarm(world, s, rt, b);
   const end = rt.path.length > 0 ? rt.path[rt.path.length - 1]! : null;
   if (end === null || Math.hypot(end.x - b.home.x, end.y - b.home.y) > HEADING_HOME) {
     if (Math.hypot(s.x - b.home.x, s.y - b.home.y) > ON_SPOT) q.pushMove({ kind: "move", x: b.home.x, y: b.home.y });

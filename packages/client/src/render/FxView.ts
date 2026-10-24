@@ -4,8 +4,8 @@
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
 import {
-  BUFF_LABELS, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffToast, comboById, comboToast, formatGain, isDot, type ProjectileEnd,
-  type SignatureKind, type TimedFx,
+  BUFF_LABELS, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffToast, comboById, comboToast, formatGain, isDot, type ComboSpec,
+  type ProjectileEnd, type SignatureKind, type TimedFx,
 } from "@raid/shared";
 import { ELITE_COLOR, STAT_COLOR } from "../ui/buffTheme";
 import { cssColor } from "../ui/dom";
@@ -157,6 +157,13 @@ export class FxView {
   private lane = 0;
   private floatLane = 0;
   private destroyed = false;
+  /**
+   * The local player's buff and combo news of this update(), told as one line each when it ends (flushNews). A bounty kill
+   * grants every stat in turn and unlocks combos with it: six lines in one frame would fill the toast stack and push the
+   * combo unlocks out of it.
+   */
+  private newsBuffs: Array<{ stat: string; gained: number; total: number }> = [];
+  private newsCombos: ComboSpec[] = [];
 
   constructor(private readonly scene: Phaser.Scene, private readonly host: FxHost) {}
 
@@ -198,6 +205,7 @@ export class FxView {
         else if (fx.t >= renderT - STALE_MS) this.play(fx, now);
       }
       q.length = keep;
+      this.flushNews();
     }
     this.advance(now);
   }
@@ -205,6 +213,8 @@ export class FxView {
   destroy(): void {
     this.destroyed = true;
     this.pending.length = 0;
+    this.newsBuffs.length = 0;
+    this.newsCombos.length = 0;
     for (const e of this.active) { e.g?.destroy(); e.text?.destroy(); }
     this.active.length = 0;
     for (const g of this.freeGraphics) g.destroy();
@@ -475,7 +485,7 @@ export class FxView {
   private buff(fx: FxOf<"buff">, now: number): void {
     if (!(fx.stacks > 0)) return;
     if (fx.id === this.host.localId) {
-      this.host.announce?.(buffToast(fx.stat, fx.stacks, fx.total), "buff");
+      this.newsBuffs.push({ stat: fx.stat, gained: fx.stacks, total: fx.total });
       return;
     }
     const color = (STAT_COLOR as Readonly<Record<string, number>>)[fx.stat];
@@ -496,8 +506,37 @@ export class FxView {
       return;
     }
     this.ring(fx.id, color, 3.2, now);
-    if (fx.id === this.host.localId) this.host.announce?.(comboToast(spec), "combo");
+    if (fx.id === this.host.localId) this.newsCombos.push(spec);
     else this.floatText(fx.id, `${spec.name}!`, COMBO_FLOAT_COLOR, now);
+  }
+
+  /**
+   * Tells the local player what update() collected: one buff line and one combo line, in that order so the combo unlock is the
+   * newest toast. One event keeps its own wording ("+1.1 Attack speed (3.2)", "Combo unlocked: Dash on kill"); several are
+   * listed, a stat gained twice summed.
+   */
+  private flushNews(): void {
+    const buffs = this.newsBuffs;
+    const combos = this.newsCombos;
+    if (buffs.length === 0 && combos.length === 0) return;
+    this.newsBuffs = [];
+    this.newsCombos = [];
+    if (!this.host.announce) return;
+    if (buffs.length > 0) {
+      const byStat = new Map<string, { stat: string; gained: number; total: number }>();
+      for (const b of buffs) {
+        const sum = byStat.get(b.stat);
+        if (sum) { sum.gained += b.gained; sum.total = b.total; } else byStat.set(b.stat, { ...b });
+      }
+      const sums = [...byStat.values()];
+      const text = sums.length === 1
+        ? buffToast(sums[0]!.stat, sums[0]!.gained, sums[0]!.total)
+        : sums.map((b) => `+${formatGain(b.gained)} ${(BUFF_LABELS as Readonly<Record<string, string>>)[b.stat] ?? b.stat}`).join(", ");
+      this.host.announce(text, "buff");
+    }
+    if (combos.length > 0) {
+      this.host.announce(combos.length === 1 ? comboToast(combos[0]!) : `Combos unlocked: ${combos.map((c) => c.name).join(", ")}`, "combo");
+    }
   }
 
   /** A ring around the fighter that grows to `size` body radii while it fades. */

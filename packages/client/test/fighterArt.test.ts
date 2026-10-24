@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DrawTrack, FighterArt, heldWeapon, type FighterFields } from "../src/render/FighterArt";
+import { BARRIER_COLOR } from "../src/ui/buffTheme";
+import { DrawTrack, FighterArt, HpBar, fullDrawSeconds, heldWeapon, type FighterFields } from "../src/render/FighterArt";
+import { argsOf, fakeScene } from "./fakes";
 
 /** A stand-in for Phaser's Graphics that records the draw calls made since its last clear(). */
 function fakeGraphics() {
@@ -122,5 +124,107 @@ describe("bow draw start under a chill", () => {
     expect(t.track(0, 1150, 1250)).toBe(true);
     expect(t.track(0, 1260, 1300)).toBe(false);
     expect(t.start).toBe(0);
+  });
+});
+
+describe("fullDrawSeconds", () => {
+  // The server's bow full draw (sim/combatant.ts timingsOf(...).fullDraw on a real player of each faction, 9 decimals) for 0, 1.1, 3
+  // and 7 attack-speed stacks. server/test/mobHunt.test.ts compares the bots' copy of the formula with timingsOf live; this is the
+  // client's half: a draw gauge that drifts from the server's shows a full bow before (or after) it is.
+  // Regenerate with the weapon numbers (weapons.ts / factions.ts) when they change.
+  const SERVER_FULL_DRAW: Record<string, readonly number[]> = {
+    fire: [0.598290598, 0.574538432, 0.487887882, 0.407751013],
+    sentenced: [0.398860399, 0.383025622, 0.325258588, 0.271834009],
+    plague: [0.194040194, 0.186336789, 0.175, 0.175],
+    frost: [0.6, 0.6, 0.6, 0.543668018],
+    holy: [0.377867746, 0.362866378, 0.308139715, 0.257526956],
+  };
+  const STACKS = [0, 1.1, 3, 7];
+
+  it("equals the server's full draw for every faction at 0, 1.1, 3 and 7 attack-speed stacks", () => {
+    for (const [faction, row] of Object.entries(SERVER_FULL_DRAW)) {
+      STACKS.forEach((stacks, i) => expect(fullDrawSeconds(faction, stacks), `${faction} with ${stacks} stacks`).toBeCloseTo(row[i]!, 8));
+    }
+  });
+
+  it("is the unbuffed draw for a fighter without stacks (a mob) and 0 without a faction", () => {
+    for (const [faction, row] of Object.entries(SERVER_FULL_DRAW)) expect(fullDrawSeconds(faction, undefined)).toBeCloseTo(row[0]!, 8);
+    expect(fullDrawSeconds("", 3)).toBe(0);
+    expect(fullDrawSeconds("nobody", 3)).toBe(0);
+  });
+
+  it("shortens with stacks until the bow's interval floor", () => {
+    expect(fullDrawSeconds("fire", 3)).toBeLessThan(fullDrawSeconds("fire", 0) - 0.1);
+    expect(fullDrawSeconds("plague", 7)).toBe(fullDrawSeconds("plague", 20));
+  });
+
+  it("is what the gauge uses: the same draw is full with stacks and not without", () => {
+    // 0.5 s into a Fire bow's draw: 84% of the unbuffed 0.598 s, but a full draw with 3 stacks (0.488 s), which glows.
+    const glowing = (stacksAs: number) => {
+      const graphics = [fakeGraphics(), fakeGraphics()];
+      let i = 0;
+      const art = new FighterArt({ add: { graphics: () => graphics[i++] } } as never);
+      art.update({ ...bowman(1000), faction: "fire", stacksAs }, 1500, 1500);
+      return graphics[1]!.calls.includes("strokeCircle");
+    };
+    expect(glowing(0)).toBe(false);
+    expect(glowing(3)).toBe(true);
+  });
+});
+
+describe("HpBar", () => {
+  const GREEN = 0x66bb6a;
+  const YELLOW = 0xffca28;
+  const RED = 0xef5350;
+  function bar() {
+    const { scene, ofKind } = fakeScene();
+    const hp = new HpBar(scene);
+    const g = ofKind("graphics")[0]!;
+    /** The colour of the hp segment the last repaint drew (the first fillStyle after the black backing), or null for no repaint since. */
+    const fills = () => argsOf(g, "fillStyle").map((a) => a[0]);
+    return { hp, g, fills };
+  }
+
+  it("repaints when hp changes by half a pixel and not before", () => {
+    const { hp, g } = bar();
+    hp.draw(1000, 1000, 0, 0);
+    expect(g.clears).toBe(1);
+    hp.draw(1000, 1000, 0, 0);
+    expect(g.clears).toBe(1);
+    hp.draw(999, 1000, 0, 0); // 28 px bar: 56 half pixels, one is 17.9 hp
+    expect(g.clears).toBe(1);
+    hp.draw(900, 1000, 0, 0);
+    expect(g.clears).toBe(2);
+    expect(argsOf(g, "fillRect")[1]).toEqual([-14, 0, 25, 4]); // 90% of the 28 px bar, to the half pixel
+  });
+
+  it("repaints with the new colour when hp crosses 50% or 25% inside the same half pixel", () => {
+    const { hp, g, fills } = bar();
+    hp.draw(501, 1000, 0, 0);
+    expect(fills()).toEqual([0x000000, GREEN]);
+    hp.draw(499, 1000, 0, 0); // the same 28 half pixels
+    expect(g.clears).toBe(2);
+    expect(fills()).toEqual([0x000000, YELLOW]);
+    hp.draw(251, 1000, 0, 0);
+    hp.draw(249, 1000, 0, 0);
+    expect(fills()).toEqual([0x000000, RED]);
+  });
+
+  it("colours by hp against max hp, so a barrier that shrinks the bar leaves healthy hp green", () => {
+    const { hp, fills } = bar();
+    hp.draw(700, 1000, 800, 0); // hp is 70% of max hp but 47% of the shrunken bar
+    expect(fills()).toEqual([0x000000, GREEN, BARRIER_COLOR]);
+  });
+
+  it("hides (once) and draws again afterwards", () => {
+    const { hp, g } = bar();
+    hp.draw(500, 1000, 0, 0);
+    hp.hide();
+    expect(g.calls).toEqual([]);
+    const clears = g.clears;
+    hp.hide();
+    expect(g.clears).toBe(clears);
+    hp.draw(500, 1000, 0, 0);
+    expect(g.calls.length).toBeGreaterThan(0);
   });
 });

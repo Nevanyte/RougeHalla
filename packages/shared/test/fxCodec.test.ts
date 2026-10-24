@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BUFF_STATS, COMBOS, FX_SCALE, mulberry32, packFx, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS, type FxBatch,
-  type FxEvent, type ProjectileEnd, type ProjectileLaunch, type TimedFx,
+  BUFF_STATS, COMBOS, comboTier, formatStacks, FX_SCALE, mulberry32, packFx, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS,
+  type FxBatch, type FxEvent, type ProjectileEnd, type ProjectileLaunch, type TimedFx,
 } from "../src/index";
 
 type FxOf<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
@@ -71,7 +71,9 @@ describe("fx codec: round trip", () => {
     expect(roundTrip({ kind: "swing", by: "a", weapon: "sword", x: 10.4, y: 10.6, a: 1.5749 })).toMatchObject({ x: 10, y: 11, a: 1.57 });
     expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 3.14159, weapon: "sword" })).toMatchObject({ amount: 3.1 });
     expect(roundTrip({ kind: "windup", by: "a", weapon: "sword", a: 0, ms: 349.6 })).toMatchObject({ ms: 350 });
-    expect(roundTrip({ kind: "buff", id: "a", stat: "hp", stacks: 1.0664, total: 2.9996 })).toMatchObject({ stacks: 1.066, total: 3 });
+    expect(roundTrip({ kind: "buff", id: "a", stat: "hp", stacks: 1.0664, total: 2.4996 })).toMatchObject({ stacks: 1.066, total: 2.5 });
+    // ...except onto a combo threshold that has not been reached (see "a buff total never crosses a combo threshold")
+    expect(roundTrip({ kind: "buff", id: "a", stat: "hp", stacks: 1.0664, total: 2.9996 })).toMatchObject({ stacks: 1.066, total: 2.999 });
   });
 
   it("handles negative coordinates and angles, and never produces -0", () => {
@@ -279,6 +281,92 @@ describe("fx codec: fighter ids by roster index", () => {
     const arrayLike = { length: 3, 0: "Ab3dEf9hI", 1: "mob1a", 2: "mob1b" };
     const batch = packFx([{ kind: "stagger", id: "mob1a" }], T, { roster: index });
     expect(unpackFx(batch, arrayLike)).toEqual([{ kind: "stagger", id: "mob1a", t: T }]);
+  });
+});
+
+describe("fx codec: unreadable tuples are reported", () => {
+  const roster = ["Ab3dEf9hI", "mob1a", "mob1b", "mob1c"];
+  const index = new Map(roster.map((id, i) => [id, i]));
+  const stagger = (id: string): FxEvent => ({ kind: "stagger", id });
+
+  it("tells a roster index the client does not have from a tuple that is simply unreadable", () => {
+    const fx: FxEvent[] = [
+      { kind: "hit", id: "mob1c", by: "mob1a", amount: 12, weapon: "sword" },
+      { kind: "death", id: "mob1b", x: 1, y: 2, by: null },
+      stagger("Ab3dEf9hI"),
+    ];
+    const batch = packFx(fx, T, { roster: index });
+    batch.l.push([99, 1, 2], [2, 0, 1, "ten", 0]); // an unknown kind, and a hit whose amount is not a number
+    const dropped: Array<[unknown, boolean]> = [];
+    const out = unpackFx(batch, roster.slice(0, 3), (tuple, unresolved) => dropped.push([tuple, unresolved]));
+    expect(out).toEqual([{ ...fx[1], t: T }, { ...fx[2], t: T }]);
+    expect(dropped).toEqual([[batch.l[0], true], [[99, 1, 2], false], [[2, 0, 1, "ten", 0], false]]);
+  });
+
+  it("reports the review's batch of three events against a four entry roster: a death, a hit and a bounty, all gone", () => {
+    const batch: FxBatch = { t: T, l: [[6, 4, 10, 10, null], [2, 0, 4, 50, 1], [9, 4, 4, 50]] };
+    const unresolved: boolean[] = [];
+    expect(unpackFx(batch, roster, (_tuple, missing) => unresolved.push(missing))).toEqual([]);
+    expect(unresolved).toEqual([true, true, true]);
+  });
+
+  it("stays quiet when every tuple reads, and the callback is optional", () => {
+    const batch = packFx([stagger("mob1a"), { kind: "teleport" }], T, { roster: index });
+    let calls = 0;
+    expect(unpackFx(batch, roster, () => calls++)).toHaveLength(2);
+    expect(calls).toBe(0);
+    expect(unpackFx({ t: T, l: [[4, 40]] }, roster)).toEqual([]);
+  });
+
+  it("counts a fractional or negative index as unresolved", () => {
+    const flags: boolean[] = [];
+    unpackFx({ t: T, l: [[4, 1.5], [4, -1], [4, Number.NaN], [4, 2]] }, roster, (_tuple, missing) => flags.push(missing));
+    expect(flags).toEqual([true, true, true]);
+  });
+
+  it("a later tuple is not marked unresolved by an earlier one", () => {
+    const flags: boolean[] = [];
+    const l: FxBatch["l"] = [[4, 40], [99], [4, 1]];
+    unpackFx({ t: T, l }, roster, (_tuple, missing) => flags.push(missing));
+    expect(flags).toEqual([true, false]);
+  });
+});
+
+describe("fx codec: a buff total never crosses a combo threshold", () => {
+  const buff = (total: number): FxEvent => ({ kind: "buff", id: "a", stat: "hp", stacks: 1, total });
+  const decodedTotal = (total: number): number => {
+    const out = unpackFx(packFx([buff(total)], T), NONE)[0]!;
+    if (out.kind !== "buff") throw new Error("not a buff");
+    return out.total;
+  };
+
+  // Just short of a threshold the server has not unlocked its combo (comboTier carries a slack of 1e-6), but the nearest
+  // thousandth of 2.9996 is 3.000, which the toast would read as "(3.0)" while the HUD, from the real stacks, says "2.9".
+  const cases: ReadonlyArray<[number, 0 | 1 | 2]> = [
+    [2.9995, 0], [2.9996, 0], [2.99989, 0], [2.999998, 0], [2.9999985, 0], [2.9999995, 1], [3, 1], [3.0004, 1],
+    [4.9995, 1], [4.9996, 1], [4.99989, 1], [4.999998, 1], [4.9999995, 2], [5, 2], [5.0004, 2],
+  ];
+  it.each(cases)("%s decodes to tier %i", (total, tier) => {
+    expect(comboTier(total), "the table is right about the server").toBe(tier);
+    const got = decodedTotal(total);
+    expect(comboTier(got), `decoded ${got}`).toBe(tier);
+    expect(Math.abs(got - total)).toBeLessThanOrEqual(0.001);
+    expect(formatStacks(got), "the toast reads the way the HUD does").toBe(formatStacks(total));
+  });
+
+  it("holds over every total in a sweep around both thresholds, and stays within a thousandth everywhere", () => {
+    for (const centre of [3, 5]) {
+      for (let d = -3000; d <= 3000; d++) {
+        const total = centre + d * 1e-7;
+        const got = decodedTotal(total);
+        expect(comboTier(got), `${total}`).toBe(comboTier(total));
+        expect(Math.abs(got - total), `${total}`).toBeLessThanOrEqual(0.001);
+      }
+    }
+  });
+
+  it("is still the nearest thousandth away from a threshold", () => {
+    for (const total of [0, 0.0004, 1.0667, 2.9964, 3.4996, 4.2, 6.6666]) expect(decodedTotal(total)).toBeCloseTo(Math.round(total * 1000) / 1000, 12);
   });
 });
 

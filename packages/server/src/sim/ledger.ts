@@ -50,6 +50,9 @@ export function applyLedger(world: World): void {
     else byVictim.set(e.victim, [e]);
   }
   const c0 = world.combat;
+  // A pass that threw would have left its queue and snapshot behind: start clean.
+  c0.payouts = [];
+  c0.medianFeed = null;
   c0.collecting = true;
   // Every mob reward of the pass reads the lobby as it stood before it, not as kills earlier in the pass left it.
   c0.medianFeed = lobbyMedianFeed(world);
@@ -77,6 +80,7 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   // tie for the kill never follows join order or the order the hits were recorded in. (The hit fx stay in entry order.)
   const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
   const order = entries.map((_, i) => i).sort((a, b) => rank(a) - rank(b));
+  const barrierBefore = c.kind === "player" ? c.s.barrier : 0;
   const applied = c.kind === "player"
     ? applyHits(world, c.s, c.rt, order.map((i): Hit => ({ amount: amounts[i]!, source: sourceOf(world, entries[i]!.by) })))
     : c.s.kind === "dummy"
@@ -87,7 +91,9 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   // A regional mob has little hp: what a lifesteal can feed on is the hp the hits actually removed, not the overkill.
   let total = 0;
   for (const a of amounts) total += a;
-  const landedShare = c.kind === "mob" && c.s.kind !== "dummy" && total > applied ? applied / total : 1;
+  let landedShare = c.kind === "mob" && c.s.kind !== "dummy" && total > applied ? applied / total : 1;
+  // What a kill barrier swallowed is not hp lost: lifesteal feeds on the rest.
+  if (c.kind === "player" && barrierBefore > c.s.barrier && total > 0) landedShare = Math.max(0, 1 - (barrierBefore - c.s.barrier) / total);
   entries.forEach((e, i) => {
     const amount = amounts[i]!;
     if (!(amount > 0)) return;

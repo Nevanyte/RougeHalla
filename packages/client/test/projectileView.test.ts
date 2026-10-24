@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ProjectileLaunch, TimedFx } from "@raid/shared";
+import { packFx, unpackLaunches, type ProjectileLaunch, type TimedFx } from "@raid/shared";
 import { ProjectileView } from "../src/render/ProjectileView";
 
 /** A Graphics that draws nothing and remembers where it was last put. */
@@ -70,13 +70,14 @@ describe("ProjectileView launches", () => {
     expect(made[0]!.state.destroyed).toBe(true);
   });
 
-  it("flies one that was in the full state a client joined with, and does not double it", () => {
+  it("flies one a joining client was sent in a batch of its own, from where it left, and does not double it when a batch announces it again", () => {
     const { view, made } = setup();
-    const st = { kind: "arrow", x: arrow.x, y: arrow.y, vx: arrow.vx, vy: arrow.vy, t: arrow.t, range: arrow.range };
-    view.sync(new Map([["p1", st]]) as never);
-    view.noteLaunch(arrow);
+    const [sent] = unpackLaunches(packFx([], 1250, { launches: [arrow] })); // already 250 ms on its way
+    view.noteLaunch(sent!);
+    view.noteLaunch(arrow); // a batch queued behind the full state carried it too
     view.update(1100);
     expect(made).toHaveLength(1);
+    expect(made[0]!.state.pos![0]).toBeGreaterThan(0);
   });
 
   it("draws a projectile whose launch it never saw from the start its projEnd carries", () => {

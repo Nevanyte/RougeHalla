@@ -4,8 +4,9 @@
 //
 // The rules, in order:
 //   1. Inside the coliseum (after the teleport) there are no mobs to reach: hunt players.
-//   2. A player close by (playerThreat), or one that shot us (we lost hp with one in bow range), takes priority and keeps
-//      it until it is playerRelease away: the hunt is what the bots did before mobs existed.
+//   2. A player close by (playerThreat), or one that hit us lately with one in bow range, takes priority and keeps it until
+//      it is playerRelease away: the hunt is what the bots did before mobs existed. (A mob's blows are not a player's shots:
+//      the caller attributes each hit, see HuntInput.shotByPlayerAt.)
 //   3. Low hp (retreatHp) in a mob fight with an awake mob near: run from the awake mobs and the players, and stay off mobs.
 //   4. Otherwise farm mobs, while the run has budget left: the kill goal is not reached and mobs have not eaten more than
 //      focusBudgetMs of the bot's time. The target is the best of the alive mobs within reach of a path it can walk: one the
@@ -40,7 +41,7 @@ export interface MobHuntConfig {
   /** ...until it is this far, and one that hit us is a threat inside this range (a bow's reach). */
   playerRelease: number;
   underFireRange: number;
-  /** Hp lost within this long (ms) counts as "being shot". */
+  /** A hit by a player within this long (ms) counts as "being shot". */
   underFireMs: number;
   /** Mobs farther than this in a straight line are not considered, and a walk longer than reach x walkSlack is too far... */
   reach: number;
@@ -227,6 +228,11 @@ export interface HuntInput {
   walk: (to: Vec2) => number | null;
   /** The bot is attacking something now (its trigger is down). */
   attacking: boolean;
+  /**
+   * When (the `now` clock) a player last hit the bot; -Infinity if none has. Not "hp lost": a mob's blows lose hp too, and a
+   * bot that read them as a player's fire dropped its mob fight for a player that never shot.
+   */
+  shotByPlayerAt: number;
 }
 
 export type HuntDecision =
@@ -260,8 +266,6 @@ export class MobHunter {
   private eng: Engagement | null = null;
   private lastAt = 0;
   private lastKind: HuntDecision["kind"] = "player";
-  private lastHp = NaN;
-  private hpLostAt = -Infinity;
   private playerLock = false;
   private retreatUntil = 0;
   private retreatMinUntil = 0;
@@ -292,8 +296,6 @@ export class MobHunter {
     const dt = this.lastAt > 0 ? Math.min(250, Math.max(0, inp.now - this.lastAt)) : 0;
     this.lastAt = inp.now;
     this.tracker.observe(inp.mobs, inp.now);
-    if (inp.self.hp < this.lastHp - 0.5) this.hpLostAt = inp.now;
-    this.lastHp = inp.self.hp;
     if (this.lastKind === "mob") this.stats.focusMs += dt;
     const out = this.choose(inp, dt);
     this.lastKind = out.kind;
@@ -310,7 +312,7 @@ export class MobHunter {
 
     // A player close by, or shooting at us, wins; the lock is held until it is clearly gone.
     const near = inp.playerDistance;
-    if (near < c.playerThreat || (now - this.hpLostAt < c.underFireMs && near < c.underFireRange)) this.playerLock = true;
+    if (near < c.playerThreat || (now - inp.shotByPlayerAt < c.underFireMs && near < c.underFireRange)) this.playerLock = true;
     else if (near >= c.playerRelease) this.playerLock = false;
     if (this.playerLock) {
       this.eng = null;

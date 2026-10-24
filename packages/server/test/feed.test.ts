@@ -3,8 +3,8 @@
 // median) is tested in packages/shared/test/buffs.test.ts; this is the part that reads the sim state.
 import { describe, expect, it } from "vitest";
 import {
-  BOUNTY_ANNOUNCE_MS, CATCHUP_MULT, FEED_MOB_KILL_WEIGHT, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, mulberry32, rewardCurve, TICK_MS,
-  type FxEvent,
+  BOUNTY_ANNOUNCE_MS, CATCHUP_MULT, ELITE_BUFF_STACKS, feedView, FEED_MOB_KILL_WEIGHT, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP,
+  lobbyMedianFeed as hudMedianFeed, mobRewardMultiplier, mulberry32, rewardCurve, TICK_MS, type FxEvent,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { applyDamage, creditMobKill, downPlayer, markDropped, type Attacker } from "../src/sim/arena";
@@ -12,6 +12,8 @@ import {
   announceBounty, feedOfPlayer, flushAnnouncements, install as installFeed, lobbyMedianFeed, mobRewardFor,
 } from "../src/sim/feed";
 import { createGameWorld } from "../src/sim/gameplay";
+import { applyLedger, recordHit } from "../src/sim/ledger";
+import { placeMob } from "../src/sim/mobLife";
 import { addPlayer, removePlayer, step } from "../src/sim/step";
 import { createWorld, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
@@ -222,6 +224,122 @@ describe("mobRewardFor", () => {
     // [1.75, 4]: median 2.875, only 1.125 behind.
     expect(lobbyMedianFeed(w)).toBeCloseTo(2.875, 12);
     expect(mobRewardFor(w, P(w, 0), RT(w, 0))).toBe(rewardCurve(1.75));
+  });
+});
+
+describe("the HUD's feed line against the server's feed", () => {
+  // The client has no server: it counts the lobby median from public state (shared/buffView.ts) and the HUD shows what a mob pays.
+  // Both must be the sim's numbers or the line lies.
+  it("reads the same median and the same reward on a world with alive, dead, mia and just-downed players", () => {
+    const w = lobby([[0], [1], [2, 4], [0, 10], [5], [3, 2], [4], [1, 1]]); // feeds 0, 1, 3, 2.5, 5, 3.5, 4, 1.25
+    const agree = (label: string): void => {
+      const hud = hudMedianFeed(w.state.players.values());
+      expect(hud, label).toBe(lobbyMedianFeed(w));
+      for (let i = 0; i < 8; i++) {
+        if (P(w, i).status !== "alive") continue;
+        expect(feedView(P(w, i).kills, P(w, i).mobKills, hud).reward, `${label}, p${i}`).toBeCloseTo(mobRewardFor(w, P(w, i), RT(w, i)), 12);
+      }
+    };
+    agree("all alive");
+    expect(lobbyMedianFeed(w)).toBe(2.75);
+    kill(w, 4);
+    expect(P(w, 4).status).toBe("dead");
+    agree("after a death");
+    expect(lobbyMedianFeed(w)).toBe(2.5);
+    downPlayer(w, P(w, 5), RT(w, 5), "mia");
+    expect(P(w, 5).status).toBe("mia");
+    agree("after a leaver");
+    expect(lobbyMedianFeed(w)).toBe(1.875);
+    // Downed in a tick whose result is not out yet: the HUD sees the status the sim wrote at once.
+    w.stepping = true;
+    kill(w, 6);
+    w.stepping = false;
+    expect(RT(w, 6).resolved).toBe(false);
+    agree("downed this tick");
+    // The three who left the fight had the highest feeds and count for nothing on both sides.
+    expect(lobbyMedianFeed(w)).toBe(1.25); // p0 0, p1 1, p2 3, p3 2.5, p7 1.25
+    expect(feedView(0, 0, hudMedianFeed(w.state.players.values())).catchUp).toBe(false);
+  });
+});
+
+/** A lethal hit from `by` on `victim`, recorded in the ledger (it lands in the next pass). */
+function strike(w: World, victim: string, by: string): void {
+  recordHit(w, { victim, by: { id: by, name: by }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+}
+
+/** The ledger pass as the step loop runs it (`stepping`: a death waits for settle()), returning what it emitted. */
+function pass(w: World): SimEvent[] {
+  w.events = [];
+  w.stepping = true;
+  try {
+    applyLedger(w);
+  } finally {
+    w.stepping = false;
+  }
+  return w.events;
+}
+
+const elite = (w: World): string => placeMob(w, { region: "fire", elite: true, at: { x: 200, y: 200 } });
+
+/** The buff stacks `id` was paid in `events` (there is one `buff` fx per mob kill). */
+const stacksPaid = (events: SimEvent[], id: string): number => fxOf(events, "buff").filter((b) => b.id === id).reduce((n, b) => n + b.stacks, 0);
+
+describe("the lobby median of a ledger pass", () => {
+  it("is the lobby as it stood before the pass: a player who goes down in it does not change what a mob kill of the pass pays", () => {
+    const w = startRun(4);
+    // p0 feed 0 (the hungry one), p1 1, p2 2.5, p3 4: median 1.75, p0 is 1.75 behind, which is not MORE than 2.
+    setFeed(w, 0, 0);
+    setFeed(w, 1, 1);
+    setFeed(w, 2, 2, 2);
+    setFeed(w, 3, 4);
+    expect(lobbyMedianFeed(w)).toBe(1.75);
+    const mob = elite(w);
+    strike(w, idOf(1), idOf(3)); // p1 is downed first in the pass (a player kill)...
+    strike(w, mob, idOf(0)); // ...then p0 kills an elite
+    const events = pass(w);
+
+    expect(RT(w, 1).down).not.toBeNull();
+    // Without p1 the lobby is [0, 2.5, 4] with median 2.5, 2.5 ahead of p0, which would pay p0 the catch-up. It must not.
+    expect(mobRewardMultiplier(0, 2.5)).toBeGreaterThan(mobRewardMultiplier(0, 1.75));
+    expect(stacksPaid(events, idOf(0))).toBeCloseTo(ELITE_BUFF_STACKS * rewardCurve(0), 12);
+    expect(gvOf(events).filter((e) => e.id === idOf(0))).toEqual([{ type: "gv", id: idOf(0), amount: Math.round(GV_ELITE * rewardCurve(0)), reason: "elite" }]);
+    // The pass is over: the snapshot is gone and the live lobby counts again.
+    expect(w.combat.medianFeed).toBeNull();
+    expect(lobbyMedianFeed(w)).toBe(2.5); // [p0 0.25, p2 2.5, p3 5]
+  });
+
+  it("is not moved by the first payout of the pass either: every mob kill of it is paid against the same lobby", () => {
+    const w = startRun(4);
+    // Feeds [0, 1.75, 2.25, 5]: median 2.0, so p0 is exactly 2 behind (no catch-up). p1's elite kill lifts p1 to 2.0 and the
+    // median to 2.125, which would put p0 over the line if its kill were paid against the lobby after p1's.
+    setFeed(w, 0, 0);
+    setFeed(w, 1, 1, 3);
+    setFeed(w, 2, 2, 1);
+    setFeed(w, 3, 5);
+    expect(lobbyMedianFeed(w)).toBe(2);
+    const [mobOfP1, mobOfP0] = [elite(w), elite(w)];
+    strike(w, mobOfP1, idOf(1)); // p1's mob first: its payout comes first
+    strike(w, mobOfP0, idOf(0));
+    const events = pass(w);
+
+    expect(fxOf(events, "death").map((d) => d.by)).toEqual([idOf(1), idOf(0)]);
+    expect(stacksPaid(events, idOf(1))).toBeCloseTo(ELITE_BUFF_STACKS * rewardCurve(1.75), 12);
+    expect(stacksPaid(events, idOf(0))).toBeCloseTo(ELITE_BUFF_STACKS * rewardCurve(0), 12); // no catch-up: 1.0 times the curve
+    expect(mobRewardMultiplier(0, 2.125)).toBeGreaterThan(mobRewardMultiplier(0, 2));
+    expect(gvOf(events).map((e) => [e.id, e.amount])).toEqual([
+      [idOf(1), Math.round(GV_ELITE * rewardCurve(1.75))], [idOf(0), Math.round(GV_ELITE * rewardCurve(0))],
+    ]);
+    expect([RT(w, 1).mobKills, RT(w, 0).mobKills]).toEqual([4, 1]); // both counted, after the pass
+  });
+
+  it("reads the live lobby outside a pass", () => {
+    const w = lobby([[0], [1], [2, 2], [4]]);
+    expect(w.combat.medianFeed).toBeNull();
+    expect(lobbyMedianFeed(w)).toBe(1.75);
+    kill(w, 1);
+    expect(lobbyMedianFeed(w)).toBe(2.5);
+    w.combat.medianFeed = 0.5; // the snapshot, while a pass runs
+    expect(lobbyMedianFeed(w)).toBe(0.5);
   });
 });
 

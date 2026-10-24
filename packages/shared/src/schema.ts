@@ -83,32 +83,6 @@ export const MobState = schema({
 }, "MobState");
 export type MobState = SchemaType<typeof MobState>;
 
-/**
- * An arrow or a wand ball, loosed once and never updated: every client computes its straight flight,
- * position(T) = (x, y) + (vx, vy) * (T - t) / 1000, until a `projEnd` fx gives where it stopped. Removed from the
- * state when it stops. A reflection removes it and adds a new one. The server keeps these in `RaidState.projectiles`,
- * which only a joining client is sent (see there); a connected one gets the same numbers as a `ProjectileLaunch`.
- */
-export const ProjectileState = schema({
-  /** ProjectileKind: "arrow" | "ball" */
-  kind: t.string().default("arrow"),
-  /**
-   * The combatant who owns it (the shooter, or the shield holder for a reflected arrow). Server only: no client draws
-   * anything from it, and it was the largest field of every loosed arrow (10 of about 60 bytes).
-   */
-  owner: t.string().noSync().default(""),
-  x: t.float32().default(0),
-  y: t.float32().default(0),
-  /** World units per second. */
-  vx: t.float32().default(0),
-  vy: t.float32().default(0),
-  /** Server time it left (x, y). */
-  t: t.uint32().default(0),
-  /** The most it can travel from (x, y). */
-  range: t.uint16().default(0),
-}, "ProjectileState");
-export type ProjectileState = SchemaType<typeof ProjectileState>;
-
 export const ContainerState = schema({
   id: t.string().default(""),
   /** ContainerKind */
@@ -145,12 +119,6 @@ export const RaidState = schema({
   winner: t.string().default(""),
   players: t.map(PlayerState),
   mobs: t.map(MobState),
-  /**
-   * Not in the patches, only in the full state a client joins (or reconnects) with: the projectiles in flight at that
-   * moment. A live client learns of an arrow or ball from the `fxs` batch of the step that loosed it (`p`, see fxCodec.ts)
-   * and of its end from a `projEnd` fx, which is about 60 bytes cheaper per projectile than a map entry added and deleted.
-   */
-  projectiles: t.map(ProjectileState).fullStateOnly(),
   containers: t.map(ContainerState),
   /**
    * Every player and mob id, in the order the server first saw them; never reordered, shortened or reused. The fx

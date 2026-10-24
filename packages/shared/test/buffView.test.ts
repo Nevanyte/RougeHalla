@@ -211,6 +211,20 @@ describe("lobbyMedianFeed", () => {
     expect(lobbyMedianFeed(players)).toBe(2);
   });
 
+  it("counts a mob kill as a quarter of a kill: they decide the median here", () => {
+    // Feeds 0, 3 (1 + 8 / 4), 2: the median is 2. Counting player kills only it would be 1; adding the mobs of the dead and the MIA, 3.
+    const odd = [
+      { status: "alive", kills: 0, mobKills: 0 },
+      { status: "alive", kills: 1, mobKills: 8 },
+      { status: "alive", kills: 2, mobKills: 0 },
+      { status: "dead", kills: 0, mobKills: 40 },
+      { status: "mia", kills: 0, mobKills: 40 },
+    ];
+    expect(lobbyMedianFeed(odd)).toBe(2);
+    // Four alive: the mean of the middle two, 2 and 3 -> 2.5 (kills alone: 0, 0, 1, 2 -> 0.5).
+    expect(lobbyMedianFeed([...odd.slice(0, 3), { status: "alive", kills: 0, mobKills: 12 }])).toBe(2.5);
+  });
+
   it("is 0 for nobody", () => {
     expect(lobbyMedianFeed([])).toBe(0);
     expect(lobbyMedianFeed([{ status: "dead", kills: 3, mobKills: 0 }])).toBe(0);

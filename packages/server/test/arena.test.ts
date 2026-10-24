@@ -109,8 +109,13 @@ function farthestSpawn(world: World, from: Vec2): Vec2 {
 
 const attacker = (world: World, i: number): Attacker => ({ id: idOf(i), p: P(world, i), rt: RT(world, i) });
 
-/** Damage that is certainly lethal to a player who isn't immune. Returns what applyDamage returned. */
+/**
+ * Damage that is certainly lethal to a player who isn't immune. Returns what applyDamage returned. A source that isn't a
+ * player is a stray death: nobody hit the victim lately (their last hit is forgotten first), so nobody takes the kill.
+ * A mob finishing a player a rival hit within KILL_CREDIT_SECONDS is the "a mob finishes a hunted player" tests below.
+ */
 function kill(world: World, victim: number, source: Attacker | string = "test"): number {
+  if (typeof source === "string") RT(world, victim).lastHit = null;
   return applyDamage(world, P(world, victim), RT(world, victim), P(world, victim).hp + 1000, source);
 }
 
@@ -748,7 +753,7 @@ describe("disconnect and reconnect grace", () => {
         expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(1);
         runTo(w, 1500); // far past a full draw
         expect(P(w, 1).drawStartedAt).toBe(0);
-        expect(w.projectiles.size + w.state.projectiles.size).toBe(0);
+        expect(w.projectiles.size).toBe(0);
         // The client presses again when it is back: a fresh draw.
         enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 });
         tick(w);
@@ -1112,6 +1117,38 @@ describe("simultaneous last deaths", () => {
     });
     const results = resultsOf(runTo(w, 500));
     expect(results).toMatchObject({ p0: { outcome: "won", place: 1 }, p1: { outcome: "died", place: 2 } });
+  });
+
+  it("the kill barrier is hp for the tie too: 10 hp and a barrier of 200 beats 50 hp when both fall in one tick", () => {
+    for (const swap of [false, true]) {
+      const w = startRun(2, {}, { hp: 100 });
+      const [shielded, bare] = swap ? [1, 0] : [0, 1];
+      P(w, shielded).hp = 10;
+      P(w, shielded).barrier = 200;
+      P(w, bare).hp = 50;
+      atTick(w, 500, (world) => {
+        kill(world, bare);
+        kill(world, shielded); // far more than the barrier and the hp together
+      });
+      const results = resultsOf(runTo(w, 500));
+      expect(results[idOf(shielded)], `shielded p${shielded}`).toMatchObject({ outcome: "won", place: 1 });
+      expect(results[idOf(bare)], `bare p${bare}`).toMatchObject({ outcome: "died", place: 2 });
+    }
+  });
+
+  it("the barrier is counted as it stood at the start of the tick, not as the tick's hits left it", () => {
+    const w = startRun(2, {}, { hp: 100 });
+    P(w, 0).hp = 20;
+    P(w, 0).barrier = 0;
+    P(w, 1).hp = 50;
+    atTick(w, 500, (world) => {
+      P(world, 0).barrier = 500; // won mid-tick: too late to count
+      kill(world, 1);
+      kill(world, 0);
+    });
+    const results = resultsOf(runTo(w, 500));
+    expect(results[idOf(1)]).toMatchObject({ outcome: "won", place: 1 });
+    expect(results[idOf(0)]).toMatchObject({ outcome: "died", place: 2 });
   });
 
   it("two players killing each other in one tick: both get the kill, the higher fraction wins", () => {
@@ -1938,7 +1975,9 @@ describe("Glorious Victory", () => {
       out.kills++;
       const before = all[i - 1];
       let victim: string;
-      if (before?.type === "fx" && before.fx.kind === "death" && before.fx.by === e.id) {
+      // A death fx with no killer is a mob (or sudden death) finishing someone: when a kill follows it, a player took the credit
+      // for a hit they landed within KILL_CREDIT_SECONDS.
+      if (before?.type === "fx" && before.fx.kind === "death" && (before.fx.by === e.id || before.fx.by === null)) {
         victim = before.fx.id;
       } else {
         const leaver = all.slice(i + 1).find((x): x is EventOf<"resolved"> => x.type === "resolved");
@@ -3294,6 +3333,79 @@ describe("feed and bounty", () => {
       addPlayer(lobby, "x", "xavier");
       markDropped(lobby, "x");
       expect(lobby.players.get("x")!.droppedAt).toBeNull();
+    });
+
+    describe("a mob finishes a hunted player", () => {
+      // The same rule as leaving: running into a camp can't dodge a bounty. A mob (or the arrow of a shooter who has gone)
+      // is a string source; the death fx names no killer, and killedBy stays the mob.
+      const finish = (w: World, victim: number, source: string): void => {
+        applyDamage(w, P(w, victim), RT(w, victim), P(w, victim).hp + 1000, source);
+      };
+
+      it.each([
+        [0, true], [1000, true], [WINDOW_MS, true], [WINDOW_MS + TICK_MS, false], [60_000, false],
+      ] as const)("a finishing blow %i ms after the hit credits the hunter: %s", (afterMs, credited) => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1); // at TICK_MS
+        runTo(w, TICK_MS + afterMs);
+        w.events = [];
+        finish(w, 1, "Warden");
+        expect(RT(w, 1).killedBy).toBe("Warden");
+        expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: null }]);
+        expect(P(w, 0).kills).toBe(credited ? 1 : 0);
+        expect(RT(w, 0).gv.kills).toBe(credited ? GV_KILL : 0);
+        expect(ofType(w.events, "gv")).toHaveLength(credited ? 1 : 0);
+      });
+
+      it("pays the bounty on the victim and counts toward the hunter's own", () => {
+        const w = startRun(4, LONG);
+        P(w, 1).bounty = 80;
+        hit(w, 0, 1);
+        w.events = [];
+        finish(w, 1, "Warden");
+        expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 80 });
+        expect(ofType(w.events, "gv").map((e) => e.reason)).toEqual(["kill", "bounty"]);
+        expect(P(w, 0).kills).toBe(1);
+      });
+
+      it("sudden death credits nobody, whoever hit the victim a moment ago", () => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1);
+        w.events = [];
+        finish(w, 1, SUDDEN_DEATH_KILLER);
+        expect(P(w, 0).kills).toBe(0);
+        expect(ofType(w.events, "gv")).toEqual([]);
+      });
+
+      it("a rival's hit in the killing pass takes the kill, not the hunter from before", () => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1);
+        w.events = [];
+        applyHits(w, P(w, 1), RT(w, 1), [{ amount: 1000, source: "Warden" }, { amount: 1, source: attacker(w, 2) }]);
+        expect(P(w, 2).kills).toBe(1);
+        expect(P(w, 0).kills).toBe(0);
+        expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: idOf(2) }]);
+      });
+
+      it("a hunter who has left the run is paid nothing, and nothing breaks", () => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1);
+        removePlayer(w, idOf(0));
+        w.events = [];
+        finish(w, 1, "Warden");
+        expect(P(w, 1).status).toBe("dead");
+        expect(ofType(w.events, "gv")).toEqual([]);
+      });
+
+      it("the hunter's kill is paid once the pass is over, and only once", () => {
+        const w = startRun(4, LONG);
+        hit(w, 0, 1);
+        w.events = [];
+        applyHits(w, P(w, 1), RT(w, 1), [{ amount: 1000, source: "Warden" }]);
+        applyHits(w, P(w, 1), RT(w, 1), [{ amount: 1000, source: "Warden" }]); // already down: ignored
+        expect(P(w, 0).kills).toBe(1);
+        expect(ofType(w.events, "gv")).toHaveLength(1);
+      });
     });
 
     it("hurting yourself is never your own kill or leave credit", () => {

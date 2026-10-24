@@ -944,6 +944,81 @@ describe("evading", () => {
     expect(mob.rt.lastHitAt).toBe(0);
   });
 
+  // A mob on its way home is not a body for anything: a swing or an arrow goes through it, so it cannot block, reflect or
+  // riposte what it would not feel, and it cannot be woken (or used as a shield) by a hit it shrugs off.
+  it.each([["sentenced", "sword"], ["fire", "axe"], ["frost", "shield"]] as const)(
+    "a %s mob walking home is not a body: a %s swung at its face hits nothing, wakes nothing and blocks nothing",
+    (region, weapon) => {
+      const rig = makeRig();
+      const mob = spawn(rig.world, region, HOME, 0);
+      displace(rig.world, mob, HOME.x - 150, HOME.y);
+      const p = rig.world.state.players.get("p0")!;
+      p.faction = "frost";
+      p.weapon0 = weapon;
+      put(rig.world, "p0", HOME.x - 150 + 40, HOME.y);
+      brain(mob).mode = "return";
+      mob.s.hp = mob.s.maxHp / 2;
+      enqueueClientMessage(rig.world.players.get("p0")!.inputs, "attack", { a: Math.PI });
+      const events = run(rig, 8);
+      expect(rig.swings.length).toBeGreaterThanOrEqual(1);
+      expect(hitsOn(events, mob.id)).toEqual([]);
+      expect(events.some((e) => e.type === "fx" && e.fx.kind === "block")).toBe(false);
+      expect(mob.s.hp).toBeGreaterThanOrEqual(mob.s.maxHp / 2); // it only ever heals on the way
+      expect(brain(mob).mode).toBe("return");
+      expect(brain(mob).threat.size).toBe(0);
+    },
+  );
+
+  it.each(REGIONS)("an arrow flies through a %s mob walking home: no hit, no block, no reflection", (region) => {
+    const rig = makeRig();
+    // Far from its camp, so it is still walking home when the arrow arrives: it walks away from the archer, who is on the far side.
+    const mob = spawn(rig.world, region, HOME, 0);
+    displace(rig.world, mob, HOME.x + 400, HOME.y);
+    const p = rig.world.state.players.get("p0")!;
+    p.faction = "frost";
+    p.weapon0 = "bow";
+    put(rig.world, "p0", HOME.x + 470, HOME.y);
+    brain(mob).mode = "return";
+    const inputs = rig.world.players.get("p0")!.inputs;
+    const events: SimEvent[] = [];
+    // Which side of the mob each arrow was on at the end of the last tick, to see one cross it.
+    const side = new Map<string, number>();
+    let crossed = false;
+    for (let i = 0; i < 40; i++) {
+      if (i === 0) enqueueClientMessage(inputs, "attack", { a: Math.PI });
+      if (i === 6) enqueueClientMessage(inputs, "release", { a: Math.PI }); // a short draw: it is in the air while the mob is still near
+      events.push(...run(rig, 1));
+      for (const [id, pr] of rig.world.projectiles) {
+        const s = Math.sign(pr.x - mob.s.x);
+        if (side.has(id) && side.get(id) !== s && Math.abs(pr.y - mob.s.y) < PLAYER_RADIUS) crossed = true;
+        side.set(id, s);
+      }
+    }
+    // The arrow really went through the mob's place (otherwise this proves nothing), and was not stopped there.
+    expect(crossed).toBe(true);
+    const ends = events.flatMap((e) => (e.type === "fx" && e.fx.kind === "projEnd" ? [e.fx.reason] : []));
+    expect(ends.length).toBeGreaterThanOrEqual(1); // the arrow was loosed, and ended somewhere
+    expect(ends).not.toContain("hit");
+    expect(ends).not.toContain("reflected");
+    expect(hitsOn(events, mob.id)).toEqual([]);
+    expect(events.some((e) => e.type === "fx" && e.fx.kind === "block")).toBe(false);
+    expect(brain(mob).mode).toBe("return");
+    expect(brain(mob).threat.size).toBe(0);
+  });
+
+  it.each(REGIONS)("a %s mob walking home deals nothing, even with a player standing in its way", (region) => {
+    const rig = makeRig();
+    const mob = spawn(rig.world, region, HOME, 0);
+    displace(rig.world, mob, HOME.x - 120, HOME.y);
+    put(rig.world, "p0", HOME.x - 120 + 30, HOME.y);
+    brain(mob).mode = "return";
+    const events = run(rig, 12);
+    expect(brain(mob).mode).toBe("return");
+    expect(hitsOn(events, "p0")).toEqual([]);
+    expect(hpOf(rig.world, "p0")).toBe(1e9);
+    expect(events.some((e) => e.type === "fx" && (e.fx.kind === "windup" || e.fx.kind === "swing") && e.fx.by === mob.id)).toBe(false);
+  });
+
   it("a sniper beyond the leash wakes the mob; it runs to the leash edge, gives up, and is home whole and idle; the next hit wakes it again", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced", HOME, 1);
@@ -1072,14 +1147,16 @@ describe("blocks", () => {
     expect(hitsOn(later, "p0").some((h) => h.by === mob.id && h.weapon === "shield")).toBe(true);
   });
 
-  it("a block on a mob that is walking home does not wake it", () => {
+  it("a mob that is walking home is not a body: a swing passes through its shield without a block or a wake", () => {
     const { rig, mob } = frostRig("shield");
     displace(rig.world, mob, HOME.x - 150, HOME.y);
     put(rig.world, "p0", HOME.x - 150 + 40, HOME.y);
     brain(mob).mode = "return";
     enqueueClientMessage(rig.world.players.get("p0")!.inputs, "attack", { a: Math.PI });
     const events = run(rig, 6);
-    expect(blocksOn(events, mob.id).length).toBeGreaterThanOrEqual(1);
+    expect(rig.swings.length).toBeGreaterThanOrEqual(1); // the swing was made, at the mob's very face
+    expect(blocksOn(events, mob.id)).toEqual([]);
+    expect(hitsOn(events, mob.id)).toEqual([]);
     expect(brain(mob).mode).toBe("return");
     expect(brain(mob).target).toBeNull();
     expect(brain(mob).threat.size).toBe(0);

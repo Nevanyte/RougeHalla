@@ -877,6 +877,33 @@ describe("attack speed through the real formulas", () => {
     expect(packetFor(cOf(w, 2), "sword").raw).toBeGreaterThan(raw);
   });
 
+  it("the bow's interval and full draw shrink with the stacks, down to the 0.25 s floor", () => {
+    const w = startRun(4);
+    const fire = P(w, 0);
+    fire.weapon0 = "bow";
+    const before = timingsOf(fire, "bow")!;
+    expect(before.interval).toBeCloseTo(1 / (0.6 * 1.95), 9); // Fire's rate 0.6, the bow's boost 0.95
+    expect(before.fullDraw).toBeCloseTo(0.7 * before.interval, 9); // under the 0.6 s cap
+    fire.stacksAs = 3;
+    const m = buffMultiplier("attackSpeed", 3);
+    const after = timingsOf(fire, "bow")!;
+    expect(after.interval).toBeCloseTo(before.interval / m, 9);
+    expect(after.fullDraw).toBeCloseTo(before.fullDraw / m, 9);
+    expect(after.fullDraw).toBeLessThan(before.fullDraw - 0.1);
+    expect(after.cooldown).toBeCloseTo(after.interval - after.fullDraw, 9);
+    // Plague's bow starts 0.277 s: three stacks take it to the floor (and the draw to 70% of it), and more change nothing.
+    const plague = P(w, 2);
+    plague.weapon0 = "bow";
+    const plagueBefore = timingsOf(plague, "bow")!;
+    expect(plagueBefore.interval).toBeGreaterThan(WEAPONS.bow.floor);
+    for (const stacks of [3, 7]) {
+      plague.stacksAs = stacks;
+      expect(timingsOf(plague, "bow")!.interval).toBe(WEAPONS.bow.floor);
+      expect(timingsOf(plague, "bow")!.fullDraw).toBeCloseTo(0.7 * WEAPONS.bow.floor, 9);
+    }
+    expect(timingsOf(plague, "bow")!.fullDraw).toBeLessThan(plagueBefore.fullDraw);
+  });
+
   it("a mob keeps the unbuffed numbers", () => {
     const w = startRun(2);
     const id = addMob(w, { kind: "mob", name: "m", faction: "plague", at: { x: 100, y: 100 }, weapon: "sword" });

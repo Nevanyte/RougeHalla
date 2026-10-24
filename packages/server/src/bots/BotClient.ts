@@ -217,6 +217,8 @@ export class BotClient {
   private stallLoggedAt = 0;
   /** What the last think decided, for the log. */
   private lastHunt = "";
+  /** When a hit fx last showed a player (not a mob, not a signature tick) hurting us: the hunt's "being shot at" evidence. */
+  private playerHitAt = -Infinity;
 
   constructor(private readonly opts: BotOptions = {}) {
     this.done = new Promise((resolve) => { this.settle = resolve; });
@@ -344,6 +346,9 @@ export class BotClient {
     if ((fx.kind === "hit" || fx.kind === "block") && fx.id === this.room.sessionId && fx.by !== null && fx.by === this.avoidId) {
       this.avoidId = null;
     }
+    if (fx.kind === "hit" && fx.id === this.room.sessionId && fx.by !== null && fx.by !== fx.id && this.room.state.players.has(fx.by)) {
+      this.playerHitAt = Date.now();
+    }
   }
 
   /**
@@ -431,6 +436,7 @@ export class BotClient {
       mobs: s.mobs,
       walk: (to) => this.walkDistance(me, to),
       attacking: this.trigger,
+      shotByPlayerAt: this.playerHitAt,
     });
   }
 

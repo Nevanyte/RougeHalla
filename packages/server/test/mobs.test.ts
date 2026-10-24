@@ -254,7 +254,7 @@ describe("a dummy in a fight", () => {
     expect(hits).toHaveLength(1);
     expect(hits[0]).toMatchObject({ id: idOf(0), by: dummy, weapon: "shield" });
     expect(p.hp).toBeLessThan(p.maxHp);
-    expect(world.state.projectiles.size).toBe(0);
+    expect(world.projectiles.size).toBe(0);
   });
 
   it("takes the arrow after all when its shield faces away", () => {

@@ -7,7 +7,8 @@
 //   positions (x, y, x0, y0)    whole units
 //   angles (a)                  hundredths of a radian
 //   hit and heal amounts        tenths
-//   buff stacks and total       thousandths
+//   buff stacks                 thousandths
+//   buff total                  thousandths, never across a combo threshold (see encTotal)
 //   windup ms, projEnd t0       whole ms (the batch `t` stays exact)
 // Weapons, projectile kinds, end reasons, buff stats and combos travel as indices into the tables below. They are wire
 // format: client and server ship together, so a table may grow at its end but must never be reordered.
@@ -16,8 +17,10 @@
 // against 10 for a session id). `packFx` does it for the ids in `PackOptions.roster`, which are those a patch has already
 // carried, and `unpackFx` needs the client's copy of the roster to read them back. Any other string stays a string.
 //
-// Projectiles are not in the state patches (the `projectiles` map is in the full state only). One that is still flying
-// when the step that loosed it ends travels in the batch of that step, in `p`, one tuple each:
+// Projectiles are not in the synced state. One that is still flying when the step that loosed it ends travels in the batch
+// of that step, in `p`, one tuple each; a client that joins or reconnects mid-flight is sent the ones then flying as a
+// batch of its own with no events (`FxChannel.inFlight`), where `back` is how long they have flown (a ball's whole flight
+// is under 600 ms):
 //   launch   [id, kind, x, y, vx, vy, back?, range?]   (x, y, vx, vy in tenths; `back`: ms between the batch `t` and the
 //            moment it left, 0 for every projectile loosed in the step; `range`: left off, together with `back`, when it is
 //            the weapon's own, which it is unless a shield sent an arrow back)
@@ -35,7 +38,7 @@
 //   bounty   [id, name, bounty]             buff     [id, stat, stacks, total]
 //   combo    [id, combo, proc 0|1]          victory  [id|null, name|null, draw 0|1]
 // Adding a field to an FxEvent means adding it to its tuple here (and to the round-trip test).
-import type { BuffStat, ComboId } from "./buffs";
+import { comboTier, type BuffStat, type ComboId } from "./buffs";
 import type { SignatureKind } from "./signatures";
 import type { FxBatch, FxEvent, FxTuple, ProjectileEnd, ProjectileLaunch, TimedFx } from "./messages";
 import { WEAPONS, type ProjectileKind, type WeaponId } from "./weapons";
@@ -77,6 +80,19 @@ const DEFAULT_RANGE: Readonly<Record<ProjectileKind, number>> = {
 
 /** `+ 0` turns a -0 (what rounding a tiny negative gives) into 0, which msgpack and equality checks treat alike. */
 const enc = (v: number, scale: number): number => Math.round(v * scale) + 0;
+
+/**
+ * A buff `total` in thousandths, to the nearest, except that it never lands on the other side of a combo threshold from the
+ * server's own value: 2.9996 would round to 3.000 and the toast would read "(3.0)" for a combo the server has not unlocked
+ * (`comboTier` is the server's test, with its float slack, so the decoded total and the stacks in the state agree on it).
+ */
+function encTotal(total: number): number {
+  let n = enc(total, STACKS);
+  const tier = comboTier(total);
+  while (comboTier(n / STACKS) > tier) n--;
+  while (comboTier(n / STACKS) < tier) n++;
+  return n;
+}
 
 /** hit `flags` = weapon (0..WEAPON.name.length, 0 = none) + HIT_RADIX x signature (0 = none): one byte for both. */
 const HIT_RADIX = WEAPON.name.length + 1;
@@ -157,7 +173,7 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
     case "heal": return [KC.heal, fx.id, enc(fx.amount, AMOUNT)];
     case "teleport": return [KC.teleport];
     case "bounty": return [KC.bounty, fx.id, fx.name, Math.round(fx.bounty) + 0];
-    case "buff": return [KC.buff, fx.id, STAT.code[fx.stat], enc(fx.stacks, STACKS), enc(fx.total, STACKS)];
+    case "buff": return [KC.buff, fx.id, STAT.code[fx.stat], enc(fx.stacks, STACKS), encTotal(fx.total)];
     case "combo": return [KC.combo, fx.id, COMBO.code[fx.combo], fx.proc ? 1 : 0];
     case "victory": return [KC.victory, fx.id ?? null, fx.name ?? null, fx.draw ? 1 : 0];
     default: {
@@ -168,13 +184,22 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
   }
 }
 
+/** What reading a tuple needs: the roster, and whether a number in it named an entry the roster does not have. */
+interface Names {
+  roster: ArrayLike<unknown>;
+  missed: boolean;
+}
+
 /** A string field: the string itself, or the roster entry a number stands for. */
-const str = (v: unknown, roster: ArrayLike<unknown>): string | undefined => {
+const str = (v: unknown, names: Names): string | undefined => {
   if (typeof v === "string") return v;
-  const named = typeof v === "number" && v >= 0 ? roster[v] : undefined;
-  return typeof named === "string" ? named : undefined;
+  if (typeof v !== "number") return undefined;
+  const named = v >= 0 ? names.roster[v] : undefined;
+  if (typeof named === "string") return named;
+  names.missed = true;
+  return undefined;
 };
-const strOrNull = (v: unknown, roster: ArrayLike<unknown>): string | null | undefined => (v === null ? null : str(v, roster));
+const strOrNull = (v: unknown, names: Names): string | null | undefined => (v === null ? null : str(v, names));
 const flag = (v: unknown): boolean | undefined => (v === 1 ? true : v === 0 ? false : undefined);
 /** A scaled integer back to its value; undefined for anything that is not a finite number. */
 const dec = (v: unknown, scale: number): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v / scale : undefined);
@@ -182,16 +207,27 @@ const dec = (v: unknown, scale: number): number | undefined => (typeof v === "nu
 const pick = <K extends string>(t: Table<K>, v: unknown): K | undefined => (typeof v === "number" ? t.name[v] : undefined);
 
 /**
- * The events of a batch, each stamped with the batch's `t`. A tuple the client does not understand (an unknown kind code
- * from a newer server, a missing or mistyped field) is skipped, never thrown on: the rest of the batch still plays.
+ * Called for a tuple `unpackFx` had to skip. `unresolved`: it named a roster entry this client does not have (an index
+ * past its copy of `RaidState.roster`), which is a server or ordering bug and loses the whole event (a death, a hit, a
+ * projEnd); otherwise it could not be read for another reason (an unknown kind from a newer server, a missing field).
  */
-export function unpackFx(batch: FxBatch, roster: ArrayLike<string>): TimedFx[] {
+export type FxDropped = (tuple: unknown, unresolved: boolean) => void;
+
+/**
+ * The events of a batch, each stamped with the batch's `t`. A tuple the client does not understand (an unknown kind code
+ * from a newer server, a missing or mistyped field) is skipped, never thrown on: the rest of the batch still plays. Pass
+ * `onDrop` to hear about the skipped ones: nothing else makes a lost event visible.
+ */
+export function unpackFx(batch: FxBatch, roster: ArrayLike<string>, onDrop?: FxDropped): TimedFx[] {
   const out: TimedFx[] = [];
   const t = batch?.t;
   if (typeof t !== "number" || !Number.isFinite(t) || !Array.isArray(batch.l)) return out;
+  const names: Names = { roster, missed: false };
   for (const tuple of batch.l) {
-    const fx = unpackOne(tuple, roster, t);
+    names.missed = false;
+    const fx = unpackOne(tuple, names, t);
     if (fx) out.push({ ...fx, t });
+    else onDrop?.(tuple, names.missed);
   }
   return out;
 }
@@ -216,23 +252,23 @@ export function unpackLaunches(batch: FxBatch): ProjectileLaunch[] {
   return out;
 }
 
-function unpackOne(tuple: unknown, roster: ArrayLike<unknown>, t: number): FxEvent | null {
+function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
   if (!Array.isArray(tuple)) return null;
   const kind = pick(KIND, tuple[0]);
   switch (kind) {
     case "windup": {
-      const by = str(tuple[1], roster), weapon = pick(WEAPON, tuple[2]), a = dec(tuple[3], ANGLE), ms = dec(tuple[4], MS);
+      const by = str(tuple[1], names), weapon = pick(WEAPON, tuple[2]), a = dec(tuple[3], ANGLE), ms = dec(tuple[4], MS);
       return by !== undefined && weapon !== undefined && a !== undefined && ms !== undefined ? { kind, by, weapon, a, ms } : null;
     }
     case "swing": {
-      const by = str(tuple[1], roster), weapon = pick(WEAPON, tuple[2]);
+      const by = str(tuple[1], names), weapon = pick(WEAPON, tuple[2]);
       const x = dec(tuple[3], POS), y = dec(tuple[4], POS), a = dec(tuple[5], ANGLE);
       return by !== undefined && weapon !== undefined && x !== undefined && y !== undefined && a !== undefined
         ? { kind, by, weapon, x, y, a }
         : null;
     }
     case "hit": {
-      const id = str(tuple[1], roster), by = strOrNull(tuple[2], roster), amount = dec(tuple[3], AMOUNT), flags = tuple[4];
+      const id = str(tuple[1], names), by = strOrNull(tuple[2], names), amount = dec(tuple[3], AMOUNT), flags = tuple[4];
       if (id === undefined || by === undefined || amount === undefined || typeof flags !== "number" || !(flags >= 0)) return null;
       const w = flags % HIT_RADIX, code = Math.floor(flags / HIT_RADIX);
       const weapon = w === 0 ? null : WEAPON.name[w - 1];
@@ -242,16 +278,16 @@ function unpackOne(tuple: unknown, roster: ArrayLike<unknown>, t: number): FxEve
       return sig !== undefined ? { kind, id, by, amount, weapon, sig } : null;
     }
     case "block": {
-      const id = str(tuple[1], roster), by = str(tuple[2], roster), weapon = pick(WEAPON, tuple[3]);
+      const id = str(tuple[1], names), by = str(tuple[2], names), weapon = pick(WEAPON, tuple[3]);
       if (id === undefined || by === undefined || weapon === undefined) return null;
       return tuple[4] === 1 ? { kind, id, by, weapon, passive: true } : { kind, id, by, weapon };
     }
     case "stagger": {
-      const id = str(tuple[1], roster);
+      const id = str(tuple[1], names);
       return id !== undefined ? { kind, id } : null;
     }
     case "projEnd": {
-      const id = str(tuple[1], roster), proj = pick(PROJECTILE, tuple[2]), reason = pick(END, tuple[3]);
+      const id = str(tuple[1], names), proj = pick(PROJECTILE, tuple[2]), reason = pick(END, tuple[3]);
       const x = dec(tuple[4], POS), y = dec(tuple[5], POS);
       // Without a start (the client has the projectile in the state) it decodes as no flight at all: from (x, y), at `t`.
       const short = tuple.length < 7;
@@ -262,31 +298,31 @@ function unpackOne(tuple: unknown, roster: ArrayLike<unknown>, t: number): FxEve
         : null;
     }
     case "death": {
-      const id = str(tuple[1], roster), x = dec(tuple[2], POS), y = dec(tuple[3], POS), by = strOrNull(tuple[4], roster);
+      const id = str(tuple[1], names), x = dec(tuple[2], POS), y = dec(tuple[3], POS), by = strOrNull(tuple[4], names);
       return id !== undefined && x !== undefined && y !== undefined && by !== undefined ? { kind, id, x, y, by } : null;
     }
     case "heal": {
-      const id = str(tuple[1], roster), amount = dec(tuple[2], AMOUNT);
+      const id = str(tuple[1], names), amount = dec(tuple[2], AMOUNT);
       return id !== undefined && amount !== undefined ? { kind, id, amount } : null;
     }
     case "teleport":
       return { kind };
     case "bounty": {
-      const id = str(tuple[1], roster), name = str(tuple[2], roster), bounty = dec(tuple[3], 1);
+      const id = str(tuple[1], names), name = str(tuple[2], names), bounty = dec(tuple[3], 1);
       return id !== undefined && name !== undefined && bounty !== undefined ? { kind, id, name, bounty } : null;
     }
     case "buff": {
-      const id = str(tuple[1], roster), stat = pick(STAT, tuple[2]), stacks = dec(tuple[3], STACKS), total = dec(tuple[4], STACKS);
+      const id = str(tuple[1], names), stat = pick(STAT, tuple[2]), stacks = dec(tuple[3], STACKS), total = dec(tuple[4], STACKS);
       return id !== undefined && stat !== undefined && stacks !== undefined && total !== undefined
         ? { kind, id, stat, stacks, total }
         : null;
     }
     case "combo": {
-      const id = str(tuple[1], roster), combo = pick(COMBO, tuple[2]), proc = flag(tuple[3]);
+      const id = str(tuple[1], names), combo = pick(COMBO, tuple[2]), proc = flag(tuple[3]);
       return id !== undefined && combo !== undefined && proc !== undefined ? { kind, id, combo, proc } : null;
     }
     case "victory": {
-      const id = strOrNull(tuple[1], roster), name = strOrNull(tuple[2], roster), draw = flag(tuple[3]);
+      const id = strOrNull(tuple[1], names), name = strOrNull(tuple[2], names), draw = flag(tuple[3]);
       return id !== undefined && name !== undefined && draw !== undefined ? { kind, id, name, draw } : null;
     }
     default:

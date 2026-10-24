@@ -12,7 +12,8 @@
 // fire (damage over time and Fire's backlash are broadcast as `hit` fx with a `sig`, each dealt by a fighter of the faction
 // that owns it, a player or a mob); and in the long-patience run somebody kills a mob (the death fx and the GV agree). A
 // player can also die to a mob (killedBy is then the mob's name), and the fx that name a mob are not players' hits or
-// deaths. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
+// deaths. Every bot decodes every `fxs` batch it receives against its own copy of the roster (what a real client has), and
+// none of them loses a tuple. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
 // that the arena teleports them into the coliseum before anyone has died, after which they must keep landing hits.
 import fs from "node:fs";
 import net from "node:net";
@@ -21,8 +22,8 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from "vitest";
 import { matchMaker, Room } from "@colyseus/core";
 import {
-  GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, ROOM_NAME, SIGNATURE_WEAPONS,
-  SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS,
+  CATCHUP_MULT, GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, rewardCurve, ROOM_NAME,
+  SIGNATURE_WEAPONS, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS,
   type FactionId, type FxBatch, type ProfileResponse, type RunOutcome, type RunResult, type SignatureKind, type TimedFx,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -52,8 +53,13 @@ const OUTCOMES: readonly RunOutcome[] = ["won", "draw", "died", "mia"];
 const MOB_NAMES: ReadonlySet<string> = new Set(REGION_FACTIONS.flatMap((r) => [mobName(r, false), mobName(r, true)]));
 /** No bot may stand still without attacking, drawing or fetching a weapon for longer than this (ms): it would be stuck on a target it cannot reach. */
 const MAX_STALL_MS = 8_000;
-/** Whole runs played, at most, to see what the bots only do in most runs (see playUntil). */
-const RUN_ATTEMPTS = 4;
+/**
+ * Whole runs played, at most, to see what the bots only do in most runs (see playUntil). A run that needed a third would be
+ * a failure however it ended, so the second is the last: it asserts the evidence.
+ */
+const RUN_ATTEMPTS = 2;
+/** The most a mob can pay for one kill: an elite's GV, at the reward curve's best (a feed of 0) with the catch-up bonus. */
+const MOB_GV_MAX = Math.round(GV_ELITE * rewardCurve(0) * CATCHUP_MULT);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const sum = (xs: Iterable<number>): number => { let n = 0; for (const x of xs) n += x; return n; };
 /** What the store keeps and the file must repeat (the token and name are identity, not ledger). */
@@ -98,6 +104,25 @@ interface Timers { patienceSeconds: number; suddenDeathSeconds: number }
 
 /** What a run must also show beyond the books (which are always checked): a kill by a bot, a signature hit by a bot, a mob killed by a bot. */
 interface Wanted { expectKill?: boolean; expectSignature?: boolean; expectMobKill?: boolean }
+
+/** What one client's `fxs` messages came to when read the way the client reads them. */
+interface Decoding { batches: number; tuples: number; decoded: number; dropped: Array<{ t: number; tuple: unknown; unresolved: boolean }> }
+
+/**
+ * Has `bot`'s own room (the SDK client, with the roster it built from its state and patches) decode every `fxs` batch it
+ * receives. The broadcast spy below reads them against the server's roster, which cannot tell whether a client has the entry
+ * an index names by the time the batch arrives; this can.
+ */
+function watchDecoding(bot: BotClient): Decoding {
+  const seen: Decoding = { batches: 0, tuples: 0, decoded: 0, dropped: [] };
+  const room = bot["room"];
+  room.onMessage("fxs", (batch: FxBatch) => {
+    seen.batches++;
+    seen.tuples += batch.l.length;
+    seen.decoded += unpackFx(batch, room.state.roster, (tuple, unresolved) => seen.dropped.push({ t: batch.t, tuple, unresolved })).length;
+  });
+  return seen;
+}
 
 interface Played {
   bots: BotClient[]; players: number[]; fx: TimedFx[]; sessions: ReadonlySet<string>;
@@ -160,7 +185,11 @@ async function playRun(
     const started = Date.now();
 
     // All four walk into the same lobby, one after another; the fourth one starts the run.
-    for (const [i, bot] of bots.entries()) await bot.connect(url, names[i]!);
+    const decodings: Decoding[] = [];
+    for (const [i, bot] of bots.entries()) {
+      await bot.connect(url, names[i]!);
+      decodings.push(watchDecoding(bot));
+    }
     expect(new Set(bots.map((b) => b.roomId)).size).toBe(1);
     const roomId = bots[0]!.roomId;
 
@@ -192,6 +221,16 @@ async function playRun(
     const sessions = new Set(bots.map((b) => b.sessionId));
     const isPlayer = (id: string | null | undefined): boolean => id != null && sessions.has(id);
     const mobDeathBy = (id: string): number => fx.filter((f) => f.kind === "death" && !sessions.has(f.id) && f.by === id).length;
+
+    // --- no client lost a thing: every tuple of every batch named only fighters its roster has, and read
+    for (const [i, d] of decodings.entries()) {
+      expect(d.dropped, `${names[i]} could not read some fx`).toEqual([]);
+      expect(d.decoded, `${names[i]} decoded ${d.decoded} of ${d.tuples} fx tuples`).toBe(d.tuples);
+      if (i !== QUITTER) {
+        expect(d.batches, `${names[i]} never received a batch`).toBeGreaterThan(0);
+        expect(d.tuples, `${names[i]} never received an fx`).toBeGreaterThan(0);
+      }
+    }
 
     // --- the quitter left on purpose and got no result (the server had dropped it before settling it)
     expect(runs[QUITTER]!.error, `${names[QUITTER]} failed`).toBeUndefined();
@@ -333,12 +372,13 @@ async function playRun(
     for (const r of all) {
       expect(r.gv.total, `${r.profile} total`).toBe(r.gv.kills + r.gv.mobs + r.gv.bounty + r.gv.win);
       expect(r.gv.kills, `${r.profile} kill GV`).toBe(GV_KILL * r.kills);
-      // Mob GV is what the sim paid per mob killed (1 to 2 for a normal one, 3 to 10 for an elite, scaled by the reward curve),
-      // under the per-run cap: the death fx name the killer, so a bot with mob GV killed at least one and a bot that killed
-      // some was paid at least a GV each (up to the cap) and no more than an elite's worth each.
+      // Mob GV is what the sim paid per mob killed (1 to 2 for a normal one, 3 to 10 for an elite, scaled by the reward curve
+      // and, for a player far behind the lobby's feed, the catch-up bonus), under the per-run cap: the death fx name the killer,
+      // so a bot with mob GV killed at least one and a bot that killed some was paid at least a GV each (up to the cap) and no
+      // more than MOB_GV_MAX each (an elite killed with the catch-up bonus: 12, not 10).
       const killed = mobDeathBy(bots[names.indexOf(r.profile)]!.sessionId);
       expect(r.gv.mobs, `${r.profile} mob GV`).toBeLessThanOrEqual(GV_MOB_CAP);
-      expect(r.gv.mobs, `${r.profile} mob GV against the ${killed} mobs it killed`).toBeLessThanOrEqual(GV_ELITE * killed);
+      expect(r.gv.mobs, `${r.profile} mob GV against the ${killed} mobs it killed`).toBeLessThanOrEqual(MOB_GV_MAX * killed);
       expect(r.gv.mobs, `${r.profile} mob GV against the ${killed} mobs it killed`).toBeGreaterThanOrEqual(Math.min(GV_MOB_CAP, killed));
       expect(r.gv.bounty).toBeGreaterThanOrEqual(0);
       if (r.gv.bounty > 0) {
@@ -438,7 +478,8 @@ async function playRun(
  * look. Every run checks all of playRun's books, so a run without the evidence is still a good run; what it lacks is the proof
  * that the bots farm a mob, fight a player and bring out their signatures. Those are properties of the bots against a random map
  * (the room draws its seed itself), not of every run: the spawns can put two bots close enough to fight before either reached a
- * camp (no mob kill, about one run in twelve measured), or the fights can end before a signature lands.
+ * camp (no mob kill: 1 run in 20 measured), or the fights can end before a signature lands. More than two attempts is a
+ * failure, not a retry: what the bots do must hold in far more than the 19 runs in 20 that this allows twice in a row.
  */
 async function playUntil(prefix: string, lineup: readonly FactionId[], timers: Timers, want: Required<Wanted>): Promise<Played> {
   for (let attempt = 1; ; attempt++) {
@@ -449,15 +490,18 @@ async function playUntil(prefix: string, lineup: readonly FactionId[], timers: T
       ...(want.expectSignature && played.signatureHits === 0 ? ["a signature hit by a bot"] : []),
       ...(want.expectMobKill && played.mobKills === 0 ? ["a mob killed by a bot"] : []),
     ];
-    if (last || missing.length === 0) return played;
-    console.log(`[e2e] attempt ${attempt}: no ${missing.join(" and no ")}, playing again`);
+    if (last || missing.length === 0) {
+      console.log(`[e2e] ${prefix}: the evidence took ${attempt} attempt${attempt === 1 ? "" : "s"} (at most ${RUN_ATTEMPTS} are allowed)`);
+      return played;
+    }
+    console.log(`[e2e] attempt ${attempt} of ${RUN_ATTEMPTS}: no ${missing.join(" and no ")}, playing again`);
   }
 }
 
 describe("headless bots hunt through a full run", () => {
   it("ends in one winner (or a draw) and banks exactly the GV it paid", async () => {
     // Patience 30 s, then 10 s locked in the coliseum before sudden death starts. The first 30 s are what the bots farm mobs
-    // in (the walk to a camp is 4-6 s and a kill takes 5-15 s): a bot kills a mob in most runs (playUntil). Even bots
+    // in (the walk to a camp is 4-6 s and a kill takes 5-15 s): a bot kills a mob in 19 runs in 20 (playUntil). Even bots
     // that never meet are then teleported together (the mobs go home) and burnt down by sudden death (about 10 s of ramp from
     // full hp), so a death is never more than about 25 s after that and a run ends within roughly 60-80 s whatever the bots do.
     // The 10 s are what lets the bots kill each other first (a faction's hp is 500-1750 and a hit a fraction of that): with

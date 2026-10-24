@@ -251,7 +251,8 @@ export class FighterArt {
 
 /**
  * The small hp bar over a fighter: hp in green to red, then the kill barrier in pale blue after it (both as shares of
- * max hp). `top` is the bar's y in the view's local frame. It repaints only when what it shows moves by half a pixel.
+ * max hp). `top` is the bar's y in the view's local frame. It repaints only when what it shows moves by half a pixel or
+ * its colour changes.
  */
 export class HpBar {
   readonly g: Phaser.GameObjects.Graphics;
@@ -265,15 +266,17 @@ export class HpBar {
     const share = hpBarFractions(hp, maxHp, barrier);
     const hpPx = Math.round(share.hp * w * 2);
     const barrierPx = Math.round(share.barrier * w * 2);
-    const sig = `${hpPx}|${barrierPx}|${w}|${top}`;
+    // The colour follows hp against max hp: a barrier that shrinks the bar's scale must not turn healthy hp yellow or red.
+    const f = Math.min(1, Math.max(0, hp / (maxHp > 0 ? maxHp : 1)));
+    const color = f > 0.5 ? 0x66bb6a : f > 0.25 ? 0xffca28 : 0xef5350;
+    // The colour is in the signature: crossing 50% or 25% inside the same half pixel must still repaint.
+    const sig = `${hpPx}|${barrierPx}|${w}|${top}|${color}`;
     if (sig === this.sig) return;
     this.sig = sig;
     const g = this.g;
     g.clear();
     g.fillStyle(0x000000, 0.6).fillRect(-w / 2, top, w, 4);
-    // The colour follows hp against max hp: a barrier that shrinks the bar's scale must not turn healthy hp yellow or red.
-    const f = Math.min(1, Math.max(0, hp / (maxHp > 0 ? maxHp : 1)));
-    if (hpPx > 0) g.fillStyle(f > 0.5 ? 0x66bb6a : f > 0.25 ? 0xffca28 : 0xef5350, 1).fillRect(-w / 2, top, hpPx / 2, 4);
+    if (hpPx > 0) g.fillStyle(color, 1).fillRect(-w / 2, top, hpPx / 2, 4);
     if (barrierPx > 0) g.fillStyle(BARRIER_COLOR, 1).fillRect(-w / 2 + hpPx / 2, top, barrierPx / 2, 4);
   }
 

@@ -72,14 +72,15 @@ export function beginRun(world: World): void {
 }
 
 /**
- * First thing in every active tick: the hp fractions that break a tie between simultaneous last deaths, and the
- * bounties this tick's kills pay (world.arena.bountyAtTickStart).
+ * First thing in every active tick: the (barrier included) hp fractions that break a tie between simultaneous last
+ * deaths, and the bounties this tick's kills pay (world.arena.bountyAtTickStart).
  */
 export function markTickStart(world: World): void {
   world.arena.bountyAtTickStart.clear();
   for (const [id, p] of world.state.players) {
     const rt = world.players.get(id);
-    if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? p.hp / p.maxHp : 0;
+    // The kill barrier is hp for every hit, so it counts here too: effective hp over max hp.
+    if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? (p.hp + p.barrier) / p.maxHp : 0;
     world.arena.bountyAtTickStart.set(id, p.bounty);
   }
 }
@@ -133,12 +134,17 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   const by = typeof killer.source === "string" ? null : killer.source;
   rtv.killedBy = by ? by.p.name : (killer.source as string);
   emit(world, { type: "fx", fx: { kind: "death", id: rtv.id, x: victim.x, y: victim.y, by: by?.id ?? null } });
-  if (topRival) {
+  // A rival's hit in the killing pass takes the kill. Failing that, a mob (or a departed shooter's arrow) that finishes
+  // someone a player has been hunting gives the kill to that player if they hit within KILL_CREDIT_SECONDS: the same
+  // rule as leaving, so running into a camp can't dodge a bounty. Sudden death is the arena's own and credits nobody.
+  const credited = topRival
+    ? topRival.source
+    : typeof top.source === "string" && top.source !== SUDDEN_DEATH_KILLER ? recentRival(world, rtv, world.state.serverTime) : null;
+  if (credited) {
     // The bounty is read now, with every other death of the pass still pending, and paid once the pass is over
     // (payLater): a shield or max hp won by a kill never saves a killer who dies in the same pass.
-    const rival = topRival.source;
     const bounty = owedBounty(world, victim, rtv);
-    payLater(world, () => creditKill(world, rival, victim, rtv, bounty));
+    payLater(world, () => creditKill(world, credited, victim, rtv, bounty));
   }
   downPlayer(world, victim, rtv, "died");
   return before;
@@ -167,17 +173,23 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
 }
 
 /**
- * Who gets the kill when `rt` leaves now: the last player to hit them, if still in the run and the hit came at most
- * KILL_CREDIT_SECONDS before the player left. A dropped connection left when it dropped, not when its reconnect grace
- * ran out (any hit during the grace is later still, so it counts too).
+ * The last player to hit `rt`, if they are still in the run and the hit came at most KILL_CREDIT_SECONDS before `at`.
  */
-function leaveCredit(world: World, rt: PlayerRuntime): Attacker | null {
+function recentRival(world: World, rt: PlayerRuntime, at: number): Attacker | null {
   const hit = rt.lastHit;
-  const leftAt = rt.droppedAt ?? world.state.serverTime;
-  if (!hit || leftAt - hit.at > KILL_CREDIT_SECONDS * 1000) return null;
+  if (!hit || at - hit.at > KILL_CREDIT_SECONDS * 1000) return null;
   const p = world.state.players.get(hit.by);
   const att = world.players.get(hit.by);
   return p && att && !att.resolved ? { id: hit.by, p, rt: att } : null;
+}
+
+/**
+ * Who gets the kill when `rt` leaves now: the last player to hit them within KILL_CREDIT_SECONDS of the moment they
+ * left. A dropped connection left when it dropped, not when its reconnect grace ran out (any hit during the grace is
+ * later still, so it counts too).
+ */
+function leaveCredit(world: World, rt: PlayerRuntime): Attacker | null {
+  return recentRival(world, rt, rt.droppedAt ?? world.state.serverTime);
 }
 
 /**
