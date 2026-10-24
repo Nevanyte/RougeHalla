@@ -125,13 +125,13 @@ IDENTITY = [
     ("Plague", "remove the execute", False, lambda p: with_params(p, execute=0),
      {("Plague", "Frost")}, 43),
     ("Plague", "remove the flat disease", True, lambda p: with_params(p, plague=0),
-     {("Plague", "Frost"), ("Plague", "Holy")}, 114),
+     {("Plague", "Frost")}, 114),
     ("Frost", "remove the slow", False, lambda p: with_params(p, slow=0),
-     {("Frost", "Holy")}, 108),
+     {("Frost", "Holy")}, 103),
     ("Holy", "remove lifesteal", False, lambda p: with_params(p, ls0=0, ls1=0),
-     {("Holy", "Sentenced")}, 37),
+     {("Holy", "Sentenced")}, 30),
     ("Holy", "flat lifesteal, no missing-health scaling", True, lambda p: with_params(p, ls1=0),
-     set(), 26),
+     set(), 19),
 ]
 
 base_margin = {e: margin_pts(BY, *e)[0] for e in BEATS}

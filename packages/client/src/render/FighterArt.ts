@@ -113,7 +113,7 @@ const PULL_STEPS = 16;
 const HELD_SCALE = 1.15;
 /**
  * A chill pushes a draw's start time later by under 0.6 x one tick (30 ms) per tick; a new start further ahead than this
- * is a restart (a stagger), not the same draw slowing down.
+ * is a new draw (the next one after a shot), not the same draw slowing down.
  */
 const DRAW_PUSH_SLACK_MS = 100;
 
@@ -153,7 +153,7 @@ export class DrawTrack {
     if (drawStartedAt > 0) {
       const ahead = drawStartedAt - this.latest;
       if (this.latest === 0 || this.end !== Infinity || ahead < 0 || ahead > DRAW_PUSH_SLACK_MS) {
-        // A new draw: the first one, or a stagger restarting it.
+        // A new draw: the first one, or the next after a shot.
         this.starts.length = 0;
         this.starts.push({ patchT, start: drawStartedAt });
         this.end = Infinity;

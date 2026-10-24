@@ -22,9 +22,11 @@
 // Every bonus is raw damage x bonusMultiplier(the owner's weapon in hand), mitigated with the owner's damage shares. It
 // joins this tick's ledger (beforeDamage), so it lands at the same moment as the tick's hits and no order decides.
 //
-// The chill. A chilled fighter's cooldown (readyAt), bow draw, ranged recovery and press buffer advance at
-// chillMultiplier x real time, re-decided every tick (stretchUntil), so nothing is snapshotted at swing time. These
-// timers stay in unchilled seconds of work, which is what the weapon state machine computes with. An attack started
+// The chill. A chilled fighter's cooldown (readyAt), bow draw and press buffer advance at chillMultiplier x real time,
+// re-decided every tick (stretchUntil), so nothing is snapshotted at swing time. These timers stay in unchilled seconds
+// of work, which is what the weapon state machine computes with. The ranged recovery (0.1x move until the cooldown
+// that started with the shot ends) keeps its unchilled end: stretched, it would near-root a chilled shooter at any
+// range, and the chill's move slow is meant to reach only CHILL_MOVE_RADIUS. An attack started
 // this tick from a carried remainder counted that remainder at full speed and is corrected for the chill of the tick
 // that just ended. Within CHILL_MOVE_RADIUS of a Frost that chills it, a fighter also moves at CHILL_MOVE_MULT. Several
 // Frosts don't stack.
@@ -36,9 +38,11 @@ import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
   engageRange, HEAL_LOCKOUT_SECONDS, hasLineOfSight, isDot, lifestealFraction, markDps, markShare, SIG_BURNING,
-  SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind, type WeaponId,
+  SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind, type WeaponId,
 } from "@raid/shared";
-import { activeWeapon, allCombatants, combatant, factionOf, standing, standingCombatants, type Combatant } from "./combatant";
+import {
+  activeWeapon, allCombatants, combatant, factionOf, standing, standingCombatants, timingsOf, type Combatant,
+} from "./combatant";
 import { recordHit } from "./ledger";
 import { chainHook, collisionMap, emit, tieRank, type PendingAction, type World } from "./world";
 
@@ -64,6 +68,8 @@ export interface SigFighter {
   chillers: string[];
   /** The weapon action seen last tick after the weapon phase, to spot one started this tick. */
   seenAction: PendingAction | null;
+  /** A stagger pauses this fighter's damage over time until then (see staggerPause). */
+  dotPausedUntil: number;
 }
 
 export interface FactionsRuntime {
@@ -95,7 +101,7 @@ function newRuntime(): FactionsRuntime {
 function newFighter(): SigFighter {
   return {
     target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, markElapsed: 0, hpFrac: 1,
-    combatAt: -Infinity, chill: 1, chillers: [], seenAction: null,
+    combatAt: -Infinity, chill: 1, chillers: [], seenAction: null, dotPausedUntil: 0,
   };
 }
 
@@ -181,7 +187,6 @@ function afterWeapons(world: World): void {
         act.startedAt += back;
         c.s.drawStartedAt = act.startedAt;
       } else {
-        if (w.recoverUntil === c.s.readyAt) w.recoverUntil += back;
         c.s.readyAt += back;
       }
     }
@@ -284,10 +289,11 @@ function signatureDamage(world: World, dtMs: number): void {
     const t = f.engaged && f.target !== null ? byId.get(f.target) : undefined;
     if (spec && weapon && t) {
       const bm = bonusMultiplier(weapon);
+      const dot = now < f.dotPausedUntil ? 0 : bm * dt;
       const foeFrac = sigOf(world, t.id).hpFrac;
-      bonus(world, c, spec, weapon, t, "burn", burnDps(spec) * bm * dt);
-      bonus(world, c, spec, weapon, t, "disease", diseaseDps(spec, foeFrac) * bm * dt);
-      bonus(world, c, spec, weapon, t, "mark", markDps(spec, f.markElapsed) * bm * dt);
+      bonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot);
+      bonus(world, c, spec, weapon, t, "disease", diseaseDps(spec, foeFrac) * dot);
+      bonus(world, c, spec, weapon, t, "mark", markDps(spec, f.markElapsed) * dot);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {
         for (const a of rt.attacks) {
@@ -346,6 +352,7 @@ function afterDamage(world: World, dtMs: number): void {
     if (c && spec?.sustain) heal(world, c, amount * lifestealFraction(spec, sigOf(world, id).hpFrac), { lifesteal: true });
   }
 
+  staggerPause(world, fighters);
   updateChill(world, fighters, byId, dtMs);
   syncVisuals(world, byId);
 
@@ -355,6 +362,27 @@ function afterDamage(world: World, dtMs: number): void {
     }
     rt.dot.clear();
     rt.dotSince = now;
+  }
+}
+
+/**
+ * A stagger cancels a swing or cast only while it is still winding up, so on average it costs a fighter one windup of
+ * its weapon's damage. Damage over time would lose nothing (a DoT faction's hits are a small share of its damage), so
+ * every stagger that lands (its immunity starts this tick, whether or not it cancelled anything) pauses the fighter's
+ * burn, disease and mark for its weapon's windup: the same expected cost. Fire's backlash, a reply to the enemy's
+ * swings, never pauses. Without this a sword's staggers trade only against hit-based factions: Holy (sword) lost
+ * Holy > Sentenced (sword) outright in the real sim.
+ */
+function staggerPause(world: World, fighters: readonly Combatant[]): void {
+  const now = world.state.serverTime;
+  const landed = staggerImmuneUntil(now);
+  for (const c of fighters) {
+    if (c.rt.weapon.staggerImmuneUntil !== landed) continue;
+    const w = activeWeapon(c.s);
+    const tm = w ? timingsOf(c.s, w) : null;
+    if (!tm || !(tm.windup > 0)) continue;
+    const f = sigOf(world, c.id);
+    f.dotPausedUntil = Math.max(f.dotPausedUntil, now + tm.windup * 1000);
   }
 }
 
@@ -400,7 +428,6 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
     f.chillers = from ? [...from] : [];
     if (m < 1) {
       c.s.readyAt = stretchUntil(c.s.readyAt, now, dtMs, m);
-      w.recoverUntil = stretchUntil(w.recoverUntil, now, dtMs, m);
       w.bufferedUntil = stretchUntil(w.bufferedUntil, now, dtMs, m);
       if (w.action?.kind === "draw") {
         w.action.startedAt += (1 - m) * dtMs;

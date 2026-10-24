@@ -128,7 +128,7 @@ export interface LedgerEntry {
 export interface LandedHit {
   victim: string;
   by: string;
-  /** After armor and shield. */
+  /** After armor and shield: the whole hit, even past the hp a killing tick removes (as testing/realtime.py counts it). */
   amount: number;
   weapon: WeaponId;
   sig?: SignatureKind;

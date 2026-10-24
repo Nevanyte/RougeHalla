@@ -1217,12 +1217,12 @@ describe("Frost (wall of ice)", () => {
     expect(P(world, "b").readyAt).toBe(next + 10_000);
   });
 
-  it("stretches the ranged recovery along with the cooldown", () => {
+  it("leaves the ranged recovery's end alone (the move slow belongs to CHILL_MOVE_RADIUS)", () => {
     const world = pair();
     const next = world.state.serverTime + TICK_MS;
     RT(world, "b").weapon.recoverUntil = next + 10_000;
     run(world, 2);
-    expect(RT(world, "b").weapon.recoverUntil).toBeCloseTo(next + 10_000 + 2 * (1 - CHILL) * TICK_MS, 9);
+    expect(RT(world, "b").weapon.recoverUntil).toBe(next + 10_000);
   });
 
   it("stretches the press buffer along with the cooldown", () => {

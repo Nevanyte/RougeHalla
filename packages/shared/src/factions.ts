@@ -62,7 +62,7 @@ export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   holy: {
     id: "holy", name: "Holy", displayName: "Demon Blood", role: "Sustain juggernaut", theme: "Light that burns brighter near death", color: 0xfff176,
     hp: 1450, rate: 0.95, hit: 65, phys: 1.0, trueShare: 0.0, armor: 0, shield: 250,
-    mechanic: "plain", sustain: "radiant", params: { ls0: 0.25, ls1: 1.75, ls_cap: 1.5 },
+    mechanic: "plain", sustain: "radiant", params: { ls0: 0.25, ls1: 1.25, ls_cap: 1.0 },
   },
 };
 
