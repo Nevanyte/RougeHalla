@@ -3,6 +3,7 @@ import { PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BodyFlash, FighterArt, drawHpBar, factionColor } from "./FighterArt";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
+import { SignatureArt } from "./SignatureArt";
 
 const HIT_FLASH_MS = 120;
 const SHIELD_COLOR = 0x4fc3f7;
@@ -31,6 +32,7 @@ export class PlayerView {
   private readonly crown: Phaser.GameObjects.Graphics;
   private readonly crownLabel: Phaser.GameObjects.Text;
   private readonly art: FighterArt;
+  private readonly signatures: SignatureArt;
   private readonly flashing: BodyFlash;
   /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
   private crownBounty = 0;
@@ -41,6 +43,7 @@ export class PlayerView {
     const mark = scene.add.graphics().setVisible(isLocal);
     mark.lineStyle(2, LOCAL_MARK, 0.9).strokeEllipse(0, 0, PLAYER_RADIUS * 2.9, PLAYER_RADIUS * 2.9 * Y_SCALE);
     this.art = new FighterArt(scene);
+    this.signatures = new SignatureArt(scene);
     this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor(""))
       .setStrokeStyle(2, isLocal ? LOCAL_MARK : 0x111111, isLocal ? 0.95 : 0.8);
     this.flashing = new BodyFlash(this.body, factionColor(""));
@@ -64,8 +67,8 @@ export class PlayerView {
       color: "#ffe082", stroke: "#000000", strokeThickness: 3,
     }).setOrigin(0.5, 1).setVisible(false);
     this.root = scene.add.container(0, 0, [
-      shadow, mark, this.art.ground, this.body, this.nose, this.art.held, this.shieldRing, this.hpBar, this.label,
-      this.crown, this.crownLabel,
+      shadow, mark, this.signatures.ground, this.art.ground, this.body, this.nose, this.art.held, this.signatures.aura,
+      this.shieldRing, this.hpBar, this.label, this.crown, this.crownLabel,
     ]);
   }
 
@@ -77,8 +80,9 @@ export class PlayerView {
   /**
    * `renderT`: the server time this frame is drawn at. `patchT`: the server time of the newest patch (see FighterArt).
    * `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them.
+   * `signatures`: draw the faction signature marks (the synced values freeze when a run ends, so only while it is active).
    */
-  update(x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false): void {
+  update(x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false, signatures = false): void {
     this.flashing.tick();
     const visible = drawAsAlive || p.status === "alive" || p.status === "lobby";
     this.root.setVisible(visible);
@@ -89,6 +93,7 @@ export class PlayerView {
     const weapon = this.art.update(p, renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(p.facing));
     this.label.setText(p.name);
+    this.signatures.update(p.sig, p.brand, signatures);
 
     drawHpBar(this.hpBar, p.maxHp > 0 ? p.hp / p.maxHp : 0, -BODY_LIFT - PLAYER_RADIUS - 8);
 

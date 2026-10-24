@@ -50,16 +50,18 @@ export function weaponCenterX(w: WeaponId): number {
  */
 export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -1): void {
   const color = WEAPONS[w].color;
-  g.lineStyle(1, OUTLINE, 0.8);
+  // A dark, fairly opaque edge on every part so the silhouette holds against both light and dark floors.
+  g.lineStyle(1.5, OUTLINE, 0.95);
   switch (w) {
     case "sword":
-      g.fillStyle(0x6d4c41, 1).fillRect(R - 4, -1.5, 6, 3);
-      g.fillStyle(0xffd54f, 1).fillRect(R + 1, -5, 2.5, 10);
-      g.fillStyle(color, 1).fillRect(R + 3.5, -2, 24, 4).strokeRect(R + 3.5, -2, 24, 4);
-      g.fillTriangle(R + 27.5, -2, R + 27.5, 2, R + 34, 0);
+      g.fillStyle(0x6d4c41, 1).fillRect(R - 4, -1.8, 6, 3.6).strokeRect(R - 4, -1.8, 6, 3.6);
+      g.fillStyle(0xffd54f, 1).fillRect(R + 1, -5.5, 3, 11).strokeRect(R + 1, -5.5, 3, 11);
+      g.fillStyle(color, 1).fillRect(R + 4, -2.5, 24, 5).strokeRect(R + 4, -2.5, 24, 5);
+      g.fillTriangle(R + 28, -2.5, R + 28, 2.5, R + 35, 0);
+      g.beginPath().moveTo(R + 28, -2.5).lineTo(R + 35, 0).lineTo(R + 28, 2.5).strokePath();
       break;
     case "axe":
-      g.fillStyle(0x8d6e63, 1).fillRect(R - 3, -1.5, 30, 3);
+      g.fillStyle(0x8d6e63, 1).fillRect(R - 3, -2, 30, 4).strokeRect(R - 3, -2, 30, 4);
       g.fillStyle(color, 1).beginPath()
         .moveTo(R + 15, -1.5).lineTo(R + 19, -10).lineTo(R + 29, -8).lineTo(R + 26, 0).lineTo(R + 29, 8).lineTo(R + 19, 10)
         .lineTo(R + 15, 1.5).closePath().fillPath().strokePath();
@@ -70,7 +72,8 @@ export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -
       const tipY = 14.3;
       const ready = pull >= 1;
       const nockX = tipX - 9 * Math.max(0, Math.min(1, pull));
-      g.lineStyle(3, color, 1).beginPath().arc(R - 4, 0, 17, -1, 1).strokePath();
+      g.lineStyle(6, OUTLINE, 0.9).beginPath().arc(R - 4, 0, 17, -1, 1).strokePath();
+      g.lineStyle(3.5, color, 1).beginPath().arc(R - 4, 0, 17, -1, 1).strokePath();
       g.lineStyle(1.2, ready ? 0xfff59d : 0xeceff1, 0.95).beginPath().moveTo(tipX, -tipY).lineTo(nockX, 0).lineTo(tipX, tipY).strokePath();
       if (pull >= 0) {
         g.lineStyle(1.5, 0xefebe9, 1).lineBetween(nockX, 0, R + 22, 0);
@@ -83,15 +86,15 @@ export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -
       break;
     }
     case "wand":
-      g.fillStyle(0x6d4c41, 1).fillRect(R - 3, -1.5, 19, 3);
-      g.fillStyle(color, 0.3).fillCircle(R + 19, 0, 8.5);
-      g.fillStyle(color, 1).fillCircle(R + 19, 0, 4.5).strokeCircle(R + 19, 0, 4.5);
-      g.fillStyle(0xffffff, 0.8).fillCircle(R + 17.8, -1.5, 1.5);
+      g.fillStyle(0x6d4c41, 1).fillRect(R - 3, -2, 19, 4).strokeRect(R - 3, -2, 19, 4);
+      g.fillStyle(color, 0.3).fillCircle(R + 19, 0, 10);
+      g.fillStyle(color, 1).fillCircle(R + 19, 0, 5.5).strokeCircle(R + 19, 0, 5.5);
+      g.fillStyle(0xffffff, 0.8).fillCircle(R + 17.6, -1.8, 1.8);
       break;
     case "shield":
+      g.lineStyle(9.5, OUTLINE, 0.9).beginPath().arc(0, 0, R + 6, -0.85, 0.85).strokePath();
       g.lineStyle(7, color, 1).beginPath().arc(0, 0, R + 6, -0.85, 0.85).strokePath();
-      g.lineStyle(1.5, OUTLINE, 0.85).beginPath().arc(0, 0, R + 9.8, -0.85, 0.85).strokePath();
-      g.fillStyle(0xeceff1, 1).fillCircle(R + 6, 0, 2.5);
+      g.lineStyle(1.5, OUTLINE, 0.95).fillStyle(0xeceff1, 1).fillCircle(R + 6, 0, 2.5).strokeCircle(R + 6, 0, 2.5);
       break;
   }
 }
@@ -102,6 +105,16 @@ const BLOCK_FILL = 0x90a4ae;
 const BLOCK_EDGE = 0xcfd8dc;
 /** The bow pull is redrawn in this many steps; smoother than the eye can tell at 20 Hz patches. */
 const PULL_STEPS = 16;
+/**
+ * The held weapon is drawn a little over life size: the body disc is only 24 px across and the weapon is what tells a
+ * far-off fighter's kit apart.
+ */
+const HELD_SCALE = 1.15;
+/**
+ * A chill pushes a draw's start time later by under 0.6 x one tick (30 ms) per tick; a new start further ahead than this
+ * is a restart (a stagger), not the same draw slowing down.
+ */
+const DRAW_PUSH_SLACK_MS = 100;
 
 const fullDraws = new Map<string, number>();
 /** Seconds to a full draw for this faction's bow (the server's own formula), or 0 without a faction. */
@@ -124,10 +137,12 @@ export class FighterArt {
   /** The bow draw being shown: its server start time (0 = none) and the server time it stopped (Infinity = still on). */
   private drawStart = 0;
   private drawEnd = Infinity;
+  /** Render time has reached this draw's start at least once; from then on it stays on screen (see trackDraw). */
+  private drawShown = false;
 
   constructor(scene: Phaser.Scene) {
     this.ground = scene.add.graphics();
-    this.held = scene.add.graphics().setPosition(0, -BODY_LIFT);
+    this.held = scene.add.graphics().setPosition(0, -BODY_LIFT).setScale(HELD_SCALE);
   }
 
   /**
@@ -140,7 +155,8 @@ export class FighterArt {
     // Tracked every frame, not only with a bow in hand, so a draw that a swap cancelled can't linger.
     const drawing = this.trackDraw(f, renderT, patchT);
     const full = fullDrawSeconds(f.faction);
-    const pull = weapon === "bow" && drawing && full > 0 ? Math.min(1, (renderT - this.drawStart) / 1000 / full) : -1;
+    // Clamped at both ends: a chill can leave the start a few ms ahead of render time while the draw is on screen.
+    const pull = weapon === "bow" && drawing && full > 0 ? Math.max(0, Math.min(1, (renderT - this.drawStart) / 1000 / full)) : -1;
 
     this.held.setVisible(weapon !== null).setRotation(screenAngle(f.facing));
     const sig = `${weapon ?? ""}|${pull < 0 ? -1 : Math.round(pull * PULL_STEPS)}`;
@@ -167,10 +183,15 @@ export class FighterArt {
   /** True while a draw is on screen at `renderT`. */
   private trackDraw(f: FighterFields, renderT: number, patchT: number): boolean {
     if (f.drawStartedAt > 0) {
-      // A new start time is a new draw (the first one, or a stagger restarting it).
-      if (f.drawStartedAt !== this.drawStart) {
+      const ahead = f.drawStartedAt - this.drawStart;
+      if (this.drawStart === 0 || this.drawEnd !== Infinity || ahead < 0 || ahead > DRAW_PUSH_SLACK_MS) {
+        // A new draw: the first one, or a stagger restarting it.
         this.drawStart = f.drawStartedAt;
         this.drawEnd = Infinity;
+        this.drawShown = false;
+      } else {
+        // The same draw, its start pushed later by a chill (or unchanged).
+        this.drawStart = f.drawStartedAt;
       }
     } else if (this.drawStart > 0 && this.drawEnd === Infinity) {
       this.drawEnd = patchT;
@@ -179,9 +200,13 @@ export class FighterArt {
     if (renderT >= this.drawEnd) {
       this.drawStart = 0;
       this.drawEnd = Infinity;
+      this.drawShown = false;
       return false;
     }
-    return renderT >= this.drawStart;
+    // A pushed start can slip back ahead of render time for a frame or two; once shown, the draw stays up instead of
+    // blinking out and in.
+    if (renderT >= this.drawStart) this.drawShown = true;
+    return this.drawShown;
   }
 }
 

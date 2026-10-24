@@ -3,7 +3,7 @@
 // together with the positions it was made between. Effects are driven from update(), not tweens or timers: nothing
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
-import { PLAYER_RADIUS, WEAPONS, Y_SCALE, type ProjectileEnd, type TimedFx } from "@raid/shared";
+import { PLAYER_RADIUS, WEAPONS, Y_SCALE, isDot, type ProjectileEnd, type SignatureKind, type TimedFx } from "@raid/shared";
 import { traceRim, traceSector } from "./groundShapes";
 import { BODY_LIFT, depthFor, projX, projY } from "./projection";
 
@@ -21,6 +21,7 @@ const DECAL_MS = 2000;
 const HEAL_MS = 800;
 const HIT_NUMBER_MS = 700;
 const STAGGER_MS = 500;
+const FLAME_MS = 380;
 const TELEPORT_FLASH_MS = 400;
 /** Peak opacity of the teleport flash; the camera's default of 1 would white the screen out. */
 const TELEPORT_FLASH_ALPHA = 0.7;
@@ -52,6 +53,18 @@ const HIT_OTHERS = "#cfd8dc";
 const HIT_BY_ME = "#ffd54f";
 const HIT_ON_ME = "#ff5252";
 const HEAL_COLOR = "#81f78b";
+/** Signature damage over time arrives as one small number per 500 ms chunk, in the signature's colour. */
+const DOT_COLORS: Readonly<Record<SignatureKind, string>> = {
+  burn: "#ffa040",
+  disease: "#b2d96c",
+  mark: "#d1a8ff",
+  backlash: "#ff7043",
+};
+const DOT_NUMBER_SIZE = 11;
+/** The backlash flame's layers, outer to inner: size relative to the tongue, and colour. */
+const FLAME_LAYERS: ReadonlyArray<readonly [number, number]> = [[1, 0xff5722], [0.62, 0xffc107]];
+/** A heal under this is not drawn: Holy's lifesteal pays in fractions on most ticks. */
+const MIN_HEAL_SHOWN = 1;
 
 /** What FxView needs from the scene; kept as callbacks so it never reaches into scene internals. */
 export interface FxHost {
@@ -74,7 +87,7 @@ type FxOf<K extends TimedFx["kind"]> = Extract<TimedFx, { kind: K }>;
 interface CancelWindups { kind: "cancelWindups"; id: string; t: number }
 type Queued = TimedFx | CancelWindups;
 
-type EffectKind = "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number";
+type EffectKind = "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number" | "flame";
 
 interface Active {
   kind: EffectKind;
@@ -279,20 +292,69 @@ export class FxView {
   }
 
   private hit(fx: FxOf<"hit">, now: number): void {
-    this.host.view(fx.id)?.flash();
+    const dot = isDot(fx.sig);
+    // Damage over time is a steady drip, not a blow: no body flash for it.
+    if (!dot) this.host.view(fx.id)?.flash();
+    // Fire's backlash: the swinger (`id`) is scorched by its own swing.
+    if (fx.sig === "backlash") this.flame(fx.id, now);
     // Damage with no attacker (the arena) would print a number every tick.
     if (fx.by === null || !(fx.amount > 0)) return;
     const pos = this.host.position(fx.id);
     if (!pos) return;
-    const color = fx.id === this.host.localId ? HIT_ON_ME : fx.by === this.host.localId ? HIT_BY_ME : HIT_OTHERS;
-    const amount = Math.max(1, Math.round(fx.amount));
+    let amount = Math.max(1, Math.round(fx.amount));
+    let color: string;
+    let size: number;
+    if (dot) {
+      // A chunk that rounds to nothing isn't worth a number.
+      amount = Math.round(fx.amount);
+      if (amount < 1) return;
+      color = DOT_COLORS[fx.sig!];
+      size = DOT_NUMBER_SIZE;
+    } else {
+      color = fx.id === this.host.localId ? HIT_ON_ME : fx.by === this.host.localId ? HIT_BY_ME : HIT_OTHERS;
+      size = 13 + Math.min(7, Math.floor(amount / 40));
+    }
     const lane = this.lane++ % HIT_LANES;
-    const text = this.acquireText(color, 13 + Math.min(7, Math.floor(amount / 40)));
+    const text = this.acquireText(color, size);
     text.setText(String(amount)).setDepth(DEPTH_FX).setPosition(projX(pos.x), projY(pos.y, HIT_START_HEIGHT));
     this.active.push({
       kind: "number", g: null, text, start: now, duration: HIT_NUMBER_MS, id: fx.id, x: pos.x, y: pos.y,
       a: (lane - (HIT_LANES - 1) / 2) * HIT_LANE_PX,
     });
+  }
+
+  /**
+   * Fire's backlash: a crown of flames flaring up around the swinger's body, brighter core inside the orange. Flames
+   * rise, so every tongue leans toward the top of the screen. It follows the fighter for its short life.
+   */
+  private flame(id: string, now: number): void {
+    const pos = this.host.position(id);
+    if (!pos) return;
+    const g = this.acquireGraphics(DEPTH_FX);
+    const R = PLAYER_RADIUS;
+    g.fillStyle(0xff9100, 0.3).fillCircle(0, 0, R + 3);
+    g.lineStyle(3, 0xff9100, 0.9).strokeCircle(0, 0, R + 2);
+    const tongues = 9;
+    for (let i = 0; i < tongues; i++) {
+      // Rooted along the upper rim, left round to right; the middle ones are the tallest.
+      const root = -Math.PI + ((i + 0.5) / tongues) * Math.PI;
+      const rx = Math.cos(root) * (R - 1);
+      const ry = Math.sin(root) * (R - 1);
+      const lean = Math.cos(root) * 0.45;
+      const height = 13 + 11 * Math.sin(-root) + (i % 2) * 5;
+      for (const [scale, color] of FLAME_LAYERS) {
+        const h = height * scale;
+        const w = 4.6 * scale;
+        const tipX = rx + lean * h * 0.8;
+        const tipY = ry - h;
+        // A teardrop: wide near the base, swaying a little toward the tip.
+        g.fillStyle(color, 0.95).beginPath()
+          .moveTo(rx - w, ry).lineTo(rx - w * 0.9 + lean * h * 0.25, ry - h * 0.45).lineTo(tipX, tipY)
+          .lineTo(rx + w * 0.9 + lean * h * 0.25, ry - h * 0.45).lineTo(rx + w, ry).closePath().fillPath();
+      }
+    }
+    g.setPosition(projX(pos.x), projY(pos.y, BODY_LIFT));
+    this.active.push({ kind: "flame", g, text: null, start: now, duration: FLAME_MS, id, x: pos.x, y: pos.y, a: 0 });
   }
 
   /** A spark on the holder's shield, on the side the hit came from. */
@@ -351,9 +413,9 @@ export class FxView {
 
   private heal(id: string, amount: number, now: number): void {
     const pos = this.host.position(id);
+    if (!pos || !(amount >= MIN_HEAL_SHOWN)) return;
     const rounded = Math.round(amount);
-    if (!pos || !(rounded > 0)) return;
-    const text = this.acquireText(HEAL_COLOR, 14);
+    const text = this.acquireText(HEAL_COLOR, 14 + Math.min(6, Math.floor(rounded / 25)));
     text.setText(`+${rounded}`).setDepth(DEPTH_FX).setPosition(projX(pos.x), projY(pos.y, HEAL_START_HEIGHT));
     this.active.push({ kind: "heal", g: null, text, start: now, duration: HEAL_MS, id, x: pos.x, y: pos.y, a: 0 });
   }
@@ -412,6 +474,12 @@ export class FxView {
           const pos = this.host.position(e.id);
           if (pos) { e.x = pos.x; e.y = pos.y; }
           e.g!.setPosition(projX(e.x), projY(e.y, BODY_LIFT + PLAYER_RADIUS + 8)).setRotation(p * Math.PI * 3).setAlpha(p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4);
+          break;
+        }
+        case "flame": {
+          const pos = this.host.position(e.id);
+          if (pos) { e.x = pos.x; e.y = pos.y; }
+          e.g!.setPosition(projX(e.x), projY(e.y, BODY_LIFT)).setScale(0.75 + 0.6 * p).setAlpha(1 - p * p);
           break;
         }
         case "decal":

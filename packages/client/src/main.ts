@@ -38,7 +38,7 @@ const toasts = new Toasts();
 async function startRaid(request: RaidRequest): Promise<void> {
   menu.setBusy(true, "Joining run…");
   try {
-    room = await joinRaid(request);
+    room = await joinRaid({ profile: request.profile, token: request.token, faction: request.faction });
   } catch (err) {
     console.error(err);
     if (isCallsignBusy(err)) {

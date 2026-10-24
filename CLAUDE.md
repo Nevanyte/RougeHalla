@@ -9,7 +9,7 @@ npm run dev            # server :2567 + client :5173 (concurrently)
 npm test               # vitest in every workspace (server includes the e2e bot run)
 npm run typecheck      # tsc --noEmit in every workspace
 npm run bots -- 3      # 3 headless bots join the running dev server
-npm run bots -- -- 3 --url http://host:2567   # flags (--url, --prefix, --loop to keep queuing, --verbose) need the second `--`: the root script nests npm, which eats them
+npm run bots -- -- 3 --url http://host:2567   # flags (--url, --prefix, --faction <id|rotate|random>, --loop to keep queuing, --verbose) need the second `--`: the root script nests npm, which eats them
 npm run harness -w @raid/server               # weapon duel harness (report only, never fails; ~1 min); add `-- --quick` for a few seconds
 npm run harness:factions -w @raid/server -- --python   # faction cycle per weapon in the real sim vs testing/realtime.py (report only; also --mode full, --nmax N)
 ```
@@ -69,7 +69,7 @@ Server env overrides (see `packages/server/src/config.ts`): `RAID_PORT`, `STASH_
 - Sight corridors narrower than one tile are not capped. Mapgen guarantees the 480 u limit for 32 u strips only; 24 u strips measured up to 473 u and 16 u strips up to about 580 u. A 24 u gap holds a player (`PLAYER_RADIUS` 12). The owner deferred guaranteeing these.
 - GV can be farmed with free callsigns: the win bonus needs 3+ starters and damage on 2+ different opponents (WIN_BONUS_MIN_*), but two throwaway callsigns that get killed still pay kills and the bonus. Bounties are uncapped and mob kills feed them (0.25 each): once Phase 11 mobs exist, a colluding partner could cash a mob-farmed bounty far above GV_WIN. Both are owner decisions.
 - GV earned after a player's result went out is dropped (`awardGv`). A projectile outlives its owner and its hit still lands; a kill by a shooter who left or whose result is out is credited by name only (`killedBy`), with no GV and no bounty.
-- Faction is a round-robin default by join order (`defaultFaction`) until the Phase 10 picker; a failed join or a lobby leave still uses up a slot.
+- A player who joins without picking a faction (old clients, bots without `--faction`) gets the round-robin default by join order (`defaultFaction`); a failed join or a lobby leave still uses up a slot.
 - The weapon harness (`npm run harness -w @raid/server`) found things for the owner; nothing was retuned. Bow > Sword is inverted at 8% (the designed winner wins 8%; the sword staggers the bow about 70 times a duel). Wand > Bow holds (100%) only against a standing bow; against a strafing or kiting bow the wand wins 0%. Shields shut out sword and bow at 100% hp (Shield > Sword and Shield > Bow end with the shield untouched).
 - The plan's "HP scale 550–2000" was not applied: the faction sheet's 500–1750 is used.
 - Lifesteal is applied after the tick's damage, so on Holy's death tick its same-tick heal can't save it (`testing/realtime.py` nets the two). It only shortens fights Holy loses; the harness reports it.
