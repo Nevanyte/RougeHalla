@@ -714,7 +714,7 @@ describe("a run", () => {
     expectBanked(C, 0, { runs: 1, deaths: 1 });
     expect(sum([A, B, C].map((who) => record(who).gv))).toBe(2 * GV_KILL + GV_WIN); // the ledger balances
     expect(recorded.mock.calls.map(([name]) => name).sort()).toEqual([A.name, B.name, C.name]); // one record per player
-    expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 2, gv: 2 * GV_KILL + GV_WIN });
+    expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 2, gv: 2 * GV_KILL + GV_WIN, bounty: 0, weapon: expect.any(String), winQualified: true });
     expect(banked).not.toHaveBeenCalled(); // bankGv is for voided runs only
     expect([A, B, C].some(isActive)).toBe(false);
     expect((await api(A.name, A.token)).body.profile).toMatchObject({ gv: 2 * GV_KILL + GV_WIN, stats: { runs: 1, wins: 1, kills: 2 } });
@@ -798,7 +798,7 @@ describe("a run", () => {
         gv: { kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL }, winBonusWithheld: true,
       });
       expect(b!.results[0]).toMatchObject({ outcome: "died", place: 2, gv: { total: 0 }, winBonusWithheld: false });
-      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL });
+      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL, bounty: 0, weapon: expect.any(String), winQualified: false });
       expectBanked(A, GV_KILL, { runs: 1, wins: 1, kills: 1 }); // the win counts, the bonus does not
       expectBanked(B, 0, { runs: 1, deaths: 1 });
       expect(worldOf(a!).state.winner).toBe(A.name);
@@ -817,7 +817,7 @@ describe("a run", () => {
         outcome: "won", profile: A.name, kills: 1, place: 1, players: 3,
         gv: { kills: GV_KILL, win: 0, total: GV_KILL }, winBonusWithheld: true,
       });
-      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL });
+      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL, bounty: 0, weapon: expect.any(String), winQualified: false });
       expectBanked(A, GV_KILL, { runs: 1, wins: 1, kills: 1 });
       expectBanked(B, 0, { runs: 1, deaths: 1 });
       expectBanked(C, 0, { runs: 1, deaths: 1 }); // MIA
