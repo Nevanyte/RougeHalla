@@ -121,6 +121,7 @@ const IMPACT_BURSTS: Readonly<Record<ProjectileEnd, BurstStyle>> = {
   wall: { color: 0xcfd8dc, radius: 9, rays: 5, ring: false, ms: 220 },
   range: { color: 0x90a4ae, radius: 6, rays: 0, ring: true, ms: 180 },
   reflected: { color: 0x80deea, radius: 12, rays: 8, ring: true, ms: 260 },
+  blocked: { color: 0x80deea, radius: 10, rays: 5, ring: false, ms: 220 },
   deleted: { color: WEAPONS.wand.color, radius: 13, rays: 6, ring: true, ms: 240 },
   destroyed: { color: 0xff8a80, radius: 17, rays: 8, ring: true, ms: 280 },
   cleared: { color: 0x90a4ae, radius: 5, rays: 0, ring: true, ms: 150 },

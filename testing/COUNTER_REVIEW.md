@@ -215,6 +215,8 @@ A 20 Hz discrete duel (`realtime.py`) that keeps the engine's damage laws exactl
 | wand | +65% | 0.30 | 0.85 | 420 |
 | shield | +60% | 0.30 | 0.75 | 60 |
 
+*History: this is the v3 weapon table before the 9.1 weapon tuning (`testing/TUNING_9_1.md`), which changed the sword dpsMult to 0.75, the axe's to 0.80 and the wand's to 0.80, and the bow and wand ranges to 240 and 220. The damage-per-hit table below carries the old multipliers too; `python3 testing/weapon_reference.py` prints the current ones.*
+
 Attacks per second = faction rate x (1 + boost) x attack-speed buffs. The interval between attacks is 1 / that, never below the weapon's floor. Damage per hit = faction rate x faction hit x dpsMult x buffs x interval, which is faction hit x dpsMult / (1 + boost) with no buff. So every faction keeps its DPS times dpsMult on every weapon, and faster weapons hit proportionally lighter. The floor is the shortest interval. It binds only under attack-speed buffs, and attack speed past it turns into damage per hit. Resulting intervals and damage per hit at duel pace k = 1 (no floor binds without a buff; k = 2 doubles every hit):
 
 | Faction (rate) | sword | axe | bow | wand | shield |
@@ -308,6 +310,8 @@ Signature weapons: Fire axe, Sentenced bow, Plague bow, Frost shield, Holy wand.
 On stats alone the loop always picks the intended winner. Fire > Sentenced is lopsided (4.5x). The thinnest are Holy > Sentenced (1.34x), Sentenced > Plague (1.54x), Frost > Fire (1.59x) and Frost > Holy (1.62x); none is near the v2 plan's 1.06x for Holy against a Sentenced sword. Frost > Fire is the one that v3 moved: it keeps 34% worst HP instead of 47%, and a 1.59x damage edge instead of 1.92x.
 
 ### Kiting
+
+*These are the v3 numbers at duel pace k = 1, with the old weapon table. The 9.1 weapon tuning (testing/TUNING_9_1.md) re-ran the check at k = 2 and changed the ranges, the damage multipliers and the ranged movement penalties; read this section as history.*
 
 Free fire is the time a ranged fighter shoots before a melee chaser reaches 60 u (both move at 170 u/s). One approach with the shooter standing still gives (480 - 60) / 170 = 2.47 s for the bow and (420 - 60) / 170 = 2.12 s for the wand. Backing away while firing is the problem:
 

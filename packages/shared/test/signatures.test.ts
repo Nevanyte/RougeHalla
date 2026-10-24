@@ -42,8 +42,8 @@ describe("engageRange", () => {
     ["sword", 64 + 12],
     ["axe", 60 + 12],
     ["shield", 44 + 12],
-    ["bow", 480 + 14],
-    ["wand", 420 + 14],
+    ["bow", 240 + 14],
+    ["wand", 220 + 14],
     [null, 0],
   ])("%s reaches %d centre to centre", (weapon, range) => {
     expect(engageRange(weapon)).toBe(range);
@@ -63,8 +63,8 @@ describe("bonusMultiplier", () => {
     expect(bonusMultiplier(w)).toBe(WEAPONS[w].dpsMult);
   });
 
-  it("matches the design numbers and is 0 with an empty hand", () => {
-    expect(WEAPON_IDS.map((w) => bonusMultiplier(w))).toEqual([1.0, 0.8, 0.85, 0.75, 0.9]);
+  it("matches the design numbers (the 9.1 tuning) and is 0 with an empty hand", () => {
+    expect(WEAPON_IDS.map((w) => bonusMultiplier(w))).toEqual([0.75, 0.8, 0.8, 0.75, 0.77]);
     expect(bonusMultiplier(null)).toBe(0);
   });
 });

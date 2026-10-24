@@ -5,7 +5,7 @@
 //   Shield (in hand, always raised toward the aim, +-SHIELD_HALF_ARC): a frontal arrow is reflected (the holder owns
 //     the new arrow); a frontal sword hit is negated and RIPOSTE_SHARE of it goes back to the swordsman; a frontal bash
 //     is negated. Axe swings and wand balls pierce it.
-//   Sword: an unblocked hit staggers (cancels a windup or cast, restarts a bow draw), then STAGGER_IMMUNITY_SECONDS of
+//   Sword: an unblocked hit staggers (cancels a windup or cast; a bow draw carries on), then STAGGER_IMMUNITY_SECONDS of
 //     immunity. Its swing halves (SWORD_BALL_SCALE) enemy balls it meets, once per ball.
 //   Axe: its swing destroys enemy balls it meets. No knockback (it would undo both of the axe's wins).
 //   Wand: its ball deletes enemy arrows within BALL_ARROW_RADIUS.

@@ -361,7 +361,7 @@ describe("who is credited", () => {
 
   it("pays an arrow's kill to its shooter", () => {
     const w = arena([
-      { ...fighter("archer", "sentenced"), at: { x: 200, y: 320 } }, { ...fighter("target", "fire", 1), at: { x: 500, y: 320 } },
+      { ...fighter("archer", "sentenced"), at: { x: 200, y: 320 } }, { ...fighter("target", "fire", 1), at: { x: 400, y: 320 } },
       { ...fighter("idle", "frost"), at: { x: 1200, y: 600 } },
     ]);
     loose(w, [{ id: "archer", a: 0 }]);
@@ -547,10 +547,10 @@ describe("mobs", () => {
     expect(w.state.phase).toBe("active");
   });
 
-  it("can be staggered", () => {
+  it("can be staggered: the immunity starts, and with no windup or cast to cancel there is no mark", () => {
     const { w, id } = dummyWorld();
     const events = inStep(w, () => hit(w, id, "x", 10, { stagger: true }));
-    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id }]);
+    expect(fxOf(events, "stagger")).toEqual([]);
     expect(w.mobs.get(id)!.weapon.staggerImmuneUntil).toBe(w.state.serverTime + STAGGER_IMMUNITY_SECONDS * 1000);
   });
 });
@@ -568,14 +568,25 @@ describe("stagger", () => {
     return w;
   }
 
-  it("staggers the victim once, however many stagger entries land: a bow draw restarts and the immunity starts", () => {
+  it("staggers the victim once, however many stagger entries land: the bow draw carries on, no mark, and the immunity starts", () => {
     const w = drawing();
+    const started = P(w, "v").drawStartedAt;
     const events = inStep(w, () => { hit(w, "v", "x", 10, { stagger: true }); hit(w, "v", "y", 10, { stagger: true }); });
     const now = w.state.serverTime;
-    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id: "v" }]);
-    expect(P(w, "v").drawStartedAt).toBe(now);
-    expect(RT(w, "v").weapon.action).toMatchObject({ kind: "draw", startedAt: now });
+    expect(fxOf(events, "stagger")).toEqual([]); // the draw was not interrupted: nothing to mark
+    expect(P(w, "v").drawStartedAt).toBe(started);
+    expect(RT(w, "v").weapon.action).toMatchObject({ kind: "draw", startedAt: started });
     expect(RT(w, "v").weapon.staggerImmuneUntil).toBe(now + STAGGER_IMMUNITY_SECONDS * 1000);
+  });
+
+  it("marks a stagger once, however many stagger entries land, when a windup was cancelled", () => {
+    const w = arena([fighter("v", "holy"), fighter("x"), fighter("y")]);
+    const now = w.state.serverTime;
+    RT(w, "v").weapon.action = { kind: "swing", weapon: "sword", startedAt: now, landsAt: now + 5000, a: 0, packet: { raw: 10, phys: 1, magic: 0, true: 0 } };
+    const events = inStep(w, () => { hit(w, "v", "x", 10, { stagger: true }); hit(w, "v", "y", 10, { stagger: true }); });
+    expect(fxOf(events, "stagger")).toEqual([{ kind: "stagger", id: "v" }]);
+    expect(RT(w, "v").weapon.action).toBeNull();
+    expect(RT(w, "v").weapon.staggerImmuneUntil).toBe(w.state.serverTime + STAGGER_IMMUNITY_SECONDS * 1000);
   });
 
   it("does not stagger on a hit that is not a stagger entry", () => {
@@ -671,13 +682,13 @@ describe("hits from projectiles", () => {
   // Two archers 50 u above and below the line to the target: their arrows fly the same distance and land together.
   const crossfire = (hp?: number) => arena([
     { ...fighter("sent", "sentenced"), at: { x: 300, y: 270 } }, { ...fighter("plague", "plague"), at: { x: 300, y: 370 } },
-    { ...fighter("target", "fire", hp), at: { x: 700, y: 320 } }, { ...fighter("idle", "frost"), at: { x: 1200, y: 600 } },
+    { ...fighter("target", "fire", hp), at: { x: 500, y: 320 } }, { ...fighter("idle", "frost"), at: { x: 1200, y: 600 } },
   ]);
   const aim = (from: Vec2, to: Vec2): number => Math.atan2(to.y - from.y, to.x - from.x);
 
   it("lands the arrows of two shooters in the same tick together, with a hit fx for each", () => {
     const w = crossfire();
-    loose(w, [{ id: "sent", a: aim({ x: 300, y: 270 }, { x: 700, y: 320 }) }, { id: "plague", a: aim({ x: 300, y: 370 }, { x: 700, y: 320 }) }]);
+    loose(w, [{ id: "sent", a: aim({ x: 300, y: 270 }, { x: 500, y: 320 }) }, { id: "plague", a: aim({ x: 300, y: 370 }, { x: 500, y: 320 }) }]);
     const events = untilEvent(w, "projEnd");
     expect(fxOf(events, "projEnd").map((e) => e.reason)).toEqual(["hit", "hit"]);
     const fromSent = hitAmount("sentenced", "bow", "fire");
@@ -690,7 +701,7 @@ describe("hits from projectiles", () => {
 
   it("pays the kill of two arrows to the larger one, and both shooters have damaged the victim", () => {
     const w = crossfire(12); // Plague's arrow is far the larger and kills alone; Sentenced's adds a little
-    loose(w, [{ id: "sent", a: aim({ x: 300, y: 270 }, { x: 700, y: 320 }) }, { id: "plague", a: aim({ x: 300, y: 370 }, { x: 700, y: 320 }) }]);
+    loose(w, [{ id: "sent", a: aim({ x: 300, y: 270 }, { x: 500, y: 320 }) }, { id: "plague", a: aim({ x: 300, y: 370 }, { x: 500, y: 320 }) }]);
     const events = untilEvent(w, "death");
     expect(fxOf(events, "death")).toEqual([expect.objectContaining({ id: "target", by: "plague" })]);
     expect(resultsOf(events).target).toMatchObject({ killedBy: "Plague" });
@@ -702,7 +713,7 @@ describe("hits from projectiles", () => {
   /** Two Sentenced archers face to face, each about to hit the other. */
   function duel(hpA: number, hpB: number): { w: World; events: SimEvent[] } {
     const w = arena([
-      { ...fighter("a", "sentenced", hpA), at: { x: 300, y: 320 } }, { ...fighter("b", "sentenced", hpB), at: { x: 700, y: 320 } },
+      { ...fighter("a", "sentenced", hpA), at: { x: 350, y: 320 } }, { ...fighter("b", "sentenced", hpB), at: { x: 550, y: 320 } },
     ]);
     loose(w, [{ id: "a", a: 0 }, { id: "b", a: Math.PI }]);
     return { w, events: untilEvent(w, "death") };

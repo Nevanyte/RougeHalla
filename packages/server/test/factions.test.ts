@@ -2009,8 +2009,8 @@ describe("bonusMultiplier: every signature bonus follows the weapon in hand", ()
     expect(amountAt(owner, weapon)).toBeCloseTo(mitigated(owner, "holy", rawPerSecond(owner) * WEAPONS[weapon].dpsMult * DT), 9);
   });
 
-  it.each(OWNERS)("%s with a bow (0.8) deals 0.8 of what it deals with a sword (1.0)", (owner) => {
-    expect(amountAt(owner, "bow")).toBeCloseTo(0.8 * amountAt(owner, "sword"), 9);
+  it.each(OWNERS)("%s with a bow deals bow.dpsMult / sword.dpsMult of what it deals with a sword", (owner) => {
+    expect(amountAt(owner, "bow")).toBeCloseTo((WEAPONS.bow.dpsMult / WEAPONS.sword.dpsMult) * amountAt(owner, "sword"), 9);
   });
 
   it("an empty hand deals no signature damage at all", () => {

@@ -40,7 +40,7 @@ export interface WeaponRuntime {
   action: PendingAction | null;
   rootUntil: number;
   castSlowUntil: number;
-  /** Ranged recovery: half speed until the cooldown that started with the shot ends. */
+  /** Ranged recovery: RANGED_RECOVERY_MOVE of full speed until the cooldown that started with the shot ends. */
   recoverUntil: number;
   staggerImmuneUntil: number;
   /** The trigger: held since `pressedAt`; a press is also remembered until `bufferedUntil` (quick clicks). */
@@ -180,6 +180,8 @@ export interface ProjectileRuntime {
   packet: DamagePacket;
   /** A sword already halved this ball (it is halved once at most). */
   halved: boolean;
+  /** How many shields reflected this arrow's chain so far (0 for a fresh shot); see MAX_ARROW_REFLECTIONS. */
+  reflections: number;
   /** Set when it stops; it is then removed from the state. */
   ended: boolean;
 }
