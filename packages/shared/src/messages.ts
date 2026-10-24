@@ -181,6 +181,12 @@ export interface ServerMessages {
   result: RunResult;
 }
 
+/**
+ * "arena" is the contested run (matchmade with `joinOrCreate`); "training" is a private room of one with practice dummies and
+ * a rack of every weapon, created with `create`: no results, no GV, no stats (see sim/training.ts).
+ */
+export type RoomMode = "arena" | "training";
+
 /** Options for `client.joinOrCreate(ROOM_NAME, options)`. Run gear is handed out by the server: nothing is brought in. */
 export interface JoinOptions {
   profile: string;
@@ -188,6 +194,8 @@ export interface JoinOptions {
   token: string;
   /** The faction picked in the hub for this run; anything else (or nothing) gets the server default. */
   faction?: FactionId;
+  /** Only `"training"` means anything: it asks `client.create` for a training room. Absent or anything else is an arena join. */
+  mode?: RoomMode;
 }
 
 /** `deaths` counts died and mia; `runs` counts every resolved run, including the ones won or drawn. */

@@ -1,5 +1,12 @@
 // Network
 export const ROOM_NAME = "raid";
+/**
+ * The same room class with its mode forced to "training" by the server's handler options (a client can't choose the mode:
+ * Colyseus merges the handler's options over the client's). Private rooms of one: see sim/training.ts.
+ */
+export const TRAINING_ROOM_NAME = "training";
+/** A training room whose player sends nothing for this long is closed, so an abandoned tab can't hold a room forever. */
+export const TRAINING_IDLE_SECONDS = 300;
 export const SERVER_PORT = 2567;
 export const TICK_RATE = 20;
 export const TICK_MS = 1000 / TICK_RATE;

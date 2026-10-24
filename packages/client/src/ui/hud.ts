@@ -1,7 +1,8 @@
 // In-run DOM overlay: the lobby countdown or the run line (players standing, GV, your bounty), the arena timers (coliseum
 // teleport → locked gates → sudden death), player vitals (faction and hp), the teleport-immunity hint and the
-// "you died" line. The buff stacks, combo progress and feed line are buffsHud.ts, placed under the vitals.
-import { FACTIONS, hpText, isFactionId } from "@raid/shared";
+// "you died" line. A training room shows none of the run's lines: its banner, your faction, weapon and hp. The buff stacks,
+// combo progress and feed line are buffsHud.ts, placed under the vitals.
+import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { BuffsHud } from "./buffsHud";
 import { cssColor, el, uiRoot } from "./dom";
@@ -9,6 +10,66 @@ import { cssColor, el, uiRoot } from "./dom";
 function fmtSeconds(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** What the training room shows where the arena shows its run line: it records nothing, so the HUD says so. */
+export const TRAINING_BANNER = "TRAINING — nothing here is recorded: no GV, no stats";
+
+/** The fields of the room state the top status line reads. */
+export interface StatusInput {
+  training: boolean;
+  phase: string;
+  playerCount: number;
+  minPlayers: number;
+  lobbyEndsAt: number;
+  /** Players standing; only read while the run is active. */
+  alive: number;
+  startedWith: number;
+  winner: string;
+  /** The local player's run GV, or null while they are not in the state. */
+  gv: number | null;
+}
+
+/** The first HUD line. Training has no lobby, no standing count and no GV, so it never shows them. */
+export function statusLine(s: StatusInput, serverNow: number): string {
+  if (s.training) return TRAINING_BANNER;
+  if (s.phase === "lobby") {
+    return `Waiting for players ${s.playerCount}/${s.minPlayers} — run starts in ${fmtSeconds(s.lobbyEndsAt - serverNow)}`;
+  }
+  if (s.phase === "active") {
+    // startedWith, not the player count: leavers (including the dead going back to the hub) drop out of state.players.
+    const line = `Alive ${s.alive}/${s.startedWith}`;
+    return s.gv === null ? line : `${line} · Run GV ${s.gv}`;
+  }
+  return s.winner ? `Run over — ${s.winner} is victorious` : "Run over";
+}
+
+/** The fields of the local player the vitals line reads. */
+export interface VitalsInput {
+  hp: number;
+  maxHp: number;
+  status: string;
+  weapon0: string;
+  weapon1: string;
+  slot: number;
+  /** The kill barrier still held (0 or absent: none). */
+  barrier?: number;
+}
+
+/** The weapon in hand by name; "no weapon" for an empty slot or an id from newer server content. */
+export function heldWeaponName(me: Pick<VitalsInput, "weapon0" | "weapon1" | "slot">): string {
+  const id = me.slot === 1 ? me.weapon1 : me.weapon0;
+  return isWeaponId(id) ? WEAPONS[id].name : "no weapon";
+}
+
+/**
+ * The hp end of the vitals line (after the name and the faction). hp is fractional on the wire; whole numbers on screen,
+ * and a player still standing never reads 0. Training swaps the status word (always "alive" there) for the weapon in hand.
+ */
+export function vitalsHpText(me: VitalsInput | undefined, training: boolean, barrier = 0): string {
+  if (!me) return "";
+  const hp = hpText(me.hp, me.maxHp, barrier);
+  return training ? ` · ${heldWeaponName(me)} · ${hp}` : ` · ${hp} · ${me.status}`;
 }
 
 export class Hud {
@@ -39,6 +100,8 @@ export class Hud {
   private deathRequested = false;
   private resultShown = false;
   private deathShown = false;
+  /** Training room (state.training, read every update): no run, so no death line either. */
+  private training = false;
 
   constructor() {
     this.status.append(this.statusText, this.bountyTag);
@@ -56,6 +119,8 @@ export class Hud {
 
   /** The local player has died (killing result or death fx): show the line now, ahead of the results panel. */
   showDeath(): void {
+    // A training room puts a downed fighter back on its feet; there is nothing to announce.
+    if (this.training) return;
     this.deathRequested = true;
     this.setDeathShown(!this.resultShown);
   }
@@ -72,47 +137,49 @@ export class Hud {
    * about the present, so it is counted down against the present; state.serverTime would step in 50 ms jumps.
    */
   update(state: RaidState, me: PlayerState | undefined, serverNow: number): void {
-    let status: string;
-    if (state.phase === "lobby") {
-      status = `Waiting for players ${state.players.size}/${state.minPlayers} — run starts in ${fmtSeconds(state.lobbyEndsAt - serverNow)}`;
-    } else if (state.phase === "active") {
-      let alive = 0;
-      state.players.forEach((p) => { if (p.status === "alive") alive++; });
-      // Not players.size: leavers (including the dead going back to the hub) drop out of state.players.
-      status = `Alive ${alive}/${state.startedWith}`;
-      if (me) status += ` · Run GV ${me.gv}`;
-    } else {
-      status = state.winner ? `Run over — ${state.winner} is victorious` : "Run over";
+    // Strictly true: a server that predates the field leaves it undefined, and classList.toggle(x, undefined) would toggle.
+    const training = state.training === true;
+    if (training !== this.training) {
+      this.training = training;
+      this.status.classList.toggle("training", training);
     }
+    let alive = 0;
+    if (state.phase === "active" && !training) state.players.forEach((p) => { if (p.status === "alive") alive++; });
+    const status = statusLine({
+      training, phase: state.phase, playerCount: state.players.size, minPlayers: state.minPlayers,
+      lobbyEndsAt: state.lobbyEndsAt, alive, startedWith: state.startedWith, winner: state.winner, gv: me ? me.gv : null,
+    }, serverNow);
     if (status !== this.lastStatus) { this.statusText.textContent = status; this.lastStatus = status; }
 
     // A dead player's bounty can't be claimed any more, so it is only shown while they stand.
-    const bounty = state.phase === "active" && me?.status === "alive" && me.bounty > 0 ? Math.floor(me.bounty) : 0;
+    const bounty = !training && state.phase === "active" && me?.status === "alive" && me.bounty > 0 ? Math.floor(me.bounty) : 0;
     if (bounty !== this.lastBounty) {
       this.lastBounty = bounty;
       this.bountyTag.textContent = bounty > 0 ? ` · Bounty ${bounty}` : "";
       this.bountyTag.hidden = bounty === 0;
     }
 
-    // hp is fractional on the wire; whole numbers on screen, and a player still standing never reads 0. The kill barrier
-    // (hp the hp combos absorb) reads after it: "HP 400/500 +75 shield".
+    // The kill barrier (hp the hp combos absorb) reads after the hp: "HP 400/500 +75 shield".
     const barrier = me && me.status === "alive" && me.barrier > 0 ? Math.ceil(me.barrier) : 0;
     let key = "";
-    if (me) key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.round(me.maxHp)}|${barrier}|${me.status}`;
+    if (me) {
+      key = `${me.name}|${me.faction}|${Math.ceil(me.hp)}|${Math.round(me.maxHp)}|${barrier}|${me.status}`;
+      if (training) key += `|T|${me.slot}|${me.weapon0}|${me.weapon1}`;
+    }
     if (key !== this.lastVitals) {
       this.lastVitals = key;
       const faction = me && isFactionId(me.faction) ? FACTIONS[me.faction] : null;
       this.vitalsName.textContent = me?.name ?? "";
       this.vitalsFaction.textContent = faction ? ` · ${faction.displayName}` : "";
       this.vitalsFaction.style.color = faction ? cssColor(faction.color) : "";
-      this.vitalsHp.textContent = me ? ` · ${hpText(me.hp, me.maxHp, barrier)} · ${me.status}` : "";
+      this.vitalsHp.textContent = vitalsHpText(me, training, barrier);
     }
 
     this.buffs.update(state, me);
     this.updateArena(state, serverNow);
-    const immune = me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;
+    const immune = !training && me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;
     if (this.immuneLine.hidden === immune) this.immuneLine.hidden = !immune;
-    this.setDeathShown((this.deathRequested || me?.status === "dead") && !this.resultShown);
+    this.setDeathShown(!training && (this.deathRequested || me?.status === "dead") && !this.resultShown);
   }
 
   /**
@@ -124,7 +191,8 @@ export class Hud {
     let hint = "";
     let locked = false;
     let sudden = false;
-    if (state.phase === "active") {
+    // Training has no patience timer, gates or sudden death (the server never arms them; this is the second lock).
+    if (state.phase === "active" && state.training !== true) {
       if (state.gatesLocked && state.suddenDeathAt > 0) {
         if (serverNow >= state.suddenDeathAt) {
           sudden = true;

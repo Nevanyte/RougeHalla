@@ -58,6 +58,8 @@ export function placeMob(world: World, o: { region: FactionId; elite: boolean; a
 
 /** Places every camp's mobs. A no-op for a map without camps (a hand-built test map). */
 export function spawnRegionalMobs(world: World): void {
+  // A training world (sim/training.ts) has its dummies and nothing else: mobs would pay GV and feed that nothing records.
+  if (world.config.training) return;
   for (const region of world.map.regions) {
     for (const camp of region.mobCamps) {
       camp.spots.forEach((spot, i) => {

@@ -1,18 +1,15 @@
-// App flow: hub menu → run → results → hub menu. Phaser owns the world canvas; menus are DOM.
+// App flow: walkable hub → run (or training) → results → hub. Phaser owns the world canvas; menus are DOM.
 import Phaser from "phaser";
-import type { FxBatch, RunResult, ServerMessages } from "@raid/shared";
+import type { FxBatch, JoinOptions, RoomMode, RunResult, ServerMessages } from "@raid/shared";
 import "./style.css";
-import { detachRoom, isCallsignBusy, joinErrorMessage, joinRaid, type RaidRoom } from "./net/connection";
+import { detachRoom, isCallsignBusy, joinErrorMessage, joinRaid, joinTraining, type RaidRoom } from "./net/connection";
 import { FxInbox } from "./net/fxInbox";
+import { HubScene, type HubSceneData } from "./scenes/HubScene";
 import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
 import { Menu, type RaidRequest } from "./ui/menu";
 import { ResultsScreen } from "./ui/results";
 import { Toasts, type ToastTone } from "./ui/toast";
-
-class IdleScene extends Phaser.Scene {
-  constructor() { super("idle"); }
-}
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -21,7 +18,7 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
   // Right-click is move-to. Set here once: a per-run call would add another canvas listener every run.
   disableContextMenu: true,
-  scene: [IdleScene, RaidScene],
+  scene: [HubScene, RaidScene],
 });
 
 /** A killed player sees the "YOU DIED" line on its own this long before the results panel replaces it (other outcomes show at once). */
@@ -31,16 +28,49 @@ let room: RaidRoom | null = null;
 /** A `died` result waiting out DEATH_RESULTS_DELAY_MS; null otherwise. */
 let pendingResult: { result: RunResult; timer: ReturnType<typeof setTimeout> } | null = null;
 
-const menu = new Menu({ onStart: (request) => void startRaid(request) });
+const menu = new Menu({
+  onStart: (request) => void enterRoom("arena", request),
+  onTraining: (request) => void enterRoom("training", request),
+});
 const results = new ResultsScreen({ onContinue: () => backToMenu() });
 const banner = new Banner();
 const toasts = new Toasts();
 
-async function startRaid(request: RaidRequest): Promise<void> {
-  menu.setBusy(true, "Joining run…");
+// The menu docks over the walkable hub; the scene and the menu mirror each other through these.
+menu.setDocked(true);
+
+/** Null until Phaser has booted its scenes. A stopped scene keeps what it is told and shows it when it starts again. */
+function hubScene(): HubScene | null {
+  const scene = game.scene.getScene("hub");
+  return scene instanceof HubScene ? scene : null;
+}
+menu.onProfileChange((profile) => hubScene()?.setProfile(profile));
+menu.onFactionChange((faction) => hubScene()?.setFaction(faction));
+menu.onBusyChange((busy) => hubScene()?.setBusy(busy));
+
+const hubData: HubSceneData = {
+  onStation: (id) => menu.onStation(id),
+  isBlocked: () => menu.modalOpen,
+  leftInset: () => menu.dockInset(),
+  state: () => ({ profile: menu.profile, faction: menu.faction, busy: menu.isBusy }),
+};
+
+function startHub(): void {
+  game.scene.start("hub", hubData);
+}
+
+
+/**
+ * Joins a room and hands it to the raid scene. An arena run is matchmade and ends with a result; training is a private
+ * room of one that records nothing, so it has no result and leaving it just goes back to the hub.
+ */
+async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
+  const training = mode === "training";
+  menu.setBusy(true, training ? "Entering training…" : "Joining run…");
   try {
     // A faction is sent only after a deliberate pick; without one the server assigns its default.
-    room = await joinRaid({ profile: request.profile, token: request.token, ...(request.faction ? { faction: request.faction } : {}) });
+    const options: JoinOptions = { profile: request.profile, token: request.token, ...(request.faction ? { faction: request.faction } : {}) };
+    room = training ? await joinTraining(options) : await joinRaid(options);
   } catch (err) {
     console.error(err);
     if (isCallsignBusy(err)) {
@@ -62,12 +92,14 @@ async function startRaid(request: RaidRequest): Promise<void> {
     return;
   }
   // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next run.
-  joined.onMessage("result", (r: RunResult) => {
-    if (room !== joined) return;
-    if (r.outcome !== "died") { results.show(r); return; }
-    cancelPendingResult();
-    pendingResult = { result: r, timer: setTimeout(flushPendingResult, DEATH_RESULTS_DELAY_MS) };
-  });
+  if (!training) {
+    joined.onMessage("result", (r: RunResult) => {
+      if (room !== joined) return;
+      if (r.outcome !== "died") { results.show(r); return; }
+      cancelPendingResult();
+      pendingResult = { result: r, timer: setTimeout(flushPendingResult, DEATH_RESULTS_DELAY_MS) };
+    });
+  }
   joined.onMessage("toast", (t: ServerMessages["toast"]) => {
     if (room !== joined) return;
     toasts.show(t.text);
@@ -84,17 +116,22 @@ async function startRaid(request: RaidRequest): Promise<void> {
     if (room !== joined) return;
     banner.hide();
     room = null;
+    if (training) {
+      backToMenu(`Disconnected from training (code ${code}).`);
+      return;
+    }
     // Losing the room during the death hold must not lose the results: show them now instead of waiting.
     flushPendingResult();
     if (!results.visible) backToMenu(`Disconnected from the run (code ${code}).`);
   });
   menu.hide();
-  game.scene.stop("idle");
+  game.scene.stop("hub");
   game.scene.start("raid", {
     room: joined,
     fxs,
     toast: (text: string, tone?: ToastTone) => toasts.show(text, tone),
     resultsVisible: () => results.visible,
+    ...(training ? { leaveTraining: () => backToMenu() } : {}),
   });
 }
 
@@ -136,9 +173,10 @@ function backToMenu(message = ""): void {
   results.hide();
   toasts.clear();
   game.scene.stop("raid");
-  game.scene.start("idle");
+  startHub();
   // Reloads the profile, so the GV balance includes what this run paid out.
   menu.show(message);
 }
 
+startHub();
 menu.show();

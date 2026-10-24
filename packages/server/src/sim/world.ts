@@ -25,6 +25,11 @@ export interface SimConfig {
   dummies?: boolean;
   /** Regional mobs: place a mob at every camp spot when the run starts (sim/mobLife.ts). Off unless set; the server turns it on. */
   mobs?: boolean;
+  /**
+   * A training world (sim/training.ts): the run never ends and nothing is recorded: no patience timer, teleport, sudden
+   * death, results or GV, and a fighter who goes down is revived. Implies the training setup (`dummies`).
+   */
+  training?: boolean;
 }
 
 /** A melee swing or wand cast waiting to land, or a bow being drawn. Times are server ms. */

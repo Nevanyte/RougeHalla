@@ -1,14 +1,17 @@
-// Hub menu: callsign → profile load → Glorious Victory balance, stats and the month's top players → Start Run.
+// Hub menu: callsign → profile load → Glorious Victory balance, stats and the month's top players → Start Run or Training.
 // The server owns the profile; this panel only shows the last loaded copy and sends { profile, token } at join.
+// Over the walkable hub (scenes/HubScene.ts) it docks to the left; the scene's stations call back into `onStation`.
 import {
   PROFILE_RE, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, monthKey,
   type FactionId, type LeaderboardEntry, type ProfileDTO, type ProfileStats,
 } from "@raid/shared";
+import { factionOfStation, type HubStationId } from "../hub/hubLayout";
 import { ProfileError, fetchLeaderboard, fetchProfile, formatNumber } from "../net/profile";
 import { el, uiRoot } from "./dom";
 import { HubPanels, type HubTabId } from "./hub/hubPanels";
 import { equippedTitle, titleTag } from "./hub/hubUtil";
 import { FactionPicker } from "./factionPicker";
+import "./menuDock.css";
 
 const PROFILE_KEY = "raid.profile";
 const CALLSIGN_RULE = "Callsign: 2–16 letters, digits, _ or -";
@@ -22,8 +25,12 @@ const STAT_LABELS: ReadonlyArray<readonly [keyof ProfileStats, string]> = [
 type Tone = "info" | "warn" | "error";
 
 const HUB_BUTTONS: ReadonlyArray<readonly [HubTabId, string]> = [
-  ["shop", "Shop"], ["wardrobe", "Wardrobe"], ["achievements", "Achievements"], ["leaderboard", "Leaderboard"],
+  ["shop", "Shop"], ["wardrobe", "Wardrobe"], ["achievements", "Achievements"], ["leaderboard", "Leaderboard"], ["counters", "Counters"],
 ];
+
+const NOT_LOADED = "Load a callsign first";
+/** Room left between the docked panel and the world, so the room is centred in what remains. */
+const DOCK_GAP = 12;
 
 // sessionStorage can throw (blocked site data); the callsign then just isn't remembered.
 function savedCallsign(): string | null {
@@ -65,6 +72,8 @@ export interface RaidRequest {
 
 export interface MenuHandlers {
   onStart(request: RaidRequest): void;
+  /** A private practice room: nothing in it is recorded. */
+  onTraining(request: RaidRequest): void;
 }
 
 interface Loaded {
@@ -90,6 +99,10 @@ export class Menu {
   private readonly boardList = el("ol", "hub-board-list");
   private readonly picker = new FactionPicker();
   private readonly startBtn = el("button", "btn primary", "Start Run");
+  private readonly trainBtn = el("button", "btn", "Training");
+  private readonly stripName = el("span", "menu-strip-name");
+  private readonly stripGv = el("span", "menu-strip-gv");
+  private readonly dockToggle = el("button", "menu-dock-toggle");
   private readonly status = el("div", "menu-status");
   private readonly hint = el("div", "menu-hint", "Playing in two tabs? Open each with ?profile=name in the URL.");
 
@@ -106,6 +119,12 @@ export class Menu {
   private statusIsTransient = false;
   /** True once this callsign is one the player picked, so returning to the menu reloads it without a click. */
   private chosen: boolean;
+  /** Docked over the walkable hub (a compact panel on the left), and within that, folded to the callsign/GV strip. */
+  private docked = false;
+  private collapsed = false;
+  private readonly profileListeners: Array<(profile: ProfileDTO | null) => void> = [];
+  private readonly factionListeners: Array<(faction: FactionId) => void> = [];
+  private readonly busyListeners: Array<(busy: boolean) => void> = [];
 
   constructor(private readonly handlers: MenuHandlers) {
     const initial = initialProfile();
@@ -156,21 +175,141 @@ export class Menu {
 
     const rules = el("div", "menu-rules", `Last one standing wins. Pick a faction before each run; you start with its signature weapon, and a second slot is yours to fill from chests and the ground. GV you earn is yours to keep even if you die. Winning a run of ${WIN_BONUS_MIN_PLAYERS}+ players pays a bonus if you damaged at least ${WIN_BONUS_MIN_OPPONENTS} of them. Three kills put a bounty on your head: whoever ends your rampage collects it.`);
     const controls = el("div", "menu-rules", "Right-click: move. Left-click: attack (hold to keep attacking; with a bow, hold to draw and release to loose). Q or 1/2: swap weapons. F: take a weapon. S: stop.");
-    this.body.append(this.who, gv, stats, shop, this.board, this.picker.element, rules, controls);
+    const hubControls = el("div", "menu-rules", "In the hub: right-click or WASD to walk, E (or a click) at a station to use it. The pedestals by the south wall pick your faction.");
+    this.body.append(this.who, gv, stats, shop, this.board, this.picker.element, rules, hubControls, controls);
 
-    this.root.append(el("h1", undefined, "RAID"), row, this.placeholder, this.body, this.startBtn, this.status, this.hint);
+    const head = el("div", "menu-head");
+    const strip = el("div", "menu-strip");
+    strip.append(this.stripName, this.stripGv);
+    this.dockToggle.type = "button";
+    this.dockToggle.addEventListener("click", () => this.setCollapsed(!this.collapsed));
+    head.append(el("h1", undefined, "RAID"), strip, this.dockToggle);
+
+    const actions = el("div", "menu-actions");
+    actions.append(this.startBtn, this.trainBtn);
+    this.trainBtn.title = "A private room with practice dummies and every weapon. Nothing is recorded.";
+
+    this.root.append(head, row, this.placeholder, this.body, actions, this.status, this.hint);
 
     this.loadBtn.addEventListener("click", () => void this.load());
-    this.startBtn.addEventListener("click", () => this.start());
+    this.startBtn.addEventListener("click", () => this.startRun());
+    this.trainBtn.addEventListener("click", () => this.startTraining());
+    this.picker.onChange = (id) => {
+      this.syncPick();
+      for (const cb of this.factionListeners) cb(id);
+    };
+    this.syncPick();
     // A held Enter repeats keydown; one load per press is plenty.
     this.input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.repeat) void this.load(); });
     this.input.addEventListener("input", () => this.onEdit());
+    this.clearStrip();
+    this.updateDock();
     this.updateView();
+  }
+
+  // ---- the walkable hub
+
+  /** The faction picked now (or on an earlier visit), or null before a first pick. */
+  get faction(): FactionId | null {
+    return this.picker.selected;
+  }
+
+  /** The profile on screen, or null while none is loaded. */
+  get profile(): ProfileDTO | null {
+    return this.data?.profile ?? null;
+  }
+
+  get isBusy(): boolean {
+    return this.busy;
+  }
+
+  /** True while the shop/wardrobe/... modal is open; the world ignores keys and clicks meanwhile. */
+  get modalOpen(): boolean {
+    return this.hub.isOpen;
+  }
+
+  /** Called whenever the profile on screen changes: a load, a purchase or equip, or it going away (null). */
+  onProfileChange(cb: (profile: ProfileDTO | null) => void): void {
+    this.profileListeners.push(cb);
+  }
+
+  /** Called when the player picks a different faction (the hub scene mirrors it on its pedestals and wheels). */
+  onFactionChange(cb: (faction: FactionId) => void): void {
+    this.factionListeners.push(cb);
+  }
+
+  /** Called when the menu goes busy (joining a room) or free again. */
+  onBusyChange(cb: (busy: boolean) => void): void {
+    this.busyListeners.push(cb);
+  }
+
+  /** Docks the panel to the left over the world (compact, with a fold-away toggle), or restores the centred panel. */
+  setDocked(docked: boolean): void {
+    this.docked = docked;
+    if (!docked) this.collapsed = false;
+    this.updateDock();
+  }
+
+  /** Pixels from the window's left edge the docked panel covers (0 when it isn't docked or shown). */
+  dockInset(): number {
+    if (!this.docked || !this.root.isConnected) return 0;
+    return Math.ceil(this.root.getBoundingClientRect().right) + DOCK_GAP;
+  }
+
+  /** A station in the world was used. The panels and the picker work only with a loaded profile and a free menu. */
+  onStation(id: HubStationId): void {
+    if (this.busy) return;
+    if (!this.data) {
+      this.setStatus(this.loading ? "Loading profile…" : NOT_LOADED, "warn", true);
+      return;
+    }
+    if (id === "arena") this.startRun();
+    else if (id === "training") this.startTraining();
+    else if (id === "shop" || id === "wardrobe" || id === "achievements" || id === "leaderboard" || id === "counters") this.hub.open(id);
+    else {
+      const faction = factionOfStation(id);
+      if (faction) this.picker.select(faction);
+    }
+  }
+
+  private setCollapsed(collapsed: boolean): void {
+    this.collapsed = this.docked && collapsed;
+    this.updateDock();
+  }
+
+  private updateDock(): void {
+    this.root.classList.toggle("docked", this.docked);
+    this.root.classList.toggle("collapsed", this.docked && this.collapsed);
+    this.dockToggle.hidden = !this.docked;
+    const folded = this.docked && this.collapsed;
+    this.dockToggle.textContent = folded ? "›" : "‹";
+    this.dockToggle.title = folded ? "Expand the menu" : "Fold the menu away";
+    this.dockToggle.setAttribute("aria-label", this.dockToggle.title);
+    this.dockToggle.setAttribute("aria-expanded", String(!folded));
+  }
+
+  private syncPick(): void {
+    this.hub.setPick({ faction: this.picker.selected });
+  }
+
+  private emitProfile(profile: ProfileDTO | null): void {
+    for (const cb of this.profileListeners) cb(profile);
+  }
+
+  private setBusyFlag(busy: boolean): void {
+    if (busy === this.busy) return;
+    this.busy = busy;
+    for (const cb of this.busyListeners) cb(busy);
+  }
+
+  private clearStrip(): void {
+    this.stripName.textContent = "RAID";
+    this.stripGv.textContent = "";
   }
 
   /** Shows the menu and (re)loads the callsign's profile, so the balance includes the run that just ended. */
   show(message = ""): void {
-    this.busy = false;
+    this.setBusyFlag(false);
     this.setStatus(message, "warn");
     uiRoot().append(this.root);
     if (this.chosen && PROFILE_RE.test(this.callsign)) void this.load();
@@ -197,7 +336,7 @@ export class Menu {
   }
 
   setBusy(busy: boolean, message = ""): void {
-    this.busy = busy;
+    this.setBusyFlag(busy);
     if (message) this.setStatus(message, "info");
     this.updateView();
   }
@@ -250,18 +389,34 @@ export class Menu {
     this.updateView();
   }
 
-  private start(): void {
+  /** What the Start Run button does: join a run with the loaded profile and the picked faction. */
+  startRun(): void {
+    const request = this.request();
+    if (request) this.handlers.onStart(request);
+  }
+
+  /** The Training button: the same request, answered with a private practice room. */
+  startTraining(): void {
+    const request = this.request();
+    if (request) this.handlers.onTraining(request);
+  }
+
+  /** The request for a room, or null while there is no loaded profile or the menu is busy or loading. */
+  private request(): RaidRequest | null {
     const data = this.data;
-    if (!data || this.busy || this.loading) return;
+    if (!data || this.busy || this.loading) return null;
     saveCallsign(data.profile.name);
-    this.handlers.onStart({ profile: data.profile.name, token: data.token, faction: this.picker.selected });
+    return { profile: data.profile.name, token: data.token, faction: this.picker.selected };
   }
 
   private setProfile(profile: ProfileDTO, token: string): void {
     this.data = { profile, token };
     this.showProfile(profile);
     this.hub.setProfile(profile);
+    this.syncPick();
     void this.loadBoard();
+    // The callsign box keeps focus after Enter, and the world ignores keys while a text field has it.
+    if (this.docked && document.activeElement === this.input) this.input.blur();
   }
 
   /** Draws a profile; also how the hub panels hand back the newer copy a purchase or equip returns. */
@@ -275,10 +430,15 @@ export class Menu {
     this.gvMonth.textContent = formatNumber(profile.gvByMonth[monthKey(Date.now())] ?? 0);
     for (const [key] of STAT_LABELS) this.statEls.get(key)!.textContent = formatNumber(profile.stats[key] ?? 0);
     this.cosmetics.textContent = `${formatNumber(profile.cosmetics.owned.length)} owned`;
+    this.stripName.textContent = profile.name;
+    this.stripGv.textContent = `${formatNumber(profile.gv)} GV`;
+    this.emitProfile(this.data?.profile ?? null);
   }
 
   private clearProfile(): void {
     this.data = null;
+    this.clearStrip();
+    this.emitProfile(null);
     this.hub.setProfile(null);
     this.boardSeq++;
     this.board.hidden = true;
@@ -324,6 +484,7 @@ export class Menu {
     this.picker.setDisabled(this.busy);
     this.loadBtn.disabled = this.busy || this.loading;
     this.startBtn.disabled = this.busy || this.loading || !loaded;
+    this.trainBtn.disabled = this.busy || this.loading || !loaded;
     for (const btn of this.hubButtons) btn.disabled = this.busy;
   }
 }

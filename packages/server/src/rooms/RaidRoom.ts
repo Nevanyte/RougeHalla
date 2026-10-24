@@ -18,7 +18,8 @@ import type { ProfileStore } from "../persistence/ProfileStore";
 import { markDropped, markReconnected } from "../sim/arena";
 import { createGameWorld } from "../sim/gameplay";
 import { enqueueClientMessage } from "../sim/inputs";
-import { abandonPlayer, addPlayer, removePlayer, step } from "../sim/step";
+import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/step";
+import { installTraining } from "../sim/training";
 import type { SimEvent, World } from "../sim/world";
 import { FxChannel } from "./FxChannel";
 
@@ -144,12 +145,34 @@ export class RaidRoom extends Room<{ state: RaidState }> {
    */
   private readonly picked = new Map<string, FactionId>();
 
-  onCreate() {
+  /** A training room (mode "training"): private, one player, nothing recorded (sim/training.ts). Fixed at creation. */
+  private training = false;
+  /** When the last input arrived (training's idle limit). */
+  private lastInputAt = Date.now();
+
+  onCreate(options?: Partial<JoinOptions>) {
     const { config } = RaidRoom.ctx;
-    this.world = createGameWorld({ seed: randomInt(0, 2 ** 31), config, random: Math.random });
+    this.training = options?.mode === "training";
+    this.world = createGameWorld({
+      seed: randomInt(0, 2 ** 31),
+      config: this.training ? { ...config, dummies: true, training: true } : config,
+      random: Math.random,
+    });
+    if (this.training) {
+      installTraining(this.world);
+      // Out of every matchmaking search and open to its creator only (the "training" handler also forces the mode).
+      this.maxClients = 1;
+      void this.setPrivate(true);
+      // A training run has no end of its own, so a player who walks away from an open tab is let go after a while.
+      const idleMs = Math.max(1, config.trainingIdleSeconds) * 1000;
+      this.clock.setInterval(() => {
+        if (Date.now() - this.lastInputAt > idleMs) void this.disconnect();
+      }, Math.min(5000, idleMs));
+    }
     this.state = this.world.state;
     for (const type of CLIENT_MESSAGE_TYPES) {
       this.onMessage(type, (client: Client, msg: unknown) => {
+        this.lastInputAt = Date.now();
         const rt = this.world.players.get(client.sessionId);
         if (rt) enqueueClientMessage(rt.inputs, type, msg);
       });
@@ -189,8 +212,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       const owned = store.get(profile)?.cosmetics;
       addPlayer(this.world, client.sessionId, profile, { faction, look: owned ? packLook(owned.equipped, owned.owned) : 0 });
       this.seats.set(client.sessionId, { profile, ownerKey });
-      if (faction) this.picked.set(client.sessionId, faction);
+      if (faction && !this.training) this.picked.set(client.sessionId, faction);
       profiles.confirm(profile, ownerKey);
+      // Training has no lobby to wait out: the run is on as soon as its one player is in.
+      if (this.training) startRaid(this.world);
     } catch (err) {
       removePlayer(this.world, client.sessionId);
       this.seats.delete(client.sessionId);
@@ -204,7 +229,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // Nothing to hold in the lobby: a ghost would count toward minPlayers and could be spawned into
     // the raid unable to act. Not allowing reconnection makes core call onLeave right away. Once the run
     // is on, the seat is held (and the player stays alive, and hittable) so a blip doesn't cost them.
-    if (this.world.state.phase === "lobby") return;
+    // A training room has nothing to hold either: the shipped client leaves with a non-consented close, which lands here, and a
+    // hold would keep the profile locked for the whole grace period after the player has gone back to the hub.
+    if (this.world.state.phase === "lobby" || this.training) return;
     // For kill credit, a player who never comes back left now, not when the grace runs out.
     markDropped(this.world, client.sessionId);
     // Rejects when the client never finished joining or the room is disposing; onLeave still runs.
@@ -244,7 +271,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const seat = this.seats.get(sessionId);
     // Deleting the seat first is what keeps a second onLeave/onDispose from paying out again.
     this.seats.delete(sessionId);
-    if (seat && this.shuttingDown && this.world.state.players.get(sessionId)?.status === "alive") {
+    if (this.training) {
+      // Walking out of a practice room is not leaving a run: no MIA, no result, nothing banked.
+      abandonPlayer(this.world, sessionId);
+    } else if (seat && this.shuttingDown && this.world.state.players.get(sessionId)?.status === "alive") {
       // A void run leaves no trace (no MIA result, no body, no recorded run), but what was earned is paid.
       this.bankVoided(seat.profile, abandonPlayer(this.world, sessionId));
     } else {
@@ -272,7 +302,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   private bankVoided(profile: string, gv: number) {
-    if (gv <= 0) return;
+    if (gv <= 0 || this.training) return;
     try {
       RaidRoom.ctx.store.bankGv(profile, gv);
     } catch (err) {
@@ -333,6 +363,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
 
   /** A player's run is over: bank its GV and stats, free the profile, tell them. */
   private settle(sessionId: string, result: RunResult) {
+    // The sim never resolves a training run; this is the second lock on "no GV, no stats, no achievements".
+    if (this.training) return;
     const { store, profiles } = RaidRoom.ctx;
     let unlocked: string[] = [];
     // The weapon in hand when the run ended (the winner is still in the state), and the faction if it was picked.

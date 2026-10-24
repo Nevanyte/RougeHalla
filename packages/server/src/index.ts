@@ -3,7 +3,8 @@ import { defineRoom, defineServer, matchMaker } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler, type Response } from "express";
 import {
-  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_MONTHS, MONTH_RE, PROFILE_RE, PROFILE_TOKEN_HEADER, ROOM_NAME, monthKey,
+  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_MONTHS, MONTH_RE, PROFILE_RE, PROFILE_TOKEN_HEADER, ROOM_NAME, TRAINING_ROOM_NAME,
+  monthKey,
   type LeaderboardResponse, type ProfileDTO, type ProfileResponse, type ShopError, type ShopErrorCode, type ShopResponse,
 } from "@raid/shared";
 import { loadConfig, type ServerConfig } from "./config";
@@ -152,8 +153,11 @@ export function createServer(config: ServerConfig = loadConfig()) {
   const server = defineServer({
     transport: new WebSocketTransport(),
     greet: false,
+    // The handler's options win over the client's (Colyseus merges them that way), so the mode is the server's choice:
+    // the arena handler can't be talked into creating a training room, and the training one can't create an arena.
     rooms: {
-      [ROOM_NAME]: defineRoom(RaidRoom),
+      [ROOM_NAME]: defineRoom(RaidRoom, { mode: "arena" }),
+      [TRAINING_ROOM_NAME]: defineRoom(RaidRoom, { mode: "training" }),
     },
     express: (app) => {
       // Colyseus has already set its own CORS headers on the response (echoed origin, credentials);
