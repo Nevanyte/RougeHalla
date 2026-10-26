@@ -6,10 +6,11 @@ import { MAP_TILES_H, MAP_TILES_W, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_C
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, tileToWorldCenter, withGates } from "../src/map";
 import type { GameMap, TilePt } from "../src/map";
 import {
-  CAMP_GAP, CAMPS_PER_ZONE, LATTICE_ORIGIN, MAX_ATTEMPTS, RING_CONTACT_MIN, SIGHT_LATTICE, SLIVER_MAX, TERRITORY_RADIUS_MAX, ZONE_STYLERS,
+  CAMP_GAP, CAMPS_PER_ZONE, LATTICE_ORIGIN, MAX_ATTEMPTS, RING_CONTACT_MIN, SIGHT_LATTICE, SLIVER_MAX, TERRITORY_RADIUS_MAX, ZONE_STYLE_HOOK, styleRng,
   certifiedMap, generateMap, longestLane, mapHash, tryAttempt,
 } from "../src/mapgen";
-import type { ZoneStyler } from "../src/mapgen";
+import type { ZoneStyleHook } from "../src/mapgen";
+import { TERRAIN_LAVA } from "../src/terrain";
 import { mulberry32, randInt } from "../src/rng";
 import { WEAPONS } from "../src/weapons";
 import {
@@ -282,33 +283,53 @@ describe("the certifier", () => {
 });
 
 describe("styler hook", () => {
-  it("ships no stylers: every tile of a real map is floor or wall", () => {
-    expect(Object.keys(ZONE_STYLERS)).toEqual([]);
-    for (const s of seeds(10)) expect(mapFor(s).tiles.every((v) => v === TILE_FLOOR || v === TILE_WALL), `seed ${s}`).toBe(true);
+  it("ships no stylers: every tile of a real map is floor or wall, with no terrain and no props", () => {
+    expect(ZONE_STYLE_HOOK).toBeNull();
+    for (const s of seeds(10)) {
+      const m = mapFor(s);
+      expect(m.tiles.every((v) => v === TILE_FLOOR || v === TILE_WALL), `seed ${s}`).toBe(true);
+      expect(m.terrain.length, `seed ${s}`).toBe(m.w * m.h);
+      expect(m.terrain.every((v) => v === 0), `seed ${s}`).toBe(true);
+      expect(m.props, `seed ${s}`).toEqual([]);
+    }
   });
 
-  it("gives every styler a stream of its own: a styler that draws but changes nothing leaves the map as it was", () => {
-    const draw: ZoneStyler = (z) => { for (let i = 0; i < 100; i++) z.rng(); };
-    const stylers = Object.fromEntries(REGION_FACTIONS.map((f) => [f, draw]));
-    for (const s of seeds(5)) expect(generateMap(s, undefined, { stylers }), `seed ${s}`).toEqual(mapFor(s));
+  it("keeps the generator's stream apart: a hook that draws but changes nothing leaves the map as it was", () => {
+    const draw: ZoneStyleHook = (st) => { for (let z = 1; z <= 5; z++) { const r = styleRng(st.seed, st.attempt, z); for (let i = 0; i < 100; i++) r(); } };
+    for (const s of seeds(5)) expect(generateMap(s, undefined, { styleZones: draw }), `seed ${s}`).toEqual(mapFor(s));
   });
 
-  it("hands each styler its own zone, the protected tiles and this attempt's territories, and throws when it breaks the contract", () => {
-    const seen: string[] = [];
-    const look: ZoneStyler = (z) => {
-      seen.push(z.zone);
-      expect(z.zoneMask.reduce((a, v) => a + v, 0)).toBeGreaterThan(1500);
-      expect(z.protect.some((v, i) => v === 1 && z.zoneMask[i] === 1)).toBe(true);
-      expect(z.territoryGrid.some((v) => v > 0)).toBe(true);
-      expect([z.w, z.h, z.tiles.length]).toEqual([MAP_SIZE, MAP_SIZE, MAP_SIZE * MAP_SIZE]);
+  it("hands the hook the whole zone grid, the factions, the protected tiles and this attempt's camps and territories", () => {
+    let calls = 0;
+    const look: ZoneStyleHook = (st) => {
+      calls++;
+      expect([st.w, st.h, st.tiles.length, st.terrain.length]).toEqual([MAP_SIZE, MAP_SIZE, MAP_SIZE * MAP_SIZE, MAP_SIZE * MAP_SIZE]);
+      expect([...st.zoneFaction].sort()).toEqual([...REGION_FACTIONS].sort());
+      const sizes = [1, 2, 3, 4, 5].map((z) => st.zone.reduce((a, v) => a + (v === z ? 1 : 0), 0));
+      expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(8);
+      expect(st.camps.length).toBe(20);
+      st.camps.forEach((c, i) => {
+        expect(c.territory).toBe(i + 1);
+        expect(st.territoryGrid[c.site]).toBe(c.territory);
+        expect(st.protect[c.site]).toBe(1);
+        expect(c.r).toBe(2.5);
+      });
+      expect(st.terrain.every((v) => v === 0)).toBe(true);
+      expect(st.props).toEqual([]);
     };
-    generateMap(2, undefined, { stylers: Object.fromEntries(REGION_FACTIONS.map((f) => [f, look])) });
-    expect(new Set(seen)).toEqual(new Set(REGION_FACTIONS));
-    const breaches: [string, ZoneStyler][] = [
-      ["a protected tile", (z) => { z.tiles[z.protect.findIndex((v, j) => v === 1 && z.zoneMask[j] === 1 && z.tiles[j] === TILE_FLOOR)] = TILE_LOW; }],
-      ["another zone", (z) => { z.tiles[z.zoneMask.findIndex((v, j) => v === 0 && z.protect[j] === 0 && z.tiles[j] === TILE_FLOOR)] = TILE_WALL; }],
-      ["a tile value that is neither wall nor low ground", (z) => { z.tiles[z.zoneMask.findIndex((v, j) => v === 1 && z.protect[j] === 0 && z.tiles[j] === TILE_FLOOR)] = 7; }],
+    generateMap(2, undefined, { styleZones: look });
+    expect(calls).toBeGreaterThanOrEqual(1);
+  });
+
+  it("throws when the hook breaks the contract", () => {
+    const firstFree = (st: Parameters<ZoneStyleHook>[0]) => st.zone.findIndex((z, i) => z > 0 && st.protect[i] === 0 && st.tiles[i] === TILE_FLOOR);
+    const breaches: [string, ZoneStyleHook][] = [
+      ["a protected tile", (st) => { st.tiles[st.protect.findIndex((v, i) => v === 1 && st.zone[i] > 0 && st.tiles[i] === TILE_FLOOR)] = TILE_LOW; }],
+      ["the coliseum (no zone)", (st) => { st.tiles[st.zone.findIndex((z, i) => z === 0 && st.tiles[i] === TILE_FLOOR)] = TILE_WALL; }],
+      ["a tile value that is neither wall nor low ground", (st) => { st.tiles[firstFree(st)] = 7; }],
+      ["a LOW kind on floor", (st) => { st.terrain[firstFree(st)] = TERRAIN_LAVA; }],
+      ["terrain on a protected tile", (st) => { st.terrain[st.protect.findIndex((v, i) => v === 1 && st.zone[i] > 0 && st.tiles[i] === TILE_FLOOR)] = 5; }],
     ];
-    for (const [what, styler] of breaches) expect(() => generateMap(2, undefined, { stylers: { fire: styler } }), what).toThrow(/broke the contract/);
+    for (const [what, hook] of breaches) expect(() => generateMap(2, undefined, { styleZones: hook }), what).toThrow(/broke the contract/);
   });
 });

@@ -2,11 +2,11 @@
 // cuts every lane down to the target, and the spawn sight screen. Client and server must agree to the bit, so only
 // + - * / sqrt floor ceil abs min max are used here (detSin/detCos are built from those).
 //
-// Two masks: sight-open is `tile !== TILE_WALL` (low ground lets sight through, so lanes run over it and a rock may
-// stand on it), walkable is `tile === TILE_FLOOR` (every connectivity test: the simple-point table, sealed pockets, the
+// Two masks (map.ts): sight-open is `(tile & MASK_SIGHT) === 0` (low ground lets sight through, so lanes run over it and a
+// rock may stand on it), walkable is `(tile & MASK_MOVE) === 0` (every connectivity test: the simple-point table, sealed pockets, the
 // ring road, the territory guard, walking distances).
 import { MAP_TILES_H, MAP_TILES_W, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE } from "./constants";
-import { REGION_FACTIONS, REGION_NONE as NONE_CODE, TILE_FLOOR as FLOOR_TILE, TILE_WALL as WALL_TILE } from "./map";
+import { MASK_MOVE as MOVE_MASK, MASK_SIGHT as SIGHT_MASK, REGION_FACTIONS, REGION_NONE as NONE_CODE, TILE_WALL as WALL_TILE } from "./map";
 import type { GameMap, TilePt } from "./map";
 import type { Rng } from "./rng";
 
@@ -17,7 +17,7 @@ const SECTORS = REGION_FACTIONS.length;
 const d2 = (a: TilePt, b: TilePt): number => (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
 // Hot loops read module-level copies of these imports: under a test runner's module system (vitest) every use of an
 // import is a property read on the module object, which cost this code about a third of its time.
-const TILE_FLOOR = FLOOR_TILE, TILE_WALL = WALL_TILE, REGION_NONE = NONE_CODE;
+const MASK_MOVE = MOVE_MASK, MASK_SIGHT = SIGHT_MASK, TILE_WALL = WALL_TILE, REGION_NONE = NONE_CODE;
 
 
 /**
@@ -95,11 +95,11 @@ export function enforceConnectivity(tiles: Uint8Array, seedTile: TilePt): void {
     if (y < H - 1) visit(i + W);
   }
   function visit(j: number): void {
-    if (seen[j] || tiles[j] !== TILE_FLOOR) return;
+    if (seen[j] || (tiles[j] & MASK_MOVE) !== 0) return;
     seen[j] = 1;
     queue[tail++] = j;
   }
-  for (let i = 0; i < tiles.length; i++) if (tiles[i] === TILE_FLOOR && !seen[i]) tiles[i] = TILE_WALL;
+  for (let i = 0; i < tiles.length; i++) if ((tiles[i] & MASK_MOVE) === 0 && !seen[i]) tiles[i] = TILE_WALL;
 }
 
 /**
@@ -227,7 +227,7 @@ export function getLaneTable(dirs: number, step: number): LaneTable {
 
 /** 1 where a tile is sight-open (not wall) and belongs to a region (gates open on a generated map): the tiles the lane metric walks. */
 export function openMask(tiles: Uint8Array, regionGrid: Uint8Array, out: Uint8Array): Uint8Array {
-  for (let i = 0; i < N; i++) out[i] = tiles[i] !== TILE_WALL && regionGrid[i] !== REGION_NONE ? 1 : 0;
+  for (let i = 0; i < N; i++) out[i] = (tiles[i] & MASK_SIGHT) === 0 && regionGrid[i] !== REGION_NONE ? 1 : 0;
   return out;
 }
 
@@ -323,9 +323,9 @@ export function walkDistances(tiles: Uint8Array, from: number): Int32Array {
       const x = i % W, y = (i - x) / W;
       for (let q = 0; q < 8; q++) {
         const nx = x + DX[q], ny = y + DY[q];
-        if (nx < 0 || ny < 0 || nx >= W || ny >= H || tiles[ny * W + nx] !== TILE_FLOOR) continue;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || (tiles[ny * W + nx] & MASK_MOVE) !== 0) continue;
         const diagonal = (q & 1) === 1;
-        if (diagonal && (tiles[y * W + nx] !== TILE_FLOOR || tiles[ny * W + x] !== TILE_FLOOR)) continue;
+        if (diagonal && ((tiles[y * W + nx] & MASK_MOVE) !== 0 || (tiles[ny * W + x] & MASK_MOVE) !== 0)) continue;
         const nd = d + (diagonal ? 7 : 5), j = ny * W + nx;
         if (nd < best[j]) { best[j] = nd; buckets[nd & 7].push(j); left++; }
       }
@@ -384,7 +384,7 @@ function coneGaps(tiles: Uint8Array, c: Cone, box: readonly number[]): void {
   const spans: [number, number][] = [];
   for (let ty = box[1]; ty <= box[3]; ty++) {
     for (let tx = box[0]; tx <= box[2]; tx++) {
-      if (tiles[ty * W + tx] === TILE_WALL && tileSlopes(c, tx, ty) && tileSlope[1] >= -c.t && tileSlope[0] <= c.t) spans.push([tileSlope[0], tileSlope[1]]);
+      if ((tiles[ty * W + tx] & MASK_SIGHT) !== 0 && tileSlopes(c, tx, ty) && tileSlope[1] >= -c.t && tileSlope[0] <= c.t) spans.push([tileSlope[0], tileSlope[1]]);
     }
   }
   spans.sort((p, q) => p[0] - q[0]);
@@ -453,7 +453,7 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
     if (!guard || !guard[t]) return true;
     const g = guard[t];
     let m = 0;
-    for (let q = 0; q < 8; q++) { const j = t + RING_OFF[q]; if (tiles[j] === TILE_FLOOR && guard[j] === g) m |= 1 << q; }
+    for (let q = 0; q < 8; q++) { const j = t + RING_OFF[q]; if ((tiles[j] & MASK_MOVE) === 0 && guard[j] === g) m |= 1 << q; }
     return SIMPLE[m] === 1;
   };
   // A lane through k tiles is at most k * sqrt(2) long, so a shorter run of open tiles is never a long lane.
@@ -477,22 +477,25 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
       const i = queue[headA++];
       for (let e = 0; e < 4; e++) {
         const j = i + NB4[e];
-        if (tiles[j] !== TILE_FLOOR) continue;
+        if ((tiles[j] & MASK_MOVE) !== 0) continue;
         if (mark[j] === markB) return true;
         if (mark[j] !== markA) { mark[j] = markA; queue[tailA++] = j; }
       }
       const i2 = queueB[headB++];
       for (let e = 0; e < 4; e++) {
         const j = i2 + NB4[e];
-        if (tiles[j] !== TILE_FLOOR) continue;
+        if ((tiles[j] & MASK_MOVE) !== 0) continue;
         if (mark[j] === markA) return true;
         if (mark[j] !== markB) { mark[j] = markB; queueB[tailB++] = j; }
       }
     }
     return false;
   };
+  // A probe walls the tile for a moment and puts back the byte it held (only floor is ever probed, but a LOW tile turned
+  // into floor by a careless restore would open a fence).
   const sealed = (t: number): boolean => {
     pocket.length = 0;
+    const saved = tiles[t];
     tiles[t] = TILE_WALL;
     const bigStart: number[] = [];
     let ok = true;
@@ -500,7 +503,7 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
     mark[t] = markNow;
     for (let d = 0; d < 4 && ok; d++) {
       const s = t + NB4[d];
-      if (tiles[s] !== TILE_FLOOR || mark[s] === markNow) continue;
+      if ((tiles[s] & MASK_MOVE) !== 0 || mark[s] === markNow) continue;
       let head = 0, tail = 0, small = true, joined = false;
       queue[tail++] = s;
       mark[s] = markNow;
@@ -509,7 +512,7 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
         const i = queue[head++];
         for (let e = 0; e < 4; e++) {
           const j = i + NB4[e];
-          if (tiles[j] !== TILE_FLOOR) continue;
+          if ((tiles[j] & MASK_MOVE) !== 0) continue;
           // A tile an earlier, capped walk already reached: this is the same big piece, not a new one.
           if (bigMark[j] === markNow) { joined = true; break; }
           if (mark[j] !== markNow) { mark[j] = markNow; queue[tail++] = j; }
@@ -527,7 +530,7 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
     // Hitting the cap on two sides does not say they are one piece: walk out from both until they meet or one
     // runs dry (the smaller piece bounds the work).
     for (let k = 1; ok && k < bigStart.length; k++) ok = joins(bigStart[0], bigStart[k]);
-    tiles[t] = TILE_FLOOR;
+    tiles[t] = saved;
     return ok && bigStart.length > 0;
   };
 
@@ -538,8 +541,8 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
     if (!open[t]) continue;
     if (prot[t] || (ruinOf[t] !== 0 && ruinQuota[ruinOf[t]] <= 0)) { dead[t] = 1; continue; }
     let mask = 0;
-    for (let q = 0; q < 8; q++) if (tiles[t + RING_OFF[q]] === TILE_FLOOR) mask |= 1 << q;
-    if (tiles[t] === TILE_FLOOR && !SIMPLE[mask] && !sealed(t)) dead[t] = 1;
+    for (let q = 0; q < 8; q++) if ((tiles[t + RING_OFF[q]] & MASK_MOVE) === 0) mask |= 1 << q;
+    if ((tiles[t] & MASK_MOVE) === 0 && !SIMPLE[mask] && !sealed(t)) dead[t] = 1;
   }
 
   const hits = new Int32Array(N);
@@ -697,12 +700,13 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
   let ringFloor = 0;
   const ringMark = new Int32Array(N);
   let ringNow = 0;
-  for (let i = 0; i < N; i++) if (ring[i]) { ringList.push(i); if (tiles[i] === TILE_FLOOR) ringFloor++; }
+  for (let i = 0; i < N; i++) if (ring[i]) { ringList.push(i); if ((tiles[i] & MASK_MOVE) === 0) ringFloor++; }
   // The ring road is the one corridor every region shares: it must stay a single piece touching all five.
   const ringKeeps = (t: number): boolean => {
+    const saved = tiles[t];
     tiles[t] = TILE_WALL;
     let seed = -1;
-    for (let q = 0; q < ringList.length; q++) if (tiles[ringList[q]] === TILE_FLOOR) { seed = ringList[q]; break; }
+    for (let q = 0; q < ringList.length; q++) if ((tiles[ringList[q]] & MASK_MOVE) === 0) { seed = ringList[q]; break; }
     let count = 0, seenRegions = 0;
     if (seed >= 0) {
       ringNow++;
@@ -715,11 +719,11 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
         seenRegions |= 1 << regionGrid[i];
         for (let d = 0; d < 4; d++) {
           const j = i + NB4[d];
-          if (ring[j] === 1 && tiles[j] === TILE_FLOOR && ringMark[j] !== ringNow) { ringMark[j] = ringNow; queue[tail++] = j; }
+          if (ring[j] === 1 && (tiles[j] & MASK_MOVE) === 0 && ringMark[j] !== ringNow) { ringMark[j] = ringNow; queue[tail++] = j; }
         }
       }
     }
-    tiles[t] = TILE_FLOOR;
+    tiles[t] = saved;
     return count === ringFloor - 1 && seenRegions === ((1 << (SECTORS + 1)) - 2);
   };
   const ringBlocked = new Uint8Array(N);
@@ -737,8 +741,8 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
       const rb = ruinOf[t] * 4, x = t % W, y = (t - x) / W;
       if (ruinQuota[ruinOf[t]] <= 0) return NEVER;
       let col = 0, row = 0;
-      for (let yy = ruinBox[rb + 1]; yy <= ruinBox[rb + 3]; yy++) if (tiles[yy * W + x] === TILE_FLOOR) col++;
-      for (let xx = ruinBox[rb]; xx <= ruinBox[rb + 2]; xx++) if (tiles[y * W + xx] === TILE_FLOOR) row++;
+      for (let yy = ruinBox[rb + 1]; yy <= ruinBox[rb + 3]; yy++) if ((tiles[yy * W + x] & MASK_MOVE) === 0) col++;
+      for (let xx = ruinBox[rb]; xx <= ruinBox[rb + 2]; xx++) if ((tiles[y * W + xx] & MASK_MOVE) === 0) row++;
       if (col <= 3 || row <= 3) return NEVER;
     }
     let lvl = soft[t] ? 3 : 0, mask = 0;
@@ -746,22 +750,22 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
       const j = t + RING_OFF[q];
       const r = rockOf[j];
       if (r !== 0 && r !== rock && lvl < 1) lvl = 1;
-      if (tiles[j] === TILE_FLOOR) mask |= 1 << q;
+      if ((tiles[j] & MASK_MOVE) === 0) mask |= 1 << q;
     }
-    if (lvl < 2 && tiles[t] === TILE_FLOOR && !guardOK(t)) lvl = 2;
-    if (tiles[t] === TILE_FLOOR && !SIMPLE[mask]) {
+    if (lvl < 2 && (tiles[t] & MASK_MOVE) === 0 && !guardOK(t)) lvl = 2;
+    if ((tiles[t] & MASK_MOVE) === 0 && !SIMPLE[mask]) {
       if (lvl < 2) lvl = 2;
       if (lvl > worst || score - penalty(lvl) <= beat || !sealed(t)) return NEVER;
     }
     if (lvl > worst) return NEVER;
-    if (ring[t] === 1 && tiles[t] === TILE_FLOOR && !ringKeeps(t)) { ringBlocked[t] = 1; return NEVER; }
+    if (ring[t] === 1 && (tiles[t] & MASK_MOVE) === 0 && !ringKeeps(t)) { ringBlocked[t] = 1; return NEVER; }
     return lvl;
   };
   const priority = (t: number): number => hits[t] * 1024 + noise[t];
 
   let rocks = 0;
   const setRock = (t: number): void => {
-    if (ring[t] === 1 && tiles[t] === TILE_FLOOR) ringFloor--;
+    if (ring[t] === 1 && (tiles[t] & MASK_MOVE) === 0) ringFloor--;
     tiles[t] = TILE_WALL;
     rockOf[t] = rocks;
     ruinQuota[ruinOf[t]]--;
@@ -770,9 +774,9 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
   const place = (t: number, lvl: number): void => {
     rocks++;
     let fill: number[] = [];
-    if (lvl >= 2 && tiles[t] === TILE_FLOOR) {
+    if (lvl >= 2 && (tiles[t] & MASK_MOVE) === 0) {
       let mask = 0;
-      for (let q = 0; q < 8; q++) if (tiles[t + RING_OFF[q]] === TILE_FLOOR) mask |= 1 << q;
+      for (let q = 0; q < 8; q++) if ((tiles[t + RING_OFF[q]] & MASK_MOVE) === 0) mask |= 1 << q;
       if (!SIMPLE[mask] && sealed(t)) fill = pocket.slice();
     }
     setRock(t);
@@ -858,7 +862,7 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
           for (let ty = box[1]; ty <= box[3]; ty++) {
             for (let tx = box[0]; tx <= box[2]; tx++) {
               const t = ty * W + tx;
-              if (tiles[t] === TILE_WALL) continue;
+              if ((tiles[t] & MASK_SIGHT) !== 0) continue;
               // the share of the cones' slopes still open if this tile were a rock
               let left = 0;
               for (const c of cones) {

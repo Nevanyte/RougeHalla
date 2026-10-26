@@ -26,12 +26,13 @@ import {
   REGION_COLISEUM, REGION_FACTIONS, REGION_NONE, REGION_WEAPONS, TILE_FLOOR as FLOOR_TILE, TILE_LOW as LOW_TILE, TILE_WALL as WALL_TILE, regionCode,
   tileToWorldCenter,
 } from "./map";
-import type { CampDef, ColiseumDef, FactionRegionDef, GameMap, MobCampDef, RegionFaction, TilePt, TileRect } from "./map";
+import type { CampDef, ColiseumDef, FactionRegionDef, GameMap, MapProp, MobCampDef, RegionFaction, TilePt, TileRect } from "./map";
 import type { Vec2 } from "./messages";
 import { mulberry32, pick, randInt as rngInt, shuffle } from "./rng";
 import type { Rng } from "./rng";
-import { ZONE_STYLERS, styleRng } from "./styler";
-import type { ZoneStylers } from "./styler";
+import { ZONE_STYLE_HOOK } from "./styler";
+import type { StyleCamp, ZoneStyleHook } from "./styler";
+import { PROP_KINDS, TERRAINS, TERRAIN_NONE, validateTerrain } from "./terrain";
 import {
   AREA_TOLERANCE, CAMP_HALO, CAMP_R, CAMP_TILES, RING_CONTACT_MIN, SLIVER_MAX, TERRITORY_RADIUS_MAX, ZONES, chamfer, d2i as tileD2, failed,
   partitionZones, placeCamps, repairTerritories, ringContact, sliverCounts, territoryReach2,
@@ -40,8 +41,8 @@ import type { CampLayout, CampSite, ZonePartition } from "./zones";
 
 export { LATTICE_ORIGIN, SIGHT_LATTICE, longestLane } from "./cover";
 export { CAMPS_PER_ZONE, CAMP_GAP, MAPGEN_FAILS, RING_CONTACT_MIN, SLIVER_MAX, TERRITORY_RADIUS_MAX } from "./zones";
-export { ZONE_STYLERS, styleRng } from "./styler";
-export type { ZoneStyler, ZoneStylerInput, ZoneStylers } from "./styler";
+export { ZONE_STYLE_HOOK, styleRng } from "./styler";
+export type { StyleCamp, StyleState, ZoneStyleHook } from "./styler";
 
 const W = MAP_TILES_W;
 const H = MAP_TILES_H;
@@ -261,8 +262,8 @@ function pickGroundSpots(rng: Rng, tiles: Uint8Array, skip: Uint8Array, spawns: 
 }
 
 export interface MapgenOptions {
-  /** The zone stylers to run. Tests only: every real map uses ZONE_STYLERS, or client and server would disagree. */
-  stylers?: ZoneStylers;
+  /** The zone style hook to run instead of ZONE_STYLE_HOOK (null: none). Tests only: client and server must agree. */
+  styleZones?: ZoneStyleHook | null;
 }
 
 /**
@@ -286,7 +287,7 @@ export function generateMap(seed: number, attempt?: number, options?: MapgenOpti
 /** Runs exactly one attempt of `seed`: its map, or null when that attempt does not certify. */
 export function tryAttempt(seed: number, attempt: number, options?: MapgenOptions): GameMap | null {
   if (!Number.isSafeInteger(attempt) || attempt < 0) throw new RangeError(`tryAttempt: attempt must be an integer >= 0, got ${attempt}`);
-  return buildMap(seed, attempt, options?.stylers ?? ZONE_STYLERS);
+  return buildMap(seed, attempt, options?.styleZones !== undefined ? options.styleZones : ZONE_STYLE_HOOK);
 }
 
 /** The first of attempts 0..MAX_ATTEMPTS-1 of `seed` that certifies, or null: a map pool discards such a seed. */
@@ -309,7 +310,7 @@ export function warmMapgen(): void {
 /** Per-stage timing for the bench (`scripts/mapBench.ts`); off by default, and never changes a map. */
 export const MAPGEN_PROFILE = { on: false, attempts: 0, ms: {} as Record<string, number> };
 
-function buildMap(seed: number, attempt: number, stylers: ZoneStylers): GameMap | null {
+function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null): GameMap | null {
   const F = fixedLayout();
   const { border, fp, distFp, ring } = F;
   let tMark = MAPGEN_PROFILE.on ? performance.now() : 0;
@@ -378,8 +379,14 @@ function buildMap(seed: number, attempt: number, stylers: ZoneStylers): GameMap 
   const ruinGrid = new Uint8Array(N), ruinNear1 = new Uint8Array(N);
   for (const b of buildings) { markRect(ruinGrid, b, 0); markRect(ruinNear1, b, 1); }
 
-  const keepLow = new Uint8Array(N);
-  applyStylers(seed, attempt, stylers, order, zone, territoryGrid, camps, ruinNear1, tiles, keepLow);
+  const keepLow = new Uint8Array(N), terrain = new Uint8Array(N);
+  let props: MapProp[] = [];
+  if (hook) applyStyleHook(seed, attempt, hook, order, zone, territoryGrid, camps, ruinNear1, tiles, terrain, props, keepLow);
+  // A floor kind does not survive under a wall (a rock, a walled-up pocket); a LOW kind does, as decor (terrain.ts T3).
+  const clearBuried = (): void => {
+    if (!hook) return;
+    for (let i = 0; i < N; i++) if (terrain[i] !== TERRAIN_NONE && tiles[i] === TILE_WALL && TERRAINS[terrain[i]].tile === TILE_FLOOR) terrain[i] = TERRAIN_NONE;
+  };
 
   {
     // Rock chunks (1-2 by 1-3 tiles), with a tile of air around each, off the ring road + 1, ruins + 1, camp halos and
@@ -407,6 +414,7 @@ function buildMap(seed: number, attempt: number, stylers: ZoneStylers): GameMap 
   for (let i = 0; i < N; i++) if (F.laneIn[i]) tiles[i] = TILE_FLOOR;
   for (const t of clearing) tiles[t] = TILE_FLOOR;
   enforceConnectivity(tiles, { x: CX, y: CY });
+  clearBuried();
   for (const t of clearing) if (tiles[t] !== TILE_FLOOR) return failed("A:campCut");
   const zoneCode = (z: number): number => regionCode(order[z - 1]);
   const regionGrid = new Uint8Array(N);
@@ -435,7 +443,7 @@ function buildMap(seed: number, attempt: number, stylers: ZoneStylers): GameMap 
   }
 
   // --- Spawn pool: farthest-point packing on one walking-distance contour --------------------------------------------
-  let pool = pickSpawnPool(rng, tiles, zone, open3, ruinGrid, camps);
+  let pool = pickSpawnPool(rng, tiles, hook ? terrain : null, zone, open3, ruinGrid, camps);
   if (!pool) return null;
   lap("spawns");
 
@@ -451,6 +459,7 @@ function buildMap(seed: number, attempt: number, stylers: ZoneStylers): GameMap 
         const i = y * W + x;
         if (zone[i] !== z || tiles[i] !== TILE_FLOOR || ring[i]) continue;
         if (tiles[i - 1] !== TILE_WALL && tiles[i + 1] !== TILE_WALL && tiles[i - W] !== TILE_WALL && tiles[i + W] !== TILE_WALL) continue;
+        if (hook && !plainAround(terrain, i, 1)) continue;
         if (pool.some((s) => cheb(s, i) < 3) || campSpotTiles.some((s) => cheb(s, i) < 2) || camps.some((c) => cheb(c.site, i) < 3)) continue;
         if (nearAny(gapTiles, x, y) || placed.some((o) => cheb(o, i) < CHEST_MIN_GAP)) continue;
         cands.push(i);
@@ -568,31 +577,42 @@ function buildMap(seed: number, attempt: number, stylers: ZoneStylers): GameMap 
       if (slivers[z] > SLIVER_MAX) return failed("A:sliverPost");
     }
   }
-  const reach2 = territoryReach2(camps, territoryGrid, tiles, TILE_FLOOR);
+  const reach2 = territoryReach2(camps, territoryGrid, tiles);
   for (let T = 1; T <= camps.length; T++) if (reach2[T] > TERRITORY_RADIUS_MAX * TERRITORY_RADIUS_MAX) return failed("A:radiusPost");
   lap("post");
 
+  // The stylers' layer on the final tiles: no floor kind under a rock, no prop on the wrong class of tile, and the whole
+  // terrain layer checked (terrain.ts) before the map is handed out.
+  if (hook) {
+    clearBuried();
+    props = props.filter((pr) => {
+      const tx = Math.floor(pr.x / TILE), ty = Math.floor(pr.y / TILE), spec = PROP_KINDS[pr.kind];
+      return spec !== undefined && tx >= 0 && ty >= 0 && tx < W && ty < H && tiles[ty * W + tx] === spec.on;
+    });
+  }
+
   // --- Records ----------------------------------------------------------------------------------------------------
   const noLoot = new Uint8Array(N);
-  for (let i = 0; i < N; i++) if (ruinGrid[i] || fp[i]) noLoot[i] = 1;
+  for (let i = 0; i < N; i++) if (ruinGrid[i] || fp[i] || terrain[i] !== TERRAIN_NONE) noLoot[i] = 1;
   for (const t of clearing) noLoot[t] = 1;
   for (const t of allCrates) markRect(noLoot, cell(t), 1);
   const groundSpots = pickGroundSpots(rng, tiles, noLoot, poolTiles).map(toWorld);
   if (groundSpots.length < GROUND_SPOTS_MIN) return failed("A:ground");
-  const map = records(seed, attempt, tiles, regionGrid, zone, territoryGrid, order, camps, reach2, pool, cratesByZone, ruinGrid, buildings, groundSpots);
+  const map = records(seed, attempt, tiles, terrain, props, regionGrid, zone, territoryGrid, order, camps, reach2, pool, cratesByZone, ruinGrid, buildings, groundSpots);
+  if (hook && validateTerrain(map, { styled: true }).length > 0) return failed("A:terrain");
   lap("records");
   return map;
 }
 
 /**
- * Runs each zone's styler (REGION_FACTIONS order) on the ground as it stands after the ruins, and checks it kept to
- * the contract (styler.ts): only floor turned to wall or low ground, only in its zone, never on protected tiles.
+ * Runs the zone style hook once on the ground as it stands after the ruins, and checks it kept to the contract
+ * (styler.ts): only floor turned to wall or low ground, terrain kinds on their class of tile, both only on painted tiles
+ * outside the protected ones.
  */
-function applyStylers(
-  seed: number, attempt: number, stylers: ZoneStylers, order: readonly RegionFaction[], zone: Uint8Array, territoryGrid: Uint8Array,
-  camps: readonly CampSite[], ruinNear1: Uint8Array, tiles: Uint8Array, keepLow: Uint8Array,
+function applyStyleHook(
+  seed: number, attempt: number, hook: ZoneStyleHook, order: readonly RegionFaction[], zone: Uint8Array, territoryGrid: Uint8Array,
+  camps: readonly CampSite[], ruinNear1: Uint8Array, tiles: Uint8Array, terrain: Uint8Array, props: MapProp[], keepLow: Uint8Array,
 ): void {
-  if (!REGION_FACTIONS.some((f) => stylers[f])) return;
   const F = fixedLayout();
   const protect = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (F.border[i] || F.fp[i] || F.distFp[i] <= RING_ROAD + 1 || ruinNear1[i]) protect[i] = 1;
@@ -603,31 +623,43 @@ function applyStylers(
       for (const [cx, cy] of [[x, y], [W - 1 - x, y], [x, H - 1 - y], [W - 1 - x, H - 1 - y]]) protect[cy * W + cx] = 1;
     }
   }
-  const zoneMask = new Uint8Array(N), before = new Uint8Array(N);
-  REGION_FACTIONS.forEach((faction, fi) => {
-    const styler = stylers[faction];
-    if (!styler) return;
-    const z = order.indexOf(faction) + 1;
-    for (let i = 0; i < N; i++) zoneMask[i] = zone[i] === z ? 1 : 0;
-    before.set(tiles);
-    styler({ w: W, h: H, zone: faction, zoneMask, protect, tiles, territoryGrid, rng: styleRng(seed, attempt, fi + 1), keepLow });
-    for (let i = 0; i < N; i++) {
-      if (tiles[i] === before[i]) continue;
-      if (before[i] !== TILE_FLOOR || (tiles[i] !== TILE_WALL && tiles[i] !== TILE_LOW) || !zoneMask[i] || protect[i]) {
-        throw new Error(`zone styler "${faction}" broke the contract at tile ${i % W},${Math.floor(i / W)} (${before[i]} -> ${tiles[i]})`);
-      }
+  const before = tiles.slice();
+  const styleCamps: StyleCamp[] = camps.map((c, i) => ({ site: c.site, r: CAMP_R, territory: i + 1 }));
+  hook({ w: W, h: H, seed, attempt, tiles, terrain, props, zone, zoneFaction: order, protect, territoryGrid, camps: styleCamps, keepLow });
+  const breach = (i: number, what: string): never => {
+    throw new Error(`zone style hook broke the contract at tile ${i % W},${Math.floor(i / W)}: ${what}`);
+  };
+  for (let i = 0; i < N; i++) {
+    const t = tiles[i], k = terrain[i];
+    if (t !== before[i] && (before[i] !== TILE_FLOOR || (t !== TILE_WALL && t !== TILE_LOW) || !zone[i] || protect[i])) breach(i, `tile ${before[i]} -> ${t}`);
+    if (k === TERRAIN_NONE) continue;
+    const spec = TERRAINS[k];
+    if (!spec || !zone[i] || protect[i] || !(spec.tile === t || (spec.tile === TILE_LOW && t === TILE_WALL))) breach(i, `terrain ${k} on tile ${t}`);
+  }
+}
+
+/** No terrain kind within Chebyshev distance `r` of tile i. */
+function plainAround(terrain: Uint8Array, i: number, r: number): boolean {
+  const x = i % W, y = (i - x) / W;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && ny >= 0 && nx < W && ny < H && terrain[ny * W + nx] !== TERRAIN_NONE) return false;
     }
-  });
+  }
+  return true;
 }
 
 /**
- * The spawn pool on the ground before the cover: candidates with a clear 3x3 outside ruins, SPAWN_RING from the
+ * The spawn pool on the ground before the cover: candidates with a clear 3x3 and no terrain kind in their 5x5, outside ruins, SPAWN_RING from the
  * centre and SPAWN_CAMP_PICK from camps; for contour levels at the 20th to 80th percentile of their walking distance to
  * the centre, farthest-point packing within POOL_PICK_BAND of the level, SPAWN_SEPARATION apart, up to POOL_TARGET
  * members. The level that packs the most members wins (ties: more zones). Null when no level gives POOL_MIN members in
  * POOL_ZONES zones within SPAWN_TRIES rounds.
  */
-function pickSpawnPool(rng: Rng, tiles: Uint8Array, zone: Uint8Array, open3: Uint8Array, ruinGrid: Uint8Array, camps: readonly CampSite[]): number[] | null {
+function pickSpawnPool(
+  rng: Rng, tiles: Uint8Array, terrain: Uint8Array | null, zone: Uint8Array, open3: Uint8Array, ruinGrid: Uint8Array, camps: readonly CampSite[],
+): number[] | null {
   const walk = walkDistances(tiles, CY * W + CX);
   const lo2 = (SPAWN_RING[0] * R0) * (SPAWN_RING[0] * R0), hi2 = (SPAWN_RING[1] * R0) * (SPAWN_RING[1] * R0);
   const campGap2 = SPAWN_CAMP_PICK * SPAWN_CAMP_PICK;
@@ -635,7 +667,7 @@ function pickSpawnPool(rng: Rng, tiles: Uint8Array, zone: Uint8Array, open3: Uin
   for (let y = 2; y < H - 2; y++) {
     for (let x = 2; x < W - 2; x++) {
       const i = y * W + x;
-      if (!zone[i] || !open3[i] || ruinGrid[i] || walk[i] < 0) continue;
+      if (!zone[i] || !open3[i] || ruinGrid[i] || walk[i] < 0 || (terrain && !plainAround(terrain, i, 2))) continue;
       const dx = x + 0.5 - CX, dy = y + 0.5 - CY, r2 = dx * dx + dy * dy;
       if (r2 < lo2 || r2 > hi2) continue;
       if (camps.every((c) => d2i(c.site, i) >= campGap2)) cands.push(i);
@@ -673,7 +705,7 @@ function pickSpawnPool(rng: Rng, tiles: Uint8Array, zone: Uint8Array, open3: Uin
 
 /** The finished map's records, in contract order: camps by REGION_FACTIONS then index, territoryGrid renumbered to match. */
 function records(
-  seed: number, attempt: number, tiles: Uint8Array, regionGrid: Uint8Array, zone: Uint8Array, territoryGrid: Uint8Array,
+  seed: number, attempt: number, tiles: Uint8Array, terrain: Uint8Array, props: MapProp[], regionGrid: Uint8Array, zone: Uint8Array, territoryGrid: Uint8Array,
   order: readonly RegionFaction[], camps: readonly CampSite[], reach2: Int32Array, pool: readonly number[], cratesByZone: readonly number[][],
   ruinGrid: Uint8Array, buildings: TileRect[], groundSpots: Vec2[],
 ): GameMap {
@@ -735,14 +767,15 @@ function records(
     innerSpawns: F.innerTiles.map(toWorld),
   };
   return {
-    seed, w: W, h: H, tiles, regionGrid, attempt, territoryGrid, coliseum, regions, camps: campDefs, spawnPool, buildings,
+    seed, w: W, h: H, tiles, terrain, props, regionGrid, attempt, territoryGrid, coliseum, regions, camps: campDefs, spawnPool, buildings,
     spawns, crateSpots: regions.flatMap((r) => r.chestSpots.map((p) => ({ x: p.x, y: p.y }))), groundSpots,
   };
 }
 
 /**
- * A 32-bit FNV-1a hash of everything a map hands its consumers (tiles, regionGrid, territoryGrid, camps, spawn pool,
- * regions, ruins, loot spots, the seed and attempt), as 8 hex digits: two sides that agree on it built the same map.
+ * A 32-bit FNV-1a hash of everything a map hands its consumers (tiles, terrain, regionGrid, territoryGrid, camps, spawn
+ * pool, regions, ruins, loot spots, props, the seed and attempt), as 8 hex digits: two sides that agree on it built the
+ * same map.
  */
 export function mapHash(map: GameMap): string {
   let h = 0x811c9dc5;
@@ -753,7 +786,7 @@ export function mapHash(map: GameMap): string {
   const vec = (p: Vec2): void => { num(p.x); num(p.y); };
   const vecs = (a: readonly Vec2[]): void => { num(a.length); for (const p of a) vec(p); };
   num(map.seed); num(map.attempt); num(map.w); num(map.h);
-  bytes(map.tiles); bytes(map.regionGrid); bytes(map.territoryGrid);
+  bytes(map.tiles); bytes(map.terrain); bytes(map.regionGrid); bytes(map.territoryGrid);
   num(map.camps.length);
   for (const c of map.camps) {
     str(c.id); str(c.zone); vec(c); num(c.r); vecs(c.spots); num(c.eliteSpot); vec(c.chest); num(c.area); num(c.radius);
@@ -765,5 +798,7 @@ export function mapHash(map: GameMap): string {
   num(map.buildings.length);
   for (const b of map.buildings) { num(b.x); num(b.y); num(b.w); num(b.h); }
   vecs(map.spawns); vecs(map.crateSpots); vecs(map.groundSpots);
+  num(map.props.length);
+  for (const p of map.props) { num(p.kind); vec(p); num(p.v); }
   return h.toString(16).padStart(8, "0");
 }

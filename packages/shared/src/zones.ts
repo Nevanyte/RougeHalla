@@ -13,7 +13,7 @@
 import { MAP_TILES_H, MAP_TILES_W } from "./constants";
 import { CX, CY, RING_ROAD, fixedLayout } from "./coliseum";
 import { NB4 as COVER_NB4, RING_OFF as COVER_RING_OFF, SIMPLE as COVER_SIMPLE } from "./cover";
-import { TILE_FLOOR as FLOOR_TILE } from "./map";
+import { MASK_MOVE as MOVE_MASK } from "./map";
 import { randInt as rngInt } from "./rng";
 import type { Rng } from "./rng";
 
@@ -24,7 +24,7 @@ const R0 = Math.min(W, H) / 2;
 export const ZONES = 5;
 // Hot loops read module-level copies of these imports: under a test runner's module system (vitest) every use of an
 // import is a property read on the module object, which cost this code about a third of its time.
-const NB4 = COVER_NB4, RING_OFF = COVER_RING_OFF, SIMPLE = COVER_SIMPLE, TILE_FLOOR = FLOOR_TILE, randInt = rngInt;
+const NB4 = COVER_NB4, RING_OFF = COVER_RING_OFF, SIMPLE = COVER_SIMPLE, MASK_MOVE = MOVE_MASK, randInt = rngInt;
 
 
 /** Ring-road tiles each zone must own (F): a frontage of at least 8 tiles along the 3-deep road. The road has 252, a fair share is 50. */
@@ -685,13 +685,13 @@ function hull(list: ArrayLike<number>, n: number, out: Int32Array): number {
   return n > 1 ? k - 1 : k;
 }
 
-/** Farthest painted (or, with `tiles`, floor) tile of each territory from its camp, squared tiles, by 1-based territory id. */
-export function territoryReach2(camps: readonly CampSite[], territoryGrid: Uint8Array, tiles: Uint8Array | null, floor: number): Int32Array {
+/** Farthest painted (or, with `tiles`, walkable) tile of each territory from its camp, squared tiles, by 1-based territory id. */
+export function territoryReach2(camps: readonly CampSite[], territoryGrid: Uint8Array, tiles: Uint8Array | null): Int32Array {
   const F = fixedLayout();
   const far2 = new Int32Array(camps.length + 1);
   for (let q = 0; q < F.painted.length; q++) {
     const t = F.painted[q], T = territoryGrid[t];
-    if (!T || (tiles && tiles[t] !== floor)) continue;
+    if (!T || (tiles && (tiles[t] & MASK_MOVE) !== 0)) continue;
     const d = d2i(t, camps[T - 1].site);
     if (d > far2[T]) far2[T] = d;
   }
@@ -863,7 +863,7 @@ export function repairTerritories(tiles: Uint8Array, zone: Uint8Array, camps: re
   const F = fixedLayout();
   const comp = new Int32Array(N);
   const queue = new Int32Array(N);
-  const isFloor = (i: number): boolean => tiles[i] === TILE_FLOOR;
+  const isFloor = (i: number): boolean => (tiles[i] & MASK_MOVE) === 0;
   let stray = 0, rezoned = 0;
   for (let round = 0; round < 8; round++) {
     comp.fill(-1);

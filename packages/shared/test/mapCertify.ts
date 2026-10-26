@@ -1,17 +1,23 @@
 // An independent certifier for generated maps: every guarantee of the map contract (map.ts) and the R2 gates
 // (ROGUELIKE_PLAN R2), checked from the GameMap alone with checkers written apart from the generator (ports of the R1
 // certifier and of the wedge-era mapgen tests). It never reads the generator's bookkeeping: the contract's numbers are
-// written out here. Movement is `tile === TILE_FLOOR` (TILE_LOW blocks it); sight is `tile !== TILE_WALL`.
+// written out here. Movement and sight go through the masks of map.ts: walkable is `(tile & MASK_MOVE) === 0` (TILE_LOW
+// blocks it), see-through is `(tile & MASK_SIGHT) === 0` (TILE_LOW lets sight through).
 import { MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, TILE } from "../src/constants";
 import { raycast } from "../src/geometry";
 import {
-  REGION_COLISEUM, REGION_FACTIONS, REGION_NONE, REGION_WEAPONS, TILE_FLOOR, TILE_LOW, TILE_WALL, isWallTile, tileToWorldCenter, withGates, worldToTile,
+  MASK_MOVE, MASK_SIGHT, REGION_COLISEUM, REGION_FACTIONS, REGION_NONE, REGION_WEAPONS, TILE_FLOOR, TILE_LOW, TILE_WALL, isWallTile, tileToWorldCenter,
+  withGates, worldToTile,
 } from "../src/map";
 import type { GameMap, GateSide, TilePt, TileRect } from "../src/map";
 import type { Vec2 } from "../src/messages";
-import type { ZoneStyler, ZoneStylers } from "../src/mapgen";
+import { styleRng } from "../src/mapgen";
+import type { ZoneStyleHook } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
 import { randInt } from "../src/rng";
+import {
+  TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TERRAIN_NONE, validateTerrain,
+} from "../src/terrain";
 
 // ---- The contract's numbers (not read from the generator) ----
 export const MAP_SIZE = 96;
@@ -64,7 +70,7 @@ export function certifyMap(m: GameMap, opts: { styled?: boolean } = {}): { failu
     if (!ok) failures.push(`${name}${why ? `: ${why()}` : ""}`);
   };
   const W = m.w, H = m.h, N = W * H;
-  const move = (t: Uint8Array, i: number): boolean => t[i] === TILE_FLOOR;
+  const move = (t: Uint8Array, i: number): boolean => (t[i] & MASK_MOVE) === 0;
   const locked = withGates(m);
   const centre = worldToTile(m.coliseum.centre.y) * W + worldToTile(m.coliseum.centre.x);
   const tIdx = (p: Vec2): number => worldToTile(p.y) * W + worldToTile(p.x);
@@ -164,8 +170,8 @@ export function certifyMap(m: GameMap, opts: { styled?: boolean } = {}): { failu
   // --- Sight: lattice lanes (open and sealed); the exact strip and disc checks are separate (costly) --------------------
   const sightOpen = new Uint8Array(N), sealedOpen = new Uint8Array(N);
   for (let i = 0; i < N; i++) {
-    sightOpen[i] = m.tiles[i] !== TILE_WALL && m.regionGrid[i] !== REGION_NONE ? 1 : 0;
-    sealedOpen[i] = locked.tiles[i] !== TILE_WALL && m.regionGrid[i] === REGION_COLISEUM ? 1 : 0;
+    sightOpen[i] = (m.tiles[i] & MASK_SIGHT) === 0 && m.regionGrid[i] !== REGION_NONE ? 1 : 0;
+    sealedOpen[i] = (locked.tiles[i] & MASK_SIGHT) === 0 && m.regionGrid[i] === REGION_COLISEUM ? 1 : 0;
   }
   const lane = fatLane(sightOpen, W, H, LATTICE.dirs, LATTICE.step, LATTICE_ANCHOR, LATTICE_ANCHOR);
   const sealedLane = fatLane(sealedOpen, W, H, LATTICE.dirs, LATTICE.step, LATTICE_ANCHOR, LATTICE_ANCHOR);
@@ -349,6 +355,26 @@ export function certifyMap(m: GameMap, opts: { styled?: boolean } = {}): { failu
   check("ruins: 0-2 per zone, 7-9 a side inside one zone (+1 margin), off the ring road, apart, clear of camps, 1-3 doors, open inside", ruins === "", () => ruins);
   const wallRun = longestOutdoorWallRun(m);
   if (!opts.styled) check("cover: outdoor walls stay small blobs: no straight run of 15 tiles", wallRun <= MAX_SIGHT_CORRIDOR / TILE - 1, () => `${wallRun}`);
+
+  // --- Terrain (zone-terrain contract) ----------------------------------------------------------------------------------------
+  const terrainErrors = validateTerrain(m, { styled: opts.styled });
+  check("terrain: validateTerrain clean (T1-T10)", terrainErrors.length === 0, () => terrainErrors.slice(0, 2).join("; "));
+  check("terrain: an unstyled map has no terrain, no low ground and no props", !!opts.styled || (m.terrain.every((v) => v === TERRAIN_NONE) && m.tiles.every((v) => v !== TILE_LOW) && m.props.length === 0));
+  let hazard = "";
+  // A square of radius r; with `halo`, the clearing grown by one tile (the square of radius 3 less its four corners).
+  const plain = (cx: number, cy: number, r: number, what: string, halo = false): void => {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (halo && Math.abs(dx) === 3 && Math.abs(dy) === 3) continue;
+        if (m.terrain[(cy + dy) * W + cx + dx] !== TERRAIN_NONE) hazard = `${what} at ${cx},${cy}`;
+      }
+    }
+  };
+  for (const s of pool) plain(worldToTile(s.x), worldToTile(s.y), 2, "spawn 5x5");
+  for (const c of m.crateSpots) plain(worldToTile(c.x), worldToTile(c.y), 1, "crate 3x3");
+  for (const c of camps) plain(worldToTile(c.x), worldToTile(c.y), 3, "camp clearing and halo", true);
+  for (const g of m.groundSpots) plain(worldToTile(g.x), worldToTile(g.y), 0, "ground spot");
+  check("terrain: no kind on a spawn 5x5, a crate 3x3, a camp clearing and halo or a ground spot", hazard === "", () => hazard);
 
   // --- Reachability -----------------------------------------------------------------------------------------------------------
   const lab = open.label, home = lab[centre];
@@ -792,40 +818,62 @@ function longestOutdoorWallRun(m: GameMap): number {
   return longest;
 }
 
-// ---- A demo zone styler (R1's): exercises low ground and styler walls in tests and sweeps ----------------------------
+// ---- A demo zone style hook: low ground, floor hazards and styler walls for tests and sweeps ----------------------------
 
-/** A meandering lava river 2 wide and up to 24 long, three fences of 5-9 tiles with a gap (kept low: no rock on them), two 2x2 wall blocks. */
-export const demoStyler: ZoneStyler = ({ w, h, zoneMask, protect, tiles, rng, keepLow }) => {
+/**
+ * One pass over every zone, each kind in its home zone: fire gets a meandering lava river 2 wide and up to 24 long with
+ * ember on its free banks, sentenced three fences of 5-9 tiles with a gap (kept: no rock may stand on them), frost a
+ * 6-tile crevasse with a gap and a 4x4 ice patch, plague a 5x5 bog, holy a 3x3 patch of light; every zone two 2x2 walls.
+ */
+export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, zone, zoneFaction, protect, tiles, terrain, keepLow }) => {
   const N = w * h;
-  const cells: number[] = [];
-  for (let i = 0; i < N; i++) if (zoneMask[i] && !protect[i] && tiles[i] === TILE_FLOOR) cells.push(i);
-  if (cells.length === 0) return;
-  const free = (i: number): boolean => i >= 0 && i < N && zoneMask[i] === 1 && protect[i] === 0 && tiles[i] === TILE_FLOOR;
-  {
-    let at = cells[randInt(rng, 0, cells.length)];
-    let dx = rng() < 0.5 ? 1 : 0, dy = 1 - dx;
-    for (let step = 0; step < 24; step++) {
-      const x = at % w, side = dx !== 0 ? w : 1;
-      if (!free(at) || !free(at + side) || x <= 1 || x >= w - 2) break;
-      tiles[at] = TILE_LOW;
-      tiles[at + side] = TILE_LOW;
-      if (rng() < 0.25) { const t = dx; dx = dy; dy = t; }
-      at += dy * w + dx;
+  for (let z = 1; z <= zoneFaction.length; z++) {
+    const faction = zoneFaction[z - 1];
+    const rng = styleRng(seed, attempt, REGION_FACTIONS.indexOf(faction) + 1);
+    const cells: number[] = [];
+    for (let i = 0; i < N; i++) if (zone[i] === z && !protect[i] && tiles[i] === TILE_FLOOR) cells.push(i);
+    if (cells.length === 0) continue;
+    const free = (i: number): boolean => i >= 0 && i < N && zone[i] === z && protect[i] === 0 && tiles[i] === TILE_FLOOR && terrain[i] === TERRAIN_NONE;
+    const low = (i: number, kind: number): void => { tiles[i] = TILE_LOW; terrain[i] = kind; };
+    const patch = (side: number, kind: number): void => {
+      const at = cells[randInt(rng, 0, cells.length)];
+      for (let dy = 0; dy < side; dy++) for (let dx = 0; dx < side; dx++) if (free(at + dy * w + dx) && (at % w) + dx < w - 1) terrain[at + dy * w + dx] = kind;
+    };
+    if (faction === "fire") {
+      let at = cells[randInt(rng, 0, cells.length)];
+      let dx = rng() < 0.5 ? 1 : 0, dy = 1 - dx;
+      const river: number[] = [];
+      for (let step = 0; step < 24; step++) {
+        const x = at % w, side = dx !== 0 ? w : 1;
+        if (!free(at) || !free(at + side) || x <= 1 || x >= w - 2) break;
+        low(at, TERRAIN_LAVA);
+        low(at + side, TERRAIN_LAVA);
+        river.push(at, at + side);
+        if (rng() < 0.25) { const t = dx; dx = dy; dy = t; }
+        at += dy * w + dx;
+      }
+      for (const r of river) for (const d of [1, -1, w, -w]) if (free(r + d)) terrain[r + d] = TERRAIN_EMBER;
+    } else if (faction === "sentenced") {
+      for (let f = 0; f < 3; f++) {
+        const at = cells[randInt(rng, 0, cells.length)];
+        const horiz = rng() < 0.5, len = randInt(rng, 5, 10), gap = randInt(rng, 1, len - 1);
+        for (let k = 0; k < len; k++) {
+          const t = at + (horiz ? k : k * w);
+          if (k === gap || !free(t)) continue;
+          low(t, TERRAIN_FENCE);
+          keepLow[t] = 1;
+        }
+      }
+    } else if (faction === "frost") {
+      const at = cells[randInt(rng, 0, cells.length)];
+      const horiz = rng() < 0.5;
+      for (let k = 0; k < 6; k++) { const t = at + (horiz ? k : k * w); if (k !== 3 && free(t)) low(t, TERRAIN_CREVASSE); }
+      patch(4, TERRAIN_ICE);
+    } else if (faction === "plague") patch(5, TERRAIN_BOG);
+    else if (faction === "holy") patch(3, TERRAIN_LIGHT);
+    for (let b = 0; b < 2; b++) {
+      const at = cells[randInt(rng, 0, cells.length)];
+      for (const o of [0, 1, w, w + 1]) if (free(at + o)) tiles[at + o] = TILE_WALL;
     }
-  }
-  for (let f = 0; f < 3; f++) {
-    const at = cells[randInt(rng, 0, cells.length)];
-    const horiz = rng() < 0.5, len = randInt(rng, 5, 10), gap = randInt(rng, 1, len - 1);
-    for (let k = 0; k < len; k++) {
-      const t = at + (horiz ? k : k * w);
-      if (k === gap || !free(t)) continue;
-      tiles[t] = TILE_LOW;
-      keepLow[t] = 1;
-    }
-  }
-  for (let b = 0; b < 2; b++) {
-    const at = cells[randInt(rng, 0, cells.length)];
-    for (const o of [0, 1, w, w + 1]) if (free(at + o)) tiles[at + o] = TILE_WALL;
   }
 };
-export const DEMO_STYLERS: ZoneStylers = Object.fromEntries(REGION_FACTIONS.map((f) => [f, demoStyler]));

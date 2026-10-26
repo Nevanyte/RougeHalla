@@ -4,15 +4,22 @@ import type { FactionId } from "./factions";
 import type { Vec2 } from "./messages";
 import type { WeaponId } from "./weapons";
 
-/** Walkable ground. */
+// Collision classes: distinct bits, FLOOR is the only walkable class (every nonzero class blocks movement). Grow by the
+// next free bit (4, 8, ...), never renumber: generator output, tests and the client's art key on these codes.
 export const TILE_FLOOR = 0;
-/** Blocks movement and sight: border, coliseum ring, pillars, ruin walls, rocks. */
+/** Blocks movement, sight, projectiles and melee. */
 export const TILE_WALL = 1;
-/**
- * Blocks movement but not sight: fences, lava, bog (written only by the zone stylers, see styler.ts). Shots, line of
- * sight and the anti-kiting lanes pass over it; bodies, paths and the walking distances do not.
- */
+/** Blocks movement only (lava, fence, crevasse: which one is `GameMap.terrain`). See through, shoot over. */
 export const TILE_LOW = 2;
+
+// What stops each kind of query: a tile blocks it when `(tiles[i] & mask) !== 0`, and out of bounds blocks every query.
+// Each query names its mask; nothing else is ever read for sight or movement.
+/** Eyes, projectiles in flight, spell LOS, the reach of ranged signatures. */
+export const MASK_SIGHT = TILE_WALL;
+/** Bodies: A*, discs and sweeps, placement, pickup reach. 0xff, so a future class blocks walkers by default. */
+export const MASK_MOVE = 0xff;
+/** A melee swing's reach (and the signature reach and lock "clear" of arc weapons). One constant: set to MASK_SIGHT if fences should not stop swings. */
+export const MASK_MELEE = TILE_WALL | TILE_LOW;
 
 /** Inclusive-exclusive tile rect: covers tx in [x, x+w), ty in [y, y+h). */
 export interface TileRect { x: number; y: number; w: number; h: number }
@@ -143,16 +150,33 @@ export interface FactionRegionDef {
   mobCamps: MobCampDef[];
 }
 
+/** Cosmetic decor, never read by the sim. `kind` indexes PROP_KINDS (terrain.ts), `v` is the art variant 0..255. */
+export interface MapProp {
+  kind: number;
+  /** World position of the anchor. */
+  x: number;
+  y: number;
+  v: number;
+}
+
 export interface GameMap {
   seed: number;
   /** Size in tiles. */
   w: number;
   h: number;
   /**
-   * Row-major, length w*h, TILE_FLOOR / TILE_WALL / TILE_LOW. Border is always wall. Gates are open (floor) here.
-   * Walkable means `=== TILE_FLOOR`, sight-blocking means `=== TILE_WALL` (blocksMovementTile / blocksSightTile).
+   * Row-major, length w*h, TILE_FLOOR / TILE_WALL / TILE_LOW. Border is always wall. Gates are open (floor) here. Every
+   * query names its mask: walkable is TILE_FLOOR (MASK_MOVE), sight-blocking is TILE_WALL (MASK_SIGHT).
    */
   tiles: Uint8Array;
+  /**
+   * Row-major, length w*h, an index into TERRAINS (terrain.ts) per tile: 0 = none. A floor kind (ember, bog, ice, light)
+   * sits on floor, a LOW kind (lava, fence, crevasse) on LOW, or on a wall standing in that feature (decor only).
+   * A hand-built map (mapFromTiles) is all zero, and so is a generated one while no zone styler ships.
+   */
+  terrain: Uint8Array;
+  /** Decor sprites (cosmetic). Empty on hand-built maps and while the zone stylers are off. */
+  props: MapProp[];
   /**
    * Row-major, length w*h, a REGION_IDS index per tile. On a generated map every tile off the border ring is in a
    * faction zone or the coliseum, and "none" marks only the border ring. A hand-built map (mapFromTiles) is "none"
@@ -195,29 +219,35 @@ export function tileIndex(map: GameMap, tx: number, ty: number): number {
   return ty * map.w + tx;
 }
 
-/** A wall tile (TILE_WALL): blocks sight and shots. Out-of-bounds counts as wall. Same as blocksSightTile. */
-export function isWallTile(map: GameMap, tx: number, ty: number): boolean {
+/** Does the tile stop a query with this mask? Out of bounds blocks every query. */
+export function blocksTile(map: GameMap, tx: number, ty: number, mask: number): boolean {
   if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) return true;
-  return map.tiles[ty * map.w + tx] === TILE_WALL;
+  return (map.tiles[ty * map.w + tx] & mask) !== 0;
 }
 
+/**
+ * OPAQUE: the tile blocks sight (TILE_WALL; LOW is see-through). The name is kept but it no longer means "solid":
+ * movement code asks `isSolidTile`, a swing's reach asks `blocksTile` with `reachMask`. Out of bounds counts as wall.
+ */
+export function isWallTile(map: GameMap, tx: number, ty: number): boolean {
+  if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) return true;
+  return (map.tiles[ty * map.w + tx] & MASK_SIGHT) !== 0;
+}
+
+/** Opaque at a world point (see isWallTile). */
 export function isWallAt(map: GameMap, x: number, y: number): boolean {
   return isWallTile(map, worldToTile(x), worldToTile(y));
 }
 
-// TILE_LOW support (R2, minimal; the zone-terrain session owns the full version): movement, collision and paths use
-// blocksMovementTile, sight, shots and the lane metric use blocksSightTile. They differ only on TILE_LOW.
-
-/** True where a body may not stand or pass: anything but TILE_FLOOR (walls and low ground). Out-of-bounds blocks. */
-export function blocksMovementTile(map: GameMap, tx: number, ty: number): boolean {
+/** SOLID: the tile blocks movement (any class but TILE_FLOOR). Out of bounds counts as solid. */
+export function isSolidTile(map: GameMap, tx: number, ty: number): boolean {
   if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) return true;
-  return map.tiles[ty * map.w + tx] !== TILE_FLOOR;
+  return (map.tiles[ty * map.w + tx] & MASK_MOVE) !== 0;
 }
 
-/** True where sight and shots stop: TILE_WALL only (low ground lets them pass). Out-of-bounds blocks. */
-export function blocksSightTile(map: GameMap, tx: number, ty: number): boolean {
-  if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) return true;
-  return map.tiles[ty * map.w + tx] === TILE_WALL;
+/** Solid at a world point (see isSolidTile). */
+export function isSolidAt(map: GameMap, x: number, y: number): boolean {
+  return isSolidTile(map, worldToTile(x), worldToTile(y));
 }
 
 export function worldToTile(v: number): number {
@@ -250,7 +280,8 @@ const lockedMaps = new WeakSet<GameMap>();
  * The same map with every gate tile turned to wall. The locked copy is cached per map, so callers can
  * pass `gatesLocked ? withGates(map) : map` to findPath / raycast / hasLineOfSight every tick, and any
  * per-map cache keyed on the object stays warm. Idempotent: a locked map maps to itself.
- * Maps are treated as read-only: the copy shares every field but `tiles` with the original.
+ * Maps are treated as read-only: the copy shares every field but `tiles` with the original (terrain and props
+ * included: gate tiles are protected, so they carry no terrain and the copy stays consistent).
  */
 export function withGates(map: GameMap): GameMap {
   if (lockedMaps.has(map)) return map;
@@ -265,19 +296,119 @@ export function withGates(map: GameMap): GameMap {
   return out;
 }
 
+// Derived views of the collision layer, cached per map OBJECT (the gated copy from withGates gets its own entries). They
+// are never GameMap fields: a copy made with `{ ...map, tiles }` would carry a stale one. Maps are read-only, so a cache
+// can only go stale in a test that edits tiles after a query: forgetMapCaches.
+const sightMasks = new WeakMap<GameMap, Uint8Array>();
+const moveMasks = new WeakMap<GameMap, Uint8Array>();
+const moveComps = new WeakMap<GameMap, Int32Array>();
+
+/**
+ * Uncached, for a generator whose tiles are still changing: 1 where the tile blocks sight (MASK_SIGHT), else 0.
+ * `out` (same length as `tiles`) is overwritten and returned; a new array when omitted.
+ */
+export function sightBlockedTiles(tiles: Uint8Array, out?: Uint8Array): Uint8Array {
+  const o = out ?? new Uint8Array(tiles.length);
+  if (o.length !== tiles.length) throw new RangeError(`sightBlockedTiles: out has ${o.length} entries for ${tiles.length} tiles`);
+  for (let i = 0; i < tiles.length; i++) o[i] = (tiles[i] & MASK_SIGHT) !== 0 ? 1 : 0;
+  return o;
+}
+
+/** Uncached, like sightBlockedTiles: 1 where the tile blocks movement (MASK_MOVE), else 0. */
+export function moveBlockedTiles(tiles: Uint8Array, out?: Uint8Array): Uint8Array {
+  const o = out ?? new Uint8Array(tiles.length);
+  if (o.length !== tiles.length) throw new RangeError(`moveBlockedTiles: out has ${o.length} entries for ${tiles.length} tiles`);
+  for (let i = 0; i < tiles.length; i++) o[i] = (tiles[i] & MASK_MOVE) !== 0 ? 1 : 0;
+  return o;
+}
+
+/**
+ * Uncached: the 4-connected TILE_FLOOR component id of every tile (ids 0.. in row-major order of first tile), -1 on a
+ * tile that is not floor. Exactly A*'s reachability: a diagonal step needs both orthogonal neighbours open, so it splits
+ * into two 4-steps on floor, and every 4-step is an A* step.
+ */
+export function moveComponentsOf(tiles: Uint8Array, w: number, h: number): Int32Array {
+  const n = w * h;
+  const comp = new Int32Array(n).fill(-1);
+  const queue = new Int32Array(n);
+  let id = 0;
+  for (let s = 0; s < n; s++) {
+    if (tiles[s] !== TILE_FLOOR || comp[s] >= 0) continue;
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = s;
+    comp[s] = id;
+    while (head < tail) {
+      const i = queue[head++];
+      const x = i % w;
+      if (x > 0 && tiles[i - 1] === TILE_FLOOR && comp[i - 1] < 0) { comp[i - 1] = id; queue[tail++] = i - 1; }
+      if (x < w - 1 && tiles[i + 1] === TILE_FLOOR && comp[i + 1] < 0) { comp[i + 1] = id; queue[tail++] = i + 1; }
+      if (i >= w && tiles[i - w] === TILE_FLOOR && comp[i - w] < 0) { comp[i - w] = id; queue[tail++] = i - w; }
+      if (i < n - w && tiles[i + w] === TILE_FLOOR && comp[i + w] < 0) { comp[i + w] = id; queue[tail++] = i + w; }
+    }
+    id++;
+  }
+  return comp;
+}
+
+/** 1 where the tile blocks sight (tiles & MASK_SIGHT), cached per map object. */
+export function sightMask(map: GameMap): Uint8Array {
+  let m = sightMasks.get(map);
+  if (!m) { m = sightBlockedTiles(map.tiles); sightMasks.set(map, m); }
+  return m;
+}
+
+/** 1 where the tile blocks movement (tiles & MASK_MOVE), cached per map object. */
+export function moveMask(map: GameMap): Uint8Array {
+  let m = moveMasks.get(map);
+  if (!m) { m = moveBlockedTiles(map.tiles); moveMasks.set(map, m); }
+  return m;
+}
+
+/**
+ * 4-connected TILE_FLOOR component id per tile, -1 on solid tiles, cached per map object. Two floor tiles are in one
+ * component exactly when `findPath` can walk between them, so it answers "is the goal reachable" in O(1).
+ */
+export function moveComponents(map: GameMap): Int32Array {
+  let c = moveComps.get(map);
+  if (!c) { c = moveComponentsOf(map.tiles, map.w, map.h); moveComps.set(map, c); }
+  return c;
+}
+
+/**
+ * For a test that turns wall into floor after a query: drops the per-object caches above and discards the gated copy,
+ * so the next `withGates(map)` is rebuilt from the edited tiles. (Floor into wall is safe without it: a stale component
+ * only sends the pathfinder to A*, which then finds nothing.) Call it on the map that was edited.
+ */
+export function forgetMapCaches(map: GameMap): void {
+  sightMasks.delete(map);
+  moveMasks.delete(map);
+  moveComps.delete(map);
+  const copy = locked.get(map);
+  if (copy) {
+    sightMasks.delete(copy);
+    moveMasks.delete(copy);
+    moveComps.delete(copy);
+    locked.delete(map);
+  }
+}
+
 /**
  * A map from a raw tile grid with no regions, coliseum or spots: test arenas and hand-made maps.
- * `tiles` is used as is, not copied. The empty coliseum's centre is the middle tile's centre, which
- * may be a wall here.
+ * `tiles` (and `terrain`, when given) is used as is, not copied; terrain defaults to a fresh zeroed layer. The empty
+ * coliseum's centre is the middle tile's centre, which may be a wall here.
  */
-export function mapFromTiles(w: number, h: number, tiles: Uint8Array, seed = 0): GameMap {
+export function mapFromTiles(w: number, h: number, tiles: Uint8Array, seed = 0, terrain?: Uint8Array): GameMap {
   if (tiles.length !== w * h) throw new RangeError(`mapFromTiles: ${tiles.length} tiles for ${w}x${h}`);
+  if (terrain && terrain.length !== w * h) throw new RangeError(`mapFromTiles: ${terrain.length} terrain entries for ${w}x${h}`);
   const centre = { x: tileToWorldCenter(Math.floor(w / 2)), y: tileToWorldCenter(Math.floor(h / 2)) };
   return {
     seed,
     w,
     h,
     tiles,
+    terrain: terrain ?? new Uint8Array(w * h),
+    props: [],
     attempt: 0,
     territoryGrid: new Uint8Array(w * h),
     regionGrid: new Uint8Array(w * h),
