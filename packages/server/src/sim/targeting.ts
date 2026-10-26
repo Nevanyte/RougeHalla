@@ -57,11 +57,30 @@ export const handleTarget: ActionHandler = (world, c, cmd) => {
   // Clicking the fighter already locked changes nothing: players re-click their target all the time, and starting over
   // would forget that it was seen and let go of the trigger (losing the cooldown's carried remainder).
   if (w.lock === t.id) return;
-  // Out of sight, it must be somewhere the chase can walk to: nothing reaches a mob across the coliseum's locked gates.
-  if (!hasLineOfSight(collisionMap(world), c.s, t.s) && planPath(world, c.s, t.s).length === 0) return;
+  // An order may cost one path search right away, at most one per TARGET_REPATH_MS per player: a modified client could
+  // otherwise buy one per message (MAX_ACTIONS_PER_TICK a tick). The chase's own re-plans have their own throttle.
+  const now = world.state.serverTime;
+  const fresh = now - w.lockSearchAt >= TARGET_REPATH_MS;
+  let path: Vec2[] | null = null;
+  if (!hasLineOfSight(collisionMap(world), c.s, t.s)) {
+    // Out of sight, it must be somewhere the chase can walk to (nothing reaches a mob across the coliseum's locked gates),
+    // and finding out is the search: an order that comes too soon after the last one is refused.
+    if (!fresh) return;
+    w.lockSearchAt = now;
+    path = planPath(world, c.s, t.s);
+    if (path.length === 0) return;
+  }
   setLock(c, t.id);
-  // The lock walks and holds the trigger from here (updateTargets plans at once); an earlier walk and trigger are let go.
-  c.rt.path = [];
+  // The lock walks and holds the trigger from here; an earlier walk and trigger are let go. The search out of sight was
+  // the chase's first plan; in sight, the chase plans at once if the order's budget allows, else when its throttle does.
+  c.rt.path = path ?? [];
+  if (path) {
+    w.lockPlanAt = now;
+    w.lockGoal = { x: t.s.x, y: t.s.y };
+  } else if (fresh) {
+    w.lockSearchAt = now;
+    w.lockPlanAt = -Infinity;
+  }
   w.held = false;
   w.bufferedUntil = 0;
 };

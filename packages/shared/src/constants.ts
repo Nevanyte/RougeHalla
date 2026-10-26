@@ -154,7 +154,10 @@ export const TARGET_RANGE = 640;
  * wall. A target locked behind a wall is chased until it is first seen.
  */
 export const TARGET_LOS_GRACE_MS = 1500;
-/** A locked fighter re-plans its chase at most this often (the walk to a moving target). */
+/**
+ * A locked fighter re-plans its chase at most this often (the walk to a moving target), and a `target` order may cost a
+ * path search at most this often per player (an order out of sight sooner than that is refused).
+ */
 export const TARGET_REPATH_MS = 250;
 /** Training dummies (server env DUMMIES=1): no faction (no armor or shield), and back to full hp this long after a hit. */
 export const DUMMY_HP = 5000;

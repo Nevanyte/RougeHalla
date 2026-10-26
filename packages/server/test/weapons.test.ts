@@ -203,7 +203,7 @@ describe("setup", () => {
   it("a fresh weapon runtime is idle: nothing held, never aimed", () => {
     expect(newWeaponRuntime()).toEqual({
       action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-      lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null,
+      lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity,
     });
   });
 });

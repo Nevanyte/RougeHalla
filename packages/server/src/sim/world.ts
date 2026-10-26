@@ -68,9 +68,14 @@ export interface WeaponRuntime {
   lockSeen: boolean;
   /** Server ms the lock's target went out of line of sight after being seen (0 = in sight, or not seen yet). */
   lockLosLostAt: number;
-  /** When the chase last planned a path (-Infinity: never), and the point it planned to (null: none yet). */
+  /**
+   * When the chase last planned a path (-Infinity: never), and the point it planned to (null: none yet). The time is a
+   * throttle that outlives the lock (setting or dropping one leaves it), so changing locks never re-plans sooner.
+   */
   lockPlanAt: number;
   lockGoal: Vec2 | null;
+  /** When a `target` order last cost a path search (-Infinity: never): at most one per TARGET_REPATH_MS (sim/targeting.ts). */
+  lockSearchAt: number;
 }
 
 /** Server-only combat data every fighter has, player or mob. */
@@ -470,6 +475,6 @@ export function nextId(world: World, prefix: string): string {
 export function newWeaponRuntime(): WeaponRuntime {
   return {
     action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null,
+    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity,
   };
 }

@@ -47,13 +47,12 @@ export function releaseTrigger(world: World, c: Combatant): void {
   cancelAction(world, c);
 }
 
-/** Locks `id` (a fresh chase) and mirrors it in the synced state. */
+/** Locks `id` (a fresh chase; the re-plan throttle carries over) and mirrors it in the synced state. */
 export function setLock(c: Combatant, id: string): void {
   const w = c.rt.weapon;
   w.lock = id;
   w.lockSeen = false;
   w.lockLosLostAt = 0;
-  w.lockPlanAt = -Infinity;
   w.lockGoal = null;
   if (c.kind === "player" && c.s.attackTarget !== id) c.s.attackTarget = id;
 }
@@ -64,7 +63,6 @@ export function clearLock(c: Combatant): void {
   w.lock = null;
   w.lockSeen = false;
   w.lockLosLostAt = 0;
-  w.lockPlanAt = -Infinity;
   w.lockGoal = null;
   if (c.kind === "player" && c.s.attackTarget !== "") c.s.attackTarget = "";
 }
