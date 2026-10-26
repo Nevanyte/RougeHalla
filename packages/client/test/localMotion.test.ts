@@ -4,7 +4,8 @@
 // clock reads a patch's server time when the patch arrives, as ServerClock does: c = now - downlink.
 import { describe, expect, it } from "vitest";
 import {
-  findPath, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, withGates,
+  circleClear, findPath, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, TERRAIN_FENCE, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL,
+  WORLD_H, WORLD_W, withGates, worldToTile,
   type GameMap, type Vec2,
 } from "@raid/shared";
 import {
@@ -21,6 +22,13 @@ function arena(walls: ReadonlyArray<readonly [number, number]> = []): GameMap {
   for (let y = 0; y < H; y++) { tiles[y * W] = TILE_WALL; tiles[y * W + W - 1] = TILE_WALL; }
   for (const [x, y] of walls) tiles[y * W + x] = TILE_WALL;
   return mapFromTiles(W, H, tiles);
+}
+/** The same room with `low` (tile coordinates) as LOW fence tiles: they stop bodies, and the terrain layer says which kind. */
+function fenced(low: ReadonlyArray<readonly [number, number]>): GameMap {
+  const base = arena();
+  const terrain = new Uint8Array(W * H);
+  for (const [x, y] of low) { base.tiles[y * W + x] = TILE_LOW; terrain[y * W + x] = TERRAIN_FENCE; }
+  return mapFromTiles(W, H, base.tiles, 0, terrain);
 }
 const centre = (tx: number, ty: number): Vec2 => ({ x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 });
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -275,6 +283,33 @@ describe("a move", () => {
       expect(dist(r.motion.drawn, r.server), `${up}/${down} arrive`).toBeLessThan(0.2);
       expect(dist(r.server, centre(20, 6))).toBeLessThan(0.5);
     }
+  });
+});
+
+describe("a move across a LOW fence", () => {
+  // A fence at column 20, rows 3..16 (x 640..672); the gap is rows 17..28.
+  const fence = Array.from({ length: 14 }, (_, i): [number, number] => [20, 3 + i]);
+
+  it("plans round the end of the fence, as the server does, and never puts the model or the drawn centre on it", () => {
+    const map = fenced(fence);
+    const r = new Rig({ map });
+    r.run(200);
+    const to = centre(30, 10);
+    expect(findPath(map, r.server, to, PLAYER_RADIUS).length).toBeGreaterThan(1); // the straight hop is not clear: it must go round
+    r.move(to);
+    let maxY = 0;
+    const bad: string[] = [];
+    for (let i = 0; i < 600; i++) {
+      r.run(FRAME_MS);
+      maxY = Math.max(maxY, r.motion.predicted.y);
+      if (!circleClear(map, r.motion.predicted, PLAYER_RADIUS)) bad.push(`model ${i}`);
+      const d = r.motion.drawn;
+      if (map.tiles[worldToTile(d.y) * W + worldToTile(d.x)] === TILE_LOW) bad.push(`drawn ${i}`);
+    }
+    expect(bad).toEqual([]);
+    expect(maxY).toBeGreaterThan(17 * TILE); // through the gap
+    expect(dist(r.server, to)).toBeLessThan(0.5);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
   });
 });
 

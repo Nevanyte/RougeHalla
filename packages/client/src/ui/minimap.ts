@@ -3,7 +3,8 @@
 // at a low rate, and only when one of them changed. It is also a control: right-click (or right-drag) sends the character
 // there, and holding the left button peeks the camera at that spot until it is released.
 import {
-  FACTIONS, FACTION_IDS, REGION_IDS, TILE, Y_SCALE, isFactionId, isWallTile, type GameMap, type RegionId,
+  FACTIONS, FACTION_IDS, REGION_IDS, TERRAIN_CREVASSE, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_LOW, Y_SCALE, isFactionId,
+  isWallTile, type GameMap, type RegionId,
 } from "@raid/shared";
 import { currentView, onViewChange } from "../view/viewState";
 import type { ViewLayout } from "../view/viewport";
@@ -24,6 +25,13 @@ export const MOVE_REPEAT_MS = 100;
 
 const COLOR_BG = "rgba(20, 24, 30, 0.8)";
 const COLOR_WALL = "#9aa3ad";
+/** LOW tiles (they stop bodies, not shots or sight), by terrain kind: painted over the region tints and under the walls. */
+const COLOR_LOW_DEFAULT = "#7a808b";
+const COLOR_LOW: Readonly<Record<number, string>> = {
+  [TERRAIN_LAVA]: "#ff5a14",
+  [TERRAIN_FENCE]: "#b4aed2",
+  [TERRAIN_CREVASSE]: "#0a1626",
+};
 /** Faction colours at low alpha, under the walls; "none" is left as the background. */
 const COLOR_REGION: Record<RegionId, string | null> = {
   none: null,
@@ -204,6 +212,25 @@ export class Minimap {
           const left = Math.round(start * tile);
           g.fillStyle = color;
           g.fillRect(left, top, Math.round(tx * tile) - left, bottom - top);
+        }
+        start = tx;
+      }
+    }
+
+    // LOW tiles (lava, fence, crevasse) as runs of one terrain kind per row, rounded outward like the walls'; a barrier
+    // that is not drawn is an invisible wall to the player.
+    const kinds: number[] = new Array(map.w);
+    for (let ty = 0; ty < map.h; ty++) {
+      const top = Math.floor(ty * tile);
+      const bottom = Math.ceil((ty + 1) * tile);
+      for (let tx = 0; tx < map.w; tx++) kinds[tx] = map.tiles[ty * map.w + tx] === TILE_LOW ? map.terrain[ty * map.w + tx] : -1;
+      let start = 0;
+      for (let tx = 1; tx <= map.w; tx++) {
+        if (tx < map.w && kinds[tx] === kinds[start]) continue;
+        if (kinds[start]! >= 0) {
+          const left = Math.floor(start * tile);
+          g.fillStyle = COLOR_LOW[kinds[start]!] ?? COLOR_LOW_DEFAULT;
+          g.fillRect(left, top, Math.ceil(tx * tile) - left, bottom - top);
         }
         start = tx;
       }

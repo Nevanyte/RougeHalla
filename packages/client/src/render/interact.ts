@@ -1,13 +1,14 @@
 // The client's copy of the server's pickup rule, so the highlight, the F key and the weapon bar's hint agree with it.
-import { INTERACT_RANGE, hasLineOfSight, isWeaponId, type GameMap, type Vec2, type WeaponId } from "@raid/shared";
+import { INTERACT_RANGE, MASK_MOVE, hasLineOfSight, isWeaponId, type GameMap, type Vec2, type WeaponId } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
 
 /**
- * Within INTERACT_RANGE and a wall-free line between the two points. Callers pass the local player's latest
- * synced position, not the interpolated one (that lags ~INTERP_DELAY_MS behind what the server checks).
+ * Within INTERACT_RANGE and a line between the two points that nothing solid crosses: walls and LOW (a fence, a lava
+ * stream), the movement mask like the server's pickup (sim/loot.ts), since a hand does not reach through bars. Callers pass
+ * the local player's latest synced position, not the interpolated one (that lags ~INTERP_DELAY_MS behind what the server checks).
  */
 export function canInteract(map: GameMap, from: Vec2, to: Vec2): boolean {
-  return Math.hypot(from.x - to.x, from.y - to.y) <= INTERACT_RANGE && hasLineOfSight(map, from, to);
+  return Math.hypot(from.x - to.x, from.y - to.y) <= INTERACT_RANGE && hasLineOfSight(map, from, to, MASK_MOVE);
 }
 
 /** The weapon a pickup would take from this container (its first item), or null: an opened chest, an empty body. */

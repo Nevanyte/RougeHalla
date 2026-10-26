@@ -1,7 +1,11 @@
-// Static map rendering, built once from generateMap(seed): region-tinted floor, walls with fake height, and the
-// coliseum gates (built once, shown or hidden by setGatesLocked).
+// Static map rendering, built once from generateMap(seed): region-tinted floor, walls with fake height, LOW tiles
+// (lava, fence, crevasse: low blocks that stop bodies but not sight) and the coliseum gates (built once, shown or hidden
+// by setGatesLocked).
 import Phaser from "phaser";
-import { REGION_IDS, TILE, Y_SCALE, isWallTile, withGates, type GameMap, type RegionId } from "@raid/shared";
+import {
+  REGION_IDS, TERRAIN_CREVASSE, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_LOW, Y_SCALE, isWallTile, withGates,
+  type GameMap, type RegionId,
+} from "@raid/shared";
 import { depthFor, projX, projY } from "./projection";
 
 /**
@@ -9,6 +13,17 @@ import { depthFor, projX, projY } from "./projection";
  * (TILE * Y_SCALE = 25.6): a taller wall hides the whole tile north of it, loot included.
  */
 export const WALL_HEIGHT = 14;
+/** A LOW tile's top face is lifted this far: half a wall, so a body can be seen to stand behind it. Placeholder art. */
+export const LOW_HEIGHT = 7;
+
+/** How a LOW tile looks by terrain kind (map.terrain): the top face, the front face and the lighter rim round the top. */
+interface LowLook { top: number; front: number; rim: number }
+const LOW_DEFAULT: LowLook = { top: 0x5a606a, front: 0x3a3f46, rim: 0x9aa0aa };
+const LOW_BY_KIND: Readonly<Record<number, LowLook>> = {
+  [TERRAIN_LAVA]: { top: 0xff5a14, front: 0xa63a0c, rim: 0xffa060 },
+  [TERRAIN_FENCE]: LOW_DEFAULT,
+  [TERRAIN_CREVASSE]: { top: 0x0a1626, front: 0x050b14, rim: 0x2a4a6a },
+};
 
 /**
  * Anything that stands (players, containers, wall rows) sorts by ground y, which is >= 0, so these
@@ -100,6 +115,7 @@ export class MapView {
   constructor(private readonly scene: Phaser.Scene, readonly map: GameMap) {
     this.drawFloor();
     this.drawWalls();
+    this.drawLow();
     this.drawGates();
   }
 
@@ -189,6 +205,42 @@ export class MapView {
       });
       forEachRun(top, (start, len, code) => {
         g.fillStyle(WALL_TOP_BY_CODE[code], 1).fillRect(projX(start * TILE), faceTop, len * TILE, TILE * Y_SCALE);
+      });
+    }
+  }
+
+  /**
+   * LOW tiles, the same way as the walls: one Graphics per tile row at the row's south-edge depth (so fighters y-sort against
+   * them), runs of one terrain kind per row. A block LOW_HEIGHT tall with its top face lifted, a front face under it where the
+   * tile to the south is not LOW, and a lighter rim round each run's top. A wall's front face is not touched: it is decided by
+   * isWallTile alone, so a wall north of a LOW tile keeps all of it (the LOW block, standing in front, covers its lowest 7 px).
+   */
+  private drawLow(): void {
+    const { map } = this;
+    const kind: number[] = [];
+    const front: number[] = [];
+    for (let ty = 0; ty < map.h; ty++) {
+      let any = false;
+      for (let tx = 0; tx < map.w; tx++) {
+        const low = map.tiles[ty * map.w + tx] === TILE_LOW;
+        kind[tx] = low ? map.terrain[ty * map.w + tx] : -1;
+        front[tx] = low && (ty + 1 >= map.h || map.tiles[(ty + 1) * map.w + tx] !== TILE_LOW) ? kind[tx]! : -1;
+        any ||= low;
+      }
+      if (!any) continue;
+
+      const southEdge = (ty + 1) * TILE;
+      const g = this.scene.add.graphics().setDepth(depthFor(southEdge));
+      this.objects.push(g);
+
+      const faceTop = projY(ty * TILE, LOW_HEIGHT);
+      forEachRun(front, (start, len, k) => {
+        g.fillStyle((LOW_BY_KIND[k] ?? LOW_DEFAULT).front, 1).fillRect(projX(start * TILE), projY(southEdge, LOW_HEIGHT), len * TILE, LOW_HEIGHT);
+      });
+      forEachRun(kind, (start, len, k) => {
+        const look = LOW_BY_KIND[k] ?? LOW_DEFAULT;
+        g.fillStyle(look.top, 1).fillRect(projX(start * TILE), faceTop, len * TILE, TILE * Y_SCALE);
+        g.lineStyle(1, look.rim, 1).strokeRect(projX(start * TILE), faceTop, len * TILE, TILE * Y_SCALE);
       });
     }
   }
