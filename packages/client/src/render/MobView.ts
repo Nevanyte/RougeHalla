@@ -3,6 +3,7 @@ import { PLAYER_RADIUS, Y_SCALE } from "@raid/shared";
 import type { MobState } from "@raid/shared/schema";
 import { ELITE_COLOR } from "../ui/buffTheme";
 import { BodyFlash, FighterArt, HpBar, factionColor } from "./FighterArt";
+import { FigureJuice, type DustSink } from "./FigureJuice";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
 
@@ -44,8 +45,11 @@ export class MobView {
   /** Server time of the patch that first said this mob is dead; -1 while alive. The fade runs from it in render time. */
   private diedAt = -1;
   private fade = 1;
+  /** Juice: the figure's pose (anticipation, lunge, squash and stretch); FxView sends its cues through `cues`. */
+  private readonly fig: FigureJuice;
+  readonly cues: FigureJuice["pose"];
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, puffs?: DustSink) {
     const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
     // Two gold rings on the ground, flattened like every ground shape; drawn once, shown for elites.
     this.eliteRing = scene.add.graphics().setVisible(false);
@@ -68,6 +72,11 @@ export class MobView {
       shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body, this.nose, this.art.held, this.signatures.aura,
       this.hpBar.g, this.label, this.eliteStar,
     ]);
+    this.fig = new FigureJuice([
+      { obj: this.body, y0: -BODY_LIFT, scaled: true }, { obj: this.nose, y0: -BODY_LIFT, scaled: false },
+      { obj: this.art.held, y0: -BODY_LIFT, scaled: false }, { obj: this.signatures.aura, y0: 0, scaled: false },
+    ], this.art, puffs);
+    this.cues = this.fig.pose;
   }
 
   flash(ms = HIT_FLASH_MS): void {
@@ -79,7 +88,10 @@ export class MobView {
     this.flashing.tick();
     const fade = this.deathFade(m, renderT, patchT);
     this.root.setVisible(fade > 0);
-    if (fade <= 0) return;
+    if (fade <= 0) {
+      this.fig.reset();
+      return;
+    }
     if (fade !== this.fade) {
       this.fade = fade;
       this.root.setAlpha(fade).setScale(1 - (1 - fade) * (1 - DEATH_SHRINK));
@@ -88,6 +100,7 @@ export class MobView {
     this.flashing.setColor(factionColor(m.faction));
     this.root.setPosition(projX(x), projY(y));
     this.root.setDepth(depthFor(y));
+    this.fig.frame(x, y, m.facing, renderT, performance.now()); // juice: before the art, which reads the weapon's turn
     const weapon = this.art.update(m, renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(m.facing));
 

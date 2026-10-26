@@ -7,6 +7,7 @@ import {
 } from "@raid/shared";
 import { BARRIER_COLOR } from "../ui/buffTheme";
 import { traceSector } from "./groundShapes";
+import { clamp01, juiceScale } from "./juice";
 import { BODY_LIFT, screenAngle } from "./projection";
 
 export const NEUTRAL_COLOR = 0x9e9e9e;
@@ -50,9 +51,10 @@ export function weaponCenterX(w: WeaponId): number {
 /**
  * Draws `w` in the local frame of a body centred on the origin, pointing along +x. `pull` is the bow's draw: -1 for
  * not drawing, else 0 (nocked) to 1 (full draw: the string and arrow glow). `tint` replaces the weapon's own colour
- * (the golden-weapon cosmetic).
+ * (the golden-weapon cosmetic). `charge` (0..1) is a wand's cast gathering: its orb swells and glows. `tension`: the bow's
+ * arrowhead warms up before full draw (juice).
  */
-export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -1, tint?: number): void {
+export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -1, tint?: number, charge = 0, tension = false): void {
   const color = tint ?? WEAPONS[w].color;
   // A dark, fairly opaque edge on every part so the silhouette holds against both light and dark floors.
   g.lineStyle(1.5, OUTLINE, 0.95);
@@ -86,14 +88,20 @@ export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -
       if (ready) {
         g.fillStyle(0xfff176, 0.35).fillCircle(R + 24, 0, 8);
         g.lineStyle(2, 0xfff176, 0.7).strokeCircle(0, 0, R + 4);
+      } else if (tension && pull > TENSION_FROM) {
+        // The arrowhead warms up on the way to a full draw (no ring yet: that is the ready cue).
+        const k = (pull - TENSION_FROM) / (1 - TENSION_FROM);
+        g.fillStyle(0xfff176, 0.06 + 0.2 * k).fillCircle(R + 24, 0, 5 + 3 * k);
       }
       break;
     }
     case "wand":
       g.fillStyle(0x6d4c41, 1).fillRect(R - 3, -2, 19, 4).strokeRect(R - 3, -2, 19, 4);
+      if (charge > 0) g.fillStyle(color, 0.1 + 0.22 * charge).fillCircle(R + 19, 0, 10 + 9 * charge);
       g.fillStyle(color, 0.3).fillCircle(R + 19, 0, 10);
       g.fillStyle(color, 1).fillCircle(R + 19, 0, 5.5).strokeCircle(R + 19, 0, 5.5);
       g.fillStyle(0xffffff, 0.8).fillCircle(R + 17.6, -1.8, 1.8);
+      if (charge > 0) g.fillStyle(0xffffff, 0.15 + 0.5 * charge).fillCircle(R + 19, 0, 2.5 + 3 * charge);
       break;
     case "shield":
       g.lineStyle(9.5, OUTLINE, 0.9).beginPath().arc(0, 0, R + 6, -0.85, 0.85).strokePath();
@@ -109,6 +117,10 @@ const BLOCK_FILL = 0x90a4ae;
 const BLOCK_EDGE = 0xcfd8dc;
 /** The bow pull is redrawn in this many steps; smoother than the eye can tell at 20 Hz patches. */
 const PULL_STEPS = 16;
+/** A bow's arrowhead starts to glow past this share of the draw (full draw has its own, stronger cue). */
+const TENSION_FROM = 0.6;
+/** The wand's charge glow is redrawn in this many steps. */
+const CHARGE_STEPS = 8;
 /**
  * The held weapon is drawn a little over life size: the body disc is only 24 px across and the weapon is what tells a
  * far-off fighter's kit apart.
@@ -202,6 +214,12 @@ export class FighterArt {
   /** Draw the weapon in hand in gold (a golden weapon look applies). Part of the redraw signature. */
   private gold = false;
   private readonly draw = new DrawTrack();
+  /** Juice: a turn added to the weapon's facing (a wind-up or a swing's sweep). */
+  poseRot = 0;
+  /** The bow's pull as drawn at the last update (-1 = not drawing), which the figure's tension and lean follow. */
+  pull = -1;
+  /** Juice: the wand's cast charge in CHARGE_STEPS (0 = none). */
+  private chargeStep = 0;
 
   constructor(scene: Phaser.Scene) {
     this.ground = scene.add.graphics();
@@ -211,6 +229,11 @@ export class FighterArt {
   /** Golden weapon look on or off; takes effect at the next update(). */
   setGold(on: boolean): void {
     this.gold = on;
+  }
+
+  /** A wand's cast charge, 0..1 (juice); takes effect at the next update(). */
+  setCharge(charge: number): void {
+    this.chargeStep = Math.round(clamp01(charge) * CHARGE_STEPS);
   }
 
   /**
@@ -226,13 +249,15 @@ export class FighterArt {
     const full = weapon === "bow" && drawing ? fullDrawSeconds(f.faction, f.stacksAs) : 0;
     // Clamped at both ends: a chill can leave the start a few ms ahead of render time while the draw is on screen.
     const pull = full > 0 ? Math.max(0, Math.min(1, (renderT - this.draw.start) / 1000 / full)) : -1;
+    this.pull = pull;
 
-    this.held.setVisible(weapon !== null).setRotation(screenAngle(f.facing));
-    const sig = `${weapon ?? ""}|${pull < 0 ? -1 : Math.round(pull * PULL_STEPS)}|${this.gold ? 1 : 0}`;
+    this.held.setVisible(weapon !== null).setRotation(screenAngle(f.facing) + this.poseRot);
+    const charge = weapon === "wand" ? this.chargeStep : 0;
+    const sig = `${weapon ?? ""}|${pull < 0 ? -1 : Math.round(pull * PULL_STEPS)}|${this.gold ? 1 : 0}|${charge}`;
     if (sig !== this.heldSig) {
       this.heldSig = sig;
       this.held.clear();
-      if (weapon) drawWeapon(this.held, weapon, pull, this.gold ? GOLD_COLOR : undefined);
+      if (weapon) drawWeapon(this.held, weapon, pull, this.gold ? GOLD_COLOR : undefined, charge / CHARGE_STEPS, juiceScale("flash") > 0);
     }
 
     // Ground angles, not screen ones: the arc is built from projected ground points (see groundShapes).

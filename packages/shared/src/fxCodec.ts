@@ -29,7 +29,7 @@
 //   windup   [by, W, a, ms]                 swing    [by, W, x, y, a]
 //   hit      [id, by|null, amount, flags]   (flags = W+1 (0: none), plus (SIG+1) x HIT_RADIX when a signature dealt it)
 //   block    [id, by, W, passive?]          (passive: 1; left off when false)
-//   stagger  [id]                           teleport []
+//   stagger  [id]                           teleport []        cancel [id]
 //   projEnd  [id, proj, reason, x, y, x0?, y0?, t0?]   (x0, y0, t0: where and when it was loosed. Only for a projectile no
 //                                            launch ever announced (loosed and stopped within one step, e.g. an arrow
 //                                            reflected at once): a client that has the launch needs none of them, so `packFx`
@@ -60,7 +60,7 @@ function table<K extends string>(code: Readonly<Record<K, number>>): Table<K> {
 
 const KIND = table<FxEvent["kind"]>({
   windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10, combo: 11,
-  victory: 12,
+  victory: 12, cancel: 13,
 });
 const WEAPON = table<WeaponId>({ sword: 0, bow: 1, wand: 2, shield: 3, axe: 4 });
 const PROJECTILE = table<ProjectileKind>({ arrow: 0, ball: 1 });
@@ -164,6 +164,7 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
       return tuple;
     }
     case "stagger": return [KC.stagger, fx.id];
+    case "cancel": return [KC.cancel, fx.id];
     case "projEnd": {
       const tuple: FxTuple = [KC.projEnd, fx.id, PROJECTILE.code[fx.proj], END.code[fx.reason], enc(fx.x, POS), enc(fx.y, POS)];
       if (!announced?.has(fx.id)) tuple.push(enc(fx.x0, POS), enc(fx.y0, POS), enc(fx.t0, MS));
@@ -283,6 +284,10 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
       return tuple[4] === 1 ? { kind, id, by, weapon, passive: true } : { kind, id, by, weapon };
     }
     case "stagger": {
+      const id = str(tuple[1], names);
+      return id !== undefined ? { kind, id } : null;
+    }
+    case "cancel": {
       const id = str(tuple[1], names);
       return id !== undefined ? { kind, id } : null;
     }
