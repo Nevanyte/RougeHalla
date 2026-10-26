@@ -168,6 +168,16 @@ describe("ember burn", () => {
     expect(P(world, "p0").hp).toBe(P(world, "p0").maxHp);
   });
 
+  it("a kill barrier absorbs it first, and it never staggers", () => {
+    const world = makeRig({ map: terrainMap({ kind: everywhere(TERRAIN_EMBER) }), players: [{ faction: "frost" }, { faction: "fire" }] });
+    const p = P(world, "p0");
+    p.barrier = 10;
+    run(world, 20);
+    expect(p.barrier).toBe(0);
+    expect(p.maxHp - p.hp).toBeCloseTo(0.02 * p.maxHp - 10, 6);
+    expect(RT(world, "p0").weapon.staggerImmuneUntil).toBe(0);
+  });
+
   it("scales with max hp: every hp pool lasts as long", () => {
     const world = makeRig({
       map: terrainMap({ kind: everywhere(TERRAIN_EMBER) }),
