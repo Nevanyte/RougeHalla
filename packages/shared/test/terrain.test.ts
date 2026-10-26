@@ -244,11 +244,11 @@ describe("validateTerrain, T1..T5 (any map)", () => {
 });
 
 /**
- * A hand-built map that looks generated: a 12x7 board whose west room (x 1..5) is the coliseum, a wall column x=6 with a
- * two-tile gate at y=2..3, and a fire room (x 7..10). One spawn, chest, camp and inner spawn, all on plain floor.
+ * A hand-built map that looks generated: a 16x7 board whose west room (x 1..5) is the coliseum, a wall column x=6 with a
+ * two-tile gate at y=2..3, and a fire room (x 7..14). One spawn, chest, camp and inner spawn, all on plain floor.
  */
 function regioned(): GameMap {
-  const w = 12, h = 7;
+  const w = 16, h = 7;
   const tiles = new Uint8Array(w * h);
   const regionGrid = new Uint8Array(w * h);
   const fire = regionCode("fire");
@@ -277,8 +277,8 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     const m = regioned();
     expect(validateTerrain(m)).toEqual([]);
     put(m, 7, 4, TILE_LOW, TERRAIN_LAVA); // fire's lava in fire's room
-    put(m, 10, 5, TILE_FLOOR, TERRAIN_EMBER);
-    put(m, 7, 5, TILE_FLOOR, TERRAIN_EMBER);
+    put(m, 13, 5, TILE_FLOOR, TERRAIN_EMBER); // off the spawn's 5x5 and the chest's 3x3
+    put(m, 14, 4, TILE_FLOOR, TERRAIN_EMBER);
     expect(validateTerrain(m)).toEqual([]);
     expect(validateTerrain(m, { styled: true })).toEqual([]);
   });
@@ -299,7 +299,7 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     expect(ruleIds(validateTerrain(wrongHome))).toEqual(["T6"]);
 
     const floorKind = regioned();
-    put(floorKind, 7, 5, TILE_FLOOR, TERRAIN_BOG); // Plague's bog in fire's room
+    put(floorKind, 13, 5, TILE_FLOOR, TERRAIN_BOG); // Plague's bog in fire's room
     expect(ruleIds(validateTerrain(floorKind))).toEqual(["T6"]);
 
     const wallKind = regioned();
@@ -330,6 +330,7 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     const pocket = regioned();
     put(pocket, 10, 1, TILE_FLOOR);
     put(pocket, 9, 1, TILE_WALL);
+    put(pocket, 11, 1, TILE_WALL);
     put(pocket, 10, 2, TILE_WALL);
     // (10,1) is a one-tile floor island (and the camp chest is now a wall, which T8 reports as well).
     const pocketErrs = validateTerrain(pocket);
@@ -347,8 +348,15 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     put(spawnEdge, 8, 4, TILE_FLOOR, TERRAIN_EMBER); // a corner of the 3x3
     expect(only(spawnEdge)).toEqual(["T8"]);
     const spawnOut = regioned();
-    put(spawnOut, 7, 4, TILE_FLOOR, TERRAIN_EMBER); // just outside it
+    put(spawnOut, 12, 4, TILE_FLOOR, TERRAIN_EMBER); // just outside the 5x5 (x 7..11)
     expect(only(spawnOut)).toEqual([]);
+    const spawnRing = regioned();
+    put(spawnRing, 7, 4, TILE_FLOOR, TERRAIN_EMBER); // the 5x5 ring: not the 3x3, but no hazard may sit there
+    expect(only(spawnRing)).toEqual(["T8"]);
+    expect(validateTerrain(spawnRing)[0]).toContain("5x5");
+    const spawnRingFence = regioned();
+    put(spawnRingFence, 7, 4, TILE_LOW, TERRAIN_FENCE); // a fence is not a floor hazard
+    expect(only(spawnRingFence)).toEqual([]);
 
     const chest = regioned();
     put(chest, 8, 5, TILE_LOW, TERRAIN_LAVA);
@@ -378,7 +386,7 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
 
     // A spawn 3x3 that leaves the board is a violation as well.
     const edge = regioned();
-    edge.spawns = [{ x: tc(10), y: tc(5) }];
+    edge.spawns = [{ x: tc(15), y: tc(5) }]; // its 3x3 reaches column 16, off a 16-wide board
     expect(only(edge)).toEqual(["T8"]);
   });
 
@@ -398,7 +406,7 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     unknown2.props.push({ kind: 2, x: tc(8), y: tc(1), v: 0 });
     expect(ruleIds(validateTerrain(unknown2, { propKinds: kinds }))).toEqual(["T9"]);
 
-    for (const [x, y] of [[-5, 40], [40, -5], [12 * TILE, 40], [40, 7 * TILE], [NaN, 40]]) {
+    for (const [x, y] of [[-5, 40], [40, -5], [16 * TILE, 40], [40, 7 * TILE], [NaN, 40]]) {
       const oob = regioned();
       oob.props.push({ kind: 1, x, y, v: 0 });
       expect(ruleIds(validateTerrain(oob, { propKinds: kinds })), `${x},${y}`).toEqual(["T9"]);

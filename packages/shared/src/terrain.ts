@@ -113,7 +113,7 @@ export interface ValidateTerrainOptions {
  *   The rest apply to a generated map only (regions present):
  *   T6  LOW and kinded tiles lie in a faction region, and a kind with a home lies in that faction's region
  *   T7  FLOOR is one 4-connected component with the gates open and two with them closed
- *   T8  protected cells are FLOOR with no terrain: gate tiles, spawn 3x3s, inner spawn 3x3s, chests, camp clearings; the
+ *   T8  protected cells are FLOOR with no terrain: gate tiles, spawn 3x3s, inner spawn 3x3s, chests, camp clearings, and no floor hazard on a spawn's 5x5 or a chest's 3x3; the
  *       coliseum footprint has no LOW and no terrain
  *   T9  each prop is in bounds, of a known kind, on its kind's tile class
  *   T10 (`styled` only) no LOW tile has kind NONE
@@ -260,7 +260,27 @@ export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {})
   around("spawn", [...map.spawns, ...map.spawnPool, ...map.regions.flatMap((r) => r.spawns)]);
   around("inner spawn", map.coliseum.innerSpawns);
   const toTile = (p: { x: number; y: number }) => ({ x: worldToTile(p.x), y: worldToTile(p.y) });
-  protect("chest", [...map.crateSpots, ...map.regions.flatMap((r) => r.chestSpots), ...map.camps.map((c) => c.chest)].map(toTile));
+  const chestCentres = [...map.crateSpots, ...map.regions.flatMap((r) => r.chestSpots), ...map.camps.map((c) => c.chest)];
+  protect("chest", chestCentres.map(toTile));
+  // The ground near a spawn (5x5, what the generator certifies) and a chest (3x3) carries no floor hazard, whatever the tiles are.
+  const hazardFree = (what: string, centres: Iterable<{ x: number; y: number }>, half: number): void => {
+    for (const p of centres) {
+      const cx = worldToTile(p.x), cy = worldToTile(p.y);
+      for (let dy = -half; dy <= half; dy++) {
+        for (let dx = -half; dx <= half; dx++) {
+          const x = cx + dx, y = cy + dy;
+          if (x < 0 || y < 0 || x >= w || y >= h) continue;
+          const kind = terrain[y * w + x];
+          if (kind !== TERRAIN_NONE && TERRAINS[kind]?.tile === TILE_FLOOR) {
+            out.push(`T8 ${what} ${2 * half + 1}x${2 * half + 1} at (${cx}, ${cy}) holds a floor hazard`);
+            return;
+          }
+        }
+      }
+    }
+  };
+  hazardFree("spawn", [...map.spawns, ...map.spawnPool, ...map.regions.flatMap((r) => r.spawns)], 2);
+  hazardFree("chest", chestCentres, 1);
   const clearing: { x: number; y: number }[] = [];
   for (const c of [...map.camps, ...map.regions.flatMap((r) => r.mobCamps)]) {
     const ctx = worldToTile(c.x), cty = worldToTile(c.y);
