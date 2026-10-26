@@ -4,20 +4,20 @@
 // can land on a slow core and share memory bandwidth with eight certification shards, which made raw timings 2-5x the
 // quiet ones. So every batch is timed next to a fixed yardstick workload of the generator's kind (flood fills, 5/7
 // distance passes and a strided scan of a 32 MB array) and scaled by it: the gate reads the batch's cost on the quiet
-// reference machine. Measured on an Apple M5 Pro (Node 25.8): the yardstick costs 20 ms quiet, and the generator
-// 1.8-2.1 yardsticks a map in isolation and under the whole suite alike. scripts/mapBench.ts gives the unscaled numbers.
+// reference machine. YARDSTICK_QUIET_MS is the yardstick measured on an Apple M5 Pro (Node 25.8), quiet.
+// scripts/mapBench.ts gives the unscaled numbers.
 import { describe, expect, it } from "vitest";
 import { certifiedMap, warmMapgen } from "../src/mapgen";
 
 /** The yardstick's cost on the reference machine, quiet (ms). */
-const YARDSTICK_QUIET_MS = 20;
+const YARDSTICK_QUIET_MS = 5;
 const big = new Uint16Array(16 << 20);
 for (let i = 0; i < big.length; i++) big[i] = (i * 2654435761) >>> 20;
 
 function yardstick(): number {
   const W = 96, N = W * W, wall = new Uint8Array(N), dist = new Int32Array(N), queue = new Int32Array(N);
   let acc = 0;
-  for (let rep = 0; rep < 40; rep++) {
+  for (let rep = 0; rep < 10; rep++) {
     for (let i = 0; i < N; i++) wall[i] = ((i * 7919 + rep * 104729) % 23) < 4 || i < W || i >= N - W || i % W === 0 || i % W === W - 1 ? 1 : 0;
     dist.fill(-1);
     let head = 0, tail = 0;
@@ -45,19 +45,23 @@ describe("performance", () => {
     warmMapgen();
     for (let i = 0; i < 16; i++) certifiedMap(80_000 + i);
     for (let i = 0; i < 4; i++) yardstick();
+    // Load comes in bursts, so every map is timed between two short yardsticks and the batch is scaled by their sum.
     const raw: number[] = [], scaled: number[] = [];
     for (let b = 0; b < 7; b++) {
-      let t = performance.now();
-      yardstick();
-      const y1 = performance.now() - t;
-      t = performance.now();
-      for (let i = 0; i < 8; i++) certifiedMap(10_000 + b * 8 + i);
-      const ms = (performance.now() - t) / 8;
-      t = performance.now();
-      yardstick();
-      const y2 = performance.now() - t;
-      raw.push(ms);
-      scaled.push((ms * YARDSTICK_QUIET_MS) / ((y1 + y2) / 2));
+      let gen = 0, yard = 0;
+      for (let i = 0; i < 8; i++) {
+        let t = performance.now();
+        yardstick();
+        yard += (performance.now() - t) / 2;
+        t = performance.now();
+        certifiedMap(10_000 + b * 8 + i);
+        gen += performance.now() - t;
+        t = performance.now();
+        yardstick();
+        yard += (performance.now() - t) / 2;
+      }
+      raw.push(gen / 8);
+      scaled.push((gen * YARDSTICK_QUIET_MS) / yard);
     }
     const med = median(scaled);
     console.info(`[perf] certifiedMap median of 7 batches: ${med.toFixed(1)} ms scaled to the quiet machine (raw ${raw.map((v) => v.toFixed(1)).join(", ")} ms)`);
