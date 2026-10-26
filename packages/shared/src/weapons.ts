@@ -133,9 +133,9 @@ const AXE_ROOT = 0.5;
 const AXE_ROOT_SHARE = 0.5;
 /** The bow's fixed full draw (it always looses at full draw, for full damage). */
 export const BOW_WINDUP = 0.6;
-export const BOW_WINDUP_SHARE = 0.7;
-export const WAND_WINDUP = 0.2;
-export const WAND_WINDUP_SHARE = 0.4;
+export const BOW_WINDUP_SHARE = 0.92;
+export const WAND_WINDUP = 0.4;
+export const WAND_WINDUP_SHARE = 0.8;
 
 /** Everything about one attack's rhythm, for a given interval. All in seconds. */
 export interface WeaponTimings {

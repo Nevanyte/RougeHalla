@@ -49,8 +49,8 @@ CHILL_MOVE_MULT = 0.7      # ...and multiplies their move speed by this
 WEAPONS = {
     "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=60,  melee=True,  windup=0.10, wshare=1.00),
     "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=60,  melee=True,  windup=0.25, wshare=0.25),
-    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.70),
-    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.20, wshare=0.40),
+    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.92),
+    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.40, wshare=0.80),
     "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True,  windup=0.10, wshare=1.00),
 }
 WNAMES = list(WEAPONS)
