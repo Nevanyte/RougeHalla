@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FACTIONS, attackInterval, buffMultiplier, encodeMult, weaponTimings } from "@raid/shared";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { DrawTrack, FighterArt, HpBar, fullDrawSeconds, heldWeapon, type FighterFields } from "../src/render/FighterArt";
 import { argsOf, fakeScene } from "./fakes";
@@ -130,7 +131,8 @@ describe("bow draw start under a chill", () => {
 describe("fullDrawSeconds", () => {
   // The server's bow windup (sim/combatant.ts timingsOf(...).windup on a real player of each faction, 9 decimals) for 0, 1.1, 3
   // and 7 attack-speed stacks. server/test/mobHunt.test.ts compares the bots' copy of the formula with timingsOf live; this is the
-  // client's half: a draw gauge that drifts from the server's shows a full bow before (or after) it is.
+  // client's half: a draw gauge that drifts from the server's shows a full bow before (or after) it is. The client reads the
+  // attack-speed MIRROR the server folds those stacks into (`asMult`), so each row is checked at the mirror the stacks give.
   // Regenerate with the weapon numbers (weapons.ts / factions.ts) when they change; BOW_WINDUP and BOW_WINDUP_SHARE (the controls
   // tuning lever) move every entry.
   const SERVER_FULL_DRAW: Record<string, readonly number[]> = {
@@ -141,35 +143,50 @@ describe("fullDrawSeconds", () => {
     holy: [0.496626181, 0.476910097, 0.404983625, 0.338463999],
   };
   const STACKS = [0, 1.1, 3, 7];
+  /** The mirror the server writes for `stacks` attack-speed stacks. */
+  const mirror = (stacks: number) => encodeMult(buffMultiplier("attackSpeed", stacks));
 
-  it("equals the server's full draw for every faction at 0, 1.1, 3 and 7 attack-speed stacks", () => {
+  it("equals the server's full draw for every faction at the mirror of 0, 1.1, 3 and 7 attack-speed stacks", () => {
     for (const [faction, row] of Object.entries(SERVER_FULL_DRAW)) {
-      STACKS.forEach((stacks, i) => expect(fullDrawSeconds(faction, stacks), `${faction} with ${stacks} stacks`).toBeCloseTo(row[i]!, 8));
+      STACKS.forEach((stacks, i) => expect(fullDrawSeconds(faction, mirror(stacks)), `${faction} with ${stacks} stacks`).toBeCloseTo(row[i]!, 8));
     }
   });
 
-  it("is the unbuffed draw for a fighter without stacks (a mob) and 0 without a faction", () => {
-    for (const [faction, row] of Object.entries(SERVER_FULL_DRAW)) expect(fullDrawSeconds(faction, undefined)).toBeCloseTo(row[0]!, 8);
-    expect(fullDrawSeconds("", 3)).toBe(0);
-    expect(fullDrawSeconds("nobody", 3)).toBe(0);
+  it("a mirror of exactly 1 is the unbuffed draw, and so is a fighter with none (a mob) and 0 without a faction", () => {
+    for (const [faction, row] of Object.entries(SERVER_FULL_DRAW)) {
+      expect(fullDrawSeconds(faction, 1), faction).toBeCloseTo(row[0]!, 8);
+      expect(fullDrawSeconds(faction, undefined), faction).toBeCloseTo(row[0]!, 8);
+      expect(fullDrawSeconds(faction), faction).toBe(fullDrawSeconds(faction, 1));
+    }
+    expect(fullDrawSeconds("", 1.5)).toBe(0);
+    expect(fullDrawSeconds("nobody", 1.5)).toBe(0);
   });
 
-  it("shortens with stacks until the bow's interval floor", () => {
-    expect(fullDrawSeconds("sentenced", 7)).toBeLessThan(fullDrawSeconds("sentenced", 0) - 0.1);
-    expect(fullDrawSeconds("plague", 7)).toBe(fullDrawSeconds("plague", 20));
+  it("shortens with the mirror until the bow's interval floor", () => {
+    expect(fullDrawSeconds("sentenced", mirror(7))).toBeLessThan(fullDrawSeconds("sentenced", 1) - 0.1);
+    expect(fullDrawSeconds("plague", mirror(7))).toBe(fullDrawSeconds("plague", mirror(20)));
   });
 
-  it("is what the gauge uses: the same draw is full with stacks and not without", () => {
-    // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw with 3 stacks (0.427 s), which glows.
-    const glowing = (stacksAs: number) => {
+  it("follows the mirror alone: a mirror shortens it with no stacks anywhere", () => {
+    // 1.5 is no stack count's multiplier in particular: any source of attack speed shows in the draw.
+    expect(fullDrawSeconds("sentenced", 1.5)).toBeLessThan(fullDrawSeconds("sentenced", 1));
+    expect(fullDrawSeconds("sentenced", 1.5)).toBeCloseTo(weaponTimings("bow", attackInterval(FACTIONS.sentenced, "bow", 1.5)).windup, 12);
+  });
+
+  it("is what the gauge uses: the same draw is full with the mirror and not without", () => {
+    // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw at 3 stacks' mirror (0.427 s), which glows.
+    const glowing = (fields: Partial<FighterFields> & { stacksAs?: number }) => {
       const graphics = [fakeGraphics(), fakeGraphics()];
       let i = 0;
       const art = new FighterArt({ add: { graphics: () => graphics[i++] } } as never);
-      art.update({ ...bowman(1000), faction: "sentenced", stacksAs }, 1450, 1450);
+      art.update({ ...bowman(1000), faction: "sentenced", ...fields }, 1450, 1450);
       return graphics[1]!.calls.includes("strokeCircle");
     };
-    expect(glowing(0)).toBe(false);
-    expect(glowing(3)).toBe(true);
+    expect(glowing({})).toBe(false);
+    expect(glowing({ asMult: 1 })).toBe(false);
+    expect(glowing({ asMult: mirror(3) })).toBe(true);
+    // Stacks without the mirror (a stale or unknown field) do not shorten the gauge: the mirror is what the server simulated with.
+    expect(glowing({ stacksAs: 3, asMult: 1 })).toBe(false);
   });
 });
 

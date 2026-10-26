@@ -1,8 +1,9 @@
-// What the client knows about its own fighter's speed and roots, for LocalMotion (net/localMotion.ts): the buff stacks' move
-// speed, a kill's burst, the chill, the axe's root after its swing. Presentation only, and only as good as the client's
-// knowledge: anything it gets wrong the server's samples correct (a wrong guess costs a small slide, never a wrong position).
+// What the client knows about its own fighter's speed and roots, for LocalMotion (net/localMotion.ts): the synced stat mirrors'
+// walking speed and attack speed (never the buff stacks: later effects feed the mirrors too), a kill's burst, the chill, the
+// axe's root after its swing. Presentation only, and only as good as the client's knowledge: anything it gets wrong the server's
+// samples correct (a wrong guess costs a small slide, never a wrong position).
 import {
-  attackInterval, buffMultiplier, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, FACTIONS, isFactionId, killEffects, SIG_CHILLED, weaponTimings,
+  attackInterval, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, FACTIONS, isFactionId, killEffects, SIG_CHILLED, weaponTimings,
   type TimedFx,
 } from "@raid/shared";
 import { LocalMotion, type FrameInput } from "./localMotion";
@@ -13,9 +14,13 @@ export interface LocalFighter {
   y: number;
   faction: string;
   sig: number;
+  /** The buff stacks: they still drive the kill combos (a burst), not the speeds. */
   stacksHp: number;
   stacksAs: number;
   stacksMs: number;
+  /** The stat mirrors (wire form; decodeMult): the attack and walking speed the server simulates with. */
+  asMult: number;
+  speedMult: number;
 }
 
 /** Another player, as far as the chill needs to know. */
@@ -66,7 +71,7 @@ export class LocalPrediction {
         if (fx.by !== localId || fx.weapon !== "axe") break;
         // The axe roots from its start for twice its windup (weapons.ts): what follows the swing's landing is the root this knows.
         const f = me && isFactionId(me.faction) ? FACTIONS[me.faction] : null;
-        const windup = f ? weaponTimings("axe", attackInterval(f, "axe", buffMultiplier("attackSpeed", me!.stacksAs))).windup * 1000 : fx.ms;
+        const windup = f ? weaponTimings("axe", attackInterval(f, "axe", decodeMult(me!.asMult))).windup * 1000 : fx.ms;
         const lands = fx.t + fx.ms;
         this.axeRoot = { from: lands, until: lands + windup };
         break;
@@ -117,9 +122,9 @@ export class LocalPrediction {
     };
   }
 
-  /** The walk speed multiplier at server time `t`: the move-speed stacks, the strongest kill burst running, and the chill. */
+  /** The walk speed multiplier at server time `t`: the speed mirror, the strongest kill burst running, and the chill. */
   speedMult(t: number, me: LocalFighter, others: Iterable<OtherFighter>): number {
-    let m = buffMultiplier("moveSpeed", me.stacksMs);
+    let m = decodeMult(me.speedMult);
     let best = 1;
     for (let i = this.bursts.length - 1; i >= 0; i--) if (t >= this.bursts[i]!.until + 2000) this.bursts.splice(i, 1);
     for (const b of this.bursts) if (t >= b.from && t < b.until && b.mult > best) best = b.mult;

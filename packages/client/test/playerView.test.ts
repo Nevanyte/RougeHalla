@@ -1,7 +1,7 @@
 // PlayerView's kill barrier (Phase 11): a pale-blue segment on the hp bar and a bubble round the body, both drawn from the
 // public state. The scene is fake (test/fakes.ts); the parts are found by their place in the container the view builds.
 import { describe, expect, it } from "vitest";
-import { MAX_BARRIER_SHARE } from "@raid/shared";
+import { MAX_BARRIER_SHARE, buffMultiplier, encodeMult } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
 import { screenAngle } from "../src/render/projection";
@@ -15,7 +15,7 @@ const MAX_HP = 1000;
 function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerState {
   return {
     name: "Ann", look: 0, x: 0, y: 0, facing: 0, hp: MAX_HP, maxHp: MAX_HP, barrier: 0, status: "alive", faction: "fire", weapon0: "sword",
-    weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0, sig: 0, brand: 0, bounty: 0, immuneUntil: 0, stacksAs: 0, ...over,
+    weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0, sig: 0, brand: 0, bounty: 0, immuneUntil: 0, stacksAs: 0, asMult: 1, ...over,
   } as unknown as PlayerState;
 }
 
@@ -117,5 +117,26 @@ describe("PlayerView predicted facing", () => {
     expect(p.weapon0).toBe("sword");
     view.update(0, 0, p, 1000, 1000);
     expect(held.state.rotation).toBeCloseTo(synced, 9);
+  });
+});
+
+describe("PlayerView bow draw", () => {
+  const HELD = 9;
+  // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at 3 attack-speed stacks' mirror (0.427 s).
+  const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null): boolean => {
+    const { root, view } = setup();
+    const held = (root.args[2] as FakeObject[])[HELD]!;
+    view.update(0, 0, player({ faction: "sentenced", weapon0: "bow", drawStartedAt: 1000, ...over }), 1450, 1450, false, false, facing);
+    return held.calls.some(([name]) => name === "strokeCircle");
+  };
+
+  it("draws to the attack-speed mirror, with the synced facing and with a predicted one", () => {
+    const as3 = encodeMult(buffMultiplier("attackSpeed", 3));
+    for (const facing of [null, -0.4]) {
+      expect(glows({ asMult: 1 }, facing), `identity, facing ${facing}`).toBe(false);
+      expect(glows({ asMult: as3 }, facing), `3 stacks' mirror, facing ${facing}`).toBe(true);
+      // The stacks themselves are not what the draw reads.
+      expect(glows({ asMult: 1, stacksAs: 3 }, facing), `stacks only, facing ${facing}`).toBe(false);
+    }
   });
 });

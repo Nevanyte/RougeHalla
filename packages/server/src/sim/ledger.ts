@@ -94,13 +94,18 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   let landedShare = c.kind === "mob" && c.s.kind !== "dummy" && total > applied ? applied / total : 1;
   // What a kill barrier swallowed is not hp lost: lifesteal feeds on the rest.
   if (c.kind === "player" && barrierBefore > c.s.barrier && total > 0) landedShare = Math.max(0, 1 - (barrierBefore - c.s.barrier) / total);
+  const hitLanded = world.hooks.hitLanded;
   entries.forEach((e, i) => {
     const amount = amounts[i]!;
     if (!(amount > 0) || e.arena) return;
     world.combat.landed.push({ victim: id, by: e.by.id, amount: amount * landedShare, weapon: e.weapon, sig: e.sig });
-    if (isDot(e.sig)) return; // reported in chunks by sim/factions.ts
-    const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
-    emit(world, { type: "fx", fx: e.sig ? { ...fx, sig: e.sig } : fx });
+    // Damage over time is reported in chunks by sim/factions.ts.
+    if (!isDot(e.sig)) {
+      const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
+      emit(world, { type: "fx", fx: e.sig ? { ...fx, sig: e.sig } : fx });
+    }
+    // After the victim took the damage and its hit fx went out (on-hit effects: R4b; see WorldHooks.hitLanded).
+    hitLanded?.(world, e, amount);
   });
   if (standing(c) && entries.some((e, i) => e.stagger && amounts[i]! > 0)) stagger(world, c);
 }

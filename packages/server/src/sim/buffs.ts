@@ -3,18 +3,21 @@
 //   hp           PlayerState.maxHp = the faction's hp x the stacks' multiplier; the hp gained comes with it, so a buff
 //                never leaves you lower on the bar.
 //   attack speed attackSpeedMult() feeds attackInterval/damagePerHit (combatant.ts timingsOf, weapons.ts packetFor), so
-//                speed past a weapon's floor becomes damage per hit by the existing rule.
+//                speed past a weapon's floor becomes damage per hit by the existing rule. It is the synced `asMult`
+//                mirror, which sim/mods.ts folds from the stacks.
 //   move speed   moveSpeedMult() is a world.moveModifiers entry (step.ts multiplies them into the weapon's move factor): the
-//                stacks' bonus times the strongest running burst.
+//                `speedMult` mirror (the stacks' bonus) times the strongest running burst.
 //   kill combos  onKill() runs after every kill (a player's, a mob's): speed bursts, the absorb shield, a cooldown reset.
 //   bounty       half of a bountied victim's stacks go to the killer (the bountyClaimed hook).
 // Only players hold stacks; a mob's multipliers are 1. This module must not import weapons.ts or arena.ts (they import it).
+// A stack grant re-folds the mirrors at once (recomputeMods), so it changes the attack and the walk in the same tick.
 import {
   activeCombos, bountyStacks, BUFF_STATS, buffMultiplier, comboFor, comboTier, FACTIONS, isFactionId, killEffects,
   zeroStacks, type BuffStat, type Stacks,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import type { Combatant, FighterState } from "./combatant";
+import { asMultOf, recomputeMods, speedMultOf } from "./mods";
 import { emit, type BoostRuntime, type PlayerRuntime, type World } from "./world";
 
 const STAT_FIELD = { hp: "stacksHp", attackSpeed: "stacksAs", moveSpeed: "stacksMs" } as const;
@@ -23,15 +26,15 @@ export function stacksOf(s: FighterState): Stacks {
   return "stacksHp" in s ? { hp: s.stacksHp, attackSpeed: s.stacksAs, moveSpeed: s.stacksMs } : zeroStacks();
 }
 
-/** Multiplier on the fighter's attack speed (1 for a mob or without stacks). */
+/** Multiplier on the fighter's attack speed: the decoded `asMult` mirror (1 for a mob or without stacks). */
 export function attackSpeedMult(s: FighterState): number {
-  return "stacksAs" in s ? buffMultiplier("attackSpeed", s.stacksAs) : 1;
+  return asMultOf(s);
 }
 
-/** Multiplier on the fighter's walking speed: the move-speed stacks times the strongest burst still running. */
+/** Multiplier on the fighter's walking speed: the `speedMult` mirror times the strongest burst still running. */
 export function moveSpeedMult(world: World, c: Combatant): number {
   if (c.kind !== "player") return 1;
-  let m = buffMultiplier("moveSpeed", c.s.stacksMs);
+  let m = speedMultOf(c.s);
   const bursts = c.rt.boost?.bursts;
   if (bursts && bursts.length > 0) {
     const now = world.state.serverTime;
@@ -61,8 +64,9 @@ function boostOf(rt: PlayerRuntime): BoostRuntime {
 }
 
 /**
- * Adds `amount` stacks of `stat` to a standing player: max hp follows for hp stacks, a `buff` fx goes out, and crossing
- * a combo threshold sends a `combo` fx. Ignored for anyone not standing or already resolved.
+ * Adds `amount` stacks of `stat` to a standing player: max hp follows for hp stacks, the stat mirrors are re-folded at
+ * once (sim/mods.ts), a `buff` fx goes out, and crossing a combo threshold sends a `combo` fx. Ignored for anyone not
+ * standing or already resolved.
  */
 export function grantStacks(world: World, p: PlayerState, rt: PlayerRuntime, stat: BuffStat, amount: number): void {
   if (!(amount > 0) || rt.resolved || p.status !== "alive") return;
@@ -71,6 +75,7 @@ export function grantStacks(world: World, p: PlayerState, rt: PlayerRuntime, sta
   const total = before + amount;
   p[field] = total;
   if (stat === "hp") syncMaxHp(p);
+  recomputeMods(world, { kind: "player", id: rt.id, s: p, rt });
   emit(world, { type: "fx", fx: { kind: "buff", id: rt.id, stat, stacks: amount, total } });
   if (comboTier(total) > comboTier(before)) {
     const combo = comboFor(stat, total);
@@ -106,7 +111,7 @@ export function absorbShield(p: PlayerState, amount: number): number {
   return amount - taken;
 }
 
-/** The bountyClaimed hook: half of the victim's stacks, stat by stat, go to the killer. */
+/** The bountyClaimed hook: half of the victim's stacks, stat by stat, go to the killer (each grant re-folds the killer's mirrors). */
 export function transferStacks(world: World, killer: PlayerRuntime, victim: PlayerRuntime): void {
   const kp = world.state.players.get(killer.id);
   const vp = world.state.players.get(victim.id);

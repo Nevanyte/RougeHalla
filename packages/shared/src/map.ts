@@ -1,5 +1,6 @@
 // Map contract. `generateMap(seed)` in mapgen.ts must produce identical output on client and server.
 import { TILE } from "./constants";
+import type { FactionId } from "./factions";
 import type { Vec2 } from "./messages";
 import type { WeaponId } from "./weapons";
 
@@ -93,10 +94,39 @@ export interface MobCampDef {
   weapon: RegionWeapon;
 }
 
+/**
+ * A camp as the roguelike contract sees it (ROGUELIKE_PLAN 3.2). On wedge maps (every map until R2) it is filled from
+ * the same camp's MobCampDef by the wedge adapter at the end of `buildMap`, so `camps` and `regions[].mobCamps` agree.
+ */
+export interface CampDef {
+  /** Same ids as MobCampDef ("fire-1"). `GameMap.camps` is in REGION_FACTIONS order, then camp index. */
+  id: string;
+  zone: FactionId;
+  /** World centre of the camp site (a floor tile centre). */
+  x: number;
+  y: number;
+  /** Clearing radius in world units. */
+  r: number;
+  /** 3-5 mob rest positions, distinct floor tile centres in the clearing, never the chest tile. */
+  spots: Vec2[];
+  /** -1, or the index in `spots` of the elite's rest position (0 for an elite camp on wedge maps). */
+  eliteSpot: number;
+  /** The reward chest's tile centre: a floor tile of the clearing that is not a spot. */
+  chest: Vec2;
+  /** Territory floor tiles (0 on wedge maps, which have no territories). */
+  area: number;
+  /** Farthest territory floor tile in world units: the leash is min(radius, 12 tiles). On wedge maps the old 9-tile leash (MOB_LEASH_RADIUS). */
+  radius: number;
+}
+
 export interface FactionRegionDef {
   id: RegionFaction;
   /** A floor tile centre well inside the region: label anchor, wander target. */
   anchor: Vec2;
+  /** The zone's label point. On wedge maps it is the anchor. */
+  pole: Vec2;
+  /** Floor tile count of the region. */
+  area: number;
   /**
    * Player start points on the region's outer rim: floor tile centres with a clear 3x3 around them,
    * outside every ruin, all at a similar distance from the coliseum in every region so no region
@@ -121,9 +151,23 @@ export interface GameMap {
    * ring, ridges between regions). A hand-built map (mapFromTiles) is "none" throughout.
    */
   regionGrid: Uint8Array;
+  /**
+   * The certified generator attempt this map was built from (the one `generateMap` accepted; later phases hand
+   * (seed, attempt) to clients so both run exactly one attempt). 0 for a hand-built map.
+   */
+  attempt: number;
+  /**
+   * Row-major, length w*h: 0 = no camp territory, else 1 + the camp's index in `camps`. All 0 on wedge and
+   * hand-built maps.
+   */
+  territoryGrid: Uint8Array;
   coliseum: ColiseumDef;
   /** One entry per faction, in REGION_FACTIONS order (not map order). Empty on hand-built maps. */
   regions: FactionRegionDef[];
+  /** Every camp of the map, in REGION_FACTIONS order, then camp index. Empty on hand-built maps. `regions[].mobCamps` stays as a view. */
+  camps: CampDef[];
+  /** Candidate player starts, each tagged with its zone. On wedge maps: `spawns`, each tagged by `regionGrid`. */
+  spawnPool: { x: number; y: number; zone: FactionId }[];
   /** Ruins (footprints including their walls), for floor shading and loot placement. */
   buildings: TileRect[];
   /** Every region's spawns, interleaved region by region, so the first five are in five different regions. */
@@ -208,9 +252,13 @@ export function mapFromTiles(w: number, h: number, tiles: Uint8Array, seed = 0):
     w,
     h,
     tiles,
+    attempt: 0,
+    territoryGrid: new Uint8Array(w * h),
     regionGrid: new Uint8Array(w * h),
     coliseum: { rect: { x: 0, y: 0, w: 0, h: 0 }, centre, gates: [], innerSpawns: [] },
     regions: [],
+    camps: [],
+    spawnPool: [],
     buildings: [],
     spawns: [],
     extracts: [],

@@ -872,3 +872,18 @@ Keys:
 - **Point 9, one option chosen.** "?" hides the reward, not the mob type, so D5 stays. Relaxing D5 is kept as an owner question. "?" and cursed camps move to R7, because before R7 every chest is a skill chest and there is nothing to hide.
 - **Point 11, adjusted.** secondWind counts as R5-ready, because R4a already ships the trigger kind and `heal({ignoreLockout})` for Blood Saint. scout moves to R7 with the "?" camps it reveals.
 - **Point 13, adjusted.** The chest panel's focus key is C, not F, because F is the weapon pickup.
+---
+
+## As built (kept in order; the plan above is not rewritten)
+
+### R0: contracts, mods and the wedge adapter (built)
+Deviations from the plan text, all agreed or harmless:
+- **Status runtime:** not built here (owner ruling: the Wishes session owns it, `wishes-ability-contract.md`). `shared/effects.ts` carries a placeholder `StatusKind` that mirrors Wishes' 13-kind union in their order (no `chill`, no `barrier`), and a closed `TriggerAction` in Wishes' `do:` verb style. When Wishes merges, `effects.ts` switches to `import type { StatusKind } from "./status"` and stops exporting its own (the two `export *` lines in `index.ts` would collide).
+- **Mirrors are float64, not 0.001 steps.** An existing test (`server/test/buffs.test.ts`) compares `attackSpeedMult` with `toBe(buffMultiplier(n))`, so quantizing would break "existing tests pass unchanged". R4a quantizes: change `encodeMult`/`decodeMult` and the field type (uint16 thousandths) together; rewrite those asserts and `client/test/fighterArt.test.ts` `SERVER_FULL_DRAW`; delete the stacks fields with the read-time freshness check in `sim/mods.ts`; wire `windupMult` into `timingsOf` and the client's draw/root, and `armorBonus`/`shieldBonus` into `defenseOf`; add mirrors to `MobState` if mobs can be slowed.
+- **`world.modSources`** (a registry of `(world, c) => ModContribution | null`) is the seam Wishes' D22 needs: nobody has registered `attackSlowFactor` yet; R4b (or the Wishes merge) does it, and a status change must call `recomputeMods(world, c)`.
+- **`generateMap(seed)` keeps its signature** (R2 adds `generateMap(seed, attempt)`); the map only records the `attempt` it was built from. `regions[].anchor` stays (with `pole` equal to it) until R2. `buildMap` returns null on a failed non-last attempt.
+- **`rewardRandom`** is an sfc32 stream over a 128-bit crypto salt from `RaidRoom` (a number salt is expanded, tests only); it never draws from `world.random`.
+- **`hitLanded`** is a chainable hook, called once per landed ledger entry (DoT entries included, after the hit fx); a throwing handler is NOT contained (it aborts the pass and drops that pass's queued payouts, as other hooks do): R4b must keep handlers total or wrap them.
+- Legacy-hash test `shared/test/mapLegacyHash.test.ts` pins pre-R0 output for seeds 0..199 (`c214258d`); R2 replaces it.
+- Merge hazards with Wishes (their worktree): `ledger.ts` has `if (isDot(e.sig) || e.dot) return;` (merged literally it skips `hitLanded` for DoT entries); their `client localPrediction.ts` still reads `buffMultiplier("moveSpeed", me.stacksMs)` (must stay `decodeMult(me.speedMult)`).
+- R1 changed scope after the plan: the map grows to 96x96 tiles and the per-zone stylers (zone-terrain session) hook in after the partition, before cover certification.

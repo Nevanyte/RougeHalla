@@ -334,6 +334,21 @@ export type SimSystem = (world: World, dtMs: number) => void;
 /** A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. */
 export type MoveModifier = (world: World, c: Combatant) => number;
 
+/** What one mod source adds to a fighter's stat mirrors (sim/mods.ts): multipliers multiply in, flat bonuses add points. */
+export interface ModContribution {
+  asMult?: number;
+  speedMult?: number;
+  windupMult?: number;
+  armor?: number;
+  shield?: number;
+}
+/**
+ * A source the stat mirrors fold in besides the stacks (sim/mods.ts), e.g. a status runtime's attack slow. It answers
+ * from the present state (null = nothing). One whose answer changes must call recomputeMods(world, c) when it does; the
+ * per-tick pass re-asks every source, which catches an expiry by the end of that tick.
+ */
+export type ModSource = (world: World, c: Combatant) => ModContribution | null;
+
 export interface WorldHooks {
   /** A player went down (died/mia) with their run gear still on them. Default: discard it. */
   dropBody(world: World, p: PlayerState): void;
@@ -350,6 +365,14 @@ export interface WorldHooks {
   playerKilled?(world: World, killer: PlayerRuntime): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
   weaponSwapped?(world: World, c: Combatant): void;
+  /**
+   * A ledger entry just took effect on its victim (applyLedger, after the victim's damage, once per entry that lands
+   * a `landed` record: mitigated damage above 0, not the arena's burn). `applied` is that damage after armor and shield
+   * (what its hit fx shows). Unset by default, so it costs nothing. On-hit effects (R4b) hang here; they must decide
+   * from the state as it stood when the tick began (or defer what they write until the pass ends, as Wishes' statuses
+   * do with payLater), never from what earlier victims of the same pass changed, or the ledger's order would matter.
+   */
+  hitLanded?(world: World, entry: LedgerEntry, applied: number): void;
 }
 
 export interface World {
@@ -373,6 +396,13 @@ export interface World {
   random: () => number;
   /** Secret salt for the per-tick player processing order (see actionOrder in step.ts). */
   orderSalt: number;
+  /**
+   * A private stream for reward and roster rolls (chest choices, camp rosters; nothing draws from it yet). Separate from
+   * `random`, so drawing from it never shifts the loot rolls. The Room seeds it with a fresh crypto salt (createWorld's
+   * `rewardSalt`); without one it is derived from orderSalt, which is fine for tests but not for a live room: orderSalt
+   * also keys tieRank, whose outcomes a client can observe (see CLAUDE.md), so it is not secret enough to roll rewards from.
+   */
+  rewardRandom: () => number;
   /** Events produced during the current step; drained by step(). */
   events: SimEvent[];
   /** True while step() runs. Things created outside it (e.g. a body from a leave) belong to the next tick. */
@@ -389,6 +419,8 @@ export interface World {
   /** Run every active step after damage is applied, in registration order. */
   systems: SimSystem[];
   moveModifiers: MoveModifier[];
+  /** Sources the stat mirrors fold in besides the stacks (sim/mods.ts); empty unless a module registers one. */
+  modSources: ModSource[];
   hooks: WorldHooks;
   arena: ArenaRuntime;
   /** Faction signatures (sim/factions.ts); null until that module is installed. */
@@ -402,10 +434,17 @@ export function createWorld(opts: {
   newItemUid?: () => string;
   /** A ready map instead of generateMap(seed): hand-built test arenas and the harness skip the generator. */
   map?: GameMap;
+  /**
+   * The secret behind `rewardRandom`: four crypto-random 32-bit words (the Room's), or a single number (tests), which is
+   * expanded. Derived from orderSalt when absent (tests only).
+   */
+  rewardSalt?: number | readonly number[];
 }): World {
   const state = new RaidState();
   state.seed = opts.seed >>> 0;
   state.minPlayers = opts.config.minPlayers;
+  // The only draw from opts.random here: tests script that stream, so the reward stream must not take from it.
+  const orderSalt = Math.floor(opts.random() * 2 ** 32) >>> 0;
   return {
     state,
     config: opts.config,
@@ -418,7 +457,8 @@ export function createWorld(opts: {
     projectiles: new Map(),
     combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], medianFeed: null },
     random: opts.random,
-    orderSalt: Math.floor(opts.random() * 2 ** 32) >>> 0,
+    orderSalt,
+    rewardRandom: rewardStream(opts.rewardSalt ?? rewardSaltFrom(orderSalt)),
     events: [],
     stepping: false,
     actions: {},
@@ -426,17 +466,64 @@ export function createWorld(opts: {
     beforeDamage: [],
     systems: [],
     moveModifiers: [],
+    modSources: [],
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
     arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
   };
 }
 
+/**
+ * A test-only reward salt from orderSalt (murmur3's finalizer over a distinct tag), so that stream never lines up with
+ * actionOrder's or tieRank's (which hash orderSalt with the tick). A live room passes its own crypto salt instead.
+ */
+function rewardSaltFrom(orderSalt: number): number {
+  let h = (orderSalt ^ 0x52455744) >>> 0; // "REWD"
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/**
+ * The reward stream: sfc32 over a 128-bit state, so seeing rolls (a revealed "?" camp, a chest's options) does not let a
+ * client brute-force the seed the way a 32-bit mulberry32 state could be. A single number is expanded (splitmix32) into the
+ * four words; the Room passes four crypto-random ones.
+ */
+export function rewardStream(seed: number | readonly number[]): () => number {
+  const words = new Uint32Array(4);
+  if (typeof seed === "number") {
+    let x = seed >>> 0;
+    for (let i = 0; i < 4; i++) {
+      x = (x + 0x9e3779b9) >>> 0;
+      let z = x;
+      z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
+      z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
+      words[i] = (z ^ (z >>> 16)) >>> 0;
+    }
+  } else {
+    for (let i = 0; i < 4; i++) words[i] = (seed[i] ?? 0) >>> 0;
+  }
+  let a = words[0]!, b = words[1]!, c = words[2]!, d = words[3]!;
+  const next = (): number => {
+    const t0 = (a + b) | 0;
+    a = b ^ (b >>> 9);
+    b = (c + (c << 3)) | 0;
+    c = (c << 21) | (c >>> 11);
+    d = (d + 1) | 0;
+    const t = (t0 + d) | 0;
+    c = (c + t) | 0;
+    return (t >>> 0) / 4294967296;
+  };
+  for (let i = 0; i < 16; i++) next();
+  return next;
+}
+
 export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
 }
 
-type ChainableHook = "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed";
+type ChainableHook = "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed"
+  | "hitLanded";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {
