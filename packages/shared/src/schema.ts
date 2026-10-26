@@ -30,7 +30,9 @@ export const PlayerState = schema({
   weapon0: t.string().default(""),
   weapon1: t.string().default(""),
   slot: t.uint8().default(0),
-  /** Server time the current bow draw began; 0 when not drawing. Every client draws the pull from it. */
+  /** The state key of the fighter this player has locked and auto-attacks (a `target` order), or "" for none. */
+  attackTarget: t.string().default(""),
+  /** Server time the current bow draw (its windup) began; 0 when not drawing. Every client draws the pull from it. */
   drawStartedAt: t.uint32().default(0),
   /** Server time the shared attack cooldown ends (the next attack, or draw, may start then). */
   readyAt: t.uint32().default(0),

@@ -1,6 +1,6 @@
-// How to fight with each weapon: spacing, when to attack, when to loose a bow, which slot to hold. Pure: shared by the
-// headless bots, the weapon duel harness and (Phase 11) mob AI, so all three play a weapon the same way. A policy only
-// suggests inputs; the server still decides everything.
+// How to fight with each weapon: spacing, when to attack, which slot to hold. Pure: shared by the headless bots, the
+// weapon duel harness, mob AI and the server's target lock (sim/targeting.ts), so all of them play a weapon the same way.
+// A policy only suggests inputs; the server still decides everything.
 import { PLAYER_RADIUS } from "./constants";
 import type { Vec2 } from "./messages";
 import { WEAPONS, weaponEdge, type WeaponId } from "./weapons";
@@ -48,6 +48,16 @@ export const POLICIES: Readonly<Record<WeaponId, SpacingPolicy>> = {
   wand: ranged("wand", 280 / 420, 0.8, 160 / 420),
 };
 
+/**
+ * How the server's target lock plays a weapon (sim/targeting.ts): the shared spacing, but it never backs off, strafes or
+ * weaves. A locked fighter walks until the target is within `far`, then stands and attacks; moving away is the player's
+ * own order (a right-click), which drops the lock.
+ */
+export function lockSpacing(w: WeaponId): SpacingPolicy {
+  const p = POLICIES[w];
+  return { far: p.far, attackRange: p.attackRange, retreatBelow: 0, leadSpeed: p.leadSpeed };
+}
+
 /** What the fighter sees this moment. Positions are world units; times seconds. */
 export interface PolicyInput {
   self: Vec2;
@@ -57,20 +67,17 @@ export interface PolicyInput {
   /** A clear straight line from self to target (walls, closed gates). */
   los: boolean;
   weapon: WeaponId;
-  /** The cooldown has ended (the next attack or draw may start). */
+  /** The cooldown has ended (the next attack may start). */
   ready: boolean;
-  /** Bow: how long it has been drawing (0 = not drawing), and the full draw for this fighter. */
-  drawSeconds: number;
-  fullDraw: number;
   // Optional, for a caller that sees the world late (a client renders in the past) and acts late (an input takes a tick
   // to be processed). Left out, every field below is zero and the policy acts on the positions it is given as they are.
   /** The fighter's own velocity (u/s). */
   selfVel?: Vec2;
   /** The positions above are this many seconds old. */
   viewLag?: number;
-  /** An input sent now takes effect this many seconds from now (the bow's release is processed a tick later). */
+  /** An input sent now takes effect this many seconds from now. */
   inputDelay?: number;
-  /** From an attack starting to its swing landing or ball leaving (weaponTimings.windup); 0 for the bow. */
+  /** From an attack starting to its swing landing or its arrow or ball leaving (weaponTimings.windup). */
   windup?: number;
   /** Can a body walk straight from `from` to `to`? Lets a retreat slide along a wall instead of walking into it. */
   walkable?: (from: Vec2, to: Vec2) => boolean;
@@ -85,10 +92,8 @@ export interface PolicyOutput {
   move: Vec2 | "stop" | null;
   /** Aim angle (radians). */
   aim: number;
-  /** Hold the trigger (attack when ready; bow: draw). */
+  /** Hold the trigger (attack whenever ready). */
   hold: boolean;
-  /** Bow: loose now. */
-  release: boolean;
 }
 
 /** How far a retreat or approach step reaches; the server pathfinds to it. */
@@ -237,15 +242,7 @@ export function decide(input: PolicyInput): PolicyOutput {
     const t = interceptTime(origin, targetHit, input.targetVel, pol.leadSpeed);
     if (t > 0) reach = t * pol.leadSpeed;
   }
-  const inRange = input.los && reach <= pol.attackRange;
-  if (input.weapon === "bow") {
-    const drawing = input.drawSeconds > 0;
-    // Keep a started draw going even if the target steps out of range for a moment; loose it at full draw. The release
-    // is processed a tick later, so it goes out in time for the draw to be full by then.
-    const release = drawing && input.drawSeconds + (input.inputDelay ?? 0) >= input.fullDraw;
-    return { move, aim, hold: release ? inRange : inRange || drawing, release };
-  }
-  return { move, aim, hold: inRange, release: false };
+  return { move, aim, hold: input.los && reach <= pol.attackRange };
 }
 
 /**
