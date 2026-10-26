@@ -11,9 +11,11 @@ const input = (over: Partial<PolicyInput> & { weapon: WeaponId }): PolicyInput =
 });
 
 describe("decide, seeing the world late", () => {
-  it("leads a crossing target by the view lag, the input delay and the cast", () => {
+  it("leads a crossing target by the view lag and the input delay, and a ball by its cast too (an arrow leaves along the latest aim)", () => {
     const vel = { x: 0, y: 100 };
     const target = { x: 250, y: 0 };
+    const arrow = decide(input({ weapon: "bow", target, targetVel: vel, viewLag: 0.1, inputDelay: 0.05, windup: 0.5 }));
+    expect(arrow.aim).toBeCloseTo(leadAim(self, { x: target.x, y: target.y + vel.y * 0.15 }, vel, 900), 12);
     const out = decide(input({ weapon: "wand", target, targetVel: vel, viewLag: 0.1, inputDelay: 0.05, windup: 0.2 }));
     const later = { x: target.x, y: target.y + vel.y * 0.35 };
     expect(out.aim).toBeCloseTo(leadAim(self, later, vel, 380), 12);

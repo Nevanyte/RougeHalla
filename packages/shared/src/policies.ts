@@ -77,7 +77,7 @@ export interface PolicyInput {
   viewLag?: number;
   /** An input sent now takes effect this many seconds from now. */
   inputDelay?: number;
-  /** From an attack starting to its swing landing or its arrow or ball leaving (weaponTimings.windup). */
+  /** From an attack starting to its swing landing or its ball leaving (weaponTimings.windup). The bow ignores it: an arrow leaves along the latest aim. */
   windup?: number;
   /** Can a body walk straight from `from` to `to`? Lets a retreat slide along a wall instead of walking into it. */
   walkable?: (from: Vec2, to: Vec2) => boolean;
@@ -210,9 +210,10 @@ function weavePoint(
 export function decide(input: PolicyInput): PolicyOutput {
   const pol = input.spacing ?? POLICIES[input.weapon];
   const selfVel = input.selfVel ?? ZERO;
-  // A walk takes effect after the view lag and the input delay; an attack leaves or lands after its windup on top of that.
+  // A walk takes effect after the view lag and the input delay; a swing lands, or a ball leaves, after its windup on top of
+  // that. An arrow leaves along the aim held when the draw ends (sim/weapons.ts), so it is led for the lags alone.
   const lagMove = (input.viewLag ?? 0) + (input.inputDelay ?? 0);
-  const lagHit = lagMove + (input.windup ?? 0);
+  const lagHit = lagMove + (input.weapon === "bow" ? 0 : (input.windup ?? 0));
   const [self, target] = project(input.self, selfVel, input.target, input.targetVel, lagMove);
   const [selfHit, targetHit] = project(input.self, selfVel, input.target, input.targetVel, lagHit);
 

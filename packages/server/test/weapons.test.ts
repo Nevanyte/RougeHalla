@@ -885,7 +885,7 @@ describe("aim and facing", () => {
     expect(P(world).facing).toBeCloseTo(-1.5, 12);
   });
 
-  it("the arrow flies where the press aimed, though the fighter turns during the draw (as a swing's direction is fixed at its start)", () => {
+  it("the arrow flies along the aim in effect when the draw ends, as a bow looses on release (a swing's direction is fixed at its start)", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     press(world, 0, 0.5);
@@ -895,7 +895,7 @@ describe("aim and facing", () => {
     release(world, 0, -0.3);
     run(world, 8);
     expect(shots).toHaveLength(1);
-    expect(Math.atan2(shots[0]!.vy, shots[0]!.vx)).toBeCloseTo(0.5, 12);
+    expect(Math.atan2(shots[0]!.vy, shots[0]!.vx)).toBeCloseTo(-0.3, 12);
     expect(P(world).facing).toBeCloseTo(-0.3, 12);
   });
 
