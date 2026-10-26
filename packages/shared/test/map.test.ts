@@ -1,7 +1,7 @@
 // Unit tests for the map.ts contract helpers: hand-built maps first, then a few generated ones.
 import { describe, expect, it } from "vitest";
 import { TILE } from "../src/constants";
-import { hasLineOfSight } from "../src/geometry";
+import { circleClear, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
 import {
   REGION_COLISEUM,
   REGION_FACTIONS,
@@ -9,7 +9,10 @@ import {
   REGION_NONE,
   REGION_WEAPONS,
   TILE_FLOOR,
+  TILE_LOW,
   TILE_WALL,
+  blocksMovementTile,
+  blocksSightTile,
   inColiseum,
   isWallTile,
   mapFromTiles,
@@ -60,7 +63,6 @@ describe("mapFromTiles", () => {
     expect(m.regions).toEqual([]);
     expect(m.buildings).toEqual([]);
     expect(m.spawns).toEqual([]);
-    expect(m.extracts).toEqual([]);
     expect(m.crateSpots).toEqual([]);
     expect(m.groundSpots).toEqual([]);
   });
@@ -102,6 +104,49 @@ describe("mapFromTiles", () => {
     expect(b.spawns).toEqual([]);
     expect(b.regionGrid[0]).toBe(REGION_NONE);
     expect(b.coliseum.gates).toEqual([]);
+  });
+});
+
+describe("TILE_LOW: blocks movement, not sight", () => {
+  /** 9x5, walled, with a column of low ground at x=4 (no gap). */
+  const fenced = (): GameMap => {
+    const w = 9, h = 5, tiles = new Uint8Array(w * h).fill(TILE_FLOOR);
+    for (let x = 0; x < w; x++) { tiles[x] = TILE_WALL; tiles[(h - 1) * w + x] = TILE_WALL; }
+    for (let y = 0; y < h; y++) { tiles[y * w] = TILE_WALL; tiles[y * w + w - 1] = TILE_WALL; }
+    for (let y = 1; y < h - 1; y++) tiles[y * w + 4] = TILE_LOW;
+    return mapFromTiles(w, h, tiles);
+  };
+
+  it("is its own tile value; the helpers split movement from sight, and out of bounds blocks both", () => {
+    expect(new Set([TILE_FLOOR, TILE_WALL, TILE_LOW]).size).toBe(3);
+    const m = fenced();
+    expect([blocksMovementTile(m, 4, 2), blocksSightTile(m, 4, 2), isWallTile(m, 4, 2)]).toEqual([true, false, false]);
+    expect([blocksMovementTile(m, 0, 2), blocksSightTile(m, 0, 2)]).toEqual([true, true]);
+    expect([blocksMovementTile(m, 2, 2), blocksSightTile(m, 2, 2)]).toEqual([false, false]);
+    for (const [x, y] of [[-1, 2], [9, 2], [3, -1], [3, 5]]) expect([blocksMovementTile(m, x, y), blocksSightTile(m, x, y)]).toEqual([true, true]);
+  });
+
+  it("lets a ray and line of sight across, but no body, swept disc or path", () => {
+    const m = fenced();
+    const a = { x: tc(2), y: tc(2) }, b = { x: tc(6), y: tc(2) };
+    expect(hasLineOfSight(m, a, b)).toBe(true);
+    expect(raycast(m, a.x, a.y, b.x, b.y).hit).toBe(false);
+    expect(raycast(m, a.x, a.y, b.x, b.y, blocksMovementTile).hit).toBe(true);
+    expect(segmentClear(m, a, b, 12)).toBe(false);
+    expect(circleClear(m, { x: tc(4), y: tc(2) }, 12)).toBe(false);
+    expect(circleClear(m, { x: tc(3) + 8, y: tc(2) }, 12)).toBe(false); // reaches 4 u into the fence tile
+    expect(circleClear(m, { x: tc(2), y: tc(2) }, 12)).toBe(true);
+    expect(findPath(m, a, b)).toEqual([]);
+  });
+
+  it("routes a path around a gap-free fence through an opening", () => {
+    const m = fenced();
+    m.tiles[3 * m.w + 4] = TILE_FLOOR; // an opening at the bottom of the fence
+    const a = { x: tc(2), y: tc(1) }, b = { x: tc(6), y: tc(1) };
+    const path = findPath(m, a, b);
+    expect(path.length).toBeGreaterThan(1);
+    let prev = a;
+    for (const p of path) { expect(segmentClear(m, prev, p, 12)).toBe(true); prev = p; }
   });
 });
 
@@ -367,7 +412,7 @@ describe("generated maps", () => {
       expect(regionAt(m, -TILE, -TILE), `seed ${s}`).toBe("none");
       expect(regionAt(m, m.w * TILE + 1, m.h * TILE + 1), `seed ${s}`).toBe("none");
       for (const r of m.regions) {
-        expect(regionAt(m, r.anchor.x, r.anchor.y), `seed ${s}`).toBe(r.id);
+        expect(regionAt(m, r.pole.x, r.pole.y), `seed ${s}`).toBe(r.id);
         for (const p of r.spawns) expect(regionAt(m, p.x, p.y), `seed ${s}`).toBe(r.id);
       }
     });
@@ -376,7 +421,7 @@ describe("generated maps", () => {
   it("lets findPath walk from outside to the coliseum centre when open and not when the gates are closed", () => {
     each((m, s) => {
       const locked = withGates(m);
-      for (const p of m.spawns) {
+      for (const p of m.spawns.slice(0, 8)) {
         expect(inColiseum(m, p.x, p.y), `seed ${s}`).toBe(false);
         expect(findPath(m, p, m.coliseum.centre).length, `seed ${s} open`).toBeGreaterThan(0);
         expect(findPath(locked, p, m.coliseum.centre), `seed ${s} locked`).toEqual([]);

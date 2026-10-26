@@ -23,8 +23,9 @@ export const TELEPORT_DISTANCE = 200;
 
 // World
 export const TILE = 32;
-export const MAP_TILES_W = 64;
-export const MAP_TILES_H = 64;
+/** 96x96 tiles since the roguelike zones (R2): five zones of about 1710 painted tiles each around the fixed coliseum. */
+export const MAP_TILES_W = 96;
+export const MAP_TILES_H = 96;
 export const WORLD_W = MAP_TILES_W * TILE;
 export const WORLD_H = MAP_TILES_H * TILE;
 export const PLAYER_RADIUS = 12;
@@ -62,8 +63,6 @@ export const LOBBY_FILL_SECONDS = 5;
 export const RECONNECT_SECONDS = 10;
 /** How long an ended room lingers so clients receive their results before disconnect. */
 export const ENDED_LINGER_SECONDS = 5;
-/** Only mapgen v1 still reads this (its extract circles); Phase 8b's map drops it. */
-export const EXTRACT_RADIUS = 64;
 
 // Arena
 /**

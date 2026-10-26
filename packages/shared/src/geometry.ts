@@ -1,10 +1,13 @@
 // Segment / grid-ray helpers shared by server sim (hitscan, LOS, bots) and client (fog, aim).
 import { TILE } from "./constants";
-import { isWallTile } from "./map";
+import { blocksMovementTile, blocksSightTile } from "./map";
 import type { GameMap } from "./map";
 import type { Vec2 } from "./messages";
 
 export interface RayHit { hit: boolean; x: number; y: number; dist: number }
+
+/** Which tiles stop a ray: blocksSightTile (walls) for sight and shots, blocksMovementTile (walls and low ground) for bodies. */
+export type TileBlocks = (map: GameMap, tx: number, ty: number) => boolean;
 
 export function distPointToSegment(
   px: number, py: number, ax: number, ay: number, bx: number, by: number,
@@ -24,13 +27,14 @@ export function distPointToSegment(
  * start. A start inside a wall hits at distance 0. A miss reports (x1, y1) and the full length.
  * Passing exactly through a tile vertex counts as entering both neighbouring tiles, so the result
  * is symmetric under swapping the endpoints and agrees with the pathfinder's no-corner-cutting rule.
+ * `blocked` picks the tiles that stop it: sight (TILE_WALL) by default, so shots and line of sight pass over low ground.
  */
-export function raycast(map: GameMap, x0: number, y0: number, x1: number, y1: number): RayHit {
+export function raycast(map: GameMap, x0: number, y0: number, x1: number, y1: number, blocked: TileBlocks = blocksSightTile): RayHit {
   // NaN/Infinity would never terminate the DDA; treat them as blocked at the origin.
   if (!Number.isFinite(x0 + y0 + x1 + y1)) return { hit: true, x: x0, y: y0, dist: 0 };
   let tx = Math.floor(x0 / TILE);
   let ty = Math.floor(y0 / TILE);
-  if (isWallTile(map, tx, ty)) return { hit: true, x: x0, y: y0, dist: 0 };
+  if (blocked(map, tx, ty)) return { hit: true, x: x0, y: y0, dist: 0 };
 
   const dx = x1 - x0;
   const dy = y1 - y0;
@@ -50,7 +54,7 @@ export function raycast(map: GameMap, x0: number, y0: number, x1: number, y1: nu
     const crossY = tMaxY <= t;
     const ex = crossX ? (stepX > 0 ? tx + 1 : tx) * TILE : x0 + dx * t;
     const ey = crossY ? (stepY > 0 ? ty + 1 : ty) * TILE : y0 + dy * t;
-    if (crossX && crossY && (isWallTile(map, tx + stepX, ty) || isWallTile(map, tx, ty + stepY))) {
+    if (crossX && crossY && (blocked(map, tx + stepX, ty) || blocked(map, tx, ty + stepY))) {
       return { hit: true, x: ex, y: ey, dist: t * len };
     }
     if (crossX) {
@@ -61,7 +65,7 @@ export function raycast(map: GameMap, x0: number, y0: number, x1: number, y1: nu
       ty += stepY;
       tMaxY = ((ty + (stepY > 0 ? 1 : 0)) * TILE - y0) / dy;
     }
-    if (isWallTile(map, tx, ty)) return { hit: true, x: ex, y: ey, dist: t * len };
+    if (blocked(map, tx, ty)) return { hit: true, x: ex, y: ey, dist: t * len };
   }
 }
 
@@ -70,22 +74,22 @@ export function hasLineOfSight(map: GameMap, a: Vec2, b: Vec2): boolean {
 }
 
 /**
- * True iff a disc of `radius` centred at `p` overlaps no wall tile: an exact circle-vs-tile-rect test
- * over the tiles the disc can reach (out-of-bounds counts as wall). Tangent is not overlap. A
+ * True iff a disc of `radius` centred at `p` overlaps no tile that blocks movement (walls and low ground): an exact
+ * circle-vs-tile-rect test over the tiles the disc can reach (out-of-bounds counts as wall). Tangent is not overlap. A
  * zero-radius disc is a point, clear iff it stands on a floor tile. Non-finite input is never clear.
  */
 export function circleClear(map: GameMap, p: Vec2, radius: number): boolean {
   const cx = p.x;
   const cy = p.y;
   if (!Number.isFinite(cx + cy + radius)) return false;
-  if (radius <= 0) return !isWallTile(map, Math.floor(cx / TILE), Math.floor(cy / TILE));
+  if (radius <= 0) return !blocksMovementTile(map, Math.floor(cx / TILE), Math.floor(cy / TILE));
   const reach = Math.max(1, Math.ceil(radius / TILE));
   const tx = Math.floor(cx / TILE);
   const ty = Math.floor(cy / TILE);
   const r2 = radius * radius;
   for (let j = ty - reach; j <= ty + reach; j++) {
     for (let i = tx - reach; i <= tx + reach; i++) {
-      if (!isWallTile(map, i, j)) continue;
+      if (!blocksMovementTile(map, i, j)) continue;
       const nx = Math.min(Math.max(cx, i * TILE), (i + 1) * TILE);
       const ny = Math.min(Math.max(cy, j * TILE), (j + 1) * TILE);
       const ddx = cx - nx;
@@ -97,7 +101,7 @@ export function circleClear(map: GameMap, p: Vec2, radius: number): boolean {
 }
 
 /**
- * True iff a disc of `radius` swept from a to b touches no wall. Implemented as the centre ray plus
+ * True iff a disc of `radius` swept from a to b touches no tile that blocks movement. Implemented as the centre ray plus
  * rays offset +-radius perpendicular to the motion, plus disc-vs-tile tests at both endpoints.
  *
  * Why that is enough: a wall tile is a TILE-sized square, so any tile intersecting the swept strip
@@ -107,7 +111,7 @@ export function circleClear(map: GameMap, p: Vec2, radius: number): boolean {
  */
 export function segmentClear(map: GameMap, a: Vec2, b: Vec2, radius: number): boolean {
   if (!circleClear(map, a, radius) || !circleClear(map, b, radius)) return false;
-  if (raycast(map, a.x, a.y, b.x, b.y).hit) return false;
+  if (raycast(map, a.x, a.y, b.x, b.y, blocksMovementTile).hit) return false;
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy);
@@ -119,8 +123,8 @@ export function segmentClear(map: GameMap, a: Vec2, b: Vec2, radius: number): bo
     const off = (radius * k) / rays;
     const ox = nx * off;
     const oy = ny * off;
-    if (raycast(map, a.x + ox, a.y + oy, b.x + ox, b.y + oy).hit) return false;
-    if (raycast(map, a.x - ox, a.y - oy, b.x - ox, b.y - oy).hit) return false;
+    if (raycast(map, a.x + ox, a.y + oy, b.x + ox, b.y + oy, blocksMovementTile).hit) return false;
+    if (raycast(map, a.x - ox, a.y - oy, b.x - ox, b.y - oy, blocksMovementTile).hit) return false;
   }
   return true;
 }

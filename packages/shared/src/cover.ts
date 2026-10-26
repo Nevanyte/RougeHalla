@@ -1,8 +1,12 @@
 // Anti-kiting cover: the lane metric (lattices of parallel lines and the strips between them), the rock placement that
-// cuts every lane down to the target, and the spawn sight screen. Shared by every map generator; client and server must
-// agree to the bit, so only + - * / sqrt floor ceil abs min max are used here (detSin/detCos are built from those).
+// cuts every lane down to the target, and the spawn sight screen. Client and server must agree to the bit, so only
+// + - * / sqrt floor ceil abs min max are used here (detSin/detCos are built from those).
+//
+// Two masks: sight-open is `tile !== TILE_WALL` (low ground lets sight through, so lanes run over it and a rock may
+// stand on it), walkable is `tile === TILE_FLOOR` (every connectivity test: the simple-point table, sealed pockets, the
+// ring road, the territory guard, walking distances).
 import { MAP_TILES_H, MAP_TILES_W, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE } from "./constants";
-import { REGION_FACTIONS, REGION_NONE, TILE_FLOOR, TILE_WALL } from "./map";
+import { REGION_FACTIONS, REGION_NONE as NONE_CODE, TILE_FLOOR as FLOOR_TILE, TILE_WALL as WALL_TILE } from "./map";
 import type { GameMap, TilePt } from "./map";
 import type { Rng } from "./rng";
 
@@ -11,10 +15,14 @@ const H = MAP_TILES_H;
 const N = W * H;
 const SECTORS = REGION_FACTIONS.length;
 const d2 = (a: TilePt, b: TilePt): number => (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+// Hot loops read module-level copies of these imports: under a test runner's module system (vitest) every use of an
+// import is a property read on the module object, which cost this code about a third of its time.
+const TILE_FLOOR = FLOOR_TILE, TILE_WALL = WALL_TILE, REGION_NONE = NONE_CODE;
+
 
 /**
  * Anti-kiting cover. Lines of one direction are `step` apart in `dirs` directions over [0, pi), and a lane is the
- * strip between two neighbouring lines where only open tiles (all floor) touch it. No lane may be longer than the
+ * strip between two neighbouring lines where only sight-open tiles touch it. No lane may be longer than the
  * pass's `target` tiles. SIGHT_LATTICE is the fine lattice that certifies the bound: with 48 directions and lines a
  * quarter of SIGHT_CORRIDOR_WIDTH apart, a free strip of that width at any angle and offset contains a lattice lane
  * of nearly its length, so lanes of at most `target` tiles (a hair under MAX_SIGHT_CORRIDOR) bound every such strip by
@@ -28,12 +36,19 @@ export const SIGHT_LATTICE = {
 export const COARSE_LATTICE = { dirs: 32, step: SIGHT_CORRIDOR_WIDTH / 2 / TILE };
 export const LANE_EPS = 1e-9;
 export const COARSE_TARGET = SIGHT_LATTICE.target;
+/**
+ * Every lattice line runs through LATTICE_ORIGIN + j * step * normal: the coliseum centre less (32, 32), so the fixed
+ * coliseum sits on the lattice exactly as it did on the 64x64 map, where its pillar layouts were certified (anchored at
+ * the map corner, some layouts leave a 15.5-tile lane inside the footprint that no rock may cut). The tests' lane
+ * checkers and longestLane use the same anchor.
+ */
+export const LATTICE_ORIGIN: readonly [number, number] = [W / 2 - 32, H / 2 - 32];
 /** A work-list entry is `strip * LANE_POS + the middle of a corridor on it, in 1/LANE_QUANT tiles`. */
 const LANE_POS = 4096;
 const LANE_QUANT = 4;
-/** Distances along a line are measured from where it crosses the axis through the origin, so they can be negative. */
+/** Distances along a line are measured from where it crosses the axis through LATTICE_ORIGIN, so they can be negative (|s| < 113 at 96x96). */
 const LANE_BIAS = 128;
-/** Most corridors on one strip that can be too long at once (a strip is under 91 tiles long and a corridor over the lane target, with a blocked tile between two). */
+/** Most corridors on one strip that can be too long at once (a strip is at most 136 tiles long at 96x96 and a corridor over the lane target, with a blocked tile between two: 8). */
 const LANE_SLOTS = 10;
 /** Chance that a rock is two tiles long. */
 const ROCK_GROW = 0.25;
@@ -177,10 +192,12 @@ export function getLaneTable(dirs: number, step: number): LaneTable {
       if (2 * k > dirs) { dx = -dx; dy = -dy; }
     }
     const nx = -dy, ny = dx;
-    const c1 = nx + ny, c2 = nx * (W - 1) + ny, c3 = nx + ny * (H - 1), c4 = nx * (W - 1) + ny * (H - 1);
+    const ox = LATTICE_ORIGIN[0], oy = LATTICE_ORIGIN[1];
+    const c1 = nx * (1 - ox) + ny * (1 - oy), c2 = nx * (W - 1 - ox) + ny * (1 - oy);
+    const c3 = nx * (1 - ox) + ny * (H - 1 - oy), c4 = nx * (W - 1 - ox) + ny * (H - 1 - oy);
     const oMin = Math.min(Math.min(c1, c2), Math.min(c3, c4)), oMax = Math.max(Math.max(c1, c2), Math.max(c3, c4));
     const jHi = Math.floor(oMax / step);
-    for (let j = Math.ceil(oMin / step); j <= jHi; j++) addLine(nx * j * step, ny * j * step, dx, dy, k, j);
+    for (let j = Math.ceil(oMin / step); j <= jHi; j++) addLine(ox + nx * j * step, oy + ny * j * step, dx, dy, k, j);
   }
   const lines = starts.length;
   if (c > capacity || lines > 65535) throw new RangeError("lane table overflow");
@@ -208,9 +225,9 @@ export function getLaneTable(dirs: number, step: number): LaneTable {
   return table;
 }
 
-/** 1 where a tile is floor that belongs to a region (all floor on a generated map, gates open): the tiles the lane metric walks. */
+/** 1 where a tile is sight-open (not wall) and belongs to a region (gates open on a generated map): the tiles the lane metric walks. */
 export function openMask(tiles: Uint8Array, regionGrid: Uint8Array, out: Uint8Array): Uint8Array {
-  for (let i = 0; i < N; i++) out[i] = tiles[i] === TILE_FLOOR && regionGrid[i] !== REGION_NONE ? 1 : 0;
+  for (let i = 0; i < N; i++) out[i] = tiles[i] !== TILE_WALL && regionGrid[i] !== REGION_NONE ? 1 : 0;
   return out;
 }
 
@@ -229,7 +246,7 @@ function openRuns(lt: LaneTable, open: Uint8Array, l: number, from: Float64Array
 /** The longest lane: a strip between two neighbouring lines with only open tiles in it, in tiles. */
 export function longestFatLane(open: Uint8Array, lt: LaneTable): number {
   const lines = lt.lineStart.length - 1;
-  const pa = new Float64Array(128), pb = new Float64Array(128), ca = new Float64Array(128), cb = new Float64Array(128);
+  let pa = new Float64Array(128), pb = new Float64Array(128), ca = new Float64Array(128), cb = new Float64Array(128);
   let prevCount = openRuns(lt, open, 0, pa, pb), best = 0;
   for (let l = 1; l < lines; l++) {
     const count = openRuns(lt, open, l, ca, cb);
@@ -240,15 +257,17 @@ export function longestFatLane(open: Uint8Array, lt: LaneTable): number {
         if (pb[i] < cb[j]) i++; else j++;
       }
     }
-    pa.set(ca.subarray(0, count)); pb.set(cb.subarray(0, count));
+    const ta = pa; pa = ca; ca = ta;
+    const tb = pb; pb = cb; cb = tb;
     prevCount = count;
   }
   return best;
 }
 
 /**
- * Longest lane of the fine lattice (SIGHT_LATTICE) over all floor, in world units. The generator keeps it at
- * SIGHT_LATTICE.target tiles or less, which bounds every free strip SIGHT_CORRIDOR_WIDTH wide by MAX_SIGHT_CORRIDOR.
+ * Longest lane of the fine lattice (SIGHT_LATTICE, anchored at LATTICE_ORIGIN) over all sight-open ground, in world
+ * units. The generator keeps it at SIGHT_LATTICE.target tiles or less, which bounds every free strip
+ * SIGHT_CORRIDOR_WIDTH wide by MAX_SIGHT_CORRIDOR.
  */
 export function longestLane(map: GameMap): number {
   if (map.w !== W || map.h !== H) throw new RangeError(`longestLane: expected a ${W}x${H} map`);
@@ -381,29 +400,62 @@ function coneGaps(tiles: Uint8Array, c: Cone, box: readonly number[]): void {
   if (covered < c.t) gaps.push(covered, c.t);
 }
 
+/** The ground one map's cover passes work on; every pass of the map shares it (and writes `tiles` and `ruinQuota`). */
+export interface CoverGround {
+  /** Written: rocks become TILE_WALL. */
+  tiles: Uint8Array;
+  regionGrid: Uint8Array;
+  /** One draw per tile, the tie-break between equally useful rock tiles. */
+  noise: Uint16Array;
+  /** No rock, ever. */
+  prot: Uint8Array;
+  /** A rock only as a last resort. */
+  soft: Uint8Array;
+  /** 1 + the ruin a floor tile is inside of, else 0; `ruinQuota[r]` rocks are still allowed in ruin r, `ruinBox` holds its interior as 4 numbers. */
+  ruinOf: Uint8Array;
+  ruinQuota: number[];
+  ruinBox: number[];
+  /** The ring road: its floor must stay one piece that touches all five regions. */
+  ring: Uint8Array;
+  /** Territory ids (or null): a rock prefers to keep its own territory's floor locally connected. */
+  guard: Uint8Array | null;
+}
+
+/** placeCover's failures (negative results). */
+export const COVER_DEAD = -1;
+export const COVER_UNCUT = -2;
+export const COVER_SPAWN = -3;
+
 /**
  * Anti-kiting cover: drops rocks until no lane of lattice `lt` is longer than `target`. A corridor is the strip between
- * two neighbouring lines of one direction with only open tiles in it; the strips that are too long are kept as
+ * two neighbouring lines of one direction with only sight-open tiles in it; the strips that are too long are kept as
  * intervals along their line pair. Every long corridor is cut at the tile beside it that lies on the most long
  * corridors (noise breaks ties); the corridors the tile blocks are split in place, so a rock costs a few thousand
- * operations rather than a rescan of the map. A rock may go on a tile only if the floor around it stays
+ * operations rather than a rescan of the map. A rock may go on a floor tile only if the floor around it stays
  * 4-connected (simple-point test) or the part it seals off is a small dead end with nothing to keep in it; such a
- * dead end is walled up with it. Preferences, tried in this order and relaxed only when nothing better is left:
- * rocks stay apart, soft-protected tiles stay open. `prot` marks the tiles no rock may take, `ring` the ring road,
- * whose floor must stay one piece that touches all five regions. Returns the number of rocks, or a negative number
- * when some corridor cannot be cut, which is mostly known before the first rock: a stretch of protected ground
- * longer than the target has no tile to cut it on (the caller then tries another map). With `spawns`, a last step
- * screens every pair of spawns within MAX_SIGHT_CORRIDOR of each other against the sim's ranged hit cone, with rocks
- * between them, until no aim ray that could hit the other spawn gets past a wall.
+ * dead end is walled up with it. A rock on low ground changes no connectivity. Preferences, tried in this order and
+ * relaxed only when nothing better is left: rocks stay apart, a territory's floor stays locally connected (`guard`),
+ * soft-protected tiles stay open. Returns the number of rocks, or a negative number when some corridor cannot be cut:
+ * COVER_DEAD, mostly known before the first rock (a stretch of protected ground longer than the target has no tile to
+ * cut it on), or COVER_UNCUT (the caller then tries another map). With `spawns`, a last step screens every pair of
+ * spawns within MAX_SIGHT_CORRIDOR of each other against the sim's ranged hit cone, with rocks between them, until no
+ * aim ray that could hit the other spawn gets past a wall (COVER_SPAWN when no rock can close a gap).
  */
-export function placeCover(
-  lt: LaneTable, target: number, rng: Rng, noise: Uint16Array, tiles: Uint8Array, regionGrid: Uint8Array, prot: Uint8Array, soft: Uint8Array,
-  ruinOf: Uint8Array, ruinQuota: number[], ruinBox: number[], ring: Uint8Array, spawns: readonly TilePt[] | null,
-): number {
+export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: CoverGround, spawns: readonly TilePt[] | null): number {
+  const { tiles, regionGrid, noise, prot, soft, ruinOf, ruinQuota, ruinBox, ring, guard } = ground;
   const { lineStart, tile, edge, tileStart, tileLine, tilePos, pairOK } = lt;
   const lines = lineStart.length - 1;
   const open = openMask(tiles, regionGrid, new Uint8Array(N));
   const limit = target + LANE_EPS;
+  // The territory guard: a rock on floor keeps that tile's territory floor locally connected (a simple point of the
+  // territory's own floor), so it never splits a territory whose pieces would stay linked only through another one.
+  const guardOK = (t: number): boolean => {
+    if (!guard || !guard[t]) return true;
+    const g = guard[t];
+    let m = 0;
+    for (let q = 0; q < 8; q++) { const j = t + RING_OFF[q]; if (tiles[j] === TILE_FLOOR && guard[j] === g) m |= 1 << q; }
+    return SIMPLE[m] === 1;
+  };
   // A lane through k tiles is at most k * sqrt(2) long, so a shorter run of open tiles is never a long lane.
   const minRun = Math.floor(limit / 1.4142135623730951) + 1;
 
@@ -486,7 +538,7 @@ export function placeCover(
     if (prot[t] || (ruinOf[t] !== 0 && ruinQuota[ruinOf[t]] <= 0)) { dead[t] = 1; continue; }
     let mask = 0;
     for (let q = 0; q < 8; q++) if (tiles[t + RING_OFF[q]] === TILE_FLOOR) mask |= 1 << q;
-    if (!SIMPLE[mask] && !sealed(t)) dead[t] = 1;
+    if (tiles[t] === TILE_FLOOR && !SIMPLE[mask] && !sealed(t)) dead[t] = 1;
   }
 
   const hits = new Int32Array(N);
@@ -530,42 +582,43 @@ export function placeCover(
   };
 
   // Scratch runs for neighbouring lines.
-  const rA = new Float64Array(128), rB = new Float64Array(128), cA = new Float64Array(128), cB = new Float64Array(128);
+  let rA = new Float64Array(128), rB = new Float64Array(128), cA = new Float64Array(128), cB = new Float64Array(128);
 
   // Open stretches of line after line; a strip's corridors are where the stretches of its two lines overlap.
   // Corridors with the fewest tiles a rock may stand on are cut first, while the map is still open.
   const firstSlack: number[] = [];
   {
-    const dA = new Float64Array(16), dB = new Float64Array(16), eA = new Float64Array(16), eB = new Float64Array(16);
+    // One byte per tile for the scan, which reads millions of lattice entries: 0 closed, 1 open, 2 open and dead.
+    const state = new Uint8Array(N);
+    for (let t = 0; t < N; t++) state[t] = open[t] === 0 ? 0 : dead[t] === 1 ? 2 : 1;
+    let dA = new Float64Array(16), dB = new Float64Array(16), eA = new Float64Array(16), eB = new Float64Array(16);
     let prevRuns = 0, prevDead = 0;
     for (let l = 0; l < lines; l++) {
       const base = lineStart[l], n = lineStart[l + 1] - base, eb = base + l;
       // open stretches, and stretches of dead tiles longer than a corridor may be
       let count = 0, deadCount = 0;
       if (n >= minRun) {
-        let a = -1, d0 = -1;
+        // `a` and `d` are where the open and the dead stretch under way began (one past the tile that ended the last);
+        // position n (past the last tile) closes both. Only stretches of minRun tiles or more are kept.
+        let a = 0, d = 0;
         for (let p = 0; p <= n; p++) {
-          const t = p < n ? tile[base + p] : 0;
-          if (p < n && open[t] === 1) {
-            if (a < 0) a = p;
-            if (dead[t] === 1) { if (d0 < 0) d0 = p; continue; }
-          } else if (a >= 0) {
-            if (p - a >= minRun) { cA[count] = edge[eb + a]; cB[count++] = edge[eb + p]; }
-            a = -1;
+          const v = p < n ? state[tile[base + p]] : 0;
+          if (v === 2) continue;
+          if (p - d >= minRun && edge[eb + p] - edge[eb + d] > limit) {
+            if (deadCount >= 16) return COVER_DEAD;
+            eA[deadCount] = edge[eb + d]; eB[deadCount++] = edge[eb + p];
           }
-          if (d0 >= 0) {
-            if (p - d0 >= minRun && edge[eb + p] - edge[eb + d0] > limit) {
-              if (deadCount >= 16) return -1;
-              eA[deadCount] = edge[eb + d0]; eB[deadCount++] = edge[eb + p];
-            }
-            d0 = -1;
+          d = p + 1;
+          if (v === 0) {
+            if (p - a >= minRun) { cA[count] = edge[eb + a]; cB[count++] = edge[eb + p]; }
+            a = p + 1;
           }
         }
       }
       if (l > 0 && pairOK[l - 1] === 1) {
         // a stretch of dead tiles in both lines that overlaps for more than a corridor may be: no rock will ever cut it
         for (let i = 0, j = 0; i < prevDead && j < deadCount;) {
-          if (Math.min(dB[i], eB[j]) - Math.max(dA[i], eA[j]) > limit) return -1;
+          if (Math.min(dB[i], eB[j]) - Math.max(dA[i], eA[j]) > limit) return COVER_DEAD;
           if (dB[i] < eB[j]) i++; else j++;
         }
         for (let i = 0, j = 0; i < prevRuns && j < count;) {
@@ -582,8 +635,11 @@ export function placeCover(
           if (rB[i] < cB[j]) i++; else j++;
         }
       }
-      rA.set(cA.subarray(0, count)); rB.set(cB.subarray(0, count));
-      dA.set(eA.subarray(0, deadCount)); dB.set(eB.subarray(0, deadCount));
+      // this line's runs become the previous line's: swap the buffers rather than copy them
+      let tmp = rA; rA = cA; cA = tmp;
+      tmp = rB; rB = cB; cB = tmp;
+      tmp = dA; dA = eA; eA = tmp;
+      tmp = dB; dB = eB; eB = tmp;
       prevRuns = count;
       prevDead = deadCount;
     }
@@ -603,7 +659,10 @@ export function placeCover(
   // piece that became short lose that hit.
   const wall = (x: number): void => {
     for (let q = tileStart[x]; q < tileStart[x + 1]; q++) {
-      const l = tileLine[q], p = tilePos[q];
+      const l = tileLine[q];
+      // Nearly every strip has no long corridor left: skip the lane geometry (a cache miss into the big tables) then.
+      if (slotCount[l] === 0 && (l === 0 || slotCount[l - 1] === 0)) continue;
+      const p = tilePos[q];
       const eb = lineStart[l] + l, e0 = edge[eb + p], e1 = edge[eb + p + 1];
       for (let side = 0; side < 2; side++) {
         const s = side === 0 ? l : l - 1;
@@ -682,28 +741,29 @@ export function placeCover(
       if (r !== 0 && r !== rock && lvl < 1) lvl = 1;
       if (tiles[j] === TILE_FLOOR) mask |= 1 << q;
     }
-    if (!SIMPLE[mask]) {
+    if (lvl < 2 && tiles[t] === TILE_FLOOR && !guardOK(t)) lvl = 2;
+    if (tiles[t] === TILE_FLOOR && !SIMPLE[mask]) {
       if (lvl < 2) lvl = 2;
       if (lvl > worst || score - penalty(lvl) <= beat || !sealed(t)) return NEVER;
     }
     if (lvl > worst) return NEVER;
-    if (ring[t] === 1 && !ringKeeps(t)) { ringBlocked[t] = 1; return NEVER; }
+    if (ring[t] === 1 && tiles[t] === TILE_FLOOR && !ringKeeps(t)) { ringBlocked[t] = 1; return NEVER; }
     return lvl;
   };
   const priority = (t: number): number => hits[t] * 1024 + noise[t];
 
   let rocks = 0;
   const setRock = (t: number): void => {
+    if (ring[t] === 1 && tiles[t] === TILE_FLOOR) ringFloor--;
     tiles[t] = TILE_WALL;
     rockOf[t] = rocks;
     ruinQuota[ruinOf[t]]--;
-    if (ring[t] === 1) ringFloor--;
     wall(t);
   };
   const place = (t: number, lvl: number): void => {
     rocks++;
     let fill: number[] = [];
-    if (lvl >= 2) {
+    if (lvl >= 2 && tiles[t] === TILE_FLOOR) {
       let mask = 0;
       for (let q = 0; q < 8; q++) if (tiles[t + RING_OFF[q]] === TILE_FLOOR) mask |= 1 << q;
       if (!SIMPLE[mask] && sealed(t)) fill = pocket.slice();
@@ -765,8 +825,8 @@ export function placeCover(
     return false;
   };
 
-  while (work.length > 0) if (!cut(work.pop()!)) return -1;
-  if (longLanes !== 0) return -1;
+  while (work.length > 0) if (!cut(work.pop()!)) return COVER_UNCUT;
+  if (longLanes !== 0) return COVER_UNCUT;
 
   // No shot from one spawn can hit another within MAX_SIGHT_CORRIDOR: every aim ray in the hit cone of each (see Cone)
   // must meet a wall first. Where it does not, a rock goes on the tile that closes most of the gaps, near the middle.
@@ -791,7 +851,7 @@ export function placeCover(
           for (let ty = box[1]; ty <= box[3]; ty++) {
             for (let tx = box[0]; tx <= box[2]; tx++) {
               const t = ty * W + tx;
-              if (tiles[t] !== TILE_FLOOR) continue;
+              if (tiles[t] === TILE_WALL) continue;
               // the share of the cones' slopes still open if this tile were a rock
               let left = 0;
               for (const c of cones) {
@@ -810,7 +870,7 @@ export function placeCover(
               if (key < bestKey || (key === bestKey && mid < bestMid)) { best = t; bestKey = key; bestMid = mid; bestLvl = lvl; }
             }
           }
-          if (best < 0) return -1;
+          if (best < 0) return COVER_SPAWN;
           place(best, bestLvl);
         }
       }

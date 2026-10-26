@@ -2,7 +2,7 @@
 // server; deterministic (fixed neighbour order and tie-breaks), no allocation beyond the result.
 import { PLAYER_RADIUS, TILE } from "./constants";
 import { circleClear, segmentClear } from "./geometry";
-import { isWallTile, TILE_FLOOR, tileToWorldCenter, worldToTile } from "./map";
+import { blocksMovementTile, TILE_FLOOR, tileToWorldCenter, worldToTile } from "./map";
 import type { GameMap } from "./map";
 import type { Vec2 } from "./messages";
 
@@ -177,10 +177,10 @@ function clampClear(map: GameMap, p: Vec2, gx: number, gy: number, radius: numbe
   const y0 = gy * TILE;
   let x = p.x;
   let y = p.y;
-  if (isWallTile(map, gx - 1, gy)) x = Math.max(x, x0 + radius);
-  if (isWallTile(map, gx + 1, gy)) x = Math.min(x, x0 + TILE - radius);
-  if (isWallTile(map, gx, gy - 1)) y = Math.max(y, y0 + radius);
-  if (isWallTile(map, gx, gy + 1)) y = Math.min(y, y0 + TILE - radius);
+  if (blocksMovementTile(map, gx - 1, gy)) x = Math.max(x, x0 + radius);
+  if (blocksMovementTile(map, gx + 1, gy)) x = Math.min(x, x0 + TILE - radius);
+  if (blocksMovementTile(map, gx, gy - 1)) y = Math.max(y, y0 + radius);
+  if (blocksMovementTile(map, gx, gy + 1)) y = Math.min(y, y0 + TILE - radius);
   const clamped = { x, y };
   return circleClear(map, clamped, radius) ? clamped : { x: tileToWorldCenter(gx), y: tileToWorldCenter(gy) };
 }
