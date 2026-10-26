@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -8,7 +9,7 @@ import {
   mulberry32, type RunOutcome,
 } from "@raid/shared";
 import {
-  InvalidProfileNameError, JsonProfileStore, ProfileFileError, ProfileForbiddenError, UnknownProfileError,
+  InvalidProfileNameError, JsonProfileStore, ProfileFileError, ProfileForbiddenError, ProfileLockedError, UnknownProfileError,
   type Clock, type ProfileRecord,
 } from "../src/persistence/ProfileStore";
 
@@ -28,6 +29,8 @@ let now: number;
 const OCT = "2026-10";
 
 function open(f: string, clock: Clock = () => now): JsonProfileStore {
+  // A restart here is a second store on the file while the first object is still around; a stopped process lets go of its lock.
+  fs.rmSync(`${path.resolve(f)}.lock`, { force: true });
   const store = new JsonProfileStore(f, { clock });
   stores.push(store);
   return store;
@@ -41,13 +44,17 @@ beforeEach(() => {
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
   // Let any write still in flight finish before the directory goes away.
-  await Promise.allSettled(stores.splice(0).map((s) => s.flush()));
+  await Promise.allSettled(stores.splice(0).map((s) => s.close()));
   for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
 });
 
 const readFile = (f = file) => JSON.parse(fs.readFileSync(f, "utf8"));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** What a live store keeps next to the data besides the file itself: its lock; mid-write, also a temp file named for the process. */
+const LOCK = "stash.json.lock";
+const TMP = `stash.json.tmp-${process.pid}`;
 const withSuffix = (d: string, suffix: string) => fs.readdirSync(d).filter((n) => n.startsWith(`stash.json.${suffix}`));
 const run = (outcome: RunOutcome, kills = 0, gv = 0) => ({ outcome, kills, gv });
 /** A win that passed the anti alt-farming gate: the only kind that counts toward win achievements. */
@@ -68,6 +75,27 @@ async function waitReal(pred: () => boolean, what: string): Promise<void> {
     await realSleep(5);
   }
   throw new Error(`timed out waiting for: ${what}`);
+}
+
+/** How long the store waits to batch changes into one write. */
+const WRITE_WINDOW = 1000;
+
+/**
+ * Fake timers for the store's batching window and retry only; real file I/O keeps running underneath, and the tests
+ * wait with realSleep/waitReal because the global setTimeout stands still. Returns the delays of every timer that was
+ * unref'd. The global afterEach puts the real setTimeout back.
+ */
+function fakeTimers() {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const fake = globalThis.setTimeout as unknown as (...a: unknown[]) => NodeJS.Timeout;
+  const unref: number[] = [];
+  globalThis.setTimeout = ((cb: () => void, ms?: number, ...rest: unknown[]) => {
+    const t = fake(cb, ms, ...rest);
+    const real = t.unref.bind(t);
+    t.unref = () => { unref.push(ms ?? 0); return real(); };
+    return t;
+  }) as unknown as typeof setTimeout;
+  return unref;
 }
 
 const zeroStats = { runs: 0, wins: 0, draws: 0, deaths: 0, kills: 0 };
@@ -943,6 +971,31 @@ describe("the ranking cache is invisible", () => {
     expect(names.length).toBeGreaterThan(30);
     expect(oracleMonths().length).toBeGreaterThan(1);
   });
+
+  it("a month nobody banked GV in is answered at once: the profiles are not scanned and nothing is cached for it", () => {
+    const store = open(file);
+    for (let i = 0; i < 20; i++) {
+      store.claim(`p${i}`);
+      store.bankGv(`p${i}`, i + 1);
+    }
+    // Peeked at to prove the cost: the leaderboard is public, and every well-formed month is a valid request.
+    const { profiles, rankCache } = store as unknown as { profiles: Map<string, unknown>; rankCache: Map<string, unknown> };
+    const scan = vi.spyOn(profiles, "values");
+    for (let year = 2000; year < 2100; year++) {
+      for (const month of ["01", "07"]) {
+        expect(store.leaderboard(`${year}-${month}`, 10)).toEqual([]);
+        expect(store.leaderboardRank(`${year}-${month}`, "p3")).toBeUndefined();
+      }
+    }
+    expect(scan).not.toHaveBeenCalled();
+    expect(rankCache.size).toBe(0);
+
+    // A month that has GV still ranks, scanned once and cached.
+    expect(store.leaderboard(OCT, 3).map((e) => e.name)).toEqual(["p19", "p18", "p17"]);
+    expect(store.leaderboardRank(OCT, "p0")).toEqual({ rank: 20, gv: 1 });
+    expect(scan).toHaveBeenCalledTimes(1);
+    expect([...rankCache.keys()]).toEqual([OCT]);
+  });
 });
 
 describe("persistence", () => {
@@ -964,8 +1017,7 @@ describe("persistence", () => {
         },
       },
     });
-    expect(fs.existsSync(`${file}.tmp`)).toBe(false);
-    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json", LOCK]);
   });
 
   it("a restart brings back every field, and everything keeps working", async () => {
@@ -1030,8 +1082,8 @@ describe("persistence", () => {
     const open_ = vi.spyOn(fs.promises, "open");
     store.bankGv("alice", 5);
     await store.flush();
-    expect(open_).toHaveBeenCalledWith(`${file}.tmp`, "w");
-    expect(rename).toHaveBeenCalledWith(`${file}.tmp`, file);
+    expect(open_).toHaveBeenCalledWith(path.join(dir, TMP), "w");
+    expect(rename).toHaveBeenCalledWith(path.join(dir, TMP), file);
   });
 
   it("flush resolves immediately when nothing is pending", async () => {
@@ -1049,12 +1101,14 @@ describe("persistence", () => {
     expect(readFile().profiles.alice.gv).toBe(7);
   });
 
-  it("a change made right after a flush is written without another flush call", async () => {
+  it("a change made right after a flush is written without another flush call, once the batching window ends", async () => {
+    fakeTimers();
     const store = open(file);
     store.claim("alice");
     await store.flush();
     store.bankGv("alice", 7);
-    await vi.waitFor(() => expect(readFile().profiles.alice.gv).toBe(7));
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
+    await waitReal(() => readFile().profiles.alice.gv === 7, "the change to be written");
   });
 });
 
@@ -1108,7 +1162,7 @@ describe("extreme values", () => {
     expect(["alice", "zed", "bobby"].map((n) => back.get(n))).toEqual(before);
     expect(error).not.toHaveBeenCalled(); // nothing was dropped on the way back in
     expect(Object.keys(readFile().profiles).sort()).toEqual(["alice", "bobby", "zed"]);
-    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json", LOCK]);
 
     // The ranking copes with amounts at the ceiling: a tie there falls back to the name. The worn title rides along.
     expect(back.leaderboard(OCT, 10)).toEqual([{ name: "alice", gv: MAX, title: equipped.title }, { name: "zed", gv: MAX, title: equipped.title }]);
@@ -1214,7 +1268,7 @@ describe("a v2 file", () => {
     expect(store.get("bobby")).toEqual(bobby());
     expect([log, error, warn].map((s) => s.mock.calls.length)).toEqual([0, 0, 0]);
     expect(fs.readFileSync(file).equals(before)).toBe(true);
-    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json", LOCK]);
   });
 
   describe("written before qualifiedWins existed", () => {
@@ -1238,7 +1292,7 @@ describe("a v2 file", () => {
       const store = open(file);
       await store.flush();
       expect(fs.readFileSync(file, "utf8")).toBe(text);
-      expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+      expect(fs.readdirSync(dir)).toEqual(["stash.json", LOCK]);
       store.bankGv("alice", 1);
       await store.flush();
       expect(readFile().profiles.alice.progress).toEqual({ ...legacyProgress, qualifiedWins: 0 });
@@ -1262,13 +1316,16 @@ describe("a v2 file", () => {
     });
   });
 
-  it("ignores a leftover temp file from a crashed write", async () => {
-    fs.writeFileSync(`${file}.tmp`, "{half");
+  it("ignores a leftover temp file from a crashed write, and clears it: this version's, an old one's, and another process's", async () => {
+    const leftovers = ["stash.json.tmp", "stash.json.tmp-4242", TMP];
+    for (const name of leftovers) fs.writeFileSync(path.join(dir, name), "{half");
+    fs.writeFileSync(path.join(dir, "stash.json.tmpfile"), "not ours"); // not one of the store's temp names
     const store = open(file);
+    expect(fs.readdirSync(dir).sort()).toEqual([LOCK, "stash.json.tmpfile"]);
     store.claim("alice");
     await store.flush();
     expect(readFile().profiles.alice.name).toBe("alice");
-    expect(fs.existsSync(`${file}.tmp`)).toBe(false);
+    expect(fs.readdirSync(dir).sort()).toEqual(["stash.json", LOCK, "stash.json.tmpfile"]);
   });
 
   it("keeps a profile that has fields this version does not know, and sheds them on the next write", async () => {
@@ -1359,7 +1416,7 @@ describe("an unusable profile file stops the server instead of wiping every prof
   it("the server stays down until the file is put back; then it starts with every profile", async () => {
     const first = open(file);
     first.claim("alice");
-    await first.flush();
+    await first.close(); // the server stops, which frees the file for the next start
     const backup = fs.readFileSync(file, "utf8");
     fs.writeFileSync(file, "{broken");
     expect(() => new JsonProfileStore(file)).toThrow(ProfileFileError);
@@ -1626,7 +1683,7 @@ describe("a v1 file (the extraction build's stash format) is migrated", () => {
     await again.flush();
     expect(again.get("alice")).toEqual(first.get("alice"));
     expect([log, error].map((s) => s.mock.calls.length)).toEqual([0, 0]);
-    expect(fs.readdirSync(dir).sort()).toEqual(["stash.json", "stash.json.bak-v1"]);
+    expect(fs.readdirSync(dir).sort()).toEqual(["stash.json", "stash.json.bak-v1", LOCK]);
     expect(fs.readFileSync(`${file}.bak-v1`).equals(fixtureBytes)).toBe(true);
   });
 
@@ -1801,7 +1858,7 @@ describe("durability and retry", () => {
     store.bankGv("alice", 5);
     await store.flush();
     expect(order).toEqual([
-      "open stash.json.tmp:w", "sync stash.json.tmp:w", "rename",
+      `open ${TMP}:w`, `sync ${TMP}:w`, "rename",
       `open ${path.basename(dir)}:r`, `sync ${path.basename(dir)}:r`,
     ]);
   });
@@ -1845,30 +1902,13 @@ describe("durability and retry", () => {
     return state;
   }
 
-  /**
-   * Fake timers for the store's retry only; real file I/O keeps running underneath, and the tests
-   * wait with realSleep/waitReal because the global setTimeout stands still. Returns the delays of
-   * every timer that was unref'd. useRealTimers() (afterEach) puts the real setTimeout back.
-   */
-  function fakeTimers() {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const fake = globalThis.setTimeout as unknown as (...a: unknown[]) => NodeJS.Timeout;
-    const unref: number[] = [];
-    globalThis.setTimeout = ((cb: () => void, ms?: number, ...rest: unknown[]) => {
-      const t = fake(cb, ms, ...rest);
-      const real = t.unref.bind(t);
-      t.unref = () => { unref.push(ms ?? 0); return real(); };
-      return t;
-    }) as unknown as typeof setTimeout;
-    return unref;
-  }
-
   it("a failed write is retried on its own: 1 s, doubling to a 30 s cap, on an unref'd timer, until it lands", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const unref = fakeTimers();
     const disk = flakyRename();
     const store = open(file);
     store.claim("alice");
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
     await waitReal(() => disk.attempts === 1, "the first attempt");
     expect(fs.existsSync(file)).toBe(false);
 
@@ -1899,15 +1939,18 @@ describe("durability and retry", () => {
     const disk = flakyRename();
     const store = open(file);
     store.claim("alice");
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
     await waitReal(() => disk.attempts === 1, "the first attempt");
     await vi.advanceTimersByTimeAsync(1000); // retry 1 fails, the next delay is 2 s
     await waitReal(() => disk.attempts === 2, "the second attempt");
     disk.failing = false;
     await vi.advanceTimersByTimeAsync(2000);
     await waitReal(() => fs.existsSync(file), "the write to land");
+    await store.flush(); // the write has finished for good, its directory sync included
 
     disk.failing = true;
     store.bankGv("alice", 5);
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
     await waitReal(() => disk.attempts === 4, "the attempt after the next mutation");
     expect(unref).toEqual([1000, 2000, 1000]);
   });
@@ -1918,6 +1961,7 @@ describe("durability and retry", () => {
     const disk = flakyRename();
     const store = open(file);
     store.claim("alice");
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
     await waitReal(() => disk.attempts === 1, "the first attempt");
     expect(vi.getTimerCount()).toBe(1);
 
@@ -1969,7 +2013,7 @@ describe("write serialization", () => {
     const realRename = fs.promises.rename.bind(fs.promises);
     vi.spyOn(fs.promises, "open").mockImplementation(((...args: Parameters<typeof fs.promises.open>) => {
       // Only the temp-file open starts a write; syncing the directory afterwards also goes through open().
-      if (!String(args[0]).endsWith(".tmp")) return realOpen(...args);
+      if (!/\.tmp-\d+$/.test(String(args[0]))) return realOpen(...args);
       stats.active++;
       stats.writes++;
       stats.maxActive = Math.max(stats.maxActive, stats.active);
@@ -2000,16 +2044,18 @@ describe("write serialization", () => {
     const stats = instrument();
     const store = open(file);
     store.claim("alice");
+    const flushes: Promise<void>[] = [];
     for (let i = 0; i < 60; i++) {
       store.bankGv("alice", 1);
-      await sleep(2); // each mutation in its own macrotask, many during a single 30 ms write
+      flushes.push(store.flush()); // asks for a write at once, in its own macrotask, many during a single 30 ms write
+      await sleep(2);
     }
-    await store.flush();
+    await Promise.all(flushes);
     expect(stats.maxActive).toBe(1);
     expect(stats.writes).toBeGreaterThan(1);
     expect(stats.writes).toBeLessThan(30);
     expect(readFile().profiles.alice.gv).toBe(60);
-    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json", LOCK]);
   });
 
   it("the file always ends up equal to the in-memory state", async () => {
@@ -2047,18 +2093,224 @@ describe("write serialization", () => {
 
   it("a failed background write does not leave an unhandled rejection", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(fs.promises, "rename").mockRejectedValueOnce(new Error("nope"));
+    const rename = vi.spyOn(fs.promises, "rename").mockRejectedValueOnce(new Error("nope"));
     const unhandled = vi.fn();
     process.on("unhandledRejection", unhandled);
     try {
+      fakeTimers();
       const store = open(file);
       store.claim("alice");
-      await sleep(30);
+      await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
+      await waitReal(() => rename.mock.calls.length === 1, "the background write to fail");
+      await realSleep(30);
       expect(unhandled).not.toHaveBeenCalled();
       await store.flush();
       expect(readFile().profiles.alice.name).toBe("alice");
     } finally {
       process.off("unhandledRejection", unhandled);
     }
+  });
+});
+
+describe("batched writes", () => {
+  it("a burst of changes over many ticks is a single write, when the batching window ends", async () => {
+    fakeTimers();
+    const rename = vi.spyOn(fs.promises, "rename");
+    const store = open(file);
+    store.claim("alice");
+    for (let i = 0; i < 25; i++) {
+      store.bankGv("alice", 1);
+      await realSleep(2); // each in its own macrotask: a write started by the first change would be done long before the last
+    }
+    expect(rename).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW - 1);
+    await realSleep(20);
+    expect(rename).not.toHaveBeenCalled();
+    expect(fs.existsSync(file)).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await waitReal(() => fs.existsSync(file), "the batch to be written");
+    await store.flush(); // the write has finished for good
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(readFile().profiles.alice.gv).toBe(25);
+  });
+
+  it("changes made while a write runs wait for the next window instead of following it at once", async () => {
+    fakeTimers();
+    const realRename = fs.promises.rename.bind(fs.promises);
+    const rename = vi.spyOn(fs.promises, "rename").mockImplementation((async (...args: Parameters<typeof fs.promises.rename>) => {
+      await realSleep(30);
+      return realRename(...args);
+    }) as typeof fs.promises.rename);
+    const store = open(file);
+    store.claim("alice");
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
+    await waitReal(() => rename.mock.calls.length === 1, "the first write to start");
+    store.bankGv("alice", 5); // lands while the first write is in flight
+    await realSleep(150); // long enough for that write to have finished
+    expect(rename).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW - 1);
+    await realSleep(20);
+    expect(rename).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await waitReal(() => rename.mock.calls.length === 2, "the second write to start");
+    await store.flush();
+    expect(readFile().profiles.alice.gv).toBe(5);
+  });
+
+  it("flush() writes at once, ahead of the window, and leaves no timer behind", async () => {
+    fakeTimers();
+    const store = open(file);
+    store.claim("alice");
+    expect(vi.getTimerCount()).toBe(1);
+    await store.flush();
+    expect(readFile().profiles.alice.name).toBe("alice");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("the window's timer is not unref'd, so a pending write keeps the process alive until it is made", () => {
+    const unref = fakeTimers();
+    open(file).claim("alice");
+    expect(vi.getTimerCount()).toBe(1);
+    expect(unref).toEqual([]);
+  });
+
+  it("a purchase is in memory the moment it is acknowledged, and on disk by the end of the window", async () => {
+    fakeTimers();
+    const store = open(file);
+    const { token } = store.claim("alice");
+    store.bankGv("alice", 200);
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
+    await store.flush();
+
+    const bought = store.purchase("alice", token, "trail-ember");
+    expect(bought.ok).toBe(true);
+    expect(store.get("alice")!.cosmetics.owned).toContain("trail-ember");
+    expect(readFile().profiles.alice.cosmetics.owned).not.toContain("trail-ember");
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW);
+    await waitReal(() => readFile().profiles.alice.cosmetics.owned.includes("trail-ember"), "the purchase to be written");
+  });
+});
+
+describe("the profile file lock", () => {
+  const lockPath = () => `${file}.lock`;
+  const holder = () => fs.readFileSync(lockPath(), "utf8").trim();
+  /** The id of a process that has already exited. */
+  const deadPid = (): number => spawnSync(process.execPath, ["-e", ""]).pid;
+
+  it("is taken at construction and names this process", () => {
+    open(file);
+    expect(holder()).toBe(String(process.pid));
+  });
+
+  it("a second store on the same file refuses to start, and the first keeps working", async () => {
+    const first = open(file);
+    first.claim("alice");
+    expect(() => new JsonProfileStore(file)).toThrow(ProfileLockedError);
+    expect(() => new JsonProfileStore(file)).toThrow(new RegExp(`process ${process.pid}, which is still running`));
+    expect(holder()).toBe(String(process.pid));
+    await first.flush();
+    expect(readFile().profiles.alice.name).toBe("alice");
+  });
+
+  it("refuses to start while another live process holds the lock, and leaves its lock alone", () => {
+    fs.writeFileSync(lockPath(), `${process.ppid}\n`); // the parent of the test run is running
+    expect(() => new JsonProfileStore(file)).toThrow(ProfileLockedError);
+    expect(holder()).toBe(String(process.ppid));
+    expect(fs.existsSync(file)).toBe(false);
+  });
+
+  it("takes over a stale lock, one whose process is gone, and loads the file as usual", () => {
+    const { log } = quiet();
+    const pid = deadPid();
+    fs.writeFileSync(lockPath(), `${pid}\n`);
+    fs.writeFileSync(file, v2({ alice: goodProfile }));
+    const store = new JsonProfileStore(file);
+    stores.push(store);
+    expect(holder()).toBe(String(process.pid));
+    expect(store.get("alice")).toEqual(goodProfile);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining(`took over the lock of process ${pid}`));
+  });
+
+  it.each([["empty", ""], ["not a number", "garbage"], ["zero", "0"], ["negative", "-5"], ["a number with junk after it", "123abc"]])(
+    "a lock that names no process (%s) is not guessed at: the start is refused and the lock stays",
+    (_label, text) => {
+      fs.writeFileSync(lockPath(), text);
+      expect(() => new JsonProfileStore(file)).toThrow(ProfileLockedError);
+      expect(() => new JsonProfileStore(file)).toThrow(/holds no process id/);
+      expect(fs.readFileSync(lockPath(), "utf8")).toBe(text);
+    },
+  );
+
+  it("a store that fails to start does not keep the file locked", () => {
+    fs.writeFileSync(file, "{broken");
+    expect(() => new JsonProfileStore(file)).toThrow(ProfileFileError);
+    expect(fs.existsSync(lockPath())).toBe(false);
+  });
+
+  it("close() writes what is pending without waiting for the window, then frees the file for the next store", async () => {
+    fakeTimers();
+    const store = open(file);
+    store.claim("alice");
+    await store.close();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(fs.existsSync(lockPath())).toBe(false);
+    expect(readFile().profiles.alice.name).toBe("alice");
+
+    const next = new JsonProfileStore(file);
+    expect(next.get("alice")?.name).toBe("alice");
+    expect(holder()).toBe(String(process.pid));
+    await next.close();
+    expect(fs.existsSync(lockPath())).toBe(false);
+  });
+
+  it("a closed store writes nothing more, and closing twice is harmless", async () => {
+    fakeTimers();
+    const store = open(file);
+    store.claim("alice");
+    await store.close();
+    const rename = vi.spyOn(fs.promises, "rename");
+    store.bankGv("alice", 5);
+    await vi.advanceTimersByTimeAsync(WRITE_WINDOW * 2);
+    await store.flush();
+    await store.close();
+    expect(rename).not.toHaveBeenCalled();
+    expect(readFile().profiles.alice.gv).toBe(0);
+  });
+
+  it("close() lets go of the lock even when the final write fails, and says so", async () => {
+    quiet();
+    fakeTimers();
+    vi.spyOn(fs.promises, "rename").mockRejectedValue(new Error("disk full"));
+    const store = open(file);
+    store.claim("alice");
+    await expect(store.close()).rejects.toThrow("disk full");
+    expect(fs.existsSync(lockPath())).toBe(false);
+    expect(vi.getTimerCount()).toBe(0); // no retry is left to write without the lock
+  });
+
+  it("never removes a lock that has since passed to another process", async () => {
+    const store = open(file);
+    fs.writeFileSync(lockPath(), `${process.ppid}\n`);
+    await store.close();
+    expect(holder()).toBe(String(process.ppid));
+  });
+
+  it("is gone after a process exits without calling close(), a failed listen for one", () => {
+    const module = fileURLToPath(new URL("../src/persistence/ProfileStore.ts", import.meta.url));
+    const script = [
+      `import fs from "node:fs";`,
+      `import { JsonProfileStore } from ${JSON.stringify(module)};`,
+      `new JsonProfileStore(${JSON.stringify(file)});`,
+      `console.log(fs.existsSync(${JSON.stringify(lockPath())}) ? "held" : "never held");`,
+      `process.exit(1);`,
+    ].join("\n");
+    const child = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+      cwd: path.dirname(path.dirname(module)), encoding: "utf8",
+    });
+    expect(child.stdout.trim(), child.stderr).toBe("held");
+    expect(child.status).toBe(1);
+    expect(fs.existsSync(lockPath())).toBe(false);
   });
 });
