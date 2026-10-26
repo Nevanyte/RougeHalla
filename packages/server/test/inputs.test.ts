@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CLIENT_MESSAGE_TYPES, WORLD_H, WORLD_W, type ClientMessageType } from "@raid/shared";
 import {
-  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePoint,
+  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePoint, parseSeq,
   type ActionCommand,
 } from "../src/sim/inputs";
 
@@ -322,6 +322,27 @@ describe("parseAngle", () => {
   );
 });
 
+describe("parseSeq", () => {
+  it.each([0, 1, 7, 128, 254, 255])("accepts the order number %d", (n) => {
+    expect(parseSeq({ x: 1, y: 2, seq: n })).toBe(n);
+  });
+
+  it("does not return -0", () => {
+    expect(Object.is(parseSeq({ seq: -0 }), 0)).toBe(true);
+  });
+
+  it.each([
+    ["negative", -1], ["256", 256], ["a fraction", 1.5], ["NaN", NaN], ["Infinity", Infinity], ["a string", "3"], ["null", null],
+    ["a boolean", true], ["an object", {}], ["a bigint", 3n], ["huge", 1e9],
+  ])("gives undefined for %s", (_n, seq) => {
+    expect(parseSeq({ seq })).toBeUndefined();
+  });
+
+  it.each([null, undefined, 5, "seq", {}, []])("gives undefined for the message %s", (msg) => {
+    expect(parseSeq(msg)).toBeUndefined();
+  });
+});
+
 describe("parseId", () => {
   it("accepts non-empty strings up to 64 chars", () => {
     expect(parseId("a")).toBe("a");
@@ -355,6 +376,23 @@ describe("enqueueClientMessage", () => {
       expect(q.move).toEqual({ kind: "move", x: 1, y: 2 });
     });
 
+    it("keeps a valid seq on the command, and only a valid one", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "move", { x: 1, y: 2, seq: 42 })).toBe(true);
+      expect(q.move).toStrictEqual({ kind: "move", x: 1, y: 2, seq: 42 });
+      for (const seq of [-1, 256, 1.5, "7", NaN, null, {}]) {
+        const p = fresh();
+        expect(enqueueClientMessage(p, "move", { x: 1, y: 2, seq }), String(seq)).toBe(true); // the order still counts
+        expect(p.move, String(seq)).toStrictEqual({ kind: "move", x: 1, y: 2 });
+      }
+    });
+
+    it("a rejected move (bad point) queues nothing, whatever its seq", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "move", { x: NaN, y: 0, seq: 3 })).toBe(false);
+      expect(q.move).toBeNull();
+    });
+
     it.each([
       ["NaN", { x: NaN, y: 0 }],
       ["Infinity", { x: 0, y: Infinity }],
@@ -386,6 +424,14 @@ describe("enqueueClientMessage", () => {
         expect(enqueueClientMessage(q, "stop", payload)).toBe(true);
         expect(q.move).toEqual({ kind: "stop" });
       }
+    });
+
+    it("keeps a valid seq, and drops a bad one without losing the stop", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "stop", { seq: 255 })).toBe(true);
+      expect(q.move).toStrictEqual({ kind: "stop", seq: 255 });
+      expect(enqueueClientMessage(q, "stop", { seq: 256 })).toBe(true);
+      expect(q.move).toStrictEqual({ kind: "stop" });
     });
 
     it("overrides an earlier move and is overridden by a later one", () => {

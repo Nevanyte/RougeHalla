@@ -5,9 +5,11 @@
 //            projectile sweep); a cast or a bow draw becomes a SpawnRequest (its ball or arrow is spawned after the sweep)
 //   start    a held (or just pressed) trigger starts the next attack as soon as the cooldown allows
 // Every attack is a windup (weaponTimings.windup): the fighter is rooted from its start until the swing lands or the
-// ball or arrow leaves, and walks freely again afterwards (the axe stays rooted a while longer). The windup is committed:
-// a move order given during it is kept as the path and walked once it ends; only a stagger (not on the bow) or a swap
-// cancels it. An attack started by the target lock (sim/targeting.ts) is aimed again at its target when it lands.
+// ball or arrow leaves, and walks freely again afterwards (the axe stays rooted a while longer). A directional windup (a
+// mob's, the harness's, an `attack` input) is committed: a move order given during it is kept as the path and walked once
+// it ends; only a stagger (not on the bow) or a swap cancels it. One the target lock started (sim/targeting.ts) is the
+// player's own click, so the player's next order cancels it as in LoL (cancelLockedWindup): a move, a stop, or locking
+// another fighter. An attack started by the lock is aimed again at its target when it lands.
 // The cooldown carries its remainder: an attack from a trigger already down when the cooldown ended counts from that
 // moment (at most one tick back), so cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
 import {
@@ -152,6 +154,22 @@ export function cancelAction(world: World, c: Combatant): void {
   if (w.action && w.action.kind !== "draw") w.rootUntil = Math.min(w.rootUntil, world.state.serverTime);
   w.action = null;
   c.s.drawStartedAt = 0;
+}
+
+/**
+ * The player's own order (a move, a stop, or a lock on another fighter) cancels the attack its lock started and that has not
+ * landed yet: no swing, ball or arrow, the cooldown refunded to the moment the attack began (it was over by then) and the root
+ * cut, as LoL's move cancels a windup. A directional attack (a mob's, the harness's, an `attack` input) has no `target` and stays
+ * committed, as does one that has landed (the axe's root after it stays). Emits `cancel` so clients drop the telegraph.
+ * Returns whether it cancelled one.
+ */
+export function cancelLockedWindup(world: World, c: Combatant): boolean {
+  const act = c.rt.weapon.action;
+  if (!act || act.target === undefined) return false;
+  c.s.readyAt = act.startedAt;
+  cancelAction(world, c);
+  emit(world, { type: "fx", fx: { kind: "cancel", id: c.id } });
+  return true;
 }
 
 /**

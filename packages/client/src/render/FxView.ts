@@ -5,12 +5,14 @@
 import Phaser from "phaser";
 import {
   BUFF_LABELS, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffToast, comboById, comboToast, formatGain, isDot, type ComboSpec,
-  type ProjectileEnd, type SignatureKind, type TimedFx,
+  type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx,
 } from "@raid/shared";
 import { ELITE_COLOR, STAT_COLOR } from "../ui/buffTheme";
 import { cssColor } from "../ui/dom";
 import type { ToastTone } from "../ui/toast";
+import type { FigureCues } from "./figurePose";
 import { traceRim, traceSector } from "./groundShapes";
+import { easeOutCubic, juiceScale, lerp } from "./juice";
 import { BODY_LIFT, depthFor, projX, projY } from "./projection";
 
 /** An event this far ahead of render time means the clock is not synced (or jumped): play it now rather than sit on it. */
@@ -36,6 +38,26 @@ const TELEPORT_FLASH_ALPHA = 0.7;
 /** A telegraph lasts the server's windup; these bound a malformed `ms`. */
 const MIN_WINDUP_MS = 40;
 const MAX_WINDUP_MS = 1000;
+
+// Juice (render/juice.ts): impact dots on a blow, dust at the feet, the move marker's ripple.
+const IMPACT_MS = 200;
+const IMPACT_DOTS = 5;
+const IMPACT_MAX = 20;
+/** The white bloom round a body that took a blow lasts this share of the impact's life. */
+const IMPACT_BLOOM = 0.55;
+const IMPACT_BLOOM_ALPHA = 0.5;
+const DUST_MS = 380;
+const DUST_MAX = 24;
+const DUST_COLOR = 0xb7bec3;
+const RIPPLE_MS = 420;
+const RIPPLE_COLOR = 0x80deea;
+const RIPPLE_WIDTH = 30;
+/** Launch cues wait in a queue of their own, so a stalled tab's flood of them can never push a real fx out of `pending`. */
+const MAX_LAUNCH_CUES = 48;
+/** A juice cue (hit-stop, shake, recoil) only plays for an event this near render time: a replay after a stall stays quiet. */
+const FRESH_MS = 250;
+/** How far from a launch's origin the shooter may be drawn (the origin is its rewound position). */
+const LAUNCH_NEAR = 56;
 
 /** Above every y-sorted entity (ground y is at most a few thousand) but below the click marker (1e6). */
 const DEPTH_FX = 8e5;
@@ -85,8 +107,8 @@ const MIN_HEAL_SHOWN = 1;
 export interface FxHost {
   /** The local player's id: damage to it is red, its hits on others gold. */
   readonly localId: string;
-  /** The drawn fighter (player or mob), for hit flashes. */
-  view(id: string): { flash(): void } | undefined;
+  /** The drawn fighter (player or mob), for hit flashes and the juice cues of its figure. */
+  view(id: string): { flash(): void; cues?: FigureCues } | undefined;
   /** What a mob id is ("dummy" | "mob" | "elite"), or undefined for a player or an unknown id: mob deaths are quieter than players'. */
   mobKind?(id: string): string | undefined;
   /** Where a fighter is drawn right now (ground coordinates), for effects that follow them. */
@@ -96,6 +118,12 @@ export interface FxHost {
   projectileEnded(id: string): void;
   /** A hit on the local player is due (at render time, together with its flash and number): drives the screen vignette. */
   localHit?(fx: FxOf<"hit">): void;
+  /** The local player's blow on another fighter just landed on screen (juice: hit-stop and camera shake; not for damage over time). */
+  localLanded?(fx: FxOf<"hit">): void;
+  /** The local player just took a blow on screen (juice: camera shake; not for damage over time). */
+  localHurt?(fx: FxOf<"hit">): void;
+  /** The fighter drawn nearest ground point (x, y) within `within` units, if any: whoever an arrow or a ball left from. */
+  nearestFighter?(x: number, y: number, within: number): string | undefined;
   /**
    * Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!".
    * `tone` marks the local player's buff and combo news.
@@ -107,9 +135,13 @@ type FxOf<K extends TimedFx["kind"]> = Extract<TimedFx, { kind: K }>;
 
 /** Not a server event: a client-side cancel queued among them so it plays in render-time order (see cancelWindups). */
 interface CancelWindups { kind: "cancelWindups"; id: string; t: number }
-type Queued = TimedFx | CancelWindups;
+/** Not a server event either: a projectile leaving (from the launch tuples), to kick back whoever loosed it. `a` is its ground angle. */
+interface LaunchCue { kind: "launch"; t: number; x: number; y: number; a: number }
+type Queued = TimedFx | CancelWindups | LaunchCue;
 
-type EffectKind = "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number" | "flame" | "float" | "ring";
+type EffectKind =
+  | "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number" | "flame" | "float" | "ring"
+  | "impact" | "dust" | "ripple";
 
 interface Active {
   kind: EffectKind;
@@ -123,8 +155,13 @@ interface Active {
   /** Last ground position it was drawn at. */
   x: number;
   y: number;
-  /** Ground angle (windup, cast), horizontal pixel offset (number), extra start height in pixels (float) or the size the ring ends at, in body radii (ring). */
+  /**
+   * Ground angle (windup, cast, dust, impact: NaN when unknown), horizontal pixel offset (number), extra start height in
+   * pixels (float) or the size the ring ends at, in body radii (ring).
+   */
   a: number;
+  /** An impact's dot colour (the weapon's). */
+  c?: number;
 }
 
 interface BurstStyle {
@@ -151,12 +188,19 @@ const IMPACT_BURSTS: Readonly<Record<ProjectileEnd, BurstStyle>> = {
 
 export class FxView {
   private pending: Queued[] = [];
+  private readonly launches: LaunchCue[] = [];
   private readonly active: Active[] = [];
   private readonly freeGraphics: Phaser.GameObjects.Graphics[] = [];
   private readonly freeText: Phaser.GameObjects.Text[] = [];
   private lane = 0;
   private floatLane = 0;
   private destroyed = false;
+  /** The render time and clock state of the last update(), for the freshness of a juice cue. */
+  private renderT = 0;
+  private synced = false;
+  /** Live impact and dust effects, capped so a crowd fight stays cheap. */
+  private impacts = 0;
+  private dusts = 0;
   /**
    * The local player's buff and combo news of this update(), told as one line each when it ends (flushNews). A bounty kill
    * grants every stat in turn and unlocks combos with it: six lines in one frame would fill the toast stack and push the
@@ -183,6 +227,54 @@ export class FxView {
     this.push({ kind: "cancelWindups", id, t });
   }
 
+  /**
+   * The local player's own order (a move, a stop, another target) cancels the attack its lock was winding up, and the screen
+   * shows it now rather than a round trip later: drops the telegraph on screen and every windup of `id` stamped up to `upTo`
+   * (server time) that is still waiting for render time. The server's `cancel` fx follows and finds nothing left to drop.
+   */
+  dropWindups(id: string, upTo: number, now: number): void {
+    if (this.destroyed) return;
+    this.pending = this.pending.filter((q) => !(q.kind === "windup" && q.by === id && q.t <= upTo));
+    this.cancelWindup(id, now);
+  }
+
+  /** Called for every projectile a `fxs` batch announces: plays (at render time) as a kick back on the shooter. */
+  noteLaunch(launch: ProjectileLaunch): void {
+    if (this.destroyed || !Number.isFinite(launch.t)) return;
+    const a = Math.atan2(launch.vy, launch.vx);
+    if (!Number.isFinite(a)) return;
+    if (this.launches.length >= MAX_LAUNCH_CUES) this.launches.shift();
+    this.launches.push({ kind: "launch", t: launch.t, x: launch.x, y: launch.y, a });
+  }
+
+  /**
+   * A few grey puffs at a fighter's feet, `n` of them fanned about the ground angle `a` they drift toward. A walk's start
+   * kicks them up behind, its stop rolls them on ahead (FigureJuice).
+   */
+  dust(x: number, y: number, a: number, n: number, now: number): void {
+    if (this.destroyed || juiceScale("motion") <= 0) return;
+    for (let i = 0; i < n && this.dusts < DUST_MAX; i++) {
+      const ang = a + (n > 1 ? (i / (n - 1) - 0.5) * 1.2 : 0);
+      const g = this.acquireGraphics(depthFor(y, -PLAYER_RADIUS + 0.1));
+      g.fillStyle(DUST_COLOR, 1).fillCircle(0, 0, 3 + (i % 2));
+      const e: Active = {
+        kind: "dust", g, text: null, start: now, duration: DUST_MS + i * 50, id: "",
+        x: x + Math.cos(ang) * 4, y: y + Math.sin(ang) * 4, a: ang,
+      };
+      this.active.push(e);
+      this.dusts++;
+    }
+  }
+
+  /** An expanding ring on the ground where a move was ordered, beside the marker. */
+  ripple(x: number, y: number, now: number): void {
+    if (this.destroyed || juiceScale("flash") <= 0) return;
+    const g = this.acquireGraphics(DEPTH_FX);
+    g.lineStyle(2, RIPPLE_COLOR, 1).strokeEllipse(0, 0, RIPPLE_WIDTH, RIPPLE_WIDTH * Y_SCALE);
+    g.setPosition(projX(x), projY(y));
+    this.active.push({ kind: "ripple", g, text: null, start: now, duration: RIPPLE_MS, id: "", x, y, a: 0 });
+  }
+
   private push(item: Queued): void {
     if (this.pending.length >= MAX_PENDING) this.pending.shift();
     this.pending.push(item);
@@ -195,28 +287,37 @@ export class FxView {
    */
   update(renderT: number, now: number, clockSynced: boolean): void {
     if (this.destroyed) return;
-    const q = this.pending;
-    if (q.length > 0) {
-      let keep = 0;
-      for (let i = 0; i < q.length; i++) {
-        const fx = q[i]!;
-        if (!clockSynced || fx.t > renderT + FX_FUTURE_SLACK_MS) this.play(fx, now);
-        else if (fx.t > renderT) q[keep++] = fx;
-        else if (fx.t >= renderT - STALE_MS) this.play(fx, now);
-      }
-      q.length = keep;
-      this.flushNews();
-    }
+    this.renderT = renderT;
+    this.synced = clockSynced;
+    this.drain(this.pending, renderT, now, clockSynced);
+    this.drain(this.launches, renderT, now, clockSynced);
+    this.flushNews();
     this.advance(now);
+  }
+
+  /** Plays what in `q` is due, drops what is stale and keeps the rest. */
+  private drain(q: Queued[], renderT: number, now: number, clockSynced: boolean): void {
+    if (q.length === 0) return;
+    let keep = 0;
+    for (let i = 0; i < q.length; i++) {
+      const fx = q[i]!;
+      if (!clockSynced || fx.t > renderT + FX_FUTURE_SLACK_MS) this.play(fx, now);
+      else if (fx.t > renderT) q[keep++] = fx;
+      else if (fx.t >= renderT - STALE_MS) this.play(fx, now);
+    }
+    q.length = keep;
   }
 
   destroy(): void {
     this.destroyed = true;
     this.pending.length = 0;
+    this.launches.length = 0;
     this.newsBuffs.length = 0;
     this.newsCombos.length = 0;
     for (const e of this.active) { e.g?.destroy(); e.text?.destroy(); }
     this.active.length = 0;
+    this.impacts = 0;
+    this.dusts = 0;
     for (const g of this.freeGraphics) g.destroy();
     this.freeGraphics.length = 0;
     for (const t of this.freeText) t.destroy();
@@ -226,7 +327,11 @@ export class FxView {
   private play(fx: Queued, now: number): void {
     switch (fx.kind) {
       case "cancelWindups":
-        this.cancelWindup(fx.id);
+      case "cancel":
+        this.cancelWindup(fx.id, now);
+        break;
+      case "launch":
+        this.launch(fx, now);
         break;
       case "windup":
         this.windup(fx, now);
@@ -241,7 +346,7 @@ export class FxView {
         this.block(fx, now);
         break;
       case "stagger":
-        this.cancelWindup(fx.id);
+        this.cancelWindup(fx.id, now);
         this.mark(fx.id, now);
         break;
       case "projEnd": {
@@ -252,7 +357,7 @@ export class FxView {
         break;
       }
       case "death": {
-        this.cancelWindup(fx.id);
+        this.cancelWindup(fx.id, now);
         const mob = this.host.mobKind?.(fx.id);
         if (mob === "mob" || mob === "elite") {
           this.mobDeath(fx, mob === "elite", now);
@@ -269,7 +374,7 @@ export class FxView {
       case "teleport": {
         // Everyone jumps at once: the flash covers the cut, and plays when render time reaches the teleport tick, the
         // same moment the interpolator snaps the bodies. The server cancelled every action in progress with no fx each.
-        this.cancelWindup();
+        this.cancelWindup(undefined, now);
         const cam = this.scene.cameras.main;
         cam.flashEffect.alpha = TELEPORT_FLASH_ALPHA;
         cam.flash(TELEPORT_FLASH_MS, 255, 255, 255, true);
@@ -301,11 +406,13 @@ export class FxView {
    * grows and brightens until the swing lands, and a stagger (or the swing itself) clears it.
    */
   private windup(fx: FxOf<"windup">, now: number): void {
-    this.cancelWindup(fx.by);
+    this.cancelWindup(fx.by, now);
     const pos = this.host.position(fx.by);
     const spec = WEAPONS[fx.weapon];
     if (!pos || !spec || !Number.isFinite(fx.a) || !Number.isFinite(fx.ms)) return;
     const duration = Math.max(MIN_WINDUP_MS, Math.min(MAX_WINDUP_MS, fx.ms));
+    // The attacker winds back over the same time as its telegraph, peaking as the swing lands.
+    this.host.view(fx.by)?.cues?.windupStart(fx.a, duration, now, spec.shape.kind === "arc" ? "melee" : "wand");
     const g = this.acquireGraphics(DEPTH_FX);
     if (spec.shape.kind === "arc") {
       g.fillStyle(spec.color, 0.2).lineStyle(1.5, spec.color, 0.85);
@@ -322,9 +429,11 @@ export class FxView {
 
   /** The landed swing: the swept sector, from where the attacker was drawn when it swung. */
   private swing(fx: FxOf<"swing">, now: number): void {
-    this.cancelWindup(fx.by);
+    this.cancelWindup(fx.by, now);
     const shape = WEAPONS[fx.weapon]?.shape;
     if (shape?.kind !== "arc" || !Number.isFinite(fx.x) || !Number.isFinite(fx.y) || !Number.isFinite(fx.a)) return;
+    // After the cancel above, which lets the wound-up pose go: the swing carries on from where it was.
+    this.host.view(fx.by)?.cues?.swing(fx.a, now);
     const color = WEAPONS[fx.weapon].color;
     const reach = shape.reach + PLAYER_RADIUS;
     const g = this.acquireGraphics(DEPTH_FX);
@@ -349,6 +458,7 @@ export class FxView {
     if (fx.by === null || !(fx.amount > 0)) return;
     const pos = this.host.position(fx.id);
     if (!pos) return;
+    if (!dot && fx.sig === undefined) this.blow(fx, pos, now);
     let amount = Math.max(1, Math.round(fx.amount));
     let color: string;
     let size: number;
@@ -369,6 +479,39 @@ export class FxView {
       kind: "number", g: null, text, start: now, duration: HIT_NUMBER_MS, id: fx.id, x: pos.x, y: pos.y,
       a: (lane - (HIT_LANES - 1) / 2) * HIT_LANE_PX,
     });
+  }
+
+  /**
+   * What a blow does to the one it lands on, beyond the flash and the number: the figure is shoved and pops, a bloom and a
+   * few dots fly off, and, for the local player's own blows (landed or taken), the screen reacts (hit-stop, shake).
+   */
+  private blow(fx: FxOf<"hit">, pos: { x: number; y: number }, now: number): void {
+    const from = fx.by === null ? undefined : this.host.position(fx.by);
+    const away = from && (from.x !== pos.x || from.y !== pos.y) ? Math.atan2(pos.y - from.y, pos.x - from.x) : null;
+    this.host.view(fx.id)?.cues?.hit(away, now);
+    if (this.impacts < IMPACT_MAX && (juiceScale("flash") > 0 || juiceScale("motion") > 0)) {
+      const g = this.acquireGraphics(DEPTH_FX);
+      const color = fx.weapon ? WEAPONS[fx.weapon]?.color ?? 0xffffff : 0xffffff;
+      this.active.push({
+        kind: "impact", g, text: null, start: now, duration: IMPACT_MS, id: fx.id, x: pos.x, y: pos.y, a: away ?? Number.NaN, c: color,
+      });
+      this.impacts++;
+    }
+    if (!this.fresh(fx.t)) return;
+    if (fx.id === this.host.localId) this.host.localHurt?.(fx);
+    else if (fx.by === this.host.localId) this.host.localLanded?.(fx);
+  }
+
+  /** An event for the screen to react to now: not one replayed after a stall, which would shake the camera all at once. */
+  private fresh(t: number): boolean {
+    return !this.synced || this.renderT - t <= FRESH_MS;
+  }
+
+  /** A projectile left: kick back whoever it left from, the one drawn nearest its origin. */
+  private launch(fx: LaunchCue, now: number): void {
+    if (!this.fresh(fx.t)) return;
+    const id = this.host.nearestFighter?.(fx.x, fx.y, LAUNCH_NEAR);
+    if (id !== undefined) this.host.view(id)?.cues?.launch(fx.a, now);
   }
 
   /**
@@ -560,16 +703,22 @@ export class FxView {
     this.active.push({ kind: "float", g: null, text: t, start: now, duration: FLOAT_MS, id, x: pos.x, y: pos.y, a: lift });
   }
 
-  /** Drops the telegraph a fighter is showing (its swing landed, or a stagger, a death or a swap cancelled it); everyone's when `by` is omitted. */
-  private cancelWindup(by?: string): void {
+  /**
+   * Drops the telegraph a fighter is showing (its swing landed, or a stagger, a death or a swap cancelled it); everyone's
+   * when `by` is omitted. The fighter's wound-up pose (juice) lets go with it.
+   */
+  private cancelWindup(by: string | undefined, now: number): void {
     const a = this.active;
     for (let i = a.length - 1; i >= 0; i--) {
       const e = a[i]!;
       if ((e.kind !== "windup" && e.kind !== "cast") || (by !== undefined && e.id !== by)) continue;
+      if (by === undefined) this.host.view(e.id)?.cues?.windupEnd(now);
       this.release(e);
       a[i] = a[a.length - 1]!;
       a.pop();
     }
+    // Also when the telegraph itself is already gone: the pose holds a little past its windup.
+    if (by !== undefined) this.host.view(by)?.cues?.windupEnd(now);
   }
 
   /** Re-reads the followed fighter's drawn position into `e` and moves its graphics there. */
@@ -632,6 +781,26 @@ export class FxView {
           e.g!.setPosition(projX(e.x), projY(e.y, BODY_LIFT)).setScale(1 + (e.a - 1) * grow).setAlpha(1 - p);
           break;
         }
+        case "impact": {
+          const pos = this.host.position(e.id);
+          if (pos) { e.x = pos.x; e.y = pos.y; }
+          e.g!.setPosition(projX(e.x), projY(e.y, BODY_LIFT));
+          drawImpact(e.g!, e, p);
+          break;
+        }
+        case "dust": {
+          // Drifts out and up while it swells and fades.
+          const k = easeOutCubic(p);
+          e.g!.setPosition(projX(e.x) + Math.cos(e.a) * 9 * k, projY(e.y, 4 * k) + Math.sin(e.a) * Y_SCALE * 9 * k)
+            .setScale(0.7 + 0.9 * p).setAlpha(0.6 * (1 - p));
+          break;
+        }
+        case "ripple": {
+          // Out to 1.6x its size (not at all under reduced motion: it only fades), thinning as it goes.
+          const grow = lerp(1, 0.35 + 1.25 * easeOutCubic(p), juiceScale("motion") > 0 ? 1 : 0);
+          e.g!.setScale(grow).setAlpha(0.9 * (1 - p) * juiceScale("flash"));
+          break;
+        }
         case "heal":
         case "float":
         case "number": {
@@ -659,6 +828,8 @@ export class FxView {
   }
 
   private release(e: Active): void {
+    if (e.kind === "impact") this.impacts--;
+    else if (e.kind === "dust") this.dusts--;
     if (e.g) {
       e.g.clear().setVisible(false);
       if (this.freeGraphics.length < POOL_MAX) this.freeGraphics.push(e.g);
@@ -671,5 +842,31 @@ export class FxView {
       else e.text.destroy();
       e.text = null;
     }
+  }
+}
+
+/**
+ * One blow's burst, redrawn each frame (a handful of circles): a white bloom round the body that fades fast, and dots that
+ * fly off away from the attacker (all round when its direction is unknown), shrinking as they go. `e.a` is the ground angle
+ * they fan around, `e.c` the weapon's colour. The dots are motion (none under reduced motion); the bloom is a flash.
+ */
+function drawImpact(g: Phaser.GameObjects.Graphics, e: Active, p: number): void {
+  g.clear();
+  const flash = juiceScale("flash");
+  if (p < IMPACT_BLOOM && flash > 0) {
+    const k = 1 - p / IMPACT_BLOOM;
+    g.fillStyle(0xffffff, IMPACT_BLOOM_ALPHA * k * k * Math.min(1, flash)).fillCircle(0, 0, PLAYER_RADIUS + 3);
+  }
+  const m = juiceScale("motion");
+  if (m <= 0) return;
+  const spread = Number.isFinite(e.a);
+  const out = easeOutCubic(p) * m;
+  const size = 2.6 * (1 - p) + 0.5;
+  const alpha = 1 - p * p;
+  for (let i = 0; i < IMPACT_DOTS; i++) {
+    const ang = spread ? e.a + (i - (IMPACT_DOTS - 1) / 2) * 0.5 : (i / IMPACT_DOTS) * Math.PI * 2 + 0.4;
+    const reach = (14 + (i % 3) * 6) * out;
+    g.fillStyle(i % 2 === 0 ? e.c ?? 0xffffff : 0xffffff, alpha)
+      .fillCircle(Math.cos(ang) * reach, Math.sin(ang) * Y_SCALE * reach, size);
   }
 }

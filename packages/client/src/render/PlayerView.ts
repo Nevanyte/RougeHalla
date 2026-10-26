@@ -4,7 +4,8 @@ import {
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
-import { BodyFlash, FighterArt, HpBar, factionColor, heldWeapon } from "./FighterArt";
+import { BodyFlash, FighterArt, HpBar, factionColor, heldWeapon, type FighterFields } from "./FighterArt";
+import { FigureJuice, type DustSink } from "./FigureJuice";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
 import { MarksMemory } from "./signatureLook";
@@ -77,12 +78,17 @@ export class PlayerView {
   /** The look word `look` was decoded from; -1 (never a uint32) until the first update, so even word 0 is decoded once. */
   private lookWord = -1;
   private look: Look | null = null;
+  /** The fields the art reads, with the facing replaced: reused every frame a predicted facing is shown. */
+  private readonly faced: FighterFields = { facing: 0, faction: "", weapon0: "", weapon1: "", slot: 0, drawStartedAt: 0, stacksAs: 0 };
   private usingFaction: string | undefined;
   private usingWeapon: string | undefined;
   private factionGold = false;
   private trail: TrailView | null = null;
+  /** Juice: the figure's pose (anticipation, lunge, squash and stretch); FxView sends its cues through `cues`. */
+  private readonly fig: FigureJuice;
+  readonly cues: FigureJuice["pose"];
 
-  constructor(private readonly scene: Phaser.Scene, readonly isLocal: boolean) {
+  constructor(private readonly scene: Phaser.Scene, readonly isLocal: boolean, puffs?: DustSink) {
     const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
     // Local player: a ring around the feet, so it stays recognisable whatever its faction colour is.
     const mark = scene.add.graphics().setVisible(isLocal);
@@ -121,6 +127,13 @@ export class PlayerView {
       shadow, mark, this.signatures.ground, this.goldHalo, this.art.ground, this.body, this.barrierRing, this.core, this.nose,
       this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.g, this.label, this.crown, this.crownLabel, this.title,
     ]);
+    this.fig = new FigureJuice([
+      { obj: this.body, y0: -BODY_LIFT, scaled: true }, { obj: this.core, y0: -BODY_LIFT, scaled: true },
+      { obj: this.goldHalo, y0: 0, scaled: true }, { obj: this.barrierRing, y0: 0, scaled: true },
+      { obj: this.shieldRing, y0: 0, scaled: true }, { obj: this.nose, y0: -BODY_LIFT, scaled: false },
+      { obj: this.art.held, y0: -BODY_LIFT, scaled: false }, { obj: this.signatures.aura, y0: 0, scaled: false },
+    ], this.art, puffs);
+    this.cues = this.fig.pose;
   }
 
   /** Paints the body white for a moment (a hit landed on this player). */
@@ -143,8 +156,12 @@ export class PlayerView {
    * `renderT`: the server time this frame is drawn at. `patchT`: the server time of the newest patch (see FighterArt).
    * `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them.
    * `signatures`: draw the faction signature marks (the synced values freeze when a run ends, so only while it is active).
+   * `facing`: the local player's predicted facing (net/localMotion.ts), which replaces the synced one while it walks; null for the synced one.
    */
-  update(x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false, signatures = false): void {
+  update(
+    x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false, signatures = false,
+    facing: number | null = null,
+  ): void {
     const now = performance.now();
     // The look is set once at join and never changes in a run, so this decodes once per player.
     if (p.look !== this.lookWord) this.applyLook(p.look);
@@ -154,6 +171,7 @@ export class PlayerView {
     if (!visible) {
       this.trail?.reset();
       this.marks.read(0, 0, false);
+      this.fig.reset();
       return;
     }
     this.flashing.setColor(factionColor(p.faction));
@@ -162,8 +180,10 @@ export class PlayerView {
     // Before art.update(), so a golden weapon look is on the very frame the weapon is drawn.
     const held = heldWeapon(p);
     this.setUsing({ faction: p.faction || undefined, weapon: held ?? undefined });
-    const weapon = this.art.update(p, renderT, patchT);
-    this.nose.setVisible(weapon === null).setRotation(screenAngle(p.facing));
+    const face = facing ?? p.facing;
+    this.fig.frame(x, y, face, renderT, now); // juice: before the art, which reads the weapon's turn
+    const weapon = this.art.update(facing === null ? p : this.facedAs(p, facing), renderT, patchT);
+    this.nose.setVisible(weapon === null).setRotation(screenAngle(face));
     this.label.setText(p.name);
     // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
     this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
@@ -190,6 +210,19 @@ export class PlayerView {
 
     if (this.factionGold) this.goldHalo.setAlpha(GOLD_PULSE_MIN + (1 - GOLD_PULSE_MIN) * (0.5 + 0.5 * Math.sin(now / GOLD_PULSE_MS)));
     this.trail?.update(x, y, now);
+  }
+
+  /** The art's view of `p` with `facing` in place of the synced one. */
+  private facedAs(p: PlayerState, facing: number): FighterFields {
+    const f = this.faced;
+    f.facing = facing;
+    f.faction = p.faction;
+    f.weapon0 = p.weapon0;
+    f.weapon1 = p.weapon1;
+    f.slot = p.slot;
+    f.drawStartedAt = p.drawStartedAt;
+    f.stacksAs = p.stacksAs;
+    return f;
   }
 
   /** Decodes `word` and restyles the skin core, title and trail. Runs on the first update and whenever the word changes. */

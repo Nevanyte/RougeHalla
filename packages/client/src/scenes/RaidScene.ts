@@ -1,10 +1,14 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
-import { angleBetween, generateMap, unpackFx, unpackLaunches, withGates, type FxBatch, type RunResult } from "@raid/shared";
+import {
+  AIM_STALE_MS, angleBetween, generateMap, TARGET_RANGE, unpackFx, unpackLaunches, withGates, type FxBatch, type GameMap,
+  type RunResult,
+} from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
 import { EntityInterpolator } from "../net/interpolation";
+import { LocalPrediction } from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView } from "../render/ContainerView";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
@@ -14,6 +18,7 @@ import { MobView } from "../render/MobView";
 import { PlayerView } from "../render/PlayerView";
 import { ProjectileView } from "../render/ProjectileView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
+import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
 import { LockDisplay, pickTarget, type TargetCandidate } from "../render/targeting";
 import { Hud } from "../ui/hud";
@@ -84,12 +89,26 @@ export class RaidScene extends Phaser.Scene {
   private lastMoveSentAt = 0;
   /** What the player just ordered (target, move, stop), shown until the synced `attackTarget` catches up. */
   private readonly lockDisplay = new LockDisplay();
+  /**
+   * Where the local fighter is drawn: a prediction (net/localMotion.ts), walked at once on an order and kept in line with the
+   * server's samples, instead of the delayed snapshot everyone else is drawn from. Orders carry its `seq`.
+   */
+  private readonly predict = new LocalPrediction();
+  private lastFrameAt = 0;
+  /** Scratch: the other players, handed to the prediction while the local fighter is chilled. */
+  private readonly others: PlayerState[] = [];
+  /** Dev tooling (window.__raid.latency): ms from each right-click to the first frame the local fighter's drawn position moved. */
+  private readonly latency: number[] = [];
+  private clickAt = 0;
+  private readonly clickFrom = { x: 0, y: 0 };
   /** Scratch list for pickTarget; refilled by targetCandidates(). */
   private readonly candidates: TargetCandidate[] = [];
   /** The fighter a left click would lock right now, and the one drawn as locked ("" = none); read by dev tooling (window.__raid). */
   hoverId = "";
   lockId = "";
   private fx!: FxView;
+  /** Juice (render/juice.ts): the hit-stop that holds the world's draw time and the camera shake. */
+  private juice!: ScreenJuice;
   private unbindFx: (() => void) | null = null;
   private readonly warnDropped = dropWarner();
   private unbindResult: (() => void) | null = null;
@@ -120,6 +139,7 @@ export class RaidScene extends Phaser.Scene {
   private readonly onState = (state: RaidState) => {
     this.interp.onPatch(state, performance.now());
     this.noteWeaponChanges(state);
+    this.observeLocal(state);
   };
   private readonly onKeyDown = (e: KeyboardEvent) => this.handleKey(e);
 
@@ -148,6 +168,10 @@ export class RaidScene extends Phaser.Scene {
     this.clockSynced = false;
     this.aimKnown = false;
     this.lockDisplay.reset();
+    this.predict.reset();
+    this.lastFrameAt = 0;
+    this.latency.length = 0;
+    this.clickAt = 0;
     this.hoverId = "";
     this.lockId = "";
     this.lastAimSent = null;
@@ -162,10 +186,14 @@ export class RaidScene extends Phaser.Scene {
     this.highlight = new ContainerHighlight(this);
     this.rings = new TargetRings(this);
     this.projectiles = new ProjectileView(this);
+    this.juice = new ScreenJuice(this.cameras.main);
     this.fx = new FxView(this, {
       localId: this.room.sessionId,
       view: (id) => this.views.get(id) ?? this.mobViews.get(id),
       position: (id) => this.rendered.get(id),
+      localLanded: () => this.juice.landed(performance.now()),
+      localHurt: (fx) => this.juice.hurt(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0),
+      nearestFighter: (x, y, within) => this.nearestFighter(x, y, within),
       name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
       mobKind: (id) => this.room.state.mobs.get(id)?.kind,
       projectileEnded: (id) => this.projectiles.finish(id),
@@ -200,7 +228,22 @@ export class RaidScene extends Phaser.Scene {
     window.addEventListener("keydown", this.onKeyDown);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
-    if (import.meta.env.DEV) (window as unknown as { __raid?: unknown }).__raid = { scene: this, room: this.room };
+    if (import.meta.env.DEV) {
+      // latency: ms from a right-click to the first frame the local fighter moved on screen; motion: the prediction's state.
+      const motion = this.predict.motion;
+      const tools = {
+        scene: this,
+        room: this.room,
+        latency: this.latency,
+        get motion() {
+          return {
+            delay: motion.delay, mode: motion.mode, visual: motion.visualOffset, walking: motion.walking, pending: motion.pendingOrders,
+            ready: motion.ready,
+          };
+        },
+      };
+      (window as unknown as { __raid?: unknown }).__raid = tools;
+    }
   }
 
   update(time: number): void {
@@ -216,7 +259,10 @@ export class RaidScene extends Phaser.Scene {
     this.trainingBar?.update(now);
     // The one place render time is read: it consumes the clock's pending patch, so everything else this frame
     // (fx playback, input timestamps between frames) reuses these values.
-    const renderT = this.interp.renderTime(now);
+    const trueT = this.interp.renderTime(now);
+    // Juice: the world (remote fighters, projectiles, fx) is drawn at renderT, which a hit-stop holds briefly behind trueT
+    // after the local player lands a hit. The local fighter is drawn from trueT, so its movement and turning never stall.
+    const renderT = this.juice.worldTime(trueT, now);
     this.renderT = renderT;
     this.clockSynced = this.interp.clock.synced;
     // The estimated present, not renderT (100 ms behind it): deadlines and cooldowns are server-time values about now.
@@ -227,6 +273,8 @@ export class RaidScene extends Phaser.Scene {
     if (pointer.rightButtonDown() && this.pointerStartedOnCanvas(pointer) && time - this.lastMoveSentAt >= MOVE_REPEAT_MS) {
       this.sendMove(pointer, false);
     }
+    // After this frame's orders, before anything reads the local fighter's position.
+    this.stepLocal(now, state);
 
     const patchT = state.serverTime;
     // The sim freezes `sig` and `brand` when a run ends, so the signature marks are only drawn while it is active.
@@ -235,9 +283,13 @@ export class RaidScene extends Phaser.Scene {
     state.players.forEach((p, id) => {
       seen.add(id);
       let view = this.views.get(id);
-      if (!view) { view = new PlayerView(this, id === this.room.sessionId); this.views.set(id, view); }
-      this.sampleDrawn(id, renderT, p);
-      view.update(this.tmp.x, this.tmp.y, p, renderT, patchT, this.deathPending(id), signatures);
+      if (!view) { view = new PlayerView(this, id === this.room.sessionId, this.fx); this.views.set(id, view); }
+      const drawT = id === this.room.sessionId ? trueT : renderT; // juice: the local fighter is not held by a hit-stop
+      // The local fighter is drawn from its prediction while it fights on its feet; everyone else, and it when it does not, from the snapshots.
+      const predicted = id === this.room.sessionId && this.predicting(p, state);
+      if (predicted) this.placeDrawn(id, this.predict.motion.drawn);
+      else this.sampleDrawn(id, drawT, p);
+      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, predicted ? this.predict.motion.facing() : null);
       if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.tmp.x), projY(this.tmp.y));
     });
     for (const [id, view] of this.views) {
@@ -247,7 +299,7 @@ export class RaidScene extends Phaser.Scene {
     state.mobs.forEach((m, id) => {
       seenMobs.add(id);
       let view = this.mobViews.get(id);
-      if (!view) { view = new MobView(this); this.mobViews.set(id, view); }
+      if (!view) { view = new MobView(this, this.fx); this.mobViews.set(id, view); }
       this.sampleDrawn(id, renderT, m);
       view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, signatures);
     });
@@ -290,6 +342,95 @@ export class RaidScene extends Phaser.Scene {
     if (!drawn) { drawn = { x: 0, y: 0 }; this.rendered.set(id, drawn); }
     drawn.x = this.tmp.x;
     drawn.y = this.tmp.y;
+  }
+
+  /** Like sampleDrawn for a position already known: the local fighter's prediction. */
+  private placeDrawn(id: string, at: { x: number; y: number }): void {
+    this.tmp.x = at.x;
+    this.tmp.y = at.y;
+    let drawn = this.rendered.get(id);
+    if (!drawn) { drawn = { x: 0, y: 0 }; this.rendered.set(id, drawn); }
+    drawn.x = at.x;
+    drawn.y = at.y;
+  }
+
+  /**
+   * Is the local fighter drawn from its prediction: on its feet in a running fight, and not while the screen still shows the
+   * world from before a teleport (it is drawn from the snapshots until the cut, like everyone else).
+   */
+  private predicting(p: PlayerState, state: RaidState): boolean {
+    return p.status === "alive" && state.phase === "active" && this.predict.motion.ready && !this.beforeTeleport();
+  }
+
+  /** The client clock that stamps orders and patches: the estimated server time now. */
+  private localClock(now: number): number {
+    return this.interp.clock.synced ? this.interp.clock.now(now) : this.room.state.serverTime;
+  }
+
+  /** The walls the server walks and plans on: the gates are walls from the first teleport. Null before the map is built. */
+  private planMap(): GameMap | null {
+    const map = this.mapView?.map;
+    return map ? (this.room.state.gatesLocked ? withGates(map) : map) : null;
+  }
+
+  /** The cursor's aim is being streamed: the server turns the fighter to the cursor, not to the way it walks. */
+  private aimStreaming(now: number): boolean {
+    return this.lastAimSentAt > 0 && now - this.lastAimSentAt < AIM_STALE_MS;
+  }
+
+  /** A patch arrived: the local fighter's server state (position, last applied order) goes to the prediction. */
+  private observeLocal(state: RaidState): void {
+    const me = state.players?.get(this.room.sessionId);
+    if (me) this.predict.motion.observe({ x: me.x, y: me.y, t: state.serverTime, moveSeq: me.moveSeq }, this.localClock(performance.now()));
+  }
+
+  /** Once per frame, after the orders this frame sent: walks the prediction on. */
+  private stepLocal(now: number, state: RaidState): void {
+    const dt = this.lastFrameAt > 0 ? now - this.lastFrameAt : 0;
+    this.lastFrameAt = now;
+    const me = state.players.get(this.room.sessionId);
+    if (!me) return;
+    // Only a chilled fighter needs to know where the others are.
+    const others = this.others;
+    others.length = 0;
+    if (me.sig !== 0) state.players.forEach((p, id) => { if (id !== this.room.sessionId) others.push(p); });
+    const c = this.localClock(now);
+    const active = me.status === "alive" && state.phase === "active";
+    const motion = this.predict.motion;
+    motion.frame(c, dt, this.predict.frameInput(c, active, me, others, this.aimStreaming(now)));
+    if (import.meta.env.DEV && this.clickAt > 0 && Math.hypot(motion.drawn.x - this.clickFrom.x, motion.drawn.y - this.clickFrom.y) > 0.05) {
+      this.latency.push(Math.round(now - this.clickAt));
+      this.clickAt = 0;
+    }
+  }
+
+  /**
+   * The player ordered a walk (`move` to a point) or a halt (`stop`): the prediction takes it at once, the server hears it
+   * with the same order number (it echoes it back when it applies it), and the telegraph of an attack the lock was winding up
+   * goes now, as the server cancels the attack.
+   */
+  private orderMove(kind: "move" | "stop", to?: { x: number; y: number }): void {
+    const now = performance.now();
+    const c = this.localClock(now);
+    const seq = this.predict.nextSeq();
+    const map = this.planMap();
+    if (map) this.predict.motion.order(kind, seq, c, to, map);
+    if (kind === "move" && to) sendInput(this.room, "move", { x: to.x, y: to.y, seq });
+    else sendInput(this.room, "stop", { seq });
+    this.fx.dropWindups(this.room.sessionId, c, now);
+  }
+
+  /** A lock on `id` was ordered: the prediction hands over to the server's chase, and what the old lock was winding up is dropped. */
+  private orderTarget(id: string): void {
+    // The one already locked is ignored by the server; one too far away is refused: neither changes anything.
+    const me = this.rendered.get(this.room.sessionId);
+    const at = this.rendered.get(id);
+    if (id === this.lockId || !me || !at || Math.hypot(at.x - me.x, at.y - me.y) > TARGET_RANGE) return;
+    const now = performance.now();
+    const c = this.localClock(now);
+    const map = this.planMap();
+    if (map) this.predict.motion.order("target", 0, c, undefined, map);
+    this.fx.dropWindups(this.room.sessionId, c, now);
   }
 
   private syncContainers(state: RaidState): void {
@@ -351,13 +492,20 @@ export class RaidScene extends Phaser.Scene {
     if (this.beforeTeleport()) return;
     pointer.updateWorldPoint(this.cameras.main);
     const target = unproject(pointer.worldX, pointer.worldY);
-    sendInput(this.room, "move", target);
+    this.orderMove("move", target);
+    if (import.meta.env.DEV && showMarker) {
+      const me = this.rendered.get(this.room.sessionId);
+      this.clickAt = performance.now();
+      this.clickFrom.x = me?.x ?? 0;
+      this.clickFrom.y = me?.y ?? 0;
+    }
     this.lockDisplay.note("", performance.now());
     this.lastMoveSentAt = this.time.now;
     if (showMarker) {
       this.marker.setPosition(projX(target.x), projY(target.y)).setVisible(true).setAlpha(1).setScale(1);
       this.tweens.killTweensOf(this.marker);
       this.tweens.add({ targets: this.marker, alpha: 0, scale: 0.4, duration: 450 });
+      this.fx.ripple(target.x, target.y, performance.now()); // juice: a ring spreading from the marker
     }
   }
 
@@ -379,6 +527,17 @@ export class RaidScene extends Phaser.Scene {
     return unproject(cam.scrollX + pointer.x, cam.scrollY + pointer.y + AIM_HEIGHT);
   }
 
+  /** The fighter (player or mob) drawn nearest ground point (x, y), within `within` units; the one an arrow or a ball left from. */
+  private nearestFighter(x: number, y: number, within: number): string | undefined {
+    let best: string | undefined;
+    let bestSq = within * within;
+    for (const [id, at] of this.rendered) {
+      const sq = (at.x - x) * (at.x - x) + (at.y - y) * (at.y - y);
+      if (sq < bestSq) { best = id; bestSq = sq; }
+    }
+    return best;
+  }
+
   /**
    * A swap, or a pickup that replaces the weapon in hand, cancels the fighter's action on the server without an fx, so
    * its telegraph would play to the end. FxView drops it once render time reaches this patch, i.e. after any windup
@@ -389,7 +548,10 @@ export class RaidScene extends Phaser.Scene {
       const hand = `${p.slot}:${p.slot === 1 ? p.weapon1 : p.weapon0}`;
       const before = this.inHand.get(id);
       this.inHand.set(id, hand);
-      if (before !== undefined && before !== hand) this.fx.cancelWindups(id, state.serverTime);
+      if (before !== undefined && before !== hand) {
+        this.fx.cancelWindups(id, state.serverTime);
+        if (id === this.room.sessionId) this.predict.noteWeaponChange(state.serverTime);
+      }
     });
   }
 
@@ -422,6 +584,7 @@ export class RaidScene extends Phaser.Scene {
     const id = pickTarget(this.cursorGround(pointer), this.targetCandidates());
     if (id === null) return;
     sendInput(this.room, "target", { id });
+    this.orderTarget(id);
     this.lockDisplay.note(id, performance.now());
   }
 
@@ -437,6 +600,7 @@ export class RaidScene extends Phaser.Scene {
     this.rings.update(
       this.hoverId && this.hoverId !== this.lockId ? this.rendered.get(this.hoverId) ?? null : null,
       this.lockId ? this.rendered.get(this.lockId) ?? null : null,
+      this.lockId, now,
     );
   }
 
@@ -498,7 +662,7 @@ export class RaidScene extends Phaser.Scene {
     }
     // Physical keys (e.code), not the produced character, so shortcuts keep working on non-Latin layouts.
     if (e.code === "KeyS") {
-      sendInput(this.room, "stop", {});
+      this.orderMove("stop");
       this.lockDisplay.note("", performance.now());
       return;
     }
@@ -521,8 +685,12 @@ export class RaidScene extends Phaser.Scene {
   }
 
   private onFxBatch(batch: FxBatch): void {
-    for (const launch of unpackLaunches(batch)) this.projectiles.noteLaunch(launch);
+    for (const launch of unpackLaunches(batch)) {
+      this.projectiles.noteLaunch(launch);
+      this.fx.noteLaunch(launch); // juice: the shooter's recoil
+    }
     for (const fx of unpackFx(batch, this.room.state.roster, this.warnDropped)) {
+      this.predict.noteFx(fx, this.room.sessionId, this.room.state.players.get(this.room.sessionId));
       // Training puts a fighter who goes down back on its feet: no body, no decal, no "was killed" line, no death screen.
       if (fx.kind === "death" && this.training && fx.id === this.room.sessionId) {
         this.fx.cancelWindups(fx.id, fx.t);
@@ -545,6 +713,8 @@ export class RaidScene extends Phaser.Scene {
     this.unbindResult?.();
     this.unbindResult = null;
     this.fx.destroy();
+    this.predict.reset();
+    this.juice.reset();
     this.projectiles.destroy();
     this.input.removeAllListeners();
     this.input.keyboard?.removeAllListeners();
