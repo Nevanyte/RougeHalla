@@ -570,10 +570,10 @@ with them without naming a symbol this branch lacks.
 
 **Detection** (`perception.ts` `detectFeatures`, once per room; fills `Features`):
 - `CLIENT_MESSAGE_TYPES.includes(type)` at runtime;
-- schema fields by `key in instance`. Prototype accessors answer: checked here, `"barrier" in new PlayerState()` is true and
-  `"wishReadyAt"` is false;
-- shared exports by `(shared as unknown as Record<string, unknown>)["ABILITIES"]` after `import * as shared`, which is
-  `undefined` today;
+- schema fields by `key in instance`. Prototype accessors answer: checked here, `"barrier" in new PlayerState()` and
+  `"wishReadyAt"` are both true since Wishes merged. `skills` also needs an ability to be returned for the q or e slot
+  (`abilityInSlot`), which none is yet, so it is false though the schema carries `qReadyAt`/`eReadyAt`;
+- shared exports by `(shared as unknown as Record<string, unknown>)["ABILITIES"]` after `import * as shared`;
 - new fx kinds: `unpackFx` decodes whatever the shared codec knows, and perception passes kinds it does not name through as
   `ext`;
 - the map's hazard field by presence.
@@ -587,16 +587,31 @@ Wishes feature (`ext` fx and `extras.wish`).
 
 | Module | Percept extras | Behaviour |
 |---|---|---|
-| `wishes` (and R6 `skills`, same code for the q/e slots) | `wish`, `skills`, `effects`, `fields`; `ext` cast, castLand, castEnd, status | Builds the contract's `CastSituation` from the percept: me (hp share, effect bits, hit within 1.5 s), foe (the goal's target if visible), threat (the nearest visible enemy, "chasing" = velocity toward me with cos > 0.7 and closing). Calls the registered `CastPolicy` and emits a `cast` intent, timed as a reaction to the stimulus or a step. Never while casting, before `readyAt`, or (for units) on an untargetable foe. Memory turns `castLand` by X into `wishSeenAt`/`wishReadyGuess` |
+| `wishes` (and R6 `skills`, same code for the q/e slots) | `wish`, `skills`, `effects`, `fields`; `ext` cast, castLand, castEnd, status | Builds the contract's `CastSituation` from the percept: me (hp share, effect bits, hit within 1.5 s), foe (the goal's target if visible), threat (the nearest visible enemy, "chasing" = velocity toward me with cos > 0.7 and closing). Calls the shared `decideCast` and emits a `cast` intent, timed as a reaction to the stimulus or a step. Never while casting, before `readyAt`, or (for units) on an untargetable foe. Memory turns `castLand` by X into `wishSeenAt`/`wishReadyGuess`. Built: see below |
 | `planning` (R3) | `plan` (private message) | Reads for 2-4 s (Hard) or 4-8 s (Easy) of `PLAN_SECONDS` 12. Scores both spawns by `mobShare` of their nearest camps (the R3 brief) + `spawn|…` bias, picks a boon by bias, sends `plan {spawn, boon, ready}` |
 | `chests` (R5, relics R7) | `camps`, `chests` (options only within `CHEST_RANGE − 8` with line of sight, as the panel shows) | A cleared camp's chest within reach becomes a goal; the Opportunist rushes chests others are clearing. Reads for 1.5-4 s (half that when contested), picks by `skill|…`/`relic|…` bias + knowledge, skips by the D12 rule |
 | `hazards` (zone terrain) | Map hazard data (seed-derived) | Penalises flee, kite and hold points in hazards; a reflex "step out" when standing in a damaging one |
 
-**Adopting `decideCast`.** The Wishes module ships here with no policy of its own and is enabled only when `wishes` is
-detected. On merge, `brain/modules/wishesAdapter.ts` (one line) calls
-`registerCastPolicy((def, rank, s) => decideCast(def as AbilityDef, rank, s))`. `CastSituation` and `CastTarget` in types.ts
-mirror the contract's section 6 field for field, so the call passes straight through. Its `pickEnemy` rule (skip players
-failing `targetable`) is already perception's.
+**Adopting `decideCast` (built).** Wishes is merged, so `brain/modules/wishes.ts` calls the shared `decideCast` / `hidesCaster`
+(`bots/abilityPolicy.ts`, pure and shared-only) directly: the one import outside the brain's folder, allowed for that file alone
+(`boundary.test.ts`). It is registered in `modules/index.ts`, so every driver that asks `enabledModules(features)` gets it; the
+`registerCastPolicy` seam stays for a module that wants its policy injected. What the module does:
+- **Casting.** Builds the policy's `CastSituation` from the percept and memory only (the bot's hp share, bits and hit within 1.5 s;
+  the goal's target if drawn; the nearest drawn enemy player, "chasing" = walking at the bot, cos > 0.7 and closing, or hit it
+  within 1.5 s and stands within 150 u), and emits a `cast` intent once `now >= wish.readyAt`, not casting, at most every 1000 ms.
+  A unit cast carries `target`, `at` and the def's `snapRadius` and is resolved like a lock click (it can miss); a point or self
+  cast carries the cursor point (a self cast, the bot's own position). Timing: a reaction to the first of lowHp, hpLoss, windupAtMe,
+  drawAtMe, newThreat, incoming in this percept, else a step. Priority reflex below 55% hp, else combat.
+- **Tiers.** Hard and Normal use every intent. Easy keeps only escape and sustain (a panic button; Freeze and Trial never fire for
+  it), and remembers it 60% of the times the Wish becomes available (one `rng.decide` draw per availability).
+- **Swarm.** A cast whose def hides its caster arms a slip: from the decision until its click was sent plus the cast time plus
+  700 ms (or 2.5 s if it was never sent), and while the bot's own bits say hidden or casting, strategy is offered a module goal
+  `wishes/slip` at utility 1.4, and the module's reflex `move` away from the nearest enemy takes the order channel from any lock
+  that tactics asks for in the meantime. A hidden bot locks nobody: a swing would reveal it.
+- **Opponents' Wishes.** Memory counts a landing seen (`castLand`'s `by`) as `wishSeenAt` and guesses it ready 300 s on. Not used
+  for a goal penalty yet: a module can only add goal candidates (strategy keeps the best utility per key), so lowering a hunt of a
+  Frost player whose Freeze is up needs a hook in strategy. The client shows every fighter's Wish icon coloured when ready
+  (PlayerView), so perception could carry a plain `wishReady` per drawn fighter instead of a guess.
 
 ---
 

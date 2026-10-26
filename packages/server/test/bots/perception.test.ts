@@ -4,6 +4,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
+  ABILITIES, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_STUNNED,
   FACTION_IDS, factionEdge, generateMap, hasLineOfSight, INTERACT_RANGE, matchupScore, matchupTint, mulberry32, TICK_MS, Y_SCALE,
   type FxBatch, type FxEvent, type ProjectileLaunch, type Vec2,
 } from "@raid/shared";
@@ -353,16 +354,25 @@ describe("both drivers perceive the same", () => {
     const client = decodedCopy(server);
     for (const [state, player] of [[server, new PlayerState()], [client, client.players.get("me")!]] as const) {
       const f = detectFeatures({ state, player, map: testMap() });
-      expect(f).toEqual(featureSet({ messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup"] }));
+      // The merged schema: the Wish, the status bits and the areas exist; the Q/E fields are in the schema but no ability fills them.
+      expect(f).toEqual(featureSet({
+        messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "cast"],
+        wishes: true, statusEffects: true, fields: true, skills: false,
+      }));
       expect("barrier" in player).toBe(true);
-      expect("wishReadyAt" in player).toBe(false);
+      expect("wishReadyAt" in player).toBe(true);
+      expect("qReadyAt" in player && "eReadyAt" in player).toBe(true);
     }
-    // A Wishes-like branch: the fields on the instances, "cast" accepted.
+    // A branch with the fields on the instances and "cast" accepted: the Wish needs the shared catalog too (it is there), and the
+    // skills stay off while abilityInSlot(.., "q") has nothing to return.
     const wishy = detectFeatures({
       state: { players: new Map(), fields: new Map() }, player: { effects: 0, wishReadyAt: 0, qReadyAt: 0, eReadyAt: 0 }, map: null,
       messageTypes: ["move", "stop", "target", "swap", "pickup", "cast"],
     });
-    expect(wishy).toMatchObject({ statusEffects: true, fields: true, skills: true, wishes: false, planning: false, chests: false, hazards: false });
+    expect(wishy).toMatchObject({ statusEffects: true, fields: true, skills: false, wishes: true, planning: false, chests: false, hazards: false });
+    // Without "cast" accepted there is no Wish to press, whatever the schema carries.
+    expect(detectFeatures({ state: { players: new Map() }, player: { effects: 0, wishReadyAt: 0 }, map: null, messageTypes: ["move"] }))
+      .toMatchObject({ wishes: false, skills: false, statusEffects: true });
     expect(detectFeatures({ state: {}, player: null, map: { ...testMap(), hazards: [] } as never }).hazards).toBe(true);
   });
 });
@@ -406,6 +416,69 @@ describe("hidden and untargetable fighters (Features.statusEffects)", () => {
     expect(ids(p.fighters)).toEqual(["h", "u", "v"]);
     expect(p.fighters.every((f) => f.targetable)).toBe(true);
     expect(p.extras.effects).toBeUndefined();
+  });
+});
+
+// ============================================================================================================== the Wish slot
+
+describe("the Wish slot (Features.wishes)", () => {
+  const wishOn = featureSet({ wishes: true, statusEffects: true });
+  /** The bot at SELF with a Wish ready at `wishReadyAt`, and a rival that also has one (its ready time is public in the game, not in the Percept). */
+  const wishWorld = (faction: string, wishReadyAt: number, effects = 0): PlainState => {
+    const s = plainState();
+    s.players.set("me", Object.assign(plainPlayer({ name: "Me", ...SELF, faction, weapon0: "axe", effects }), { wishReadyAt }));
+    s.players.set("rival", Object.assign(plainPlayer({ name: "Rival", x: SELF.x + 150, y: SELF.y, faction: "frost", weapon0: "sword" }), { wishReadyAt: 777_000 }));
+    return s;
+  };
+  const wishOf = (faction: string, wishReadyAt: number, effects = 0, features: Features = wishOn) =>
+    lastOf(run(8, () => ({ state: wishWorld(faction, wishReadyAt, effects) }), { features })).extras.wish;
+
+  it("is the faction's Wish as shared names it, with its ready time as the weapon bar shows it", () => {
+    for (const [faction, ability] of [["frost", "freeze"], ["plague", "swarm"], ["sentenced", "trial"], ["fire", "blaze"], ["holy", "lastStand"]] as const) {
+      const w = wishOf(faction, 91_234.6)!;
+      expect(w.ability).toBe(ability);
+      expect(w.def).toBe(ABILITIES[ability]);
+      expect(w.rank).toBe(1);
+      expect(w.readyAt).toBe(91_234);
+      expect(w.casting).toBe(false);
+    }
+  });
+
+  it("says casting while the bot's own bits do (and only then)", () => {
+    expect(wishOf("plague", 0, EFFECT_CASTING)!.casting).toBe(true);
+    expect(wishOf("plague", 0, EFFECT_CASTING | EFFECT_STUNNED)!.casting).toBe(true);
+    expect(wishOf("plague", 0, EFFECT_STUNNED)!.casting).toBe(false);
+    expect(wishOf("plague", 0, EFFECT_HIDDEN)!.casting).toBe(false);
+  });
+
+  it("is absent without the feature, and for a faction that has no Wish", () => {
+    expect(wishOf("plague", 0, 0, featureSet({ statusEffects: true }))).toBeUndefined();
+    expect(wishOf("", 0)).toBeUndefined();
+    expect(wishOf("not-a-faction", 0)).toBeUndefined();
+  });
+
+  it("reads the ready time of the bot itself, never of another player", () => {
+    const plain = wishWorld("holy", 5000);
+    const { state, reads } = logged(plain);
+    const frame = perceive({ state }, { selfId: "me", map: testMap(), features: wishOn, lastMinimap: null });
+    expect(frame.extras.wish?.readyAt).toBe(5000);
+    expect(reads.get("player:me")!.has("wishReadyAt")).toBe(true);
+    expect(reads.get("player:rival")!.has("wishReadyAt")).toBe(false);
+  });
+
+  it("is plain data, and a plain state, its schema copy and a decoded client give the same Frame", () => {
+    const plain = wishWorld("fire", 123_456);
+    const frames = run(6, () => ({ state: wishWorld("fire", 123_456) }), { features: wishOn });
+    const wish = lastOf(frames).extras.wish!;
+    expect(structuredClone(lastOf(frames))).toEqual(lastOf(frames));
+    expect(wish.def).toEqual(JSON.parse(JSON.stringify(ABILITIES.blaze)));
+    const server = toSchemaState(plain);
+    const client = decodedCopy(server);
+    const ctx = { selfId: "me", map: testMap(), features: wishOn, lastMinimap: null };
+    const fs = perceive({ state: server }, ctx);
+    const fc = perceive({ state: client }, ctx);
+    expect(fs.extras.wish).toMatchObject({ ability: "blaze", readyAt: 123_456 });
+    expect(JSON.stringify(fs)).toBe(JSON.stringify(fc));
   });
 });
 

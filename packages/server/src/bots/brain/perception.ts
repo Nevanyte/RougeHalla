@@ -9,15 +9,15 @@
 // state.roster with unpackFx/unpackLaunches, exactly as RaidScene does.
 import * as shared from "@raid/shared";
 import {
-  CLIENT_MESSAGE_TYPES, decodeMult, hasLineOfSight, hpBarFractions, INTERACT_RANGE, isDot, isFactionId, isWeaponId,
-  TELEPORT_IMMUNITY_MS, unpackFx, unpackLaunches, WEAPONS, withGates,
+  abilityInSlot, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight, hpBarFractions, INTERACT_RANGE, isDot,
+  isFactionId, isWeaponId, TELEPORT_IMMUNITY_MS, unpackFx, unpackLaunches, WEAPONS, withGates,
   type FactionId, type FxBatch, type GameMap, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import {
   BOT_VIEW, FRAME_MARGIN, HP_QUANT, MINIMAP_QUANT, MINIMAP_REFRESH_MS, WORLD_RENDER_DELAY_MS,
   type ContainerSeen, type Features, type FieldView, type FighterId, type FighterSeen, type Frame, type HudView, type MinimapMob,
-  type MinimapView, type MobSeen, type ObservedEvent, type Perceive, type PerceptExtras, type ProjectileView, type SelfView,
+  type MinimapView, type MobSeen, type ObservedEvent, type Perceive, type PerceptExtras, type ProjectileView, type SelfView, type WishView,
 } from "./types";
 
 // ============================================================================================================ input shapes
@@ -71,6 +71,8 @@ export interface PlayerLike extends FighterLike {
   readonly stacksMs: number;
   readonly asMult: number;
   readonly speedMult: number;
+  /** The Wish's ready time (server ms, 0 = ready): the weapon bar's cooldown widget shows it. Read for the bot itself only. */
+  readonly wishReadyAt?: number;
 }
 
 export interface MobLike extends FighterLike {
@@ -229,6 +231,15 @@ function sharedExport(name: string): unknown {
   return name in exported ? exported[name] : undefined;
 }
 
+/** Does any faction have an ability in the Q or E slot? The schema carries the fields before the skills exist (R6), and until then they are unused. */
+function skillSlotsFilled(): boolean {
+  try {
+    return FACTION_IDS.some((faction) => abilityInSlot({ faction }, "q") !== null || abilityInSlot({ faction }, "e") !== null);
+  } catch {
+    return false;
+  }
+}
+
 function firstPlayer(state: object): object | null {
   const players = (state as { players?: unknown }).players as Iterable<readonly [string, object]> | undefined;
   if (!players || typeof (players as { [Symbol.iterator]?: unknown })[Symbol.iterator] !== "function") return null;
@@ -253,7 +264,7 @@ export function detectFeatures(probe: FeatureProbe): Features {
     fields: has(probe.state, "fields"),
     planning: accepts("plan"),
     chests: accepts("choose"),
-    skills: accepts("cast") && has(player, "qReadyAt") && has(player, "eReadyAt"),
+    skills: accepts("cast") && has(player, "qReadyAt") && has(player, "eReadyAt") && skillSlotsFilled(),
     relics: has(player, "build"),
     camps: has(probe.state, "camps"),
     hazards,
@@ -627,10 +638,22 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
 
   const extras: { -readonly [K in keyof PerceptExtras]: PerceptExtras[K] } = {};
   if (effects) extras.effects = effects;
+  const wish = ctx.features.wishes && me ? wishView(me) : null;
+  if (wish) extras.wish = wish;
   if (ctx.features.fields && state.fields) extras.fields = seeFields(state.fields, seen, sx, sy);
 
   return { t, self, hud, fighters, mobs: mobList, containers, projectiles, minimap, events, immediate, extras };
 };
+
+/** The Wish slot as the weapon bar's cooldown widget shows it: the faction's Wish, when it is ready, whether a cast is under way. */
+function wishView(me: PlayerLike): WishView | null {
+  const slot = abilityInSlot(me, "wish");
+  if (!slot) return null;
+  return {
+    ability: slot.def.id, def: slot.def, rank: slot.rank, readyAt: u32(me.wishReadyAt ?? 0),
+    casting: ((me.effects ?? 0) & EFFECT_CASTING) !== 0,
+  };
+}
 
 /**
  * Containers in the box, as ContainerView draws them: a chest shut or open, a loose weapon's icon, a body and its label. A

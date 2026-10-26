@@ -18,9 +18,8 @@
 //   announcement   subject = the fighter named, value = bounty for a bounty
 //   castSeen       subject = caster; chestUp = reward chest id; teleport/planOffer: none
 // `clickMissed` cannot be seen in a percept (the humanizer owns it) and is never emitted here.
-import * as shared from "@raid/shared";
 import {
-  ENGAGE_TRADE_SECONDS, MOB_LEASH_RADIUS, PLAYER_RADIUS, PLAYER_SPEED, RANGED_HIT_REACH,
+  ENGAGE_TRADE_SECONDS, MOB_LEASH_RADIUS, PLAYER_RADIUS, PLAYER_SPEED, RANGED_HIT_REACH, WISH_COOLDOWN_SECONDS,
   type FactionId, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import {
@@ -53,7 +52,6 @@ const CHASE_CLOSING = 20;
 const DRAW_SAME_MS = 200;
 /** A windup fx cancelled this long after its landing time is still a feint of that windup. */
 const FEINT_SLACK_MS = 400;
-const WISH_COOLDOWN_FALLBACK_S = 300;
 
 const MOB_AWAKE_U = 24;
 const MOB_CAMP_U = 40;
@@ -97,12 +95,6 @@ function aimedAt(origin: Vec2, angle: number, at: Vec2): boolean {
   if (d < 1) return true;
   const diff = Math.abs(angleDiff(angle, Math.atan2(at.y - origin.y, at.x - origin.x)));
   return diff < Math.PI / 2 && d * Math.sin(diff) <= AIM_LATERAL;
-}
-
-/** The Wishes cooldown, read off the shared exports when that branch has them (never named: it may not exist here). */
-function wishCooldownMs(): number {
-  const v = (shared as unknown as Record<string, unknown>)["WISH_COOLDOWN_SECONDS"];
-  return (typeof v === "number" && v > 0 ? v : WISH_COOLDOWN_FALLBACK_S) * 1000;
 }
 
 interface CampGeom {
@@ -189,7 +181,7 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
   const bounties = new Map<FighterId, number>();
   const choices: ChoiceKey[] = [];
   const selfMem: SelfMemory = {
-    lastHitAt: null, lastHitByPlayerAt: null, lastDealtAt: null, recentDamage: 0, recentHits: [], teleportedAt: null, lastOrder: null,
+    lastHitAt: null, lastHitByPlayerAt: null, lastDealtAt: null, recentDamage: 0, recentHits: [], teleportedAt: null, lastOrder: null, lastCast: null,
     stillSince: 0,
   };
   for (const g of geoms) camps.set(g.id, { id: g.id, zone: g.zone, elite: g.elite, aliveSeen: 0, clearedAt: null, contestedAt: null, visitedAt: null });
@@ -512,15 +504,21 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
     pickup = null;
   }
 
+  /**
+   * A Wish landing on screen: `castLand` = { by, ability, target, x, y, x2?, y2? } (shared FxEvent), `by` named only when the
+   * caster is drawn. A human counts the cooldown from the cast they saw. (`cast` and `castEnd` carry the same `by`, and `status`
+   * names its target as `id`: none of them is a landing.)
+   */
   function onExt(o: Obs, e: Ev<"ext">): void {
     if (e.fx !== "castLand") return;
-    const who = (["by", "id", "caster", "from"] as const).map((k) => e.data[k]).find((v): v is string => typeof v === "string") ?? null;
+    const by = e.data["by"];
+    const who = typeof by === "string" ? by : null;
     if (who === selfId) return;
     if (who !== null) {
       const f = fighters.get(who);
       if (f) {
         f.wishSeenAt = e.t;
-        f.wishReadyGuess = e.t + wishCooldownMs();
+        f.wishReadyGuess = e.t + WISH_COOLDOWN_SECONDS * 1000;
       }
     }
     o.emit("castSeen", who, e.at);
@@ -878,6 +876,10 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
     const c = tc.cmd;
     if (c.type === "pickup") {
       pickup = { id: c.msg.containerId, at: tc.at };
+      return;
+    }
+    if (c.type === "cast") {
+      selfMem.lastCast = tc;
       return;
     }
     if (c.type !== "move" && c.type !== "stop" && c.type !== "target") return;

@@ -224,6 +224,29 @@ describe("fighter memory", () => {
     expect(quiet.observe(at(T0, { fighters: [fighter()], events: [ext(T0, "cast", { by: "foe" }), ext(T0, "castLand", { by: "me" })] }))).not.toContainEqual(expect.objectContaining({ kind: "castSeen" }));
     expect(quiet.view.fighters.get("foe")!.wishSeenAt).toBeNull();
   });
+
+  it("reads the caster from `by`, the real castLand field, and nothing else: a status fx names its target as `id`", () => {
+    const m = mem();
+    const f = [fighter(), fighter({ id: "other", x: ME.x - 200 })];
+    m.observe(at(T0, { fighters: f, events: [
+      // A Freeze on the other fighter, cast by foe: `id` of a status fx is who it landed on, not who cast.
+      ext(T0 - 100, "status", { id: "other", status: "stun", ms: 1250, by: "foe" }),
+      ext(T0 - 50, "castLand", { by: "foe", ability: "freeze", target: "other", x: ME.x - 200, y: ME.y }),
+    ] }));
+    expect(m.view.fighters.get("foe")).toMatchObject({ wishSeenAt: T0 - 50, wishReadyGuess: T0 - 50 + 300_000 });
+    expect(m.view.fighters.get("other")!.wishSeenAt).toBeNull();
+  });
+
+  it("keeps the last cast the driver sent apart from the last order", () => {
+    const m = mem();
+    m.observe(at(T0, {}));
+    m.noteSent(sent(T0 + 10, { type: "move", msg: { x: ME.x, y: ME.y + 100 } }));
+    expect(m.view.self.lastCast ?? null).toBeNull();
+    const cast = sent(T0 + 500, { type: "cast", msg: { slot: "wish", x: ME.x, y: ME.y } });
+    m.noteSent(cast);
+    expect(m.view.self.lastCast).toBe(cast);
+    expect(m.view.self.lastOrder).toMatchObject({ cmd: { type: "move" } });
+  });
 });
 
 describe("whereabouts", () => {

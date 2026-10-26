@@ -1,7 +1,7 @@
 // brain.ts and modules/index.ts (docs/BOTS.md 4, 8): the tick loop that composes memory, strategy, tactics, the feature modules
 // and the humanizer. The layers have their own tests; these check what only the composition does: the cadence, the order of
 // the steps, the seq on orders, the missed-click round trip, the stall watch, the stats, the module seam and a long run.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BOT_VIEW, TIER_IDS, TIERS, PRIORITY } from "../../src/bots/brain/types";
 import { findPath, mulberry32, PLAYER_SPEED, TARGET_RANGE, type RunResult, type Vec2, type WeaponId } from "@raid/shared";
 import { createBrain } from "../../src/bots/brain/brain";
@@ -303,6 +303,8 @@ const castIntent = (priority: Intent["priority"] = PRIORITY.combat): Intent => (
   kind: "cast", slot: "wish", x: me.x + 100, y: me.y, priority, timing: { kind: "step" }, why: "fake cast",
 });
 
+// The registry starts with the built modules (the Wishes module): these tests are about the seam, with only their own modules in it.
+beforeEach(() => resetModules());
 afterEach(() => resetModules());
 
 // ================================================================================================================= tests

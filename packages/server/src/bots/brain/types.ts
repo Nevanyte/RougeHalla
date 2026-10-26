@@ -738,6 +738,8 @@ export interface SelfMemory {
   teleportedAt: ServerMs | null;
   /** The last order the driver sent, from Brain's own record (orderFailed / arrived detection). */
   lastOrder: TimedCommand | null;
+  /** The last `cast` the driver sent (its click time is `at`): a module that must know when a Wish went out reads it. */
+  lastCast?: TimedCommand | null;
   stillSince: ServerMs;
 }
 

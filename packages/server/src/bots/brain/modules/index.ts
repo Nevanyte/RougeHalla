@@ -1,8 +1,9 @@
-// The feature-module registry (docs/BOTS.md 8). A module (Wishes, planning, chests, skills, relics, hazards) registers itself
-// here when its file is imported; the driver hands `enabledModules(features)` to each brain as `BrainConfig.modules`, and the
-// brain calls only those. This file names no module: a module that needs a symbol the branch may lack reads it off Features,
-// PerceptExtras and `ext` events, and takes its policy through `registerCastPolicy` (the Wishes adapter, once that branch lands).
+// The feature-module registry (docs/BOTS.md 8). A module (Wishes, planning, chests, skills, relics, hazards) is registered here;
+// the driver hands `enabledModules(features)` to each brain as `BrainConfig.modules`, and the brain calls only those. A module
+// that needs a symbol the branch may lack reads it off Features, PerceptExtras and `ext` events. The modules that are built are
+// registered at the bottom of this file, so every caller of `enabledModules` gets them without naming them.
 import type { CastPolicy, FeatureModule, Features } from "../types";
+import { wishesModule } from "./wishes";
 
 const modules = new Map<string, FeatureModule>();
 let castPolicy: CastPolicy | null = null;
@@ -19,7 +20,10 @@ export function enabledModules(features: Features): readonly FeatureModule[] {
   return out;
 }
 
-/** `decideCast` of the Wishes branch, behind an opaque definition. The last one registered is the one used. */
+/**
+ * A cast policy behind an opaque definition, for a module that takes its policy from outside. The Wishes module calls the shared
+ * `decideCast` itself (the one import outside the brain's folder, allowed by test/bots/boundary.test.ts) and does not read this.
+ */
 export function registerCastPolicy(p: CastPolicy): void {
   castPolicy = p;
 }
@@ -33,3 +37,5 @@ export function resetModules(): void {
   modules.clear();
   castPolicy = null;
 }
+
+registerModule(wishesModule);
