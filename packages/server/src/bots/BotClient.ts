@@ -13,14 +13,14 @@
 // handling: after the teleport there are no mobs in reach and the bot just keeps hunting players.
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  abilityInSlot, bestSlot, EFFECT_HIDDEN, EFFECT_UNTARGETABLE, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, isFactionId,
+  abilityInSlot, bestSlot, rankOf, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_UNTARGETABLE, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, isFactionId,
   isWeaponId, lockSpacing, PLAYER_RADIUS,
   PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
   type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions,
   type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
-import { decideCast, type CastSituation } from "./abilityPolicy";
+import { decideCast, hidesCaster, type CastSituation } from "./abilityPolicy";
 import { bestSlotVsMob, mobWeapon, pathLength, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
 
 type ClientRoom = Room<any, RaidState>;
@@ -143,6 +143,12 @@ const PICKUP_DISTANCE = INTERACT_RANGE - 12;
 
 /** A Wish is tried at most this often (ms): a refused or fizzled cast costs nothing, so it is simply asked again. */
 const WISH_TRY_MS = 1000;
+/**
+ * After a Wish that hides its caster is sent (Swarm), the bot slips away instead of fighting for the cast's own time plus this (ms), so
+ * a cast the server refused frees it soon. Its own knowledge, not the synced bit: the bit only shows once the cast has landed, and a
+ * lock sent in that window would start the landing tick's auto-attack and reveal it at once.
+ */
+const ESCAPE_GRACE_MS = 300;
 /** A hit on the bot this recent (ms) is "being hit" for the Wish's escape and sustain rules. */
 const RECENT_HIT_MS = 1500;
 
@@ -220,6 +226,9 @@ export class BotClient {
   /** When anyone (a mob, a burn) last hurt us, and when we last asked for our Wish. */
   private hitAt = -Infinity;
   private wishTriedAt = -Infinity;
+  /** A Wish that hides its caster was sent: the bot slips away (never locks anyone) until this time, or while the server shows the cast or the hiding. */
+  private escaping = false;
+  private escapeUntil = -Infinity;
   /** The foe the bot fought this think (the Wish aims at it), if any. */
   private foe: Foe | null = null;
 
@@ -376,9 +385,18 @@ export class BotClient {
     const hunt = this.huntMobs(me, enemy, now);
     this.logHunt(hunt);
     this.foe = null;
-    // Hidden (it cast Swarm to get away): fighting on would reveal it with the next swing, so it slips away instead.
-    this.attacking = (me.effects & EFFECT_HIDDEN) !== 0 ? this.slipAway(me, enemy, now) : this.act(me, enemy, hunt, now);
+    // Hiding (it cast Swarm to get away, or is casting it): fighting on would reveal it with the next swing, so it slips away instead.
+    this.attacking = this.slipping(me, now) ? this.slipAway(me, enemy, now) : this.act(me, enemy, hunt, now);
     this.castWish(me, enemy, now);
+  }
+
+  /** Is the bot hidden, or has it sent a hiding Wish that is still casting (by its own clock or the server's bit)? Then it does not fight. */
+  private slipping(me: PlayerState, now: number): boolean {
+    if ((me.effects & EFFECT_HIDDEN) !== 0) return true;
+    if (!this.escaping) return false;
+    if ((me.effects & EFFECT_CASTING) !== 0 || now < this.escapeUntil) return true;
+    this.escaping = false;
+    return false;
   }
 
   /** Walks away from the nearest player, or stands when there is none or nowhere to go; never attacks. False: not attacking. */
@@ -419,6 +437,10 @@ export class BotClient {
     this.wishTriedAt = now;
     this.log(`casting ${slot.def.name}${cast.id ? ` on ${cast.id}` : ""}`);
     this.send("cast", cast.id !== undefined ? { slot: "wish", x: cast.x, y: cast.y, id: cast.id } : { slot: "wish", x: cast.x, y: cast.y });
+    if (hidesCaster(slot.def, slot.rank)) {
+      this.escaping = true;
+      this.escapeUntil = now + rankOf(slot.def, slot.rank).castMs + ESCAPE_GRACE_MS;
+    }
   }
 
   /** What to do this think: run, fetch a weapon, fight a mob or a player, or stand. True when the bot is attacking a foe (see `attacking`). */

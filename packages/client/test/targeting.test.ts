@@ -6,7 +6,7 @@ import {
   EFFECT_STUNNED, EFFECT_UNTARGETABLE, EFFECT_ZONED, PLAYER_RADIUS, TARGET_SNAP_RADIUS, Y_SCALE,
 } from "@raid/shared";
 import { TargetRings } from "../src/render/TargetRings";
-import { LockDisplay, OPTIMISTIC_LOCK_MS, pickTarget, targetable } from "../src/render/targeting";
+import { LockDisplay, OPTIMISTIC_LOCK_MS, pickTarget, targetable, unitCastDenial } from "../src/render/targeting";
 import { fakeScene, type FakeObject } from "./fakes";
 
 const at = (id: string, x: number, y: number) => ({ id, x, y });
@@ -172,5 +172,35 @@ describe("targetable", () => {
       EFFECT_HASTE, EFFECT_CASTING,
     ]) expect(targetable(bit), `${bit}`).toBe(true);
     expect(targetable(EFFECT_STUNNED | EFFECT_ROOTED | EFFECT_ZONED | EFFECT_LAST_STAND)).toBe(true);
+  });
+});
+
+describe("unitCastDenial", () => {
+  const base = { from: { x: 0, y: 0 }, to: { x: 100, y: 0 }, range: 450, slack: 32, los: true, sight: () => true, immuneUntil: 0, serverNow: 10_000 };
+
+  it("lets a cast through on a target in reach, in sight and not immune", () => {
+    expect(unitCastDenial(base)).toBeNull();
+    expect(unitCastDenial({ ...base, to: { x: 482, y: 0 } })).toBeNull(); // range + slack exactly
+  });
+
+  it("names a target out of range, past the server's own slack", () => {
+    expect(unitCastDenial({ ...base, to: { x: 483, y: 0 } })).toBe("Out of range");
+  });
+
+  it("names a wall in the way, only when the ability needs sight", () => {
+    expect(unitCastDenial({ ...base, sight: () => false })).toBe("No line of sight");
+    expect(unitCastDenial({ ...base, sight: () => false, los: false })).toBeNull();
+  });
+
+  it("names a target still under teleport immunity (its immuneUntil is ahead of the client's server time), and not one that has just lost it", () => {
+    expect(unitCastDenial({ ...base, immuneUntil: 10_001 })).toBe("Immune");
+    expect(unitCastDenial({ ...base, immuneUntil: 10_000 })).toBeNull();
+    expect(unitCastDenial({ ...base, immuneUntil: 9_000 })).toBeNull();
+  });
+
+  it("asks for sight between the two drawn positions", () => {
+    const seen: unknown[] = [];
+    unitCastDenial({ ...base, sight: (a, b) => { seen.push([a, b]); return true; } });
+    expect(seen).toEqual([[base.from, base.to]]);
   });
 });

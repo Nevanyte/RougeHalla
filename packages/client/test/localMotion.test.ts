@@ -9,7 +9,7 @@ import {
 } from "@raid/shared";
 import {
   clampToWorld, CORRECT_SPEED_MOVING_MAX, DELAY_MAX_MS, JUMP_ORDER_EXPIRE_MS, LocalMotion, ORDER_EXPIRE_MS, REBASE_DEADZONE, SNAP_DISTANCE,
-  VISUAL_SNAP_DISTANCE, type FrameInput,
+  VISUAL_SNAP_DISTANCE, seqAcked, type FrameInput,
 } from "../src/net/localMotion";
 
 const W = 60;
@@ -88,10 +88,11 @@ class Rig {
 
   /** The player right-clicks `to`. */
   /** The player right-clicks `to`. `lost`: the message never reaches the server (sent while the connection was down). */
-  move(to: Vec2, lost = false): void {
+  move(to: Vec2, lost = false, up = this.up): number {
     const seq = (this.seq = (this.seq % 255) + 1);
     this.motion.order("move", seq, this.clock, to, this.map);
-    if (!lost) this.inbox.push({ at: this.now + this.delay(this.up), kind: "move", seq, to });
+    if (!lost) this.inbox.push({ at: this.now + this.delay(up), kind: "move", seq, to });
+    return seq;
   }
 
   /**
@@ -162,8 +163,8 @@ class Rig {
     this.serverTime += TICK_MS;
     const arrived = this.inbox.filter((m) => m.at <= this.now);
     this.inbox = this.inbox.filter((m) => m.at > this.now);
-    const last = arrived[arrived.length - 1];
-    if (last) {
+    // The orders that reached it this tick apply in the order they arrived (a later one replaces what an earlier one set).
+    for (const last of arrived) {
       if (last.kind === "stop") this.serverPath = [];
       else if (last.kind === "blink") {
         // The cast drops the walk and the lock, and moves the fighter in this very tick. Refused (no `to`), it changes nothing
@@ -1548,5 +1549,150 @@ describe("a displacement that arrives while our own blink is still in flight", (
     // One jump of the pull (80 u), then the blink's landing is where it was: not back to the origin and forward again.
     expect(jumps).toEqual([80]);
     expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
+  });
+});
+
+describe("an echo that names a later order acks the blink before it", () => {
+  const east = (r: Rig, d = 300): Vec2 => ({ x: r.motion.predicted.x + d, y: r.motion.predicted.y });
+
+  it("seqAcked reads the order numbers as a count that wraps: the echo of an order or a later one covers it", () => {
+    expect(seqAcked(5, 5)).toBe(true);
+    expect(seqAcked(5, 6)).toBe(true);
+    expect(seqAcked(5, 4)).toBe(false);
+    expect(seqAcked(5, 0)).toBe(false); // 0: no order applied yet
+    expect(seqAcked(254, 2)).toBe(true); // 254, 255, 1, 2
+    expect(seqAcked(2, 254)).toBe(false);
+    expect(seqAcked(1, 255)).toBe(false); // 255 comes before the 1 that follows it
+    expect(seqAcked(255, 1)).toBe(true);
+  });
+
+  it("a blink and a click sent after it, both held up and handled in one tick: no pop, the blink is acked by the click's number", () => {
+    for (const stall of [500, 700, 1000]) {
+      const r = new Rig({ up: 30, down: 30 });
+      r.run(300);
+      const landing = east(r);
+      r.blink(landing, landing, false, stall);
+      r.run(50);
+      const goal = { x: landing.x, y: landing.y + 3 * TILE };
+      r.move(goal, false, stall - 49); // reaches the server in the same tick as the blink
+      r.run(FRAME_MS + 1);
+      const first = r.drawnLog.length;
+      r.run(stall + 3000);
+      expect(r.displaceSeq, `${stall}`).toBe(1);
+      expect(r.motion.pendingOrders, `${stall}`).toBe(0);
+      expect(r.motion.pendingJump, `${stall}`).toBe(false);
+      // The model walked the click's 96 u to its end while the sim only started it: the stalled click costs at most one correction
+      // of that size, never the blink's 300 u twice.
+      expect(r.maxStep(first), `${stall}`).toBeLessThan(SNAP_DISTANCE + 5);
+      expect(dist(r.server, goal), `${stall}`).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), `${stall}`).toBeLessThan(0.1);
+    }
+  });
+
+  it("the same when the blink is refused: the echo of the click acks the blink, the model snaps back and walks the click's walk from the server", () => {
+    for (const stall of [500, 700, 1000]) {
+      const r = new Rig({ up: 30, down: 30 });
+      r.run(300);
+      const origin = { ...r.server };
+      const landing = east(r);
+      r.blink(landing, null, false, stall);
+      r.run(50);
+      const goal = { x: landing.x, y: landing.y + 3 * TILE };
+      r.move(goal, false, stall - 49);
+      r.run(FRAME_MS + 1);
+      const first = r.drawnLog.length;
+      for (let i = 0; i < stall + 800 && r.motion.pendingJump; i++) r.run(1);
+      expect(r.motion.pendingJump, `${stall}`).toBe(false);
+      // Just after the answer: the model walks the click's walk from the server (its own copy had already run to the end), and
+      // keeps up with the server instead of standing and being dragged along by the corrections.
+      r.run(300);
+      expect(r.motion.walking, `${stall}`).toBe(true);
+      expect(dist(r.motion.drawn, r.server), `${stall}`).toBeLessThan(PLAYER_SPEED * ((r.down + 2 * TICK_MS + 40) / 1000));
+      r.run(stall + 3000 + 2000);
+      expect(r.displaceSeq, `${stall}`).toBe(0);
+      expect(r.motion.pendingOrders, `${stall}`).toBe(0);
+      expect(r.motion.pendingJump, `${stall}`).toBe(false);
+      // One snap back (the refusal), then the model walks the click's walk from where the server is.
+      const jumps: number[] = [];
+      for (let i = first + 1; i < r.drawnLog.length; i++) {
+        const d = dist(r.drawnLog[i]!, r.drawnLog[i - 1]!);
+        if (d > 20) jumps.push(Math.round(d));
+      }
+      expect(jumps.length, `${stall} ${jumps}`).toBeLessThanOrEqual(1);
+      expect(dist(r.server, goal), `${stall}`).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), `${stall}`).toBeLessThan(0.1);
+      expect(origin.x).toBeLessThan(goal.x);
+    }
+  });
+
+  it("orders after a blink that has not been answered wait as long as it does (a click shortly after a blink is not forgotten)", () => {
+    const r = new Rig({ up: 30, down: 30 });
+    r.run(300);
+    // Learn a short delay first: the adaptive window is then at its 350 ms floor.
+    r.move(centre(12, 10));
+    r.run(500);
+    expect(r.motion.delay).toBeLessThan(100);
+    const landing = east(r);
+    r.blink(landing, landing, false, 900);
+    r.run(50);
+    r.move({ x: landing.x, y: landing.y + 3 * TILE }, false, 851);
+    r.run(600);
+    expect(r.motion.pendingOrders).toBe(2); // past 350 ms: a click alone would have been given up on
+    r.run(600);
+    expect(r.motion.pendingOrders).toBe(0);
+  });
+
+  it("an echo of a later number acks the blinks and orders before it even though that number's own order is not in the list", () => {
+    const m = new LocalMotion();
+    const map = arena();
+    m.observe({ x: 300, y: 300, t: 0, moveSeq: 0, displaceSeq: 0 }, 0);
+    m.frame(0, FRAME_MS, ALIVE);
+    m.order("move", 1, 100, { x: 900, y: 300 }, map);
+    m.blink(2, 110, { x: 600, y: 300 });
+    expect(m.pendingOrders).toBe(2);
+    m.ack(5, 300); // number 5 was a click the prediction has forgotten
+    expect(m.pendingOrders).toBe(0);
+    expect(m.delay).toBe(300 - TICK_MS - 110); // measured on the newest order the echo covers
+    m.ack(5, 350); // a repeated echo changes nothing
+    expect(m.delay).toBe(300 - TICK_MS - 110);
+    m.ack(0, 400);
+    m.ack(200, 400); // a stranger's, far ahead of ours: it covers nothing
+    expect(m.delay).toBe(300 - TICK_MS - 110);
+  });
+
+  it("a displacement acked by such a number is our own blink: its error to the landing is slid into, not jumped (as a forced displacement would)", () => {
+    const m = new LocalMotion();
+    m.observe({ x: 300, y: 300, t: 0, moveSeq: 0, displaceSeq: 0 }, 0);
+    m.frame(0, FRAME_MS, ALIVE);
+    m.blink(2, 100, { x: 600, y: 300 });
+    m.frame(116, FRAME_MS, ALIVE);
+    // The server handled the blink and a click of ours (number 3) in one tick, and landed 20 u from where the model did.
+    m.observe({ x: 620, y: 300, t: 700, moveSeq: 3, displaceSeq: 1 }, 760);
+    m.frame(776, FRAME_MS, ALIVE);
+    expect(m.pendingJump).toBe(false);
+    expect(dist(m.drawn, { x: 600, y: 300 })).toBeLessThan(3); // a frame of the slide (a forced displacement would have jumped 20 u)
+    expect(m.visualOffset).toBeGreaterThan(15);
+    for (let c = 792; c < 1700; c += 16) m.frame(c, 16, ALIVE);
+    expect(dist(m.drawn, { x: 620, y: 300 })).toBeLessThan(0.5);
+  });
+
+  it("a click is not kept for that long when no blink is waiting for an answer", () => {
+    const r = new Rig({ up: 30, down: 30 });
+    r.run(300);
+    r.move(centre(12, 10));
+    r.run(500);
+    r.move(centre(14, 10), false, 2000);
+    r.run(500);
+    expect(r.motion.pendingOrders).toBe(0);
+  });
+
+  it("orderPending tells whether the server has answered an order number, and an unknown one is not pending", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    const seq = r.move(centre(12, 10));
+    expect(r.motion.orderPending(seq)).toBe(true);
+    expect(r.motion.orderPending(seq % 255 + 1)).toBe(false);
+    r.run(400);
+    expect(r.motion.orderPending(seq)).toBe(false);
   });
 });

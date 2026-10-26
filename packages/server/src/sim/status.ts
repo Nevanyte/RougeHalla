@@ -13,11 +13,12 @@
 // done by sim/abilities.ts, which is told through the `statusApplied` hook. Expiry (removing an instance whose `until` has
 // passed) is that module's job too; every reader here ignores an instance past its `until`, so nothing depends on when.
 import {
-  EFFECT_CASTING, hasteMultiplier, SIG_CHILLED, STATUS_RULES, type AbilityId, type CleanseClass,
+  EFFECT_CASTING, hasteMultiplier, SIG_CHILLED, STATUS_RULES, TICK_MS, type AbilityId, type CleanseClass,
   type StatusKind,
 } from "@raid/shared";
 import { moveSpeedMult } from "./buffs";
 import { standing, type Combatant } from "./combatant";
+import { recomputeMods } from "./mods";
 import { emit, payLater, type DamageSource, type StatusInstance, type World } from "./world";
 
 export interface StatusApply {
@@ -81,6 +82,7 @@ export function addStatus(world: World, c: Combatant, a: StatusApply, opts?: { q
     inst.until = now + Math.min(a.ms, rule.maxMs);
     inst.value = a.add ? Math.min(a.add.cap, base + a.add.per) : base;
     inst.source = a.source;
+    delete inst.revealFrom;
     delete inst.revealUntil;
   } else {
     inst.until = Math.min(Math.max(inst.until, now + a.ms), now + rule.maxMs);
@@ -110,6 +112,9 @@ export function removeStatuses(world: World, c: Combatant, pred: (st: StatusInst
   if (removed.length === 0) return removed;
   c.rt.statuses = kept;
   refreshEffects(world, c);
+  // An attack slow is a stat-mirror source: its removal (a cleanse, an expiry, the teleport's clear) re-folds the mirror at once, so
+  // this tick's weapons never read a slow that is gone. (An application does it through the statusApplied hook.)
+  if (removed.some((st) => st.kind === "slowAttack")) recomputeMods(world, c);
   return removed;
 }
 
@@ -175,10 +180,13 @@ export function isSlowed(world: World, c: Combatant): boolean {
   return has(world, c, "slowMove") || (c.s.sig & SIG_CHILLED) !== 0;
 }
 
+/** A hidden instance's own attack or cast has it shown right now: inside [revealFrom, revealUntil). */
+const revealedAt = (st: StatusInstance, now: number): boolean => now >= (st.revealFrom ?? 0) && now < (st.revealUntil ?? 0);
+
 function hiddenNow(world: World, list: readonly StatusInstance[]): boolean {
   if (list.length === 0) return false;
   const now = world.state.serverTime;
-  for (const st of list) if (st.kind === "hidden" && st.until > now && now >= (st.revealUntil ?? 0)) return true;
+  for (const st of list) if (st.kind === "hidden" && st.until > now && !revealedAt(st, now)) return true;
   return false;
 }
 
@@ -226,14 +234,19 @@ export function castBlocked(world: World, c: Combatant, blockedBy: readonly ("st
   return false;
 }
 
-/** Raises a hidden instance's revealUntil (a hidden fighter's own attack or cast reveals it); refreshes the bits. */
+/**
+ * A hidden fighter's own attack or cast reveals it until `until` (it only ever raises). A reveal takes effect from the NEXT tick, so
+ * what another fighter reads in this one (a lock, a re-aimed shot, an ability target) is the tick-start state whatever order the
+ * attacks started in: a window that is running or pending only grows, one that is over starts a tick from now. Refreshes the bits.
+ */
 export function reveal(world: World, c: Combatant, until: number): void {
+  const now = world.state.serverTime;
   let changed = false;
   for (const st of c.rt.statuses ?? NONE) {
-    if (st.kind === "hidden" && until > (st.revealUntil ?? 0)) {
-      st.revealUntil = until;
-      changed = true;
-    }
+    if (st.kind !== "hidden" || !(until > (st.revealUntil ?? 0))) continue;
+    if ((st.revealUntil ?? 0) <= now) st.revealFrom = now + TICK_MS;
+    st.revealUntil = until;
+    changed = true;
   }
   if (changed) refreshEffects(world, c);
 }
@@ -306,7 +319,7 @@ export function effectsOf(world: World, c: Combatant): number {
     const now = world.state.serverTime;
     for (const st of list) {
       if (st.until <= now) continue;
-      if (st.kind === "hidden" && now < (st.revealUntil ?? 0)) continue;
+      if (st.kind === "hidden" && revealedAt(st, now)) continue;
       bits |= STATUS_RULES[st.kind].bit;
     }
   }

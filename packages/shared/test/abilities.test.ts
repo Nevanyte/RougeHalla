@@ -105,7 +105,9 @@ describe("the Wish catalog", () => {
       { do: "status", to: "self", status: "hidden", ms: 8000 },
       { do: "cloud", ms: 8000, radius: 72 },
     ]);
-    expect(ABILITIES.swarm.ownOrder).toBe(true); // casting it drops the caster's own lock, or its locked attack would reveal it at once
+    // Casting it drops the caster's own lock, or its locked attack would reveal it at once, and nothing else: the walk goes on.
+    expect(ABILITIES.swarm.dropsLock).toBe(true);
+    expect(ABILITIES.swarm.ownOrder).toBe(false);
   });
 
   it("Trial: a zone of 300 u on a unit within 400 u, dealt x0.8, taken from the caster x1.2, a 1 s stun on leaving", () => {
@@ -148,11 +150,12 @@ describe("the Wish catalog", () => {
     ]);
   });
 
-  it("only uses status kinds the runtime has, and only Swarm and Blaze Step are own orders and only Blaze Step is a dot", () => {
+  it("only uses status kinds the runtime has, only Blaze Step is an own order, only Swarm drops the lock alone and only Blaze Step is a dot", () => {
     for (const id of ABILITY_IDS) {
       for (const e of ABILITIES[id].ranks[0]!.effects) if (e.do === "status") expect(STATUS_KINDS).toContain(e.status);
     }
-    expect(ABILITY_IDS.filter((id) => ABILITIES[id].ownOrder)).toEqual(["swarm", "blaze"]);
+    expect(ABILITY_IDS.filter((id) => ABILITIES[id].ownOrder)).toEqual(["blaze"]);
+    expect(ABILITY_IDS.filter((id) => ABILITIES[id].dropsLock)).toEqual(["swarm"]);
     expect(ABILITY_IDS.filter((id) => ABILITIES[id].dot === true)).toEqual(["blaze"]);
   });
 

@@ -5,10 +5,10 @@
 // knowledge: anything it gets wrong the server's samples correct (a wrong guess costs a small slide, never a wrong position).
 // Slow magnitudes are not predicted (only a bit is synced) until the stat mirrors carry them.
 import {
-  attackInterval, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_STUNNED,
+  attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_STUNNED,
   FACTIONS, hasteMultiplier, isFactionId, killEffects, LAST_STAND_SPEED_BONUS, SIG_CHILLED, weaponTimings, type TimedFx, type Vec2,
 } from "@raid/shared";
-import { LocalMotion, ORDER_EXPIRE_MS, type AuthSample, type FrameInput } from "./localMotion";
+import { LocalMotion, ORDER_EXPIRE_MS, seqAcked, type AuthSample, type FrameInput } from "./localMotion";
 
 /** The synced fields of the local player this reads. */
 export interface LocalFighter {
@@ -61,16 +61,26 @@ export function localDrawSource(s: {
   return s.hasFrozen && (s.deathPending || s.beforeCut) ? "frozen" : "snapshot";
 }
 
-/** A cast just sent: what the slot's ready time was, and until when (client clock) the answer is waited for. */
-export interface SentCast { slot: string; readyAt: number; until: number; jump: boolean }
+/** A cast just sent: its order number, what the slot's ready time was, and until when (client clock) the answer is waited for. */
+export interface SentCast { slot: string; seq: number; readyAt: number; until: number }
 
 /**
  * Whether the cast sent is still unanswered, so a second press of the slot is ignored: the patch has not shown the slot's new
- * ready time, the wait has not run out, and (a blink) its order has not been acked yet (`jumpInFlight`). A refused cast is
- * answered by its ack alone, which frees the slot at once however slow the link is.
+ * ready time, the wait has not run out, and the server has not yet echoed the cast's order number (`orderPending`). A refused
+ * cast is answered by that echo alone, which frees the slot at once however slow the link is; so does an order the prediction
+ * has forgotten.
  */
-export function castUnanswered(sent: SentCast | null, slot: string, now: number, readyAt: number, jumpInFlight: boolean): boolean {
-  return sent !== null && sent.slot === slot && now < sent.until && readyAt === sent.readyAt && (!sent.jump || jumpInFlight);
+export function castUnanswered(sent: SentCast | null, slot: string, now: number, readyAt: number, orderPending: boolean): boolean {
+  return sent !== null && sent.slot === slot && now < sent.until && readyAt === sent.readyAt && orderPending;
+}
+
+/**
+ * Whether a cast pressed at server time `serverNow` would reach the server inside CAST_TELEPORT_GRACE_MS of the coliseum
+ * teleport (`teleportAt`, the fx's server time; 0 = none yet), which the server refuses for free. The client's clock lags the
+ * server's by the downlink, so a press this check lets through arrives after the grace: it errs on the side of refusing.
+ */
+export function inTeleportGrace(teleportAt: number, serverNow: number): boolean {
+  return teleportAt > 0 && serverNow < teleportAt + CAST_TELEPORT_GRACE_MS;
 }
 
 export class LocalPrediction {
@@ -125,7 +135,7 @@ export class LocalPrediction {
     if (s.moveSeq === 0) return;
     for (let i = this.roots.length - 1; i >= 0; i--) {
       const r = this.roots[i]!;
-      if (r.expires !== undefined && r.seq !== undefined && (s.moveSeq - r.seq + 255) % 255 < 128) this.roots.splice(i, 1);
+      if (r.expires !== undefined && r.seq !== undefined && seqAcked(r.seq, s.moveSeq)) this.roots.splice(i, 1);
     }
   }
 

@@ -6,10 +6,11 @@
 // order (the sim's own `displace`).
 import { describe, expect, it } from "vitest";
 import {
-  blinkLanding, mapFromTiles, mulberry32, PLAYER_SPEED, REGION_COLISEUM, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FactionId, type GameMap,
+  blinkLanding, FREEZE_CAST_MS, mapFromTiles, mulberry32, PLAYER_SPEED, REGION_COLISEUM, SWARM_CAST_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FactionId, type GameMap,
   type Vec2, type WeaponId,
 } from "@raid/shared";
-import { LocalMotion, type FrameInput } from "../../client/src/net/localMotion";
+import { type FrameInput } from "../../client/src/net/localMotion";
+import { LocalPrediction, castUnanswered, type LocalFighter } from "../../client/src/net/localPrediction";
 import { combatant } from "../src/sim/combatant";
 import { displace } from "../src/sim/displace";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -35,14 +36,21 @@ const FRAME_MS = 1000 / 60;
 /** A real world of one player (and any mob a test adds) and a client that predicts it, with `up` / `down` ms of latency. */
 class SimRig {
   readonly world: World;
-  readonly motion = new LocalMotion();
+  /** The client's prediction; its motion is what most tests read. */
+  readonly predict = new LocalPrediction();
+  get motion() { return this.predict.motion; }
+  /** Frames are fed what the client knows of its own speed and roots (the fx and the synced bits), not a constant. */
+  readonly usePredict: boolean;
   readonly map: GameMap;
   now = 0;
   private seq = 0;
   private lastFrame = 0;
   private readonly rnd = mulberry32(11);
   private inbox: Array<{ at: number; type: string; msg: unknown }> = [];
-  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number; locked: boolean; displaceSeq: number }> = [];
+  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number; locked: boolean; displaceSeq: number; me: LocalFighter }> = [];
+  private fxQueue: Array<{ at: number; fx: Parameters<LocalPrediction["noteFx"]>[0] }> = [];
+  /** What the client last heard of its own fighter (as of the newest patch delivered). */
+  private heard!: LocalFighter;
   readonly drawn: Vec2[] = [];
   readonly offsets: number[] = [];
 
@@ -51,8 +59,9 @@ class SimRig {
 
   constructor(
     readonly up: number, readonly down: number, readonly jitter = 0, faction: FactionId = "plague", weapon: WeaponId = "sword",
-    opts: { map?: GameMap; start?: Vec2; gatesLocked?: boolean; clientGatesLocked?: boolean } = {},
+    opts: { map?: GameMap; start?: Vec2; gatesLocked?: boolean; clientGatesLocked?: boolean; usePredict?: boolean } = {},
   ) {
+    this.usePredict = opts.usePredict ?? false;
     this.map = opts.map ?? arenaMap();
     this.clientGatesLocked = opts.clientGatesLocked ?? opts.gatesLocked ?? false;
     this.world = createGameWorld({
@@ -74,9 +83,19 @@ class SimRig {
     this.server.y = opts.start?.y ?? 10 * TILE + 16;
     if (opts.gatesLocked) this.world.state.gatesLocked = true; // the coliseum's gates are walls on the server from here
     this.world.players.get("me")!.history = [{ t: this.world.state.serverTime, x: this.server.x, y: this.server.y }];
+    this.heard = this.fighter();
     this.send();
-    this.motion.observe({ x: this.server.x, y: this.server.y, t: this.world.state.serverTime, moveSeq: 0, displaceSeq: 0 }, this.clock);
+    this.predict.observe({ x: this.server.x, y: this.server.y, t: this.world.state.serverTime, moveSeq: 0, displaceSeq: 0 }, this.clock);
     this.frame();
+  }
+
+  /** The synced fields of the local player the prediction reads. */
+  private fighter(): LocalFighter {
+    const p = this.server;
+    return {
+      x: p.x, y: p.y, faction: p.faction, sig: p.sig, stacksHp: p.stacksHp, stacksAs: p.stacksAs, stacksMs: p.stacksMs, effects: p.effects,
+      asMult: p.asMult, speedMult: p.speedMult,
+    };
   }
 
   get server() { return this.world.state.players.get("me")!; }
@@ -88,14 +107,24 @@ class SimRig {
     const p = this.server;
     this.patches.push({
       at: this.now + this.lag(this.down), x: Math.fround(p.x), y: Math.fround(p.y), t: this.world.state.serverTime, moveSeq: p.moveSeq,
-      locked: p.attackTarget !== "", displaceSeq: p.displaceSeq,
+      locked: p.attackTarget !== "", displaceSeq: p.displaceSeq, me: this.fighter(),
     });
   }
 
-  move(to: Vec2): void {
+  /** `uplinkMs`: this message alone is held up this long (a retransmit, a stall), the rest of the link is as it was. */
+  move(to: Vec2, uplinkMs?: number): void {
     const seq = (this.seq = (this.seq % 255) + 1);
     this.motion.order("move", seq, this.clock, to, this.map);
-    this.inbox.push({ at: this.now + this.lag(this.up), type: "move", msg: { x: to.x, y: to.y, seq } });
+    this.inbox.push({ at: this.now + (uplinkMs ?? this.lag(this.up)), type: "move", msg: { x: to.x, y: to.y, seq } });
+  }
+
+  /** The player casts a Wish that needs no aim (Swarm, Last Stand: a self cast; Freeze: pass the target's id). `castMs`: its telegraph. */
+  selfCast(castMs: number, id?: string): number {
+    const seq = (this.seq = (this.seq % 255) + 1);
+    this.predict.noteCast(this.clock, { castMs, seq });
+    const at = this.motion.predicted;
+    this.inbox.push({ at: this.now + this.lag(this.up), type: "cast", msg: { slot: "wish", x: at.x, y: at.y, seq, ...(id ? { id } : {}) } });
+    return seq;
   }
 
   stop(): void {
@@ -131,7 +160,7 @@ class SimRig {
   frame(): void {
     const dt = this.drawn.length === 0 ? FRAME_MS : this.now - this.lastFrame;
     this.lastFrame = this.now;
-    this.motion.frame(this.clock, dt, ALIVE);
+    this.motion.frame(this.clock, dt, this.usePredict ? this.predict.frameInput(this.clock, true, this.heard, [], false) : ALIVE);
     this.drawn.push({ x: this.motion.drawn.x, y: this.motion.drawn.y });
     this.offsets.push(this.motion.visualOffset);
   }
@@ -145,12 +174,22 @@ class SimRig {
         const rt = this.world.players.get("me")!;
         for (const m of this.inbox.filter((i) => i.at <= this.now)) enqueueClientMessage(rt.inputs, m.type, m.msg);
         this.inbox = this.inbox.filter((i) => i.at > this.now);
-        step(this.world, TICK_MS);
+        const events = step(this.world, TICK_MS);
+        // The fx of a step reach the client before its patch (one socket, one order).
+        for (const e of events) {
+          if (e.type === "fx") this.fxQueue.push({ at: this.now + this.lag(this.down), fx: { ...e.fx, t: this.world.state.serverTime } as never });
+        }
         this.send();
       }
+      this.fxQueue = this.fxQueue.filter((q) => {
+        if (q.at > this.now) return true;
+        this.predict.noteFx(q.fx, "me", this.heard);
+        return false;
+      });
       this.patches = this.patches.filter((p) => {
         if (p.at > this.now) return true;
-        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq, locked: p.locked, displaceSeq: p.displaceSeq }, this.clock);
+        this.heard = p.me;
+        this.predict.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq, locked: p.locked, displaceSeq: p.displaceSeq }, this.clock);
         return false;
       });
       if (this.now >= nextFrame) {
@@ -565,5 +604,151 @@ describe("a blink against the real sim: the cases a review found", () => {
     }
     expect(big).toEqual([80]);
     expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
+  });
+});
+
+describe("a blink and a click sent after it, both held up and handled by the sim in one tick", () => {
+  const goalOf = (landing: Vec2): Vec2 => ({ x: landing.x, y: landing.y + 3 * TILE });
+
+  it("accepted: one jump of the press, no pop of the blink's 300 u back and forward (the echo names the click, whose order was forgotten)", () => {
+    for (const stall of [500, 700, 1000]) {
+      const r = new SimRig(30, 30, 0, "fire");
+      r.run(300);
+      const { landing } = r.blink({ x: r.server.x + 400, y: r.server.y }, stall);
+      r.run(50);
+      const goal = goalOf(landing!);
+      r.move(goal, stall - 49); // arrives a millisecond after the blink: the sim handles both in one tick
+      r.run(FRAME_MS + 1);
+      const first = r.drawn.length;
+      r.run(stall + 3500);
+      expect(r.server.displaceSeq, `${stall}`).toBe(1);
+      expect(r.motion.pendingOrders, `${stall}`).toBe(0);
+      expect(r.motion.pendingJump, `${stall}`).toBe(false);
+      // The model walked the click's 96 u to its end while the sim only started it: at most one correction of that size.
+      expect(r.maxStep(first), `${stall}`).toBeLessThan(100);
+      expect(dist(r.server, goal), `${stall}`).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), `${stall}`).toBeLessThan(0.1);
+    }
+  });
+
+  it("refused (still cooling down): one snap back, then the click's walk from where the sim is, kept up with", () => {
+    for (const stall of [500, 700, 1000]) {
+      const r = new SimRig(30, 30, 0, "fire");
+      r.run(300);
+      r.server.wishReadyAt = r.world.state.serverTime + 100_000;
+      const { landing } = r.blink({ x: r.server.x + 400, y: r.server.y }, stall);
+      r.run(50);
+      const goal = goalOf(landing!);
+      r.move(goal, stall - 49);
+      r.run(FRAME_MS + 1);
+      const first = r.drawn.length;
+      for (let i = 0; i < stall + 800 && r.motion.pendingJump; i++) r.run(1);
+      expect(r.motion.pendingJump, `${stall}`).toBe(false);
+      r.run(300);
+      expect(r.motion.walking, `${stall}`).toBe(true);
+      expect(dist(r.motion.drawn, r.server), `${stall}`).toBeLessThan(PLAYER_SPEED * ((30 + 2 * TICK_MS + 40) / 1000));
+      r.run(stall + 3500);
+      expect(r.server.displaceSeq, `${stall}`).toBe(0);
+      expect(r.motion.pendingOrders, `${stall}`).toBe(0);
+      let big = 0;
+      for (let i = first + 1; i < r.drawn.length; i++) if (dist(r.drawn[i]!, r.drawn[i - 1]!) > 20) big++;
+      expect(big, `${stall}`).toBeLessThanOrEqual(1);
+      expect(dist(r.server, goal), `${stall}`).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), `${stall}`).toBeLessThan(0.1);
+    }
+  });
+});
+
+describe("Swarm: an escape Wish that drops only the lock, so the walk in hand goes on after its 250 ms cast", () => {
+  const runWalk = (up: number, down: number) => {
+    const r = new SimRig(up, down, 0, "plague", "sword", { usePredict: true });
+    r.run(300);
+    const goal = centre(50, 10);
+    r.move(goal);
+    r.run(600);
+    const first = r.drawn.length;
+    const seq = r.selfCast(SWARM_CAST_MS);
+    return { r, goal, first, seq };
+  };
+
+  it("while walking: the sim keeps the path, the model holds for the cast root and walks on with it: no overshoot, no slide back", () => {
+    for (const [up, down] of [[30, 30], [60, 60], [100, 100]] as const) {
+      const tag = `${up}/${down}`;
+      const { r, goal, first, seq } = runWalk(up, down);
+      // The cast has landed (up, a tick, the 250 ms root and the patch back) and the sim goes on walking.
+      r.run(up + 2 * TICK_MS + SWARM_CAST_MS + down + 100);
+      expect(r.server.moveSeq, tag).toBe(seq);
+      expect(r.world.players.get("me")!.cast, tag).toBeNull();
+      const x0 = r.server.x;
+      r.run(1000);
+      expect(r.server.x - x0, `${tag} walked on`).toBeGreaterThan(PLAYER_SPEED * 0.8);
+      r.run(9000);
+      let back = 0;
+      for (let i = first + 1; i < r.drawn.length; i++) back += Math.max(0, r.drawn[i - 1]!.x - r.drawn[i]!.x);
+      expect(back, `${tag} backward`).toBeLessThan(1);
+      expect(dist(r.server, goal), tag).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+    }
+  });
+
+  it("the model stands still for the root and is never ahead of the sim's path by more than the usual lead", () => {
+    const { r, first } = runWalk(60, 60);
+    r.run(600);
+    // Past the root and the walk resumed: the drawn fighter leads the sim by about a delay's walk, never by more.
+    let over = 0;
+    for (let i = first; i < r.drawn.length; i++) over = Math.max(over, r.drawn[i]!.x - r.server.x);
+    expect(over).toBeLessThan(PLAYER_SPEED * ((60 + 60 + 2 * TICK_MS + SWARM_CAST_MS) / 1000));
+  });
+
+  it("while locked on a dummy (the model follows the chase): the sim drops the lock and stands, the model leaves follow and stands with it", () => {
+    for (const [up, down] of [[30, 30], [60, 60], [100, 100]] as const) {
+      const tag = `${up}/${down}`;
+      const r = new SimRig(up, down, 0, "plague", "sword", { usePredict: true });
+      const dummy = addMob(r.world, { kind: "dummy", name: "d", at: centre(25, 10) }); // within TARGET_RANGE, 14 tiles of chase
+      r.run(300);
+      r.target(dummy);
+      r.run(900);
+      expect(r.motion.mode, tag).toBe("follow");
+      expect(r.server.attackTarget, tag).toBe(dummy);
+      r.selfCast(SWARM_CAST_MS);
+      r.run(up + 2 * TICK_MS + SWARM_CAST_MS + down + 300);
+      expect(r.server.attackTarget, tag).toBe("");
+      expect(r.motion.mode, tag).toBe("predict");
+      const x0 = r.server.x;
+      const first = r.drawn.length;
+      r.run(1500);
+      expect(r.server.x, `${tag} stands`).toBe(x0);
+      expect(r.motion.walking, tag).toBe(false);
+      let back = 0;
+      for (let i = first + 1; i < r.drawn.length; i++) back += Math.max(0, r.drawn[i - 1]!.x - r.drawn[i]!.x);
+      expect(back, `${tag} backward`).toBeLessThan(1);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+    }
+  });
+});
+
+describe("a cast the sim refuses frees its slot at the echo of its order number", () => {
+  it("Freeze on a target the sim refuses (out of its reach): pending until the echo, then answered; the predicted root is dropped, the walk goes on", () => {
+    for (const [up, down] of [[40, 40], [100, 100]] as const) {
+      const tag = `${up}/${down}`;
+      const r = new SimRig(up, down, 0, "frost", "sword", { usePredict: true });
+      const far = addMob(r.world, { kind: "dummy", name: "far", at: centre(55, 25) }); // about 1700 u away: far past 450 + 32
+      r.run(300);
+      r.move(centre(20, 10));
+      r.run(500);
+      const seq = r.selfCast(FREEZE_CAST_MS, far);
+      const sent = { slot: "wish", seq, readyAt: r.server.wishReadyAt, until: r.now + 600 };
+      expect(r.motion.orderPending(seq), tag).toBe(true);
+      expect(castUnanswered(sent, "wish", r.now, r.server.wishReadyAt, r.motion.orderPending(seq)), tag).toBe(true);
+      r.run(up + down + 2 * TICK_MS + 20);
+      expect(r.server.moveSeq, tag).toBe(seq); // echoed though refused
+      expect(r.server.wishReadyAt, tag).toBe(sent.readyAt); // nothing spent
+      // The ready time never changed, yet the slot is free: the ack alone answered the cast.
+      expect(r.motion.orderPending(seq), tag).toBe(false);
+      expect(castUnanswered(sent, "wish", r.now, r.server.wishReadyAt, r.motion.orderPending(seq)), tag).toBe(false);
+      expect(r.predict.castEndsAt(r.clock + r.motion.delay), tag).toBe(0); // the predicted root is gone with the refusal
+      r.run(300);
+      expect(r.motion.walking, tag).toBe(true);
+    }
   });
 });

@@ -10,7 +10,9 @@ import { sendInput, type RaidRoom } from "../net/connection";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
-import { LocalPrediction, castUnanswered, localDrawSource, type LocalDrawSource, type OtherFighter } from "../net/localPrediction";
+import {
+  LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalDrawSource, type OtherFighter,
+} from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView } from "../render/ContainerView";
 import { FieldView } from "../render/FieldView";
@@ -25,7 +27,7 @@ import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
 import { isHiddenRemote, visiblePosition } from "../render/visibility";
 import { WishFx } from "../render/WishFx";
-import { LockDisplay, pickTarget, targetable, type TargetCandidate } from "../render/targeting";
+import { LockDisplay, pickTarget, targetable, unitCastDenial, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
 import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
@@ -86,11 +88,11 @@ export class RaidScene extends Phaser.Scene {
   private wishSlot!: AbilitySlotView;
   private readonly wishCooldown = new CooldownTracker();
   /**
-   * The cast just sent and not yet answered: until the patch shows the slot's new ready time, a second press is ignored, so a
-   * double tap cannot predict a second blink the server will refuse. A blink waits for its ack (the motion's pending jump), up
-   * to JUMP_ORDER_EXPIRE_MS, however slow the link; any other cast for ORDER_EXPIRE_MS.
+   * The cast just sent and not yet answered: until the patch shows the slot's new ready time or the server echoes the cast's
+   * order number (a refusal), a second press is ignored, so a double tap cannot predict a second blink the server will refuse.
+   * The wait is capped at JUMP_ORDER_EXPIRE_MS for a blink (its order waits that long, however slow the link), else ORDER_EXPIRE_MS.
    */
-  private pendingCast: { slot: AbilitySlot; readyAt: number; until: number; jump: boolean } | null = null;
+  private pendingCast: { slot: AbilitySlot; seq: number; readyAt: number; until: number } | null = null;
   private feedback!: ScreenFeedback;
   /** Created the first frame the room says it is a training room (state.training); null in an arena run. */
   private trainingBar: TrainingBar | null = null;
@@ -724,8 +726,10 @@ export class RaidScene extends Phaser.Scene {
     if (this.peek && t.kind !== "self") return;
     const now = performance.now();
     const pending = this.pendingCast;
-    if (castUnanswered(pending, slot, now, slotReadyAt(me, slot), this.predict.motion.pendingJump)) return;
+    if (castUnanswered(pending, slot, now, slotReadyAt(me, slot), pending !== null && this.predict.motion.orderPending(pending.seq))) return;
     const serverNow = this.clockSynced ? this.interp.clock.now(now) : state.serverTime;
+    // The server refuses every cast that reaches it within CAST_TELEPORT_GRACE_MS of the teleport (aimed at the world before it).
+    if (inTeleportGrace(this.teleportAt, serverNow)) return;
     const m = abilitySlotModel(this.slotInput(me, state, slot, serverNow), serverNow);
     if (m.state === "hidden" || m.state === "empty") return;
     const denial = castDenial(m);
@@ -749,6 +753,8 @@ export class RaidScene extends Phaser.Scene {
     }
     const c = this.localClock(now);
     const blink = t.kind === "point" ? r.effects.find((e) => e.do === "blink") : undefined;
+    // Every cast carries an order number: the server echoes it for a refused cast too, which frees the slot and drops a predicted root.
+    let seq = 0;
 
     if (blink?.do === "blink") {
       const map = this.mapView?.map;
@@ -758,7 +764,7 @@ export class RaidScene extends Phaser.Scene {
         view.deny("Can't blink there", now);
         return;
       }
-      const seq = this.predict.nextSeq();
+      seq = this.predict.nextSeq();
       this.predict.noteCast(c, { castMs: r.castMs, seq, blink: { landing } });
       sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, seq });
     } else if (t.kind === "unit") {
@@ -768,36 +774,37 @@ export class RaidScene extends Phaser.Scene {
         view.deny("No target", now);
         return;
       }
-      if (Math.hypot(at.x - self.x, at.y - self.y) > t.range + CAST_RANGE_SLACK) {
-        view.deny("Out of range", now);
-        return;
-      }
       const sight = this.planMap();
-      if (t.los && sight && !hasLineOfSight(sight, self, at)) {
-        view.deny("No line of sight", now);
+      const denial = unitCastDenial({
+        from: self, to: at, range: t.range, slack: CAST_RANGE_SLACK, los: t.los, sight: (a, b) => !sight || hasLineOfSight(sight, a, b),
+        immuneUntil: state.players.get(id)?.immuneUntil ?? 0, serverNow,
+      });
+      if (denial) {
+        view.deny(denial, now);
         return;
       }
-      // Every cast carries an order number: the server echoes it for a refused cast too, which drops a predicted root.
-      const seq = this.predict.nextSeq();
+      seq = this.predict.nextSeq();
       sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, id, seq });
       this.predict.noteCast(c, { castMs: r.castMs, seq });
     } else {
-      const seq = this.predict.nextSeq();
+      seq = this.predict.nextSeq();
       sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, seq });
       this.predict.noteCast(c, { castMs: r.castMs, seq });
     }
-    const jump = blink?.do === "blink";
-    this.pendingCast = { slot, readyAt: slotReadyAt(me, slot), until: now + (jump ? JUMP_ORDER_EXPIRE_MS : ORDER_EXPIRE_MS), jump };
+    // Until the server answers (the ready time changes, or it echoes `seq`: a refusal), a second press is ignored; a blink waits longer.
+    this.pendingCast = { slot, seq, readyAt: slotReadyAt(me, slot), until: now + (blink?.do === "blink" ? JUMP_ORDER_EXPIRE_MS : ORDER_EXPIRE_MS) };
     this.afterCast(def, r.castMs, c, now);
   }
 
   /**
    * A cast the server will take cancels the attack the lock was winding up (a telegraph or an own order do), so its telegraph
-   * goes now rather than a round trip later; an own order (the blink) also drops the lock, so no ring is drawn on it.
+   * goes now rather than a round trip later. An own order (the blink) and a lock-dropper (Swarm: its hiding would be undone by a
+   * locked auto-attack) also end the lock, so no ring is drawn on it; only the own order stops the walk (the model does that in
+   * `LocalMotion.blink`): a lock-dropper's walk in hand goes on after the cast root, on the server and so in the prediction.
    */
   private afterCast(def: AbilityDef, castMs: number, c: number, now: number): void {
     if (castMs > 0 || def.ownOrder) this.fx.dropWindups(this.room.sessionId, c, now);
-    if (def.ownOrder) this.lockDisplay.note("", now);
+    if (def.ownOrder || def.dropsLock) this.lockDisplay.note("", now);
   }
 
   /** Once per frame: which fighter is hovered and which locked, and where their rings are drawn. */

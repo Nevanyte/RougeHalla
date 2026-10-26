@@ -3,11 +3,12 @@
 // hitLanded although it has no per-tick hit fx.
 import { describe, expect, it } from "vitest";
 import { decodeMult, mapFromTiles, mulberry32, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type GameMap } from "@raid/shared";
+import { updateAbilities } from "../src/sim/abilities";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { asMultOf } from "../src/sim/mods";
-import { addStatus, removeStatuses } from "../src/sim/status";
+import { addStatus, cleanse, removeStatuses } from "../src/sim/status";
 import { addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, World } from "../src/sim/world";
 
@@ -50,14 +51,40 @@ describe("a slowAttack status and the attack-speed mirror", () => {
     expect(asMultOf(a.s)).toBe(1);
   });
 
-  it("a cleanse's removal is caught by the next tick's pass", () => {
+  it("a cleanse or any other removal restores the mirror at once, not at the next tick's pass", () => {
     const w = run();
     const a = combatant(w, "a")!;
     addStatus(w, a, { kind: "slowAttack", source: { id: "b", name: "B" }, ms: 5000, value: 0.4 });
     expect(asMultOf(a.s)).toBeLessThan(1);
     removeStatuses(w, a, (st) => st.kind === "slowAttack");
-    step(w, TICK_MS);
     expect(asMultOf(a.s)).toBe(1);
+    expect(decodeMult((a.s as { asMult: number }).asMult)).toBe(1);
+    addStatus(w, a, { kind: "slowAttack", source: { id: "b", name: "B" }, ms: 5000, value: 0.4 });
+    cleanse(w, a, ["soft"]);
+    expect(asMultOf(a.s)).toBe(1);
+  });
+
+  it("an expiry inside updateAbilities restores it before the weapons read it, not by the end of the tick", () => {
+    const w = run();
+    const a = combatant(w, "a")!;
+    addStatus(w, a, { kind: "slowAttack", source: { id: "b", name: "B" }, ms: 1000, value: 0.3 });
+    expect(asMultOf(a.s)).toBeCloseTo(0.7, 2);
+    w.state.serverTime += 1000;
+    updateAbilities(w); // the phase that runs right after the inputs, before the weapons: no system has run yet
+    expect(asMultOf(a.s)).toBe(1);
+    expect(decodeMult((a.s as { asMult: number }).asMult)).toBe(1);
+  });
+
+  it("the coliseum teleport's clear restores it in the tick's own patch (the teleport runs after the systems)", () => {
+    const w = run();
+    const a = combatant(w, "a")!;
+    addStatus(w, a, { kind: "slowAttack", source: { id: "b", name: "B" }, ms: 20_000, value: 0.4 });
+    expect(asMultOf(a.s)).toBeLessThan(1);
+    w.state.patienceEndsAt = w.state.serverTime + TICK_MS;
+    step(w, TICK_MS);
+    expect(w.state.gatesLocked).toBe(true);
+    expect(asMultOf(a.s)).toBe(1);
+    expect(decodeMult((a.s as { asMult: number }).asMult)).toBe(1);
   });
 });
 

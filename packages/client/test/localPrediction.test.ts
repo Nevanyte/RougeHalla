@@ -1,12 +1,12 @@
 // What the client knows about its own fighter's speed and roots (net/localPrediction.ts).
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, buffMultiplier, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_SILENCED,
+  attackInterval, buffMultiplier, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_SILENCED,
   EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, IDENTITY_MIRRORS, LAST_STAND_SPEED_BONUS, mapFromTiles, PLAYER_SPEED,
   SIG_CHILLED, TILE_FLOOR, TILE_WALL, weaponTimings, type GameMap, type TimedFx,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
-import { LocalPrediction, castUnanswered, localDrawSource, type LocalFighter, type OtherFighter, type SentCast } from "../src/net/localPrediction";
+import { LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalFighter, type OtherFighter, type SentCast } from "../src/net/localPrediction";
 
 const ME = "me";
 const fighter = (o: Partial<LocalFighter> = {}): LocalFighter => ({
@@ -565,25 +565,40 @@ describe("casts and statuses on the local fighter", () => {
 });
 
 describe("castUnanswered (a second press of the slot is ignored until the first is answered)", () => {
-  const sent = (over: Partial<SentCast> = {}): SentCast => ({ slot: "wish", readyAt: 0, until: 1000 + 600, jump: false, ...over });
+  const sent = (over: Partial<SentCast> = {}): SentCast => ({ slot: "wish", seq: 7, readyAt: 0, until: 1000 + 600, ...over });
 
-  it("holds while the ready time stands and the wait has not run out, for the same slot only", () => {
-    expect(castUnanswered(null, "wish", 1000, 0, false)).toBe(false);
-    expect(castUnanswered(sent(), "wish", 1100, 0, false)).toBe(true);
-    expect(castUnanswered(sent(), "wish", 1599, 0, false)).toBe(true);
-    expect(castUnanswered(sent(), "wish", 1600, 0, false)).toBe(false); // waited long enough
-    expect(castUnanswered(sent(), "q", 1100, 0, false)).toBe(false);
+  it("holds while the ready time stands, the wait has not run out and the order is in flight, for the same slot only", () => {
+    expect(castUnanswered(null, "wish", 1000, 0, true)).toBe(false);
+    expect(castUnanswered(sent(), "wish", 1100, 0, true)).toBe(true);
+    expect(castUnanswered(sent(), "wish", 1599, 0, true)).toBe(true);
+    expect(castUnanswered(sent(), "wish", 1600, 0, true)).toBe(false); // waited long enough
+    expect(castUnanswered(sent(), "q", 1100, 0, true)).toBe(false);
   });
 
   it("is answered by the slot's new ready time (the cast was taken)", () => {
-    expect(castUnanswered(sent(), "wish", 1100, 301_100, false)).toBe(false);
+    expect(castUnanswered(sent(), "wish", 1100, 301_100, true)).toBe(false);
   });
 
-  it("a blink holds until its ack, however slow the link, up to its own cap; the ack frees a refused one at once", () => {
-    const blink = sent({ jump: true, until: 1000 + 1500 });
-    expect(castUnanswered(blink, "wish", 1700, 0, true)).toBe(true); // past the flat 600 ms of any other cast
+  it("is answered by the echo of the cast's order number alone: a refusal frees the slot at once, a blink or not", () => {
+    expect(castUnanswered(sent(), "wish", 1100, 0, false)).toBe(false);
+    const blink = sent({ until: 1000 + 1500 });
+    expect(castUnanswered(blink, "wish", 1700, 0, true)).toBe(true); // a slow link: past the flat 600 ms of an ordinary wait
     expect(castUnanswered(blink, "wish", 2499, 0, true)).toBe(true);
     expect(castUnanswered(blink, "wish", 2500, 0, true)).toBe(false); // the hard cap
-    expect(castUnanswered(blink, "wish", 1200, 0, false)).toBe(false); // acked (refused: the ready time did not change)
+    expect(castUnanswered(blink, "wish", 1200, 0, false)).toBe(false);
+  });
+});
+
+describe("inTeleportGrace (the server refuses every cast that reaches it within CAST_TELEPORT_GRACE_MS of the teleport)", () => {
+  it("is false before there was a teleport (its time is 0)", () => {
+    expect(inTeleportGrace(0, 0)).toBe(false);
+    expect(inTeleportGrace(0, 5000)).toBe(false);
+  });
+
+  it("covers the grace from the teleport's server time, and ends with it", () => {
+    expect(inTeleportGrace(60_000, 59_999)).toBe(true); // the client's clock may read just before it
+    expect(inTeleportGrace(60_000, 60_000)).toBe(true);
+    expect(inTeleportGrace(60_000, 60_000 + CAST_TELEPORT_GRACE_MS - 1)).toBe(true);
+    expect(inTeleportGrace(60_000, 60_000 + CAST_TELEPORT_GRACE_MS)).toBe(false);
   });
 });

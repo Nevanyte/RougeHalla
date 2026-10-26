@@ -96,6 +96,11 @@ export interface AbilityDef {
   ranks: readonly AbilityRank[];
   /** An own order like `move`: at the cast it cancels the own windup and drops the own lock and path. */
   ownOrder: boolean;
+  /**
+   * At the cast it ends the caster's own target lock and nothing else of its walk (an own order does that too, and the path): the
+   * Wish that hides its caster, whose locked auto-attack would reveal it at once, and which must not stop a fleeing walk.
+   */
+  dropsLock: boolean;
   /** What interrupts its pending cast. */
   cancelledBy: readonly CastCancel[];
   /** What refuses it at validation. */
@@ -157,7 +162,7 @@ const unitTarget = (range: number): TargetRule => ({ kind: "unit", range, los: t
 export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   freeze: {
     id: "freeze", name: "Freeze", blurb: "Freeze the enemy nearest your cursor in place for a moment.",
-    kind: "wish", faction: "frost", flat: true, ownOrder: false,
+    kind: "wish", faction: "frost", flat: true, ownOrder: false, dropsLock: false,
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["control", "peel", "engage"],
     telegraph: "beam", icon: "snowflake", color: 0x81d4fa,
     ranks: [{
@@ -167,8 +172,8 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   },
   swarm: {
     id: "swarm", name: "Swarm", blurb: "Dissolve into a swarm: enemies lose sight of you and cannot target you.",
-    // An own order (a best guess): casting it drops the caster's own lock, or its locked auto-attack would reveal it at once.
-    kind: "wish", faction: "plague", flat: true, ownOrder: true,
+    // Drops the caster's own lock (a best guess), or its locked auto-attack would reveal it at once; its walk in hand goes on.
+    kind: "wish", faction: "plague", flat: true, ownOrder: false, dropsLock: true,
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["escape"],
     telegraph: "swirl", icon: "swarm", color: 0x9ccc65,
     ranks: [{
@@ -181,7 +186,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   },
   trial: {
     id: "trial", name: "Trial", blurb: "Judge an enemy: inside the ring it deals less and takes more from you, and leaving it stuns.",
-    kind: "wish", faction: "sentenced", flat: true, ownOrder: false,
+    kind: "wish", faction: "sentenced", flat: true, ownOrder: false, dropsLock: false,
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["engage", "control"],
     telegraph: "ring", icon: "scales", color: 0xb39ddb,
     ranks: [{
@@ -194,7 +199,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   },
   blaze: {
     id: "blaze", name: "Blaze Step", blurb: "Blink toward your cursor, through walls, leaving a burning trail.",
-    kind: "wish", faction: "fire", flat: true, ownOrder: true,
+    kind: "wish", faction: "fire", flat: true, ownOrder: true, dropsLock: false,
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["escape", "engage"], dot: true,
     telegraph: "flare", icon: "flame", color: 0xff7043,
     ranks: [{
@@ -208,7 +213,7 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   },
   lastStand: {
     id: "lastStand", name: "Last Stand", blurb: "For a few seconds you cannot fall below 1 hp and you run faster; a share of what you survived heals back.",
-    kind: "wish", faction: "holy", flat: true, ownOrder: false,
+    kind: "wish", faction: "holy", flat: true, ownOrder: false, dropsLock: false,
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["sustain", "escape"],
     telegraph: "aura", icon: "cross", color: 0xffd54f,
     ranks: [{

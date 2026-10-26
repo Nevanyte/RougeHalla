@@ -31,6 +31,9 @@
 // the model goes: a revive, a halt or a walk the client did not order) is dropped; an error past SNAP_DISTANCE, or an offset
 // past VISUAL_SNAP_DISTANCE, snaps to the server and plans the destination again from there.
 //
+// An echo of a later order covers the earlier ones (`seqAcked`): a blink and a click sent after it, both held up and handled in one
+// tick, are acked by the click's number even if the click's own order has been forgotten by then.
+//
 // A blink order is not given up on the adaptive window (a late ack would pop the fighter back and forward again, 300 u each way):
 // it waits for its ack, up to JUMP_ORDER_EXPIRE_MS. The ack of a blink that shows no changed `displaceSeq` is a refusal (the
 // server answers a refused cast with the echo alone): the model snaps to the server however short the jump, and the walk the
@@ -144,10 +147,21 @@ interface Order {
   jumpBy?: Vec2;
   landing?: Vec2;
   resume?: { goal: Vec2; map: GameMap } | null;
+  /** A move or a stop: the walk it ordered (null: a stop). Unset for orders that leave the walk alone (a cast, an unreachable move). */
+  walk?: { goal: Vec2; map: GameMap } | null;
 }
 
 /** `jump`: a blink's landing; the model was at the pose before it until then and is never between. */
 interface Pose { c: number; x: number; y: number; jump?: true }
+
+/**
+ * Whether the server's `moveSeq` echo covers order number `seq`: it is that order or a later one, in the order numbers' own
+ * count (1..255 and round again). The server processes orders in the order they were sent, so an echo of a later order says the
+ * earlier ones were handled too (applied, or skipped by a later order of the same tick), even if the client has forgotten them.
+ */
+export function seqAcked(seq: number, moveSeq: number): boolean {
+  return moveSeq !== 0 && (moveSeq - seq + 255) % 255 < 128;
+}
 
 /** A point as the server's `parsePoint` takes it: clamped to the world, so both sides plan to the same place. */
 export function clampToWorld(p: Vec2): Vec2 {
@@ -335,7 +349,7 @@ export class LocalMotion {
     this.path = path;
     this.goal = kind === "move" && to ? to : null;
     this.goalMap = map;
-    this.note(seq, c, timing || wasFollow);
+    this.note(seq, c, timing || wasFollow, { walk: kind === "move" && to ? { goal: to, map } : null });
   }
 
   /**
@@ -475,27 +489,31 @@ export class LocalMotion {
   }
 
   /**
-   * The server applied order `seq` on the tick stamped `t`: measures that order's delay and moves the estimate. A seq the
-   * list does not hold (0, an order too old, a stranger's) is ignored. Orders sent before it that the server skipped (two
-   * orders in one tick: only the last applies) count as applied too.
+   * The server answered order `seq` on the tick stamped `t`: measures that order's delay and moves the estimate. Every order of
+   * ours that `seq` covers (it, and the ones sent before it that the server skipped: two orders in one tick, only the last
+   * applies) counts as applied, whether or not the list still holds the order named. A seq that covers nothing unapplied (0, a
+   * repeated sample, a stranger's) is ignored. When the named order is gone (it waited out its expiry while an older blink
+   * stalled), the delay is measured on the newest order the echo does cover.
    */
   ack(seq: number, t: number): void {
     if (seq === 0) return;
-    let i = this.orders.length - 1;
-    while (i >= 0 && this.orders[i]!.seq !== seq) i--;
-    if (i < 0) return;
-    const o = this.orders[i]!;
-    if (o.applied) return;
+    const covered = this.orders.filter((q) => !q.applied && seqAcked(q.seq, seq));
+    if (covered.length === 0) return;
+    const o = covered.find((q) => q.seq === seq) ?? covered[covered.length - 1]!;
     o.delay = clamp(t - TICK_MS - o.c, DELAY_MIN_MS, DELAY_MAX_MS);
     this._delay = this.delayKnown ? this._delay + DELAY_EMA * (o.delay - this._delay) : o.delay;
     this.delayKnown = true;
-    let timing = o.timing;
-    for (let j = 0; j <= i; j++) {
-      const q = this.orders[j]!;
-      if (!q.applied) timing = timing || q.timing;
+    let timing = false;
+    for (const q of covered) {
+      timing = timing || q.timing;
       q.applied = true;
     }
     if (timing) this.align = o.delay;
+  }
+
+  /** The order sent with number `seq` is still waiting for the server's answer (an unknown or an answered one is not). */
+  orderPending(seq: number): boolean {
+    return this.orders.some((o) => o.seq === seq && !o.applied);
   }
 
   /** Once per frame, `c` the client clock (see order), `dtMs` the time since the last frame. */
@@ -552,10 +570,13 @@ export class LocalMotion {
     const after = this.delayKnown
       ? Math.min(ORDER_EXPIRE_MS, Math.max(ORDER_EXPIRE_FLOOR_MS, 2 * Math.max(0, this._delay) + ORDER_EXPIRE_MARGIN_MS))
       : ORDER_EXPIRE_MS;
+    // What was ordered after a blink still unanswered depends on it (its walk starts at the landing): it waits as long as the blink.
+    const blinkAt = o.findIndex((q) => !q.applied && q.jump !== undefined);
     for (let i = o.length - 1; i >= 0; i--) {
       const q = o[i]!;
       if (q.applied) continue;
-      if (c - q.c <= (q.jump !== undefined ? JUMP_ORDER_EXPIRE_MS : after)) continue;
+      const long = q.jump !== undefined || (blinkAt >= 0 && i > blinkAt);
+      if (c - q.c <= (long ? JUMP_ORDER_EXPIRE_MS : after)) continue;
       if (q.landing) this.expiredJumps.push({ landing: q.landing, until: c + EXPIRED_JUMP_KEEP_MS });
       o.splice(i, 1);
     }
@@ -648,15 +669,9 @@ export class LocalMotion {
     }
   }
 
-  /** The first blink of ours not yet answered that the sample's `moveSeq` acks: it, or an order sent after it in the same tick (only the last applies). */
-  private ackedJump(seq: number): Order | null {
-    if (seq === 0) return null;
-    let i = this.orders.length - 1;
-    while (i >= 0 && this.orders[i]!.seq !== seq) i--;
-    for (let j = 0; j <= i; j++) {
-      const o = this.orders[j]!;
-      if (!o.applied && o.jump !== undefined) return o;
-    }
+  /** The first blink of ours not yet answered that the sample's `moveSeq` covers: it, or an order sent after it (only the last of a tick applies). */
+  private ackedJump(moveSeq: number): Order | null {
+    for (const o of this.orders) if (!o.applied && o.jump !== undefined && seqAcked(o.seq, moveSeq)) return o;
     return null;
   }
 
@@ -666,24 +681,24 @@ export class LocalMotion {
   }
 
   /**
-   * The server answered our blink with the echo alone: it refused it, and is where it was (walking the walk the blink dropped,
-   * if no order came after). The model snaps to it however short the jump was, the dropped walk is planned again from there,
-   * and orders sent after the blink stay in flight (their acks are still to come). (A lock the server kept shows in the patches
-   * and is followed again as ever.)
+   * The server answered our blink with the echo alone: it refused it, and is where it was. The model snaps to it however short
+   * the jump was, and orders sent after the blink stay in flight (their acks are still to come). What the server walks is what
+   * the last order after the blink said (a move: planned again from the server's position, even if the model has walked its
+   * own copy to the end; a stop: nothing), else the walk the blink dropped, which the server never stopped.
    */
   private settleRefused(s: AuthSample, blink: Order): void {
+    const after = this.orders.slice(this.orders.indexOf(blink) + 1);
     const later = this.orders.filter((o) => !o.applied);
     this.snapTo(s, true);
     this.orders.push(...later);
-    if (later.length > 0) return;
-    const r = blink.resume;
-    if (r && this.path.length === 0) {
-      const path = findPath(r.map, this.sim, r.goal, PLAYER_RADIUS);
-      if (path.length > 0) {
-        this.path = path;
-        this.goal = r.goal;
-        this.goalMap = r.map;
-      }
+    let walk = blink.resume;
+    for (const q of after) if (q.walk !== undefined) walk = q.walk;
+    if (!walk) return;
+    const path = findPath(walk.map, this.sim, walk.goal, PLAYER_RADIUS);
+    if (path.length > 0) {
+      this.path = path;
+      this.goal = walk.goal;
+      this.goalMap = walk.map;
     }
   }
 

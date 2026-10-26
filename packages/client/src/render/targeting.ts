@@ -33,6 +33,22 @@ export function targetable(effects: number): boolean {
   return (effects & (EFFECT_HIDDEN | EFFECT_UNTARGETABLE)) === 0;
 }
 
+/**
+ * Why a unit-targeted cast on the picked fighter cannot work, as the line for the slot's deny text, or null when it should go
+ * through: out of range (`range` + `slack`, the server's own allowance, on drawn positions), no line of sight (`sight`, when the
+ * ability needs it), or the target is still under teleport immunity (`immuneUntil` against the client's estimate of server time,
+ * which lags the server's, so a target about to turn vulnerable is called immune: the safe side). The server decides anyway.
+ */
+export function unitCastDenial(o: {
+  from: TargetPoint; to: TargetPoint; range: number; slack: number; los: boolean; sight: (a: TargetPoint, b: TargetPoint) => boolean;
+  immuneUntil: number; serverNow: number;
+}): string | null {
+  if (Math.hypot(o.to.x - o.from.x, o.to.y - o.from.y) > o.range + o.slack) return "Out of range";
+  if (o.los && !o.sight(o.from, o.to)) return "No line of sight";
+  if (o.serverNow < o.immuneUntil) return "Immune";
+  return null;
+}
+
 /** How long a lock the player just ordered (or dropped) is shown before the server's own `attackTarget` takes over. */
 export const OPTIMISTIC_LOCK_MS = 500;
 

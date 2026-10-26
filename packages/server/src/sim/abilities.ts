@@ -159,17 +159,17 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
   const face = target ? target.s : rule.kind === "point" || rule.kind === "dir" ? point : null;
   if (face && Math.hypot(face.x - c.s.x, face.y - c.s.y) >= 1) c.s.facing = Math.atan2(face.y - c.s.y, face.x - c.s.x);
 
-  // A cast with a telegraph roots, and an own order (the blink) is a move: either one is the player's choice over the attack
-  // being wound up. No attack starts while casting (weapons.ts); a lock the cast does not drop stays.
-  if (r.castMs > 0 || def.ownOrder) {
+  // A cast with a telegraph roots, and an own order (the blink) or a lock-dropping one (Swarm) is a move's worth of choice: each is the
+  // player's choice over the attack being wound up. No attack starts while casting (weapons.ts); a lock the cast does not drop stays.
+  // Only an own order ends the walk too: a walk in hand survives a lock-dropper's cast root and goes on after it (a locked caster
+  // has no walk of its own: the lock's chase path goes with the lock).
+  if (r.castMs > 0 || def.ownOrder || def.dropsLock) {
     if (!cancelLockedWindup(world, c) && c.rt.weapon.action) {
       cancelAction(world, c);
       emit(world, { type: "fx", fx: { kind: "cancel", id: c.id } });
     }
-    if (def.ownOrder) {
-      dropLock(c);
-      c.rt.path = [];
-    }
+    if (def.ownOrder || def.dropsLock) dropLock(c);
+    if (def.ownOrder) c.rt.path = [];
   }
   if (r.castMs > 0) {
     const at = target ? target.s : rule.kind === "point" ? point : c.s;
@@ -216,10 +216,10 @@ export function onStatusApplied(world: World, c: Combatant, st: StatusInstance):
     cancelIf(world, c, "stun");
   } else if (st.kind === "silence") cancelIf(world, c, "silence");
   else if (st.kind === "root") cancelIf(world, c, "root");
-  else if (st.kind === "slowAttack") recomputeMods(world, c); // an expiry or a cleanse is caught by mods' own per-tick pass
+  else if (st.kind === "slowAttack") recomputeMods(world, c); // its removal re-folds in removeStatuses
 }
 
-/** attackStarted: a hidden fighter's own attack shows it from its start until the swing lands or the shot leaves, and a moment more. */
+/** attackStarted: a hidden fighter's own attack shows it, from the next tick, until the swing lands or the shot leaves, and a moment more. */
 function onAttackStarted(world: World, c: Combatant): void {
   const act = c.rt.weapon.action;
   if (act && c.rt.statuses && c.rt.statuses.length > 0) reveal(world, c, act.landsAt + HIDDEN_REVEAL_MS);
@@ -430,7 +430,9 @@ function applyEffect(world: World, l: Landing, e: AbilityEffect, now: number): v
         startedAt: now, endsAt: now + e.ms,
       });
       const st = addStatus(world, t, {
-        kind: "zoned", source, ability: def.id, ms: e.ms, data: { fieldId: f.id, dealtMult: e.dealtMult, takenFromSourceMult: e.takenFromCasterMult },
+        // `value` is its outgoing multiplier: zoned combines by product, so statusValue(zoned) is what the subject deals now.
+        kind: "zoned", source, ability: def.id, ms: e.ms, value: e.dealtMult,
+        data: { fieldId: f.id, dealtMult: e.dealtMult, takenFromSourceMult: e.takenFromCasterMult },
       });
       if (!st) removeField(world, f.id);
       return;

@@ -1,7 +1,7 @@
 // The bots' use of their faction's Wish: `decideCast` (bots/abilityPolicy.ts) picks and aims a cast by the intent tags of the def
 // (`ai`), never by ability id, and BotClient asks for it only once it is ready, at most once a second, and never at a fighter
 // nobody can target. Pure situations on a hand-built map; BotClient is driven through a stand-in room.
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ABILITIES, BLAZE_RANGE, blinkLanding, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_ROOTED, EFFECT_SILENCED, EFFECT_STUNNED,
   EFFECT_UNTARGETABLE, FREEZE_RANGE, mapFromTiles, TILE, TILE_FLOOR, TILE_WALL, TRIAL_RANGE, WISHES, type AbilityDef, type AbilityId,
@@ -340,5 +340,70 @@ describe("BotClient casts its Wish", () => {
     foe.effects = 0;
     expect(pick()).toMatchObject({ id: "foe" });
     expect(sent).toEqual([]);
+  });
+});
+
+
+// ---------------------------------------------------------------------------------------------------------------
+// A whole think over a Swarm cast: the bot does not lock anyone while the cast is pending, whatever the bit says yet.
+
+describe("a bot that casts Swarm to get away", () => {
+  const NOW = 100_000;
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  interface Brain { think(): void; hitAt: number }
+
+  function scene() {
+    const sent: Sent[] = [];
+    const me = new PlayerState();
+    Object.assign(me, {
+      faction: "plague", status: "alive", x: 640, y: 320, hp: 30, maxHp: 100, weapon0: "sword", weapon1: "", slot: 0, attackTarget: "", effects: 0,
+      wishReadyAt: 0, readyAt: 0, drawStartedAt: 0, stacksHp: 0, stacksAs: 0, stacksMs: 0, mobKills: 0,
+    });
+    const foe = new PlayerState();
+    Object.assign(foe, { faction: "fire", status: "alive", x: 700, y: 320, hp: 100, maxHp: 100, weapon0: "sword", weapon1: "", slot: 0, attackTarget: "", effects: 0 });
+    const state = {
+      phase: "active", serverTime: 0, raidStartedAt: 0, inColiseum: false, gatesLocked: false,
+      players: new Map([["me", me], ["foe", foe]]), mobs: new Map(), containers: new Map(),
+    };
+    const bot = new BotClient();
+    Object.assign(bot, { room: { sessionId: "me", state, send: (type: string, payload: Record<string, unknown>) => sent.push({ type, payload }) }, map: openMap() });
+    const brain = bot as unknown as Brain;
+    brain.hitAt = Date.now() - 100; // being hit: the escape rule fires
+    return { brain, me, sent, tick: (ms = 50) => { brain.think(); vi.advanceTimersByTime(ms); } };
+  }
+  const types = (sent: Sent[]): string[] => sent.map((m) => m.type);
+
+  it("sends no `target` while the cast is pending, before the server shows the cast or the hiding, nor once it shows them", () => {
+    const { me, sent, tick } = scene();
+    me.attackTarget = "foe"; // it is fighting its foe, the server has its lock
+    tick(); // and the escape rule asks for Swarm
+    expect(sent.filter((m) => m.type === "cast")).toEqual([{ type: "cast", payload: { slot: "wish", x: 640, y: 320 } }]);
+    // The server dropped the lock at the cast. Its patch shows the cast, then nothing, then the hiding: none of them is a reason to lock.
+    sent.length = 0;
+    me.attackTarget = "";
+    me.effects = EFFECT_CASTING;
+    tick();
+    me.effects = 0; // the cast is not in the patches yet, or already over
+    tick();
+    me.effects = EFFECT_HIDDEN;
+    tick();
+    expect(types(sent)).not.toContain("target");
+    expect(types(sent)).toContain("move"); // it slips away instead
+  });
+
+  it("a cast the server refused frees it after the cast's own time and a short grace: it fights again", () => {
+    const { me, sent, tick } = scene();
+    me.attackTarget = "foe";
+    tick();
+    sent.length = 0;
+    me.attackTarget = "";
+    tick(100);
+    tick(100);
+    expect(types(sent)).not.toContain("target");
+    vi.advanceTimersByTime(600); // past the 250 ms cast and the grace, with no cast and no hiding ever shown
+    tick();
+    expect(types(sent)).toContain("target");
   });
 });

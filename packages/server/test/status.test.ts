@@ -330,17 +330,42 @@ describe("hidden and untargetable", () => {
     apply(w, "a", "a", "hidden", 8000);
     expect([isHidden(w, a), isUntargetable(w, a), isUntargetableId(w, "a")]).toEqual([true, true, true]);
     expect(P(w, "a").effects & EFFECT_HIDDEN).toBe(EFFECT_HIDDEN);
-    reveal(w, a, now(w) + 500);
+    const start = now(w);
+    reveal(w, a, start + 500);
+    // A reveal takes effect from the next tick: nothing read during this one changes, whoever's attack started first.
+    expect([isHidden(w, a), isUntargetable(w, a), isUntargetableId(w, "a")]).toEqual([true, true, true]);
+    expect(P(w, "a").effects & EFFECT_HIDDEN).toBe(EFFECT_HIDDEN);
+    w.state.serverTime += TICK_MS;
     expect([isHidden(w, a), isUntargetable(w, a), isUntargetableId(w, "a")]).toEqual([false, false, false]);
+    refreshEffects(w, a);
     expect(P(w, "a").effects & EFFECT_HIDDEN).toBe(0);
-    w.state.serverTime += 499;
+    w.state.serverTime = start + 499;
     expect(isHidden(w, a)).toBe(false);
-    w.state.serverTime += 1;
+    w.state.serverTime = start + 500;
     expect(isHidden(w, a)).toBe(true);
     // The bit follows the next refresh (updateAbilities does it every tick).
     expect(P(w, "a").effects & EFFECT_HIDDEN).toBe(0);
     refreshEffects(w, a);
     expect(P(w, "a").effects & EFFECT_HIDDEN).toBe(EFFECT_HIDDEN);
+  });
+
+  it("a reveal that is running only grows; one that is over starts again a tick from now", () => {
+    const w = arena();
+    const a = C(w, "a");
+    apply(w, "a", "a", "hidden", 8000);
+    const start = now(w);
+    reveal(w, a, start + 300);
+    w.state.serverTime = start + 200;
+    expect(isHidden(w, a)).toBe(false);
+    reveal(w, a, start + 700); // grows: still one window, from the first from
+    expect(findStatus(a, "hidden")).toMatchObject({ revealFrom: start + TICK_MS, revealUntil: start + 700 });
+    w.state.serverTime = start + 700;
+    expect(isHidden(w, a)).toBe(true);
+    reveal(w, a, start + 1200); // a new window: from the tick after this one
+    expect(findStatus(a, "hidden")).toMatchObject({ revealFrom: start + 700 + TICK_MS, revealUntil: start + 1200 });
+    expect(isHidden(w, a)).toBe(true);
+    w.state.serverTime = start + 700 + TICK_MS;
+    expect(isHidden(w, a)).toBe(false);
   });
 
   it("reveal only raises, and a revealed fighter that is untargetable by status stays untargetable", () => {
@@ -350,6 +375,7 @@ describe("hidden and untargetable", () => {
     reveal(w, a, now(w) + 800);
     reveal(w, a, now(w) + 100);
     expect(findStatus(a, "hidden")!.revealUntil).toBe(now(w) + 800);
+    w.state.serverTime += TICK_MS;
     apply(w, "a", "a", "untargetable", 2000);
     expect(isHidden(w, a)).toBe(false);
     expect(isUntargetable(w, a)).toBe(true);

@@ -29,7 +29,7 @@ import { aggro } from "../src/sim/mobAI";
 import { placeMob } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import { positionAt } from "../src/sim/movement";
-import { addStatus, findStatus, isHidden, isStunned, isUntargetable, statusesOf } from "../src/sim/status";
+import { addStatus, findStatus, isHidden, isStunned, isUntargetable, reveal, statusesOf, statusValue } from "../src/sim/status";
 import { installTraining } from "../src/sim/training";
 import { stagger } from "../src/sim/weapons";
 import type { SimEvent, World } from "../src/sim/world";
@@ -274,6 +274,9 @@ describe("the cast input: lag, hiding and the chill", () => {
     cast(world, 0, { target: 1 });
     tick(world);
     const landsAt = RT(world).cast!.landsAt;
+    // The reveal takes effect from the next tick: nothing another fighter reads in the cast's own tick changes.
+    expect(isHidden(world, C(world))).toBe(true);
+    tick(world);
     expect(isHidden(world, C(world))).toBe(false);
     expect(P(world).effects & EFFECT_HIDDEN).toBe(0);
     runTo(world, landsAt + HIDDEN_REVEAL_MS - TICK_MS);
@@ -903,6 +906,8 @@ describe("Swarm (Plague)", () => {
     let act = W(world).action;
     for (let i = 0; i < 40 && !act; i++) { tick(world); act = W(world).action; }
     expect(act).not.toBeNull();
+    expect(isHidden(world, C(world))).toBe(true); // shown from the next tick: the attack's own tick reads as before it
+    tick(world);
     expect(isHidden(world, C(world))).toBe(false);
     expect(P(world).effects & EFFECT_HIDDEN).toBe(0);
     expect(isUntargetable(world, C(world))).toBe(false);
@@ -1953,10 +1958,14 @@ describe("a cast in flight across the coliseum teleport (M1)", () => {
   });
 });
 
-describe("Swarm is an own order (M2)", () => {
-  it("casting it drops the caster's lock and path, so a locked auto-attack does not reveal it at once", () => {
+describe("Swarm drops its caster's lock, and only the lock (M2)", () => {
+  it("is a lock-dropper, not an own order: Blaze Step is the one that also ends the walk", () => {
+    expect([ABILITIES.swarm.ownOrder, ABILITIES.swarm.dropsLock]).toEqual([false, true]);
+    expect([ABILITIES.blaze.ownOrder, ABILITIES.blaze.dropsLock]).toEqual([true, false]);
+  });
+
+  it("casting it drops a locked caster's lock and chase, so its auto-attack does not reveal it at once", () => {
     const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "fire", weapons: ["sword"], at: near(326) }]);
-    expect(ABILITIES.swarm.ownOrder).toBe(true);
     lockOn(world, 0, 1);
     run(world, 10);
     expect(W(world).lock).toBe("p1");
@@ -1964,7 +1973,7 @@ describe("Swarm is an own order (M2)", () => {
     tick(world);
     expect(W(world).lock).toBeNull();
     expect(P(world).attackTarget).toBe("");
-    expect(RT(world).path).toEqual([]);
+    expect(RT(world).path).toEqual([]); // a lock's chase has no walk of its own
     runFor(world, SWARM_CAST_MS);
     let hidden = 0;
     let ticks = 0;
@@ -1978,6 +1987,28 @@ describe("Swarm is an own order (M2)", () => {
     expect(W(world).action).toBeNull();
   });
 
+  it("a walking caster keeps its walk through the cast root and goes on after it", () => {
+    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "fire", weapons: ["sword"], at: near(1000, 500) }]);
+    walkTo(world, 0, 800, 320);
+    run(world, 3);
+    cast(world, 0);
+    tick(world);
+    const stoppedAt = P(world).x;
+    expect(stoppedAt).toBeGreaterThan(300);
+    expect(RT(world).path.length).toBeGreaterThan(0);
+    expect(RT(world).cast).not.toBeNull();
+    runTo(world, RT(world).cast!.landsAt - TICK_MS);
+    expect(P(world).x).toBe(stoppedAt); // rooted while it casts
+    expect(RT(world).path.length).toBeGreaterThan(0);
+    tick(world); // the landing tick: the root is gone before movement runs
+    expect(isHidden(world, C(world))).toBe(true);
+    expect(P(world).x).toBeCloseTo(stoppedAt + STEP, 6); // the walk resumes
+    run(world, 60);
+    expect(P(world).x).toBe(800);
+    expect(isHidden(world, C(world))).toBe(true);
+    expect(fxOf("cancel")).toEqual([]);
+  });
+
   it("an ambush is the player's own click after the cast: it reveals for the swing and a moment more", () => {
     const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "fire", weapons: ["sword"], at: near(326) }]);
     lockOn(world, 0, 1);
@@ -1989,6 +2020,7 @@ describe("Swarm is an own order (M2)", () => {
     let act = W(world).action;
     for (let i = 0; i < 30 && !act; i++) { tick(world); act = W(world).action; }
     expect(act).not.toBeNull();
+    tick(world);
     expect(isHidden(world, C(world))).toBe(false);
   });
 
@@ -2133,5 +2165,107 @@ describe("two small things the review found", () => {
     const world = arena([{ faction: "frost", at: ME }, { faction: "fire", at: FOE }], { lock: -10 });
     expect(P(world).wishReadyAt).toBe(world.state.raidStartedAt);
     expect(P(world).wishReadyAt).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ----------------------------------------------------------------------------------------------------------------
+// Pre-merge review fixes: each of these fails without its fix
+// ----------------------------------------------------------------------------------------------------------------
+
+describe("a hit on a fighter held at the Last Stand floor still lands", () => {
+  it("staggers it, shows a number, records the hit and calls hitLanded, though hp stays at 1, and `taken` counts it as before", () => {
+    const world = arena([
+      { faction: "holy", weapons: ["axe"], at: ME, hp: 100, maxHp: 400 }, { faction: "fire", weapons: ["sword"], at: near(330), hp: 1000 },
+      { faction: "frost", at: near(1000, 500), hp: 1000 },
+    ]);
+    const calls: number[] = [];
+    world.hooks.hitLanded = (_w, _e, applied) => { calls.push(applied); };
+    function strike(raw: number): { fx: FxEvent[]; landed: typeof world.combat.landed } {
+      world.events.length = 0;
+      world.combat.landed = [];
+      world.combat.ledger = [];
+      recordHit(world, { victim: "p0", by: src("p1"), packet: { raw, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: true });
+      applyLedger(world);
+      return { fx: world.events.flatMap((e) => (e.type === "fx" ? [e.fx] : [])), landed: [...world.combat.landed] };
+    }
+    cast(world, 0);
+    tick(world);
+    const first = strike(500); // 100 hp down to the floor
+    expect(P(world).hp).toBe(1);
+    expect(first.fx.filter((f) => f.kind === "hit")).toHaveLength(1);
+    expect(calls).toEqual([expect.closeTo(500, 9)]);
+    runFor(world, 600); // past the stagger immunity that hit started
+    send(world, 0, "attack", { a: 0 });
+    tick(world);
+    expect(W(world).action).not.toBeNull();
+    expect(W(world).staggerImmuneUntil).toBeLessThan(T(world));
+
+    const second = strike(50); // hp is already 1: it stays 1
+    expect(P(world).hp).toBe(1);
+    expect(second.fx).toContainEqual({ kind: "stagger", id: "p0" }); // the windup went
+    expect(W(world).action).toBeNull();
+    expect(W(world).staggerImmuneUntil).toBeGreaterThan(T(world));
+    expect(second.fx.filter((f) => f.kind === "hit")).toMatchObject([{ id: "p0", by: "p1", amount: 50 }]);
+    expect(second.landed).toMatchObject([{ victim: "p0", by: "p1" }]);
+    expect(second.landed[0]!.amount).toBeCloseTo(50, 9);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toBeCloseTo(50, 9);
+    expect(findStatus(C(world), "deathFloor")!.taken).toBeCloseTo(550, 9);
+    // applyDamage says the same: the damage reached the pool.
+    expect(applyDamage(world, P(world), RT(world), 7, "test")).toBe(7);
+    expect(P(world).hp).toBe(1);
+    // Without the floor a hit that kills still reports the hp it took, and one that is swallowed whole reports nothing.
+    const plain = arena([{ faction: "fire", at: ME, hp: 100 }, { faction: "frost", at: near(1000, 500), hp: 1000 }]);
+    expect(applyDamage(plain, P(plain), RT(plain), 30, "test")).toBe(30);
+    expect(applyDamage(plain, P(plain), RT(plain), 1000, "test")).toBe(70);
+  });
+});
+
+describe("statusValue(zoned) is the multiplier the subject deals", () => {
+  it("is the dealt multiplier while zoned and 1 once the zone is over", () => {
+    const world = arena([{ faction: "sentenced", at: ME, hp: 1000 }, { faction: "fire", at: FOE, hp: 1000 }, { faction: "holy", at: near(450, 500), hp: 1000 }]);
+    expect(statusValue(world, C(world, 1), "zoned")).toBe(1);
+    cast(world, 0, { target: 1 });
+    runFor(world, TRIAL_CAST_MS + TICK_MS);
+    expect(statusValue(world, C(world, 1), "zoned")).toBeCloseTo(TRIAL_DEALT_MULT, 12);
+    expect(statusValue(world, C(world, 0), "zoned")).toBe(1);
+    runFor(world, TRIAL_MS);
+    expect(findStatus(C(world, 1), "zoned")).toBeUndefined();
+    expect(statusValue(world, C(world, 1), "zoned")).toBe(1);
+  });
+});
+
+describe("a reveal does not depend on join order", () => {
+  /** An archer's locked arrow, drawn on a hidden Plague that is revealed for a moment and then starts an attack in the very tick the draw lands. */
+  function arrowAngle(archerFirst: boolean): number {
+    const archer: Fighter = { faction: "holy", weapons: ["bow"], at: near(400) };
+    const plague: Fighter = { faction: "plague", weapons: ["sword"], at: near(600) };
+    const world = arena(archerFirst ? [archer, plague] : [plague, archer]);
+    const a = archerFirst ? 0 : 1;
+    const pl = archerFirst ? 1 : 0;
+    afflict(world, id(pl), "hidden", 8 * SEC, { ability: "swarm" });
+    reveal(world, C(world, pl), T(world) + 120);
+    lockOn(world, a, pl); // locked while revealed; the reveal runs out and the lock drops, the draw it started goes on
+    tick(world);
+    const act = W(world, a).action;
+    expect(act?.kind).toBe("draw");
+    expect(act!.target).toBe(id(pl));
+    while (T(world) + TICK_MS < act!.landsAt) {
+      tick(world);
+      place(world, id(pl), near(600, 420)); // moved sideways: the start aim and the present position differ
+    }
+    expect(W(world, a).lock).toBeNull();
+    send(world, pl, "attack", { a: 0 }); // it starts an attack in the tick the arrow's draw lands
+    tick(world);
+    const arrow = [...world.projectiles.values()].find((p) => p.owner === id(a));
+    expect(arrow).toBeDefined();
+    return (Math.atan2(arrow!.launch.vy, arrow!.launch.vx) * 180) / Math.PI;
+  }
+
+  it("the same shot flies the same way whichever of the two joined first", () => {
+    const first = arrowAngle(true);
+    const second = arrowAngle(false);
+    expect(second).toBeCloseTo(first, 6);
+    expect(Math.abs(first)).toBeLessThan(1); // along its start aim: the hidden target was not led
   });
 });

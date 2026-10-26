@@ -91,7 +91,7 @@ export function markTickStart(world: World): void {
 /**
  * The one way to hurt a player. Ignored for anyone not standing and during teleport immunity. `source` is the
  * attacker, or the name of what killed them for the result (SUDDEN_DEATH_KILLER, or a mob or a departed shooter).
- * Returns the hp actually removed.
+ * Returns the hp actually removed, or the damage that reached the pool when a death floor (Last Stand) held the hp; 0 when nothing got through.
  */
 export function applyDamage(
   world: World, victim: PlayerState, rtv: PlayerRuntime, amount: number, source: Attacker | string,
@@ -130,8 +130,11 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   total = absorbShield(victim, total);
   if (!(total > 0)) return 0;
   const before = victim.hp;
+  const unheld = Math.max(0, before - total);
   victim.hp = floorHp(world, rtv.id, before, total);
-  if (victim.hp > 0) return before - victim.hp;
+  // What is returned is what reached the pool: a death floor that held the hp (Last Stand) did not stop the damage, it counts toward
+  // what the floor pays back, so the hit still lands (a stagger, a number, a record), even when hp was already at the floor.
+  if (victim.hp > 0) return victim.hp > unheld ? total : before - victim.hp;
 
   const killer = topRival ?? top;
   const by = typeof killer.source === "string" ? null : killer.source;

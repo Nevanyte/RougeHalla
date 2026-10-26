@@ -107,7 +107,8 @@ export interface StatusInstance {
   until: number;
   /** The magnitude: a slow or anti-heal share, a haste bonus, a dot's raw dps. */
   value: number;
-  /** hidden: until when its own attack or cast has revealed it. */
+  /** hidden: its own attack or cast has revealed it from `revealFrom` (the tick after it began, so no fighter's order decides what another reads in that tick) until `revealUntil`. */
+  revealFrom?: number;
   revealUntil?: number;
   /** zoned: the zone's field and the damage factors it applies. */
   fieldId?: string;

@@ -28,6 +28,11 @@ export interface CastSituation {
 
 export interface CastChoice { x: number; y: number; id?: string }
 
+/** Does casting this rank hide its caster from enemies (an effect that puts a `hidden` status on itself)? Swarm does. */
+export function hidesCaster(def: AbilityDef, rank: number): boolean {
+  return rankOf(def, rank).effects.some((e) => e.do === "status" && e.to === "self" && e.status === "hidden");
+}
+
 /** In trouble: this close with low hp... */
 export const ESCAPE_THREAT_DISTANCE = 260;
 export const ESCAPE_HP_THREATENED = 0.5;
