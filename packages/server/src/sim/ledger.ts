@@ -1,5 +1,5 @@
-// The per-tick damage ledger. The projectile sweep, the melee phase and the signature damage (beforeDamage, sim/factions.ts)
-// only record hits here; applyLedger() applies them all at once after that, so the shuffled order fighters were
+// The per-tick damage ledger. The projectile sweep, the melee phase, the signature damage (beforeDamage, sim/factions.ts)
+// and sudden death's burn (arena.ts) only record hits here; applyLedger() applies them all at once after that, so the shuffled order fighters were
 // processed in never decides who hit first, and a fighter killed this tick still lands what it started. Each hit is
 // mitigated by the victim's armor and shield (the faction damage law) and then goes through the one way down: applyHits
 // (players), hurtMob (regional mobs) or damageMob (dummies). Rewards for the kills of a pass (GV, bounties, stacks,
@@ -96,7 +96,7 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   if (c.kind === "player" && barrierBefore > c.s.barrier && total > 0) landedShare = Math.max(0, 1 - (barrierBefore - c.s.barrier) / total);
   entries.forEach((e, i) => {
     const amount = amounts[i]!;
-    if (!(amount > 0)) return;
+    if (!(amount > 0) || e.arena) return;
     world.combat.landed.push({ victim: id, by: e.by.id, amount: amount * landedShare, weapon: e.weapon, sig: e.sig });
     if (isDot(e.sig)) return; // reported in chunks by sim/factions.ts
     const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };

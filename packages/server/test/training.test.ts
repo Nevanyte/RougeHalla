@@ -1316,6 +1316,29 @@ describe("the training room (live)", () => {
       }
     });
 
+    it("does not count a message the server rejects as activity: a player who only sends junk is let go like one who sends nothing", async () => {
+      const restore = idleLimit(1);
+      try {
+        const who = await claim();
+        const p = await startTraining(who);
+        // One of every kind the Room listens for ("stop" has nothing to get wrong), each failing its own check.
+        const junk: Array<[string, unknown]> = [
+          ["move", { x: "nope", y: 1 }], ["move", null], ["aim", { a: Infinity }], ["aim", {}], ["attack", { a: "up" }],
+          ["release", null], ["swap", { slot: 7 }], ["pickup", { containerId: "" }], ["pickup", { containerId: "x".repeat(65) }],
+        ];
+        // Longer than the limit plus the room's check interval (1 s for a 1 s limit): the junk must not hold the room open.
+        const deadline = Date.now() + 6000;
+        while (!p.left && Date.now() < deadline) {
+          for (const [type, msg] of junk) p.room.send(type, msg);
+          await sleep(100);
+        }
+        expect(p.left, "the room to close although junk kept arriving").toBe(true);
+        await until(() => !isActive(who), "the profile to be released", 2000);
+      } finally {
+        restore();
+      }
+    });
+
     it("is far longer by default than a test lasts: a quiet training room is left alone", async () => {
       const who = await claim();
       const p = await startTraining(who);

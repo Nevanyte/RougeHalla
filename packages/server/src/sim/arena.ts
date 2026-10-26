@@ -1,8 +1,8 @@
 // Arena lifecycle: how players go down, who wins, the patience timer, the coliseum teleport and sudden death.
 //
 // step.ts runs an active tick as: tick-start snapshot → inputs (shuffled) → weapon state machines → afterWeapons →
-// movement → history → projectile sweep → spawns → melee → beforeDamage (signature damage) → the damage ledger, all at
-// once → systems → suddenDeath → settle.
+// movement → history → projectile sweep → spawns → melee → beforeDamage (signature damage, then sudden death's burn)
+// → the damage ledger, all at once → systems → settle.
 // Everything that takes a player out of the fight goes through downPlayer(), and settle() is the only place where
 // results are emitted during a step and where the run ends, so the shuffled order players were processed in never
 // decides who won:
@@ -30,6 +30,7 @@ import {
 import type { PlayerState } from "@raid/shared/schema";
 import { absorbShield } from "./buffs";
 import { announceBounty, mobRewardFor } from "./feed";
+import { recordHit } from "./ledger";
 import { releaseTrigger } from "./weapons";
 import { emit, payLater, type PlayerRuntime, type World } from "./world";
 
@@ -228,8 +229,12 @@ export function creditMobKill(
   return awardGv(world, p, rt, elite ? "elite" : "mob", mult);
 }
 
-/** Recomputes the bounty from the player kills; a rise is announced to everyone, at most once per BOUNTY_ANNOUNCE_MS per player (feed.ts). */
+/**
+ * Recomputes the bounty from the player kills; a rise is announced to everyone, at most once per BOUNTY_ANNOUNCE_MS per
+ * player (feed.ts). A killer who went down in the same pass is no longer on a rampage: they get neither.
+ */
 function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
+  if (!standing(p, rt)) return;
   const bounty = bountyFor(p.kills);
   if (bounty <= p.bounty) return;
   p.bounty = bounty;
@@ -311,9 +316,11 @@ function resolve(
 }
 
 /**
- * Sudden death, in the combat/DoT stage. Once the gates have been locked for suddenDeathSeconds with no death, every
+ * Sudden death, in the beforeDamage stage. Once the gates have been locked for suddenDeathSeconds with no death, every
  * standing player loses a share of max hp per second that grows by SUDDEN_DEATH_RAMP_FRACTION each whole second.
  * Only whole ticks after `suddenDeathAt` burn (it is set on the tick grid), so the ramp is the same at any tick rate.
+ * The burn is a ledger entry (all true damage, from SUDDEN_DEATH_KILLER, credited to nobody), so it lands in the same
+ * pass as the tick's hits and no spoils won by a kill in that pass (a kill barrier, bounty stacks) can save anyone from it.
  */
 export function suddenDeath(world: World, dtMs: number): void {
   const s = world.state;
@@ -321,7 +328,12 @@ export function suddenDeath(world: World, dtMs: number): void {
   const tickStart = s.serverTime - dtMs;
   if (tickStart < s.suddenDeathAt) return;
   const share = suddenDeathShare(tickStart - s.suddenDeathAt) * (dtMs / 1000);
-  for (const { p, rt } of alivePlayers(world)) applyDamage(world, p, rt, share * p.maxHp, SUDDEN_DEATH_KILLER);
+  for (const { p, rt } of alivePlayers(world)) {
+    recordHit(world, {
+      victim: rt.id, by: { id: SUDDEN_DEATH_KILLER, name: SUDDEN_DEATH_KILLER },
+      packet: { raw: share * p.maxHp, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false, arena: true,
+    });
+  }
 }
 
 export { suddenDeathShare };

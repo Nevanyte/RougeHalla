@@ -180,6 +180,11 @@ export interface LedgerEntry {
    * passive too. Passive hits make a target only for a fighter that has none.
    */
   passive?: boolean;
+  /**
+   * The arena's own damage (sudden death): it lands in the pass like any hit, but shows no `hit` fx and is not counted
+   * as combat, so `weapon` is never read.
+   */
+  arena?: boolean;
 }
 
 /** A ledger entry that took hp off its victim this tick (applyLedger), for systems that react to damage. */

@@ -1040,8 +1040,9 @@ describe("Frost's move slow on a pinned mob", () => {
   });
 });
 
-describe("known gaps in the seams (these assertions fail until src is fixed)", () => {
-  // KNOWN BUG 1. sim/factions.ts evading() promises that a returning mob "cannot keep burning, diseasing or chilling a
+describe("fixed gaps in the seams (regressions: each of these failed before src was fixed)", () => {
+  // The comments below describe what was wrong, in the present tense of the day they were written.
+  // FIXED BUG 1. sim/factions.ts evading() promises that a returning mob "cannot keep burning, diseasing or chilling a
   // player who follows it (or stands by its camp)". The mob's own target is dropped, so burn and disease do stop (tested
   // above). The chill does not: updateChill() reads the PLAYER's target (the returning mob, still `engaged` for the trade
   // window of up to 3 s while the player is in reach) and chills the player on behalf of the Frost mob that is walking
@@ -1065,7 +1066,7 @@ describe("known gaps in the seams (these assertions fail until src is fixed)", (
     expect(rig.p.sig & SIG_CHILLED).toBeFalsy();
   });
 
-  // KNOWN BUG 1b, same cause. The player's own target stays the returning mob and stays engaged (in reach, trade window of
+  // FIXED BUG 1b, same cause. The player's own target stays the returning mob and stays engaged (in reach, trade window of
   // 3 s from the last contact), so a Sentenced mark, a Plague disease or a Fire burn keeps being worked out for it. While
   // the mob walks home that damage is shrugged off (hurtMob), but the tick it arrives and rests (idle, full hp), the next
   // tick of the player's damage over time lands on it and wakes it again (`aggro`): the mob that gave up is on the player
@@ -1092,7 +1093,7 @@ describe("known gaps in the seams (these assertions fail until src is fixed)", (
     }
   });
 
-  // KNOWN BUG 2. Mobs never hurt each other (a hit is recorded with scale 0), but a swing of one mob that meets a Frost
+  // FIXED BUG 2. Mobs never hurt each other (a hit is recorded with scale 0), but a swing of one mob that meets a Frost
   // camp-mate's raised shield still emits a `block` fx, and sim/factions.ts counts a block as contact: the two become each
   // other's targets and chill each other (SIG_CHILLED, attack cadence x0.4) for as long as the bashes keep being blocked.
   // A mob that is fighting a player is thereby slowed by its own neighbour. A fix: contactsOf() ignores pairs of mobs.

@@ -24,6 +24,8 @@ let now: number;
 const OCT = "2026-10";
 
 function open(clock: Clock = () => now, f = file): JsonProfileStore {
+  // A restart here is a second store on the file while the first object is still around; a stopped process lets go of its lock.
+  fs.rmSync(`${path.resolve(f)}.lock`, { force: true });
   const store = new JsonProfileStore(f, { clock });
   stores.push(store);
   return store;
@@ -38,7 +40,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  await Promise.allSettled(stores.splice(0).map((s) => s.flush()));
+  await Promise.allSettled(stores.splice(0).map((s) => s.close()));
   for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
 });
 
@@ -1413,7 +1415,7 @@ describe("persistence of the meta layer", () => {
     await store.flush();
     expect([log, error].map((s) => s.mock.calls.length)).toEqual([0, 0]);
     expect(fs.readFileSync(file, "utf8")).toBe(text);
-    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json", "stash.json.lock"]);
 
     // Its first change writes the new fields.
     store.bankGv("alice", 1);
@@ -1506,10 +1508,11 @@ describe("persistence of the meta layer", () => {
     const openFile = vi.spyOn(fs.promises, "open");
     store.purchase("alice", token, "skin-crimson");
     await store.flush();
-    expect(openFile).toHaveBeenCalledWith(`${file}.tmp`, "w");
-    expect(rename).toHaveBeenCalledWith(`${file}.tmp`, file);
-    expect(fs.existsSync(`${file}.tmp`)).toBe(false);
-    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+    const tmp = `${file}.tmp-${process.pid}`;
+    expect(openFile).toHaveBeenCalledWith(tmp, "w");
+    expect(rename).toHaveBeenCalledWith(tmp, file);
+    expect(fs.existsSync(tmp)).toBe(false);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json", "stash.json.lock"]);
     expect(readFile().profiles.alice).toMatchObject({ gv: 60, cosmetics: { owned: ["skin-crimson"] } });
   });
 
@@ -1526,7 +1529,7 @@ describe("persistence of the meta layer", () => {
     await store.flush();
     expect(rename).toHaveBeenCalledTimes(1);
     expect(open().get("alice")).toEqual(store.get("alice"));
-    expect(fs.readdirSync(dir)).toEqual(["stash.json"]);
+    expect(fs.readdirSync(dir)).toEqual(["stash.json", "stash.json.lock"]);
   });
 
   it("a restart brings back purchases, equipment, achievements and counters, and the economy keeps working", async () => {

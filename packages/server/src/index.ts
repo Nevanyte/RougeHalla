@@ -248,10 +248,11 @@ export function createServer(config: ServerConfig = loadConfig()) {
       app.use("/api", apiError);
     },
   });
-  // Runs after every room is disposed (their onLeave handlers have settled), also on SIGINT/SIGTERM.
+  // Runs after every room is disposed (their onLeave handlers have settled), also on SIGINT/SIGTERM. The final flush,
+  // then the profile file's lock goes, so the next server (a deploy, a tsx-watch restart) can take the file.
   server.onShutdown(async () => {
     try {
-      await store.flush();
+      await store.close();
     } catch (err) {
       console.error("[server] could not flush the profiles on shutdown:", err);
     }
@@ -263,7 +264,7 @@ export function createServer(config: ServerConfig = loadConfig()) {
     try {
       await server.gracefullyShutdown(false);
     } finally {
-      await store.flush();
+      await store.close();
     }
   }
   return Object.assign(server, { store, profiles, stop });

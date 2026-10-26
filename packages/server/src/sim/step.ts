@@ -176,9 +176,10 @@ function applyInputs(world: World, c: Combatant): void {
  * One active tick, in this order (see arena.ts for why the order matters):
  *   inputs (players in the shuffled actionOrder, then mobs) → weapon state machines → afterWeapons → movement →
  *   history → projectile sweep (present time) → spawns → melee (rewound) → beforeDamage (signature damage joins the
- *   ledger) → the damage ledger, all at once → systems → sudden death → settle.
+ *   ledger) → sudden death's burn joins it → the damage ledger, all at once → systems → settle.
  * Damage lands only in the ledger step, so a fighter killed this tick still lands what it started, and simultaneous
- * deaths are settled by the hp fraction at the start of the tick.
+ * deaths are settled by the hp fraction at the start of the tick. The burn is in that pass, so what a kill wins (paid
+ * after the pass) never decides who survives it.
  */
 function updateActive(world: World, dtMs: number): void {
   if (world.arena.voided) return;
@@ -210,14 +211,12 @@ function updateActive(world: World, dtMs: number): void {
   spawnProjectiles(world);
   resolveMelee(world);
   for (const sys of world.beforeDamage) sys(world, dtMs);
+  // After the signatures, which read the ledger for this tick's contacts: the burn is no one's hit.
+  if (!world.config.training) suddenDeath(world, dtMs);
   applyLedger(world);
   for (const sys of world.systems) sys(world, dtMs);
-  if (world.config.training) {
-    trainingSettle(world);
-  } else {
-    suddenDeath(world, dtMs);
-    settle(world);
-  }
+  if (world.config.training) trainingSettle(world);
+  else settle(world);
   // Nothing flies once the run is over: clients would otherwise draw what's left to its full range, through walls.
   if (s.phase === "ended") clearProjectiles(world, "cleared");
 }

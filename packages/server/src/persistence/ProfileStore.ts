@@ -1,6 +1,7 @@
 // Profile persistence (v2): GV, stats and cosmetics per callsign. The in-memory state is the source of truth:
 // every mutation is synchronous (so Room callbacks never await between a check and the change it guards) and then
-// schedules a write. Single process only; the interface exists so SQLite could replace the JSON file.
+// schedules a write. Single process only, enforced by a lock file next to the data; the interface exists so SQLite
+// could replace the JSON file.
 // There is no stash any more: run gear never leaves a run. A v1 (stash) file is migrated on load.
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
@@ -90,6 +91,8 @@ export interface ProfileStore {
   leaderboardMonths(limit: number): string[];
   /** Resolves once everything mutated so far is on disk. Rejects if the write failed. */
   flush(): Promise<void>;
+  /** The final flush, then lets go of whatever the store holds (the file lock). Changes made after it are not saved. */
+  close(): Promise<void>;
 }
 
 /** The store's notion of "now", for the month GV is banked in. Tests pass a fixed clock. */
@@ -123,6 +126,20 @@ export class ProfileFileError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ProfileFileError";
+  }
+}
+
+/** Another server process is using the profile file. This one must not start: two writers would overwrite each other. */
+export class ProfileLockedError extends Error {
+  constructor(lockFile: string, holder: number | null) {
+    super(
+      `[profiles] refusing to start: ${lockFile} is held by ` +
+        (holder === null
+          ? `no process it can identify (it holds no process id). If no server is running, delete it and start again.`
+          : `process ${holder}, which is still running. Stop that server first. If ${holder} is not a server ` +
+            `(its id was reused after a crash), delete the lock file and start again.`),
+    );
+    this.name = "ProfileLockedError";
   }
 }
 
@@ -375,8 +392,38 @@ function equippedTitle(r: ProfileRecord): string | undefined {
 const RETRY_MIN_MS = 1_000;
 const RETRY_MAX_MS = 30_000;
 
+/**
+ * Changes are written in batches: the first one after a write waits this long, and whatever else changes meanwhile goes
+ * out in the same write. Every write serializes and syncs the whole file, so this bounds the cost of a busy minute.
+ */
+const WRITE_DELAY_MS = 1_000;
+
 /** Opening or syncing a directory is not possible on every platform or filesystem; that is not a failed write. */
 const DIR_SYNC_UNSUPPORTED = new Set(["EISDIR", "EPERM", "EINVAL"]);
+
+/** Lock files this process holds, so an exit that skips close() (a failed listen, process.exit) leaves none behind. */
+const heldLocks = new Set<string>();
+let exitHooked = false;
+
+function removeLockIfOurs(lockFile: string): void {
+  try {
+    if (fs.readFileSync(lockFile, "utf8").trim() === String(process.pid)) fs.rmSync(lockFile, { force: true });
+  } catch {
+    // Already gone, or not ours to read: nothing to release.
+  }
+}
+
+/** Signal 0 only checks that the process exists. EPERM means it does, under another user. */
+function isRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+const NO_ROWS: readonly RankedRow[] = Object.freeze([]);
 
 /** Makes a rename durable: the new directory entry is only crash-safe once the directory itself is synced. */
 async function syncDir(dir: string): Promise<void> {
@@ -406,25 +453,96 @@ export class JsonProfileStore implements ProfileStore {
 
   /** True while in-memory state is newer than what the last finished write contained. */
   private dirty = false;
-  /** The running write loop. At most one exists, so two writes are never in flight. */
+  /** The running write. At most one exists, so two writes are never in flight. */
   private writing: Promise<void> | null = null;
   private lastError: unknown = null;
+  /** The batching window: while it is open, mutations only mark the data dirty and the write at its end covers them. */
+  private writeTimer: NodeJS.Timeout | null = null;
   /** Pending retry of a failed write. While it is armed, mutations only mark the data dirty. */
   private retryTimer: NodeJS.Timeout | null = null;
   private retryDelayMs = RETRY_MIN_MS;
+  private closed = false;
+  private readonly lockFile: string;
 
   constructor(file: string, opts: { clock?: Clock } = {}) {
     this.file = path.resolve(file);
+    this.lockFile = `${this.file}.lock`;
     this.clock = opts.clock ?? systemClock;
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    const { profiles, rewrite } = this.load();
-    this.profiles = profiles;
-    for (const r of profiles.values()) {
-      for (const [month, gv] of Object.entries(r.gvByMonth)) if (gv > 0) this.monthsWithGv.add(month);
+    this.acquireLock();
+    try {
+      this.sweepTempFiles();
+      const { profiles, rewrite } = this.load();
+      this.profiles = profiles;
+      for (const r of profiles.values()) {
+        for (const [month, gv] of Object.entries(r.gvByMonth)) if (gv > 0) this.monthsWithGv.add(month);
+      }
+      // Rewrite the new file now rather than at the next mutation, so a migration is not repeated (and the dropped
+      // entries are not reported and backed up again) on every restart. Not batched: nothing is waiting to join it.
+      if (rewrite) {
+        this.dirty = true;
+        this.start();
+      }
+    } catch (err) {
+      // A store that failed to start must not keep the file locked against the next attempt.
+      this.releaseLock();
+      throw err;
     }
-    // Rewrite the new file now rather than at the next mutation, so a migration is not repeated (and the dropped
-    // entries are not reported and backed up again) on every restart.
-    if (rewrite) this.schedulePersist();
+  }
+
+  /**
+   * One server process per file: two would each load it once and then overwrite the other's changes on every write.
+   * The lock file holds the owner's pid. A lock whose process is gone (a crash, a kill) is taken over; one held by a
+   * live process, this one included, refuses the start.
+   */
+  private acquireLock(): void {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const fd = fs.openSync(this.lockFile, "wx");
+        try {
+          fs.writeSync(fd, `${process.pid}\n`);
+        } catch (err) {
+          fs.closeSync(fd);
+          fs.rmSync(this.lockFile, { force: true }); // no half-made lock: it would read as held by no one
+          throw err;
+        }
+        fs.closeSync(fd);
+        heldLocks.add(this.lockFile);
+        if (!exitHooked) {
+          exitHooked = true;
+          process.once("exit", () => heldLocks.forEach(removeLockIfOurs));
+        }
+        return;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+      }
+      let text: string;
+      try {
+        text = fs.readFileSync(this.lockFile, "utf8").trim();
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") continue; // released since we looked: try again
+        throw err;
+      }
+      const holder = /^\d+$/.test(text) && Number(text) > 0 ? Number(text) : null;
+      if (holder === null || isRunning(holder)) throw new ProfileLockedError(this.lockFile, holder);
+      console.log(`[profiles] ${this.file}: took over the lock of process ${holder}, which is no longer running`);
+      fs.rmSync(this.lockFile, { force: true });
+    }
+    throw new ProfileLockedError(this.lockFile, null);
+  }
+
+  private releaseLock(): void {
+    heldLocks.delete(this.lockFile);
+    removeLockIfOurs(this.lockFile);
+  }
+
+  /** Under the lock nobody else is writing, so whatever a crashed write left behind (any pid's temp file) is garbage. */
+  private sweepTempFiles(): void {
+    const dir = path.dirname(this.file);
+    const name = path.basename(this.file);
+    for (const entry of fs.readdirSync(dir)) {
+      if (entry === `${name}.tmp` || entry.startsWith(`${name}.tmp-`)) fs.rmSync(path.join(dir, entry), { force: true });
+    }
   }
 
   /**
@@ -646,10 +764,25 @@ export class JsonProfileStore implements ProfileStore {
 
   async flush(): Promise<void> {
     this.lastError = null;
-    if (this.dirty && !this.writing) this.start();
-    // The loop re-checks `dirty` after each write, so awaiting it also covers writes scheduled meanwhile.
-    while (this.writing) await this.writing;
+    // Writes at once, ahead of any open batching window. A change that lands while one is running is written by the
+    // next pass of this loop, so the flush covers it too; after a failure it stops and reports instead of spinning.
+    for (;;) {
+      if (this.dirty && !this.writing && !this.lastError) this.start();
+      if (!this.writing) break;
+      await this.writing;
+    }
     if (this.dirty && this.lastError) throw this.lastError;
+  }
+
+  async close(): Promise<void> {
+    try {
+      await this.flush();
+    } finally {
+      // Whatever happened to the last write, nothing may write again without the lock.
+      this.closed = true;
+      this.cancelTimers();
+      this.releaseLock();
+    }
   }
 
   private require(name: string): ProfileRecord {
@@ -666,6 +799,9 @@ export class JsonProfileStore implements ProfileStore {
 
   /** Everyone with GV banked in `month`, best first. Shared with the cache: callers must not change it. */
   private ranked(month: string): readonly RankedRow[] {
+    // Any well-formed month is a valid request, so one nobody banked GV in must cost nothing: no scan, and no cache entry
+    // for an anonymous caller to fill with months that will never have one.
+    if (!this.monthsWithGv.has(month)) return NO_ROWS;
     const cached = this.rankCache.get(month);
     if (cached) return cached;
     const rows: RankedRow[] = [];
@@ -711,23 +847,35 @@ export class JsonProfileStore implements ProfileStore {
   }
 
   private schedulePersist(): void {
+    if (this.closed) return;
     this.dirty = true;
-    // After a failure the retry timer owns the next attempt; hammering a failing disk on every mutation helps nobody.
-    if (!this.writing && !this.retryTimer) this.start();
+    // A running write picks the change up when it ends (start), and after a failure the retry timer owns the next attempt:
+    // hammering a failing disk on every mutation helps nobody.
+    if (!this.writing && !this.retryTimer) this.openWindow();
+  }
+
+  /** Waits out the batching window, then writes everything that changed in it. Not unref'd: a pending write keeps the process up. */
+  private openWindow(): void {
+    if (this.writeTimer) return;
+    this.writeTimer = setTimeout(() => {
+      this.writeTimer = null;
+      if (this.dirty && !this.writing) this.start();
+    }, WRITE_DELAY_MS);
   }
 
   private start(): void {
-    this.cancelRetry();
-    this.writing = this.writeLoop().finally(() => {
+    if (this.closed) return;
+    this.cancelTimers();
+    this.writing = this.writeOnce().finally(() => {
       this.writing = null;
-      // A microtask can mutate between the loop's last check and here; don't strand that change.
-      if (this.dirty && !this.lastError) this.start();
+      // A change made during the write waits for the next window; the batching holds back writes that follow one another too.
+      if (this.dirty && !this.lastError) this.openWindow();
     });
   }
 
-  private cancelRetry(): void {
-    if (!this.retryTimer) return;
-    clearTimeout(this.retryTimer);
+  private cancelTimers(): void {
+    for (const t of [this.writeTimer, this.retryTimer]) if (t) clearTimeout(t);
+    this.writeTimer = null;
     this.retryTimer = null;
   }
 
@@ -743,23 +891,18 @@ export class JsonProfileStore implements ProfileStore {
     this.retryTimer.unref();
   }
 
-  private async writeLoop(): Promise<void> {
-    // Let the rest of the current synchronous burst land first so it costs one write, not several.
-    await Promise.resolve();
-    while (this.dirty) {
-      this.dirty = false;
-      try {
-        await this.writeSnapshot();
-        this.lastError = null;
-        this.retryDelayMs = RETRY_MIN_MS;
-      } catch (err) {
-        // Keep the data dirty and try again later. Never throw from the background loop.
-        this.dirty = true;
-        this.lastError = err;
-        console.error(`[profiles] failed to write ${this.file} (retrying in ${this.retryDelayMs} ms):`, err);
-        this.scheduleRetry();
-        return;
-      }
+  private async writeOnce(): Promise<void> {
+    this.dirty = false;
+    try {
+      await this.writeSnapshot();
+      this.lastError = null;
+      this.retryDelayMs = RETRY_MIN_MS;
+    } catch (err) {
+      // Keep the data dirty and try again later. Never throw from the background write.
+      this.dirty = true;
+      this.lastError = err;
+      console.error(`[profiles] failed to write ${this.file} (retrying in ${this.retryDelayMs} ms):`, err);
+      this.scheduleRetry();
     }
   }
 
@@ -767,7 +910,8 @@ export class JsonProfileStore implements ProfileStore {
     const profiles: Record<string, ProfileRecord> = Object.fromEntries(this.profiles);
     const data: ProfileFile = { version: FILE_VERSION, profiles };
     const json = JSON.stringify(data);
-    const tmp = `${this.file}.tmp`;
+    // Per process, so a writer that should not exist (a lock gone wrong) still cannot interleave bytes with another's.
+    const tmp = `${this.file}.tmp-${process.pid}`;
     const fh = await fs.promises.open(tmp, "w");
     try {
       await fh.writeFile(json, "utf8");
