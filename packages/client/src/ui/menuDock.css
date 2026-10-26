@@ -1,11 +1,12 @@
 /* The hub menu over the walkable hub (ui/menu.ts, scenes/HubScene.ts). Loaded after style.css; the rules that override
-   it are written one selector more specific, so they don't depend on that order. */
+   it are written one selector more specific, so they don't depend on that order. Sizes follow --ui-w / --ui-h (the
+   overlay's own size), never vw / vh. */
 
 .menu-head { display: flex; align-items: center; gap: 8px; }
 .menu .menu-head h1 { flex: 1; margin: 0 0 8px; }
 .menu-strip { display: none; align-items: baseline; gap: 10px; min-width: 0; }
 .menu-strip-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu-strip-gv { font-weight: 700; font-variant-numeric: tabular-nums; color: #ffe082; white-space: nowrap; }
+.menu-strip-gv { font-weight: 700; color: var(--accent); white-space: nowrap; }
 .menu-dock-toggle {
   flex: none;
   width: 26px;
@@ -14,14 +15,14 @@
   font: inherit;
   font-size: 18px;
   line-height: 1;
-  color: #aeb7c2;
+  color: var(--muted);
   background: none;
-  border: 1px solid #3a434f;
-  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
 }
-.menu-dock-toggle:hover { color: #fff; border-color: #4a5563; }
-.menu-dock-toggle:focus-visible { outline: 2px solid #ffe082; outline-offset: 2px; }
+.menu-dock-toggle:hover { color: #fff; border-color: var(--line-hi); }
 
 /* Start Run and Training side by side; Start Run keeps the primary styling it had as a direct child of the menu. */
 .menu-actions { display: flex; gap: 8px; }
@@ -35,8 +36,8 @@
   transform: none;
   width: 330px;
   min-width: 0;
-  max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 24px);
+  max-width: calc(var(--ui-w, 100vw) - 24px);
+  max-height: calc(var(--ui-h, 100vh) - 24px);
   padding: 12px 14px;
 }
 .menu.docked .menu-head h1 { font-size: 18px; margin-bottom: 0; }
@@ -46,6 +47,7 @@
 .menu.docked .hub-gv { padding: 6px 10px; }
 .menu.docked .hub-gv-n { font-size: 26px; }
 .menu.docked .hub-gv-subs { gap: 10px; }
+.menu.docked .hub-gv-l, .menu.docked .hub-gv-sub-l { white-space: nowrap; letter-spacing: 0.03em; }
 .menu.docked .hub-gv-sub-n { font-size: 14px; }
 .menu.docked .stat { padding: 2px 4px; }
 .menu.docked .stat-n { font-size: 15px; }
@@ -56,9 +58,11 @@
 .menu.docked .faction-card:not(.selected) .faction-detail { display: none; }
 .menu.docked .menu-status { margin-top: 6px; }
 .menu.docked .menu-hint { margin-top: 6px; font-size: 11px; }
+/* A short overlay needs the room for the body: the two-tabs tip goes. */
+html[data-ui-short] .menu.docked .menu-hint { display: none; }
 
 /* Folded: just the callsign and GV strip (and the status line, so a busy or error message is never hidden). */
-.menu.collapsed { width: auto; max-width: min(300px, calc(100vw - 24px)); padding: 8px 10px; }
+.menu.collapsed { width: auto; max-width: min(300px, calc(var(--ui-w, 100vw) - 24px)); padding: 8px 10px; }
 .menu.collapsed > :not(.menu-head):not(.menu-status) { display: none; }
 .menu.collapsed .menu-head { margin-bottom: 0; }
 .menu.collapsed .menu-head h1 { display: none; }

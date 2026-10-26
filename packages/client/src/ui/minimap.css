@@ -1,0 +1,34 @@
+/* Bottom-right minimap (minimap.ts). minimap.ts sets --mm-size (overlay px) from the view and sizes the backing store to match. */
+/* "#ui > *" in index.html is auto too; this outranks the bare class and the click-through list in style.css. The ring is a
+   box-shadow, not a border, so getBoundingClientRect() is exactly the drawn map (the click mapping reads it). */
+#ui > canvas.minimap {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: var(--mm-size, 180px);
+  height: var(--mm-size, 180px);
+  box-sizing: content-box;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px #3a434f, 0 2px 10px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: box-shadow 0.12s ease-out;
+}
+#ui > canvas.minimap:hover {
+  box-shadow: 0 0 0 1px #8fa3b8, 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+/* Left held: the camera is looking here. Right held: the character is being steered. */
+#ui > canvas.minimap.peeking {
+  box-shadow: 0 0 0 2px #e6e9ed, 0 2px 14px rgba(0, 0, 0, 0.6);
+}
+#ui > canvas.minimap.steering {
+  box-shadow: 0 0 0 2px #69f0ae, 0 2px 14px rgba(0, 0, 0, 0.6);
+}
+@media (prefers-reduced-motion: reduce) {
+  #ui > canvas.minimap { transition: none; }
+}

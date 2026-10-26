@@ -24,6 +24,13 @@ function fmtPlace(r: RunResult): string {
 /** Why a winner's bonus row reads +0: the anti alt-farming rule (shared constants, so the text can't drift). */
 const WITHHELD = `Win bonus: needs ${WIN_BONUS_MIN_PLAYERS}+ players and damage on ${WIN_BONUS_MIN_OPPONENTS}+ opponents`;
 
+/** One headline number of the run: a big value over a small label. */
+function fact(label: string, value: string): HTMLElement {
+  const cell = el("div", "result-fact");
+  cell.append(el("span", "result-fact-n", value), el("span", "result-fact-l", label));
+  return cell;
+}
+
 function gvRows(r: RunResult): HTMLElement {
   const gv = r.gv;
   const box = el("div", "gv-box");
@@ -36,7 +43,7 @@ function gvRows(r: RunResult): HTMLElement {
     box.append(row);
   }
   const total = el("div", "gv-total");
-  total.append(el("span", undefined, "GV banked"), el("span", "gv-amount", `+${formatNumber(gv.total)}`));
+  total.append(el("span", "gv-total-l", "GV banked"), el("span", "gv-amount", `+${formatNumber(gv.total)}`));
   box.append(total);
   return box;
 }
@@ -67,17 +74,21 @@ export class ResultsScreen {
   constructor(private readonly handlers: { onContinue(): void }) {}
 
   show(r: RunResult): void {
-    const facts = [`Time ${fmtDuration(r.durationSec)}`, `Kills ${r.kills}`];
-    if (r.killedBy) facts.push(`Killed by ${r.killedBy}`);
-
     const unlocked = achievementRows(r.achievements);
     const btn = el("button", "btn primary", "Back to hub");
     btn.addEventListener("click", () => this.handlers.onContinue());
 
+    const facts = el("div", "result-facts");
+    facts.append(fact("Time", fmtDuration(r.durationSec)), fact("Kills", String(r.kills)));
+
+    // The outcome class colours the title and the panel's top edge; an outcome this client doesn't know gets neither.
+    const outcome = Object.hasOwn(TITLES, r.outcome) ? r.outcome : "over";
+    this.root.className = `panel results results-${outcome}`;
     this.root.replaceChildren(
-      el("h1", `outcome-${r.outcome}`, TITLES[r.outcome] ?? "RUN OVER"),
+      el("h1", `outcome-${outcome}`, TITLES[r.outcome] ?? "RUN OVER"),
       el("p", "result-place", fmtPlace(r)),
-      el("p", "result-facts", facts.join(" · ")),
+      ...(r.killedBy ? [el("p", "result-killer", `Killed by ${r.killedBy}`)] : []),
+      facts,
       gvRows(r),
       ...(unlocked ? [unlocked] : []),
       btn,

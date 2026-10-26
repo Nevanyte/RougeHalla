@@ -6,12 +6,12 @@ import {
   type PurchaseRequest, type ShopErrorCode,
 } from "@raid/shared";
 import { apiBase } from "./connection";
+import { SERVER_PROBLEM_MESSAGE, TIMEOUT_MESSAGE, UNREACHABLE_MESSAGE, UNREADABLE_MESSAGE } from "./errors";
 
 const TOKEN_KEY_PREFIX = "raid.token.";
 const REQUEST_TIMEOUT_MS = 8000;
 /** The leaderboard is a garnish on the hub: give up on it sooner than on the profile. */
 const LEADERBOARD_TIMEOUT_MS = 4000;
-const UNREACHABLE = "Can't reach the server";
 
 export type ProfileErrorKind = "taken" | "invalid" | "unavailable";
 
@@ -98,22 +98,22 @@ async function requestProfile(name: string): Promise<ProfileResponse> {
     res = await fetch(`${apiBase()}/api/profile/${encodeURIComponent(name)}`, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   } catch (err) {
     const timedOut = err instanceof DOMException && err.name === "TimeoutError";
-    throw new ProfileError("unavailable", timedOut ? "The server took too long to answer" : UNREACHABLE);
+    throw new ProfileError("unavailable", timedOut ? TIMEOUT_MESSAGE : UNREACHABLE_MESSAGE);
   }
 
   if (res.status === 403) throw new ProfileError("taken", "That callsign is taken (its token isn't on this device)");
   if (res.status === 400) throw new ProfileError("invalid", "Invalid callsign");
   // Vite's dev proxy (or any gateway) answers these when the game server behind it is down.
-  if (res.status >= 502 && res.status <= 504) throw new ProfileError("unavailable", UNREACHABLE);
-  if (!res.ok) throw new ProfileError("unavailable", `Server error (HTTP ${res.status})`);
+  if (res.status >= 502 && res.status <= 504) throw new ProfileError("unavailable", UNREACHABLE_MESSAGE);
+  if (!res.ok) throw new ProfileError("unavailable", SERVER_PROBLEM_MESSAGE);
 
   let body: unknown;
   try {
     body = await res.json();
   } catch {
-    throw new ProfileError("unavailable", "The server sent an unreadable profile");
+    throw new ProfileError("unavailable", UNREADABLE_MESSAGE);
   }
-  if (!isProfileResponse(body)) throw new ProfileError("unavailable", "The server sent an unreadable profile");
+  if (!isProfileResponse(body)) throw new ProfileError("unavailable", UNREADABLE_MESSAGE);
   writeToken(name, body.token);
   return body;
 }
@@ -180,7 +180,7 @@ function shopMessage(code: ShopErrorCode, need?: number, have?: number): string 
 }
 
 async function shopFailure(res: Response): Promise<ShopRequestError> {
-  if (res.status >= 502 && res.status <= 504) return new ShopRequestError("unavailable", UNREACHABLE);
+  if (res.status >= 502 && res.status <= 504) return new ShopRequestError("unavailable", UNREACHABLE_MESSAGE);
   let body: unknown = null;
   try {
     body = await res.json();
@@ -194,7 +194,7 @@ async function shopFailure(res: Response): Promise<ShopRequestError> {
   }
   if (res.status === 403) return new ShopRequestError("forbidden", SHOP_MESSAGES.forbidden);
   if (res.status === 400 || res.status === 413 || res.status === 415) return new ShopRequestError("bad_request", SHOP_MESSAGES.bad_request);
-  return new ShopRequestError("unavailable", `Server error (HTTP ${res.status})`);
+  return new ShopRequestError("unavailable", SERVER_PROBLEM_MESSAGE);
 }
 
 /** POSTs a JSON body with the callsign's token. Only the profile the server answers with is ever believed. */
@@ -212,7 +212,7 @@ async function postShop(name: string, path: string, body: PurchaseRequest | Equi
     });
   } catch (err) {
     const timedOut = err instanceof DOMException && err.name === "TimeoutError";
-    throw new ShopRequestError("unavailable", timedOut ? "The server took too long to answer" : UNREACHABLE);
+    throw new ShopRequestError("unavailable", timedOut ? TIMEOUT_MESSAGE : UNREACHABLE_MESSAGE);
   }
   if (!res.ok) throw await shopFailure(res);
 
@@ -220,10 +220,10 @@ async function postShop(name: string, path: string, body: PurchaseRequest | Equi
   try {
     reply = await res.json();
   } catch {
-    throw new ShopRequestError("unavailable", "The server sent an unreadable answer");
+    throw new ShopRequestError("unavailable", UNREADABLE_MESSAGE);
   }
   const profile = isObject(reply) ? reply.profile : undefined;
-  if (!isProfileDTO(profile)) throw new ShopRequestError("unavailable", "The server sent an unreadable answer");
+  if (!isProfileDTO(profile)) throw new ShopRequestError("unavailable", UNREADABLE_MESSAGE);
   return profile;
 }
 

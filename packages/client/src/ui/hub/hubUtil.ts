@@ -4,6 +4,7 @@ import {
   ACHIEVEMENTS, cssColor, packLook, unpackLook,
   type AchievementDef, type Cosmetic, type ProfileDTO, type TitleCosmetic,
 } from "@raid/shared";
+import { friendlyError } from "../../net/errors";
 import { ShopRequestError } from "../../net/profile";
 import { el } from "../dom";
 
@@ -60,9 +61,8 @@ export function sectionHeading(text: string, note?: string): HTMLElement {
 
 /** Player-facing text of a failed shop or equip request. */
 export function describeError(err: unknown): string {
-  if (err instanceof ShopRequestError) return err.message;
-  console.error(err);
-  return "Something went wrong";
+  if (!(err instanceof ShopRequestError)) console.error(err);
+  return friendlyError(err);
 }
 
 /** A disabled button drops keyboard focus; hand it back once the request is over so keyboard use isn't interrupted. */

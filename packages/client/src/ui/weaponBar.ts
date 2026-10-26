@@ -1,8 +1,11 @@
 // Bottom-center weapon bar: the two slots (weapon, key, which one is in hand), the shared attack cooldown sweeping over
-// them, and a hint line when a weapon is within reach. It only reflects the synced state; the keys are the scene's.
+// them, and a hint line when a weapon is within reach. The keys are drawn as keycaps (1, 2, Q, F). It only reflects the
+// synced state; the keys themselves are the scene's.
 import { WEAPONS, isWeaponId, type WeaponId } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
+import "./weaponBar.css";
 import { cssColor, el, uiRoot } from "./dom";
+import { keycap } from "./keycap";
 
 interface Slot {
   root: HTMLElement;
@@ -33,9 +36,11 @@ export function nextCooldown(prevReadyAt: number, prevCooldown: number, readyAt:
 export class WeaponBar {
   private readonly root = el("div", "weapon-bar");
   private readonly hint = el("div", "wb-hint");
+  private readonly hintLabel = el("span", "wb-hint-text");
   private readonly slots: Slot[] = [];
   /** Starts as a value no real signature can equal so the first update always renders. */
   private signature: string | null = null;
+  /** The hint line now shown (without its F keycap). */
   private hintText = "";
   /** The ready time last seen, and the length of the cooldown it started (the sweep shows the share still left). */
   private readyAt = 0;
@@ -52,11 +57,16 @@ export class WeaponBar {
       const name = el("span", "wb-name");
       const sweep = el("span", "wb-sweep");
       sweep.hidden = true;
-      root.append(el("span", "wb-key", String(i + 1)), swatch, name, sweep);
+      root.append(keycap(String(i + 1), "wb-key"), swatch, name, sweep);
       this.slots.push({ root, swatch, name, sweep });
       row.append(root);
-      if (i === 0) row.append(el("span", "wb-swap", "Q"));
+      if (i === 0) {
+        const swap = el("span", "wb-swap");
+        swap.append(keycap("Q"));
+        row.append(swap);
+      }
     }
+    this.hint.append(keycap("F"), this.hintLabel);
     this.hint.hidden = true;
     this.root.append(this.hint, row);
     this.root.hidden = true;
@@ -94,11 +104,11 @@ export class WeaponBar {
     if (pickup) {
       const take = WEAPONS[pickup].name;
       // With both slots full a pickup replaces the weapon in hand, which drops where the player stands.
-      hint = me.weapon0 !== "" && me.weapon1 !== "" && hand ? `F: swap ${WEAPONS[hand].name} for ${take}` : `F: take ${take}`;
+      hint = me.weapon0 !== "" && me.weapon1 !== "" && hand ? `swap ${WEAPONS[hand].name} for ${take}` : `take ${take}`;
     }
     if (hint !== this.hintText) {
       this.hintText = hint;
-      this.hint.textContent = hint;
+      this.hintLabel.textContent = hint;
       this.hint.hidden = hint === "";
     }
 

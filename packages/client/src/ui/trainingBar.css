@@ -8,7 +8,7 @@
   align-items: flex-start;
   gap: 8px;
   /* Stays left of the centred weapon bar on narrow windows. */
-  max-width: max(160px, min(320px, calc(50vw - 140px)));
+  max-width: max(160px, min(320px, calc(var(--ui-w, 100vw) * 0.5 - 140px)));
   user-select: none;
 }
 /* index.html's "#ui > *" (auto) outranks a bare class: the tips are display only, so clicks fall through to the world; the buttons take them. */
@@ -19,8 +19,8 @@
   position: relative;
   box-sizing: border-box;
   padding: 8px 26px 8px 12px;
-  border-radius: 6px;
-  background: rgba(20, 24, 30, 0.92);
+  border-radius: var(--radius);
+  background: var(--panel);
   border: 1px solid #2f6f78;
   color: #cfd8dc;
   font-size: 12px;
@@ -42,18 +42,18 @@
   padding: 2px 6px;
   border: 0;
   background: none;
-  color: #8d99a6;
+  color: var(--dim);
   cursor: pointer;
 }
-.training-tips-close:hover { color: #e6e9ed; }
+.training-tips-close:hover { color: var(--text); }
 
 .training-leave { display: inline-flex; align-items: center; gap: 8px; }
 .training-key {
   padding: 0 5px;
-  border: 1px solid #4a5563;
+  border: 1px solid var(--line-hi);
   border-radius: 3px;
   font-size: 11px;
-  color: #aeb7c2;
+  color: var(--muted);
 }
 
 /* The HUD's first line (hud.ts) while the room is a training room: the one thing the player must not miss. */

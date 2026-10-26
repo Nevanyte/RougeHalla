@@ -5,9 +5,9 @@
   margin: 0;
   padding: 6px 10px;
   font-size: 13px;
-  color: #ffcc80;
-  background: #1c1a12;
-  border: 1px solid #6b5a1e;
+  color: var(--warn);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-line);
   border-radius: 6px;
 }
 .cw-hint[hidden], .cw-caption[hidden] { display: none; }
@@ -22,8 +22,8 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px 12px;
-  background: #161b21;
-  border: 1px solid #2b323c;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 .cw-wheel-head {
@@ -35,18 +35,18 @@
   font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #8d99a6;
+  color: var(--dim);
 }
 .cw-wheel-note { letter-spacing: 0; text-transform: none; font-style: italic; }
 
 /* Captions are hidden (and empty) until there is a pick. */
-.cw-caption { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.4; color: #aeb7c2; }
+.cw-caption { display: flex; flex-direction: column; gap: 2px; min-height: 4.4em; font-size: 13px; line-height: 1.4; color: var(--muted); }
 .cw-caption p { margin: 0; }
-.cw-sub { font-size: 12px; color: #8d99a6; }
+.cw-sub { font-size: 12px; color: var(--dim); }
 .cw-who { font-weight: 700; }
-.cw-win { color: #66bb6a; font-weight: 600; }
-.cw-loss { color: #ef5350; font-weight: 600; }
-.cw-legend { margin: 0; font-size: 12px; line-height: 1.4; color: #8d99a6; }
+.cw-win { color: var(--ok); font-weight: 600; }
+.cw-loss { color: var(--danger); font-weight: 600; }
+.cw-legend { margin: 0; font-size: 12px; line-height: 1.4; color: var(--dim); }
 
 /* The wheel itself. All sizes are in the SVG's own units (viewBox 280 x 260), so it scales with the box. */
 .cw-svg { display: block; width: 100%; max-width: 340px; height: auto; margin: 0 auto; }
@@ -54,24 +54,24 @@
 .cw-edge { fill: none; transition: opacity 0.15s; }
 .cw-e-diagonal { stroke-dasharray: 5 4; }
 .cw-e-other { stroke: #5b6673; stroke-width: 1.5; }
-.cw-e-win { stroke: #66bb6a; stroke-width: 2.6; }
-.cw-e-loss { stroke: #ef5350; stroke-width: 2.6; }
+.cw-e-win { stroke: var(--ok); stroke-width: 2.6; }
+.cw-e-loss { stroke: var(--danger); stroke-width: 2.6; }
 /* With a pick, the arrows it is not part of fade back. Without one every arrow is the plain grey. */
 .cw-has-pick .cw-e-other { opacity: 0.16; }
 
 .cw-h-other { fill: #5b6673; }
-.cw-h-win { fill: #66bb6a; }
-.cw-h-loss { fill: #ef5350; }
+.cw-h-win { fill: var(--ok); }
+.cw-h-loss { fill: var(--danger); }
 
 .cw-dot { stroke: #0f1317; stroke-width: 2; }
 .cw-halo, .cw-ring { fill: none; opacity: 0; }
 .cw-n-pick .cw-halo { opacity: 1; fill: rgba(255, 224, 130, 0.18); }
-.cw-n-pick .cw-ring { opacity: 1; stroke: #ffe082; stroke-width: 3.5; }
+.cw-n-pick .cw-ring { opacity: 1; stroke: var(--accent); stroke-width: 3.5; }
 .cw-n-beats .cw-halo { opacity: 1; fill: rgba(102, 187, 106, 0.14); }
-.cw-n-beats .cw-ring { opacity: 1; stroke: #66bb6a; stroke-width: 2.5; }
+.cw-n-beats .cw-ring { opacity: 1; stroke: var(--ok); stroke-width: 2.5; }
 /* A dashed ring, so a loss does not rest on the colour alone. */
 .cw-n-losesTo .cw-halo { opacity: 1; fill: rgba(239, 83, 80, 0.14); }
-.cw-n-losesTo .cw-ring { opacity: 1; stroke: #ef5350; stroke-width: 2.5; stroke-dasharray: 4 3; }
+.cw-n-losesTo .cw-ring { opacity: 1; stroke: var(--danger); stroke-width: 2.5; stroke-dasharray: 4 3; }
 
 /* The halo around the text keeps a label legible where an arrow runs behind it. */
 .cw-label {
@@ -79,15 +79,16 @@
   font-weight: 600;
   text-anchor: middle;
   fill: #cfd6de;
-  stroke: #161b21;
+  stroke: var(--card);
   stroke-width: 3.5px;
   stroke-linejoin: round;
   paint-order: stroke;
 }
-.cw-n-pick .cw-label { fill: #ffe082; font-weight: 700; }
-.cw-n-beats .cw-label { fill: #a5d6a7; }
-.cw-n-losesTo .cw-label { fill: #ef9a9a; }
+.cw-n-pick .cw-label { fill: var(--accent); font-weight: 700; }
+.cw-n-beats .cw-label { fill: var(--ok-text); }
+.cw-n-losesTo .cw-label { fill: var(--danger-text); }
 
 @media (prefers-reduced-motion: reduce) {
   .cw-edge { transition: none; }
 }
+html[data-reduced-motion] .cw-edge { transition: none; }

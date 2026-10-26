@@ -1,0 +1,193 @@
+/* Page chrome (ui/chrome.ts): the top-right cluster, the settings card and the help card.
+   #ui is laid out at --ui-w x --ui-h and CSS-scaled to the stage, so nothing in here uses vw, vh or a size @media: the
+   fallbacks in var() only matter before the viewport manager has set the variables. Sizes follow html[data-ui-narrow]. */
+
+.chrome [hidden], .settings-panel[hidden], .help-scrim[hidden] { display: none !important; }
+
+/* index.html's "#ui > *" (auto) outranks a bare class: the readout is display only, so the cluster lets clicks through and its buttons take them. */
+#ui > .chrome {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  user-select: none;
+}
+.chrome-buttons { display: flex; gap: 6px; }
+.chrome-btn {
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aeb7c2;
+  background: rgba(20, 24, 30, 0.82);
+  border: 1px solid #3a434f;
+  border-radius: 6px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.chrome-btn:hover { color: #fff; border-color: #4a5563; background: rgba(32, 38, 46, 0.92); }
+.chrome-btn:focus-visible { outline: 2px solid #ffe082; outline-offset: 2px; }
+.chrome-btn[aria-pressed="true"], .chrome-btn[aria-expanded="true"] { color: #ffe082; border-color: #8d7a2c; }
+
+/* FPS and ping. Fixed-width, tabular digits: the numbers change every half second and must not shift the buttons. */
+.perf {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(20, 24, 30, 0.7);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  color: #8d99a6;
+  text-shadow: 0 1px 2px #000;
+}
+.perf-fps { min-width: 4.4em; text-align: right; }
+.perf-ping { min-width: 4.4em; text-align: right; }
+.perf-idle { color: #6f7b88; }
+.perf-good { color: #81c784; }
+.perf-warn { color: #ffd54f; }
+.perf-bad { color: #e57373; }
+
+html[data-ui-narrow] #ui > .chrome { top: 8px; right: 8px; gap: 6px; }
+html[data-ui-narrow] .chrome-btn { width: 28px; height: 28px; }
+html[data-ui-narrow] .perf { padding: 3px 6px; font-size: 10px; }
+
+/* Settings: a card under the gear, not a modal. */
+#ui > .settings-panel {
+  position: absolute;
+  top: 48px;
+  right: 12px;
+  z-index: 60;
+  box-sizing: border-box;
+  width: min(320px, calc(var(--ui-w, 800px) - 24px));
+  max-height: calc(var(--ui-h, 600px) - 60px);
+  overflow-y: auto;
+  padding: 12px 14px 14px;
+  font-size: 13px;
+  color: #e6e9ed;
+  background: rgba(20, 24, 30, 0.96);
+  border: 1px solid #3a434f;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  outline: none;
+}
+html[data-ui-narrow] #ui > .settings-panel { top: 44px; right: 8px; }
+
+.sp-head, .help-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sp-title, .help-title { margin: 0; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #cfd5dc; }
+.help-title { font-size: 17px; }
+.sp-close, .help-close {
+  margin: -4px -6px -4px 0;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  color: #8d99a6;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sp-close:hover, .help-close:hover { color: #e6e9ed; }
+.sp-close:focus-visible, .help-close:focus-visible { outline: 2px solid #ffe082; outline-offset: 1px; }
+
+.sp-section { margin-top: 12px; }
+.sp-section-title { margin-bottom: 2px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #8d99a6; }
+.sp-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 7px 0;
+}
+.sp-row + .sp-row { border-top: 1px solid #232a32; }
+.sp-label { color: #e6e9ed; cursor: pointer; }
+.sp-note { grid-column: 1 / -1; font-size: 11px; line-height: 1.35; color: #8d99a6; }
+.sp-value { min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; color: #ffe082; }
+.sp-range { grid-column: 1 / -1; width: 100%; margin: 4px 0 2px; accent-color: #ffe082; cursor: pointer; }
+.sp-range:focus-visible { outline: 2px solid #ffe082; outline-offset: 3px; border-radius: 4px; }
+
+.sp-switch {
+  position: relative;
+  box-sizing: border-box;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  background: #161b21;
+  border: 1px solid #4a5563;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.sp-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #8d99a6;
+  transition: transform 120ms ease-out, background-color 120ms;
+}
+.sp-switch[aria-checked="true"] { background: #2e7d32; border-color: #43a047; }
+.sp-switch[aria-checked="true"] .sp-knob { transform: translateX(16px); background: #fff; }
+.sp-switch:focus-visible { outline: 2px solid #ffe082; outline-offset: 2px; }
+
+.sp-status { margin-top: 8px; font-size: 12px; color: #ffcc80; }
+.sp-status:empty { display: none; }
+.sp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #2b323c;
+}
+.sp-saved { font-size: 11px; color: #8d99a6; }
+.sp-reset:focus-visible { outline: 2px solid #ffe082; outline-offset: 2px; }
+
+/* Help: the controls, centred over a dimmed scrim. The game keeps running behind it. */
+#ui > .help-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 14, 0.55);
+}
+.help-card {
+  box-sizing: border-box;
+  width: min(560px, calc(var(--ui-w, 800px) - 24px));
+  max-height: calc(var(--ui-h, 600px) - 24px);
+  overflow-y: auto;
+  padding: 16px 20px 14px;
+  font-size: 13px;
+  color: #e6e9ed;
+  background: rgba(20, 24, 30, 0.97);
+  border: 1px solid #3a434f;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
+  outline: none;
+}
+.help-body { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+.help-section-title { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8d99a6; }
+.help-list { display: grid; grid-template-columns: minmax(130px, max-content) 1fr; align-items: center; gap: 6px 16px; margin: 0; }
+.help-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0; }
+.help-join { font-size: 12px; color: #8d99a6; }
+.help-action { margin: 0; color: #cfd5dc; }
+.help-foot { margin: 14px 0 0; font-size: 11px; color: #8d99a6; }
+html[data-ui-narrow] .help-card { padding: 12px 14px; }
+html[data-ui-narrow] .help-list { grid-template-columns: 1fr; gap: 2px; }
+html[data-ui-narrow] .help-action { margin-bottom: 8px; }
+
+html[data-reduced-motion] .sp-knob { transition: none; }

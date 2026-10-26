@@ -61,7 +61,58 @@ export const argsOf = (o: FakeObject, name: string): unknown[][] => o.calls.filt
 
 // ---------------------------------------------------------------------------------------------------------------- DOM
 
-export class FakeEl {
+/** A DOM event as far as the views read it; preventDefault / stopPropagation are recorded for the test to inspect. */
+export interface FakeEvent {
+  type: string;
+  defaultPrevented: boolean;
+  propagationStopped: boolean;
+  preventDefault(): void;
+  stopPropagation(): void;
+  [field: string]: any;
+}
+
+export function fakeEvent(type: string, init: Record<string, unknown> = {}): FakeEvent {
+  const e: FakeEvent = {
+    type, defaultPrevented: false, propagationStopped: false,
+    preventDefault() { e.defaultPrevented = true; },
+    stopPropagation() { e.propagationStopped = true; },
+    ...init,
+  };
+  return e;
+}
+
+/** addEventListener / dispatchEvent; an event goes on to `bubbleTo` (the fake window) unless a listener stopped it. */
+export class FakeTarget {
+  readonly listeners = new Map<string, Set<(e: any) => void>>();
+  bubbleTo: FakeTarget | null = null;
+
+  addEventListener(type: string, fn: (e: any) => void): void {
+    let set = this.listeners.get(type);
+    if (!set) this.listeners.set(type, (set = new Set()));
+    set.add(fn);
+  }
+  removeEventListener(type: string, fn: (e: any) => void): void { this.listeners.get(type)?.delete(fn); }
+  /** How many listeners are attached, for one event type or all. */
+  listenerCount(type?: string): number {
+    if (type !== undefined) return this.listeners.get(type)?.size ?? 0;
+    let n = 0;
+    for (const set of this.listeners.values()) n += set.size;
+    return n;
+  }
+  dispatchEvent(e: FakeEvent): boolean {
+    for (const fn of [...(this.listeners.get(e.type) ?? [])]) fn(e);
+    if (!e.propagationStopped) this.bubbleTo?.dispatchEvent(e);
+    return !e.defaultPrevented;
+  }
+}
+
+/** Where new FakeEls send events they don't stop; installFakeDom points it at the fake window. */
+let bubbleRoot: FakeTarget | null = null;
+
+export class FakeEl extends FakeTarget {
+  /** What getBoundingClientRect() answers: tests place the element by setting it. */
+  rect = { left: 0, top: 0, width: 0, height: 0 };
+  readonly captured = new Set<number>();
   className = "";
   hidden = false;
   textContent = "";
@@ -82,17 +133,35 @@ export class FakeEl {
   removed = false;
   private ctx: FakeObject | null = null;
 
-  constructor(readonly tag: string) {}
+  constructor(readonly tag: string) {
+    super();
+    this.bubbleTo = bubbleRoot;
+  }
 
   append(...nodes: Array<FakeEl | string>): void { this.children.push(...nodes); }
   remove(): void { this.removed = true; }
   getContext(): FakeObject { return (this.ctx ??= fakeObject("ctx")); }
+  getBoundingClientRect(): { left: number; top: number; width: number; height: number; right: number; bottom: number } {
+    const r = this.rect;
+    return { ...r, right: r.left + r.width, bottom: r.top + r.height };
+  }
+  setPointerCapture(id: number): void { this.captured.add(id); }
+  releasePointerCapture(id: number): void { this.captured.delete(id); }
+  hasPointerCapture(id: number): boolean { return this.captured.has(id); }
 }
 
 /** document and window, as far as ui/dom.ts and the HUD parts read them. Undo with vi.unstubAllGlobals(). */
-export function installFakeDom(): { ui: FakeEl } {
+export function installFakeDom(): { ui: FakeEl; win: FakeTarget; doc: FakeTarget & { visibilityState: string; createElement(tag: string): FakeEl } } {
+  const win = Object.assign(new FakeTarget(), { devicePixelRatio: 1 });
+  bubbleRoot = win;
   const ui = new FakeEl("div");
-  vi.stubGlobal("document", { createElement: (tag: string) => new FakeEl(tag), getElementById: () => ui });
-  vi.stubGlobal("window", { devicePixelRatio: 1 });
-  return { ui };
+  const doc = Object.assign(new FakeTarget(), {
+    visibilityState: "visible",
+    createElement: (tag: string) => new FakeEl(tag),
+    getElementById: () => ui,
+  });
+  doc.bubbleTo = win;
+  vi.stubGlobal("document", doc);
+  vi.stubGlobal("window", win);
+  return { ui, win, doc };
 }

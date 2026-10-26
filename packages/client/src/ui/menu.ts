@@ -6,6 +6,7 @@ import {
   type FactionId, type LeaderboardEntry, type ProfileDTO, type ProfileStats,
 } from "@raid/shared";
 import { factionOfStation, type HubStationId } from "../hub/hubLayout";
+import { CALLSIGN_BUSY_MESSAGE, friendlyError } from "../net/errors";
 import { ProfileError, fetchLeaderboard, fetchProfile, formatNumber } from "../net/profile";
 import { el, uiRoot } from "./dom";
 import { HubPanels, type HubTabId } from "./hub/hubPanels";
@@ -15,14 +16,13 @@ import "./menuDock.css";
 
 const PROFILE_KEY = "raid.profile";
 const CALLSIGN_RULE = "Callsign: 2–16 letters, digits, _ or -";
-const CALLSIGN_BUSY = "That callsign is still in a run (another tab, or your last run is still closing). Try again in a few seconds, or use another callsign.";
 const LEADERBOARD_ROWS = 5;
 
 const STAT_LABELS: ReadonlyArray<readonly [keyof ProfileStats, string]> = [
   ["runs", "Runs"], ["wins", "Wins"], ["draws", "Draws"], ["deaths", "Deaths"], ["kills", "Kills"],
 ];
 
-type Tone = "info" | "warn" | "error";
+export type Tone = "info" | "warn" | "error" | "ok";
 
 const HUB_BUTTONS: ReadonlyArray<readonly [HubTabId, string]> = [
   ["shop", "Shop"], ["wardrobe", "Wardrobe"], ["achievements", "Achievements"], ["leaderboard", "Leaderboard"], ["counters", "Counters"],
@@ -74,6 +74,8 @@ export interface MenuHandlers {
   onStart(request: RaidRequest): void;
   /** A private practice room: nothing in it is recorded. */
   onTraining(request: RaidRequest): void;
+  /** The profile could not be loaded because the server is unreachable or failing (not a refused callsign): `message` is player-facing. */
+  onError?(message: string): void;
 }
 
 interface Loaded {
@@ -125,6 +127,8 @@ export class Menu {
   private readonly profileListeners: Array<(profile: ProfileDTO | null) => void> = [];
   private readonly factionListeners: Array<(faction: FactionId) => void> = [];
   private readonly busyListeners: Array<(busy: boolean) => void> = [];
+  /** Callers of whenLoaded() waiting for the load in flight to end. */
+  private readonly loadWaiters: Array<() => void> = [];
 
   constructor(private readonly handlers: MenuHandlers) {
     const initial = initialProfile();
@@ -307,11 +311,23 @@ export class Menu {
     this.stripGv.textContent = "";
   }
 
+  /** Resolves once no profile load is in flight (at once when none is): the start-up loading screen waits on it. */
+  whenLoaded(): Promise<void> {
+    if (!this.loading) return Promise.resolve();
+    return new Promise((resolve) => { this.loadWaiters.push(resolve); });
+  }
+
+  private endLoading(): void {
+    this.loading = false;
+    for (const resolve of this.loadWaiters.splice(0)) resolve();
+  }
+
   /** Shows the menu and (re)loads the callsign's profile, so the balance includes the run that just ended. */
-  show(message = ""): void {
+  show(message = "", tone: Tone = "warn"): void {
     this.setBusyFlag(false);
-    this.setStatus(message, "warn");
-    uiRoot().append(this.root);
+    this.setStatus(message, tone);
+    // Already up (a join that failed): stay where it is, so the panel's entrance animation does not play again.
+    if (!this.root.isConnected) uiRoot().append(this.root);
     if (this.chosen && PROFILE_RE.test(this.callsign)) void this.load();
     else this.updateView();
   }
@@ -324,14 +340,14 @@ export class Menu {
    */
   showCallsignBusy(): void {
     this.show();
-    this.setStatus(CALLSIGN_BUSY, "warn", true);
+    this.setStatus(CALLSIGN_BUSY_MESSAGE, "warn", true);
   }
 
   /** The run is starting: what was loaded is stale by the time it ends (show() reloads it). */
   hide(): void {
     this.root.remove();
     this.loadSeq++;
-    this.loading = false;
+    this.endLoading();
     this.clearProfile();
   }
 
@@ -369,12 +385,14 @@ export class Menu {
     } catch (err) {
       if (seq !== this.loadSeq) return;
       this.clearProfile();
-      const message = err instanceof ProfileError ? err.message : "Could not load the profile";
+      const message = friendlyError(err);
       if (!(err instanceof ProfileError)) console.error(err);
       this.setStatus(message, "error", true);
+      // A refused callsign is answered in the panel; a server that cannot be reached is news worth a toast as well.
+      if (!(err instanceof ProfileError) || err.kind === "unavailable") this.handlers.onError?.(message);
     } finally {
       if (seq === this.loadSeq) {
-        this.loading = false;
+        this.endLoading();
         this.updateView();
       }
     }
@@ -383,7 +401,7 @@ export class Menu {
   /** The callsign was typed in: whatever was loaded (or loading) belongs to the old text. */
   private onEdit(): void {
     const wasLoading = this.loading;
-    if (wasLoading) { this.loadSeq++; this.loading = false; }
+    if (wasLoading) { this.loadSeq++; this.endLoading(); }
     if (this.data && (wasLoading || this.data.profile.name !== this.callsign)) this.clearProfile();
     if (this.statusIsTransient) this.setStatus("", "info");
     this.updateView();

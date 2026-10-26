@@ -2,24 +2,32 @@
 import Phaser from "phaser";
 import type { FxBatch, JoinOptions, RoomMode, RunResult, ServerMessages } from "@raid/shared";
 import "./style.css";
-import { detachRoom, isCallsignBusy, joinErrorMessage, joinRaid, joinTraining, type RaidRoom } from "./net/connection";
+import { detachRoom, isCallsignBusy, joinRaid, joinTraining, type RaidRoom } from "./net/connection";
+import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
 import { FxInbox } from "./net/fxInbox";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
 import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
+import { Chrome } from "./ui/chrome";
+import { LoadingScreen, whenReady } from "./ui/loading";
 import { Menu, type RaidRequest } from "./ui/menu";
 import { ResultsScreen } from "./ui/results";
 import { Toasts, type ToastTone } from "./ui/toast";
+import { ViewportManager, measureLayout } from "./view/viewportManager";
 
+const startView = measureLayout();
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: "game",
   backgroundColor: "#1b1f24",
-  scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" },
+  // NONE: the viewport manager sizes the canvas (stage x devicePixelRatio, see view/viewportManager.ts), Phaser does not follow its parent.
+  scale: { mode: Phaser.Scale.NONE, width: startView.deviceW, height: startView.deviceH, zoom: 1 },
   // Right-click is move-to. Set here once: a per-run call would add another canvas listener every run.
   disableContextMenu: true,
   scene: [HubScene, RaidScene],
 });
+// Keeps the stage, the canvas size, the cameras' zoom and the overlay's scale matching the window for the whole page.
+new ViewportManager(game);
 
 /** A killed player sees the "YOU DIED" line on its own this long before the results panel replaces it (other outcomes show at once). */
 const DEATH_RESULTS_DELAY_MS = 1500;
@@ -31,10 +39,15 @@ let pendingResult: { result: RunResult; timer: ReturnType<typeof setTimeout> } |
 const menu = new Menu({
   onStart: (request) => void enterRoom("arena", request),
   onTraining: (request) => void enterRoom("training", request),
+  onError: (message) => toasts.show(message, "error"),
 });
 const results = new ResultsScreen({ onContinue: () => backToMenu() });
 const banner = new Banner();
 const toasts = new Toasts();
+// Takes over index.html's static #boot screen: up from page load until the hub is drawn, and again while a room is joined.
+const loading = new LoadingScreen();
+// FPS/ping readout, fullscreen, settings and help for the whole page. `chrome.modalOpen` is for the hub's `isBlocked`.
+const chrome = new Chrome({ game, room: () => room });
 
 // The menu docks over the walkable hub; the scene and the menu mirror each other through these.
 menu.setDocked(true);
@@ -50,7 +63,7 @@ menu.onBusyChange((busy) => hubScene()?.setBusy(busy));
 
 const hubData: HubSceneData = {
   onStation: (id) => menu.onStation(id),
-  isBlocked: () => menu.modalOpen,
+  isBlocked: () => menu.modalOpen || chrome.modalOpen,
   leftInset: () => menu.dockInset(),
   state: () => ({ profile: menu.profile, faction: menu.faction, busy: menu.isBusy }),
 };
@@ -60,37 +73,82 @@ function startHub(): void {
 }
 
 
+/** A join with no first state after this long is given up on, so the loading screen can never hold the page. */
+const JOIN_TIMEOUT_MS = 15_000;
+/** The page-load screen waits for the hub and the profile at most this long; the menu shows its own state after that. */
+const BOOT_TIMEOUT_MS = 6_000;
+/** Bumped by every join and every give-up: a join that finds it changed is no longer wanted and drops its room. */
+let joinAttempt = 0;
+
+/** A scene is running (started, created, not stopped). */
+const sceneRunning = (key: string): boolean => game.scene.isActive(key) === true;
+
+/** A join that failed or was given up on: the reason goes to the menu's status line and to a toast. */
+function joinFailed(message: string): void {
+  loading.hide();
+  menu.show(message, "error");
+  toasts.show(message, "error");
+}
+
 /**
  * Joins a room and hands it to the raid scene. An arena run is matchmade and ends with a result; training is a private
  * room of one that records nothing, so it has no result and leaving it just goes back to the hub.
  */
 async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   const training = mode === "training";
-  menu.setBusy(true, training ? "Entering training…" : "Joining run…");
+  const attempt = ++joinAttempt;
+  const wanted = (): boolean => attempt === joinAttempt;
+  let pending: RaidRoom | null = null;
+  let handedOver = false;
+  const label = training ? "Entering training…" : "Joining run…";
+  menu.setBusy(true, label);
+  loading.show(label, {
+    timeoutMs: JOIN_TIMEOUT_MS,
+    onTimeout: () => {
+      // Once the scene has the room, a slow first frame is not a failed join: the screen has hidden itself, that is all.
+      if (!wanted() || handedOver) return;
+      joinAttempt++;
+      if (pending) {
+        if (room === pending) room = null;
+        detachRoom(pending);
+      }
+      joinFailed(JOIN_SLOW_MESSAGE);
+    },
+  });
   try {
     // A faction is sent only after a deliberate pick; without one the server assigns its default.
     const options: JoinOptions = { profile: request.profile, token: request.token, ...(request.faction ? { faction: request.faction } : {}) };
-    room = training ? await joinTraining(options) : await joinRaid(options);
+    pending = training ? await joinTraining(options) : await joinRaid(options);
   } catch (err) {
     console.error(err);
+    if (!wanted()) return;
     if (isCallsignBusy(err)) {
+      loading.hide();
       menu.showCallsignBusy();
+      toasts.show(friendlyError(err), "error");
       return;
     }
-    menu.show(`Could not join: ${joinErrorMessage(err)}`);
+    joinFailed(friendlyError(err));
     return;
   }
-  const joined = room;
+  // The wait ran out while the server was still answering: the room that arrived late is not wanted.
+  if (!wanted()) {
+    detachRoom(pending);
+    return;
+  }
+  room = pending;
+  const joined = pending;
   // Before anything is awaited: the server's first batch for a client that joins while arrows fly comes right after the full
   // state, and the scene is not there yet to take it. The SDK drops a message no handler is registered for.
   const fxs = new FxInbox();
   joined.onMessage("fxs", (batch: FxBatch) => fxs.push(batch));
   if (!(await firstState(joined))) {
     // The room closed before its first patch, so the leave handler below was never registered.
-    room = null;
-    menu.show("Could not join: connection closed");
+    if (room === joined) room = null;
+    if (wanted()) joinFailed(JOIN_CLOSED_MESSAGE);
     return;
   }
+  if (!wanted()) return;
   // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next run.
   if (!training) {
     joined.onMessage("result", (r: RunResult) => {
@@ -104,25 +162,32 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
     if (room !== joined) return;
     toasts.show(t.text);
   });
-  joined.onDrop(() => {
+  joined.onDrop((code, reason) => {
     if (room !== joined) return;
-    banner.show("Connection lost — reconnecting…");
+    console.warn(`room connection dropped (code ${code})`, reason);
+    banner.reconnecting();
   });
   joined.onReconnect(() => {
     if (room !== joined) return;
-    banner.hide();
+    banner.reconnected();
   });
-  joined.onLeave((code) => {
+  joined.onLeave((code, reason) => {
     if (room !== joined) return;
+    console.warn(`room closed (code ${code})`, reason);
     banner.hide();
     room = null;
+    const message = friendlyClose(code, training);
     if (training) {
-      backToMenu(`Disconnected from training (code ${code}).`);
+      backToMenu(message);
+      toasts.show(message, "error");
       return;
     }
     // Losing the room during the death hold must not lose the results: show them now instead of waiting.
     flushPendingResult();
-    if (!results.visible) backToMenu(`Disconnected from the run (code ${code}).`);
+    if (!results.visible) {
+      backToMenu(message);
+      toasts.show(message, "error");
+    }
   });
   menu.hide();
   game.scene.stop("hub");
@@ -133,6 +198,9 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
     resultsVisible: () => results.visible,
     ...(training ? { leaveTraining: () => backToMenu() } : {}),
   });
+  handedOver = true;
+  // The loading screen goes once the raid scene has drawn; its own timeout covers a scene that never gets there.
+  void whenReady(() => sceneRunning("raid")).then(() => { if (wanted()) loading.hide(); });
 }
 
 function flushPendingResult(): void {
@@ -170,6 +238,7 @@ function backToMenu(message = ""): void {
   // its handlers would never run again to hide the "reconnecting" banner.
   if (leaving) detachRoom(leaving);
   banner.hide();
+  loading.hide();
   results.hide();
   toasts.clear();
   game.scene.stop("raid");
@@ -180,3 +249,6 @@ function backToMenu(message = ""): void {
 
 startHub();
 menu.show();
+// index.html's #boot goes once the hub scene has drawn and the profile has loaded or failed (the menu shows which).
+loading.show("Loading…", { timeoutMs: BOOT_TIMEOUT_MS });
+void Promise.all([whenReady(() => sceneRunning("hub")), menu.whenLoaded()]).then(() => loading.hide());
