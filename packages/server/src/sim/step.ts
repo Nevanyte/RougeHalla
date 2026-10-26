@@ -4,7 +4,7 @@ import {
   AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, mulberry32, SIGNATURE_WEAPONS, type FactionId, type Vec2,
 } from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
-import { beginRun, downPlayer, markTickStart, settle, suddenDeath, unbankedGv } from "./arena";
+import { beginRun, downPlayer, markTickStart, missInPlanning, settle, suddenDeath, unbankedGv } from "./arena";
 import { combatant, standingCombatants, type Combatant } from "./combatant";
 import { InputQueue } from "./inputs";
 import { applyLedger } from "./ledger";
@@ -83,15 +83,18 @@ function shuffledSpawns(world: World): Vec2[] {
 
 /**
  * Removes a player whose client is gone for good. Leaving an active run counts as a death (MIA): their result
- * goes out at once and the next tick treats it like any other death.
+ * goes out at once and the next tick treats it like any other death. Leaving during planning counts the same (owner
+ * ruling: a loss): the same MIA result, and what they held there is freed. Only the lobby is free to leave.
  */
 export function removePlayer(world: World, id: string): void {
   const p = world.state.players.get(id);
   const rt = world.players.get(id);
-  if (p && rt && world.state.phase === "active") downPlayer(world, p, rt, "mia");
+  if (p && rt) {
+    if (world.state.phase === "active") downPlayer(world, p, rt, "mia");
+    else if (world.state.phase === "planning") missInPlanning(world, p, rt);
+  }
   world.state.players.delete(id);
   world.players.delete(id);
-  // A leave during planning is a lobby leave (the run has not started: no result, nothing recorded); what they held is freed.
   leavePlanning(world, id);
 }
 
@@ -107,6 +110,7 @@ export function abandonPlayer(world: World, id: string): number {
   if (world.state.phase === "active") world.arena.voided = true;
   world.state.players.delete(id);
   world.players.delete(id);
+  // A void run (shutdown) in planning leaves no result either; what they held is freed.
   leavePlanning(world, id);
   return gv;
 }

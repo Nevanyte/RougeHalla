@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  attackInterval, buffScale, damagePerHit, decodeFlat, decodeMirrors, decodeMult, encodeFlat, encodeMult,
+  AS_MULT_CAP, attackInterval, BUFF_PLATEAU, buffScale, damagePerHit, decodeFlat, decodeMirrors, decodeMult, encodeFlat, encodeMult,
   IDENTITY_MIRRORS, mapFromTiles, MIRROR_FIELDS, mulberry32, pacedFaction, FACTIONS, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR,
   TILE_WALL, WIRE_IDENTITY_MIRRORS, type BuffId, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
@@ -311,6 +311,34 @@ describe("mod sources (world.modSources)", () => {
     expect(attackSpeedMult(p)).toBe(decodeMult(wire((1 + AS_Q * buffScale(5)) * 0.4)));
     grant(w, 0, "rimeStalker", 3);
     expect(modsOf(p).armorBonus).toBe(5 + RIME_Q);
+  });
+
+  it("caps the attack-speed total at AS_MULT_CAP: stacked sources clamp the mirror the sim and every client read", () => {
+    const w = startRun(2, { signatures: false });
+    const p = P(w, 0);
+    const encoder = new Encoder(w.state);
+    const decoder = connect(encoder);
+    grant(w, 0, "plagueRat", 1e3); // the plateau: below the cap on its own
+    expect(p.asMult).toBe(wire(1 + AS_Q * BUFF_PLATEAU));
+    expect(decodeMult(p.asMult)).toBeLessThan(AS_MULT_CAP);
+    w.modSources.push(slowFor("p0", 1.5)); // a burst on top (R6's overheat, say)
+    recomputeMods(w, C(w, 0));
+    expect(p.asMult).toBe(wire(AS_MULT_CAP));
+    expect(attackSpeedMult(p)).toBe(AS_MULT_CAP);
+    expect(timingsOf(p, "bow")!.interval).toBe(attackInterval(paced(p.faction as FactionId), "bow", AS_MULT_CAP));
+    expect(packetFor(C(w, 0), "bow").raw).toBeCloseTo(damagePerHit(paced(p.faction as FactionId), "bow", AS_MULT_CAP), 9);
+    decoder.decode(encoder.encode());
+    expect(decoder.state.players.get("p0")!.asMult).toBe(1250);
+    expect(decodeMult(decoder.state.players.get("p0")!.asMult)).toBe(AS_MULT_CAP);
+    // A slow multiplies the uncapped total first, then the cap applies (here it no longer binds).
+    w.modSources.push(slowFor("p0", 0.5));
+    recomputeMods(w, C(w, 0));
+    expect(p.asMult).toBe(wire((1 + AS_Q * BUFF_PLATEAU) * 1.5 * 0.5));
+    // Gone again: the plateau's own value, and a fighter with nothing stays at the identity.
+    w.modSources.length = 0;
+    recomputeMods(w, C(w, 0));
+    expect(p.asMult).toBe(wire(1 + AS_Q * BUFF_PLATEAU));
+    expect(P(w, 1).asMult).toBe(1000);
   });
 
   it("a mob keeps what the sources give it server-side: a slowed mob attacks slower, and recovers", () => {

@@ -189,6 +189,15 @@ export const BUFF_REF_STACKS = 3;
 export const LS_CAP = 0.25;
 /** Holy's own cap (factions.ts ls_cap): lifesteal above 100% of the damage stalls Holy against Holy. */
 export const LIFESTEAL_MAX = 1;
+/**
+ * The attack-speed multiplier (the `asMult` mirror) from every source together never exceeds this (League's approach: one
+ * cap on the total, slows apply below it). x1.25 is the most at which a buffed shooter still loses all 20 kiting cells to
+ * its unbuffed melee counter, in testing/test_kite.py's model (it fails from x1.3, and in a tick-alignment dip at
+ * x1.08-1.105 the real sim does not show) and in the real sim (harness --kiting-only; none fails up to x1.5); attack speed
+ * alone first flips a faction counter at x1.65. Buffs alone never reach it (Plague Rat's plateau is x1.17); it binds once
+ * sources stack (R5/R6 passives, skills, relics). testing/TUNING_ROGUE.md.
+ */
+export const AS_MULT_CAP = 1.25;
 /** Mob rewards (GV and buff stacks) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
 export const REWARD_FLOOR = 0.3;
 export const REWARD_MID = 5;

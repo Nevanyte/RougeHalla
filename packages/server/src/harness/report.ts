@@ -2,14 +2,14 @@
 // the same edges when both fighters click each other (the target lock), kiting, how much a weaker view of the world or a
 // cluttered arena moves the results, and the parity block. Report-only: nothing here asserts an outcome.
 import {
-  FACTION_IDS, FACTIONS, POLICIES, TICK_RATE, TILE, WEAPON_BEATS, type FactionId, type WeaponId,
+  BEATS, FACTION_IDS, FACTIONS, POLICIES, TICK_RATE, TILE, WEAPON_BEATS, type FactionId, type WeaponId,
 } from "@raid/shared";
 import type { Arena, DuelResult, Perception } from "./duel";
 import {
   cellsOf, DEFAULT_CAPS, edgeName, fullSetups, formatEnds, formatHp, formatMatrix, hasGrid, isWatched, pooled, quickSetups,
   runMatrix, statsOf, stylesOf, WATCH, WEAVES, type Cell, type Edge, type MatrixOptions, type Setup, type Style,
 } from "./matrix";
-import { kitingReport } from "./kiting";
+import { KITE_EDGE_DUELS, kiteEdgesReport, kitingReport, type ShooterBuff } from "./kiting";
 import { formatParity, parityReport, type ParityReport } from "./parity";
 
 export interface ReportOptions {
@@ -31,6 +31,10 @@ export interface ReportOptions {
    * on an arena with pillars to compare it with.
    */
   arena?: Arena | "both";
+  /** A buff for the shooter of every kiting duel (the KITING section and KITE EDGES); the chaser has none. */
+  shooter?: ShooterBuff;
+  /** Only the KITING section and the KITE EDGES pass (the faction edges against a kiting shooter, signatures on). */
+  kitingOnly?: boolean;
   /** Progress lines while it runs. */
   log?: (line: string) => void;
 }
@@ -312,6 +316,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   const log = opts.log ?? (() => {});
   const edges = opts.edges ?? WEAPON_BEATS;
   const factions = opts.factions ?? FACTION_IDS;
+  if (opts.kitingOnly) return kitingOnlyReport(opts, edges, factions, t0, log);
   const quick = opts.quick ?? false;
   const perception = opts.perception ?? "client";
   const capSeconds: MatrixOptions["capSeconds"] = opts.capSeconds ?? DEFAULT_CAPS;
@@ -399,7 +404,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
 
   log("kiting");
   out.push(heading("KITING  the real sim: seconds until a melee fighter is in reach of a shooter that starts at the edge of its range, by how the shooter plays"));
-  const kiting = kitingReport(factions);
+  const kiting = kitingReport(factions, opts.shooter);
   out.push(...kiting.text.map((l) => `  ${l}`));
   duels += kiting.cells.length * factions.length;
   out.push("");
@@ -444,6 +449,29 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   out.push("");
   out.push(`${duels} duels in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
   return { edges, factions, cells, verdicts, lock, parity, text: out.join("\n") };
+}
+
+/** `--kiting-only`: the KITING section and the KITE EDGES pass, for tuning a shooter's buffs against the kiting guarantee. */
+function kitingOnlyReport(
+  opts: ReportOptions, edges: readonly Edge[], factions: readonly FactionId[], t0: number, log: (line: string) => void,
+): HarnessReport {
+  const out: string[] = [];
+  log("kiting");
+  out.push("1. KITING  the real sim: seconds until a melee fighter is in reach of a shooter that starts at the edge of its range, by how the shooter plays");
+  const kiting = kitingReport(factions, opts.shooter);
+  out.push(...kiting.text.map((l) => `  ${l}`));
+  out.push("");
+  const kiteEdges = kiteEdgesReport({
+    shooter: opts.shooter, log,
+    edges: BEATS.filter(([a, b]) => factions.includes(a) && factions.includes(b)),
+  });
+  out.push("2. KITE EDGES  the kiting guarantee (testing/test_kite.py) in the real sim: a melee faction winner charges a ranged loser that starts at the edge of its range and kites all fight");
+  out.push(...kiteEdges.text.map((l) => `  ${l}`));
+  out.push("");
+  const parity = parityReport();
+  const duels = kiting.cells.length * factions.length + kiteEdges.cells.length * KITE_EDGE_DUELS;
+  out.push(`${duels} duels in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+  return { edges, factions, cells: [], verdicts: [], lock: [], parity, text: out.join("\n") };
 }
 
 /** Per weapon: swings, casts or shots started per duel, the hits that landed, and how many ticks went into walking into walls. */

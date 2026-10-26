@@ -2,10 +2,11 @@
 // scaled to a stack count, the wording, the HUD's views, lifesteal's caps and the quantized stat mirrors.
 import { describe, expect, it } from "vitest";
 import {
-  BUFF_IDS, BUFF_PLATEAU, BUFF_REF_STACKS, buffCurve, buffDef, buffPower, buffRows, buffRowsOf, buffScale, buffsCountering,
+  AS_MULT_CAP, BUFF_IDS, BUFF_PLATEAU, BUFF_REF_STACKS, buffCurve, buffDef, buffPower, buffRows, buffRowsOf, buffScale, buffsCountering,
   buffText, buffToast, buffView, buffViews, BUFFS, decodeMult, ELITE_BUFF_STACKS, encodeMult, FACTION_IDS, hasAnyBuffs,
   IDENTITY_MIRRORS, LIFESTEAL_MAX, lifestealShare, LS_CAP, MOB_BUFF_STACKS, MOB_TYPES, MOD_MULT_MAX, MOD_MULT_MIN,
-  MULT_WIRE_PER_UNIT, scaleEffect, scaleWindup, sigmoid, weaponTimings, WIRE_IDENTITY_MIRRORS, type Effect,
+  MULT_WIRE_PER_UNIT, capAsMult, foldStatRows, mirrorsFromSums, scaleEffect, scaleWindup, sigmoid, weaponTimings,
+  WIRE_IDENTITY_MIRRORS, type Effect,
 } from "../src/index";
 
 const S = (x: number): number => sigmoid((x - 3) / 1) - sigmoid(-3);
@@ -225,6 +226,27 @@ describe("the quantized mirrors (shared/mods.ts)", () => {
 
   it("is idempotent: what the sim decodes and encodes again is the same wire value, for every value on the wire", () => {
     for (let w = 50; w <= 20000; w++) expect(encodeMult(decodeMult(w))).toBe(w);
+  });
+
+  it("cap attack speed at AS_MULT_CAP (League's approach: one cap on the total), slows untouched, and the cap travels exactly", () => {
+    expect(AS_MULT_CAP).toBe(1.25);
+    expect(capAsMult(1.3)).toBe(AS_MULT_CAP);
+    expect(capAsMult(20)).toBe(AS_MULT_CAP);
+    expect(capAsMult(AS_MULT_CAP)).toBe(AS_MULT_CAP);
+    for (const x of [1.2, 1.08, 1, 0.8, 0.05]) expect(capAsMult(x)).toBe(x);
+    expect(decodeMult(encodeMult(AS_MULT_CAP))).toBe(AS_MULT_CAP);
+    expect(encodeMult(capAsMult(1.7))).toBe(1250);
+  });
+
+  it("no buff, nor every buff at once at its plateau, reaches the attack-speed cap: today it binds only on stacked sources", () => {
+    for (const b of BUFFS) {
+      const sums = foldStatRows(buffRowsOf(b.id, 1e6, { includeNeeds: true }), { holds: () => true, owns: () => true });
+      expect(mirrorsFromSums(sums).asMult, b.id).toBeLessThan(AS_MULT_CAP);
+    }
+    const all = Object.fromEntries(BUFF_IDS.map((id) => [id, 1e6]));
+    const sums = foldStatRows(buffRows(all), { holds: () => true, owns: () => true });
+    expect(sums.attackSpeed).toBeGreaterThan(0);
+    expect(1 + sums.attackSpeed).toBeLessThan(AS_MULT_CAP);
   });
 
   it("the wire identity is 1000, 1000, 1000, 0, 0", () => {

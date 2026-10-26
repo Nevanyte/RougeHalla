@@ -7,9 +7,12 @@
 //   multipliers (asMult, windupMult, speedMult): uint16 thousandths (MULT_WIRE_PER_UNIT), rounded half up to the 0.001
 //     step and clamped to MOD_MULT_MIN..MOD_MULT_MAX (50..20000 on the wire). decodeMult is exactly wire / 1000.
 //   flat bonuses (armorBonus, shieldBonus): int16 in tenths of a point (FLAT_WIRE_PER_POINT), -3276.8..3276.7.
+// asMult is capped at AS_MULT_CAP (capAsMult) after every source has multiplied in: the server folds, caps, then encodes,
+// so the capped value is the one on the wire.
 // A field patches only when its wire value changes (the server compares before writing, and the schema setter skips an
 // equal value), so a continuous effect that moves by less than a step patches nothing. Defaults are the identity (1000,
 // 1000, 1000, 0, 0), so a fighter nothing ever buffs patches none of them.
+import { AS_MULT_CAP } from "./constants";
 import { requirementsMet, type Effect, type EffectOf, type StatKey } from "./effects";
 import type { WeaponTimings } from "./weapons";
 
@@ -34,6 +37,10 @@ export const IDENTITY_MIRRORS: Readonly<StatMirrors> = { asMult: 1, windupMult: 
 /** A multiplier never goes below or above these, whatever its rows add up to (a -100% windup would be no windup at all). */
 export const MOD_MULT_MIN = 0.05;
 export const MOD_MULT_MAX = 20;
+/** The attack-speed multiplier from every source together, capped (AS_MULT_CAP); a slow below the cap is untouched. */
+export function capAsMult(x: number): number {
+  return x > AS_MULT_CAP ? AS_MULT_CAP : x;
+}
 /** Wire units per unit of a multiplier: the wire carries thousandths (uint16). */
 export const MULT_WIRE_PER_UNIT = 1000;
 /** Wire units per point of a flat bonus: the wire carries tenths. */

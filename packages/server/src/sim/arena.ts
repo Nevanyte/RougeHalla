@@ -60,8 +60,11 @@ export function patienceMs(world: World, alive: number): number {
 /** Called by startRaid once players are placed. */
 export function beginRun(world: World): void {
   const s = world.state;
-  world.arena.startedWith = s.players.size;
-  s.startedWith = s.players.size;
+  // Whoever left during planning still started: they went MIA (missInPlanning), as a leave in the run does, and the gate on
+  // the win bonus and the "lone survivor wins" rule see the same count they would have seen a moment later.
+  const starters = Math.max(s.players.size, world.planning?.starters ?? 0);
+  world.arena.startedWith = starters;
+  s.startedWith = starters;
   world.arena.downedThisTick = [];
   world.arena.downsBetweenTicks = 0;
   world.arena.voided = false;
@@ -293,6 +296,20 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   }
   world.arena.downsBetweenTicks++;
   resolve(world, p, rt, outcome, alivePlayers(world).length + 1, 0);
+}
+
+/**
+ * A player leaves during the planning phase: MIA, as a leave in the run is, so it costs them what that costs (a run and a
+ * death in their stats) and nothing can be got for free by leaving to see the deal and queueing again. Their result goes out
+ * at once. Nothing else follows from the run: no body (nothing was brought in), no kill credit (nobody can have hit them), no
+ * GV, and no settle (it does not run in planning). Called by removePlayer before it deletes them, so `place` counts the
+ * players still in the room: the first of eight to leave is 8th, as the first to go MIA in a run of eight is.
+ */
+export function missInPlanning(world: World, p: PlayerState, rt: PlayerRuntime): void {
+  if (rt.resolved) return;
+  rt.down = { outcome: "mia" };
+  rt.path = [];
+  resolve(world, p, rt, "mia", world.state.players.size, 0);
 }
 
 function resolve(
