@@ -2,7 +2,8 @@
 // their camps, arrows and balls in the air, mobs chasing and retreating. Reports the cost of one `step()`.
 //   npx tsx bench/stepBench.ts            (from packages/server)
 // test/perf.test.ts runs the same scenario against the gate (average < 5 ms, p99 < 15 ms per tick).
-import { TICK_MS, mulberry32, type FactionId, type MobCampDef, type Vec2 } from "@raid/shared";
+import { BUFF_IDS, TICK_MS, mulberry32, type FactionId, type MobCampDef, type Vec2 } from "@raid/shared";
+import { grantBuff } from "../src/sim/buffs";
 import { aggro } from "../src/sim/mobAI";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -17,6 +18,8 @@ export interface BenchOptions {
   /** Ticks measured after the warm-up. */
   ticks?: number;
   warmup?: number;
+  /** Every player starts with 4 stacks of every buff (roguelike R4a's gate: all buffs on 8 players). `--buffs` on the CLI. */
+  buffs?: boolean;
 }
 
 export interface BenchResult {
@@ -68,6 +71,9 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   for (let i = 0; i < players; i++) addPlayer(world, `p${i}`, NAMES[i]!);
   step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("the bench run did not start");
+  if (opts.buffs) {
+    for (const [id, rt] of world.players) for (const b of BUFF_IDS) grantBuff(world, world.state.players.get(id)!, rt, b, 4);
+  }
 
   const camps = allCamps(world);
   const cursor = { i: 0 };
@@ -139,7 +145,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const r = runStepBench();
+  const r = runStepBench({ buffs: process.argv.includes("--buffs") });
   const f = (n: number): string => n.toFixed(3);
   console.log(
     `${r.ticks} ticks, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +

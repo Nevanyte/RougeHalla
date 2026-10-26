@@ -3,13 +3,14 @@
 import { randomUUID } from "node:crypto";
 import {
   generateMap, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId, type FieldKind,
-  type FxEvent, type GameMap, type GvReason, type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample,
-  type SignatureKind, type StatusKind, type Vec2, type WeaponId,
+  type FxEvent, type GameMap, type GvReason, type PlanMessage, type ProjectileKind, type ProjectileLaunch, type RunResult,
+  type Sample, type SignatureKind, type StatusKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
+import type { PlanningRuntime } from "./planning";
 
 export interface SimConfig {
   minPlayers: number;
@@ -31,6 +32,17 @@ export interface SimConfig {
    * death, results or GV, and a fighter who goes down is revived. Implies the training setup (`dummies`).
    */
   training?: boolean;
+  /**
+   * Planning (roguelike R3, sim/planning.ts): when the lobby closes, this long a "planning" phase with the spawn deal comes
+   * first, ending sooner once every connected player is ready. Unset or 0: no planning, the run starts at once (every sim
+   * test's flow). A training world never plans.
+   */
+  planSeconds?: number;
+  /**
+   * The first patience timer of a run, flat (decision 10), armed when the run starts (after planning). Unset: the first timer
+   * scales with the players like every later one (patienceMs). Timers after a death always scale.
+   */
+  firstPatienceSeconds?: number;
   /** Seconds after the run starts that every Wish stays locked (sim/abilities.ts armWishes); WISH_LOCK_SECONDS when absent. */
   wishLockSeconds?: number;
 }
@@ -186,16 +198,16 @@ export interface PlayerRuntime extends CombatRuntime {
   down: { outcome: "died" | "mia" } | null;
   /** Set once their result has been emitted. */
   resolved: boolean;
-  /** Timers of the kill combos (sim/buffs.ts). Created on first use, so a hand-built runtime needs nothing. */
+  /** The barrier's timer (sim/buffs.ts). Created on first use, so a hand-built runtime needs nothing. */
   boost?: BoostRuntime;
+  /** Keys of the once-per-run trigger rows that have fired (sim/factions.ts, e.g. Blood Saint's heal). Created on first use. */
+  fired?: Set<string>;
   /** Rampage announcement throttle (sim/feed.ts). Created on first use. */
   announce?: AnnounceRuntime;
 }
 
 /** Server-only timers behind a player's buffs. Times are server ms. */
 export interface BoostRuntime {
-  /** Speed bursts from kills (the dash and the rush): the strongest one still running applies. */
-  bursts: Array<{ mult: number; until: number }>;
   /** When the kill barrier (PlayerState.barrier) ends. */
   shieldUntil: number;
 }
@@ -369,7 +381,7 @@ export interface CombatScratch {
    */
   rank: Map<string, number>;
   /**
-   * True while applyLedger applies damage. Rewards for kills (GV, a bounty, stacks, shields) are queued in `payouts` and
+   * True while applyLedger applies damage. Rewards for kills (GV, a bounty, buffs, a trigger's heal) are queued in `payouts` and
    * paid once every victim has taken their damage (payLater), so who is left standing never depends on the order victims
    * happen to be processed in.
    */
@@ -393,7 +405,7 @@ export interface ArenaRuntime {
   downedThisTick: Array<{ p: PlayerState; rt: PlayerRuntime }>;
   /** Players who went down between steps (a leave). Resolved at once, they still count as the next tick's deaths. */
   downsBetweenTicks: number;
-  /** Set when a player is abandoned mid-run (a server shutdown): the run is void and the sim stops advancing it. */
+  /** Set when a player is abandoned mid-run or in planning (a server shutdown): the run is void and the sim stops advancing it (planning never starts one). */
   voided: boolean;
   /**
    * Every player's bounty when the tick being simulated began. A kill in a tick pays the victim's bounty from here,
@@ -406,6 +418,10 @@ export type SimEvent =
   | { type: "fx"; fx: FxEvent }
   | { type: "toast"; to: string; text: string }
   | { type: "raidStarted" }
+  /** The lobby closed into the planning phase (sim/planning.ts): the Room locks itself, as it does at raidStarted. */
+  | { type: "planningStarted" }
+  /** A player's private planning deal changed (or was just dealt): the Room sends `plan` to that player only. */
+  | { type: "plan"; to: string; plan: PlanMessage }
   | { type: "raidEnded" }
   /** Feedback only: GV a player just earned. It is banked through their `resolved` result, never from this. */
   | { type: "gv"; id: string; amount: number; reason: GvReason }
@@ -427,7 +443,7 @@ export interface ModContribution {
   shield?: number;
 }
 /**
- * A source the stat mirrors fold in besides the stacks (sim/mods.ts), e.g. a status runtime's attack slow. It answers
+ * A source the stat mirrors fold in besides the fighter's own rows (sim/mods.ts), e.g. a status runtime's attack slow. It answers
  * from the present state (null = nothing). One whose answer changes must call recomputeMods(world, c) when it does; the
  * per-tick pass re-asks every source, which catches an expiry by the end of that tick.
  */
@@ -443,9 +459,9 @@ export interface WorldHooks {
    * it: weapons cancel every action, projectiles clear every flight.
    */
   teleported?(world: World): void;
-  /** `killer` just claimed `victim`'s bounty (already paid). Phase 11 moves half the victim's buff stacks here. */
+  /** `killer` just claimed `victim`'s bounty (already paid). sim/buffs.ts moves half of each of the victim's buffs here. */
   bountyClaimed?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, bounty: number): void;
-  /** A player just killed another player (kill GV paid, bounty claimed): the kill combos fire here. Mob kills call them directly. */
+  /** A player just killed another player (kill GV paid, bounty claimed). Nothing hangs here since the kill combos went (R4a); R7's kill triggers will. */
   playerKilled?(world: World, killer: PlayerRuntime): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
   weaponSwapped?(world: World, c: Combatant): void;
@@ -467,6 +483,15 @@ export interface WorldHooks {
    * do with payLater), never from what earlier victims of the same pass changed, or the ledger's order would matter.
    */
   hitLanded?(world: World, entry: LedgerEntry, applied: number): void;
+  /**
+   * A standing fighter just took `applied` damage in the ledger pass (applyLedger, once per victim per pass, after all of
+   * its hits landed together, the arena's burn included; before the hit fx and hitLanded). It is still standing: a victim
+   * the pass killed is not reported. Reactions to the fighter's own hp (Blood Saint's trigger, sim/factions.ts) hang here;
+   * they decide from the victim's own state only and defer what they pay with payLater. `applied` is what reached the pool
+   * (a death floor that held the hp counts the whole hit), so `hpBefore`, the hp as the pass began, is what a "crossed the
+   * threshold" test must read, never hp + applied.
+   */
+  hurt?(world: World, c: Combatant, applied: number, hpBefore: number): void;
 }
 
 export interface World {
@@ -513,12 +538,14 @@ export interface World {
   /** Run every active step after damage is applied, in registration order. */
   systems: SimSystem[];
   moveModifiers: MoveModifier[];
-  /** Sources the stat mirrors fold in besides the stacks (sim/mods.ts); empty unless a module registers one. */
+  /** Sources the stat mirrors fold in besides the fighter's own rows (sim/mods.ts); empty unless a module registers one. */
   modSources: ModSource[];
   hooks: WorldHooks;
   arena: ArenaRuntime;
   /** Faction signatures (sim/factions.ts); null until that module is installed. */
   factions: FactionsRuntime | null;
+  /** The planning phase's private deal (sim/planning.ts): null until planning starts, kept (read-only) after it. */
+  planning: PlanningRuntime | null;
   /** Areas and ability damage over time (sim/fields.ts); null until something uses them. */
   abilities: AbilitiesRuntime | null;
 }
@@ -566,6 +593,7 @@ export function createWorld(opts: {
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
     arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
+    planning: null,
     abilities: null,
   };
 }
@@ -620,7 +648,7 @@ export function emit(world: World, ev: SimEvent): void {
 }
 
 type ChainableHook =
-  | "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded"
+  | "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt"
   | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered";
 
 /** Adds a hook that runs after whatever was already installed for it. */

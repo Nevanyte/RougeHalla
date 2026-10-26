@@ -92,7 +92,7 @@ describe("SettingsPanel structure", () => {
     const { root } = setup();
     const controls = root.find((e) => e.id.startsWith("sp-"));
     expect(controls.map((c) => c.id).sort()).toEqual(
-      ["sp-fullscreen", "sp-hiDpi", "sp-juice", "sp-reducedMotion", "sp-showFps", "sp-showPing"].sort(),
+      ["sp-fullscreen", "sp-hiDpi", "sp-juice", "sp-reducedMotion", "sp-showFps", "sp-showPing", "sp-showRoute"].sort(),
     );
     for (const control of controls) {
       const labels = root.find((e) => e.tagName === "LABEL" && e.htmlFor === control.id);
@@ -103,7 +103,7 @@ describe("SettingsPanel structure", () => {
 
   it("makes the switches buttons with role=switch, and leaves the slider as the only <input>", () => {
     const { root, sw } = setup();
-    for (const key of ["fullscreen", "hiDpi", "reducedMotion", "showFps", "showPing"]) {
+    for (const key of ["fullscreen", "hiDpi", "reducedMotion", "showFps", "showPing", "showRoute"]) {
       expect(sw(key).tagName).toBe("BUTTON");
       expect(sw(key).type).toBe("button");
       expect(sw(key).getAttribute("role")).toBe("switch");
@@ -117,7 +117,7 @@ describe("SettingsPanel structure", () => {
   it("covers every setting the owner listed and says it is saved in this browser", () => {
     const { root } = setup();
     const text = root.allText;
-    for (const word of ["Fullscreen", "Effects intensity", "Reduced motion", "Show FPS", "Show ping", "Sharp rendering", "Reset to defaults", "Saved in this browser."]) {
+    for (const word of ["Fullscreen", "Effects intensity", "Reduced motion", "Show FPS", "Show ping", "Sharp rendering", "Show route", "Map text size", "Reset to defaults", "Saved in this browser."]) {
       expect(text).toContain(word);
     }
   });
@@ -153,7 +153,7 @@ describe("SettingsPanel controls", () => {
 
   it("a switch click flips the setting at once and saves it", () => {
     const { sw, store, data } = setup();
-    for (const key of ["showFps", "showPing", "hiDpi", "reducedMotion"] as const) {
+    for (const key of ["showFps", "showPing", "hiDpi", "reducedMotion", "showRoute"] as const) {
       const before = store.get()[key];
       sw(key).click();
       expect(store.get()[key]).toBe(!before);
@@ -192,6 +192,22 @@ describe("SettingsPanel controls", () => {
     expect(doc.activeElement).not.toBe(slider);
   });
 
+  it("the map text size is three buttons in a group, one pressed, and a click sets it live and saves it", () => {
+    const { root, store, data } = setup();
+    const group = root.find((e) => e.getAttribute("role") === "group")[0]!;
+    expect(group.getAttribute("aria-labelledby")).toBe("ts-label");
+    const buttons = root.byClass("sp-seg-btn");
+    expect(buttons.map((b) => b.textContent)).toEqual(["100%", "125%", "150%"]);
+    for (const b of buttons) { expect(b.tagName).toBe("BUTTON"); expect(b.type).toBe("button"); }
+    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
+    buttons[2]!.click();
+    expect(store.get().textScale).toBe(1.5);
+    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "false", "true"]);
+    expect(data.size).toBe(1);
+    store.update({ textScale: 1.25 });
+    expect(buttons.map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "true", "false"]);
+  });
+
   it("follows changes made elsewhere", () => {
     const { store, sw, slider } = setup();
     store.update({ showFps: false, juice: 0.1 });
@@ -200,9 +216,10 @@ describe("SettingsPanel controls", () => {
   });
 
   it("Reset to defaults restores everything, and the controls show it", () => {
-    const { store, reset, sw, slider } = setup({ initial: { juice: 0.2, hiDpi: false, showFps: false, reducedMotion: true } });
+    const { store, reset, sw, slider } = setup({ initial: { juice: 0.2, hiDpi: false, showFps: false, reducedMotion: true, showRoute: false, textScale: 1.5 } });
     reset.click();
     expect(store.get()).toEqual(DEFAULT_SETTINGS);
+    expect(sw("showRoute").getAttribute("aria-checked")).toBe("true");
     expect(sw("hiDpi").getAttribute("aria-checked")).toBe("true");
     expect(sw("reducedMotion").getAttribute("aria-checked")).toBe("false");
     expect(slider.value).toBe("100");

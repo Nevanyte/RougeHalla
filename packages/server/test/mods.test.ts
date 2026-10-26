@@ -1,17 +1,18 @@
-// sim/mods.ts (roguelike R0): the stat mirrors on PlayerState, the one seam the sim reads its attack- and move-speed
-// multipliers through. Pinned here: the wire is bit-identical to what the sim used, the identity defaults never patch, a
-// stack grant moves the mirror in the same call, the sim's interval, damage and walk come from the mirror, the mod-source
-// registry (multipliers multiply, flats add, expiry caught by the per-tick pass, mobs kept server-side), the private
-// reward stream, and the ledger's hitLanded hook (once per landed entry, after the damage, never changing an outcome).
+// sim/mods.ts (roguelike R0, R4a): the stat mirrors on PlayerState, the one seam the sim reads its attack- and move-speed
+// multipliers through. Pinned here: the wire is whole thousandths (D22: the sim simulates with exactly what a client decodes),
+// the identity defaults never patch, a buff grant moves the mirror in the same call, the sim's interval, damage and walk come
+// from the decoded mirror, the mod-source registry (multipliers multiply, flats add, expiry caught by the per-tick pass, mobs
+// kept server-side), the private reward stream, and the ledger's hitLanded hook (once per landed entry, after the damage,
+// never changing an outcome). The per-buff rows themselves are in buffRows.test.ts.
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  attackInterval, buffMultiplier, damagePerHit, decodeFlat, decodeMirrors, decodeMult, encodeFlat, encodeMult,
+  AS_MULT_CAP, attackInterval, BUFF_PLATEAU, buffScale, damagePerHit, decodeFlat, decodeMirrors, decodeMult, encodeFlat, encodeMult,
   IDENTITY_MIRRORS, mapFromTiles, MIRROR_FIELDS, mulberry32, pacedFaction, FACTIONS, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR,
-  TILE_WALL, type FactionId, type GameMap, type WeaponId,
+  TILE_WALL, WIRE_IDENTITY_MIRRORS, type BuffId, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import { PlayerState, RaidState } from "@raid/shared/schema";
-import { attackSpeedMult, grantStacks, moveSpeedMult, transferStacks } from "../src/sim/buffs";
+import { attackSpeedMult, grantBuff, moveSpeedMult, transferBuffs } from "../src/sim/buffs";
 import { combatant, factionOf, timingsOf, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -21,6 +22,7 @@ import { modsOf, recomputeMods, updateMods } from "../src/sim/mods";
 import { addPlayer, step } from "../src/sim/step";
 import { packetFor } from "../src/sim/weapons";
 import { chainHook, createWorld, type LedgerEntry, type ModSource, type SimEvent, type World } from "../src/sim/world";
+import { quoted } from "./support/quoted";
 
 // ---------------------------------------------------------------------------------------------------------------
 // Helpers
@@ -57,6 +59,16 @@ const RT = (w: World, i: number) => w.players.get(`p${i}`)!;
 const C = (w: World, i: number): Combatant => combatant(w, `p${i}`)!;
 const tick = (w: World): SimEvent[] => step(w, TICK_MS);
 const paced = (id: FactionId) => pacedFaction(FACTIONS[id]);
+const grant = (w: World, i: number, id: BuffId, n: number): void => grantBuff(w, P(w, i), RT(w, i), id, n);
+/** The wire value the mirror holds for a folded double (D22: whole thousandths). */
+const wire = (x: number): number => encodeMult(x);
+// The quoted numbers of the rows these tests grant (read from the catalog: a retune is a data edit).
+const AS_Q = quoted("plagueRat"); // attack speed
+const MS_Q = quoted("cinderHound"); // move speed, while chasing a lock
+const ICE_Q = quoted("iceGolem"); // max hp
+const BRUTE_MR_Q = quoted("magmaBrute", 1); // magic resist, in points
+const SHARD_Q = quoted("seraphShard"); // magic resist, in points
+const RIME_Q = quoted("rimeStalker"); // armor, in points
 
 /** A client the way the SDK builds one: the handshake's reflection, then the full state. */
 function connect(encoder: Encoder<RaidState>): Decoder<RaidState> {
@@ -78,16 +90,30 @@ function patchedPlayerFields(encoder: Encoder<RaidState>, decoder: Decoder<RaidS
 describe("the mirrors on the wire", () => {
   it("a new PlayerState holds the identity mirrors, and decodes to them", () => {
     const p = new PlayerState();
-    for (const f of MIRROR_FIELDS) expect(p[f], f).toBe(IDENTITY_MIRRORS[f]);
+    for (const f of MIRROR_FIELDS) expect(p[f], f).toBe(WIRE_IDENTITY_MIRRORS[f]);
+    expect([p.asMult, p.windupMult, p.speedMult, p.armorBonus, p.shieldBonus]).toEqual([1000, 1000, 1000, 0, 0]);
     expect(decodeMirrors(p)).toEqual(IDENTITY_MIRRORS);
+  });
+
+  it("a multiplier travels as whole thousandths, rounded half up, and decodes to exactly wire / 1000", () => {
+    expect(encodeMult(1)).toBe(1000);
+    expect(encodeMult(0.8)).toBe(800);
+    expect(encodeMult(1.0404)).toBe(1040);
+    expect(encodeMult(1.0405)).toBe(1041);
+    expect(decodeMult(1040)).toBe(1.04);
+    expect(decodeMult(800)).toBe(0.8);
+    for (const x of [0.37, 0.8, 1, 1.0004, 1.23456, 2.0996]) {
+      expect(Math.abs(decodeMult(encodeMult(x)) - x), String(x)).toBeLessThanOrEqual(0.0005 + 1e-12);
+      expect(Number.isInteger(encodeMult(x)), String(x)).toBe(true);
+    }
   });
 
   it("a client decodes every mirror bit for bit as the server stored it", () => {
     const state = new RaidState();
     const p = new PlayerState();
     state.players.set("a", p);
-    p.asMult = encodeMult(buffMultiplier("attackSpeed", 1.1));
-    p.speedMult = encodeMult(buffMultiplier("moveSpeed", 0.7) * 0.8);
+    p.asMult = encodeMult(1 + AS_Q * buffScale(1.1));
+    p.speedMult = encodeMult((1 + MS_Q * buffScale(0.7)) * 0.8);
     p.windupMult = encodeMult(0.92 * 1.0003);
     p.armorBonus = encodeFlat(12.34);
     p.shieldBonus = encodeFlat(-7.86);
@@ -99,7 +125,7 @@ describe("the mirrors on the wire", () => {
     expect(decodeMirrors(mine).armorBonus).toBe(12.3);
     expect(decodeMirrors(mine).shieldBonus).toBe(-7.9);
     // A later change arrives the same way.
-    p.asMult = encodeMult(buffMultiplier("attackSpeed", 4.37));
+    p.asMult = encodeMult(1 + AS_Q * buffScale(4.37));
     decoder.decode(encoder.encode());
     expect(Object.is(mine.asMult, p.asMult)).toBe(true);
   });
@@ -118,53 +144,65 @@ describe("the mirrors on the wire", () => {
     recomputeMods(w, C(w, 0));
     updateMods(w);
     expect(encoder.hasChanges).toBe(false);
-    // Hp stacks move no mirror; attack-speed stacks move asMult alone.
-    grantStacks(w, P(w, 0), RT(w, 0), "hp", 1.5);
+    // Ice Golem (max hp only) moves no mirror; Plague Rat (attack speed) moves asMult alone.
+    grant(w, 0, "iceGolem", 1.5);
     expect(patchedPlayerFields(encoder, decoder).filter((f) => (MIRROR_FIELDS as readonly string[]).includes(f))).toEqual([]);
-    grantStacks(w, P(w, 0), RT(w, 0), "attackSpeed", 1.1);
+    grant(w, 0, "plagueRat", 1.1);
     expect(patchedPlayerFields(encoder, decoder).filter((f) => (MIRROR_FIELDS as readonly string[]).includes(f))).toEqual(["asMult"]);
     expect(Object.is(decoder.state.players.get("p0")!.asMult, P(w, 0).asMult)).toBe(true);
   });
 });
 
-describe("the stacks fold into the mirrors", () => {
-  it("grantStacks moves the mirror in the same call, to buffMultiplier of the stacks (within 0.0005; exactly, in fact)", () => {
+describe("the buffs fold into the mirrors", () => {
+  it("grantBuff moves the mirror in the same call, to the quantized value of the buff's row at those stacks", () => {
     const w = startRun(2);
     const p = P(w, 0);
-    expect([p.asMult, p.speedMult]).toEqual([1, 1]);
-    grantStacks(w, p, RT(w, 0), "attackSpeed", 1.1);
-    expect(Math.abs(decodeMult(p.asMult) - buffMultiplier("attackSpeed", 1.1))).toBeLessThan(0.0005);
-    expect(decodeMult(p.asMult)).toBe(buffMultiplier("attackSpeed", 1.1));
-    expect(p.speedMult).toBe(1);
-    grantStacks(w, p, RT(w, 0), "moveSpeed", 0.7);
-    grantStacks(w, p, RT(w, 0), "moveSpeed", 2.3);
-    expect(decodeMult(p.speedMult)).toBe(buffMultiplier("moveSpeed", p.stacksMs));
-    expect(decodeMult(p.asMult)).toBe(buffMultiplier("attackSpeed", 1.1));
-    // No source yet for these three.
-    expect([p.windupMult, p.armorBonus, p.shieldBonus]).toEqual([1, 0, 0]);
+    expect([p.asMult, p.speedMult]).toEqual([1000, 1000]);
+    grant(w, 0, "plagueRat", 1.1);
+    const as = 1 + AS_Q * buffScale(1.1);
+    expect(Math.abs(decodeMult(p.asMult) - as)).toBeLessThan(0.0005 + 1e-12);
+    expect(p.asMult).toBe(wire(as));
+    expect(p.speedMult).toBe(1000);
+    // Cinder Hound's move speed counts only while the player holds a target lock (sim/mods.ts holdsNow).
+    RT(w, 0).weapon.lock = "p1";
+    grant(w, 0, "cinderHound", 0.7);
+    grant(w, 0, "cinderHound", 2.3);
+    expect(p.speedMult).toBe(wire(1 + MS_Q * buffScale(p.buffs.get("cinderHound")!)));
+    expect(p.asMult).toBe(wire(as));
+    // No source for these three yet.
+    expect([p.windupMult, p.armorBonus, p.shieldBonus]).toEqual([1000, 0, 0]);
+    // A buff with a flat row moves its own mirror: Magma Brute's magic resist.
+    grant(w, 0, "magmaBrute", 3);
+    expect(p.shieldBonus).toBe(encodeFlat(BRUTE_MR_Q));
+    expect(p.armorBonus).toBe(0);
   });
 
   it("a bounty transfer re-folds the killer's mirrors at once", () => {
     const w = startRun(3);
     const victim = P(w, 1);
-    grantStacks(w, victim, RT(w, 1), "attackSpeed", 4);
-    grantStacks(w, victim, RT(w, 1), "moveSpeed", 2);
-    transferStacks(w, RT(w, 0), RT(w, 1));
+    grantBuff(w, victim, RT(w, 1), "plagueRat", 4);
+    grantBuff(w, victim, RT(w, 1), "iceGolem", 2);
+    grantBuff(w, victim, RT(w, 1), "seraphShard", 6);
+    transferBuffs(w, RT(w, 0), RT(w, 1));
     const killer = P(w, 0);
-    expect(killer.stacksAs).toBeGreaterThan(0);
-    expect(decodeMult(killer.asMult)).toBe(buffMultiplier("attackSpeed", killer.stacksAs));
-    expect(decodeMult(killer.speedMult)).toBe(buffMultiplier("moveSpeed", killer.stacksMs));
+    expect(killer.buffs.get("plagueRat")).toBe(2);
+    expect(killer.asMult).toBe(wire(1 + AS_Q * buffScale(2)));
+    expect(killer.shieldBonus).toBe(encodeFlat(SHARD_Q * buffScale(3)));
+    expect(killer.maxHp).toBeCloseTo(FACTIONS.fire.hp * (1 + ICE_Q * buffScale(1)), 9);
   });
 
-  it("the sim's attack interval, damage per hit and walk are the ones the mirrors give", () => {
+  it("the sim's attack interval, damage per hit and walk are the ones the decoded mirrors give", () => {
     const w = startRun(5);
     const weapons: WeaponId[] = ["sword", "bow", "wand", "shield", "axe"];
     for (let i = 0; i < 5; i++) {
       const p = P(w, i);
-      grantStacks(w, p, RT(w, i), "attackSpeed", 0.9 + i);
-      grantStacks(w, p, RT(w, i), "moveSpeed", 0.4 + 0.7 * i);
+      RT(w, i).weapon.lock = `p${(i + 1) % 5}`; // so Cinder Hound's row holds
+      grant(w, i, "plagueRat", 0.9 + i);
+      grant(w, i, "cinderHound", 0.4 + 0.7 * i);
       const f = factionOf(p)!;
       const as = decodeMult(p.asMult);
+      expect(as, `p${i}`).toBeGreaterThan(1);
+      expect(decodeMult(p.speedMult), `p${i}`).toBeGreaterThan(1);
       for (const weapon of weapons) {
         expect(timingsOf(p, weapon)!.interval, `p${i} ${weapon}`).toBe(attackInterval(f, weapon, as));
         expect(packetFor(C(w, i), weapon).raw, `p${i} ${weapon}`).toBe(damagePerHit(f, weapon, as));
@@ -173,10 +211,20 @@ describe("the stacks fold into the mirrors", () => {
     }
   });
 
-  it("the sim reads the mirror, not the stacks: a mirror set by hand is what it attacks and walks with", () => {
+  it("the sim reads the quantized mirror, not the folded double a client never sees", () => {
     const w = startRun(2);
     const p = P(w, 0);
-    grantStacks(w, p, RT(w, 0), "attackSpeed", 2);
+    grant(w, 0, "plagueRat", 1.1);
+    const raw = 1 + AS_Q * buffScale(1.1);
+    expect(raw).not.toBe(decodeMult(p.asMult)); // the fold is finer than a thousandth
+    expect(attackSpeedMult(p)).toBe(decodeMult(p.asMult));
+    expect(timingsOf(p, "axe")!.interval).toBe(attackInterval(paced("fire"), "axe", decodeMult(p.asMult)));
+  });
+
+  it("the sim reads the mirror, not the buffs: a mirror set by hand is what it attacks and walks with", () => {
+    const w = startRun(2);
+    const p = P(w, 0);
+    grant(w, 0, "plagueRat", 2);
     p.asMult = encodeMult(2);
     p.speedMult = encodeMult(1.5);
     expect(attackSpeedMult(p)).toBe(2);
@@ -186,20 +234,23 @@ describe("the stacks fold into the mirrors", () => {
     RT(w, 0).path = [{ x: x0 + 400, y: p.y }];
     tick(w);
     expect(p.x - x0).toBeCloseTo(PLAYER_SPEED * (TICK_MS / 1000) * 1.5, 9);
-    // The next grant folds the stacks again.
-    grantStacks(w, p, RT(w, 0), "attackSpeed", 1);
-    expect(decodeMult(p.asMult)).toBe(buffMultiplier("attackSpeed", 3));
-    expect(decodeMult(p.speedMult)).toBe(1);
+    // The next grant folds the buffs again.
+    grant(w, 0, "plagueRat", 1);
+    expect(p.asMult).toBe(wire(1 + AS_Q * buffScale(3)));
+    expect(p.asMult).toBe(wire(1 + AS_Q)); // 3 stacks are the quoted value
+    expect(p.speedMult).toBe(1000);
   });
 
-  it("stacks written straight to the state (as tests do) are folded on the next read, and by the end of the tick", () => {
+  it("buffs written straight to the state (as a test might) are folded by recomputeMods, in the same call", () => {
     const w = startRun(2);
-    P(w, 0).stacksAs = 3;
-    expect(attackSpeedMult(P(w, 0))).toBe(buffMultiplier("attackSpeed", 3));
-    expect(P(w, 0).asMult).toBe(buffMultiplier("attackSpeed", 3));
-    P(w, 1).stacksMs = 2;
-    tick(w);
-    expect(P(w, 1).speedMult).toBe(buffMultiplier("moveSpeed", 2));
+    P(w, 0).buffs.set("plagueRat", 3);
+    P(w, 1).buffs.set("magmaBrute", 3);
+    recomputeMods(w, C(w, 0));
+    recomputeMods(w, C(w, 1));
+    expect(attackSpeedMult(P(w, 0))).toBe(decodeMult(wire(1 + AS_Q)));
+    expect(P(w, 0).asMult).toBe(wire(1 + AS_Q));
+    expect(P(w, 1).shieldBonus).toBe(encodeFlat(BRUTE_MR_Q));
+    expect(modsOf(P(w, 1)).shieldBonus).toBe(BRUTE_MR_Q);
   });
 
   it("a mob's multipliers are 1, with no mirror to read", () => {
@@ -225,10 +276,10 @@ describe("mod sources (world.modSources)", () => {
     expect(attackSpeedMult(p)).toBe(0.8);
     expect(timingsOf(p, "axe")!.interval).toBe(attackInterval(paced("fire"), "axe", 0.8));
     expect(timingsOf(p, "axe")!.interval).toBeGreaterThan(before.interval);
-    expect(P(w, 1).asMult).toBe(1);
+    expect(P(w, 1).asMult).toBe(1000);
     w.modSources.pop();
     recomputeMods(w, C(w, 0));
-    expect(p.asMult).toBe(1);
+    expect(p.asMult).toBe(1000);
     expect(timingsOf(p, "axe")).toEqual(before);
   });
 
@@ -237,25 +288,57 @@ describe("mod sources (world.modSources)", () => {
     const until = w.state.serverTime + 5 * TICK_MS;
     w.modSources.push((world, c) => (c.id === "p0" && world.state.serverTime < until ? { asMult: 0.8 } : null));
     tick(w);
-    expect(P(w, 0).asMult).toBe(0.8);
+    expect(P(w, 0).asMult).toBe(800);
     while (w.state.serverTime < until) tick(w);
-    expect(P(w, 0).asMult).toBe(1);
+    expect(P(w, 0).asMult).toBe(1000);
   });
 
   it("sources combine with the stacks: multipliers multiply, flat bonuses add", () => {
     const w = startRun(2);
     const p = P(w, 0);
-    grantStacks(w, p, RT(w, 0), "attackSpeed", 3);
+    grant(w, 0, "plagueRat", 3); // its quoted attack speed at 3 stacks
     w.modSources.push(() => ({ asMult: 0.8, armor: 5 }));
     w.modSources.push(() => null);
     w.modSources.push(() => ({ asMult: 0.5, shield: 2.5, speedMult: 1.1, windupMult: 0.9 }));
     recomputeMods(w, C(w, 0));
-    expect(decodeMult(p.asMult)).toBe(buffMultiplier("attackSpeed", 3) * (0.8 * 0.5));
-    expect(modsOf(p)).toEqual({ asMult: buffMultiplier("attackSpeed", 3) * 0.4, windupMult: 0.9, speedMult: 1.1, armorBonus: 5, shieldBonus: 2.5 });
+    const folded = decodeMult(wire((1 + AS_Q) * (0.8 * 0.5)));
+    expect(folded).toBeCloseTo((1 + AS_Q) * 0.4, 3);
+    expect(decodeMult(p.asMult)).toBe(folded);
+    expect(modsOf(p)).toEqual({ asMult: folded, windupMult: 0.9, speedMult: 1.1, armorBonus: 5, shieldBonus: 2.5 });
     expect(decodeFlat(p.armorBonus)).toBe(5);
-    // A stack written behind the fold's back re-folds with the sources' last answers.
-    p.stacksAs = 5;
-    expect(attackSpeedMult(p)).toBe(buffMultiplier("attackSpeed", 5) * 0.4);
+    // A further grant re-folds with the sources' answers, and a flat buff row adds to the sources' flat bonus.
+    grant(w, 0, "plagueRat", 2);
+    expect(attackSpeedMult(p)).toBe(decodeMult(wire((1 + AS_Q * buffScale(5)) * 0.4)));
+    grant(w, 0, "rimeStalker", 3);
+    expect(modsOf(p).armorBonus).toBe(5 + RIME_Q);
+  });
+
+  it("caps the attack-speed total at AS_MULT_CAP: stacked sources clamp the mirror the sim and every client read", () => {
+    const w = startRun(2, { signatures: false });
+    const p = P(w, 0);
+    const encoder = new Encoder(w.state);
+    const decoder = connect(encoder);
+    grant(w, 0, "plagueRat", 1e3); // the plateau: below the cap on its own
+    expect(p.asMult).toBe(wire(1 + AS_Q * BUFF_PLATEAU));
+    expect(decodeMult(p.asMult)).toBeLessThan(AS_MULT_CAP);
+    w.modSources.push(slowFor("p0", 1.5)); // a burst on top (R6's overheat, say)
+    recomputeMods(w, C(w, 0));
+    expect(p.asMult).toBe(wire(AS_MULT_CAP));
+    expect(attackSpeedMult(p)).toBe(AS_MULT_CAP);
+    expect(timingsOf(p, "bow")!.interval).toBe(attackInterval(paced(p.faction as FactionId), "bow", AS_MULT_CAP));
+    expect(packetFor(C(w, 0), "bow").raw).toBeCloseTo(damagePerHit(paced(p.faction as FactionId), "bow", AS_MULT_CAP), 9);
+    decoder.decode(encoder.encode());
+    expect(decoder.state.players.get("p0")!.asMult).toBe(1500);
+    expect(decodeMult(decoder.state.players.get("p0")!.asMult)).toBe(AS_MULT_CAP);
+    // A slow multiplies the uncapped total first, then the cap applies (here it no longer binds).
+    w.modSources.push(slowFor("p0", 0.5));
+    recomputeMods(w, C(w, 0));
+    expect(p.asMult).toBe(wire((1 + AS_Q * BUFF_PLATEAU) * 1.5 * 0.5));
+    // Gone again: the plateau's own value, and a fighter with nothing stays at the identity.
+    w.modSources.length = 0;
+    recomputeMods(w, C(w, 0));
+    expect(p.asMult).toBe(wire(1 + AS_Q * BUFF_PLATEAU));
+    expect(P(w, 1).asMult).toBe(1000);
   });
 
   it("a mob keeps what the sources give it server-side: a slowed mob attacks slower, and recovers", () => {

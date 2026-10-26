@@ -3,7 +3,7 @@
 // The switches are buttons (role="switch") rather than checkboxes on purpose: the scenes ignore game keys while an <input>
 // has focus, and a checkbox left focused after a click would silently eat S, Q, F and 1/2.
 import { documentFullscreen, type FullscreenApi } from "../fullscreen";
-import type { Settings, SettingsStore } from "../settings";
+import { TEXT_SCALES, type Settings, type SettingsStore } from "../settings";
 import { el } from "./dom";
 
 export function juiceToPercent(juice: number): number {
@@ -40,7 +40,7 @@ export function applyReducedMotion(root: Pick<Element, "setAttribute" | "removeA
   else root.removeAttribute(REDUCED_MOTION_ATTR);
 }
 
-type SwitchKey = "hiDpi" | "reducedMotion" | "showFps" | "showPing";
+type SwitchKey = "hiDpi" | "reducedMotion" | "showFps" | "showPing" | "showRoute";
 
 interface SwitchSpec {
   key: SwitchKey;
@@ -52,6 +52,12 @@ const HI_DPI: SwitchSpec = { key: "hiDpi", label: "Sharp rendering", note: "Draw
 const REDUCED_MOTION: SwitchSpec = { key: "reducedMotion", label: "Reduced motion", note: "Fewer animations and no screen shake. Your system's setting counts too." };
 const SHOW_FPS: SwitchSpec = { key: "showFps", label: "Show FPS", note: "" };
 const SHOW_PING: SwitchSpec = { key: "showPing", label: "Show ping", note: "" };
+const SHOW_ROUTE: SwitchSpec = { key: "showRoute", label: "Show route", note: "Your planned route on the minimap and the Tab map during a run." };
+
+/** "125%" for a text scale of 1.25. */
+export function formatTextScale(scale: number): string {
+  return `${Math.round(scale * 100)}%`;
+}
 
 export interface SettingsPanelOptions {
   store: Pick<SettingsStore, "get" | "update" | "reset" | "subscribe">;
@@ -74,6 +80,7 @@ export class SettingsPanel {
   private readonly sliderValue = el("span", "sp-value");
   private readonly motionNote = el("div", "sp-note");
   private readonly status = el("div", "sp-status");
+  private readonly sizes = new Map<number, HTMLButtonElement>();
   private readonly unsubscribe: () => void;
 
   constructor(options: SettingsPanelOptions) {
@@ -99,6 +106,7 @@ export class SettingsPanel {
       section("Display", this.fullscreenRow(), this.switchRow(HI_DPI)),
       section("Effects", this.sliderRow(), this.switchRow(REDUCED_MOTION)),
       section("Readout", this.switchRow(SHOW_FPS), this.switchRow(SHOW_PING)),
+      section("Map", this.switchRow(SHOW_ROUTE), this.textSizeRow()),
     );
 
     const foot = el("div", "sp-foot");
@@ -149,6 +157,8 @@ export class SettingsPanel {
     this.fsButton.setAttribute("aria-checked", String(supported && this.fullscreen.active()));
     this.fsNote.textContent = supported ? "Alt+Enter does the same." : "Not available in this browser.";
 
+    for (const [scale, button] of this.sizes) button.setAttribute("aria-pressed", String(scale === s.textScale));
+
     this.motionNote.textContent = this.osReducedMotion()
       ? "Your system already asks for reduced motion, so it is on either way."
       : "Hit flashes, shakes and animations. 0% turns them off.";
@@ -197,6 +207,25 @@ export class SettingsPanel {
     // A dragged slider keeps focus, and a focused <input> makes the scenes ignore the game keys: let go of it when the mouse does.
     slider.addEventListener("pointerup", () => slider.blur());
     row.append(label, this.sliderValue, slider, this.motionNote);
+    return row;
+  }
+
+  /** Text size of the map and planning screens: three toggle buttons, one pressed (buttons, not <input>s, like the switches). */
+  private textSizeRow(): HTMLElement {
+    const row = el("div", "sp-row");
+    const label = el("div", "sp-label", "Map text size");
+    label.id = "ts-label";
+    const group = el("div", "sp-seg");
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-labelledby", "ts-label");
+    for (const scale of TEXT_SCALES) {
+      const button = el("button", "sp-seg-btn", formatTextScale(scale));
+      button.type = "button";
+      button.addEventListener("click", () => { this.store.update({ textScale: scale }); });
+      this.sizes.set(scale, button);
+      group.append(button);
+    }
+    row.append(label, group, el("div", "sp-note", "Makes the planning and Tab maps' text bigger."));
     return row;
   }
 

@@ -1,11 +1,12 @@
+// What the HUD and the toasts say about buffs (R4a), the feed and the barrier. The buff maths is buffsRoguelike.test.ts and
+// buffs.test.ts; this is the wording and the views built on it.
 import { describe, expect, it } from "vitest";
 import {
-  barrierStrength, BUFF_LABELS, BUFF_STATS, buffBonus, buffRow, buffRows, buffToast, catchUpMultiplier, comboById, COMBOS,
-  comboToast, feedView, formatBonus, formatGain, formatMult, formatStacks, hasAnyStacks, hpBarFractions, hpText,
-  lobbyMedianFeed, MAX_BARRIER_SHARE, mobRewardMultiplier, rewardCurve, stacksOfPlayer, zeroStacks, type Stacks,
+  barrierStrength, BARRIER_FULL_SHARE, BUFFS, buffScale, buffText, buffToast, buffView, buffViews, catchUpMultiplier,
+  ELITE_BUFF_STACKS, feedView, formatBonus, formatGain, formatMult, formatStacks, hasAnyBuffs, hpBarFractions, hpText,
+  lobbyMedianFeed, MOB_BUFF_STACKS, mobRewardMultiplier, rewardCurve,
 } from "../src/index";
-
-const stacksOf = (hp = 0, attackSpeed = 0, moveSpeed = 0): Stacks => ({ hp, attackSpeed, moveSpeed });
+import { PlayerState } from "../src/schema";
 
 describe("formatStacks", () => {
   it("shows one decimal, to the nearest tenth", () => {
@@ -24,30 +25,14 @@ describe("formatStacks", () => {
     expect(formatGain(1.078 * 2)).toBe(formatStacks(1.078 * 2));
   });
 
-  it("never rounds up onto a combo threshold it has not reached", () => {
-    expect(formatStacks(2.96)).toBe("2.9");
-    expect(formatStacks(2.99)).toBe("2.9");
-    expect(formatStacks(2.9999)).toBe("2.9");
-    expect(formatStacks(4.97)).toBe("4.9");
-    expect(formatStacks(4.99999)).toBe("4.9");
+  // The old combo thresholds (3 and 5 stacks) made 2.96 read 2.9. A buff has no threshold now: 3 stacks is only the value
+  // its text quotes, and the number is plain rounding like the toast's.
+  it("is plain rounding next to 3 and 5 stacks: no threshold to stay short of", () => {
+    expect(formatStacks(2.96)).toBe("3.0");
+    expect(formatStacks(2.94)).toBe("2.9");
+    expect(formatStacks(4.99)).toBe("5.0");
     expect(formatStacks(3)).toBe("3.0");
-    expect(formatStacks(4.96)).toBe("4.9");
-  });
-
-  it("never reads 3.0 or 5.0 before the combo that threshold unlocks", () => {
-    for (const stat of BUFF_STATS) {
-      for (let n = 0; n <= 6; n += 0.01) {
-        const text = formatStacks(n);
-        const row = buffRow(stat, n);
-        if (text === "3.0") expect(row.tier, `${n}`).toBeGreaterThanOrEqual(1);
-        if (text === "5.0") expect(row.tier, `${n}`).toBe(2);
-      }
-    }
-  });
-
-  it("reads 3.0 for the float noise that still unlocks the combo", () => {
-    expect(formatStacks(1.1 * 3 - 0.3)).toBe("3.0");
-    expect(formatStacks(Math.fround(2.9999998))).toBe("3.0");
+    expect(formatStacks(Math.fround(3.1))).toBe("3.1");
   });
 
   it("copes with junk", () => {
@@ -61,7 +46,7 @@ describe("the small formatters", () => {
     expect(formatGain(1.1)).toBe("1.1");
     expect(formatGain(1.067)).toBe("1.1");
     expect(formatGain(0.33)).toBe("0.3");
-    expect(formatGain(2.2)).toBe("2.2");
+    expect(formatGain(3.1)).toBe("3.1");
   });
 
   it("writes a bonus as a whole percent and a multiplier with two decimals", () => {
@@ -73,93 +58,126 @@ describe("the small formatters", () => {
   });
 });
 
-describe("buffRow", () => {
-  it("labels the stat, gives the bonus from the S-curve and the progress to the first combo", () => {
-    const row = buffRow("attackSpeed", 1.5);
-    expect(row.label).toBe("Attack speed");
-    expect(row.stacksText).toBe("1.5");
-    expect(row.bonus).toBeCloseTo(buffBonus("attackSpeed", 1.5), 12);
-    expect(row.bonusText).toBe(formatBonus(buffBonus("attackSpeed", 1.5)));
-    expect(row.tier).toBe(0);
-    expect(row.next).toBe(3);
-    expect(row.progress).toBeCloseTo(0.5, 12);
-    expect(row.combo).toBeNull();
+describe("buffView", () => {
+  it("reads one buff at the stacks held: the count, the scale, the line now and the quoted line", () => {
+    const at3 = buffView("emberImp", 3)!;
+    expect(at3).toMatchObject({
+      id: "emberImp", name: "Ember Imp", zone: "fire", elite: false, stacks: 3, stacksText: "3.0", scale: 1,
+      text: "+10% damage", quoted: "+10% damage", active: true,
+    });
+    const at6 = buffView("emberImp", 6)!;
+    expect(at6.scale).toBe(buffScale(6));
+    expect(at6.text).toBe(buffText("emberImp", 6));
+    expect(at6.quoted).toBe("+10% damage"); // the quoted line never moves
+    const at1 = buffView("emberImp", 1.1)!;
+    expect(at1.stacksText).toBe("1.1");
+    expect(at1.text).toBe(buffText("emberImp", 1.1));
   });
 
-  it("shows the design bonus at three stacks (+32% hp, +23% attack speed, +14% move speed)", () => {
-    expect(buffRow("hp", 3).bonusText).toBe("+32%");
-    expect(buffRow("attackSpeed", 3).bonusText).toBe("+23%");
-    expect(buffRow("moveSpeed", 3).bonusText).toBe("+14%");
+  it("knows an elite's buff by its flag and its zone", () => {
+    expect(buffView("wyrmling", 1)).toMatchObject({ name: "Wyrmling", zone: "fire", elite: true });
+    expect(buffView("bloodSaint", 1)).toMatchObject({ name: "Blood Saint", zone: "holy", elite: true });
+    expect(buffView("penitent", 1)).toMatchObject({ zone: "holy", elite: false });
   });
 
-  it("names the combo once reached and aims the bar at the second tier", () => {
-    const at3 = buffRow("attackSpeed", 3.2);
-    expect(at3.tier).toBe(1);
-    expect(at3.combo?.name).toBe("Dash on kill");
-    expect(at3.next).toBe(5);
-    expect(at3.progress).toBeCloseTo(3.2 / 5, 12);
-    expect(buffRow("hp", 3).combo?.id).toBe("shield");
-    expect(buffRow("moveSpeed", 4.9).combo?.id).toBe("bloodrush");
+  it("is active unless a row needs the status runtime (shown, not applied until R4b)", () => {
+    for (const b of BUFFS) expect(buffView(b.id, 3)!.active, b.id).toBe(b.needs === undefined);
+    expect(buffView("chainWarden", 3)!.active).toBe(false);
+    expect(buffView("bloatfly", 3)!.active).toBe(false);
+    expect(buffView("plagueRat", 3)!.active).toBe(true);
   });
 
-  it("is full at the top, with the tier-2 combo", () => {
-    for (const [stat, id] of [["attackSpeed", "cascade"], ["hp", "bulwark"], ["moveSpeed", "frenzy"]] as const) {
-      const row = buffRow(stat, 7.5);
-      expect(row.tier).toBe(2);
-      expect(row.next).toBeNull();
-      expect(row.progress).toBe(1);
-      expect(row.combo?.id).toBe(id);
+  it("says what the next kill of its type adds: a mob's grant, or an elite type's own, times the reward", () => {
+    const imp = buffView("emberImp", 2, 0.8)!;
+    expect(imp.nextGain).toBeCloseTo(MOB_BUFF_STACKS * 0.8, 12);
+    expect(imp.nextText).toBe(buffText("emberImp", 2 + MOB_BUFF_STACKS * 0.8));
+    const wyrm = buffView("wyrmling", 0, 0.5)!;
+    expect(wyrm.nextGain).toBeCloseTo(ELITE_BUFF_STACKS * 0.5, 12);
+    // Reward defaults to a full one.
+    expect(buffView("emberImp", 0)!.nextGain).toBe(MOB_BUFF_STACKS);
+    expect(buffView("wyrmling", 0)!.nextGain).toBe(ELITE_BUFF_STACKS);
+    // A kill always makes the line stronger.
+    expect(buffScale(2 + imp.nextGain)).toBeGreaterThan(buffScale(2));
+  });
+
+  it("treats a bad reward as nothing to gain, not a loss", () => {
+    for (const reward of [0, -1, Number.NaN]) {
+      const v = buffView("emberImp", 2, reward)!;
+      expect(v.nextGain, `${reward}`).toBe(0);
+      expect(v.nextText, `${reward}`).toBe(v.text);
     }
   });
 
-  it("treats float noise just under a threshold as reached, like the server's combo check", () => {
-    expect(buffRow("hp", 3 - 5e-7).tier).toBe(1);
-    expect(buffRow("hp", 3 - 5e-5).tier).toBe(0);
-  });
-
-  it("is empty for no, negative or NaN stacks", () => {
+  it("is empty for no, negative or NaN stacks, but still says what a first kill gives", () => {
     for (const n of [0, -2, Number.NaN]) {
-      const row = buffRow("moveSpeed", n);
-      expect([row.stacks, row.bonus, row.progress, row.tier]).toEqual([0, 0, 0, 0]);
-      expect(row.combo).toBeNull();
+      const v = buffView("rimeStalker", n)!;
+      expect([v.stacks, v.stacksText, v.scale], `${n}`).toEqual([0, "0.0", 0]);
+      expect(v.nextGain, `${n}`).toBe(MOB_BUFF_STACKS);
+      expect(v.nextText, `${n}`).toBe(buffText("rimeStalker", MOB_BUFF_STACKS));
     }
   });
-});
 
-describe("buffRows and hasAnyStacks", () => {
-  it("lists Max HP, Attack speed, Move speed in that order", () => {
-    expect(buffRows(stacksOf(1, 2, 3)).map((r) => r.label)).toEqual(["Max HP", "Attack speed", "Move speed"]);
-    expect(buffRows(stacksOf(1, 2, 3)).map((r) => r.stacks)).toEqual([1, 2, 3]);
-    expect(Object.values(BUFF_LABELS)).toHaveLength(BUFF_STATS.length);
-  });
-
-  it("is false only while every stat is at 0", () => {
-    expect(hasAnyStacks(zeroStacks())).toBe(false);
-    expect(hasAnyStacks(stacksOf(0, 0, 0.1))).toBe(true);
-    expect(hasAnyStacks(stacksOf(1e-6, 0, 0))).toBe(true);
-  });
-
-  it("reads a player's three float fields", () => {
-    expect(stacksOfPlayer({ stacksHp: 1, stacksAs: 2, stacksMs: 3 })).toEqual({ hp: 1, attackSpeed: 2, moveSpeed: 3 });
+  it("is null for an id that is not in the catalog (newer server content)", () => {
+    for (const id of ["nope", "", "EmberImp", "constructor", "__proto__", "fire"]) expect(buffView(id, 3), `"${id}"`).toBeNull();
   });
 });
 
-describe("toasts", () => {
-  it("says what dropped and the new total", () => {
-    expect(buffToast("attackSpeed", 1.1, 3.2)).toBe("+1.1 Attack speed (3.2)");
-    expect(buffToast("hp", 2.2, 2.2)).toBe("+2.2 Max HP (2.2)");
-    expect(buffToast("moveSpeed", 0.33, 1.4)).toBe("+0.3 Move speed (1.4)");
+describe("buffViews and hasAnyBuffs", () => {
+  it("lists the buffs held in catalog order, whatever order they were gained in", () => {
+    const views = buffViews({ bloodSaint: 1, wyrmling: 2, acolyte: 0.5, emberImp: 3.3 });
+    expect(views.map((v) => v.id)).toEqual(["emberImp", "wyrmling", "acolyte", "bloodSaint"]);
+    expect(views.map((v) => v.stacksText)).toEqual(["3.3", "2.0", "0.5", "1.0"]);
   });
 
-  it("does not choke on a stat from newer server content", () => {
-    expect(buffToast("luck", 1, 1)).toBe("+1.0 luck (1.0)");
+  it("skips what is not held: zero, negative and NaN stacks and ids the catalog does not know", () => {
+    const views = buffViews({ emberImp: 1, iceGolem: 0, plagueRat: -3, bailiff: Number.NaN, junk: 5 });
+    expect(views.map((v) => v.id)).toEqual(["emberImp"]);
+    expect(buffViews({})).toEqual([]);
   });
 
-  it("announces a combo by its catalog name, and every combo id resolves", () => {
-    expect(comboToast(comboById("dash")!)).toBe("Combo unlocked: Dash on kill");
-    expect(comboToast(comboById("frenzy")!)).toBe("Combo unlocked: Frenzy run");
-    for (const c of COMBOS) expect(comboById(c.id)).toBe(c);
-    expect(comboById("nope")).toBeUndefined();
+  it("hands the reward to every view's next kill", () => {
+    for (const v of buffViews({ emberImp: 1, wyrmling: 1 }, 0.5)) {
+      expect(v.nextGain, v.id).toBeCloseTo((v.elite ? ELITE_BUFF_STACKS : MOB_BUFF_STACKS) * 0.5, 12);
+    }
+  });
+
+  it("reads a Map, a plain record and a player's synced buffs map alike", () => {
+    const p = new PlayerState();
+    p.buffs.set("iceGolem", 2.5);
+    p.buffs.set("emberImp", 1.5);
+    const ids = (s: Parameters<typeof buffViews>[0]) => buffViews(s).map((v) => [v.id, v.stacks]);
+    const want = [["emberImp", 1.5], ["iceGolem", 2.5]];
+    expect(ids(p.buffs)).toEqual(want);
+    expect(ids(new Map([["iceGolem", 2.5], ["emberImp", 1.5]]))).toEqual(want);
+    expect(ids({ iceGolem: 2.5, emberImp: 1.5 })).toEqual(want);
+  });
+
+  it("is false only while nothing is held", () => {
+    expect(hasAnyBuffs({})).toBe(false);
+    expect(hasAnyBuffs(new PlayerState().buffs)).toBe(false);
+    expect(hasAnyBuffs({ emberImp: 0, junk: 4 })).toBe(false);
+    expect(hasAnyBuffs({ emberImp: 1e-6 })).toBe(true);
+    expect(hasAnyBuffs(new Map([["acolyte", 0.4]]))).toBe(true);
+  });
+});
+
+describe("buffToast", () => {
+  it("says what dropped, the new total and the line at that total", () => {
+    expect(buffToast("emberImp", 1.1, 3.2)).toBe(`Ember Imp +1.1 (3.2): ${buffText("emberImp", 3.2)}`);
+    expect(buffToast("emberImp", 1.1, 3)).toBe("Ember Imp +1.1 (3.0): +10% damage");
+    expect(buffToast("bloodSaint", 3.1, 3.1)).toBe(`Blood Saint +3.1 (3.1): ${buffText("bloodSaint", 3.1)}`);
+    expect(buffToast("acolyte", 0.33, 1.4)).toBe(`Acolyte +0.3 (1.4): ${buffText("acolyte", 1.4)}`);
+  });
+
+  it("reads the gain and the total the way the HUD does", () => {
+    // A first drop of 1.078 is +1.1, and the HUD's count right after it reads 1.1.
+    const toast = buffToast("plagueRat", 1.078, 1.078);
+    expect(toast.startsWith(`Plague Rat +${formatGain(1.078)} (${formatStacks(1.078)})`)).toBe(true);
+    expect(buffView("plagueRat", 1.078)!.stacksText).toBe(formatStacks(1.078));
+  });
+
+  it("does not choke on a buff from newer server content: its id, no line", () => {
+    expect(buffToast("newThing", 1, 1)).toBe("newThing +1.0 (1.0)");
   });
 });
 
@@ -197,6 +215,11 @@ describe("feedView", () => {
     expect(feedView(1, 0, 3).catchUp).toBe(false);
     expect(catchUpMultiplier(1, 3)).toBe(1);
   });
+
+  it("is the reward a buff view's next kill is scaled by", () => {
+    const feed = feedView(3, 0, 3);
+    expect(buffView("emberImp", 0, feed.reward)!.nextGain).toBeCloseTo(MOB_BUFF_STACKS * rewardCurve(3), 12);
+  });
 });
 
 describe("lobbyMedianFeed", () => {
@@ -231,9 +254,10 @@ describe("lobbyMedianFeed", () => {
   });
 });
 
-describe("the kill barrier", () => {
-  it("is full at the biggest combo shield and proportional below it", () => {
-    expect(MAX_BARRIER_SHARE).toBeCloseTo(0.3, 12);
+// The kill combos that gave a barrier are gone (R6's skills bring them back); the HUD's draw scale and bar maths stay.
+describe("the barrier", () => {
+  it("is a full ring at BARRIER_FULL_SHARE of max hp (the old Bulwark's 30%) and proportional below it", () => {
+    expect(BARRIER_FULL_SHARE).toBeCloseTo(0.3, 12);
     expect(barrierStrength(150, 500)).toBe(1);
     expect(barrierStrength(75, 500)).toBeCloseTo(0.5, 12);
     expect(barrierStrength(9999, 500)).toBe(1);
@@ -262,10 +286,10 @@ describe("the kill barrier", () => {
     expect(hpBarFractions(Number.NaN, 100, Number.NaN)).toEqual({ hp: 0, barrier: 0 });
   });
 
-  it("writes the hp readout with the shield when there is one", () => {
+  it("writes the hp readout with the barrier when there is one", () => {
     expect(hpText(400, 500, 0)).toBe("HP 400/500");
-    expect(hpText(399.2, 500, 74.3)).toBe("HP 400/500 +75 shield");
-    expect(hpText(400, 500, 0.0001)).toBe("HP 400/500 +1 shield");
+    expect(hpText(399.2, 500, 74.3)).toBe("HP 400/500 +75 barrier");
+    expect(hpText(400, 500, 0.0001)).toBe("HP 400/500 +1 barrier");
     expect(hpText(400, 500, -3)).toBe("HP 400/500");
   });
 });

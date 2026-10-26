@@ -2,7 +2,7 @@
 // throws or is missing, and what subscribers are told. The storage is a fake; nothing touches localStorage.
 import { describe, expect, it, vi } from "vitest";
 import {
-  DEFAULT_SETTINGS, SETTINGS_KEY, SettingsStore, loadSettings, sanitizeSettings, saveSettings, type SettingsStorage,
+  DEFAULT_SETTINGS, SETTINGS_KEY, SettingsStore, TEXT_SCALES, loadSettings, sanitizeSettings, saveSettings, type SettingsStorage,
 } from "../src/settings";
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -27,8 +27,8 @@ describe("loading", () => {
     expect(new SettingsStore(memoryStorage()).get()).toEqual(DEFAULT_SETTINGS);
   });
 
-  it("the defaults are what the owner asked for: effects fully on, the readout shown, sharp rendering on", () => {
-    expect(DEFAULT_SETTINGS).toEqual({ juice: 1, reducedMotion: false, showFps: true, showPing: true, hiDpi: true });
+  it("the defaults are what the owner asked for: effects fully on, the readout shown, sharp rendering on, the route shown, normal text", () => {
+    expect(DEFAULT_SETTINGS).toEqual({ juice: 1, reducedMotion: false, showFps: true, showPing: true, hiDpi: true, showRoute: true, textScale: 1 });
   });
 
   it("returns a copy, so changing a loaded value never edits the defaults", () => {
@@ -62,8 +62,23 @@ describe("loading", () => {
 
   it("drops unknown keys", () => {
     const out = sanitizeSettings({ juice: 0.5, hax: true, __proto__: { polluted: 1 }, constructor: 5 });
-    expect(Object.keys(out).sort()).toEqual(["hiDpi", "juice", "reducedMotion", "showFps", "showPing"]);
+    expect(Object.keys(out).sort()).toEqual(["hiDpi", "juice", "reducedMotion", "showFps", "showPing", "showRoute", "textScale"]);
     expect(out.juice).toBe(0.5);
+  });
+
+  it("keeps the map settings: the route switch, and the text size snapped to the nearest size offered", () => {
+    expect(sanitizeSettings({ showRoute: false }).showRoute).toBe(false);
+    expect(sanitizeSettings({ showRoute: "no" }).showRoute).toBe(true);
+    expect(TEXT_SCALES).toEqual([1, 1.25, 1.5]);
+    expect(sanitizeSettings({ textScale: 1.25 }).textScale).toBe(1.25);
+    expect(sanitizeSettings({ textScale: 1.4 }).textScale).toBe(1.5);
+    expect(sanitizeSettings({ textScale: 9 }).textScale).toBe(1.5);
+    expect(sanitizeSettings({ textScale: -3 }).textScale).toBe(1);
+    expect(sanitizeSettings({ textScale: "big" }).textScale).toBe(1);
+    expect(sanitizeSettings({ textScale: Number.NaN }).textScale).toBe(1);
+    // An older file with neither key loads with the defaults for them.
+    const old = loadSettings(memoryStorage({ [SETTINGS_KEY]: JSON.stringify({ juice: 0.5, showFps: false }) }));
+    expect(old).toEqual({ ...DEFAULT_SETTINGS, juice: 0.5, showFps: false });
   });
 
   it("treats a storage that throws or is missing as empty", () => {

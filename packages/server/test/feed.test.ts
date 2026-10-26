@@ -8,6 +8,7 @@ import {
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { applyDamage, creditMobKill, downPlayer, markDropped, type Attacker } from "../src/sim/arena";
+import { grantBuff } from "../src/sim/buffs";
 import {
   announceBounty, feedOfPlayer, flushAnnouncements, install as installFeed, lobbyMedianFeed, mobRewardFor,
 } from "../src/sim/feed";
@@ -498,19 +499,19 @@ describe("the bounty ignores mob kills", () => {
     const prev = w.hooks.bountyClaimed;
     w.hooks.bountyClaimed = (world, killer, victim, bounty) => { claims++; prev?.(world, killer, victim, bounty); };
     for (let i = 0; i < 48; i++) creditMobKill(w, P(w, 0), RT(w, 0), false); // feed 12
-    P(w, 0).stacksHp = 4;
-    P(w, 0).stacksAs = 6;
-    P(w, 0).stacksMs = 2;
+    grantBuff(w, P(w, 0), RT(w, 0), "iceGolem", 4);
+    grantBuff(w, P(w, 0), RT(w, 0), "plagueRat", 6);
+    grantBuff(w, P(w, 0), RT(w, 0), "emberImp", 2);
     w.events = [];
     kill(w, 0, attacker(w, 1));
     expect(gvOf(w.events)).toEqual([{ type: "gv", id: idOf(1), amount: GV_KILL, reason: "kill" }]);
     expect(claims).toBe(0);
-    expect([P(w, 1).stacksHp, P(w, 1).stacksAs, P(w, 1).stacksMs]).toEqual([0, 0, 0]);
+    expect(P(w, 1).buffs.size).toBe(0);
     expect(fxOf(w.events, "buff")).toEqual([]);
     expect(RT(w, 1).gv.bounty).toBe(0);
   });
 
-  it("with player kills too, the bounty follows the player kills only, and a claim pays that amount and half the stacks", () => {
+  it("with player kills too, the bounty follows the player kills only, and a claim pays that amount and half of every buff held", () => {
     const w = startRun(8);
     let claims = 0;
     const prev = w.hooks.bountyClaimed;
@@ -521,7 +522,8 @@ describe("the bounty ignores mob kills", () => {
     expect(P(w, 0).bounty).toBe(10);
     kill(w, 4, attacker(w, 0));
     expect(P(w, 0).bounty).toBe(28); // 4 player kills, not a feed of 9
-    P(w, 0).stacksAs = 4;
+    grantBuff(w, P(w, 0), RT(w, 0), "plagueRat", 4);
+    grantBuff(w, P(w, 0), RT(w, 0), "iceGolem", 3.5);
     w.events = [];
     kill(w, 0, attacker(w, 5));
     expect(gvOf(w.events)).toEqual([
@@ -529,7 +531,9 @@ describe("the bounty ignores mob kills", () => {
       { type: "gv", id: idOf(5), amount: 28, reason: "bounty" },
     ]);
     expect(claims).toBe(1);
-    expect(P(w, 5).stacksAs).toBe(2);
+    expect(P(w, 5).buffs.get("plagueRat")).toBe(2);
+    expect(P(w, 5).buffs.get("iceGolem")).toBe(1.75); // fractions and all, buff by buff
+    expect([...P(w, 5).buffs.keys()].sort()).toEqual(["iceGolem", "plagueRat"]); // nothing the victim did not hold
   });
 });
 
