@@ -27,6 +27,11 @@ export const MAP_TILES_W = 64;
 export const MAP_TILES_H = 64;
 export const WORLD_W = MAP_TILES_W * TILE;
 export const WORLD_H = MAP_TILES_H * TILE;
+/**
+ * The zone stylers (terrain, hazards, props) on the maps the game builds: `buildGameMap` (gameMapBuild.ts) styles a finished
+ * wedge map when this is on. Off = every map is exactly generateMap's. Flip only with the client's ice model merged.
+ */
+export const MAP_STYLERS: boolean = false;
 export const PLAYER_RADIUS = 12;
 /** A projectile's own radius: it hits a body whose centre comes within PLAYER_RADIUS + this of its path. */
 export const RANGED_SLACK = 2;
