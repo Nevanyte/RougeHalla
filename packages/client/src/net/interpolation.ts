@@ -22,6 +22,8 @@ export class EntityInterpolator {
   private pending: { t: number; at: number } | null = null;
   /** Server time of a teleport whose patch hasn't arrived yet: that patch is a cut for everyone, however short the jump. */
   private cutAt = Infinity;
+  /** The last `displaceSeq` seen per entity: a different one in a patch means the server moved it, so it is a cut, not a slide. */
+  private readonly displaced = new Map<string, number>();
 
   constructor(options: InterpolatorOptions = {}) {
     this.rc = options.adaptive === false ? null : new RenderClock(options.render);
@@ -49,15 +51,19 @@ export class EntityInterpolator {
     const cut = t >= this.cutAt;
     if (cut) this.cutAt = Infinity;
     // Players and mobs share one id space (the server's combatants), so one set of buffers serves both.
-    const push = (e: { x: number; y: number }, id: string) => {
+    const push = (e: { x: number; y: number; displaceSeq?: number }, id: string) => {
       let buf = this.buffers.get(id);
       if (!buf) { buf = new SnapshotBuffer(); this.buffers.set(id, buf); }
-      buf.push(t, e.x, e.y, cut);
+      // A blink or a pull (D24): the entity did not walk that far, so it must not be drawn sliding across. Only this entity is cut.
+      const seq = e.displaceSeq ?? 0;
+      const before = this.displaced.get(id);
+      this.displaced.set(id, seq);
+      buf.push(t, e.x, e.y, cut || (before !== undefined && before !== seq));
     };
     state.players.forEach(push);
     state.mobs?.forEach(push);
     for (const id of this.buffers.keys()) {
-      if (!state.players.has(id) && !state.mobs?.has(id)) this.buffers.delete(id);
+      if (!state.players.has(id) && !state.mobs?.has(id)) { this.buffers.delete(id); this.displaced.delete(id); }
     }
   }
 

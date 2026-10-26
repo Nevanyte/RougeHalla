@@ -12,6 +12,8 @@
 // Numbers: `v` on a stat row is a fraction (0.1 = +10%, -0.08 = -8%); on a flat row and on a `while` row whose stat is
 // armor or shield it is points of that stat. Durations end in `ms`.
 
+import type { CleanseClass, StatusKind } from "./status";
+
 /** Stats a `stat` row moves by a fraction (+10% = 0.1). */
 export type EffectStat =
   | "maxHp" | "attackSpeed" | "moveSpeed" | "damage" | "windup" | "lifesteal" | "markRate"
@@ -39,18 +41,6 @@ export type WhileCond = "chasingLock" | "hpBelow" | "afterCast";
 /** Events a `trigger` row fires on (`arg` is the hp threshold for hpBelow). */
 export type TriggerOn = "hpBelow" | "kill" | "hitTaken";
 
-/**
- * PLACEHOLDER: a mirror of `StatusKind` in shared/src/status.ts on the Wishes branch (claude/wishes-349ec2), same members
- * in the same order (that order is their wire code). Wishes owns the status runtime (owner ruling: D21 reversed). When
- * status.ts merges, replace this declaration with `import type { StatusKind } from "./status";` and stop exporting it
- * from here (index.ts re-exports both modules, so two declarations would collide). There is no "chill" (Frost's chill
- * stays its faction signature) and no "barrier" yet (the kill barrier stays PlayerState.barrier; R6 appends it).
- * Nothing in R0 reads a status.
- */
-export type StatusKind =
-  | "stun" | "root" | "silence" | "slowMove" | "slowAttack" | "antiHeal" | "dot"
-  | "invulnerable" | "untargetable" | "hidden" | "zoned" | "deathFloor" | "haste";
-
 /** The statuses an `onHit` row may apply. */
 export type OnHitStatus = Extract<StatusKind, "slowMove" | "slowAttack" | "antiHeal" | "dot">;
 
@@ -62,7 +52,7 @@ export type OnHitStatus = Extract<StatusKind, "slowMove" | "slowAttack" | "antiH
  */
 export type TriggerAction =
   | { do: "status"; to: "self" | "target"; status: StatusKind; ms: number; value?: number }
-  | { do: "cleanse"; to: "self" | "target"; classes: readonly ("soft" | "hard" | "never")[] }
+  | { do: "cleanse"; to: "self" | "target"; classes: readonly CleanseClass[] }
   | { do: "heal"; share: number; ignoreLockout?: boolean }
   | { do: "barrier"; share: number; ms: number }
   | { do: "cooldown"; ms: number };

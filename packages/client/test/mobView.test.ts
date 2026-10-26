@@ -1,12 +1,13 @@
 // MobView (Phase 11): the death fade on render time, the elite marks, and when the bar and the name show. The scene is fake
 // (test/fakes.ts); the views are found by their place in the container the view builds.
 import { describe, expect, it } from "vitest";
+import { EFFECT_DOT, EFFECT_STUNNED } from "@raid/shared";
 import type { MobState } from "@raid/shared/schema";
 import { MobView } from "../src/render/MobView";
 import { fakeScene, type FakeObject } from "./fakes";
 
 /** Matches `scene.add.container(0, 0, [...])` in MobView's constructor. */
-const CHILD = { eliteRing: 1, hpBar: 8, label: 9, eliteStar: 10 } as const;
+const CHILD = { eliteRing: 1, hpBar: 8, label: 9, eliteStar: 10, status: 11 } as const;
 const DEATH_MS = 450;
 
 function mob(over: Partial<Record<keyof MobState, unknown>> = {}): MobState {
@@ -24,6 +25,7 @@ function setup() {
   return {
     view, root,
     ring: kids[CHILD.eliteRing]!, bar: kids[CHILD.hpBar]!, label: kids[CHILD.label]!, star: kids[CHILD.eliteStar]!,
+    status: kids[CHILD.status]!,
     /** One frame at render time `t` with the newest patch at `patchT`. */
     frame: (m: MobState, t: number, patchT = t) => view.update(0, 0, m, t, patchT),
   };
@@ -149,5 +151,33 @@ describe("MobView bar and name by state", () => {
     const none = setup();
     none.frame(mob({ kind: "elite", maxHp: 0, hp: 0 }), 1000, 1000);
     expect(none.bar.calls).toEqual([]);
+  });
+});
+
+describe("MobView status marks", () => {
+  it("draws the status layers for the synced effects, and nothing for none", () => {
+    const { frame, status } = setup();
+    frame(mob({ effects: 0 }), 1000);
+    expect(status.calls).toEqual([]);
+    frame(mob({ effects: EFFECT_STUNNED | EFFECT_DOT }), 1050);
+    expect(status.calls.length).toBeGreaterThan(0);
+    frame(mob({ effects: 0 }), 1100);
+    expect(status.calls).toEqual([]);
+  });
+
+  it("works for a mob state that has no effects field at all", () => {
+    const { frame, status } = setup();
+    expect(() => frame(mob(), 1000)).not.toThrow();
+    expect(status.calls).toEqual([]);
+  });
+
+  it("clears the marks when the body has faded away", () => {
+    const { frame, status } = setup();
+    const stunned = { effects: EFFECT_STUNNED, status: "dead", hp: 0 } as const;
+    frame(mob({ effects: EFFECT_STUNNED }), 900);
+    expect(status.calls.length).toBeGreaterThan(0);
+    frame(mob(stunned), 1000, 1000);
+    frame(mob(stunned), 1450, 1450);
+    expect(status.calls).toEqual([]);
   });
 });

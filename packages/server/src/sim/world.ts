@@ -2,8 +2,9 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
-  type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
+  generateMap, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId, type FieldKind,
+  type FxEvent, type GameMap, type GvReason, type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample,
+  type SignatureKind, type StatusKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
@@ -30,6 +31,8 @@ export interface SimConfig {
    * death, results or GV, and a fighter who goes down is revived. Implies the training setup (`dummies`).
    */
   training?: boolean;
+  /** Seconds after the run starts that every Wish stays locked (sim/abilities.ts armWishes); WISH_LOCK_SECONDS when absent. */
+  wishLockSeconds?: number;
 }
 
 /**
@@ -87,6 +90,81 @@ export interface CombatRuntime {
   /** Recent authoritative positions (oldest first) for lag-compensated hit tests and present-time projectile sweeps. */
   history: Sample[];
   weapon: WeaponRuntime;
+  /** Timed statuses on this fighter (sim/status.ts). Created on first use, so a hand-built runtime needs nothing. */
+  statuses?: StatusInstance[];
+  /** The ability being cast, if any (sim/abilities.ts). It is not a weapon action: it roots, but only its def's `cancelledBy` ends it. */
+  cast?: CastRuntime | null;
+}
+
+/** One timed status on a fighter (sim/status.ts). Per-kind fields are set only for that kind. */
+export interface StatusInstance {
+  kind: StatusKind;
+  source: DamageSource;
+  ability?: AbilityId;
+  /** The buff or relic behind it, for sources that are not an ability. */
+  tag?: string;
+  startedAt: number;
+  until: number;
+  /** The magnitude: a slow or anti-heal share, a haste bonus, a dot's raw dps. */
+  value: number;
+  /** hidden: its own attack or cast has revealed it from `revealFrom` (the tick after it began, so no fighter's order decides what another reads in that tick) until `revealUntil`. */
+  revealFrom?: number;
+  revealUntil?: number;
+  /** zoned: the zone's field and the damage factors it applies. */
+  fieldId?: string;
+  dealtMult?: number;
+  takenFromSourceMult?: number;
+  /** deathFloor: the hp it holds the fighter at, the hp loss it has held up so far and the share paid back as a heal at its end. */
+  floorHp?: number;
+  taken?: number;
+  healShare?: number;
+  /** dot: the damage shares of its raw damage (all true when absent). */
+  shares?: DamageShares;
+}
+
+/** A pending ability cast (sim/abilities.ts). Times are server ms. */
+export interface CastRuntime {
+  ability: AbilityId;
+  rank: number;
+  slot: AbilitySlot;
+  startedAt: number;
+  landsAt: number;
+  target: string | null;
+  point: Vec2;
+  /** The blink's landing, found when the cast is re-validated just before it lands. */
+  landing: Vec2 | null;
+  /** The slot's ready time before the cast spent it, restored when the arena cancels the cast. */
+  prevReadyAt: number;
+  /** From the cast's `t`, clamped like a weapon's lag; unused until skills rewind. */
+  lagMs: number;
+}
+
+/** An area in the world (sim/fields.ts), mirrored once into `state.fields`. */
+export interface FieldRuntime {
+  id: string;
+  kind: FieldKind;
+  ability: AbilityId;
+  owner: DamageSource;
+  subject: string | null;
+  x: number;
+  y: number;
+  x2: number;
+  y2: number;
+  r: number;
+  vx: number;
+  vy: number;
+  startedAt: number;
+  endsAt: number;
+}
+
+/** Server-only ability data, created on first use (sim/fields.ts `abilitiesRt`); `World.abilities` is null until then. */
+export interface AbilitiesRuntime {
+  fields: Map<string, FieldRuntime>;
+  /** Ability damage over time waiting to be reported as one `hit` fx per DOT_FX_MS, by victim and source (the signature dot's twin). */
+  dot: Map<string, { victim: string; by: string; ability: AbilityId; amount: number }>;
+  dotSince: number;
+  /** Server ms of the coliseum teleport, once there was one: a cast arriving within CAST_TELEPORT_GRACE_MS of it is refused. */
+  teleportedAt?: number;
 }
 
 export interface PlayerRuntime extends CombatRuntime {
@@ -180,8 +258,12 @@ export interface LedgerEntry {
   victim: string;
   by: DamageSource;
   packet: DamagePacket;
-  /** The weapon that dealt it (a riposte and a reflected arrow name the shield). */
-  weapon: WeaponId;
+  /** The weapon that dealt it (a riposte and a reflected arrow name the shield); null for an ability's or another named source's damage. */
+  weapon: WeaponId | null;
+  /** The ability that dealt it (weapon null). `by` is the caster, so kill credit and the bounty work as for a weapon. */
+  ability?: AbilityId;
+  /** Damage over time, from a status or an area: no `hit` fx of its own (it is reported in chunks). */
+  dot?: boolean;
   /** A projectile hit: a swing landing later in the same tick can still halve or cancel it (see `scale`). */
   projectile?: string;
   /** Applied to the packet at resolution: 1, SWORD_BALL_SCALE after a sword met the ball, 0 after an axe destroyed it. */
@@ -208,8 +290,10 @@ export interface LandedHit {
   by: string;
   /** After armor and shield: the whole hit, even past the hp a killing tick removes (as testing/realtime.py counts it). */
   amount: number;
-  weapon: WeaponId;
+  weapon: WeaponId | null;
   sig?: SignatureKind;
+  ability?: AbilityId;
+  dot?: boolean;
 }
 
 /** A swing whose windup ended this tick (resolved in the melee phase). */
@@ -365,6 +449,16 @@ export interface WorldHooks {
   playerKilled?(world: World, killer: PlayerRuntime): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
   weaponSwapped?(world: World, c: Combatant): void;
+  /** A fighter left the fight for good: a player went down (`down`) or left (`removed`), or a mob died (`down`). Modules clear their state for it. */
+  fighterOut?(world: World, id: string, cause: "down" | "removed"): void;
+  /** The run ended (a winner, a draw, a void). */
+  runEnded?(world: World): void;
+  /** `c` just started an attack (a swing, a cast or a draw): its `action` is set. */
+  attackStarted?(world: World, c: Combatant): void;
+  /** A status was applied to `c` (after its effect bits were refreshed); `fresh` is false for a refresh of an instance it already had. */
+  statusApplied?(world: World, c: Combatant, st: StatusInstance, fresh: boolean): void;
+  /** A stagger took on `c` (its immunity has started). */
+  staggered?(world: World, c: Combatant): void;
   /**
    * A ledger entry just took effect on its victim (applyLedger, after the victim's damage, once per entry that lands
    * a `landed` record: mitigated damage above 0, not the arena's burn). `applied` is that damage after armor and shield
@@ -425,6 +519,8 @@ export interface World {
   arena: ArenaRuntime;
   /** Faction signatures (sim/factions.ts); null until that module is installed. */
   factions: FactionsRuntime | null;
+  /** Areas and ability damage over time (sim/fields.ts); null until something uses them. */
+  abilities: AbilitiesRuntime | null;
 }
 
 export function createWorld(opts: {
@@ -470,6 +566,7 @@ export function createWorld(opts: {
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
     arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
+    abilities: null,
   };
 }
 
@@ -522,8 +619,9 @@ export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
 }
 
-type ChainableHook = "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed"
-  | "hitLanded";
+type ChainableHook =
+  | "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded"
+  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

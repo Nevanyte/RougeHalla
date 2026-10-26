@@ -21,6 +21,7 @@ import {
   activeWeapon, combatant, factionOf, hostile, isEvading, slotWeapon, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { positionAt, velocityOf } from "./movement";
+import { actionBlocked, isStunned, isUntargetable } from "./status";
 import {
   chainHook, emit, newWeaponRuntime, type ActionHandler, type DamagePacket, type PendingAction, type World,
 } from "./world";
@@ -110,7 +111,7 @@ export const handlePress: ActionHandler = (world, c, cmd) => {
   const w = c.rt.weapon;
   const now = world.state.serverTime;
   dropLock(c); // an attack order replaces the lock: this swing goes where the press aims
-  setAim(world, c, cmd.a);
+  if (!isStunned(world, c)) setAim(world, c, cmd.a); // a stunned fighter's facing is frozen (D5)
   noteLag(world, c, cmd.t);
   if (!w.held) w.pressedAt = now;
   w.held = true;
@@ -120,7 +121,7 @@ export const handlePress: ActionHandler = (world, c, cmd) => {
 export const handleRelease: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "release") return;
   const w = c.rt.weapon;
-  if (w.lock === null) setAim(world, c, cmd.a); // a lock aims the fighter itself
+  if (w.lock === null && !isStunned(world, c)) setAim(world, c, cmd.a); // a lock aims the fighter itself; a stun freezes the facing
   // Without a timestamp the press's lag stands (only the press defaults to the present).
   if (cmd.t !== undefined) noteLag(world, c, cmd.t);
   w.held = false;
@@ -128,6 +129,7 @@ export const handleRelease: ActionHandler = (world, c, cmd) => {
 
 export const handleSwap: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "swap") return;
+  if (actionBlocked(world, c)) return;
   const target = cmd.slot ?? (c.s.slot === 0 ? 1 : 0);
   if (target === c.s.slot || !slotWeapon(c.s, target)) return;
   c.s.slot = target;
@@ -184,6 +186,7 @@ export function stagger(world: World, c: Combatant): boolean {
   const now = world.state.serverTime;
   if (now < w.staggerImmuneUntil) return false;
   w.staggerImmuneUntil = staggerImmuneUntil(now);
+  world.hooks.staggered?.(world, c);
   if (w.action && w.action.kind !== "draw") {
     cancelAction(world, c);
     emit(world, { type: "fx", fx: { kind: "stagger", id: c.id } });
@@ -234,7 +237,7 @@ function stepWeapon(world: World, c: Combatant): void {
   }
   if (w.action && now >= w.action.landsAt) land(world, c, w.action);
   const wants = w.held || now <= w.bufferedUntil;
-  if (!w.action && wants && now >= c.s.readyAt) startAttack(world, c, weapon, tm);
+  if (!w.action && wants && now >= c.s.readyAt && !actionBlocked(world, c)) startAttack(world, c, weapon, tm);
 }
 
 /**
@@ -243,7 +246,7 @@ function stepWeapon(world: World, c: Combatant): void {
  */
 function lockedFoe(world: World, c: Combatant, id: string | undefined): Combatant | null {
   const t = id === undefined ? undefined : combatant(world, id);
-  return t && standing(t) && hostile(c, t) && !isEvading(t) ? t : null;
+  return t && standing(t) && hostile(c, t) && !isEvading(t) && !isUntargetable(world, t) ? t : null;
 }
 
 /** The windup is over: the swing becomes a melee request, the ball or arrow a spawn request. */
@@ -293,4 +296,5 @@ function startAttack(world: World, c: Combatant, weapon: WeaponId, tm: WeaponTim
   // Clients draw the bow's pull from its synced start; every other windup is announced once.
   if (weapon === "bow") c.s.drawStartedAt = start;
   else emit(world, { type: "fx", fx: { kind: "windup", by: c.id, weapon, a: w.aim, ms: landsAt - now } });
+  world.hooks.attackStarted?.(world, c);
 }
