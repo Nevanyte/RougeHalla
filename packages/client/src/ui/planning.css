@@ -1,0 +1,376 @@
+/* The map screens (ui/planning.ts): the lobby's corner preview, the planning screen, and the hold-Tab map of a run.
+   Laid out inside #ui, which is scaled to the stage: sizes use var(--ui-w) / var(--ui-h) and html[data-ui-narrow], never vw / vh
+   or a size @media. planning.ts sets --pl-size (the map's side, overlay px), --pl-glyph (how big the marks are on it) and
+   --pl-text (the text-size setting). Colour is never the only cue: a zone is also its shape (the glyph) and its pattern. */
+
+#ui > .planning {
+  position: absolute;
+  z-index: 10; /* above the HUD, under the connection banner and the toasts (15, style.css), the chrome (20) and its panels (60, 70) */
+  box-sizing: border-box;
+  font-size: calc(13px * var(--pl-text, 1));
+  line-height: 1.35;
+  color: var(--text, #e6e9ed);
+}
+
+/* ---- planning: the whole screen, dimmed; it takes the pointer, since nothing in the frozen world is clickable ---- */
+#ui > .planning[data-mode="planning"] {
+  inset: 0;
+  display: flex;
+  /* The top clears the chrome's buttons (top right), which stay above this screen. */
+  padding: 44px 12px 12px;
+  overflow: auto;
+  background: rgba(8, 10, 14, 0.84);
+}
+/* Centred with auto margins, not align-items: a body taller than the overlay then starts at the top and scrolls, instead of
+   losing its top edge. */
+#ui > .planning[data-mode="planning"] .pl-body { margin: auto; }
+
+/* ---- preview: a card in the bottom-left corner; the world around it keeps the pointer ---- */
+#ui > .planning[data-mode="preview"] {
+  left: 12px;
+  bottom: 12px;
+  pointer-events: none;
+}
+#ui > .planning[data-mode="preview"] .pl-body {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  width: min(calc(var(--pl-size, 220px) + 20px), calc(var(--ui-w, 800px) - 24px));
+  background: var(--panel, rgba(20, 24, 30, 0.94));
+  border: 1px solid var(--line-strong, #3a434f);
+  border-radius: 8px;
+  box-shadow: var(--shadow-pop, 0 4px 14px rgba(0, 0, 0, 0.45));
+  pointer-events: auto;
+}
+#ui > .planning[data-mode="preview"] .pl-mapcol,
+#ui > .planning[data-mode="preview"] .pl-side { width: 100%; }
+#ui > .planning[data-mode="preview"] .pl-title { font-size: 0.9em; }
+#ui > .planning[data-mode="preview"] .pl-zones { display: none; }
+/* A narrow screen: the card sits above the weapon bar instead of under it, and keeps to the map and a one-line legend. */
+html[data-ui-narrow] #ui > .planning[data-mode="preview"] { bottom: 96px; }
+html[data-ui-narrow] #ui > .planning[data-mode="preview"] .pl-info,
+html[data-ui-narrow] #ui > .planning[data-mode="preview"] .pl-people { display: none; }
+html[data-ui-narrow] #ui > .planning[data-mode="preview"] .pl-legend { gap: 2px 8px; font-size: 0.85em; }
+#ui > .planning[data-mode="preview"] .pl-info { min-height: 3.2em; }
+
+/* ---- map: held Tab in a run; every click goes through to the world ---- */
+#ui > .planning[data-mode="map"] {
+  inset: 0;
+  display: flex;
+  padding: 12px;
+  overflow: hidden;
+  background: rgba(8, 10, 14, 0.5);
+}
+#ui > .planning[data-mode="map"] .pl-body { margin: auto; }
+#ui > .planning[data-mode="map"],
+#ui > .planning[data-mode="map"] * { pointer-events: none; }
+
+.pl-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  max-width: 100%;
+}
+.pl-mapcol { display: flex; flex-direction: column; gap: 8px; width: var(--pl-size, 560px); max-width: 100%; }
+.pl-side { display: flex; flex-direction: column; gap: 10px; width: calc(340px * var(--pl-text, 1)); max-width: 100%; }
+html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
+.pl-body > *, .pl-side > *, .pl-mapcol > * { min-width: 0; }
+
+.pl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.pl-title { margin: 0; font-size: 1.35em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-soft, #cfd5dc); }
+.pl-timer { font-size: 1.9em; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent, #ffe082); }
+.pl-bar { height: 4px; border-radius: 2px; background: var(--line, #2b323c); overflow: hidden; }
+.pl-bar::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: calc(var(--pl-progress, 0) * 100%);
+  background: var(--accent, #ffe082);
+  transition: width 1s linear;
+}
+
+/* ---- the map ---- */
+.pl-mapwrap {
+  position: relative;
+  width: var(--pl-size, 560px);
+  max-width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: var(--sunken, #0f1317);
+  box-shadow: 0 0 0 1px var(--line-strong, #3a434f), var(--shadow-pop, 0 4px 14px rgba(0, 0, 0, 0.45));
+}
+.pl-base, .pl-route {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+}
+.pl-route { cursor: crosshair; touch-action: manipulation; }
+.pl-zones, .pl-markers { position: absolute; inset: 0; pointer-events: none; }
+.pl-markers > * { pointer-events: auto; position: absolute; transform: translate(-50%, -50%); }
+
+.pl-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translate(-50%, -50%);
+  font-size: max(9px, calc(11px * var(--pl-text, 1) * var(--pl-glyph, 1)));
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(230, 233, 237, 0.8);
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+}
+.pl-zone .pl-glyph { width: 0.95em; height: 0.95em; flex: none; }
+
+/* A zone's shape: the element is clipped to it (planning.ts sets the clip-path) and filled with the zone colour. */
+.pl-glyph { display: inline-block; flex: none; width: 1em; height: 1em; background: var(--zone, #aeb7c2); }
+
+.pl-camp {
+  appearance: none;
+  box-sizing: border-box;
+  width: calc(22px * var(--pl-glyph, 1));
+  height: calc(22px * var(--pl-glyph, 1));
+  min-width: 12px;
+  min-height: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000);
+}
+.pl-camp.elite { width: calc(30px * var(--pl-glyph, 1)); height: calc(30px * var(--pl-glyph, 1)); min-width: 16px; min-height: 16px; }
+.pl-camp .pl-glyph { width: 100%; height: 100%; }
+.pl-camp:hover, .pl-camp:focus-visible { filter: drop-shadow(0 0 3px #fff); }
+.pl-camp:focus-visible { outline: 2px solid var(--focus, #ffe082); outline-offset: 3px; border-radius: 4px; }
+.pl-crown {
+  position: absolute;
+  left: 50%;
+  bottom: 88%;
+  width: 72%;
+  height: 40%;
+  transform: translateX(-50%);
+  background: var(--gold, #ffd54f);
+}
+
+.pl-chip {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: max(9px, calc(10.5px * var(--pl-text, 1) * var(--pl-glyph, 1)));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  white-space: nowrap;
+  color: var(--text, #e6e9ed);
+  background: rgba(12, 15, 19, 0.88);
+  border: 1px solid var(--line-hi, #4a5563);
+}
+.pl-camp .pl-chip { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 1px; pointer-events: none; }
+.tone-good { color: #b9f6ca; border-color: var(--ok-line, #43a047); }
+.tone-even { color: #ffe082; border-color: var(--accent-line, #6b5a1e); }
+.tone-risky { color: #ffcc80; border-color: var(--warn-line, #ffb74d); border-style: dashed; }
+.tone-lose { color: #ef9a9a; border-color: var(--danger-line, #e53935); border-style: dotted; }
+
+/* The two dealt spawns on the map: a numbered ring in the zone's colour; yours is gold, one taken is dashed and dim. */
+.pl-spawnmark {
+  appearance: none;
+  box-sizing: border-box;
+  width: calc(28px * var(--pl-glyph, 1));
+  height: calc(28px * var(--pl-glyph, 1));
+  min-width: 20px;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(12, 15, 19, 0.92);
+  border: 3px solid var(--zone, #aeb7c2);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.pl-spawnmark.picked { background: var(--accent-btn, #8d6e0f); border-color: var(--accent, #ffe082); box-shadow: 0 0 10px rgba(255, 224, 130, 0.6); }
+.pl-spawnmark.taken { border-style: dashed; opacity: 0.6; cursor: not-allowed; text-decoration: line-through; }
+.pl-spawnmark:focus-visible, .pl-stop:focus-visible { outline: 2px solid var(--focus, #ffe082); outline-offset: 3px; }
+
+.pl-stop {
+  appearance: none;
+  box-sizing: border-box;
+  width: calc(20px * var(--pl-glyph, 1));
+  height: calc(20px * var(--pl-glyph, 1));
+  min-width: 16px;
+  min-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85em;
+  font-weight: 800;
+  color: #07181b;
+  background: #80deea;
+  border: 2px solid #0b0e11;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pl-stop:hover { background: #b2ebf2; }
+
+/* ---- the zones, named: a shape and a pattern each ---- */
+.pl-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; }
+.pl-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.92em; color: var(--text-soft, #cfd5dc); }
+.pl-swatch {
+  width: 22px;
+  height: 12px;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line-hi, #4a5563);
+}
+.pattern-slash .pl-swatch { background-image: repeating-linear-gradient(-45deg, var(--zone) 0 2px, transparent 2px 6px); }
+.pattern-backslash .pl-swatch { background-image: repeating-linear-gradient(45deg, var(--zone) 0 2px, transparent 2px 6px); }
+.pattern-dots .pl-swatch { background-image: radial-gradient(var(--zone) 1.3px, transparent 1.8px); background-size: 6px 6px; }
+.pattern-grid .pl-swatch {
+  background-image: repeating-linear-gradient(0deg, var(--zone) 0 1px, transparent 1px 6px), repeating-linear-gradient(90deg, var(--zone) 0 1px, transparent 1px 6px);
+}
+.pattern-bars .pl-swatch { background-image: repeating-linear-gradient(90deg, var(--zone) 0 2px, transparent 2px 6px); }
+
+.pl-info { min-height: 2.8em; font-size: 0.95em; color: var(--muted, #aeb7c2); }
+
+/* ---- the side column ---- */
+.pl-box { box-sizing: border-box; padding: 10px 12px; background: var(--panel, rgba(20, 24, 30, 0.94)); border: 1px solid var(--line-strong, #3a434f); border-radius: 8px; }
+.pl-h { margin: 0 0 4px; font-size: 0.82em; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim, #8d99a6); }
+.pl-small { margin: 4px 0 0; font-size: 0.88em; color: var(--muted, #aeb7c2); }
+
+.pl-spawn {
+  appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--card, #161b21);
+  border: 1px solid var(--line-strong, #3a434f);
+  border-left: 4px solid var(--zone, #aeb7c2);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pl-spawn:hover { background: var(--card-hover, #1b2128); }
+.pl-spawn.picked { background: var(--accent-bg, #1c1a12); border-color: var(--accent, #ffe082); border-left-color: var(--zone, #aeb7c2); box-shadow: 0 0 0 1px var(--accent-line, #6b5a1e); }
+.pl-spawn.taken { opacity: 0.62; border-style: dashed; }
+.pl-spawn[aria-disabled="true"] { cursor: not-allowed; }
+.pl-spawn-head { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.pl-spawn-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 4px;
+  background: var(--btn, #2b323c);
+  font-size: 0.9em;
+}
+.pl-spawn-zone { flex: 1; }
+.pl-badge { padding: 0 6px; border-radius: 8px; font-size: 0.82em; font-weight: 700; border: 1px solid var(--line-hi, #4a5563); }
+.pl-badge.mine { color: var(--accent, #ffe082); border-color: var(--accent-line, #6b5a1e); }
+.pl-badge.taken { color: var(--danger-text, #ef9a9a); border-style: dashed; }
+.pl-badge.free { color: var(--ok-text, #a5d6a7); }
+.pl-spawn-walk { font-size: 0.9em; color: var(--muted, #aeb7c2); }
+.pl-near { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 0.9em; color: var(--muted, #aeb7c2); }
+.pl-near-item { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.pl-near-item .pl-glyph { width: 0.95em; height: 0.95em; }
+.pl-near-item .pl-crown { position: static; width: 0.8em; height: 0.5em; transform: none; }
+
+.pl-boon {
+  appearance: none;
+  display: block;
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--card, #161b21);
+  border: 1px solid var(--line-strong, #3a434f);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pl-boon.picked { background: var(--accent-bg, #1c1a12); border-color: var(--accent, #ffe082); }
+.pl-boon[aria-disabled="true"] { cursor: not-allowed; opacity: 0.7; }
+
+.pl-readyrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pl-ready {
+  appearance: none;
+  padding: 10px 26px;
+  font: inherit;
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary, #2e7d32);
+  border: 1px solid var(--ok-line, #43a047);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pl-ready:hover:not(:disabled) { background: var(--primary-hover, #388e3c); }
+.pl-ready:disabled { cursor: default; color: var(--ok-text, #a5d6a7); background: var(--card, #161b21); }
+.pl-readycount { font-size: 0.95em; color: var(--muted, #aeb7c2); }
+
+.pl-peoplelist { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; }
+.pl-person { display: inline-flex; align-items: center; gap: 5px; }
+.pl-person.me { font-weight: 700; }
+.pl-person-ready { font-size: 0.82em; color: var(--dim, #8d99a6); }
+.pl-person.ready .pl-person-ready { color: var(--ok-text, #a5d6a7); }
+
+.pl-route-text { font-weight: 600; }
+.pl-route-note { min-height: 1.2em; font-size: 0.88em; color: var(--warn, #ffcc80); }
+.pl-routebuttons { display: flex; gap: 8px; margin: 6px 0 2px; }
+.pl-undo, .pl-clear {
+  appearance: none;
+  padding: 5px 12px;
+  font: inherit;
+  color: inherit;
+  background: var(--btn, #2b323c);
+  border: 1px solid var(--line-hi, #4a5563);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pl-undo:hover:not(:disabled), .pl-clear:hover:not(:disabled) { background: var(--btn-hover, #343c48); }
+.pl-undo:disabled, .pl-clear:disabled { opacity: 0.5; cursor: default; }
+
+/* Spoken by screen readers, not drawn: the live region that says a spawn was taken. */
+.pl-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Reduced motion (the OS or the settings switch): the countdown bar jumps instead of gliding, nothing pulses. The global rules in
+   style.css already collapse animations and transitions; these name what this screen has. */
+html[data-reduced-motion] .planning .pl-bar::after,
+html[data-reduced-motion] .planning * { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .planning .pl-bar::after, .planning * { transition: none !important; animation: none !important; }
+}

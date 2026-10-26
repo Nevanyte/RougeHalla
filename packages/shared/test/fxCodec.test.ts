@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITY_IDS, BUFF_STATS, COMBOS, comboTier, formatStacks, FX_SCALE, mulberry32, packFx, STATUS_KINDS, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS,
+  ABILITY_IDS, BUFF_IDS, formatStacks, FX_SCALE, mulberry32, packFx, STATUS_KINDS, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS,
   type FxBatch, type FxEvent, type ProjectileEnd, type ProjectileLaunch, type TimedFx,
 } from "../src/index";
 
@@ -18,8 +18,7 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
   heal: { kind: "heal", id: "sess-001", amount: 7.77 },
   teleport: { kind: "teleport" },
   bounty: { kind: "bounty", id: "sess-001", name: "Rampager", bounty: 35 },
-  buff: { kind: "buff", id: "sess-001", stat: "attackSpeed", stacks: 1.0667, total: 2.9964 },
-  combo: { kind: "combo", id: "sess-001", combo: "cascade", proc: true },
+  buff: { kind: "buff", id: "sess-001", buff: "plagueRat", stacks: 1.0667, total: 2.9964 },
   victory: { kind: "victory", id: "sess-001", name: "Rampager", draw: false },
   cast: { kind: "cast", by: "sess-001", ability: "freeze", ms: 250, target: "sess-002", x: 640.4, y: 320.6 },
   castLand: { kind: "castLand", by: "sess-001", ability: "blaze", target: null, x: 100.2, y: 200.8, x2: 340.5, y2: 410.1 },
@@ -76,9 +75,9 @@ describe("fx codec: round trip", () => {
     expect(roundTrip({ kind: "swing", by: "a", weapon: "sword", x: 10.4, y: 10.6, a: 1.5749 })).toMatchObject({ x: 10, y: 11, a: 1.57 });
     expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 3.14159, weapon: "sword" })).toMatchObject({ amount: 3.1 });
     expect(roundTrip({ kind: "windup", by: "a", weapon: "sword", a: 0, ms: 349.6 })).toMatchObject({ ms: 350 });
-    expect(roundTrip({ kind: "buff", id: "a", stat: "hp", stacks: 1.0664, total: 2.4996 })).toMatchObject({ stacks: 1.066, total: 2.5 });
-    // ...except onto a combo threshold that has not been reached (see "a buff total never crosses a combo threshold")
-    expect(roundTrip({ kind: "buff", id: "a", stat: "hp", stacks: 1.0664, total: 2.9996 })).toMatchObject({ stacks: 1.066, total: 2.999 });
+    expect(roundTrip({ kind: "buff", id: "a", buff: "iceGolem", stacks: 1.0664, total: 2.4996 })).toMatchObject({ stacks: 1.066, total: 2.5 });
+    // There are no combo thresholds any more: a total is the nearest thousandth, 3.000 included.
+    expect(roundTrip({ kind: "buff", id: "a", buff: "iceGolem", stacks: 1.0664, total: 2.9996 })).toMatchObject({ stacks: 1.066, total: 3 });
   });
 
   it("handles negative coordinates and angles, and never produces -0", () => {
@@ -107,16 +106,13 @@ describe("fx codec: round trip", () => {
     expect(roundTrip(sloppyVictory)).toMatchObject({ kind: "victory", id: null, name: null, draw: true });
   });
 
-  it("covers every weapon, buff stat, combo and end reason", () => {
+  it("covers every weapon, buff and end reason", () => {
     for (const weapon of WEAPON_IDS) {
       expect(roundTrip({ kind: "windup", by: "a", weapon, a: 1, ms: 100 })).toMatchObject({ weapon });
       expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 1, weapon })).toMatchObject({ weapon });
       expect(roundTrip({ kind: "block", id: "a", by: "b", weapon })).toMatchObject({ weapon });
     }
-    for (const stat of BUFF_STATS) expect(roundTrip({ kind: "buff", id: "a", stat, stacks: 1, total: 2 })).toMatchObject({ stat });
-    for (const c of COMBOS) {
-      expect(roundTrip({ kind: "combo", id: "a", combo: c.id, proc: false })).toMatchObject({ combo: c.id, proc: false });
-    }
+    for (const buff of BUFF_IDS) expect(roundTrip({ kind: "buff", id: "a", buff, stacks: 1, total: 2 })).toMatchObject({ buff });
     const ends: ProjectileEnd[] = ["hit", "wall", "range", "reflected", "blocked", "deleted", "destroyed", "cleared"];
     for (const reason of ends) {
       for (const proj of ["arrow", "ball"] as const) {
@@ -237,7 +233,8 @@ describe("fx codec: bad input is skipped, not thrown on", () => {
       [2, 7, "b", 10, 1],                  // hit, id is a roster index the roster does not have
       [2, -1, "b", 10, 1],                 // hit, id is a negative number
       [5, "p", 0, 9, 1, 2, 3, 4, 5],       // projEnd, unknown reason
-      [11, "a", 0, 2],                     // combo, proc is not 0 or 1
+      [11, "a", 0, 1],                     // combo: retired, dropped even when well formed
+      [10, "a", 20, 1000, 2000],           // buff, unknown buff code
       [12, null, null],                    // victory, no draw flag
       [4, Number.NaN],                     // stagger, id is a number
       [13, Number.NaN],                    // cancel, id is a number
@@ -347,41 +344,29 @@ describe("fx codec: unreadable tuples are reported", () => {
   });
 });
 
-describe("fx codec: a buff total never crosses a combo threshold", () => {
-  const buff = (total: number): FxEvent => ({ kind: "buff", id: "a", stat: "hp", stacks: 1, total });
-  const decodedTotal = (total: number): number => {
-    const out = unpackFx(packFx([buff(total)], T), NONE)[0]!;
-    if (out.kind !== "buff") throw new Error("not a buff");
-    return out.total;
-  };
-
-  // Just short of a threshold the server has not unlocked its combo (comboTier carries a slack of 1e-6), but the nearest
-  // thousandth of 2.9996 is 3.000, which the toast would read as "(3.0)" while the HUD, from the real stacks, says "2.9".
-  const cases: ReadonlyArray<[number, 0 | 1 | 2]> = [
-    [2.9995, 0], [2.9996, 0], [2.99989, 0], [2.999998, 0], [2.9999985, 0], [2.9999995, 1], [3, 1], [3.0004, 1],
-    [4.9995, 1], [4.9996, 1], [4.99989, 1], [4.999998, 1], [4.9999995, 2], [5, 2], [5.0004, 2],
-  ];
-  it.each(cases)("%s decodes to tier %i", (total, tier) => {
-    expect(comboTier(total), "the table is right about the server").toBe(tier);
-    const got = decodedTotal(total);
-    expect(comboTier(got), `decoded ${got}`).toBe(tier);
-    expect(Math.abs(got - total)).toBeLessThanOrEqual(0.001);
-    expect(formatStacks(got), "the toast reads the way the HUD does").toBe(formatStacks(total));
+describe("fx codec: buffs (roguelike R4a)", () => {
+  it("a buff names its BuffId by code, in MOB_TYPES order: [10, id, code, stacks, total]", () => {
+    expect(BUFF_IDS).toHaveLength(20);
+    BUFF_IDS.forEach((buff, code) => {
+      expect(packFx([{ kind: "buff", id: "a", buff, stacks: 1.1, total: 3.3 }], T).l).toEqual([[10, "a", code, 1100, 3300]]);
+    });
   });
 
-  it("holds over every total in a sweep around both thresholds, and stays within a thousandth everywhere", () => {
-    for (const centre of [3, 5]) {
-      for (let d = -3000; d <= 3000; d++) {
-        const total = centre + d * 1e-7;
-        const got = decodedTotal(total);
-        expect(comboTier(got), `${total}`).toBe(comboTier(total));
-        expect(Math.abs(got - total), `${total}`).toBeLessThanOrEqual(0.001);
-      }
+  it("the totals are the nearest thousandth, and read the way the HUD reads them", () => {
+    for (const total of [0, 0.0004, 1.0667, 2.9964, 2.9996, 3.4996, 4.2, 6.6666]) {
+      const out = unpackFx(packFx([{ kind: "buff", id: "a", buff: "emberImp", stacks: 1, total }], T), NONE)[0]!;
+      if (out.kind !== "buff") throw new Error("not a buff");
+      expect(out.total).toBeCloseTo(Math.round(total * 1000) / 1000, 12);
+      expect(formatStacks(out.total)).toBe(formatStacks(Math.round(total * 1000) / 1000));
     }
   });
 
-  it("is still the nearest thousandth away from a threshold", () => {
-    for (const total of [0, 0.0004, 1.0667, 2.9964, 3.4996, 4.2, 6.6666]) expect(decodedTotal(total)).toBeCloseTo(Math.round(total * 1000) / 1000, 12);
+  it("the retired combo code (11) is never emitted, and a client drops it through onDrop", () => {
+    const alien = { kind: "combo", id: "a", combo: "dash", proc: true } as unknown as FxEvent;
+    expect(packFx([alien], T).l).toEqual([]);
+    const dropped: unknown[] = [];
+    expect(unpackFx({ t: T, l: [[11, "a", 0, 1]] }, NONE, (tuple) => dropped.push(tuple))).toEqual([]);
+    expect(dropped).toEqual([[11, "a", 0, 1]]);
   });
 });
 

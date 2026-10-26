@@ -15,7 +15,8 @@
 // deaths. The bots cast their faction's Wish (the lock is 5 s here): its fx name players and the faction's own ability, none comes
 // before the lock is over, each bot casts it once (again only after the arena's teleport refunded a cast), and in the long run
 // some bot's Wish lands. Every bot decodes every `fxs` batch it receives against its own copy of the roster (what a real client has), and
-// none of them loses a tuple. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
+// none of them loses a tuple. Every run is planned first (the live server's planning phase): each bot is dealt its two spawns
+// in a private `plan` message, takes one and presses ready. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
 // that the arena teleports them into the coliseum before anyone has died, after which they must keep landing hits.
 import fs from "node:fs";
 import net from "node:net";
@@ -24,7 +25,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from "vitest";
 import { matchMaker, Room } from "@colyseus/core";
 import {
-  CATCHUP_MULT, GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, rewardCurve, ROOM_NAME,
+  CATCHUP_MULT, GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, MOB_TYPES, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, rewardCurve, ROOM_NAME,
   SIGNATURE_WEAPONS, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, WISHES,
   type FactionId, type FxBatch, type ProfileResponse, type RunOutcome, type RunResult, type SignatureKind, type TimedFx,
 } from "@raid/shared";
@@ -54,7 +55,10 @@ const WISH_LOCK_SECONDS = 5;
 const QUIT_AFTER_MS = 1_000;
 const OUTCOMES: readonly RunOutcome[] = ["won", "draw", "died", "mia"];
 /** What `killedBy` says when a mob dealt the killing blow: the mob's name, from the shared catalog. */
-const MOB_NAMES: ReadonlySet<string> = new Set(REGION_FACTIONS.flatMap((r) => [mobName(r, false), mobName(r, true)]));
+const MOB_NAMES: ReadonlySet<string> = new Set([
+  ...MOB_TYPES.map((t) => t.name),
+  ...REGION_FACTIONS.flatMap((r) => [mobName(r, false), mobName(r, true)]),
+]);
 /** No bot may stand still without attacking, drawing or fetching a weapon for longer than this (ms): it would be stuck on a target it cannot reach. */
 const MAX_STALL_MS = 8_000;
 /**
@@ -154,6 +158,9 @@ async function playRun(
     minPlayers: BOTS,
     fillSeconds: 0,
     lobbySeconds: 30, // the run starts the moment the 4th bot joins (fillSeconds 0); this only keeps a slow machine from splitting them
+    // The live server's planning phase (PLAN_SECONDS from loadConfig): the bots take a dealt spawn and press ready, so it
+    // ends as soon as all four have. The first patience timer scales like the others, so `timers` sets the run's pace.
+    firstPatienceSeconds: 0,
     ...timers,
     wishLockSeconds: WISH_LOCK_SECONDS,
     patienceMinSeconds: timers.patienceSeconds, // flat: the run's pace shouldn't depend on how many are still standing
@@ -241,6 +248,13 @@ async function playRun(
         expect(d.batches, `${names[i]} never received a batch`).toBeGreaterThan(0);
         expect(d.tuples, `${names[i]} never received an fx`).toBeGreaterThan(0);
       }
+    }
+
+    // --- the run was planned: every bot, the quitter too, was dealt its two spawns in a private `plan` message and pressed ready
+    expect(loadConfig({}).planSeconds, "the live config plans").toBeGreaterThan(0);
+    for (const [i, bot] of bots.entries()) {
+      expect(bot.plansSeen, `${names[i]} was never dealt a plan`).toBeGreaterThanOrEqual(1);
+      expect(bot.sent.plan, `${names[i]} never answered its plan`).toBeGreaterThanOrEqual(1);
     }
 
     // --- the quitter left on purpose and got no result (the server had dropped it before settling it)

@@ -2,12 +2,16 @@
 // folded into the attack-speed mirror (one source of truth for attack speed), and a damage-over-time entry still reaches
 // hitLanded although it has no per-tick hit fx.
 import { describe, expect, it } from "vitest";
-import { decodeMult, mapFromTiles, mulberry32, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type GameMap } from "@raid/shared";
+import {
+  AS_MULT_CAP, attackInterval, decodeMult, encodeMult, FACTIONS, mapFromTiles, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
+  TILE_WALL, type FactionId, type GameMap, type WeaponId,
+} from "@raid/shared";
 import { updateAbilities } from "../src/sim/abilities";
-import { combatant } from "../src/sim/combatant";
+import { grantBuff } from "../src/sim/buffs";
+import { combatant, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
-import { asMultOf } from "../src/sim/mods";
+import { asMultOf, recomputeMods } from "../src/sim/mods";
 import { addStatus, cleanse, removeStatuses } from "../src/sim/status";
 import { addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, World } from "../src/sim/world";
@@ -85,6 +89,43 @@ describe("a slowAttack status and the attack-speed mirror", () => {
     expect(w.state.gatesLocked).toBe(true);
     expect(asMultOf(a.s)).toBe(1);
     expect(decodeMult((a.s as { asMult: number }).asMult)).toBe(1);
+  });
+});
+
+describe("the attack slow, the buffs and AS_MULT_CAP (R4a's mirrors)", () => {
+  it("a 20% slow lowers the mirror and the weapon's interval; its removal restores both; the cap binds on the product", () => {
+    const w = run();
+    const a = combatant(w, "a")!;
+    const p = w.state.players.get("a")!;
+    const weapon = p.weapon0 as WeaponId;
+    const spec = pacedFaction(FACTIONS[p.faction as FactionId]);
+    const interval = () => timingsOf(p, weapon)!.interval;
+    const plain = interval();
+    expect(plain).toBe(attackInterval(spec, weapon, 1));
+    const source = { id: "b", name: "B" };
+    addStatus(w, a, { kind: "slowAttack", source, ms: 5000, value: 0.2 });
+    expect(p.asMult).toBe(encodeMult(0.8));
+    expect(interval()).toBe(attackInterval(spec, weapon, 0.8));
+    expect(interval()).toBeGreaterThan(plain);
+    removeStatuses(w, a, (st) => st.kind === "slowAttack");
+    expect(p.asMult).toBe(1000);
+    expect(interval()).toBe(plain);
+    // A buff and a source past the cap: the slow multiplies the uncapped product first, then the cap clamps the total.
+    grantBuff(w, p, w.players.get("a")!, "plagueRat", 3);
+    const buffed = decodeMult(p.asMult);
+    expect(buffed).toBeGreaterThan(1);
+    w.modSources.push((_w, c) => (c.id === "a" ? { asMult: 2 } : null));
+    recomputeMods(w, a);
+    expect(decodeMult(p.asMult)).toBe(AS_MULT_CAP);
+    addStatus(w, a, { kind: "slowAttack", source, ms: 5000, value: 0.2 });
+    expect(buffed * 2 * 0.8).toBeGreaterThan(AS_MULT_CAP);
+    expect(decodeMult(p.asMult)).toBe(AS_MULT_CAP);
+    expect(interval()).toBe(attackInterval(spec, weapon, AS_MULT_CAP));
+    // A slow deep enough brings the product under the cap: the mirror is that product, in whole thousandths.
+    addStatus(w, a, { kind: "slowAttack", source: { id: "c", name: "C" }, ms: 5000, value: 0.3 });
+    expect(p.asMult).toBe(encodeMult(buffed * 2 * 0.5));
+    removeStatuses(w, a, (st) => st.kind === "slowAttack");
+    expect(decodeMult(p.asMult)).toBe(AS_MULT_CAP);
   });
 });
 

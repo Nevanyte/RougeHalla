@@ -5,14 +5,17 @@
 // How rows act (the runtime is server/src/sim/mods.ts for the stat rows; the rest arrive with later phases):
 //   stat, flat  fold into the fighter's stats (foldStatRows in mods.ts): additive within a key, multiplicative across keys.
 //   while       folds like a stat row, but only while its condition holds (re-evaluated once per tick).
-//   vs, scale   act per hit, at damage time, from the tick-start snapshot (never the live state mid-ledger).
+//   vs, scale   act per hit, at damage time, from the state as the ledger pass began (never the live state mid-ledger).
+//               Both are damage rows: a `vs` row whose test holds and a `scale` row's stepped bonus add to the `damage`
+//               key's sum, like a `stat` damage row (server/src/sim/mods.ts outgoingMult).
 //   onHit       applies a status when a hit lands (the ledger's hitLanded hook, R4b; statuses are Wishes' runtime).
 //   trigger     runs a TriggerAction when its event happens (hp threshold, a kill, a hit taken).
 // Every row may carry `requires`: it is active only while the fighter owns every one of those ids (a synergy).
 // Numbers: `v` on a stat row is a fraction (0.1 = +10%, -0.08 = -8%); on a flat row and on a `while` row whose stat is
 // armor or shield it is points of that stat. Durations end in `ms`.
 
-import type { CleanseClass, StatusKind } from "./status";
+import type { AbilityEffect } from "./abilities";
+import type { StatusKind } from "./status";
 
 /** Stats a `stat` row moves by a fraction (+10% = 0.1). */
 export type EffectStat =
@@ -45,14 +48,13 @@ export type TriggerOn = "hpBelow" | "kill" | "hitTaken";
 export type OnHitStatus = Extract<StatusKind, "slowMove" | "slowAttack" | "antiHeal" | "dot">;
 
 /**
- * PLACEHOLDER for what a `trigger` row does: it becomes Wishes' `AbilityEffect` (shared/src/abilities.ts, their D28: one
- * implementation of heal, status and cleanse) once that file exists here, so this uses their `do:` verbs and the swap is
- * a rename. heal, barrier and cooldown are R6 appends on their side. Shares are of the fighter's max hp; `to: "target"`
- * is whoever set the trigger off (a hitTaken's attacker).
+ * What a `trigger` row does. Its `status` and `cleanse` verbs ARE Wishes' `AbilityEffect` members (abilities.ts, D28: one
+ * shape and one implementation for a cast and a trigger). `heal`, `barrier` and `cooldown` stay trigger-only until R6
+ * appends them to `AbilityEffect`; then this becomes `AbilityEffect` itself. Shares are of the fighter's max hp;
+ * `to: "target"` is whoever set the trigger off (a hitTaken's attacker).
  */
 export type TriggerAction =
-  | { do: "status"; to: "self" | "target"; status: StatusKind; ms: number; value?: number }
-  | { do: "cleanse"; to: "self" | "target"; classes: readonly CleanseClass[] }
+  | Extract<AbilityEffect, { do: "status" | "cleanse" }>
   | { do: "heal"; share: number; ignoreLockout?: boolean }
   | { do: "barrier"; share: number; ms: number }
   | { do: "cooldown"; ms: number };
@@ -61,6 +63,11 @@ export type TriggerAction =
 interface EffectCommon {
   /** Synergy: the row is active only while the fighter owns every one of these ids (buffs, passives, relics...). */
   requires?: readonly string[];
+  /**
+   * "status": the row needs the status runtime (Wishes' sim/status.ts; roguelike R4b wires it). Until then it is catalog
+   * data only: shown in the HUD and tooltips, never applied (buffs.ts buffRows skips it).
+   */
+  needs?: "status";
 }
 
 export type Effect =

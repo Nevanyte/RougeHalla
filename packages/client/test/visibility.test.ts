@@ -88,7 +88,7 @@ describe("FxView on a fighter that turns hidden", () => {
     play(blow(), 10);
     play({ kind: "stagger", id: "foe", t: 1000 } as TimedFx, 20);
     play({ kind: "heal", id: "foe", amount: 30, t: 1000 } as TimedFx, 30);
-    play({ kind: "combo", id: "foe", combo: "shield", proc: true, t: 1000 } as TimedFx, 40);
+    play({ kind: "buff", id: "foe", buff: "emberImp", stacks: 1, total: 1, t: 1000 } as TimedFx, 40);
     play({ kind: "block", id: "foe", by: "me", t: 1000 } as TimedFx, 50);
     expect(made).toEqual([]);
   });

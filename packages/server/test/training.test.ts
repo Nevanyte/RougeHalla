@@ -533,6 +533,8 @@ describe("the training room (live)", () => {
       fillSeconds: 0,
       lobbySeconds: 120,
       ...SHORT,
+      planSeconds: 0, // an arena run here starts straight from the lobby, as it did before planning
+      firstPatienceSeconds: 0,
       latencyMs: 0,
       stashFile: profileFile,
     });

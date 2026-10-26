@@ -2,12 +2,13 @@
 // offscreen canvas; the closed gates, the living regional mobs, the camera's view and the local player are repainted on top
 // at a low rate, and only when one of them changed. It is also a control: right-click (or right-drag) sends the character
 // there, and holding the left button peeks the camera at that spot until it is released.
-import {
-  FACTIONS, FACTION_IDS, REGION_IDS, TILE, Y_SCALE, isFactionId, isWallTile, type GameMap, type RegionId,
-} from "@raid/shared";
+import { FACTION_IDS, Y_SCALE, isFactionId, type GameMap, type Vec2 } from "@raid/shared";
 import { currentView, onViewChange } from "../view/viewState";
 import type { ViewLayout } from "../view/viewport";
-import { cssColor, el, uiRoot } from "./dom";
+import { el, uiRoot } from "./dom";
+import {
+  COLOR_PLAYER, COLOR_PLAYER_DOWN, COLOR_WALL, FACTION_CSS, gateRects, paintCamps, paintMapBase, paintRoute,
+} from "./mapPainter";
 import {
   mapSpan, minimapBacking, minimapSize, minimapToWorld, viewRectOnMinimap, type Point,
 } from "./minimapMath";
@@ -22,31 +23,17 @@ const REPAINT_ACTIVE_MS = 33;
 /** A right-button hold re-sends its target at most this often (RaidScene's MOVE_REPEAT_MS). */
 export const MOVE_REPEAT_MS = 100;
 
-const COLOR_BG = "rgba(20, 24, 30, 0.8)";
-const COLOR_WALL = "#9aa3ad";
-/** Faction colours at low alpha, under the walls; "none" is left as the background. */
-const COLOR_REGION: Record<RegionId, string | null> = {
-  none: null,
-  fire: "rgba(255, 112, 67, 0.22)",
-  sentenced: "rgba(149, 117, 205, 0.22)",
-  plague: "rgba(156, 204, 101, 0.22)",
-  frost: "rgba(79, 195, 247, 0.22)",
-  holy: "rgba(255, 241, 118, 0.22)",
-  coliseum: "rgba(200, 180, 138, 0.3)",
-};
 /** Closed gates only; open ones are just a gap in the coliseum ring. */
 const COLOR_GATE = "#f44336";
-const COLOR_PLAYER = "#69f0ae";
-const COLOR_PLAYER_DOWN = "#78909c";
 const COLOR_ELITE_RIM = "#ffd54f";
 /** What the camera sees. */
 const COLOR_VIEW = "rgba(255, 255, 255, 0.85)";
-/** Faction colours as CSS, in FACTION_IDS order. */
-const FACTION_CSS = FACTION_IDS.map((id) => cssColor(FACTIONS[id].color));
 /** More than this many mob dots are not drawn (a map has about 40 mobs). */
 const MAX_DOTS = 128;
-/** Inputs that decide a repaint: player x, y, alive, gates, mob dots, camera x, y. */
-const INPUTS = 7;
+/** Inputs that decide a repaint: player x, y, alive, gates, mob dots, camera x, y, route. */
+const INPUTS = 8;
+/** The route is drawn faint: the minimap is for steering, the route is a reminder. */
+const ROUTE_ALPHA = 0.6;
 
 const TAU = Math.PI * 2;
 
@@ -59,6 +46,13 @@ export interface MinimapPlayer { x: number; y: number }
 
 /** The fields of a synced mob the minimap reads. */
 export interface MinimapMob { x: number; y: number; kind: string; status: string; faction: string }
+
+/** The planned route as the minimap draws it, in world units. */
+export interface MinimapRoute {
+  points: readonly Vec2[];
+  stops: readonly Vec2[];
+  next: number;
+}
 
 /** What the minimap asks of the scene, in world units. */
 export interface MinimapHandlers {
@@ -104,6 +98,9 @@ export class Minimap {
   private dotsHash = 0;
   private hasMap = false;
   private gatesLocked = false;
+  private route: MinimapRoute | null = null;
+  private routeHash = 0;
+  private showRoute = true;
   /** Gate tiles as x, y, w, h in backing pixels (flat), precomputed per map. */
   private gateRects: number[] = [];
   /** Remembered so a resize can redraw them in the new scale. */
@@ -183,61 +180,35 @@ export class Minimap {
     this.map = map;
     const g = this.layer.getContext("2d");
     if (!g) return;
-    const w = this.layer.width;
-    const h = this.layer.height;
-    const tile = TILE * this.k;
-    g.clearRect(0, 0, w, h);
-    g.fillStyle = COLOR_BG;
-    g.fillRect(0, 0, w, h);
-
-    // Region tints first, so the walls stay readable on top. Edges are rounded to the nearest pixel (not outward) so
-    // neighbouring runs share them exactly: translucent fills would otherwise double up on the overlap.
-    const codes = map.regionGrid;
-    for (let ty = 0; ty < map.h; ty++) {
-      const top = Math.round(ty * tile);
-      const bottom = Math.round((ty + 1) * tile);
-      let start = 0;
-      for (let tx = 1; tx <= map.w; tx++) {
-        if (tx < map.w && codes[ty * map.w + tx] === codes[ty * map.w + start]) continue;
-        const color = COLOR_REGION[REGION_IDS[codes[ty * map.w + start]] ?? "none"];
-        if (color) {
-          const left = Math.round(start * tile);
-          g.fillStyle = color;
-          g.fillRect(left, top, Math.round(tx * tile) - left, bottom - top);
-        }
-        start = tx;
-      }
-    }
-
-    // Horizontal runs of wall tiles per row; edges are rounded outward so neighbouring rows leave no hairline gaps.
-    g.fillStyle = COLOR_WALL;
-    for (let ty = 0; ty < map.h; ty++) {
-      const top = Math.floor(ty * tile);
-      const bottom = Math.ceil((ty + 1) * tile);
-      let start = -1;
-      for (let tx = 0; tx <= map.w; tx++) {
-        if (tx < map.w && isWallTile(map, tx, ty)) {
-          if (start < 0) start = tx;
-        } else if (start >= 0) {
-          const left = Math.floor(start * tile);
-          g.fillRect(left, top, Math.ceil(tx * tile) - left, bottom - top);
-          start = -1;
-        }
-      }
-    }
-
-    this.gateRects = [];
-    for (const gate of map.coliseum.gates) {
-      for (const t of gate.tiles) {
-        const left = Math.floor(t.x * tile);
-        const top = Math.floor(t.y * tile);
-        this.gateRects.push(left, top, Math.ceil((t.x + 1) * tile) - left, Math.ceil((t.y + 1) * tile) - top);
-      }
-    }
+    paintMapBase(g, map, this.layer.width, this.layer.height, this.k, { patterns: true });
+    this.gateRects = gateRects(map, this.k);
 
     this.hasMap = true;
     this.lastPaint = -Infinity;
     this.last.fill(NaN);
+  }
+
+  /**
+   * The planned route (RouteState.view): `points` is the polyline still ahead, `stops` its waypoints, `next` the index of the
+   * stop the player is heading for. Null or empty clears it. Takes effect at the next update().
+   */
+  setRoute(route: MinimapRoute | null): void {
+    this.route = route && (route.points.length > 0 || route.stops.length > 0) ? route : null;
+    let hash = 0;
+    if (this.route) {
+      hash = 31 + this.route.next;
+      for (const p of this.route.points) {
+        hash = (Math.imul(hash, 31) + Math.round(p.x)) | 0;
+        hash = (Math.imul(hash, 31) + Math.round(p.y)) | 0;
+      }
+      hash = (Math.imul(hash, 31) + this.route.stops.length) | 0;
+    }
+    this.routeHash = hash;
+  }
+
+  /** The "Show route" setting. */
+  setShowRoute(show: boolean): void {
+    this.showRoute = show;
   }
 
   /**
@@ -258,6 +229,7 @@ export class Minimap {
     cur[4] = this.dotsHash;
     cur[5] = camera ? Math.round(camera.x * k) : NaN;
     cur[6] = camera ? Math.round((camera.y / Y_SCALE) * k) : NaN;
+    cur[7] = this.showRoute ? this.routeHash : 0;
     this.lastPaint = now;
     if (this.sameAsLast()) return;
     this.last.set(cur);
@@ -335,6 +307,10 @@ export class Minimap {
       const r = this.gateRects;
       for (let i = 0; i < r.length; i += 4) c.fillRect(r[i], r[i + 1], r[i + 2], r[i + 3]);
     }
+
+    // Under the mob dots and the player: a camp is a place, the dots are who is there.
+    if (this.map && this.map.camps.length > 0) paintCamps(c, this.map.camps, k, px);
+    if (this.route && this.showRoute) paintRoute(c, this.route.points, this.route.stops, k, px, { alpha: ROUTE_ALPHA, next: this.route.next });
 
     if (camera && this.viewW > 0) {
       // Clipped to the map: near an edge the camera sees past it, and the rectangle shows what of the map is in view.

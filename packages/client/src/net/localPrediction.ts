@@ -1,12 +1,14 @@
 // What the client knows about its own fighter's speed and roots, for LocalMotion (net/localMotion.ts): the synced stat mirrors'
-// walking speed and attack speed (never the buff stacks: later effects feed the mirrors too), a kill's burst, the chill, the
-// axe's root after its swing, and what the abilities do to it: a stun or a root, a cast's own root, Last Stand's haste, and a
-// blink (`noteCast`, which the scene calls when the player casts). Presentation only, and only as good as the client's
-// knowledge: anything it gets wrong the server's samples correct (a wrong guess costs a small slide, never a wrong position).
-// Slow magnitudes are not predicted (only a bit is synced) until the stat mirrors carry them.
+// walking speed, attack speed and windup (never the buff stacks or any effect: whatever feeds the mirrors, the server folds it
+// and the client reads the decoded result), the chill, the axe's root after its swing, and what the abilities do to it: a stun
+// or a root, a cast's own root, Last Stand's haste, and a blink (`noteCast`, which the scene calls when the player casts).
+// Presentation only, and only as good as the client's knowledge: anything it gets wrong the server's samples correct (a wrong
+// guess costs a small slide, never a wrong position). Slow magnitudes are not predicted (only a bit is synced) until the stat
+// mirrors carry them.
 import {
-  attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_STUNNED,
-  FACTIONS, hasteMultiplier, isFactionId, killEffects, LAST_STAND_SPEED_BONUS, SIG_CHILLED, weaponTimings, type TimedFx, type Vec2,
+  attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
+  EFFECT_STUNNED, FACTIONS, hasteMultiplier, isFactionId, LAST_STAND_SPEED_BONUS, scaleWindup, SIG_CHILLED, weaponTimings,
+  type FactionSpec, type TimedFx, type Vec2, type WeaponTimings,
 } from "@raid/shared";
 import { LocalMotion, ORDER_EXPIRE_MS, seqAcked, type AuthSample, type FrameInput } from "./localMotion";
 
@@ -16,21 +18,17 @@ export interface LocalFighter {
   y: number;
   faction: string;
   sig: number;
-  /** The buff stacks: they still drive the kill combos (a burst), not the speeds. */
-  stacksHp: number;
-  stacksAs: number;
-  stacksMs: number;
   /** `PlayerState.effects` (EFFECT_* bits): the fallback for a stun, root, cast or haste no fx told of (a join mid-effect). */
   effects: number;
-  /** The stat mirrors (wire form; decodeMult): the attack and walking speed the server simulates with. */
+  /** The stat mirrors (wire form, thousandths; decodeMult): the attack speed, windup and walking speed the server simulates with. */
   asMult: number;
+  windupMult: number;
   speedMult: number;
 }
 
 /** Another player, as far as the chill needs to know. */
 export interface OtherFighter { x: number; y: number; faction: string; status: string }
 
-interface Burst { mult: number; from: number; until: number }
 /** A span of server time [from, until) the fighter cannot walk: a stun or a root status, or a cast's own root. */
 interface Root {
   kind: "status" | "cast";
@@ -88,7 +86,6 @@ export class LocalPrediction {
   private seq = 0;
   /** The axe's root after its swing has landed, in server time: [from, until). */
   private axeRoot: { from: number; until: number } | null = null;
-  private bursts: Burst[] = [];
   /** Server-time spans of stuns, roots and casts, and of haste (Last Stand), as the fx told them (or the cast predicted them). */
   private roots: Root[] = [];
   private hastes: Haste[] = [];
@@ -103,7 +100,6 @@ export class LocalPrediction {
     this.motion.reset();
     this.seq = 0;
     this.axeRoot = null;
-    this.bursts = [];
     this.roots = [];
     this.hastes = [];
   }
@@ -151,11 +147,12 @@ export class LocalPrediction {
     switch (fx.kind) {
       case "windup": {
         if (fx.by !== localId || fx.weapon !== "axe") break;
-        // The axe roots from its start for twice its windup (weapons.ts): what follows the swing's landing is the root this knows.
+        // The axe roots from its start for `root` seconds (weapons.ts; the server's rootUntil), and the swing lands `fx.ms` in:
+        // what follows the landing is the root this knows. The mirrors (attack speed, windup) shape both, as the server's timingsOf.
         const f = me && isFactionId(me.faction) ? FACTIONS[me.faction] : null;
-        const windup = f ? weaponTimings("axe", attackInterval(f, "axe", decodeMult(me!.asMult))).windup * 1000 : fx.ms;
         const lands = fx.t + fx.ms;
-        this.axeRoot = { from: lands, until: lands + windup };
+        const root = f && me ? axeTimings(f, me).root * 1000 : 2 * fx.ms;
+        this.axeRoot = { from: lands, until: Math.max(lands, fx.t + root) };
         break;
       }
       case "cancel":
@@ -182,15 +179,10 @@ export class LocalPrediction {
       case "death":
         if (fx.id === localId) {
           this.axeRoot = null;
-          this.bursts = [];
           this.roots = [];
           this.hastes = [];
           // A training room puts the fighter back on its feet in place, with no walk left: the sample that follows snaps.
           this.motion.cut(fx.t);
-        }
-        if (fx.by === localId && me) {
-          const { bursts } = killEffects({ hp: me.stacksHp, attackSpeed: me.stacksAs, moveSpeed: me.stacksMs });
-          for (const b of bursts) this.bursts.push({ mult: b.mult, from: fx.t, until: fx.t + b.ms });
         }
         break;
       case "teleport":
@@ -248,15 +240,11 @@ export class LocalPrediction {
   }
 
   /**
-   * The walk speed multiplier at server time `t`: the speed mirror, the strongest kill burst running, Last Stand's haste
-   * (added on top, as the server adds it: `hasteMultiplier`), and the chill.
+   * The walk speed multiplier at server time `t`: the speed mirror (the server's own number, whatever feeds it), Last Stand's
+   * haste (added on top, as the server adds it: `hasteMultiplier`), and the chill.
    */
   speedMult(t: number, me: LocalFighter, others: Iterable<OtherFighter>): number {
     let m = decodeMult(me.speedMult);
-    let best = 1;
-    for (let i = this.bursts.length - 1; i >= 0; i--) if (t >= this.bursts[i]!.until + 2000) this.bursts.splice(i, 1);
-    for (const b of this.bursts) if (t >= b.from && t < b.until && b.mult > best) best = b.mult;
-    m *= best;
     const haste = this.hasteAt(t, me);
     if (haste > 0) m *= hasteMultiplier(m, haste);
     // The server slows a fighter it is chilling when the Frost doing it is within CHILL_MOVE_RADIUS; here: any Frost that close.
@@ -274,4 +262,9 @@ export class LocalPrediction {
   private dropRootBefore(t: number): void {
     if (this.axeRoot && t < this.axeRoot.from) this.axeRoot = null;
   }
+}
+
+/** The axe's timings with this fighter's mirrors applied: the server's timingsOf (attack speed, then the windup mirror). */
+function axeTimings(faction: FactionSpec, me: LocalFighter): WeaponTimings {
+  return scaleWindup(weaponTimings("axe", attackInterval(faction, "axe", decodeMult(me.asMult))), decodeMult(me.windupMult));
 }

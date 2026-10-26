@@ -1,22 +1,24 @@
-// What the client knows about its own fighter's speed and roots (net/localPrediction.ts).
+// What the client knows about its own fighter's speed and roots (net/localPrediction.ts): the synced stat mirrors in wire form
+// (thousandths), the chill, and the axe's root. Nothing here reads the buff stacks or any kill: what a buff does reaches the
+// client only through the mirrors the server folds it into.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, buffMultiplier, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_SILENCED,
-  EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, IDENTITY_MIRRORS, LAST_STAND_SPEED_BONUS, mapFromTiles, PLAYER_SPEED,
-  SIG_CHILLED, TILE_FLOOR, TILE_WALL, weaponTimings, type GameMap, type TimedFx,
+  attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
+  EFFECT_SILENCED, EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, PLAYER_SPEED,
+  scaleWindup, SIG_CHILLED, TILE_FLOOR, TILE_WALL, WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
 import { LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalFighter, type OtherFighter, type SentCast } from "../src/net/localPrediction";
 
 const ME = "me";
+/** A fighter as the state carries it: the mirrors in wire form, the identity (1000 thousandths) unless given. */
 const fighter = (o: Partial<LocalFighter> = {}): LocalFighter => ({
-  x: 100, y: 100, faction: "fire", sig: 0, stacksHp: 0, stacksAs: 0, stacksMs: 0, effects: 0,
-  asMult: IDENTITY_MIRRORS.asMult, speedMult: IDENTITY_MIRRORS.speedMult, ...o,
+  x: 100, y: 100, faction: "fire", sig: 0, effects: 0, ...WIRE_IDENTITY_MIRRORS, ...o,
 });
-/** A fighter with attack-speed and move-speed stacks as the server holds them: the stacks, and the mirrors it folds them into. */
-const stacked = (as: number, ms: number, o: Partial<LocalFighter> = {}): LocalFighter =>
+/** A fighter whose mirrors hold these multipliers, encoded as the server writes them. */
+const mirrored = (m: { speed?: number; as?: number; windup?: number }, o: Partial<LocalFighter> = {}): LocalFighter =>
   fighter({
-    stacksAs: as, stacksMs: ms, asMult: encodeMult(buffMultiplier("attackSpeed", as)), speedMult: encodeMult(buffMultiplier("moveSpeed", ms)), ...o,
+    speedMult: encodeMult(m.speed ?? 1), asMult: encodeMult(m.as ?? 1), windupMult: encodeMult(m.windup ?? 1), ...o,
   });
 const other = (o: Partial<OtherFighter> = {}): OtherFighter => ({ x: 150, y: 100, faction: "frost", status: "alive", ...o });
 const windup = (t: number, ms: number, weapon: "axe" | "sword" = "axe", by = ME): TimedFx => ({ kind: "windup", by, weapon, a: 0, ms, t });
@@ -43,25 +45,29 @@ describe("order numbers", () => {
 describe("walk speed", () => {
   const p = new LocalPrediction();
 
-  it("is 1 with nothing to know", () => {
-    expect(p.speedMult(1000, fighter(), [])).toBe(1);
+  it("is 1 with the identity mirrors (1000 thousandths): the plain walk", () => {
+    expect(WIRE_IDENTITY_MIRRORS.speedMult).toBe(1000);
+    expect(p.speedMult(0, fighter(), [])).toBe(1);
+    expect(p.speedMult(0, mirrored({ speed: 1 }), [])).toBe(1);
   });
 
-  it("follows the speed mirror, which the server folds the move-speed stacks into (the buff curve)", () => {
-    expect(p.speedMult(1000, stacked(0, 3), [])).toBe(buffMultiplier("moveSpeed", 3));
-    expect(p.speedMult(1000, stacked(0, 3), [])).toBeGreaterThan(1.1);
+  it("follows the speed mirror, decoded from thousandths", () => {
+    expect(p.speedMult(0, fighter({ speedMult: 1050 }), [])).toBe(1.05);
+    expect(p.speedMult(0, mirrored({ speed: 1.37 }), [])).toBe(1.37);
+    expect(p.speedMult(0, fighter({ speedMult: 700 }), [])).toBe(0.7);
+    expect(p.speedMult(0, mirrored({ speed: 1.37 }), [])).toBe(decodeMult(1370));
   });
 
-  it("reads the mirror, not the stacks: a mirror with no stacks counts, stacks with an identity mirror do not", () => {
-    expect(p.speedMult(1000, fighter({ speedMult: 1.37 }), [])).toBe(1.37);
-    expect(p.speedMult(1000, fighter({ stacksMs: 5 }), [])).toBe(1);
-    expect(p.speedMult(1000, fighter({ stacksMs: 5, stacksAs: 5, stacksHp: 5 }), [])).toBe(1);
-  });
-
-  it("a mirror of exactly 1 is today's number: no stacks, the plain walk", () => {
-    expect(p.speedMult(1000, fighter({ speedMult: 1 }), [])).toBe(1);
-    expect(p.speedMult(1000, stacked(0, 0), [])).toBe(1);
-    expect(p.speedMult(1000, stacked(0, 0, { sig: SIG_CHILLED }), [other()])).toBe(CHILL_MOVE_MULT);
+  it("reads the speed mirror and nothing else: the other mirrors, buffs held and a kill do not move it", () => {
+    const base = p.speedMult(0, mirrored({ speed: 1.1 }), []);
+    expect(p.speedMult(0, mirrored({ speed: 1.1, as: 1.6, windup: 0.5 }), [])).toBe(base);
+    // A fighter's buffs map (the state carries one) is not part of what the prediction is told.
+    const held = { ...mirrored({ speed: 1.1 }), buffs: new Map([["cinderHound", 9], ["plagueRat", 9]]) } as LocalFighter;
+    expect(p.speedMult(0, held, [])).toBe(base);
+    const q = new LocalPrediction();
+    q.noteFx({ kind: "death", id: "foe", x: 0, y: 0, by: ME, t: 10_000 }, ME, held);
+    q.noteFx({ kind: "buff", id: ME, buff: "cinderHound", stacks: 1.1, total: 9, t: 10_000 }, ME, held);
+    expect(q.speedMult(0, held, [])).toBe(base);
   });
 
   it("is slowed only when chilled and a Frost is within the chill radius", () => {
@@ -74,55 +80,24 @@ describe("walk speed", () => {
     expect(p.speedMult(0, chilled, [])).toBe(1);
   });
 
-  it("stacks multiply with the chill", () => {
-    const f = stacked(0, 3, { sig: SIG_CHILLED });
-    expect(p.speedMult(0, f, [other()])).toBeCloseTo(buffMultiplier("moveSpeed", 3) * CHILL_MOVE_MULT, 12);
+  it("the mirror multiplies with the chill", () => {
+    const f = mirrored({ speed: 1.2 }, { sig: SIG_CHILLED });
+    expect(p.speedMult(0, f, [other()])).toBeCloseTo(1.2 * CHILL_MOVE_MULT, 12);
+    expect(p.speedMult(0, mirrored({}, { sig: SIG_CHILLED }), [other()])).toBe(CHILL_MOVE_MULT);
   });
 });
 
-describe("a kill's burst", () => {
+describe("no kill bursts: a kill does not move the walk", () => {
   const kill = (t: number, by = ME): TimedFx => ({ kind: "death", id: "foe", x: 0, y: 0, by, t });
 
-  it("a kill by the local player with the dash combo (3 attack-speed stacks) is 2.5x for 400 ms from the kill's tick", () => {
+  it("the local player's kill leaves the walk at the mirror, at the kill's tick and after", () => {
     const p = new LocalPrediction();
-    const me = stacked(3, 0);
+    const me = mirrored({ speed: 1.1, as: 1.5 });
+    const plain = 1.1;
     p.noteFx(kill(10_000), ME, me);
-    expect(p.speedMult(9_999, me, [])).toBe(1);
-    expect(p.speedMult(10_000, me, [])).toBe(2.5);
-    expect(p.speedMult(10_399, me, [])).toBe(2.5);
-    expect(p.speedMult(10_400, me, [])).toBe(1);
-  });
-
-  it("the strongest burst wins, times the stacks' own bonus; other fighters' kills and no combo give nothing", () => {
-    const p = new LocalPrediction();
-    const me = stacked(3, 3); // dash (2.5 x 0.4 s) and bloodrush (1.5 x 3 s)
-    p.noteFx(kill(0), ME, me);
-    expect(p.speedMult(100, me, [])).toBeCloseTo(buffMultiplier("moveSpeed", 3) * 2.5, 12);
-    expect(p.speedMult(1000, me, [])).toBeCloseTo(buffMultiplier("moveSpeed", 3) * 1.5, 12);
-    expect(p.speedMult(3001, me, [])).toBeCloseTo(buffMultiplier("moveSpeed", 3), 12);
-    const q = new LocalPrediction();
-    q.noteFx(kill(0, "someone else"), ME, me);
-    q.noteFx(kill(0), ME, fighter());
-    expect(q.speedMult(100, me, [])).toBe(buffMultiplier("moveSpeed", 3));
-  });
-
-  it("the combos stay on the stacks (they are stack-driven until a later phase): a burst with identity mirrors, none from a mirror alone", () => {
-    const p = new LocalPrediction();
-    const withStacks = fighter({ stacksAs: 3 }); // identity mirrors: the base walk is 1, the dash still fires
-    p.noteFx(kill(0), ME, withStacks);
-    expect(p.speedMult(100, withStacks, [])).toBe(2.5);
-    const q = new LocalPrediction();
-    const mirrorOnly = fighter({ asMult: encodeMult(buffMultiplier("attackSpeed", 3)), speedMult: 1.5 });
-    q.noteFx(kill(0), ME, mirrorOnly);
-    expect(q.speedMult(100, mirrorOnly, [])).toBe(1.5);
-  });
-
-  it("dying ends them", () => {
-    const p = new LocalPrediction();
-    const me = stacked(3, 0);
-    p.noteFx(kill(0), ME, me);
-    p.noteFx({ kind: "death", id: ME, x: 0, y: 0, by: "foe", t: 100 }, ME, me);
-    expect(p.speedMult(150, me, [])).toBe(1);
+    for (const t of [9_999, 10_000, 10_100, 10_399, 10_400, 11_000, 13_001]) {
+      expect(p.frameInput(t - p.motion.delay, true, me, [], false).speedMult, `at ${t}`).toBe(plain);
+    }
   });
 });
 
@@ -141,34 +116,57 @@ describe("the axe's root", () => {
     expect(input(p, 10_000 + 2 * windupMs).rooted).toBe(false);
   });
 
-  describe("its length follows the attack-speed mirror", () => {
-    // Sentenced's axe windup shortens with attack speed (0.198 s plain, 0.162 s at 3 stacks); Fire's is at its 0.25 s cap either way.
-    const axeMs = (faction: "sentenced" | "fire", as: number) => weaponTimings("axe", attackInterval(FACTIONS[faction], "axe", as)).windup * 1000;
-    /** The model-time moment the root stops, found by probing: a landing at 10 000 and the first moment it is no longer rooted. */
-    const rootEnd = (p: LocalPrediction, who: LocalFighter, lands: number): number => {
-      for (let t = lands; t < lands + 1000; t++) if (!p.frameInput(t - p.motion.delay, true, who, [], false).rooted) return t;
-      return -1;
-    };
-    const lengthOf = (who: LocalFighter): number => {
+  describe("its length follows the attack-speed and windup mirrors", () => {
+    // The server's timingsOf: the interval shrinks with the attack-speed mirror, the windup is a share of it up to a cap, the
+    // windup mirror scales it (scaleWindup), and the root counts from the attack's start. Sentenced's axe windup shortens with
+    // attack speed (0.198 s plain); Fire's is at its 0.25 s cap until the interval is short enough.
+    const timings = (faction: "sentenced" | "fire", as: number, wu: number) =>
+      scaleWindup(weaponTimings("axe", attackInterval(FACTIONS[faction], "axe", decodeMult(encodeMult(as)))), decodeMult(encodeMult(wu)));
+    /** Probes the model's time: the first integer ms the fighter is rooted, and the first after that it no longer is. */
+    const rootSpan = (who: LocalFighter, start: number, windupMs: number): { from: number; to: number } => {
       const p = new LocalPrediction();
-      p.noteFx(windup(10_000, 100), ME, who);
-      return rootEnd(p, who, 10_100) - 10_100;
+      p.noteFx(windup(start, windupMs), ME, who);
+      const rooted = (t: number) => p.frameInput(t - p.motion.delay, true, who, [], false).rooted;
+      let t = start;
+      while (!rooted(t) && t < start + 2000) t++;
+      const from = t;
+      while (rooted(t) && t < start + 2000) t++;
+      return { from: from - start, to: t - start };
+    };
+    const span = (faction: "sentenced" | "fire", as: number, wu: number) => {
+      const t = timings(faction, as, wu);
+      return rootSpan(mirrored({ as, windup: wu }, { faction }), 10_000, t.windup * 1000);
     };
 
-    it("is the windup at the mirror's attack speed, not at the stacks'", () => {
-      const as3 = buffMultiplier("attackSpeed", 3);
-      expect(axeMs("sentenced", as3)).toBeLessThan(axeMs("sentenced", 1) - 20);
-      expect(lengthOf(fighter({ faction: "sentenced", asMult: encodeMult(as3) }))).toBe(Math.ceil(axeMs("sentenced", as3)));
-      // The stacks alone (an identity mirror) change nothing.
-      expect(lengthOf(fighter({ faction: "sentenced", stacksAs: 3 }))).toBe(Math.ceil(axeMs("sentenced", 1)));
-      expect(lengthOf(fighter({ faction: "sentenced", stacksAs: 7, asMult: 1 }))).toBe(Math.ceil(axeMs("sentenced", 1)));
+    it("is the root at the mirrors' timings: it starts as the swing lands and ends `root` after the attack began", () => {
+      for (const [as, wu] of [[1, 1], [1.25, 1], [1, 0.8], [1, 1.3], [1.25, 0.8]] as const) {
+        const t = timings("sentenced", as, wu);
+        expect(span("sentenced", as, wu), `as x${as} windup x${wu}`).toEqual({ from: Math.ceil(t.windup * 1000), to: Math.ceil(t.root * 1000) });
+      }
     });
 
-    it("a mirror of exactly 1 is the unbuffed windup, for every faction", () => {
+    it("a faster attack speed shortens the root, a longer windup mirror lengthens it", () => {
+      const plain = span("sentenced", 1, 1);
+      expect(timings("sentenced", 1.25, 1).windup).toBeLessThan(timings("sentenced", 1, 1).windup - 0.02);
+      expect(span("sentenced", 1.25, 1).to).toBeLessThan(plain.to - 20);
+      expect(span("sentenced", 1, 1.3).to).toBeGreaterThan(plain.to + 20);
+      expect(span("sentenced", 1, 0.8).to).toBeLessThan(plain.to - 20);
+    });
+
+    it("mirrors of exactly 1000 thousandths are the unbuffed root, for every faction", () => {
       for (const faction of Object.keys(FACTIONS)) {
         const f = FACTIONS[faction as keyof typeof FACTIONS];
-        expect(lengthOf(fighter({ faction, asMult: 1 })), faction).toBe(Math.ceil(weaponTimings("axe", attackInterval(f, "axe")).windup * 1000));
+        const plain = weaponTimings("axe", attackInterval(f, "axe"));
+        const who = fighter({ faction });
+        expect(who.asMult).toBe(1000);
+        expect(rootSpan(who, 10_000, plain.windup * 1000), faction).toEqual({ from: Math.ceil(plain.windup * 1000), to: Math.ceil(plain.root * 1000) });
       }
+    });
+
+    it("reads the mirrors, not the buffs held", () => {
+      const held = { ...fighter({ faction: "sentenced" }), buffs: new Map([["plagueRat", 7]]) } as LocalFighter;
+      const plain = timings("sentenced", 1, 1);
+      expect(rootSpan(held, 10_000, plain.windup * 1000).to).toBe(Math.ceil(plain.root * 1000));
     });
   });
 
@@ -510,27 +508,27 @@ describe("casts and statuses on the local fighter", () => {
   });
 
   describe("haste (Last Stand)", () => {
-    it("adds its share of the base speed on top of the stacks and bursts, for the span the fx gave", () => {
+    it("adds its share of the base speed on top of the speed mirror, for the span the fx gave", () => {
       const p = new LocalPrediction();
       p.noteFx(status(5000, "haste", 5000), ME, fighter());
       expect(p.speedMult(4999, fighter(), [])).toBe(1);
       expect(p.speedMult(5000, fighter(), [])).toBeCloseTo(1 + LAST_STAND_SPEED_BONUS, 12);
       expect(p.speedMult(9999, fighter(), [])).toBeCloseTo(1 + LAST_STAND_SPEED_BONUS, 12);
       expect(p.speedMult(10_000, fighter(), [])).toBe(1);
-      // Additive, not multiplicative: the speed mirror of 3 buff stacks first, then the same added speed.
-      const fed = stacked(0, 3);
+      // Additive, not multiplicative: the speed mirror first (a fed fighter's), then the same added speed.
+      const fed = mirrored({ speed: 1.12 });
       const base = decodeMult(fed.speedMult);
       expect(p.speedMult(6000, fed, [])).toBeCloseTo(base * hasteMultiplier(base, LAST_STAND_SPEED_BONUS), 12);
       expect(p.speedMult(6000, fed, [])).toBeCloseTo(base + LAST_STAND_SPEED_BONUS, 12);
     });
 
-    it("rides on a kill's burst too, and the chill still multiplies the sum", () => {
+    it("a kill adds nothing (no bursts since R4a), and the chill still multiplies the sum", () => {
       const p = new LocalPrediction();
-      const me = fighter({ stacksAs: 3, sig: SIG_CHILLED });
+      const me = mirrored({ speed: 1.25 }, { sig: SIG_CHILLED });
       p.noteFx({ kind: "death", id: "foe", x: 0, y: 0, by: ME, t: 5000 }, ME, me);
       p.noteFx(status(5000, "haste", 5000), ME, me);
-      expect(p.speedMult(5100, me, [])).toBeCloseTo(2.5 + LAST_STAND_SPEED_BONUS, 12);
-      expect(p.speedMult(5100, me, [other()])).toBeCloseTo((2.5 + LAST_STAND_SPEED_BONUS) * CHILL_MOVE_MULT, 12);
+      expect(p.speedMult(5100, me, [])).toBeCloseTo(1.25 + LAST_STAND_SPEED_BONUS, 12);
+      expect(p.speedMult(5100, me, [other()])).toBeCloseTo((1.25 + LAST_STAND_SPEED_BONUS) * CHILL_MOVE_MULT, 12);
     });
 
     it("the synced bit stands in when no fx told of it, and is not trusted past an fx's end", () => {
