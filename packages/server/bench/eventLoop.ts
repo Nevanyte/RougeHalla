@@ -31,7 +31,7 @@ async function trainer(url: string, count: number, everyMs: number): Promise<voi
       for (let j = 0; j < 400 && !(room.state as { players?: unknown })?.players; j++) await sleep(5);
       console.log(`  training room ${i + 1}: ready after ${(performance.now() - t0).toFixed(0)} ms`);
       room.reconnection.enabled = false;
-      await room.leave(true).catch(() => {});
+      await Promise.race([room.leave(true).catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
     } catch (err) {
       console.log(`  training room ${i + 1} failed: ${err instanceof Error ? err.message : err}`);
     }

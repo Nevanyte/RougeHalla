@@ -34,6 +34,8 @@ const stats = (v: number[]) => {
 
 async function startTunnel(port: number): Promise<{ proc: ChildProcess; url: string }> {
   const proc = spawn(process.env.TUNNEL_BIN ?? "/opt/homebrew/bin/cloudflared", ["tunnel", "--no-autoupdate", ...(process.env.TUNNEL_PROTOCOL ? ["--protocol", process.env.TUNNEL_PROTOCOL] : []), "--url", `http://127.0.0.1:${port}`], { stdio: ["ignore", "pipe", "pipe"] });
+  // However this process ends (the watchdog included), the tunnel does not outlive it.
+  process.on("exit", () => { try { proc.kill("SIGTERM"); } catch { /* gone */ } });
   const logFile = process.env.TUNNEL_LOG;
   const url = await new Promise<string>((resolve, reject) => {
     let log = "";
@@ -142,7 +144,7 @@ async function reconnectTest(url: string, kind: "offline" | "abrupt"): Promise<v
   );
   void drops;
   room.reconnection.enabled = false;
-  await room.leave(true).catch(() => {});
+  await Promise.race([room.leave(true).catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
 }
 
 async function main(): Promise<void> {
@@ -152,9 +154,10 @@ async function main(): Promise<void> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-tunnel-"));
   const server = await startServer(loadConfig({
     RAID_PORT: String(port), STASH_FILE: path.join(dir, "stash.json"), MIN_PLAYERS: "2", LOBBY_SECONDS: "4", FILL_SECONDS: "0",
-    PATIENCE_SECONDS: "100000", SUDDEN_DEATH_SECONDS: "100000",
+    PATIENCE_SECONDS: "120", SUDDEN_DEATH_SECONDS: "30", WISH_LOCK_SECONDS: "0",
   }));
   const kids: ChildProcess[] = [];
+  process.on("exit", () => { for (const k of kids) { try { k.kill("SIGTERM"); } catch { /* gone */ } } });
   let tunnel: ChildProcess | undefined;
   try {
     const t = await startTunnel(port);
@@ -176,7 +179,7 @@ async function main(): Promise<void> {
     }
     console.log(`tunnel RTT ms (SDK ping, 5/s for 30 s): ${stats(rtts)}`);
     room.reconnection.enabled = false;
-    await room.leave(true).catch(() => {});
+    await Promise.race([room.leave(true).catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
     await sleep(1500);
 
     // (2) the probe over the tunnel.
@@ -197,4 +200,8 @@ async function main(): Promise<void> {
   }
 }
 
+process.on("SIGTERM", () => process.exit(143));
+// Whatever hangs, the check ends: the tunnel and the server are children of this process.
+const watchdog = setTimeout(() => { console.log("watchdog: the check took over 12 minutes, giving up"); process.exit(2); }, 12 * 60_000);
+watchdog.unref();
 main().then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });

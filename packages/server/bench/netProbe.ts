@@ -21,14 +21,15 @@ import { performance } from "node:perf_hooks";
 import fs from "node:fs";
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  findPath, generateMap, mulberry32, PLAYER_RADIUS, ROOM_NAME, TARGET_RANGE, TELEPORT_DISTANCE, unpackFx, withGates, WORLD_H, WORLD_W,
+  abilityInSlot, blinkLanding, findPath, generateMap, mulberry32, PLAYER_RADIUS, rankOf, ROOM_NAME, slotReadyAt, TARGET_RANGE,
+  TELEPORT_DISTANCE, TRAINING_ROOM_NAME, unpackFx, withGates, WORLD_H, WORLD_W,
   type FxBatch, type GameMap, type ProfileResponse, type Vec2,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import type { RenderClockOptions } from "@raid/shared";
 import { EntityInterpolator } from "../../client/src/net/interpolation";
-import { ORDER_EXPIRE_MS, type LocalMotion } from "../../client/src/net/localMotion";
-import { LocalPrediction } from "../../client/src/net/localPrediction";
+import { JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS, seqAcked, type LocalMotion } from "../../client/src/net/localMotion";
+import { castUnanswered, LocalPrediction, type SentCast } from "../../client/src/net/localPrediction";
 
 export interface ProbeOptions {
   url: string;
@@ -49,6 +50,10 @@ export interface ProbeOptions {
   render?: Partial<RenderClockOptions>;
   /** Keep every patch's (arrival, server time), for netTraceEval.ts. */
   trace?: boolean;
+  /** Cast the faction's Wish when it is ready (a blink for Fire: ask for `faction: "fire"`), and report what the prediction did around the casts. */
+  wish?: boolean;
+  /** A training room instead of an arena run: nothing moves but the probe, a Wish is ready every 5 s, and `seconds` counts the time alive. */
+  training?: boolean;
 }
 
 export interface Dist { n: number; p50: number; p95: number; p99: number; max: number; min: number; mean: number }
@@ -104,6 +109,25 @@ export interface ProbeReport {
     lead: Dist;
     delayEstimate: Dist;
     walkingFrames: number;
+  };
+  wish: {
+    casts: number;
+    accepted: number;
+    refused: number;
+    unanswered: number;
+    /** Wall-clock ms from sending a blink to the first patch that acks its order number. */
+    ackWallMs: Dist;
+    /** Distance (u) between the landing the client predicted and the server's position at the acking patch (one tick of walking included). */
+    landingErr: Dist;
+    /** Per cast, over the 2 s from sending it: the largest smoothing offset, and (from 150 ms after the ack on) the largest and 95th-percentile distance from the server's path (as errAtDelay). */
+    visualMaxPerCast: Dist;
+    errMaxPerCast: Dist;
+    errP95PerCast: Dist;
+    snapsInWindows: number;
+    snapsByWho: Record<string, number>;
+    /** Casts after which the drawn fighter made a second big step (more than 25 u) in the 2 s, beside the blink's own: a pop back. */
+    popBacks: number;
+    divergenceDropsInWindows: number;
   };
   orders: {
     moves: number;
@@ -183,7 +207,22 @@ class Metrics {
   frameGaps: number[] = [];
   /** Per session: [arrival ms, server time ms] of every patch. */
   traces: number[][][] = [];
+  castsSent = 0;
+  castsAccepted = 0;
+  castsRefused = 0;
+  castsUnanswered = 0;
+  castAckWall: number[] = [];
+  castLandingErr: number[] = [];
+  castVisualMax: number[] = [];
+  castErrMax: number[] = [];
+  castErrP95: number[] = [];
+  castSnaps = 0;
+  castSnapsByWho: Record<string, number> = {};
+  castPopBacks = 0;
+  castDivDrops = 0;
 }
+
+interface CastRec { seq: number; sentAt: number; c: number; landing: Vec2; displace0: number; acked: boolean; accepted: boolean; ackedAt: number }
 
 /** One run in one room: the scene's net half, driven by a script instead of a mouse. */
 class Session {
@@ -209,6 +248,11 @@ class Session {
   private starveRunStart = 0;
   private followRunStart = 0;
   private lockOn = false;
+  private pendingCast: SentCast | null = null;
+  private lastCastTry = 0;
+  private casts: CastRec[] = [];
+  private snapLog: Array<{ at: number; who: string }> = [];
+  private divLog: number[] = [];
   private pendingLocks: Array<{ id: string; sentAt: number; shown: boolean; done: boolean }> = [];
   // The script.
   private nextActionAt = 0;
@@ -222,7 +266,7 @@ class Session {
   private aimOn = true;
   private patchTrace: Trace[] = [];
   readonly arrivals: number[][] = [];
-  private frameLog: Array<{ c: number; x: number; y: number; delay: number; sx: number; sy: number; t: number }> = [];
+  private frameLog: Array<{ now: number; c: number; x: number; y: number; delay: number; visual: number }> = [];
   private dead = false;
   private resultIn = false;
   /** The frame being run counts (alive in a running raid). */
@@ -261,6 +305,7 @@ class Session {
       const stack = new Error().stack ?? "";
       const who = /at (?:LocalMotion\.)?(rebase|observe|frame|noteDivergence)\b/.exec(stack.split("\n").slice(2).join("\n"))?.[1] ?? "other";
       this.m.snaps[who] = (this.m.snaps[who] ?? 0) + 1;
+      this.snapLog.push({ at: performance.now(), who });
       return snap(...args);
     };
     const div = raw.noteDivergence!.bind(motion);
@@ -268,7 +313,7 @@ class Session {
       if (!this.measuring) return div(err);
       const before = (raw as unknown as { path: unknown[] }).path.length;
       const r = div(err);
-      if (before > 0 && (raw as unknown as { path: unknown[] }).path.length === 0) this.m.divergenceDrops++;
+      if (before > 0 && (raw as unknown as { path: unknown[] }).path.length === 0) { this.m.divergenceDrops++; this.divLog.push(performance.now()); }
       return r;
     };
   }
@@ -295,10 +340,22 @@ class Session {
     for (const id of this.track.keys()) if (!state.players.has(id) && !state.mobs.has(id)) this.track.delete(id);
     const me = state.players.get(this.sid);
     if (me) {
-      this.predict.motion.observe(
-        { x: me.x, y: me.y, t, moveSeq: me.moveSeq, locked: me.attackTarget !== "" }, this.interp.clock.synced ? this.interp.clock.now(now) : t,
+      this.predict.observe(
+        { x: me.x, y: me.y, t, moveSeq: me.moveSeq, locked: me.attackTarget !== "", displaceSeq: me.displaceSeq },
+        this.interp.clock.synced ? this.interp.clock.now(now) : t,
       );
       this.patchTrace.push({ t, x: me.x, y: me.y });
+      for (const k of this.casts) {
+        if (k.acked || !seqAcked(k.seq, me.moveSeq)) continue;
+        k.acked = true;
+        k.ackedAt = now;
+        k.accepted = me.displaceSeq !== k.displace0;
+        this.m.castAckWall.push(now - k.sentAt);
+        if (k.accepted) {
+          this.m.castsAccepted++;
+          this.m.castLandingErr.push(Math.hypot(me.x - k.landing.x, me.y - k.landing.y));
+        } else this.m.castsRefused++;
+      }
       if (me.moveSeq !== 0 && me.moveSeq !== this.lastSeqSeen) {
         // Every sent seq up to this one counts as applied.
         const sent = this.sendAt.get(me.moveSeq);
@@ -354,7 +411,7 @@ class Session {
     const measure = active && now >= this.quietUntil;
     this.measuring = measure;
     if (active && this.activeSince === 0) this.activeSince = now;
-    if (active && now - Math.max(this.lastMover, this.activeSince) > STALL_MS) this.stalled = true;
+    if (active && !this.opts.training && now - Math.max(this.lastMover, this.activeSince) > STALL_MS) this.stalled = true;
     const trueT = this.interp.renderTime(now);
     const synced = this.interp.clock.synced;
     const c = synced ? this.interp.clock.now(now) : state.serverTime;
@@ -443,7 +500,7 @@ class Session {
     this.m.visual.push(motion.visualOffset);
     this.m.delayEst.push(motion.delay);
     if (motion.walking) this.m.walkingFrames++;
-    if (motion.ready) this.frameLog.push({ c, x: motion.drawn.x, y: motion.drawn.y, delay: motion.delay, sx: me.x, sy: me.y, t: this.lastPatchServerT });
+    if (motion.ready) this.frameLog.push({ now, c, x: motion.drawn.x, y: motion.drawn.y, delay: motion.delay, visual: motion.visualOffset });
     // Follow mode with no lock on the server.
     if (motion.mode === "follow" && me.attackTarget === "") {
       if (this.followRunStart === 0) this.followRunStart = now;
@@ -472,8 +529,66 @@ class Session {
       if (at(f.c + f.delay, p)) this.m.err.push(Math.hypot(f.x - p.x, f.y - p.y));
       if (at(f.c, p)) this.m.lead.push(Math.hypot(f.x - p.x, f.y - p.y));
     }
+    // The two seconds after each blink: how far the drawn fighter was from where the server's path puts it, how big the smoothing
+    // offset got, the snaps and divergence drops of the model, and whether it jumped again after the blink itself (a pop back).
+    for (const k of this.casts) {
+      this.m.castsSent++;
+      if (!k.acked) this.m.castsUnanswered++;
+      const errs: number[] = [];
+      let vmax = 0;
+      let big = 0;
+      let prev: { x: number; y: number } | null = null;
+      for (const f of this.frameLog) {
+        if (f.now < k.sentAt - 100 || f.now > k.sentAt + 2000) continue;
+        // Until the ack and a moment after it the drawn fighter has blinked and the server's path has not (or only just): by design.
+        if (k.acked && f.now >= k.ackedAt + 150 && at(f.c + f.delay, p)) errs.push(Math.hypot(f.x - p.x, f.y - p.y));
+        vmax = Math.max(vmax, f.visual);
+        if (prev && Math.hypot(f.x - prev.x, f.y - prev.y) > 25) big++;
+        prev = f;
+      }
+      if (errs.length > 0) {
+        errs.sort((a, b) => a - b);
+        this.m.castErrMax.push(errs[errs.length - 1]!);
+        this.m.castErrP95.push(errs[Math.min(errs.length - 1, Math.floor(0.95 * errs.length))]!);
+      }
+      this.m.castVisualMax.push(vmax);
+      if (big > 1) this.m.castPopBacks++;
+      for (const sn of this.snapLog) {
+        if (sn.at < k.sentAt || sn.at > k.sentAt + 2000) continue;
+        this.m.castSnaps++;
+        this.m.castSnapsByWho[sn.who] = (this.m.castSnapsByWho[sn.who] ?? 0) + 1;
+      }
+      for (const d of this.divLog) if (d >= k.sentAt && d <= k.sentAt + 2000) this.m.castDivDrops++;
+    }
     if (this.starveRun > 0) this.m.holds.push(this.prevNow - this.starveRunStart);
     if (this.followRunStart > 0) this.m.followWithoutLockRuns.push(this.prevNow - this.followRunStart);
+  }
+
+  /** The Wish, when the slot is ready: a blink toward a random point in reach, cast the way RaidScene.castSlot does it. */
+  private tryWish(now: number, c: number, me: PlayerState, state: RaidState): void {
+    if (now - this.lastCastTry < 1500 + this.rnd() * 2500) return;
+    const entry = abilityInSlot(me, "wish");
+    if (!entry) return;
+    const readyAt = slotReadyAt(me, "wish");
+    if (readyAt > c) return;
+    const motion = this.predict.motion;
+    if (castUnanswered(this.pendingCast, "wish", now, readyAt, this.pendingCast !== null && motion.orderPending(this.pendingCast.seq))) return;
+    const r = rankOf(entry.def, entry.rank);
+    const blink = r.effects.find((e) => e.do === "blink");
+    if (!blink || blink.do !== "blink") return;
+    this.lastCastTry = now;
+    const from = motion.ready ? { x: motion.predicted.x, y: motion.predicted.y } : { x: me.x, y: me.y };
+    const a = this.rnd() * Math.PI * 2;
+    const d = 120 + this.rnd() * 300;
+    const aim = { x: Math.min(Math.max(from.x + Math.cos(a) * d, 0), WORLD_W), y: Math.min(Math.max(from.y + Math.sin(a) * d, 0), WORLD_H) };
+    const landing = blinkLanding(this.map, state.gatesLocked, from, aim, blink.maxDist, blink.minDist);
+    if (!landing) return;
+    const seq = this.predict.nextSeq();
+    this.predict.noteCast(c, { castMs: r.castMs, seq, blink: { landing } });
+    this.room.send("cast", { slot: "wish", x: aim.x, y: aim.y, seq });
+    this.pendingCast = { slot: "wish", seq, readyAt, until: now + JUMP_ORDER_EXPIRE_MS };
+    this.casts.push({ seq, sentAt: now, c, landing, displace0: me.displaceSeq, acked: false, accepted: false, ackedAt: 0 });
+    this.lockOn = false;
   }
 
   // ---------------------------------------------------------------------------------------------------------- the player
@@ -536,6 +651,7 @@ class Session {
       this.room.send("aim", { a: this.aimAngle });
       this.lastAimAt = now;
     }
+    if (this.opts.wish) this.tryWish(now, c, me, state);
     if (now < this.holdUntil) {
       // Right button held: a move to the cursor every 100 ms, the cursor drifting.
       if (now >= this.holdNextAt) {
@@ -602,10 +718,12 @@ export async function runProbe(opts: ProbeOptions): Promise<ProbeReport> {
   const started = Date.now();
   const wallLimit = opts.seconds * 1000 * 6 + 180_000;
   let seed = opts.seed ?? 1;
-  while (m.contestedMs < opts.seconds * 1000 && Date.now() - started < wallLimit) {
+  const done = () => (opts.training ? m.activeMs : m.contestedMs) >= opts.seconds * 1000;
+  while (!done() && Date.now() - started < wallLimit) {
     let room: Room<any, RaidState>;
     try {
-      room = await client.joinOrCreate<RaidState>(ROOM_NAME, { profile: name, token, ...(opts.faction ? { faction: opts.faction } : {}) });
+      const join = { profile: name, token, ...(opts.faction ? { faction: opts.faction } : {}) };
+      room = opts.training ? await client.create<RaidState>(TRAINING_ROOM_NAME, join) : await client.joinOrCreate<RaidState>(ROOM_NAME, join);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (opts.verbose) console.log(`[probe] join refused (${msg}); retrying`);
@@ -629,7 +747,7 @@ export async function runProbe(opts: ProbeOptions): Promise<ProbeReport> {
         // The browser's vsync: a frame every frameMs, never a burst to catch up.
         next = Math.max(next + frameMs, now - frameMs);
         session.frame(now, Math.min(gap, 100));
-        if (session.over || m.contestedMs >= opts.seconds * 1000) { clearInterval(timer); resolve(); }
+        if (session.over || done()) { clearInterval(timer); resolve(); }
       }, 1);
     });
     clearInterval(pinger);
@@ -637,7 +755,7 @@ export async function runProbe(opts: ProbeOptions): Promise<ProbeReport> {
     if (opts.trace) m.traces.push(session.arrivals);
     if (session.over) m.deaths++;
     if (opts.verbose) console.log(`[probe] session ${m.sessions} ended (active ${(m.activeMs / 1000).toFixed(1)} s, with movers ${(m.contestedMs / 1000).toFixed(1)} s)`);
-    await room.leave(true).catch(() => {});
+    await Promise.race([room.leave(true).catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
     await sleep(1000);
   }
   const rep = report(m, opts, hz);
@@ -663,6 +781,12 @@ function report(m: Metrics, opts: ProbeOptions, hz: number): ProbeReport {
     prediction: {
       snaps: m.snaps, snapsTotal: Object.values(m.snaps).reduce((a, b) => a + b, 0), divergenceDrops: m.divergenceDrops,
       visualOffset: dist(m.visual), errAtDelay: dist(m.err), lead: dist(m.lead), delayEstimate: dist(m.delayEst), walkingFrames: m.walkingFrames,
+    },
+    wish: {
+      casts: m.castsSent, accepted: m.castsAccepted, refused: m.castsRefused, unanswered: m.castsUnanswered,
+      ackWallMs: dist(m.castAckWall), landingErr: dist(m.castLandingErr), visualMaxPerCast: dist(m.castVisualMax),
+      errMaxPerCast: dist(m.castErrMax), errP95PerCast: dist(m.castErrP95), snapsInWindows: m.castSnaps, snapsByWho: m.castSnapsByWho,
+      popBacks: m.castPopBacks, divergenceDropsInWindows: m.castDivDrops,
     },
     orders: {
       moves: m.moves, acked: m.ackWall.length, ackWallMs: dist(m.ackWall), locks: m.locks, locksShown: m.locksShown,
@@ -690,6 +814,11 @@ export function formatReport(r: ProbeReport): string {
       `hitch frames ${f2(r.starvation.remoteHitchPct)}%  max remote step ${f1(r.starvation.maxRemoteStep)} u  steps>3u ${r.starvation.remoteStepsOver3} >8u ${r.starvation.remoteStepsOver8}`,
     `predict   snaps ${r.prediction.snapsTotal} ${JSON.stringify(r.prediction.snaps)}  div drops ${r.prediction.divergenceDrops}   ` +
       `visual u ${d(r.prediction.visualOffset, f2)}   err@delay u ${d(r.prediction.errAtDelay)}   lead u ${d(r.prediction.lead)}   delay est ms ${d(r.prediction.delayEstimate)}`,
+    ...(r.wish.casts > 0 ? [
+      `wish      casts ${r.wish.casts} (accepted ${r.wish.accepted}, refused ${r.wish.refused}, unanswered ${r.wish.unanswered})  ack wall ms ${d(r.wish.ackWallMs)}   ` +
+      `landing err u ${d(r.wish.landingErr)}   per cast 2 s: err max u ${d(r.wish.errMaxPerCast)}  err p95 u ${d(r.wish.errP95PerCast)}  visual max u ${d(r.wish.visualMaxPerCast)}   ` +
+      `snaps ${r.wish.snapsInWindows} ${JSON.stringify(r.wish.snapsByWho)}  div drops ${r.wish.divergenceDropsInWindows}  pop backs ${r.wish.popBacks}`,
+    ] : []),
     `orders    moves ${r.orders.moves} acked ${r.orders.acked}  ack wall ms ${d(r.orders.ackWallMs)}   locks ${r.orders.locks} shown ${r.orders.locksShown} refused ${r.orders.locksRefused}  ` +
       `shown ms ${d(r.orders.lockShownMs)}   follow-without-lock ${r.orders.followWithoutLockFrames} frames (runs ${d(r.orders.followWithoutLockMs)})`,
   ].join("\n");
@@ -709,6 +838,8 @@ function parseArgs(argv: string[]): ProbeOptions & { json?: string } {
     else if (a === "--faction") o.faction = v();
     else if (a === "--verbose") o.verbose = true;
     else if (a === "--legacy") o.legacy = true;
+    else if (a === "--wish") o.wish = true;
+    else if (a === "--training") o.training = true;
     else if (a === "--trace") o.trace = true;
     else if (a === "--render") o.render = JSON.parse(v()) as Partial<RenderClockOptions>;
     else throw new Error(`unknown argument ${a}`);

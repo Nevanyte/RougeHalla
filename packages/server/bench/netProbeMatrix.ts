@@ -26,6 +26,8 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function start(file: string, args: string[], env: Record<string, string>, ready?: RegExp): Promise<ChildProcess> {
   const child = spawn(process.execPath, ["--import", "tsx", path.join(root, file), ...args], { cwd: root, env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"] });
+  // However the runner ends (killed included), what it started does not outlive it.
+  process.on("exit", () => { try { child.kill("SIGTERM"); } catch { /* gone */ } });
   return new Promise((resolve, reject) => {
     let out = "";
     const onData = (d: Buffer) => {
@@ -59,6 +61,11 @@ export interface MatrixOptions {
   serverEnv?: Record<string, string>;
   legacy?: boolean;
   trace?: boolean;
+  /** Cast the Wish (as Fire, whose Blaze Step is a blink) and report the prediction around the casts. */
+  wish?: boolean;
+  /** Measure in a training room (no bots; a Wish is ready every 5 s there). */
+  training?: boolean;
+  faction?: string;
   render?: Record<string, number>;
 }
 
@@ -72,16 +79,16 @@ export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
     try {
       server = await start("packages/server/src/index.ts", [], {
         RAID_PORT: String(o.port), STASH_FILE: path.join(dir, "stash.json"), MIN_PLAYERS: "2", LOBBY_SECONDS: "4", FILL_SECONDS: "0",
-        PATIENCE_SECONDS: "120", SUDDEN_DEATH_SECONDS: "30",
+        PATIENCE_SECONDS: "120", SUDDEN_DEATH_SECONDS: "30", WISH_LOCK_SECONDS: "0",
         COLYSEUS_LATENCY: String(p.rtt), NET_JITTER_MS: String(p.jitter), NET_LOSS_PCT: String(p.loss), NET_SEED: String(o.seed),
         ...o.serverEnv,
       }, /listening/);
       const url = `http://127.0.0.1:${o.port}`;
       const prefix = `pb${Math.floor(Math.random() * 1e5)}x`;
-      bots = await start("packages/server/src/bots/runBots.ts", [String(o.bots), "--url", url, "--prefix", prefix, "--loop"], {});
+      if (!o.training) bots = await start("packages/server/src/bots/runBots.ts", [String(o.bots), "--url", url, "--prefix", prefix, "--loop"], {});
       await sleep(1500);
       console.error(`[matrix] ${o.tag} ${p.name}: probing ${o.seconds} s ...`);
-      const r = await runProbe({ url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render });
+      const r = await runProbe({ url, seconds: o.seconds, seed: o.seed, label: `${o.tag} ${p.name}`, legacy: o.legacy, trace: o.trace, render: o.render, wish: o.wish, training: o.training, faction: o.faction });
       fs.writeFileSync(path.join(o.out, `${o.tag}-${p.name.replace(/[^\w+%-]/g, "_")}.json`), JSON.stringify(r));
       console.log(formatReport(r));
       reports.push(r);
@@ -95,13 +102,16 @@ export async function runMatrix(o: MatrixOptions): Promise<ProbeReport[]> {
 }
 
 function main(): void {
+  // A SIGTERM runs the exit hooks that stop the server and bots this started.
+  process.on("SIGTERM", () => process.exit(143));
   const a = process.argv.slice(2);
   const get = (k: string, d: string) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1]! : d; };
   const opts: MatrixOptions = {
     port: Number(get("--port", "2620")), seconds: Number(get("--seconds", "60")), bots: Number(get("--bots", "7")), tag: get("--tag", "run"),
     out: path.resolve(get("--out", path.join(os.tmpdir(), "netprobe"))), seed: Number(get("--seed", "1")),
     profiles: get("--profiles", "0,30:5,60:10,120:20,30:5:1,60:10:1").split(",").map(parseProfile),
-    legacy: a.includes("--legacy"), trace: a.includes("--trace"),
+    legacy: a.includes("--legacy"), trace: a.includes("--trace"), wish: a.includes("--wish"), training: a.includes("--training"),
+    ...(a.includes("--faction") ? { faction: get("--faction", "fire") } : {}),
     ...(a.includes("--render") ? { render: JSON.parse(get("--render", "{}")) as Record<string, number> } : {}),
   };
   runMatrix(opts).then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });
