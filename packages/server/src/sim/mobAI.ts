@@ -18,11 +18,17 @@
 //     when it starts holding, a `release` when it stops); `move` only when MOB_REPATH_MS (plus
 //     the mob's `phase`) passed since the last one, `stop` once when it should stand. An idle mob sends nothing at all
 //     (sixty idle mobs cost no inputs).
+//   - Camp-wide aggro (roguelike R5, D24; CAMP_WIDE_AGGRO): damage to one member of a camp (MobState.camp) wakes every
+//     other IDLE living member of that camp onto the same target, whether or not the hit mob was already fighting. A member
+//     walking home ("return") is not woken, nor is a mob of another camp. A mate woken this way holds the target with no
+//     threat of its own (0): threat stays the damage each player did to THAT mob, which is what its kill credit reads
+//     (mobLife.killMob), so a pull never earns a kill. If its target goes down it turns on whoever has hurt it since, or
+//     gives up. Leash and give-up rules are the same as for any fight.
 //   - It only ever targets players; it never attacks another mob.
 //   - On the coliseum teleport (`resetMob`) it drops its fight, its inputs and its path and is put back on its camp spot at
 //     full hp: the gates lock behind the players, so a mob near the coliseum could not walk home.
 import {
-  decide, hasLineOfSight, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, PLAYER_RADIUS,
+  CAMP_WIDE_AGGRO, decide, hasLineOfSight, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, PLAYER_RADIUS,
   segmentClear, TICK_MS, wrapAngle, type FactionId, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
@@ -83,9 +89,15 @@ export function aggro(world: World, c: MobCombatant, attackerId: string, amount:
   // A returning mob ignores everyone, and a mob is never an enemy of a mob.
   if (!b || c.s.status !== "alive" || b.mode === "return" || !(amount > 0) || !world.players.has(attackerId)) return;
   b.threat.set(attackerId, (b.threat.get(attackerId) ?? 0) + amount);
-  if (b.mode !== "idle") return;
-  const target = pickTarget(world, b);
-  if (target === null) return;
+  if (b.mode === "idle") {
+    const target = pickTarget(world, b);
+    if (target === null) return;
+    wake(world, b, target);
+  }
+  if (CAMP_WIDE_AGGRO && b.mode === "fight" && b.target !== null) wakeCamp(world, c, b.target);
+}
+
+function wake(world: World, b: MobBrain, target: string): void {
   b.mode = "fight";
   b.target = target;
   // The give-up timer runs from the wake; from then on only damage the mob deals restarts it (ledger.recordHit).
@@ -94,6 +106,20 @@ export function aggro(world: World, c: MobCombatant, attackerId: string, amount:
   b.goal = null;
   b.moving = false;
   b.holding = false;
+}
+
+/** D24: every other idle, living member of `c`'s camp wakes onto `target` (no threat of its own: see the header). */
+function wakeCamp(world: World, c: MobCombatant, target: string): void {
+  const camp = c.s.camp;
+  if (!(camp >= 1)) return;
+  for (const rt of world.mobs.values()) {
+    const b = rt.brain;
+    if (rt.id === c.id || b === undefined || b.mode !== "idle") continue;
+    const s = world.state.mobs.get(rt.id);
+    if (s === undefined || s.camp !== camp || s.status !== "alive") continue;
+    if (!b.threat.has(target)) b.threat.set(target, 0);
+    wake(world, b, target);
+  }
 }
 
 /**

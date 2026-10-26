@@ -20,6 +20,8 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
   bounty: { kind: "bounty", id: "sess-001", name: "Rampager", bounty: 35 },
   buff: { kind: "buff", id: "sess-001", buff: "plagueRat", stacks: 1.0667, total: 2.9964 },
   victory: { kind: "victory", id: "sess-001", name: "Rampager", draw: false },
+  campCleared: { kind: "campCleared", camp: 7 },
+  chestTaken: { kind: "chestTaken", chest: "c4f", by: "sess-001", option: 2 },
 };
 
 const T = 123450;
@@ -453,5 +455,31 @@ describe("fx codec: projectile launches", () => {
     expect(unpackLaunches({ t: Number.NaN, l: [], p: [good] })).toEqual([]);
     expect(unpackLaunches({ t: T, l: [], p: "nope" } as unknown as FxBatch)).toEqual([]);
     expect(unpackLaunches(null as unknown as FxBatch)).toEqual([]);
+  });
+});
+
+describe("fx codec: camps and chests (roguelike R5)", () => {
+  it("campCleared is [14, camp] and chestTaken [15, chest, by, option], appended after cancel (13)", () => {
+    const roster = ["sess-001", "sess-002"];
+    const index = new Map(roster.map((id, i) => [id, i]));
+    const batch = packFx([
+      { kind: "campCleared", camp: 0 },
+      { kind: "chestTaken", chest: "c1z", by: "sess-002", option: 1 },
+      { kind: "chestTaken", chest: "c1z", by: "sess-001", option: -1 },
+    ], T, { roster: index });
+    // The chest id stays a string; the picker travels as its roster index.
+    expect(batch.l).toEqual([[14, 0], [15, "c1z", 1, 1], [15, "c1z", 0, -1]]);
+    expect(unpackFx(batch, roster)).toEqual([
+      { kind: "campCleared", camp: 0, t: T },
+      { kind: "chestTaken", chest: "c1z", by: "sess-002", option: 1, t: T },
+      { kind: "chestTaken", chest: "c1z", by: "sess-001", option: -1, t: T },
+    ]);
+  });
+
+  it("drops a malformed camp or chest tuple instead of guessing", () => {
+    const dropped: unknown[] = [];
+    const bad: FxBatch = { t: T, l: [[14, -1], [14, 1.5], [14], [15, 3, "a", 0], [15, "c1", "a", -2], [15, "c1", "a", 0.5], [15, "c1", "a"]] };
+    expect(unpackFx(bad, NONE, (tuple) => dropped.push(tuple))).toEqual([]);
+    expect(dropped).toHaveLength(7);
   });
 });

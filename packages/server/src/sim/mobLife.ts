@@ -13,6 +13,8 @@
 //   - hurtMob(world, c, amounts, entries) is the ledger's way down for a regional mob (ledger.ts calls it instead of
 //     damageMob when kind != "dummy"). `amounts[i]` is the mitigated damage of `entries[i]`. It removes the hp (never
 //     below 0), stamps lastHitAt, tells the AI who hit it (aggro) and, when the hp is gone, kills it. Returns the hp removed.
+//   - Camps (sim/camps.ts): the first damage to a member engages its camp (CampState.state 1), and the death of its last
+//     member clears it (2) and, after the pass, drops its shared chest (sim/chests.ts), whoever killed it. Never respawned.
 //   - killMob: status "dead", brain.diedAt = now, input queue and path cleared, a `death` fx (by = the killer's id). The
 //     killer is the player who did it the most damage over the whole fight (brain.threat: what each did since it last
 //     rested, plus this pass's hits; an exact tie goes to the lower tick rank) among players still in the run with no
@@ -33,7 +35,7 @@ import {
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
 import { grantBuff } from "./buffs";
-import { campMobDied, ensureRosters } from "./camps";
+import { campEngaged, campMobDied, ensureRosters } from "./camps";
 import { mobScale, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
@@ -102,6 +104,7 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
   const before = c.s.hp;
   c.s.hp = Math.max(0, before - total);
   c.rt.lastHitAt = world.state.serverTime;
+  campEngaged(world, c.s.camp);
   if (c.s.hp <= 0) {
     killMob(world, c, entries, amounts, before);
   } else {
@@ -191,6 +194,9 @@ export function mobTypeOf(type: string, region: FactionId, elite: boolean): MobT
 }
 
 function payMobKill(world: World, killerId: string, elite: boolean, type: MobTypeId, weapon: string, at: Vec2, m: number): void {
+  // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed, buff or drop, so a
+  // practice kill never changes the build the player set up.
+  if (world.config.training) return;
   const p = world.state.players.get(killerId);
   const rt = world.players.get(killerId);
   if (!p || !rt || rt.resolved) {

@@ -1,8 +1,8 @@
 // CLI: launches N headless bots against a running server and prints how each run ended. Every bot fights with its
 // weapons the way a player with the LoL-style controls does (it locks a foe and the server chases and attacks it; it also
-// swaps slot and picks up a second weapon, a mob's drop too): it farms the regional mobs early on and while no player is
-// close, and hunts the nearest player otherwise and after the teleport into the coliseum, so a run ends with a last one
-// standing (or a draw). The server runs mobs unless MOBS=0.
+// swaps slot and picks up a second weapon, a mob's drop too, and walks to a cleared camp's shared chest to `choose` one
+// option): it farms the regional mobs early on and while no player is close, and hunts the nearest player otherwise and
+// after the teleport into the coliseum, so a run ends with a last one standing (or a draw). The server runs mobs unless MOBS=0.
 //   npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--faction rotate] [--loop] [--verbose]
 // Exits non-zero when a bot failed to play (join refused, connection lost, timeout). With --loop every
 // bot queues into a new run as soon as its last one is over, until the process is stopped.
@@ -137,14 +137,15 @@ function rememberToken(key: string, token: string): void {
   }
 }
 
-function formatRun({ profile, result, error, abandoned }: BotRun, faction: FactionId): string {
+function formatRun({ profile, result, error, abandoned, chests }: BotRun, faction: FactionId): string {
   if (abandoned) return `${profile.padEnd(10)} ABANDONED  left the run on purpose`;
   if (!result) return `${profile.padEnd(10)} ERROR      ${error ?? "no result"}`;
   const by = result.killedBy ? `  by ${result.killedBy}` : "";
   const { kills, mobs, bounty, win, total } = result.gv;
   const withheld = result.winBonusWithheld ? " withheld" : "";
   const gv = `GV +${total} (kills ${kills}, mobs ${mobs}, bounty ${bounty}, win ${win}${withheld})`;
-  return `${profile.padEnd(10)} ${faction.padEnd(9)} ${result.outcome.padEnd(10)} place ${result.place}/${result.players}  kills ${result.kills}  ${gv}  ${result.durationSec}s${by}`;
+  const chest = chests && chests.tried > 0 ? `  chests ${chests.taken} taken${chests.skipped > 0 ? `, ${chests.skipped} skipped` : ""}` : "";
+  return `${profile.padEnd(10)} ${faction.padEnd(9)} ${result.outcome.padEnd(10)} place ${result.place}/${result.players}  kills ${result.kills}  ${gv}${chest}  ${result.durationSec}s${by}`;
 }
 
 /** The faction bot `index` asks for in its next run. Math.random is fine here: this is tooling, not shared sim code. */

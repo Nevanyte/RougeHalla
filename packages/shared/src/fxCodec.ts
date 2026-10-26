@@ -36,6 +36,8 @@
 //   death    [id, x, y, by|null]            heal     [id, amount]
 //   bounty   [id, name, bounty]             buff     [id, B, stacks, total]   (B = buff code, the BUFF table)
 //   victory  [id|null, name|null, draw 0|1]
+//   campCleared [camp]                      (the camp's index in map.camps)
+//   chestTaken  [chest, by, option]         (chest: the reward container's id, a string; option -1 = a skip)
 // Kind 11 was `combo` (the kill combos, retired in roguelike R4a): never emitted and never reused; a client reading one
 // drops it (onDrop).
 // Adding a field to an FxEvent means adding it to its tuple here (and to the round-trip test).
@@ -62,7 +64,7 @@ function table<K extends string>(code: Readonly<Record<K, number>>): Table<K> {
 /** "combo" stays in the table only to hold its code (11) forever: nothing packs it, and unpacking it yields nothing. */
 const KIND = table<FxEvent["kind"] | "combo">({
   windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10, combo: 11,
-  victory: 12, cancel: 13,
+  victory: 12, cancel: 13, campCleared: 14, chestTaken: 15,
 });
 const WEAPON = table<WeaponId>({ sword: 0, bow: 1, wand: 2, shield: 3, axe: 4 });
 const PROJECTILE = table<ProjectileKind>({ arrow: 0, ball: 1 });
@@ -171,6 +173,8 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
     case "bounty": return [KC.bounty, fx.id, fx.name, Math.round(fx.bounty) + 0];
     case "buff": return [KC.buff, fx.id, BUFF.code[fx.buff], enc(fx.stacks, STACKS), enc(fx.total, STACKS)];
     case "victory": return [KC.victory, fx.id ?? null, fx.name ?? null, fx.draw ? 1 : 0];
+    case "campCleared": return [KC.campCleared, Math.round(fx.camp) + 0];
+    case "chestTaken": return [KC.chestTaken, fx.chest, fx.by, Math.round(fx.option) + 0];
     default: {
       const unknown: never = fx;
       void unknown;
@@ -320,6 +324,17 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
     case "victory": {
       const id = strOrNull(tuple[1], names), name = strOrNull(tuple[2], names), draw = flag(tuple[3]);
       return id !== undefined && name !== undefined && draw !== undefined ? { kind, id, name, draw } : null;
+    }
+    case "campCleared": {
+      const camp = tuple[1];
+      return typeof camp === "number" && Number.isInteger(camp) && camp >= 0 ? { kind, camp } : null;
+    }
+    case "chestTaken": {
+      // The chest is a container id, never a roster entry: it must arrive as a string.
+      const chest = typeof tuple[1] === "string" ? tuple[1] : undefined, by = str(tuple[2], names), option = tuple[3];
+      return chest !== undefined && by !== undefined && typeof option === "number" && Number.isInteger(option) && option >= -1
+        ? { kind, chest, by, option }
+        : null;
     }
     default:
       return null;

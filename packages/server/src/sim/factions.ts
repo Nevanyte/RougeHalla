@@ -25,6 +25,11 @@
 //   markRate   a Sentenced fighter's engaged time on its mark grows (1 + markRate) x as fast: the same cap, sooner
 //   triggers   Blood Saint: the first time a ledger pass leaves the owner standing below the row's hp share, it heals the
 //              row's share of max hp, ignoring the lockout, once per run (the `hurt` hook; paid after the pass)
+// Passives (roguelike R5, PlayerState.build; their rows fold in sim/mods.ts like the buffs') act here too:
+//   Second Wind  a trigger like Blood Saint's whose heal is spread over time (`ms`): HEAL_OVER_TIME_STEP_MS steps, the first
+//              paid with the pass, the rest by the `healOverTime` system, each through heal() with ignoreLockout. Its rank 2
+//              re-arms at every coliseum teleport (`rearm: "teleport"`: the once-key is forgotten in the teleport hook).
+//   Pestilence (a Plague owner) the execute runs below executeBandOf (0.5 + its executeBand rows) instead of half hp.
 // With signatures off (createGameWorld's `signatures: false`) none of these run.
 // Every bonus is raw damage x bonusMultiplier(the owner's weapon in hand), mitigated with the owner's damage shares. It
 // joins this tick's ledger (beforeDamage), so it lands at the same moment as the tick's hits and no order decides.
@@ -43,7 +48,7 @@
 import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
-  engageRange, HEAL_LOCKOUT_SECONDS, hasLineOfSight, isDot, lifestealFraction, lifestealShare, markDps, markShare, SIG_BURNING,
+  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, hasLineOfSight, isDot, lifestealFraction, lifestealShare, markDps, markShare, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind,
   type TriggerAction, type WeaponId,
 } from "@raid/shared";
@@ -52,7 +57,7 @@ import {
   activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { recordHit } from "./ledger";
-import { lifestealRowsOf, markRateOf, triggersOf } from "./mods";
+import { executeBandOf, lifestealRowsOf, markRateOf, triggersOf } from "./mods";
 import { chainHook, collisionMap, emit, payLater, tieRank, type PendingAction, type World } from "./world";
 
 /** One fighter's signature state. Times are server ms. */
@@ -95,12 +100,13 @@ export function install(world: World): void {
   world.afterWeapons.push(afterWeapons);
   world.beforeDamage.push(signatureDamage);
   world.systems.push(afterDamage);
+  world.systems.push(healOverTime);
   world.moveModifiers.push(chillMoveMultiplier);
   chainHook(world, "weaponSwapped", onWeaponSwapped);
   chainHook(world, "hurt", onHurt);
   // A fresh fight in the coliseum: nobody carries a target, a mark or a chill through the teleport (the heal lockout
-  // keeps running).
-  chainHook(world, "teleported", (w) => resetAll(w, true));
+  // keeps running). Triggers that re-arm at a teleport (Second Wind rank 2) may fire again.
+  chainHook(world, "teleported", (w) => { resetAll(w, true); rearmTriggers(w); });
   chainHook(world, "raidStarted", (w) => resetAll(w, false));
 }
 
@@ -311,7 +317,7 @@ function signatureDamage(world: World, dtMs: number): void {
       const dot = bm * (dtMs - pausedMs) / 1000;
       const foeFrac = sigOf(world, t.id).hpFrac;
       bonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot);
-      bonus(world, c, spec, weapon, t, "disease", diseaseDps(spec, foeFrac) * dot);
+      bonus(world, c, spec, weapon, t, "disease", diseaseDps(spec, foeFrac, executeBandOf(c.s)) * dot);
       bonus(world, c, spec, weapon, t, "mark", markDps(spec, f.markElapsed) * dot);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {
@@ -496,7 +502,7 @@ function syncVisuals(world: World, byId: Map<string, Combatant>): void {
     if (spec.mechanic === "dragonslayer") b |= SIG_BURNING;
     if (spec.mechanic === "rat_king") {
       b |= SIG_DISEASED;
-      if (t.s.maxHp > 0 && t.s.hp / t.s.maxHp < 0.5) b |= SIG_EXECUTE;
+      if (t.s.maxHp > 0 && t.s.hp / t.s.maxHp < executeBandOf(c.s)) b |= SIG_EXECUTE;
     }
     bits.set(t.id, b);
   }
@@ -564,7 +570,13 @@ function runTrigger(world: World, c: Extract<Combatant, { kind: "player" }>, a: 
   switch (a.do) {
     case "heal": {
       const amount = a.share * c.s.maxHp;
-      payLater(world, () => { heal(world, c, amount, { ignoreLockout: a.ignoreLockout === true }); });
+      const ignoreLockout = a.ignoreLockout === true;
+      if (a.ms !== undefined && a.ms > 0) {
+        const ms = a.ms;
+        payLater(world, () => { startHealOverTime(world, c, amount, ms, ignoreLockout); });
+        return;
+      }
+      payLater(world, () => { heal(world, c, amount, { ignoreLockout }); });
       return;
     }
     case "barrier": {
@@ -577,5 +589,55 @@ function runTrigger(world: World, c: Extract<Combatant, { kind: "player" }>, a: 
     case "cleanse":
     case "cooldown":
       return;
+  }
+}
+
+/**
+ * A heal of `amount` spread over `ms`: max(1, round(ms / HEAL_OVER_TIME_STEP_MS)) equal steps HEAL_OVER_TIME_STEP_MS apart,
+ * the first now (Second Wind: four steps of 5% of max hp over 2 s). Each step goes through heal(), so it stops for a
+ * fighter who is no longer standing, and never passes max hp.
+ */
+export function startHealOverTime(
+  world: World, c: Extract<Combatant, { kind: "player" }>, amount: number, ms: number, ignoreLockout: boolean,
+): void {
+  if (!(amount > 0) || !standing(c)) return;
+  const steps = Math.max(1, Math.round(ms / HEAL_OVER_TIME_STEP_MS));
+  const each = amount / steps;
+  heal(world, c, each, { ignoreLockout });
+  if (steps > 1) {
+    (c.rt.hots ??= []).push({ next: world.state.serverTime + HEAL_OVER_TIME_STEP_MS, left: steps - 1, amount: each, ignoreLockout });
+  }
+}
+
+/** System: the steps of the heals over time that are due. A fighter who went down loses the rest. */
+function healOverTime(world: World): void {
+  const now = world.state.serverTime;
+  for (const [id, rt] of world.players) {
+    const hots = rt.hots;
+    if (!hots || hots.length === 0) continue;
+    const p = world.state.players.get(id);
+    const c = p ? { kind: "player" as const, id, s: p, rt } : null;
+    if (!c || !standing(c)) {
+      hots.length = 0;
+      continue;
+    }
+    for (const h of hots) {
+      while (h.left > 0 && now >= h.next) {
+        heal(world, c, h.amount, { ignoreLockout: h.ignoreLockout });
+        h.left--;
+        h.next += HEAL_OVER_TIME_STEP_MS;
+      }
+    }
+    rt.hots = hots.filter((h) => h.left > 0);
+  }
+}
+
+/** The teleport: every once-trigger with `rearm: "teleport"` (Second Wind rank 2) may fire again. */
+function rearmTriggers(world: World): void {
+  for (const [id, rt] of world.players) {
+    if (!rt.fired || rt.fired.size === 0) continue;
+    const p = world.state.players.get(id);
+    if (!p) continue;
+    for (const { key, row } of triggersOf(p)) if (row.rearm === "teleport") rt.fired.delete(key);
   }
 }

@@ -24,7 +24,7 @@ function brain(players: Record<string, Partial<FakePlayer>>): { b: Brain; player
   const map = new Map<string, FakePlayer>();
   for (const [id, p] of Object.entries(players)) map.set(id, { x: 0, y: 0, status: "alive", ...p });
   const b = new BotClient() as unknown as Brain;
-  b.room = { sessionId: "me", state: { phase: "active", serverTime: 0, raidStartedAt: 0, players: map } };
+  b.room = { sessionId: "me", state: { phase: "active", serverTime: 0, raidStartedAt: 0, players: map, containers: new Map() } };
   return { b, players: map };
 }
 

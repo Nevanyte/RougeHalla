@@ -1,8 +1,8 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  AIM_STALE_MS, angleBetween, generateMap, TARGET_RANGE, unpackFx, unpackLaunches, withGates, type FxBatch, type GameMap,
-  type RunResult,
+  AIM_STALE_MS, CHEST_RANGE, CHEST_SECONDS, angleBetween, generateMap, rankIn, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
+  type FxBatch, type GameMap, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
@@ -12,7 +12,7 @@ import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld } from "../net/localMotion";
 import { LocalPrediction, localDrawSource, type LocalDrawSource, type OtherFighter } from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
-import { ContainerView } from "../render/ContainerView";
+import { ContainerView, TIMER_TEXT_REACH } from "../render/ContainerView";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
 import { containerWeapon, nearestContainer } from "../render/interact";
 import { MapView } from "../render/MapView";
@@ -23,10 +23,13 @@ import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
 import { LockDisplay, pickTarget, type TargetCandidate } from "../render/targeting";
-import { readCampTypes } from "../ui/campInfo";
+import { readCampStates, readCampTypes } from "../ui/campInfo";
+import { campLabel, pickLine, trueServerNow } from "../ui/chestMath";
+import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
 import { MapHold } from "../ui/mapHold";
+import type { ChestBlip } from "../ui/mapPainter";
 import { Minimap } from "../ui/minimap";
 import { PlanningView, planningModeFor, type PlanningPlayer } from "../ui/planning";
 import { RouteState } from "../ui/route";
@@ -87,6 +90,13 @@ export class RaidScene extends Phaser.Scene {
   private planning: PlanningView | null = null;
   /** The route drawn on the planning screen (never sent): the minimap and the hold-Tab map read it. */
   private route!: RouteState;
+  /** A cleared camp's shared chest: opens by itself in reach of the latest SERVER position (ui/chestPanel.ts). */
+  private chestPanel: ChestPanel | null = null;
+  private unbindToast: (() => void) | null = null;
+  /** Scratch for the chest panel's frame and the minimap's chest blips and camp states (refilled every frame). */
+  private readonly chestMe: ChestPanelMe = { id: "", x: 0, y: 0, alive: false, faction: "", build: null };
+  private readonly blips: ChestBlip[] = [];
+  private readonly campStates: number[] = [];
   private readonly mapHold = new MapHold(
     () => this.room.state.phase === "active" && this.room.state.training !== true,
     () => { /* read each frame (update) */ },
@@ -224,6 +234,17 @@ export class RaidScene extends Phaser.Scene {
     this.planning = null;
     this.minimap.setShowRoute(getSettings().showRoute);
     this.unbindSettings = onSettingsChange((s) => this.minimap.setShowRoute(s.showRoute));
+    this.chestPanel?.destroy();
+    this.chestPanel = new ChestPanel({
+      send: (msg) => sendInput(this.room, "choose", msg),
+      // What is sent while the socket reconnects is dropped (net/connection.ts): the panel must not show it as sent.
+      canSend: () => !this.room.reconnection?.isReconnecting,
+      // The prediction's measured order delay is about a round trip: the grey-out margin and the chest's clock read it.
+      rtt: () => this.predict.motion.delay,
+    });
+    // A refused pick comes back as the server's toast ("Already taken", "Too far away"): the panel's status line says why.
+    this.unbindToast?.();
+    this.unbindToast = this.room.onMessage("toast", (t: ServerMessages["toast"]) => { this.chestPanel?.noteToast(t.text); });
     this.buildMap(this.room.state.seed);
     this.unbindPlan = data.plan?.attach((m) => this.planning?.setPlan(m)) ?? null;
     this.unbindMapHold = this.mapHold.bind();
@@ -240,6 +261,8 @@ export class RaidScene extends Phaser.Scene {
       nearestFighter: (x, y, within) => this.nearestFighter(x, y, within),
       name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
       mobKind: (id) => this.room.state.mobs.get(id)?.kind,
+      campLabel: (camp) => this.campLabel(camp),
+      chestPick: (chest, option) => this.chestPick(chest, option),
       projectileEnded: (id) => this.projectiles.finish(id),
       // At render time with the flash and the number, not on arrival (~INTERP_DELAY_MS earlier): damageFlash judges the hit against max hp.
       localHit: (fx) => this.feedback.hit(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0, fx.sig),
@@ -299,7 +322,12 @@ export class RaidScene extends Phaser.Scene {
 
     const now = performance.now();
     // Not read in create(): tolerate the flag arriving with a later patch.
-    if (state.training && !this.trainingBar) this.trainingBar = new TrainingBar(this.leaveTraining);
+    if (state.training && !this.trainingBar) {
+      this.trainingBar = new TrainingBar(this.leaveTraining, {
+        send: (msg) => sendInput(this.room, "train", msg),
+        faction: () => this.room.state.players.get(this.room.sessionId)?.faction,
+      });
+    }
     this.trainingBar?.update(now);
     // The one place render time is read: it consumes the clock's pending patch, so everything else this frame
     // (fx playback, input timestamps between frames) reuses these values.
@@ -370,7 +398,9 @@ export class RaidScene extends Phaser.Scene {
     // Line of sight (pickup) follows the server's walls, closed gates included. mapView.map stays the open map.
     const sightMap = gatesLocked && map ? withGates(map) : map;
     this.nearest = me?.status === "alive" && sightMap ? nearestContainer(state.containers, sightMap, me) : null;
-    this.syncContainers(state);
+    const chestNow = trueServerNow(serverNow, this.predict.motion.delay);
+    this.syncContainers(state, chestNow, now);
+    this.updateChestPanel(state, me, sightMap ?? null, serverNow);
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.
     this.updateTargets(me, now);
@@ -383,6 +413,9 @@ export class RaidScene extends Phaser.Scene {
 
     // Redraws only when the player's dot (or the gates) actually changed.
     this.minimap.setMobs(state.mobs);
+    this.minimap.setChests(this.blips);
+    this.fillCampStates(state, map?.camps.length ?? 0);
+    this.minimap.setCampStates(this.campStates);
     const cam = this.cameras.main;
     this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby", {
       x: cam.scrollX + cam.width / 2,
@@ -411,6 +444,7 @@ export class RaidScene extends Phaser.Scene {
     view.update({
       mode, serverNow, endsAt: state.planEndsAt, meReady: me?.planReady === true, players,
       campTypes: readCampTypes(state, this.mapView?.map.camps.length ?? 0),
+      campStates: this.campStates,
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
     });
   }
@@ -553,14 +587,23 @@ export class RaidScene extends Phaser.Scene {
     this.fx.dropWindups(this.room.sessionId, c, now);
   }
 
-  private syncContainers(state: RaidState): void {
+  private syncContainers(state: RaidState, chestNow: number, now: number): void {
     const seen = new Set<string>();
+    this.blips.length = 0;
+    const me = this.rendered.get(this.room.sessionId);
     state.containers.forEach((c, id) => {
       seen.add(id);
       let view = this.containerViews.get(id);
       if (!view) { view = new ContainerView(this); this.containerViews.set(id, view); }
       view.update(c);
       view.setHidden(this.bodyPending(c));
+      if (c.kind === "reward") {
+        // The chest's clock: its ring drains and its seconds show, against the server's time now (not render time).
+        const left = (c.expiresAt - chestNow) / 1000;
+        const near = me !== undefined && Math.hypot(me.x - c.x, me.y - c.y) <= CHEST_RANGE * TIMER_TEXT_REACH;
+        view.setTimer(c, Math.min(CHEST_SECONDS, left), near, now);
+        if (left > 0) this.blips.push({ x: c.x, y: c.y, left });
+      }
     });
     const nearestId = this.nearest?.id;
     for (const [id, view] of this.containerViews) {
@@ -569,6 +612,53 @@ export class RaidScene extends Phaser.Scene {
     }
     if (this.nearest) this.highlight.show(this.nearest.x, this.nearest.y);
     else this.highlight.hide();
+  }
+
+  /** The chest panel's frame: the latest SERVER position of the local player (never the predicted one), the chests in the state. */
+  private updateChestPanel(state: RaidState, me: PlayerState | undefined, sight: GameMap | null, serverNow: number): void {
+    const panel = this.chestPanel;
+    if (!panel) return;
+    let local: ChestPanelMe | null = null;
+    if (me) {
+      local = this.chestMe;
+      local.id = this.room.sessionId;
+      local.x = me.x;
+      local.y = me.y;
+      local.alive = me.status === "alive";
+      local.faction = me.faction;
+      local.build = me.build;
+    }
+    this.chestFrame.active = state.phase === "active";
+    this.chestFrame.serverNow = serverNow;
+    this.chestFrame.me = local;
+    this.chestFrame.containers = state.containers;
+    this.chestFrame.sight = sight;
+    panel.update(this.chestFrame);
+  }
+
+  private readonly chestFrame: ChestPanelFrame = {
+    active: false, serverNow: 0, me: null, containers: { forEach: () => {} },
+    nameOf: (id) => this.room?.state.players.get(id)?.name, sight: null,
+  };
+
+  /** RaidState.camps[i].state of each camp into `campStates` (0 idle, 1 engaged, 2 cleared). */
+  private fillCampStates(state: RaidState, count: number): void {
+    const out = this.campStates;
+    out.length = count;
+    const states = readCampStates(state, count);
+    for (let i = 0; i < count; i++) out[i] = states[i]!;
+  }
+
+  /** "Fire camp" / "Fire elite camp" for the clear line of camp `index` of the map. */
+  private campLabel(index: number): string | undefined {
+    return campLabel(this.mapView?.map.camps[index]);
+  }
+
+  /** The local player's own pick at a reward chest, as a line: what they took (at the rank they hold now), or a skip. */
+  private chestPick(chest: string, option: number): string | undefined {
+    const c = option >= 0 ? this.room.state.containers.get(chest) : undefined;
+    const id = c ? Array.from(c.options)[option] : undefined;
+    return pickLine(option, id, id ? rankIn(this.room.state.players.get(this.room.sessionId)?.build, id) : 0);
   }
 
   /** Remembers a death that FxView will play later, so the victim stays on screen until then (see `deaths`). */
@@ -822,6 +912,7 @@ export class RaidScene extends Phaser.Scene {
     const map = generateMap(seed);
     this.mapView = new MapView(this, map);
     this.minimap.setMap(map);
+    this.chestPanel?.setMap(map);
     // The map screens are built once per room; a new seed (never within a room) repaints them.
     if (this.planning) this.planning.setMap(map);
     else {
@@ -881,6 +972,10 @@ export class RaidScene extends Phaser.Scene {
     this.minimap.destroy();
     this.unbindPlan?.();
     this.unbindPlan = null;
+    this.unbindToast?.();
+    this.unbindToast = null;
+    this.chestPanel?.destroy();
+    this.chestPanel = null;
     this.unbindMapHold?.();
     this.unbindMapHold = null;
     this.unbindSettings?.();

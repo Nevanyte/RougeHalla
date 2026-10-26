@@ -1,4 +1,5 @@
-// Loot gameplay module: chests and loose weapons, the pickup action (F) and the body-drop hook.
+// Loot gameplay module: chests and loose weapons, the pickup action (F) and the body-drop hook. A camp's shared skill chest
+// (kind "reward", roguelike R5) is a container too, but sim/chests.ts owns it: `pickup` refuses it.
 // step.ts only runs actions for alive players in an active raid, so handlers don't re-check that.
 //   - A chest holds one weapon and stays (opened, empty) once taken. A loose weapon vanishes when taken. A body holds
 //     what the player carried when they went down.
@@ -56,8 +57,8 @@ export function addContainer(world: World, kind: ContainerKind, at: Vec2, label:
   return c;
 }
 
-/** True while `id` was created earlier in the tick being simulated. Forgets older births on the way. */
-function bornThisTick(world: World, id: string): boolean {
+/** True while `id` was created earlier in the tick being simulated. Forgets older births on the way. sim/chests.ts reads it too. */
+export function bornThisTick(world: World, id: string): boolean {
   const births = bornAt.get(world);
   const born = births?.get(id);
   if (born === undefined) return false;
@@ -87,6 +88,8 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   const p = c.s;
   const box = world.state.containers.get(cmd.containerId);
   if (!box || bornThisTick(world, box.id)) { toast(world, c.id, "Nothing there"); return; }
+  // A camp's shared chest is taken with `choose` (sim/chests.ts), never with the weapon pickup.
+  if (box.kind === "reward") { toast(world, c.id, "Nothing to take"); return; }
   if (Math.hypot(p.x - box.x, p.y - box.y) > INTERACT_RANGE) { toast(world, c.id, "Too far away"); return; }
   if (!hasLineOfSight(collisionMap(world), p, box)) { toast(world, c.id, "Can't reach that"); return; }
   const item = box.items.length > 0 ? box.items.at(0) : undefined;

@@ -33,7 +33,8 @@ function chipOf(root: FakeEl) {
 }
 
 function parts(hud: BuffsHud) {
-  const [strip, empty, feed] = (hud.root as unknown as FakeEl).children as FakeEl[];
+  // The strip, the passives row (ui/passivesRow.ts, tested in passivesRow.test.ts), the empty hint and the feed line.
+  const [strip, , empty, feed] = (hud.root as unknown as FakeEl).children as FakeEl[];
   const chips = (strip!.children as FakeEl[]).map(chipOf);
   const byId = (id: BuffId) => chips[BUFFS.findIndex((b) => b.id === id)]!;
   const visible = () => BUFFS.filter((_, i) => !chips[i]!.root.hidden).map((b) => b.id);
@@ -415,7 +416,7 @@ describe("BuffsHud feed line", () => {
     const { root, strip, feed } = parts(hud);
     hud.update(run({ players: [{}] }), me({ buffs: { emberImp: 1.1 } }));
     expect(root.children[0]).toBe(strip);
-    expect(root.children[2]).toBe(feed);
+    expect(root.children[3]).toBe(feed);
     expect([strip.hidden, feed.hidden]).toEqual([false, false]);
   });
 });

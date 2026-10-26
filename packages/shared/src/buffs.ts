@@ -287,6 +287,7 @@ function statWord(stat: StatKey): string {
     case "healTaken": return "healing taken";
     case "damageTaken": return "damage taken";
     case "cooldown": return "cooldown time";
+    case "executeBand": return "execute threshold (Plague only)";
     case "armor": return "armor";
     case "shield": return "magic resist";
   }
@@ -299,7 +300,9 @@ function signed(v: number, s: string): string {
 /** One row in words, numbers as given (already scaled): "+5% damage". */
 export function effectText(e: Effect): string {
   return visitEffect<string>(e, {
-    stat: (r) => `${signed(r.v, `${pct(Math.abs(r.v))}%`)} ${statWord(r.stat)}`,
+    stat: (r) => r.stat === "executeBand"
+      ? `Execute starts at ${pct(0.5 + r.v)}% HP (from 50%; Plague only)`
+      : `${signed(r.v, `${pct(Math.abs(r.v))}%`)} ${statWord(r.stat)}`,
     flat: (r) => `${signed(r.v, pts(Math.abs(r.v)))} ${statWord(r.stat)}`,
     vs: (r) => {
       const amount = `${signed(r.v, `${pct(Math.abs(r.v))}%`)} damage`;
@@ -335,10 +338,10 @@ export function effectText(e: Effect): string {
     },
     trigger: (r) => {
       const when = r.on === "hpBelow" ? `Below ${pct(r.arg)}% HP` : r.on === "kill" ? "On a kill" : "When hit";
-      const once = r.once ? " (once per run)" : "";
+      const once = r.once ? (r.rearm === "teleport" ? " (once, and again after each teleport)" : " (once per run)") : "";
       const a = r.do;
       switch (a.do) {
-        case "heal": return `${when}: heal ${pct(a.share)}% of max HP${once}`;
+        case "heal": return `${when}: heal ${pct(a.share)}% of max HP${a.ms ? ` over ${pts(a.ms / 1000)} s` : ""}${once}`;
         case "barrier": return `${when}: a barrier of ${pct(a.share)}% of max HP for ${pts(a.ms / 1000)} s${once}`;
         case "status": return `${when}: ${a.status} for ${pts(a.ms / 1000)} s${once}`;
         case "cleanse": return `${when}: cleanse${once}`;

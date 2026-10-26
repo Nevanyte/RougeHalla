@@ -789,11 +789,22 @@ describe("enqueueClientMessage", () => {
       swap: { slot: 1 },
       pickup: { containerId: "c1" },
       plan: { spawn: 1, ready: true },
+      choose: { chest: "c1", pick: -1 },
+      train: { cmd: "buff", id: "emberImp", amount: 3 },
     };
 
     it("every client message type is accepted with a valid payload", () => {
+      // `train` is the practice console's: it is accepted in a training room only (below, and test/trainingConsole.test.ts).
       for (const type of CLIENT_MESSAGE_TYPES) {
-        expect(enqueueClientMessage(fresh(), type, VALID[type]), type).toBe(true);
+        expect(enqueueClientMessage(fresh(), type, VALID[type], { training: true }), type).toBe(true);
+      }
+    });
+
+    it("every message type but `train` is accepted outside a training room too; `train` is dropped there and never queued", () => {
+      for (const type of CLIENT_MESSAGE_TYPES) {
+        const q = fresh();
+        expect(enqueueClientMessage(q, type, VALID[type]), type).toBe(type !== "train");
+        expect(q.actions.some((a) => a.kind === "train"), type).toBe(false);
       }
     });
 

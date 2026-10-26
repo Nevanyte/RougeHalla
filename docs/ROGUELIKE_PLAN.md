@@ -13,6 +13,11 @@
 >   - D6: buff numbers are the value at 3 stacks.
 >   - D7: "shield" means the magic-resistance stat.
 >   - D10: the start boon is picked on the planning screen and applied at run start.
+> - **Owner rulings after the R3/R4a report (2026-10-26):**
+>   - **Weaker mobs (for R5's camp-wide aggro).** Lower `MOB_K` (and `ELITE_K` if needed) until most starters clear a full normal camp when the whole camp wakes: target at least 20 of 25 faction x zone pairings in `bench/campDuel.ts`, elite camps reported alongside (they may stay harder). Measure before and after. Result: see "As built" (R5).
+>   - **Attack speed.** Plague Rat's doubling is not 2x attack speed: it was +4% -> +8% at 3 stacks (about +17% at the 2.1x plateau). The owner does not accept halving it: search the value between x1 and x2 (aim for >= 2/3 of the doubled value) that keeps `testing/test_kite.py` passing with buffs applied, check it in the real sim, and if only <= x1 passes keep the doubled value and add one League-style cap on the attack-speed multiplier from all sources, relatively high and as low as the kite guarantee needs. Then sanity-check every attack-speed and dps source. Result: see "As built" (R4a follow-up) and `testing/TUNING_ROGUE.md`.
+>   - **Leaving during planning counts as a loss:** it goes MIA (a result, counted in stats, no free requeue to re-roll the deal); the win-bonus gate is unchanged, so a near-empty run pays no bonus.
+>   - **Merge order:** the Wishes branch merges into main first; R3/R4a is then resolved against main on `claude/r3r4a-main` (cut from eafcc87), and folded back into the working branch.
 > - **"Double them" (2026-10-26, after the R4a power report):** every BuffDef 3-stack value in section 3.4 is x2 in the code (`shared/buffs.ts` ROWS). Caps, durations, thresholds, `MOB_BUFF_STACKS`, `ELITE_BUFF_STACKS`, the reward curve and catch-up are unchanged. The owner tunes again after the playtest. The numbers in the 3.4 table below are the drafts; the code is authoritative.
 
 Base: `main` at 9aae4ce. controls-feel was merged as f2aa8fc and web-ui-polish as 9aae4ce, after 4c8af1c. Branch state, checked 2026-10-26:
@@ -914,3 +919,25 @@ The owner's "double them" ruling (every 3-stack value x2) is recorded at the top
 - **`campDuel`** (report only; 3 seeds, a starter on its signature weapon, a camp of 3 normals on open floor): pulled one mob at a time, 18 of 25 faction x zone cells are cleared in every seed; with every mob awake (D24 as a preview), 9. The elite camp: 16 and 7. Owner question for D24 and the camp runtime (R5).
 - **Measurements** (seed 1, the bench default): bandwidth typical 7.06, heavy 10.05, idle 3.08 KB/s per client (6.87, 10.13 and 3.08 before R0; the heavy gate of 16.5 holds with room); a joiner's first sync grew from 7.6 to 8.5 KB. `stepBench --buffs` (every buff at 4 stacks on all 8 players): average 0.14 to 0.19 ms and p99 at most 0.5 ms in the implementing agent's run (a run beside other jobs showed 0.26 ms and 3.0 ms, inside the gate). `harness:factions --python` agreed on 60 of 60 cells (agent's run).
 - **Not done:** the training build console (nothing grants a buff in training), `MobState` mirrors and the status rows (R4b), and the "power at minute N" report, which was produced separately and is not in the repo.
+
+### R5 follow-up: weaker mobs (built)
+
+The owner's "weaker mobs" ruling for camp-wide aggro (D24). **`MOB_K` 0.45 -> 0.22; `ELITE_K` stays 0.65.** Target: at least 20 of 25 faction x zone pairings clear a full normal camp that wakes at the first hit (a starter on its signature weapon, no buffs, no second weapon), measured at camp size 4, the zone maps' mean. Full report with every table: `side-session-notes/.../r5-weaker-mobs.md`.
+
+- **`campDuel` now measures the real D24 pull.** Its old `group` pull woke the mobs by hand and placed them without a camp, so camp-wide aggro never ran. The new `camp` pull (the primary one) places the mobs with `MobState.camp` and a published `CampState`, all idle; the first landed hit wakes the whole camp through `mobAI.aggro` (all `size` mobs awake on the tick the first wakes; `single` wakes one). `single` (the camp before R5) and `group` (all awake at tick 0, harsher than a real pull) stay. `--size N` sets the elite camp too (the elite and N - 1 normals); new `--k`, `--elite-k`, `--pulls`, and `--sweep` with `--ks`, `--eks`, `--sizes`. `mobDuel`'s default sweep now starts at 0.20.
+- **Pairings cleared (of 25) in every one of 12 seeds, camp pull, normal camp** (ELITE_K 0.65): size 4: MOB_K 0.45 -> 4, 0.40 -> 6, 0.35 -> 8, 0.30 -> 11, 0.25 -> 19, 0.24 -> 20, 0.23 -> 21, **0.22 -> 21** (22 if at least half the seeds count), 0.20 -> 21, 0.15 -> 23. 0.22 is the smallest value that meets the target with a margin of one; 0.20 is the same at size 4 and better at size 5 (18).
+
+| camp (MOB_K 0.45 -> 0.22) | camp pull (D24) | single pull | group pull |
+|---|---|---|---|
+| normal, 3 mobs | 9 -> **23** | 18 -> 24 | 7 -> 22 |
+| normal, 4 mobs | 4 -> **21** | 15 -> 24 | 4 -> 22 |
+| normal, 5 mobs | 2 -> **14** | 12 -> 22 | 2 -> 12 |
+| elite + 2 normals | 7 -> 12 | 16 -> 19 | 7 -> 10 |
+| elite + 3 normals | 3 -> **9** | 12 -> 18 | 2 -> 11 |
+| elite + 4 normals | 2 -> 7 | 11 -> 18 | 2 -> 7 |
+
+- **Weakest pairings (size 4, camp pull, normal camp), and why they stay failed:** Frost (shield) against a Frost zone, a stalemate at 100% hp at every size (both shields block every bash: the known hole, the second weapon is the answer); Holy (wand) against a Sentenced zone, 0 of 12 (the Sentenced mob carries a sword, and Sword beats Wand in the real sim); Sentenced (bow) against a Fire zone, 0 of 12 (four axe mobs with burn on the smallest hp pool, the bow's 0.6 s windup root lets them close); Sentenced against its own zone, 8 of 12. At size 5 more ranged starters fail (14 of 25).
+- **Elite camps stay harder, as ruled, and none is impossible:** at size 4 every zone's elite camp is cleared by at least one starter (Fire zone: Fire, Frost, Holy; Sentenced and Plague zones: Fire only; Frost zone: Sentenced only; Holy zone: Plague, Frost, Holy). The ELITE_K lever (MOB_K 0.22, size 4, camp pull, in every seed): 0.65 -> 9, 0.55 -> 10, 0.50 -> 12, 0.45 -> 13, 0.40 -> 17, 0.30 -> 20; but the lone elite (`mobDuel --style stand`) is 22 of 25 pairings at 54% hp left at 0.65 and 23 of 25 at 70% at 0.50, so lowering it trades the elite fight for the camp.
+- **A lone normal mob (`mobDuel`, 3 seeds):** `--style stand` 23 of 25 pairings won, 74% hp left before (Frost>Frost and Holy>Sentenced not won; the old docs' "24 of 25, 80%" was Phase 11's), now 24 of 25 and 91% (only Frost>Frost). Default `policy` style 22 of 25, 71% -> 84%. The elite is unchanged (22 and 20 of 25).
+- **Benches after:** `stepBench` avg 0.152 ms, p99 0.426 ms (gates 5 and 15); `bandwidth` typical 7.66, heavy 11.69, idle 3.22 KB/s (gate 20).
+- **Tests:** `shared/test/mobs.test.ts` (pinned constants and the concrete Fire mob: 110 hp, a 33 hit, burn 2.2) and `server/test/mobHunt.test.ts` (no normal matchup is under the bots' `mobMinShare` 0.5 any more, so the filter is exercised at a bar of 0.85) are the only ones that pinned the old value; the mob signature tests derive from the constants. Shared 981, server 3492, client 1151 pass; typecheck is clean.

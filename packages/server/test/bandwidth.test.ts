@@ -64,6 +64,14 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan(0.1);
   });
 
+  // Roguelike R5: seed 1 measures 7.16 KB/s against 6.87 for the same run without them (5 chests up, each picked and skipped).
+  it("5 camp chests up the whole time, on the typical load: under 20 KB/s, under 1 KB/s more than without them", () => {
+    const r = run("chests", { camps: TYPICAL_CAMPS, chests: 5 });
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+    expect(r.totalKBps - typical().totalKBps).toBeLessThan(1);
+    expect(r.fxByKind.chestTaken!.frames).toBeGreaterThan(10);
+  });
+
   it("is deterministic for a seed", () => {
     const a = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });
     const b = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });

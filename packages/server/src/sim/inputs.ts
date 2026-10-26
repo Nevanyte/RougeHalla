@@ -1,6 +1,9 @@
 // Validated, per-player input buffering. Message handlers only call `parse*` + `push*`;
 // the sim drains the queue at the start of each fixed step.
-import { WORLD_H, WORLD_W, wrapAngle, type Vec2 } from "@raid/shared";
+import {
+  isBuffId, isSkillId, mobTypeById, TRAIN_CMDS, TRAIN_DEFAULT_RANK, TRAIN_DEFAULT_STACKS, TRAIN_MAX_CHEST_OPTIONS, TRAIN_MAX_STACKS,
+  SKILL_MAX_RANK, WORLD_H, WORLD_W, wrapAngle, type BuffId, type MobTypeId, type SkillId, type TrainCmd, type Vec2,
+} from "@raid/shared";
 
 /**
  * `seq`: the client's order number (an integer 0..255), echoed in `PlayerState.moveSeq` on the tick the order is applied, so a
@@ -19,7 +22,28 @@ export type ActionCommand =
   | { kind: "swap"; slot?: 0 | 1 }
   | { kind: "pickup"; containerId: string }
   /** The planning screen (sim/planning.ts reads it during planning only; every other phase drops it). */
-  | PlanCommand;
+  | PlanCommand
+  /** A pick at a cleared camp's shared chest (sim/chests.ts): option `pick`, or -1 to skip. `replace` is R6's (ignored). */
+  | ChooseCommand
+  /** The training console (sim/training.ts; only ever queued for a training world: see enqueueClientMessage). */
+  | TrainCommand;
+
+/**
+ * A validated `train` input. `buff`: the stacks to SET (0..TRAIN_MAX_STACKS). `passive`: the rank to set (0 removes). `camp`:
+ * the mob type. `chest`: the skill ids to offer, empty for three random live ones.
+ */
+export type TrainCommand =
+  | { kind: "train"; cmd: "buff"; id: BuffId; amount: number }
+  | { kind: "train"; cmd: "passive"; id: SkillId; rank: 0 | 1 | 2 }
+  | { kind: "train"; cmd: "camp"; id: MobTypeId }
+  | { kind: "train"; cmd: "chest"; options: SkillId[] }
+  | { kind: "train"; cmd: "clear" };
+
+/** A `choose` input: a reward container id and an option index (-1 = skip). */
+export type ChooseCommand = { kind: "choose"; chest: string; pick: number; replace?: 0 | 1 };
+
+/** The highest option index a `choose` may name (a chest has CHEST_OPTIONS today; the parser leaves room to grow). */
+export const MAX_CHOOSE_PICK = 15;
 
 /** A `plan` input: indexes into the player's own two dealt options, and the ready latch. At least one field is set. */
 export type PlanCommand = { kind: "plan"; spawn?: 0 | 1; boon?: 0 | 1; ready?: boolean };
@@ -111,8 +135,80 @@ export function parsePlan(msg: unknown): PlanCommand | null {
   return cmd;
 }
 
+/**
+ * A `choose` message, or null: `chest` a short id string, `pick` an integer from -1 (skip) to MAX_CHOOSE_PICK, and
+ * `replace`, when present, exactly 0 or 1 (reserved for R6's slots). Anything else is refused whole. Whether the index names
+ * an option of that chest is the sim's to check.
+ */
+export function parseChoose(msg: unknown): ChooseCommand | null {
+  if (!isRecord(msg)) return null;
+  const chest = parseId(msg.chest);
+  const { pick, replace } = msg;
+  if (!chest || typeof pick !== "number" || !Number.isInteger(pick) || pick < -1 || pick > MAX_CHOOSE_PICK) return null;
+  if (replace !== undefined && replace !== 0 && replace !== 1) return null;
+  const cmd: ChooseCommand = { kind: "choose", chest, pick: pick + 0 };
+  if (replace !== undefined) cmd.replace = replace;
+  return cmd;
+}
+
+/**
+ * A `train` message, or null: `cmd` one of TRAIN_CMDS, then per command: `buff` a known buff id and an `amount` that is a finite
+ * number (clamped to 0..TRAIN_MAX_STACKS; absent = TRAIN_DEFAULT_STACKS); `passive` a known skill id and a `rank` that is
+ * exactly 0, 1 or SKILL_MAX_RANK (absent = TRAIN_DEFAULT_RANK); `camp` a known mob type; `chest` an `options` array of
+ * 1..TRAIN_MAX_CHEST_OPTIONS distinct known skill ids, or absent or empty for the server's random pick; `clear` nothing.
+ * Anything else is refused whole. Unknown extra fields are ignored.
+ */
+export function parseTrain(msg: unknown): TrainCommand | null {
+  if (!isRecord(msg)) return null;
+  const cmd = msg.cmd;
+  if (typeof cmd !== "string" || !(TRAIN_CMDS as readonly string[]).includes(cmd)) return null;
+  switch (cmd as TrainCmd) {
+    case "buff": {
+      const id = msg.id;
+      if (!isBuffId(id)) return null;
+      const raw = msg.amount;
+      if (raw !== undefined && (typeof raw !== "number" || !Number.isFinite(raw))) return null;
+      const amount = raw === undefined ? TRAIN_DEFAULT_STACKS : Math.min(TRAIN_MAX_STACKS, Math.max(0, raw));
+      return { kind: "train", cmd: "buff", id, amount: amount + 0 };
+    }
+    case "passive": {
+      const id = msg.id;
+      if (!isSkillId(id)) return null;
+      const raw = msg.rank;
+      const rank = raw === undefined ? TRAIN_DEFAULT_RANK : raw;
+      if (rank !== 0 && rank !== 1 && rank !== SKILL_MAX_RANK) return null;
+      return { kind: "train", cmd: "passive", id, rank: rank as 0 | 1 | 2 };
+    }
+    case "camp": {
+      const id = msg.id;
+      if (typeof id !== "string") return null;
+      const type = mobTypeById(id);
+      return type ? { kind: "train", cmd: "camp", id: type.id } : null;
+    }
+    case "chest": {
+      const raw = msg.options;
+      if (raw === undefined) return { kind: "train", cmd: "chest", options: [] };
+      if (!Array.isArray(raw) || raw.length > TRAIN_MAX_CHEST_OPTIONS) return null;
+      const options: SkillId[] = [];
+      for (const id of raw) {
+        if (!isSkillId(id) || options.includes(id)) return null;
+        options.push(id);
+      }
+      return { kind: "train", cmd: "chest", options };
+    }
+    case "clear":
+      return { kind: "train", cmd: "clear" };
+  }
+}
+
+/** What the caller knows about the room that the message alone cannot say. */
+export interface EnqueueOptions {
+  /** The room is a training room (RaidRoom.training / SimConfig.training): the only place a `train` message is accepted. */
+  training?: boolean;
+}
+
 /** Turns an untrusted client message into a queued command. Returns false if rejected. */
-export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown): boolean {
+export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown, opts: EnqueueOptions = {}): boolean {
   switch (type) {
     case "move": {
       const p = parsePoint(msg);
@@ -162,6 +258,20 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown):
     }
     case "plan": {
       const cmd = parsePlan(msg);
+      if (!cmd) return false;
+      q.pushAction(cmd);
+      return true;
+    }
+    case "choose": {
+      const cmd = parseChoose(msg);
+      if (!cmd) return false;
+      q.pushAction(cmd);
+      return true;
+    }
+    case "train": {
+      // The practice console exists in a training room only: an arena client's `train` is dropped here, never queued.
+      if (opts.training !== true) return false;
+      const cmd = parseTrain(msg);
       if (!cmd) return false;
       q.pushAction(cmd);
       return true;

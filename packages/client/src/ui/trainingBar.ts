@@ -1,7 +1,10 @@
-// Training room overlay, bottom-left: a "Leave training" button and a short list of controls that fades away. DOM only.
+// Training room overlay, bottom-left: a "Leave training" button and a short list of controls that fades away, and, when the scene
+// gives it a way to send `train` messages, the practice console (trainingConsole.ts) between the two. DOM only.
 // The scene feeds it the clock (update) and the Esc key (leave); where "leave" goes is the caller's (the hub hand-off).
+// Only a training room builds this bar at all (RaidScene), so an arena run never has the console.
 import "./trainingBar.css";
 import { el, uiRoot } from "./dom";
+import { TrainingConsole, type SendTrain } from "./trainingConsole";
 
 /** What a first-time player needs in the practice room; kept to a few lines. */
 export const TRAINING_HINTS: readonly string[] = [
@@ -43,6 +46,13 @@ export class LeaveLatch {
   }
 }
 
+export interface TrainingBarOptions {
+  /** Sends a `train` message to the room; without it the bar has no console. */
+  send?: SendTrain;
+  /** The local player's faction, for the console's passive wording. */
+  faction?: () => string | undefined;
+}
+
 export class TrainingBar {
   private readonly root = el("div", "training-bar");
   private readonly tips = el("div", "training-tips");
@@ -55,9 +65,10 @@ export class TrainingBar {
   private elapsedMs = 0;
   private dismissed = false;
   private phase: HintPhase = "show";
+  private readonly practice: TrainingConsole | null;
 
   /** `onLeave` is only given for a training room; without it the button is not shown and Esc does nothing. */
-  constructor(onLeave?: () => void) {
+  constructor(onLeave?: () => void, opts: TrainingBarOptions = {}) {
     this.latch = new LeaveLatch(onLeave);
 
     const list = el("ul");
@@ -74,7 +85,12 @@ export class TrainingBar {
     this.leaveButton.addEventListener("click", () => this.leave());
     this.leaveButton.hidden = !this.latch.armed;
 
-    this.root.append(this.tips, this.leaveButton);
+    this.practice = opts.send
+      ? new TrainingConsole(opts.send, { faction: opts.faction, onToggle: () => this.applyPhase(true) })
+      : null;
+    this.root.append(this.tips);
+    if (this.practice) this.root.append(this.practice.root);
+    this.root.append(this.leaveButton);
     uiRoot().append(this.root);
   }
 
@@ -95,14 +111,16 @@ export class TrainingBar {
   }
 
   destroy(): void {
+    this.practice?.destroy();
     this.root.remove();
   }
 
-  private applyPhase(): void {
+  /** The tips follow the clock; they are also hidden while the console is open (the panel takes their room). */
+  private applyPhase(force = false): void {
     const phase = hintPhase(this.elapsedMs, this.dismissed);
-    if (phase === this.phase) return;
+    if (phase === this.phase && !force) return;
     this.phase = phase;
     this.tips.classList.toggle("fading", phase === "fade");
-    this.tips.hidden = phase === "gone";
+    this.tips.hidden = phase === "gone" || (this.practice?.isOpen ?? false);
   }
 }

@@ -1,5 +1,5 @@
 // A headless player. It talks to the server the way the web client does: HTTP for the profile, then a
-// Colyseus room where it reads synced state and sends inputs only (move, stop, target, swap, pickup). It never touches
+// Colyseus room where it reads synced state and sends inputs only (move, stop, target, swap, pickup, choose). It never touches
 // server internals; the map comes from the public seed. The brain is a hunt, re-evaluated every THINK_MS from the latest
 // state: pick the foe, and play it like a human with the LoL-style controls: click it (`target`) once it is within the
 // server's reach (TARGET_RANGE), and let the server chase it, attack it and aim at it until the lock ends; walk (`move`)
@@ -11,6 +11,8 @@
 // broken by turning on someone else for a while (ORBIT_*). The arena (teleport, locked gates, sudden death) needs no
 // handling: after the teleport there are no mobs in reach and the bot just keeps hunting players. When the server plans
 // (phase "planning"), it picks the better of its two dealt spawns for farming from its private `plan` message and presses ready.
+// A cleared camp's shared chest (a container of kind "reward", up for CHEST_SECONDS) is worth a walk and one `choose`: within
+// reach of it the bot takes the best free option it can use, or skips (chestHunt.ts decides; one try per chest, ever).
 import { Client, type Room } from "@colyseus/sdk";
 import {
   bestSlot, buffPower, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, PLAYER_RADIUS,
@@ -19,7 +21,8 @@ import {
   type PlanMessage, type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
-import { bestSlotVsMob, mobWeapon, pathLength, planPick, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
+import { ChestHunter, type ChestLike } from "./chestHunt";
+import { bestSlotVsMob, mobWeapon, MOB_HUNT, pathLength, planPick, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
 
 type ClientRoom = Room<any, RaidState>;
 
@@ -53,6 +56,20 @@ export interface BotRun {
   error?: string;
   /** The bot left on purpose (`abandonAfterMs`), so there is no result and nothing went wrong. */
   abandoned?: true;
+  /** What the bot did about the camps' chests (see ChestStats). */
+  chests?: ChestStats;
+}
+
+/** What the bot did about the camps' shared chests, for the tests and the CLI's result line. */
+export interface ChestStats {
+  /** Distinct reward chests seen up in the state. */
+  seen: number;
+  /** `choose` messages sent (never more than one per chest). */
+  tried: number;
+  /** Picks the server accepted: a skill taken... */
+  taken: number;
+  /** ...and chests it skipped. */
+  skipped: number;
 }
 
 /** A standing enemy and how far away it is. */
@@ -168,7 +185,7 @@ export class BotClient {
   /** `teleport` fx seen: how many times the arena moved everyone into the coliseum. */
   teleports = 0;
   /** Inputs sent so far, by message type. */
-  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, plan: 0 };
+  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, plan: 0, choose: 0, train: 0 };
 
   private profile = "";
   private room!: ClientRoom;
@@ -202,6 +219,15 @@ export class BotClient {
   /** Containers whose weapon we gave up on. */
   private readonly grabSkipped = new Set<string>();
   private readonly hunter = new MobHunter(undefined, (msg) => this.log(msg));
+  private readonly chestHunter = new ChestHunter(undefined, (msg) => this.log(msg));
+  /** The `choose` messages sent, by chest id: one per chest at most (the e2e test checks it). */
+  readonly chestChoices = new Map<string, number>();
+  /** What each chest we asked at came to: the option index the state or the `chestTaken` fx showed us taking, or -1 for a skip. */
+  private readonly chestOutcome = new Map<string, number>();
+  private readonly chestSeen = new Set<string>();
+  /** The reward chests up at this think (observeChests). */
+  private chestsUp: ChestLike[] = [];
+  private readonly chestCounts: ChestStats = { seen: 0, tried: 0, taken: 0, skipped: 0 };
   private grabs = 0;
   /** Stall watch: where we stood at the last think, since when we have stood there doing nothing, and the longest such stretch. */
   private lastPos: Vec2 = { x: NaN, y: NaN };
@@ -232,6 +258,11 @@ export class BotClient {
   /** The map seed of the room it joined (0 before that). */
   get seed(): number {
     return this.room?.state?.seed ?? 0;
+  }
+
+  /** What the bot did about the camps' chests so far. */
+  get chestStats(): ChestStats {
+    return { ...this.chestCounts };
   }
 
   get stats(): BotStats {
@@ -308,6 +339,7 @@ export class BotClient {
     const run: BotRun = { profile: this.profile, result };
     if (error) run.error = error;
     if (this.abandoned) run.abandoned = true;
+    run.chests = this.chestStats;
     // A closed socket never answers a leave, which would cost the whole fallback wait below.
     if (this.roomClosed || !this.room?.connection?.isOpen) { this.settle(run); return; }
     let timer: NodeJS.Timeout | undefined;
@@ -335,6 +367,10 @@ export class BotClient {
 
   private onFx(fx: TimedFx): void {
     if (fx.kind === "teleport") { this.teleports++; this.onTeleport(); return; }
+    if (fx.kind === "chestTaken") {
+      if (fx.by === this.room.sessionId) this.recordPick(fx.chest, fx.option);
+      return;
+    }
     // An enemy we gave up chasing that now lands (or fails to land) a blow on us is no longer circling: fight back.
     if ((fx.kind === "hit" || fx.kind === "block") && fx.id === this.room.sessionId && fx.by !== null && fx.by === this.avoidId) {
       this.avoidId = null;
@@ -371,6 +407,7 @@ export class BotClient {
     }
     const now = Date.now();
     this.watchStall(me, now);
+    this.observeChests();
     const enemy = this.pickEnemy(me, now);
     const hunt = this.huntMobs(me, enemy, now);
     this.logHunt(hunt);
@@ -409,7 +446,14 @@ export class BotClient {
 
   /** What to do this think: run, fetch a weapon, fight a mob or a player, or stand. True when the bot is attacking a foe (see `attacking`). */
   private act(me: PlayerState, enemy: Enemy | null, hunt: HuntDecision, now: number): boolean {
+    const chest = this.chestStep(me, enemy, hunt, now); // a pick in range is sent here; a walk is returned
     if (hunt.kind === "retreat" && this.retreat(me, hunt, now)) { this.pauseChase(enemy, now); return false; }
+    if (chest) {
+      this.grab = null;
+      this.pauseChase(enemy, now);
+      this.moveTo(chest, now);
+      return false;
+    }
     const mob = hunt.kind === "mob" ? this.mobFoe(me, hunt.id) : null;
     if (this.grabWeapon(me, now, enemy?.d ?? Infinity)) { this.pauseChase(enemy, now); return false; }
     if (mob) {
@@ -686,6 +730,69 @@ export class BotClient {
       if (w !== null && w !== have) { best = c.id; bestD = d; }
     });
     return best;
+  }
+
+  // ------------------------------------------------------------------ chests
+  /** The reward chests in the state: the shared chests a cleared camp left (ContainerState kind "reward"). */
+  private rewardChests(): ChestLike[] {
+    const out: ChestLike[] = [];
+    this.room.state.containers.forEach((c) => { if (c.kind === "reward") out.push(c); });
+    return out;
+  }
+
+  /**
+   * Reads the reward chests up this think (kept for chestStep), counts the ones seen, and the picks the state shows we made (the
+   * `chestTaken` fx may say so first: recordPick keeps the first).
+   */
+  private observeChests(): void {
+    const chests = this.chestsUp = this.rewardChests();
+    for (const c of chests) {
+      if (!this.chestSeen.has(c.id)) { this.chestSeen.add(c.id); this.chestCounts.seen++; }
+      if (!this.chestChoices.has(c.id) || this.chestOutcome.has(c.id)) continue;
+      if (![...c.pickers].includes(this.room.sessionId)) continue;
+      this.recordPick(c.id, [...c.takenBy].indexOf(this.room.sessionId));
+    }
+  }
+
+  private recordPick(chest: string, option: number): void {
+    if (this.chestOutcome.has(chest)) return;
+    this.chestOutcome.set(chest, option);
+    if (option >= 0) this.chestCounts.taken++;
+    else this.chestCounts.skipped++;
+  }
+
+  /**
+   * The chest hunt for this think (chestHunt.ts): sends the one `choose` for a chest in reach, and answers where to walk when a
+   * chest is worth the trip (null otherwise). A fight, or an awake mob close, limits it to a near chest; low hp and the retreat
+   * walk to none.
+   */
+  private chestStep(me: PlayerState, enemy: Enemy | null, hunt: HuntDecision, now: number): Vec2 | null {
+    const s = this.room.state;
+    const chests = this.chestsUp;
+    if (chests.length === 0) return null;
+    const map = this.collision();
+    const d = this.chestHunter.decide({
+      now,
+      serverTime: s.serverTime,
+      self: {
+        id: this.room.sessionId, x: me.x, y: me.y, faction: me.faction,
+        weapons: [asWeapon(me.weapon0), asWeapon(me.weapon1)], build: me.build ?? null,
+      },
+      chests,
+      walk: (to) => this.walkDistance(me, to),
+      sight: (to) => hasLineOfSight(map, me, to),
+      fighting: this.attacking || (enemy !== null && enemy.d < MOB_HUNT.playerThreat) || this.hunter.awakeNear(me, GRAB_MOB_DISTANCE, now).length > 0,
+      retreating: hunt.kind === "retreat",
+      inColiseum: s.inColiseum,
+    });
+    if (d.kind === "pick") {
+      this.log(`chest ${d.chest}: ${d.why}`);
+      this.chestChoices.set(d.chest, (this.chestChoices.get(d.chest) ?? 0) + 1);
+      this.chestCounts.tried++;
+      this.send("choose", { chest: d.chest, pick: d.option });
+      return null;
+    }
+    return d.kind === "walk" ? d.to : null;
   }
 
   /** Walks at `goal`: re-sent at most every REPLAN_MS, and only when the goal has moved (or after RESEND_MS). */

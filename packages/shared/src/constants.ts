@@ -202,10 +202,13 @@ export const BOUNTY_STACK_SHARE = 0.5;
 export const BOUNTY_ANNOUNCE_MS = 10_000;
 
 // Regional mobs (Phase 11, GAME_DESIGN 11). A mob is its region's faction scaled by MOB_K (an elite by ELITE_K) with the
-// region's weapon. Measured in the real sim (bench/mobDuel.ts, side-session-notes/phase11-mob-strength-report.md): at 0.45
-// a starting player who stands and fights finishes a normal mob in 24 of 25 pairings with about 80% hp left; an elite at 0.65 is
-// finished in 23 of 25 with about 58% hp left (at 0.60 it was 24 and 64%, too soft for 10 GV and two stacks).
-export const MOB_K = 0.45;
+// region's weapon. MOB_K was 0.45 (a starter finished one normal mob in 24 of 25 pairings), which with R5's camp-wide aggro
+// (D24: the first hit wakes the whole camp) left a starter clearing a full camp in 9 of 25 pairings at 3 mobs and 4 at 4.
+// Owner ruling "weaker mobs": lowered until at least 20 of 25 clear a full camp of 4, the zone maps' mean (bench/campDuel.ts,
+// camp pull, 12 seeds, cleared in every seed: 0.30 clears 11, 0.25 19, 0.24 20, 0.22 21, 0.20 21; at 3 mobs 0.22 clears 23,
+// at 5 it clears 14). Left at 0.65, the elite camp (the elite and 3 normals) clears in 9 of 25 pairings, every zone beatable
+// by at least one starter: elites may stay harder (the owner's ruling).
+export const MOB_K = 0.22;
 export const ELITE_K = 0.65;
 /** A mob gives up the chase when it is this far from its camp, or has not dealt damage for MOB_GIVE_UP_SECONDS (damage it takes does not extend the fight). */
 export const MOB_LEASH_RADIUS = 9 * TILE;
@@ -227,6 +230,30 @@ export const MOB_CORPSE_MS = 1500;
  */
 export const MOB_BUFF_STACKS = 1.1;
 export const ELITE_BUFF_STACKS = 3.1;
+
+// Camps and their shared chests (roguelike R5, ROGUELIKE_PLAN 3.3, D1-D3, D12, D24). The rules are in shared/rewards.ts
+// and server sim/chests.ts.
+/** A cleared camp's chest vanishes this long after it drops (D1), never extended; also at the coliseum teleport. */
+export const CHEST_SECONDS = 15;
+/** A pick needs the picker's server position within this of the chest's centre, with line of sight (D3). */
+export const CHEST_RANGE = 96;
+/**
+ * Client: the chest panel enables picks from the latest SERVER position within CHEST_RANGE minus this (not the predicted
+ * position), so a pick it offers is not refused as too far.
+ */
+export const CHEST_PANEL_SLACK = 8;
+/** Client: every option greys out this long, plus half the round trip, before `expiresAt` (a later pick would be refused). */
+export const CHEST_GREY_MS = 50;
+/** A chest offers this many options (D6). */
+export const CHEST_OPTIONS = 3;
+/** A skip heals this share of max hp when the heal lockout allows it (D12)... */
+export const SKIP_HEAL_SHARE = 0.15;
+/** ...and pays this much GV when it heals nothing (in combat, or at full hp); it counts against GV_MOB_CAP. */
+export const GV_SKIP = 3;
+/** D24: damaging one camp member wakes every idle member of that camp (false: each mob wakes on its own damage only). */
+export const CAMP_WIDE_AGGRO = true;
+/** A heal spread over time (Second Wind) lands in steps this far apart, the first at once. */
+export const HEAL_OVER_TIME_STEP_MS = 500;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;
