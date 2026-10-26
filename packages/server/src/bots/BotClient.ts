@@ -16,7 +16,7 @@
 // reach of it the bot takes the best free option it can use, or skips (chestHunt.ts decides; one try per chest, ever).
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  abilityInSlot, bestSlot, buffPower, rankOf, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_UNTARGETABLE, findPath, generateMap, hasLineOfSight,
+  abilityInSlot, bestSlot, buffPower, rankOf, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_STUNNED, EFFECT_UNTARGETABLE, findPath, generateMap, hasLineOfSight,
   INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, PLAYER_RADIUS,
   PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
   type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions,
@@ -270,6 +270,8 @@ export class BotClient {
   /** A Wish that hides its caster was sent: the bot slips away (never locks anyone) until this time, or while the server shows the cast or the hiding. */
   private escaping = false;
   private escapeUntil = -Infinity;
+  /** Until when a Wish we sent may still be casting (its cast time and a grace): the server refuses a chest pick then. */
+  private castBusyUntil = -Infinity;
   /** The foe the bot fought this think (the Wish aims at it), if any. */
   private foe: Foe | null = null;
 
@@ -490,6 +492,7 @@ export class BotClient {
     const cast = decideCast(slot.def, slot.rank, situation);
     if (!cast) return;
     this.wishTriedAt = now;
+    this.castBusyUntil = now + rankOf(slot.def, slot.rank).castMs + ESCAPE_GRACE_MS;
     this.log(`casting ${slot.def.name}${cast.id ? ` on ${cast.id}` : ""}`);
     this.send("cast", cast.id !== undefined ? { slot: "wish", x: cast.x, y: cast.y, id: cast.id } : { slot: "wish", x: cast.x, y: cast.y });
     if (hidesCaster(slot.def, slot.rank)) {
@@ -855,6 +858,8 @@ export class BotClient {
     const s = this.room.state;
     const chests = this.chestsUp;
     if (chests.length === 0) return null;
+    // Stunned or casting, the server refuses a pick (as it does a pickup) and the one try per chest would be spent: wait it out.
+    if ((me.effects & (EFFECT_STUNNED | EFFECT_CASTING)) !== 0 || now < this.castBusyUntil) return null;
     const map = this.collision();
     const d = this.chestHunter.decide({
       now,

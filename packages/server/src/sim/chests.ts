@@ -8,6 +8,7 @@
 //   - `choose` (an action, so within a tick picks resolve in the shuffled actionOrder; step.ts runs actions only for alive
 //     players in an active run). Checked in this order, each refusal a private toast that uses up nothing:
 //       the picker is a standing player (not down, no result out) .......................... silent
+//       the picker is not stunned or casting (status.ts actionBlocked, as for a pickup) ...... "Can't do that now"
 //       the chest exists, is a reward, was not created this tick, and now < expiresAt ...... "Chest gone"
 //       the picker's SERVER position is within CHEST_RANGE of the chest's centre ............ "Too far away"
 //       with line of sight on collisionMap(world) ......................................... "Can't reach that"
@@ -32,6 +33,7 @@ import { standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { addContainer, bornThisTick } from "./loot";
 import { recomputeMods } from "./mods";
+import { actionBlocked } from "./status";
 import { chainHook, collisionMap, emit, type ActionHandler, type World } from "./world";
 
 export const REWARD_LABEL = "Skill Chest";
@@ -79,6 +81,8 @@ export function rewardChests(world: World): ContainerState[] {
 
 export const handleChoose: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "choose" || c.kind !== "player" || !standing(c)) return;
+  // A pick is an action like a pickup: a stun or a pending cast blocks it (the Wishes' D5), and it uses up nothing.
+  if (actionBlocked(world, c)) { toast(world, c.id, "Can't do that now"); return; }
   const p = c.s;
   const now = world.state.serverTime;
   const box = world.state.containers.get(cmd.chest);

@@ -111,10 +111,14 @@ function wake(world: World, b: MobBrain, target: string): void {
   b.holding = false;
 }
 
-/** D24: every other idle, living member of `c`'s camp wakes onto `target` (no threat of its own: see the header). */
+/**
+ * D24: every other idle, living member of `c`'s camp wakes onto `target` (no threat of its own: see the header). Not onto a
+ * target that is hidden or untargetable (Swarm): pickTarget would never choose it, and the hit mob's own fight drops it next
+ * tick, so the mates stay idle until a hit wakes them onto someone they can see.
+ */
 function wakeCamp(world: World, c: MobCombatant, target: string): void {
   const camp = c.s.camp;
-  if (!(camp >= 1)) return;
+  if (!(camp >= 1) || isUntargetableId(world, target)) return;
   for (const rt of world.mobs.values()) {
     const b = rt.brain;
     if (rt.id === c.id || b === undefined || b.mode !== "idle") continue;
