@@ -1,5 +1,6 @@
 // Assembles a fully-featured world: base lifecycle (step.ts + arena.ts, which also run the combat phases) + every
 // gameplay module. Modules expose `install(world)` and register into world.actions / world.systems / world.hooks.
+import { install as installAbilities } from "./abilities";
 import { install as installBuffs } from "./buffs";
 import { install as installCamps } from "./camps";
 import { install as installChests } from "./chests";
@@ -32,6 +33,7 @@ const MODULES: Array<(world: World) => void> = [
   installChests,
   installMobLife,
   installMobAI,
+  installAbilities,
   // Last: its system folds the stat mirrors once every other system of the tick has run.
   installMods,
 ];

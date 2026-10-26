@@ -7,6 +7,7 @@ import {
   type FactionId, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import { heldWeapon } from "../render/FighterArt";
+import { targetable } from "../render/targeting";
 import { el, uiRoot } from "./dom";
 
 /** A vignette decays to nothing over this long. */
@@ -89,6 +90,8 @@ interface FighterLike {
   weapon1: string;
   slot: number;
   status: string;
+  /** The synced EFFECT_* bits (a hidden or untargetable fighter is not a foe the tint may show). */
+  effects?: number;
 }
 
 /** The slice of RaidState the matchup reads (PlayerState and MobState satisfy FighterLike). */
@@ -116,6 +119,8 @@ export function matchupTarget(world: MatchupWorld, localId: string, drawn: Reado
   const add = (f: FighterLike, id: string) => {
     const pos = drawn.get(id);
     if (id === localId || f.status !== "alive" || !pos || !isFactionId(f.faction)) return;
+    // The screen must not tell that a hidden (Swarm) enemy is near, or how near: the same rule as the cursor's pick.
+    if (!targetable(f.effects ?? 0)) return;
     foes.push({ x: pos.x, y: pos.y, faction: f.faction, weapon: heldWeapon(f) });
   };
   world.players.forEach(add);

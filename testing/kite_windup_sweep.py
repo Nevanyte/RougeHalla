@@ -9,7 +9,13 @@ counts how many of the 10 faction-edge cells are STOLEN (weakest melee tolerance
 worst margin (tolerance / orb-walk time) and its cell. The k = 2 tolerances are the duel model's and do not depend on the
 windup, so they are computed once (the slow part, about 4 s). It ends with the smallest share that holds all 10 cells at
 margin >= 1.0 and >= 1.05, per cap and overall, on the coarse grid and on a 0.01 grid.
+
+    python3 testing/kite_windup_sweep.py --shooter-as 1.08
+
+sweeps the same windups with every shooter's attack speed x1.08 (a buff; the chaser has none): the tolerances, the
+orb-walk times and the Frost threshold all use it (test_kite.py --shooter-as, kite_buff_sweep.py).
 """
+import argparse
 import math
 import os
 import sys
@@ -29,6 +35,9 @@ def cap_text(cap):
     return "inf" if cap == INF else f"{cap:.1f}"
 
 
+AS_MULT = 1.0  # every shooter's attack-speed multiplier (--shooter-as)
+
+
 def evaluate(tols, weapon, cap, share):
     """[(cell, margin)] for the weapon's 10 edges with its windup set to (cap, share). Margin 0 when the chaser never arrives."""
     spec = W.WEAPONS[weapon]
@@ -38,7 +47,7 @@ def evaluate(tols, weapon, cap, share):
         out = []
         for a, b in W.BEATS:
             tol = min(tols[(a, b, weapon)].values())
-            orb = W.orbwalk_free_fire(b, weapon, a)
+            orb = W.orbwalk_free_fire(b, weapon, a, as_mult=AS_MULT)
             out.append((f"{a}>{b}", 0.0 if orb == INF else tol / orb))
         return out
     finally:
@@ -71,7 +80,7 @@ def frost_threshold(weapon):
         best = None
         for w in [round(0.60 - 0.01 * i, 2) for i in range(51)]:
             spec["windup"], spec["wshare"] = w, 1.0
-            if W.orbwalk_free_fire("Frost", weapon) == INF:
+            if W.orbwalk_free_fire("Frost", weapon, as_mult=AS_MULT) == INF:
                 break
             best = w
         return best
@@ -79,9 +88,15 @@ def frost_threshold(weapon):
         spec["windup"], spec["wshare"] = saved
 
 
-def main():
+def main(argv=None):
+    global AS_MULT
+    ap = argparse.ArgumentParser(description="Which bow and wand windups hold the kiting guarantee?")
+    ap.add_argument("--shooter-as", type=float, default=1.0, help="every shooter's attack-speed multiplier (default 1: no buff)")
+    AS_MULT = ap.parse_args(argv).shooter_as
     K.load_k2()
-    tols = W.kite_tolerances()
+    tols = W.kite_tolerances(AS_MULT)
+    if AS_MULT != 1.0:
+        print(f"shooter buffed: attack speed x{AS_MULT:g} (the chaser is not)")
     print("k = 2 tolerance of the weakest melee weapon per cell (s), and the standing / current orb-walk free-fire times")
     for weapon in W.RANGED:
         spec = W.WEAPONS[weapon]
@@ -90,7 +105,7 @@ def main():
             tol = tols[(a, b, weapon)]
             weakest = min(tol, key=tol.get)
             print(f"    {a+'>'+b:17s} tolerance {tol[weakest]:6.2f} ({weakest:6s}) standing {W.free_fire_time(b, weapon):5.2f}"
-                  f"  orb now {W.orbwalk_free_fire(b, weapon, a):6.2f}  windup {W.windup(W.BY[b], weapon):.3f} of interval {W.interval(W.BY[b], weapon):.3f}")
+                  f"  orb now {W.orbwalk_free_fire(b, weapon, a, as_mult=AS_MULT):6.2f}  windup {W.windup(W.BY[b], weapon, AS_MULT):.3f} of interval {W.interval(W.BY[b], weapon, AS_MULT):.3f}")
 
     holds = {}
     for weapon in W.RANGED:
@@ -132,7 +147,7 @@ def main():
     print("    shorter and the Frost shooter walks the chaser out of reach for good (orb-walk time inf, the Sentenced>Frost and Plague>Frost cells)")
     for weapon in W.RANGED:
         print(f"  {weapon}: smallest windup that lets the chaser arrive, from which every longer one does too: {frost_threshold(weapon):.2f} s "
-              f"(Frost's {weapon} interval {W.interval(W.BY['Frost'], weapon):.2f} s)")
+              f"(Frost's {weapon} interval {W.interval(W.BY['Frost'], weapon, AS_MULT):.2f} s)")
 
     print("\n=== margins at the smallest holding settings (0.01 grid): the worst cell and the runner-up")
     for weapon in W.RANGED:

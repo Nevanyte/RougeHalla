@@ -86,6 +86,14 @@ export const PlayerState = schema({
   /** The player pressed Ready on the planning screen (a latch). Only meaningful while phase is "planning"; the deal itself is private. */
   planReady: t.boolean().default(false),
   // --- end of planning ---
+  /** Active statuses as EFFECT_* bits (status.ts): crowd control, slows, hidden, casting... For prediction, targeting and art. */
+  effects: t.uint16().default(0),
+  /** Server time each ability slot is ready again (0 = ready), read and written through slotReadyAt / setSlotReadyAt (abilities.ts). */
+  wishReadyAt: t.uint32().default(0),
+  qReadyAt: t.uint32().default(0),
+  eReadyAt: t.uint32().default(0),
+  /** +1 (wrapping) for every forced or ability displacement (a blink, a pull): a changed value is a cut for the interpolation, not a slide. */
+  displaceSeq: t.uint8().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -117,6 +125,9 @@ export const MobState = schema({
   type: t.string().default(""),
   /** The camp it belongs to: its index in map.camps (and RaidState.camps) + 1; 0 = none (a dummy). */
   camp: t.uint8().default(0),
+  /** EFFECT_* bits, as on PlayerState. */
+  effects: t.uint16().default(0),
+  displaceSeq: t.uint8().default(0),
 }, "MobState");
 export type MobState = SchemaType<typeof MobState>;
 
@@ -141,6 +152,33 @@ export const CampState = schema({
   state: t.uint8().default(0),
 }, "CampState");
 export type CampState = SchemaType<typeof CampState>;
+
+/**
+ * An area of the ability framework (a Trial's zone, a Swarm's cloud, a Blaze Step's trail). The server sets an entry once and
+ * deletes it when it ends; it never moves one (a moving area is position(T) = (x, y) + v * (T - startedAt) / 1000, so clients
+ * move it themselves). Kinds and abilities are indices into FIELD_KINDS and ABILITY_IDS (abilities.ts).
+ */
+export const FieldState = schema({
+  kind: t.uint8().default(0),
+  /** Styles the art. */
+  ability: t.uint8().default(0),
+  x: t.float32().default(0),
+  y: t.float32().default(0),
+  /** A line's other end. */
+  x2: t.float32().default(0),
+  y2: t.float32().default(0),
+  /** Radius, or a line's half-width. */
+  r: t.float32().default(0),
+  /** A moving area's velocity; 0 for every area today. */
+  vx: t.float32().default(0),
+  vy: t.float32().default(0),
+  /** The fighter that cast it, and the one it is on (a zone's subject; "" for none). */
+  owner: t.string().default(""),
+  subject: t.string().default(""),
+  startedAt: t.uint32().default(0),
+  endsAt: t.uint32().default(0),
+}, "FieldState");
+export type FieldState = SchemaType<typeof FieldState>;
 
 export const ContainerState = schema({
   id: t.string().default(""),
@@ -194,6 +232,8 @@ export const RaidState = schema({
   players: t.map(PlayerState),
   mobs: t.map(MobState),
   containers: t.map(ContainerState),
+  /** The ability areas, keyed by field id: set once, then deleted. */
+  fields: t.map(FieldState),
   /**
    * Every player and mob id, in the order the server first saw them; never reordered, shortened or reused. The fx
    * batches name a fighter by its index here (a byte, against 10 for a session id), see fxCodec.ts. Server code only

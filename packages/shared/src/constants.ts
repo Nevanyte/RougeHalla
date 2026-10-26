@@ -172,6 +172,22 @@ export const TARGET_LOS_GRACE_MS = 1500;
  * path search at most this often per player (an order out of sight sooner than that is refused).
  */
 export const TARGET_REPATH_MS = 250;
+
+// Wishes and abilities (abilities.ts). The numbers of each Wish live there.
+/** A Wish's cooldown: one use per run in practice (flat: nothing shortens it). */
+export const WISH_COOLDOWN_SECONDS = 300;
+/** A Wish is locked this long after the run starts (SimConfig.wishLockSeconds overrides it, e.g. in the e2e). */
+export const WISH_LOCK_SECONDS = 45;
+/** A Wish's cooldown in a training room, so it can be practised (a best guess). */
+export const TRAINING_WISH_COOLDOWN_SECONDS = 5;
+/** A cast's target may be this much farther than its range when the cast is accepted or lands: the client's drawn positions are in the past. */
+export const CAST_RANGE_SLACK = 32;
+/**
+ * A `cast` the server receives this soon after the coliseum teleport is refused, at no cost: the client aimed it at the world as it
+ * was before (it had not yet seen the teleport), so it would land from the new spot toward a stale cursor and spend the Wish.
+ * About a round trip.
+ */
+export const CAST_TELEPORT_GRACE_MS = 300;
 /** Training dummies (server env DUMMIES=1): no faction (no armor or shield), and back to full hp this long after a hit. */
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;
@@ -189,6 +205,16 @@ export const BUFF_REF_STACKS = 3;
 export const LS_CAP = 0.25;
 /** Holy's own cap (factions.ts ls_cap): lifesteal above 100% of the damage stalls Holy against Holy. */
 export const LIFESTEAL_MAX = 1;
+/**
+ * The attack-speed multiplier (the `asMult` mirror) from every source together never exceeds this (League's approach: one
+ * cap on the total, slows apply below it). Owner ruling: x1.5, the most at which the real sim still holds all 20 kiting
+ * cells against an unbuffed melee counter (harness --kiting-only; Plague > Frost is down to 2% hp there, and attack speed
+ * alone first flips a faction counter at x1.65). testing/test_kite.py's model only holds to x1.25 (it fails from x1.3, 6
+ * cells at x1.5, and in a tick-alignment dip at x1.08-1.105 the real sim does not show): the owner accepted that the model
+ * no longer holds at the cap. Buffs alone never reach it (Plague Rat's plateau is x1.17); it binds once sources stack
+ * (R5/R6 passives, skills, relics). testing/TUNING_ROGUE.md.
+ */
+export const AS_MULT_CAP = 1.5;
 /** Mob rewards (GV and buff stacks) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
 export const REWARD_FLOOR = 0.3;
 export const REWARD_MID = 5;

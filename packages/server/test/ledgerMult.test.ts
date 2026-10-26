@@ -1,7 +1,8 @@
 // The ledger's outgoing multiplier (roguelike R4a, sim/ledger.ts + sim/mods.ts outgoingMult): damage, vs and scale rows
 // multiply every entry's raw damage before armor and shield, weapon hits and signature damage alike, fixed from the state
 // as the pass began, so the order entries were recorded in never changes a result. Also: the arena's burn is never
-// multiplied, a Sentenced damage buff reaches its mark, and the `hurt` hook reports each surviving victim once a pass.
+// multiplied, a Sentenced damage buff reaches its mark, the `hurt` hook reports each surviving victim once a pass, and Wishes'
+// damageFactor (Trial's zone) multiplies in after the rows, just as order-free.
 import { describe, expect, it } from "vitest";
 import {
   buffScale, damageShares, FACTIONS, mapFromTiles, mitigateShares, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
@@ -9,11 +10,12 @@ import {
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { grantBuff } from "../src/sim/buffs";
-import { defenseOf, type Combatant } from "../src/sim/combatant";
+import { combatant, defenseOf, type Combatant } from "../src/sim/combatant";
 import { noteContact } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { addMob } from "../src/sim/mobs";
+import { addStatus } from "../src/sim/status";
 import { addPlayer, step } from "../src/sim/step";
 import { chainHook, type LedgerEntry, type World } from "../src/sim/world";
 import { quoted } from "./support/quoted";
@@ -158,6 +160,72 @@ describe("the outgoing multiplier keeps the ledger order-free", () => {
     recordHit(w, { victim: "p1", by: { id: "p0", name: "x" }, packet: { raw: 100, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false, arena: true });
     applyLedger(w);
     expect(P(w, "p1").hp).toBe(8900);
+  });
+});
+
+// ------------------------------------------------------------------------------------------- Trial's zone and the rows
+
+/**
+ * Fire p0 stands in Holy p1's Trial (it deals x0.8; it takes x1.2 from p1), with Ember Imp and Wyrmling (vs hp above 70%);
+ * p1 has Ember Imp; Plague p2 has nothing. p1 starts at 72%, so p0's hit alone takes it under 70%: the vs row still holds.
+ */
+function trialPass(): World {
+  const w = startRun(["fire", "holy", "plague"]);
+  grant(w, "p0", "emberImp", 3);
+  grant(w, "p0", "wyrmling", 3);
+  grant(w, "p1", "emberImp", 3);
+  for (const [id, frac] of [["p0", 0.9], ["p1", 0.72], ["p2", 0.9]] as const) {
+    P(w, id).maxHp = 1e4;
+    P(w, id).hp = 1e4 * frac;
+  }
+  addStatus(w, combatant(w, "p0")!, {
+    kind: "zoned", source: { id: "p1", name: P(w, "p1").name }, ability: "trial", ms: 5000, value: 0.8,
+    data: { dealtMult: 0.8, takenFromSourceMult: 1.2 },
+  });
+  return w;
+}
+const TRIAL_HITS: Hit[] = [
+  { by: "p0", victim: "p1", raw: 1500 },
+  { by: "p1", victim: "p0", raw: 200 },
+  { by: "p2", victim: "p0", raw: 100 },
+  { by: "p0", victim: "p2", raw: 150 },
+  { by: "p0", victim: "p1", raw: 5, sig: "burn" },
+];
+
+describe("Trial's damageFactor and the outgoing rows", () => {
+  it("multiply as raw x rows x zone, then armor and shield, whatever order the entries were recorded in", () => {
+    const w = trialPass();
+    const start = { p0: P(w, "p0").hp, p1: P(w, "p1").hp, p2: P(w, "p2").hp };
+    const def = { p0: defenseOf(P(w, "p0")), p1: defenseOf(P(w, "p1")), p2: defenseOf(P(w, "p2")) };
+    for (const h of TRIAL_HITS) record(w, h);
+    applyLedger(w);
+    const ember = quoted("emberImp");
+    const p0Rows = 1 + ember + quoted("wyrmling"); // rows in the damage key add; Wyrmling reads p1 at 72%, p2 at 90%
+    const fire = damageShares(paced("fire"));
+    const holy = damageShares(paced("holy"));
+    const plague = damageShares(paced("plague"));
+    // p0 deals x0.8 to anyone; p0 takes x1.2 only from the zone's caster p1.
+    const want = {
+      p1: mitigateShares(1500 * p0Rows * 0.8, fire, def.p1) + mitigateShares(5 * p0Rows * 0.8, fire, def.p1),
+      p0: mitigateShares(200 * (1 + ember) * 1.2, holy, def.p0) + mitigateShares(100, plague, def.p0),
+      p2: mitigateShares(150 * p0Rows * 0.8, fire, def.p2),
+    };
+    for (const id of ["p0", "p1", "p2"] as const) expect(start[id] - P(w, id).hp, id).toBeCloseTo(want[id], 9);
+    expect(P(w, "p1").hp / P(w, "p1").maxHp).toBeLessThan(0.7);
+    // Every other recording order: the same hp to the bit.
+    const hp = (x: World) => ["p0", "p1", "p2"].map((id) => P(x, id).hp);
+    const r = mulberry32(77);
+    for (let trial = 0; trial < 20; trial++) {
+      const x = trialPass();
+      const shuffled = [...TRIAL_HITS];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(r() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+      }
+      for (const h of shuffled) record(x, h);
+      applyLedger(x);
+      expect(hp(x), `trial ${trial}`).toEqual(hp(w));
+    }
   });
 });
 

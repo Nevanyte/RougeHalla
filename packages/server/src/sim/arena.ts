@@ -1,8 +1,9 @@
 // Arena lifecycle: how players go down, who wins, the patience timer, the coliseum teleport and sudden death.
 //
-// step.ts runs an active tick as: tick-start snapshot → inputs (shuffled) → weapon state machines → afterWeapons →
-// movement → history → projectile sweep → spawns → melee → beforeDamage (signature damage, then sudden death's burn)
-// → the damage ledger, all at once → systems → settle.
+// step.ts runs an active tick as: tick-start snapshot → inputs (shuffled) → abilities (status expiry, casts landing,
+// zones) → target locks → weapon state machines → afterWeapons → movement → history → projectile sweep → spawns → melee →
+// beforeDamage (signature damage, then status damage, then sudden death's burn) → the damage ledger, all at once (status
+// changes made inside it wait for its end) → systems → settle.
 // Everything that takes a player out of the fight goes through downPlayer(), and settle() is the only place where
 // results are emitted during a step and where the run ends, so the shuffled order players were processed in never
 // decides who won:
@@ -31,6 +32,7 @@ import type { PlayerState } from "@raid/shared/schema";
 import { absorbShield } from "./buffs";
 import { announceBounty, mobRewardFor } from "./feed";
 import { recordHit } from "./ledger";
+import { floorHp } from "./status";
 import { dropLock, releaseTrigger } from "./weapons";
 import { emit, payLater, type PlayerRuntime, type World } from "./world";
 
@@ -60,8 +62,11 @@ export function patienceMs(world: World, alive: number): number {
 /** Called by startRaid once players are placed. */
 export function beginRun(world: World): void {
   const s = world.state;
-  world.arena.startedWith = s.players.size;
-  s.startedWith = s.players.size;
+  // Whoever left during planning still started: they went MIA (missInPlanning), as a leave in the run does, and the gate on
+  // the win bonus and the "lone survivor wins" rule see the same count they would have seen a moment later.
+  const starters = Math.max(s.players.size, world.planning?.starters ?? 0);
+  world.arena.startedWith = starters;
+  s.startedWith = starters;
   world.arena.downedThisTick = [];
   world.arena.downsBetweenTicks = 0;
   world.arena.voided = false;
@@ -91,7 +96,7 @@ export function markTickStart(world: World): void {
 /**
  * The one way to hurt a player. Ignored for anyone not standing and during teleport immunity. `source` is the
  * attacker, or the name of what killed them for the result (SUDDEN_DEATH_KILLER, or a mob or a departed shooter).
- * Returns the hp actually removed.
+ * Returns the hp actually removed, or the damage that reached the pool when a death floor (Last Stand) held the hp; 0 when nothing got through.
  */
 export function applyDamage(
   world: World, victim: PlayerState, rtv: PlayerRuntime, amount: number, source: Attacker | string,
@@ -130,8 +135,11 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   total = absorbShield(victim, total);
   if (!(total > 0)) return 0;
   const before = victim.hp;
-  victim.hp = Math.max(0, victim.hp - total);
-  if (victim.hp > 0) return before - victim.hp;
+  const unheld = Math.max(0, before - total);
+  victim.hp = floorHp(world, rtv.id, before, total);
+  // What is returned is what reached the pool: a death floor that held the hp (Last Stand) did not stop the damage, it counts toward
+  // what the floor pays back, so the hit still lands (a stagger, a number, a record), even when hp was already at the floor.
+  if (victim.hp > 0) return victim.hp > unheld ? total : before - victim.hp;
 
   const killer = topRival ?? top;
   const by = typeof killer.source === "string" ? null : killer.source;
@@ -293,6 +301,7 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   rt.path = [];
   releaseTrigger(world, { kind: "player", id: rt.id, s: p, rt });
   p.status = outcome === "died" ? "dead" : "mia";
+  world.hooks.fighterOut?.(world, rt.id, "down");
   if (credited) creditKill(world, credited, p, rt);
   world.hooks.dropBody(world, p);
   if (world.stepping) {
@@ -301,6 +310,20 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   }
   world.arena.downsBetweenTicks++;
   resolve(world, p, rt, outcome, alivePlayers(world).length + 1, 0);
+}
+
+/**
+ * A player leaves during the planning phase: MIA, as a leave in the run is, so it costs them what that costs (a run and a
+ * death in their stats) and nothing can be got for free by leaving to see the deal and queueing again. Their result goes out
+ * at once. Nothing else follows from the run: no body (nothing was brought in), no kill credit (nobody can have hit them), no
+ * GV, and no settle (it does not run in planning). Called by removePlayer before it deletes them, so `place` counts the
+ * players still in the room: the first of eight to leave is 8th, as the first to go MIA in a run of eight is.
+ */
+export function missInPlanning(world: World, p: PlayerState, rt: PlayerRuntime): void {
+  if (rt.resolved) return;
+  rt.down = { outcome: "mia" };
+  rt.path = [];
+  resolve(world, p, rt, "mia", world.state.players.size, 0);
 }
 
 function resolve(
@@ -404,10 +427,10 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
     const p = s.players.get(id);
     if (p) dropLock({ kind: "player", id, s: p, rt });
   }
+  world.hooks.runEnded?.(world);
   s.patienceEndsAt = 0;
   s.gatesLocked = false;
   s.suddenDeathAt = 0;
-  world.hooks.runEnded?.(world);
   emit(world, { type: "fx", fx: { kind: "victory", id: winner?.rt.id ?? null, name: winner?.p.name ?? null, draw } });
   emit(world, { type: "raidEnded" });
 }

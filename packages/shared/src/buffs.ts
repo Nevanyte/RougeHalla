@@ -117,7 +117,9 @@ const ROWS: readonly BuffRow[] = [
   },
   { id: "inquisitor", effects: [{ k: "vs", test: "streak", arg: 3, v: 0.12, needs: "status" }], worksWith: ["any"], counters: ["longDuels"] },
   { id: "executioner", effects: [{ k: "vs", test: "hpBelow", arg: 0.3, v: 0.3 }], worksWith: ["any"], counters: ["healers", "holy"] },
-  { id: "plagueRat", effects: [{ k: "stat", stat: "attackSpeed", v: 0.08 }], worksWith: ["any"], counters: ["any"] },
+  // Attack speed moves weapon damage only: +8% weapon dps is +8% of all damage for Frost and Holy, +4% for Plague, +2% for
+  // Fire and +0.1% for Sentenced (testing/TUNING_ROGUE.md), so it suits the weapon-damage factions (owner left it to us).
+  { id: "plagueRat", effects: [{ k: "stat", stat: "attackSpeed", v: 0.08 }], worksWith: ["frost", "holy", "plague"], counters: ["any"] },
   {
     id: "bloatfly", effects: [{ k: "onHit", status: "dot", per: 4, cap: 1, ms: 3000, needs: "status" }],
     worksWith: ["any"], counters: ["frost", "highHp"],

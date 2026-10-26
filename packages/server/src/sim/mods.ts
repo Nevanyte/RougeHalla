@@ -20,7 +20,7 @@
 //   executeBand  Plague's execute threshold (Pestilence): 0.5 + the sum (executeBandOf), read by sim/factions.ts.
 //   trigger      listed for sim/factions.ts (triggersOf), which runs them.
 // Every registered mod source (world.modSources, e.g. Wishes' attack slow) is asked too: its multipliers multiply into
-// the folded mirrors, its flat bonuses add.
+// the folded mirrors, its flat bonuses add. The attack-speed product is then capped (shared capAsMult, AS_MULT_CAP).
 //
 // When the mirrors are folded (event-driven; nothing folds every fighter every tick):
 //   - recomputeMods(world, c): at once, whenever a source changes. grantBuff (and so transferBuffs) calls it, so a grant
@@ -38,8 +38,8 @@
 // A leaf module: it must not import weapons.ts, arena.ts, ledger.ts, combatant.ts, buffs.ts, a status runtime or anything
 // else that imports it. Type-only imports are fine.
 import {
-  BUFFS, buffScale, decodeFlat, decodeMult, encodeMirrors, EXECUTE_BAND, mirrorsFromSums, rankIn, requirementsMet, scaleEffect,
-  SKILLS, skillLive, skillRows, stacksIn, zeroSums, type Effect, type EffectOf, type StatMirrors, type StatSums,
+  BUFFS, buffScale, capAsMult, decodeFlat, decodeMult, encodeMirrors, EXECUTE_BAND, mirrorsFromSums, rankIn, requirementsMet,
+  scaleEffect, SKILLS, skillLive, skillRows, stacksIn, zeroSums, type Effect, type EffectOf, type StatMirrors, type StatSums,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import type { Combatant, FighterState } from "./combatant";
@@ -181,7 +181,7 @@ function sameContribution(a: Readonly<Contribution>, b: Readonly<Contribution>):
     && a.armor === b.armor && a.shield === b.shield);
 }
 
-/** The mirrors (wire form) the folded sums and the sources' combined answer give. */
+/** The mirrors (wire form) the folded sums and the sources' combined answer give, attack speed capped on the total. */
 function mirrorsOf(sums: Readonly<StatSums>, src: Readonly<Contribution>): StatMirrors {
   const m = mirrorsFromSums(sums);
   if (src !== NONE) {
@@ -191,6 +191,7 @@ function mirrorsOf(sums: Readonly<StatSums>, src: Readonly<Contribution>): StatM
     m.armorBonus += src.armor;
     m.shieldBonus += src.shield;
   }
+  m.asMult = capAsMult(m.asMult);
   return encodeMirrors(m);
 }
 

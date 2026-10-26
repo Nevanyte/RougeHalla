@@ -9,7 +9,9 @@
 //   hit and heal amounts        tenths
 //   buff stacks and total       thousandths
 //   windup ms, projEnd t0       whole ms (the batch `t` stays exact)
-// Weapons, projectile kinds, end reasons, signatures and buffs travel as indices into the tables below. They are wire
+//   cast ms, status ms          whole ms
+// Weapons, projectile kinds, end reasons, signatures, buffs, abilities, status kinds and cast-end reasons travel as
+// indices into the tables below (abilities and status kinds are the order of ABILITY_IDS and STATUS_KINDS). They are wire
 // format: client and server ship together, so a table may grow at its end but must never be reordered.
 //
 // Ids: a string field holding a player or mob id travels as a number, its index in the synced `RaidState.roster` (a byte,
@@ -26,7 +28,9 @@
 //
 // Tuple layouts ([0] is always the kind code; `W` = weapon code, null where the type allows null):
 //   windup   [by, W, a, ms]                 swing    [by, W, x, y, a]
-//   hit      [id, by|null, amount, flags]   (flags = W+1 (0: none), plus (SIG+1) x HIT_RADIX when a signature dealt it)
+//   hit      [id, by|null, amount, flags, AB?]   (flags = W+1 (0: none), plus (SIG+1) x HIT_RADIX when a signature dealt it;
+//                                            AB: the ability code, only for a hit an ability dealt, which has no weapon. A
+//                                            reader that predates it ignores the fifth field)
 //   block    [id, by, W, passive?]          (passive: 1; left off when false)
 //   stagger  [id]                           teleport []        cancel [id]
 //   projEnd  [id, proj, reason, x, y, x0?, y0?, t0?]   (x0, y0, t0: where and when it was loosed. Only for a projectile no
@@ -36,14 +40,19 @@
 //   death    [id, x, y, by|null]            heal     [id, amount]
 //   bounty   [id, name, bounty]             buff     [id, B, stacks, total]   (B = buff code, the BUFF table)
 //   victory  [id|null, name|null, draw 0|1]
+//   cast     [by, AB, ms, target|null, x, y]        castEnd  [by, AB, reason]
+//   castLand [by, AB, target|null, x, y, x2?, y2?]  (x2 and y2 together, only for a blink: its landing)
+//   status   [id, ST, ms, by|null]                  (a status instance newly applied to `id`)
 //   campCleared [camp]                      (the camp's index in map.camps)
 //   chestTaken  [chest, by, option]         (chest: the reward container's id, a string; option -1 = a skip)
 // Kind 11 was `combo` (the kill combos, retired in roguelike R4a): never emitted and never reused; a client reading one
 // drops it (onDrop).
 // Adding a field to an FxEvent means adding it to its tuple here (and to the round-trip test).
+import { ABILITY_IDS, type AbilityId, type CastEndReason } from "./abilities";
 import type { BuffId } from "./buffs";
 import type { SignatureKind } from "./signatures";
 import type { FxBatch, FxEvent, FxTuple, ProjectileEnd, ProjectileLaunch, TimedFx } from "./messages";
+import { STATUS_KINDS, type StatusKind } from "./status";
 import { WEAPONS, type ProjectileKind, type WeaponId } from "./weapons";
 
 /** Units per integer step on the wire: an angle of 1.5707 is sent as 157 and decodes to 1.57. */
@@ -64,7 +73,7 @@ function table<K extends string>(code: Readonly<Record<K, number>>): Table<K> {
 /** "combo" stays in the table only to hold its code (11) forever: nothing packs it, and unpacking it yields nothing. */
 const KIND = table<FxEvent["kind"] | "combo">({
   windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10, combo: 11,
-  victory: 12, cancel: 13, campCleared: 14, chestTaken: 15,
+  victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19,
 });
 const WEAPON = table<WeaponId>({ sword: 0, bow: 1, wand: 2, shield: 3, axe: 4 });
 const PROJECTILE = table<ProjectileKind>({ arrow: 0, ball: 1 });
@@ -78,6 +87,12 @@ const BUFF = table<BuffId>({
   frostWisp: 12, iceGolem: 13, rimeStalker: 14, glacialWarden: 15,
   acolyte: 16, seraphShard: 17, penitent: 18, bloodSaint: 19,
 });
+/** A list's members by position: a new ability or status kind is a new code at the end of its list. */
+const indexed = <K extends string>(list: readonly K[]): Readonly<Record<K, number>> =>
+  Object.fromEntries(list.map((k, i) => [k, i])) as Record<K, number>;
+const ABILITY = table<AbilityId>(indexed(ABILITY_IDS));
+const STATUS = table<StatusKind>(indexed(STATUS_KINDS));
+const CAST_END = table<CastEndReason>({ fizzle: 0, interrupted: 1, cancelled: 2 });
 
 const KC = KIND.code;
 const { pos: POS, angle: ANGLE, amount: AMOUNT, stacks: STACKS, ms: MS, flight: FLIGHT } = FX_SCALE;
@@ -153,7 +168,9 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
     case "swing": return [KC.swing, fx.by, WEAPON.code[fx.weapon], enc(fx.x, POS), enc(fx.y, POS), enc(fx.a, ANGLE)];
     case "hit": {
       const flags = (fx.weapon == null ? 0 : WEAPON.code[fx.weapon] + 1) + (fx.sig === undefined ? 0 : (SIG.code[fx.sig] + 1) * HIT_RADIX);
-      return [KC.hit, fx.id, fx.by ?? null, enc(fx.amount, AMOUNT), flags];
+      const tuple: FxTuple = [KC.hit, fx.id, fx.by ?? null, enc(fx.amount, AMOUNT), flags];
+      if (fx.ability !== undefined) tuple.push(ABILITY.code[fx.ability]);
+      return tuple;
     }
     case "block": {
       const tuple: FxTuple = [KC.block, fx.id, fx.by, WEAPON.code[fx.weapon]];
@@ -173,6 +190,14 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
     case "bounty": return [KC.bounty, fx.id, fx.name, Math.round(fx.bounty) + 0];
     case "buff": return [KC.buff, fx.id, BUFF.code[fx.buff], enc(fx.stacks, STACKS), enc(fx.total, STACKS)];
     case "victory": return [KC.victory, fx.id ?? null, fx.name ?? null, fx.draw ? 1 : 0];
+    case "cast": return [KC.cast, fx.by, ABILITY.code[fx.ability], enc(fx.ms, MS), fx.target ?? null, enc(fx.x, POS), enc(fx.y, POS)];
+    case "castLand": {
+      const tuple: FxTuple = [KC.castLand, fx.by, ABILITY.code[fx.ability], fx.target ?? null, enc(fx.x, POS), enc(fx.y, POS)];
+      if (fx.x2 !== undefined && fx.y2 !== undefined) tuple.push(enc(fx.x2, POS), enc(fx.y2, POS));
+      return tuple;
+    }
+    case "castEnd": return [KC.castEnd, fx.by, ABILITY.code[fx.ability], CAST_END.code[fx.reason]];
+    case "status": return [KC.status, fx.id, STATUS.code[fx.status], enc(fx.ms, MS), fx.by ?? null];
     case "campCleared": return [KC.campCleared, Math.round(fx.camp) + 0];
     case "chestTaken": return [KC.chestTaken, fx.chest, fx.by, Math.round(fx.option) + 0];
     default: {
@@ -272,9 +297,15 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
       const w = flags % HIT_RADIX, code = Math.floor(flags / HIT_RADIX);
       const weapon = w === 0 ? null : WEAPON.name[w - 1];
       if (weapon === undefined) return null;
-      if (code === 0) return { kind, id, by, amount, weapon };
-      const sig = SIG.name[code - 1];
-      return sig !== undefined ? { kind, id, by, amount, weapon, sig } : null;
+      // A fifth field is the ability (a bad code loses the tuple: it would otherwise read as a plain hit).
+      const ability = tuple.length > 5 ? pick(ABILITY, tuple[5]) : undefined;
+      if (tuple.length > 5 && ability === undefined) return null;
+      const sig = code === 0 ? undefined : SIG.name[code - 1];
+      if (code !== 0 && sig === undefined) return null;
+      const hit: Extract<FxEvent, { kind: "hit" }> = { kind, id, by, amount, weapon };
+      if (sig !== undefined) hit.sig = sig;
+      if (ability !== undefined) hit.ability = ability;
+      return hit;
     }
     case "block": {
       const id = str(tuple[1], names), by = str(tuple[2], names), weapon = pick(WEAPON, tuple[3]);
@@ -324,6 +355,30 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
     case "victory": {
       const id = strOrNull(tuple[1], names), name = strOrNull(tuple[2], names), draw = flag(tuple[3]);
       return id !== undefined && name !== undefined && draw !== undefined ? { kind, id, name, draw } : null;
+    }
+    case "cast": {
+      const by = str(tuple[1], names), ability = pick(ABILITY, tuple[2]), ms = dec(tuple[3], MS);
+      const target = strOrNull(tuple[4], names), x = dec(tuple[5], POS), y = dec(tuple[6], POS);
+      return by !== undefined && ability !== undefined && ms !== undefined && target !== undefined && x !== undefined && y !== undefined
+        ? { kind, by, ability, ms, target, x, y }
+        : null;
+    }
+    case "castLand": {
+      const by = str(tuple[1], names), ability = pick(ABILITY, tuple[2]), target = strOrNull(tuple[3], names);
+      const x = dec(tuple[4], POS), y = dec(tuple[5], POS);
+      if (by === undefined || ability === undefined || target === undefined || x === undefined || y === undefined) return null;
+      if (tuple.length <= 6) return { kind, by, ability, target, x, y };
+      // x2 and y2 only come together.
+      const x2 = dec(tuple[6], POS), y2 = dec(tuple[7], POS);
+      return x2 !== undefined && y2 !== undefined ? { kind, by, ability, target, x, y, x2, y2 } : null;
+    }
+    case "castEnd": {
+      const by = str(tuple[1], names), ability = pick(ABILITY, tuple[2]), reason = pick(CAST_END, tuple[3]);
+      return by !== undefined && ability !== undefined && reason !== undefined ? { kind, by, ability, reason } : null;
+    }
+    case "status": {
+      const id = str(tuple[1], names), status = pick(STATUS, tuple[2]), ms = dec(tuple[3], MS), by = strOrNull(tuple[4], names);
+      return id !== undefined && status !== undefined && ms !== undefined && by !== undefined ? { kind, id, status, ms, by } : null;
     }
     case "campCleared": {
       const camp = tuple[1];

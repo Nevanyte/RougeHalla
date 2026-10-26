@@ -14,6 +14,9 @@
 // Numbers: `v` on a stat row is a fraction (0.1 = +10%, -0.08 = -8%); on a flat row and on a `while` row whose stat is
 // armor or shield it is points of that stat. Durations end in `ms`.
 
+import type { AbilityEffect } from "./abilities";
+import type { StatusKind } from "./status";
+
 /**
  * Stats a `stat` row moves by a fraction (+10% = 0.1). `executeBand` (roguelike R5, Pestilence) raises the hp share below
  * which Plague's execute runs, from 0.5 by `v` (0.1: it starts at 60%); it does nothing for any other faction.
@@ -45,30 +48,17 @@ export type WhileCond = "chasingLock" | "hpBelow" | "afterCast";
 /** Events a `trigger` row fires on (`arg` is the hp threshold for hpBelow). */
 export type TriggerOn = "hpBelow" | "kill" | "hitTaken";
 
-/**
- * PLACEHOLDER: a mirror of `StatusKind` in shared/src/status.ts on the Wishes branch (claude/wishes-349ec2), same members
- * in the same order (that order is their wire code). Wishes owns the status runtime (owner ruling: D21 reversed). When
- * status.ts merges, replace this declaration with `import type { StatusKind } from "./status";` and stop exporting it
- * from here (index.ts re-exports both modules, so two declarations would collide). There is no "chill" (Frost's chill
- * stays its faction signature) and no "barrier" yet (the kill barrier stays PlayerState.barrier; R6 appends it).
- * Nothing in R0 reads a status.
- */
-export type StatusKind =
-  | "stun" | "root" | "silence" | "slowMove" | "slowAttack" | "antiHeal" | "dot"
-  | "invulnerable" | "untargetable" | "hidden" | "zoned" | "deathFloor" | "haste";
-
 /** The statuses an `onHit` row may apply. */
 export type OnHitStatus = Extract<StatusKind, "slowMove" | "slowAttack" | "antiHeal" | "dot">;
 
 /**
- * PLACEHOLDER for what a `trigger` row does: it becomes Wishes' `AbilityEffect` (shared/src/abilities.ts, their D28: one
- * implementation of heal, status and cleanse) once that file exists here, so this uses their `do:` verbs and the swap is
- * a rename. heal, barrier and cooldown are R6 appends on their side. Shares are of the fighter's max hp; `to: "target"`
- * is whoever set the trigger off (a hitTaken's attacker).
+ * What a `trigger` row does. Its `status` and `cleanse` verbs ARE Wishes' `AbilityEffect` members (abilities.ts, D28: one
+ * shape and one implementation for a cast and a trigger). `heal`, `barrier` and `cooldown` stay trigger-only until R6
+ * appends them to `AbilityEffect`; then this becomes `AbilityEffect` itself. Shares are of the fighter's max hp;
+ * `to: "target"` is whoever set the trigger off (a hitTaken's attacker).
  */
 export type TriggerAction =
-  | { do: "status"; to: "self" | "target"; status: StatusKind; ms: number; value?: number }
-  | { do: "cleanse"; to: "self" | "target"; classes: readonly ("soft" | "hard" | "never")[] }
+  | Extract<AbilityEffect, { do: "status" | "cleanse" }>
   /** `ms` (roguelike R5, Second Wind): spread over that long, in HEAL_OVER_TIME_STEP_MS steps, the first at once. */
   | { do: "heal"; share: number; ignoreLockout?: boolean; ms?: number }
   | { do: "barrier"; share: number; ms: number }

@@ -39,7 +39,7 @@ export function zoneLabel(zone: string): string {
 }
 
 /** The status marker's tooltip sentence for a row the server does not apply yet. */
-export const COMING_NOTE = "Not active yet: this effect needs the status system (coming).";
+export const COMING_NOTE = "Not active yet: this effect needs on-hit statuses (coming).";
 
 /**
  * The tooltip, one line per row:

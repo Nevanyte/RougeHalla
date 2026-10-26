@@ -36,6 +36,7 @@ import { activeWeapon, timingsOf } from "./combatant";
 import type { InputQueue } from "./inputs";
 import type { MobCombatant } from "./mobLife";
 import { velocityOf } from "./movement";
+import { isStunned, isUntargetableId } from "./status";
 import { cancelAction } from "./weapons";
 import { collisionMap, type MobBrain, type MobRuntime, type World } from "./world";
 
@@ -75,6 +76,8 @@ function pickTarget(world: World, b: MobBrain): string | null {
       b.threat.delete(id);
       continue;
     }
+    // Hidden or untargetable (Swarm): the threat is kept, but it is not a target while it is out of reach.
+    if (isUntargetableId(world, id)) continue;
     if (threat > most) {
       best = id;
       most = threat;
@@ -173,6 +176,8 @@ export function thinkMobs(world: World, dtMs: number): void {
     if (b === undefined || b.mode === "idle") continue;
     const s = world.state.mobs.get(rt.id);
     if (s === undefined || s.status !== "alive") continue;
+    // A stunned mob does not think (step.ts drains its inputs); its timers wait with it.
+    if (isStunned(world, { kind: "mob", id: rt.id, s, rt })) continue;
     // It walked to where it was going (or the walk was refused): it is standing, whatever it last asked for.
     if (b.moving && rt.path.length === 0) b.moving = false;
     if (b.mode === "fight") fight(world, s, rt, b, now, dtMs);
@@ -190,6 +195,8 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
   }
   let id = b.target;
   let target = standingPlayer(world, id);
+  // A target that turned untargetable is as good as gone (the pick below skips it too); with no one else, the mob goes home.
+  if (target !== null && isUntargetableId(world, id!)) target = null;
   if (id === null || target === null) {
     id = b.target = pickTarget(world, b);
     target = standingPlayer(world, id);

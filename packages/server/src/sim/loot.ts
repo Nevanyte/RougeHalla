@@ -12,6 +12,7 @@ import {
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { activeWeapon, setSlot } from "./combatant";
 import { rollChestWeapon, rollGroundWeapon } from "./lootTables";
+import { actionBlocked } from "./status";
 import { weaponChanged } from "./weapons";
 import { collisionMap, emit, nextId, type ActionHandler, type World } from "./world";
 
@@ -85,6 +86,7 @@ export function spawnLoot(world: World): void {
 
 export const handlePickup: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "pickup" || c.kind !== "player") return;
+  if (actionBlocked(world, c)) { toast(world, c.id, "Can't do that now"); return; }
   const p = c.s;
   const box = world.state.containers.get(cmd.containerId);
   if (!box || bornThisTick(world, box.id)) { toast(world, c.id, "Nothing there"); return; }
