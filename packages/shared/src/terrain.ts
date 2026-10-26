@@ -2,7 +2,8 @@
 // (that is `tiles`, map.ts): a kind only says which tile class it may sit on, and `validateTerrain` checks that the two
 // layers agree. Kind ids are append-only (generator output, tests and the client's art index them). The numbers below
 // are first picks for the hazards; their effects are applied by the sim (burn, bog, ice, light), not here.
-import { TILE } from "./constants";
+import { PLAYER_SPEED, TILE } from "./constants";
+import { FACTION_IDS } from "./factions";
 import {
   REGION_COLISEUM,
   REGION_FACTIONS,
@@ -279,4 +280,108 @@ function countComponents(comp: Int32Array): number {
   let max = -1;
   for (let i = 0; i < comp.length; i++) if (comp[i] > max) max = comp[i];
   return max + 1;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// What a surface does to one fighter (part B). The sim (server/src/sim/terrainEffects.ts) and the client's prediction ask
+// the same table, so both sides agree on the tile under a fighter's centre by construction.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** The product of all of a fighter's move modifiers (chill, buffs, bog, later statuses) never drops below this while it is above 0 (a root's 0 stays 0). */
+export const MOVE_MULT_FLOOR = 0.35;
+
+/** What a surface does to one fighter, its faction's home rule applied. Precomputed per (kind, faction): the lookup allocates nothing. */
+export interface SurfaceEffect {
+  readonly kind: number;
+  /** Walk speed multiplier (1 = none). */
+  readonly speedMult: number;
+  /** Slide traction in u/s^2 (see slipAccel); 0 = full grip (off ice, or exempt). */
+  readonly accel: number;
+  /** Share of max hp per second lost as true damage. */
+  readonly burnShare: number;
+  /** Share of max hp per second healed through heal(). */
+  readonly healShare: number;
+}
+
+/** Traction of a surface with `slipMs` milliseconds from rest to PLAYER_SPEED (0 = no slide). */
+export function slipAccel(slipMs: number): number {
+  return slipMs > 0 ? (PLAYER_SPEED * 1000) / slipMs : 0;
+}
+
+/**
+ * Column 0 is "no home rule" (an empty or unknown faction: a training dummy, a test); column 1 + i is FACTION_IDS[i].
+ * `exempt` gives the neutral effect on the kind's home faction; `boost` multiplies the kind's own magnitude (burn, heal, and
+ * the distance of speedMult from 1) by `homeMult`. A slide's traction is never boosted.
+ */
+const SURFACE: readonly (readonly SurfaceEffect[])[] = TERRAINS.map((spec, kind) => {
+  const base: SurfaceEffect = {
+    kind, speedMult: spec.speedMult, accel: slipAccel(spec.slipMs), burnShare: spec.burnShare, healShare: spec.healShare,
+  };
+  const neutral: SurfaceEffect = { kind, speedMult: 1, accel: 0, burnShare: 0, healShare: 0 };
+  const boosted: SurfaceEffect = {
+    kind,
+    speedMult: 1 + (spec.speedMult - 1) * spec.homeMult,
+    accel: base.accel,
+    burnShare: spec.burnShare * spec.homeMult,
+    healShare: spec.healShare * spec.homeMult,
+  };
+  const row: SurfaceEffect[] = [base];
+  for (const f of FACTION_IDS) {
+    const home = spec.home !== null && f === spec.home;
+    row.push(home && spec.homeRule === "exempt" ? neutral : home && spec.homeRule === "boost" ? boosted : base);
+  }
+  return row;
+});
+
+const FACTION_COLUMN: ReadonlyMap<string, number> = new Map(FACTION_IDS.map((f, i) => [f, i + 1]));
+
+/** `faction` is a fighter's `faction` string (player or regional mob); "" or an unknown one gets no home rule. A kind the table lacks is plain ground. */
+export function surfaceEffect(kind: number, faction: string): SurfaceEffect {
+  const row = SURFACE[kind] ?? SURFACE[TERRAIN_NONE];
+  return row[FACTION_COLUMN.get(faction) ?? 0];
+}
+
+/** The effect under a world point (a fighter's centre, the tile `terrainAt` reads). */
+export function surfaceAt(map: GameMap, x: number, y: number, faction: string): SurfaceEffect {
+  return surfaceEffect(terrainAt(map, x, y), faction);
+}
+
+/** Which effects a map holds at all: a system with nothing to do returns at once. */
+export interface MapHazards {
+  readonly burn: boolean;
+  readonly slow: boolean;
+  readonly slip: boolean;
+  readonly heal: boolean;
+}
+
+const hazardCache = new WeakMap<Uint8Array, MapHazards>();
+
+/**
+ * The kinds of effect the map's terrain holds (the base effect of every kind present, before any home rule), cached per
+ * `terrain` array, which `withGates` copies share. All false for a zeroed layer. A test that edits terrain after a query
+ * calls `forgetHazards`.
+ */
+export function hazardsOf(map: GameMap): MapHazards {
+  let h = hazardCache.get(map.terrain);
+  if (h) return h;
+  const present = new Uint8Array(256);
+  const t = map.terrain;
+  for (let i = 0; i < t.length; i++) present[t[i]] = 1;
+  let burn = false, slow = false, slip = false, heal = false;
+  for (let k = 1; k < TERRAINS.length; k++) {
+    if (!present[k]) continue;
+    const spec = TERRAINS[k];
+    if (spec.burnShare > 0) burn = true;
+    if (spec.speedMult !== 1) slow = true;
+    if (spec.slipMs > 0) slip = true;
+    if (spec.healShare > 0) heal = true;
+  }
+  h = { burn, slow, slip, heal };
+  hazardCache.set(map.terrain, h);
+  return h;
+}
+
+/** For a test that changes terrain after `hazardsOf` read it. */
+export function forgetHazards(map: GameMap): void {
+  hazardCache.delete(map.terrain);
 }

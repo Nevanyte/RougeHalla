@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { TILE } from "../src/constants";
+import { PLAYER_SPEED, TILE } from "../src/constants";
+import { FACTION_IDS } from "../src/factions";
 import {
   REGION_COLISEUM,
   REGION_FACTIONS,
@@ -27,6 +28,12 @@ import {
   terrainAt,
   terrainAtTile,
   validateTerrain,
+  MOVE_MULT_FLOOR,
+  forgetHazards,
+  hazardsOf,
+  slipAccel,
+  surfaceAt,
+  surfaceEffect,
 } from "../src/terrain";
 
 const tc = tileToWorldCenter;
@@ -438,5 +445,114 @@ describe("validateTerrain on generated maps", () => {
       const m = generateMap(seed);
       expect(validateTerrain(m, { styled: true }), `seed ${seed}`).toEqual([]);
     }
+  });
+});
+
+describe("surface effects (part B)", () => {
+  const OTHERS = FACTION_IDS.filter((f) => f !== "fire");
+
+  it("pins the numbers: ember burns 2% of max hp per second for everyone but fire", () => {
+    for (const f of OTHERS) expect(surfaceEffect(TERRAIN_EMBER, f).burnShare).toBe(0.02);
+    expect(surfaceEffect(TERRAIN_EMBER, "fire").burnShare).toBe(0);
+    expect(surfaceEffect(TERRAIN_EMBER, "").burnShare).toBe(0.02);
+  });
+
+  it("bog slows to 0.7 for everyone but plague", () => {
+    for (const f of FACTION_IDS) expect(surfaceEffect(TERRAIN_BOG, f).speedMult).toBe(f === "plague" ? 1 : 0.7);
+    expect(surfaceEffect(TERRAIN_BOG, "").speedMult).toBe(0.7);
+  });
+
+  it("ice has the traction of 400 ms to PLAYER_SPEED for everyone but frost, which keeps full grip", () => {
+    for (const f of FACTION_IDS) expect(surfaceEffect(TERRAIN_ICE, f).accel).toBe(f === "frost" ? 0 : (PLAYER_SPEED * 1000) / 400);
+    expect(surfaceEffect(TERRAIN_ICE, "").accel).toBe(425);
+    expect(slipAccel(400)).toBe(425);
+    expect(slipAccel(0)).toBe(0);
+  });
+
+  it("light heals 0.6% of max hp per second, and holy twice that", () => {
+    for (const f of FACTION_IDS) expect(surfaceEffect(TERRAIN_LIGHT, f).healShare).toBeCloseTo(f === "holy" ? 0.012 : 0.006, 12);
+    expect(surfaceEffect(TERRAIN_LIGHT, "").healShare).toBe(0.006);
+  });
+
+  it("an empty or unknown faction gets the base effect, and every other kind is neutral for everyone", () => {
+    expect(surfaceEffect(TERRAIN_BOG, "nobody").speedMult).toBe(0.7);
+    for (const kind of [TERRAIN_NONE, TERRAIN_LAVA, TERRAIN_FENCE, TERRAIN_CREVASSE]) {
+      for (const f of ["", ...FACTION_IDS]) {
+        const e = surfaceEffect(kind, f);
+        expect([e.kind, e.speedMult, e.accel, e.burnShare, e.healShare]).toEqual([kind, 1, 0, 0, 0]);
+      }
+    }
+    // A kind byte the catalog lacks is plain ground.
+    expect(surfaceEffect(200, "frost")).toBe(surfaceEffect(TERRAIN_NONE, ""));
+  });
+
+  it("exempt gives the neutral effect, boost multiplies the kind's own magnitude, and the lookup allocates nothing", () => {
+    const home = surfaceEffect(TERRAIN_EMBER, "fire");
+    expect(home).toEqual({ kind: TERRAIN_EMBER, speedMult: 1, accel: 0, burnShare: 0, healShare: 0 });
+    expect(surfaceEffect(TERRAIN_LIGHT, "holy").healShare).toBeCloseTo(TERRAINS[TERRAIN_LIGHT].healShare * TERRAINS[TERRAIN_LIGHT].homeMult, 12);
+    expect(surfaceEffect(TERRAIN_LIGHT, "holy").kind).toBe(TERRAIN_LIGHT);
+    expect(surfaceEffect(TERRAIN_EMBER, "frost")).toBe(surfaceEffect(TERRAIN_EMBER, "sentenced"));
+    expect(surfaceEffect(TERRAIN_BOG, "fire")).toBe(surfaceEffect(TERRAIN_BOG, "fire"));
+  });
+
+  it("surfaceAt reads the tile under the centre: x = 64.0 is tile 2, 0.01 u inside is bog and 0.01 u outside is not", () => {
+    const tiles = new Uint8Array(8 * 4).fill(TILE_FLOOR);
+    const terrain = new Uint8Array(8 * 4);
+    terrain[1 * 8 + 2] = TERRAIN_BOG; // tile (2, 1): x in [64, 96), y in [32, 64)
+    const map = mapFromTiles(8, 4, tiles, 0, terrain);
+    expect(surfaceAt(map, 64, 40, "frost").speedMult).toBe(0.7);
+    expect(surfaceAt(map, 64 + 0.01, 40, "frost").speedMult).toBe(0.7);
+    expect(surfaceAt(map, 64 - 0.01, 40, "frost").speedMult).toBe(1);
+    expect(surfaceAt(map, 96 - 0.01, 40, "frost").speedMult).toBe(0.7);
+    expect(surfaceAt(map, 96, 40, "frost").speedMult).toBe(1);
+    expect(surfaceAt(map, 80, 32 - 0.01, "frost").speedMult).toBe(1);
+    expect(surfaceAt(map, 80, 40, "plague").speedMult).toBe(1);
+    // Out of bounds is plain ground.
+    expect(surfaceAt(map, -5, 40, "frost").kind).toBe(TERRAIN_NONE);
+    expect(surfaceAt(map, 9000, 40, "frost").kind).toBe(TERRAIN_NONE);
+  });
+
+  it("hazardsOf is all false on a zero terrain, and is cached per terrain array", () => {
+    const map = mapFromTiles(6, 6, new Uint8Array(36));
+    const h = hazardsOf(map);
+    expect(h).toEqual({ burn: false, slow: false, slip: false, heal: false });
+    expect(hazardsOf(map)).toBe(h);
+    // A copy that shares the terrain array (what withGates makes) shares the answer.
+    expect(hazardsOf({ ...map, tiles: map.tiles.slice() })).toBe(h);
+  });
+
+  it("hazardsOf lists the effects the map holds, one kind at a time", () => {
+    const cases: Array<[number, { burn: boolean; slow: boolean; slip: boolean; heal: boolean }]> = [
+      [TERRAIN_EMBER, { burn: true, slow: false, slip: false, heal: false }],
+      [TERRAIN_BOG, { burn: false, slow: true, slip: false, heal: false }],
+      [TERRAIN_ICE, { burn: false, slow: false, slip: true, heal: false }],
+      [TERRAIN_LIGHT, { burn: false, slow: false, slip: false, heal: true }],
+      [TERRAIN_LAVA, { burn: false, slow: false, slip: false, heal: false }],
+      [TERRAIN_FENCE, { burn: false, slow: false, slip: false, heal: false }],
+    ];
+    for (const [kind, want] of cases) {
+      const terrain = new Uint8Array(36);
+      terrain[14] = kind;
+      expect(hazardsOf(mapFromTiles(6, 6, new Uint8Array(36), 0, terrain)), TERRAINS[kind].key).toEqual(want);
+    }
+    const mixed = new Uint8Array(36);
+    mixed[7] = TERRAIN_EMBER;
+    mixed[20] = TERRAIN_ICE;
+    expect(hazardsOf(mapFromTiles(6, 6, new Uint8Array(36), 0, mixed))).toEqual({ burn: true, slow: false, slip: true, heal: false });
+  });
+
+  it("forgetHazards drops the cached answer for a terrain that was edited", () => {
+    const map = mapFromTiles(6, 6, new Uint8Array(36));
+    expect(hazardsOf(map).burn).toBe(false);
+    map.terrain[9] = TERRAIN_EMBER;
+    expect(hazardsOf(map).burn).toBe(false); // stale until told
+    forgetHazards(map);
+    expect(hazardsOf(map).burn).toBe(true);
+  });
+
+  it("the move-speed floor is 0.35", () => {
+    expect(MOVE_MULT_FLOOR).toBe(0.35);
+    // Today's worst stack, chill x bog, is above it.
+    expect(0.7 * 0.7).toBeGreaterThan(MOVE_MULT_FLOOR);
   });
 });

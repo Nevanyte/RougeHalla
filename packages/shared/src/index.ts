@@ -24,3 +24,4 @@ export * from "./cosmetics";
 export * from "./achievements";
 export * from "./effects";
 export * from "./mods";
+export * from "./walk";
