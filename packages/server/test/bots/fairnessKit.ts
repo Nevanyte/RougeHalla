@@ -1,0 +1,723 @@
+// The fairness kit (docs/BOTS.md 3.7): seeded scenarios (a run of frames around one bot), perturbations that change only
+// what a human at that seat cannot see, and the checks that an output did not move. perception.test.ts and
+// fairness.test.ts run the kit through perception + frames. At integration the same scenarios and perturbations go through
+// the whole brain (`assertBlind(run, ...)` with a `run` that returns the commands), so a leak anywhere downstream fails the
+// same way. Plain states here satisfy perception's StateLike; toSchemaState builds the real schema objects from one.
+import {
+  FACTION_IDS, hasLineOfSight, INTERACT_RANGE, isWeaponId, mulberry32, packFx, WEAPON_IDS,
+  type FxBatch, type FxEvent, type GameMap, type ProjectileLaunch, type Rng, type Vec2, type WeaponId,
+} from "@raid/shared";
+import { ContainerState, ItemState, MobState, PlayerState, RaidState } from "@raid/shared/schema";
+import { createFrameRing } from "../../src/bots/brain/frames";
+import { perceive, type PerceptionInput } from "../../src/bots/brain/perception";
+import { BOT_VIEW, FRAME_MARGIN, MINIMAP_QUANT, type ComposeConfig, type Features, type MinimapView, type Percept } from "../../src/bots/brain/types";
+import { features as featureSet, testMap } from "./fixtures";
+
+// ============================================================================================================ plain states
+
+export interface PlainPlayer {
+  name: string; look: number; bot: boolean; x: number; y: number; facing: number; hp: number; maxHp: number; status: string;
+  faction: string; weapon0: string; weapon1: string; slot: number; moveSeq: number; attackTarget: string; drawStartedAt: number;
+  readyAt: number; kills: number; gv: number; bounty: number; immuneUntil: number; sig: number; brand: number; mobKills: number;
+  stacksHp: number; stacksAs: number; stacksMs: number; asMult: number; windupMult: number; speedMult: number; armorBonus: number;
+  shieldBonus: number; barrier: number;
+  /** Wishes' EFFECT_* bits: only set when a test plays a branch with status effects. */
+  effects?: number;
+}
+
+export interface PlainMob {
+  kind: string; name: string; x: number; y: number; facing: number; hp: number; maxHp: number; status: string; faction: string;
+  weapon0: string; weapon1: string; slot: number; drawStartedAt: number; readyAt: number; sig: number; brand: number; effects?: number;
+}
+
+export interface PlainItem { uid: string; def: string }
+export interface PlainContainer { id: string; kind: string; x: number; y: number; label: string; items: PlainItem[] }
+
+export interface PlainState {
+  phase: string; seed: number; serverTime: number; tick: number; lobbyEndsAt: number; raidStartedAt: number; minPlayers: number;
+  startedWith: number; patienceEndsAt: number; inColiseum: boolean; gatesLocked: boolean; suddenDeathAt: number; winner: string;
+  training: boolean;
+  players: Map<string, PlainPlayer>;
+  mobs: Map<string, PlainMob>;
+  containers: Map<string, PlainContainer>;
+  roster: string[];
+}
+
+export function plainPlayer(over: Partial<PlainPlayer> = {}): PlainPlayer {
+  return {
+    name: "P", look: 0, bot: false, x: 0, y: 0, facing: 0, hp: 500, maxHp: 500, status: "alive", faction: "fire", weapon0: "axe",
+    weapon1: "", slot: 0, moveSeq: 0, attackTarget: "", drawStartedAt: 0, readyAt: 0, kills: 0, gv: 0, bounty: 0, immuneUntil: 0, sig: 0,
+    brand: 0, mobKills: 0, stacksHp: 0, stacksAs: 0, stacksMs: 0, asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0,
+    barrier: 0, ...over,
+  };
+}
+
+export function plainMob(over: Partial<PlainMob> = {}): PlainMob {
+  return {
+    kind: "mob", name: "Mob", x: 0, y: 0, facing: 0, hp: 200, maxHp: 200, status: "alive", faction: "fire", weapon0: "axe", weapon1: "",
+    slot: 0, drawStartedAt: 0, readyAt: 0, sig: 0, brand: 0, ...over,
+  };
+}
+
+export function plainContainer(over: Partial<PlainContainer> & { id: string }): PlainContainer {
+  return { kind: "chest", x: 0, y: 0, label: "", items: [], ...over };
+}
+
+export function plainState(over: Partial<PlainState> = {}): PlainState {
+  return {
+    phase: "active", seed: 7, serverTime: 100_000, tick: 2000, lobbyEndsAt: 0, raidStartedAt: 60_000, minPlayers: 2, startedWith: 6,
+    patienceEndsAt: 400_000, inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "", training: false,
+    players: new Map(), mobs: new Map(), containers: new Map(), roster: [], ...over,
+  };
+}
+
+/** The same state as real schema objects (what the server holds): for the encoder round trip and detectFeatures. */
+export function toSchemaState(p: PlainState): RaidState {
+  const s = new RaidState();
+  s.phase = p.phase;
+  s.seed = p.seed;
+  s.serverTime = p.serverTime;
+  s.tick = p.tick;
+  s.lobbyEndsAt = p.lobbyEndsAt;
+  s.raidStartedAt = p.raidStartedAt;
+  s.minPlayers = p.minPlayers;
+  s.startedWith = p.startedWith;
+  s.patienceEndsAt = p.patienceEndsAt;
+  s.inColiseum = p.inColiseum;
+  s.gatesLocked = p.gatesLocked;
+  s.suddenDeathAt = p.suddenDeathAt;
+  s.winner = p.winner;
+  s.training = p.training;
+  for (const [id, src] of p.players) {
+    const { effects: _effects, ...fields } = src;
+    const ps = new PlayerState();
+    Object.assign(ps, fields);
+    s.players.set(id, ps);
+  }
+  for (const [id, src] of p.mobs) {
+    const { effects: _effects, ...fields } = src;
+    const ms = new MobState();
+    Object.assign(ms, fields);
+    s.mobs.set(id, ms);
+  }
+  for (const [id, src] of p.containers) {
+    const cs = new ContainerState();
+    cs.id = src.id;
+    cs.kind = src.kind;
+    cs.x = src.x;
+    cs.y = src.y;
+    cs.label = src.label;
+    for (const it of src.items) {
+      const item = new ItemState();
+      item.uid = it.uid;
+      item.def = it.def;
+      cs.items.push(item);
+    }
+    s.containers.set(id, cs);
+  }
+  for (const id of p.roster) s.roster.push(id);
+  return s;
+}
+
+// =============================================================================================================== scenarios
+
+export const T0 = 100_000;
+export const FRAME_MS = 50;
+/** The in-process driver's delays (BotFillConfig latency 30, INTERP_DELAY_MS 100). */
+export const IN_PROCESS = { selfDelayMs: 30, worldDelayMs: 130 } as const;
+
+export interface ScenarioFrame {
+  state: PlainState;
+  /** This frame's fx, packed per frame into one batch against the state's roster. */
+  events: FxEvent[];
+  launches: ProjectileLaunch[];
+  toasts: string[];
+}
+
+/** Who is what, for the perturbations: ids by role. "far" is off the frame's box (window + margin + slack) in every frame. */
+export interface ScenarioRoles {
+  onscreenPlayers: string[];
+  onscreenMobs: string[];
+  farPlayers: string[];
+  farMobs: string[];
+  /** Inside the margin band beyond the window's right edge in every frame: in Frames, never in a Percept. */
+  ringPlayers: string[];
+  ringMobs: string[];
+  hidden: string[];
+  farContainers: string[];
+  /** On screen, out of interact range all along. */
+  shutChests: string[];
+  /** Players named by an announcement (a death, a bounty) somewhere in the run. */
+  announced: string[];
+}
+
+export interface Scenario {
+  seed: number;
+  map: GameMap;
+  selfId: string;
+  features: Features;
+  frames: ScenarioFrame[];
+  roles: ScenarioRoles;
+}
+
+export interface ScenarioOptions {
+  frames?: number;
+  /** Play a Wishes-like branch: `effects` on fighters, a hidden and an untargetable player. Default: every other seed. */
+  statusEffects?: boolean;
+  /** No off-screen deaths or bounties (the never-seen check). */
+  quiet?: boolean;
+}
+
+const SLACK = 60;
+const HALF_W = BOT_VIEW.halfW;
+const HALF_H = BOT_VIEW.halfH;
+
+const pick = <T>(rng: Rng, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
+const range = (rng: Rng, lo: number, hi: number): number => lo + (hi - lo) * rng();
+const chance = (rng: Rng, p: number): boolean => rng() < p;
+
+function farFrom(selves: readonly Vec2[], p: Vec2, slack = SLACK): boolean {
+  return selves.every((s) => Math.abs(p.x - s.x) > HALF_W + FRAME_MARGIN + slack || Math.abs(p.y - s.y) > HALF_H + FRAME_MARGIN + slack);
+}
+
+/** A point off every listed self's frame box (with `slack` more), inside the map when there is room. */
+export function farPoint(rng: Rng, map: GameMap, selves: readonly Vec2[], slack = SLACK): Vec2 {
+  const w = map.w * 32, h = map.h * 32;
+  for (let i = 0; i < 400; i++) {
+    const p = { x: Math.round(range(rng, 0, w) * 10) / 10, y: Math.round(range(rng, 0, h) * 10) / 10 };
+    if (farFrom(selves, p, slack)) return p;
+  }
+  return { x: -4000 - Math.round(rng() * 1000), y: -4000 - Math.round(rng() * 1000) };
+}
+
+/** A point in the margin band right of the window around `self` (never in the window from any self within 20 u). */
+function ringPoint(rng: Rng, self: Vec2): Vec2 {
+  return { x: self.x + HALF_W + 30 + Math.round(rng() * 25), y: self.y + Math.round(range(rng, -(HALF_H - 120), HALF_H - 120)) };
+}
+
+const randomWeapon = (rng: Rng): WeaponId => pick(rng, WEAPON_IDS);
+
+function randomPlayer(rng: Rng, name: string, at: Vec2, t: number): PlainPlayer {
+  const maxHp = Math.round(range(rng, 380, 720));
+  const slot = chance(rng, 0.3) ? 1 : 0;
+  return plainPlayer({
+    name, x: at.x, y: at.y, facing: range(rng, -3, 3), hp: Math.max(1, maxHp * range(rng, 0.05, 1)), maxHp,
+    faction: pick(rng, FACTION_IDS), weapon0: randomWeapon(rng), weapon1: chance(rng, 0.6) ? randomWeapon(rng) : "", slot,
+    moveSeq: Math.floor(rng() * 256), attackTarget: chance(rng, 0.4) ? "me" : "", drawStartedAt: chance(rng, 0.3) ? t - 120 : 0,
+    readyAt: t + Math.round(range(rng, -300, 900)), kills: Math.floor(rng() * 4), gv: Math.floor(rng() * 90),
+    bounty: chance(rng, 0.25) ? 10 * Math.floor(1 + rng() * 4) : 0, immuneUntil: chance(rng, 0.2) ? t + 800 : 0,
+    sig: Math.floor(rng() * 16), brand: 5 * Math.floor(rng() * 6), mobKills: Math.floor(rng() * 9), stacksHp: range(rng, 0, 4),
+    stacksAs: range(rng, 0, 4), stacksMs: range(rng, 0, 4), asMult: range(rng, 1, 1.4), speedMult: range(rng, 1, 1.3),
+    barrier: chance(rng, 0.2) ? range(rng, 10, 120) : 0, look: Math.floor(rng() * 1e6), bot: chance(rng, 0.5),
+  });
+}
+
+function randomMob(rng: Rng, name: string, at: Vec2, elite: boolean): PlainMob {
+  const maxHp = elite ? 900 : Math.round(range(rng, 150, 400));
+  return plainMob({
+    kind: elite ? "elite" : "mob", name, x: at.x, y: at.y, facing: range(rng, -3, 3), hp: Math.max(1, maxHp * range(rng, 0.2, 1)), maxHp,
+    faction: pick(rng, FACTION_IDS), weapon0: randomWeapon(rng), weapon1: chance(rng, 0.3) ? randomWeapon(rng) : "", slot: 0,
+    drawStartedAt: 0, readyAt: Math.round(range(rng, 0, 200_000)), sig: Math.floor(rng() * 16), brand: 0,
+  });
+}
+
+/** One bot's view of a few hundred ms of an active run, from `seed`: the same seed, the same scenario. */
+export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenario {
+  const rng = mulberry32(seed * 7919 + 13);
+  const map = testMap();
+  const n = opts.frames ?? 10;
+  const statusEffects = opts.statusEffects ?? seed % 2 === 1;
+  const spawns = map.spawns;
+  const start = spawns[seed % spawns.length]!;
+  // The bot walks a little each frame (up to 8 u: about PLAYER_SPEED over a tick), or stands.
+  const pace = pick(rng, [0, 4, 8]);
+  const selves: Vec2[] = [{ x: start.x, y: start.y }];
+  let heading = range(rng, -Math.PI, Math.PI);
+  for (let k = 1; k < n; k++) {
+    heading += range(rng, -0.6, 0.6);
+    const prev = selves[k - 1]!;
+    selves.push({ x: Math.round((prev.x + Math.cos(heading) * pace) * 4) / 4, y: Math.round((prev.y + Math.sin(heading) * pace) * 4) / 4 });
+  }
+  const t = (k: number) => T0 + k * FRAME_MS;
+  // On screen all along: within the window less what both the bot and the fighter can walk.
+  const onscreen = (): Vec2 => ({
+    x: Math.round(start.x + range(rng, -(HALF_W - 220), HALF_W - 220)), y: Math.round(start.y + range(rng, -(HALF_H - 200), HALF_H - 200)),
+  });
+
+  const roles: ScenarioRoles = {
+    onscreenPlayers: ["p1", "p2", "p3"], onscreenMobs: ["m1", "m2"], farPlayers: ["f1", "f2", "f3"], farMobs: ["fm1", "fm2", "fm3", "fe1"],
+    ringPlayers: ["r1"], ringMobs: ["rm1"], hidden: statusEffects ? ["h1"] : [], farContainers: ["fc1", "fc2", "fc3"],
+    shutChests: ["c1", "c3"], announced: [],
+  };
+  const playerIds = ["me", ...roles.onscreenPlayers, ...roles.farPlayers, ...roles.ringPlayers, ...roles.hidden, ...(statusEffects ? ["u1"] : [])];
+  const mobIds = [...roles.onscreenMobs, ...roles.farMobs, ...roles.ringMobs];
+
+  // Fixed per-fighter data; positions move per frame.
+  const tracks = new Map<string, Vec2[]>();
+  const walk = (from: Vec2): Vec2[] => {
+    const out = [from];
+    for (let k = 1; k < n; k++) {
+      const p = out[k - 1]!;
+      out.push({ x: Math.round((p.x + range(rng, -6, 6)) * 4) / 4, y: Math.round((p.y + range(rng, -6, 6)) * 4) / 4 });
+    }
+    return out;
+  };
+  for (const id of [...roles.onscreenPlayers, ...roles.onscreenMobs, ...roles.hidden, ...(statusEffects ? ["u1"] : [])]) {
+    tracks.set(id, walk(onscreen()));
+  }
+  for (const id of [...roles.farPlayers, ...roles.farMobs]) {
+    const p = farPoint(rng, map, selves, SLACK + 40);
+    tracks.set(id, Array.from({ length: n }, () => p));
+  }
+  for (const id of [...roles.ringPlayers, ...roles.ringMobs]) {
+    tracks.set(id, selves.map((s) => ringPoint(rng, s)));
+  }
+
+  const base = new Map<string, PlainPlayer>();
+  for (const id of playerIds) {
+    if (id === "me") continue;
+    base.set(id, randomPlayer(rng, `${id.toUpperCase()}_${seed}`, tracks.get(id)![0]!, T0));
+  }
+  const me = plainPlayer({
+    name: `Self_${seed}`, x: start.x, y: start.y, faction: pick(rng, FACTION_IDS), weapon0: randomWeapon(rng), weapon1: randomWeapon(rng),
+    hp: 420, maxHp: 500, stacksHp: 1.25, stacksAs: 0.5, kills: 1, gv: 12, asMult: 1.1, readyAt: T0 + 300, attackTarget: "p1", bot: true,
+  });
+  if (statusEffects) {
+    base.get("h1")!.effects = 256;
+    base.get("u1")!.effects = 128;
+    for (const id of playerIds) if (id !== "h1" && id !== "u1" && id !== "me") base.get(id)!.effects = chance(rng, 0.3) ? 8 : 0;
+    me.effects = 0;
+  }
+  const mobBase = new Map<string, PlainMob>();
+  for (const id of mobIds) mobBase.set(id, randomMob(rng, `Mob_${id}_${seed}`, tracks.get(id)![0]!, id === "fe1"));
+  if (statusEffects) for (const m of mobBase.values()) m.effects = chance(rng, 0.3) ? 16 : 0;
+
+  // Containers: on screen a shut chest, an open one, a loose weapon, a body; maybe a chest in reach; three far away.
+  const containers: PlainContainer[] = [
+    plainContainer({ id: "c1", kind: "chest", ...onscreenFar(rng, start, selves), items: [{ uid: "i1", def: randomWeapon(rng) }] }),
+    plainContainer({ id: "c2", kind: "chest", ...onscreenFar(rng, start, selves), items: [] }),
+    plainContainer({ id: "c3", kind: "body", label: `Fallen_${seed}`, ...onscreenFar(rng, start, selves), items: [{ uid: "i3", def: randomWeapon(rng) }] }),
+    plainContainer({ id: "g1", kind: "ground", ...onscreenFar(rng, start, selves), items: [{ uid: "i4", def: randomWeapon(rng) }] }),
+  ];
+  const reachSpot = inReach(map, selves);
+  if (reachSpot) containers.push(plainContainer({ id: "c4", kind: "chest", ...reachSpot, items: [{ uid: "i5", def: randomWeapon(rng) }] }));
+  for (const id of roles.farContainers) {
+    const p = farPoint(rng, map, selves, SLACK + 40);
+    containers.push(plainContainer({ id, kind: pick(rng, ["chest", "body", "ground"]), x: p.x, y: p.y, label: `Far_${id}`, items: [{ uid: `u_${id}`, def: randomWeapon(rng) }] }));
+  }
+
+  // Off-screen news: a far player dies (announced by name), a far player's bounty rises.
+  const deathFrame = opts.quiet ? -1 : 3 + Math.floor(rng() * 4);
+  const bountyFrame = opts.quiet ? -1 : 2 + Math.floor(rng() * 6);
+  if (!opts.quiet) roles.announced.push("f2", "f1");
+
+  const frames: ScenarioFrame[] = [];
+  let projSeq = 0;
+  const flying: Array<{ id: string; from: string; endsAt: number }> = [];
+  for (let k = 0; k < n; k++) {
+    const state = plainState({ serverTime: t(k), tick: 2000 + k, seed: map.seed });
+    state.players.set("me", { ...me, x: selves[k]!.x, y: selves[k]!.y });
+    for (const id of playerIds) {
+      if (id === "me") continue;
+      const p = { ...base.get(id)!, ...tracks.get(id)![k]! };
+      if (id === "f2" && deathFrame >= 0 && k >= deathFrame) { p.status = "dead"; p.hp = 0; }
+      if (id === "f1" && bountyFrame >= 0 && k >= bountyFrame) p.bounty = 10;
+      state.players.set(id, p);
+    }
+    for (const id of mobIds) {
+      const m = { ...mobBase.get(id)!, ...tracks.get(id)![k]! };
+      if (id === "m2" && k >= 6) { m.status = "dead"; m.hp = 0; }
+      state.mobs.set(id, m);
+    }
+    for (const c of containers) state.containers.set(c.id, structuredClone(c));
+    state.roster = [...playerIds, ...mobIds];
+
+    const events: FxEvent[] = [];
+    const launches: ProjectileLaunch[] = [];
+    const toasts: string[] = [];
+    const at = (id: string) => (id === "me" ? selves[k]! : tracks.get(id)![k]!);
+    if (chance(rng, 0.5)) events.push({ kind: "windup", by: "p1", weapon: "axe", a: Math.round(range(rng, -3, 3) * 100) / 100, ms: 250 });
+    if (chance(rng, 0.4)) events.push({ kind: "swing", by: "p2", weapon: "sword", x: at("p2").x, y: at("p2").y, a: 1.2 });
+    if (chance(rng, 0.6)) events.push({ kind: "hit", id: "p2", by: "p1", amount: Math.round(range(rng, 1, 80) * 10) / 10, weapon: "axe" });
+    if (chance(rng, 0.4)) events.push({ kind: "hit", id: "me", by: "f1", amount: 23.4, weapon: "bow" });
+    if (chance(rng, 0.4)) events.push({ kind: "hit", id: "me", by: "p3", amount: 12.5, weapon: "sword" });
+    if (chance(rng, 0.3)) events.push({ kind: "hit", id: "p3", by: "p2", amount: 4.2, weapon: null, sig: "burn" });
+    if (chance(rng, 0.2)) events.push({ kind: "block", id: "p3", by: "f3", weapon: "bow" });
+    if (chance(rng, 0.3)) events.push({ kind: "heal", id: "p2", amount: pick(rng, [0.4, 6.3]) });
+    if (chance(rng, 0.2)) events.push({ kind: "buff", id: "p1", stat: "attackSpeed", stacks: 0.734, total: 2.41 });
+    if (chance(rng, 0.2)) events.push({ kind: "buff", id: "me", stat: "hp", stacks: 0.5, total: 1.75 });
+    if (chance(rng, 0.15)) events.push({ kind: "combo", id: "p3", combo: "dash", proc: true });
+    if (chance(rng, 0.15)) events.push({ kind: "stagger", id: "m1" });
+    if (chance(rng, 0.15)) events.push({ kind: "cancel", id: "p1" });
+    if (statusEffects && chance(rng, 0.5)) events.push({ kind: "windup", by: "h1", weapon: "wand", a: 0.5, ms: 400 });
+    if (k === deathFrame) {
+      const p = at("f2");
+      events.push({ kind: "death", id: "f2", x: p.x, y: p.y, by: "f3" });
+    }
+    if (k === bountyFrame) events.push({ kind: "bounty", id: "f1", name: base.get("f1")!.name, bounty: 10 });
+    if (k === 6) events.push({ kind: "death", id: "m2", x: at("m2").x, y: at("m2").y, by: "p1" });
+    if (k === 4 && chance(rng, 0.5)) toasts.push("Too far away");
+    // An arrow from p1 at the bot every few frames; each one ends two frames later.
+    if (k % 3 === 0) {
+      const from = at("p1"), to = selves[k]!;
+      const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+      const id = `a${seed}_${++projSeq}`;
+      launches.push({ id, kind: "arrow", x: from.x, y: from.y, vx: ((to.x - from.x) / len) * 900, vy: ((to.y - from.y) / len) * 900, t: t(k), range: 240 });
+      flying.push({ id, from: "p1", endsAt: k + 2 });
+    }
+    for (let i = flying.length - 1; i >= 0; i--) {
+      const f = flying[i]!;
+      if (f.endsAt !== k) continue;
+      const end = at("p1");
+      events.push({ kind: "projEnd", id: f.id, proj: "arrow", x0: end.x, y0: end.y, t0: t(k), x: end.x + 100, y: end.y, reason: "range" });
+      flying.splice(i, 1);
+    }
+    frames.push({ state, events, launches, toasts });
+  }
+  return { seed, map, selfId: "me", features: featureSet({ statusEffects }), frames, roles };
+}
+
+/** A spot on screen in every frame and out of interact range of every self. */
+function onscreenFar(rng: Rng, start: Vec2, selves: readonly Vec2[]): { x: number; y: number } {
+  for (;;) {
+    const p = { x: Math.round(start.x + range(rng, -(HALF_W - 150), HALF_W - 150)), y: Math.round(start.y + range(rng, -(HALF_H - 150), HALF_H - 150)) };
+    if (selves.every((s) => Math.hypot(p.x - s.x, p.y - s.y) > INTERACT_RANGE + 30)) return p;
+  }
+}
+
+/** A spot within interact range and sight of every self (near the middle of its walk), if the walls allow one. */
+function inReach(map: GameMap, selves: readonly Vec2[]): Vec2 | null {
+  const cx = selves.reduce((a, s) => a + s.x, 0) / selves.length, cy = selves.reduce((a, s) => a + s.y, 0) / selves.length;
+  for (const r of [0, 8, 16]) {
+    for (let a = 0; a < 16; a++) {
+      const p = { x: Math.round(cx + Math.cos((a / 16) * 2 * Math.PI) * r), y: Math.round(cy + Math.sin((a / 16) * 2 * Math.PI) * r) };
+      if (selves.every((s) => Math.hypot(p.x - s.x, p.y - s.y) <= INTERACT_RANGE - 4 && hasLineOfSight(map, s, p))) return p;
+    }
+  }
+  return null;
+}
+
+/** The driver inputs of a scenario, one per frame: fx packed (ids by roster index) exactly as the Room sends them. */
+export function scenarioInputs(s: Scenario): PerceptionInput[] {
+  const announced = new Set<string>();
+  return s.frames.map((f) => {
+    const roster = new Map(f.state.roster.map((id, i) => [id, i] as const));
+    const fxs: FxBatch[] = [];
+    if (f.events.length > 0 || f.launches.length > 0) {
+      fxs.push(packFx(f.events, f.state.serverTime, { roster, launches: f.launches, announced }));
+    }
+    for (const l of f.launches) announced.add(l.id);
+    return { state: f.state, fxs, toasts: f.toasts };
+  });
+}
+
+export interface PipelineOptions extends Partial<Pick<ComposeConfig, "selfDelayMs" | "worldDelayMs" | "attentionCentral">> {
+  /** Map each input before perception (the parity test swaps in a decoded state). */
+  mapInput?: (input: PerceptionInput, index: number) => PerceptionInput;
+}
+
+/** perception + frames over a scenario: every Percept composed, in order (none until the ring covers the delay). */
+export function runPerception(s: Scenario, opts: PipelineOptions = {}): Percept[] {
+  const ring = createFrameRing();
+  const cfg: ComposeConfig = {
+    selfDelayMs: opts.selfDelayMs ?? IN_PROCESS.selfDelayMs, worldDelayMs: opts.worldDelayMs ?? IN_PROCESS.worldDelayMs, map: s.map,
+    features: s.features, attentionCentral: opts.attentionCentral ?? 0.65,
+  };
+  let lastMinimap: MinimapView | null = null;
+  const out: Percept[] = [];
+  scenarioInputs(s).forEach((raw, i) => {
+    const input = opts.mapInput ? opts.mapInput(raw, i) : raw;
+    const frame = perceive(input, { selfId: s.selfId, map: s.map, features: s.features, lastMinimap });
+    lastMinimap = frame.minimap;
+    ring.push(frame);
+    const p = ring.compose(cfg);
+    if (p) out.push(p);
+  });
+  return out;
+}
+
+// =========================================================================================================== perturbations
+
+export interface Perturbation {
+  readonly name: string;
+  /** It flips what the [BOT] tag shows: compare with every `bot` field left out (the brain must not read it either). */
+  readonly tagOnly?: boolean;
+  /** Mutates `s` (already a private copy) in hidden information only. */
+  apply(s: Scenario, rng: Rng): void;
+}
+
+/** A deep copy of everything but the map (read-only and shared). */
+export function cloneScenario(s: Scenario): Scenario {
+  const { map, ...rest } = s;
+  return { ...structuredClone(rest), map };
+}
+
+export function perturbed(s: Scenario, p: Perturbation, salt = 0): Scenario {
+  const copy = cloneScenario(s);
+  let h = 2166136261;
+  for (const ch of p.name) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  p.apply(copy, mulberry32((h ^ (s.seed * 31 + salt)) >>> 0));
+  return copy;
+}
+
+const selvesOf = (s: Scenario): Vec2[] => s.frames.map((f) => f.state.players.get(s.selfId)!);
+
+/** Everything a player has that is not public (status: the HUD's Alive count; name: announcements and the winner line). */
+function scramblePlayer(p: PlainPlayer, rng: Rng, opts: { keepEffects?: boolean } = {}): void {
+  const fresh = randomPlayer(rng, p.name, { x: p.x, y: p.y }, T0 + Math.round(rng() * 1000));
+  const { status, name, x, y, effects } = p;
+  Object.assign(p, fresh, { status, name, x, y });
+  if (opts.keepEffects) p.effects = effects;
+  else if (effects !== undefined) p.effects = Math.floor(rng() * 4096);
+}
+
+/** A mob's hidden fields: all but where its minimap dot is, its kind, faction and status. */
+function scrambleMob(m: PlainMob, rng: Rng): void {
+  m.hp = Math.max(1, m.maxHp * range(rng, 0.01, 1));
+  m.maxHp = m.maxHp + Math.round(range(rng, -50, 50));
+  m.facing = range(rng, -3, 3);
+  m.weapon0 = randomWeapon(rng);
+  m.weapon1 = randomWeapon(rng);
+  m.slot = chance(rng, 0.5) ? 1 : 0;
+  m.drawStartedAt = Math.round(range(rng, 0, 200_000));
+  m.readyAt = Math.round(range(rng, 0, 200_000));
+  m.sig = Math.floor(rng() * 16);
+  m.brand = 5 * Math.floor(rng() * 10);
+  if (m.effects !== undefined) m.effects = Math.floor(rng() * 4096);
+  // Off its minimap cell by less than half a cell: the dot does not move.
+  const jitter = (v: number) => {
+    const cell = Math.round(v / MINIMAP_QUANT) * MINIMAP_QUANT;
+    return cell + range(rng, -0.45, 0.45) * MINIMAP_QUANT;
+  };
+  m.x = jitter(m.x);
+  m.y = jitter(m.y);
+}
+
+function otherFarId(s: Scenario, rng: Rng, not: string): string {
+  const others = s.roles.farPlayers.filter((id) => id !== not);
+  return others.length > 0 ? pick(rng, others) : not;
+}
+
+/** Hidden-information-only changes (docs/BOTS.md 3.7). Each keeps the scenario's public facts. */
+export const PERTURBATIONS: readonly Perturbation[] = [
+  {
+    name: "off-screen players: anything, anywhere off screen",
+    apply(s, rng) {
+      const selves = selvesOf(s);
+      for (const [k, f] of s.frames.entries()) {
+        for (const id of s.roles.farPlayers) {
+          const p = f.state.players.get(id);
+          if (!p) continue;
+          scramblePlayer(p, rng);
+          Object.assign(p, farPoint(rng, s.map, [selves[k]!]));
+          if (id === "f2" && p.status === "dead") p.hp = 0;
+        }
+        // Who did it, and where, of what happened off screen: a death's place and killer, a far attacker's identity.
+        for (const ev of f.events) {
+          if (ev.kind === "death" && s.roles.farPlayers.includes(ev.id)) Object.assign(ev, farPoint(rng, s.map, [selves[k]!]), { by: otherFarId(s, rng, ev.id) });
+          if ((ev.kind === "hit" || ev.kind === "block") && ev.by !== null && s.roles.farPlayers.includes(ev.by)) ev.by = otherFarId(s, rng, ev.by);
+        }
+      }
+    },
+  },
+  {
+    name: "on-screen players: the other slot, stacks, kills, gv, readyAt, lock, moveSeq, look, mirrors",
+    apply(s, rng) {
+      for (const f of s.frames) {
+        for (const id of [...s.roles.onscreenPlayers, ...(s.roles.hidden.length > 0 ? ["u1"] : [])]) {
+          const p = f.state.players.get(id)!;
+          if (p.slot === 1) p.weapon0 = randomWeapon(rng); else p.weapon1 = chance(rng, 0.2) ? "" : randomWeapon(rng);
+          p.stacksHp = range(rng, 0, 9); p.stacksAs = range(rng, 0, 9); p.stacksMs = range(rng, 0, 9);
+          p.kills = Math.floor(rng() * 9); p.gv = Math.floor(rng() * 500); p.mobKills = Math.floor(rng() * 30);
+          p.readyAt = Math.round(range(rng, 0, 300_000)); p.attackTarget = pick(rng, ["", "me", "p2", "m1", "f1"]);
+          p.moveSeq = Math.floor(rng() * 256); p.look = Math.floor(rng() * 2 ** 31);
+          p.asMult = range(rng, 0.5, 2); p.windupMult = range(rng, 0.5, 2); p.speedMult = range(rng, 0.5, 2);
+          p.armorBonus = Math.round(range(rng, -50, 50)); p.shieldBonus = Math.round(range(rng, -50, 50));
+        }
+        for (const id of s.roles.onscreenMobs) {
+          const m = f.state.mobs.get(id)!;
+          m.readyAt = Math.round(range(rng, 0, 300_000));
+          if (m.slot === 1) m.weapon0 = randomWeapon(rng); else m.weapon1 = randomWeapon(rng);
+        }
+      }
+    },
+  },
+  {
+    name: "off-screen containers: their items, labels, kinds and places",
+    apply(s, rng) {
+      const selves = selvesOf(s);
+      const moved = new Map<string, Vec2>(s.roles.farContainers.map((id) => [id, farPoint(rng, s.map, selves)]));
+      const kinds = new Map<string, string>(s.roles.farContainers.map((id) => [id, pick(rng, ["chest", "body", "ground", "reward"])]));
+      for (const f of s.frames) {
+        for (const id of s.roles.farContainers) {
+          const c = f.state.containers.get(id)!;
+          Object.assign(c, moved.get(id)!, { kind: kinds.get(id)!, label: `L${Math.floor(rng() * 1e6)}` });
+          c.items = Array.from({ length: Math.floor(rng() * 3) }, (_, i) => ({ uid: `x${i}`, def: pick(rng, [...WEAPON_IDS, "relic"]) }));
+        }
+      }
+    },
+  },
+  {
+    name: "chests and bodies out of reach: what they hold",
+    apply(s, rng) {
+      const held = (id: string) => s.frames[0]!.state.containers.get(id)!.items[0]?.def;
+      const swaps = new Map<string, string>(s.roles.shutChests.map((id) => [id, pick(rng, WEAPON_IDS.filter((w) => w !== held(id)))]));
+      for (const f of s.frames) {
+        for (const id of s.roles.shutChests) {
+          const c = f.state.containers.get(id)!;
+          if (c.items.length > 0 && isWeaponId(c.items[0]!.def)) c.items[0]!.def = swaps.get(id)!;
+        }
+      }
+    },
+  },
+  {
+    name: "off-screen mobs: hp, weapons, timers, marks, names, and a jitter inside their minimap cell",
+    apply(s, rng) {
+      for (const f of s.frames) for (const id of s.roles.farMobs) scrambleMob(f.state.mobs.get(id)!, rng);
+    },
+  },
+  {
+    name: "fx off screen: blows, casts, heals, buffs, deaths, launches and stops nobody here can see",
+    apply(s, rng) {
+      const selves = selvesOf(s);
+      const far = [...s.roles.farPlayers, ...s.roles.farMobs];
+      for (const [k, f] of s.frames.entries()) {
+        const subject = () => pick(rng, far);
+        const extra: FxEvent[] = [
+          { kind: "windup", by: subject(), weapon: randomWeapon(rng), a: 1, ms: 300 },
+          { kind: "swing", by: subject(), weapon: "axe", x: 5, y: 5, a: 0.3 },
+          { kind: "hit", id: subject(), by: pick(rng, [...far, "p1", "me"]), amount: 31, weapon: "bow" },
+          { kind: "hit", id: subject(), by: null, amount: 3, weapon: null, sig: "disease" },
+          { kind: "block", id: subject(), by: subject(), weapon: "sword" },
+          { kind: "heal", id: subject(), amount: 9 },
+          { kind: "buff", id: subject(), stat: "moveSpeed", stacks: 1.1, total: 3.3 },
+          { kind: "combo", id: subject(), combo: "frenzy", proc: false },
+          { kind: "stagger", id: subject() },
+          { kind: "cancel", id: subject() },
+          { kind: "death", id: pick(rng, ["fm1", "fm2", "fm3"]), ...farPoint(rng, s.map, [selves[k]!]), by: subject() },
+        ];
+        // A projEnd whose whole flight is off screen (it never was announced, so it carries its start).
+        const a = farPoint(rng, s.map, selves, SLACK + 300);
+        extra.push({ kind: "projEnd", id: `ghost${k}`, proj: "ball", x0: a.x, y0: a.y, t0: f.state.serverTime - 20, x: a.x + 30, y: a.y, reason: "wall" });
+        f.events.splice(Math.floor(rng() * (f.events.length + 1)), 0, ...extra.filter(() => chance(rng, 0.7)));
+        const o = farPoint(rng, s.map, selves, SLACK + 300);
+        const dir = range(rng, -Math.PI, Math.PI);
+        f.launches.push({ id: `far${k}`, kind: "arrow", x: o.x, y: o.y, vx: Math.cos(dir) * 900, vy: Math.sin(dir) * 900, t: f.state.serverTime, range: 240 });
+        for (const ev of f.events) {
+          if ((ev.kind === "hit" || ev.kind === "block") && ev.by !== null && s.roles.farPlayers.includes(ev.by)) ev.by = otherFarId(s, rng, ev.by);
+        }
+      }
+    },
+  },
+  {
+    name: "hidden players: anything, anywhere, and what they do",
+    apply(s, rng) {
+      if (s.roles.hidden.length === 0) return;
+      const w = s.map.w * 32, h = s.map.h * 32;
+      for (const f of s.frames) {
+        for (const id of s.roles.hidden) {
+          const p = f.state.players.get(id)!;
+          scramblePlayer(p, rng, { keepEffects: true });
+          p.effects = 256 | (Math.floor(rng() * 16) << 9);
+          p.x = Math.round(range(rng, 0, w));
+          p.y = Math.round(range(rng, 0, h));
+          f.events.push(
+            { kind: "windup", by: id, weapon: "wand", a: range(rng, -3, 3), ms: 400 },
+            { kind: "swing", by: id, weapon: "sword", x: p.x, y: p.y, a: 0 },
+            { kind: "heal", id, amount: 12 },
+            { kind: "combo", id, combo: "dash", proc: true },
+          );
+        }
+        for (let i = f.events.length - 1; i >= 0; i--) {
+          const ev = f.events[i]!;
+          if (ev.kind === "windup" && s.roles.hidden.includes(ev.by) && chance(rng, 0.3)) f.events.splice(i, 1);
+        }
+      }
+    },
+  },
+  {
+    name: "fighters in the margin band: anything but status (frames hold them, percepts never do)",
+    apply(s, rng) {
+      const selves = selvesOf(s);
+      for (const [k, f] of s.frames.entries()) {
+        for (const id of s.roles.ringPlayers) {
+          const p = f.state.players.get(id)!;
+          scramblePlayer(p, rng);
+          Object.assign(p, ringPoint(rng, selves[k]!));
+        }
+        for (const id of s.roles.ringMobs) scrambleMob(f.state.mobs.get(id)!, rng);
+      }
+    },
+  },
+  {
+    name: "every [BOT] flag flipped",
+    tagOnly: true,
+    apply(s) {
+      for (const f of s.frames) for (const p of f.state.players.values()) p.bot = !p.bot;
+    },
+  },
+];
+
+// ================================================================================================================= checks
+
+/** JSON of `v`; with `noBotTag`, every `bot` field is left out (the [BOT] tag is drawn, but must change no decision). */
+export function stableJson(v: unknown, noBotTag = false): string {
+  return JSON.stringify(v, noBotTag ? (k, x) => (k === "bot" ? undefined : x) : undefined);
+}
+
+/** Where two JSON texts first differ, with some context. */
+export function firstDiff(a: string, b: string): string {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return `@${i}: ...${a.slice(Math.max(0, i - 120), i + 60)}... vs ...${b.slice(Math.max(0, i - 120), i + 60)}...`;
+}
+
+/**
+ * Runs `run` (perception + frames today; the whole brain at integration) on the scenario and on a perturbed copy and throws
+ * unless both outputs serialise to the same JSON. `baseline` reuses an output already computed for `base`.
+ */
+export function assertBlind(run: (s: Scenario) => unknown, base: Scenario, p: Perturbation, salt = 0, baseline?: unknown): void {
+  const a = stableJson(baseline ?? run(base), p.tagOnly);
+  const b = stableJson(run(perturbed(base, p, salt)), p.tagOnly);
+  if (a !== b) throw new Error(`"${p.name}" changed what the bot sees (seed ${base.seed}) ${firstDiff(a, b)}`);
+}
+
+/** Records every place a watched id or name shows up in what a bot was given (strings and object keys, at any depth). */
+export interface NeverSeenTracker {
+  watch(...tokens: string[]): void;
+  scan(label: string, value: unknown): void;
+  readonly hits: readonly string[];
+}
+
+export function createNeverSeenTracker(): NeverSeenTracker {
+  const tokens = new Set<string>();
+  const hits: string[] = [];
+  const visit = (v: unknown, path: string, depth: number): void => {
+    if (depth > 32 || hits.length > 50) return;
+    if (typeof v === "string") {
+      if (tokens.has(v)) hits.push(`${path} = ${v}`);
+      return;
+    }
+    if (v === null || typeof v !== "object") return;
+    if (v instanceof Map) {
+      for (const [k, x] of v) {
+        if (typeof k === "string" && tokens.has(k)) hits.push(`${path} key ${k}`);
+        visit(x, `${path}.${String(k)}`, depth + 1);
+      }
+      return;
+    }
+    if (v instanceof Set) {
+      for (const x of v) visit(x, `${path}[]`, depth + 1);
+      return;
+    }
+    for (const [k, x] of Object.entries(v)) {
+      if (tokens.has(k)) hits.push(`${path} key ${k}`);
+      visit(x, `${path}.${k}`, depth + 1);
+    }
+  };
+  return {
+    watch(...ts) { for (const t of ts) tokens.add(t); },
+    scan(label, value) { visit(value, label, 0); },
+    get hits() { return hits; },
+  };
+}

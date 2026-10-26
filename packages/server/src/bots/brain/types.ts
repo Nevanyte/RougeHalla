@@ -985,6 +985,11 @@ export interface Humanizer {
   submit(intents: readonly Intent[], ctx: BrainContext): void;
   /** Commands whose click time has come by ctx.p.now, in click order. */
   release(ctx: BrainContext): readonly TimedCommand[];
+  /**
+   * Lock clicks that picked nobody since the last call (a miss sends nothing, so no command carries it). The brain turns each
+   * into a `clickMissed` stimulus so tactics clicks again after a reaction.
+   */
+  drainMisses(): readonly { readonly target: FighterId; readonly at: ServerMs }[];
   readonly stats: HumanizerStats;
 }
 

@@ -139,7 +139,7 @@ async function playRun(
   const profileFile = path.join(dir, "data", "stash.json");
   const port = await freePort();
   const server: RaidServer = await startServer({
-    ...loadConfig({}),
+    ...loadConfig({ BOTS_FILL_TO: "0" }),
     mobs: true, // the default; spelled out because this run is about them
     port,
     stashFile: profileFile,

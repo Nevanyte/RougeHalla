@@ -87,7 +87,7 @@ beforeAll(async () => {
   fs.mkdirSync(path.dirname(profileFile), { recursive: true });
   fs.writeFileSync(profileFile, JSON.stringify({ version: 2, profiles: Object.fromEntries(seeded.map((p) => [p.name, p])) }));
   port = await freePort();
-  server = await startServer({ ...loadConfig({}), port, latencyMs: 0, stashFile: profileFile });
+  server = await startServer({ ...loadConfig({ BOTS_FILL_TO: "0" }), port, latencyMs: 0, stashFile: profileFile });
 });
 
 afterAll(async () => {

@@ -363,6 +363,11 @@ export type ModSource = (world: World, c: Combatant) => ModContribution | null;
 export interface WorldHooks {
   /** A player went down (died/mia) with their run gear still on them. Default: discard it. */
   dropBody(world: World, p: PlayerState): void;
+  /**
+   * The lobby is about to start the raid (full, or the countdown ran out), before anyone is placed. A hook may still add
+   * players (addPlayer is safe here: startRaid places everyone next): BotManager's last top-up. Called once per start.
+   */
+  lobbyClosing?(world: World): void;
   /** The lobby just turned into an active raid: players are placed and `raidStartedAt` is set. */
   raidStarted?(world: World): void;
   /**
@@ -533,7 +538,7 @@ export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
 }
 
-type ChainableHook = "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed"
+type ChainableHook = "teleported" | "lobbyClosing" | "raidStarted" | "weaponSwapped" | "bountyClaimed"
   | "hitLanded";
 
 /** Adds a hook that runs after whatever was already installed for it. */

@@ -292,7 +292,7 @@ describe("schema round trip", () => {
   });
 
   it("decodes the bot flag: a bot's seat is marked for every client, one that joins later included, and a bot's kill pays no GV on the wire", () => {
-    const world = makeWorld(61, 4);
+    const world = makeWorld(61, 2); // minPlayers counts humans only: the two bots do not help the lobby start
     addPlayer(world, "a", "alice");
     addPlayer(world, "b", "Botley", { bot: true });
     addPlayer(world, "c", "carol");

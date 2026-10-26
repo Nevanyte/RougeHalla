@@ -18,7 +18,7 @@
 //     players (so a second callsign can't feed someone wins). Bots count for neither: the gate reads human starters
 //     and human opponents (docs/BOTS.md). All of it banks when the player's result is emitted (the Room persists
 //     `resolved` events, except a bot's).
-//   - Bounty: a player's bounty follows their player kills (bountyFor; mob kills feed the buffs and the mob reward curve, never the bounty) and is announced (throttled) whenever it rises;
+//   - Bounty: a player's bounty follows their kills of players who are not bots (bountyFor; mob kills feed the buffs and the mob reward curve, never the bounty, and neither do bot kills) and is announced (throttled) whenever it rises;
 //     whoever kills them is paid it on top of the kill GV. Leaving within KILL_CREDIT_SECONDS of a hit from another
 //     player is that player's kill, so leaving can't dodge a bounty.
 // This module never touches the store, sockets or the Room.
@@ -167,8 +167,9 @@ function owedBounty(world: World, victim: PlayerState, rtv: PlayerRuntime): numb
 function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: PlayerRuntime, bounty = owedBounty(world, victim, rtv)): void {
   if (by.rt.resolved) return;
   by.p.kills += 1;
-  // A bot's death pays no GV, kill or bounty (owner question, docs/BOTS.md "Owner questions"): the kill still counts in the
-  // run (the bounty ladder, the stack transfer and the combos), but a RunResult leaves it out (botKills, resolve).
+  // A bot's death pays no GV, kill or bounty, and the kill does not climb the killer's bounty ladder (updateBounty reads
+  // kills - botKills: else a human could wear a bounty built on bots and have an alt cash it). It still counts in the run
+  // (PlayerState.kills and the HUD, the stack transfer and the combos), but a RunResult's `kills` leaves it out.
   if (rtv.bot) by.rt.botKills = (by.rt.botKills ?? 0) + 1;
   else awardGv(world, by.p, by.rt, "kill");
   if (bounty > 0) {
@@ -237,12 +238,12 @@ export function creditMobKill(
 }
 
 /**
- * Recomputes the bounty from the player kills; a rise is announced to everyone, at most once per BOUNTY_ANNOUNCE_MS per
- * player (feed.ts). A killer who went down in the same pass is no longer on a rampage: they get neither.
+ * Recomputes the bounty from the kills of players who are not bots; a rise is announced to everyone, at most once per
+ * BOUNTY_ANNOUNCE_MS per player (feed.ts). A killer who went down in the same pass is no longer on a rampage: they get neither.
  */
 function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
   if (!standing(p, rt)) return;
-  const bounty = bountyFor(p.kills);
+  const bounty = bountyFor(p.kills - (rt.botKills ?? 0));
   if (bounty <= p.bounty) return;
   p.bounty = bounty;
   announceBounty(world, p, rt);

@@ -527,7 +527,7 @@ describe("the training room (live)", () => {
     profileFile = path.join(dir, "data", "stash.json");
     port = await freePort();
     server = await startServer({
-      ...loadConfig({}),
+      ...loadConfig({ BOTS_FILL_TO: "0" }),
       port,
       minPlayers: MAX_PLAYERS, // an arena lobby never starts by itself
       fillSeconds: 0,

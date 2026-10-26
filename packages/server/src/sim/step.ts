@@ -138,10 +138,16 @@ function updateLobby(world: World): void {
   for (const rt of world.players.values()) rt.inputs.drain();
   const n = s.players.size;
   if (n === 0) return;
-  if (n >= world.config.minPlayers) {
+  // Server-filled bots never shorten a human's countdown (docs/BOTS.md 7.2): only humans count towards minPlayers.
+  let humans = 0;
+  for (const rt of world.players.values()) if (!rt.bot) humans++;
+  if (humans >= world.config.minPlayers) {
     s.lobbyEndsAt = Math.min(s.lobbyEndsAt, s.serverTime + world.config.fillSeconds * 1000);
   }
-  if (n >= MAX_PLAYERS || s.serverTime >= s.lobbyEndsAt) startRaid(world);
+  if (n >= MAX_PLAYERS || s.serverTime >= s.lobbyEndsAt) {
+    world.hooks.lobbyClosing?.(world);
+    startRaid(world);
+  }
 }
 
 /**

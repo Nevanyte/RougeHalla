@@ -170,7 +170,7 @@ beforeAll(async () => {
   );
   port = await freePort();
   server = await startServer({
-    ...loadConfig({}),
+    ...loadConfig({ BOTS_FILL_TO: "0" }),
     port,
     minPlayers: 2,
     fillSeconds: 0,

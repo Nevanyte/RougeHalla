@@ -58,7 +58,7 @@ beforeAll(async () => {
   profileFile = path.join(dir, "data", "stash.json");
   port = await freePort();
   server = await startServer({
-    ...loadConfig({}),
+    ...loadConfig({ BOTS_FILL_TO: "0" }),
     port,
     minPlayers: 2,
     fillSeconds: 0,
@@ -144,7 +144,8 @@ afterEach(async () => {
 const BOT = "bot-1";
 
 /**
- * Two humans in a room that waits for a third, then a bot that is that third: the run starts on the next tick.
+ * Two humans in a room that waits for a third, then a bot joins as the third and the countdown runs out (a bot does not count
+ * towards minPlayers, so it cannot start the run by itself): the run starts on the next tick.
  * `botName` is the bot's display name (its `profile`); pass a real callsign to see that it still reaches nothing.
  */
 async function runWithBot(botName: string, timers: Partial<SimConfig> = {}): Promise<{ a: Player; b: Player; world: World }> {
@@ -155,6 +156,7 @@ async function runWithBot(botName: string, timers: Partial<SimConfig> = {}): Pro
   const b = track(B, await client.joinById<RaidState>(a.room.roomId, joinOptions(B)));
   expect(world.state.phase).toBe("lobby");
   addPlayer(world, BOT, botName, { bot: true });
+  world.state.lobbyEndsAt = world.state.serverTime;
   await until(() => world.state.phase === "active", "the run to start");
   await until(() => [a, b].every((p) => p.room.state.phase === "active"), "clients to see the run start");
   expect(world.state.players.get(BOT)).toMatchObject({ bot: true, status: "alive", name: botName });

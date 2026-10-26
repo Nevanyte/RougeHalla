@@ -161,7 +161,7 @@ beforeAll(async () => {
   profileFile = path.join(dir, "data", "stash.json");
   port = await freePort();
   server = await startServer({
-    ...loadConfig({}),
+    ...loadConfig({ BOTS_FILL_TO: "0" }),
     port,
     minPlayers: PLAYERS_IN_THE_RUN, // the run starts when the last of them walks in, so all of them are in it
     fillSeconds: 0,

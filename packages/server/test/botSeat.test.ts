@@ -1,7 +1,7 @@
 // A server-filled bot in the sim (docs/BOTS.md): the identity flag it carries and the anti-farming rules that follow from
 // it. A bot is a normal player in every way the fight can see (spawns, immunity, results, the patience timer), but
-//   a. killing it pays no kill GV and no bounty GV, while the kill still counts in the run (kills, the bounty ladder, the
-//      stack transfer and the kill combos);
+//   a. killing it pays no kill GV and no bounty GV, while the kill still counts in the run (kills, the stack transfer and
+//      the kill combos) but not on the killer's bounty ladder (a bounty built on bots would be cashable by an alt);
 //   b. a RunResult's `kills` (what the Room records as stats) leaves its kills out;
 //   c. the win bonus counts human starters and human opponents only;
 //   d. its own result is flagged, so the Room drops it (test/botRoom.test.ts runs that part through a real Room).
@@ -25,7 +25,7 @@ function startRun(humans: number, bots: number): World {
   const world = createGameWorld({
     seed: 1234,
     config: {
-      minPlayers: humans + bots, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 600, patienceMinSeconds: 600, suddenDeathSeconds: 600,
+      minPlayers: humans, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 600, patienceMinSeconds: 600, suddenDeathSeconds: 600,
     },
     random: mulberry32(1235),
   });
@@ -127,7 +127,7 @@ describe("killing a bot", () => {
     expect(RT(w, "h0").botKills ?? 0).toBe(0);
   });
 
-  it("a bot's bounty is not paid, but its stacks still move to the killer and the killer's own bounty ladder climbs", () => {
+  it("a bot's bounty is not paid, but its stacks still move to the killer", () => {
     const w = startRun(2, 5);
     P(w, "b0").bounty = 90;
     P(w, "b0").stacksHp = 4;
@@ -135,14 +135,53 @@ describe("killing a bot", () => {
     expect(RT(w, "h0").gv.bounty).toBe(0);
     expect(ofType(w.events, "gv").filter((e) => e.reason === "bounty")).toEqual([]);
     expect(P(w, "h0").stacksHp).toBeCloseTo(bountyStacks(4), 6); // the bountyClaimed hook ran
+  });
 
-    // Three bot kills put a bounty on the killer, exactly as three player kills would.
-    slay(w, "h0", "b1");
-    slay(w, "h0", "b2");
+  it("three bot kills put no bounty on the killer, though the run counts them", () => {
+    const w = startRun(2, 5);
+    for (const b of ["b0", "b1", "b2"]) slay(w, "h0", b);
     expect(P(w, "h0").kills).toBe(3);
-    expect(P(w, "h0").bounty).toBe(bountyFor(3));
-    expect(P(w, "h0").bounty).toBeGreaterThan(0);
+    expect(RT(w, "h0").botKills).toBe(3);
+    expect(P(w, "h0").bounty).toBe(0);
+    expect(ofType(w.events, "fx").filter((e) => e.fx.kind === "bounty")).toEqual([]);
     expect(RT(w, "h0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    // A rival who then kills the "rampaging" bot-farmer is paid the kill and nothing more.
+    slay(w, "h1", "h0");
+    expect(RT(w, "h1").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
+  });
+
+  it("the ladder counts the killer's human kills only, whatever order the bot kills come in", () => {
+    const w = startRun(5, 4);
+    slay(w, "h0", "b0");
+    slay(w, "h0", "b1");
+    slay(w, "h0", "h1");
+    slay(w, "h0", "h2");
+    expect(P(w, "h0").kills).toBe(4);
+    expect(P(w, "h0").bounty).toBe(0); // two human kills: still free
+    slay(w, "h0", "b2");
+    slay(w, "h0", "b3");
+    expect(P(w, "h0").kills).toBe(6);
+    expect(P(w, "h0").bounty).toBe(0);
+    slay(w, "h0", "h3");
+    expect(P(w, "h0").kills).toBe(7);
+    expect(P(w, "h0").bounty).toBe(bountyFor(3)); // three human kills, not seven
+    expect(bountyFor(3)).toBeGreaterThan(0);
+    const rampages = ofType(w.events, "fx").filter((e) => e.fx.kind === "bounty");
+    expect(rampages).toHaveLength(1);
+    expect(rampages[0]!.fx).toMatchObject({ kind: "bounty", id: "h0", bounty: bountyFor(3) });
+  });
+
+  it("a human who has earned a bounty on humans keeps it as bot kills pile on, and the next human kill climbs the ladder", () => {
+    const w = startRun(5, 3);
+    slay(w, "h0", "h1");
+    slay(w, "h0", "h2");
+    slay(w, "h0", "h3");
+    expect(P(w, "h0").bounty).toBe(bountyFor(3));
+    for (const b of ["b0", "b1", "b2"]) slay(w, "h0", b);
+    expect(P(w, "h0").kills).toBe(6);
+    expect(P(w, "h0").bounty).toBe(bountyFor(3));
+    slay(w, "h0", "h4");
+    expect(P(w, "h0").bounty).toBe(bountyFor(4));
   });
 
   it("control: the same bounty on a human victim is paid", () => {
