@@ -363,6 +363,17 @@ describe("a player's orders spend a budget", () => {
     await leave(room);
   });
 
+  it("counts a Wish cast as an order", async () => {
+    const room = await join(account());
+    await until(() => !!room.state?.players, "the first state");
+    const view = serverRoom(room);
+    const before = view.refusedOrders;
+    for (let i = 0; i < 12; i++) room.send("cast", { slot: "wish", x: 100, y: 100 });
+    await until(() => view.refusedOrders >= before + 7, "the casts past the burst to be refused");
+    expect(view.refusedOrders - before).toBeLessThanOrEqual(8);
+    await leave(room);
+  });
+
   it("gives each player a budget of their own", async () => {
     const a = await join(account());
     await until(() => !!a.state?.players, "the first state");
