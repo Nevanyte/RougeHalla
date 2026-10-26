@@ -2,7 +2,7 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
+  buildGameMap, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
   type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample, type SignatureKind, type SlipState, type Vec2,
   type WeaponId,
 } from "@raid/shared";
@@ -482,7 +482,7 @@ export function createWorld(opts: {
   return {
     state,
     config: opts.config,
-    map: opts.map ?? generateMap(state.seed),
+    map: opts.map ?? buildGameMap(state.seed),
     idCounter: 0,
     joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),

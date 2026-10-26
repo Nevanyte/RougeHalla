@@ -12,7 +12,7 @@
 // handling: after the teleport there are no mobs in reach and the bot just keeps hunting players.
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  bestSlot, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, MASK_MOVE, PLAYER_RADIUS,
+  bestSlot, buildGameMap, findPath, hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, MASK_MOVE, PLAYER_RADIUS,
   PROFILE_TOKEN_HEADER, reachMask, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
   type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions,
   type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
@@ -250,7 +250,7 @@ export class BotClient {
       if (i > 500) { void room.leave(true).catch(() => {}); throw new Error("no room state from the server"); }
       await sleep(10);
     }
-    this.map = generateMap(room.state.seed);
+    this.map = buildGameMap(room.state.seed);
     this.log(`joined ${room.roomId} (${body.profile.gv} GV)`);
 
     room.reconnection.enabled = false; // a bot that drops is simply done

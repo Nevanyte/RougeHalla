@@ -1,7 +1,7 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  AIM_STALE_MS, angleBetween, generateMap, TARGET_RANGE, unpackFx, unpackLaunches, withGates, type FxBatch, type GameMap,
+  AIM_STALE_MS, angleBetween, buildGameMap, TARGET_RANGE, unpackFx, unpackLaunches, withGates, type FxBatch, type GameMap,
   type RunResult,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
@@ -734,7 +734,7 @@ export class RaidScene extends Phaser.Scene {
   /** The map is never synced, only its seed; both sides derive it with generateMap. */
   private buildMap(seed: number): void {
     this.mapView?.destroy();
-    const map = generateMap(seed);
+    const map = buildGameMap(seed);
     this.mapView = new MapView(this, map);
     this.minimap.setMap(map);
   }
