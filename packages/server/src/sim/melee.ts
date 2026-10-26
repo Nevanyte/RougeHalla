@@ -6,8 +6,7 @@
 //     a fighter staggered or killed by one swing this tick still lands its own.
 //   - "What I saw is what I hit": the attacker's position AND every target's position are sampled at req.rewindT
 //     (positionAt over their history). Present walls (collisionMap) block: a target counts only with a clear line from
-//     the attacker's sampled position to the target's sampled centre (raycast on reachMask(weapon): a swing is stopped by
-//     walls and by LOW, a fence or a lava stream, which a shot flies over).
+//     the attacker's sampled position to the target's sampled centre (raycast; LOW stops a swing but not a shot: reachMask).
 //   - Targets: every standing combatant except the attacker, players and mobs alike, inside the arc
 //     (inArc(origin, req.a, shape.reach, shape.halfArc, targetPos, PLAYER_RADIUS)). A swing hits everyone in it.
 //   - A target with a shield in hand (activeWeapon === "shield") whose front faces the attacker
@@ -96,7 +95,7 @@ function meetBalls(world: World, req: MeleeRequest, attacker: Combatant, shape: 
 
 /**
  * Does the ball's path this tick (a point when it was loosed this tick) touch the arc, the ball's own radius counted,
- * somewhere the swing can reach (what blocks a body hit blocks it: the weapon's reachMask, walls and LOW)?
+ * somewhere the swing can reach (what blocks a body hit blocks it too)?
  */
 function crossesArc(map: GameMap, ball: ProjectileRuntime, origin: Vec2, a: number, shape: ArcShape, weapon: WeaponId): boolean {
   const reach = reachMask(weapon);

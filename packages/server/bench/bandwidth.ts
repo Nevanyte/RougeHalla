@@ -24,8 +24,8 @@
 import { getMessageBytes, Protocol } from "@colyseus/core";
 import { Encoder } from "@colyseus/schema";
 import {
-  circleClear, decide, inArc, mulberry32, PLAYER_RADIUS, raycast, staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter,
-  WEAPONS, type FactionId, type FxBatch, type FxEvent, type MobCampDef, type Vec2,
+  circleClear, decide, hasLineOfSight, inArc, mulberry32, PLAYER_RADIUS, raycast, reachMask, staggers, TICK_MS, TILE, TILE_FLOOR,
+  tileToWorldCenter, WEAPONS, type FactionId, type FxBatch, type FxEvent, type MobCampDef, type Vec2,
 } from "@raid/shared";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { teleportToColiseum } from "../src/sim/arena";
@@ -200,7 +200,7 @@ function policyFor(world: World, c: Combatant, target: Combatant) {
   const tpos = { x: target.s.x, y: target.s.y };
   const before = positionAt(target.rt, target.s, now - 100);
   const vel = { x: (tpos.x - before.x) * 10, y: (tpos.y - before.y) * 10 };
-  const los = !raycast(collisionMap(world), c.s.x, c.s.y, tpos.x, tpos.y).hit;
+  const los = hasLineOfSight(collisionMap(world), c.s, tpos, reachMask(weapon));
   return decide({
     self: { x: c.s.x, y: c.s.y }, target: tpos, targetVel: vel, los, weapon, ready: now >= c.s.readyAt, windup: tm?.windup ?? 0,
   });
@@ -299,7 +299,7 @@ function installMeleeStandIn(world: World): void {
           if (b.id === att.id || b.s.status !== "alive") continue;
           const p = positionAt(b.rt, b.s, req.rewindT);
           if (!inArc(origin, req.a, shape.reach, shape.halfArc, p, PLAYER_RADIUS)) continue;
-          if (raycast(map, origin.x, origin.y, p.x, p.y).hit) continue;
+          if (raycast(map, origin.x, origin.y, p.x, p.y, reachMask(req.weapon)).hit) continue;
           recordHit(w, {
             victim: b.id, by: { id: att.id, name: att.s.name }, packet: req.packet, weapon: req.weapon,
             stagger: staggers({ melee: req.weapon }),

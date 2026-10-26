@@ -5,18 +5,21 @@
 //
 // The worlds are hand-built rooms (test/terrainWorld.ts) with real inputs, ledger and phases. `MASK_MELEE` is one constant
 // in the shared map module; the "flip" cases prove it is the only thing that decides melee's reach, by making reachMask
-// answer MASK_SIGHT for every weapon through a mock (the constant itself is never edited). findPath is wrapped to count the
-// path searches an order costs.
-import { afterEach, describe, expect, it, vi } from "vitest";
+// answer MASK_SIGHT for every weapon through a mock (the constant itself is never edited); the mock also records the weapon
+// each call was made for, to show the bot reads the reach of the weapon in hand. findPath is wrapped to count the path
+// searches an order costs.
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  circleClear, mulberry32, PLAYER_RADIUS, TERRAIN_LAVA, TICK_MS, TILE, TILE_LOW,
+  circleClear, moveComponents, mulberry32, PLAYER_RADIUS, POLICIES, TERRAIN_LAVA, TICK_MS, TILE, TILE_LOW, worldToTile,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
+import { BotClient } from "../src/bots/BotClient";
 import { combatant, standingCombatants } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
-import { applyLedger } from "../src/sim/ledger";
+import { applyLedger, recordHit } from "../src/sim/ledger";
 import { resolveMelee } from "../src/sim/melee";
+import { placeMob, type MobCombatant } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import { recordHistory } from "../src/sim/movement";
 import { spawnProjectiles, sweepProjectiles } from "../src/sim/projectiles";
@@ -24,22 +27,25 @@ import { noteContact, signatureState } from "../src/sim/factions";
 import { addPlayer, step } from "../src/sim/step";
 import { handleTarget } from "../src/sim/targeting";
 import type { MeleeRequest, ProjectileRuntime, SimEvent, World } from "../src/sim/world";
-import { eastOf, roomMap, tileClassAt, vertical, westOf } from "./terrainWorld";
+import { eastOf, roomMap, tileCentre, tileClassAt, vertical, westOf, type TilePt } from "./terrainWorld";
 
-const mode = vi.hoisted(() => ({ reachIsSight: false }));
+const mode = vi.hoisted(() => ({ reachIsSight: false, reachCalls: [] as Array<WeaponId | null> }));
 const searches = vi.hoisted(() => ({ n: 0 }));
 vi.mock("@raid/shared", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@raid/shared")>();
   return {
     ...mod,
-    reachMask: (w: WeaponId | null) => (mode.reachIsSight ? mod.MASK_SIGHT : mod.reachMask(w)),
+    reachMask: (w: WeaponId | null) => {
+      mode.reachCalls.push(w);
+      return mode.reachIsSight ? mod.MASK_SIGHT : mod.reachMask(w);
+    },
     findPath: (...args: Parameters<typeof mod.findPath>) => {
       searches.n++;
       return mod.findPath(...args);
     },
   };
 });
-afterEach(() => { mode.reachIsSight = false; });
+afterEach(() => { mode.reachIsSight = false; mode.reachCalls.length = 0; });
 
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 const fxOf = <K extends FxEvent["kind"]>(events: SimEvent[], kind: K): Array<Fx<K>> =>
@@ -443,5 +449,189 @@ describe("the target lock across a LOW fence", () => {
     order(world, dummy);
     const t = follow(world, dummy, 20);
     expect(t.hitsWest).toBeGreaterThan(0);
+  });
+});
+
+// ---- a lock on a target no path leads to -------------------------------------------------------------------------------
+
+describe("a lock on a target sealed in by LOW", () => {
+  /** 40 x 20; a ring of LOW round the 2 x 2 floor pocket at columns 20..21, rows 8..9; `gap` takes the ring's tile (19, 8) away. */
+  function pocket(gap = false): GameMap {
+    const ring: TilePt[] = [];
+    for (let x = 19; x <= 22; x++) ring.push([x, 7], [x, 10]);
+    for (let y = 8; y <= 9; y++) ring.push([19, y], [22, y]);
+    return roomMap(40, 20, { low: gap ? ring.filter(([x, y]) => !(x === 19 && y === 8)) : ring });
+  }
+  const START = tileCentre(10, 8);
+  const INSIDE = tileCentre(20, 8);
+
+  function setup(weapon: WeaponId, faction: FactionId, map: GameMap, from: Vec2 = START) {
+    const world = arena([{ id: "p0", faction, weapon, at: from, facing: 0 }], map);
+    const dummy = addMob(world, { kind: "dummy", name: "dummy", at: INSIDE });
+    return { world, dummy, c: combatant(world, "p0")!, rt: world.players.get("p0")! };
+  }
+
+  it("the pocket is in sight and in a component of its own (the geometry the rest relies on)", () => {
+    const map = pocket();
+    const comp = moveComponents(map);
+    const at = (p: Vec2): number => comp[worldToTile(p.y) * map.w + worldToTile(p.x)]!;
+    expect(at(START)).toBeGreaterThanOrEqual(0);
+    expect(at(INSIDE)).toBeGreaterThanOrEqual(0);
+    expect(at(INSIDE)).not.toBe(at(START));
+    const open = moveComponents(pocket(true));
+    expect(open[worldToTile(INSIDE.y) * map.w + worldToTile(INSIDE.x)]).toBe(open[worldToTile(START.y) * map.w + worldToTile(START.x)]);
+  });
+
+  it.each([["sword", "plague"], ["bow", "sentenced"]] as const)(
+    "a %s lock is accepted (the target is in sight) and dropped within a second by the first plan, with no search after it",
+    (weapon, faction) => {
+      const { world, dummy, c, rt } = setup(weapon, faction, pocket());
+      expect(Math.hypot(INSIDE.x - START.x, INSIDE.y - START.y)).toBeGreaterThan(POLICIES[weapon].far); // it has to chase
+      searches.n = 0;
+      handleTarget(world, c, { kind: "target", id: dummy });
+      expect(rt.weapon.lock).toBe(dummy);
+      expect(searches.n).toBe(0);
+
+      let droppedAt = -1;
+      for (let i = 0; i < 20; i++) {
+        step(world, TICK_MS);
+        if (rt.weapon.lock === null && droppedAt < 0) droppedAt = i;
+      }
+      expect(droppedAt).toBeGreaterThanOrEqual(0);
+      expect(searches.n).toBe(1); // the chase's one plan, which found the target sealed off
+
+      let swings = 0;
+      for (let i = 0; i < 100; i++) swings += fxOf(step(world, TICK_MS), "swing").length;
+      expect(searches.n).toBe(1); // none follows
+      expect(swings).toBe(0);
+      expect(rt.weapon.lock).toBeNull();
+      expect(rt.weapon.held).toBe(false);
+      expect(c.rt.path).toEqual([]);
+      expect(pos(world, "p0")).toEqual(START); // it stood where it was
+      expect(world.state.mobs.get(dummy)!.hp).toBe(world.state.mobs.get(dummy)!.maxHp);
+    },
+  );
+
+  it("a bow already within its range keeps shooting into the pocket: nothing to chase, so nothing to drop", () => {
+    const from = { x: INSIDE.x - POLICIES.bow.far + 40, y: INSIDE.y };
+    const { world, dummy, rt } = setup("bow", "sentenced", pocket(), from);
+    searches.n = 0;
+    handleTarget(world, combatant(world, "p0")!, { kind: "target", id: dummy });
+    for (let i = 0; i < 60; i++) step(world, TICK_MS);
+    expect(rt.weapon.lock).toBe(dummy);
+    expect(searches.n).toBe(0);
+    const mob = world.state.mobs.get(dummy)!;
+    expect(mob.hp).toBeLessThan(mob.maxHp);
+  });
+
+  it("with a gap in the ring there is a path: the sword keeps its lock, walks in and hits", () => {
+    const { world, dummy, rt } = setup("sword", "plague", pocket(true));
+    handleTarget(world, combatant(world, "p0")!, { kind: "target", id: dummy });
+    let hits = 0;
+    for (let i = 0; i < 160; i++) {
+      for (const fx of fxOf(step(world, TICK_MS), "hit")) if (fx.by === "p0" && fx.id === dummy) hits++;
+      expect(rt.weapon.lock, `tick ${i}`).toBe(dummy);
+    }
+    expect(hits).toBeGreaterThan(0);
+  });
+});
+
+// ---- the other readers of the reach mask: a mob's line of sight and a bot's attack-ready test ---------------------------
+
+describe("mob and bot reach follow reachMask", () => {
+  const TILES = 64;
+  const HOME = tileCentre(32, 32);
+  /** A fence at column 34 (x 1088..1120) from row 2 to row 57: the only way round is rows 58..62, far past the leash. */
+  const fence = () => roomMap(TILES, TILES, { low: vertical(34, 2, 57) });
+
+  /** A melee mob (a sentenced one) hugging the west face is shot by p0 on the east face, 56 u across the fence; 3 s of the real phases. */
+  function mobAcrossFence(): { swings: number; hurt: boolean; walked: number; firstSwing: { tick: number; walked: number } | null } {
+    const world = arena([{ id: "p0", faction: "plague", weapon: "", at: eastOf(34, HOME.y) }], fence());
+    const mob = combatant(world, placeMob(world, { region: "sentenced", elite: false, at: HOME, facing: 0 })) as MobCombatant;
+    const hugging = westOf(34, HOME.y);
+    mob.s.x = hugging.x;
+    mob.s.y = hugging.y;
+    mob.rt.path = [];
+    mob.rt.history = [{ t: world.state.serverTime, x: hugging.x, y: hugging.y }];
+    recordHit(world, {
+      victim: mob.id, by: { id: "p0", name: "P0" }, packet: { raw: 1, phys: 0, magic: 0, true: 1 }, weapon: "bow", stagger: false,
+    });
+    applyLedger(world);
+    expect(mob.rt.brain!.mode).toBe("fight");
+    let swings = 0;
+    let maxY = hugging.y;
+    let firstSwing: { tick: number; walked: number } | null = null;
+    for (let i = 0; i < 60; i++) {
+      const n = fxOf(step(world, TICK_MS), "swing").filter((fx) => fx.by === mob.id).length;
+      swings += n;
+      maxY = Math.max(maxY, pos(world, mob.id).y);
+      if (n > 0 && firstSwing === null) firstSwing = { tick: i, walked: pos(world, mob.id).y - hugging.y };
+    }
+    return { swings, hurt: world.state.players.get("p0")!.hp < BIG_HP, walked: maxY - hugging.y, firstSwing };
+  }
+
+  it("a melee mob shot across a fence walks round and does not swing; with reach read as sight it swings and hits at once, before it walks", () => {
+    const fenced = mobAcrossFence();
+    expect(fenced.swings).toBe(0);
+    expect(fenced.hurt).toBe(false);
+    expect(fenced.walked).toBeGreaterThan(40);
+
+    // Its line of sight (mobAI) and the swing (melee) both read the mocked reach: it starts a swing within a few ticks, where it
+    // stands, and the swing lands. (It still walks on afterwards, to close in to its weapon's spacing: only the path leads round.)
+    mode.reachIsSight = true;
+    const flipped = mobAcrossFence();
+    expect(flipped.hurt).toBe(true);
+    expect(flipped.firstSwing).not.toBeNull();
+    expect(flipped.firstSwing!.tick).toBeLessThanOrEqual(6);
+    expect(flipped.firstSwing!.walked).toBeLessThan(20);
+  });
+
+  describe("a bot", () => {
+    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(100_000); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    interface Hands { weapon0: string; weapon1: string; slot: number }
+
+    /** A bot 56 u from its locked foe across a one-tile fence, holding `hands`; whether it counts itself as attacking after one think. */
+    function attacking(hands: Hands): boolean {
+      const base = { status: "alive", weapon0: "sword", weapon1: "", slot: 0, attackTarget: "" };
+      const west = westOf(25, 300);
+      const me = {
+        ...base, ...hands, ...west, attackTarget: "foe", faction: "fire", hp: 500, maxHp: 500, stacksHp: 0, stacksAs: 0, stacksMs: 0,
+        mobKills: 0, drawStartedAt: 0, readyAt: 0,
+      };
+      const foe = { ...base, ...eastOf(25, 300) };
+      const players = new Map([["me", me], ["foe", foe]]);
+      const b = new BotClient() as unknown as { room: unknown; map: unknown; attacking: boolean; think(): void };
+      b.map = roomMap(60, 20, { low: vertical(25, 1, 18) });
+      b.room = {
+        sessionId: "me",
+        send: () => {},
+        state: {
+          phase: "active", serverTime: 0, raidStartedAt: 0, inColiseum: false, gatesLocked: false, players,
+          mobs: new Map(), containers: new Map(),
+        },
+      };
+      mode.reachCalls.length = 0;
+      b.think();
+      return b.attacking;
+    }
+
+    it.each([
+      ["slot 0", { weapon0: "sword", weapon1: "", slot: 0 }],
+      ["slot 1 (the active weapon, not the first)", { weapon0: "", weapon1: "sword", slot: 1 }],
+    ] as const)("a sword in %s is not attacking across the fence, and is with reach read as sight; reach is asked for the sword", (_, hands) => {
+      expect(attacking(hands)).toBe(false);
+      expect(mode.reachCalls).toContain("sword");
+      expect(mode.reachCalls).not.toContain("bow");
+      mode.reachIsSight = true;
+      expect(attacking(hands)).toBe(true);
+    });
+
+    it("a bow is attacking across the fence (a shot flies over it), with reach asked for the bow", () => {
+      expect(attacking({ weapon0: "bow", weapon1: "", slot: 0 })).toBe(true);
+      expect(mode.reachCalls).toContain("bow");
+      expect(mode.reachCalls).not.toContain("sword");
+    });
   });
 });
