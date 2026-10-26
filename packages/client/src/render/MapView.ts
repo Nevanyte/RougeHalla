@@ -11,6 +11,7 @@ import {
 } from "@raid/shared";
 import { depthFor, projX, projY } from "./projection";
 import { BakedArt, bakeZoneArt, hasZoneArt, makeContext, type BakeStats } from "./zoneArt/bake";
+import { TerrainFx } from "./zoneArt/TerrainFx";
 import { LOW_HEIGHT, WALL_HEIGHT } from "./zoneArt/zoneStyle";
 
 /**
@@ -117,6 +118,8 @@ export class MapView {
   private gatesLocked = false;
   /** The baked ground and walls of a styled map; null on the plain way. */
   private art: BakedArt | null = null;
+  /** The animated overlays and particles over the baked ground; null on the plain way. */
+  private fx: TerrainFx | null = null;
   private terrainFx = true;
   private destroyed = false;
 
@@ -149,12 +152,15 @@ export class MapView {
   /** Shows or hides the animated terrain overlays and particles (the baked art stays). */
   setTerrainFx(visible: boolean): void {
     this.terrainFx = visible;
+    this.fx?.setVisible(visible);
   }
 
   destroy(): void {
     this.destroyed = true;
     this.scene.events?.off?.("postupdate", this.onPostUpdate);
     this.scene.game?.canvas?.removeEventListener?.("webglcontextrestored", this.onContextRestored);
+    this.fx?.destroy();
+    this.fx = null;
     this.art?.destroy();
     this.art = null;
     for (const o of this.objects) o.destroy();
@@ -167,10 +173,16 @@ export class MapView {
   private bake(): void {
     try {
       this.art = bakeZoneArt(this.scene, this.map, makeContext(this.map));
+      if (this.fx === null) {
+        this.fx = new TerrainFx(this.scene, this.map);
+        this.fx.setVisible(this.terrainFx);
+      }
     } catch (e) {
       console.warn("MapView: baking the zone art failed, drawing the map the plain way", e);
       this.art?.destroy();
       this.art = null;
+      this.fx?.destroy();
+      this.fx = null;
     }
   }
 
@@ -200,6 +212,8 @@ export class MapView {
   private fallBack(): void {
     this.art?.destroy();
     this.art = null;
+    this.fx?.destroy();
+    this.fx = null;
     this.drawFloor();
     this.drawWalls();
     this.drawLow();
@@ -230,6 +244,7 @@ export class MapView {
     const hw = cam.width / cam.zoom / 2;
     const hh = cam.height / cam.zoom / 2;
     this.art.cull(cx - hw - 48, cy - hh - 48, cx + hw + 48, cy + hh + 48);
+    this.fx?.update(performance.now(), { left: cx - hw, top: cy - hh, right: cx + hw, bottom: cy + hh });
   };
 
   private drawFloor(): void {

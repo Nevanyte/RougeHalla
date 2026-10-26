@@ -737,12 +737,13 @@ export function drawWallProp(g: Pen, p: PropSpot): void {
 
 /** The glow laid over a lava tile (TerrainFx draws one Graphics of these per phase bucket). */
 export function drawLavaGlow(g: Pen, x: number, y: number): void {
-  g.fillStyle(TERRAIN_PALETTE.lava.core, 1).fillRect(x + 2, y + 2, TILE_W - 4, TILE_H - 5);
+  // A soft blob, not the tile's square: neighbours in other phases blend, so no grid shows.
+  g.fillStyle(TERRAIN_PALETTE.lava.core, 1).fillEllipse(x + TILE_W / 2, y + TILE_H / 2, TILE_W * 0.85, TILE_H * 0.7);
 }
 
 /** The glow over an ember tile. */
 export function drawEmberGlow(g: Pen, x: number, y: number): void {
-  g.fillStyle(TERRAIN_PALETTE.ember.glow, 1).fillRect(x + 1, y + 1, TILE_W - 2, TILE_H - 2);
+  g.fillStyle(TERRAIN_PALETTE.ember.glow, 1).fillEllipse(x + TILE_W / 2, y + TILE_H / 2, TILE_W * 0.8, TILE_H * 0.7);
 }
 
 /** A bubble pop on a bog tile: a ring and a speck. */
