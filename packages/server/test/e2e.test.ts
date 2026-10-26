@@ -28,6 +28,7 @@ import {
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { BotClient, type BotRun } from "../src/bots/BotClient";
+import type { PersonaId } from "../src/bots/brain/types";
 import { loadConfig } from "../src/config";
 import { startServer, type RaidServer } from "../src/index";
 import type { ProfileRecord } from "../src/persistence/ProfileStore";
@@ -44,6 +45,13 @@ const QUITTER = 1;
  */
 const SIGNATURE_LINEUP: readonly FactionId[] = ["fire", "holy", "plague", "sentenced"];
 const CONTROL_LINEUP: readonly FactionId[] = ["frost", "sentenced", "fire", "holy"];
+/**
+ * The brain each bot plays with: Hard (the quickest hands) and a hunter, a farmer, a hunter and an opportunist, so that kills and
+ * mob kills keep their odds (BOTS.md 9.2). The quitter (index 1) leaves a second in, so its persona is the one that does not
+ * matter, and the farmer, who is what the mob kills lean on, takes a seat that stays.
+ */
+const BOT_TIER = "hard";
+const BOT_PERSONAS: readonly PersonaId[] = ["hunter", "hunter", "farmer", "opportunist"];
 /** Which faction a signature belongs to: its `hit` fx are always dealt by that faction's players. */
 const SIGNATURE_OWNER: Readonly<Record<SignatureKind, FactionId>> = { burn: "fire", backlash: "fire", disease: "plague", mark: "sentenced" };
 /** Server time into the run when it does: too early for anyone to have died, since a kill takes several hits. */
@@ -179,6 +187,8 @@ async function playRun(
       timeoutMs: 90_000,
       verbose: !!process.env.E2E_VERBOSE,
       faction: lineup[i],
+      tier: BOT_TIER,
+      persona: BOT_PERSONAS[i],
       ...(i === QUITTER ? { abandonAfterMs: QUIT_AFTER_MS } : {}),
     }));
     const players = names.map((_, i) => i).filter((i) => i !== QUITTER);
@@ -264,7 +274,7 @@ async function playRun(
     console.log(
       `[e2e] seed ${bots[0]!.seed} ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}(${lineup[i]})=${results.get(i)?.outcome ?? "quit"}`).join(" ")}`
       + ` (sent ${sent("target")} targets, ${sent("move")} moves, ${sent("swap")} swaps, ${sent("pickup")} pickups;`
-      + ` ${mobKills} mobs killed: ${bots.map((b) => mobDeathBy(b.sessionId)).join("/")})`,
+      + ` ${mobKills} mobs killed: ${bots.map((b) => mobDeathBy(b.sessionId)).join("/")}; longest stall ${Math.max(...players.map((i) => bots[i]!.stats.maxStallMs)) | 0} ms)`,
     );
 
     // --- the run ended: one winner in first place, or a draw in which everyone tied shares first place

@@ -6,14 +6,17 @@
 //   "resolved"        recordRun(outcome, kills, gv.total)   once per player and run, whatever the outcome
 //   server shutdown   bankGv(unbanked run GV)               the run is void: no run is recorded
 //   leave in lobby    nothing
-//   a bot             nothing, ever (sim bots have no client, profile or seat; settle() drops their results)
+//   a bot             nothing, ever (sim bots have no client, profile or seat; settle() drops their results, and only the
+//                     bot manager's learning store hears of them)
 import { randomBytes, randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
   CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
-  type FactionId, type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
+  type FactionId, type FxBatch, type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
+import { BotManager } from "../bots/BotManager";
+import type { BotStatsStoreApi } from "../bots/brain/types";
 import type { ServerConfig } from "../config";
 import type { ProfileStore } from "../persistence/ProfileStore";
 import { markDropped, markReconnected } from "../sim/arena";
@@ -100,6 +103,8 @@ export interface RoomContext {
   config: ServerConfig;
   store: ProfileStore;
   profiles: ActiveProfiles;
+  /** What the fill bots learn across runs (docs/BOTS.md 6.2): process-wide, its own file, never the profile store. Null = learning off. */
+  botStats: BotStatsStoreApi | null;
 }
 
 /** What onAuth hands to onJoin via `client.auth`. */
@@ -184,6 +189,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   /** When the last input arrived (training's idle limit). */
   private lastInputAt = Date.now();
 
+  /** The fill bots (docs/BOTS.md 7.2): an arena room with `bots.fillTo` above 0. Never in training. */
+  private bots: BotManager | undefined;
+  /** The `fxs` batches broadcast since the bots' last frame: they see what the clients got. Only filled when there are bots. */
+  private readonly botBatches: FxBatch[] = [];
+
   private get world(): World {
     if (!this.built) throw new Error("the world is built when the first player joins");
     return this.built;
@@ -233,6 +243,15 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       rewardSalt: Array.from(new Uint32Array(randomBytes(16).buffer, 0, 4)),
     });
     if (this.training) installTraining(world);
+    else if (config.bots.fillTo > 0) {
+      const { store, botStats } = RaidRoom.ctx;
+      this.bots = new BotManager(world, config.bots, {
+        store: botStats,
+        // A read of the profile registry and nothing else: a bot's callsign must not be a real player's.
+        isNameTaken: (name) => store.get(name) !== undefined,
+        seed: config.bots.seed ?? randomInt(0, 2 ** 32),
+      });
+    }
     this.built = world;
     // Core describes the state to the client after onJoin returns, so this is early enough.
     this.state = world.state;
@@ -265,6 +284,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     try {
       // The first player to get this far, with the profile already claimed in onAuth, is who the room is built for.
       const world = this.built ?? this.buildWorld();
+      // The lobby is full of humans and bots: the newest bot gives its seat up (maxClients counts humans only).
+      if (this.bots && world.state.players.size >= MAX_PLAYERS) this.bots.yieldSeat();
       // Equipped at the moment of joining; changing the wardrobe mid-run takes effect next run.
       const owned = store.get(profile)?.cosmetics;
       addPlayer(world, client.sessionId, profile, { faction, look: owned ? packLook(owned.equipped, owned.owned) : 0 });
@@ -351,6 +372,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   /** Safety net: onLeave normally empties `seats`; this keeps a leak from locking a profile out for good. */
   onDispose() {
     const { profiles } = RaidRoom.ctx;
+    this.bots?.dispose();
     if (this.opener) profiles.forgetRoom(this.opener, this.roomId);
     for (const [sessionId, seat] of this.seats) {
       if (this.world.state.players.get(sessionId)?.status === "alive") {
@@ -373,9 +395,16 @@ export class RaidRoom extends Room<{ state: RaidState }> {
 
   private tick(elapsedMs: number) {
     if (!this.built) return;
+    const { bots } = this;
     this.accumulator += elapsedMs;
     let steps = 0;
     while (this.accumulator >= TICK_MS && steps < MAX_CATCHUP_STEPS) {
+      if (bots) {
+        // Arrivals happen between steps, and a command that has reached the server by this step's time is applied by it, as a
+        // socket message that came in since the last step would be.
+        if (this.world.state.phase === "lobby") bots.lobbyTick();
+        bots.beforeStep(this.world.state.serverTime + TICK_MS);
+      }
       this.handleEvents(step(this.world, TICK_MS));
       this.accumulator -= TICK_MS;
       steps++;
@@ -385,11 +414,19 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       this.fxChannel.extendRoster(this.world.state);
       this.broadcastPatch();
       this.fxChannel.rosterSent();
+      // One frame per patch, like a client: the bots see this state and these batches, never anything a client did not get.
+      bots?.afterPatch(this.botBatches.splice(0));
     }
   }
 
   private sendTo<K extends keyof ServerMessages>(sessionId: string, type: K, msg: ServerMessages[K]) {
     this.clients.getById(sessionId)?.send(type, msg);
+  }
+
+  /** A toast to a client, or, for a fill bot (no client), into its next frame. */
+  private toastTo(id: string, text: string) {
+    if (this.bots?.isBot(id)) this.bots.onToast(id, text);
+    else this.sendTo(id, "toast", { text });
   }
 
   private handleEvents(events: SimEvent[]) {
@@ -400,13 +437,13 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           fxs.push(ev.fx);
           break;
         case "toast":
-          this.sendTo(ev.to, "toast", { text: ev.text });
+          this.toastTo(ev.to, ev.text);
           break;
         case "resolved":
           this.settle(ev.id, ev.result, ev.bot === true);
           break;
         case "gv":
-          this.sendTo(ev.id, "toast", { text: `+${ev.amount} GV (${GV_TOAST[ev.reason]})` });
+          this.toastTo(ev.id, `+${ev.amount} GV (${GV_TOAST[ev.reason]})`);
           break;
         case "raidStarted":
           void this.lock();
@@ -420,7 +457,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // reach the client ahead of the patch that moves everyone (it marks the cut). A step with no fx and no new projectile
     // sends nothing.
     const batch = this.fxChannel.batch(fxs, this.world.state.serverTime, this.world.projectiles);
-    if (batch) this.broadcast("fxs", batch satisfies ServerMessages["fxs"]);
+    if (batch) {
+      this.broadcast("fxs", batch satisfies ServerMessages["fxs"]);
+      if (this.bots) this.botBatches.push(batch);
+    }
   }
 
   /**
@@ -429,8 +469,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
    */
   private settle(sessionId: string, result: RunResult, bot = false) {
     // bots never touch persistence: a bot has no profile, and its display name could match a real one. recordRun, bankGv, the
-    // profile registry and pendingResults are all out of reach from here on.
-    if (bot || this.world.players.get(sessionId)?.bot) return;
+    // profile registry and pendingResults are all out of reach from here on. The bot's brain learns from it, and that is all.
+    if (bot || this.world.players.get(sessionId)?.bot) {
+      this.bots?.onResult(sessionId, result);
+      return;
+    }
     // The sim never resolves a training run; this is the second lock on "no GV, no stats, no achievements".
     if (this.training) return;
     const { store, profiles } = RaidRoom.ctx;

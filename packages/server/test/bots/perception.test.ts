@@ -609,6 +609,25 @@ describe("frames.ts: delay, interpolation, velocity and events", () => {
     }
   });
 
+  it("keeps the screen around the old spot until a teleport of the bot itself is drawn, as the client's camera does", () => {
+    const far = { x: SELF.x + 2400, y: SELF.y + 1500 };
+    const ps = run(12, (k) => {
+      const moved = k >= 6;
+      const s = world({ players: { old: { x: SELF.x + 100, y: SELF.y }, arrive: moved ? { x: far.x + 100, y: far.y } : { x: 5000, y: 5000 } } });
+      Object.assign(s.players.get("me")!, moved ? far : SELF);
+      return { state: s, events: k === 6 ? [{ kind: "teleport" }] : [] };
+    });
+    const cutT = T0 + 6 * FRAME_MS;
+    for (const p of ps) {
+      const drawn = p.viewT < cutT;
+      // The HUD (and SelfView) follows the latest patch at once; the window waits for the cut.
+      if (p.now - IN_PROCESS.selfDelayMs >= cutT) expect([p.self.x, p.self.y]).toEqual([far.x, far.y]);
+      expect(ids(p.fighters), `at ${p.viewT}`).toEqual(drawn ? ["old"] : ["arrive"]);
+      if (drawn) expect(p.fighters[0]!.dist).toBe(100);
+    }
+    expect(ps.some((p) => p.viewT < cutT && p.self.x === far.x)).toBe(true);
+  });
+
   it("ignores a frame older than the newest", () => {
     const { s } = scenarioOf(6, walking);
     const ring = createFrameRing();

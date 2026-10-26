@@ -2,9 +2,8 @@
 // and a straight-line "walk"; time is passed in, so a fight of seconds runs in microseconds.
 import { describe, expect, it } from "vitest";
 import {
-  FACTIONS, type FactionId, type TimedFx, type Vec2, type WeaponId,
+  FACTIONS, type FactionId, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { BotClient } from "../src/bots/BotClient";
 import {
   bestEdge, bestSlotVsMob, matchupShare, MOB_HUNT, MobHunter, MobTracker, mobWeapon, pathLength, retreatPoint,
   useless, type HuntInput, type HuntSelf, type MobHuntConfig, type MobLike,
@@ -28,7 +27,7 @@ class Scene {
   players: Vec2[] = [];
   inColiseum = false;
   attacking = false;
-  /** When a player last hit the bot (BotClient reads it off the hit fx); never, by default. */
+  /** When a player last hit the bot (bots/brain/memory.ts reads it off the hit fx: `lastHitByPlayerAt`); never, by default. */
   shotByPlayerAt = -Infinity;
   /** Pretend there is no path to these ids. */
   unreachable = new Set<string>();
@@ -534,29 +533,5 @@ describe("pieces", () => {
   it("pathLength adds up the legs", () => {
     expect(pathLength({ x: 0, y: 0 }, [{ x: 3, y: 4 }, { x: 3, y: 10 }])).toBe(11);
     expect(pathLength({ x: 0, y: 0 }, [])).toBe(0);
-  });
-});
-
-describe("BotClient: which hits count as a player's fire", () => {
-  /** The brain over a fake room (the private parts the test reaches into, as in botOrbit.test.ts). */
-  function brain() {
-    const b = new BotClient() as unknown as { room: unknown; playerHitAt: number; onFx(fx: TimedFx): void };
-    b.room = { sessionId: "me", state: { players: new Map([["me", {}], ["rival", {}]]), mobs: new Map([["mob1", {}]]) } };
-    return b;
-  }
-  const hit = (id: string, by: string | null): TimedFx => ({ kind: "hit", id, by, amount: 10, weapon: "sword", t: 0 });
-
-  it("records a hit on the bot by another player, and nothing else", () => {
-    const b = brain();
-    expect(b.playerHitAt).toBe(-Infinity);
-    b.onFx(hit("me", "mob1")); // a mob's blow
-    b.onFx(hit("me", null)); // the arena (sudden death, a signature tick without an owner)
-    b.onFx(hit("me", "me")); // its own backlash
-    b.onFx(hit("rival", "me")); // the bot hitting somebody
-    b.onFx({ kind: "block", id: "me", by: "rival", weapon: "sword", t: 0 }); // a blocked blow does no harm: not "being shot"
-    expect(b.playerHitAt).toBe(-Infinity);
-    const before = Date.now();
-    b.onFx(hit("me", "rival"));
-    expect(b.playerHitAt).toBeGreaterThanOrEqual(before);
   });
 });

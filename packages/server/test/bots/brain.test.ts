@@ -568,6 +568,12 @@ describe("the stall watch", () => {
     expect(r.brain.goal.kind === "loot" || r.brain.stats.maxStallMs < 3000).toBe(true);
   });
 
+  it("does not count the sudden-death standoff: the bot ahead keeps its distance on purpose and the burn is the clock", () => {
+    const r = rig("normal", "hunter");
+    drive(r, 200, (_i, now) => ({ hud: hudView({ suddenDeathAt: now - 3000 }) }));
+    expect(r.brain.stats.maxStallMs).toBe(0);
+  });
+
   it("does not count time while dead or in the lobby", () => {
     const r = rig("normal", "hunter");
     drive(r, 200, () => ({ self: selfView({ status: "dead" }) }));

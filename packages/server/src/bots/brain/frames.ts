@@ -132,7 +132,14 @@ export class FrameRing implements FrameRingApi {
     const selfT = now - cfg.selfDelayMs;
     const latest = this.frameAt(selfT) ?? frames[0]!;
     const self = latest.self;
-    const cx = self.x, cy = self.y;
+    // The camera follows the drawn fighter, which the client keeps drawing from the snapshots until a teleport is drawn: until
+    // render time reaches the cut, the screen is still the one around the old spot, not around where the patch has it now.
+    const before = this.teleportBetween(viewT, latest.t) ? this.frameAt(viewT) : undefined;
+    const eye = before ? this.selfAt(viewT) ?? self : self;
+    const cx = eye.x, cy = eye.y;
+    // What is drawn around that old spot: the latest frame only holds what is around the new one, so the last frame before the
+    // cut stands in for it (for at most the render delay).
+    const scene = before ?? latest;
     const sight = latest.hud.gatesLocked ? withGates(cfg.map) : cfg.map;
 
     const due = this.takeWorld(viewT);
@@ -152,7 +159,7 @@ export class FrameRing implements FrameRingApi {
     const central = cfg.attentionCentral;
 
     const fighters: Array<Mutable<FighterView>> = [];
-    for (const f of latest.fighters) {
+    for (const f of scene.fighters) {
       // The latest patch decides who is drawn; a death still ahead of render time keeps the body standing (RaidScene).
       if (f.status !== "alive" && f.status !== "lobby" && !pendingDeaths.has(f.id)) continue;
       const at = this.sample(now0, "fighters", f.id) ?? f;
@@ -160,13 +167,13 @@ export class FrameRing implements FrameRingApi {
       const v = this.velocity(prev, prevSelf, "fighters", f.id, at, cut);
       const dx = at.x - cx, dy = at.y - cy;
       fighters.push({
-        ...f, x: at.x, y: at.y, vx: v.x, vy: v.y, dist: Math.hypot(dx, dy), los: hasLineOfSight(sight, self, at), tint: 0,
+        ...f, x: at.x, y: at.y, vx: v.x, vy: v.y, dist: Math.hypot(dx, dy), los: hasLineOfSight(sight, eye, at), tint: 0,
         central: isCentral(dx, dy, central),
       });
     }
 
     const mobs: MobView[] = [];
-    for (const m of latest.mobs) {
+    for (const m of scene.mobs) {
       if (m.status !== "alive") {
         const died = this.deathAt.get(m.id);
         if (died === undefined || !(viewT < died + MOB_FADE_MS)) continue;
@@ -176,7 +183,7 @@ export class FrameRing implements FrameRingApi {
       const v = this.velocity(prev, prevSelf, "mobs", m.id, at, cut);
       const dx = at.x - cx, dy = at.y - cy;
       mobs.push({
-        ...m, x: at.x, y: at.y, vx: v.x, vy: v.y, dist: Math.hypot(dx, dy), los: hasLineOfSight(sight, self, at),
+        ...m, x: at.x, y: at.y, vx: v.x, vy: v.y, dist: Math.hypot(dx, dy), los: hasLineOfSight(sight, eye, at),
         central: isCentral(dx, dy, central),
       });
     }
@@ -189,13 +196,13 @@ export class FrameRing implements FrameRingApi {
     const view: View = { cx, cy, visible };
 
     const containers: ContainerView[] = [];
-    for (const c of latest.containers) {
+    for (const c of scene.containers) {
       if (!inView(cx, cy, c.x, c.y)) continue;
       if (c.kind === "body" && pendingBodies.some((d) => Math.abs(c.x - d.x) < BODY_MATCH && Math.abs(c.y - d.y) < BODY_MATCH)) continue;
       containers.push({ ...c, dist: Math.hypot(c.x - cx, c.y - cy) });
     }
 
-    const projectiles = this.fly(viewT, view, self, fighters, mobs);
+    const projectiles = this.fly(viewT, view, eye === self ? self : { ...self, x: cx, y: cy }, fighters, mobs);
 
     const events: ObservedEvent[] = [];
     for (const q of due) {
@@ -206,7 +213,7 @@ export class FrameRing implements FrameRingApi {
 
     return {
       now, viewT, self, hud: latest.hud, fighters, mobs, containers, projectiles, minimap: latest.minimap, events,
-      extras: windowExtras(latest.extras, view, fighters, mobs, self), features: cfg.features,
+      extras: windowExtras(scene.extras, view, fighters, mobs, self), features: cfg.features,
     };
   }
 
@@ -232,6 +239,15 @@ export class FrameRing implements FrameRingApi {
   private teleportBetween(from: ServerMs, to: ServerMs): boolean {
     for (const f of this.frames) for (const e of f.events) if (e.kind === "teleport" && e.t > from && e.t <= to) return true;
     return false;
+  }
+
+  /** Where the bot itself is drawn at `t` from the snapshots (held across a cut, as the others are). */
+  private selfAt(t: ServerMs): Vec2 | null {
+    const br = this.bracket(t);
+    if (!br) return null;
+    const a = br.a.self, b = br.b?.self;
+    if (!b || br.cut) return { x: a.x, y: a.y };
+    return { x: a.x + (b.x - a.x) * br.k, y: a.y + (b.y - a.y) * br.k };
   }
 
   private bracket(t: ServerMs): Bracket | null {

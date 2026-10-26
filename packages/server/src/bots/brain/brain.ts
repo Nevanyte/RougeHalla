@@ -217,8 +217,10 @@ export const createBrain: BrainFactory = (cfg: BrainConfig): Brain => {
 
   function watchStall(p: Percept): void {
     const me = p.self;
-    // Deliberate waiting is not a stall: a fight, a bow pull, a pickup, a hold the strategy chose.
-    const busy = lastTactics.attacking || me.drawStartedAt > 0 || goal.kind === "loot" || (goal.kind === "hold" && goal.why !== "wait");
+    // Deliberate waiting is not a stall: a fight, a bow pull, a pickup, a hold the strategy chose, and sudden death, where the bot
+    // ahead on hp share keeps its distance on purpose and the burn is the clock (it can stand off for as long as the burn takes).
+    const suddenDeath = p.hud.suddenDeathAt > 0 && p.now >= p.hud.suddenDeathAt;
+    const busy = lastTactics.attacking || me.drawStartedAt > 0 || goal.kind === "loot" || (goal.kind === "hold" && goal.why !== "wait") || suddenDeath;
     const moved = lastPos === null || Math.hypot(me.x - lastPos.x, me.y - lastPos.y) >= BRAIN_RULES.stillEps;
     if (stillSince === null || busy || moved) stillSince = p.now;
     lastPos = { x: me.x, y: me.y };

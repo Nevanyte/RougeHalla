@@ -8,10 +8,18 @@ import {
   type FxBatch, type FxEvent, type GameMap, type ProjectileLaunch, type Rng, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { ContainerState, ItemState, MobState, PlayerState, RaidState } from "@raid/shared/schema";
+import { createBrain } from "../../src/bots/brain/brain";
 import { createFrameRing } from "../../src/bots/brain/frames";
+import { enabledModules } from "../../src/bots/brain/modules";
 import { perceive, type PerceptionInput } from "../../src/bots/brain/perception";
-import { BOT_VIEW, FRAME_MARGIN, MINIMAP_QUANT, type ComposeConfig, type Features, type MinimapView, type Percept } from "../../src/bots/brain/types";
-import { features as featureSet, testMap } from "./fixtures";
+import { createBotRunner } from "../../src/bots/brain/runner";
+import { createPathBudget, createPathService } from "../../src/bots/brain/services";
+import {
+  BOT_VIEW, FRAME_MARGIN, MINIMAP_QUANT, PERSONAS, TIERS,
+  type Brain, type BrainFactory, type ComposeConfig, type Features, type FeatureModule, type Goal, type MemoryView, type MinimapView,
+  type Percept, type PersonaId, type TierId, type TimedCommand,
+} from "../../src/bots/brain/types";
+import { features as featureSet, NO_LEARNING, testMap } from "./fixtures";
 
 // ============================================================================================================ plain states
 
@@ -169,6 +177,9 @@ export interface ScenarioOptions {
 }
 
 const SLACK = 60;
+/** How far (u) a long scenario lets the bot wander from its start, and an on-screen fighter from its own. */
+const WANDER = 120;
+const DRIFT = 60;
 const HALF_W = BOT_VIEW.halfW;
 const HALF_H = BOT_VIEW.halfH;
 
@@ -236,6 +247,8 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   for (let k = 1; k < n; k++) {
     heading += range(rng, -0.6, 0.6);
     const prev = selves[k - 1]!;
+    // A long scenario keeps the bot near its start (turning home past WANDER), so the roles hold all along.
+    if (Math.hypot(prev.x - start.x, prev.y - start.y) > WANDER) heading = Math.atan2(start.y - prev.y, start.x - prev.x);
     selves.push({ x: Math.round((prev.x + Math.cos(heading) * pace) * 4) / 4, y: Math.round((prev.y + Math.sin(heading) * pace) * 4) / 4 });
   }
   const t = (k: number) => T0 + k * FRAME_MS;
@@ -256,9 +269,12 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   const tracks = new Map<string, Vec2[]>();
   const walk = (from: Vec2): Vec2[] => {
     const out = [from];
+    const near = (v: number, o: number) => Math.min(o + DRIFT, Math.max(o - DRIFT, v));
     for (let k = 1; k < n; k++) {
       const p = out[k - 1]!;
-      out.push({ x: Math.round((p.x + range(rng, -6, 6)) * 4) / 4, y: Math.round((p.y + range(rng, -6, 6)) * 4) / 4 });
+      out.push({
+        x: near(Math.round((p.x + range(rng, -6, 6)) * 4) / 4, from.x), y: near(Math.round((p.y + range(rng, -6, 6)) * 4) / 4, from.y),
+      });
     }
     return out;
   };
@@ -307,8 +323,9 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   }
 
   // Off-screen news: a far player dies (announced by name), a far player's bounty rises.
-  const deathFrame = opts.quiet ? -1 : 3 + Math.floor(rng() * 4);
-  const bountyFrame = opts.quiet ? -1 : 2 + Math.floor(rng() * 6);
+  const deathFrame = opts.quiet ? -1 : 3 + Math.floor(rng() * Math.max(4, Math.floor(n * 0.4)));
+  const bountyFrame = opts.quiet ? -1 : 2 + Math.floor(rng() * Math.max(6, Math.floor(n * 0.6)));
+  const mobDeathFrame = Math.max(6, Math.floor(n / 2));
   if (!opts.quiet) roles.announced.push("f2", "f1");
 
   const frames: ScenarioFrame[] = [];
@@ -316,7 +333,12 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   const flying: Array<{ id: string; from: string; endsAt: number }> = [];
   for (let k = 0; k < n; k++) {
     const state = plainState({ serverTime: t(k), tick: 2000 + k, seed: map.seed });
-    state.players.set("me", { ...me, x: selves[k]!.x, y: selves[k]!.y });
+    // The bot's own HUD changes too: a lock it holds now and then, a cooldown that runs, and hp that drains (so it flees).
+    const life = n > 1 ? k / (n - 1) : 0;
+    state.players.set("me", {
+      ...me, x: selves[k]!.x, y: selves[k]!.y, attackTarget: ["", "p1", "", "m1"][Math.floor(k / 40) % 4]!,
+      readyAt: t(k) + ((k * 7) % 12) * 50, hp: Math.round(me.hp - (me.hp - 60) * life),
+    });
     for (const id of playerIds) {
       if (id === "me") continue;
       const p = { ...base.get(id)!, ...tracks.get(id)![k]! };
@@ -326,7 +348,7 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
     }
     for (const id of mobIds) {
       const m = { ...mobBase.get(id)!, ...tracks.get(id)![k]! };
-      if (id === "m2" && k >= 6) { m.status = "dead"; m.hp = 0; }
+      if (id === "m2" && k >= mobDeathFrame) { m.status = "dead"; m.hp = 0; }
       state.mobs.set(id, m);
     }
     for (const c of containers) state.containers.set(c.id, structuredClone(c));
@@ -355,7 +377,7 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
       events.push({ kind: "death", id: "f2", x: p.x, y: p.y, by: "f3" });
     }
     if (k === bountyFrame) events.push({ kind: "bounty", id: "f1", name: base.get("f1")!.name, bounty: 10 });
-    if (k === 6) events.push({ kind: "death", id: "m2", x: at("m2").x, y: at("m2").y, by: "p1" });
+    if (k === mobDeathFrame) events.push({ kind: "death", id: "m2", x: at("m2").x, y: at("m2").y, by: "p1" });
     if (k === 4 && chance(rng, 0.5)) toasts.push("Too far away");
     // An arrow from p1 at the bot every few frames; each one ends two frames later.
     if (k % 3 === 0) {
@@ -685,6 +707,9 @@ export function assertBlind(run: (s: Scenario) => unknown, base: Scenario, p: Pe
 /** Records every place a watched id or name shows up in what a bot was given (strings and object keys, at any depth). */
 export interface NeverSeenTracker {
   watch(...tokens: string[]): void;
+  /** The bot legitimately learnt these (they came on screen, or were announced): no longer a leak from here on. */
+  unwatch(...tokens: string[]): void;
+  readonly watching: number;
   scan(label: string, value: unknown): void;
   readonly hits: readonly string[];
 }
@@ -717,7 +742,106 @@ export function createNeverSeenTracker(): NeverSeenTracker {
   };
   return {
     watch(...ts) { for (const t of ts) tokens.add(t); },
-    scan(label, value) { visit(value, label, 0); },
+    unwatch(...ts) { for (const t of ts) tokens.delete(t); },
+    get watching() { return tokens.size; },
+    scan(label, value) { if (tokens.size > 0) visit(value, label, 0); },
     get hits() { return hits; },
   };
+}
+
+// ================================================================================================================ the brain
+
+export interface BrainSpec {
+  readonly tier: TierId;
+  readonly persona: PersonaId;
+  readonly seed: number;
+}
+
+/** What a whole brain did on one frame of a scenario: the commands it clicked (as sent), and the goal it held after. */
+export interface BrainFrame {
+  readonly sent: readonly TimedCommand[];
+  readonly goal: Goal;
+  /** The percept it decided on (null before the ring covered the delay). */
+  readonly percept: Percept | null;
+}
+
+/**
+ * The real brain over a scenario, the way BotManager seats one: createBrain + createBotRunner with the in-process delays, a
+ * room path budget renewed every frame, and the modules the features enable. Same scenario and spec, same output.
+ */
+export function runBrain(s: Scenario, spec: BrainSpec): BrainFrame[] {
+  const budget = createPathBudget();
+  const tier = TIERS[spec.tier];
+  let percept: Percept | null = null;
+  const brain = recordingBrain(createBrain, { onTick: (_id, p) => { percept = p; } })({
+    id: s.selfId, name: "Self", tier, persona: PERSONAS[spec.persona], seed: spec.seed, map: s.map, features: s.features, learned: NO_LEARNING,
+    services: { paths: createPathService(s.map, budget), log: () => {} }, modules: enabledModules(s.features),
+  });
+  const runner = createBotRunner({
+    brain, adapter: { selfId: s.selfId, supports: (t) => s.features.messageTypes.includes(t), send: () => true }, cfg: IN_PROCESS, map: s.map,
+    features: s.features, tier,
+  });
+  return scenarioInputs(s).map((input) => {
+    budget.startTick();
+    percept = null;
+    const sent = runner.frame(input);
+    return { sent, goal: brain.goal, percept };
+  });
+}
+
+/** What a recording brain reports after each tick: the percept, the live memory view it decided with, its goal and its clicks. */
+export interface BrainTap {
+  onTick(id: string, p: Percept, mem: MemoryView | null, goal: Goal, sent: readonly TimedCommand[]): void;
+}
+
+/**
+ * Wraps a brain factory so every tick is reported. The memory view is read through a feature module that only observes (it
+ * offers no goal and no intent, so the brain decides exactly as without it).
+ */
+export function recordingBrain(base: BrainFactory, tap: BrainTap): BrainFactory {
+  return (cfg) => {
+    let mem: MemoryView | null = null;
+    const probe: FeatureModule = { id: "fairness-probe", enabled: () => true, observe: (ctx) => { mem = ctx.mem; } };
+    const inner = base({ ...cfg, modules: [...cfg.modules, probe] });
+    const brain: Brain = {
+      id: inner.id,
+      get goal() { return inner.goal; },
+      get stats() { return inner.stats; },
+      end: (result) => inner.end(result),
+      tick(p) {
+        const sent = inner.tick(p);
+        tap.onTick(cfg.id, p, mem, inner.goal, sent);
+        return sent;
+      },
+    };
+    return brain;
+  };
+}
+
+/**
+ * Every way a command names something must be on the bot's screen when it clicked (docs/BOTS.md 2.3): a lock resolves to a
+ * standing, targetable fighter in the window of the percept that released it (no mob behind locked gates), F only on the
+ * container that percept marks interactable, a unit cast on a fighter in the window. Returns what broke the rule.
+ */
+export function clickViolations(p: Percept, sent: readonly TimedCommand[]): string[] {
+  const bad: string[] = [];
+  for (const tc of sent) {
+    const c = tc.cmd;
+    if (tc.at > p.now) bad.push(`${c.type} clicked at ${tc.at}, after the percept's now ${p.now}`);
+    if (c.type === "target") {
+      const f = p.fighters.find((x) => x.id === c.msg.id);
+      const m = p.mobs.find((x) => x.id === c.msg.id);
+      if (f) {
+        if (f.status !== "alive" || !f.targetable) bad.push(`target ${c.msg.id}: on screen but ${f.status}, targetable ${f.targetable}`);
+      } else if (m) {
+        if (m.status !== "alive" || p.hud.gatesLocked) bad.push(`target ${c.msg.id}: a mob ${m.status}, gates locked ${p.hud.gatesLocked}`);
+      } else bad.push(`target ${c.msg.id}: not in the window at ${p.now}`);
+    } else if (c.type === "pickup") {
+      const box = p.containers.find((x) => x.id === c.msg.containerId);
+      if (!box?.interactable) bad.push(`pickup ${c.msg.containerId}: ${box ? "not interactable" : "not on screen"} at ${p.now}`);
+    } else if (c.type === "cast" && c.msg.id !== undefined) {
+      if (!p.fighters.some((x) => x.id === c.msg.id) && !p.mobs.some((x) => x.id === c.msg.id)) bad.push(`cast on ${c.msg.id}: not in the window`);
+    }
+  }
+  return bad;
 }

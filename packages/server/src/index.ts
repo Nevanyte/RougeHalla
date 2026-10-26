@@ -1,3 +1,4 @@
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { defineRoom, defineServer, matchMaker } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
@@ -7,6 +8,8 @@ import {
   monthKey,
   type LeaderboardResponse, type ProfileDTO, type ProfileResponse, type ShopError, type ShopErrorCode, type ShopResponse,
 } from "@raid/shared";
+import type { BotStatsStoreApi } from "./bots/brain/types";
+import { createBotStatsStore } from "./bots/learning/BotStatsStore";
 import { loadConfig, type ServerConfig } from "./config";
 import {
   JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore, type ShopOutcome,
@@ -145,10 +148,28 @@ const getOnly: RequestHandler = (req, res, next) => {
   res.status(405).json({ error: "method not allowed" });
 };
 
+/**
+ * What the fill bots learn across runs (docs/BOTS.md 6.2): one store for the process, in its own file next to the profile file
+ * (BOT_STATS_FILE moves it, "off" turns it off). None when there are no fill bots to learn. It is told never to use the profile
+ * file, and a problem with it costs the bots their memory, never the server.
+ */
+function createBotStats(config: ServerConfig): BotStatsStoreApi | null {
+  const { fillTo, statsFile } = config.bots;
+  if (fillTo <= 0 || statsFile === "") return null;
+  const file = statsFile ?? path.join(path.dirname(config.stashFile), "bot-stats.json");
+  try {
+    return createBotStatsStore(file, { forbid: [config.stashFile] });
+  } catch (err) {
+    console.error("[server] the bots will not learn:", err);
+    return null;
+  }
+}
+
 export function createServer(config: ServerConfig = loadConfig()) {
   const store: ProfileStore = new JsonProfileStore(config.stashFile);
   const profiles = new ActiveProfiles();
-  RaidRoom.ctx = { config, store, profiles };
+  const botStats = createBotStats(config);
+  RaidRoom.ctx = { config, store, profiles, botStats };
   allowProfileTokenInPreflight();
   const server = defineServer({
     transport: new WebSocketTransport(),
@@ -256,6 +277,7 @@ export function createServer(config: ServerConfig = loadConfig()) {
     } catch (err) {
       console.error("[server] could not flush the profiles on shutdown:", err);
     }
+    botStats?.close();
   });
   if (config.latencyMs > 0) server.simulateLatency(config.latencyMs);
 
@@ -265,9 +287,10 @@ export function createServer(config: ServerConfig = loadConfig()) {
       await server.gracefullyShutdown(false);
     } finally {
       await store.close();
+      botStats?.close();
     }
   }
-  return Object.assign(server, { store, profiles, stop });
+  return Object.assign(server, { store, profiles, botStats, stop });
 }
 
 export type RaidServer = ReturnType<typeof createServer>;

@@ -38,13 +38,15 @@ Tabs in the same browser share `localStorage`, so two tabs can load the same cal
 
 ### Playing alone
 
-Bots are headless players. They use the same HTTP API and play with the same controls as the browser: they walk (`move`), click their foe (`target`) and let the server chase, attack and aim, and they swap and pick up weapons. They never send `aim`, `attack` or `release`. They farm mobs while no player is close and hunt the nearest player otherwise, and they join the same lobby as everyone else. Press Start Run in your tab first, then start some:
+Bots are headless players with a human-like brain (design: `docs/BOTS.md`). They use the same HTTP API and play with the same controls as the browser: they walk (`move`), click their foe (`target`) and let the server chase, attack and aim, and they swap and pick up weapons. They never send `aim`, `attack` or `release`. They see only what a player's screen shows, react in a few hundred milliseconds, miss clicks, and come in three tiers (`easy`, `normal`, `hard`) and four personalities (`farmer`, `hunter`, `opportunist`, `cautious`). They farm mobs while no player is close and hunt players otherwise, and they join the same lobby as everyone else. Press Start Run in your tab first, then start some:
 
 ```bash
 npm run bots -- 3
 ```
 
 They arrive in your lobby and the run starts after the fill window. If the bots go first, two of them reach `MIN_PLAYERS` and start a run `FILL_SECONDS` later without you. Raise `LOBBY_SECONDS` or `FILL_SECONDS` for more time to join. For a quiet sandbox, start the server with `MIN_PLAYERS=1 FILL_SECONDS=1 npm run dev`. You get a solo run (it has no winner) with mobs, so you can test fighting and buffs. The [training room](#training) is better for trying weapons.
+
+The server also fills its own lobbies with bots that live inside the room (no profile, no connection): up to `BOTS_FILL_TO` players (default 6), arriving in the last seconds before the countdown ends. They are tagged `[BOT]`. The headless bots above are separate clients on top of that, so for a lobby of only the bots you launch, or only you, start the server with `BOTS_FILL_TO=0 npm run dev`.
 
 ### The hub
 
@@ -153,7 +155,7 @@ npm run bots -- -- 3 --url http://host:2567 --faction random --loop
 npm run bots -w @raid/server -- 3 --verbose        # the same, without the nesting
 ```
 
-`--url` (default `http://localhost:2567`), `--prefix` (profile names are `<prefix>1..N`, default `bot`), `--faction <id|rotate|random>` (default `rotate`: five bots make a lobby with one of each; ids are `fire`, `sentenced`, `plague`, `frost`, `holy`), `--loop` (queue again after each run), `--verbose`. The count is 1 to 64. Bot tokens are kept in `packages/server/data/bot-tokens.json` so the same names can be reused.
+`--url` (default `http://localhost:2567`), `--prefix` (profile names are `<prefix>1..N`, default `bot`), `--faction <id|rotate|random>` (default `rotate`: five bots make a lobby with one of each; ids are `fire`, `sentenced`, `plague`, `frost`, `holy`), `--tier <easy|normal|hard|mix>` (default `hard`; `mix` rolls a tier per bot and run, 30% easy, 45% normal, 25% hard, like the server's own fill bots), `--persona <farmer|hunter|opportunist|cautious|random>` (default `random`: each bot rolls one per run), `--seed <n>` (the same seed against the same lobby plays the same; default random), `--stats <file>` (a learning file the bots read and add to; default none, so no learning), `--loop` (queue again after each run), `--verbose`. The count is 1 to 64. Bot tokens are kept in `packages/server/data/bot-tokens.json` so the same names can be reused.
 
 ### Server environment variables
 
@@ -189,7 +191,7 @@ npm test -w @raid/server    # one workspace
 What the suites cover:
 
 - **Shared** (`packages/shared/test`): the pure rules. The faction law and the weapon formula are checked against numbers printed by the Python model, so the two cannot drift apart.
-- **Server** (`packages/server/test`): the sim headless (ledger, weapons, signatures, mobs, buffs, feed, arena, training), the room and HTTP API, shutdown, the profile store and shop, the fx wire format, and `e2e.test.ts`. In `e2e.test.ts` four bots play whole runs against a real server, and the GV ledger, stats and file must balance. It replays a run once if the bots showed no kill, signature hit or mob kill, and fails if the replay lacks it too.
+- **Server** (`packages/server/test`): the sim headless (ledger, weapons, signatures, mobs, buffs, feed, arena, training), the room and HTTP API, shutdown, the profile store and shop, the fx wire format, and `e2e.test.ts`. In `e2e.test.ts` four bots (Hard tier, hunter, farmer, hunter and opportunist personas, with the server's own bot fill off) play whole runs against a real server, and the GV ledger, stats and file must balance. It replays a run once if the bots showed no kill, signature hit or mob kill, and fails if the replay lacks it too.
 - **Gates**: `perf.test.ts` (with 8 players and 60 mobs, `step()` averages under 5 ms with a p99 under 15 ms) and `bandwidth.test.ts` (under 20 KB/s per client).
 - **Client** (`packages/client/test`): the views and the DOM overlay against fakes for Phaser and the DOM. There are no browser tests, so look at the real thing after a rendering change.
 
