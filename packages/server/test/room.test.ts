@@ -20,6 +20,7 @@ import type { RaidState } from "@raid/shared/schema";
 import { loadConfig } from "../src/config";
 import { startServer, type RaidServer } from "../src/index";
 import { ActiveProfiles } from "../src/rooms/RaidRoom";
+import * as gameplay from "../src/sim/gameplay";
 import { spawnProjectiles } from "../src/sim/projectiles";
 import type { SimConfig, World } from "../src/sim/world";
 
@@ -398,6 +399,29 @@ describe("ActiveProfiles", () => {
     reg.confirm("alice", "r2:s2");
     expect(reg.isActive("alice", t0 + 3_600_000)).toBe(false);
   });
+
+  it("remembers a room opened for a profile for a few seconds, and forgets it when it is joined or disposed", () => {
+    const reg = new ActiveProfiles();
+    const t0 = 1_000_000;
+    expect(reg.hasUnjoinedRoom("alice", t0)).toBe(false);
+    reg.roomOpened("alice", "r1", t0);
+    expect(reg.hasUnjoinedRoom("alice", t0 + 1)).toBe(true);
+    expect(reg.hasUnjoinedRoom("bobby", t0 + 1)).toBe(false);
+    expect(reg.hasUnjoinedRoom("alice", t0 + 60_000)).toBe(false); // a few seconds, not for good
+    reg.forgetRoom("alice", "r1");
+    expect(reg.hasUnjoinedRoom("alice", t0 + 1)).toBe(false);
+  });
+
+  it("a room that is gone cannot make a newer room of the same profile forgotten", () => {
+    const reg = new ActiveProfiles();
+    const t0 = 1_000_000;
+    reg.roomOpened("alice", "old", t0);
+    reg.roomOpened("alice", "new", t0 + 10);
+    reg.forgetRoom("alice", "old");
+    expect(reg.hasUnjoinedRoom("alice", t0 + 20)).toBe(true);
+    reg.forgetRoom("alice", "new");
+    expect(reg.hasUnjoinedRoom("alice", t0 + 20)).toBe(false);
+  });
 });
 
 describe("matchmaking without credentials", () => {
@@ -412,6 +436,80 @@ describe("matchmaking without credentials", () => {
       }
     }
     expect((await matchMaker.query({ name: ROOM_NAME })).length).toBe(before);
+  });
+});
+
+describe("matchmaking cost", () => {
+  const post = (who: Account, method = "create") => fetch(url(`/matchmake/${method}/${ROOM_NAME}`), {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(joinOptions(who)),
+  });
+  const roomCount = async () => (await matchMaker.query({ name: ROOM_NAME })).length;
+  /** Private to the Room; peeked at to prove whether the world exists. */
+  const hasWorld = (roomId: string) => (matchMaker.getLocalRoomById(roomId) as unknown as { built?: World }).built !== undefined;
+
+  it("rapid create requests from one profile open one room, and that room builds no world or map", async () => {
+    const who = await claim();
+    const build = vi.spyOn(gameplay, "createGameWorld");
+    const before = await roomCount();
+    // All at once, then one after another.
+    const replies = await Promise.all(Array.from({ length: 12 }, () => post(who)));
+    for (let i = 0; i < 8; i++) replies.push(await post(who));
+
+    const accepted = replies.filter((r) => r.ok);
+    expect(accepted).toHaveLength(1);
+    for (const refused of replies.filter((r) => !r.ok)) expect(await refused.text()).toMatch(/room was just opened/);
+    expect(await roomCount() - before).toBe(1);
+    expect(build).not.toHaveBeenCalled();
+    const { roomId } = await accepted[0]!.json();
+    expect(hasWorld(roomId)).toBe(false);
+    expect(isActive(who)).toBe(false); // nobody joined: nothing is held, and nothing waits to be released
+  });
+
+  it("builds the world once, when the first player joins, and not again for the second", async () => {
+    const [a, b] = [await claim(), await claim()];
+    const build = vi.spyOn(gameplay, "createGameWorld");
+    const lead = await createRoom(a, { minPlayers: 3 });
+    expect(build).toHaveBeenCalledTimes(1);
+    await joinRoom(lead, b);
+    expect(build).toHaveBeenCalledTimes(1);
+    expect(worldOf(lead).state.players.size).toBe(2);
+  });
+
+  it("the profile can open another room as soon as the first is joined", async () => {
+    const who = await claim();
+    const reservation = await (await post(who)).json();
+    expect(server.profiles.hasUnjoinedRoom(who.name)).toBe(true);
+    const p = track(who, await client.consumeSeatReservation<RaidState>(reservation));
+    expect(server.profiles.hasUnjoinedRoom(who.name)).toBe(false);
+    expect(carried(p)).toEqual(starterKit(0));
+    await leave(p);
+    await until(() => !isActive(who), "profile to be released");
+    expect((await post(who)).ok).toBe(true);
+  });
+
+  it("or as soon as the first is disposed, so an abandoned room does not hold its profile back for long", async () => {
+    const who = await claim();
+    const { roomId } = await (await post(who)).json();
+    expect((await post(who)).ok).toBe(false);
+    await matchMaker.getLocalRoomById(roomId)!.disconnect();
+    await until(() => matchMaker.getLocalRoomById(roomId) === undefined, "the room to be disposed");
+    expect(server.profiles.hasUnjoinedRoom(who.name)).toBe(false);
+    expect((await post(who)).ok).toBe(true);
+  });
+
+  it("a profile that is already in a raid is refused before a room is made or a seat reserved", async () => {
+    const who = await claim();
+    const first = await createRoom(who, { minPlayers: 3 });
+    const build = vi.spyOn(gameplay, "createGameWorld");
+    const before = await roomCount();
+    for (const method of ["create", "joinOrCreate"]) {
+      const res = await post(who, method);
+      expect(res.ok, method).toBe(false);
+      expect(await res.text()).toMatch(/already in a raid/);
+    }
+    expect(await roomCount()).toBe(before);
+    expect(build).not.toHaveBeenCalled();
+    expect(server.profiles.ownerOf(who.name)).toBe(`${first.room.roomId}:${sessionOf(first)}`);
   });
 });
 

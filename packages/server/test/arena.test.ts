@@ -16,6 +16,7 @@ import {
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
+import { applyLedger, recordHit } from "../src/sim/ledger";
 import { abandonPlayer, addPlayer, removePlayer, step } from "../src/sim/step";
 import { moveMultiplierOf } from "../src/sim/weapons";
 import { collisionMap, createWorld, type PlayerRuntime, type SimConfig, type SimEvent, type World } from "../src/sim/world";
@@ -1378,6 +1379,104 @@ describe("sudden death", () => {
     expect(w.state).toMatchObject({ phase: "ended", winner: "bob" });
   });
 
+  it.each(Object.keys(FACTIONS))("the burn is true damage: %s's armor and shield cut none of it", (faction) => {
+    const w = inColiseum();
+    P(w, 0).faction = faction;
+    runTo(w, 4050);
+    const before = P(w, 0).hp;
+    tick(w);
+    expect(before - P(w, 0).hp).toBeCloseTo(1, 9);
+  });
+
+  it("shows no hit fx and counts as no combat: it is the arena's damage, not a hit", () => {
+    const w = inColiseum();
+    runTo(w, 4050);
+    const events = tick(w);
+    expect(P(w, 0).hp).toBeLessThan(1000);
+    expect(fxOf(events, "hit")).toEqual([]);
+    expect(w.combat.landed).toEqual([]);
+  });
+
+  describe("lands in the same pass as the tick's hits", () => {
+    /** The first burning tick (4100), and a hit that kills whoever it lands on: a tick's own hits are recorded before the pass. */
+    const FIRST_BURN = 4100;
+    function lethalHit(w: World, by: number, victim: number, raw = 1e6): void {
+      w.beforeDamage.push((world) => {
+        if (world.state.serverTime !== FIRST_BURN) return;
+        recordHit(world, {
+          victim: idOf(victim), by: { id: idOf(by), name: NAMES[by]! }, packet: { raw, phys: 1, magic: 0, true: 0 }, weapon: "sword",
+          stagger: false,
+        });
+      });
+    }
+
+    /**
+     * Fire p0 (500 hp, so the first burn is 0.5) with `hp` left kills a full-hp p1 in the first burning tick. What that kill
+     * pays would save p0 from the burn: a kill barrier (hp stacks) or, from a bountied victim, half of its hp stacks.
+     */
+    function standoff(spoils: "barrier" | "bounty", hp: number): World {
+      const w = startRun(2, { suddenDeathSeconds: 2 }, { game: true });
+      runTo(w, FIRST_BURN - TICK_MS);
+      expect(w.state).toMatchObject({ gatesLocked: true, suddenDeathAt: 4050 });
+      P(w, 0).hp = hp;
+      if (spoils === "barrier") {
+        P(w, 0).stacksHp = 3; // the kill shield combo: 15% of max hp
+      } else {
+        P(w, 1).stacksHp = 6;
+        P(w, 1).kills = 3;
+        P(w, 1).bounty = 10; // p0 claims it, with 3 of those hp stacks
+      }
+      lethalHit(w, 0, 1);
+      return w;
+    }
+
+    it("pays the kill after the burn: the control, with hp to spare, does get the barrier", () => {
+      const w = standoff("barrier", 100);
+      tick(w);
+      expect(P(w, 1).status).toBe("dead");
+      expect(P(w, 0).status).toBe("alive");
+      expect(P(w, 0).hp).toBeCloseTo(100 - 0.5, 9);
+      expect(P(w, 0).barrier).toBeCloseTo(0.15 * 500, 9);
+      expect(w.state).toMatchObject({ phase: "ended", winner: "alice" });
+    });
+
+    it("pays the bounty after the burn: the control, with hp to spare, does get the stacks", () => {
+      const w = standoff("bounty", 100);
+      tick(w);
+      expect(P(w, 1).status).toBe("dead");
+      expect(P(w, 0).stacksHp).toBe(3);
+      expect(P(w, 0).maxHp).toBeGreaterThan(500);
+      expect(P(w, 0).hp).toBeGreaterThan(100);
+    });
+
+    it.each(["barrier", "bounty"] as const)(
+      "a killer the burn would kill without the %s its kill wins goes down with its victim", (spoils) => {
+        const w = standoff(spoils, 0.25);
+        const events = tick(w);
+        expect(P(w, 1).status).toBe("dead"); // the hit it started still lands
+        expect(P(w, 0).status).toBe("dead");
+        expect(P(w, 0).barrier).toBe(0);
+        expect(P(w, 0).maxHp).toBe(500);
+        expect(RT(w, 0).killedBy).toBe(SUDDEN_DEATH_KILLER);
+        expect(resultsOf(events)[idOf(0)]).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER });
+        // Both went down in the same tick: the higher hp fraction at its start wins, not whoever's kill paid out.
+        expect(w.state).toMatchObject({ phase: "ended", winner: "bob" });
+      },
+    );
+
+    it("is credited to nobody, but a rival whose hit is in the lethal pass takes the kill", () => {
+      const w = startRun(3, { suddenDeathSeconds: 2 });
+      runTo(w, FIRST_BURN - TICK_MS);
+      P(w, 0).hp = 0.8; // the burn is 0.5 and p1's hit 0.4: neither kills alone
+      lethalHit(w, 1, 0, 0.4);
+      const events = tick(w);
+      expect(P(w, 0).status).toBe("dead");
+      expect(RT(w, 0).killedBy).toBe("bob");
+      expect(P(w, 1).kills).toBe(1);
+      expect(resultsOf(events)[idOf(0)]).toMatchObject({ outcome: "died", killedBy: "bob" });
+    });
+  });
+
   it("stops burning when the gates unlock", () => {
     const w = inColiseum({ suddenDeathSeconds: 2 });
     atTick(w, 4300, (world) => { world.state.gatesLocked = false; }); // what a death does at settle, without the death
@@ -1394,10 +1493,14 @@ describe("sudden death", () => {
     w.state.suddenDeathAt = 1;
     w.state.serverTime += TICK_MS;
     suddenDeath(w, TICK_MS);
+    expect(w.combat.ledger).toEqual([]);
+    applyLedger(w);
     expect(P(w, 0).hp).toBe(1000);
     w.state.gatesLocked = true;
     w.state.suddenDeathAt = 0;
     suddenDeath(w, TICK_MS);
+    expect(w.combat.ledger).toEqual([]);
+    applyLedger(w);
     expect(P(w, 0).hp).toBe(1000);
   });
 
@@ -1426,9 +1529,11 @@ describe("sudden death", () => {
     runTo(w, 4050);
     w.state.serverTime = 4060; // a 20 ms step that began at 4040, before suddenDeathAt
     suddenDeath(w, 20);
+    applyLedger(w);
     expect(P(w, 0).hp).toBe(1000);
     w.state.serverTime = 4070; // began at 4050 = suddenDeathAt
     suddenDeath(w, 20);
+    applyLedger(w);
     expect(1000 - P(w, 0).hp).toBeCloseTo(SUDDEN_DEATH_START_FRACTION * 0.02 * 1000, 9);
   });
 });
@@ -2665,6 +2770,43 @@ describe("feed and bounty", () => {
       expect(P(w, 0).status).toBe("dead");
       expect(P(w, 0).bounty).toBe(10);
     });
+
+    describe("a killer who goes down in the pass of their kill", () => {
+      /** p0 has two kills and makes a 3rd, p3's, in the pass; in that same pass p7 kills p0 when `diesToo`. */
+      function thirdKill(diesToo: boolean): { w: World; events: SimEvent[] } {
+        const w = startRun(8);
+        slay(w, 0, [1, 2]);
+        w.events = [];
+        const lethal = (world: World, by: number, victim: number): void => {
+          recordHit(world, {
+            victim: idOf(victim), by: { id: idOf(by), name: NAMES[by]! }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword",
+            stagger: false,
+          });
+        };
+        w.beforeDamage.push((world) => {
+          lethal(world, 0, 3);
+          if (diesToo) lethal(world, 7, 0);
+        });
+        return { w, events: tick(w) };
+      }
+
+      it("control: a killer who stands afterwards is on a rampage", () => {
+        const { w, events } = thirdKill(false);
+        expect(P(w, 0).status).toBe("alive");
+        expect(P(w, 0).bounty).toBe(10);
+        expect(bountyFxOf(events)).toEqual([{ kind: "bounty", id: idOf(0), name: "alice", bounty: 10 }]);
+      });
+
+      it("keeps the kill and its GV but raises no bounty and announces nothing", () => {
+        const { w, events } = thirdKill(true);
+        expect(P(w, 0).status).toBe("dead");
+        expect(P(w, 3).status).toBe("dead");
+        expect(P(w, 0).kills).toBe(3);
+        expect(P(w, 0).bounty).toBe(0);
+        expect(bountyFxOf(events)).toEqual([]);
+        expect(resultsOf(events)[idOf(0)]).toMatchObject({ outcome: "died", kills: 3, killedBy: "hank", gv: { kills: 3 * GV_KILL, bounty: 0 } });
+      });
+    });
   });
 
   describe("when it is claimed", () => {
@@ -2729,7 +2871,7 @@ describe("feed and bounty", () => {
       "kills in one tick pay the victim's bounty from the start of the tick, whoever was killed first (p%i is killed first, then p%i)",
       (first, second) => {
         const w = startRun(3);
-        // p0 has three kills (bounty 10) and p1 four (28): each kill below raises its killer's own bounty (28 and 52).
+        // p0 has three kills (bounty 10) and p1 four (28): each kill below would raise its killer's own bounty (28 and 52).
         P(w, 0).kills = 3;
         P(w, 0).bounty = 10;
         P(w, 1).kills = 4;
@@ -2741,8 +2883,9 @@ describe("feed and bounty", () => {
           kill(world, second, attacker(world, first));
         });
         const events = runTo(w, 100);
-        expect(P(w, 0).bounty).toBe(28);
-        expect(P(w, 1).bounty).toBe(52);
+        // Called one after the other (no pass to wait for), only the killer still standing when its kill was paid is on a rampage.
+        expect(P(w, second).bounty).toBe(second === 0 ? 28 : 52);
+        expect(P(w, first).bounty).toBe(first === 0 ? 10 : 28);
         expect(claims.map((c) => [c.killer.id, c.victim.id, c.bounty]).sort()).toEqual([[idOf(0), idOf(1), 28], [idOf(1), idOf(0), 10]]);
         expect([RT(w, 0).gv.bounty, RT(w, 1).gv.bounty]).toEqual([28, 10]);
         const results = resultsOf(events);

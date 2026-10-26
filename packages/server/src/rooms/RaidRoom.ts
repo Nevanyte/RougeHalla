@@ -29,6 +29,9 @@ const MAX_CATCHUP_STEPS = 3;
 /** An acquired-but-never-confirmed profile (onAuth passed, onJoin never ran) frees itself after this. */
 const PENDING_ACQUIRE_MAX_MS = 30_000;
 
+/** A profile that opened a room nobody has joined yet cannot open another for this long (see RaidRoom.onAuth). */
+const UNJOINED_ROOM_COOLDOWN_MS = 5_000;
+
 /**
  * Which profiles are currently committed to a raid. Process-wide: one profile can be in at most one
  * raid at a time, whichever room it is. The value is the owner, `${roomId}:${sessionId}`; releasing
@@ -37,6 +40,11 @@ const PENDING_ACQUIRE_MAX_MS = 30_000;
  */
 export class ActiveProfiles {
   private readonly owners = new Map<string, { owner: string; at: number; confirmed: boolean }>();
+  /**
+   * The room most recently opened on a profile's request, until someone joins it or it is disposed. One entry per profile
+   * and each is dropped within a seat reservation of the room's life, so it cannot grow.
+   */
+  private readonly unjoined = new Map<string, { roomId: string; at: number }>();
 
   isActive(profile: string, now = Date.now()): boolean {
     const e = this.owners.get(profile);
@@ -65,6 +73,21 @@ export class ActiveProfiles {
 
   ownerOf(profile: string): string | undefined {
     return this.owners.get(profile)?.owner;
+  }
+
+  /** True while `profile` has a room it opened a few seconds ago that nobody has joined. */
+  hasUnjoinedRoom(profile: string, now = Date.now()): boolean {
+    const e = this.unjoined.get(profile);
+    return !!e && now - e.at < UNJOINED_ROOM_COOLDOWN_MS;
+  }
+
+  roomOpened(profile: string, roomId: string, now = Date.now()): void {
+    this.unjoined.set(profile, { roomId, at: now });
+  }
+
+  /** A player joined the room, or it is gone. A newer room of the same profile keeps its own entry. */
+  forgetRoom(profile: string, roomId: string): void {
+    if (this.unjoined.get(profile)?.roomId === roomId) this.unjoined.delete(profile);
   }
 
   get size(): number {
@@ -109,13 +132,18 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   static ctx: RoomContext;
 
   /**
-   * Matchmake-time gate: anonymous HTTP callers can't create rooms or reserve seats. Returning
-   * `true` (not an auth object) makes core still run the instance onAuth at connect time, which
-   * does the phase check and the profile registry claim. (Core logs at startup that the instance
-   * onAuth "will be ignored"; with a `true` result it is not.)
+   * Matchmake-time gate: anonymous HTTP callers can't create rooms or reserve seats, and neither can a profile that
+   * could not take the seat: one already in a raid, or one that opened a room a moment ago and has not joined it. A valid
+   * profile is one HTTP request away from a room, so without the second check it could open them as fast as it can post.
+   * Returning `true` (not an auth object) makes core still run the instance onAuth at connect time, which does the
+   * phase check and the profile registry claim. (Core logs at startup that the instance onAuth "will be ignored"; with a
+   * `true` result it is not.)
    */
   static async onAuth(_token: string, options: Partial<JoinOptions> | undefined): Promise<boolean> {
-    checkCredentials(options, RaidRoom.ctx.store);
+    const { store, profiles } = RaidRoom.ctx;
+    const profile = checkCredentials(options, store);
+    if (profiles.isActive(profile)) throw refuse("profile already in a raid");
+    if (profiles.hasUnjoinedRoom(profile)) throw refuse("a room was just opened for this profile; join it or try again in a few seconds");
     return true;
   }
 
@@ -126,7 +154,12 @@ export class RaidRoom extends Room<{ state: RaidState }> {
    */
   maxMessagesPerSecond = 100;
 
-  private world!: World;
+  /** Built on the first join (buildWorld): the map is the one real cost of a room, and a room nobody joins never pays it. */
+  private built: World | undefined;
+  /** Picked at creation so that the map does not depend on when the first player arrives. */
+  private seed = 0;
+  /** The profile that asked for this room, until a player joins it (or the room is disposed). */
+  private opener: string | null = null;
   private accumulator = 0;
   /**
    * Set when the process is shutting down (a deploy, or a tsx-watch restart in `npm run dev`). The run
@@ -150,16 +183,22 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   /** When the last input arrived (training's idle limit). */
   private lastInputAt = Date.now();
 
+  private get world(): World {
+    if (!this.built) throw new Error("the world is built when the first player joins");
+    return this.built;
+  }
+
   onCreate(options?: Partial<JoinOptions>) {
-    const { config } = RaidRoom.ctx;
+    const { config, profiles } = RaidRoom.ctx;
     this.training = options?.mode === "training";
-    this.world = createGameWorld({
-      seed: randomInt(0, 2 ** 31),
-      config: this.training ? { ...config, dummies: true, training: true } : config,
-      random: Math.random,
-    });
+    // All that a room nobody joins gets: the world and its map are built on the first join (buildWorld).
+    this.seed = randomInt(0, 2 ** 31);
+    const opener = options?.profile;
+    if (typeof opener === "string" && PROFILE_RE.test(opener)) {
+      this.opener = opener;
+      profiles.roomOpened(opener, this.roomId);
+    }
     if (this.training) {
-      installTraining(this.world);
       // Out of every matchmaking search and open to its creator only (the "training" handler also forces the mode).
       this.maxClients = 1;
       void this.setPrivate(true);
@@ -169,12 +208,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
         if (Date.now() - this.lastInputAt > idleMs) void this.disconnect();
       }, Math.min(5000, idleMs));
     }
-    this.state = this.world.state;
     for (const type of CLIENT_MESSAGE_TYPES) {
       this.onMessage(type, (client: Client, msg: unknown) => {
-        this.lastInputAt = Date.now();
-        const rt = this.world.players.get(client.sessionId);
-        if (rt) enqueueClientMessage(rt.inputs, type, msg);
+        const rt = this.built?.players.get(client.sessionId);
+        // Only an input that was accepted counts as presence: junk would otherwise keep an abandoned training room open for good.
+        if (rt && enqueueClientMessage(rt.inputs, type, msg)) this.lastInputAt = Date.now();
       });
     }
     this.setTimestep((elapsed) => this.tick(elapsed), TICK_MS);
@@ -182,6 +220,20 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // exactly the latest tick. Must come after setTimestep (otherwise core installs its own
     // clock-tick interval, which skews `elapsed`).
     this.patchRate = 0;
+  }
+
+  private buildWorld(): World {
+    const { config } = RaidRoom.ctx;
+    const world = createGameWorld({
+      seed: this.seed,
+      config: this.training ? { ...config, dummies: true, training: true } : config,
+      random: Math.random,
+    });
+    if (this.training) installTraining(world);
+    this.built = world;
+    // Core describes the state to the client after onJoin returns, so this is early enough.
+    this.state = world.state;
+    return world;
   }
 
   private ownerKey(sessionId: string): string {
@@ -195,7 +247,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   onAuth(client: Client, options: Partial<JoinOptions> | undefined): RoomAuth {
     // Seats can be reserved just before the raid starts; refuse them so nobody lands in an
     // active raid stuck in "lobby". Reconnections bypass onAuth.
-    if (this.world.state.phase !== "lobby") throw refuse("raid already started");
+    if (this.built && this.built.state.phase !== "lobby") throw refuse("raid already started");
     const { store, profiles } = RaidRoom.ctx;
     const profile = checkCredentials(options, store);
     // Last, so a rejected join never holds the profile.
@@ -208,16 +260,19 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const { profile, faction } = client.auth as RoomAuth;
     const ownerKey = this.ownerKey(client.sessionId);
     try {
+      // The first player to get this far, with the profile already claimed in onAuth, is who the room is built for.
+      const world = this.built ?? this.buildWorld();
       // Equipped at the moment of joining; changing the wardrobe mid-run takes effect next run.
       const owned = store.get(profile)?.cosmetics;
-      addPlayer(this.world, client.sessionId, profile, { faction, look: owned ? packLook(owned.equipped, owned.owned) : 0 });
+      addPlayer(world, client.sessionId, profile, { faction, look: owned ? packLook(owned.equipped, owned.owned) : 0 });
       this.seats.set(client.sessionId, { profile, ownerKey });
       if (faction && !this.training) this.picked.set(client.sessionId, faction);
       profiles.confirm(profile, ownerKey);
+      if (this.opener) profiles.forgetRoom(this.opener, this.roomId);
       // Training has no lobby to wait out: the run is on as soon as its one player is in.
-      if (this.training) startRaid(this.world);
+      if (this.training) startRaid(world);
     } catch (err) {
-      removePlayer(this.world, client.sessionId);
+      if (this.built) removePlayer(this.built, client.sessionId);
       this.seats.delete(client.sessionId);
       profiles.release(profile, ownerKey);
       throw err;
@@ -231,7 +286,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // is on, the seat is held (and the player stays alive, and hittable) so a blip doesn't cost them.
     // A training room has nothing to hold either: the shipped client leaves with a non-consented close, which lands here, and a
     // hold would keep the profile locked for the whole grace period after the player has gone back to the hub.
-    if (this.world.state.phase === "lobby" || this.training) return;
+    if (!this.built || this.built.state.phase === "lobby" || this.training) return;
     // For kill credit, a player who never comes back left now, not when the grace runs out.
     markDropped(this.world, client.sessionId);
     // Rejects when the client never finished joining or the room is disposing; onLeave still runs.
@@ -266,6 +321,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   onLeave(client: Client) {
+    // Core also calls this for a join that failed before the room had a world to put the player in: nothing was taken.
+    if (!this.built) return;
     const { profiles } = RaidRoom.ctx;
     const sessionId = client.sessionId;
     const seat = this.seats.get(sessionId);
@@ -291,6 +348,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   /** Safety net: onLeave normally empties `seats`; this keeps a leak from locking a profile out for good. */
   onDispose() {
     const { profiles } = RaidRoom.ctx;
+    if (this.opener) profiles.forgetRoom(this.opener, this.roomId);
     for (const [sessionId, seat] of this.seats) {
       if (this.world.state.players.get(sessionId)?.status === "alive") {
         this.bankVoided(seat.profile, abandonPlayer(this.world, sessionId));
@@ -311,6 +369,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   private tick(elapsedMs: number) {
+    if (!this.built) return;
     this.accumulator += elapsedMs;
     let steps = 0;
     while (this.accumulator >= TICK_MS && steps < MAX_CATCHUP_STEPS) {

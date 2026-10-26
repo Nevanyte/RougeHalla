@@ -14,6 +14,7 @@ import {
 } from "../src/sim/buffs";
 import { combatant, timingsOf, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
+import { applyLedger } from "../src/sim/ledger";
 import { addMob } from "../src/sim/mobs";
 import { addPlayer, removePlayer, step } from "../src/sim/step";
 import { moveMultiplierOf, packetFor } from "../src/sim/weapons";
@@ -632,7 +633,7 @@ describe("the kill shield", () => {
     expect(P(w, 0).hp).toBeCloseTo(P(w, 0).maxHp, 9); // and nothing came off the hp
   });
 
-  it("sudden death goes through applyDamage like everything else, so a shielded player is burnt through the shield first", () => {
+  it("sudden death goes through the ledger like every other hit, so a shielded player is burnt through the shield first", () => {
     // What the code does, worth knowing: the shield is not exempt from sudden death, nor immune to it. A 5-8 s shield only delays it.
     const w = startRun(2);
     runTo(w, 500); // suddenDeathAt is 0 when unset, so start it on the tick grid after 0
@@ -641,6 +642,7 @@ describe("the kill shield", () => {
     s.gatesLocked = true;
     s.suddenDeathAt = s.serverTime - TICK_MS; // the tick being simulated began exactly at suddenDeathAt
     suddenDeath(w, TICK_MS);
+    applyLedger(w);
     const burn = 0.02 * (TICK_MS / 1000) * 500; // SUDDEN_DEATH_START_FRACTION x dt x max hp
     expect(P(w, 0).barrier).toBeCloseTo(10 - burn, 9);
     expect(P(w, 0).hp).toBe(500);
