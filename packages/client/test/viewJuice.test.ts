@@ -25,7 +25,7 @@ const MOB_KID = { body: 4, held: 6, hpBar: 8, label: 9 } as const;
 function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerState {
   return {
     name: "Ann", look: 0, x: 0, y: 0, facing: 0, hp: 1000, maxHp: 1000, barrier: 0, status: "alive", faction: "fire", weapon0: "sword",
-    weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0, sig: 0, brand: 0, bounty: 0, immuneUntil: 0, stacksAs: 0, ...over,
+    weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0, sig: 0, brand: 0, bounty: 0, immuneUntil: 0, stacksAs: 0, asMult: 1, ...over,
   } as unknown as PlayerState;
 }
 

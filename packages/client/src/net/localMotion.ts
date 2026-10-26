@@ -53,7 +53,7 @@ export interface AuthSample {
 export interface FrameInput {
   /** Status "alive": anything else (a lobby, a corpse) is drawn where the server has it. */
   alive: boolean;
-  /** Walk speed multiplier right now: buff stacks, a kill's burst, the chill. 1 = PLAYER_SPEED. */
+  /** Walk speed multiplier right now: the speed mirror, a kill's burst, the chill. 1 = PLAYER_SPEED. */
   speedMult: number;
   /** An attack's root the client knows of holds the fighter still (the axe's, after its swing). */
   rooted: boolean;

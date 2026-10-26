@@ -79,7 +79,7 @@ export class PlayerView {
   private lookWord = -1;
   private look: Look | null = null;
   /** The fields the art reads, with the facing replaced: reused every frame a predicted facing is shown. */
-  private readonly faced: FighterFields = { facing: 0, faction: "", weapon0: "", weapon1: "", slot: 0, drawStartedAt: 0, stacksAs: 0 };
+  private readonly faced: FighterFields = { facing: 0, faction: "", weapon0: "", weapon1: "", slot: 0, drawStartedAt: 0, asMult: 1 };
   private usingFaction: string | undefined;
   private usingWeapon: string | undefined;
   private factionGold = false;
@@ -221,7 +221,7 @@ export class PlayerView {
     f.weapon1 = p.weapon1;
     f.slot = p.slot;
     f.drawStartedAt = p.drawStartedAt;
-    f.stacksAs = p.stacksAs;
+    f.asMult = p.asMult;
     return f;
   }
 

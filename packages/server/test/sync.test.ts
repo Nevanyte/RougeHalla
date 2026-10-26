@@ -64,6 +64,8 @@ function snapshot(state: RaidState) {
     .map(([key, p]) => ({
       key, name: p.name, ...fighter(p), status: p.status, kills: p.kills, gv: p.gv, bounty: p.bounty, immuneUntil: u32(p.immuneUntil),
       mobKills: p.mobKills, stacksHp: f32(p.stacksHp), stacksAs: f32(p.stacksAs), stacksMs: f32(p.stacksMs), barrier: f32(p.barrier),
+      // The stat mirrors are exact on the wire: the client decodes the very value the sim used.
+      asMult: p.asMult, windupMult: p.windupMult, speedMult: p.speedMult, armorBonus: p.armorBonus, shieldBonus: p.shieldBonus,
     }))
     .sort(byKey);
   const mobs = [...state.mobs]

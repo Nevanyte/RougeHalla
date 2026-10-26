@@ -65,6 +65,17 @@ describe("mapFromTiles", () => {
     expect(m.groundSpots).toEqual([]);
   });
 
+  it("fills the roguelike contract fields with empty values: attempt 0, no territory, no camps, no spawn pool", () => {
+    const m = mapFromTiles(5, 4, new Uint8Array(5 * 4));
+    expect(m.attempt).toBe(0);
+    expect(m.territoryGrid).toBeInstanceOf(Uint8Array);
+    expect(m.territoryGrid.length).toBe(20);
+    expect(Array.from(m.territoryGrid).every((v) => v === 0)).toBe(true);
+    expect(m.territoryGrid).not.toBe(m.regionGrid);
+    expect(m.camps).toEqual([]);
+    expect(m.spawnPool).toEqual([]);
+  });
+
   it("keeps the seed it is given", () => {
     expect(mapFromTiles(2, 2, new Uint8Array(4), 77).seed).toBe(77);
   });
@@ -81,7 +92,13 @@ describe("mapFromTiles", () => {
     const b = mapFromTiles(2, 2, new Uint8Array(4));
     a.spawns.push({ x: 1, y: 1 });
     a.regionGrid[0] = REGION_COLISEUM;
+    a.territoryGrid[0] = 2;
+    a.camps.push({ id: "fire-1", zone: "fire", x: 1, y: 1, r: 1, spots: [], eliteSpot: -1, chest: { x: 1, y: 1 }, area: 0, radius: 1 });
+    a.spawnPool.push({ x: 1, y: 1, zone: "fire" });
     a.coliseum.gates.push({ side: "n", tiles: [], x: 0, y: 0 });
+    expect(b.camps).toEqual([]);
+    expect(b.spawnPool).toEqual([]);
+    expect(b.territoryGrid[0]).toBe(0);
     expect(b.spawns).toEqual([]);
     expect(b.regionGrid[0]).toBe(REGION_NONE);
     expect(b.coliseum.gates).toEqual([]);
@@ -227,6 +244,20 @@ describe("withGates (hand-built map)", () => {
     expect(withGates(other)).toBe(withGates(other));
   });
 
+  it("passes the roguelike contract fields through unchanged", () => {
+    const m = twoRooms();
+    m.attempt = 3;
+    m.territoryGrid[5] = 2;
+    m.camps.push({ id: "fire-1", zone: "fire", x: 40, y: 40, r: 80, spots: [{ x: 48, y: 48 }], eliteSpot: 0, chest: { x: 80, y: 80 }, area: 0, radius: 288 });
+    m.spawnPool.push({ x: 48, y: 48, zone: "fire" });
+    const locked = withGates(m);
+    expect(locked.attempt).toBe(3);
+    expect(locked.territoryGrid).toBe(m.territoryGrid);
+    expect(locked.camps).toBe(m.camps);
+    expect(locked.spawnPool).toBe(m.spawnPool);
+    expect(locked.regions).toBe(m.regions);
+  });
+
   it("gives identical tiles for a map without gates", () => {
     const tiles = new Uint8Array(6 * 6).fill(TILE_FLOOR);
     tiles[7] = TILE_WALL;
@@ -293,6 +324,18 @@ describe("generated maps", () => {
       expect(locked.regionGrid, `seed ${s}`).toEqual(m.regionGrid);
       expect(locked.coliseum, `seed ${s}`).toEqual(m.coliseum);
       expect(locked.spawns, `seed ${s}`).toEqual(m.spawns);
+    });
+  });
+
+  it("keeps the roguelike contract fields when the gates lock (shared, not copied)", () => {
+    each((m, s) => {
+      const locked = withGates(m);
+      expect(locked.attempt, `seed ${s}`).toBe(m.attempt);
+      expect(locked.territoryGrid, `seed ${s}`).toBe(m.territoryGrid);
+      expect(locked.camps, `seed ${s}`).toBe(m.camps);
+      expect(locked.spawnPool, `seed ${s}`).toBe(m.spawnPool);
+      expect(locked.camps.length, `seed ${s}`).toBeGreaterThan(0);
+      expect(locked.regions[0].pole, `seed ${s}`).toEqual(m.regions[0].pole);
     });
   });
 

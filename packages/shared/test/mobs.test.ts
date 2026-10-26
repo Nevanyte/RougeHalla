@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  comboTier, duel, ELITE_BUFF_STACKS, ELITE_K, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_BUFF_STACKS, MOB_K, mobBuffStacks, rewardCurve,
+  comboTier, duel, ELITE_BUFF_STACKS, ELITE_K, eliteTypeOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_BUFF_STACKS, MOB_K, MOB_TYPES,
+  mobBuffStacks, mobTypeById, mobTypesOf, normalTypesOf, rewardCurve,
   mobFaction, mobName, mobWeapon, pacedFaction, REGION_WEAPONS, scaledFaction, SIGNATURE_WEAPONS, WEAPON_IDS, WEAPONS,
-  type FactionId, type FactionSpec, type MobKind, type WeaponId,
+  type FactionId, type FactionSpec, type MobKind, type MobTypeDef, type MobTypeId, type WeaponId,
 } from "../src/index";
 import * as shared from "../src/index";
 
@@ -254,5 +255,83 @@ describe("the k guess: a starting player against a regional mob, 25 matchups", (
 
   it("makes an elite cost the player more on average than a normal mob", () => {
     expect(mean(elite.map((o) => o.left))).toBeLessThan(mean(normal.map((o) => o.left)));
+  });
+});
+
+describe("MOB_TYPES (the roguelike roster, data only)", () => {
+  const SPEC: Record<FactionId, { normals: [string, string][]; elite: [string, string] }> = {
+    fire: { normals: [["emberImp", "Ember Imp"], ["cinderHound", "Cinder Hound"], ["magmaBrute", "Magma Brute"]], elite: ["wyrmling", "Wyrmling"] },
+    sentenced: { normals: [["bailiff", "Bailiff"], ["chainWarden", "Chain Warden"], ["inquisitor", "Inquisitor"]], elite: ["executioner", "Executioner"] },
+    plague: { normals: [["plagueRat", "Plague Rat"], ["bloatfly", "Bloatfly"], ["rotMonk", "Rot Monk"]], elite: ["ratOgre", "Rat Ogre"] },
+    frost: { normals: [["frostWisp", "Frost Wisp"], ["iceGolem", "Ice Golem"], ["rimeStalker", "Rime Stalker"]], elite: ["glacialWarden", "Glacial Warden"] },
+    holy: { normals: [["acolyte", "Acolyte"], ["seraphShard", "Seraph Shard"], ["penitent", "Penitent"]], elite: ["bloodSaint", "Blood Saint"] },
+  };
+
+  it("has 20 types with unique ids and unique, non-empty, trimmed names", () => {
+    expect(MOB_TYPES).toHaveLength(20);
+    expect(new Set(MOB_TYPES.map((t) => t.id)).size).toBe(20);
+    expect(new Set(MOB_TYPES.map((t) => t.name)).size).toBe(20);
+    for (const t of MOB_TYPES) {
+      expect(t.id.length, t.id).toBeGreaterThan(0);
+      expect(t.name.length, t.id).toBeGreaterThan(0);
+      expect(t.name, t.id).toBe(t.name.trim());
+    }
+  });
+
+  it("has four types per zone: three normals and exactly one elite, in zone order", () => {
+    for (const zone of REGIONS) {
+      const ofZone = MOB_TYPES.filter((t) => t.zone === zone);
+      expect(ofZone, zone).toHaveLength(4);
+      expect(ofZone.filter((t) => t.elite), zone).toHaveLength(1);
+      expect(ofZone.filter((t) => !t.elite), zone).toHaveLength(3);
+      expect(ofZone[3].elite, `${zone}: the elite is last`).toBe(true);
+    }
+    expect(MOB_TYPES.map((t) => t.zone)).toEqual(REGIONS.flatMap((z) => [z, z, z, z]));
+  });
+
+  it("is the contract's roster: the ids and names of the plan, zone by zone", () => {
+    for (const zone of REGIONS) {
+      const spec = SPEC[zone];
+      expect(normalTypesOf(zone).map((t) => [t.id, t.name]), zone).toEqual(spec.normals);
+      const elite = eliteTypeOf(zone);
+      expect([elite.id, elite.name], zone).toEqual(spec.elite);
+      expect(elite.elite).toBe(true);
+    }
+  });
+
+  it("looks types up: mobTypesOf, normalTypesOf, eliteTypeOf, mobTypeById", () => {
+    for (const zone of REGIONS) {
+      expect(mobTypesOf(zone), zone).toEqual([...normalTypesOf(zone), eliteTypeOf(zone)]);
+      expect(normalTypesOf(zone), zone).toHaveLength(3);
+      for (const t of mobTypesOf(zone)) expect(t.zone).toBe(zone);
+      expect(eliteTypeOf(zone).zone).toBe(zone);
+    }
+  });
+
+  it("round-trips every id through mobTypeById and answers undefined for anything else", () => {
+    for (const t of MOB_TYPES) expect(mobTypeById(t.id), t.id).toBe(t);
+    for (const id of ["", "unknown", "EmberImp", "emberimp", " emberImp", "constructor", "toString", "__proto__", "fire"]) {
+      expect(mobTypeById(id), `"${id}"`).toBeUndefined();
+    }
+  });
+
+  it("types an id as a union: the literal ids in the table are all MobTypeId", () => {
+    const ids: MobTypeId[] = MOB_TYPES.map((t) => t.id);
+    const defs: MobTypeDef[] = [...MOB_TYPES];
+    expect(ids).toHaveLength(defs.length);
+  });
+
+  it("leaves mobName and the old two-name behaviour as they were", () => {
+    expect(mobName("fire", false)).toBe("Cinderling");
+    expect(mobName("fire", true)).toBe("Ember Warlord");
+    expect(mobName("holy", true)).toBe("Demon Herald");
+  });
+
+  it("is reachable from the shared index", () => {
+    expect(shared.MOB_TYPES).toBe(MOB_TYPES);
+    expect(shared.mobTypeById).toBe(mobTypeById);
+    expect(shared.mobTypesOf).toBe(mobTypesOf);
+    expect(shared.normalTypesOf).toBe(normalTypesOf);
+    expect(shared.eliteTypeOf).toBe(eliteTypeOf);
   });
 });
