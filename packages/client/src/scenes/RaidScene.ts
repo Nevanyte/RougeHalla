@@ -8,7 +8,8 @@ import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema
 import { sendInput, type RaidRoom } from "../net/connection";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
 import { EntityInterpolator } from "../net/interpolation";
-import { LocalPrediction } from "../net/localPrediction";
+import { clampToWorld } from "../net/localMotion";
+import { LocalPrediction, localDrawSource, type LocalDrawSource, type OtherFighter } from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView } from "../render/ContainerView";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
@@ -95,8 +96,14 @@ export class RaidScene extends Phaser.Scene {
    */
   private readonly predict = new LocalPrediction();
   private lastFrameAt = 0;
-  /** Scratch: the other players, handed to the prediction while the local fighter is chilled. */
-  private readonly others: PlayerState[] = [];
+  /** Scratch: the other fighters (players and mobs), handed to the prediction while the local fighter is chilled. */
+  private readonly others: OtherFighter[] = [];
+  /**
+   * Where the local fighter was last drawn from its prediction. While its death (or the teleport's cut) is still ahead of
+   * what is drawn, the patch has already moved the state on: it stays here, not thrown back to the delayed snapshots.
+   */
+  private readonly frozen = { x: 0, y: 0 };
+  private hasFrozen = false;
   /** Dev tooling (window.__raid.latency): ms from each right-click to the first frame the local fighter's drawn position moved. */
   private readonly latency: number[] = [];
   private clickAt = 0;
@@ -168,6 +175,7 @@ export class RaidScene extends Phaser.Scene {
     this.clockSynced = false;
     this.aimKnown = false;
     this.lockDisplay.reset();
+    this.hasFrozen = false;
     this.predict.reset();
     this.lastFrameAt = 0;
     this.latency.length = 0;
@@ -286,10 +294,21 @@ export class RaidScene extends Phaser.Scene {
       if (!view) { view = new PlayerView(this, id === this.room.sessionId, this.fx); this.views.set(id, view); }
       const drawT = id === this.room.sessionId ? trueT : renderT; // juice: the local fighter is not held by a hit-stop
       // The local fighter is drawn from its prediction while it fights on its feet; everyone else, and it when it does not, from the snapshots.
-      const predicted = id === this.room.sessionId && this.predicting(p, state);
-      if (predicted) this.placeDrawn(id, this.predict.motion.drawn);
-      else this.sampleDrawn(id, drawT, p);
-      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, predicted ? this.predict.motion.facing() : null);
+      const local = id === this.room.sessionId;
+      const source = local ? this.localSource(p, state) : "snapshot";
+      if (source === "predicted") {
+        const at = this.predict.motion.drawn;
+        this.placeDrawn(id, at);
+        this.frozen.x = at.x;
+        this.frozen.y = at.y;
+        this.hasFrozen = true;
+      } else if (source === "frozen") {
+        this.placeDrawn(id, this.frozen);
+      } else {
+        if (local) this.hasFrozen = false;
+        this.sampleDrawn(id, drawT, p);
+      }
+      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null);
       if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.tmp.x), projY(this.tmp.y));
     });
     for (const [id, view] of this.views) {
@@ -354,12 +373,12 @@ export class RaidScene extends Phaser.Scene {
     drawn.y = at.y;
   }
 
-  /**
-   * Is the local fighter drawn from its prediction: on its feet in a running fight, and not while the screen still shows the
-   * world from before a teleport (it is drawn from the snapshots until the cut, like everyone else).
-   */
-  private predicting(p: PlayerState, state: RaidState): boolean {
-    return p.status === "alive" && state.phase === "active" && this.predict.motion.ready && !this.beforeTeleport();
+  /** Where the local fighter is drawn from this frame: its prediction, where it was last drawn (death or teleport pending), or the snapshots. */
+  private localSource(p: PlayerState, state: RaidState): LocalDrawSource {
+    return localDrawSource({
+      alive: p.status === "alive", running: state.phase === "active", ready: this.predict.motion.ready,
+      beforeCut: this.beforeTeleport(), deathPending: this.deathPending(this.room.sessionId), hasFrozen: this.hasFrozen,
+    });
   }
 
   /** The client clock that stamps orders and patches: the estimated server time now. */
@@ -381,7 +400,11 @@ export class RaidScene extends Phaser.Scene {
   /** A patch arrived: the local fighter's server state (position, last applied order) goes to the prediction. */
   private observeLocal(state: RaidState): void {
     const me = state.players?.get(this.room.sessionId);
-    if (me) this.predict.motion.observe({ x: me.x, y: me.y, t: state.serverTime, moveSeq: me.moveSeq }, this.localClock(performance.now()));
+    if (me) {
+      this.predict.motion.observe(
+        { x: me.x, y: me.y, t: state.serverTime, moveSeq: me.moveSeq, locked: me.attackTarget !== "" }, this.localClock(performance.now()),
+      );
+    }
   }
 
   /** Once per frame, after the orders this frame sent: walks the prediction on. */
@@ -390,10 +413,18 @@ export class RaidScene extends Phaser.Scene {
     this.lastFrameAt = now;
     const me = state.players.get(this.room.sessionId);
     if (!me) return;
-    // Only a chilled fighter needs to know where the others are.
+    // No patches arrive while the connection is down, and what is sent is dropped: nothing to predict from until it is back.
+    if (this.room.reconnection?.isReconnecting) {
+      this.predict.motion.reset();
+      return;
+    }
+    // Only a chilled fighter needs to know where the others are (a Frost mob chills as a Frost player does).
     const others = this.others;
     others.length = 0;
-    if (me.sig !== 0) state.players.forEach((p, id) => { if (id !== this.room.sessionId) others.push(p); });
+    if (me.sig !== 0) {
+      state.players.forEach((p, id) => { if (id !== this.room.sessionId) others.push(p); });
+      state.mobs.forEach((m) => { others.push(m); });
+    }
     const c = this.localClock(now);
     const active = me.status === "alive" && state.phase === "active";
     const motion = this.predict.motion;
@@ -409,27 +440,32 @@ export class RaidScene extends Phaser.Scene {
    * with the same order number (it echoes it back when it applies it), and the telegraph of an attack the lock was winding up
    * goes now, as the server cancels the attack.
    */
-  private orderMove(kind: "move" | "stop", to?: { x: number; y: number }): void {
+  private orderMove(kind: "move" | "stop", point?: { x: number; y: number }): void {
     const now = performance.now();
     const c = this.localClock(now);
     const seq = this.predict.nextSeq();
     const map = this.planMap();
+    // Clamped to the world as the server clamps it, so both plan to the same place from an edge click.
+    const to = point ? clampToWorld(point) : undefined;
     if (map) this.predict.motion.order(kind, seq, c, to, map);
     if (kind === "move" && to) sendInput(this.room, "move", { x: to.x, y: to.y, seq });
     else sendInput(this.room, "stop", { seq });
     this.fx.dropWindups(this.room.sessionId, c, now);
   }
 
-  /** A lock on `id` was ordered: the prediction hands over to the server's chase, and what the old lock was winding up is dropped. */
+  /**
+   * A lock on `id` was ordered. What the old lock was winding up goes now (the server cancels it when it takes the order), and
+   * the walk in hand stops being predicted: the server chases from here on. If the server refuses the lock, the state never
+   * shows it and the prediction takes the walk up again (net/localMotion.ts `expectLock`).
+   */
   private orderTarget(id: string): void {
-    // The one already locked is ignored by the server; one too far away is refused: neither changes anything.
+    // The one already locked is ignored by the server; one too far away is refused: neither cancels anything.
     const me = this.rendered.get(this.room.sessionId);
     const at = this.rendered.get(id);
     if (id === this.lockId || !me || !at || Math.hypot(at.x - me.x, at.y - me.y) > TARGET_RANGE) return;
     const now = performance.now();
     const c = this.localClock(now);
-    const map = this.planMap();
-    if (map) this.predict.motion.order("target", 0, c, undefined, map);
+    this.predict.motion.expectLock(c);
     this.fx.dropWindups(this.room.sessionId, c, now);
   }
 

@@ -1208,6 +1208,33 @@ describe("a move cancels the attack the lock is winding up", () => {
     expect(M(world, d).hp).toBeLessThan(full(world, d));
   });
 
+  it("locking the same fighter again once the lock has dropped keeps the attack already aimed at it", () => {
+    const { world, d } = sword();
+    send(world, 0, "attack", { a: 0 }); // an attack input drops the lock; the swing in progress goes on
+    tick(world);
+    expect(W(world).lock).toBeNull();
+    expect(W(world).action).not.toBeNull();
+    expect(W(world).action!.target).toBe(d);
+    target(world, d); // clicked again: the same fighter the swing is aimed at
+    tick(world);
+    expect(fxOf("cancel")).toHaveLength(0);
+    expect(W(world).lock).toBe(d);
+    expect(M(world, d).hp).toBeLessThan(full(world, d)); // it landed, on the cooldown it had
+    expect(fxOf("windup")).toHaveLength(1);
+  });
+
+  it("but it does cancel the attack aimed at someone else, lock or no lock", () => {
+    const { world, d } = sword();
+    const other = dummy(world, { x: ME.x, y: 320 + SWORD_GAP });
+    send(world, 0, "attack", { a: 0 });
+    tick(world);
+    expect(W(world).lock).toBeNull();
+    target(world, other);
+    tick(world);
+    expect(fxOf("cancel")).toHaveLength(1);
+    expect(M(world, d).hp).toBe(full(world, d));
+  });
+
   it("a refused target (out of range) changes nothing: the windup runs on", () => {
     const { world, d } = sword();
     const far = dummy(world, { x: ME.x + TARGET_RANGE + 50, y: 320 });

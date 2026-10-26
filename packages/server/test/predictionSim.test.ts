@@ -38,7 +38,7 @@ class SimRig {
   private lastFrame = 0;
   private readonly rnd = mulberry32(11);
   private inbox: Array<{ at: number; type: string; msg: unknown }> = [];
-  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number }> = [];
+  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number; locked: boolean }> = [];
   readonly drawn: Vec2[] = [];
   readonly offsets: number[] = [];
 
@@ -73,6 +73,7 @@ class SimRig {
     const p = this.server;
     this.patches.push({
       at: this.now + this.lag(this.down), x: Math.fround(p.x), y: Math.fround(p.y), t: this.world.state.serverTime, moveSeq: p.moveSeq,
+      locked: p.attackTarget !== "",
     });
   }
 
@@ -89,7 +90,7 @@ class SimRig {
   }
 
   target(id: string): void {
-    this.motion.order("target", 0, this.clock, undefined, this.map);
+    this.motion.expectLock(this.clock); // the click; whether the server took it is for its patches to say
     this.inbox.push({ at: this.now + this.lag(this.up), type: "target", msg: { id } });
   }
 
@@ -115,7 +116,7 @@ class SimRig {
       }
       this.patches = this.patches.filter((p) => {
         if (p.at > this.now) return true;
-        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq }, this.clock);
+        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq, locked: p.locked }, this.clock);
         return false;
       });
       if (this.now >= nextFrame) {
@@ -193,6 +194,38 @@ describe("prediction against the real sim", () => {
     }
     expect(r.maxStep(from)).toBeLessThanOrEqual(MAX_STEP);
     expect(Math.max(...r.offsets)).toBeLessThan(12);
+  });
+
+  it("a target the real server refuses (out of reach): the walk it interrupted is taken up again from where the server has it", () => {
+    const r = new SimRig(40, 40);
+    const far = addMob(r.world, { kind: "dummy", name: "far", at: centre(58, 10) });
+    r.run(300);
+    r.move(centre(30, 20));
+    r.run(400);
+    r.target(far);
+    expect(r.motion.mode).toBe("follow"); // hoped for
+    r.run(900);
+    expect(r.server.attackTarget).toBe(""); // refused: more than TARGET_RANGE away
+    expect(r.motion.mode).toBe("predict");
+    expect(r.motion.walking).toBe(true);
+    r.run(6000);
+    expect(dist(r.server, centre(30, 20))).toBeLessThan(0.5);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+  });
+
+  it("a lock the server drops by itself (its target is gone) takes the model out of follow", () => {
+    const r = new SimRig(40, 40);
+    const dummy = addMob(r.world, { kind: "dummy", name: "dummy", at: centre(20, 10) });
+    r.run(300);
+    r.target(dummy);
+    r.run(1500);
+    expect(r.motion.mode).toBe("follow");
+    expect(r.server.attackTarget).toBe(dummy);
+    r.world.state.mobs.get(dummy)!.status = "dead";
+    r.run(600);
+    expect(r.server.attackTarget).toBe("");
+    expect(r.motion.mode).toBe("predict");
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.5);
   });
 
   it("a lock hands over to the server's chase: drawn is the server's position, never ahead, and catches the dummy up", () => {

@@ -1,9 +1,10 @@
 // What the client knows about its own fighter's speed and roots (net/localPrediction.ts).
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, buffMultiplier, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, FACTIONS, SIG_CHILLED, weaponTimings, type TimedFx,
+  attackInterval, buffMultiplier, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, FACTIONS, mapFromTiles, SIG_CHILLED, TILE_FLOOR, TILE_WALL,
+  weaponTimings, type GameMap, type TimedFx,
 } from "@raid/shared";
-import { LocalPrediction, type LocalFighter, type OtherFighter } from "../src/net/localPrediction";
+import { LocalPrediction, localDrawSource, type LocalFighter, type OtherFighter } from "../src/net/localPrediction";
 
 const ME = "me";
 const fighter = (o: Partial<LocalFighter> = {}): LocalFighter => ({
@@ -151,5 +152,96 @@ describe("frameInput", () => {
     const p = new LocalPrediction();
     expect(p.frameInput(0, true, fighter(), [], true)).toEqual({ alive: true, speedMult: 1, rooted: false, aiming: true });
     expect(p.frameInput(0, false, undefined, [], false)).toEqual({ alive: false, speedMult: 1, rooted: false, aiming: false });
+  });
+});
+
+describe("a Frost mob chills as a Frost player does", () => {
+  it("is taken into account when the scene hands the mobs over with the players", () => {
+    const p = new LocalPrediction();
+    const mob: OtherFighter = { x: 150, y: 100, faction: "frost", status: "alive" };
+    expect(p.speedMult(0, fighter({ sig: SIG_CHILLED }), [mob])).toBe(CHILL_MOVE_MULT);
+    expect(p.speedMult(0, fighter({ sig: SIG_CHILLED }), [{ ...mob, status: "dead" }])).toBe(1);
+    expect(p.speedMult(0, fighter({ sig: SIG_CHILLED }), [{ ...mob, faction: "fire" }])).toBe(1);
+  });
+});
+
+describe("what the server does to the fighter on its own cuts the prediction", () => {
+  const arena = (): GameMap => {
+    const tiles = new Uint8Array(40 * 20).fill(TILE_FLOOR);
+    for (let x = 0; x < 40; x++) { tiles[x] = TILE_WALL; tiles[19 * 40 + x] = TILE_WALL; }
+    for (let y = 0; y < 20; y++) { tiles[y * 40] = TILE_WALL; tiles[y * 40 + 39] = TILE_WALL; }
+    return mapFromTiles(40, 20, tiles);
+  };
+  const alive = { alive: true, speedMult: 1, rooted: false, aiming: false };
+
+  /** A fighter walking east on a bare map, its model a few frames in. */
+  function walking(): LocalPrediction {
+    const p = new LocalPrediction();
+    p.motion.observe({ x: 300, y: 300, t: 0, moveSeq: 0 }, 0);
+    p.motion.frame(0, 16, alive);
+    p.motion.order("move", p.nextSeq(), 10, { x: 1000, y: 300 }, arena());
+    for (let i = 1; i <= 3; i++) p.motion.frame(10 + i * 16, 16, alive);
+    expect(p.motion.walking).toBe(true);
+    return p;
+  }
+
+  it("a teleport fx: the walk and its orders are void, and the first sample from its tick on snaps, however short the jump", () => {
+    const p = walking();
+    p.noteFx({ kind: "teleport", t: 100 }, ME, fighter());
+    expect(p.motion.walking).toBe(false);
+    expect(p.motion.pendingOrders).toBe(0);
+    p.motion.observe({ x: 345, y: 300, t: 100, moveSeq: 0 }, 110);
+    p.motion.frame(126, 16, alive);
+    expect(p.motion.drawn).toEqual({ x: 345, y: 300 });
+    expect(p.motion.visualOffset).toBe(0);
+  });
+
+  it("the local fighter's death fx does the same (a training room puts it back on its feet in place)", () => {
+    const p = walking();
+    p.noteFx({ kind: "death", id: ME, x: 345, y: 300, by: null, t: 100 }, ME, fighter());
+    expect(p.motion.walking).toBe(false);
+    p.motion.observe({ x: 345, y: 300, t: 100, moveSeq: 0 }, 110);
+    p.motion.frame(126, 16, alive);
+    expect(p.motion.drawn).toEqual({ x: 345, y: 300 });
+  });
+
+  it("anyone else's death, or a cancel, leaves the walk alone", () => {
+    const p = walking();
+    p.noteFx({ kind: "death", id: "someone", x: 0, y: 0, by: ME, t: 100 }, ME, fighter());
+    p.noteFx({ kind: "cancel", id: ME, t: 100 }, ME, fighter());
+    expect(p.motion.pendingOrders).toBe(1);
+    p.motion.frame(130, 16, alive);
+    expect(p.motion.walking).toBe(true);
+  });
+});
+
+describe("where the local fighter is drawn from", () => {
+  const base = { alive: true, running: true, ready: true, beforeCut: false, deathPending: false, hasFrozen: true };
+
+  it("its prediction while it is on its feet in a running fight", () => {
+    expect(localDrawSource(base)).toBe("predicted");
+    expect(localDrawSource({ ...base, hasFrozen: false })).toBe("predicted");
+  });
+
+  it("where it was last drawn while its death is still ahead of what is drawn: not thrown back to the snapshots", () => {
+    // The patch already says dead (alive false) and the death fx has been noted: the screen has not caught up.
+    expect(localDrawSource({ ...base, alive: false, deathPending: true })).toBe("frozen");
+    // Nothing to hold it at (it was never predicted): the snapshots.
+    expect(localDrawSource({ ...base, alive: false, deathPending: true, hasFrozen: false })).toBe("snapshot");
+    // Once the death is drawn, the snapshots again (the body is the death fx's).
+    expect(localDrawSource({ ...base, alive: false, deathPending: false })).toBe("snapshot");
+  });
+
+  it("where it was last drawn until the teleport's cut is drawn, then its prediction again", () => {
+    expect(localDrawSource({ ...base, beforeCut: true })).toBe("frozen");
+    expect(localDrawSource({ ...base, beforeCut: true, hasFrozen: false })).toBe("snapshot");
+    expect(localDrawSource({ ...base, beforeCut: false })).toBe("predicted");
+  });
+
+  it("the snapshots in the lobby, after the run, and before the first sample", () => {
+    expect(localDrawSource({ ...base, alive: false, hasFrozen: false })).toBe("snapshot"); // lobby
+    expect(localDrawSource({ ...base, running: false, hasFrozen: false })).toBe("snapshot"); // the run is over
+    expect(localDrawSource({ ...base, ready: false, hasFrozen: false })).toBe("snapshot"); // nothing observed yet
+    expect(localDrawSource({ ...base, running: false })).toBe("snapshot"); // frozen only waits for a death or a cut
   });
 });

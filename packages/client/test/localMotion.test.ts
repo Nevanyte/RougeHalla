@@ -4,11 +4,12 @@
 // clock reads a patch's server time when the patch arrives, as ServerClock does: c = now - downlink.
 import { describe, expect, it } from "vitest";
 import {
-  findPath, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, withGates,
+  findPath, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, withGates,
   type GameMap, type Vec2,
 } from "@raid/shared";
 import {
-  CORRECT_SPEED_MOVING_MAX, LocalMotion, REBASE_DEADZONE, SNAP_DISTANCE, type FrameInput,
+  clampToWorld, CORRECT_SPEED_MOVING_MAX, LocalMotion, ORDER_EXPIRE_MS, REBASE_DEADZONE, SNAP_DISTANCE, VISUAL_SNAP_DISTANCE,
+  type FrameInput,
 } from "../src/net/localMotion";
 
 const W = 60;
@@ -50,9 +51,11 @@ class Rig {
   serverPath: Vec2[] = [];
   serverSeq = 0;
   serverSpeedMult = 1;
+  /** The server holds a lock (a move or a stop it applies ends it; `lockNow` and `target` start it). */
+  serverLocked = false;
   private serverTime = 0;
   private inbox: Array<{ at: number; kind: "move" | "stop" | "chase"; seq: number; to?: Vec2 }> = [];
-  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number }> = [];
+  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number; locked: boolean }> = [];
   // The client.
   private seq = 0;
   private lastFrame = 0;
@@ -80,16 +83,26 @@ class Rig {
   private delay(base: number): number { return base + Math.floor(this.rnd() * (this.jitter + 1)); }
 
   /** The player right-clicks `to`. */
-  move(to: Vec2): void {
+  /** The player right-clicks `to`. `lost`: the message never reaches the server (sent while the connection was down). */
+  move(to: Vec2, lost = false): void {
     const seq = (this.seq = (this.seq % 255) + 1);
     this.motion.order("move", seq, this.clock, to, this.map);
-    this.inbox.push({ at: this.now + this.delay(this.up), kind: "move", seq, to });
+    if (!lost) this.inbox.push({ at: this.now + this.delay(this.up), kind: "move", seq, to });
   }
 
-  /** The player clicks a fighter: the prediction hands over now; the server starts its chase to `to` when the order reaches it. */
-  target(to: Vec2): void {
-    this.motion.order("target", 0, this.clock, undefined, this.map);
-    this.inbox.push({ at: this.now + this.delay(this.up), kind: "chase", seq: 0, to });
+  /**
+   * The player clicks a fighter: the prediction stops predicting the walk it interrupts at once; the server starts its chase to `to`
+   * when the order reaches it, and the client only learns of it in a patch. `refused`: the server never takes it.
+   */
+  target(to: Vec2, refused = false): void {
+    this.motion.expectLock(this.clock);
+    if (!refused) this.inbox.push({ at: this.now + this.delay(this.up), kind: "chase", seq: 0, to });
+  }
+
+  /** The server has locked a fighter this instant: it chases to `to` and its patches say so. */
+  lockNow(to: Vec2): void {
+    this.serverPath = findPath(this.map, this.server, to, PLAYER_RADIUS);
+    this.serverLocked = true;
   }
 
   stop(): void {
@@ -115,7 +128,7 @@ class Rig {
       if (this.now % TICK_MS === 0) this.tick();
       this.patches = this.patches.filter((p) => {
         if (p.at > this.now) return true;
-        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq }, this.clock);
+        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq, locked: p.locked }, this.clock);
         return false;
       });
       if (this.now >= nextFrame) {
@@ -137,6 +150,7 @@ class Rig {
         const path = findPath(this.map, this.server, last.to!, PLAYER_RADIUS);
         if (path.length > 0) this.serverPath = path;
       }
+      this.serverLocked = last.kind === "chase";
       if (last.kind !== "chase") this.serverSeq = last.seq;
     }
     let budget = (PLAYER_SPEED * this.serverSpeedMult * TICK_MS) / 1000;
@@ -151,7 +165,7 @@ class Rig {
       }
     }
     this.patchCount++;
-    this.patches.push({ at: this.now + this.delay(this.down), x: this.server.x, y: this.server.y, t: this.serverTime, moveSeq: this.serverSeq });
+    this.patches.push({ at: this.now + this.delay(this.down), x: this.server.x, y: this.server.y, t: this.serverTime, moveSeq: this.serverSeq, locked: this.serverLocked });
   }
 
   /** Largest distance between two consecutive drawn positions. */
@@ -525,6 +539,284 @@ describe("long random play", () => {
   });
 });
 
+describe("staying honest when the server does something the client did not order", () => {
+  /** A fresh model standing at (x, y) with the server's first sample at server time 0 (client clock 0). */
+  function standing(x: number, y: number, map = arena()): LocalMotion {
+    const m = new LocalMotion();
+    m.observe({ x, y, t: 0, moveSeq: 0 }, 0);
+    m.frame(0, FRAME_MS, ALIVE);
+    return m;
+  }
+
+  it("an order the server never applies is forgotten, and the walk it started is brought back to the server", () => {
+    for (const [up, down] of [[40, 40], [90, 60]] as const) {
+      const r = new Rig({ up, down });
+      r.run(300);
+      r.move(centre(50, 10), true); // sent while the connection was down: lost
+      expect(r.motion.pendingOrders).toBe(1);
+      r.run(ORDER_EXPIRE_MS + 100);
+      expect(r.motion.pendingOrders, `${up}/${down}`).toBe(0);
+      r.run(3000);
+      // The server never moved; the model does not either, and the drawn fighter is where the server has it.
+      expect(dist(r.server, centre(10, 10)), `${up}/${down}`).toBeLessThan(1e-6);
+      expect(dist(r.motion.drawn, r.server), `${up}/${down}`).toBeLessThan(0.5);
+      expect(r.motion.walking).toBe(false);
+      // And never far from it on the way: nothing like the 600 u an unexpired order let it wander.
+      expect(Math.max(...r.drawnLog.map((p) => dist(p, r.server))), `${up}/${down}`).toBeLessThan(VISUAL_SNAP_DISTANCE);
+    }
+  });
+
+  it("a lost order does not hold back the reconciliation of the ones after it", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    r.move(centre(50, 10), true);
+    r.run(100);
+    r.move(centre(10, 20)); // the next one gets through
+    r.run(2500);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.5);
+    expect(dist(r.server, centre(10, 20))).toBeLessThan(0.5);
+  });
+
+  it("an order pending longer than the delay explains is given up on, sooner at a short delay", () => {
+    const m = standing(300, 300);
+    m.order("move", 1, 100, { x: 900, y: 300 }, arena());
+    m.frame(100 + 300, FRAME_MS, ALIVE);
+    expect(m.pendingOrders).toBe(1); // 300 ms: not yet (the floor is 350 ms)
+    m.frame(100 + 400, FRAME_MS, ALIVE);
+    expect(m.pendingOrders).toBe(0);
+    m.order("move", 2, 1000, { x: 900, y: 300 }, arena());
+    m.observe({ x: 300, y: 300, t: 50, moveSeq: 0 }, 1000 + ORDER_EXPIRE_MS + 10);
+    expect(m.pendingOrders).toBe(0);
+  });
+
+  it("the server stopping the fighter with no order (a revive, a halt) does not make the drawn fighter run away from it", () => {
+    for (const [up, down] of [[40, 40], [100, 80]] as const) {
+      const r = new Rig({ up, down });
+      r.run(300);
+      r.move(centre(50, 10));
+      r.run(900);
+      expect(r.motion.walking).toBe(true);
+      r.serverPath = []; // the server halts it
+      const from = r.drawnLog.length;
+      r.run(4000);
+      const tag = `${up}/${down}`;
+      expect(r.motion.walking, tag).toBe(false);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.5);
+      expect(Math.max(...r.offsetLog.slice(from)), tag).toBeLessThan(VISUAL_SNAP_DISTANCE);
+      // It overshoots by a few samples' walk at most, never the 100+ u an unbounded drift gave.
+      expect(Math.max(...r.drawnLog.slice(from).map((p) => dist(p, r.server))), tag).toBeLessThan(PLAYER_SPEED * ((up + down + 300) / 1000));
+    }
+  });
+
+  it("a walk the server is walking is not taken for a stall, however long", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    r.move(centre(55, 10));
+    r.run(4000);
+    expect(r.motion.walking).toBe(true);
+    expect(r.motion.visualOffset).toBeLessThan(1);
+  });
+
+  it("a server that walks off on its own is followed in bounds: the offset never reaches the snap limit unnoticed", () => {
+    const r = new Rig({ up: 30, down: 30 });
+    r.run(300);
+    r.move(centre(55, 10));
+    r.run(400);
+    // From here the server walks the other way (a halt and a new walk the client did not order).
+    r.serverPath = findPath(r.map, r.server, centre(10, 25), PLAYER_RADIUS);
+    r.run(3000);
+    expect(Math.max(...r.offsetLog)).toBeLessThanOrEqual(VISUAL_SNAP_DISTANCE + 1);
+    expect(r.maxStep()).toBeLessThan(PLAYER_SPEED * (FRAME_MS / 1000) + (CORRECT_SPEED_MOVING_MAX * FRAME_MS) / 1000 + 0.1 + SNAP_DISTANCE);
+    r.serverPath = [];
+    r.run(3000);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.5);
+  });
+
+  it("a speed the client has no idea of (the server crawling at a tenth) cannot leave the drawn fighter running ahead of it for good", () => {
+    const r = new Rig({ up: 30, down: 30 });
+    r.run(300);
+    r.serverSpeedMult = 0.1; // a slow the client was not told of, and the model walks the same way
+    r.move(centre(55, 10));
+    r.run(9000);
+    // Corrections slow the drawn walk, but not enough: the offset reaches its limit and the fighter is brought back to the server.
+    expect(Math.max(...r.offsetLog)).toBeLessThanOrEqual(VISUAL_SNAP_DISTANCE + 1);
+    expect(Math.max(...r.drawnLog.map((p) => dist(p, r.server)))).toBeLessThan(VISUAL_SNAP_DISTANCE + 60);
+  });
+
+  it("an error past SNAP_DISTANCE snaps even with an order still on its way, and plans the walk again from there", () => {
+    const m = standing(300, 300);
+    const map = arena();
+    m.order("move", 1, 10, { x: 900, y: 300 }, map);
+    for (let i = 1; i <= 6; i++) m.frame(10 + i * 16, 16, ALIVE);
+    expect(m.pendingOrders).toBe(1);
+    // A sample 150 u off the line, the order not applied (moveSeq 0): not an order's doing.
+    m.observe({ x: 320, y: 450, t: 100, moveSeq: 0 }, 110);
+    m.frame(126, 16, ALIVE);
+    expect(dist(m.predicted, { x: 320, y: 450 })).toBeLessThan(4);
+    expect(m.visualOffset).toBe(0);
+    expect(m.pendingOrders).toBe(0);
+    // It walks on toward where it was going, from where the server has it.
+    expect(m.walking).toBe(true);
+    const x = m.drawn.x;
+    for (let i = 1; i <= 10; i++) m.frame(126 + i * 16, 16, ALIVE);
+    expect(m.drawn.x).toBeGreaterThan(x + 10);
+    for (let i = 1; i <= 300; i++) m.frame(300 + i * 16, 16, ALIVE);
+    expect(dist(m.predicted, { x: 900, y: 300 })).toBeLessThan(1);
+  });
+
+  it("a snap that is not a reconciliation (a teleport, a death) stands still instead", () => {
+    const m = standing(300, 300);
+    m.order("move", 1, 10, { x: 900, y: 300 }, arena());
+    m.frame(30, 16, ALIVE);
+    m.observe({ x: 1500, y: 800, t: 100, moveSeq: 0 }, 110); // a jump past TELEPORT_DISTANCE
+    m.frame(126, 16, ALIVE);
+    expect(m.walking).toBe(false);
+    expect(m.drawn).toEqual({ x: 1500, y: 800 });
+  });
+
+  it("a cut (the teleport's fx, a training revive) makes the next sample snap however short the jump, and forgets the walk", () => {
+    // Without a cut a 40 u error is an ordinary correction: the drawn fighter eases to the server.
+    const control = standing(300, 300);
+    control.observe({ x: 340, y: 300, t: 100, moveSeq: 0 }, 110);
+    control.frame(126, 16, ALIVE);
+    expect(control.visualOffset).toBeGreaterThan(5);
+
+    const m = standing(300, 300);
+    m.order("move", 1, 10, { x: 900, y: 300 }, arena());
+    m.frame(30, 16, ALIVE);
+    expect(m.walking).toBe(true);
+    m.cut(100);
+    expect(m.pendingOrders).toBe(0);
+    expect(m.walking).toBe(false);
+    m.observe({ x: 325, y: 300, t: 50, moveSeq: 0 }, 60); // before the cut: an ordinary correction
+    expect(m.visualOffset).toBeGreaterThan(5);
+    m.observe({ x: 340, y: 300, t: 100, moveSeq: 0 }, 110);
+    m.frame(126, 16, ALIVE);
+    expect(m.drawn).toEqual({ x: 340, y: 300 });
+    expect(m.visualOffset).toBe(0);
+    expect(m.walking).toBe(false);
+    // One cut, one snap: the next ordinary sample is ordinary again.
+    m.observe({ x: 360, y: 300, t: 200, moveSeq: 0 }, 210);
+    m.frame(226, 16, ALIVE);
+    expect(m.visualOffset).toBeGreaterThan(5);
+    m.order("move", 2, 230, { x: 900, y: 300 }, arena());
+    m.frame(250, 16, ALIVE);
+    expect(m.walking).toBe(true);
+  });
+});
+
+describe("the click is clamped to the world, as the server's parsePoint clamps it", () => {
+  /** A full-size open arena: the world's rectangle, walled on its border. */
+  function worldArena(): GameMap {
+    const w = WORLD_W / TILE, h = WORLD_H / TILE;
+    const tiles = new Uint8Array(w * h).fill(TILE_FLOOR);
+    for (let x = 0; x < w; x++) { tiles[x] = TILE_WALL; tiles[(h - 1) * w + x] = TILE_WALL; }
+    for (let y = 0; y < h; y++) { tiles[y * w] = TILE_WALL; tiles[y * w + w - 1] = TILE_WALL; }
+    return mapFromTiles(w, h, tiles);
+  }
+
+  it("clampToWorld is parsePoint's clamp", () => {
+    expect(clampToWorld({ x: -500, y: 300 })).toEqual({ x: 0, y: 300 });
+    expect(clampToWorld({ x: WORLD_W + 5, y: WORLD_H + 9e9 })).toEqual({ x: WORLD_W, y: WORLD_H });
+    expect(clampToWorld({ x: 12, y: 34 })).toEqual({ x: 12, y: 34 });
+  });
+
+  it("an edge click plans to the clamped point, the same walk the server plans", () => {
+    const map = worldArena();
+    const from = centre(2, 6);
+    for (const click of [{ x: from.x - 500, y: from.y + 300 }, { x: WORLD_W + 400, y: 600 }, { x: 900, y: -700 }]) {
+      const m = new LocalMotion();
+      m.observe({ x: from.x, y: from.y, t: 0, moveSeq: 0 }, 0);
+      m.frame(0, FRAME_MS, ALIVE);
+      m.order("move", 1, 0, click, map);
+      const serverPath = findPath(map, from, clampToWorld(click), PLAYER_RADIUS);
+      expect(serverPath.length).toBeGreaterThan(0);
+      for (let i = 1; i <= 2000 && m.walking !== false || i === 1; i++) m.frame(i * 16, 16, ALIVE);
+      expect(dist(m.predicted, serverPath[serverPath.length - 1]!), JSON.stringify(click)).toBeLessThan(1);
+    }
+  });
+});
+
+describe("the lock: the server's word, with the click's hope", () => {
+  const lockedSample = (x: number, t: number, moveSeq: number, locked: boolean) => ({ x, y: 300, t, moveSeq, locked });
+
+  it("a lock the patches show puts the model in follow, and the lock ending takes it out", () => {
+    const m = new LocalMotion();
+    m.observe(lockedSample(300, 0, 0, false), 0);
+    m.frame(0, FRAME_MS, ALIVE);
+    expect(m.mode).toBe("predict");
+    m.observe(lockedSample(308, 50, 0, true), 50);
+    expect(m.mode).toBe("follow");
+    m.observe(lockedSample(316, 100, 0, true), 100);
+    expect(m.mode).toBe("follow");
+    m.observe(lockedSample(316, 150, 0, false), 150);
+    expect(m.mode).toBe("predict");
+    m.frame(160, FRAME_MS, ALIVE);
+    expect(m.walking).toBe(false);
+  });
+
+  it("not while a move or stop of ours is still on its way: that order ends the lock the patch shows", () => {
+    const m = new LocalMotion();
+    m.observe(lockedSample(300, 0, 0, false), 0);
+    m.frame(0, FRAME_MS, ALIVE);
+    m.order("move", 1, 10, { x: 900, y: 300 }, arena());
+    m.observe(lockedSample(308, 50, 0, true), 60); // the lock was applied first; the move is still in flight
+    expect(m.mode).toBe("predict");
+    expect(m.pendingOrders).toBe(1);
+    m.observe(lockedSample(316, 100, 1, false), 110); // the move applied: the lock is gone
+    expect(m.mode).toBe("predict");
+    expect(m.pendingOrders).toBe(0);
+  });
+
+  it("a move after the click leaves follow at once, and a lock still showing in the patches before it applies does not bring it back", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    r.target(centre(50, 10));
+    expect(r.motion.mode).toBe("follow");
+    r.run(400);
+    expect(r.motion.mode).toBe("follow");
+    r.move(centre(5, 10));
+    expect(r.motion.mode).toBe("predict");
+    r.run(300); // the patches still say locked for a while
+    expect(r.motion.mode).toBe("predict");
+    r.run(2500);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.5);
+  });
+
+  it("a click the server refuses: the walk it interrupted is taken up again, and the fighter stays with the server", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    r.move(centre(50, 10));
+    r.run(500);
+    r.target(centre(30, 25), true); // refused: no lock ever shows, the server walks on
+    expect(r.motion.mode).toBe("follow");
+    r.run(ORDER_EXPIRE_MS + 200);
+    expect(r.motion.mode).toBe("predict");
+    expect(r.motion.walking).toBe(true); // predicting the old walk again
+    r.run(300);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(PLAYER_SPEED * 0.25);
+    r.run(6000);
+    expect(dist(r.server, centre(50, 10))).toBeLessThan(0.5);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.5);
+  });
+
+  it("a lock the patch shows within the hope window confirms it: follow stays after the window", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    r.target(centre(40, 10));
+    r.run(ORDER_EXPIRE_MS + 400);
+    expect(r.motion.mode).toBe("follow");
+  });
+
+  it("a first sample that already shows a lock starts in follow", () => {
+    const m = new LocalMotion();
+    m.observe(lockedSample(300, 0, 0, true), 0);
+    m.frame(0, FRAME_MS, ALIVE);
+    expect(m.mode).toBe("follow");
+  });
+});
+
 describe("not alive", () => {
   it("a dead fighter, or one in the lobby, is drawn where the server has it and its walk is dropped", () => {
     const r = new Rig();
@@ -562,19 +854,17 @@ describe("not alive", () => {
   });
 });
 
-describe("a target order (follow)", () => {
-  /** The server walks the player on its own, as the lock's chase would: along +x. */
-  function chase(r: Rig, to: Vec2): void {
-    r.serverPath = findPath(r.map, r.server, to, PLAYER_RADIUS);
-  }
+describe("a lock (follow)", () => {
+  /** The server chases on its own, as the lock does, and says so in its patches. */
+  const chase = (r: Rig, to: Vec2): void => r.lockNow(to);
 
   it("draws the newest server sample carried on by its velocity, with no lead of its own", () => {
     const r = new Rig({ up: 30, down: 30 });
     r.run(200);
-    r.motion.order("target", 0, r.clock, undefined, r.map);
-    expect(r.motion.mode).toBe("follow");
+    expect(r.motion.mode).toBe("predict");
     chase(r, centre(40, 10));
     r.run(1000);
+    expect(r.motion.mode).toBe("follow");
     // The drawn position is within a patch of walking of the latest sample the client has seen, never ahead of the server.
     const seen = r.server.x - PLAYER_SPEED * ((r.down + TICK_MS) / 1000);
     expect(r.motion.drawn.x).toBeGreaterThan(seen - 2);
@@ -586,7 +876,6 @@ describe("a target order (follow)", () => {
   it("does not overshoot the server's stop by more than a tick of walking", () => {
     const r = new Rig({ up: 30, down: 30 });
     r.run(200);
-    r.motion.order("target", 0, r.clock, undefined, r.map);
     chase(r, centre(30, 10));
     r.run(5000); // arrives and rests
     const rest = r.server;
@@ -602,7 +891,6 @@ describe("a target order (follow)", () => {
     r.run(800);
     const from = r.drawnLog.length;
     const beforeX = r.motion.drawn.x;
-    r.motion.order("target", 0, r.clock, undefined, r.map);
     chase(r, centre(55, 10));
     r.run(600);
     for (let i = from; i < r.drawnLog.length; i++) expect(r.drawnLog[i]!.x).toBeGreaterThanOrEqual(r.drawnLog[i - 1]!.x - 1e-6);
@@ -615,7 +903,6 @@ describe("a target order (follow)", () => {
   it("a move after it predicts again from where the server will be, not from the stale sample", () => {
     const r = new Rig({ up: 60, down: 60 });
     r.run(200);
-    r.motion.order("target", 0, r.clock, undefined, r.map);
     chase(r, centre(55, 10));
     r.run(900);
     const x = r.motion.drawn.x;
@@ -714,8 +1001,10 @@ describe("facing", () => {
     r.run(50);
     expect(r.motion.facing()).toBeNull();
     r.move(centre(50, 10));
-    r.motion.order("target", 0, r.clock, undefined, r.map);
-    r.run(50);
+    r.run(400);
+    r.lockNow(centre(50, 10));
+    r.run(200);
+    expect(r.motion.mode).toBe("follow");
     expect(r.motion.facing()).toBeNull();
   });
 });

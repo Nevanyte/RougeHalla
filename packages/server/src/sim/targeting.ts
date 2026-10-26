@@ -14,7 +14,8 @@
 // `move` and `stop` end the lock (dropLock, weapons.ts), as does `attack`; a `target` ends whatever came before it. A
 // move to an unreachable point still ends the lock: the order was given. A `move`, a `stop` or a `target` that is accepted
 // also cancels an attack the lock was winding up (cancelLockedWindup: no swing or shot, the cooldown refunded, a `cancel`
-// fx); an `attack` (the low-level trigger) does not, and neither does a refused order.
+// fx); an `attack` (the low-level trigger) does not, and neither does a refused order, or a `target` on the fighter the
+// attack is already aimed at (the lock had dropped and the player clicks it again).
 //
 // Upkeep (updateTargets, once per tick right after the inputs, before the weapons). For every locked player: the lock ends
 // when the target is no longer standing, is evading, is farther than TARGET_RANGE, has been out of line of sight for
@@ -72,8 +73,9 @@ export const handleTarget: ActionHandler = (world, c, cmd) => {
     path = planPath(world, c.s, t.s);
     if (path.length === 0) return;
   }
-  // Another fighter: what the old lock was winding up goes with it (the same player's order cancels it, as a move does).
-  cancelLockedWindup(world, c);
+  // Another fighter: what the old lock was winding up goes with it (the same player's order cancels it, as a move does). An attack
+  // already aimed at this very fighter stays (the lock dropped, by the line of sight or an `attack`, and the player clicks it again).
+  if (w.action?.target !== t.id) cancelLockedWindup(world, c);
   setLock(c, t.id);
   // The lock walks and holds the trigger from here; an earlier walk and trigger are let go. The search out of sight was
   // the chase's first plan; in sight, the chase plans at once if the order's budget allows, else when its throttle does.

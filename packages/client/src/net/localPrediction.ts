@@ -23,6 +23,22 @@ export interface OtherFighter { x: number; y: number; faction: string; status: s
 
 interface Burst { mult: number; from: number; until: number }
 
+/** Where the local fighter is drawn from this frame. */
+export type LocalDrawSource = "predicted" | "frozen" | "snapshot";
+
+/**
+ * The prediction while the fighter is on its feet in a running fight and the screen shows the world as it is now. Once the
+ * patch says it is dead, or a teleport's fx has arrived, the state is ahead of what is drawn (everyone else is drawn 100 ms
+ * back): until the death or the cut is due the fighter stays where it was last drawn (`frozen`), instead of being thrown back
+ * to the snapshots. Anything else is drawn from the snapshots, like everyone.
+ */
+export function localDrawSource(s: {
+  alive: boolean; running: boolean; ready: boolean; beforeCut: boolean; deathPending: boolean; hasFrozen: boolean;
+}): LocalDrawSource {
+  if (s.alive && s.running && s.ready && !s.beforeCut) return "predicted";
+  return s.hasFrozen && (s.deathPending || s.beforeCut) ? "frozen" : "snapshot";
+}
+
 export class LocalPrediction {
   readonly motion = new LocalMotion();
   private seq = 0;
@@ -64,6 +80,8 @@ export class LocalPrediction {
         if (fx.id === localId) {
           this.axeRoot = null;
           this.bursts = [];
+          // A training room puts the fighter back on its feet in place, with no walk left: the sample that follows snaps.
+          this.motion.cut(fx.t);
         }
         if (fx.by === localId && me) {
           const { bursts } = killEffects({ hp: me.stacksHp, attackSpeed: me.stacksAs, moveSpeed: me.stacksMs });
@@ -71,7 +89,9 @@ export class LocalPrediction {
         }
         break;
       case "teleport":
+        // Everyone is moved and every walk cancelled: the sample from this tick on is a cut, however short the jump.
         this.axeRoot = null;
+        this.motion.cut(fx.t);
         break;
       default:
         break;
