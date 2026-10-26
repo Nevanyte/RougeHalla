@@ -82,7 +82,7 @@ export class RaidScene extends Phaser.Scene {
   private trainingBar: TrainingBar | null = null;
   private leaveTraining: (() => void) | undefined;
   private announce: ((text: string) => void) | undefined;
-  /** Container with a weapon the local player could take right now: alive, and in range with line of sight by the server's own rule. */
+  /** Container with a weapon the local player could take right now: alive, and in range on the move mask by the server's own rule. */
   private nearest: ContainerState | null = null;
   private marker!: Phaser.GameObjects.Ellipse;
   private lastMoveSentAt = 0;
@@ -336,9 +336,9 @@ export class RaidScene extends Phaser.Scene {
     // interpolated one the player is drawn at, which trails it by INTERP_DELAY_MS.
     const me = state.players.get(this.room.sessionId);
     const map = this.mapView?.map;
-    // Line of sight (pickup) follows the server's walls, closed gates included. mapView.map stays the open map.
-    const sightMap = gatesLocked && map ? withGates(map) : map;
-    this.nearest = me?.status === "alive" && sightMap ? nearestContainer(state.containers, sightMap, me) : null;
+    // Pickup reach uses the move mask (a fence stops a hand), on the server's map: closed gates included. mapView.map stays the open map.
+    const pickupMap = gatesLocked && map ? withGates(map) : map;
+    this.nearest = me?.status === "alive" && pickupMap ? nearestContainer(state.containers, pickupMap, me) : null;
     this.syncContainers(state);
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.
