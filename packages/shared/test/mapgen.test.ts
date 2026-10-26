@@ -14,8 +14,8 @@ import { TERRAIN_LAVA } from "../src/terrain";
 import { mulberry32, randInt } from "../src/rng";
 import { WEAPONS } from "../src/weapons";
 import {
-  CAMP_GAP_TILES, LATTICE, LATTICE_ANCHOR, MAP_SIZE, RING_CONTACT_MIN as CERT_F, SLIVER_MAX as CERT_S, TERRITORY_RADIUS_TILES, certifyMap, dist,
-  fatLane, firstOpenSlope, hittableAim,
+  CAMP_GAP_TILES, LATTICE, LATTICE_ANCHOR, MAP_SIZE, RING_CONTACT_MIN as CERT_F, SLIVER_MAX as CERT_S, TERRITORY_RADIUS_TILES, certifyMap, demoStyleHook,
+  dist, fatLane, firstOpenSlope, hittableAim,
 } from "./mapCertify";
 import { PINNED_MAPS } from "./mapPins";
 
@@ -155,12 +155,20 @@ describe("determinism", () => {
     expect(calls).toEqual(Object.fromEntries(names.map((n) => [`Math.${n}`, 0])));
   }, HEAVY_MS);
 
+  it("mapHash leaves props out: they are cosmetic and the server builds without them", () => {
+    const base = mapFor(3), h = mapHash(base);
+    const m = structuredClone(base);
+    m.props.push({ kind: 1, x: 100, y: 100, v: 7 });
+    expect(mapHash(m)).toBe(h);
+  });
+
   it("mapHash covers every field it names: changing any of them changes the hash", () => {
     const base = mapFor(3), h = mapHash(base);
     expect(h).toMatch(/^[0-9a-f]{8}$/);
     expect(mapHash(structuredClone(base))).toBe(h);
     const edits: [string, (m: GameMap) => void][] = [
       ["tiles", (m) => { m.tiles[200] ^= 1; }],
+      ["terrain", (m) => { m.terrain[300] = 5; }],
       ["regionGrid", (m) => { m.regionGrid[200] ^= 1; }],
       ["territoryGrid", (m) => { m.territoryGrid[500] ^= 1; }],
       ["attempt", (m) => { m.attempt++; }],
@@ -319,6 +327,20 @@ describe("styler hook", () => {
     };
     generateMap(2, undefined, { styleZones: look });
     expect(calls).toBeGreaterThanOrEqual(1);
+  });
+
+  it("builds every hashed layer the same with decor off (the server and bots), with no props; the hook is told", () => {
+    const told: boolean[] = [];
+    const hook: ZoneStyleHook = (st) => { told.push(st.decor); demoStyleHook(st); };
+    for (const s of seeds(4)) {
+      const on = generateMap(s, undefined, { styleZones: hook });
+      const off = generateMap(s, on.attempt, { styleZones: hook, decor: false });
+      expect(mapHash(off), `seed ${s}`).toBe(mapHash(on));
+      expect({ ...off, props: [] }, `seed ${s}`).toEqual({ ...on, props: [] });
+      expect(off.props, `seed ${s}`).toEqual([]);
+      expect(certifiedMap(s, { decor: false }), `seed ${s}: no hook`).toEqual(mapFor(s));
+    }
+    expect(told.includes(true) && told.includes(false)).toBe(true);
   });
 
   it("throws when the hook breaks the contract", () => {

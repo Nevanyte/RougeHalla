@@ -11,7 +11,7 @@ import {
 } from "../src/map";
 import type { GameMap, GateSide, TilePt, TileRect } from "../src/map";
 import type { Vec2 } from "../src/messages";
-import { styleRng } from "../src/mapgen";
+import { STYLE_STREAM, styleRng } from "../src/mapgen";
 import type { ZoneStyleHook } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
 import { randInt } from "../src/rng";
@@ -824,12 +824,14 @@ function longestOutdoorWallRun(m: GameMap): number {
  * One pass over every zone, each kind in its home zone: fire gets a meandering lava river 2 wide and up to 24 long with
  * ember on its free banks, sentenced three fences of 5-9 tiles with a gap (kept: no rock may stand on them), frost a
  * 6-tile crevasse with a gap and a 4x4 ice patch, plague a 5x5 bog, holy a 3x3 patch of light; every zone two 2x2 walls.
+ * With decor on, three props per zone from the decor stream (of an unknown kind while PROP_KINDS is empty, so the
+ * generator drops them: the decor stream must change nothing else).
  */
-export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, zone, zoneFaction, protect, tiles, terrain, keepLow }) => {
+export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, decor, zone, zoneFaction, protect, tiles, terrain, props, keepLow }) => {
   const N = w * h;
   for (let z = 1; z <= zoneFaction.length; z++) {
     const faction = zoneFaction[z - 1];
-    const rng = styleRng(seed, attempt, REGION_FACTIONS.indexOf(faction) + 1);
+    const rng = styleRng(seed, attempt, REGION_FACTIONS.indexOf(faction) + 1, STYLE_STREAM.shape);
     const cells: number[] = [];
     for (let i = 0; i < N; i++) if (zone[i] === z && !protect[i] && tiles[i] === TILE_FLOOR) cells.push(i);
     if (cells.length === 0) continue;
@@ -874,6 +876,13 @@ export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, zone, zoneFa
     for (let b = 0; b < 2; b++) {
       const at = cells[randInt(rng, 0, cells.length)];
       for (const o of [0, 1, w, w + 1]) if (free(at + o)) tiles[at + o] = TILE_WALL;
+    }
+    if (decor) {
+      const drng = styleRng(seed, attempt, REGION_FACTIONS.indexOf(faction) + 1, STYLE_STREAM.decor);
+      for (let k = 0; k < 3; k++) {
+        const at = cells[randInt(drng, 0, cells.length)];
+        props.push({ kind: 0, x: tileToWorldCenter(at % w), y: tileToWorldCenter(Math.floor(at / w)), v: randInt(drng, 0, 256) });
+      }
     }
   }
 };

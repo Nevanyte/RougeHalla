@@ -24,18 +24,20 @@ stays the design reference for everything not listed here.
   territory guard, `walkDistances`, `enforceConnectivity`, `longestLane`. Sight reads `MASK_SIGHT`, connectivity
   `MASK_MOVE` (map.ts).
 - `styler.ts`: the zone style hook types (`ZoneStyleHook`, `StyleState`, `StyleCamp`), `ZONE_STYLE_HOOK` (null in R2),
-  `styleRng`.
+  `STYLE_STREAM` (0 shape, 1 decor, 2 surface) and `styleRng(seed, attempt, zone, stream)`, a placeholder whose seed
+  becomes zone terrain's `hashSeed` in one line.
 - `mapgen.ts`: the attempt pipeline and the public API.
 
 Public API (re-exported by `@raid/shared`):
 - `generateMap(seed, attempt?, options?)`: with `attempt`, exactly that attempt, throwing when it does not certify;
   without, attempts 0, 1, 2, ... until one certifies (a guard throws after 64). `options.styleZones` replaces the hook
-  (tests only).
+  (tests only); `options.decor: false` skips the cosmetic props.
 - `tryAttempt(seed, attempt, options?)`: one attempt, the map or null. `certifiedMap(seed, options?)`: the first of
   attempts 0..15 that certifies, or null (a pool discards the seed). `MAX_ATTEMPTS` = 16.
 - `warmMapgen()`: builds the fixed layout and the four lane tables (about 40 ms, 44 MB).
-- `mapHash(map)`: 32-bit FNV-1a, 8 hex digits, over seed, attempt, size, tiles, terrain, regionGrid, territoryGrid, camps,
-  spawn pool, regions (pole, area, spawns, crates), ruins, spawns, crates, ground spots and props.
+- `mapHash(map)`: 32-bit FNV-1a, 8 hex digits, over the gameplay layers: seed, attempt, size, tiles, terrain, regionGrid,
+  territoryGrid, camps, spawn pool, regions (pole, area, spawns, crates), ruins, spawns, crates and ground spots. Props are
+  left out (cosmetic): `generateMap(seed, attempt, { decor: false })`, the server's and the bots' build, hashes the same.
 - Constants: `SIGHT_LATTICE`, `LATTICE_ORIGIN`, `CAMPS_PER_ZONE` 4, `CAMP_GAP` 9, `TERRITORY_RADIUS_MAX` 30,
   `RING_CONTACT_MIN` 24, `SLIVER_MAX` 100.
 - Bench hooks: `MAPGEN_FAILS` (failures by reason), `MAPGEN_PROFILE` (per-stage time, off by default).
@@ -193,8 +195,8 @@ maps (the wedge maps gave 95.8% at 8 players). There are no same-zone pairs and 
 
 - The client side was not re-measured: R1's cold Chrome attempt (85 ms, 67 ms with a warm-up attempt) predates the
   30% speed-up. The pool, the worker and the `mapHash` mismatch path belong to the pool and client tracks.
-- `mapHash` covers props, but the contract has the server build with `decor: false`. The two disagree once props exist:
-  either drop props from the hash or build with decor on both sides (zone terrain's call).
+- `styleRng` is a placeholder for zone terrain's `hashSeed(seed, attempt, zoneIndex, stream)` (shared/rng.ts); the swap
+  is one line and changes every styled map.
 - Rock density is about 1880 wall tiles per map in the zones, with ruins and chunks included; zone-terrain's tall
   walls are the lever to bring it down.
 - Lane tables: 44 MB per process (4 tables, Float64 edges).

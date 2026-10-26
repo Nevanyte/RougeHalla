@@ -37,6 +37,8 @@ export interface StyleState {
   readonly h: number;
   readonly seed: number;
   readonly attempt: number;
+  /** false: the map is built without its cosmetic layer (the server, the bots): skip the decor stream and add no props. */
+  readonly decor: boolean;
   /** Write: TILE_WALL or TILE_LOW over TILE_FLOOR, on painted tiles outside `protect`. */
   readonly tiles: Uint8Array;
   /** Write: terrain kinds (terrain.ts) on painted tiles outside `protect`; all zero on entry. */
@@ -66,7 +68,14 @@ export type ZoneStyleHook = (state: StyleState) => void;
 /** The hook every map uses (client and server alike). None in R2: the zone-terrain session supplies it. */
 export const ZONE_STYLE_HOOK: ZoneStyleHook | null = null;
 
-/** A stream of the styler's own for (seed, attempt, zone index), for stylers that bring none; never the generator's. */
-export function styleRng(seed: number, attempt: number, zoneIndex: number): Rng {
-  return mulberry32((seed ^ 0x5bd1e995) + attempt * 0x27d4eb2d + zoneIndex * 0x165667b1);
+/** The styler's streams per zone (zone-terrain contract 0.3): 0 shape, 1 decor (props; skipped with decor off), 2 surface. */
+export const STYLE_STREAM = { shape: 0, decor: 1, surface: 2 } as const;
+
+/**
+ * A stream of the styler's own for (seed, attempt, zone index, stream); never the generator's.
+ * PLACEHOLDER: the seed expression becomes `hashSeed(seed, attempt, zoneIndex, stream)` from shared/rng.ts when zone
+ * terrain lands it (ZT-3); that one-line swap changes every styled map, so re-pin then.
+ */
+export function styleRng(seed: number, attempt: number, zoneIndex: number, stream = 0): Rng {
+  return mulberry32((seed ^ 0x5bd1e995) + attempt * 0x27d4eb2d + zoneIndex * 0x165667b1 + stream * 0x9e3779b1);
 }

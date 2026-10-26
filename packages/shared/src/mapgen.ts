@@ -41,7 +41,7 @@ import type { CampLayout, CampSite, ZonePartition } from "./zones";
 
 export { LATTICE_ORIGIN, SIGHT_LATTICE, longestLane } from "./cover";
 export { CAMPS_PER_ZONE, CAMP_GAP, MAPGEN_FAILS, RING_CONTACT_MIN, SLIVER_MAX, TERRITORY_RADIUS_MAX } from "./zones";
-export { ZONE_STYLE_HOOK, styleRng } from "./styler";
+export { STYLE_STREAM, ZONE_STYLE_HOOK, styleRng } from "./styler";
 export type { StyleCamp, StyleState, ZoneStyleHook } from "./styler";
 
 const W = MAP_TILES_W;
@@ -264,6 +264,11 @@ function pickGroundSpots(rng: Rng, tiles: Uint8Array, skip: Uint8Array, spawns: 
 export interface MapgenOptions {
   /** The zone style hook to run instead of ZONE_STYLE_HOOK (null: none). Tests only: client and server must agree. */
   styleZones?: ZoneStyleHook | null;
+  /**
+   * false skips the cosmetic layer: no props (the server and the bots build this way). Every layer mapHash covers is the
+   * same either way, because props are drawn from a stream of their own and never read by the generator. Default true.
+   */
+  decor?: boolean;
 }
 
 /**
@@ -287,7 +292,7 @@ export function generateMap(seed: number, attempt?: number, options?: MapgenOpti
 /** Runs exactly one attempt of `seed`: its map, or null when that attempt does not certify. */
 export function tryAttempt(seed: number, attempt: number, options?: MapgenOptions): GameMap | null {
   if (!Number.isSafeInteger(attempt) || attempt < 0) throw new RangeError(`tryAttempt: attempt must be an integer >= 0, got ${attempt}`);
-  return buildMap(seed, attempt, options?.styleZones !== undefined ? options.styleZones : ZONE_STYLE_HOOK);
+  return buildMap(seed, attempt, options?.styleZones !== undefined ? options.styleZones : ZONE_STYLE_HOOK, options?.decor !== false);
 }
 
 /** The first of attempts 0..MAX_ATTEMPTS-1 of `seed` that certifies, or null: a map pool discards such a seed. */
@@ -310,7 +315,7 @@ export function warmMapgen(): void {
 /** Per-stage timing for the bench (`scripts/mapBench.ts`); off by default, and never changes a map. */
 export const MAPGEN_PROFILE = { on: false, attempts: 0, ms: {} as Record<string, number> };
 
-function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null): GameMap | null {
+function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, decor: boolean): GameMap | null {
   const F = fixedLayout();
   const { border, fp, distFp, ring } = F;
   let tMark = MAPGEN_PROFILE.on ? performance.now() : 0;
@@ -381,7 +386,7 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null): Ga
 
   const keepLow = new Uint8Array(N), terrain = new Uint8Array(N);
   let props: MapProp[] = [];
-  if (hook) applyStyleHook(seed, attempt, hook, order, zone, territoryGrid, camps, ruinNear1, tiles, terrain, props, keepLow);
+  if (hook) applyStyleHook(seed, attempt, hook, decor, order, zone, territoryGrid, camps, ruinNear1, tiles, terrain, props, keepLow);
   // A floor kind does not survive under a wall (a rock, a walled-up pocket); a LOW kind does, as decor (terrain.ts T3).
   const clearBuried = (): void => {
     if (!hook) return;
@@ -610,7 +615,7 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null): Ga
  * outside the protected ones.
  */
 function applyStyleHook(
-  seed: number, attempt: number, hook: ZoneStyleHook, order: readonly RegionFaction[], zone: Uint8Array, territoryGrid: Uint8Array,
+  seed: number, attempt: number, hook: ZoneStyleHook, decor: boolean, order: readonly RegionFaction[], zone: Uint8Array, territoryGrid: Uint8Array,
   camps: readonly CampSite[], ruinNear1: Uint8Array, tiles: Uint8Array, terrain: Uint8Array, props: MapProp[], keepLow: Uint8Array,
 ): void {
   const F = fixedLayout();
@@ -625,7 +630,8 @@ function applyStyleHook(
   }
   const before = tiles.slice();
   const styleCamps: StyleCamp[] = camps.map((c, i) => ({ site: c.site, r: CAMP_R, territory: i + 1 }));
-  hook({ w: W, h: H, seed, attempt, tiles, terrain, props, zone, zoneFaction: order, protect, territoryGrid, camps: styleCamps, keepLow });
+  hook({ w: W, h: H, seed, attempt, decor, tiles, terrain, props, zone, zoneFaction: order, protect, territoryGrid, camps: styleCamps, keepLow });
+  if (!decor) props.length = 0;
   const breach = (i: number, what: string): never => {
     throw new Error(`zone style hook broke the contract at tile ${i % W},${Math.floor(i / W)}: ${what}`);
   };
@@ -773,9 +779,9 @@ function records(
 }
 
 /**
- * A 32-bit FNV-1a hash of everything a map hands its consumers (tiles, terrain, regionGrid, territoryGrid, camps, spawn
- * pool, regions, ruins, loot spots, props, the seed and attempt), as 8 hex digits: two sides that agree on it built the
- * same map.
+ * A 32-bit FNV-1a hash of every gameplay layer of a map (tiles, terrain, regionGrid, territoryGrid, camps, spawn pool,
+ * regions, ruins, loot spots, the seed and attempt), as 8 hex digits: two sides that agree on it built the same map.
+ * Props are left out: they are cosmetic, and the server builds with `decor: false`.
  */
 export function mapHash(map: GameMap): string {
   let h = 0x811c9dc5;
@@ -798,7 +804,5 @@ export function mapHash(map: GameMap): string {
   num(map.buildings.length);
   for (const b of map.buildings) { num(b.x); num(b.y); num(b.w); num(b.h); }
   vecs(map.spawns); vecs(map.crateSpots); vecs(map.groundSpots);
-  num(map.props.length);
-  for (const p of map.props) { num(p.kind); vec(p); num(p.v); }
   return h.toString(16).padStart(8, "0");
 }
