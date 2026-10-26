@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { MobView } from "../src/render/MobView";
 import { PlayerView } from "../src/render/PlayerView";
+import { BAKE_SCALE } from "../src/render/bake";
 import { BODY_LIFT } from "../src/render/projection";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
 
@@ -57,9 +58,12 @@ describe("PlayerView juice", () => {
     const { scene, ofKind } = fakeScene();
     const { calls, sink } = dustSink();
     const view = new PlayerView(scene, false, sink);
-    const root = ofKind("container")[0]!;
+    const root = ofKind("container").at(-1)!;
     const kids = root.args[2] as FakeObject[];
     const p = player();
+    // Placing the baked images (origin, base scale, position) is construction, not the pose.
+    kids[PLAYER_KID.body]!.calls.length = 0;
+    kids[PLAYER_KID.held]!.calls.length = 0;
     return {
       c, view, root, calls, kids, body: kids[PLAYER_KID.body]!, held: kids[PLAYER_KID.held]!,
       // Real time (what the views' effects run on) moves with the render time being drawn.
@@ -80,7 +84,9 @@ describe("PlayerView juice", () => {
     const { body, root, calls, kids, draw } = setup();
     draw(0, 1000);
     walkFrames(draw, 0, 1000, 48);
-    const [sx, sy] = argsOf(body, "setScale").at(-1) as [number, number];
+    // A baked body's own scale is 1 / BAKE_SCALE; the pose is on top of it.
+    const [bx, by] = argsOf(body, "setScale").at(-1) as [number, number];
+    const [sx, sy] = [bx * BAKE_SCALE, by * BAKE_SCALE];
     expect(sx).toBeGreaterThan(1);
     expect(sy).toBeLessThan(1);
     expect(root.state.scale).toBeUndefined();
@@ -97,9 +103,9 @@ describe("PlayerView juice", () => {
     for (let t = 1416; t < 1650; t += 16) draw(x, t);
     expect(calls.map((c) => c[3])).toEqual([2, 3]);
     const scales = argsOf(body, "setScale");
-    expect(scales.some(([sx, sy]) => (sx as number) < 1 && (sy as number) > 1)).toBe(true);
+    expect(scales.some(([sx, sy]) => (sx as number) * BAKE_SCALE < 1 && (sy as number) * BAKE_SCALE > 1)).toBe(true);
     for (let t = 2000; t < 2200; t += 16) draw(x, t);
-    expect(argsOf(body, "setScale").at(-1)).toEqual([1, 1]);
+    expect(argsOf(body, "setScale").at(-1)).toEqual([1 / BAKE_SCALE, 1 / BAKE_SCALE]);
     expect(argsOf(body, "setPosition").at(-1)).toEqual([0, -BODY_LIFT]);
   });
 
@@ -141,9 +147,10 @@ describe("MobView juice", () => {
     const { scene, ofKind } = fakeScene();
     const { calls, sink } = dustSink();
     const view = new MobView(scene, sink);
-    const root = ofKind("container")[0]!;
+    const root = ofKind("container").at(-1)!;
     const kids = root.args[2] as FakeObject[];
     const m = mob();
+    kids[MOB_KID.body]!.calls.length = 0;
     return {
       view, root, calls, kids, body: kids[MOB_KID.body]!,
       draw: (x: number, t: number) => { c.now = 10000 + t; view.update(x, 0, m, t, t); },

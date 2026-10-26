@@ -20,13 +20,13 @@ function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerS
 }
 
 function setup() {
-  const { scene, ofKind } = fakeScene();
+  const { scene, ofKind, bakedCalls } = fakeScene();
   const view = new PlayerView(scene, false);
-  const root = ofKind("container")[0]!;
+  const root = ofKind("container").at(-1)!;
   const kids = root.args[2] as FakeObject[];
   const ring = kids[CHILD.barrierRing]!;
   const bar = kids[CHILD.hpBar]!;
-  return { view, root, ring, bar, frame: (p: PlayerState, drawAsAlive = false) => view.update(0, 0, p, 1000, 1000, drawAsAlive) };
+  return { view, root, ring, bar, bakedCalls, frame: (p: PlayerState, drawAsAlive = false) => view.update(0, 0, p, 1000, 1000, drawAsAlive) };
 }
 
 /** The line width and alpha of the bubble's outline: both grow with the barrier. */
@@ -71,11 +71,13 @@ describe("PlayerView kill barrier", () => {
   it("adds the barrier to the hp bar after the hp, in its own colour", () => {
     const { bar, frame } = setup();
     frame(player({ hp: 500, barrier: 150 }));
-    const fills = argsOf(bar, "fillStyle").map((a) => a[0]);
-    expect(fills).toContain(BARRIER_COLOR);
-    const rects = argsOf(bar, "fillRect");
-    expect(rects).toHaveLength(3); // backing, hp, barrier
-    expect(rects[2]![0]).toBeGreaterThan(rects[1]![0] as number);
+    const [, fill, barrier] = bar.args[2] as FakeObject[];
+    expect(barrier!.state.visible).toBe(true);
+    expect(argsOf(barrier!, "setTint")[0]).toEqual([BARRIER_COLOR]);
+    // The barrier segment starts where the hp one ends.
+    const [fx, fw] = [argsOf(fill!, "setPosition")[0]![0] as number, argsOf(fill!, "setDisplaySize")[0]![0] as number];
+    expect(argsOf(barrier!, "setPosition")[0]![0]).toBeCloseTo(fx + fw, 9);
+    expect(argsOf(barrier!, "setDisplaySize")[0]![0]).toBeGreaterThan(0);
   });
 
   it("is hidden with the rest of the view for a player who is down", () => {
@@ -124,10 +126,10 @@ describe("PlayerView bow draw", () => {
   const HELD = 9;
   // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at 3 attack-speed stacks' mirror (0.427 s).
   const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null): boolean => {
-    const { root, view } = setup();
+    const { root, view, bakedCalls } = setup();
     const held = (root.args[2] as FakeObject[])[HELD]!;
     view.update(0, 0, player({ faction: "sentenced", weapon0: "bow", drawStartedAt: 1000, ...over }), 1450, 1450, false, false, facing);
-    return held.calls.some(([name]) => name === "strokeCircle");
+    return bakedCalls(held).includes("strokeCircle");
   };
 
   it("draws to the attack-speed mirror, with the synced facing and with a predicted one", () => {

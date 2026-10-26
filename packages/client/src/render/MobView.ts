@@ -2,7 +2,8 @@ import Phaser from "phaser";
 import { PLAYER_RADIUS, Y_SCALE } from "@raid/shared";
 import type { MobState } from "@raid/shared/schema";
 import { ELITE_COLOR } from "../ui/buffTheme";
-import { BodyFlash, FighterArt, HpBar, factionColor } from "./FighterArt";
+import { around, bakedImage, pixelImage, scaledPart, type Region } from "./bake";
+import { BodyDisc, BodyFlash, FighterArt, HpBar, factionColor, shadowImage } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
@@ -22,6 +23,13 @@ const IDLE_LABEL_ALPHA = 0.5;
 const LABEL_COLOR = "#b0bec5";
 const ELITE_LABEL_COLOR = "#ffd54f";
 
+/** An elite's two gold rings on the ground, and its star over the name: baked once, shown for elites. */
+const ELITE_RING_W = PLAYER_RADIUS * 4.2;
+const ELITE_RING_REGION: Region = { x0: -ELITE_RING_W / 2 - 3, y0: -ELITE_RING_W * Y_SCALE / 2 - 3, x1: ELITE_RING_W / 2 + 3, y1: ELITE_RING_W * Y_SCALE / 2 + 3 };
+const STAR_REGION: Region = around(10);
+const RIM_NORMAL = { width: 2, color: 0x111111, alpha: 0.8 } as const;
+const RIM_ELITE = { width: 3, color: ELITE_COLOR, alpha: 1 } as const;
+
 /**
  * A neutral fighter drawn like a player without the player-only marks: the training dummy (grey, bar and name always on),
  * a regional mob (its faction's colour; the bar shows only once it is hurt or fighting, the name stays faint until then)
@@ -29,12 +37,12 @@ const ELITE_LABEL_COLOR = "#ffd54f";
  */
 export class MobView {
   private readonly root: Phaser.GameObjects.Container;
-  private readonly body: Phaser.GameObjects.Arc;
-  private readonly nose: Phaser.GameObjects.Rectangle;
+  private readonly body: BodyDisc;
+  private readonly nose: Phaser.GameObjects.Image;
   private readonly hpBar: HpBar;
   private readonly label: Phaser.GameObjects.Text;
-  private readonly eliteRing: Phaser.GameObjects.Graphics;
-  private readonly eliteStar: Phaser.GameObjects.Graphics;
+  private readonly eliteRing: Phaser.GameObjects.Image;
+  private readonly eliteStar: Phaser.GameObjects.Image;
   private readonly art: FighterArt;
   private readonly signatures: SignatureArt;
   private readonly flashing: BodyFlash;
@@ -50,30 +58,33 @@ export class MobView {
   readonly cues: FigureJuice["pose"];
 
   constructor(scene: Phaser.Scene, puffs?: DustSink) {
-    const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
-    // Two gold rings on the ground, flattened like every ground shape; drawn once, shown for elites.
-    this.eliteRing = scene.add.graphics().setVisible(false);
-    this.eliteRing.lineStyle(2.5, ELITE_COLOR, 0.95).strokeEllipse(0, 0, PLAYER_RADIUS * 3.4, PLAYER_RADIUS * 3.4 * Y_SCALE);
-    this.eliteRing.lineStyle(1.5, ELITE_COLOR, 0.5).strokeEllipse(0, 0, PLAYER_RADIUS * 4.2, PLAYER_RADIUS * 4.2 * Y_SCALE);
+    const shadow = shadowImage(scene);
+    // Two gold rings on the ground, flattened like every ground shape; baked once, shown for elites.
+    this.eliteRing = bakedImage(scene, "ring:elite", ELITE_RING_REGION, (g) => {
+      g.lineStyle(2.5, ELITE_COLOR, 0.95).strokeEllipse(0, 0, PLAYER_RADIUS * 3.4, PLAYER_RADIUS * 3.4 * Y_SCALE);
+      g.lineStyle(1.5, ELITE_COLOR, 0.5).strokeEllipse(0, 0, PLAYER_RADIUS * 4.2, PLAYER_RADIUS * 4.2 * Y_SCALE);
+    }).setVisible(false);
     this.art = new FighterArt(scene);
     this.signatures = new SignatureArt(scene, HP_BAR_W / 2);
-    this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor("")).setStrokeStyle(2, 0x111111, 0.8);
+    this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), RIM_NORMAL);
+    this.body.image.setPosition(0, -BODY_LIFT);
     this.flashing = new BodyFlash(this.body, factionColor(""));
-    this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
+    this.nose = pixelImage(scene).setOrigin(0, 0.5).setPosition(0, -BODY_LIFT).setDisplaySize(PLAYER_RADIUS, 4).setTint(0x111111).setAlpha(0.8);
     this.hpBar = new HpBar(scene);
     this.label = scene.add.text(0, LABEL_Y, "", {
       fontFamily: "system-ui, sans-serif", fontSize: "11px", color: LABEL_COLOR, stroke: "#000000", strokeThickness: 2,
     }).setOrigin(0.5, 1);
-    this.eliteStar = scene.add.graphics().setVisible(false);
-    this.eliteStar.fillStyle(ELITE_COLOR, 1).lineStyle(1.5, 0x5d4037, 1);
-    traceStar(this.eliteStar, 0, 0, 7, 3);
-    this.eliteStar.fillPath().strokePath();
+    this.eliteStar = bakedImage(scene, "star:elite", STAR_REGION, (g) => {
+      g.fillStyle(ELITE_COLOR, 1).lineStyle(1.5, 0x5d4037, 1);
+      traceStar(g, 0, 0, 7, 3);
+      g.fillPath().strokePath();
+    }).setVisible(false);
     this.root = scene.add.container(0, 0, [
-      shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body, this.nose, this.art.held, this.signatures.aura,
-      this.hpBar.g, this.label, this.eliteStar,
+      shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body.image, this.nose, this.art.held, this.signatures.aura,
+      this.hpBar.root, this.label, this.eliteStar,
     ]);
     this.fig = new FigureJuice([
-      { obj: this.body, y0: -BODY_LIFT, scaled: true }, { obj: this.nose, y0: -BODY_LIFT, scaled: false },
+      { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: this.nose, y0: -BODY_LIFT, scaled: false },
       { obj: this.art.held, y0: -BODY_LIFT, scaled: false }, { obj: this.signatures.aura, y0: 0, scaled: false },
     ], this.art, puffs);
     this.cues = this.fig.pose;
@@ -147,7 +158,8 @@ export class MobView {
     if (elite === this.elite) return;
     this.elite = elite;
     this.eliteRing.setVisible(elite);
-    this.body.setStrokeStyle(elite ? 3 : 2, elite ? ELITE_COLOR : 0x111111, elite ? 1 : 0.8);
+    const rim = elite ? RIM_ELITE : RIM_NORMAL;
+    this.body.setRim(rim.width, rim.color, rim.alpha);
     this.label.setColor(elite ? ELITE_LABEL_COLOR : LABEL_COLOR).setFontStyle(elite ? "bold" : "").setFontSize(elite ? 12 : 11);
     // Clear of the name's top edge; the bar and name sit where every mob's do.
     this.eliteStar.setPosition(0, LABEL_Y - 23);

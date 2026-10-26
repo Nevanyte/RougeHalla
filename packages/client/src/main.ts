@@ -6,6 +6,7 @@ import { detachRoom, isCallsignBusy, joinRaid, joinTraining, type RaidRoom } fro
 import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
 import { FxInbox } from "./net/fxInbox";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
+import { applyPhaserFixes } from "./render/phaserFixes";
 import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
 import { Chrome } from "./ui/chrome";
@@ -24,8 +25,11 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.NONE, width: startView.deviceW, height: startView.deviceH, zoom: 1 },
   // Right-click is move-to. Set here once: a per-run call would add another canvas listener every run.
   disableContextMenu: true,
+  // A hint for machines with two GPUs; the default picks the integrated one there.
+  render: { powerPreference: "high-performance" },
   scene: [HubScene, RaidScene],
 });
+applyPhaserFixes(game);
 // Keeps the stage, the canvas size, the cameras' zoom and the overlay's scale matching the window for the whole page.
 new ViewportManager(game);
 
