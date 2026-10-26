@@ -54,8 +54,14 @@ export const handleTarget: ActionHandler = (world, c, cmd) => {
   const t = combatant(world, cmd.id);
   if (!t || !lockable(c, t) || activeWeapon(c.s) === null) return;
   const w = c.rt.weapon;
+  // Clicking the fighter already locked changes nothing: players re-click their target all the time, and starting over
+  // would forget that it was seen and let go of the trigger (losing the cooldown's carried remainder).
+  if (w.lock === t.id) return;
+  // Out of sight, it must be somewhere the chase can walk to: nothing reaches a mob across the coliseum's locked gates.
+  if (!hasLineOfSight(collisionMap(world), c.s, t.s) && planPath(world, c.s, t.s).length === 0) return;
   setLock(c, t.id);
-  // The lock holds the trigger from here (updateTargets); a trigger pressed before it is let go.
+  // The lock walks and holds the trigger from here (updateTargets plans at once); an earlier walk and trigger are let go.
+  c.rt.path = [];
   w.held = false;
   w.bufferedUntil = 0;
 };
@@ -100,8 +106,8 @@ function follow(world: World, c: Combatant): void {
 
   if (out.move === "stop") {
     if (c.rt.path.length > 0) c.rt.path = [];
-  } else if (out.move !== null) {
-    chase(world, c, out.move, now);
+  } else if (out.move !== null && !chase(world, c, out.move, now, los)) {
+    return;
   }
 
   if (out.hold) {
@@ -118,15 +124,23 @@ function follow(world: World, c: Combatant): void {
   if (Math.abs(wrapAngle(out.aim - c.s.facing)) >= MOB_AIM_DEADBAND) c.s.facing = out.aim;
 }
 
-/** Walks toward `goal`: plans a path when there is none or the goal moved, but not more often than TARGET_REPATH_MS. */
-function chase(world: World, c: Combatant, goal: Vec2, now: number): void {
+/**
+ * Walks toward `goal`: plans a path when there is none or the goal moved, but not more often than TARGET_REPATH_MS. A goal
+ * in sight that can't be planned to leaves the path as it was (as a move order to such a point does); one out of sight with
+ * no way to it ends the lock (the gates locked between them). Returns false when it ended the lock.
+ */
+function chase(world: World, c: Combatant, goal: Vec2, now: number, los: boolean): boolean {
   const w = c.rt.weapon;
   const moved = w.lockGoal === null || Math.hypot(goal.x - w.lockGoal.x, goal.y - w.lockGoal.y) > GOAL_MOVED;
-  if (!moved && c.rt.path.length > 0) return;
-  if (now - w.lockPlanAt < TARGET_REPATH_MS) return;
+  if (!moved && c.rt.path.length > 0) return true;
+  if (now - w.lockPlanAt < TARGET_REPATH_MS) return true;
   w.lockPlanAt = now;
   w.lockGoal = { x: goal.x, y: goal.y };
-  // An unreachable goal leaves the path as it was (as a move order to such a point does).
   const path = planPath(world, c.s, goal);
   if (path.length > 0) c.rt.path = path;
+  else if (!los) {
+    dropLock(c);
+    return false;
+  }
+  return true;
 }

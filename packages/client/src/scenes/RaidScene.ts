@@ -411,7 +411,8 @@ export class RaidScene extends Phaser.Scene {
     };
     const selfId = this.room.sessionId;
     this.room.state.players.forEach((p, id) => { if (id !== selfId) add(id, p.status); });
-    this.room.state.mobs.forEach((m, id) => add(id, m.status));
+    // Behind the locked coliseum gates every mob is out of reach (the server refuses them), so a click can't snap to one.
+    if (!this.room.state.gatesLocked) this.room.state.mobs.forEach((m, id) => add(id, m.status));
     return list;
   }
 

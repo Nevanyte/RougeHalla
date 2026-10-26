@@ -252,7 +252,9 @@ function land(world: World, c: Combatant, act: PendingAction): void {
   // The shot leaves from its drawn origin: a locked one led at where the target is now and where it is heading. Otherwise
   // an arrow goes along the aim held when the draw ends (a bow is aimed while drawn, as it was when it loosed on release)
   // and a ball where its cast was aimed (as it always was): the 9.1 edges were tuned with both.
-  const a = foe ? leadAim(act.origin, foe.s, velocityOf(foe.rt, foe.s, now), shape.speed) : act.kind === "draw" ? w.aim : act.a;
+  // A locked shot whose target fell keeps the aim it started with (at that target), not a cursor aim that came after.
+  const a = foe ? leadAim(act.origin, foe.s, velocityOf(foe.rt, foe.s, now), shape.speed)
+    : act.kind === "draw" && act.target === undefined ? w.aim : act.a;
   world.combat.spawns.push({ owner: c.id, kind: shape.projectile, weapon: act.weapon, a, packet: act.packet, origin: act.origin });
   if (act.kind === "draw") c.s.drawStartedAt = 0;
 }

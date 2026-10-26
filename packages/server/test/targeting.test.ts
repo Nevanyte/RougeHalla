@@ -687,6 +687,34 @@ describe("how a lock ends", () => {
     expect(W(world).lock).toBeNull();
   });
 
+  it("ignores a click on the fighter already locked: the lock, its memory and the held trigger stay as they were", () => {
+    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
+    const d = dummy(world, { x: 360, y: 320 });
+    target(world, d);
+    run(world, 3);
+    const w = W(world);
+    expect(w.lock).toBe(d);
+    expect(w.lockSeen).toBe(true);
+    expect(w.held).toBe(true);
+    const pressedAt = w.pressedAt;
+    // A re-click every tick for 4 s lands as many attacks as no re-click at all.
+    const twin = arena([{ faction: "plague", weapons: ["sword"], at: ME }]);
+    const d2 = dummy(twin, { x: 360, y: 320 });
+    target(twin, d2);
+    run(twin, 3);
+    for (let i = 0; i < 80; i++) {
+      target(world, d);
+      tick(world);
+      tick(twin);
+    }
+    const clicked = M(world, d).maxHp - M(world, d).hp;
+    const quiet = M(twin, d2).maxHp - M(twin, d2).hp;
+    expect(quiet).toBeGreaterThan(0);
+    expect(W(world).pressedAt).toBe(pressedAt);
+    expect(W(world).lockSeen).toBe(true);
+    expect(clicked).toBeCloseTo(quiet, 6);
+  });
+
   describe("line of sight", () => {
     // A wall across the floor at tile column 20 (x 640..672), rows 1..16, with a gap at the bottom (rows 17, 18): to reach
     // the other side the chaser walks down to the gap and back, far longer than the grace.
@@ -761,6 +789,40 @@ describe("how a lock ends", () => {
       expect(W(world).lockLosLostAt).toBe(0);
       expect(P(world).y).toBeGreaterThan(100); // heading down to the gap
       expect(W(world).action).toBeNull();
+    });
+
+    // A closed box of wall tiles around tile (25, 10), whose floor centre is (816, 336): nothing can see or walk in.
+    const boxed = (): Array<[number, number]> => {
+      const out: Array<[number, number]> = [];
+      for (let x = 24; x <= 26; x++) for (let y = 9; y <= 11; y++) if (x !== 25 || y !== 10) out.push([x, y]);
+      return out;
+    };
+    const inBox: Vec2 = { x: 816, y: 336 };
+
+    it("refuses a target out of sight with no way to it (a mob across the coliseum's locked gates)", () => {
+      const world = arena(
+        [{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "frost", weapons: ["shield"], at: inBox }],
+        arenaMap(boxed()),
+      );
+      expect(dist(ME, inBox)).toBeLessThan(TARGET_RANGE);
+      target(world, id(1));
+      tick(world);
+      expect(W(world).lock).toBeNull();
+      expect(P(world).attackTarget).toBe("");
+    });
+
+    it("ends a lock once its target is out of sight and the chase finds no way to it", () => {
+      const world = arena(
+        [{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "frost", weapons: ["shield"], at: { x: 600, y: 520 } }],
+        arenaMap(boxed()),
+      );
+      target(world, id(1));
+      tick(world);
+      expect(W(world).lock).toBe(id(1));
+      place(world, id(1), inBox);
+      runTo(world, T(world) + TARGET_REPATH_MS + 2 * TICK_MS);
+      expect(W(world).lock).toBeNull();
+      expect(RT(world).path).toEqual([]);
     });
 
     it("starts over when the target is seen again", () => {
@@ -979,6 +1041,26 @@ describe("a locked attack is aimed again as it lands", () => {
     const ball = [...world.projectiles.values()].find((p) => p.owner === id(0))!;
     expect(ball).toBeDefined();
     expect(Math.atan2(ball.launch.vy, ball.launch.vx)).toBeCloseTo(0, 6);
+  });
+
+  it("an arrow whose target fell keeps the aim it started with, not a cursor aim sent after the lock ended", () => {
+    const world = arena([
+      { faction: "frost", weapons: ["bow"], at: ME },
+      { faction: "frost", weapons: ["shield"], at: { x: 470, y: 320 } },
+      { faction: "frost", weapons: ["shield"], at: { x: 1200, y: 100 } },
+    ]);
+    target(world, id(1));
+    tick(world);
+    expect(W(world).action?.kind).toBe("draw");
+    applyDamage(world, P(world, 1), RT(world, 1), P(world, 1).hp + 1000, "test");
+    tick(world); // the lock ends with its target
+    expect(W(world).lock).toBeNull();
+    send(world, 0, "aim", { a: 2 });
+    runTo(world, T(world) + 700);
+    expect(W(world).aim).toBeCloseTo(2, 12);
+    const arrow = [...world.projectiles.values()].find((p) => p.owner === id(0))!;
+    expect(arrow).toBeDefined();
+    expect(Math.atan2(arrow.launch.vy, arrow.launch.vx)).toBeCloseTo(0, 6);
   });
 
   it("a locked attack is timed like an input with no timestamp: one tick of rewind, whatever the last press said", () => {
