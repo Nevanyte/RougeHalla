@@ -21,7 +21,7 @@ import {
 import type { FactionRegionDef, GameMap, GateSide, MobCampDef, RegionFaction, TilePt, TileRect } from "../src/map";
 import { raycast } from "../src/geometry";
 import * as mapgenExports from "../src/mapgen";
-import { generateMap, longestLane } from "../src/mapgen";
+import { MAX_ATTEMPTS, generateMap, longestLane, tryAttempt } from "../src/mapgen";
 import type { Vec2 } from "../src/messages";
 import { findPath } from "../src/pathfind";
 import { mulberry32, randInt } from "../src/rng";
@@ -2276,6 +2276,25 @@ describe("R0 wedge adapter: the roguelike camp contract filled from the wedge da
     expect(attempts.some((a) => a === 0)).toBe(true);
     expect(attempts.some((a) => a > 0)).toBe(true);
   }, HEAVY_MS);
+
+  it("rebuilds the certified map from (seed, attempt) alone, and fails every earlier attempt again (30 seeds)", () => {
+    eachMap((m, s) => {
+      expect(generateMap(s, m.attempt), `seed ${s}`).toEqual(m);
+      expect(tryAttempt(s, m.attempt), `seed ${s}`).toEqual(m);
+      for (let a = 0; a < m.attempt; a++) {
+        expect(tryAttempt(s, a), `seed ${s} attempt ${a}`).toBeNull();
+        expect(() => generateMap(s, a), `seed ${s} attempt ${a}`).toThrow(/does not certify/);
+      }
+    }, seeds(30));
+    expect(MAX_ATTEMPTS).toBe(16);
+  }, HEAVY_MS);
+
+  it("rejects an attempt that is not an integer >= 0", () => {
+    for (const a of [-1, 0.5, Number.NaN, Infinity]) {
+      expect(() => tryAttempt(1, a), `attempt ${a}`).toThrow(RangeError);
+      expect(() => generateMap(1, a), `attempt ${a}`).toThrow(RangeError);
+    }
+  });
 
   it("is generated the same way twice, new fields included, and returns fresh buffers each call", () => {
     for (const s of seeds(10, 5000)) {
