@@ -3,7 +3,7 @@
 // to ask for. A faction is asked for only after a deliberate pick, which is remembered on this device; until then
 // `selected` is null and the join carries none (the server hands out its own default, and the run counts for no
 // faction's titles).
-import { BEATS, FACTIONS, FACTION_IDS, SIGNATURE_WEAPONS, WEAPONS, isFactionId, type FactionId } from "@raid/shared";
+import { BEATS, FACTIONS, FACTION_IDS, SIGNATURE_WEAPONS, WEAPONS, isFactionId, wishOf, type FactionId } from "@raid/shared";
 import { cssColor, el } from "./dom";
 
 const PICK_KEY = "raid.faction";
@@ -136,6 +136,10 @@ export class FactionPicker {
 
     const signature = part(el("span", "faction-sig"), "sig");
     signature.append(el("b", undefined, `${sig.name}. `), sig.text);
+    // The faction's Wish (key D in a run): styled like the signature line above it.
+    const wishDef = wishOf(id);
+    const wish = part(el("span", "faction-sig"), "wish");
+    if (wishDef) wish.append(el("b", undefined, `Wish: ${wishDef.name}`), ` — ${wishDef.blurb}`);
 
     const beats = part(el("span"), "beats");
     beats.append(el("span", "faction-beats", "Beats"), ` ${names(relatedTo(id, 0))}`);
@@ -147,10 +151,12 @@ export class FactionPicker {
     edge.append(beats, sep, loses);
 
     const detail = el("span", "faction-detail");
-    detail.append(signature, edge);
+    detail.append(signature);
+    if (wishDef) detail.append(wish);
+    detail.append(edge);
     card.append(head, detail);
     card.setAttribute("aria-labelledby", nameEl.id);
-    card.setAttribute("aria-describedby", [roleEl, weaponEl, signature, beats, loses].map((n) => n.id).join(" "));
+    card.setAttribute("aria-describedby", [roleEl, weaponEl, signature, ...(wishDef ? [wish] : []), beats, loses].map((n) => n.id).join(" "));
     card.addEventListener("click", () => this.select(id));
     return card;
   }

@@ -12,7 +12,9 @@
 // fire (damage over time and Fire's backlash are broadcast as `hit` fx with a `sig`, each dealt by a fighter of the faction
 // that owns it, a player or a mob); and in the long-patience run somebody kills a mob (the death fx and the GV agree). A
 // player can also die to a mob (killedBy is then the mob's name), and the fx that name a mob are not players' hits or
-// deaths. Every bot decodes every `fxs` batch it receives against its own copy of the roster (what a real client has), and
+// deaths. The bots cast their faction's Wish (the lock is 5 s here): its fx name players and the faction's own ability, none comes
+// before the lock is over, each bot casts it once (again only after the arena's teleport refunded a cast), and in the long run
+// some bot's Wish lands. Every bot decodes every `fxs` batch it receives against its own copy of the roster (what a real client has), and
 // none of them loses a tuple. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
 // that the arena teleports them into the coliseum before anyone has died, after which they must keep landing hits.
 import fs from "node:fs";
@@ -23,7 +25,7 @@ import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from
 import { matchMaker, Room } from "@colyseus/core";
 import {
   CATCHUP_MULT, GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, rewardCurve, ROOM_NAME,
-  SIGNATURE_WEAPONS, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS,
+  SIGNATURE_WEAPONS, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, WISHES,
   type FactionId, type FxBatch, type ProfileResponse, type RunOutcome, type RunResult, type SignatureKind, type TimedFx,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -54,6 +56,8 @@ const BOT_TIER = "hard";
 const BOT_PERSONAS: readonly PersonaId[] = ["hunter", "hunter", "farmer", "opportunist"];
 /** Which faction a signature belongs to: its `hit` fx are always dealt by that faction's players. */
 const SIGNATURE_OWNER: Readonly<Record<SignatureKind, FactionId>> = { burn: "fire", backlash: "fire", disease: "plague", mark: "sentenced" };
+/** How long every Wish stays locked after the run starts here (the server's default is 45 s: too long for a run of this length). */
+const WISH_LOCK_SECONDS = 5;
 /** Server time into the run when it does: too early for anyone to have died, since a kill takes several hits. */
 const QUIT_AFTER_MS = 1_000;
 const OUTCOMES: readonly RunOutcome[] = ["won", "draw", "died", "mia"];
@@ -110,8 +114,11 @@ afterAll(() => {
 
 interface Timers { patienceSeconds: number; suddenDeathSeconds: number }
 
-/** What a run must also show beyond the books (which are always checked): a kill by a bot, a signature hit by a bot, a mob killed by a bot. */
-interface Wanted { expectKill?: boolean; expectSignature?: boolean; expectMobKill?: boolean }
+/**
+ * What a run must also show beyond the books (which are always checked): a kill by a bot, a signature hit by a bot, a mob killed
+ * by a bot, a Wish cast by a bot that took effect (a `castLand`).
+ */
+interface Wanted { expectKill?: boolean; expectSignature?: boolean; expectMobKill?: boolean; expectWish?: boolean }
 
 /** What one client's `fxs` messages came to when read the way the client reads them. */
 interface Decoding { batches: number; tuples: number; decoded: number; dropped: Array<{ t: number; tuple: unknown; unresolved: boolean }> }
@@ -134,15 +141,15 @@ function watchDecoding(bot: BotClient): Decoding {
 
 interface Played {
   bots: BotClient[]; players: number[]; fx: TimedFx[]; sessions: ReadonlySet<string>;
-  /** What the run showed, for playUntil: kills by the bots, signature hits dealt by them, mobs they killed. */
-  kills: number; signatureHits: number; mobKills: number;
+  /** What the run showed, for playUntil: kills by the bots, signature hits dealt by them, mobs they killed, Wishes that landed. */
+  kills: number; signatureHits: number; mobKills: number; wishLands: number;
 }
 
 /** Plays one run on a fresh server (and fresh profiles) and checks everything that must hold, whoever wins. */
 async function playRun(
   prefix: string, lineup: readonly FactionId[], timers: Timers, want: Wanted = {},
 ): Promise<Played> {
-  const { expectKill = false, expectSignature = false, expectMobKill = false } = want;
+  const { expectKill = false, expectSignature = false, expectMobKill = false, expectWish = false } = want;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-e2e-"));
   const profileFile = path.join(dir, "data", "stash.json");
   const port = await freePort();
@@ -156,6 +163,7 @@ async function playRun(
     fillSeconds: 0,
     lobbySeconds: 30, // the run starts the moment the 4th bot joins (fillSeconds 0); this only keeps a slow machine from splitting them
     ...timers,
+    wishLockSeconds: WISH_LOCK_SECONDS,
     patienceMinSeconds: timers.patienceSeconds, // flat: the run's pace shouldn't depend on how many are still standing
   }).catch((err: unknown) => {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -166,12 +174,15 @@ async function playRun(
   const fx: TimedFx[] = [];
   // The faction of each mob that dealt a signature hit, read the moment the hit went out (the mob may be gone by the end of the run).
   const mobFactionOf = new Map<string, string>();
+  // When the run started (server ms), read from the room's state at the first batch of fx: the Wish lock counts from it.
+  let raidStartedAt = 0;
   const realBroadcast = Room.prototype.broadcast;
   const broadcastSpy = vi.spyOn(Room.prototype, "broadcast").mockImplementation(function (this: unknown, ...args: unknown[]) {
     if (args[0] === "fxs") {
       const batch = unpackFx(args[1] as FxBatch, (this as Room<{ state: RaidState }>).state.roster);
       fx.push(...batch);
       const mobs = (this as Room<{ state: RaidState }>).state?.mobs;
+      if (raidStartedAt === 0) raidStartedAt = (this as Room<{ state: RaidState }>).state?.raidStartedAt ?? 0;
       for (const f of batch) {
         if (f.kind !== "hit" || f.sig === undefined || f.by === null || mobFactionOf.has(f.by)) continue;
         const m = mobs?.get(f.by);
@@ -328,6 +339,34 @@ async function playRun(
     );
     if (expectSignature) expect(botSigHits, "no bot ever dealt signature damage (burn, backlash, disease or mark)").toBeGreaterThanOrEqual(1);
 
+    // --- the Wishes: the fx name players and the Wish of their faction, none comes before the lock is over, and each bot casts one
+    // (the arena's teleport refunds a cast it cancels, which allows one more). What is asked of the bots is that some Wish lands.
+    const wishFx = fx.flatMap((f) => (f.kind === "cast" || f.kind === "castLand" || f.kind === "castEnd" ? [f] : []));
+    for (const f of wishFx) {
+      expect(isPlayer(f.by), `${f.kind} by ${f.by}, who is no player`).toBe(true);
+      expect(f.ability, `${f.kind} by ${f.by} (${factionOfSession.get(f.by)})`).toBe(WISHES[factionOfSession.get(f.by)!]);
+      expect(f.t, `${f.kind} by ${f.by} before the lock was over`).toBeGreaterThanOrEqual(raidStartedAt + WISH_LOCK_SECONDS * 1000);
+    }
+    const wishCounts = [...sessions].map((id) => ({
+      id,
+      cast: wishFx.filter((f) => f.kind === "cast" && f.by === id).length,
+      land: wishFx.filter((f) => f.kind === "castLand" && f.by === id).length,
+      end: wishFx.filter((f) => f.kind === "castEnd" && f.by === id).length,
+      refunded: wishFx.filter((f) => f.kind === "castEnd" && f.by === id && f.reason === "cancelled").length,
+    }));
+    for (const c of wishCounts) {
+      expect(c.cast, `${c.id} began ${c.cast} casts`).toBeLessThanOrEqual(1 + c.refunded);
+      expect(c.land + c.end, `${c.id} ended ${c.land + c.end} casts`).toBeLessThanOrEqual(1 + c.refunded);
+    }
+    const statusFx = fx.flatMap((f) => (f.kind === "status" ? [f] : []));
+    for (const f of statusFx) expect(isPlayer(f.by), `${f.status} on ${f.id} from ${f.by}, who is no player`).toBe(true);
+    const wishLands = sum(wishCounts.map((c) => c.land));
+    console.log(
+      `[e2e] wishes: ${sum(wishCounts.map((c) => c.cast))} cast fx, ${wishLands} landed, ${sum(wishCounts.map((c) => c.end))} ended unlanded,`
+      + ` ${statusFx.length} status fx (${bots.map((b) => `${b.sent.cast}`).join("/")} cast messages sent per bot)`,
+    );
+    if (expectWish) expect(wishLands, "no bot's Wish ever landed").toBeGreaterThanOrEqual(1);
+
     // --- the kills: the bots really fought, and the kills the results claim are the deaths they name
     const totalKills = sum(all.map((r) => r.kills));
     const diedToABot = all.filter((r) => r.outcome === "died" && r.killedBy !== null && names.includes(r.killedBy));
@@ -478,7 +517,7 @@ async function playRun(
     stopped = true;
     expect(fatal).toEqual([]);
     expect(errorSpy.mock.calls).toEqual([]);
-    return { bots, players, fx, sessions, kills: totalKills, signatureHits: botSigHits, mobKills };
+    return { bots, players, fx, sessions, kills: totalKills, signatureHits: botSigHits, mobKills, wishLands };
   } finally {
     broadcastSpy.mockRestore();
     try {
@@ -505,6 +544,7 @@ async function playUntil(prefix: string, lineup: readonly FactionId[], timers: T
       ...(want.expectKill && played.kills === 0 ? ["a kill by a bot"] : []),
       ...(want.expectSignature && played.signatureHits === 0 ? ["a signature hit by a bot"] : []),
       ...(want.expectMobKill && played.mobKills === 0 ? ["a mob killed by a bot"] : []),
+      ...(want.expectWish && played.wishLands === 0 ? ["a Wish landed by a bot"] : []),
     ];
     if (last || missing.length === 0) {
       console.log(`[e2e] ${prefix}: the evidence took ${attempt} attempt${attempt === 1 ? "" : "s"} (at most ${RUN_ATTEMPTS} are allowed)`);
@@ -524,7 +564,7 @@ describe("headless bots hunt through a full run", () => {
     // them really fighting, the run shows a kill by a bot (expectKill) and the signatures that go with it (expectSignature).
     // Who dies of what is not fixed: a player kill, a mob or sudden death can each take a bot, which is why the test asserts
     // the books and not a body count.
-    await playUntil("e2ebot", SIGNATURE_LINEUP, { patienceSeconds: 30, suddenDeathSeconds: 10 }, { expectKill: true, expectSignature: true, expectMobKill: true });
+    await playUntil("e2ebot", SIGNATURE_LINEUP, { patienceSeconds: 30, suddenDeathSeconds: 10 }, { expectKill: true, expectSignature: true, expectMobKill: true, expectWish: true });
   }, 450_000);
 
   it("teleports everyone into the coliseum and the bots keep hunting there", async () => {

@@ -37,6 +37,7 @@ import {
   activeWeapon, combatant, hostile, isEvading, standing, timingsOf, type Combatant,
 } from "./combatant";
 import { planPath, velocityOf } from "./movement";
+import { isStunned, isUntargetable } from "./status";
 import { cancelLockedWindup, dropLock, setLock } from "./weapons";
 import { collisionMap, type ActionHandler, type World } from "./world";
 
@@ -47,15 +48,16 @@ export function install(world: World): void {
   world.actions.target = handleTarget;
 }
 
-/** Can `c` hold `t` as a target: a standing enemy within TARGET_RANGE that is not walking home? */
-function lockable(c: Combatant, t: Combatant): boolean {
-  return standing(t) && !isEvading(t) && hostile(c, t) && Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y) <= TARGET_RANGE;
+/** Can `c` hold `t` as a target: a standing enemy within TARGET_RANGE that is not walking home, hidden or untargetable? */
+function lockable(world: World, c: Combatant, t: Combatant): boolean {
+  return standing(t) && !isEvading(t) && !isUntargetable(world, t) && hostile(c, t)
+    && Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y) <= TARGET_RANGE;
 }
 
 export const handleTarget: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "target" || c.kind !== "player") return;
   const t = combatant(world, cmd.id);
-  if (!t || !lockable(c, t) || activeWeapon(c.s) === null) return;
+  if (!t || !lockable(world, c, t) || activeWeapon(c.s) === null) return;
   const w = c.rt.weapon;
   // Clicking the fighter already locked changes nothing: players re-click their target all the time, and starting over
   // would forget that it was seen and let go of the trigger (losing the cooldown's carried remainder).
@@ -106,10 +108,12 @@ function follow(world: World, c: Combatant): void {
   const t = w.lock === null ? null : combatant(world, w.lock);
   const weapon = activeWeapon(c.s);
   const tm = weapon ? timingsOf(c.s, weapon) : null;
-  if (!standing(c) || !t || !weapon || !tm || !lockable(c, t)) {
+  if (!standing(c) || !t || !weapon || !tm || !lockable(world, c, t)) {
     dropLock(c);
     return;
   }
+  // Stunned: the lock stays but does not chase, aim or hold the trigger until it ends (D5).
+  if (isStunned(world, c)) return;
   const self = { x: c.s.x, y: c.s.y };
   const at = { x: t.s.x, y: t.s.y };
   const los = hasLineOfSight(collisionMap(world), self, at);

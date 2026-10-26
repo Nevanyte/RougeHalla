@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   LOBBY_FILL_SECONDS, LOBBY_SECONDS, MAX_PLAYERS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, SERVER_PORT,
-  SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS,
+  SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS, WISH_LOCK_SECONDS,
 } from "@raid/shared";
 import {
   BOT_FILL_DEFAULTS, PERSONA_IDS, TIER_IDS, type BotFillConfig,
@@ -92,6 +92,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     patienceMinSeconds: Math.max(0, Math.min(patienceSeconds,
       num(env.PATIENCE_MIN_SECONDS, patienceSeconds * (PATIENCE_MIN_SECONDS / PATIENCE_SECONDS)))),
     suddenDeathSeconds: num(env.SUDDEN_DEATH_SECONDS, SUDDEN_DEATH_SECONDS),
+    wishLockSeconds: num(env.WISH_LOCK_SECONDS, WISH_LOCK_SECONDS),
     dummies: env.DUMMIES === "1" || env.DUMMIES === "true",
     // On by default: a mob rests at every camp spot when a run starts (the headless bots fight them too). MOBS=0 or MOBS=false turns them off.
     mobs: env.MOBS !== "0" && env.MOBS !== "false",

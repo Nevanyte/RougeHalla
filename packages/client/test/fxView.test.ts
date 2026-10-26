@@ -214,3 +214,139 @@ describe("FxView regional mob deaths", () => {
     expect(lines).toEqual(["Foe was killed"]);
   });
 });
+
+// Wishes: casts and statuses are handed to WishFx at render time, a stun drops the stunned fighter's windup, and a burning
+// ability's tick is a drip like a signature's.
+describe("FxView casts and statuses", () => {
+  function rig(host: Partial<FxHost> = {}) {
+    const delivered: Array<[TimedFx, number]> = [];
+    const flashes: string[] = [];
+    const { scene, made, ofKind } = fakeScene();
+    const full: FxHost = {
+      localId: "me", view: (id) => ({ flash: () => flashes.push(id) }), position: () => ({ x: 100, y: 100 }), name: () => undefined,
+      projectileEnded: () => {}, wishFx: (fx, now) => delivered.push([fx, now]), ...host,
+    };
+    const fx = new FxView(scene, full);
+    return { fx, delivered, flashes, made, ofKind };
+  }
+  const cast = (t: number): TimedFx => ({ kind: "cast", by: "foe", ability: "freeze", ms: 250, target: "me", x: 1, y: 2, t });
+  const landed = (t: number): TimedFx => ({ kind: "castLand", by: "foe", ability: "freeze", target: "me", x: 1, y: 2, t });
+  const ended = (t: number): TimedFx => ({ kind: "castEnd", by: "foe", ability: "trial", reason: "fizzle", t });
+  const status = (id: string, kind: "stun" | "root", t: number): TimedFx => ({ kind: "status", id, status: kind, ms: 1250, by: "foe", t });
+  const windup = (by: string, t: number): TimedFx => ({ kind: "windup", by, weapon: "sword", a: 0, ms: 300, t });
+
+  it("hands cast, castLand, castEnd and status to the host when render time reaches them, with the clock they run on", () => {
+    const { fx, delivered } = rig();
+    for (const e of [cast(1000), landed(1250), ended(1300), status("me", "root", 1350)]) fx.enqueue(e);
+    fx.update(900, 5, true);
+    expect(delivered).toEqual([]);
+    fx.update(1260, 77, true);
+    expect(delivered.map(([e]) => e.kind)).toEqual(["cast", "castLand"]);
+    expect(delivered.every(([, now]) => now === 77)).toBe(true);
+    fx.update(1400, 88, true);
+    expect(delivered.map(([e]) => e.kind)).toEqual(["cast", "castLand", "castEnd", "status"]);
+    expect(delivered[3]![1]).toBe(88);
+  });
+
+  it("plays them at once while the clock is unsynced", () => {
+    const { fx, delivered } = rig();
+    fx.enqueue(cast(90000));
+    fx.update(0, 3, false);
+    expect(delivered).toHaveLength(1);
+  });
+
+  it("does not need a host sink", () => {
+    const { fx } = rig({ wishFx: undefined });
+    fx.enqueue(cast(1000));
+    fx.enqueue(status("me", "stun", 1000));
+    expect(() => fx.update(1000, 0, true)).not.toThrow();
+  });
+
+  it("drops the stunned fighter's windup telegraph, and only theirs", () => {
+    const { fx, ofKind } = rig();
+    fx.enqueue(windup("foe", 1000));
+    fx.enqueue(windup("ally", 1000));
+    fx.update(1000, 0, true);
+    const [foe, ally] = ofKind("graphics");
+    expect(foe!.state.visible).toBe(true);
+    fx.enqueue(status("foe", "stun", 1100));
+    fx.update(1100, 50, true);
+    expect(foe!.state.visible).toBe(false);
+    expect(ally!.state.visible).toBe(true);
+  });
+
+  it("leaves a windup alone for a status that is not a stun", () => {
+    const { fx, ofKind } = rig();
+    fx.enqueue(windup("foe", 1000));
+    fx.update(1000, 0, true);
+    fx.enqueue(status("foe", "root", 1100));
+    fx.update(1100, 50, true);
+    expect(ofKind("graphics")[0]!.state.visible).toBe(true);
+  });
+
+  it("still tells the host about the stun that dropped the windup", () => {
+    const { fx, delivered } = rig();
+    fx.enqueue(windup("foe", 1000));
+    fx.enqueue(status("foe", "stun", 1000));
+    fx.update(1000, 0, true);
+    expect(delivered.map(([e]) => e.kind)).toEqual(["status"]);
+  });
+});
+
+describe("FxView damage over time from an ability", () => {
+  const burn = (amount: number, over: Partial<Extract<TimedFx, { kind: "hit" }>> = {}): TimedFx =>
+    ({ kind: "hit", id: "foe", by: "me", amount, weapon: null, ability: "blaze", t: 1000, ...over }) as TimedFx;
+
+  function rig() {
+    const flashes: string[] = [];
+    const localHits: number[] = [];
+    const { scene, made, ofKind } = fakeScene();
+    const host: FxHost = {
+      localId: "me", view: (id) => ({ flash: () => flashes.push(id) }), position: () => ({ x: 100, y: 100 }), name: () => undefined,
+      projectileEnded: () => {}, localHit: (fx) => localHits.push(fx.amount),
+    };
+    const fx = new FxView(scene, host);
+    const play = (e: TimedFx) => { fx.enqueue(e); fx.update(1000, 0, true); };
+    return { play, flashes, localHits, made, ofKind };
+  }
+
+  it("does not flash the body for a burning tick", () => {
+    const { play, flashes } = rig();
+    play(burn(15));
+    expect(flashes).toEqual([]);
+  });
+
+  it("flashes for a blow, as before (a weapon hit, an ability that is not over time)", () => {
+    const { play, flashes } = rig();
+    play({ kind: "hit", id: "foe", by: "me", amount: 40, weapon: "sword", t: 1000 });
+    play(burn(40, { ability: "freeze" }));
+    expect(flashes).toEqual(["foe", "foe"]);
+  });
+
+  it("prints the tick as a small number in the ability's colour, not a blow's size or colour", () => {
+    const { play, ofKind } = rig();
+    play(burn(15));
+    const text = ofKind("text")[0]!;
+    expect(text.state.text).toBe("15");
+    expect(text.state.color).toBe("#ff7043");
+    expect(text.state.fontSize).toBe(11);
+  });
+
+  it("prints nothing for a chunk that rounds to nothing", () => {
+    const { play, ofKind } = rig();
+    play(burn(0.3));
+    expect(ofKind("text")).toHaveLength(0);
+  });
+
+  it("makes no impact burst for a burning tick", () => {
+    const { play, ofKind } = rig();
+    play(burn(15));
+    expect(ofKind("graphics")).toHaveLength(0);
+  });
+
+  it("still reports the hit on the local player to the host (the scene decides about the vignette)", () => {
+    const { play, localHits } = rig();
+    play(burn(15, { id: "me", by: "foe" }));
+    expect(localHits).toEqual([15]);
+  });
+});

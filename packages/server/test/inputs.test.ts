@@ -725,6 +725,112 @@ describe("enqueueClientMessage", () => {
     });
   });
 
+  describe("cast", () => {
+    it("queues a validated action: the slot, the clamped cursor point, and nothing else", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "cast", { slot: "wish", x: 100.5, y: 200.25, hp: 9999, kind: "swap" })).toBe(true);
+      expect(q.actions).toStrictEqual([{ kind: "cast", slot: "wish", x: 100.5, y: 200.25 }]);
+      expect(q.move).toBeNull();
+      expect(q.aim).toBeNull();
+    });
+
+    it("accepts every ability slot", () => {
+      for (const slot of ["wish", "q", "e"]) {
+        const q = fresh();
+        expect(enqueueClientMessage(q, "cast", { slot, x: 1, y: 2 }), slot).toBe(true);
+        expect(q.actions).toStrictEqual([{ kind: "cast", slot, x: 1, y: 2 }]);
+      }
+    });
+
+    it("clamps the point to the world like a move's", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "cast", { slot: "wish", x: -50, y: WORLD_H + 99 })).toBe(true);
+      expect(q.actions).toStrictEqual([{ kind: "cast", slot: "wish", x: 0, y: WORLD_H }]);
+      const far = fresh();
+      expect(enqueueClientMessage(far, "cast", { slot: "wish", x: 1e12, y: -1e12 })).toBe(true);
+      expect(far.actions).toStrictEqual([{ kind: "cast", slot: "wish", x: WORLD_W, y: 0 }]);
+    });
+
+    it.each([
+      ["a missing slot", { x: 1, y: 2 }],
+      ["an unknown slot", { slot: "r", x: 1, y: 2 }],
+      ["a slot in the wrong case", { slot: "Wish", x: 1, y: 2 }],
+      ["a numeric slot", { slot: 0, x: 1, y: 2 }],
+      ["a null slot", { slot: null, x: 1, y: 2 }],
+      ["a missing x", { slot: "wish", y: 2 }],
+      ["a missing y", { slot: "wish", x: 1 }],
+      ["a NaN x", { slot: "wish", x: NaN, y: 2 }],
+      ["an infinite y", { slot: "wish", x: 1, y: Infinity }],
+      ["a string x", { slot: "wish", x: "1", y: 2 }],
+      ["an empty id", { slot: "wish", x: 1, y: 2, id: "" }],
+      ["an oversized id", { slot: "wish", x: 1, y: 2, id: "m".repeat(65) }],
+      ["a numeric id", { slot: "wish", x: 1, y: 2, id: 7 }],
+      ["a null id", { slot: "wish", x: 1, y: 2, id: null }],
+      ["a null payload", null],
+      ["an undefined payload", undefined],
+      ["a string payload", "wish"],
+    ])("rejects %s without touching the queue", (_n, msg) => {
+      const q = fresh();
+      q.pushMove({ kind: "move", x: 7, y: 7 });
+      expect(enqueueClientMessage(q, "cast", msg)).toBe(false);
+      expect(q.actions).toEqual([]);
+      expect(q.move).toEqual({ kind: "move", x: 7, y: 7 });
+    });
+
+    it("keeps a valid unit target id, up to 64 chars", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "cast", { slot: "wish", x: 1, y: 2, id: "mob1a" })).toBe(true);
+      expect(enqueueClientMessage(q, "cast", { slot: "wish", x: 1, y: 2, id: "z".repeat(64) })).toBe(true);
+      expect(q.actions).toStrictEqual([
+        { kind: "cast", slot: "wish", x: 1, y: 2, id: "mob1a" },
+        { kind: "cast", slot: "wish", x: 1, y: 2, id: "z".repeat(64) },
+      ]);
+    });
+
+    it("keeps a finite render time, and drops a bad one (the cast still counts)", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "cast", { slot: "wish", x: 1, y: 2, t: 12345.5 })).toBe(true);
+      expect(q.actions).toStrictEqual([{ kind: "cast", slot: "wish", x: 1, y: 2, t: 12345.5 }]);
+      for (const t of [NaN, Infinity, "5", null, {}, true]) {
+        const p = fresh();
+        expect(enqueueClientMessage(p, "cast", { slot: "wish", x: 1, y: 2, t }), String(t)).toBe(true);
+        expect(p.actions, String(t)).toStrictEqual([{ kind: "cast", slot: "wish", x: 1, y: 2 }]);
+      }
+    });
+
+    it("keeps a valid seq, and drops a bad one (the cast still counts)", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "cast", { slot: "wish", x: 1, y: 2, seq: 200 })).toBe(true);
+      expect(q.actions).toStrictEqual([{ kind: "cast", slot: "wish", x: 1, y: 2, seq: 200 }]);
+      for (const seq of [-1, 256, 1.5, "7", NaN, null, {}]) {
+        const p = fresh();
+        expect(enqueueClientMessage(p, "cast", { slot: "wish", x: 1, y: 2, seq }), String(seq)).toBe(true);
+        expect(p.actions, String(seq)).toStrictEqual([{ kind: "cast", slot: "wish", x: 1, y: 2 }]);
+      }
+    });
+
+    it("carries the id, time and seq together, and shares the action budget with the other actions", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "cast", { slot: "wish", x: 3, y: 4, id: "p1", t: 99, seq: 0 })).toBe(true);
+      expect(q.actions).toStrictEqual([{ kind: "cast", slot: "wish", x: 3, y: 4, id: "p1", t: 99, seq: 0 }]);
+      for (let i = 0; i < 20; i++) enqueueClientMessage(q, "cast", { slot: "wish", x: 3, y: 4 });
+      expect(q.actions).toHaveLength(MAX_ACTIONS_PER_TICK);
+      expect(q.dropped).toBe(21 - MAX_ACTIONS_PER_TICK);
+    });
+
+    it("is an action: it neither replaces the move nor the aim, and keeps its place among the actions", () => {
+      const q = fresh();
+      enqueueClientMessage(q, "move", { x: 5, y: 5 });
+      enqueueClientMessage(q, "cast", { slot: "wish", x: 1, y: 2 });
+      enqueueClientMessage(q, "target", { id: "m1" });
+      expect(q.drain()).toMatchObject({
+        move: { kind: "move", x: 5, y: 5 },
+        moveBefore: 0,
+        actions: [{ kind: "cast", slot: "wish", x: 1, y: 2 }, { kind: "target", id: "m1" }],
+      });
+    });
+  });
+
   describe("message types that no longer exist", () => {
     it.each(["take", "drop", "use", "extract"])("%s is not a message type any more", (type) => {
       for (const payload of [{}, null, undefined, "junk", { uid: "u", containerId: "c", x: 1, y: 2, a: 1 }]) {
@@ -748,6 +854,7 @@ describe("enqueueClientMessage", () => {
       release: { a: 0.5, t: 100 },
       swap: { slot: 1 },
       pickup: { containerId: "c1" },
+      cast: { slot: "wish", x: 100, y: 100 },
     };
 
     it("every client message type is accepted with a valid payload", () => {

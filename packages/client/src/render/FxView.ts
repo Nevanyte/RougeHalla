@@ -4,8 +4,8 @@
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
 import {
-  BUFF_LABELS, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffToast, comboById, comboToast, formatGain, isDot, type ComboSpec,
-  type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx,
+  ABILITIES, BUFF_LABELS, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffToast, comboById, comboToast, formatGain, isAbilityDot, isDot,
+  type ComboSpec, type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx,
 } from "@raid/shared";
 import { ELITE_COLOR, STAT_COLOR } from "../ui/buffTheme";
 import { cssColor } from "../ui/dom";
@@ -129,6 +129,8 @@ export interface FxHost {
    * `tone` marks the local player's buff and combo news.
    */
   announce?(text: string, tone?: ToastTone): void;
+  /** A cast, its landing or end, or a status (WishFx draws them): handed over at render time, with the clock `now` effects run on. */
+  wishFx?(fx: TimedFx, now: number): void;
 }
 
 type FxOf<K extends TimedFx["kind"]> = Extract<TimedFx, { kind: K }>;
@@ -398,6 +400,14 @@ export class FxView {
         if (fx.name) this.host.announce?.(`${(fx.id && this.host.name(fx.id)) || fx.name} is victorious`);
         else if (fx.draw) this.host.announce?.("Draw");
         break;
+      case "cast":
+      case "castLand":
+      case "castEnd":
+      case "status":
+        // A stun cancels the weapon windup in progress (the server's cancelAction); its telegraph goes with it.
+        if (fx.kind === "status" && fx.status === "stun") this.cancelWindup(fx.id, now);
+        this.host.wishFx?.(fx, now);
+        break;
     }
   }
 
@@ -449,7 +459,7 @@ export class FxView {
 
   private hit(fx: FxOf<"hit">, now: number): void {
     if (fx.id === this.host.localId) this.host.localHit?.(fx);
-    const dot = isDot(fx.sig);
+    const dot = isDot(fx.sig) || isAbilityDot(fx.ability);
     // Damage over time is a steady drip, not a blow: no body flash for it.
     if (!dot) this.host.view(fx.id)?.flash();
     // Fire's backlash: the swinger (`id`) is scorched by its own swing.
@@ -466,7 +476,8 @@ export class FxView {
       // A chunk that rounds to nothing isn't worth a number.
       amount = Math.round(fx.amount);
       if (amount < 1) return;
-      color = DOT_COLORS[fx.sig!];
+      // A signature's colour, else the ability's own (a burning trail is orange).
+      color = fx.sig ? DOT_COLORS[fx.sig] : cssColor(fx.ability ? ABILITIES[fx.ability]?.color ?? 0xffffff : 0xffffff);
       size = DOT_NUMBER_SIZE;
     } else {
       color = fx.id === this.host.localId ? HIT_ON_ME : fx.by === this.host.localId ? HIT_BY_ME : HIT_OTHERS;

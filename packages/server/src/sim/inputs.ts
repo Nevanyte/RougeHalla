@@ -1,6 +1,6 @@
 // Validated, per-player input buffering. Message handlers only call `parse*` + `push*`;
 // the sim drains the queue at the start of each fixed step.
-import { WORLD_H, WORLD_W, wrapAngle, type Vec2 } from "@raid/shared";
+import { WORLD_H, WORLD_W, isAbilitySlot, wrapAngle, type AbilitySlot, type Vec2 } from "@raid/shared";
 
 /**
  * `seq`: the client's order number (an integer 0..255), echoed in `PlayerState.moveSeq` on the tick the order is applied, so a
@@ -17,7 +17,12 @@ export type ActionCommand =
   | { kind: "target"; id: string }
   /** To `slot`, or to the other slot when omitted. */
   | { kind: "swap"; slot?: 0 | 1 }
-  | { kind: "pickup"; containerId: string };
+  | { kind: "pickup"; containerId: string }
+  /**
+   * Cast the ability in `slot` (sim/abilities.ts validates it). (x, y): the cursor's ground point, clamped like a `move`'s.
+   * `id`: a unit target. `t`: the render time the client was drawing (clamped later). `seq`: echoed in moveSeq, accepted or refused.
+   */
+  | { kind: "cast"; slot: AbilitySlot; x: number; y: number; id?: string; t?: number; seq?: number };
 
 /** Actions beyond this per tick are dropped (spam guard, not a gameplay limit). */
 export const MAX_ACTIONS_PER_TICK = 6;
@@ -135,6 +140,23 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown):
       const containerId = isRecord(msg) ? parseId(msg.containerId) : null;
       if (!containerId) return false;
       q.pushAction({ kind: "pickup", containerId });
+      return true;
+    }
+    case "cast": {
+      if (!isRecord(msg) || !isAbilitySlot(msg.slot)) return false;
+      const p = parsePoint(msg);
+      if (!p) return false;
+      const cmd: ActionCommand = { kind: "cast", slot: msg.slot, x: p.x, y: p.y };
+      if (msg.id !== undefined) {
+        const id = parseId(msg.id);
+        if (!id) return false;
+        cmd.id = id;
+      }
+      // A bad timestamp or order number only costs the caster its lag compensation or its ack; the cast itself still counts.
+      if (typeof msg.t === "number" && Number.isFinite(msg.t)) cmd.t = msg.t;
+      const seq = parseSeq(msg);
+      if (seq !== undefined) cmd.seq = seq;
+      q.pushAction(cmd);
       return true;
     }
     default:
