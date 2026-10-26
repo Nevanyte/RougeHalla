@@ -355,7 +355,7 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     expect(only(spawnRing)).toEqual(["T8"]);
     expect(validateTerrain(spawnRing)[0]).toContain("5x5");
     const spawnRingFence = regioned();
-    put(spawnRingFence, 7, 4, TILE_LOW, TERRAIN_FENCE); // a fence is not a floor hazard
+    put(spawnRingFence, 7, 4, TILE_LOW, TERRAIN_LAVA); // lava (fire's own LOW kind) is not a floor hazard
     expect(only(spawnRingFence)).toEqual([]);
 
     const chest = regioned();
@@ -367,7 +367,7 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     put(clearing, 9, 1, TILE_FLOOR, TERRAIN_EMBER); // the camp's chest tile and part of its clearing (r 40 reaches the 4 neighbours)
     expect(only(clearing)).toEqual(["T8"]);
     const beyond = regioned();
-    put(beyond, 8, 1, TILE_FLOOR, TERRAIN_EMBER); // diagonal: 45 u from the camp centre, outside r 40
+    put(beyond, 8, 1, TILE_LOW, TERRAIN_LAVA); // diagonal: 45 u from the camp centre, outside r 40 (lava is not a floor hazard, so the spawn's 5x5 allows it)
     expect(only(beyond)).toEqual([]);
 
     // Cells in the coliseum region also break T6, but T8 must be among the reasons.
