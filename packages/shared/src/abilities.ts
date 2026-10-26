@@ -167,7 +167,8 @@ export const ABILITIES: Readonly<Record<AbilityId, AbilityDef>> = {
   },
   swarm: {
     id: "swarm", name: "Swarm", blurb: "Dissolve into a swarm: enemies lose sight of you and cannot target you.",
-    kind: "wish", faction: "plague", flat: true, ownOrder: false,
+    // An own order (a best guess): casting it drops the caster's own lock, or its locked auto-attack would reveal it at once.
+    kind: "wish", faction: "plague", flat: true, ownOrder: true,
     cancelledBy: WISH_CANCELLED_BY, blockedBy: WISH_BLOCKED_BY, ai: ["escape"],
     telegraph: "swirl", icon: "swarm", color: 0x9ccc65,
     ranks: [{

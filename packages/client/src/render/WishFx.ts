@@ -79,6 +79,8 @@ export class WishFx {
   private readonly active: Active[] = [];
   private readonly free: Phaser.GameObjects.Graphics[] = [];
   private destroyed = false;
+  /** The flash scale (0..1) of the frame being drawn: landing flashes are drawn only for the share of it that is on. */
+  private fl = 1;
 
   constructor(private readonly scene: Phaser.Scene, private readonly host: WishFxHost) {}
 
@@ -116,7 +118,11 @@ export class WishFx {
         a.pop();
         continue;
       }
-      this.draw(e, p);
+      if (this.draw(e, p) === false) {
+        this.release(e);
+        a[i] = a[a.length - 1]!;
+        a.pop();
+      }
     }
   }
 
@@ -142,6 +148,8 @@ export class WishFx {
     const def = ABILITIES[fx.ability];
     const art = artOf(def);
     if (!def || art === "none") return;
+    // Nothing may point at a hidden fighter (the server refuses such a target, but a patch can show it hidden first).
+    if (fx.target && this.hiddenRemote(fx.target)) return;
     this.push({
       kind: art, start: now, duration: Math.max(MIN_MS, Math.min(MAX_MS, fx.ms)), id: fx.by, target: fx.target,
       x: fx.x, y: fx.y, x2: fx.x, y2: fx.y, color: def.color, radius: ringRadius(def), telegraph: true,
@@ -178,7 +186,7 @@ export class WishFx {
   /** A stun landed: a burst of stars off the stunned fighter's head. */
   private stars(id: string, now: number): void {
     const pos = this.host.position(id);
-    if (!pos) return;
+    if (!pos || this.hiddenRemote(id)) return;
     this.push({
       kind: "stars", start: now, duration: 480, id, target: null, x: pos.x, y: pos.y, x2: pos.x, y2: pos.y, color: STUN_STAR, radius: 0,
       telegraph: false,
@@ -222,10 +230,15 @@ export class WishFx {
 
   // --------------------------------------------------------------------------------------------------------- drawing
 
-  /** Redraws one effect at progress `p` (0..1). Each effect owns its Graphics, positioned in projected space. */
-  private draw(e: Active, p: number): void {
+  /**
+   * Redraws one effect at progress `p` (0..1). Each effect owns its Graphics, positioned in projected space. Returns false when
+   * the effect has to end quietly now (what it pointed at turned hidden).
+   */
+  private draw(e: Active, p: number): boolean | void {
     const g = e.g.clear();
     const moves = juiceScale("motion") > 0;
+    // Brightness (a white bloom, a glow) rides its own setting; the shapes below stay when it is off.
+    this.fl = Math.min(1, juiceScale("flash"));
     switch (e.kind) {
       case "beam": return this.drawBeam(g, e, p);
       case "ring": return this.drawRing(g, e, p, moves);
@@ -244,7 +257,9 @@ export class WishFx {
   }
 
   /** Freeze: an ice line from the caster to the one it will freeze, brightening and thickening as the cast gathers, a snowflake blooming at the target. */
-  private drawBeam(g: Phaser.GameObjects.Graphics, e: Active, p: number): void {
+  private drawBeam(g: Phaser.GameObjects.Graphics, e: Active, p: number): boolean {
+    // The target turned hidden: stop pointing at it (the cast's own end follows from the server).
+    if (e.target && this.hiddenRemote(e.target)) return false;
     const from = this.anchorOf(e);
     const to = (e.target ? this.host.position(e.target) : undefined) ?? { x: e.x, y: e.y };
     const ax = projX(from.x);
@@ -259,16 +274,19 @@ export class WishFx {
       const th = (i / 3) * Math.PI;
       g.lineBetween(bx - Math.cos(th) * len, by - Math.sin(th) * len, bx + Math.cos(th) * len, by + Math.sin(th) * len);
     }
+    return true;
   }
 
   /** Trial: a ring on the ground round the accused, growing to the zone's radius as the cast lands. */
-  private drawRing(g: Phaser.GameObjects.Graphics, e: Active, p: number, moves: boolean): void {
+  private drawRing(g: Phaser.GameObjects.Graphics, e: Active, p: number, moves: boolean): boolean {
+    if (e.target && this.hiddenRemote(e.target)) return false;
     const at = (e.target ? this.host.position(e.target) : undefined) ?? { x: e.x, y: e.y };
     const r = e.radius * (moves ? easeOutCubic(p) : 1);
     g.setPosition(projX(at.x), projY(at.y));
     g.fillStyle(e.color, 0.04 + 0.08 * p).fillEllipse(0, 0, r * 2, r * 2 * Y_SCALE);
     g.lineStyle(3, e.color, 0.35 + 0.6 * p).strokeEllipse(0, 0, r * 2, r * 2 * Y_SCALE);
     g.lineStyle(1.5, e.color, 0.4).strokeEllipse(0, 0, r * 1.2, r * 1.2 * Y_SCALE);
+    return true;
   }
 
   /** Swarm: motes spiralling in on the caster. */
@@ -309,17 +327,21 @@ export class WishFx {
       const th = (i / 8) * TAU + 0.2;
       g.lineBetween(Math.cos(th) * r * 0.3, Math.sin(th) * r * 0.3, Math.cos(th) * r, Math.sin(th) * r);
     }
-    g.lineStyle(1.5, 0xffffff, 0.8 * (1 - p)).strokeCircle(0, 0, r * 0.6);
-    g.fillStyle(0xffffff, 0.7 * (1 - p)).fillCircle(0, 0, 5 * (1 - p) + 2);
+    if (this.fl > 0) {
+      g.lineStyle(1.5, 0xffffff, 0.8 * (1 - p) * this.fl).strokeCircle(0, 0, r * 0.6);
+      g.fillStyle(0xffffff, 0.7 * (1 - p) * this.fl).fillCircle(0, 0, 5 * (1 - p) + 2);
+    }
   }
 
   /** Trial lands: the ring slams out to the zone's edge and a flash fills it. */
   private drawSlam(g: Phaser.GameObjects.Graphics, e: Active, p: number, moves: boolean): void {
     g.setPosition(projX(e.x), projY(e.y));
     const r = e.radius * (moves ? 0.7 + 0.3 * easeOutCubic(p) : 1);
-    g.fillStyle(e.color, 0.2 * (1 - p)).fillEllipse(0, 0, r * 2, r * 2 * Y_SCALE);
     g.lineStyle(5 * (1 - p) + 1, e.color, 1 - p * p).strokeEllipse(0, 0, r * 2, r * 2 * Y_SCALE);
-    g.lineStyle(2, 0xffffff, 0.8 * (1 - p)).strokeEllipse(0, 0, r * 2 * 0.96, r * 2 * 0.96 * Y_SCALE);
+    if (this.fl > 0) {
+      g.fillStyle(e.color, 0.2 * (1 - p) * this.fl).fillEllipse(0, 0, r * 2, r * 2 * Y_SCALE);
+      g.lineStyle(2, 0xffffff, 0.8 * (1 - p) * this.fl).strokeEllipse(0, 0, r * 2 * 0.96, r * 2 * 0.96 * Y_SCALE);
+    }
   }
 
   /** A little cloud of dots drifting outward and fading (Swarm settling; a failed cast's puff). */
@@ -329,7 +351,7 @@ export class WishFx {
     for (let i = 0; i < dots; i++) {
       const th = (i / dots) * TAU + 0.4;
       const rr = reach * (0.35 + 0.65 * k) * (0.7 + 0.3 * ((i * 7) % 3) / 2);
-      g.fillStyle(i % 2 === 0 ? e.color : 0xffffff, (1 - p) * 0.85).fillCircle(Math.cos(th) * rr, Math.sin(th) * rr * Y_SCALE, size * (1 - 0.5 * p));
+      g.fillStyle(i % 2 === 0 || this.fl <= 0 ? e.color : 0xffffff, (1 - p) * 0.85).fillCircle(Math.cos(th) * rr, Math.sin(th) * rr * Y_SCALE, size * (1 - 0.5 * p));
     }
   }
 
@@ -344,8 +366,10 @@ export class WishFx {
       if (end === 1 && x === e.x && y === e.y) return;
       const cx = projX(x);
       const cy = projY(y, BODY_LIFT);
-      g.fillStyle(0xffffff, 0.8 * (1 - p) * (1 - p)).fillCircle(cx, cy, 6 + 8 * (1 - p));
-      g.fillStyle(e.color, 0.45 * (1 - p)).fillCircle(cx, cy, 12 + (moves ? 8 * p : 4));
+      if (this.fl > 0) {
+        g.fillStyle(0xffffff, 0.8 * (1 - p) * (1 - p) * this.fl).fillCircle(cx, cy, 6 + 8 * (1 - p));
+        g.fillStyle(e.color, 0.45 * (1 - p) * this.fl).fillCircle(cx, cy, 12 + (moves ? 8 * p : 4));
+      }
       for (let i = 0; i < 8; i++) {
         const th = (i / 8) * TAU + end;
         const rr = (moves ? 6 + 20 * easeOutCubic(p) : 14) * (0.6 + 0.4 * (i % 3) / 2);
@@ -360,7 +384,10 @@ export class WishFx {
     g.setPosition(projX(e.x), projY(e.y, BODY_LIFT));
     const k = moves ? easeOutCubic(p) : 1;
     const r = R + 6 + 28 * k;
-    g.fillStyle(e.color, 0.22 * (1 - p)).fillCircle(0, 0, R + 4 + 10 * k);
+    if (this.fl > 0) {
+      g.fillStyle(e.color, 0.22 * (1 - p) * this.fl).fillCircle(0, 0, R + 4 + 10 * k);
+      g.fillStyle(0xffffff, 0.45 * (1 - p) * (1 - p) * this.fl).fillCircle(0, 0, R * 0.8);
+    }
     g.lineStyle(3, e.color, 1 - p).strokeCircle(0, 0, r);
     g.lineStyle(2.5, 0xfff8e1, 0.9 * (1 - p));
     for (let i = 0; i < 10; i++) {
@@ -374,11 +401,13 @@ export class WishFx {
     g.setPosition(projX(e.x), projY(e.y, BODY_LIFT));
     const k = moves ? easeOutCubic(p) : 1;
     g.lineStyle(3, e.color, 1 - p).strokeCircle(0, 0, R + 4 + 16 * k);
-    g.fillStyle(0xffffff, 0.8 * (1 - p)).fillCircle(0, 0, 4);
+    if (this.fl > 0) g.fillStyle(0xffffff, 0.8 * (1 - p) * this.fl).fillCircle(0, 0, 4);
   }
 
   /** A stun: little stars thrown out from the head, spinning as they fade. */
-  private drawStars(g: Phaser.GameObjects.Graphics, e: Active, p: number, moves: boolean): void {
+  private drawStars(g: Phaser.GameObjects.Graphics, e: Active, p: number, moves: boolean): boolean {
+    // The fighter turned hidden while the burst was in the air: let it go rather than follow it.
+    if (this.hiddenRemote(e.id)) return false;
     const pos = this.host.position(e.id) ?? { x: e.x, y: e.y };
     g.setPosition(projX(pos.x), projY(pos.y, BODY_LIFT + R + 8));
     const k = moves ? easeOutCubic(p) : 1;
@@ -391,6 +420,7 @@ export class WishFx {
       const s = 4 * (1 - 0.4 * p);
       g.lineStyle(2, e.color, 1 - p * p).lineBetween(x - s, y, x + s, y).lineBetween(x, y - s, x, y + s);
     }
-    g.fillStyle(0xffffff, 0.7 * (1 - p)).fillCircle(0, 0, 3 * (1 - p) + 1);
+    if (this.fl > 0) g.fillStyle(0xffffff, 0.7 * (1 - p) * this.fl).fillCircle(0, 0, 3 * (1 - p) + 1);
+    return true;
   }
 }

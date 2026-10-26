@@ -39,7 +39,8 @@ describe("the controls table", () => {
     expect(slots?.action).toMatch(/weapon slot/i);
     expect(find("run", "Q", /swap/i)).toBeDefined();
     expect(find("run", "F", /pick up/i)).toBeDefined();
-    expect(find("run", "D", /wish/i)).toBeDefined();
+    // The practice room gives a Wish a 5 s cooldown (TRAINING_WISH_COOLDOWN_SECONDS), and the card is the same there.
+    expect(find("run", "D", /wish/i)?.action).toMatch(/5 min cooldown, 5 s in training/);
     expect(find("run", "Right-click", /minimap/i)?.action).toMatch(/move/i);
     expect(find("run", "Hold left-click", /minimap/i)?.action).toMatch(/peek/i);
     expect(find("run", "Esc", /leave practice/i)).toBeDefined();

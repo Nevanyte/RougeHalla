@@ -309,10 +309,11 @@ export class PlayerView {
 
   /**
    * The faction's Wish beside the name, redrawn only when its look changes: coloured once `renderT` has passed its ready time
-   * (the cooldown, or the first 45 s of a run, is over), grey before. Nothing for a fighter with no faction (the lobby).
+   * (the cooldown, or the first 45 s of a run, is over), grey before. Nothing for a fighter with no faction, nor in the lobby,
+   * where every ready time is 0 until the run starts and the icon would read "ready".
    */
   private setWishIcon(p: PlayerState, renderT: number): void {
-    const def = wishOf(p.faction);
+    const def = p.status === "lobby" ? null : wishOf(p.faction);
     const ready = renderT >= p.wishReadyAt;
     const key = def ? `${def.id}|${ready ? 1 : 0}|${p.name}` : "";
     if (key === this.wishKey) return;

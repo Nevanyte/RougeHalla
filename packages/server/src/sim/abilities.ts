@@ -14,7 +14,8 @@
 //
 // Everything here tolerates `world.abilities === null` (nothing has used it yet) and fighters with no statuses.
 import {
-  ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, CAST_RANGE_SLACK, DOT_FX_MS, effectSide, hasLineOfSight,
+  ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, DOT_FX_MS, effectSide,
+  hasLineOfSight,
   HIDDEN_REVEAL_MS, MAX_REWIND_MS, rankOf, setSlotReadyAt, slotReadyAt, TICK_MS, WISH_LOCK_SECONDS,
   type AbilityDef, type AbilityEffect, type AbilityId, type AbilityRank, type CastCancel, type CastEndReason, type DamageShares,
   type Vec2,
@@ -26,7 +27,7 @@ import { abilitiesRt, addField, fieldsOf, onTrail, removeField, removeFieldsWher
 import { recordHit } from "./ledger";
 import { recomputeMods } from "./mods";
 import {
-  addStatus, attackSlowFactor, castBlocked, cleanse, findStatus, isUntargetable, refreshEffects, removeStatuses, reveal,
+  addStatus, attackSlowFactor, castBlocked, cleanse, isUntargetable, refreshEffects, removeStatuses, reveal,
   statusesOf, statusMoveMultiplier,
 } from "./status";
 import { cancelAction, cancelLockedWindup, dropLock } from "./weapons";
@@ -80,7 +81,7 @@ const sourceOf = (c: Combatant): DamageSource => ({ id: c.id, name: c.s.name });
  */
 export function armWishes(world: World): void {
   const s = world.state;
-  const readyAt = world.config.training ? 0 : s.raidStartedAt + (world.config.wishLockSeconds ?? WISH_LOCK_SECONDS) * 1000;
+  const readyAt = world.config.training ? 0 : s.raidStartedAt + Math.max(0, world.config.wishLockSeconds ?? WISH_LOCK_SECONDS) * 1000;
   for (const [id, p] of s.players) {
     const rt = world.players.get(id);
     if (!rt) continue;
@@ -133,6 +134,8 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
   const { def, rank } = slotted;
   const r = rankOf(def, rank);
   const now = world.state.serverTime;
+  // Aimed at the world as it was before the teleport (the client had not seen it yet): refused, for free, so it cannot spend a Wish.
+  if (now - (world.abilities?.teleportedAt ?? -Infinity) < CAST_TELEPORT_GRACE_MS) return;
   if (castBlocked(world, c, def.blockedBy) || c.rt.cast || now < slotReadyAt(c.s, cmd.slot)) return;
 
   const point: Vec2 = { x: cmd.x, y: cmd.y };
@@ -261,6 +264,7 @@ export function clearFighter(world: World, id: string, _cause: "down" | "removed
  */
 export function clearAll(world: World, cause: "teleport" | "runEnd"): void {
   const now = world.state.serverTime;
+  if (cause === "teleport") abilitiesRt(world).teleportedAt = now;
   for (const c of activeFighters(world)) {
     if (c.rt.cast) cancelCast(world, c, "cancelled", cause === "teleport");
     if (cause === "teleport") {
@@ -414,7 +418,8 @@ function applyEffect(world: World, l: Landing, e: AbilityEffect, now: number): v
     }
     case "deathFloor": {
       const st = addStatus(world, c, { kind: "deathFloor", source, ability: def.id, ms: e.ms, data: { floorHp: e.floorHp, healShare: e.healBack } });
-      if (st) st.taken = 0;
+      // A fresh floor starts counting from nothing; a re-application of one still up keeps what it has held.
+      if (st && (st.startedAt === now || st.taken === undefined)) st.taken = 0;
       return;
     }
     case "zone": {
@@ -431,6 +436,9 @@ function applyEffect(world: World, l: Landing, e: AbilityEffect, now: number): v
       return;
     }
     case "cloud":
+      // A new cloud replaces the caster's old one of the same ability (training's short cooldown can cast again while it is up). The
+      // old one goes without taking the Swarm with it: the status this cast just extended is the new cloud's.
+      removeFieldsWhere(world, (f) => f.kind === "cloud" && f.owner.id === c.id && f.ability === def.id);
       // The cloud follows its owner on the clients (they draw it at the owner's drawn position), so the server never moves it.
       addField(world, {
         kind: "cloud", ability: def.id, owner: source, subject: null, x: c.s.x, y: c.s.y, x2: 0, y2: 0, r: e.radius, vx: 0, vy: 0,
@@ -496,7 +504,7 @@ export function statusDamage(world: World, dtMs: number): void {
         if (t.id === f.owner.id || !onTrail(f, t.s)) continue;
         const burn = effectOf(f.ability, "trail");
         if (!burn) continue;
-        const quiet = findStatus(t, "dot", f.owner.id) !== undefined;
+        const quiet = statusesOf(t).some((st) => st.kind === "dot" && st.source.id === f.owner.id && st.ability === f.ability && st.until > now);
         addStatus(world, t, { kind: "dot", source: f.owner, ability: f.ability, ms: burn.dotMs, value: burn.dps, data: { shares: TRUE_SHARES } }, { quiet });
       }
     }

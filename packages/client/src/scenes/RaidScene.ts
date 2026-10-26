@@ -1,7 +1,7 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, EFFECT_HIDDEN, generateMap, hasLineOfSight, isAbilityDot, rankOf,
+  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, generateMap, hasLineOfSight, isAbilityDot, rankOf,
   slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates, type AbilityDef, type AbilitySlot, type FxBatch, type GameMap,
   type RunResult, type Vec2,
 } from "@raid/shared";
@@ -9,8 +9,8 @@ import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema
 import { sendInput, type RaidRoom } from "../net/connection";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
 import { EntityInterpolator } from "../net/interpolation";
-import { clampToWorld, ORDER_EXPIRE_MS } from "../net/localMotion";
-import { LocalPrediction, localDrawSource, type LocalDrawSource, type OtherFighter } from "../net/localPrediction";
+import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
+import { LocalPrediction, castUnanswered, localDrawSource, type LocalDrawSource, type OtherFighter } from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView } from "../render/ContainerView";
 import { FieldView } from "../render/FieldView";
@@ -23,6 +23,7 @@ import { ProjectileView } from "../render/ProjectileView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
+import { isHiddenRemote, visiblePosition } from "../render/visibility";
 import { WishFx } from "../render/WishFx";
 import { LockDisplay, pickTarget, targetable, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
@@ -85,10 +86,11 @@ export class RaidScene extends Phaser.Scene {
   private wishSlot!: AbilitySlotView;
   private readonly wishCooldown = new CooldownTracker();
   /**
-   * The cast just sent and not yet answered: until the patch shows the slot's new ready time (or ORDER_EXPIRE_MS passes), a
-   * second press is ignored, so a double tap cannot predict a second blink the server will refuse.
+   * The cast just sent and not yet answered: until the patch shows the slot's new ready time, a second press is ignored, so a
+   * double tap cannot predict a second blink the server will refuse. A blink waits for its ack (the motion's pending jump), up
+   * to JUMP_ORDER_EXPIRE_MS, however slow the link; any other cast for ORDER_EXPIRE_MS.
    */
-  private pendingCast: { slot: AbilitySlot; readyAt: number; until: number } | null = null;
+  private pendingCast: { slot: AbilitySlot; readyAt: number; until: number; jump: boolean } | null = null;
   private feedback!: ScreenFeedback;
   /** Created the first frame the room says it is a training room (state.training); null in an arena run. */
   private trainingBar: TrainingBar | null = null;
@@ -222,7 +224,8 @@ export class RaidScene extends Phaser.Scene {
     this.fx = new FxView(this, {
       localId: this.room.sessionId,
       view: (id) => this.views.get(id) ?? this.mobViews.get(id),
-      position: (id) => this.rendered.get(id),
+      // Never where a hidden (Swarm) remote fighter is: no number, burst or mark may be drawn on it, nor keep following it.
+      position: (id) => this.visiblePosition(id),
       localLanded: () => this.juice.landed(performance.now()),
       localHurt: (fx) => this.juice.hurt(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0),
       nearestFighter: (x, y, within) => this.nearestFighter(x, y, within),
@@ -238,9 +241,9 @@ export class RaidScene extends Phaser.Scene {
     this.fieldView = new FieldView(this);
     this.wishFx = new WishFx(this, {
       localId: this.room.sessionId,
-      position: (id) => this.rendered.get(id),
+      position: (id) => this.visiblePosition(id),
       // A remote fighter that is hidden (Swarm) shows no telegraph: nothing may point at where it is.
-      hidden: (id) => ((this.room.state.players.get(id)?.effects ?? 0) & EFFECT_HIDDEN) !== 0,
+      hidden: (id) => isHiddenRemote(this.room.state.players, this.room.sessionId, id),
     });
     // One message per server step; unpackFx stamps each event with the step's time and skips what it can't read. The state
     // has no projectiles: the batch of the step that loosed one announces it, and a client that joined or reconnected while
@@ -441,7 +444,7 @@ export class RaidScene extends Phaser.Scene {
   private observeLocal(state: RaidState): void {
     const me = state.players?.get(this.room.sessionId);
     if (me) {
-      this.predict.motion.observe(
+      this.predict.observe(
         { x: me.x, y: me.y, t: state.serverTime, moveSeq: me.moveSeq, locked: me.attackTarget !== "", displaceSeq: me.displaceSeq },
         this.localClock(performance.now()),
       );
@@ -721,7 +724,7 @@ export class RaidScene extends Phaser.Scene {
     if (this.peek && t.kind !== "self") return;
     const now = performance.now();
     const pending = this.pendingCast;
-    if (pending && pending.slot === slot && now < pending.until && slotReadyAt(me, slot) === pending.readyAt) return;
+    if (castUnanswered(pending, slot, now, slotReadyAt(me, slot), this.predict.motion.pendingJump)) return;
     const serverNow = this.clockSynced ? this.interp.clock.now(now) : state.serverTime;
     const m = abilitySlotModel(this.slotInput(me, state, slot, serverNow), serverNow);
     if (m.state === "hidden" || m.state === "empty") return;
@@ -756,7 +759,7 @@ export class RaidScene extends Phaser.Scene {
         return;
       }
       const seq = this.predict.nextSeq();
-      this.predict.noteCast(c, { castMs: r.castMs, blink: { seq, landing } });
+      this.predict.noteCast(c, { castMs: r.castMs, seq, blink: { landing } });
       sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, seq });
     } else if (t.kind === "unit") {
       const id = pickTarget(this.cursorGround(pointer), this.targetCandidates(), t.snapRadius);
@@ -774,13 +777,17 @@ export class RaidScene extends Phaser.Scene {
         view.deny("No line of sight", now);
         return;
       }
-      sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, id });
-      this.predict.noteCast(c, { castMs: r.castMs });
+      // Every cast carries an order number: the server echoes it for a refused cast too, which drops a predicted root.
+      const seq = this.predict.nextSeq();
+      sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, id, seq });
+      this.predict.noteCast(c, { castMs: r.castMs, seq });
     } else {
-      sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y });
-      this.predict.noteCast(c, { castMs: r.castMs });
+      const seq = this.predict.nextSeq();
+      sendInput(this.room, "cast", { slot, x: aim.x, y: aim.y, seq });
+      this.predict.noteCast(c, { castMs: r.castMs, seq });
     }
-    this.pendingCast = { slot, readyAt: slotReadyAt(me, slot), until: now + ORDER_EXPIRE_MS };
+    const jump = blink?.do === "blink";
+    this.pendingCast = { slot, readyAt: slotReadyAt(me, slot), until: now + (jump ? JUMP_ORDER_EXPIRE_MS : ORDER_EXPIRE_MS), jump };
     this.afterCast(def, r.castMs, c, now);
   }
 
@@ -811,9 +818,15 @@ export class RaidScene extends Phaser.Scene {
 
   /** `id` if it names another fighter that is alive and drawn, else "" (a lock outlives its target for a patch or two). */
   private liveFighter(id: string): string {
-    if (!id || id === this.room.sessionId || !this.rendered.has(id)) return "";
+    // visiblePosition: a lock ordered just before its target turned hidden keeps no ring on it.
+    if (!id || id === this.room.sessionId || !this.visiblePosition(id)) return "";
     const status = (this.room.state.players.get(id) ?? this.room.state.mobs.get(id))?.status;
     return status === "alive" ? id : "";
+  }
+
+  /** Where fighter `id` is drawn, or undefined if it is not, or is a remote fighter that is hidden: nothing may point at those. */
+  private visiblePosition(id: string): { x: number; y: number } | undefined {
+    return visiblePosition(this.rendered, this.room.state.players, this.room.sessionId, id);
   }
 
   /** Once per frame: streams the aim. The shield faces the cursor while nothing is locked; the server ignores it while one is. */

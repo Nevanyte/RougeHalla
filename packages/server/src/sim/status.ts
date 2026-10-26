@@ -203,8 +203,10 @@ export function isHidden(world: World, c: Combatant): boolean {
   return hiddenNow(world, c.rt.statuses ?? NONE);
 }
 
+/** A cast with a telegraph (castMs > 0) is pending: it roots. One with none lands in the tick it is cast and never blocks what is queued after it. */
 export function isCasting(c: Combatant): boolean {
-  return c.rt.cast != null;
+  const cast = c.rt.cast;
+  return cast != null && cast.landsAt > cast.startedAt;
 }
 
 /** stunned || rooted || casting. */

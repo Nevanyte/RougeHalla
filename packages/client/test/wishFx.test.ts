@@ -3,12 +3,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ABILITIES, Y_SCALE, type AbilityId, type TimedFx } from "@raid/shared";
 import { resetReducedMotionCache } from "../src/render/juice";
+import { DEFAULT_SETTINGS, updateSettings } from "../src/settings";
 import { WishFx, type WishFxHost } from "../src/render/WishFx";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   resetReducedMotionCache();
+  updateSettings({ ...DEFAULT_SETTINGS });
 });
 
 const cast = (by: string, ability: AbilityId, ms: number, target: string | null = null, x = 100, y = 100): TimedFx => ({
@@ -310,5 +312,116 @@ describe("WishFx pool and teardown", () => {
     fx.play(cast("me", "freeze", 250, "foe"), 2000);
     fx.update(2010);
     expect(made).toHaveLength(before);
+  });
+});
+
+// A hidden (Swarm) remote fighter is not drawn, so nothing may be drawn on it or follow it either.
+describe("WishFx and a hidden fighter", () => {
+  function hiding() {
+    const hiddenIds = new Set<string>();
+    const rig = setup({ hidden: (id) => hiddenIds.has(id) });
+    return { ...rig, hiddenIds };
+  }
+
+  it("bursts no stars on a hidden remote fighter, and draws them on the viewer's own", () => {
+    const { fx, made, hiddenIds } = hiding();
+    hiddenIds.add("foe");
+    hiddenIds.add("me"); // the viewer's own fighter is never a hidden remote one
+    fx.play(status("foe", "stun"), 1000);
+    fx.update(1050);
+    expect(made).toHaveLength(0);
+    fx.play(status("me", "stun"), 1000);
+    fx.update(1050);
+    expect(made).toHaveLength(1);
+  });
+
+  it("ends a star burst quietly when its fighter turns hidden", () => {
+    const { fx, live, hiddenIds } = hiding();
+    fx.play(status("foe", "stun"), 1000);
+    fx.update(1100);
+    expect(live()).toHaveLength(1);
+    hiddenIds.add("foe");
+    fx.update(1150);
+    expect(live()).toHaveLength(0);
+  });
+
+  it("ends a Freeze beam quietly when its target turns hidden mid-cast, instead of following it", () => {
+    const { fx, made, live, positions, hiddenIds } = hiding();
+    fx.play(cast("me", "freeze", 250, "foe", 200, 120), 1000);
+    fx.update(1050);
+    expect(live()).toHaveLength(1);
+    hiddenIds.add("foe");
+    positions.set("foe", { x: 260, y: 160 }); // the hidden foe walks on
+    fx.update(1100);
+    expect(live()).toHaveLength(0);
+    const drawn = JSON.stringify(made.flatMap((g) => g.calls));
+    expect(drawn).not.toContain("260");
+  });
+
+  it("ends a Trial ring quietly when its target turns hidden mid-cast", () => {
+    const { fx, live, positions, hiddenIds } = hiding();
+    fx.play(cast("me", "trial", 350, "foe", 200, 120), 1000);
+    fx.update(1050);
+    expect(live()).toHaveLength(1);
+    hiddenIds.add("foe");
+    positions.set("foe", { x: 260, y: 160 });
+    fx.update(1100);
+    expect(live()).toHaveLength(0);
+  });
+
+  it("draws no telegraph at all for a cast whose target is already hidden", () => {
+    const { fx, made, hiddenIds } = hiding();
+    hiddenIds.add("foe");
+    fx.play(cast("me", "freeze", 250, "foe", 200, 120), 1000);
+    fx.play(cast("me", "trial", 350, "foe", 200, 120), 1000);
+    fx.update(1050);
+    expect(made).toHaveLength(0);
+  });
+
+  it("still draws a beam at a visible target, and the target keeps being followed", () => {
+    const { fx, made, positions } = hiding();
+    fx.play(cast("me", "freeze", 250, "foe", 200, 120), 1000);
+    positions.set("foe", { x: 260, y: 160 });
+    fx.update(1100);
+    expect(argsOf(made[0]!, "lineBetween")[0]![2]).toBeCloseTo(260, 6);
+  });
+});
+
+// Landing flashes (white blooms and glows) are brightness: they honour the flash scale (juice off); the shapes stay.
+describe("WishFx landing flashes under the juice setting", () => {
+  const whites = (g: FakeObject) =>
+    [...argsOf(g, "fillStyle").map((a) => a[0]), ...argsOf(g, "lineStyle").map((a) => a[1])].filter((c) => c === 0xffffff).length;
+  const IDS = ["freeze", "swarm", "trial", "blaze", "lastStand"] as const;
+  const landed = (id: (typeof IDS)[number]) => land("me", id, 100, 100, id === "blaze" ? 220 : undefined, id === "blaze" ? 130 : undefined);
+
+  it("draws white flashes at the default setting", () => {
+    for (const id of ["freeze", "trial", "blaze", "swarm", "lastStand"] as const) {
+      const { fx, live } = setup();
+      fx.play(landed(id), 1000);
+      fx.update(1050);
+      expect(live().reduce((n, g) => n + whites(g), 0), id).toBeGreaterThan(0);
+    }
+  });
+
+  it("draws none of them with juice off, but still the burst itself", () => {
+    updateSettings({ juice: 0 });
+    for (const id of IDS) {
+      const { fx, live } = setup();
+      fx.play(landed(id), 1000);
+      fx.update(1050);
+      const g = live();
+      expect(g.length, id).toBe(1);
+      expect(g.reduce((n, o) => n + whites(o), 0), id).toBe(0);
+      expect(g[0]!.calls.length, id).toBeGreaterThan(0);
+    }
+  });
+
+  it("leaves a telegraph alone: it is information, not a flash", () => {
+    updateSettings({ juice: 0 });
+    const { fx, live } = setup();
+    fx.play(cast("me", "freeze", 250, "foe", 200, 120), 1000);
+    fx.update(1100);
+    expect(live()).toHaveLength(1);
+    expect(whites(live()[0]!)).toBeGreaterThan(0);
   });
 });

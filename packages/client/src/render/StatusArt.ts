@@ -48,6 +48,9 @@ const LAYERS: readonly StatusLayer[] = [
   { id: "antiHeal", bit: EFFECT_ANTI_HEAL, plane: "head" },
 ];
 
+/** Every bit that has a layer: a frame whose effects miss all of them draws nothing and builds nothing. */
+const LAYER_BITS = LAYERS.reduce((mask, l) => mask | l.bit, 0);
+
 /** The layers `effects` calls for, in draw order. Bits with no layer here (hidden, the spare ones) are ignored. */
 export function statusLayers(effects: number): StatusLayer[] {
   const bits = effects | 0;
@@ -73,11 +76,6 @@ const GLOW = 0xfff8e1;
 /** One shared counter hands each fighter its own phase, so a crowd of stunned fighters does not circle in step. */
 let nextPhase = 0;
 
-/** Where on the ground ellipse of horizontal radius `r` the angle `th` sits, as a local offset in screen pixels. */
-function ground(r: number, th: number): { x: number; y: number } {
-  return { x: Math.cos(th) * r, y: Math.sin(th) * r * Y_SCALE };
-}
-
 /** A back-half point of a ground ring is hidden behind the body unless it clears the disc. */
 function ringVisible(r: number, th: number): boolean {
   return Math.sin(th) >= 0 || Math.abs(Math.cos(th)) * r > R + 1;
@@ -96,8 +94,9 @@ export class StatusArt {
 
   /** `effects`: the synced bits; `now`: performance.now(). */
   update(effects: number, now = performance.now()): void {
-    const layers = statusLayers(effects);
-    if (layers.length === 0) {
+    const bits = effects | 0;
+    // Runs for every fighter every frame: no layer list is built, the common frame (no status) returns at once.
+    if ((bits & LAYER_BITS) === 0) {
       this.reset();
       return;
     }
@@ -106,7 +105,10 @@ export class StatusArt {
     // Motion rides one clock, brightness another: reduced motion freezes the first and keeps the second.
     const tm = juiceScale("motion") > 0 ? now : 0;
     const tf = juiceScale("flash") > 0 ? now : 0;
-    for (const layer of layers) this.draw(g, layer.id, tm, tf);
+    for (let i = 0; i < LAYERS.length; i++) {
+      const layer = LAYERS[i]!;
+      if ((bits & layer.bit) !== 0) this.draw(g, layer.id, tm, tf);
+    }
   }
 
   /** Draws nothing (the fighter is not drawn, or has no status). A no-op while already clear. */
@@ -136,22 +138,32 @@ export class StatusArt {
   /** Rooted: an iron ring locked round the feet, with a chain link or two (only the front half is drawn: the body hides the rest). */
   private drawShackles(g: Phaser.GameObjects.Graphics): void {
     const r = R + 5;
-    const steps = 14;
-    for (const [w, color, a] of [[4.5, SHACKLE_DARK, 0.9], [2.2, SHACKLE_LIGHT, 1]] as const) {
-      g.lineStyle(w, color, a).beginPath();
-      for (let i = 0; i <= steps; i++) {
-        const p = ground(r, (i / steps) * Math.PI);
-        if (i === 0) g.moveTo(p.x, p.y);
-        else g.lineTo(p.x, p.y);
-      }
-      g.strokePath();
-    }
+    this.frontArc(g, r, 4.5, SHACKLE_DARK, 0.9);
+    this.frontArc(g, r, 2.2, SHACKLE_LIGHT, 1);
     // Two chunky links where the ring meets a chain.
     g.lineStyle(1.6, SHACKLE_LIGHT, 1).fillStyle(SHACKLE_DARK, 1);
-    for (const th of [Math.PI * 0.2, Math.PI * 0.8]) {
-      const p = ground(r, th);
-      g.fillEllipse(p.x, p.y + 1, 8, 5).strokeEllipse(p.x, p.y + 1, 8, 5);
+    this.link(g, r, Math.PI * 0.2);
+    this.link(g, r, Math.PI * 0.8);
+  }
+
+  /** The front half of the ground ellipse of horizontal radius `r`, as one stroked path. */
+  private frontArc(g: Phaser.GameObjects.Graphics, r: number, width: number, color: number, alpha: number): void {
+    const steps = 14;
+    g.lineStyle(width, color, alpha).beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const th = (i / steps) * Math.PI;
+      const x = Math.cos(th) * r;
+      const y = Math.sin(th) * r * Y_SCALE;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
     }
+    g.strokePath();
+  }
+
+  private link(g: Phaser.GameObjects.Graphics, r: number, th: number): void {
+    const x = Math.cos(th) * r;
+    const y = Math.sin(th) * r * Y_SCALE;
+    g.fillEllipse(x, y + 1, 8, 5).strokeEllipse(x, y + 1, 8, 5);
   }
 
   /** In a Trial: a purple chain of links round the feet, slowly turning. */
@@ -163,10 +175,11 @@ export class StatusArt {
     for (let i = 0; i < links; i++) {
       const th = (i / links) * TAU + turn;
       if (!ringVisible(r, th)) continue;
-      const p = ground(r, th);
+      const x = Math.cos(th) * r;
+      const y = Math.sin(th) * r * Y_SCALE;
       // Links alternate flat and upright, as a chain's do.
-      if (i % 2 === 0) g.strokeEllipse(p.x, p.y, 7.5, 4);
-      else g.strokeEllipse(p.x, p.y, 3.5, 5.5);
+      if (i % 2 === 0) g.strokeEllipse(x, y, 7.5, 4);
+      else g.strokeEllipse(x, y, 3.5, 5.5);
     }
   }
 
@@ -227,13 +240,15 @@ export class StatusArt {
       const h = 9 * (1 - 0.45 * p);
       const w = 3.2 * (1 - 0.3 * p);
       const a = 1 - 0.7 * p * p;
-      for (const [scale, color] of [[1, FLAME_OUTER], [0.55, FLAME_INNER]] as const) {
-        const hh = h * scale;
-        const ww = w * scale;
-        g.fillStyle(color, a).beginPath().moveTo(bx - ww, by).lineTo(bx - ww * 0.7, by - hh * 0.5).lineTo(bx, by - hh)
-          .lineTo(bx + ww * 0.7, by - hh * 0.5).lineTo(bx + ww, by).closePath().fillPath();
-      }
+      this.flame(g, bx, by, w, h, FLAME_OUTER, a);
+      this.flame(g, bx, by, w * 0.55, h * 0.55, FLAME_INNER, a);
     }
+  }
+
+  /** One flame: a teardrop on base (bx, by), half-width `w`, height `h`. */
+  private flame(g: Phaser.GameObjects.Graphics, bx: number, by: number, w: number, h: number, color: number, alpha: number): void {
+    g.fillStyle(color, alpha).beginPath().moveTo(bx - w, by).lineTo(bx - w * 0.7, by - h * 0.5).lineTo(bx, by - h)
+      .lineTo(bx + w * 0.7, by - h * 0.5).lineTo(bx + w, by).closePath().fillPath();
   }
 
   /** Stunned: three little stars circling the head (those on the far side of the orbit are dimmer). */

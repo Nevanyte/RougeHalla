@@ -376,8 +376,19 @@ export class BotClient {
     const hunt = this.huntMobs(me, enemy, now);
     this.logHunt(hunt);
     this.foe = null;
-    this.attacking = this.act(me, enemy, hunt, now);
+    // Hidden (it cast Swarm to get away): fighting on would reveal it with the next swing, so it slips away instead.
+    this.attacking = (me.effects & EFFECT_HIDDEN) !== 0 ? this.slipAway(me, enemy, now) : this.act(me, enemy, hunt, now);
     this.castWish(me, enemy, now);
+  }
+
+  /** Walks away from the nearest player, or stands when there is none or nowhere to go; never attacks. False: not attacking. */
+  private slipAway(me: PlayerState, enemy: Enemy | null, now: number): boolean {
+    const map = this.collision();
+    const to = enemy ? retreatPoint(me, [enemy.p], (a, b) => segmentClear(map, a, b, PLAYER_RADIUS)) : null;
+    this.grab = null;
+    if (to) this.moveTo(to, now);
+    else this.stand();
+    return false;
   }
 
   /**

@@ -6,11 +6,11 @@
 import { describe, expect, it } from "vitest";
 import {
   ABILITIES, BLAZE_BURN_DPS, BLAZE_BURN_MS, BLAZE_MIN_DIST, BLAZE_RANGE, BLAZE_TRAIL_HALF_WIDTH, BLAZE_TRAIL_MS, blinkLanding, bountyFor,
-  CAST_RANGE_SLACK, DOT_FX_MS, EFFECT_CASTING, EFFECT_DOT, EFFECT_HASTE, EFFECT_HIDDEN, EFFECT_LAST_STAND, EFFECT_STUNNED, EFFECT_ZONED,
+  CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, DOT_FX_MS, EFFECT_CASTING, EFFECT_DOT, EFFECT_HASTE, EFFECT_HIDDEN, EFFECT_LAST_STAND, EFFECT_STUNNED, EFFECT_ZONED,
   FIELD_KINDS, FREEZE_CAST_MS, FREEZE_RANGE, FREEZE_STUN_MS, GV_KILL, HIDDEN_REVEAL_MS, LAST_STAND_HEAL_SHARE, LAST_STAND_MS,
   LAST_STAND_SPEED_BONUS, mapFromTiles, mitigateShares, mulberry32, PLAYER_SPEED, SIG_CHILLED, STATUS_RULES, SWARM_CAST_MS, SWARM_CLOUD_RADIUS, SWARM_MS, TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_CAST_MS, TRIAL_DEALT_MULT, TRIAL_EXIT_STUN_MS, TRIAL_MS, TRIAL_RADIUS,
-  TRIAL_RANGE, TRIAL_TAKEN_MULT, WISH_COOLDOWN_SECONDS, WISH_LOCK_SECONDS, wishOf,
+  TARGET_RANGE, TRIAL_RANGE, TRIAL_TAKEN_MULT, WISH_COOLDOWN_SECONDS, WISH_LOCK_SECONDS, wishOf,
   ABILITY_IDS, type AbilityId, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { loadConfig } from "../src/config";
@@ -1854,7 +1854,6 @@ describe("every entry point tolerates a world that has never used abilities", ()
     updateAbilities(world);
     statusDamage(world, TICK_MS);
     abilityDotFx(world);
-    clearAll(world, "teleport");
     clearAll(world, "runEnd");
     clearFighter(world, "p0", "down");
     clearFighter(world, "nobody", "removed");
@@ -1882,5 +1881,257 @@ describe("every entry point tolerates a world that has never used abilities", ()
       expect(ABILITIES[ability].cancelledBy).toEqual(["stun", "silence"]);
     }
     expect(STATUS_RULES.stun.cleanse).toBe("hard");
+  });
+});
+
+// ----------------------------------------------------------------------------------------------------------------
+// Review fixes: each of these fails without its fix
+// ----------------------------------------------------------------------------------------------------------------
+
+/** Makes the arena teleport everyone into the coliseum at the next tick, and returns that tick's server time. */
+function teleport(world: World): number {
+  world.state.patienceEndsAt = T(world) + TICK_MS;
+  tick(world);
+  expect(world.state.gatesLocked).toBe(true);
+  return T(world);
+}
+
+describe("a cast in flight across the coliseum teleport (M1)", () => {
+  const wishes: Array<[string, FactionId]> = [["Blaze Step", "fire"], ["Last Stand", "holy"], ["Swarm", "plague"]];
+
+  it.each(wishes)("%s that reaches the server within the grace after the teleport is refused for free", (_name, faction) => {
+    const world = arena([{ faction, weapons: ["sword"], at: near(300) }, { faction: "frost", at: near(1000, 500) }]);
+    const ready0 = P(world).wishReadyAt;
+    const tp = teleport(world);
+    expect(world.abilities?.teleportedAt).toBe(tp);
+    const spot = at(world, "p0");
+    // What the client sent while it still drew the old picture: its cursor was somewhere in the world it saw.
+    cast(world, 0, { x: 640, y: 320, seq: 7 });
+    tick(world);
+    expect(castFx()).toEqual([]);
+    expect(fxOf("status")).toEqual([]);
+    expect(P(world).wishReadyAt).toBe(ready0);
+    expect(RT(world).cast ?? null).toBeNull();
+    expect(at(world, "p0")).toEqual(spot);
+    expect(P(world).moveSeq).toBe(7); // the ack still goes out: the client drops what it predicted
+    // The edge: still refused one tick before the grace is over, taken on the tick that is exactly one grace after.
+    runTo(world, tp + CAST_TELEPORT_GRACE_MS - 2 * TICK_MS);
+    cast(world, 0, { x: 640, y: 320 });
+    tick(world);
+    expect(T(world)).toBe(tp + CAST_TELEPORT_GRACE_MS - TICK_MS);
+    expect(P(world).wishReadyAt).toBe(ready0);
+    cast(world, 0, { x: 640, y: 320 });
+    tick(world);
+    expect(T(world)).toBe(tp + CAST_TELEPORT_GRACE_MS);
+    expect(P(world).wishReadyAt).toBe(T(world) + WISH_COOLDOWN_SECONDS * SEC);
+    runFor(world, SWARM_CAST_MS + TICK_MS);
+    expect(fxOf("castLand")).toHaveLength(1);
+  });
+
+  it("the blink that is refused leaves the player where the teleport put it", () => {
+    const world = arena([{ faction: "fire", at: near(300) }, { faction: "frost", at: near(1000, 500) }]);
+    const tp = teleport(world);
+    const spot = at(world, "p0");
+    cast(world, 0, { x: 300 + 300, y: 320 });
+    run(world, 3);
+    expect(at(world, "p0")).toEqual(spot);
+    expect(world.abilities?.fields.size ?? 0).toBe(0);
+    runTo(world, tp + CAST_TELEPORT_GRACE_MS - TICK_MS);
+    cast(world, 0, { x: 640, y: 320 });
+    tick(world);
+    expect(at(world, "p0")).not.toEqual(spot);
+  });
+
+  it("a world that never teleported has no grace: a cast in its first ticks, or at any time, is taken", () => {
+    const world = arena([{ faction: "fire", at: near(300) }, { faction: "frost", at: near(1000, 500) }]);
+    expect(world.abilities?.teleportedAt).toBeUndefined();
+    expect(T(world)).toBeLessThan(CAST_TELEPORT_GRACE_MS);
+    cast(world, 0, { x: 600, y: 320 });
+    tick(world);
+    expect(fxOf("castLand")).toHaveLength(1);
+    expect(world.abilities?.teleportedAt).toBeUndefined();
+  });
+});
+
+describe("Swarm is an own order (M2)", () => {
+  it("casting it drops the caster's lock and path, so a locked auto-attack does not reveal it at once", () => {
+    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "fire", weapons: ["sword"], at: near(326) }]);
+    expect(ABILITIES.swarm.ownOrder).toBe(true);
+    lockOn(world, 0, 1);
+    run(world, 10);
+    expect(W(world).lock).toBe("p1");
+    cast(world, 0);
+    tick(world);
+    expect(W(world).lock).toBeNull();
+    expect(P(world).attackTarget).toBe("");
+    expect(RT(world).path).toEqual([]);
+    runFor(world, SWARM_CAST_MS);
+    let hidden = 0;
+    let ticks = 0;
+    const end = T(world) + SWARM_MS - 2 * TICK_MS;
+    while (T(world) < end) {
+      tick(world);
+      ticks++;
+      if (isHidden(world, C(world))) hidden++;
+    }
+    expect(hidden).toBe(ticks); // no order, no attack: hidden for the whole of it
+    expect(W(world).action).toBeNull();
+  });
+
+  it("an ambush is the player's own click after the cast: it reveals for the swing and a moment more", () => {
+    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "fire", weapons: ["sword"], at: near(326) }]);
+    lockOn(world, 0, 1);
+    run(world, 4);
+    cast(world, 0);
+    runFor(world, SWARM_CAST_MS + 2 * TICK_MS);
+    expect(isHidden(world, C(world))).toBe(true);
+    lockOn(world, 0, 1);
+    let act = W(world).action;
+    for (let i = 0; i < 30 && !act; i++) { tick(world); act = W(world).action; }
+    expect(act).not.toBeNull();
+    expect(isHidden(world, C(world))).toBe(false);
+  });
+
+  it("starting the cast cancels the windup the lock had started, with the cooldown refunded", () => {
+    const world = arena([{ faction: "plague", weapons: ["bow"], at: ME }, { faction: "fire", weapons: ["sword"], at: near(400) }]);
+    lockOn(world, 0, 1);
+    tick(world);
+    const act = W(world).action!;
+    expect(act.kind).toBe("draw");
+    cast(world, 0);
+    tick(world);
+    expect(fxOf("cancel")).toEqual([{ at: T(world), kind: "cancel", id: "p0" }]);
+    expect(W(world).action).toBeNull();
+    expect(P(world).readyAt).toBe(act.startedAt);
+  });
+});
+
+describe("a forced displacement does not lose the chasers (m1)", () => {
+  it("a Blaze Step through a long wall keeps the lock of a chaser that cannot see it, and the chaser walks round", () => {
+    // A wall at column 20, rows 1..16: the only way round is rows 17..18 at the bottom.
+    const map = arenaMap(column(20, 1, 16));
+    const world = arena([{ faction: "fire", weapons: ["sword"], at: near(600, 160) }, { faction: "frost", weapons: ["sword"], at: near(540, 160) }], { map });
+    lockOn(world, 1, 0);
+    run(world, 2);
+    expect(W(world, 1).lock).toBe("p0");
+    cast(world, 0, { x: 900, y: 160 });
+    tick(world);
+    expect(P(world).x).toBeGreaterThan(660);
+    const blinkAt = T(world);
+    let lowest = 0;
+    while (T(world) < blinkAt + 4000) {
+      tick(world);
+      expect(W(world, 1).lock, `lock at ${T(world) - blinkAt} ms after the blink`).toBe("p0");
+      lowest = Math.max(lowest, P(world, 1).y);
+    }
+    expect(lowest).toBeGreaterThan(400); // it went for the way round at the bottom of the wall
+  });
+
+  it("the chase is bounded by the leash: a blink out of TARGET_RANGE still ends the lock", () => {
+    const world = arena([{ faction: "fire", at: near(700) }, { faction: "frost", weapons: ["sword"], at: near(300) }]);
+    lockOn(world, 1, 0);
+    run(world, 2);
+    expect(W(world, 1).lock).toBe("p0");
+    cast(world, 0, { x: 1100, y: 320 }); // 300 u east: 700 u from the chaser, past TARGET_RANGE
+    tick(world);
+    expect(dist(at(world, "p0"), at(world, "p1"))).toBeGreaterThan(TARGET_RANGE);
+    expect(W(world, 1).lock).toBeNull();
+  });
+});
+
+describe("a cast with no cast time blocks nothing queued after it in its tick (m2)", () => {
+  const toasts = (events: SimEvent[]) => events.flatMap((e) => (e.type === "toast" ? [e.text] : []));
+
+  it.each([["Blaze Step", "fire"], ["Last Stand", "holy"]] as Array<[string, FactionId]>)("%s, then a swap and a pickup in the same tick", (_name, faction) => {
+    const world = arena([{ faction, weapons: ["sword", "bow"], at: ME }, { faction: "frost", at: near(1000, 500) }]);
+    cast(world, 0, { x: 600, y: 320 });
+    send(world, 0, "swap", { slot: 1 });
+    send(world, 0, "pickup", { containerId: "nothing-here" });
+    const events = tick(world);
+    expect(fxOf("castLand")).toHaveLength(1);
+    expect(P(world).slot).toBe(1);
+    expect(toasts(events)).not.toContain("Can't do that now");
+  });
+
+  it("a cast with a telegraph still blocks them while it roots", () => {
+    const world = arena([{ faction: "frost", weapons: ["sword", "bow"], at: ME }, { faction: "fire", at: FOE }]);
+    cast(world, 0, { target: 1 });
+    send(world, 0, "swap", { slot: 1 });
+    send(world, 0, "pickup", { containerId: "nothing-here" });
+    const events = tick(world);
+    expect(RT(world).cast).not.toBeNull();
+    expect(P(world).slot).toBe(0);
+    expect(toasts(events)).toContain("Can't do that now");
+  });
+});
+
+describe("a second Swarm while the first is up (m3)", () => {
+  it("replaces the first cloud, and the first cloud's end cannot take the second Swarm with it", () => {
+    const world = arena([{ faction: "plague", weapons: ["sword"], at: ME }], { training: true });
+    cast(world, 0);
+    tick(world);
+    runFor(world, SWARM_CAST_MS);
+    const land1 = T(world);
+    expect(isHidden(world, C(world))).toBe(true);
+    runTo(world, P(world).wishReadyAt); // training's 5 s cooldown: the first Swarm still has 3 s to run
+    cast(world, 0);
+    tick(world);
+    runFor(world, SWARM_CAST_MS);
+    const land2 = T(world);
+    expect(world.state.fields.size).toBe(1); // the first cloud went when the second one came
+    expect([...world.state.fields.values()][0]!.startedAt).toBe(land2);
+    runTo(world, land1 + SWARM_MS + TICK_MS); // the first Swarm's time is over
+    expect(isHidden(world, C(world))).toBe(true);
+    expect(world.state.fields.size).toBe(1);
+    runTo(world, land2 + SWARM_MS - TICK_MS);
+    expect(isHidden(world, C(world))).toBe(true);
+    tick(world);
+    expect(isHidden(world, C(world))).toBe(false);
+    expect(world.state.fields.size).toBe(0);
+  });
+});
+
+describe("a Last Stand that is applied again keeps what it has held up", () => {
+  it("a re-application extends it and keeps `taken`; a fresh one starts from nothing", () => {
+    const world = arena([{ faction: "holy", at: ME, hp: 1000, maxHp: 1000 }, { faction: "fire", at: near(1000, 500), hp: 1000 }, { faction: "frost", at: near(1000, 600), hp: 1000 }]);
+    cast(world, 0);
+    tick(world);
+    const first = findStatus(C(world), "deathFloor")!;
+    hit(world, "p1", "p0", 60);
+    expect(first.taken).toBeCloseTo(60, 9);
+    runFor(world, 2 * SEC);
+    P(world).wishReadyAt = 0; // a stand-in for a skill or relic that applies it again
+    cast(world, 0);
+    tick(world);
+    const again = findStatus(C(world), "deathFloor")!;
+    expect(again.until).toBe(T(world) + LAST_STAND_MS);
+    expect(again.taken).toBeCloseTo(60, 9);
+    // After it has run out, a new one starts from nothing.
+    runTo(world, again.until);
+    expect(findStatus(C(world), "deathFloor")).toBeUndefined();
+    P(world).wishReadyAt = 0;
+    cast(world, 0);
+    tick(world);
+    expect(findStatus(C(world), "deathFloor")!.taken).toBe(0);
+  });
+});
+
+describe("two small things the review found", () => {
+  it("a trail's ignition says so even when the victim already burns from the same owner for another reason", () => {
+    const world = arena([
+      { faction: "fire", weapons: ["sword"], at: ME, hp: 1000 }, { faction: "frost", weapons: ["sword"], at: near(450), hp: 1000 }, { faction: "holy", at: near(1000, 500), hp: 1000 },
+    ]);
+    afflict(world, "p1", "dot", 10 * SEC, { source: src("p0"), tag: "relic", value: 5 });
+    cast(world, 0, { x: 900, y: 320 });
+    tick(world);
+    const burns = fxOf("status").filter((f) => f.status === "dot" && f.id === "p1");
+    expect(burns).toHaveLength(2); // the relic's, and the trail's own
+    expect(statusesOf(C(world, 1)).filter((st) => st.kind === "dot")).toHaveLength(2);
+  });
+
+  it("a negative lock cannot put the Wish's ready time before the run's start", () => {
+    const world = arena([{ faction: "frost", at: ME }, { faction: "fire", at: FOE }], { lock: -10 });
+    expect(P(world).wishReadyAt).toBe(world.state.raidStartedAt);
+    expect(P(world).wishReadyAt).toBeGreaterThanOrEqual(0);
   });
 });

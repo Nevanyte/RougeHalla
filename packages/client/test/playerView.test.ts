@@ -256,7 +256,18 @@ describe("PlayerView Wish icon", () => {
     expect(icon.clears).toBe(clears + 2);
   });
 
-  it("is not drawn for a fighter with no faction (the lobby)", () => {
+  it("is not drawn in the lobby, where every Wish reads ready (the lock only starts with the run)", () => {
+    const { icon, frame } = iconed({ faction: "fire", status: "lobby", wishReadyAt: 0 });
+    frame(1000);
+    expect(icon.state.visible).toBe(false);
+    expect(icon.calls.filter(([n]) => n === "fillPath")).toHaveLength(0);
+    // The run starts: the same fighter is alive and its Wish is locked, so the icon appears grey.
+    frame(1016, { status: "alive", wishReadyAt: 46000 });
+    expect(icon.state.visible).toBe(true);
+    expect(argsOf(icon, "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
+  });
+
+  it("is not drawn for a fighter with no faction", () => {
     const { icon, frame } = iconed({ faction: "" });
     frame(1000);
     expect(icon.state.visible).toBe(false);

@@ -6,8 +6,8 @@
 // order (the sim's own `displace`).
 import { describe, expect, it } from "vitest";
 import {
-  blinkLanding, mapFromTiles, mulberry32, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FactionId, type GameMap, type Vec2,
-  type WeaponId,
+  blinkLanding, mapFromTiles, mulberry32, PLAYER_SPEED, REGION_COLISEUM, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FactionId, type GameMap,
+  type Vec2, type WeaponId,
 } from "@raid/shared";
 import { LocalMotion, type FrameInput } from "../../client/src/net/localMotion";
 import { combatant } from "../src/sim/combatant";
@@ -46,8 +46,15 @@ class SimRig {
   readonly drawn: Vec2[] = [];
   readonly offsets: number[] = [];
 
-  constructor(readonly up: number, readonly down: number, readonly jitter = 0, faction: FactionId = "plague", weapon: WeaponId = "sword") {
-    this.map = arenaMap();
+  /** What the client believes about the coliseum gates when it predicts a blink (it can lag the server's flag). */
+  clientGatesLocked: boolean;
+
+  constructor(
+    readonly up: number, readonly down: number, readonly jitter = 0, faction: FactionId = "plague", weapon: WeaponId = "sword",
+    opts: { map?: GameMap; start?: Vec2; gatesLocked?: boolean; clientGatesLocked?: boolean } = {},
+  ) {
+    this.map = opts.map ?? arenaMap();
+    this.clientGatesLocked = opts.clientGatesLocked ?? opts.gatesLocked ?? false;
     this.world = createGameWorld({
       seed: 3,
       config: {
@@ -63,8 +70,9 @@ class SimRig {
     p.hp = p.maxHp = 1e9;
     step(this.world, TICK_MS); // the first step starts the run
     this.now = this.world.state.serverTime; // true time and server time run together from here
-    this.server.x = 10 * TILE + 16;
-    this.server.y = 10 * TILE + 16;
+    this.server.x = opts.start?.x ?? 10 * TILE + 16;
+    this.server.y = opts.start?.y ?? 10 * TILE + 16;
+    if (opts.gatesLocked) this.world.state.gatesLocked = true; // the coliseum's gates are walls on the server from here
     this.world.players.get("me")!.history = [{ t: this.world.state.serverTime, x: this.server.x, y: this.server.y }];
     this.send();
     this.motion.observe({ x: this.server.x, y: this.server.y, t: this.world.state.serverTime, moveSeq: 0, displaceSeq: 0 }, this.clock);
@@ -101,11 +109,12 @@ class SimRig {
    * moves the model at once, and the cast goes up with the order number. Returns the predicted landing (null: the client
    * would not have cast).
    */
-  blink(to: Vec2): { landing: Vec2 | null; seq: number } {
-    const landing = blinkLanding(this.map, false, this.motion.predicted, to);
+  blink(to: Vec2, uplinkMs?: number): { landing: Vec2 | null; seq: number } {
+    const landing = blinkLanding(this.map, this.clientGatesLocked, this.motion.predicted, to);
     const seq = (this.seq = (this.seq % 255) + 1);
     if (landing) this.motion.blink(seq, this.clock, landing);
-    this.inbox.push({ at: this.now + this.lag(this.up), type: "cast", msg: { slot: "wish", x: to.x, y: to.y, seq } });
+    // `uplinkMs`: the cast message alone is held up this long (a retransmit, a stall), the rest of the link is as it was.
+    this.inbox.push({ at: this.now + (uplinkMs ?? this.lag(this.up)), type: "cast", msg: { slot: "wish", x: to.x, y: to.y, seq } });
     return { landing, seq };
   }
 
@@ -387,5 +396,174 @@ describe("a blink against the real sim (Blaze Step)", () => {
       expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
       expect(r.motion.visualOffset, tag).toBeLessThan(0.1);
     }
+  });
+});
+
+describe("a blink against the real sim: the cases a review found", () => {
+  it("refused while walking: the sim keeps walking (it answers a refused cast with the echo alone), and the model takes the walk up again", () => {
+    for (const [up, down] of [[40, 40], [90, 60]] as const) {
+      const tag = `${up}/${down}`;
+      const r = new SimRig(up, down, 0, "fire");
+      r.run(300);
+      const goal = centre(45, 10);
+      r.move(goal);
+      r.run(600);
+      r.server.wishReadyAt = r.world.state.serverTime + 100_000; // the client cannot know
+      const { landing, seq } = r.blink({ x: r.motion.predicted.x, y: r.motion.predicted.y + 300 });
+      expect(landing, tag).not.toBeNull();
+      r.run(FRAME_MS + 1);
+      expect(r.motion.walking, tag).toBe(false);
+      r.run(up + down + 2 * TICK_MS + 20);
+      expect(r.server.moveSeq, tag).toBe(seq);
+      expect(r.server.displaceSeq, tag).toBe(0);
+      expect(r.motion.pendingOrders, tag).toBe(0);
+      expect(r.motion.walking, tag).toBe(true);
+      // It stays with the sim, a delay's walk behind its latest sample at most, instead of creeping after it for good.
+      const bound = PLAYER_SPEED * ((down + 2 * TICK_MS + 40) / 1000);
+      for (let i = 0; i < 6; i++) {
+        r.run(300);
+        expect(dist(r.motion.drawn, r.server), `${tag} +${i}`).toBeLessThan(bound);
+      }
+      r.run(7000);
+      expect(dist(r.server, goal), tag).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+    }
+  });
+
+  it("a short refused blink (the 64 u minimum) snaps back within a round trip", () => {
+    const r = new SimRig(40, 40, 0, "fire");
+    r.run(300);
+    const origin = { x: r.server.x, y: r.server.y };
+    r.server.wishReadyAt = r.world.state.serverTime + 100_000;
+    const { landing } = r.blink({ x: origin.x + 30, y: origin.y }); // nearer than 64 u: it still blinks 64
+    expect(dist(origin, landing!)).toBeCloseTo(64, 0);
+    r.run(FRAME_MS + 1);
+    expect(dist(r.motion.drawn, landing!)).toBeLessThan(1e-6);
+    r.run(2 * 40 + 2 * TICK_MS); // a round trip, and the tick the sim waits for
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(dist(r.motion.drawn, origin)).toBeLessThan(0.01);
+    expect(r.motion.visualOffset).toBe(0);
+  });
+
+  it("an accepted blink whose ack is late (the cast stalls on the uplink 500 to 1400 ms, or the link itself is 440 ms round trip) does not pop back and forward", () => {
+    const cases: Array<{ tag: string; up: number; down: number; stall?: number }> = [
+      { tag: "stall 500", up: 60, down: 60, stall: 500 }, { tag: "stall 700", up: 60, down: 60, stall: 700 },
+      { tag: "stall 1400", up: 60, down: 60, stall: 1400 }, { tag: "rtt 440", up: 220, down: 220 },
+      { tag: "rtt 440 + stall", up: 220, down: 220, stall: 700 },
+    ];
+    for (const { tag, up, down, stall } of cases) {
+      const r = new SimRig(up, down, 0, "fire");
+      r.run(300);
+      const from = { x: r.server.x, y: r.server.y };
+      const { landing } = r.blink({ x: from.x + 400, y: from.y }, stall);
+      r.run(FRAME_MS + 1);
+      const first = r.drawn.length;
+      r.run((stall ?? up) + down + 2000);
+      expect(r.server.displaceSeq, tag).toBe(1);
+      expect(r.motion.pendingOrders, tag).toBe(0);
+      expect(r.maxStep(first), tag).toBeLessThan(2); // one jump (the press), then nothing
+      expect(dist(r.server, landing!), tag).toBeLessThan(1e-3);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.01);
+    }
+  });
+
+  it("from follow mode (a lock on a dummy): the sim drops the lock, the landings differ by the chase's lead, and nothing pops", () => {
+    const r = new SimRig(60, 60, 0, "fire");
+    const dummy = addMob(r.world, { kind: "dummy", name: "d", at: centre(25, 10) });
+    r.run(300);
+    r.target(dummy);
+    r.run(700);
+    expect(r.motion.mode).toBe("follow");
+    expect(r.server.attackTarget).toBe(dummy);
+    const { landing } = r.blink({ x: r.motion.predicted.x, y: r.motion.predicted.y + 400 });
+    expect(landing).not.toBeNull();
+    expect(r.motion.visualOffset).toBe(0); // no older offset rides along to the landing
+    r.run(FRAME_MS + 1);
+    const first = r.drawn.length;
+    r.run(1500);
+    expect(r.server.attackTarget).toBe("");
+    expect(r.motion.mode).toBe("predict");
+    expect(r.server.displaceSeq).toBe(1);
+    expect(r.motion.pendingOrders).toBe(0);
+    // The server blinked from where the chase had it, a few units ahead of the model's follow position: absorbed smoothly.
+    expect(dist(r.server, landing!)).toBeLessThan(PLAYER_SPEED * ((60 + 60 + TICK_MS) / 1000) + 2);
+    expect(r.maxStep(first)).toBeLessThan(WALK_STEP + 2);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+  });
+
+  describe("with the coliseum's gates locked", () => {
+    /** A 30 x 20 room with a 10 x 10 coliseum block at tiles 10..19 x 5..14: a wall ring with a two tile gate in its west side. */
+    function miniColiseum(): GameMap {
+      const tiles = new Uint8Array(30 * 20).fill(TILE_FLOOR);
+      for (let x = 0; x < 30; x++) { tiles[x] = TILE_WALL; tiles[19 * 30 + x] = TILE_WALL; }
+      for (let y = 0; y < 20; y++) { tiles[y * 30] = TILE_WALL; tiles[y * 30 + 29] = TILE_WALL; }
+      const map = mapFromTiles(30, 20, tiles);
+      const gate = [{ x: 10, y: 9 }, { x: 10, y: 10 }];
+      for (let y = 5; y <= 14; y++) {
+        for (let x = 10; x <= 19; x++) {
+          map.regionGrid[y * 30 + x] = REGION_COLISEUM;
+          if (x === 10 || x === 19 || y === 5 || y === 14) map.tiles[y * 30 + x] = TILE_WALL;
+        }
+      }
+      for (const t of gate) map.tiles[t.y * 30 + t.x] = TILE_FLOOR;
+      map.coliseum = { ...map.coliseum, rect: { x: 10, y: 5, w: 10, h: 10 }, gates: [{ side: "w", tiles: gate, x: 336, y: 320 }] };
+      map.spawns = [centre(14, 9)];
+      return map;
+    }
+    const inside = centre(14, 9);
+
+    it("both sides lock: the landing is the shortened point inside the arena, on both, with no pop", () => {
+      const r = new SimRig(40, 40, 0, "fire", "sword", { map: miniColiseum(), start: inside, gatesLocked: true });
+      r.run(300);
+      const { landing, seq } = r.blink({ x: inside.x + 400, y: inside.y }); // the arena's east wall is nearer than 300 u
+      expect(landing).not.toBeNull();
+      expect(dist(inside, landing!)).toBeLessThan(299);
+      r.run(FRAME_MS + 1);
+      const first = r.drawn.length;
+      r.run(800);
+      expect(r.server.moveSeq).toBe(seq);
+      expect(r.server.displaceSeq).toBe(1);
+      expect(dist(r.server, landing!)).toBeLessThan(1e-3);
+      expect(r.maxStep(first)).toBeLessThan(2);
+      expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
+    });
+
+    it("the client has not heard the gates lock yet and predicts a blink in through the gate: the sim refuses it, free, and the drawn fighter snaps back at the ack", () => {
+      const outsideGate = { x: 308, y: 304 }; // just west of the ring's wall, on the gate's row
+      const r = new SimRig(40, 40, 0, "fire", "sword", { map: miniColiseum(), start: outsideGate, gatesLocked: true, clientGatesLocked: false });
+      r.run(300);
+      const { landing, seq } = r.blink({ x: outsideGate.x + 100, y: outsideGate.y }); // through the gate to the arena (open); sealed (locked)
+      expect(landing).not.toBeNull();
+      expect(landing!.x).toBeGreaterThan(400);
+      r.run(FRAME_MS + 1);
+      expect(dist(r.motion.drawn, landing!)).toBeLessThan(1e-6);
+      r.run(2 * 40 + 2 * TICK_MS + 20);
+      expect(r.server.moveSeq).toBe(seq);
+      expect(r.server.displaceSeq).toBe(0);
+      expect(r.server.wishReadyAt).toBeLessThanOrEqual(r.world.state.serverTime); // a refusal costs nothing
+      expect(r.motion.pendingOrders).toBe(0);
+      expect(dist(r.motion.drawn, outsideGate)).toBeLessThan(0.01);
+    });
+  });
+
+  it("a displacement lands while our own blink is in flight (the sim's test-only displace): one jump of the pull, never back to the origin and forward again", () => {
+    const r = new SimRig(60, 60, 0, "fire");
+    r.run(400);
+    const origin = { x: r.server.x, y: r.server.y };
+    r.blink({ x: origin.x + 400, y: origin.y });
+    r.run(FRAME_MS + 1);
+    const first = r.drawn.length;
+    r.run(10);
+    r.pull({ x: origin.x, y: origin.y + 80 }); // before the cast (60 ms up) reaches the sim: it then blinks from the pulled position
+    r.run(1500);
+    expect(r.server.displaceSeq).toBe(2);
+    expect(r.motion.pendingOrders).toBe(0);
+    const big: number[] = [];
+    for (let i = first + 1; i < r.drawn.length; i++) {
+      const d = dist(r.drawn[i]!, r.drawn[i - 1]!);
+      if (d > 10) big.push(Math.round(d));
+    }
+    expect(big).toEqual([80]);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
   });
 });

@@ -316,6 +316,20 @@ describe("BotClient casts its Wish", () => {
     expect(none.sent).toEqual([]);
   });
 
+  it("hidden behind its own Swarm it walks away from the enemy and never locks it, which would reveal it again", () => {
+    const { bot, me, foe, sent } = rig({ faction: "plague" });
+    me.effects = EFFECT_HIDDEN;
+    const inner = bot as unknown as { slipAway(me: PlayerState, enemy: unknown, now: number): boolean };
+    const enemy = { id: "foe", p: foe, d: Math.hypot(foe.x - me.x, foe.y - me.y) };
+    expect(inner.slipAway(me, enemy, 1_000_000)).toBe(false);
+    expect(sent.map((m) => m.type)).not.toContain("target");
+    const move = sent.find((m) => m.type === "move");
+    expect(move).toBeDefined();
+    // Farther from the enemy than where it stands.
+    const to = move!.payload as { x: number; y: number };
+    expect(Math.hypot(to.x - foe.x, to.y - foe.y)).toBeGreaterThan(enemy.d);
+  });
+
   it("sends a hidden or untargetable enemy nothing: it never targets one", () => {
     const { bot, me, foe, sent } = rig();
     foe.effects = EFFECT_HIDDEN;

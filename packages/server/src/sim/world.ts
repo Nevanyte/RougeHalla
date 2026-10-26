@@ -162,6 +162,8 @@ export interface AbilitiesRuntime {
   /** Ability damage over time waiting to be reported as one `hit` fx per DOT_FX_MS, by victim and source (the signature dot's twin). */
   dot: Map<string, { victim: string; by: string; ability: AbilityId; amount: number }>;
   dotSince: number;
+  /** Server ms of the coliseum teleport, once there was one: a cast arriving within CAST_TELEPORT_GRACE_MS of it is refused. */
+  teleportedAt?: number;
 }
 
 export interface PlayerRuntime extends CombatRuntime {

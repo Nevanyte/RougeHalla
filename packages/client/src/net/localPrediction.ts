@@ -8,7 +8,7 @@ import {
   attackInterval, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_STUNNED,
   FACTIONS, hasteMultiplier, isFactionId, killEffects, LAST_STAND_SPEED_BONUS, SIG_CHILLED, weaponTimings, type TimedFx, type Vec2,
 } from "@raid/shared";
-import { LocalMotion, ORDER_EXPIRE_MS, type FrameInput } from "./localMotion";
+import { LocalMotion, ORDER_EXPIRE_MS, type AuthSample, type FrameInput } from "./localMotion";
 
 /** The synced fields of the local player this reads. */
 export interface LocalFighter {
@@ -36,8 +36,10 @@ interface Root {
   kind: "status" | "cast";
   from: number;
   until: number;
-  /** A cast root the client predicted: dropped at this client time unless a `cast` fx of ours replaced it by then. */
+  /** A cast root the client predicted: dropped at this client time unless a `cast` fx of ours replaced it by then... */
   expires?: number;
+  /** ...or when the patch acks the cast's order number (`moveSeq`) without one: the server refused the cast. */
+  seq?: number;
 }
 interface Haste { from: number; until: number; bonus: number }
 /** How long (ms) after one ends a known root or haste still counts as "told by fx": the synced bit lags it, and must not extend it. */
@@ -57,6 +59,18 @@ export function localDrawSource(s: {
 }): LocalDrawSource {
   if (s.alive && s.running && s.ready && !s.beforeCut) return "predicted";
   return s.hasFrozen && (s.deathPending || s.beforeCut) ? "frozen" : "snapshot";
+}
+
+/** A cast just sent: what the slot's ready time was, and until when (client clock) the answer is waited for. */
+export interface SentCast { slot: string; readyAt: number; until: number; jump: boolean }
+
+/**
+ * Whether the cast sent is still unanswered, so a second press of the slot is ignored: the patch has not shown the slot's new
+ * ready time, the wait has not run out, and (a blink) its order has not been acked yet (`jumpInFlight`). A refused cast is
+ * answered by its ack alone, which frees the slot at once however slow the link is.
+ */
+export function castUnanswered(sent: SentCast | null, slot: string, now: number, readyAt: number, jumpInFlight: boolean): boolean {
+  return sent !== null && sent.slot === slot && now < sent.until && readyAt === sent.readyAt && (!sent.jump || jumpInFlight);
 }
 
 export class LocalPrediction {
@@ -85,18 +99,34 @@ export class LocalPrediction {
   }
 
   /**
-   * The player just cast an ability at client clock `c` and the client expects the server to take it (the way `expectLock`
+   * The player just cast an ability at client clock `c`, carrying order number `seq` (every cast sends one: the server echoes it
+   * in `moveSeq` whether it takes the cast or refuses it), and the client expects the server to take it (the way `expectLock`
    * expects a lock). A cast with a telegraph roots the fighter from the moment the server applies it, which is `motion.delay`
-   * from now: that root is predicted here, and dropped unless a `cast` fx of ours confirms it within ORDER_EXPIRE_MS. A blink
-   * (`seq`: the order number the cast carries; `landing`: the shared `blinkLanding` the server will also compute) moves the
-   * model at once (LocalMotion.blink).
+   * from now: that root is predicted here, and dropped unless a `cast` fx of ours confirms it: at the patch that acks `seq`
+   * with none (a refusal), or at the latest ORDER_EXPIRE_MS later. A blink (`landing`: the shared `blinkLanding` the server
+   * will also compute) moves the model at once (LocalMotion.blink); any other cast stands in the motion's order list, so
+   * orders before it are acked with it.
    */
-  noteCast(c: number, cast: { castMs: number; blink?: { seq: number; landing: Vec2 } }): void {
+  noteCast(c: number, cast: { castMs: number; seq: number; blink?: { landing: Vec2 } }): void {
     if (cast.castMs > 0) {
       const from = c + this.motion.delay;
-      this.roots.push({ kind: "cast", from, until: from + cast.castMs, expires: c + ORDER_EXPIRE_MS });
+      this.roots.push({ kind: "cast", from, until: from + cast.castMs, expires: c + ORDER_EXPIRE_MS, seq: cast.seq });
     }
-    if (cast.blink) this.motion.blink(cast.blink.seq, c, cast.blink.landing);
+    if (cast.blink) this.motion.blink(cast.seq, c, cast.blink.landing);
+    else this.motion.noteOrder(cast.seq, c);
+  }
+
+  /**
+   * A patch arrived: the local fighter's server state. The motion takes it; and a predicted cast root whose order number the
+   * patch acks with no `cast` fx of ours having replaced it was refused: it is dropped (the fx of a tick arrive before its patch).
+   */
+  observe(s: AuthSample, c: number): void {
+    this.motion.observe(s, c);
+    if (s.moveSeq === 0) return;
+    for (let i = this.roots.length - 1; i >= 0; i--) {
+      const r = this.roots[i]!;
+      if (r.expires !== undefined && r.seq !== undefined && (s.moveSeq - r.seq + 255) % 255 < 128) this.roots.splice(i, 1);
+    }
   }
 
   /** The server time the local fighter's cast root (predicted or confirmed) ends, or 0 if none is running or due at `t`. */

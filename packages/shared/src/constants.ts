@@ -169,6 +169,12 @@ export const WISH_LOCK_SECONDS = 45;
 export const TRAINING_WISH_COOLDOWN_SECONDS = 5;
 /** A cast's target may be this much farther than its range when the cast is accepted or lands: the client's drawn positions are in the past. */
 export const CAST_RANGE_SLACK = 32;
+/**
+ * A `cast` the server receives this soon after the coliseum teleport is refused, at no cost: the client aimed it at the world as it
+ * was before (it had not yet seen the teleport), so it would land from the new spot toward a stale cursor and spend the Wish.
+ * About a round trip.
+ */
+export const CAST_TELEPORT_GRACE_MS = 300;
 /** Training dummies (server env DUMMIES=1): no faction (no armor or shield), and back to full hp this long after a hit. */
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;

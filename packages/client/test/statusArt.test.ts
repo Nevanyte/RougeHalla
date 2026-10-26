@@ -128,3 +128,48 @@ describe("StatusArt", () => {
     expect(JSON.stringify(ga!.calls)).not.toBe(JSON.stringify(gb!.calls));
   });
 });
+
+// Every fighter on screen updates its StatusArt every frame (8 players, up to 60 mobs): the common frame (nothing set) and the
+// busy one must not build arrays, or a crowd makes thousands of them a second.
+describe("StatusArt per-frame allocation", () => {
+  const ALL = BITS.reduce((m, [bit]) => m | bit, 0);
+
+  function spied<T>(run: () => T): { out: T; arrays: number } {
+    let arrays = 0;
+    const real = { filter: Array.prototype.filter, map: Array.prototype.map, slice: Array.prototype.slice };
+    for (const k of ["filter", "map", "slice"] as const) {
+      const orig = real[k] as (...a: unknown[]) => unknown;
+      Array.prototype[k] = function (this: unknown[], ...args: unknown[]) { arrays++; return orig.apply(this, args); } as never;
+    }
+    try {
+      return { out: run(), arrays };
+    } finally {
+      Array.prototype.filter = real.filter;
+      Array.prototype.map = real.map;
+      Array.prototype.slice = real.slice;
+    }
+  }
+
+  it("builds no array on a frame with no status, or with only bits that have no layer", () => {
+    const { scene } = fakeScene();
+    const art = new StatusArt(scene);
+    expect(spied(() => { for (let i = 0; i < 20; i++) { art.update(0, 1000 + i); art.update(EFFECT_HIDDEN, 1000 + i); } }).arrays).toBe(0);
+  });
+
+  it("builds no array on a frame that draws every layer", () => {
+    const { scene } = fakeScene();
+    const art = new StatusArt(scene);
+    art.update(ALL, 1000);
+    expect(spied(() => { for (let i = 0; i < 20; i++) art.update(ALL, 1016 + i * 16); }).arrays).toBe(0);
+  });
+
+  it("draws the same pictures as before for the layers it draws", () => {
+    // The pure list and the drawn calls agree: a bit draws something exactly when statusLayers names a layer for it.
+    for (const bit of [...BITS.map(([b]) => b), EFFECT_HIDDEN]) {
+      const { scene, ofKind } = fakeScene();
+      const art = new StatusArt(scene);
+      art.update(bit, 1000);
+      expect(ofKind("graphics")[0]!.calls.length > 0, `bit ${bit}`).toBe(statusLayers(bit).length > 0);
+    }
+  });
+});

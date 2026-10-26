@@ -31,6 +31,11 @@
 // the model goes: a revive, a halt or a walk the client did not order) is dropped; an error past SNAP_DISTANCE, or an offset
 // past VISUAL_SNAP_DISTANCE, snaps to the server and plans the destination again from there.
 //
+// A blink order is not given up on the adaptive window (a late ack would pop the fighter back and forward again, 300 u each way):
+// it waits for its ack, up to JUMP_ORDER_EXPIRE_MS. The ack of a blink that shows no changed `displaceSeq` is a refusal (the
+// server answers a refused cast with the echo alone): the model snaps to the server however short the jump, and the walk the
+// blink dropped is planned again, as the server (which kept walking) is on it.
+//
 // Displacement. A blink (Blaze Step) is an order that moves the fighter at once: `blink` puts the model on its landing (the same
 // pure `blinkLanding` the server runs) and the drawn fighter jumps with it; the order carries its jump so the comparison does
 // not take the model's lead for a divergence while the server has not applied it. The patch that acks it also shows a changed
@@ -107,9 +112,16 @@ const HISTORY_MS = 1500;
 const MAX_ORDERS = 32;
 const ORDER_KEEP_MS = 2500;
 export const ORDER_EXPIRE_MS = DELAY_MAX_MS + 200;
-/** An order is given up on after 2 delays and this long (never sooner than the floor, never later than ORDER_EXPIRE_MS). */
+/**
+ * An order is given up on after 2 delays and this long (never sooner than the floor, never later than ORDER_EXPIRE_MS); until the
+ * first ack has measured a delay, after ORDER_EXPIRE_MS, so a slow link learns its delay instead of forgetting every order.
+ */
 const ORDER_EXPIRE_MARGIN_MS = 250;
 const ORDER_EXPIRE_FLOOR_MS = 350;
+/** A blink order waits this long for its ack, however short the delay estimate says: its model is 300 u ahead of the server. */
+export const JUMP_ORDER_EXPIRE_MS = 1500;
+/** A blink given up on is remembered this long (ms), to recognise its late ack. */
+const EXPIRED_JUMP_KEEP_MS = 4000;
 /** A frame is never simulated as longer than this (a stalled tab must not walk the model through a wall). */
 const MAX_FRAME_MS = 100;
 /** A new order whose first step is within this angle (cos) of the way the fighter walks does not change when it moves. */
@@ -128,6 +140,10 @@ interface Order {
   timing: boolean;
   /** A blink: how far (u) it moved the model at once. The server has not applied it yet, so the model is this far from it. */
   jump?: number;
+  /** A blink: the vector it moved the model by, where it landed, and the walk it dropped (planned again if the server refuses). */
+  jumpBy?: Vec2;
+  landing?: Vec2;
+  resume?: { goal: Vec2; map: GameMap } | null;
 }
 
 /** `jump`: a blink's landing; the model was at the pose before it until then and is never between. */
@@ -206,6 +222,8 @@ export class LocalMotion {
   private cutAt = Infinity;
   /** The last `displaceSeq` seen (null before the first sample). A different one in a sample is a displacement. */
   private lastDisplaceSeq: number | null = null;
+  /** Blinks given up on (their order waited out JUMP_ORDER_EXPIRE_MS): their landing, to recognise a very late ack as our own. */
+  private expiredJumps: Array<{ landing: Vec2; until: number }> = [];
   /** A lock is awaited until this client time (`expectLock`; 0 = not), and the walk to take up again if it never comes. */
   private hope = 0;
   private resume: { goal: Vec2; map: GameMap } | null = null;
@@ -219,6 +237,8 @@ export class LocalMotion {
   get visualOffset(): number { return Math.hypot(this.visual.x, this.visual.y); }
   /** Orders sent that the server has not yet applied. */
   get pendingOrders(): number { return this.orders.reduce((n, o) => n + (o.applied ? 0 : 1), 0); }
+  /** A blink of ours the server has not answered yet (accepted or refused): its model is ahead of the server by the jump. */
+  get pendingJump(): boolean { return this.orders.some((o) => !o.applied && o.jump !== undefined); }
   /** The model's own position (without the smoothing offset), for tools and tests. */
   get predicted(): Readonly<Vec2> { return this.sim; }
   /** Whether the model is walking a path this frame. */
@@ -245,6 +265,7 @@ export class LocalMotion {
     this.off = 0;
     this.cutAt = Infinity;
     this.lastDisplaceSeq = null;
+    this.expiredJumps.length = 0;
     this.hope = 0;
     this.resume = null;
   }
@@ -271,6 +292,7 @@ export class LocalMotion {
     this.goal = null;
     this.moved = false;
     this.orders.length = 0;
+    this.expiredJumps.length = 0;
   }
 
   /**
@@ -327,6 +349,8 @@ export class LocalMotion {
     if (!this.auth || !this._ready) return;
     this.expireOrders(c);
     this.hope = 0;
+    // The walk this drops: the server keeps walking it if it refuses the cast (a lock it also keeps, and shows).
+    const resume = this._mode === "predict" && this.goal && this.goalMap && this.path.length > 0 ? { goal: this.goal, map: this.goalMap } : null;
     this.resume = null;
     this._mode = "predict";
     const origin = { x: this.sim.x, y: this.sim.y };
@@ -337,12 +361,27 @@ export class LocalMotion {
     h.push({ c, x: landing.x, y: landing.y, jump: true });
     this.sim.x = landing.x;
     this.sim.y = landing.y;
+    // The drawn fighter jumps with the model: no offset of an older correction rides along to the landing (it could be in rock).
+    this.visual.x = 0;
+    this.visual.y = 0;
     this.path = [];
     this.goal = null;
     this.moved = false;
     // The model is at its landing from `c` on: `simAt` must not carry a later time along the walk it just left.
     this.c = c;
-    this.note(seq, c, true, Math.hypot(landing.x - origin.x, landing.y - origin.y));
+    const by = { x: landing.x - origin.x, y: landing.y - origin.y };
+    this.note(seq, c, true, { jump: Math.hypot(by.x, by.y), jumpBy: by, landing: { x: landing.x, y: landing.y }, resume });
+  }
+
+  /**
+   * An order of ours that does not move the model (a cast with a telegraph) went out with order number `seq`: the server echoes
+   * the number in `moveSeq` when it processes it, accepted or refused, which measures the delay like any order's and lets it
+   * stand in the list so that the orders before it are acked with it.
+   */
+  noteOrder(seq: number, c: number): void {
+    if (!this.auth || !this._ready) return;
+    this.expireOrders(c);
+    this.note(seq, c, false);
   }
 
   /**
@@ -369,11 +408,13 @@ export class LocalMotion {
     // A displacement (a blink, a pull) moves the fighter in one tick: neither a teleport nor a speed.
     const displaced = s.displaceSeq !== undefined && s.displaceSeq !== this.lastDisplaceSeq;
     if (s.displaceSeq !== undefined) this.lastDisplaceSeq = s.displaceSeq;
+    this.expireOrders(c);
+    // A displacement is our own blink when an order of ours that blinks is acked with it (or one given up on is recognised by
+    // its landing); a blink acked with NO displacement was refused (the server echoes a refused cast and does nothing else).
     let own = false;
-    if (displaced) {
-      this.expireOrders(c);
-      own = this.blinkAcked(s.moveSeq);
-    }
+    let refused: Order | null = null;
+    if (displaced) own = this.ackedJump(s.moveSeq) !== null || this.expiredJumpAt(s);
+    else refused = this.ackedJump(s.moveSeq);
     const jumped = !displaced && Math.hypot(s.x - prev.x, s.y - prev.y) > TELEPORT_DISTANCE;
     if (dt <= 200 && !displaced) {
       this.vx = ((s.x - prev.x) / dt) * 1000;
@@ -390,8 +431,11 @@ export class LocalMotion {
       if (s.locked === true && this.alive) this._mode = "follow";
       return;
     }
-    this.expireOrders(c);
     this.ack(s.moveSeq, s.t);
+    if (refused) {
+      this.settleRefused(s, refused);
+      return;
+    }
     if (displaced && !own) {
       // The server moved the fighter on its own: follow it, with no smoothing (a blink is not slid into).
       if (wasFollow) {
@@ -505,12 +549,21 @@ export class LocalMotion {
   /** An order the server has not applied within ORDER_EXPIRE_MS is lost (a message sent while reconnecting): it must not hold the comparison off for good. */
   private expireOrders(c: number): void {
     const o = this.orders;
-    const after = Math.min(ORDER_EXPIRE_MS, Math.max(ORDER_EXPIRE_FLOOR_MS, 2 * Math.max(0, this._delay) + ORDER_EXPIRE_MARGIN_MS));
-    for (let i = o.length - 1; i >= 0; i--) if (!o[i]!.applied && c - o[i]!.c > after) o.splice(i, 1);
+    const after = this.delayKnown
+      ? Math.min(ORDER_EXPIRE_MS, Math.max(ORDER_EXPIRE_FLOOR_MS, 2 * Math.max(0, this._delay) + ORDER_EXPIRE_MARGIN_MS))
+      : ORDER_EXPIRE_MS;
+    for (let i = o.length - 1; i >= 0; i--) {
+      const q = o[i]!;
+      if (q.applied) continue;
+      if (c - q.c <= (q.jump !== undefined ? JUMP_ORDER_EXPIRE_MS : after)) continue;
+      if (q.landing) this.expiredJumps.push({ landing: q.landing, until: c + EXPIRED_JUMP_KEEP_MS });
+      o.splice(i, 1);
+    }
+    for (let i = this.expiredJumps.length - 1; i >= 0; i--) if (c > this.expiredJumps[i]!.until) this.expiredJumps.splice(i, 1);
   }
 
-  private note(seq: number, c: number, timing: boolean, jump?: number): void {
-    this.orders.push(jump === undefined ? { seq, c, delay: null, applied: false, timing } : { seq, c, delay: null, applied: false, timing, jump });
+  private note(seq: number, c: number, timing: boolean, extra?: Partial<Order>): void {
+    this.orders.push({ seq, c, delay: null, applied: false, timing, ...extra });
     while (this.orders.length > MAX_ORDERS || (this.orders.length > 0 && this.orders[0]!.c < c - ORDER_KEEP_MS)) this.orders.shift();
   }
 
@@ -595,16 +648,43 @@ export class LocalMotion {
     }
   }
 
-  /** The sample's `moveSeq` acks an order of ours that blinks, or one sent after it in the same tick (only the last applies). */
-  private blinkAcked(seq: number): boolean {
-    if (seq === 0) return false;
+  /** The first blink of ours not yet answered that the sample's `moveSeq` acks: it, or an order sent after it in the same tick (only the last applies). */
+  private ackedJump(seq: number): Order | null {
+    if (seq === 0) return null;
     let i = this.orders.length - 1;
     while (i >= 0 && this.orders[i]!.seq !== seq) i--;
     for (let j = 0; j <= i; j++) {
       const o = this.orders[j]!;
-      if (!o.applied && o.jump !== undefined) return true;
+      if (!o.applied && o.jump !== undefined) return o;
     }
-    return false;
+    return null;
+  }
+
+  /** A displacement that ends where a blink we gave up on would have landed: that blink, very late. */
+  private expiredJumpAt(s: AuthSample): boolean {
+    return this.expiredJumps.some((j) => Math.hypot(j.landing.x - s.x, j.landing.y - s.y) <= SNAP_DISTANCE);
+  }
+
+  /**
+   * The server answered our blink with the echo alone: it refused it, and is where it was (walking the walk the blink dropped,
+   * if no order came after). The model snaps to it however short the jump was, the dropped walk is planned again from there,
+   * and orders sent after the blink stay in flight (their acks are still to come). (A lock the server kept shows in the patches
+   * and is followed again as ever.)
+   */
+  private settleRefused(s: AuthSample, blink: Order): void {
+    const later = this.orders.filter((o) => !o.applied);
+    this.snapTo(s, true);
+    this.orders.push(...later);
+    if (later.length > 0) return;
+    const r = blink.resume;
+    if (r && this.path.length === 0) {
+      const path = findPath(r.map, this.sim, r.goal, PLAYER_RADIUS);
+      if (path.length > 0) {
+        this.path = path;
+        this.goal = r.goal;
+        this.goalMap = r.map;
+      }
+    }
   }
 
   /**
@@ -613,13 +693,21 @@ export class LocalMotion {
    * hand is planned again from there to its destination (dropped if that is unreachable).
    */
   private shiftTo(s: AuthSample): void {
-    const ref = this.simAt(s.t - this.align);
+    const at = s.t - this.align;
+    const ref = this.simAt(at);
     if (!ref) {
       this.snapTo(s, true);
       return;
     }
-    const ex = s.x - ref.x;
-    const ey = s.y - ref.y;
+    // A blink of ours the server has not applied yet already lies in the model at `at`: the sample is the server's position
+    // BEFORE it, so what the model is compared with is the history without that jump, and the jump stays on top.
+    let ex = s.x - ref.x;
+    let ey = s.y - ref.y;
+    for (const o of this.orders) {
+      if (o.applied || !o.jumpBy || o.c > at) continue;
+      ex += o.jumpBy.x;
+      ey += o.jumpBy.y;
+    }
     this.sim.x += ex;
     this.sim.y += ey;
     for (const p of this.history) {

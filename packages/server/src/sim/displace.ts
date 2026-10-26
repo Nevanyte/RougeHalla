@@ -23,4 +23,14 @@ export function displace(world: World, c: Combatant, to: Vec2): void {
   const goal = c.rt.path.length > 0 ? c.rt.path[c.rt.path.length - 1]! : null;
   if (goal) c.rt.path = planPath(world, to, goal);
   c.s.displaceSeq = (c.s.displaceSeq + 1) & 0xff;
+  // Whoever has locked it saw it where it was: its line of sight is not "lost" by the jump, it must chase to where it went (the
+  // lock's "seen once" memory restarts, as for a target locked behind a wall) and re-plan at once, bounded by the leash.
+  for (const rt of world.players.values()) {
+    const w = rt.weapon;
+    if (w.lock !== c.id) continue;
+    w.lockSeen = false;
+    w.lockLosLostAt = 0;
+    w.lockPlanAt = -Infinity;
+    w.lockGoal = null;
+  }
 }

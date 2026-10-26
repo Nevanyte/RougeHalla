@@ -8,8 +8,8 @@ import {
   type GameMap, type Vec2,
 } from "@raid/shared";
 import {
-  clampToWorld, CORRECT_SPEED_MOVING_MAX, LocalMotion, ORDER_EXPIRE_MS, REBASE_DEADZONE, SNAP_DISTANCE, VISUAL_SNAP_DISTANCE,
-  type FrameInput,
+  clampToWorld, CORRECT_SPEED_MOVING_MAX, DELAY_MAX_MS, JUMP_ORDER_EXPIRE_MS, LocalMotion, ORDER_EXPIRE_MS, REBASE_DEADZONE, SNAP_DISTANCE,
+  VISUAL_SNAP_DISTANCE, type FrameInput,
 } from "../src/net/localMotion";
 
 const W = 60;
@@ -98,10 +98,10 @@ class Rig {
    * The player casts a blink: the model jumps to `landing` at once. The server blinks to `serverLanding` (default the same; null:
    * it refuses the cast, which it still echoes in moveSeq) when the order reaches it. `lost`: the message never arrives.
    */
-  blink(landing: Vec2, serverLanding: Vec2 | null = landing, lost = false): number {
+  blink(landing: Vec2, serverLanding: Vec2 | null = landing, lost = false, up = this.up): number {
     const seq = (this.seq = (this.seq % 255) + 1);
     this.motion.blink(seq, this.clock, landing);
-    if (!lost) this.inbox.push({ at: this.now + this.delay(this.up), kind: "blink", seq, ...(serverLanding ? { to: serverLanding } : {}) });
+    if (!lost) this.inbox.push({ at: this.now + this.delay(up), kind: "blink", seq, ...(serverLanding ? { to: serverLanding } : {}) });
     return seq;
   }
 
@@ -166,9 +166,10 @@ class Rig {
     if (last) {
       if (last.kind === "stop") this.serverPath = [];
       else if (last.kind === "blink") {
-        // The cast drops the walk and the lock, and moves the fighter in this very tick (or is refused and changes nothing else).
-        this.serverPath = [];
+        // The cast drops the walk and the lock, and moves the fighter in this very tick. Refused (no `to`), it changes nothing
+        // but the echo: the fighter walks on, and a lock it holds stays.
         if (last.to) {
+          this.serverPath = [];
           this.server = { ...last.to };
           this.displaceSeq = (this.displaceSeq + 1) & 255;
         }
@@ -177,7 +178,7 @@ class Rig {
         const path = findPath(this.map, this.server, last.to!, PLAYER_RADIUS);
         if (path.length > 0) this.serverPath = path;
       }
-      this.serverLocked = last.kind === "chase";
+      if (last.kind !== "blink" || last.to) this.serverLocked = last.kind === "chase";
       if (last.kind !== "chase") this.serverSeq = last.seq;
     }
     if (this.forced) {
@@ -612,16 +613,41 @@ describe("staying honest when the server does something the client did not order
     expect(dist(r.server, centre(10, 20))).toBeLessThan(0.5);
   });
 
-  it("an order pending longer than the delay explains is given up on, sooner at a short delay", () => {
+  it("an order pending longer than the delay explains is given up on, sooner once a short delay is known", () => {
     const m = standing(300, 300);
     m.order("move", 1, 100, { x: 900, y: 300 }, arena());
-    m.frame(100 + 300, FRAME_MS, ALIVE);
-    expect(m.pendingOrders).toBe(1); // 300 ms: not yet (the floor is 350 ms)
+    // No delay has been measured yet: a slow link must be able to learn its own, so the order waits for ORDER_EXPIRE_MS.
     m.frame(100 + 400, FRAME_MS, ALIVE);
+    expect(m.pendingOrders).toBe(1);
+    m.frame(100 + ORDER_EXPIRE_MS - 1, FRAME_MS, ALIVE);
+    expect(m.pendingOrders).toBe(1);
+    m.frame(100 + ORDER_EXPIRE_MS + 1, FRAME_MS, ALIVE);
     expect(m.pendingOrders).toBe(0);
+    // A short delay measured (20 ms): the next order is given up on after the floor (350 ms).
     m.order("move", 2, 1000, { x: 900, y: 300 }, arena());
-    m.observe({ x: 300, y: 300, t: 50, moveSeq: 0 }, 1000 + ORDER_EXPIRE_MS + 10);
+    m.observe({ x: 300, y: 300, t: 1000 + TICK_MS + 20, moveSeq: 2 }, 1090);
     expect(m.pendingOrders).toBe(0);
+    expect(m.delay).toBe(20);
+    m.order("move", 3, 1200, { x: 900, y: 300 }, arena());
+    m.frame(1200 + 300, FRAME_MS, ALIVE);
+    expect(m.pendingOrders).toBe(1); // 300 ms: not yet (the floor is 350 ms)
+    m.frame(1200 + 400, FRAME_MS, ALIVE);
+    expect(m.pendingOrders).toBe(0);
+    m.order("move", 4, 2000, { x: 900, y: 300 }, arena());
+    m.observe({ x: 300, y: 300, t: 4000, moveSeq: 0 }, 2000 + ORDER_EXPIRE_MS + 10);
+    expect(m.pendingOrders).toBe(0);
+  });
+
+  it("a slow link learns its delay: the first orders wait for their ack instead of being forgotten before it arrives", () => {
+    // 250 ms each way: the ack is over 500 ms away, past the 350 ms an unmeasured delay used to allow.
+    const r = new Rig({ up: 250, down: 250 });
+    r.run(300);
+    r.move(centre(20, 10));
+    r.run(450); // the unmeasured window used to end at 350 ms
+    expect(r.motion.pendingOrders).toBe(1);
+    r.run(300);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(r.motion.delay).toBe(DELAY_MAX_MS); // 500 ms less a tick, held at the estimate's ceiling: measured, not left at 50
   });
 
   it("the server stopping the fighter with no order (a revive, a halt) does not make the drawn fighter run away from it", () => {
@@ -1145,28 +1171,171 @@ describe("a blink", () => {
     expect(r.motion.visualOffset).toBe(0);
   });
 
-  it("refused over a short jump (inside SNAP_DISTANCE): slid back, not left at the landing", () => {
-    const r = new Rig({ up: 40, down: 40 });
-    r.run(300);
-    const landing = east(r, 64);
-    expect(64).toBeLessThan(SNAP_DISTANCE);
-    r.blink(landing, null);
-    r.run(2000);
-    expect(r.motion.pendingOrders).toBe(0);
-    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
-    expect(r.motion.visualOffset).toBeLessThan(0.1);
+  it("refused over a short jump (inside SNAP_DISTANCE, down to the 64 u minimum): snapped back at the ack, not slid", () => {
+    for (const d of [64, 30, 90]) {
+      const r = new Rig({ up: 40, down: 40 });
+      r.run(300);
+      const origin = { ...r.server };
+      const landing = east(r, d);
+      expect(d).toBeLessThan(SNAP_DISTANCE);
+      r.blink(landing, null);
+      r.run(FRAME_MS + 1);
+      expect(dist(r.motion.drawn, landing), `${d}`).toBeLessThan(1e-6);
+      // The ack is back after one round trip (80 ms) and the tick the server waits for: past it, it is where the server is.
+      r.run(80 + TICK_MS + 30);
+      expect(r.motion.pendingOrders, `${d}`).toBe(0);
+      expect(dist(r.motion.drawn, origin), `${d}`).toBeLessThan(0.01);
+      expect(r.motion.visualOffset, `${d}`).toBe(0);
+    }
   });
 
-  it("a blink the server never hears of waits out ORDER_EXPIRE_MS, then the drawn fighter snaps back to the server", () => {
+  it("refused while walking: the server walks on, so the walk the blink dropped is planned again from where the server is", () => {
+    for (const [up, down] of [[40, 40], [90, 60]] as const) {
+      const tag = `${up}/${down}`;
+      const r = new Rig({ up, down });
+      r.run(300);
+      const goal = centre(50, 10);
+      r.move(goal);
+      r.run(700);
+      expect(r.motion.walking, tag).toBe(true);
+      r.blink({ x: r.motion.predicted.x, y: r.motion.predicted.y + 250 }, null);
+      r.run(FRAME_MS + 1);
+      expect(r.motion.walking, tag).toBe(false); // the blink dropped it, as far as the client knows
+      r.run(up + down + TICK_MS + 40);
+      expect(r.motion.pendingOrders, tag).toBe(0);
+      expect(r.motion.walking, tag).toBe(true); // refused: the walk is on again
+      // It stays with the server (a delay's walk behind its latest sample at most), however long the walk lasts.
+      const bound = PLAYER_SPEED * ((down + 2 * TICK_MS + 40) / 1000);
+      for (let i = 0; i < 6; i++) {
+        r.run(300);
+        expect(dist(r.motion.drawn, r.server), `${tag} +${i}`).toBeLessThan(bound);
+      }
+      r.run(9000);
+      expect(dist(r.server, goal), tag).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.2);
+    }
+  });
+
+  it("refused with a move sent after it: that move stays in flight and is walked from the server, not the dropped walk", () => {
+    const r = new Rig({ up: 80, down: 80 });
+    r.run(300);
+    r.move(centre(50, 10));
+    r.run(700);
+    r.blink({ x: r.motion.predicted.x, y: r.motion.predicted.y + 250 }, null);
+    r.run(80); // a later tick than the blink's
+    const goal = centre(40, 20);
+    r.move(goal);
+    r.run(FRAME_MS + 1);
+    // Until the blink's ack (160 ms and a tick after the press) and past it, the later move is still to be acked.
+    for (let i = 0; i < 400 && r.motion.pendingOrders === 2; i++) r.run(1);
+    expect(r.motion.pendingOrders).toBe(1);
+    r.run(FRAME_MS + 1);
+    expect(r.motion.walking).toBe(true);
+    r.run(500);
+    expect(r.motion.pendingOrders).toBe(0);
+    r.run(9000);
+    expect(dist(r.server, goal)).toBeLessThan(0.5);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.2);
+  });
+
+  it("refused while locked: the lock the server kept is followed again", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    r.lockNow(centre(40, 10));
+    r.run(400);
+    expect(r.motion.mode).toBe("follow");
+    r.blink({ x: r.motion.predicted.x, y: r.motion.predicted.y + 200 }, null);
+    expect(r.motion.mode).toBe("predict");
+    r.run(400);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(r.motion.mode).toBe("follow");
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(PLAYER_SPEED * ((r.down + 2 * TICK_MS) / 1000) + 8);
+  });
+
+  it("a blink the server never hears of waits out JUMP_ORDER_EXPIRE_MS (not the shorter window of a move), then snaps back to the server", () => {
     const r = new Rig({ up: 40, down: 40 });
     r.run(300);
     const landing = east(r);
     r.blink(landing, landing, true);
-    r.run(250);
+    r.run(ORDER_EXPIRE_MS + 100); // a move would be forgotten by now
     expect(dist(r.motion.drawn, landing)).toBeLessThan(1e-6); // held off, as for any order in flight
-    r.run(ORDER_EXPIRE_MS + 300);
+    expect(r.motion.pendingJump).toBe(true);
+    r.run(JUMP_ORDER_EXPIRE_MS - ORDER_EXPIRE_MS - 100 + 300);
     expect(r.motion.pendingOrders).toBe(0);
+    expect(r.motion.pendingJump).toBe(false);
     expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+  });
+
+  it("an accepted blink whose ack is late (the cast message stalls on the uplink) does not pop back and forward: one jump, then nothing", () => {
+    for (const stall of [400, 700, 1000, 1400]) {
+      const r = new Rig({ up: 60, down: 60 });
+      r.run(300);
+      r.move(centre(12, 10)); // a delay estimate, as in a play session
+      r.run(700);
+      const landing = east(r);
+      r.blink(landing, landing, false, stall);
+      r.run(FRAME_MS + 1);
+      const first = r.drawnLog.length;
+      r.run(stall + 1500);
+      expect(r.displaceSeq, `${stall}`).toBe(1);
+      expect(r.motion.pendingOrders, `${stall}`).toBe(0);
+      expect(r.maxStep(first), `${stall}`).toBeLessThan(2);
+      expect(dist(r.motion.drawn, r.server), `${stall}`).toBeLessThan(0.01);
+    }
+  });
+
+  it("the same at a high round trip with no ack yet to learn the delay from (220 ms each way, 300 ms in)", () => {
+    const r = new Rig({ up: 220, down: 220 });
+    r.run(300);
+    const landing = east(r);
+    r.blink(landing);
+    r.run(FRAME_MS + 1);
+    const first = r.drawnLog.length;
+    r.run(1500);
+    expect(r.displaceSeq).toBe(1);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(r.maxStep(first)).toBeLessThan(2);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
+  });
+
+  it("a blink acked after its order was given up on (past JUMP_ORDER_EXPIRE_MS) ends on the server's landing: no third place", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    const landing = east(r);
+    r.blink(landing, landing, false, JUMP_ORDER_EXPIRE_MS + 400);
+    r.run(FRAME_MS + 1);
+    r.run(JUMP_ORDER_EXPIRE_MS + 400 + 1500);
+    expect(r.displaceSeq).toBe(1);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
+    expect(dist(r.motion.drawn, landing)).toBeLessThan(0.01);
+  });
+
+  it("a short blink acked after its order was given up on is slid into, not jumped: the late ack is recognised by where it lands", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    const landing = east(r, 64);
+    r.blink(landing, landing, false, JUMP_ORDER_EXPIRE_MS + 300);
+    r.run(FRAME_MS + 1);
+    const first = r.drawnLog.length;
+    r.run(JUMP_ORDER_EXPIRE_MS + 300 + 1500);
+    expect(r.displaceSeq).toBe(1);
+    expect(r.maxStep(first)).toBeLessThan(6); // every correction runs under the speed caps, the late ack's included
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+  });
+
+  it("drops the offset of an older correction at the blink: the drawn fighter jumps to the landing itself", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    r.move(centre(50, 10));
+    r.serverSpeedMult = 0.8; // the server walks slower than the client expects: corrections pile up in the offset
+    r.run(1500);
+    expect(r.motion.visualOffset).toBeGreaterThan(1);
+    const landing = east(r, 200);
+    r.blink(landing);
+    r.run(FRAME_MS + 1);
+    expect(dist(r.motion.drawn, landing)).toBeLessThan(1e-6);
+    expect(r.motion.visualOffset).toBe(0);
   });
 
   it("a sample from just before the blink is compared with where the model was then, not a point between it and its landing", () => {
@@ -1354,5 +1523,30 @@ describe("a displacement the client did not order (a pull, a knock)", () => {
     m.frame(50, 50, ALIVE);
     // A plain (small) correction: slid, not jumped.
     expect(m.drawn.x).toBeLessThan(310);
+  });
+});
+
+describe("a displacement that arrives while our own blink is still in flight", () => {
+  it("is measured against the model without the pending jump: the pull moves the fighter by what it did, the blink stays", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(400);
+    const origin = { ...r.server };
+    const landing = { x: origin.x + 300, y: origin.y };
+    // The pull reaches the server's next tick, before the cast (60 ms up) does: the server then blinks from where it was pulled to.
+    r.blink(landing, { x: landing.x, y: landing.y + 80 });
+    r.run(FRAME_MS + 1);
+    const first = r.drawnLog.length;
+    r.displace({ x: origin.x, y: origin.y + 80 });
+    r.run(1500);
+    expect(r.displaceSeq).toBe(2);
+    expect(r.motion.pendingOrders).toBe(0);
+    const jumps: number[] = [];
+    for (let i = first + 1; i < r.drawnLog.length; i++) {
+      const d = dist(r.drawnLog[i]!, r.drawnLog[i - 1]!);
+      if (d > 10) jumps.push(Math.round(d));
+    }
+    // One jump of the pull (80 u), then the blink's landing is where it was: not back to the origin and forward again.
+    expect(jumps).toEqual([80]);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
   });
 });
