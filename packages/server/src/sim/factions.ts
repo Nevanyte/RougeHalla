@@ -76,7 +76,7 @@ export interface FactionsRuntime {
   /** This tick's attacks: swings landing, balls leaving, arrows loosed. */
   attacks: Array<{ by: string; weapon: WeaponId }>;
   /** Damage over time landed since `dotSince`, reported together every DOT_FX_MS. */
-  dot: Map<string, { victim: string; by: string; sig: SignatureKind; weapon: WeaponId; amount: number }>;
+  dot: Map<string, { victim: string; by: string; sig: SignatureKind; weapon: WeaponId | null; amount: number }>;
   dotSince: number;
 }
 

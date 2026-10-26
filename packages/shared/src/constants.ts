@@ -159,6 +159,16 @@ export const TARGET_LOS_GRACE_MS = 1500;
  * path search at most this often per player (an order out of sight sooner than that is refused).
  */
 export const TARGET_REPATH_MS = 250;
+
+// Wishes and abilities (abilities.ts). The numbers of each Wish live there.
+/** A Wish's cooldown: one use per run in practice (flat: nothing shortens it). */
+export const WISH_COOLDOWN_SECONDS = 300;
+/** A Wish is locked this long after the run starts (SimConfig.wishLockSeconds overrides it, e.g. in the e2e). */
+export const WISH_LOCK_SECONDS = 45;
+/** A Wish's cooldown in a training room, so it can be practised (a best guess). */
+export const TRAINING_WISH_COOLDOWN_SECONDS = 5;
+/** A cast's target may be this much farther than its range when the cast is accepted or lands: the client's drawn positions are in the past. */
+export const CAST_RANGE_SLACK = 32;
 /** Training dummies (server env DUMMIES=1): no faction (no armor or shield), and back to full hp this long after a hit. */
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;

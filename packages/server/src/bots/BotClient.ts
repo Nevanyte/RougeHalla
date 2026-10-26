@@ -162,7 +162,7 @@ export class BotClient {
   /** `teleport` fx seen: how many times the arena moved everyone into the coliseum. */
   teleports = 0;
   /** Inputs sent so far, by message type. */
-  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0 };
+  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, cast: 0 };
 
   private profile = "";
   private room!: ClientRoom;
