@@ -1,0 +1,22 @@
+.git
+.claude
+.gitignore
+node_modules
+**/node_modules
+packages/client/dist
+packages/server/data
+packages/server/scratch
+packages/server/.vitest
+packages/*/test
+packages/server/bench
+coverage
+*.log
+.DS_Store
+**/__pycache__
+**/*.pyc
+# The Python design tools and the docs are not part of the game server.
+testing
+docs
+*.md
+Dockerfile
+.dockerignore

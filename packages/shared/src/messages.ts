@@ -218,6 +218,8 @@ export interface JoinOptions {
   faction?: FactionId;
   /** Only `"training"` means anything: it asks `client.create` for a training room. Absent or anything else is an arena join. */
   mode?: RoomMode;
+  /** The host's playtest passcode (PLAYTEST_PASSCODE), when the server has one set; ignored otherwise. */
+  passcode?: string;
 }
 
 /** `deaths` counts died and mia; `runs` counts every resolved run, including the ones won or drawn. */
@@ -265,6 +267,8 @@ export interface ProfileDTO {
  */
 export interface ProfileResponse { profile: ProfileDTO; token: string; created: boolean }
 export const PROFILE_TOKEN_HEADER = "x-profile-token";
+/** The playtest passcode on REST calls (claiming a new callsign needs it when the server has one set). */
+export const PASSCODE_HEADER = "x-playtest-passcode";
 
 export const PROFILE_RE = /^[A-Za-z0-9_-]{2,16}$/;
 
