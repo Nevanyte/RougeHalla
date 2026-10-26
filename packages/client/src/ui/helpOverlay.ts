@@ -2,6 +2,7 @@
 // running behind it, so it closes with H, Esc, its button or a click outside the card. The keys themselves are Chrome's,
 // and so is the stylesheet (chrome.css).
 import { el } from "./dom";
+import { renderGround } from "./groundLegend";
 import { keycap } from "./keycap";
 
 /** Where a control works. The card lists the current place first. */
@@ -81,6 +82,8 @@ export class HelpOverlay {
   private readonly card = el("div", "help-card");
   private readonly closeButton = el("button", "help-close", "×");
   private readonly sections = new Map<HelpScope, HTMLElement>();
+  /** The Ground legend (what each terrain kind does): always after the controls. */
+  private readonly ground = renderGround();
 
   constructor(private readonly options: HelpOverlayOptions = {}) {
     const head = el("div", "help-head");
@@ -102,6 +105,7 @@ export class HelpOverlay {
       this.sections.set(section.id, node);
       body.append(node);
     }
+    body.append(this.ground);
     this.card.append(body, el("p", "help-foot", "Press H or Esc to close. Settings are behind the gear button."));
 
     this.element.append(this.card);
@@ -117,6 +121,7 @@ export class HelpOverlay {
   /** `context`: where the player is, so those controls come first. */
   open(context: HelpScope = "run"): void {
     helpSectionOrder(context).forEach((id, i) => { this.sections.get(id)!.style.order = String(i); });
+    this.ground.style.order = String(this.sections.size);
     this.element.hidden = false;
     this.card.focus();
   }

@@ -1,0 +1,29 @@
+/* The Ground section of the help card (groundLegend.ts): a swatch per terrain kind in its own pattern, plus the name. */
+.help-ground-term { display: flex; align-items: center; gap: 8px; margin: 0; }
+.help-ground-name { color: #e6e9ed; font-weight: 600; }
+.ground-swatch { flex: none; width: 26px; height: 18px; border-radius: 3px; border: 1px solid rgba(255, 255, 255, 0.28); }
+/* Lava: flowing waves. */
+.ground-swatch-lava { background: repeating-linear-gradient(175deg, #ff5a14 0 4px, #ffb347 4px 5px); }
+/* Embers: an angular zigzag. */
+.ground-swatch-ember {
+  background:
+    linear-gradient(135deg, #ffd27a 25%, transparent 25%) -4px 0 / 8px 8px,
+    linear-gradient(225deg, #ffd27a 25%, transparent 25%) -4px 0 / 8px 8px,
+    #5a2412;
+}
+/* Bog: rings. */
+.ground-swatch-bog { background: radial-gradient(circle, transparent 38%, #8fc25a 42% 52%, transparent 56%) 0 0 / 10px 9px, #3a5f22; }
+/* Ice: straight diagonals. */
+.ground-swatch-ice { background: repeating-linear-gradient(45deg, #8cc8e8 0 5px, #eaf8ff 5px 6px); }
+/* Light: rays from a centre. */
+.ground-swatch-light { background: repeating-conic-gradient(from 0deg at 50% 50%, #ffe28a 0 12deg, #8a7a4a 12deg 30deg); }
+/* Fence: vertical bars. */
+.ground-swatch-fence { background: repeating-linear-gradient(90deg, #8d93a3 0 2px, #1c1d22 2px 6px); }
+/* Crevasse: a jagged slit. */
+.ground-swatch-crevasse {
+  background:
+    linear-gradient(135deg, #4aa3df 12%, transparent 12%) -3px 0 / 6px 18px,
+    linear-gradient(225deg, #4aa3df 12%, transparent 12%) -3px 0 / 6px 18px,
+    #0a1626;
+}
+html[data-ui-narrow] .help-ground-term { margin-top: 6px; }
