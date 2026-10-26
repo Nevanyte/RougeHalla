@@ -416,8 +416,9 @@ export interface ArenaRuntime {
 
 /**
  * Counters the terrain hazards keep for measurement (sim/terrainEffects.ts): nothing in the game reads them. `damage` is the
- * hp each victim lost to each hazard kind ("ember"), `seconds` the fighter-seconds each kind acted on (a fighter its home rule
- * exempts adds none), and `heal` the hp light restored per player.
+ * hp each victim actually lost to each hazard kind ("ember"): what the ledger took off after armor, teleport immunity, a kill
+ * barrier, Last Stand's floor and overkill (WorldHooks.arenaHurt), not the burn asked for. `seconds` the fighter-seconds each
+ * kind acted on (a fighter its home rule exempts adds none), and `heal` the hp light restored per player.
  */
 export interface HazardStats {
   damage: Map<string, Record<string, number>>;
@@ -444,8 +445,11 @@ export type SimEvent =
 /** Handles one queued action for a standing fighter (players today; Phase 11 mobs go through the same handlers). */
 export type ActionHandler = (world: World, c: Combatant, cmd: ActionCommand) => void;
 export type SimSystem = (world: World, dtMs: number) => void;
-/** A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. */
-export type MoveModifier = (world: World, c: Combatant) => number;
+/**
+ * A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. `dtMs` is the step being
+ * simulated (step.ts passes it; a caller outside the tick may not).
+ */
+export type MoveModifier = (world: World, c: Combatant, dtMs?: number) => number;
 
 /** What one mod source adds to a fighter's stat mirrors (sim/mods.ts): multipliers multiply in, flat bonuses add points. */
 export interface ModContribution {
@@ -496,6 +500,13 @@ export interface WorldHooks {
    * do with payLater), never from what earlier victims of the same pass changed, or the ledger's order would matter.
    */
   hitLanded?(world: World, entry: LedgerEntry, applied: number): void;
+  /**
+   * The arena's own damage (an `arena` entry: sudden death, terrain) just took `hp` off `victim` (applyLedger, after the victim's
+   * damage): the hp it actually removed, not what it asked for. Armor, teleport immunity, a kill barrier, Last Stand's floor and
+   * overkill all come off first. When the victim also took other hits in the pass the removed hp is shared between the entries in
+   * proportion to their (mitigated) amounts. Unset by default; a measurement tap, it must not change the state.
+   */
+  arenaHurt?(world: World, victim: string, by: DamageSource, hp: number): void;
 }
 
 export interface World {
@@ -655,7 +666,7 @@ export function emit(world: World, ev: SimEvent): void {
 }
 
 type ChainableHook =
-  | "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded"
+  | "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "arenaHurt"
   | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered";
 
 /** Adds a hook that runs after whatever was already installed for it. */

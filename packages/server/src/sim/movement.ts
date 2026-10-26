@@ -46,7 +46,9 @@ export function advanceAlongPath(p: Walker, rt: { path: Vec2[] }, dt: number, ke
  * rule does not exempt), where the slide of shared/walk.ts takes over. Off ice and carrying no slide it IS advanceAlongPath,
  * bit for bit. On ice the fighter keeps the velocity it walked on with (the last tick's), turns toward the walk by the
  * traction, and a speed multiplier of 0 (a windup, the axe's root, later a stun) plants it. The first tick off ice grips at
- * once and plans the walk again if the slide carried it off the line.
+ * once and plans the walk again if the slide carried it off the line. A slide stuck on a map it cannot steer on (ice touching a
+ * wall, which validateTerrain T11 refuses) grips for a second inside slipWalk (SlipState.gripUntil) and walks its path exactly:
+ * nothing to do here, the client's model runs the same call.
  */
 export function walkFighter(world: World, c: Combatant, dt: number, keepFacing: boolean, speedMult: number): void {
   const rt = c.rt;
@@ -78,7 +80,8 @@ export function walkFighter(world: World, c: Combatant, dt: number, keepFacing: 
 
 /**
  * The velocity (u/s) a fighter walked at in its last tick, from the two newest history samples (zero with fewer than two: just
- * placed, teleported, revived). It is what a fighter carries onto ice, so stepping onto it is no speed pop.
+ * placed, or whatever reset the history to one sample: the teleport, a displacement, a mob's reset, the training revive). It
+ * is what a fighter carries onto ice, so stepping onto it is no speed pop.
  */
 export function tickVelocity(history: readonly Sample[]): Vec2 {
   const n = history.length;

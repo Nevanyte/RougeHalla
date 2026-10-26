@@ -3,12 +3,13 @@
 // tick. The slide integrator itself is tested in shared/test/walk.test.ts; here it is the fighter that walks.
 import { describe, expect, it } from "vitest";
 import {
-  buffMultiplier, circleClear, FACTION_IDS, FACTIONS, GV_KILL, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, TERRAIN_BOG,
-  TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, worldToTile,
+  buffMultiplier, circleClear, GV_KILL, hazardsOf, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, SLIP_GRIP_MS,
+  TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, worldToTile,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { downPlayer } from "../src/sim/arena";
 import { combatant } from "../src/sim/combatant";
+import { displace } from "../src/sim/displace";
 import { heal, signatureState } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -20,11 +21,9 @@ import { grantStacks } from "../src/sim/buffs";
 import { advanceAlongPath, planPath, regripPath, tickVelocity, walkFighter } from "../src/sim/movement";
 import { speedMultOf } from "../src/sim/mods";
 import { addPlayer, startRaid, step } from "../src/sim/step";
-import { LIGHT_FX_MS, slipAccelOf, surfaceOf, TERRAIN_SOURCE } from "../src/sim/terrainEffects";
+import { applyBog, LIGHT_FX_MS, slipAccelOf, surfaceOf, TERRAIN_SOURCE } from "../src/sim/terrainEffects";
 import { installTraining } from "../src/sim/training";
 import type { PlayerRuntime, SimConfig, SimEvent, World } from "../src/sim/world";
-import { newWeaponRuntime } from "../src/sim/world";
-import { InputQueue } from "../src/sim/inputs";
 import { PlayerState } from "@raid/shared/schema";
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -186,6 +185,104 @@ describe("ember burn", () => {
     run(world, 40);
     expect(P(world, "p0").hp).toBeCloseTo(1000 * 0.96, 6);
     expect(P(world, "p1").hp).toBeCloseTo(100 * 0.96, 6);
+  });
+
+  describe("the damage counters hold the hp actually lost (m3)", () => {
+    const rawPerTick = (maxHp: number): number => 0.02 * maxHp * DT;
+    const ember = (world: World, id: string): number | undefined => world.hazards.stats.damage.get(id)?.ember;
+    const two = (): World => makeRig({ map: terrainMap({ kind: everywhere(TERRAIN_EMBER) }), players: [{ faction: "frost" }, { faction: "fire" }] });
+
+    it("a kill barrier takes its share first: the counter is the hp that went", () => {
+      const world = two();
+      const p = P(world, "p0");
+      p.barrier = 10;
+      run(world, 20);
+      expect(p.barrier).toBe(0);
+      expect(ember(world, "p0")).toBeCloseTo(0.02 * p.maxHp - 10, 6);
+      expect(ember(world, "p0")).toBeCloseTo(p.maxHp - p.hp, 9);
+    });
+
+    it("teleport immunity refuses the burn, and the counter stays empty", () => {
+      const world = two();
+      P(world, "p0").immuneUntil = world.state.serverTime + 10_000;
+      run(world, 20);
+      expect(world.hazards.stats.damage.has("p0")).toBe(false);
+      // The time it stood on the ember is still counted: seconds are fighter-seconds acted on, damage is hp lost.
+      expect(world.hazards.stats.seconds.ember).toBeCloseTo(1, 9);
+    });
+
+    it("a killing tick counts the hp that was left, not the overkill", () => {
+      const world = two();
+      const p = P(world, "p0");
+      const raw = rawPerTick(p.maxHp);
+      p.hp = raw / 4;
+      run(world, 1);
+      expect(p.status).toBe("dead");
+      expect(ember(world, "p0")).toBeCloseTo(raw / 4, 9);
+    });
+
+    it("in a pass with a rival's hit the burn is credited its share of what was removed", () => {
+      const world = two();
+      const p = P(world, "p0");
+      const raw = rawPerTick(p.maxHp);
+      p.hp = raw / 2;
+      world.beforeDamage.push((w) => {
+        recordHit(w, { victim: "p0", by: { id: "p1", name: "player1" }, packet: { raw: 3 * raw, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false });
+      });
+      run(world, 1);
+      expect(p.status).toBe("dead");
+      // raw/2 hp went; the burn asked for a quarter of the pass.
+      expect(ember(world, "p0")).toBeCloseTo(raw / 8, 9);
+    });
+
+    it("a regional mob's counter is the hp it lost too", () => {
+      const world = makeRig({ map: terrainMap({ kind: everywhere(TERRAIN_EMBER) }), players: [{ faction: "fire", at: at(30, 20) }, { faction: "fire", at: at(30, 24) }] });
+      const id = placeMob(world, { region: "plague", elite: false, at: at(10, 10) });
+      const m = combatant(world, id) as MobCombatant;
+      m.s.hp = 0.2;
+      run(world, 1);
+      expect(m.s.status).toBe("dead");
+      expect(ember(world, id)).toBeCloseTo(0.2, 9);
+    });
+  });
+
+  describe("a locked arena burns nothing (m4)", () => {
+    function locked(suddenDeath: boolean): World {
+      const world = makeRig({
+        map: terrainMap({ kind: everywhere(TERRAIN_EMBER) }),
+        players: [{ faction: "frost", at: at(8, 8) }, { faction: "fire", at: at(30, 20) }],
+      });
+      world.state.gatesLocked = true;
+      world.state.suddenDeathAt = suddenDeath ? world.state.serverTime : 0;
+      return world;
+    }
+
+    it("ember under a locked coliseum records no terrain entry and takes no hp", () => {
+      const world = locked(false);
+      let terrainEntries = 0;
+      world.beforeDamage.push((w) => { for (const e of w.combat.ledger) if (e.by.id.startsWith("terrain:")) terrainEntries++; });
+      run(world, 20);
+      expect(terrainEntries).toBe(0);
+      expect(P(world, "p0").hp).toBe(P(world, "p0").maxHp);
+      expect(world.hazards.stats.seconds.ember).toBe(0);
+    });
+
+    it("a death to sudden death credits nobody, rival's hit within 5 s or not", () => {
+      const world = locked(true);
+      P(world, "p0").hp = 1;
+      RT(world, "p0").lastHit = { by: "p1", at: world.state.serverTime - 2000 };
+      let terrainEntries = 0;
+      world.beforeDamage.push((w) => { for (const e of w.combat.ledger) if (e.by.id.startsWith("terrain:")) terrainEntries++; });
+      const events = run(world, 1);
+      expect(P(world, "p0").status).toBe("dead");
+      expect(terrainEntries).toBe(0);
+      expect(P(world, "p1").kills).toBe(0);
+      expect(RT(world, "p1").gv.kills).toBe(0);
+      const result = events.find((e): e is Extract<SimEvent, { type: "resolved" }> => e.type === "resolved" && e.id === "p0")!;
+      expect(result.result.killedBy).toBe("sudden death");
+      // Sudden death's own entry is an arena entry too, but not a terrain kind: the hazard counters leave it out.
+      expect(world.hazards.stats.damage.size).toBe(0);
+    });
   });
 
   it("only the tile under the centre counts", () => {
@@ -441,6 +538,15 @@ describe("bog slow", () => {
     const world = bogWorld([{ faction: "frost", at: at(3, 5) }, { faction: "fire", at: at(3, 20) }], { hazards: false });
     expect(walkOneSecond(world, "p0")).toBeCloseTo(170, 6);
   });
+
+  it("counts the seconds it slowed by the step it was handed, not by TICK_MS", () => {
+    const world = bogWorld([{ faction: "frost", at: at(3, 5) }, { faction: "plague", at: at(3, 20) }]);
+    for (let i = 0; i < 4; i++) step(world, 25);
+    expect(world.hazards.stats.seconds.bog).toBeCloseTo(0.1, 9); // the Frost player only: Plague is at home
+    // A caller outside the tick passes nothing: the default step.
+    expect(applyBog(world, combatant(world, "p0")!)).toBe(0.7);
+    expect(world.hazards.stats.seconds.bog).toBeCloseTo(0.1 + TICK_MS / 1000, 9);
+  });
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -452,14 +558,11 @@ describe("ice", () => {
     makeRig({ map: terrainMap({ w: 64, ...o, kind: everywhere(TERRAIN_ICE) }), players, config, signatures });
 
   describe("off ice, today's walk, bit for bit", () => {
-    it("a 400-tick script of random orders gives Object.is-equal x, y, facing and path length to advanceAlongPath", () => {
-      // Pillars and a fence on a map with no terrain: the plain walker is the only code that runs.
-      const map = terrainMap({
-        w: 48, h: 30,
-        wall: (x, y) => x % 9 === 4 && y % 7 === 3,
-        fence: (x, y) => x === 30 && y >= 4 && y <= 20,
-      });
-      const world = makeRig({ map, players: [{ faction: "plague", at: at(6, 6) }, { faction: "fire", at: at(40, 24) }] });
+    /**
+     * 400 ticks of random orders (from a player who never stands on slippery ground, or is exempt from it) give Object.is-equal
+     * x, y, facing and path length to advanceAlongPath, and no slide is ever created.
+     */
+    function expectPlainWalk(world: World, tiles: { x: number; y: number }): void {
       const ref = { x: P(world, "p0").x, y: P(world, "p0").y, facing: P(world, "p0").facing };
       const refRt = { path: [] as Vec2[] };
       const rnd = mulberry32(99);
@@ -469,7 +572,7 @@ describe("ice", () => {
             order(world, "p0", "stop", {});
             refRt.path = [];
           } else {
-            const to = { x: (1 + rnd() * 46) * TILE, y: (1 + rnd() * 28) * TILE };
+            const to = { x: (1 + rnd() * tiles.x) * TILE, y: (1 + rnd() * tiles.y) * TILE };
             order(world, "p0", "move", to);
             const path = planPath(world, ref, to);
             if (path.length > 0) refRt.path = path;
@@ -484,6 +587,33 @@ describe("ice", () => {
         expect(RT(world, "p0").path.length).toBe(refRt.path.length);
         expect(RT(world, "p0").slip ?? null).toBeNull();
       }
+    }
+    const pillars: TilePredicate = (x, y) => x % 9 === 4 && y % 7 === 3;
+
+    it("a 400-tick script of random orders gives Object.is-equal x, y, facing and path length to advanceAlongPath", () => {
+      // Pillars and a fence on a map with no terrain: the plain walker is the only code that runs.
+      const map = terrainMap({ w: 48, h: 30, wall: pillars, fence: (x, y) => x === 30 && y >= 4 && y <= 20 });
+      expect(hazardsOf(map).slip).toBe(false);
+      expectPlainWalk(makeRig({ map, players: [{ faction: "plague", at: at(6, 6) }, { faction: "fire", at: at(40, 24) }] }), { x: 46, y: 28 });
+    });
+
+    it("the same, for a Plague player on plain floor of a map that HAS ice (the slide path is never entered)", () => {
+      const map = terrainMap({
+        w: 48, h: 30, wall: pillars, fence: (x, y) => x === 30 && y >= 4 && y <= 20, kind: (tx) => (tx >= 36 ? TERRAIN_ICE : 0),
+      });
+      expect(hazardsOf(map).slip).toBe(true);
+      const world = makeRig({ map, players: [{ faction: "plague", at: at(6, 6) }, { faction: "fire", at: at(40, 24) }] });
+      expectPlainWalk(world, { x: 28, y: 28 }); // west of the fence and of the ice
+      expect(world.hazards.stats.seconds.ice).toBe(0);
+    });
+
+    it("the same, for a Frost player on ice (its home exempts it: full grip, no slide)", () => {
+      const map = terrainMap({ w: 48, h: 30, wall: pillars, fence: (x, y) => x === 30 && y >= 4 && y <= 20, kind: everywhere(TERRAIN_ICE) });
+      const world = makeRig({ map, players: [{ faction: "frost", at: at(6, 6) }, { faction: "fire", at: at(41, 25) }] });
+      expect(slipAccelOf(world, combatant(world, "p0")!)).toBe(0);
+      expect(slipAccelOf(world, combatant(world, "p1")!)).toBeGreaterThan(0);
+      expectPlainWalk(world, { x: 46, y: 28 });
+      expect(world.hazards.stats.seconds.ice).toBeGreaterThan(0); // p1, the Fire player, stands on ice the whole time
     });
 
     it("walkFighter called directly is advanceAlongPath on ground without terrain", () => {
@@ -509,7 +639,7 @@ describe("ice", () => {
       let prev = p.x;
       for (let i = 0; i < 10; i++) {
         step(world, TICK_MS);
-        expect(p.x - prev).toBeCloseTo(STEP_U * (i === 0 ? 1 : 1), 9);
+        expect(p.x - prev).toBeCloseTo(STEP_U, 9);
         prev = p.x;
       }
       expect(RT(world, "p0").slip ?? null).toBeNull();
@@ -696,6 +826,94 @@ describe("ice", () => {
     });
   });
 
+  describe("facing on ice", () => {
+    function slider(): { world: World; c: NonNullable<ReturnType<typeof combatant>> } {
+      const world = iceWorld([{ faction: "plague", at: at(10, 10) }, { faction: "fire", at: at(40, 24) }]);
+      const c = combatant(world, "p0")!;
+      c.rt.path = [at(20, 4), at(30, 14)];
+      c.s.facing = 3;
+      return { world, c };
+    }
+    const toward = (c: NonNullable<ReturnType<typeof combatant>>): number => Math.atan2(c.rt.path[0]!.y - c.s.y, c.rt.path[0]!.x - c.s.x);
+
+    it("turns toward the waypoint it steers at, tick by tick, as the plain walker turns", () => {
+      const { world, c } = slider();
+      let turned = 0;
+      for (let i = 0; i < 60 && c.rt.path.length > 0; i++) {
+        const before = c.s.facing;
+        walkFighter(world, c, DT, false, 1);
+        if (c.rt.path.length === 0) break;
+        expect(c.s.facing, `tick ${i}`).toBeCloseTo(toward(c), 9);
+        if (c.s.facing !== before) turned++;
+      }
+      expect(turned).toBeGreaterThan(20);
+      expect(RT(world, "p0").slip).not.toBeNull(); // it slid: this was not the plain walker
+    });
+
+    it("an aiming fighter (keepFacing) does not turn, and a rooted one does not either", () => {
+      const { world, c } = slider();
+      walkFighter(world, c, DT, true, 1);
+      expect(c.s.facing).toBe(3);
+      expect(c.s.x).toBeGreaterThan(at(10, 10).x); // it moved
+      const x = c.s.x;
+      for (let i = 0; i < 10; i++) walkFighter(world, c, DT, false, 0);
+      expect(c.s.facing).toBe(3);
+      walkFighter(world, c, DT, false, 1);
+      expect(c.s.facing).not.toBe(3);
+      expect(c.s.facing).toBeCloseTo(toward(c), 9);
+      expect(c.s.x).toBeGreaterThan(x - 1e-9);
+    });
+
+    it("keeps its facing when it has no walk, and when the waypoint is on top of it", () => {
+      const { world, c } = slider();
+      c.rt.path = [];
+      walkFighter(world, c, DT, false, 1);
+      expect(c.s.facing).toBe(3);
+      c.rt.path = [{ x: c.s.x, y: c.s.y }];
+      walkFighter(world, c, DT, false, 1);
+      expect(Number.isFinite(c.s.facing)).toBe(true);
+    });
+  });
+
+  describe("ice that touches a wall (validateTerrain T11 refuses the map; the slide still must not trap anyone)", () => {
+    /** The review's T-junction: a one-tile corridor along row 5 and a one-tile corridor down column 10, ice on every floor tile. */
+    const tJunction = (): GameMap => terrainMap({
+      w: 24, h: 16, kind: everywhere(TERRAIN_ICE), wall: (x, y) => !(y === 5 || (x === 10 && y >= 5 && y <= 12)),
+    });
+
+    it("a move order round the corner arrives within 8 s (it livelocked for good: a path search four times a second)", () => {
+      const world = makeRig({ map: tJunction(), players: [{ faction: "plague", at: at(3, 5) }, { faction: "fire", at: at(20, 5) }] });
+      const p = P(world, "p0");
+      const goal = at(10, 12);
+      order(world, "p0", "move", goal);
+      let arrivedAt = -1;
+      let gripped = false;
+      for (let tick = 0; tick < 400 && arrivedAt < 0; tick++) {
+        step(world, TICK_MS);
+        gripped ||= (RT(world, "p0").slip?.gripUntil ?? -Infinity) > world.state.serverTime;
+        expect(circleClear(world.map, p, PLAYER_RADIUS - 1e-6), `tick ${tick}`).toBe(true);
+        if (RT(world, "p0").path.length === 0) arrivedAt = tick;
+      }
+      expect(arrivedAt, "arrived").toBeGreaterThanOrEqual(0);
+      expect(arrivedAt * TICK_MS).toBeLessThan(8000);
+      expect(Math.hypot(p.x - goal.x, p.y - goal.y)).toBeLessThan(1e-6);
+      expect(gripped, "the breaker is what did it").toBe(true);
+      expect(RT(world, "p0").slip!.gripUntil! - world.state.serverTime).toBeLessThanOrEqual(SLIP_GRIP_MS);
+    });
+
+    it("a sword lock on a dummy at the end of the side corridor lands hits (it landed none in 60 s)", () => {
+      const world = makeRig({
+        map: tJunction(), signatures: false,
+        players: [{ faction: "fire", weapon: "sword", at: at(3, 5) }, { faction: "plague", at: at(20, 5) }],
+      });
+      const dummy = addMob(world, { kind: "dummy", name: "Dummy", at: at(10, 12) });
+      order(world, "p0", "target", { id: dummy });
+      const events = run(world, 400);
+      const hits = fxOf(events, "hit").filter((h) => h.id === dummy && h.by === "p0" && h.weapon === "sword");
+      expect(hits.length).toBeGreaterThan(3);
+    });
+  });
+
   describe("resets", () => {
     const slide = () => ({ vx: 50, vy: 0, ax: 0, ay: 0, path: null, replanAt: 0 });
 
@@ -742,6 +960,40 @@ describe("ice", () => {
       run(world, 1);
       expect(P(world, "p0").status).toBe("alive");
       expect(RT(world, "p0").slip ?? null).toBeNull();
+    });
+
+    it("a training death at full slide speed revives at rest: it slides nowhere (the old samples are gone)", () => {
+      const world = iceWorld([{ faction: "plague", at: at(4, 8) }], {}, { training: true });
+      const p = P(world, "p0");
+      order(world, "p0", "move", { x: 60 * TILE, y: p.y });
+      run(world, 12);
+      expect(RT(world, "p0").slip!.vx).toBeCloseTo(PLAYER_SPEED, 9);
+      expect(tickVelocity(RT(world, "p0").history).x).toBeCloseTo(PLAYER_SPEED, 9);
+      downPlayer(world, p, RT(world, "p0"), "died");
+      run(world, 1);
+      expect(p.status).toBe("alive");
+      expect(RT(world, "p0").history).toHaveLength(1);
+      expect(tickVelocity(RT(world, "p0").history)).toEqual({ x: 0, y: 0 });
+      const x = p.x;
+      const y = p.y;
+      run(world, 20);
+      expect([p.x, p.y]).toEqual([x, y]);
+    });
+
+    it("a blink from ice onto ice carries no slide: the fighter lands at rest", () => {
+      const world = iceWorld([{ faction: "plague", at: at(4, 8) }, { faction: "fire", at: at(40, 24) }]);
+      const p = P(world, "p0");
+      order(world, "p0", "move", { x: 60 * TILE, y: p.y });
+      run(world, 10);
+      expect(RT(world, "p0").slip!.vx).toBeCloseTo(PLAYER_SPEED, 9);
+      order(world, "p0", "stop", {});
+      run(world, 1); // braking: the slide is still carrying about 150 u/s
+      expect(RT(world, "p0").slip!.vx).toBeGreaterThan(100);
+      const landing = at(5, 20);
+      displace(world, combatant(world, "p0")!, landing);
+      expect(RT(world, "p0").slip ?? null).toBeNull();
+      run(world, 30);
+      expect(Math.hypot(p.x - landing.x, p.y - landing.y)).toBeLessThan(1);
     });
   });
 
@@ -862,16 +1114,65 @@ describe("light heal", () => {
     expect(P(world, "p0").hp).toBe(P(world, "p0").maxHp);
   });
 
-  it("a player who walks off the light before the report still gets it, one fx for the second", () => {
+  it("a player who walks off the light before the report still gets it: exactly one fx, for the time it stood in it", () => {
     const world = makeRig({
       map: terrainMap({ kind: (tx) => (tx < 10 ? TERRAIN_LIGHT : 0) }),
       players: [{ faction: "holy", at: at(8, 8) }, { faction: "fire", at: at(30, 20) }],
     });
-    P(world, "p0").hp = P(world, "p0").maxHp / 2;
-    put(world, "p0", at(5, 8));
+    const p = P(world, "p0");
+    p.hp = p.maxHp / 2;
+    const hp0 = p.hp;
+    order(world, "p0", "move", { x: 20 * TILE, y: p.y }); // the light ends at x = 320; the walk leaves it in about 0.3 s
     const events = run(world, 40);
-    // In the shaft for the whole first second, out after: at most the two reports of the first two seconds, only one with hp in it.
-    expect(fxOf(events, "heal").length).toBeGreaterThanOrEqual(1);
+    expect(p.x).toBeGreaterThan(10 * TILE);
+    const heals = fxOf(events, "heal").filter((h) => h.id === "p0");
+    expect(heals).toHaveLength(1);
+    const gained = p.hp - hp0;
+    expect(gained).toBeGreaterThan(0.5);
+    expect(gained).toBeLessThan(0.012 * p.maxHp * 0.5); // well short of a second in the light
+    expect(heals[0]!.amount).toBeCloseTo(gained, 6);
+  });
+
+  describe("the 3 s lockout does not depend on the faction layer (m2)", () => {
+    function fight(): { world: World; hit: { on: boolean } } {
+      const world = makeRig({
+        map: terrainMap({ kind: everywhere(TERRAIN_LIGHT) }),
+        players: [{ faction: "sentenced", at: at(8, 8) }, { faction: "plague", at: at(30, 20) }],
+        signatures: false,
+      });
+      expect(world.factions).toBeNull(); // heal()'s own lockout reads the faction layer's clock: there is none here
+      for (const id of ["p0", "p1"]) P(world, id).hp = P(world, id).maxHp / 2;
+      const hit = { on: true };
+      world.beforeDamage.push((w) => {
+        if (hit.on) recordHit(w, { victim: "p0", by: { id: "p1", name: "player1" }, packet: { raw: 1, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false });
+      });
+      return { world, hit };
+    }
+
+    it("the one hit every tick and the one dealing them gain nothing; both heal 3 s after the last hit", () => {
+      const { world, hit } = fight();
+      const hp0 = P(world, "p0").hp;
+      const hp1 = P(world, "p1").hp;
+      run(world, 40);
+      expect(P(world, "p0").hp).toBe(hp0 - 40);
+      expect(P(world, "p1").hp).toBe(hp1);
+      expect(world.hazards.stats.heal.size).toBe(0);
+      hit.on = false;
+      run(world, 58); // 2.9 s after the last hit
+      expect(P(world, "p0").hp).toBe(hp0 - 40);
+      expect(P(world, "p1").hp).toBe(hp1);
+      run(world, 3);
+      expect(P(world, "p0").hp).toBeGreaterThan(hp0 - 40);
+      expect(P(world, "p1").hp).toBeGreaterThan(hp1);
+    });
+
+    it("the run's start clears the clock", () => {
+      const { world } = fight();
+      run(world, 2);
+      expect(world.terrain!.combatAt.size).toBe(2);
+      world.hooks.raidStarted?.(world);
+      expect(world.terrain!.combatAt.size).toBe(0);
+    });
   });
 
   it("SimConfig.hazards: false switches it off, and 'all' takes Holy's boost away", () => {
@@ -891,21 +1192,39 @@ describe("light heal", () => {
 // ---------------------------------------------------------------------------------------------------------------------
 
 describe("the adapter", () => {
-  it("names its sources, and registers one entry per seam", () => {
+  it("names its sources, and registers exactly one entry per seam", () => {
     expect(TERRAIN_SOURCE.ember).toEqual({ id: "terrain:ember", name: "Lava" });
     expect(TERRAIN_SOURCE.bog.id.startsWith("terrain:")).toBe(true);
     const world = createGameWorld({ seed: 1, config: BASE, random: mulberry32(1), map: terrainMap() });
     expect(world.terrain).not.toBeNull();
-    expect(FACTION_IDS.length).toBe(5);
-    expect(FACTIONS.fire.hp).toBeGreaterThan(0);
+    expect(world.moveModifiers.filter((m) => m === applyBog)).toHaveLength(1);
+    expect(world.beforeDamage.filter((f) => f.name === "burnPass")).toHaveLength(1);
+    expect(world.systems.filter((f) => f.name === "lightPass")).toHaveLength(1);
+    for (const hook of ["teleported", "raidStarted", "arenaHurt"] as const) expect(world.hooks[hook], hook).toBeTypeOf("function");
+    // The burn is a beforeDamage entry that comes after the signatures', and light a system that comes after the faction layer's.
+    const names = (list: Array<(w: World, dt: number) => void>): string[] => list.map((f) => f.name);
+    expect(names(world.beforeDamage).indexOf("signatureDamage")).toBeLessThan(names(world.beforeDamage).indexOf("burnPass"));
+    expect(names(world.systems).indexOf("afterDamage")).toBeLessThan(names(world.systems).indexOf("lightPass"));
   });
 
-  it("a hand-built runtime without a slip field walks like any other", () => {
-    const rt: PlayerRuntime = {
-      id: "x", profile: "x", inputs: new InputQueue(), path: [], history: [], weapon: newWeaponRuntime(), killedBy: null,
-      gv: { kills: 0, mobs: 0, bounty: 0 }, mobKills: 0, lastHit: null, damaged: new Set(), droppedAt: null, hpFracAtTickStart: 1, down: null, resolved: false,
-    };
+  it("a runtime without a slip field walks like any other: nothing creates one off ice, a slide is made on ice", () => {
+    const plain = makeRig({ map: terrainMap({ w: 64 }), players: [{ faction: "plague", at: at(4, 8) }, { faction: "fire", at: at(40, 24) }] });
+    const rt = RT(plain, "p0");
+    delete rt.slip;
     expect("slip" in rt).toBe(false);
+    const x0 = P(plain, "p0").x;
+    order(plain, "p0", "move", { x: 60 * TILE, y: P(plain, "p0").y });
+    run(plain, 5);
+    expect(P(plain, "p0").x - x0).toBeCloseTo(5 * STEP_U, 9);
+    expect("slip" in rt).toBe(false);
+
+    const icy = makeRig({ map: terrainMap({ w: 64, kind: everywhere(TERRAIN_ICE) }), players: [{ faction: "plague", at: at(4, 8) }, { faction: "fire", at: at(40, 24) }] });
+    const rtIce = RT(icy, "p0");
+    delete rtIce.slip;
+    order(icy, "p0", "move", { x: 60 * TILE, y: P(icy, "p0").y });
+    run(icy, 2);
+    expect(rtIce.slip).toBeTruthy();
+    expect(rtIce.slip!.vx).toBeCloseTo(2 * 21.25, 9);
   });
 });
 

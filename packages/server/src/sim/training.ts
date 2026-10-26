@@ -38,6 +38,9 @@ export function trainingSettle(world: World): void {
     rt.killedBy = null;
     rt.lastHit = null;
     rt.path = [];
+    // Revived where it fell, at rest: the samples from before the fall would otherwise give a slide on ice the speed it died at.
+    rt.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
+    rt.slip = null;
     p.status = "alive";
     p.hp = p.maxHp;
     resetWeapons({ kind: "player", id: rt.id, s: p, rt });

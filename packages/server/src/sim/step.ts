@@ -126,6 +126,8 @@ export function startRaid(world: World): void {
     const rt = world.players.get(id)!;
     rt.inputs.drain();
     rt.history = [{ t: s.serverTime, x: p.x, y: p.y }];
+    // Placed at rest, with the history reset above. terrainEffects' raidStarted hook clears every slide too (mobs included), but a
+    // world without that module still places its players right.
     rt.slip = null;
     resetWeapons({ kind: "player", id, s: p, rt });
   }
@@ -226,7 +228,7 @@ function updateActive(world: World, dtMs: number): void {
   // Every multiplier is read before anyone moves, so none depends on who moved first (the chill reads distances). Their
   // product never drops below MOVE_MULT_FLOOR while it is above 0 (a root's 0 stays 0).
   const mults = fighters.map((c) => {
-    const m = world.moveModifiers.reduce((acc, mod) => acc * mod(world, c), moveMultiplierOf(world, c));
+    const m = world.moveModifiers.reduce((acc, mod) => acc * mod(world, c, dtMs), moveMultiplierOf(world, c));
     return m > 0 && m < MOVE_MULT_FLOOR ? MOVE_MULT_FLOOR : m;
   });
   fighters.forEach((c, i) => {
