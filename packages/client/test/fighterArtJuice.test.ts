@@ -107,4 +107,15 @@ describe("the bow's tension", () => {
     art.update(bow(1000), 1600, 1600); // full
     expect(argsOf(drawn(), "strokeCircle")).toHaveLength(1);
   });
+
+  it("shows the ready ring only at a full draw, not from rounding 99% up to the last step", () => {
+    const { art, drawn } = setup();
+    art.update(bow(1000), 1519, 1519); // 99.1% of the 0.524 s draw
+    expect(art.pull).toBeGreaterThan(0.99);
+    expect(art.pull).toBeLessThan(1);
+    expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
+    art.update(bow(1000), 1524.3, 1524.3);
+    expect(art.pull).toBe(1);
+    expect(argsOf(drawn(), "strokeCircle")).toHaveLength(1);
+  });
 });

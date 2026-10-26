@@ -294,7 +294,8 @@ export class FighterArt {
 
     this.held.setVisible(weapon !== null).setRotation(screenAngle(f.facing) + this.poseRot);
     const charge = weapon === "wand" ? this.chargeStep : 0;
-    const pullStep = pull < 0 ? -1 : Math.round(pull * PULL_STEPS);
+    // The last step is the full draw's ring and glow, so it is only taken at a full draw, not by rounding up from 97%.
+    const pullStep = pull < 0 ? -1 : pull >= 1 ? PULL_STEPS : Math.min(PULL_STEPS - 1, Math.round(pull * PULL_STEPS));
     const sig = `${weapon ?? ""}|${pullStep}|${this.gold ? 1 : 0}|${charge}`;
     if (sig !== this.heldSig) {
       this.heldSig = sig;
