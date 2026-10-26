@@ -6,6 +6,7 @@
 //   "resolved"        recordRun(outcome, kills, gv.total)   once per player and run, whatever the outcome
 //   server shutdown   bankGv(unbanked run GV)               the run is void: no run is recorded
 //   leave in lobby    nothing
+//   a bot             nothing, ever (sim bots have no client, profile or seat; settle() drops their results)
 import { randomBytes, randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
@@ -402,7 +403,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           this.sendTo(ev.to, "toast", { text: ev.text });
           break;
         case "resolved":
-          this.settle(ev.id, ev.result);
+          this.settle(ev.id, ev.result, ev.bot === true);
           break;
         case "gv":
           this.sendTo(ev.id, "toast", { text: `+${ev.amount} GV (${GV_TOAST[ev.reason]})` });
@@ -422,8 +423,14 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     if (batch) this.broadcast("fxs", batch satisfies ServerMessages["fxs"]);
   }
 
-  /** A player's run is over: bank its GV and stats, free the profile, tell them. */
-  private settle(sessionId: string, result: RunResult) {
+  /**
+   * A player's run is over: bank its GV and stats, free the profile, tell them. `bot` is the sim's own flag on the event, which
+   * survives a bot that was removed before the event was handled; the world lookup is the second check.
+   */
+  private settle(sessionId: string, result: RunResult, bot = false) {
+    // bots never touch persistence: a bot has no profile, and its display name could match a real one. recordRun, bankGv, the
+    // profile registry and pendingResults are all out of reach from here on.
+    if (bot || this.world.players.get(sessionId)?.bot) return;
     // The sim never resolves a training run; this is the second lock on "no GV, no stats, no achievements".
     if (this.training) return;
     const { store, profiles } = RaidRoom.ctx;

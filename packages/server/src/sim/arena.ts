@@ -15,8 +15,9 @@
 //     the start of the tick: a single highest wins, an exact tie is a draw for those tied. Solo runs have no winner.
 //   - GV earned during the run (kills, mobs, bounties) is kept whatever the outcome. The winner also gets GV_WIN, but
 //     only when the run went active with WIN_BONUS_MIN_PLAYERS and they damaged WIN_BONUS_MIN_OPPONENTS different
-//     players (so a second callsign can't feed someone wins). All of it banks when the player's result is emitted (the
-//     Room persists `resolved` events).
+//     players (so a second callsign can't feed someone wins). Bots count for neither: the gate reads human starters
+//     and human opponents (docs/BOTS.md). All of it banks when the player's result is emitted (the Room persists
+//     `resolved` events, except a bot's).
 //   - Bounty: a player's bounty follows their player kills (bountyFor; mob kills feed the buffs and the mob reward curve, never the bounty) and is announced (throttled) whenever it rises;
 //     whoever kills them is paid it on top of the kill GV. Leaving within KILL_CREDIT_SECONDS of a hit from another
 //     player is that player's kill, so leaving can't dodge a bounty.
@@ -61,6 +62,7 @@ export function patienceMs(world: World, alive: number): number {
 export function beginRun(world: World): void {
   const s = world.state;
   world.arena.startedWith = s.players.size;
+  world.arena.startedHumans = [...world.players.values()].filter((rt) => !rt.bot).length;
   s.startedWith = s.players.size;
   world.arena.downedThisTick = [];
   world.arena.downsBetweenTicks = 0;
@@ -119,6 +121,7 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
     // Hurting yourself is never your own kill or leave credit.
     if (typeof h.source !== "string" && h.source.rt !== rtv) {
       h.source.rt.damaged.add(rtv.id);
+      if (!rtv.bot) (h.source.rt.damagedHumans ??= new Set()).add(rtv.id);
       if (!topRival || h.amount > topRival.amount) topRival = h as Hit & { source: Attacker };
     }
   }
@@ -134,6 +137,7 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   const killer = topRival ?? top;
   const by = typeof killer.source === "string" ? null : killer.source;
   rtv.killedBy = by ? by.p.name : (killer.source as string);
+  if (by?.rt.bot) rtv.killedByBot = true;
   emit(world, { type: "fx", fx: { kind: "death", id: rtv.id, x: victim.x, y: victim.y, by: by?.id ?? null } });
   // A rival's hit in the killing pass takes the kill. Failing that, a mob (or a departed shooter's arrow) that finishes
   // someone a player has been hunting gives the kill to that player if they hit within KILL_CREDIT_SECONDS: the same
@@ -163,9 +167,12 @@ function owedBounty(world: World, victim: PlayerState, rtv: PlayerRuntime): numb
 function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: PlayerRuntime, bounty = owedBounty(world, victim, rtv)): void {
   if (by.rt.resolved) return;
   by.p.kills += 1;
-  awardGv(world, by.p, by.rt, "kill");
+  // A bot's death pays no GV, kill or bounty (owner question, docs/BOTS.md "Owner questions"): the kill still counts in the
+  // run (the bounty ladder, the stack transfer and the combos), but a RunResult leaves it out (botKills, resolve).
+  if (rtv.bot) by.rt.botKills = (by.rt.botKills ?? 0) + 1;
+  else awardGv(world, by.p, by.rt, "kill");
   if (bounty > 0) {
-    credit(world, by.p, by.rt, "bounty", bounty);
+    if (!rtv.bot) credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
   }
   // After the bounty hook, so stacks just won count toward the combos this kill sets off.
@@ -305,14 +312,16 @@ function resolve(
     outcome,
     profile: rt.profile,
     durationSec: s.raidStartedAt > 0 ? Math.round((s.serverTime - s.raidStartedAt) / 1000) : 0,
-    kills: p.kills,
+    // Kills of bots are in the run (p.kills) but not in the stats the Room records (owner question, docs/BOTS.md).
+    kills: p.kills - (rt.botKills ?? 0),
     killedBy: outcome === "died" ? rt.killedBy : null,
+    ...(outcome === "died" && rt.killedByBot ? { killedByBot: true as const } : {}),
     place,
     players: world.arena.startedWith,
     gv,
     winBonusWithheld,
   };
-  emit(world, { type: "resolved", id: rt.id, result });
+  emit(world, { type: "resolved", id: rt.id, result, ...(rt.bot ? { bot: true as const } : {}) });
 }
 
 /**
@@ -399,8 +408,9 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
   emit(world, { type: "raidEnded" });
 }
 
+/** Humans only: bots fill a lobby but never make a run count for the win bonus (owner question, docs/BOTS.md "Owner questions"). */
 function earnedWinBonus(world: World, rt: PlayerRuntime): boolean {
-  return world.arena.startedWith >= WIN_BONUS_MIN_PLAYERS && rt.damaged.size >= WIN_BONUS_MIN_OPPONENTS;
+  return world.arena.startedHumans >= WIN_BONUS_MIN_PLAYERS && (rt.damagedHumans?.size ?? 0) >= WIN_BONUS_MIN_OPPONENTS;
 }
 
 /**

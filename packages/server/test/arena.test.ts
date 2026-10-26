@@ -210,7 +210,9 @@ describe("beginRun", () => {
       patienceEndsAt: w.state.serverTime + 5000, inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "",
       startedWith: 2,
     });
-    expect(w.arena).toEqual({ startedWith: 2, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() });
+    expect(w.arena).toEqual({
+      startedWith: 2, startedHumans: 2, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map(),
+    });
   });
 });
 

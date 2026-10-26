@@ -90,18 +90,27 @@ export interface CombatRuntime {
 }
 
 export interface PlayerRuntime extends CombatRuntime {
+  /** A real player's profile name; for a bot, only its display name (it has no profile, so nothing may look it up in the store). */
   profile: string;
+  /** A server-filled bot (docs/BOTS.md): no client, no profile, no seat. Mirrors PlayerState.bot, set by addPlayer; absent on a human. */
+  bot?: true;
   killedBy: string | null;
+  /** The player who killed this one was a bot (shown on the results screen). Absent otherwise. */
+  killedByBot?: true;
   /** GV earned this run, by source. A win bonus is decided when the run resolves and is never kept here. */
   gv: { kills: number; mobs: number; bounty: number };
   /** Mobs killed this run (feeds the feed score with FEED_MOB_KILL_WEIGHT; player kills are PlayerState.kills). */
   mobKills: number;
+  /** Player kills of bots this run; PlayerState.kills counts them, a RunResult's `kills` does not (arena.ts resolve). Absent = 0. */
+  botKills?: number;
   /** hp / maxHp when the tick being simulated began: the tie-break between simultaneous last deaths. */
   hpFracAtTickStart: number;
   /** The last player to damage them and when (server ms): a leave soon after counts as that player's kill. */
   lastHit: { by: string; at: number } | null;
   /** Different players this one damaged during the run (not themselves, not sudden death): see WIN_BONUS_MIN_OPPONENTS. */
   damaged: Set<string>;
+  /** The same, human opponents only: the win bonus counts these (earnedWinBonus). Created on first use. */
+  damagedHumans?: Set<string>;
   /** When their connection dropped (server ms), while the Room holds the seat for a reconnect; null when connected. */
   droppedAt: number | null;
   /** Set when the player goes down (died, or left the run). Their result follows at the end of that tick. */
@@ -305,6 +314,8 @@ export function payLater(world: World, pay: () => void): void {
 export interface ArenaRuntime {
   /** Players in the run when it started. With fewer than 2 the run is solo: nobody wins and no win bonus is paid. */
   startedWith: number;
+  /** Of those, how many are not bots: the win bonus needs WIN_BONUS_MIN_PLAYERS humans (bots count for everything else). */
+  startedHumans: number;
   /** Players who went down in the step being simulated, in order. arena.settle() resolves them. */
   downedThisTick: Array<{ p: PlayerState; rt: PlayerRuntime }>;
   /** Players who went down between steps (a leave). Resolved at once, they still count as the next tick's deaths. */
@@ -325,8 +336,8 @@ export type SimEvent =
   | { type: "raidEnded" }
   /** Feedback only: GV a player just earned. It is banked through their `resolved` result, never from this. */
   | { type: "gv"; id: string; amount: number; reason: GvReason }
-  /** A player's run is over; the Room banks `result` (GV and stats) and sends it to them. */
-  | { type: "resolved"; id: string; result: RunResult };
+  /** A player's run is over; the Room banks `result` (GV and stats) and sends it to them. `bot`: a bot's, which the Room drops. */
+  | { type: "resolved"; id: string; result: RunResult; bot?: true };
 
 /** Handles one queued action for a standing fighter (players today; Phase 11 mobs go through the same handlers). */
 export type ActionHandler = (world: World, c: Combatant, cmd: ActionCommand) => void;
@@ -468,7 +479,7 @@ export function createWorld(opts: {
     moveModifiers: [],
     modSources: [],
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
-    arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
+    arena: { startedWith: 0, startedHumans: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
   };
 }

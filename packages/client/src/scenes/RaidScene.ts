@@ -12,6 +12,7 @@ import { clampToWorld } from "../net/localMotion";
 import { LocalPrediction, localDrawSource, type LocalDrawSource, type OtherFighter } from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView } from "../render/ContainerView";
+import { displayName } from "../render/displayName";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
 import { containerWeapon, nearestContainer } from "../render/interact";
 import { MapView } from "../render/MapView";
@@ -207,7 +208,10 @@ export class RaidScene extends Phaser.Scene {
       localLanded: () => this.juice.landed(performance.now()),
       localHurt: (fx) => this.juice.hurt(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0),
       nearestFighter: (x, y, within) => this.nearestFighter(x, y, within),
-      name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
+      name: (id) => {
+        const p = this.room.state.players.get(id);
+        return p ? displayName(p) : this.room.state.mobs.get(id)?.name;
+      },
       mobKind: (id) => this.room.state.mobs.get(id)?.kind,
       projectileEnded: (id) => this.projectiles.finish(id),
       // At render time with the flash and the number, not on arrival (~INTERP_DELAY_MS earlier): damageFlash judges the hit against max hp.

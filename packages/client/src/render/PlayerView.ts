@@ -6,6 +6,7 @@ import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
 import { BodyFlash, FighterArt, HpBar, factionColor, heldWeapon, type FighterFields } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
+import { displayName } from "./displayName";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
 import { MarksMemory } from "./signatureLook";
@@ -184,7 +185,7 @@ export class PlayerView {
     this.fig.frame(x, y, face, renderT, now); // juice: before the art, which reads the weapon's turn
     const weapon = this.art.update(facing === null ? p : this.facedAs(p, facing), renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(face));
-    this.label.setText(p.name);
+    this.label.setText(displayName(p));
     // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
     this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
     this.signatures.update(this.marks.sig, this.marks.brand, signatures);

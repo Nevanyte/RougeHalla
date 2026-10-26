@@ -158,7 +158,9 @@ describe("createWorld / addPlayer", () => {
     expect(w.state).toMatchObject({
       patienceEndsAt: 0, inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "", startedWith: 0,
     });
-    expect(w.arena).toEqual({ startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() });
+    expect(w.arena).toEqual({
+      startedWith: 0, startedHumans: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map(),
+    });
   });
 
   it("generates the map from the (coerced) state seed, exactly as clients do", () => {
