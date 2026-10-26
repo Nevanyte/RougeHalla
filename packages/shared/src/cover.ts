@@ -520,7 +520,8 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
         if (!joined) bigStart.push(s);
         continue;
       }
-      for (let k = 0; k < tail && ok; k++) if (!open[queue[k]] || prot[queue[k]] || soft[queue[k]] || ring[queue[k]] === 1) ok = false;
+      // A ruin's interior takes rocks only one by one within its quota, so no pocket inside it is walled up wholesale.
+      for (let k = 0; k < tail && ok; k++) if (!open[queue[k]] || prot[queue[k]] || soft[queue[k]] || ring[queue[k]] === 1 || ruinOf[queue[k]] !== 0) ok = false;
       if (ok) for (let k = 0; k < tail; k++) pocket.push(queue[k]);
     }
     // Hitting the cap on two sides does not say they are one piece: walk out from both until they meet or one
@@ -550,14 +551,14 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
   const slotCount = new Uint8Array(lines), slotA = new Float64Array(lines * LANE_SLOTS), slotZ = new Float64Array(lines * LANE_SLOTS);
 
   // First position on line l whose tile ends after distance a.
+  // Tiles are spread evenly enough along a line that a guess by interpolation lands within a step or two of the answer.
   const firstAfter = (l: number, a: number): number => {
-    const base = lineStart[l], eb = base + l;
-    let lo = 0, hi = lineStart[l + 1] - base;
-    while (lo < hi) {
-      const m = (lo + hi) >> 1;
-      if (edge[eb + m + 1] > a) hi = m; else lo = m + 1;
-    }
-    return lo;
+    const base = lineStart[l], n = lineStart[l + 1] - base, eb = base + l;
+    const e0 = edge[eb], en = edge[eb + n];
+    let p = a <= e0 ? 0 : a >= en ? n : Math.floor(((a - e0) * n) / (en - e0));
+    while (p > 0 && edge[eb + p] > a) p--;
+    while (p < n && edge[eb + p + 1] <= a) p++;
+    return p;
   };
   // Adds d to the hits of every tile that touches the corridor (a, b) of strip s, each once.
   const addHits = (s: number, a: number, b: number, d: number): void => {
@@ -598,21 +599,27 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
       // open stretches, and stretches of dead tiles longer than a corridor may be
       let count = 0, deadCount = 0;
       if (n >= minRun) {
-        // `a` and `d` are where the open and the dead stretch under way began (one past the tile that ended the last);
-        // position n (past the last tile) closes both. Only stretches of minRun tiles or more are kept.
-        let a = 0, d = 0;
-        for (let p = 0; p <= n; p++) {
-          const v = p < n ? state[tile[base + p]] : 0;
-          if (v === 2) continue;
-          if (p - d >= minRun && edge[eb + p] - edge[eb + d] > limit) {
-            if (deadCount >= 16) return COVER_DEAD;
-            eA[deadCount] = edge[eb + d]; eB[deadCount++] = edge[eb + p];
+        // `a` is where the open stretch under way began (one past the last closed tile). Most stretches stay shorter
+        // than minRun tiles, so the loop only moves `a`; one that reaches minRun is walked to its end, kept, and searched
+        // for stretches of dead tiles (which only lie inside open ones) of minRun tiles or more.
+        let a = 0;
+        for (let p = 0; p < n; p++) {
+          a = state[tile[base + p]] === 0 ? p + 1 : a;
+          if (p + 1 - a < minRun) continue;
+          let e = p + 1;
+          while (e < n && state[tile[base + e]] !== 0) e++;
+          cA[count] = edge[eb + a]; cB[count++] = edge[eb + e];
+          let d = a;
+          for (let q = a; q <= e; q++) {
+            if (q < e && state[tile[base + q]] === 2) continue;
+            if (q - d >= minRun && edge[eb + q] - edge[eb + d] > limit) {
+              if (deadCount >= 16) return COVER_DEAD;
+              eA[deadCount] = edge[eb + d]; eB[deadCount++] = edge[eb + q];
+            }
+            d = q + 1;
           }
-          d = p + 1;
-          if (v === 0) {
-            if (p - a >= minRun) { cA[count] = edge[eb + a]; cB[count++] = edge[eb + p]; }
-            a = p + 1;
-          }
+          p = e;
+          a = e + 1;
         }
       }
       if (l > 0 && pairOK[l - 1] === 1) {

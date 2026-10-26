@@ -87,6 +87,11 @@ const HALO_OFF = Int32Array.from(CAMP_HALO.map(([ox, oy]) => oy * W + ox));
 const CLEAR_OFF = Int32Array.from(CAMP_TILES.map(([ox, oy]) => oy * W + ox));
 /** Chamfer distance (fifths of a tile) from which a tile counts as a "core" tile for the sliver measure: a 2.5 disc fits. */
 const CORE_DT = 15;
+/**
+ * The halo is exactly the set of offsets within 5/7 chamfer distance 19 (|dx|, |dy| <= 3 but the four (3, 3) corners),
+ * so a halo lies inside a region exactly when the region's unconstrained chamfer distance at its centre is 20 or more.
+ */
+const HALO_DT = 20;
 
 /** Squared distance between two tiles, by index. */
 export const d2i = (a: number, b: number): number => {
@@ -710,8 +715,10 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
   const gap2 = CAMP_GAP * CAMP_GAP;
   const radius2 = TERRITORY_RADIUS_MAX * TERRITORY_RADIUS_MAX;
   const terr = new Uint8Array(N), tm = new Uint8Array(N), zmask = new Uint8Array(N);
-  const dt = new Int32Array(N);
-  const members = new Int32Array(N), hullOf = new Int32Array(N + 1);
+  const dt = new Int32Array(N), zdt = new Int32Array(N);
+  // Per partition: territory n's tiles in index order at members[memberStart[n] ..), and its hull at hullOf[hullStart[n] ..).
+  const members = new Int32Array(N), memberStart = new Int32Array(CAMPS_PER_ZONE + 2);
+  const hullOf = new Int32Array(N + 2 * (CAMPS_PER_ZONE + 1)), hullStart = new Int32Array(CAMPS_PER_ZONE + 2);
   const territoryGrid = new Uint8Array(N);
   for (let tryNo = 0; tryNo < CAMP_TRIES; tryNo++) {
     const camps: CampSite[] = [];
@@ -720,13 +727,16 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
     let ok = true;
     for (let z = 1; z <= ZONES && ok; z++) {
       const Zt = zoneTiles[z - 1];
+      zmask.fill(0);
+      for (let q = 0; q < Zt.length; q++) zmask[Zt[q]] = 1;
+      chamfer(zmask, zdt);
       const sites: number[] = [];
-      for (let q = 0; q < Zt.length; q++) {
-        const t = Zt[q];
-        if (!Z.haloOK[t]) continue;
-        let inside = true;
-        for (let h = 0; h < HALO_OFF.length && inside; h++) if (zone[t + HALO_OFF[h]] !== z) inside = false;
-        if (inside) sites.push(t);
+      for (let q = 0; q < Zt.length; q++) if (Z.haloOK[Zt[q]] && zdt[Zt[q]] >= HALO_DT) sites.push(Zt[q]);
+      // Sites CAMP_GAP from every camp of the zones already placed (they do not move while this zone seeds).
+      const clear = new Uint8Array(sites.length);
+      for (let q = 0; q < sites.length; q++) {
+        clear[q] = 1;
+        for (const o of placed) if (d2i(o, sites[q]) < gap2) { clear[q] = 0; break; }
       }
       const k = CAMPS_PER_ZONE;
       // Seeds for coverage (k-center): the first by best-candidate sampling, each next one at the open site nearest the
@@ -740,11 +750,12 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
           if (md > farD) { farD = md; far = Zt[q]; }
         }
         let next = -1, nextD = 1 << 30;
-        for (const c of sites) {
-          let ok2 = true;
-          for (const o of placed) if (d2i(o, c) < gap2) { ok2 = false; break; }
-          for (const o of at) if (ok2 && d2i(o, c) < gap2) ok2 = false;
-          if (!ok2) continue;
+        for (let q = 0; q < sites.length; q++) {
+          const c = sites[q];
+          if (!clear[q]) continue;
+          let spaced = true;
+          for (const o of at) if (d2i(o, c) < gap2) { spaced = false; break; }
+          if (!spaced) continue;
           const d = d2i(c, far);
           if (d < nextD) { nextD = d; next = c; }
         }
@@ -752,28 +763,21 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
         at.push(next);
       }
       if (at.length < k) { ok = false; failed("campSeeds"); break; }
-      zmask.fill(0);
-      for (let q = 0; q < Zt.length; q++) zmask[Zt[q]] = 1;
       // The best open cell near the pole of territory n: the most inaccessible cell (5/7 chamfer, ties to the lowest
       // index) whose halo lies inside that territory and the zone, CAMP_GAP from every camp placed so far, from this
       // zone's sites already moved and from the ones still to move. The old site is the fallback. With `reach`, only
       // cells within TERRITORY_RADIUS_MAX of every tile of the territory qualify (the pole of a territory that is fat at
       // one end lies there, far from the other end), and -1 means there is none.
       const poleOf = (n: number, cur: number[], fixedSites: readonly number[], reach: boolean): number => {
-        let hn = 0;
-        if (reach) {
-          let mn = 0;
-          for (let q = 0; q < Zt.length; q++) if (terr[Zt[q]] === n) members[mn++] = Zt[q];
-          hn = hull(members, mn, hullOf);
-        }
+        const h0 = hullStart[n], h1 = reach ? hullStart[n + 1] : h0;
         const within = (t: number): boolean => {
-          for (let v = 0; v < hn; v++) if (d2i(hullOf[v], t) > radius2) return false;
+          for (let v = h0; v < h1; v++) if (d2i(hullOf[v], t) > radius2) return false;
           return true;
         };
         let best = reach && !within(cur[n - 1]) ? -1 : cur[n - 1], bestV = -1;
-        for (let q = 0; q < Zt.length; q++) {
-          const t = Zt[q];
-          if (terr[t] !== n || !Z.haloOK[t] || dt[t] < bestV || (dt[t] === bestV && best >= 0 && t > best)) continue;
+        for (let q = memberStart[n]; q < memberStart[n + 1]; q++) {
+          const t = members[q];
+          if (!Z.haloOK[t] || dt[t] < bestV || (dt[t] === bestV && best >= 0 && t > best)) continue;
           let inside = true;
           for (let h = 0; h < HALO_OFF.length && inside; h++) if (terr[t + HALO_OFF[h]] !== n || zone[t + HALO_OFF[h]] !== z) inside = false;
           if (!inside) continue;
@@ -797,6 +801,17 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
         tm.fill(0);
         for (let q = 0; q < Zt.length; q++) tm[Zt[q]] = terr[Zt[q]];
         chamferLabels(tm, dt);
+        // Each territory's tiles (index order) and their hull, for the pole searches below.
+        memberStart.fill(0);
+        for (let q = 0; q < Zt.length; q++) memberStart[terr[Zt[q]] + 1]++;
+        for (let n = 1; n <= k + 1; n++) memberStart[n] += memberStart[n - 1];
+        const fill = memberStart.slice();
+        for (let q = 0; q < Zt.length; q++) members[fill[terr[Zt[q]]]++] = Zt[q];
+        hullStart[1] = 0;
+        for (let n = 1; n <= k; n++) {
+          const from = memberStart[n], len = memberStart[n + 1] - from;
+          hullStart[n + 1] = hullStart[n] + hull(members.subarray(from, from + len), len, hullOf.subarray(hullStart[n]));
+        }
         if (step >= 1) {
           const sites = at.slice(), fixedSites = placed.slice();
           let all = true;
@@ -821,7 +836,6 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
         placed.push(site);
         camps.push({ zone: z, site, elite: false, spots: [] });
       }
-      if (!ok) break;
       // The elite camp is the zone's camp farthest from the centre.
       let elite = base, eliteD = -1;
       for (let c = base; c < camps.length; c++) {

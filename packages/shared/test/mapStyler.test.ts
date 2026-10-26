@@ -3,48 +3,13 @@
 // through: connectivity, territories and the walking contour on the walkable floor, lanes and the spawn screen on the
 // sight-open ground.
 import { describe, expect, it } from "vitest";
-import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
+import { REGION_FACTIONS, TILE_LOW } from "../src/map";
 import { certifiedMap, generateMap, mapHash } from "../src/mapgen";
-import type { ZoneStyler, ZoneStylers } from "../src/mapgen";
-import { randInt } from "../src/rng";
-import { certifyMap } from "./mapCertify";
+import type { ZoneStyler } from "../src/mapgen";
+import { DEMO_STYLERS as DEMO, certifyMap, demoStyler as demo } from "./mapCertify";
 
-/** A meandering lava river 2 wide and up to 24 long, three fences of 5-9 tiles with a gap (kept low: no rock on them), two 2x2 wall blocks. */
-const demo: ZoneStyler = ({ w, h, zoneMask, protect, tiles, rng, keepLow }) => {
-  const N = w * h;
-  const cells: number[] = [];
-  for (let i = 0; i < N; i++) if (zoneMask[i] && !protect[i] && tiles[i] === TILE_FLOOR) cells.push(i);
-  if (cells.length === 0) return;
-  const free = (i: number): boolean => i >= 0 && i < N && zoneMask[i] === 1 && protect[i] === 0 && tiles[i] === TILE_FLOOR;
-  {
-    let at = cells[randInt(rng, 0, cells.length)];
-    let dx = rng() < 0.5 ? 1 : 0, dy = 1 - dx;
-    for (let step = 0; step < 24; step++) {
-      const x = at % w, side = dx !== 0 ? w : 1;
-      if (!free(at) || !free(at + side) || x <= 1 || x >= w - 2) break;
-      tiles[at] = TILE_LOW;
-      tiles[at + side] = TILE_LOW;
-      if (rng() < 0.25) { const t = dx; dx = dy; dy = t; }
-      at += dy * w + dx;
-    }
-  }
-  for (let f = 0; f < 3; f++) {
-    const at = cells[randInt(rng, 0, cells.length)];
-    const horiz = rng() < 0.5, len = randInt(rng, 5, 10), gap = randInt(rng, 1, len - 1);
-    for (let k = 0; k < len; k++) {
-      const t = at + (horiz ? k : k * w);
-      if (k === gap || !free(t)) continue;
-      tiles[t] = TILE_LOW;
-      keepLow[t] = 1;
-    }
-  }
-  for (let b = 0; b < 2; b++) {
-    const at = cells[randInt(rng, 0, cells.length)];
-    for (const o of [0, 1, w, w + 1]) if (free(at + o)) tiles[at + o] = TILE_WALL;
-  }
-};
-const DEMO: ZoneStylers = Object.fromEntries(REGION_FACTIONS.map((f) => [f, demo]));
-const SEEDS = Array.from({ length: 24 }, (_, i) => 300 + i);
+/** Seeds 300..322, plus 2168: its cover once walled up a pocket inside a ruin past the ruin's rock quota. */
+const SEEDS = [...Array.from({ length: 23 }, (_, i) => 300 + i), 2168];
 
 describe("zone stylers (demo styler, 24 seeds)", () => {
   const maps = SEEDS.map((s) => certifiedMap(s, { stylers: DEMO }));
@@ -56,7 +21,7 @@ describe("zone stylers (demo styler, 24 seeds)", () => {
     expect(maps.filter((m) => !m).length).toBeLessThanOrEqual(1);
   }, 120_000);
 
-  it("keeps the low ground: it blocks movement but the cover treats it as open sight (kept fences carry no rock, others may)", () => {
+  it("keeps the low ground: the cover may stand a rock on lava but never on low ground the styler kept", () => {
     let low = 0, rockedLow = 0;
     for (const m of maps) {
       if (!m) continue;
@@ -69,15 +34,21 @@ describe("zone stylers (demo styler, 24 seeds)", () => {
       const m = certifiedMap(s, { stylers: DEMO });
       if (!m) continue;
       let wrote = 0;
+      const keep: number[] = [];
       const spy: ZoneStyler = (z) => {
         const before = z.tiles.slice();
         demo(z);
-        for (let i = 0; i < before.length; i++) if (before[i] !== TILE_LOW && z.tiles[i] === TILE_LOW) wrote++;
+        for (let i = 0; i < before.length; i++) {
+          if (before[i] !== TILE_LOW && z.tiles[i] === TILE_LOW) wrote++;
+          if (z.keepLow[i] && z.tiles[i] === TILE_LOW) keep.push(i);
+        }
       };
       generateMap(s, m.attempt, { stylers: Object.fromEntries(REGION_FACTIONS.map((f) => [f, spy])) });
-      let kept = 0;
-      for (let i = 0; i < m.tiles.length; i++) if (m.tiles[i] === TILE_LOW) kept++;
-      rockedLow += wrote - kept;
+      let left = 0;
+      for (let i = 0; i < m.tiles.length; i++) if (m.tiles[i] === TILE_LOW) left++;
+      rockedLow += wrote - left;
+      expect(keep.length, `seed ${s}: no kept low ground to check`).toBeGreaterThan(0);
+      for (const i of keep) expect(m.tiles[i], `seed ${s}: kept low tile ${i % m.w},${Math.floor(i / m.w)}`).toBe(TILE_LOW);
     }
     expect(low, "low tiles left on the styled maps").toBeGreaterThan(SEEDS.length * 5 * 10);
     expect(rockedLow).toBeGreaterThan(0);
