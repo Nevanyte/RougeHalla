@@ -5,6 +5,7 @@
 // LOCK_PULSE_FROM x with a flash ring.
 import Phaser from "phaser";
 import { PLAYER_RADIUS, Y_SCALE } from "@raid/shared";
+import { BAKE_SCALE, bakedImage, type Region } from "./bake";
 import { easeOutCubic, juiceScale, lerp } from "./juice";
 import { depthFor, projX, projY } from "./projection";
 import type { TargetPoint } from "./targeting";
@@ -27,23 +28,29 @@ export const LOCK_BREATH_SCALE = 0.035;
 const LOCK_ALPHA_LOW = 0.8;
 const LOCK_ALPHA_HIGH = 1;
 
+/** The rings are baked (they never change shape; only their place, scale and alpha do): their drawing's own coordinates around the fighter's feet. */
+const RING_REGION: Region = { x0: -RING_WIDTH / 2 - 4, y0: -RING_WIDTH * Y_SCALE / 2 - 4, x1: RING_WIDTH / 2 + 4, y1: RING_WIDTH * Y_SCALE / 2 + 4 };
+
 export class TargetRings {
-  private readonly hover: Phaser.GameObjects.Graphics;
-  private readonly lock: Phaser.GameObjects.Graphics;
-  private readonly flash: Phaser.GameObjects.Graphics;
+  private readonly hover: Phaser.GameObjects.Image;
+  private readonly lock: Phaser.GameObjects.Image;
+  private readonly flash: Phaser.GameObjects.Image;
   /** Who the lock ring was last on ("" = nobody), and when it landed there. */
   private lockedId = "";
   private pulseAt = -Infinity;
 
   constructor(scene: Phaser.Scene) {
-    this.hover = scene.add.graphics().setVisible(false);
-    this.hover.lineStyle(1.5, HOVER_COLOR, 0.85).strokeEllipse(0, 0, RING_WIDTH, RING_WIDTH * Y_SCALE);
-    this.lock = scene.add.graphics().setVisible(false);
-    this.lock.fillStyle(LOCK_COLOR, 0.2).fillEllipse(0, 0, RING_WIDTH, RING_WIDTH * Y_SCALE);
-    this.lock.lineStyle(4, LOCK_COLOR, 1).strokeEllipse(0, 0, RING_WIDTH, RING_WIDTH * Y_SCALE);
-    this.lock.lineStyle(1.5, LOCK_INNER_COLOR, 0.9).strokeEllipse(0, 0, RING_WIDTH * 0.78, RING_WIDTH * 0.78 * Y_SCALE);
-    this.flash = scene.add.graphics().setVisible(false);
-    this.flash.lineStyle(2.5, 0xffffff, 1).strokeEllipse(0, 0, RING_WIDTH, RING_WIDTH * Y_SCALE);
+    this.hover = bakedImage(scene, "ring:hover", RING_REGION, (g) => {
+      g.lineStyle(1.5, HOVER_COLOR, 0.85).strokeEllipse(0, 0, RING_WIDTH, RING_WIDTH * Y_SCALE);
+    }).setVisible(false);
+    this.lock = bakedImage(scene, "ring:lock", RING_REGION, (g) => {
+      g.fillStyle(LOCK_COLOR, 0.2).fillEllipse(0, 0, RING_WIDTH, RING_WIDTH * Y_SCALE);
+      g.lineStyle(4, LOCK_COLOR, 1).strokeEllipse(0, 0, RING_WIDTH, RING_WIDTH * Y_SCALE);
+      g.lineStyle(1.5, LOCK_INNER_COLOR, 0.9).strokeEllipse(0, 0, RING_WIDTH * 0.78, RING_WIDTH * 0.78 * Y_SCALE);
+    }).setVisible(false);
+    this.flash = bakedImage(scene, "ring:flash", RING_REGION, (g) => {
+      g.lineStyle(2.5, 0xffffff, 1).strokeEllipse(0, 0, RING_WIDTH, RING_WIDTH * Y_SCALE);
+    }).setVisible(false);
   }
 
   /**
@@ -69,9 +76,9 @@ export class TargetRings {
     const breath = 0.5 + 0.5 * Math.sin((now / LOCK_BREATH_MS) * Math.PI * 2);
     const settle = q < 1 ? lerp(LOCK_PULSE_FROM, 1, easeOutCubic(q)) : 1;
     const scale = 1 + (settle - 1) * m + LOCK_BREATH_SCALE * breath * m;
-    this.lock.setScale(scale).setAlpha(f > 0 ? lerp(LOCK_ALPHA_LOW, LOCK_ALPHA_HIGH, breath) : 1);
+    this.lock.setScale(scale / BAKE_SCALE).setAlpha(f > 0 ? lerp(LOCK_ALPHA_LOW, LOCK_ALPHA_HIGH, breath) : 1);
     if (q < 1 && f > 0) {
-      this.flash.setPosition(projX(lock.x), projY(lock.y)).setDepth(depthFor(lock.y, DEPTH_BIAS + 0.06)).setScale(scale)
+      this.flash.setPosition(projX(lock.x), projY(lock.y)).setDepth(depthFor(lock.y, DEPTH_BIAS + 0.06)).setScale(scale / BAKE_SCALE)
         .setAlpha(Math.min(1, f) * (1 - q)).setVisible(true);
     } else {
       this.flash.setVisible(false);
@@ -84,7 +91,7 @@ export class TargetRings {
     this.flash.destroy();
   }
 
-  private place(ring: Phaser.GameObjects.Graphics, at: TargetPoint | null, bias: number): void {
+  private place(ring: Phaser.GameObjects.Image, at: TargetPoint | null, bias: number): void {
     if (!at) {
       ring.setVisible(false);
       return;

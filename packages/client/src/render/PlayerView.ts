@@ -5,7 +5,7 @@ import {
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
-import { bakedImage, pixelImage, scaledPart, type Region } from "./bake";
+import { around, bakedImage, ensureBake, pixelImage, placeBake, scaledPart, type Region } from "./bake";
 import { BodyDisc, BodyFlash, FighterArt, HpBar, factionColor, heldWeapon, shadowImage, type FighterFields } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
@@ -52,6 +52,8 @@ const HIDDEN_LOCAL_ALPHA = 0.45;
 /** The Wish icon beside the name: its box, the gap to the name, and the name's own bottom edge (see the label below). */
 const WISH_ICON_SIZE = 10;
 const WISH_ICON_GAP = 3;
+/** The icon's drawing is baked around its own centre, once per Wish and ready state. */
+const WISH_ICON_REGION: Region = around(WISH_ICON_SIZE / 2 + 2);
 const LABEL_Y = -BODY_LIFT - PLAYER_RADIUS - 18;
 
 /** The title hangs under the feet, clear of everything above the head: the shadow ellipse ends 0.55 * PLAYER_RADIUS below. */
@@ -90,7 +92,7 @@ export class PlayerView {
   private readonly signatures: SignatureArt;
   private readonly status: StatusArt;
   /** The faction's Wish, drawn small to the left of the name: coloured while its cooldown is over, grey before. */
-  private readonly wishIcon: Phaser.GameObjects.Graphics;
+  private readonly wishIcon: Phaser.GameObjects.Image;
   /** What the icon was last drawn for (ability, ready, name: the name sets where it sits); "" = none. */
   private wishKey = "";
   /** The container's alpha as last set (1, or HIDDEN_LOCAL_ALPHA for the local fighter while hidden). */
@@ -123,7 +125,8 @@ export class PlayerView {
     this.art = new FighterArt(scene);
     this.signatures = new SignatureArt(scene);
     this.status = new StatusArt(scene);
-    this.wishIcon = scene.add.graphics().setVisible(false);
+    this.wishIcon = pixelImage(scene).setVisible(false);
+    placeBake(this.wishIcon, WISH_ICON_REGION);
     this.goldHalo = scene.add.graphics().setVisible(false);
     this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), this.isLocal ? RIM_LOCAL : RIM_DEFAULT);
     this.body.image.setPosition(0, -BODY_LIFT);
@@ -333,12 +336,15 @@ export class PlayerView {
     const key = def ? `${def.id}|${ready ? 1 : 0}|${p.name}` : "";
     if (key === this.wishKey) return;
     this.wishKey = key;
-    const g = this.wishIcon.clear();
-    g.setVisible(def !== null);
+    this.wishIcon.setVisible(def !== null);
     if (!def) return;
+    const texture = ensureBake(this.scene, `wish:${def.id}:${ready ? 1 : 0}`, WISH_ICON_REGION, (g) => {
+      drawAbilityIcon(g, def, 0, 0, WISH_ICON_SIZE, ready);
+    });
+    if (this.wishIcon.texture.key !== texture) this.wishIcon.setTexture(texture);
     // Left of the name's left edge (Phaser's text width once set; a fake or a font not yet measured falls back to an estimate).
     const width = typeof this.label.width === "number" && this.label.width > 0 ? this.label.width : p.name.length * 6;
-    drawAbilityIcon(g, def, -width / 2 - WISH_ICON_GAP - WISH_ICON_SIZE / 2, LABEL_Y - 6.5, WISH_ICON_SIZE, ready);
+    this.wishIcon.setPosition(-width / 2 - WISH_ICON_GAP - WISH_ICON_SIZE / 2, LABEL_Y - 6.5);
   }
 
   /** Draws the barrier bubble at `strength` (0..1: how close to the biggest shield any combo gives); 0 clears it. A no-op while the step is unchanged. */
