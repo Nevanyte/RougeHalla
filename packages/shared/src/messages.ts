@@ -36,8 +36,9 @@ export interface ClientMessages {
   /**
    * Lock an enemy (a player or a mob, by its state key) and auto-attack it: the server walks into the weapon's range,
    * attacks whenever the cooldown allows, faces it (the shield too) and aims every attack at it, until another order, the
-   * target going down or evading, leaving TARGET_RANGE, or staying out of line of sight for TARGET_LOS_GRACE_MS. Ignored
-   * unless the target is a standing enemy within TARGET_RANGE with line of sight.
+   * target going down or evading, leaving TARGET_RANGE, or staying out of line of sight for TARGET_LOS_GRACE_MS once it
+   * has been seen. Ignored unless the target is a standing enemy within TARGET_RANGE; one behind a wall is locked and
+   * walked to (nothing is attacked without a clear line).
    */
   target: { id: string };
   /** Where the cursor is: the shield faces it while nothing is locked. Streamed at no more than 20 Hz while it changes. */

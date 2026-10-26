@@ -4,7 +4,7 @@
 //   players p0 (the one that locks), p1, p2 ...   training dummies (no faction, 5000 hp, never fight back)   regional mobs.
 import { describe, expect, it } from "vitest";
 import {
-  damagePerHit, FACTIONS, leadAim, mapFromTiles, MOB_AIM_DEADBAND, mulberry32, pacedFaction, PLAYER_SPEED, TARGET_LOS_GRACE_MS,
+  damagePerHit, FACTIONS, hasLineOfSight, leadAim, mapFromTiles, MOB_AIM_DEADBAND, mulberry32, pacedFaction, PLAYER_SPEED, TARGET_LOS_GRACE_MS,
   TARGET_RANGE, TARGET_REPATH_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, weaponTimings, attackInterval,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -248,17 +248,6 @@ describe("the target order", () => {
       world.mobs.get(mob)!.brain!.mode = "return";
       ignored(world, mob);
       ignoredByTick(world, mob);
-    });
-
-    it("is out of line of sight", () => {
-      const world = arena(
-        [{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "frost", weapons: ["shield"], at: { x: 500, y: 320 } }],
-        arenaMap(column(12, 8, 11)), // x 384..416, between the two
-      );
-      ignored(world, id(1));
-      ignoredByTick(world, id(1));
-      const d = dummy(world, { x: 500, y: 330 });
-      ignored(world, d);
     });
 
     it("is farther than TARGET_RANGE", () => {
@@ -733,6 +722,45 @@ describe("how a lock ends", () => {
       expect(W(world).lock).toBeNull();
       expect(P(world).attackTarget).toBe("");
       expect(RT(world).path).toEqual([]);
+    });
+
+    it("is not needed to lock: a target behind a wall is locked and chased around it, and nothing is attacked before it is in sight", () => {
+      const world = arena(
+        [{ faction: "plague", weapons: ["sword"], at: ME }, { faction: "frost", weapons: ["shield"], at: { x: 500, y: 320 } }],
+        arenaMap(column(12, 8, 11)), // x 384..416, rows 8..11: between the two
+      );
+      target(world, id(1));
+      tick(world);
+      expect(W(world).lock).toBe(id(1));
+      expect(P(world).attackTarget).toBe(id(1));
+      expect(W(world).lockSeen).toBe(false);
+      let attackedAt = -1;
+      for (let i = 0; i < 80 && attackedAt < 0; i++) {
+        const seen = hasLineOfSight(world.map, P(world), P(world, 1));
+        tick(world);
+        if (W(world).action !== null) {
+          expect(seen || W(world).lockSeen, "an attack started with no clear line").toBe(true);
+          attackedAt = T(world);
+        }
+      }
+      expect(attackedAt).toBeGreaterThan(0); // it walked round the column and swung
+      expect(W(world).lockSeen).toBe(true);
+    });
+
+    it("is not timed while a target locked behind a wall has never been seen: the chase goes on past the grace", () => {
+      const world = arena(
+        [{ faction: "plague", weapons: ["sword"], at: { x: 560, y: 100 } }, { faction: "frost", weapons: ["shield"], at: behindWall }],
+        arenaMap(column(20, 1, 16)),
+      );
+      target(world, id(1));
+      tick(world);
+      expect(W(world).lock).toBe(id(1));
+      runTo(world, T(world) + TARGET_LOS_GRACE_MS + 500);
+      expect(W(world).lock).toBe(id(1));
+      expect(W(world).lockSeen).toBe(false);
+      expect(W(world).lockLosLostAt).toBe(0);
+      expect(P(world).y).toBeGreaterThan(100); // heading down to the gap
+      expect(W(world).action).toBeNull();
     });
 
     it("starts over when the target is seen again", () => {

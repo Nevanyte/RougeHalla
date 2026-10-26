@@ -145,11 +145,14 @@ export const AIM_STALE_MS = 1000;
  */
 export const TARGET_SNAP_RADIUS = 64;
 /**
- * Server: a `target` is accepted only within this distance (centre to centre) and with line of sight, and a lock is dropped
- * once its target is farther than this (it left for good). Twenty tiles: about half a screen.
+ * Server: a `target` is accepted only within this distance (centre to centre), and a lock is dropped once its target is
+ * farther than this (it left for good). Twenty tiles: about half a screen.
  */
 export const TARGET_RANGE = 640;
-/** A lock whose target has been out of line of sight this long is dropped; until then the chase paths around the wall. */
+/**
+ * A lock whose target, once seen, has been out of line of sight this long is dropped; until then the chase paths around the
+ * wall. A target locked behind a wall is chased until it is first seen.
+ */
 export const TARGET_LOS_GRACE_MS = 1500;
 /** A locked fighter re-plans its chase at most this often (the walk to a moving target). */
 export const TARGET_REPATH_MS = 250;

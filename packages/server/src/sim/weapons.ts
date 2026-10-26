@@ -51,6 +51,7 @@ export function releaseTrigger(world: World, c: Combatant): void {
 export function setLock(c: Combatant, id: string): void {
   const w = c.rt.weapon;
   w.lock = id;
+  w.lockSeen = false;
   w.lockLosLostAt = 0;
   w.lockPlanAt = -Infinity;
   w.lockGoal = null;
@@ -61,6 +62,7 @@ export function setLock(c: Combatant, id: string): void {
 export function clearLock(c: Combatant): void {
   const w = c.rt.weapon;
   w.lock = null;
+  w.lockSeen = false;
   w.lockLosLostAt = 0;
   w.lockPlanAt = -Infinity;
   w.lockGoal = null;

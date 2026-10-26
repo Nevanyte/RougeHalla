@@ -5,9 +5,10 @@
 // and the aim, and the weapon state machine does the rest (sim/weapons.ts).
 //
 // Accepting (handleTarget). The target must be another combatant that is standing, not evading, hostile (not the fighter
-// itself, and a mob never locks a mob: only players lock at all), within TARGET_RANGE centre to centre, in line of sight,
-// and the player must hold a weapon. Anything else is ignored without changing a thing. Accepting locks it and lets go of
-// the trigger (the upkeep below holds it from then on).
+// itself, and a mob never locks a mob: only players lock at all) and within TARGET_RANGE centre to centre, and the player
+// must hold a weapon. Anything else is ignored without changing a thing. Line of sight is not needed: an enemy seen behind
+// a pillar is locked and the chase walks around it, as in LoL (nothing is attacked without a clear line). Accepting locks
+// it and lets go of the trigger (the upkeep below holds it from then on).
 //
 // Orders replace each other in arrival order within a tick (step.ts applies a move where it arrived among the actions):
 // `move` and `stop` end the lock (dropLock, weapons.ts), as does `attack`; a `target` ends whatever came before it. A
@@ -15,7 +16,8 @@
 //
 // Upkeep (updateTargets, once per tick right after the inputs, before the weapons). For every locked player: the lock ends
 // when the target is no longer standing, is evading, is farther than TARGET_RANGE, has been out of line of sight for
-// TARGET_LOS_GRACE_MS (until then the chase paths around the wall), or the player holds no weapon. Ending it clears the
+// TARGET_LOS_GRACE_MS after having been in it (until then the chase paths around the wall; a target locked behind a wall
+// is chased until it is first seen), or the player holds no weapon. Ending it clears the
 // trigger and the chase path: the player stops where it stands. Otherwise policies.ts `decide` plays the weapon with
 // lockSpacing (close in until within the weapon's `far`, then stand and attack, never back off) against the target's
 // present position and its velocity:
@@ -42,7 +44,7 @@ export function install(world: World): void {
   world.actions.target = handleTarget;
 }
 
-/** Can `c` hold `t` as a target: a standing enemy within TARGET_RANGE that is not walking home? (Line of sight is checked on top of this.) */
+/** Can `c` hold `t` as a target: a standing enemy within TARGET_RANGE that is not walking home? */
 function lockable(c: Combatant, t: Combatant): boolean {
   return standing(t) && !isEvading(t) && hostile(c, t) && Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y) <= TARGET_RANGE;
 }
@@ -51,7 +53,6 @@ export const handleTarget: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "target" || c.kind !== "player") return;
   const t = combatant(world, cmd.id);
   if (!t || !lockable(c, t) || activeWeapon(c.s) === null) return;
-  if (!hasLineOfSight(collisionMap(world), c.s, t.s)) return;
   const w = c.rt.weapon;
   setLock(c, t.id);
   // The lock holds the trigger from here (updateTargets); a trigger pressed before it is let go.
@@ -81,8 +82,12 @@ function follow(world: World, c: Combatant): void {
   const self = { x: c.s.x, y: c.s.y };
   const at = { x: t.s.x, y: t.s.y };
   const los = hasLineOfSight(collisionMap(world), self, at);
-  if (los) w.lockLosLostAt = 0;
-  else if (w.lockLosLostAt === 0) w.lockLosLostAt = now;
+  if (los) {
+    w.lockSeen = true;
+    w.lockLosLostAt = 0;
+  } else if (!w.lockSeen) {
+    // Locked behind a wall: chase until it is first seen (the leash still bounds it).
+  } else if (w.lockLosLostAt === 0) w.lockLosLostAt = now;
   else if (now - w.lockLosLostAt >= TARGET_LOS_GRACE_MS) {
     dropLock(c);
     return;

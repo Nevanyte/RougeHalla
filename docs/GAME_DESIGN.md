@@ -319,9 +319,9 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 The owner's ask: right-click moves, left-click auto-attacks the enemy closest to the cursor (so a near miss does not matter), with an attack animation or just a pause while it swings, and that pause should replace the ranged move slow. This is how it plays. The numbers are from the 20 Hz Python model; the real-sim harness is measured in `testing/TUNING_CONTROLS.md`.
 
 **The target lock** (the server plays the fight, as it does for a mob)
-- **Locking.** A left-click sends `target`. The client picks the living enemy (a player or a mob) drawn nearest the cursor's ground point, within 64 u (two tiles) of it. A click on empty ground does nothing. The server accepts it only for a standing enemy that is not a mob walking home, within 640 u (20 tiles) and in line of sight; anything else is ignored and changes nothing.
+- **Locking.** A left-click sends `target`. The client picks the living enemy (a player or a mob) drawn nearest the cursor's ground point, within 64 u (two tiles) of it. A click on empty ground does nothing. The server accepts it only for a standing enemy that is not a mob walking home, within 640 u (20 tiles); anything else is ignored and changes nothing. Line of sight is not needed: an enemy seen behind a pillar is locked and you walk around to it, as in League, but nothing is attacked without a clear line.
 - **Fighting.** From then on the server walks you into the weapon's range (it closes in, then stands: it never backs off, strafes or weaves), attacks whenever the cooldown allows, faces the target (the shield's block cone too) and aims every attack at it. Your `aim` is ignored while you are locked.
-- **Ending.** The lock ends when you give another order, the target goes down or walks home, it leaves 640 u, it stays out of line of sight for 1.5 s (until then you path around the wall), or you hold no weapon; the coliseum teleport and your own death end it too. You stop where you stand. A swap or a pickup keeps it.
+- **Ending.** The lock ends when you give another order, the target goes down or walks home, it leaves 640 u, it stays out of line of sight for 1.5 s after you have seen it (until then you path around the wall; a target locked behind a wall is chased until you first see it), or you hold no weapon; the coliseum teleport and your own death end it too. You stop where you stand. A swap or a pickup keeps it.
 - **Orders replace each other, in arrival order.** A right-click (even to a point you cannot reach) or `S` drops the lock, and a left-click on an enemy replaces any earlier order. Mobs never lock: they hold the trigger themselves.
 - **Re-aiming.** An attack the lock started goes at its target as it lands (a swing straight at where the target stood at the swing's rewind time) or leaves (an arrow or ball led at the target's position and velocity at that moment), if the target still stands. Once loosed it flies straight, so its target can still dodge it by stepping off the line.
 - **Lag.** A locked attack carries no client timestamp: it is timed in the present, one tick back.
@@ -349,7 +349,7 @@ The next tightest is Fire over Sentenced with the wand (shield 1.74 s against 1.
 **Best guesses, logged for the owner to overrule.**
 - A windup is committed (moving does not cancel it), as above.
 - The click snap is 64 u, and an empty click does nothing: there is no attack-move.
-- 640 u is both the range a lock is accepted at and the leash it breaks at, and 1.5 s without line of sight breaks it.
+- 640 u is both the range a lock is accepted at and the leash it breaks at, and 1.5 s without line of sight breaks it once the target has been seen; locking needs no line of sight.
 - The lock survives a swap or a pickup.
 - The shield faces the locked target, else the cursor.
 - A locked shot is aimed once, as it leaves, and flies straight (dodgeable).

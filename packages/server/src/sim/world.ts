@@ -64,7 +64,9 @@ export interface WeaponRuntime {
   lagMs: number;
   /** The fighter this one has locked (a `target` order, players only) and what the chase needs (sim/targeting.ts). */
   lock: string | null;
-  /** Server ms the lock's target went out of line of sight (0 = in sight). */
+  /** The lock's target has been in line of sight at least once since it was locked (only then can losing it end the lock). */
+  lockSeen: boolean;
+  /** Server ms the lock's target went out of line of sight after being seen (0 = in sight, or not seen yet). */
   lockLosLostAt: number;
   /** When the chase last planned a path (-Infinity: never), and the point it planned to (null: none yet). */
   lockPlanAt: number;
@@ -468,6 +470,6 @@ export function nextId(world: World, prefix: string): string {
 export function newWeaponRuntime(): WeaponRuntime {
   return {
     action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-    lock: null, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null,
+    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null,
   };
 }

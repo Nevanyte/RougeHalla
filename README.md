@@ -91,7 +91,7 @@ Right-click to move, left-click an enemy to fight it. There is no attack button 
 | Input | In a run |
 | --- | --- |
 | Right-click (hold) | Walk to that point. The server pathfinds around walls. Holding re-sends the target every 100 ms. An unreachable point gives no walk, but the order still drops your attack target. |
-| Left-click on or near an enemy | Lock the nearest enemy (a player or a mob) within 64 units of the cursor. The server walks you into range and attacks it whenever the cooldown allows, until you give another order, it dies, it leaves 640 units, or it stays out of line of sight for 1.5 s. A click on empty ground does nothing. The locked enemy gets a red ring, and the one a click would lock gets a thin light ring. |
+| Left-click on or near an enemy | Lock the nearest enemy (a player or a mob) within 64 units of the cursor. The server walks you into range and attacks it whenever the cooldown allows, until you give another order, it dies, it leaves 640 units, or it stays out of line of sight for 1.5 s once you have seen it. An enemy behind a wall can be locked: you walk around to it, and nothing is attacked without a clear line. A click on empty ground does nothing. The locked enemy gets a red ring, and the one a click would lock gets a thin light ring. |
 | Mouse position | Aim for the shield: it faces the cursor while nothing is locked, and the locked enemy otherwise. |
 | `Q` | Swap to the other weapon slot. |
 | `1` / `2` | Switch to that slot. |
@@ -296,7 +296,7 @@ Identity and persistence:
 Gameplay and content:
 
 - **Placeholder art and balance.** Colored shapes, no audio, numbers that are first picks. The weapon and faction numbers are tuned in `testing/` and the harnesses. The mob and buff numbers are tuned only against scripted players.
-- **The controls are a first pick too.** Click snap 64 units, an empty click does nothing (there is no attack-move), a windup cannot be cancelled by moving, a lock lasts out to 640 units and 1.5 s without line of sight. The list of these guesses is in [CLAUDE.md](CLAUDE.md).
+- **The controls are a first pick too.** Click snap 64 units, an empty click does nothing (there is no attack-move), a windup cannot be cancelled by moving, a lock lasts out to 640 units and 1.5 s without line of sight once the target was seen (a target locked behind a wall is chased until it is). The list of these guesses is in [CLAUDE.md](CLAUDE.md).
 - **Not built:** quest NPCs, raid bosses, secrets, friends, private matches, chat, the 30-second warning and host voice line before the teleport, and the minimap pings for bountied players (the crown is built). They are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 2.2, 6, 12.4 and 15.
 - **No teams, parties or queues.** Every join lands in the first open lobby. Reloading the page mid-run drops the connection and cannot resume it (the client reconnects only within the same page session), so the seat times out after 10 s and the player is MIA. Chests and weapons on the ground do not respawn.
 
