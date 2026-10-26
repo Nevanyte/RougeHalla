@@ -38,7 +38,7 @@ Tabs in the same browser share `localStorage`, so two tabs can load the same cal
 
 ### Playing alone
 
-Bots are headless players. They use the same HTTP API and input messages as the browser. They farm mobs while no player is close and hunt the nearest player otherwise, and they join the same lobby as everyone else. Press Start Run in your tab first, then start some:
+Bots are headless players. They use the same HTTP API and play with the same controls as the browser: they walk (`move`), click their foe (`target`) and let the server chase, attack and aim, and they swap and pick up weapons. They never send `aim`, `attack` or `release`. They farm mobs while no player is close and hunt the nearest player otherwise, and they join the same lobby as everyone else. Press Start Run in your tab first, then start some:
 
 ```bash
 npm run bots -- 3
@@ -99,7 +99,7 @@ Right-click to move, left-click an enemy to fight it. There is no attack button 
 | `S` | Stop walking and drop the attack target. |
 | `Esc` | Leave a training room. |
 
-Orders replace each other, in the order they arrive: a right-click or `S` drops the lock, and a left-click on an enemy replaces any earlier order. A walk ordered while an attack is winding up is not lost: the windup is committed (it is not cancelled by moving, as it would be in League of Legends), and the walk starts when it ends. Swapping weapons or picking one up keeps the lock (an attack still winding up is cancelled, and the lock starts the next one with the new weapon). A locked attack is aimed at its target again when it lands or leaves, but arrows and balls then fly straight and can be dodged.
+Orders replace each other, in the order they arrive: a right-click or `S` drops the lock, and a left-click on an enemy replaces any earlier order. A walk ordered while an attack is winding up is not lost: the windup is committed (it is not cancelled by moving, as it would be in League of Legends), and the walk starts when it ends. Swapping weapons or picking one up keeps the lock (an attack still winding up is cancelled, and the lock starts the next one with the new weapon). A locked attack is aimed at its target again when it lands or leaves, but arrows and balls then fly straight and can be dodged. An attack made without a lock (a mob's) goes where it was aimed: a swing or a ball at the start, an arrow when its draw ends.
 
 In the hub: right-click or `WASD` / arrows to walk, `E` or a click at a station. Shortcuts are ignored while a text field has focus. Clicks that begin on a menu or panel never reach the world.
 
@@ -201,7 +201,7 @@ These report. They never fail the build, and they are what to run before touchin
 
 | Command | What it does |
 | --- | --- |
-| `npm run harness -w @raid/server` | Weapon duels in the real sim between two policy-driven clients: the weapon matrix, a style grid for every edge with a ranged weapon, an edge verdict (holds, or fails and why), and kiting. About 50 s. `-- --core` skips the sensitivity passes (about 40 s), `-- --quick` takes a few seconds, `-- --help` lists the filters. |
+| `npm run harness -w @raid/server` | Weapon duels in the real sim between two policy-driven clients: the weapon matrix, a style grid for every edge with a ranged weapon, an edge verdict (holds, or fails and why), the same edges when both fighters click each other (the target lock), and kiting (a shooter that stands, strafes, kites, orb-walks or locks its chaser). About 55 s. `-- --core` skips the sensitivity passes (about 40 s), `-- --quick` takes a few seconds, `-- --help` lists the filters. |
 | `npm run harness:factions -- --python` | Every faction edge with the same weapon on both sides, and the signature openings, in the real sim. Checked pair by pair against `testing/realtime.py` (about 5 s). `-- --mode policy` plays them as moving fighters (about 20 s), `-- --mode full` with real arcs and flight (about 7 s). |
 | `npx tsx packages/server/bench/stepBench.ts` | Cost of one `step()` with 8 players and 60 mobs. |
 | `npx tsx packages/server/bench/bandwidth.ts [seed=N]` | Bytes per second one client receives, headless with the real encoder: typical, heavy, idle. |
@@ -219,7 +219,7 @@ Python, no install beyond numpy (only `test_rpsls.py` needs nothing). They are t
 | `python3 testing/realtime_report.py [what-if.json] [sections]` | The 20 Hz model (`realtime.py`): cadence tables, duels with signature openings, kiting, buff thresholds, the longest stretch with no swing. Needs numpy, about 40 s. |
 | `python3 testing/weapon_reference.py` | Prints the weapon tables to paste into `packages/shared/test/weapons.test.ts` and `packages/server/src/harness/parity.ts` when a weapon number changes. Needs numpy. |
 
-`realtime_paced.py` is the same model at duel pace as JSON. `harness:factions --python` runs it for you. The tuning logs are [testing/TUNING_9_1.md](testing/TUNING_9_1.md) (weapons) and [testing/TUNING_10.md](testing/TUNING_10.md) (signatures).
+`realtime_paced.py` is the same model at duel pace as JSON. `harness:factions --python` runs it for you. The tuning logs are [testing/TUNING_9_1.md](testing/TUNING_9_1.md) (weapons), [testing/TUNING_10.md](testing/TUNING_10.md) (signatures) and [testing/TUNING_CONTROLS.md](testing/TUNING_CONTROLS.md) (the controls rework: the windups, the kite check against an orb-walker, the real-sim before and after).
 
 ## Architecture
 
@@ -243,7 +243,7 @@ Python, no install beyond numpy (only `test_rpsls.py` needs nothing). They are t
 
 How it fits together:
 
-- **Authoritative server.** Clients send inputs only (`move`, `stop`, `target`, `aim`, `attack`, `release`, `swap`, `pickup`). The browser sends `target` for every fight and never touches the trigger; `attack` and `release` are the low-level trigger that mobs, the harness and bots use. Positions, damage and outcomes are never accepted from a client.
+- **Authoritative server.** Clients send inputs only (`move`, `stop`, `target`, `aim`, `attack`, `release`, `swap`, `pickup`). The browser sends `target` for every fight and never touches the trigger; `attack` and `release` are the low-level trigger that mobs and the weapon harness use. The bots click like the browser does. Positions, damage and outcomes are never accepted from a client.
 - **Fixed 20 Hz tick and input queues.** Message handlers validate (finite numbers clamped to the world, short ids) and enqueue into a per-player queue. The latest move and aim win, orders replace each other in arrival order (a `move` or `stop` drops a lock, a `target` replaces what came before it), at most 6 actions are kept per tick, and a client sending more than 100 messages a second is disconnected. The sim drains the queues at the start of each 50 ms step in a per-tick shuffled order, so same-tick races are fair. A patch goes out after every step.
 - **Pure sim.** `sim/` never imports Colyseus or touches sockets. Gameplay modules register actions and systems into a world. `step()` returns events and the room turns them into messages and profile changes, so most of the game is tested headless.
 - **One damage ledger per tick.** Swings, arrows, balls and signature damage are recorded as hits and applied all at once. Results are settled once at the end of the tick. So the order players happen to be processed in never decides who wins.
@@ -296,6 +296,7 @@ Identity and persistence:
 Gameplay and content:
 
 - **Placeholder art and balance.** Colored shapes, no audio, numbers that are first picks. The weapon and faction numbers are tuned in `testing/` and the harnesses. The mob and buff numbers are tuned only against scripted players.
+- **Wand > Shield fails in the weapon harness's policy matrix (23%).** The harness wand backs away from a charging shield, and with no ranged slows that no longer works. It holds at 100% when both fighters click each other, which is how the controls are played; nothing was changed for it. Numbers and reasons in [testing/TUNING_CONTROLS.md](testing/TUNING_CONTROLS.md).
 - **The controls are a first pick too.** Click snap 64 units, an empty click does nothing (there is no attack-move), a windup cannot be cancelled by moving, a lock lasts out to 640 units and 1.5 s without line of sight once the target was seen (a target locked behind a wall is chased until it is). The list of these guesses is in [CLAUDE.md](CLAUDE.md).
 - **Not built:** quest NPCs, raid bosses, secrets, friends, private matches, chat, the 30-second warning and host voice line before the teleport, and the minimap pings for bountied players (the crown is built). They are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 2.2, 6, 12.4 and 15.
 - **No teams, parties or queues.** Every join lands in the first open lobby. Reloading the page mid-run drops the connection and cannot resume it (the client reconnects only within the same page session), so the seat times out after 10 s and the player is MIA. Chests and weapons on the ground do not respawn.
