@@ -68,15 +68,15 @@ describe("canInteract across a LOW fence", () => {
 });
 
 // ---- MapView -------------------------------------------------------------------------------------------------------------------
+// The art is a placeholder, so nothing here names a colour: a kind is told from another by what was painted, not by its value.
 
 describe("MapView draws LOW tiles", () => {
-  const LAVA_TOP = 0xff5a14;
-  const CREVASSE_TOP = 0x0a1626;
-
   /** Every call of `name` on a Graphics, as argument lists. */
   const calls = (g: FakeObject, name: string): unknown[][] => argsOf(g, name);
   const depthOf = (g: FakeObject): number => g.state.depth as number;
   const fillColors = (g: FakeObject): unknown[] => calls(g, "fillStyle").map(([c]) => c);
+  /** A LOW row is the one Graphics that strokes a rim (a wall row never does). */
+  const isLowRow = (g: FakeObject): boolean => calls(g, "strokeRect").length > 0;
 
   function graphics(map: GameMap): FakeObject[] {
     const { scene, ofKind } = fakeScene();
@@ -84,20 +84,33 @@ describe("MapView draws LOW tiles", () => {
     return ofKind("graphics");
   }
 
+  /** The fill colour a LOW row painted the top face of tile column `tx` with (the face is TILE * Y_SCALE tall; the front is LOW_HEIGHT). */
+  function topColour(g: FakeObject, tx: number): unknown {
+    let color: unknown;
+    for (const [name, args] of g.calls) {
+      if (name === "fillStyle") color = args[0];
+      else if (name === "fillRect") {
+        const [x, , w, h] = args as [number, number, number, number];
+        if (h === TILE * Y_SCALE && x <= tx * TILE && tx * TILE < x + w) return color;
+      }
+    }
+    throw new Error(`no top face over column ${tx}`);
+  }
+
   it("adds one Graphics per row that has LOW, at the row's south-edge depth, and none for a map without LOW", () => {
     const base = graphics(room(12, 10));
+    expect(base.some(isLowRow)).toBe(false);
     // Rows 3 and 5 have LOW (a lava tile, a fence run).
     const lowMap = room(12, 10, { "4,3": TERRAIN_LAVA, "6,5": TERRAIN_FENCE, "7,5": TERRAIN_FENCE });
     const withLow = graphics(lowMap);
     expect(withLow.length).toBe(base.length + 2);
-    const lowRows = withLow.filter((g) => fillColors(g).includes(LAVA_TOP) || fillColors(g).includes(0x5a606a));
-    expect(lowRows.map(depthOf).sort((a, b) => a - b)).toEqual([4 * TILE, 6 * TILE]);
+    expect(withLow.filter(isLowRow).map(depthOf).sort((a, b) => a - b)).toEqual([4 * TILE, 6 * TILE]);
   });
 
   it("draws a LOW tile as a low block: a top face lifted by LOW_HEIGHT and a front face LOW_HEIGHT tall (half a wall)", () => {
     expect(LOW_HEIGHT).toBeLessThan(WALL_HEIGHT);
     const map = room(12, 10, { "4,3": TERRAIN_LAVA });
-    const g = graphics(map).find((o) => fillColors(o).includes(LAVA_TOP))!;
+    const g = graphics(map).find(isLowRow)!;
     const rects = calls(g, "fillRect");
     const top = (3 * TILE) * Y_SCALE - LOW_HEIGHT;
     const front = (4 * TILE) * Y_SCALE - LOW_HEIGHT;
@@ -108,21 +121,26 @@ describe("MapView draws LOW tiles", () => {
     expect(calls(g, "strokeRect")).toContainEqual([4 * TILE, top, TILE, TILE * Y_SCALE]);
   });
 
-  it("colours each kind its own: lava orange, crevasse near-black, a fence (and a kind-less LOW) grey; a run keeps one kind", () => {
+  it("colours each kind its own (lava, crevasse and fence differ); a fence and a kind-less LOW share one; a run keeps one kind", () => {
     const map = room(14, 8, { "2,3": TERRAIN_LAVA, "3,3": TERRAIN_LAVA, "4,3": TERRAIN_CREVASSE, "5,3": TERRAIN_FENCE, "6,3": 0 });
-    const g = graphics(map).find((o) => fillColors(o).includes(LAVA_TOP))!;
-    const colors = new Set(fillColors(g));
-    expect(colors.has(LAVA_TOP)).toBe(true);
-    expect(colors.has(CREVASSE_TOP)).toBe(true);
-    expect(colors.has(0x5a606a)).toBe(true); // the fence and the kind-less tile share the grey
+    const g = graphics(map).find(isLowRow)!;
+    const lava = topColour(g, 2);
+    const crevasse = topColour(g, 4);
+    const fence = topColour(g, 5);
+    expect(new Set([lava, crevasse, fence]).size).toBe(3);
+    expect(topColour(g, 6)).toBe(fence); // a LOW tile with no kind is drawn as the fence
+    expect(topColour(g, 3)).toBe(lava);
     // The two lava tiles are one run: one top face two tiles wide.
     const top = (3 * TILE) * Y_SCALE - LOW_HEIGHT;
     expect(calls(g, "fillRect")).toContainEqual([2 * TILE, top, 2 * TILE, TILE * Y_SCALE]);
+    // And a LOW tile is not drawn in a wall's colours: the wall row of the same map paints none of the LOW top colours.
+    const wallColours = new Set(graphics(room(14, 8)).flatMap(fillColors));
+    for (const c of [lava, crevasse, fence]) expect(wallColours.has(c)).toBe(false);
   });
 
   it("hides the front face of a LOW tile that has LOW to its south (the south tile's top covers it)", () => {
     const map = room(12, 10, { "4,3": TERRAIN_FENCE, "4,4": TERRAIN_FENCE });
-    const rows = graphics(map).filter((o) => fillColors(o).includes(0x5a606a));
+    const rows = graphics(map).filter(isLowRow);
     expect(rows).toHaveLength(2);
     const frontOf = (g: FakeObject, southEdge: number) =>
       calls(g, "fillRect").filter(([, y, , h]) => y === southEdge * Y_SCALE - LOW_HEIGHT && h === LOW_HEIGHT);
@@ -134,7 +152,7 @@ describe("MapView draws LOW tiles", () => {
   it("leaves a wall's front face whole when a LOW tile is south of it, and a wall row's drawing as it was", () => {
     // A wall at (4, 2) with a fence tile below it at (4, 3): the wall keeps its full WALL_HEIGHT front face.
     const map = room(12, 10, { "4,3": TERRAIN_FENCE }, [[4, 2]]);
-    const wallRow = graphics(map).find((o) => depthOf(o) === 3 * TILE && !fillColors(o).includes(0x5a606a))!;
+    const wallRow = graphics(map).find((o) => depthOf(o) === 3 * TILE && !isLowRow(o))!;
     const southEdge = 3 * TILE;
     expect(calls(wallRow, "fillRect")).toContainEqual([4 * TILE, southEdge * Y_SCALE - WALL_HEIGHT, TILE, WALL_HEIGHT]);
     // Identical to the same wall on a map with no LOW at all.
@@ -168,35 +186,60 @@ describe("the minimap paints LOW tiles", () => {
     return out;
   }
 
-  const LAVA = "#ff5a14";
-  const FENCE = "#b4aed2";
-  const CREVASSE = "#0a1626";
-  const WALL = "#9aa3ad";
+  // The plain room paints the background, then its walls: those two colours are read off it, and a LOW colour is whatever else a map adds.
+  const plain = () => paint(room(16, 8));
+  const BG = (): string => plain()[0]!.color;
+  const WALL = (): string => plain().at(-1)!.color;
+  /** The colours `map` paints beyond the plain room's. */
+  const added = (map: GameMap): string[] => {
+    const known = new Set(plain().map((f) => f.color));
+    return [...new Set(paint(map).map((f) => f.color))].filter((c) => !known.has(c));
+  };
+  /** The one colour a lone LOW tile of `kind` is painted in. */
+  const lowColour = (kind: number): string => {
+    const colors = added(room(16, 8, { "3,3": kind }));
+    expect(colors).toHaveLength(1);
+    return colors[0]!;
+  };
 
-  it("paints lava orange, fence light grey-violet and crevasse dark, one fillRect per run of one kind per row", () => {
+  it("the plain room paints a background and then its walls in another colour", () => {
+    expect(BG()).not.toBe(WALL());
+    expect(new Set(plain().map((f) => f.color))).toEqual(new Set([BG(), WALL()]));
+  });
+
+  it("paints lava, fence and crevasse each its own colour, apart from the walls and the background, and a kind-less LOW as something", () => {
+    const colours = [TERRAIN_LAVA, TERRAIN_FENCE, TERRAIN_CREVASSE, 0].map(lowColour);
+    expect(new Set([...colours.slice(0, 3), BG(), WALL()]).size).toBe(5);
+    expect([BG(), WALL()]).not.toContain(colours[3]);
+  });
+
+  it("paints one fillRect per run of one kind per row", () => {
     const map = room(16, 8, { "3,3": TERRAIN_LAVA, "4,3": TERRAIN_LAVA, "5,3": TERRAIN_FENCE, "8,3": TERRAIN_CREVASSE });
     const fills = paint(map);
-    expect(fills.filter((f) => f.color === LAVA)).toHaveLength(1); // two lava tiles, one run
-    expect(fills.filter((f) => f.color === FENCE)).toHaveLength(1);
-    expect(fills.filter((f) => f.color === CREVASSE)).toHaveLength(1);
-    const lava = fills.find((f) => f.color === LAVA)!;
-    const fence = fills.find((f) => f.color === FENCE)!;
+    const [lavaC, fenceC, crevasseC] = [TERRAIN_LAVA, TERRAIN_FENCE, TERRAIN_CREVASSE].map(lowColour) as [string, string, string];
+    expect(fills.filter((f) => f.color === lavaC)).toHaveLength(1); // two lava tiles, one run
+    expect(fills.filter((f) => f.color === fenceC)).toHaveLength(1);
+    expect(fills.filter((f) => f.color === crevasseC)).toHaveLength(1);
+    const lava = fills.find((f) => f.color === lavaC)!;
+    const fence = fills.find((f) => f.color === fenceC)!;
     expect((lava.rect[2] as number)).toBeGreaterThan(fence.rect[2] as number); // two tiles wide against one
   });
 
   it("paints LOW after the region tints and before the walls", () => {
+    const tinted = room(16, 8);
+    tinted.regionGrid.fill(1); // fire everywhere: a region tint on every row
+    const tints = added(tinted);
+    expect(tints).toHaveLength(1);
     const map = room(16, 8, { "3,3": TERRAIN_LAVA });
-    map.regionGrid.fill(1); // fire everywhere: a region tint on every row
-    const fills = paint(map);
-    const at = (color: string) => fills.findIndex((f) => f.color === color);
-    const lastTint = fills.map((f) => f.color).lastIndexOf("rgba(255, 112, 67, 0.22)");
+    map.regionGrid.fill(1);
+    const colors = paint(map).map((f) => f.color);
+    const lastTint = colors.lastIndexOf(tints[0]!);
     expect(lastTint).toBeGreaterThanOrEqual(0);
-    expect(at(LAVA)).toBeGreaterThan(lastTint);
-    expect(at(LAVA)).toBeLessThan(at(WALL));
+    expect(colors.indexOf(lowColour(TERRAIN_LAVA))).toBeGreaterThan(lastTint);
+    expect(colors.indexOf(lowColour(TERRAIN_LAVA))).toBeLessThan(colors.indexOf(WALL()));
   });
 
   it("paints nothing extra for a map without LOW", () => {
-    const colors = new Set(paint(room(16, 8)).map((f) => f.color));
-    expect(colors.has(LAVA) || colors.has(FENCE) || colors.has(CREVASSE)).toBe(false);
+    expect(added(room(16, 8))).toEqual([]);
   });
 });

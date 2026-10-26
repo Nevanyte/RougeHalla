@@ -30,8 +30,8 @@ function blocked(tiles: Uint8Array, w: number, h: number, tx: number, ty: number
  * (x1, y1); (x, y) is the entry point on that tile's boundary and `dist` the distance from the
  * start. A start inside a blocked tile hits at distance 0. A miss reports (x1, y1) and the full length.
  * Passing exactly through a tile vertex counts as entering both neighbouring tiles, so the result
- * is symmetric under swapping the endpoints, for every mask, and under MASK_MOVE agrees with the pathfinder's
- * no-corner-cutting rule.
+ * is symmetric under swapping the endpoints (for endpoints off the grid lines, whatever the mask), and under MASK_MOVE
+ * agrees with the pathfinder's no-corner-cutting rule.
  */
 export function raycast(map: GameMap, x0: number, y0: number, x1: number, y1: number, mask: number = MASK_SIGHT): RayHit {
   // NaN/Infinity would never terminate the DDA; treat them as blocked at the origin.

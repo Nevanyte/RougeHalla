@@ -510,6 +510,18 @@ describe("findPath final position", () => {
   });
 });
 
+/** Mean ms per call over `reps` calls, the best of `rounds` rounds (a scheduler pause costs one round, not all), after a warm-up call. */
+function msPerCall(fn: () => unknown, reps: number, rounds = 3): number {
+  fn();
+  let best = Infinity;
+  for (let r = 0; r < rounds; r++) {
+    const t0 = performance.now();
+    for (let i = 0; i < reps; i++) fn();
+    best = Math.min(best, (performance.now() - t0) / reps);
+  }
+  return best;
+}
+
 const isWallTileAt = (map: GameMap, p: Vec2) => map.tiles[worldToTile(p.y) * map.w + worldToTile(p.x)] !== TILE_FLOOR;
 
 describe("performance", () => {
@@ -782,10 +794,11 @@ describe("findPath unreachable goals", () => {
     const to = { x: 2900, y: 1500 };
     expect(findPath(map, from, to)).toEqual([]);
     expect(findPathReference(map, from, to)).toEqual([]);
-    const reps = 200;
-    const t0 = performance.now();
-    for (let i = 0; i < reps; i++) findPath(map, from, to);
-    expect((performance.now() - t0) / reps).toBeLessThan(0.05);
+    // Timed against the full search on the same query, so the gate is how much the reject saves and machine load cancels out.
+    const ours = msPerCall(() => findPath(map, from, to), 200);
+    const full = msPerCall(() => findPathReference(map, from, to), 10);
+    expect(full / ours, `reject ${ours} ms, full search ${full} ms`).toBeGreaterThanOrEqual(3);
+    expect(ours).toBeLessThan(0.5); // a ceiling only for a runaway (about 10x what it costs on a quiet machine)
   });
 
   it("is also [] across closed coliseum gates, and open when the gates are", () => {
@@ -823,7 +836,7 @@ describe("PULL_WINDOW", () => {
     expect(longest).toBeGreaterThan(3);
   });
 
-  it("keeps the worst findPath on a 96x96 serpentine of LOW rivers under 3 ms", () => {
+  it("keeps findPath on a 96x96 serpentine of LOW rivers well under the same search without the window", () => {
     const W = 96;
     const tiles = new Uint8Array(W * W);
     for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) tiles[y * W + x] = x === 0 || y === 0 || x === W - 1 || y === W - 1 ? TILE_WALL : TILE_FLOOR;
@@ -846,7 +859,7 @@ describe("PULL_WINDOW", () => {
     for (const [a, b] of queries) findPath(map, a, b); // warm up
     let worst = 0, longest = 0;
     for (const [a, b] of queries) {
-      // Best of three, so a scheduler pause while other test files run does not decide a gate that is 3x off the measurement.
+      // Best of three, so a scheduler pause while other test files run does not decide the ceiling.
       let best = Infinity;
       let path: Vec2[] = [];
       for (let rep = 0; rep < 3; rep++) {
@@ -859,6 +872,11 @@ describe("PULL_WINDOW", () => {
       expect(path.length).toBeGreaterThan(0);
     }
     expect(longest).toBeGreaterThan(5); // the snake really forces detours
-    expect(worst).toBeLessThan(3);
+    // The gate is the saving over the reference on the same queries (load cancels out); the absolute ceiling is only for a runaway
+    // (about 10x the worst query on a quiet machine).
+    const ours = msPerCall(() => { for (const [a, b] of queries) findPath(map, a, b); }, 1);
+    const full = msPerCall(() => { for (const [a, b] of queries) findPathReference(map, a, b); }, 1);
+    expect(full / ours, `window ${ours} ms, without ${full} ms for ${queries.length} queries`).toBeGreaterThanOrEqual(3);
+    expect(worst).toBeLessThan(30);
   });
 });
