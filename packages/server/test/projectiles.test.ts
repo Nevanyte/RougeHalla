@@ -1272,9 +1272,16 @@ describe("balls and arrows meeting in the air", () => {
 describe("the arena teleport", () => {
   it("clears every projectile in flight with reason cleared, at the place each had reached", () => {
     const w = arena([archer(), mage({ x: 200, y: 500 }), idle()]);
-    loose(w, [{ id: "archer", a: 0 }]);
-    castBall(w, "mage", 0);
-    ticks(w, 3);
+    // Both start at once and let go of the trigger a tick later: the ball leaves first (0.4 s of wand against 0.52 s of bow),
+    // and a tick after the arrow both are in the air.
+    for (const id of ["archer", "mage"]) {
+      P(w, id).readyAt = 0;
+      RT(w, id).inputs.pushAction({ kind: "attack", a: 0 });
+    }
+    tick(w);
+    for (const id of ["archer", "mage"]) RT(w, id).inputs.pushAction({ kind: "release", a: 0 });
+    for (let i = 0; i < 30 && w.projectiles.size < 2; i++) tick(w);
+    ticks(w, 1);
     const flying = [...w.projectiles.values()].map((p) => ({ id: p.id, proj: p.kind, x: p.x, y: p.y }));
     expect(flying).toHaveLength(2);
     w.hooks.teleported!(w);

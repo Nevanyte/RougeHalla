@@ -1,5 +1,6 @@
-// The harness report: the weapon matrix, how each duel ended, the two edges to watch, how much a weaker view of the
-// world or a cluttered arena moves the results, and the parity block. Report-only: nothing here asserts an outcome.
+// The harness report: the weapon matrix, how each duel ended, the two edges to watch, the style grids and edge verdicts,
+// the same edges when both fighters click each other (the target lock), kiting, how much a weaker view of the world or a
+// cluttered arena moves the results, and the parity block. Report-only: nothing here asserts an outcome.
 import {
   FACTION_IDS, FACTIONS, POLICIES, TICK_RATE, TILE, WEAPON_BEATS, type FactionId, type WeaponId,
 } from "@raid/shared";
@@ -41,6 +42,8 @@ export interface HarnessReport {
   cells: Cell[];
   /** Whether each designed edge holds (see verdictOf). */
   verdicts: EdgeVerdict[];
+  /** Each edge with both fighters locking each other (see lockRows). */
+  lock: LockRow[];
   parity: ParityReport;
   text: string;
 }
@@ -249,6 +252,49 @@ export function formatVerdicts(verdicts: readonly EdgeVerdict[], quick: boolean)
   return lines;
 }
 
+/** One designed edge when both fighters play by clicking the other (the target lock): the server chases, attacks and aims for both. */
+export interface LockRow {
+  edge: Edge;
+  /** The designed winner's win rate over every faction and setup, and in the main matrix on the same setups (both fighters on the shared policies) for comparison. */
+  overall: number;
+  main: number;
+  worstFaction: { faction: FactionId; rate: number };
+  perFaction: ReadonlyArray<{ faction: FactionId; rate: number }>;
+}
+
+/** The lock pass of `edges` over the main matrix's factions and setups (open arena), read against the main matrix `cells`. */
+export function lockRows(lockCells: readonly Cell[], cells: readonly Cell[], edges: readonly Edge[], factions: readonly FactionId[]): LockRow[] {
+  return edges.map((edge) => {
+    const perFaction = factions.map((faction) => ({ faction, rate: statsOf(pooled(cellsOf(lockCells, edge, faction))).winRate }));
+    return {
+      edge,
+      overall: statsOf(pooled(cellsOf(lockCells, edge))).winRate,
+      main: statsOf(pooled(cellsOf(cells, edge))).winRate,
+      worstFaction: perFaction.reduce((a, b) => (b.rate < a.rate ? b : a)),
+      perFaction,
+    };
+  });
+}
+
+export function formatLock(rows: readonly LockRow[], factions: readonly FactionId[]): string[] {
+  const byFaction = `by faction (${factions.join("/")})`;
+  const lines = [`${"edge".padEnd(16)}${"overall".padStart(9)}  ${"weakest faction".padEnd(22)}${byFaction.padEnd(byFaction.length + 2)}main matrix`];
+  for (const r of rows) {
+    lines.push(
+      `${edgeName(r.edge).padEnd(16)}${pct(r.overall).padStart(9)}  ${`${r.worstFaction.faction} ${pct(r.worstFaction.rate)}`.padEnd(22)}` +
+      `${r.perFaction.map((p) => Math.round(p.rate * 100)).join("/").padEnd(byFaction.length + 2)}${pct(r.main)}`,
+    );
+  }
+  const holds = rows.filter((r) => r.overall >= HOLD_OVERALL && r.worstFaction.rate >= HOLD_FACTION).length;
+  lines.push(`${holds} of ${rows.length} edges keep ${pct(HOLD_OVERALL)} overall and ${pct(HOLD_FACTION)} in every faction when both fighters lock each other`);
+  return lines;
+}
+
+/** Was this duel played from `s`? (The lock pass runs a subset of the main pass's setups.) */
+function sameSetup(r: DuelResult, s: Setup): boolean {
+  return r.spec.distance === s.distance && r.spec.angle === s.angle && r.spec.delayTicks?.[0] === s.delayTicks[0] && r.spec.delayTicks?.[1] === s.delayTicks[1];
+}
+
 /** Overall win % of each edge in a pass, for the sensitivity tables. */
 function passTable(columns: Array<{ name: string; cells: readonly Cell[] }>, edges: readonly Edge[]): string[] {
   const lines: string[] = [];
@@ -342,6 +388,15 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   out.push(...formatVerdicts(verdicts, quick));
   out.push("");
 
+  log("target lock pass");
+  const lockCells = runMatrix({ ...base, setups: gridSetups, styles: ["lock", "lock"] });
+  duels += total(lockCells);
+  // The main matrix column is the same setups as the lock pass, so the two are compared duel for duel.
+  const lock = lockRows(lockCells, cells.map((c) => ({ ...c, results: c.results.filter((r) => gridSetups.some((g) => sameSetup(r, g))) })), edges, factions);
+  out.push(heading(`TARGET LOCK  both fighters click each other (the server walks them into range, attacks and aims; they send nothing else): the designed winner's win%, ${plural(gridSetups.length, "setup")} x ${plural(factions.length, "faction")} pooled`));
+  out.push(...formatLock(lock, factions));
+  out.push("");
+
   log("kiting");
   out.push(heading("KITING  the real sim: seconds until a melee fighter is in reach of a shooter that starts at the edge of its range, by how the shooter plays"));
   const kiting = kitingReport(factions);
@@ -388,7 +443,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   out.push(heading(formatParity(parity)));
   out.push("");
   out.push(`${duels} duels in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
-  return { edges, factions, cells, verdicts, parity, text: out.join("\n") };
+  return { edges, factions, cells, verdicts, lock, parity, text: out.join("\n") };
 }
 
 /** Per weapon: swings, casts or shots started per duel, the hits that landed, and how many ticks went into walking into walls. */

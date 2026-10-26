@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   attackInterval, backlashPerSwing, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, DUEL_PACE, FACTION_IDS, FACTIONS, MAX_SIGHT_CORRIDOR,
   pacedFaction, PLAYER_RADIUS, RANGED_HIT_REACH, RANGED_SLACK, SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS,
-  weaponEdge, weaponTimings, type FactionId, type WeaponId,
+  WAND_WINDUP, WAND_WINDUP_SHARE, weaponEdge, weaponTimings, type FactionId, type WeaponId,
 } from "../src/index";
 
 /**
@@ -166,17 +166,18 @@ describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
     expect(fast.root).toBeCloseTo(0.193, 12);
   });
 
-  it("caps the wand cast at 0.2 s or 40% of the interval, with no slow after it", () => {
-    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.2, root: 0, ranged: true });
+  it("caps the wand cast at 0.4 s or 80% of the interval, with no slow after it", () => {
+    expect([WAND_WINDUP, WAND_WINDUP_SHARE]).toEqual([0.4, 0.8]);
+    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.4, root: 0, ranged: true });
     const fast = weaponTimings("wand", 0.3276);
-    expect(fast.windup).toBeCloseTo(0.13104, 12);
+    expect(fast.windup).toBeCloseTo(0.26208, 12);
     expect(fast).not.toHaveProperty("castSlow");
   });
 
-  it("makes the bow's draw a fixed windup inside its interval: min(0.6 s, 70%), the same every shot", () => {
-    expect([BOW_WINDUP, BOW_WINDUP_SHARE]).toEqual([0.6, 0.7]);
+  it("makes the bow's draw a fixed windup inside its interval: min(0.6 s, 92%), the same every shot", () => {
+    expect([BOW_WINDUP, BOW_WINDUP_SHARE]).toEqual([0.6, 0.92]);
     expect(weaponTimings("bow", 1.14)).toEqual({ interval: 1.14, windup: 0.6, root: 0, ranged: true });
-    expect(weaponTimings("bow", 0.2772).windup).toBeCloseTo(0.19404, 12);
+    expect(weaponTimings("bow", 0.2772).windup).toBeCloseTo(0.255024, 12);
     // No partial draws, no cooldown after the loose: the whole interval is the cycle.
     for (const key of ["fullDraw", "minDraw", "cooldown", "castSlow"]) expect(weaponTimings("bow", 1.14)).not.toHaveProperty(key);
   });

@@ -1,7 +1,7 @@
 // How strong is a regional mob in the REAL sim? A player on a weapon (its faction's signature weapon by default) meets ONE
 // mob of a region (the region's weapon, hp and damage scaled by k = MOB_K, or ELITE_K for an elite) on an open floor, and the
 // fight is played to the end through step(): the weapon state machines, the ledger, the signature systems, mobAI.thinkMobs
-// and settle(). The player is driven by the shared weapon policy `decide`, exactly like harness/duel.ts and the bots.
+// and settle(). The player is driven by the shared weapon policy `decide`, exactly like harness/duel.ts (the bots now click their foe instead: BotClient).
 //
 //   npx tsx bench/mobDuel.ts                       shipped MOB_K / ELITE_K: the 5x5 tables (normal and elite), 3 seeds
 //   npx tsx bench/mobDuel.ts --sweep               the k sweep (normal 0.30..0.60, elite 0.50..0.90), one summary row per k

@@ -203,7 +203,7 @@ describe("setup", () => {
   it("a fresh weapon runtime is idle: nothing held, never aimed", () => {
     expect(newWeaponRuntime()).toEqual({
       action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-      lock: null, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null,
+      lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null,
     });
   });
 });
@@ -398,20 +398,20 @@ describe("windups and landing", () => {
 });
 
 describe("the wand", () => {
-  it("casts for 200 ms, and the ball leaves from where the caster stands then", () => {
+  it("casts for 400 ms (Holy's wand), and the ball leaves from where the caster stands then", () => {
     const world = startRun();
     arm(world, 0, "holy", "wand");
     tap(world, 0, -0.4);
     tick(world);
     const S = T(world);
-    expect(fxOf("windup")).toMatchObject([{ by: "p0", weapon: "wand", a: -0.4, ms: 200 }]);
-    runTo(world, S + 150);
+    expect(fxOf("windup")).toMatchObject([{ by: "p0", weapon: "wand", a: -0.4, ms: 400 }]);
+    runTo(world, S + 350);
     expect(world.projectiles.size).toBe(0);
     tick(world);
     expect(shots).toHaveLength(1);
     expect(world.projectiles.size).toBe(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: S + 200, kind: "ball", owner: "p0", weapon: "wand", t: S + 200, range: 220 });
+    expect(shot).toMatchObject({ at: S + 400, kind: "ball", owner: "p0", weapon: "wand", t: S + 400, range: 220 });
     expect(shot.x).toBe(P(world).x);
     expect(shot.y).toBe(P(world).y);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.4) * 380, 9);
@@ -424,22 +424,22 @@ describe("the wand", () => {
     const world = startRun();
     arm(world, 0, "fire", "wand");
     const tm = timings("fire", "wand");
-    expect(tm.windup).toBeCloseTo(0.2, 12);
+    expect(tm.windup).toBeCloseTo(0.4, 12);
     expect(intervalMs("fire", "wand")).toBeCloseTo(1010.1, 1);
-    // Cast at tick 2 (S): rooted on S, S+50, S+100, S+150; the ball leaves at S+200, and the walk is at full speed from then on.
+    // Cast at tick 2 (S): rooted on S .. S+350 (8 ticks); the ball leaves at S+400, and the walk is at full speed from then on.
     const d = walk(world, 0, 28, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 4), ...repeat(STEP, 22)]);
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 8), ...repeat(STEP, 18)]);
     expect(shots).toHaveLength(1);
   });
 
-  it("a short interval shortens the root with it (the cast is at most 40% of the interval)", () => {
+  it("a short interval shortens the root with it (the cast is at most 80% of the interval)", () => {
     const world = startRun();
     arm(world, 0, "plague", "wand");
     const tm = timings("plague", "wand");
-    expect(tm.windup).toBeCloseTo(0.4 * tm.interval, 12);
+    expect(tm.windup).toBeCloseTo(0.8 * tm.interval, 12);
     const d = walk(world, 0, 20, (k) => { if (k === 1) tap(world); });
     const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
-    expect(rooted).toBe(3);
+    expect(rooted).toBe(6);
     expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 20 - 1 - rooted)]);
   });
 
@@ -453,7 +453,7 @@ describe("the wand", () => {
     run(world, 2);
     expect(P(world).x).toBe(x0); // still casting: rooted
     expect(RT(world).path.length).toBeGreaterThan(0);
-    run(world, 3);
+    run(world, 7); // the cast is 400 ms: the ball leaves in the ninth tick, and the walk goes on from it
     expect(shots).toHaveLength(1);
     expect(P(world).x).toBeGreaterThan(x0 + STEP); // walking again
   });
@@ -614,20 +614,20 @@ describe("the bow", () => {
     expect(P(world).x).toBeGreaterThan(x0 + STEP);
   });
 
-  it("a short interval shortens the draw (Sentenced: 398.9 ms), and the cooldown is the interval from the start", () => {
+  it("a short interval shortens the draw (Sentenced: 524.2 ms, 0.92 of its interval), and the cooldown is the interval from the start", () => {
     const world = startRun();
     arm(world, 0, "sentenced", "bow");
     const tm = timings("sentenced", "bow");
-    expect(tm.windup * 1000).toBeCloseTo(398.86, 2);
+    expect(tm.windup * 1000).toBeCloseTo(524.22, 2);
     tap(world);
     tick(world);
     const S = T(world);
     expect(P(world).readyAt).toBeCloseTo(S + intervalMs("sentenced", "bow"), 6);
-    runTo(world, S + 350);
+    runTo(world, S + 500);
     expect(shots).toHaveLength(0);
     tick(world);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.at).toBe(S + 400);
+    expect(shots[0]!.at).toBe(S + 550);
   });
 
   it("a release with no draw and no recent press does nothing, and does not pre-load the next draw", () => {
@@ -796,14 +796,14 @@ describe("swapping", () => {
   it("a swap after the ball has gone changes nothing: the caster was free the tick it left", () => {
     const world = start();
     arm(world, 0, "fire", "wand", "sword");
-    expect(timings("fire", "wand").windup).toBeCloseTo(0.2, 12);
-    // Cast in tick 1, ball at tick 5 (rooted on ticks 1..4); the swap at tick 6 is after it.
-    const d = walk(world, 0, 12, (k) => {
+    expect(timings("fire", "wand").windup).toBeCloseTo(0.4, 12);
+    // Cast in tick 1, ball at tick 9 (rooted on ticks 1..8); the swap at tick 10 is after it.
+    const d = walk(world, 0, 16, (k) => {
       if (k === 1) tap(world);
-      if (k === 6) swap(world);
+      if (k === 10) swap(world);
     });
     expect(shots).toHaveLength(1);
-    expectCloseAll(d, [STEP, ...repeat(0, 4), ...repeat(STEP, 7)]);
+    expectCloseAll(d, [STEP, ...repeat(0, 8), ...repeat(STEP, 7)]);
   });
 
   it("cancels a wand cast: no ball, and the root ends with it", () => {
@@ -1103,7 +1103,7 @@ describe("where projectiles leave from", () => {
     const drawn = positionAt(RT(world), P(world), begun - lag);
     // A later input from a client at another lag moves the cast's lag, not where this ball leaves from.
     release(world, 0, 0, stamp(world, MAX_REWIND_MS));
-    runTo(world, begun + 200);
+    runTo(world, begun + 400);
     expect(shots).toHaveLength(1);
     expect(shots[0]!.x).toBeCloseTo(drawn.x, 9);
     expect(shots[0]!.y).toBeCloseTo(drawn.y, 9);

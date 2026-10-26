@@ -840,16 +840,17 @@ describe("when damage lands", () => {
   it("a wand ball leaves in the tick its cast ends, from where the caster stands, along the aim at the foe", () => {
     const world = arena([{ faction: "holy", weapons: ["wand"], at: ME }]);
     const d = dummy(world, { x: 470, y: 320 });
+    expect(timings("holy", "wand").windup).toBeCloseTo(0.4, 12); // Holy's wand: the 0.4 s cap, under 0.8 of its 0.638 s interval
     target(world, d);
     tick(world);
     const start = T(world);
     expect(world.projectiles.size).toBe(0);
-    runTo(world, start + 150);
+    runTo(world, start + 350);
     expect(world.projectiles.size).toBe(0);
     tick(world);
     expect(world.projectiles.size).toBe(1);
     const ball = [...world.projectiles.values()][0]!;
-    expect(ball.launch.t).toBe(start + 200);
+    expect(ball.launch.t).toBe(start + 400);
     expect([ball.launch.x, ball.launch.y]).toEqual([ME.x, ME.y]);
     expect(Math.atan2(ball.launch.vy, ball.launch.vx)).toBeCloseTo(0, 6);
     expect(M(world, d).hp).toBe(M(world, d).maxHp); // it has not arrived
@@ -863,7 +864,7 @@ describe("when damage lands", () => {
     tick(world);
     const start = T(world);
     expect(P(world).drawStartedAt).toBe(start);
-    runTo(world, start + 350);
+    runTo(world, start + 500); // the draw is 0.92 x 0.57 s = 524 ms: the arrow leaves in the tick at 550
     expect(world.projectiles.size).toBe(0);
     tick(world);
     expect(world.projectiles.size).toBe(1);
@@ -929,7 +930,7 @@ describe("a locked attack is aimed again as it lands", () => {
     tick(world); // the cast starts, aimed along +x
     // The foe walks south at full speed during the cast.
     world.mobs.get(d)!.path = [{ x: 470, y: 600 }];
-    runTo(world, T(world) + 150);
+    runTo(world, T(world) + 350);
     expect(world.projectiles.size).toBe(0);
     const foe = at(world, d);
     const vel = { x: 0, y: PLAYER_SPEED };
@@ -953,7 +954,7 @@ describe("a locked attack is aimed again as it lands", () => {
     target(world, d);
     tick(world);
     place(world, d, { x: 470, y: 420 });
-    runTo(world, T(world) + 450);
+    runTo(world, T(world) + 550);
     const arrow = [...world.projectiles.values()][0] ?? null;
     expect(arrow).not.toBeNull();
     const a = Math.atan2(arrow!.launch.vy, arrow!.launch.vx);
@@ -974,7 +975,7 @@ describe("a locked attack is aimed again as it lands", () => {
     place(world, id(1), { x: 470, y: 420 });
     applyDamage(world, P(world, 1), RT(world, 1), P(world, 1).hp + 1000, "test");
     expect(P(world, 1).status).toBe("dead");
-    runTo(world, T(world) + 200);
+    runTo(world, T(world) + 400);
     const ball = [...world.projectiles.values()].find((p) => p.owner === id(0))!;
     expect(ball).toBeDefined();
     expect(Math.atan2(ball.launch.vy, ball.launch.vx)).toBeCloseTo(0, 6);

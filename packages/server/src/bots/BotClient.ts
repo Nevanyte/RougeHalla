@@ -1,24 +1,24 @@
 // A headless player. It talks to the server the way the web client does: HTTP for the profile, then a
-// Colyseus room where it reads synced state and sends inputs only (move, stop, aim, attack, release, swap, pickup).
-// It never touches server internals; the map comes from the public seed. The brain is a hunt, re-evaluated every
-// THINK_MS from the latest state: pick the foe, see where the snapshot buffer puts it, and let the shared weapon
-// policy (decide) say where to walk, where to aim and whether the trigger is down. The foe is the nearest standing
-// player, except that with no player close the bot farms the regional mobs first (mobHunt.ts decides who: it also drops
-// a mob that cannot be hurt and runs from a fight it is losing). A weapon a mob dropped, or a chest's early in the run,
-// is worth a detour when only one weapon is carried; the bot swaps slot to the better weapon edge against the foe's
-// weapon. It joins asking for a faction when told to (`faction`), and a pursuit loop between players (three bots on a ring,
-// each chasing the one ahead) is broken by turning on someone else for a while (ORBIT_*). The arena (teleport, locked gates,
-// sudden death) needs no handling: after the teleport there are no mobs in reach and the bot just keeps hunting players.
+// Colyseus room where it reads synced state and sends inputs only (move, stop, target, swap, pickup). It never touches
+// server internals; the map comes from the public seed. The brain is a hunt, re-evaluated every THINK_MS from the latest
+// state: pick the foe, and play it like a human with the LoL-style controls: click it (`target`) once it is within the
+// server's reach (TARGET_RANGE), and let the server chase it, attack it and aim at it until the lock ends; walk (`move`)
+// to get it that close, to fetch a weapon or to run. The foe is the nearest standing player, except that with no player
+// close the bot farms the regional mobs first (mobHunt.ts decides who: it also drops a mob that cannot be hurt and runs
+// from a fight it is losing). A weapon a mob dropped, or a chest's early in the run, is worth a detour when only one
+// weapon is carried; the bot swaps slot to the better weapon edge against the foe's weapon. It joins asking for a faction
+// when told to (`faction`), and a pursuit loop between players (three bots on a ring, each chasing the one ahead) is
+// broken by turning on someone else for a while (ORBIT_*). The arena (teleport, locked gates, sudden death) needs no
+// handling: after the teleport there are no mobs in reach and the bot just keeps hunting players.
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  bestSlot, decide, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, INTERP_DELAY_MS,
-  isFactionId, isRanged, isRegionalKind, isWeaponId, PLAYER_RADIUS, PLAYER_SPEED, PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear,
-  SnapshotBuffer, TICK_MS, TILE, unpackFx, withGates, wrapAngle,
-  type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions, type PolicyOutput,
+  bestSlot, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, PLAYER_RADIUS,
+  PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
+  type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions,
   type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
-import { bestSlotVsMob, mobSpacing, mobWeapon, pathLength, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
+import { bestSlotVsMob, mobWeapon, pathLength, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
 
 type ClientRoom = Room<any, RaidState>;
 
@@ -57,8 +57,11 @@ export interface BotRun {
 /** A standing enemy and how far away it is. */
 interface Enemy { id: string; p: PlayerState; d: number }
 
-/** Whatever the bot is fighting this think, a player or a mob: where it is, how far, what it holds and where its snapshots live. */
-interface Foe { key: string; at: Vec2; d: number; theirs: WeaponId | null; mob: boolean }
+/** Whatever the bot is fighting this think, a player or a mob: its id in the room (what `target` and `attackTarget` name), where it is, how far, what it holds. */
+interface Foe { id: string; at: Vec2; d: number; theirs: WeaponId | null; mob: boolean }
+
+/** The last `target` order sent, to be re-sent only when the server has not taken it (a refused order changes nothing in the state). */
+interface Order { id: string; at: number; tries: number; walkUntil: number }
 
 /** What the bot did, for the tests and `--verbose`. */
 export interface BotStats {
@@ -71,35 +74,30 @@ export interface BotStats {
   mobFocusMs: number;
   /** Weapons taken from containers. */
   grabs: number;
-  /** The longest stretch (ms) the bot stood still without attacking, drawing or fetching anything while it was alive in a running raid. */
+  /** The longest stretch (ms) the bot stood still without attacking or fetching anything while it was alive in a running raid. */
   maxStallMs: number;
 }
 
-/** Where the snapshot buffer puts a player at render time, and how fast it was moving over the last VEL_WINDOW_MS. */
-interface View { x: number; y: number; vx: number; vy: number }
-
 type Slots = readonly [WeaponId | null, WeaponId | null];
 
-// The brain runs at the server's tick rate: a windup is 0.1-0.6 s, and what the bot does about it is decided every tick.
 const THINK_MS = 50;
-/** A chase is re-sent at most this often: the server paths from scratch each time and the target keeps moving. */
+/** A walk is re-sent at most this often: the server paths from scratch each time and the goal keeps moving. */
 const REPLAN_MS = 250;
 /** An unchanged goal is sent again after this long anyway (an unreachable click is ignored, which would leave us idle). */
 const RESEND_MS = 1500;
 /** The current target is kept unless another is this much nearer (as a share), so two near-equal enemies don't make it dither. */
 const SWITCH_RATIO = 0.75;
 
-/** Aim is streamed at most 10 Hz, only when it moved this much (rad)... */
-const AIM_MS = 100;
-const AIM_EPS = 0.03;
-/** ...and re-sent after this long anyway: walking turns a fighter again once its aim goes stale (AIM_STALE_MS). */
-const AIM_KEEPALIVE_MS = 700;
-/** The target's velocity is the displacement over this long, ending at render time. */
-const VEL_WINDOW_MS = 100;
-/** A velocity beyond this many times PLAYER_SPEED is a teleport across the window, not a runner. */
-const VEL_SANE = 1.25;
-/** Never extrapolate a projectile's target further than this (ms). */
-const MAX_LEAD_MS = 350;
+/** A `target` the server has not taken is sent again no sooner than this (ms): a refused order leaves no trace in the state. */
+const TARGET_RESEND_MS = 300;
+/** After this many orders in a row that did not take (a foe walking home, out of reach by the time they arrived), walk to the foe for... */
+const TARGET_TRIES = 3;
+/** ...this long (ms), then click it again. */
+const REFUSED_WALK_MS = 1000;
+/** The server takes a lock within TARGET_RANGE; the bot clicks only this much (u) inside it, since what it sees is a patch old. */
+const LOCK_MARGIN = 40;
+/** The foe counts as being attacked while the bot is locked on it, can see it and is this much (u) past its weapon's attack range at most. */
+const ATTACK_SLACK = 24;
 /**
  * Swap weapons at most this often (ms; a random extra up to SWAP_JITTER_MS), never mid-draw, and only against an enemy this
  * close. Two bots answering each other's weapon (a rock-paper-scissors loop) would otherwise swap in lockstep forever.
@@ -112,8 +110,8 @@ const SWAP_DISTANCE = 600;
  * A chase that has not got ORBIT_PROGRESS closer to its target for ORBIT_MS (plus up to ORBIT_JITTER_MS, so the bots do not
  * all turn at once) is a pursuit loop: three bots on a ring, each running after the one ahead at the same speed, never
  * meet. The bot then goes for another enemy and leaves that one alone for ORBIT_AVOID_MS, unless it comes within
- * ORBIT_MIN_DISTANCE or hits us (it is attacking us then, not circling). Within ORBIT_MIN_DISTANCE, or while the trigger
- * is down, it is a fight, not a chase.
+ * ORBIT_MIN_DISTANCE or hits us (it is attacking us then, not circling). Within ORBIT_MIN_DISTANCE, or while it is in
+ * reach of the foe it has locked, it is a fight, not a chase.
  */
 export const ORBIT_MS = 3000;
 export const ORBIT_JITTER_MS = 1500;
@@ -140,17 +138,13 @@ const PICKUP_RETRY_MS = 400;
 /** Inside this distance of a container we start taking; keeps a margin under INTERACT_RANGE for stale positions. */
 const PICKUP_DISTANCE = INTERACT_RANGE - 12;
 
-/** Snapshots are kept for a mob only while it is this close (u): a target is picked within MOB_HUNT.reach (700). */
-const MOB_VIEW_RADIUS = 1300;
-/** A mob's snapshot-buffer key, so it can never collide with a player's session id. */
-const mobKey = (id: string): string => `mob:${id}`;
 /** A stall this long (ms) is logged with --verbose. */
 const STALL_LOG_MS = 1500;
 /** A player behind a wall threatens from this many times its straight-line distance. */
 const BLOCKED_THREAT_FACTOR = 2;
 /** The bot moved less than this (u) between two thinks counts as standing still... */
 const STILL_EPS = 1;
-/** ...and may stand this long (ms) doing nothing before the stall counter starts (a cooldown, a swap, a stopped draw). */
+/** ...and may stand this long (ms) doing nothing before the stall counter starts (a cooldown, a swap, a windup). */
 const STILL_GRACE_MS = 600;
 
 const dist =(a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -180,10 +174,6 @@ export class BotClient {
   private readonly done: Promise<BotRun>;
   private settle!: (run: BotRun) => void;
   private timers: NodeJS.Timeout[] = [];
-  private readonly buffers = new Map<string, SnapshotBuffer>();
-  /** Local clock at the latest state patch, to estimate the server's clock between patches. */
-  private patchAt = 0;
-  private readonly scratch = { x: 0, y: 0 };
 
   // Brain memory.
   private targetId: string | null = null;
@@ -194,11 +184,12 @@ export class BotClient {
   private avoidUntil = 0;
   private dest: Vec2 | null = null;
   private moveSentAt = 0;
-  /** We sent a stop to stand and fight; cleared by the next move. */
+  /** We sent a stop to stand still; cleared by the next move or lock. */
   private holding = false;
-  /** What we believe the server thinks of our trigger (it repeats attacks while it is down). */
-  private trigger = false;
-  private aimSent: { a: number; at: number } | null = null;
+  /** The foe is in reach of the weapon and locked: the server is swinging or shooting at it (the stall and orbit watches' "fighting"). */
+  private attacking = false;
+  /** The last `target` sent, until the server's `attackTarget` shows it took it. */
+  private order: Order | null = null;
   private nextSwapAt = 0;
   /** The weapon detour in progress, if any. */
   private grab: { containerId: string; since: number; pickupSentAt: number; fails: number } | null = null;
@@ -267,15 +258,6 @@ export class BotClient {
     room.onMessage("toast", (m: { text: string }) => this.onToast(m.text));
     // One batch per server step (the old per-fx message is gone).
     room.onMessage("fxs", (b: FxBatch) => { for (const fx of unpackFx(b, room.state.roster)) this.onFx(fx); });
-    room.onStateChange((s) => {
-      this.patchAt = Date.now();
-      for (const [id, p] of s.players) {
-        let buf = this.buffers.get(id);
-        if (!buf) this.buffers.set(id, (buf = new SnapshotBuffer()));
-        buf.push(s.serverTime, p.x, p.y);
-      }
-      this.bufferMobs(s);
-    });
     room.onLeave((code) => { this.roomClosed = true; this.finish(null, `left the room unexpectedly (code ${code})`); });
     room.onError((code, msg) => this.finish(null, `room error ${code}: ${msg ?? ""}`));
     this.timers.push(
@@ -347,18 +329,14 @@ export class BotClient {
     }
   }
 
-  /**
-   * The server clears our path and queued inputs when it teleports us, and our trigger with them: forget what we told it.
-   * An attack sent within one RTT before this fx arrived lands after the clear and re-arms the trigger, so a trigger we
-   * think is down is released again; the brain presses it anew when its policy says so.
-   */
+  /** The server clears our path, queued inputs and lock when it teleports us: forget what we told it, and lock on again when the hunt says so. */
   private onTeleport(): void {
     this.log("teleported into the coliseum");
     this.dest = null;
     this.moveSentAt = 0;
     this.holding = false;
-    this.stopTrigger();
-    this.aimSent = null;
+    this.attacking = false;
+    this.order = null;
     this.grab = null;
     this.chase = null;
     this.avoidId = null;
@@ -380,14 +358,21 @@ export class BotClient {
     const enemy = this.pickEnemy(me, now);
     const hunt = this.huntMobs(me, enemy, now);
     this.logHunt(hunt);
-    if (hunt.kind === "retreat" && this.retreat(me, hunt, now)) { this.pauseChase(enemy, now); return; }
+    this.attacking = this.act(me, enemy, hunt, now);
+  }
+
+  /** What to do this think: run, fetch a weapon, fight a mob or a player, or stand. True when the bot is attacking a foe (see `attacking`). */
+  private act(me: PlayerState, enemy: Enemy | null, hunt: HuntDecision, now: number): boolean {
+    if (hunt.kind === "retreat" && this.retreat(me, hunt, now)) { this.pauseChase(enemy, now); return false; }
     const mob = hunt.kind === "mob" ? this.mobFoe(me, hunt.id) : null;
-    if (this.grabWeapon(me, now, enemy?.d ?? Infinity)) { this.pauseChase(enemy, now); return; }
+    if (this.grabWeapon(me, now, enemy?.d ?? Infinity)) { this.pauseChase(enemy, now); return false; }
     if (mob) {
       this.pauseChase(enemy, now);
-      this.fight(me, mob, now);
-    } else if (enemy) this.fight(me, { key: enemy.id, at: enemy.p, d: enemy.d, theirs: inHand(enemy.p), mob: false }, now);
-    else this.stand();
+      return this.fight(me, mob, now);
+    }
+    if (enemy) return this.fight(me, { id: enemy.id, at: enemy.p, d: enemy.d, theirs: inHand(enemy.p), mob: false }, now);
+    this.stand();
+    return false;
   }
 
   /**
@@ -400,7 +385,7 @@ export class BotClient {
 
   /** Counts how long the bot has stood still doing nothing in a running raid: the longest such stretch is `stats.maxStallMs`. */
   private watchStall(me: PlayerState, now: number): void {
-    const busy = this.trigger || me.drawStartedAt > 0 || this.grab !== null;
+    const busy = this.attacking || me.drawStartedAt > 0 || this.grab !== null;
     if (this.stillSince === 0 || busy || !(dist(me, this.lastPos) < STILL_EPS)) this.stillSince = now;
     this.lastPos = { x: me.x, y: me.y };
     const stalled = now - this.stillSince - STILL_GRACE_MS;
@@ -430,7 +415,7 @@ export class BotClient {
       inColiseum: s.inColiseum,
       mobs: s.mobs,
       walk: (to) => this.walkDistance(me, to),
-      attacking: this.trigger,
+      attacking: this.attacking,
       shotByPlayerAt: this.playerHitAt,
     });
   }
@@ -471,23 +456,7 @@ export class BotClient {
   private mobFoe(me: Vec2, id: string): Foe | null {
     const m = this.room.state.mobs.get(id);
     if (!m || m.status !== "alive") return null;
-    return { key: mobKey(id), at: m, d: dist(me, m), theirs: mobWeapon(m), mob: true };
-  }
-
-  /** Keeps a snapshot buffer for every mob within MOB_VIEW_RADIUS, so a mob target can be aimed at and led like a player. */
-  private bufferMobs(s: RaidState): void {
-    const me = s.players.get(this.room.sessionId);
-    if (!me) return;
-    for (const [id, m] of s.mobs) {
-      const key = mobKey(id);
-      if (m.status !== "alive" || !isRegionalKind(m.kind) || dist(me, m) > MOB_VIEW_RADIUS) {
-        this.buffers.delete(key);
-        continue;
-      }
-      let buf = this.buffers.get(key);
-      if (!buf) this.buffers.set(key, (buf = new SnapshotBuffer()));
-      buf.push(s.serverTime, m.x, m.y);
-    }
+    return { id, at: m, d: dist(me, m), theirs: mobWeapon(m), mob: true };
   }
 
   private logHunt(hunt: HuntDecision): void {
@@ -502,7 +471,6 @@ export class BotClient {
     const to = retreatPoint(me, hunt.from, (a, b) => segmentClear(map, a, b, PLAYER_RADIUS));
     if (!to) return false;
     this.grab = null;
-    this.stopTrigger();
     this.moveTo(to, now);
     return true;
   }
@@ -538,7 +506,7 @@ export class BotClient {
     if (!pick) { this.chase = null; return; }
     if (!c || c.id !== pick.id) {
       this.chase = { id: pick.id, best: pick.d, since: now, limit: ORBIT_MS + Math.random() * ORBIT_JITTER_MS };
-    } else if (this.trigger || pick.d < ORBIT_MIN_DISTANCE || pick.d < c.best - ORBIT_PROGRESS) {
+    } else if (this.attacking || pick.d < ORBIT_MIN_DISTANCE || pick.d < c.best - ORBIT_PROGRESS) {
       c.best = pick.d;
       c.since = now;
     } else if (now - c.since > c.limit) {
@@ -549,63 +517,48 @@ export class BotClient {
     }
   }
 
-  /** The server clock now: the latest patch plus the time since it arrived (at most two ticks, so a stalled stream can't run away). */
-  private serverNow(): number {
-    return this.room.state.serverTime + Math.min(Date.now() - this.patchAt, 2 * TICK_MS);
-  }
+  /**
+   * Fights `foe` (a player or a mob; the server treats both the same) with the weapon in hand, as a player clicking it would:
+   * the server takes a lock on a foe within TARGET_RANGE (seen or not: it walks around a wall to it), so until then the bot
+   * walks to it; once it can, it sends `target` and leaves the rest to the server, which walks into range, attacks and aims
+   * until the lock ends. True when the foe is locked, in reach of the weapon and in sight: the server is attacking it.
+   */
+  private fight(me: PlayerState, foe: Foe, now: number): boolean {
+    const slots: Slots = [asWeapon(me.weapon0), asWeapon(me.weapon1)];
+    const weapon = slots[slotOf(me)];
+    if (this.swap(me, slots, foe.theirs, foe.mob, foe.d, now)) return false;
+    if (!weapon || !isFactionId(me.faction)) { this.stand(); return false; }
 
-  /** Where `id` was at render time and its velocity then, from the buffered snapshots; null before it has any. */
-  private view(id: string, renderT: number): View | null {
-    const buf = this.buffers.get(id);
-    const at = this.scratch;
-    // The older sample first: sampling drops what is older than the bracket it finds.
-    if (!buf?.sample(renderT - VEL_WINDOW_MS, at)) return null;
-    const x0 = at.x;
-    const y0 = at.y;
-    buf.sample(renderT, at);
-    let vx = ((at.x - x0) * 1000) / VEL_WINDOW_MS;
-    let vy = ((at.y - y0) * 1000) / VEL_WINDOW_MS;
-    if (Math.hypot(vx, vy) > PLAYER_SPEED * VEL_SANE) { vx = 0; vy = 0; }
-    return { x: at.x, y: at.y, vx, vy };
+    if (foe.d > TARGET_RANGE - LOCK_MARGIN) {
+      this.moveTo(foe.at, now);
+      return false;
+    }
+    this.lockOn(me, foe, now);
+    return me.attackTarget === foe.id && foe.d <= lockSpacing(weapon).attackRange + ATTACK_SLACK && hasLineOfSight(this.collision(), me, foe.at);
   }
 
   /**
-   * Fights `foe` (a player or a mob; the server treats both the same) with the weapon in hand: the policy decides where to
-   * walk, where to aim and whether the trigger is down. Every aim is measured from where the buffered snapshots put us at
-   * render time and carries that time as `t`: the server swings melee from there and looses projectiles from there too. A
-   * projectile flies in present server time, so the target is led to where it will be about when the shot is loosed.
+   * Clicks `foe` unless the server already has it locked. An order that did not take (the state still shows another lock or none
+   * after TARGET_RESEND_MS) is sent again, and after TARGET_TRIES such orders the bot walks to the foe for REFUSED_WALK_MS first
+   * (a foe that walked home or fell before the order arrived).
    */
-  private fight(me: PlayerState, foe: Foe, now: number): void {
-    const s = this.room.state;
-    const slots: Slots = [asWeapon(me.weapon0), asWeapon(me.weapon1)];
-    const weapon = slots[slotOf(me)];
-    if (this.swap(me, slots, foe.theirs, foe.mob, foe.d, now)) return;
-    if (!weapon || !isFactionId(me.faction)) { this.stand(); return; }
-
-    const renderT = s.serverTime - INTERP_DELAY_MS;
-    const serverNow = this.serverNow();
-    const ranged = isRanged(weapon);
-    const seen = this.view(foe.key, renderT);
-    const seenSelf = this.view(this.room.sessionId, renderT);
-    const self = seenSelf ?? { x: me.x, y: me.y };
-    let target: Vec2 = seen ?? foe.at;
-    const targetVel: Vec2 = seen ? { x: seen.vx, y: seen.vy } : { x: 0, y: 0 };
-    if (seen && ranged) {
-      const lead = Math.min(MAX_LEAD_MS, serverNow - renderT + TICK_MS / 2) / 1000;
-      target = { x: seen.x + seen.vx * lead, y: seen.y + seen.vy * lead };
+  private lockOn(me: PlayerState, foe: Foe, now: number): void {
+    if (me.attackTarget === foe.id) { this.order = null; return; }
+    let o = this.order?.id === foe.id ? this.order : null;
+    if (o && now < o.walkUntil) { this.moveTo(foe.at, now); return; }
+    if (o && now - o.at < TARGET_RESEND_MS) return;
+    if (o && o.tries >= TARGET_TRIES) {
+      this.log(`${foe.id} will not be locked: walking up to it`);
+      o.tries = 0;
+      o.walkUntil = now + REFUSED_WALK_MS;
+      this.moveTo(foe.at, now);
+      return;
     }
-    const out = decide({
-      self, target, targetVel,
-      los: hasLineOfSight(this.collision(), self, target),
-      weapon,
-      ...(foe.mob ? { spacing: mobSpacing(weapon, foe.theirs) } : {}),
-      ready: serverNow >= me.readyAt,
-    });
-
-    if (out.move === "stop") this.hold();
-    else if (out.move) this.moveTo(out.move, now);
-    this.aim(out.aim, now);
-    this.pull(out, renderT, now);
+    o = this.order = { id: foe.id, at: now, tries: (o?.tries ?? 0) + 1, walkUntil: 0 };
+    this.send("target", { id: foe.id });
+    // The lock replaces the walk and the halt we sent: a later move to the same goal must be sent again.
+    this.dest = null;
+    this.holding = false;
   }
 
   /** Swaps to the slot with the better weapon edge against the foe's weapon (against a mob, one that works on it); true when it did. Never mid-draw. */
@@ -618,29 +571,6 @@ export class BotClient {
     this.send("swap", { slot: want });
     this.nextSwapAt = now + SWAP_EVERY_MS + Math.random() * SWAP_JITTER_MS;
     return true;
-  }
-
-  /** Streams the aim: at most 10 Hz, when it moved, and now and then regardless. */
-  private aim(a: number, now: number): void {
-    const last = this.aimSent;
-    if (last && now - last.at < AIM_MS) return;
-    if (last && Math.abs(wrapAngle(a - last.a)) < AIM_EPS && now - last.at < AIM_KEEPALIVE_MS) return;
-    this.send("aim", { a });
-    this.aimSent = { a, at: now };
-  }
-
-  /** Turns the policy's trigger into inputs: `attack` when the hold turns on (the server repeats it while held), `release` when it turns off. */
-  private pull(out: PolicyOutput, renderT: number, now: number): void {
-    const msg = { a: out.aim, t: renderT };
-    if (out.hold && !this.trigger) {
-      this.send("attack", msg);
-      this.trigger = true;
-      this.aimSent = { a: out.aim, at: now };
-    } else if (!out.hold && this.trigger) {
-      this.send("release", msg);
-      this.trigger = false;
-      this.aimSent = { a: out.aim, at: now };
-    }
   }
 
   /**
@@ -667,7 +597,6 @@ export class BotClient {
       g = this.grab = { containerId: found, since: now, pickupSentAt: 0, fails: 0 };
       this.log(`going for a weapon in ${found}`);
     }
-    this.stopTrigger();
     const c = s.containers.get(g.containerId)!;
     const map = this.collision();
     if (dist(me, c) > PICKUP_DISTANCE || !hasLineOfSight(map, me, c)) {
@@ -731,15 +660,8 @@ export class BotClient {
     this.send("stop", {});
   }
 
-  /** Trigger up, if it is down (nothing to fight, or busy with something else). */
-  private stopTrigger(): void {
-    if (!this.trigger) return;
-    this.trigger = false;
-    this.send("release", { a: this.aimSent?.a ?? 0 });
-  }
-
+  /** Nothing to fight: halts (which also drops a lock). */
   private stand(): void {
     this.hold();
-    this.stopTrigger();
   }
 }

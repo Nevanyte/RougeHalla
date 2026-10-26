@@ -2,16 +2,11 @@
 // and a straight-line "walk"; time is passed in, so a fight of seconds runs in microseconds.
 import { describe, expect, it } from "vitest";
 import {
-  FACTION_IDS, FACTIONS, MOB_LEASH_RADIUS, mapFromTiles, mulberry32, POLICIES, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
-  type FactionId, type TimedFx, type Vec2, type WeaponId,
+  FACTIONS, type FactionId, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { BotClient } from "../src/bots/BotClient";
-import { timingsOf } from "../src/sim/combatant";
-import { createGameWorld } from "../src/sim/gameplay";
-import { placeMob } from "../src/sim/mobLife";
-import { addPlayer, step } from "../src/sim/step";
 import {
-  bestEdge, bestSlotVsMob, matchupShare, MOB_HUNT, MobHunter, mobSpacing, MobTracker, mobWeapon, pathLength, retreatPoint,
+  bestEdge, bestSlotVsMob, matchupShare, MOB_HUNT, MobHunter, MobTracker, mobWeapon, pathLength, retreatPoint,
   useless, type HuntInput, type HuntSelf, type MobHuntConfig, type MobLike,
 } from "../src/bots/mobHunt";
 
@@ -530,21 +525,6 @@ describe("pieces", () => {
     expect(mobWeapon({ weapon0: "", faction: "" })).toBeNull();
   });
 
-  it("a ranged weapon closes in on a melee mob and stands off a ranged one; melee keeps the usual policy", () => {
-    expect(mobSpacing("sword", "sword")).toBeUndefined();
-    const vsMelee = mobSpacing("bow", "sword")!;
-    expect(vsMelee.far).toBeLessThanOrEqual(150);
-    expect(vsMelee.attackRange).toBeLessThanOrEqual(200);
-    expect(vsMelee.retreatBelow).toBe(0);
-    expect(vsMelee.leadSpeed).toBe(POLICIES.bow.leadSpeed);
-    const vsRanged = mobSpacing("bow", "wand")!;
-    expect(vsRanged.far).toBeGreaterThan(vsMelee.far);
-    expect(vsRanged.far).toBeLessThanOrEqual(POLICIES.bow.far);
-    expect(vsRanged.retreatBelow).toBe(0);
-    // A ball is slow and short: the stand-off never exceeds the wand's own policy.
-    expect(mobSpacing("wand", "bow")!.far).toBeLessThanOrEqual(POLICIES.wand.far);
-  });
-
   it("matchupShare follows the duel table: everyone beats a normal mob of their own region, Fire keeps little against Holy", () => {
     for (const f of Object.keys(FACTIONS) as FactionId[]) expect(matchupShare(f, f, false)).toBeGreaterThan(0.5);
     expect(matchupShare("fire", "holy", true)).toBe(0); // a loss
@@ -554,10 +534,6 @@ describe("pieces", () => {
   it("pathLength adds up the legs", () => {
     expect(pathLength({ x: 0, y: 0 }, [{ x: 3, y: 4 }, { x: 3, y: 10 }])).toBe(11);
     expect(pathLength({ x: 0, y: 0 }, [])).toBe(0);
-  });
-
-  it("the leash is what the spacing is about: a mob gives up 9 tiles from home", () => {
-    expect(MOB_LEASH_RADIUS).toBe(288);
   });
 });
 

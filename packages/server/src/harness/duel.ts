@@ -1,7 +1,9 @@
 // One headless weapon duel: the real sim (createGameWorld, addPlayer, step) on a hand-built arena, with two in-process
 // "clients" that play through enqueueClientMessage exactly as a socket would: aim every tick, attack on the trigger's
 // rising edge, release on its falling edge, and move/stop. Their decisions come from
-// shared/policies.ts, the same brain the bots use. Nothing here changes a weapon or a faction number.
+// shared/policies.ts, the same brain mobs use. A client can instead play like a player clicking its foe (`locks`): it sends
+// `target {id}` and nothing else, and the server chases, attacks and aims (sim/targeting.ts). Nothing here changes a weapon
+// or a faction number.
 //
 // What a client sees. Positions are read from the sim's history at serverTime - INTERP_DELAY_MS, where a client draws
 // them, and velocities come from two such samples. Every attack and release carries t = that render time, so melee is
@@ -49,6 +51,8 @@ export interface DuelSpec {
   perception?: Perception;
   /** Spacing to play fighter 0 / fighter 1's weapon with instead of the shared POLICIES (policy experiments). */
   spacing?: readonly [SpacingPolicy | undefined, SpacingPolicy | undefined];
+  /** Fighter 0 / fighter 1 plays by locking the other (the target lock): `target` once, again whenever it is not locked; no aim, move or trigger. */
+  locks?: readonly [boolean, boolean];
   /** Called after every step (debugging and tests). */
   onTick?: (world: World, tick: number, events: readonly SimEvent[]) => void;
 }
@@ -145,7 +149,9 @@ class Client {
   stuck = 0;
   atWall = 0;
 
-  constructor(readonly index: 0 | 1, private readonly perception: Perception, private readonly spacing?: SpacingPolicy) {}
+  constructor(
+    readonly index: 0 | 1, private readonly perception: Perception, private readonly spacing?: SpacingPolicy, private readonly locks = false,
+  ) {}
 
   private get id(): string { return IDS[this.index]; }
   private get foeId(): string { return IDS[this.index === 0 ? 1 : 0]; }
@@ -178,6 +184,11 @@ class Client {
     const weapon = activeWeapon(me.s);
     const tm = weapon ? timingsOf(me.s, weapon) : null;
     if (!weapon || !tm) return;
+    if (this.locks) {
+      // The click: once taken, the server does the rest. A refused order (the foe out of reach or sight) is sent again next tick.
+      if (me.kind === "player" && me.s.attackTarget !== this.foeId) enqueueClientMessage(me.rt.inputs, "target", { id: this.foeId });
+      return;
+    }
     const now = world.state.serverTime;
     const projectile = isRanged(weapon);
     const atPresent = this.perception === "present" && projectile;
@@ -274,7 +285,8 @@ export function runDuel(spec: DuelSpec): DuelResult {
     throw new Error(`duel start (${spec.distance} u at ${spec.angle ?? 0} rad) is inside a wall`);
   }
 
-  const clients = [new Client(0, perception, spec.spacing?.[0]), new Client(1, perception, spec.spacing?.[1])] as const;
+  const locks = spec.locks ?? [false, false];
+  const clients = [new Client(0, perception, spec.spacing?.[0], locks[0]), new Client(1, perception, spec.spacing?.[1], locks[1])] as const;
   const counts = emptyCounts();
   const hitLog: HitRecord[] = [];
   const seenProjectiles = new Set<string>();

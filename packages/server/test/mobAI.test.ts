@@ -1297,24 +1297,29 @@ describe("the bow", () => {
     put(rig.world, "p0", HOME.x + 150, HOME.y);
     aggro(rig.world, mob, "p0", 10);
     const fullDrawMs = timingsOf(mob.s, "bow")!.windup * 1000;
-    const drawn: number[] = [];
+    // A draw's start (drawStartedAt) and the tick its arrow was first seen in the world, in order. The next draw can begin in the very
+    // tick the last arrow leaves (the cooldown is the interval from the start, a little longer than the draw), so the start is
+    // read off its value changing, not off a pause at 0.
+    const starts: number[] = [];
+    const leftAt: number[] = [];
     const packets = new Map<string, number>();
-    let started = 0;
     for (let i = 0; i < 400; i++) {
       run(rig, 1);
       const startedAt = mob.s.drawStartedAt;
-      // drawStartedAt falls back to 0 in the tick the arrow leaves, which is the tick the draw ended.
-      if (started > 0 && startedAt === 0) drawn.push(rig.world.state.serverTime - started);
-      started = startedAt;
-      for (const [id, pr] of rig.world.projectiles) if (pr.owner === mob.id) packets.set(id, pr.packet.raw);
+      if (startedAt > 0 && startedAt !== starts[starts.length - 1]) starts.push(startedAt);
+      for (const [id, pr] of rig.world.projectiles) {
+        if (pr.owner !== mob.id || packets.has(id)) continue;
+        packets.set(id, pr.packet.raw);
+        leftAt.push(rig.world.state.serverTime);
+      }
     }
-    expect(drawn.length).toBeGreaterThanOrEqual(5);
-    for (const d of drawn) {
+    expect(leftAt.length).toBeGreaterThanOrEqual(5);
+    for (const [i, t] of leftAt.entries()) {
+      const d = t - starts[i]!;
       expect(d).toBeGreaterThanOrEqual(fullDrawMs - 1e-6);
       expect(d).toBeLessThan(fullDrawMs + TICK_MS);
     }
-    // Every arrow was a full-draw one, so they all carry the same damage (a short draw would carry less).
-    expect(packets.size).toBe(drawn.length);
+    // Every arrow was a full-draw one, so they all carry the same damage.
     expect(new Set([...packets.values()].map((raw) => raw.toFixed(6))).size).toBe(1);
   });
 });

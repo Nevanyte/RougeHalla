@@ -1,7 +1,8 @@
 // CLI: launches N headless bots against a running server and prints how each run ended. Every bot fights with its
-// weapons (swinging, drawing and loosing a bow, swapping slot, picking up a second weapon, a mob's drop too): it farms the
-// regional mobs early on and while no player is close, and hunts the nearest player otherwise and after the teleport into
-// the coliseum, so a run ends with a last one standing (or a draw). The server runs mobs unless MOBS=0.
+// weapons the way a player with the LoL-style controls does (it locks a foe and the server chases and attacks it; it also
+// swaps slot and picks up a second weapon, a mob's drop too): it farms the regional mobs early on and while no player is
+// close, and hunts the nearest player otherwise and after the teleport into the coliseum, so a run ends with a last one
+// standing (or a draw). The server runs mobs unless MOBS=0.
 //   npm run bots -- <count> [--url http://localhost:2567] [--prefix bot] [--faction rotate] [--loop] [--verbose]
 // Exits non-zero when a bot failed to play (join refused, connection lost, timeout). With --loop every
 // bot queues into a new run as soon as its last one is over, until the process is stopped.

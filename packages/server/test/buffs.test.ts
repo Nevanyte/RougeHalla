@@ -3,7 +3,7 @@
 // maths (S-curve, combo table) is tested in packages/shared/test/buffs.test.ts; this is the part that touches the sim.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, BOUNTY_STACK_SHARE, BUFF_STATS, buffMultiplier, damagePerHit, FACTIONS, GV_KILL, mulberry32, pacedFaction,
+  attackInterval, BOUNTY_STACK_SHARE, BOW_WINDUP, BOW_WINDUP_SHARE, BUFF_STATS, buffMultiplier, damagePerHit, FACTIONS, GV_KILL, mulberry32, pacedFaction,
   TICK_MS, weaponTimings, WEAPONS, type BuffStat, type FxEvent,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -885,14 +885,19 @@ describe("attack speed through the real formulas", () => {
     fire.weapon0 = "bow";
     const before = timingsOf(fire, "bow")!;
     expect(before.interval).toBeCloseTo(1 / (0.6 * 1.95), 9); // Fire's rate 0.6, the bow's boost 0.95
-    expect(before.windup).toBeCloseTo(0.7 * before.interval, 9); // under the 0.6 s cap
+    expect(before.windup).toBe(BOW_WINDUP); // 0.92 x 0.855 s is past the 0.6 s cap: the draw is the cap
     fire.stacksAs = 3;
     const m = buffMultiplier("attackSpeed", 3);
     const after = timingsOf(fire, "bow")!;
     expect(after.interval).toBeCloseTo(before.interval / m, 9);
-    expect(after.windup).toBeCloseTo(before.windup / m, 9);
-    expect(after.windup).toBeLessThan(before.windup - 0.1);
-    // Plague's bow starts 0.277 s: three stacks take it to the floor (and the draw to 70% of it), and more change nothing.
+    expect(after.windup).toBe(BOW_WINDUP); // 0.92 x 0.697 s is still past it
+    // From 5 stacks the interval is short enough (0.603 s) for the draw's share of it to be the shorter.
+    fire.stacksAs = 5;
+    const fast = timingsOf(fire, "bow")!;
+    expect(fast.interval).toBeCloseTo(before.interval / buffMultiplier("attackSpeed", 5), 9);
+    expect(fast.windup).toBeCloseTo(BOW_WINDUP_SHARE * fast.interval, 9);
+    expect(fast.windup).toBeLessThan(BOW_WINDUP - 0.03);
+    // Plague's bow starts 0.277 s: three stacks take it to the floor (and the draw to 92% of it), and more change nothing.
     const plague = P(w, 2);
     plague.weapon0 = "bow";
     const plagueBefore = timingsOf(plague, "bow")!;
@@ -900,7 +905,7 @@ describe("attack speed through the real formulas", () => {
     for (const stacks of [3, 7]) {
       plague.stacksAs = stacks;
       expect(timingsOf(plague, "bow")!.interval).toBe(WEAPONS.bow.floor);
-      expect(timingsOf(plague, "bow")!.windup).toBeCloseTo(0.7 * WEAPONS.bow.floor, 9);
+      expect(timingsOf(plague, "bow")!.windup).toBeCloseTo(0.92 * WEAPONS.bow.floor, 9);
     }
     expect(timingsOf(plague, "bow")!.windup).toBeLessThan(plagueBefore.windup);
   });

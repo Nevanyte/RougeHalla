@@ -11,7 +11,7 @@ import { buildReport, type ReportOptions } from "./report";
 const USAGE = [
   "usage: npm run harness -w @raid/server [-- options]",
   "  --quick               three setups per cell, no style grids, sensitivity or cluttered-arena passes",
-  "  --core                the full matrix, grids, verdicts and kiting, without the client-view and cluttered-arena passes",
+  "  --core                the full matrix, grids, verdicts, target lock and kiting, without the client-view and cluttered-arena passes",
   "  --grid-setups full    every setup of the main matrix in each style-grid cell instead of three (steadier, about 6x slower grids)",
   "  --faction a,b         only these factions (fire, sentenced, plague, frost, holy)",
   "  --edge w>l,w>l        only these designed edges, e.g. wand>bow,sword>wand",

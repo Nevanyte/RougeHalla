@@ -1,6 +1,6 @@
 // What a headless bot does about the regional mobs (GAME_DESIGN 11). Pure: it reads a snapshot of the room (the bot, the
 // standing players, the mobs) and answers "who do I fight now": a player, a mob, or run away. BotClient executes the
-// answer through the same weapon policy it uses against players; nothing here touches a socket or the clock.
+// answer by locking the foe (the server chases and attacks it) or walking away; nothing here touches a socket or the clock.
 //
 // The rules, in order:
 //   1. Inside the coliseum (after the teleport) there are no mobs to reach: hunt players.
@@ -16,8 +16,8 @@
 //   5. A target is dropped (and left alone for a while) when it never gets hurt: it went home (a mob walking home is
 //      untouchable and shows no flag, but its hp rises), the attacks are not landing, or the chase is taking too long.
 import {
-  duel, FACTIONS, isFactionId, isRanged, isRegionalKind, isWeaponId, mobFaction, POLICIES, REGION_WEAPONS,
-  TILE, weaponEdge, type FactionId, type SpacingPolicy, type Vec2, type WeaponId,
+  duel, FACTIONS, isFactionId, isRanged, isRegionalKind, isWeaponId, mobFaction, REGION_WEAPONS,
+  TILE, weaponEdge, type FactionId, type Vec2, type WeaponId,
 } from "@raid/shared";
 
 /** The part of a state.mobs entry the hunt reads. */
@@ -226,7 +226,7 @@ export interface HuntInput {
   mobs: MobEntries;
   /** Walking distance from the bot to a point, or null when there is no path. */
   walk: (to: Vec2) => number | null;
-  /** The bot is attacking something now (its trigger is down). */
+  /** The bot is attacking something now (it is locked on a foe and in reach of it). */
   attacking: boolean;
   /**
    * When (the `now` clock) a player last hit the bot; -Infinity if none has. Not "hp lost": a mob's blows lose hp too, and a
@@ -528,27 +528,6 @@ export function retreatPoint(self: Vec2, threats: readonly Vec2[], walkable: (fr
     }
   }
   return best;
-}
-
-/** Ranged weapon against a melee mob: start shooting from this far (u) and close in to MOB_CLOSE_IN. Against a ranged mob: stand off at MOB_STAND_OFF. */
-const MOB_SHOOT_RANGE = 200;
-const MOB_CLOSE_IN = 150;
-const MOB_STAND_OFF = 330;
-
-/**
- * How a ranged weapon is played against a mob of `theirs`, or undefined for a melee weapon (the usual policy is right). A
- * mob that is hit chases its attacker but gives up at MOB_LEASH_RADIUS (9 tiles) from its camp and walks home untouchable
- * and healing, so the shooter must not drag it out of the leash: against a melee mob it closes in, shoots from a short
- * range and stands its ground; a ranged mob backs away from anything nearer than about 220 u, so against one it stands
- * off at a range both of them can shoot from (and never backs away itself: retreatBelow 0).
- */
-export function mobSpacing(weapon: WeaponId, theirs: WeaponId | null): SpacingPolicy | undefined {
-  if (!isRanged(weapon)) return undefined;
-  const base = POLICIES[weapon];
-  if (theirs !== null && isRanged(theirs)) {
-    return { ...base, far: Math.min(base.far, MOB_STAND_OFF), attackRange: Math.min(base.attackRange, MOB_STAND_OFF + 60), retreatBelow: 0 };
-  }
-  return { ...base, far: Math.min(base.far, MOB_CLOSE_IN), attackRange: Math.min(base.attackRange, MOB_SHOOT_RANGE), retreatBelow: 0 };
 }
 
 /** Total length of the path `from` -> through `points`. */

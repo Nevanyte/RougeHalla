@@ -1,8 +1,11 @@
 // Kiting in the real sim: how long a melee fighter needs to reach a shooter that starts at the edge of its range, by how
 // the shooter plays, and what the shooter lands on it on the way. The design's check (testing/realtime.py, `kite`)
 // assumes a shooter that STANDS: the chaser closes (range - reach) / speed, and that is the "free fire" it has to absorb.
-// A shooter that backs away can give itself more than that; the ranged movement penalties (GAME_DESIGN 9.1) are what keep
-// the difference small, and this section measures it. Report-only, like the rest of the harness.
+// A shooter that walks away between shots can give itself more than that: it is rooted only for each windup, and the
+// chaser closes the gap only then, so the free fire is about interval / windup times the standing shooter's (the ranged
+// windup shares in shared/weapons.ts are the lever; testing/TUNING_CONTROLS.md). The `orbwalk` style is the perfect version
+// of it, and `lock` is a shooter that just clicks its chaser (the server walks it into range and shoots); this section
+// measures them all. Report-only, like the rest of the harness.
 import {
   FACTION_IDS, FACTIONS, PLAYER_RADIUS, PLAYER_SPEED, WEAPONS, type FactionId, type WeaponId,
 } from "@raid/shared";
@@ -11,8 +14,8 @@ import { spacingFor, type Style } from "./matrix";
 
 export const MELEE_WEAPONS: readonly WeaponId[] = ["sword", "axe", "shield"];
 export const RANGED_WEAPONS: readonly WeaponId[] = ["bow", "wand"];
-/** post: never moves (the design's standing shooter). stand / strafe / kite: how the harness plays the ranged weapon (matrix.ts). */
-export const KITE_STYLES: readonly Style[] = ["post", "stand", "strafe", "kite"];
+/** post: never moves (the design's standing shooter). stand / strafe / kite: how the harness plays the ranged weapon; orbwalk: the perfect kiter; lock: a click on the chaser (matrix.ts). */
+export const KITE_STYLES: readonly Style[] = ["post", "stand", "strafe", "kite", "orbwalk", "lock"];
 
 export interface KiteCell {
   melee: WeaponId;
@@ -32,6 +35,8 @@ export interface KitingReport {
   bound: Record<string, number>;
   /** The worst kite time over the time against a shooter that never moves, over every melee and ranged weapon pair and style. */
   worst: { ratio: number; melee: WeaponId; ranged: WeaponId; style: Style };
+  /** The same for the perfect kiter alone (the style that bounds the windups' tuning). */
+  worstOrbwalk: { ratio: number; melee: WeaponId; ranged: WeaponId };
   text: string[];
 }
 
@@ -61,6 +66,7 @@ export function kitingReport(factions: readonly FactionId[] = FACTION_IDS): Kiti
           const res = runDuel({
             faction, weapons: [m, r], distance: rangeOf(r) - 20, angle: 0.1, capSeconds: CAP_SECONDS, seed: 3,
             spacing: [undefined, spacingFor(r, style)],
+            locks: [false, style === "lock"],
             onTick: (world, tick) => {
               if (contact !== null) return;
               const a = world.state.players.get("f0")!;
@@ -78,11 +84,13 @@ export function kitingReport(factions: readonly FactionId[] = FACTION_IDS): Kiti
     }
   }
   let worst: KitingReport["worst"] = { ratio: 0, melee: "sword", ranged: "bow", style: "stand" };
+  let worstOrbwalk: KitingReport["worstOrbwalk"] = { ratio: 0, melee: "sword", ranged: "bow" };
   for (const c of cells) {
     if (c.style === "post") continue;
     const post = cells.find((x) => x.melee === c.melee && x.ranged === c.ranged && x.style === "post")!;
     const ratio = c.contact / Math.max(1e-9, post.contact);
     if (ratio > worst.ratio) worst = { ratio, melee: c.melee, ranged: c.ranged, style: c.style };
+    if (c.style === "orbwalk" && ratio > worstOrbwalk.ratio) worstOrbwalk = { ratio, melee: c.melee, ranged: c.ranged };
   }
   const text: string[] = [];
   text.push(`standing-shooter bound (range - 60 u) / ${PLAYER_SPEED} u/s: bow ${bound.bow!.toFixed(2)} s, wand ${bound.wand!.toFixed(2)} s`);
@@ -98,5 +106,6 @@ export function kitingReport(factions: readonly FactionId[] = FACTION_IDS): Kiti
     }
   }
   text.push(`worst time against a shooter that moves, over the time against one that never does: x${worst.ratio.toFixed(2)} (${worst.melee} vs ${worst.ranged}, ${worst.style})`);
-  return { cells, bound, worst, text };
+  text.push(`worst time against the perfect kiter (orbwalk: rooted only for its windups), over the time against one that never moves: x${worstOrbwalk.ratio.toFixed(2)} (${worstOrbwalk.melee} vs ${worstOrbwalk.ranged})`);
+  return { cells, bound, worst, worstOrbwalk, text };
 }

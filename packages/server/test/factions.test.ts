@@ -2047,7 +2047,7 @@ describe("a stagger pauses damage over time", () => {
     sword: (i) => Math.min(0.1, i),
     shield: (i) => Math.min(0.1, i),
     axe: (i) => Math.min(0.25, 0.25 * i),
-    wand: (i) => Math.min(0.2, 0.4 * i),
+    wand: (i) => Math.min(0.4, 0.8 * i),
     bow: () => 0,
   };
   const windupMs = (owner: FactionId, weapon: WeaponId): number => WINDUP[weapon](attackInterval(SPEC[owner], weapon)) * 1000;
