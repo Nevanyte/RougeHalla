@@ -3,28 +3,27 @@
 // folds them, writes them in their wire form and then reads them back through the decoders here, never the unencoded
 // double, so the local prediction and the fighter art decode exactly the value the server simulated with.
 //
-// Wire forms:
-//   multipliers (asMult, windupMult, speedMult): float64, the double itself. Lossless on purpose: until R4a removes the
-//     buff stacks, the sim's attack and move multipliers must stay exactly buffMultiplier(stacks) (the server suite
-//     compares them with toBe), and a float64 field carries that double bit for bit. A field patches only when its value
-//     changes (the schema setter skips an equal value), and a stack grant changes it anyway. To quantize later (0.001
-//     steps, the plan's figure, for continuous effects), change encodeMult/decodeMult and the field type together:
-//     callers that go through the decoders need nothing else.
+// Wire forms (D22: the quantized value is authoritative; the sim simulates with exactly what a client decodes):
+//   multipliers (asMult, windupMult, speedMult): uint16 thousandths (MULT_WIRE_PER_UNIT), rounded half up to the 0.001
+//     step and clamped to MOD_MULT_MIN..MOD_MULT_MAX (50..20000 on the wire). decodeMult is exactly wire / 1000.
 //   flat bonuses (armorBonus, shieldBonus): int16 in tenths of a point (FLAT_WIRE_PER_POINT), -3276.8..3276.7.
-// Defaults are the identity (1, 1, 1, 0, 0), so a fighter nothing ever buffs patches none of them.
+// A field patches only when its wire value changes (the server compares before writing, and the schema setter skips an
+// equal value), so a continuous effect that moves by less than a step patches nothing. Defaults are the identity (1000,
+// 1000, 1000, 0, 0), so a fighter nothing ever buffs patches none of them.
 import { requirementsMet, type Effect, type EffectOf, type StatKey } from "./effects";
+import type { WeaponTimings } from "./weapons";
 
 /** The mirrors as the sim uses them (decoded). */
 export interface StatMirrors {
   /** Attack speed: divides the attack interval (attackInterval's `asMult`). */
   asMult: number;
-  /** Windup length multiplier (no source before R4a; nothing reads it yet). */
+  /** Windup length multiplier (scaleWindup): every attack's windup, and the axe's root with it. */
   windupMult: number;
-  /** Walking speed multiplier, before the kill bursts and the chill (the other world.moveModifiers). */
+  /** Walking speed multiplier, before the chill (the other world.moveModifiers). */
   speedMult: number;
-  /** Points added to the faction's armor (no source before R4a; nothing reads it yet). */
+  /** Points added to the faction's armor (the damage law's defender armor). */
   armorBonus: number;
-  /** Points added to the faction's shield, the magic resistance (no source before R4a; nothing reads it yet). */
+  /** Points added to the faction's shield, the magic resistance (D7; not the kill barrier). */
   shieldBonus: number;
 }
 
@@ -35,21 +34,41 @@ export const IDENTITY_MIRRORS: Readonly<StatMirrors> = { asMult: 1, windupMult: 
 /** A multiplier never goes below or above these, whatever its rows add up to (a -100% windup would be no windup at all). */
 export const MOD_MULT_MIN = 0.05;
 export const MOD_MULT_MAX = 20;
+/** Wire units per unit of a multiplier: the wire carries thousandths (uint16). */
+export const MULT_WIRE_PER_UNIT = 1000;
 /** Wire units per point of a flat bonus: the wire carries tenths. */
 export const FLAT_WIRE_PER_POINT = 10;
 const INT16_MIN = -32768;
 const INT16_MAX = 32767;
+const MULT_WIRE_MIN = Math.round(MOD_MULT_MIN * MULT_WIRE_PER_UNIT);
+const MULT_WIRE_MAX = Math.round(MOD_MULT_MAX * MULT_WIRE_PER_UNIT);
 
-/** The wire value of a multiplier (what the sim stores on the state). Non-finite becomes 1; the range is clamped. */
+/**
+ * The wire value of a multiplier (what the sim stores on the state): whole thousandths, rounded half up, clamped to
+ * MOD_MULT_MIN..MOD_MULT_MAX. Non-finite becomes the identity (1000).
+ */
 export function encodeMult(x: number): number {
-  if (!Number.isFinite(x)) return 1;
-  return x < MOD_MULT_MIN ? MOD_MULT_MIN : x > MOD_MULT_MAX ? MOD_MULT_MAX : x;
+  if (!Number.isFinite(x)) return MULT_WIRE_PER_UNIT;
+  const n = Math.floor(x * MULT_WIRE_PER_UNIT + 0.5);
+  return n < MULT_WIRE_MIN ? MULT_WIRE_MIN : n > MULT_WIRE_MAX ? MULT_WIRE_MAX : n;
 }
 
-/** The multiplier a wire value stands for. */
+/** The multiplier a wire value stands for: exactly wire / 1000 (the double nearest it), on the server and every client. */
 export function decodeMult(wire: number): number {
   // A server without the mirror field (an older build) leaves it undefined on the client: read that as no modifier.
-  return Number.isFinite(wire) ? wire : 1;
+  return Number.isFinite(wire) ? wire / MULT_WIRE_PER_UNIT : 1;
+}
+
+/**
+ * A weapon's timings with the windup scaled by `windupMult` (the decoded mirror), never past the interval. The axe's
+ * root, which counts from the attack's start, stretches with it and never ends before the windup does. The server's
+ * timingsOf and a client's draw and root read the same function.
+ */
+export function scaleWindup(t: WeaponTimings, windupMult: number): WeaponTimings {
+  if (windupMult === 1 || !Number.isFinite(windupMult)) return t;
+  const windup = Math.min(t.interval, t.windup * windupMult);
+  const root = t.root > 0 ? Math.max(windup, Math.min(t.interval, t.root * windupMult)) : 0;
+  return { ...t, windup, root };
 }
 
 /** The wire value of a flat bonus: whole tenths of a point, rounded half up, clamped to int16. Non-finite becomes 0. */
@@ -63,6 +82,9 @@ export function encodeFlat(x: number): number {
 export function decodeFlat(wire: number): number {
   return wire / FLAT_WIRE_PER_POINT;
 }
+
+/** The identity mirrors in wire form: what a new PlayerState holds (1000, 1000, 1000, 0, 0). */
+export const WIRE_IDENTITY_MIRRORS: Readonly<StatMirrors> = encodeMirrors(IDENTITY_MIRRORS);
 
 /** The synced mirror fields of a player (wire form): a PlayerState or anything shaped like one. */
 export type WireMirrors = Readonly<StatMirrors>;

@@ -62,6 +62,19 @@ export const LOBBY_FILL_SECONDS = 5;
 export const RECONNECT_SECONDS = 10;
 /** How long an ended room lingers so clients receive their results before disconnect. */
 export const ENDED_LINGER_SECONDS = 5;
+/**
+ * Planning (roguelike R3): the live server's planning phase between the lobby and the run (env PLAN_SECONDS; the sim's
+ * own default, SimConfig.planSeconds unset, is 0: no planning). It ends sooner once every connected player is ready.
+ */
+export const PLAN_SECONDS = 12;
+/**
+ * The two spawns dealt to a player lie in one walking-distance tier: both within this fraction either side of one shared
+ * contour value (walking distance to the coliseum centre, gates open), i.e. the longer walk is at most
+ * (1 + t) / (1 - t) times the shorter (shared/planning.ts `sameTier`).
+ */
+export const PLAN_WALK_TOLERANCE = 0.08;
+/** The live server's first patience timer, flat whatever the player count (env FIRST_PATIENCE_SECONDS; decision 10). Timers after a death keep the scaling. */
+export const FIRST_PATIENCE_SECONDS = 300;
 /** Only mapgen v1 still reads this (its extract circles); Phase 8b's map drops it. */
 export const EXTRACT_RADIUS = 64;
 
@@ -163,17 +176,19 @@ export const TARGET_REPATH_MS = 250;
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;
 
-// Buffs and the feed curve (Phase 11, GAME_DESIGN 12). The maths is in buffs.ts.
-/** Largest bonus each stat's S-curve approaches: +70% max hp, +50% attack speed, +30% move speed. */
-export const BUFF_BMAX_HP = 0.7;
-export const BUFF_BMAX_ATTACK_SPEED = 0.5;
-export const BUFF_BMAX_MOVE_SPEED = 0.3;
-/** The S-curve's midpoint (stacks) and width: the spike is the 3rd to 5th stack. */
+// Buffs and the feed curve (roguelike R4a: per-mob-type buffs, GAME_DESIGN 12). The maths is in buffs.ts.
+/** The S-curve's midpoint (stacks) and width: S(x) = sigmoid((x - BUFF_S0) / BUFF_W) - sigmoid(-BUFF_S0 / BUFF_W). */
 export const BUFF_S0 = 3;
 export const BUFF_W = 1;
-/** Stacks of one stat that unlock a combo tier (GAME_DESIGN 12.2). */
-export const COMBO_TIER1_STACKS = 3;
-export const COMBO_TIER2_STACKS = 5;
+/** A buff's quoted numbers are its value at this many stacks (D6): value(n) = quoted x S(n) / S(BUFF_REF_STACKS). */
+export const BUFF_REF_STACKS = 3;
+/**
+ * The most lifesteal `lifesteal` effect rows give a fighter, summed over every row (Acolyte's buff, later relics), any
+ * faction. Holy's own lifesteal comes on top, and the total never exceeds LIFESTEAL_MAX.
+ */
+export const LS_CAP = 0.25;
+/** Holy's own cap (factions.ts ls_cap): lifesteal above 100% of the damage stalls Holy against Holy. */
+export const LIFESTEAL_MAX = 1;
 /** Mob rewards (GV and buff stacks) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
 export const REWARD_FLOOR = 0.3;
 export const REWARD_MID = 5;
@@ -181,7 +196,7 @@ export const REWARD_WIDTH = 1.5;
 /** Anyone with a feed more than CATCHUP_GAP below the lobby median gets mob rewards x CATCHUP_MULT. */
 export const CATCHUP_GAP = 2;
 export const CATCHUP_MULT = 1.25;
-/** Killing a bountied player moves this share of their buff stacks, stat by stat, to the killer. */
+/** Killing a bountied player moves this share of their buff stacks, buff by buff, to the killer. */
 export const BOUNTY_STACK_SHARE = 0.5;
 /** A rampage announcement for one player goes out at most this often (ms); a rise held back goes out when the window ends. */
 export const BOUNTY_ANNOUNCE_MS = 10_000;
@@ -206,13 +221,12 @@ export const MOB_AIM_DEADBAND = (2 * Math.PI) / 180;
 /** A dead mob stays in the state this long (ms) so every client sees it fall. */
 export const MOB_CORPSE_MS = 1500;
 /**
- * Buff stacks a mob drops before the reward curve; its stat is the region's own with MOB_PRIMARY_BUFF_SHARE, else another.
- * A little over a whole stack, because the curve is at most 0.976: three hungry drops of one stat (3 x 1.1 x ~0.97 = 3.2)
- * then reach the first combo at 3 stacks, where with 1.0 they would stop at 2.91.
+ * Stacks of its type's buff a mob gives its killer before the reward curve (m = rewardCurve x catch-up). A little over a
+ * whole stack, because the curve is at most 0.976: three hungry kills of one camp (3 x 1.1 x ~0.97 = 3.2) then reach the
+ * quoted value (3 stacks). An elite gives about the full quoted value on its own (3.1 x ~0.97 = 3.0).
  */
 export const MOB_BUFF_STACKS = 1.1;
-export const ELITE_BUFF_STACKS = 2.2;
-export const MOB_PRIMARY_BUFF_SHARE = 0.6;
+export const ELITE_BUFF_STACKS = 3.1;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;

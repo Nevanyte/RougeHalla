@@ -16,9 +16,12 @@
 //   5. A target is dropped (and left alone for a while) when it never gets hurt: it went home (a mob walking home is
 //      untouchable and shows no flag, but its hp rises), the attacks are not landing, or the chase is taking too long.
 import {
-  duel, FACTIONS, isFactionId, isRanged, isRegionalKind, isWeaponId, mobFaction, REGION_WEAPONS,
-  TILE, weaponEdge, type FactionId, type Vec2, type WeaponId,
+  campMatchup, isFactionId, isRanged, isRegionalKind, isWeaponId, matchupShare, nearestCamps, REGION_WEAPONS,
+  TILE, weaponEdge, type FactionId, type GameMap, type PlanMessage, type Vec2, type WeaponId,
 } from "@raid/shared";
+
+// It moved to shared (planning.ts) for the planning screen; re-exported so the bots' callers keep their import.
+export { matchupShare };
 
 /** The part of a state.mobs entry the hunt reads. */
 export interface MobLike {
@@ -207,7 +210,7 @@ export interface HuntSelf {
   maxHp: number;
   /** The carried weapons (both slots; null = empty). */
   weapons: readonly (WeaponId | null)[];
-  /** All the buff stacks, summed. */
+  /** The buffs' power in stacks at the quoted value (shared buffs.ts buffPower: 3 for one buff at 3 stacks). */
   stacks: number;
   /** The server's count of mobs this bot killed. */
   mobKills: number;
@@ -449,24 +452,6 @@ export class MobHunter {
   }
 }
 
-const shares = new Map<string, number>();
-
-/**
- * The share of its own hp a bot of `me` keeps after a straight duel with a mob of `region` (shared `duel` with the mob's scaled
- * faction: the table in GAME_DESIGN 11), 0 for a loss. It ignores weapons, leashes and kiting, so it says who can afford a fight,
- * not how it will go. Cached: a handful of 10 ms duels per run.
- */
-export function matchupShare(me: FactionId, region: FactionId, elite: boolean): number {
-  const key = `${me}/${region}/${elite ? "e" : "m"}`;
-  let share = shares.get(key);
-  if (share === undefined) {
-    const d = duel(FACTIONS[me], mobFaction(region, elite), 0.01);
-    share = d.winner === 0 ? d.hpA / FACTIONS[me].hp : 0;
-    shares.set(key, share);
-  }
-  return share;
-}
-
 /** The weapon a mob fights with: its own, else its region's. */
 export function mobWeapon(m: Pick<MobLike, "weapon0" | "faction">): WeaponId | null {
   return asWeapon(m.weapon0) ?? (isFactionId(m.faction) ? REGION_WEAPONS[m.faction] : null);
@@ -526,6 +511,43 @@ export function retreatPoint(self: Vec2, threats: readonly Vec2[], walkable: (fr
       const score = Math.min(nearest, 1e6) + step * 0.25;
       if (score > bestScore) { bestScore = score; best = p; }
     }
+  }
+  return best;
+}
+
+/** How many of the camps nearest a spawn the bot's planning weighs. */
+export const PLAN_CAMPS = 2;
+/** A camp whose weapon makes the bot's useless counts this much of its matchup (the second slot may still answer it). */
+const PLAN_USELESS_WEIGHT = 0.25;
+
+/**
+ * How good a start the spawn `poolIndex` is for a bot of `faction` holding `weapon`: the matchup (shared campMatchup) of the
+ * PLAN_CAMPS camps nearest it, each cut to PLAN_USELESS_WEIGHT when the camp's weapon makes `weapon` useless. Higher is better.
+ */
+export function planSpawnScore(map: GameMap, poolIndex: number, faction: FactionId, weapon: WeaponId | null): number {
+  const at = map.spawnPool[poolIndex];
+  if (!at) return -Infinity;
+  let score = 0;
+  for (const camp of nearestCamps(map, at, PLAN_CAMPS)) {
+    const share = campMatchup(faction, camp);
+    score += weapon !== null && useless(weapon, REGION_WEAPONS[camp.zone]) ? share * PLAN_USELESS_WEIGHT : share;
+  }
+  return score;
+}
+
+/**
+ * Which of its two dealt spawns a bot picks: the better planSpawnScore of those nobody else holds (option 0 on a tie), or
+ * -1 when both are taken (or none was dealt).
+ */
+export function planPick(
+  map: GameMap, plan: Pick<PlanMessage, "spawns" | "taken">, faction: FactionId, weapon: WeaponId | null,
+): -1 | 0 | 1 {
+  let best: -1 | 0 | 1 = -1;
+  let bestScore = -Infinity;
+  for (const k of [0, 1] as const) {
+    if (plan.spawns[k] < 0 || plan.taken[k]) continue;
+    const score = planSpawnScore(map, plan.spawns[k], faction, weapon);
+    if (best < 0 || score > bestScore) { best = k; bestScore = score; }
   }
   return best;
 }

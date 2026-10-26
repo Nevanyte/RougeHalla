@@ -6,6 +6,7 @@
 //   "resolved"        recordRun(outcome, kills, gv.total)   once per player and run, whatever the outcome
 //   server shutdown   bankGv(unbanked run GV)               the run is void: no run is recorded
 //   leave in lobby    nothing
+//   leave in planning nothing (the run has not started; a dropped client's seat is held, as in the run)
 import { randomBytes, randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
@@ -18,6 +19,7 @@ import type { ProfileStore } from "../persistence/ProfileStore";
 import { markDropped, markReconnected } from "../sim/arena";
 import { createGameWorld } from "../sim/gameplay";
 import { enqueueClientMessage } from "../sim/inputs";
+import { planFor } from "../sim/planning";
 import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/step";
 import { installTraining } from "../sim/training";
 import type { SimEvent, World } from "../sim/world";
@@ -226,7 +228,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const { config } = RaidRoom.ctx;
     const world = createGameWorld({
       seed: this.seed,
-      config: this.training ? { ...config, dummies: true, training: true } : config,
+      // Training never plans: its one player is in the run the moment they join.
+      config: this.training ? { ...config, dummies: true, training: true, planSeconds: 0 } : config,
       random: Math.random,
       // The reward stream's own secret: never the public seed, and not orderSalt, which tie outcomes can leak (world.ts).
       rewardSalt: Array.from(new Uint32Array(randomBytes(16).buffer, 0, 4)),
@@ -286,6 +289,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // Nothing to hold in the lobby: a ghost would count toward minPlayers and could be spawned into
     // the raid unable to act. Not allowing reconnection makes core call onLeave right away. Once the run
     // is on, the seat is held (and the player stays alive, and hittable) so a blip doesn't cost them.
+    // Planning holds it too: the room is locked by then, so a blip would otherwise cost the whole run (a dropped
+    // player keeps their pick, or is given the default at the end, and does not hold up the early start).
     // A training room has nothing to hold either: the shipped client leaves with a non-consented close, which lands here, and a
     // hold would keep the profile locked for the whole grace period after the player has gone back to the hub.
     if (!this.built || this.built.state.phase === "lobby" || this.training) return;
@@ -299,7 +304,17 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     markReconnected(this.world, client.sessionId);
     const result = this.pendingResults.get(client.sessionId);
     if (result) client.send("result", result);
+    this.sendPlan(client);
     this.sendInFlight(client);
+  }
+
+  /**
+   * The player's private planning deal, for a client that reconnects during planning: it is in no synced state, so the
+   * full state cannot tell it. Held back by core until that state is out, like sendInFlight's batch.
+   */
+  private sendPlan(client: Client) {
+    const plan = planFor(this.world, client.sessionId);
+    if (plan) client.send("plan", plan satisfies ServerMessages["plan"]);
   }
 
   /**
@@ -407,8 +422,12 @@ export class RaidRoom extends Room<{ state: RaidState }> {
         case "gv":
           this.sendTo(ev.id, "toast", { text: `+${ev.amount} GV (${GV_TOAST[ev.reason]})` });
           break;
+        case "planningStarted":
         case "raidStarted":
           void this.lock();
+          break;
+        case "plan":
+          this.sendTo(ev.to, "plan", ev.plan);
           break;
         case "raidEnded":
           this.clock.setTimeout(() => void this.disconnect(), ENDED_LINGER_SECONDS * 1000);
