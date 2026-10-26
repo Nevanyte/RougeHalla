@@ -185,8 +185,9 @@ maps (the wedge maps gave 95.8% at 8 players). There are no same-zone pairs and 
 - determinism across fresh module loads (50 seeds) and the Math spy (23 functions);
 - the API tests;
 - the demo hook on 24 seeds;
-- the cost gate (`mapgen.perf.test.ts`): the median of 7 batches of 8 seeds, scaled by a yardstick timed in the same
-  batches, must be <= 45 ms. It measures 31-38 ms in the full parallel suite.
+- the cost gate (`mapgen.perf.test.ts`): the median of 7 batches of 8 seeds, each map timed between two short
+  yardsticks and scaled to the quiet reference machine, must be <= 45 ms. It measures 31-39 ms in the full parallel suite
+  at load average up to 29 (raw batches up to 191 ms).
 
 ## 5. Open points
 
