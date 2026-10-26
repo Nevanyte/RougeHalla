@@ -10,8 +10,12 @@ export interface ServerConfig extends SimConfig {
   port: number;
   /** The profile file (STASH_FILE: the name predates profiles v2, and keeping it lets a v1 file migrate in place). */
   stashFile: string;
-  /** Artificial one-way latency for netcode testing (0 = off). */
+  /** Simulated minimum round trip in ms for netcode testing (COLYSEUS_LATENCY, 0 = off). See net/netSim.ts. */
   latencyMs: number;
+  /** Mean of the simulated per-message jitter in ms (NET_JITTER_MS), the share of messages stalled by a lost segment (NET_LOSS_PCT, percent) and the seed of both (NET_SEED). */
+  netJitterMs?: number;
+  netLossPct?: number;
+  netSeed?: number;
   /** A training room whose player sends nothing for this long is closed (TRAINING_IDLE_SECONDS). */
   trainingIdleSeconds: number;
 }
@@ -30,6 +34,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     port: num(env.RAID_PORT, SERVER_PORT),
     stashFile: env.STASH_FILE || DEFAULT_STASH_FILE,
     latencyMs: num(env.COLYSEUS_LATENCY, 0),
+    netJitterMs: num(env.NET_JITTER_MS, 0),
+    netLossPct: num(env.NET_LOSS_PCT, 0),
+    ...(env.NET_SEED ? { netSeed: num(env.NET_SEED, 0) } : {}),
     trainingIdleSeconds: num(env.TRAINING_IDLE_SECONDS, TRAINING_IDLE_SECONDS),
     minPlayers: num(env.MIN_PLAYERS, MIN_PLAYERS_TO_START),
     lobbySeconds: num(env.LOBBY_SECONDS, LOBBY_SECONDS),

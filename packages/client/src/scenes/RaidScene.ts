@@ -210,7 +210,7 @@ export class RaidScene extends Phaser.Scene {
       name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
       mobKind: (id) => this.room.state.mobs.get(id)?.kind,
       projectileEnded: (id) => this.projectiles.finish(id),
-      // At render time with the flash and the number, not on arrival (~INTERP_DELAY_MS earlier): damageFlash judges the hit against max hp.
+      // At render time with the flash and the number, not on arrival (the render delay earlier): damageFlash judges the hit against max hp.
       localHit: (fx) => this.feedback.hit(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0, fx.sig),
       announce: data.toast,
     });
@@ -244,10 +244,13 @@ export class RaidScene extends Phaser.Scene {
     if (import.meta.env.DEV) {
       // latency: ms from a right-click to the first frame the local fighter moved on screen; motion: the prediction's state.
       const motion = this.predict.motion;
+      const interp = this.interp;
       const tools = {
         scene: this,
         room: this.room,
         latency: this.latency,
+        /** How far behind the estimated server clock remote fighters are drawn (ms), and the delay the network asks for. */
+        get interp() { return { delay: interp.delayMs, target: interp.targetDelayMs }; },
         get motion() {
           return {
             delay: motion.delay, mode: motion.mode, visual: motion.visualOffset, walking: motion.walking, pending: motion.pendingOrders,
@@ -278,7 +281,7 @@ export class RaidScene extends Phaser.Scene {
     const renderT = this.juice.worldTime(trueT, now);
     this.renderT = renderT;
     this.clockSynced = this.interp.clock.synced;
-    // The estimated present, not renderT (100 ms behind it): deadlines and cooldowns are server-time values about now.
+    // The estimated present, not renderT (the render delay behind it): deadlines and cooldowns are server-time values about now.
     const serverNow = this.clockSynced ? this.interp.clock.now(now) : state.serverTime;
     for (const [id, d] of this.deaths) if (renderT >= d.t) this.deaths.delete(id);
 
@@ -333,7 +336,7 @@ export class RaidScene extends Phaser.Scene {
     this.projectiles.update(renderT);
 
     // Interaction range is checked against the latest synced position (what the server uses), not the
-    // interpolated one the player is drawn at, which trails it by INTERP_DELAY_MS.
+    // interpolated one the player is drawn at, which trails it by the render delay.
     const me = state.players.get(this.room.sessionId);
     const map = this.mapView?.map;
     // Line of sight (pickup) follows the server's walls, closed gates included. mapView.map stays the open map.

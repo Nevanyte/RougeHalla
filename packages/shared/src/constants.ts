@@ -11,8 +11,13 @@ export const SERVER_PORT = 2567;
 export const TICK_RATE = 20;
 export const TICK_MS = 1000 / TICK_RATE;
 export const PATCH_MS = TICK_MS;
-/** Clients render this far behind the estimated server clock (two ticks). */
+/**
+ * Clients render this far behind the estimated server clock (two ticks): the delay a client starts with and the one the harness
+ * and the bots assume a player sees. The client then adapts it to its network between the two bounds below (shared/interp.ts RenderClock).
+ */
 export const INTERP_DELAY_MS = 100;
+export const MIN_INTERP_DELAY_MS = 70;
+export const MAX_INTERP_DELAY_MS = 150;
 /**
  * How far back the server rewinds targets to match what an attacker saw (lag compensation).
  * Covers INTERP_DELAY_MS + RTT + one tick for clients up to ~150 ms RTT.

@@ -10,10 +10,11 @@ import { randomBytes, randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
   CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
-  type FactionId, type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
+  type FactionId, type FxEvent, type GameMap, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { ServerConfig } from "../config";
+import { generateMapAsync } from "../mapService";
 import type { ProfileStore } from "../persistence/ProfileStore";
 import { markDropped, markReconnected } from "../sim/arena";
 import { createGameWorld } from "../sim/gameplay";
@@ -158,6 +159,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private built: World | undefined;
   /** Picked at creation so that the map does not depend on when the first player arrives. */
   private seed = 0;
+  /** The seed's map, generated off the event loop in onCreate (mapService.ts); the world is built from it on the first join. */
+  private map: GameMap | undefined;
   /** The profile that asked for this room, until a player joins it (or the room is disposed). */
   private opener: string | null = null;
   private accumulator = 0;
@@ -188,10 +191,10 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     return this.built;
   }
 
-  onCreate(options?: Partial<JoinOptions>) {
+  async onCreate(options?: Partial<JoinOptions>) {
     const { config, profiles } = RaidRoom.ctx;
     this.training = options?.mode === "training";
-    // All that a room nobody joins gets: the world and its map are built on the first join (buildWorld).
+    // All that a room nobody joins gets, until the map at the end: the world is built on the first join (buildWorld).
     this.seed = randomInt(0, 2 ** 31);
     const opener = options?.profile;
     if (typeof opener === "string" && PROFILE_RE.test(opener)) {
@@ -220,12 +223,17 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // exactly the latest tick. Must come after setTimestep (otherwise core installs its own
     // clock-tick interval, which skews `elapsed`).
     this.patchRate = 0;
+    // Last, so what the room registers above (the opener, the timestep) is in place before this waits. The map is what a room
+    // costs: generating it inline stalled every other room for 20-80 ms (mapService.ts). No world exists until the first join,
+    // and tick() ignores a room without one.
+    this.map = await generateMapAsync(this.seed);
   }
 
   private buildWorld(): World {
     const { config } = RaidRoom.ctx;
     const world = createGameWorld({
       seed: this.seed,
+      map: this.map,
       config: this.training ? { ...config, dummies: true, training: true } : config,
       random: Math.random,
       // The reward stream's own secret: never the public seed, and not orderSalt, which tie outcomes can leak (world.ts).

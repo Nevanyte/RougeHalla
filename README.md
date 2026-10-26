@@ -172,7 +172,11 @@ Set them on the command line, for example `MIN_PLAYERS=1 FILL_SECONDS=1 PATIENCE
 | `TRAINING_IDLE_SECONDS` | `300` | A training room whose player sends no accepted input for this long is closed. |
 | `DUMMIES` | off | `1` or `true`: training dummies and a weapon rack next to every spawn in arena runs too. |
 | `MOBS` | on | `0` or `false`: no regional mobs. |
-| `COLYSEUS_LATENCY` | `0` | Artificial latency in milliseconds, for netcode testing. |
+| `COLYSEUS_LATENCY` | `0` | Netcode testing: the simulated minimum round trip in ms (half each way) of every connection. A TCP-faithful model (`packages/server/src/net/netSim.ts`): per connection and direction a FIFO, so messages never reorder. |
+| `NET_JITTER_MS` | `0` | Mean of the extra per-message delay (exponential, so right-skewed), each way, on top of `COLYSEUS_LATENCY`. |
+| `NET_LOSS_PCT` | `0` | Percent of messages that need a retransmission: they wait an extra timeout (at least 200 ms) and everything behind them waits too (head-of-line blocking). |
+| `NET_SEED` | random | Seeds the jitter and loss draws, for repeatable runs. |
+| `MAP_WORKER` | on | `0` or `false`: generate each room's map on the main thread (inside the first join) instead of in a worker thread. Always off under vitest unless `1`. |
 
 ### Client environment variable
 
