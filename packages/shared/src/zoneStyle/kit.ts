@@ -106,6 +106,9 @@ export function chamfer(mask: Uint8Array, w: number, h: number): Int32Array {
   const d = new Int32Array(n);
   const BIG = 1 << 20;
   for (let i = 0; i < n; i++) d[i] = mask[i] ? BIG : 0;
+  // the grid's edge is outside too: a mask tile on it is one step from outside
+  for (let x = 0; x < w; x++) { if (d[x]) d[x] = 3; if (d[(h - 1) * w + x]) d[(h - 1) * w + x] = 3; }
+  for (let y = 0; y < h; y++) { if (d[y * w]) d[y * w] = 3; if (d[y * w + w - 1]) d[y * w + w - 1] = 3; }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = y * w + x;
@@ -130,8 +133,6 @@ export function chamfer(mask: Uint8Array, w: number, h: number): Int32Array {
       d[i] = v;
     }
   }
-  // A mask that reaches the grid's edge everywhere (no outside tile at all) keeps BIG; the grid edge counts as outside.
-  for (let i = 0; i < n; i++) if (d[i] === BIG) d[i] = BIG - 1;
   return d;
 }
 
@@ -230,7 +231,7 @@ function hardNearOf(c: BaseCtx): Uint8Array {
  * noise + 150 within 3 tiles of a protected tile + `penalty(tile)` when given. Ties pop in index order. Empty when b is unreachable.
  */
 export function flowPath(c: BaseCtx, a: number, b: number, salt: number, penalty?: (j: number) => number): number[] {
-  const { w, h, mask, tiles, hard } = c;
+  const { w, h, mask, tiles } = c;
   const n = w * h;
   const dist = new Int32Array(n).fill(1 << 30), from = new Int32Array(n).fill(-1);
   const hardNear = hardNearOf(c);

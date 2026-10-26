@@ -55,4 +55,3 @@ for (const code of which) {
   );
 }
 console.log("legend: X styler wall  # existing wall  P pillar in a LOW feature  ~ lava  | fence  : crevasse  e ember  b bog  i ice  L light  , protected floor  . floor  * prop (--props)");
-void TILE_FLOOR;

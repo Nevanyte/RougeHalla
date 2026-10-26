@@ -199,10 +199,12 @@ export class ZoneRuntime {
    * and i. Each pair must still walk from one to the other in at most 2k + cap steps.
    */
   private detourOk(i: number, cap: number, reach: number): boolean {
-    const { w, init } = this;
+    const { w, h, init } = this;
     const { tiles, mask } = init;
+    const x = i % w, y = (i - x) / w;
     for (const step of [w, 1]) {
       for (let k = 1; k <= reach; k++) {
+        if (step === 1 ? x - k < 0 || x + k >= w : y - k < 0 || y + k >= h) break; // off the grid: no pair this far across
         const a = i - k * step, b = i + k * step;
         if (tiles[a] !== TILE_FLOOR || tiles[b] !== TILE_FLOOR || !mask[a] || !mask[b]) break; // no pair this far across
         if (!this.reachesWithin(a, b, i, 2 * k + cap)) return false;

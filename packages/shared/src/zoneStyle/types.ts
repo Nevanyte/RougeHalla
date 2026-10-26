@@ -150,6 +150,7 @@ export interface StyleState {
   /** Tiles that take no prop (spawn 3x3, chests, camp spots, gate lanes, ground spots). Defaults to `protect`. */
   readonly noProp?: Uint8Array;
   readonly territory: Uint8Array | null;
+  /** The camps: `site` the tile index of the centre, `r` the clearing radius in TILES, `territory` its territory id. */
   readonly camps: readonly { readonly site: number; readonly r: number; readonly territory: number }[];
   /** Out. Stays empty in v1: every LOW tile may take a cover rock. */
   keepLow: Uint8Array;

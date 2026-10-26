@@ -3,9 +3,10 @@
 import { describe, expect, it } from "vitest";
 import { MAX_SIGHT_CORRIDOR, TILE } from "../src/constants";
 import {
-  REGION_COLISEUM, REGION_FACTIONS, REGION_NONE, TILE_FLOOR, TILE_LOW, TILE_WALL, moveComponentsOf, withGates, worldToTile,
+  REGION_COLISEUM, REGION_FACTIONS, REGION_NONE, TILE_FLOOR, TILE_LOW, TILE_WALL, moveComponentsOf, sightMask, withGates, worldToTile,
 } from "../src/map";
 import type { GameMap } from "../src/map";
+import { hasLineOfSight } from "../src/geometry";
 import { SIGHT_LATTICE, generateMap } from "../src/mapgen";
 import { TERRAINS, validateTerrain } from "../src/terrain";
 import { MAP_STYLERS } from "../src/constants";
@@ -113,6 +114,15 @@ describe("styled finished maps (200 seeds)", () => {
     });
   }, HEAVY_MS);
 
+  it("passes validateTerrain(map, { styled: true }) with its DEFAULT prop table when no props are drawn (decor off, 60 seeds)", () => {
+    // terrain.ts's PROP_KINDS is still empty, so a map with props needs { propKinds: ZONE_PROP_KINDS }; the gameplay layers alone are clean
+    for (const s of SEEDS.slice(0, 60)) {
+      const bare = styleFinishedMap(entry(s).raw, { decor: false });
+      expect(bare.props, `seed ${s}`).toEqual([]);
+      expect(validateTerrain(bare, { styled: true }), `seed ${s}`).toEqual([]);
+    }
+  }, HEAVY_MS);
+
   it("keeps one 4-connected floor component with the gates open and two with them closed", () => {
     eachEntry(({ styled }, s) => {
       expect(componentCount(styled.tiles, styled.w, styled.h), `seed ${s}: gates open`).toBe(1);
@@ -192,6 +202,29 @@ describe("styled finished maps (200 seeds)", () => {
     }
   }, HEAVY_MS);
 
+  it("only ever cuts sight: any line of sight on a styled map existed on the unstyled one (spawn pairs, spawn to centre), and LOW blocks none", () => {
+    let pairs = 0, blockedMore = 0;
+    eachEntry(({ raw, styled }, s) => {
+      const pts = [...raw.spawns, raw.coliseum.centre];
+      for (let a = 0; a < pts.length; a++) {
+        for (let b = a + 1; b < pts.length; b++) {
+          const before = hasLineOfSight(raw, pts[a], pts[b]), after = hasLineOfSight(styled, pts[a], pts[b]);
+          pairs++;
+          if (before && !after) blockedMore++;
+          expect(after && !before, `seed ${s}: styling opened a line of sight between ${a} and ${b}`).toBe(false);
+        }
+      }
+      // a LOW tile is see-through: the sight mask of the styled map is the raw one plus the new walls only
+      const sm = sightMask(styled), rm = sightMask(raw);
+      for (let i = 0; i < sm.length; i++) {
+        if (sm[i] && !rm[i]) expect(styled.tiles[i], `seed ${s} tile ${i}`).toBe(TILE_WALL);
+        if (!sm[i] && styled.tiles[i] === TILE_LOW) expect(rm[i], `seed ${s} tile ${i}`).toBe(0);
+      }
+    });
+    console.info(`[zone styler] ${pairs} spawn/centre pairs checked; styling cut the sight line of ${blockedMore}`);
+    expect(pairs).toBeGreaterThan(20000);
+  }, HEAVY_MS);
+
   it("keeps each faction at 8% of the floor or more and the floor share inside (0.5, 0.95)", () => {
     eachEntry(({ styled }, s) => {
       let floor = 0;
@@ -266,10 +299,12 @@ describe("styled finished maps (200 seeds)", () => {
 
   it("reports the per-zone footprints, hazards, spawn detours and wall runs over 200 maps (report only)", () => {
     const zones = REGION_FACTIONS.map(() => ({ wall: 0, low: 0, haz: 0, eff: 0, props: 0, painted: 0, floor: 0 }));
-    let detourMax = 1, detourMean = 0, detourN = 0;
+    let detourMax = 1, detourMean = 0, detourN = 0, wallRun = 0, lowRun = 0;
     const ms = REGION_FACTIONS.map(() => ({ sum: 0, max: 0 }));
-    eachEntry(({ raw, styled, results }) => {
+    eachEntry(({ raw, styled, results }, s) => {
       const rep = styleReport(raw, styled);
+      expect(rep.longestWallRun, `seed ${s}: the report's wall run is the test's`).toBe(longestOutdoorWallRun(styled));
+      wallRun = Math.max(wallRun, rep.longestWallRun); lowRun = Math.max(lowRun, rep.longestLowRun);
       rep.zones.forEach((z, k) => {
         zones[k].wall += z.wallPct; zones[k].low += z.lowPct; zones[k].haz += z.hazardPct; zones[k].eff += z.effectivePct; zones[k].props += z.props;
         zones[k].painted += z.painted; zones[k].floor += z.floor;
@@ -285,7 +320,8 @@ describe("styled finished maps (200 seeds)", () => {
         `props ${(z.props / n).toFixed(1)}  zone ${(z.painted / n).toFixed(0)} tiles  ms mean ${(ms[k].sum / n).toFixed(2)} max ${ms[k].max.toFixed(2)}`,
       );
     }
-    console.info(`[zone styler] spawn walk to the coliseum centre, styled over unstyled: mean x${(detourMean / detourN).toFixed(3)}, max x${detourMax.toFixed(3)}`);
+    console.info(`[zone styler] spawn walk to the coliseum centre, styled over unstyled: mean x${(detourMean / detourN).toFixed(3)}, max x${detourMax.toFixed(3)}; longest straight outdoor wall run ${wallRun}, longest straight LOW run ${lowRun}`);
+    expect(lowRun).toBeLessThanOrEqual(12);
     expect(detourN).toBeGreaterThan(0);
   }, HEAVY_MS);
 });

@@ -8,9 +8,6 @@ import {
   REGION_COLISEUM, REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, tileToWorldCenter, worldToTile,
 } from "../map";
 import type { GameMap, RegionFaction, TilePt, TileRect } from "../map";
-import {
-  TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT,
-} from "../terrain";
 import { styleZones } from "./styleZones";
 import { longestRunOf } from "./kit";
 import type { StyleOptions, StyleResult } from "./types";
@@ -240,10 +237,46 @@ export interface StyleReport {
   zones: ZoneFootprint[];
   /** Walk to the coliseum centre, styled over unstyled, per spawn. */
   spawnDetour: { max: number; mean: number; perSpawn: number[] };
-  /** Longest straight WALL run of the styled map, in tiles. */
+  /** Longest straight run of OUTDOOR wall of the styled map (a ruin's walls and blobs against a ridge do not count), in tiles: the cover test's measure. */
   longestWallRun: number;
   /** Longest straight run of LOW. */
   longestLowRun: number;
+}
+
+/**
+ * The longest straight horizontal or vertical run of outdoor wall tiles: walls inside a faction region and outside the ruins,
+ * leaving out the blobs that touch a ridge or the border (region none). mapgen.test.ts bounds it at 14.
+ */
+export function outdoorWallRun(m: GameMap): number {
+  const { w, h } = m;
+  const inRegion = (i: number): boolean => m.regionGrid[i] >= 1 && m.regionGrid[i] <= REGION_FACTIONS.length;
+  const inBuilding = (x: number, y: number): boolean => m.buildings.some((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
+  const outdoor = (x: number, y: number): boolean => x > 0 && y > 0 && x < w - 1 && y < h - 1 && m.tiles[y * w + x] === TILE_WALL && inRegion(y * w + x) && !inBuilding(x, y);
+  const seen = new Uint8Array(w * h);
+  const wall = new Uint8Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      if (!outdoor(x, y) || seen[y * w + x]) continue;
+      const blob: number[] = [];
+      let touchesNone = false;
+      const stack = [y * w + x];
+      seen[y * w + x] = 1;
+      while (stack.length) {
+        const i = stack.pop()!;
+        blob.push(i);
+        const cx = i % w, cy = (i - cx) / w;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const j = (cy + dy) * w + cx + dx;
+            if (m.regionGrid[j] === 0) touchesNone = true;
+            if (outdoor(cx + dx, cy + dy) && !seen[j]) { seen[j] = 1; stack.push(j); }
+          }
+        }
+      }
+      if (!touchesNone) for (const i of blob) wall[i] = 1;
+    }
+  }
+  return Math.max(longestRunOf(wall, w, h, 1), 0);
 }
 
 /** What a styling changed on a finished map (report only; nothing here gates anything). */
@@ -280,11 +313,7 @@ export function styleReport(before: GameMap, after: GameMap): StyleReport {
   return {
     zones,
     spawnDetour: { max: Math.max(1, ...perSpawn), mean: perSpawn.reduce((a, b) => a + b, 0) / Math.max(1, perSpawn.length), perSpawn },
-    longestWallRun: longestRunOf(after.tiles, w, h, TILE_WALL),
+    longestWallRun: outdoorWallRun(after),
     longestLowRun: longestRunOf(after.tiles, w, h, TILE_LOW),
   };
 }
-
-export const TERRAIN_NAMES: Readonly<Record<number, string>> = {
-  [TERRAIN_LAVA]: "lava", [TERRAIN_FENCE]: "fence", [TERRAIN_CREVASSE]: "crevasse", [TERRAIN_EMBER]: "ember", [TERRAIN_BOG]: "bog", [TERRAIN_ICE]: "ice", [TERRAIN_LIGHT]: "light",
-};

@@ -123,9 +123,12 @@ describe("chamfer", () => {
     expect(d[4 * w + 4]).toBe(12); // the middle of a 7x7 block: 4 steps from outside
     expect(d[1 * w + 4]).toBe(3);
     expect(d[2 * w + 2]).toBe(6);
-    // a mask that fills the whole grid has no outside: the edge of the grid counts as it
+    // a mask that fills the whole grid: the edge of the grid counts as outside
     const full = chamfer(new Uint8Array(w * h).fill(1), w, h);
-    expect(full.every((v) => v > 1000)).toBe(true);
+    expect(full[0]).toBe(3);
+    expect(full[4 * w]).toBe(3);
+    expect(full[4 * w + 4]).toBe(15); // 4 tiles in from the nearest edge tile, which is 1 step from outside
+    expect(full.every((v) => v < 100)).toBe(true);
   });
 });
 
