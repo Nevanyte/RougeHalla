@@ -3,9 +3,9 @@
 // from sim/melee.ts can interfere. Everything is read back from the synced state, the runtime and the emitted fx.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  AIM_STALE_MS, attackInterval, ATTACK_BUFFER_MS, BOW_DRAW_MOVE, BOW_MIN_DRAW_DAMAGE, damagePerHit, damageShares, FACTIONS,
-  mapFromTiles, MAX_REWIND_MS, mulberry32, pacedFaction, PLAYER_SPEED, RANGED_HIT_REACH, RANGED_RECOVERY_MOVE,
-  SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WAND_CAST_MOVE,
+  AIM_STALE_MS, attackInterval, ATTACK_BUFFER_MS, damagePerHit, damageShares, FACTIONS,
+  mapFromTiles, MAX_REWIND_MS, mulberry32, pacedFaction, PLAYER_SPEED, RANGED_HIT_REACH,
+  SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, SWAP_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   weaponTimings, wrapAngle, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { applyDamage, downPlayer } from "../src/sim/arena";
@@ -195,15 +195,15 @@ describe("setup", () => {
     expect(SIGNATURE_WEAPONS.fire).toBe("axe");
   });
 
-  it("registers the three weapon actions", () => {
+  it("registers the weapon actions and the target lock's", () => {
     const world = makeWorld(1);
-    for (const kind of ["attack", "release", "swap"] as const) expect(world.actions[kind]).toBeTypeOf("function");
+    for (const kind of ["attack", "release", "swap", "target"] as const) expect(world.actions[kind]).toBeTypeOf("function");
   });
 
   it("a fresh weapon runtime is idle: nothing held, never aimed", () => {
     expect(newWeaponRuntime()).toEqual({
-      action: null, rootUntil: 0, castSlowUntil: 0, recoverUntil: 0, staggerImmuneUntil: 0,
-      held: false, pressedAt: 0, bufferedUntil: 0, releasePending: false, aim: 0, aimAt: 0, lagMs: 0,
+      action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
+      lock: null, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null,
     });
   });
 });
@@ -420,28 +420,42 @@ describe("the wand", () => {
     expect(landed).toHaveLength(0); // a cast is not a swing
   });
 
-  it("slows the caster to WAND_CAST_MOVE for its cast slow, then RANGED_RECOVERY_MOVE until the cooldown ends", () => {
+  it("roots the caster for the cast and frees it the tick the ball leaves: no slow after the shot", () => {
     const world = startRun();
     arm(world, 0, "fire", "wand");
     const tm = timings("fire", "wand");
-    expect(tm.castSlow).toBeCloseTo(0.4, 12);
+    expect(tm.windup).toBeCloseTo(0.2, 12);
     expect(intervalMs("fire", "wand")).toBeCloseTo(1010.1, 1);
-    // Cast at tick 2: the cast slow on ticks S .. S+350 (400 ms), the recovery on S+400 .. S+1000 (until 1010.1), then full speed.
+    // Cast at tick 2 (S): rooted on S, S+50, S+100, S+150; the ball leaves at S+200, and the walk is at full speed from then on.
     const d = walk(world, 0, 28, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(STEP * WAND_CAST_MOVE, 8), ...repeat(STEP * RANGED_RECOVERY_MOVE, 13), ...repeat(STEP, 5)]);
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 4), ...repeat(STEP, 22)]);
+    expect(shots).toHaveLength(1);
   });
 
-  it("a short interval shortens the slow with it (the cast slow is at most 45% of the interval)", () => {
+  it("a short interval shortens the root with it (the cast is at most 40% of the interval)", () => {
+    const world = startRun();
+    arm(world, 0, "plague", "wand");
+    const tm = timings("plague", "wand");
+    expect(tm.windup).toBeCloseTo(0.4 * tm.interval, 12);
+    const d = walk(world, 0, 20, (k) => { if (k === 1) tap(world); });
+    const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
+    expect(rooted).toBe(3);
+    expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 20 - 1 - rooted)]);
+  });
+
+  it("a move order given during the cast is kept and walked once the ball has left", () => {
     const world = startRun();
     arm(world, 0, "holy", "wand");
-    const tm = timings("holy", "wand");
-    expect(tm.castSlow).toBeCloseTo(0.45 * tm.interval, 12);
-    const d = walk(world, 0, 20, (k) => { if (k === 1) tap(world); });
-    const slow = Math.ceil((tm.castSlow * 1000) / TICK_MS - 1e-6);
-    const recover = Math.ceil((tm.interval * 1000) / TICK_MS - 1e-6) - slow;
-    expectCloseAll(d, [
-      STEP, ...repeat(STEP * WAND_CAST_MOVE, slow), ...repeat(STEP * RANGED_RECOVERY_MOVE, recover), ...repeat(STEP, 20 - 1 - slow - recover),
-    ]);
+    tap(world);
+    tick(world);
+    const x0 = P(world).x;
+    send(world, 0, "move", { x: 36 * TILE, y: P(world).y });
+    run(world, 2);
+    expect(P(world).x).toBe(x0); // still casting: rooted
+    expect(RT(world).path.length).toBeGreaterThan(0);
+    run(world, 3);
+    expect(shots).toHaveLength(1);
+    expect(P(world).x).toBeGreaterThan(x0 + STEP); // walking again
   });
 });
 
@@ -473,37 +487,40 @@ describe("the axe root", () => {
     expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 4), ...repeat(STEP, 4)]);
   });
 
-  it("only the axe roots: a sword swing does not slow the walk", () => {
+  it("a sword swing roots only for its 100 ms windup: the walk resumes when it lands", () => {
     const world = startRun();
     arm(world, 0, "plague", "sword");
+    // Swing at tick 2 (S): rooted on S and S+50, landing at S+100.
     const d = walk(world, 0, 8, (k) => { if (k === 2) tap(world); });
-    expectCloseAll(d, repeat(STEP, 8));
+    expectCloseAll(d, [...repeat(STEP, 2), 0, 0, ...repeat(STEP, 4)]);
+    expect(landed).toHaveLength(1);
+  });
+
+  it("every windup roots a fighter in place, whatever it is: the swing, the cast and the draw end it by landing", () => {
+    for (const [faction, weapon] of [["plague", "sword"], ["frost", "shield"], ["fire", "wand"], ["frost", "bow"]] as const) {
+      const world = startRun();
+      arm(world, 0, faction, weapon);
+      const tm = timings(faction, weapon);
+      const d = walk(world, 0, 20, (k) => { if (k === 1) tap(world); });
+      const rooted = Math.ceil((tm.windup * 1000) / TICK_MS - 1e-6);
+      expectCloseAll(d, [STEP, ...repeat(0, rooted), ...repeat(STEP, 20 - 1 - rooted)]);
+    }
   });
 });
 
 describe("the bow", () => {
-  // Frost's bow: interval 1139.6 ms, full draw 600 ms, minimum draw 150 ms, cooldown after the shot 539.6 ms.
+  // Frost's bow: interval 1139.6 ms, a fixed draw of 600 ms (the 0.6 s cap) in which the archer is rooted, then free until
+  // the next draw is allowed. Every arrow is a full-damage one.
   const FROST_I = intervalMs("frost", "bow");
-
-  /** Presses, holds `heldMs`, and releases toward `a` in the tick that ends the hold. Returns the press time. */
-  function drawAndLoose(world: World, heldMs: number, a = 0): number {
-    press(world, 0, a);
-    tick(world);
-    const start = T(world);
-    runTo(world, start + heldMs - TICK_MS);
-    release(world, 0, a);
-    tick(world);
-    return start;
-  }
 
   it("has the timings these tests rely on", () => {
     const tm = timings("frost", "bow");
-    expect(tm.fullDraw).toBeCloseTo(0.6, 12);
-    expect(tm.minDraw).toBeCloseTo(0.15, 12);
-    expect(tm.cooldown).toBeCloseTo(FROST_I / 1000 - 0.6, 12);
+    expect(tm.windup).toBeCloseTo(0.6, 12);
+    expect(tm.interval * 1000).toBeCloseTo(FROST_I, 6);
+    expect(tm).not.toHaveProperty("minDraw");
   });
 
-  it("a press starts the draw: drawStartedAt is synced, no windup fx, no arrow while held", () => {
+  it("a press starts the draw: drawStartedAt is synced, the cooldown starts with it, there is no windup fx and no arrow yet", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     expect(P(world).drawStartedAt).toBe(0);
@@ -511,33 +528,27 @@ describe("the bow", () => {
     tick(world);
     const S = T(world);
     expect(P(world).drawStartedAt).toBe(S);
-    expect(RT(world).weapon.action).toMatchObject({ kind: "draw", startedAt: S });
-    run(world, 40); // far past the full draw: it holds until released
+    expect(RT(world).weapon.action).toMatchObject({ kind: "draw", startedAt: S, landsAt: S + 600 });
+    expect(P(world).readyAt).toBeCloseTo(S + FROST_I, 6); // set at the start, as for every weapon
+    runTo(world, S + 550);
     expect(P(world).drawStartedAt).toBe(S);
     expect(shots).toHaveLength(0);
     expect(fxOf("windup")).toHaveLength(0);
-    expect(P(world).readyAt).toBe(0); // the cooldown only starts at the release
   });
 
-  it("walks at BOW_DRAW_MOVE while drawing, then RANGED_RECOVERY_MOVE after the shot until the cooldown ends", () => {
+  it("the arrow leaves when the draw ends, for full damage, along the aim at the start, from where the archer stands", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
-    // Press on tick 2, release on tick 14 (a 600 ms draw): the draw slow on ticks 2..13, the recovery for 539.6 ms (ticks 14..24).
-    const d = walk(world, 0, 30, (k) => {
-      if (k === 2) press(world);
-      if (k === 14) release(world);
-    });
-    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(STEP * BOW_DRAW_MOVE, 12), ...repeat(STEP * RANGED_RECOVERY_MOVE, 11), ...repeat(STEP, 5)]);
-  });
-
-  it("a full draw looses a full-damage arrow at the release, along the release's aim", () => {
-    const world = startRun();
-    arm(world, 0, "frost", "bow");
-    const start = drawAndLoose(world, 600, -0.7);
+    tap(world, 0, -0.7);
+    tick(world);
+    const S = T(world);
+    runTo(world, S + 600 - TICK_MS);
+    expect(shots).toHaveLength(0);
+    tick(world);
     expect(shots).toHaveLength(1);
     const shot = shots[0]!;
-    expect(shot).toMatchObject({ at: start + 600, kind: "arrow", owner: "p0", weapon: "bow", t: start + 600, range: 240 });
-    expect(shot.x).toBe(P(world).x);
+    expect(shot).toMatchObject({ at: S + 600, kind: "arrow", owner: "p0", weapon: "bow", t: S + 600, range: 240 });
+    expect(shot.x).toBe(HOME[0]!.x);
     expect(shot.vx).toBeCloseTo(Math.cos(-0.7) * 900, 9);
     expect(shot.vy).toBeCloseTo(Math.sin(-0.7) * 900, 9);
     expect(shot.raw).toBeCloseTo(fullHit("frost", "bow"), 9);
@@ -545,61 +556,78 @@ describe("the bow", () => {
     expect(P(world).drawStartedAt).toBe(0);
     expect(RT(world).weapon.action).toBeNull();
     expect(landed).toHaveLength(0);
+    run(world, 40);
+    expect(shots).toHaveLength(1); // the tap did not hold the trigger
   });
 
-  it("overholding past the full draw does not add damage", () => {
-    const world = startRun();
-    arm(world, 0, "frost", "bow");
-    drawAndLoose(world, 1200);
-    expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow"), 9);
-  });
-
-  it.each([
-    [150, BOW_MIN_DRAW_DAMAGE],
-    [300, 0.6],
-    [450, 0.8],
-    [550, 0.4 + (0.6 * 400) / 450],
-    [600, 1],
-  ])("a %i ms draw deals %f of a full hit (linear from the minimum draw to the full draw)", (heldMs, share) => {
-    const world = startRun();
-    arm(world, 0, "frost", "bow");
-    drawAndLoose(world, heldMs);
-    expect(shots).toHaveLength(1);
-    expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow") * share, 9);
-  });
-
-  it("a release before the minimum draw looses at the minimum draw, for 40% damage", () => {
+  it("the draw is committed: letting go of the trigger mid-draw changes nothing", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     press(world);
     tick(world);
     const S = T(world);
-    runTo(world, S + 50);
+    runTo(world, S + 200);
     release(world);
-    runTo(world, S + 100);
-    expect(shots).toHaveLength(0);
-    expect(P(world).drawStartedAt).toBe(S); // still drawing
-    tick(world);
+    runTo(world, S + 600);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.at).toBe(S + 150);
-    expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow") * BOW_MIN_DRAW_DAMAGE, 9);
-    expect(P(world).drawStartedAt).toBe(0);
+    expect(shots[0]!.at).toBe(S + 600);
+    expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow"), 9);
+    run(world, 40);
+    expect(shots).toHaveLength(1); // and the release stopped the repeating
   });
 
-  it("a click (press and release in one tick) draws and looses at the minimum draw", () => {
+  it("a held trigger draws again the moment the cooldown ends: one arrow per interval, each a 600 ms draw", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
-    tap(world, 0, 0.25);
+    press(world);
     tick(world);
     const S = T(world);
-    expect(P(world).drawStartedAt).toBe(S);
-    runTo(world, S + 100);
+    runTo(world, ceilTick(S + FROST_I + 600));
+    expect(shots.map((x) => x.at)).toEqual([S + 600, ceilTick(S + FROST_I + 600)]);
+    expect(shots.every((x) => Math.abs(x.raw - fullHit("frost", "bow")) < 1e-9)).toBe(true);
+    // The second draw began from the instant the cooldown ended, between ticks.
+    expect(RT(world).weapon.action).toBeNull();
+    expect(P(world).readyAt).toBeCloseTo(S + 2 * FROST_I, 6);
+  });
+
+  it("walks freely after the shot: rooted exactly for the draw, with no slow before the next one", () => {
+    const world = startRun();
+    arm(world, 0, "frost", "bow");
+    // Drawing from tick 2 (S): rooted on S .. S+550 (12 ticks); the arrow leaves at S+600 and the walk is at full speed.
+    const d = walk(world, 0, 30, (k) => { if (k === 2) tap(world); });
+    expectCloseAll(d, [...repeat(STEP, 2), ...repeat(0, 12), ...repeat(STEP, 16)]);
+    expect(shots).toHaveLength(1);
+  });
+
+  it("a move order given during the draw is kept and walked once the arrow has gone", () => {
+    const world = startRun();
+    arm(world, 0, "frost", "bow");
+    tap(world);
+    tick(world);
+    const x0 = P(world).x;
+    send(world, 0, "move", { x: 36 * TILE, y: P(world).y });
+    run(world, 10);
+    expect(P(world).x).toBe(x0);
+    expect(shots).toHaveLength(0);
+    run(world, 4);
+    expect(shots).toHaveLength(1);
+    expect(P(world).x).toBeGreaterThan(x0 + STEP);
+  });
+
+  it("a short interval shortens the draw (Sentenced: 398.9 ms), and the cooldown is the interval from the start", () => {
+    const world = startRun();
+    arm(world, 0, "sentenced", "bow");
+    const tm = timings("sentenced", "bow");
+    expect(tm.windup * 1000).toBeCloseTo(398.86, 2);
+    tap(world);
+    tick(world);
+    const S = T(world);
+    expect(P(world).readyAt).toBeCloseTo(S + intervalMs("sentenced", "bow"), 6);
+    runTo(world, S + 350);
     expect(shots).toHaveLength(0);
     tick(world);
     expect(shots).toHaveLength(1);
-    expect(shots[0]!.at).toBe(S + 150);
-    expect(shots[0]!.vx).toBeCloseTo(Math.cos(0.25) * 900, 9);
-    expect(shots[0]!.raw).toBeCloseTo(fullHit("frost", "bow") * BOW_MIN_DRAW_DAMAGE, 9);
+    expect(shots[0]!.at).toBe(S + 400);
   });
 
   it("a release with no draw and no recent press does nothing, and does not pre-load the next draw", () => {
@@ -608,92 +636,41 @@ describe("the bow", () => {
     release(world);
     run(world, 10);
     expect(shots).toHaveLength(0);
+    expect(RT(world).weapon.action).toBeNull();
     press(world);
-    run(world, 12);
-    expect(shots).toHaveLength(0);
+    run(world, 4);
+    expect(shots).toHaveLength(0); // a fresh draw, not a loose
     expect(RT(world).weapon.action).toMatchObject({ kind: "draw" });
   });
 
-  it("a click made long before the cooldown ends is forgotten, and does not loose the next draw early", () => {
+  it("a click made long before the cooldown ends is forgotten", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
-    drawAndLoose(world, 600);
+    tap(world);
+    runTo(world, 700); // the arrow has gone
+    expect(shots).toHaveLength(1);
     const ready = P(world).readyAt;
     expect(ready - T(world)).toBeGreaterThan(400);
     tap(world); // well outside the buffer: nothing will start from it
     runTo(world, ceilTick(ready) + TICK_MS);
     expect(P(world).drawStartedAt).toBe(0);
-    press(world); // a fresh press, held like a real draw
-    run(world, 12);
-    expect(RT(world).weapon.action).toMatchObject({ kind: "draw" });
-    expect(shots).toHaveLength(1); // only the first shot: the held draw has not been loosed
+    expect(RT(world).weapon.action).toBeNull();
   });
 
-  it("the cooldown after the shot is the interval minus the full draw, so a full-draw shot every interval is the designed rate", () => {
+  it("a click during the cooldown, within the buffer, draws the moment it ends", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
-    const start = drawAndLoose(world, 600);
-    expect(P(world).readyAt).toBeCloseTo(start + FROST_I, 6);
-    expect(RT(world).weapon.recoverUntil).toBe(P(world).readyAt);
-  });
-
-  it("an overhold of up to one tick is refunded from the cooldown, a longer one only by that tick", () => {
-    const refunded = startRun();
-    arm(refunded, 0, "frost", "bow");
-    const s1 = drawAndLoose(refunded, 650);
-    expect(P(refunded).readyAt).toBeCloseTo(s1 + FROST_I, 6);
-
-    const late = startRun();
-    arm(late, 0, "frost", "bow");
-    const s2 = drawAndLoose(late, 700);
-    expect(P(late).readyAt).toBeCloseTo(s2 + FROST_I + TICK_MS, 6);
-  });
-
-  it("a draw that is not a whole number of ticks long gets its overhold back too (Sentenced, full draw 398.9 ms)", () => {
-    const world = startRun();
-    arm(world, 0, "sentenced", "bow");
-    const tm = timings("sentenced", "bow");
-    expect(tm.fullDraw * 1000).toBeCloseTo(398.86, 2);
-    const start = drawAndLoose(world, 400);
-    expect(P(world).readyAt).toBeCloseTo(start + intervalMs("sentenced", "bow"), 6);
-  });
-
-  it("a partial draw pays the whole cooldown", () => {
-    const world = startRun();
-    arm(world, 0, "frost", "bow");
-    drawAndLoose(world, 300);
-    expect(P(world).readyAt).toBeCloseTo(T(world) + FROST_I - 600, 6);
-  });
-
-  it("the next draw waits for the cooldown and then starts from the instant it ended", () => {
-    const world = startRun();
-    arm(world, 0, "frost", "bow");
-    drawAndLoose(world, 600);
-    const ready = P(world).readyAt;
-    press(world); // trigger held again during the cooldown
-    runTo(world, ceilTick(ready) - TICK_MS);
-    expect(P(world).drawStartedAt).toBe(0);
-    tick(world);
-    expect(P(world).drawStartedAt).toBeCloseTo(ready, 6);
-    expect(P(world).drawStartedAt).not.toBe(T(world));
-  });
-
-  it("a click during the cooldown, within the buffer, draws the moment it ends and looses at the minimum draw", () => {
-    const world = startRun();
-    arm(world, 0, "frost", "bow");
-    drawAndLoose(world, 600);
+    tap(world);
+    runTo(world, 700);
     const ready = P(world).readyAt;
     runTo(world, ceilTick(ready) - 2 * TICK_MS);
     tap(world);
     runTo(world, ceilTick(ready));
     expect(P(world).drawStartedAt).toBeCloseTo(ready, 6);
-    run(world, 4);
+    runTo(world, ceilTick(ready + 600));
     expect(shots).toHaveLength(2);
-    // The draw began between ticks and the minimum draw is only noticed at the next one: a little over 40%.
-    const drawnMs = shots[1]!.at - ready;
-    expect(drawnMs).toBeGreaterThanOrEqual(150);
-    expect(drawnMs).toBeLessThan(150 + TICK_MS);
-    expect(shots[1]!.raw).toBeCloseTo(fullHit("frost", "bow") * (0.4 + (0.6 * (drawnMs - 150)) / 450), 9);
+    expect(shots[1]!.at).toBe(ceilTick(ready + 600));
+    expect(shots[1]!.raw).toBeCloseTo(fullHit("frost", "bow"), 9);
   });
 });
 
@@ -816,59 +793,47 @@ describe("swapping", () => {
     expectCloseAll(d, [STEP, ...repeat(0, 10), STEP, STEP, STEP]);
   });
 
-  it("keeps the cast slow and the ranged recovery of a wand cast whose ball has gone", () => {
+  it("a swap after the ball has gone changes nothing: the caster was free the tick it left", () => {
     const world = start();
     arm(world, 0, "fire", "wand", "sword");
     expect(timings("fire", "wand").windup).toBeCloseTo(0.2, 12);
-    // Cast in tick 1, ball at tick 5; the swap at tick 6 changes neither the cast slow (ticks 1..8) nor the recovery after it.
-    const d = walk(world, 0, 25, (k) => {
+    // Cast in tick 1, ball at tick 5 (rooted on ticks 1..4); the swap at tick 6 is after it.
+    const d = walk(world, 0, 12, (k) => {
       if (k === 1) tap(world);
       if (k === 6) swap(world);
     });
     expect(shots).toHaveLength(1);
-    expectCloseAll(d, [STEP, ...repeat(STEP * WAND_CAST_MOVE, 8), ...repeat(STEP * RANGED_RECOVERY_MOVE, 13), ...repeat(STEP, 3)]);
+    expectCloseAll(d, [STEP, ...repeat(0, 4), ...repeat(STEP, 7)]);
   });
 
-  it("cancels a wand cast: no ball, and neither the cast slow nor a ranged recovery outlives it", () => {
+  it("cancels a wand cast: no ball, and the root ends with it", () => {
     const world = start();
     arm(world, 0, "fire", "wand", "sword");
     const d = walk(world, 0, 8, (k) => {
       if (k === 1) tap(world);
       if (k === 2) swap(world);
     });
-    expect(d[1]).toBeCloseTo(STEP * WAND_CAST_MOVE, 6);
-    // No ball left, so no ranged attack happened: full speed at once.
+    expect(d[1]).toBe(0); // rooted by the cast it started
+    // No ball left: free at once.
     expect(d[2]).toBeCloseTo(STEP, 6);
-    expect(RT(world).weapon.castSlowUntil).toBeLessThanOrEqual(T(world));
     run(world, 12);
     expect(shots).toHaveLength(0);
   });
 
-  it("cancels a bow draw: nothing is drawn, and a release afterwards looses nothing", () => {
+  it("cancels a bow draw: nothing is drawn, the root ends, and a release afterwards looses nothing", () => {
     const world = start();
     arm(world, 0, "frost", "bow", "sword");
     press(world);
     run(world, 4);
     expect(P(world).drawStartedAt).toBeGreaterThan(0);
+    expect(moveMultiplierOf(world, C(world))).toBe(0);
     swap(world);
     tick(world);
     expect(P(world).drawStartedAt).toBe(0);
     expect(RT(world).weapon.action).toBeNull();
+    expect(moveMultiplierOf(world, C(world))).toBe(1);
     release(world);
     run(world, 30);
-    expect(shots).toHaveLength(0);
-  });
-
-  it("forgets a pending release, so the next draw is not loosed at once", () => {
-    const world = start();
-    arm(world, 0, "frost", "bow", "sword");
-    tap(world); // a draw with a release pending
-    tick(world);
-    swap(world);
-    tick(world);
-    swap(world); // back to the bow
-    run(world, 12);
-    expect(RT(world).weapon.releasePending).toBe(false);
     expect(shots).toHaveLength(0);
   });
 
@@ -920,17 +885,18 @@ describe("aim and facing", () => {
     expect(P(world).facing).toBeCloseTo(-1.5, 12);
   });
 
-  it("the arrow flies where the release aimed, not where the press aimed", () => {
+  it("the arrow flies where the press aimed, though the fighter turns during the draw (as a swing's direction is fixed at its start)", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     press(world, 0, 0.5);
     tick(world);
     send(world, 0, "aim", { a: 1.1 });
-    run(world, 13);
+    run(world, 6);
     release(world, 0, -0.3);
-    tick(world);
+    run(world, 8);
     expect(shots).toHaveLength(1);
-    expect(Math.atan2(shots[0]!.vy, shots[0]!.vx)).toBeCloseTo(-0.3, 12);
+    expect(Math.atan2(shots[0]!.vy, shots[0]!.vx)).toBeCloseTo(0.5, 12);
+    expect(P(world).facing).toBeCloseTo(-0.3, 12);
   });
 
   it("an aim sent after an attack in the same tick wins: the swing goes where the aim was last pointed", () => {
@@ -952,19 +918,6 @@ describe("aim and facing", () => {
     tick(world);
     expect(P(world).facing).toBeCloseTo(0, 12);
     expect(fxOf("windup")).toMatchObject([{ a: 0 }]);
-  });
-
-  it("an aim sent after a release in the same tick sends the arrow where the aim points", () => {
-    const world = startRun();
-    arm(world, 0, "frost", "bow");
-    press(world, 0, 0.2);
-    run(world, 13);
-    release(world, 0, -1);
-    send(world, 0, "aim", { a: 0.4 });
-    tick(world);
-    expect(shots).toHaveLength(1);
-    expect(Math.atan2(shots[0]!.vy, shots[0]!.vx)).toBeCloseTo(0.4, 12);
-    expect(P(world).facing).toBeCloseTo(0.4, 12);
   });
 
   it("an aim with no actions in the tick still turns the fighter", () => {
@@ -1080,65 +1033,61 @@ describe("lag compensation", () => {
 
 describe("where projectiles leave from", () => {
   // A client draws its own player `lag` ms behind the server and measures its aim from there, so an arrow or a ball
-  // leaves from that rewound position (the same one a melee swing is sampled at), not from the present one. A shooter
-  // strafing south at 0.75 x PLAYER_SPEED while it draws would otherwise miss by its speed times the lag.
+  // leaves from that rewound position (the same one a melee swing is sampled at), not from the present one. The shot
+  // leaves from where the archer was drawn when its draw (or cast) BEGAN: it is rooted from then on.
   const south = (world: World): void => send(world, 0, "move", { x: HOME[0]!.x, y: 17 * TILE });
   /** The `t` of an input stamped by a client `lag` ms behind the server, processed in the next tick. */
   const stamp = (world: World, lag: number): number => T(world) + TICK_MS - lag;
   const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
   /**
-   * p0 (Frost, bow) strafes south, presses (stamped `pressLag` behind the server, or unstamped), holds a full draw and
-   * releases in the tick that ends it (stamped `releaseLag`, or unstamped). `at(lag)` is where the shooter was `lag` ms
-   * before the release was processed.
+   * p0 (Frost, bow) strafes south, taps (stamped `lag` behind the server, or unstamped), and draws. `at(lag)` is where the
+   * shooter was `lag` ms before the draw began.
    */
-  function strafeAndLoose(pressLag: number | null, releaseLag: number | null) {
+  function strafeAndDraw(lag: number | null) {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     south(world);
     run(world, 8);
-    press(world, 0, 0, pressLag === null ? undefined : stamp(world, pressLag));
-    tick(world);
-    runTo(world, T(world) + 600 - TICK_MS);
-    const releasedAt = T(world) + TICK_MS;
-    release(world, 0, 0, releaseLag === null ? undefined : stamp(world, releaseLag));
-    tick(world);
+    const begun = T(world) + TICK_MS;
+    const t = lag === null ? undefined : stamp(world, lag);
+    press(world, 0, 0, t);
+    release(world, 0, 0, t);
+    tick(world); // the draw begins
+    // Read before the history moves on; the archer stands where it is from here to the arrow leaving.
+    const history = RT(world).history.map((h) => ({ ...h }));
+    const standing = { x: P(world).x, y: P(world).y };
+    const at = (back: number): Vec2 => positionAt({ history }, standing, begun - back);
+    runTo(world, begun + 600);
     expect(shots).toHaveLength(1);
-    const at = (lag: number): Vec2 => positionAt(RT(world), P(world), releasedAt - lag);
-    return { world, shot: shots[0]!, at };
+    return { shot: shots[0]!, at, standing };
   }
 
-  it.each([150, 200, MAX_REWIND_MS])("an arrow leaves from where a client %i ms behind drew the shooter", (lag) => {
-    const { world, shot, at } = strafeAndLoose(lag, lag);
+  it.each([150, 200, MAX_REWIND_MS])("an arrow leaves from where a client %i ms behind drew the shooter when the draw began", (lag) => {
+    const { shot, at, standing } = strafeAndDraw(lag);
     expect(shot.x).toBeCloseTo(at(lag).x, 9);
     expect(shot.y).toBeCloseTo(at(lag).y, 9);
-    // The shooter has walked on since (slowly: it is drawing a bow): the present position is where the aim would not start from.
-    expect(dist(shot, P(world))).toBeCloseTo((BOW_DRAW_MOVE * PLAYER_SPEED * lag) / 1000, 6);
-    expect(dist(shot, P(world))).toBeGreaterThan(1);
+    // The shooter walked on over the lag (less the tick the draw begins in, which it spends rooted) and then did not move:
+    // where it stands is where the aim would not start from.
+    expect(dist(shot, standing)).toBeCloseTo((PLAYER_SPEED * (lag - TICK_MS)) / 1000, 6);
+    expect(dist(shot, standing)).toBeGreaterThan(RANGED_HIT_REACH);
   });
 
   it("clamps a stale timestamp to MAX_REWIND_MS, and a fresher one than a tick (or one in the future) to one tick back", () => {
-    const stale = strafeAndLoose(1000, 1000);
+    const stale = strafeAndDraw(1000);
     expect(stale.shot.y).toBeCloseTo(stale.at(MAX_REWIND_MS).y, 9);
-    const future = strafeAndLoose(-400, -400);
+    const future = strafeAndDraw(-400);
     expect(future.shot.y).toBeCloseTo(future.at(TICK_MS).y, 9);
-    const fresh = strafeAndLoose(20, 20);
+    const fresh = strafeAndDraw(20);
     expect(fresh.shot.y).toBeCloseTo(fresh.at(TICK_MS).y, 9);
   });
 
-  it("without a timestamp it leaves from the latest position: where the shooter stood one tick back", () => {
-    const { world, shot, at } = strafeAndLoose(null, null);
+  it("without a timestamp it leaves from the latest position: where the shooter stood one tick back, which is where the draw holds it", () => {
+    const { shot, at, standing } = strafeAndDraw(null);
     expect(shot.x).toBeCloseTo(at(TICK_MS).x, 9);
     expect(shot.y).toBeCloseTo(at(TICK_MS).y, 9);
-    // It moved on in the release tick (RANGED_RECOVERY_MOVE x speed after the shot), which the arrow does not include.
-    expect(P(world).y - shot.y).toBeCloseTo(RANGED_RECOVERY_MOVE * STEP, 6);
-  });
-
-  it("uses the lag of the release when it carries a timestamp, and the press's when it does not", () => {
-    const stamped = strafeAndLoose(100, 250);
-    expect(stamped.shot.y).toBeCloseTo(stamped.at(250).y, 9);
-    const unstamped = strafeAndLoose(250, null);
-    expect(unstamped.shot.y).toBeCloseTo(unstamped.at(250).y, 9);
+    // The draw begins before the archer would have moved that tick, and roots it there.
+    expect(dist(shot, standing)).toBeCloseTo(0, 9);
   });
 
   it.each([120, 250])("a ball leaves from where a client %i ms behind drew the caster when the cast began", (lag) => {
@@ -1158,7 +1107,7 @@ describe("where projectiles leave from", () => {
     expect(shots).toHaveLength(1);
     expect(shots[0]!.x).toBeCloseTo(drawn.x, 9);
     expect(shots[0]!.y).toBeCloseTo(drawn.y, 9);
-    expect(dist(shots[0]!, P(world))).toBeGreaterThan(RANGED_HIT_REACH); // the caster walked on, over the lag and through the cast
+    expect(dist(shots[0]!, P(world))).toBeGreaterThan(RANGED_HIT_REACH); // the caster walked on over the lag
   });
 });
 
@@ -1227,16 +1176,15 @@ describe("teleport, death and fighters that can't fight", () => {
     expect(landed).toHaveLength(0);
   });
 
-  it("a player killed mid-draw (release pending) or mid-cast looses nothing", () => {
+  it("a player killed mid-draw or mid-cast looses nothing", () => {
     const world = startRun(3);
     arm(world, 0, "frost", "bow");
     arm(world, 1, "holy", "wand");
-    press(world, 0);
+    tap(world, 0);
     tap(world, 1);
-    run(world, 2);
-    release(world, 0); // too early for the minimum draw: the arrow is pending
-    tick(world);
-    expect(RT(world, 0).weapon.releasePending).toBe(true);
+    run(world, 3);
+    expect(RT(world, 0).weapon.action).toMatchObject({ kind: "draw" });
+    expect(RT(world, 1).weapon.action).toMatchObject({ kind: "cast" });
     applyDamage(world, P(world, 0), RT(world, 0), P(world, 0).hp + 1000, "test");
     applyDamage(world, P(world, 1), RT(world, 1), P(world, 1).hp + 1000, "test");
     run(world, 20);
@@ -1254,7 +1202,7 @@ describe("teleport, death and fighters that can't fight", () => {
     const w = RT(world, 0).weapon;
     expect(P(world, 0).status).toBe("dead");
     expect(P(world, 0).drawStartedAt).toBe(0);
-    expect([w.held, w.action, w.bufferedUntil, w.releasePending]).toEqual([false, null, 0, false]);
+    expect([w.held, w.action, w.bufferedUntil, w.lock]).toEqual([false, null, 0, null]);
     run(world, 20);
     expect(shots).toHaveLength(0);
     expect(P(world, 0).drawStartedAt).toBe(0);
@@ -1306,7 +1254,7 @@ describe("teleport, death and fighters that can't fight", () => {
     arm(world, 0, "frost", "bow");
     press(world);
     run(world, 5);
-    RT(world).weapon.recoverUntil = 99999;
+    RT(world).weapon.rootUntil = 99999;
     P(world).readyAt = 1234;
     resetWeapons(C(world));
     expect(RT(world).weapon).toEqual(newWeaponRuntime());
@@ -1352,7 +1300,7 @@ describe("stagger", () => {
     stagger(wand, C(wand));
     run(wand, 12);
     expect(shots).toHaveLength(0);
-    expect(RT(wand).weapon.castSlowUntil).toBeLessThanOrEqual(T(wand));
+    expect(moveMultiplierOf(wand, C(wand))).toBe(1);
 
     const axe = startRun();
     arm(axe, 0, "fire", "axe");
@@ -1362,16 +1310,15 @@ describe("stagger", () => {
     expect(RT(axe).weapon.rootUntil).toBeLessThanOrEqual(T(axe));
   });
 
-  it("a staggered wand cast leaves no ranged recovery: full speed right after, as after a swap", () => {
+  it("a staggered wand cast frees the caster at once: full speed right after, as after a swap", () => {
     const world = startRun();
     arm(world, 0, "fire", "wand");
     const d = walk(world, 0, 8, (k) => {
       if (k === 1) tap(world);
       if (k === 2) expect(stagger(world, C(world))).toBe(true);
     });
-    expect(d[1]).toBeCloseTo(STEP * WAND_CAST_MOVE, 6);
+    expect(d[1]).toBe(0); // rooted by the cast
     expect(d[2]).toBeCloseTo(STEP, 6);
-    expect(RT(world).weapon.recoverUntil).toBeLessThanOrEqual(T(world));
     run(world, 12);
     expect(shots).toHaveLength(0);
   });
@@ -1388,9 +1335,9 @@ describe("stagger", () => {
     expect(P(world).drawStartedAt).toBe(drawStart);
     expect(RT(world).weapon.action).toMatchObject({ kind: "draw", startedAt: drawStart });
     expect(RT(world).weapon.staggerImmuneUntil).toBe(hurtAt + STAGGER_IMMUNITY_SECONDS * 1000);
-    // Released at the full draw it already had: a full-damage arrow, no second draw.
+    // Nothing was lost: the arrow leaves on time, for full damage, with no second draw.
     runTo(world, drawStart + 600 - TICK_MS);
-    release(world);
+    expect(shots).toHaveLength(0);
     tick(world);
     expect(shots).toHaveLength(1);
     expect(shots[0]!.at).toBe(drawStart + 600);
@@ -1484,26 +1431,31 @@ describe("helpers", () => {
     expect(P(world).readyAt).toBe(4000);
   });
 
-  it("moveMultiplierOf reads the runtime's root, slows and draw", () => {
+  it("moveMultiplierOf reads the runtime's pending attack and axe root: all or nothing", () => {
     const world = startRun();
     arm(world, 0, "frost", "bow");
     const now = T(world);
     expect(moveMultiplierOf(world, C(world))).toBe(1);
-    RT(world).weapon.recoverUntil = now + 1;
-    expect(moveMultiplierOf(world, C(world))).toBe(RANGED_RECOVERY_MOVE);
-    RT(world).weapon.castSlowUntil = now + 1;
-    expect(moveMultiplierOf(world, C(world))).toBe(Math.min(WAND_CAST_MOVE, RANGED_RECOVERY_MOVE));
+    RT(world).weapon.action = {
+      kind: "draw", weapon: "bow", startedAt: now, landsAt: now + 600, a: 0, packet: { raw: 1, phys: 1, magic: 0, true: 0 },
+      origin: { x: 0, y: 0 },
+    };
+    expect(moveMultiplierOf(world, C(world))).toBe(0);
+    RT(world).weapon.action = null;
+    expect(moveMultiplierOf(world, C(world))).toBe(1);
     RT(world).weapon.rootUntil = now + 1;
     expect(moveMultiplierOf(world, C(world))).toBe(0);
+    RT(world).weapon.rootUntil = now;
+    expect(moveMultiplierOf(world, C(world))).toBe(1);
   });
 
-  it("packetFor is the faction's paced hit and damage shares; a draw scales it; no faction deals nothing", () => {
+  it("packetFor is the faction's paced hit and damage shares, whole for the bow too; no faction deals nothing", () => {
     const world = startRun();
     arm(world, 0, "plague", "sword");
     const packet = packetFor(C(world), "sword");
     expect(packet.raw).toBeCloseTo(fullHit("plague", "sword"), 9);
     expect(packet).toMatchObject({ phys: 0.8, magic: expect.closeTo(0.2, 12), true: 0 });
-    expect(packetFor(C(world), "bow", 0.4).raw).toBeCloseTo(fullHit("plague", "bow") * 0.4, 9);
+    expect(packetFor(C(world), "bow").raw).toBeCloseTo(fullHit("plague", "bow"), 9);
     P(world).faction = "";
     expect(packetFor(C(world), "sword")).toEqual({ raw: 0, phys: 1, magic: 0, true: 0 });
   });

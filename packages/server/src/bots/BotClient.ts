@@ -18,7 +18,7 @@ import {
   type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
-import { bestSlotVsMob, bowFullDraw, mobSpacing, mobWeapon, pathLength, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
+import { bestSlotVsMob, mobSpacing, mobWeapon, pathLength, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
 
 type ClientRoom = Room<any, RaidState>;
 
@@ -80,7 +80,7 @@ interface View { x: number; y: number; vx: number; vy: number }
 
 type Slots = readonly [WeaponId | null, WeaponId | null];
 
-// A bow has to be released at its full draw, and the draw is 0.4-0.6 s, so the brain runs at the server's tick rate.
+// The brain runs at the server's tick rate: a windup is 0.1-0.6 s, and what the bot does about it is decided every tick.
 const THINK_MS = 50;
 /** A chase is re-sent at most this often: the server paths from scratch each time and the target keeps moving. */
 const REPLAN_MS = 250;
@@ -100,8 +100,6 @@ const VEL_WINDOW_MS = 100;
 const VEL_SANE = 1.25;
 /** Never extrapolate a projectile's target further than this (ms). */
 const MAX_LEAD_MS = 350;
-/** Loose a bow this long after its full draw (s): the estimated server clock can run a little ahead of the real one. */
-const RELEASE_MARGIN_S = 0.015;
 /**
  * Swap weapons at most this often (ms; a random extra up to SWAP_JITTER_MS), never mid-draw, and only against an enemy this
  * close. Two bots answering each other's weapon (a rock-paper-scissors loop) would otherwise swap in lockstep forever.
@@ -170,7 +168,7 @@ export class BotClient {
   /** `teleport` fx seen: how many times the arena moved everyone into the coliseum. */
   teleports = 0;
   /** Inputs sent so far, by message type. */
-  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0 };
+  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0 };
 
   private profile = "";
   private room!: ClientRoom;
@@ -200,8 +198,6 @@ export class BotClient {
   private holding = false;
   /** What we believe the server thinks of our trigger (it repeats attacks while it is down). */
   private trigger = false;
-  /** The bow draw (its `drawStartedAt`) we already released, so a draw still showing in the state isn't released twice. */
-  private loosed = 0;
   private aimSent: { a: number; at: number } | null = null;
   private nextSwapAt = 0;
   /** The weapon detour in progress, if any. */
@@ -362,7 +358,6 @@ export class BotClient {
     this.moveSentAt = 0;
     this.holding = false;
     this.stopTrigger();
-    this.loosed = 0;
     this.aimSent = null;
     this.grab = null;
     this.chase = null;
@@ -599,22 +594,18 @@ export class BotClient {
       const lead = Math.min(MAX_LEAD_MS, serverNow - renderT + TICK_MS / 2) / 1000;
       target = { x: seen.x + seen.vx * lead, y: seen.y + seen.vy * lead };
     }
-    const drawn = me.drawStartedAt > 0 ? Math.max(1e-3, (serverNow - me.drawStartedAt) / 1000) : 0;
     const out = decide({
       self, target, targetVel,
       los: hasLineOfSight(this.collision(), self, target),
       weapon,
       ...(foe.mob ? { spacing: mobSpacing(weapon, foe.theirs) } : {}),
       ready: serverNow >= me.readyAt,
-      drawSeconds: drawn,
-      // Attack-speed stacks shorten the bow's draw: holding for the unbuffed draw would over-hold every shot.
-      fullDraw: bowFullDraw(me.faction, me.stacksAs) + RELEASE_MARGIN_S,
     });
 
     if (out.move === "stop") this.hold();
     else if (out.move) this.moveTo(out.move, now);
     this.aim(out.aim, now);
-    this.pull(out, me, weapon, renderT, now);
+    this.pull(out, renderT, now);
   }
 
   /** Swaps to the slot with the better weapon edge against the foe's weapon (against a mob, one that works on it); true when it did. Never mid-draw. */
@@ -638,19 +629,9 @@ export class BotClient {
     this.aimSent = { a, at: now };
   }
 
-  /**
-   * Turns the policy's trigger into inputs: `attack` when the hold turns on (the server repeats it while held),
-   * `release` when it turns off, and for the bow a `release` at the full draw, followed at once by a fresh press so the
-   * next draw starts the moment the cooldown allows.
-   */
-  private pull(out: PolicyOutput, me: PlayerState, weapon: WeaponId, renderT: number, now: number): void {
+  /** Turns the policy's trigger into inputs: `attack` when the hold turns on (the server repeats it while held), `release` when it turns off. */
+  private pull(out: PolicyOutput, renderT: number, now: number): void {
     const msg = { a: out.aim, t: renderT };
-    if (weapon === "bow" && out.release && me.drawStartedAt > 0 && me.drawStartedAt !== this.loosed) {
-      this.send("release", msg);
-      this.loosed = me.drawStartedAt;
-      this.trigger = false;
-      this.aimSent = { a: out.aim, at: now };
-    }
     if (out.hold && !this.trigger) {
       this.send("attack", msg);
       this.trigger = true;

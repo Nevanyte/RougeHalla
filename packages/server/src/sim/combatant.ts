@@ -92,6 +92,14 @@ export function standing(c: Combatant): boolean {
   return c.s.status === "alive" && !c.rt.down && !c.rt.resolved;
 }
 
+/**
+ * May `a` attack `b`? Not itself, and mobs are allies of each other (they never hurt each other, so a player's target lock
+ * and a mob's fight both skip them). There are no player teams: any two players, and a player and any mob, are enemies.
+ */
+export function hostile(a: Combatant, b: Combatant): boolean {
+  return a.id !== b.id && !(a.kind === "mob" && b.kind === "mob");
+}
+
 export function combatant(world: World, id: string): Combatant | null {
   const p = world.state.players.get(id);
   const prt = world.players.get(id);

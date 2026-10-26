@@ -349,7 +349,7 @@ describe("createGameWorld", () => {
 
   it("installs a handler for every action a client can send", () => {
     const g = createGameWorld(opts());
-    expect(Object.keys(g.actions).sort()).toEqual(["attack", "pickup", "release", "swap"]);
+    expect(Object.keys(g.actions).sort()).toEqual(["attack", "pickup", "release", "swap", "target"]);
   });
 
   it("runs a whole run through the shared lifecycle: a kill ends it with a winner", () => {
@@ -366,7 +366,7 @@ describe("createGameWorld", () => {
     const inputs = g.players.get("a")!.inputs;
     enqueueClientMessage(inputs, "attack", { a: 0 });
     enqueueClientMessage(inputs, "release", { a: 0 });
-    // Draw to the minimum, loose, fly one tick, land: a handful of ticks.
+    // Draw (a fixed windup), loose, fly one tick, land: a dozen or so ticks.
     for (let i = 0; i < 20 && g.state.phase === "active"; i++) events.push(...step(g, TICK_MS));
     expect(ofType(events, "raidStarted")).toHaveLength(1);
     expect(ofType(events, "raidEnded")).toHaveLength(1);

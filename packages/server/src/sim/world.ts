@@ -32,12 +32,17 @@ export interface SimConfig {
   training?: boolean;
 }
 
-/** A melee swing or wand cast waiting to land, or a bow being drawn. Times are server ms. */
+/**
+ * An attack winding up: a melee swing, a wand cast or a bow draw. The fighter is rooted from `startedAt` until `landsAt`
+ * (the swing lands, the ball or arrow leaves). Times are server ms. `target`: the fighter the target lock started it on; it
+ * is aimed again at that fighter, if still standing, when it lands or leaves (sim/weapons.ts).
+ */
 export type PendingAction =
-  | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket }
+  | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; target?: string }
   /** `origin`: where the caster's client drew it when the cast began; the ball leaves from there, along `a`. */
-  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2 }
-  | { kind: "draw"; weapon: WeaponId; startedAt: number };
+  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2; target?: string }
+  /** The bow's fixed draw: the same as a cast, except that a stagger does not interrupt it (9.1) and `drawStartedAt` is synced. */
+  | { kind: "draw"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2; target?: string };
 
 /**
  * A fighter's weapon state machine (sim/weapons.ts). The slots, the one in hand, the cooldown end (`readyAt`) and the
@@ -45,22 +50,25 @@ export type PendingAction =
  */
 export interface WeaponRuntime {
   action: PendingAction | null;
+  /** The axe's root, past its windup (an attack winding up roots on its own: `action`). */
   rootUntil: number;
-  castSlowUntil: number;
-  /** Ranged recovery: RANGED_RECOVERY_MOVE of full speed until the cooldown that started with the shot ends. */
-  recoverUntil: number;
   staggerImmuneUntil: number;
   /** The trigger: held since `pressedAt`; a press is also remembered until `bufferedUntil` (quick clicks). */
   held: boolean;
   pressedAt: number;
   bufferedUntil: number;
-  /** A release arrived for a draw that hasn't reached its minimum yet (or hasn't started): loose it as soon as it can. */
-  releasePending: boolean;
   /** Latest aim angle and when it arrived (0 = never aimed: walking turns the fighter). */
   aim: number;
   aimAt: number;
   /** How far behind the server the fighter's client renders (server now - its `t`), clamped; melee rewinds by it. */
   lagMs: number;
+  /** The fighter this one has locked (a `target` order, players only) and what the chase needs (sim/targeting.ts). */
+  lock: string | null;
+  /** Server ms the lock's target went out of line of sight (0 = in sight). */
+  lockLosLostAt: number;
+  /** When the chase last planned a path (-Infinity: never), and the point it planned to (null: none yet). */
+  lockPlanAt: number;
+  lockGoal: Vec2 | null;
 }
 
 /** Server-only combat data every fighter has, player or mob. */
@@ -196,14 +204,14 @@ export interface LandedHit {
 export interface MeleeRequest {
   attacker: string;
   weapon: WeaponId;
-  /** Direction fixed when the swing started. */
+  /** Direction fixed when the swing started; a swing on a locked target is aimed straight at it as it lands. */
   a: number;
   /** Server time the attacker's client was drawing when the swing landed: attacker and targets are sampled there. */
   rewindT: number;
   packet: DamagePacket;
 }
 
-/** A projectile loosed this tick (the bow on release, the wand when its cast ends); spawned after the sweep. */
+/** A projectile loosed this tick (the bow when its draw ends, the wand when its cast ends); spawned after the sweep. */
 export interface SpawnRequest {
   owner: string;
   kind: ProjectileKind;
@@ -454,7 +462,7 @@ export function nextId(world: World, prefix: string): string {
 /** A fresh weapon state machine: idle, nothing held, never aimed. */
 export function newWeaponRuntime(): WeaponRuntime {
   return {
-    action: null, rootUntil: 0, castSlowUntil: 0, recoverUntil: 0, staggerImmuneUntil: 0,
-    held: false, pressedAt: 0, bufferedUntil: 0, releasePending: false, aim: 0, aimAt: 0, lagMs: 0,
+    action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
+    lock: null, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null,
   };
 }

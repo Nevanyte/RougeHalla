@@ -174,8 +174,6 @@ class PlayerClient {
       los: hasLineOfSight(map, mine.pos, theirs.pos),
       weapon,
       ready: now >= me.s.readyAt,
-      drawSeconds: me.s.drawStartedAt > 0 ? (now - me.s.drawStartedAt) / 1000 : 0,
-      fullDraw: tm.fullDraw,
       walkable: (a, b) => segmentClear(map, a, b, PLAYER_RADIUS),
       time: now / 1000,
     };
@@ -199,10 +197,6 @@ class PlayerClient {
       }
     }
     const t = mine.at;
-    if (out.release && this.triggerDown) {
-      enqueueClientMessage(q, "release", { a: out.aim, t });
-      this.triggerDown = false;
-    }
     if (out.hold && !this.triggerDown) {
       enqueueClientMessage(q, "attack", { a: out.aim, t });
       this.triggerDown = true;

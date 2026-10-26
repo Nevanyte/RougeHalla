@@ -121,13 +121,14 @@ const HELD_SCALE = 1.15;
 const DRAW_PUSH_SLACK_MS = 100;
 
 /**
- * Seconds to a full draw for this fighter's bow (the server's own formula: the interval shrinks with the attack-speed
- * stacks, and the draw is 70% of it up to 0.6 s), or 0 without a faction. A mob's faction is scaled down in hp and damage
- * only, so its rate, and with it the draw, is the plain faction's; its multiplier is 1.
+ * Seconds a bow takes to loose (the server's own formula: the interval shrinks with the attack-speed stacks, and the
+ * windup is a share of it up to a cap), or 0 without a faction. The draw is fixed now, so full pull is the whole windup.
+ * A mob's faction is scaled down in hp and damage only, so its rate, and with it the draw, is the plain faction's; its
+ * multiplier is 1.
  */
 export function fullDrawSeconds(faction: string, stacksAs = 0): number {
   if (!isFactionId(faction)) return 0;
-  return weaponTimings("bow", attackInterval(FACTIONS[faction], "bow", buffMultiplier("attackSpeed", stacksAs))).fullDraw;
+  return weaponTimings("bow", attackInterval(FACTIONS[faction], "bow", buffMultiplier("attackSpeed", stacksAs))).windup;
 }
 
 /** One start of a draw as the server had it, and the server time of the patch that first showed it. */

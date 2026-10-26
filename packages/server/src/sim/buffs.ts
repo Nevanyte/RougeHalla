@@ -94,8 +94,6 @@ export function onKill(world: World, p: PlayerState, rt: PlayerRuntime): void {
   }
   if (fx.resetCooldown) {
     p.readyAt = Math.min(p.readyAt, now);
-    // A ranged shooter's half speed lasts until the cooldown ends, so a reset ends it too.
-    rt.weapon.recoverUntil = Math.min(rt.weapon.recoverUntil, now);
   }
   for (const c of combos) emit(world, { type: "fx", fx: { kind: "combo", id: rt.id, combo: c.id, proc: true } });
 }

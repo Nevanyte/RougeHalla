@@ -740,18 +740,20 @@ describe("hits from projectiles", () => {
 // ---------------------------------------------------------------------------------------------------------------
 // Real shots, for the projectile tests above
 
-/** Full-draw arrows from these Sentenced/Plague archers, all loosed in the same tick. Cooldowns are not under test. */
+/** Arrows from these Sentenced/Plague archers, taps timed so that all of them leave in the same tick. Cooldowns are not under test. */
 function loose(world: World, shots: Array<{ id: string; a: number }>): void {
   const need = shots.map((s) => {
     P(world, s.id).readyAt = 0;
-    return Math.ceil((timingsOf(P(world, s.id), "bow")!.fullDraw * 1000) / TICK_MS - 1e-9);
+    return Math.ceil((timingsOf(P(world, s.id), "bow")!.windup * 1000) / TICK_MS - 1e-9);
   });
   const total = Math.max(...need);
   for (let i = 0; i <= total; i++) {
     shots.forEach((s, k) => {
       const q = RT(world, s.id).inputs;
-      if (i === total - need[k]!) q.pushAction({ kind: "attack", a: s.a });
-      if (i === total) q.pushAction({ kind: "release", a: s.a });
+      if (i === total - need[k]!) {
+        q.pushAction({ kind: "attack", a: s.a });
+        q.pushAction({ kind: "release", a: s.a });
+      }
     });
     tick(world);
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  bountyFor, BOUNTY_ANNOUNCE_MS, BOW_DRAW_MOVE, feedScore,
+  bountyFor, BOUNTY_ANNOUNCE_MS, feedScore,
   circleClear, COLISEUM_RING_RADIUS, defaultFaction, FACTIONS, findPath, generateMap, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN, MAX_PLAYERS,
   inColiseum, KILL_CREDIT_SECONDS, mapFromTiles, mulberry32, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, PLAYER_RADIUS, SIGNATURE_WEAPONS,
   SUDDEN_DEATH_KILLER, SUDDEN_DEATH_RAMP_FRACTION,
@@ -731,15 +731,15 @@ describe("disconnect and reconnect grace", () => {
   });
 
   describe("a dropped connection lets go of the trigger", () => {
-    // Its release never arrives, so the server lets go itself: otherwise a bow stays at full draw (BOW_DRAW_MOVE) until
-    // the player is back, and then looses at once.
+    // Its release never arrives, so the server lets go itself: otherwise the trigger stays down (a bow keeps drawing and
+    // looses again) until the player is back.
     function drawing() {
       const w = startRun(3, { patienceSeconds: 3600 }, { game: true });
       enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 }); // p1 is Sentenced: a bow
       runTo(w, 200);
       expect(P(w, 1).drawStartedAt).toBeGreaterThan(0);
       expect(RT(w, 1).weapon.held).toBe(true);
-      expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(BOW_DRAW_MOVE);
+      expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(0); // rooted while the draw runs
       return w;
     }
 
@@ -748,7 +748,7 @@ describe("disconnect and reconnect grace", () => {
         const w = drawing();
         mark(w, idOf(1));
         const weapon = RT(w, 1).weapon;
-        expect([weapon.held, weapon.bufferedUntil, weapon.action, weapon.releasePending]).toEqual([false, 0, null, false]);
+        expect([weapon.held, weapon.bufferedUntil, weapon.action, weapon.lock]).toEqual([false, 0, null, null]);
         expect(P(w, 1).drawStartedAt).toBe(0);
         expect(moveMultiplierOf(w, combatant(w, idOf(1))!)).toBe(1);
         runTo(w, 1500); // far past a full draw

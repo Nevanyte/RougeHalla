@@ -1,6 +1,6 @@
 // One headless weapon duel: the real sim (createGameWorld, addPlayer, step) on a hand-built arena, with two in-process
 // "clients" that play through enqueueClientMessage exactly as a socket would: aim every tick, attack on the trigger's
-// rising edge, release on its falling edge (or at the bow's full draw), and move/stop. Their decisions come from
+// rising edge, release on its falling edge, and move/stop. Their decisions come from
 // shared/policies.ts, the same brain the bots use. Nothing here changes a weapon or a faction number.
 //
 // What a client sees. Positions are read from the sim's history at serverTime - INTERP_DELAY_MS, where a client draws
@@ -192,8 +192,6 @@ class Client {
       los: hasLineOfSight(map, mine.pos, theirs.pos),
       weapon,
       ready: now >= me.s.readyAt,
-      drawSeconds: me.s.drawStartedAt > 0 ? (now - me.s.drawStartedAt) / 1000 : 0,
-      fullDraw: tm.fullDraw,
       walkable: (a, b) => segmentClear(map, a, b, PLAYER_RADIUS),
       spacing: this.spacing,
       time: now / 1000,
@@ -219,10 +217,6 @@ class Client {
       }
     }
     const t = mine.at;
-    if (out.release && this.triggerDown) {
-      enqueueClientMessage(q, "release", { a: out.aim, t });
-      this.triggerDown = false;
-    }
     if (out.hold && !this.triggerDown) {
       enqueueClientMessage(q, "attack", { a: out.aim, t });
       this.triggerDown = true;

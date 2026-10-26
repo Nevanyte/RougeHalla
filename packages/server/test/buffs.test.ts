@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   attackInterval, BOUNTY_STACK_SHARE, BUFF_STATS, buffMultiplier, damagePerHit, FACTIONS, GV_KILL, mulberry32, pacedFaction,
-  TICK_MS, WAND_CAST_MOVE, weaponTimings, WEAPONS, type BuffStat, type FxEvent,
+  TICK_MS, weaponTimings, WEAPONS, type BuffStat, type FxEvent,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { applyDamage, applyHits, suddenDeath, type Attacker } from "../src/sim/arena";
@@ -877,20 +877,19 @@ describe("attack speed through the real formulas", () => {
     expect(packetFor(cOf(w, 2), "sword").raw).toBeGreaterThan(raw);
   });
 
-  it("the bow's interval and full draw shrink with the stacks, down to the 0.25 s floor", () => {
+  it("the bow's interval and draw shrink with the stacks, down to the 0.25 s floor", () => {
     const w = startRun(4);
     const fire = P(w, 0);
     fire.weapon0 = "bow";
     const before = timingsOf(fire, "bow")!;
     expect(before.interval).toBeCloseTo(1 / (0.6 * 1.95), 9); // Fire's rate 0.6, the bow's boost 0.95
-    expect(before.fullDraw).toBeCloseTo(0.7 * before.interval, 9); // under the 0.6 s cap
+    expect(before.windup).toBeCloseTo(0.7 * before.interval, 9); // under the 0.6 s cap
     fire.stacksAs = 3;
     const m = buffMultiplier("attackSpeed", 3);
     const after = timingsOf(fire, "bow")!;
     expect(after.interval).toBeCloseTo(before.interval / m, 9);
-    expect(after.fullDraw).toBeCloseTo(before.fullDraw / m, 9);
-    expect(after.fullDraw).toBeLessThan(before.fullDraw - 0.1);
-    expect(after.cooldown).toBeCloseTo(after.interval - after.fullDraw, 9);
+    expect(after.windup).toBeCloseTo(before.windup / m, 9);
+    expect(after.windup).toBeLessThan(before.windup - 0.1);
     // Plague's bow starts 0.277 s: three stacks take it to the floor (and the draw to 70% of it), and more change nothing.
     const plague = P(w, 2);
     plague.weapon0 = "bow";
@@ -899,9 +898,9 @@ describe("attack speed through the real formulas", () => {
     for (const stacks of [3, 7]) {
       plague.stacksAs = stacks;
       expect(timingsOf(plague, "bow")!.interval).toBe(WEAPONS.bow.floor);
-      expect(timingsOf(plague, "bow")!.fullDraw).toBeCloseTo(0.7 * WEAPONS.bow.floor, 9);
+      expect(timingsOf(plague, "bow")!.windup).toBeCloseTo(0.7 * WEAPONS.bow.floor, 9);
     }
-    expect(timingsOf(plague, "bow")!.fullDraw).toBeLessThan(plagueBefore.fullDraw);
+    expect(timingsOf(plague, "bow")!.windup).toBeLessThan(plagueBefore.windup);
   });
 
   it("a mob keeps the unbuffed numbers", () => {
@@ -962,10 +961,14 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
     expect(effectiveMove(w, cOf(w, 0))).toBeGreaterThan(1);
   });
 
-  it("a slow multiplies the buffs: a wand's cast slow of 0.35 times the stacks' bonus", () => {
+  it("is 0 while an attack winds up, whatever the buffs say", () => {
     const w = startRun(2);
     setStacks(w, 0, { moveSpeed: 3 });
-    RT(w, 0).weapon.castSlowUntil = w.state.serverTime + 100;
-    expect(effectiveMove(w, cOf(w, 0))).toBeCloseTo(WAND_CAST_MOVE * buffMultiplier("moveSpeed", 3), 9);
+    expect(effectiveMove(w, cOf(w, 0))).toBeCloseTo(buffMultiplier("moveSpeed", 3), 9);
+    RT(w, 0).weapon.action = {
+      kind: "cast", weapon: "wand", startedAt: w.state.serverTime, landsAt: w.state.serverTime + 100, a: 0,
+      packet: { raw: 1, phys: 0, magic: 1, true: 0 }, origin: { x: 0, y: 0 },
+    };
+    expect(effectiveMove(w, cOf(w, 0))).toBe(0);
   });
 });

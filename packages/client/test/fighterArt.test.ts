@@ -128,10 +128,11 @@ describe("bow draw start under a chill", () => {
 });
 
 describe("fullDrawSeconds", () => {
-  // The server's bow full draw (sim/combatant.ts timingsOf(...).fullDraw on a real player of each faction, 9 decimals) for 0, 1.1, 3
+  // The server's bow windup (sim/combatant.ts timingsOf(...).windup on a real player of each faction, 9 decimals) for 0, 1.1, 3
   // and 7 attack-speed stacks. server/test/mobHunt.test.ts compares the bots' copy of the formula with timingsOf live; this is the
   // client's half: a draw gauge that drifts from the server's shows a full bow before (or after) it is.
-  // Regenerate with the weapon numbers (weapons.ts / factions.ts) when they change.
+  // Regenerate with the weapon numbers (weapons.ts / factions.ts) when they change; BOW_WINDUP and BOW_WINDUP_SHARE (the controls
+  // tuning lever) move every entry.
   const SERVER_FULL_DRAW: Record<string, readonly number[]> = {
     fire: [0.598290598, 0.574538432, 0.487887882, 0.407751013],
     sentenced: [0.398860399, 0.383025622, 0.325258588, 0.271834009],

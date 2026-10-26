@@ -16,8 +16,8 @@
 //   5. A target is dropped (and left alone for a while) when it never gets hurt: it went home (a mob walking home is
 //      untouchable and shows no flag, but its hp rises), the attacks are not landing, or the chase is taking too long.
 import {
-  attackInterval, buffMultiplier, duel, FACTIONS, isFactionId, isRanged, isRegionalKind, isWeaponId, mobFaction, POLICIES, REGION_WEAPONS,
-  TILE, weaponEdge, weaponTimings, type FactionId, type SpacingPolicy, type Vec2, type WeaponId,
+  duel, FACTIONS, isFactionId, isRanged, isRegionalKind, isWeaponId, mobFaction, POLICIES, REGION_WEAPONS,
+  TILE, weaponEdge, type FactionId, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 
 /** The part of a state.mobs entry the hunt reads. */
@@ -549,15 +549,6 @@ export function mobSpacing(weapon: WeaponId, theirs: WeaponId | null): SpacingPo
     return { ...base, far: Math.min(base.far, MOB_STAND_OFF), attackRange: Math.min(base.attackRange, MOB_STAND_OFF + 60), retreatBelow: 0 };
   }
   return { ...base, far: Math.min(base.far, MOB_CLOSE_IN), attackRange: Math.min(base.attackRange, MOB_SHOOT_RANGE), retreatBelow: 0 };
-}
-
-/**
- * Seconds a bow of this faction needs for a full draw with `stacksAs` attack-speed stacks: the server's interval is
- * max(floor, 1 / (rate x (1 + boost) x attackSpeedMult)), and the draw is 70% of it up to 0.6 s. A bot that held for the
- * unbuffed draw would over-hold, and a shot loosed late is no stronger.
- */
-export function bowFullDraw(faction: FactionId, stacksAs: number): number {
-  return weaponTimings("bow", attackInterval(FACTIONS[faction], "bow", buffMultiplier("attackSpeed", stacksAs))).fullDraw;
 }
 
 /** Total length of the path `from` -> through `points`. */

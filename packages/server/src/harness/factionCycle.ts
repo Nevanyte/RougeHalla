@@ -3,7 +3,7 @@
 //
 // Every duel runs the real sim: createGameWorld + step(), the weapon state machines, the ledger, the signature
 // systems and settle(), with two players standing in reach of each other on an open floor, in contact from the first
-// tick, holding the trigger toward each other (the bow is loosed at full draw). "trades" mode leaves out only where a
+// tick, holding the trigger toward each other (the bow draws and looses on its own). "trades" mode leaves out only where a
 // hit lands: every swing that lands and every arrow or ball that leaves hits the other fighter in that same tick (an
 // afterWeapons system), so a duel is the faction rules alone, as in testing/realtime.py, and the two compare cell by
 // cell on the same grid of first-swing phases (phaseGrid mirrors realtime.phases). "full" mode keeps arcs and projectile
@@ -14,7 +14,7 @@ import {
   attackInterval, chillMultiplier, FACTIONS, mapFromTiles, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
   TILE_WALL, WEAPONS, weaponTimings, type FactionId, type GameMap, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
-import { activeWeapon, combatant, type Combatant } from "../sim/combatant";
+import { combatant, type Combatant } from "../sim/combatant";
 import { noteContact } from "../sim/factions";
 import { createGameWorld } from "../sim/gameplay";
 import { recordHit } from "../sim/ledger";
@@ -163,7 +163,6 @@ export function runDuel(a: Fighter, b: Fighter, offA: number, offB: number, opts
   const ticks = Math.round(tMax / DT);
   const active = (): boolean => world.state.phase === "active";
   for (let k = 0; k < ticks && active(); k++) {
-    queueReleases(world, world.state.serverTime + TICK_MS);
     step(world, TICK_MS);
   }
   const p0 = world.state.players.get(IDS[0])!;
@@ -192,16 +191,18 @@ function timingsFor(c: Combatant, w: WeaponId): WeaponTimings {
 function primeAttack(c: Combatant, weapon: WeaponId, off: number, m: number, t1: number, a: number): void {
   const tm = timingsFor(c, weapon);
   const w = c.rt.weapon;
+  const packet = packetFor(c, weapon);
+  const origin = { x: c.s.x, y: c.s.y };
   if (weapon === "bow") {
-    const lead = m * off - tm.fullDraw; // cooldown seconds before the draw starts; < 0: drawing already
+    const lead = m * off - tm.windup; // cooldown seconds before the draw starts; < 0: drawing already
     if (lead >= 0) {
       c.s.readyAt = t1 + lead * 1000;
       return;
     }
     const startedAt = t1 + lead * 1000;
-    w.action = { kind: "draw", weapon, startedAt };
+    w.action = { kind: "draw", weapon, startedAt, landsAt: startedAt + tm.windup * 1000, a, packet, origin };
     c.s.drawStartedAt = startedAt;
-    c.s.readyAt = startedAt;
+    c.s.readyAt = startedAt + tm.interval * 1000;
     return;
   }
   const lead = off - tm.windup; // real seconds before the attack starts
@@ -209,26 +210,11 @@ function primeAttack(c: Combatant, weapon: WeaponId, off: number, m: number, t1:
     c.s.readyAt = t1 + m * lead * 1000;
     return;
   }
-  const base = { weapon, startedAt: t1 + lead * 1000, landsAt: t1 + off * 1000, a, packet: packetFor(c, weapon) };
+  const base = { weapon, startedAt: t1 + lead * 1000, landsAt: t1 + off * 1000, a, packet };
   w.action = WEAPONS[weapon].shape.kind === "arc"
     ? { kind: "swing", ...base }
-    : { kind: "cast", ...base, origin: { x: c.s.x, y: c.s.y } };
+    : { kind: "cast", ...base, origin };
   c.s.readyAt = t1 + (m * lead + tm.interval) * 1000;
-  if (tm.ranged) w.recoverUntil = c.s.readyAt;
-}
-
-/** A bow that will have reached its full draw by the tick at `next` is released then, and pressed again for the next. */
-function queueReleases(world: World, next: number): void {
-  for (const id of IDS) {
-    const c = combatant(world, id);
-    if (!c || c.kind !== "player" || activeWeapon(c.s) !== "bow") continue;
-    const act = c.rt.weapon.action;
-    if (act?.kind !== "draw") continue;
-    if (next - act.startedAt < timingsFor(c, "bow").fullDraw * 1000 - 1e-6) continue;
-    const a = id === IDS[0] ? 0 : Math.PI;
-    c.rt.inputs.pushAction({ kind: "release", a });
-    c.rt.inputs.pushAction({ kind: "attack", a });
-  }
 }
 
 /** Long enough for the slowest pair to finish after walking into range (Frost against Holy runs about 37 s). */

@@ -202,8 +202,7 @@ function policyFor(world: World, c: Combatant, target: Combatant) {
   const vel = { x: (tpos.x - before.x) * 10, y: (tpos.y - before.y) * 10 };
   const los = !raycast(collisionMap(world), c.s.x, c.s.y, tpos.x, tpos.y).hit;
   return decide({
-    self: { x: c.s.x, y: c.s.y }, target: tpos, targetVel: vel, los, weapon, ready: now >= c.s.readyAt,
-    drawSeconds: c.s.drawStartedAt > 0 ? (now - c.s.drawStartedAt) / 1000 : 0, fullDraw: tm?.fullDraw ?? 0,
+    self: { x: c.s.x, y: c.s.y }, target: tpos, targetVel: vel, los, weapon, ready: now >= c.s.readyAt, windup: tm?.windup ?? 0,
   });
 }
 
@@ -243,8 +242,7 @@ function drivePlayers(world: World, d: Driver, mobsWanted: number, strafeMs: num
     // Clients stream their aim every tick (at most), and press and release when the policy flips.
     q.pushAim(out.aim);
     const held = c.rt.weapon.held;
-    if (out.release) q.pushAction({ kind: "release", a: out.aim, t: now - 100 });
-    else if (out.hold && !held) q.pushAction({ kind: "attack", a: out.aim, t: now - 100 });
+    if (out.hold && !held) q.pushAction({ kind: "attack", a: out.aim, t: now - 100 });
     else if (!out.hold && held) q.pushAction({ kind: "release", a: out.aim, t: now - 100 });
     // Always on the move around the target: the worst case for the patch.
     if (now >= (d.strafeAt.get(pid) ?? 0)) {

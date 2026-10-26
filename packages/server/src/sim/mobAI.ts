@@ -15,7 +15,7 @@
 //     where it faces homeFacing again. So kiting a mob from outside its leash gains nothing: each round ends with the mob
 //     whole.
 //   - Inputs: aim every tick toward the (led) target while fighting; hold/release the trigger as `decide` says (an `attack`
-//     when it starts holding, a `release` when it stops or a bow is at full draw); `move` only when MOB_REPATH_MS (plus
+//     when it starts holding, a `release` when it stops); `move` only when MOB_REPATH_MS (plus
 //     the mob's `phase`) passed since the last one, `stop` once when it should stand. An idle mob sends nothing at all
 //     (sixty idle mobs cost no inputs).
 //   - It only ever targets players; it never attacks another mob.
@@ -29,12 +29,10 @@ import type { MobState, PlayerState } from "@raid/shared/schema";
 import { activeWeapon, timingsOf } from "./combatant";
 import type { InputQueue } from "./inputs";
 import type { MobCombatant } from "./mobLife";
-import { positionAt } from "./movement";
+import { velocityOf } from "./movement";
 import { cancelAction } from "./weapons";
-import { collisionMap, type MobBrain, type MobRuntime, type PlayerRuntime, type World } from "./world";
+import { collisionMap, type MobBrain, type MobRuntime, type World } from "./world";
 
-/** How far back the target's velocity is measured, to lead a projectile. */
-const VELOCITY_WINDOW_MS = 100;
 /** A ranged mob retreats only to points this far inside its leash, so backing away never carries it over the edge. */
 const LEASH_MARGIN = 24;
 /** A path ending this close to the camp spot is a walk to it; a mob this close to it is on it (world units). */
@@ -190,8 +188,6 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
     los: hasLineOfSight(map, self, at),
     weapon,
     ready: now >= s.readyAt,
-    drawSeconds: s.drawStartedAt > 0 ? (now - s.drawStartedAt) / 1000 : 0,
-    fullDraw: tm?.fullDraw ?? 0,
     // The mob's inputs take effect on the next tick, like a client's.
     inputDelay: TICK_MS / 1000,
     windup: tm?.windup ?? 0,
@@ -209,12 +205,7 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
     q.pushAim(out.aim);
     b.lastAim = out.aim;
   }
-  if (out.release) {
-    // A bow at full draw: loose it, and press again next tick for the next draw.
-    q.pushAction({ kind: "release", a: out.aim });
-    b.lastAim = out.aim;
-    b.holding = false;
-  } else if (out.hold && !b.holding) {
+  if (out.hold && !b.holding) {
     q.pushAction({ kind: "attack", a: out.aim });
     b.lastAim = out.aim;
     b.holding = true;
@@ -232,13 +223,6 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
   } else if (out.move !== null && repathDue(b, now, dtMs)) {
     sendMove(q, b, out.move.x, out.move.y, now);
   }
-}
-
-/** The target's velocity (u/s) over the last VELOCITY_WINDOW_MS, from its recorded positions. */
-function velocityOf(rt: PlayerRuntime, p: PlayerState, now: number): Vec2 {
-  const before = positionAt(rt, p, now - VELOCITY_WINDOW_MS);
-  const dt = VELOCITY_WINDOW_MS / 1000;
-  return { x: (p.x - before.x) / dt, y: (p.y - before.y) / dt };
 }
 
 /**
@@ -280,7 +264,6 @@ function disarm(world: World, s: MobState, rt: MobRuntime, b: MobBrain): void {
   const w = rt.weapon;
   w.held = false;
   w.bufferedUntil = 0;
-  w.releasePending = false;
   w.aimAt = 0;
   b.holding = false;
 }

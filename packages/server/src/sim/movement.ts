@@ -1,6 +1,9 @@
 import { findPath, MAX_REWIND_MS, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, type Sample, type Vec2 } from "@raid/shared";
 import { collisionMap, type World } from "./world";
 
+/** How far back a fighter's velocity is measured (to lead a projectile at it). */
+export const VELOCITY_WINDOW_MS = 100;
+
 /** What walking reads and writes on any fighter's synced state. */
 interface Walker { x: number; y: number; facing: number }
 
@@ -52,4 +55,19 @@ export function positionAt(rt: { history: Sample[] }, p: Vec2, t: number): Vec2 
   const b = h[i + 1]!;
   const k = (t - a.t) / (b.t - a.t);
   return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+}
+
+/**
+ * The fighter's velocity (u/s) over the last VELOCITY_WINDOW_MS of its recorded positions, ending at its latest sample: the
+ * position `p` belongs to the tick that recorded it, which is the tick before the one being simulated until movement runs.
+ * Zero for a fighter with no more than one sample (just placed).
+ */
+export function velocityOf(rt: { history: Sample[] }, p: Vec2, now: number): Vec2 {
+  const h = rt.history;
+  const t = h.length > 0 ? h[h.length - 1]!.t : now;
+  const from = Math.max(t - VELOCITY_WINDOW_MS, h.length > 0 ? h[0]!.t : t);
+  if (!(t > from)) return { x: 0, y: 0 };
+  const before = positionAt(rt, p, from);
+  const dt = (t - from) / 1000;
+  return { x: (p.x - before.x) / dt, y: (p.y - before.y) / dt };
 }

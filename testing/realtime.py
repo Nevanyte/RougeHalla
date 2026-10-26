@@ -11,9 +11,14 @@ Everything else is the v2 rule package from the counter review: normalized backl
 (backlash x foe.rate x foe interval), signature bonus x weapon.dps, chill stretches cooldown progress per tick,
 bonus/chill clocks from first contact, float HP, cooldown remainders carry.
 
-Not modelled: geometry beyond a fixed approach time, projectile flight, stagger, roots, bow draw and buffs other
+Not modelled by `duel`: geometry beyond a fixed approach time, projectile flight, stagger, windups, roots and buffs other
 than HP and attack speed. engine.duel is the design source of truth; this checks that its cycle survives discrete
 swings. Every first-swing phase pair is swept (numpy arrays of shape (P,)).
+
+The kite check is the exception: it needs geometry. Every attack roots its fighter for a windup (the controls rework: the
+old ranged move slows are gone) and a fighter walks at full speed between attacks, so a shooter can orb-walk away from a
+melee chaser, who only closes the gap while the shooter is rooted. `orbwalk_free_fire` is a small kinematic model of that,
+`kite_tolerance` the duel model's side of it (how late the melee winner may arrive), `kite_rows` both.
 
 What-if file (JSON, optional): {"name": str, "factions": {Name: {rate, hit, params: {...}}}, "weapons": {w: {...}}}.
 Call load(path) before using BY/WEAPONS.
@@ -35,14 +40,18 @@ DT = 0.05
 EPS = 1e-9
 V = 170.0      # move speed (u/s)
 REACH = 60.0   # melee reach
+CHILL_MOVE_RADIUS = 100.0  # shared/signatures.ts: Frost's move slow reaches only fighters it chills within this distance...
+CHILL_MOVE_MULT = 0.7      # ...and multiplies their move speed by this
 
-# speed: boost on the faction's attack rate; dps: damage multiplier; floor: shortest interval (binds only under buffs)
+# speed: boost on the faction's attack rate; dps: damage multiplier; floor: shortest interval (binds only under buffs);
+# windup/wshare: the attacker is rooted for min(windup, wshare x interval) seconds from the attack starting (the TS
+# BOW_WINDUP / BOW_WINDUP_SHARE etc. in shared/weapons.ts; the axe's extra root is not modelled). Used by the kite model only.
 WEAPONS = {
-    "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=60,  melee=True),
-    "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=60,  melee=True),
-    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False),
-    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False),
-    "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True),
+    "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=60,  melee=True,  windup=0.10, wshare=1.00),
+    "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=60,  melee=True,  windup=0.25, wshare=0.25),
+    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.70),
+    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.20, wshare=0.40),
+    "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True,  windup=0.10, wshare=1.00),
 }
 WNAMES = list(WEAPONS)
 MELEE = ["sword", "axe", "shield"]
@@ -75,6 +84,13 @@ def interval(spec, wname, as_mult=1.0, floor=True):
     w = WEAPONS[wname]
     raw = 1.0 / (spec.rate * (1.0 + w["speed"]) * as_mult)
     return max(w["floor"], raw) if floor else raw
+
+
+def windup(spec, wname, as_mult=1.0):
+    """Seconds the attacker is rooted from an attack starting until it lands / the projectile leaves: the weapon's windup
+    cap or its share of the interval, whichever is shorter (shared/weapons.ts weaponTimings)."""
+    w = WEAPONS[wname]
+    return min(w["windup"], w["wshare"] * interval(spec, wname, as_mult))
 
 
 def per_hit(spec, wname, as_mult=1.0, dps=None):
@@ -207,15 +223,57 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
 
 
 def free_fire_time(loser_name, ranged):
-    """Seconds a STANDING shooter fires at a chaser closing at the move speed before it reaches melee reach (the 'Tff' of the
-    kite check). A Frost shooter's chill is counted at range, the conservative way."""
+    """Seconds a STANDING shooter fires at a chaser closing at the move speed before it reaches melee reach (the standing
+    bound of the kite check). A Frost shooter's chill is counted at range, the old conservative way (it divides by the
+    attack-speed chill, 0.4, not the move slow of the TS sim; `orbwalk_free_fire(..., stand=True)` has the kinematic
+    figure). A shooter that walks away between shots has `orbwalk_free_fire`."""
     return (WEAPONS[ranged]["rng"] - REACH) / (V * chill_of(Side(BY[loser_name], ranged)))
+
+
+def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=60.0):
+    """Seconds until a melee chaser closes from the shooter's range to melee reach on a shooter that orb-walks: a small
+    kinematic model at the sim's DT = 0.05 mirroring the TS rules.
+
+    The chaser starts `rng` away and walks straight at the shooter at V. The shooter is ready at t = 0, so it starts a
+    windup at once and is rooted until the shot leaves; then it walks straight away at V until its cooldown (the interval,
+    counted from the windup's start, which is where the TS sim sets readyAt) ends, and winds up again. Moving speed is the
+    same on both sides, so the chaser closes only while the shooter is rooted. A Frost shooter chills the chaser once it has
+    engaged it (from the first shot leaving; arrow flight ignored, the conservative way): the chaser then walks at
+    CHILL_MOVE_MULT x V while within CHILL_MOVE_RADIUS of the shooter, so the gap regrows to the radius after every shot
+    and the chaser must cover the last (radius - REACH) / (CHILL_MOVE_MULT x V) = 0.336 s worth inside ONE windup: a Frost
+    shooter whose windup is shorter than that (and under 0.3 x its interval) keeps it out of reach for good (inf). The
+    cooldown chill on a chaser does not matter here.
+
+    A Frost CHASER's chill on the shooter is NOT applied (`winner_name` is accepted so a caller can name the pair, and is
+    unused on purpose): `kite_tolerance` starts the winner's fx clock at its arrival, so the chill is not yet running during
+    the free-fire window. The shooter's cooldown and move speed are unchilled all the way in, the conservative way.
+
+    `stand=True` is the shooter that never walks away (same rooted-or-not clock, but it never moves): the kinematic twin of
+    `free_fire_time`, equal to it unless the shooter is Frost. Returns inf if the chaser has not arrived after t_max."""
+    spec = BY[loser_name]
+    rng = float(WEAPONS[ranged]["rng"])
+    iv = interval(spec, ranged)
+    wu = min(windup(spec, ranged), iv)
+    frost = spec.aura == "wall_of_ice"
+    gap = rng
+    for k in range(int(round(t_max / DT))):
+        t = k * DT
+        phase = t - math.floor((t + EPS) / iv) * iv
+        rooted = phase < wu - EPS
+        engaged = t + EPS >= wu
+        vc = V * CHILL_MOVE_MULT if frost and engaged and gap <= CHILL_MOVE_RADIUS else V
+        vs = 0.0 if rooted or stand else V
+        nxt = gap - (vc - vs) * DT
+        if nxt <= REACH:
+            return t + DT * (gap - REACH) / (gap - nxt)
+        gap = nxt
+    return float("inf")
 
 
 def kite_tolerance(a, wa, b, wb, hi=90.0, nmax=50):
     """Seconds the melee winner a (holding wa) can arrive late and still beat the ranged loser b (holding wb) at least half
     the time, with b firing at full output, bonus clock running, from the start. 0.0 if it loses even on time, inf if it
-    still wins after `hi` seconds."""
+    still wins after `hi` seconds. Independent of the windups (the shooter's cadence is its interval either way)."""
     def wr(T):
         return edge_stats(duel(Side(BY[a], wa, act_start=T, fx_start=T), Side(BY[b], wb), nmax=nmax))["rate"]
 
@@ -233,14 +291,20 @@ def kite_tolerance(a, wa, b, wb, hi=90.0, nmax=50):
     return lo
 
 
-def kite_rows():
-    """The kite check, one row per faction edge: [(winner, loser, {ranged weapon: ({melee weapon: tolerance}, Tff)})].
-    A cell is STOLEN when the weakest melee weapon's tolerance is below the free-fire time of a standing shooter."""
+def kite_tolerances():
+    """The expensive half of the kite check: {(winner, loser, ranged weapon): {melee weapon: tolerance}} for every faction
+    edge. It does not depend on the windups, so a sweep over them computes it once."""
+    return {(a, b, wb): {wa: kite_tolerance(a, wa, b, wb) for wa in MELEE} for a, b in BEATS for wb in RANGED}
+
+
+def kite_rows(tols=None):
+    """The kite check, one row per faction edge: [(winner, loser, {ranged weapon: ({melee weapon: tolerance}, Tff standing,
+    Tff orb-walk)})]. A cell is STOLEN when the weakest melee weapon's tolerance is below the orb-walk free-fire time (the
+    standing time is the lower bound it is printed beside). Pass `tols` (from kite_tolerances) to reuse the tolerances."""
+    tols = tols or kite_tolerances()
     rows = []
     for a, b in BEATS:
-        cells = {}
-        for wb in RANGED:
-            cells[wb] = ({wa: kite_tolerance(a, wa, b, wb) for wa in MELEE}, free_fire_time(b, wb))
+        cells = {wb: (tols[(a, b, wb)], free_fire_time(b, wb), orbwalk_free_fire(b, wb, a)) for wb in RANGED}
         rows.append((a, b, cells))
     return rows
 

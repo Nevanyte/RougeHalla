@@ -698,6 +698,33 @@ describe("a run", () => {
     expect(a!.left).toBe(false);
   });
 
+  it("a target message reaches the sim: the lock is mirrored to every client as attackTarget, and a stop or a bad id undoes or refuses it", async () => {
+    const [A, B, C] = [await claim(), await claim(), await claim()];
+    const [a, b, c] = await startRun([A, B, C]);
+    const world = worldOf(a!);
+    const at = duelSpot(world, [sessionOf(a!), sessionOf(b!)]);
+    placeOnServer(b!, at.x + 30, at.y);
+    placeOnServer(a!, at.x, at.y);
+    await sleep(120);
+    const seen = (p: Player, of: Player): string => p.room.state.players.get(sessionOf(of))!.attackTarget;
+
+    a!.room.send("target", { id: "nobody" }); // refused by the sim, not an error
+    a!.room.send("target", { id: sessionOf(a!) }); // and so is itself
+    await sleep(150);
+    expect(serverPlayer(a!).attackTarget).toBe("");
+    expect(world.players.get(sessionOf(a!))!.weapon.lock).toBeNull();
+
+    a!.room.send("target", { id: sessionOf(b!) });
+    await until(() => [a!, b!, c!].every((p) => seen(p, a!) === sessionOf(b!)), "the lock to reach every client");
+    expect(world.players.get(sessionOf(a!))!.weapon.lock).toBe(sessionOf(b!));
+    expect(seen(a!, b!)).toBe(""); // nobody else's mirror moved
+
+    a!.room.send("stop", {});
+    await until(() => [a!, b!, c!].every((p) => seen(p, a!) === ""), "the unlock to reach every client");
+    expect(world.players.get(sessionOf(a!))!.weapon.lock).toBeNull();
+    expect(a!.left).toBe(false);
+  });
+
   it("the last player standing wins: kill GV and the win bonus bank once, the room names the winner and then lets everyone go", async () => {
     const [A, B, C] = [await claim(), await claim(), await claim()];
     const [a, b, c] = await startRun([A, B, C]);

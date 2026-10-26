@@ -11,8 +11,9 @@ import { applyLedger } from "./ledger";
 import { resolveMelee } from "./melee";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
 import { clearProjectiles, spawnProjectiles, sweepProjectiles } from "./projectiles";
+import { updateTargets } from "./targeting";
 import { trainingSettle } from "./training";
-import { moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
+import { dropLock, moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
 import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
 
 /**
@@ -154,29 +155,40 @@ export function actionOrder(world: World, tick = world.state.tick): string[] {
   return ids;
 }
 
-/** One fighter's queued inputs: its path, then its aim and actions in the order they arrived. */
+/**
+ * One fighter's queued inputs, in the order they arrived: the move (where it arrived among the actions), the aim (the same)
+ * and the actions. A move or a stop ends the target lock, whether or not the point can be reached: the order was given.
+ */
 function applyInputs(world: World, c: Combatant): void {
-  const { move, aim, aimBefore, actions } = c.rt.inputs.drain();
-  if (c.s.status !== "alive") return;
-  if (move) {
+  const { move, moveBefore, aim, aimBefore, actions } = c.rt.inputs.drain();
+  const applyMove = (): void => {
+    if (move === null) return;
+    dropLock(c);
     // An unreachable click is ignored rather than treated as "stop".
     const path = move.kind === "move" ? planPath(world, c.s, move) : [];
     if (move.kind === "stop" || path.length > 0) c.rt.path = path;
-  }
-  // The latest aim goes in where it arrived, so an attack's own angle never overrides an aim sent after it.
-  actions.forEach((cmd, i) => {
+  };
+  // The cursor's aim is ignored while a lock aims the fighter (sim/targeting.ts); the next aim after the lock ends counts.
+  const applyAim = (): void => {
+    if (aim !== null && c.rt.weapon.lock === null) setAim(world, c, aim);
+  };
+  // An input applies just before actions[i] for the i it arrived at, so an attack's own angle never overrides an aim sent
+  // after it, and a target and a move replace each other in arrival order. With both at one spot the move goes first.
+  for (let i = 0; i <= actions.length; i++) {
     if (c.s.status !== "alive") return;
-    if (aim !== null && i === aimBefore) setAim(world, c, aim);
-    world.actions[cmd.kind]?.(world, c, cmd);
-  });
-  if (aim !== null && aimBefore >= actions.length && c.s.status === "alive") setAim(world, c, aim);
+    if (i === Math.min(moveBefore, actions.length)) applyMove();
+    if (i === Math.min(aimBefore, actions.length)) applyAim();
+    const cmd = actions[i];
+    if (cmd) world.actions[cmd.kind]?.(world, c, cmd);
+  }
 }
 
 /**
  * One active tick, in this order (see arena.ts for why the order matters):
- *   inputs (players in the shuffled actionOrder, then mobs) → weapon state machines → afterWeapons → movement →
- *   history → projectile sweep (present time) → spawns → melee (rewound) → beforeDamage (signature damage joins the
- *   ledger) → the damage ledger, all at once → systems → sudden death → settle.
+ *   inputs (players in the shuffled actionOrder, then mobs) → target locks (the chase, the trigger and the aim of every
+ *   locked player) → weapon state machines → afterWeapons → movement → history → projectile sweep (present time) →
+ *   spawns → melee (rewound) → beforeDamage (signature damage joins the ledger) → the damage ledger, all at once →
+ *   systems → sudden death → settle.
  * Damage lands only in the ledger step, so a fighter killed this tick still lands what it started, and simultaneous
  * deaths are settled by the hp fraction at the start of the tick.
  */
@@ -194,6 +206,7 @@ function updateActive(world: World, dtMs: number): void {
   world.combat.rank = new Map(order.map((id, i) => [id, i]));
   for (const id of order) applyInputs(world, combatant(world, id)!);
   for (const id of world.mobs.keys()) applyInputs(world, combatant(world, id)!);
+  updateTargets(world);
   updateWeapons(world);
   for (const sys of world.afterWeapons) sys(world, dtMs);
   const fighters = standingCombatants(world);
