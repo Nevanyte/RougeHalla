@@ -109,6 +109,7 @@ export function install(world: World): void {
   // keeps running). Triggers that re-arm at a teleport (Second Wind rank 2) may fire again.
   chainHook(world, "teleported", (w) => { resetAll(w, true); rearmTriggers(w); });
   chainHook(world, "raidStarted", (w) => resetAll(w, false));
+  chainHook(world, "runEnded", flushDotFx);
 }
 
 function newRuntime(): FactionsRuntime {
@@ -386,13 +387,21 @@ function afterDamage(world: World, dtMs: number): void {
   updateChill(world, fighters, byId, dtMs);
   syncVisuals(world, byId);
 
-  if (now - rt.dotSince >= DOT_FX_MS) {
-    for (const d of rt.dot.values()) {
-      emit(world, { type: "fx", fx: { kind: "hit", id: d.victim, by: d.by, amount: d.amount, weapon: d.weapon, sig: d.sig } });
-    }
-    rt.dot.clear();
-    rt.dotSince = now;
+  if (now - rt.dotSince >= DOT_FX_MS) flushDotFx(world);
+}
+
+/**
+ * Reports the damage over time landed since the last report, one `hit` fx per pair. Every DOT_FX_MS, and once more when the
+ * run ends, so the last chunk (often the killing one) is never left unsaid.
+ */
+function flushDotFx(world: World): void {
+  const rt = world.factions;
+  if (!rt) return;
+  for (const d of rt.dot.values()) {
+    emit(world, { type: "fx", fx: { kind: "hit", id: d.victim, by: d.by, amount: d.amount, weapon: d.weapon, sig: d.sig } });
   }
+  rt.dot.clear();
+  rt.dotSince = world.state.serverTime;
 }
 
 /**
