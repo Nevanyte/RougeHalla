@@ -1,8 +1,9 @@
 // The slide: how a fighter walks on slippery ground (ice). Pure: the map is read, the body, its slide state and its path
 // are mutated in place. The server's movement (sim/movement.ts walkFighter) and the client's model of the local fighter
 // call the same code, so the two agree on a trajectory up to float noise. Only + - * / and sqrt do arithmetic (plus the
-// exact floor, min, max and abs), so the same inputs give the same trajectory on every engine; nothing allocates but the
-// small result object, and nothing draws from a random stream.
+// exact floor, min, max and abs), so the same inputs give the same trajectory on every engine, and nothing draws from a
+// random stream. It builds no tables; it allocates small result objects (one per substep, one per walk), and a re-plan
+// builds a path (findPath).
 //
 // The model is acceleration-limited traction. The velocity turns toward the path-following velocity by at most
 // `accel * dt` per step, and the body moves by the exact integral of that piecewise-linear velocity. So a start takes
@@ -18,9 +19,16 @@ import { findPath } from "./pathfind";
 
 /**
  * A fighter's slide: velocity (u/s), the gate anchor (the last waypoint passed, or where this path began), the path array
- * it was anchored on (identity: a new array re-anchors) and the earliest time a stuck slide may plan again.
+ * it was anchored on (identity: a new array re-anchors) and the earliest time a stuck slide may plan again. The optional
+ * fields are the livelock breaker (slipWalk): the goal the latest stuck re-plans were aimed at, how many in a row, the
+ * closest the body stood to it at one, and when the last was; and `gripUntil`, the time until which the fighter walks its
+ * path exactly instead of sliding. A state that never got stuck never has them.
  */
-export interface SlipState { vx: number; vy: number; ax: number; ay: number; path: readonly Vec2[] | null; replanAt: number }
+export interface SlipState {
+  vx: number; vy: number; ax: number; ay: number; path: readonly Vec2[] | null; replanAt: number;
+  stuckX?: number; stuckY?: number; stuckN?: number; stuckBest?: number; stuckAt?: number;
+  gripUntil?: number;
+}
 
 /** A slide that starts at (x, y) already moving at (vx, vy): what a fighter carries onto the ice. */
 export function newSlip(x: number, y: number, vx: number, vy: number): SlipState {
@@ -40,6 +48,14 @@ export interface SlipResult {
 export const SLIP_REACH = 4;
 /** A slide that is stuck on a wall plans again at most this often (= TARGET_REPATH_MS). */
 export const SLIP_REPLAN_MS = 250;
+/**
+ * The livelock breaker: this many stuck re-plans in a row toward one goal (each within SLIP_STUCK_WINDOW_MS of the one before,
+ * none leaving the body a tile closer to the goal than the best so far) mean the slide cannot make a turn it keeps overshooting
+ * (a one-tile corridor with a side corridor, all ice). The fighter then walks its path exactly for SLIP_GRIP_MS and slides again.
+ */
+export const SLIP_STUCK_REPLANS = 3;
+export const SLIP_STUCK_WINDOW_MS = 2000;
+export const SLIP_GRIP_MS = 1000;
 /** The last waypoint counts as reached within this, at a speed one step's braking can kill. */
 const ARRIVE_EPS = 0.5;
 
@@ -151,7 +167,8 @@ function moveDisc(map: GameMap, p: Vec2, s: SlipState, mx: number, my: number, r
 export function slipStep(map: GameMap, p: Vec2, s: SlipState, path: Vec2[], dt: number, cap: number, accel: number, r: number): SlipResult {
   const res: SlipResult = { hit: false, reached: 0, moved: 0 };
   if (s.path !== path) { s.ax = p.x; s.ay = p.y; s.path = path; }
-  if (cap <= 0) { s.vx = 0; s.vy = 0; return res; }
+  // `!(cap > 0)` rather than `cap <= 0`: a NaN cap would write NaN into the body's position for good.
+  if (!(cap > 0)) { s.vx = 0; s.vy = 0; return res; }
   while (path.length > 1) {
     const w = path[0]!;
     const gx = w.x - s.ax, gy = w.y - s.ay;
@@ -215,30 +232,93 @@ export function slipStep(map: GameMap, p: Vec2, s: SlipState, path: Vec2[], dt: 
  * the traction under a point for this fighter, asked at the start of every substep: the walk stops substepping the moment
  * the centre leaves slippery ground (the caller grips from then on). A substep that hits a wall while the next leg is not
  * clear plans again to the last waypoint, at most once per SLIP_REPLAN_MS of `now` (any clock both sides agree on).
+ *
+ * The safety net for a map the slide cannot steer on (ice that touches a wall: validateTerrain T11 refuses such a map, this is
+ * for one that got through): SLIP_STUCK_REPLANS stuck re-plans toward one goal, with no progress toward it, set `s.gripUntil`.
+ * Until then (`now` < gripUntil) the fighter walks its path exactly, as off ice (a clear leg walked at `cap`, the leg planned
+ * again if it is not clear), keeping the velocity it walks at, and then slides again if it is still on ice. The grip lives in
+ * the state, so every caller that runs this walk (the server's walkFighter, the client's model) takes it in step.
  */
 export function slipWalk(
   map: GameMap, p: Vec2, s: SlipState, path: Vec2[], dtMs: number, cap: number,
   slipAt: (x: number, y: number) => number, now: number, r: number,
 ): SlipResult {
   const out: SlipResult = { hit: false, reached: 0, moved: 0 };
+  // A clock that ran back (the client's resynchronises) never holds the grip for longer than its length.
+  if (s.gripUntil !== undefined && s.gripUntil > now + SLIP_GRIP_MS) s.gripUntil = now + SLIP_GRIP_MS;
   let left = dtMs;
   while (left > 1e-9) {
     const accel = slipAt(p.x, p.y);
     if (!(accel > 0)) break;
     const h = left < TICK_MS ? left : TICK_MS;
     left -= h;
+    if (s.gripUntil !== undefined && now < s.gripUntil) {
+      gripStep(map, p, s, path, h / 1000, cap, r, out);
+      continue;
+    }
     const step = slipStep(map, p, s, path, h / 1000, cap, accel, r);
     out.moved += step.moved;
     out.reached += step.reached;
     if (step.hit) out.hit = true;
     if (step.hit && path.length > 0 && now >= s.replanAt && !segmentClear(map, p, path[0]!, r)) {
       s.replanAt = now + SLIP_REPLAN_MS;
-      const next = findPath(map, p, path[path.length - 1]!, r);
+      const goal = path[path.length - 1]!;
+      noteStuck(s, p, goal, now);
+      const next = findPath(map, p, goal, r);
       path.splice(0, path.length, ...next);
       s.ax = p.x; s.ay = p.y;
     }
   }
   return out;
+}
+
+/** Counts a stuck re-plan toward `goal`; the SLIP_STUCK_REPLANS-th in a row (see there) starts the grip. */
+function noteStuck(s: SlipState, p: Vec2, goal: Vec2, now: number): void {
+  const gx = goal.x - p.x, gy = goal.y - p.y;
+  const d = Math.sqrt(gx * gx + gy * gy);
+  const again = s.stuckX === goal.x && s.stuckY === goal.y && now - (s.stuckAt ?? -Infinity) <= SLIP_STUCK_WINDOW_MS;
+  const best = s.stuckBest ?? d;
+  s.stuckAt = now;
+  if (again && d >= best - TILE) {
+    s.stuckN = (s.stuckN ?? 0) + 1;
+    if (d < best) s.stuckBest = d;
+  } else {
+    s.stuckX = goal.x; s.stuckY = goal.y; s.stuckN = 1; s.stuckBest = d;
+  }
+  if (s.stuckN! >= SLIP_STUCK_REPLANS) { s.gripUntil = now + SLIP_GRIP_MS; s.stuckN = 0; }
+}
+
+/**
+ * One substep of the grip: today's plain walk (advanceAlongPath in the server's movement.ts, without its facing): a clear leg
+ * walked at `cap`, no collision. A path array the slide was not anchored on is walked from its start, so its first leg is
+ * checked like regrip checks it (planned again if blocked). The velocity becomes the walk's, so the slide that follows the grip
+ * starts from it.
+ */
+function gripStep(map: GameMap, p: Vec2, s: SlipState, path: Vec2[], dt: number, cap: number, r: number, out: SlipResult): void {
+  if (s.path !== path) {
+    s.ax = p.x; s.ay = p.y; s.path = path;
+    if (path.length > 0 && !segmentClear(map, p, path[0]!, r)) {
+      const next = findPath(map, p, path[path.length - 1]!, r);
+      path.splice(0, path.length, ...next);
+    }
+  }
+  const x0 = p.x, y0 = p.y;
+  let budget = cap > 0 ? cap * dt : 0;
+  while (budget > 0 && path.length > 0) {
+    const w = path[0]!;
+    const dx = w.x - p.x, dy = w.y - p.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d <= budget) {
+      p.x = w.x; p.y = w.y; budget -= d;
+      s.ax = w.x; s.ay = w.y;
+      path.shift(); out.reached++;
+    } else {
+      p.x += (dx / d) * budget; p.y += (dy / d) * budget; budget = 0;
+    }
+  }
+  const mx = p.x - x0, my = p.y - y0;
+  s.vx = mx / dt; s.vy = my / dt;
+  out.moved += Math.sqrt(mx * mx + my * my);
 }
 
 /**

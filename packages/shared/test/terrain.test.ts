@@ -14,6 +14,7 @@ import {
 } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
+import { ZONE_PROP_KINDS, styleFinishedMap } from "../src/zoneStyle";
 import {
   PROP_KINDS,
   TERRAINS,
@@ -437,6 +438,87 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     put(m, 7, 4, TILE_LOW, TERRAIN_FENCE);
     for (const e of validateTerrain(m, { styled: true })) expect(e).toMatch(/^T\d+ /);
   });
+});
+
+describe("validateTerrain, T11 (ice keeps one tile of clear floor around it)", () => {
+  const iceAt = (m: GameMap, x: number, y: number): void => put(m, x, y, TILE_FLOOR, TERRAIN_ICE);
+
+  it("accepts ice with floor all round, and a wall two tiles away", () => {
+    const m = plain();
+    for (let y = 3; y <= 5; y++) for (let x = 3; x <= 5; x++) iceAt(m, x, y);
+    put(m, 7, 4, TILE_WALL); // the ice's east edge is x 5: column 6 is clear floor, 7 is not its neighbour
+    expect(validateTerrain(m)).toEqual([]);
+    // One tile in from the border ring's inner row: the ring is two tiles away.
+    const edge = plain();
+    iceAt(edge, 2, 2);
+    expect(validateTerrain(edge)).toEqual([]);
+  });
+
+  it("flags a wall or a LOW tile in any of the eight neighbours, and names the first ice tile", () => {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      for (const tile of [TILE_WALL, TILE_LOW]) {
+        const m = plain();
+        iceAt(m, 6, 6);
+        put(m, 6 + dx, 6 + dy, tile, tile === TILE_LOW ? TERRAIN_LAVA : TERRAIN_NONE);
+        const errs = validateTerrain(m);
+        expect(ruleIds(errs), `${dx},${dy} tile ${tile}`).toEqual(["T11"]);
+        expect(errs[0], `${dx},${dy}`).toContain("(6, 6)");
+      }
+    }
+  });
+
+  it("flags ice on the ring's inner edge and ice off the map", () => {
+    const inner = plain();
+    iceAt(inner, 1, 5); // west neighbour (0,5) is the border wall
+    expect(ruleIds(validateTerrain(inner))).toEqual(["T11"]);
+    // A board with no wall at all: ice on its edge has only floor and the cells off the map beside it. The off-map cells count.
+    const open = mapFromTiles(7, 7, new Uint8Array(49));
+    open.terrain[3 * 7 + 3] = TERRAIN_ICE;
+    expect(ruleIds(validateTerrain(open))).toEqual(["T4"]); // its middle is clear (the ring is not wall: T4's business)
+    open.terrain[3 * 7 + 3] = TERRAIN_NONE;
+    open.terrain[3 * 7 + 0] = TERRAIN_ICE;
+    const errs = validateTerrain(open);
+    expect(ruleIds(errs)).toEqual(["T4", "T11"]);
+    expect(errs.find((e) => e.startsWith("T11"))).toContain("(0, 3)");
+  });
+
+  it("counts the violations in one string, and leaves the ice tile's own class to T3", () => {
+    const m = plain();
+    iceAt(m, 3, 3);
+    iceAt(m, 6, 6);
+    put(m, 4, 3, TILE_WALL);
+    put(m, 7, 6, TILE_WALL);
+    const errs = validateTerrain(m);
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toMatch(/^T11 2 ICE tile/);
+    // Ice on a wall is T3's, not T11's.
+    const onWall = plain();
+    put(onWall, 6, 6, TILE_WALL, TERRAIN_ICE);
+    expect(ruleIds(validateTerrain(onWall))).toEqual(["T3"]);
+  });
+
+  it("holds for any map, not only a styled one or a generated one", () => {
+    const m = regioned();
+    put(m, 7, 4, TILE_FLOOR, TERRAIN_ICE); // beside the wall column at x=6
+    expect(ruleIds(validateTerrain(m))).toContain("T11");
+    expect(ruleIds(validateTerrain(m, { styled: true }))).toContain("T11");
+    const noRegions = plain();
+    iceAt(noRegions, 1, 1);
+    expect(ruleIds(validateTerrain(noRegions))).toEqual(["T11"]);
+    // Ice costs nothing when the map holds none.
+    expect(validateTerrain(plain())).toEqual([]);
+  });
+
+  it("is passed by every styled finished map, seeds 1..40 (the styler kit refuses walls next to ice)", () => {
+    let ice = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const styled = styleFinishedMap(generateMap(seed));
+      for (const k of styled.terrain) if (k === TERRAIN_ICE) ice++;
+      const errs = validateTerrain(styled, { styled: true, propKinds: ZONE_PROP_KINDS });
+      expect(errs, `seed ${seed}`).toEqual([]);
+    }
+    expect(ice, "the seeds hold ice at all: not a vacuous pass").toBeGreaterThan(100);
+  }, 60_000);
 });
 
 describe("validateTerrain on generated maps", () => {

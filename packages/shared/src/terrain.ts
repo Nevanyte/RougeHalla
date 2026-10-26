@@ -5,6 +5,7 @@
 import { PLAYER_SPEED, TILE } from "./constants";
 import { FACTION_IDS } from "./factions";
 import {
+  MASK_MOVE,
   REGION_COLISEUM,
   REGION_FACTIONS,
   REGION_IDS,
@@ -116,6 +117,9 @@ export interface ValidateTerrainOptions {
  *       coliseum footprint has no LOW and no terrain
  *   T9  each prop is in bounds, of a known kind, on its kind's tile class
  *   T10 (`styled` only) no LOW tile has kind NONE
+ *   T11 (any map, checked with T5) no other tile that blocks movement (wall or LOW) and no cell off the map in the
+ *       8-neighbourhood of an ICE tile: the slide (shared/walk.ts) cannot steer in a corridor its own overshoot fills, so
+ *       ice keeps one tile of clear floor around it
  */
 export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {}): string[] {
   const { w, h, tiles, terrain, regionGrid } = map;
@@ -182,6 +186,24 @@ export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {})
   let farLow = -1, countFar = 0;
   for (let i = 0; i < n; i++) if (tiles[i] === TILE_LOW && dist[i] < 0) { if (countFar++ === 0) farLow = i; }
   if (countFar > 0) out.push(`T5 ${countFar} LOW tile(s) more than ${SNAP_RADIUS} tiles from any floor, first ${at(farLow)}`);
+
+  // T11: a map invariant (it holds with or without regions), checked wherever the terrain holds ICE.
+  let nearSolid = -1, countNear = 0;
+  for (let i = 0; i < n; i++) {
+    if (terrain[i] !== TERRAIN_ICE) continue;
+    const x = i % w, y = (i - x) / w;
+    let bad = false;
+    for (let dy = -1; dy <= 1 && !bad; dy++) {
+      for (let dx = -1; dx <= 1 && !bad; dx++) {
+        const nx = x + dx, ny = y + dy;
+        // The tile itself is T3's business (ice on a wall or LOW).
+        if (dx === 0 && dy === 0) continue;
+        bad = nx < 0 || ny < 0 || nx >= w || ny >= h || (tiles[ny * w + nx] & MASK_MOVE) !== 0;
+      }
+    }
+    if (bad && countNear++ === 0) nearSolid = i;
+  }
+  if (countNear > 0) out.push(`T11 ${countNear} ICE tile(s) with a wall, LOW tile or the map edge in their 8-neighbourhood, first ${at(nearSolid)}`);
 
   if (map.regions.length === 0) return out;
 

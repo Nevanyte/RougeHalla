@@ -8,7 +8,8 @@ import { findPath } from "../src/pathfind";
 import { mulberry32 } from "../src/rng";
 import { slipAccel } from "../src/terrain";
 import {
-  newSlip, regrip, SLIP_REACH, SLIP_REPLAN_MS, slipStep, slipWalk, sweepX, sweepY, type SlipState,
+  newSlip, regrip, SLIP_GRIP_MS, SLIP_REACH, SLIP_REPLAN_MS, SLIP_STUCK_REPLANS, SLIP_STUCK_WINDOW_MS, slipStep, slipWalk, sweepX,
+  sweepY, type SlipState,
 } from "../src/walk";
 
 const W = 80;
@@ -129,6 +130,27 @@ describe("the slide's numbers", () => {
     expect(s.vx).toBeCloseTo(21.25, 12);
   });
 
+  it("a NaN cap plants the fighter like a root: no NaN ever reaches the position", () => {
+    const map = arena();
+    for (const cap of [NaN, -1, 0]) {
+      const p = { x: 100, y: 600 };
+      const s = newSlip(p.x, p.y, PLAYER_SPEED, 40);
+      const path = [{ x: 900, y: 600 }];
+      const r = slipStep(map, p, s, path, DT, cap, ACCEL, R);
+      expect([p.x, p.y, s.vx, s.vy], `cap ${cap}`).toEqual([100, 600, 0, 0]);
+      expect(r).toEqual({ hit: false, reached: 0, moved: 0 });
+      expect(path).toHaveLength(1);
+    }
+    // And through the walk, with the grip on too.
+    const p = { x: 100, y: 600 };
+    const s = newSlip(p.x, p.y, PLAYER_SPEED, 0);
+    s.gripUntil = 1e9;
+    const path = [{ x: 900, y: 600 }];
+    slipWalk(map, p, s, path, 100, NaN, () => ACCEL, 0, R);
+    expect(Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(s.vx) && Number.isFinite(s.vy)).toBe(true);
+    expect([p.x, p.y, s.vx, s.vy]).toEqual([100, 600, 0, 0]);
+  });
+
   it("scales the top speed by cap (a chill or a buff changes the cap, not the traction)", () => {
     const map = arena();
     const p = { x: 100, y: 600 };
@@ -171,6 +193,43 @@ describe("waypoints", () => {
     expect(maxX - 600).toBeGreaterThan(20);
     expect(maxX - 600).toBeLessThan(60);
     expect(dist(p, goal)).toBeLessThan(1e-9);
+  });
+
+  it("the gate takes a corner the fighter crosses far from the waypoint, which the reach alone would not", () => {
+    const map = arena();
+    // 20 u short of the waypoint at full speed, heading across the leg: the body swings out and crosses the gate line (x = 600)
+    // far above the waypoint, where the reach rule (4 u) says nothing.
+    const run = (reachOnly: boolean): { consumedAt: number; dist: number; fromX: number; arrivedAt: number } => {
+      const p = { x: 580, y: 1000 };
+      const s = newSlip(p.x, p.y, 0, -PLAYER_SPEED);
+      const path = [{ x: 600, y: 1000 }, { x: 600, y: 200 }];
+      let consumedAt = -1, dist0 = 0, fromX = 0, arrivedAt = -1;
+      for (let i = 0; i < 300 && path.length > 0; i++) {
+        if (reachOnly && path.length > 1) {
+          // The gate never fires: the anchor sits on the fighter's side of the waypoint, so the gate line is behind the fighter.
+          const w = path[0]!;
+          const d = dist(p, w);
+          s.path = path;
+          if (d > 0) { s.ax = w.x + ((p.x - w.x) / d) * 100; s.ay = w.y + ((p.y - w.y) / d) * 100; }
+        }
+        const before = { x: p.x, y: p.y };
+        const w0 = path[0]!;
+        const len = path.length;
+        slipStep(map, p, s, path, DT, PLAYER_SPEED, ACCEL, R);
+        if (consumedAt < 0 && path.length < len) { consumedAt = i; dist0 = dist(before, w0); fromX = before.x; }
+        if (path.length === 0) arrivedAt = i;
+      }
+      return { consumedAt, dist: dist0, fromX, arrivedAt };
+    };
+    const gate = run(false);
+    expect(gate.consumedAt).toBeGreaterThanOrEqual(0);
+    expect(gate.fromX).toBeGreaterThanOrEqual(600); // past the line through the waypoint across the incoming leg...
+    expect(gate.dist).toBeGreaterThan(5 * SLIP_REACH); // ...and far from the waypoint itself
+    expect(gate.arrivedAt).toBeGreaterThan(gate.consumedAt);
+    const reach = run(true);
+    expect(reach.dist).toBeLessThanOrEqual(SLIP_REACH + 1e-9);
+    expect(reach.consumedAt).toBeGreaterThan(gate.consumedAt + 10);
+    expect(reach.arrivedAt).toBeGreaterThan(gate.arrivedAt);
   });
 
   it("a waypoint within SLIP_REACH is passed whatever the gate says", () => {
@@ -418,6 +477,251 @@ describe("slipWalk", () => {
     slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, now, R);
     expect(s.replanAt).toBe(at);
     expect(path).toHaveLength(1);
+  });
+});
+
+describe("the livelock breaker", () => {
+  const TS = TILE;
+  const tc = (t: number): number => t * TS + TS / 2;
+
+  /** A one-tile corridor on row 5 with a one-tile corridor down column 10: the review's T-junction, all of it ice. */
+  function tJunction(): GameMap {
+    const w = 24, h = 16;
+    const tiles = new Uint8Array(w * h).fill(TILE_WALL);
+    for (let x = 1; x < w - 1; x++) tiles[5 * w + x] = TILE_FLOOR;
+    for (let y = 5; y < 13; y++) tiles[y * w + 10] = TILE_FLOOR;
+    return mapFromTiles(w, h, tiles);
+  }
+
+  it("a T-junction of one-tile corridors, all ice: the fighter arrives within 8 s and never touches a wall", () => {
+    const map = tJunction();
+    const p = { x: tc(3), y: tc(5) };
+    const goal = { x: tc(10), y: tc(12) };
+    const path = findPath(map, p, goal, R);
+    expect(path).toEqual([{ x: tc(10), y: tc(5) }, goal]);
+    const s = newSlip(p.x, p.y, 0, 0);
+    let now = 0;
+    let replans = 0;
+    let replanAt = s.replanAt;
+    let gripAt = -1;
+    let arrivedAt = -1;
+    for (let tick = 0; tick < 400 && arrivedAt < 0; tick++) {
+      now += TICK_MS;
+      slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, now, R);
+      if (s.replanAt !== replanAt) { replans++; replanAt = s.replanAt; }
+      if (gripAt < 0 && s.gripUntil !== undefined) gripAt = tick;
+      expect(circleClear(map, p, R - 1e-6), `tick ${tick} at ${p.x}, ${p.y}`).toBe(true);
+      if (path.length === 0) arrivedAt = tick;
+    }
+    expect(arrivedAt, "arrived").toBeGreaterThanOrEqual(0);
+    expect(arrivedAt * TICK_MS).toBeLessThan(8000);
+    expect(dist(p, goal)).toBeLessThan(1e-9);
+    // The breaker is what did it: exactly the third stuck re-plan started the grip.
+    expect(gripAt).toBeGreaterThanOrEqual(0);
+    expect(replans).toBe(SLIP_STUCK_REPLANS);
+    expect(s.gripUntil).toBeLessThanOrEqual(now + SLIP_GRIP_MS);
+  });
+
+  it("random one-tile corridor mazes, ice everywhere: every walk from rest arrives", () => {
+    let trials = 0;
+    for (let m = 0; m < 6; m++) {
+      const rnd = mulberry32(900 + m);
+      const w = 30 + Math.floor(rnd() * 30), h = 20 + Math.floor(rnd() * 15);
+      const tiles = new Uint8Array(w * h).fill(TILE_WALL);
+      for (let y = 2; y < h - 2; y += 3) for (let x = 1; x < w - 1; x++) tiles[y * w + x] = TILE_FLOOR;
+      for (let x = 2; x < w - 2; x += 5) for (let y = 2; y < h - 2; y++) tiles[y * w + x] = TILE_FLOOR;
+      const map = mapFromTiles(w, h, tiles);
+      const floor = (): Vec2 => {
+        for (;;) {
+          const q = { x: (1 + rnd() * (w - 2)) * TILE, y: (1 + rnd() * (h - 2)) * TILE };
+          if (circleClear(map, q, R)) return q;
+        }
+      };
+      for (let k = 0; k < 4; k++) {
+        const p = floor();
+        const path = findPath(map, p, floor(), R);
+        if (path.length === 0) continue;
+        trials++;
+        const s = newSlip(p.x, p.y, 0, 0);
+        let now = 0;
+        for (let tick = 0; tick < 20 * 90 && path.length > 0; tick++) {
+          now += TICK_MS;
+          slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, now, R);
+        }
+        expect(path.length, `maze ${m} trial ${k}`).toBe(0);
+      }
+    }
+    expect(trials).toBeGreaterThan(15);
+  });
+
+  describe("counting stuck re-plans", () => {
+    /** A body at a wall face, moving into it, its walk blocked: one slipWalk call makes the stuck re-plan. */
+    function stuckAt(now: number, pre: Partial<SlipState>): { s: SlipState; path: Vec2[]; goal: Vec2; d: number } {
+      const map = arena(W, H, (tiles, w) => { for (let y = 3; y < H - 1; y++) tiles[y * w + 30] = TILE_WALL; });
+      const p = { x: 30 * TILE - R - 1, y: 20 * TILE };
+      const s: SlipState = { ...newSlip(p.x, p.y, PLAYER_SPEED, 0), ...pre };
+      const goal = { x: 40 * TILE, y: 20 * TILE };
+      const path = [goal];
+      slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, now, R);
+      expect(s.replanAt, "the re-plan fired").toBe(now + SLIP_REPLAN_MS);
+      return { s, path, goal, d: dist({ x: 30 * TILE - R, y: 20 * TILE }, goal) };
+    }
+    const NOW = 5000;
+
+    it("the first re-plan only starts the count", () => {
+      const { s, goal } = stuckAt(NOW, {});
+      expect([s.stuckX, s.stuckY, s.stuckN, s.stuckAt]).toEqual([goal.x, goal.y, 1, NOW]);
+      expect(s.stuckBest).toBeGreaterThan(0);
+      expect(s.gripUntil).toBeUndefined();
+    });
+
+    it("the third in a row, within the window and with no progress, grips for SLIP_GRIP_MS and starts the count over", () => {
+      const goal = { x: 40 * TILE, y: 20 * TILE };
+      const two = stuckAt(NOW, { stuckX: goal.x, stuckY: goal.y, stuckN: SLIP_STUCK_REPLANS - 1, stuckBest: 330, stuckAt: NOW - 900 });
+      expect(two.s.gripUntil).toBe(NOW + SLIP_GRIP_MS);
+      expect(two.s.stuckN).toBe(0);
+      const one = stuckAt(NOW, { stuckX: goal.x, stuckY: goal.y, stuckN: SLIP_STUCK_REPLANS - 2, stuckBest: 330, stuckAt: NOW - 900 });
+      expect(one.s.gripUntil).toBeUndefined();
+      expect(one.s.stuckN).toBe(SLIP_STUCK_REPLANS - 1);
+    });
+
+    it("progress toward the goal, a long pause, or another goal starts the count over", () => {
+      const goal = { x: 40 * TILE, y: 20 * TILE };
+      const base = { stuckX: goal.x, stuckY: goal.y, stuckN: SLIP_STUCK_REPLANS - 1, stuckBest: 330, stuckAt: NOW - 900 };
+      // The body is a tile or more closer than the best so far: that is progress.
+      const progress = stuckAt(NOW, { ...base, stuckBest: 330 + TILE + 10 });
+      expect([progress.s.gripUntil, progress.s.stuckN]).toEqual([undefined, 1]);
+      expect(progress.s.stuckBest).toBeCloseTo(progress.d, 6);
+      // Within a tile of the best is not.
+      const near = stuckAt(NOW, { ...base, stuckBest: progress.d + TILE - 1 });
+      expect(near.s.gripUntil).toBe(NOW + SLIP_GRIP_MS);
+      const late = stuckAt(NOW, { ...base, stuckAt: NOW - SLIP_STUCK_WINDOW_MS - 1 });
+      expect([late.s.gripUntil, late.s.stuckN]).toEqual([undefined, 1]);
+      const onTime = stuckAt(NOW, { ...base, stuckAt: NOW - SLIP_STUCK_WINDOW_MS });
+      expect(onTime.s.gripUntil).toBe(NOW + SLIP_GRIP_MS);
+      const other = stuckAt(NOW, { ...base, stuckX: goal.x + 1 });
+      expect([other.s.gripUntil, other.s.stuckN, other.s.stuckX]).toEqual([undefined, 1, goal.x]);
+    });
+
+    it("the SLIP_REPLAN_MS throttle still bounds the count: one re-plan per interval", () => {
+      const map = arena(W, H, (tiles, w) => { for (let y = 3; y < H - 1; y++) tiles[y * w + 30] = TILE_WALL; });
+      const p = { x: 30 * TILE - R - 1, y: 20 * TILE };
+      const s = newSlip(p.x, p.y, PLAYER_SPEED, 0);
+      const path = [{ x: 40 * TILE, y: 20 * TILE }];
+      for (let i = 0; i < 4; i++) {
+        s.vx = PLAYER_SPEED;
+        p.x = 30 * TILE - R - 1;
+        path.splice(0, path.length, { x: 40 * TILE, y: 20 * TILE });
+        slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, 1000 + i * 50, R);
+      }
+      expect(s.stuckN).toBe(1); // four hits inside one 250 ms interval: one re-plan
+    });
+  });
+
+  describe("the grip", () => {
+    it("walks the path exactly at cap, keeps the walk's velocity, and takes the waypoints it passes", () => {
+      const map = arena();
+      const p = { x: 100, y: 600 };
+      const s = newSlip(p.x, p.y, 0, 0);
+      s.gripUntil = 10_000;
+      const path = [{ x: 200, y: 600 }, { x: 200, y: 900 }];
+      const step = PLAYER_SPEED * DT;
+      for (let i = 1; i <= 4; i++) {
+        const r = slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, 1000, R);
+        expect(p.x).toBeCloseTo(100 + i * step, 9); // no acceleration ramp
+        expect(r.moved).toBeCloseTo(step, 9);
+        expect(s.vx).toBeCloseTo(PLAYER_SPEED, 9);
+      }
+      // A tick that passes the corner turns it exactly, at the same speed.
+      let reached = 0;
+      for (let i = 0; i < 10; i++) reached += slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, 1000, R).reached;
+      expect(reached).toBe(1);
+      expect(p.x).toBe(200);
+      expect(p.y).toBeGreaterThan(600);
+      expect(s.vy).toBeCloseTo(PLAYER_SPEED, 9);
+      expect(path).toHaveLength(1);
+      // It reaches the end of the path exactly, with no braking distance, and stops.
+      for (let i = 0; i < 40; i++) slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, 1000, R);
+      expect(path).toHaveLength(0);
+      expect([p.x, p.y]).toEqual([200, 900]);
+      expect([s.vx, s.vy]).toEqual([0, 0]);
+    });
+
+    it("honours the cap, plants on a root, and is off the moment the centre leaves slippery ground", () => {
+      const map = arena();
+      const p = { x: 100, y: 600 };
+      const s = newSlip(p.x, p.y, 0, 0);
+      s.gripUntil = 10_000;
+      const path = [{ x: 900, y: 600 }];
+      slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED * 0.5, () => ACCEL, 0, R);
+      expect(p.x).toBeCloseTo(100 + PLAYER_SPEED * 0.5 * DT, 9);
+      const x = p.x;
+      slipWalk(map, p, s, path, TICK_MS, 0, () => ACCEL, 0, R);
+      expect([p.x, s.vx]).toEqual([x, 0]);
+      slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => 0, 0, R);
+      expect(p.x).toBe(x);
+    });
+
+    it("a path it was not anchored on is checked like regrip checks it: a blocked first leg is planned again", () => {
+      const map = arena(W, H, (tiles, w) => { for (let y = 3; y < H - 1; y++) tiles[y * w + 30] = TILE_WALL; });
+      const p = { x: 28 * TILE, y: 20 * TILE };
+      const s = newSlip(p.x, p.y, 0, 0);
+      s.gripUntil = 10_000;
+      const goal = { x: 40 * TILE, y: 20 * TILE };
+      const path = [goal]; // straight through the wall
+      slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, 0, R);
+      expect(path.length).toBeGreaterThan(1);
+      expect(path[path.length - 1]).toEqual(goal);
+      for (let i = 0; i < 400 && path.length > 0; i++) {
+        slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, 0, R);
+        expect(circleClear(map, p, R - 1e-6), `tick ${i}`).toBe(true);
+      }
+      expect(path).toHaveLength(0);
+    });
+
+    it("ends at gripUntil: the slide takes over from the walk's velocity, with no speed pop", () => {
+      const map = arena();
+      const p = { x: 100, y: 600 };
+      const s = newSlip(p.x, p.y, 0, 0);
+      s.gripUntil = 400;
+      const path = [{ x: 2400, y: 600 }];
+      let now = 0;
+      const xs: number[] = [p.x];
+      for (let i = 0; i < 12; i++) {
+        now += TICK_MS;
+        slipWalk(map, p, s, path, TICK_MS, PLAYER_SPEED, () => ACCEL, now, R);
+        xs.push(p.x);
+      }
+      const steps = xs.slice(1).map((x, i) => x - xs[i]!);
+      // Ticks 1..7 (now 50..350) are gripped and exact; the slide takes over at now = 400 from the walk's vx = PLAYER_SPEED. A slide
+      // that started from rest would cover 4.25 u in its first tick.
+      for (let i = 0; i < 12; i++) expect(steps[i], `tick ${i + 1}`).toBeCloseTo(PLAYER_SPEED * DT, 9);
+      expect(s.vx).toBeCloseTo(PLAYER_SPEED, 9);
+    });
+
+    it("a clock that ran back never holds the grip longer than SLIP_GRIP_MS", () => {
+      const map = arena();
+      const p = { x: 100, y: 600 };
+      const s = newSlip(p.x, p.y, 0, 0);
+      s.gripUntil = 1e9;
+      slipWalk(map, p, s, [{ x: 900, y: 600 }], TICK_MS, PLAYER_SPEED, () => ACCEL, 2000, R);
+      expect(s.gripUntil).toBe(2000 + SLIP_GRIP_MS);
+    });
+  });
+
+  it("a slide that never gets stuck never grows the breaker's fields: the state is what it always was", () => {
+    const map = arena(60, 30);
+    const rnd = mulberry32(5);
+    const p = { x: 10 * TILE + 16, y: 10 * TILE + 16 };
+    const s = newSlip(p.x, p.y, 0, 0);
+    let path: Vec2[] = [];
+    let now = 0;
+    for (let t = 0; t < 60000; t += 50) {
+      if (t % 250 === 0) path = findPath(map, p, { x: (2 + rnd() * 56) * TILE, y: (2 + rnd() * 26) * TILE }, R);
+      now += 50;
+      slipWalk(map, p, s, path, 50, PLAYER_SPEED, () => ACCEL, now, R);
+    }
+    expect(Object.keys(s).sort()).toEqual(["ax", "ay", "path", "replanAt", "vx", "vy"]);
   });
 });
 
