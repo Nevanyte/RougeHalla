@@ -31,7 +31,7 @@ import type { PlayerState } from "@raid/shared/schema";
 import { absorbShield } from "./buffs";
 import { announceBounty, mobRewardFor } from "./feed";
 import { recordHit } from "./ledger";
-import { releaseTrigger } from "./weapons";
+import { dropLock, releaseTrigger } from "./weapons";
 import { emit, payLater, type PlayerRuntime, type World } from "./world";
 
 /** The player dealing damage, when it comes from a player (for kill credit and the death fx). */
@@ -387,6 +387,11 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
   const winner = !draw && winners.length === 1 ? winners[0]! : null;
   s.winner = winner?.p.name ?? "";
   s.phase = "ended";
+  // Nothing is fought after the end: a lock the winner still held would stay synced through the linger.
+  for (const [id, rt] of world.players) {
+    const p = s.players.get(id);
+    if (p) dropLock({ kind: "player", id, s: p, rt });
+  }
   s.patienceEndsAt = 0;
   s.gatesLocked = false;
   s.suddenDeathAt = 0;

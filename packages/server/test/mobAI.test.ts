@@ -461,7 +461,7 @@ describe("melee mobs", () => {
     expect(mob.rt.weapon.aim).toBe(exact);
   });
 
-  it("lets go of the trigger at the exact angle too, and a bow looses at the angle of the moment", () => {
+  it("lets go of the trigger at the exact angle too, and a bow mob's arrows carry the angle of the moment", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced");
     put(rig.world, "p0", HOME.x, HOME.y + 60);
@@ -480,39 +480,50 @@ describe("melee mobs", () => {
     run(rig, 1);
     expect(mob.s.facing).toBeCloseTo(exact, 9);
 
-    // A bow mob's shots carry the angle of the moment: each release names the lead it computed.
+    // A bow mob's arrows carry the angle of the moment: the draw starts on the aim it has then, led at the target.
     const rig2 = makeRig();
     const archer = spawn(rig2.world, "plague");
     displace(rig2.world, archer, HOME.x - 100, HOME.y);
     put(rig2.world, "p0", HOME.x + 100, HOME.y);
-    const log2 = spy(rig2.world, archer);
     aggro(rig2.world, archer, "p0", 10);
     walk(rig2.world, "p0", HOME.x + 100, HOME.y - 300);
-    run(rig2, 40);
-    const releases = log2.filter((l) => l.kind === "release");
-    expect(releases.length).toBeGreaterThanOrEqual(1);
+    const arrows = (rig: Rig, owner: string, seen: Set<string>, out: number[]) => () => {
+      for (const [id, pr] of rig.world.projectiles) {
+        if (pr.owner === owner && !seen.has(id)) {
+          seen.add(id);
+          out.push(Math.atan2(pr.launch.vy, pr.launch.vx));
+        }
+      }
+    };
+    const led: number[] = [];
+    run(rig2, 40, arrows(rig2, archer.id, new Set(), led));
+    expect(led.length).toBeGreaterThanOrEqual(1);
     // The target is running toward -y: each shot is led that way, and none is the plain bearing (0).
-    for (const r of releases) expect(r.a!).toBeLessThan(-0.01);
+    for (const a of led) expect(a).toBeLessThan(-0.01);
 
-    // Standing still one degree off the aim it already sent, the target is not worth a new aim, but the arrow goes at it.
+    // Standing still, a degree off the aim it sent: the target is not worth a new aim, and the arrows go within the
+    // deadband of where it stands (the first, pressed with the exact angle, goes exactly there).
     const rig3 = makeRig();
     const bow = spawn(rig3.world, "plague");
     displace(rig3.world, bow, HOME.x - 100, HOME.y);
-    put(rig3.world, "p0", HOME.x + 100, HOME.y);
-    const log3 = spy(rig3.world, bow);
-    aggro(rig3.world, bow, "p0", 10);
-    run(rig3, 1);
     const a1 = (1 * Math.PI) / 180;
     // In range (a bow reaches 240 u), so the archer stands where it is and the angle it names can be compared exactly.
     put(rig3.world, "p0", bow.s.x + 200 * Math.cos(a1), bow.s.y + 200 * Math.sin(a1));
-    run(rig3, 40);
-    const loose = log3.find((l) => l.kind === "release");
-    expect(loose).toBeDefined();
+    const log3 = spy(rig3.world, bow);
+    aggro(rig3.world, bow, "p0", 10);
+    const flown: number[] = [];
+    run(rig3, 80, arrows(rig3, bow.id, new Set(), flown));
+    const press = log3.find((l) => l.kind === "attack");
+    expect(press).toBeDefined();
     const target = rig3.world.state.players.get("p0")!;
-    expect(loose!.a).toBe(Math.atan2(target.y - bow.s.y, target.x - bow.s.x));
-    expect(loose!.a!).toBeGreaterThan(0.01);
+    const bearing = Math.atan2(target.y - bow.s.y, target.x - bow.s.x);
+    expect(press!.a).toBe(bearing);
+    expect(bearing).toBeGreaterThan(0.01);
+    expect(flown.length).toBeGreaterThanOrEqual(2);
+    expect(flown[0]).toBeCloseTo(bearing, 12);
+    for (const a of flown) expect(Math.abs(a - bearing)).toBeLessThan(MOB_AIM_DEADBAND);
     expect(log3.filter((l) => l.kind === "aim")).toHaveLength(1);
-    expect(bow.rt.weapon.aim).toBe(loose!.a);
+    expect(log3.filter((l) => l.kind === "release")).toEqual([]); // the trigger stays down: the bow draws again by itself
   });
 });
 
@@ -572,10 +583,10 @@ describe("ranged mobs", () => {
     expect(d).toBeLessThanOrEqual(pol.far + 1);
     expect(mob.rt.path).toEqual([]);
     expect(brain(mob).mode).toBe("fight");
-    // The trigger goes down, up at full draw, down again: attack, release, attack, release...
+    // The trigger goes down once and stays down while the target is in range: the draw is a fixed windup, so the bow
+    // draws again by itself and there is nothing to release at full draw.
     const triggers = log.filter((l) => l.kind === "attack" || l.kind === "release").map((l) => l.kind);
-    expect(triggers.length).toBeGreaterThanOrEqual(4);
-    triggers.forEach((k, i) => expect(k).toBe(i % 2 === 0 ? "attack" : "release"));
+    expect(triggers).toEqual(["attack"]);
   });
 
   it("a wand mob closes to its far distance, then stands and casts", () => {
@@ -645,9 +656,10 @@ describe("ranged mobs", () => {
     displace(rig.world, mob, HOME.x - 150, HOME.y);
     put(rig.world, "p0", HOME.x + 100, HOME.y - 100);
     aggro(rig.world, mob, "p0", 10);
-    // The target paces up and down across the mob's line at full speed.
+    // The target paces up and down across the mob's line at full speed, a leg lasting 1.5 s. (The draw is a committed
+    // windup now, so a target that turned every half second could dodge a lead computed for a straight run.)
     const hits = hitsOn(run(rig, 240, (i) => {
-      if (i % 10 === 0) walk(rig.world, "p0", HOME.x + 100, i % 20 === 0 ? HOME.y + 100 : HOME.y - 100);
+      if (i % 30 === 0) walk(rig.world, "p0", HOME.x + 100, i % 60 === 0 ? HOME.y + 100 : HOME.y - 100);
     }), "p0");
     expect(hits.length).toBeGreaterThanOrEqual(2);
   });
@@ -1203,6 +1215,7 @@ describe("ranged mobs in a chase", () => {
   function chase(rig: Rig, mob: MobCombatant, weapon: WeaponId, ticks: number, each?: () => void) {
     const p = rig.world.state.players.get("p0")!;
     const windows: number[] = [];
+    const gaps: number[] = [];
     let farthest = 0;
     const modes = new Set<string>();
     for (let i = 0; i < ticks; i++) {
@@ -1213,10 +1226,11 @@ describe("ranged mobs in a chase", () => {
       const hits = hitsOn(run(rig, 1), "p0").filter((h) => h.by === mob.id && h.weapon === weapon).length;
       windows[Math.floor(i / 100)] = (windows[Math.floor(i / 100)] ?? 0) + hits;
       farthest = Math.max(farthest, dist(mob.s, HOME));
+      gaps.push(dist(mob.s, p));
       modes.add(brain(mob).mode);
       each?.();
     }
-    return { windows, farthest, modes };
+    return { windows, farthest, modes, gaps };
   }
 
   it.each([
@@ -1233,15 +1247,19 @@ describe("ranged mobs in a chase", () => {
       const p = rig.world.state.players.get("p0")!;
       put(rig.world, "p0", mob.s.x + 150, mob.s.y);
       aggro(rig.world, mob, "p0", 10);
-      const { windows, farthest, modes } = chase(rig, mob, weapon, 600);
+      const { windows, farthest, modes, gaps } = chase(rig, mob, weapon, 600);
       expect(farthest).toBeLessThanOrEqual(MOB_LEASH_RADIUS);
       expect([...modes]).toEqual(["fight"]);
       // It lands shots throughout: no stretch of five seconds goes by without one, from the first window to the last.
       expect(windows).toHaveLength(6);
       for (const w of windows) expect(w).toBeGreaterThanOrEqual(1);
-      // The chaser has been on it all along (it is nearer than the mob likes), yet the mob is still fighting there.
+      // The chaser has been on it all along (nearer than the mob likes), yet the mob is still fighting there. The mob walks
+      // off between shots and the chaser closes while it is rooted for the next one, so the gap swings: judge it by its mean
+      // over the last ten seconds, and by the chaser reaching it again and again.
+      const last = gaps.slice(-200);
+      expect(last.reduce((a, b) => a + b, 0) / last.length).toBeLessThan(POLICIES[weapon].retreatBelow);
+      expect(last.filter((g) => g < CONTACT + 10).length).toBeGreaterThanOrEqual(5);
       expect(dist(mob.s, p)).toBeLessThan(POLICIES[weapon].retreatBelow);
-      expect(dist(mob.s, p)).toBeLessThan(CONTACT + 10);
     },
   );
 
@@ -1272,31 +1290,36 @@ describe("ranged mobs in a chase", () => {
 });
 
 describe("the bow", () => {
-  it("is loosed at full draw, within a tick of it, every time", () => {
+  it("is loosed when its fixed draw ends, within a tick of it, every time, always for full damage", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "plague");
     displace(rig.world, mob, HOME.x - 150, HOME.y);
     put(rig.world, "p0", HOME.x + 150, HOME.y);
     aggro(rig.world, mob, "p0", 10);
-    const fullDrawMs = timingsOf(mob.s, "bow")!.fullDraw * 1000;
-    const drawn: number[] = [];
+    const fullDrawMs = timingsOf(mob.s, "bow")!.windup * 1000;
+    // A draw's start (drawStartedAt) and the tick its arrow was first seen in the world, in order. The next draw can begin in the very
+    // tick the last arrow leaves (the cooldown is the interval from the start, a little longer than the draw), so the start is
+    // read off its value changing, not off a pause at 0.
+    const starts: number[] = [];
+    const leftAt: number[] = [];
     const packets = new Map<string, number>();
-    let started = 0;
     for (let i = 0; i < 400; i++) {
       run(rig, 1);
       const startedAt = mob.s.drawStartedAt;
-      // drawStartedAt falls back to 0 in the tick the arrow leaves, which is the tick the draw ended.
-      if (started > 0 && startedAt === 0) drawn.push(rig.world.state.serverTime - started);
-      started = startedAt;
-      for (const [id, pr] of rig.world.projectiles) if (pr.owner === mob.id) packets.set(id, pr.packet.raw);
+      if (startedAt > 0 && startedAt !== starts[starts.length - 1]) starts.push(startedAt);
+      for (const [id, pr] of rig.world.projectiles) {
+        if (pr.owner !== mob.id || packets.has(id)) continue;
+        packets.set(id, pr.packet.raw);
+        leftAt.push(rig.world.state.serverTime);
+      }
     }
-    expect(drawn.length).toBeGreaterThanOrEqual(5);
-    for (const d of drawn) {
+    expect(leftAt.length).toBeGreaterThanOrEqual(5);
+    for (const [i, t] of leftAt.entries()) {
+      const d = t - starts[i]!;
       expect(d).toBeGreaterThanOrEqual(fullDrawMs - 1e-6);
       expect(d).toBeLessThan(fullDrawMs + TICK_MS);
     }
-    // Every arrow was a full-draw one, so they all carry the same damage (a short draw would carry less).
-    expect(packets.size).toBe(drawn.length);
+    // Every arrow was a full-draw one, so they all carry the same damage.
     expect(new Set([...packets.values()].map((raw) => raw.toFixed(6))).size).toBe(1);
   });
 });

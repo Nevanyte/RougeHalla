@@ -20,6 +20,7 @@ BY, WEAPONS, WNAMES, SIG = W.BY, W.WEAPONS, W.WNAMES, W.SIG
 print(f"=== {W.NAME}")
 print("factions:", {n: (p.rate, p.hit, round(p.rate * p.hit, 2)) for n, p in BY.items()}, "backlash", BY["Fire"].params["backlash"])
 print("weapons:", {w: (f"+{v['speed']*100:.0f}%", v["dps"], v["floor"]) for w, v in WEAPONS.items()})
+print("windups (cap s, share of interval):", {w: (v["windup"], v["wshare"]) for w, v in WEAPONS.items()})
 
 
 def S(f, w, **kw):
@@ -98,11 +99,12 @@ if "sig" in want:
         print(f"  {a+'>'+b:17s} {SIG[a]}/{SIG[b]} {st['rate']*100:3.0f}% worst {st['worst']*100:5.1f}% t~{st['t']:4.1f}s | cross fails: {' '.join(bad) or 'none'}", flush=True)
 
 if "kite" in want:
-    print("\n[kite] seconds the melee winner can arrive late and still win (>=50%), vs free-fire time on approach (Tff)")
+    print("\n[kite] seconds the melee winner can arrive late and still win (>=50%), vs the free-fire time on approach:")
+    print("       Tff = a shooter that stands, orb = one that walks away between shots (rooted for its windup); STOLEN = weakest tolerance < orb")
     for a, b, cells in W.kite_rows():
         row = ""
-        for wb, (t, tff) in cells.items():
-            row += f"  {wb}: " + " ".join(f"{k[:2]}{v:6.2f}" for k, v in t.items()) + f" (Tff {tff:4.2f}{' STOLEN' if min(t.values()) < tff else ''})"
+        for wb, (t, tff, tff_orb) in cells.items():
+            row += f"  {wb}: " + " ".join(f"{k[:2]}{v:6.2f}" for k, v in t.items()) + f" (Tff {tff:4.2f} orb {tff_orb:5.2f} x{min(t.values()) / tff_orb:5.3f}{' STOLEN' if min(t.values()) < tff_orb else ''})"
         print(f"  {a+'>'+b:17s}{row}", flush=True)
 
 if "buff" in want:

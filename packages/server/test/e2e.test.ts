@@ -1,7 +1,7 @@
 // The whole game, end to end: the real server in this process on a free port, a temp profile file, short
 // timers, regional mobs on (the server's default), and four headless bots (src/bots) that farm the mobs and hunt each
-// other through one complete run by sending inputs only: they walk, aim, draw and loose their bows, swing, swap weapons
-// and pick up a second one (a mob's drop too). Each asks for its faction at join, as the hub's picker does, and the server
+// other through one complete run by sending inputs only: they walk, lock their foes (the server chases them and attacks:
+// the LoL-style controls), swap weapons and pick up a second one (a mob's drop too). Each asks for its faction at join, as the hub's picker does, and the server
 // must have given it that one. Three play it out; the fourth walks out a second into the run, which the server must settle
 // as MIA (it leaves, so it may never see its result: that one is checked through the store). What is asserted is what must
 // hold whoever wins: the run ended in one winner or a draw, every bot that stayed got exactly one sensible result, the GV
@@ -263,7 +263,7 @@ async function playRun(
     const mobKills = sum(bots.map((b) => mobDeathBy(b.sessionId)));
     console.log(
       `[e2e] seed ${bots[0]!.seed} ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}(${lineup[i]})=${results.get(i)?.outcome ?? "quit"}`).join(" ")}`
-      + ` (sent ${sent("attack")} attacks, ${sent("release")} releases, ${sent("swap")} swaps, ${sent("pickup")} pickups;`
+      + ` (sent ${sent("target")} targets, ${sent("move")} moves, ${sent("swap")} swaps, ${sent("pickup")} pickups;`
       + ` ${mobKills} mobs killed: ${bots.map((b) => mobDeathBy(b.sessionId)).join("/")})`,
     );
 
@@ -292,9 +292,13 @@ async function playRun(
       }
     }
 
-    // --- the bots fought with their weapons: every one that stayed pulled the trigger, and some hit another
-    for (const i of players) expect(bots[i]!.sent.attack, `${names[i]} never attacked`).toBeGreaterThanOrEqual(1);
-    // ...and none stood stuck: the longest time a bot stood still, alive in the running raid, doing nothing (no attack, no draw, no
+    // --- the bots fought with their weapons: every one that stayed locked on a foe (it never sends the trigger itself), and some hit another
+    for (const i of players) expect(bots[i]!.sent.target, `${names[i]} never locked a foe`).toBeGreaterThanOrEqual(1);
+    for (const i of players) {
+      const { aim, attack, release } = bots[i]!.sent;
+      expect(aim + attack + release, `${names[i]} streamed aim or the trigger`).toBe(0);
+    }
+    // ...and none stood stuck: the longest time a bot stood still, alive in the running raid, doing nothing (no attack, no
     // weapon fetch) stays short, whatever it was chasing.
     for (const i of players) expect(bots[i]!.stats.maxStallMs, `${names[i]} stood still for ${bots[i]!.stats.maxStallMs} ms`).toBeLessThan(MAX_STALL_MS);
     expect(fx.some((f) => f.kind === "hit" && isPlayer(f.by)), "no bot ever hit anything").toBe(true);

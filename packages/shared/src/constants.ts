@@ -43,10 +43,11 @@ export const WEAPON_SLOTS = 2;
  * Anti-kiting: with the coliseum gates open, mapgen guarantees that every straight strip SIGHT_CORRIDOR_WIDTH (one
  * tile) wide, at any angle and offset, runs at most MAX_SIGHT_CORRIDOR through open floor. Open floor includes every
  * region, the gates-closed coliseum and lines through the gates. The cap was the bow's range (480) so an archer could
- * not backpedal forever; the 9.1 tuning cut the bow to 240 and the wand to 220 (and nearly rooted them while they
- * shoot), so today it only has to stay at or above every projectile's range, and the spawn screens are certified for
- * the full 480. Narrower corridors are not guaranteed: a 24 u gap (PLAYER_RADIUS is 12, so a player fits) measured up
- * to 473 u and a 16 u gap up to about 580 u. The owner deferred those.
+ * not backpedal forever; the 9.1 tuning cut the bow to 240 and the wand to 220, and every attack now roots its shooter
+ * for a windup (the controls rework: the bow's and the wand's are what holds an orb-walking shooter to the kite check,
+ * testing/test_kite.py), so today it only has to stay at or above every projectile's range, and the spawn screens are
+ * certified for the full 480. Narrower corridors are not guaranteed: a 24 u gap (PLAYER_RADIUS is 12, so a player fits)
+ * measured up to 473 u and a 16 u gap up to about 580 u. The owner deferred those.
  */
 export const MAX_SIGHT_CORRIDOR = 480;
 export const SIGHT_CORRIDOR_WIDTH = 32;
@@ -132,18 +133,32 @@ export const SWORD_BALL_SCALE = 0.5;
 export const STAGGER_IMMUNITY_SECONDS = 0.5;
 /** Swapping weapons cancels the current action and adds this to the shared attack cooldown. */
 export const SWAP_SECONDS = 0.25;
-/**
- * Move speed multipliers: drawing a bow, a wand's cast slow, and after any ranged attack until the cooldown ends. They are
- * nearly a root on purpose (9.1 tuning): a shooter that backs away while it fires gets only a few percent more free fire
- * than one that stands, so the design's standing-shooter check (testing/realtime.py, `kite`) holds in the real sim.
- */
-export const BOW_DRAW_MOVE = 0.1;
-export const WAND_CAST_MOVE = 0.1;
-export const RANGED_RECOVERY_MOVE = 0.1;
 /** A press this long before the cooldown ends still attacks the moment it does, even if released meanwhile. */
 export const ATTACK_BUFFER_MS = 150;
 /** With no aim input for this long, walking turns a fighter again (a client that stopped aiming, such as a bot). */
 export const AIM_STALE_MS = 1000;
+
+// Target lock (the LoL-style controls): a left click locks an enemy; the server walks into range and auto-attacks it.
+/**
+ * Client: a left click locks the enemy (player or mob) whose drawn feet are nearest the cursor's ground point, within this
+ * many world units (two tiles: a forgiving click, so a near miss still locks). Nothing within it: the click does nothing.
+ */
+export const TARGET_SNAP_RADIUS = 64;
+/**
+ * Server: a `target` is accepted only within this distance (centre to centre), and a lock is dropped once its target is
+ * farther than this (it left for good). Twenty tiles: about half a screen.
+ */
+export const TARGET_RANGE = 640;
+/**
+ * A lock whose target, once seen, has been out of line of sight this long is dropped; until then the chase paths around the
+ * wall. A target locked behind a wall is chased until it is first seen.
+ */
+export const TARGET_LOS_GRACE_MS = 1500;
+/**
+ * A locked fighter re-plans its chase at most this often (the walk to a moving target), and a `target` order may cost a
+ * path search at most this often per player (an order out of sight sooner than that is refused).
+ */
+export const TARGET_REPATH_MS = 250;
 /** Training dummies (server env DUMMIES=1): no faction (no armor or shield), and back to full hp this long after a hit. */
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;

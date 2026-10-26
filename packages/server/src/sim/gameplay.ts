@@ -8,6 +8,7 @@ import { install as installMobAI } from "./mobAI";
 import { install as installMobLife } from "./mobLife";
 import { install as installMobs } from "./mobs";
 import { install as installProjectiles } from "./projectiles";
+import { install as installTargeting } from "./targeting";
 import { install as installWeapons } from "./weapons";
 import { createWorld, type World } from "./world";
 
@@ -16,6 +17,7 @@ type CreateOpts = Parameters<typeof createWorld>[0];
 const MODULES: Array<(world: World) => void> = [
   installLoot,
   installWeapons,
+  installTargeting,
   installProjectiles,
   installFactions,
   installMobs,

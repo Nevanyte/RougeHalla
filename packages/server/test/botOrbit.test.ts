@@ -1,6 +1,7 @@
 // The bot's orbit breaker (bots/BotClient.ts): a chase that goes nowhere makes it turn on someone else and avoid the
 // first for a while. What is pinned here is when that avoidance ends early, and that a weapon detour does not count
-// toward it. The brain is driven by hand over a fake room; nothing here touches a socket.
+// toward it (a bot locked on a foe and in reach of it is fighting, not chasing: botLock.test.ts). The brain is driven by
+// hand over a fake room; nothing here touches a socket.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TimedFx } from "@raid/shared";
 import { BotClient, ORBIT_JITTER_MS, ORBIT_MIN_DISTANCE, ORBIT_MS } from "../src/bots/BotClient";
@@ -16,7 +17,7 @@ interface Brain {
   onFx(fx: TimedFx): void;
   think(): void;
   grabWeapon(): boolean;
-  fight(): void;
+  fight(): boolean;
 }
 
 function brain(players: Record<string, Partial<FakePlayer>>): { b: Brain; players: Map<string, FakePlayer> } {
@@ -76,7 +77,7 @@ describe("the orbit timer during a weapon detour", () => {
     const { b } = brain({ me: {}, foe: { x: 400 } });
     let detour = true;
     b.grabWeapon = () => detour;
-    b.fight = () => {};
+    b.fight = () => false;
     (b as any).huntMobs = () => ({ kind: "player", why: "" }); // the fake room has no mobs or map for the mob hunt
     const thinkFor = (ms: number) => {
       for (let t = 0; t < ms; t += 50) { b.think(); vi.advanceTimersByTime(50); }

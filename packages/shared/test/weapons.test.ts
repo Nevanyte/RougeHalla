@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, backlashPerSwing, damagePerHit, drawDamageScale, DUEL_PACE, FACTION_IDS, FACTIONS, MAX_SIGHT_CORRIDOR,
+  attackInterval, backlashPerSwing, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, DUEL_PACE, FACTION_IDS, FACTIONS, MAX_SIGHT_CORRIDOR,
   pacedFaction, PLAYER_RADIUS, RANGED_HIT_REACH, RANGED_SLACK, SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS,
-  weaponEdge, weaponTimings, type FactionId, type WeaponId,
+  WAND_WINDUP, WAND_WINDUP_SHARE, weaponEdge, weaponTimings, type FactionId, type WeaponId,
 } from "../src/index";
 
 /**
@@ -160,53 +160,42 @@ describe("the weapon table (GAME_DESIGN 9.1)", () => {
 
 describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
   it("caps the axe root at 0.5 s or half the interval, and its windup at 0.25 s or a quarter", () => {
-    expect(weaponTimings("axe", 1.19)).toMatchObject({ windup: 0.25, root: 0.5, cooldown: 1.19 });
+    expect(weaponTimings("axe", 1.19)).toMatchObject({ windup: 0.25, root: 0.5, interval: 1.19 });
     const fast = weaponTimings("axe", 0.386);
     expect(fast.windup).toBeCloseTo(0.0965, 12);
     expect(fast.root).toBeCloseTo(0.193, 12);
   });
 
-  it("caps the wand cast at 0.2 s or 40% and its self-slow at 0.4 s or 45%", () => {
-    expect(weaponTimings("wand", 1.01)).toMatchObject({ windup: 0.2, castSlow: 0.4 });
+  it("caps the wand cast at 0.4 s or 80% of the interval, with no slow after it", () => {
+    expect([WAND_WINDUP, WAND_WINDUP_SHARE]).toEqual([0.4, 0.8]);
+    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.4, root: 0, ranged: true });
     const fast = weaponTimings("wand", 0.3276);
-    expect(fast.windup).toBeCloseTo(0.13104, 12);
-    expect(fast.castSlow).toBeCloseTo(0.14742, 12);
+    expect(fast.windup).toBeCloseTo(0.26208, 12);
+    expect(fast).not.toHaveProperty("castSlow");
   });
 
-  it("makes the bow's draw part of its interval: full draw min(0.6 s, 70%), minimum a quarter of it", () => {
-    const slow = weaponTimings("bow", 1.14);
-    expect(slow).toMatchObject({ fullDraw: 0.6, minDraw: 0.15, windup: 0 });
-    expect(slow.cooldown).toBeCloseTo(0.54, 12);
-    const fast = weaponTimings("bow", 0.2772);
-    expect(fast.fullDraw).toBeCloseTo(0.19404, 12);
-    expect(fast.minDraw).toBeCloseTo(0.04851, 12);
-    expect(fast.cooldown + fast.fullDraw).toBeCloseTo(0.2772, 12);
+  it("makes the bow's draw a fixed windup inside its interval: min(0.6 s, 92%), the same every shot", () => {
+    expect([BOW_WINDUP, BOW_WINDUP_SHARE]).toEqual([0.6, 0.92]);
+    expect(weaponTimings("bow", 1.14)).toEqual({ interval: 1.14, windup: 0.6, root: 0, ranged: true });
+    expect(weaponTimings("bow", 0.2772).windup).toBeCloseTo(0.255024, 12);
+    // No partial draws, no cooldown after the loose: the whole interval is the cycle.
+    for (const key of ["fullDraw", "minDraw", "cooldown", "castSlow"]) expect(weaponTimings("bow", 1.14)).not.toHaveProperty(key);
   });
 
-  it("lands sword and bash hits 0.1 s in, and only the ranged weapons slow after the attack", () => {
-    expect(weaponTimings("sword", 0.78)).toMatchObject({ windup: 0.1, root: 0, castSlow: 0, ranged: false });
+  it("lands sword and bash hits 0.1 s in", () => {
+    expect(weaponTimings("sword", 0.78)).toEqual({ interval: 0.78, windup: 0.1, root: 0, ranged: false });
     expect(weaponTimings("shield", 1.04)).toMatchObject({ windup: 0.1, ranged: false });
     expect(weaponTimings("bow", 0.85).ranged).toBe(true);
     expect(weaponTimings("wand", 1.0).ranged).toBe(true);
   });
 
-  it("scales bow damage linearly from 40% at the minimum draw to 100% at the full draw", () => {
-    const t = weaponTimings("bow", 1.14);
-    expect(drawDamageScale(0, t)).toBe(0.4);
-    expect(drawDamageScale(0.15, t)).toBe(0.4);
-    expect(drawDamageScale(0.375, t)).toBeCloseTo(0.7, 12);
-    expect(drawDamageScale(0.6, t)).toBe(1);
-    expect(drawDamageScale(5, t)).toBe(1);
-  });
-
-  it("a full draw every interval is the bow's best damage per second", () => {
-    const t = weaponTimings("bow", 0.85);
-    let best = 0;
-    let bestDraw = 0;
-    for (let d = t.minDraw; d <= t.fullDraw + 1e-9; d += 0.01) {
-      const dps = drawDamageScale(d, t) / (t.cooldown + d);
-      if (dps > best) { best = dps; bestDraw = d; }
+  it("every windup fits inside its interval", () => {
+    for (const w of ["sword", "bow", "wand", "shield", "axe"] as const) {
+      for (const interval of [0.1, 0.25, 0.4, 0.8, 1.2, 2]) {
+        const t = weaponTimings(w, interval);
+        expect(t.windup, `${w} ${interval}`).toBeLessThanOrEqual(interval);
+        expect(t.windup + t.root, `${w} ${interval}`).toBeLessThanOrEqual(interval + 1e-12);
+      }
     }
-    expect(bestDraw).toBeCloseTo(t.fullDraw, 1);
   });
 });

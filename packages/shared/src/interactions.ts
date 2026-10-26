@@ -11,8 +11,7 @@
 //   Wand: its ball deletes enemy arrows within BALL_ARROW_RADIUS.
 //   Swapping shares the cooldown, adds SWAP_SECONDS and cancels the current action.
 import {
-  BALL_ARROW_RADIUS, BOW_DRAW_MOVE, RANGED_RECOVERY_MOVE, RIPOSTE_SHARE, SHIELD_HALF_ARC, STAGGER_IMMUNITY_SECONDS,
-  SWAP_SECONDS, SWORD_BALL_SCALE, WAND_CAST_MOVE,
+  BALL_ARROW_RADIUS, RIPOSTE_SHARE, SHIELD_HALF_ARC, STAGGER_IMMUNITY_SECONDS, SWAP_SECONDS, SWORD_BALL_SCALE,
 } from "./constants";
 import type { Vec2 } from "./messages";
 import type { ProjectileKind, WeaponId } from "./weapons";
@@ -117,21 +116,16 @@ export function swapReadyAt(readyAt: number, now: number): number {
   return Math.max(readyAt, now) + SWAP_SECONDS * 1000;
 }
 
-/** What slows a fighter right now, from its weapon state (all times server ms). */
+/** What holds a fighter in place right now, from its weapon state (times in server ms). */
 export interface MoveState {
   now: number;
+  /** The axe's root, past its windup. */
   rootUntil: number;
-  castSlowUntil: number;
-  recoverUntil: number;
-  drawing: boolean;
+  /** An attack is winding up (a swing, a cast or the bow's draw): the windup root. */
+  windingUp: boolean;
 }
 
-/** Move speed multiplier: 0 while rooted, else the strongest of the draw, cast and ranged-recovery slows. */
+/** Move speed multiplier: 0 while an attack winds up or a root holds, else 1. Nothing else slows a fighter's walk. */
 export function moveMultiplier(m: MoveState): number {
-  if (m.now < m.rootUntil) return 0;
-  let k = 1;
-  if (m.drawing) k = Math.min(k, BOW_DRAW_MOVE);
-  if (m.now < m.castSlowUntil) k = Math.min(k, WAND_CAST_MOVE);
-  if (m.now < m.recoverUntil) k = Math.min(k, RANGED_RECOVERY_MOVE);
-  return k;
+  return m.windingUp || m.now < m.rootUntil ? 0 : 1;
 }

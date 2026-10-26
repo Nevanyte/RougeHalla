@@ -38,7 +38,7 @@ Tabs in the same browser share `localStorage`, so two tabs can load the same cal
 
 ### Playing alone
 
-Bots are headless players. They use the same HTTP API and input messages as the browser. They farm mobs while no player is close and hunt the nearest player otherwise, and they join the same lobby as everyone else. Press Start Run in your tab first, then start some:
+Bots are headless players. They use the same HTTP API and play with the same controls as the browser: they walk (`move`), click their foe (`target`) and let the server chase, attack and aim, and they swap and pick up weapons. They never send `aim`, `attack` or `release`. They farm mobs while no player is close and hunt the nearest player otherwise, and they join the same lobby as everyone else. Press Start Run in your tab first, then start some:
 
 ```bash
 npm run bots -- 3
@@ -77,25 +77,29 @@ Each faction beats exactly two others and loses to exactly two. Each weapon does
 | Weapon | Shape | Beats |
 | --- | --- | --- |
 | Sword | 90 degree swing, reach 64. A hit that is not blocked staggers. | Axe, Wand |
-| Bow | Arrow, 900 u/s, range 240. Hold to draw, release to loose: a longer draw hits harder. | Sword, Axe |
-| Wand | Ball, 380 u/s, range 220. Pierces shields and deletes enemy arrows. | Bow, Shield |
-| Shield | Raised toward the cursor (60 degrees either side); click to bash, reach 44. Blocks and reflects arrows, negates sword hits. | Sword, Bow |
-| Axe | 180 degree swing, reach 60. Pierces shields and destroys balls. Roots you while it swings. | Wand, Shield |
+| Bow | Arrow, 900 u/s, range 240. A fixed full draw (rooted), then it looses at full damage: there are no partial draws. | Sword, Axe |
+| Wand | Ball, 380 u/s, range 220. A short cast (rooted) before the ball leaves. Pierces shields and deletes enemy arrows. | Bow, Shield |
+| Shield | Raised toward the cursor, or toward your locked target (60 degrees either side); bashes its target, reach 44. Blocks and reflects arrows, negates sword hits. | Sword, Bow |
+| Axe | 180 degree swing, reach 60. Pierces shields and destroys balls. Roots you for longer than its swing takes. | Wand, Shield |
 
-Units are world units: a tile is 32. You carry two weapons, and swapping shares one attack cooldown. In 8 of the 10 faction matchups the winner's starting weapon loses the weapon edge, so the pick alone rarely decides a fight. The second weapon you go and get does. Full rules, timings and the reasons are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 8 to 10.
+Units are world units: a tile is 32. Every attack is a windup: it roots you from its start until the swing lands or the arrow or ball leaves, and then you walk freely until the next one. The windup is its design time or a share of the weapon's interval, whichever is shorter, so faster attackers wind up faster: sword and bash 0.1 s, axe 0.25 s (at most 25% of the interval; it stays rooted for 0.5 s from its start, at most 50%), wand up to 0.4 s (at most 80% of the interval), bow up to 0.6 s (at most 92%). A shooter can walk between its shots but never during one, and that, rather than a move slow, is what limits kiting (see [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) 9.5). You carry two weapons, and swapping shares one attack cooldown. In 8 of the 10 faction matchups the winner's starting weapon loses the weapon edge, so the pick alone rarely decides a fight. The second weapon you go and get does. Full rules, timings and the reasons are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 8 to 10.
 
 ### Controls
 
+Right-click to move, left-click an enemy to fight it. There is no attack button to hold: the server plays the fight once you have picked an enemy.
+
 | Input | In a run |
 | --- | --- |
-| Right-click (hold) | Walk to that point. The server pathfinds around walls. Holding re-sends the target every 100 ms. Unreachable points are ignored. |
-| Left-click (hold) | Attack toward the cursor. Holding repeats; the server enforces the cooldown. Bow: hold to draw, release to loose. |
-| Mouse position | Aim. The shield always faces the cursor. |
+| Right-click (hold) | Walk to that point. The server pathfinds around walls. Holding re-sends the target every 100 ms. An unreachable point gives no walk, but the order still drops your attack target. |
+| Left-click on or near an enemy | Lock the nearest enemy (a player or a mob) within 64 units of the cursor. The server walks you into range and attacks it whenever the cooldown allows, until you give another order, it dies, it leaves 640 units, or it stays out of line of sight for 1.5 s once you have seen it. An enemy behind a wall can be locked: you walk around to it, and nothing is attacked without a clear line. A click on empty ground does nothing. The locked enemy gets a red ring, and the one a click would lock gets a thin light ring. |
+| Mouse position | Aim for the shield: it faces the cursor while nothing is locked, and the locked enemy otherwise. |
 | `Q` | Swap to the other weapon slot. |
 | `1` / `2` | Switch to that slot. |
 | `F` | Take the highlighted weapon (chest, weapon on the ground or body) within 56 units and in line of sight. With both slots full, the weapon in hand drops. |
-| `S` | Stop walking. |
+| `S` | Stop walking and drop the attack target. |
 | `Esc` | Leave a training room. |
+
+Orders replace each other, in the order they arrive: a right-click or `S` drops the lock, and a left-click on an enemy replaces any earlier order. A walk ordered while an attack is winding up is not lost: the windup is committed (it is not cancelled by moving, as it would be in League of Legends), and the walk starts when it ends. Swapping weapons or picking one up keeps the lock (an attack still winding up is cancelled, and the lock starts the next one with the new weapon). A locked attack is aimed at its target again when it lands or leaves, but arrows and balls then fly straight and can be dodged. An attack made without a lock (a mob's) goes where it was aimed: a swing or a ball at the start, an arrow when its draw ends.
 
 In the hub: right-click or `WASD` / arrows to walk, `E` or a click at a station. Shortcuts are ignored while a text field has focus. Clicks that begin on a menu or panel never reach the world.
 
@@ -197,7 +201,7 @@ These report. They never fail the build, and they are what to run before touchin
 
 | Command | What it does |
 | --- | --- |
-| `npm run harness -w @raid/server` | Weapon duels in the real sim between two policy-driven clients: the weapon matrix, a style grid for every edge with a ranged weapon, an edge verdict (holds, or fails and why), and kiting. About 50 s. `-- --core` skips the sensitivity passes (about 40 s), `-- --quick` takes a few seconds, `-- --help` lists the filters. |
+| `npm run harness -w @raid/server` | Weapon duels in the real sim between two policy-driven clients: the weapon matrix, a style grid for every edge with a ranged weapon, an edge verdict (holds, or fails and why), the same edges when both fighters click each other (the target lock), and kiting (a shooter that stands, strafes, kites, orb-walks or locks its chaser). About 55 s. `-- --core` skips the sensitivity passes (about 40 s), `-- --quick` takes a few seconds, `-- --help` lists the filters. |
 | `npm run harness:factions -- --python` | Every faction edge with the same weapon on both sides, and the signature openings, in the real sim. Checked pair by pair against `testing/realtime.py` (about 5 s). `-- --mode policy` plays them as moving fighters (about 20 s), `-- --mode full` with real arcs and flight (about 7 s). |
 | `npx tsx packages/server/bench/stepBench.ts` | Cost of one `step()` with 8 players and 60 mobs. |
 | `npx tsx packages/server/bench/bandwidth.ts [seed=N]` | Bytes per second one client receives, headless with the real encoder: typical, heavy, idle. |
@@ -210,11 +214,12 @@ Python, no install beyond numpy (only `test_rpsls.py` needs nothing). They are t
 | Command | What it does |
 | --- | --- |
 | `python3 testing/test_rpsls.py` | The design oracle: the 10-edge faction graph, each faction beats exactly two, power-scale and name-shuffle invariance, jitter robustness, a purity audit, and the identity tests. Standard library only, about 9 s. Exits non-zero on a failure. |
-| `python3 testing/test_kite.py` | The kiting guarantee at duel pace: a melee faction winner survives one approach to a standing archer or mage. One PASS or FAIL per cell. Needs numpy, about 5 s. Exits non-zero on a FAIL. |
+| `python3 testing/test_kite.py` | The kiting guarantee at duel pace: a melee faction winner survives one approach to an archer or mage that orb-walks (roots for its windup at each shot, walks away at full speed between shots; a Frost shooter's move chill included). One PASS or FAIL per cell, with the margin. Needs numpy, about 5 s. Exits non-zero on a FAIL. |
+| `python3 testing/kite_windup_sweep.py` | Sweeps the bow's and the wand's windup cap and share against the kiting guarantee and prints the smallest ones that hold every cell, and the shortest Frost windup that lets a chaser arrive. Needs numpy, about 10 s. |
 | `python3 testing/realtime_report.py [what-if.json] [sections]` | The 20 Hz model (`realtime.py`): cadence tables, duels with signature openings, kiting, buff thresholds, the longest stretch with no swing. Needs numpy, about 40 s. |
 | `python3 testing/weapon_reference.py` | Prints the weapon tables to paste into `packages/shared/test/weapons.test.ts` and `packages/server/src/harness/parity.ts` when a weapon number changes. Needs numpy. |
 
-`realtime_paced.py` is the same model at duel pace as JSON. `harness:factions --python` runs it for you. The tuning logs are [testing/TUNING_9_1.md](testing/TUNING_9_1.md) (weapons) and [testing/TUNING_10.md](testing/TUNING_10.md) (signatures).
+`realtime_paced.py` is the same model at duel pace as JSON. `harness:factions --python` runs it for you. The tuning logs are [testing/TUNING_9_1.md](testing/TUNING_9_1.md) (weapons), [testing/TUNING_10.md](testing/TUNING_10.md) (signatures) and [testing/TUNING_CONTROLS.md](testing/TUNING_CONTROLS.md) (the controls rework: the windups, the kite check against an orb-walker, the real-sim before and after).
 
 ## Architecture
 
@@ -238,15 +243,16 @@ Python, no install beyond numpy (only `test_rpsls.py` needs nothing). They are t
 
 How it fits together:
 
-- **Authoritative server.** Clients send inputs only (`move`, `stop`, `aim`, `attack`, `release`, `swap`, `pickup`). Positions, damage and outcomes are never accepted from a client.
-- **Fixed 20 Hz tick and input queues.** Message handlers validate (finite numbers clamped to the world, short ids) and enqueue into a per-player queue. The latest move and aim win, at most 6 actions are kept per tick, and a client sending more than 100 messages a second is disconnected. The sim drains the queues at the start of each 50 ms step in a per-tick shuffled order, so same-tick races are fair. A patch goes out after every step.
+- **Authoritative server.** Clients send inputs only (`move`, `stop`, `target`, `aim`, `attack`, `release`, `swap`, `pickup`). The browser sends `target` for every fight and never touches the trigger; `attack` and `release` are the low-level trigger that mobs and the weapon harness use. The bots click like the browser does. Positions, damage and outcomes are never accepted from a client.
+- **Fixed 20 Hz tick and input queues.** Message handlers validate (finite numbers clamped to the world, short ids) and enqueue into a per-player queue. The latest move and aim win, orders replace each other in arrival order (a `move` or `stop` drops a lock, a `target` replaces what came before it), at most 6 actions are kept per tick, and a client sending more than 100 messages a second is disconnected. The sim drains the queues at the start of each 50 ms step in a per-tick shuffled order, so same-tick races are fair. A patch goes out after every step.
 - **Pure sim.** `sim/` never imports Colyseus or touches sockets. Gameplay modules register actions and systems into a world. `step()` returns events and the room turns them into messages and profile changes, so most of the game is tested headless.
 - **One damage ledger per tick.** Swings, arrows, balls and signature damage are recorded as hits and applied all at once. Results are settled once at the end of the tick. So the order players happen to be processed in never decides who wins.
+- **The target lock is server-side.** `sim/targeting.ts` plays a locked player's weapon as mob AI plays a mob's: it paths into range, holds the trigger and aims each attack at the target, every tick after the inputs and before the weapons. The browser only says whom to lock. It is synced as `PlayerState.attackTarget` so every client can draw the ring.
 - **Mobs are players who send inputs.** They go through the same combat code and input handlers as a player.
 - **Schema sync.** State uses decorator-free `schema()` builders. Only the server imports the schema at runtime. The client imports types and decodes by reflection. Projectiles are not in the state. All the visual events of a step, and every arrow and ball that left during it, go out as one compact `fxs` message.
 - **The map is never synced.** State carries only the `seed`. Both sides call `generateMap(seed)`, which is deterministic (seeded `mulberry32`, no `Math.random` in shared code). Loot is rolled server-side from a private RNG, so the seed reveals the layout but not the contents.
 - **Render in the past.** Every entity, including the local player, is drawn at `serverNow - 100 ms` (`INTERP_DELAY_MS`) by interpolating buffered snapshots against an estimated server clock. There is no client prediction.
-- **Lag compensation.** An attack carries the server time the client was rendering. The server keeps about 300 ms of position history (`MAX_REWIND_MS`) and samples swing attackers and targets at that time. Arrows and balls fly in present server time.
+- **Lag compensation.** An attack made with the low-level trigger carries the server time the client was rendering. The server keeps about 300 ms of position history (`MAX_REWIND_MS`) and samples swing attackers and targets at that time. A locked attack (everything the browser does) has no timestamp: it is timed in the present, one tick back, and aimed at its target as it lands. Arrows and balls fly in present server time.
 - **Training is a mode of the same room.** The server registers `raid` (arena) and `training` (a private room of one) and forces the mode, so a client cannot pick it.
 - **Persistence.** Profiles (GV balance, lifetime GV, GV per UTC month, stats, cosmetics, achievements) live in memory and are saved to one JSON file (version 2). A version 1 file from the extraction build is migrated on start: stashes are dropped, stats and tokens kept, and the original is saved first as `stash.json.bak-v1`. Mutations are synchronous. Writes are coalesced and atomic (temp file, fsync, rename, directory fsync), retried with backoff on failure, and flushed on graceful shutdown. A malformed profile entry is dropped and the original kept as `stash.json.bak-<time>`. A file that cannot be parsed at all stops the server from starting and is moved to `stash.json.corrupt-<time>` instead of being overwritten. To reset, stop the server and delete it.
 
@@ -278,7 +284,7 @@ Netcode and scale:
 - **Mixed timelines on screen.** Positions and effects are drawn 100 ms in the past. Health bars, status, containers and the timers show the latest patch, so they can lead what you see by a tick or two. Deaths are the exception: a victim stays drawn until their death is due.
 - **No client-side prediction.** Your own character is also interpolated, so motion starts at least 100 ms after input plus the network round trip.
 - **Single process only.** The "profile already in a raid" guard and the profile file are process-local.
-- **Lag compensation trusts the client's timestamp** anywhere inside the 300 ms rewind window, so a cheating client can pick the most favourable moment. The window only covers clients up to about 150 ms RTT. Beyond that, swings at moving targets miss.
+- **Lag compensation trusts the client's timestamp** anywhere inside the 300 ms rewind window, so a cheating client can pick the most favourable moment. It only matters for the low-level `attack` and `release` messages: the browser's locked attacks carry no timestamp. The window only covers clients up to about 150 ms RTT. Beyond that, swings at moving targets miss.
 
 Identity and persistence:
 
@@ -290,6 +296,8 @@ Identity and persistence:
 Gameplay and content:
 
 - **Placeholder art and balance.** Colored shapes, no audio, numbers that are first picks. The weapon and faction numbers are tuned in `testing/` and the harnesses. The mob and buff numbers are tuned only against scripted players.
+- **Wand > Shield fails in the weapon harness's policy matrix (23%).** The harness wand backs away from a charging shield, and with no ranged slows that no longer works. It holds at 100% when both fighters click each other, which is how the controls are played; nothing was changed for it. Numbers and reasons in [testing/TUNING_CONTROLS.md](testing/TUNING_CONTROLS.md).
+- **The controls are a first pick too.** Click snap 64 units, an empty click does nothing (there is no attack-move), a windup cannot be cancelled by moving, a lock lasts out to 640 units and 1.5 s without line of sight once the target was seen (a target locked behind a wall is chased until it is). The list of these guesses is in [CLAUDE.md](CLAUDE.md).
 - **Not built:** quest NPCs, raid bosses, secrets, friends, private matches, chat, the 30-second warning and host voice line before the teleport, and the minimap pings for bountied players (the crown is built). They are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 2.2, 6, 12.4 and 15.
 - **No teams, parties or queues.** Every join lands in the first open lobby. Reloading the page mid-run drops the connection and cannot resume it (the client reconnects only within the same page session), so the seat times out after 10 s and the player is MIA. Chests and weapons on the ground do not respawn.
 

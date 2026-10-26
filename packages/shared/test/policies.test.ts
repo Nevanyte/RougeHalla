@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decide, leadAim, POLICIES, type PolicyInput, type Vec2, type WeaponId } from "../src/index";
+import { decide, leadAim, lockSpacing, POLICIES, WEAPON_IDS, type PolicyInput, type Vec2, type WeaponId } from "../src/index";
 
 // The prediction, retreat and strafing a caller opts into with the optional PolicyInput fields. With none of them set
 // decide() behaves as interactions.test.ts pins.
@@ -7,13 +7,15 @@ import { decide, leadAim, POLICIES, type PolicyInput, type Vec2, type WeaponId }
 const still: Vec2 = { x: 0, y: 0 };
 const self: Vec2 = { x: 0, y: 0 };
 const input = (over: Partial<PolicyInput> & { weapon: WeaponId }): PolicyInput => ({
-  self, target: { x: 300, y: 0 }, targetVel: still, los: true, ready: true, drawSeconds: 0, fullDraw: 0.4, ...over,
+  self, target: { x: 300, y: 0 }, targetVel: still, los: true, ready: true, ...over,
 });
 
 describe("decide, seeing the world late", () => {
-  it("leads a crossing target by the view lag, the input delay and the cast", () => {
+  it("leads a crossing target by the view lag and the input delay, and a ball by its cast too (an arrow leaves along the latest aim)", () => {
     const vel = { x: 0, y: 100 };
     const target = { x: 250, y: 0 };
+    const arrow = decide(input({ weapon: "bow", target, targetVel: vel, viewLag: 0.1, inputDelay: 0.05, windup: 0.5 }));
+    expect(arrow.aim).toBeCloseTo(leadAim(self, { x: target.x, y: target.y + vel.y * 0.15 }, vel, 900), 12);
     const out = decide(input({ weapon: "wand", target, targetVel: vel, viewLag: 0.1, inputDelay: 0.05, windup: 0.2 }));
     const later = { x: target.x, y: target.y + vel.y * 0.35 };
     expect(out.aim).toBeCloseTo(leadAim(self, later, vel, 380), 12);
@@ -62,17 +64,9 @@ describe("decide, seeing the world late", () => {
     expect(decide(input({ weapon: "sword", target: { x: 90, y: 0 }, targetVel: { x: -170, y: 0 }, viewLag: 0.1, inputDelay: 0.05 })).hold).toBe(true);
   });
 
-  it("looses the bow a tick early so the draw is full when the release is processed", () => {
-    const early = decide(input({ weapon: "bow", drawSeconds: 0.36, fullDraw: 0.4, inputDelay: 0.05 }));
-    expect(early.release).toBe(true);
-    expect(decide(input({ weapon: "bow", drawSeconds: 0.34, fullDraw: 0.4, inputDelay: 0.05 })).release).toBe(false);
-  });
-
-  it("does not start the next draw after a release when the target is out of range", () => {
-    const out = decide(input({ weapon: "bow", target: { x: POLICIES.bow.attackRange + 20, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 }));
-    expect(out.release).toBe(true);
-    expect(out.hold).toBe(false);
-    expect(decide(input({ weapon: "bow", target: { x: 150, y: 0 }, drawSeconds: 0.5, fullDraw: 0.4 })).hold).toBe(true);
+  it("holds the trigger for a bow inside its range and not outside it, whatever it was doing (no release to time)", () => {
+    expect(decide(input({ weapon: "bow", target: { x: POLICIES.bow.attackRange + 20, y: 0 }, inputDelay: 0.05 })).hold).toBe(false);
+    expect(decide(input({ weapon: "bow", target: { x: 150, y: 0 }, inputDelay: 0.05 })).hold).toBe(true);
   });
 
   it("does not draw on a target the arrow cannot reach", () => {
@@ -192,5 +186,26 @@ describe("decide, weaving melee approach", () => {
   it("leaves the default policies alone: nothing weaves unless it is asked to", () => {
     for (const w of ["sword", "axe", "shield"] as const) expect(POLICIES[w].weave).toBeUndefined();
     expect(decide(input({ weapon: "sword", target: { x: 400, y: 0 }, time: 0.1 })).move).toEqual({ x: 400, y: 0 });
+  });
+});
+
+describe("lockSpacing, how the target lock plays a weapon", () => {
+  it("keeps each weapon's distances and projectile speed but never backs off, strafes or weaves", () => {
+    for (const w of WEAPON_IDS) {
+      const lock = lockSpacing(w);
+      const base = POLICIES[w];
+      expect(lock).toEqual({ far: base.far, attackRange: base.attackRange, retreatBelow: 0, leadSpeed: base.leadSpeed });
+      expect(lock.strafe).toBeUndefined();
+      expect(lock.weave).toBeUndefined();
+    }
+  });
+
+  it("closes in past far, then stands and attacks in range, even with a target on top of it", () => {
+    const spacing = lockSpacing("bow");
+    const far = decide(input({ weapon: "bow", target: { x: spacing.far + 30, y: 0 }, spacing }));
+    expect(far.move).toEqual({ x: spacing.far + 30, y: 0 });
+    const near = decide(input({ weapon: "bow", target: { x: 20, y: 0 }, spacing }));
+    expect(near.move).toBe("stop");
+    expect(near.hold).toBe(true);
   });
 });

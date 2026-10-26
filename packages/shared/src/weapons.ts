@@ -1,12 +1,13 @@
 // The weapon catalog and the faction x weapon formula (GAME_DESIGN 9.1, 10.2, 10.3). Pure and shared: the sim, the
 // client (cooldown and draw feedback), bots, policies and the harness all read these. attackInterval, damagePerHit and
-// backlashPerSwing must keep matching testing/realtime.py exactly (packages/shared/test/weapons.test.ts).
+// backlashPerSwing must keep matching testing/realtime.py exactly (packages/shared/test/weapons.test.ts); the windups
+// must match realtime.py's WEAPONS windup columns (its kiting model).
 //
 // A weapon is a % boost on the faction's base attack speed, so the speed ratios between factions hold on every weapon:
 //   attacks/s = faction.rate x (1 + boost) x asMult         interval = max(floor, 1 / attacks/s)
 //   per hit   = faction.rate x faction.hit x dpsMult x asMult x interval
-// Attack speed past the floor therefore turns into damage per hit. Animation timings scale with the interval, so a
-// fast cadence is never rooted or slowed for good.
+// Attack speed past the floor therefore turns into damage per hit. Windups scale with the interval, so a fast cadence
+// is never rooted for good.
 import type { FactionId, FactionSpec } from "./factions";
 
 export type WeaponId = "sword" | "bow" | "wand" | "shield" | "axe";
@@ -119,52 +120,39 @@ export function backlashPerSwing(backlash: number, foe: Pick<FactionSpec, "rate"
   return backlash * foe.rate * attackInterval(foe, foeWeapon);
 }
 
-// Animation timings: the design seconds, and the most of the interval each may take (GAME_DESIGN 10.3).
+// Attack windups (GAME_DESIGN 9.1, 10.3, the controls rework): every attack roots its fighter from its start until it lands
+// (melee) or its projectile leaves (bow, wand). Then the fighter walks freely until the next attack, LoL-style. Each windup
+// is its design seconds or the given share of the interval, whichever is shorter, so it scales with the attack speed. The
+// ranged windups are the anti-kiting lever (testing/TUNING_CONTROLS.md): the chaser only closes the gap while the shooter
+// winds up, so a shooter that walks away between shots gets about interval / windup times the free fire of one that stands.
 const SWORD_WINDUP = 0.1;
 const BASH_WINDUP = 0.1;
 const AXE_WINDUP = 0.25;
 const AXE_WINDUP_SHARE = 0.25;
 const AXE_ROOT = 0.5;
 const AXE_ROOT_SHARE = 0.5;
-const WAND_CAST = 0.2;
-const WAND_CAST_SHARE = 0.4;
-const WAND_SLOW = 0.4;
-const WAND_SLOW_SHARE = 0.45;
-const BOW_FULL_DRAW = 0.6;
-const BOW_FULL_DRAW_SHARE = 0.7;
-/** The shortest draw that can be loosed, as a share of the full draw (0.15 s of 0.6 s). */
-const BOW_MIN_DRAW_SHARE = 0.25;
-/** Damage of a minimum draw, as a share of a full one; it rises linearly to 1 at the full draw. */
-export const BOW_MIN_DRAW_DAMAGE = 0.4;
+/** The bow's fixed full draw (it always looses at full draw, for full damage). */
+export const BOW_WINDUP = 0.6;
+export const BOW_WINDUP_SHARE = 0.92;
+export const WAND_WINDUP = 0.4;
+export const WAND_WINDUP_SHARE = 0.8;
 
 /** Everything about one attack's rhythm, for a given interval. All in seconds. */
 export interface WeaponTimings {
   interval: number;
   /**
-   * From the attack starting to its damage landing (sword, axe, shield bash) or its ball leaving (wand). A stagger or a
-   * swap before then cancels the attack. 0 for the bow, which fires on release.
+   * From the attack starting to its damage landing (sword, axe, shield bash) or its arrow or ball leaving (bow, wand). The
+   * fighter is rooted for all of it. A stagger (not on the bow) or a swap before then cancels the attack.
    */
   windup: number;
-  /** Rooted for this long from the attack starting (axe). */
+  /** Rooted for this long from the attack starting, past the windup (the axe); 0 for the other weapons. */
   root: number;
-  /** Moves at WAND_CAST_MOVE for this long from the attack starting (wand). */
-  castSlow: number;
-  /** Bow only: the draw that deals full damage, and the shortest one that can be loosed. */
-  fullDraw: number;
-  minDraw: number;
-  /**
-   * From the attack (bow: the release) to the next one being allowed to start. The bow's draw is part of its interval,
-   * so a full-draw shot every interval is its designed rate: cooldown = interval - fullDraw.
-   */
-  cooldown: number;
-  /** Ranged: moves at RANGED_RECOVERY_MOVE for the cooldown as dealt (a Frost chill stretches the cooldown, not this). */
+  /** A projectile weapon (bow, wand). */
   ranged: boolean;
 }
 
 export function weaponTimings(w: WeaponId, interval: number): WeaponTimings {
-  const t: WeaponTimings = {
-    interval, windup: 0, root: 0, castSlow: 0, fullDraw: 0, minDraw: 0, cooldown: interval, ranged: isRanged(w),
-  };
+  const t: WeaponTimings = { interval, windup: 0, root: 0, ranged: isRanged(w) };
   switch (w) {
     case "sword": t.windup = Math.min(SWORD_WINDUP, interval); break;
     case "shield": t.windup = Math.min(BASH_WINDUP, interval); break;
@@ -172,22 +160,8 @@ export function weaponTimings(w: WeaponId, interval: number): WeaponTimings {
       t.windup = Math.min(AXE_WINDUP, AXE_WINDUP_SHARE * interval);
       t.root = Math.min(AXE_ROOT, AXE_ROOT_SHARE * interval);
       break;
-    case "wand":
-      t.windup = Math.min(WAND_CAST, WAND_CAST_SHARE * interval);
-      t.castSlow = Math.min(WAND_SLOW, WAND_SLOW_SHARE * interval);
-      break;
-    case "bow":
-      t.fullDraw = Math.min(BOW_FULL_DRAW, BOW_FULL_DRAW_SHARE * interval);
-      t.minDraw = BOW_MIN_DRAW_SHARE * t.fullDraw;
-      t.cooldown = interval - t.fullDraw;
-      break;
+    case "wand": t.windup = Math.min(WAND_WINDUP, WAND_WINDUP_SHARE * interval); break;
+    case "bow": t.windup = Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * interval); break;
   }
   return t;
-}
-
-/** Share of a full hit a bow shot deals after drawing `drawSeconds`: BOW_MIN_DRAW_DAMAGE at the minimum, 1 at full. */
-export function drawDamageScale(drawSeconds: number, t: Pick<WeaponTimings, "minDraw" | "fullDraw">): number {
-  if (drawSeconds >= t.fullDraw) return 1;
-  if (drawSeconds <= t.minDraw) return BOW_MIN_DRAW_DAMAGE;
-  return BOW_MIN_DRAW_DAMAGE + (1 - BOW_MIN_DRAW_DAMAGE) * (drawSeconds - t.minDraw) / (t.fullDraw - t.minDraw);
 }

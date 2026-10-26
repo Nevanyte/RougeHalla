@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  angleBetween, ballDeletesArrow, BALL_ARROW_RADIUS, BOW_DRAW_MOVE, bestSlot, decide, inArc, leadAim, moveMultiplier,
-  onShieldFront, PLAYER_RADIUS, POLICIES, projectileOnShieldFront, RANGED_RECOVERY_MOVE, reflectVelocity, riposteShare,
+  angleBetween, ballDeletesArrow, BALL_ARROW_RADIUS, bestSlot, decide, inArc, leadAim, moveMultiplier,
+  onShieldFront, PLAYER_RADIUS, POLICIES, projectileOnShieldFront, reflectVelocity, riposteShare,
   RIPOSTE_SHARE, SHIELD_HALF_ARC, shieldOutcome, STAGGER_IMMUNITY_SECONDS, staggerImmuneUntil, staggers, SWAP_SECONDS,
-  swapReadyAt, swingVsBall, SWORD_BALL_SCALE, WAND_CAST_MOVE, WEAPON_IDS, WEAPONS, wrapAngle, type HitSource,
+  swapReadyAt, swingVsBall, SWORD_BALL_SCALE, WEAPON_IDS, WEAPONS, wrapAngle, type HitSource,
   type MoveState, type PolicyInput, type Vec2, type WeaponId,
 } from "../src/index";
 
@@ -293,40 +293,28 @@ describe("swapReadyAt", () => {
 
 describe("moveMultiplier", () => {
   const now = 1000;
-  const idle: MoveState = { now, rootUntil: 0, castSlowUntil: 0, recoverUntil: 0, drawing: false };
+  const idle: MoveState = { now, rootUntil: 0, windingUp: false };
 
-  it("is 1 with nothing slowing the fighter", () => {
+  it("is 1 with nothing holding the fighter", () => {
     expect(moveMultiplier(idle)).toBe(1);
   });
 
-  it("is 0 while rooted, and rooted wins over every other slow", () => {
+  it("is 0 while an attack winds up (a swing, a cast or the bow's draw)", () => {
+    expect(moveMultiplier({ ...idle, windingUp: true })).toBe(0);
+  });
+
+  it("is 0 while the axe's root holds, and the root ends exactly at its time (the end is exclusive)", () => {
     expect(moveMultiplier({ ...idle, rootUntil: now + 1 })).toBe(0);
-    expect(moveMultiplier({ ...idle, rootUntil: now + 1, drawing: true, castSlowUntil: now + 1, recoverUntil: now + 1 })).toBe(0);
-  });
-
-  it("each slow ends exactly at its time (the end is exclusive)", () => {
     expect(moveMultiplier({ ...idle, rootUntil: now })).toBe(1);
-    expect(moveMultiplier({ ...idle, castSlowUntil: now })).toBe(1);
-    expect(moveMultiplier({ ...idle, recoverUntil: now })).toBe(1);
-    expect(moveMultiplier({ ...idle, castSlowUntil: now + 1 })).toBe(WAND_CAST_MOVE);
-    expect(moveMultiplier({ ...idle, recoverUntil: now + 1 })).toBe(RANGED_RECOVERY_MOVE);
+    expect(moveMultiplier({ ...idle, windingUp: true, rootUntil: now + 1 })).toBe(0);
   });
 
-  it("drawing a bow, casting and ranged recovery slow to 0.1 each (9.1 tuning: nearly a root)", () => {
-    expect(moveMultiplier({ ...idle, drawing: true })).toBe(BOW_DRAW_MOVE);
-    expect(BOW_DRAW_MOVE).toBe(0.1);
-    expect(WAND_CAST_MOVE).toBe(0.1);
-    expect(RANGED_RECOVERY_MOVE).toBe(0.1);
-  });
-
-  it("the strongest slow wins; they do not stack", () => {
-    expect(moveMultiplier({ ...idle, drawing: true, recoverUntil: now + 1 })).toBe(Math.min(BOW_DRAW_MOVE, RANGED_RECOVERY_MOVE));
-    expect(moveMultiplier({ ...idle, castSlowUntil: now + 1, recoverUntil: now + 1 })).toBe(Math.min(WAND_CAST_MOVE, RANGED_RECOVERY_MOVE));
-    expect(moveMultiplier({ ...idle, drawing: true, castSlowUntil: now + 1 })).toBe(Math.min(BOW_DRAW_MOVE, WAND_CAST_MOVE));
-    expect(moveMultiplier({ ...idle, drawing: true, castSlowUntil: now + 1, recoverUntil: now + 1 }))
-      .toBe(Math.min(BOW_DRAW_MOVE, WAND_CAST_MOVE, RANGED_RECOVERY_MOVE));
-    // A slow never speeds anything up.
-    expect(Math.max(BOW_DRAW_MOVE, WAND_CAST_MOVE, RANGED_RECOVERY_MOVE)).toBeLessThan(1);
+  it("nothing else slows a walk: it is all or nothing", () => {
+    for (const windingUp of [false, true]) {
+      for (const rootUntil of [0, now - 1, now, now + 1, now + 1e6]) {
+        expect([0, 1]).toContain(moveMultiplier({ now, rootUntil, windingUp }));
+      }
+    }
   });
 });
 
@@ -426,7 +414,7 @@ describe("decide", () => {
   const self = { x: 0, y: 0 };
   const still = { x: 0, y: 0 };
   const input = (over: Partial<PolicyInput> & { weapon: WeaponId }): PolicyInput => ({
-    self, target: { x: 1000, y: 0 }, targetVel: still, los: true, ready: true, drawSeconds: 0, fullDraw: 0.4, ...over,
+    self, target: { x: 1000, y: 0 }, targetVel: still, los: true, ready: true, ...over,
   });
 
   describe("melee", () => {
@@ -434,7 +422,6 @@ describe("decide", () => {
       const out = decide(input({ weapon: "sword", target: { x: 500, y: 0 } }));
       expect(out.move).toEqual({ x: 500, y: 0 });
       expect(out.hold).toBe(false);
-      expect(out.release).toBe(false);
       expect(out.aim).toBeCloseTo(0, 12);
     });
 
@@ -465,10 +452,6 @@ describe("decide", () => {
     it("aims straight at a moving target (no lead)", () => {
       const out = decide(input({ weapon: "sword", target: { x: 40, y: 0 }, targetVel: { x: 0, y: 170 } }));
       expect(out.aim).toBeCloseTo(0, 12);
-    });
-
-    it("never releases", () => {
-      expect(decide(input({ weapon: "shield", target: { x: 30, y: 0 }, drawSeconds: 5 })).release).toBe(false);
     });
   });
 
@@ -508,22 +491,8 @@ describe("decide", () => {
       expect(out.hold).toBe(false);
     });
 
-    it("holds the trigger through the draw and looses at full draw, not before", () => {
-      const partway = decide(input({ weapon: "bow", target: { x: sweet, y: 0 }, drawSeconds: 0.399, fullDraw: 0.4 }));
-      expect(partway.hold).toBe(true);
-      expect(partway.release).toBe(false);
-      const full = decide(input({ weapon: "bow", target: { x: sweet, y: 0 }, drawSeconds: 0.4, fullDraw: 0.4 }));
-      expect(full.hold).toBe(true);
-      expect(full.release).toBe(true);
-      expect(decide(input({ weapon: "bow", target: { x: sweet, y: 0 }, drawSeconds: 0, fullDraw: 0.4 })).release).toBe(false);
-    });
-
-    it("keeps a started draw going when the target steps out of range, and looses at full draw", () => {
-      const out = { x: bow.attackRange + 15, y: 0 };
-      const drawing = decide(input({ weapon: "bow", target: out, drawSeconds: 0.2, fullDraw: 0.4 }));
-      expect(drawing.hold).toBe(true);
-      expect(drawing.release).toBe(false);
-      expect(decide(input({ weapon: "bow", target: out, drawSeconds: 0.5, fullDraw: 0.4 })).release).toBe(true);
+    it("is held like the wand: it says hold or not, with no release (the draw is a fixed windup)", () => {
+      expect(Object.keys(decide(input({ weapon: "bow", target: { x: sweet, y: 0 } }))).sort()).toEqual(["aim", "hold", "move"]);
     });
 
     it("does not start a draw on a target out of range or out of sight", () => {
@@ -559,7 +528,6 @@ describe("decide", () => {
       const target = { x: wand.attackRange - 40, y: 0 };
       const out = decide(input({ weapon: "wand", target, targetVel: vel }));
       expect(out.aim).toBeCloseTo(leadAim(self, target, vel, 380), 12);
-      expect(out.release).toBe(false);
     });
   });
 });

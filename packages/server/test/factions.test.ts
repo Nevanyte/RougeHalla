@@ -885,18 +885,16 @@ describe("Fire (dragonslayer)", () => {
     expect(sigHits(log, "burn")).toHaveLength(0);
   });
 
-  it.each([
-    ["wand", ["attack"]],
-    ["bow", ["attack", "release"]],
-  ] as const)("a %s shot leaving the target's weapon feeds backlash on the tick it leaves", (weapon, presses) => {
+  it.each(["wand", "bow"] as const)("a %s shot leaving the target's weapon feeds backlash on the tick it leaves", (weapon) => {
     const world = makeWorld([
       { id: "a", faction: "fire", at: [300, 300] },
       { id: "b", faction: "holy", at: [340, 300], weapon },
     ]);
     noteContact(world, "a", "b");
-    for (const kind of presses) RT(world, "b").inputs.pushAction({ kind, a: Math.PI / 2 }); // aimed away from the Fire
+    // A tap, aimed away from the Fire: one shot, which leaves when its windup (up to 0.6 s for the bow) is over.
+    for (const kind of ["attack", "release"] as const) RT(world, "b").inputs.pushAction({ kind, a: Math.PI / 2 });
     const seen: Array<{ backlash: LandedHit[]; spawned: boolean }> = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 20; i++) {
       const before = world.projectiles.size;
       const log = tick(world);
       seen.push({ backlash: sigHits(log, "backlash"), spawned: world.projectiles.size > before });
@@ -1219,12 +1217,16 @@ describe("Frost (wall of ice)", () => {
     expect(P(world, "b").readyAt).toBe(next + 10_000);
   });
 
-  it("leaves the ranged recovery's end alone (the move slow belongs to CHILL_MOVE_RADIUS)", () => {
+  it("does not stretch a swing's or a cast's windup, only the cooldown after it", () => {
     const world = pair();
+    const w = RT(world, "b").weapon;
     const next = world.state.serverTime + TICK_MS;
-    RT(world, "b").weapon.recoverUntil = next + 10_000;
-    run(world, 2);
-    expect(RT(world, "b").weapon.recoverUntil).toBe(next + 10_000);
+    w.action = {
+      kind: "cast", weapon: "wand", startedAt: next - 100, landsAt: next + 10_000, a: 0,
+      packet: { raw: 1, phys: 0, magic: 1, true: 0 }, origin: { x: 340, y: 300 },
+    };
+    run(world, 3);
+    expect(w.action).toMatchObject({ kind: "cast", startedAt: next - 100, landsAt: next + 10_000 });
   });
 
   it("stretches the press buffer along with the cooldown", () => {
@@ -1271,19 +1273,67 @@ describe("Frost (wall of ice)", () => {
     });
   });
 
-  it("slows a bow draw: it starts later by (1 - m) x a tick each tick", () => {
-    const world = pair({ weapon: "bow" });
-    const startedAt = world.state.serverTime - 100;
-    RT(world, "b").weapon.action = { kind: "draw", weapon: "bow", startedAt };
-    P(world, "b").drawStartedAt = startedAt;
-    for (let i = 1; i <= 3; i++) {
+  describe("the bow's draw", () => {
+    const startDraw = (world: World, startedAt: number, windupMs: number): void => {
+      RT(world, "b").weapon.action = {
+        kind: "draw", weapon: "bow", startedAt, landsAt: startedAt + windupMs, a: Math.PI / 2,
+        packet: { raw: 1, phys: 1, magic: 0, true: 0 }, origin: { x: 340, y: 300 },
+      };
+      P(world, "b").drawStartedAt = startedAt;
+    };
+
+    it("is slowed: its start and the moment the arrow leaves move back by (1 - m) x a tick each tick", () => {
+      const world = pair({ weapon: "bow" });
+      const startedAt = world.state.serverTime - 100;
+      startDraw(world, startedAt, 600);
+      for (let i = 1; i <= 3; i++) {
+        tick(world);
+        const shift = i * (1 - CHILL) * TICK_MS;
+        const action = RT(world, "b").weapon.action;
+        expect(action?.kind).toBe("draw");
+        expect(action!.startedAt, `tick ${i}`).toBeCloseTo(startedAt + shift, 9);
+        expect((action as { landsAt: number }).landsAt, `tick ${i}`).toBeCloseTo(startedAt + 600 + shift, 9);
+        expect(P(world, "b").drawStartedAt, `tick ${i}`).toBeCloseTo(startedAt + shift, 9);
+      }
+    });
+
+    it("looses when its remaining work is done, at now + left / m inside the tick", () => {
+      const world = pair({ weapon: "bow" });
+      const next = world.state.serverTime + TICK_MS;
+      startDraw(world, next - 600 + 5, 600); // 5 ms of draw left after this tick: less than m x a tick
+      tick(world); // chill for the coming tick is decided at its end
+      const action = RT(world, "b").weapon.action as { landsAt: number; startedAt: number } | null;
+      expect(action).not.toBeNull();
+      expect(action!.landsAt).toBeCloseTo(next + 5 / CHILL, 9);
+      expect(action!.landsAt - action!.startedAt).toBeCloseTo(600, 9); // the pull drawn so far moves with it
       tick(world);
-      const expected = startedAt + i * (1 - CHILL) * TICK_MS;
-      const action = RT(world, "b").weapon.action;
-      expect(action?.kind).toBe("draw");
-      expect(action!.startedAt, `tick ${i}`).toBeCloseTo(expected, 9);
-      expect(P(world, "b").drawStartedAt, `tick ${i}`).toBeCloseTo(expected, 9);
-    }
+      expect(RT(world, "b").weapon.action).toBeNull();
+      expect(P(world, "b").drawStartedAt).toBe(0);
+    });
+
+    it("keeps the bow's cycle at interval / m while it is chilled: the draw and the cooldown stretch together", () => {
+      const world = pair({ weapon: "bow" });
+      injector(world).trade("f", "b");
+      const w = RT(world, "b").weapon;
+      w.held = true;
+      w.aim = Math.PI / 2;
+      const launches: number[] = [];
+      const seen = new Set<string>();
+      while (launches.length < 10 && world.state.serverTime < 60_000) {
+        tick(world);
+        w.aimAt = world.state.serverTime;
+        P(world, "b").hp = BIG_HP;
+        for (const pr of world.projectiles.values()) {
+          if (seen.has(pr.id)) continue;
+          seen.add(pr.id);
+          launches.push(pr.launch.t);
+        }
+      }
+      expect(launches).toHaveLength(10);
+      const interval = attackInterval(SPEC.holy, "bow") * 1000;
+      const cycle = (launches[9]! - launches[1]!) / 8;
+      expect(Math.abs(cycle - interval / CHILL)).toBeLessThan(TICK_MS / 4);
+    });
   });
 
   it("does not stack: a fighter engaged with two Frosts is slowed to 0.4, not 0.16", () => {
@@ -1997,7 +2047,7 @@ describe("a stagger pauses damage over time", () => {
     sword: (i) => Math.min(0.1, i),
     shield: (i) => Math.min(0.1, i),
     axe: (i) => Math.min(0.25, 0.25 * i),
-    wand: (i) => Math.min(0.2, 0.4 * i),
+    wand: (i) => Math.min(0.4, 0.8 * i),
     bow: () => 0,
   };
   const windupMs = (owner: FactionId, weapon: WeaponId): number => WINDUP[weapon](attackInterval(SPEC[owner], weapon)) * 1000;

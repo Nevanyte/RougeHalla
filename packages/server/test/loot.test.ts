@@ -462,7 +462,10 @@ describe("pickup", () => {
       const rt = RT(world, "a");
       p.readyAt = world.state.serverTime + 50 + lead;
       const before = p.readyAt;
-      rt.weapon.action = { kind: "draw", weapon: "bow", startedAt: world.state.serverTime };
+      rt.weapon.action = {
+        kind: "draw", weapon: "bow", startedAt: world.state.serverTime, landsAt: world.state.serverTime + 600, a: 0,
+        packet: { raw: 1, phys: 1, magic: 0, true: 0 }, origin: { x: p.x, y: p.y },
+      };
       p.drawStartedAt = world.state.serverTime;
       // A root left over from an earlier swing that already landed: changing weapons must not cut it short.
       const rootUntil = world.state.serverTime + 5000;

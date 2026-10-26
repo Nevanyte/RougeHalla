@@ -2,16 +2,11 @@
 // and a straight-line "walk"; time is passed in, so a fight of seconds runs in microseconds.
 import { describe, expect, it } from "vitest";
 import {
-  FACTION_IDS, FACTIONS, MOB_LEASH_RADIUS, mapFromTiles, mulberry32, POLICIES, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
-  type FactionId, type TimedFx, type Vec2, type WeaponId,
+  FACTIONS, type FactionId, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { BotClient } from "../src/bots/BotClient";
-import { timingsOf } from "../src/sim/combatant";
-import { createGameWorld } from "../src/sim/gameplay";
-import { placeMob } from "../src/sim/mobLife";
-import { addPlayer, step } from "../src/sim/step";
 import {
-  bestEdge, bestSlotVsMob, bowFullDraw, matchupShare, MOB_HUNT, MobHunter, mobSpacing, MobTracker, mobWeapon, pathLength, retreatPoint,
+  bestEdge, bestSlotVsMob, matchupShare, MOB_HUNT, MobHunter, MobTracker, mobWeapon, pathLength, retreatPoint,
   useless, type HuntInput, type HuntSelf, type MobHuntConfig, type MobLike,
 } from "../src/bots/mobHunt";
 
@@ -530,61 +525,15 @@ describe("pieces", () => {
     expect(mobWeapon({ weapon0: "", faction: "" })).toBeNull();
   });
 
-  it("a ranged weapon closes in on a melee mob and stands off a ranged one; melee keeps the usual policy", () => {
-    expect(mobSpacing("sword", "sword")).toBeUndefined();
-    const vsMelee = mobSpacing("bow", "sword")!;
-    expect(vsMelee.far).toBeLessThanOrEqual(150);
-    expect(vsMelee.attackRange).toBeLessThanOrEqual(200);
-    expect(vsMelee.retreatBelow).toBe(0);
-    expect(vsMelee.leadSpeed).toBe(POLICIES.bow.leadSpeed);
-    const vsRanged = mobSpacing("bow", "wand")!;
-    expect(vsRanged.far).toBeGreaterThan(vsMelee.far);
-    expect(vsRanged.far).toBeLessThanOrEqual(POLICIES.bow.far);
-    expect(vsRanged.retreatBelow).toBe(0);
-    // A ball is slow and short: the stand-off never exceeds the wand's own policy.
-    expect(mobSpacing("wand", "bow")!.far).toBeLessThanOrEqual(POLICIES.wand.far);
-  });
-
   it("matchupShare follows the duel table: everyone beats a normal mob of their own region, Fire keeps little against Holy", () => {
     for (const f of Object.keys(FACTIONS) as FactionId[]) expect(matchupShare(f, f, false)).toBeGreaterThan(0.5);
     expect(matchupShare("fire", "holy", true)).toBe(0); // a loss
     expect(matchupShare("holy", "fire", false)).toBeGreaterThan(0.9);
   });
 
-  it("the bot's bow hold equals the server's full draw: every faction, with attack-speed stacks, and as a mob or an elite", () => {
-    // Held for less, the shot is a weak one loosed early; held for more, it is a shot loosed late. The server is the reference,
-    // read through its own timingsOf on real states (the client's half of this parity is in client/test/fighterArt.test.ts).
-    const world = createGameWorld({
-      seed: 3, random: mulberry32(4),
-      config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 1 },
-    });
-    step(world, TICK_MS);
-    const seen = new Set<number>();
-    for (const f of FACTION_IDS) {
-      const p = addPlayer(world, `p-${f}`, f, { faction: f });
-      for (const stacks of [0, 1.1, 3, 7]) {
-        p.stacksAs = stacks;
-        const server = timingsOf(p, "bow")!.fullDraw;
-        expect(bowFullDraw(f, stacks), `${f} with ${stacks} stacks`).toBeCloseTo(server, 12);
-        seen.add(Math.round(server * 1e6));
-      }
-      for (const elite of [false, true]) {
-        const m = world.state.mobs.get(placeMob(world, { region: f, elite, at: { x: 100, y: 100 } }))!;
-        expect(m.faction).toBe(f);
-        expect(bowFullDraw(f, 0), `${f} ${elite ? "elite" : "mob"}`).toBeCloseTo(timingsOf(m, "bow")!.fullDraw, 12);
-      }
-    }
-    // The comparison can tell stacks from no stacks: most of these draws differ (Frost sits at the 0.6 s cap until 3 stacks).
-    expect(seen.size).toBeGreaterThanOrEqual(12);
-  });
-
   it("pathLength adds up the legs", () => {
     expect(pathLength({ x: 0, y: 0 }, [{ x: 3, y: 4 }, { x: 3, y: 10 }])).toBe(11);
     expect(pathLength({ x: 0, y: 0 }, [])).toBe(0);
-  });
-
-  it("the leash is what the spacing is about: a mob gives up 9 tiles from home", () => {
-    expect(MOB_LEASH_RADIUS).toBe(288);
   });
 });
 
@@ -609,36 +558,5 @@ describe("BotClient: which hits count as a player's fire", () => {
     const before = Date.now();
     b.onFx(hit("me", "rival"));
     expect(b.playerHitAt).toBeGreaterThanOrEqual(before);
-  });
-});
-
-describe("BotClient: the bow is loosed at the full draw its attack-speed stacks give", () => {
-  const SERVER_TIME = 20_000;
-  /** A bot with a bow, `drawn` seconds into a draw at a mob 180 u away, over a fake room: the messages it sends in one fight() call. */
-  function loosesAt(faction: FactionId, stacksAs: number, drawn: number): boolean {
-    const sent: string[] = [];
-    const tiles = new Uint8Array(40 * 20).fill(TILE_FLOOR);
-    for (let i = 0; i < 40; i++) { tiles[i] = TILE_WALL; tiles[19 * 40 + i] = TILE_WALL; }
-    const b = new BotClient() as unknown as {
-      room: unknown; map: unknown; patchAt: number; fight(me: unknown, foe: unknown, now: number): void;
-    };
-    b.map = mapFromTiles(40, 20, tiles);
-    b.patchAt = Date.now();
-    b.room = { sessionId: "me", send: (type: string) => sent.push(type), state: { serverTime: SERVER_TIME, gatesLocked: false } };
-    const me = {
-      x: 10 * TILE, y: 10 * TILE, faction, weapon0: "bow", weapon1: "", slot: 0, stacksAs, readyAt: 0,
-      drawStartedAt: SERVER_TIME - drawn * 1000,
-    };
-    const foe = { key: "mob:m", at: { x: 10 * TILE + 180, y: 10 * TILE }, d: 180, theirs: "sword" as WeaponId, mob: true };
-    b.fight(me, foe, Date.now());
-    return sent.includes("release");
-  }
-
-  it("holds to the unbuffed draw with no stacks and looses early with them", () => {
-    // Fire's draw is 0.598 s unbuffed and 0.488 s with 3 attack-speed stacks: 0.55 s in, only the buffed bow is full.
-    expect(loosesAt("fire", 0, 0.55)).toBe(false);
-    expect(loosesAt("fire", 3, 0.55)).toBe(true);
-    expect(loosesAt("fire", 0, 0.65)).toBe(true);
-    expect(loosesAt("fire", 3, 0.3)).toBe(false);
   });
 });

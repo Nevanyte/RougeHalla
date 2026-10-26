@@ -608,7 +608,7 @@ describe("shield", () => {
 
 describe("sword stagger, through real windups", () => {
   // Both press in the first step (100 ms). The sword lands at 200 ms (windup 0.1 s), the axe at 350 ms (0.25 s), the
-  // wand's ball leaves at 300 ms (0.2 s).
+  // wand's ball leaves at 500 ms (Holy's wand: 0.4 s).
   const FACING_WEST = Math.PI;
 
   it("an axe windup left alone lands at 250 ms (the baseline the next test cancels)", () => {
@@ -655,10 +655,10 @@ describe("sword stagger, through real windups", () => {
     expect(world.projectiles.size).toBe(0);
   });
 
-  it("the same cast, left alone, does loose its ball at 300 ms", () => {
+  it("the same cast, left alone, does loose its ball at 500 ms", () => {
     const world = arena([fighter("holy", "wand", ORIGIN), fighter("plague", "sword", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
-    run(world, 4);
+    run(world, 8);
     expect(world.projectiles.size).toBe(0);
     run(world, 1);
     expect(world.projectiles.size).toBe(1);
@@ -940,17 +940,17 @@ describe("balls", () => {
 });
 
 describe("balls in real fights", () => {
-  // p0 (Holy, wand) at 300 casts east at 100 ms; its ball leaves at 300 ms and reaches p1, 60 u away, in the step at
-  // 450 ms, where it would hit. p1 swings back west: a sword pressed at 300 ms lands at 400 ms (windup 0.1 s), Fire's
-  // axe pressed at 150 ms lands at 400 ms and one pressed at 200 ms lands at 450 ms (windup 0.25 s; Plague's axe is
-  // quicker, a quarter of its short interval, so it would land before the ball exists).
+  // p0 (Holy, wand) at 300 casts east at 100 ms; its ball leaves at 500 ms (the wand's 0.4 s windup) and reaches p1, 60 u
+  // away, in the step at 650 ms, where it would hit. p1 swings back west: a sword pressed at 500 ms lands at 600 ms (windup
+  // 0.1 s), Fire's axe pressed at 350 ms lands at 600 ms and one pressed at 400 ms lands at 650 ms (windup 0.25 s; Plague's
+  // axe is quicker, a quarter of its short interval, so it would land before the ball exists).
   const SWINGER: Vec2 = { x: 360, y: 256 };
   /** The step (1 = 100 ms) at whose start p1 presses, or null for never. */
   function fight(faction: FactionId, weapon: WeaponId, pressAtStep: number | null): { world: World; events: SimEvent[] } {
     const world = arena([fighter("holy", "wand", ORIGIN), fighter(faction, weapon, SWINGER)]);
     const events: SimEvent[] = [];
     tap(world, 0, 0);
-    for (let n = 1; n <= 9; n++) {
+    for (let n = 1; n <= 13; n++) {
       if (n === pressAtStep) tap(world, 1, Math.PI);
       events.push(...run(world, 1));
     }
@@ -965,20 +965,20 @@ describe("balls in real fights", () => {
 
   it("a sword that lands before the ball does halves its damage", () => {
     const full = hpLost(fight("plague", "sword", null).world, 1);
-    const { world } = fight("plague", "sword", 5);
+    const { world } = fight("plague", "sword", 9);
     expect(hpLost(world, 1)).toBeCloseTo(full * SWORD_BALL_SCALE, 9);
   });
 
   it("an axe that lands before the ball does destroys it", () => {
     expect(hpLost(fight("fire", "axe", null).world, 1)).toBeGreaterThan(0);
-    const { world, events } = fight("fire", "axe", 2);
+    const { world, events } = fight("fire", "axe", 6);
     expect(hpLost(world, 1)).toBe(0);
     expect(world.projectiles.size).toBe(0);
     expect(fxOf(events, "projEnd").map((f) => f.reason)).toEqual(["destroyed"]);
   });
 
   it("an axe that lands in the very step the ball hits cancels that hit", () => {
-    const { world, events } = fight("fire", "axe", 3);
+    const { world, events } = fight("fire", "axe", 7);
     expect(hpLost(world, 1)).toBe(0);
     expect(hpLost(world, 0)).toBeGreaterThan(0); // the axe still reached the caster
     expect(fxOf(events, "projEnd").map((f) => f.reason)).toEqual(["hit"]);

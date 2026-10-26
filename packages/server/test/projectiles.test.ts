@@ -4,7 +4,7 @@
 // present time against where bodies are at that moment, and the interactions: walls and gates, range, shield
 // reflections, ball-versus-arrow deletion, the teleport clear, a shooter who is gone, and the swing interceptions.
 // Melee is not involved: the swing side of interceptBall is driven by hand, in the slot where the melee phase runs.
-// Worlds are a hand-built open arena (1280 x 640 u); the shots are real inputs (attack, then release after a full draw).
+// Worlds are a hand-built open arena (1280 x 640 u); the shots are real inputs (a tap, then the windup runs out).
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Decoder, Encoder, getRawChangesCallback, Reflection } from "@colyseus/schema";
 import {
@@ -162,25 +162,27 @@ function fxOf<K extends FxEvent["kind"]>(events: SimEvent[], kind: K): Array<Fx<
 interface Shot { id: string; a: number }
 
 /**
- * Real inputs: each shooter presses, the draw runs for exactly its full-draw ticks, then releases, all lined up so every
- * arrow is loosed in the same tick. Cooldowns are not what is under test, so they are reset first. Returns the events
- * of the tick the arrows left. `beforeRelease` runs just before that tick.
+ * Real inputs: each shooter taps (press and release) so that its fixed draw ends in the same tick for every arrow. Cooldowns
+ * are not what is under test, so they are reset first. Returns the events of the tick the arrows left. `beforeLoose` runs
+ * just before that tick.
  */
-function loose(world: World, shots: Shot[], beforeRelease?: () => void): SimEvent[] {
+function loose(world: World, shots: Shot[], beforeLoose?: () => void): SimEvent[] {
   const need = shots.map((s) => {
     const c = P(world, s.id);
     expect(activeWeapon(c)).toBe("bow");
     c.readyAt = 0;
-    return Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS - 1e-9);
+    return Math.ceil((timingsOf(c, "bow")!.windup * 1000) / TICK_MS - 1e-9);
   });
   const total = Math.max(...need);
   let out: SimEvent[] = [];
   for (let i = 0; i <= total; i++) {
-    if (i === total) beforeRelease?.();
+    if (i === total) beforeLoose?.();
     shots.forEach((s, k) => {
       const q = RT(world, s.id).inputs;
-      if (i === total - need[k]!) q.pushAction({ kind: "attack", a: s.a });
-      if (i === total) q.pushAction({ kind: "release", a: s.a });
+      if (i === total - need[k]!) {
+        q.pushAction({ kind: "attack", a: s.a });
+        q.pushAction({ kind: "release", a: s.a });
+      }
     });
     out = tick(world);
   }
@@ -597,32 +599,19 @@ describe("where a projectile leaves from", () => {
   const LAG = 250;
   /** The `t` of an input stamped by a client `lag` ms behind the server, processed in the next tick. */
   const stamp = (w: World, lag: number): number => w.state.serverTime + TICK_MS - lag;
-  /**
-   * One tick, then the archer a full-speed step further south. Drawing a bow now slows a walker to BOW_DRAW_MOVE (nearly
-   * a root), so the strafe the origin tests need is moved by hand; its history, which the server reads back, is the
-   * same as if it had walked during that tick.
-   */
-  const strafeTick = (w: World): SimEvent[] => {
-    const out = tick(w);
-    const p = P(w, "archer");
-    p.y += (PLAYER_SPEED * TICK_MS) / 1000;
-    RT(w, "archer").history.at(-1)!.y = p.y;
-    return out;
-  };
-
-  it("an arrow looses from the drawn position, so an archer strafing past a still target hits what it aimed at", () => {
+  it("an arrow leaves from the drawn position at the START of the draw, so an archer who walked, then drew, hits what it aimed at", () => {
     const w = arena([archer({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
     const c = P(w, "archer");
     const q = RT(w, "archer").inputs;
     c.readyAt = 0;
-    // Straight south, across the line to the target, at full walking speed.
-    q.pushAction({ kind: "attack", a: 0, t: stamp(w, LAG) });
-    strafeTick(w);
-    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS) - 1; i > 0; i--) strafeTick(w);
+    RT(w, "archer").path = [{ x: 200, y: 560 }];
+    ticks(w, 8); // walking at full speed
     const t = stamp(w, LAG);
     const drawn = positionAt(RT(w, "archer"), c, t);
-    q.pushAction({ kind: "release", a: Math.atan2(320 - drawn.y, 500 - drawn.x), t });
-    strafeTick(w);
+    const a = Math.atan2(320 - drawn.y, 500 - drawn.x);
+    q.pushAction({ kind: "attack", a, t });
+    q.pushAction({ kind: "release", a, t });
+    for (let i = 0; i < 40 && w.projectiles.size === 0; i++) tick(w);
     const arrow = lastProjectile(w);
     expect(arrow.kind).toBe("arrow");
     expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(drawn.x, 9), expect.closeTo(drawn.y, 9)]);
@@ -632,19 +621,25 @@ describe("where a projectile leaves from", () => {
     expect(P(w, "target").hp).toBeLessThan(hp);
   });
 
-  it("without a timestamp an arrow leaves from the latest position: where the shooter stood one tick back", () => {
+  it("without a timestamp an arrow leaves from where the shooter stood one tick back: the draw roots it there", () => {
     const w = arena([archer({ x: 200, y: 100 }), target({ x: 500, y: 320 }), idle()]);
     const c = P(w, "archer");
     const q = RT(w, "archer").inputs;
     c.readyAt = 0;
-    q.pushAction({ kind: "attack", a: 0 });
-    for (let i = Math.ceil((timingsOf(c, "bow")!.fullDraw * 1000) / TICK_MS); i > 0; i--) strafeTick(w);
-    const latest = { x: c.x, y: c.y };
-    q.pushAction({ kind: "release", a: Math.atan2(320 - latest.y, 500 - latest.x) });
-    strafeTick(w);
+    RT(w, "archer").path = [{ x: 200, y: 560 }];
+    ticks(w, 8);
+    const before = { x: c.x, y: c.y };
+    const a = Math.atan2(320 - before.y, 500 - before.x);
+    q.pushAction({ kind: "attack", a });
+    q.pushAction({ kind: "release", a });
+    for (let i = 0; i < 40 && w.projectiles.size === 0; i++) {
+      tick(w);
+      // The press is processed before the archer would have moved that tick, and the draw holds it still until the arrow goes.
+      if (w.projectiles.size === 0) expect([c.x, c.y]).toEqual([before.x, before.y]);
+    }
     const arrow = lastProjectile(w);
-    expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(latest.x, 9), expect.closeTo(latest.y, 9)]);
-    expect(c.y).toBeGreaterThan(latest.y + 3); // it walked on in the release tick; the arrow did not
+    expect(c.y).toBeGreaterThan(before.y + 3); // it walks on in the tick the arrow leaves
+    expect([arrow.launch.x, arrow.launch.y]).toEqual([expect.closeTo(before.x, 9), expect.closeTo(before.y, 9)]);
     expect(flyUntilEnd(w).end.reason).toBe("hit");
   });
 
@@ -1277,9 +1272,16 @@ describe("balls and arrows meeting in the air", () => {
 describe("the arena teleport", () => {
   it("clears every projectile in flight with reason cleared, at the place each had reached", () => {
     const w = arena([archer(), mage({ x: 200, y: 500 }), idle()]);
-    loose(w, [{ id: "archer", a: 0 }]);
-    castBall(w, "mage", 0);
-    ticks(w, 3);
+    // Both start at once and let go of the trigger a tick later: the ball leaves first (0.4 s of wand against 0.52 s of bow),
+    // and a tick after the arrow both are in the air.
+    for (const id of ["archer", "mage"]) {
+      P(w, id).readyAt = 0;
+      RT(w, id).inputs.pushAction({ kind: "attack", a: 0 });
+    }
+    tick(w);
+    for (const id of ["archer", "mage"]) RT(w, id).inputs.pushAction({ kind: "release", a: 0 });
+    for (let i = 0; i < 30 && w.projectiles.size < 2; i++) tick(w);
+    ticks(w, 1);
     const flying = [...w.projectiles.values()].map((p) => ({ id: p.id, proj: p.kind, x: p.x, y: p.y }));
     expect(flying).toHaveLength(2);
     w.hooks.teleported!(w);

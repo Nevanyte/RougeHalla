@@ -720,7 +720,7 @@ describe("schema round trip", () => {
     addPlayer(world, "a", "alice");
     const inputs = world.players.get("a")!.inputs;
     const valid: Record<(typeof CLIENT_MESSAGE_TYPES)[number], unknown> = {
-      move: { x: 100, y: 100 }, stop: {}, aim: { a: 1 }, attack: { a: 1 }, release: { a: 1 }, swap: {}, pickup: { containerId: "c1" },
+      move: { x: 100, y: 100 }, stop: {}, target: { id: "p1" }, aim: { a: 1 }, attack: { a: 1 }, release: { a: 1 }, swap: {}, pickup: { containerId: "c1" },
     };
     for (const type of CLIENT_MESSAGE_TYPES) expect(enqueueClientMessage(inputs, type, valid[type]), type).toBe(true);
     for (const type of ["take", "drop", "use", "teleport"]) expect(enqueueClientMessage(inputs, type, { uid: "x", containerId: "c1" }), type).toBe(false);

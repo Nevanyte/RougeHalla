@@ -128,16 +128,17 @@ describe("bow draw start under a chill", () => {
 });
 
 describe("fullDrawSeconds", () => {
-  // The server's bow full draw (sim/combatant.ts timingsOf(...).fullDraw on a real player of each faction, 9 decimals) for 0, 1.1, 3
+  // The server's bow windup (sim/combatant.ts timingsOf(...).windup on a real player of each faction, 9 decimals) for 0, 1.1, 3
   // and 7 attack-speed stacks. server/test/mobHunt.test.ts compares the bots' copy of the formula with timingsOf live; this is the
   // client's half: a draw gauge that drifts from the server's shows a full bow before (or after) it is.
-  // Regenerate with the weapon numbers (weapons.ts / factions.ts) when they change.
+  // Regenerate with the weapon numbers (weapons.ts / factions.ts) when they change; BOW_WINDUP and BOW_WINDUP_SHARE (the controls
+  // tuning lever) move every entry.
   const SERVER_FULL_DRAW: Record<string, readonly number[]> = {
-    fire: [0.598290598, 0.574538432, 0.487887882, 0.407751013],
-    sentenced: [0.398860399, 0.383025622, 0.325258588, 0.271834009],
-    plague: [0.194040194, 0.186336789, 0.175, 0.175],
-    frost: [0.6, 0.6, 0.6, 0.543668018],
-    holy: [0.377867746, 0.362866378, 0.308139715, 0.257526956],
+    fire: [0.6, 0.6, 0.6, 0.535901332],
+    sentenced: [0.524216524, 0.503405103, 0.427482716, 0.357267554],
+    plague: [0.255024255, 0.24489978, 0.23, 0.23],
+    frost: [0.6, 0.6, 0.6, 0.6],
+    holy: [0.496626181, 0.476910097, 0.404983625, 0.338463999],
   };
   const STACKS = [0, 1.1, 3, 7];
 
@@ -154,17 +155,17 @@ describe("fullDrawSeconds", () => {
   });
 
   it("shortens with stacks until the bow's interval floor", () => {
-    expect(fullDrawSeconds("fire", 3)).toBeLessThan(fullDrawSeconds("fire", 0) - 0.1);
+    expect(fullDrawSeconds("sentenced", 7)).toBeLessThan(fullDrawSeconds("sentenced", 0) - 0.1);
     expect(fullDrawSeconds("plague", 7)).toBe(fullDrawSeconds("plague", 20));
   });
 
   it("is what the gauge uses: the same draw is full with stacks and not without", () => {
-    // 0.5 s into a Fire bow's draw: 84% of the unbuffed 0.598 s, but a full draw with 3 stacks (0.488 s), which glows.
+    // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw with 3 stacks (0.427 s), which glows.
     const glowing = (stacksAs: number) => {
       const graphics = [fakeGraphics(), fakeGraphics()];
       let i = 0;
       const art = new FighterArt({ add: { graphics: () => graphics[i++] } } as never);
-      art.update({ ...bowman(1000), faction: "fire", stacksAs }, 1500, 1500);
+      art.update({ ...bowman(1000), faction: "sentenced", stacksAs }, 1450, 1450);
       return graphics[1]!.calls.includes("strokeCircle");
     };
     expect(glowing(0)).toBe(false);

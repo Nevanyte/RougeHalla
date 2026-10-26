@@ -22,27 +22,41 @@ export type ContainerKind = "chest" | "ground" | "body";
  * Client -> server. Keys are the Colyseus message types. Angles are radians on the ground plane, measured from where
  * the client draws its own player (its render-time position) to the cursor. `t` is the server time the client was
  * rendering when the input was made; melee rewinds to it (clamped to MAX_REWIND_MS).
+ *
+ * Orders replace each other: `move`, `stop`, `target` and `attack` each drop whatever order came before (a move or a stop
+ * drops the lock and the held trigger; a `target` lets go of the trigger; an `attack` drops the lock). Within one tick
+ * they apply in the order they arrived. The game client sends `move`, `stop`, `target`, `aim`, `swap` and `pickup`;
+ * `attack` and `release` are the low-level trigger that mobs, the duel harness and older bots still use.
  */
 export interface ClientMessages {
-  /** Walk to a world point (server pathfinds). */
+  /** Walk to a world point (server pathfinds). Drops the attack target, as a right-click does in LoL. */
   move: Vec2;
+  /** Stand still: drops the path, the attack target and the held trigger. */
   stop: Record<string, never>;
-  /** Where the cursor is: the shield faces it, held attacks aim at it. Streamed at no more than 20 Hz while it changes. */
+  /**
+   * Lock an enemy (a player or a mob, by its state key) and auto-attack it: the server walks into the weapon's range,
+   * attacks whenever the cooldown allows, faces it (the shield too) and aims every attack at it, until another order, the
+   * target going down or evading, leaving TARGET_RANGE, or staying out of line of sight for TARGET_LOS_GRACE_MS once it
+   * has been seen. Ignored unless the target is a standing enemy within TARGET_RANGE; one behind a wall is locked and
+   * walked to (nothing is attacked without a clear line).
+   */
+  target: { id: string };
+  /** Where the cursor is: the shield faces it while nothing is locked. Streamed at no more than 20 Hz while it changes. */
   aim: { a: number };
   /**
-   * Trigger pressed: attack with the weapon in hand toward `a` (bow: start drawing). Held, it keeps attacking whenever
-   * the cooldown allows, until `release`. A press shortly before the cooldown ends still attacks when it does.
+   * Trigger pressed: attack with the weapon in hand toward `a`. Held, it keeps attacking whenever the cooldown allows,
+   * until `release`. A press shortly before the cooldown ends still attacks when it does.
    */
   attack: { a: number; t?: number };
-  /** Trigger released: the bow looses (once at least its minimum draw is reached); other weapons stop repeating. */
+  /** Trigger released: the attacks stop repeating (one already winding up still lands). */
   release: { a: number; t?: number };
-  /** Switch weapon slot: to `slot` (0 or 1), or to the other one when omitted. */
+  /** Switch weapon slot: to `slot` (0 or 1), or to the other one when omitted. The lock stays. */
   swap: { slot?: number };
   /** Take a weapon from a chest, the ground or a body in reach (F). With both slots full, the one in hand is dropped. */
   pickup: { containerId: string };
 }
 export type ClientMessageType = keyof ClientMessages;
-export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "aim", "attack", "release", "swap", "pickup"];
+export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup"];
 
 /** Why a projectile stopped (a `projEnd` fx). */
 export type ProjectileEnd =
@@ -62,7 +76,8 @@ export type ProjectileEnd =
 export type FxEvent =
   /**
    * A melee swing or wand cast began: it lands (or the ball leaves) `ms` later unless a stagger or a swap cancels it.
-   * `a` is its direction. Bow draws are synced state instead (drawStartedAt).
+   * `a` is its direction (an attack on a locked target is aimed again when it lands). Bow draws are synced state instead
+   * (drawStartedAt).
    */
   | { kind: "windup"; by: string; weapon: WeaponId; a: number; ms: number }
   /** A melee swing landed now from (x, y), the attacker where its client drew it, toward `a`. */

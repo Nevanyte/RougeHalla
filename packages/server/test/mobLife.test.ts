@@ -416,8 +416,9 @@ describe("killMob: the dying mob", () => {
     m.rt.path = [{ x: 9, y: 9 }];
     m.rt.weapon.held = true;
     m.rt.weapon.bufferedUntil = 99999;
-    m.rt.weapon.releasePending = true;
-    m.rt.weapon.action = { kind: "draw", weapon: "bow", startedAt: 8900 };
+    m.rt.weapon.action = {
+      kind: "draw", weapon: "bow", startedAt: 8900, landsAt: 9500, a: 0, packet: { raw: 1, phys: 1, magic: 0, true: 0 }, origin: { x: 333, y: 444 },
+    };
     m.s.drawStartedAt = 8900;
     m.s.x = 333;
     m.s.y = 444;
@@ -439,7 +440,6 @@ describe("killMob: the dying mob", () => {
     expect(m.rt.weapon.action).toBeNull();
     expect(m.rt.weapon.held).toBe(false);
     expect(m.rt.weapon.bufferedUntil).toBe(0);
-    expect(m.rt.weapon.releasePending).toBe(false);
     expect(m.s.drawStartedAt).toBe(0);
     expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: m.id, x: 333, y: 444, by: "p0" }]);
   });

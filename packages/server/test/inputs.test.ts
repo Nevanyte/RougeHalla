@@ -70,6 +70,32 @@ describe("InputQueue", () => {
     expect(last.drain()).toMatchObject({ aim: 1, aimBefore: 2 });
   });
 
+  it("notes how many actions had arrived when the latest move did, so an order and a move replace each other in arrival order", () => {
+    const target: ActionCommand = { kind: "target", id: "mob1" };
+    const first = new InputQueue();
+    first.pushMove({ kind: "move", x: 1, y: 1 });
+    first.pushAction(target);
+    expect(first.drain()).toMatchObject({ move: { kind: "move", x: 1, y: 1 }, moveBefore: 0, actions: [target] });
+
+    const after = new InputQueue();
+    after.pushAction(target);
+    after.pushMove({ kind: "stop" });
+    expect(after.drain()).toMatchObject({ move: { kind: "stop" }, moveBefore: 1, actions: [target] });
+
+    // Only the latest move counts, and its place is where it arrived last.
+    const twice = new InputQueue();
+    twice.pushMove({ kind: "move", x: 1, y: 1 });
+    twice.pushAction(target);
+    twice.pushMove({ kind: "move", x: 2, y: 2 });
+    twice.pushAction({ kind: "attack", a: 0 });
+    expect(twice.drain()).toMatchObject({ move: { kind: "move", x: 2, y: 2 }, moveBefore: 1 });
+
+    const empty = new InputQueue();
+    empty.pushMove({ kind: "stop" });
+    expect(empty.drain()).toMatchObject({ moveBefore: 0, actions: [] });
+    expect(empty.moveBefore).toBe(0);
+  });
+
   it("only the latest aim counts: an earlier one's place among the actions is forgotten", () => {
     const q = new InputQueue();
     q.pushAim(0.5);
@@ -144,7 +170,7 @@ describe("InputQueue", () => {
     expect(q.move).toBeNull();
     expect(q.aim).toBeNull();
     expect(q.actions).toEqual([]);
-    expect(q.drain()).toEqual({ move: null, aim: null, aimBefore: 0, actions: [] });
+    expect(q.drain()).toEqual({ move: null, moveBefore: 0, aim: null, aimBefore: 0, actions: [] });
   });
 
   it("returns an array that is not aliased by later pushes", () => {
@@ -580,6 +606,43 @@ describe("enqueueClientMessage", () => {
     });
   });
 
+  describe("target", () => {
+    it("queues the id of the fighter to lock", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "target", { id: "mob7" })).toBe(true);
+      expect(q.actions).toEqual([{ kind: "target", id: "mob7" }]);
+    });
+
+    it("strips unknown fields", () => {
+      const q = fresh();
+      enqueueClientMessage(q, "target", { id: "p1", x: 5, y: 5, a: 1, kind: "swap" });
+      expect(q.actions).toEqual([{ kind: "target", id: "p1" }]);
+    });
+
+    it.each([
+      ["missing id", {}],
+      ["empty id", { id: "" }],
+      ["numeric id", { id: 1 }],
+      ["null id", { id: null }],
+      ["oversized id", { id: "c".repeat(65) }],
+      ["array id", { id: ["p1"] }],
+      ["null payload", null],
+      ["undefined payload", undefined],
+      ["string payload", "p1"],
+    ])("rejects %s", (_n, msg) => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "target", msg)).toBe(false);
+      expect(q.actions).toEqual([]);
+    });
+
+    it("accepts an id of exactly 64 chars and counts toward the action cap", () => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "target", { id: "z".repeat(64) })).toBe(true);
+      for (let i = 0; i < 20; i++) enqueueClientMessage(q, "target", { id: `p${i}` });
+      expect(q.actions).toHaveLength(MAX_ACTIONS_PER_TICK);
+    });
+  });
+
   describe("pickup", () => {
     it("queues the containerId", () => {
       const q = fresh();
@@ -633,6 +696,7 @@ describe("enqueueClientMessage", () => {
     const VALID: Record<ClientMessageType, unknown> = {
       move: { x: 10, y: 20 },
       stop: {},
+      target: { id: "mob1" },
       aim: { a: 0.5 },
       attack: { a: 0.5, t: 100 },
       release: { a: 0.5, t: 100 },

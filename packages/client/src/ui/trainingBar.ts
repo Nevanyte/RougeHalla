@@ -5,7 +5,7 @@ import { el, uiRoot } from "./dom";
 
 /** What a first-time player needs in the practice room; kept to a few lines. */
 export const TRAINING_HINTS: readonly string[] = [
-  "Right-click moves, left-click attacks.",
+  "Right-click moves. Left-click an enemy to lock it and attack.",
   "Walk to the weapon rack and press F to take a weapon.",
   "Q or 1 / 2 swaps weapons.",
   "Hit the dummies. The shield dummy blocks and reflects.",

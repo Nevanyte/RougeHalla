@@ -21,10 +21,13 @@ export interface Setup {
  * How a weapon is played. "stand" is the shared policy (POLICIES): ranged fighters stand and shoot at a good range, melee
  * fighters charge straight at the target. A ranged weapon can also "strafe" (sidestep while standing, changing side
  * every 0.8 s) or "kite" (keep a longer distance and back off sooner); a melee weapon can "weave" or "jink" (approach off
- * the line to the target, changing side on a clock, and charge straight inside 90 u: see WEAVES). "post" is not in the
- * grids: a shooter that never moves, the standing shooter the design's kiting check assumes (kiting.ts).
+ * the line to the target, changing side on a clock, and charge straight inside 90 u: see WEAVES). Three styles are not in the
+ * grids, only in the kiting section (kiting.ts): "post" is a shooter that never moves, the standing shooter the design's
+ * kiting check assumes; "orbwalk" (ranged only) is the perfect kiter, which walks straight away whenever its target is inside
+ * its attack range while it holds the trigger, so it only stands for its windups; "lock" (any weapon) is a player who clicks
+ * the other fighter and lets the server chase and attack (the target lock), and sends nothing else.
  */
-export type Style = "stand" | "strafe" | "kite" | "weave" | "jink" | "post";
+export type Style = "stand" | "strafe" | "kite" | "weave" | "jink" | "post" | "orbwalk" | "lock";
 
 /**
  * The melee approaches that are not a straight charge. Both are driven by the clock alone, so a duel repeats exactly.
@@ -48,8 +51,10 @@ export const hasGrid = (e: Edge): boolean => isRanged(e[0]) || isRanged(e[1]);
 export function spacingFor(w: WeaponId, style: Style): SpacingPolicy | undefined {
   const base = POLICIES[w];
   if (style === "weave" || style === "jink") return isRanged(w) ? undefined : { ...base, weave: { ...WEAVES[style] } };
-  if (style === "stand" || !isRanged(w)) return undefined;
+  if (style === "stand" || style === "lock" || !isRanged(w)) return undefined;
   if (style === "post") return { ...base, far: Infinity, retreatBelow: 0 };
+  // Backs away the moment the target is in range to shoot (the trigger is held then), and never closes in: it walks whenever it is not winding up.
+  if (style === "orbwalk") return { ...base, far: Infinity, retreatBelow: base.attackRange };
   if (style === "strafe") return { ...base, strafe: 0.8 };
   // Shares of the weapon's range (the bow keeps a little past its range to approach, the wand a third of it back).
   const range = WEAPONS[w].shape.kind === "projectile" ? WEAPONS[w].shape.range : 0;
@@ -143,6 +148,7 @@ export function duelOf(
     capSeconds: opts.cap,
     seed: opts.seed,
     spacing: opts.styles ? [spacingFor(edge[0], opts.styles[0]), spacingFor(edge[1], opts.styles[1])] : undefined,
+    locks: opts.styles ? [opts.styles[0] === "lock", opts.styles[1] === "lock"] : undefined,
   });
 }
 

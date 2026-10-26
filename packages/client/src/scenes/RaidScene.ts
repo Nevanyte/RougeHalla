@@ -14,6 +14,8 @@ import { MobView } from "../render/MobView";
 import { PlayerView } from "../render/PlayerView";
 import { ProjectileView } from "../render/ProjectileView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
+import { TargetRings } from "../render/TargetRings";
+import { LockDisplay, pickTarget, type TargetCandidate } from "../render/targeting";
 import { Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
@@ -67,6 +69,7 @@ export class RaidScene extends Phaser.Scene {
   private projectiles!: ProjectileView;
   private mapView: MapView | null = null;
   private highlight!: ContainerHighlight;
+  private rings!: TargetRings;
   private minimap!: Minimap;
   private hud!: Hud;
   private weaponBar!: WeaponBar;
@@ -79,24 +82,25 @@ export class RaidScene extends Phaser.Scene {
   private nearest: ContainerState | null = null;
   private marker!: Phaser.GameObjects.Ellipse;
   private lastMoveSentAt = 0;
+  /** What the player just ordered (target, move, stop), shown until the synced `attackTarget` catches up. */
+  private readonly lockDisplay = new LockDisplay();
+  /** Scratch list for pickTarget; refilled by targetCandidates(). */
+  private readonly candidates: TargetCandidate[] = [];
+  /** The fighter a left click would lock right now, and the one drawn as locked ("" = none); read by dev tooling (window.__raid). */
+  hoverId = "";
+  lockId = "";
   private fx!: FxView;
   private unbindFx: (() => void) | null = null;
   private readonly warnDropped = dropWarner();
   private unbindResult: (() => void) | null = null;
-  /** Server time this frame is drawn at, captured in update(); inputs are stamped with it (see stamped). */
+  /** Server time this frame is drawn at, captured in update(). */
   private renderT = 0;
   /** Server time of the latest teleport fx (0 = none): inputs wait until it is drawn. */
   private teleportAt = 0;
-  /** The teleport whose cut was last reached, so the held trigger is re-sent once after it. */
-  private teleportHandled = 0;
   private clockSynced = false;
-  /** False until Phaser has seen the pointer, so Q cannot fire at its initial (0, 0). */
+  /** False until Phaser has seen the pointer, so the aim and the hover ring never read its initial (0, 0). */
   private aimKnown = false;
-  /** The left button is down (a press that began on the canvas). The server repeats attacks while it holds the trigger. */
-  private attackHeld = false;
-  /** The server has been told about the held trigger; false while an attack is waiting (a teleport cut). */
-  private attackSent = false;
-  /** Last aim angle streamed or attached to an attack or release, and when. */
+  /** Last aim angle streamed, and when. */
   private lastAimSent: number | null = null;
   private lastAimSentAt = 0;
   /** Server time of the newest patch the sudden-death vignette has looked at: one pulse per patch, not per frame. */
@@ -117,24 +121,7 @@ export class RaidScene extends Phaser.Scene {
     this.interp.onPatch(state, performance.now());
     this.noteWeaponChanges(state);
   };
-  // maxEnqueuedMessages is 0 (connection.ts), so whatever was sent while the socket was down is gone, a release included.
-  private readonly onReconnect = () => {
-    this.attackSent = false;
-    // Held: the next frame presses again, as after a teleport. Not held: say so, whatever the server remembers.
-    if (this.attackHeld || !this.localAlive()) return;
-    const a = this.lastAimSent ?? this.cursorAngle(this.input.activePointer);
-    if (a === null) return;
-    sendInput(this.room, "release", this.stamped(a));
-    this.noteAimSent(a);
-  };
   private readonly onKeyDown = (e: KeyboardEvent) => this.handleKey(e);
-  // The trigger release must never be lost: listen on the window (the button may come up off the canvas) and let
-  // anything that could swallow the mouse-up (focus loss, a hidden tab, a cancelled pointer, one that left or moved
-  // with the button already up) release too. Leaving with the button still down keeps the trigger: the mouse-up follows.
-  private readonly onPointerUp = (e: PointerEvent) => { if (e.button === 0) this.releaseAttack(); };
-  private readonly onButtonsCheck = (e: MouseEvent) => { if ((e.buttons & 1) === 0) this.releaseAttack(); };
-  private readonly onReleaseEvent = () => this.releaseAttack();
-  private readonly onVisibility = () => { if (document.hidden) this.releaseAttack(); };
 
   constructor() {
     super("raid");
@@ -158,11 +145,11 @@ export class RaidScene extends Phaser.Scene {
     this.lastMoveSentAt = 0;
     this.renderT = 0;
     this.teleportAt = 0;
-    this.teleportHandled = 0;
     this.clockSynced = false;
     this.aimKnown = false;
-    this.attackHeld = false;
-    this.attackSent = false;
+    this.lockDisplay.reset();
+    this.hoverId = "";
+    this.lockId = "";
     this.lastAimSent = null;
     this.lastAimSentAt = 0;
     this.lastArenaPatchT = 0;
@@ -173,6 +160,7 @@ export class RaidScene extends Phaser.Scene {
     this.minimap = new Minimap();
     this.buildMap(this.room.state.seed);
     this.highlight = new ContainerHighlight(this);
+    this.rings = new TargetRings(this);
     this.projectiles = new ProjectileView(this);
     this.fx = new FxView(this, {
       localId: this.room.sessionId,
@@ -198,25 +186,18 @@ export class RaidScene extends Phaser.Scene {
     this.marker = this.add.ellipse(0, 0, 18, 9).setStrokeStyle(2, 0x80deea, 1).setVisible(false).setDepth(1e6);
 
     this.room.onStateChange(this.onState);
-    this.room.onReconnect(this.onReconnect);
     this.onState(this.room.state);
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.aimKnown = true;
       if (!this.pointerStartedOnCanvas(pointer)) return;
       // The button that went down, not the buttons held: a second press while one is held must not read as the first.
-      // macOS reports ctrl+click (a context click) as button 0 with only the right button in `buttons`: not a trigger.
+      // macOS reports ctrl+click (a context click) as button 0 with only the right button in `buttons`: not a lock.
       if (pointer.button === 2) this.sendMove(pointer, true);
-      else if (pointer.button === 0 && pointer.leftButtonDown()) this.pressAttack();
+      else if (pointer.button === 0 && pointer.leftButtonDown()) this.sendTarget(pointer);
     });
     this.input.on("pointermove", () => { this.aimKnown = true; });
     window.addEventListener("keydown", this.onKeyDown);
-    window.addEventListener("pointerup", this.onPointerUp);
-    window.addEventListener("pointermove", this.onButtonsCheck);
-    window.addEventListener("pointercancel", this.onReleaseEvent);
-    window.addEventListener("blur", this.onReleaseEvent);
-    document.addEventListener("mouseleave", this.onButtonsCheck);
-    document.addEventListener("visibilitychange", this.onVisibility);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
     if (import.meta.env.DEV) (window as unknown as { __raid?: unknown }).__raid = { scene: this, room: this.room };
@@ -241,11 +222,6 @@ export class RaidScene extends Phaser.Scene {
     // The estimated present, not renderT (100 ms behind it): deadlines and cooldowns are server-time values about now.
     const serverNow = this.clockSynced ? this.interp.clock.now(now) : state.serverTime;
     for (const [id, d] of this.deaths) if (renderT >= d.t) this.deaths.delete(id);
-    // The server dropped the held trigger at the teleport; once the cut is drawn, hold it again if the button is still down.
-    if (this.teleportAt > this.teleportHandled && renderT >= this.teleportAt) {
-      this.teleportHandled = this.teleportAt;
-      this.attackSent = false;
-    }
 
     const pointer = this.input.activePointer;
     if (pointer.rightButtonDown() && this.pointerStartedOnCanvas(pointer) && time - this.lastMoveSentAt >= MOVE_REPEAT_MS) {
@@ -290,7 +266,8 @@ export class RaidScene extends Phaser.Scene {
     this.syncContainers(state);
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.
-    this.updateTrigger(me, now);
+    this.updateTargets(me, now);
+    this.streamAim(me, now);
 
     // After the views are updated: hit flashes target them and heal numbers follow where they are drawn.
     this.fx.update(renderT, now, this.clockSynced);
@@ -375,6 +352,7 @@ export class RaidScene extends Phaser.Scene {
     pointer.updateWorldPoint(this.cameras.main);
     const target = unproject(pointer.worldX, pointer.worldY);
     sendInput(this.room, "move", target);
+    this.lockDisplay.note("", performance.now());
     this.lastMoveSentAt = this.time.now;
     if (showMarker) {
       this.marker.setPosition(projX(target.x), projY(target.y)).setVisible(true).setAlpha(1).setScale(1);
@@ -391,9 +369,14 @@ export class RaidScene extends Phaser.Scene {
   private cursorAngle(pointer: Phaser.Input.Pointer): number | null {
     const me = this.rendered.get(this.room.sessionId);
     if (!me) return null;
-    const cam = this.cameras.main;
-    const target = unproject(cam.scrollX + pointer.x, cam.scrollY + pointer.y + AIM_HEIGHT);
+    const target = this.cursorGround(pointer);
     return Math.atan2(target.y - me.y, target.x - me.x);
+  }
+
+  /** The cursor's ground point, read at body height (see AIM_HEIGHT): clicking a drawn fighter's body lands on its feet. */
+  private cursorGround(pointer: Phaser.Input.Pointer): { x: number; y: number } {
+    const cam = this.cameras.main;
+    return unproject(cam.scrollX + pointer.x, cam.scrollY + pointer.y + AIM_HEIGHT);
   }
 
   /**
@@ -410,69 +393,64 @@ export class RaidScene extends Phaser.Scene {
     });
   }
 
-  /**
-   * `t` is the server time this frame is drawn at, i.e. the world the player is looking at when they act; the server
-   * rewinds targets to it (clamped to MAX_REWIND_MS). Omitted while the clock is unsynced, when it would be
-   * meaningless, so the server just uses the present.
-   */
-  private stamped(a: number): { a: number; t?: number } {
-    return this.clockSynced ? { a, t: this.renderT } : { a };
-  }
-
   private noteAimSent(a: number): void {
     this.lastAimSent = a;
     this.lastAimSentAt = performance.now();
   }
 
-  /** The left button went down on the canvas. */
-  private pressAttack(): void {
-    this.attackHeld = true;
-    this.attackSent = false;
-    this.sendHeldAttack();
-  }
-
   /**
-   * Tells the server the trigger is down, once: it repeats the attack itself while held. Waits (called again every
-   * frame) while the player is not alive or the screen still shows the world from before a teleport.
+   * Every fighter a left click could lock: the other players and the mobs (training dummies are mobs) the state calls
+   * alive, at the ground position they are drawn at. The server decides the rest (range, line of sight, evading).
    */
-  private sendHeldAttack(): void {
-    if (!this.attackHeld || this.attackSent || !this.localAlive() || this.beforeTeleport()) return;
-    const a = this.cursorAngle(this.input.activePointer);
-    if (a === null) return;
-    sendInput(this.room, "attack", this.stamped(a));
-    this.attackSent = true;
-    this.noteAimSent(a);
+  private targetCandidates(): TargetCandidate[] {
+    const list = this.candidates;
+    list.length = 0;
+    const add = (id: string, status: string) => {
+      const at = status === "alive" ? this.rendered.get(id) : undefined;
+      if (at) list.push({ id, x: at.x, y: at.y });
+    };
+    const selfId = this.room.sessionId;
+    this.room.state.players.forEach((p, id) => { if (id !== selfId) add(id, p.status); });
+    // Behind the locked coliseum gates every mob is out of reach (the server refuses them), so a click can't snap to one.
+    if (!this.room.state.gatesLocked) this.room.state.mobs.forEach((m, id) => add(id, m.status));
+    return list;
   }
 
-  /** The trigger came up (or may have): the bow looses, other weapons stop repeating. A no-op unless it was held. */
-  private releaseAttack(): void {
-    if (!this.attackHeld) return;
-    this.attackHeld = false;
-    if (!this.attackSent) return;
-    this.attackSent = false;
-    const a = this.cursorAngle(this.input.activePointer) ?? this.lastAimSent;
-    if (a === null) return;
-    sendInput(this.room, "release", this.stamped(a));
-    this.noteAimSent(a);
+  /** A left click: lock the fighter nearest the cursor (within TARGET_SNAP_RADIUS). A click on empty ground does nothing. */
+  private sendTarget(pointer: Phaser.Input.Pointer): void {
+    if (this.beforeTeleport() || !this.localAlive()) return;
+    const id = pickTarget(this.cursorGround(pointer), this.targetCandidates());
+    if (id === null) return;
+    sendInput(this.room, "target", { id });
+    this.lockDisplay.note(id, performance.now());
   }
 
-  /** Once per frame: drops a trigger that outlived the player or the button, sends a waiting attack, and streams the aim. */
-  private updateTrigger(me: PlayerState | undefined, now: number): void {
+  /** Once per frame: which fighter is hovered and which locked, and where their rings are drawn. */
+  private updateTargets(me: PlayerState | undefined, now: number): void {
     const alive = me?.status === "alive";
-    if (this.attackHeld) {
-      if (!alive) {
-        // Nothing to release: the server drops a dead player's trigger itself.
-        this.attackHeld = false;
-        this.attackSent = false;
-      } else if (!this.input.activePointer.leftButtonDown()) {
-        // The mouse-up never reached us (or the press and release landed in one frame).
-        this.releaseAttack();
-      }
-    }
-    this.sendHeldAttack();
-    // The shield follows the cursor and held attacks aim at it, so the aim goes out whether or not the trigger is down.
     // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
-    if (!alive || !this.aimKnown || this.beforeTeleport() || (!this.input.isOver && !this.attackHeld)) return;
+    this.hoverId = alive && this.aimKnown && this.input.isOver
+      ? pickTarget(this.cursorGround(this.input.activePointer), this.targetCandidates()) ?? ""
+      : "";
+    this.lockId = alive ? this.liveFighter(this.lockDisplay.shown(me.attackTarget, now)) : "";
+    // The lock ring already marks the hovered fighter.
+    this.rings.update(
+      this.hoverId && this.hoverId !== this.lockId ? this.rendered.get(this.hoverId) ?? null : null,
+      this.lockId ? this.rendered.get(this.lockId) ?? null : null,
+    );
+  }
+
+  /** `id` if it names another fighter that is alive and drawn, else "" (a lock outlives its target for a patch or two). */
+  private liveFighter(id: string): string {
+    if (!id || id === this.room.sessionId || !this.rendered.has(id)) return "";
+    const status = (this.room.state.players.get(id) ?? this.room.state.mobs.get(id))?.status;
+    return status === "alive" ? id : "";
+  }
+
+  /** Once per frame: streams the aim. The shield faces the cursor while nothing is locked; the server ignores it while one is. */
+  private streamAim(me: PlayerState | undefined, now: number): void {
+    // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
+    if (me?.status !== "alive" || !this.aimKnown || this.beforeTeleport() || !this.input.isOver) return;
     const a = this.cursorAngle(this.input.activePointer);
     if (a === null || now - this.lastAimSentAt < AIM_SEND_MS) return;
     const turned = this.lastAimSent === null || angleBetween(a, this.lastAimSent) > AIM_MIN_DELTA;
@@ -505,7 +483,7 @@ export class RaidScene extends Phaser.Scene {
 
   /**
    * Phaser also listens for mouse events on the window, so a press on a DOM overlay (results panel, menus)
-   * still reaches the scene's input; only presses that began on the canvas may issue a move or an attack.
+   * still reaches the scene's input; only presses that began on the canvas may issue a move or a lock.
    */
   private pointerStartedOnCanvas(pointer: Phaser.Input.Pointer): boolean {
     return pointer.downElement === this.game.canvas;
@@ -521,6 +499,7 @@ export class RaidScene extends Phaser.Scene {
     // Physical keys (e.code), not the produced character, so shortcuts keep working on non-Latin layouts.
     if (e.code === "KeyS") {
       sendInput(this.room, "stop", {});
+      this.lockDisplay.note("", performance.now());
       return;
     }
     if (!this.localAlive()) return;
@@ -547,8 +526,6 @@ export class RaidScene extends Phaser.Scene {
       // Training puts a fighter who goes down back on its feet: no body, no decal, no "was killed" line, no death screen.
       if (fx.kind === "death" && this.training && fx.id === this.room.sessionId) {
         this.fx.cancelWindups(fx.id, fx.t);
-        // The server let go of the trigger when it revived us; a button still held must press again, as after a teleport.
-        this.attackSent = false;
         this.announce?.("Knocked down — back on your feet");
         continue;
       }
@@ -562,14 +539,7 @@ export class RaidScene extends Phaser.Scene {
 
   private teardown(): void {
     window.removeEventListener("keydown", this.onKeyDown);
-    window.removeEventListener("pointerup", this.onPointerUp);
-    window.removeEventListener("pointermove", this.onButtonsCheck);
-    window.removeEventListener("pointercancel", this.onReleaseEvent);
-    window.removeEventListener("blur", this.onReleaseEvent);
-    document.removeEventListener("mouseleave", this.onButtonsCheck);
-    document.removeEventListener("visibilitychange", this.onVisibility);
     this.room.onStateChange.remove(this.onState);
-    this.room.onReconnect.remove(this.onReconnect);
     this.unbindFx?.();
     this.unbindFx = null;
     this.unbindResult?.();
@@ -587,6 +557,7 @@ export class RaidScene extends Phaser.Scene {
     this.mapView?.destroy();
     this.mapView = null;
     this.highlight.destroy();
+    this.rings.destroy();
     this.minimap.destroy();
     this.rendered.clear();
     this.deaths.clear();

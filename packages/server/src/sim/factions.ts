@@ -22,14 +22,13 @@
 // Every bonus is raw damage x bonusMultiplier(the owner's weapon in hand), mitigated with the owner's damage shares. It
 // joins this tick's ledger (beforeDamage), so it lands at the same moment as the tick's hits and no order decides.
 //
-// The chill. A chilled fighter's cooldown (readyAt), bow draw and press buffer advance at chillMultiplier x real time,
-// re-decided every tick (stretchUntil), so nothing is snapshotted at swing time. These timers stay in unchilled seconds
-// of work, which is what the weapon state machine computes with. The ranged recovery (0.1x move until the cooldown
-// that started with the shot ends) keeps its unchilled end: stretched, it would near-root a chilled shooter at any
-// range, and the chill's move slow is meant to reach only CHILL_MOVE_RADIUS. An attack started
-// this tick from a carried remainder counted that remainder at full speed and is corrected for the chill of the tick
-// that just ended. Within CHILL_MOVE_RADIUS of a Frost that chills it, a fighter also moves at CHILL_MOVE_MULT. Several
-// Frosts don't stack.
+// The chill. A chilled fighter's cooldown (readyAt), bow draw (its start and the moment the arrow leaves) and press buffer
+// advance at chillMultiplier x real time, re-decided every tick (stretchUntil), so nothing is snapshotted at swing time.
+// These timers stay in unchilled seconds of work, which is what the weapon state machine computes with. The other
+// windups (a swing, a cast) are not stretched: only the cycle is, so a chilled melee fighter still lands its swing on
+// time. An attack started this tick from a carried remainder counted that remainder at full speed and is corrected for
+// the chill of the tick that just ended. Within CHILL_MOVE_RADIUS of a Frost that chills it, a fighter also moves at
+// CHILL_MOVE_MULT. Several Frosts don't stack.
 //
 // In the tick: afterWeapons (note this tick's attacks, correct new ones for the chill) → movement (the chill's slow) →
 // ... → beforeDamage (contacts from this tick's hits and blocks, reach, signature damage into the ledger) → ledger →
@@ -183,11 +182,11 @@ function afterWeapons(world: World): void {
     const act = w.action;
     if (act && act !== f.seenAction && f.chill < 1) {
       const back = (1 - f.chill) * Math.max(0, now - act.startedAt);
+      c.s.readyAt += back;
       if (act.kind === "draw") {
         act.startedAt += back;
+        act.landsAt += back;
         c.s.drawStartedAt = act.startedAt;
-      } else {
-        c.s.readyAt += back;
       }
     }
     f.seenAction = act;
@@ -375,7 +374,7 @@ function afterDamage(world: World, dtMs: number): void {
 }
 
 /**
- * A stagger cancels a swing or cast only while it is still winding up, so on average it costs a fighter one windup of
+ * A stagger cancels a swing or cast only while it is still winding up (never a bow's draw), so on average it costs a fighter one windup of
  * its weapon's damage. Damage over time would lose nothing (a DoT faction's hits are a small share of its damage), so
  * every stagger that lands (its immunity starts this tick, whether or not it cancelled anything) pauses the fighter's
  * burn, disease and mark for its weapon's windup: the same expected cost. Fire's backlash, a reply to the enemy's
@@ -389,7 +388,8 @@ function staggerPause(world: World, fighters: readonly Combatant[]): void {
     if (c.rt.weapon.staggerImmuneUntil !== landed) continue;
     const w = activeWeapon(c.s);
     const tm = w ? timingsOf(c.s, w) : null;
-    if (!tm || !(tm.windup > 0)) continue;
+    // A bow's draw is not interrupted by a stagger (weapons.ts), so a stagger costs it nothing to make up for.
+    if (!tm || w === "bow" || !(tm.windup > 0)) continue;
     const f = sigOf(world, c.id);
     f.dotPausedUntil = Math.max(f.dotPausedUntil, now + tm.windup * 1000);
   }
@@ -439,7 +439,10 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
       c.s.readyAt = stretchUntil(c.s.readyAt, now, dtMs, m);
       w.bufferedUntil = stretchUntil(w.bufferedUntil, now, dtMs, m);
       if (w.action?.kind === "draw") {
-        w.action.startedAt += (1 - m) * dtMs;
+        // The draw's work runs at m x real time: the arrow leaves when its remaining work is done, and the pull drawn so far moves with it.
+        const lands = stretchUntil(w.action.landsAt, now, dtMs, m);
+        w.action.startedAt += lands - w.action.landsAt;
+        w.action.landsAt = lands;
         c.s.drawStartedAt = w.action.startedAt;
       }
     }

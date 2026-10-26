@@ -1,22 +1,24 @@
-// Weapon state machines (GAME_DESIGN 9.1, 9.3, 10.3): the trigger, windups and casts, the bow draw, the shared
-// cooldown, stagger, swaps, and the movement they impose. updateWeapons() runs once per active tick right after inputs
+// Weapon state machines (GAME_DESIGN 9.1, 9.3, 10.3): the trigger, the attack windups, the shared cooldown, stagger,
+// swaps, and the movement they impose. updateWeapons() runs once per active tick right after inputs and the target lock
 // (step.ts), for every standing fighter:
-//   landing  a swing whose windup is over becomes a MeleeRequest (resolved in the melee phase, after the projectile
-//            sweep); a cast whose windup is over becomes a SpawnRequest (its ball is spawned after the sweep)
-//   bow      a pending release looses the arrow once the minimum draw is reached
+//   landing  an attack whose windup is over: a swing becomes a MeleeRequest (resolved in the melee phase, after the
+//            projectile sweep); a cast or a bow draw becomes a SpawnRequest (its ball or arrow is spawned after the sweep)
 //   start    a held (or just pressed) trigger starts the next attack as soon as the cooldown allows
+// Every attack is a windup (weaponTimings.windup): the fighter is rooted from its start until the swing lands or the
+// ball or arrow leaves, and walks freely again afterwards (the axe stays rooted a while longer). The windup is committed:
+// a move order given during it is kept as the path and walked once it ends; only a stagger (not on the bow) or a swap
+// cancels it. An attack started by the target lock (sim/targeting.ts) is aimed again at its target when it lands.
 // The cooldown carries its remainder: an attack from a trigger already down when the cooldown ended counts from that
-// moment (at most one tick back), and a bow held past its full draw has the excess (at most a tick) taken off its
-// cooldown. So cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
+// moment (at most one tick back), so cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
 import {
-  ATTACK_BUFFER_MS, damagePerHit, damageShares, drawDamageScale, MAX_REWIND_MS, moveMultiplier, staggerImmuneUntil,
-  swapReadyAt, TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
+  ATTACK_BUFFER_MS, damagePerHit, damageShares, leadAim, MAX_REWIND_MS, moveMultiplier, staggerImmuneUntil, swapReadyAt,
+  TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import { attackSpeedMult } from "./buffs";
 import {
-  activeWeapon, factionOf, slotWeapon, standingCombatants, timingsOf, type Combatant,
+  activeWeapon, combatant, factionOf, hostile, isEvading, slotWeapon, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
-import { positionAt } from "./movement";
+import { positionAt, velocityOf } from "./movement";
 import {
   chainHook, emit, newWeaponRuntime, type ActionHandler, type DamagePacket, type PendingAction, type World,
 } from "./world";
@@ -25,30 +27,66 @@ export function install(world: World): void {
   world.actions.attack = handlePress;
   world.actions.release = handleRelease;
   world.actions.swap = handleSwap;
-  // Nothing started before the teleport may land after it, no slow follows anyone in, and the trigger must be pressed again.
+  // Nothing started before the teleport may land after it, no root follows anyone in, and the trigger must be pressed again.
   chainHook(world, "teleported", (w) => {
     for (const c of standingCombatants(w)) {
       releaseTrigger(w, c);
-      c.rt.weapon.rootUntil = c.rt.weapon.castSlowUntil = c.rt.weapon.recoverUntil = 0;
+      c.rt.weapon.rootUntil = 0;
     }
   });
 }
 
 /**
- * Lets go of the trigger for a fighter whose client can't (a dropped connection, a teleport, going down) and cancels
- * what was in progress, so nothing keeps drawing or swinging on its own.
+ * Lets go of the trigger and the target lock for a fighter whose client can't (a dropped connection, a teleport, going
+ * down) and cancels what was in progress, so nothing keeps drawing, swinging or chasing on its own.
  */
 export function releaseTrigger(world: World, c: Combatant): void {
+  dropLock(c);
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
   cancelAction(world, c);
 }
 
-/** The raw damage packet of a hit with `weapon` in this fighter's hands; `scale` is the bow's draw share. */
-export function packetFor(c: Combatant, weapon: WeaponId, scale = 1): DamagePacket {
+/** Locks `id` (a fresh chase; the re-plan throttle carries over) and mirrors it in the synced state. */
+export function setLock(c: Combatant, id: string): void {
+  const w = c.rt.weapon;
+  w.lock = id;
+  w.lockSeen = false;
+  w.lockLosLostAt = 0;
+  w.lockGoal = null;
+  if (c.kind === "player" && c.s.attackTarget !== id) c.s.attackTarget = id;
+}
+
+/** Forgets the lock and the chase's memory, and clears the synced mirror. */
+export function clearLock(c: Combatant): void {
+  const w = c.rt.weapon;
+  w.lock = null;
+  w.lockSeen = false;
+  w.lockLosLostAt = 0;
+  w.lockGoal = null;
+  if (c.kind === "player" && c.s.attackTarget !== "") c.s.attackTarget = "";
+}
+
+/**
+ * The lock ends (another order, or its target is gone): the trigger it held and the path it chased with go with it, so the
+ * fighter stops where it stands. Does nothing for a fighter without a lock, whose trigger and path are its own (a mob's, a
+ * bot's). Returns whether there was a lock.
+ */
+export function dropLock(c: Combatant): boolean {
+  const w = c.rt.weapon;
+  if (w.lock === null) return false;
+  clearLock(c);
+  w.held = false;
+  w.bufferedUntil = 0;
+  c.rt.path = [];
+  return true;
+}
+
+/** The raw damage packet of a hit with `weapon` in this fighter's hands. */
+export function packetFor(c: Combatant, weapon: WeaponId): DamagePacket {
   const f = factionOf(c.s);
   if (!f) return { raw: 0, phys: 1, magic: 0, true: 0 };
-  return { raw: damagePerHit(f, weapon, attackSpeedMult(c.s)) * scale, ...damageShares(f) };
+  return { raw: damagePerHit(f, weapon, attackSpeedMult(c.s)), ...damageShares(f) };
 }
 
 /** The fighter now aims at `a`: the shield faces it, the next attack goes there, and walking no longer turns it. */
@@ -69,6 +107,7 @@ export const handlePress: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "attack") return;
   const w = c.rt.weapon;
   const now = world.state.serverTime;
+  dropLock(c); // an attack order replaces the lock: this swing goes where the press aims
   setAim(world, c, cmd.a);
   noteLag(world, c, cmd.t);
   if (!w.held) w.pressedAt = now;
@@ -79,13 +118,10 @@ export const handlePress: ActionHandler = (world, c, cmd) => {
 export const handleRelease: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "release") return;
   const w = c.rt.weapon;
-  const now = world.state.serverTime;
-  setAim(world, c, cmd.a);
+  if (w.lock === null) setAim(world, c, cmd.a); // a lock aims the fighter itself
   // Without a timestamp the press's lag stands (only the press defaults to the present).
   if (cmd.t !== undefined) noteLag(world, c, cmd.t);
   w.held = false;
-  // A draw in progress, or a quick tap that will start one: loose it as soon as the minimum draw allows.
-  if (activeWeapon(c.s) === "bow" && (w.action?.kind === "draw" || now <= w.bufferedUntil)) w.releasePending = true;
 };
 
 export const handleSwap: ActionHandler = (world, c, cmd) => {
@@ -107,25 +143,15 @@ export function weaponChanged(world: World, c: Combatant): void {
 }
 
 /**
- * Drops whatever is in progress: no landing, no ball, no arrow. The cooldown stays spent. Only an attack still pending
- * takes its root and cast slow with it (a swap after an axe has landed must not cut its root short), and a cast that
- * never let its ball go leaves no ranged recovery behind.
+ * Drops whatever is in progress: no landing, no ball, no arrow. The cooldown stays spent. Only a swing or cast still
+ * pending takes its root with it (a swap after an axe has landed must not cut its root short; a bow draw has no root of
+ * its own, whatever an earlier weapon left).
  */
 export function cancelAction(world: World, c: Combatant): void {
   const w = c.rt.weapon;
-  if (w.action && w.action.kind !== "draw") endPending(world, c);
+  if (w.action && w.action.kind !== "draw") w.rootUntil = Math.min(w.rootUntil, world.state.serverTime);
   w.action = null;
-  w.releasePending = false;
   c.s.drawStartedAt = 0;
-}
-
-/** A swing or cast that will never land: its own root and slows end now. */
-function endPending(world: World, c: Combatant): void {
-  const w = c.rt.weapon;
-  const now = world.state.serverTime;
-  w.rootUntil = Math.min(w.rootUntil, now);
-  w.castSlowUntil = Math.min(w.castSlowUntil, now);
-  if (w.action?.kind === "cast") w.recoverUntil = Math.min(w.recoverUntil, now);
 }
 
 /**
@@ -140,32 +166,25 @@ export function stagger(world: World, c: Combatant): boolean {
   const now = world.state.serverTime;
   if (now < w.staggerImmuneUntil) return false;
   w.staggerImmuneUntil = staggerImmuneUntil(now);
-  const act = w.action;
-  if (act && act.kind !== "draw") {
-    endPending(world, c);
-    w.action = null;
+  if (w.action && w.action.kind !== "draw") {
+    cancelAction(world, c);
     emit(world, { type: "fx", fx: { kind: "stagger", id: c.id } });
   }
   return true;
 }
 
-/** Move speed multiplier from the fighter's weapon state (root, draw, cast slow, ranged recovery). Buffs and the chill are world.moveModifiers. */
+/** Move speed multiplier from the fighter's weapon state: 0 while an attack winds up or the axe's root holds. Buffs and the chill are world.moveModifiers. */
 export function moveMultiplierOf(world: World, c: Combatant): number {
   const w = c.rt.weapon;
-  return moveMultiplier({
-    now: world.state.serverTime,
-    rootUntil: w.rootUntil,
-    castSlowUntil: w.castSlowUntil,
-    recoverUntil: w.recoverUntil,
-    drawing: w.action?.kind === "draw",
-  });
+  return moveMultiplier({ now: world.state.serverTime, rootUntil: w.rootUntil, windingUp: w.action !== null });
 }
 
-/** A fresh state machine and cooldown (the run starts). */
+/** A fresh state machine and cooldown (the run starts), and no lock. */
 export function resetWeapons(c: Combatant): void {
   c.rt.weapon = newWeaponRuntime();
   c.s.readyAt = 0;
   c.s.drawStartedAt = 0;
+  if (c.kind === "player") c.s.attackTarget = "";
 }
 
 /** The server time the fighter's client was drawing at `now`, for melee rewind: never before the window, never unpublished. */
@@ -195,23 +214,47 @@ function stepWeapon(world: World, c: Combatant): void {
     if (w.action) cancelAction(world, c);
     return;
   }
-  const act = w.action;
-  if (act && act.kind !== "draw" && now >= act.landsAt) {
-    w.action = null;
-    if (act.kind === "swing") {
-      world.combat.melee.push({ attacker: c.id, weapon: act.weapon, a: act.a, rewindT: rewindTime(now, w.lagMs), packet: act.packet });
-    } else {
-      world.combat.spawns.push({ owner: c.id, kind: "ball", weapon: act.weapon, a: act.a, packet: act.packet, origin: act.origin });
-    }
-  }
-  if (w.action?.kind === "draw" && w.releasePending) {
-    const drawn = (now - w.action.startedAt) / 1000;
-    if (drawn >= tm.minDraw - 1e-9) loose(world, c, tm, drawn);
-  }
+  if (w.action && now >= w.action.landsAt) land(world, c, w.action);
   const wants = w.held || now <= w.bufferedUntil;
-  // A click whose buffer ran out before the cooldown did starts nothing, so its release must not loose the next draw.
-  if (!w.action && !wants) w.releasePending = false;
   if (!w.action && wants && now >= c.s.readyAt) startAttack(world, c, weapon, tm);
+}
+
+/**
+ * The target a locked attack is aimed at as it lands: the fighter the lock started it on, if it still stands and is an
+ * enemy. Whether the lock itself still holds does not matter: the attack was committed to that fighter.
+ */
+function lockedFoe(world: World, c: Combatant, id: string | undefined): Combatant | null {
+  const t = id === undefined ? undefined : combatant(world, id);
+  return t && standing(t) && hostile(c, t) && !isEvading(t) ? t : null;
+}
+
+/** The windup is over: the swing becomes a melee request, the ball or arrow a spawn request. */
+function land(world: World, c: Combatant, act: PendingAction): void {
+  const now = world.state.serverTime;
+  const w = c.rt.weapon;
+  w.action = null;
+  const foe = lockedFoe(world, c, act.target);
+  if (act.kind === "swing") {
+    const rewindT = rewindTime(now, w.lagMs);
+    let a = act.a;
+    if (foe) {
+      const from = positionAt(c.rt, c.s, rewindT);
+      const to = positionAt(foe.rt, foe.s, rewindT);
+      a = Math.atan2(to.y - from.y, to.x - from.x);
+    }
+    world.combat.melee.push({ attacker: c.id, weapon: act.weapon, a, rewindT, packet: act.packet });
+    return;
+  }
+  const shape = WEAPONS[act.weapon].shape;
+  if (shape.kind !== "projectile") return;
+  // The shot leaves from its drawn origin: a locked one led at where the target is now and where it is heading. Otherwise
+  // an arrow goes along the aim held when the draw ends (a bow is aimed while drawn, as it was when it loosed on release)
+  // and a ball where its cast was aimed (as it always was): the 9.1 edges were tuned with both.
+  // A locked shot whose target fell keeps the aim it started with (at that target), not a cursor aim that came after.
+  const a = foe ? leadAim(act.origin, foe.s, velocityOf(foe.rt, foe.s, now), shape.speed)
+    : act.kind === "draw" && act.target === undefined ? w.aim : act.a;
+  world.combat.spawns.push({ owner: c.id, kind: shape.projectile, weapon: act.weapon, a, packet: act.packet, origin: act.origin });
+  if (act.kind === "draw") c.s.drawStartedAt = 0;
 }
 
 function startAttack(world: World, c: Combatant, weapon: WeaponId, tm: WeaponTimings): void {
@@ -220,37 +263,16 @@ function startAttack(world: World, c: Combatant, weapon: WeaponId, tm: WeaponTim
   // A trigger already down when the cooldown ended attacks from that moment (carrying the remainder), at most a tick back.
   const start = w.pressedAt <= c.s.readyAt ? Math.max(c.s.readyAt, now - TICK_MS) : now;
   w.bufferedUntil = 0;
-  if (weapon === "bow") {
-    w.action = { kind: "draw", weapon, startedAt: start };
-    c.s.drawStartedAt = start;
-    return; // a pending release (a quick tap) looses it at the minimum draw
-  }
-  w.releasePending = false;
   const landsAt = start + tm.windup * 1000;
   const packet = packetFor(c, weapon);
+  const target = w.lock ?? undefined;
   const act: PendingAction = WEAPONS[weapon].shape.kind === "arc"
-    ? { kind: "swing", weapon, startedAt: start, landsAt, a: w.aim, packet }
-    : { kind: "cast", weapon, startedAt: start, landsAt, a: w.aim, packet, origin: drawnOrigin(world, c) };
+    ? { kind: "swing", weapon, startedAt: start, landsAt, a: w.aim, packet, target }
+    : { kind: weapon === "bow" ? "draw" : "cast", weapon, startedAt: start, landsAt, a: w.aim, packet, origin: drawnOrigin(world, c), target };
   w.action = act;
   c.s.readyAt = start + tm.interval * 1000;
   if (tm.root > 0) w.rootUntil = start + tm.root * 1000;
-  if (tm.castSlow > 0) w.castSlowUntil = start + tm.castSlow * 1000;
-  if (tm.ranged) w.recoverUntil = c.s.readyAt;
-  emit(world, { type: "fx", fx: { kind: "windup", by: c.id, weapon, a: w.aim, ms: landsAt - now } });
-}
-
-/** The bow looses an arrow drawn for `drawn` seconds toward the current aim. */
-function loose(world: World, c: Combatant, tm: WeaponTimings, drawn: number): void {
-  const now = world.state.serverTime;
-  const w = c.rt.weapon;
-  world.combat.spawns.push({
-    owner: c.id, kind: "arrow", weapon: "bow", a: w.aim, packet: packetFor(c, "bow", drawDamageScale(drawn, tm)),
-    origin: drawnOrigin(world, c),
-  });
-  const overhold = Math.min(TICK_MS, Math.max(0, (drawn - tm.fullDraw) * 1000));
-  c.s.readyAt = now + tm.cooldown * 1000 - overhold;
-  w.recoverUntil = c.s.readyAt;
-  w.action = null;
-  w.releasePending = false;
-  c.s.drawStartedAt = 0;
+  // Clients draw the bow's pull from its synced start; every other windup is announced once.
+  if (weapon === "bow") c.s.drawStartedAt = start;
+  else emit(world, { type: "fx", fx: { kind: "windup", by: c.id, weapon, a: w.aim, ms: landsAt - now } });
 }

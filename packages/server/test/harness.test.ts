@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { FACTION_IDS, isRanged, WEAPON_BEATS, type FactionId, type WeaponId } from "@raid/shared";
+import { FACTION_IDS, isRanged, POLICIES, WEAPON_BEATS, WEAPON_IDS, type FactionId, type WeaponId } from "@raid/shared";
 import { runDuel, type DuelResult } from "../src/harness/duel";
-import { kitingReport } from "../src/harness/kiting";
+import { KITE_STYLES, kitingReport } from "../src/harness/kiting";
 import { edgeName, hasGrid, spacingFor, stylesOf, WEAVES, type Cell, type Edge, type Setup } from "../src/harness/matrix";
 import { parityReport } from "../src/harness/parity";
 import {
@@ -36,6 +36,7 @@ describe("weapon duel harness", () => {
   it("prints the matrix, the watch list and the parity block", () => {
     expect(report.text).toContain("MATRIX");
     expect(report.text).toContain("WATCH LIST");
+    expect(report.text).toContain("TARGET LOCK");
     expect(report.text).toContain("Parity with testing/realtime.py");
     // The two watched edges are flagged in the matrix.
     const flagged = report.text.split("\n").filter((l) => l.includes("<- watch"));
@@ -172,6 +173,15 @@ describe("edge verdicts", () => {
     expect(report.verdicts.map((v) => edgeName(v.edge))).toEqual(WEAPON_BEATS.map(edgeName));
     expect(report.text).toContain("EDGE VERDICTS");
     expect(report.text).toMatch(/\d+ of 10 edges hold/);
+    // And a target-lock row for each: both fighters clicking each other, one faction here.
+    expect(report.lock.map((r) => edgeName(r.edge))).toEqual(WEAPON_BEATS.map(edgeName));
+    for (const r of report.lock) {
+      expect(r.perFaction.map((p) => p.faction)).toEqual(["fire"]);
+      expect(r.overall).toBeGreaterThanOrEqual(0);
+      expect(r.overall).toBeLessThanOrEqual(1);
+      expect(r.worstFaction.faction).toBe("fire");
+    }
+    expect(report.text).toMatch(/\d+ of 10 edges keep 60% overall and 50% in every faction when both fighters lock each other/);
   });
 });
 
@@ -267,18 +277,92 @@ describe("melee weave style", () => {
   });
 });
 
+describe("the orbwalk and lock styles", () => {
+  it("orbwalk is a ranged style that backs away whenever the target is inside the attack range, and lock plays through no spacing at all", () => {
+    for (const w of ["bow", "wand"] as WeaponId[]) {
+      const o = spacingFor(w, "orbwalk")!;
+      expect(o.retreatBelow, w).toBe(POLICIES[w].attackRange);
+      expect(o.far, w).toBe(Infinity);
+      expect(o.leadSpeed, w).toBe(POLICIES[w].leadSpeed);
+    }
+    for (const w of ["sword", "axe", "shield"] as WeaponId[]) expect(spacingFor(w, "orbwalk"), w).toBeUndefined();
+    for (const w of WEAPON_IDS) expect(spacingFor(w, "lock"), w).toBeUndefined();
+    // Neither is in the style grids: the kiting section is the only place they are measured.
+    for (const w of WEAPON_IDS) expect(stylesOf(w), w).not.toContain("lock");
+    for (const w of WEAPON_IDS) expect(stylesOf(w), w).not.toContain("orbwalk");
+    expect(KITE_STYLES).toEqual(["post", "stand", "strafe", "kite", "orbwalk", "lock"]);
+  });
+
+  it("a locking fighter is locked on the other from the first tick to the last, and the server does the fighting", () => {
+    const locked: Array<[string, string]> = [];
+    const r = runDuel({
+      faction: "fire", weapons: ["sword", "axe"], distance: 300, angle: 0.1, capSeconds: 60, seed: 4, locks: [true, true],
+      onTick: (world) => {
+        if (world.state.phase !== "active") return;
+        locked.push([world.state.players.get("f0")!.attackTarget, world.state.players.get("f1")!.attackTarget]);
+      },
+    });
+    // The order is queued before the tick and taken in it: from the first tick each has the other locked, until one falls.
+    expect(locked.length).toBeGreaterThan(20);
+    expect(locked.slice(0, locked.length - 2).every(([a, b]) => a === "f1" && b === "f0")).toBe(true);
+    expect(r.end).toBe("kill");
+    expect(r.counts.attacks[0]).toBeGreaterThan(0);
+    expect(r.counts.attacks[1]).toBeGreaterThan(0);
+    expect(r.counts.hits[0] + r.counts.hits[1]).toBeGreaterThan(0);
+  });
+
+  it("a locking bow walks into range of a shooter that stands too far and shoots; the other fighter may play any style", () => {
+    const r = runDuel({
+      faction: "fire", weapons: ["sword", "bow"], distance: 450, capSeconds: 30, seed: 6, locks: [false, true],
+      spacing: [spacingFor("sword", "stand"), undefined],
+    });
+    expect(r.counts.shots[1]).toBeGreaterThan(0);
+    expect(r.end).toBe("kill");
+  });
+
+  it("repeats exactly", () => {
+    const spec = {
+      faction: "plague" as FactionId, weapons: ["bow", "shield"] as const, distance: 300, angle: 0.8, capSeconds: 10, seed: 9, locks: [true, true] as const,
+    };
+    const a = runDuel(spec);
+    const b = runDuel(spec);
+    expect({ ...a, spec: undefined }).toEqual({ ...b, spec: undefined });
+  });
+});
+
 describe("kiting section", () => {
-  it("lets a post never move and the other styles move only a little: the ranged penalties keep a kiter near the standing bound", () => {
+  it("lets a post never move, and every style is measured against the standing bound", () => {
     const post = spacingFor("bow", "post")!;
     expect(post.retreatBelow).toBe(0);
     expect(post.far).toBe(Infinity);
     const report = kitingReport(["fire", "plague"]);
-    expect(report.cells).toHaveLength(3 * 2 * 4);
+    expect(report.cells).toHaveLength(3 * 2 * KITE_STYLES.length);
     for (const c of report.cells) expect(c.missed, `${c.melee} vs ${c.ranged} ${c.style}`).toBe(0);
-    // The owner's lever (9.1 tuning): a shooter that strafes or backs away gets at most ~25% more free fire than one that stands.
-    expect(report.worst.ratio).toBeLessThan(1.25);
     // The standing bound is (range - reach) / speed, and the melee fighter is never in reach sooner than that minus its own reach.
     for (const c of report.cells.filter((x) => x.style === "post")) expect(c.contact).toBeGreaterThan(report.bound[c.ranged]! - 0.5);
     expect(report.text.join("\n")).toContain("standing-shooter bound");
+    expect(report.text.join("\n")).toContain("the perfect kiter");
+  });
+
+  it("bounds the perfect kiter: rooted only for its windups, it keeps a chaser out of reach about 1.5 times as long as a shooter that stands", () => {
+    // The ranged windups are the anti-kiting lever now that no ranged weapon slows a walk: the chaser closes only while the
+    // shooter is rooted, so an orb-walker's free fire is about interval / windup times a standing shooter's in the Python
+    // model (testing/realtime.py orbwalk_free_fire; the bow's windup is 0.92 of its interval up to 0.6 s, the wand's 0.8 up to
+    // 0.4 s), and test_kite.py holds the guarantee on that. This is the same thing in the real sim, in seconds until the chaser
+    // is in reach against a shooter that never moves: fire and plague measure x1.53 (sword vs wand, a tick is 0.05 s of 0.75),
+    // all five factions x1.40. A bound with headroom, so a retune of the windup shares shows here before it breaks the guarantee.
+    const report = kitingReport(["fire", "plague"]);
+    expect(report.worstOrbwalk.ratio).toBeGreaterThan(1.05);
+    expect(report.worstOrbwalk.ratio).toBeLessThan(1.75);
+    for (const c of report.cells.filter((x) => x.style === "orbwalk")) {
+      const post = report.cells.find((x) => x.melee === c.melee && x.ranged === c.ranged && x.style === "post")!;
+      expect(c.contact, `${c.melee} vs ${c.ranged}`).toBeGreaterThan(post.contact);
+      expect(c.contact / post.contact, `${c.melee} vs ${c.ranged}`).toBeLessThan(1.75);
+    }
+    // A shooter that only clicks its chaser walks into range instead of away: never later than one that stands (a tick of slack).
+    for (const c of report.cells.filter((x) => x.style === "lock")) {
+      const post = report.cells.find((x) => x.melee === c.melee && x.ranged === c.ranged && x.style === "post")!;
+      expect(c.contact, `${c.melee} vs ${c.ranged}`).toBeLessThanOrEqual(post.contact + 0.05);
+    }
   });
 });
