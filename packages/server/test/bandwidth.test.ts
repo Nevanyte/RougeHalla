@@ -3,7 +3,7 @@
 // machine cannot make these flaky: the result only moves when the sim, the schema or the fx change.
 import { describe, expect, it } from "vitest";
 import {
-  BANDWIDTH_BUDGET_KBPS, HEAVY_CAMPS, TYPICAL_CAMPS, runBandwidth, type BandwidthResult,
+  BANDWIDTH_BUDGET_KBPS, BOTS_SCENARIO_BOTS, BOTS_SCENARIO_CAMPS, HEAVY_CAMPS, TYPICAL_CAMPS, runBandwidth, type BandwidthResult,
 } from "../bench/bandwidth";
 
 // Memoised: each scenario simulates a minute and a half of play, and the tests below only read the numbers.
@@ -15,9 +15,10 @@ function run(name: string, opts: Parameters<typeof runBandwidth>[0]): BandwidthR
 }
 const typical = () => run("typical", { camps: TYPICAL_CAMPS });
 const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
+const botsOpts = { bots: BOTS_SCENARIO_BOTS, camps: BOTS_SCENARIO_CAMPS };
 
 describe("bandwidth budget (per client, ws payload)", () => {
-  // Seed 1 measures 10.0 KB/s with about 17 mobs fighting (9.1 to 10.5 over seeds 1 to 5, 732 and 2547).
+  // Seed 1 measures 6.9 KB/s with about 18 mobs fighting (6.9 to 8.2 over seeds 1 to 5, 732 and 2547; 13 to 19 fighting).
   it("typical: 4 camps fought by 2 players each, 60 mobs: under 20 KB/s", () => {
     const r = typical();
     expect(r.mobs).toBeGreaterThanOrEqual(58); // topped up to 60 every tick; the last tick's kills are replaced in the next
@@ -25,7 +26,7 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  // Seed 1 measures 15.1 KB/s with about 34 mobs fighting (14.1 to 16.3 over the seven seeds, up to 37 fighting).
+  // Seed 1 measures 10.2 KB/s with about 32 mobs fighting (10.2 to 11.9 over the seven seeds, 30 to 37 fighting).
   it("heavy: 8 camps fought by 1 player each, 60 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
@@ -64,9 +65,47 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan(0.1);
   });
 
+  // 7 fill bots (BotManager, in a headless room: the Room's tick order) and one driven client at a camp (docs/BOTS.md 9.2).
+  // Seed 1 measures about 3 KB/s with 2 to 3 mobs fighting (2.7 to 4.9 over seeds 1 to 5, 732 and 2547, up to 10 fighting). It sits
+  // below the typical load because the bots send inputs only, never `aim`, so far fewer patches carry a `facing`, and they fight
+  // each other and the mobs a camp at a time instead of waking every mob of a camp every 3 s.
+  it("bots: 7 fill bots and a client at one camp, 60 mobs: under 20 KB/s", () => {
+    const r = run("bots", botsOpts);
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+  });
+
+  it.each([732])("bots, seed %i: under 20 KB/s as well", (seed) => {
+    const r = run(`bots${seed}`, { ...botsOpts, seed });
+    expect(r.avgFighting).toBeGreaterThan(0.5);
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+  });
+
+  // The gate above would also pass if the bots stood still, so this one makes sure they played.
+  it("bots: the scenario is loaded (so the gate above is about bytes, not about idle bots)", () => {
+    const r = run("bots", botsOpts);
+    expect(r.bots!.count).toBe(BOTS_SCENARIO_BOTS);
+    expect(r.bots!.aliveAtEnd).toBe(BOTS_SCENARIO_BOTS);
+    expect(r.bots!.manager.errors).toBe(0);
+    expect(r.bots!.manager.refused).toBe(0);
+    // One frame per bot per patch from the raid's start (the first few wait for the frame ring to fill), and they acted.
+    expect(r.bots!.manager.frames).toBeGreaterThan(BOTS_SCENARIO_BOTS * (200 + 1200) * 0.95);
+    expect(r.bots!.manager.sent).toBeGreaterThan(50);
+    expect(r.mobs).toBeGreaterThanOrEqual(58);
+    expect(r.avgFighting).toBeGreaterThan(0.5);
+    expect(r.patchFramesPerSecond).toBeGreaterThan(19);
+    expect(r.fxFramesPerSecond).toBeLessThanOrEqual(20.5);
+    expect(r.totalKBps).toBeGreaterThan(1);
+  });
+
   it("is deterministic for a seed", () => {
     const a = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });
     const b = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });
+    expect(b).toEqual(a);
+  });
+
+  it("is deterministic with bots too (the manager and the headless room replay exactly)", () => {
+    const a = runBandwidth({ ...botsOpts, ticks: 300, seed: 7 });
+    const b = runBandwidth({ ...botsOpts, ticks: 300, seed: 7 });
     expect(b).toEqual(a);
   });
 });
