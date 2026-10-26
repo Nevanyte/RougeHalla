@@ -411,7 +411,8 @@ export class BotManager {
     this.stats.results++;
     try {
       const summary = seat.runner.end(result);
-      this.deps.store?.record(summary);
+      // The faction was the manager's pick, not a brain decision: the run it led to is what the faction bias learns from.
+      this.deps.store?.record({ ...summary, choices: [...summary.choices, `faction|${seat.spec.persona}|${seat.spec.faction}`] });
     } catch (err) {
       console.error(`[bots] could not record the result of ${seat.spec.name}:`, err);
     }
