@@ -1,10 +1,11 @@
 // What the client knows about its own fighter's speed and roots, for LocalMotion (net/localMotion.ts): the synced stat mirrors'
-// walking speed and attack speed (never the buff stacks: later effects feed the mirrors too), a kill's burst, the chill, the
-// axe's root after its swing. Presentation only, and only as good as the client's knowledge: anything it gets wrong the server's
-// samples correct (a wrong guess costs a small slide, never a wrong position).
+// walking speed, attack speed and windup (never the buff stacks or any effect: whatever feeds the mirrors, the server folds it
+// and the client reads the decoded result), the chill, the axe's root after its swing. Presentation only, and only as good as
+// the client's knowledge: anything it gets wrong the server's samples correct (a wrong guess costs a small slide, never a
+// wrong position).
 import {
-  attackInterval, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, FACTIONS, isFactionId, killEffects, SIG_CHILLED, weaponTimings,
-  type TimedFx,
+  attackInterval, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, FACTIONS, isFactionId, scaleWindup, SIG_CHILLED, weaponTimings,
+  type FactionSpec, type TimedFx, type WeaponTimings,
 } from "@raid/shared";
 import { LocalMotion, type FrameInput } from "./localMotion";
 
@@ -14,19 +15,14 @@ export interface LocalFighter {
   y: number;
   faction: string;
   sig: number;
-  /** The buff stacks: they still drive the kill combos (a burst), not the speeds. */
-  stacksHp: number;
-  stacksAs: number;
-  stacksMs: number;
-  /** The stat mirrors (wire form; decodeMult): the attack and walking speed the server simulates with. */
+  /** The stat mirrors (wire form, thousandths; decodeMult): the attack speed, windup and walking speed the server simulates with. */
   asMult: number;
+  windupMult: number;
   speedMult: number;
 }
 
 /** Another player, as far as the chill needs to know. */
 export interface OtherFighter { x: number; y: number; faction: string; status: string }
-
-interface Burst { mult: number; from: number; until: number }
 
 /** Where the local fighter is drawn from this frame. */
 export type LocalDrawSource = "predicted" | "frozen" | "snapshot";
@@ -49,7 +45,6 @@ export class LocalPrediction {
   private seq = 0;
   /** The axe's root after its swing has landed, in server time: [from, until). */
   private axeRoot: { from: number; until: number } | null = null;
-  private bursts: Burst[] = [];
 
   /** The next order number: 1..255 and round again (0 is "no order yet" in `moveSeq`). */
   nextSeq(): number {
@@ -61,7 +56,6 @@ export class LocalPrediction {
     this.motion.reset();
     this.seq = 0;
     this.axeRoot = null;
-    this.bursts = [];
   }
 
   /** An fx batch event: the ones about the local fighter that change how it can walk. */
@@ -69,11 +63,12 @@ export class LocalPrediction {
     switch (fx.kind) {
       case "windup": {
         if (fx.by !== localId || fx.weapon !== "axe") break;
-        // The axe roots from its start for twice its windup (weapons.ts): what follows the swing's landing is the root this knows.
+        // The axe roots from its start for `root` seconds (weapons.ts; the server's rootUntil), and the swing lands `fx.ms` in:
+        // what follows the landing is the root this knows. The mirrors (attack speed, windup) shape both, as the server's timingsOf.
         const f = me && isFactionId(me.faction) ? FACTIONS[me.faction] : null;
-        const windup = f ? weaponTimings("axe", attackInterval(f, "axe", decodeMult(me!.asMult))).windup * 1000 : fx.ms;
         const lands = fx.t + fx.ms;
-        this.axeRoot = { from: lands, until: lands + windup };
+        const root = f && me ? axeTimings(f, me).root * 1000 : 2 * fx.ms;
+        this.axeRoot = { from: lands, until: Math.max(lands, fx.t + root) };
         break;
       }
       case "cancel":
@@ -84,13 +79,8 @@ export class LocalPrediction {
       case "death":
         if (fx.id === localId) {
           this.axeRoot = null;
-          this.bursts = [];
           // A training room puts the fighter back on its feet in place, with no walk left: the sample that follows snaps.
           this.motion.cut(fx.t);
-        }
-        if (fx.by === localId && me) {
-          const { bursts } = killEffects({ hp: me.stacksHp, attackSpeed: me.stacksAs, moveSpeed: me.stacksMs });
-          for (const b of bursts) this.bursts.push({ mult: b.mult, from: fx.t, until: fx.t + b.ms });
         }
         break;
       case "teleport":
@@ -116,19 +106,15 @@ export class LocalPrediction {
     const t = c + this.motion.delay;
     return {
       alive: active,
-      speedMult: me ? this.speedMult(t, me, others) : 1,
+      speedMult: me ? this.speedMult(me, others) : 1,
       rooted: this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until,
       aiming,
     };
   }
 
-  /** The walk speed multiplier at server time `t`: the speed mirror, the strongest kill burst running, and the chill. */
-  speedMult(t: number, me: LocalFighter, others: Iterable<OtherFighter>): number {
+  /** The walk speed multiplier: the speed mirror (the server's own number, whatever feeds it), and the chill. */
+  speedMult(me: LocalFighter, others: Iterable<OtherFighter>): number {
     let m = decodeMult(me.speedMult);
-    let best = 1;
-    for (let i = this.bursts.length - 1; i >= 0; i--) if (t >= this.bursts[i]!.until + 2000) this.bursts.splice(i, 1);
-    for (const b of this.bursts) if (t >= b.from && t < b.until && b.mult > best) best = b.mult;
-    m *= best;
     // The server slows a fighter it is chilling when the Frost doing it is within CHILL_MOVE_RADIUS; here: any Frost that close.
     if ((me.sig & SIG_CHILLED) !== 0) {
       for (const o of others) {
@@ -144,4 +130,9 @@ export class LocalPrediction {
   private dropRootBefore(t: number): void {
     if (this.axeRoot && t < this.axeRoot.from) this.axeRoot = null;
   }
+}
+
+/** The axe's timings with this fighter's mirrors applied: the server's timingsOf (attack speed, then the windup mirror). */
+function axeTimings(faction: FactionSpec, me: LocalFighter): WeaponTimings {
+  return scaleWindup(weaponTimings("axe", attackInterval(faction, "axe", decodeMult(me.asMult))), decodeMult(me.windupMult));
 }

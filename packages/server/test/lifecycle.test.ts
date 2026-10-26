@@ -835,7 +835,7 @@ describe("movement during a raid", () => {
     ];
     const tiles = new Uint8Array(12 * 7);
     rows.forEach((row, ty) => [...row].forEach((c, tx) => { tiles[ty * 12 + tx] = c === "#" ? TILE_WALL : TILE_FLOOR; }));
-    world.map = { ...world.map, w: 12, h: 7, tiles, buildings: [], spawns: [], crateSpots: [], groundSpots: [], extracts: [] };
+    world.map = { ...world.map, w: 12, h: 7, tiles, buildings: [], spawns: [], crateSpots: [], groundSpots: [] };
     p.x = 8 * 32 + 16;
     p.y = 3 * 32 + 16;
     const start = posOf(p);

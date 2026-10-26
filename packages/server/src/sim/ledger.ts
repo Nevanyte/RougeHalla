@@ -5,11 +5,18 @@
 // (players), hurtMob (regional mobs) or damageMob (dummies). Rewards for the kills of a pass (GV, bounties, stacks,
 // shields, drops) are queued while the damage lands and paid after the last victim has taken theirs (payLater), so a
 // kill's spoils never decide who survives the pass.
+//
+// The outgoing multiplier (roguelike R4a): every entry's raw damage is multiplied by its attacker's damage rows (stat
+// damage, `vs` rows whose test holds against the victim, `scale` rows; sim/mods.ts outgoingMult) before armor and shield,
+// weapon hits and signature damage alike. Every entry's multiplier is fixed at the start of the pass, before any victim
+// takes damage, from the hp fractions as they stood then, so the order victims are processed in never changes it. The
+// arena's own burn and a dealer that is not a fighter in the world are never multiplied.
 import { isDot, mitigateShares } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
+import { outgoingMult } from "./mods";
 import { stagger } from "./weapons";
 import { lobbyMedianFeed } from "./feed";
 import { emit, type DamageSource, type LedgerEntry, type World } from "./world";
@@ -49,6 +56,8 @@ export function applyLedger(world: World): void {
     if (list) list.push(e);
     else byVictim.set(e.victim, [e]);
   }
+  // Before anything lands: every multiplier reads the hp as the pass began.
+  const out = outgoingMults(world, ledger);
   const c0 = world.combat;
   // A pass that threw would have left its queue and snapshot behind: start clean.
   c0.payouts = [];
@@ -57,7 +66,7 @@ export function applyLedger(world: World): void {
   // Every mob reward of the pass reads the lobby as it stood before it, not as kills earlier in the pass left it.
   c0.medianFeed = lobbyMedianFeed(world);
   try {
-    for (const [id, entries] of byVictim) applyVictim(world, id, entries);
+    for (const [id, entries] of byVictim) applyVictim(world, id, entries, out);
   } finally {
     c0.collecting = false;
   }
@@ -71,11 +80,30 @@ export function applyLedger(world: World): void {
   }
 }
 
-function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
+/** hp / maxHp of a fighter, or 1 when it has no hp bar (nothing is tested against it then). */
+function hpFrac(world: World, id: string): number {
+  const s = world.state.players.get(id) ?? world.state.mobs.get(id);
+  return s && s.maxHp > 0 ? s.hp / s.maxHp : 1;
+}
+
+/** Each entry's outgoing multiplier (1 for most), from the state before the pass; only entries that differ are listed. */
+function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Map<LedgerEntry, number> {
+  const out = new Map<LedgerEntry, number>();
+  for (const e of ledger) {
+    if (e.arena || !(e.scale > 0)) continue;
+    const by = world.state.players.get(e.by.id) ?? world.state.mobs.get(e.by.id);
+    if (!by) continue;
+    const m = outgoingMult(by, hpFrac(world, e.victim));
+    if (m !== 1) out.set(e, m);
+  }
+  return out;
+}
+
+function applyVictim(world: World, id: string, entries: LedgerEntry[], out: ReadonlyMap<LedgerEntry, number>): void {
   const c = combatant(world, id);
   if (!c || !standing(c)) return;
   const def = defenseOf(c.s);
-  const amounts = entries.map((e) => (e.scale > 0 ? mitigateShares(e.packet.raw * e.scale, e.packet, def) : 0));
+  const amounts = entries.map((e) => (e.scale > 0 ? mitigateShares(e.packet.raw * e.scale * (out.get(e) ?? 1), e.packet, def) : 0));
   // A player's hits reach the one way down in the tick's secret order (players by rank, then anyone else), so an exact
   // tie for the kill never follows join order or the order the hits were recorded in. (The hit fx stay in entry order.)
   const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
@@ -88,6 +116,8 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
       : hurtMob(world, c, order.map((i) => amounts[i]!), order.map((i) => entries[i]!));
   // Nothing got through (teleport immunity, a mob walking home): no numbers, no stagger.
   if (!(applied > 0)) return;
+  // A survivor's own reactions to its hp (Blood Saint): they read only its own state and pay later.
+  if (standing(c)) world.hooks.hurt?.(world, c, applied);
   // A regional mob has little hp: what a lifesteal can feed on is the hp the hits actually removed, not the overkill.
   let total = 0;
   for (const a of amounts) total += a;

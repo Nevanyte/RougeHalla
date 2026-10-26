@@ -10,6 +10,7 @@ import { InputQueue } from "./inputs";
 import { applyLedger } from "./ledger";
 import { resolveMelee } from "./melee";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
+import { leavePlanning, planningEnabled, startPlanning, updatePlanning } from "./planning";
 import { clearProjectiles, spawnProjectiles, sweepProjectiles } from "./projectiles";
 import { updateTargets } from "./targeting";
 import { trainingSettle } from "./training";
@@ -90,6 +91,8 @@ export function removePlayer(world: World, id: string): void {
   if (p && rt && world.state.phase === "active") downPlayer(world, p, rt, "mia");
   world.state.players.delete(id);
   world.players.delete(id);
+  // A leave during planning is a lobby leave (the run has not started: no result, nothing recorded); what they held is freed.
+  leavePlanning(world, id);
 }
 
 /**
@@ -104,18 +107,25 @@ export function abandonPlayer(world: World, id: string): number {
   if (world.state.phase === "active") world.arena.voided = true;
   world.state.players.delete(id);
   world.players.delete(id);
+  leavePlanning(world, id);
   return gv;
 }
 
-export function startRaid(world: World): void {
+/**
+ * The run starts: everyone is placed and armed, then beginRun and the raidStarted hook (mobs, loot). `placed` is where the
+ * planning phase put each player (sim/planning.ts); anyone it does not name takes the shuffled spawns, as every run did
+ * before planning. The shuffle is drawn either way, so world.random's later rolls do not depend on whether there was planning.
+ */
+export function startRaid(world: World, placed?: ReadonlyMap<string, Vec2>): void {
   const s = world.state;
   s.phase = "active";
   s.raidStartedAt = s.serverTime;
+  s.planEndsAt = 0;
   const spawns = shuffledSpawns(world);
   let i = 0;
   for (const [id, p] of s.players) {
     // No spawns (a hand-built map): players start where the lobby put them.
-    const spot = spawns.length > 0 ? spawns[i++ % spawns.length]! : p;
+    const spot = placed?.get(id) ?? (spawns.length > 0 ? spawns[i++ % spawns.length]! : p);
     p.x = spot.x;
     p.y = spot.y;
     p.status = "alive";
@@ -137,7 +147,10 @@ function updateLobby(world: World): void {
   if (n >= world.config.minPlayers) {
     s.lobbyEndsAt = Math.min(s.lobbyEndsAt, s.serverTime + world.config.fillSeconds * 1000);
   }
-  if (n >= MAX_PLAYERS || s.serverTime >= s.lobbyEndsAt) startRaid(world);
+  if (n >= MAX_PLAYERS || s.serverTime >= s.lobbyEndsAt) {
+    if (planningEnabled(world)) startPlanning(world);
+    else startRaid(world);
+  }
 }
 
 /**
@@ -237,7 +250,10 @@ function updateActive(world: World, dtMs: number): void {
   if (s.phase === "ended") clearProjectiles(world, "cleared");
 }
 
-/** Advances the world by one fixed step and returns the events it produced. */
+/**
+ * Advances the world by one fixed step and returns the events it produced. Phases: lobby -> (planning, when planSeconds > 0:
+ * sim/planning.ts, picks only) -> active -> ended.
+ */
 export function step(world: World, dtMs: number): SimEvent[] {
   const s = world.state;
   s.serverTime += dtMs;
@@ -245,6 +261,7 @@ export function step(world: World, dtMs: number): SimEvent[] {
   world.stepping = true;
   try {
     if (s.phase === "lobby") updateLobby(world);
+    else if (s.phase === "planning") updatePlanning(world, actionOrder(world), startRaid);
     else if (s.phase === "active") updateActive(world, dtMs);
   } finally {
     world.stepping = false;

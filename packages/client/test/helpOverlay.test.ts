@@ -12,8 +12,8 @@ const find = (section: string, key: string, action?: RegExp) =>
   bindings.find((b) => b.section === section && b.keys.includes(key) && (!action || action.test(b.action)));
 
 describe("the controls table", () => {
-  it("has a run, a hub and an anywhere section, each with a title and bindings", () => {
-    expect(HELP_SECTIONS.map((s) => s.id)).toEqual(["run", "hub", "anywhere"]);
+  it("has a run, a planning, a hub and an anywhere section, each with a title and bindings", () => {
+    expect(HELP_SECTIONS.map((s) => s.id)).toEqual(["run", "planning", "hub", "anywhere"]);
     for (const s of HELP_SECTIONS) {
       expect(s.title.length).toBeGreaterThan(3);
       expect(s.bindings.length).toBeGreaterThan(0);
@@ -44,6 +44,17 @@ describe("the controls table", () => {
     expect(find("run", "Esc", /leave practice/i)).toBeDefined();
   });
 
+  it("lists the map and planning controls: hold Tab for the map, the spawn keys, the route and the keyboard path", () => {
+    expect(find("run", "Hold Tab", /map/i)?.action).toMatch(/route/i);
+    expect(find("planning", "1")?.keys).toEqual(["1", "2"]);
+    expect(find("planning", "1")?.action).toMatch(/spawn/i);
+    expect(find("planning", "Click", /route stop/i)).toBeDefined();
+    expect(find("planning", "Tab")).toBeDefined();
+    expect(find("planning", "Arrow keys")).toBeDefined();
+    expect(find("planning", "Enter", /Ready/)).toBeDefined();
+    expect(find("planning", "Delete", /stop/i)).toBeDefined();
+  });
+
   it("lists the hub controls: walking and the station key", () => {
     expect(find("hub", "WASD")?.keys).toEqual(["WASD", "Arrow keys"]);
     expect(find("hub", "E", /station/i)).toBeDefined();
@@ -65,6 +76,9 @@ describe("the controls table", () => {
     const hub = read("../src/scenes/HubScene.ts");
     const chrome = read("../src/ui/chrome.ts");
     for (const code of ['"KeyS"', '"KeyQ"', '"KeyF"', '"Escape"', "(?:Digit|Numpad)([12])"]) expect(raid).toContain(code);
+    expect(read("../src/ui/mapHold.ts")).toContain('"Tab"');
+    const planning = read("../src/ui/planning.ts");
+    for (const code of ['"Delete"', '"ArrowRight"', "(?:Digit|Numpad)([12])"]) expect(planning).toContain(code);
     expect(raid).toMatch(/pointer\.button === 2/);
     expect(raid).toMatch(/pointer\.button === 0/);
     for (const code of ['"KeyE"', "KeyW:", "KeyA:", "KeyS:", "KeyD:", "ArrowUp:", "ArrowDown:", "ArrowLeft:", "ArrowRight:"]) expect(hub).toContain(code);
@@ -73,9 +87,9 @@ describe("the controls table", () => {
   });
 
   it("orders the sections with the current place first and the general controls last", () => {
-    expect(helpSectionOrder("run")).toEqual(["run", "hub", "anywhere"]);
-    expect(helpSectionOrder("hub")).toEqual(["hub", "run", "anywhere"]);
-    expect(helpSectionOrder("anywhere")).toEqual(["run", "hub", "anywhere"]);
+    expect(helpSectionOrder("run")).toEqual(["run", "planning", "hub", "anywhere"]);
+    expect(helpSectionOrder("hub")).toEqual(["hub", "run", "planning", "anywhere"]);
+    expect(helpSectionOrder("anywhere")).toEqual(["run", "planning", "hub", "anywhere"]);
   });
 
   it("draws labels with 'click' in them as mouse buttons", () => {
@@ -125,9 +139,9 @@ describe("HelpOverlay", () => {
     const order = (id: string) => Number(root.byClass("help-section").find((s) => s.byClass("help-section-title")[0]!.textContent === HELP_SECTIONS.find((h) => h.id === id)!.title)!.style.order);
     help.open("hub");
     expect(help.isOpen).toBe(true);
-    expect([order("hub"), order("run"), order("anywhere")]).toEqual([0, 1, 2]);
+    expect([order("hub"), order("run"), order("planning"), order("anywhere")]).toEqual([0, 1, 2, 3]);
     help.open("run");
-    expect([order("run"), order("hub"), order("anywhere")]).toEqual([0, 1, 2]);
+    expect([order("run"), order("planning"), order("hub"), order("anywhere")]).toEqual([0, 1, 2, 3]);
   });
 
   it("is a labelled dialog that takes focus when it opens", () => {

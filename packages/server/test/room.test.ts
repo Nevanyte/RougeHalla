@@ -83,6 +83,8 @@ beforeAll(async () => {
     patienceSeconds: 120,
     patienceMinSeconds: 120,
     suddenDeathSeconds: 120,
+    planSeconds: 0, // today's flow: the run starts straight from the lobby (planning.test.ts plays the planning phase)
+    firstPatienceSeconds: 0,
     latencyMs: 0,
     stashFile: profileFile,
   });

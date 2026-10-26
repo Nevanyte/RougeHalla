@@ -43,10 +43,11 @@ export function mobName(region: FactionId, elite: boolean): string {
   return NAMES[region][elite ? 1 : 0];
 }
 
-// --- The roster (ROGUELIKE_PLAN 3.4): 20 mob types, data only in R0 -----------------------------------------------------
+// --- The roster (ROGUELIKE_PLAN 3.4): 20 mob types ---------------------------------------------------------------------
 // Every type of a zone fights as its zone's faction with the zone's weapon (REGION_WEAPONS), scaled by MOB_K / ELITE_K
-// like any regional mob: types of one zone differ only by skin and, from R4a on, by the buff they drop. Nothing reads
-// this table yet, and `mobName` above is unchanged.
+// like any regional mob: types of one zone differ only by skin and by the buff they drop (shared/buffs.ts). Camps are
+// mono-type (shared/rosters.ts, server sim/camps.ts); a mob's name comes from here, `mobName` above is the fallback for
+// a mob placed without a type.
 
 export type MobTypeId =
   | "emberImp" | "cinderHound" | "magmaBrute" | "wyrmling"

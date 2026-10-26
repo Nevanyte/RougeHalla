@@ -1,7 +1,7 @@
-// PlayerView's kill barrier (Phase 11): a pale-blue segment on the hp bar and a bubble round the body, both drawn from the
-// public state. The scene is fake (test/fakes.ts); the parts are found by their place in the container the view builds.
+// PlayerView's barrier (Phase 11, R4a): a pale-blue segment on the hp bar and a bubble round the body, both drawn from the
+// public state, against BARRIER_FULL_SHARE of max hp. The bow's draw follows the attack-speed and windup mirrors. The scene is fake (test/fakes.ts); the parts are found by their place in the container the view builds.
 import { describe, expect, it } from "vitest";
-import { MAX_BARRIER_SHARE, buffMultiplier, encodeMult } from "@raid/shared";
+import { BARRIER_FULL_SHARE, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
 import { screenAngle } from "../src/render/projection";
@@ -15,7 +15,7 @@ const MAX_HP = 1000;
 function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerState {
   return {
     name: "Ann", look: 0, x: 0, y: 0, facing: 0, hp: MAX_HP, maxHp: MAX_HP, barrier: 0, status: "alive", faction: "fire", weapon0: "sword",
-    weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0, sig: 0, brand: 0, bounty: 0, immuneUntil: 0, stacksAs: 0, asMult: 1, ...over,
+    weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0, sig: 0, brand: 0, bounty: 0, immuneUntil: 0, ...WIRE_IDENTITY_MIRRORS, ...over,
   } as unknown as PlayerState;
 }
 
@@ -32,7 +32,7 @@ function setup() {
 /** The line width and alpha of the bubble's outline: both grow with the barrier. */
 const outline = (ring: FakeObject) => argsOf(ring, "lineStyle")[0]!;
 
-describe("PlayerView kill barrier", () => {
+describe("PlayerView barrier", () => {
   it("draws nothing without a barrier", () => {
     const { ring, frame } = setup();
     frame(player());
@@ -40,9 +40,9 @@ describe("PlayerView kill barrier", () => {
     expect(ring.clears).toBe(0);
   });
 
-  it("draws a bubble that grows with the barrier, up to the biggest combo shield, and clears it when the barrier is gone", () => {
+  it("draws a bubble that grows with the barrier, up to BARRIER_FULL_SHARE of max hp, and clears it when the barrier is gone", () => {
     const { ring, frame } = setup();
-    const full = MAX_HP * MAX_BARRIER_SHARE;
+    const full = MAX_HP * BARRIER_FULL_SHARE;
     frame(player({ barrier: full / 8 }));
     expect(argsOf(ring, "fillCircle")).toHaveLength(1);
     expect(argsOf(ring, "strokeCircle")).toHaveLength(1);
@@ -52,14 +52,14 @@ describe("PlayerView kill barrier", () => {
     const big = outline(ring)[0] as number;
     expect(big).toBeGreaterThan(small);
     frame(player({ barrier: full * 5 }));
-    expect(outline(ring)[0]).toBe(big); // the bubble is capped at the biggest shield any combo gives
+    expect(outline(ring)[0]).toBe(big); // the bubble is capped at a full barrier
     frame(player());
     expect(ring.calls).toEqual([]);
   });
 
   it("repaints only when the bubble moves a whole step", () => {
     const { ring, frame } = setup();
-    const full = MAX_HP * MAX_BARRIER_SHARE;
+    const full = MAX_HP * BARRIER_FULL_SHARE;
     frame(player({ barrier: full * 0.5 }));
     const clears = ring.clears;
     frame(player({ barrier: full * 0.51 })); // the same eighth
@@ -122,7 +122,8 @@ describe("PlayerView predicted facing", () => {
 
 describe("PlayerView bow draw", () => {
   const HELD = 9;
-  // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at 3 attack-speed stacks' mirror (0.427 s).
+  // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at attack-speed mirror x1.25 (0.419 s)
+  // or windup mirror x0.85 (0.446 s). The mirrors are the wire form (thousandths), as the state carries them.
   const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null): boolean => {
     const { root, view } = setup();
     const held = (root.args[2] as FakeObject[])[HELD]!;
@@ -130,13 +131,22 @@ describe("PlayerView bow draw", () => {
     return held.calls.some(([name]) => name === "strokeCircle");
   };
 
-  it("draws to the attack-speed mirror, with the synced facing and with a predicted one", () => {
-    const as3 = encodeMult(buffMultiplier("attackSpeed", 3));
+  it("draws to the attack-speed and windup mirrors, with the synced facing and with a predicted one", () => {
     for (const facing of [null, -0.4]) {
-      expect(glows({ asMult: 1 }, facing), `identity, facing ${facing}`).toBe(false);
-      expect(glows({ asMult: as3 }, facing), `3 stacks' mirror, facing ${facing}`).toBe(true);
-      // The stacks themselves are not what the draw reads.
-      expect(glows({ asMult: 1, stacksAs: 3 }, facing), `stacks only, facing ${facing}`).toBe(false);
+      expect(glows({}, facing), `identity, facing ${facing}`).toBe(false);
+      expect(glows({ asMult: 1000 }, facing), `explicit identity, facing ${facing}`).toBe(false);
+      expect(glows({ asMult: encodeMult(1.25) }, facing), `attack speed x1.25, facing ${facing}`).toBe(true);
+      expect(glows({ windupMult: encodeMult(0.85) }, facing), `windup x0.85, facing ${facing}`).toBe(true);
+      expect(glows({ windupMult: encodeMult(1.2) }, facing), `windup x1.2, facing ${facing}`).toBe(false);
     }
+  });
+
+  it("reads nothing but the mirrors: the buffs map does not shorten the pull", () => {
+    // A held buff reaches the draw only through the mirror the server folds it into (an unfolded buff changes nothing here).
+    expect(glows({ buffs: new Map([["plagueRat", 6]]) }, null)).toBe(false);
+  });
+
+  it("an older server with no mirror fields leaves them undefined: the unbuffed draw", () => {
+    expect(glows({ asMult: undefined, windupMult: undefined }, null)).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ import { el } from "./dom";
 import { keycap } from "./keycap";
 
 /** Where a control works. The card lists the current place first. */
-export type HelpScope = "run" | "hub" | "anywhere";
+export type HelpScope = "run" | "hub" | "anywhere" | "planning";
 
 export interface HelpBinding {
   /** Key or mouse labels in order. A label with "click" in it is drawn as a mouse button. */
@@ -33,9 +33,22 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["1", "2"], action: "Select weapon slot" },
       { keys: ["Q"], action: "Swap weapon" },
       { keys: ["F"], action: "Pick up the weapon in reach" },
+      { keys: ["Hold Tab"], action: "Show the whole map and your route" },
       { keys: ["Right-click"], action: "On the minimap: move there" },
       { keys: ["Hold left-click"], action: "On the minimap: peek there, release to snap back" },
       { keys: ["Esc"], action: "Leave practice (training only)" },
+    ],
+  },
+  {
+    id: "planning",
+    title: "Planning, before the run",
+    bindings: [
+      { keys: ["1", "2"], action: "Pick the first or second spawn" },
+      { keys: ["Click"], action: "On the map: add a route stop; on a stop: take it out" },
+      { keys: ["Tab"], action: "Move between the options and buttons" },
+      { keys: ["Arrow keys"], action: "Move between the map's markers" },
+      { keys: ["Enter"], action: "Press the focused button (Ready, a spawn, a camp)" },
+      { keys: ["Delete"], action: "Take out the focused route stop" },
     ],
   },
   {
@@ -59,10 +72,9 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
   },
 ];
 
-/** Section ids in display order: where the player is first, the other place next, the general controls last. */
+/** Section ids in display order: where the player is first (planning follows the run it leads into), the general controls last. */
 export function helpSectionOrder(context: HelpScope): HelpScope[] {
-  const first: HelpScope = context === "hub" ? "hub" : "run";
-  return [first, first === "hub" ? "run" : "hub", "anywhere"];
+  return context === "hub" ? ["hub", "run", "planning", "anywhere"] : ["run", "planning", "hub", "anywhere"];
 }
 
 export function isMouseLabel(label: string): boolean {

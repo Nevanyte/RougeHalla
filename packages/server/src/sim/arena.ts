@@ -65,7 +65,9 @@ export function beginRun(world: World): void {
   world.arena.downedThisTick = [];
   world.arena.downsBetweenTicks = 0;
   world.arena.voided = false;
-  s.patienceEndsAt = s.serverTime + patienceMs(world, s.players.size);
+  // Decision 10: the first timer can be flat (firstPatienceSeconds); every timer after a death scales (settle).
+  const first = world.config.firstPatienceSeconds;
+  s.patienceEndsAt = s.serverTime + (first !== undefined && first > 0 ? first * 1000 : patienceMs(world, s.players.size));
   s.inColiseum = false;
   s.gatesLocked = false;
   s.suddenDeathAt = 0;
@@ -80,7 +82,7 @@ export function markTickStart(world: World): void {
   world.arena.bountyAtTickStart.clear();
   for (const [id, p] of world.state.players) {
     const rt = world.players.get(id);
-    // The kill barrier is hp for every hit, so it counts here too: effective hp over max hp.
+    // A barrier is hp for every hit, so it counts here too: effective hp over max hp.
     if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? (p.hp + p.barrier) / p.maxHp : 0;
     world.arena.bountyAtTickStart.set(id, p.bounty);
   }
@@ -124,7 +126,7 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   }
   if (!top) return 0;
   if (topRival) rtv.lastHit = { by: topRival.source.rt.id, at: world.state.serverTime };
-  // A kill shield (the hp combos) takes its share first; a hit it swallows whole neither hurts nor kills.
+  // A barrier (none since the kill combos went; R6's skills) takes its share first; a hit it swallows whole neither hurts nor kills.
   total = absorbShield(victim, total);
   if (!(total > 0)) return 0;
   const before = victim.hp;
@@ -168,7 +170,7 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
     credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
   }
-  // After the bounty hook, so stacks just won count toward the combos this kill sets off.
+  // After the bounty hook (half the victim's buffs already moved).
   world.hooks.playerKilled?.(world, by.rt);
   updateBounty(world, by.p, by.rt);
 }
@@ -244,7 +246,9 @@ function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
 /** The Room lost this player's connection and holds the seat for a reconnect (they stay in the fight meanwhile). */
 export function markDropped(world: World, id: string): void {
   const rt = world.players.get(id);
-  if (rt && rt.droppedAt === null && world.state.phase === "active") rt.droppedAt = world.state.serverTime;
+  // During planning too: a dropped player does not hold up the early start (sim/planning.ts everyoneReady).
+  const held = world.state.phase === "active" || world.state.phase === "planning";
+  if (rt && rt.droppedAt === null && held) rt.droppedAt = world.state.serverTime;
   // A press that arrived just before the socket closed would hold the trigger for the whole grace.
   rt?.inputs.drain();
   releaseHeld(world, id);
@@ -320,7 +324,7 @@ function resolve(
  * standing player loses a share of max hp per second that grows by SUDDEN_DEATH_RAMP_FRACTION each whole second.
  * Only whole ticks after `suddenDeathAt` burn (it is set on the tick grid), so the ramp is the same at any tick rate.
  * The burn is a ledger entry (all true damage, from SUDDEN_DEATH_KILLER, credited to nobody), so it lands in the same
- * pass as the tick's hits and no spoils won by a kill in that pass (a kill barrier, bounty stacks) can save anyone from it.
+ * pass as the tick's hits and no spoils won by a kill in that pass (bounty buffs, the max hp they bring) can save anyone from it.
  */
 export function suddenDeath(world: World, dtMs: number): void {
   const s = world.state;

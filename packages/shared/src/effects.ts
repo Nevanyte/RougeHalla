@@ -5,7 +5,9 @@
 // How rows act (the runtime is server/src/sim/mods.ts for the stat rows; the rest arrive with later phases):
 //   stat, flat  fold into the fighter's stats (foldStatRows in mods.ts): additive within a key, multiplicative across keys.
 //   while       folds like a stat row, but only while its condition holds (re-evaluated once per tick).
-//   vs, scale   act per hit, at damage time, from the tick-start snapshot (never the live state mid-ledger).
+//   vs, scale   act per hit, at damage time, from the state as the ledger pass began (never the live state mid-ledger).
+//               Both are damage rows: a `vs` row whose test holds and a `scale` row's stepped bonus add to the `damage`
+//               key's sum, like a `stat` damage row (server/src/sim/mods.ts outgoingMult).
 //   onHit       applies a status when a hit lands (the ledger's hitLanded hook, R4b; statuses are Wishes' runtime).
 //   trigger     runs a TriggerAction when its event happens (hp threshold, a kill, a hit taken).
 // Every row may carry `requires`: it is active only while the fighter owns every one of those ids (a synergy).
@@ -71,6 +73,11 @@ export type TriggerAction =
 interface EffectCommon {
   /** Synergy: the row is active only while the fighter owns every one of these ids (buffs, passives, relics...). */
   requires?: readonly string[];
+  /**
+   * "status": the row needs the status runtime (Wishes' sim/status.ts; roguelike R4b wires it). Until then it is catalog
+   * data only: shown in the HUD and tooltips, never applied (buffs.ts buffRows skips it).
+   */
+  needs?: "status";
 }
 
 export type Effect =

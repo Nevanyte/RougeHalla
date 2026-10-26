@@ -3,14 +3,14 @@
 // anything about how a mob fights, only about what happens to it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  BUFF_STATS, buffMultiplier, ELITE_BUFF_STACKS, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles,
-  MOB_BUFF_STACKS, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobBuffStacks, mobFaction, mobName, mobRewardMultiplier, mobWeapon,
-  mitigateShares, mulberry32, pacedFaction, REGION_BUFF, REGION_WEAPONS, rewardCurve, rollBuffStat, TICK_MS, TILE, WEAPONS,
-  type BuffStat, type FactionId, type FxEvent, type Vec2,
+  buffRowsOf, ELITE_BUFF_STACKS, encodeMult, eliteTypeOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles,
+  MOB_BUFF_STACKS, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobBuffStacks, mobFaction, mobRewardMultiplier, mobTypeById,
+  mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, TICK_MS, TILE, WEAPONS,
+  type FactionId, type FxEvent, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { teleportToColiseum } from "../src/sim/arena";
-import { stacksOf } from "../src/sim/buffs";
+import { buffsOf, grantBuff } from "../src/sim/buffs";
 import { combatant, defenseOf, factionOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -70,9 +70,17 @@ const RT = (w: World, i: number) => w.players.get(`p${i}`)!;
 const mobOf = (w: World, id: string): MobCombatant => combatant(w, id) as MobCombatant;
 const allMobs = (w: World): MobCombatant[] => [...w.state.mobs.keys()].map((id) => mobOf(w, id));
 
-function spawn(w: World, region: FactionId = "fire", elite = false, at: Vec2 = { x: 200, y: 200 }): MobCombatant {
-  return mobOf(w, placeMob(w, { region, elite, at, facing: 0 }));
+function spawn(w: World, region: FactionId = "fire", elite = false, at: Vec2 = { x: 200, y: 200 }, type?: MobTypeId): MobCombatant {
+  return mobOf(w, placeMob(w, { region, elite, at, facing: 0, ...(type !== undefined ? { type } : {}) }));
 }
+
+/** The type a mob placed without one pays in: its zone's first normal type, or its elite type (mobLife.ts mobTypeOf). */
+const defaultType = (region: FactionId, elite: boolean): MobTypeId => (elite ? eliteTypeOf(region) : normalTypesOf(region)[0]!).id;
+
+/** The buffs a player holds, as a plain record of stacks by id. */
+const held = (p: PlayerState): Record<string, number> => Object.fromEntries(buffsOf(p));
+/** The stacks of one buff a player holds (0 for none). */
+const stacksOf = (p: PlayerState, id: string): number => p.buffs.get(id) ?? 0;
 
 const entry = (victim: string, by: string, raw: number): LedgerEntry => ({
   victim, by: { id: by, name: by }, packet: { raw, phys: 1, magic: 0, true: 0 }, weapon: "sword", scale: 1, stagger: false,
@@ -135,7 +143,10 @@ describe("spawnRegionalMobs", () => {
       const { s, rt } = mobs[i]!;
       const hp = mobFaction(camp.region, elite).hp;
       expect(s.kind).toBe(elite ? "elite" : "mob");
-      expect(s.name).toBe(mobName(camp.region, elite));
+      // A roster mob is named by its MOB_TYPES row (sim/camps.ts), a type of its own zone, elite only at the elite spot.
+      expect(s.name).toBe(mobTypeById(s.type)!.name);
+      expect(mobTypeById(s.type)!.zone).toBe(camp.region);
+      expect(mobTypeById(s.type)!.elite).toBe(elite);
       expect(s.faction).toBe(camp.region);
       expect(s.weapon0).toBe(camp.weapon);
       expect(s.weapon0).toBe(REGION_WEAPONS[camp.region]);
@@ -194,14 +205,14 @@ describe("spawnRegionalMobs", () => {
     expect(off.state.mobs.size).toBe(0);
   });
 
-  it("is a no-op on a map without regions (a hand-built map)", () => {
+  it("is a no-op on a map without regions or camps (a hand-built map)", () => {
     const w = makeBare();
     w.map = mapFromTiles(8, 8, new Uint8Array(64));
     spawnRegionalMobs(w);
     expect(w.state.mobs.size).toBe(0);
     expect(w.mobs.size).toBe(0);
     const generated = makeLobby({ seed: 1 });
-    generated.map = { ...generated.map, regions: [] };
+    generated.map = { ...generated.map, regions: [], camps: [] };
     step(generated, TICK_MS);
     expect(generated.state.mobs.size).toBe(0);
   });
@@ -486,7 +497,7 @@ describe("killMob: the dying mob", () => {
     for (const i of [0, 1]) {
       expect(RT(w, i).mobKills).toBe(0);
       expect(RT(w, i).gv.mobs).toBe(0);
-      expect(stacksOf(P(w, i))).toEqual({ hp: 0, attackSpeed: 0, moveSpeed: 0 });
+      expect(held(P(w, i))).toEqual({});
     }
   });
 
@@ -637,13 +648,16 @@ describe("killMob: who gets the kill", () => {
     expect(RT(w, 0).mobKills).toBe(0);
     expect(RT(w, 0).gv.mobs).toBe(0);
     expect(gvOf(w.events)).toEqual([{ type: "gv", id: "p1", amount: GV_MOB, reason: "mob" }]);
-    expect(stacksOf(P(w, 0))).toEqual({ hp: 0, attackSpeed: 0, moveSpeed: 0 });
+    // The buff is paid once too, to the same player: the mob's type, at the reward of a player with no feed.
+    expect(fxOf(w.events, "buff")).toHaveLength(1);
+    expect(held(P(w, 1))).toEqual({ [defaultType("sentenced", false)]: expect.closeTo(MOB_BUFF_STACKS * mobRewardMultiplier(0, 0), 9) });
+    expect(held(P(w, 0))).toEqual({});
   });
 
-  it("a player who is dead or down in the same pass still collects the GV and the feed, and the weapon drops; stacks and combos need a living player", () => {
+  it("a player who is dead or down in the same pass still collects the GV and the feed, and the weapon drops; the buff needs a living player", () => {
     const w = makeBare({ players: 3 });
-    w.random = () => 0.1;
-    P(w, 0).stacksAs = 2.5; // would complete the dash if the drop and the combos could reach them
+    const type = defaultType("fire", false);
+    P(w, 0).buffs.set(type, 2.5); // a grant would raise it if the drop could reach them
     P(w, 0).weapon0 = "sword";
     P(w, 0).weapon1 = "";
     RT(w, 0).down = { outcome: "died" }; // went down earlier in this very ledger pass
@@ -657,10 +671,9 @@ describe("killMob: who gets the kill", () => {
     expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
     expect(gvOf(w.events)).toEqual([{ type: "gv", id: "p0", amount: GV_MOB, reason: "mob" }]);
     expect(w.state.containers.size).toBe(containers + 1);
-    expect(stacksOf(P(w, 0)).attackSpeed).toBe(2.5);
+    expect(held(P(w, 0))).toEqual({ [type]: 2.5 });
     expect(fxOf(w.events, "buff")).toEqual([]);
-    expect(fxOf(w.events, "combo")).toEqual([]);
-    expect(RT(w, 0).boost).toBeUndefined();
+    expect(RT(w, 0).boost).toBeUndefined(); // nothing but a skill grants a barrier
     expect(RT(w, 1).mobKills + RT(w, 2).mobKills).toBe(0);
   });
 
@@ -732,7 +745,6 @@ describe("killMob: rewards", () => {
 
   it("the mob counts toward the feed (and so the next mob pays less) but not toward player kills, and never raises a bounty", () => {
     const w = makeBare();
-    w.random = () => 0.1;
     const stacks: number[] = [];
     for (let i = 0; i < 4; i++) {
       const m = spawn(w, "plague");
@@ -765,14 +777,13 @@ describe("killMob: rewards", () => {
   it("GV falls for a high-feed killer (feed 8) and the buff drop shrinks with it", () => {
     const w = makeBare();
     setFeed(w, 0, 8);
-    w.random = () => 0.1;
     const m = spawn(w, "fire", true);
     const mult = mobRewardMultiplier(8, 4);
     expect(mult).toBeCloseTo(0.383, 3);
     hurt(w, m, ["p0", m.s.hp]);
     expect(RT(w, 0).gv.mobs).toBe(Math.round(GV_ELITE * mult));
     expect(RT(w, 0).gv.mobs).toBe(4);
-    expect(stacksOf(P(w, 0)).attackSpeed).toBeCloseTo(ELITE_BUFF_STACKS * mult, 9);
+    expect(stacksOf(P(w, 0), defaultType("fire", true))).toBeCloseTo(ELITE_BUFF_STACKS * mult, 9);
     const n = spawn(w, "fire");
     const before = RT(w, 0).gv.mobs;
     hurt(w, n, ["p0", n.s.hp]);
@@ -783,19 +794,21 @@ describe("killMob: rewards", () => {
     const w = makeBare({ players: 3 });
     setFeed(w, 1, 5);
     setFeed(w, 2, 5);
-    w.random = () => 0.1;
     const mult = mobRewardMultiplier(0, 5);
     expect(mult).toBeCloseTo(rewardCurve(0) * 1.25, 12);
+    const elite = defaultType("holy", true);
+    const normal = defaultType("holy", false);
     const m = spawn(w, "holy", true);
     hurt(w, m, ["p0", m.s.hp]);
     expect(RT(w, 0).gv.mobs).toBe(Math.round(GV_ELITE * mult));
     expect(RT(w, 0).gv.mobs).toBe(12);
-    expect(stacksOf(P(w, 0)).attackSpeed).toBeCloseTo(ELITE_BUFF_STACKS * mult, 9);
+    expect(stacksOf(P(w, 0), elite)).toBeCloseTo(ELITE_BUFF_STACKS * mult, 9);
     const n = spawn(w, "holy");
     hurt(w, n, ["p0", n.s.hp]);
     // The elite kill is now a quarter of a feed point, still far enough under the median of 5 for the catch-up.
-    expect(stacksOf(P(w, 0)).attackSpeed).toBeCloseTo(ELITE_BUFF_STACKS * mult + MOB_BUFF_STACKS * mobRewardMultiplier(0.25, 5), 9);
-    expect(stacksOf(P(w, 0)).attackSpeed).toBeGreaterThan(ELITE_BUFF_STACKS + MOB_BUFF_STACKS);
+    expect(stacksOf(P(w, 0), normal)).toBeCloseTo(MOB_BUFF_STACKS * mobRewardMultiplier(0.25, 5), 9);
+    expect(stacksOf(P(w, 0), elite)).toBeCloseTo(ELITE_BUFF_STACKS * mult, 9); // the second kill's type is another buff
+    expect(stacksOf(P(w, 0), elite) + stacksOf(P(w, 0), normal)).toBeGreaterThan(ELITE_BUFF_STACKS + MOB_BUFF_STACKS);
   });
 
   it("reads the reward before the kill is counted: a kill that lifts the killer out of catch-up still pays it", () => {
@@ -803,19 +816,17 @@ describe("killMob: rewards", () => {
     setFeed(w, 0, 2, 3); // feed 2.75: under 5 - 2; the kill makes it exactly 3, which would no longer qualify
     setFeed(w, 1, 5);
     setFeed(w, 2, 5);
-    w.random = () => 0.1;
     const before = mobRewardMultiplier(2.75, 5);
     const after = mobRewardMultiplier(3, 5);
     expect(Math.round(GV_ELITE * before)).not.toBe(Math.round(GV_ELITE * after));
     const m = spawn(w, "sentenced", true);
     hurt(w, m, ["p0", m.s.hp]);
     expect(RT(w, 0).gv.mobs).toBe(Math.round(GV_ELITE * before));
-    expect(stacksOf(P(w, 0)).moveSpeed).toBeCloseTo(ELITE_BUFF_STACKS * before, 9);
+    expect(stacksOf(P(w, 0), defaultType("sentenced", true))).toBeCloseTo(ELITE_BUFF_STACKS * before, 9);
   });
 
   it("GV_MOB_CAP caps the GV and nothing else: the kill still counts, still drops a buff and a weapon", () => {
     const w = makeBare();
-    w.random = () => 0.1;
     RT(w, 0).gv.mobs = GV_MOB_CAP - 1;
     P(w, 0).weapon0 = "sword";
     P(w, 0).weapon1 = "";
@@ -835,50 +846,77 @@ describe("killMob: rewards", () => {
   });
 
   describe("the buff drop", () => {
-    it("rolls one stat per kill from the region, with the world's random, and grants mobBuffStacks x the reward", () => {
+    it.each(MOB_TYPES.map((t) => [t.id, t] as const))(
+      "%s: grants its own buff, mobBuffStacks(elite) x the reward, and draws nothing from the world's random", (id, t) => {
+        const w = makeBare();
+        const random = vi.fn(() => 0.1);
+        w.random = random;
+        const m = spawn(w, t.zone, t.elite, undefined, id); // the type the mob carries decides, not its zone
+        expect(m.s.type).toBe(id);
+        hurt(w, m, ["p0", m.s.hp]);
+        const amount = mobBuffStacks(t.elite) * mobRewardMultiplier(0, 0);
+        expect(amount / mobRewardMultiplier(0, 0)).toBeCloseTo(t.elite ? ELITE_BUFF_STACKS : MOB_BUFF_STACKS, 12);
+        expect(held(P(w, 0))).toEqual({ [id]: expect.closeTo(amount, 9) });
+        expect(fxOf(w.events, "buff")).toEqual([{ kind: "buff", id: "p0", buff: id, stacks: amount, total: amount }]);
+        expect(random).not.toHaveBeenCalled();
+        expect(held(P(w, 1))).toEqual({});
+      });
+
+    it("a mob placed without a type pays its zone's first normal type, or its elite type", () => {
       for (const region of FACTION_IDS) {
         for (const elite of [false, true]) {
           const w = makeBare();
-          const random = vi.fn(() => 0.1); // under MOB_PRIMARY_BUFF_SHARE: the region's own stat
-          w.random = random;
           const m = spawn(w, region, elite);
+          expect(m.s.type).toBe("");
           hurt(w, m, ["p0", m.s.hp]);
-          expect(random).toHaveBeenCalledTimes(1);
-          const stat = REGION_BUFF[region];
-          const amount = mobBuffStacks(elite) * mobRewardMultiplier(0, 0);
-          expect(amount / mobRewardMultiplier(0, 0)).toBeCloseTo(elite ? ELITE_BUFF_STACKS : MOB_BUFF_STACKS, 12);
-          const held = stacksOf(P(w, 0));
-          for (const s of BUFF_STATS) expect(held[s], `${region} ${s}`).toBeCloseTo(s === stat ? amount : 0, 9);
-          expect(fxOf(w.events, "buff")).toEqual([{ kind: "buff", id: "p0", stat, stacks: amount, total: amount }]);
+          const id = (elite ? eliteTypeOf(region) : normalTypesOf(region)[0]!).id;
+          expect(Object.keys(held(P(w, 0))), `${region} ${elite}`).toEqual([id]);
         }
       }
     });
 
-    it("a high roll is one of the region's other two stats", () => {
-      const cases: Array<[FactionId, number, BuffStat]> = [
-        ["fire", 0.65, "hp"], ["fire", 0.9, "moveSpeed"], ["plague", 0.65, "attackSpeed"], ["plague", 0.99, "moveSpeed"],
-        ["sentenced", 0.65, "hp"], ["sentenced", 0.9, "attackSpeed"],
-      ];
-      for (const [region, roll, stat] of cases) {
-        expect(rollBuffStat(region, () => roll)).toBe(stat);
-        const w = makeBare();
-        w.random = () => roll;
-        const m = spawn(w, region);
-        hurt(w, m, ["p0", m.s.hp]);
-        expect(fxOf(w.events, "buff").map((fx) => fx.stat), `${region} ${roll}`).toEqual([stat]);
-        expect(stacksOf(P(w, 0))[stat]).toBeCloseTo(MOB_BUFF_STACKS * mobRewardMultiplier(0, 0), 9);
+    it("every mob of a camp pays the buff of the type it was placed with, at the reward of the feed it finds", () => {
+      for (const seed of [1, 100]) {
+        const w = makeRun({ seed });
+        let feed = 0;
+        for (const m of allMobs(w)) {
+          w.events = [];
+          const type = m.s.type as MobTypeId;
+          expect(mobTypeById(type), `${m.id} has a type`).toBeDefined();
+          hurt(w, m, ["p0", m.s.hp]);
+          const reward = mobRewardMultiplier(feed, feed / 2); // the other player's feed is 0: the median is half of p0's
+          expect(fxOf(w.events, "buff").map((fx) => fx.buff), m.id).toEqual([type]);
+          expect(fxOf(w.events, "buff")[0]!.stacks).toBeCloseTo(mobBuffStacks(m.s.kind === "elite") * reward, 9);
+          feed += 0.25;
+        }
+        expect(RT(w, 0).mobKills).toBe(w.map.camps.reduce((n, c) => n + c.spots.length, 0));
       }
     });
 
-    it("an hp drop raises max hp with it", () => {
+    it("an Ice Golem's drop raises max hp with it, and the hp gained comes along", () => {
       const w = makeBare();
-      w.random = () => 0.1;
-      const m = spawn(w, "plague");
+      const m = spawn(w, "frost", false, undefined, "iceGolem");
       const hp = P(w, 0).hp;
       const max = P(w, 0).maxHp;
       hurt(w, m, ["p0", m.s.hp]);
-      expect(P(w, 0).maxHp).toBeCloseTo(max * buffMultiplier("hp", MOB_BUFF_STACKS * mobRewardMultiplier(0, 0)), 9);
+      const amount = MOB_BUFF_STACKS * mobRewardMultiplier(0, 0);
+      const row = buffRowsOf("iceGolem", amount)[0]!;
+      if (row.k !== "stat" || row.stat !== "maxHp") throw new Error("Ice Golem's row is a max hp row");
+      expect(P(w, 0).maxHp).toBeCloseTo(max * (1 + row.v), 9);
+      expect(P(w, 0).hp).toBeCloseTo(hp + max * row.v, 9);
       expect(P(w, 0).hp).toBeGreaterThan(hp);
+    });
+
+    it("the grant re-folds the player's stats at once: a Plague Rat's drop is in the attack speed mirror when the kill is paid", () => {
+      const w = makeBare();
+      expect(P(w, 0).asMult).toBe(1000);
+      const m = spawn(w, "plague", false, undefined, "plagueRat");
+      hurt(w, m, ["p0", m.s.hp]);
+      const row = buffRowsOf("plagueRat", MOB_BUFF_STACKS * mobRewardMultiplier(0, 0))[0]!;
+      if (row.k !== "stat" || row.stat !== "attackSpeed") throw new Error("Plague Rat's row is an attack speed row");
+      expect(row.v).toBeGreaterThan(0);
+      expect(P(w, 0).asMult).toBe(encodeMult(1 + row.v));
+      expect(P(w, 0).asMult).toBeGreaterThan(1000);
     });
   });
 
@@ -951,59 +989,13 @@ describe("killMob: rewards", () => {
     });
   });
 
-  it("pays in the order GV, buff, combos: the GV event, then the buff, then the tier and the proc of a combo it completes", () => {
+  it("pays in the order GV, then the buff (the weapon lies at the mob's feet after both)", () => {
     const w = makeBare();
-    w.random = () => 0.1;
-    P(w, 0).stacksAs = 2.5; // a fire drop is attack speed; one more stack makes three
-    const m = spawn(w, "fire");
+    const m = spawn(w, "plague"); // a bow: p0's fire starter holds no bow, so it is dropped
+    const containers = w.state.containers.size;
     hurt(w, m, ["p0", m.s.hp]);
-    const kinds = w.events.map((e) => (e.type === "fx" ? `fx:${e.fx.kind}` : e.type));
-    expect(kinds).toEqual(["fx:death", "gv", "fx:buff", "fx:combo", "fx:combo"]);
-    expect(fxOf(w.events, "combo")).toEqual([
-      { kind: "combo", id: "p0", combo: "dash", proc: false },
-      { kind: "combo", id: "p0", combo: "dash", proc: true },
-    ]);
-  });
-
-  describe("kill combos fire on a mob kill", () => {
-    it("3 attack-speed stacks: a dash", () => {
-      const w = makeBare();
-      w.random = () => 0.1;
-      P(w, 0).stacksAs = 2.5;
-      w.state.serverTime = 7000;
-      const m = spawn(w, "fire");
-      hurt(w, m, ["p0", m.s.hp]);
-      expect(stacksOf(P(w, 0)).attackSpeed).toBeGreaterThanOrEqual(3);
-      expect(RT(w, 0).boost!.bursts).toEqual([{ mult: 2.5, until: 7400 }]);
-    });
-
-    it("3 hp stacks: a kill shield worth 15% of the new max hp", () => {
-      const w = makeBare();
-      w.random = () => 0.1;
-      P(w, 0).stacksHp = 2.5;
-      w.state.serverTime = 7000;
-      const m = spawn(w, "plague");
-      hurt(w, m, ["p0", m.s.hp]);
-      expect(P(w, 0).barrier).toBeCloseTo(0.15 * P(w, 0).maxHp, 9);
-      expect(RT(w, 0).boost!.shieldUntil).toBe(12000);
-    });
-
-    it("the kill that completes the combo counts: the drop is granted before the combos run", () => {
-      const w = makeBare();
-      w.random = () => 0.1;
-      P(w, 0).stacksMs = 2.5;
-      const m = spawn(w, "sentenced");
-      hurt(w, m, ["p0", m.s.hp]);
-      expect(RT(w, 0).boost!.bursts.map((b) => b.mult)).toEqual([1.5]);
-    });
-
-    it("no combo, no boost", () => {
-      const w = makeBare();
-      const m = spawn(w, "fire");
-      hurt(w, m, ["p0", m.s.hp]);
-      expect(RT(w, 0).boost).toBeUndefined();
-      expect(fxOf(w.events, "combo")).toEqual([]);
-    });
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff"]);
+    expect(w.state.containers.size).toBe(containers + 1);
   });
 });
 
@@ -1189,8 +1181,6 @@ describe("rewards are paid after the whole ledger pass", () => {
   it.each([["the mob first", true], ["the player first", false]] as const)(
     "%s in the ledger: the death shows at once, the spoils come after every victim has taken their damage", (_label, mobFirst) => {
       const w = makeBare();
-      w.random = () => 0.1;
-      P(w, 0).stacksAs = 2.5; // the drop completes the dash, so the combo events are in the pass too
       P(w, 0).weapon0 = "sword";
       const m = spawn(w, "fire");
       const containers = w.state.containers.size;
@@ -1200,15 +1190,14 @@ describe("rewards are paid after the whole ledger pass", () => {
       pass(w);
 
       const kinds = kindsOf(w.events);
-      const firstSpoil = kinds.findIndex((k) => k === "gv" || k === "fx:buff" || k === "fx:combo");
+      const firstSpoil = kinds.findIndex((k) => k === "gv" || k === "fx:buff");
       expect(kinds.filter((k) => k === "fx:hit")).toHaveLength(2);
       expect(kinds.lastIndexOf("fx:hit")).toBeLessThan(firstSpoil);
       expect(kinds.indexOf("fx:death")).toBeLessThan(firstSpoil);
-      expect(kinds.slice(firstSpoil)).toEqual(["gv", "fx:buff", "fx:combo", "fx:combo"]);
+      expect(kinds.slice(firstSpoil)).toEqual(["gv", "fx:buff"]);
       expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: m.id, x: m.s.x, y: m.s.y, by: "p0" }]);
       expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
-      expect(stacksOf(P(w, 0)).attackSpeed).toBeGreaterThanOrEqual(3);
-      expect(RT(w, 0).boost!.bursts).toHaveLength(1);
+      expect(held(P(w, 0))).toEqual({ [defaultType("fire", false)]: expect.closeTo(MOB_BUFF_STACKS * mobRewardMultiplier(0, 0), 9) });
       expect(w.state.containers.size).toBe(containers + 1);
       expect(w.combat.payouts).toEqual([]);
       expect(w.combat.collecting).toBe(false);
@@ -1218,7 +1207,6 @@ describe("rewards are paid after the whole ledger pass", () => {
     /** Feeds 0 / 2 / 3 / 3: the median is 2.5, so p0 (feed 0) is in catch-up. */
     function lobby(): World {
       const w = makeBare({ players: 4 });
-      w.random = () => 0.1;
       [0, 2, 3, 3].forEach((kills, i) => setFeed(w, i, kills));
       return w;
     }
@@ -1232,14 +1220,15 @@ describe("rewards are paid after the whole ledger pass", () => {
         const killPlayer = () => strike(w, "p1", "p0", 1e6);
         if (mobFirst) { killElite(); killPlayer(); } else { killPlayer(); killElite(); }
         pass(w);
-        return { gv: gvLine(w), stacks: stacksOf(P(w, 0)), banked: RT(w, 0).gv };
+        return { gv: gvLine(w), stacks: held(P(w, 0)), banked: RT(w, 0).gv };
       };
       const a = run(true);
       const b = run(false);
       expect(b).toEqual(a);
       // The catch-up applied to the elite (the pass started with p0 at feed 0), and the player kill did not eat into it.
       expect(a.banked.mobs).toBeGreaterThan(GV_ELITE);
-      expect(a.stacks.attackSpeed + a.stacks.hp + a.stacks.moveSpeed).toBeGreaterThan(ELITE_BUFF_STACKS);
+      expect(Object.keys(a.stacks)).toEqual([defaultType("fire", true)]);
+      expect(a.stacks[defaultType("fire", true)]).toBeGreaterThan(ELITE_BUFF_STACKS);
     });
 
     it("two mob kills in one pass each read the pass's start: neither sees the other's feed", () => {
@@ -1247,28 +1236,39 @@ describe("rewards are paid after the whole ledger pass", () => {
         const w = lobby();
         strike(w, spawn(w, region).id, "p0", 1e6);
         pass(w);
-        return stacksOf(P(w, 0));
+        return held(P(w, 0));
       };
       const both = (first: FactionId, second: FactionId) => {
         const w = lobby();
         strike(w, spawn(w, first).id, "p0", 1e6);
         strike(w, spawn(w, second).id, "p0", 1e6);
         pass(w);
-        return stacksOf(P(w, 0));
+        return held(P(w, 0));
       };
-      const fire = alone("fire");
-      const frost = alone("frost");
-      const sum = { hp: fire.hp + frost.hp, attackSpeed: fire.attackSpeed + frost.attackSpeed, moveSpeed: fire.moveSpeed + frost.moveSpeed };
+      // Two zones, so two different buffs: each must be what it would have been as the pass's only kill.
+      const fire = alone("fire")[defaultType("fire", false)]!;
+      const frost = alone("frost")[defaultType("frost", false)]!;
+      expect(fire).toBeGreaterThan(0);
+      expect(frost).toBeGreaterThan(0);
       for (const [x, y] of [["fire", "frost"], ["frost", "fire"]] as const) {
         const s = both(x, y);
-        expect(s.hp).toBeCloseTo(sum.hp, 9);
-        expect(s.attackSpeed).toBeCloseTo(sum.attackSpeed, 9);
-        expect(s.moveSpeed).toBeCloseTo(sum.moveSpeed, 9);
+        expect(Object.keys(s).sort()).toEqual([defaultType("fire", false), defaultType("frost", false)].sort());
+        expect(s[defaultType("fire", false)]).toBeCloseTo(fire, 9);
+        expect(s[defaultType("frost", false)]).toBeCloseTo(frost, 9);
       }
+      // Two kills of one buff in a pass add up, each read at the pass's start (the second never sees the first's feed).
+      const same = (() => {
+        const w = lobby();
+        strike(w, spawn(w, "fire").id, "p0", 1e6);
+        strike(w, spawn(w, "fire").id, "p0", 1e6);
+        pass(w);
+        return held(P(w, 0))[defaultType("fire", false)]!;
+      })();
+      expect(same).toBeCloseTo(2 * fire, 9);
     });
   });
 
-  describe("a kill barrier is not hp lost", () => {
+  describe("a barrier is not hp lost", () => {
     it("the damage the systems feed on (lifesteal) is only what got past the barrier", () => {
       const w = makeBare();
       P(w, 1).hp = P(w, 1).maxHp = 1e6;
@@ -1345,13 +1345,16 @@ describe("rewards are paid after the whole ledger pass", () => {
   });
 
   describe("a killer who dies in the same pass", () => {
-    /** p0 (hp 20, 2.5 hp stacks) kills a plague mob; p1 hits p0 for 60 in the same pass. The spoils would heal and shield them. */
-    function setup(): { w: World; m: MobCombatant } {
+    /** The wound p1 deals p0 in the same pass: more than the 20 hp p0 has, less than the 20 plus what the kill's buff would give. */
+    const WOUND = 25;
+
+    /** p0 (hp 20, 2.5 stacks of Ice Golem) kills an Ice Golem; p1 hits p0 for WOUND in the same pass. The grant raises max hp, and the hp with it. */
+    function setup(): { w: World; m: MobCombatant; held: number; maxHp: number } {
       const w = makeBare();
-      w.random = () => 0.1; // a plague mob's own stat: hp
-      P(w, 0).stacksHp = 2.5;
+      grantBuff(w, P(w, 0), RT(w, 0), "iceGolem", 2.5);
+      w.events = [];
       P(w, 0).hp = 20;
-      return { w, m: spawn(w, "plague") };
+      return { w, m: spawn(w, "frost", false, undefined, "iceGolem"), held: P(w, 0).buffs.get("iceGolem")!, maxHp: P(w, 0).maxHp };
     }
 
     function snapshot(w: World) {
@@ -1360,35 +1363,36 @@ describe("rewards are paid after the whole ledger pass", () => {
         hp: P(w, 0).hp,
         maxHp: P(w, 0).maxHp,
         barrier: P(w, 0).barrier,
-        stacksHp: P(w, 0).stacksHp,
-        boosted: RT(w, 0).boost !== undefined,
+        golems: P(w, 0).buffs.get("iceGolem"),
+        asMult: P(w, 0).asMult,
         mobGv: RT(w, 0).gv.mobs,
         mobKills: RT(w, 0).mobKills,
         buffFx: fxOf(w.events, "buff").length,
-        comboFx: fxOf(w.events, "combo").length,
         killerKills: RT(w, 1).gv.kills,
       };
     }
 
-    function run(mobFirst: boolean): { w: World; snap: ReturnType<typeof snapshot> & { added: string[] } } {
-      const { w, m } = setup();
+    function run(mobFirst: boolean): { w: World; held: number; maxHp: number; carried: string; snap: ReturnType<typeof snapshot> & { added: string[] } } {
+      const { w, m, held: stacks, maxHp } = setup();
+      const carried = P(w, 0).weapon0; // it lies in the body once p0 is down
       const before = new Set(w.state.containers.keys());
       const kill = () => strike(w, m.id, "p0", 1e6);
-      const wound = () => strike(w, "p0", "p1", 60);
+      const wound = () => strike(w, "p0", "p1", WOUND);
       if (mobFirst) { kill(); wound(); } else { wound(); kill(); }
       pass(w);
       // The killer's body is a new container too; the mob's weapon is the loose one.
       const added = [...w.state.containers].filter(([id]) => !before.has(id)).map(([, c]) => `${c.kind}:${c.items.map((it) => it.def)}`);
-      return { w, snap: { ...snapshot(w), added: added.sort() } };
+      return { w, held: stacks, maxHp, carried, snap: { ...snapshot(w), added: added.sort() } };
     }
 
     it("is not saved by what the kill pays, whichever hit the ledger recorded first", () => {
       const first = run(true);
       const second = run(false);
       expect(second.snap).toEqual(first.snap);
+      // Dead at once; the grant never reached them: the stacks, max hp and mirrors are what they were before the pass.
       expect(first.snap).toEqual({
-        status: "dead", hp: 0, maxHp: 500, barrier: 0, stacksHp: 2.5, boosted: false, mobGv: GV_MOB, mobKills: 1,
-        buffFx: 0, comboFx: 0, killerKills: 10, added: ["body:axe", "ground:bow"],
+        status: "dead", hp: 0, maxHp: first.maxHp, barrier: 0, golems: first.held, asMult: 1000, mobGv: GV_MOB, mobKills: 1, buffFx: 0,
+        killerKills: 10, added: [`body:${first.carried}`, `ground:${mobWeapon("frost")}`].sort(),
       });
     });
 
@@ -1402,11 +1406,11 @@ describe("rewards are paid after the whole ledger pass", () => {
     });
 
     it("control: had the spoils been paid before the wound, the same wound would not have killed them", () => {
-      const { w, m } = setup();
+      const { w, m, maxHp } = setup();
       hurt(w, m, ["p0", m.s.hp]); // outside a pass: paid on the spot
-      expect(P(w, 0).barrier).toBeGreaterThan(0);
-      expect(P(w, 0).hp).toBeGreaterThan(60);
-      strike(w, "p0", "p1", 60);
+      expect(P(w, 0).maxHp).toBeGreaterThan(maxHp);
+      expect(P(w, 0).hp).toBeGreaterThan(WOUND);
+      strike(w, "p0", "p1", WOUND);
       pass(w);
       expect(P(w, 0).status).toBe("alive");
     });
@@ -1475,13 +1479,14 @@ describe("full run through the step loop", () => {
     const w = makeRun({ seed: 100 });
     const m = allMobs(w).find((x) => x.s.kind === "elite")!;
     const before = w.state.mobs.size;
-    w.random = () => 0.1;
     recordHit(w, { victim: m.id, by: { id: "p0", name: "alice" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
     applyLedger(w);
     expect(m.s.status).toBe("dead");
     expect(RT(w, 0).gv.mobs).toBe(GV_ELITE);
     expect(P(w, 0).mobKills).toBe(1);
-    expect(stacksOf(P(w, 0))[REGION_BUFF[m.s.faction as FactionId]]).toBeGreaterThan(1.9);
+    // The buff of the elite's own type (the roster's elite of its zone), not the region's old stat.
+    expect(mobTypeById(m.s.type)!.elite).toBe(true);
+    expect(held(P(w, 0))).toEqual({ [m.s.type]: expect.closeTo(ELITE_BUFF_STACKS * mobRewardMultiplier(0, 0), 9) });
     for (let i = 0; i < MOB_CORPSE_MS / TICK_MS; i++) step(w, TICK_MS);
     expect(w.state.mobs.size).toBe(before - 1);
     expect(w.state.mobs.has(m.id)).toBe(false);
