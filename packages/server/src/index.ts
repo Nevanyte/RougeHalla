@@ -1,32 +1,88 @@
+import fs from "node:fs";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { defineRoom, defineServer, matchMaker } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler, type Response } from "express";
 import {
-  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_MONTHS, MONTH_RE, PROFILE_RE, PROFILE_TOKEN_HEADER, ROOM_NAME, TRAINING_ROOM_NAME,
-  monthKey,
+  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_MONTHS, MONTH_RE, PASSCODE_HEADER, PROFILE_RE, PROFILE_TOKEN_HEADER, ROOM_NAME,
+  TRAINING_ROOM_NAME, monthKey,
   type LeaderboardResponse, type ProfileDTO, type ProfileResponse, type ShopError, type ShopErrorCode, type ShopResponse,
 } from "@raid/shared";
 import { loadConfig, type ServerConfig } from "./config";
+import { corsOrigin } from "./guards/cors";
+import { PASSCODE_REQUIRED, passcodeOk } from "./guards/passcode";
+import { RoomCounter } from "./guards/roomCounter";
+import { KeyedTokenBuckets } from "./guards/tokenBucket";
+import { NewProfileLimiter } from "./guards/windowLimiter";
 import {
   JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore, type ShopOutcome,
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
 
 /** What a cross-origin page may send to /api (the token travels in a header, never a cookie). */
-const API_ALLOW_HEADERS = `${PROFILE_TOKEN_HEADER}, content-type`;
+const API_ALLOW_HEADERS = `${PROFILE_TOKEN_HEADER}, ${PASSCODE_HEADER}, content-type`;
+
+/** The new-profile caps count the trailing hour. */
+const HOUR_MS = 60 * 60 * 1000;
+
+/** What Colyseus sends on its own, taken once: createServer may run again in one process (the tests do) with another config. */
+let pristineCors: Record<string, string> | undefined;
 
 /**
- * Colyseus answers every OPTIONS request itself, before Express sees it, with its own header list.
- * That list lacks our token header, so a browser on another origin (VITE_SERVER_URL) would fail the
- * preflight for GET /api/profile/:name. Extending it is the documented hook for this.
+ * Colyseus answers every OPTIONS request itself, before Express sees it, and puts its CORS headers on every response
+ * (pages and API included). Its list lacks our token headers, so a browser on another origin (VITE_SERVER_URL) would
+ * fail the preflight for GET /api/profile/:name. Extending it is the documented hook for this.
+ *
+ * In sameOriginOnly mode (production, or when this server serves the client) nothing is sent for an origin that is not in
+ * the allowlist, so the page the server serves itself is the only one that can read its answers. Colyseus's defaults carry
+ * `Access-Control-Allow-Origin: *` and `Allow-Credentials`, and they are merged under whatever `getCorsHeaders` returns,
+ * so those two come out of `DEFAULT_CORS_HEADERS` as well.
  */
-function allowProfileTokenInPreflight(): void {
+function configureCors(config: ServerConfig): void {
   const { controller } = matchMaker;
-  controller.getCorsHeaders = (headers) => ({
-    "Access-Control-Allow-Origin": headers.get("origin") || "*",
-    "Access-Control-Allow-Headers": `${controller.DEFAULT_CORS_HEADERS["Access-Control-Allow-Headers"]}, ${PROFILE_TOKEN_HEADER}`,
-  });
+  const defaults = controller as unknown as { DEFAULT_CORS_HEADERS: Record<string, string> };
+  pristineCors ??= { ...defaults.DEFAULT_CORS_HEADERS };
+  const base = { ...pristineCors };
+  if (config.sameOriginOnly) {
+    delete base["Access-Control-Allow-Origin"];
+    delete base["Access-Control-Allow-Credentials"];
+  }
+  defaults.DEFAULT_CORS_HEADERS = base;
+  const allowHeaders = `${pristineCors["Access-Control-Allow-Headers"]}, ${PROFILE_TOKEN_HEADER}, ${PASSCODE_HEADER}`;
+  controller.getCorsHeaders = (headers) => {
+    const origin = corsOrigin(headers.get("origin"), config.sameOriginOnly, config.corsOrigins);
+    return {
+      "Access-Control-Allow-Headers": allowHeaders,
+      ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
+      ...(config.sameOriginOnly ? { Vary: "Origin" } : {}),
+    };
+  };
+}
+
+/**
+ * Who is asking, for the per-address cap on new profiles: Cloudflare's header when the request came through a tunnel (every
+ * such request reaches us from 127.0.0.1), else the socket. A caller can forge the header when it reaches the port
+ * directly; the cap over all addresses is what that cannot get around.
+ */
+function clientIp(req: Request): string {
+  const forwarded = req.get("cf-connecting-ip")?.trim();
+  return (forwarded && forwarded.length <= 64 ? forwarded : req.socket.remoteAddress) ?? "unknown";
+}
+
+/** Serves the built client (index.html, hashed assets) from the same origin as the API and the websocket. */
+function serveClient(app: express.Application, dir: string): void {
+  if (!fs.existsSync(path.join(dir, "index.html"))) {
+    throw new Error(`CLIENT_DIR ${dir} has no index.html: build the client first (npm run build)`);
+  }
+  app.use(express.static(dir, {
+    setHeaders(res, file) {
+      // Vite names everything under assets/ by content hash, so those never change under their name; the page that names them is always re-checked.
+      if (file.split(path.sep).includes("assets")) res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      else if (file.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
+      else res.setHeader("Cache-Control", "public, max-age=3600");
+    },
+  }));
 }
 
 /** Field by field, so the record's token can never ride along by accident. */
@@ -133,6 +189,25 @@ function shopRoute(
 }
 
 /**
+ * A profile's shop and wardrobe requests share one token bucket (SHOP_BURST, SHOP_PER_SECOND), checked before the body is
+ * read. Only a request that proves the profile's token spends from it, so the map of buckets holds at most one per
+ * profile, and anyone else gets the store's own refusal as before.
+ */
+function shopRateLimit(store: ProfileStore, buckets: KeyedTokenBuckets, config: ServerConfig): RequestHandler {
+  return (req, res, next) => {
+    const name = req.params.name;
+    const limited = config.shopBurst > 0 && config.shopPerSecond > 0 && typeof name === "string"
+      && store.verifyToken(name, req.get(PROFILE_TOKEN_HEADER) ?? "") && !buckets.take(name, Date.now());
+    if (!limited) {
+      next();
+      return;
+    }
+    res.set({ "Retry-After": "1", "Cache-Control": "no-store" });
+    res.status(429).json({ error: "too many requests, slow down" });
+  };
+}
+
+/**
  * Express 5 serves HEAD through the GET handlers, which for the profile route would claim the name and throw
  * the token away. Anything but GET is refused before it can reach them.
  */
@@ -148,8 +223,11 @@ const getOnly: RequestHandler = (req, res, next) => {
 export function createServer(config: ServerConfig = loadConfig()) {
   const store: ProfileStore = new JsonProfileStore(config.stashFile);
   const profiles = new ActiveProfiles();
-  RaidRoom.ctx = { config, store, profiles };
-  allowProfileTokenInPreflight();
+  const rooms = new RoomCounter({ arena: config.maxArenaRooms, training: config.maxTrainingRooms });
+  RaidRoom.ctx = { config, store, profiles, rooms };
+  configureCors(config);
+  const newProfiles = new NewProfileLimiter(config.maxNewProfilesPerHour, config.maxNewProfilesPerIpPerHour, HOUR_MS);
+  const shopBuckets = new KeyedTokenBuckets(config.shopBurst, config.shopPerSecond);
   const server = defineServer({
     transport: new WebSocketTransport(),
     greet: false,
@@ -160,14 +238,14 @@ export function createServer(config: ServerConfig = loadConfig()) {
       [TRAINING_ROOM_NAME]: defineRoom(RaidRoom, { mode: "training" }),
     },
     express: (app) => {
-      // Colyseus has already set its own CORS headers on the response (echoed origin, credentials);
-      // /api is credential-free, so a wildcard origin is the accurate statement.
+      app.disable("x-powered-by");
+      // Colyseus has already set its own CORS headers on the response (see configureCors); /api is credential-free, so
+      // a wildcard origin is the accurate statement in dev. Hosting for a public link (sameOriginOnly) keeps what
+      // Colyseus set: no origin header at all, except for an origin on the allowlist.
       app.use("/api", (_req, res, next) => {
         res.removeHeader("Access-Control-Allow-Credentials");
-        res.set({
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Headers": API_ALLOW_HEADERS,
-        });
+        if (!config.sameOriginOnly) res.set("Access-Control-Allow-Origin", "*");
+        res.set("Access-Control-Allow-Headers", API_ALLOW_HEADERS);
         next();
       });
 
@@ -182,12 +260,13 @@ export function createServer(config: ServerConfig = loadConfig()) {
 
       // Shop and wardrobe. The token header is mandatory (the store refuses without it) and the client's word is never
       // taken for a price, a balance or ownership: only the cosmetic id, and the slot for equip, come from the body.
+      const shopLimit = shopRateLimit(store, shopBuckets, config);
       app.post(
-        "/api/profile/:name/purchase", requireJson, parseShopBody,
+        "/api/profile/:name/purchase", shopLimit, requireJson, parseShopBody,
         shopRoute(store, (name, token, body) => store.purchase(name, token, body.id)), shopBodyError,
       );
       app.post(
-        "/api/profile/:name/equip", requireJson, parseShopBody,
+        "/api/profile/:name/equip", shopLimit, requireJson, parseShopBody,
         shopRoute(store, (name, token, body) => store.equip(name, token, body.slot, body.id)), shopBodyError,
       );
 
@@ -201,7 +280,24 @@ export function createServer(config: ServerConfig = loadConfig()) {
           return;
         }
         try {
+          // Claiming a free name is the one thing a stranger can do here, so it is the one thing guarded: the passcode (when
+          // the host set one) and a cap on how many callsigns can appear in an hour. Opening an existing profile needs its token.
+          const isNew = store.get(name) === undefined;
+          const ip = clientIp(req);
+          if (isNew) {
+            if (!passcodeOk(req.get(PASSCODE_HEADER), config.passcode)) {
+              res.status(401).json({ error: PASSCODE_REQUIRED, code: "passcode_required" });
+              return;
+            }
+            const waitMs = newProfiles.retryAfterMs(ip, Date.now());
+            if (waitMs > 0) {
+              res.set("Retry-After", String(Math.ceil(waitMs / 1000)));
+              res.status(429).json({ error: "too many new callsigns lately, try again later" });
+              return;
+            }
+          }
           const { record, token, created } = store.claim(name, req.get(PROFILE_TOKEN_HEADER));
+          if (created) newProfiles.record(ip, Date.now());
           const body: ProfileResponse = { profile: toProfileDTO(record), token, created };
           res.json(body);
         } catch (err) {
@@ -246,6 +342,10 @@ export function createServer(config: ServerConfig = loadConfig()) {
         res.status(404).json({ error: "not found" });
       });
       app.use("/api", apiError);
+
+      // Last of all, so a page can never shadow /api. The websocket upgrade and Colyseus's /matchmake routes are answered
+      // before Express sees a request, so they are out of its reach too.
+      if (config.clientDir) serveClient(app, config.clientDir);
     },
   });
   // Runs after every room is disposed (their onLeave handlers have settled), also on SIGINT/SIGTERM. The final flush,
@@ -267,7 +367,7 @@ export function createServer(config: ServerConfig = loadConfig()) {
       await store.close();
     }
   }
-  return Object.assign(server, { store, profiles, stop });
+  return Object.assign(server, { store, profiles, rooms, stop });
 }
 
 export type RaidServer = ReturnType<typeof createServer>;

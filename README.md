@@ -138,6 +138,7 @@ All from the repo root.
 | `npm test` | Vitest in the client, server and shared workspaces. The server suite includes end-to-end runs over real sockets. |
 | `npm run typecheck` | `tsc --noEmit` in every workspace. |
 | `npm run build` | Production build of the client into `packages/client/dist`. Vite does not type-check, so run `typecheck` too. |
+| `npm run playtest -- --no-tunnel` | Host a playtest: builds the client, runs the production server and (without `--no-tunnel`) a Cloudflare quick tunnel. See [Hosting a playtest](#hosting-a-playtest). The flags need npm's `--` in front. |
 | `npm run bots -- 3` | Start 3 headless bots against the running dev server. Flags need a second `--` (below). |
 | `npm run harness -w @raid/server` | Weapon duel harness (see [Testing](#testing)). The root has no `harness` script. |
 | `npm run harness:factions -- --python` | Faction cycle harness (see [Testing](#testing)). |
@@ -173,10 +174,49 @@ Set them on the command line, for example `MIN_PLAYERS=1 FILL_SECONDS=1 PATIENCE
 | `DUMMIES` | off | `1` or `true`: training dummies and a weapon rack next to every spawn in arena runs too. |
 | `MOBS` | on | `0` or `false`: no regional mobs. |
 | `COLYSEUS_LATENCY` | `0` | Artificial latency in milliseconds, for netcode testing. |
+| `CLIENT_DIR` | unset | A built client (`packages/client/dist`) to serve from the same port as the API and the websocket. Setting it, or `NODE_ENV=production`, is "hosting": see [Hosting a playtest](#hosting-a-playtest). |
+| `PLAYTEST_PASSCODE` | unset | When set, a passcode is needed to claim a new callsign and to join a room. |
+| `CORS_ORIGINS` | unset | Hosting only: comma-separated origins that may read `/api` and matchmaking from another site. Nobody else may. |
+| `MAX_ARENA_ROOMS`, `MAX_TRAINING_ROOMS` | `4`, `8` hosting; no limit in dev | Rooms alive at once. A room beyond that is refused with "server is full"; joining an open lobby still works. |
+| `MAX_NEW_PROFILES_PER_HOUR`, `MAX_NEW_PROFILES_PER_IP_PER_HOUR` | `30`, `10` hosting; no limit in dev | New callsigns an hour, in all and per address (`CF-Connecting-IP` behind a tunnel). Answers 429. |
+| `SHOP_BURST`, `SHOP_PER_SECOND` | `6`, `3` hosting; no limit in dev | One profile's shop and wardrobe request budget. Answers 429. |
+| `ORDER_BURST`, `ORDER_PER_SECOND` | `30`, `15` | One player's budget of in-match orders (`move`, `stop`, `target`, `swap`, `pickup`, `attack`, `release`; not `aim`). Excess orders are dropped silently. The browser sends about 10 a second while the right button is held. |
+
+A `0` for any limit above turns it off.
 
 ### Client environment variable
 
-`VITE_SERVER_URL` points the client at a server. Unset, the client opens a WebSocket to `<page hostname>:2567` and calls `/api` on its own origin, which Vite proxies to `localhost:2567`. Set, the WebSocket and the REST base both derive from it (`ws` becomes `http`, `wss` becomes `https`) and `/api` is a cross-origin request. The proxy target and the default port are fixed at 2567, so changing `RAID_PORT` also needs this, for example `RAID_PORT=3000 VITE_SERVER_URL=http://localhost:3000 npm run dev`. Vite inlines it at build time, so set it when running `npm run build` too.
+`VITE_SERVER_URL` points the client at a server. Unset, a dev build opens a WebSocket to `<page hostname>:2567` and calls `/api` on its own origin, which Vite proxies to `localhost:2567`; a production build (what the server serves when hosting) talks to its own origin for both, so `https` pages get `wss`. Set, the WebSocket and the REST base both derive from it (`ws` becomes `http`, `wss` becomes `https`) and `/api` is a cross-origin request. The proxy target and the default port are fixed at 2567, so changing `RAID_PORT` also needs this, for example `RAID_PORT=3000 VITE_SERVER_URL=http://localhost:3000 npm run dev`. Vite inlines it at build time, so set it when running `npm run build` too.
+
+## Hosting a playtest
+
+Up to 8 friends can play on your Mac with one command, from anywhere, over a Cloudflare quick tunnel (free, no account).
+
+```bash
+brew install cloudflared          # once
+npm run playtest                  # builds the client, starts the server and the tunnel
+```
+
+It prints a banner with a `https://something.trycloudflare.com` link. Send that link to your friends. They open it in Chrome, Edge or Firefox, type a callsign and press Start Run. Safari works but caps at 60 fps unless "Prefer Page Rendering Updates near 60fps" is turned off in its feature flags.
+
+What the command does: builds the client (`VITE_SERVER_URL` unset), starts the production server as one process (`NODE_ENV=production`, no file watching) that serves the page, the API and the websocket on one port, waits for it to answer, opens the tunnel and prints the link and the Wi-Fi address. On a Mac it also runs `caffeinate -is` so the machine does not idle-sleep while it hosts.
+
+Flags need npm's `--` in front of them:
+
+```bash
+npm run playtest -- --no-tunnel               # this Mac and the same Wi-Fi only
+npm run playtest -- --port 2600               # another port (default 2567, or RAID_PORT)
+npm run playtest -- --no-build                # reuse the build in packages/client/dist
+PLAYTEST_PASSCODE=pick-something npm run playtest   # ask players for a passcode
+```
+
+- **Stopping.** Press Ctrl+C once. The server saves the profiles first (a few seconds); pressing it again only prints a note.
+- **Profiles** are in `~/.rougehalla/playtest-profiles.json` (override with `STASH_FILE`), separate from the dev file and kept across branches and worktrees. Back it up by copying it while the server is stopped (or any time: writes are atomic).
+- **Keeping the Mac awake.** The script does it. By hand: `caffeinate -dis`. With the lid closed it only stays up on power with an external display.
+- **Passcode.** Off by default. With `PLAYTEST_PASSCODE` set, a new callsign and every join need it. The printed link carries it (`?code=...`), the browser remembers it, and a friend who opens the plain link sees "This playtest needs a passcode: open the link your host sent." Use visible ASCII only.
+- **Guards** for a public link, all on while hosting and tunable (see the environment table): only the served page may read the API (no `Access-Control-Allow-Origin: *`; `CORS_ORIGINS` allows more), caps on rooms (4 runs, 8 practice rooms), on new callsigns (30 an hour, 10 per address) and on shop requests, and a budget of in-match orders per player. They are best guesses for 8 friends.
+- **Troubleshooting.** A quick tunnel's address changes every start, so a new run needs a new link. The tunnel has no uptime guarantee: if the banner says it stopped, restart. A player who loses connection keeps their seat for 10 seconds and is reconnected if they come back in time, then counts as gone. The Mac itself may not open its own new link for a minute or two (its resolver cached "no such name" while the tunnel came up); use `http://localhost:2567` there. If the server says the port is busy, stop the other server (or `npm run dev`) or pick `--port`.
+- **Other ways.** Tailscale (everyone installs it and joins your tailnet, then use `--no-tunnel` and the Mac's tailnet address) keeps it private. Router port forwarding exposes your home IP address and needs TLS in front for `wss`; not recommended. A VPS: the `Dockerfile` builds the client and runs the same server in one container, with the profile file in a `/data` volume (`docker build -t rougehalla .`, then `docker run -d -p 2567:2567 -v rougehalla-data:/data -e PLAYTEST_PASSCODE=pick-something rougehalla`); put TLS (Caddy, nginx) in front of it. It was checked here by running its steps by hand, since no Docker daemon was running.
 
 ## Testing
 
@@ -271,7 +311,7 @@ HTTP, all under `/api`. `x-profile-token` carries a profile's token.
 | Request | What it does |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }`. |
-| `GET /api/profile/:name` | Claims a free name (no token header) or returns the profile when the token matches. |
+| `GET /api/profile/:name` | Claims a free name (no token header) or returns the profile when the token matches. While hosting, a free name needs the `x-playtest-passcode` header when a passcode is set (401 without it) and answers 429 past the new-profile caps. |
 | `POST /api/profile/:name/purchase` | Body `{ id }`: buys a cosmetic at its catalog price. Needs the token. |
 | `POST /api/profile/:name/equip` | Body `{ slot, id }`: equips an owned cosmetic (`id: null` empties the slot). Needs the token. |
 | `GET /api/leaderboard?month=YYYY-MM&limit=N&name=callsign` | Public: names, equipped titles and GV banked that UTC month (`limit` defaults to 20, at most 100). `you` (the named profile's place) comes only with that profile's token. |
@@ -289,7 +329,7 @@ Netcode and scale:
 Identity and persistence:
 
 - **Profiles are weakly authenticated.** The only credential is a random token in the browser's `localStorage`. There are no passwords, recovery, expiry or rotation. Tokens are stored in plain text in the profile file and travel unencrypted unless you put TLS in front. Clearing site data forfeits the profile, and anyone who copies the token owns its GV.
-- **No rate limits.** Matchmaking, the shop endpoints and training-room creation have no limit beyond one active run per profile. Any client can create profiles as fast as it likes (`/api` answers every origin).
+- **Few rate limits.** In dev (`npm run dev`) matchmaking, the shop endpoints, room creation and new profiles have no limit beyond one active run per profile, and `/api` answers every origin. Hosting turns on the guards in [Hosting a playtest](#hosting-a-playtest) (room and new-profile caps, a shop limit, same-origin only). In-match orders have a per-player budget everywhere. Move spam still costs a path search per order, up to that budget.
 - **A hard kill loses the GV of runs in progress.** SIGKILL, power loss or OOM mid-run loses it. The whole JSON file is rewritten on every change, and there is no TLS, structured logging or metrics. This is a dev setup, not a deployment.
 - **GV can still be farmed with spare callsigns.** The win bonus needs 3+ players and damage on 2+ opponents, which stops the cheapest trick. But throwaway callsigns that get killed still pay out kills and the bonus.
 

@@ -1,12 +1,16 @@
 // Profile REST client: GET /api/profile/:name claims a callsign (first time) or proves ownership of it (token header).
 // The token is the only proof, so it lives in localStorage per callsign and never leaves this device otherwise.
 import {
-  PROFILE_TOKEN_HEADER, SHOP_EQUIP_PATH, SHOP_PURCHASE_PATH,
+  PASSCODE_HEADER, PROFILE_TOKEN_HEADER, SHOP_EQUIP_PATH, SHOP_PURCHASE_PATH,
   type EquipRequest, type LeaderboardEntry, type LeaderboardResponse, type ProfileDTO, type ProfileResponse,
   type PurchaseRequest, type ShopErrorCode,
 } from "@raid/shared";
 import { apiBase } from "./connection";
-import { SERVER_PROBLEM_MESSAGE, TIMEOUT_MESSAGE, UNREACHABLE_MESSAGE, UNREADABLE_MESSAGE } from "./errors";
+import {
+  NEW_CALLSIGNS_MESSAGE, PASSCODE_MESSAGE, RATE_LIMIT_MESSAGE, SERVER_PROBLEM_MESSAGE, TIMEOUT_MESSAGE, UNREACHABLE_MESSAGE,
+  UNREADABLE_MESSAGE,
+} from "./errors";
+import { readPasscode } from "./passcode";
 
 const TOKEN_KEY_PREFIX = "raid.token.";
 const REQUEST_TIMEOUT_MS = 8000;
@@ -92,6 +96,9 @@ async function requestProfile(name: string): Promise<ProfileResponse> {
   const headers: Record<string, string> = {};
   const token = readToken(name);
   if (token) headers[PROFILE_TOKEN_HEADER] = token;
+  // Only a brand-new callsign needs it (the server asks for it then), but a known one can carry it as well.
+  const passcode = readPasscode();
+  if (passcode) headers[PASSCODE_HEADER] = passcode;
 
   let res: Response;
   try {
@@ -103,6 +110,8 @@ async function requestProfile(name: string): Promise<ProfileResponse> {
 
   if (res.status === 403) throw new ProfileError("taken", "That callsign is taken (its token isn't on this device)");
   if (res.status === 400) throw new ProfileError("invalid", "Invalid callsign");
+  if (res.status === 401) throw new ProfileError("unavailable", PASSCODE_MESSAGE);
+  if (res.status === 429) throw new ProfileError("unavailable", NEW_CALLSIGNS_MESSAGE);
   // Vite's dev proxy (or any gateway) answers these when the game server behind it is down.
   if (res.status >= 502 && res.status <= 504) throw new ProfileError("unavailable", UNREACHABLE_MESSAGE);
   if (!res.ok) throw new ProfileError("unavailable", SERVER_PROBLEM_MESSAGE);
@@ -181,6 +190,7 @@ function shopMessage(code: ShopErrorCode, need?: number, have?: number): string 
 
 async function shopFailure(res: Response): Promise<ShopRequestError> {
   if (res.status >= 502 && res.status <= 504) return new ShopRequestError("unavailable", UNREACHABLE_MESSAGE);
+  if (res.status === 429) return new ShopRequestError("unavailable", RATE_LIMIT_MESSAGE);
   let body: unknown = null;
   try {
     body = await res.json();
