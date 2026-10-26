@@ -1,0 +1,89 @@
+/* One ability slot (ui/abilitySlot.ts): a 64 px box in the weapon bar's slot style, docked at the right end of its row. Display
+   only, so clicks fall through to the world. The deny line floats above it and takes no room, so it never moves the bar. Sizes
+   follow --ui-w through html[data-ui-narrow] (the overlay has no size @media), like the weapon slots. --as-color is the
+   ability's colour, set from script. */
+.as-wrap { position: relative; flex: none; pointer-events: none; user-select: none; }
+.as-slot {
+  --as-color: #9aa5b1;
+  position: relative;
+  box-sizing: border-box;
+  width: 64px;
+  height: 64px;
+  padding: 6px 4px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  overflow: hidden;
+  background: rgba(20, 24, 30, 0.9);
+  border: 1px solid #4a5563;
+  border-radius: 6px;
+}
+.as-slot.empty { opacity: 0.5; }
+.as-slot.empty .as-icon { display: none; }
+/* The key as a small keycap in the corner, as on the weapon slots. */
+.as-slot .wb-key { position: absolute; left: 5px; top: 4px; min-width: 1.5em; font-size: 10px; padding-inline: 0.4em; color: #aeb7c2; }
+.as-icon { flex: none; width: 24px; height: 24px; background: var(--as-color); }
+.as-name {
+  box-sizing: border-box;
+  height: 14px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 14px;
+  color: #cfd5dc;
+}
+/* The seconds left (or what blocks the cast) sit over the icon. */
+.as-secs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18px;
+  height: 24px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+  text-shadow: 0 1px 3px #000, 0 0 4px #000;
+  pointer-events: none;
+}
+.as-slot.blocked .as-secs { font-size: 11px; color: #ef9a9a; }
+/* Ready: the border and a soft glow take the ability's colour. */
+.as-slot.ready { border-color: var(--as-color); box-shadow: 0 0 10px -2px var(--as-color); background: rgba(30, 34, 40, 0.95); }
+.as-slot.ready .as-name { color: #e6e9ed; }
+.as-slot.cooldown .as-icon, .as-slot.blocked .as-icon { opacity: 0.55; }
+.as-slot.casting { border-color: #ffe082; box-shadow: 0 0 12px rgba(255, 224, 130, 0.4); }
+.as-slot.shut { border-color: #7a3b3b; }
+.as-slot.shut .as-icon { opacity: 0.35; }
+/* The cooldown wipe: a dark wedge that shrinks clockwise from 12 o'clock (--cd is its angle), as on the weapon slots. */
+.as-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: conic-gradient(rgba(0, 0, 0, 0.6) var(--cd, 0deg), transparent 0);
+}
+/* The cast bar: a thin line along the bottom edge that fills as the cast runs. */
+.as-cast { position: absolute; left: 4px; right: 4px; bottom: 2px; height: 3px; border-radius: 2px; overflow: hidden; background: rgba(255, 255, 255, 0.15); }
+.as-cast-fill { display: block; width: 0; height: 100%; background: var(--as-color); }
+/* "Out of range", "Ready in 4:59": styled like the weapon bar's pickup hint, in a warning red. */
+.as-deny {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 2;
+  padding: 3px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ef9a9a;
+  background: rgba(20, 24, 30, 0.92);
+  border: 1px solid #8a3b3b;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+
+html[data-ui-narrow] .as-slot { width: 60px; }
