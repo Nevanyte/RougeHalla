@@ -13,7 +13,7 @@ import { advanceAlongPath, planPath, recordHistory } from "./movement";
 import { clearProjectiles, spawnProjectiles, sweepProjectiles } from "./projectiles";
 import { updateTargets } from "./targeting";
 import { trainingSettle } from "./training";
-import { dropLock, moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
+import { cancelLockedWindup, dropLock, moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
 import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
 
 /**
@@ -157,16 +157,19 @@ export function actionOrder(world: World, tick = world.state.tick): string[] {
 
 /**
  * One fighter's queued inputs, in the order they arrived: the move (where it arrived among the actions), the aim (the same)
- * and the actions. A move or a stop ends the target lock, whether or not the point can be reached: the order was given.
+ * and the actions. A move or a stop ends the target lock and cancels an attack the lock was winding up, whether or not the
+ * point can be reached: the order was given. A player's `seq` on it is echoed in `moveSeq` once the order has applied.
  */
 function applyInputs(world: World, c: Combatant): void {
   const { move, moveBefore, aim, aimBefore, actions } = c.rt.inputs.drain();
   const applyMove = (): void => {
     if (move === null) return;
+    cancelLockedWindup(world, c);
     dropLock(c);
     // An unreachable click is ignored rather than treated as "stop".
     const path = move.kind === "move" ? planPath(world, c.s, move) : [];
     if (move.kind === "stop" || path.length > 0) c.rt.path = path;
+    if (c.kind === "player" && move.seq !== undefined) c.s.moveSeq = move.seq;
   };
   // The cursor's aim is ignored while a lock aims the fighter (sim/targeting.ts); the next aim after the lock ends counts.
   const applyAim = (): void => {

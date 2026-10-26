@@ -2,7 +2,11 @@
 // the sim drains the queue at the start of each fixed step.
 import { WORLD_H, WORLD_W, wrapAngle, type Vec2 } from "@raid/shared";
 
-export type MoveCommand = { kind: "move"; x: number; y: number } | { kind: "stop" };
+/**
+ * `seq`: the client's order number (an integer 0..255), echoed in `PlayerState.moveSeq` on the tick the order is applied, so a
+ * client can tell when it took effect. Nothing else reads it; a mob's orders carry none.
+ */
+export type MoveCommand = { kind: "move"; x: number; y: number; seq?: number } | { kind: "stop"; seq?: number };
 
 export type ActionCommand =
   /** Trigger pressed toward `a`. `t` is the server time the client was rendering; melee rewinds to it (clamped). */
@@ -73,6 +77,12 @@ export function parseAngle(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? wrapAngle(v) : null;
 }
 
+/** The order number a `move` or `stop` carries (an integer 0..255), or undefined: a bad one costs the client its ack, not the order. */
+export function parseSeq(msg: unknown): number | undefined {
+  const v = isRecord(msg) ? msg.seq : undefined;
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 255 ? v + 0 : undefined;
+}
+
 /** Short opaque id string, or null. */
 export function parseId(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 && v.length <= 64 ? v : null;
@@ -84,12 +94,15 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown):
     case "move": {
       const p = parsePoint(msg);
       if (!p) return false;
-      q.pushMove({ kind: "move", x: p.x, y: p.y });
+      const seq = parseSeq(msg);
+      q.pushMove(seq === undefined ? { kind: "move", x: p.x, y: p.y } : { kind: "move", x: p.x, y: p.y, seq });
       return true;
     }
-    case "stop":
-      q.pushMove({ kind: "stop" });
+    case "stop": {
+      const seq = parseSeq(msg);
+      q.pushMove(seq === undefined ? { kind: "stop" } : { kind: "stop", seq });
       return true;
+    }
     case "aim": {
       const a = isRecord(msg) ? parseAngle(msg.a) : null;
       if (a === null) return false;

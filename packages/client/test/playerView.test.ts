@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_BARRIER_SHARE } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
+import { screenAngle } from "../src/render/projection";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
 
@@ -83,5 +84,38 @@ describe("PlayerView kill barrier", () => {
     expect(root.state.visible).toBe(false);
     frame(player({ status: "dead", barrier: 100 }), true); // a death still ahead of render time
     expect(root.state.visible).toBe(true);
+  });
+});
+
+describe("PlayerView predicted facing", () => {
+  /** Matches the container's children: the nose after the body and its core, the weapon in hand after it. */
+  const NOSE = 8;
+  const HELD = 9;
+
+  it("turns the nose to the facing it is given, and back to the synced one when it gets none", () => {
+    const { root, view } = setup();
+    const nose = (root.args[2] as FakeObject[])[NOSE]!;
+    const bare = (facing: number) => player({ weapon0: "", facing });
+    view.update(0, 0, bare(0.5), 1000, 1000);
+    expect(nose.state.rotation).toBeCloseTo(screenAngle(0.5), 9);
+    view.update(0, 0, bare(0.5), 1000, 1000, false, false, -2);
+    expect(nose.state.rotation).toBeCloseTo(screenAngle(-2), 9);
+    view.update(0, 0, bare(0.5), 1000, 1000, false, false, null);
+    expect(nose.state.rotation).toBeCloseTo(screenAngle(0.5), 9);
+  });
+
+  it("turns the weapon in hand with it and leaves the synced state alone", () => {
+    const { root, view } = setup();
+    const held = (root.args[2] as FakeObject[])[HELD]!;
+    const p = player({ weapon0: "sword", facing: 1 });
+    view.update(0, 0, p, 1000, 1000);
+    const synced = held.state.rotation as number;
+    view.update(0, 0, p, 1000, 1000, false, false, -1.2);
+    expect(held.state.rotation).not.toBeCloseTo(synced, 3);
+    expect(Math.abs((held.state.rotation as number) - screenAngle(-1.2))).toBeLessThan(0.5); // the juice pose adds a little of its own
+    expect(p.facing).toBe(1);
+    expect(p.weapon0).toBe("sword");
+    view.update(0, 0, p, 1000, 1000);
+    expect(held.state.rotation).toBeCloseTo(synced, 9);
   });
 });

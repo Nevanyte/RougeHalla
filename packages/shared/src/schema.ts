@@ -30,6 +30,8 @@ export const PlayerState = schema({
   weapon0: t.string().default(""),
   weapon1: t.string().default(""),
   slot: t.uint8().default(0),
+  /** The `seq` of the last `move` or `stop` the sim applied (0..255, wrapping): tells the client when its order took effect. */
+  moveSeq: t.uint8().default(0),
   /** The state key of the fighter this player has locked and auto-attacks (a `target` order), or "" for none. */
   attackTarget: t.string().default(""),
   /** Server time the current bow draw (its windup) began; 0 when not drawing. Every client draws the pull from it. */

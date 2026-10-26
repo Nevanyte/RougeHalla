@@ -29,16 +29,21 @@ export type ContainerKind = "chest" | "ground" | "body";
  * `attack` and `release` are the low-level trigger that mobs, the duel harness and older bots still use.
  */
 export interface ClientMessages {
-  /** Walk to a world point (server pathfinds). Drops the attack target, as a right-click does in LoL. */
-  move: Vec2;
-  /** Stand still: drops the path, the attack target and the held trigger. */
-  stop: Record<string, never>;
+  /**
+   * Walk to a world point (server pathfinds). Drops the attack target, as a right-click does in LoL, and cancels an attack
+   * the lock was winding up. `seq` (an integer 0..255, the client's own count) comes back in `PlayerState.moveSeq` on the
+   * tick the order is applied; nothing else reads it.
+   */
+  move: Vec2 & { seq?: number };
+  /** Stand still: drops the path, the attack target and the held trigger, and cancels an attack the lock was winding up. `seq` as for `move`. */
+  stop: { seq?: number };
   /**
    * Lock an enemy (a player or a mob, by its state key) and auto-attack it: the server walks into the weapon's range,
    * attacks whenever the cooldown allows, faces it (the shield too) and aims every attack at it, until another order, the
    * target going down or evading, leaving TARGET_RANGE, or staying out of line of sight for TARGET_LOS_GRACE_MS once it
    * has been seen. Ignored unless the target is a standing enemy within TARGET_RANGE; one behind a wall is locked and
-   * walked to (nothing is attacked without a clear line).
+   * walked to (nothing is attacked without a clear line). Locking a different fighter cancels an attack the old lock was
+   * winding up (clicking the one already locked changes nothing).
    */
   target: { id: string };
   /** Where the cursor is: the shield faces it while nothing is locked. Streamed at no more than 20 Hz while it changes. */
@@ -75,7 +80,7 @@ export type ProjectileEnd =
 /** Visual-only events. The server stamps `t` (server time) so clients can play them in render time. */
 export type FxEvent =
   /**
-   * A melee swing or wand cast began: it lands (or the ball leaves) `ms` later unless a stagger or a swap cancels it.
+   * A melee swing or wand cast began: it lands (or the ball leaves) `ms` later unless a stagger, a swap or a `cancel` ends it.
    * `a` is its direction (an attack on a locked target is aimed again when it lands). Bow draws are synced state instead
    * (drawStartedAt).
    */
@@ -94,6 +99,8 @@ export type FxEvent =
   | { kind: "block"; id: string; by: string; weapon: WeaponId; passive?: boolean }
   /** `id` was staggered: its windup or cast was cancelled (a bow draw is not interrupted). */
   | { kind: "stagger"; id: string }
+  /** `id`'s own order (a move, a stop, or locking someone else) cancelled the attack its lock was winding up: no swing, ball or arrow, and its cooldown is refunded. Drop its telegraph. */
+  | { kind: "cancel"; id: string }
   /**
    * A projectile stopped at (x, y). It also says where and when it was loosed, so a client that never saw it in the
    * state (loosed and stopped within one patch) can still draw its flight.

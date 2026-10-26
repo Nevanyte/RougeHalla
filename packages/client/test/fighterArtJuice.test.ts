@@ -1,0 +1,105 @@
+// FighterArt's juice (render/FighterArt.ts): the weapon's pose turn, the wand's cast charge and the bow's tension glow.
+import { describe, expect, it } from "vitest";
+import { FighterArt, type FighterFields } from "../src/render/FighterArt";
+import { argsOf, fakeScene } from "./fakes";
+
+const fighter = (over: Partial<FighterFields> = {}): FighterFields => ({
+  facing: 0, faction: "sentenced", weapon0: "wand", weapon1: "", slot: 0, drawStartedAt: 0, ...over,
+});
+
+function setup() {
+  const { scene, ofKind } = fakeScene();
+  const art = new FighterArt(scene);
+  const [ground, held] = ofKind("graphics");
+  return { art, ground: ground!, held: held! };
+}
+
+describe("the weapon's pose turn", () => {
+  it("is added to the facing", () => {
+    const { art, held } = setup();
+    art.update(fighter({ facing: 0 }), 1000, 1000);
+    expect(held.state.rotation).toBe(0);
+    art.poseRot = -0.75;
+    art.update(fighter({ facing: 0 }), 1016, 1016);
+    expect(held.state.rotation).toBeCloseTo(-0.75, 9);
+  });
+});
+
+describe("the wand's charge", () => {
+  it("swells the orb and adds a bright core as it grows, redrawing in steps", () => {
+    const { art, held } = setup();
+    art.update(fighter(), 1000, 1000);
+    const plain = argsOf(held, "fillCircle").length;
+    const clears = held.clears;
+    art.setCharge(0.5);
+    art.update(fighter(), 1016, 1016);
+    expect(held.clears).toBe(clears + 1);
+    const half = argsOf(held, "fillCircle");
+    expect(half.length).toBe(plain + 2);
+    // The outer glow (the one with the biggest radius) grows with the charge.
+    const big = (calls: unknown[][]) => Math.max(...calls.map((c) => c[2] as number));
+    art.setCharge(1);
+    art.update(fighter(), 1032, 1032);
+    expect(big(argsOf(held, "fillCircle"))).toBeGreaterThan(big(half));
+    // Still the same step: no redraw.
+    const n = held.clears;
+    art.setCharge(1.0001);
+    art.update(fighter(), 1048, 1048);
+    expect(held.clears).toBe(n);
+  });
+
+  it("goes with the cast: back to the plain orb at 0", () => {
+    const { art, held } = setup();
+    art.setCharge(1);
+    art.update(fighter(), 1000, 1000);
+    art.setCharge(0);
+    art.update(fighter(), 1016, 1016);
+    expect(argsOf(held, "fillCircle")).toHaveLength(3);
+  });
+
+  it("means nothing to other weapons", () => {
+    const { art, held } = setup();
+    art.update(fighter({ weapon0: "sword" }), 1000, 1000);
+    const clears = held.clears;
+    art.setCharge(1);
+    art.update(fighter({ weapon0: "sword" }), 1016, 1016);
+    expect(held.clears).toBe(clears);
+  });
+
+  it("clamps what it is given", () => {
+    const { art, held } = setup();
+    art.setCharge(7);
+    art.update(fighter(), 1000, 1000);
+    const a = argsOf(held, "fillCircle");
+    art.setCharge(1);
+    art.update(fighter(), 1016, 1016);
+    expect(argsOf(held, "fillCircle")).toEqual(a);
+  });
+});
+
+describe("the bow's tension", () => {
+  const bow = (drawStartedAt: number) => fighter({ weapon0: "bow", drawStartedAt });
+  // Sentenced's draw takes 0.524 s: draw started at 1000 is 38% at 1200, 76% at 1400, 100% from 1524.
+
+  it("tells the figure how far the string is back", () => {
+    const { art } = setup();
+    art.update(bow(0), 1000, 1000);
+    expect(art.pull).toBe(-1);
+    art.update(bow(1000), 1262, 1262);
+    expect(art.pull).toBeCloseTo(0.5, 2);
+    art.update(bow(1000), 1600, 1600);
+    expect(art.pull).toBe(1);
+  });
+
+  it("warms the arrowhead on the way to a full draw with a glow and no ring (the ring is the ready cue)", () => {
+    const { art, held } = setup();
+    art.update(bow(1000), 1200, 1200); // 38%: nothing yet
+    const early = argsOf(held, "fillCircle").length;
+    expect(argsOf(held, "strokeCircle")).toEqual([]);
+    art.update(bow(1000), 1450, 1450); // 86%
+    expect(argsOf(held, "fillCircle").length).toBe(early + 1);
+    expect(argsOf(held, "strokeCircle")).toEqual([]);
+    art.update(bow(1000), 1600, 1600); // full
+    expect(argsOf(held, "strokeCircle")).toHaveLength(1);
+  });
+});

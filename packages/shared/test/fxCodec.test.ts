@@ -12,6 +12,7 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
   hit: { kind: "hit", id: "sess-002", by: "m12", amount: 123.456, weapon: "bow" },
   block: { kind: "block", id: "sess-002", by: "sess-001", weapon: "shield" },
   stagger: { kind: "stagger", id: "sess-003" },
+  cancel: { kind: "cancel", id: "sess-004" },
   projEnd: { kind: "projEnd", id: "p7", proj: "ball", x0: 100.2, y0: 2000.9, t0: 98765.4, x: 140.6, y: 1999.5, reason: "destroyed" },
   death: { kind: "death", id: "m3", x: 640.5, y: 12.2, by: "sess-001" },
   heal: { kind: "heal", id: "sess-001", amount: 7.77 },
@@ -201,6 +202,14 @@ describe("fx codec: batches", () => {
   it("a teleport is one number", () => {
     expect(packFx([{ kind: "teleport" }], T).l).toEqual([[8]]);
   });
+
+  it("a cancel is its kind code (13, after victory) and the fighter, by roster index when it has one", () => {
+    expect(packFx([{ kind: "cancel", id: "sess-004" }], T).l).toEqual([[13, "sess-004"]]);
+    const roster = ["a", "b", "sess-004"];
+    const batch = packFx([{ kind: "cancel", id: "sess-004" }], T, { roster: new Map(roster.map((id, i) => [id, i])) });
+    expect(batch.l).toEqual([[13, 2]]);
+    expect(unpackFx(batch, roster)).toEqual([{ kind: "cancel", id: "sess-004", t: T }]);
+  });
 });
 
 describe("fx codec: bad input is skipped, not thrown on", () => {
@@ -227,6 +236,8 @@ describe("fx codec: bad input is skipped, not thrown on", () => {
       [11, "a", 0, 2],                     // combo, proc is not 0 or 1
       [12, null, null],                    // victory, no draw flag
       [4, Number.NaN],                     // stagger, id is a number
+      [13, Number.NaN],                    // cancel, id is a number
+      [13],                                // cancel, no id
       [6, "a", Number.POSITIVE_INFINITY, 0, null], // death, infinite x
       goodTuple,
     ] as unknown as FxBatch["l"];
