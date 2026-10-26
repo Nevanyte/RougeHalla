@@ -1,7 +1,7 @@
 // Hold Tab for the map (ui/mapHold.ts): it takes Tab only when a run is on and nothing else wants it, lets go on key-up, on a
 // lost window and on a hidden tab, and leaves the settings and help cards their focus navigation.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MapHold, insidePanel, type HoldKey } from "../src/ui/mapHold";
+import { MapHold, insidePanel, mapHoldAllowed, type HoldKey } from "../src/ui/mapHold";
 import { installPlanningDom, asEl } from "./planningDom";
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -21,6 +21,26 @@ function hold(over: { allowed?: boolean; focused?: unknown } = {}) {
   const h = new MapHold(() => state.allowed, (held) => changes.push(held), () => state.focused);
   return { h, state, changes };
 }
+
+describe("mapHoldAllowed", () => {
+  it("is a run that is on, not practice, with no results panel up (a death shows it while the phase is still active)", () => {
+    expect(mapHoldAllowed({ phase: "active" }, false)).toBe(true);
+    expect(mapHoldAllowed({ phase: "active", training: false }, false)).toBe(true);
+    expect(mapHoldAllowed({ phase: "active", training: true }, false)).toBe(false);
+    expect(mapHoldAllowed({ phase: "active" }, true)).toBe(false);
+    for (const phase of ["lobby", "planning", "ended"]) expect(mapHoldAllowed({ phase }, false)).toBe(false);
+  });
+
+  it("lets Tab reach the results panel's button: a hold built on it takes nothing while the panel is up", () => {
+    let results = true;
+    const h = new MapHold(() => mapHoldAllowed({ phase: "active" }, results), () => {}, () => null);
+    const e = key();
+    expect(h.keyDown(e)).toBe(false);
+    expect(e.prevented).toBe(false);
+    results = false;
+    expect(h.keyDown(key())).toBe(true);
+  });
+});
 
 describe("MapHold.keyDown", () => {
   it("takes Tab in a run: holds, tells the scene once, and cancels the browser's own Tab", () => {

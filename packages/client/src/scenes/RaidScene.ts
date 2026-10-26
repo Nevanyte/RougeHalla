@@ -33,7 +33,7 @@ import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type Ab
 import { readCampTypes } from "../ui/campInfo";
 import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
-import { MapHold } from "../ui/mapHold";
+import { MapHold, mapHoldAllowed } from "../ui/mapHold";
 import { Minimap } from "../ui/minimap";
 import { PlanningView, planningModeFor, type PlanningPlayer } from "../ui/planning";
 import { RouteState } from "../ui/route";
@@ -95,7 +95,7 @@ export class RaidScene extends Phaser.Scene {
   /** The route drawn on the planning screen (never sent): the minimap and the hold-Tab map read it. */
   private route!: RouteState;
   private readonly mapHold = new MapHold(
-    () => this.room.state.phase === "active" && this.room.state.training !== true,
+    () => mapHoldAllowed(this.room.state, this.resultsVisible?.() === true),
     () => { /* read each frame (update) */ },
   );
   private unbindMapHold: (() => void) | null = null;

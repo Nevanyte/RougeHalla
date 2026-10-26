@@ -96,6 +96,8 @@ export function startPlanning(world: World): void {
 
 /** One planning tick: the picks in the tick's secret order, the messages that changed, then the end check. */
 export function updatePlanning(world: World, order: readonly string[], startRaid: (world: World, placed: Map<string, Vec2>) => void): void {
+  // A shutdown voided the room (abandonPlayer): nothing advances, and lastOneStanding must not start and win a run that no longer counts.
+  if (world.arena.voided) return;
   const s = world.state;
   for (const id of order) {
     const rt = world.players.get(id);
