@@ -3,12 +3,14 @@
 import { randomUUID } from "node:crypto";
 import {
   generateMap, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
-  type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample, type SignatureKind, type Vec2, type WeaponId,
+  type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample, type SignatureKind, type SlipState, type Vec2,
+  type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
+import type { TerrainRuntime } from "./terrainEffects";
 
 export interface SimConfig {
   minPlayers: number;
@@ -30,6 +32,12 @@ export interface SimConfig {
    * death, results or GV, and a fighter who goes down is revived. Implies the training setup (`dummies`).
    */
   training?: boolean;
+  /**
+   * Terrain hazards (sim/terrainEffects.ts: ember burn, bog slow, the ice slide, light heal): true (the default) applies the
+   * effects of whatever terrain the map holds, with each faction's home rule; false switches every effect off and leaves the
+   * map as it is; "all" applies them to everyone, the home exemption (and the light boost) off. Measurement uses the last two.
+   */
+  hazards?: boolean | "all";
 }
 
 /**
@@ -87,6 +95,11 @@ export interface CombatRuntime {
   /** Recent authoritative positions (oldest first) for lag-compensated hit tests and present-time projectile sweeps. */
   history: Sample[];
   weapon: WeaponRuntime;
+  /**
+   * The slide on ice (shared/walk.ts), created the first tick the fighter stands on slippery ground and dropped when it grips
+   * again, on going down and on every teleport (sim/movement.ts walkFighter). Absent or null: walking the path exactly.
+   */
+  slip?: SlipState | null;
 }
 
 export interface PlayerRuntime extends CombatRuntime {
@@ -196,8 +209,8 @@ export interface LedgerEntry {
    */
   passive?: boolean;
   /**
-   * The arena's own damage (sudden death): it lands in the pass like any hit, but shows no `hit` fx and is not counted
-   * as combat, so `weapon` is never read.
+   * The world's own damage (sudden death, terrain hazards): it lands in the pass like any hit, but shows no `hit` fx and is
+   * not counted as combat, so `weapon` is never read.
    */
   arena?: boolean;
 }
@@ -318,6 +331,23 @@ export interface ArenaRuntime {
   bountyAtTickStart: Map<string, number>;
 }
 
+/**
+ * Counters the terrain hazards keep for measurement (sim/terrainEffects.ts): nothing in the game reads them. `damage` is the
+ * hp each victim lost to each hazard kind ("ember"), `seconds` the fighter-seconds each kind acted on (a fighter its home rule
+ * exempts adds none), and `heal` the hp light restored per player.
+ */
+export interface HazardStats {
+  damage: Map<string, Record<string, number>>;
+  seconds: { ember: number; bog: number; ice: number; light: number };
+  heal: Map<string, number>;
+}
+
+export interface HazardRuntime { stats: HazardStats }
+
+export function newHazardStats(): HazardStats {
+  return { damage: new Map(), seconds: { ember: 0, bog: 0, ice: 0, light: 0 }, heal: new Map() };
+}
+
 export type SimEvent =
   | { type: "fx"; fx: FxEvent }
   | { type: "toast"; to: string; text: string }
@@ -425,6 +455,10 @@ export interface World {
   arena: ArenaRuntime;
   /** Faction signatures (sim/factions.ts); null until that module is installed. */
   factions: FactionsRuntime | null;
+  /** Terrain hazards (sim/terrainEffects.ts); null until that module is installed. */
+  terrain: TerrainRuntime | null;
+  /** What the hazards did, for measurement. */
+  hazards: HazardRuntime;
 }
 
 export function createWorld(opts: {
@@ -470,6 +504,8 @@ export function createWorld(opts: {
     hooks: { dropBody: (_w, p) => { p.weapon0 = ""; p.weapon1 = ""; } },
     arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
+    terrain: null,
+    hazards: { stats: newHazardStats() },
   };
 }
 

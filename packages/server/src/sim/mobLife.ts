@@ -145,6 +145,7 @@ export function killMob(
   brain.holding = false;
   c.rt.inputs.drain();
   c.rt.path = [];
+  c.rt.slip = null;
   cancelAction(world, c);
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;

@@ -279,6 +279,7 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   const credited = outcome === "mia" ? leaveCredit(world, rt) : null;
   rt.down = { outcome };
   rt.path = [];
+  rt.slip = null;
   releaseTrigger(world, { kind: "player", id: rt.id, s: p, rt });
   p.status = outcome === "died" ? "dead" : "mia";
   if (credited) creditKill(world, credited, p, rt);
