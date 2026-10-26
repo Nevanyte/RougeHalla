@@ -4,8 +4,10 @@
 // combo progress and feed line are buffsHud.ts, placed under the vitals.
 import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
+import type { TerrainStates } from "../render/zoneArt/terrainFeedback";
 import { BuffsHud } from "./buffsHud";
 import { cssColor, el, uiRoot } from "./dom";
+import { TerrainChips } from "./terrainChips";
 
 function fmtSeconds(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -84,6 +86,8 @@ export class Hud {
   private readonly vitalsFaction = el("span", "hud-faction");
   private readonly vitalsHp = el("span");
   private readonly buffs = new BuffsHud();
+  /** The ground under the local fighter: BURNING, SLOWED, ICE, RESTING and the home-ground note. */
+  private readonly terrain = new TerrainChips();
   private readonly arenaLine = el("div", "hud-arena");
   private readonly arenaHint = el("div", "hud-hint");
   /** Top-center notices; a sibling of the HUD block so they can sit mid-width. */
@@ -107,7 +111,7 @@ export class Hud {
     this.status.append(this.statusText, this.bountyTag);
     this.bountyTag.hidden = true;
     this.vitals.append(this.vitalsName, this.vitalsFaction, this.vitalsHp);
-    this.root.append(this.status, this.vitals, this.buffs.root, this.arenaLine, this.arenaHint);
+    this.root.append(this.status, this.vitals, this.buffs.root, this.terrain.root, this.arenaLine, this.arenaHint);
     this.center.append(this.suddenDeath, this.immuneLine);
     this.arenaLine.hidden = true;
     this.arenaHint.hidden = true;
@@ -115,6 +119,11 @@ export class Hud {
     this.immuneLine.hidden = true;
     this.deathLine.hidden = true;
     uiRoot().append(this.root, this.center, this.deathLine);
+  }
+
+  /** The ground chips for the tile the local fighter stands on; null shows none. Cheap to call every frame. */
+  setTerrain(states: TerrainStates | null): void {
+    this.terrain.update(states);
   }
 
   /** The local player has died (killing result or death fx): show the line now, ahead of the results panel. */
@@ -231,6 +240,7 @@ export class Hud {
 
   destroy(): void {
     this.buffs.destroy();
+    this.terrain.destroy();
     this.root.remove();
     this.center.remove();
     this.deathLine.remove();

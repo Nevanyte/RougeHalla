@@ -27,6 +27,7 @@ import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
 import { isHiddenRemote, visiblePosition } from "../render/visibility";
 import { WishFx } from "../render/WishFx";
+import { GroundFeedback, NO_STATES, type TerrainStates } from "../render/zoneArt/terrainFeedback";
 import { LockDisplay, pickTarget, targetable, unitCastDenial, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
 import { isTypingTarget } from "../ui/chrome";
@@ -79,6 +80,9 @@ export class RaidScene extends Phaser.Scene {
   private containerViews = new Map<string, ContainerView>();
   private projectiles!: ProjectileView;
   private mapView: MapView | null = null;
+  /** What the tile under each fighter does to it (zone terrain): the combat memory behind "resting", and the local fighter's chips. */
+  private readonly ground = new GroundFeedback();
+  private localGround: TerrainStates = NO_STATES;
   private highlight!: ContainerHighlight;
   private rings!: TargetRings;
   private minimap!: Minimap;
@@ -346,7 +350,9 @@ export class RaidScene extends Phaser.Scene {
         if (local) this.hasFrozen = false;
         this.sampleDrawn(id, drawT, p);
       }
-      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null);
+      const ground = this.ground.statesOf(id, this.tmp.x, this.tmp.y, p.faction, serverNow, p.hp, p.maxHp, true, p.status === "alive");
+      if (local) this.localGround = signatures && p.status === "alive" ? ground : NO_STATES;
+      view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null, ground);
       if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.peek?.x ?? this.tmp.x), projY(this.peek?.y ?? this.tmp.y));
     });
     for (const [id, view] of this.views) {
@@ -358,7 +364,9 @@ export class RaidScene extends Phaser.Scene {
       let view = this.mobViews.get(id);
       if (!view) { view = new MobView(this, this.fx); this.mobViews.set(id, view); }
       this.sampleDrawn(id, renderT, m);
-      view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, signatures);
+      const ground = m.kind === "mob" || m.kind === "elite"
+        ? this.ground.statesOf(id, this.tmp.x, this.tmp.y, m.faction, serverNow, m.hp, m.maxHp, false, m.status === "alive") : NO_STATES;
+      view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, signatures, ground);
     });
     for (const [id, view] of this.mobViews) {
       if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); }
@@ -394,6 +402,7 @@ export class RaidScene extends Phaser.Scene {
     });
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();
+    this.hud.setTerrain(this.localGround);
     this.hud.update(state, me, serverNow);
     this.weaponBar.update(me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null);
     this.updateWishSlot(me, state, serverNow, now);
@@ -912,6 +921,8 @@ export class RaidScene extends Phaser.Scene {
     this.mapView?.destroy();
     const map = buildGameMap(seed);
     this.mapView = new MapView(this, map);
+    this.ground.setMap(map);
+    this.localGround = NO_STATES;
     this.minimap.setMap(map);
   }
 
@@ -921,6 +932,7 @@ export class RaidScene extends Phaser.Scene {
       this.fx.noteLaunch(launch); // juice: the shooter's recoil
     }
     for (const fx of unpackFx(batch, this.room.state.roster, this.warnDropped)) {
+      this.ground.combat.note(fx);
       this.predict.noteFx(fx, this.room.sessionId, this.room.state.players.get(this.room.sessionId));
       // Training puts a fighter who goes down back on its feet: no body, no decal, no "was killed" line, no death screen.
       if (fx.kind === "death" && this.training && fx.id === this.room.sessionId) {

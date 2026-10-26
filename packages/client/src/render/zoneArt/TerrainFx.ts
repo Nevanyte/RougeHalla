@@ -9,12 +9,13 @@
 // particle is drawn). Pulses stay at or under 1.2 Hz and swing their alpha by at most 0.25 (photosensitivity).
 import Phaser from "phaser";
 import {
-  TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TILE, TILE_FLOOR, TILE_LOW, ZONE_PROP_KINDS, worldToTile,
+  TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TILE, TILE_FLOOR, TILE_LOW, worldToTile,
   type GameMap,
 } from "@raid/shared";
 import { juiceScale } from "../juice";
 import { life } from "../signatureLook";
 import { CHUNK_TILES, DEPTH_FLOOR_FX } from "./bake";
+import { planProps } from "./propsView";
 import { TERRAIN_PALETTE, ZONE_PALETTE } from "./palette";
 import {
   TILE_H, TILE_W, drawBogBubble, drawEmberGlow, drawIceShimmer, drawLavaGlow, drawLightBeam, hashTile, type Pen,
@@ -103,8 +104,6 @@ export interface FxPlan {
 
 const PARTICLE_KINDS: readonly ParticleKind[] = ["ember", "spore", "frost", "mote"];
 
-/** The prop keys that send particles, by kind. */
-const PROP_EMITTER: Readonly<Record<string, ParticleKind>> = { ember_vent: "ember", bubble: "spore", frost_sparkle: "frost" };
 
 /** Which tiles of a kind take part: all lava and ember, half the bog (bubble pops), a third of the ice (shimmers). */
 function overlayTile(kind: OverlayKind, hash: number): boolean {
@@ -152,10 +151,7 @@ export function planFx(map: GameMap): FxPlan {
       }
     }
   }
-  for (const p of map.props) {
-    const key = ZONE_PROP_KINDS[p.kind]?.key;
-    const pk = key ? PROP_EMITTER[key] : undefined;
-    if (!pk) continue;
+  for (const { prop: p, kind: pk } of planProps(map).emitters) {
     const hash = hashTile(worldToTile(p.x), worldToTile(p.y), map.seed + 1);
     // A vent is a strong emitter: it ranks ahead of the tiles.
     emitters[pk].push({ x: p.x, y: p.y * (TILE_H / TILE), phase: (hash & 255) / 255, rank: (hash >>> 12) % 4096 - 4096 });

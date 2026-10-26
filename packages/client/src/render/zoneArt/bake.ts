@@ -10,9 +10,10 @@
 import Phaser from "phaser";
 import {
   REGION_IDS, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_LOW, TILE_WALL, Y_SCALE, ZONE_PROP_KINDS,
-  worldToTile, type GameMap, type MapProp,
+  type GameMap, type MapProp,
 } from "@raid/shared";
 import { depthFor } from "../projection";
+import { planProps } from "./propsView";
 import { NEUTRAL_PALETTE, ZONE_PALETTE, isZoneKey, type ZoneKey } from "./palette";
 import {
   EDGE_E, EDGE_N, EDGE_S, EDGE_W, FLAT_PROPS, LOW_HEIGHT, SHARD_HEIGHT, TILE_H, TILE_W, WALL_HEIGHT, WALL_PROPS,
@@ -337,20 +338,8 @@ export interface BakeContext {
 }
 
 export function makeContext(map: GameMap): BakeContext {
-  const wallProps = new Map<number, MapProp[]>();
-  const flatProps: Array<{ prop: MapProp; key: string }> = [];
-  for (const prop of map.props) {
-    const spec = ZONE_PROP_KINDS[prop.kind];
-    if (!spec) continue;
-    if (FLAT_PROPS.has(spec.key)) flatProps.push({ prop, key: spec.key });
-    else if (WALL_PROPS.has(spec.key)) {
-      const i = worldToTile(prop.y) * map.w + worldToTile(prop.x);
-      const list = wallProps.get(i);
-      if (list) list.push(prop);
-      else wallProps.set(i, [prop]);
-    }
-  }
-  return { map, zones: zoneGrid(map), styles: wallStyles(map), wallProps, flatProps };
+  const plan = planProps(map);
+  return { map, zones: zoneGrid(map), styles: wallStyles(map), wallProps: plan.wall, flatProps: plan.flat };
 }
 
 /** A zone to paint a tile with when it has none (the coliseum ring, a neutral wall): the plain grey cell stone. */
