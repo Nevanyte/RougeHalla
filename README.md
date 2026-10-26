@@ -189,14 +189,18 @@ Set them on the command line, for example `MIN_PLAYERS=1 FILL_SECONDS=1 PATIENCE
 | `TRAINING_IDLE_SECONDS` | `300` | A training room whose player sends no accepted input for this long is closed. |
 | `DUMMIES` | off | `1` or `true`: training dummies and a weapon rack next to every spawn in arena runs too. |
 | `MOBS` | on | `0` or `false`: no regional mobs. |
-| `COLYSEUS_LATENCY` | `0` | Artificial latency in milliseconds, for netcode testing. |
+| `COLYSEUS_LATENCY` | `0` | Netcode testing: the simulated minimum round trip in ms (half each way) of every connection. A TCP-faithful model (`packages/server/src/net/netSim.ts`): per connection and direction a FIFO, so messages never reorder. |
+| `NET_JITTER_MS` | `0` | Mean of the extra per-message delay (exponential, so right-skewed), each way, on top of `COLYSEUS_LATENCY`. |
+| `NET_LOSS_PCT` | `0` | Percent of messages that need a retransmission: they wait an extra timeout (at least 200 ms) and everything behind them waits too (head-of-line blocking). |
+| `NET_SEED` | random | Seeds the jitter and loss draws, for repeatable runs. |
+| `MAP_WORKER` | on | `0` or `false`: generate each room's map on the main thread (inside the first join) instead of in a worker thread. Always off under vitest unless `1`. |
 | `CLIENT_DIR` | unset | A built client (`packages/client/dist`) to serve from the same port as the API and the websocket. Setting it, or `NODE_ENV=production`, is "hosting": see [Hosting a playtest](#hosting-a-playtest). |
 | `PLAYTEST_PASSCODE` | unset | When set, a passcode is needed to claim a new callsign and to join a room. |
 | `CORS_ORIGINS` | unset | Hosting only: comma-separated origins that may read `/api` and matchmaking from another site. Nobody else may. |
 | `MAX_ARENA_ROOMS`, `MAX_TRAINING_ROOMS` | `4`, `8` hosting; no limit in dev | Rooms alive at once. A room beyond that is refused with "server is full"; joining an open lobby still works. |
 | `MAX_NEW_PROFILES_PER_HOUR`, `MAX_NEW_PROFILES_PER_IP_PER_HOUR` | `30`, `10` hosting; no limit in dev | New callsigns an hour, in all and per address (`CF-Connecting-IP` behind a tunnel). Answers 429. |
 | `SHOP_BURST`, `SHOP_PER_SECOND` | `6`, `3` hosting; no limit in dev | One profile's shop and wardrobe request budget. Answers 429. |
-| `ORDER_BURST`, `ORDER_PER_SECOND` | `30`, `15` | One player's budget of in-match orders (`move`, `stop`, `target`, `swap`, `pickup`, `attack`, `release`; not `aim`). Excess orders are dropped silently. The browser sends about 10 a second while the right button is held. |
+| `ORDER_BURST`, `ORDER_PER_SECOND` | `30`, `15` | One player's budget of in-match orders (`move`, `stop`, `target`, `swap`, `pickup`, `cast`, `attack`, `release`; not `aim`). Excess orders are dropped silently. The browser sends about 10 a second while the right button is held. |
 
 A `0` for any limit above turns it off.
 

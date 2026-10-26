@@ -15,6 +15,8 @@ import { PASSCODE_REQUIRED, passcodeOk } from "./guards/passcode";
 import { RoomCounter } from "./guards/roomCounter";
 import { KeyedTokenBuckets } from "./guards/tokenBucket";
 import { NewProfileLimiter } from "./guards/windowLimiter";
+import { closeMapWorker, warmMapWorker } from "./mapService";
+import { installNetSim, netSimEnabled, type NetSimParams } from "./net/netSim";
 import {
   JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore, type ShopOutcome,
 } from "./persistence/ProfileStore";
@@ -357,13 +359,21 @@ export function createServer(config: ServerConfig = loadConfig()) {
       console.error("[server] could not flush the profiles on shutdown:", err);
     }
   });
-  if (config.latencyMs > 0) server.simulateLatency(config.latencyMs);
+  // Our own model (net/netSim.ts) replaces Colyseus's fixed delay. Core also reads COLYSEUS_LATENCY itself when the server
+  // starts listening and would stack its delay on ours, so the variable is taken out of the environment here.
+  delete process.env.COLYSEUS_LATENCY;
+  const sim: NetSimParams = {
+    rttMs: config.latencyMs, jitterMs: config.netJitterMs ?? 0, lossPct: config.netLossPct ?? 0, seed: config.netSeed,
+  };
+  const uninstallNetSim = netSimEnabled(sim) ? installNetSim(sim) : null;
 
   /** Shuts the server down without exiting the process and resolves once the profiles are on disk. */
   async function stop(): Promise<void> {
     try {
       await server.gracefullyShutdown(false);
     } finally {
+      uninstallNetSim?.();
+      await closeMapWorker();
       await store.close();
     }
   }
@@ -374,6 +384,7 @@ export type RaidServer = ReturnType<typeof createServer>;
 
 export async function startServer(config: ServerConfig = loadConfig()) {
   const server = createServer(config);
+  warmMapWorker();
   await server.listen(config.port);
   return server;
 }
