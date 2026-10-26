@@ -4,7 +4,7 @@
 // clock reads a patch's server time when the patch arrives, as ServerClock does: c = now - downlink.
 import { describe, expect, it } from "vitest";
 import {
-  findPath, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, withGates,
+  findPath, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, TELEPORT_DISTANCE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, withGates,
   type GameMap, type Vec2,
 } from "@raid/shared";
 import {
@@ -54,8 +54,12 @@ class Rig {
   /** The server holds a lock (a move or a stop it applies ends it; `lockNow` and `target` start it). */
   serverLocked = false;
   private serverTime = 0;
-  private inbox: Array<{ at: number; kind: "move" | "stop" | "chase"; seq: number; to?: Vec2 }> = [];
-  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number; locked: boolean }> = [];
+  private inbox: Array<{ at: number; kind: "move" | "stop" | "chase" | "blink"; seq: number; to?: Vec2 }> = [];
+  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number; locked: boolean; displaceSeq: number }> = [];
+  /** `PlayerState.displaceSeq`: +1 (wrapping) whenever the server displaces the fighter. */
+  displaceSeq = 0;
+  /** The server displaces the fighter on its own at the next tick (a pull): where to. */
+  private forced: Vec2 | null = null;
   // The client.
   private seq = 0;
   private lastFrame = 0;
@@ -73,7 +77,7 @@ class Rig {
     this.jitter = o.jitter ?? 0;
     this.server = { ...(o.start ?? centre(10, 10)) };
     // The first patch, as the join delivers it.
-    this.motion.observe({ x: this.server.x, y: this.server.y, t: 0, moveSeq: 0 }, this.clock);
+    this.motion.observe({ x: this.server.x, y: this.server.y, t: 0, moveSeq: 0, displaceSeq: 0 }, this.clock);
     this.frame();
   }
 
@@ -88,6 +92,22 @@ class Rig {
     const seq = (this.seq = (this.seq % 255) + 1);
     this.motion.order("move", seq, this.clock, to, this.map);
     if (!lost) this.inbox.push({ at: this.now + this.delay(this.up), kind: "move", seq, to });
+  }
+
+  /**
+   * The player casts a blink: the model jumps to `landing` at once. The server blinks to `serverLanding` (default the same; null:
+   * it refuses the cast, which it still echoes in moveSeq) when the order reaches it. `lost`: the message never arrives.
+   */
+  blink(landing: Vec2, serverLanding: Vec2 | null = landing, lost = false): number {
+    const seq = (this.seq = (this.seq % 255) + 1);
+    this.motion.blink(seq, this.clock, landing);
+    if (!lost) this.inbox.push({ at: this.now + this.delay(this.up), kind: "blink", seq, ...(serverLanding ? { to: serverLanding } : {}) });
+    return seq;
+  }
+
+  /** The server moves the fighter by itself at its next tick (a pull, a knock): its patches say so with a new displaceSeq. */
+  displace(to: Vec2): void {
+    this.forced = to;
   }
 
   /**
@@ -128,7 +148,7 @@ class Rig {
       if (this.now % TICK_MS === 0) this.tick();
       this.patches = this.patches.filter((p) => {
         if (p.at > this.now) return true;
-        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq, locked: p.locked }, this.clock);
+        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq, locked: p.locked, displaceSeq: p.displaceSeq }, this.clock);
         return false;
       });
       if (this.now >= nextFrame) {
@@ -145,13 +165,27 @@ class Rig {
     const last = arrived[arrived.length - 1];
     if (last) {
       if (last.kind === "stop") this.serverPath = [];
-      else {
+      else if (last.kind === "blink") {
+        // The cast drops the walk and the lock, and moves the fighter in this very tick (or is refused and changes nothing else).
+        this.serverPath = [];
+        if (last.to) {
+          this.server = { ...last.to };
+          this.displaceSeq = (this.displaceSeq + 1) & 255;
+        }
+      } else {
         // A move, or a lock's chase (which is not a move order: it carries no seq, so moveSeq stays).
         const path = findPath(this.map, this.server, last.to!, PLAYER_RADIUS);
         if (path.length > 0) this.serverPath = path;
       }
       this.serverLocked = last.kind === "chase";
       if (last.kind !== "chase") this.serverSeq = last.seq;
+    }
+    if (this.forced) {
+      const end = this.serverPath[this.serverPath.length - 1];
+      this.server = { ...this.forced };
+      this.displaceSeq = (this.displaceSeq + 1) & 255;
+      this.serverPath = end ? findPath(this.map, this.server, end, PLAYER_RADIUS) : [];
+      this.forced = null;
     }
     let budget = (PLAYER_SPEED * this.serverSpeedMult * TICK_MS) / 1000;
     while (budget > 0 && this.serverPath.length > 0) {
@@ -165,7 +199,7 @@ class Rig {
       }
     }
     this.patchCount++;
-    this.patches.push({ at: this.now + this.delay(this.down), x: this.server.x, y: this.server.y, t: this.serverTime, moveSeq: this.serverSeq, locked: this.serverLocked });
+    this.patches.push({ at: this.now + this.delay(this.down), x: this.server.x, y: this.server.y, t: this.serverTime, moveSeq: this.serverSeq, locked: this.serverLocked, displaceSeq: this.displaceSeq });
   }
 
   /** Largest distance between two consecutive drawn positions. */
@@ -1026,5 +1060,299 @@ describe("the smoothing offset", () => {
       expect(m.drawn.x).toBeGreaterThanOrEqual(prev - 1e-9);
       prev = m.drawn.x;
     }
+  });
+});
+
+describe("a blink", () => {
+  /** Where a 300 u blink east from the model's position lands, on the arena's bare floor. */
+  const east = (r: Rig, d = 300): Vec2 => ({ x: r.motion.predicted.x + d, y: r.motion.predicted.y });
+
+  it("moves the model and the drawn fighter to the landing at once, with the server not yet heard", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    const from = { ...r.motion.predicted };
+    const landing = east(r);
+    expect(dist(from, landing)).toBeGreaterThan(TELEPORT_DISTANCE);
+    r.blink(landing);
+    r.run(FRAME_MS + 1);
+    expect(dist(r.motion.predicted, landing)).toBeLessThan(1e-6);
+    expect(dist(r.motion.drawn, landing)).toBeLessThan(1e-6);
+    expect(r.motion.pendingOrders).toBe(1);
+    expect(r.motion.walking).toBe(false);
+    expect(r.motion.mode).toBe("predict");
+  });
+
+  it("is no snap while the server has not applied it: the patches from before it leave the drawn fighter at the landing", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    const landing = east(r);
+    const from = r.drawnLog.length;
+    r.blink(landing);
+    r.run(100); // applied after 60 ms, its patch is back after 120: patches in between still show the old place
+    for (let i = from; i < r.drawnLog.length; i++) expect(dist(r.drawnLog[i]!, landing)).toBeLessThan(1e-6);
+    expect(r.motion.pendingOrders).toBe(1);
+  });
+
+  it("acked with the same landing: no pop, no offset, and the delay is measured like a move's", () => {
+    for (const [up, down] of [[2, 2], [40, 40], [90, 60]] as const) {
+      const r = new Rig({ up, down });
+      r.run(300);
+      const landing = east(r);
+      r.blink(landing);
+      r.run(FRAME_MS + 1); // the jump is this frame's
+      const from = r.drawnLog.length;
+      r.run(700);
+      const tag = `${up}/${down}`;
+      expect(r.motion.pendingOrders, tag).toBe(0);
+      expect(r.displaceSeq, tag).toBe(1);
+      expect(dist(r.server, landing), tag).toBeLessThan(1e-6);
+      expect(r.maxStep(from), tag).toBeLessThan(0.01);
+      expect(dist(r.motion.drawn, landing), tag).toBeLessThan(0.01);
+      expect(r.motion.visualOffset, tag).toBeLessThan(0.01);
+      expect(r.motion.delay, tag).toBeGreaterThanOrEqual(up + down - TICK_MS - 1);
+      expect(r.motion.delay, tag).toBeLessThanOrEqual(up + down + 1);
+    }
+  });
+
+  it("a landing a few units off the server's is absorbed smoothly, never back toward the origin", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    const from0 = { ...r.motion.predicted };
+    const landing = east(r);
+    r.blink(landing, { x: landing.x + 4, y: landing.y + 3 });
+    r.run(FRAME_MS + 1);
+    const from = r.drawnLog.length;
+    r.run(1200);
+    expect(r.maxStep(from)).toBeLessThan(5);
+    for (let i = from; i < r.drawnLog.length; i++) expect(dist(r.drawnLog[i]!, from0)).toBeGreaterThan(290);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.2);
+    expect(r.motion.visualOffset).toBeLessThan(0.2);
+  });
+
+  it("refused by the server (echoed in moveSeq, no displacement): the drawn fighter snaps back to where the server has it at the ack", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    const origin = { ...r.server };
+    const landing = east(r);
+    r.blink(landing, null);
+    r.run(100);
+    expect(dist(r.motion.drawn, landing)).toBeLessThan(1e-6); // not yet known
+    r.run(400);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(r.displaceSeq).toBe(0);
+    expect(dist(r.motion.drawn, origin)).toBeLessThan(0.01);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
+    expect(r.motion.visualOffset).toBe(0);
+  });
+
+  it("refused over a short jump (inside SNAP_DISTANCE): slid back, not left at the landing", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    const landing = east(r, 64);
+    expect(64).toBeLessThan(SNAP_DISTANCE);
+    r.blink(landing, null);
+    r.run(2000);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+    expect(r.motion.visualOffset).toBeLessThan(0.1);
+  });
+
+  it("a blink the server never hears of waits out ORDER_EXPIRE_MS, then the drawn fighter snaps back to the server", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    const landing = east(r);
+    r.blink(landing, landing, true);
+    r.run(250);
+    expect(dist(r.motion.drawn, landing)).toBeLessThan(1e-6); // held off, as for any order in flight
+    r.run(ORDER_EXPIRE_MS + 300);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+  });
+
+  it("a sample from just before the blink is compared with where the model was then, not a point between it and its landing", () => {
+    const m = new LocalMotion();
+    const map = arena();
+    const start = centre(10, 10);
+    m.observe({ x: start.x, y: start.y, t: 0, moveSeq: 0, displaceSeq: 0 }, 0);
+    m.frame(0, 16, ALIVE);
+    m.order("move", 1, 0, centre(50, 10), map);
+    for (let c = 16; c <= 208; c += 16) m.frame(c, 16, ALIVE);
+    // The server applied the move in the tick stamped 100 (one tick of walking in it): delay 50.
+    m.observe({ x: start.x + PLAYER_SPEED * 0.05, y: start.y, t: 100, moveSeq: 1, displaceSeq: 0 }, 150);
+    const landing = { x: m.predicted.x + 300, y: m.predicted.y };
+    m.blink(2, 210, landing);
+    // t = 259: the model at 209 is a frame and a bit into the walk, a millisecond before the blink. The server at 259 is there.
+    m.observe({ x: start.x + PLAYER_SPEED * (0.05 + 0.159), y: start.y, t: 259, moveSeq: 1, displaceSeq: 0 }, 300);
+    m.frame(310, 16, ALIVE);
+    expect(m.pendingOrders).toBe(1);
+    expect(dist(m.drawn, landing)).toBeLessThan(1);
+    expect(m.visualOffset).toBeLessThan(1);
+  });
+
+  it("a walk in hand is dropped by it and a move after it walks on from the landing", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    r.move(centre(50, 10));
+    r.run(400);
+    expect(r.motion.walking).toBe(true);
+    const x0 = r.motion.predicted.x;
+    const landing = east(r);
+    r.blink(landing, { x: landing.x - 7, y: landing.y }); // the server was a few units behind the model when it applied it
+    r.run(FRAME_MS + 1);
+    expect(r.motion.walking).toBe(false);
+    expect(r.motion.predicted.x).toBeGreaterThan(x0 + 290);
+    r.run(200);
+    const from = r.drawnLog.length;
+    r.move(centre(50, 14));
+    r.run(8000);
+    expect(r.maxStep(from)).toBeLessThanOrEqual(PLAYER_SPEED * (FRAME_MS / 1000) + (CORRECT_SPEED_MOVING_MAX * FRAME_MS) / 1000 + 0.01);
+    expect(dist(r.server, centre(50, 14))).toBeLessThan(0.5);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.2);
+  });
+
+  it("leaves a lock in follow: it stops being predicted, the server's lock goes and the model walks from the landing", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    r.lockNow(centre(40, 10));
+    r.run(400);
+    expect(r.motion.mode).toBe("follow");
+    const landing = { x: r.motion.predicted.x, y: r.motion.predicted.y + 200 };
+    r.blink(landing, landing);
+    expect(r.motion.mode).toBe("predict");
+    r.run(600);
+    expect(r.motion.mode).toBe("predict");
+    expect(dist(r.motion.drawn, landing)).toBeLessThan(1);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(1);
+  });
+
+  it("does nothing before the first sample", () => {
+    const m = new LocalMotion();
+    m.blink(1, 0, { x: 5, y: 5 });
+    expect(m.pendingOrders).toBe(0);
+    expect(m.ready).toBe(false);
+  });
+
+  it("two blinks in a row (the first acked after the second was cast) are each acked and settle on the server's second landing", () => {
+    const r = new Rig({ up: 60, down: 60 });
+    r.run(300);
+    const first = east(r, 200);
+    r.blink(first);
+    r.run(30);
+    const second = { x: first.x, y: first.y + 200 };
+    r.blink(second);
+    r.run(FRAME_MS + 1);
+    const from = r.drawnLog.length;
+    r.run(900);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(dist(r.server, second)).toBeLessThan(1e-6);
+    expect(dist(r.motion.drawn, second)).toBeLessThan(0.5);
+    expect(r.maxStep(from)).toBeLessThan(1);
+  });
+});
+
+describe("a displacement the client did not order (a pull, a knock)", () => {
+  it("moves the model, its history and the drawn fighter by what the server did, and the walk in hand goes on to its destination", () => {
+    for (const [up, down] of [[2, 2], [40, 40], [90, 60]] as const) {
+      const r = new Rig({ up, down });
+      r.run(300);
+      const goal = centre(50, 10);
+      r.move(goal);
+      r.run(700);
+      expect(r.motion.walking).toBe(true);
+      const from = r.drawnLog.length;
+      r.displace({ x: r.server.x, y: r.server.y + 100 });
+      r.run(down + TICK_MS * 2 + 20);
+      const tag = `${up}/${down}`;
+      // It jumped (no slide), once, and is still walking.
+      expect(r.maxStep(from), tag).toBeGreaterThan(90);
+      expect(r.motion.walking, tag).toBe(true);
+      expect(r.motion.visualOffset, tag).toBeLessThan(1);
+      r.run(9000);
+      expect(dist(r.server, goal), tag).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.2);
+      expect(r.motion.visualOffset, tag).toBeLessThan(0.2);
+    }
+  });
+
+  it("is not a snap: an order still in flight stays pending and is acked when the server applies it", () => {
+    const r = new Rig({ up: 80, down: 80 });
+    r.run(300);
+    r.move(centre(50, 10));
+    r.run(700);
+    const y0 = r.motion.drawn.y;
+    r.displace({ x: r.server.x, y: r.server.y + 60 });
+    r.run(10);
+    r.move(centre(50, 20)); // sent just after: the server applies it after the pull, and its ack is a round trip later
+    // Until the pull's patch reaches the client (the drawn fighter jumps 60 u), which is before the order's ack.
+    for (let i = 0; i < 400 && r.motion.drawn.y < y0 + 50; i++) r.run(1);
+    expect(r.motion.drawn.y).toBeGreaterThan(y0 + 50);
+    expect(r.displaceSeq).toBe(1);
+    expect(r.motion.pendingOrders).toBe(1);
+    r.run(400);
+    expect(r.motion.pendingOrders).toBe(0);
+    r.run(9000);
+    expect(dist(r.server, centre(50, 20))).toBeLessThan(0.5);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.2);
+  });
+
+  it("past SNAP_DISTANCE and TELEPORT_DISTANCE alike it is followed, not snapped away from the walk", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    const goal = centre(50, 10);
+    r.move(goal);
+    r.run(500);
+    r.displace({ x: r.server.x - 150, y: r.server.y }); // pulled back, past the snap distance and short of a teleport
+    r.run(200);
+    expect(r.motion.walking).toBe(true);
+    r.run(8000);
+    expect(dist(r.server, goal)).toBeLessThan(0.5);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.2);
+  });
+
+  it("every displacement counts, the counter wrapping 255 to 0 included", () => {
+    const r = new Rig({ up: 20, down: 20 });
+    r.run(300);
+    for (let i = 0; i < 260; i++) {
+      r.displace({ x: r.server.x + (i % 2 === 0 ? 40 : -40), y: r.server.y });
+      r.run(TICK_MS * 4);
+      expect(dist(r.motion.drawn, r.server), `displacement ${i}`).toBeLessThan(0.1);
+    }
+    expect(r.displaceSeq).toBe(260 & 255);
+  });
+
+  it("in follow the model snaps to the server and goes on following", () => {
+    const r = new Rig({ up: 40, down: 40 });
+    r.run(300);
+    r.lockNow(centre(50, 10));
+    r.run(400);
+    expect(r.motion.mode).toBe("follow");
+    r.displace({ x: r.server.x, y: r.server.y + 90 });
+    r.run(200);
+    expect(r.motion.mode).toBe("follow");
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(PLAYER_SPEED * ((r.down + 2 * TICK_MS) / 1000) + 8);
+  });
+
+  it("a first sample sets the counter: a client that joins late does not read the displacements before it as new", () => {
+    const m = new LocalMotion();
+    m.observe({ x: 300, y: 300, t: 0, moveSeq: 0, displaceSeq: 77 }, 0);
+    m.frame(0, 16, ALIVE);
+    m.observe({ x: 300, y: 300, t: 50, moveSeq: 0, displaceSeq: 77 }, 50);
+    m.frame(50, 50, ALIVE);
+    expect(m.drawn).toEqual({ x: 300, y: 300 });
+    // One later: a displacement of 10 u is followed at once, with no slide.
+    m.observe({ x: 310, y: 300, t: 100, moveSeq: 0, displaceSeq: 78 }, 100);
+    m.frame(100, 50, ALIVE);
+    expect(m.drawn).toEqual({ x: 310, y: 300 });
+    expect(m.visualOffset).toBe(0);
+  });
+
+  it("a sample with no displaceSeq (an older caller) never counts as a displacement", () => {
+    const m = new LocalMotion();
+    m.observe({ x: 300, y: 300, t: 0, moveSeq: 0 }, 0);
+    m.frame(0, 16, ALIVE);
+    m.observe({ x: 310, y: 300, t: 50, moveSeq: 0 }, 50);
+    m.frame(50, 50, ALIVE);
+    // A plain (small) correction: slid, not jumped.
+    expect(m.drawn.x).toBeLessThan(310);
   });
 });

@@ -349,7 +349,7 @@ describe("createGameWorld", () => {
 
   it("installs a handler for every action a client can send", () => {
     const g = createGameWorld(opts());
-    expect(Object.keys(g.actions).sort()).toEqual(["attack", "pickup", "release", "swap", "target"]);
+    expect(Object.keys(g.actions).sort()).toEqual(["attack", "cast", "pickup", "release", "swap", "target"]);
   });
 
   it("runs a whole run through the shared lifecycle: a kill ends it with a winner", () => {

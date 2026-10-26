@@ -33,6 +33,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["1", "2"], action: "Select weapon slot" },
       { keys: ["Q"], action: "Swap weapon" },
       { keys: ["F"], action: "Pick up the weapon in reach" },
+      { keys: ["D"], action: "Cast your faction's Wish (5 min cooldown)" },
       { keys: ["Right-click"], action: "On the minimap: move there" },
       { keys: ["Hold left-click"], action: "On the minimap: peek there, release to snap back" },
       { keys: ["Esc"], action: "Leave practice (training only)" },

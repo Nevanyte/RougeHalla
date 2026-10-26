@@ -577,7 +577,8 @@ describe("a look is cosmetic only", () => {
   /** Everything the sim and the schema keep about a player except what a look (or a spawn point) legitimately differs in. */
   function stateOf(p: Player): Record<string, unknown> {
     const json = (serverPlayer(p) as unknown as { toJSON(): Record<string, unknown> }).toJSON();
-    for (const key of ["name", "look", "x", "y", "facing"]) delete json[key];
+    // `wishReadyAt` is the run's start plus the Wish's lock: the two rooms do not start on the same tick.
+    for (const key of ["name", "look", "x", "y", "facing", "wishReadyAt"]) delete json[key];
     return json;
   }
 

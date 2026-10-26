@@ -1,5 +1,5 @@
 // Picking and showing the attack target. Pure: the scene feeds it where fighters are drawn and where the cursor is.
-import { TARGET_SNAP_RADIUS } from "@raid/shared";
+import { EFFECT_HIDDEN, EFFECT_UNTARGETABLE, TARGET_SNAP_RADIUS } from "@raid/shared";
 
 export interface TargetPoint { x: number; y: number }
 export interface TargetCandidate extends TargetPoint { id: string }
@@ -22,6 +22,15 @@ export function pickTarget(cursor: TargetPoint, candidates: Iterable<TargetCandi
     }
   }
   return best;
+}
+
+/**
+ * Whether a fighter with these `effects` bits can be clicked, locked or targeted by an ability: not a hidden one (Swarm) and not
+ * an untargetable one. The server refuses both anyway; this keeps them out of the cursor's pick, and out of any list of players
+ * a map or radar might later show.
+ */
+export function targetable(effects: number): boolean {
+  return (effects & (EFFECT_HIDDEN | EFFECT_UNTARGETABLE)) === 0;
 }
 
 /** How long a lock the player just ordered (or dropped) is shown before the server's own `attackTarget` takes over. */

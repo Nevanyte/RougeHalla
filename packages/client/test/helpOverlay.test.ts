@@ -39,6 +39,7 @@ describe("the controls table", () => {
     expect(slots?.action).toMatch(/weapon slot/i);
     expect(find("run", "Q", /swap/i)).toBeDefined();
     expect(find("run", "F", /pick up/i)).toBeDefined();
+    expect(find("run", "D", /wish/i)).toBeDefined();
     expect(find("run", "Right-click", /minimap/i)?.action).toMatch(/move/i);
     expect(find("run", "Hold left-click", /minimap/i)?.action).toMatch(/peek/i);
     expect(find("run", "Esc", /leave practice/i)).toBeDefined();
@@ -64,7 +65,7 @@ describe("the controls table", () => {
     const raid = read("../src/scenes/RaidScene.ts");
     const hub = read("../src/scenes/HubScene.ts");
     const chrome = read("../src/ui/chrome.ts");
-    for (const code of ['"KeyS"', '"KeyQ"', '"KeyF"', '"Escape"', "(?:Digit|Numpad)([12])"]) expect(raid).toContain(code);
+    for (const code of ['"KeyS"', '"KeyQ"', '"KeyF"', '"KeyD"', '"Escape"', "(?:Digit|Numpad)([12])"]) expect(raid).toContain(code);
     expect(raid).toMatch(/pointer\.button === 2/);
     expect(raid).toMatch(/pointer\.button === 0/);
     for (const code of ['"KeyE"', "KeyW:", "KeyA:", "KeyS:", "KeyD:", "ArrowUp:", "ArrowDown:", "ArrowLeft:", "ArrowRight:"]) expect(hub).toContain(code);

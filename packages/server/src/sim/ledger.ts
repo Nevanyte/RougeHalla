@@ -10,9 +10,10 @@ import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
+import { damageFactor } from "./status";
 import { stagger } from "./weapons";
 import { lobbyMedianFeed } from "./feed";
-import { emit, type DamageSource, type LedgerEntry, type World } from "./world";
+import { emit, type DamageSource, type LandedHit, type LedgerEntry, type World } from "./world";
 
 /**
  * Records a hit landing this tick. Returns the entry, so the melee phase can still scale a projectile's hit. Mobs never
@@ -75,7 +76,13 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   const c = combatant(world, id);
   if (!c || !standing(c)) return;
   const def = defenseOf(c.s);
-  const amounts = entries.map((e) => (e.scale > 0 ? mitigateShares(e.packet.raw * e.scale, e.packet, def) : 0));
+  // damageFactor (Trial's zone) is the one place a status changes the damage of every source, before mitigation; the arena's
+  // own burn is no one's hit.
+  const amounts = entries.map((e) => {
+    if (!(e.scale > 0)) return 0;
+    const raw = e.packet.raw * e.scale * (e.arena ? 1 : damageFactor(world, e.by.id, id));
+    return mitigateShares(raw, e.packet, def);
+  });
   // A player's hits reach the one way down in the tick's secret order (players by rank, then anyone else), so an exact
   // tie for the kill never follows join order or the order the hits were recorded in. (The hit fx stay in entry order.)
   const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
@@ -97,10 +104,14 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   entries.forEach((e, i) => {
     const amount = amounts[i]!;
     if (!(amount > 0) || e.arena) return;
-    world.combat.landed.push({ victim: id, by: e.by.id, amount: amount * landedShare, weapon: e.weapon, sig: e.sig });
-    if (isDot(e.sig)) return; // reported in chunks by sim/factions.ts
+    const landed: LandedHit = { victim: id, by: e.by.id, amount: amount * landedShare, weapon: e.weapon, sig: e.sig };
+    if (e.ability !== undefined) landed.ability = e.ability;
+    if (e.dot) landed.dot = true;
+    world.combat.landed.push(landed);
+    if (isDot(e.sig) || e.dot) return; // reported in chunks (sim/factions.ts, sim/abilities.ts)
     const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
-    emit(world, { type: "fx", fx: e.sig ? { ...fx, sig: e.sig } : fx });
+    const named = e.sig ? { ...fx, sig: e.sig } : fx;
+    emit(world, { type: "fx", fx: e.ability !== undefined ? { ...named, ability: e.ability } : named });
   });
   if (standing(c) && entries.some((e, i) => e.stagger && amounts[i]! > 0)) stagger(world, c);
 }

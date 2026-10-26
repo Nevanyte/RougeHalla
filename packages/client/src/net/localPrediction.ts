@@ -1,11 +1,13 @@
 // What the client knows about its own fighter's speed and roots, for LocalMotion (net/localMotion.ts): the buff stacks' move
-// speed, a kill's burst, the chill, the axe's root after its swing. Presentation only, and only as good as the client's
-// knowledge: anything it gets wrong the server's samples correct (a wrong guess costs a small slide, never a wrong position).
+// speed, a kill's burst, the chill, the axe's root after its swing, and what the abilities do to it: a stun or a root, a cast's
+// own root, Last Stand's haste, and a blink (`noteCast`, which the scene calls when the player casts). Presentation only, and
+// only as good as the client's knowledge: anything it gets wrong the server's samples correct (a wrong guess costs a small
+// slide, never a wrong position). Slow magnitudes are not predicted (only a bit is synced) until a later phase carries them.
 import {
-  attackInterval, buffMultiplier, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, FACTIONS, isFactionId, killEffects, SIG_CHILLED, weaponTimings,
-  type TimedFx,
+  attackInterval, buffMultiplier, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_STUNNED,
+  FACTIONS, hasteMultiplier, isFactionId, killEffects, LAST_STAND_SPEED_BONUS, SIG_CHILLED, weaponTimings, type TimedFx, type Vec2,
 } from "@raid/shared";
-import { LocalMotion, type FrameInput } from "./localMotion";
+import { LocalMotion, ORDER_EXPIRE_MS, type FrameInput } from "./localMotion";
 
 /** The synced fields of the local player this reads. */
 export interface LocalFighter {
@@ -16,12 +18,25 @@ export interface LocalFighter {
   stacksHp: number;
   stacksAs: number;
   stacksMs: number;
+  /** `PlayerState.effects` (EFFECT_* bits): the fallback for a stun, root, cast or haste no fx told of (a join mid-effect). */
+  effects: number;
 }
 
 /** Another player, as far as the chill needs to know. */
 export interface OtherFighter { x: number; y: number; faction: string; status: string }
 
 interface Burst { mult: number; from: number; until: number }
+/** A span of server time [from, until) the fighter cannot walk: a stun or a root status, or a cast's own root. */
+interface Root {
+  kind: "status" | "cast";
+  from: number;
+  until: number;
+  /** A cast root the client predicted: dropped at this client time unless a `cast` fx of ours replaced it by then. */
+  expires?: number;
+}
+interface Haste { from: number; until: number; bonus: number }
+/** How long (ms) after one ends a known root or haste still counts as "told by fx": the synced bit lags it, and must not extend it. */
+const FX_GRACE_MS = 2000;
 
 /** Where the local fighter is drawn from this frame. */
 export type LocalDrawSource = "predicted" | "frozen" | "snapshot";
@@ -45,6 +60,9 @@ export class LocalPrediction {
   /** The axe's root after its swing has landed, in server time: [from, until). */
   private axeRoot: { from: number; until: number } | null = null;
   private bursts: Burst[] = [];
+  /** Server-time spans of stuns, roots and casts, and of haste (Last Stand), as the fx told them (or the cast predicted them). */
+  private roots: Root[] = [];
+  private hastes: Haste[] = [];
 
   /** The next order number: 1..255 and round again (0 is "no order yet" in `moveSeq`). */
   nextSeq(): number {
@@ -57,6 +75,30 @@ export class LocalPrediction {
     this.seq = 0;
     this.axeRoot = null;
     this.bursts = [];
+    this.roots = [];
+    this.hastes = [];
+  }
+
+  /**
+   * The player just cast an ability at client clock `c` and the client expects the server to take it (the way `expectLock`
+   * expects a lock). A cast with a telegraph roots the fighter from the moment the server applies it, which is `motion.delay`
+   * from now: that root is predicted here, and dropped unless a `cast` fx of ours confirms it within ORDER_EXPIRE_MS. A blink
+   * (`seq`: the order number the cast carries; `landing`: the shared `blinkLanding` the server will also compute) moves the
+   * model at once (LocalMotion.blink).
+   */
+  noteCast(c: number, cast: { castMs: number; blink?: { seq: number; landing: Vec2 } }): void {
+    if (cast.castMs > 0) {
+      const from = c + this.motion.delay;
+      this.roots.push({ kind: "cast", from, until: from + cast.castMs, expires: c + ORDER_EXPIRE_MS });
+    }
+    if (cast.blink) this.motion.blink(cast.blink.seq, c, cast.blink.landing);
+  }
+
+  /** The server time the local fighter's cast root (predicted or confirmed) ends, or 0 if none is running or due at `t`. */
+  castEndsAt(t: number): number {
+    let end = 0;
+    for (const r of this.roots) if (r.kind === "cast" && r.until > t && r.until > end) end = r.until;
+    return end;
   }
 
   /** An fx batch event: the ones about the local fighter that change how it can walk. */
@@ -76,10 +118,28 @@ export class LocalPrediction {
         // Before it landed, the attack's root goes with it; after, it stays.
         if (fx.id === localId) this.dropRootBefore(fx.t);
         break;
+      case "status":
+        if (fx.id !== localId) break;
+        if (fx.status === "stun" || fx.status === "root") this.roots.push({ kind: "status", from: fx.t, until: fx.t + fx.ms });
+        else if (fx.status === "haste") this.hastes.push({ from: fx.t, until: fx.t + fx.ms, bonus: LAST_STAND_SPEED_BONUS });
+        break;
+      case "cast":
+        if (fx.by !== localId) break;
+        // The server's word replaces the one predicted at the key press.
+        this.roots = this.roots.filter((r) => r.expires === undefined);
+        if (fx.ms > 0) this.roots.push({ kind: "cast", from: fx.t, until: fx.t + fx.ms });
+        break;
+      case "castEnd":
+        // Fizzled, interrupted or cancelled: the root goes with it, from the tick it ended.
+        if (fx.by !== localId) break;
+        for (const r of this.roots) if (r.kind === "cast" && r.until > fx.t) r.until = Math.max(r.from, fx.t);
+        break;
       case "death":
         if (fx.id === localId) {
           this.axeRoot = null;
           this.bursts = [];
+          this.roots = [];
+          this.hastes = [];
           // A training room puts the fighter back on its feet in place, with no walk left: the sample that follows snaps.
           this.motion.cut(fx.t);
         }
@@ -89,8 +149,10 @@ export class LocalPrediction {
         }
         break;
       case "teleport":
-        // Everyone is moved and every walk cancelled: the sample from this tick on is a cut, however short the jump.
+        // Everyone is moved and every walk cancelled: the sample from this tick on is a cut, however short the jump. Statuses end.
         this.axeRoot = null;
+        this.roots = [];
+        this.hastes = [];
         this.motion.cut(fx.t);
         break;
       default:
@@ -112,18 +174,46 @@ export class LocalPrediction {
     return {
       alive: active,
       speedMult: me ? this.speedMult(t, me, others) : 1,
-      rooted: this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until,
+      rooted: (this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until) || this.rootedAt(c, t, me),
       aiming,
     };
   }
 
-  /** The walk speed multiplier at server time `t`: the move-speed stacks, the strongest kill burst running, and the chill. */
+  /**
+   * Whether a stun, a root or a cast holds the fighter at server time `t` (client clock `c`). The fx are what the client
+   * trusts, as they carry the exact span; the synced bits only stand in when no fx told of any (a join in the middle of an
+   * effect), since they lag an effect's end by a round trip and a delay.
+   */
+  private rootedAt(c: number, t: number, me: LocalFighter | undefined): boolean {
+    for (let i = this.roots.length - 1; i >= 0; i--) {
+      const r = this.roots[i]!;
+      if ((r.expires !== undefined && c >= r.expires) || t >= r.until + FX_GRACE_MS) this.roots.splice(i, 1);
+    }
+    for (const r of this.roots) if (t >= r.from && t < r.until) return true;
+    return this.roots.length === 0 && me !== undefined && (me.effects & (EFFECT_STUNNED | EFFECT_ROOTED | EFFECT_CASTING)) !== 0;
+  }
+
+  /** Last Stand's added speed (a share of PLAYER_SPEED) at server time `t`: what the fx told of, else the synced bit's. */
+  private hasteAt(t: number, me: LocalFighter): number {
+    for (let i = this.hastes.length - 1; i >= 0; i--) if (t >= this.hastes[i]!.until + FX_GRACE_MS) this.hastes.splice(i, 1);
+    let bonus = 0;
+    for (const h of this.hastes) if (t >= h.from && t < h.until && h.bonus > bonus) bonus = h.bonus;
+    if (bonus === 0 && this.hastes.length === 0 && (me.effects & EFFECT_HASTE) !== 0) bonus = LAST_STAND_SPEED_BONUS;
+    return bonus;
+  }
+
+  /**
+   * The walk speed multiplier at server time `t`: the move-speed stacks, the strongest kill burst running, Last Stand's haste
+   * (added on top, as the server adds it: `hasteMultiplier`), and the chill.
+   */
   speedMult(t: number, me: LocalFighter, others: Iterable<OtherFighter>): number {
     let m = buffMultiplier("moveSpeed", me.stacksMs);
     let best = 1;
     for (let i = this.bursts.length - 1; i >= 0; i--) if (t >= this.bursts[i]!.until + 2000) this.bursts.splice(i, 1);
     for (const b of this.bursts) if (t >= b.from && t < b.until && b.mult > best) best = b.mult;
     m *= best;
+    const haste = this.hasteAt(t, me);
+    if (haste > 0) m *= hasteMultiplier(m, haste);
     // The server slows a fighter it is chilling when the Frost doing it is within CHILL_MOVE_RADIUS; here: any Frost that close.
     if ((me.sig & SIG_CHILLED) !== 0) {
       for (const o of others) {

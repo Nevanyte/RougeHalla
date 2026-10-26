@@ -1,9 +1,12 @@
 // The attack target on the client: which fighter a left click snaps to, which lock is drawn while the server catches up,
 // and the two rings. The scene is fake (test/fakes.ts).
 import { describe, expect, it } from "vitest";
-import { PLAYER_RADIUS, TARGET_SNAP_RADIUS, Y_SCALE } from "@raid/shared";
+import {
+  EFFECT_ANTI_HEAL, EFFECT_CASTING, EFFECT_DOT, EFFECT_HASTE, EFFECT_HIDDEN, EFFECT_LAST_STAND, EFFECT_ROOTED, EFFECT_SILENCED, EFFECT_SLOWED,
+  EFFECT_STUNNED, EFFECT_UNTARGETABLE, EFFECT_ZONED, PLAYER_RADIUS, TARGET_SNAP_RADIUS, Y_SCALE,
+} from "@raid/shared";
 import { TargetRings } from "../src/render/TargetRings";
-import { LockDisplay, OPTIMISTIC_LOCK_MS, pickTarget } from "../src/render/targeting";
+import { LockDisplay, OPTIMISTIC_LOCK_MS, pickTarget, targetable } from "../src/render/targeting";
 import { fakeScene, type FakeObject } from "./fakes";
 
 const at = (id: string, x: number, y: number) => ({ id, x, y });
@@ -150,5 +153,24 @@ describe("TargetRings", () => {
     rings.destroy();
     expect(hover.calls.some(([n]) => n === "destroy")).toBe(true);
     expect(lock.calls.some(([n]) => n === "destroy")).toBe(true);
+  });
+});
+
+describe("targetable", () => {
+  it("is false for a hidden fighter (Swarm) and for an untargetable one, alone or among other bits", () => {
+    expect(targetable(EFFECT_HIDDEN)).toBe(false);
+    expect(targetable(EFFECT_UNTARGETABLE)).toBe(false);
+    expect(targetable(EFFECT_HIDDEN | EFFECT_UNTARGETABLE)).toBe(false);
+    expect(targetable(EFFECT_STUNNED | EFFECT_HIDDEN | EFFECT_HASTE)).toBe(false);
+    expect(targetable(EFFECT_DOT | EFFECT_UNTARGETABLE)).toBe(false);
+  });
+
+  it("is true with no bits and with every other bit: crowd control and buffs do not hide a fighter", () => {
+    expect(targetable(0)).toBe(true);
+    for (const bit of [
+      EFFECT_STUNNED, EFFECT_ROOTED, EFFECT_SILENCED, EFFECT_SLOWED, EFFECT_ANTI_HEAL, EFFECT_DOT, EFFECT_ZONED, EFFECT_LAST_STAND,
+      EFFECT_HASTE, EFFECT_CASTING,
+    ]) expect(targetable(bit), `${bit}`).toBe(true);
+    expect(targetable(EFFECT_STUNNED | EFFECT_ROOTED | EFFECT_ZONED | EFFECT_LAST_STAND)).toBe(true);
   });
 });

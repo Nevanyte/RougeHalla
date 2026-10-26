@@ -2,12 +2,16 @@
 // parser and the fixed step, patches carry the state's own position, server time and moveSeq, with latency each way. It checks
 // what the client's unit tests can only assume about the server: that an order is applied and walked one tick in the same step,
 // that moveSeq names it, and that the prediction therefore stays in line with the sim through starts, turns, stops and a lock.
+// And through a blink (Blaze Step: the `cast` input, the shared blinkLanding, `displaceSeq`) and a displacement the client did not
+// order (the sim's own `displace`).
 import { describe, expect, it } from "vitest";
 import {
-  mapFromTiles, mulberry32, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FactionId, type GameMap, type Vec2, type WeaponId,
+  blinkLanding, mapFromTiles, mulberry32, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FactionId, type GameMap, type Vec2,
+  type WeaponId,
 } from "@raid/shared";
 import { LocalMotion, type FrameInput } from "../../client/src/net/localMotion";
 import { combatant } from "../src/sim/combatant";
+import { displace } from "../src/sim/displace";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { addMob } from "../src/sim/mobs";
@@ -38,7 +42,7 @@ class SimRig {
   private lastFrame = 0;
   private readonly rnd = mulberry32(11);
   private inbox: Array<{ at: number; type: string; msg: unknown }> = [];
-  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number; locked: boolean }> = [];
+  private patches: Array<{ at: number; x: number; y: number; t: number; moveSeq: number; locked: boolean; displaceSeq: number }> = [];
   readonly drawn: Vec2[] = [];
   readonly offsets: number[] = [];
 
@@ -46,7 +50,10 @@ class SimRig {
     this.map = arenaMap();
     this.world = createGameWorld({
       seed: 3,
-      config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
+      config: {
+        minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600,
+        wishLockSeconds: 0, // the Wish is ready from the start of the run
+      },
       random: mulberry32(4),
     }, { signatures: false });
     this.world.map = this.map;
@@ -60,7 +67,7 @@ class SimRig {
     this.server.y = 10 * TILE + 16;
     this.world.players.get("me")!.history = [{ t: this.world.state.serverTime, x: this.server.x, y: this.server.y }];
     this.send();
-    this.motion.observe({ x: this.server.x, y: this.server.y, t: this.world.state.serverTime, moveSeq: 0 }, this.clock);
+    this.motion.observe({ x: this.server.x, y: this.server.y, t: this.world.state.serverTime, moveSeq: 0, displaceSeq: 0 }, this.clock);
     this.frame();
   }
 
@@ -73,7 +80,7 @@ class SimRig {
     const p = this.server;
     this.patches.push({
       at: this.now + this.lag(this.down), x: Math.fround(p.x), y: Math.fround(p.y), t: this.world.state.serverTime, moveSeq: p.moveSeq,
-      locked: p.attackTarget !== "",
+      locked: p.attackTarget !== "", displaceSeq: p.displaceSeq,
     });
   }
 
@@ -87,6 +94,24 @@ class SimRig {
     const seq = (this.seq = (this.seq % 255) + 1);
     this.motion.order("stop", seq, this.clock, undefined, this.map);
     this.inbox.push({ at: this.now + this.lag(this.up), type: "stop", msg: { seq } });
+  }
+
+  /**
+   * The player casts the Wish at the cursor point `to`: as the scene does, the shared blinkLanding from the model's position
+   * moves the model at once, and the cast goes up with the order number. Returns the predicted landing (null: the client
+   * would not have cast).
+   */
+  blink(to: Vec2): { landing: Vec2 | null; seq: number } {
+    const landing = blinkLanding(this.map, false, this.motion.predicted, to);
+    const seq = (this.seq = (this.seq % 255) + 1);
+    if (landing) this.motion.blink(seq, this.clock, landing);
+    this.inbox.push({ at: this.now + this.lag(this.up), type: "cast", msg: { slot: "wish", x: to.x, y: to.y, seq } });
+    return { landing, seq };
+  }
+
+  /** The sim moves the player on its own between two steps (a pull): the next step's patch shows it. */
+  pull(to: Vec2): void {
+    displace(this.world, combatant(this.world, "me")!, to);
   }
 
   target(id: string): void {
@@ -116,7 +141,7 @@ class SimRig {
       }
       this.patches = this.patches.filter((p) => {
         if (p.at > this.now) return true;
-        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq, locked: p.locked }, this.clock);
+        this.motion.observe({ x: p.x, y: p.y, t: p.t, moveSeq: p.moveSeq, locked: p.locked, displaceSeq: p.displaceSeq }, this.clock);
         return false;
       });
       if (this.now >= nextFrame) {
@@ -253,5 +278,114 @@ describe("prediction against the real sim", () => {
     r.run(5000); // 19 tiles to walk
     expect(combatant(r.world, "me")!.rt.weapon.lock).toBeNull();
     expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+  });
+});
+
+describe("a blink against the real sim (Blaze Step)", () => {
+  it("the sim lands where the client predicted, in the same step it echoes the order, and the drawn fighter never jumps back", () => {
+    for (const [up, down, jitter] of [[1, 1, 0], [40, 40, 0], [90, 70, 40]] as const) {
+      const tag = `${up}/${down}/${jitter}`;
+      const r = new SimRig(up, down, jitter, "fire");
+      r.run(300);
+      const from = { x: r.server.x, y: r.server.y }; // (a schema object does not spread)
+      const { landing, seq } = r.blink({ x: from.x + 400, y: from.y + 60 }); // past its range: the landing is 300 u along the ray
+      expect(landing, tag).not.toBeNull();
+      expect(dist(from, landing!), tag).toBeGreaterThan(299);
+      r.run(FRAME_MS + 1);
+      expect(dist(r.motion.drawn, landing!), tag).toBeLessThan(1e-6); // drawn at once, before the server has heard
+      const first = r.drawn.length;
+      r.run(900);
+      expect(r.server.displaceSeq, tag).toBe(1);
+      expect(r.server.moveSeq, tag).toBe(seq);
+      expect(dist(r.server, landing!), tag).toBeLessThan(1e-3);
+      expect(r.motion.pendingOrders, tag).toBe(0);
+      expect(r.motion.visualOffset, tag).toBeLessThan(2);
+      expect(r.maxStep(first), tag).toBeLessThan(2);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.01);
+      // The Wish is spent: its cooldown started, and the sim has no walk or lock for it to carry on.
+      expect(r.server.wishReadyAt, tag).toBeGreaterThan(r.world.state.serverTime);
+    }
+  });
+
+  it("a blink the sim refuses (here: still cooling down) is echoed in moveSeq without a displacement, and the drawn fighter snaps back at that ack", () => {
+    const r = new SimRig(40, 40, 0, "fire");
+    r.run(300);
+    const origin = { x: r.server.x, y: r.server.y };
+    r.server.wishReadyAt = r.world.state.serverTime + 100_000; // the client has no way to know
+    const { landing, seq } = r.blink({ x: origin.x + 300, y: origin.y });
+    expect(landing).not.toBeNull();
+    r.run(FRAME_MS + 1);
+    expect(dist(r.motion.drawn, landing!)).toBeLessThan(1e-6);
+    r.run(500);
+    expect(r.server.moveSeq).toBe(seq);
+    expect(r.server.displaceSeq).toBe(0);
+    expect(dist(r.server, origin)).toBeLessThan(1e-3);
+    expect(r.motion.pendingOrders).toBe(0);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.01);
+    expect(r.motion.visualOffset).toBe(0);
+  });
+
+  it("a walk right after it stays in line with the sim, which re-plans from the landing", () => {
+    for (const [up, down, jitter] of [[1, 1, 0], [40, 40, 10], [90, 70, 40]] as const) {
+      const tag = `${up}/${down}/${jitter}`;
+      const r = new SimRig(up, down, jitter, "fire");
+      r.run(300);
+      const { landing } = r.blink({ x: r.server.x + 250, y: r.server.y });
+      r.run(30);
+      r.move(centre(40, 20));
+      r.run(FRAME_MS + 1);
+      const from = r.drawn.length;
+      r.run(7000);
+      expect(landing, tag).not.toBeNull();
+      expect(dist(r.server, centre(40, 20)), tag).toBeLessThan(0.5);
+      expect(r.maxStep(from), tag).toBeLessThanOrEqual(MAX_STEP);
+      expect(Math.max(...r.offsets.slice(from)), tag).toBeLessThan(12);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+      expect(r.motion.visualOffset, tag).toBeLessThan(0.1);
+    }
+  });
+
+  it("while walking: the model is a delay ahead of the server, the landings differ by a few units, which are absorbed without a snap", () => {
+    const r = new SimRig(40, 40, 0, "fire");
+    r.run(300);
+    r.move(centre(50, 10));
+    r.run(700);
+    expect(r.motion.walking).toBe(true);
+    const { landing } = r.blink({ x: r.motion.predicted.x + 150, y: r.motion.predicted.y + 250 });
+    expect(landing).not.toBeNull();
+    r.run(FRAME_MS + 1);
+    const first = r.drawn.length;
+    r.run(1500);
+    expect(r.server.displaceSeq).toBe(1);
+    expect(r.motion.pendingOrders).toBe(0);
+    // The blink dropped the walk on both sides; the landings differ by the model's lead over the server (at most about a delay's walk).
+    expect(dist(r.server, landing!)).toBeLessThan(PLAYER_SPEED * ((TICK_MS + 40 + 40) / 1000) + 2);
+    expect(r.maxStep(first)).toBeLessThan(WALK_STEP + 2);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+    expect(r.motion.walking).toBe(false);
+  });
+
+  it("a displacement the client did not order (the sim's own displace) rebases the model by the jump and the walk in hand goes on", () => {
+    for (const [up, down, jitter] of [[1, 1, 0], [40, 40, 10], [90, 70, 40]] as const) {
+      const tag = `${up}/${down}/${jitter}`;
+      const r = new SimRig(up, down, jitter, "fire");
+      r.run(300);
+      const goal = centre(50, 10);
+      r.move(goal);
+      r.run(900);
+      expect(r.motion.walking, tag).toBe(true);
+      const first = r.drawn.length;
+      r.pull({ x: r.server.x, y: r.server.y + 100 });
+      r.run(down + TICK_MS * 2 + 60);
+      expect(r.server.displaceSeq, tag).toBe(1);
+      // One jump of about the pull, and the model is still walking: its walk was planned again, not dropped.
+      expect(r.maxStep(first), tag).toBeGreaterThan(90);
+      expect(r.motion.walking, tag).toBe(true);
+      expect(r.motion.visualOffset, tag).toBeLessThan(2);
+      r.run(9000);
+      expect(dist(r.server, goal), tag).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+      expect(r.motion.visualOffset, tag).toBeLessThan(0.1);
+    }
   });
 });

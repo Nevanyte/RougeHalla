@@ -30,6 +30,13 @@
 // (DIVERGE_PATCHES samples in a row off by more than DIVERGE_ERR, with nothing in flight and the server not heading where
 // the model goes: a revive, a halt or a walk the client did not order) is dropped; an error past SNAP_DISTANCE, or an offset
 // past VISUAL_SNAP_DISTANCE, snaps to the server and plans the destination again from there.
+//
+// Displacement. A blink (Blaze Step) is an order that moves the fighter at once: `blink` puts the model on its landing (the same
+// pure `blinkLanding` the server runs) and the drawn fighter jumps with it; the order carries its jump so the comparison does
+// not take the model's lead for a divergence while the server has not applied it. The patch that acks it also shows a changed
+// `displaceSeq`: that is our own blink, and its error is the (small) difference between the two landings, absorbed like any
+// other. A changed `displaceSeq` with no blink of ours behind it is a displacement the server did on its own (a pull, a knock):
+// the model, its history and the drawn fighter all move by what the server says, and a walk in hand is planned again from there.
 import {
   findPath, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, TELEPORT_DISTANCE, TICK_MS, WORLD_H, WORLD_W, type GameMap, type Vec2,
 } from "@raid/shared";
@@ -47,6 +54,8 @@ export interface AuthSample {
   moveSeq: number;
   /** `PlayerState.attackTarget` is set: the server is chasing and attacking a lock. */
   locked?: boolean;
+  /** `PlayerState.displaceSeq` (uint8, wrapping): it changes whenever the server displaces the fighter (a blink, a pull). */
+  displaceSeq?: number;
 }
 
 /** What the client knows about the local fighter this frame. */
@@ -117,9 +126,12 @@ interface Order {
   applied: boolean;
   /** Whether it changed when the fighter moves (see the header): only those set the delay the rebase aligns with. */
   timing: boolean;
+  /** A blink: how far (u) it moved the model at once. The server has not applied it yet, so the model is this far from it. */
+  jump?: number;
 }
 
-interface Pose { c: number; x: number; y: number }
+/** `jump`: a blink's landing; the model was at the pose before it until then and is never between. */
+interface Pose { c: number; x: number; y: number; jump?: true }
 
 /** A point as the server's `parsePoint` takes it: clamped to the world, so both sides plan to the same place. */
 export function clampToWorld(p: Vec2): Vec2 {
@@ -192,6 +204,8 @@ export class LocalMotion {
   private off = 0;
   /** The server moved the fighter on its own at this server time (a teleport, a revive): the sample that reaches it snaps. */
   private cutAt = Infinity;
+  /** The last `displaceSeq` seen (null before the first sample). A different one in a sample is a displacement. */
+  private lastDisplaceSeq: number | null = null;
   /** A lock is awaited until this client time (`expectLock`; 0 = not), and the walk to take up again if it never comes. */
   private hope = 0;
   private resume: { goal: Vec2; map: GameMap } | null = null;
@@ -230,6 +244,7 @@ export class LocalMotion {
     this.goalMap = null;
     this.off = 0;
     this.cutAt = Infinity;
+    this.lastDisplaceSeq = null;
     this.hope = 0;
     this.resume = null;
   }
@@ -302,6 +317,35 @@ export class LocalMotion {
   }
 
   /**
+   * The player cast a blink (Blaze Step) at client clock `c`, with order number `seq` (`cast` carries it, as `move` does), and
+   * the shared `blinkLanding` gave `landing`. The model jumps there at once and the drawn fighter with it; a walk in hand and a
+   * lock stop being predicted (the cast is an order of its own: the server drops both). The order is remembered with its jump
+   * so the rebase does not read the model's lead as a divergence until the server has applied it. A blink the server refuses
+   * is echoed in `moveSeq` all the same (with no `displaceSeq` change): the rebase then finds the server where it was, and snaps.
+   */
+  blink(seq: number, c: number, landing: Vec2): void {
+    if (!this.auth || !this._ready) return;
+    this.expireOrders(c);
+    this.hope = 0;
+    this.resume = null;
+    this._mode = "predict";
+    const origin = { x: this.sim.x, y: this.sim.y };
+    const h = this.history;
+    // What was recorded in this clock's future never happened (the clock only runs back when it resynchronises).
+    while (h.length > 0 && h[h.length - 1]!.c >= c) h.pop();
+    h.push({ c, x: origin.x, y: origin.y });
+    h.push({ c, x: landing.x, y: landing.y, jump: true });
+    this.sim.x = landing.x;
+    this.sim.y = landing.y;
+    this.path = [];
+    this.goal = null;
+    this.moved = false;
+    // The model is at its landing from `c` on: `simAt` must not carry a later time along the walk it just left.
+    this.c = c;
+    this.note(seq, c, true, Math.hypot(landing.x - origin.x, landing.y - origin.y));
+  }
+
+  /**
    * A patch arrived: the local fighter's server state. Called once per patch, in arrival order; `c` is the client clock now.
    * The order it acknowledges (its `moveSeq`) gives the delay; in `predict` mode the sample then pulls the model back in line,
    * in `follow` mode it simply is the position. The server's lock (`locked`) is what puts the model in `follow` (once no
@@ -312,6 +356,7 @@ export class LocalMotion {
     if (prev && s.t <= prev.t) return;
     if (!prev) {
       this.auth = { ...s };
+      this.lastDisplaceSeq = s.displaceSeq ?? 0;
       this.snapTo(s);
       if (s.locked === true) this._mode = "follow";
       this._ready = true;
@@ -321,8 +366,16 @@ export class LocalMotion {
     const oldFollow = wasFollow ? this.followPos(c, this.scratch) : null;
     const ox = oldFollow?.x ?? 0, oy = oldFollow?.y ?? 0;
     const dt = s.t - prev.t;
-    const jumped = Math.hypot(s.x - prev.x, s.y - prev.y) > TELEPORT_DISTANCE;
-    if (dt <= 200) {
+    // A displacement (a blink, a pull) moves the fighter in one tick: neither a teleport nor a speed.
+    const displaced = s.displaceSeq !== undefined && s.displaceSeq !== this.lastDisplaceSeq;
+    if (s.displaceSeq !== undefined) this.lastDisplaceSeq = s.displaceSeq;
+    let own = false;
+    if (displaced) {
+      this.expireOrders(c);
+      own = this.blinkAcked(s.moveSeq);
+    }
+    const jumped = !displaced && Math.hypot(s.x - prev.x, s.y - prev.y) > TELEPORT_DISTANCE;
+    if (dt <= 200 && !displaced) {
       this.vx = ((s.x - prev.x) / dt) * 1000;
       this.vy = ((s.y - prev.y) / dt) * 1000;
     } else {
@@ -339,6 +392,16 @@ export class LocalMotion {
     }
     this.expireOrders(c);
     this.ack(s.moveSeq, s.t);
+    if (displaced && !own) {
+      // The server moved the fighter on its own: follow it, with no smoothing (a blink is not slid into).
+      if (wasFollow) {
+        this.snapTo(s);
+        if (s.locked === true) this._mode = "follow";
+      } else {
+        this.shiftTo(s);
+      }
+      return;
+    }
     const locked = s.locked === true;
     if (!wasFollow && locked && !this.orders.some((o) => !o.applied)) {
       this.enterFollow(c);
@@ -446,8 +509,8 @@ export class LocalMotion {
     for (let i = o.length - 1; i >= 0; i--) if (!o[i]!.applied && c - o[i]!.c > after) o.splice(i, 1);
   }
 
-  private note(seq: number, c: number, timing: boolean): void {
-    this.orders.push({ seq, c, delay: null, applied: false, timing });
+  private note(seq: number, c: number, timing: boolean, jump?: number): void {
+    this.orders.push(jump === undefined ? { seq, c, delay: null, applied: false, timing } : { seq, c, delay: null, applied: false, timing, jump });
     while (this.orders.length > MAX_ORDERS || (this.orders.length > 0 && this.orders[0]!.c < c - ORDER_KEEP_MS)) this.orders.shift();
   }
 
@@ -532,6 +595,51 @@ export class LocalMotion {
     }
   }
 
+  /** The sample's `moveSeq` acks an order of ours that blinks, or one sent after it in the same tick (only the last applies). */
+  private blinkAcked(seq: number): boolean {
+    if (seq === 0) return false;
+    let i = this.orders.length - 1;
+    while (i >= 0 && this.orders[i]!.seq !== seq) i--;
+    for (let j = 0; j <= i; j++) {
+      const o = this.orders[j]!;
+      if (!o.applied && o.jump !== undefined) return true;
+    }
+    return false;
+  }
+
+  /**
+   * The server displaced the fighter by something other than our blink: the model, the history it is compared against and
+   * so the drawn fighter (the smoothing offset is left alone) all move by what the sample says, with no snap test. A walk in
+   * hand is planned again from there to its destination (dropped if that is unreachable).
+   */
+  private shiftTo(s: AuthSample): void {
+    const ref = this.simAt(s.t - this.align);
+    if (!ref) {
+      this.snapTo(s, true);
+      return;
+    }
+    const ex = s.x - ref.x;
+    const ey = s.y - ref.y;
+    this.sim.x += ex;
+    this.sim.y += ey;
+    for (const p of this.history) {
+      p.x += ex;
+      p.y += ey;
+    }
+    this.off = 0;
+    const goal = this.path.length > 0 ? this.goal : null;
+    this.path = [];
+    this.goal = null;
+    this.moved = false;
+    if (goal && this.goalMap) {
+      const path = findPath(this.goalMap, this.sim, goal, PLAYER_RADIUS);
+      if (path.length > 0) {
+        this.path = path;
+        this.goal = goal;
+      }
+    }
+  }
+
   /** The model at client time `t`: from the history, or carried on along the path for a time not yet reached (a negative delay). */
   private simAt(t: number): Vec2 | null {
     const h = this.history;
@@ -544,7 +652,8 @@ export class LocalMotion {
     while (i > 0 && h[i - 1]!.c > t) i--;
     const b = h[i]!;
     const a = h[Math.max(0, i - 1)]!;
-    const k = b.c > a.c ? clamp((t - a.c) / (b.c - a.c), 0, 1) : 1;
+    // A blink's landing is a jump: the model was at the pose before it until then, never between.
+    const k = b.jump === true ? 0 : b.c > a.c ? clamp((t - a.c) / (b.c - a.c), 0, 1) : 1;
     this.scratch.x = a.x + (b.x - a.x) * k;
     this.scratch.y = a.y + (b.y - a.y) * k;
     return this.scratch;
@@ -561,7 +670,10 @@ export class LocalMotion {
     // The model at `at` already follows an order the server has not applied: it says little about where the server is, but a
     // gap beyond what that order's walk can explain is a divergence all the same.
     if (next && at >= next.c) {
-      if (err > SNAP_DISTANCE + (PLAYER_SPEED * (at - next.c)) / 1000) this.snapTo(s, true);
+      // A blink not applied yet has put the model that much ahead of the server.
+      let jumps = 0;
+      for (const o of this.orders) if (!o.applied && o.jump !== undefined && o.c <= at) jumps += o.jump;
+      if (err > SNAP_DISTANCE + (PLAYER_SPEED * (at - next.c)) / 1000 + jumps) this.snapTo(s, true);
       return;
     }
     this.noteDivergence(err);
@@ -624,7 +736,16 @@ export class LocalMotion {
   private record(c: number): void {
     const h = this.history;
     // The clock only runs back when it resynchronises: what was recorded in its future never happened.
-    while (h.length > 0 && h[h.length - 1]!.c >= c) h.pop();
+    while (h.length > 0 && h[h.length - 1]!.c >= c) {
+      const last = h[h.length - 1]!;
+      // A blink in this very instant: its landing is where the model is now (and stays the jump).
+      if (last.jump === true && last.c === c) {
+        last.x = this.sim.x;
+        last.y = this.sim.y;
+        return;
+      }
+      h.pop();
+    }
     h.push({ c, x: this.sim.x, y: this.sim.y });
     while (h.length > 2 && h[0]!.c < c - HISTORY_MS) h.shift();
   }

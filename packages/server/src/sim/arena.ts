@@ -1,8 +1,9 @@
 // Arena lifecycle: how players go down, who wins, the patience timer, the coliseum teleport and sudden death.
 //
-// step.ts runs an active tick as: tick-start snapshot → inputs (shuffled) → weapon state machines → afterWeapons →
-// movement → history → projectile sweep → spawns → melee → beforeDamage (signature damage, then sudden death's burn)
-// → the damage ledger, all at once → systems → settle.
+// step.ts runs an active tick as: tick-start snapshot → inputs (shuffled) → abilities (status expiry, casts landing,
+// zones) → target locks → weapon state machines → afterWeapons → movement → history → projectile sweep → spawns → melee →
+// beforeDamage (signature damage, then status damage, then sudden death's burn) → the damage ledger, all at once (status
+// changes made inside it wait for its end) → systems → settle.
 // Everything that takes a player out of the fight goes through downPlayer(), and settle() is the only place where
 // results are emitted during a step and where the run ends, so the shuffled order players were processed in never
 // decides who won:
@@ -31,6 +32,7 @@ import type { PlayerState } from "@raid/shared/schema";
 import { absorbShield } from "./buffs";
 import { announceBounty, mobRewardFor } from "./feed";
 import { recordHit } from "./ledger";
+import { floorHp } from "./status";
 import { dropLock, releaseTrigger } from "./weapons";
 import { emit, payLater, type PlayerRuntime, type World } from "./world";
 
@@ -128,7 +130,7 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   total = absorbShield(victim, total);
   if (!(total > 0)) return 0;
   const before = victim.hp;
-  victim.hp = Math.max(0, victim.hp - total);
+  victim.hp = floorHp(world, rtv.id, before, total);
   if (victim.hp > 0) return before - victim.hp;
 
   const killer = topRival ?? top;
@@ -281,6 +283,7 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   rt.path = [];
   releaseTrigger(world, { kind: "player", id: rt.id, s: p, rt });
   p.status = outcome === "died" ? "dead" : "mia";
+  world.hooks.fighterOut?.(world, rt.id, "down");
   if (credited) creditKill(world, credited, p, rt);
   world.hooks.dropBody(world, p);
   if (world.stepping) {
@@ -392,6 +395,7 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
     const p = s.players.get(id);
     if (p) dropLock({ kind: "player", id, s: p, rt });
   }
+  world.hooks.runEnded?.(world);
   s.patienceEndsAt = 0;
   s.gatesLocked = false;
   s.suddenDeathAt = 0;

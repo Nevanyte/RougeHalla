@@ -43,6 +43,7 @@ import {
   activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { recordHit } from "./ledger";
+import { healFactor } from "./status";
 import { chainHook, collisionMap, emit, tieRank, type PendingAction, type World } from "./world";
 
 /** One fighter's signature state. Times are server ms. */
@@ -232,7 +233,7 @@ function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<stri
   };
   for (const e of world.combat.ledger) {
     const raw = e.packet.raw * e.scale;
-    if (e.sig || !(raw > 0)) continue;
+    if (e.sig || e.ability !== undefined || !(raw > 0)) continue;
     add(e.by.id, e.victim, raw, e.passive === true || (e.projectile !== undefined && e.weapon === "shield"));
   }
   // A blocked swing or arrow never reaches the ledger, but the attack met its target.
@@ -501,14 +502,19 @@ function onWeaponSwapped(world: World, c: Combatant): void {
 
 /**
  * Heals a standing fighter by up to `amount` (never past max hp) and emits a `heal` fx. Heals other than Holy's
- * lifesteal are refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage. `quiet` sends no fx
- * (a mob's regeneration heals every tick, which would be a heal number every tick). Returns the hp gained.
+ * lifesteal are refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage (`ignoreLockout`: Last Stand's
+ * payback, which comes right after the damage it answers). An anti-heal status scales every heal, lifesteal included (healFactor).
+ * `quiet` sends no fx (a mob's regeneration heals every tick, which would be a heal number every tick). Returns the hp gained.
  */
-export function heal(world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean; quiet?: boolean } = {}): number {
+export function heal(
+  world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean; quiet?: boolean; ignoreLockout?: boolean } = {},
+): number {
   if (!(amount > 0) || !standing(c)) return 0;
   const now = world.state.serverTime;
   const f = world.factions?.fighters.get(c.id);
-  if (!opts.lifesteal && f && now - f.combatAt < HEAL_LOCKOUT_SECONDS * 1000) return 0;
+  if (!opts.lifesteal && !opts.ignoreLockout && f && now - f.combatAt < HEAL_LOCKOUT_SECONDS * 1000) return 0;
+  amount *= healFactor(world, c);
+  if (!(amount > 0)) return 0;
   const before = c.s.hp;
   c.s.hp = Math.min(c.s.maxHp, c.s.hp + amount);
   const gained = c.s.hp - before;

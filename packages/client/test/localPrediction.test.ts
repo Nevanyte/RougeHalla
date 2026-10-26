@@ -1,14 +1,16 @@
 // What the client knows about its own fighter's speed and roots (net/localPrediction.ts).
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, buffMultiplier, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, FACTIONS, mapFromTiles, SIG_CHILLED, TILE_FLOOR, TILE_WALL,
+  attackInterval, buffMultiplier, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_SILENCED,
+  EFFECT_STUNNED, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, PLAYER_SPEED, SIG_CHILLED, TILE_FLOOR, TILE_WALL,
   weaponTimings, type GameMap, type TimedFx,
 } from "@raid/shared";
+import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
 import { LocalPrediction, localDrawSource, type LocalFighter, type OtherFighter } from "../src/net/localPrediction";
 
 const ME = "me";
 const fighter = (o: Partial<LocalFighter> = {}): LocalFighter => ({
-  x: 100, y: 100, faction: "fire", sig: 0, stacksHp: 0, stacksAs: 0, stacksMs: 0, ...o,
+  x: 100, y: 100, faction: "fire", sig: 0, stacksHp: 0, stacksAs: 0, stacksMs: 0, effects: 0, ...o,
 });
 const other = (o: Partial<OtherFighter> = {}): OtherFighter => ({ x: 150, y: 100, faction: "frost", status: "alive", ...o });
 const windup = (t: number, ms: number, weapon: "axe" | "sword" = "axe", by = ME): TimedFx => ({ kind: "windup", by, weapon, a: 0, ms, t });
@@ -243,5 +245,194 @@ describe("where the local fighter is drawn from", () => {
     expect(localDrawSource({ ...base, running: false, hasFrozen: false })).toBe("snapshot"); // the run is over
     expect(localDrawSource({ ...base, ready: false, hasFrozen: false })).toBe("snapshot"); // nothing observed yet
     expect(localDrawSource({ ...base, running: false })).toBe("snapshot"); // frozen only waits for a death or a cut
+  });
+});
+
+describe("casts and statuses on the local fighter", () => {
+  const FROM = 1050; // a cast noted at client clock 1000, with the initial delay estimate (50 ms)
+  const rooted = (p: LocalPrediction, c: number, me: LocalFighter | undefined = fighter()) => p.frameInput(c, true, me, [], false).rooted;
+  const cast = (t: number, ms: number, by = ME): TimedFx => ({ kind: "cast", by, ability: "freeze", ms, target: null, x: 0, y: 0, t });
+  const castEnd = (t: number, by = ME): TimedFx => ({ kind: "castEnd", by, ability: "freeze", reason: "interrupted", t });
+  const status = (t: number, kind: "stun" | "root" | "haste", ms: number, id = ME): TimedFx => ({ kind: "status", id, status: kind, ms, by: "foe", t });
+
+  describe("noteCast", () => {
+    it("a cast with a telegraph roots the model from the moment the server will apply it, for castMs", () => {
+      const p = new LocalPrediction();
+      expect(p.motion.delay).toBe(50);
+      p.noteCast(1000, { castMs: 250 });
+      expect(rooted(p, 1000)).toBe(true); // model time 1050 = FROM
+      expect(rooted(p, 999)).toBe(false);
+      expect(rooted(p, FROM + 250 - 50 - 1)).toBe(true);
+      expect(rooted(p, FROM + 250 - 50)).toBe(false);
+      expect(p.castEndsAt(1000)).toBe(FROM + 250);
+    });
+
+    it("no root for a cast that lands in the tick it is applied (castMs 0)", () => {
+      const p = new LocalPrediction();
+      p.noteCast(1000, { castMs: 0 });
+      expect(rooted(p, 1000)).toBe(false);
+      expect(p.castEndsAt(0)).toBe(0);
+    });
+
+    it("is replaced by the server's own span once its cast fx arrives", () => {
+      const p = new LocalPrediction();
+      p.noteCast(1000, { castMs: 250 });
+      p.noteFx(cast(1100, 250), ME, fighter());
+      expect(rooted(p, 1100 - 50 - 1)).toBe(false); // before the server's own start: the prediction is gone
+      expect(rooted(p, 1100 - 50)).toBe(true);
+      expect(rooted(p, 1350 - 50 - 1)).toBe(true);
+      expect(rooted(p, 1350 - 50)).toBe(false);
+      expect(p.castEndsAt(1200)).toBe(1350);
+    });
+
+    it("is dropped when no cast fx confirms it within ORDER_EXPIRE_MS (the server refused the cast)", () => {
+      const p = new LocalPrediction();
+      p.noteCast(1000, { castMs: 2000 });
+      expect(rooted(p, 1000 + ORDER_EXPIRE_MS - 1)).toBe(true);
+      expect(rooted(p, 1000 + ORDER_EXPIRE_MS)).toBe(false);
+      expect(p.castEndsAt(1000 + ORDER_EXPIRE_MS)).toBe(0);
+    });
+
+    it("a blink moves the model at once, with its order number, and roots nothing", () => {
+      const p = new LocalPrediction();
+      p.motion.observe({ x: 300, y: 300, t: 0, moveSeq: 0, displaceSeq: 0 }, 0);
+      p.motion.frame(0, 16, { alive: true, speedMult: 1, rooted: false, aiming: false });
+      p.noteCast(20, { castMs: 0, blink: { seq: p.nextSeq(), landing: { x: 560, y: 300 } } });
+      expect(p.motion.predicted).toEqual({ x: 560, y: 300 });
+      expect(p.motion.pendingOrders).toBe(1);
+      expect(rooted(p, 20)).toBe(false);
+    });
+  });
+
+  describe("fx the server sent", () => {
+    it("a cast by the local fighter roots it for ms from the tick it began, and a castEnd cuts the root at its tick", () => {
+      const p = new LocalPrediction();
+      p.noteFx(cast(2000, 350), ME, fighter());
+      expect(rooted(p, 2000 - 50)).toBe(true);
+      expect(rooted(p, 2349 - 50)).toBe(true);
+      expect(rooted(p, 2350 - 50)).toBe(false);
+      p.noteFx(castEnd(2100), ME, fighter());
+      expect(rooted(p, 2099 - 50)).toBe(true);
+      expect(rooted(p, 2100 - 50)).toBe(false);
+      expect(p.castEndsAt(2000)).toBe(2100);
+    });
+
+    it("someone else's cast, castEnd and status change nothing", () => {
+      const p = new LocalPrediction();
+      p.noteFx(cast(2000, 350, "foe"), ME, fighter());
+      p.noteFx(status(2000, "stun", 1000, "foe"), ME, fighter());
+      p.noteFx(status(2000, "haste", 1000, "foe"), ME, fighter());
+      expect(rooted(p, 2100 - 50)).toBe(false);
+      expect(p.speedMult(2100, fighter(), [])).toBe(1);
+      p.noteFx(cast(2000, 350), ME, fighter());
+      p.noteFx(castEnd(2100, "foe"), ME, fighter());
+      expect(rooted(p, 2200 - 50)).toBe(true);
+    });
+
+    it("a stun or a root status roots it for ms from the tick it was applied", () => {
+      for (const kind of ["stun", "root"] as const) {
+        const p = new LocalPrediction();
+        p.noteFx(status(5000, kind, 1250), ME, fighter());
+        expect(rooted(p, 5000 - 50 - 1), kind).toBe(false);
+        expect(rooted(p, 5000 - 50), kind).toBe(true);
+        expect(rooted(p, 6249 - 50), kind).toBe(true);
+        expect(rooted(p, 6250 - 50), kind).toBe(false);
+      }
+    });
+
+    it("a death or a teleport clears every root and haste", () => {
+      for (const how of ["death", "teleport"] as const) {
+        const p = new LocalPrediction();
+        p.noteFx(status(5000, "stun", 3000), ME, fighter());
+        p.noteFx(status(5000, "haste", 5000), ME, fighter());
+        p.noteFx(cast(5000, 350), ME, fighter());
+        expect(rooted(p, 5100 - 50)).toBe(true);
+        if (how === "death") p.noteFx({ kind: "death", id: ME, x: 0, y: 0, by: null, t: 5100 }, ME, fighter());
+        else p.noteFx({ kind: "teleport", t: 5100 }, ME, fighter());
+        expect(rooted(p, 5200 - 50), how).toBe(false);
+        expect(p.speedMult(5200, fighter(), [])).toBe(1);
+        expect(p.castEndsAt(5200)).toBe(0);
+      }
+    });
+  });
+
+  describe("the synced bits when no fx told of it", () => {
+    it("stunned, rooted and casting hold the fighter; silenced alone does not", () => {
+      const p = new LocalPrediction();
+      for (const bit of [EFFECT_STUNNED, EFFECT_ROOTED, EFFECT_CASTING]) expect(rooted(p, 100, fighter({ effects: bit })), `${bit}`).toBe(true);
+      expect(rooted(p, 100, fighter({ effects: EFFECT_SILENCED }))).toBe(false);
+      expect(rooted(p, 100, fighter({ effects: EFFECT_HASTE }))).toBe(false);
+      expect(rooted(p, 100, fighter())).toBe(false);
+      expect(rooted(p, 100, undefined)).toBe(false);
+    });
+
+    it("do not stretch a root the fx told of: the bit lags its end by a round trip", () => {
+      const p = new LocalPrediction();
+      p.noteFx(status(5000, "stun", 1250), ME, fighter());
+      const stale = fighter({ effects: EFFECT_STUNNED });
+      expect(rooted(p, 6249 - 50, stale)).toBe(true);
+      expect(rooted(p, 6250 - 50, stale)).toBe(false);
+      expect(rooted(p, 6250 - 50 + 1900, stale)).toBe(false);
+    });
+
+    it("count again once the fx's own memory has run out (a later, unannounced effect)", () => {
+      const p = new LocalPrediction();
+      p.noteFx(status(5000, "stun", 1000), ME, fighter());
+      expect(rooted(p, 6000 + 2100 - 50, fighter({ effects: EFFECT_ROOTED }))).toBe(true);
+    });
+  });
+
+  describe("haste (Last Stand)", () => {
+    it("adds its share of the base speed on top of the stacks and bursts, for the span the fx gave", () => {
+      const p = new LocalPrediction();
+      p.noteFx(status(5000, "haste", 5000), ME, fighter());
+      expect(p.speedMult(4999, fighter(), [])).toBe(1);
+      expect(p.speedMult(5000, fighter(), [])).toBeCloseTo(1 + LAST_STAND_SPEED_BONUS, 12);
+      expect(p.speedMult(9999, fighter(), [])).toBeCloseTo(1 + LAST_STAND_SPEED_BONUS, 12);
+      expect(p.speedMult(10_000, fighter(), [])).toBe(1);
+      // Additive, not multiplicative: the stacks' 3 buff stacks first, then the same added speed.
+      const stacked = fighter({ stacksMs: 3 });
+      const base = buffMultiplier("moveSpeed", 3);
+      expect(p.speedMult(6000, stacked, [])).toBeCloseTo(base * hasteMultiplier(base, LAST_STAND_SPEED_BONUS), 12);
+      expect(p.speedMult(6000, stacked, [])).toBeCloseTo(base + LAST_STAND_SPEED_BONUS, 12);
+    });
+
+    it("rides on a kill's burst too, and the chill still multiplies the sum", () => {
+      const p = new LocalPrediction();
+      const me = fighter({ stacksAs: 3, sig: SIG_CHILLED });
+      p.noteFx({ kind: "death", id: "foe", x: 0, y: 0, by: ME, t: 5000 }, ME, me);
+      p.noteFx(status(5000, "haste", 5000), ME, me);
+      expect(p.speedMult(5100, me, [])).toBeCloseTo(2.5 + LAST_STAND_SPEED_BONUS, 12);
+      expect(p.speedMult(5100, me, [other()])).toBeCloseTo((2.5 + LAST_STAND_SPEED_BONUS) * CHILL_MOVE_MULT, 12);
+    });
+
+    it("the synced bit stands in when no fx told of it, and is not trusted past an fx's end", () => {
+      const p = new LocalPrediction();
+      expect(p.speedMult(100, fighter({ effects: EFFECT_HASTE }), [])).toBeCloseTo(1 + LAST_STAND_SPEED_BONUS, 12);
+      const q = new LocalPrediction();
+      q.noteFx(status(5000, "haste", 5000), ME, fighter());
+      expect(q.speedMult(10_100, fighter({ effects: EFFECT_HASTE }), [])).toBe(1);
+    });
+  });
+
+  it("holds the model still while rooted and lets it walk on afterwards (the walk in hand is kept)", () => {
+    const p = new LocalPrediction();
+    const tiles = new Uint8Array(60 * 20).fill(TILE_FLOOR);
+    for (let x = 0; x < 60; x++) { tiles[x] = TILE_WALL; tiles[19 * 60 + x] = TILE_WALL; }
+    for (let y = 0; y < 20; y++) { tiles[y * 60] = TILE_WALL; tiles[y * 60 + 59] = TILE_WALL; }
+    const map = mapFromTiles(60, 20, tiles);
+    p.motion.observe({ x: 300, y: 300, t: 0, moveSeq: 0 }, 0);
+    p.motion.frame(0, 16, p.frameInput(0, true, fighter(), [], false));
+    p.motion.order("move", p.nextSeq(), 0, { x: 1500, y: 300 }, map);
+    let c = 0;
+    const step = (ms: number) => { for (const end = c + ms; c < end; ) { c += 10; p.motion.frame(c, 10, p.frameInput(c, true, fighter(), [], false)); } };
+    step(100);
+    const x1 = p.motion.predicted.x;
+    expect(x1).toBeGreaterThan(300 + PLAYER_SPEED * 0.09);
+    p.noteCast(c, { castMs: 300 });
+    step(250);
+    expect(p.motion.predicted.x).toBeCloseTo(x1, 6);
+    step(500);
+    expect(p.motion.predicted.x).toBeGreaterThan(x1 + PLAYER_SPEED * 0.2);
   });
 });
