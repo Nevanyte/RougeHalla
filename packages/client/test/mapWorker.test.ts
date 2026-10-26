@@ -150,6 +150,101 @@ describe("the map loader with its worker", () => {
     warn.mockRestore();
   });
 
+  /** A worker that takes every request and never answers. */
+  function silentWorker(): MapWorkerHandle & { terminated: boolean; posted: MapWorkerIn[] } {
+    const w: MapWorkerHandle & { terminated: boolean; posted: MapWorkerIn[] } = {
+      onmessage: null, onerror: null, terminated: false, posted: [],
+      postMessage: (m) => { w.posted.push(m); },
+      terminate: () => { w.terminated = true; },
+    };
+    return w;
+  }
+
+  it("a worker that never answers is dropped after the request timeout; what it owed and every later map is built on the page's thread", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const w = silentWorker();
+      const loader = new MapLoader({ spawn: () => w, requestTimeoutMs: 5000 });
+      const first = loader.mapFor(GOOD.seed, GOOD.attempt);
+      await vi.advanceTimersByTimeAsync(2000);
+      const second = loader.mapFor(OTHER.seed, OTHER.attempt); // its own clock starts at its own post
+      expect(w.posted).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(loader.usingWorker).toBe(true);
+      expect(w.terminated).toBe(false);
+      await vi.advanceTimersByTimeAsync(2); // the first request is 5001 ms old
+      expect(w.terminated).toBe(true);
+      expect(loader.usingWorker).toBe(false);
+      expect(await first).toEqual(ref(GOOD.seed, GOOD.attempt));
+      expect(await second).toEqual(ref(OTHER.seed, OTHER.attempt)); // the second one's own timer is gone: it is not left to time out
+      // Later requests never reach the dead worker.
+      const later = loader.mapFor(BAD.seed, BAD.attempt);
+      later.catch(() => {});
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(later).rejects.toThrow(/does not certify/);
+      expect(w.posted).toHaveLength(2);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("a worker that answers in time leaves no timer behind", async () => {
+    const w = await InProcessWorker.create();
+    vi.useFakeTimers();
+    try {
+      const loader = new MapLoader({ spawn: () => w, requestTimeoutMs: 5000 });
+      const made = loader.mapFor(GOOD.seed, GOOD.attempt);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(await made).toEqual(ref(GOOD.seed, GOOD.attempt));
+      expect(loader.usingWorker).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a reply the page cannot read (messageerror) drops the worker like a crash", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const w = silentWorker();
+      const loader = new MapLoader({ spawn: () => w });
+      const owed = loader.mapFor(GOOD.seed, GOOD.attempt);
+      expect(w.onmessageerror).toBeTypeOf("function");
+      w.onmessageerror!(new Event("messageerror") as MessageEvent);
+      expect(w.terminated).toBe(true);
+      expect(loader.usingWorker).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await owed).toEqual(ref(GOOD.seed, GOOD.attempt));
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("a worker whose postMessage throws is dropped, and the request is built here", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const w = silentWorker();
+      w.postMessage = () => { throw new Error("DataCloneError"); };
+      const loader = new MapLoader({ spawn: () => w });
+      const made = loader.mapFor(GOOD.seed, GOOD.attempt);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await made).toEqual(ref(GOOD.seed, GOOD.attempt));
+      expect(loader.usingWorker).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("a spawn that throws means no worker, not a broken page", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const loader = new MapLoader({ spawn: () => { throw new Error("blocked by CSP"); } });

@@ -234,7 +234,6 @@ export function runMobDuel(spec: MobDuelSpec): MobDuelResult {
     const mobFacing = v.facing === "toward" ? toPlayer : v.facing === "side" ? toPlayer + Math.PI / 2 : toPlayer + Math.PI;
 
     const world = createGameWorld({
-      seed: spec.seed,
       random: mulberry32(spec.seed + 1),
       config: {
         minPlayers: 1, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER_SECONDS, patienceMinSeconds: NEVER_SECONDS,

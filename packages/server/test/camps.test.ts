@@ -291,8 +291,8 @@ describe("worlds with no camps", () => {
 
   it("a hand-built map publishes no camps and draws nothing", () => {
     const map = mapFromTiles(8, 8, new Uint8Array(64));
-    const a = createWorld({ seed: 1, config: BASE, random: mulberry32(1), rewardSalt: 4, map });
-    const b = createWorld({ seed: 1, config: BASE, random: mulberry32(1), rewardSalt: 4, map });
+    const a = createWorld({ config: BASE, random: mulberry32(1), rewardSalt: 4, map });
+    const b = createWorld({ config: BASE, random: mulberry32(1), rewardSalt: 4, map });
     rollRosters(a);
     ensureRosters(a);
     expect(a.state.camps.length).toBe(0);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  AIM_STALE_MS, FACTION_IDS, FACTIONS, generateMap, GV_WIN, isWallAt, MAX_PLAYERS, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS,
+  AIM_STALE_MS, certifiedMap, FACTION_IDS, FACTIONS, generateMap, GV_WIN, isWallAt, mapHashU32, MAX_PLAYERS, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS,
   PLAYER_SPEED, SIGNATURE_WEAPONS, TICK_MS, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, wrapAngle, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -167,6 +167,26 @@ describe("createWorld / addPlayer", () => {
       expect(w.map.seed).toBe(w.state.seed);
       expect(w.map).toEqual(generateMap(w.state.seed));
     }
+  });
+
+  it("publishes the seed of the map it is given, so (seed, attempt) always rebuilds that map; a seed that disagrees throws", () => {
+    // Seed 32 certifies at attempt 1 (shared/test/mapPins.ts): a published seed alone would rebuild another map.
+    const map = certifiedMap(32, { decor: false })!;
+    expect(map.attempt).toBe(1);
+    const cfg = makeConfig();
+    const w = createWorld({ map, config: cfg, random: mulberry32(1) });
+    expect(w.state.seed).toBe(32);
+    expect(w.state.attempt).toBe(1);
+    expect(w.state.mapHash).toBe(mapHashU32(map));
+    expect(generateMap(w.state.seed, w.state.attempt, { decor: false })).toEqual(w.map);
+    // Spelling the same seed out is fine (as unsigned, like the state's); another one is a bug, not a choice.
+    expect(createWorld({ seed: 32, map, config: cfg, random: mulberry32(1) }).state.seed).toBe(32);
+    expect(createGameWorld({ seed: 32 + 2 ** 32, map, config: cfg, random: mulberry32(1) }).state.seed).toBe(32);
+    expect(() => createWorld({ seed: 33, map, config: cfg, random: mulberry32(1) })).toThrow(/seed 33 does not match the map's seed 32/);
+    expect(() => createGameWorld({ seed: 1234, map, config: cfg, random: mulberry32(1) })).toThrow(/does not match the map's seed/);
+    // Without a map the seed is needed, and builds the map as ever.
+    expect(() => createWorld({ config: cfg, random: mulberry32(1) })).toThrow(/needs a seed or a map/);
+    expect(createWorld({ seed: 32, config: cfg, random: mulberry32(1) }).map).toEqual(generateMap(32));
   });
 
   it("registers synced state and server-only runtime for a joining player", () => {

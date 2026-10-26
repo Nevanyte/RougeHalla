@@ -5,15 +5,20 @@
 // One worker per process (mapWorker.ts) holds its own lane tables and certifies fresh crypto-random seeds with
 // `certifiedMap`, one request per map, so it works only while the queue is short: an idle server costs nothing. A
 // certified map comes back whole by structured clone (about 52 KB serialized, 85 KB in memory, 0.2 ms to clone), so the
-// main thread never generates a map it was handed. Its hash is checked again on arrival: what the pool serves is exactly
-// the certified (seed, attempt) a client rebuilds with `generateMap(seed, attempt)`.
+// main thread never generates a map it was handed, together with its spawn walks (spawnWalks, 4 ms of path searches the
+// planning deal needs: primed into the map's cache on arrival, so no tick pays for them). Its hash is checked again on
+// arrival: what the pool serves is exactly the certified (seed, attempt) a client rebuilds with `generateMap(seed, attempt)`.
 //
 // An empty queue (a burst, a worker that is down or still warming) falls back to one synchronous `certifiedMap` on the
 // main thread, logged. A worker that crashes is restarted with backoff and never takes a room down: the fallback covers
-// the gap.
+// the gap. A worker that keeps sending maps that fail the arrival check is treated as a crash too (restarted with the same
+// backoff), so a broken one cannot spin a core and fill the log.
+//
+// Training rooms do not need a map of their own: takeForTraining() serves a copy of one of the last few maps handed out,
+// so a burst of training entries drains the pool by at most one map (and a pool that is down certifies at most one).
 import { randomInt } from "node:crypto";
 import { Worker } from "node:worker_threads";
-import { certifiedMap, mapHashU32, warmMapgen, type GameMap } from "@raid/shared";
+import { certifiedMap, mapHashU32, primeSpawnWalks, warmMapgen, type GameMap } from "@raid/shared";
 
 /** Maps the queue holds when full: a burst of this many rooms never waits. The worker refills 8 in about 0.3 s. */
 export const MAP_POOL_TARGET = 8;
@@ -26,10 +31,22 @@ export const MAP_WORKER_RESTART_MAX_MS = 60_000;
 export const SERVER_MAPGEN = { decor: false } as const;
 /** Fresh seeds the in-process fallback tries before it gives up (a seed is discarded about 0 times in 1000). */
 export const MAP_FALLBACK_SEEDS = 8;
+/** Maps handed out that a training room may copy: the last this many. A training entry never takes one of its own unless none exists yet. */
+export const MAP_RECENT_KEEP = 4;
+/** Maps in a row that fail the arrival check before the worker counts as crashed (restart with backoff). One bad map is a blip, not a crash. */
+export const MAP_REJECT_LIMIT = 3;
+/** How long stop() waits for the worker thread to end before it lets go of it (a stalled terminate must not hold the shutdown). */
+export const MAP_WORKER_STOP_MS = 2_000;
 
 /** Where a room gets its map. Synchronous, so onAuth/onJoin stay synchronous. */
 export interface MapSource {
+  /** A certified map no other world holds: an arena room's. */
   take(): GameMap;
+  /**
+   * A map for a training room, which has no use for a fresh seed: a copy of a recently handed-out map when there is one
+   * (never the object another world holds), else a taken one. A burst of training rooms costs the pool at most one map.
+   */
+  takeForTraining(): GameMap;
 }
 
 /** Main thread to worker. */
@@ -41,7 +58,8 @@ export interface MapWorkerRequest {
 /** Worker to main thread. */
 export type MapWorkerReply =
   | { kind: "ready"; warmMs: number }
-  | { kind: "map"; seed: number; attempt: number; hash: number; map: GameMap; ms: number }
+  /** `walks` is spawnWalks(map), computed on the worker so the main thread's planning tick does not (primeSpawnWalks). */
+  | { kind: "map"; seed: number; attempt: number; hash: number; map: GameMap; walks?: readonly number[]; ms: number }
   | { kind: "discard"; seed: number; ms: number }
   /** The generator threw: a bug, not a failed attempt. The pool restarts the worker rather than feed it more seeds. */
   | { kind: "error"; seed: number; message: string };
@@ -69,6 +87,8 @@ export interface MapPoolOptions {
   warmMain?: boolean;
   restartMs?: number;
   restartMaxMs?: number;
+  /** How long stop() waits for the worker to terminate (MAP_WORKER_STOP_MS). */
+  stopTimeoutMs?: number;
   log?: (line: string) => void;
   /** Worker deaths (console.error by default). */
   warn?: (line: string) => void;
@@ -85,6 +105,8 @@ export interface MapPoolStats {
   crashes: number;
   /** Maps from the worker that failed the arrival check (never served). */
   rejected: number;
+  /** Training rooms given a copy of a recent map instead of a pool map. */
+  reused: number;
   /** Main-thread time spent in fallbacks, ms. */
   fallbackMs: number;
 }
@@ -105,13 +127,21 @@ export function spawnMapWorker(): MapWorkerLike {
 export class MapPool implements MapSource {
   readonly target: number;
   readonly refillAt: number;
-  readonly stats: MapPoolStats = { served: 0, fallbacks: 0, discards: 0, crashes: 0, rejected: 0, fallbackMs: 0 };
+  readonly stats: MapPoolStats = { served: 0, fallbacks: 0, discards: 0, crashes: 0, rejected: 0, reused: 0, fallbackMs: 0 };
   private readonly queue: GameMap[] = [];
+  /**
+   * The last MAP_RECENT_KEEP maps handed out by take(), oldest first. Only ever copied from (the maps are read-only, map.ts),
+   * never handed out again: the world that took one holds it alone.
+   */
+  private readonly recent: GameMap[] = [];
+  private trainingCursor = 0;
   private worker: MapWorkerLike | null = null;
   /** Requests sent to the current worker and not answered yet. */
   private inFlight = 0;
   /** Worker deaths since its last certified map: the backoff's exponent. */
   private crashStreak = 0;
+  /** Maps in a row from the current worker that failed the arrival check. */
+  private rejectStreak = 0;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
   private started = false;
   private mainWarmMs = 0;
@@ -123,6 +153,7 @@ export class MapPool implements MapSource {
   private readonly warmMain: boolean;
   private readonly restartMs: number;
   private readonly restartMaxMs: number;
+  private readonly stopTimeoutMs: number;
   private readonly log: (line: string) => void;
   private readonly warn: (line: string) => void;
 
@@ -135,6 +166,7 @@ export class MapPool implements MapSource {
     this.warmMain = opts.warmMain ?? true;
     this.restartMs = opts.restartMs ?? MAP_WORKER_RESTART_MS;
     this.restartMaxMs = opts.restartMaxMs ?? MAP_WORKER_RESTART_MAX_MS;
+    this.stopTimeoutMs = opts.stopTimeoutMs ?? MAP_WORKER_STOP_MS;
     this.log = opts.log ?? ((line) => console.log(line));
     this.warn = opts.warn ?? ((line) => console.error(line));
   }
@@ -171,9 +203,21 @@ export class MapPool implements MapSource {
     if (map) {
       this.stats.served++;
       this.refill();
-      return map;
+      return this.noteHandedOut(map);
     }
-    return this.fallback();
+    return this.noteHandedOut(this.fallback());
+  }
+
+  /**
+   * A map for a training room (a one-player practice room has no use for a seed of its own): a copy of one of the last
+   * MAP_RECENT_KEEP maps handed out, in turn, so a burst of training entries takes nothing from the queue. A structured clone
+   * (0.2 ms), so no two worlds ever hold one object. With nothing handed out yet it is take(), and the next ones copy that.
+   */
+  takeForTraining(): GameMap {
+    const n = this.recent.length;
+    if (n === 0) return this.take();
+    this.stats.reused++;
+    return structuredClone(this.recent[this.trainingCursor++ % n]!);
   }
 
   /** Resolves once the queue holds `n` maps (default: full), or at stop. For tests and benches. */
@@ -182,7 +226,10 @@ export class MapPool implements MapSource {
     return new Promise((resolve) => this.waiters.push({ n, resolve }));
   }
 
-  /** Terminates the worker and cancels a pending restart. The queue is dropped. Idempotent. */
+  /**
+   * Terminates the worker and cancels a pending restart. The queue is dropped. Idempotent. Waits for the thread to end for
+   * at most `stopTimeoutMs` and never throws: a terminate that stalls must not hold up whatever shuts down after the pool.
+   */
   async stop(): Promise<void> {
     if (this.stopped) return;
     this.stopped = true;
@@ -192,8 +239,35 @@ export class MapPool implements MapSource {
     this.worker = null;
     this.inFlight = 0;
     this.queue.length = 0;
+    this.recent.length = 0;
     for (const w2 of this.waiters.splice(0)) w2.resolve();
-    if (w) await w.terminate();
+    if (!w) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<boolean>((resolve) => {
+      timer = setTimeout(() => resolve(true), this.stopTimeoutMs);
+    });
+    if (await Promise.race([this.end(w).then(() => false), timedOut])) this.warn(`[maps] map worker did not end within ${this.stopTimeoutMs} ms; not waiting for it`);
+    clearTimeout(timer);
+  }
+
+  private noteHandedOut(map: GameMap): GameMap {
+    this.recent.push(map);
+    if (this.recent.length > MAP_RECENT_KEEP) this.recent.shift();
+    return map;
+  }
+
+  /** terminate(), started now; settles when the thread is gone, whether or not that went well. */
+  private end(w: MapWorkerLike): Promise<void> {
+    try {
+      return Promise.resolve(w.terminate()).then(() => {}, () => {});
+    } catch {
+      return Promise.resolve();
+    }
+  }
+
+  /** Ends a worker without waiting for it (it is already replaced or dead as far as the pool is concerned). */
+  private discard(w: MapWorkerLike): void {
+    void this.end(w);
   }
 
   private fallback(): GameMap {
@@ -230,6 +304,7 @@ export class MapPool implements MapSource {
     }
     this.worker = w;
     this.inFlight = 0;
+    this.rejectStreak = 0;
     // The pool never keeps the process alive: a server that is done exits even if nobody stopped it.
     w.unref?.();
     w.on("message", (msg: MapWorkerReply) => this.onReply(w, msg));
@@ -251,9 +326,20 @@ export class MapPool implements MapSource {
         // (or is not the pair it claims) is never served.
         if (map?.seed !== msg.seed || map.attempt !== msg.attempt || mapHashU32(map) !== msg.hash) {
           this.stats.rejected++;
+          this.rejectStreak++;
           this.log(`[maps] dropped worker map for seed ${msg.seed} attempt ${msg.attempt}: it does not match its hash`);
+          // A worker that cannot send a good map is as broken as one that crashes: restart it with the crash backoff,
+          // instead of refilling at once for as long as it keeps answering (a core spun and a line logged every ~35 ms).
+          if (this.rejectStreak >= MAP_REJECT_LIMIT) {
+            this.workerDied(w, `sent ${this.rejectStreak} maps in a row that fail the arrival check`);
+            this.discard(w);
+            return;
+          }
         } else {
           this.crashStreak = 0;
+          this.rejectStreak = 0;
+          // The walks are the worker's word, like the map's other fields past the hash: they only feed the planning deal.
+          if (msg.walks) primeSpawnWalks(map, msg.walks);
           this.queue.push(map);
           this.wake();
         }
@@ -268,7 +354,7 @@ export class MapPool implements MapSource {
         return;
       case "error":
         this.workerDied(w, `generator error on seed ${msg.seed}: ${msg.message}`);
-        void w.terminate();
+        this.discard(w);
         return;
     }
   }

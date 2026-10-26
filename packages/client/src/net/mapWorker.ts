@@ -4,8 +4,9 @@
 //   - at app boot, once the hub is up (warmWhenIdle), it builds the tables and runs one throwaway attempt (about 130 ms);
 //   - when a room is joined, mapFor(seed, attempt) asks it for that map, which comes back with its tile layers moved,
 //     not copied.
-// Where there is no worker (tests, an old browser, a worker that failed to load or crashed) the same call builds the map
-// on this thread instead, so nothing else changes. One map per (seed, attempt): every consumer of a room gets the same object.
+// Where there is no worker (tests, an old browser, a worker that failed to load, crashed, sent a message the page could not
+// read, or did not answer a request within REQUEST_TIMEOUT_MS) the same call builds the map on this thread instead, so
+// nothing else changes. One map per (seed, attempt): every consumer of a room gets the same object.
 import { generateMap, type GameMap } from "@raid/shared";
 import type { MapWorkerIn, MapWorkerOut } from "./mapWorkerProtocol";
 
@@ -14,8 +15,13 @@ export interface MapWorkerHandle {
   postMessage(msg: MapWorkerIn): void;
   onmessage: ((e: MessageEvent<MapWorkerOut>) => void) | null;
   onerror: ((e: Event) => void) | null;
+  /** A reply the page could not deserialize. */
+  onmessageerror?: ((e: MessageEvent) => void) | null;
   terminate(): void;
 }
+
+/** A request the worker has not answered by then marks it failed (a cold attempt takes ~0.1 s; a stalled worker never answers). */
+export const REQUEST_TIMEOUT_MS = 5_000;
 
 export interface MapLoaderOptions {
   /** Starts the worker; null when there is none. Default: the module worker in mapWorkerEntry.ts, if Worker exists. */
@@ -24,6 +30,8 @@ export interface MapLoaderOptions {
   build?: (seed: number, attempt: number) => GameMap;
   /** Maps kept by (seed, attempt). The room being joined, and the one before it for a quick way back. */
   cacheSize?: number;
+  /** How long a request waits for the worker before the worker is dropped and the map built here (REQUEST_TIMEOUT_MS). */
+  requestTimeoutMs?: number;
 }
 
 /** The module worker, as Vite bundles it (the `new Worker(new URL(...))` form must stay literal for that). */
@@ -37,12 +45,14 @@ interface Pending {
   attempt: number;
   resolve: (map: GameMap) => void;
   reject: (err: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
 }
 
 export class MapLoader {
   private readonly spawn: () => MapWorkerHandle | null;
   private readonly build: (seed: number, attempt: number) => GameMap;
   private readonly cacheSize: number;
+  private readonly requestTimeoutMs: number;
   private worker: MapWorkerHandle | null = null;
   /** No worker can be had (none in this environment, or one failed): everything is built on this thread. */
   private noWorker = false;
@@ -56,6 +66,7 @@ export class MapLoader {
     this.spawn = opts.spawn ?? spawnMapWorker;
     this.build = opts.build ?? ((seed, attempt) => generateMap(seed, attempt));
     this.cacheSize = Math.max(1, opts.cacheSize ?? 2);
+    this.requestTimeoutMs = Math.max(1, opts.requestTimeoutMs ?? REQUEST_TIMEOUT_MS);
   }
 
   /** True while maps are built on a worker. */
@@ -98,8 +109,15 @@ export class MapLoader {
     if (!w) return this.inThread(seed, attempt);
     return new Promise((resolve, reject) => {
       const id = this.nextId++;
-      this.pending.set(id, { seed, attempt, resolve, reject });
-      w.postMessage({ kind: "map", id, seed, attempt });
+      // A worker that never answers (it hung, or died without an error event) must not leave the join waiting for ever:
+      // past the timeout it is dropped like one that crashed, and this request and every later one are built here.
+      const timer = setTimeout(() => this.workerFailed(w, `no answer to a request within ${this.requestTimeoutMs} ms`), this.requestTimeoutMs);
+      this.pending.set(id, { seed, attempt, resolve, reject, timer });
+      try {
+        w.postMessage({ kind: "map", id, seed, attempt });
+      } catch (err) {
+        this.workerFailed(w, err);
+      }
     });
   }
 
@@ -130,6 +148,7 @@ export class MapLoader {
     }
     w.onmessage = (e) => this.onReply(w, e.data);
     w.onerror = (e) => this.workerFailed(w, e);
+    w.onmessageerror = (e) => this.workerFailed(w, e);
     this.worker = w;
     return w;
   }
@@ -143,11 +162,12 @@ export class MapLoader {
     const p = this.pending.get(msg.id);
     if (!p) return;
     this.pending.delete(msg.id);
+    clearTimeout(p.timer);
     if (msg.kind === "map") p.resolve(msg.map);
     else p.reject(new Error(msg.message));
   }
 
-  /** A worker that fails (it did not load, or it crashed) is dropped for good; what it owed is built here instead. */
+  /** A worker that fails (it did not load, crashed, sent an unreadable message or stopped answering) is dropped for good; what it owed is built here instead. */
   private workerFailed(w: MapWorkerHandle, why: unknown): void {
     if (w !== this.worker) return;
     console.warn("[maps] the map worker failed; maps are built on the page's thread from now on", why);
@@ -156,7 +176,10 @@ export class MapLoader {
     try { w.terminate(); } catch { /* already gone */ }
     const owed = [...this.pending.values()];
     this.pending.clear();
-    for (const p of owed) this.inThread(p.seed, p.attempt).then(p.resolve, p.reject);
+    for (const p of owed) {
+      clearTimeout(p.timer);
+      this.inThread(p.seed, p.attempt).then(p.resolve, p.reject);
+    }
   }
 }
 

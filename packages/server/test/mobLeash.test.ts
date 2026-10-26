@@ -71,7 +71,7 @@ function makeRig(map: GameMap, region: FactionId, camp: number | null = 0): Rig 
   const config: SimConfig = {
     minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60,
   };
-  const world = createGameWorld({ seed: 7, config, random: mulberry32(99), map });
+  const world = createGameWorld({ config, random: mulberry32(99), map });
   addPlayer(world, "p0", "player0");
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");

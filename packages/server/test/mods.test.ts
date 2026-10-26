@@ -43,7 +43,6 @@ function openMap(): GameMap {
 function startRun(n: number, opts: { signatures?: boolean; seed?: number } = {}): World {
   const seed = opts.seed ?? 77;
   const world = createGameWorld({
-    seed,
     config: { minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
     random: mulberry32(seed + 1),
     map: openMap(),
@@ -331,7 +330,7 @@ describe("mod sources (world.modSources)", () => {
 
 describe("world.rewardRandom", () => {
   const make = (rewardSalt?: number | readonly number[]): World =>
-    createWorld({ seed: 5, config: { minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: 60, patienceMinSeconds: 60, suddenDeathSeconds: 10 },
+    createWorld({ config: { minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: 60, patienceMinSeconds: 60, suddenDeathSeconds: 10 },
       random: mulberry32(1234), map: openMap(), rewardSalt });
   const draws = (rng: () => number, n: number): number[] => Array.from({ length: n }, rng);
 
@@ -378,7 +377,7 @@ describe("world.rewardRandom", () => {
   });
 
   it("createGameWorld passes the salt through", () => {
-    const opts = { seed: 5, config: { minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: 60, patienceMinSeconds: 60, suddenDeathSeconds: 10 }, map: openMap() };
+    const opts = { config: { minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: 60, patienceMinSeconds: 60, suddenDeathSeconds: 10 }, map: openMap() };
     const a = createGameWorld({ ...opts, random: mulberry32(1), rewardSalt: 99 });
     const b = createWorld({ ...opts, random: mulberry32(1), rewardSalt: 99 });
     expect(draws(a.rewardRandom, 4)).toEqual(draws(b.rewardRandom, 4));

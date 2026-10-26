@@ -165,6 +165,9 @@ every 10th):
 | plain | 1000..1999 | 0 | 0 | 464.4 u | 479.4 u | 1.167 / 1.187 / 1.197 |
 | demo hook | 2000..2199 | 0 | 0 | 454.6 u | 479.4 u | 1.161 / 1.178 / 1.184 |
 
+The walk ratio maxima are those of the seeds swept (0..2199). A later review found 1.202 on seed 5920, just over the
+owner's 1.2 target (report-only; it is not a certification check), so 1.198 is not a bound over all seeds.
+
 Also from the plain sweeps:
 - sealed coliseum lane 418 u;
 - floor share max 1.064;
@@ -178,8 +181,12 @@ With the demo hook, 3.2% of pool members' routes to the centre cross any hazard 
 report-only, per the zone-terrain contract 0.8.
 
 **R3 deal** on 200 R2 maps (server `dealSpawns`): for 2 to 8 players, every dealt spawn is in one walking tier on 100% of
-maps (the wedge maps gave 95.8% at 8 players). There are no same-zone pairs and no shared spawns, and a deal takes under
-0.9 ms. `spawnWalks` costs 3.5 ms per map (30 paths). The whole pool fits in one findPath tier on 147 of 200 maps.
+maps (the wedge maps gave 95.8% at 8 players). There are no same-zone pairs and no shared spawns. With the walks cached, a
+deal at 8 players takes 0.3 ms at p50, 2.5 ms at p90 and about 7 ms at p99 (mean 0.85 ms). `spawnWalks` costs about 4 ms
+per map (30 paths; 16 ms for the first call in a process), so the map worker computes it after certifying and ships it with
+the map (`primeSpawnWalks`), and the room build computes it for a map certified on the main thread: the planning-start tick
+at 8 players (200 maps) went from a mean of 6.1 ms (p50 4.9) to a mean of 0.8 ms (p50 0.4, p99 5.4). The whole pool fits in
+one findPath tier on 147 of 200 maps.
 
 **Tests** (`packages/shared`, 1023 tests, about 13 s wall):
 - the 200-seed certification in 8 shards, about 5 s, with pinned hashes (`test/mapPins.ts`, recorded in another

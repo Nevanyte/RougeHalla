@@ -454,7 +454,12 @@ export interface World {
 }
 
 export function createWorld(opts: {
-  seed: number;
+  /**
+   * The public seed. Required without a `map` (the map is generated from it). With a map, the map's own seed is what is
+   * published (with its attempt and hash, so a client rebuilds exactly this map), and a `seed` given as well must equal it:
+   * a mismatch throws, since a client would then regenerate a different map than the one played on.
+   */
+  seed?: number;
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
@@ -470,7 +475,12 @@ export function createWorld(opts: {
   rewardSalt?: number | readonly number[];
 }): World {
   const state = new RaidState();
-  state.seed = opts.seed >>> 0;
+  const given = opts.seed === undefined ? undefined : opts.seed >>> 0;
+  if (opts.map && given !== undefined && given !== opts.map.seed >>> 0) {
+    throw new Error(`createWorld: seed ${given} does not match the map's seed ${opts.map.seed >>> 0}`);
+  }
+  if (!opts.map && given === undefined) throw new Error("createWorld: needs a seed or a map");
+  state.seed = opts.map ? opts.map.seed >>> 0 : given!;
   state.minPlayers = opts.config.minPlayers;
   // The only draw from opts.random here: tests script that stream, so the reward stream must not take from it.
   const orderSalt = Math.floor(opts.random() * 2 ** 32) >>> 0;

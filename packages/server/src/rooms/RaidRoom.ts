@@ -10,7 +10,7 @@
 import { randomBytes } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
+  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
   type FactionId, type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -226,10 +226,14 @@ export class RaidRoom extends Room<{ state: RaidState }> {
 
   private buildWorld(): World {
     const { config, maps } = RaidRoom.ctx;
-    // Synchronous: a certified map made ahead on the pool's worker (an empty pool certifies one here, logged).
-    const map = maps.take();
+    // Synchronous: a certified map made ahead on the pool's worker (an empty pool certifies one here, logged). A training
+    // room needs no seed of its own: it gets a copy of a recent map, so a burst of practice rooms does not drain the pool.
+    const map = this.training ? maps.takeForTraining() : maps.take();
+    // The planning deal reads the spawn walks (a pooled map arrives with them; a map certified here does not). Worked out now,
+    // as the room is built, so no later tick pays for them: the planning start is a tick with every player in it.
+    if (!this.training) spawnWalks(map);
     const world = createGameWorld({
-      seed: map.seed,
+      // The seed is the map's own (createWorld): what is published always rebuilds this map.
       map,
       // Training never plans: its one player is in the run the moment they join.
       config: this.training ? { ...config, dummies: true, training: true, planSeconds: 0 } : config,

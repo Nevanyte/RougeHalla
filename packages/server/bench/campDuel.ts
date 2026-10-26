@@ -101,7 +101,6 @@ export function runCampDuel(spec: CampDuelSpec): CampDuelResult {
   const start: Vec2 = { x: CENTER + Math.cos(v.angle) * v.distance, y: CENTER + Math.sin(v.angle) * v.distance };
 
   const world = createGameWorld({
-    seed: spec.seed,
     random: mulberry32(spec.seed + 1),
     config: {
       minPlayers: 1, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER, patienceMinSeconds: NEVER, suddenDeathSeconds: NEVER, mobs: false,

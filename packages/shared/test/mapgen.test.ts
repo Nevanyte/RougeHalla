@@ -10,7 +10,7 @@ import {
   certifiedMap, generateMap, longestLane, mapHash, tryAttempt,
 } from "../src/mapgen";
 import type { ZoneStyleHook } from "../src/mapgen";
-import { TERRAIN_LAVA } from "../src/terrain";
+import { PROP_KINDS, TERRAIN_LAVA, type PropKindSpec } from "../src/terrain";
 import { mulberry32, randInt } from "../src/rng";
 import { WEAPONS } from "../src/weapons";
 import {
@@ -329,18 +329,54 @@ describe("styler hook", () => {
     expect(calls).toBeGreaterThanOrEqual(1);
   });
 
+  /**
+   * PROP_KINDS ships empty, so the generator drops every prop a hook draws (terrain.ts): to see props at all, register one
+   * floor kind for the duration of `fn` and take it out again.
+   */
+  const withPropKind = <T>(fn: () => T): T => {
+    const kinds = PROP_KINDS as PropKindSpec[];
+    expect(kinds).toHaveLength(0);
+    kinds.push({ key: "test-stone", on: TILE_FLOOR, home: null });
+    try {
+      return fn();
+    } finally {
+      kinds.pop();
+    }
+  };
+
   it("builds every hashed layer the same with decor off (the server and bots), with no props; the hook is told", () => {
     const told: boolean[] = [];
     const hook: ZoneStyleHook = (st) => { told.push(st.decor); demoStyleHook(st); };
-    for (const s of seeds(4)) {
-      const on = generateMap(s, undefined, { styleZones: hook });
-      const off = generateMap(s, on.attempt, { styleZones: hook, decor: false });
-      expect(mapHash(off), `seed ${s}`).toBe(mapHash(on));
-      expect({ ...off, props: [] }, `seed ${s}`).toEqual({ ...on, props: [] });
-      expect(off.props, `seed ${s}`).toEqual([]);
-      expect(certifiedMap(s, { decor: false }), `seed ${s}: no hook`).toEqual(mapFor(s));
-    }
+    let withProps = 0;
+    withPropKind(() => {
+      for (const s of seeds(4)) {
+        const on = generateMap(s, undefined, { styleZones: hook });
+        const off = generateMap(s, on.attempt, { styleZones: hook, decor: false });
+        // Not vacuous: the decor stream really put props on the decorated map.
+        if (on.props.length > 0) withProps++;
+        expect(on.props.length, `seed ${s}`).toBeGreaterThan(0);
+        expect(off.props, `seed ${s}`).toEqual([]);
+        // Only the props differ: the decor stream is a stream of its own, and the hash does not read them.
+        expect({ ...off, props: [] }, `seed ${s}`).toEqual({ ...on, props: [] });
+        expect(mapHash(off), `seed ${s}`).toBe(mapHash(on));
+      }
+    });
+    expect(withProps).toBeGreaterThanOrEqual(3);
     expect(told.includes(true) && told.includes(false)).toBe(true);
+    for (const s of seeds(4)) expect(certifiedMap(s, { decor: false }), `seed ${s}: no hook`).toEqual(mapFor(s));
+  });
+
+  it("a prop changes nothing the hash reads: add, move or drop the props of a map that has some", () => {
+    withPropKind(() => {
+      const base = generateMap(1, undefined, { styleZones: demoStyleHook });
+      expect(base.props.length).toBeGreaterThan(0);
+      const h = mapHash(base);
+      const more = structuredClone(base);
+      more.props.push({ kind: 0, x: 100, y: 100, v: 7 });
+      more.props[0] = { ...more.props[0], x: more.props[0].x + 5, v: (more.props[0].v + 1) & 255 };
+      expect(mapHash(more)).toBe(h);
+      expect(mapHash({ ...base, props: [] })).toBe(h);
+    });
   });
 
   it("throws when the hook breaks the contract", () => {

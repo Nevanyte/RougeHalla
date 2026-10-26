@@ -253,13 +253,15 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   });
   // Runs after every room is disposed (their onLeave handlers have settled), also on SIGINT/SIGTERM. The final flush,
   // then the profile file's lock goes, so the next server (a deploy, a tsx-watch restart) can take the file.
+  // The profiles go first: the pool's stop() is bounded, but nothing about a worker thread should ever sit in front of
+  // the final flush.
   server.onShutdown(async () => {
-    await maps.stop();
     try {
       await store.close();
     } catch (err) {
       console.error("[server] could not flush the profiles on shutdown:", err);
     }
+    await maps.stop();
   });
   if (config.latencyMs > 0) server.simulateLatency(config.latencyMs);
 
@@ -268,8 +270,11 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
     try {
       await server.gracefullyShutdown(false);
     } finally {
-      await maps.stop();
-      await store.close();
+      try {
+        await store.close();
+      } finally {
+        await maps.stop();
+      }
     }
   }
   return Object.assign(server, { store, profiles, maps, stop });

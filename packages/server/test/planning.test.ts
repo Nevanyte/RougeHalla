@@ -27,11 +27,11 @@ function makeWorld(seed: number, cfg: Partial<SimConfig> = {}, opts: { rewardSal
   let uid = 0;
   return createGameWorld({
     newItemUid: () => `i${++uid}`,
-    seed,
     config: { ...BASE, planSeconds: 3, ...cfg },
     random: opts.random ?? mulberry32(seed + 1),
     rewardSalt: opts.rewardSalt ?? seed * 31 + 7,
-    ...(opts.map ? { map: opts.map } : {}),
+    // A hand-built map brings its own seed (the world publishes the map's); a generated one is built from `seed`.
+    ...(opts.map ? { map: opts.map } : { seed }),
   });
 }
 
