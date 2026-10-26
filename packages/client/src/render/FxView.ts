@@ -61,6 +61,11 @@ const LAUNCH_NEAR = 56;
 
 /** Above every y-sorted entity (ground y is at most a few thousand) but below the click marker (1e6). */
 const DEPTH_FX = 8e5;
+/**
+ * Floating numbers and text sit just above every effect Graphics: Graphics and Text go through different Phaser batches, and at the
+ * same depth they interleave in the order the pool hands them out, flushing the batch at each switch.
+ */
+const DEPTH_FX_TEXT = DEPTH_FX + 1;
 
 const DECAL_COLOR = 0xd32f2f;
 const SWING_RIM = 0xffffff;
@@ -485,7 +490,7 @@ export class FxView {
     }
     const lane = this.lane++ % HIT_LANES;
     const text = this.acquireText(color, size);
-    text.setText(String(amount)).setDepth(DEPTH_FX).setPosition(projX(pos.x), projY(pos.y, HIT_START_HEIGHT));
+    text.setText(String(amount)).setDepth(DEPTH_FX_TEXT).setPosition(projX(pos.x), projY(pos.y, HIT_START_HEIGHT));
     this.active.push({
       kind: "number", g: null, text, start: now, duration: HIT_NUMBER_MS, id: fx.id, x: pos.x, y: pos.y,
       a: (lane - (HIT_LANES - 1) / 2) * HIT_LANE_PX,
@@ -618,7 +623,7 @@ export class FxView {
     if (!pos || !(amount >= MIN_HEAL_SHOWN)) return;
     const rounded = Math.round(amount);
     const text = this.acquireText(HEAL_COLOR, 14 + Math.min(6, Math.floor(rounded / 25)));
-    text.setText(`+${rounded}`).setDepth(DEPTH_FX).setPosition(projX(pos.x), projY(pos.y, HEAL_START_HEIGHT));
+    text.setText(`+${rounded}`).setDepth(DEPTH_FX_TEXT).setPosition(projX(pos.x), projY(pos.y, HEAL_START_HEIGHT));
     this.active.push({ kind: "heal", g: null, text, start: now, duration: HEAL_MS, id, x: pos.x, y: pos.y, a: 0 });
   }
 
@@ -710,7 +715,7 @@ export class FxView {
     if (!pos) return;
     const lift = (this.floatLane++ % FLOAT_LANES) * FLOAT_LANE_PX;
     const t = this.acquireText(color, 12);
-    t.setText(text).setDepth(DEPTH_FX).setPosition(projX(pos.x), projY(pos.y, FLOAT_START_HEIGHT + lift));
+    t.setText(text).setDepth(DEPTH_FX_TEXT).setPosition(projX(pos.x), projY(pos.y, FLOAT_START_HEIGHT + lift));
     this.active.push({ kind: "float", g: null, text: t, start: now, duration: FLOAT_MS, id, x: pos.x, y: pos.y, a: lift });
   }
 
