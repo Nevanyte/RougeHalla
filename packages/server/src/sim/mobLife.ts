@@ -150,6 +150,7 @@ export function killMob(
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
   emit(world, { type: "fx", fx: { kind: "death", id: c.id, x: c.s.x, y: c.s.y, by: killer } });
+  world.hooks.fighterOut?.(world, c.id, "down");
 
   const { elite, region } = brain;
   const weapon = c.s.weapon0;

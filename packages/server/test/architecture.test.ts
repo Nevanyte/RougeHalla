@@ -66,7 +66,8 @@ const WALL_LITERAL = /[!=]==?\s*TILE_WALL\b|\bTILE_WALL\s*[!=]==?/;
  * code does today. Map building and its checks (mapgen.ts, terrain.ts, zoneStyle/) and the map dumps (scripts/) mean "is a
  * wall tile" and sit outside the scanned set instead (they are not movement code). Add a file here only with the reason.
  */
-const WALL_LITERAL_ALLOWED: readonly string[] = [];
+// blink.ts compares the coliseum ring's tiles with the wall literal on purpose: the ring is wall, and the gates make it walls.
+const WALL_LITERAL_ALLOWED: readonly string[] = ["shared/src/blink.ts"];
 
 /** The shared movement modules. `blink.ts` joins when the tree has it. */
 const SHARED_MOVEMENT = ["pathfind", "geometry", "walk", "blink"].map((n) => join(PACKAGES, `shared/src/${n}.ts`));

@@ -1,5 +1,6 @@
 // Assembles a fully-featured world: base lifecycle (step.ts + arena.ts, which also run the combat phases) + every
 // gameplay module. Modules expose `install(world)` and register into world.actions / world.systems / world.hooks.
+import { install as installAbilities } from "./abilities";
 import { install as installBuffs } from "./buffs";
 import { install as installFactions } from "./factions";
 import { install as installFeed } from "./feed";
@@ -30,6 +31,7 @@ const MODULES: Array<(world: World) => void> = [
   // Terrain hazards: after the signatures (burn joins the ledger behind their entries) and the faction layer's afterDamage
   // (light heals once this tick's combat clock is stamped), before the stat mirrors.
   installTerrain,
+  installAbilities,
   // Last: its system folds the stat mirrors once every other system of the tick has run.
   installMods,
 ];

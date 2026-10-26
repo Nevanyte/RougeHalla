@@ -945,6 +945,8 @@ describe("killMob: rewards", () => {
       w.combat.collecting = true;
       hurt(w, m, ["p0", m.s.hp]);
       RT(w, 0).resolved = true;
+      // As applyLedger does: the pass is over (a payout may call payLater again, and a status change would be queued behind it forever).
+      w.combat.collecting = false;
       for (const pay of w.combat.payouts) pay();
       expect(w.state.containers.size).toBe(n + 1);
       expect(RT(w, 0).mobKills).toBe(0);
