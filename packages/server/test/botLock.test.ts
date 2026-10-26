@@ -47,9 +47,10 @@ function scene(opts: { wall?: number; foes?: Record<string, Partial<FakeFighter>
   const players = new Map<string, FakeFighter>();
   const base = (o: Partial<FakeFighter>): FakeFighter => ({ x: 600, y: 300, status: "alive", weapon0: "sword", weapon1: "", slot: 0, attackTarget: "", ...o });
   const me = base(opts.me ?? {});
-  Object.assign(me, { faction: "fire", hp: 500, maxHp: 500, stacksHp: 0, stacksAs: 0, stacksMs: 0, mobKills: 0, drawStartedAt: 0, readyAt: 0 });
+  // The Wish is locked (it is a once-a-run cast: these tests are about the lock), and nobody has a status.
+  Object.assign(me, { faction: "fire", hp: 500, maxHp: 500, stacksHp: 0, stacksAs: 0, stacksMs: 0, mobKills: 0, drawStartedAt: 0, readyAt: 0, wishReadyAt: 1e12, effects: 0 });
   players.set("me", me);
-  for (const [id, o] of Object.entries(opts.foes ?? {})) players.set(id, Object.assign(base(o), { weapon0: "sword" }));
+  for (const [id, o] of Object.entries(opts.foes ?? {})) players.set(id, Object.assign(base(o), { weapon0: "sword", effects: 0 }));
   const mobs = new Map<string, Record<string, unknown>>();
   const containers = new Map<string, Record<string, unknown>>();
   const sent: Sent = [];

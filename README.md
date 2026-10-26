@@ -38,7 +38,7 @@ Tabs in the same browser share `localStorage`, so two tabs can load the same cal
 
 ### Playing alone
 
-Bots are headless players. They use the same HTTP API and play with the same controls as the browser: they walk (`move`), click their foe (`target`) and let the server chase, attack and aim, and they swap and pick up weapons. They never send `aim`, `attack` or `release`. They farm mobs while no player is close and hunt the nearest player otherwise, and they join the same lobby as everyone else. Press Start Run in your tab first, then start some:
+Bots are headless players. They use the same HTTP API and play with the same controls as the browser: they walk (`move`), click their foe (`target`) and let the server chase, attack and aim, and they swap and pick up weapons. They cast their faction's Wish (`cast`) when it is ready and the moment suits it (in trouble, or an enemy in range). They never send `aim`, `attack` or `release`. They farm mobs while no player is close and hunt the nearest player otherwise, and they join the same lobby as everyone else. Press Start Run in your tab first, then start some:
 
 ```bash
 npm run bots -- 3
@@ -84,6 +84,20 @@ Each faction beats exactly two others and loses to exactly two. Each weapon does
 
 Units are world units: a tile is 32. Every attack is a windup: it roots you from its start until the swing lands or the arrow or ball leaves, and then you walk freely until the next one. The windup is its design time or a share of the weapon's interval, whichever is shorter, so faster attackers wind up faster: sword and bash 0.1 s, axe 0.25 s (at most 25% of the interval; it stays rooted for 0.5 s from its start, at most 50%), wand up to 0.4 s (at most 80% of the interval), bow up to 0.6 s (at most 92%). A shooter can walk between its shots but never during one, and that, rather than a move slow, is what limits kiting (see [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) 9.5). You carry two weapons, and swapping shares one attack cooldown. In 8 of the 10 faction matchups the winner's starting weapon loses the weapon edge, so the pick alone rarely decides a fight. The second weapon you go and get does. Full rules, timings and the reasons are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 8 to 10.
 
+#### Wishes
+
+Each faction has one **Wish**, an ability on `D` for the moment the weapons do not cover. It is locked for the first 45 s of a run and then has a 300 s cooldown that nothing shortens, so a run sees it once, maybe twice. The server refuses a cast it cannot take (cooling down, stunned or silenced, no valid target) at no cost. Once a cast begins its cooldown is spent, even if it then fizzles or is interrupted (only a stun or a silence interrupts one). Every fighter's name carries a small icon of its Wish, grey while it is locked or cooling down, and your own slot sits at the right end of the weapon bar. In the training room a Wish is ready at once and cools down in 5 s.
+
+| Faction | Wish | What it does | What beats it |
+| --- | --- | --- | --- |
+| Frost | Freeze | After a 0.25 s cast, stuns the enemy nearest your cursor for 1.25 s (range 450 u, line of sight). A stun cancels a windup, the bow's draw included. | Break line of sight or leave range during the cast. It is not a projectile, so nothing else dodges it. |
+| Plague | Swarm | After a 0.25 s cast you cannot be targeted for 8 s: nobody can lock you or aim an ability at you, and mobs lose you. Attacking or casting shows you from its start until half a second after it lands. A cloud on the ground marks where you are. | Arrows, balls and swings already on the way still hit. A hiding Plague that attacks is revealed, so it escapes rather than fights. |
+| Sentenced | Trial | After a 0.35 s cast, puts a ring of radius 300 u on an enemy within 400 u for 5 s. Inside it the enemy deals 20% less and takes 20% more from you. Walking out of the ring stuns it for 1 s. | Break line of sight or leave range during the cast, then stay and fight inside the ring, or accept the stun. |
+| Fire | Blaze Step | Blink up to 300 u toward your cursor, through walls, with no cast time. It leaves a burning trail for 2.5 s: 30 true damage a second to anyone else on it, lingering 2 s. | Don't stand on the trail. It cannot cross the locked coliseum gates or land in a sealed pocket. It has no warning before the cast. |
+| Demon Blood | Last Stand | For 5 s you cannot fall below 1 hp and you walk 30% faster. At the end, 30% of the damage you took is healed back. It has no warning before the cast. | It is a loan, not a refill: a Holy that lives through it comes out with 30% of the damage back, so don't spend burst on it, wait for it to end. |
+
+Freeze and Trial pick the enemy nearest the cursor, within 64 u like a left-click. Blaze Step goes toward the cursor. Swarm and Last Stand need no aim. The full rules, the numbers and what is a best guess are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 8.8 and 8.9.
+
 ### Controls
 
 Right-click to move, left-click an enemy to fight it. There is no attack button to hold: the server plays the fight once you have picked an enemy.
@@ -96,6 +110,7 @@ Right-click to move, left-click an enemy to fight it. There is no attack button 
 | `Q` | Swap to the other weapon slot. |
 | `1` / `2` | Switch to that slot. |
 | `F` | Take the highlighted weapon (chest, weapon on the ground or body) within 56 units and in line of sight. With both slots full, the weapon in hand drops. |
+| `D` | Cast your faction's Wish (300 s cooldown, locked for the first 45 s of a run). Freeze and Trial snap to the enemy nearest the cursor, Blaze Step goes toward it. See [Wishes](#wishes). |
 | `S` | Stop walking and drop the attack target. |
 | `Esc` | Leave a training room. |
 
@@ -169,6 +184,7 @@ Set them on the command line, for example `MIN_PLAYERS=1 FILL_SECONDS=1 PATIENCE
 | `PATIENCE_SECONDS` | `300` | With 8 players standing and no death for this long, everyone standing is teleported into the coliseum. |
 | `PATIENCE_MIN_SECONDS` | 40% of `PATIENCE_SECONDS` | The same wait with 3 or fewer standing, linear in between. Kept between 0 and `PATIENCE_SECONDS`. |
 | `SUDDEN_DEATH_SECONDS` | `60` | Locked in the coliseum this long with no death, sudden death starts. |
+| `WISH_LOCK_SECONDS` | `45` | Every Wish stays locked this long after a run starts. A training room has no lock. The end-to-end tests use 5. |
 | `TRAINING_IDLE_SECONDS` | `300` | A training room whose player sends no accepted input for this long is closed. |
 | `DUMMIES` | off | `1` or `true`: training dummies and a weapon rack next to every spawn in arena runs too. |
 | `MOBS` | on | `0` or `false`: no regional mobs. |
@@ -189,7 +205,7 @@ npm test -w @raid/server    # one workspace
 What the suites cover:
 
 - **Shared** (`packages/shared/test`): the pure rules. The faction law and the weapon formula are checked against numbers printed by the Python model, so the two cannot drift apart.
-- **Server** (`packages/server/test`): the sim headless (ledger, weapons, signatures, mobs, buffs, feed, arena, training), the room and HTTP API, shutdown, the profile store and shop, the fx wire format, and `e2e.test.ts`. In `e2e.test.ts` four bots play whole runs against a real server, and the GV ledger, stats and file must balance. It replays a run once if the bots showed no kill, signature hit or mob kill, and fails if the replay lacks it too.
+- **Server** (`packages/server/test`): the sim headless (ledger, weapons, signatures, mobs, buffs, feed, arena, training), the room and HTTP API, shutdown, the profile store and shop, the fx wire format, and `e2e.test.ts`. In `e2e.test.ts` four bots play whole runs against a real server, and the GV ledger, stats and file must balance. It replays a run once if the bots showed no kill, signature hit, mob kill or landed Wish, and fails if the replay lacks it too.
 - **Gates**: `perf.test.ts` (with 8 players and 60 mobs, `step()` averages under 5 ms with a p99 under 15 ms) and `bandwidth.test.ts` (under 20 KB/s per client).
 - **Client** (`packages/client/test`): the views and the DOM overlay against fakes for Phaser and the DOM. There are no browser tests, so look at the real thing after a rendering change.
 
@@ -237,13 +253,13 @@ Python, no install beyond numpy (only `test_rpsls.py` needs nothing). They are t
                                                     +----------------------------------------+
 ```
 
-- **`packages/shared`**: TypeScript source used directly by both sides (no build step). Constants, wire messages, the Colyseus schema, and the pure logic both ends must agree on: the faction and weapon catalogs, the rules between weapons, buffs, signature numbers, `generateMap`, A* pathfinding, ray casts, snapshot interpolation and the compact `fxs` codec.
+- **`packages/shared`**: TypeScript source used directly by both sides (no build step). Constants, wire messages, the Colyseus schema, and the pure logic both ends must agree on: the faction and weapon catalogs, the rules between weapons, buffs, signature numbers, the Wish and status catalogs and the blink rule, `generateMap`, A* pathfinding, ray casts, snapshot interpolation and the compact `fxs` codec.
 - **`packages/server`**: `RaidRoom` (the Colyseus adapter), `sim/` (the game rules; `arena.ts` owns the run lifecycle, `step.ts` the tick order), `persistence/` (the profile store), `bots/`, `harness/` and `bench/`.
 - **`packages/client`**: `net/` (connection, REST, clock sync, interpolation), `scenes/` (the hub and the run), `hub/` (the hub's layout and art), `render/` (2.5D projection and views) and `ui/` (DOM overlay: menu, HUD, panels, results). [CLAUDE.md](CLAUDE.md) has the file-by-file layout.
 
 How it fits together:
 
-- **Authoritative server.** Clients send inputs only (`move`, `stop`, `target`, `aim`, `attack`, `release`, `swap`, `pickup`). The browser sends `target` for every fight and never touches the trigger; `attack` and `release` are the low-level trigger that mobs and the weapon harness use. The bots click like the browser does. Positions, damage and outcomes are never accepted from a client.
+- **Authoritative server.** Clients send inputs only (`move`, `stop`, `target`, `aim`, `attack`, `release`, `swap`, `pickup`, `cast`). The browser sends `target` for every fight and `cast` for a Wish, and never touches the trigger; `attack` and `release` are the low-level trigger that mobs and the weapon harness use. The bots click like the browser does. Positions, damage and outcomes are never accepted from a client.
 - **Fixed 20 Hz tick and input queues.** Message handlers validate (finite numbers clamped to the world, short ids) and enqueue into a per-player queue. The latest move and aim win, orders replace each other in arrival order (a `move` or `stop` drops a lock, a `target` replaces what came before it), at most 6 actions are kept per tick, and a client sending more than 100 messages a second is disconnected. The sim drains the queues at the start of each 50 ms step in a per-tick shuffled order, so same-tick races are fair. A patch goes out after every step.
 - **Pure sim.** `sim/` never imports Colyseus or touches sockets. Gameplay modules register actions and systems into a world. `step()` returns events and the room turns them into messages and profile changes, so most of the game is tested headless.
 - **One damage ledger per tick.** Swings, arrows, balls and signature damage are recorded as hits and applied all at once. Results are settled once at the end of the tick. So the order players happen to be processed in never decides who wins.
@@ -281,6 +297,7 @@ HTTP, all under `/api`. `x-profile-token` carries a profile's token.
 Netcode and scale:
 
 - **No interest management.** Every client receives every player's position and weapons, every container's contents, every mob and every projectile. A modified client can see all of it, and there is no fog of war.
+- **Swarm hides a fighter only from an honest client.** The browser does not draw a swarmed fighter and cannot click it, and the server refuses every lock and ability aimed at it. But every client still receives every position, and the server still accepts the low-level `attack` input, so a modified client can find a swarmed player and attack its true position. The fix is interest management plus refusing `attack` from game clients.
 - **Mixed timelines on screen.** Positions and effects are drawn 100 ms in the past. Health bars, status, containers and the timers show the latest patch, so they can lead what you see by a tick or two. Deaths are the exception: a victim stays drawn until their death is due.
 - **No client-side prediction.** Your own character is also interpolated, so motion starts at least 100 ms after input plus the network round trip.
 - **Single process only.** The "profile already in a raid" guard and the profile file are process-local.
@@ -296,6 +313,7 @@ Identity and persistence:
 Gameplay and content:
 
 - **Placeholder art and balance.** Colored shapes, no audio, numbers that are first picks. The weapon and faction numbers are tuned in `testing/` and the harnesses. The mob and buff numbers are tuned only against scripted players.
+- **The Wishes are first picks too.** Every Wish number, the trail's burn, the 5 s training cooldown and the caps on the status kinds are best guesses, and none of them was run through the weapon harness or the kiting check, which never cast (see [testing/WISHES.md](testing/WISHES.md)). Blaze Step and Last Stand have no warning before the cast, which is an owner question ([docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) section 18).
 - **Wand > Shield fails in the weapon harness's policy matrix (23%).** The harness wand backs away from a charging shield, and with no ranged slows that no longer works. It holds at 100% when both fighters click each other, which is how the controls are played; nothing was changed for it. Numbers and reasons in [testing/TUNING_CONTROLS.md](testing/TUNING_CONTROLS.md).
 - **The controls are a first pick too.** Click snap 64 units, an empty click does nothing (there is no attack-move), a windup cannot be cancelled by moving, a lock lasts out to 640 units and 1.5 s without line of sight once the target was seen (a target locked behind a wall is chased until it is). The list of these guesses is in [CLAUDE.md](CLAUDE.md).
 - **Not built:** quest NPCs, raid bosses, secrets, friends, private matches, chat, the 30-second warning and host voice line before the teleport, and the minimap pings for bountied players (the crown is built). They are in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) sections 2.2, 6, 12.4 and 15.

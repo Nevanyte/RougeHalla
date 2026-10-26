@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  MATCHUP_FULL_RANGE, MATCHUP_RANGE, SUDDEN_DEATH_RAMP_FRACTION, SUDDEN_DEATH_START_FRACTION, TICK_MS, TILE, TILE_WALL,
+  EFFECT_HIDDEN, EFFECT_STUNNED, EFFECT_UNTARGETABLE, MATCHUP_FULL_RANGE, MATCHUP_RANGE, SUDDEN_DEATH_RAMP_FRACTION, SUDDEN_DEATH_START_FRACTION, TICK_MS, TILE, TILE_WALL,
   damageFlash, mapFromTiles, matchupTint,
   type GameMap, type WeaponId,
 } from "@raid/shared";
@@ -159,8 +159,10 @@ describe("matchupTarget", () => {
     return mapFromTiles(W, W, tiles);
   }
 
-  interface F { faction: string; weapon0: string; weapon1: string; slot: number; status: string }
-  const fighter = (faction: string, weapon: string, status = "alive"): F => ({ faction, weapon0: weapon, weapon1: "", slot: 0, status });
+  interface F { faction: string; weapon0: string; weapon1: string; slot: number; status: string; effects?: number }
+  const fighter = (faction: string, weapon: string, status = "alive", effects?: number): F => ({
+    faction, weapon0: weapon, weapon1: "", slot: 0, status, ...(effects !== undefined ? { effects } : {}),
+  });
 
   function world(opts: { phase?: string; locked?: boolean; players: Record<string, F>; mobs?: Record<string, F> }): MatchupWorld {
     const players = new Map(Object.entries(opts.players));
@@ -200,5 +202,22 @@ describe("matchupTarget", () => {
     });
     expect(matchupTarget(w, "me", pos, arena())).toBeCloseTo(1, 9);
     expect(matchupTarget(world({ players: base, mobs: { dummy: fighter("", "sword") } }), "me", pos, arena())).toBe(0);
+  });
+
+  it("ignores a hidden or untargetable foe: the tint must not show that an enemy is near, or how near", () => {
+    const pos = at({ me: [100, 100], foe: [180 - TILE * 2, 100] });
+    const me = fighter("fire", "axe");
+    const visible = world({ players: { me, foe: fighter("sentenced", "wand") } });
+    expect(matchupTarget(visible, "me", pos, arena())).toBeGreaterThan(0);
+    for (const effects of [EFFECT_HIDDEN, EFFECT_UNTARGETABLE, EFFECT_HIDDEN | EFFECT_STUNNED]) {
+      const w = world({ players: { me, foe: fighter("sentenced", "wand", "alive", effects) } });
+      expect(matchupTarget(w, "me", pos, arena()), `effects ${effects}`).toBe(0);
+    }
+    // Other statuses (a stun) do not hide anyone, and the next foe in sight still counts.
+    const stunned = world({ players: { me, foe: fighter("sentenced", "wand", "alive", EFFECT_STUNNED) } });
+    expect(matchupTarget(stunned, "me", pos, arena())).toBeGreaterThan(0);
+    const two = world({ players: { me, hid: fighter("sentenced", "wand", "alive", EFFECT_HIDDEN), foe: fighter("sentenced", "wand") } });
+    const both = at({ me: [100, 100], hid: [110, 100], foe: [180 - TILE * 2, 100] });
+    expect(matchupTarget(two, "me", both, arena())).toBeCloseTo(1, 9);
   });
 });
