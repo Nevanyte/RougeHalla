@@ -89,7 +89,7 @@ thin at baseline (Holy > Sentenced wand, axe 50% / 5% hp; Frost > Fire wand, axe
 
 - **Plague Rat stays at +8%.** No value in [+5.33%, +8%] passes the model at every stack count (section 2), lowering does not
   fix that, and the real sim holds every cell at +8% from 3 stacks to the plateau and beyond.
-- **`AS_MULT_CAP = 1.25`** (shared/constants.ts): the attack-speed multiplier from every source together is capped after the
+- **`AS_MULT_CAP = 1.25`** (shared/constants.ts; the owner raised it to **1.5** after this log, section 6): the attack-speed multiplier from every source together is capped after the
   sources multiply (`capAsMult`, applied in sim/mods.ts `mirrorsOf` before the mirror is encoded, so the sim, the local
   prediction and the bow-draw art all decode the capped value; slows apply below it). It is the largest value at which both
   hold: the model (trend; fails from x1.3) and the real sim (fails from x1.66). It is a no-op today (Plague Rat's plateau
@@ -153,3 +153,22 @@ Proposals (change, measured effect; none applied):
 
 Not measured: a buffed chaser (both sides fed), move speed (Cinder Hound helps the chaser), several buffs on one shooter
 beyond Plague Rat + Ember Imp at their plateaus (orbwalk 2, lock 2 fails: the Holy > Sentenced cells).
+
+## 6. Owner rulings after this log (2026-10-26)
+
+- **`AS_MULT_CAP` is 1.5** (shared/constants.ts; was 1.25). The owner accepted that the model no longer holds at the cap:
+  `test_kite.py` holds to x1.25 outside the tick dip and fails from x1.3 (1 cell at x1.3, 2 at x1.4, 6 at x1.5), while the
+  real sim's KITE EDGES hold every cell up to x1.5 (section 3; the thinnest, Plague > Frost with the bow, keeps the sword's
+  70% of duels with 2% hp left). The cap is still applied after every source multiplies and before the mirror is encoded
+  (sim/mods.ts `mirrorsOf`), so the sim, the local prediction and the bow art read the capped value; slows (the Wishes'
+  `slowAttack`) multiply in below it. Buffs alone never reach it (Plague Rat's plateau x1.168); it binds once R5/R6 sources
+  stack. The model is now the conservative artifact for attack speed: the real-sim harness is the gate above x1.25.
+- **No cap on the damage rows** (section 5's first proposal is declined): fed players may beat their counters
+  (GAME_DESIGN 18). Nothing changes in code.
+- **Buffed shooters beat Holy > Sentenced** (section 5's second proposal): accepted, no retune. A Sentenced bow with Ember Imp
+  at its plateau, or Acolyte, Penitent or Ice Golem, can flip the cell in the real sim, and HP x1.28 flips it in the model.
+- **Plague Rat's `worksWith` is `["frost", "holy", "plague"]`** (section 5's fourth proposal; the owner left it to the
+  session). Attack speed moves weapon damage only, so +8% weapon dps is +8% of all damage for Frost and Holy, +4% for Plague,
+  +2% for Fire and +0.1% for Sentenced. `worksWith` only feeds the buff tooltip's "Works with" line; the planning screen's
+  "buffs that counter the factions present" reads `counters`, which stays `["any"]`, so the change is wording, not balance.
+- Plague Rat stays +8% (section 4; the owner refused halving it).

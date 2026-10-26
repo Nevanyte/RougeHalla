@@ -207,13 +207,14 @@ export const LS_CAP = 0.25;
 export const LIFESTEAL_MAX = 1;
 /**
  * The attack-speed multiplier (the `asMult` mirror) from every source together never exceeds this (League's approach: one
- * cap on the total, slows apply below it). x1.25 is the most at which a buffed shooter still loses all 20 kiting cells to
- * its unbuffed melee counter, in testing/test_kite.py's model (it fails from x1.3, and in a tick-alignment dip at
- * x1.08-1.105 the real sim does not show) and in the real sim (harness --kiting-only; none fails up to x1.5); attack speed
- * alone first flips a faction counter at x1.65. Buffs alone never reach it (Plague Rat's plateau is x1.17); it binds once
- * sources stack (R5/R6 passives, skills, relics). testing/TUNING_ROGUE.md.
+ * cap on the total, slows apply below it). Owner ruling: x1.5, the most at which the real sim still holds all 20 kiting
+ * cells against an unbuffed melee counter (harness --kiting-only; Plague > Frost is down to 2% hp there, and attack speed
+ * alone first flips a faction counter at x1.65). testing/test_kite.py's model only holds to x1.25 (it fails from x1.3, 6
+ * cells at x1.5, and in a tick-alignment dip at x1.08-1.105 the real sim does not show): the owner accepted that the model
+ * no longer holds at the cap. Buffs alone never reach it (Plague Rat's plateau is x1.17); it binds once sources stack
+ * (R5/R6 passives, skills, relics). testing/TUNING_ROGUE.md.
  */
-export const AS_MULT_CAP = 1.25;
+export const AS_MULT_CAP = 1.5;
 /** Mob rewards (GV and buff stacks) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
 export const REWARD_FLOOR = 0.3;
 export const REWARD_MID = 5;

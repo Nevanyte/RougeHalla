@@ -97,6 +97,9 @@ describe("the catalog", () => {
   it("tags every buff: Bailiff is Sentenced's own, the defensive ones counter the factions they resist", () => {
     for (const b of BUFFS) expect(b.worksWith.length).toBeGreaterThan(0);
     expect(buffDef("bailiff")!.worksWith).toEqual(["sentenced"]);
+    // Attack speed is weapon damage: it suits the factions whose damage is mostly their weapon's; it still counters anyone.
+    expect(buffDef("plagueRat")!.worksWith).toEqual(["frost", "holy", "plague"]);
+    expect(buffDef("plagueRat")!.counters).toEqual(["any"]);
     expect(buffsCountering("holy").map((b) => b.id)).toEqual(expect.arrayContaining(["executioner", "rotMonk", "rimeStalker"]));
     expect(buffsCountering("fire").map((b) => b.id)).toEqual(expect.arrayContaining(["magmaBrute", "seraphShard"]));
   });
@@ -229,13 +232,13 @@ describe("the quantized mirrors (shared/mods.ts)", () => {
   });
 
   it("cap attack speed at AS_MULT_CAP (League's approach: one cap on the total), slows untouched, and the cap travels exactly", () => {
-    expect(AS_MULT_CAP).toBe(1.25);
-    expect(capAsMult(1.3)).toBe(AS_MULT_CAP);
+    expect(AS_MULT_CAP).toBe(1.5); // owner ruling, raised from 1.25 (testing/TUNING_ROGUE.md)
+    expect(capAsMult(1.51)).toBe(AS_MULT_CAP);
     expect(capAsMult(20)).toBe(AS_MULT_CAP);
     expect(capAsMult(AS_MULT_CAP)).toBe(AS_MULT_CAP);
-    for (const x of [1.2, 1.08, 1, 0.8, 0.05]) expect(capAsMult(x)).toBe(x);
+    for (const x of [1.49, 1.3, 1.25, 1.2, 1.08, 1, 0.8, 0.05]) expect(capAsMult(x)).toBe(x);
     expect(decodeMult(encodeMult(AS_MULT_CAP))).toBe(AS_MULT_CAP);
-    expect(encodeMult(capAsMult(1.7))).toBe(1250);
+    expect(encodeMult(capAsMult(1.7))).toBe(1500);
   });
 
   it("no buff, nor every buff at once at its plateau, reaches the attack-speed cap: today it binds only on stacked sources", () => {

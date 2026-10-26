@@ -328,7 +328,7 @@ describe("mod sources (world.modSources)", () => {
     expect(timingsOf(p, "bow")!.interval).toBe(attackInterval(paced(p.faction as FactionId), "bow", AS_MULT_CAP));
     expect(packetFor(C(w, 0), "bow").raw).toBeCloseTo(damagePerHit(paced(p.faction as FactionId), "bow", AS_MULT_CAP), 9);
     decoder.decode(encoder.encode());
-    expect(decoder.state.players.get("p0")!.asMult).toBe(1250);
+    expect(decoder.state.players.get("p0")!.asMult).toBe(1500);
     expect(decodeMult(decoder.state.players.get("p0")!.asMult)).toBe(AS_MULT_CAP);
     // A slow multiplies the uncapped total first, then the cap applies (here it no longer binds).
     w.modSources.push(slowFor("p0", 0.5));
