@@ -66,6 +66,8 @@ export class ViewportManager {
   private readonly bound = new WeakSet<object>();
   /** Every Text seen on a scene's display list that is still alive (pooled ones included). */
   private readonly texts = new Set<ViewportText>();
+  /** The resolution every tracked Text was last brought to (0 = none yet). */
+  private textRes = 0;
 
   constructor(
     private readonly game: ViewportGame,
@@ -197,7 +199,10 @@ export class ViewportManager {
       if (!this.bound.has(scene)) this.bind(scene);
       this.fitCamera(scene);
     }
+    // A frame's worth of labels is a hundred-odd objects: walk them only when the resolution changed (new ones are set in onAdded).
     const resolution = textResolution(layout.zoom);
+    if (resolution === this.textRes) return;
+    this.textRes = resolution;
     for (const text of this.texts) {
       if (text.style.resolution !== resolution) text.setResolution(resolution);
     }
