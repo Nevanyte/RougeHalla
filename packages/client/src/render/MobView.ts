@@ -7,6 +7,7 @@ import { BodyDisc, BodyFlash, FighterArt, HpBar, factionColor, shadowImage } fro
 import { FigureJuice, type DustSink } from "./FigureJuice";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
+import { StatusArt } from "./StatusArt";
 
 const HIT_FLASH_MS = 120;
 /** A mob's hp is far larger than a player's, so its bar is wider to match its weight on screen; an elite's wider still. */
@@ -45,6 +46,7 @@ export class MobView {
   private readonly eliteStar: Phaser.GameObjects.Image;
   private readonly art: FighterArt;
   private readonly signatures: SignatureArt;
+  private readonly status: StatusArt;
   private readonly flashing: BodyFlash;
   /** What the elite marks and name were last set for. */
   private elite = false;
@@ -66,6 +68,7 @@ export class MobView {
     }).setVisible(false);
     this.art = new FighterArt(scene);
     this.signatures = new SignatureArt(scene, HP_BAR_W / 2);
+    this.status = new StatusArt(scene, HP_BAR_W / 2);
     this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), RIM_NORMAL);
     this.body.image.setPosition(0, -BODY_LIFT);
     this.flashing = new BodyFlash(this.body, factionColor(""));
@@ -81,7 +84,7 @@ export class MobView {
     }).setVisible(false);
     this.root = scene.add.container(0, 0, [
       shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body.image, this.nose, this.art.held, this.signatures.aura,
-      this.hpBar.root, this.label, this.eliteStar,
+      this.hpBar.root, this.label, this.eliteStar, this.status.g,
     ]);
     this.fig = new FigureJuice([
       { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: this.nose, y0: -BODY_LIFT, scaled: false },
@@ -101,6 +104,7 @@ export class MobView {
     this.root.setVisible(fade > 0);
     if (fade <= 0) {
       this.fig.reset();
+      this.status.reset();
       return;
     }
     if (fade !== this.fade) {
@@ -116,6 +120,7 @@ export class MobView {
     this.nose.setVisible(weapon === null).setRotation(screenAngle(m.facing));
 
     this.signatures.update(m.sig, m.brand, signatures);
+    this.status.update(m.effects | 0, performance.now());
     // On the same clock as the fade: the state is dead ~INTERP_DELAY_MS before the body goes, and the bar and name stay until it does.
     const dying = this.diedAt >= 0 && renderT >= this.diedAt;
     // The dummy keeps its bar and name on. A regional mob shows its bar when hurt or fighting (its cooldown is running or a

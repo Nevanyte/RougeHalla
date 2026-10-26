@@ -1,6 +1,6 @@
 // Bottom-center weapon bar: the two slots (weapon, key, which one is in hand), the shared attack cooldown sweeping over
 // them, and a hint line when a weapon is within reach. The keys are drawn as keycaps (1, 2, Q, F). It only reflects the
-// synced state; the keys themselves are the scene's.
+// synced state; the keys themselves are the scene's. Other HUD modules dock into its slot row (`dock`): the Wish slot.
 import { WEAPONS, isWeaponId, type WeaponId } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import "./weaponBar.css";
@@ -35,6 +35,7 @@ export function nextCooldown(prevReadyAt: number, prevCooldown: number, readyAt:
 
 export class WeaponBar {
   private readonly root = el("div", "weapon-bar");
+  private readonly row = el("div", "wb-row");
   private readonly hint = el("div", "wb-hint");
   private readonly hintLabel = el("span", "wb-hint-text");
   private readonly slots: Slot[] = [];
@@ -50,7 +51,7 @@ export class WeaponBar {
   private maxDeg = 360;
 
   constructor() {
-    const row = el("div", "wb-row");
+    const row = this.row;
     for (let i = 0; i < 2; i++) {
       const root = el("div", "wb-slot empty");
       const swatch = el("span", "wb-swatch");
@@ -71,6 +72,11 @@ export class WeaponBar {
     this.root.append(this.hint, row);
     this.root.hidden = true;
     uiRoot().append(this.root);
+  }
+
+  /** Another HUD module's element (an ability slot), docked at the right end of the slot row: it hides and scales with the bar. */
+  dock(node: HTMLElement): void {
+    this.row.append(node);
   }
 
   /**

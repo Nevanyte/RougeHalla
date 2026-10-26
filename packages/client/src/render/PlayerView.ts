@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import {
-  GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, activeGold, barrierStrength, cssColor, unpackLook, type Look,
+  EFFECT_HIDDEN, GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, activeGold, barrierStrength, cssColor, unpackLook,
+  wishOf, type Look,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
@@ -10,7 +11,9 @@ import { FigureJuice, type DustSink } from "./FigureJuice";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
 import { MarksMemory } from "./signatureLook";
+import { StatusArt } from "./StatusArt";
 import { TrailView } from "./TrailView";
+import { drawAbilityIcon } from "./wishArt";
 
 const HIT_FLASH_MS = 120;
 const SHIELD_COLOR = 0x4fc3f7;
@@ -42,6 +45,14 @@ const LOCAL_RING_REGION: Region = { x0: -LOCAL_RING_W / 2 - 3, y0: -LOCAL_RING_W
 /** The default rim of a fighter's body: dark, or white on the local player. */
 const RIM_DEFAULT = { width: 2, color: 0x111111, alpha: 0.8 } as const;
 const RIM_LOCAL = { width: 2, color: LOCAL_MARK, alpha: 0.95 } as const;
+
+/** The viewer's own fighter is drawn this faint while it is hidden (a Swarm); a hidden remote fighter is not drawn at all. */
+const HIDDEN_LOCAL_ALPHA = 0.45;
+
+/** The Wish icon beside the name: its box, the gap to the name, and the name's own bottom edge (see the label below). */
+const WISH_ICON_SIZE = 10;
+const WISH_ICON_GAP = 3;
+const LABEL_Y = -BODY_LIFT - PLAYER_RADIUS - 18;
 
 /** The title hangs under the feet, clear of everything above the head: the shadow ellipse ends 0.55 * PLAYER_RADIUS below. */
 const TITLE_Y = Math.ceil(PLAYER_RADIUS * 0.55) + 2;
@@ -77,6 +88,13 @@ export class PlayerView {
   private readonly title: Phaser.GameObjects.Text;
   private readonly art: FighterArt;
   private readonly signatures: SignatureArt;
+  private readonly status: StatusArt;
+  /** The faction's Wish, drawn small to the left of the name: coloured while its cooldown is over, grey before. */
+  private readonly wishIcon: Phaser.GameObjects.Graphics;
+  /** What the icon was last drawn for (ability, ready, name: the name sets where it sits); "" = none. */
+  private wishKey = "";
+  /** The container's alpha as last set (1, or HIDDEN_LOCAL_ALPHA for the local fighter while hidden). */
+  private bodyAlpha = 1;
   private readonly flashing: BodyFlash;
   private readonly marks = new MarksMemory();
   /** The bounty the crown was last drawn for (0 = hidden), so it is redrawn only when the number changes. */
@@ -104,6 +122,8 @@ export class PlayerView {
     }).setVisible(isLocal);
     this.art = new FighterArt(scene);
     this.signatures = new SignatureArt(scene);
+    this.status = new StatusArt(scene);
+    this.wishIcon = scene.add.graphics().setVisible(false);
     this.goldHalo = scene.add.graphics().setVisible(false);
     this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), this.isLocal ? RIM_LOCAL : RIM_DEFAULT);
     this.body.image.setPosition(0, -BODY_LIFT);
@@ -115,7 +135,7 @@ export class PlayerView {
     this.hpBar = new HpBar(scene);
     this.barrierRing = scene.add.graphics();
     this.shieldRing = scene.add.graphics();
-    this.label = scene.add.text(0, -BODY_LIFT - PLAYER_RADIUS - 18, "", {
+    this.label = scene.add.text(0, LABEL_Y, "", {
       fontFamily: "system-ui, sans-serif", fontSize: "11px", color: isLocal ? "#b9f6ca" : "#eceff1",
       stroke: "#000000", strokeThickness: 2,
     }).setOrigin(0.5, 1);
@@ -137,6 +157,7 @@ export class PlayerView {
     this.root = scene.add.container(0, 0, [
       shadow, mark, this.signatures.ground, this.goldHalo, this.art.ground, this.body.image, this.barrierRing, this.core.image, this.nose,
       this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.root, this.label, this.crown, this.crownLabel, this.title,
+      this.status.g, this.wishIcon,
     ]);
     this.fig = new FigureJuice([
       { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.core.image), y0: -BODY_LIFT, scaled: true },
@@ -177,13 +198,22 @@ export class PlayerView {
     // The look is set once at join and never changes in a run, so this decodes once per player.
     if (p.look !== this.lookWord) this.applyLook(p.look);
     this.flashing.tick();
-    const visible = drawAsAlive || p.status === "alive" || p.status === "lobby";
+    // A hidden fighter (a Swarm) is not drawn for anyone else; its owner sees it faint. The bit is read from the latest patch, like hp.
+    const effects = p.effects | 0;
+    const hidden = (effects & EFFECT_HIDDEN) !== 0;
+    const visible = (drawAsAlive || p.status === "alive" || p.status === "lobby") && !(hidden && !this.isLocal);
     this.root.setVisible(visible);
     if (!visible) {
       this.trail?.reset();
       this.marks.read(0, 0, false);
       this.fig.reset();
+      this.status.reset();
       return;
+    }
+    const alpha = hidden && this.isLocal ? HIDDEN_LOCAL_ALPHA : 1;
+    if (alpha !== this.bodyAlpha) {
+      this.bodyAlpha = alpha;
+      this.root.setAlpha(alpha);
     }
     this.flashing.setColor(factionColor(p.faction));
     this.root.setPosition(projX(x), projY(y));
@@ -196,9 +226,11 @@ export class PlayerView {
     const weapon = this.art.update(facing === null ? p : this.facedAs(p, facing), renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(face));
     this.label.setText(p.name);
+    this.setWishIcon(p, renderT);
     // A death still ahead of render time: the patch already shows the fighter down with its marks cleared, so keep the last ones.
     this.marks.read(p.sig, p.brand, drawAsAlive && p.status !== "alive");
     this.signatures.update(this.marks.sig, this.marks.brand, signatures);
+    this.status.update(effects, now);
 
     // The kill barrier (public state) rides the bar as a pale blue segment and wraps the body as a bubble.
     const barrier = p.barrier > 0 ? p.barrier : 0;
@@ -288,6 +320,25 @@ export class PlayerView {
     }
 
     this.art.setGold(gold.weapon !== undefined);
+  }
+
+  /**
+   * The faction's Wish beside the name, redrawn only when its look changes: coloured once `renderT` has passed its ready time
+   * (the cooldown, or the first 45 s of a run, is over), grey before. Nothing for a fighter with no faction, nor in the lobby,
+   * where every ready time is 0 until the run starts and the icon would read "ready".
+   */
+  private setWishIcon(p: PlayerState, renderT: number): void {
+    const def = p.status === "lobby" ? null : wishOf(p.faction);
+    const ready = renderT >= p.wishReadyAt;
+    const key = def ? `${def.id}|${ready ? 1 : 0}|${p.name}` : "";
+    if (key === this.wishKey) return;
+    this.wishKey = key;
+    const g = this.wishIcon.clear();
+    g.setVisible(def !== null);
+    if (!def) return;
+    // Left of the name's left edge (Phaser's text width once set; a fake or a font not yet measured falls back to an estimate).
+    const width = typeof this.label.width === "number" && this.label.width > 0 ? this.label.width : p.name.length * 6;
+    drawAbilityIcon(g, def, -width / 2 - WISH_ICON_GAP - WISH_ICON_SIZE / 2, LABEL_Y - 6.5, WISH_ICON_SIZE, ready);
   }
 
   /** Draws the barrier bubble at `strength` (0..1: how close to the biggest shield any combo gives); 0 clears it. A no-op while the step is unchanged. */
