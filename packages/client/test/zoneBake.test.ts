@@ -200,8 +200,8 @@ describe("the plan", () => {
     expect(scale).toBeLessThan(1);
     const pages = planStrips(big).pages;
     const fits = planBytes(planFloor(big, scale), pages) <= TEXTURE_BUDGET_BYTES;
-    // Either it fits at the chosen scale, or the smallest scale was already chosen (the walls alone are the rest).
-    expect(fits || scale === FLOOR_SCALES[FLOOR_SCALES.length - 1]).toBe(true);
+    // The worst case measured (a 96x96 made of the wedge generator's dense 33% walls) fits, with its floors at the smallest scale.
+    expect(fits).toBe(true);
     expect(chooseFloorScale(big, 1)).toBe(FLOOR_SCALES[FLOOR_SCALES.length - 1]);
   });
 });
@@ -336,11 +336,10 @@ describe("bakeZoneArt on a fake scene", () => {
     const { strips } = planStrips(m);
     const stripImages = s.images.filter((i) => i.args.length === 4);
     expect(stripImages).toHaveLength(strips.length);
-    stripImages.forEach((im, n) => {
-      expect(im.state.depth).toBe(strips[n]!.depth);
-      expect(im.args[0]).toBe(strips[n]!.x);
-      expect(im.args[1]).toBe(strips[n]!.y);
-    });
+    // Each strip has its image at its own place and depth (the images come page by page, so match them by position).
+    const key = (x: number, y: number, depth: number) => `${x},${y},${depth}`;
+    const wanted = new Set(strips.map((st) => key(st.x, st.y, st.depth)));
+    for (const im of stripImages) expect(wanted.has(key(im.args[0] as number, im.args[1] as number, im.state.depth as number))).toBe(true);
     const frames = [...s.textures.values()].flatMap((t) => t.calls.filter(([n]) => n === "add"));
     expect(frames).toHaveLength(strips.length);
   });

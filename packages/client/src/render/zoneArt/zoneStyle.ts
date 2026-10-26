@@ -553,31 +553,41 @@ function drawPillar(g: Pen, zone: ZoneKey, s: TileSpot, w: WallInfo): void {
   }
 }
 
-/** The LOW block of a fence: iron bars under a top rail, with posts where the line ends (D 7.4). `open` = sides with no fence neighbour. */
-export function drawFenceTile(g: Pen, s: TileSpot, front: boolean): void {
+/**
+ * A fence tile (D 7.4): knee-high iron bars you can see through, as a fence is: a faint shade on the ground where bodies are stopped,
+ * a rail along the line, vertical bars every 8 px rising LOW_HEIGHT from it and posts at the tile's ends. `open` = the sides with no
+ * fence beside them: the line runs sideways when east or west continues, up and down when north or south does, and a lone tile is
+ * a post.
+ */
+export function drawFenceTile(g: Pen, s: TileSpot): void {
   const c = TERRAIN_PALETTE.fence;
-  const top = s.y - LOW_HEIGHT;
-  g.fillStyle(c.iron, 1).fillRect(s.x, top, TILE_W, TILE_H);
-  // The rail runs along the line: east-west when it continues sideways, north-south when it continues up or down.
   const lineH = (s.open & EDGE_E) === 0 || (s.open & EDGE_W) === 0;
   const lineV = (s.open & EDGE_N) === 0 || (s.open & EDGE_S) === 0;
   const cx = s.x + TILE_W / 2;
-  const cy = top + TILE_H / 2;
-  g.lineStyle(2, c.highlight, 0.9);
-  if (lineH) g.lineBetween((s.open & EDGE_W) === 0 ? s.x : cx, cy, (s.open & EDGE_E) === 0 ? s.x + TILE_W : cx, cy);
-  if (lineV) g.lineBetween(cx, (s.open & EDGE_N) === 0 ? top : cy, cx, (s.open & EDGE_S) === 0 ? top + TILE_H : cy);
-  // A post at each tile end along the line, or one in the middle of a lone tile.
+  const cy = s.y + TILE_H / 2;
+  // Where the bodies are stopped: a shade, so the line reads as blocking without hiding what is behind it.
+  g.fillStyle(c.iron, 0.3).fillRect(s.x, s.y, TILE_W, TILE_H);
+  const x0 = lineH && (s.open & EDGE_W) !== 0 ? cx : s.x;
+  const x1 = lineH && (s.open & EDGE_E) !== 0 ? cx : s.x + TILE_W;
+  const y0 = lineV && (s.open & EDGE_N) !== 0 ? cy : s.y;
+  const y1 = lineV && (s.open & EDGE_S) !== 0 ? cy : s.y + TILE_H;
+  // Rails: one at the top of the bars, one low.
+  g.lineStyle(2, c.highlight, 0.95);
+  if (lineH) g.lineBetween(x0, cy - LOW_HEIGHT, x1, cy - LOW_HEIGHT);
+  if (lineV) g.lineBetween(cx, y0 - LOW_HEIGHT, cx, y1 - LOW_HEIGHT);
+  g.lineStyle(1, c.highlight, 0.6);
+  if (lineH) g.lineBetween(x0, cy - 2, x1, cy - 2);
+  // Bars every 8 px along the line, each rising from the ground.
+  g.fillStyle(c.highlight, 0.95);
+  if (lineH || !lineV) for (let i = 0; i < 4; i++) { const bx = s.x + 3 + i * 8; if (bx + 2 >= x0 && bx <= x1) g.fillRect(bx, cy - LOW_HEIGHT, 2, LOW_HEIGHT + 1); }
+  if (lineV) for (let i = 0; i < 3; i++) { const by = s.y + 4 + i * 8; if (by >= y0 && by <= y1) g.fillRect(cx - 1, by - LOW_HEIGHT, 2, LOW_HEIGHT + 1); }
+  // Posts, a little taller than the bars, at each tile end along the line (or one in the middle of a lone tile).
+  g.fillStyle(c.iron, 1);
+  const post = (px: number, py: number): void => { g.fillRect(px - 2.5, py - LOW_HEIGHT - 3, 5, LOW_HEIGHT + 4); };
   g.fillStyle(c.highlight, 1);
-  if (lineH && !lineV) g.fillRect(s.x, cy - 2.5, 4, 5).fillRect(s.x + TILE_W - 4, cy - 2.5, 4, 5);
-  else if (lineV && !lineH) g.fillRect(cx - 2.5, top, 5, 4).fillRect(cx - 2.5, top + TILE_H - 4, 5, 4);
-  else g.fillRect(cx - 3, cy - 3, 6, 6);
-  if (front) {
-    const fy = s.y + TILE_H - LOW_HEIGHT;
-    g.fillStyle(darken(c.iron, 0.25), 1).fillRect(s.x, fy, TILE_W, LOW_HEIGHT);
-    g.fillStyle(c.highlight, 0.95).fillRect(s.x, fy, TILE_W, 1);
-    // Vertical bars every 8 px.
-    for (let i = 0; i < 4; i++) g.fillRect(s.x + 3 + i * 8, fy + 1, 2, LOW_HEIGHT - 1);
-  }
+  if (lineH && !lineV) { post(s.x + 2.5, cy); post(s.x + TILE_W - 2.5, cy); }
+  else if (lineV && !lineH) { post(cx, s.y + 3); post(cx, s.y + TILE_H - 1.5); }
+  else post(cx, cy + 2);
 }
 
 // ------------------------------------------------------------------------------------------------------------------ props

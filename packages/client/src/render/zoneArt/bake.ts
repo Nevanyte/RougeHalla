@@ -253,17 +253,12 @@ export interface StripPlan {
 
 /**
  * The strips of a map: for each tile row and chunk column, the span from the first to the last tile that is a wall or a fence, if any.
- * Packed left to right in shelves of one height onto pages PAGE_W wide (and at most PAGE_MAX_H tall), in row order.
+ * They are packed onto pages PAGE_W wide (at most PAGE_MAX_H tall) in shelves of one height, widest first and each into the first shelf
+ * with room, which wastes only a few percent of a page; the list stays in row order.
  */
 export function planStrips(map: GameMap): { strips: StripPlan[]; pages: Array<{ w: number; h: number }> } {
   const strips: StripPlan[] = [];
-  const pages: Array<{ w: number; h: number }> = [];
   const cols = Math.ceil(map.w / CHUNK_TILES);
-  let page = 0;
-  let px = STRIP_PAD;
-  let py = STRIP_PAD;
-  let shelfH = 0;
-  let pageUsedH = 0;
   for (let ty = 0; ty < map.h; ty++) {
     const top = Math.floor(ty * TILE_H - WALL_HEIGHT);
     const oy = ty * TILE_H - top;
@@ -278,27 +273,32 @@ export function planStrips(map: GameMap): { strips: StripPlan[]; pages: Array<{ 
         }
       }
       if (a < 0) continue;
-      const w = even((b - a + 1) * TILE_W);
-      if (px + w + STRIP_PAD > PAGE_W) {
-        px = STRIP_PAD;
-        py += shelfH + STRIP_PAD;
-        shelfH = 0;
-      }
-      if (py + h + STRIP_PAD > PAGE_MAX_H) {
-        pages.push({ w: PAGE_W, h: even(pageUsedH + STRIP_PAD) });
-        page++;
-        px = STRIP_PAD;
-        py = STRIP_PAD;
-        shelfH = 0;
-        pageUsedH = 0;
-      }
-      strips.push({ ty, tx0: a, tx1: b, x: a * TILE_W, y: top, w, h, oy, depth: depthFor((ty + 1) * TILE), page, px, py });
-      px += w + STRIP_PAD;
-      shelfH = Math.max(shelfH, h);
-      pageUsedH = Math.max(pageUsedH, py + shelfH);
+      strips.push({ ty, tx0: a, tx1: b, x: a * TILE_W, y: top, w: even((b - a + 1) * TILE_W), h, oy, depth: depthFor((ty + 1) * TILE), page: 0, px: 0, py: 0 });
     }
   }
-  if (strips.length > 0) pages.push({ w: PAGE_W, h: even(pageUsedH + STRIP_PAD) });
+  if (strips.length === 0) return { strips, pages: [] };
+
+  const shelfH = strips.reduce((m, s) => Math.max(m, s.h), 0);
+  const perPage = Math.max(1, Math.floor((PAGE_MAX_H - STRIP_PAD) / (shelfH + STRIP_PAD)));
+  const shelves: Array<{ page: number; py: number; x: number }> = [];
+  const shelvesOnPage: number[] = [];
+  const order = strips.map((_, i) => i).sort((p, q) => strips[q]!.w - strips[p]!.w || p - q);
+  for (const i of order) {
+    const s = strips[i]!;
+    let shelf = shelves.find((sh) => sh.x + s.w + STRIP_PAD <= PAGE_W);
+    if (!shelf) {
+      let page = shelves.length === 0 ? 0 : shelves[shelves.length - 1]!.page;
+      if ((shelvesOnPage[page] ?? 0) >= perPage) page++;
+      shelf = { page, py: STRIP_PAD + (shelvesOnPage[page] ?? 0) * (shelfH + STRIP_PAD), x: STRIP_PAD };
+      shelvesOnPage[page] = (shelvesOnPage[page] ?? 0) + 1;
+      shelves.push(shelf);
+    }
+    s.page = shelf.page;
+    s.px = shelf.x;
+    s.py = shelf.py;
+    shelf.x += s.w + STRIP_PAD;
+  }
+  const pages = shelvesOnPage.map((n) => ({ w: PAGE_W, h: even(STRIP_PAD + n * (shelfH + STRIP_PAD)) }));
   return { strips, pages };
 }
 
@@ -445,7 +445,7 @@ export function paintStrip(g: Pen, ctx: BakeContext, s: StripPlan): void {
       drawWallTile(g, ctx.zones[i] ?? NEUTRAL_WALL_ZONE, spot, info);
     } else {
       spot.open = fenceOpen(map, tx, s.ty);
-      drawFenceTile(g, spot, s.ty + 1 >= map.h || map.tiles[(s.ty + 1) * map.w + tx] !== TILE_LOW);
+      drawFenceTile(g, spot);
     }
     const props = ctx.wallProps.get(i);
     if (props) {

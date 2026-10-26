@@ -252,36 +252,64 @@ describe("terrain tiles: the shape language", () => {
 });
 
 describe("the fence", () => {
-  const fence = (open: number, front: boolean): RecordPen => record((g) => drawFenceTile(g, spot({ open }), front));
+  const fence = (open: number): RecordPen => record((g) => drawFenceTile(g, spot({ open })));
   const ALL = EDGE_N | EDGE_E | EDGE_S | EDGE_W;
+  const bars = (g: RecordPen) => g.of("fillRect").filter(([, , w, h]) => w! <= 2 && h! === LOW_HEIGHT + 1);
 
-  it("shows vertical bars every 8 px on its front face, LOW_HEIGHT tall", () => {
-    const bars = fence(ALL, true).of("fillRect").filter(([, , w, h]) => w! <= 3 && h! >= LOW_HEIGHT - 1);
-    expect(bars.length).toBeGreaterThanOrEqual(4);
-    const xs = bars.map((b) => b[0]!).sort((a, b) => a - b);
+  it("shows vertical bars every 8 px along a line, each rising LOW_HEIGHT, in a row of fences", () => {
+    const b = bars(fence(EDGE_N | EDGE_S));
+    expect(b.length).toBeGreaterThanOrEqual(4);
+    const xs = b.map((r) => r[0]!).sort((p, q) => p - q);
     for (let i = 1; i < xs.length; i++) expect(xs[i]! - xs[i - 1]!).toBe(8);
   });
 
-  it("has no bars when the front is covered, and its top face is lifted by LOW_HEIGHT", () => {
-    const g = fence(ALL, false);
-    expect(g.of("fillRect").filter(([, , w, h]) => w! <= 3 && h! >= LOW_HEIGHT - 1)).toHaveLength(0);
-    expect(g.of("fillRect")[0]).toEqual([100, 200 - LOW_HEIGHT, TILE_W, TILE_H]);
+  it("lets you see through it: a faint ground shade, not a solid slab, and bars that are thin", () => {
+    const g = fence(EDGE_N | EDGE_S);
+    expect(g.ops[0]).toEqual({ name: "fillStyle", args: [expect.any(Number), expect.any(Number)] });
+    expect(g.ops[0]!.args[1]).toBeLessThan(0.5);
+    expect(g.ops[1]).toEqual({ name: "fillRect", args: [100, 200, TILE_W, TILE_H] });
+    for (const [, , w] of bars(g)) expect(w).toBeLessThanOrEqual(2);
   });
 
   it("runs its rail along the line: sideways for a row of fences, up and down for a column", () => {
-    const rail = (open: number) => fence(open, false).of("lineBetween");
-    const row = rail(EDGE_N | EDGE_S);
-    expect(row).toHaveLength(1);
-    expect(row[0]![1]).toBe(row[0]![3]); // horizontal
-    const column = rail(EDGE_E | EDGE_W);
-    expect(column).toHaveLength(1);
-    expect(column[0]![0]).toBe(column[0]![2]); // vertical
+    const rails = (open: number) => fence(open).of("lineBetween");
+    const row = rails(EDGE_N | EDGE_S);
+    expect(row.length).toBeGreaterThanOrEqual(2);
+    for (const r of row) expect(r[1]).toBe(r[3]); // horizontal
+    const column = rails(EDGE_E | EDGE_W);
+    expect(column.length).toBeGreaterThanOrEqual(1);
+    for (const r of column) expect(r[0]).toBe(r[2]); // vertical
   });
 
-  it("stands a lone tile as a post", () => {
-    const g = fence(ALL, false);
+  it("lifts the top rail by LOW_HEIGHT above the line's ground position", () => {
+    const g = fence(EDGE_N | EDGE_S);
+    const top = g.of("lineBetween")[0]!;
+    expect(top[1]).toBe(200 + TILE_H / 2 - LOW_HEIGHT);
+  });
+
+  it("stands a lone tile as a post, with no rail", () => {
+    const g = fence(ALL);
     expect(g.count("lineBetween")).toBe(0);
     expect(g.of("fillRect").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("ends a line in a post at each end of the tile", () => {
+    const posts = (open: number) => fence(open).of("fillRect").filter(([, , w, h]) => w === 5 && h === LOW_HEIGHT + 4);
+    expect(posts(EDGE_N | EDGE_S)).toHaveLength(2);
+    expect(posts(EDGE_E | EDGE_W)).toHaveLength(2);
+    expect(posts(ALL)).toHaveLength(1);
+  });
+
+  it("stays inside the tile's footprint, lifted by its bars and posts", () => {
+    for (let open = 0; open < 16; open++) {
+      const s = spot({ open });
+      for (const [x0, y0, x1, y1] of record((g) => drawFenceTile(g, s)).extents()) {
+        expect(x0).toBeGreaterThanOrEqual(s.x - 0.01);
+        expect(x1).toBeLessThanOrEqual(s.x + TILE_W + 0.01);
+        expect(y0).toBeGreaterThanOrEqual(s.y - LOW_HEIGHT - 3 - 0.01);
+        expect(y1).toBeLessThanOrEqual(s.y + TILE_H + 0.01);
+      }
+    }
   });
 });
 
