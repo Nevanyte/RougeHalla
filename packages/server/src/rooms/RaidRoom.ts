@@ -6,7 +6,7 @@
 //   "resolved"        recordRun(outcome, kills, gv.total)   once per player and run, whatever the outcome
 //   server shutdown   bankGv(unbanked run GV)               the run is void: no run is recorded
 //   leave in lobby    nothing
-import { randomInt } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
   CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
@@ -228,6 +228,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       seed: this.seed,
       config: this.training ? { ...config, dummies: true, training: true } : config,
       random: Math.random,
+      // The reward stream's own secret: never the public seed, and not orderSalt, which tie outcomes can leak (world.ts).
+      rewardSalt: Array.from(new Uint32Array(randomBytes(16).buffer, 0, 4)),
     });
     if (this.training) installTraining(world);
     this.built = world;

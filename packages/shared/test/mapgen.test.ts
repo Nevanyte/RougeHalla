@@ -2,7 +2,7 @@
 // Phase 8b spec and the anti-kiting cover spec, never from the generator's internals. The 200 maps are
 // generated once and shared.
 import { describe, expect, it, vi } from "vitest";
-import { EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE } from "../src/constants";
+import { EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, MOB_LEASH_RADIUS, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE } from "../src/constants";
 import { WEAPONS } from "../src/weapons";
 import {
   REGION_COLISEUM,
@@ -713,6 +713,14 @@ describe("determinism", () => {
       expect(a.tiles).not.toBe(b.tiles);
       expect(a.regionGrid).not.toBe(b.regionGrid);
       expect(a.seed).toBe(s);
+      // The R0 contract fields (the wedge adapter) are as deterministic as the rest.
+      expect(a.attempt, `seed ${s} attempt`).toBe(b.attempt);
+      expect(Buffer.from(a.territoryGrid).equals(Buffer.from(b.territoryGrid)), `seed ${s} territoryGrid`).toBe(true);
+      expect(a.camps, `seed ${s} camps`).toEqual(b.camps);
+      expect(a.spawnPool, `seed ${s} spawnPool`).toEqual(b.spawnPool);
+      expect(a.regions.map((r) => [r.pole, r.area]), `seed ${s} poles and areas`).toEqual(b.regions.map((r) => [r.pole, r.area]));
+      expect(a.territoryGrid).not.toBe(b.territoryGrid);
+      expect(a.camps).not.toBe(b.camps);
     }
   }, HEAVY_MS);
 
@@ -729,7 +737,13 @@ describe("determinism", () => {
     a.groundSpots.length = 0;
     a.coliseum.innerSpawns.length = 0;
     for (const g of a.coliseum.gates) g.tiles.length = 0;
-    for (const r of a.regions) { r.spawns.length = 0; r.chestSpots.length = 0; r.mobCamps.length = 0; }
+    for (const r of a.regions) { r.spawns.length = 0; r.chestSpots.length = 0; r.mobCamps.length = 0; r.pole.x = -1; r.area = -1; }
+    a.attempt = 99;
+    a.territoryGrid.fill(3);
+    for (const c of a.camps) { c.spots.length = 0; c.chest.x = -1; c.eliteSpot = 9; }
+    a.camps.length = 0;
+    for (const p of a.spawnPool) p.x = -1;
+    a.spawnPool.length = 0;
     a.regions.length = 0;
     expect(generateMap(s)).toEqual(snapshot);
   });
@@ -2132,6 +2146,147 @@ describe("anti-kiting cover", () => {
       for (const f of REGION_FACTIONS) expect(perRegion[regionCodeOf(f)], `seed ${s} ${f}: outdoor wall blobs`).toBeGreaterThanOrEqual(1);
     });
   }, HEAVY_MS);
+});
+
+describe("R0 wedge adapter: the roguelike camp contract filled from the wedge data (200 seeds)", () => {
+  const zoneOfCode = (code: number) => REGION_FACTIONS[code - 1];
+
+  it("makes one CampDef per wedge camp, in REGION_FACTIONS order then camp index, with the same ids", () => {
+    eachMap((m, s) => {
+      const wedge = m.regions.flatMap((r) => r.mobCamps);
+      expect(m.camps.length, `seed ${s}`).toBe(wedge.length);
+      expect(m.camps.map((c) => c.id), `seed ${s}`).toEqual(wedge.map((c) => c.id));
+      expect(m.regions.map((r) => r.id), `seed ${s}`).toEqual([...REGION_FACTIONS]);
+      const perZone = new Map<string, number>();
+      m.camps.forEach((c, i) => {
+        const n = (perZone.get(c.zone) ?? 0) + 1;
+        perZone.set(c.zone, n);
+        expect(c.id, `seed ${s} camp ${i}`).toBe(`${c.zone}-${n}`);
+        if (i > 0) expect(REGION_FACTIONS.indexOf(c.zone), `seed ${s} camp ${i}: zone order`).toBeGreaterThanOrEqual(REGION_FACTIONS.indexOf(m.camps[i - 1].zone));
+      });
+      expect(new Set(m.camps.map((c) => c.id)).size, `seed ${s}: ids unique`).toBe(m.camps.length);
+    });
+  }, HEAVY_MS);
+
+  it("copies each wedge camp's zone, centre, radius and spots, with 3-5 spots, a leash of the old 9 tiles and no territory", () => {
+    eachMap((m, s) => {
+      const wedge = m.regions.flatMap((r) => r.mobCamps);
+      m.camps.forEach((c, i) => {
+        const w = wedge[i];
+        expect(c.zone, `seed ${s} ${c.id}`).toBe(w.region);
+        expect([c.x, c.y, c.r], `seed ${s} ${c.id}`).toEqual([w.x, w.y, w.r]);
+        expect(c.spots, `seed ${s} ${c.id}`).toEqual(w.spots);
+        expect(c.spots, `seed ${s} ${c.id}: its own array`).not.toBe(w.spots);
+        expect(c.spots.length, `seed ${s} ${c.id}`).toBeGreaterThanOrEqual(3);
+        expect(c.spots.length, `seed ${s} ${c.id}`).toBeLessThanOrEqual(5);
+        expect(c.area, `seed ${s} ${c.id}`).toBe(0);
+        expect(c.radius, `seed ${s} ${c.id}`).toBe(MOB_LEASH_RADIUS);
+        expect(c.radius, `seed ${s} ${c.id}`).toBe(9 * TILE);
+      });
+    });
+  }, HEAVY_MS);
+
+  it("puts every chest on a floor tile of the clearing, in the camp's zone, never on a spot of any camp, and gives no two camps one chest", () => {
+    const chests = new Set<string>();
+    const allSpots = new Set<string>();
+    eachMap((m, s) => {
+      chests.clear();
+      allSpots.clear();
+      for (const c of m.camps) for (const p of c.spots) allSpots.add(ptKey(p));
+      for (const c of m.camps) {
+        const label = `seed ${s} ${c.id}`;
+        expect(isTileCentre(c.chest), `${label}: a tile centre`).toBe(true);
+        const t = tileOf(c.chest);
+        expect(isFloorTile(m, t.x, t.y), `${label}: floor in the final tiles`).toBe(true);
+        expect(Math.hypot(c.chest.x - c.x, c.chest.y - c.y), `${label}: inside the clearing`).toBeLessThanOrEqual(c.r + 1e-9);
+        expect(regionOfPoint(m, c.chest), `${label}: in the camp's zone`).toBe(c.zone);
+        expect(allSpots.has(ptKey(c.chest)), `${label}: not a spot`).toBe(false);
+        expect(chests.has(ptKey(c.chest)), `${label}: chest shared with another camp`).toBe(false);
+        chests.add(ptKey(c.chest));
+      }
+    });
+  }, HEAVY_MS);
+
+  it("picks the nearest qualifying clearing tile as the chest (ties: lowest row, then lowest column)", () => {
+    eachMap((m, s) => {
+      for (const c of m.camps) {
+        const wedge = m.regions.find((r) => r.id === c.zone)!.mobCamps.find((q) => q.id === c.id)!;
+        const spots = new Set(c.spots.map(ptKey));
+        const cands = clearingTiles(m, wedge)
+          .filter((t) => isFloorTile(m, t.x, t.y) && !spots.has(ptKey({ x: tileToWorldCenter(t.x), y: tileToWorldCenter(t.y) })))
+          .map((t) => ({ t, d: (t.x - worldToTile(c.x)) ** 2 + (t.y - worldToTile(c.y)) ** 2 }))
+          .sort((a, b) => a.d - b.d || a.t.y - b.t.y || a.t.x - b.t.x);
+        expect(cands.length, `seed ${s} ${c.id}: a qualifying tile exists`).toBeGreaterThan(0);
+        expect(tileOf(c.chest), `seed ${s} ${c.id}`).toEqual(cands[0].t);
+      }
+    });
+  }, HEAVY_MS);
+
+  it("marks spot 0 as the elite spot of each zone's one elite camp and -1 on every other camp", () => {
+    eachMap((m, s) => {
+      for (const f of REGION_FACTIONS) {
+        const zoneCamps = m.camps.filter((c) => c.zone === f);
+        const wedge = m.regions.find((r) => r.id === f)!.mobCamps;
+        expect(zoneCamps.length, `seed ${s} ${f}`).toBe(wedge.length);
+        expect(zoneCamps.filter((c) => c.eliteSpot !== -1).length, `seed ${s} ${f}: exactly one elite camp`).toBe(1);
+        zoneCamps.forEach((c, i) => {
+          expect(c.eliteSpot, `seed ${s} ${c.id}`).toBe(wedge[i].elite ? 0 : -1);
+          if (c.eliteSpot !== -1) expect(c.eliteSpot).toBeLessThan(c.spots.length);
+        });
+      }
+    });
+  }, HEAVY_MS);
+
+  it("tags spawnPool with each spawn's zone from regionGrid, in map.spawns order", () => {
+    eachMap((m, s) => {
+      expect(m.spawnPool, `seed ${s}`).toEqual(
+        m.spawns.map((p) => ({ x: p.x, y: p.y, zone: zoneOfCode(m.regionGrid[worldToTile(p.y) * m.w + worldToTile(p.x)]) })),
+      );
+      expect(m.spawnPool.length, `seed ${s}`).toBeGreaterThanOrEqual(MAX_PLAYERS);
+      for (const p of m.spawnPool) expect(REGION_FACTIONS as readonly string[], `seed ${s}`).toContain(p.zone);
+      expect(new Set(m.spawnPool.map((p) => p.zone)).size, `seed ${s}: every zone has spawns`).toBe(REGION_FACTIONS.length);
+    });
+  }, HEAVY_MS);
+
+  it("leaves territoryGrid all zero at w*h, and gives every region its anchor as pole and its floor tile count as area", () => {
+    eachMap((m, s) => {
+      expect(m.territoryGrid, `seed ${s}`).toBeInstanceOf(Uint8Array);
+      expect(m.territoryGrid.length, `seed ${s}`).toBe(m.w * m.h);
+      expect(m.territoryGrid.every((v) => v === 0), `seed ${s}: no territory on wedge maps`).toBe(true);
+      expect(m.territoryGrid, `seed ${s}: its own buffer`).not.toBe(m.regionGrid);
+      for (const r of m.regions) {
+        expect(r.pole, `seed ${s} ${r.id}`).toEqual(r.anchor);
+        const code = REGION_IDS.indexOf(r.id);
+        let floor = 0;
+        for (let i = 0; i < m.tiles.length; i++) if (m.regionGrid[i] === code && m.tiles[i] === TILE_FLOOR) floor++;
+        expect(r.area, `seed ${s} ${r.id}`).toBe(floor);
+        expect(r.area, `seed ${s} ${r.id}`).toBeGreaterThan(0);
+      }
+    });
+  }, HEAVY_MS);
+
+  it("records the attempt the map was built from as an integer >= 0", () => {
+    const attempts: number[] = [];
+    eachMap((m, s) => {
+      expect(Number.isInteger(m.attempt), `seed ${s}`).toBe(true);
+      expect(m.attempt, `seed ${s}`).toBeGreaterThanOrEqual(0);
+      attempts.push(m.attempt);
+    });
+    // Most seeds certify on the first attempt and some need a retry: the field carries the index, not a constant.
+    expect(attempts.some((a) => a === 0)).toBe(true);
+    expect(attempts.some((a) => a > 0)).toBe(true);
+  }, HEAVY_MS);
+
+  it("is generated the same way twice, new fields included, and returns fresh buffers each call", () => {
+    for (const s of seeds(10, 5000)) {
+      const a = generateMap(s), b = generateMap(s);
+      expect(a.camps, `seed ${s}`).toEqual(b.camps);
+      expect(a.spawnPool, `seed ${s}`).toEqual(b.spawnPool);
+      expect(a.attempt, `seed ${s}`).toBe(b.attempt);
+      expect(a.camps[0], `seed ${s}`).not.toBe(b.camps[0]);
+      expect(a.camps[0].spots[0], `seed ${s}`).not.toBe(b.camps[0].spots[0]);
+    }
+  });
 });
 
 describe("performance", () => {

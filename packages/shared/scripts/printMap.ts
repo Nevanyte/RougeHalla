@@ -34,6 +34,8 @@ for (const region of map.regions) {
   for (const camp of region.mobCamps) camp.spots.forEach((p) => mark(p, "m"));
 }
 for (const region of map.regions) for (const camp of region.mobCamps) mark(camp, camp.elite ? "E" : "M");
+// The camp's reward chest tile: usually the camp centre itself (then M/E stands for both), else it gets its own K.
+for (const c of map.camps) if (c.chest.x !== c.x || c.chest.y !== c.y) mark(c.chest, "K");
 map.coliseum.innerSpawns.forEach((p) => mark(p, "T"));
 map.extracts.forEach((e) => mark(e, "X"));
 map.spawns.forEach((p) => mark(p, "S"));
@@ -55,7 +57,8 @@ console.log(
   `${rocks} rock tiles (${((100 * rocks) / (rocks + openTiles)).toFixed(0)}% of the faction land), longest lattice lane ${longestLane(map).toFixed(0)} u (${longestLane(withGates(map)).toFixed(0)} u with the gates closed)`,
 );
 console.log("legend: # wall  % ridge wall  = gate  . coliseum floor  f/s/p/i/h fire/sentenced/plague/frost/holy floor");
-console.log("        S player spawn  T inner spawn  C chest  M camp  E elite camp  m camp spot  X extract");
+console.log("        S player spawn  T inner spawn  C chest  M camp  E elite camp  m camp spot  K camp reward chest off the camp centre  X extract");
+console.log(`  camp chests: ${map.camps.map((c) => `${c.id}(${worldToTile(c.chest.x)},${worldToTile(c.chest.y)})`).join(" ")}  [attempt ${map.attempt}]`);
 for (const e of map.extracts) console.log(`  ${e.id} ${e.name} at tile (${worldToTile(e.x)}, ${worldToTile(e.y)})`);
 for (const faction of REGION_FACTIONS) {
   const r = map.regions.find((g) => g.id === faction)!;

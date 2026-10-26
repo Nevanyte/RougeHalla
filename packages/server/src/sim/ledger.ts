@@ -101,6 +101,7 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   let landedShare = c.kind === "mob" && c.s.kind !== "dummy" && total > applied ? applied / total : 1;
   // What a kill barrier swallowed is not hp lost: lifesteal feeds on the rest.
   if (c.kind === "player" && barrierBefore > c.s.barrier && total > 0) landedShare = Math.max(0, 1 - (barrierBefore - c.s.barrier) / total);
+  const hitLanded = world.hooks.hitLanded;
   entries.forEach((e, i) => {
     const amount = amounts[i]!;
     if (!(amount > 0) || e.arena) return;
@@ -108,10 +109,14 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
     if (e.ability !== undefined) landed.ability = e.ability;
     if (e.dot) landed.dot = true;
     world.combat.landed.push(landed);
-    if (isDot(e.sig) || e.dot) return; // reported in chunks (sim/factions.ts, sim/abilities.ts)
-    const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
-    const named = e.sig ? { ...fx, sig: e.sig } : fx;
-    emit(world, { type: "fx", fx: e.ability !== undefined ? { ...named, ability: e.ability } : named });
+    // Damage over time is reported in chunks (sim/factions.ts, sim/abilities.ts).
+    if (!(isDot(e.sig) || e.dot)) {
+      const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
+      const named = e.sig ? { ...fx, sig: e.sig } : fx;
+      emit(world, { type: "fx", fx: e.ability !== undefined ? { ...named, ability: e.ability } : named });
+    }
+    // After the victim took the damage and its hit fx went out (on-hit effects: R4b; see WorldHooks.hitLanded). DoT entries too.
+    hitLanded?.(world, e, amount);
   });
   if (standing(c) && entries.some((e, i) => e.stagger && amounts[i]! > 0)) stagger(world, c);
 }

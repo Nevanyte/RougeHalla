@@ -24,14 +24,15 @@ import { displace } from "./displace";
 import { heal } from "./factions";
 import { abilitiesRt, addField, fieldsOf, onTrail, removeField, removeFieldsWhere } from "./fields";
 import { recordHit } from "./ledger";
+import { recomputeMods } from "./mods";
 import {
-  addStatus, castBlocked, cleanse, findStatus, isUntargetable, refreshEffects, removeStatuses, reveal, statusesOf,
-  statusMoveMultiplier,
+  addStatus, attackSlowFactor, castBlocked, cleanse, findStatus, isUntargetable, refreshEffects, removeStatuses, reveal,
+  statusesOf, statusMoveMultiplier,
 } from "./status";
 import { cancelAction, cancelLockedWindup, dropLock } from "./weapons";
 import {
   chainHook, collisionMap, emit, payLater, type ActionHandler, type CastRuntime, type DamageSource, type FieldRuntime,
-  type StatusInstance, type World,
+  type ModContribution, type StatusInstance, type World,
 } from "./world";
 
 /** The damage shares of a burn: all true, so armor and shield never touch it (D12: flat power). */
@@ -42,6 +43,8 @@ export function install(world: World): void {
   world.beforeDamage.push(statusDamage);
   world.systems.push(abilityDotFx);
   world.moveModifiers.push(statusMoveMultiplier);
+  // Attack speed has one source of truth, the stat mirrors (sim/mods.ts, which cannot import this runtime): the slow joins them.
+  world.modSources.push(attackSlowSource);
   chainHook(world, "raidStarted", armWishes);
   // The teleport resets the fight: every cast is cancelled (and refunded), every status and field ends, a Last Stand still pays.
   chainHook(world, "teleported", (w) => clearAll(w, "teleport"));
@@ -51,6 +54,12 @@ export function install(world: World): void {
   chainHook(world, "attackStarted", onAttackStarted);
   chainHook(world, "statusApplied", onStatusApplied);
   chainHook(world, "staggered", (w, c) => cancelIf(w, c, "stagger"));
+}
+
+/** What the stat mirrors fold in of this runtime: an attack slow multiplies the attack-speed mirror (nothing else is a mirror yet). */
+function attackSlowSource(world: World, c: Combatant): ModContribution | null {
+  const factor = attackSlowFactor(world, c);
+  return factor < 1 ? { asMult: factor } : null;
 }
 
 /** The first rank's effect of a kind, for the numbers a field or a status does not carry (a trail's burn, a zone's exit stun): Wishes have one rank, a skill's field would have to carry its rank. */
@@ -204,6 +213,7 @@ export function onStatusApplied(world: World, c: Combatant, st: StatusInstance):
     cancelIf(world, c, "stun");
   } else if (st.kind === "silence") cancelIf(world, c, "silence");
   else if (st.kind === "root") cancelIf(world, c, "root");
+  else if (st.kind === "slowAttack") recomputeMods(world, c); // an expiry or a cleanse is caught by mods' own per-tick pass
 }
 
 /** attackStarted: a hidden fighter's own attack shows it from its start until the swing lands or the shot leaves, and a moment more. */

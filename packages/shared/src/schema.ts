@@ -55,6 +55,21 @@ export const PlayerState = schema({
   stacksHp: t.float32().default(0),
   stacksAs: t.float32().default(0),
   stacksMs: t.float32().default(0),
+
+  // --- Stat mirrors (roguelike R0, sim/mods.ts) ---
+  /**
+   * In wire form: the server's sim/mods.ts folds them and simulates with exactly these values. Read them through
+   * decodeMirrors (or decodeMult / decodeFlat) in shared/mods.ts, never raw. The multipliers are float64, the very double
+   * the sim uses; the flat bonuses are int16 tenths of a point. The defaults are the identity, so a fighter nothing buffs
+   * never patches them.
+   */
+  asMult: t.float64().default(1),
+  windupMult: t.float64().default(1),
+  speedMult: t.float64().default(1),
+  armorBonus: t.int16().default(0),
+  shieldBonus: t.int16().default(0),
+  // --- end of the stat mirrors ---
+
   /** Hp the kill barrier (the hp combos) still absorbs; 0 = none. Not the faction's magic `shield` stat. */
   barrier: t.float32().default(0),
   /** Active statuses as EFFECT_* bits (status.ts): crowd control, slows, hidden, casting... For prediction, targeting and art. */

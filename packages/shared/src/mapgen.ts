@@ -16,13 +16,14 @@
 //  13 ground spots (shuffle of the open tiles, shuffle of the others when too few, count)
 // A failed attempt (see MAX_ATTEMPTS) restarts the whole sequence on a derived seed.
 import {
-  EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE,
+  EXTRACT_RADIUS, MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS, MAX_SIGHT_CORRIDOR, MOB_LEASH_RADIUS, RANGED_HIT_REACH,
+  SIGHT_CORRIDOR_WIDTH, TILE,
 } from "./constants";
 import {
   REGION_COLISEUM, REGION_FACTIONS, REGION_IDS, REGION_NONE, REGION_WEAPONS, TILE_FLOOR, TILE_WALL, regionCode, tileToWorldCenter, worldToTile,
 } from "./map";
 import type {
-  ColiseumDef, ExtractZoneDef, FactionRegionDef, GameMap, GateDef, GateSide, MobCampDef, RegionFaction, RegionId,
+  CampDef, ColiseumDef, ExtractZoneDef, FactionRegionDef, GameMap, GateDef, GateSide, MobCampDef, RegionFaction, RegionId,
   TilePt, TileRect,
 } from "./map";
 import type { Vec2 } from "./messages";
@@ -1781,6 +1782,8 @@ function buildMap(seed: number, attempt: number): GameMap | null {
     return {
       id: faction,
       anchor: toWorld(anchor),
+      pole: toWorld(anchor),
+      area: n,
       spawns: spawnsByRegion[ri].map(toWorld),
       chestSpots: chestsByRegion[ri].map(toWorld),
       mobCamps: campsByFaction.get(faction) ?? [],
@@ -1821,6 +1824,15 @@ function buildMap(seed: number, attempt: number): GameMap | null {
     innerSpawns: innerTiles.map(toWorld),
   };
 
+  // --- Wedge adapter (ROGUELIKE_PLAN 3.2): the roguelike contract's fields, filled from the wedge data above -----------
+  // No random draw and no tile change: only new fields. R2 replaces this with the zone generator's own camps.
+  const camps: CampDef[] = regions.flatMap((r) => r.mobCamps.map((mc) => wedgeCamp(mc, tiles)));
+  const spawnPool = spawns.map((p) => {
+    const code = regionGrid[worldToTile(p.y) * W + worldToTile(p.x)];
+    const zone = REGION_FACTIONS.find((f) => regionCode(f) === code);
+    return { x: p.x, y: p.y, zone: zone ?? regions.find((r) => r.spawns.includes(p))!.id };
+  });
+
   return {
     seed,
     w: W,
@@ -1834,5 +1846,46 @@ function buildMap(seed: number, attempt: number): GameMap | null {
     extracts,
     crateSpots: regions.flatMap((r) => r.chestSpots),
     groundSpots,
+    attempt,
+    territoryGrid: new Uint8Array(N),
+    camps,
+    spawnPool,
+  };
+}
+
+/**
+ * A wedge camp as a CampDef. The chest is the clearing floor tile nearest the camp centre that is not a rest spot
+ * (ties: lowest row, then lowest column). The clearing has 21 tiles for at most 5 spots, so the centre tile or a
+ * neighbour always qualifies; the camp centre is only a guard for a hand-edited layout.
+ */
+function wedgeCamp(mc: MobCampDef, tiles: Uint8Array): CampDef {
+  const cx = worldToTile(mc.x), cy = worldToTile(mc.y);
+  const reach = mc.r / TILE, reach2 = reach * reach, span = Math.ceil(reach);
+  const spotKey = new Set(mc.spots.map((s) => worldToTile(s.y) * W + worldToTile(s.x)));
+  let chest: TilePt = { x: cx, y: cy }, best = Infinity;
+  for (let dy = -span; dy <= span; dy++) {
+    for (let dx = -span; dx <= span; dx++) {
+      const d = dx * dx + dy * dy;
+      if (d > reach2 || d >= best) continue;
+      const tx = cx + dx, ty = cy + dy;
+      if (tx < 0 || ty < 0 || tx >= W || ty >= H) continue;
+      const i = ty * W + tx;
+      if (tiles[i] !== TILE_FLOOR || spotKey.has(i)) continue;
+      // Rows ascend and columns ascend inside a row, so a strictly smaller distance is the only way to displace the best.
+      best = d;
+      chest = { x: tx, y: ty };
+    }
+  }
+  return {
+    id: mc.id,
+    zone: mc.region,
+    x: mc.x,
+    y: mc.y,
+    r: mc.r,
+    spots: mc.spots.map((s) => ({ x: s.x, y: s.y })),
+    eliteSpot: mc.elite ? 0 : -1,
+    chest: toWorld(chest),
+    area: 0,
+    radius: MOB_LEASH_RADIUS,
   };
 }

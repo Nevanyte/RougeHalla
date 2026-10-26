@@ -273,7 +273,7 @@ export function healFactor(world: World, c: Combatant): number {
   return 1 - statusValue(world, c, "antiHeal");
 }
 
-/** 1 − slowAttack (capped). NOT wired here: R0's mods folds it into the asMult mirror (D22). */
+/** 1 − slowAttack (capped). Not applied here: sim/abilities.ts registers it as a mod source, so the asMult mirror folds it in (D22). */
 export function attackSlowFactor(world: World, c: Combatant): number {
   return 1 - statusValue(world, c, "slowAttack");
 }
