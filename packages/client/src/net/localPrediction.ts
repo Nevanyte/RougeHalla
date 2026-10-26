@@ -3,10 +3,13 @@
 // axe's root after its swing, and what the abilities do to it: a stun or a root, a cast's own root, Last Stand's haste, and a
 // blink (`noteCast`, which the scene calls when the player casts). Presentation only, and only as good as the client's
 // knowledge: anything it gets wrong the server's samples correct (a wrong guess costs a small slide, never a wrong position).
-// Slow magnitudes are not predicted (only a bit is synced) until the stat mirrors carry them.
+// Slow magnitudes are not predicted (only a bit is synced) until the stat mirrors carry them. The ground is: the bog's slow is
+// read at the MODEL's position (where the server will be a delay later) and the product is floored as the server floors it, and
+// the ice's traction under any point is handed to the motion (`FrameInput.slipAt`) so it can slide where the server slides.
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED, EFFECT_STUNNED,
-  FACTIONS, hasteMultiplier, isFactionId, killEffects, LAST_STAND_SPEED_BONUS, SIG_CHILLED, weaponTimings, type TimedFx, type Vec2,
+  FACTIONS, hasteMultiplier, hazardsOf, isFactionId, killEffects, LAST_STAND_SPEED_BONUS, MOVE_MULT_FLOOR, SIG_CHILLED, surfaceAt, weaponTimings,
+  type GameMap, type TimedFx, type Vec2,
 } from "@raid/shared";
 import { LocalMotion, ORDER_EXPIRE_MS, seqAcked, type AuthSample, type FrameInput } from "./localMotion";
 
@@ -92,6 +95,8 @@ export class LocalPrediction {
   /** Server-time spans of stuns, roots and casts, and of haste (Last Stand), as the fx told them (or the cast predicted them). */
   private roots: Root[] = [];
   private hastes: Haste[] = [];
+  /** The traction lookup handed to the motion, rebuilt only when the map or the faction it reads changes (a frame allocates nothing). */
+  private slipFn: { map: GameMap; faction: string; at: (x: number, y: number) => number } | null = null;
 
   /** The next order number: 1..255 and round again (0 is "no order yet" in `moveSeq`). */
   nextSeq(): number {
@@ -106,6 +111,7 @@ export class LocalPrediction {
     this.bursts = [];
     this.roots = [];
     this.hastes = [];
+    this.slipFn = null;
   }
 
   /**
@@ -212,16 +218,35 @@ export class LocalPrediction {
 
   /**
    * What `LocalMotion.frame` is told. `c` is the client clock; the model runs `motion.delay` ahead of it, so that is the server
-   * time the speed and the root are judged at.
+   * time the speed and the root are judged at. `map` is the one the scene plans on (the gated copy while the gates are locked;
+   * its terrain is shared): the ground the model stands on slows it (bog) and lets it slide (ice). Null: plain ground.
    */
-  frameInput(c: number, active: boolean, me: LocalFighter | undefined, others: Iterable<OtherFighter>, aiming: boolean): FrameInput {
+  frameInput(
+    c: number, active: boolean, me: LocalFighter | undefined, others: Iterable<OtherFighter>, aiming: boolean, map: GameMap | null = null,
+  ): FrameInput {
     const t = c + this.motion.delay;
-    return {
+    const input: FrameInput = {
       alive: active,
-      speedMult: me ? this.speedMult(t, me, others) : 1,
+      speedMult: me ? this.speedMult(t, me, others, map) : 1,
       rooted: (this.axeRoot !== null && t >= this.axeRoot.from && t < this.axeRoot.until) || this.rootedAt(c, t, me),
       aiming,
     };
+    const slipAt = me && map ? this.slipAtFor(map, me.faction) : undefined;
+    if (slipAt && map) {
+      input.slipAt = slipAt;
+      input.map = map;
+    }
+    return input;
+  }
+
+  /** The slide traction under a point for a fighter of `faction` (0 for the faction that grips ice, and off ice); undefined on a map without ice. */
+  private slipAtFor(map: GameMap, faction: string): ((x: number, y: number) => number) | undefined {
+    if (!hazardsOf(map).slip) return undefined;
+    const f = this.slipFn;
+    if (f !== null && f.map === map && f.faction === faction) return f.at;
+    const at = (x: number, y: number): number => surfaceAt(map, x, y, faction).accel;
+    this.slipFn = { map, faction, at };
+    return at;
   }
 
   /**
@@ -249,9 +274,11 @@ export class LocalPrediction {
 
   /**
    * The walk speed multiplier at server time `t`: the speed mirror, the strongest kill burst running, Last Stand's haste
-   * (added on top, as the server adds it: `hasteMultiplier`), and the chill.
+   * (added on top, as the server adds it: `hasteMultiplier`), the chill, and the bog under the MODEL (`motion.predicted`: the
+   * server meets that tile a delay from now, not the one it has the fighter on at the newest patch). The product is floored at
+   * MOVE_MULT_FLOOR while above 0, as the server floors it; a root's 0 is the `rooted` flag, not this.
    */
-  speedMult(t: number, me: LocalFighter, others: Iterable<OtherFighter>): number {
+  speedMult(t: number, me: LocalFighter, others: Iterable<OtherFighter>, map: GameMap | null = null): number {
     let m = decodeMult(me.speedMult);
     let best = 1;
     for (let i = this.bursts.length - 1; i >= 0; i--) if (t >= this.bursts[i]!.until + 2000) this.bursts.splice(i, 1);
@@ -268,7 +295,11 @@ export class LocalPrediction {
         }
       }
     }
-    return m;
+    if (map && hazardsOf(map).slow) {
+      const at = this.motion.predicted;
+      m *= surfaceAt(map, at.x, at.y, me.faction).speedMult;
+    }
+    return m > 0 && m < MOVE_MULT_FLOOR ? MOVE_MULT_FLOOR : m;
   }
 
   private dropRootBefore(t: number): void {

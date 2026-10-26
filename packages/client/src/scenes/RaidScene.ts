@@ -474,7 +474,8 @@ export class RaidScene extends Phaser.Scene {
     const c = this.localClock(now);
     const active = me.status === "alive" && state.phase === "active";
     const motion = this.predict.motion;
-    motion.frame(c, dt, this.predict.frameInput(c, active, me, others, this.aimStreaming(now)));
+    // The planning map carries the terrain: the bog slows the model where it will be, and the ice lets it slide.
+    motion.frame(c, dt, this.predict.frameInput(c, active, me, others, this.aimStreaming(now), this.planMap()));
     if (import.meta.env.DEV && this.clickAt > 0 && Math.hypot(motion.drawn.x - this.clickFrom.x, motion.drawn.y - this.clickFrom.y) > 0.05) {
       this.latency.push(Math.round(now - this.clickAt));
       this.clickAt = 0;
