@@ -6,7 +6,8 @@
 //     a fighter staggered or killed by one swing this tick still lands its own.
 //   - "What I saw is what I hit": the attacker's position AND every target's position are sampled at req.rewindT
 //     (positionAt over their history). Present walls (collisionMap) block: a target counts only with a clear line from
-//     the attacker's sampled position to the target's sampled centre (raycast).
+//     the attacker's sampled position to the target's sampled centre (raycast on reachMask(weapon): a swing is stopped by
+//     walls and by LOW, a fence or a lava stream, which a shot flies over).
 //   - Targets: every standing combatant except the attacker, players and mobs alike, inside the arc
 //     (inArc(origin, req.a, shape.reach, shape.halfArc, targetPos, PLAYER_RADIUS)). A swing hits everyone in it.
 //   - A target with a shield in hand (activeWeapon === "shield") whose front faces the attacker
@@ -25,8 +26,8 @@
 //     whether or not it hit anything.
 //   - Drains world.combat.melee.
 import {
-  inArc, onShieldFront, PLAYER_RADIUS, RANGED_SLACK, raycast, riposteShare, shieldOutcome, staggers, swingVsBall, WEAPONS,
-  type ArcShape, type GameMap, type Vec2,
+  inArc, onShieldFront, PLAYER_RADIUS, RANGED_SLACK, raycast, reachMask, riposteShare, shieldOutcome, staggers, swingVsBall,
+  WEAPONS, type ArcShape, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { activeWeapon, combatant, isEvading, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
@@ -50,11 +51,12 @@ export function resolveMelee(world: World): void {
     if (!attacker || !standing(attacker) || shape.kind !== "arc") continue;
     const origin = positionAt(attacker.rt, attacker.s, req.rewindT);
     emit(world, { type: "fx", fx: { kind: "swing", by: attacker.id, weapon: req.weapon, x: origin.x, y: origin.y, a: req.a } });
+    const reach = reachMask(req.weapon);
     for (const target of bodies) {
       if (target.id === attacker.id) continue;
       const at = positionAt(target.rt, target.s, req.rewindT);
       if (!inArc(origin, req.a, shape.reach, shape.halfArc, at, PLAYER_RADIUS)) continue;
-      if (raycast(map, origin.x, origin.y, at.x, at.y).hit) continue;
+      if (raycast(map, origin.x, origin.y, at.x, at.y, reach).hit) continue;
       land(world, req, attacker, target, origin, at);
     }
     meetBalls(world, req, attacker, shape);
@@ -88,21 +90,22 @@ function meetBalls(world: World, req: MeleeRequest, attacker: Combatant, shape: 
   const origin = { x: attacker.s.x, y: attacker.s.y };
   const map = collisionMap(world);
   for (const ball of ballsThisTick(world, attacker.id)) {
-    if (crossesArc(map, ball, origin, req.a, shape)) interceptBall(world, ball, how);
+    if (crossesArc(map, ball, origin, req.a, shape, req.weapon)) interceptBall(world, ball, how);
   }
 }
 
 /**
  * Does the ball's path this tick (a point when it was loosed this tick) touch the arc, the ball's own radius counted,
- * somewhere the swing can reach (walls block it like they block body hits)?
+ * somewhere the swing can reach (what blocks a body hit blocks it: the weapon's reachMask, walls and LOW)?
  */
-function crossesArc(map: GameMap, ball: ProjectileRuntime, origin: Vec2, a: number, shape: ArcShape): boolean {
+function crossesArc(map: GameMap, ball: ProjectileRuntime, origin: Vec2, a: number, shape: ArcShape, weapon: WeaponId): boolean {
+  const reach = reachMask(weapon);
   const dx = ball.x - ball.tickX;
   const dy = ball.y - ball.tickY;
   const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / BALL_SAMPLE_STEP));
   for (let i = 0; i <= n; i++) {
     const p = { x: ball.tickX + (dx * i) / n, y: ball.tickY + (dy * i) / n };
-    if (inArc(origin, a, shape.reach, shape.halfArc, p, RANGED_SLACK) && !raycast(map, origin.x, origin.y, p.x, p.y).hit) return true;
+    if (inArc(origin, a, shape.reach, shape.halfArc, p, RANGED_SLACK) && !raycast(map, origin.x, origin.y, p.x, p.y, reach).hit) return true;
   }
   return false;
 }

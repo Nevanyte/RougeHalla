@@ -36,7 +36,7 @@
 import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
-  engageRange, HEAL_LOCKOUT_SECONDS, hasLineOfSight, isDot, lifestealFraction, markDps, markShare, SIG_BURNING,
+  engageRange, HEAL_LOCKOUT_SECONDS, hasLineOfSight, isDot, lifestealFraction, markDps, markShare, reachMask, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import {
@@ -282,7 +282,9 @@ function signatureDamage(world: World, dtMs: number): void {
       continue;
     }
     const d = Math.hypot(t.s.x - c.s.x, t.s.y - c.s.y);
-    f.inReach = d <= engageRange(activeWeapon(c.s)) && hasLineOfSight(map, c.s, t.s);
+    // The reach of the weapon in hand: a melee faction's signature does not cross a fence (LOW), a ranged one does.
+    const weapon = activeWeapon(c.s);
+    f.inReach = d <= engageRange(weapon) && hasLineOfSight(map, c.s, t.s, reachMask(weapon));
     if (f.inReach) f.reachAt = now;
     f.engaged = now - f.reachAt <= ENGAGE_LINGER_SECONDS * 1000 + 1e-6
       && now - f.contactAt <= tradeWindowMs(world, c, t) + 1e-6;

@@ -4,7 +4,8 @@
 // that moveSeq names it, and that the prediction therefore stays in line with the sim through starts, turns, stops and a lock.
 import { describe, expect, it } from "vitest";
 import {
-  mapFromTiles, mulberry32, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type FactionId, type GameMap, type Vec2, type WeaponId,
+  circleClear, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL,
+  type FactionId, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { LocalMotion, type FrameInput } from "../../client/src/net/localMotion";
 import { combatant } from "../src/sim/combatant";
@@ -13,6 +14,7 @@ import { enqueueClientMessage } from "../src/sim/inputs";
 import { addMob } from "../src/sim/mobs";
 import { addPlayer, step } from "../src/sim/step";
 import type { World } from "../src/sim/world";
+import { roomMap, tileClassAt, vertical } from "./terrainWorld";
 
 const W = 60;
 const H = 30;
@@ -42,8 +44,11 @@ class SimRig {
   readonly drawn: Vec2[] = [];
   readonly offsets: number[] = [];
 
-  constructor(readonly up: number, readonly down: number, readonly jitter = 0, faction: FactionId = "plague", weapon: WeaponId = "sword") {
-    this.map = arenaMap();
+  constructor(
+    readonly up: number, readonly down: number, readonly jitter = 0, faction: FactionId = "plague", weapon: WeaponId = "sword",
+    map: GameMap = arenaMap(),
+  ) {
+    this.map = map;
     this.world = createGameWorld({
       seed: 3,
       config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
@@ -253,5 +258,30 @@ describe("prediction against the real sim", () => {
     r.run(5000); // 19 tiles to walk
     expect(combatant(r.world, "me")!.rt.weapon.lock).toBeNull();
     expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+  });
+  it("a walk across a fence map: the sim and the prediction take the same way through the gap, and land together", () => {
+    // 60 x 30; a LOW fence at column 30 (x 960..992), rows 1..22; the gap is rows 23..28. The walk starts west of it.
+    const fence = roomMap(W, H, { low: vertical(30, 1, 22) });
+    for (const [up, down, jitter] of [[1, 1, 0], [40, 40, 10], [90, 70, 40]] as const) {
+      const r = new SimRig(up, down, jitter, "plague", "sword", fence);
+      r.run(300);
+      r.move(centre(50, 10)); // the far side of the fence: round the south end, nothing straight
+      let serverMaxY = 0;
+      const bad: number[] = [];
+      for (let i = 0; i < 480; i++) { // 24 s of ticks: a walk of about 1100 u takes 6.5 s
+        r.run(TICK_MS);
+        serverMaxY = Math.max(serverMaxY, r.server.y);
+        if (!circleClear(fence, r.server, PLAYER_RADIUS) || tileClassAt(fence, r.server) === TILE_LOW) bad.push(i);
+        if (tileClassAt(fence, r.motion.drawn) === TILE_LOW) bad.push(-i);
+      }
+      const tag = `${up}/${down}/${jitter}`;
+      expect(bad, tag).toEqual([]);
+      expect(serverMaxY, tag).toBeGreaterThan(23 * TILE); // the sim went through the gap
+      expect(Math.max(...r.drawn.map((p) => p.y)), tag).toBeGreaterThan(23 * TILE); // so did the prediction
+      expect(dist(r.server, centre(50, 10)), tag).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+      expect(r.maxStep(), tag).toBeLessThanOrEqual(MAX_STEP);
+      expect(Math.max(...r.offsets), tag).toBeLessThan(20);
+    }
   });
 });

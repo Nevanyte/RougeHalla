@@ -23,7 +23,7 @@
 import { writeFileSync } from "node:fs";
 import {
   decide, duel, ELITE_K, FACTION_IDS, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isFactionId, isRanged, isWeaponId, MOB_K,
-  MOB_LEASH_RADIUS, mulberry32, PLAYER_RADIUS, POLICIES, REGION_WEAPONS, scaledFaction, segmentClear, SIGNATURE_WEAPONS, TICK_MS,
+  MOB_LEASH_RADIUS, mulberry32, PLAYER_RADIUS, POLICIES, reachMask, REGION_WEAPONS, scaledFaction, segmentClear, SIGNATURE_WEAPONS, TICK_MS,
   TILE, WEAPON_IDS, WEAPONS, type FactionId, type FactionSpec, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { buildArena } from "../src/harness/duel";
@@ -171,7 +171,7 @@ class PlayerClient {
     const map = world.map;
     const input: PolicyInput = {
       self: mine.pos, target: theirs.pos, targetVel: theirs.vel, selfVel: mine.vel,
-      los: hasLineOfSight(map, mine.pos, theirs.pos),
+      los: hasLineOfSight(map, mine.pos, theirs.pos, reachMask(weapon)),
       weapon,
       ready: now >= me.s.readyAt,
       walkable: (a, b) => segmentClear(map, a, b, PLAYER_RADIUS),
