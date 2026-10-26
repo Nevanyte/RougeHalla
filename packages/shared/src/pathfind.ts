@@ -1,8 +1,9 @@
 // Grid A* (8-way, no corner cutting) plus string-pulling over segmentClear. Used by bots on the
 // server; deterministic (fixed neighbour order and tie-breaks), no allocation beyond the result.
+// Movement only: a path is always walked under MASK_MOVE (any tile but floor blocks it, LOW included).
 import { PLAYER_RADIUS, TILE } from "./constants";
 import { circleClear, segmentClear } from "./geometry";
-import { isWallTile, TILE_FLOOR, tileToWorldCenter, worldToTile } from "./map";
+import { isSolidTile, moveComponents, TILE_FLOOR, tileToWorldCenter, worldToTile } from "./map";
 import type { GameMap } from "./map";
 import type { Vec2 } from "./messages";
 
@@ -12,7 +13,14 @@ const isFloor = (map: GameMap, tx: number, ty: number): boolean =>
 const DX = [1, -1, 0, 0, 1, 1, -1, -1];
 const DY = [0, 0, 1, -1, 1, -1, 1, -1];
 /** Farthest BFS ring searched when snapping a wall endpoint onto floor. */
-const SNAP_RADIUS = 4;
+export const SNAP_RADIUS = 4;
+/**
+ * How many candidates past the anchor string pulling looks at (a performance cap; it never makes a hop invalid, since
+ * every accepted hop passes segmentClear and the next candidate always passes). At 96x96 with long detours the pull
+ * was 85% of findPath's cost; the mapgen's sight certificate keeps every straight hop to well under 32 tiles, so the
+ * paths on generated maps are the same as without the cap.
+ */
+export const PULL_WINDOW = 32;
 
 interface Scratch {
   n: number;
@@ -166,8 +174,8 @@ function snapToFloor(map: GameMap, x: number, y: number): { tx: number; ty: numb
 }
 
 /**
- * Pulls `p`, which lies in floor tile (gx, gy), just far enough from its walls that a disc of `radius`
- * fits: each orthogonal wall neighbour clamps that axis to the tile's inner band. A disc that still
+ * Pulls `p`, which lies in floor tile (gx, gy), just far enough from its solid neighbours (walls, LOW) that a disc of
+ * `radius` fits: each orthogonal solid neighbour clamps that axis to the tile's inner band. A disc that still
  * touches a diagonal corner falls back to the tile centre, which is always clear while
  * radius <= TILE / 2. A target that already fits is returned as is.
  */
@@ -177,10 +185,10 @@ function clampClear(map: GameMap, p: Vec2, gx: number, gy: number, radius: numbe
   const y0 = gy * TILE;
   let x = p.x;
   let y = p.y;
-  if (isWallTile(map, gx - 1, gy)) x = Math.max(x, x0 + radius);
-  if (isWallTile(map, gx + 1, gy)) x = Math.min(x, x0 + TILE - radius);
-  if (isWallTile(map, gx, gy - 1)) y = Math.max(y, y0 + radius);
-  if (isWallTile(map, gx, gy + 1)) y = Math.min(y, y0 + TILE - radius);
+  if (isSolidTile(map, gx - 1, gy)) x = Math.max(x, x0 + radius);
+  if (isSolidTile(map, gx + 1, gy)) x = Math.min(x, x0 + TILE - radius);
+  if (isSolidTile(map, gx, gy - 1)) y = Math.max(y, y0 + radius);
+  if (isSolidTile(map, gx, gy + 1)) y = Math.min(y, y0 + TILE - radius);
   const clamped = { x, y };
   return circleClear(map, clamped, radius) ? clamped : { x: tileToWorldCenter(gx), y: tileToWorldCenter(gy) };
 }
@@ -223,6 +231,10 @@ export function findPath(map: GameMap, from: Vec2, to: Vec2, radius: number = PL
   // them), so even the same-tile shortcut needs the swept check.
   if (!startInWall && segmentClear(map, from, target, radius)) return [target];
 
+  // A goal in another floor component is unreachable: skip the flood A* would do to find that out.
+  const comp = moveComponents(map);
+  if (comp[sy * map.w + sx] !== comp[gy * map.w + gx]) return [];
+
   const tilePath = astar(map, sy * map.w + sx, gy * map.w + gx);
   if (!tilePath) return [];
 
@@ -239,13 +251,13 @@ export function findPath(map: GameMap, from: Vec2, to: Vec2, radius: number = PL
   cand.push(goalCenter);
   if (target.x !== goalCenter.x || target.y !== goalCenter.y) cand.push(target);
 
-  // String pulling: from each anchor jump to the farthest candidate with a clear swept segment. The
+  // String pulling: from each anchor jump to the farthest candidate (within PULL_WINDOW) with a clear swept segment. The
   // immediate successor is always accepted; consecutive tile centres are clear by construction.
   const out: Vec2[] = [];
   let anchor: Vec2 = from;
   let i = 0;
   while (i < cand.length) {
-    let j = cand.length - 1;
+    let j = Math.min(cand.length - 1, i + PULL_WINDOW);
     while (j > i && !segmentClear(map, anchor, cand[j], radius)) j--;
     out.push(cand[j]);
     anchor = cand[j];

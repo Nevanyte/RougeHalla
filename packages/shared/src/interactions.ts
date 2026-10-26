@@ -13,7 +13,9 @@
 import {
   BALL_ARROW_RADIUS, RIPOSTE_SHARE, SHIELD_HALF_ARC, STAGGER_IMMUNITY_SECONDS, SWAP_SECONDS, SWORD_BALL_SCALE,
 } from "./constants";
+import { MASK_MELEE, MASK_SIGHT } from "./map";
 import type { Vec2 } from "./messages";
+import { isRanged } from "./weapons";
 import type { ProjectileKind, WeaponId } from "./weapons";
 
 /** What reaches a body: a melee swing by a weapon, or a projectile. */
@@ -82,6 +84,15 @@ export function swingVsBall(w: WeaponId): { scale: number } | "destroy" | null {
   if (w === "sword") return { scale: SWORD_BALL_SCALE };
   if (w === "axe") return "destroy";
   return null;
+}
+
+/**
+ * The tile mask that stops a weapon's reach: an arc (melee) weapon is stopped by MASK_MELEE (walls and, by default, LOW:
+ * a swing does not cross a fence), a projectile weapon or nothing in hand by MASK_SIGHT (a shot flies over LOW).
+ * Melee swings, the lock's "clear" test, mob line of sight and signature reach for arc weapons read this.
+ */
+export function reachMask(weapon: WeaponId | null): number {
+  return weapon !== null && !isRanged(weapon) ? MASK_MELEE : MASK_SIGHT;
 }
 
 /** A ball deletes an enemy arrow whose centre is within BALL_ARROW_RADIUS of its own (inclusive). */

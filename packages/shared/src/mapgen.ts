@@ -1850,6 +1850,8 @@ function buildMap(seed: number, attempt: number): GameMap | null {
     territoryGrid: new Uint8Array(N),
     camps,
     spawnPool,
+    terrain: new Uint8Array(N),
+    props: [],
   };
 }
 

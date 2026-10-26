@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { TILE } from "../src/constants";
 import { circleClear, distPointToSegment, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
-import { TILE_FLOOR, TILE_WALL, mapFromTiles } from "../src/map";
+import { MASK_MELEE, MASK_MOVE, MASK_SIGHT, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, withGates } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
+import { findPath } from "../src/pathfind";
 import { mulberry32 } from "../src/rng";
 
+/** "#" wall, "~" LOW, anything else floor. */
 function asciiMap(rows: string[]): GameMap {
   const h = rows.length;
   const w = rows[0].length;
   const tiles = new Uint8Array(w * h);
   rows.forEach((row, y) => {
-    for (let x = 0; x < w; x++) tiles[y * w + x] = row[x] === "#" ? TILE_WALL : TILE_FLOOR;
+    for (let x = 0; x < w; x++) tiles[y * w + x] = row[x] === "#" ? TILE_WALL : row[x] === "~" ? TILE_LOW : TILE_FLOOR;
   });
   return mapFromTiles(w, h, tiles);
 }
@@ -149,7 +151,7 @@ describe("raycast", () => {
         const t = len === 0 ? 0 : s / len;
         const tx = Math.floor((x0 + (x1 - x0) * t) / TILE);
         const ty = Math.floor((y0 + (y1 - y0) * t) / TILE);
-        return map.tiles[ty * map.w + tx] === TILE_WALL;
+        return (map.tiles[ty * map.w + tx] & MASK_SIGHT) !== 0;
       };
       let first = -1;
       for (let s = 0; s <= len; s += 0.25) if (wallAt(s)) { first = s; break; }
@@ -336,8 +338,10 @@ describe("segmentClear", () => {
   });
 });
 
-/** Smallest distance from segment ab to any wall tile (as a closed rectangle). */
-function minWallDistance(map: GameMap, a: { x: number; y: number }, b: { x: number; y: number }, reach: number): number {
+/** Smallest distance from segment ab to any tile `mask` blocks (as a closed rectangle; outside the map blocks). */
+function minWallDistance(
+  map: GameMap, a: { x: number; y: number }, b: { x: number; y: number }, reach: number, mask: number = MASK_MOVE,
+): number {
   const x0 = Math.floor((Math.min(a.x, b.x) - reach - 1) / TILE);
   const x1 = Math.floor((Math.max(a.x, b.x) + reach + 1) / TILE);
   const y0 = Math.floor((Math.min(a.y, b.y) - reach - 1) / TILE);
@@ -345,7 +349,7 @@ function minWallDistance(map: GameMap, a: { x: number; y: number }, b: { x: numb
   let best = Infinity;
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
-      if (tx >= 0 && ty >= 0 && tx < map.w && ty < map.h && map.tiles[ty * map.w + tx] !== TILE_WALL) continue;
+      if (tx >= 0 && ty >= 0 && tx < map.w && ty < map.h && (map.tiles[ty * map.w + tx] & mask) === 0) continue;
       best = Math.min(best, segmentRectDistance(a, b, tx * TILE, ty * TILE, (tx + 1) * TILE, (ty + 1) * TILE));
     }
   }
@@ -377,3 +381,356 @@ function segmentRectDistance(
     distPointToSegment(rx0, ry1, a.x, a.y, b.x, b.y), distPointToSegment(rx1, ry1, a.x, a.y, b.x, b.y),
   );
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// LOW tiles: they stop bodies (MASK_MOVE) and not eyes (MASK_SIGHT, the default of raycast and hasLineOfSight).
+
+// The room's two-tile pillar, but LOW: tile x=5, y=3..4  ->  world x in [160, 192), y in [96, 160).
+const lake = asciiMap([
+  "##########",
+  "#........#",
+  "#........#",
+  "#....~...#",
+  "#....~...#",
+  "#........#",
+  "##########",
+]);
+
+describe("raycast and LOW tiles", () => {
+  it("passes a LOW pillar by sight and hits it by movement at the face, with the exact entry point", () => {
+    const sight = raycast(lake, 48, 112, 280, 112);
+    expect(sight).toEqual({ hit: false, x: 280, y: 112, dist: 232 });
+    expect(raycast(lake, 48, 112, 280, 112, MASK_SIGHT)).toEqual(sight);
+    for (const mask of [MASK_MOVE, MASK_MELEE]) {
+      const r = raycast(lake, 48, 112, 280, 112, mask);
+      expect(r.hit).toBe(true);
+      expect(r.x).toBe(160);
+      expect(r.y).toBeCloseTo(112);
+      expect(r.dist).toBeCloseTo(112);
+    }
+    const back = raycast(lake, 280, 112, 48, 112, MASK_MOVE);
+    expect(back.hit).toBe(true);
+    expect(back.x).toBe(192);
+    expect(back.dist).toBeCloseTo(88);
+    const down = raycast(lake, 176, 48, 176, 200, MASK_MOVE);
+    expect(down.hit).toBe(true);
+    expect(down.y).toBe(96);
+    expect(raycast(lake, 176, 48, 176, 180).hit).toBe(false);
+  });
+
+  it("starting inside LOW: sight is not blocked, movement is, at distance 0", () => {
+    expect(raycast(lake, 170, 120, 250, 120)).toEqual({ hit: false, x: 250, y: 120, dist: 80 });
+    expect(raycast(lake, 170, 120, 250, 120, MASK_MOVE)).toEqual({ hit: true, x: 170, y: 120, dist: 0 });
+    expect(raycast(lake, 170, 120, 170, 120, MASK_MOVE).hit).toBe(true);
+    expect(raycast(lake, 170, 120, 170, 120).hit).toBe(false);
+  });
+
+  it("an exact vertex graze of a LOW corner hits by movement both ways and misses by sight", () => {
+    // Through the north-west corner (160, 96), as the wall test above does.
+    for (const [a, b] of [[[144, 112], [176, 80]], [[176, 80], [144, 112]]] as const) {
+      const move = raycast(lake, a[0], a[1], b[0], b[1], MASK_MOVE);
+      expect(move.hit).toBe(true);
+      expect(move.x).toBe(160);
+      expect(move.y).toBeCloseTo(96);
+      expect(raycast(lake, a[0], a[1], b[0], b[1]).hit).toBe(false);
+    }
+  });
+
+  describe("a diagonal pinch (two blocked tiles touching at a vertex, the ray through it)", () => {
+    // Vertex (128, 96) joins tiles (3,2) NW, (4,2) NE, (3,3) SW, (4,3) SE; the ray runs NW centre to SE centre.
+    const pinch = (ne: string, sw: string): GameMap => {
+      const rows = ["#######", "#.....#", "#.....#", "#.....#", "#.....#", "#######"].map((r) => r.split(""));
+      rows[2][4] = ne;
+      rows[3][3] = sw;
+      return asciiMap(rows.map((r) => r.join("")));
+    };
+    const ends = [[112, 80], [144, 112]] as const;
+    const cast = (m: GameMap, mask?: number) => {
+      const fwd = raycast(m, ends[0][0], ends[0][1], ends[1][0], ends[1][1], mask);
+      const rev = raycast(m, ends[1][0], ends[1][1], ends[0][0], ends[0][1], mask);
+      expect(rev.hit).toBe(fwd.hit); // symmetric
+      return fwd.hit;
+    };
+
+    it("LOW + WALL blocks under both masks", () => {
+      const m = pinch("~", "#");
+      expect(cast(m)).toBe(true);
+      expect(cast(m, MASK_MOVE)).toBe(true);
+    });
+
+    it("LOW + LOW is a sight miss and a movement hit", () => {
+      const m = pinch("~", "~");
+      expect(cast(m)).toBe(false);
+      expect(cast(m, MASK_MOVE)).toBe(true);
+    });
+
+    it("LOW + floor is a sight miss and a movement hit (the pathfinder refuses that diagonal as well)", () => {
+      const m = pinch("~", ".");
+      expect(cast(m)).toBe(false);
+      expect(cast(m, MASK_MOVE)).toBe(true);
+      // The path from the NW centre to the SE centre must not be the diagonal hop: A* cannot cut that corner.
+      const path = findPath(m, { x: 112, y: 80 }, { x: 144, y: 112 });
+      expect(path.length).toBeGreaterThan(1);
+    });
+
+    it("walls only: unchanged", () => {
+      const m = pinch("#", ".");
+      expect(cast(m)).toBe(true);
+      expect(cast(m, MASK_MOVE)).toBe(true);
+    });
+  });
+
+  it("an edge-collinear ray keeps the half-open rule: it belongs to the tile on its positive side, in both directions", () => {
+    // x = 160 is the west face of the LOW column (tile x=5) and the east face of tile x=4: the ray is in column 5.
+    const along = raycast(lake, 160, 48, 160, 180, MASK_MOVE);
+    expect(along.hit).toBe(true);
+    expect(along.y).toBe(96);
+    expect(raycast(lake, 160, 180, 160, 48, MASK_MOVE).hit).toBe(true);
+    // x = 192 is the east face of column 5: it runs in column 6, which is floor.
+    expect(raycast(lake, 192, 48, 192, 180, MASK_MOVE).hit).toBe(false);
+    expect(raycast(lake, 192, 180, 192, 48, MASK_MOVE).hit).toBe(false);
+    expect(raycast(lake, 160, 48, 160, 180).hit).toBe(false); // sight: LOW is not there
+  });
+
+  it("hasLineOfSight takes a mask and defaults to sight", () => {
+    const a = { x: 48, y: 112 };
+    const b = { x: 280, y: 112 };
+    expect(hasLineOfSight(lake, a, b)).toBe(true);
+    expect(hasLineOfSight(lake, a, b, MASK_SIGHT)).toBe(true);
+    expect(hasLineOfSight(lake, a, b, MASK_MOVE)).toBe(false);
+    expect(hasLineOfSight(lake, a, b, MASK_MELEE)).toBe(false);
+    expect(hasLineOfSight(room, a, b, MASK_MELEE)).toBe(false); // a wall stops every mask
+  });
+
+  it("out of bounds blocks every mask", () => {
+    for (const mask of [MASK_SIGHT, MASK_MOVE, MASK_MELEE]) {
+      expect(raycast(lake, 48, 48, 48, -100, mask).hit).toBe(true);
+      expect(raycast(lake, -5, 48, 100, 48, mask)).toEqual({ hit: true, x: -5, y: 48, dist: 0 });
+    }
+  });
+});
+
+/** Random 20x20 map with a wall border and independent WALL / LOW tiles. */
+function randomLowMap(rng: () => number, size = 20, pWall = 0.12, pLow = 0.18): GameMap {
+  const tiles = new Uint8Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const edge = x === 0 || y === 0 || x === size - 1 || y === size - 1;
+      const r = rng();
+      tiles[y * size + x] = edge || r < pWall ? TILE_WALL : r < pWall + pLow ? TILE_LOW : TILE_FLOOR;
+    }
+  }
+  return mapFromTiles(size, size, tiles);
+}
+
+/** The tiles `mask` blocks, as [tx, ty] pairs. */
+function blockedTiles(map: GameMap, mask: number): number[] {
+  const out: number[] = [];
+  for (let ty = 0; ty < map.h; ty++) for (let tx = 0; tx < map.w; tx++) if ((map.tiles[ty * map.w + tx] & mask) !== 0) out.push(tx, ty);
+  return out;
+}
+
+/**
+ * Exact reference: the smallest parameter t in [0, 1] at which the segment touches a CLOSED blocked square (Liang-Barsky
+ * against every blocked tile), Infinity when it touches none. A start inside a tile gives 0.
+ */
+function exactEntry(blocked: number[], x0: number, y0: number, x1: number, y1: number): number {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  let best = Infinity;
+  for (let k = 0; k < blocked.length; k += 2) {
+    const rx = blocked[k] * TILE;
+    const ry = blocked[k + 1] * TILE;
+    let t0 = 0;
+    let t1 = 1;
+    const clip = (p: number, q: number): boolean => {
+      if (p === 0) return q >= 0;
+      const r = q / p;
+      if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; }
+      return true;
+    };
+    if (clip(-dx, x0 - rx) && clip(dx, rx + TILE - x0) && clip(-dy, y0 - ry) && clip(dy, ry + TILE - y0) && t0 <= t1) best = Math.min(best, t0);
+  }
+  return best;
+}
+
+describe("raycast masks against an exact closed-square reference", () => {
+  it("agrees on 150 random LOW maps: general-position and exact-vertex rays, both masks, symmetric, sight-hit implies move-hit", () => {
+    const rng = mulberry32(99);
+    const span = 20 * TILE;
+    const bad: string[] = [];
+    let rays = 0, moveHits = 0, sightHits = 0, lowOnly = 0;
+    for (let k = 0; k < 150; k++) {
+      const m = randomLowMap(rng);
+      const blocked: Record<number, number[]> = { [MASK_SIGHT]: blockedTiles(m, MASK_SIGHT), [MASK_MOVE]: blockedTiles(m, MASK_MOVE) };
+      const check = (x0: number, y0: number, x1: number, y1: number, tag: string): void => {
+        const len = Math.hypot(x1 - x0, y1 - y0);
+        const hit: Record<number, boolean> = {};
+        for (const mask of [MASK_SIGHT, MASK_MOVE]) {
+          const r = raycast(m, x0, y0, x1, y1, mask);
+          const t = exactEntry(blocked[mask], x0, y0, x1, y1);
+          rays++;
+          hit[mask] = r.hit;
+          if (r.hit !== t <= 1 || (r.hit && Math.abs(r.dist - t * len) > 1e-6)) {
+            if (bad.length < 5) bad.push(`${tag} map ${k} mask ${mask}: (${x0},${y0})->(${x1},${y1}) dda ${JSON.stringify(r)} exact t ${t} dist ${t * len}`);
+          }
+          if (raycast(m, x1, y1, x0, y0, mask).hit !== r.hit && bad.length < 5) bad.push(`${tag} map ${k} mask ${mask}: asymmetric`);
+        }
+        if (hit[MASK_SIGHT] && !hit[MASK_MOVE] && bad.length < 5) bad.push(`${tag} map ${k}: sight blocked but movement clear`);
+        if (hit[MASK_MOVE]) moveHits++;
+        if (hit[MASK_SIGHT]) sightHits++;
+        if (hit[MASK_MOVE] && !hit[MASK_SIGHT]) lowOnly++;
+      };
+      for (let i = 0; i < 200; i++) {
+        const x0 = 33 + rng() * (span - 66), y0 = 33 + rng() * (span - 66);
+        const x1 = 33 + rng() * (span - 66), y1 = 33 + rng() * (span - 66);
+        check(x0, y0, x1, y1, "random");
+      }
+      // Rays that pass exactly through a tile vertex: diagonal, from 16, 48 or 80 u before it to the same after it.
+      for (let i = 0; i < 100; i++) {
+        const vx = (3 + Math.floor(rng() * 15)) * TILE, vy = (3 + Math.floor(rng() * 15)) * TILE;
+        const d = 16 + Math.floor(rng() * 3) * TILE;
+        const sx = rng() < 0.5 ? -1 : 1, sy = rng() < 0.5 ? -1 : 1;
+        check(vx - sx * d, vy - sy * d, vx + sx * d, vy + sy * d, "vertex");
+      }
+    }
+    expect(bad).toEqual([]);
+    expect(rays).toBe(150 * 300 * 2);
+    // The sample really exercises the new case: plenty of rays only LOW stops, and sight is blocked by walls alone.
+    expect(lowOnly).toBeGreaterThan(5000);
+    expect(sightHits).toBeGreaterThan(5000);
+    expect(moveHits).toBeGreaterThan(sightHits);
+  });
+});
+
+describe("circleClear and segmentClear on LOW maps", () => {
+  it("a disc overlapping a LOW tile by any amount is not clear, a tangent one is, and MASK_SIGHT ignores LOW", () => {
+    const r = 12;
+    // The LOW pillar's west face is x = 160, its top face y = 96.
+    expect(circleClear(lake, { x: 160 - r, y: 128 }, r)).toBe(true); // tangent
+    expect(circleClear(lake, { x: 160 - r + 0.001, y: 128 }, r)).toBe(false);
+    expect(circleClear(lake, { x: 176, y: 96 - r + 0.001 }, r)).toBe(false);
+    expect(circleClear(lake, { x: 176, y: 128 }, r)).toBe(false); // centre inside
+    expect(circleClear(lake, { x: 176, y: 128 }, 0)).toBe(false); // a point on LOW is not on floor
+    expect(circleClear(lake, { x: 176, y: 128 }, r, MASK_SIGHT)).toBe(true);
+    expect(circleClear(lake, { x: 176, y: 128 }, r, MASK_MOVE)).toBe(false);
+    expect(circleClear(lake, { x: 176, y: 128 }, 0, MASK_SIGHT)).toBe(true);
+    // Walls still stop every mask.
+    expect(circleClear(lake, { x: 32 + r - 0.001, y: 80 }, r, MASK_SIGHT)).toBe(false);
+  });
+
+  it("circleClear matches an exact distance reference on random LOW maps, under the default, move and sight masks", () => {
+    const rng = mulberry32(31);
+    const radii = [4, 12, 16, 20, 40, 70];
+    const bad: string[] = [];
+    let checked = 0, clearByMove = 0, clearBySightOnly = 0;
+    for (let k = 0; k < 60; k++) {
+      const m = randomLowMap(rng);
+      for (let i = 0; i < 80; i++) {
+        const radius = radii[i % radii.length];
+        const p = { x: rng() * 20 * TILE, y: rng() * 20 * TILE };
+        for (const mask of [undefined, MASK_MOVE, MASK_SIGHT]) {
+          const d = minWallDistance(m, p, p, radius + 1, mask ?? MASK_MOVE);
+          if (Math.abs(d - radius) < 1e-6) continue;
+          const ok = circleClear(m, p, radius, mask);
+          checked++;
+          if (ok !== d > radius && bad.length < 5) bad.push(`map ${k} mask ${mask} r=${radius} p=${p.x},${p.y} d=${d}`);
+          if (mask === MASK_MOVE && ok) clearByMove++;
+          if (mask === MASK_SIGHT && ok && !circleClear(m, p, radius)) clearBySightOnly++;
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+    expect(checked).toBeGreaterThan(10000);
+    expect(clearByMove).toBeGreaterThan(300);
+    expect(clearBySightOnly).toBeGreaterThan(300); // discs that only LOW blocks
+  });
+
+  it("segmentClear matches an exact capsule reference on random LOW maps, with the end discs and every ray on the same mask", () => {
+    const rng = mulberry32(17);
+    const radii = [4, 12, 16, 20, 40];
+    const bad: string[] = [];
+    let checked = 0, movedOnly = 0;
+    for (let k = 0; k < 60; k++) {
+      const m = randomLowMap(rng);
+      for (let i = 0; i < 100; i++) {
+        const radius = radii[i % radii.length];
+        const a = { x: 40 + rng() * 560, y: 40 + rng() * 560 };
+        const b = {
+          x: Math.min(600, Math.max(40, a.x + (rng() - 0.5) * 260)),
+          y: Math.min(600, Math.max(40, a.y + (rng() - 0.5) * 260)),
+        };
+        for (const mask of [undefined, MASK_MOVE, MASK_SIGHT]) {
+          const d = minWallDistance(m, a, b, radius, mask ?? MASK_MOVE);
+          if (Math.abs(d - radius) < 1e-6) continue;
+          const ok = segmentClear(m, a, b, radius, mask);
+          checked++;
+          if (ok !== d > radius && bad.length < 5) bad.push(`map ${k} mask ${mask} r=${radius} a=${a.x},${a.y} b=${b.x},${b.y} d=${d}`);
+          if (mask === MASK_SIGHT && ok && !segmentClear(m, a, b, radius)) movedOnly++;
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+    expect(checked).toBeGreaterThan(14000);
+    expect(movedOnly).toBeGreaterThan(300);
+  });
+
+  it("a hop across a one-tile LOW strip is blocked for a body and open for a shot", () => {
+    const fence = asciiMap(["#########", "#...~...#", "#...~...#", "#...~...#", "#########"]);
+    const a = { x: 3 * TILE + 16, y: 2 * TILE + 16 };
+    const b = { x: 5 * TILE + 16, y: 2 * TILE + 16 };
+    expect(segmentClear(fence, a, b, 12)).toBe(false);
+    expect(segmentClear(fence, a, b, 0)).toBe(false);
+    expect(segmentClear(fence, a, b, 12, MASK_SIGHT)).toBe(true);
+    expect(hasLineOfSight(fence, a, b)).toBe(true);
+  });
+});
+
+// The wedge generator's maps have no LOW tiles, and gates open and locked are both walls only: every query must give
+// exactly the numbers it gave before TILE_LOW and the masks existed. The hashes (FNV-1a over the 8 bytes of every result)
+// were recorded from the unmodified code; they pin raycast, circleClear, segmentClear and findPath on seeds 1..5.
+describe("identity golden on wall-only maps", () => {
+  const f64 = new Float64Array(1);
+  const bytes = new Uint8Array(f64.buffer);
+  const mix = (h: number, v: number): number => {
+    f64[0] = v;
+    for (let i = 0; i < 8; i++) h = Math.imul(h ^ bytes[i], 16777619) >>> 0;
+    return h;
+  };
+
+  function identityHashes(): { raycast: number; circle: number; segment: number; path: number } {
+    let hr = 2166136261, hc = 2166136261, hs = 2166136261, hp = 2166136261;
+    for (let seed = 1; seed <= 5; seed++) {
+      const open = generateMap(seed);
+      const maps = [open, withGates(open)];
+      for (let m = 0; m < 2; m++) {
+        const map = maps[m];
+        const rng = mulberry32(seed * 7 + m);
+        const span = map.w * TILE;
+        for (let i = 0; i < 500; i++) {
+          const x0 = rng() * span;
+          const y0 = rng() * span;
+          // One in five rays ends on a grid line, so vertex and edge cases are in the mix.
+          const x1 = rng() < 0.2 ? Math.round(x0 / TILE) * TILE + TILE * Math.round((rng() - 0.5) * 10) : x0 + (rng() - 0.5) * 600;
+          const y1 = rng() < 0.2 ? Math.round(y0 / TILE) * TILE + TILE * Math.round((rng() - 0.5) * 10) : y0 + (rng() - 0.5) * 600;
+          const r = raycast(map, x0, y0, x1, y1);
+          hr = mix(mix(mix(mix(hr, r.hit ? 1 : 0), r.x), r.y), r.dist);
+          const radius = rng() < 0.5 ? 12 : rng() * 40;
+          hc = mix(hc, circleClear(map, { x: x0, y: y0 }, radius) ? 1 : 0);
+          const sr = rng() < 0.5 ? 12 : rng() * 30;
+          hs = mix(hs, segmentClear(map, { x: x0, y: y0 }, { x: x1, y: y1 }, sr) ? 1 : 0);
+          if (i % 10 === 0) {
+            const path = findPath(map, { x: x0, y: y0 }, { x: x1, y: y1 });
+            hp = mix(hp, path.length);
+            for (const p of path) hp = mix(mix(hp, p.x), p.y);
+          }
+        }
+      }
+    }
+    return { raycast: hr, circle: hc, segment: hs, path: hp };
+  }
+
+  it("gives the same 5000 raycasts, 5000 disc tests, 5000 swept tests and 500 paths as the code before LOW", () => {
+    expect(identityHashes()).toEqual({ raycast: 1538573849, circle: 2048595749, segment: 1492299864, path: 3815677668 });
+  });
+});

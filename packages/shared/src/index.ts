@@ -7,6 +7,7 @@ export * from "./weapons";
 export * from "./interactions";
 export * from "./policies";
 export * from "./map";
+export * from "./terrain";
 export * from "./interp";
 export * from "./rng";
 export * from "./mapgen";
