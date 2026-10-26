@@ -1,6 +1,7 @@
 // LOW tiles on the client (zone terrain): the pickup hint uses the movement reach like the server, and a barrier that stops
-// bodies is drawn. MapView and the minimap draw LOW as a minimum (the real art is a later task): a low block per kind on the
-// map, a colour per kind on the minimap, and a wall's front face unchanged. The scene and the DOM are fake (test/fakes.ts).
+// bodies is drawn. MapView's plain way (a map with no zone art, or the fallback when baking fails: the zone art itself is
+// zoneBake.test.ts) draws a low block per kind on the map; the minimap paints a colour per kind. A wall's front face is
+// unchanged. The scene and the DOM are fake (test/fakes.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INTERACT_RANGE, mapFromTiles, PLAYER_RADIUS, TERRAIN_CREVASSE, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, Y_SCALE,

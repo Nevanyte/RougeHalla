@@ -1,20 +1,24 @@
-// Static map rendering, built once from generateMap(seed): region-tinted floor, walls with fake height, LOW tiles
-// (lava, fence, crevasse: low blocks that stop bodies but not sight) and the coliseum gates (built once, shown or hidden
-// by setGatesLocked).
+// Static map rendering, built once from generateMap(seed) and the coliseum gates (built once, shown or hidden by setGatesLocked).
+// Two ways to draw the ground and walls:
+//   * a styled map (it has zone terrain or props; zoneArt/) is baked into textures once: floor chunks and wall strips with the
+//     zone's art, plus the animated overlays (TerrainFx). If baking fails (no dynamic textures, a lost context) it falls back to
+//   * the plain way: region-tinted floor, walls with fake height and LOW tiles (lava, fence, crevasse: low blocks that stop bodies
+//     but not sight) as a few Graphics rows that Phaser replays every frame. A map with no zone art always takes this path.
 import Phaser from "phaser";
 import {
   REGION_IDS, TERRAIN_CREVASSE, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_LOW, Y_SCALE, isWallTile, withGates,
   type GameMap, type RegionId,
 } from "@raid/shared";
 import { depthFor, projX, projY } from "./projection";
+import { BakedArt, bakeZoneArt, hasZoneArt, makeContext, type BakeStats } from "./zoneArt/bake";
+import { LOW_HEIGHT, WALL_HEIGHT } from "./zoneArt/zoneStyle";
 
 /**
  * Screen pixels a wall's top face is lifted above its footprint. Keep it under one projected tile
- * (TILE * Y_SCALE = 25.6): a taller wall hides the whole tile north of it, loot included.
+ * (TILE * Y_SCALE = 25.6): a taller wall hides the whole tile north of it, loot included. A LOW tile's top face is lifted
+ * LOW_HEIGHT, half a wall, so a body can be seen to stand behind it. Both live in zoneArt/zoneStyle.ts.
  */
-export const WALL_HEIGHT = 14;
-/** A LOW tile's top face is lifted this far: half a wall, so a body can be seen to stand behind it. Placeholder art. */
-export const LOW_HEIGHT = 7;
+export { LOW_HEIGHT, WALL_HEIGHT };
 
 /** How a LOW tile looks by terrain kind (map.terrain): the top face, the front face and the lighter rim round the top. */
 interface LowLook { top: number; front: number; rim: number }
@@ -111,12 +115,27 @@ export class MapView {
   private readonly lockedGates: Phaser.GameObjects.Graphics[] = [];
   private openGates: Phaser.GameObjects.Graphics | null = null;
   private gatesLocked = false;
+  /** The baked ground and walls of a styled map; null on the plain way. */
+  private art: BakedArt | null = null;
+  private terrainFx = true;
+  private destroyed = false;
 
   constructor(private readonly scene: Phaser.Scene, readonly map: GameMap) {
-    this.drawFloor();
-    this.drawWalls();
-    this.drawLow();
+    if (hasZoneArt(map)) this.bake();
+    if (!this.art) {
+      this.drawFloor();
+      this.drawWalls();
+      this.drawLow();
+    }
     this.drawGates();
+    scene.events?.on?.("postupdate", this.onPostUpdate);
+    scene.game?.canvas?.addEventListener?.("webglcontextrestored", this.onContextRestored);
+    this.verifyBake();
+  }
+
+  /** How the bake went (time, textures, images), or null when the map is drawn the plain way. */
+  get bakeStats(): Readonly<BakeStats> | null {
+    return this.art?.stats ?? null;
   }
 
   /** Shows the closed gates (portcullis walls) or the open-gate floor marking. Cheap to call every frame. */
@@ -127,12 +146,91 @@ export class MapView {
     this.openGates?.setVisible(!locked);
   }
 
+  /** Shows or hides the animated terrain overlays and particles (the baked art stays). */
+  setTerrainFx(visible: boolean): void {
+    this.terrainFx = visible;
+  }
+
   destroy(): void {
+    this.destroyed = true;
+    this.scene.events?.off?.("postupdate", this.onPostUpdate);
+    this.scene.game?.canvas?.removeEventListener?.("webglcontextrestored", this.onContextRestored);
+    this.art?.destroy();
+    this.art = null;
     for (const o of this.objects) o.destroy();
     this.objects.length = 0;
     this.lockedGates.length = 0;
     this.openGates = null;
   }
+
+  /** Bakes the zone art; any failure leaves `art` null so the plain way draws the map. */
+  private bake(): void {
+    try {
+      this.art = bakeZoneArt(this.scene, this.map, makeContext(this.map));
+    } catch (e) {
+      console.warn("MapView: baking the zone art failed, drawing the map the plain way", e);
+      this.art?.destroy();
+      this.art = null;
+    }
+  }
+
+  /**
+   * A smoke test of the bake, once: Phaser 4 draws into a texture through a command buffer, so a texture that was never rendered (an
+   * unsupported renderer, a lost context) comes out empty. Reads one pixel of the first floor chunk (always opaque ground); a clear
+   * pixel sends the map to the plain way. A scene or renderer that cannot read it leaves the bake as it is.
+   */
+  private verifyBake(): void {
+    const probe = this.art?.probe;
+    const texture = probe ? this.scene.textures?.get?.(probe.key) : null;
+    const read = (texture as { snapshotPixel?: (x: number, y: number, cb: (c: { alpha: number }) => void) => void } | null)?.snapshotPixel;
+    if (!probe || typeof read !== "function") return;
+    const art = this.art;
+    try {
+      read.call(texture, probe.x + 8, probe.y + 8, (color) => {
+        if (this.destroyed || this.art !== art || color.alpha !== 0) return;
+        console.warn("MapView: the baked zone art came out empty, drawing the map the plain way");
+        this.fallBack();
+      });
+    } catch {
+      /* a renderer that cannot read pixels: trust the bake */
+    }
+  }
+
+  /** Drops the baked art and draws the plain way. */
+  private fallBack(): void {
+    this.art?.destroy();
+    this.art = null;
+    this.drawFloor();
+    this.drawWalls();
+    this.drawLow();
+  }
+
+  /** A restored WebGL context has lost every texture's contents: bake again (after Phaser has rebuilt its own resources). */
+  private readonly onContextRestored = (): void => {
+    setTimeout(() => {
+      if (this.destroyed || !this.art) return;
+      this.art.destroy();
+      this.art = null;
+      this.bake();
+      if (!this.art) {
+        this.drawFloor();
+        this.drawWalls();
+        this.drawLow();
+      }
+      this.verifyBake();
+    }, 0);
+  };
+
+  /** Each frame after the scene's update (the camera has moved): show only the baked images in view, then the overlays. */
+  private readonly onPostUpdate = (): void => {
+    const cam = this.scene.cameras?.main;
+    if (!this.art || !cam || typeof cam.width !== "number" || !(cam.zoom > 0)) return;
+    const cx = cam.scrollX + cam.width / 2;
+    const cy = cam.scrollY + cam.height / 2;
+    const hw = cam.width / cam.zoom / 2;
+    const hh = cam.height / cam.zoom / 2;
+    this.art.cull(cx - hw - 48, cy - hh - 48, cx + hw + 48, cy + hh + 48);
+  };
 
   private drawFloor(): void {
     const { map } = this;

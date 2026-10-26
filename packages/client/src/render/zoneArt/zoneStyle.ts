@@ -209,15 +209,18 @@ function drawEmber(g: Pen, s: TileSpot): void {
   const c = TERRAIN_PALETTE.ember;
   const { x, y, hash: h } = s;
   g.fillStyle(c.base, 1).fillRect(x, y, TILE_W, TILE_H);
-  // Three angular cracks, each drawn as a wide dim line and a thin bright one.
+  // Two angular cracks (a third, shorter one on some tiles), each a wide dim line and a thin bright one: sharp zigzags with room
+  // between them, so a field of ember reads as cracked ground rather than a pattern.
   const flip = bits(h, 0, 1) === 1;
-  for (let k = 0; k < 3; k++) {
-    const cy = y + ((k + 0.5) * TILE_H) / 3 + (bits(h, 2 + k * 3, 2) - 1.5) * 0.6;
-    const cx = x + 1 + bits(h, 9 + k * 3, 1);
+  const cracks = bits(h, 1, 2) === 0 ? 3 : 2;
+  for (let k = 0; k < cracks; k++) {
+    const cy = y + ((k + 0.5) * TILE_H) / cracks + (bits(h, 3 + k * 3, 2) - 1.5) * 0.6;
+    const cx = x + 1 + bits(h, 10 + k * 3, 2);
+    const n = k === 2 ? 3 : 4 + bits(h, 16 + k, 1);
     g.lineStyle(3, c.glow, 0.35);
-    zigzag(g, cx, cy, 5.5, 2.6, 5, flip !== (k === 1));
+    zigzag(g, cx, cy, 5.5, 3, n, flip !== (k === 1));
     g.lineStyle(1.2, c.cracks, 0.95);
-    zigzag(g, cx, cy, 5.5, 2.6, 5, flip !== (k === 1));
+    zigzag(g, cx, cy, 5.5, 3, n, flip !== (k === 1));
   }
   // A bright 1 px outline where the ember meets plain ground: readable from far away.
   g.lineStyle(1, c.glow, 0.95);
@@ -231,19 +234,22 @@ function drawBog(g: Pen, s: TileSpot): void {
   const c = TERRAIN_PALETTE.bog;
   const { x, y, hash: h } = s;
   g.fillStyle(c.body, 1).fillRect(x, y, TILE_W, TILE_H);
-  // Dark sludge, ripple rings (squashed circles) and a few bubbles: round things everywhere.
-  g.fillStyle(c.sludge, 0.55);
-  g.fillEllipse(x + 8 + bits(h, 0, 4), y + 6 + bits(h, 4, 3), 12, 8);
-  g.fillEllipse(x + 20 + bits(h, 7, 3), y + 13 + bits(h, 10, 3) * 0.9, 10, 7);
-  const rx = x + 10 + bits(h, 13, 4) * 0.8;
-  const ry = y + 9 + bits(h, 17, 3);
-  g.lineStyle(1.2, c.surface, 0.8);
-  g.strokeEllipse(rx, ry, 11, 11 * Y_SCALE);
-  g.strokeEllipse(rx, ry, 5, 5 * Y_SCALE);
-  g.lineStyle(1, c.surface, 0.55).strokeEllipse(x + 22 - bits(h, 20, 3), y + 17 + bits(h, 23, 2), 8, 8 * Y_SCALE);
-  g.fillStyle(c.bubbles, 0.9);
-  g.fillCircle(x + 5 + bits(h, 25, 4), y + 18 + bits(h, 29, 2), 1.5);
-  g.fillCircle(x + 24 - bits(h, 21, 3), y + 5 + bits(h, 24, 2), 1.2);
+  // Dark sludge on half the tiles; ripple rings (squashed circles) on most of them; a few bubbles: round things, not too many.
+  if (bits(h, 0, 1) === 0) g.fillStyle(c.sludge, 0.5).fillEllipse(x + 9 + bits(h, 1, 4), y + 8 + bits(h, 5, 3), 13, 8);
+  const rings = bits(h, 8, 2);
+  if (rings !== 0) {
+    const rx = x + 10 + bits(h, 10, 4) * 0.9;
+    const ry = y + 9 + bits(h, 14, 3);
+    g.lineStyle(1.2, c.surface, 0.8).strokeEllipse(rx, ry, 11, 11 * Y_SCALE);
+    if (rings === 3) g.strokeEllipse(rx, ry, 5, 5 * Y_SCALE);
+  } else {
+    g.lineStyle(1, c.surface, 0.6).strokeEllipse(x + 22 - bits(h, 17, 3), y + 14 + bits(h, 20, 2), 8, 8 * Y_SCALE);
+  }
+  if (bits(h, 22, 1) === 0) {
+    g.fillStyle(c.bubbles, 0.9);
+    g.fillCircle(x + 5 + bits(h, 23, 4), y + 18 + bits(h, 27, 2), 1.5);
+    if (bits(h, 29, 1) === 0) g.fillCircle(x + 25 - bits(h, 25, 3), y + 5 + bits(h, 28, 2), 1.2);
+  }
 }
 
 /** A 45 degree line `u + v = c` in tile-global projected space, clipped to the tile's footprint; nothing is drawn if it misses it. */
@@ -275,7 +281,7 @@ function drawIce(g: Pen, s: TileSpot): void {
     if ((k & 1) !== 0) diagonal(g, x, y, s.tx, s.ty, k * ICE_SPACING);
   }
   // A faint crack grid on the tile's east and south seams.
-  g.lineStyle(1, c.crack, 0.4);
+  g.lineStyle(1, c.crack, 0.22);
   g.lineBetween(x + TILE_W - 0.5, y, x + TILE_W - 0.5, y + TILE_H);
   g.lineBetween(x, y + TILE_H - 0.5, x + TILE_W, y + TILE_H - 0.5);
   // A chevron on one tile in four.
@@ -297,9 +303,10 @@ export const LIGHT_RAYS = 8;
 function drawLightPool(g: Pen, s: TileSpot): void {
   const c = TERRAIN_PALETTE.light;
   const { cx, cy } = centre(s);
-  g.fillStyle(c.warm, 0.14).fillRect(s.x, s.y, TILE_W, TILE_H);
-  g.fillStyle(c.beam, 0.3).fillEllipse(cx, cy, 26, 26 * Y_SCALE);
-  g.lineStyle(1.2, c.beam, 0.7);
+  // An opaque warm base (the tile replaces the floor), a brighter pool and rays from the centre.
+  g.fillStyle(mix(ZONE_PALETTE.holy.floor, c.beam, 0.3), 1).fillRect(s.x, s.y, TILE_W, TILE_H);
+  g.fillStyle(c.warm, 0.4).fillEllipse(cx, cy, 26, 26 * Y_SCALE);
+  g.lineStyle(1.2, c.beam, 0.9);
   for (let i = 0; i < LIGHT_RAYS; i++) {
     const a = (i / LIGHT_RAYS) * Math.PI * 2 + 0.2;
     g.lineBetween(cx + Math.cos(a) * 4, cy + Math.sin(a) * 4 * Y_SCALE, cx + Math.cos(a) * 14, cy + Math.sin(a) * 14 * Y_SCALE);
@@ -507,8 +514,8 @@ function drawPillar(g: Pen, zone: ZoneKey, s: TileSpot, w: WallInfo): void {
   switch (w.pillarKind) {
     case TERRAIN_LAVA: {
       // A glowing ring where the column meets the lava, a dark prism with a hot crack, a faceted cap.
-      g.fillStyle(TERRAIN_PALETTE.lava.core, 0.55).fillEllipse(cx, base, 30, 30 * Y_SCALE);
-      g.lineStyle(1.5, TERRAIN_PALETTE.ember.glow, 0.95).strokeEllipse(cx, base, 26, 26 * Y_SCALE);
+      g.fillStyle(TERRAIN_PALETTE.lava.crust, 0.8).fillEllipse(cx, base, 30, 10);
+      g.lineStyle(1.5, TERRAIN_PALETTE.ember.glow, 0.95).strokeEllipse(cx, base, 26, 8);
       g.fillStyle(p.wallFront, 1).fillRect(cx - 9, base - lift, 18, lift);
       g.fillStyle(darken(p.wallFront, 0.3), 1).fillRect(cx + 3, base - lift, 6, lift);
       g.lineStyle(1.2, p.accent, 0.95).lineBetween(cx - 3, base - 1, cx - 1, base - lift * 0.5).lineBetween(cx - 1, base - lift * 0.5, cx - 4, base - lift + 2);
@@ -531,7 +538,7 @@ function drawPillar(g: Pen, zone: ZoneKey, s: TileSpot, w: WallInfo): void {
     }
     case TERRAIN_CREVASSE: {
       // An ice pier: tapered, pale, with a dark foot in the crevasse and a frosted cap.
-      g.fillStyle(TERRAIN_PALETTE.crevasse.deep, 0.85).fillEllipse(cx, base + 1, 28, 11);
+      g.fillStyle(TERRAIN_PALETTE.crevasse.deep, 0.85).fillEllipse(cx, base, 28, 9);
       g.fillStyle(p.wallFront, 1);
       g.fillTriangle(cx - 9, base, cx + 9, base, cx + 6, base - lift);
       g.fillTriangle(cx - 9, base, cx + 6, base - lift, cx - 6, base - lift);
@@ -669,15 +676,15 @@ export function drawWallProp(g: Pen, p: PropSpot): void {
     case "banner": {
       const b = TERRAIN_PALETTE.gallows;
       const fy = y + TILE_H / 2 - lift;
-      g.fillStyle(b.banner, 1).fillRect(x - 4, fy + 1, 8, lift - 3);
-      g.fillStyle(b.bannerDark, 1).fillTriangle(x - 4, fy + lift - 2, x + 4, fy + lift - 2, x, fy + lift + 2);
+      g.fillStyle(b.banner, 1).fillRect(x - 4, fy + 1, 8, lift - 5);
+      g.fillStyle(b.bannerDark, 1).fillTriangle(x - 4, fy + lift - 4, x + 4, fy + lift - 4, x, fy + lift - 0.5);
       g.fillStyle(0xe1d5f0, 0.9).fillRect(x - 1, fy + 3, 2, 4);
       break;
     }
     case "banner_red": {
       const fy = y + TILE_H / 2 - lift;
-      g.fillStyle(TERRAIN_PALETTE.sanctum.blood, 1).fillRect(x - 4, fy + 1, 8, lift - 3);
-      g.fillStyle(TERRAIN_PALETTE.sanctum.gold, 1).fillRect(x - 4, fy + 1, 8, 1.5).fillTriangle(x - 4, fy + lift - 2, x + 4, fy + lift - 2, x, fy + lift + 2);
+      g.fillStyle(TERRAIN_PALETTE.sanctum.blood, 1).fillRect(x - 4, fy + 1, 8, lift - 5);
+      g.fillStyle(TERRAIN_PALETTE.sanctum.gold, 1).fillRect(x - 4, fy + 1, 8, 1.5).fillTriangle(x - 4, fy + lift - 4, x + 4, fy + lift - 4, x, fy + lift - 0.5);
       break;
     }
     case "gallows":

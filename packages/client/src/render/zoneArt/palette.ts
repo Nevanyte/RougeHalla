@@ -122,3 +122,12 @@ export function lightness(c: number): number {
 export function isZoneKey(id: string): id is ZoneKey {
   return Object.prototype.hasOwnProperty.call(ZONE_PALETTE, id);
 }
+
+/** The unthemed ground: the coliseum and the neutral stone of the ring and ridges (today's look, unchanged by the zone art). */
+export const NEUTRAL_PALETTE = {
+  floor: 0x2a3038,
+  coliseumFloor: mix(0x2a3038, 0xc8b48a, 0.22),
+  /** Laid over a ruin's footprint, so a ruin reads as indoors in every zone. */
+  indoor: 0x1c1612,
+  indoorAlpha: 0.45,
+} as const;
