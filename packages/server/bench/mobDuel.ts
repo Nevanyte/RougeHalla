@@ -12,6 +12,11 @@
 //            --style policy|stand (policy)  --leash U (what-if, emulated)  --mobs-stand (what-if: ranged mobs don't back away)
 //            --sweep takes --leashes a,b,c  --ks a,b  --eks a,b
 //
+// The duel floor is a hand-built arena with no camp territory, so its mob keeps the 9-tile circle of MOB_LEASH_RADIUS (the
+// fallback). On a generated map a camp's mobs leash to the camp's territory within min(camp.radius, 12 tiles) of their
+// spots (ROGUELIKE_PLAN D15; shared `leashOk`): the median territory is about 330 tiles, so `--leash 336` (10.5 tiles) is the
+// nearest what-if, and `--leash 384` the cap. bench/campDuel.ts runs its camp with a territory of that size.
+//
 // Reuse: runMobDuel(spec) is the one-duel function; runGrid (the 25 pairings), cellStats, verdict and the table functions build on it.
 //
 // How a seed varies a duel (the sim has no rolls, so the same setup would repeat exactly): it picks the direction the player

@@ -28,7 +28,7 @@ const COLOR_GATE = "#f44336";
 const COLOR_ELITE_RIM = "#ffd54f";
 /** What the camera sees. */
 const COLOR_VIEW = "rgba(255, 255, 255, 0.85)";
-/** More than this many mob dots are not drawn (a map has about 40 mobs). */
+/** More than this many mob dots are not drawn (a 20-camp map has up to 100 mobs: 3-5 spots a camp). */
 const MAX_DOTS = 128;
 /** Inputs that decide a repaint: player x, y, alive, gates, mob dots, camera x, y, route. */
 const INPUTS = 8;

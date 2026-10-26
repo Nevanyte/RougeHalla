@@ -1,6 +1,7 @@
-// The Phase 11 bandwidth budget (docs/GAME_DESIGN.md 17): with 8 players and 60 mobs one client receives under 20 KB/s
-// (ws payload, patches plus fx). The scenarios are in bench/bandwidth.ts; bytes do not depend on timing, so a busy
-// machine cannot make these flaky: the result only moves when the sim, the schema or the fx change.
+// The Phase 11 bandwidth budget (docs/GAME_DESIGN.md 17): with 8 players and the map's mobs (20 camps, about 80 mobs on a
+// zone map) one client receives under 20 KB/s (ws payload, patches plus fx). The scenarios are in bench/bandwidth.ts and
+// are placed from `map.camps`; bytes do not depend on timing, so a busy machine cannot make these flaky: the result only
+// moves when the sim, the schema, the fx or the map change.
 import { describe, expect, it } from "vitest";
 import {
   BANDWIDTH_BUDGET_KBPS, HEAVY_CAMPS, TYPICAL_CAMPS, runBandwidth, type BandwidthResult,
@@ -17,16 +18,18 @@ const typical = () => run("typical", { camps: TYPICAL_CAMPS });
 const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
 
 describe("bandwidth budget (per client, ws payload)", () => {
-  // Seed 1 measures 10.0 KB/s with about 17 mobs fighting (9.1 to 10.5 over seeds 1 to 5, 732 and 2547).
-  it("typical: 4 camps fought by 2 players each, 60 mobs: under 20 KB/s", () => {
+  // Seed 1 measures 6.5 KB/s with about 10 mobs fighting (6.2 to 7.1 over seeds 1 to 5, 732 and 2547).
+  it("typical: 4 camps fought by 2 players each, the map's ~80 mobs: under 20 KB/s", () => {
     const r = typical();
-    expect(r.mobs).toBeGreaterThanOrEqual(58); // topped up to 60 every tick; the last tick's kills are replaced in the next
+    expect(r.mobs).toBeGreaterThanOrEqual(72); // the map's own camps, topped up to that every tick; the last tick's kills are replaced in the next
     expect(r.avgFighting).toBeGreaterThan(5);
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  // Seed 1 measures 15.1 KB/s with about 34 mobs fighting (14.1 to 16.3 over the seven seeds, up to 37 fighting).
-  it("heavy: 8 camps fought by 1 player each, 60 mobs: under 20 KB/s", () => {
+  // Seed 1 measures 9.6 KB/s with about 24 mobs fighting (9.1 to 10.8 over the seven seeds, 22 to 28 fighting): eight
+  // whole camps of 3 to 5 woken every half second, the most 8 players can pull. (On the old 64 x 64 wedge maps, with 60
+  // mobs at 4.6 a camp, it measured 14.1 to 16.3 with up to 37 fighting.)
+  it("heavy: 8 camps fought by 1 player each, the map's ~80 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
@@ -41,7 +44,7 @@ describe("bandwidth budget (per client, ws payload)", () => {
   // The gate above would also pass for a run in which nothing happens, so this one makes sure the heavy run is loaded.
   it("heavy: the scenario is loaded (so the gate above is about bytes, not about a broken run)", () => {
     const r = heavy();
-    expect(r.mobs).toBeGreaterThanOrEqual(58); // topped up to 60 every tick; the last tick's kills are replaced in the next
+    expect(r.mobs).toBeGreaterThanOrEqual(72); // the map's own, topped up to that every tick; the last tick's kills are replaced in the next
     expect(r.avgFighting).toBeGreaterThan(20);
     expect(r.avgFighting).toBeGreaterThan(typical().avgFighting);
     expect(r.patchFramesPerSecond).toBeGreaterThan(19);
@@ -54,11 +57,11 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeGreaterThan(typical().totalKBps);
   });
 
-  it("idle mobs cost nothing: 60 resting mobs add under 0.1 KB/s of patches to the players alone", () => {
+  it("idle mobs cost nothing: the map's ~80 resting mobs add under 0.1 KB/s of patches to the players alone", () => {
     // Both runs: the coliseum endgame, 8 players sealed in fighting each other, so no mob can be hit and woken.
     const alone = run("alone", { mobs: 0, camps: 0 });
-    const withMobs = run("idle", { mobs: 60, camps: 0 });
-    expect(withMobs.mobs).toBeGreaterThanOrEqual(60);
+    const withMobs = run("idle", { camps: 0 });
+    expect(withMobs.mobs).toBeGreaterThanOrEqual(72);
     expect(withMobs.avgAwake).toBe(0);
     expect(alone.patchKBps).toBeGreaterThan(1);
     expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan(0.1);

@@ -2,7 +2,7 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
+  generateMap, mapHashU32, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
   type PlanMessage, type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample, type SignatureKind, type Vec2,
   type WeaponId,
 } from "@raid/shared";
@@ -458,7 +458,10 @@ export function createWorld(opts: {
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
-  /** A ready map instead of generateMap(seed): hand-built test arenas and the harness skip the generator. */
+  /**
+   * A ready map instead of generateMap(seed): the live server's comes from its map pool (server/src/mapPool.ts, with
+   * `seed` = its seed), and hand-built test arenas and the harness skip the generator.
+   */
   map?: GameMap;
   /**
    * The secret behind `rewardRandom`: four crypto-random 32-bit words (the Room's), or a single number (tests), which is
@@ -471,10 +474,14 @@ export function createWorld(opts: {
   state.minPlayers = opts.config.minPlayers;
   // The only draw from opts.random here: tests script that stream, so the reward stream must not take from it.
   const orderSalt = Math.floor(opts.random() * 2 ** 32) >>> 0;
+  const map = opts.map ?? generateMap(state.seed);
+  // What a client needs to build the same map with one attempt, and to know it did.
+  state.attempt = map.attempt;
+  state.mapHash = mapHashU32(map);
   return {
     state,
     config: opts.config,
-    map: opts.map ?? generateMap(state.seed),
+    map,
     idCounter: 0,
     joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),

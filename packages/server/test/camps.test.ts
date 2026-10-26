@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  campMobs, eliteTypeOf, FACTION_IDS, mapFromTiles, mobTypeById, mulberry32, normalTypesOf, TICK_MS, type FactionId, type MobTypeId,
+  CAMPS_PER_ZONE, campMobs, eliteTypeOf, FACTION_IDS, mapFromTiles, mobTypeById, mulberry32, normalTypesOf, TICK_MS, type FactionId, type MobTypeId,
 } from "@raid/shared";
 import { campMobDied, ensureRosters, rollRosters } from "../src/sim/camps";
 import { combatant } from "../src/sim/combatant";
@@ -67,15 +67,24 @@ describe("the published roster", () => {
     expect(w.joined).toBe(0);
   });
 
-  it.each([1, 2, 3, 100, 732])("seed %i follows D5: no repeat in a zone, every type its zone's own", (seed) => {
-    const w = lobby({ seed });
+  /**
+   * D5 on a 4-camp zone: the first three camps (in camp order) take the zone's three normal types, none twice; the fourth
+   * repeats one of them, so a zone's type counts are exactly [1, 1, 2] and no type of the zone is absent.
+   */
+  function expectD5(w: World, label: string): void {
     for (const zone of FACTION_IDS) {
       const types = w.map.camps.flatMap((c, i) => (c.zone === zone ? [w.state.camps[i]!.type] : []));
-      expect(types.length, zone).toBeGreaterThanOrEqual(2);
-      expect(types.length, zone).toBeLessThanOrEqual(3);
-      expect(new Set(types).size, zone).toBe(types.length);
-      for (const t of types) expect(mobTypeById(t)?.zone, `${seed} ${zone}`).toBe(zone);
+      expect(types.length, `${label} ${zone}`).toBe(CAMPS_PER_ZONE);
+      expect(new Set(types.slice(0, 3)).size, `${label} ${zone}: no repeat in the first three`).toBe(3);
+      expect(new Set(types), `${label} ${zone}: all three types stand somewhere`).toEqual(new Set(normalIds(zone)));
+      const counts = [...new Set(types)].map((t) => types.filter((u) => u === t).length).sort();
+      expect(counts, `${label} ${zone}: one type repeats`).toEqual([1, 1, 2]);
+      for (const t of types) expect(mobTypeById(t)?.zone, `${label} ${zone}`).toBe(zone);
     }
+  }
+
+  it.each([1, 2, 3, 100, 732])("seed %i follows D5: four camps a zone, the first three distinct, one type repeated, every type its zone's own", (seed) => {
+    expectD5(lobby({ seed }), `seed ${seed}`);
   });
 
   it("holds D5 over many worlds, and the salt alone decides which types a map's zones have", () => {
@@ -83,10 +92,7 @@ describe("the published roster", () => {
     for (let salt = 0; salt < 40; salt++) {
       const w = lobby({ seed: 21, salt });
       seen.add(roster(w).join());
-      for (const zone of FACTION_IDS) {
-        const types = w.map.camps.flatMap((c, i) => (c.zone === zone ? [w.state.camps[i]!.type] : []));
-        expect(new Set(types).size).toBe(types.length);
-      }
+      expectD5(w, `salt ${salt}`);
     }
     expect(seen.size).toBeGreaterThan(10); // the same map rolls many different rosters
   });

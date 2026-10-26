@@ -1,20 +1,24 @@
 // How hard is a whole camp in the REAL sim (roguelike R4a, ROGUELIKE_PLAN R4a and 6)? A starting player (one faction, one
 // weapon, no buffs) meets one mono-type camp of a zone on an open floor: a normal camp (`--size` normals of the zone's
-// first type, 3 by default) or the zone's elite camp (its elite and two normals). It fights through the target lock, the
+// first type, 4 by default: the generator's camps hold 3 to 5, about 4) or the zone's elite camp (its elite and `--size`
+// minus one normals, the same 4 mobs). It fights through the target lock, the
 // game client's way: it clicks the nearest standing mob, and when that one dies, the next. Two pulls:
 //   single  the camp as shipped: a mob wakes only when it is hurt (mobAI.aggro), so the player takes them one at a time
 //           unless its swings or a signature reach a neighbour;
 //   group   every mob of the camp is woken at the start (the plan's camp-wide aggro, D24, as a preview).
-// The kills pay as in a run (GV, the type's buff stacks), so the buffs a camp gives already help with its last mobs.
+// The camp has a territory as on a generated map (ROGUELIKE_PLAN D15, a disc of TERRITORY_TILES around it, about the median
+// territory of 330 tiles): its mobs leash to it within min(radius, 12 tiles) of their spots, not the 9-tile circle of a
+// hand-built map (`--no-territory` for that one). The kills pay as in a run (GV, the type's buff stacks), so the buffs a
+// camp gives already help with its last mobs.
 // It reports time to clear (from the first mob waking to the last death) and hp left; a report, never a gate.
 //
 //   npx tsx bench/campDuel.ts                 each faction on its signature weapon, every zone, normal and elite, both pulls
 //   npx tsx bench/campDuel.ts --weapons       each faction on each of the five weapons
-//   options: --seeds N (3)  --size N (3)  --cap SECONDS (90)  --json FILE
+//   options: --seeds N (3)  --size N (4)  --cap SECONDS (90)  --no-territory  --json FILE
 import { writeFileSync } from "node:fs";
 import {
-  eliteTypeOf, FACTION_IDS, mulberry32, normalTypesOf, SIGNATURE_WEAPONS, TICK_MS, TILE, WEAPON_IDS, type FactionId,
-  type MobTypeId, type Vec2, type WeaponId,
+  eliteTypeOf, FACTION_IDS, mulberry32, normalTypesOf, SIGNATURE_WEAPONS, TICK_MS, TILE, WEAPON_IDS, type CampDef, type FactionId,
+  type GameMap, type MobTypeId, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { buildArena } from "../src/harness/duel";
 import { buffsOf } from "../src/sim/buffs";
@@ -35,8 +39,10 @@ export interface CampDuelSpec {
   elite: boolean;
   pull: Pull;
   seed: number;
-  /** Normals in a normal camp (an elite camp is its elite and two normals). */
+  /** Mobs in a camp, 4 by default (a generated camp holds 3 to 5): normals in a normal camp, the elite and `size - 1` normals in an elite camp. */
   size?: number;
+  /** The camp has a territory (true, as on a generated map) or none, so its mobs keep the 9-tile circle (false). */
+  territory?: boolean;
   capSeconds?: number;
 }
 
@@ -56,10 +62,32 @@ export interface CampDuelResult {
 }
 
 const ARENA_TILES = 40;
+/** The territory's radius in tiles: a disc of about 346 tiles, the median generated territory (333) within a few percent. */
+const TERRITORY_TILES = 10.5;
+/** A camp's mobs, as many as a generated camp's median. */
+export const CAMP_SIZE = 4;
 const CENTER = (ARENA_TILES * TILE) / 2;
 const NEVER = 1_000_000;
 const RING = 48;
 const PLAYER_ID = "p";
+
+/** The arena with the camp's territory (a disc around `home`, camp 1 in territoryGrid) unless the spec turns it off. */
+function withTerritory(map: GameMap, spec: CampDuelSpec, home: Vec2): GameMap {
+  if (spec.territory === false) return map;
+  let area = 0;
+  for (let ty = 0; ty < map.h; ty++) {
+    for (let tx = 0; tx < map.w; tx++) {
+      if (Math.hypot((tx + 0.5) * TILE - home.x, (ty + 0.5) * TILE - home.y) > TERRITORY_TILES * TILE) continue;
+      map.territoryGrid[ty * map.w + tx] = 1;
+      area++;
+    }
+  }
+  const camp: CampDef = {
+    id: `${spec.zone}-1`, zone: spec.zone, x: home.x, y: home.y, r: 2.5 * TILE, spots: [home], eliteSpot: spec.elite ? 0 : -1, chest: home,
+    area, radius: TERRITORY_TILES * TILE,
+  };
+  return { ...map, camps: [camp] };
+}
 
 export function runCampDuel(spec: CampDuelSpec): CampDuelResult {
   const cap = spec.capSeconds ?? 90;
@@ -67,8 +95,8 @@ export function runCampDuel(spec: CampDuelSpec): CampDuelResult {
   const v = variantOf(spec.seed, 320);
   const normal: MobTypeId = normalTypesOf(spec.zone)[0]!.id;
   const roster: Array<{ type: MobTypeId; elite: boolean }> = spec.elite
-    ? [{ type: eliteTypeOf(spec.zone).id, elite: true }, { type: normal, elite: false }, { type: normal, elite: false }]
-    : Array.from({ length: spec.size ?? 3 }, () => ({ type: normal, elite: false }));
+    ? [{ type: eliteTypeOf(spec.zone).id, elite: true }, ...Array.from({ length: (spec.size ?? CAMP_SIZE) - 1 }, () => ({ type: normal, elite: false }))]
+    : Array.from({ length: spec.size ?? CAMP_SIZE }, () => ({ type: normal, elite: false }));
   const home: Vec2 = { x: CENTER, y: CENTER };
   const start: Vec2 = { x: CENTER + Math.cos(v.angle) * v.distance, y: CENTER + Math.sin(v.angle) * v.distance };
 
@@ -78,7 +106,7 @@ export function runCampDuel(spec: CampDuelSpec): CampDuelResult {
     config: {
       minPlayers: 1, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER, patienceMinSeconds: NEVER, suddenDeathSeconds: NEVER, mobs: false,
     },
-    map: { ...buildArena("open", [home, start], spec.seed), spawns: [start] },
+    map: withTerritory({ ...buildArena("open", [home, start], spec.seed), spawns: [start] }, spec, home),
   }, { signatures: true });
   const p = addPlayer(world, PLAYER_ID, PLAYER_ID, { faction: spec.player });
   p.weapon0 = weapon;
@@ -89,7 +117,9 @@ export function runCampDuel(spec: CampDuelSpec): CampDuelResult {
   const ids = roster.map((m, i) => {
     const a = (i / roster.length) * Math.PI * 2 + v.angle + Math.PI;
     const at = roster.length === 1 ? home : { x: home.x + Math.cos(a) * RING, y: home.y + Math.sin(a) * RING };
-    return placeMob(world, { region: spec.zone, elite: m.elite, type: m.type, at, facing: Math.atan2(home.y - at.y, home.x - at.x) });
+    return placeMob(world, {
+      region: spec.zone, elite: m.elite, type: m.type, at, facing: Math.atan2(home.y - at.y, home.x - at.x), camp: spec.territory === false ? undefined : 0,
+    });
   });
   p.x = start.x;
   p.y = start.y;
@@ -186,7 +216,8 @@ function arg(name: string): string | undefined {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const seeds = Number(arg("--seeds") ?? 3);
-  const size = Number(arg("--size") ?? 3);
+  const size = Number(arg("--size") ?? CAMP_SIZE);
+  const territory = process.argv.includes("--no-territory") ? false : undefined;
   const cap = Number(arg("--cap") ?? 90);
   const allWeapons = process.argv.includes("--weapons");
   const rows = FACTION_IDS.flatMap((player) =>
@@ -201,7 +232,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         for (const pull of ["single", "group"] as const) {
           const rs: CampDuelResult[] = [];
           for (let seed = 1; seed <= seeds; seed++) {
-            rs.push(runCampDuel({ player: r.player, weapon: r.weapon, zone, elite, pull, seed, size, capSeconds: cap }));
+            rs.push(runCampDuel({ player: r.player, weapon: r.weapon, zone, elite, pull, seed, size, territory, capSeconds: cap }));
           }
           all.push(...rs);
           cells.set(key(r, zone, elite, pull), cellOf(rs));
@@ -212,7 +243,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   for (const elite of [false, true]) {
     for (const pull of ["single", "group"] as const) {
-      const what = elite ? "elite camp (elite + 2 normals)" : `normal camp (${size} normals)`;
+      const what = elite ? `elite camp (elite + ${size - 1} normals)` : `normal camp (${size} normals)`;
       console.log(`\n## ${what}, ${pull} pull: cleared/${seeds} · seconds to clear · mean hp left`);
       console.log(table(rows, cells, (r, z) => key(r, z, elite, pull)));
     }

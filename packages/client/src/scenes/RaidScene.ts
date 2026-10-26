@@ -1,7 +1,7 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  AIM_STALE_MS, angleBetween, generateMap, TARGET_RANGE, unpackFx, unpackLaunches, withGates, type FxBatch, type GameMap,
+  AIM_STALE_MS, angleBetween, TARGET_RANGE, unpackFx, unpackLaunches, withGates, type FxBatch, type GameMap,
   type RunResult,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
@@ -39,6 +39,11 @@ import { screenToWorld } from "../view/viewport";
 
 export interface RaidSceneData {
   room: RaidRoom;
+  /**
+   * The room's map: `generateMap(state.seed, state.attempt)`, built by the map worker and checked against `state.mapHash`
+   * before the scene starts (main.ts, net/roomMap.ts). Never rebuilt here: a room's map does not change.
+   */
+  map: GameMap;
   /** The room's `fxs` batches, held since the join (main.ts) so none that arrived before this scene started is lost. */
   fxs: FxInbox;
   /** Where short announcements ("<name> was killed") go; omitted, they are simply not shown. */
@@ -224,7 +229,7 @@ export class RaidScene extends Phaser.Scene {
     this.planning = null;
     this.minimap.setShowRoute(getSettings().showRoute);
     this.unbindSettings = onSettingsChange((s) => this.minimap.setShowRoute(s.showRoute));
-    this.buildMap(this.room.state.seed);
+    this.buildMap(data.map);
     this.unbindPlan = data.plan?.attach((m) => this.planning?.setPlan(m)) ?? null;
     this.unbindMapHold = this.mapHold.bind();
     this.highlight = new ContainerHighlight(this);
@@ -292,7 +297,6 @@ export class RaidScene extends Phaser.Scene {
 
   update(time: number): void {
     const state = this.room.state;
-    if (state.seed !== this.mapView?.map.seed) this.buildMap(state.seed);
     const gatesLocked = state.gatesLocked;
     this.mapView?.setGatesLocked(gatesLocked);
     this.minimap.setGatesLocked(gatesLocked);
@@ -816,13 +820,12 @@ export class RaidScene extends Phaser.Scene {
     }
   }
 
-  /** The map is never synced, only its seed; both sides derive it with generateMap. */
-  private buildMap(seed: number): void {
+  /** The map is never synced: main.ts hands the scene the one it built from (seed, attempt) and checked. */
+  private buildMap(map: GameMap): void {
     this.mapView?.destroy();
-    const map = generateMap(seed);
     this.mapView = new MapView(this, map);
     this.minimap.setMap(map);
-    // The map screens are built once per room; a new seed (never within a room) repaints them.
+    // The map screens are built once per room, with its map.
     if (this.planning) this.planning.setMap(map);
     else {
       this.planning = new PlanningView({

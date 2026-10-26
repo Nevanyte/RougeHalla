@@ -11,6 +11,7 @@ export * from "./terrain";
 export * from "./interp";
 export * from "./rng";
 export * from "./mapgen";
+export * from "./mapWire";
 export * from "./geometry";
 export * from "./pathfind";
 export * from "./rules";

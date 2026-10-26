@@ -47,6 +47,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["Click"], action: "On the map: add a route stop; on a stop: take it out" },
       { keys: ["Tab"], action: "Move between the options and buttons" },
       { keys: ["Arrow keys"], action: "Move between the map's markers" },
+      { keys: ["Page Up", "Page Down"], action: "Jump to the previous or next zone's camps" },
       { keys: ["Enter"], action: "Press the focused button (Ready, a spawn, a camp)" },
       { keys: ["Delete"], action: "Take out the focused route stop" },
     ],

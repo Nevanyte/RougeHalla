@@ -1,7 +1,7 @@
 // A headless player. It talks to the server the way the web client does: HTTP for the profile, then a
 // Colyseus room where it reads synced state and sends inputs only (move, stop, target, swap, pickup). It never touches
-// server internals; the map comes from the public seed. The brain is a hunt, re-evaluated every THINK_MS from the latest
-// state: pick the foe, and play it like a human with the LoL-style controls: click it (`target`) once it is within the
+// server internals; the map comes from the public seed and attempt (roomMap). The brain is a hunt, re-evaluated every
+// THINK_MS from the latest state: pick the foe, and play it like a human with the LoL-style controls: click it (`target`) once it is within the
 // server's reach (TARGET_RANGE), and let the server chase it, attack it and aim at it until the lock ends; walk (`move`)
 // to get it that close, to fetch a weapon or to run. The foe is the nearest standing player, except that with no player
 // close the bot farms the regional mobs first (mobHunt.ts decides who: it also drops a mob that cannot be hurt and runs
@@ -13,7 +13,7 @@
 // (phase "planning"), it picks the better of its two dealt spawns for farming from its private `plan` message and presses ready.
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  bestSlot, buffPower, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, PLAYER_RADIUS,
+  bestSlot, buffPower, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, mapHashU32, PLAYER_RADIUS,
   PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
   type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions,
   type PlanMessage, type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
@@ -22,6 +22,31 @@ import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { bestSlotVsMob, mobWeapon, pathLength, planPick, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
 
 type ClientRoom = Room<any, RaidState>;
+
+/** The map the bots of this process built last: the bots of one room (runBots, the e2e run) build it once. Read-only. */
+let lastMap: { seed: number; attempt: number; map: GameMap } | null = null;
+
+const hex = (h: number): string => (h >>> 0).toString(16).padStart(8, "0");
+
+/**
+ * A room's map as every client builds it: exactly the published attempt of the published seed (one attempt, never a
+ * loop), checked against the published hash. A mismatch, or an attempt that does not certify here, means this code and
+ * the server's build different maps: a hard error.
+ */
+export function roomMap(state: { seed: number; attempt: number; mapHash: number }): GameMap {
+  const { seed, attempt } = state;
+  let map = lastMap && lastMap.seed === seed && lastMap.attempt === attempt ? lastMap.map : null;
+  if (!map) {
+    // Like the server, no decor: the bots draw nothing, and the hash leaves props out.
+    map = generateMap(seed, attempt, { decor: false });
+    lastMap = { seed, attempt, map };
+  }
+  const hash = mapHashU32(map);
+  if (hash !== state.mapHash >>> 0) {
+    throw new Error(`map mismatch on seed ${seed} attempt ${attempt}: built ${hex(hash)}, the server published ${hex(state.mapHash)}`);
+  }
+  return map;
+}
 
 export interface BotOptions {
   verbose?: boolean;
@@ -265,7 +290,12 @@ export class BotClient {
       if (i > 500) { void room.leave(true).catch(() => {}); throw new Error("no room state from the server"); }
       await sleep(10);
     }
-    this.map = generateMap(room.state.seed);
+    try {
+      this.map = roomMap(room.state);
+    } catch (err) {
+      void room.leave(true).catch(() => {});
+      throw err;
+    }
     this.log(`joined ${room.roomId} (${body.profile.gv} GV)`);
 
     room.reconnection.enabled = false; // a bot that drops is simply done

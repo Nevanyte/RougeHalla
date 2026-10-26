@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   FACTION_IDS, FACTIONS, REGION_IDS, TILE, TILE_WALL, generateMap, isWallTile, mapFromTiles, type CampDef, type GameMap,
 } from "@raid/shared";
+import { mapSpan } from "../src/ui/minimapMath";
 import { cssColor } from "../src/ui/dom";
 import {
   COLOR_BG, COLOR_REGION, COLOR_WALL, CROWN_CLIP_PATH, SHAPE_POLYGON, ZONE_PATTERN, ZONE_SHAPE, gateRects, makePatternTile,
@@ -14,13 +15,21 @@ import {
 import { Minimap } from "../src/ui/minimap";
 import { setView } from "../src/view/viewState";
 import { computeLayout } from "../src/view/viewport";
-import { argsOf, fakeObject, installFakeDom, names, type FakeEl, type FakeObject } from "./fakes";
+import { FakeEl, argsOf, fakeObject, installFakeDom, names, type FakeObject } from "./fakes";
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
 const rec = (): FakeObject => fakeObject("ctx");
 const ctxOf = (o: FakeObject): PaintCtx => o as unknown as PaintCtx;
 const hashOf = (o: FakeObject): string => createHash("sha256").update(JSON.stringify(o.calls)).digest("hex").slice(0, 16);
+
+/** Like hashOf for a recording that holds patterns: a pattern (the recorder itself) and its tile canvas become what they drew. */
+const hashWithPatterns = (o: FakeObject): string => createHash("sha256")
+  .update(JSON.stringify(o.calls, (_k, v: unknown) => {
+    if (v instanceof FakeEl) return { canvas: [v.width, v.height, (v.getContext() as FakeObject).calls] };
+    if (typeof v === "object" && v !== null && (v as { kind?: unknown }).kind === "ctx") return "[pattern]";
+    return v;
+  })).digest("hex").slice(0, 16);
 
 /** A small map with a border and scattered walls, six region stripes and two gates: independent of the map generator. */
 function handMap(): GameMap {
@@ -41,6 +50,32 @@ function handMap(): GameMap {
     { side: "n", tiles: [{ x: 11, y: 4 }, { x: 12, y: 4 }], x: 12 * 32, y: 4.5 * 32 },
     { side: "e", tiles: [{ x: 18, y: 9 }], x: 18.5 * 32, y: 9.5 * 32 },
   ];
+  return map;
+}
+
+/**
+ * A second small map, unlike the first: wider than tall, rock pillars, a wall bar, the five zones as blocks around a coliseum
+ * block, so the pattern layer has every zone to paint. Hand-built too: no generator is involved.
+ */
+function handMapB(): GameMap {
+  const w = 30;
+  const h = 17;
+  const tiles = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const border = x === 0 || y === 0 || x === w - 1 || y === h - 1;
+      const pillar = x % 5 === 2 && y % 4 === 2;
+      const bar = y === 8 && x >= 12 && x <= 17;
+      if (border || pillar || bar) tiles[y * w + x] = TILE_WALL;
+    }
+  }
+  const map = mapFromTiles(w, h, tiles);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const coliseum = x >= 12 && x < 18 && y >= 5 && y < 12;
+      map.regionGrid[y * w + x] = coliseum ? 6 : y < 8 ? 1 + (x < 10 ? 0 : x < 20 ? 1 : 2) : 4 + (x < 15 ? 0 : 1);
+    }
+  }
   return map;
 }
 
@@ -84,7 +119,15 @@ function referenceBase(g: FakeObject, map: GameMap, w: number, h: number, k: num
 }
 
 const BACKING = 208; // the minimap's backing store at a 1280 x 800 window, dpr 1
+/**
+ * The hand-built map's scale is a literal on purpose: the goldens below were recorded at it, so they pin the painter and
+ * nothing else (not the generator, not the world's size). A generated map is painted at the scale the minimap really uses.
+ */
 const K = BACKING / 2048;
+const K_GEN = BACKING / mapSpan();
+/** Recorded from this code (a hand-built map, so only the painter can move them); re-record by hand when the painter's look changes on purpose. */
+const GOLDEN_B_CALLS = 240;
+const GOLDEN_B_HASH = "dc2b900de1462355";
 
 describe("the extraction out of the minimap changed no pixels", () => {
   it("paints a hand-built map with exactly the calls the minimap made before (golden, taken from the pre-extraction code)", () => {
@@ -94,13 +137,22 @@ describe("the extraction out of the minimap changed no pixels", () => {
     expect(hashOf(g)).toBe("bf0e83b2e9418bfe");
   });
 
+  it("paints a second hand-built map with its zone patterns on exactly as it was recorded (golden, the patterns layer)", () => {
+    installFakeDom();
+    const g = rec();
+    paintMapBase(ctxOf(g), handMapB(), BACKING, BACKING, K, { patterns: true });
+    expect(argsOf(g, "createPattern")).toHaveLength(5);
+    expect(g.calls).toHaveLength(GOLDEN_B_CALLS);
+    expect(hashWithPatterns(g)).toBe(GOLDEN_B_HASH);
+  });
+
   it("matches the reference body call for call on a generated map, with the patterns off", () => {
     for (const seed of [7, 31]) {
       const map = generateMap(seed);
       const a = rec();
       const b = rec();
-      paintMapBase(ctxOf(a), map, BACKING, BACKING, K, { patterns: false });
-      referenceBase(b, map, BACKING, BACKING, K);
+      paintMapBase(ctxOf(a), map, BACKING, BACKING, K_GEN, { patterns: false });
+      referenceBase(b, map, BACKING, BACKING, K_GEN);
       expect(a.calls.length).toBeGreaterThan(500);
       expect(a.calls).toEqual(b.calls);
     }
@@ -110,8 +162,8 @@ describe("the extraction out of the minimap changed no pixels", () => {
     const map = generateMap(7);
     const a = rec();
     const b = rec();
-    paintMapBase(ctxOf(a), map, BACKING, BACKING, K);
-    paintMapBase(ctxOf(b), map, BACKING, BACKING, K, { patterns: false });
+    paintMapBase(ctxOf(a), map, BACKING, BACKING, K_GEN);
+    paintMapBase(ctxOf(b), map, BACKING, BACKING, K_GEN, { patterns: false });
     expect(a.calls).toEqual(b.calls);
   });
 
@@ -139,7 +191,7 @@ describe("the extraction out of the minimap changed no pixels", () => {
     minimap.setMap(map);
     const layer = made[1]!.getContext() as FakeObject;
     const plain = rec();
-    paintMapBase(ctxOf(plain), map, BACKING, BACKING, K);
+    paintMapBase(ctxOf(plain), map, BACKING, BACKING, K_GEN);
     expect(layer.calls.length).toBeGreaterThan(plain.calls.length);
     const layerRects = new Set(argsOf(layer, "fillRect").map((a) => a.join()));
     for (const r of argsOf(plain, "fillRect")) expect(layerRects.has(r.join())).toBe(true);

@@ -4,6 +4,7 @@ import {
   FIRST_PATIENCE_SECONDS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS,
   PLAN_SECONDS, SERVER_PORT, SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS,
 } from "@raid/shared";
+import { MAP_POOL_TARGET } from "./mapPool";
 import type { SimConfig } from "./sim/world";
 
 export interface ServerConfig extends SimConfig {
@@ -14,6 +15,11 @@ export interface ServerConfig extends SimConfig {
   latencyMs: number;
   /** A training room whose player sends nothing for this long is closed (TRAINING_IDLE_SECONDS). */
   trainingIdleSeconds: number;
+  /**
+   * Certified maps the pool keeps ready (MAP_POOL; mapPool.ts MAP_POOL_TARGET when unset). 0 runs no map worker: every
+   * room certifies its map on the main thread. Optional so a hand-written config keeps the default.
+   */
+  mapPoolSize?: number;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +37,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     stashFile: env.STASH_FILE || DEFAULT_STASH_FILE,
     latencyMs: num(env.COLYSEUS_LATENCY, 0),
     trainingIdleSeconds: num(env.TRAINING_IDLE_SECONDS, TRAINING_IDLE_SECONDS),
+    mapPoolSize: Math.max(0, Math.floor(num(env.MAP_POOL, MAP_POOL_TARGET))),
     minPlayers: num(env.MIN_PLAYERS, MIN_PLAYERS_TO_START),
     lobbySeconds: num(env.LOBBY_SECONDS, LOBBY_SECONDS),
     fillSeconds: num(env.FILL_SECONDS, LOBBY_FILL_SECONDS),

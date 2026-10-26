@@ -187,11 +187,17 @@ describe("the planning flow", () => {
     const events = step(world, TICK_MS);
     expect(world.state.phase).toBe("planning");
     expect(plans(events).map((e) => e.to).sort()).toEqual([...ids].sort());
-    // Eight players, a pool of fifteen: every spawn dealt, exactly one of them twice (the extra player's spare).
+    // Eight players on a zone map: the pool holds 24 to 32 spawns, at least two each, so the 16 dealt options are all
+    // different and none is shared (the overlap rule for a short pool is in the spawn deal's own test below).
+    expect(world.map.spawnPool.length).toBeGreaterThanOrEqual(2 * MAX_PLAYERS);
     const dealt = ids.flatMap((id) => deal(world, id).spawns);
-    expect(new Set(dealt).size).toBe(world.map.spawnPool.length);
-    expect(dealt.length - new Set(dealt).size).toBe(1);
-    expect(world.planning!.report.shared).toBe(1);
+    expect(dealt).toHaveLength(2 * MAX_PLAYERS);
+    expect(new Set(dealt).size).toBe(2 * MAX_PLAYERS);
+    expect(world.planning!.report.shared).toBe(0);
+    for (const id of ids) {
+      const [a, b] = deal(world, id).spawns;
+      expect(world.map.spawnPool[a]!.zone).not.toBe(world.map.spawnPool[b]!.zone);
+    }
   });
 });
 
@@ -253,7 +259,7 @@ describe("plan inputs", () => {
 });
 
 describe("the spawn deal", () => {
-  it("on wedge maps: two zones per pair always, one tier per pair, disjoint while the pool holds two per player", () => {
+  it("on zone maps: two zones per pair always, one tier per pair, disjoint while the pool holds two per player", () => {
     for (let seed = 1; seed <= 25; seed++) {
       for (let n = 2; n <= 7; n++) {
         const world = makeWorld(seed, {}, { rewardSalt: seed * 1000 + n });
@@ -324,6 +330,24 @@ describe("the spawn deal", () => {
     expect([...lone.pairs[0]!].sort()).toEqual([0, 1]);
   });
 
+  it("a pool too short for two spawns each (hand-built): every spawn is dealt and the extra players reuse as few as they can", () => {
+    // Fifteen spawns in one walking tier, five zones in rotation: eight players need 16, so exactly one spawn is dealt twice.
+    const fifteen = openMap(Array.from({ length: 15 }, (_, k): [number, FactionId] => [300 + 3 * k, (["fire", "frost", "holy", "plague", "sentenced"] as const)[k % 5]!]));
+    const eight = dealSpawns(makeWorld(1, {}, { map: fifteen, rewardSalt: 11 }), 8);
+    const flat = eight.pairs.flat();
+    expect(new Set(flat).size).toBe(15);
+    expect(flat.length - new Set(flat).size).toBe(1);
+    expect(eight.report.shared).toBe(1);
+    for (const [a, b] of eight.pairs) expect(fifteen.spawnPool[a]!.zone).not.toBe(fifteen.spawnPool[b]!.zone);
+    // Five spawns, three players: two disjoint pairs and the third player's pair is the spare plus one reused option.
+    const five = openMap([[100, "fire"], [102, "frost"], [104, "holy"], [106, "plague"], [108, "sentenced"]]);
+    const three = dealSpawns(makeWorld(2, {}, { map: five, rewardSalt: 12 }), 3);
+    expect(new Set(three.pairs.flat()).size).toBe(5);
+    expect(three.report.shared).toBe(1);
+    // With the pool at two per player nothing is shared.
+    expect(dealSpawns(makeWorld(2, {}, { map: openMap([[100, "fire"], [102, "frost"], [104, "holy"], [106, "plague"]]), rewardSalt: 12 }), 2).report.shared).toBe(0);
+  });
+
   it("a map with no pool deals nothing, and the run falls back to today's spawns", () => {
     const tiles = new Uint8Array(20 * 20);
     const map = mapFromTiles(20, 20, tiles);
@@ -363,8 +387,10 @@ describe("taken", () => {
   });
 
   it("within one tick the secret actionOrder decides, so the same world always gives the same winner and join order wins only by chance", () => {
+    // One map for all 400 worlds: a generated map is read-only, and building one per world is the whole cost of this test.
+    const map = generateMap(62);
     const race = (seed: number): { winner: string; first: string } => {
-      const { world, ids } = planning(62, 2, { planSeconds: 2 }, { random: mulberry32(seed) });
+      const { world, ids } = planning(62, 2, { planSeconds: 2 }, { random: mulberry32(seed), map });
       const [a, b] = ids as [string, string];
       handDeal(world, a, [3, 4]);
       handDeal(world, b, [3, 8]);

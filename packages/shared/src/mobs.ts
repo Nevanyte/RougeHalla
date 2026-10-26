@@ -1,9 +1,10 @@
 // The regional mob catalog (GAME_DESIGN 11): what a mob of each region is. Pure and shared, so the sim, the client
 // (names, health bars) and the tests agree. A mob fights as its region's faction scaled down (scaledFaction), with the
 // region's weapon, through the same combat code as a player; the sim paces it (DUEL_PACE) like any faction.
-import { ELITE_K, ELITE_BUFF_STACKS, MOB_BUFF_STACKS, MOB_K } from "./constants";
+import { ELITE_K, ELITE_BUFF_STACKS, MOB_BUFF_STACKS, MOB_K, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
 import { FACTIONS, scaledFaction, type FactionId, type FactionSpec } from "./factions";
-import { REGION_WEAPONS } from "./map";
+import { REGION_WEAPONS, worldToTile, type GameMap } from "./map";
+import type { Vec2 } from "./messages";
 import type { WeaponId } from "./weapons";
 
 /** What state.mobs[id].kind says. "dummy" is Phase 9's training dummy; the other two are regional mobs. */
@@ -109,4 +110,39 @@ export function eliteTypeOf(zone: FactionId): MobTypeDef {
 /** Undefined for an id that is not in the table. */
 export function mobTypeById(id: string): MobTypeDef | undefined {
   return MOB_TYPE_BY_ID.get(id);
+}
+
+/** The camp (MobState.camp: its index in `map.camps` + 1, 0 = none) whose territory covers world point `p`, else 0. */
+export function territoryAt(map: GameMap, p: Vec2): number {
+  const tx = worldToTile(p.x);
+  const ty = worldToTile(p.y);
+  if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) return 0;
+  return map.territoryGrid[ty * map.w + tx]!;
+}
+
+/**
+ * The reach of a territory leash (ROGUELIKE_PLAN D15) of a mob of camp `campRef` (MobState.camp: index in `map.camps` + 1)
+ * resting at `home`: min(camp.radius, MOB_LEASH_CAP) in world units, or 0 when it has none. Territory leashes need a camp
+ * that exists, has territory (`area`) and holds the mob's own spot; anything else (no camp, a wedge or hand-built map whose
+ * `territoryGrid` is all zero, a mob a test put outside its camp) keeps the circle of MOB_LEASH_RADIUS.
+ */
+export function territoryLeash(map: GameMap, campRef: number, home: Vec2): number {
+  if (!(campRef >= 1)) return 0;
+  const camp = map.camps[campRef - 1];
+  if (camp === undefined || !(camp.area > 0) || territoryAt(map, home) !== campRef) return 0;
+  return Math.min(camp.radius, MOB_LEASH_CAP);
+}
+
+/**
+ * Is `p` inside the leash of a mob of camp `campRef` resting at `home`? With a territory leash: on a cell of the camp's
+ * territory and within territoryLeash of `home`. Without one: within MOB_LEASH_RADIUS of `home`. `margin` shrinks it: every
+ * point `margin` away along an axis must be inside too (a ranged mob's retreat stays this far from the edge).
+ */
+export function leashOk(map: GameMap, campRef: number, home: Vec2, p: Vec2, margin = 0): boolean {
+  const reach = territoryLeash(map, campRef, home);
+  if (reach === 0) return Math.hypot(p.x - home.x, p.y - home.y) <= MOB_LEASH_RADIUS - margin;
+  if (Math.hypot(p.x - home.x, p.y - home.y) > reach - margin || territoryAt(map, p) !== campRef) return false;
+  if (margin <= 0) return true;
+  return territoryAt(map, { x: p.x + margin, y: p.y }) === campRef && territoryAt(map, { x: p.x - margin, y: p.y }) === campRef
+    && territoryAt(map, { x: p.x, y: p.y + margin }) === campRef && territoryAt(map, { x: p.x, y: p.y - margin }) === campRef;
 }

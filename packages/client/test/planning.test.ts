@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  FACTION_IDS, FACTIONS, PLAYER_SPEED, TILE, campMatchup, findPath, generateMap, isEliteCamp, spawnWalks, walkLength,
+  FACTION_IDS, FACTIONS, PLAYER_SPEED, TILE, WORLD_H, WORLD_W, campMatchup, findPath, generateMap, isEliteCamp, spawnWalks, walkLength,
   type ClientMessages, type GameMap, type PlanMessage,
 } from "@raid/shared";
 import { DEFAULT_SETTINGS, SettingsStore } from "../src/settings";
@@ -21,7 +21,8 @@ afterEach(() => { vi.unstubAllGlobals(); });
 beforeEach(() => { setView(computeLayout({ cssW: 1280, cssH: 800, dpr: 1, hiDpi: true })); });
 
 const MAP: GameMap = generateMap(7);
-const SPAN = 2048;
+/** The side of the square the map is drawn into: the larger world side (minimapMath.mapSpan), not a literal. */
+const SPAN = Math.max(WORLD_W, WORLD_H);
 
 /** Two pool indexes in different zones (the server deals the same). */
 function twoSpawns(): [number, number] {
@@ -810,6 +811,78 @@ describe("text size and the view", () => {
     const normal = Number.parseInt(root.style.props["--pl-size"]!, 10);
     store.update({ textScale: 1.5 });
     expect(Number.parseInt(root.style.props["--pl-size"]!, 10)).toBeLessThanOrEqual(normal);
+  });
+});
+
+describe("a 96 x 96 map on small screens", () => {
+  const crowded = (all: (cls: string) => PEl[]): number => all("pl-camp").filter((c) => c.one("pl-chip").classList.contains("crowded")).length;
+
+  it("hides the matchup chips that would sit on another mark, more of them on the small preview than on the planning map", () => {
+    setView(computeLayout({ cssW: 1920, cssH: 1080, dpr: 1, hiDpi: true }));
+    const planning = setup();
+    planning.open();
+    const onPlanning = crowded(planning.all);
+    // A short, narrow window: the preview card's map comes down to its smallest.
+    setView(computeLayout({ cssW: 640, cssH: 420, dpr: 1, hiDpi: true }));
+    const preview = setup();
+    preview.view.update(frame({ mode: "preview" }));
+    const onPreview = crowded(preview.all);
+    expect(onPreview).toBeGreaterThan(0);
+    expect(onPreview).toBeGreaterThan(onPlanning);
+    // Every chip is still in the page (its text reads on hover or focus); a crowded one is only hidden by its class.
+    for (const c of preview.all("pl-camp")) expect(c.one("pl-chip").textContent).toMatch(/^(\+|~|!)\d+%$|^lose$/);
+  });
+
+  it("lays out again when the window changes, and keeps the chip classes through a faction change", () => {
+    setView(computeLayout({ cssW: 640, cssH: 420, dpr: 1, hiDpi: true }));
+    const { view, all } = setup();
+    view.update(frame({ mode: "preview" }));
+    const before = crowded(all);
+    view.update(frame({ mode: "preview", players: [{ faction: "frost", ready: false, me: true }] }));
+    expect(crowded(all)).toBe(before);
+    setView(computeLayout({ cssW: 1920, cssH: 1080, dpr: 1, hiDpi: true }));
+    expect(crowded(all)).toBeLessThanOrEqual(before);
+  });
+
+  it("places every zone's name inside the map, by percent, from its pole or the nearest free spot", () => {
+    const { open, all } = setup();
+    open();
+    const labels = all("pl-zone");
+    expect(labels).toHaveLength(MAP.regions.length);
+    for (const label of labels) {
+      for (const prop of ["left", "top"]) {
+        const v = Number.parseFloat(label.style.props[prop]!);
+        expect(v).toBeGreaterThan(0);
+        expect(v).toBeLessThan(100);
+      }
+    }
+    expect(new Set(labels.map((l) => `${l.style.props["left"]},${l.style.props["top"]}`)).size).toBe(labels.length);
+  });
+});
+
+describe("Page Up and Page Down on the markers", () => {
+  it("jump to the first camp of the next or previous zone, wrapping, and from a spawn to the first or the last zone", () => {
+    const { dom, open, all, spawnMarks } = setup();
+    open();
+    const camps = all("pl-camp");
+    const firstOfZone = (zone: string): number => MAP.camps.findIndex((c) => c.zone === zone);
+    const zones = [...new Set(MAP.camps.map((c) => c.zone))];
+    expect(zones.length).toBe(5);
+    camps[0]!.focus();
+    dom.press("PageDown");
+    expect(dom.doc.activeElement).toBe(camps[firstOfZone(zones[1]!)]);
+    dom.press("PageUp");
+    expect(dom.doc.activeElement).toBe(camps[firstOfZone(zones[0]!)]);
+    dom.press("PageUp");
+    expect(dom.doc.activeElement).toBe(camps[firstOfZone(zones[4]!)]);
+    dom.press("PageDown");
+    expect(dom.doc.activeElement).toBe(camps[firstOfZone(zones[0]!)]);
+    spawnMarks()[0]!.focus();
+    dom.press("PageDown");
+    expect(dom.doc.activeElement).toBe(camps[firstOfZone(zones[0]!)]);
+    spawnMarks()[0]!.focus();
+    dom.press("PageUp");
+    expect(dom.doc.activeElement).toBe(camps[firstOfZone(zones[4]!)]);
   });
 });
 

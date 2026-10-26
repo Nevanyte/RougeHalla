@@ -1,8 +1,14 @@
-// Static map rendering, built once from generateMap(seed): region-tinted floor, walls with fake height, and the
-// coliseum gates (built once, shown or hidden by setGatesLocked).
-import Phaser from "phaser";
+// Static map rendering, built once per map: region-tinted floor, the zone borders (a dashed strip per zone on each side of
+// every border), walls with fake height, and the coliseum gates (built once, shown or hidden by setGatesLocked).
+//
+// A 96 x 96 map is thousands of rectangles, and Phaser replays a Graphics' whole command buffer every frame, seen or not. So the
+// floor and the walls are built in chunks (a band of rows by a run of columns each, `Chunk`), and every frame, just before the
+// scene renders, the chunks the camera does not show are hidden (`cull`, from render/mapCull.ts).
+import type Phaser from "phaser";
 import { REGION_IDS, TILE, Y_SCALE, isWallTile, withGates, type GameMap, type RegionId } from "@raid/shared";
+import { boxesOverlap, cameraBox, type Box } from "./mapCull";
 import { depthFor, projX, projY } from "./projection";
+import { EDGE_PX, ZONE_DASH, dashSpans, zoneEdgeStrips, type EdgeStrip } from "./zoneEdges";
 
 /**
  * Screen pixels a wall's top face is lifted above its footprint. Keep it under one projected tile
@@ -33,6 +39,11 @@ const ALPHA_GATE_FILL = 0.18;
 const ALPHA_GATE_EDGE = 0.35;
 /** How far a wall's top face leans toward its region's accent colour. */
 const WALL_TINT = 0.12;
+/** The zone borders' strips, over the grid and under every wall. */
+export const ALPHA_EDGE = 0.9;
+/** Chunk size, in tiles: 96 x 96 makes 4 columns of 12 bands, of which a camera shows about a third by a half. */
+const CHUNK_COLS = 24;
+const CHUNK_ROWS = 8;
 
 function mix(base: number, tint: number, amount: number): number {
   const ch = (shift: number) => {
@@ -90,17 +101,38 @@ function forEachRun(values: ArrayLike<number>, fn: (start: number, length: numbe
   }
 }
 
+/** Phaser.Scenes.Events.PRE_RENDER, spelled out so this file needs no Phaser at run time (the tests load it under node). */
+export const PRE_RENDER = "prerender";
+
+/** A chunk's key in a map: its top-left tile. */
+const chunkKey = (tx0: number, ty0: number): number => ty0 * 4096 + tx0;
+
+/** A Graphics that covers a box of the map and is shown only while the camera can see that box. */
+interface Chunk {
+  g: Phaser.GameObjects.Graphics;
+  box: Box;
+  shown: boolean;
+}
+
+/** A piece of a border strip that lies in one floor chunk: tiles `from` to `to` along the strip's line. */
+interface StripPiece { strip: EdgeStrip; from: number; to: number }
+
 export class MapView {
   private readonly objects: Phaser.GameObjects.GameObject[] = [];
+  /** Every chunk of the floor and the walls, in the order built; `cull` shows and hides them. */
+  private readonly chunks: Chunk[] = [];
   /** Closed-gate wall rows and the open-gate floor marking; setGatesLocked only flips their visibility. */
   private readonly lockedGates: Phaser.GameObjects.Graphics[] = [];
   private openGates: Phaser.GameObjects.Graphics | null = null;
   private gatesLocked = false;
+  private destroyed = false;
 
   constructor(private readonly scene: Phaser.Scene, readonly map: GameMap) {
     this.drawFloor();
     this.drawWalls();
     this.drawGates();
+    scene.events.on(PRE_RENDER, this.cull);
+    this.cull();
   }
 
   /** Shows the closed gates (portcullis walls) or the open-gate floor marking. Cheap to call every frame. */
@@ -112,85 +144,176 @@ export class MapView {
   }
 
   destroy(): void {
+    this.destroyed = true;
+    this.scene.events.off(PRE_RENDER, this.cull);
     for (const o of this.objects) o.destroy();
     this.objects.length = 0;
+    this.chunks.length = 0;
     this.lockedGates.length = 0;
     this.openGates = null;
+  }
+
+  /** Just before each render: hides the chunks outside the camera's box (read from its scroll, so a teleport is seen at once). */
+  private readonly cull = (): void => {
+    if (this.destroyed) return;
+    const cam = this.scene.cameras?.main;
+    const view = cam ? cameraBox(cam.scrollX, cam.scrollY, cam.width, cam.height, cam.zoom) : null;
+    for (const c of this.chunks) {
+      const on = view === null || boxesOverlap(c.box, view);
+      if (on !== c.shown) {
+        c.shown = on;
+        c.g.setVisible(on);
+      }
+    }
+  };
+
+  private addChunk(depth: number, box: Box): Phaser.GameObjects.Graphics {
+    const g = this.scene.add.graphics().setDepth(depth);
+    this.objects.push(g);
+    this.chunks.push({ g, box, shown: true });
+    return g;
   }
 
   private drawFloor(): void {
     const { map } = this;
     const worldW = map.w * TILE;
     const worldH = map.h * TILE;
-    const g = this.scene.add.graphics().setDepth(DEPTH_FLOOR);
-    this.objects.push(g);
+    // The base is one rectangle and never culled: anywhere a chunk is hidden, the outdoor colour shows.
+    const base = this.scene.add.graphics().setDepth(DEPTH_FLOOR);
+    this.objects.push(base);
+    base.fillStyle(COLOR_OUTDOOR, 1).fillRect(projX(0), projY(0), worldW, worldH * Y_SCALE);
 
-    g.fillStyle(COLOR_OUTDOOR, 1).fillRect(projX(0), projY(0), worldW, worldH * Y_SCALE);
+    const pieces = this.edgePieces();
+    for (let ty0 = 0; ty0 < map.h; ty0 += CHUNK_ROWS) {
+      for (let tx0 = 0; tx0 < map.w; tx0 += CHUNK_COLS) {
+        this.drawFloorChunk(tx0, ty0, Math.min(map.w, tx0 + CHUNK_COLS), Math.min(map.h, ty0 + CHUNK_ROWS), pieces.get(chunkKey(tx0, ty0)) ?? []);
+      }
+    }
+  }
+
+  private drawFloorChunk(tx0: number, ty0: number, tx1: number, ty1: number, pieces: readonly StripPiece[]): void {
+    const { map } = this;
+    const box = { x: projX(tx0 * TILE), y: projY(ty0 * TILE), w: (tx1 - tx0) * TILE, h: projY(ty1 * TILE) - projY(ty0 * TILE) };
+    // One above the base, so the base is always under it.
+    const g = this.addChunk(DEPTH_FLOOR + 1, box);
 
     // One fillRect per horizontal run of equal region code; "none" is the base fill already drawn.
-    const codes: number[] = new Array(map.w);
-    for (let ty = 0; ty < map.h; ty++) {
+    const codes: number[] = new Array(tx1 - tx0);
+    for (let ty = ty0; ty < ty1; ty++) {
       let any = false;
-      for (let tx = 0; tx < map.w; tx++) {
+      for (let tx = tx0; tx < tx1; tx++) {
         const code = map.regionGrid[ty * map.w + tx];
-        codes[tx] = code > 0 && code < FLOOR_BY_CODE.length ? code : -1;
-        any ||= codes[tx] >= 0;
+        codes[tx - tx0] = code > 0 && code < FLOOR_BY_CODE.length ? code : -1;
+        any ||= codes[tx - tx0]! >= 0;
       }
       if (!any) continue;
       const top = projY(ty * TILE);
       const height = projY((ty + 1) * TILE) - top;
       forEachRun(codes, (start, len, code) => {
-        g.fillStyle(FLOOR_BY_CODE[code], 1).fillRect(projX(start * TILE), top, len * TILE, height);
+        g.fillStyle(FLOOR_BY_CODE[code], 1).fillRect(projX((tx0 + start) * TILE), top, len * TILE, height);
       });
     }
 
     g.fillStyle(COLOR_INDOOR, ALPHA_INDOOR);
     for (const b of map.buildings) {
-      g.fillRect(projX(b.x * TILE), projY(b.y * TILE), b.w * TILE, b.h * TILE * Y_SCALE);
+      const x0 = Math.max(b.x, tx0);
+      const x1 = Math.min(b.x + b.w, tx1);
+      const y0 = Math.max(b.y, ty0);
+      const y1 = Math.min(b.y + b.h, ty1);
+      if (x1 > x0 && y1 > y0) g.fillRect(projX(x0 * TILE), projY(y0 * TILE), (x1 - x0) * TILE, (y1 - y0) * TILE * Y_SCALE);
     }
 
-    // White at low alpha so one grid reads on both the outdoor and the indoor floor.
+    // White at low alpha so one grid reads on both the outdoor and the indoor floor. A chunk draws its own left and top lines;
+    // the last chunk of a row or a column also closes the map.
     g.lineStyle(1, 0xffffff, 0.05);
-    for (let tx = 0; tx <= map.w; tx++) g.lineBetween(projX(tx * TILE), projY(0), projX(tx * TILE), projY(worldH));
-    for (let ty = 0; ty <= map.h; ty++) g.lineBetween(projX(0), projY(ty * TILE), projX(worldW), projY(ty * TILE));
+    const lastX = tx1 === map.w ? tx1 : tx1 - 1;
+    const lastY = ty1 === map.h ? ty1 : ty1 - 1;
+    for (let tx = tx0; tx <= lastX; tx++) g.lineBetween(projX(tx * TILE), projY(ty0 * TILE), projX(tx * TILE), projY(ty1 * TILE));
+    for (let ty = ty0; ty <= lastY; ty++) g.lineBetween(projX(tx0 * TILE), projY(ty * TILE), projX(tx1 * TILE), projY(ty * TILE));
+
+    for (const { strip, from, to } of pieces) this.drawStrip(g, strip, from, to);
+  }
+
+  /** The zone borders' strips cut at chunk edges, keyed by the chunk (its top-left tile) they lie in. */
+  private edgePieces(): Map<number, StripPiece[]> {
+    const out = new Map<number, StripPiece[]>();
+    const add = (cx: number, cy: number, piece: StripPiece): void => {
+      const key = chunkKey(cx, cy);
+      const list = out.get(key);
+      if (list) list.push(piece); else out.set(key, [piece]);
+    };
+    for (const strip of zoneEdgeStrips(this.map)) {
+      // The tile the strip lies on: before the line (side -1) or after it.
+      const across = strip.line - (strip.side < 0 ? 1 : 0);
+      const size = strip.axis === "v" ? CHUNK_ROWS : CHUNK_COLS;
+      for (let at = strip.from; at < strip.to;) {
+        const end = Math.min(strip.to, (Math.floor(at / size) + 1) * size);
+        const piece = { strip, from: at, to: end };
+        if (strip.axis === "v") add(Math.floor(across / CHUNK_COLS) * CHUNK_COLS, Math.floor(at / CHUNK_ROWS) * CHUNK_ROWS, piece);
+        else add(Math.floor(at / CHUNK_COLS) * CHUNK_COLS, Math.floor(across / CHUNK_ROWS) * CHUNK_ROWS, piece);
+        at = end;
+      }
+    }
+    return out;
+  }
+
+  /** One zone's strip along a border: dashes in the zone's colour, on the zone's own side of the line (see zoneEdges.ts). */
+  private drawStrip(g: Phaser.GameObjects.Graphics, strip: EdgeStrip, from: number, to: number): void {
+    const zone = REGION_IDS[strip.code];
+    if (!zone || zone === "none" || zone === "coliseum") return;
+    g.fillStyle(REGION_ACCENT[zone], ALPHA_EDGE);
+    const pattern = ZONE_DASH[zone];
+    const line = strip.line * TILE;
+    if (strip.axis === "v") {
+      const x = projX(line) - (strip.side < 0 ? EDGE_PX : 0);
+      for (const [a, b] of dashSpans(projY(from * TILE), projY(to * TILE), pattern)) g.fillRect(x, a, EDGE_PX, b - a);
+    } else {
+      const y = projY(line) - (strip.side < 0 ? EDGE_PX : 0);
+      for (const [a, b] of dashSpans(projX(from * TILE), projX(to * TILE), pattern)) g.fillRect(a, y, b - a, EDGE_PX);
+    }
   }
 
   /**
-   * One Graphics per tile row, depth = ground y of the row's south edge. An entity whose ground y is
+   * One Graphics per tile row and chunk of columns, depth = ground y of the row's south edge. An entity whose ground y is
    * north of that edge draws under the row (the wall hides it); one south of it draws over the row.
    */
   private drawWalls(): void {
     const { map } = this;
-    // Per tile: the region code for a wall (the top face's tint; runs split where it changes), else -1.
-    const top: number[] = [];
-    const front: number[] = [];
     for (let ty = 0; ty < map.h; ty++) {
-      let any = false;
-      for (let tx = 0; tx < map.w; tx++) {
-        const wall = isWallTile(map, tx, ty);
-        const code = map.regionGrid[ty * map.w + tx];
-        top[tx] = wall ? (code < WALL_TOP_BY_CODE.length ? code : 0) : -1;
-        // Out-of-bounds counts as wall, so the last row needs its own test or it would show no front
-        // face and leave a strip of floor drawn below the map's edge.
-        front[tx] = wall && (ty + 1 >= map.h || !isWallTile(map, tx, ty + 1)) ? 0 : -1;
-        any ||= wall;
+      for (let tx0 = 0; tx0 < map.w; tx0 += CHUNK_COLS) {
+        this.drawWallRow(ty, tx0, Math.min(map.w, tx0 + CHUNK_COLS));
       }
-      if (!any) continue;
-
-      const southEdge = (ty + 1) * TILE;
-      const g = this.scene.add.graphics().setDepth(depthFor(southEdge));
-      this.objects.push(g);
-
-      // The top face is the footprint lifted by WALL_HEIGHT; the front face fills the gap below its south edge.
-      const faceTop = projY(ty * TILE, WALL_HEIGHT);
-      g.fillStyle(COLOR_WALL_FRONT, 1);
-      forEachRun(front, (start, len) => {
-        g.fillRect(projX(start * TILE), projY(southEdge, WALL_HEIGHT), len * TILE, WALL_HEIGHT);
-      });
-      forEachRun(top, (start, len, code) => {
-        g.fillStyle(WALL_TOP_BY_CODE[code], 1).fillRect(projX(start * TILE), faceTop, len * TILE, TILE * Y_SCALE);
-      });
     }
+  }
+
+  private drawWallRow(ty: number, tx0: number, tx1: number): void {
+    const { map } = this;
+    // Per tile: the region code for a wall (the top face's tint; runs split where it changes), else -1.
+    const top: number[] = new Array(tx1 - tx0);
+    const front: number[] = new Array(tx1 - tx0);
+    let any = false;
+    for (let tx = tx0; tx < tx1; tx++) {
+      const wall = isWallTile(map, tx, ty);
+      const code = map.regionGrid[ty * map.w + tx];
+      top[tx - tx0] = wall ? (code < WALL_TOP_BY_CODE.length ? code : 0) : -1;
+      // Out-of-bounds counts as wall, so the last row needs its own test or it would show no front
+      // face and leave a strip of floor drawn below the map's edge.
+      front[tx - tx0] = wall && (ty + 1 >= map.h || !isWallTile(map, tx, ty + 1)) ? 0 : -1;
+      any ||= wall;
+    }
+    if (!any) return;
+
+    const southEdge = (ty + 1) * TILE;
+    // The top face is the footprint lifted by WALL_HEIGHT; the front face fills the gap below its south edge.
+    const faceTop = projY(ty * TILE, WALL_HEIGHT);
+    const g = this.addChunk(depthFor(southEdge), { x: projX(tx0 * TILE), y: faceTop, w: (tx1 - tx0) * TILE, h: projY(southEdge) - faceTop });
+    g.fillStyle(COLOR_WALL_FRONT, 1);
+    forEachRun(front, (start, len) => {
+      g.fillRect(projX((tx0 + start) * TILE), projY(southEdge, WALL_HEIGHT), len * TILE, WALL_HEIGHT);
+    });
+    forEachRun(top, (start, len, code) => {
+      g.fillStyle(WALL_TOP_BY_CODE[code], 1).fillRect(projX((tx0 + start) * TILE), faceTop, len * TILE, TILE * Y_SCALE);
+    });
   }
 
   /**

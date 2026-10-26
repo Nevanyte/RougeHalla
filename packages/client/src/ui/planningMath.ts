@@ -117,6 +117,124 @@ export function fullMapSize(uiW: number, uiH: number): number {
   return clamp(Math.floor(Math.min(uiH - 200, uiW - 48)), 240, 820);
 }
 
+// ---------------------------------------------------------------------------------------------------- legibility on a big map
+// A 96 x 96 map has 20 camps (at least 9 tiles apart), 5 zone labels and, while planning, 2 spawn marks. On the small corner
+// preview the marks are about as big as the room between camps, so the screen decides what fits: a camp's matchup chip hides
+// when its box would meet another mark (it shows again while its camp is hovered or focused), and a zone's name moves off the
+// camps to the nearest free spot inside its zone. All of it in overlay pixels from the sizes planning.css gives the marks.
+
+/** A rectangle in overlay pixels, from its top-left corner. */
+export interface PxBox { x: number; y: number; w: number; h: number }
+
+const boxesMeet = (a: PxBox, b: PxBox): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/** `--pl-glyph`: how big the marks are for a map `size` overlay pixels wide (planning.ts writes it, planning.css reads it). */
+export function glyphScale(size: number): number {
+  return Math.round(Math.min(1.25, Math.max(0.55, size / 640)) * 100) / 100;
+}
+
+/** The side of a camp's marker (planning.css: 22 px, an elite's 30, never under 12 and 16). */
+export function campMarkerPx(elite: boolean, glyph: number): number {
+  return Math.max(elite ? 16 : 12, (elite ? 30 : 22) * glyph);
+}
+
+/** A matchup chip's box for a text `chars` long: the font is max(9, 10.5 x text x glyph), tabular figures, 4 px of padding a side. */
+export function chipSizePx(chars: number, glyph: number, textScale: number): { w: number; h: number } {
+  const font = Math.max(9, 10.5 * textScale * glyph);
+  return { w: Math.ceil(chars * 0.62 * font + 10), h: Math.ceil(font * 1.35 + 2) };
+}
+
+/** A camp as the layout sees it: its centre on the map in overlay pixels, whether it is an elite, and how long its chip's text is. */
+export interface CampSpot { x: number; y: number; elite: boolean; chars: number }
+
+/** A camp's marker box, with an elite's crown above it. */
+function markerBox(c: CampSpot, glyph: number): PxBox {
+  const m = campMarkerPx(c.elite, glyph);
+  const crown = c.elite ? m * 0.4 : 0;
+  return { x: c.x - m / 2, y: c.y - m / 2 - crown, w: m, h: m + crown };
+}
+
+/**
+ * Which camps' chips are crowded out: true at the index of a camp whose chip (just under its marker) would sit on another camp's
+ * marker, on a shown chip, or on one of `marks` (the dealt spawns). Elites are placed first, then the rest in order, so the chips
+ * that stay are the same on every client for one map and size. A chip with no text (no faction yet) never takes room.
+ */
+export function crowdedChips(camps: readonly CampSpot[], marks: readonly PxBox[], glyph: number, textScale: number): boolean[] {
+  const markers = camps.map((c) => markerBox(c, glyph));
+  const crowded = camps.map(() => false);
+  const placed: PxBox[] = [];
+  const order = camps.map((_c, i) => i).sort((a, b) => Number(camps[b]!.elite) - Number(camps[a]!.elite) || a - b);
+  for (const i of order) {
+    const c = camps[i]!;
+    if (c.chars === 0) continue;
+    const { w, h } = chipSizePx(c.chars, glyph, textScale);
+    const box = { x: c.x - w / 2, y: c.y + campMarkerPx(c.elite, glyph) / 2 + 1, w, h };
+    const blocked = markers.some((m, j) => j !== i && boxesMeet(box, m)) || marks.some((m) => boxesMeet(box, m)) || placed.some((p) => boxesMeet(box, p));
+    if (blocked) crowded[i] = true;
+    else placed.push(box);
+  }
+  return crowded;
+}
+
+/** Every box the camps take on the map: each marker, and each chip that is not crowded out. */
+export function campBoxes(camps: readonly CampSpot[], crowded: readonly boolean[], glyph: number, textScale: number): PxBox[] {
+  const out: PxBox[] = [];
+  camps.forEach((c, i) => {
+    out.push(markerBox(c, glyph));
+    if (c.chars > 0 && !crowded[i]) {
+      const { w, h } = chipSizePx(c.chars, glyph, textScale);
+      out.push({ x: c.x - w / 2, y: c.y + campMarkerPx(c.elite, glyph) / 2 + 1, w, h });
+    }
+  });
+  return out;
+}
+
+/** A zone's name to place: where it would like to be (its pole), and how big the text is. */
+export interface LabelWish { x: number; y: number; w: number; h: number; inside: (x: number, y: number) => boolean }
+
+/** The size of a zone label's box for a name `chars` long (planning.css: bold, uppercase, 0.1 em of letter spacing, a glyph before it). */
+export function labelSizePx(chars: number, glyph: number, textScale: number): { w: number; h: number } {
+  const font = Math.max(9, 11 * textScale * glyph);
+  return { w: Math.ceil(chars * 0.8 * font + font + 6), h: Math.ceil(font * 1.3) };
+}
+
+/**
+ * Where each zone's label goes (its centre, overlay pixels): its wish if the box is free, else the nearest spot on rings around the
+ * wish (every 12 px, up to 120) where the whole box lies inside the map and the zone (`inside` is asked at its centre, ends and
+ * middle top and bottom) and meets no obstacle and no label placed before it. A zone with no free spot keeps its wish.
+ */
+export function placeLabels(wishes: readonly LabelWish[], obstacles: readonly PxBox[], size: number): Array<{ x: number; y: number }> {
+  const out: Array<{ x: number; y: number }> = [];
+  const taken: PxBox[] = [];
+  const fits = (wish: LabelWish, x: number, y: number): PxBox | null => {
+    const box = { x: x - wish.w / 2, y: y - wish.h / 2, w: wish.w, h: wish.h };
+    if (box.x < 0 || box.y < 0 || box.x + box.w > size || box.y + box.h > size) return null;
+    const samples: Array<[number, number]> = [[x, y], [box.x, y], [box.x + box.w, y], [x, box.y], [x, box.y + box.h]];
+    if (!samples.every(([sx, sy]) => wish.inside(sx, sy))) return null;
+    return obstacles.some((o) => boxesMeet(box, o)) || taken.some((t) => boxesMeet(box, t)) ? null : box;
+  };
+  for (const wish of wishes) {
+    let best = fits(wish, wish.x, wish.y) ? { x: wish.x, y: wish.y } : null;
+    for (let r = 12; !best && r <= 120; r += 12) {
+      const steps = Math.max(8, Math.round((2 * Math.PI * r) / 14));
+      let bestAt = Infinity;
+      for (let k = 0; k < steps; k++) {
+        const a = (2 * Math.PI * k) / steps;
+        const x = wish.x + Math.cos(a) * r;
+        const y = wish.y + Math.sin(a) * r;
+        if (!fits(wish, x, y)) continue;
+        // On one ring they are all about r away; the one nearest the map's centre keeps the name off the border.
+        const d = Math.hypot(x - size / 2, y - size / 2);
+        if (d < bestAt) { bestAt = d; best = { x, y }; }
+      }
+    }
+    const at = best ?? { x: wish.x, y: wish.y };
+    out.push(at);
+    taken.push({ x: at.x - wish.w / 2, y: at.y - wish.h / 2, w: wish.w, h: wish.h });
+  }
+  return out;
+}
+
 /** m:ss for a count of milliseconds, rounded up, never negative. */
 export function formatClock(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -146,6 +264,20 @@ export function describeMatchup(share: number): Matchup {
   if (share >= 0.5) return { tone: "good", chip: `+${pct}%`, words: `you win a straight fight with ${pct}% hp left` };
   if (share >= 0.2) return { tone: "even", chip: `~${pct}%`, words: `a close fight: ${pct}% hp left` };
   return { tone: "risky", chip: `!${pct}%`, words: `a risky fight: only ${pct}% hp left` };
+}
+
+/**
+ * Page Down / Page Up on the map's markers: `zones` names the zone of each marker in reading order ("" for a marker that is no camp:
+ * a spawn, a route stop). Returns the index of the first marker of the next (dir 1) or previous (dir -1) zone, in the order the
+ * zones first appear, wrapping; from a marker with no zone, the first zone going on and the last going back. -1 when no marker has one.
+ */
+export function zoneJump(zones: readonly string[], current: number, dir: 1 | -1): number {
+  const order: string[] = [];
+  for (const z of zones) if (z !== "" && !order.includes(z)) order.push(z);
+  if (order.length === 0) return -1;
+  const here = current >= 0 && current < zones.length ? order.indexOf(zones[current]!) : -1;
+  const to = here < 0 ? (dir === 1 ? 0 : order.length - 1) : (here + dir + order.length) % order.length;
+  return zones.indexOf(order[to]!);
 }
 
 /** The next (dir 1) or previous (dir -1) index of a cycle of `n`, wrapping; -1 from nowhere starts at the ends. */

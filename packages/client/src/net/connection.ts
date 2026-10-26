@@ -69,6 +69,18 @@ export function detachRoom(room: RaidRoom): void {
   room.leave(false).catch(() => {});
 }
 
+/**
+ * Leaves a room for good and tells the server so (a consented leave): it frees the seat and the profile at once, even
+ * once the run is planning or on, where a dropped socket would hold them for the reconnect grace. Falls back to
+ * detachRoom when the socket cannot carry the message (mid-reconnect).
+ */
+export function leaveRoom(room: RaidRoom): void {
+  room.removeAllListeners();
+  room.reconnection.enabled = false;
+  // A send on a socket that is not open throws inside leave()'s promise: it surfaces as a rejection.
+  room.leave(true).catch(() => detachRoom(room));
+}
+
 export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
   client ??= new Client(serverEndpoint());
   // A seat reserved in the instant a run starts is refused ("raid already started");
