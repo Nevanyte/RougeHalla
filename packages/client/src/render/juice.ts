@@ -6,6 +6,8 @@
 //   "flash":  things that only change colour or brightness. They stay under reduced motion.
 // Set JUICE_ENABLED to false to turn all of it off, or lower JUICE_INTENSITY to taste (1 = as designed).
 
+import { getSettings } from "../settings";
+
 export const JUICE_ENABLED = true;
 export const JUICE_INTENSITY = 1;
 
@@ -47,9 +49,13 @@ export function resetReducedMotionCache(): void {
   reducedQuery = null;
 }
 
-/** How much of an effect of this kind to show: 0 = none, 1 = as designed. */
+/**
+ * How much of an effect of this kind to show: 0 = none, 1 = as designed. The player's settings (settings.ts) scale the
+ * intensity and can force reduced motion on top of the OS's own.
+ */
 export function juiceScale(kind: JuiceKind): number {
-  return juiceScaleFor(kind, JUICE_ENABLED, JUICE_INTENSITY, kind === "motion" && prefersReducedMotion());
+  const s = getSettings();
+  return juiceScaleFor(kind, JUICE_ENABLED, JUICE_INTENSITY * s.juice, kind === "motion" && (s.reducedMotion || prefersReducedMotion()));
 }
 
 // ------------------------------------------------------------------------------------------------------------ easing

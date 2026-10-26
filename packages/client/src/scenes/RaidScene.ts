@@ -22,12 +22,14 @@ import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
 import { LockDisplay, pickTarget, type TargetCandidate } from "../render/targeting";
+import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import type { ToastTone } from "../ui/toast";
 import { TrainingBar } from "../ui/trainingBar";
 import { WeaponBar } from "../ui/weaponBar";
+import { screenToWorld } from "../view/viewport";
 
 export interface RaidSceneData {
   room: RaidRoom;
@@ -59,11 +61,7 @@ const AIM_HEIGHT = BODY_LIFT;
 
 /** Shortcuts must never fire while the player is typing in a form control. */
 function isTyping(target: EventTarget | null): boolean {
-  for (const node of [target, document.activeElement]) {
-    if (!(node instanceof HTMLElement)) continue;
-    if (node.isContentEditable || node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT") return true;
-  }
-  return false;
+  return isTypingTarget(target) || isTypingTarget(document.activeElement);
 }
 
 export class RaidScene extends Phaser.Scene {
@@ -88,6 +86,8 @@ export class RaidScene extends Phaser.Scene {
   private nearest: ContainerState | null = null;
   private marker!: Phaser.GameObjects.Ellipse;
   private lastMoveSentAt = 0;
+  /** Where the camera looks while the minimap is held with the left button (ground units); null = at the local player. */
+  private peek: { x: number; y: number } | null = null;
   /** What the player just ordered (target, move, stop), shown until the synced `attackTarget` catches up. */
   private readonly lockDisplay = new LockDisplay();
   /**
@@ -188,8 +188,13 @@ export class RaidScene extends Phaser.Scene {
     this.hud = new Hud();
     this.weaponBar = new WeaponBar();
     this.feedback = new ScreenFeedback();
+    this.peek = null;
     // Before buildMap: building a map repaints the minimap's static layer.
-    this.minimap = new Minimap();
+    this.minimap = new Minimap({
+      onMove: (x, y, first) => this.moveTo({ x, y }, first !== false),
+      onPeek: (x, y) => { this.peek = { x, y }; },
+      onPeekEnd: () => { this.peek = null; },
+    });
     this.buildMap(this.room.state.seed);
     this.highlight = new ContainerHighlight(this);
     this.rings = new TargetRings(this);
@@ -309,7 +314,7 @@ export class RaidScene extends Phaser.Scene {
         this.sampleDrawn(id, drawT, p);
       }
       view.update(this.tmp.x, this.tmp.y, p, drawT, patchT, this.deathPending(id), signatures, source === "predicted" ? this.predict.motion.facing() : null);
-      if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.tmp.x), projY(this.tmp.y));
+      if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.peek?.x ?? this.tmp.x), projY(this.peek?.y ?? this.tmp.y));
     });
     for (const [id, view] of this.views) {
       if (!seen.has(id)) { view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); this.inHand.delete(id); }
@@ -347,7 +352,11 @@ export class RaidScene extends Phaser.Scene {
 
     // Redraws only when the player's dot (or the gates) actually changed.
     this.minimap.setMobs(state.mobs);
-    this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby");
+    const cam = this.cameras.main;
+    this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby", {
+      x: cam.scrollX + cam.width / 2,
+      y: cam.scrollY + cam.height / 2,
+    });
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     this.hud.update(state, me, serverNow);
@@ -525,9 +534,13 @@ export class RaidScene extends Phaser.Scene {
   }
 
   private sendMove(pointer: Phaser.Input.Pointer, showMarker: boolean): void {
-    if (this.beforeTeleport()) return;
     pointer.updateWorldPoint(this.cameras.main);
-    const target = unproject(pointer.worldX, pointer.worldY);
+    this.moveTo(unproject(pointer.worldX, pointer.worldY), showMarker);
+  }
+
+  /** A walk to a ground point, from a ground click or the minimap: one path, so the prediction (orderMove) covers both. */
+  private moveTo(target: { x: number; y: number }, showMarker: boolean): void {
+    if (this.beforeTeleport()) return;
     this.orderMove("move", target);
     if (import.meta.env.DEV && showMarker) {
       const me = this.rendered.get(this.room.sessionId);
@@ -547,8 +560,8 @@ export class RaidScene extends Phaser.Scene {
 
   /**
    * The angle on the ground from the local player, where it is drawn, to the cursor; null before it is drawn. The
-   * camera is centred on the drawn player at zoom 1 every frame, so the cursor's screen position plus the scroll is
-   * its world point, with no lag behind the camera's own matrix.
+   * camera is centred on the drawn player every frame, so the cursor's world point comes from the scroll and the zoom
+   * (cursorGround), with no lag behind the camera's own matrix.
    */
   private cursorAngle(pointer: Phaser.Input.Pointer): number | null {
     const me = this.rendered.get(this.room.sessionId);
@@ -557,10 +570,15 @@ export class RaidScene extends Phaser.Scene {
     return Math.atan2(target.y - me.y, target.x - me.x);
   }
 
-  /** The cursor's ground point, read at body height (see AIM_HEIGHT): clicking a drawn fighter's body lands on its feet. */
+  /**
+   * The cursor's ground point, read at body height (see AIM_HEIGHT): clicking a drawn fighter's body lands on its feet.
+   * The camera zooms about its centre, so the pointer (canvas pixels) goes through the zoom before the lift, which is
+   * in projected world pixels.
+   */
   private cursorGround(pointer: Phaser.Input.Pointer): { x: number; y: number } {
     const cam = this.cameras.main;
-    return unproject(cam.scrollX + pointer.x, cam.scrollY + pointer.y + AIM_HEIGHT);
+    const w = screenToWorld(pointer.x, pointer.y, cam.scrollX, cam.scrollY, cam.width, cam.height, cam.zoom);
+    return unproject(w.x, w.y + AIM_HEIGHT);
   }
 
   /** The fighter (player or mob) drawn nearest ground point (x, y), within `within` units; the one an arrow or a ball left from. */
@@ -628,7 +646,7 @@ export class RaidScene extends Phaser.Scene {
   private updateTargets(me: PlayerState | undefined, now: number): void {
     const alive = me?.status === "alive";
     // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
-    this.hoverId = alive && this.aimKnown && this.input.isOver
+    this.hoverId = alive && this.aimKnown && this.input.isOver && !this.peek
       ? pickTarget(this.cursorGround(this.input.activePointer), this.targetCandidates()) ?? ""
       : "";
     this.lockId = alive ? this.liveFighter(this.lockDisplay.shown(me.attackTarget, now)) : "";
@@ -650,7 +668,7 @@ export class RaidScene extends Phaser.Scene {
   /** Once per frame: streams the aim. The shield faces the cursor while nothing is locked; the server ignores it while one is. */
   private streamAim(me: PlayerState | undefined, now: number): void {
     // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
-    if (me?.status !== "alive" || !this.aimKnown || this.beforeTeleport() || !this.input.isOver) return;
+    if (me?.status !== "alive" || !this.aimKnown || this.beforeTeleport() || !this.input.isOver || this.peek) return;
     const a = this.cursorAngle(this.input.activePointer);
     if (a === null || now - this.lastAimSentAt < AIM_SEND_MS) return;
     const turned = this.lastAimSent === null || angleBetween(a, this.lastAimSent) > AIM_MIN_DELTA;
@@ -686,7 +704,8 @@ export class RaidScene extends Phaser.Scene {
    * still reaches the scene's input; only presses that began on the canvas may issue a move or a lock.
    */
   private pointerStartedOnCanvas(pointer: Phaser.Input.Pointer): boolean {
-    return pointer.downElement === this.game.canvas;
+    // Not while peeking either: the camera is elsewhere, so the cursor's ground point would be wrong.
+    return pointer.downElement === this.game.canvas && !this.peek;
   }
 
   private handleKey(e: KeyboardEvent): void {
@@ -765,6 +784,7 @@ export class RaidScene extends Phaser.Scene {
     this.highlight.destroy();
     this.rings.destroy();
     this.minimap.destroy();
+    this.peek = null;
     this.rendered.clear();
     this.deaths.clear();
     this.inHand.clear();

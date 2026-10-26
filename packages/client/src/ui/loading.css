@@ -1,0 +1,32 @@
+/* The loading screen (ui/loading.ts). index.html carries its own copy of the base rules so the first paint needs no
+   script or stylesheet; these are the same rules plus the fade, and they dress the screen when it is built from script. */
+#boot {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 40%, #1d232b 0%, #12161b 75%);
+  color: var(--text, #e6e9ed);
+  font-family: var(--font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  opacity: 1;
+  transition: opacity 220ms ease-out;
+}
+#boot[hidden] { display: none !important; }
+/* Out of the way of clicks the moment it starts to fade. */
+#boot.is-hiding { opacity: 0; pointer-events: none; }
+
+#boot .boot-inner { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+#boot .boot-title { font-size: 40px; font-weight: 800; letter-spacing: 0.32em; text-indent: 0.32em; color: var(--accent, #ffe082); }
+#boot .boot-spinner {
+  width: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  border: 3px solid var(--line, #2b323c);
+  border-top-color: var(--accent, #ffe082);
+  border-radius: 50%;
+  animation: boot-spin 0.9s linear infinite;
+}
+#boot .boot-text { min-height: 1.4em; font-size: 15px; letter-spacing: 0.04em; color: var(--muted, #aeb7c2); }
+@keyframes boot-spin { to { transform: rotate(360deg); } }

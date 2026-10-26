@@ -16,26 +16,40 @@
         color: #e6e9ed;
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
       }
-      #game {
-        position: fixed;
-        inset: 0;
-      }
-      #game canvas {
-        display: block;
-      }
-      #ui {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-      }
-      #ui > * {
-        pointer-events: auto;
-      }
     </style>
+    <!-- #stage, #game and #ui: render-blocking, so the first paint already has the playfield in place -->
+    <link rel="stylesheet" href="/src/view/stage.css" />
   </head>
   <body>
-    <div id="game"></div>
-    <div id="ui"></div>
+    <div id="stage">
+      <div id="game"></div>
+      <div id="ui"></div>
+    </div>
+    <!-- The loading screen (ui/loading.ts takes it over once the bundle runs). Self-contained so it paints before any script or stylesheet arrives. -->
+    <div id="boot" role="status" aria-live="polite">
+      <style>
+        #boot { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 40%, #1d232b 0%, #12161b 75%); color: #e6e9ed; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+        #boot[hidden] { display: none !important; }
+        #boot .boot-inner { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+        #boot .boot-title { font-size: 40px; font-weight: 800; letter-spacing: 0.32em; text-indent: 0.32em; color: #ffe082; }
+        #boot .boot-spinner { width: 34px; height: 34px; box-sizing: border-box; border: 3px solid #2b323c; border-top-color: #ffe082; border-radius: 50%; animation: boot-spin 0.9s linear infinite; }
+        #boot .boot-text { min-height: 1.4em; font-size: 15px; letter-spacing: 0.04em; color: #aeb7c2; }
+        @keyframes boot-spin { to { transform: rotate(360deg); } }
+      </style>
+      <div class="boot-inner">
+        <div class="boot-title">RAID</div>
+        <div class="boot-spinner" aria-hidden="true"></div>
+        <div class="boot-text" id="boot-text">Loading…</div>
+      </div>
+      <!-- If the bundle never starts (ui/loading.ts marks #boot data-ready when it does), say so instead of spinning for ever. -->
+      <script>
+        setTimeout(function () {
+          var boot = document.getElementById("boot");
+          var text = document.getElementById("boot-text");
+          if (boot && text && !boot.hasAttribute("data-ready")) text.textContent = "The game could not start. Check your connection and reload the page.";
+        }, 15000);
+      </script>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

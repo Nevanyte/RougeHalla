@@ -1,0 +1,22 @@
+/* A key as a small raised cap. It sizes with the text around it (em), so the weapon bar, the hints and the help card share it. */
+.keycap {
+  display: inline-block;
+  box-sizing: border-box;
+  min-width: 1.7em;
+  padding: 0.05em 0.5em 0.12em;
+  font: inherit;
+  font-size: 0.86em;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  white-space: nowrap;
+  color: #e6e9ed;
+  text-shadow: none;
+  background: linear-gradient(#343c47, #272e37);
+  border: 1px solid #4a5563;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+/* A mouse button: a wider, lighter cap. */
+.keycap.mouse { padding-inline: 0.65em; font-weight: 500; color: #cfd8dc; }

@@ -1,0 +1,49 @@
+/* The playfield and the overlay on it (view/viewportManager.ts sizes them; view/viewport.ts has the numbers).
+
+   #stage     fixed; the manager sets left/top/width/height in CSS pixels (the window, or the 21:9 strip centred in it). The
+              bars around a clamped stage are the body background.
+   #game      Phaser's parent. The canvas backing store is stage x devicePixelRatio; the rule below makes it as big as the
+              stage in CSS pixels, which is what turns the browser's pixels into the canvas's.
+   #ui        the DOM overlay, laid out at --ui-w x --ui-h and scaled by --ui-scale to fill the stage. Inside it vw, vh and
+              size media queries still mean the WINDOW: use var(--ui-w), var(--ui-h) and html[data-ui-short|narrow]. A
+              transformed box is the containing block of its position:fixed children, so those fill #ui, not the window. */
+
+#stage {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#game {
+  position: absolute;
+  inset: 0;
+}
+
+/* !important: ScaleManager writes the canvas's CSS size in some modes; here the stage owns it. */
+#game canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  outline: none;
+}
+
+#ui {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--ui-w, 100%);
+  height: var(--ui-h, 100%);
+  transform: scale(var(--ui-scale, 1));
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+#ui > * {
+  pointer-events: auto;
+}

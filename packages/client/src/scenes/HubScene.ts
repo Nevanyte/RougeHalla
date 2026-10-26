@@ -19,7 +19,10 @@ import {
   type HubLayout, type HubStation, type HubStationId, type Vec,
 } from "../hub/hubLayout";
 import { PlayerView } from "../render/PlayerView";
+import { isTypingTarget } from "../ui/chrome";
 import { projX, projY, unproject } from "../render/projection";
+import { scrollForTopLeft } from "../view/viewport";
+import { currentView } from "../view/viewState";
 
 /** What the menu knows about the player; read when the scene starts, then kept current through the setters. */
 export interface HubSceneState {
@@ -33,7 +36,7 @@ export interface HubSceneData {
   onStation: (id: HubStationId) => void;
   /** True while a modal (the hub panels) is open: keys and clicks are ignored. */
   isBlocked?: () => boolean;
-  /** Width in px of the menu docked on the left; the room is centred in what is left. */
+  /** Where the menu docked on the left ends, in the window's CSS pixels; the room is centred in what is left. */
   leftInset?: () => number;
   /** The player as the menu has it now (profile, pick, busy), so a restarted scene doesn't wait for the next change. */
   state?: () => HubSceneState;
@@ -90,7 +93,7 @@ const KIOSK_SIGN_LIFT = 24;
 function keyBelongsToPage(e: KeyboardEvent): boolean {
   for (const node of [e.target, document.activeElement]) {
     if (!(node instanceof HTMLElement)) continue;
-    if (node.isContentEditable || node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT") return true;
+    if (isTypingTarget(node)) return true;
     if (e.code.startsWith("Arrow") && node.closest('[role="radio"], [role="tab"]')) return true;
   }
   return false;
@@ -287,27 +290,34 @@ export class HubScene extends Phaser.Scene {
     for (const f of this.flames) f.gfx.setScale(1, 0.88 + 0.18 * Math.sin(time / 85 + f.phase)).setAlpha(0.85 + 0.15 * Math.sin(time / 130 + f.phase));
   }
 
+  /** The docked menu's right edge in the stage's own CSS pixels (the menu reports window pixels; bars can sit left of the stage). */
   private pollInset(): number {
-    const inset = this.host.leftInset?.() ?? 0;
+    const inset = (this.host.leftInset?.() ?? 0) - currentView().stage.x;
     return Number.isFinite(inset) ? Math.max(0, inset) : 0;
   }
 
   /**
-   * The room is centred when it fits in the part of the window the docked menu leaves free, else the view follows the
-   * avatar and stops at the room's edges. The camera is at zoom 1, so scroll is a plain pixel offset.
+   * The room is centred when it fits in the part of the view the docked menu leaves free, else the view follows the
+   * avatar and stops at the room's edges. The camera is zoomed (device pixels per world pixel) and the menu's inset is in
+   * CSS pixels, so both are brought to world pixels: the view is `cam.width / zoom` wide and a CSS pixel is `dpr / zoom`.
+   * Phaser zooms about the camera's centre, so the framed top-left goes through scrollForTopLeft.
    */
   private frameCamera(dt: number, time = 0): void {
     const cam = this.cameras.main;
+    const zoom = cam.zoom;
     if (time - this.insetPolledAt >= INSET_POLL_MS) {
       this.insetPolledAt = time;
       this.insetTarget = this.pollInset();
     }
     const gap = this.insetTarget - this.insetNow;
     this.insetNow = Math.abs(gap) < 0.5 || dt === 0 ? this.insetTarget : this.insetNow + gap * Math.min(1, dt * 12);
-    const inset = Math.min(this.insetNow, cam.width * 0.6);
-    const sx = frameAxis(projX(this.pos.x), cam.width - inset, VIEW_LEFT, VIEW_RIGHT);
-    const sy = frameAxis(projY(this.pos.y), cam.height, VIEW_TOP, VIEW_BOTTOM);
-    cam.setScroll(sx - inset, sy);
+    const viewW = cam.width / zoom;
+    const viewH = cam.height / zoom;
+    const inset = Math.min(this.insetNow * currentView().dpr / zoom, viewW * 0.6);
+    const sx = frameAxis(projX(this.pos.x), viewW - inset, VIEW_LEFT, VIEW_RIGHT);
+    const sy = frameAxis(projY(this.pos.y), viewH, VIEW_TOP, VIEW_BOTTOM);
+    const scroll = scrollForTopLeft(sx - inset, sy, cam.width, cam.height, zoom);
+    cam.setScroll(scroll.x, scroll.y);
   }
 
   // ------------------------------------------------------------------------------------------ input
