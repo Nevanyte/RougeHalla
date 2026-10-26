@@ -180,6 +180,16 @@ describe("LoadingScreen without a static #boot", () => {
 });
 
 describe("whenReady", () => {
+  it("stops polling after maxFrames when ready() never turns true", () => {
+    const frames: Array<() => void> = [];
+    const raf = (cb: () => void): number => frames.push(cb);
+    const ready = vi.fn(() => false);
+    void whenReady(ready, raf, 5);
+    for (let i = 0; i < 20; i++) frames.splice(0).forEach((f) => f());
+    expect(ready).toHaveBeenCalledTimes(5);
+    expect(frames).toHaveLength(0);
+  });
+
   it("resolves on the frame after ready() turns true, polling once per frame", async () => {
     const frames: Array<() => void> = [];
     const raf = (cb: () => void): number => frames.push(cb);

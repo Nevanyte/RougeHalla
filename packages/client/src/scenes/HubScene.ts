@@ -19,6 +19,7 @@ import {
   type HubLayout, type HubStation, type HubStationId, type Vec,
 } from "../hub/hubLayout";
 import { PlayerView } from "../render/PlayerView";
+import { isTypingTarget } from "../ui/chrome";
 import { projX, projY, unproject } from "../render/projection";
 import { scrollForTopLeft } from "../view/viewport";
 import { currentView } from "../view/viewState";
@@ -92,7 +93,7 @@ const KIOSK_SIGN_LIFT = 24;
 function keyBelongsToPage(e: KeyboardEvent): boolean {
   for (const node of [e.target, document.activeElement]) {
     if (!(node instanceof HTMLElement)) continue;
-    if (node.isContentEditable || node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT") return true;
+    if (isTypingTarget(node)) return true;
     if (e.code.startsWith("Arrow") && node.closest('[role="radio"], [role="tab"]')) return true;
   }
   return false;

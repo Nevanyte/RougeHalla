@@ -292,7 +292,7 @@ describe("Minimap pointer controls", () => {
   it("clamps a right-click into the world", () => {
     const { canvas } = place();
     canvas.dispatchEvent(fakeEvent("pointerdown", { pointerId: 1, button: 2, buttons: 2, timeStamp: 0, clientX: 9999, clientY: -9999 }));
-    expect(onMove).toHaveBeenCalledWith(WORLD_W, 0);
+    expect(onMove).toHaveBeenCalledWith(WORLD_W, 0, true);
   });
 
   it("prevents the context menu and keeps the press out of the world underneath", () => {
@@ -412,6 +412,9 @@ describe("Minimap pointer controls", () => {
     clockTo(100);
     expect(onMove).toHaveBeenCalledTimes(2);
     expectAt(onMove, 0.3, 0.3);
+    // The press is the first order (the scene draws its marker for it); a repeat is not.
+    expect(onMove.mock.calls[0]![2]).toBe(true);
+    expect(onMove.mock.calls[1]![2]).toBe(false);
     // The same point as the last order: nothing. A new point a slot after the last order: sent at once.
     clockTo(250);
     win.dispatchEvent(move(2, 0.3, 0.3, 250));

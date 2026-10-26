@@ -204,7 +204,7 @@ export class Menu {
     };
     this.syncPick();
     // A held Enter repeats keydown; one load per press is plenty.
-    this.input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.repeat) void this.load(); });
+    this.input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.altKey && !e.repeat) void this.load(); });
     this.input.addEventListener("input", () => this.onEdit());
     this.clearStrip();
     this.updateDock();

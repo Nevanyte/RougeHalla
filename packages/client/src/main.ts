@@ -251,4 +251,4 @@ startHub();
 menu.show();
 // index.html's #boot goes once the hub scene has drawn and the profile has loaded or failed (the menu shows which).
 loading.show("Loading…", { timeoutMs: BOOT_TIMEOUT_MS });
-void Promise.all([whenReady(() => sceneRunning("hub")), menu.whenLoaded()]).then(() => loading.hide());
+void Promise.all([whenReady(() => sceneRunning("hub")), menu.whenLoaded()]).then(() => { if (joinAttempt === 0) loading.hide(); });

@@ -22,6 +22,7 @@ import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
 import { LockDisplay, pickTarget, type TargetCandidate } from "../render/targeting";
+import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
@@ -60,11 +61,7 @@ const AIM_HEIGHT = BODY_LIFT;
 
 /** Shortcuts must never fire while the player is typing in a form control. */
 function isTyping(target: EventTarget | null): boolean {
-  for (const node of [target, document.activeElement]) {
-    if (!(node instanceof HTMLElement)) continue;
-    if (node.isContentEditable || node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT") return true;
-  }
-  return false;
+  return isTypingTarget(target) || isTypingTarget(document.activeElement);
 }
 
 export class RaidScene extends Phaser.Scene {
@@ -194,7 +191,7 @@ export class RaidScene extends Phaser.Scene {
     this.peek = null;
     // Before buildMap: building a map repaints the minimap's static layer.
     this.minimap = new Minimap({
-      onMove: (x, y) => this.moveTo({ x, y }, true),
+      onMove: (x, y, first) => this.moveTo({ x, y }, first !== false),
       onPeek: (x, y) => { this.peek = { x, y }; },
       onPeekEnd: () => { this.peek = null; },
     });
@@ -563,8 +560,8 @@ export class RaidScene extends Phaser.Scene {
 
   /**
    * The angle on the ground from the local player, where it is drawn, to the cursor; null before it is drawn. The
-   * camera is centred on the drawn player at zoom 1 every frame, so the cursor's screen position plus the scroll is
-   * its world point, with no lag behind the camera's own matrix.
+   * camera is centred on the drawn player every frame, so the cursor's world point comes from the scroll and the zoom
+   * (cursorGround), with no lag behind the camera's own matrix.
    */
   private cursorAngle(pointer: Phaser.Input.Pointer): number | null {
     const me = this.rendered.get(this.room.sessionId);

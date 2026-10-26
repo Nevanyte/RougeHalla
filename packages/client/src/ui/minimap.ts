@@ -63,7 +63,8 @@ export interface MinimapMob { x: number; y: number; kind: string; status: string
 /** What the minimap asks of the scene, in world units. */
 export interface MinimapHandlers {
   /** Right button went down, or is held and moved: walk there (the same order a right-click on the ground sends). */
-  onMove(x: number, y: number): void;
+  /** `first` is true for the press, false for the repeats while the right button stays down (a ground hold passes showMarker false too). */
+  onMove(x: number, y: number, first?: boolean): void;
   /** Left button went down, or is held and moved: look at this point. */
   onPeek(x: number, y: number): void;
   /** The left button is up (or the press was lost): back to the character. Once per peek. */
@@ -440,7 +441,7 @@ export class Minimap {
         this.steering = true;
         this.canvas.classList.toggle("steering", true);
       }
-      if (pressed || started) this.send(at, e.timeStamp);
+      if (pressed || started) this.send(at, e.timeStamp, true);
       else this.sendThrottled(at, e.timeStamp);
     } else if (this.steering) {
       // A point the throttle is holding stays queued: the drag ended there.
@@ -449,12 +450,12 @@ export class Minimap {
     }
   }
 
-  private send(at: Point, t: number): void {
+  private send(at: Point, t: number, first = false): void {
     this.sentX = at.x;
     this.sentY = at.y;
     this.sentAt = t;
     this.dropPending();
-    this.handlers.onMove?.(at.x, at.y);
+    this.handlers.onMove?.(at.x, at.y, first);
   }
 
   /** A held right button: re-sent when the point moved, at most every MOVE_REPEAT_MS; the last point waits for its slot. */

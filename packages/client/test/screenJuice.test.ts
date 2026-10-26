@@ -97,9 +97,9 @@ describe("HitStop", () => {
   });
 });
 
-function setup() {
+function setup(zoom?: number) {
   const shakes: Array<[number, number, boolean | undefined]> = [];
-  const juice = new ScreenJuice({ shake: (d, i, f) => { shakes.push([d, i, f]); } });
+  const juice = new ScreenJuice({ shake: (d, i, f) => { shakes.push([d, i, f]); }, ...(zoom === undefined ? {} : { zoom }) });
   return { juice, shakes };
 }
 
@@ -119,6 +119,19 @@ describe("ScreenJuice", () => {
     juice.landed(0);
     expect(shakes).toEqual([[LANDED_SHAKE_MS, LANDED_SHAKE, false]]);
     expect(LANDED_SHAKE).toBeLessThan(0.003);
+  });
+
+  it("keeps the shake the same share of the screen at any camera zoom (Phaser applies the zoom to the offset twice)", () => {
+    const one = setup(1);
+    const two = setup(2);
+    one.juice.worldTime(1000, 0);
+    two.juice.worldTime(1000, 0);
+    one.juice.landed(0);
+    two.juice.landed(0);
+    expect(two.shakes[0]![1]).toBeCloseTo(one.shakes[0]![1] / 4, 12);
+    const hurt = setup(3);
+    hurt.juice.hurt(900, 1000);
+    expect(hurt.shakes[0]![1]).toBeCloseTo(HURT_SHAKE_MAX / 9, 12);
   });
 
   it("shakes harder for a bigger blow, within bounds, and not at all for a graze", () => {

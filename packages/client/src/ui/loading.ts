@@ -101,17 +101,22 @@ function buildScreen(text: HTMLElement): HTMLElement {
   return root;
 }
 
+/** About a minute of frames: a scene that has not drawn by then never will, and the caller's timeout has long fired. */
+const WHEN_READY_MAX_FRAMES = 3600;
+
 /**
  * Resolves on the first animation frame after `ready()` is true, checking once per frame. For waiting on "the scene has
- * drawn" without hooking into the engine; it never resolves if `ready` never does, so callers also hold a timeout.
+ * drawn" without hooking into the engine; it gives up polling after WHEN_READY_MAX_FRAMES (and then never resolves), so callers also hold a timeout.
  */
 export function whenReady(
   ready: () => boolean,
   raf: (cb: () => void) => unknown = (cb) => requestAnimationFrame(cb),
+  maxFrames = WHEN_READY_MAX_FRAMES,
 ): Promise<void> {
   return new Promise((resolve) => {
+    let frames = 0;
     const check = (): void => {
-      if (!ready()) { raf(check); return; }
+      if (!ready()) { if (++frames < maxFrames) raf(check); return; }
       // One more frame: the scene was just created, its first render comes after this check.
       raf(() => resolve());
     };
