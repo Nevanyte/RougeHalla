@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   campMatchup, FIRST_PATIENCE_SECONDS, generateMap, GV_WIN, MAX_PLAYERS, mapFromTiles, mulberry32, nearestCamps, PLAN_SECONDS, REGION_WEAPONS,
-  sameTier, spawnWalks, TICK_MS, TILE, TILE_WALL, type FactionId, type GameMap, type PlanMessage,
+  sameTier, spawnWalks, TICK_MS, TILE, TILE_WALL, WISH_LOCK_SECONDS, type FactionId, type GameMap, type PlanMessage,
 } from "@raid/shared";
 import { BotClient } from "../src/bots/BotClient";
 import { PLAN_CAMPS, planPick, planSpawnScore, useless } from "../src/bots/mobHunt";
@@ -632,6 +632,42 @@ describe("leaving during planning (owner ruling: a loss)", () => {
     expect(fight(3, 1, 1)).toMatchObject({ outcome: "won", players: 3, gv: { win: 0 }, winBonusWithheld: true });
     // Two started, one left: the other wins the run at once: not paid.
     expect(fight(2, 1, 0)).toMatchObject({ outcome: "won", players: 2, gv: { win: 0 }, winBonusWithheld: true });
+  });
+});
+
+describe("Wishes and planning", () => {
+  it("a cast sent during planning is dropped (free: no cast, no cooldown, no fx), and the 45 s lock starts when the run does", () => {
+    const { world, ids } = planning(31, 3, { planSeconds: 3 });
+    const s = world.state;
+    const closedAt = s.serverTime;
+    for (const id of ids) expect(s.players.get(id)!.wishReadyAt).toBe(0);
+    const casts: SimEvent[] = [];
+    for (let i = 0; i < 20 && s.phase === "planning"; i++) {
+      for (const id of ids) enqueueClientMessage(world.players.get(id)!.inputs, "cast", { slot: "wish", x: 500, y: 500, seq: 3 });
+      casts.push(...step(world, TICK_MS));
+    }
+    expect(s.phase).toBe("planning");
+    expect(casts.some((e) => e.type === "fx" && (e.fx.kind === "cast" || e.fx.kind === "castLand" || e.fx.kind === "castEnd"))).toBe(false);
+    for (const id of ids) {
+      expect(world.players.get(id)!.cast ?? null).toBeNull();
+      expect(s.players.get(id)!.wishReadyAt).toBe(0);
+      expect(s.players.get(id)!.moveSeq).toBe(0); // dropped before handleCast: not even its seq is echoed
+    }
+    stepUntil(world, () => s.phase === "active");
+    expect(s.raidStartedAt).toBeGreaterThan(closedAt);
+    for (const id of ids) expect(s.players.get(id)!.wishReadyAt).toBe(s.raidStartedAt + WISH_LOCK_SECONDS * 1000);
+  });
+
+  it("a planning leave fires fighterOut on a fighter with no statuses, no cast and no world.abilities, and nothing throws", () => {
+    const { world, ids } = planning(32, 3, { planSeconds: 3 });
+    expect(world.abilities).toBeNull();
+    const out: string[] = [];
+    const prev = world.hooks.fighterOut;
+    world.hooks.fighterOut = (w, id, cause) => { out.push(`${id}:${cause}`); prev?.(w, id, cause); };
+    removePlayer(world, ids[0]!);
+    expect(abandonPlayer(world, ids[1]!)).toBe(0);
+    expect(out).toEqual([`${ids[0]}:removed`, `${ids[1]}:removed`]);
+    stepUntil(world, () => world.state.phase !== "planning");
   });
 });
 

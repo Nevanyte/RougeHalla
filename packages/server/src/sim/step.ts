@@ -4,6 +4,7 @@ import {
   AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, mulberry32, SIGNATURE_WEAPONS, type FactionId, type Vec2,
 } from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
+import { updateAbilities } from "./abilities";
 import { beginRun, downPlayer, markTickStart, missInPlanning, settle, suddenDeath, unbankedGv } from "./arena";
 import { combatant, standingCombatants, type Combatant } from "./combatant";
 import { InputQueue } from "./inputs";
@@ -12,6 +13,7 @@ import { resolveMelee } from "./melee";
 import { advanceAlongPath, planPath, recordHistory } from "./movement";
 import { leavePlanning, planningEnabled, startPlanning, updatePlanning } from "./planning";
 import { clearProjectiles, spawnProjectiles, sweepProjectiles } from "./projectiles";
+import { isStunned } from "./status";
 import { updateTargets } from "./targeting";
 import { trainingSettle } from "./training";
 import { cancelLockedWindup, dropLock, moveMultiplierOf, resetWeapons, setAim, updateWeapons } from "./weapons";
@@ -93,6 +95,7 @@ export function removePlayer(world: World, id: string): void {
     if (world.state.phase === "active") downPlayer(world, p, rt, "mia");
     else if (world.state.phase === "planning") missInPlanning(world, p, rt);
   }
+  world.hooks.fighterOut?.(world, id, "removed");
   world.state.players.delete(id);
   world.players.delete(id);
   leavePlanning(world, id);
@@ -108,6 +111,7 @@ export function abandonPlayer(world: World, id: string): number {
   const gv = rt ? unbankedGv(rt) : 0;
   if (rt) rt.resolved = true;
   if (world.state.phase === "active") world.arena.voided = true;
+  world.hooks.fighterOut?.(world, id, "removed");
   world.state.players.delete(id);
   world.players.delete(id);
   // A void run (shutdown) in planning leaves no result either; what they held is freed.
@@ -179,6 +183,8 @@ export function actionOrder(world: World, tick = world.state.tick): string[] {
  */
 function applyInputs(world: World, c: Combatant): void {
   const { move, moveBefore, aim, aimBefore, actions } = c.rt.inputs.drain();
+  // A stunned mob's inputs are drained and lost: its AI does not think either (mobAI.ts). A stunned player's are kept (D5).
+  if (c.kind === "mob" && isStunned(world, c)) return;
   const applyMove = (): void => {
     if (move === null) return;
     cancelLockedWindup(world, c);
@@ -190,7 +196,7 @@ function applyInputs(world: World, c: Combatant): void {
   };
   // The cursor's aim is ignored while a lock aims the fighter (sim/targeting.ts); the next aim after the lock ends counts.
   const applyAim = (): void => {
-    if (aim !== null && c.rt.weapon.lock === null) setAim(world, c, aim);
+    if (aim !== null && c.rt.weapon.lock === null && !isStunned(world, c)) setAim(world, c, aim);
   };
   // An input applies just before actions[i] for the i it arrived at, so an attack's own angle never overrides an aim sent
   // after it, and a target and a move replace each other in arrival order. With both at one spot the move goes first.
@@ -205,10 +211,11 @@ function applyInputs(world: World, c: Combatant): void {
 
 /**
  * One active tick, in this order (see arena.ts for why the order matters):
- *   inputs (players in the shuffled actionOrder, then mobs) → target locks (the chase, the trigger and the aim of every
+ *   inputs (players in the shuffled actionOrder, then mobs) → abilities (statuses and fields expire, every cast due lands
+ *   together, a Trial zone ends when its subject leaves it) → target locks (the chase, the trigger and the aim of every
  *   locked player) → weapon state machines → afterWeapons → movement → history → projectile sweep (present time) →
- *   spawns → melee (rewound) → beforeDamage (signature damage joins the ledger) → sudden death's burn joins it → the
- *   damage ledger, all at once → systems → settle.
+ *   spawns → melee (rewound) → beforeDamage (signature damage, then status damage, join the ledger) → sudden death's
+ *   burn joins it → the damage ledger, all at once (status changes inside it wait for its end) → systems → settle.
  * Damage lands only in the ledger step, so a fighter killed this tick still lands what it started, and simultaneous
  * deaths are settled by the hp fraction at the start of the tick. The burn is in that pass, so what a kill wins (paid
  * after the pass) never decides who survives it.
@@ -227,6 +234,7 @@ function updateActive(world: World, dtMs: number): void {
   world.combat.rank = new Map(order.map((id, i) => [id, i]));
   for (const id of order) applyInputs(world, combatant(world, id)!);
   for (const id of world.mobs.keys()) applyInputs(world, combatant(world, id)!);
+  updateAbilities(world);
   updateTargets(world);
   updateWeapons(world);
   for (const sys of world.afterWeapons) sys(world, dtMs);

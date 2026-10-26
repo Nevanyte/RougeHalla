@@ -1,24 +1,27 @@
 // A headless player. It talks to the server the way the web client does: HTTP for the profile, then a
-// Colyseus room where it reads synced state and sends inputs only (move, stop, target, swap, pickup). It never touches
+// Colyseus room where it reads synced state and sends inputs only (move, stop, target, swap, pickup, cast). It never touches
 // server internals; the map comes from the public seed. The brain is a hunt, re-evaluated every THINK_MS from the latest
 // state: pick the foe, and play it like a human with the LoL-style controls: click it (`target`) once it is within the
 // server's reach (TARGET_RANGE), and let the server chase it, attack it and aim at it until the lock ends; walk (`move`)
 // to get it that close, to fetch a weapon or to run. The foe is the nearest standing player, except that with no player
 // close the bot farms the regional mobs first (mobHunt.ts decides who: it also drops a mob that cannot be hurt and runs
 // from a fight it is losing). A weapon a mob dropped, or a chest's early in the run, is worth a detour when only one
-// weapon is carried; the bot swaps slot to the better weapon edge against the foe's weapon. It joins asking for a faction
+// weapon is carried; the bot swaps slot to the better weapon edge against the foe's weapon. It casts its faction's Wish by the
+// intent tags of the ability (abilityPolicy.ts) once it is ready, and never picks a player it cannot target (hidden). It joins asking for a faction
 // when told to (`faction`), and a pursuit loop between players (three bots on a ring, each chasing the one ahead) is
 // broken by turning on someone else for a while (ORBIT_*). The arena (teleport, locked gates, sudden death) needs no
 // handling: after the teleport there are no mobs in reach and the bot just keeps hunting players. When the server plans
 // (phase "planning"), it picks the better of its two dealt spawns for farming from its private `plan` message and presses ready.
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  bestSlot, buffPower, findPath, generateMap, hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, PLAYER_RADIUS,
+  abilityInSlot, bestSlot, buffPower, rankOf, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_UNTARGETABLE, findPath, generateMap, hasLineOfSight,
+  INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, PLAYER_RADIUS,
   PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
   type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions,
   type PlanMessage, type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
+import { decideCast, hidesCaster, type CastSituation } from "./abilityPolicy";
 import { bestSlotVsMob, mobWeapon, pathLength, planPick, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
 
 type ClientRoom = Room<any, RaidState>;
@@ -144,6 +147,20 @@ const PLAN_WAIT_MS = 1000;
 /** A spawn pick the server has not confirmed (the message still shows no pick) is sent again after this long (ms). */
 const PLAN_RESEND_MS = 400;
 
+/** A Wish is tried at most this often (ms): a refused or fizzled cast costs nothing, so it is simply asked again. */
+const WISH_TRY_MS = 1000;
+/**
+ * After a Wish that hides its caster is sent (Swarm), the bot slips away instead of fighting for the cast's own time plus this (ms), so
+ * a cast the server refused frees it soon. Its own knowledge, not the synced bit: the bit only shows once the cast has landed, and a
+ * lock sent in that window would start the landing tick's auto-attack and reveal it at once.
+ */
+const ESCAPE_GRACE_MS = 300;
+/** A hit on the bot this recent (ms) is "being hit" for the Wish's escape and sustain rules. */
+const RECENT_HIT_MS = 1500;
+
+/** A player the server will let anyone lock: not hidden (Swarm) and not untargetable. Clients and bots read the same synced bits. */
+const targetableBits = (effects: number): boolean => (effects & (EFFECT_HIDDEN | EFFECT_UNTARGETABLE)) === 0;
+
 /** A stall this long (ms) is logged with --verbose. */
 const STALL_LOG_MS = 1500;
 /** A player behind a wall threatens from this many times its straight-line distance. */
@@ -168,7 +185,7 @@ export class BotClient {
   /** `teleport` fx seen: how many times the arena moved everyone into the coliseum. */
   teleports = 0;
   /** Inputs sent so far, by message type. */
-  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, plan: 0 };
+  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, plan: 0, cast: 0 };
 
   private profile = "";
   private room!: ClientRoom;
@@ -219,6 +236,14 @@ export class BotClient {
   private planAsked: { k: 0 | 1; at: number } | null = null;
   private planSeenAt = 0;
   private readySent = false;
+  /** When anyone (a mob, a burn) last hurt us, and when we last asked for our Wish. */
+  private hitAt = -Infinity;
+  private wishTriedAt = -Infinity;
+  /** A Wish that hides its caster was sent: the bot slips away (never locks anyone) until this time, or while the server shows the cast or the hiding. */
+  private escaping = false;
+  private escapeUntil = -Infinity;
+  /** The foe the bot fought this think (the Wish aims at it), if any. */
+  private foe: Foe | null = null;
 
   constructor(private readonly opts: BotOptions = {}) {
     this.done = new Promise((resolve) => { this.settle = resolve; });
@@ -342,6 +367,7 @@ export class BotClient {
     if (fx.kind === "hit" && fx.id === this.room.sessionId && fx.by !== null && fx.by !== fx.id && this.room.state.players.has(fx.by)) {
       this.playerHitAt = Date.now();
     }
+    if (fx.kind === "hit" && fx.id === this.room.sessionId && fx.by !== fx.id) this.hitAt = Date.now();
   }
 
   /** The server clears our path, queued inputs and lock when it teleports us: forget what we told it, and lock on again when the hunt says so. */
@@ -374,7 +400,63 @@ export class BotClient {
     const enemy = this.pickEnemy(me, now);
     const hunt = this.huntMobs(me, enemy, now);
     this.logHunt(hunt);
-    this.attacking = this.act(me, enemy, hunt, now);
+    this.foe = null;
+    // Hiding (it cast Swarm to get away, or is casting it): fighting on would reveal it with the next swing, so it slips away instead.
+    this.attacking = this.slipping(me, now) ? this.slipAway(me, enemy, now) : this.act(me, enemy, hunt, now);
+    this.castWish(me, enemy, now);
+  }
+
+  /** Is the bot hidden, or has it sent a hiding Wish that is still casting (by its own clock or the server's bit)? Then it does not fight. */
+  private slipping(me: PlayerState, now: number): boolean {
+    if ((me.effects & EFFECT_HIDDEN) !== 0) return true;
+    if (!this.escaping) return false;
+    if ((me.effects & EFFECT_CASTING) !== 0 || now < this.escapeUntil) return true;
+    this.escaping = false;
+    return false;
+  }
+
+  /** Walks away from the nearest player, or stands when there is none or nowhere to go; never attacks. False: not attacking. */
+  private slipAway(me: PlayerState, enemy: Enemy | null, now: number): boolean {
+    const map = this.collision();
+    const to = enemy ? retreatPoint(me, [enemy.p], (a, b) => segmentClear(map, a, b, PLAYER_RADIUS)) : null;
+    this.grab = null;
+    if (to) this.moveTo(to, now);
+    else this.stand();
+    return false;
+  }
+
+  /**
+   * Asks for the faction's Wish when the policy (abilityPolicy.ts, by the ability's intent tags) says so: only once it is ready
+   * (the server's clock against the synced ready time), at most every WISH_TRY_MS. The server validates everything again.
+   */
+  private castWish(me: PlayerState, enemy: Enemy | null, now: number): void {
+    const s = this.room.state;
+    const slot = abilityInSlot(me, "wish");
+    if (!slot || now - this.wishTriedAt < WISH_TRY_MS || s.serverTime < me.wishReadyAt) return;
+    const map = this.collision();
+    const foe = this.foe;
+    const foeBits = foe ? (foe.mob ? s.mobs.get(foe.id)?.effects : s.players.get(foe.id)?.effects) ?? 0 : 0;
+    const situation: CastSituation = {
+      me: { x: me.x, y: me.y, hpFrac: me.maxHp > 0 ? me.hp / me.maxHp : 1, effects: me.effects, recentlyHit: now - this.hitAt < RECENT_HIT_MS },
+      foe: foe ? { id: foe.id, x: foe.at.x, y: foe.at.y, d: foe.d, los: hasLineOfSight(map, me, foe.at), targetable: targetableBits(foeBits), mob: foe.mob } : null,
+      threat: enemy
+        ? {
+          x: enemy.p.x, y: enemy.p.y, d: enemy.d, chasing: enemy.p.attackTarget === this.room.sessionId, id: enemy.id,
+          los: hasLineOfSight(map, me, enemy.p), targetable: true,
+        }
+        : null,
+      map: this.map,
+      gatesLocked: s.gatesLocked,
+    };
+    const cast = decideCast(slot.def, slot.rank, situation);
+    if (!cast) return;
+    this.wishTriedAt = now;
+    this.log(`casting ${slot.def.name}${cast.id ? ` on ${cast.id}` : ""}`);
+    this.send("cast", cast.id !== undefined ? { slot: "wish", x: cast.x, y: cast.y, id: cast.id } : { slot: "wish", x: cast.x, y: cast.y });
+    if (hidesCaster(slot.def, slot.rank)) {
+      this.escaping = true;
+      this.escapeUntil = now + rankOf(slot.def, slot.rank).castMs + ESCAPE_GRACE_MS;
+    }
   }
 
   /**
@@ -531,7 +613,7 @@ export class BotClient {
     let current: Enemy | null = null;
     let avoided: Enemy | null = null;
     for (const [id, p] of this.room.state.players) {
-      if (id === this.room.sessionId || p.status !== "alive") continue;
+      if (id === this.room.sessionId || p.status !== "alive" || !targetableBits(p.effects)) continue;
       const e = { id, p, d: dist(me, p) };
       if (id === this.avoidId) {
         if (now < this.avoidUntil && e.d >= ORBIT_MIN_DISTANCE) { avoided = e; continue; }
@@ -572,6 +654,7 @@ export class BotClient {
   private fight(me: PlayerState, foe: Foe, now: number): boolean {
     const slots: Slots = [asWeapon(me.weapon0), asWeapon(me.weapon1)];
     const weapon = slots[slotOf(me)];
+    this.foe = foe;
     if (this.swap(me, slots, foe.theirs, foe.mob, foe.d, now)) return false;
     if (!weapon || !isFactionId(me.faction)) { this.stand(); return false; }
 

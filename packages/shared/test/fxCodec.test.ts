@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BUFF_IDS, formatStacks, FX_SCALE, mulberry32, packFx, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS,
+  ABILITY_IDS, BUFF_IDS, formatStacks, FX_SCALE, mulberry32, packFx, STATUS_KINDS, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS,
   type FxBatch, type FxEvent, type ProjectileEnd, type ProjectileLaunch, type TimedFx,
 } from "../src/index";
 
@@ -20,6 +20,10 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
   bounty: { kind: "bounty", id: "sess-001", name: "Rampager", bounty: 35 },
   buff: { kind: "buff", id: "sess-001", buff: "plagueRat", stacks: 1.0667, total: 2.9964 },
   victory: { kind: "victory", id: "sess-001", name: "Rampager", draw: false },
+  cast: { kind: "cast", by: "sess-001", ability: "freeze", ms: 250, target: "sess-002", x: 640.4, y: 320.6 },
+  castLand: { kind: "castLand", by: "sess-001", ability: "blaze", target: null, x: 100.2, y: 200.8, x2: 340.5, y2: 410.1 },
+  castEnd: { kind: "castEnd", by: "sess-001", ability: "trial", reason: "interrupted" },
+  status: { kind: "status", id: "sess-002", status: "stun", ms: 1250.4, by: "sess-001" },
 };
 
 const T = 123450;
@@ -44,7 +48,7 @@ function expectSame(got: TimedFx, want: FxEvent, t = T): void {
   const g = got as unknown as Record<string, unknown>;
   const w = want as unknown as Record<string, unknown>;
   const perUnit: Record<string, number> = {
-    x: scale.pos, y: scale.pos, x0: scale.pos, y0: scale.pos, a: scale.angle, ms: scale.ms, t0: scale.ms,
+    x: scale.pos, y: scale.pos, x0: scale.pos, y0: scale.pos, x2: scale.pos, y2: scale.pos, a: scale.angle, ms: scale.ms, t0: scale.ms,
     amount: scale.amount, stacks: scale.stacks, total: scale.stacks, bounty: 1,
   };
   for (const key of Object.keys(w)) {
@@ -453,5 +457,161 @@ describe("fx codec: projectile launches", () => {
     expect(unpackLaunches({ t: Number.NaN, l: [], p: [good] })).toEqual([]);
     expect(unpackLaunches({ t: T, l: [], p: "nope" } as unknown as FxBatch)).toEqual([]);
     expect(unpackLaunches(null as unknown as FxBatch)).toEqual([]);
+  });
+});
+
+describe("fx codec: abilities and statuses", () => {
+  const fx = (e: FxEvent): FxEvent => e;
+  const abilityCode = (id: (typeof ABILITY_IDS)[number]): number => ABILITY_IDS.indexOf(id);
+
+  it("appends the four kinds after cancel (13): cast 14, castLand 15, castEnd 16, status 17", () => {
+    const kinds = packFx(
+      [
+        fx({ kind: "cast", by: "a", ability: "freeze", ms: 250, target: null, x: 1, y: 2 }),
+        fx({ kind: "castLand", by: "a", ability: "freeze", target: null, x: 1, y: 2 }),
+        fx({ kind: "castEnd", by: "a", ability: "freeze", reason: "fizzle" }),
+        fx({ kind: "status", id: "a", status: "stun", ms: 1000, by: null }),
+      ],
+      T,
+    ).l.map((tuple) => tuple[0]);
+    expect(kinds).toEqual([14, 15, 16, 17]);
+  });
+
+  it("uses the order of ABILITY_IDS and STATUS_KINDS as the codes (append-only tables)", () => {
+    ABILITY_IDS.forEach((ability, i) => {
+      expect(packFx([fx({ kind: "castEnd", by: "a", ability, reason: "fizzle" })], T).l[0]![2], ability).toBe(i);
+    });
+    STATUS_KINDS.forEach((status, i) => {
+      expect(packFx([fx({ kind: "status", id: "a", status, ms: 1, by: null })], T).l[0]![2], status).toBe(i);
+    });
+    expect(ABILITY_IDS.slice(0, 5)).toEqual(["freeze", "swarm", "trial", "blaze", "lastStand"]);
+    expect(STATUS_KINDS[0]).toBe("stun");
+    expect(STATUS_KINDS[12]).toBe("haste");
+  });
+
+  it("cast: [by, AB, ms, target|null, x, y], with a target or without, for every ability", () => {
+    for (const ability of ABILITY_IDS) {
+      for (const target of [null, "mob7"]) {
+        const e: FxEvent = { kind: "cast", by: "sess-1", ability, ms: 349.6, target, x: 12.4, y: -7.6 };
+        expect(packFx([e], T).l[0]).toEqual([14, "sess-1", abilityCode(ability), 350, target, 12, -8]);
+        expect(roundTrip(e)).toEqual({ ...e, ms: 350, x: 12, y: -8, t: T });
+      }
+    }
+  });
+
+  it("castLand: x2 and y2 come together, only for a blink, and are left off when absent", () => {
+    const plain: FxEvent = { kind: "castLand", by: "a", ability: "freeze", target: "b", x: 5.2, y: 6.7 };
+    expect(packFx([plain], T).l[0]).toEqual([15, "a", 0, "b", 5, 7]);
+    expect(roundTrip(plain)).toEqual({ ...plain, x: 5, y: 7, t: T });
+
+    const blink: FxEvent = { kind: "castLand", by: "a", ability: "blaze", target: null, x: 100.4, y: 200.5, x2: 340.5, y2: 410.4 };
+    expect(packFx([blink], T).l[0]).toEqual([15, "a", 3, null, 100, 201, 341, 410]);
+    expect(roundTrip(blink)).toEqual({ ...blink, x: 100, y: 201, x2: 341, y2: 410, t: T });
+
+    // One end alone is not a blink: nothing half-sent.
+    const half = { kind: "castLand", by: "a", ability: "blaze", target: null, x: 1, y: 2, x2: 3 } as unknown as FxEvent;
+    expect(packFx([half], T).l[0]).toHaveLength(6);
+    expect(roundTrip(half)).toEqual({ kind: "castLand", by: "a", ability: "blaze", target: null, x: 1, y: 2, t: T });
+  });
+
+  it("castEnd: every reason round trips", () => {
+    for (const reason of ["fizzle", "interrupted", "cancelled"] as const) {
+      const e: FxEvent = { kind: "castEnd", by: "a", ability: "lastStand", reason };
+      expect(roundTrip(e)).toEqual({ ...e, t: T });
+    }
+    expect(packFx([{ kind: "castEnd", by: "a", ability: "freeze", reason: "fizzle" }], T).l[0]![3]).toBe(0);
+    expect(packFx([{ kind: "castEnd", by: "a", ability: "freeze", reason: "interrupted" }], T).l[0]![3]).toBe(1);
+    expect(packFx([{ kind: "castEnd", by: "a", ability: "freeze", reason: "cancelled" }], T).l[0]![3]).toBe(2);
+  });
+
+  it("status: every kind round trips, with a source or none", () => {
+    for (const status of STATUS_KINDS) {
+      for (const by of [null, "sess-9"]) {
+        const e: FxEvent = { kind: "status", id: "m3", status, ms: 1250, by };
+        expect(roundTrip(e), `${status} ${by}`).toEqual({ ...e, t: T });
+      }
+    }
+  });
+
+  it("hit: the ability is a fifth field, only when set, and decodes with the weapon null", () => {
+    for (const ability of ABILITY_IDS) {
+      const e: FxEvent = { kind: "hit", id: "a", by: "b", amount: 7.5, weapon: null, ability };
+      const tuple = packFx([e], T).l[0]!;
+      expect(tuple).toEqual([2, "a", "b", 75, 0, abilityCode(ability)]);
+      expect(roundTrip(e)).toEqual({ ...e, t: T });
+    }
+    const plain: FxEvent = { kind: "hit", id: "a", by: "b", amount: 7.5, weapon: "sword" };
+    expect(packFx([plain], T).l[0]).toHaveLength(5);
+    expect(roundTrip(plain)).toEqual({ ...plain, t: T });
+    expect("ability" in roundTrip(plain)).toBe(false);
+    // The arena (by null) and a signature can ride along.
+    const odd: FxEvent = { kind: "hit", id: "a", by: null, amount: 1, weapon: null, sig: "burn", ability: "blaze" };
+    expect(roundTrip(odd)).toEqual({ ...odd, t: T });
+  });
+
+  it("names the fighters by roster index and reads them back", () => {
+    const roster = ["sess-001", "sess-002", "mob1a"];
+    const index = new Map(roster.map((id, i) => [id, i]));
+    const list: FxEvent[] = [
+      { kind: "cast", by: "sess-001", ability: "trial", ms: 350, target: "sess-002", x: 10, y: 20 },
+      { kind: "castLand", by: "sess-001", ability: "blaze", target: null, x: 1, y: 2, x2: 3, y2: 4 },
+      { kind: "castEnd", by: "sess-002", ability: "freeze", reason: "cancelled" },
+      { kind: "status", id: "mob1a", status: "stun", ms: 1250, by: "sess-001" },
+      { kind: "hit", id: "mob1a", by: "sess-001", amount: 3, weapon: null, ability: "blaze" },
+    ];
+    const batch = packFx(list, T, { roster: index });
+    expect(batch.l[0]).toEqual([14, 0, 2, 350, 1, 10, 20]);
+    expect(batch.l[1]).toEqual([15, 0, 3, null, 1, 2, 3, 4]);
+    expect(batch.l[2]).toEqual([16, 1, 0, 2]);
+    expect(batch.l[3]).toEqual([17, 2, 0, 1250, 0]);
+    expect(batch.l[4]).toEqual([2, 2, 0, 30, 0, 3]);
+    expect(unpackFx(batch, roster)).toEqual(list.map((e) => ({ ...e, t: T })));
+  });
+
+  it("skips a tuple with a bad ability or status code, or a bad shape, and reports it", () => {
+    const bad = [
+      [14, "a", 99, 250, null, 1, 2],        // cast, unknown ability
+      [14, "a", 0, 250, null, 1],            // cast, no y
+      [14, "a", 0, 250, undefined, 1, 2],    // cast, no target field (neither an id nor null)
+      [15, "a", 99, null, 1, 2],             // castLand, unknown ability
+      [15, "a", 0, null, 1, 2, 3],           // castLand, an x2 with no y2
+      [15, "a", 0, null, 1, 2, 3, "four"],   // castLand, y2 is not a number
+      [16, "a", 99, 0],                      // castEnd, unknown ability
+      [16, "a", 0, 3],                       // castEnd, unknown reason
+      [16, "a", 0],                          // castEnd, no reason
+      [17, "a", 99, 1000, null],             // status, unknown kind
+      [17, "a", 0, "long", null],            // status, ms is a string
+      [17, "a", 0, 1000],                    // status, no source field
+      [2, "a", "b", 10, 0, 99],              // hit, unknown ability
+      [2, "a", "b", 10, 0, null],            // hit, a fifth field that is not a code
+    ] as unknown as FxBatch["l"];
+    const good = packFx([{ kind: "castEnd", by: "a", ability: "swarm", reason: "fizzle" }], T).l[0]!;
+    const dropped: Array<[unknown, boolean]> = [];
+    const out = unpackFx({ t: T, l: [...bad, good] }, NONE, (tuple, unresolved) => dropped.push([tuple, unresolved]));
+    expect(out).toEqual([{ kind: "castEnd", by: "a", ability: "swarm", reason: "fizzle", t: T }]);
+    expect(dropped).toHaveLength(bad.length);
+    expect(dropped.every(([, unresolved]) => unresolved === false)).toBe(true);
+  });
+
+  it("counts a roster index the client does not have as unresolved", () => {
+    const roster = ["a", "b"];
+    const flags: boolean[] = [];
+    const batch: FxBatch = { t: T, l: [[14, 5, 0, 250, null, 1, 2], [15, 0, 0, 9, 1, 2], [16, 7, 0, 0], [17, 6, 0, 1000, null]] };
+    expect(unpackFx(batch, roster, (_tuple, unresolved) => flags.push(unresolved))).toEqual([]);
+    expect(flags).toEqual([true, true, true, true]);
+  });
+
+  it("is plain integers, strings and null on the wire", () => {
+    const batch = packFx(
+      [EXAMPLES.cast, EXAMPLES.castLand, EXAMPLES.castEnd, EXAMPLES.status, { kind: "hit", id: "a", by: "b", amount: 3, weapon: null, ability: "blaze" }],
+      T,
+    );
+    for (const tuple of batch.l) {
+      for (const v of tuple) {
+        if (typeof v === "number") expect(Number.isSafeInteger(v), JSON.stringify(tuple)).toBe(true);
+        else expect(v === null || typeof v === "string").toBe(true);
+      }
+    }
+    expect(unpackFx(JSON.parse(JSON.stringify(batch)) as FxBatch, NONE)).toEqual(unpackFx(batch, NONE));
   });
 });

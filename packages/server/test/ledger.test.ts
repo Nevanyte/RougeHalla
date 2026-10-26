@@ -13,10 +13,11 @@ import {
   type FxEvent, type GameMap, type RunResult, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { applyDamage } from "../src/sim/arena";
-import { timingsOf } from "../src/sim/combatant";
+import { combatant, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { addMob } from "../src/sim/mobs";
+import { addStatus } from "../src/sim/status";
 import { actionOrder, addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, SimEvent, World } from "../src/sim/world";
 
@@ -471,6 +472,59 @@ describe("the hit fx", () => {
     const events = inStep(w, () => hit(w, "v", "x", 50));
     expect(fxOf(events, "hit")).toEqual([expect.objectContaining({ id: "v", amount: 50 })]);
     expect(fxOf(events, "death")).toHaveLength(1);
+  });
+});
+
+/** A Trial's zone on `subject` from `caster`: what it deals is x0.8, what it takes from the caster x1.2 (the status carries the numbers). */
+function zone(world: World, subject: string, caster: string): void {
+  const c = combatant(world, subject)!;
+  addStatus(world, c, {
+    kind: "zoned", source: { id: caster, name: nameOf(caster) }, ms: 5000, ability: "trial",
+    data: { fieldId: "f", dealtMult: 0.8, takenFromSourceMult: 1.2 },
+  });
+}
+
+describe("a zone's factor (D9) and named ability damage (D10)", () => {
+  it("multiplies each non-arena entry once, before mitigation: the subject's outgoing x0.8, the caster's hits on it x1.2", () => {
+    const w = arena([fighter("v", "frost"), fighter("subject"), fighter("caster")]);
+    zone(w, "subject", "caster");
+    const hpV = P(w, "v").hp;
+    const hpSubject = P(w, "subject").hp;
+    inStep(w, () => {
+      hit(w, "v", "subject", 100);
+      hit(w, "subject", "caster", 100);
+      hit(w, "subject", "v", 100);
+    });
+    expect(hpV - P(w, "v").hp).toBeCloseTo(mitigateShares(100 * 0.8, PHYSICAL, FACTIONS.frost), 9);
+    expect(hpSubject - P(w, "subject").hp).toBeCloseTo(120 + 100, 9);
+  });
+
+  it("leaves the arena's own damage alone (sudden death is no one's hit)", () => {
+    const w = arena([fighter("v"), fighter("subject"), fighter("caster")]);
+    zone(w, "subject", "caster");
+    const hp = P(w, "subject").hp;
+    inStep(w, () => recordHit(w, { victim: "subject", by: { id: "caster", name: "Caster" }, packet: { raw: 100, ...TRUE }, weapon: "axe", stagger: false, arena: true }));
+    expect(hp - P(w, "subject").hp).toBeCloseTo(100, 9);
+  });
+
+  it("names an ability: the landed record and the hit fx carry it, the weapon is null", () => {
+    const w = arena([fighter("v"), fighter("x")]);
+    const events = inStep(w, () => recordHit(w, { victim: "v", by: { id: "x", name: "X" }, packet: { raw: 30, ...TRUE }, weapon: null, ability: "freeze", stagger: false }));
+    expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "v", by: "x", amount: 30, weapon: null, ability: "freeze" }]);
+    expect(w.combat.landed).toEqual([expect.objectContaining({ victim: "v", by: "x", amount: 30, weapon: null, ability: "freeze" })]);
+    expect(w.combat.landed[0]!.dot).toBeUndefined();
+  });
+
+  it("a dot hit lands (hp, landed, lifesteal, the kill) but emits no hit fx of its own", () => {
+    const w = arena([fighter("v"), fighter("x")]);
+    const events = inStep(w, () => recordHit(w, { victim: "v", by: { id: "x", name: "X" }, packet: { raw: 12, ...TRUE }, weapon: null, ability: "blaze", dot: true, stagger: false }));
+    expect(fxOf(events, "hit")).toEqual([]);
+    expect(P(w, "v").hp).toBeCloseTo(FACTIONS.fire.hp - 12, 9);
+    expect(w.combat.landed).toEqual([expect.objectContaining({ victim: "v", by: "x", amount: 12, ability: "blaze", dot: true })]);
+    const kill = arena([fighter("v", "fire", 5), fighter("x"), fighter("y")]);
+    const killing = inStep(kill, () => recordHit(kill, { victim: "v", by: { id: "x", name: "X" }, packet: { raw: 12, ...TRUE }, weapon: null, ability: "blaze", dot: true, stagger: false }));
+    expect(fxOf(killing, "death")).toEqual([expect.objectContaining({ id: "v", by: "x" })]);
+    expect(fxOf(killing, "hit")).toEqual([]);
   });
 });
 

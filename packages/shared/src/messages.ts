@@ -1,7 +1,9 @@
 // Wire contracts. Client→server messages are inputs only; the server decides outcomes.
+import type { AbilityId, AbilitySlot, CastEndReason } from "./abilities";
 import type { BuffId } from "./buffs";
 import type { FactionId } from "./factions";
 import type { SignatureKind } from "./signatures";
+import type { StatusKind } from "./status";
 import type { ProjectileKind, WeaponId } from "./weapons";
 
 export interface Vec2 { x: number; y: number }
@@ -30,7 +32,7 @@ export type ContainerKind = "chest" | "ground" | "body";
  *
  * Orders replace each other: `move`, `stop`, `target` and `attack` each drop whatever order came before (a move or a stop
  * drops the lock and the held trigger; a `target` lets go of the trigger; an `attack` drops the lock). Within one tick
- * they apply in the order they arrived. The game client sends `move`, `stop`, `target`, `aim`, `swap` and `pickup`;
+ * they apply in the order they arrived. The game client sends `move`, `stop`, `target`, `aim`, `swap`, `pickup` and `cast`;
  * `attack` and `release` are the low-level trigger that mobs, the duel harness and older bots still use.
  */
 export interface ClientMessages {
@@ -72,9 +74,16 @@ export interface ClientMessages {
    * every connected player is ready.
    */
   plan: { spawn?: 0 | 1; boon?: 0 | 1; ready?: boolean };
+  /**
+   * Cast the ability in `slot` ("wish" = the faction's Wish, key D; "q"/"e" arrive with skills). (x, y): the cursor's ground
+   * point (clamped like `move`; the point or direction, ignored by self casts). `id`: a unit target. `t`: render time (clamped;
+   * unused until skills rewind). `seq`: as for `move`, echoed in moveSeq (sent with a blink). Refused silently, at no cost,
+   * unless ready, standing, not stunned/silenced (or rooted, for some), not already casting, and the target is valid.
+   */
+  cast: { slot: AbilitySlot; x: number; y: number; id?: string; t?: number; seq?: number };
 }
 export type ClientMessageType = keyof ClientMessages;
-export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan"];
+export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast"];
 
 /** Why a projectile stopped (a `projEnd` fx). */
 export type ProjectileEnd =
@@ -103,8 +112,9 @@ export type FxEvent =
   /**
    * `id` took `amount` (after armor and shield). `by` is the attacker's id, or null for the arena. `sig`: signature
    * damage, either Fire's backlash on one swing of `id`, or DOT_FX_MS worth of damage over time (burn, disease, mark).
+   * `ability`: the ability that dealt it (weapon null); a dot ability's hits come in chunks like a signature's.
    */
-  | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null; sig?: SignatureKind }
+  | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null; sig?: SignatureKind; ability?: AbilityId }
   /**
    * `id`'s shield negated a hit by `by`'s weapon (a sword hit also ripostes: a `hit` on `by` follows). `passive`: the
    * blocked hit was not an attack of `by`'s own (an arrow `by` reflected).
@@ -134,7 +144,18 @@ export type FxEvent =
   | { kind: "buff"; id: string; buff: BuffId; stacks: number; total: number }
   // "combo" (wire code 11) is retired with the kill combos (roguelike R4a): never emitted, its code never reused.
   /** The run is over. `id`/`name` are the winner's; both null with `draw` for a draw, and without it when nobody won (a solo run, or everyone left). */
-  | { kind: "victory"; id: string | null; name: string | null; draw: boolean };
+  | { kind: "victory"; id: string | null; name: string | null; draw: boolean }
+  /**
+   * `by` began casting `ability`. Its telegraph and root last `ms` and it lands at the batch's `t + ms`; a client draws it
+   * against the server clock. (x, y): the target, the point, or the caster.
+   */
+  | { kind: "cast"; by: string; ability: AbilityId; ms: number; target: string | null; x: number; y: number }
+  /** The cast took effect. (x, y): the target or the caster, or a blink's origin with (x2, y2) its landing. */
+  | { kind: "castLand"; by: string; ability: AbilityId; target: string | null; x: number; y: number; x2?: number; y2?: number }
+  /** A begun cast ended unlanded: it fizzled at its landing, a status interrupted it, or the arena cancelled it. */
+  | { kind: "castEnd"; by: string; ability: AbilityId; reason: CastEndReason }
+  /** A status instance was newly applied to `id` (not on a refresh or an expiry), lasting `ms` from the batch's `t`; `by` is its source. */
+  | { kind: "status"; id: string; status: StatusKind; ms: number; by: string | null };
 
 /** How one player's run ended. `won` and `draw` only happen in a contested run (two or more starters). */
 export type RunOutcome = "won" | "draw" | "died" | "mia";

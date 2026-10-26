@@ -53,6 +53,7 @@ import {
 } from "./combatant";
 import { recordHit } from "./ledger";
 import { lifestealRowsOf, markRateOf, triggersOf } from "./mods";
+import { healFactor } from "./status";
 import { chainHook, collisionMap, emit, payLater, tieRank, type PendingAction, type World } from "./world";
 
 /** One fighter's signature state. Times are server ms. */
@@ -86,7 +87,7 @@ export interface FactionsRuntime {
   /** This tick's attacks: swings landing, balls leaving, arrows loosed. */
   attacks: Array<{ by: string; weapon: WeaponId }>;
   /** Damage over time landed since `dotSince`, reported together every DOT_FX_MS. */
-  dot: Map<string, { victim: string; by: string; sig: SignatureKind; weapon: WeaponId; amount: number }>;
+  dot: Map<string, { victim: string; by: string; sig: SignatureKind; weapon: WeaponId | null; amount: number }>;
   dotSince: number;
 }
 
@@ -243,7 +244,7 @@ function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<stri
   };
   for (const e of world.combat.ledger) {
     const raw = e.packet.raw * e.scale;
-    if (e.sig || !(raw > 0)) continue;
+    if (e.sig || e.ability !== undefined || !(raw > 0)) continue;
     add(e.by.id, e.victim, raw, e.passive === true || (e.projectile !== undefined && e.weapon === "shield"));
   }
   // A blocked swing or arrow never reaches the ledger, but the attack met its target.
@@ -517,7 +518,8 @@ function onWeaponSwapped(world: World, c: Combatant): void {
 /**
  * Heals a standing fighter by up to `amount` (never past max hp) and emits a `heal` fx. Heals other than lifesteal are
  * refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage, unless `ignoreLockout` (Blood Saint's
- * trigger; Wishes' Last Stand), which skips that lockout and nothing else. `quiet` sends no fx (a mob's regeneration heals
+ * trigger; Last Stand's payback, which comes right after the damage it answers), which skips that lockout and nothing else.
+ * An anti-heal status scales every heal, lifesteal included (healFactor). `quiet` sends no fx (a mob's regeneration heals
  * every tick, which would be a heal number every tick). Returns the hp gained.
  */
 export function heal(
@@ -527,6 +529,8 @@ export function heal(
   const now = world.state.serverTime;
   const f = world.factions?.fighters.get(c.id);
   if (!opts.lifesteal && !opts.ignoreLockout && f && now - f.combatAt < HEAL_LOCKOUT_SECONDS * 1000) return 0;
+  amount *= healFactor(world, c);
+  if (!(amount > 0)) return 0;
   const before = c.s.hp;
   c.s.hp = Math.min(c.s.maxHp, c.s.hp + amount);
   const gained = c.s.hp - before;
@@ -559,7 +563,10 @@ function onHurt(world: World, c: Combatant, applied: number): void {
   }
 }
 
-/** A trigger's action, paid after the pass. Status, cleanse and cooldown actions wait for the status runtime and R6. */
+/**
+ * A trigger's action, paid after the pass. No row uses a status, cleanse or cooldown action yet: R4b runs the first two
+ * through sim/status.ts (addStatus, cleanse), as a cast's landing does, and R6 the cooldown.
+ */
 function runTrigger(world: World, c: Extract<Combatant, { kind: "player" }>, a: TriggerAction): void {
   switch (a.do) {
     case "heal": {
