@@ -3,13 +3,14 @@
 // what the client's unit tests can only assume about the server: that an order is applied and walked one tick in the same step,
 // that moveSeq names it, and that the prediction therefore stays in line with the sim through starts, turns, stops and a lock.
 // And through a blink (Blaze Step: the `cast` input, the shared blinkLanding, `displaceSeq`) and a displacement the client did not
-// order (the sim's own `displace`).
+// order (the sim's own `displace`). And over ground that changes the walk: ice (the slide of shared/walk.ts, which the model runs
+// too) and bog (a slower walk, read at the model's own position).
 import { describe, expect, it } from "vitest";
 import {
   blinkLanding, circleClear, FREEZE_CAST_MS, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, REGION_COLISEUM, SWARM_CAST_MS,
-  TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, type FactionId, type GameMap, type Vec2, type WeaponId,
+  TERRAIN_BOG, TERRAIN_ICE, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, type FactionId, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { type FrameInput } from "../../client/src/net/localMotion";
+import { type FrameInput, type LocalMotion } from "../../client/src/net/localMotion";
 import { LocalPrediction, castUnanswered, type LocalFighter } from "../../client/src/net/localPrediction";
 import { combatant } from "../src/sim/combatant";
 import { displace } from "../src/sim/displace";
@@ -42,6 +43,8 @@ class SimRig {
   get motion() { return this.predict.motion; }
   /** Frames are fed what the client knows of its own speed and roots (the fx and the synced bits), not a constant. */
   readonly usePredict: boolean;
+  /** The frames are not told of the ground (no map): the client of before the terrain, to show what the terrain terms are worth. */
+  readonly terrainBlind: boolean;
   readonly map: GameMap;
   now = 0;
   private seq = 0;
@@ -60,9 +63,10 @@ class SimRig {
 
   constructor(
     readonly up: number, readonly down: number, readonly jitter = 0, faction: FactionId = "plague", weapon: WeaponId = "sword",
-    opts: { map?: GameMap; start?: Vec2; gatesLocked?: boolean; clientGatesLocked?: boolean; usePredict?: boolean } = {},
+    opts: { map?: GameMap; start?: Vec2; gatesLocked?: boolean; clientGatesLocked?: boolean; usePredict?: boolean; terrainBlind?: boolean } = {},
   ) {
     this.usePredict = opts.usePredict ?? false;
+    this.terrainBlind = opts.terrainBlind ?? false;
     this.map = opts.map ?? arenaMap();
     this.clientGatesLocked = opts.clientGatesLocked ?? opts.gatesLocked ?? false;
     this.world = createGameWorld({
@@ -161,7 +165,9 @@ class SimRig {
   frame(): void {
     const dt = this.drawn.length === 0 ? FRAME_MS : this.now - this.lastFrame;
     this.lastFrame = this.now;
-    this.motion.frame(this.clock, dt, this.usePredict ? this.predict.frameInput(this.clock, true, this.heard, [], false) : ALIVE);
+    this.motion.frame(
+      this.clock, dt, this.usePredict ? this.predict.frameInput(this.clock, true, this.heard, [], false, this.terrainBlind ? null : this.map) : ALIVE,
+    );
     this.drawn.push({ x: this.motion.drawn.x, y: this.motion.drawn.y });
     this.offsets.push(this.motion.visualOffset);
   }
@@ -776,5 +782,263 @@ describe("a cast the sim refuses frees its slot at the echo of its order number"
       r.run(300);
       expect(r.motion.walking, tag).toBe(true);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Ground that changes the walk. The sim slides a fighter on ice (shared/walk.ts, through walkFighter) and slows it in bog (a move
+// modifier); the model runs the same slide and reads the bog at its own position. The map is 60 x 30 with the terrain set
+// inside the wall border.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** The arena with `kind(tx, ty)` as the terrain of every floor tile inside the border (the border stays plain wall). */
+function terrainArena(kind: (tx: number, ty: number) => number): GameMap {
+  const base = arenaMap();
+  const terrain = new Uint8Array(W * H);
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) terrain[y * W + x] = kind(x, y);
+  return { ...mapFromTiles(W, H, base.tiles, 0, terrain), spawns: base.spawns };
+}
+const allIce = () => terrainArena(() => TERRAIN_ICE);
+/** Bog in 4 x 4 tile patches, checkerboard fashion: a walk crosses a patch edge every few tiles. */
+const bogPatches = () => terrainArena((x, y) => (((x >> 2) + (y >> 2)) & 1 ? TERRAIN_BOG : 0));
+
+/** Counts the snaps and the walks the model drops (it forgets its path on a divergence), from here on. */
+function watch(m: LocalMotion): { snaps: number; drops: number } {
+  const mm = m as unknown as { snapTo(...a: unknown[]): void; noteDivergence(e: number): void; path: unknown[] };
+  const out = { snaps: 0, drops: 0 };
+  const snap = mm.snapTo.bind(mm);
+  mm.snapTo = (...a) => { out.snaps++; snap(...a); };
+  const nd = mm.noteDivergence.bind(mm);
+  mm.noteDivergence = (e) => {
+    const had = mm.path.length > 0;
+    nd(e);
+    if (had && mm.path.length === 0) out.drops++;
+  };
+  return out;
+}
+
+/** The "starts, turns and stops" script of the first test, as a function of the rig. */
+function startsTurnsAndStops(r: SimRig): void {
+  r.run(300);
+  const orders: Array<() => void> = [
+    () => r.move(centre(30, 10)), () => r.move(centre(30, 24)), () => r.stop(), () => r.move(centre(12, 20)),
+    () => r.move(centre(14, 8)), () => r.stop(), () => r.move(centre(40, 15)),
+  ];
+  const rnd = mulberry32(2);
+  for (const o of orders) {
+    o();
+    r.run(150 + rnd() * 650);
+  }
+  r.stop();
+  r.run(1500);
+}
+
+const mean = (a: readonly number[]): number => a.reduce((x, y) => x + y, 0) / a.length;
+const quantile = (a: readonly number[], q: number): number => [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * q))]!;
+
+describe("ice against the real sim", () => {
+  it("starts, turns and stops: the slide predicted, within 15 u of the sim, no snap, no dropped walk, and rest exactly where it rests", () => {
+    for (const [up, down, jitter] of [[40, 40, 10], [15, 15, 0], [30, 30, 10], [60, 60, 20], [90, 70, 40]] as const) {
+      const r = new SimRig(up, down, jitter, "plague", "sword", { map: allIce(), usePredict: true });
+      const w = watch(r.motion);
+      startsTurnsAndStops(r);
+      const tag = `${up}/${down}/${jitter}`;
+      expect(Math.max(...r.offsets), tag).toBeLessThan(15);
+      expect(w.snaps, `${tag} snaps`).toBe(0);
+      expect(w.drops, `${tag} dropped walks`).toBe(0);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+      expect(r.motion.visualOffset, tag).toBeLessThan(0.1);
+      // The drawn fighter moves by a walk's step plus a correction, never a jump.
+      expect(r.maxStep(), tag).toBeLessThanOrEqual(MAX_STEP);
+    }
+  });
+
+  it("the sim does slide, and a client with no ice term is plainly off: the model's slide is what keeps it in line", () => {
+    const run = (blind: boolean) => {
+      const r = new SimRig(40, 40, 10, "plague", "sword", { map: allIce(), usePredict: true, terrainBlind: blind });
+      const w = watch(r.motion);
+      startsTurnsAndStops(r);
+      return { r, w };
+    };
+    const seeing = run(false);
+    const blind = run(true);
+    expect(combatant(seeing.r.world, "me")!.rt.slip).not.toBeNull(); // the sim carries a slide on this ground
+    expect(Math.max(...blind.r.offsets)).toBeGreaterThan(25);
+    expect(mean(blind.r.offsets)).toBeGreaterThan(2 * mean(seeing.r.offsets));
+    expect(blind.w.drops + blind.w.snaps).toBeGreaterThan(0);
+    expect(seeing.w.drops + seeing.w.snaps).toBe(0);
+  });
+
+  it("a stop at full speed slides 34 u (v^2 / 2a) on the sim, and the model rests where it does", () => {
+    const r = new SimRig(40, 40, 0, "plague", "sword", { map: allIce(), usePredict: true });
+    r.run(300);
+    r.move(centre(50, 10));
+    r.run(1500); // at full speed by now
+    r.stop();
+    // The position the tick before the one that applies the stop left the fighter at, still at full speed.
+    let from = r.server.x;
+    while (r.server.moveSeq !== 2) { from = r.server.x; r.run(1); }
+    r.run(1500);
+    expect(r.server.x - from).toBeCloseTo(34, 1);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
+  });
+
+  it("Frost grips ice like floor: the same run on an ice map and on plain floor draws the same fighter, frame for frame", () => {
+    const a = new SimRig(40, 40, 10, "frost", "sword", { map: allIce(), usePredict: true });
+    const b = new SimRig(40, 40, 10, "frost", "sword", { map: arenaMap(), usePredict: true });
+    startsTurnsAndStops(a);
+    startsTurnsAndStops(b);
+    expect(a.drawn.length).toBe(b.drawn.length);
+    expect(a.drawn).toEqual(b.drawn);
+    expect(combatant(a.world, "me")!.rt.slip).toBeNull();
+    expect(a.motion.slipVelocity).toBeNull();
+  });
+
+  it("an order a few units before an ice edge (60/60, 20 jitter): no snap, the walk is not dropped, and it rests where it rests", () => {
+    const edge = 20 * TILE;
+    const map = terrainArena((x) => (x >= 20 ? TERRAIN_ICE : 0));
+    for (const before of [-12, -8, -5, -2, 0, 3, 6, 10]) {
+      for (const [up, down, jitter] of [[60, 60, 20], [30, 30, 20]] as const) {
+        const tag = `${before} u / ${up}/${down}`;
+        const r = new SimRig(up, down, jitter, "plague", "sword", { map, usePredict: true, start: centre(8, 10) });
+        const w = watch(r.motion);
+        r.run(300);
+        r.move(centre(45, 10));
+        for (let guard = 0; r.motion.predicted.x < edge + before && guard < 5000; guard++) r.run(1);
+        expect(r.motion.predicted.x, tag).toBeLessThan(edge + before + 10); // the order below really is at the edge
+        const goal = centre(40, 24);
+        r.move(goal); // a turn onto (or just before) the ice
+        r.run(7000);
+        expect(w.snaps, `${tag} snaps`).toBe(0);
+        expect(w.drops, `${tag} dropped walks`).toBe(0);
+        expect(Math.max(...r.offsets), tag).toBeLessThan(20);
+        expect(dist(r.server, goal), tag).toBeLessThan(0.5);
+        expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+      }
+    }
+  });
+
+  it("a lock on a dummy across ice hands over to the server's chase and back to a walk without a snap", () => {
+    for (const [up, down, jitter] of [[40, 40, 0], [60, 60, 20], [15, 15, 0]] as const) {
+      const tag = `${up}/${down}/${jitter}`;
+      const r = new SimRig(up, down, jitter, "plague", "sword", { map: allIce(), usePredict: true });
+      const w = watch(r.motion);
+      const dummy = addMob(r.world, { kind: "dummy", name: "dummy", at: centre(30, 10) });
+      r.run(300);
+      r.move(centre(14, 10)); // walking (and sliding) when the click comes
+      r.run(250);
+      r.target(dummy);
+      const lockFrom = r.offsets.length;
+      r.run(400);
+      expect(r.motion.mode, tag).toBe("follow");
+      expect(r.server.attackTarget, tag).toBe(dummy);
+      // Never ahead of where the server has the fighter, and within a patch's walking of it.
+      expect(r.motion.drawn.x, tag).toBeLessThanOrEqual(r.server.x + 1e-6);
+      expect(r.server.x - r.motion.drawn.x, tag).toBeLessThan(PLAYER_SPEED * ((r.down + 2 * TICK_MS) / 1000) + 8);
+      r.run(3000);
+      expect(r.server.x, tag).toBeGreaterThan(centre(26, 10).x); // the chase slid it up to the dummy
+      expect(combatant(r.world, "me")!.rt.weapon.lock, tag).toBe(dummy);
+      expect(Math.max(...r.offsets.slice(lockFrom)), tag).toBeLessThan(15);
+      // Walking away again: predicted at once, the lock is gone. The server may have been accelerating or planted for a windup when
+      // the order reached it, which the sample's velocity cannot tell: the model's start differs by up to one slide (about 45 u).
+      r.move(centre(10, 10));
+      const awayFrom = r.offsets.length;
+      r.run(FRAME_MS * 2 + 1);
+      expect(r.motion.mode, tag).toBe("predict");
+      r.run(7000); // 19 tiles to walk
+      expect(combatant(r.world, "me")!.rt.weapon.lock, tag).toBeNull();
+      expect(Math.max(...r.offsets.slice(awayFrom)), tag).toBeLessThan(60);
+      expect(w.snaps, `${tag} snaps`).toBe(0);
+      expect(w.drops, `${tag} dropped walks`).toBe(0);
+      expect(dist(r.server, centre(10, 10)), tag).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+    }
+  });
+});
+
+describe("a blink or a pull on ice leaves no stale slide (Blaze Step, the sim's displace)", () => {
+  // Ice from column 30 east; the walk starts on one side and the displacement lands on the other.
+  const half = () => terrainArena((x) => (x >= 30 ? TERRAIN_ICE : 0));
+
+  it("a blink onto ice from a walk, and off ice from a slide: the fighter stands where it lands on both sides", () => {
+    for (const dir of ["onto", "off"] as const) {
+      for (const [up, down, jitter] of [[40, 40, 0], [60, 60, 20]] as const) {
+        const tag = `${dir} ${up}/${down}/${jitter}`;
+        const r = new SimRig(up, down, jitter, "fire", "sword", { map: half(), usePredict: true, start: dir === "onto" ? centre(18, 10) : centre(40, 10) });
+        const w = watch(r.motion);
+        r.run(300);
+        r.move(dir === "onto" ? centre(28, 10) : centre(32, 10));
+        r.run(900);
+        expect(r.motion.walking, tag).toBe(true);
+        const { landing } = r.blink({ x: r.motion.predicted.x + (dir === "onto" ? 300 : -300), y: r.motion.predicted.y });
+        expect(landing, tag).not.toBeNull();
+        expect(r.world.state.players.get("me")!.x < 30 * TILE, tag).toBe(dir === "onto");
+        r.run(FRAME_MS + 1);
+        const slide = r.motion.slipVelocity;
+        expect(slide === null || Math.hypot(slide.x, slide.y) === 0, `${tag} no velocity carried`).toBe(true);
+        const first = r.drawn.length;
+        r.run(1500);
+        expect(r.server.displaceSeq, tag).toBe(1);
+        expect(dist(r.server, landing!), `${tag} the sim stands on its landing`).toBeLessThan(1e-3);
+        expect(r.maxStep(first), tag).toBeLessThan(2);
+        expect(w.snaps + w.drops, tag).toBe(0);
+        expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.01);
+      }
+    }
+  });
+
+  it("a pull in the middle of a slide: the sim's slide is cleared, so is the model's, and the walk goes on from rest on both", () => {
+    for (const [up, down, jitter] of [[1, 1, 0], [40, 40, 10], [90, 70, 40]] as const) {
+      const tag = `${up}/${down}/${jitter}`;
+      const r = new SimRig(up, down, jitter, "fire", "sword", { map: allIce(), usePredict: true });
+      const w = watch(r.motion);
+      r.run(300);
+      const goal = centre(50, 10);
+      r.move(goal);
+      r.run(1200);
+      expect(r.motion.walking, tag).toBe(true);
+      const at = r.drawn.length;
+      r.pull({ x: r.server.x, y: r.server.y + 100 });
+      r.run(down + TICK_MS * 2 + 60);
+      expect(r.server.displaceSeq, tag).toBe(1);
+      expect(r.motion.walking, tag).toBe(true); // planned again, not dropped
+      // After the pull both start again from rest: the offset stays a start's worth (a model that kept its slide reaches 9 here).
+      expect(Math.max(...r.offsets.slice(at + 3)), tag).toBeLessThan(7);
+      r.run(9000);
+      expect(w.snaps + w.drops, tag).toBe(0);
+      expect(dist(r.server, goal), tag).toBeLessThan(0.5);
+      expect(dist(r.motion.drawn, r.server), tag).toBeLessThan(0.1);
+    }
+  });
+});
+
+describe("bog against the real sim", () => {
+  const stats = (r: SimRig) => ({ max: Math.max(...r.offsets), mean: mean(r.offsets), p95: quantile(r.offsets, 0.95) });
+
+  it("the slow read at the model's own position keeps it within 20 u through starts, turns and stops, and beats a client that ignores the ground", () => {
+    for (const [up, down, jitter] of [[40, 40, 10], [15, 15, 0], [60, 60, 20]] as const) {
+      const tag = `${up}/${down}/${jitter}`;
+      const seeing = new SimRig(up, down, jitter, "fire", "sword", { map: bogPatches(), usePredict: true });
+      const blind = new SimRig(up, down, jitter, "fire", "sword", { map: bogPatches(), usePredict: true, terrainBlind: true });
+      const w = watch(seeing.motion);
+      startsTurnsAndStops(seeing);
+      startsTurnsAndStops(blind);
+      const a = stats(seeing);
+      const b = stats(blind);
+      expect(a.max, tag).toBeLessThan(20);
+      expect(w.snaps + w.drops, tag).toBe(0);
+      expect(dist(seeing.motion.drawn, seeing.server), tag).toBeLessThan(0.1);
+      // The term matters: without it the error is several times larger on average.
+      expect(b.mean, tag).toBeGreaterThan(2.5 * a.mean);
+      expect(b.p95, tag).toBeGreaterThan(2 * a.p95);
+    }
+  });
+
+  it("Plague is at home in the bog: it walks it at full speed, and the prediction is the floor's, frame for frame", () => {
+    const a = new SimRig(40, 40, 10, "plague", "sword", { map: bogPatches(), usePredict: true });
+    const b = new SimRig(40, 40, 10, "plague", "sword", { map: arenaMap(), usePredict: true });
+    startsTurnsAndStops(a);
+    startsTurnsAndStops(b);
+    expect(a.drawn).toEqual(b.drawn);
   });
 });
