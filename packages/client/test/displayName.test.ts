@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { BOT_TAG, displayName, playerLabel, winnerLabel } from "../src/render/displayName";
+import { BOT_TAG, chestNameOf, displayName, playerLabel, winnerLabel } from "../src/render/displayName";
 
 describe("displayName", () => {
   it("tags a bot and leaves a person's name as it is", () => {
@@ -44,5 +45,35 @@ describe("playerLabel", () => {
 
   it("is undefined for an id the room does not have", () => {
     expect(playerLabel(players, "ghost")).toBeUndefined();
+  });
+});
+
+describe("chestNameOf", () => {
+  const players = new Map([["a", { name: "Ada", bot: false }], ["g", { name: "Grimbold", bot: true }]]);
+
+  it("tags a bot taker, names a person plainly and has nothing for an id the room lacks", () => {
+    const nameOf = chestNameOf(() => players);
+    expect(nameOf("g")).toBe(`${BOT_TAG} Grimbold`);
+    expect(nameOf("a")).toBe("Ada");
+    expect(nameOf("ghost")).toBeUndefined();
+  });
+
+  it("has nothing while there is no room, and reads the players when asked, not when built", () => {
+    let current: typeof players | undefined;
+    const nameOf = chestNameOf(() => current);
+    expect(nameOf("g")).toBeUndefined();
+    current = players;
+    expect(nameOf("g")).toBe(`${BOT_TAG} Grimbold`);
+  });
+
+  // RaidScene is a Phaser scene with no harness here, so this pins its wiring by source shape: the chest panel's taker
+  // name must come from `chestNameOf` (which tags a bot), not from a bare `players.get(id)?.name`.
+  it("RaidScene hands the chest panel chestNameOf, never a bare player name", () => {
+    const src = readFileSync(new URL("../src/scenes/RaidScene.ts", import.meta.url), "utf8");
+    const start = src.indexOf("private readonly chestFrame");
+    expect(start).toBeGreaterThan(-1);
+    const frame = src.slice(start, src.indexOf("};", start));
+    expect(frame).toMatch(/nameOf:\s*chestNameOf\(/);
+    expect(frame).not.toMatch(/players\.get\(id\)\?\.name/);
   });
 });
