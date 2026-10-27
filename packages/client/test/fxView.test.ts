@@ -91,6 +91,19 @@ describe("FxView buff news", () => {
     ]);
   });
 
+  it("names a bot with the host's tagged name in the bounty and victory lines, and falls back to the event's own name", () => {
+    const { lines, play } = news({ name: (id) => (id === "foe" ? "[BOT] Foe" : undefined) });
+    play([
+      { kind: "bounty", id: "foe", name: "Foe", bounty: 90, t: 0 },
+      { kind: "victory", id: "foe", name: "Foe", draw: false, t: 0 },
+      { kind: "bounty", id: "gone", name: "Gone", bounty: 40, t: 0 },
+      { kind: "victory", id: "gone", name: "Gone", draw: false, t: 0 },
+    ]);
+    expect(lines.map(([text]) => text)).toEqual([
+      "[BOT] Foe is on a rampage — bounty 90 GV", "[BOT] Foe is victorious", "Gone is on a rampage — bounty 40 GV", "Gone is victorious",
+    ]);
+  });
+
   it("keeps the toast stack's three slots for all of it: the buff news is not pushed out", () => {
     vi.useFakeTimers();
     const { ui } = installFakeDom();

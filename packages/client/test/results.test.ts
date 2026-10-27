@@ -65,6 +65,13 @@ describe("ResultsScreen", () => {
     expect(panel().byClass("result-killer")).toBeUndefined();
   });
 
+  it("marks a killer that was a server-filled bot, and no one else", () => {
+    screen.show(result({ outcome: "died", killedBy: "Grimbold", killedByBot: true }));
+    expect(panel().byClass("result-killer")!.textContent).toBe("Killed by [BOT] Grimbold");
+    screen.show(result({ outcome: "died", killedBy: "Rival" }));
+    expect(panel().byClass("result-killer")!.textContent).toBe("Killed by Rival");
+  });
+
   it("lists the GV rows, dims the empty ones and ends with the banked total", () => {
     screen.show(result());
     const rows = panel().allByClass("gv-row").map((r) => [r.children.map((c) => (typeof c === "string" ? c : c.textContent))]);

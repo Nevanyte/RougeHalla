@@ -16,6 +16,8 @@ export const PlayerState = schema({
   name: t.string().default(""),
   /** Equipped cosmetics as a packed word (see packLook in cosmetics.ts). Set when the player joins, never changed after. */
   look: t.uint32().default(0),
+  /** A server-filled bot (sim/step.ts addPlayer): set when the seat is created, never changes. It has no profile and banks nothing. */
+  bot: t.boolean().default(false),
   x: t.float32().default(0),
   y: t.float32().default(0),
   /** Radians, ground plane: where the fighter aims (the shield faces it), or the way it walks when it doesn't aim. */

@@ -217,6 +217,8 @@ export interface RunResult {
   kills: number;
   /** Display name of the killer, SUDDEN_DEATH_KILLER, or null (left the run, won, or drew). */
   killedBy: string | null;
+  /** True when that killer was a server-filled bot (the results screen marks it). Absent otherwise. */
+  killedByBot?: true;
   /** 1 for the winner (players in a draw share 1). Players going down in the same tick share a place. */
   place: number;
   /** How many players started the run. */

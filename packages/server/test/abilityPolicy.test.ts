@@ -1,17 +1,14 @@
-// The bots' use of their faction's Wish: `decideCast` (bots/abilityPolicy.ts) picks and aims a cast by the intent tags of the def
-// (`ai`), never by ability id, and BotClient asks for it only once it is ready, at most once a second, and never at a fighter
-// nobody can target. Pure situations on a hand-built map; BotClient is driven through a stand-in room.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// The shared cast policy of the bots and the mobs' AI to come: `decideCast` (bots/abilityPolicy.ts) picks and aims a Wish cast by the
+// intent tags of the def (`ai`), never by ability id. Pure situations on a hand-built map. (When a bot asks, how it is timed and
+// the Swarm slip are the brain's Wishes module: test/bots/wishes.test.ts.)
+import { describe, expect, it } from "vitest";
 import {
-  ABILITIES, BLAZE_RANGE, blinkLanding, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_ROOTED, EFFECT_SILENCED, EFFECT_STUNNED,
-  EFFECT_UNTARGETABLE, FREEZE_RANGE, mapFromTiles, TILE, TILE_FLOOR, TILE_WALL, TRIAL_RANGE, WISHES, type AbilityDef, type AbilityId,
-  type FactionId, type GameMap,
+  ABILITIES, BLAZE_RANGE, blinkLanding, EFFECT_CASTING, EFFECT_ROOTED, EFFECT_SILENCED, EFFECT_STUNNED, FREEZE_RANGE, mapFromTiles, TILE,
+  TILE_FLOOR, TILE_WALL, TRIAL_RANGE, WISHES, type AbilityDef, type AbilityId, type FactionId, type GameMap,
 } from "@raid/shared";
-import { PlayerState } from "@raid/shared/schema";
 import {
   ENGAGE_BLINK_MIN_DISTANCE, ENGAGE_BLINK_STOP_SHORT, ENGAGE_RANGE_MARGIN, PEEL_DISTANCE, decideCast, type CastSituation,
 } from "../src/bots/abilityPolicy";
-import { BotClient } from "../src/bots/BotClient";
 
 const W = 40;
 const H = 20;
@@ -229,181 +226,5 @@ describe("one policy per intent covers every Wish", () => {
       expect(cast(id, wants[faction]), `${faction}'s ${id}`).not.toBeNull();
       expect(cast(id, calm()), `${faction}'s ${id} at peace`).toBeNull();
     }
-  });
-});
-
-// ---------------------------------------------------------------------------------------------------------------
-// BotClient: when it asks, and who it will not pick.
-
-interface Sent { type: string; payload: Record<string, unknown> }
-
-/** A bot with a stand-in room: its own player, an enemy, and what it sends. */
-function rig(opts: { faction?: FactionId; wishReadyAt?: number; serverTime?: number } = {}): {
-  bot: BotClient; me: PlayerState; foe: PlayerState; sent: Sent[]; state: { serverTime: number; gatesLocked: boolean; players: Map<string, PlayerState>; mobs: Map<string, unknown> };
-} {
-  const sent: Sent[] = [];
-  const me = new PlayerState();
-  me.faction = opts.faction ?? "sentenced";
-  me.status = "alive";
-  me.x = 640; me.y = 320; me.hp = me.maxHp = 100;
-  me.weapon0 = "bow";
-  me.wishReadyAt = opts.wishReadyAt ?? 0;
-  const foe = new PlayerState();
-  foe.faction = "fire";
-  foe.status = "alive";
-  foe.x = 840; foe.y = 320; foe.hp = foe.maxHp = 100;
-  foe.weapon0 = "axe";
-  const state = { serverTime: opts.serverTime ?? 10_000, gatesLocked: false, players: new Map([["me", me], ["foe", foe]]), mobs: new Map() };
-  const bot = new BotClient();
-  Object.assign(bot, { room: { sessionId: "me", state, send: (type: string, payload: Record<string, unknown>) => sent.push({ type, payload }) }, map: openMap() });
-  return { bot, me, foe, sent, state };
-}
-
-const castWish = (bot: BotClient, me: PlayerState, foe: PlayerState | null, now: number): void => {
-  const inner = bot as unknown as {
-    foe: unknown; castWish(me: PlayerState, enemy: unknown, now: number): void;
-  };
-  inner.foe = foe ? { id: "foe", at: { x: foe.x, y: foe.y }, d: Math.hypot(foe.x - me.x, foe.y - me.y), theirs: "axe", mob: false } : null;
-  inner.castWish(me, foe ? { id: "foe", p: foe, d: Math.hypot(foe.x - me.x, foe.y - me.y) } : null, now);
-};
-
-describe("BotClient casts its Wish", () => {
-  it("sends one `cast` for the wish slot with the cursor point and the target, once the Wish is ready", () => {
-    const { bot, me, foe, sent } = rig();
-    castWish(bot, me, foe, 1_000_000);
-    expect(sent).toEqual([{ type: "cast", payload: { slot: "wish", x: 840, y: 320, id: "foe" } }]);
-    expect(bot.sent.cast).toBe(1);
-  });
-
-  it("waits for the synced ready time, by the server's clock", () => {
-    const { bot, me, foe, sent, state } = rig({ wishReadyAt: 45_000, serverTime: 44_999 });
-    castWish(bot, me, foe, 1_000_000);
-    expect(sent).toEqual([]);
-    state.serverTime = 45_000;
-    castWish(bot, me, foe, 1_000_001);
-    expect(sent).toHaveLength(1);
-  });
-
-  it("asks at most once a second, and asks again after it (a refused or fizzled cast cost nothing)", () => {
-    const { bot, me, foe, sent } = rig();
-    castWish(bot, me, foe, 1_000_000);
-    castWish(bot, me, foe, 1_000_500);
-    castWish(bot, me, foe, 1_000_999);
-    expect(sent).toHaveLength(1);
-    castWish(bot, me, foe, 1_001_000);
-    expect(sent).toHaveLength(2);
-  });
-
-  it("does nothing when the policy says no: nobody to engage, or a stun on it", () => {
-    const quiet = rig();
-    castWish(quiet.bot, quiet.me, null, 1_000_000);
-    expect(quiet.sent).toEqual([]);
-    const stunned = rig();
-    stunned.me.effects = EFFECT_STUNNED;
-    castWish(stunned.bot, stunned.me, stunned.foe, 1_000_000);
-    expect(stunned.sent).toEqual([]);
-  });
-
-  it("a self cast carries the bot's own position; a faction without a Wish casts nothing", () => {
-    const swarm = rig({ faction: "plague" });
-    swarm.me.hp = 30;
-    (swarm.bot as unknown as { hitAt: number }).hitAt = 1_000_000 - 100;
-    castWish(swarm.bot, swarm.me, swarm.foe, 1_000_000);
-    expect(swarm.sent).toEqual([{ type: "cast", payload: { slot: "wish", x: 640, y: 320 } }]);
-    const none = rig();
-    none.me.faction = "";
-    castWish(none.bot, none.me, none.foe, 1_000_000);
-    expect(none.sent).toEqual([]);
-  });
-
-  it("hidden behind its own Swarm it walks away from the enemy and never locks it, which would reveal it again", () => {
-    const { bot, me, foe, sent } = rig({ faction: "plague" });
-    me.effects = EFFECT_HIDDEN;
-    const inner = bot as unknown as { slipAway(me: PlayerState, enemy: unknown, now: number): boolean };
-    const enemy = { id: "foe", p: foe, d: Math.hypot(foe.x - me.x, foe.y - me.y) };
-    expect(inner.slipAway(me, enemy, 1_000_000)).toBe(false);
-    expect(sent.map((m) => m.type)).not.toContain("target");
-    const move = sent.find((m) => m.type === "move");
-    expect(move).toBeDefined();
-    // Farther from the enemy than where it stands.
-    const to = move!.payload as { x: number; y: number };
-    expect(Math.hypot(to.x - foe.x, to.y - foe.y)).toBeGreaterThan(enemy.d);
-  });
-
-  it("sends a hidden or untargetable enemy nothing: it never targets one", () => {
-    const { bot, me, foe, sent } = rig();
-    foe.effects = EFFECT_HIDDEN;
-    const pick = (): unknown => (bot as unknown as { pickEnemy(me: PlayerState, now: number): unknown }).pickEnemy(me, 1_000_000);
-    expect(pick()).toBeNull();
-    foe.effects = EFFECT_UNTARGETABLE;
-    expect(pick()).toBeNull();
-    foe.effects = 0;
-    expect(pick()).toMatchObject({ id: "foe" });
-    expect(sent).toEqual([]);
-  });
-});
-
-
-// ---------------------------------------------------------------------------------------------------------------
-// A whole think over a Swarm cast: the bot does not lock anyone while the cast is pending, whatever the bit says yet.
-
-describe("a bot that casts Swarm to get away", () => {
-  const NOW = 100_000;
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
-  afterEach(() => { vi.useRealTimers(); });
-
-  interface Brain { think(): void; hitAt: number }
-
-  function scene() {
-    const sent: Sent[] = [];
-    const me = new PlayerState();
-    Object.assign(me, {
-      faction: "plague", status: "alive", x: 640, y: 320, hp: 30, maxHp: 100, weapon0: "sword", weapon1: "", slot: 0, attackTarget: "", effects: 0,
-      wishReadyAt: 0, readyAt: 0, drawStartedAt: 0, stacksHp: 0, stacksAs: 0, stacksMs: 0, mobKills: 0,
-    });
-    const foe = new PlayerState();
-    Object.assign(foe, { faction: "fire", status: "alive", x: 700, y: 320, hp: 100, maxHp: 100, weapon0: "sword", weapon1: "", slot: 0, attackTarget: "", effects: 0 });
-    const state = {
-      phase: "active", serverTime: 0, raidStartedAt: 0, inColiseum: false, gatesLocked: false,
-      players: new Map([["me", me], ["foe", foe]]), mobs: new Map(), containers: new Map(),
-    };
-    const bot = new BotClient();
-    Object.assign(bot, { room: { sessionId: "me", state, send: (type: string, payload: Record<string, unknown>) => sent.push({ type, payload }) }, map: openMap() });
-    const brain = bot as unknown as Brain;
-    brain.hitAt = Date.now() - 100; // being hit: the escape rule fires
-    return { brain, me, sent, tick: (ms = 50) => { brain.think(); vi.advanceTimersByTime(ms); } };
-  }
-  const types = (sent: Sent[]): string[] => sent.map((m) => m.type);
-
-  it("sends no `target` while the cast is pending, before the server shows the cast or the hiding, nor once it shows them", () => {
-    const { me, sent, tick } = scene();
-    me.attackTarget = "foe"; // it is fighting its foe, the server has its lock
-    tick(); // and the escape rule asks for Swarm
-    expect(sent.filter((m) => m.type === "cast")).toEqual([{ type: "cast", payload: { slot: "wish", x: 640, y: 320 } }]);
-    // The server dropped the lock at the cast. Its patch shows the cast, then nothing, then the hiding: none of them is a reason to lock.
-    sent.length = 0;
-    me.attackTarget = "";
-    me.effects = EFFECT_CASTING;
-    tick();
-    me.effects = 0; // the cast is not in the patches yet, or already over
-    tick();
-    me.effects = EFFECT_HIDDEN;
-    tick();
-    expect(types(sent)).not.toContain("target");
-    expect(types(sent)).toContain("move"); // it slips away instead
-  });
-
-  it("a cast the server refused frees it after the cast's own time and a short grace: it fights again", () => {
-    const { me, sent, tick } = scene();
-    me.attackTarget = "foe";
-    tick();
-    sent.length = 0;
-    me.attackTarget = "";
-    tick(100);
-    tick(100);
-    expect(types(sent)).not.toContain("target");
-    vi.advanceTimersByTime(600); // past the 250 ms cast and the grace, with no cast and no hiding ever shown
-    tick();
-    expect(types(sent)).toContain("target");
   });
 });

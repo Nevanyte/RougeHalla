@@ -4,6 +4,7 @@
 // (a chip per buff held) and the feed line are buffsHud.ts, placed under the vitals.
 import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
+import { winnerLabel } from "../render/displayName";
 import type { TerrainStates } from "../render/zoneArt/terrainFeedback";
 import { BuffsHud } from "./buffsHud";
 import { cssColor, el, uiRoot } from "./dom";
@@ -161,7 +162,7 @@ export class Hud {
     if (state.phase === "active" && !training) state.players.forEach((p) => { if (p.status === "alive") alive++; });
     const status = statusLine({
       training, phase: state.phase, playerCount: state.players.size, minPlayers: state.minPlayers,
-      lobbyEndsAt: state.lobbyEndsAt, alive, startedWith: state.startedWith, winner: state.winner, gv: me ? me.gv : null,
+      lobbyEndsAt: state.lobbyEndsAt, alive, startedWith: state.startedWith, winner: winnerLabel(state.winner, state.players), gv: me ? me.gv : null,
       planEndsAt: state.planEndsAt,
     }, serverNow);
     if (status !== this.lastStatus) { this.statusText.textContent = status; this.lastStatus = status; }

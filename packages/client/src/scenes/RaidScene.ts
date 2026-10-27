@@ -16,6 +16,7 @@ import {
 } from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView, TIMER_TEXT_REACH } from "../render/ContainerView";
+import { displayName } from "../render/displayName";
 import { FieldView } from "../render/FieldView";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
 import { containerWeapon, nearestContainer } from "../render/interact";
@@ -295,7 +296,10 @@ export class RaidScene extends Phaser.Scene {
       localLanded: () => this.juice.landed(performance.now()),
       localHurt: (fx) => this.juice.hurt(fx.amount, this.room.state.players.get(fx.id)?.maxHp ?? 0),
       nearestFighter: (x, y, within) => this.nearestFighter(x, y, within),
-      name: (id) => this.room.state.players.get(id)?.name ?? this.room.state.mobs.get(id)?.name,
+      name: (id) => {
+        const p = this.room.state.players.get(id);
+        return p ? displayName(p) : this.room.state.mobs.get(id)?.name;
+      },
       mobKind: (id) => this.room.state.mobs.get(id)?.kind,
       campLabel: (camp) => this.campLabel(camp),
       chestPick: (chest, option) => this.chestPick(chest, option),

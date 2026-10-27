@@ -4,7 +4,7 @@
 // moves when the sim, the schema, the fx or the map change.
 import { describe, expect, it } from "vitest";
 import {
-  BANDWIDTH_BUDGET_KBPS, HEAVY_CAMPS, TYPICAL_CAMPS, runBandwidth, type BandwidthResult,
+  BANDWIDTH_BUDGET_KBPS, BOTS_SCENARIO_BOTS, BOTS_SCENARIO_CAMPS, HEAVY_CAMPS, TYPICAL_CAMPS, runBandwidth, type BandwidthResult,
 } from "../bench/bandwidth";
 
 // Memoised: each scenario simulates a minute and a half of play, and the tests below only read the numbers.
@@ -16,6 +16,7 @@ function run(name: string, opts: Parameters<typeof runBandwidth>[0]): BandwidthR
 }
 const typical = () => run("typical", { camps: TYPICAL_CAMPS });
 const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
+const botsOpts = { bots: BOTS_SCENARIO_BOTS, camps: BOTS_SCENARIO_CAMPS };
 
 describe("bandwidth budget (per client, ws payload)", () => {
   // Seed 1 measures 6.2 KB/s with about 9 mobs fighting (6.1 to 7.1 over seeds 1 to 5, 732 and 2547; the R2 + R5 tree:
@@ -69,6 +70,38 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan(0.1);
   });
 
+  // 7 fill bots (BotManager, in a headless room: the Room's tick order) and one driven client at a camp (docs/BOTS.md 9.2).
+  // Seed 1 measures 4.10 KB/s on the zone maps with about 6 mobs fighting (seed 732: 4.41; about 3.9 on the R5 tree's 64 x 64
+  // wedge maps with 60 mobs). It sits below the typical load because the bots send inputs only, never `aim`, so far fewer patches
+  // carry a `facing`, and they fight each other and the mobs a camp at a time instead of waking every mob of a camp every half second.
+  it("bots: 7 fill bots and a client at one camp, the map's ~80 mobs: under 20 KB/s", () => {
+    const r = run("bots", botsOpts);
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+  });
+
+  it.each([732])("bots, seed %i: under 20 KB/s as well", (seed) => {
+    const r = run(`bots${seed}`, { ...botsOpts, seed });
+    expect(r.avgFighting).toBeGreaterThan(0.5);
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+  });
+
+  // The gate above would also pass if the bots stood still, so this one makes sure they played.
+  it("bots: the scenario is loaded (so the gate above is about bytes, not about idle bots)", () => {
+    const r = run("bots", botsOpts);
+    expect(r.bots!.count).toBe(BOTS_SCENARIO_BOTS);
+    expect(r.bots!.aliveAtEnd).toBe(BOTS_SCENARIO_BOTS);
+    expect(r.bots!.manager.errors).toBe(0);
+    expect(r.bots!.manager.refused).toBe(0);
+    // One frame per bot per patch from the raid's start (the first few wait for the frame ring to fill), and they acted.
+    expect(r.bots!.manager.frames).toBeGreaterThan(BOTS_SCENARIO_BOTS * (200 + 1200) * 0.95);
+    expect(r.bots!.manager.sent).toBeGreaterThan(50);
+    expect(r.mobs).toBeGreaterThanOrEqual(72);
+    expect(r.avgFighting).toBeGreaterThan(0.5);
+    expect(r.patchFramesPerSecond).toBeGreaterThan(19);
+    expect(r.fxFramesPerSecond).toBeLessThanOrEqual(20.5);
+    expect(r.totalKBps).toBeGreaterThan(1);
+  });
+
   // Roguelike R5: seed 1 measures 6.15 KB/s against 6.21 for the same run without them (5 chests up, each picked and skipped;
   // the chests move the fights, so it can come out lower: 6.0 to 7.0 over the seven seeds).
   it("5 camp chests up the whole time, on the typical load: under 20 KB/s, under 1 KB/s more than without them", () => {
@@ -81,6 +114,12 @@ describe("bandwidth budget (per client, ws payload)", () => {
   it("is deterministic for a seed", () => {
     const a = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });
     const b = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });
+    expect(b).toEqual(a);
+  });
+
+  it("is deterministic with bots too (the manager and the headless room replay exactly)", () => {
+    const a = runBandwidth({ ...botsOpts, ticks: 300, seed: 7 });
+    const b = runBandwidth({ ...botsOpts, ticks: 300, seed: 7 });
     expect(b).toEqual(a);
   });
 });

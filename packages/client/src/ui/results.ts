@@ -1,6 +1,7 @@
 // Post-run summary: outcome, placing, run stats and the Glorious Victory the run paid out.
 import { WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, achievementById, cosmeticById, type RunOutcome, type RunResult } from "@raid/shared";
 import { formatNumber } from "../net/profile";
+import { displayName } from "../render/displayName";
 import { el, uiRoot } from "./dom";
 
 const TITLES: Record<RunOutcome, string> = {
@@ -87,7 +88,7 @@ export class ResultsScreen {
     this.root.replaceChildren(
       el("h1", `outcome-${outcome}`, TITLES[r.outcome] ?? "RUN OVER"),
       el("p", "result-place", fmtPlace(r)),
-      ...(r.killedBy ? [el("p", "result-killer", `Killed by ${r.killedBy}`)] : []),
+      ...(r.killedBy ? [el("p", "result-killer", `Killed by ${displayName({ name: r.killedBy, bot: r.killedByBot })}`)] : []),
       facts,
       gvRows(r),
       ...(unlocked ? [unlocked] : []),
