@@ -8,13 +8,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { FACTION_IDS, type FactionId } from "@raid/shared";
-import { BOT_FILL_DEFAULTS, PERSONA_IDS, TIERS, type CommandType, type PersonaId, type TierId } from "../../src/bots/brain/types";
+import { BOT_FILL_DEFAULTS, PERSONA_IDS, PERSONAS, TIERS, type CommandType, type PersonaId, type TierId } from "../../src/bots/brain/types";
 import { runGame, type BotBehaviour, type BotGameSummary, type GameSummary, type SeatSpec } from "../../src/bots/tournament/game";
 import { createHeadlessRoom } from "../../src/bots/tournament/headlessRoom";
 import { aggregate, evaluate, formatReport, meanInterval, percentile, wilson } from "../../src/bots/tournament/report";
 import {
   defaultWorkers, parseArgs, parseLineup, planOf, split,
 } from "../../src/bots/tournament/runTournament";
+import { applyTune } from "../../src/bots/tournament/tune";
 import { dealEvenly, planGame, runBatch, type TournamentPlan } from "../../src/bots/tournament/worker";
 import { addPlayer } from "../../src/sim/step";
 
@@ -448,6 +449,43 @@ describe("the batch", () => {
     const learning = { ...plan, learn: true };
     const a = runBatch(learning, [0, 1]).map((r) => JSON.stringify(r.summary));
     expect(runBatch(learning, [0, 1]).map((r) => JSON.stringify(r.summary))).toEqual(a);
+  });
+});
+
+describe("the tuning patch (--tune)", () => {
+  it("patches the tier and persona tables in place, deep and typed, and refuses a key the tables do not have", () => {
+    const easy = JSON.stringify(TIERS.easy);
+    const hunter = JSON.stringify(PERSONAS.hunter);
+    try {
+      applyTune({ tiers: { easy: { appraisal: { lead: 9 }, wary: 123 } }, personas: { hunter: { engageEdge: -4 } } });
+      expect(TIERS.easy.appraisal.lead).toBe(9);
+      expect(TIERS.easy.appraisal.noise).toBe(JSON.parse(easy).appraisal.noise); // a sibling is left alone
+      expect(TIERS.easy.wary).toBe(123);
+      expect(PERSONAS.hunter.engageEdge).toBe(-4);
+      expect(() => applyTune({ tiers: { easy: { nothing: 1 } } })).toThrow(/unknown key/);
+      expect(() => applyTune({ tiers: { easy: { wary: "far" } } })).toThrow(/must be a number/);
+      expect(() => applyTune({ tiers: { expert: { wary: 1 } } })).toThrow(/unknown tier/);
+      expect(() => applyTune({ personas: { bard: { pve: 1 } } })).toThrow(/unknown persona/);
+    } finally {
+      Object.assign(TIERS.easy, JSON.parse(easy));
+      Object.assign(PERSONAS.hunter, JSON.parse(hunter));
+    }
+    expect(JSON.stringify(TIERS.easy)).toBe(easy);
+    expect(JSON.stringify(PERSONAS.hunter)).toBe(hunter);
+    expect(parseArgs(["--tune", '{"tiers":{"hard":{"wary":1}}}']).tune).toEqual({ tiers: { hard: { wary: 1 } } });
+    expect(parseArgs([]).tune).toBeNull();
+    expect(planOf(parseArgs(["--tune", "{}"])).tune).toEqual({});
+  });
+
+  it("a game reports when the first player died and the first mob fell", () => {
+    const g = runGame({ seed: 7, lineup: LINEUP, config: SHORT, maxSimMs: 60_000 });
+    expect(g.deathLog?.length).toBeGreaterThan(0);
+    for (const [t, victim, killer] of g.deathLog ?? []) {
+      expect(t).toBeGreaterThanOrEqual(0);
+      expect(victim).toBeGreaterThanOrEqual(0);
+      expect(killer).toBeGreaterThanOrEqual(-1);
+    }
+    for (const b of g.bots) if (b.mobKills > 0) expect(b.firstMobKillMs).not.toBeNull();
   });
 });
 

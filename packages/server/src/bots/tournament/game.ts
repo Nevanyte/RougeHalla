@@ -86,6 +86,10 @@ export interface BotGameSummary {
   readonly gv: number;
   /** Since the raid started; null while standing at the end (or at the cap). */
   readonly diedAtMs: number | null;
+  /** Since the raid started: the first mob this bot killed (null: none). A tuning diagnostic. */
+  readonly firstMobKillMs?: number | null;
+  /** Its hp share when the coliseum teleport came (null: it was down already, or there was no teleport). A tuning diagnostic. */
+  readonly tpHp?: number | null;
   readonly diedTo: DiedTo;
   readonly behaviour: BotBehaviour;
 }
@@ -101,6 +105,15 @@ export interface GameSummary {
   readonly ticks: number;
   /** Since the raid started; null when it never happened. */
   readonly firstDeathMs: number | null;
+  /** Since the raid started: the first player a bot killed (a mob's or the arena's kill is not one); null when none. A tuning diagnostic. */
+  readonly firstKillMs?: number | null;
+  /** Every bot's death, in order: [ms since the raid started, victim index, killer index or -1 for a mob or the arena]. A tuning diagnostic. */
+  readonly deathLog?: ReadonlyArray<readonly [number, number, number]>;
+  /**
+   * The first hit between each pair of bots: [ms since the raid started, attacker index, victim index, attacker hp share, victim hp share
+   * (before the hit), victim busy: 1 when it traded a hit with a third bot in the 3 s before, attacker busy likewise]. A tuning diagnostic.
+   */
+  readonly firstHits?: ReadonlyArray<readonly [number, number, number, number, number, number, number]>;
   /** The coliseum teleport, and the moment sudden death's burn began. */
   readonly teleportMs: number | null;
   readonly suddenDeathMs: number | null;
@@ -118,6 +131,8 @@ interface Tally {
   damage: number;
   mobDamage: number;
   diedAt: number | null;
+  firstMobKill: number | null;
+  tpHp: number | null;
 }
 
 const sortedEntries = <V>(o: Readonly<Record<string, V>>): Array<[string, V]> =>
@@ -151,9 +166,15 @@ export function runGame(opts: RunGameOptions): GameSummary {
   });
   const { world, manager } = room;
   const ids = room.seats.map((s) => s.id);
-  const tally = new Map<string, Tally>(ids.map((id) => [id, { kills: 0, mobKills: 0, damage: 0, mobDamage: 0, diedAt: null }]));
+  const tally = new Map<string, Tally>(ids.map((id) => [id, { kills: 0, mobKills: 0, damage: 0, mobDamage: 0, diedAt: null, firstMobKill: null, tpHp: null }]));
   let startedAt = -1;
   let firstDeath: number | null = null;
+  let firstKill: number | null = null;
+  const deathLog: Array<[number, number, number]> = [];
+  const firstHits: Array<[number, number, number, number, number, number, number]> = [];
+  const pairSeen = new Set<number>();
+  /** The last hit between bots each one was in, per bot: [time, other bot index]. */
+  const lastTrade = new Map<number, [number, number]>();
   let teleport: number | null = null;
   let suddenDeath: number | null = null;
 
@@ -169,6 +190,22 @@ export function runGame(opts: RunGameOptions): GameSummary {
       const fx = ev.fx;
       if (fx.kind === "hit") {
         const by = fx.by === null ? undefined : tally.get(fx.by);
+        if (by && s.players.has(fx.id) && fx.by !== null && fx.by !== fx.id) {
+          const a = ids.indexOf(fx.by);
+          const v = ids.indexOf(fx.id);
+          const key = Math.min(a, v) * 16 + Math.max(a, v);
+          const hpShare = (id: string): number => { const pl = s.players.get(id); return pl && pl.maxHp > 0 ? Math.round((pl.hp / pl.maxHp) * 100) / 100 : 0; };
+          const busy = (who: number, other: number): number => {
+            const lt = lastTrade.get(who);
+            return lt !== undefined && lt[1] !== other && since(s.serverTime) - lt[0] <= 3000 ? 1 : 0;
+          };
+          if (!pairSeen.has(key)) {
+            pairSeen.add(key);
+            firstHits.push([since(s.serverTime), a, v, hpShare(fx.by), hpShare(fx.id), busy(v, a), busy(a, v)]);
+          }
+          lastTrade.set(a, [since(s.serverTime), v]);
+          lastTrade.set(v, [since(s.serverTime), a]);
+        }
         if (by) {
           if (s.players.has(fx.id)) by.damage += fx.amount;
           else by.mobDamage += fx.amount;
@@ -179,12 +216,24 @@ export function runGame(opts: RunGameOptions): GameSummary {
         if (victim) {
           victim.diedAt = since(s.serverTime);
           firstDeath ??= victim.diedAt;
+          deathLog.push([victim.diedAt, ids.indexOf(fx.id), fx.by === null ? -1 : ids.indexOf(fx.by)]);
         }
         if (killer) {
-          if (s.players.has(fx.id)) killer.kills++;
-          else killer.mobKills++;
+          if (s.players.has(fx.id)) {
+            killer.kills++;
+            firstKill ??= since(s.serverTime);
+          } else {
+            killer.mobKills++;
+            killer.firstMobKill ??= since(s.serverTime);
+          }
         }
       } else if (fx.kind === "teleport") {
+        if (teleport === null) {
+          for (const [id, t] of tally) {
+            const pl = s.players.get(id);
+            t.tpHp = pl && pl.status === "alive" && pl.maxHp > 0 ? Math.round((pl.hp / pl.maxHp) * 100) / 100 : null;
+          }
+        }
         teleport ??= since(s.serverTime);
       }
     }
@@ -241,6 +290,8 @@ export function runGame(opts: RunGameOptions): GameSummary {
       deaths: result && (result.outcome === "died" || result.outcome === "mia") ? 1 : 0,
       gv: result?.gv.total ?? 0,
       diedAtMs: t.diedAt,
+      firstMobKillMs: t.firstMobKill,
+      tpHp: t.tpHp,
       diedTo: diedTo(result),
       behaviour,
     };
@@ -254,6 +305,9 @@ export function runGame(opts: RunGameOptions): GameSummary {
     durationMs: startedAt >= 0 ? world.state.serverTime - startedAt : 0,
     ticks: room.ticks,
     firstDeathMs: firstDeath,
+    firstKillMs: firstKill,
+    deathLog,
+    firstHits,
     teleportMs: teleport,
     suddenDeathMs: suddenDeath,
     bots,

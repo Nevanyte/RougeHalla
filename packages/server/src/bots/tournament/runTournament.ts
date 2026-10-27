@@ -9,6 +9,7 @@ import { Worker } from "node:worker_threads";
 import { FACTION_IDS, MAX_PLAYERS, type FactionId } from "@raid/shared";
 import { PERSONA_IDS, type PersonaId, type TierId } from "../brain/types";
 import { MAX_GAME_MS, type GameSummary } from "./game";
+import type { TuneSpec } from "./tune";
 import { aggregate, evaluate, formatReport, type ReportMeta } from "./report";
 import { runBatch, type GameResult, type TournamentPlan, type WorkerMessage } from "./worker";
 
@@ -27,6 +28,8 @@ export interface TournamentArgs {
   readonly sudden: number | null;
   readonly latencyMs: number | null;
   readonly jitterMs: number | null;
+  /** A tuning diagnostic: JSON (or @file) patching the TIERS / PERSONAS tables (tune.ts). */
+  readonly tune: TuneSpec | null;
   readonly quiet: boolean;
   readonly help: boolean;
 }
@@ -44,6 +47,7 @@ export const USAGE = `usage: npm run tournament -w @raid/server -- [options]
   --patience S     patience seconds at a full lobby, scaling to 40% of it (default 120)
   --sudden S       sudden death seconds (default 30)
   --latency MS     --jitter MS   one-way latency of the bots' commands (default 30 and 8)
+  --tune JSON      a tuning diagnostic: patch the TIERS / PERSONAS tables, e.g. '{"tiers":{"easy":{"knowledge":0.95}}}' (or @file.json)
   --quiet          no progress on stderr
   --help`;
 
@@ -75,7 +79,7 @@ export const defaultWorkers = (cores = os.cpus().length): number => Math.max(1, 
 export function parseArgs(argv: readonly string[], cores = os.cpus().length): TournamentArgs {
   const a: { -readonly [K in keyof TournamentArgs]: TournamentArgs[K] } = {
     games: 400, workers: defaultWorkers(cores), tiers: parseLineup("E,E,N,N,H,H"), seed: 1, learn: true, persona: "mix", faction: "mix", json: null,
-    maxMinutes: MAX_GAME_MS / 60_000, patience: null, sudden: null, latencyMs: null, jitterMs: null, quiet: false, help: false,
+    maxMinutes: MAX_GAME_MS / 60_000, patience: null, sudden: null, latencyMs: null, jitterMs: null, tune: null, quiet: false, help: false,
   };
   const args = [...argv];
   while (args.length > 0) {
@@ -118,6 +122,11 @@ export function parseArgs(argv: readonly string[], cores = os.cpus().length): To
       case "--sudden": a.sudden = number(flag, value(), 1, false); break;
       case "--latency": a.latencyMs = number(flag, value(), 0, false); break;
       case "--jitter": a.jitterMs = number(flag, value(), 0, false); break;
+      case "--tune": {
+        const v = value();
+        a.tune = JSON.parse(v.startsWith("@") ? fs.readFileSync(v.slice(1), "utf8") : v) as TuneSpec;
+        break;
+      }
       case "--quiet": a.quiet = true; break;
       case "--help": case "-h": a.help = true; break;
       default: throw new Error(`unknown option "${raw}"`);
@@ -139,6 +148,7 @@ export function planOf(a: TournamentArgs): TournamentPlan {
     ...(Object.keys(config).length > 0 ? { config } : {}),
     ...(a.latencyMs !== null ? { latencyMs: a.latencyMs } : {}),
     ...(a.jitterMs !== null ? { jitterMs: a.jitterMs } : {}),
+    ...(a.tune !== null ? { tune: a.tune } : {}),
   };
 }
 

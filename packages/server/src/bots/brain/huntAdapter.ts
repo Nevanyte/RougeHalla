@@ -7,6 +7,8 @@ import {
 } from "../mobHunt";
 import type { BrainConfig, BrainContext, MobMemory } from "./types";
 
+/** A farmer puts up with more attrition than a hunter: the hp share it needs to start a mob fight is lower by this x persona.pve. */
+const PVE_RELIEF = 0.25;
 /** A fighter out of sight still counts for the hunt this long after it was last seen. */
 export const WHEREABOUTS_MAX_AGE_MS = 5000;
 /** A player behind a wall threatens from this many times its straight-line distance (spawns near each other are screened). */
@@ -31,7 +33,9 @@ export function huntConfigFor(cfg: Pick<BrainConfig, "tier" | "persona">): MobHu
     // A threat radius past the default release distance would never let go of the player lock.
     playerRelease: Math.max(MOB_HUNT.playerRelease, persona.playerThreat + 50),
     // Starting a mob fight at an hp that would retreat from it at once only costs the 40 s ban.
-    startMinHp: Math.max(MOB_HUNT.startMinHp, persona.fleeHp + 0.05),
+    startMinHp: Math.max(persona.fleeHp + 0.05, tier.caution.startHp - PVE_RELIEF * persona.pve),
+    mobMinShare: tier.caution.mobShare,
+    eliteMinShare: tier.caution.eliteShare,
     reach: tier.route.reach,
     firstReach: 1.6 * tier.route.reach,
     maxCandidates: tier.route.horizon,
@@ -114,7 +118,8 @@ export function createHuntAdapter(cfg: BrainConfig, opts: HuntAdapterOptions = {
     for (const [id, m] of mem.mobs) {
       if (m.returning) continue; // walking home: untouchable and ignoring everyone, so nothing to hunt or fear
       const like = mobLikeOf(m);
-      if (like) mobs.push([id, like]);
+      if (!like) continue;
+      mobs.push([id, like]);
     }
     const from = { x: me.x, y: me.y };
     return {

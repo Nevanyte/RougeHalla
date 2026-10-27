@@ -58,6 +58,8 @@ function foe(id: string, dx: number, over: Partial<FighterView> = {}): FighterVi
   return fighter({ id, name: id, x: ME.x + dx, faction: "fire", inHand: "sword", ...over });
 }
 
+const plainFoe = foe;
+
 function mobMem(id: string, dx: number, over: Partial<MobMemory> = {}): MobMemory {
   const pos = at(dx);
   return {
@@ -88,6 +90,8 @@ interface Scene {
   engaged?: boolean;
   /** A fighter's remembered whereabouts by id (a position; the radius is not read). */
   whereabouts?: Record<string, Vec2>;
+  /** When the coliseum teleport was seen. */
+  teleportedAt?: number;
 }
 
 function scene(cfg: BrainConfig, s: Scene = {}, rng: BrainRngs = rngs(1)): BrainContext {
@@ -96,7 +100,7 @@ function scene(cfg: BrainConfig, s: Scene = {}, rng: BrainRngs = rngs(1)): Brain
   const mem = emptyMemory({
     mobs: new Map((s.mobs ?? []).map((m) => [m.id, m])),
     fighters: new Map((s.memFighters ?? []).map((f) => [f.id, f])),
-    self: { ...base.self, recentHits: s.recentHits ?? [], lastHitByPlayerAt: s.lastHitByPlayerAt ?? null },
+    self: { ...base.self, recentHits: s.recentHits ?? [], lastHitByPlayerAt: s.lastHitByPlayerAt ?? null, teleportedAt: s.teleportedAt ?? null },
     choices: (s.choices ?? []) as never,
     whereabouts: (id) => (s.whereabouts?.[id] ? { at: s.whereabouts[id]!, radius: 50 } : null),
   });
@@ -148,7 +152,8 @@ function expectedShares(utils: readonly number[], temperature: number, lapseP: n
 describe("personas order the goals (docs/BOTS.md 5)", () => {
   const farmScene: Scene = {
     mobs: [mobMem("m1", 400)],
-    fighters: [foe("rival", -600)], // an even match (a fire mirror), far enough to leave the mob alone
+    // A fire mirror at half its hp, far enough to leave the mob alone: a fight a hunter takes (it is well ahead on the bars) and a farmer does not.
+    fighters: [foe("rival", -600, { hpFrac: 0.5 })],
   };
 
   it("a Farmer prefers a mob to an even fight with a player, a Hunter the opposite", () => {
@@ -162,22 +167,25 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
     expect(h.goal).toEqual({ kind: "hunt", target: "rival" });
   });
 
-  it("the Opportunist and the Cautious sit between them: an even fight is not worth it to a Cautious one", () => {
+  it("the Opportunist and the Cautious sit between them: a fight that is only a little better than even is not worth it to a Cautious one", () => {
     const opp = createStrategy();
     const cautious = createStrategy();
     decide(opp, config("hard", "opportunist"), farmScene);
     decide(cautious, config("hard", "cautious"), farmScene);
-    expect(best(cautious, "farm")!).toBeGreaterThan(best(cautious, "hunt")!);
-    expect(best(opp, "farm")!).toBeGreaterThan(best(opp, "hunt")!); // 0.3 engage edge, an even fight is below it
-    // A clear edge changes the Opportunist's mind (it engages from +0.3), not the Cautious one's (+0.8) as much.
-    const edge: Scene = { ...farmScene, fighters: [foe("rival", -600, { faction: "sentenced", inHand: "axe", hpFrac: 0.4 })] };
+    expect(best(cautious, "farm")!).toBeGreaterThan(best(cautious, "hunt") ?? 0);
+    expect(best(opp, "farm")!).toBeGreaterThan(best(opp, "hunt") ?? 0);
+    // A bigger lead changes the Opportunist's mind (it engages from 69% to win), not the Cautious one's (83%) as much.
+    const edge: Scene = { ...farmScene, fighters: [foe("rival", -600, { faction: "sentenced", inHand: "axe", hpFrac: 0.3 })] };
     const opp2 = createStrategy();
+    const cautious2 = createStrategy();
     decide(opp2, config("hard", "opportunist"), edge);
-    expect(best(opp2, "hunt")!).toBeGreaterThan(best(opp, "hunt")!);
+    decide(cautious2, config("hard", "cautious"), edge);
+    expect(best(opp2, "hunt")!).toBeGreaterThan(best(opp, "hunt") ?? 0);
+    expect(best(opp2, "hunt")!).toBeGreaterThan(best(cautious2, "hunt") ?? 0);
   });
 
   it("a Cautious bot flees earlier than a Hunter: at 40% hp with an enemy near, one runs and the other fights on", () => {
-    const hurt: Scene = { self: { hp: 40, maxHp: 100 }, fighters: [foe("rival", 200)] };
+    const hurt: Scene = { self: { hp: 40, maxHp: 100 }, fighters: [foe("rival", 200, { hpFrac: 0.2 })] };
     const cautious = decide(createStrategy(), config("hard", "cautious"), hurt);
     const hunter = decide(createStrategy(), config("hard", "hunter"), hurt);
     expect(cautious.goal.kind).toBe("flee");
@@ -221,43 +229,49 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
   });
 
   it("opens no hunt on a player it expects to lose to, but does for a bountied one", () => {
-    const cfg = config("hard", "farmer");
-    const worse = foe("big", -500, { faction: "holy", inHand: "axe", hpFrac: 1 }); // holy beats fire, axe loses to sword: edge about 0
+    const cfg = config("hard", "hunter");
+    const worse = foe("big", -500, { faction: "holy", inHand: "axe", hpFrac: 1 }); // holy beats fire, axe loses to sword: about even, and not enough for a hunter at full hp
     const plain = createStrategy();
     decide(plain, cfg, { fighters: [worse] });
+    expect(best(plain, "hunt")).toBeUndefined();
     const bountied = createStrategy();
     decide(bountied, cfg, { fighters: [{ ...worse, bounty: 40 }] });
-    expect(best(bountied, "hunt")!).toBeGreaterThan(best(plain, "hunt")!);
-    // A bounty on the bot itself makes it pickier (bountyCaution).
+    expect(best(bountied, "hunt")!).toBeGreaterThan(0);
+    // A bounty on the bot itself makes it pickier (bountyCaution): a fight it would take anyway gets worth less, or goes.
+    const wounded = foe("small", -500, { faction: "holy", inHand: "axe", hpFrac: 0.35 });
+    const unmarked = createStrategy();
+    decide(unmarked, config("hard", "opportunist"), { fighters: [wounded] });
     const marked = createStrategy();
-    decide(marked, cfg, { self: { bounty: 20 }, fighters: [worse] });
-    expect(best(marked, "hunt")!).toBeLessThan(best(plain, "hunt")!);
+    decide(marked, config("hard", "opportunist"), { self: { bounty: 20 }, fighters: [wounded] });
+    expect(best(unmarked, "hunt")!).toBeGreaterThan(0);
+    expect(best(marked, "hunt") ?? 0).toBeLessThan(best(unmarked, "hunt")!);
   });
 
   it("a third party is worth more than an equal fight: a fighter already engaged with someone else is easier prey", () => {
     const cfg = config("hard", "opportunist");
-    const a = foe("a", -500);
+    const a = foe("a", -500, { hpFrac: 0.8 }); // a little ahead on the bars: not enough alone
     const quiet = createStrategy();
     decide(quiet, cfg, { fighters: [a] });
+    expect(best(quiet, "hunt")).toBeUndefined();
     const busy = createStrategy();
     decide(busy, cfg, {
       fighters: [a],
       memFighters: [fighterMem("a", { engagedWith: "b", engagedAt: NOW - 1000 }), fighterMem("b", { engagedWith: "a", engagedAt: NOW - 1000 })],
     });
-    expect(best(busy, "hunt")!).toBeGreaterThan(best(quiet, "hunt")! + 0.1);
+    expect(best(busy, "hunt")!).toBeGreaterThan(0.1);
     // A stale cue counts for nothing, and a fight with the bot itself is not a third party.
     const stale = createStrategy();
     decide(stale, cfg, { fighters: [a], memFighters: [fighterMem("a", { engagedWith: "b", engagedAt: NOW - 20_000 })] });
-    expect(best(stale, "hunt")).toBeCloseTo(best(quiet, "hunt")!, 9);
+    expect(best(stale, "hunt")).toBeUndefined();
     const me = createStrategy();
     decide(me, cfg, { fighters: [a], memFighters: [fighterMem("a", { engagedWith: ME.id, engagedAt: NOW - 500 })] });
-    expect(best(me, "hunt")).toBeCloseTo(best(quiet, "hunt")!, 9);
+    expect(best(me, "hunt")).toBeUndefined();
   });
 
   it("a mob is worth less to a bot that is already fed (the reward curve), and an elite less to a bot with little appetite for them", () => {
     const farmOf = (persona: PersonaId, scn: Scene) => {
       const s = createStrategy();
-      decide(s, config("hard", persona), scn);
+      decide(s, config("normal", persona), scn);
       return best(s, "farm")!;
     };
     const hungry = farmOf("farmer", { mobs: [mobMem("m1", 400)] });
@@ -272,10 +286,10 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
     const cfg = config("hard", "cautious");
     const hunt = (hp: number, status = "alive") => {
       const s = createStrategy();
-      decide(s, cfg, { self: { hp, maxHp: 100 }, fighters: [foe("a", -500, { faction: "sentenced", inHand: "axe", status })] });
+      decide(s, cfg, { self: { hp, maxHp: 100 }, fighters: [foe("a", -500, { faction: "sentenced", inHand: "axe", hpFrac: 0.4, status })] });
       return best(s, "hunt");
     };
-    expect(hunt(70)!).toBeLessThan(hunt(100)!);
+    expect(hunt(80)!).toBeLessThan(hunt(100)!);
     expect(hunt(100, "dead")).toBeUndefined();
   });
 
@@ -287,6 +301,114 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
       return JSON.stringify([d, s.state.candidates]);
     };
     expect(run(true)).toBe(run(false));
+  });
+});
+
+
+// ----------------------------------------------------------------------------- restraint is the skill (docs/BOTS_TUNING.md 3)
+
+describe("sizing up a fight: the appraisal, the opening and the wariness", () => {
+  /** Hard hunter with no lapses; a foe the bot can see, at the given hp share. */
+  const hunterCfg = (tier: TierId = "hard") => config(sharp(tier), "hunter");
+  const huntU = (tier: TierId, scn: Scene, persona: PersonaId = "hunter"): number => {
+    const s = createStrategy();
+    decide(s, config(sharp(tier), persona), scn);
+    return best(s, "hunt") ?? 0;
+  };
+  const late = { now: NOW + 30_000, hud: { raidStartedAt: 0 } }; // past the opening whatever NOW is
+
+  it("a bot opens only fights it expects to win by the persona's margin: the same foe at full hp is left alone, a wounded one is taken", () => {
+    expect(huntU("hard", { fighters: [foe("a", -500, { hpFrac: 1 })] })).toBe(0);
+    expect(huntU("hard", { fighters: [foe("a", -500, { hpFrac: 0.7 })] })).toBeGreaterThan(0);
+    expect(huntU("hard", { fighters: [foe("a", -500, { hpFrac: 0.4 })] })).toBeGreaterThan(huntU("hard", { fighters: [foe("a", -500, { hpFrac: 0.7 })] }));
+  });
+
+  it("a better tier reads the hp bars harder, and a newcomer leans on the hue: lead moves the Hard bot's utility more than the Easy one's", () => {
+    const wounded = (hp: number): Scene => ({ fighters: [foe("a", -500, { hpFrac: hp })] });
+    const gain = (tier: TierId) => huntU(tier, wounded(0.4)) - huntU(tier, wounded(0.8));
+    expect(TIERS.hard.appraisal.lead).toBeGreaterThan(TIERS.normal.appraisal.lead);
+    expect(TIERS.normal.appraisal.lead).toBeGreaterThan(TIERS.easy.appraisal.lead);
+    expect(TIERS.hard.appraisal.noise).toBeLessThan(TIERS.easy.appraisal.noise);
+    expect(TIERS.hard.appraisal.hue).toBeLessThan(TIERS.easy.appraisal.hue);
+    expect(gain("hard")).toBeGreaterThan(gain("easy"));
+  });
+
+  it("a misjudgement of a foe is drawn once and held for a few seconds, then drawn afresh", () => {
+    const noisy = tierOf("easy", { softmaxT: 0, lapseP: 0, appraisal: { ...TIERS.easy.appraisal, noise: 2 } });
+    const cfg = config(noisy, "hunter");
+    const s = createStrategy();
+    const scn: Scene = { fighters: [foe("a", -500, { hpFrac: 0.5 })] };
+    const rng = rngs(5);
+    const u = (t: number): number => { decide(s, cfg, { ...scn, now: t }, IDLE, RUNNING, rng); return best(s, "hunt") ?? 0; };
+    const a = u(NOW);
+    expect(u(NOW + 1000)).toBe(a);
+    expect(u(NOW + 4000)).toBe(a);
+    const later = new Set([u(NOW + 6000), u(NOW + 12_000), u(NOW + 18_000), u(NOW + 24_000), u(NOW + 30_000)]);
+    expect(later.size).toBeGreaterThan(1);
+  });
+
+  it("the first minute is for the camps: a fight that is a coin flip waits for it, a sure thing does not", () => {
+    const start = { hud: { raidStartedAt: NOW - 5000 } as Partial<HudView>, now: NOW };
+    const mid = foe("a", -500, { hpFrac: 0.45 });
+    const sure = foe("b", -500, { hpFrac: 0.05 });
+    expect(huntU("hard", { ...start, fighters: [mid] })).toBe(0);
+    expect(huntU("hard", { ...start, fighters: [sure] })).toBeGreaterThan(0);
+    // The restraint fades over OPENING_MS...
+    expect(huntU("hard", { now: NOW, hud: { raidStartedAt: NOW - 70_000 }, fighters: [mid] })).toBeGreaterThan(0);
+    // ...and goes when the patience timer is about to teleport everyone anyway.
+    expect(huntU("hard", { ...start, hud: { raidStartedAt: NOW - 5000, patienceEndsAt: NOW + 10_000 }, fighters: [mid] })).toBeGreaterThan(0);
+  });
+
+  it("a bot that does not want to fight a player coming at it keeps away; one that wants the fight, or has no sense of the danger, does not", () => {
+    const coming = fighterMem("big", { chasingMe: true });
+    const scn = (hp: number): Scene => ({ ...late, fighters: [foe("big", 300, { hpFrac: hp })], memFighters: [coming] });
+    const evade = (tier: TierId, hp: number) => decide(createStrategy(), hunterCfg(tier), scn(hp));
+    const hard = evade("hard", 1);
+    expect(hard.goal.kind).toBe("flee");
+    expect(hard.why).toContain("keeping away");
+    expect(evade("hard", 0.3).goal.kind).toBe("hunt"); // a wounded foe is a fight it wants
+    expect(TIERS.easy.wary).toBe(0);
+    expect(evade("easy", 1).goal.kind).not.toBe("flee");
+    // Far away, or standing still and not close, is no reason to move.
+    expect(decide(createStrategy(), hunterCfg("hard"), { ...late, fighters: [foe("big", 700)], memFighters: [coming] }).goal.kind).not.toBe("flee");
+    expect(decide(createStrategy(), hunterCfg("hard"), { ...late, fighters: [foe("big", 300)] }).goal.kind).not.toBe("flee");
+    // It never walks away from a fight it is in.
+    expect(decide(createStrategy(), hunterCfg("hard"), { ...scn(1), engaged: true, self: { attackTarget: "big" } }).goal.kind).not.toBe("flee");
+  });
+
+  it("the Hard bot notices from farther off than the Normal one", () => {
+    expect(TIERS.hard.wary).toBeGreaterThan(TIERS.normal.wary);
+    const coming = fighterMem("big", { chasingMe: true });
+    const at = (tier: TierId, d: number) => decide(createStrategy(), hunterCfg(tier), { ...late, fighters: [foe("big", d)], memFighters: [coming] }).goal.kind;
+    expect(at("hard", 400)).toBe("flee");
+    expect(at("normal", 400)).not.toBe("flee");
+  });
+});
+
+describe("nothing to do", () => {
+  it("a healthy bot walks to the camp it saw longest ago instead of standing, and never offers 'wait' beside a real option", () => {
+    const s = createStrategy();
+    const d = decide(s, config("easy", "farmer"), { self: { hp: 100, maxHp: 100 } });
+    expect(["roam"]).toContain(d.goal.kind);
+    expect(s.state.candidates.some((c) => c.goal.kind === "hold" && c.goal.why === "wait")).toBe(false);
+  });
+
+  it("a hurt bot lies low where it stands instead of wandering into the others, and a healthy one does not", () => {
+    const hurt = createStrategy();
+    const d = decide(hurt, config(sharp("hard"), "farmer"), { self: { hp: 45, maxHp: 100 } });
+    expect(d.goal).toMatchObject({ kind: "hold", why: "ambush" });
+    expect(best(hurt, "hold")).toBeGreaterThan(best(hurt, "roam") ?? 0);
+    const whole = createStrategy();
+    decide(whole, config(sharp("hard"), "farmer"), { self: { hp: 100, maxHp: 100 } });
+    expect(whole.state.candidates.some((c) => c.goal.kind === "hold" && c.goal.why === "ambush")).toBe(false);
+  });
+
+  it("with nothing at all to do (every camp cleared and just visited, the middle reached), it waits", () => {
+    const s = createStrategy();
+    const camps = testMap().camps.map((c) => [c.id, { id: c.id, zone: c.zone, elite: c.eliteSpot >= 0, aliveSeen: 0, clearedAt: NOW - 500, contestedAt: null, visitedAt: NOW - 1000 }] as const);
+    const scn = scene(config(sharp("hard"), "hunter"), { self: { x: testMap().w * 16, y: testMap().h * 16 } });
+    (scn.mem as { camps: unknown }).camps = new Map(camps);
+    expect(s.decide(scn, IDLE, RUNNING).goal).toMatchObject({ kind: "hold", why: "wait" });
   });
 });
 
@@ -494,6 +616,8 @@ describe("the pursuit-ring breaker (ported from botOrbit.test.ts)", () => {
   // The old bot gave up a chase after ORBIT_MS + up to ORBIT_JITTER_MS; here that is the persona's chaseGiveUpMs.
   const persona = personaOf("hunter", { chaseGiveUpMs: 3000 });
   const cfg = config(sharp(), persona); // no lapses: a slip of attention would hide what is tested
+  /** The players here are wounded, so that a hunter wants them (a Hard bot does not open an even fight). */
+  const foe = (id: string, dx: number, over: Partial<FighterView> = {}): FighterView => plainFoe(id, dx, { hpFrac: 0.4, ...over });
   const HUNTING: Goal = { kind: "hunt", target: "orbiter" };
   const STEP = 250;
 
@@ -669,6 +793,21 @@ describe("the coliseum, sudden death and the patience timer", () => {
     const duel = createStrategy();
     decide(duel, cfg, { ...ring, hud: inside({ alive: 2 }), fighters: [foe("a", 400)] });
     expect(holdsRing(duel)).toBe(false);
+  });
+
+  it("a holder's patience runs out: the longer since the teleport the less waiting is worth, the bolder first, and then it joins the fight", () => {
+    const holdU = (persona: PersonaId, since: number): number => {
+      const s = createStrategy();
+      decide(s, config("hard", persona), { ...ring, fighters: [foe("a", 320), foe("b", 420)], teleportedAt: NOW - since });
+      return best(s, "hold") ?? 0;
+    };
+    expect(holdU("cautious", 20_000)).toBeLessThan(holdU("cautious", 0));
+    expect(holdU("cautious", 20_000)).toBeGreaterThan(0);
+    expect(holdU("farmer", 38_000)).toBe(0);
+    expect(holdU("cautious", 38_000)).toBeGreaterThan(0);
+    expect(holdU("cautious", 45_000)).toBe(0);
+    const waited = decide(createStrategy(), config("hard", "cautious"), { ...ring, fighters: [foe("a", 320), foe("b", 420)], teleportedAt: NOW - 45_000 });
+    expect(waited.goal.kind).toBe("hunt");
   });
 
   it("a holder joins when it sees two others trading blows", () => {
@@ -902,8 +1041,13 @@ describe("the hunt adapter feeds mobHunt from the percept and the memory (docs/B
     expect(c.reach).toBe(TIERS.normal.route.reach);
     expect(c.firstReach).toBeCloseTo(1.6 * TIERS.normal.route.reach, 9);
     expect(c.maxCandidates).toBe(TIERS.normal.route.horizon);
+    // The tier's caution: which mobs it takes (the matchup share) and the hp it starts a mob fight at, lowered by a persona that likes mobs.
+    expect(c.mobMinShare).toBe(TIERS.normal.caution.mobShare);
+    expect(c.eliteMinShare).toBe(TIERS.normal.caution.eliteShare);
+    expect(c.startMinHp).toBeCloseTo(Math.max(PERSONAS.cautious.fleeHp + 0.05, TIERS.normal.caution.startHp - 0.25 * PERSONAS.cautious.pve), 9);
+    expect(huntConfigFor(config("normal", "farmer")).startMinHp).toBeLessThan(huntConfigFor(config("normal", "hunter")).startMinHp + 1e-9);
+    expect(huntConfigFor(config("hard", "farmer")).mobMinShare).toBeGreaterThan(huntConfigFor(config("easy", "farmer")).mobMinShare);
     // The rest is mobHunt's.
-    expect(c.mobMinShare).toBe(MOB_HUNT.mobMinShare);
     expect(c.focusBudgetMs).toBe(MOB_HUNT.focusBudgetMs);
     // A fight is not started at an hp that would retreat from it at once.
     expect(c.startMinHp).toBeGreaterThan(PERSONAS.cautious.fleeHp);

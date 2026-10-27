@@ -57,7 +57,8 @@ function drive(r: Rig, frames: number, scene: (i: number, now: number) => Partia
   return out;
 }
 
-const foeScene = () => ({ fighters: [prey()] });
+/** A foe at half its hp: a fight even a Hard hunter wants (it does not open an even one, docs/BOTS_TUNING.md 3). */
+const foeScene = () => ({ fighters: [prey({ hpFrac: 0.5 })] });
 
 /** Asserts what a driver relies on: only core client messages, each accepted by the server's own validation. */
 function assertSendable(cmds: readonly Released[]): void {

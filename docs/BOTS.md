@@ -104,6 +104,9 @@ delay line never reorders: each arrival is `max(previous arrival, at + latency +
 | Route: camps considered / walk paths / hunt reach | 3 / straight × 1.3 / 500 u | 6 / A* / 700 u | 10 / A* / 900 u |
 | Attention: central share / periphery × / engaged × / reconsider | 0.6 / 1.4 / 1.6 / 2.5 s | 0.65 / 1.3 / 1.4 / 2.0 s | 0.7 / 1.25 / 1.3 / 1.5 s |
 | Opponent memory span / feint reading | 25 s / 0 | 35 s / 10% | 45 s / 20% |
+| Fight appraisal: logit bias / hp-lead weight / third-party weight / hue weight / misjudgement σ (BOTS_TUNING.md 3) | 0.9 / 2 / 0.3 / 1.1 / 0.9 | 0.3 / 3.4 / 0.5 / 0.6 / 0.45 | −0.3 / 4.5 / 0.7 / 0.25 / 0.15 |
+| Wariness: a player it does not want to fight is kept away from inside | 0 (never) | 300 u | 450 u |
+| Mob caution: matchup share needed (mob / elite) / hp share to start a mob fight | 0.3 / 0.3 / 0.3 | 0.6 / 0.8 / 0.6 | 0.7 / 1.1 / 0.7 |
 
 **How the miss rates follow.** A 2D Gaussian misses the 64 u snap disc with chance `exp(−64²/2σ²)`. For Easy that is 4.8%
 at σ 26 and 71% at the slipped σ 78, about 7.4% in all. A moving target adds the hand lag (Easy: 0.09 s × 170 u/s = 15 u
@@ -343,11 +346,17 @@ tick(p):  stim = memory.observe(p)                                    // MemoryV
 **Strategy** (`strategy.ts`, `StrategyLayer`) picks one `Goal`: farm, hunt, fight, loot, flee, roam, hold, idle or module.
 1. **Score.** Each candidate's utility is the persona weight × the base value, plus `LEARN.weight` × the learned bias:
    - farm: from mobHunt's pick and the reward curve (`rewardCurve(feed)`);
-   - hunt: from `Knowledge.odds` ≥ `engageEdge` (+ `bountyCaution` while it carries a bounty), the bounty, and third-party
-     cues;
+   - hunt: the bot sizes the fight up (`appraise`: a logit of the hp lead on the bars, a third fighter already trading with
+     the foe, the matchup the wheels or the hue give, and a misjudgement held per foe for 5 s, each weighted by the tier) and
+     opens it only above the persona's margin (`engageEdge`, + `bountyCaution` while it carries a bounty, less the bounty on the
+     foe); nothing is offered below it. The first minute asks for up to 3.5 more (`OPENING_LOGIT`, fading out, and gone when the
+     patience timer is nearly out). Restraint is the skill the tournaments reward most (BOTS_TUNING.md 3);
+   - evade: a player it does not want to fight that is walking at it, or close, is kept away from for 1.8 s (the tier's `wary`);
    - loot: a weapon that covers counters to the factions and weapons memory has seen;
-   - roam: toward remembered whereabouts, a bounty, unexplored camps, or the coliseum when the patience timer is low;
-   - hold: the coliseum.
+   - roam: toward remembered whereabouts, a bounty, unexplored camps (the one seen longest ago when nothing else), or the
+     coliseum when the patience timer is low; a hurt bot lies low (`hold ambush`) instead;
+   - hold: the coliseum, with a patience that runs out 12 to 48 s after the teleport (the bolder personas first);
+   - wait: only when there is nothing else.
 2. **Pick.** A softmax at the tier's T, with lapses.
 3. **Keep or switch.** The current goal is kept unless beaten by 0.1 utility. A fight is reconsidered no sooner than
    `attention.reconsiderMs`.
@@ -394,7 +403,7 @@ Tactics returns `attacking` (the stall watch's "busy") and a `GoalStatus`.
 | | Farmer | Hunter | Opportunist | Cautious |
 |---|---|---|---|---|
 | pve / pvp / loot / bounty / third-party weights | 1 / .3 / .7 / .2 / .2 | .35 / 1 / .3 / 1 / .5 | .6 / .7 / 1 / .6 / 1 | .7 / .4 / .5 / .2 / .4 |
-| Engage at FightOdds edge ≥ (+ while bountied) | +0.6 (+0.3) | −0.3 (0) | +0.3 (+0.2) | +0.8 (+0.4) |
+| Open a fight at a win logit ≥ (+ while bountied) | 1.3 (+0.5): 79% | 0.3 (0): 57% | 0.8 (+0.3): 69% | 1.6 (+0.6): 83% |
 | Flee below / re-engage above hp share | 0.40 / 0.75 | 0.20 / 0.50 | 0.35 / 0.70 | 0.55 / 0.90 |
 | Kite multiplier | 0.4 | 0.2 | 0.5 | 1.0 |
 | Chase give-up | 4 s | 9 s | 5 s | 3 s |

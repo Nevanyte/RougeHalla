@@ -75,6 +75,7 @@ export function createKnowledge(tier: TierParams, rng: Rng): Knowledge {
       const leadTerm = clamp(2 * lead, -MAX_EDGE, MAX_EDGE);
       return {
         edge: clamp(score + leadTerm, -MAX_EDGE, MAX_EDGE),
+        score: clamp(score, -MAX_EDGE, MAX_EDGE),
         known,
         why: `${source} ${score.toFixed(2)}, hp lead ${leadTerm.toFixed(2)}`,
       };

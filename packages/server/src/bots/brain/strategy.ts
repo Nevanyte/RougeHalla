@@ -10,7 +10,7 @@ import {
 } from "@raid/shared";
 import { bestEdge, type MobHuntStats } from "../mobHunt";
 import { createHuntAdapter, wantsMobs, type HuntAdapter } from "./huntAdapter";
-import { pickOption } from "./random";
+import { gaussian, pickOption } from "./random";
 import {
   LEARN,
   type BrainContext, type ChoiceKey, type FighterId, type FighterMemory, type FightOdds, type Goal, type GoalDecision,
@@ -34,9 +34,15 @@ const FLEE_U = 1.1;
 const FLEE_DEPTH_U = 0.15;
 const HUNT_CAP = 0.84;
 const COLISEUM_ROAM_U = 0.5;
-const CENTRE_ROAM_U = 0.12;
+/** Below the wait (0.06): walking to the map centre, where everybody ends up, is the last thing a bot that avoids fights does. */
+const CENTRE_ROAM_U = 0.03;
 const PATROL_U = 0.1;
 const WAIT_U = 0.06;
+/** A holder in the coliseum waits this long plus up to this much more (x how timid it is) before it joins a fight. */
+const HOLD_PATIENCE_MS = 12_000;
+const HOLD_PATIENCE_SPAN_MS = 36_000;
+/** What lying low is worth to a bot at the bottom of its hp ramp (it fades to nothing at the re-engage hp). */
+const LIE_LOW_U = 0.18;
 const CAMP_ROAM_FACTOR = 0.7;
 const MAX_UTILITY = 1.3;
 
@@ -52,9 +58,35 @@ const FLEE_SPAN_MS = 1500;
 const THIRD_PARTY_MS = 6000;
 const REMEMBERED_HUNT_MS = 12_000;
 const BOUNTY_FULL = 30;
-const BOUNTY_EDGE_RELIEF = 0.6;
-const THIRD_EDGE_RELIEF = 0.8;
-const GATE_SHARPNESS = 2;
+/** A crown on the foe lowers the logit needed to open on it, by this much at BOUNTY_FULL for a bounty-minded persona (x persona.bounty). */
+const BOUNTY_LOGIT_RELIEF = 0.8;
+/** The weight of the third-party cue grows with how much the persona likes it: x (BUSY_BASE + persona.thirdParty). */
+const BUSY_BASE = 0.5;
+/** A misjudgement of a foe holds this long before the bot sizes it up afresh. */
+const JUDGE_KEEP_MS = 5000;
+/** How fast the utility of a hunt grows above the needed logit: 1 - exp(-HUNT_SHARPNESS x surplus). */
+const HUNT_SHARPNESS = 1.5;
+/** An evasion is kept at least this long, and its radius is wider by this much once under way (so it does not flicker at the edge). */
+const EVADE_KEEP_MS = 1800;
+const EVADE_HYSTERESIS = 120;
+/** A player is "coming" when it is walking at the bot (memory's chasingMe) or inside this share of the wary radius. */
+const EVADE_CLOSE_SHARE = 0.55;
+/** Evading outranks a farm (up to 0.84) and a loot detour, and yields to a fight already begun (0.85) and to a hurt flight (1.1). */
+const EVADE_U = 0.9;
+/**
+ * The first minute is for mobs and loot: every fight is asked for this much more logit at the start of the raid, falling to nothing
+ * by OPENING_MS. (Nobody opens a coin flip while the camps are untouched; a victim already hurt, or a sure thing, is still taken.)
+ */
+/**
+ * The first minute is for the camps: every fight is asked for this much more logit (a coin flip needs about 3.5 more, a sure thing
+ * is still taken) at the start of the raid, falling to nothing by OPENING_MS. Without it the first kills came at 11 s, before any
+ * camp was touched (docs/BOTS_TUNING.md 0).
+ */
+const OPENING_LOGIT = 3.5;
+const OPENING_MS = 60_000;
+/** The opening's restraint fades out as the patience timer runs under OPENING_TIMER_FREE_MS + OPENING_TIMER_SPAN_MS and is gone at the first. */
+const OPENING_TIMER_FREE_MS = 20_000;
+const OPENING_TIMER_SPAN_MS = 60_000;
 const HP_READY_FLOOR = 0.15;
 const STALE_FACTOR = 0.55;
 
@@ -157,6 +189,8 @@ class StrategyImpl implements Strategy {
   private fleeBanUntil = 0;
   private readonly excluded = new Map<string, ServerMs>();
   private readonly lootSkip = new Map<string, ServerMs>();
+  /** The misjudgement (a standard normal draw) of each foe, and when it is drawn afresh. */
+  private readonly judged = new Map<FighterId, { until: ServerMs; z: number }>();
   private last: readonly GoalDecision[] = [];
 
   constructor(private readonly opts: StrategyOptions) {}
@@ -205,11 +239,14 @@ class StrategyImpl implements Strategy {
       for (const c of this.coliseum(ctx, current, enemies, sd, fightTarget)) add(c);
     } else {
       if (hunt.kind === "mob") add(this.farm(ctx, hunt.id));
-      for (const c of this.hunts(ctx, enemies, sd ? "sd" : "normal", fightTarget)) add(c);
+      const hcands = this.hunts(ctx, enemies, sd ? "sd" : "normal", fightTarget);
+      for (const c of hcands) add(c);
+      add(this.evade(ctx, current, enemies, hcands, fight));
       add(this.lastSeen(ctx, enemies));
       if (wantsMobs(hunt)) for (const c of this.camps(ctx)) add(c);
       add(this.patienceDash(ctx));
       add(this.patrol(ctx));
+      add(this.lieLow(ctx));
       add(this.centre(ctx));
     }
     for (const c of this.loot(ctx, enemies)) add(c);
@@ -217,9 +254,11 @@ class StrategyImpl implements Strategy {
       if (!m.enabled(cfg.features)) continue;
       for (const g of m.goals?.(ctx) ?? []) cands.push({ ...g, utility: Math.max(0, g.utility), key: goalKey(g.goal) });
     }
-    add({ goal: { kind: "hold", at: { x: p.self.x, y: p.self.y }, why: "wait" }, utility: WAIT_U, why: "nothing to do", key: "hold:wait" });
-
     const live = dedupe(cands.filter((c) => !this.isExcluded(c.key, now)));
+    // Standing still is what a bot does when it has nothing else, not an option it draws against real ones (an Easy softmax would pick it for ten seconds on end).
+    if (live.length === 0) {
+      live.push({ goal: { kind: "hold", at: { x: p.self.x, y: p.self.y }, why: "wait" }, utility: WAIT_U, why: "nothing to do", key: "hold:wait" });
+    }
     this.last = live.map(({ key: _key, ...d }) => d);
     if (live.length === 0) return { goal: { kind: "idle" }, utility: 0, why: "nothing to do" };
     const curKey = goalKey(current);
@@ -348,17 +387,38 @@ class StrategyImpl implements Strategy {
     for (const q of this.awakeNear(me, FLEE_MOB_NEAR, now)) threats.push(q);
     if (retreatFrom) threats.push(...retreatFrom);
     if (threats.length === 0) return null;
-    const hurt = hp < persona.fleeHp || (wasFleeing && hp < persona.reengageHp);
+    const fleeHp = persona.fleeHp;
+    const hurt = hp < fleeHp || (wasFleeing && hp < persona.reengageHp);
     if (!hurt && retreatFrom === null) return null;
     // A chaser that keeps pace for this long cannot be outrun: turn and fight (the old bot's "cornered").
     if (wasFleeing && now - this.goalSince > FLEE_GIVE_UP_MS && threats.some((t) => dist(t, me) < ORBIT_MIN_DISTANCE)) {
       this.fleeBanUntil = now + FLEE_BAN_MS;
       return null;
     }
-    const depth = clamp01(1 - hp / persona.fleeHp);
+    const depth = clamp01(1 - hp / fleeHp);
     const from = threats.slice(0, 6);
     return this.scored(ctx, { kind: "flee", from, until: now + FLEE_MIN_MS + FLEE_SPAN_MS * depth },
       FLEE_U + FLEE_DEPTH_U * depth, `hp ${Math.round(hp * 100)}% below ${Math.round(persona.fleeHp * 100)}%, ${threats.length} threat(s)`);
+  }
+
+  /**
+   * Keeping out of the way of a player it does not want to fight (docs/BOTS_TUNING.md 3): one that is walking at the bot or already
+   * close, and that no hunt candidate wants, makes the bot walk off for a moment. A fight already begun is not left this way (that is
+   * the hurt flight's business), and neither is a mob fight. The tier's `wary` is the radius it notices at; 0 never evades.
+   */
+  private evade(ctx: BrainContext, current: Goal, enemies: readonly Enemy[], hunts: readonly Cand[], fight: Cand | null): Cand | null {
+    const { p, mem } = ctx;
+    const r0 = ctx.cfg.tier.wary;
+    if (r0 <= 0 || fight || ctx.engaged || p.now < this.fleeBanUntil || p.hud.gatesLocked) return null;
+    const r = current.kind === "flee" ? r0 + EVADE_HYSTERESIS : r0;
+    const wanted = new Set(hunts.flatMap((c) => (c.goal.kind === "hunt" ? [c.goal.target] : [])));
+    const from: Vec2[] = [];
+    for (const e of enemies) {
+      if (!e.visible || e.dist > r || !e.targetable || e.immune || wanted.has(e.id)) continue;
+      if (mem.fighters.get(e.id)?.chasingMe === true || e.dist < EVADE_CLOSE_SHARE * r) from.push(e.pos);
+    }
+    if (from.length === 0) return null;
+    return this.scored(ctx, { kind: "flee", from: from.slice(0, 4), until: p.now + EVADE_KEEP_MS }, EVADE_U, `keeping away from ${from.length} player(s) it does not want to fight`);
   }
 
   /** Already trading blows with a player: keep it. The lock names the target; failing that, whoever hit the bot last. */
@@ -410,13 +470,35 @@ class StrategyImpl implements Strategy {
       if (e.id === fightTarget || e.immune || !e.targetable) continue;
       if (!e.visible && e.age > REMEMBERED_HUNT_MS) continue;
       if (this.avoidId === e.id && now < this.avoidUntil && e.dist >= ORBIT_MIN_DISTANCE) { avoided = e; continue; }
-      out.push(this.huntCand(ctx, e, know.odds(me, e.snap), mode, hpReady));
+      const c = this.huntCand(ctx, e, know.odds(me, e.snap), mode, hpReady);
+      if (c) out.push(c);
     }
-    if (out.length === 0 && avoided) out.push(this.huntCand(ctx, avoided, know.odds(me, avoided.snap), mode, hpReady)); // the last one standing
+    if (out.length === 0 && avoided) {
+      const c = this.huntCand(ctx, avoided, know.odds(me, avoided.snap), mode, hpReady); // the last one standing
+      if (c) out.push(c);
+    }
     return out.sort((a, b) => b.utility - a.utility).slice(0, 3);
   }
 
-  private huntCand(ctx: BrainContext, e: Enemy, odds: FightOdds, mode: "normal" | "sd", hpReady: number): Cand {
+  /**
+   * How the bot sizes up opening a fight with `e` (BOTS_TUNING.md 2): a logistic of the hp lead, whether the foe is busy with a third
+   * fighter, and the matchup the hue shows, each read with the tier's weight, plus a misjudgement. Returns the logit; the chance to win
+   * is its sigmoid.
+   */
+  private appraise(ctx: BrainContext, e: Enemy, odds: FightOdds): number {
+    const { p, cfg } = ctx;
+    const a = cfg.tier.appraisal;
+    const me = p.self;
+    const mine = me.maxHp > 0 ? me.hp / me.maxHp : 1;
+    let j = this.judged.get(e.id);
+    if (!j || j.until <= p.now) {
+      j = { until: p.now + JUDGE_KEEP_MS, z: gaussian(ctx.rng.decide) };
+      this.judged.set(e.id, j);
+    }
+    return a.bias + a.lead * (mine - e.hpFrac) + a.busy * (BUSY_BASE + cfg.persona.thirdParty) * e.cue + a.hue * odds.score + a.noise * j.z;
+  }
+
+  private huntCand(ctx: BrainContext, e: Enemy, odds: FightOdds, mode: "normal" | "sd", hpReady: number): Cand | null {
     const persona = ctx.cfg.persona;
     const bountyShare = clamp01(e.bounty / BOUNTY_FULL);
     const fresh = e.visible ? 1 : STALE_FACTOR * (1 - e.age / REMEMBERED_HUNT_MS);
@@ -426,12 +508,21 @@ class StrategyImpl implements Strategy {
       const u = (0.6 + 0.25 * (1 - e.hpFrac) + 0.1 * (1 - Math.min(1, e.dist / 800))) * fresh;
       return this.scored(ctx, goal, Math.min(HUNT_CAP, u), `sudden death: ${e.id} at ${Math.round(e.hpFrac * 100)}% hp`);
     }
-    const needed = persona.engageEdge + (ctx.p.self.bounty > 0 ? persona.bountyCaution : 0)
-      - BOUNTY_EDGE_RELIEF * persona.bounty * bountyShare - THIRD_EDGE_RELIEF * persona.thirdParty * e.cue;
-    const gate = sigmoid(GATE_SHARPNESS * (odds.edge - needed));
-    let u = persona.pvp * (0.2 + 0.8 * gate) * hpReady * (1 - 0.3 * Math.min(1, e.dist / 800)) * fresh;
+    const logit = this.appraise(ctx, e, odds);
+    const sinceStart = ctx.p.now - ctx.p.hud.raidStartedAt;
+    const timerLeft = ctx.p.hud.patienceEndsAt > 0 ? ctx.p.hud.patienceEndsAt - ctx.p.now : Infinity;
+    // The first minute is for the camps; with the patience timer nearly out the coliseum forces the fight anyway, so nothing is held back.
+    const opening = sinceStart < OPENING_MS
+      ? OPENING_LOGIT * (1 - Math.max(0, sinceStart) / OPENING_MS) * clamp((timerLeft - OPENING_TIMER_FREE_MS) / OPENING_TIMER_SPAN_MS, 0, 1)
+      : 0;
+    const needed = persona.engageEdge + opening + (ctx.p.self.bounty > 0 ? persona.bountyCaution : 0) - BOUNTY_LOGIT_RELIEF * persona.bounty * bountyShare;
+    const surplus = logit - needed;
+    // A person does not walk up to a fight they do not expect to win by enough for their taste.
+    if (surplus <= 0) return null;
+    const gate = 1 - Math.exp(-HUNT_SHARPNESS * surplus);
+    let u = persona.pvp * gate * hpReady * (1 - 0.3 * Math.min(1, e.dist / 800)) * fresh;
     u += (0.25 * persona.bounty * bountyShare + 0.2 * persona.thirdParty * e.cue) * (e.visible ? 1 : 0.7);
-    return this.scored(ctx, goal, Math.min(HUNT_CAP, u), `${e.id}: edge ${odds.edge.toFixed(1)} vs ${needed.toFixed(1)}${e.cue > 0 ? ", third party" : ""}`);
+    return this.scored(ctx, goal, Math.min(HUNT_CAP, u), `${e.id}: ${Math.round(100 / (1 + Math.exp(-logit)))}% to win, wants ${Math.round(100 / (1 + Math.exp(-needed)))}%${e.cue > 0 ? ", third party" : ""}`);
   }
 
   /** A bountied (or hunted) player not seen for a while: walk toward where it probably is. */
@@ -589,8 +680,25 @@ class StrategyImpl implements Strategy {
       if (!best || score > best.score) best = { camp, id: camp.id, score };
     }
     if (!best) return null;
+    // A hurt bot does not go looking for people (lieLow); a healthy one with nothing to do walks to the camp it saw longest ago.
     return this.scored(ctx, { kind: "roam", to: { x: best.camp.x, y: best.camp.y }, why: "explore" },
-      PATROL_U + 0.06 * cfg.persona.pvp, `looking for people at ${best.id}`);
+      (PATROL_U + 0.06 * cfg.persona.pvp) * this.healthy(ctx), `looking for people at ${best.id}`);
+  }
+
+  /** 0.15..1: 1 from the persona's re-engage hp up, 0.15 at its flee hp and below (the same ramp the hunts use). */
+  private healthy(ctx: BrainContext): number {
+    const { self } = ctx.p;
+    const persona = ctx.cfg.persona;
+    const hp = self.maxHp > 0 ? self.hp / self.maxHp : 1;
+    return clamp((hp - persona.fleeHp) / Math.max(0.01, persona.reengageHp - persona.fleeHp), HP_READY_FLOOR, 1);
+  }
+
+  /** Hurt, with nothing to fight for and no hp to get back: a person stops where it is and waits for the timer instead of wandering. */
+  private lieLow(ctx: BrainContext): Cand | null {
+    const h = this.healthy(ctx);
+    if (h >= 1) return null;
+    const { self } = ctx.p;
+    return this.scored(ctx, { kind: "hold", at: { x: self.x, y: self.y }, why: "ambush" }, LIE_LOW_U * (1 - h), `hurt (${Math.round((self.hp / Math.max(1, self.maxHp)) * 100)}% hp): lying low`);
   }
 
   private centre(ctx: BrainContext): Cand | null {
@@ -612,7 +720,10 @@ class StrategyImpl implements Strategy {
     const out: Cand[] = [];
     const cue = enemies.reduce((m, e) => Math.max(m, e.cue), 0);
     if (p.hud.alive > 2 && persona.coliseum < 1) {
-      const u = (1 - persona.coliseum) * 0.85 * (1 - 0.8 * persona.thirdParty * cue);
+      // Everybody waiting for two others to start would wait until the burn: patience runs out, sooner for the bolder.
+      const since = ctx.mem.self.teleportedAt === null ? 0 : p.now - ctx.mem.self.teleportedAt;
+      const patience = Math.max(0, 1 - since / (HOLD_PATIENCE_MS + HOLD_PATIENCE_SPAN_MS * (1 - persona.coliseum)));
+      const u = (1 - persona.coliseum) * 0.85 * (1 - 0.8 * persona.thirdParty * cue) * patience;
       out.push(this.scored(ctx, { kind: "hold", at: this.holdSpot(ctx, current, enemies), why: "coliseum" }, u, `hold the ring (aggression ${persona.coliseum})`));
     }
     for (const e of enemies) {

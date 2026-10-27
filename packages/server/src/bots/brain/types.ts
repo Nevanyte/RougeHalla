@@ -100,6 +100,26 @@ export interface TierParams {
   readonly memorySpanMs: number;
   /** Chance to ignore a windup from a fighter that cancelled one at us within the last 3 s (reading a feint). */
   readonly feintRead: number;
+  /**
+   * How it sizes up a fight it could open (strategy.ts, `appraise`): the logit of its chance to win is `bias + lead x (own hp share -
+   * theirs) + busy x (they are trading hits with a third fighter) + hue x (the matchup score the hue and the wheels give) + noise x N(0, 1)`,
+   * the last a misjudgement kept per foe for a few seconds. The weights of the best player are what the tournaments' fights show
+   * (docs/BOTS_TUNING.md 2): the hp lead decides fights, the hue hardly does. A newcomer weighs the hue and not the bars.
+   */
+  readonly appraisal: {
+    readonly bias: number; readonly lead: number; readonly busy: number; readonly hue: number; readonly noise: number;
+  };
+  /**
+   * Wariness (u): a player it does not want to fight that is walking at it, or is this close, is kept away from (a short flight
+   * that drops no fight in progress). 0 = it does not notice, or does not mind.
+   */
+  readonly wary: number;
+  /**
+   * Mob farming is paid for in hp (a starter loses about 20% of it on each of its first two kills and gets no hp back): the matchup
+   * share a normal mob and an elite need (mobHunt's `mobMinShare` / `eliteMinShare`; an elite is also taken with three stacks at
+   * 0.4), and the hp share below which no new mob fight is opened.
+   */
+  readonly caution: { readonly mobShare: number; readonly eliteShare: number; readonly startHp: number };
 }
 
 export const TIERS: Readonly<Record<TierId, TierParams>> = {
@@ -126,6 +146,9 @@ export const TIERS: Readonly<Record<TierId, TierParams>> = {
     attention: { central: 0.6, peripheryMult: 1.4, engagedMult: 1.6, reconsiderMs: 2500 },
     memorySpanMs: 25_000,
     feintRead: 0,
+    appraisal: { bias: 0.9, lead: 2, busy: 0.3, hue: 1.1, noise: 0.9 },
+    wary: 0,
+    caution: { mobShare: 0.3, eliteShare: 0.3, startHp: 0.3 },
   },
   normal: {
     id: "normal",
@@ -150,6 +173,9 @@ export const TIERS: Readonly<Record<TierId, TierParams>> = {
     attention: { central: 0.65, peripheryMult: 1.3, engagedMult: 1.4, reconsiderMs: 2000 },
     memorySpanMs: 35_000,
     feintRead: 0.1,
+    appraisal: { bias: 0.3, lead: 3.4, busy: 0.5, hue: 0.6, noise: 0.45 },
+    wary: 300,
+    caution: { mobShare: 0.6, eliteShare: 0.8, startHp: 0.6 },
   },
   hard: {
     id: "hard",
@@ -174,6 +200,9 @@ export const TIERS: Readonly<Record<TierId, TierParams>> = {
     attention: { central: 0.7, peripheryMult: 1.25, engagedMult: 1.3, reconsiderMs: 1500 },
     memorySpanMs: 45_000,
     feintRead: 0.2,
+    appraisal: { bias: -0.3, lead: 4.5, busy: 0.7, hue: 0.25, noise: 0.15 },
+    wary: 450,
+    caution: { mobShare: 0.7, eliteShare: 1.1, startHp: 0.7 },
   },
 };
 
@@ -191,7 +220,10 @@ export interface PersonaParams {
   readonly loot: number;
   readonly bounty: number;
   readonly thirdParty: number;
-  /** FightOdds.edge (-2..+2) needed to open a fight with a player; `bountyCaution` is added while it carries a bounty itself. */
+  /**
+   * The logit of its chance to win (TierParams.appraisal) needed to open a fight with a player: 0.7 is 2 in 3, 1.1 3 in 4, 1.6 5 in 6, 1.9
+   * 6 in 7. `bountyCaution` is added while it carries a bounty itself.
+   */
   readonly engageEdge: number;
   readonly bountyCaution: number;
   /** Leave a fight below this hp share (also MobHunter.retreatHp); start none below `reengageHp` unless cornered. */
@@ -211,22 +243,22 @@ export interface PersonaParams {
 
 export const PERSONAS: Readonly<Record<PersonaId, PersonaParams>> = {
   farmer: {
-    id: "farmer", pve: 1, pvp: 0.3, loot: 0.7, bounty: 0.2, thirdParty: 0.2, engageEdge: 0.6, bountyCaution: 0.3,
+    id: "farmer", pve: 1, pvp: 0.3, loot: 0.7, bounty: 0.2, thirdParty: 0.2, engageEdge: 1.3, bountyCaution: 0.5,
     fleeHp: 0.4, reengageHp: 0.75, kite: 0.4, chaseGiveUpMs: 4000, mobKillGoal: 9, playerThreat: 250, eliteAppetite: 0.8,
     coliseum: 0.3,
   },
   hunter: {
-    id: "hunter", pve: 0.35, pvp: 1, loot: 0.3, bounty: 1, thirdParty: 0.5, engageEdge: -0.3, bountyCaution: 0,
+    id: "hunter", pve: 0.35, pvp: 1, loot: 0.3, bounty: 1, thirdParty: 0.5, engageEdge: 0.3, bountyCaution: 0,
     fleeHp: 0.2, reengageHp: 0.5, kite: 0.2, chaseGiveUpMs: 9000, mobKillGoal: 3, playerThreat: 400, eliteAppetite: 0.3,
     coliseum: 1,
   },
   opportunist: {
-    id: "opportunist", pve: 0.6, pvp: 0.7, loot: 1, bounty: 0.6, thirdParty: 1, engageEdge: 0.3, bountyCaution: 0.2,
+    id: "opportunist", pve: 0.6, pvp: 0.7, loot: 1, bounty: 0.6, thirdParty: 1, engageEdge: 0.8, bountyCaution: 0.3,
     fleeHp: 0.35, reengageHp: 0.7, kite: 0.5, chaseGiveUpMs: 5000, mobKillGoal: 6, playerThreat: 300, eliteAppetite: 0.5,
     coliseum: 0.5,
   },
   cautious: {
-    id: "cautious", pve: 0.7, pvp: 0.4, loot: 0.5, bounty: 0.2, thirdParty: 0.4, engageEdge: 0.8, bountyCaution: 0.4,
+    id: "cautious", pve: 0.7, pvp: 0.4, loot: 0.5, bounty: 0.2, thirdParty: 0.4, engageEdge: 1.6, bountyCaution: 0.6,
     fleeHp: 0.55, reengageHp: 0.9, kite: 1, chaseGiveUpMs: 3000, mobKillGoal: 7, playerThreat: 320, eliteAppetite: 0.4,
     coliseum: 0.2,
   },
@@ -797,6 +829,8 @@ export interface OpponentSnapshot {
 export interface FightOdds {
   /** -2..+2: the known matchup score (or the tint's sign) plus 2 x the hp-share lead, clamped. */
   readonly edge: number;
+  /** -2..+2: the matchup score alone (what the wheels the bot knows, or the hue it reads, say), without the hp lead. */
+  readonly score: number;
   /** Both wheels' edges were known (not just the tint). */
   readonly known: boolean;
   readonly why: string;

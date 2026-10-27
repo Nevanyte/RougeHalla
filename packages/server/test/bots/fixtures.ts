@@ -141,7 +141,7 @@ export function fullKnowledge(): Knowledge {
       const w: WeaponId | null = me.weapons[me.slot];
       const score = me.faction ? matchupScore({ faction: me.faction, weapon: w }, { faction: them.faction ?? me.faction, weapon: them.inHand }) : 0;
       const lead = me.maxHp > 0 ? me.hp / me.maxHp - them.hpFrac : 0;
-      return { edge: clamp(score + 2 * lead), known: them.faction !== null, why: "fixture" };
+      return { edge: clamp(score + 2 * lead), score: clamp(score), known: them.faction !== null, why: "fixture" };
     },
   };
 }

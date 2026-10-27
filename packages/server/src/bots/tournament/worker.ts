@@ -6,6 +6,7 @@ import { isMainThread, parentPort, workerData } from "node:worker_threads";
 import { FACTION_IDS, mulberry32, shuffle, type FactionId } from "@raid/shared";
 import { createBotStatsStore } from "../learning/BotStatsStore";
 import { PERSONA_IDS, type PersonaId, type TierId } from "../brain/types";
+import { applyTune, type TuneSpec } from "./tune";
 import { MAX_GAME_MS, runGame, type GameSummary, type RunGameOptions, type SeatSpec } from "./game";
 import type { SimConfig } from "../../sim/world";
 
@@ -25,6 +26,8 @@ export interface TournamentPlan {
   readonly config?: Partial<SimConfig>;
   readonly latencyMs?: number;
   readonly jitterMs?: number;
+  /** A tuning diagnostic: patches the tier and persona tables before the games (tune.ts). */
+  readonly tune?: TuneSpec;
 }
 
 /** A 32-bit mix of a seed and a tag (a murmur finaliser), so the streams of one tournament do not march together. */
@@ -77,6 +80,7 @@ export interface GameResult {
 
 /** Plays `indices` in order. With learning on, the bots of one batch share one in-memory store, so a batch is deterministic but a game is not alone. */
 export function runBatch(plan: TournamentPlan, indices: readonly number[], onGame?: (r: GameResult) => void): GameResult[] {
+  applyTune(plan.tune);
   const store = plan.learn ? createBotStatsStore(null) : null;
   const out: GameResult[] = [];
   for (const index of indices) {
