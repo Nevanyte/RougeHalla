@@ -140,7 +140,7 @@ const SERVER_FULL = "the server is full: too many rooms are open right now";
 /** Every client message but `aim` is an order that spends the sender's budget (aim streams at up to 20 Hz and is its own, cheap, thing). */
 const FREE_MESSAGE_TYPE = "aim";
 
-const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty" };
+const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip" };
 
 export class RaidRoom extends Room<{ state: RaidState }> {
   /** Set once by createServer(); rooms are constructed by the matchmaker. */
@@ -247,7 +247,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
         // sees it and, like junk, is not presence.
         if (type !== FREE_MESSAGE_TYPE && !this.orderAllowed(client.sessionId)) return;
         // Only an input that was accepted counts as presence: junk would otherwise keep an abandoned training room open for good.
-        if (enqueueClientMessage(rt.inputs, type, msg)) this.lastInputAt = Date.now();
+        if (enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) this.lastInputAt = Date.now();
       });
     }
     this.setTimestep((elapsed) => this.tick(elapsed), TICK_MS);

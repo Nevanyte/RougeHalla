@@ -204,6 +204,16 @@ export interface PlayerRuntime extends CombatRuntime {
   fired?: Set<string>;
   /** Rampage announcement throttle (sim/feed.ts). Created on first use. */
   announce?: AnnounceRuntime;
+  /** Heals spread over time still to come (Second Wind; sim/factions.ts healOverTime). Created on first use. */
+  hots?: HealOverTime[];
+}
+
+/** The rest of a heal spread over time: `left` more steps of `amount`, the next at server ms `next`. */
+export interface HealOverTime {
+  next: number;
+  left: number;
+  amount: number;
+  ignoreLockout: boolean;
 }
 
 /** Server-only timers behind a player's buffs. Times are server ms. */
@@ -467,7 +477,10 @@ export interface WorldHooks {
   weaponSwapped?(world: World, c: Combatant): void;
   /** A fighter left the fight for good: a player went down (`down`) or left (`removed`), or a mob died (`down`). Modules clear their state for it. */
   fighterOut?(world: World, id: string, cause: "down" | "removed"): void;
-  /** The run ended (a winner, a draw, a void). */
+  /**
+   * The run just ended (arena.ts endRun: a winner, a draw, a void): results are out and the phase is "ended". The Wishes
+   * clear their casts, statuses and fields here; sim/chests.ts removes every chest.
+   */
   runEnded?(world: World): void;
   /** `c` just started an attack (a swing, a cast or a draw): its `action` is set. */
   attackStarted?(world: World, c: Combatant): void;
@@ -492,6 +505,11 @@ export interface WorldHooks {
    * threshold" test must read, never hp + applied.
    */
   hurt?(world: World, c: Combatant, applied: number, hpBefore: number): void;
+  /**
+   * Camp `camp` (its index in map.camps) just lost its last mob (sim/camps.ts). Called after the ledger pass that killed it
+   * (payLater), right after the `campCleared` fx; sim/chests.ts drops the camp's shared chest here.
+   */
+  campCleared?(world: World, camp: number): void;
 }
 
 export interface World {
@@ -516,7 +534,7 @@ export interface World {
   /** Secret salt for the per-tick player processing order (see actionOrder in step.ts). */
   orderSalt: number;
   /**
-   * A private stream for reward and roster rolls (chest choices, camp rosters; nothing draws from it yet). Separate from
+   * A private stream for reward and roster rolls (camp rosters at world build, chest options when a camp is cleared). Separate from
    * `random`, so drawing from it never shifts the loot rolls. The Room seeds it with a fresh crypto salt (createWorld's
    * `rewardSalt`); without one it is derived from orderSalt, which is fine for tests but not for a live room: orderSalt
    * also keys tieRank, whose outcomes a client can observe (see CLAUDE.md), so it is not secret enough to roll rewards from.
@@ -649,7 +667,7 @@ export function emit(world: World, ev: SimEvent): void {
 
 type ChainableHook =
   | "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt"
-  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered";
+  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

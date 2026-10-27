@@ -43,6 +43,8 @@
 //   cast     [by, AB, ms, target|null, x, y]        castEnd  [by, AB, reason]
 //   castLand [by, AB, target|null, x, y, x2?, y2?]  (x2 and y2 together, only for a blink: its landing)
 //   status   [id, ST, ms, by|null]                  (a status instance newly applied to `id`)
+//   campCleared [camp]                      (the camp's index in map.camps)
+//   chestTaken  [chest, by, option]         (chest: the reward container's id, a string; option -1 = a skip)
 // Kind 11 was `combo` (the kill combos, retired in roguelike R4a): never emitted and never reused; a client reading one
 // drops it (onDrop).
 // Adding a field to an FxEvent means adding it to its tuple here (and to the round-trip test).
@@ -71,7 +73,7 @@ function table<K extends string>(code: Readonly<Record<K, number>>): Table<K> {
 /** "combo" stays in the table only to hold its code (11) forever: nothing packs it, and unpacking it yields nothing. */
 const KIND = table<FxEvent["kind"] | "combo">({
   windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10, combo: 11,
-  victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17,
+  victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19,
 });
 const WEAPON = table<WeaponId>({ sword: 0, bow: 1, wand: 2, shield: 3, axe: 4 });
 const PROJECTILE = table<ProjectileKind>({ arrow: 0, ball: 1 });
@@ -196,6 +198,8 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
     }
     case "castEnd": return [KC.castEnd, fx.by, ABILITY.code[fx.ability], CAST_END.code[fx.reason]];
     case "status": return [KC.status, fx.id, STATUS.code[fx.status], enc(fx.ms, MS), fx.by ?? null];
+    case "campCleared": return [KC.campCleared, Math.round(fx.camp) + 0];
+    case "chestTaken": return [KC.chestTaken, fx.chest, fx.by, Math.round(fx.option) + 0];
     default: {
       const unknown: never = fx;
       void unknown;
@@ -375,6 +379,17 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
     case "status": {
       const id = str(tuple[1], names), status = pick(STATUS, tuple[2]), ms = dec(tuple[3], MS), by = strOrNull(tuple[4], names);
       return id !== undefined && status !== undefined && ms !== undefined && by !== undefined ? { kind, id, status, ms, by } : null;
+    }
+    case "campCleared": {
+      const camp = tuple[1];
+      return typeof camp === "number" && Number.isInteger(camp) && camp >= 0 ? { kind, camp } : null;
+    }
+    case "chestTaken": {
+      // The chest is a container id, never a roster entry: it must arrive as a string.
+      const chest = typeof tuple[1] === "string" ? tuple[1] : undefined, by = str(tuple[2], names), option = tuple[3];
+      return chest !== undefined && by !== undefined && typeof option === "number" && Number.isInteger(option) && option >= -1
+        ? { kind, chest, by, option }
+        : null;
     }
     default:
       return null;

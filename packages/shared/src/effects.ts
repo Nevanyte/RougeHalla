@@ -17,12 +17,16 @@
 import type { AbilityEffect } from "./abilities";
 import type { StatusKind } from "./status";
 
-/** Stats a `stat` row moves by a fraction (+10% = 0.1). */
+/**
+ * Stats a `stat` row moves by a fraction (+10% = 0.1). `executeBand` (roguelike R5, Pestilence) raises the hp share below
+ * which Plague's execute runs, from 0.5 by `v` (0.1: it starts at 60%); it does nothing for any other faction.
+ */
 export type EffectStat =
   | "maxHp" | "attackSpeed" | "moveSpeed" | "damage" | "windup" | "lifesteal" | "markRate"
-  | "healTaken" | "damageTaken" | "cooldown";
+  | "healTaken" | "damageTaken" | "cooldown" | "executeBand";
 export const EFFECT_STATS: readonly EffectStat[] = [
   "maxHp", "attackSpeed", "moveSpeed", "damage", "windup", "lifesteal", "markRate", "healTaken", "damageTaken", "cooldown",
+  "executeBand",
 ];
 
 /** Stats a `flat` row adds points to (on the faction's own armor and shield; GAME_DESIGN's "shield" is magic resistance). */
@@ -55,7 +59,8 @@ export type OnHitStatus = Extract<StatusKind, "slowMove" | "slowAttack" | "antiH
  */
 export type TriggerAction =
   | Extract<AbilityEffect, { do: "status" | "cleanse" }>
-  | { do: "heal"; share: number; ignoreLockout?: boolean }
+  /** `ms` (roguelike R5, Second Wind): paid in round(ms / HEAL_OVER_TIME_STEP_MS) equal steps, the first at once, so it spans one step less than `ms` (buffs.ts healOverTimeSpanMs). */
+  | { do: "heal"; share: number; ignoreLockout?: boolean; ms?: number }
   | { do: "barrier"; share: number; ms: number }
   | { do: "cooldown"; ms: number };
 
@@ -77,7 +82,11 @@ export type Effect =
   | (EffectCommon & { k: "scale"; src: ScaleSource; per: number; step: number })
   | (EffectCommon & { k: "while"; cond: WhileCond; arg: number; stat: StatKey; v: number; ms?: number })
   | (EffectCommon & { k: "onHit"; status: OnHitStatus; per: number; cap: number; ms: number })
-  | (EffectCommon & { k: "trigger"; on: TriggerOn; arg: number; once?: boolean; do: TriggerAction });
+  /**
+   * `once`: fires at most once per run. `rearm: "teleport"` (roguelike R5, Second Wind rank 2): a `once` row that may fire
+   * again after each coliseum teleport (once before the first teleport, once after each).
+   */
+  | (EffectCommon & { k: "trigger"; on: TriggerOn; arg: number; once?: boolean; rearm?: "teleport"; do: TriggerAction });
 
 export type EffectKind = Effect["k"];
 /** The row of one kind, e.g. EffectOf<"stat">. */

@@ -20,10 +20,10 @@ import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
-import { outgoingMult } from "./mods";
+import { outgoingMult, type VsProbe } from "./mods";
 import { damageFactor } from "./status";
 import { stagger } from "./weapons";
-import { lobbyMedianFeed } from "./feed";
+import { feedOfPlayer, lobbyMedianFeed } from "./feed";
 import { emit, type DamageSource, type LandedHit, type LedgerEntry, type World } from "./world";
 
 /**
@@ -91,6 +91,33 @@ function hpFrac(world: World, id: string): number {
   return s && s.maxHp > 0 ? s.hp / s.maxHp : 1;
 }
 
+/**
+ * The `vs` tests beyond hp (roguelike R5) for a hit by `by` on `victim`, answered from the state as it stands when asked:
+ * outgoingMults asks before any victim of the pass takes damage, and kills pay their feed only after the pass, so every
+ * answer is the pass's start. Lazy: nothing is read for an attacker without such a row.
+ *   higherFeed  both are players and the victim's feed (kills + a quarter per mob kill) is above the attacker's.
+ *   thirdParty  the victim's target lock, a mob victim's fight target, or its signature target (the last enemy it hit,
+ *               sim/factions.ts) names someone other than the attacker.
+ */
+function vsProbe(world: World, by: string, victim: string): VsProbe {
+  return {
+    higherFeed: () => {
+      const vp = world.state.players.get(victim);
+      const vrt = world.players.get(victim);
+      const ap = world.state.players.get(by);
+      const art = world.players.get(by);
+      return !!(vp && vrt && ap && art) && feedOfPlayer(vp, vrt) > feedOfPlayer(ap, art);
+    },
+    thirdParty: () => {
+      const other = (t: string | null | undefined): boolean => t != null && t !== by;
+      const lock = world.players.get(victim)?.weapon.lock ?? null;
+      const fight = world.mobs.get(victim)?.brain?.target ?? null;
+      const sig = world.factions?.fighters.get(victim)?.target ?? null;
+      return other(lock) || other(fight) || other(sig);
+    },
+  };
+}
+
 /** Each entry's outgoing multiplier (1 for most, and for every ability entry), from the state before the pass; only entries that differ are listed. */
 function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Map<LedgerEntry, number> {
   const out = new Map<LedgerEntry, number>();
@@ -99,7 +126,7 @@ function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Map<Ledger
     if (e.arena || e.ability !== undefined || !(e.scale > 0)) continue;
     const by = world.state.players.get(e.by.id) ?? world.state.mobs.get(e.by.id);
     if (!by) continue;
-    const m = outgoingMult(by, hpFrac(world, e.victim));
+    const m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim));
     if (m !== 1) out.set(e, m);
   }
   return out;

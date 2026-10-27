@@ -67,10 +67,16 @@ export function burnDps(f: FactionSpec): number {
   return f.mechanic === "dragonslayer" ? f.params.burn! : 0;
 }
 
-/** Plague's disease plus its execute, which grows as the target falls from half hp to 0 (raw per second). */
-export function diseaseDps(f: FactionSpec, foeHpFrac: number): number {
+/** The hp share below which Plague's execute runs (Pestilence raises it for its owner: server mods.ts executeBandOf). */
+export const EXECUTE_BAND = 0.5;
+
+/**
+ * Plague's disease plus its execute, which grows as the target falls from `band` (EXECUTE_BAND, half hp) to 0 (raw per
+ * second). The execute's slope is the same whatever the band, so a wider band starts it sooner and adds more at every hp.
+ */
+export function diseaseDps(f: FactionSpec, foeHpFrac: number, band: number = EXECUTE_BAND): number {
   if (f.mechanic !== "rat_king") return 0;
-  return f.params.plague! + f.params.execute! * Math.max(0, 0.5 - foeHpFrac);
+  return f.params.plague! + f.params.execute! * Math.max(0, band - foeHpFrac);
 }
 
 /** Sentenced's mark after `elapsed` seconds in reach of the same target (raw per second). */

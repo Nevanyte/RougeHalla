@@ -23,7 +23,7 @@
 //     player is that player's kill, so leaving can't dodge a bounty.
 // This module never touches the store, sockets or the Room.
 import {
-  bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
+  bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_SKIP, GV_WIN,
   KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, suddenDeathShare, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
   type Vec2,
@@ -215,11 +215,21 @@ export function awardGv(world: World, p: PlayerState, rt: PlayerRuntime, reason:
   return credit(world, p, rt, reason, amount);
 }
 
+/**
+ * A chest skip that healed nothing (roguelike R5, D12): GV_SKIP GV, counted with the mob GV and so stopped by GV_MOB_CAP
+ * like it. Returns the GV paid (0 once the cap is reached, for a player whose result is out, or in a training room).
+ */
+export function awardSkipGv(world: World, p: PlayerState, rt: PlayerRuntime): number {
+  // The training room records nothing (practice kills pay none either): no GV, so no "+3 GV" toast.
+  if (world.config.training) return 0;
+  return credit(world, p, rt, "skip", Math.min(GV_SKIP, Math.max(0, GV_MOB_CAP - rt.gv.mobs)));
+}
+
 function credit(world: World, p: PlayerState, rt: PlayerRuntime, reason: Exclude<GvReason, "win">, amount: number): number {
   if (rt.resolved || amount <= 0) return 0;
   if (reason === "kill") rt.gv.kills += amount;
   else if (reason === "bounty") rt.gv.bounty += amount;
-  else rt.gv.mobs += amount;
+  else rt.gv.mobs += amount; // mob, elite and a chest skip: one pot under GV_MOB_CAP
   p.gv = rt.gv.kills + rt.gv.mobs + rt.gv.bounty;
   emit(world, { type: "gv", id: rt.id, amount, reason });
   return amount;

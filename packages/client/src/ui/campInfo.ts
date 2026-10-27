@@ -30,6 +30,17 @@ export function readCampTypes(state: unknown, count: number): string[] {
   return out;
 }
 
+/** `RaidState.camps[i].state` for each of `count` camps (0 idle, 1 engaged, 2 cleared), 0 where the state has none. */
+export function readCampStates(state: unknown, count: number): number[] {
+  const camps = (state as { camps?: ArrayLike<{ state?: unknown }> | undefined } | null | undefined)?.camps;
+  const out: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const s = camps?.[i]?.state;
+    out.push(s === 1 || s === 2 ? s : 0);
+  }
+  return out;
+}
+
 export interface CounterHint {
   faction: FactionId;
   buffs: { id: string; name: string; zone: FactionId }[];

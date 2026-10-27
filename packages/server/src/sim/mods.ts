@@ -4,7 +4,10 @@
 // which is what every client decodes too (D22).
 //
 // A player's rows are its buffs' rows (shared/buffs.ts: each buff's rows scaled to its stacks; rows that need the status
-// runtime are left out until R4b), kept here per player ("the build") and rebuilt only when the buffs change.
+// runtime are left out until R4b) and, from roguelike R5, its passives' rows (PlayerState.build: each live skill's rows at
+// its rank, shared/skills.ts skillRows, with the faction's own rows where the rank has some), kept here per player and
+// rebuilt only when the buffs or the build change. Buff and passive rows fold together: a damage row of either adds to the
+// one damage sum, and so on for every key.
 //   stat, flat   fold into one sum per stat key (shared/mods.ts StatSums): rows add within a key, keys multiply where the
 //                sim combines them (1 + sum each). Mirrored keys go to the mirrors; the rest are read here: maxHp
 //                (sim/buffs.ts syncMaxHp), damage (outgoingMult), lifesteal (lifestealOf), markRate (markRateOf).
@@ -12,7 +15,9 @@
 //                tick (updateMods, after damage), and refolded only when a condition flips: the mirror moves one tick
 //                after the condition, by design.
 //   vs, scale    damage rows: outgoingMult adds them to the damage sum per hit (the ledger calls it before any victim
-//                of the pass takes damage, so it reads the state as the pass began).
+//                of the pass takes damage, so it reads the state as the pass began). The tests that need more than the
+//                victim's hp (higherFeed, thirdParty: R5) are answered by the ledger's probe, from the same moment.
+//   executeBand  Plague's execute threshold (Pestilence): 0.5 + the sum (executeBandOf), read by sim/factions.ts.
 //   trigger      listed for sim/factions.ts (triggersOf), which runs them.
 // Every registered mod source (world.modSources, e.g. Wishes' attack slow) is asked too: its multipliers multiply into
 // the folded mirrors, its flat bonuses add. The attack-speed product is then capped (shared capAsMult, AS_MULT_CAP).
@@ -33,8 +38,8 @@
 // A leaf module: it must not import weapons.ts, arena.ts, ledger.ts, combatant.ts, buffs.ts, a status runtime or anything
 // else that imports it. Type-only imports are fine.
 import {
-  BUFFS, buffScale, capAsMult, decodeFlat, decodeMult, encodeMirrors, mirrorsFromSums, requirementsMet, scaleEffect, stacksIn,
-  zeroSums, type Effect, type EffectOf, type StatMirrors, type StatSums,
+  BUFFS, buffScale, capAsMult, decodeFlat, decodeMult, encodeMirrors, EXECUTE_BAND, mirrorsFromSums, rankIn, requirementsMet,
+  scaleEffect, SKILLS, skillLive, skillRows, stacksIn, zeroSums, type Effect, type EffectOf, type StatMirrors, type StatSums,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import type { Combatant, FighterState } from "./combatant";
@@ -82,33 +87,50 @@ function isPlayerState(s: FighterState): s is PlayerState {
   return "asMult" in s;
 }
 
-/** The player's rows, from its buffs (later its build and statuses): each owned buff's rows scaled to its stacks. */
+function addRow(b: Build, e: Effect, key: string): void {
+  b.rows.push(e);
+  switch (e.k) {
+    case "stat":
+    case "flat": b.fixed.push(e); break;
+    case "while": b.whiles.push(e); break;
+    case "vs": b.vs.push(e); break;
+    case "scale": b.scales.push(e); break;
+    case "trigger": b.triggers.push({ key, row: e }); break;
+    case "onHit": break; // R4b: statuses on hit (they need the status runtime, so none reaches here yet)
+  }
+}
+
+/**
+ * The player's rows: each owned buff's rows scaled to its stacks, then each live passive's rows at its rank (catalog order
+ * both, so a sum is the same whatever order they were gained in). A trigger's once-key is `<buff id>:<row>` for a buff and
+ * `skill:<skill id>:<row>` for a passive, the same for both ranks (an upgrade does not re-arm a trigger that has fired).
+ */
 function buildOf(p: PlayerState): Build {
   const b: Build = { rows: [], fixed: [], whiles: [], holds: 0, vs: [], scales: [], triggers: [], sums: EMPTY_SUMS };
-  const owns = (id: string): boolean => stacksIn(p.buffs, id) > 0;
+  const owns = (id: string): boolean => stacksIn(p.buffs, id) > 0 || rankIn(p.build, id) > 0;
   for (const def of BUFFS) {
     const n = stacksIn(p.buffs, def.id);
     if (!(n > 0)) continue;
     const k = buffScale(n);
     def.effects.forEach((raw, i) => {
       if (raw.needs === "status" || !requirementsMet(raw, owns)) return;
-      const e = scaleEffect(raw, k);
-      b.rows.push(e);
-      switch (e.k) {
-        case "stat":
-        case "flat": b.fixed.push(e); break;
-        case "while": b.whiles.push(e); break;
-        case "vs": b.vs.push(e); break;
-        case "scale": b.scales.push(e); break;
-        case "trigger": b.triggers.push({ key: `${def.id}:${i}`, row: e }); break;
-        case "onHit": break; // R4b: statuses on hit (they need the status runtime, so none reaches here yet)
-      }
+      addRow(b, scaleEffect(raw, k), `${def.id}:${i}`);
     });
+  }
+  if (p.build && p.build.size > 0) {
+    for (const def of SKILLS) {
+      const r = rankIn(p.build, def.id);
+      if (!(r > 0) || !skillLive(def)) continue;
+      skillRows(def.id, r, p.faction).forEach((e, i) => {
+        if (e.needs === "status" || !requirementsMet(e, owns)) return;
+        addRow(b, e, `skill:${def.id}:${i}`);
+      });
+    }
   }
   return b;
 }
 
-/** The rows a player's stats fold from (its buffs' rows at their stacks). */
+/** The rows a player's stats fold from (its buffs' rows at their stacks, then its passives' rows at their ranks). */
 export function modRowsOf(p: PlayerState): Effect[] {
   return buildOf(p).rows;
 }
@@ -283,6 +305,11 @@ export function markRateOf(s: FighterState): number {
   return Math.max(0, 1 + statSumsOf(s).markRate);
 }
 
+/** The hp share below which a Plague fighter's execute runs: EXECUTE_BAND (0.5) + its executeBand rows, within 0..1. */
+export function executeBandOf(s: FighterState): number {
+  return Math.min(1, Math.max(0, EXECUTE_BAND + statSumsOf(s).executeBand));
+}
+
 /** The trigger rows the fighter owns, with their once-keys. */
 export function triggersOf(s: FighterState): readonly OwnedTrigger[] {
   return caches.get(s)?.build?.triggers ?? [];
@@ -293,16 +320,27 @@ function hasDamageRows(b: Build | null | undefined): b is Build {
   return !!b && (b.sums.damage !== 0 || b.vs.length > 0 || b.scales.length > 0);
 }
 
-/** Does a `vs` row's test hold against a victim at hp fraction `victimFrac`? (slowed, rooted, streak... need R4b.) */
-function vsHolds(e: EffectOf<"vs">, victimFrac: number): boolean {
+/**
+ * The answers to the `vs` tests that need more than the victim's hp, asked lazily (only for an attacker with such a row).
+ * The ledger builds one per entry from the state as the pass began (sim/ledger.ts vsProbe); a test without an answer is false.
+ */
+export interface VsProbe {
+  /** The victim is a player whose feed is higher than the attacker's (Bounty Hunter). */
+  higherFeed?(): boolean;
+  /** The victim's lock, its mob target or its last hit (the signature target) is on someone other than the attacker (Witness). */
+  thirdParty?(): boolean;
+}
+
+/** Does a `vs` row's test hold against a victim at hp fraction `victimFrac`? (slowed, rooted, streak need R4b.) */
+function vsHolds(e: EffectOf<"vs">, victimFrac: number, probe: VsProbe | undefined): boolean {
   switch (e.test) {
     case "hpAbove": return victimFrac > e.arg;
     case "hpBelow": return victimFrac < e.arg;
+    case "higherFeed": return probe?.higherFeed?.() ?? false;
+    case "thirdParty": return probe?.thirdParty?.() ?? false;
     case "slowed":
     case "rooted":
     case "streak":
-    case "thirdParty":
-    case "higherFeed":
       return false;
   }
 }
@@ -311,14 +349,14 @@ function vsHolds(e: EffectOf<"vs">, victimFrac: number): boolean {
  * What a weapon hit or signature damage `attacker` deals to a victim at hp fraction `victimFrac` is multiplied by,
  * before armor and shield: 1 + the damage sum + every `vs` row whose test holds + every `scale` row's stepped bonus (rows
  * within the damage key add). The ledger calls it for every entry before any victim of the pass takes damage, so both hp
- * fractions are as the pass began, and skips ability entries (flat power) and the arena's burn. 1 for a fighter with no
- * damage rows (every mob today).
+ * fractions (and what `probe` answers) are as the pass began, and skips ability entries (flat power) and the arena's
+ * burn. 1 for a fighter with no damage rows (every mob today).
  */
-export function outgoingMult(attacker: FighterState, victimFrac: number): number {
+export function outgoingMult(attacker: FighterState, victimFrac: number, probe?: VsProbe): number {
   const b = caches.get(attacker)?.build;
   if (!hasDamageRows(b)) return 1;
   let sum = b.sums.damage;
-  for (const e of b.vs) if (vsHolds(e, victimFrac)) sum += e.v;
+  for (const e of b.vs) if (vsHolds(e, victimFrac, probe)) sum += e.v;
   if (b.scales.length > 0 && attacker.maxHp > 0) {
     const missing = Math.max(0, 1 - attacker.hp / attacker.maxHp);
     for (const e of b.scales) {

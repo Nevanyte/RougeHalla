@@ -4,7 +4,7 @@
 // and settle(). The player is driven by the shared weapon policy `decide`, exactly like harness/duel.ts (the bots now click their foe instead: BotClient).
 //
 //   npx tsx bench/mobDuel.ts                       shipped MOB_K / ELITE_K: the 5x5 tables (normal and elite), 3 seeds
-//   npx tsx bench/mobDuel.ts --sweep               the k sweep (normal 0.30..0.60, elite 0.50..0.90), one summary row per k
+//   npx tsx bench/mobDuel.ts --sweep               the k sweep (normal 0.20..0.60, elite 0.50..0.90), one summary row per k
 //   npx tsx bench/mobDuel.ts --reference           the continuous duel() reference (before the weapon layer and signatures)
 //   npx tsx bench/mobDuel.ts --weapons             the player on each of the 5 weapons (weapon-edge variants)
 //   npx tsx bench/mobDuel.ts --one fire:holy [--elite] [--k 0.4] [--seed 2] [--weapon sword] [--trace]
@@ -550,7 +550,7 @@ export function compareTable(g: Grid): string {
 // CLI
 // ---------------------------------------------------------------------------------------------------------------------
 
-const NORMAL_SWEEP = [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6];
+const NORMAL_SWEEP = [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6];
 const ELITE_SWEEP = [0.5, 0.6, 0.7, 0.8, 0.9];
 
 function parseFlags(argv: string[]): { flags: Map<string, string>; bools: Set<string> } {

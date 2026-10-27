@@ -113,7 +113,7 @@ export type StatSums = Record<StatKey, number>;
 export function zeroSums(): StatSums {
   return {
     maxHp: 0, attackSpeed: 0, moveSpeed: 0, damage: 0, windup: 0, lifesteal: 0, markRate: 0, healTaken: 0, damageTaken: 0,
-    cooldown: 0, armor: 0, shield: 0,
+    cooldown: 0, executeBand: 0, armor: 0, shield: 0,
   };
 }
 
