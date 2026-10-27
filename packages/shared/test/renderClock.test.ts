@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  INTERP_DELAY_MS, MAX_INTERP_DELAY_MS, MIN_INTERP_DELAY_MS, mulberry32, PATCH_MS, RENDER_CLOCK_DEFAULTS, RenderClock,
+  INTERP_DELAY_MS, MAX_INTERP_DELAY_MS, MIN_INTERP_DELAY_MS, mulberry32, PATCH_MS, RENDER_CLOCK_DEFAULTS, RenderClock, ServerClock,
   type RenderClockOptions,
 } from "../src/index";
 
@@ -208,5 +208,287 @@ describe("RenderClock", () => {
     expect(MIN_INTERP_DELAY_MS).toBeLessThan(INTERP_DELAY_MS);
     expect(MAX_INTERP_DELAY_MS).toBeGreaterThan(INTERP_DELAY_MS);
     expect(MIN_INTERP_DELAY_MS).toBeGreaterThan(PATCH_MS);
+  });
+});
+
+// --- stalls, hitches, and the clock jumping --------------------------------------------------------------------------------
+//
+// Render time must never run backwards, whatever the link or the server does: a stall of the client's connection (a burst of
+// patches at its end), a hitch of the server that drops sim time (RaidRoom.tick runs at most MAX_CATCHUP_STEPS = 3 steps per tick
+// and drops the rest, so server time then trails the local clock for good), a tab that draws nothing for seconds, a reconnect.
+
+const MAX_CATCHUP_STEPS = 3;
+
+/** 20 Hz patches with a flat latency; the patches from index `stallAt` on, as many as `ms` covers, are held back and arrive together. */
+function clientStall(n: number, stallAt: number, ms: number, latency = 30): Arrival[] {
+  const k = Math.round(ms / PATCH_MS);
+  const out: Arrival[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = 1000 + i * PATCH_MS;
+    const held = i >= stallAt && i < stallAt + k;
+    out.push({ t, at: (held ? 1000 + (stallAt + k) * PATCH_MS : t) + latency });
+  }
+  return out;
+}
+
+/**
+ * The server's event loop stops for `ms` of wall time after patch `hitchAt - 1`; its next tick runs MAX_CATCHUP_STEPS steps, sends
+ * one patch and drops the rest of what it owes, so from then on server time trails wall time by `ms - 150` more.
+ */
+function serverHitch(n: number, hitchAt: number, ms: number, latency = 30): Arrival[] {
+  const out: Arrival[] = [];
+  let wall = 1000;
+  let t = 1000;
+  for (let i = 0; i < n; i++) {
+    if (i === hitchAt) {
+      wall += ms - PATCH_MS;
+      t += (MAX_CATCHUP_STEPS - 1) * PATCH_MS;
+    }
+    out.push({ t, at: wall + latency });
+    wall += PATCH_MS;
+    t += PATCH_MS;
+  }
+  return out;
+}
+
+interface Frame { now: number; t: number; newest: number; delay: number }
+
+/** Drives the clock like the scene: patches in, one `renderTime` per frame; frames inside a `blackout` (hidden tab) are not drawn. */
+function drive(rc: RenderClock, arrivals: Arrival[], opts: { fps?: number; blackouts?: Array<[number, number]> } = {}): Frame[] {
+  const frame = 1000 / (opts.fps ?? 144);
+  const frames: Frame[] = [];
+  let i = 0;
+  let newest = -Infinity;
+  const end = arrivals[arrivals.length - 1]!.at;
+  for (let now = arrivals[0]!.at; now <= end; now += frame) {
+    while (i < arrivals.length && arrivals[i]!.at <= now) { rc.onPatch(arrivals[i]!.t, arrivals[i]!.at); newest = Math.max(newest, arrivals[i]!.t); i++; }
+    if (opts.blackouts?.some(([a, b]) => now >= a && now < b)) continue;
+    frames.push({ now, t: rc.renderTime(now), newest, delay: rc.delayMs });
+  }
+  return frames;
+}
+
+interface Verdict {
+  /** Frames where render time went down, and the worst of them (ms). */
+  backwards: number;
+  worstBack: number;
+  /** Render speed per frame against the local clock, over frames drawn back to back (a gap in the frames is not a speed). */
+  minSpeed: number;
+  maxSpeed: number;
+  /** After `from`: ms of drawing past the newest patch (the picture holds and hops), and ms until the delay is last outside its bounds. */
+  pastNewest: number;
+  recoverMs: number;
+  /** The most render time trailed the newest patch after `from` (ms). */
+  maxBehind: number;
+  /** ms after `from` that it trailed the newest patch by more than the delay's cap (it is far behind the data: the picture is stale). */
+  farBehind: number;
+}
+
+function judge(frames: Frame[], from: number, frameMs = 1000 / 144): Verdict {
+  const v: Verdict = { backwards: 0, worstBack: 0, minSpeed: Infinity, maxSpeed: -Infinity, pastNewest: 0, recoverMs: 0, maxBehind: 0, farBehind: 0 };
+  for (let k = 1; k < frames.length; k++) {
+    const f = frames[k]!;
+    const p = frames[k - 1]!;
+    if (f.t < p.t) { v.backwards++; v.worstBack = Math.max(v.worstBack, p.t - f.t); }
+    const dt = f.now - p.now;
+    if (dt < frameMs * 1.5) {
+      const sp = (f.t - p.t) / dt;
+      v.minSpeed = Math.min(v.minSpeed, sp);
+      v.maxSpeed = Math.max(v.maxSpeed, sp);
+    }
+    if (f.now < from) continue;
+    if (f.t > f.newest) v.pastNewest += dt;
+    v.maxBehind = Math.max(v.maxBehind, f.newest - f.t);
+    if (f.newest - f.t > MAX_INTERP_DELAY_MS + 15) v.farBehind += dt;
+    if (f.delay < MIN_INTERP_DELAY_MS - 2 || f.delay > MAX_INTERP_DELAY_MS + 15) v.recoverMs = f.now - from;
+  }
+  return v;
+}
+
+describe("RenderClock through stalls, hitches and gaps in the frames", () => {
+  const fresh = () => new RenderClock();
+
+  it("never runs backwards on a steady stream or a jittery one", () => {
+    expect(judge(drive(fresh(), stream(800, mulberry32(1), { base: 20 })), 0).backwards).toBe(0);
+    for (const seed of [1, 2, 3]) {
+      const fps = seed === 2 ? 60 : 144;
+      const v = judge(drive(fresh(), stream(1200, mulberry32(seed), { jitter: 15, stall: (i) => (i % 80 === 40 ? 200 : 0) }), { fps }), 0, 1000 / fps);
+      expect(v.backwards, `seed ${seed}`).toBe(0);
+      expect(v.minSpeed, `seed ${seed}`).toBeGreaterThanOrEqual(1 - D.growRate - 1e-9);
+    }
+  });
+
+  it("a client stall of any length followed by its burst moves neither the delay nor render time off its path", () => {
+    for (const ms of [500, 1000, 2000, 2500, 3000, 5000]) {
+      const arrivals = clientStall(900, 400, ms);
+      const burstAt = arrivals[400 + Math.round(ms / PATCH_MS)]!.at;
+      const frames = drive(fresh(), arrivals);
+      const before = frames.filter((f) => f.now < arrivals[400]!.at).pop()!;
+      const v = judge(frames, burstAt);
+      expect(v.backwards, `${ms} ms`).toBe(0);
+      // Frames kept coming during the stall, so render time ran on at full speed and the burst finds it where it was headed.
+      expect(v.minSpeed, `${ms} ms`).toBeGreaterThanOrEqual(1 - D.growRate - 1e-9);
+      expect(v.maxSpeed, `${ms} ms`).toBeLessThanOrEqual(1 + D.shrinkFastRate + 1e-9);
+      expect(v.pastNewest, `${ms} ms`).toBeLessThan(60);
+      expect(v.recoverMs, `${ms} ms`).toBeLessThan(1000);
+      // A stall of a second or more is not the network's jitter: it must not raise or lower the delay for the seconds after.
+      if (ms >= 1000) {
+        const after = frames.filter((f) => f.now > burstAt + 3000)[0]!;
+        expect(Math.abs(after.delay - before.delay), `${ms} ms`).toBeLessThan(8);
+        expect(v.maxBehind, `${ms} ms`).toBeLessThanOrEqual(before.delay + 15);
+      }
+    }
+  });
+
+  it("a server hitch that drops sim time: render time stands still instead of jumping back, and the delay is back inside a second or two", () => {
+    for (const dropped of [150, 300, 600, 1200]) {
+      const ms = dropped + MAX_CATCHUP_STEPS * PATCH_MS;
+      const arrivals = serverHitch(900, 400, ms);
+      const hitchAt = arrivals[400]!.at;
+      const v = judge(drive(fresh(), arrivals), hitchAt);
+      expect(v.backwards, `dropped ${dropped}`).toBe(0);
+      expect(v.minSpeed, `dropped ${dropped}`).toBeGreaterThanOrEqual(-1e-9);
+      // Render time is ahead of the new data by the dropped time minus its delay; it can't go back, so it waits that long (and the
+      // few patches it takes to be sure it was a step), drawing the newest patch as it comes, and is smooth again. A hitch of a
+      // second or more is a stall first: the new median is only taken from the fifth patch after it.
+      const slack = ms >= D.stallMs ? 300 : 120;
+      expect(v.pastNewest, `dropped ${dropped}`).toBeLessThan(dropped + slack);
+      expect(v.recoverMs, `dropped ${dropped}`).toBeLessThan(dropped + slack + 50);
+      expect(v.maxBehind, `dropped ${dropped}`).toBeLessThanOrEqual(MAX_INTERP_DELAY_MS + 15);
+    }
+  });
+
+  it("a hitch that drops less than the step size is left to the window, as before", () => {
+    const arrivals = serverHitch(900, 400, 60 + MAX_CATCHUP_STEPS * PATCH_MS);
+    const v = judge(drive(fresh(), arrivals), arrivals[400]!.at);
+    expect(v.backwards).toBe(0);
+    expect(v.minSpeed).toBeGreaterThanOrEqual(1 - D.growRate - 1e-9);
+  });
+
+  it("a tab that draws nothing for seconds while the patches keep coming: render time only moves forward and the delay stays", () => {
+    for (const hiddenMs of [1000, 3000, 8000]) {
+      const arrivals = stream(1200, mulberry32(3), { base: 20, jitter: 3 });
+      const from = arrivals[0]!.at + 20_000;
+      const frames = drive(fresh(), arrivals, { blackouts: [[from, from + hiddenMs]] });
+      const before = frames.filter((f) => f.now < from).pop()!;
+      const v = judge(frames, from + hiddenMs);
+      expect(v.backwards, `${hiddenMs} ms`).toBe(0);
+      expect(v.pastNewest, `${hiddenMs} ms`).toBeLessThan(40);
+      expect(Math.abs(frames.find((f) => f.now > from + hiddenMs + 500)!.delay - before.delay), `${hiddenMs} ms`).toBeLessThan(8);
+    }
+  });
+
+  it("a tab frozen with its connection (no frames, no patches), then one patch and the stream again", () => {
+    for (const ms of [2000, 6000, 20_000]) {
+      const arrivals = clientStall(1400, 500, ms);
+      const from = arrivals[500]!.at;
+      const frames = drive(fresh(), arrivals, { blackouts: [[from, from + ms]] });
+      const v = judge(frames, from + ms);
+      expect(v.backwards, `${ms} ms`).toBe(0);
+      expect(v.recoverMs, `${ms} ms`).toBeLessThan(1000);
+      expect(v.pastNewest, `${ms} ms`).toBeLessThan(60);
+    }
+  });
+
+  it("a reconnect: seconds of nothing, one full-state patch, then the stream", () => {
+    for (const gap of [1500, 4000]) {
+      const arrivals: Arrival[] = [];
+      for (let i = 0; i < 1000; i++) {
+        const t = 1000 + i * PATCH_MS;
+        if (i >= 400 && i < 400 + gap / PATCH_MS - 1) continue; // nothing arrives
+        arrivals.push({ t, at: t + 25 });
+      }
+      const resume = arrivals.find((a) => a.t > 1000 + 400 * PATCH_MS)!.at;
+      const v = judge(drive(fresh(), arrivals), resume);
+      expect(v.backwards, `${gap} ms`).toBe(0);
+      expect(v.recoverMs, `${gap} ms`).toBeLessThan(1000);
+      expect(v.pastNewest, `${gap} ms`).toBeLessThan(60);
+    }
+  });
+
+  it("catch-up bursts (a late tick followed at once by the next) never move it backwards either", () => {
+    const arrivals = stream(1500, mulberry32(8), { base: 20, jitter: 6, stall: (i) => (i % 31 === 5 ? 120 : i % 53 === 9 ? 220 : 0), skip: (i) => i % 37 === 11 });
+    const v = judge(drive(fresh(), arrivals), 0);
+    expect(v.backwards).toBe(0);
+    expect(v.minSpeed).toBeGreaterThanOrEqual(1 - D.growRate - 1e-9);
+    expect(v.maxSpeed).toBeLessThanOrEqual(1 + D.shrinkFastRate + 1e-9);
+  });
+
+  it("a stall's burst under the stall limit is not mistaken for a step", () => {
+    // A 400 ms hole delivers 8 patches at once; the newest of them is as fresh as ever.
+    const arrivals = clientStall(900, 400, 400);
+    const v = judge(drive(fresh(), arrivals), arrivals[408]!.at);
+    expect(v.minSpeed).toBeGreaterThanOrEqual(1 - D.growRate - 1e-9);
+    expect(v.backwards).toBe(0);
+  });
+
+  it("a link whose latency jumps up for good is followed within a few patches by waiting, not crawling for seconds", () => {
+    const arrivals: Arrival[] = [];
+    for (let i = 0; i < 900; i++) {
+      const t = 1000 + i * PATCH_MS;
+      arrivals.push({ t, at: t + 25 + (i >= 400 ? 200 : 0) });
+    }
+    const v = judge(drive(fresh(), arrivals), arrivals[400]!.at);
+    expect(v.backwards).toBe(0);
+    expect(v.minSpeed).toBeGreaterThanOrEqual(-1e-9);
+    expect(v.recoverMs).toBeLessThan(700);
+  });
+
+  it("a server clock that steps FORWARD against the local one is followed at once (the one direction render time may jump)", () => {
+    const arrivals: Arrival[] = [];
+    for (let i = 0; i < 700; i++) arrivals.push({ t: 1000 + i * PATCH_MS + (i >= 400 ? 600 : 0), at: 1000 + i * PATCH_MS + 25 });
+    const v = judge(drive(fresh(), arrivals), arrivals[400]!.at);
+    expect(v.backwards).toBe(0);
+    expect(v.recoverMs).toBeLessThan(700);
+    // Three patches (about 100 ms) go by before it is sure; then it is at the new data.
+    expect(v.farBehind).toBeLessThan(250);
+  });
+
+  it("a random life of stalls, hitches and latency changes, back to back or not: monotone, and settled within the bounds afterwards", () => {
+    for (let seed = 1; seed <= 24; seed++) {
+      const rng = mulberry32(seed * 7919);
+      const arrivals: Arrival[] = [];
+      let wall = 1000, t = 1000, latency = 30, holdUntil = 0, last = 0;
+      let quietFrom = 0;
+      const n = 2400;
+      for (let i = 0; i < n; i++) {
+        if (i > 100 && i < n - 600 && rng() < 0.006) {
+          const kind = Math.floor(rng() * 3);
+          if (kind === 0) { // the link stalls: what was sent meanwhile arrives together
+            holdUntil = wall + 300 + rng() * 3700;
+            quietFrom = Math.max(quietFrom, holdUntil + latency);
+          } else if (kind === 1) { // the server stops, runs MAX_CATCHUP_STEPS steps in its next tick and drops the rest
+            const stop = 300 + rng() * 1700;
+            wall += stop - PATCH_MS;
+            t += (MAX_CATCHUP_STEPS - 1) * PATCH_MS;
+            quietFrom = Math.max(quietFrom, wall + latency + stop);
+          } else { // the latency changes for good
+            const to = Math.min(250, Math.max(15, latency + (rng() - 0.5) * 360));
+            latency = to;
+            quietFrom = Math.max(quietFrom, wall + latency + 400);
+          }
+        }
+        const at = Math.max(wall + latency - 4 * Math.log(1 - rng()), holdUntil + latency, last);
+        last = at;
+        arrivals.push({ t, at });
+        wall += PATCH_MS;
+        t += PATCH_MS;
+      }
+      const frames = drive(fresh(), arrivals, { fps: seed % 3 === 0 ? 60 : 144 });
+      const v = judge(frames, 0, seed % 3 === 0 ? 1000 / 60 : 1000 / 144);
+      expect(v.backwards, `seed ${seed}`).toBe(0);
+      expect(v.minSpeed, `seed ${seed}`).toBeGreaterThanOrEqual(-1e-9);
+      const settled = judge(frames.filter((f) => f.now > quietFrom + 5000), 0);
+      expect(settled.recoverMs, `seed ${seed}`).toBe(0);
+    }
+  }, 30_000);
+
+  it("ServerClock.resync takes a sample as the offset at once", () => {
+    const c = new ServerClock(2, 250, Infinity);
+    c.observe(5000, 100);
+    c.observe(5050, 150);
+    expect(c.offsetMs).toBe(4900);
+    c.resync(5500, 400);
+    expect(c.offsetMs).toBe(5100);
   });
 });

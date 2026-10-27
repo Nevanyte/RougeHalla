@@ -1,5 +1,5 @@
 // Where the LOCAL fighter is drawn (client-side prediction, presentation only: the server stays authoritative and nothing here
-// is ever sent). Everyone else is drawn the render delay (70-200 ms, see shared/interp.ts RenderClock) in the past; the local fighter would be too, plus the time an order
+// is ever sent). Everyone else is drawn the render delay (70-150 ms: MIN_INTERP_DELAY_MS to MAX_INTERP_DELAY_MS, see shared/interp.ts RenderClock) in the past; the local fighter would be too, plus the time an order
 // needs to reach the server and come back, which made a click feel a fifth of a second late. So the client walks its own
 // model at once, along the same A* path the server will plan (shared findPath, the same walls), and keeps it honest:
 //
