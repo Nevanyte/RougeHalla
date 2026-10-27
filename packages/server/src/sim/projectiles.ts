@@ -73,6 +73,12 @@ export function clearProjectiles(world: World, reason: ProjectileEnd): void {
   for (const pr of [...world.projectiles.values()]) endProjectile(world, pr, pr.x, pr.y, reason);
 }
 
+/** Stops every projectile in flight that `owners` loosed (the training console's clear: a practice mob is gone, its shots go with it). */
+export function clearProjectilesOf(world: World, owners: ReadonlySet<string>, reason: ProjectileEnd): void {
+  if (owners.size === 0) return;
+  for (const pr of [...world.projectiles.values()]) if (owners.has(pr.owner)) endProjectile(world, pr, pr.x, pr.y, reason);
+}
+
 /**
  * The spawn phase: this tick's arrows and balls leave from where their owner's client drew it (the request's origin,
  * the same rewound position melee swings from), at the present time.

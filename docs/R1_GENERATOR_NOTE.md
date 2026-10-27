@@ -1,5 +1,7 @@
 # R1 generator spike: paint-bucket zone maps at 96x96
 
+> **Spike record, not part of this tree.** The files this note names (`gen/`, `renders/`, `logs/`) are the spike's prototype and were never committed here: they live in the spike's own working folder (`r1-generator/`), outside the repository. The production generator is R2's, on the branch `claude/r2-zones`, which this branch does not contain. Read section 12 as the prototype's file list, not as paths in this repository.
+
 **Verdict: GO for R2 with the paint-bucket design, with two caveats.**
 1. On the client, the first attempt in a fresh page meets the 60 ms mean only if the worker runs one throwaway warm-up attempt at boot, and even then it measured 67 ms on a loaded machine.
 2. The Node mean of 40 ms holds on the 1000-seed sweep (36.9 ms) but sat at 42 to 46 ms in two of three 200-seed windows on the loaded machine.

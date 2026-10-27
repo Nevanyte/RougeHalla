@@ -71,6 +71,14 @@ export const PlayerState = schema({
   shieldBonus: t.int16().default(0),
   // --- end of the buffs and stat mirrors ---
 
+  /**
+   * The run's build (roguelike R5; ROGUELIKE_PLAN 3.8): skill id (shared/skills.ts SkillId) -> rank (1 or 2), from the camps'
+   * shared chests. An entry appears with the first pick of that skill and is never removed during the run; R7 adds relics,
+   * curses and boons. What it gives folds through sim/mods.ts like the buffs (the mirrors above carry what a client needs).
+   * Read it through shared/skills.ts rankIn (which also takes undefined or a plain record).
+   */
+  build: t.map("uint8"),
+
   /** Hp a barrier still absorbs; 0 = none (no source since the kill combos went; R6 skills add one). Not the faction's magic `shield` stat. */
   barrier: t.float32().default(0),
 
@@ -78,6 +86,14 @@ export const PlayerState = schema({
   /** The player pressed Ready on the planning screen (a latch). Only meaningful while phase is "planning"; the deal itself is private. */
   planReady: t.boolean().default(false),
   // --- end of planning ---
+  /** Active statuses as EFFECT_* bits (status.ts): crowd control, slows, hidden, casting... For prediction, targeting and art. */
+  effects: t.uint16().default(0),
+  /** Server time each ability slot is ready again (0 = ready), read and written through slotReadyAt / setSlotReadyAt (abilities.ts). */
+  wishReadyAt: t.uint32().default(0),
+  qReadyAt: t.uint32().default(0),
+  eReadyAt: t.uint32().default(0),
+  /** +1 (wrapping) for every forced or ability displacement (a blink, a pull): a changed value is a cut for the interpolation, not a slide. */
+  displaceSeq: t.uint8().default(0),
 }, "PlayerState");
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -109,6 +125,9 @@ export const MobState = schema({
   type: t.string().default(""),
   /** The camp it belongs to: its index in map.camps (and RaidState.camps) + 1; 0 = none (a dummy). */
   camp: t.uint8().default(0),
+  /** EFFECT_* bits, as on PlayerState. */
+  effects: t.uint16().default(0),
+  displaceSeq: t.uint8().default(0),
 }, "MobState");
 export type MobState = SchemaType<typeof MobState>;
 
@@ -119,14 +138,47 @@ export type MobState = SchemaType<typeof MobState>;
 export const CampState = schema({
   /** MobTypeId of the camp's normal mobs (an elite camp's elite is its zone's elite type). */
   type: t.string().default(""),
-  /** "" | "?" | "skills" | "relic" | "cursed": what clearing it gives ("?" hides it until the first damage, R7). */
+  /**
+   * "" | "?" | "skills" | "relic" | "cursed": what clearing it gives ("?" hides it until the first damage, R7). Left "" in R5:
+   * every camp, elite ones included (D8), drops a skill chest until R7 sets the kinds.
+   */
   reward: t.string().default(""),
   /** Mobs of the camp still alive. */
   alive: t.uint8().default(0),
-  /** 0 idle, 1 engaged, 2 cleared. */
+  /**
+   * 0 idle (nobody has hurt a member yet), 1 engaged (a member has taken damage: it never goes back to 0, so R7's "?" reveal
+   * can read it), 2 cleared (every member died: the camp never respawns, and stays cleared through the coliseum teleport).
+   */
   state: t.uint8().default(0),
 }, "CampState");
 export type CampState = SchemaType<typeof CampState>;
+
+/**
+ * An area of the ability framework (a Trial's zone, a Swarm's cloud, a Blaze Step's trail). The server sets an entry once and
+ * deletes it when it ends; it never moves one (a moving area is position(T) = (x, y) + v * (T - startedAt) / 1000, so clients
+ * move it themselves). Kinds and abilities are indices into FIELD_KINDS and ABILITY_IDS (abilities.ts).
+ */
+export const FieldState = schema({
+  kind: t.uint8().default(0),
+  /** Styles the art. */
+  ability: t.uint8().default(0),
+  x: t.float32().default(0),
+  y: t.float32().default(0),
+  /** A line's other end. */
+  x2: t.float32().default(0),
+  y2: t.float32().default(0),
+  /** Radius, or a line's half-width. */
+  r: t.float32().default(0),
+  /** A moving area's velocity; 0 for every area today. */
+  vx: t.float32().default(0),
+  vy: t.float32().default(0),
+  /** The fighter that cast it, and the one it is on (a zone's subject; "" for none). */
+  owner: t.string().default(""),
+  subject: t.string().default(""),
+  startedAt: t.uint32().default(0),
+  endsAt: t.uint32().default(0),
+}, "FieldState");
+export type FieldState = SchemaType<typeof FieldState>;
 
 export const ContainerState = schema({
   id: t.string().default(""),
@@ -136,6 +188,19 @@ export const ContainerState = schema({
   y: t.number().default(0),
   label: t.string().default(""),
   items: t.array(ItemState),
+  // --- A camp's shared chest (kind "reward"; roguelike R5, sim/chests.ts). Unused (0 and empty) on every other kind. The
+  // three empty arrays on each weapon container cost ~0.15-0.25 KB/s per client (they push every later ref id, players and
+  // mobs, past one varint byte); `.optional()` on them would win it back (a Known TODO). ---
+  /** The camp it dropped for: its index in map.camps (and RaidState.camps) + 1; 0 = none. */
+  camp: t.uint8().default(0),
+  /** Server time it vanishes (dropped + CHEST_SECONDS); a pick at or after it is refused. */
+  expiresAt: t.uint32().default(0),
+  /** The options, as SkillIds (shared/skills.ts), in card order. Public by design (D17): the UI shows them only in range. */
+  options: t.array("string"),
+  /** Parallel to `options`: "" while free, else the id of the player who took it. */
+  takenBy: t.array("string"),
+  /** Every player who has made their one pick here, an option or a skip, in the order they made it. */
+  pickers: t.array("string"),
 }, "ContainerState");
 export type ContainerState = SchemaType<typeof ContainerState>;
 
@@ -167,6 +232,8 @@ export const RaidState = schema({
   players: t.map(PlayerState),
   mobs: t.map(MobState),
   containers: t.map(ContainerState),
+  /** The ability areas, keyed by field id: set once, then deleted. */
+  fields: t.map(FieldState),
   /**
    * Every player and mob id, in the order the server first saw them; never reordered, shortened or reused. The fx
    * batches name a fighter by its index here (a byte, against 10 for a session id), see fxCodec.ts. Server code only

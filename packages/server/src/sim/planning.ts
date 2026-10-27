@@ -6,9 +6,15 @@
 //     first to pick a spawn holds it and, within one tick, the order (not the join order) decides. Every other input is
 //     dropped: nobody moves, attacks or is hurt, and no mob exists yet (they are placed when the run starts). A player whose
 //     message changed (an option taken or freed by someone else, their own pick) is sent it again.
-//   - End: at planEndsAt, or as soon as every connected player is ready (at least one connected). Players with no pick get
-//     their first untaken option, then the other (assignSpawns), everyone is placed there, and the run starts (startRaid:
-//     raidStarted, mobs, loot, the first patience timer).
+//   - End: at planEndsAt, or as soon as every connected player is ready (at least one connected), or as soon as one player
+//     is left in a room that started with two or more. Players with no pick get their first untaken option, then the other
+//     (assignSpawns), everyone is placed there, and the run starts (startRaid: raidStarted, mobs, loot, the first patience timer).
+//   - Leaving: planning is part of the run (the room is locked), so a player who leaves in it (a consented leave, or a drop
+//     whose reconnect grace ran out) goes MIA exactly as a leave in the run does (missInPlanning, arena.ts): a result, counted
+//     in their stats (a run and a death), no GV, nothing else banked, and no way to see the deal and requeue for free. The
+//     lobby, before planning, stays free to leave. They still count among the starters (PlanningRuntime.starters feeds
+//     startedWith), so a run the others abandoned ends at once with its last player as the winner and no win bonus (the gate:
+//     3+ starters and damage on 2+ opponents, and nobody can be damaged in planning), as in the run.
 //
 // Secrecy: the deal draws only from world.rewardRandom (never world.random, never the public seed), lives in
 // world.planning, and reaches a player only in their own `plan` message. The state carries planEndsAt and planReady, nothing
@@ -51,6 +57,8 @@ export interface PlanningRuntime {
   /** Pool index -> the player whose pick holds it. */
   holders: Map<number, string>;
   report: DealReport;
+  /** Players in the room when planning began, leavers included: what startedWith is (beginRun) however many leave in planning. */
+  starters: number;
 }
 
 /** A candidate pair of pool spawns (i < j) and how they compare. */
@@ -79,13 +87,17 @@ export function startPlanning(world: World): void {
   const { pairs, report } = dealSpawns(world, ids.length);
   const deals = new Map<string, PlanDeal>();
   ids.forEach((id, k) => deals.set(id, { spawns: pairs[k] ?? [-1, -1], pick: -1, boons: [], boon: -1, sent: "" }));
-  world.planning = { deals, holders: new Map(), report };
+  world.planning = { deals, holders: new Map(), report, starters: ids.length };
+  // Known from here on, not only from the run's start: a result for a player who leaves in planning reports the starters.
+  world.arena.startedWith = ids.length;
   emit(world, { type: "planningStarted" });
   sendChanged(world);
 }
 
 /** One planning tick: the picks in the tick's secret order, the messages that changed, then the end check. */
 export function updatePlanning(world: World, order: readonly string[], startRaid: (world: World, placed: Map<string, Vec2>) => void): void {
+  // A shutdown voided the room (abandonPlayer): nothing advances, and lastOneStanding must not start and win a run that no longer counts.
+  if (world.arena.voided) return;
   const s = world.state;
   for (const id of order) {
     const rt = world.players.get(id);
@@ -93,7 +105,7 @@ export function updatePlanning(world: World, order: readonly string[], startRaid
     for (const cmd of rt.inputs.drain().actions) if (cmd.kind === "plan") applyPlan(world, id, cmd);
   }
   sendChanged(world);
-  if (s.serverTime >= s.planEndsAt || everyoneReady(world)) startRaid(world, assignSpawns(world, order));
+  if (s.serverTime >= s.planEndsAt || everyoneReady(world) || lastOneStanding(world)) startRaid(world, assignSpawns(world, order));
 }
 
 /** A player's message as it stands, or null outside a deal (the Room resends it on a reconnect during planning). */
@@ -115,7 +127,10 @@ export function planFor(world: World, id: string): PlanMessage | null {
   };
 }
 
-/** A player left during planning: what they held is free again, and whoever was dealt it is told. */
+/**
+ * A player left during planning: what they held is free again, and whoever was dealt it is told. The leaver's result (MIA)
+ * is not made here: step.ts removePlayer does that first, and a void run (abandonPlayer) leaves none.
+ */
 export function leavePlanning(world: World, id: string): void {
   const plan = world.planning;
   if (!plan || world.state.phase !== "planning") return;
@@ -166,6 +181,14 @@ function everyoneReady(world: World): boolean {
     connected++;
   }
   return connected > 0;
+}
+
+/**
+ * Everyone but one has left a room that started planning with two or more: nobody is left to plan against, so the run starts
+ * now and the next tick's settle ends it, as it does when the others leave in the run. Not for a solo room, which plans as usual.
+ */
+function lastOneStanding(world: World): boolean {
+  return (world.planning?.starters ?? 0) >= 2 && world.state.players.size === 1;
 }
 
 /**

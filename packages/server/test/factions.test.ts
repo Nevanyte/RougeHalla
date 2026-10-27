@@ -1722,6 +1722,23 @@ describe("damage over time", () => {
     expect(sum(logs.map((l) => sigTotal(l, sig)))).toBeGreaterThan(0);
   });
 
+  it("reports what is left of a chunk when the run ends, before the victory", () => {
+    const world = fireDuel();
+    const logs = run(world, 3);
+    expect(logs.flatMap((l) => fxOf(l.events, "hit").filter((h) => h.sig === "burn"))).toEqual([]);
+    const pending = sum(logs.map((l) => sigTotal(l, "burn")));
+    expect(pending).toBeGreaterThan(0);
+    removePlayer(world, "b");
+    const last = tick(world);
+    expect(world.state.phase).toBe("ended");
+    const fx = last.events.flatMap((e) => (e.type === "fx" ? [e.fx] : []));
+    const report = fx.filter((f): f is Fx<"hit"> => f.kind === "hit" && f.sig === "burn");
+    expect(report).toHaveLength(1);
+    expect(report[0]).toMatchObject({ id: "b", by: "a", sig: "burn" });
+    expect(report[0]!.amount).toBeCloseTo(pending, 9);
+    expect(fx.findIndex((f) => f.kind === "hit")).toBeLessThan(fx.findIndex((f) => f.kind === "victory"));
+  });
+
   it("reports each attacker and victim pair on its own", () => {
     const world = makeWorld([
       { id: "a1", faction: "fire", at: [300, 300] },

@@ -18,7 +18,8 @@ const typical = () => run("typical", { camps: TYPICAL_CAMPS });
 const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
 
 describe("bandwidth budget (per client, ws payload)", () => {
-  // Seed 1 measures 6.5 KB/s with about 10 mobs fighting (6.2 to 7.1 over seeds 1 to 5, 732 and 2547).
+  // Seed 1 measures 6.2 KB/s with about 9 mobs fighting (6.1 to 7.1 over seeds 1 to 5, 732 and 2547; the R2 + R5 tree:
+  // camp-wide aggro and MOB_K 0.22).
   it("typical: 4 camps fought by 2 players each, the map's ~80 mobs: under 20 KB/s", () => {
     const r = typical();
     expect(r.mobs).toBeGreaterThanOrEqual(72); // the map's own camps, topped up to that every tick; the last tick's kills are replaced in the next
@@ -26,9 +27,9 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  // Seed 1 measures 9.6 KB/s with about 24 mobs fighting (9.1 to 10.8 over the seven seeds, 22 to 28 fighting): eight
-  // whole camps of 3 to 5 woken every half second, the most 8 players can pull. (On the old 64 x 64 wedge maps, with 60
-  // mobs at 4.6 a camp, it measured 14.1 to 16.3 with up to 37 fighting.)
+  // Seed 1 measures 9.4 KB/s with about 21 mobs fighting (8.9 to 10.6 over the seven seeds, 19.6 to 25.1 fighting): eight
+  // whole camps of 3 to 5 woken every half second, the most 8 players can pull. (Before R5's MOB_K 0.22 halved a mob's hp,
+  // 9.1 to 10.8 with 22 to 28 fighting; on the old 64 x 64 wedge maps, with 60 mobs at 4.6 a camp, 14.1 to 16.3 with up to 37.)
   it("heavy: 8 camps fought by 1 player each, the map's ~80 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
@@ -37,7 +38,8 @@ describe("bandwidth budget (per client, ws payload)", () => {
   // the numbers by a KB/s or so either way, so one seed is not a fair gate). Every run simulates a minute of play.
   it.each([5, 732, 2547])("heavy, seed %i: under 20 KB/s as well", (seed) => {
     const r = run(`heavy${seed}`, { camps: HEAVY_CAMPS, seed });
-    expect(r.avgFighting).toBeGreaterThan(20);
+    // Loaded: 19.6 fighting at seed 5, the fewest (mobs at MOB_K 0.22 die twice as fast, so fewer stand at once).
+    expect(r.avgFighting).toBeGreaterThan(18);
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
@@ -65,6 +67,15 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(withMobs.avgAwake).toBe(0);
     expect(alone.patchKBps).toBeGreaterThan(1);
     expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan(0.1);
+  });
+
+  // Roguelike R5: seed 1 measures 6.15 KB/s against 6.21 for the same run without them (5 chests up, each picked and skipped;
+  // the chests move the fights, so it can come out lower: 6.0 to 7.0 over the seven seeds).
+  it("5 camp chests up the whole time, on the typical load: under 20 KB/s, under 1 KB/s more than without them", () => {
+    const r = run("chests", { camps: TYPICAL_CAMPS, chests: 5 });
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+    expect(r.totalKBps - typical().totalKBps).toBeLessThan(1);
+    expect(r.fxByKind.chestTaken!.frames).toBeGreaterThan(10);
   });
 
   it("is deterministic for a seed", () => {

@@ -1,0 +1,69 @@
+/* The training room's practice console (ui/trainingConsole.ts), a part of the training bar (trainingBar.css), bottom-left. The bar is
+   click-through (a right-click or a left-click under it must reach the canvas), so the panel and its text are too: only the
+   buttons and the selects take the pointer. The panel is closed until the Console button opens it (the bar hides its tips then),
+   and a short window drops the hint lines, which the controls' tooltips repeat. */
+.train-console {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.training-bar select { pointer-events: auto; }
+
+.train-panel {
+  box-sizing: border-box;
+  width: 296px;
+  max-width: 100%;
+  padding: 8px 10px 9px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid #2f6f78;
+  color: #cfd8dc;
+  font-size: 12px;
+  line-height: 1.4;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+.train-title {
+  margin: 8px 0 4px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #80deea;
+}
+.train-title:first-child { margin-top: 0; }
+
+.train-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-bottom: 4px;
+}
+.train-label { flex: 0 0 62px; color: var(--dim); }
+
+.train-select {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 3px 4px;
+  font: inherit;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--line-hi);
+  border-radius: var(--radius-sm);
+}
+.train-select:hover { border-color: var(--dim); }
+.train-stacks, .train-rank { flex: 0 0 96px; }
+
+.train-btn { padding: 3px 9px; font-size: 12px; white-space: nowrap; }
+.train-btn-clear { border-color: var(--danger-line); color: var(--danger-text); }
+
+.train-hint {
+  margin: 0 0 2px;
+  min-height: 2.8em;
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.35;
+}
+html[data-ui-short] .train-hint { display: none; }

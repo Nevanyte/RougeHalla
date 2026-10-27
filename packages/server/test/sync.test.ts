@@ -758,8 +758,12 @@ describe("schema round trip", () => {
     const valid: Record<(typeof CLIENT_MESSAGE_TYPES)[number], unknown> = {
       move: { x: 100, y: 100 }, stop: {}, target: { id: "p1" }, aim: { a: 1 }, attack: { a: 1 }, release: { a: 1 }, swap: {}, pickup: { containerId: "c1" },
       plan: { ready: true },
+      cast: { slot: "wish", x: 100, y: 100 },
+      choose: { chest: "c1", pick: 0 }, train: { cmd: "clear" },
     };
-    for (const type of CLIENT_MESSAGE_TYPES) expect(enqueueClientMessage(inputs, type, valid[type]), type).toBe(true);
+    // The arena world takes every type but the practice console's.
+    for (const type of CLIENT_MESSAGE_TYPES) expect(enqueueClientMessage(inputs, type, valid[type]), type).toBe(type !== "train");
+    expect(enqueueClientMessage(inputs, "train", valid.train, { training: true })).toBe(true);
     for (const type of ["take", "drop", "use", "teleport"]) expect(enqueueClientMessage(inputs, type, { uid: "x", containerId: "c1" }), type).toBe(false);
   });
 });

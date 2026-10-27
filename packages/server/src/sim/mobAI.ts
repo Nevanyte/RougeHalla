@@ -19,11 +19,17 @@
 //     when it starts holding, a `release` when it stops); `move` only when MOB_REPATH_MS (plus
 //     the mob's `phase`) passed since the last one, `stop` once when it should stand. An idle mob sends nothing at all
 //     (sixty idle mobs cost no inputs).
+//   - Camp-wide aggro (roguelike R5, D24; CAMP_WIDE_AGGRO): damage to one member of a camp (MobState.camp) wakes every
+//     other IDLE living member of that camp onto the same target, whether or not the hit mob was already fighting. A member
+//     walking home ("return") is not woken, nor is a mob of another camp. A mate woken this way holds the target with no
+//     threat of its own (0): threat stays the damage each player did to THAT mob, which is what its kill credit reads
+//     (mobLife.killMob), so a pull never earns a kill. If its target goes down it turns on whoever has hurt it since, or
+//     gives up. Leash and give-up rules are the same as for any fight.
 //   - It only ever targets players; it never attacks another mob.
 //   - On the coliseum teleport (`resetMob`) it drops its fight, its inputs and its path and is put back on its camp spot at
 //     full hp: the gates lock behind the players, so a mob near the coliseum could not walk home.
 import {
-  decide, hasLineOfSight, leashOk, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_REPATH_MS, PLAYER_RADIUS,
+  CAMP_WIDE_AGGRO, decide, hasLineOfSight, leashOk, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_REPATH_MS, PLAYER_RADIUS,
   segmentClear, TICK_MS, wrapAngle, type FactionId, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
@@ -31,6 +37,7 @@ import { activeWeapon, timingsOf } from "./combatant";
 import type { InputQueue } from "./inputs";
 import type { MobCombatant } from "./mobLife";
 import { velocityOf } from "./movement";
+import { isStunned, isUntargetableId } from "./status";
 import { cancelAction } from "./weapons";
 import { collisionMap, type MobBrain, type MobRuntime, type World } from "./world";
 
@@ -70,6 +77,8 @@ function pickTarget(world: World, b: MobBrain): string | null {
       b.threat.delete(id);
       continue;
     }
+    // Hidden or untargetable (Swarm): the threat is kept, but it is not a target while it is out of reach.
+    if (isUntargetableId(world, id)) continue;
     if (threat > most) {
       best = id;
       most = threat;
@@ -84,9 +93,26 @@ export function aggro(world: World, c: MobCombatant, attackerId: string, amount:
   // A returning mob ignores everyone, and a mob is never an enemy of a mob.
   if (!b || c.s.status !== "alive" || b.mode === "return" || !(amount > 0) || !world.players.has(attackerId)) return;
   b.threat.set(attackerId, (b.threat.get(attackerId) ?? 0) + amount);
-  if (b.mode !== "idle") return;
-  const target = pickTarget(world, b);
-  if (target === null) return;
+  if (b.mode === "idle") {
+    const target = pickTarget(world, b);
+    if (target === null) return;
+    wake(world, b, target);
+  }
+  if (CAMP_WIDE_AGGRO && b.mode === "fight" && b.target !== null) wakeCamp(world, c, b.target);
+}
+
+/**
+ * D24 for a lethal hit: a mob that dies in one pass never reaches `aggro`'s fight branch, so its mates would stay asleep
+ * through a kill they just watched. Called by killMob with the credited killer: the same rules as a camp-wide wake (idle,
+ * living mates of the camp, no threat of their own, never a hidden or untargetable target), and only for a killer still
+ * standing. No recursion: wakeCamp wakes, it never damages.
+ */
+export function wakeMatesOnKill(world: World, c: MobCombatant, killerId: string): void {
+  if (!CAMP_WIDE_AGGRO || standingPlayer(world, killerId) === null) return;
+  wakeCamp(world, c, killerId);
+}
+
+function wake(world: World, b: MobBrain, target: string): void {
   b.mode = "fight";
   b.target = target;
   // The give-up timer runs from the wake; from then on only damage the mob deals restarts it (ledger.recordHit).
@@ -95,6 +121,24 @@ export function aggro(world: World, c: MobCombatant, attackerId: string, amount:
   b.goal = null;
   b.moving = false;
   b.holding = false;
+}
+
+/**
+ * D24: every other idle, living member of `c`'s camp wakes onto `target` (no threat of its own: see the header). Not onto a
+ * target that is hidden or untargetable (Swarm): pickTarget would never choose it, and the hit mob's own fight drops it next
+ * tick, so the mates stay idle until a hit wakes them onto someone they can see.
+ */
+function wakeCamp(world: World, c: MobCombatant, target: string): void {
+  const camp = c.s.camp;
+  if (!(camp >= 1) || isUntargetableId(world, target)) return;
+  for (const rt of world.mobs.values()) {
+    const b = rt.brain;
+    if (rt.id === c.id || b === undefined || b.mode !== "idle") continue;
+    const s = world.state.mobs.get(rt.id);
+    if (s === undefined || s.camp !== camp || s.status !== "alive") continue;
+    if (!b.threat.has(target)) b.threat.set(target, 0);
+    wake(world, b, target);
+  }
 }
 
 /**
@@ -148,6 +192,8 @@ export function thinkMobs(world: World, dtMs: number): void {
     if (b === undefined || b.mode === "idle") continue;
     const s = world.state.mobs.get(rt.id);
     if (s === undefined || s.status !== "alive") continue;
+    // A stunned mob does not think (step.ts drains its inputs); its timers wait with it.
+    if (isStunned(world, { kind: "mob", id: rt.id, s, rt })) continue;
     // It walked to where it was going (or the walk was refused): it is standing, whatever it last asked for.
     if (b.moving && rt.path.length === 0) b.moving = false;
     if (b.mode === "fight") fight(world, s, rt, b, now, dtMs);
@@ -165,6 +211,8 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
   }
   let id = b.target;
   let target = standingPlayer(world, id);
+  // A target that turned untargetable is as good as gone (the pick below skips it too); with no one else, the mob goes home.
+  if (target !== null && isUntargetableId(world, id!)) target = null;
   if (id === null || target === null) {
     id = b.target = pickTarget(world, b);
     target = standingPlayer(world, id);

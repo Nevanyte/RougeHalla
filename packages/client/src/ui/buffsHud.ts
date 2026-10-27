@@ -15,6 +15,7 @@ import { tipText } from "./buffTip";
 import "./buffsHud.css";
 import { cssColor, el } from "./dom";
 import { zoneClipPath } from "./mapPainter";
+import { PassivesRow } from "./passivesRow";
 import { osPrefersReducedMotion, reducedMotionActive } from "./settingsPanel";
 
 /** Shown while a living player in a run with mobs holds no buff yet. */
@@ -62,6 +63,8 @@ export class BuffsHud {
   private readonly chips: ChipView[] = [];
   private readonly empty = el("div", "buff-empty", EMPTY_HINT);
   private readonly feed = el("div", "hud-feed");
+  /** The passives held (the camps' chest skills), after the buff chips; click-through like them. */
+  readonly passives = new PassivesRow();
   private stripShown = true;
   private emptyShown = true;
   private feedShown = true;
@@ -106,7 +109,7 @@ export class BuffsHud {
       this.chips.push(chip);
       this.lastStacks.push(0);
     }
-    this.root.append(this.strip, this.empty, this.feed);
+    this.root.append(this.strip, this.passives.root, this.empty, this.feed);
     this.setStripShown(false);
     this.setEmptyShown(false);
     this.setFeedShown(false);
@@ -140,7 +143,8 @@ export class BuffsHud {
       this.lastFeed = feed.line;
       this.feed.textContent = feed.line;
     }
-    this.root.hidden = !this.stripShown && !this.emptyShown && !this.feedShown;
+    this.passives.update(me?.build, me?.faction, alive);
+    this.root.hidden = !this.stripShown && !this.emptyShown && !this.feedShown && !this.passives.shown;
     // A tooltip must not outlive its chip (the buff fell to nothing) or the strip (death, a new room).
     if (this.tipAt >= 0 && (!this.stripShown || this.chips[this.tipAt]!.root.hidden)) this.hideTip();
   }
@@ -157,6 +161,7 @@ export class BuffsHud {
       if (chip.popTimer !== null) clearTimeout(chip.popTimer);
       chip.popTimer = null;
     }
+    this.passives.destroy();
     this.root.remove();
   }
 
@@ -317,6 +322,8 @@ function isWorldTarget(target: EventTarget | null): boolean {
 }
 
 function hasRegionalMobs(state: RaidState): boolean {
+  // A training room's practice mobs (the console's camps) pay nothing, so the feed line and the next-kill gain would be wrong there.
+  if (state.training === true) return false;
   for (const m of state.mobs.values()) if (m.kind === "mob" || m.kind === "elite") return true;
   return false;
 }

@@ -13,11 +13,13 @@
 //   - hurtMob(world, c, amounts, entries) is the ledger's way down for a regional mob (ledger.ts calls it instead of
 //     damageMob when kind != "dummy"). `amounts[i]` is the mitigated damage of `entries[i]`. It removes the hp (never
 //     below 0), stamps lastHitAt, tells the AI who hit it (aggro) and, when the hp is gone, kills it. Returns the hp removed.
+//   - Camps (sim/camps.ts): the first damage to a member engages its camp (CampState.state 1), and the death of its last
+//     member clears it (2) and, after the pass, drops its shared chest (sim/chests.ts), whoever killed it. Never respawned.
 //   - killMob: status "dead", brain.diedAt = now, input queue and path cleared, a `death` fx (by = the killer's id). The
 //     killer is the player who did it the most damage over the whole fight (brain.threat: what each did since it last
 //     rested, plus this pass's hits; an exact tie goes to the lower tick rank) among players still in the run with no
 //     result out, so one last arrow cannot take an elite someone else wore down. With none, the mob just dies and its
-//     weapon still drops. The spoils are paid after the ledger pass (payLater), in this order:
+//     weapon still drops. The kill wakes the camp's idle mates onto that killer (mobAI.wakeMatesOnKill, D24), as any hit does. The spoils are paid after the ledger pass (payLater), in this order:
 //       1. creditMobKill (arena.ts): mob GV (x m, GV_MOB / GV_ELITE, capped) and the feed, where m is the reward
 //          multiplier read INSIDE the pass (every feed is still its tick-start value there, so the order kills are paid
 //          in never changes it);
@@ -33,12 +35,12 @@ import {
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
 import { grantBuff } from "./buffs";
-import { campMobDied, ensureRosters } from "./camps";
+import { campEngaged, campMobDied, ensureRosters } from "./camps";
 import { mobScale, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
 import { dropWeapon } from "./loot";
-import { aggro, newBrain, resetMob } from "./mobAI";
+import { aggro, newBrain, resetMob, wakeMatesOnKill } from "./mobAI";
 import { addMob } from "./mobs";
 import { cancelAction } from "./weapons";
 import { chainHook, emit, payLater, tieRank, type LedgerEntry, type World } from "./world";
@@ -102,6 +104,7 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
   const before = c.s.hp;
   c.s.hp = Math.max(0, before - total);
   c.rt.lastHitAt = world.state.serverTime;
+  campEngaged(world, c.s.camp);
   if (c.s.hp <= 0) {
     killMob(world, c, entries, amounts, before);
   } else {
@@ -167,6 +170,9 @@ export function killMob(
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
   emit(world, { type: "fx", fx: { kind: "death", id: c.id, x: c.s.x, y: c.s.y, by: killer } });
+  world.hooks.fighterOut?.(world, c.id, "down");
+  // A lethal hit never reaches aggro's fight branch, so the camp is woken here, onto the credited killer (D24).
+  if (killer !== null) wakeMatesOnKill(world, c, killer);
 
   const { elite } = brain;
   const type = mobTypeOf(c.s.type, brain.region, elite);
@@ -191,6 +197,9 @@ export function mobTypeOf(type: string, region: FactionId, elite: boolean): MobT
 }
 
 function payMobKill(world: World, killerId: string, elite: boolean, type: MobTypeId, weapon: string, at: Vec2, m: number): void {
+  // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed, buff or drop, so a
+  // practice kill never changes the build the player set up.
+  if (world.config.training) return;
   const p = world.state.players.get(killerId);
   const rt = world.players.get(killerId);
   if (!p || !rt || rt.resolved) {

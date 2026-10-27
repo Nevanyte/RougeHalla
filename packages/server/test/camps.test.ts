@@ -255,6 +255,14 @@ describe("alive counts down", () => {
     hurtMob(w, m, [m.s.maxHp + 5], [entryBy(m.id, "p0", m.s.maxHp + 5)]);
     expect(m.s.status).toBe("dead");
     expect(w.state.camps[1]!.alive).toBe(alive - 1);
+    // The kill woke the mates onto p0 (a Fire player: its backlash would kill them as they come, which this test is not about).
+    for (const mate of mobsOf(w)) {
+      if (mate.s.camp !== 2 || mate.s.status !== "alive") continue;
+      expect(mate.rt.brain!.mode).toBe("fight");
+      mate.rt.brain!.mode = "idle";
+      mate.rt.brain!.target = null;
+      mate.rt.brain!.threat.clear();
+    }
     for (let i = 0; i < 400; i++) step(w, TICK_MS); // past MOB_CORPSE_MS: the body is removed
     expect(w.state.mobs.has(m.id)).toBe(false);
     expect(w.state.camps[1]!.alive).toBe(alive - 1);

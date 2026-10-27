@@ -2,9 +2,9 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mapHashU32, mulberry32, withGates, type DamageShares, type FactionId, type FxEvent, type GameMap, type GvReason,
-  type PlanMessage, type ProjectileKind, type ProjectileLaunch, type RunResult, type Sample, type SignatureKind, type Vec2,
-  type WeaponId,
+  generateMap, mapHashU32, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId,
+  type FieldKind, type FxEvent, type GameMap, type GvReason, type PlanMessage, type ProjectileKind, type ProjectileLaunch,
+  type RunResult, type Sample, type SignatureKind, type StatusKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
@@ -43,6 +43,8 @@ export interface SimConfig {
    * scales with the players like every later one (patienceMs). Timers after a death always scale.
    */
   firstPatienceSeconds?: number;
+  /** Seconds after the run starts that every Wish stays locked (sim/abilities.ts armWishes); WISH_LOCK_SECONDS when absent. */
+  wishLockSeconds?: number;
 }
 
 /**
@@ -100,6 +102,81 @@ export interface CombatRuntime {
   /** Recent authoritative positions (oldest first) for lag-compensated hit tests and present-time projectile sweeps. */
   history: Sample[];
   weapon: WeaponRuntime;
+  /** Timed statuses on this fighter (sim/status.ts). Created on first use, so a hand-built runtime needs nothing. */
+  statuses?: StatusInstance[];
+  /** The ability being cast, if any (sim/abilities.ts). It is not a weapon action: it roots, but only its def's `cancelledBy` ends it. */
+  cast?: CastRuntime | null;
+}
+
+/** One timed status on a fighter (sim/status.ts). Per-kind fields are set only for that kind. */
+export interface StatusInstance {
+  kind: StatusKind;
+  source: DamageSource;
+  ability?: AbilityId;
+  /** The buff or relic behind it, for sources that are not an ability. */
+  tag?: string;
+  startedAt: number;
+  until: number;
+  /** The magnitude: a slow or anti-heal share, a haste bonus, a dot's raw dps. */
+  value: number;
+  /** hidden: its own attack or cast has revealed it from `revealFrom` (the tick after it began, so no fighter's order decides what another reads in that tick) until `revealUntil`. */
+  revealFrom?: number;
+  revealUntil?: number;
+  /** zoned: the zone's field and the damage factors it applies. */
+  fieldId?: string;
+  dealtMult?: number;
+  takenFromSourceMult?: number;
+  /** deathFloor: the hp it holds the fighter at, the hp loss it has held up so far and the share paid back as a heal at its end. */
+  floorHp?: number;
+  taken?: number;
+  healShare?: number;
+  /** dot: the damage shares of its raw damage (all true when absent). */
+  shares?: DamageShares;
+}
+
+/** A pending ability cast (sim/abilities.ts). Times are server ms. */
+export interface CastRuntime {
+  ability: AbilityId;
+  rank: number;
+  slot: AbilitySlot;
+  startedAt: number;
+  landsAt: number;
+  target: string | null;
+  point: Vec2;
+  /** The blink's landing, found when the cast is re-validated just before it lands. */
+  landing: Vec2 | null;
+  /** The slot's ready time before the cast spent it, restored when the arena cancels the cast. */
+  prevReadyAt: number;
+  /** From the cast's `t`, clamped like a weapon's lag; unused until skills rewind. */
+  lagMs: number;
+}
+
+/** An area in the world (sim/fields.ts), mirrored once into `state.fields`. */
+export interface FieldRuntime {
+  id: string;
+  kind: FieldKind;
+  ability: AbilityId;
+  owner: DamageSource;
+  subject: string | null;
+  x: number;
+  y: number;
+  x2: number;
+  y2: number;
+  r: number;
+  vx: number;
+  vy: number;
+  startedAt: number;
+  endsAt: number;
+}
+
+/** Server-only ability data, created on first use (sim/fields.ts `abilitiesRt`); `World.abilities` is null until then. */
+export interface AbilitiesRuntime {
+  fields: Map<string, FieldRuntime>;
+  /** Ability damage over time waiting to be reported as one `hit` fx per DOT_FX_MS, by victim and source (the signature dot's twin). */
+  dot: Map<string, { victim: string; by: string; ability: AbilityId; amount: number }>;
+  dotSince: number;
+  /** Server ms of the coliseum teleport, once there was one: a cast arriving within CAST_TELEPORT_GRACE_MS of it is refused. */
+  teleportedAt?: number;
 }
 
 export interface PlayerRuntime extends CombatRuntime {
@@ -127,6 +204,16 @@ export interface PlayerRuntime extends CombatRuntime {
   fired?: Set<string>;
   /** Rampage announcement throttle (sim/feed.ts). Created on first use. */
   announce?: AnnounceRuntime;
+  /** Heals spread over time still to come (Second Wind; sim/factions.ts healOverTime). Created on first use. */
+  hots?: HealOverTime[];
+}
+
+/** The rest of a heal spread over time: `left` more steps of `amount`, the next at server ms `next`. */
+export interface HealOverTime {
+  next: number;
+  left: number;
+  amount: number;
+  ignoreLockout: boolean;
 }
 
 /** Server-only timers behind a player's buffs. Times are server ms. */
@@ -193,8 +280,12 @@ export interface LedgerEntry {
   victim: string;
   by: DamageSource;
   packet: DamagePacket;
-  /** The weapon that dealt it (a riposte and a reflected arrow name the shield). */
-  weapon: WeaponId;
+  /** The weapon that dealt it (a riposte and a reflected arrow name the shield); null for an ability's or another named source's damage. */
+  weapon: WeaponId | null;
+  /** The ability that dealt it (weapon null). `by` is the caster, so kill credit and the bounty work as for a weapon. */
+  ability?: AbilityId;
+  /** Damage over time, from a status or an area: no `hit` fx of its own (it is reported in chunks). */
+  dot?: boolean;
   /** A projectile hit: a swing landing later in the same tick can still halve or cancel it (see `scale`). */
   projectile?: string;
   /** Applied to the packet at resolution: 1, SWORD_BALL_SCALE after a sword met the ball, 0 after an axe destroyed it. */
@@ -221,8 +312,10 @@ export interface LandedHit {
   by: string;
   /** After armor and shield: the whole hit, even past the hp a killing tick removes (as testing/realtime.py counts it). */
   amount: number;
-  weapon: WeaponId;
+  weapon: WeaponId | null;
   sig?: SignatureKind;
+  ability?: AbilityId;
+  dot?: boolean;
 }
 
 /** A swing whose windup ended this tick (resolved in the melee phase). */
@@ -322,7 +415,7 @@ export interface ArenaRuntime {
   downedThisTick: Array<{ p: PlayerState; rt: PlayerRuntime }>;
   /** Players who went down between steps (a leave). Resolved at once, they still count as the next tick's deaths. */
   downsBetweenTicks: number;
-  /** Set when a player is abandoned mid-run (a server shutdown): the run is void and the sim stops advancing it. */
+  /** Set when a player is abandoned mid-run or in planning (a server shutdown): the run is void and the sim stops advancing it (planning never starts one). */
   voided: boolean;
   /**
    * Every player's bounty when the tick being simulated began. A kill in a tick pays the victim's bounty from here,
@@ -382,6 +475,19 @@ export interface WorldHooks {
   playerKilled?(world: World, killer: PlayerRuntime): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
   weaponSwapped?(world: World, c: Combatant): void;
+  /** A fighter left the fight for good: a player went down (`down`) or left (`removed`), or a mob died (`down`). Modules clear their state for it. */
+  fighterOut?(world: World, id: string, cause: "down" | "removed"): void;
+  /**
+   * The run just ended (arena.ts endRun: a winner, a draw, a void): results are out and the phase is "ended". The Wishes
+   * clear their casts, statuses and fields here; sim/chests.ts removes every chest.
+   */
+  runEnded?(world: World): void;
+  /** `c` just started an attack (a swing, a cast or a draw): its `action` is set. */
+  attackStarted?(world: World, c: Combatant): void;
+  /** A status was applied to `c` (after its effect bits were refreshed); `fresh` is false for a refresh of an instance it already had. */
+  statusApplied?(world: World, c: Combatant, st: StatusInstance, fresh: boolean): void;
+  /** A stagger took on `c` (its immunity has started). */
+  staggered?(world: World, c: Combatant): void;
   /**
    * A ledger entry just took effect on its victim (applyLedger, after the victim's damage, once per entry that lands
    * a `landed` record: mitigated damage above 0, not the arena's burn). `applied` is that damage after armor and shield
@@ -394,9 +500,16 @@ export interface WorldHooks {
    * A standing fighter just took `applied` damage in the ledger pass (applyLedger, once per victim per pass, after all of
    * its hits landed together, the arena's burn included; before the hit fx and hitLanded). It is still standing: a victim
    * the pass killed is not reported. Reactions to the fighter's own hp (Blood Saint's trigger, sim/factions.ts) hang here;
-   * they decide from the victim's own state only and defer what they pay with payLater.
+   * they decide from the victim's own state only and defer what they pay with payLater. `applied` is what reached the pool
+   * (a death floor that held the hp counts the whole hit), so `hpBefore`, the hp as the pass began, is what a "crossed the
+   * threshold" test must read, never hp + applied.
    */
-  hurt?(world: World, c: Combatant, applied: number): void;
+  hurt?(world: World, c: Combatant, applied: number, hpBefore: number): void;
+  /**
+   * Camp `camp` (its index in map.camps) just lost its last mob (sim/camps.ts). Called after the ledger pass that killed it
+   * (payLater), right after the `campCleared` fx; sim/chests.ts drops the camp's shared chest here.
+   */
+  campCleared?(world: World, camp: number): void;
 }
 
 export interface World {
@@ -421,7 +534,7 @@ export interface World {
   /** Secret salt for the per-tick player processing order (see actionOrder in step.ts). */
   orderSalt: number;
   /**
-   * A private stream for reward and roster rolls (chest choices, camp rosters; nothing draws from it yet). Separate from
+   * A private stream for reward and roster rolls (camp rosters at world build, chest options when a camp is cleared). Separate from
    * `random`, so drawing from it never shifts the loot rolls. The Room seeds it with a fresh crypto salt (createWorld's
    * `rewardSalt`); without one it is derived from orderSalt, which is fine for tests but not for a live room: orderSalt
    * also keys tieRank, whose outcomes a client can observe (see CLAUDE.md), so it is not secret enough to roll rewards from.
@@ -451,6 +564,8 @@ export interface World {
   factions: FactionsRuntime | null;
   /** The planning phase's private deal (sim/planning.ts): null until planning starts, kept (read-only) after it. */
   planning: PlanningRuntime | null;
+  /** Areas and ability damage over time (sim/fields.ts); null until something uses them. */
+  abilities: AbilitiesRuntime | null;
 }
 
 export function createWorld(opts: {
@@ -514,6 +629,7 @@ export function createWorld(opts: {
     arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
     planning: null,
+    abilities: null,
   };
 }
 
@@ -566,8 +682,9 @@ export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
 }
 
-type ChainableHook = "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed"
-  | "hitLanded" | "hurt";
+type ChainableHook =
+  | "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt"
+  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

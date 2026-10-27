@@ -9,9 +9,10 @@
 // grant, and a bounty moves half of a victim's stacks of each buff, fractions and all).
 //
 // How the table's rows are read (decisions R4a made where ROGUELIKE_PLAN 3.4 left room; the docs record them):
-//   damage       an outgoing multiplier on every hit the owner deals, weapon hits and signature damage alike (burn,
-//                disease, the mark, backlash), so Sentenced, whose damage is nearly all its mark, benefits in full. It is
-//                applied to the raw damage before armor and shield (server ledger.ts).
+//   damage       an outgoing multiplier on the weapon hits and the signature damage the owner deals (burn, disease, the
+//                mark, backlash), so Sentenced, whose damage is nearly all its mark, benefits in full. It is applied to
+//                the raw damage before armor and shield (server ledger.ts). Never on a Wish's ability damage: that is
+//                flat power (GAME_DESIGN 8.9).
 //   vs, scale    damage rows too: a `vs` row whose test holds for the victim, and a `scale` row's stepped bonus, add to
 //                the damage sum (1 + stat damage + vs + scale; rows within the damage key add, never multiply). Both read
 //                the state as the tick's ledger pass began, so the order hits are applied in never matters. `scale`
@@ -34,7 +35,7 @@
 // Kill combos (bursts, the kill shield, the cooldown reset) are gone (decision 7); they come back as relic and skill synergies.
 import {
   BOUNTY_STACK_SHARE, BUFF_REF_STACKS, BUFF_S0, BUFF_W, CATCHUP_GAP, CATCHUP_MULT, DUEL_PACE, LIFESTEAL_MAX, LS_CAP,
-  REWARD_FLOOR, REWARD_MID, REWARD_WIDTH,
+  HEAL_OVER_TIME_STEP_MS, REWARD_FLOOR, REWARD_MID, REWARD_WIDTH,
 } from "./constants";
 import { visitEffect, type Effect, type StatKey } from "./effects";
 import type { FactionId } from "./factions";
@@ -117,7 +118,9 @@ const ROWS: readonly BuffRow[] = [
   },
   { id: "inquisitor", effects: [{ k: "vs", test: "streak", arg: 3, v: 0.12, needs: "status" }], worksWith: ["any"], counters: ["longDuels"] },
   { id: "executioner", effects: [{ k: "vs", test: "hpBelow", arg: 0.3, v: 0.3 }], worksWith: ["any"], counters: ["healers", "holy"] },
-  { id: "plagueRat", effects: [{ k: "stat", stat: "attackSpeed", v: 0.08 }], worksWith: ["any"], counters: ["any"] },
+  // Attack speed moves weapon damage only: +8% weapon dps is +8% of all damage for Frost and Holy, +4% for Plague, +2% for
+  // Fire and +0.1% for Sentenced (testing/TUNING_ROGUE.md), so it suits the weapon-damage factions (owner left it to us).
+  { id: "plagueRat", effects: [{ k: "stat", stat: "attackSpeed", v: 0.08 }], worksWith: ["frost", "holy", "plague"], counters: ["any"] },
   {
     id: "bloatfly", effects: [{ k: "onHit", status: "dot", per: 4, cap: 1, ms: 3000, needs: "status" }],
     worksWith: ["any"], counters: ["frost", "highHp"],
@@ -269,6 +272,16 @@ function pct(v: number): string {
   return String(Math.round(v * 1000) / 10);
 }
 
+/** How many equal steps a heal over time of nominal length `ms` is paid in, the first at once (Second Wind's 2000 is four). */
+export function healOverTimeSteps(ms: number): number {
+  return Math.max(1, Math.round(ms / HEAL_OVER_TIME_STEP_MS));
+}
+
+/** From its first step to its last: what a heal over time really spans, and what its text says (four steps 500 ms apart: 1.5 s). */
+export function healOverTimeSpanMs(ms: number): number {
+  return (healOverTimeSteps(ms) - 1) * HEAL_OVER_TIME_STEP_MS;
+}
+
 /** Points with at most one decimal: 10 "10", 10.84 "10.8". */
 function pts(v: number): string {
   return String(Math.round(v * 10) / 10);
@@ -287,6 +300,7 @@ function statWord(stat: StatKey): string {
     case "healTaken": return "healing taken";
     case "damageTaken": return "damage taken";
     case "cooldown": return "cooldown time";
+    case "executeBand": return "execute threshold (Plague only)";
     case "armor": return "armor";
     case "shield": return "magic resist";
   }
@@ -299,7 +313,9 @@ function signed(v: number, s: string): string {
 /** One row in words, numbers as given (already scaled): "+5% damage". */
 export function effectText(e: Effect): string {
   return visitEffect<string>(e, {
-    stat: (r) => `${signed(r.v, `${pct(Math.abs(r.v))}%`)} ${statWord(r.stat)}`,
+    stat: (r) => r.stat === "executeBand"
+      ? `Execute starts at ${pct(0.5 + r.v)}% HP (from 50%; Plague only)`
+      : `${signed(r.v, `${pct(Math.abs(r.v))}%`)} ${statWord(r.stat)}`,
     flat: (r) => `${signed(r.v, pts(Math.abs(r.v)))} ${statWord(r.stat)}`,
     vs: (r) => {
       const amount = `${signed(r.v, `${pct(Math.abs(r.v))}%`)} damage`;
@@ -335,10 +351,10 @@ export function effectText(e: Effect): string {
     },
     trigger: (r) => {
       const when = r.on === "hpBelow" ? `Below ${pct(r.arg)}% HP` : r.on === "kill" ? "On a kill" : "When hit";
-      const once = r.once ? " (once per run)" : "";
+      const once = r.once ? (r.rearm === "teleport" ? " (once, and again after each teleport)" : " (once per run)") : "";
       const a = r.do;
       switch (a.do) {
-        case "heal": return `${when}: heal ${pct(a.share)}% of max HP${once}`;
+        case "heal": return `${when}: heal ${pct(a.share)}% of max HP${a.ms ? ` over ${pts(healOverTimeSpanMs(a.ms) / 1000)} s` : ""}${once}`;
         case "barrier": return `${when}: a barrier of ${pct(a.share)}% of max HP for ${pts(a.ms / 1000)} s${once}`;
         case "status": return `${when}: ${a.status} for ${pts(a.ms / 1000)} s${once}`;
         case "cleanse": return `${when}: cleanse${once}`;

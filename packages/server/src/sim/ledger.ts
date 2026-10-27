@@ -6,20 +6,25 @@
 // shields, drops) are queued while the damage lands and paid after the last victim has taken theirs (payLater), so a
 // kill's spoils never decide who survives the pass.
 //
-// The outgoing multiplier (roguelike R4a): every entry's raw damage is multiplied by its attacker's damage rows (stat
-// damage, `vs` rows whose test holds against the victim, `scale` rows; sim/mods.ts outgoingMult) before armor and shield,
-// weapon hits and signature damage alike. Every entry's multiplier is fixed at the start of the pass, before any victim
-// takes damage, from the hp fractions as they stood then, so the order victims are processed in never changes it. The
-// arena's own burn and a dealer that is not a fighter in the world are never multiplied.
+// The outgoing multiplier (roguelike R4a): a weapon hit's or signature damage's raw damage is multiplied by its attacker's
+// damage rows (stat damage, `vs` rows whose test holds against the victim, `scale` rows; sim/mods.ts outgoingMult) before
+// armor and shield. Every entry's multiplier is fixed at the start of the pass, before any victim takes damage, from the
+// hp fractions as they stood then, so the order victims are processed in never changes it. A Wish's ability entry (`ability`
+// set: its damage and its damage-over-time chunks) is NOT multiplied: ability power is flat (owner ruling "Keep Wishes flat",
+// GAME_DESIGN 8.9). The status runtime's damageFactor (Trial's zone, sim/status.ts) multiplies in after the rows, ability
+// damage included (it is the one relative number); the status table is frozen during the pass (changes are queued with
+// payLater), so it reads the same for every entry too. The arena's own burn and a dealer that is not a fighter in the world
+// are never multiplied.
 import { isDot, mitigateShares } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
-import { outgoingMult } from "./mods";
+import { outgoingMult, type VsProbe } from "./mods";
+import { damageFactor } from "./status";
 import { stagger } from "./weapons";
-import { lobbyMedianFeed } from "./feed";
-import { emit, type DamageSource, type LedgerEntry, type World } from "./world";
+import { feedOfPlayer, lobbyMedianFeed } from "./feed";
+import { emit, type DamageSource, type LandedHit, type LedgerEntry, type World } from "./world";
 
 /**
  * Records a hit landing this tick. Returns the entry, so the melee phase can still scale a projectile's hit. Mobs never
@@ -86,14 +91,42 @@ function hpFrac(world: World, id: string): number {
   return s && s.maxHp > 0 ? s.hp / s.maxHp : 1;
 }
 
-/** Each entry's outgoing multiplier (1 for most), from the state before the pass; only entries that differ are listed. */
+/**
+ * The `vs` tests beyond hp (roguelike R5) for a hit by `by` on `victim`, answered from the state as it stands when asked:
+ * outgoingMults asks before any victim of the pass takes damage, and kills pay their feed only after the pass, so every
+ * answer is the pass's start. Lazy: nothing is read for an attacker without such a row.
+ *   higherFeed  both are players and the victim's feed (kills + a quarter per mob kill) is above the attacker's.
+ *   thirdParty  the victim's target lock, a mob victim's fight target, or its signature target (the last enemy it hit,
+ *               sim/factions.ts) names someone other than the attacker.
+ */
+function vsProbe(world: World, by: string, victim: string): VsProbe {
+  return {
+    higherFeed: () => {
+      const vp = world.state.players.get(victim);
+      const vrt = world.players.get(victim);
+      const ap = world.state.players.get(by);
+      const art = world.players.get(by);
+      return !!(vp && vrt && ap && art) && feedOfPlayer(vp, vrt) > feedOfPlayer(ap, art);
+    },
+    thirdParty: () => {
+      const other = (t: string | null | undefined): boolean => t != null && t !== by;
+      const lock = world.players.get(victim)?.weapon.lock ?? null;
+      const fight = world.mobs.get(victim)?.brain?.target ?? null;
+      const sig = world.factions?.fighters.get(victim)?.target ?? null;
+      return other(lock) || other(fight) || other(sig);
+    },
+  };
+}
+
+/** Each entry's outgoing multiplier (1 for most, and for every ability entry), from the state before the pass; only entries that differ are listed. */
 function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Map<LedgerEntry, number> {
   const out = new Map<LedgerEntry, number>();
   for (const e of ledger) {
-    if (e.arena || !(e.scale > 0)) continue;
+    // Ability power is flat (the Wishes' D12): a Wish's damage and its DoT chunks never read the caster's buffs.
+    if (e.arena || e.ability !== undefined || !(e.scale > 0)) continue;
     const by = world.state.players.get(e.by.id) ?? world.state.mobs.get(e.by.id);
     if (!by) continue;
-    const m = outgoingMult(by, hpFrac(world, e.victim));
+    const m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim));
     if (m !== 1) out.set(e, m);
   }
   return out;
@@ -103,12 +136,19 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Read
   const c = combatant(world, id);
   if (!c || !standing(c)) return;
   const def = defenseOf(c.s);
-  const amounts = entries.map((e) => (e.scale > 0 ? mitigateShares(e.packet.raw * e.scale * (out.get(e) ?? 1), e.packet, def) : 0));
+  // Before mitigation: the attacker's outgoing rows (`out`, read as the pass began), then damageFactor (Trial's zone), the one
+  // place a status changes the damage of every source. The arena's own burn is no one's hit.
+  const amounts = entries.map((e) => {
+    if (!(e.scale > 0)) return 0;
+    const raw = e.packet.raw * e.scale * (out.get(e) ?? 1) * (e.arena ? 1 : damageFactor(world, e.by.id, id));
+    return mitigateShares(raw, e.packet, def);
+  });
   // A player's hits reach the one way down in the tick's secret order (players by rank, then anyone else), so an exact
   // tie for the kill never follows join order or the order the hits were recorded in. (The hit fx stay in entry order.)
   const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
   const order = entries.map((_, i) => i).sort((a, b) => rank(a) - rank(b));
   const barrierBefore = c.kind === "player" ? c.s.barrier : 0;
+  const hpBefore = c.s.hp;
   const applied = c.kind === "player"
     ? applyHits(world, c.s, c.rt, order.map((i): Hit => ({ amount: amounts[i]!, source: sourceOf(world, entries[i]!.by) })))
     : c.s.kind === "dummy"
@@ -117,7 +157,7 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Read
   // Nothing got through (teleport immunity, a mob walking home): no numbers, no stagger.
   if (!(applied > 0)) return;
   // A survivor's own reactions to its hp (Blood Saint): they read only its own state and pay later.
-  if (standing(c)) world.hooks.hurt?.(world, c, applied);
+  if (standing(c)) world.hooks.hurt?.(world, c, applied, hpBefore);
   // A regional mob has little hp: what a lifesteal can feed on is the hp the hits actually removed, not the overkill.
   let total = 0;
   for (const a of amounts) total += a;
@@ -128,13 +168,17 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Read
   entries.forEach((e, i) => {
     const amount = amounts[i]!;
     if (!(amount > 0) || e.arena) return;
-    world.combat.landed.push({ victim: id, by: e.by.id, amount: amount * landedShare, weapon: e.weapon, sig: e.sig });
-    // Damage over time is reported in chunks by sim/factions.ts.
-    if (!isDot(e.sig)) {
+    const landed: LandedHit = { victim: id, by: e.by.id, amount: amount * landedShare, weapon: e.weapon, sig: e.sig };
+    if (e.ability !== undefined) landed.ability = e.ability;
+    if (e.dot) landed.dot = true;
+    world.combat.landed.push(landed);
+    // Damage over time is reported in chunks (sim/factions.ts, sim/abilities.ts).
+    if (!(isDot(e.sig) || e.dot)) {
       const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
-      emit(world, { type: "fx", fx: e.sig ? { ...fx, sig: e.sig } : fx });
+      const named = e.sig ? { ...fx, sig: e.sig } : fx;
+      emit(world, { type: "fx", fx: e.ability !== undefined ? { ...named, ability: e.ability } : named });
     }
-    // After the victim took the damage and its hit fx went out (on-hit effects: R4b; see WorldHooks.hitLanded).
+    // After the victim took the damage and its hit fx went out (on-hit effects: R4b; see WorldHooks.hitLanded). DoT entries too.
     hitLanded?.(world, e, amount);
   });
   if (standing(c) && entries.some((e, i) => e.stagger && amounts[i]! > 0)) stagger(world, c);

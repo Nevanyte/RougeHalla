@@ -251,16 +251,37 @@ export function gateRects(map: GameMap, k: number): number[] {
 const CAMP_R = 3.4;
 const ELITE_R = 4.6;
 
-/** Camp markers: the zone's shape in its colour with a dark outline, an elite bigger and crowned. */
-export function paintCamps(g: PaintCtx, camps: readonly Pick<CampDef, "zone" | "x" | "y" | "eliteSpot">[], k: number, px: number): void {
+/** A camp's state as the room syncs it (RaidState.camps[i].state): nobody has hurt a member / a member has / every member died. */
+export const CAMP_IDLE = 0;
+export const CAMP_ENGAGED = 1;
+export const CAMP_CLEARED = 2;
+
+/** A cleared camp's marker is drawn this faint, under a cross. */
+const CLEARED_ALPHA = 0.38;
+const COLOR_CLEARED_CROSS = "#eceff1";
+const COLOR_ENGAGED = "#ff7043";
+/** A small flame on a unit base, at an engaged camp's upper right. */
+const FLAME: Poly = [[0, -1], [0.7, -0.1], [0.45, 0.9], [-0.45, 0.9], [-0.7, -0.1]];
+
+/**
+ * Camp markers: the zone's shape in its colour with a dark outline, an elite bigger and crowned. With `states` (one number per
+ * camp, CAMP_*), a cleared camp is dimmed and crossed out so everyone reads what was taken, and an engaged one wears a small
+ * flame; without them (or with 0s) the calls are exactly the plain markers'.
+ */
+export function paintCamps(
+  g: PaintCtx, camps: readonly Pick<CampDef, "zone" | "x" | "y" | "eliteSpot">[], k: number, px: number, states?: ArrayLike<number>,
+): void {
   g.lineWidth = px;
   g.strokeStyle = COLOR_OUTLINE;
   g.lineJoin = "round";
-  for (const camp of camps) {
+  for (let i = 0; i < camps.length; i++) {
+    const camp = camps[i]!;
+    const state = states?.[i] ?? CAMP_IDLE;
     const elite = camp.eliteSpot >= 0;
     const r = (elite ? ELITE_R : CAMP_R) * px;
     const cx = camp.x * k;
     const cy = camp.y * k;
+    if (state === CAMP_CLEARED) g.globalAlpha = CLEARED_ALPHA;
     g.fillStyle = zoneColor(camp.zone);
     g.beginPath();
     polyPath(g, SHAPE_POLYGON[ZONE_SHAPE[camp.zone]], cx, cy, r);
@@ -273,6 +294,82 @@ export function paintCamps(g: PaintCtx, camps: readonly Pick<CampDef, "zone" | "
       g.fill();
       g.stroke();
     }
+    if (state === CAMP_CLEARED) {
+      g.globalAlpha = 1;
+      // A cross over the marker: a dark line under a light one, so it reads on any tint.
+      const reach = r * 1.15;
+      for (const [c, w] of [[COLOR_OUTLINE, 2.6], [COLOR_CLEARED_CROSS, 1.3]] as const) {
+        g.strokeStyle = c;
+        g.lineWidth = w * px;
+        g.lineCap = "round";
+        g.beginPath();
+        g.moveTo(cx - reach, cy - reach);
+        g.lineTo(cx + reach, cy + reach);
+        g.moveTo(cx + reach, cy - reach);
+        g.lineTo(cx - reach, cy + reach);
+        g.stroke();
+      }
+      g.strokeStyle = COLOR_OUTLINE;
+      g.lineWidth = px;
+    } else if (state === CAMP_ENGAGED) {
+      g.fillStyle = COLOR_ENGAGED;
+      g.beginPath();
+      polyPath(g, FLAME, cx + r * 0.95, cy - r * 0.85, r * 0.55);
+      g.fill();
+      g.stroke();
+    }
+  }
+}
+
+/** One chest on the map: where it is and the seconds it has left. */
+export interface ChestBlip {
+  x: number;
+  y: number;
+  /** Seconds to live (the number drawn beside it). */
+  left: number;
+}
+
+export const COLOR_CHEST = "#ffd54f";
+const COLOR_CHEST_DARK = "#2a1d05";
+
+/**
+ * Chest blips: a ringed gold chest (a box with a lid line) and the seconds left as a number, so a chest is never mistaken for a
+ * camp (a zone-coloured polygon) or a mob dot. `pulse` (0..1) breathes the outer ring; pass 0 for no motion (reduced motion).
+ */
+export function paintChests(g: PaintCtx, chests: readonly ChestBlip[], k: number, px: number, pulse = 0): void {
+  if (chests.length === 0) return;
+  g.lineJoin = "round";
+  g.textAlign = "center";
+  g.textBaseline = "top";
+  g.font = `700 ${Math.max(8, Math.round(7.5 * px))}px system-ui, sans-serif`;
+  for (const chest of chests) {
+    const cx = chest.x * k;
+    const cy = chest.y * k;
+    g.lineWidth = 1.2 * px;
+    g.strokeStyle = COLOR_CHEST;
+    g.globalAlpha = 0.45 + 0.45 * (1 - pulse);
+    g.beginPath();
+    g.arc(cx, cy, (4.4 + 2.2 * pulse) * px, 0, TAU);
+    g.stroke();
+    g.globalAlpha = 1;
+    g.fillStyle = COLOR_CHEST_DARK;
+    g.beginPath();
+    g.arc(cx, cy, 3.9 * px, 0, TAU);
+    g.fill();
+    g.strokeStyle = COLOR_CHEST;
+    g.lineWidth = px;
+    g.stroke();
+    // The box and its lid line.
+    g.fillStyle = COLOR_CHEST;
+    g.fillRect(cx - 2.1 * px, cy - 1.5 * px, 4.2 * px, 3 * px);
+    g.fillStyle = COLOR_CHEST_DARK;
+    g.fillRect(cx - 2.1 * px, cy - 0.5 * px, 4.2 * px, 0.7 * px);
+    const text = String(Math.max(0, Math.ceil(chest.left)));
+    g.lineWidth = 2.6 * px;
+    g.strokeStyle = COLOR_OUTLINE;
+    g.strokeText(text, cx, cy + 5.4 * px);
+    g.fillStyle = "#fff8e1";
+    g.fillText(text, cx, cy + 5.4 * px);
   }
 }
 

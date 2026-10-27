@@ -6,7 +6,8 @@
 //   "resolved"        recordRun(outcome, kills, gv.total)   once per player and run, whatever the outcome
 //   server shutdown   bankGv(unbanked run GV)               the run is void: no run is recorded
 //   leave in lobby    nothing
-//   leave in planning nothing (the run has not started; a dropped client's seat is held, as in the run)
+//   leave in planning recordRun(mia, 0 kills, 0 GV), as a leave in the run: planning is part of the run (a dropped client's
+//                     seat is held, as in the run, and goes MIA when the grace runs out). A shutdown voids it instead.
 import { randomBytes } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
@@ -130,7 +131,7 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
   return profile;
 }
 
-const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty" };
+const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip" };
 
 export class RaidRoom extends Room<{ state: RaidState }> {
   /** Set once by createServer(); rooms are constructed by the matchmaker. */
@@ -214,7 +215,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       this.onMessage(type, (client: Client, msg: unknown) => {
         const rt = this.built?.players.get(client.sessionId);
         // Only an input that was accepted counts as presence: junk would otherwise keep an abandoned training room open for good.
-        if (rt && enqueueClientMessage(rt.inputs, type, msg)) this.lastInputAt = Date.now();
+        if (rt && enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) this.lastInputAt = Date.now();
       });
     }
     this.setTimestep((elapsed) => this.tick(elapsed), TICK_MS);
@@ -297,7 +298,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // the raid unable to act. Not allowing reconnection makes core call onLeave right away. Once the run
     // is on, the seat is held (and the player stays alive, and hittable) so a blip doesn't cost them.
     // Planning holds it too: the room is locked by then, so a blip would otherwise cost the whole run (a dropped
-    // player keeps their pick, or is given the default at the end, and does not hold up the early start).
+    // player keeps their pick, or is given the default at the end, and does not hold up the early start). If the grace
+    // runs out before the run starts, onLeave counts it as any leave in planning: MIA.
     // A training room has nothing to hold either: the shipped client leaves with a non-consented close, which lands here, and a
     // hold would keep the profile locked for the whole grace period after the player has gone back to the hub.
     if (!this.built || this.built.state.phase === "lobby" || this.training) return;
@@ -355,8 +357,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     if (this.training) {
       // Walking out of a practice room is not leaving a run: no MIA, no result, nothing banked.
       abandonPlayer(this.world, sessionId);
-    } else if (seat && this.shuttingDown && this.world.state.players.get(sessionId)?.status === "alive") {
-      // A void run leaves no trace (no MIA result, no body, no recorded run), but what was earned is paid.
+    } else if (seat && this.shuttingDown && (this.world.state.players.get(sessionId)?.status === "alive" || this.world.state.phase === "planning")) {
+      // A void run leaves no trace (no MIA result, no body, no recorded run), but what was earned is paid. A run still
+      // in planning is one too: a restart must not cost every player a loss.
       this.bankVoided(seat.profile, abandonPlayer(this.world, sessionId));
     } else {
       removePlayer(this.world, sessionId);

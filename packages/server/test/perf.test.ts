@@ -4,6 +4,8 @@
 // TARGET_REPATH_MS). The machine may be busy (other tests run in parallel, and on a shared one the process is preempted in
 // the middle of a step), so the best of five attempts counts (one attempt is a second of play) and each is judged by the
 // smaller of its wall-clock and its CPU time (gateMs): a real regression raises both, in every attempt.
+// The third case is R4a's gate: every buff at 4 stacks on all 8 players (the fold in sim/mods.ts and updateMods run for
+// every fighter).
 import { describe, expect, it } from "vitest";
 import { gateMs, runStepBench, type BenchOptions, type BenchResult } from "../bench/stepBench";
 
@@ -36,6 +38,13 @@ describe("tick budget", () => {
     expect(r.mobs).toBeGreaterThanOrEqual(72);
     // Loaded: most mobs are chasing or walking home at any moment (measured about 70 awake, 50 fighting).
     expect(r.avgAwake).toBeGreaterThan(40);
+    expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
+    expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
+  }, 120_000);
+
+  it("the same with every buff at 4 stacks on all 8 players (R4a's gate)", () => {
+    const r = bestOfFive({ buffs: true });
+    expect(r.mobs).toBeGreaterThanOrEqual(72);
     expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
     expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);

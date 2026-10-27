@@ -171,6 +171,22 @@ export const TARGET_LOS_GRACE_MS = 1500;
  * path search at most this often per player (an order out of sight sooner than that is refused).
  */
 export const TARGET_REPATH_MS = 250;
+
+// Wishes and abilities (abilities.ts). The numbers of each Wish live there.
+/** A Wish's cooldown: one use per run in practice (flat: nothing shortens it). */
+export const WISH_COOLDOWN_SECONDS = 300;
+/** A Wish is locked this long after the run starts (SimConfig.wishLockSeconds overrides it, e.g. in the e2e). */
+export const WISH_LOCK_SECONDS = 45;
+/** A Wish's cooldown in a training room, so it can be practised (a best guess). */
+export const TRAINING_WISH_COOLDOWN_SECONDS = 5;
+/** A cast's target may be this much farther than its range when the cast is accepted or lands: the client's drawn positions are in the past. */
+export const CAST_RANGE_SLACK = 32;
+/**
+ * A `cast` the server receives this soon after the coliseum teleport is refused, at no cost: the client aimed it at the world as it
+ * was before (it had not yet seen the teleport), so it would land from the new spot toward a stale cursor and spend the Wish.
+ * About a round trip.
+ */
+export const CAST_TELEPORT_GRACE_MS = 300;
 /** Training dummies (server env DUMMIES=1): no faction (no armor or shield), and back to full hp this long after a hit. */
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;
@@ -188,6 +204,16 @@ export const BUFF_REF_STACKS = 3;
 export const LS_CAP = 0.25;
 /** Holy's own cap (factions.ts ls_cap): lifesteal above 100% of the damage stalls Holy against Holy. */
 export const LIFESTEAL_MAX = 1;
+/**
+ * The attack-speed multiplier (the `asMult` mirror) from every source together never exceeds this (League's approach: one
+ * cap on the total, slows apply below it). Owner ruling: x1.5, the most at which the real sim still holds all 20 kiting
+ * cells against an unbuffed melee counter (harness --kiting-only; Plague > Frost is down to 2% hp there, and attack speed
+ * alone first flips a faction counter at x1.65). testing/test_kite.py's model only holds to x1.25 (it fails from x1.3, 6
+ * cells at x1.5, and in a tick-alignment dip at x1.08-1.105 the real sim does not show): the owner accepted that the model
+ * no longer holds at the cap. Buffs alone never reach it (Plague Rat's plateau is x1.17); it binds once sources stack
+ * (R5/R6 passives, skills, relics). testing/TUNING_ROGUE.md.
+ */
+export const AS_MULT_CAP = 1.5;
 /** Mob rewards (GV and buff stacks) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
 export const REWARD_FLOOR = 0.3;
 export const REWARD_MID = 5;
@@ -201,10 +227,13 @@ export const BOUNTY_STACK_SHARE = 0.5;
 export const BOUNTY_ANNOUNCE_MS = 10_000;
 
 // Regional mobs (Phase 11, GAME_DESIGN 11). A mob is its region's faction scaled by MOB_K (an elite by ELITE_K) with the
-// region's weapon. Measured in the real sim (bench/mobDuel.ts, side-session-notes/phase11-mob-strength-report.md): at 0.45
-// a starting player who stands and fights finishes a normal mob in 24 of 25 pairings with about 80% hp left; an elite at 0.65 is
-// finished in 23 of 25 with about 58% hp left (at 0.60 it was 24 and 64%, too soft for 10 GV and two stacks).
-export const MOB_K = 0.45;
+// region's weapon. MOB_K was 0.45 (a starter finished one normal mob in 24 of 25 pairings), which with R5's camp-wide aggro
+// (D24: the first hit wakes the whole camp) left a starter clearing a full camp in 9 of 25 pairings at 3 mobs and 4 at 4.
+// Owner ruling "weaker mobs": lowered until at least 20 of 25 clear a full camp of 4, the zone maps' mean (bench/campDuel.ts,
+// camp pull, 12 seeds, cleared in every seed: 0.30 clears 11, 0.25 19, 0.24 20, 0.22 21, 0.20 21; at 3 mobs 0.22 clears 23,
+// at 5 it clears 14). Left at 0.65, the elite camp (the elite and 3 normals) clears in 9 of 25 pairings, every zone beatable
+// by at least one starter: elites may stay harder (the owner's ruling).
+export const MOB_K = 0.22;
 export const ELITE_K = 0.65;
 /**
  * A mob gives up the chase when it leaves its leash, or has not dealt damage for MOB_GIVE_UP_SECONDS (damage it takes does not extend the fight).
@@ -232,6 +261,37 @@ export const MOB_CORPSE_MS = 1500;
  */
 export const MOB_BUFF_STACKS = 1.1;
 export const ELITE_BUFF_STACKS = 3.1;
+
+// Camps and their shared chests (roguelike R5, ROGUELIKE_PLAN 3.3, D1-D3, D12, D24). The rules are in shared/rewards.ts
+// and server sim/chests.ts.
+/** A cleared camp's chest vanishes this long after it drops (D1), never extended; also at the coliseum teleport. */
+export const CHEST_SECONDS = 15;
+/** A pick needs the picker's server position within this of the chest's centre, with line of sight (D3). */
+export const CHEST_RANGE = 96;
+/**
+ * Client: the chest panel enables picks from the latest SERVER position within CHEST_RANGE minus this (not the predicted
+ * position), so a pick it offers is not refused as too far.
+ */
+export const CHEST_PANEL_SLACK = 8;
+/**
+ * Client: an open panel stays open until the player is this much farther than it opened at (CHEST_RANGE - CHEST_PANEL_SLACK),
+ * so weaving on the edge does not open and close it (and drop a pick in flight). Still inside CHEST_RANGE.
+ */
+export const CHEST_PANEL_HYSTERESIS = 4;
+/** Client: a mouse click on the panel is ignored this long after it opens (a spam-clicking cursor would take a pick unseen). */
+export const CHEST_PANEL_CLICK_GUARD_MS = 250;
+/** Client: every option greys out this long, plus half the round trip, before `expiresAt` (a later pick would be refused). */
+export const CHEST_GREY_MS = 50;
+/** A chest offers this many options (D6). */
+export const CHEST_OPTIONS = 3;
+/** A skip heals this share of max hp when the heal lockout allows it (D12)... */
+export const SKIP_HEAL_SHARE = 0.15;
+/** ...and pays this much GV when it heals nothing (in combat, or at full hp); it counts against GV_MOB_CAP. */
+export const GV_SKIP = 3;
+/** D24: damaging one camp member wakes every idle member of that camp (false: each mob wakes on its own damage only). */
+export const CAMP_WIDE_AGGRO = true;
+/** A heal spread over time (Second Wind) lands in steps this far apart, the first at once. */
+export const HEAL_OVER_TIME_STEP_MS = 500;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;

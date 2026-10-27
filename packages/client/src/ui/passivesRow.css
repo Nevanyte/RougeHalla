@@ -1,0 +1,47 @@
+/* The passives row (ui/passivesRow.ts): under the buff chips in the HUD plate, one small chip per skill held (its zone's mark, its
+   name, its rank). Like the build strip it is click-through all the way down: it sits over the world at the top left, so a
+   right-click move or a left-click lock under it must reach the canvas, and the aim keeps streaming. Its tooltip is therefore not
+   a :hover: passivesRow.ts hit-tests the pointer against the chips' rectangles and sets .tip-on on the chip. */
+.hud-passives { margin-top: 3px; width: 256px; max-width: 100%; pointer-events: none; }
+.passive-label { margin-bottom: 2px; font-size: 10px; line-height: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+.passive-list { display: flex; flex-wrap: wrap; gap: 3px; pointer-events: none; }
+.passive-chip {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px 1px 4px;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+  color: var(--text-soft);
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.passive-glyph { flex: none; width: 9px; height: 9px; background: var(--muted); }
+.passive-name { font-weight: 600; }
+.passive-rank { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); }
+
+.passive-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(var(--ui-w, 800px) * 0.34);
+  padding: 6px 8px;
+  white-space: pre-line;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line-hi);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+}
+.passive-chip.tip-on .passive-tip { display: block; }
