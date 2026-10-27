@@ -333,6 +333,8 @@ export class RaidScene extends Phaser.Scene {
     if (state.seed !== this.mapView?.map.seed) this.buildMap(state.seed);
     const gatesLocked = state.gatesLocked;
     this.mapView?.setGatesLocked(gatesLocked);
+    // The walls are baked at the zoom of the time: a window that grew since (fullscreen, a bigger screen) gets a denser bake, debounced.
+    this.bakedMap?.update(this.cameras.main.zoom, performance.now());
     this.minimap.setGatesLocked(gatesLocked);
 
     const now = performance.now();

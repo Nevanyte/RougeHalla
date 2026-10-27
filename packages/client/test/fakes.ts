@@ -48,13 +48,46 @@ export interface FakeBake {
   size: readonly [number, number];
 }
 
+/** A 2D canvas whose context records its calls (`drawImage`, `rect`, `clip`...). */
+export interface FakeCanvas {
+  width: number;
+  height: number;
+  ctxCalls: Call[];
+  getContext(kind: string, options?: unknown): Record<string, (...a: unknown[]) => void>;
+}
+
+export function fakeCanvas(width = 1, height = 1): FakeCanvas {
+  const ctxCalls: Call[] = [];
+  const ctx = new Proxy({}, { get: (_t, name: string) => (...a: unknown[]) => { ctxCalls.push([name, a]); } });
+  return { width, height, ctxCalls, getContext: () => ctx as never };
+}
+
+/** A canvas uploaded as a texture of its own (`textures.addImage`), with the frames cut from it. */
+export interface FakePage {
+  canvas: FakeCanvas;
+  frames: Map<string, { x: number; y: number; w: number; h: number }>;
+}
+
+/** What a Graphics drew into a canvas (`generateTexture(canvas)`): the calls that set it up and its commands. */
+export interface FakePaint {
+  canvas: FakeCanvas;
+  /** The canvas's size when it was drawn on. */
+  size: readonly [number, number];
+  calls: Call[];
+  commands: number[];
+}
+
 /**
  * A Phaser scene whose `add.*` factories make fake objects, kept in `made` in creation order. Its texture manager remembers what was
- * baked into it (`baked`, by key, drawn through `make.graphics` and `generateTexture`), so a test can read what a texture shows.
+ * baked into it (`baked`, by key, drawn through `make.graphics` and `generateTexture`), so a test can read what a texture shows;
+ * a canvas uploaded with `addImage` is a `page` and what was drawn into a canvas is a `paint`. `extra` adds fields to the scene
+ * (`sys` for a renderer, for instance).
  */
-export function fakeScene() {
+export function fakeScene(extra: Record<string, unknown> = {}) {
   const made: FakeObject[] = [];
   const baked = new Map<string, FakeBake>();
+  const pages = new Map<string, FakePage>();
+  const paints: FakePaint[] = [];
   const add = new Proxy({}, {
     get: (_t, kind: string) => (...args: unknown[]) => {
       const o = fakeObject(kind, args);
@@ -62,7 +95,15 @@ export function fakeScene() {
       return o;
     },
   });
-  const textures = { exists: (key: string) => baked.has(key), remove: (key: string) => baked.delete(key) };
+  const textures = {
+    exists: (key: string) => baked.has(key) || pages.has(key),
+    remove: (key: string) => { baked.delete(key); pages.delete(key); },
+    addImage: (key: string, canvas: FakeCanvas) => {
+      const page: FakePage = { canvas, frames: new Map() };
+      pages.set(key, page);
+      return { add: (name: string, _source: number, x: number, y: number, w: number, h: number) => { page.frames.set(name, { x, y, w, h }); } };
+    },
+  };
   const make = {
     graphics: () => {
       const g = fakeObject("graphics");
@@ -72,17 +113,22 @@ export function fakeScene() {
       return new Proxy(g, {
         get(t, prop) {
           if (prop === "generateTexture") {
-            return (key: string, w: number, h: number) => { baked.set(key, { calls: [...t.calls], size: [w, h] }); return t; };
+            return (key: string | FakeCanvas, w: number, h: number) => {
+              if (typeof key === "string") baked.set(key, { calls: [...t.calls], size: [w, h] });
+              else paints.push({ canvas: key, size: [key.width, key.height], calls: [...t.calls], commands: [...t.commandBuffer] });
+              return t;
+            };
           }
+          if (prop === "clear") return () => { t.commandBuffer.length = 0; t.clear(); return t; };
           return t[prop as string];
         },
       });
     },
   };
-  const scene = { add, make, textures, cameras: { main: fakeObject("camera") } } as never;
+  const scene = { add, make, textures, cameras: { main: fakeObject("camera") }, ...extra } as never;
   /** The names of the draw calls that made the texture an image shows now. */
   const bakedCalls = (image: FakeObject): string[] => (baked.get(String(image.state.texture))?.calls ?? []).map(([n]) => n);
-  return { scene, made, baked, bakedCalls, ofKind: (kind: string) => made.filter((o) => o.kind === kind) };
+  return { scene, made, baked, pages, paints, bakedCalls, ofKind: (kind: string) => made.filter((o) => o.kind === kind) };
 }
 
 /** A Phaser object the views made from this fake scene, seen as the fake it is (its recorded calls and state). */
