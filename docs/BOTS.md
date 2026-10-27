@@ -762,7 +762,7 @@ fx case moves to memory (`lastHitByPlayerAt`).
   - The run completes.
   - No profile exists for any bot name.
   - `bot-stats.json` is written.
-  - The human's result has no GV from bot kills, and `kills` excludes them.
+  - The human's result has no GV from bot kills, and `kills` excludes them. The human fights on fists (a run starts unarmed) and a mob a bot woke can take its swings, so its own mob kills pay mob GV (the test accepts it: `kills`, `bounty` and `win` stay 0, and the total is the breakdown's sum).
 - **Tick budget.** `perf.test.ts` gains 8 in-process bots + the map's mobs (60 on the old 64x64 map, about 80 on a zone map).
   - (`step` + `beforeStep` + `afterPatch`) per tick: average < 5 ms, p99 < 15 ms;
   - the bots' share alone: average < 1.5 ms, p99 < 6 ms;

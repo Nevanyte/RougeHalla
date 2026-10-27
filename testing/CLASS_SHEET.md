@@ -29,6 +29,18 @@ A signature mechanic is a function of *(own parameters, universal state)* and no
 
 Signature numbers (raw per second unless noted; paced x2, the mark ramp x4): Fire burn 18 (magic), backlash 145 (physical, per second of the foe's attack rate); Sentenced mark ramp 17.5/s up to a cap of 72 (true; full in 4.1 s, 2.1 s paced); Plague disease 43 (magic) plus an execute of 415 below half hp; Frost slow 0.52 (attack rate x0.48; move x0.7 inside 100 u); Holy lifesteal 10% + 80% of its missing health, capped at 75%.
 
+Signature damage types (`SIGNATURE_SHARES` in `packages/shared/src/signatureShares.ts`, `PowerSpec.sig_types` in `engine.py`: each part is mitigated with its own type, whatever the faction's own damage shares are):
+
+| Signature part | Type | Cut by |
+|---|---|---|
+| Fire's burn | magic, over time | shield |
+| Fire's backlash | physical, returned | armor |
+| Sentenced's mark | true, ramping, over time | nothing |
+| Plague's disease and execute | magic, over time | shield |
+| Frost's slow, Holy's lifesteal | not damage | |
+
+Weapons are in `docs/GAME_DESIGN.md` section 9 and `realtime.py`'s `WEAPONS`: five loop weapons plus **fists**, what an empty hand fights with (speed +150%, damage multiplier 0.60, floor 0.2 s, reach 40, windup 0.1 s; a run starts on them, nobody picks them, so the 25 weapon pairings and the signature openings leave them out but every pairing is still modelled). The numbers above are the *design* values (k = 1); the game fights at duel pace k = 2.
+
 ## 3. Class cards
 
 Each card says what the class does, how it feels in a fight, and the **identity test**: what happens to its matchups if the signature is taken away.
@@ -36,47 +48,47 @@ Each card says what the class does, how it feels in a fight, and the **identity 
 ### Fire: Glass-cannon duelist  
 *Dragonslayer, living fire*
 
-- **Signature (Dragonslayer):** 10 burn per second plus 200 bonus damage per second for every attack the *target* makes per second.
-- **Identity:** one heavy swing (150 damage) every 1.7 seconds, the lowest HP (500), no armor, 100% magic damage.
-- **Feel:** a duel against a fast attacker is over almost at once. Against Plague (1.85 attacks/s) the backlash adds about 370 damage per second, so Fire wins in 2.1s with 71% HP left; against Sentenced it wins in 3.7s, before the mark (7.9s to full strength) has built.
-- **Loses to** targets that attack rarely or shrug off magic. Frost's 0.45 attacks/s feeds the backlash only about 90 per second while its slow cuts Fire's own swings from 0.6 to 0.24 per second. Holy's 250 shield cuts all of Fire's magic damage to 29%.
-- **Identity test:** without burn and backlash Fire loses Fire > Sentenced, Fire > Plague; the biggest margin shifts by 131 points.
+- **Signature (Dragonslayer):** 18 burn per second (magic, over time) plus 145 bonus damage per second (physical, returned) for every attack the *target* makes per second.
+- **Identity:** one swing (100 damage) every 1.7 seconds, 835 HP, no armor and a 45 shield, 100% magic damage.
+- **Feel:** a duel against a fast attacker is over quickly. Against Plague (1.85 attacks/s) the backlash adds about 268 raw damage per second (92 of it gets through Plague's 190 armor), so Fire wins in 8.1s with 34% HP left; against Sentenced it wins in 9.6s with 28% left, because the backlash (58 a second through Sentenced's armor) outpaces a mark that is capped at 72 a second.
+- **Loses to** targets that attack rarely or shrug off magic. Frost's 0.45 attacks/s feeds the backlash only about 54 per second (through its 20 armor) while its slow cuts Fire's own swings from 0.6 to 0.29 per second. Holy's 250 shield cuts Fire's hits and burn to 29%, and its hp and lifesteal outlast the backlash.
+- **Identity test:** without burn and backlash Fire loses Fire > Sentenced, Fire > Plague; the biggest margin shifts by 97 points.
 
 ### Sentenced: Patient executioner  
 *Marked for judgment*
 
-- **Signature (Marked):** bonus damage that ramps 35 per second for every second spent in the fight, capped at 275 per second (7.9s to full). It depends on time, not attack count, so slows cannot suppress it.
-- **Identity:** its attacks barely matter (5 damage); nearly all output is the mark. 100% magic damage, 700 HP, light defenses (100 armor, 50 shield).
-- **Feel:** a fight that gets worse for the opponent every second. It beats Plague in 7.4s (the mark lands at 100% on a target with no shield while Plague's physical damage is cut to 53%) and Frost in 16.6s.
-- **Loses to** burst and shield. Fire ends it in 3.7s, before the mark builds, and Holy's 250 shield cuts the mark to 29%.
-- **Identity test:** without the mark Sentenced loses Sentenced > Plague, Sentenced > Frost. If the mark arrived at full strength with no ramp, margins would still shift by 70 points, so the build-up itself is felt.
+- **Signature (Marked):** true damage that ramps 17.5 per second for every second spent in the fight, capped at 72 per second (4.1s to full; 2.1s at duel pace). It depends on time, not attack count, so slows cannot suppress it, and nothing cuts it: it is true damage.
+- **Identity:** its attacks barely matter (10 damage); nearly all output is the mark. 100% magic hits, 800 HP, 125 armor, 210 shield.
+- **Feel:** a fight that gets worse for the opponent every second. It beats Plague in 18.8s (the mark lands in full, while Plague's physical damage is cut to 42% by Sentenced's armor) and Frost in 18.3s.
+- **Loses to** burst and hp pools. Fire's backlash wins in 9.6s, and Holy's 1,400 HP outlast a mark that is capped at 72 a second (19.7s, Holy keeps 27%).
+- **Identity test:** without the mark Sentenced loses Sentenced > Plague, Sentenced > Frost. If the mark arrived at full strength with no ramp, margins would still shift by 17.7 points, so the build-up itself is felt.
 
 ### Plague: Attrition swarm  
 *Rat King, disease*
 
-- **Signature (Rat King):** 40 disease damage per second, plus an execute that adds up to 1025 per second as the target's health falls from 50% to 0 (zero above half health).
-- **Identity:** many small attacks (1.85/s at 20 damage), 1000 HP, heavy armor (200), no shield, 80% physical and 20% magic damage.
-- **Feel:** a slow squeeze that turns into a collapse. It beats Frost in 37.0s, a fight the execute decides (see the identity test), and Holy in 15.8s, where Holy's lack of armor lets 86% of its damage through.
-- **Loses to** burst and magic. Fire kills it in 2.1s and finishes with 71% of its HP, so Fire never falls under 50% and the execute never opens; Sentenced's mark lands at 100% on a target with no shield.
-- **Identity test:** without the execute Plague loses Plague > Frost (margins shift by 43 points). Without the flat disease it loses Plague > Frost. Both halves of the signature carry weight.
+- **Signature (Rat King):** 43 disease damage per second (magic), plus an execute that adds up to 207 per second as the target's health falls from 50% to 0 (415 for each unit of health below half; zero above half health).
+- **Identity:** many small attacks (1.85/s at 20 damage), 1,375 HP, heavy armor (190), no shield, 80% physical and 20% magic damage.
+- **Feel:** a slow squeeze that turns into a collapse. It beats Frost in 32.2s, a fight the execute decides (see the identity test), and Holy in 35.0s, where Holy's lack of armor lets 86% of its damage through.
+- **Loses to** burst and magic. Fire's backlash feeds on its 1.85 swings a second and kills it in 8.1s; Sentenced's mark is true damage and lands in full.
+- **Identity test:** without the execute Plague loses Plague > Frost, Plague > Holy (margins shift by 31 points). Without the flat disease it loses the same two (78 points). Both halves of the signature carry weight.
 
 ### Frost: Control bruiser  
 *Living wall of ice*
 
-- **Signature (Living Wall of Ice):** while fighting, the opponent's attack rate is multiplied by 0.4 (a 60% slow), whoever they are.
-- **Identity:** the tankiest power (1750 HP) with slow, heavy swings (0.45/s at 90 damage), balanced defenses (100 armor, 100 shield), 90% physical damage.
-- **Feel:** the fight slows down and Frost sets the pace. It beats Fire in 13.1s with 49% HP left and Holy in 52.3s with 63% left, the longest fight in the system.
-- **Loses to** damage that ignores attack rate. Sentenced's mark and most of Plague's damage (disease and execute) are flat, so slowing them achieves little, and their armor and shield cut Frost's hits to about 52% and 40%.
-- **Identity test:** without the slow Frost loses Frost > Holy; the biggest margin shifts by 103 points.
+- **Signature (Living Wall of Ice):** while fighting, the opponent's attack rate is multiplied by 0.48 (a 52% slow), whoever they are, and they move at 70% within 100 u.
+- **Identity:** a hard-hitting bruiser (0.45/s at 175 damage) with 1,200 HP, light armor (20), a heavy shield (190), 90% physical damage.
+- **Feel:** the fight slows down and Frost sets the pace. It beats Fire in 10.9s with 36% HP left, the widest edge on the sheet, and Holy in 25.8s with 22% left.
+- **Loses to** damage that ignores attack rate. Sentenced's mark (true) and Plague's disease and execute are flat, so slowing them achieves little, and their armor cuts Frost's hits to 43% and 41%.
+- **Identity test:** without the slow Frost loses Frost > Holy; the biggest margin shifts by 68 points.
 
 ### Holy: Sustain juggernaut  
 *Light that burns brighter near death*
 
-- **Signature (Radiant):** heals a fraction of damage dealt equal to `0.25 + 1.25 x missing health`, capped at 100%. At full health it heals 25% of what it deals; by the time it is 60% down it heals everything it deals.
-- **Identity:** 1450 HP behind a 250 shield with no armor, steady attacks (0.95/s at 65 damage), 100% physical damage.
-- **Feel:** hard to finish. Magic barely scratches it (Fire and Sentenced land at 29%), and a long fight against a persistent damage source swings back in its favor as it gets low. It beats Fire in 8.1s and Sentenced in 22.7s, the second finishing with only 27% HP left: the closest edge, and the one lifesteal decides.
-- **Loses to** damage that finds its weak side and to slows. Plague's damage lands at 86% against its zero armor, and Frost's slow cuts Holy's swings, and with them its healing, from 0.95 to 0.38 per second.
-- **Identity test:** without lifesteal Holy loses Holy > Sentenced (margins shift by 30 points). With flat lifesteal and no missing-health scaling, margins shift by 19 points: the scaling is felt, but it is the smaller half.
+- **Signature (Radiant):** heals a fraction of damage dealt equal to `0.10 + 0.80 x missing health`, capped at 75%. At full health it heals 10% of what it deals; at 81% missing it reaches the cap.
+- **Identity:** 1,400 HP behind a 250 shield with no armor, steady attacks (0.95/s at 96 damage), 100% physical damage.
+- **Feel:** hard to finish. Magic barely scratches it (Fire's hits and burn and Sentenced's weapon hits land at 29%), but Fire's backlash is physical and Sentenced's mark is true. It beats Fire in 9.2s with 22% left, the edge lifesteal decides, and Sentenced in 19.7s with 27% left.
+- **Loses to** damage that finds its weak side and to slows. Plague's damage lands at 86% against its zero armor, and Frost's slow cuts Holy's swings, and with them its healing, from 0.95 to 0.46 per second.
+- **Identity test:** without lifesteal Holy loses Holy > Fire (margins shift by 26 points). With flat lifesteal and no missing-health scaling, margins shift by 20 points: the scaling is felt, but it is the smaller half.
 
 ## 4. Identity test (what happens if the signature is removed)
 

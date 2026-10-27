@@ -16,11 +16,13 @@
 
 *Revision (Roguelike R5). Clearing a camp now matters. The first hit on any mob wakes its whole camp, a cleared camp stays cleared, and it drops one **shared chest** for 15 seconds that offers three passive skills, one pick per player, first come first served (sections 11 and 12.5). Nine of the 21 designed passives are built; you hold them for the run, on a row under the buff strip. To keep a camp that wakes together beatable, normal mobs are weaker: a normal mob is its region's faction scaled by 0.22 (it was 0.45; section 11). The practice room gets a console to set buffs and passives, spawn a camp and drop a chest (section 4). Active skills on Q and E, relics, curses, zone maps, "?" camps and start boons are still planned. No faction or weapon number changed.*
 
+*Revision (Balance pass).* Every run now starts on **fists** (an empty hand fights with them), and a mob's weapon arms an unarmed killer. A mob kill pays GV, feed and the weapon and never a stat: the per-mob-type buffs of R4a and the 21 passives of R5 are gone, and all stat power is one of **75 cards** from camp chests and quests, built on AD and AP and converted by each weapon its own way, with the **PvP factor** (0.75 with no cards, 3.0 at the limit) scaling player-to-player damage by card power and thirteen guards (G1-G13) bounding what a stack can do (sections 10.2, 10.4 and 12). The faction sheet was compressed so every edge leaves its winner 10-35% hp, and the signatures were typed (burn and disease magic, backlash physical, the mark true: section 8). The weapon loop got a partial shield block, a longer stagger immunity, the wand's splash and the axe's shred (section 9). There are 30 mob types with roles, rosters come from a shuffled bag, and clearing a camp heals the players who fought it (sections 11 and 12.6). Quests pay a card. Time to kill is a design target: about 20 s for an even duel at minute 0 on fists and about 5 s with the kit of a player five camps in (section 10.4). The Wishes' numbers did not change. The measurements, the acceptance record and the open questions are in `testing/TUNING_BALANCE.md` and section 18.
+
 ---
 
 ## 1. The game in one paragraph
 
-RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. You pick one of five factions, step out of the hub into an arena with up to seven other players, and start with almost nothing: your faction's signature weapon and your wits. You build a run by looting chests, fighting the neutral creatures of five regions (each region drops its own weapon, and each kind of creature its own buff), and picking fights you can win. Two counter loops decide every fight: **faction against faction** and **weapon against weapon**. There is no shrinking zone. Instead, the impatient host of the Arena runs a visible **patience timer**. If nobody dies before it runs out, everyone is teleported into the central coliseum and locked in until someone falls. The last player standing earns **Glorious Victory (GV)**. Everything you found during the run is gone when it ends. GV, cosmetics, titles and achievements are what you keep.
+RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. You pick one of five factions, step out of the hub into an arena with up to seven other players, and start with nothing but your fists and your wits. You build a run by looting chests, fighting the neutral creatures of five regions (each region's creatures carry and drop their own weapons), clearing camps for cards, and picking fights you can win. Two counter loops decide every fight: **faction against faction** and **weapon against weapon**. There is no shrinking zone. Instead, the impatient host of the Arena runs a visible **patience timer**. If nobody dies before it runs out, everyone is teleported into the central coliseum and locked in until someone falls. The last player standing earns **Glorious Victory (GV)**. Everything you found during the run is gone when it ends. GV, cosmetics, titles and achievements are what you keep.
 
 ---
 
@@ -33,24 +35,24 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 |---|---|
 | Players per arena | Up to 8 |
 | Factions | All 5 (Fire, Sentenced, Plague, Frost, Holy / "Demon Blood") with their signature mechanics |
-| Weapons | All 5 (Sword, Bow, Wand, Shield, Axe) with their counters and interactions; 2 weapon slots |
+| Weapons | Fists to start, then all 5 weapons (Sword, Bow, Wand, Shield, Axe) with their counters and interactions; 2 weapon slots |
 | Wishes | One once-a-run ability per faction on `D` (Freeze, Swarm, Trial, Blaze Step, Last Stand), section 8.8 |
 | Map | A 96 x 96 map of 5 faction zones (random shapes, 4 camps each) around a central coliseum with lockable gates |
-| Planning | A 12 s planning step after the lobby: pick 1 of 2 dealt spawns, see every camp's mob type, its buff and your matchup, draw a route |
-| PvE | Neutral regional mobs in mono-type camps that fight back (one hit wakes the whole camp) and drop GV, their type's buff and their weapon; weapon chests |
-| Camp chests | A cleared camp stays cleared and drops one shared chest of three passive skills for 15 s: one pick per player (9 of 21 passives built; section 12.5) |
+| Planning | A 12 s planning step after the lobby: pick 1 of 2 dealt spawns, see every camp's mob type, its role, the weapon it drops and your matchup, draw a route |
+| PvE | Neutral regional mobs (30 types with roles) in mono-type camps that fight back (one hit wakes the whole camp) and drop GV and their weapon; weapon chests |
+| Camp chests | A cleared camp stays cleared, heals the players who fought it and drops one shared chest of three cards for 15 s: one pick per player (75 cards, all built; section 12.5) |
 | Pressure | Patience timer → coliseum teleport → gates locked → sudden death |
-| Snowballing | Feed score, per-mob-type S-curve buffs, falling mob rewards, bounties |
+| Snowballing | Feed score, cards and the PvP factor, falling mob rewards, bounties |
 | Persistence | Profile with GV, stats, cosmetics (shop), achievements, titles, monthly GV leaderboard |
 | Hub | Menu-based hub (GV, faction pick, counter wheel, shop, leaderboard), then a walkable hub with training grounds |
 
 ### 2.2 Later (designed, not in the first playable)
-- **Quest NPCs.** Unique arena NPCs each offer a simple quest. The first player to finish it gets that NPC's unique reward (items, armor, sometimes abilities). A first version is built and no longer "later": ten standing offers per run (five known in planning, five scouted), paid in a mob-type buff and a capped quest GV, with no unique items or abilities (`docs/quests.md`).
+- **Quest NPCs.** Unique arena NPCs each offer a simple quest. The first player to finish it gets that NPC's unique reward (items, armor, sometimes abilities). A first version is built and no longer "later": ten standing offers per run (five known in planning, five scouted), paid in a card and a capped quest GV, with no unique items or abilities (`docs/quests.md`).
 - **Raid-boss mobs.** Some neutral creatures reach raid-boss strength.
 - **Secrets and lore.** Hidden spots for rare loot, cosmetics and lore snippets that point to deeper secrets.
 - **Social.** Friends list, hosting 1v1s, private matches, text chat.
 - **Hub NPCs** that exist only in the hub.
-- **The roguelike overhaul** (see `docs/ROGUELIKE_PLAN.md`): terrain in each zone (lava, fences and the like), two active skills on Q and E, relics (also offered by the chests) and curses, "?" camps that hide their reward, and a start boon picked on the planning screen are **planned, not built**. Zone maps, planning, mono-type camps, the per-type buffs, camp-wide aggro and the shared skill chest with its nine live passives are built (sections 3, 5, 11 and 12).
+- **The roguelike overhaul** (see `docs/ROGUELIKE_PLAN.md`): terrain in each zone (lava, fences and the like), two active skills on Q and E, relics (also offered by the chests) and curses, "?" camps that hide their reward, and a start boon picked on the planning screen are **planned, not built**. Zone maps, planning, mono-type camps, camp-wide aggro and the shared card chest are built (sections 3, 5, 11 and 12).
 
 ### 2.3 Out of scope for now
 - **Real-money purchases.** The shop design allows them (cosmetics only), but no payments are built.
@@ -61,15 +63,15 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 
 ## 3. A run, start to finish
 
-1. **Hub.** You see your GV balance, titles and leaderboard position. You pick a **faction** for this run; your **signature weapon** comes with it. A counter wheel shows both loops and where your pick sits.
+1. **Hub.** You see your GV balance, titles and leaderboard position. You pick a **faction** for this run. You start on **fists**, whatever the faction: you arm yourself in the arena. A counter wheel shows both loops and where your pick sits.
 2. **Enter the Arena.** You climb the stairs (in the menu hub: press *Enter Arena*). You join a lobby of up to 8, which shows the map, every camp's mob type and the factions in the room. The lobby starts the run when enough players are in or a short timer runs out.
-3. **Planning.** A 12-second planning screen (`PLAN_SECONDS`) follows, the room locked and nobody able to move, fight or be hurt. You are dealt **two spawns** at about the same walking distance from the coliseum (within 8% of a shared value) and in different zones, and you pick one. The first player to pick a spawn holds it, and a spawn someone else took shows as taken at once; within one tick a secret order decides. The screen also shows every camp with its mob type, the buff it gives and how your faction fares against it, and the buffs that counter the factions in the room. You can draw a **route** (up to 12 stops, with its walking time), which shows faintly during the run. Pressing Ready locks your pick, and the run starts early once everyone connected is ready. With no pick you get your first free spawn. **Planning is part of the run** (owner ruling): leaving now, or dropping and not coming back in time, counts as going missing (MIA), a loss: a run and a death in your stats and no GV, so nobody can look at the deal and requeue for free. Only the lobby is free to leave. A leaver still counts as a starter; if everyone but one leaves, the run starts at once and the last player wins without the win bonus. A server restart during planning voids the run for everyone instead. A dropped player keeps the seat and, if they reconnect in time, their pick. A start boon is planned for this screen (see `docs/ROGUELIKE_PLAN.md`), not built.
+3. **Planning.** A 12-second planning screen (`PLAN_SECONDS`) follows, the room locked and nobody able to move, fight or be hurt. You are dealt **two spawns** at about the same walking distance from the coliseum (within 8% of a shared value) and in different zones, and you pick one. The first player to pick a spawn holds it, and a spawn someone else took shows as taken at once; within one tick a secret order decides. The screen also shows every camp with its mob type, its role, the weapon it drops and how your faction fares against it. You can draw a **route** (up to 12 stops, with its walking time), which shows faintly during the run. Pressing Ready locks your pick, and the run starts early once everyone connected is ready. With no pick you get your first free spawn. **Planning is part of the run** (owner ruling): leaving now, or dropping and not coming back in time, counts as going missing (MIA), a loss: a run and a death in your stats and no GV, so nobody can look at the deal and requeue for free. Only the lobby is free to leave. A leaver still counts as a starter; if everyone but one leaves, the run starts at once and the last player wins without the win bonus. A server restart during planning voids the run for everyone instead. A dropped player keeps the seat and, if they reconnect in time, their pick. A start boon is planned for this screen (see `docs/ROGUELIKE_PLAN.md`), not built.
 4. **Spawn.** Players start at the spawn they picked, spread over the five zones and all about the same walk from the coliseum (the spawn pool of section 5). The first patience timer (a flat 5:00) and each faction's Wish lock (the first 45 s) count from this moment, not from the end of the lobby.
-5. **Early run.** Hunt neutral mobs for buffs, GV and weapons, loot chests, and route toward the camps whose buff and weapon you want and the region whose weapon counters what you're seeing. Hit one mob and its whole camp comes for you; clear the camp and it drops a shared chest of three skills for 15 seconds: whoever reaches it first picks first, and clearing the camp gives no claim on it (section 12.5). Holding Tab shows the whole map, your route and which camps are already cleared.
+5. **Early run.** You start on fists, so your first kill matters: a mob's weapon goes straight into an empty hand. Hunt neutral mobs for GV and weapons, loot chests, and route toward the camps whose weapon you want and the region whose weapon counters what you're seeing. Hit one mob and its whole camp comes for you; clear the camp and it heals those who fought it and drops a shared chest of three cards for 15 seconds: whoever reaches it first picks first, and clearing the camp gives no claim on it (sections 12.5 and 12.6). Cards are your only source of stats, so a fresh player hits other players weakly (the PvP factor, 10.4): early fights are slow, and farming wins fights. Holding Tab shows the whole map, your route and which camps are already cleared.
 6. **Mid run.** Fights break out. Every death resets the patience timer. Fed players gain bounties and get marked on everyone's minimap.
 7. **Patience runs out.** If nobody dies for the full timer, the host teleports everyone alive into the **coliseum** and locks the gates. The gates open again as soon as someone dies.
 8. **Endgame.** As players die, the patience timer shortens. With few players left, fights happen often, in the open or in the coliseum.
-9. **Glorious Victory.** The last one standing wins and gets the win bonus. Everyone keeps the GV they earned during the run. Run gear (weapons, buffs) is gone.
+9. **Glorious Victory.** The last one standing wins and gets the win bonus. Everyone keeps the GV they earned during the run. Run gear (weapons, cards) is gone.
 10. **Results → hub.** The results screen shows kills, GV earned, bounties claimed and time survived. Then you're back in the hub.
 
 ---
@@ -79,7 +81,7 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 | Hub feature | What it does | When |
 |---|---|---|
 | GV balance and titles | Shows your currency and equipped title | First playable |
-| Faction picker | Choose a faction; shows its card and signature weapon | First playable |
+| Faction picker | Choose a faction; shows its card | First playable |
 | Counter wheel | Both pentagrams (factions, weapons) with your pick highlighted | First playable |
 | Cosmetics shop | Spend GV on colours, trails, titles and golden weapon variants. Cosmetics only. | First playable |
 | Leaderboard | Monthly GV ranking | First playable |
@@ -89,11 +91,11 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 | Hub NPCs | Characters who never appear in the Arena | Later |
 | Social | Friends, 1v1s, private matches, chat | Later |
 
-**As built (Phase 12).** The hub is a small walkable room, drawn on the client only (no server room while you are in it). You walk with right-click, WASD or the arrow keys; stepping up to a station shows a prompt, and **E** or a click uses it: the stairs start a run, the training door starts the training grounds, four kiosks open the shop, wardrobe, achievements and leaderboard, five pedestals pick a faction, and the floor in the middle shows the counter wheel. Your avatar wears your equipped cosmetics and your faction's colour and signature weapon. The menu panel sits docked beside it and still offers everything the old menu did (callsign, GV, stats, panels, Start Run).
+**As built (Phase 12).** The hub is a small walkable room, drawn on the client only (no server room while you are in it). You walk with right-click, WASD or the arrow keys; stepping up to a station shows a prompt, and **E** or a click uses it: the stairs start a run, the training door starts the training grounds, four kiosks open the shop, wardrobe, achievements and leaderboard, five pedestals pick a faction, and the floor in the middle shows the counter wheel. Your avatar wears your equipped cosmetics and your faction's colour, and stands on bare fists (a run starts unarmed). The menu panel sits docked beside it and still offers everything the old menu did (callsign, GV, stats, panels, Start Run).
 
-**Training grounds.** A private room of one, created fresh each time. It has Phase 9's practice setup next to your spawn: a plain dummy, a shield dummy, and a rack with one of each weapon. You pick the faction in the hub first. Nothing is recorded: no GV, no stats, no achievements, no timer, no results, and if you go down you are simply stood back up. Leave with the button or Esc; there is no waiting room and no one else comes in, and a room whose player stays idle for five minutes is closed. A **Console** button in the training bar opens a small practice console, nothing of which counts for a real run: set any mob type's buff to 1, 3, 6 or 12 stacks (or take it off), set any passive to rank 1 or 2 (or take it off; one that is not built yet is set but does nothing, and says so), spawn a practice camp of any mob type (three mobs, or one for an elite type, asleep on the floor near you, so hitting one wakes the rest as in a run), drop a skill chest two tiles away with three skills of your choice (or three random ones for your faction), or clear all of it. A practice camp's death pays no GV, buff or weapon and drops no chest, a chest skip pays no GV either, and Clear also ends the arrows and balls the practice mobs have in the air. The caps are 12 practice mobs at once and 6 chests, with a short pause between drops. Esc inside the console hands the keyboard back to the game, and the next Esc leaves.
+**Training grounds.** A private room of one, created fresh each time. It has Phase 9's practice setup next to your spawn: a plain dummy, a shield dummy, and a rack with one of each weapon. You pick the faction in the hub first. Nothing is recorded: no GV, no stats, no achievements, no timer, no results, and if you go down you are simply stood back up. Leave with the button or Esc; there is no waiting room and no one else comes in, and a room whose player stays idle for five minutes is closed. A **Console** button in the training bar opens a small practice console, nothing of which counts for a real run: set how many copies of any card you hold (1, 2, 3 or 9 of a base card, one of a conditional or an augment; a conditional needs a base card of its kind first, and a card that is not built is set but does nothing, and says so) or take it off, spawn a practice camp of any mob type (three mobs, or one for an elite type, asleep on the floor near you, so hitting one wakes the rest as in a run), drop a card chest two tiles away with three cards of your choice (or a normal camp's roll for what you hold), or clear all of it. A practice camp's death pays no GV, feed or weapon and drops no chest (clearing one still heals you, as a real one does), a chest skip pays no GV either, and Clear also ends the arrows and balls the practice mobs have in the air. The caps are 12 practice mobs at once and 6 chests, with a short pause between drops. Esc inside the console hands the keyboard back to the game, and the next Esc leaves.
 
-**Counter wheel.** Two pentagrams, the faction cycle and the weapon loop, drawn from the same counter lists the game uses. Your picked faction and its starting weapon are highlighted, with what each beats in green and what beats it in red.
+**Counter wheel.** Two pentagrams, the faction cycle and the weapon loop, drawn from the same counter lists the game uses. Your picked faction and its reference weapon are highlighted, with what each beats in green and what beats it in red.
 ---
 
 ## 5. The arena map
@@ -113,7 +115,7 @@ The map is generated from a seed. The server and every client build the same map
   A zone is an organic shape, grown outward from a stretch of the road around the coliseum, so every zone reaches the coliseum. The five have the same area (about 1,710 tiles each; the generator certifies them within 8 tiles of each other), and their shapes and where they lie change with every seed, as does the order of the five around the ring. There are no ridges or passes between them: one zone simply meets the next, and the client marks a border with a dashed line in each zone's colour, a different dash for each zone so colour is never the only cue. Because each zone's mobs always carry the same weapon, **the map is a shopping list for counters**. If you're Plague and keep running into shields, you go where the axes are.
 - **The coliseum** sits in the centre, with 4 gates. The gates are wall tiles that close on command. Inside are spawn spots for the teleport. Its layout is the same on every map (the pillars are one of eight arrangements, picked by the seed), and a road three tiles wide runs around it.
 - **Cover.** Walls and obstacles keep sight lines short: with the gates open, no straight one-tile-wide (32 u) strip of open floor is longer than 480 units (twice the bow's 240-unit range since the 9.1 tuning), at any angle. That holds in every zone, inside the coliseum and through its gates, and the generator proves it on every map (the longest strip measured is 464 u). Narrower gaps are not guaranteed.
-- **Camps and territories.** Each zone holds **four camps**, 20 on a map, each a small clearing with 3 to 5 mob rest spots (about 80 mobs a map). One camp per zone, the one farthest from the coliseum, is the **elite camp**. Camps keep at least 9 tiles apart. Every camp owns a **territory**: the part of its zone that is nearer to it than to the zone's other camps by walking distance. A zone's four territories together cover all of it, and each is one connected piece of floor. The camp stands at its territory's **pole**, its deepest point, and no part of the territory is more than 30 tiles from it. The territory is where the camp's mobs may fight (section 11).
+- **Camps and territories.** Each zone holds **four camps**, 20 on a map, each a small clearing with 3 to 5 mob rest spots (about 80 mobs a map). One camp per zone, the one farthest from the coliseum, is the **elite camp**. Camps keep at least 9 tiles apart. Every camp owns a **territory**: the part of its zone that is nearer to it than to the zone's other camps by walking distance. A zone's four territories together cover all of it, and each is one connected piece of floor. The camp stands at its territory's **pole**, its deepest point, and no part of the territory is more than 30 tiles from it. The territory is where the camp's mobs may fight (section 11). The balance pass's rosters are written for eight camps a zone with two elite camps, a layout the generator does not make yet (section 11, open question N13).
 - **The spawn pool.** 24 to 32 candidate player starts, each tagged with its zone: all within 8% of the same walking distance to the coliseum centre, at least 5 tiles from each other and from every camp, and screened so that no two starts can shoot each other. The planning step deals each player two of them (section 3). Over 2,000 seeds the farthest start in a pool is 1.17 times as far to walk as the nearest on average and 1.20 times at worst, which meets the owner's target of 1.2.
 - **Loot spots.** Weapon crates stand against a wall, 3 to 4 a zone (15 to 20 a map), each holding one weapon, and loose weapons lie on 20 to 30 open spots. Each camp also has a **reward chest tile**, the centre of its clearing, where a cleared camp's shared chest drops (section 12.5).
 - **Ruins.** A zone may hold up to two walled ruins, 7 to 9 tiles a side with doors. They are optional, and no loot rule needs one.
@@ -164,11 +166,11 @@ There is **no shrinking zone**. Pressure comes from the Arena's host losing pati
 
 | Event | What happens |
 |---|---|
-| You die | Your run ends. Your weapons and buffs are gone. You keep the GV you earned this run. |
+| You die | Your run ends. Your weapons and cards are gone. You keep the GV you earned this run. |
 | You win | +50 GV win bonus on top of what you earned. |
 | Solo run (fewer than 2 humans) | No win bonus. |
 | Persists between runs | GV, cosmetics owned and equipped, titles, achievements, stats (wins, kills, per-weapon and per-faction records), monthly GV total |
-| Never persists | Weapons, buffs, feed score, bounty |
+| Never persists | Weapons, cards, feed score, bounty |
 
 ---
 
@@ -176,90 +178,101 @@ There is **no shrinking zone**. Pressure comes from the Arena's host losing pati
 
 Five factions form a closed loop: **each beats exactly two and loses to exactly two.** The numbers come from the owner's design engine (`testing/engine.py`, `testing/classes.py`). The game's TypeScript copy is tested against it so they can't drift apart.
 
+**The sheet was compressed by the balance pass.** The first sheet was a clean five-cycle in which the favourite won every duel with 27-77% of its hp left: a favourite that always wins is not a matchup, it is a wall. The numbers were moved, by a search over the whole sheet checked in the real sim, so that every edge leaves its winner **10-35% hp** and wins **60-70% of even duels once two players' execution noise is in** (each fighter's damage times `exp(0.45 Z)`; the favourite wins `Phi(ln r / 0.636)` of the time, r being the multiplier the underdog would need). A counter is now a strong tilt that play can overturn, not a wall. The laws (8.1) do not change; the signature damage types do (8.3). Method, tables and residuals: `testing/TUNING_BALANCE.md`.
+
 ### 8.1 The rulebook (identical for every fight)
 1. **Attack.** Each second a fighter deals `rate × hit` raw damage plus its signature bonus.
-2. **Three damage shares.** Every hit is split into physical, magic and true damage; the shares belong to the attacker.
-3. **Defense.** Armor cuts the physical share and shield cuts the magic share; true damage ignores both. Reduction is `1 / (1 + stat/100)`: 100 means half damage, 300 means a quarter.
+2. **Three damage shares.** Every hit is split into physical, magic and true damage; the shares belong to the attacker. A signature's own damage has its own type, whatever the faction's shares are (8.3).
+3. **Defense.** Armor cuts the physical share and shield (magic resist) cuts the magic share; true damage ignores both. Reduction is `1 / (1 + stat/100)`: 100 means half damage, 300 means a quarter.
 4. **Rate effects.** One aura exists (Frost's slow). It multiplies an opponent's attack rate. It slows `rate × hit` only, not flat bonuses.
 5. **Health effects.** Mechanics may read health fractions (the target's for execute, your own for lifesteal), never an opponent's identity.
 6. **Time effects.** A mechanic may read time spent in the fight (the mark ramp).
 
 No rule mentions a faction by name. Every counter falls out of the numbers.
 
-### 8.2 Stat sheet (v3)
+### 8.2 Stat sheet (the compressed sheet)
 
-| Faction | Role | HP | Attack rate | Hit | Base DPS | Damage mix (phys / magic / true) | Armor | Shield |
+| Faction | Role | HP | Attack rate | Hit | Base DPS | Damage mix (phys / magic / true) | Armor | Shield (magic resist) |
 |---|---|---|---|---|---|---|---|---|
-| Fire | Glass-cannon duelist | 500 | 0.60/s | 150 | 90 | 0 / 100 / 0 | 0 | 125 |
-| Sentenced | Patient executioner | 700 | 0.90/s | 5 | 4.5 | 0 / 100 / 0 | 100 | 50 |
-| Plague | Attrition swarm | 1000 | 1.85/s | 20 | 37 | 80 / 20 / 0 | 200 | 0 |
-| Frost | Control bruiser | 1750 | 0.45/s | 90 | 40.5 | 90 / 10 / 0 | 100 | 100 |
-| Holy (Demon Blood) | Sustain juggernaut | 1450 | 0.95/s | 65 | 62 | 100 / 0 / 0 | 0 | 250 |
+| Fire | Glass-cannon duelist | 835 | 0.60/s | 100 | 60 | 0 / 100 / 0 | 0 | 45 |
+| Sentenced | Patient executioner | 800 | 0.90/s | 10 | 9 | 0 / 100 / 0 | 125 | 210 |
+| Plague | Attrition swarm | 1375 | 1.85/s | 20 | 37 | 80 / 20 / 0 | 190 | 0 |
+| Frost | Control bruiser | 1200 | 0.45/s | 175 | 79 | 90 / 10 / 0 | 20 | 190 |
+| Holy (Demon Blood) | Sustain juggernaut | 1400 | 0.95/s | 96 | 91 | 100 / 0 / 0 | 0 | 250 |
 
-Attack rate is the faction's base. Each weapon boosts it by a percentage (section 10.2).
+Attack rate is the faction's base. Each weapon boosts it by a percentage (section 10.2). What moved from the first sheet (hp, hit, armor, shield, signature numbers; rates and damage shares did not): Fire 500 hp / 150 hit / 125 shield to 835 / 100 / 45; Sentenced 700 / 5 / 100 armor / 50 shield to 800 / 10 / 125 / 210; Plague 1000 hp / 200 armor to 1375 / 190; Frost 1750 hp / 90 hit / 100 armor / 100 shield to 1200 / 175 / 20 / 190; Holy 1450 hp / 65 hit to 1400 / 96. Fire is no longer the lowest-hp faction by a wide margin and its damage leans on burn and backlash; Frost is a hard-hitting bruiser with the chill (owner ruling: accepted).
 
 ### 8.3 Signatures
 
-| Faction | Signature | What it does | How it feels |
-|---|---|---|---|
-| Fire | **Dragonslayer** | 10 burn per second, plus **200 backlash for each attack the engaged enemy makes at its base rate** (per real swing 93 to 143 depending on its weapon, section 10.3) | Punishes fast attackers. Against Plague's flurry it's over in seconds. |
-| Sentenced | **Marked** | Bonus damage ramping +35/s for every second in the fight, capped at 275/s (7.9 s to full). The mark is tied to the **weapon the target is holding**; swapping weapons resets it. | Gets worse for the opponent every second. Its own hits barely matter (5 damage). |
-| Plague | **Rat King** | 40 disease per second, plus an execute adding up to 1025/s as the target falls from 50% to 0 HP | A slow squeeze that collapses into a kill |
-| Frost | **Living Wall of Ice** | Anyone engaged with Frost has their **attack rate cut to 40%** and their **movement slowed** | The fight slows down and Frost sets the pace |
-| Holy | **Radiant** | Heals a share of damage dealt equal to `0.25 + 1.25 × missing HP`, capped at 100%. It heals all of the damage it deals from 60% missing HP. | Hardest to finish when nearly dead |
+| Faction | Signature | What it does | Damage type | How it feels |
+|---|---|---|---|---|
+| Fire | **Dragonslayer** | 18 burn per second, plus **145 backlash for each attack the engaged enemy makes at its base rate** (per real swing 58 to 104 depending on its weapon, section 10.3) | Burn: magic, over time. Backlash: physical, returned | Punishes fast attackers. Against Plague's flurry it is over in seconds. |
+| Sentenced | **Marked** | Bonus damage ramping +17.5/s for every second in the fight, capped at 72/s (4.1 s to full; 2.1 s at duel pace). The mark is tied to the **weapon the target is holding**; swapping weapons resets it. | True, ramping, over time: nothing cuts it | Gets worse for the opponent every second. Its own hits barely matter (10 damage). |
+| Plague | **Rat King** | 43 disease per second, plus an execute adding up to 207 per second as the target falls from 50% to 0 HP (415 per unit of hp below half) | Magic, over time, with the execute | A slow squeeze that collapses into a kill |
+| Frost | **Living Wall of Ice** | Anyone engaged with Frost has their **attack rate cut to 48%** (slow 0.52) and their **movement slowed** (×0.7 within 100 u) | The slow | The fight slows down and Frost sets the pace |
+| Holy | **Radiant** | Heals a share of damage dealt equal to `10% + 80% × missing HP`, capped at 75% (reached at 81% missing HP) | Heal | Hardest to finish when nearly dead |
+
+The first sheet's signatures were all magic (the mark, the burn, the backlash) or an 80/20 mix (the disease); the owner asked for the types in the table, which is what the sim deals (`SIGNATURE_SHARES`): the mark now ignores Holy's shield, Fire's backlash is cut by armor and not by shield, and Plague's disease is all magic. Cards add to them: Ability Power adds `0.6 × AP` magic damage per second to every running burn, disease and mark (10.2).
 
 ### 8.4 Who beats whom, and why
 
-| Winner | Loser | Deciding factor | Fight length | Winner HP left |
-|---|---|---|---|---|
-| Fire | Sentenced | Fire's burst ends the fight before the mark builds | 3.7 s | 77% |
-| Fire | Plague | Plague's 1.85 swings/s feed Fire's backlash (about 370 damage per second) | 2.1 s | 71% |
-| Sentenced | Plague | The mark lands at 100% on Plague's zero shield; Plague's physical damage is cut to 53% | 7.4 s | 56% |
-| Sentenced | Frost | The flat mark ignores Frost's slow; armor halves Frost's hits | 16.6 s | 51% |
-| Plague | Frost | Disease and execute are flat, so the slow barely matters; the execute decides it | 37.0 s | 40% |
-| Plague | Holy | 86% of Plague's damage gets through Holy's zero armor | 15.8 s | 67% |
-| Frost | Holy | The slow cuts Holy's swings, and with them its healing, from 0.95 to 0.38/s | 52.3 s | 63% |
-| Frost | Fire | Frost's 0.45/s feeds the backlash only 90 damage per second (its shield cuts half), and the slow cuts Fire to 0.24 swings/s | 13.1 s | 49% |
-| Holy | Fire | A 250 shield cuts Fire's all-magic damage to 29% | 8.1 s | 69% |
-| Holy | Sentenced | The shield cuts the mark to 29%; lifesteal decides it | 22.7 s | 27% (tightest) |
+The engine's fight (design sheet, k = 1; the game fights twice as fast) and what the real sim measures with both fighters on fists, noise on (`testing/TUNING_BALANCE.md` 2.1 and 4):
 
-**The main axis is damage type against defense type.** Magic damage (Fire, Sentenced) crushes the shieldless (Plague) and bounces off the heavily shielded (Holy). Physical damage (Plague, Frost, Holy) punishes zero armor. On top of that sit rate against flat damage (Frost's slow only hurts rate-based attackers), burst against ramp (Fire ends fights before the mark or execute come online) and HP pool (Holy and Frost win long fights).
+| Winner | Loser | Deciding factor | Fight (engine) | Winner HP left (engine) | Real sim on fists: HP left / favourite's win % |
+|---|---|---|---|---|---|
+| Fire | Sentenced | Backlash (physical: 58 of Fire's 83 a second get through Sentenced's 125 armor) ends the fight before the mark builds; Sentenced's 210 shield cuts Fire's hits and burn to 32% | 9.6 s | 28% | 20% / 64% |
+| Fire | Plague | Plague's 1.85 swings a second feed the backlash (268 raw a second, 92 through its 190 armor); Plague's own hits get 35 a second through Fire's shield | 8.1 s | 34% | 31% / 64% |
+| Sentenced | Plague | The mark lands in full (true, 72 a second); Sentenced's armor cuts Plague's physical damage to 42% | 18.8 s | 20% | 25% / 60% |
+| Sentenced | Frost | The flat mark ignores Frost's slow; armor cuts Frost's hits to 43% | 18.3 s | 22% | 25% / 68% |
+| Plague | Frost | Disease and execute are flat, so the slow barely matters; the execute decides it | 32.2 s | 24% | 25% / 68% |
+| Plague | Holy | 86% of Plague's damage gets through Holy's zero armor | 35.0 s | 20% | 20% / 61% |
+| Frost | Holy | The slow cuts Holy's swings, and with them its healing, from 0.95 to 0.46 a second | 25.8 s | 22% | 18% / 62% |
+| Frost | Fire | Frost's 0.45 swings a second feed the backlash only 54 a second through its 20 armor, and the slow cuts Fire to 0.29 swings a second | 10.9 s | 36% (the widest edge) | 34% / 76% (underdog 24%) |
+| Holy | Fire | Holy's 250 shield cuts Fire's hits and burn to 29%; its hp and lifesteal outlast the backlash (138 a second, physical, on Holy's zero armor) | 9.2 s | 22% | 20% / 64% |
+| Holy | Sentenced | Holy's 1,400 hp against a mark capped at 72 a second: its hits (40 a second through Sentenced's armor) need 19.7 s, and the shield no longer cuts the mark | 19.7 s | 27% | 25% / 66% |
+
+**The main axis is damage type against defense type.** Magic damage (Fire, Sentenced's weapon hits, Plague's disease) crushes the shieldless (Plague) and bounces off the heavily shielded (Holy, Sentenced, Frost). Physical damage (Plague, Frost, Holy, Fire's backlash) punishes zero armor. On top of that sit rate against flat damage (Frost's slow only hurts rate-based attackers), burst against ramp (Fire ends fights before the mark or execute come online) and HP pool (Holy and Frost win long fights). The closest engine edge is now Sentenced over Plague (19% left) and the widest Frost over Fire (36%).
 
 ### 8.5 How much of a hit survives (attacker → defender)
 
+By the attacker's own weapon-hit shares:
+
 | attacker \ defender | Fire | Sentenced | Plague | Frost | Holy |
 |---|---|---|---|---|---|
-| **Fire** | – | 0.67 | 1.00 | 0.50 | 0.29 |
-| **Sentenced** | 0.44 | – | 1.00 | 0.50 | 0.29 |
-| **Plague** | 0.89 | 0.53 | – | 0.50 | 0.86 |
-| **Frost** | 0.94 | 0.52 | 0.40 | – | 0.93 |
-| **Holy** | 1.00 | 0.50 | 0.33 | 0.50 | – |
+| **Fire** | – | 0.32 | 1.00 | 0.34 | 0.29 |
+| **Sentenced** | 0.69 | – | 1.00 | 0.34 | 0.29 |
+| **Plague** | 0.94 | 0.42 | – | 0.74 | 0.86 |
+| **Frost** | 0.97 | 0.43 | 0.41 | – | 0.93 |
+| **Holy** | 1.00 | 0.44 | 0.34 | 0.83 | – |
+
+A signature part uses its own type: burn and disease the shield column, the backlash the armor column, the mark neither.
 
 ### 8.6 Identity test: every signature must matter
-Remove a signature and the class must visibly lose: a main signature has to flip at least one required win, a sub-mechanic at least has to move a margin a lot.
+Remove a signature and the class must visibly lose: a main signature has to flip at least one required win and move a margin by 20 points or more, a sub-mechanic has to flip one or move a margin by 15 or more.
 
 | Faction | Removed | Wins lost | Largest margin swing |
 |---|---|---|---|
-| Fire | Burn and backlash | vs Sentenced, vs Plague | 131 points |
-| Fire | Backlash only | vs Sentenced, vs Plague | 127 |
-| Sentenced | The mark | vs Plague, vs Frost | 152 |
-| Sentenced | The ramp (mark full from t = 0) | none | 70 |
-| Plague | Execute | vs Frost | 43 |
-| Plague | Flat disease | vs Frost | 114 |
-| Frost | The slow | vs Holy | 103 |
-| Holy | Lifesteal | vs Sentenced | 30 |
-| Holy | Missing-HP scaling | none | 19 |
+| Fire | Burn and backlash | vs Sentenced, vs Plague | 97 points |
+| Fire | Backlash only | vs Sentenced, vs Plague | 88 |
+| Sentenced | The mark | vs Plague, vs Frost | 119 |
+| Sentenced | The ramp (mark full from t = 0) | none | 17.7 |
+| Plague | Execute | vs Frost, vs Holy | 31 |
+| Plague | Flat disease | vs Frost, vs Holy | 78 |
+| Frost | The slow | vs Holy | 68 |
+| Holy | Lifesteal | vs Fire | 26 |
+| Holy | Missing-HP scaling | none | 20.2 |
 
 ### 8.7 Design notes on the factions
-- **Fire's burn (10/s) is nearly cosmetic.** Backlash does the work: 64% to 79% of Fire's damage against Sentenced, Plague and Frost, against 2% to 7% for burn. If burn should matter, raise it and retune.
-- **Frost over Fire got thinner** (59% to 49% HP left). Fire's backlash reads the foe's attack rate, so a faster Frost feeds it: 90 backlash per second against Frost, up from 63. It never flips. In the 20 Hz check the smallest HP buff on Fire that flips it is ×1.90 with the 9.1 weapon numbers (×1.59 in v3 before them, ×1.97 in v2). Raising Fire's own rate is free: at equal damage per second it moves no engine result (and at most 3 points in the 20 Hz duels).
-- **Holy beats Sentenced is the tightest edge** (27% HP left); lifesteal decides it.
-- **Holy's lifesteal was not changed in Phase 10.** A stronger one (second coefficient 1.25 to 1.75, cap 100% to 150%) was tried because a Sentenced sword's staggers cost Holy a fifth of its damage in the real sim, and it fixed that. It was reverted after review: with a cap above 100% a losing Holy at low HP heals more than it takes, so Holy against Holy can stall (in the engine a Holy dealing 1.0× to 1.5× the other's damage never wins in 600 s; in the real sim 6 of the 10 weapon edges with Holy on both sides ran into the 300 s cap). The fix that stayed is the stagger rule in section 10.3. Lifesteal also heals from the whole hit, even on a killing blow, and from hits on a training dummy, which refills; the 20 Hz model counts it the same way. Details in `testing/TUNING_10.md`.
-- **Fights are long in places** (Frost over Holy is 52 s). Duels are being sped up for the arena (section 10.2).
-- **Robustness.** The engine checks pass with every stat randomly jittered by ±10%, at any global power level, and with names shuffled (proving no matchup is hard-coded).
+- **Fire's burn (18/s) is still the small part.** Backlash does the work: 58 to 92 a second against Sentenced and Plague against 6 to 18 for burn. Burn is the one signature Ability Power reaches cheaply (it adds `0.6 × AP` to it), so a Fire that wants its burn to matter can build for it.
+- **Frost over Fire is the widest edge** (36% hp left in the engine, 34% in the real sim on fists, the favourite winning 76% under noise: the underdog's 24% is the floor the pass held; on the bow and wand sets it reads 79 / 21, three points under: open question N3, section 18).
+- **Holy's lifesteal** is 10% + 80% of missing hp up to 75% (the first sheet's 25% + 125% up to 100%). A lifesteal above 100% lets a losing Holy heal more than it takes and stalls Holy against Holy; with cards the whole lifesteal share (Holy's own, Leech and Siphon) is held to 85% (G5). It heals from the whole hit, even on a killing blow and from hits on a training dummy, which refills; the 20 Hz model counts it the same. Removing it flips Holy over Fire. `testing/TUNING_10.md` has the older lifesteal tries.
+- **Holy over Sentenced and Plague over Holy changed character** with the typed signatures: the mark is true damage, so Holy's 250 shield does not cut it (the first sheet's "the shield cuts the mark to 29%" is gone), and Plague's disease is all magic, so Holy's shield cuts it (owner question Q5).
+- **Fights are long in places** (Plague over Holy is 35 s at k = 1 and the Frost mirror 40 s; the real sim's minute-0 Frost mirror with fists lasts 44 s). Duels are sped up for the arena by the duel pace (10.2) and by cards (10.4).
+- **Robustness.** The engine checks pass with every stat randomly jittered by ±3% every time and by ±5% in at least 28 of 30 draws (±10% is reported only: the compressed edges sit inside a 10% jitter by definition), at any global power level, and with names shuffled (proving no matchup is hard-coded).
+- **Reference weapons.** A run starts on fists; each faction's signature weapon is now only the reference weapon the harness, the benches and the oracle fight with (10.1).
 
 ### 8.8 Wishes
-Each faction has one **Wish**: an ability on `D` for the moment the weapons do not cover (stopping a kiter, leaving a lost fight, turning a duel). A Wish is **flat**: no buff, relic or cooldown reduction changes it, and it reads neither the feed nor your stacks. Numbers are in `shared/src/abilities.ts` and every one of them is a best guess (section 18).
+Each faction has one **Wish**: an ability on `D` for the moment the weapons do not cover (stopping a kiter, leaving a lost fight, turning a duel). A Wish is **flat**: no card, relic or cooldown reduction changes it (two cards touch its cooldown, G13 in section 12.7), and it reads neither the feed nor your cards. Numbers are in `shared/src/abilities.ts` and every one of them is a best guess (section 18).
 
 **Rules (all five)**
 - **Locked, then 300 s.** A Wish is locked for the first 45 s of a run (counted from the moment the run starts, after the planning step), then it is ready. A cast spends the 300 s cooldown at once, so a run sees a Wish once and at most twice. In the practice room it is ready at once and cools down in 5 s.
@@ -309,16 +322,17 @@ For designers. The Wishes sit on two frameworks that the later active skills, re
 | stun | No walking, no attack or cast start, no swap or pickup; facing frozen; the weapon windup in progress is cancelled | 3 s | any | hard | Freeze, Trial's exit |
 | root | No walking | 3 s | any | hard | nothing yet |
 | silence | No casting | 3 s | any | hard | nothing yet |
-| slowMove | Walks slower by its value | 5 s | sum, cap 0.6 | soft | nothing yet |
+| slowMove | Walks slower by its value | 5 s | sum, cap 0.6 | soft | Pocket Sand |
 | slowAttack | Attacks slower by its value (it multiplies the attack-speed stat mirror) | 5 s | sum, cap 0.5 | soft | nothing yet |
 | antiHeal | Every heal, lifesteal included, is cut by its value | 6 s | sum, cap 0.6 | soft | nothing yet |
-| dot | Its value in raw damage a second through the damage ledger (all true by default) | 10 s | sum | soft | Blaze Step's burn |
+| dot | Its value in raw damage a second through the damage ledger (all true by default) | 10 s | sum | soft | Blaze Step's burn, Hemorrhage, Festering Arcana |
 | invulnerable | No damage (it is the teleport's immunity field); players only | 3 s | any | never | nothing yet |
 | untargetable | Cannot be locked or picked by an ability | 10 s | any | never | nothing yet |
 | hidden | Untargetable and not drawn for others unless revealed; players only | 10 s | any | never | Swarm |
 | zoned | Deals and takes by the zone's multipliers | 6 s | product | never | Trial |
 | deathFloor | The hp floor and its heal-back; players only | 6 s | any | never | Last Stand |
 | haste | Adds its value × the base walking speed | 8 s | max, cap 0.5 | never | Last Stand |
+| shred | Takes its value in armor points off the victim (never below 0 armor in all); no effect bit | 3 s | sum, cap 6 | soft | the axe's shred |
 
 - **Stacking.** An instance is one (kind, source fighter, ability or tag). Applying it again extends it to the later end (never past the kind's maximum from now) and keeps the larger value, or adds to it when the source stacks per hit (up to a cap). Instances from different sources combine by the kind's rule: `any` is on or off, `sum` and `max` stop at the cap, `product` multiplies.
 - **Cleanse.** A cleanse removes a class: `soft` (slows, anti-heal, damage over time) or `hard` (stuns, roots and silences too). `never` (invulnerability, untargetability, hiding, zones, the death floor, haste) cannot be cleansed. Nothing cleanses yet.
@@ -335,7 +349,7 @@ For designers. The Wishes sit on two frameworks that the later active skills, re
 5. **Effects** are a closed list of verbs: apply a status, cleanse, set a death floor, put a zone on the target, put a cloud on the caster, blink, leave a trail. Later phases append more (damage, heal, barrier, projectile, area, cooldown).
 
 - **Ability damage** is named. It is recorded in the ledger under the caster with no weapon, so kill credit, the bounty, mob threat and the kill-credit window work as for a weapon. It is never a signature contact (it does not start or keep an engagement) but it feeds lifesteal and the heal lockout's combat clock, as signature damage does. Damage over time from an ability is reported in 0.5 s chunks and causes no damage flash.
-- **Flat power.** No ability number reads buffs or passives (the damage, vs and scale rows of the buffs and of the R5 passives never multiply an ability's damage or its damage-over-time ticks: the ledger skips those entries before it asks a `vs` row anything, and a test holds every live passive at rank 2 against it; owner ruling "Keep Wishes flat"). Haste adds to the base speed and trail damage is true damage. Trial's ±20% is the one relative number, by the owner's rule.
+- **Flat power.** No ability number reads cards, AD or AP (the damage, vs and scale rows of the cards never multiply an ability's damage or its damage-over-time ticks: the ledger skips those entries before it asks a `vs` row anything; owner ruling "Keep Wishes flat"; only the two cards of G13 touch a Wish's cooldown). Haste adds to the base speed and trail damage is true damage. Trial's ±20% is the one relative number, by the owner's rule.
 - **Lifecycle.**
 
 | Event | Pending cast | Statuses on it | Areas | Last Stand heal |
@@ -354,24 +368,25 @@ For designers. The Wishes sit on two frameworks that the later active skills, re
 
 ## 9. Weapons
 
-Five weapons form a second closed loop; again **each beats two and loses to two.** They are hard counters, not impossible matchups. You carry **two**, so what you hold, and what you go and get, matters.
+Five weapons form a second closed loop; again **each beats two and loses to two.** They are hard counters, not impossible matchups. You carry **two**, so what you hold, and what you go and get, matters. Every run starts on **fists**, which are outside the loop (9.6).
 
 ### 9.1 How each weapon works
 
-| | Sword | Bow | Wand | Shield | Axe |
-|---|---|---|---|---|---|
-| Shape | Quarter-circle (90°) swing, reach 64 | Arrow, fast (900 u/s), range 240 | Magic ball, medium speed (380 u/s), range 220 | Barrier always raised toward the cursor, or toward the locked enemy (±60° front); bashes like a swinging door (120°, reach 44) | Half-circle (180°) swing, reach 60 |
-| Input | Lock an enemy: it attacks for you | Lock an enemy: a fixed full draw, no hold, no partial draw | Lock an enemy | The shield follows the cursor, or the locked enemy; the lock bashes | Lock an enemy |
-| When damage lands | 0.1 s into the swing | The arrow leaves when the draw ends: 0.6 s after the attack starts (at most 92% of the interval) | Ball leaves 0.4 s after the attack starts (at most 80% of the interval) | 0.1 s into the bash | 0.25 s into the swing (at most 25% of the interval) |
-| Attack speed boost | +115% | +95% | +65% | +60% | +40% |
-| Rooted | For the 0.1 s swing | For the draw | For the cast | For the 0.1 s bash | For 0.5 s from the attack's start (at most 50% of the interval) |
-| Damage multiplier | 0.75 | 0.8 | 0.8 | 0.75 | 0.77 |
-| Special | A hit that isn't blocked **staggers**: cancels the target's windup or cast (a bow draw carries on). A staggered target can't be staggered again for 0.5 s. | Always full damage: there are no partial draws. A stagger does not cancel the draw. | The ball **deletes arrows** within 28 units and **pierces shields** | Blocks frontal hits, **reflects arrows** back (the shield holder owns them), **negates a frontal sword hit and ripostes** 50% of it | **Pierces shields**, **destroys magic balls** its swing meets |
+| | Fists | Sword | Bow | Wand | Shield | Axe |
+|---|---|---|---|---|---|---|
+| Shape | Short punch (120° swing), reach 40 | Quarter-circle (90°) swing, reach 64 | Arrow, fast (900 u/s), range 240 | Magic ball, medium speed (380 u/s), range 220 | Barrier always raised toward the cursor, or toward the locked enemy (±60° front); bashes like a swinging door (120°, reach 44) | Half-circle (180°) swing, reach 60 |
+| Input | Lock an enemy: it attacks for you | Lock an enemy: it attacks for you | Lock an enemy: a fixed full draw, no hold, no partial draw | Lock an enemy | The shield follows the cursor, or the locked enemy; the lock bashes | Lock an enemy |
+| When damage lands | 0.1 s into the swing | 0.1 s into the swing | The arrow leaves when the draw ends: 0.6 s after the attack starts (at most 92% of the interval) | Ball leaves 0.4 s after the attack starts (at most 80% of the interval) | 0.1 s into the bash | 0.25 s into the swing (at most 25% of the interval) |
+| Attack speed boost | +150% | +115% | +95% | +65% | +60% | +40% |
+| Rooted | For the 0.1 s swing | For the 0.1 s swing | For the draw | For the cast | For the 0.1 s bash | For 0.5 s from the attack's start (at most 50% of the interval) |
+| Damage multiplier | 0.60 | 0.75 | 0.8 | 0.8 | 0.75 | 0.77 |
+| Scaling (what a point of a stat adds per second at base speed) | 0.6 AD + 0.6 AP | 1.0 AD | 1.0 AD | 1.0 AP + 0.3 AD | 0.4 per bonus armor or magic resist + 0.3 AP | 1.0 AD + 0.02 per bonus max hp |
+| Special | What an empty hand fights with (not an item). **Pierces shields**, never staggers, meets no ball. On-hit effects land 1.2× as hard. | A hit that isn't blocked **staggers**: cancels the target's windup or cast (a bow draw carries on). A staggered target can't be staggered again for 1.1 s. On-hit effects land 1.5× as hard. | Always full damage: there are no partial draws. A stagger does not cancel the draw. | The ball **deletes arrows** within 28 units (and keeps 60% of its damage after it does), **pierces shields** and **splashes** 30% of its damage onto other enemies within 48 u of the target | Blocks frontal hits **in part** (a sword hit or bash loses 7%, the rest lands and never staggers), **ripostes** half of the blocked part, **reflects arrows** (the holder owns them, carrying 15% of the damage) | **Pierces shields**, **destroys magic balls** its swing meets, and every hit **shreds** 3 armor for 3 s (up to 6) |
 
 The interval is the time between attacks (section 10.2). Every attack is a **windup** (Controls rework, section 9.5): the fighter is rooted from the attack's start until the swing lands or the arrow or ball leaves, and walks freely at full speed until the next one. A windup is its design time or the share of the interval shown, whichever is shorter, so a faster cadence shortens it and no fighter is rooted for the whole cycle (the bow, at 92%, comes closest).
 
 Ranged weapons can kite, so four things hold them back (the numbers are the 9.1 tuning and the controls rework, see sections 9.4 and 9.5):
-- **Short range.** Bow 240 u, wand 220 u (about 7 tiles each). A melee fighter charging a standing shooter takes (range - reach) / move speed of free fire: 1.06 s from the bow, 0.94 s from the wand. A shooter that walks away between its shots gives a little more (Plague's bow 1.16 s, against the 1.23 s a melee faction winner can absorb at duel pace, k = 2).
+- **Short range.** Bow 240 u, wand 220 u (about 7 tiles each). A melee fighter charging a standing shooter takes (range - reach) / move speed of free fire: 1.06 s from the bow, 0.94 s from the wand. A shooter that walks away between its shots gives a little more (Plague's bow 1.16 s); the kiting check (9.6) asks that a perfect orb-walking shooter never wins more than 65% of its duels against the melee faction that beats it.
 - **Damage no higher than the melee weapons it must beat:** bow 0.8, wand 0.8 (the sword 0.75, the axe 0.77, the shield 0.75). The bow wins the sword and the axe on its opening alone, so it cannot also out-trade them; the axe sits a little further under the bow's number because a zigzag approach takes the opening away and leaves the bow its close trade.
 - **Drawing and casting root you.** The bow's draw (0.92 of its interval, at most 0.6 s) and the wand's cast (0.8 of its interval, at most 0.4 s) are windups like any other, and a chaser closes the gap only while the shooter is rooted. This replaces the 9.1 rule that drawing, casting and recovering moved you at 10%: nothing slows a walk any more, so the windups have to be long enough that a shooter walking away between shots still cannot out-kite a melee winner (section 9.5).
 - A hit by a sword neither restarts nor cancels a bow draw.
@@ -381,7 +396,7 @@ Ranged weapons can kite, so four things hold them back (the numbers are the 9.1 
 | Weapon | Beats | Why | Loses to | Why |
 |---|---|---|---|---|
 | **Sword** | Axe | Faster swings (+115% against +40%) and stagger: it weaves in more attacks | Bow | Range |
-| | Wand | Its swing halves the damage of balls it meets | Shield | Blocked and riposted |
+| | Wand | Its swing halves the damage of balls it meets | Shield | Part of the hit is blocked and riposted, and a block never staggers |
 | **Bow** | Sword | Range | Shield | Arrows reflected back |
 | | Axe | Huge range gap; the axe roots to swing | Wand | Balls delete arrows |
 | **Wand** | Bow | Balls delete arrows | Sword | Swings cut ball damage |
@@ -391,12 +406,13 @@ Ranged weapons can kite, so four things hold them back (the numbers are the 9.1 
 | **Axe** | Wand | Destroys balls | Bow | Range |
 | | Shield | Pierces it | Sword | Out-swung |
 
-Every edge was checked in the real sim (section 9.4, "Tuning (9.1)"): the designed winner wins at least 60% of the duels, at least 50% in every faction, and has a reply that wins at least 50% against every way the loser can play. **That holds against a melee fighter who charges straight at its target.** **It also holds against one who zigzags in** (50 to 55 degrees off the line, changing side every 0.3 to 0.4 s), where the ranged-over-melee edges are thinner: Bow over Axe 89% against the slower zigzag and 82% against the quick one (44% before the axe's damage was cut from 0.8 to 0.77), Bow over Sword and Wand over Shield 82 to 93%. All three stay thin for Fire, whose 500 HP leave no room for the arrows lost on the way in (section 9.4). **Shield over Sword and Shield over Bow end with the shield at full HP, on purpose:** a raised shield turns the hit back (the riposte, the reflected arrow) and the losing weapon has no way through it. The counterplay is the second weapon slot (section 9.3): swap to the axe or the wand.
+Every edge was checked in the real sim (sections 9.4 and 9.6): the designed winner wins the pooled duels over all 25 faction pairs at 51-71% at minute 0 and 55-77% with the minute-5 kit (noise off, no edge under 50%), and in the policy harness nine of the ten edges hold against a straight charge, a weave and a jink (Wand over Shield fails, 19%: the harness wand backs away from a charging shield, and with both fighters locking it holds at 100%), all ten when both fighters click each other. The edges are tilts, not walls: the balance pass made a shield block only part of a hit, so **Shield over Sword and Shield over Bow no longer end with the shield at full HP**: the sword's hits still land, but they never stagger the shield and the rest of the loop's counters (Wand over Shield, Axe over Shield, the axe's shred) stay open. The second weapon slot (section 9.3) is still the answer to a counter: swap to the axe or the wand.
 
 ### 9.3 Inventory and pickups
 - **Two weapon slots.** Swap between them. Swapping shares the attack cooldown, adds 0.25 s, and cancels your current action, so it can't be used to cut animations short. A target lock stays through a swap.
-- **Pick up** a weapon from a chest or the ground by pressing F near it. If both slots are full, the weapon in your active slot is dropped.
-- **Mob drops.** A mob drops the weapon it carried, unless the killer already holds that weapon type.
+- **Fists.** Both slots start empty, and an empty slot fights with fists (9.6). Swapping to an empty slot is allowed.
+- **Pick up** a weapon from a chest or the ground by pressing F near it. It goes into the hand's slot when that is empty (the hand arms at once), else into the other slot when that is free (the hand stays), else it replaces the weapon in hand, which is dropped.
+- **Mob drops.** A mob drops the weapon it carried, unless the killer already holds that weapon type. A killer whose hand is empty is armed with it at once instead ("Armed: Bow"), with nothing on the ground.
 - **Swapping is skill expression.** Changing to the counter weapon mid-fight is the big play. Swapping also **resets a Sentenced mark** on you, so it's the counterplay to Sentenced.
 
 ### 9.4 As built (Phase 9): rules the design left open
@@ -405,26 +421,28 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 **Input and timing** (the Controls rework changed these; section 9.5)
 - **A windup is part of its interval.** The cooldown counts from the attack's start for every weapon, the bow's draw included, so the cycle is the interval whatever the windup.
 - **Trigger.** The game client no longer holds one: the target lock does (section 9.5). The low-level `attack` (a press) and `release` remain for mobs and the weapon harness (the bots click their foe, like the game client): a press attacks, holding repeats the attack whenever the cooldown allows, and a release stops the repeating (an attack already winding up still lands). A press up to 150 ms before the cooldown ends is buffered and attacks the moment it ends.
-- **Windups.** Sword and bash 0.1 s, axe min(0.25 s, 25% of the interval), wand min(0.4 s, 80%), bow min(0.6 s, 92%). The fighter is rooted for all of it, and the axe for 0.5 s (at most 50%) from the attack's start.
+- **Windups.** Sword, bash and fists 0.1 s, axe min(0.25 s, 25% of the interval), wand min(0.4 s, 80%), bow min(0.6 s, 92%). The fighter is rooted for all of it, and the axe for 0.5 s (at most 50%) from the attack's start.
 - **Direction is fixed early, unless locked.** A swing and a cast go where the fighter aimed when the attack started; an arrow goes along the aim held when its draw ends (the bow was aimed at release, and still is). An attack started by a target lock is aimed again at its target as it lands or leaves (section 9.5).
 
 **Interrupts**
-- **A stagger** cancels the windup or cast; the cooldown stays spent. A bow draw is not interrupted (9.1 tuning; it used to restart). The stagger mark is shown only when a windup or cast was cancelled, so an archer or an idle fighter that is hit gets the 0.5 s immunity but no mark. Every stagger that lands (the immunity starts, whether or not it cancelled anything) also pauses the staggered fighter's burn, disease and mark for its weapon's windup (section 10.3).
+- **A stagger** cancels the windup or cast; the cooldown stays spent. A bow draw is not interrupted (9.1 tuning; it used to restart). The stagger mark is shown only when a windup or cast was cancelled, so an archer or an idle fighter that is hit gets the 1.1 s immunity but no mark. Every stagger that lands (the immunity starts, whether or not it cancelled anything) also pauses the staggered fighter's burn, disease and mark for its weapon's windup (section 10.3).
 - **A swap, or a pickup that replaces the weapon in hand,** cancels a pending windup (a swing, cast or draw, and adds 0.25 s), but never cuts an already-landed root short.
 
 **Shields, swings and balls**
-- **Reflected arrows** mirror about the shield's facing, keep the archer's damage, belong to the shield holder and fly the full bow range. An arrow reflected again keeps only the range it has left.
-- **A riposte** is 50% of the sword hit, with the swordsman's own damage shares, credited to the shield holder. A frontal bash is simply blocked.
-- **A sword halves a ball once.** Swings meet balls in present time (balls fly in present time) and need line of sight to them.
+- **Reflected arrows** mirror about the shield's facing, carry 15% of the archer's damage (the holder takes the other 85% as a normal hit), belong to the shield holder and fly the full bow range. An arrow reflected again keeps only the range it has left, and one is reflected at most twice.
+- **A raised shield blocks only in part.** A frontal sword hit or bash loses 7% to the block and the other 93% lands as a normal hit that never staggers. **A riposte** is 50% of the blocked part (3.5% of the hit), with the swordsman's own damage shares, credited to the shield holder. Fists, axe swings and wand balls pierce the shield.
+- **A sword halves a ball once.** Swings meet balls in present time (balls fly in present time) and need line of sight to them. A ball that deletes an arrow keeps 60% of its damage.
 
 **Credit**
 - **Simultaneous hits land together,** and the kill (and any bounty) goes to the largest rival hit; an exact tie goes to a per-tick secret order, never to join order.
 - **A projectile outlives its shooter.** Its hit still lands; a kill by a shooter who has left or is already out of the run is credited by name only, with no GV.
 
 **Setup**
-- **Picking up into an empty slot** doesn't change the weapon in hand.
+- **Picking up into an empty slot** other than the hand's doesn't change the weapon in hand (a pickup into an empty hand arms it).
 - **The faction** is picked in the hub before each run. A player who hasn't picked one (or a bot without `--faction`) gets a round-robin default by join order, which never counts toward faction achievements.
 - **Training dummies** (server option `DUMMIES=1`) have no faction, so no armor or shield, and never die: a hit that would kill refills them.
+
+*The rest of this section's tuning history (the table below, the kiting check, the weave and jink grids) was measured on the first sheet and the first weapon rules; the balance pass's results are in 9.6.*
 
 **Tuning (9.1): every weapon edge holds against a straight charge, and a melee winner survives the approach.** The full log, with the numbers before and after every change, is `testing/TUNING_9_1.md`. It was measured before the Controls rework: where it names the ranged move slows, the bow's partial draws or the wand's 0.2 s cast, section 9.5 replaces them, and the real-sim numbers below (the harness grids, the weave and the jink) were re-measured after it: nine of the ten edges hold in the policy matrix (Wand over Shield fails, 23%) and all ten when both fighters click each other, see section 9.5 and `testing/TUNING_CONTROLS.md`. What changed, and why:
 
@@ -447,7 +465,7 @@ Decisions taken while building the weapons. The sections above are unchanged; wh
 **Terrain and reach** (zone terrain; section 5.2)
 - **A swing stops at a fence.** Sword, axe and bash reach is 72-76 u centre to centre while two bodies pressed against a one-tile fence stand 56 u apart, so the melee mask includes `TILE_LOW`: a swing, the lock's "clear" test, a melee mob and a melee signature do not cross a fence, lava or a crevasse. Arrows, balls, ranged signatures, target acceptance and abilities do. The lock stays on a target it can see across a fence and walks the detour; it drops a target no path leads to. One constant (`MASK_MELEE`) flips this (owner-confirmed).
 - **A pickup needs a path.** Picking up an item uses the movement mask: no looting through bars.
-- **Ice and bog.** A fighter on ice cannot stop on a dime (section 5.2); a windup or root plants it. Bog multiplies with chill and buffs, and the product of all move multipliers never goes under 0.35 (a root still stops you).
+- **Ice and bog.** A fighter on ice cannot stop on a dime (section 5.2); a windup or root plants it. Bog multiplies with chill and move-speed cards, and the product of all move multipliers never goes under 0.35 (a root still stops you).
 
 ### 9.5 As built (Controls rework): the target lock and the windups
 The owner's ask: right-click moves, left-click auto-attacks the enemy closest to the cursor (so a near miss does not matter), with an attack animation or just a pause while it swings, and that pause should replace the ranged move slow. This is how it plays. The windups are tuned in the 20 Hz Python model and checked in the real sim; `testing/TUNING_CONTROLS.md` has both, before and after.
@@ -460,20 +478,20 @@ The owner's ask: right-click moves, left-click auto-attacks the enemy closest to
 - **Re-aiming.** An attack the lock started goes at its target as it lands (a swing straight at where the target stood at the swing's rewind time) or leaves (an arrow or ball led at the target's position and velocity at that moment), if the target still stands. Once loosed it flies straight, so its target can still dodge it by stepping off the line. An attack without a lock (a mob's, the harness's) goes where it was aimed: a swing or a cast at the start, an arrow when its draw ends.
 - **Lag.** A locked attack carries no client timestamp: it is timed in the present, one tick back.
 
-**Windups root.** Every attack roots its fighter from its start until the swing lands or the arrow or ball leaves, and then you walk freely until the next one (the axe for 0.5 s from its start). Nothing else slows a walk except buffs and Frost's chill. A windup the target lock started is cancelled by the player's own next order, as in League of Legends: a walk, a stop, or locking another fighter ends it with no swing, ball or arrow, refunds the cooldown (it was over when the attack began) and cuts the root, and the walk starts that tick. A windup that is not the lock's (a mob's, the harness's, which hold the trigger while they move and must still fire) stays committed: a walk ordered while it runs is kept and starts when it ends, and only a swap or a stagger (never on a bow) cancels it. A swing that has landed is not undone (the axe's root after it stays).
+**Windups root.** Every attack roots its fighter from its start until the swing lands or the arrow or ball leaves, and then you walk freely until the next one (the axe for 0.5 s from its start). Nothing else changes a walk but move-speed modifiers (cards, statuses, terrain) and Frost's chill. A windup the target lock started is cancelled by the player's own next order, as in League of Legends: a walk, a stop, or locking another fighter ends it with no swing, ball or arrow, refunds the cooldown (it was over when the attack began) and cuts the root, and the walk starts that tick. A windup that is not the lock's (a mob's, the harness's, which hold the trigger while they move and must still fire) stays committed: a walk ordered while it runs is kept and starts when it ends, and only a swap or a stagger (never on a bow) cancels it. A swing that has landed is not undone (the axe's root after it stays).
 
 | Weapon | Windup | Rooted |
 |---|---|---|
-| Sword, shield bash | 0.1 s | the windup |
+| Sword, shield bash, fists | 0.1 s | the windup |
 | Axe | min(0.25 s, 25% of the interval) | min(0.5 s, 50%) from the attack's start |
 | Wand | min(0.4 s, 80% of the interval) | the windup |
 | Bow | min(0.6 s, 92% of the interval) | the windup |
 
-**A windup mod shortens melee windups only** (owner ruling "Melee windups only", R5; it replaced "Floor the windup"). A passive or buff that shortens windups (Quickdraw, a `windupMult` below 1) shortens the sword's, the shield bash's and the axe's windups (the axe's root with its windup, never under it) and never a bow's or wand's: the ranged windups are the anti-kiting lever and nothing may buy them down, so a ranged attack with the passive is the same attack without it (`testing/TUNING_ROGUE.md` section 7). A mult of 1 or more lengthens every weapon. Windups end on the 50 ms tick grid (an attack lands on the first tick at or after its windup, never in the tick it started in), so a cut only counts in whole ticks: the 0.1 s sword and bash are two ticks and need a cut of 50% or more to land one tick sooner, the axe's 0.25 s is five and loses a tick for each 20%.
+**A windup mod shortens melee windups only** (owner ruling "Melee windups only", R5; it replaced "Floor the windup"). A card that shortens windups (Quickdraw, a `windupMult` below 1) shortens the sword's, the shield bash's and the axe's windups (the axe's root with its windup, never under it) and never a bow's or wand's: the ranged windups are the anti-kiting lever and nothing may buy them down, so a ranged attack with the card is the same attack without it (`testing/TUNING_ROGUE.md` section 7). A mult of 1 or more lengthens every weapon. Windups end on the 50 ms tick grid (an attack lands on the first tick at or after its windup, never in the tick it started in), so a cut only counts in whole ticks: the 0.1 s sword and bash are two ticks and need a cut of 50% or more to land one tick sooner, the axe's 0.25 s is five and loses a tick for each 20%.
 
 **The bow is a fixed draw.** It has no hold, no minimum draw and no partial draws: the arrow leaves when the draw ends, at full damage, and everyone sees the pull from its synced start (`drawStartedAt`). A stagger still does not cancel it, and Frost's chill still stretches it (the cycle under chill stays the interval over the chill's rate). The wand's cast is longer than before (0.4 s, at most 80% of the interval, against 0.2 s and 40%). Plague's bow (0.277 s interval) is rooted for 0.255 s of every cycle, so a Plague archer hardly walks at all.
 
-**Kiting is judged against a shooter that walks.** With no move slows, a shooter can fire, walk away at full speed until its cooldown ends, and fire again (an "orb-walk"). The chaser closes only while the shooter is rooted, so such a shooter gives about the interval over the windup times the free fire of one that stands, a little less because its first windup comes first. The check is `orbwalk_free_fire` in `testing/realtime.py`, a 0.05 s kinematic model of the rules above: the chaser starts at the weapon's range and walks at 170 u/s, the shooter roots for its windup and walks away until its interval (counted from the windup's start) is up, and the time is when the gap is 60 u (melee reach). It ignores arrow flight and attack-speed buffs and does not apply a Frost chaser's chill to the shooter, the conservative way. `python3 testing/test_kite.py` now requires the weakest melee weapon's tolerance (how late it may arrive and still win half the duels, unchanged by this) to be at least that time, in all 20 cells (10 edges, bow and wand), and prints the standing figure beside it.
+**Kiting is judged against a shooter that walks.** With no move slows, a shooter can fire, walk away at full speed until its cooldown ends, and fire again (an "orb-walk"). The chaser closes only while the shooter is rooted, so such a shooter gives about the interval over the windup times the free fire of one that stands, a little less because its first windup comes first. The check is `orbwalk_free_fire` in `testing/realtime.py`, a 0.05 s kinematic model of the rules above: the chaser starts at the weapon's range and walks at 170 u/s, the shooter roots for its windup and walks away until its interval (counted from the windup's start) is up, and the time is when the gap is 60 u (melee reach). It ignores arrow flight and attack-speed cards and does not apply a Frost chaser's chill to the shooter, the conservative way. `python3 testing/test_kite.py` now requires the weakest melee weapon's tolerance (how late it may arrive and still win half the duels, unchanged by this) to be at least that time, in all 20 cells (10 edges, bow and wand), and prints the standing figure beside it.
 
 | Ranged windup | Tightest cell | Weakest melee tolerance against orb-walk free fire | Margin |
 |---|---|---|---|
@@ -482,7 +500,7 @@ The owner's ask: right-click moves, left-click auto-attacks the enemy closest to
 
 The next tightest is Fire over Sentenced with the wand (shield 1.74 s against 1.49 s, x1.16). The old draw and cast numbers as windups (bow 0.6 s / 70%, wand 0.2 s / 40%) steal 7 of the 20 cells, and `python3 testing/kite_windup_sweep.py` finds what holds: with a cap of 0.4 s or more, the bow needs a share of at least 0.89 (x1.02) and the wand 0.75 (x1.03); 0.92 and 0.8 give the margins above. **Frost is the other limit.** A Frost shooter slows its chaser to 0.7 inside 100 u (section 10.3), so after each shot it walks the gap back out to 100 u and the chaser must cover the last 40 u (100 minus the 60 u reach) inside ONE windup: (100 - 60) / (0.7 x 170) = 0.34 s. A Frost windup under about 0.31 s keeps the chaser out of reach for good, whatever the share, so the wand's cap must stay at or above about 0.35 s (at the old 0.2 s the two Frost-loser wand cells never close). The bow's 0.6 s cap is not near it.
 
-**In the real sim** (`testing/TUNING_CONTROLS.md`). With both fighters playing the harness's policies, nine of the ten weapon edges hold, against a straight charge, a weave and a jink (before: ten of ten); **Wand over Shield fails, 23%** (Fire 33, Sentenced 0, Plague 56, Frost 0, Holy 28), because the harness wand backs away from a charging shield, which with no ranged slow no longer pays. When both fighters click each other, as players do, **all ten hold and Wand over Shield is 100%**. Kiting: a perfect orb-walking bow (the harness's `orbwalk` style) holds a chaser off 0.90 to 1.05 s against 0.85 to 1.00 s for a motionless one (x1.06 at worst), a perfect orb-walking wand 1.05 to 1.15 s against 0.75 to 0.85 s (**x1.40**, sword against wand). Longer wand windups (0.6 s / 0.8, 1.0 s / 0.95) were measured and rejected: they do not fix Wand over Shield (20% and 76%) and the second breaks Axe over Wand (73%) and the Frost wand. Whether to accept the policy-matrix failure is an owner question (section 18). A ball aimed at release instead of at the start of its cast breaks Axe over Wand (33%), so a ball keeps its start aim and an arrow its release aim.
+**In the real sim** (`testing/TUNING_CONTROLS.md`). With both fighters playing the harness's policies, nine of the ten weapon edges hold, against a straight charge, a weave and a jink (before: ten of ten); **Wand over Shield fails, 23%** (19% in the balance pass's last run; Sentenced and Frost at 0 in both), because the harness wand backs away from a charging shield, which with no ranged slow no longer pays. When both fighters click each other, as players do, **all ten hold and Wand over Shield is 100%**. Kiting: a perfect orb-walking bow (the harness's `orbwalk` style) holds a chaser off 0.90 to 1.05 s against 0.85 to 1.00 s for a motionless one (x1.06 at worst), a perfect orb-walking wand 1.05 to 1.15 s against 0.75 to 0.85 s (**x1.40**, sword against wand). Longer wand windups (0.6 s / 0.8, 1.0 s / 0.95) were measured and rejected: they do not fix Wand over Shield (20% and 76%) and the second breaks Axe over Wand (73%) and the Frost wand. Whether to accept the policy-matrix failure is an owner question (section 18). A ball aimed at release instead of at the start of its cast breaks Axe over Wand (33%), so a ball keeps its start aim and an arrow its release aim.
 
 **Best guesses, logged for the owner to overrule.**
 - A windup the lock started is cancelled by the player's next walk, stop or lock on another fighter; a mob's or the harness's is committed, as above.
@@ -493,6 +511,37 @@ The next tightest is Fire over Sentenced with the wand (shield 1.74 s against 1.
 - A locked shot is aimed once, as it leaves, and flies straight (dodgeable).
 - The bow stays immune to stagger.
 
+### 9.6 As built (balance pass): fists, scaling, specials and the loop's levers
+The balance pass added a sixth weapon that is not in the loop, made every weapon turn the cards' power into damage its own way, gave two weapons a special and retuned the loop's levers. The measurements are in `testing/TUNING_BALANCE.md` 5 and 6; every number below is provisional.
+
+**Fists.** What an empty hand fights with, and how every run starts: reach 40, a 120° swing, boost +150% with a 0.2 s floor (the fastest cadence in the game: Fire 0.67 s, Plague 0.22 s, Frost 0.89 s), damage multiplier 0.60, windup 0.1 s, scaling 0.6 AD + 0.6 AP, on-hit power 1.2. They pierce shields, never stagger and meet no ball. They are not an item (they cannot be dropped, picked up or looted) and not in the loop (the ten `WEAPON_BEATS` edges are unchanged), so a faction on fists has no weapon edge. Arming is worth about ×1.25-1.33 of dps (0.60 against a loop weapon's 0.75-0.80), and a mob's first kill arms an unarmed killer (section 11): a player who has killed one mob beats a fresh player on fists 69% of the time (A10). An empty weapon slot fights with fists, so both slots start empty; swapping to an empty slot is allowed.
+
+**Scaling.** A weapon hit carries the faction's own damage plus what the weapon scales the fighter's stats into (10.2). The numbers: sword 1.0 AD; axe 1.0 AD and 0.02 per point of bonus max hp; bow 1.0 AD; wand 1.0 AP and 0.3 AD; shield 0.4 per point of bonus armor or magic resist and 0.3 AP; fists 0.6 AD and 0.6 AP. The AD weapons and the wand's AP convert one point to one point per second; the weapons are told apart by their damage multiplier, windups, reach and specials, and not by what a card is worth on them (the contract's first numbers, 1.2 on the axe and the wand and 0.9 on the bow, let the minute-5 loop drift: open question N1).
+
+**Specials.** *The axe shreds*: each hit takes 3 armor off its target for 3 s, stacking up to 6 (the `shred` status, a negative armor bonus; total armor never goes below 0, so a shred never makes anyone take more than the bare hit), which is worth most against the factions with the least armor. The cap is tuned small on purpose: at 8 up to 24 it strips all of Frost's 20 armor and flips Frost over Demon Blood of the axe set, the weapon harness's Sword over Axe Frost column and the lock pass's Bow over Axe Frost cell, as does any cap of 9 or more. *The wand splashes*: a ball's impact also hits every other enemy within 48 units of the target for 30% of the ball (a wall stops it, the target is never hit twice, a mob's ball never splashes a mob). *On-hit power*: the sword makes the on-hit effects of its hits land 1.5× as hard and fists 1.2× (a card's bleed, slow or shred). The splash and the on-hit power cannot be measured in a duel with stat cards and one enemy; they are unit-tested.
+
+**The loop's levers** (all constants in `constants.ts`; the rules in `interactions.ts`, `sim/melee.ts` and `sim/projectiles.ts`):
+
+| Lever | Value | What it does |
+|---|---|---|
+| `SHIELD_BLOCK_SHARE` | 0.07 | A frontal sword hit or bash is blocked only in part: 7% is stopped and 93% lands as a normal hit with no stagger (a bash on a bash too). It ends the shield-mirror stalemate (two shields used to block every bash). The contract's first value, 0.35, lost Demon Blood's edges in the shield-only faction set; 0.10 left Shield over Sword at 80% at minute 5. |
+| `RIPOSTE_SHARE` | 0.5 | Half of the BLOCKED part of a sword hit is dealt back to the swordsman (3.5% of the hit). |
+| `ARROW_REFLECT_SHARE` | 0.15 | A reflected arrow carries 15% of its damage; the holder takes the other 85% as a hit (the contract's first value 0.35; 0.25 left Shield over Bow at 87% at minute 5). An arrow is reflected at most twice (`MAX_ARROW_REFLECTIONS`). |
+| `STAGGER_IMMUNITY_SECONDS` | 1.1 | After a stagger the target can't be staggered again for 1.1 s (it was 0.5 s). The edge is a step: at 1.2 Sword over Axe falls to 45% at minute 5, at 1.0 Sword over Wand jumps to 81%. |
+| `BALL_AFTER_ARROW` | 0.6 | A ball that deletes an arrow keeps 60% of its damage: Wand over Bow is a win and not a wall. It also decides the reference openings of Demon Blood over Sentenced and Plague over Demon Blood (open question N2). |
+| `SWORD_BALL_SCALE` | 0.5 | A sword swing halves a ball it meets, once per ball (unchanged). |
+| axe damage multiplier | 0.77 | Unchanged: 0.84 flipped Bow over Axe (41%) and Sword over Axe (48%), so the axe's window stays narrow. |
+
+**Where the loop stands** (`bench/matchups.ts --layer weapon --cross`: the favourite's win % pooled over the 25 faction pairs, noise off, minute 0 with no cards / minute 5 with the typical kit of 10.4):
+
+| Edge | Sword over Axe | Sword over Wand | Bow over Sword | Bow over Axe | Wand over Bow | Wand over Shield | Shield over Sword | Shield over Bow | Axe over Wand | Axe over Shield |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Minute 0 / minute 5 | 60 / 55 | 71 / 74 | 60 / 66 | 59 / 58 | 70 / 77 | 60 / 62 | 60 / 64 | 56 / 74 | 51 / 55 | 60 / 56 |
+
+The target is 55-75% pooled and none under 50%: minute 0 reads 51-71 (Axe over Wand 51, just above the floor) and minute 5 55-77 (Wand over Bow 77, just above the ceiling). The real-sim weapon harness (`npm run harness -w @raid/server -- --core`) holds nine of ten edges in the policy matrix (only Wand over Shield fails, 19%) and all ten when both fighters lock each other; the perfect orb-walking kiter is worst at ×1.40 for the wand (sword against wand), unchanged. Fragile spots: the Sword over Axe Frost column depends on the shred cap (6 holds, 9 or more flips it) and Sword over Wand on the stagger step (1.0 against 1.1 s): a change to either flips a verdict (open question N12).
+
+**The kiting check on the compressed sheet.** The old guarantee (the melee favourite's tolerance, how late it may arrive and still win half the duels, at least the orb-walk free fire) needs a margin the compressed edges do not have: a favourite now wins a fair fight with 10-35% hp left, so its tolerance is near zero, and the old rule fails in 9 of the 20 cells with no buff at all. The check (`python3 testing/test_kite.py`) now asks that a perfect orb-walking underdog wins **at most 65% of its duels under the noise model** (`r_kite = r × (1 − free fire / T) ≥ 0.78`, T the underdog's time to kill the favourite in the same model). It passes in all 20 cells with **one named exception**: Demon Blood over Fire against Fire's wand (the weakest chaser is Demon Blood's shield, in a short fight where the 2.2 s of free fire is 39% of it): the wand kiter wins 76%, `r_kite` 0.64 against a recorded floor of 0.62; the bow on the same edge holds (0.80), and the other 18 cells hold at 0.93-1.15. A longer wand windup did not fix Wand over Shield in the controls rework (0.6 s / 0.8: 20%; 1.0 s / 0.95: 76%) and cost Axe over Wand (73%) and the Frost wand (0%), so the wand windup stays 0.4 s. A best guess for the owner (open question Q3). The old stricter measure survives in `kite_windup_sweep.py` and `kite_buff_sweep.py` as a stress test.
+
 ---
 
 ## 10. How factions and weapons combine (class scaling)
@@ -501,9 +550,9 @@ The next tightest is Fire over Sentenced with the wand (shield 1.74 s against 1.
 - **Rule of thumb: weapons decide reach; factions decide trades.**
   - Who can hit whom, from where, is the weapon's job: range, blocks, interceptions.
   - Once two players are trading blows, the faction loop decides who outlasts whom.
-- **Signature weapons keep almost every opening matchup contested.** Mostly, each faction starts with the weapon that **loses** the weapon edge against the factions it beats on stats:
+- **Reference weapons keep almost every opening matchup contested.** A run starts on fists, so no faction starts with a weapon; each faction's reference weapon (`SIGNATURE_WEAPONS`: the one the harness, the benches and the oracle fight with, and the one a player who arms itself in its home zone holds) is mostly the weapon that **loses** the weapon edge against the factions it beats on stats:
 
-  | Faction | Starts with | Beats (faction) | Weapon matchup in that opening |
+  | Faction | Reference weapon | Beats (faction) | Weapon matchup in that opening |
   |---|---|---|---|
   | Fire | Axe | Sentenced (Bow), Plague (Bow) | Bow > Axe in both: contested |
   | Sentenced | **Bow** | Plague (Bow), Frost (Shield) | Bow vs Bow mirror: neutral; Shield > Bow: contested |
@@ -511,7 +560,7 @@ The next tightest is Fire over Sentenced with the wand (shield 1.74 s against 1.
   | Frost | Shield | Holy (Wand), Fire (Axe) | Wand > Shield, Axe > Shield: contested |
   | Holy | Wand | Fire (Axe), Sentenced (Bow) | Axe > Wand: contested; Wand > Bow: **favours Holy** |
 
-  - **8 of the 10 openings are contested.** The faction winner starts with the losing weapon, so no fight is decided on the pick screen. The real decision is **which second weapon to go and get**.
+  - **8 of the 10 openings are contested.** The faction winner's reference weapon is the losing one, so no fight is decided by a pick. The real decision is **which weapon to go and get**.
   - **Sentenced vs Plague** starts as a bow mirror, so the faction edge decides it.
   - **Holy vs Sentenced** favours Holy on both loops, on purpose, and **Sentenced stays on the bow**. This is a best-guess decision for the owner to overrule (`SIGNATURE_WEAPONS` in `shared/src/weapons.ts`). The reason it started on the bow (a sword opening was Holy's thinnest: 8.1% HP kept at the pre-9.1 numbers) went stale twice: 9.1's weapon cuts reversed it in the stat model, and then the real sim reversed that. The measurement is every opening that involves Sentenced, with Sentenced on each weapon in turn (designed winner's worst HP kept in %, duel pace k = 2: the 20 Hz model `realtime.py` / the real sim in policy mode with the stagger rule of section 10.3, 18 setups per cell; every cell wins 100% of its duels unless marked; the real-sim numbers predate the Controls rework: re-run for the bow row after it, the openings are Fire over Sentenced 47.6, Sentenced over Plague 59.5, Sentenced over Frost 47.1 and Holy over Sentenced 24.4, in `testing/TUNING_CONTROLS.md`; the sword and axe rows were not re-run). "Contested" means the weapon edge opposes the faction edge:
 
@@ -526,34 +575,51 @@ The next tightest is Fire over Sentenced with the wand (shield 1.74 s against 1.
     - **The wand and the shield** each leave three openings favouring the faction winner on both loops and one a mirror (6 of 10 contested).
     - **The bow** is the one choice that holds all four of Sentenced's openings in the real sim (worst 24.7%, Holy over Sentenced) and keeps 8 of 10 openings contested; the owner's original aim stands: Holy vs Sentenced favours Holy on both loops. 9.1's reading that the bow opening was the thinner one (23.6%, against 29.4% on the sword) is right in the stat model and wrong in the real sim. Numbers and method: `testing/TUNING_10.md` section 7.
   - **Region weapons don't change.** The Sentenced region's mobs still carry swords, so all five weapons can be farmed somewhere.
+  - **On the compressed sheet** (balance pass; `bench/matchups.ts --weapon sig`, reported and not judged): the table above and the analysis under it were measured on the first sheet and weapon rules. With the new sheet, both fighters on their reference weapons, no cards (minute 0) and with the typical kit of 10.4 (minute 5), the favourite's win % under the noise model / the underdog's / the favourite's hp left when it wins noise-free (`--` = it loses noise-free):
+
+    | Edge | Minute 0 | Minute 5 |
+    |---|---|---|
+    | Fire over Sentenced | 68 / 32 / 19% | 82 / 18 / 30% |
+    | Fire over Plague | 62 / 38 / 21% | 57 / 43 / 17% |
+    | Sentenced over Plague | 59 / 41 / 22% | 42 / 58 / -- |
+    | Sentenced over Frost | 69 / 31 / 26% | 46 / 54 / -- |
+    | Plague over Frost | 66 / 34 / 23% | 60 / 40 / 9% |
+    | Plague over Demon Blood | 73 / 27 / 37% | 48 / 52 / 1% |
+    | Frost over Demon Blood | 56 / 44 / 13% | 74 / 26 / 30% |
+    | Frost over Fire | 74 / 26 / 21% | 75 / 25 / 35% |
+    | Demon Blood over Fire | 60 / 40 / 20% | 63 / 37 / 34% |
+    | Demon Blood over Sentenced | 43 / 57 / -- | 60 / 40 / 6% |
+
+    At minute 0 Demon Blood over Sentenced (wand against bow) no longer wins noise-free: `BALL_AFTER_ARROW` 0.6 is a compromise that keeps Wand over Bow at 77% at minute 5 (0.7 would put this opening back at 51% and Wand over Bow at 83%: open question N2). At minute 5 three edges invert (Sentenced over Plague, Sentenced over Frost, Plague over Demon Blood): the typical kit is attack-damage shaped and the true mark scales with none of it (open question N10). A run starts on fists, so these openings are what players meet only after they arm themselves.
 
 ### 10.2 The scaling formula
 - **The weapon sets the shape. The faction sets the rhythm and the punch.**
 - **A weapon is a % boost on the faction's base attack speed**, so the speed ratios between factions hold on every weapon.
-  - Attacks per second = `faction rate × (1 + weapon boost) × attack-speed buffs`.
+  - Attacks per second = `faction rate × (1 + weapon boost) × attack-speed cards`.
   - Seconds between attacks (the interval) = 1 ÷ that, never below the weapon's floor.
-  - Boosts: sword +115%, bow +95%, wand +65%, shield +60%, axe +40%.
-  - Floors (the shortest interval): sword 0.25 s, bow 0.25 s, wand 0.3 s, shield 0.3 s, axe 0.35 s. At base speed none of them binds. They only bind under attack-speed buffs (section 10.3).
-- **Damage per hit** = `faction rate × faction hit × weapon damage multiplier × buffs × interval`. With no buffs that is `faction hit × damage multiplier ÷ (1 + boost)`. Every faction keeps its own damage per second, times the weapon's damage multiplier, on every weapon: faster weapons hit proportionally lighter. Weapons change the rhythm and shape, not the class's power.
+  - Boosts: sword +115%, bow +95%, wand +65%, shield +60%, axe +40%, fists +150%.
+  - Floors (the shortest interval): sword 0.25 s, bow 0.25 s, wand 0.3 s, shield 0.3 s, axe 0.35 s, fists 0.2 s. At base speed none of them binds. They only bind under attack-speed cards (section 12.7).
+- **Damage per hit** = `faction rate × faction hit × weapon damage multiplier × attack speed × interval`. With no cards that is `faction hit × damage multiplier ÷ (1 + boost)`. Every faction keeps its own damage per second, times the weapon's damage multiplier, on every weapon: faster weapons hit proportionally lighter. Weapons change the rhythm and shape, not the class's power.
+- **Cards add through the weapon's scaling (AD and AP).** A hit also carries `(scaling.ad × AD + scaling.hp × bonus max hp + scaling.def × (bonus armor + bonus magic resist))` physical damage and `scaling.ap × AP` magic damage, in points of damage per second at base attack speed, times attack speed and the interval: a faster weapon's hit carries less of it, an interval at its floor turns surplus speed into bigger hits, and the faction's own rate does not matter (a Plague and a Frost gain the same dps from a point). The scaling is in the table of 9.1 (sword, axe, bow 1.0 AD; wand 1.0 AP and 0.3 AD; shield 0.4 defense and 0.3 AP; fists 0.6 AD and 0.6 AP). AD, bonus-hp and defense parts are physical, the AP part magic. AP also adds `0.6 × AP` magic damage per second to every running burn, disease and mark (a second entry under the same signature). Wishes never read AD or AP.
 - **Signature bonuses scale with the weapon multiplier too** (burn, backlash, disease, execute, mark). Otherwise a weapon's damage discount would hit some factions much harder than others.
-- **Duel pace (k = 2).** All faction damage is doubled (and Sentenced's mark ramp quadrupled), HP unchanged, so every fight is **exactly twice as short** while the counter graph holds. For example, Frost over Holy drops from 52 s to about 26 s, and Fire over Plague takes 1.1 s.
+- **Duel pace (k = 2).** All faction damage is doubled (and Sentenced's mark ramp quadrupled), HP unchanged, so every fight is **exactly twice as short** while the counter graph holds. For example, Frost over Holy drops from 25.8 s to about 13 s, and Fire over Plague from 8.1 s to about 4 s (the engine: `python3 testing/matchup_band.py`).
 
-Interval and damage per hit with no buffs, before duel pace (double the hits for in-game values):
+Interval and damage per hit with no cards, before duel pace (double the hits for in-game values):
 
-| Faction | DPS | Sword | Axe | Bow | Wand | Shield |
-|---|---|---|---|---|---|---|
-| Fire | 90.0 | 0.78 s / 52 | 1.19 s / 83 | 0.85 s / 62 | 1.01 s / 73 | 1.04 s / 70 |
-| Sentenced | 4.5 | 0.52 s / 2 | 0.79 s / 3 | 0.57 s / 2 | 0.67 s / 2 | 0.69 s / 2 |
-| Plague | 37.0 | 0.25 s / 7 | 0.39 s / 11 | 0.28 s / 8 | 0.33 s / 10 | 0.34 s / 9 |
-| Frost | 40.5 | 1.03 s / 31 | 1.59 s / 50 | 1.14 s / 37 | 1.35 s / 44 | 1.39 s / 42 |
-| Holy | 61.8 | 0.49 s / 23 | 0.75 s / 36 | 0.54 s / 27 | 0.64 s / 32 | 0.66 s / 30 |
+| Faction | DPS | Sword | Axe | Bow | Wand | Shield | Fists |
+|---|---|---|---|---|---|---|---|
+| Fire | 60.0 | 0.78 s / 35 | 1.19 s / 55 | 0.85 s / 41 | 1.01 s / 48 | 1.04 s / 47 | 0.67 s / 24 |
+| Sentenced | 9.0 | 0.52 s / 3.5 | 0.79 s / 5.5 | 0.57 s / 4.1 | 0.67 s / 4.8 | 0.69 s / 4.7 | 0.44 s / 2.4 |
+| Plague | 37.0 | 0.25 s / 7.0 | 0.39 s / 11 | 0.28 s / 8.2 | 0.33 s / 9.7 | 0.34 s / 9.4 | 0.22 s / 4.8 |
+| Frost | 78.8 | 1.03 s / 61 | 1.59 s / 96 | 1.14 s / 72 | 1.35 s / 85 | 1.39 s / 82 | 0.89 s / 42 |
+| Holy | 91.2 | 0.49 s / 33 | 0.75 s / 53 | 0.54 s / 39 | 0.64 s / 47 | 0.66 s / 45 | 0.42 s / 23 |
 
 Reading the table:
 - Every column has the same speed ratios: on any weapon Plague swings 4.1× as often as Frost and 3.1× as often as Fire.
-- Fire with an axe swings every 1.2 s for an 83-damage hit; Plague with a bow fires 3.6 arrows a second.
+- Fire with an axe swings every 1.19 s for a 55-damage hit (before what cards add, above); Plague with a bow fires 3.6 arrows a second; Plague's fists punch every 0.22 s (the floor is 0.2 s) for under 5.
 - Frost with an axe is the slowest combo in the game, one swing every 1.6 s. In the 20 Hz duels the longest stretch with no swing from either fighter is also 1.6 s.
-- Plague's sword (0.251 s) sits just above its 0.25 s floor, so any attack-speed buff on it turns into damage per hit at once.
-- Windups are part of each interval (Controls rework, section 9.5): a bow cycle is rooted for 0.92 of it up to 0.6 s, a wand cycle for 0.8 up to 0.4 s. So Plague's bow (0.28 s) is rooted for 0.255 s of every cycle and Frost's bow (1.14 s) for 0.6 s of it, and an attack-speed buff shortens the interval and the windup together. The kite check assumes no buffs.
+- Plague's sword (0.251 s) sits just above its 0.25 s floor, so any attack-speed card on it turns into damage per hit at once.
+- Windups are part of each interval (Controls rework, section 9.5): a bow cycle is rooted for 0.92 of it up to 0.6 s, a wand cycle for 0.8 up to 0.4 s. So Plague's bow (0.28 s) is rooted for 0.255 s of every cycle and Frost's bow (1.14 s) for 0.6 s of it. An attack-speed card shortens the interval and a melee windup together, but never a ranged windup below its base-speed value (G9, 12.7). The kite check's model assumes no attack-speed cards.
 - Sentenced's weapon hits are near zero on purpose; the mark is its damage.
 
 ### 10.3 Signatures in real time
@@ -566,111 +632,216 @@ The design engine assumes two fighters standing in range forever. The game has m
 | **Bonus damage lingers 1.25 s** after line of sight breaks | Stops peek-fighting (pop out, hit, hide, repeat) |
 | **The mark holds through breaks.** It freezes while hidden and resets on target switch, a weapon swap by the target, death, or 10 s without contact. | Sentenced isn't cheesed by walls |
 | **Frost's chill** applies to everyone engaged with Frost. It doesn't stack, and it stretches the cooldown, the bow draw (its start and the moment the arrow leaves, so a chilled archer's cycle stays the interval over the chill's rate) and the press buffer smoothly every tick (it's never snapshotted at swing time). The other windups, a swing and a cast, are not stretched. The **movement** slow (x0.7) only applies within melee reach of Frost (about 100 u). | A small radius would let ranged enemies ignore the attack slow; a ranged Frost slowing its chaser would be uncatchable. Even so, a Frost shooter walks its chaser back out to 100 u after every shot, so its windup must stay long enough for the chaser to cross the last 40 u inside it, about 0.31 s (section 9.5). |
-| **Fire's backlash** hits an engaged enemy each time they swing, sized by how often their weapon swings (200 ÷ (1 + the weapon's boost)): sword 93, bow 103, wand 121, shield 125, axe 143 | Literally "damaged when swinging", and over time it matches the design engine exactly. A flat 200 per swing would have over-punished fast weapons. |
+| **Fire's backlash** hits an engaged enemy each time they swing, sized by how often their weapon swings (145 ÷ (1 + the weapon's boost)): fists 58, sword 67, bow 74, wand 88, shield 91, axe 104 | Literally "damaged when swinging", and over time it matches the design engine exactly. A flat 145 per swing would have over-punished fast weapons. The backlash is physical damage, so armor cuts it. |
 | **HP stays fractional** and cooldown remainders carry over | Avoids rounding cliffs that flip close fights |
-| **Healing** (when added) only works after 3 s out of combat. Holy's lifesteal is exempt. | Mid-duel heals flip faction counters; blocking lifesteal would break Holy |
-| **Attack-speed buffs** past a weapon's floor (its shortest interval) turn into extra damage per hit. Plague's sword (0.251 s) is just above its 0.25 s floor, so any attack-speed buff on it converts at once. | Otherwise Plague on a sword would gain next to nothing from attack speed |
-| **Windups scale with the interval.** Axe root = min(0.5 s, 50% of the interval) and windup = min(0.25 s, 25%). Bow draw = min(0.6 s, 92%), always a full draw. Wand cast = min(0.4 s, 80%). Sword and bash 0.1 s. Every windup roots the fighter (Controls rework: it replaces the old wand self-slow and the 10% ranged move multipliers). | Plague's axe swings every 0.39 s, shorter than a fixed 0.5 s root. Without this, fast cadences would be rooted for good. The ranged shares are the anti-kiting lever (section 9.5). |
-| **Stagger immunity.** After a stagger, the target can't be staggered again for 0.5 s. | Plague's sword swings every 0.25 s and could otherwise stagger-lock a target |
-| **A landed stagger pauses the staggered fighter's damage over time.** When a stagger lands (the 0.5 s immunity starts, whether or not it cancelled a swing), its burn, disease and mark stop for its weapon's windup: sword and shield 0.1 s, axe up to 0.25 s, wand cast up to 0.4 s, bow 0 (a bow draw is never cancelled). Fire's backlash never pauses, and the mark's clock keeps running. | A stagger only cancels a swing that is still winding up, so on average it costs a hit-based fighter one windup of its damage, and damage over time would lose nothing: a sword's staggers would trade only against hit-based factions (Holy lost Holy over Sentenced with both on swords). The pause costs the same expected damage. It exists only in the real sim; the 20 Hz model has no staggers. |
+| **Healing** only works after 3 s out of combat. Lifesteal (Holy's and the Leech cards'), the camp-clear heal and Second Wind are exempt. | Mid-duel heals flip faction counters; blocking lifesteal would break Holy |
+| **Attack-speed cards** past a weapon's floor (its shortest interval) turn into extra damage per hit. Plague's sword (0.251 s) is just above its 0.25 s floor, so any attack-speed card on it converts at once. | Otherwise Plague on a sword would gain next to nothing from attack speed |
+| **Windups scale with the interval.** Axe root = min(0.5 s, 50% of the interval) and windup = min(0.25 s, 25%). Bow draw = min(0.6 s, 92%), always a full draw. Wand cast = min(0.4 s, 80%). Sword, bash and fists 0.1 s. Every windup roots the fighter (Controls rework: it replaces the old wand self-slow and the 10% ranged move multipliers). | Plague's axe swings every 0.39 s, shorter than a fixed 0.5 s root. Without this, fast cadences would be rooted for good. The ranged shares are the anti-kiting lever (section 9.5). |
+| **Stagger immunity.** After a stagger, the target can't be staggered again for 1.1 s. | Plague's sword swings every 0.25 s and could otherwise stagger-lock a target |
+| **A landed stagger pauses the staggered fighter's damage over time.** When a stagger lands (the 1.1 s immunity starts, whether or not it cancelled a swing), its burn, disease and mark stop for its weapon's windup: sword and shield 0.1 s, axe up to 0.25 s, wand cast up to 0.4 s, bow 0 (a bow draw is never cancelled). Fire's backlash never pauses, and the mark's clock keeps running. | A stagger only cancels a swing that is still winding up, so on average it costs a hit-based fighter one windup of its damage, and damage over time would lose nothing: a sword's staggers would trade only against hit-based factions (Holy lost Holy over Sentenced with both on swords). The pause costs the same expected damage. It exists only in the real sim; the 20 Hz model has no staggers. |
+| **Each signature deals its own damage type** (burn and disease magic, backlash physical, the mark true), whatever the faction's weapon hits are. Mobs' signatures are typed the same way. | The first sheet's mark and backlash were magic: Holy's shield cut the mark to 29%. The types are the owner's tags and decide Holy over Sentenced and Plague over Holy (open question Q5). |
+| **The mark's clock against a player runs at the attacker's PvP factor** (10.4); against a mob it runs at 1. | The factor is a PvP-only duel pace: equal-power fights keep their outcome and only their pace changes. |
 
-A 20-tick-per-second simulation of the damage rules above reproduces the full faction cycle with the same weapon on both sides (all five weapons), in every signature-weapon opening and in all 25 weapon pairings of every edge (before the 9.1 tuning, Holy over Sentenced lost with the bow or the shield against a sword; now all 250 cells win every phase pair at duel pace, and the thinnest, Holy's sword against Sentenced's wand or bow, keeps 17.4% HP in the worst case). It does not model movement, line of sight, stagger or the animation timings, except one approach: the kiting check (sections 9.4 and 9.5) charges a melee winner at a ranged loser, who since the Controls rework walks away between rooted shots.
+A 20-tick-per-second simulation of the damage rules above reproduces the full faction cycle with the same weapon on both sides (all five weapons), in every signature-weapon opening and in all 25 weapon pairings of every edge (on the first sheet: before the 9.1 tuning, Holy over Sentenced lost with the bow or the shield against a sword; after it all 250 cells won every phase pair at duel pace, and the thinnest, Holy's sword against Sentenced's wand or bow, kept 17.4% HP in the worst case; on the compressed sheet the real sim agrees with the model on 70 of 70 cells, fists included, and every favourite wins its noise-free duels on fists and on each of the five weapons). It does not model movement, line of sight, stagger or the animation timings, except one approach: the kiting check (sections 9.4 and 9.5) charges a melee winner at a ranged loser, who since the Controls rework walks away between rooted shots.
+
+### 10.4 Power, the PvP factor and the time to kill
+Power is the weapon in hand plus the cards you hold (section 12): no kill gives a stat. Every player-to-player hit (a weapon hit or a signature's damage; never a Wish, the arena, a mob or a dummy) is multiplied by the **PvP factor** of its attacker's **card power** P, the sum of the tiers of its cards (a stacked card counts once per copy):
+
+`pvpFactor(P) = 0.75 + 2.25 × (1 − e^(−P / 6))`
+
+| P | 0 | 1 | 2 | 3 | 5 | 6 | 10 | 15 | limit |
+|---|---|---|---|---|---|---|---|---|---|
+| Factor | 0.75 | 1.10 | 1.39 | 1.64 | 2.02 | 2.17 | 2.58 | 2.82 | 3.0 |
+
+A fresh player hits other players weakly and a farmed one far harder (a P 10 player deals 3.4 times a fresh player's damage: owner ruling Q9 kept the ×3.0 ceiling): **early fights are slow, late fights short, and farming wins fights.** The factor saturates (half of the gain is there by P 4, which is the snowball brake) and the guards of 12.7 bound what a stack of cards can add on top. It is a PvP-only duel pace: the mark's clock against a player runs at the same factor, so two fighters of equal power keep the outcome the faction sheet gives and only the length changes. The HUD shows it on the build strip ("PvP ×1.39").
+
+**The time-to-kill target.** The curve is fit to a design target, measured in the real sim as the median over every ordered pair of different factions in an even duel (both on the same kit, the lock's controls, `bench/ttkCurve.ts`): **about 20 s at minute 0** (fists, no cards) and **about 5 s with the kit of a player who has cleared five camps**. The kits are a best guess, one card a camp and about a camp a minute:
+
+| Minute | Weapon | Cards | P | Factor | Median TTK | Mean |
+|---|---|---|---|---|---|---|
+| 0 | fists | none | 0 | 0.75 | **19.8 s** | 20.6 s |
+| 1 | reference weapon | first offense card | 1 | 1.10 | 10.1 s | 12.0 s |
+| 2 | same | + Vitality I | 2 | 1.39 | 8.6 s | 10.2 s |
+| 3 | same | + Haste I | 3 | 1.64 | 7.3 s | 8.7 s |
+| 4 | same | + second offense card | 5 | 2.02 | 5.9 s | 6.6 s |
+| 5 | same | + Armor I | 6 | 2.17 | **5.4 s** | 6.4 s |
+
+(The offense card is Attack Damage on every weapon except a wand, which takes Ability Power, and a shield, which takes Armor.) The curve falls 3.7× from minute 0 to minute 5, every ordered pair lies between 0.46× and 1.96× of the minute-0 median, and no duel hit the cap. The big step from minute 0 to minute 1 is the weapon plus the first card (×1.47): **farm, then fight.** A player who has killed one mob (and so holds its weapon) beats a fresh player on fists 69% of the time; a player on the minute-5 kit beats a fresh one on fists in 100% of the duels it fights, keeping 86% of its hp. The slowest even duels are the sustain mirrors (the Frost mirror 44 s at minute 0 and 15.8 s at minute 5, 2.9 times the median: open question N4). `testing/TUNING_BALANCE.md` 3 has the full table.
 
 ---
 
 ## 11. Mobs and regions
 
 - **Neutral by default.** Mobs idle near their camp and only fight once attacked.
-- **They fight like their region.** Each mob uses its region's faction rules (scaled down) and that region's weapon. Frost mobs slow you; Plague mobs execute you below half HP.
+- **They fight like their region, shaped by their type.** Each mob uses its region's faction rules (scaled down) and then its type's **role** (below), and carries its **type's own weapon**. Frost mobs slow you; Plague mobs execute you below half HP (their execute is scaled by `k²`, see Strength). A caster shoots, so it fights as a ranged fighter.
 - **Aggro and leash.** Once hit, a mob chases and fights with spacing that suits its weapon, and so does the rest of its camp (below). If you run far enough, out of its camp's territory, it gives up, walks home and regenerates.
 - **Drops.** On death a mob gives:
-  - a little **GV**;
-  - **stacks of its type's buff** (section 12.2);
-  - **its weapon**, unless the killer already holds that weapon type.
+  - a little **GV**, and a quarter of a player kill's feed (section 12.1);
+  - **its weapon**: if your hand is empty it goes straight into it ("Armed: Bow", no ground drop: the owner ruled this, so a starter on fists is armed by its first kill); otherwise it lies where the mob fell, unless the killer already holds that weapon type.
 
-  Clearing the whole camp pays once more: one **shared chest** of skills for everyone near (section 12.5). A camp's chest is not the killer's.
-- **Mono-type camps.** Every camp is one mob type: its normal mobs all share it, and the zone's one elite (the mob at the elite spot of its elite camp) is that zone's elite type. A zone has four types, three normal and the elite (Fire: Ember Imp, Cinder Hound, Magma Brute and the elite Wyrmling), and each gives its own buff (the table in 12.2). Types are drawn per zone without repeats when the room is built: a zone has four camps, so each of its three normal types stands in one camp and a fourth camp repeats one of them. The roster is public from the lobby on: the planning screen names every camp's type and buff, so the map is also a shopping list for buffs. Mobs of one zone still fight identically (their zone's faction and weapon, scaled as below): the types differ by name and buff only.
+  **A kill never gives a stat.** The per-kill buffs of the first roguelike builds are gone; all stat power is a card (section 12). Clearing the whole camp pays once more: one **shared chest** of cards (section 12.5) and a **heal** for everyone who fought it (section 12.6). A camp's chest is not the killer's.
+- **Mono-type camps, 30 types.** Every camp is one mob type: its normal mobs all share it, and an elite camp adds one elite of its zone at its elite spot. Each zone has **six types: four normal and two elite**, each with a role and a weapon:
+
+  | Zone | Normal types (role, weapon) | Elite types (role, weapon) |
+  |---|---|---|
+  | Fire | Ember Imp (swarm, axe), Cinder Hound (skirmisher, axe), Magma Brute (brute, axe), Flame Caller (caster, wand) | Wyrmling (grunt, axe), Ash Drake (caster, wand) |
+  | Sentenced | Bailiff (grunt, sword), Chain Warden (brute, sword), Inquisitor (skirmisher, sword), Pardoner (caster, bow) | Executioner (grunt, sword), Gaoler (brute, shield) |
+  | Plague | Plague Rat (swarm, bow), Bloatfly (skirmisher, bow), Rot Monk (grunt, bow), Miasma Witch (caster, wand) | Rat Ogre (brute, bow), Pox Behemoth (brute, axe) |
+  | Frost | Frost Wisp (swarm, shield), Ice Golem (brute, shield), Rime Stalker (skirmisher, shield), Frostbow Sentry (caster, bow) | Glacial Warden (grunt, shield), Avalanche Troll (brute, axe) |
+  | Demon Blood | Acolyte (grunt, wand), Seraph Shard (swarm, wand), Penitent (skirmisher, wand), Zealot (brute, sword) | Blood Saint (grunt, wand), Archon (skirmisher, sword) |
+
+  Every zone drops two or three kinds of weapon (Fire axe and wand; Sentenced sword, bow and shield; Plague bow, wand and axe; Frost shield, bow and axe; Demon Blood wand and sword), so every weapon can be farmed in at least two zones, and **the map is still a shopping list for counters**. A role is a multiplier on the zone's scaled faction:
+
+  | Role | HP | Damage | Move | What it is |
+  |---|---|---|---|---|
+  | Grunt | ×1.0 | ×1.0 | ×1.0 | Plain fighter |
+  | Swarm | ×0.7 | ×0.9 | ×1.1 | Fast and fragile |
+  | Brute | ×1.4 | ×0.8 | ×0.9 | Slow and tough |
+  | Skirmisher | ×0.85 | ×1.1 | ×1.15 | Runs you down |
+  | Caster | ×0.75 | ×1.2 | ×1.0 | Shoots from range |
+
+  (The damage multiplier scales the hit and every point-damage signature number, hp is separate; a swarm mob is both fragile and weak-hitting, a brute tanky and slow-hitting.) The client marks a role on the mob's disc (swarm: small dots, skirmisher: a chevron, caster: a ring, brute: a thick rim) and an elite with a star.
+- **Rosters.** A zone's four normal types go into a **bag twice** (eight entries), shuffled once per zone from the private reward stream when the room is built, and the zone's camps take the entries in map order: a zone of eight camps shows each type in exactly two of them. The k-th elite camp of a zone (in map order) holds the k-th elite. **Today's maps have four camps a zone and one elite camp** (section 5), so a zone shows the first four bag entries (a type can repeat across its camps or be missing) and only its first elite; the second elite and the 8-camp, two-elite-camp layout are data until the map session builds them (open question N13). The roster is public from the lobby on: the planning screen names every camp's type, its role and the weapon it drops, and your faction's matchup against the zone's faction (a straight duel of factions: it does not weigh the type's role, its weapon or your weapon).
 - **One hit wakes the whole camp** (owner ruling, `CAMP_WIDE_AGGRO`). Damage to any mob wakes every idle mob of its camp onto the same attacker, even when the hit mob was already fighting, and so does a hit that kills it outright (the mates wake onto whoever is credited with the kill). The mates carry no threat of their own, so a pull earns no kill credit: a mob's kill still goes to whoever did that mob the most damage. A mob walking home ignores the call, a camp-mate of another camp stays asleep, a fighter that is hidden by Swarm is never handed on (the mates wait for a hit on someone they can see) and a stunned mate does nothing until its stun ends. Each woken mob keeps its own leash and give-up timer, so the camp can come apart as you kite. With the flag off, only the mob that is hit wakes.
-- **Camps clear for good.** A camp is idle, engaged (from the first damage to any of its mobs, and never idle again) or cleared (all its mobs dead). Camps never respawn: a clear is permanent, whoever or whatever landed the last blow, and the coliseum teleport only puts the living mobs of camps that are not cleared back on their spots. The minimap and the planning map cross a cleared camp out, so everyone reads what was taken, and a line announces "Plague camp cleared" to everyone. The camp's state is synced; its chest is section 12.5.
-- **Strength.** A mob is its region's faction with hp and every damage number scaled by **0.22**, and an elite by **0.65**. A normal mob was 0.45 until the camp began to wake together: at 0.45 a starter cleared a full camp of 4 in 4 of 25 pairings, so the owner ruled normal mobs weaker (elites stay as they were, and harder). Measured in the real simulation (signatures and the Phase 9.1 ranges included; a scripted player on the starting kit, which is its faction's signature weapon, no buffs and no second weapon):
-  - *One mob at a time,* on a hand-built floor with a 9-tile leash. A player who stands and fights finishes a normal mob in 24 of the 25 starter-against-region pairings with about 91% hp left (the one that is not finished is a Frost shield against a Frost shield mob, which both block forever), and an elite in 22 of 25 with about 54% left. A player who backs away from a melee mob while shooting (the default policy) wins 22 of 25 normal pairings with about 84% left.
-  - *A whole camp that wakes at the first hit,* which is what a run asks (`bench/campDuel.ts`, its `camp` pull, 12 seeds, cleared in every seed, on an open floor with the 9-tile leash, before the camps' territories reached the bench): a camp of 4 normals, the mean of the maps' camps (3 to 5 mobs), is cleared in 21 of 25 faction × zone pairings (23 at 3 mobs, 14 at 5). An elite camp (the elite and 3 normals) in 9 of 25, and every zone's elite camp falls to at least one starter. What fails is a Frost shield against a Frost zone (a stalemate), a Holy wand against a Sentenced sword camp (Sword beats Wand), a Sentenced bow against a Fire axe camp and, in a third of the seeds, against its own zone. Ranged starters do worst, and more so as the camp grows.
+- **Camps clear for good.** A camp is idle, engaged (from the first damage to any of its mobs, and never idle again) or cleared (all its mobs dead). Camps never respawn: a clear is permanent, whoever or whatever landed the last blow, and the coliseum teleport only puts the living mobs of camps that are not cleared back on their spots. The minimap and the planning map cross a cleared camp out, so everyone reads what was taken, and a line announces "Plague camp cleared" to everyone. The camp's state is synced; its chest and heal are sections 12.5 and 12.6.
+- **Strength.** A mob is its region's faction with hp and every damage number scaled by **0.22** (`MOB_K`), an elite by **0.65** (`ELITE_K`), then by its role. A normal mob was 0.45 until the camp began to wake together, and the owner ruled normal mobs weaker (elites stay harder). **A mob's execute is scaled by `k²`**: its bonus damage reads the PLAYER's hp fraction, whose pool is full-scale, so `k` alone left a Plague mob 4-5 times too strong (it killed a 25%-hp player in 0.9-3.6 s where any other zone took 5-120 s). Mobs are balanced against **a starter on fists** (a run starts unarmed, section 3), measured in the real simulation with signatures and the Phase 9.1 ranges included, one scripted player per duel and no cards (`testing/TUNING_BALANCE.md` 9):
+  - *One mob at a time* (`mobDuel --style stand`, a hand-built floor with a 9-tile leash). A player who stands and fights finishes a normal mob in all 25 of the 25 starter-against-zone pairings with about 95% hp left (worst pairing 90%) and an elite in all 25 with about 43% left (97% of duels).
+  - *A whole camp that wakes at the first hit,* which is what a run asks (`campDuel`, `camp` pull, 4 seeds so that every type is met): a camp of 4 normals is cleared in 24 of 25 pairings in every seed and in all 25 in half of them (the miss is a Fire fist against a Frost camp), every normal type's camp in at least 80% of runs (all 20 of 20, except the Frostbow Sentry, a ranged caster, at 17 of 20). An elite camp (the elite and 3 normals) is cleared in 4 of 25 pairings in every seed and 13 in half of them: elites are for armed, carded players (Plague's two elites clear 4 of 20 on fists), and every elite type's camp falls to at least one starter on its zone's weapon.
+  - *The Plague execute (A13):* a motionless 25%-hp player lasts 0.94 times as long against a Plague mob as against the other zones' median (pooled), and 0.45 times for a Plague player, whose armor 190 shrugs off the other zones' physical mobs.
 
-  What the starting kit cannot finish needs a second weapon, and that is the choice: the weapons you pick up decide which camps you farm. A player who backs away from a melee mob while shooting can still lose to it: the mob chases to its leash, gives up, heals and comes back, so a ranged weapon has to burst it down inside one round. Each region has **one elite**: the first mob of its elite camp. The other mobs of that camp are normal.
-- **Drop numbers.** GV is 2 (elite 10) and a buff is 1.1 stacks of the mob's type (elite 3.1), both times the mob reward curve of section 12.3. At full reward (a feed near 0, the curve at about 0.98) three kills of one camp give about 3.2 stacks, the buff's quoted value (3 stacks), and one elite kill gives about 3.0 on its own. The weapon lies where the mob fell and anyone can take it; it is not dropped when the killer already holds that weapon type.
+  What a fist cannot finish needs a better weapon, and that is the choice: the weapons you pick up decide which camps you farm. A player who backs away from a melee mob while shooting can still lose to it: the mob chases to its leash, gives up, heals and comes back, so a ranged weapon has to burst a melee mob down inside one round.
 - **Who gets the kill.** The player who did the mob the most damage over the whole fight (since it last rested), among those still in the run, so a late shot cannot steal an elite. An exact tie goes by the tick's secret order. A mob that nobody in the run hit drops its weapon and pays nothing.
 - **The leash is the camp's territory** (section 5), and never more than 12 tiles from the mob's own rest spot. A generated camp's territory reaches 10.8 to 30 tiles from the camp, so the 12-tile cap is what binds on almost every camp, unless the territory's edge comes first; a mob that has no territory to hold its spot (one placed with no camp, or in a hand-built test arena) keeps a 9-tile circle around its spot instead. A bow or wand mob backs away only to points a little way inside the leash.
-- **Leash numbers.** Any hit from a player wakes the mob, wherever the player stands. It gives up when it leaves its leash, or 6 s after it last **dealt** damage (damage it takes does not extend the fight), or with nobody left to fight. It then walks home **ignoring everyone and taking no damage**: it starts nothing new (a shot already in the air still lands), and it is not a body, so swings and shots pass through it (its shield neither blocks nor reflects). It is whole again the moment it arrives, and is neutral again. A mob hurt by someone who was gone before it could wake heals after 3 s unhurt. So a shooter out of its reach gains nothing by kiting it: every round ends with a whole mob, and a ranged weapon has to burst a melee mob down inside one round. A mob whose shield blocks or reflects a hit wakes too. A bow or wand mob backs away from a player who is too close, but only inside its leash and only to open the gap; cornered at the edge it stands and shoots. A hit on one mob wakes its whole camp (above), and each woken mob then follows this paragraph on its own. That call matters at four mobs a camp: in the scripted camp duels a starting kit clears a camp with every mob awake in only 8 of 75 runs (24 of 75 with three mobs), so waking the whole camp waits on weaker mobs, which the owner wants and the camp runtime will tune. Mobs never hurt each other, and their shots fly past each other. Dead mobs do not respawn. When the patience timer teleports everyone into the coliseum, every living mob is put back on its camp spot at full health.
-- **Same input path as players.** Mobs use the same input rules and combat code as players, so a sword mob and a sword player behave identically. A mob holds the trigger itself (it never locks a target), and its windups root it like anyone's.
-- **Mob types.** The 20 types (four per region) are in section 12.2 with their buffs. Each camp's `alive` count is synced, and a mob's type and camp ride its state. A cleared camp drops a shared skill chest (section 12.5); relics in the chest and "?" camps that hide their reward are planned, not built (see `docs/ROGUELIKE_PLAN.md`).
-- **Later.** Raid-boss mobs (section 2.2). Quest NPCs have a first version (`docs/quests.md`).
+- **Leash numbers.** Any hit from a player wakes the mob, wherever the player stands. It gives up when it leaves its leash, or 6 s after it last **dealt** damage (damage it takes does not extend the fight), or with nobody left to fight. It then walks home **ignoring everyone and taking no damage**: it starts nothing new (a shot already in the air still lands), and it is not a body, so swings and shots pass through it (its shield neither blocks nor reflects). It is whole again the moment it arrives, and is neutral again. A mob hurt by someone who was gone before it could wake heals after 3 s unhurt. So a shooter out of its reach gains nothing by kiting it: every round ends with a whole mob. A mob whose shield blocks or reflects a hit wakes too. A bow or wand mob backs away from a player who is too close, but only inside its leash and only to open the gap; cornered at the edge it stands and shoots. A hit on one mob wakes its whole camp (above), and each woken mob then follows this paragraph on its own. Mobs never hurt each other, and their shots fly past each other. Dead mobs do not respawn. When the patience timer teleports everyone into the coliseum, every living mob is put back on its camp spot at full health.
+- **Same input path as players.** Mobs use the same input rules and combat code as players, so a sword mob and a sword player behave identically. A mob holds the trigger itself (it never locks a target), and its windups root it like anyone's. A mob holds no cards, so it has no card bonus and no PvP factor.
+- **Later.** Raid-boss mobs (section 2.2); relics in the chest and "?" camps that hide their reward are planned, not built (`docs/ROGUELIKE_PLAN.md`). Quest NPCs have a first version (`docs/quests.md`).
 
 ---
 
-## 12. Snowballing and anti-snowballing
+## 12. Power, snowballing and anti-snowballing: the card economy
 
-Getting fed should feel like a fed League carry or a Slay the Spire run where the build "just comes together". Getting ahead is meant to feel powerful. The limits are soft: **rewards fall off and bounties rise**, rather than hard caps.
+Getting fed should feel like a fed League carry or a Slay the Spire run where the build "just comes together". Getting ahead is meant to feel powerful. The limits are soft: **rewards fall off and bounties rise**, rather than hard caps, and one curve (the PvP factor, 10.4) decides how much a stack of power is worth against another player.
+
+**No per-kill power.** A mob kill pays GV, feed and the mob's weapon, never a stat. A player kill pays the kill GV and the victim's bounty GV, never a stat, and nothing the victim holds moves to the killer. **All stat power is a card**, from a camp's chest or a quest, so the pace of power is the pace of cleared camps. Builds are **discovered, not forced**: no card text names a faction, a weapon or a mob (a test enforces it), so every card reads the same for every build and whether it suits you is yours to learn (the tooltip chips and the glossary say what the mechanics are).
 
 ### 12.1 Feed score
-`feed = player kills + 0.25 × mob kills` for the current run.
+`feed = player kills + 0.25 × mob kills` for the current run. It sets the mob reward curve (12.3) and the catch-up; the bounty reads player kills only (12.4).
 
-### 12.2 Buffs: one per mob type, S-shaped
-Every mob type (section 11) gives its own buff, and a kill adds stacks of the buff of the mob's type. A buff's numbers follow an S-curve of its stacks: small at first, a spike around the 3rd to 5th stack, then a plateau. The numbers in the table below are the value **at 3 stacks** (the quoted value); at n stacks every number of the buff is multiplied by S(n) / S(3), with S(x) = sigmoid(x − 3) − sigmoid(−3):
+### 12.2 The card catalog: 75 cards in three kinds
+A card is data: a row of effects the sim folds into a player's stats (`shared/src/cards.ts`, `effects.ts`; the card's text is general mechanics only). A player's **card power** P is the sum of the tiers of the cards held (a stacked card counts once per copy); the PvP factor reads it (10.4). Cards last the run and are gone when it ends.
 
-| Stacks | 1 | 2 | **3** | **4** | 5 | 6 | 8 | plateau |
-|---|---|---|---|---|---|---|---|---|
-| Share of the quoted value | ×0.16 | ×0.49 | **×1** | **×1.51** | ×1.84 | ×2.00 | ×2.09 | about ×2.1 |
+**24 base cards: eight stats at three tiers.** They stack: Attack Damage II held twice is two copies. T2 is 1.75 and T3 2.75 times T1.
 
-So Ember Imp's +10% damage is +1.6% at 1 stack, +4.9% at 2, +10% at 3, +15.1% at 4, +20% at 6 and about +21% at the plateau. Stacks are real numbers: a drop is scaled by the reward curve below, and a bounty moves half of each buff. A drop is 1.1 stacks (an elite 3.1) times that curve, so three kills of one camp, or one elite kill, reach the quoted value when you are hungry. Rows of one stat from different buffs add (two +5% damage rows are +10%, never ×1.1025), and different stats multiply where the game combines them (attack speed with damage per hit, move speed with the chill). An on-hit effect's cap never rises: more stacks reach it sooner and no further.
+| Stat | Title | Tier I | Tier II | Tier III | Tags |
+|---|---|---|---|---|---|
+| `ad` | Attack Damage | +12 AD | +21 | +33 | physical |
+| `ap` | Ability Power | +12 AP | +21 | +33 | magic, damage over time |
+| `haste` | Haste | +9% attack speed | +16% | +25% | |
+| `vitality` | Vitality | +9% max health | +16% | +25% | |
+| `armor` | Armor | +15 armor | +26 | +41 | physical |
+| `mr` | Magic Resist | +15 magic resist | +26 | +41 | magic |
+| `leech` | Leech | +5% lifesteal | +9% | +14% | heal |
+| `fleet` | Fleet | +6% move speed, off while shooting and for 2.5 s after | +10% | +15% | |
 
-| Zone | Mob type | Buff at 3 stacks | Cap | Strong against |
-|---|---|---|---|---|
-| Fire | Ember Imp | +10% damage | plateau | anyone |
-| Fire | Cinder Hound | +10% move speed while chasing your target | plateau | kiters, bow users, wand users |
-| Fire | Magma Brute | +6% max HP and +20 magic resist | plateau | Fire, Sentenced, magic damage |
-| Fire | Wyrmling (elite) | +20% damage to targets above 70% HP | plateau | high-HP fighters, Frost, Demon Blood |
-| Sentenced | Bailiff | +16% mark ramp speed (Sentenced only) | plateau | – |
-| Sentenced | Chain Warden | Your hits slow movement 10% for 1 s (up to 25%) \* | 25% total | kiters, bow users, wand users |
-| Sentenced | Inquisitor | +12% damage to a target you have kept hitting for 3 s \* | plateau | long duels |
-| Sentenced | Executioner (elite) | +30% damage to targets below 30% HP | plateau | healers, Demon Blood |
-| Plague | Plague Rat | +8% attack speed | plateau | anyone |
-| Plague | Bloatfly | Your hits deal 8 damage/s for 3 s \* | 1 instance per source (it refreshes) | Frost, high-HP fighters |
-| Plague | Rot Monk | Your hits cut healing 12% for 3 s (up to 40%) \* | 40% total | Demon Blood, lifesteal, healers |
-| Plague | Rat Ogre (elite) | +16% damage to targets below 50% HP | plateau | – |
-| Frost | Frost Wisp | Your hits slow attacks 6% for 2 s (up to 15%) \* | 15% total | Plague, fast attackers |
-| Frost | Ice Golem | +8% max HP | plateau | burst damage |
-| Frost | Rime Stalker | +20 armor | plateau | Plague, Frost, Demon Blood, physical damage |
-| Frost | Glacial Warden (elite) | +20% damage to slowed or chilled targets \* | plateau | – |
-| Demon Blood | Acolyte | +4% lifesteal | all lifesteal rows together at most 25% | sustain |
-| Demon Blood | Seraph Shard | +16 magic resist | plateau | Fire, Sentenced, magic damage |
-| Demon Blood | Penitent | +2% damage per 10% HP missing | plateau | comebacks |
-| Demon Blood | Blood Saint (elite) | Below 30% HP: heal 20% of max HP (once per run) | once per run | burst damage |
+AD and AP are **points of damage per second at base attack speed**, and each weapon converts them its own way (10.2). Fleet is Swift Boots' old rule: the bonus is off from the moment a bow or wand attack starts until 2.5 s after the shot leaves, so it helps walking, chasing and melee but never buys a shooter the walk back between shots (the ranged windups are the anti-kiting lever).
 
-\* Not built: these effects put statuses on a hit (slows, damage over time, anti-heal) or test them ("slowed", "streak"). The status system exists (it came with the Wishes, section 8.9); wiring it to hits is a later phase (R4b). The HUD and the planning screen show the buff and mark it "(coming)", and it does nothing yet.
+**11 conditional cards, all tier II, one per player.** A conditional is offered only when a player who earns the chest owns a card of its base stat (any tier) and is pickable only by an owner (the refusal reads "Needs Leech").
 
-How the rows work:
-- **Damage** (Ember Imp, the vs and scale rows, and the damage and vs rows of the passives) is a multiplier on the weapon hits and the signature damage you deal (burn, backlash, disease, the mark), applied before armor and magic resist. It never touches a Wish's damage, whether the rows come from buffs or from passives: ability power is flat (8.9). So Sentenced, whose damage is almost all its mark, benefits in full. The conditions (target above 70% or below 30% or 50% HP, Penitent's missing HP) are read as the tick's hits began, so the order hits are applied in never matters. Penitent adds its bonus per whole 10% of your own missing HP, in steps.
-- **Magic resist** is the faction's `shield` stat (section 8.1, rule 3: it cuts the magic share of a hit; the buff text says "magic resist" so it is not read as the barrier), and **armor** its armor stat. Both are flat points added to the faction's own, under the same `1 / (1 + stat / 100)` reduction. A max-HP buff raises HP by the same amount, so you never end up lower on the bar than before.
-- **Attack speed is capped, damage is not.** Attack speed from every source together never goes above ×1.5 (the League approach: one cap on the total, applied after every source multiplies, so a slow still lands below it); buffs alone never reach it (Plague Rat's plateau is ×1.17), it matters once passives, skills and relics stack (`testing/TUNING_ROGUE.md`). The damage rows have no cap, on purpose (owner ruling): a fed player may beat a counter, and a buffed shooter can beat Holy over Sentenced (section 18). The on-hit effects and lifesteal have caps of their own. Damage rows from different buffs add: Ember Imp, Executioner, Rat Ogre and Penitent at 3 stacks each give +74% against a target below 30% HP while you are at 10% HP or less (×2.56 at the plateau). Flat armor and magic resist count most for a faction that has none of that stat: +20 armor makes Fire or Holy (armor 0) take about 15% to 17% less from a Plague, Frost or Holy hit at 3 stacks (26% to 30% at the plateau), and Magma Brute plus Seraph Shard (+36 magic resist) make Plague (no shield) take about 26% less from Fire or Sentenced (about 43% at the plateau). The reduction is `1 / (1 + stat / 100)`, so it never reaches zero.
-- **Cinder Hound** speeds you up while you hold a target lock, one tick after the lock starts or ends.
-- **Bailiff** makes Sentenced's mark ramp toward its cap faster by that much, and does nothing for anyone else.
-- **Acolyte** gives lifesteal to any faction, with no heal lockout, like Holy's own. Holy's lifesteal comes on top and the total never passes 100% (the 25% cap is on the buffs alone).
-- **Blood Saint** heals the first time a hit leaves you below 30% HP, once per run, even inside the heal lockout; the healed share scales with the stacks like any number.
-- **Kill combos are gone.** The bursts, the kill shield and the cooldown reset of the old three-stat system no longer exist; they come back as relic and skill synergies (planned). The barrier still exists as a stat for the HP bar (a pale-blue segment) and has no source until skills arrive.
+| Title | Needs | What it does | Tags |
+|---|---|---|---|
+| Bloodthirst | Leech | While below 50% health, your lifesteal is doubled. | heal |
+| Second Skin | Leech | Healing you receive also grants a barrier worth 30% of it (up to 25% of max health). | heal |
+| Juggernaut | Attack Damage | Gain 1 armor and 1 magic resist per 4 AD. | physical, magic |
+| Spellsword | Attack Damage | Your AD also counts as AP at half value. | magic |
+| Big Brain | Vitality | Gain AP equal to 2% of your max health. | magic |
+| Arcane Tempo | Haste | Every 1% attack speed above base also grants 1 AP. | magic |
+| Momentum | Fleet | Your bonus move speed is added to your damage. | |
+| Stone Skin | Armor | Gain 2 armor and 2 magic resist per 100 max health. | physical, magic |
+| Hearty | Vitality | +18% max health. | |
+| Festering Arcana | Ability Power | Your magic damage over time keeps ticking 4 more times after it ends, each tick 1/8 of your AP. | magic, damage over time |
+| Rhythm | Haste | Every 3rd attack is a critical strike. | crit |
 
-One buff is smaller than one stat of the old three-stat system, whose plateau was +66% HP, +47% attack speed and +28% move speed, but a build stacks several. The owner doubled the first picks (every value above is twice the plan's draft; caps, durations, thresholds and the drops are unchanged). The numbers stay first picks, and the mob reward curve, the catch-up and the bounty were tuned to the old magnitudes.
+**40 augments: titled, one per player, unconditional.** Each is a rule or a trade-off. All 40 are live.
+
+| Title | Tier | What it does | Tags |
+|---|---|---|---|
+| Here Comes the Boom | III | Your attack speed is halved, but your hits deal 2.5x damage, AD and AP alike. Your damage over time and returned damage deal 1.25x. | dot, returned |
+| A Race to 0 | III | Damage you deal and take is multiplied by 1 / your health fraction (up to 2.5x). | |
+| Committed | III | Your second weapon slot is locked. The weapon you hold deals +20% damage and attacks 15% faster. | |
+| Machine Gun | II | Your attack speed is doubled, but each hit deals half damage. Your on-hit effects keep their full strength. | on-hit |
+| Glass Cannon | II | +35% damage, -25% max health. | |
+| Thick Skull | II | +30% max health, but your hits can never critically strike. | crit |
+| Vampiric Pact | II | +15% lifesteal, but no other healing works on you (camp heals included). | heal |
+| Arcane Overload | II | Your AP is multiplied by 1.5, but your Wish's cooldown is doubled. | magic, wish |
+| Fists of Fury | II | While unarmed: +40% attack speed (counts toward the cap), and your on-hit effects apply twice. | on-hit |
+| Overkill | II | Damage beyond a kill splashes onto the nearest enemy within 200 u. | area |
+| Tank Engine | II | Permanently gain 1 max health for every point of damage your blocks prevent (up to +250). | block |
+| Slow Starter | II | -30% damage for your first 3 s in a fight, then +35%. | |
+| Coup de Grace | II | +30% damage to targets below 30% health. | execute |
+| Big Game Hunter | II | +25% damage to elites and to players above 70% health. | |
+| Pack Leader | II | +3% damage for every camp you helped clear this run (up to +24%). | |
+| Adrenaline | II | After losing 10% or more of your max health in one hit: +40% move and attack speed for 2 s. | |
+| Cruel Wounds | II | Your damage over time can critically strike (+20% critical strike chance). | crit, dot |
+| Third Time's the Charm | II | Every 3rd hit on the same target applies its on-hit effects twice. | on-hit |
+| Eye for an Eye | II | Damage you return to attackers applies your on-hit effects. | on-hit, returned |
+| Sitting Ducks | II | Slowed enemies take 12% more damage from you. | slow |
+| Tunnel Vision | II | +4% damage per hit on the same target, up to 10 stacks; switching targets resets it. | ramping |
+| Plant Your Feet | II | After standing still for 1 s, your next attack has +25% range and damage. | |
+| Wishful Thinking | II | Each hit you land shortens your Wish's cooldown by 1 s (at most 30 s a minute). | wish |
+| Spiked Shell | II | Melee attackers take 15% of the damage they deal to you back as physical damage. | returned, physical |
+| Gathering Storm | II | Your ramping damage ramps 50% faster. | ramping |
+| Siphon | II | Your damage over time heals you for 20% of the damage it deals. | dot, heal |
+| Second Wind | II | Once per run, the first time a hit leaves you below 25% health: heal 20% of max health over 1.5 s. | heal |
+| Pestilence | II | Your execute starts at 60% health instead of 50%; with no execute, +8% damage to targets below 60% health. | execute |
+| Slow Burn | I | Your damage over time keeps burning twice as long after a fight breaks off, at 30% less per second. | dot |
+| Pocket Sand | I | Your blocks slow the attacker by 30% for 1 s. | block, slow |
+| Gambler | I | Each hit has a 15% chance to deal double damage and a 15% chance to deal half. | crit |
+| Best Offense | I | Your blocks count as hits. | block |
+| First Impressions | I | Your first hit on a new target deals +40% damage. | |
+| Hemorrhage | I | Your physical hits make the target bleed for 10% of the hit over 2 s. | on-hit, dot, physical |
+| Iron Will | I | Slows on you are 40% weaker. | slow |
+| Wellspring | I | Healing you receive is 25% stronger (camp heals included). | heal |
+| Quickdraw | I | Your melee windups are 50% shorter. | |
+| Bounty Hunter | I | +10% damage to players who hold more card power than you. | |
+| Witness | I | +8% damage to a target that is fighting someone else. | |
+| Last Rites | I | +25% attack speed while below 30% health. | |
+
+Notes that are easy to get wrong. *Quickdraw* shortens melee windups only (the sword's, the shield bash's, the fists' and the axe's, and the axe's root with its windup) and never a bow's or wand's (owner ruling "Melee windups only", 9.5); windups end on 50 ms ticks, so a cut counts in whole ticks (the sword, the bash and the fists go from two ticks to one, the axe from five to three). *Second Wind*'s heal is four steps of 5% max hp 500 ms apart (the first at once), so it spans 1.5 s; it ignores the 3 s heal lockout but not an anti-heal. *Pestilence* lets a Plague fighter widen its execute instead of dealing the +8%. *Last Rites* is a stepped attack-speed row that counts toward the cap. *Tank Engine*'s rate is a best guess: a block stops only 7% of a hit, so a Frost shield duel prevents about 10 points per melee block, and at 1 max hp per point the +250 takes about four to five camps' tanking to fill. *Slow Burn* trades 30% of every tick for twice the linger. Retired from the chest: Whetstone, Swift Boots, Thick Hide and the twelve declared-only passives of the first camp-chest build (Firebrand, Searing Riposte, Ashwalk, Double Sentence, Sentence Served, Bite Twice, Shatter, Frozen Path, Hoarfrost Armor, Radiance, Quartermaster, Scout); their ideas live on in the base stats and in Hemorrhage, Spiked Shell, Third Time's the Charm and Iron Will (owner question Q6).
+
+**Tags and the glossary.** Every card, signature and weapon wears mechanic tags, and the Mechanics page of the help card (`H`) and the card tooltips explain each:
+
+| Tag | Meaning |
+|---|---|
+| AD | Adds physical damage to your weapon hits. |
+| AP | Adds magic damage to your hits (most on a wand) and to every damage over time you run. |
+| Physical | Cut by armor, by `1 / (1 + armor / 100)`. |
+| Magic | Cut by magic resist, by `1 / (1 + magic resist / 100)`. |
+| True | Cut by nothing. |
+| Damage over time | Ticks while you stay engaged (burn, disease, the mark, bleeds). AP adds to every one you run. |
+| On-hit | An effect a weapon hit applies when it lands; as strong for a small hit as for a big one, so more, smaller hits apply it more often. |
+| Returned | Damage dealt back to whoever hit you. |
+| Slow | Anything that cuts move or attack speed. |
+| Heal | Any healing. Most heals wait 3 s out of combat; lifesteal and camp heals do not. |
+| Block | A shield stopping part of a hit in front of it (the rest still lands, and a blocked hit never staggers). |
+| Ramping | Grows the longer the fight lasts. |
+| Execute | Grows as the target's health falls. |
+| Critical strike | A hit for 1.5x damage. |
+| Area | Hits more than one enemy. |
+| Wish | Your faction's once-a-run ability (key D). |
+
+The signatures wear tags too: burn magic and over time, backlash physical and returned, the mark true, ramping and over time, the disease magic, over time, with its execute, the chill a slow, Holy's lifesteal a heal. Weapons: sword physical and on-hit (it staggers, its on-hit effects land 1.5x as hard), axe physical and on-hit (its shred), bow physical, wand magic and area, shield block and returned, fists on-hit (1.2x).
 
 ### 12.3 Mob rewards fall as you get fed
-Mob GV and buff value are multiplied by a curve that's near full while you're hungry, drops sharply around a feed of 5, and never goes below 30%:
+Mob GV and a quest's card tier are multiplied by a curve that is near full while you are hungry, drops sharply around a feed of 5, and never goes below 30%:
 
 | Feed | 0 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 10 |
 |---|---|---|---|---|---|---|---|---|---|
 | Mob reward | ×0.98 | ×0.92 | ×0.85 | ×0.76 | ×0.65 | ×0.54 | ×0.45 | ×0.38 | ×0.32 |
 
-Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch-up).
+Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch-up; it does not count for a quest's tier brake).
 
 ### 12.4 Bounties (shutdowns)
-`bounty = 10 × max(0, player kills − 2)^1.5` GV. **Only player kills count.** Mob kills still raise your feed (section 12.1), and so feed the buffs and set the mob reward curve and the catch-up, but they never raise your bounty.
+`bounty = 10 × max(0, player kills − 2)^1.5` GV. **Only player kills count.** Mob kills still raise your feed (section 12.1), and so set the mob reward curve and the catch-up, but they never raise your bounty.
 
 **Who gets the kill.** The player whose hit lands in the killing tick (the biggest of them, if several do). When a mob (or a shooter's arrow that outlived them) finishes a player, or a player leaves, the kill and the bounty go to the last player who hit them within 5 s, so walking into a camp or quitting cannot dodge a bounty. Sudden death credits nobody.
 
@@ -680,35 +851,113 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 
 - **Announcement.** When a player's bounty first appears and when it grows, the host announces "*name* is on a rampage — bounty N GV", at most once per player per 10 s. A rise inside that window is held back and announced with its value when the window ends.
 - **Crown.** Bountied players wear a crown. *Not built yet:* their position flashing on everyone's minimap for 2 s every 10 s.
-- **Shutdown.** Killing a bountied player pays the bounty and **half the stacks of each buff they hold** to the killer (a buff you did not have starts at that half), so comebacks are real.
-- **Trade-off, intended.** A fed player can beat their counters, as in League. Bounties and falling rewards are the release valves.
+- **Shutdown.** Killing a bountied player pays the bounty in GV and nothing else: no stat moves (the cards you hold are yours until you die, and your body keeps your weapons for whoever takes them). The comeback is the bounty GV and the catch-up on mob rewards (12.3); there is no stat transfer.
+- **Trade-off, intended.** A fed player can beat their counters, as in League. Bounties, falling rewards and the guards (12.7) are the release valves.
 - A big bounty can be worth more than winning (52 GV at 5 player kills against a 50 GV win bonus). That makes hunting the fed player a goal in its own right.
 
-### 12.5 Camp chests and passives (as built, R5)
-Clearing a camp pays something the mobs' own drops do not: a **shared chest** of skills. It is the run's source of passives and the reason a route matters: the chest is for whoever is there.
+### 12.5 Camp chests and cards (as built)
+Clearing a camp pays something the mobs' own drops do not: a **shared chest** of cards. It is the run's source of power and the reason a route matters: the chest is for whoever is there.
 
-- **The drop.** The moment the last mob of a camp dies, whoever or whatever killed it, one chest appears on the camp's chest tile (its centre if that tile is a wall) and the camp is marked cleared. The chest lasts **15 seconds** from the drop and is never extended; it is gone at the coliseum teleport and when the run ends. Every camp drops one, elite camps included, until relics and "?" camps arrive.
-- **Options.** The chest offers **three** passives, the same three to everyone, in a fixed order. The first is the camp's zone passive when the zone has one that is built (Sentenced, Plague and Demon Blood have one each, Fire and Frost none yet), then neutral passives, no duplicates. The options are rolled from a private server stream when the camp clears. They are public in the game state (the chest is contested and a rejoining player must see it), so the chest panel shows them only to a player in reach, but a modified client could read them from anywhere (section 18).
-- **Picking.** Each player picks **once** per chest: one skill, or a skip, and a skip counts as the pick. A skill is yours for the run at rank 1; picking one you hold at rank 1 makes it rank 2, and one you hold at rank 2 cannot be picked. Each option goes to **one** player: the first to pick takes it, the cards of the others show "Taken by <name>" and they may pick another while the chest lasts. Two picks of one option in the same tick go to the tick's secret order (as for loot), and the loser may pick again. The server checks every pick against the picker's server position and state: standing, not stunned, not casting (a pick is an action like picking up a weapon), the chest still up, within 96 units of it with a clear line, not yet picked, the option free and not already at rank 2. A pick the server refuses comes back as a short message ("Too far away", "Can't reach that", "Already taken", "Already at rank 2", "You already picked", "Chest gone", "Can't do that now") and uses nothing up. A passive acts from the tick it is taken, and a max-hp passive raises your hp bar with it.
+- **The drop.** The moment the last mob of a camp dies, whoever or whatever killed it, one chest appears on the camp's chest tile (its centre if that tile is a wall) and the camp is marked cleared. The chest lasts **15 seconds** from the drop and is never extended; it is gone at the coliseum teleport and when the run ends. Every camp drops one, elite camps included, until relics and "?" camps arrive. Today's maps have 20 camps (four a zone), so a run offers 60 cards; the 8-camp layout would offer 120.
+- **Options.** The chest offers **three different cards**, the same three to everyone, in a fixed order: **(1)** a base card; **(2)** with probability 0.5 a conditional card, drawn only from the conditionals whose base stat some **eligible picker** owns and that not all of them already hold, otherwise a second base card of another stat; **(3)** an augment that not every eligible picker holds (the nearest tier that has one if its own is empty). The eligible pickers are the players who damaged a mob of the camp and stand within its territory or 12 tiles of its centre at the clear (the same set the heal pays, 12.6); with none, no conditional is offered. A conditional is always tier II. The tier of the base card and of the augment follows the camp:
+
+  | Camp | Base card tier I / II / III | Augment tier I / II / III |
+  |---|---|---|
+  | Normal | 70 / 25 / 5 | 50 / 45 / 5 |
+  | Elite (the camp that holds an elite) | 10 / 60 / 30 | 10 / 60 / 30 |
+
+  A normal camp's base card averages 1.35 tiers and its augment 1.55; an elite camp's both 2.2. The options are rolled from a private server stream when the camp clears, with one draw per decision in a fixed order, and are public in the game state (the chest is contested and a rejoining player must see it), so the chest panel shows them only to a player in reach, but a modified client could read them from anywhere (section 18).
+- **Picking.** Each player picks **once** per chest: one card, or a skip, and a skip counts as the pick. A card goes into your build (a base card adds a copy; a conditional or an augment is yours once). Each option goes to **one** player: the first to pick takes it, the cards of the others show "Taken by <name>" and they may pick another while the chest lasts. Two picks of one option in the same tick go to the tick's secret order (as for loot), and the loser may pick again. The server checks every pick against the picker's server position and state: standing, not stunned, not casting (a pick is an action like picking up a weapon), the chest still up and a couple of ticks old, within 96 units of it with a clear line, not yet picked, the option free, and the card takeable by you. A pick the server refuses comes back as a short message ("Too far away", "Can't reach that", "Already taken", "Needs Leech", "Already yours", "You already picked", "Chest gone", "Can't do that now") and uses nothing up. A card acts from the tick it is taken, and a max-hp card raises your hp bar with it.
 - **Skipping** heals 15% of your max hp, subject to the 3-second out-of-combat heal lockout. If that heals nothing (you fought a moment ago, or you are at full hp) it pays 3 GV instead, which counts against the 30 GV a run can earn from mobs. In the practice room a skip pays no GV.
-- **The chest panel** opens by itself on the right edge while you stand within 88 units (8 less than the server's range) of a live chest with a clear line, measured from your server position, and shows a countdown and the three cards: the skill, the rank the pick gives you, what it does for your faction, and who took it. Once open it stays open out to 92 units, so walking along the edge does not make it flicker or drop a pick on its way. The range is checked on the position the client last heard of, so a player walking away can still be refused "Too far away" at the edge. It never takes a click meant for the world: a mouse click in the first quarter second after it opens is ignored, so a cursor clicking away over the world cannot take a pick it never saw, and its buttons are out of the browser's Tab order until you press C. It greys every card slightly before the chest expires (half your round trip plus 50 ms, the round trip being the order delay plus one tick), so you do not click into a closed door. Controls are in section 14.
-- **Passives.** 21 are designed, each with two ranks; 9 are built, and the rest are listed in the catalog and do nothing yet. They are effect rows like the buffs' (12.2): a damage row from a passive and from a buff add, and attack speed from every source is capped at ×1.5. The tests a row makes against its target (hp, feed, whom it fights) are read as the tick's hits began, so the order hits are applied in never matters.
+- **The chest panel** opens by itself on the right edge while you stand within 88 units (8 less than the server's range) of a live chest with a clear line, measured from your server position, and shows a countdown and the three cards. Each card shows its title, a tier badge (I-III; an augment also wears a rarity frame: plain, silver or gold), why it is on offer for you ("Deepens your Attack Damage", "You have Leech", "New"; a card you cannot take is greyed with the server's own words, "Needs Leech" or "Already yours"), what it does, its tag chips (a hover shows the glossary line) and who took it. Once open it stays open out to 92 units, so walking along the edge does not make it flicker or drop a pick on its way. The range is checked on the position the client last heard of, so a player walking away can still be refused "Too far away" at the edge. It never takes a click meant for the world: a mouse click in the first quarter second after it opens is ignored, and its buttons are out of the browser's Tab order until you press C. It greys every card slightly before the chest expires (half your round trip plus 50 ms), so you do not click into a closed door. Controls are in section 14.
 
-| Passive | Pool | Rank 1 | Rank 2 |
-|---|---|---|---|
-| Whetstone | Neutral | +6% damage | +10% damage |
-| Swift Boots | Neutral | +6% move speed, but not while you shoot or for 2.5 s after a bow or wand shot | +10% |
-| Quickdraw | Neutral | Melee windups 50% shorter: the sword and the shield bash land one tick (50 ms) sooner, the axe two (suits the sword, axe and shield; a bow or wand windup never shortens) | 75% shorter: the axe three ticks sooner and walking again 7 ticks sooner |
-| Thick Hide | Neutral | +6% max HP, +5 armor, +5 magic resist | +10% max HP, +8 armor, +8 magic resist |
-| Bounty Hunter | Neutral | +10% damage to a player whose feed is higher than yours | +15% |
-| Second Wind | Neutral | Once per run, the first time a hit leaves you below 25% HP: heal 20% of max HP over 1.5 s (four steps of 5%, 500 ms apart, the first at once), through the lockout | 30% (four steps of 7.5%), and it can fire again after each coliseum teleport (a heal still being paid out is dropped at the teleport) |
-| Witness | Sentenced | +8% damage to a target that is fighting someone else | +12% |
-| Pestilence | Plague | Plague: its execute starts at 60% HP (from 50%). Everyone else: +8% damage to targets below 60% HP | Plague: 70%. Others: +12% |
-| Last Rites | Demon Blood | +25% attack speed below 30% HP | +25% attack speed below 40% HP |
+### 12.6 The camp-clear heal
+Clearing a camp also heals the players who fought it. Everyone who dealt damage to any mob of the camp and stands within its territory or 12 tiles of its centre when it is cleared is healed `missing × f(m)`, `m` the share of max hp missing and `f(m) = 0.25 + 0.70 × sigmoid((m − 0.40) / 0.10)`: a scratched player gets a little, one who was ganked low nearly all of it.
 
-A target is "fighting someone else" when its target lock, its mob fight target or its signature target names a fighter other than you. Second Wind's heal ignores the heal lockout but not an anti-heal, and stops if you fall. Quickdraw is melee only (owner ruling "Melee windups only", section 9.5): the sword's, the bash's and the axe's windups shorten, the axe's root with its windup, and a bow's or wand's never does. Windups end on 50 ms ticks, so the cuts are the ones that remove whole ticks: the sword and the bash go from two ticks to one at both ranks (one tick is the floor, so rank 2 adds nothing for them), the Fire and Frost axe from five ticks (and ten rooted) to three (five rooted) at rank 1 and two (three rooted) at rank 2, Sentenced's and Holy's from four (eight rooted) to two (four) and one (two), Plague's from two (four) to one (two) and one (one). Its HUD tooltip says melee only and whole ticks. The kiting check is unaffected by a shooter holding it and a melee chaser holding it only gains (`testing/TUNING_ROGUE.md` section 7.3). Swift Boots is "no boost while shooting" (owner ruling): its bonus is off from the moment a bow or wand attack starts until 2.5 s after the shot leaves, and on otherwise, so it helps walking, chasing and melee but never buys a shooter the walk back between shots. The pause is 2.5 s because Frost's chill stretches a chilled shooter's cooldown 2.5 times (Fire's wand idles 2.1 s between shots against Frost); the real sim's kiting check then reads as without the boots at both ranks (section 7.4).
+| hp before | 95% | 90% | 80% | 70% | 60% | 50% | 40% | 30% | 20% | 10% |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Heal (% of max hp) | 1.4 | 2.8 | 6.7 | 13.1 | 24.0 | 38.1 | 52.0 | 64.2 | 75.0 | 85.1 |
+| hp after | 96% | 93% | 87% | 83% | 84% | 88% | 92% | 94% | 95% | 95% |
 
-*Planned, not built* (they have text in the catalog and are never offered): Firebrand and Hoarfrost Armor wait for the on-hit statuses (R4b); Ashwalk, Double Sentence, Sentence Served, Bite Twice, Shatter, Frozen Path, Radiance and Quartermaster wait for the active skills on Q and E (R6); Searing Riposte and Scout wait for relics and "?" camps (R7). The numbers are the plan's first picks; the owner retunes them, and none was run through the kiting check or the weapon harness.
+Everyone leaves a camp at 83-96%. The heal ignores the 3 s out-of-combat lockout (it is not lifesteal and never counts as a hit landed); an anti-heal cuts it and Wellspring and Vampiric Pact scale it. The healed player sees a rising "+N" and the toast "Camp cleared: +N health", and a green ring marks the camp. A training room's practice camp heals too.
+
+### 12.7 The PvP factor's guards (G1-G13)
+Power decides fights through one curve (10.4), and these guards bound what a stack of cards can do. Each is a constant in `constants.ts` and a case in `server/test/guards.test.ts`.
+
+| # | Guard | Value |
+|---|---|---|
+| G1 | Damage rows: 1 + the damage sum (its `vs` and `scale` rows included), times the entry's `hit`, `dot` or `returned` multiplier and any crit, never passes | ×2.5 (`OUTGOING_ROW_CAP`) |
+| G2 | **PvP per-hit cap**: one player-to-player hit that is not damage over time, after mitigation | 35% of the victim's max hp (`PVP_HIT_CAP_SHARE`) |
+| G3 | PvP damage over time: one source on one victim | 15% of max hp a second (`PVP_DOT_CAP_SHARE`) |
+| G4 | A Race to 0: ×1 / hp fraction on damage dealt AND taken, from the hp as the tick began; the extra it adds feeds no lifesteal, whoever dealt the hit | at most ×2.5 (`HP_RACE_CAP`) |
+| G5 | Lifesteal: the cards' rows before Bloodthirst's doubling; the whole share with Holy's own and Siphon | 0.25 (`LS_CAP`); 0.85 (`LIFESTEAL_MAX`) |
+| G6 | A barrier (Second Skin, a skill): its size; a barrier a heal made also decays | 25% of max hp (`BARRIER_MAX_SHARE`); 5% of max hp a second |
+| G7 | Bonus armor and bonus magic resist, cards and conversions together | +200 each (`BONUS_DEFENSE_CAP`) |
+| G8 | Max hp: the floor; Tank Engine's total | 50% of the faction's (`MAX_HP_FLOOR_SHARE`); +250 |
+| G9 | Attack speed: the rows (cards and sources) together; Boom's ×0.5 and Machine Gun's ×2 come after the cap and are held to 0.5-2, so attack speed ends between 0.5× and 3×; a ranged windup never shortens below its base-speed value; a longer interval never stretches a windup past its cap | ×1.5 (`AS_MULT_CAP`) |
+| G10 | Bonus move speed from rows; Fleet is off while shooting | +30% (`MOVE_BONUS_CAP`) |
+| G11 | Conversions run in one pass from the plain sums and never feed each other; the AD and the AP they give | +60 each (`CONVERT_AD_AP_CAP`) |
+| G12 | Critical strike chance; a crit's multiplier; the roll is a deterministic accumulator | 50% (`CRIT_CHANCE_MAX`); ×1.5 |
+| G13 | Wishes are flat, except two cards: Arcane Overload doubles the cooldown, Wishful Thinking trims it (at most 30 s in any 60 s, never below half the cooldown) | `WISH_COOLDOWN_MULT_MIN` 0.5 |
+
+**Trade-off arithmetic.** `damagePerHit = rate × hit × dpsMult × asMult × interval`, so attack speed changes damage per second and not damage per hit until a floor binds. Here Comes the Boom's ×0.5 halves dps and doubles the interval (per hit unchanged), then its ×2.5 per hit makes per-hit damage 2.5× and dps 1.25×: no double counting; its damage over time and returned damage get ×1.25 so every faction's gain is +25% whatever its damage mix. Machine Gun's ×2 speed and ×0.5 per hit is dps-neutral and doubles on-hit procs a second. Without G2 a single Boom hit killed (0.0 s); with it the fewest hits on any kill are 3 (the cap at 25% would give 4 but clips Frost's ordinary late hits: question N7).
+
+### 12.8 Card hooks (what the rows cannot say)
+Most cards are rows (`stat`, `flat`, `vs`, `scale`, `while`, `convert`, `mult`, `flag`, `onHit`, `trigger`). The ones that need machinery use hooks; every roll is deterministic and order-free.
+
+- **Crits.** A per-player accumulator rolled where an attack lands: each landed attack adds the crit chance and crits at 1, so Rhythm's one third crits every third attack (a cancelled windup rolls nothing). Damage over time has one roll per player per tick (Cruel Wounds). Thick Skull's flag zeroes it. A crit is ×1.5 and shares G1's cap.
+- **Streaks** (Tunnel Vision, First Impressions, Third Time's the Charm): per-target memory written after the damage pass, so every hit of a pass reads the same count; it lapses after 3 s.
+- **The on-hit pipeline** (from the `hitLanded` hook): the axe's shred, Hemorrhage's bleed and every on-hit effect are multiplied by the weapon's on-hit power (sword 1.5, fists 1.2) and by the times they apply (Fists of Fury while unarmed and Third Time's the Charm each add one; Eye for an Eye lets a returned hit apply them). An on-hit effect reads the hit without the attacker's `hit` multiplier, so it is a property of the swing.
+- **Blocks** (the `blocked` hook): Tank Engine's tally, Pocket Sand's slow, and Best Offense (a block counts as a hit for streaks, on-hit effects and Wishful Thinking).
+- **Returned damage.** Spiked Shell queues a physical entry at 15% of a melee hit taken for the next tick; returned hits set off no trigger.
+- **Overkill** (the `overkilled` hook): the damage beyond a kill is found after the pass and queued for the next tick against the nearest enemy within 200 u (it needs a third fighter, so it does nothing in a duel).
+- **Adrenaline**: a trigger at 10% max hp lost in one hit, a mod source on attack and move speed (it counts toward the cap).
+- **Wishful Thinking**: 1 s off per landed hit, at most 30 s in any 60 s, never below half the cooldown cast.
+- **Plant Your Feet**: a stillness clock; the next attack spends it for +25% damage and range.
+- **Festering Arcana**: when a damage-over-time signature stops, a magic `dot` status keeps ticking 4 more times at AP/8 (the tail is AP/2 over 4 s).
+- **Gambler**: a hash of a secret salt, the tick, the attacker, the victim and the entry's place, so no order decides it; it sits outside G1 and under G2.
+- **Second Skin**: `heal()` turns 30% of every heal received (overheal and lifesteal included) into barrier, held to G6.
+- **Ledger additions.** A card's damage that answers a pass is queued for the next tick's ledger; entries can be `final` (every multiplier already in, the PvP factor included), `derived` (a follow-on such as a splash: it sets off nothing) or `passive` (returned damage).
+
+### 12.9 A14: what the strongest builds do (acceptance)
+`bench/augments.ts` plays the strongest builds of augments against the minute-5 kit, with the guards on: no kill under 1.0 s and a median kill at least half the base kit's (Fire's 1.1 s mirror is judged by the relative rule; where the base median is 5 s or more, Holy and Frost, the bench also prints PASS\* for a median of at least 2.5 s). Holder win % under the noise model, then median kill in seconds, per faction (fire / sentenced / plague / frost / holy); noise-free results and the verdict list are in `testing/TUNING_BALANCE.md` 7.1.
+
+| Build | fire | sentenced | plague | frost | holy | Verdict |
+|---|---|---|---|---|---|---|
+| base (the kit only) | 50 / 1.1 | 50 / 5.2 | 50 / 5.5 | 50 / 15.8 | 50 / 8.8 | PASS |
+| Boom | 75 / 1.1 | 65 / 4.7 | 69 / 4.7 | 44 / 10.6 | 60 / 5.7 | PASS |
+| Boom + AP III | 85 / 1.1 | 65 / 4.7 | 75 / 4.3 | 44 / 10.6 | 63 / 4.5 | PASS |
+| Glass Cannon + AD III | 58 / 1.1 | 81 / 3.8 | 67 / 4.0 | 54 / 10.6 | 71 / 4.0 | PASS\* |
+| Race to 0 | 50 / 1.1 | 50 / 4.3 | 50 / 4.1 | 50 / 10.5 | 50 / 3.4 | PASS\* |
+| Race + Bloodthirst + Leech III + Vitality III | 77 / 1.1 | 75 / 4.3 | 73 / 4.4 | 73 / 10.5 | 69 / 4.0 | PASS\* |
+| Race + Boom | 75 / 1.1 | 71 / 4.0 | 69 / 3.7 | 21 / 10.6 | 27 / 3.1 | PASS\* |
+| Machine Gun | 19 / 1.1 | 21 / 5.2 | 50 / 5.5 | 54 / 15.8 | 42 / 8.8 | PASS |
+| Coup de Grace + AD III | 63 / 1.1 | 79 / 4.3 | 63 / 4.9 | 52 / 13.2 | 60 / 6.4 | PASS |
+| Big Game Hunter + Sitting Ducks | 60 / 1.1 | 56 / 5.0 | 56 / 5.2 | 67 / 13.2 | 50 / 8.1 | PASS |
+| Slow Burn + Siphon + Leech III | 67 / 1.1 | 81 / 5.3 | 60 / 6.3 | 58 / 15.8 | 56 / 8.8 | PASS |
+| Rhythm + Cruel Wounds + Haste III + AD III | 67 / 0.9 | 85 / 3.8 | 81 / 3.9 | 77 / 10.7 | 79 / 3.7 | PASS\* |
+| Boom + Haste III + Rhythm | 77 / 1.1 | 79 / 4.3 | 77 / 4.0 | 75 / 8.6 | 79 / 4.4 | PASS |
+| Gambler + Glass Cannon + AD III | 50 / 1.1 | 79 / 3.8 | 65 / 4.1 | 60 / 9.2 | 71 / 4.0 | PASS\* |
+| Boom + Gambler + AD III | 75 / 1.1 | 90 / 3.2 | 77 / 4.2 | 40 / 11.9 | 63 / 4.8 | PASS |
+| Tunnel Vision + First Impressions + AD III | 73 / 1.1 | 85 / 4.0 | 77 / 4.3 | 63 / 13.2 | 75 / 4.7 | PASS |
+| Glass Cannon + Tunnel Vision + Coup de Grace + AD III | 69 / 1.1 | 83 / 3.5 | 77 / 3.6 | 56 / 10.6 | 77 / 3.4 | PASS\* |
+| Hemorrhage + Third Time + Eye + Haste III | 54 / 1.3 | 50 / 5.1 | 58 / 5.1 | 71 / 10.7 | 73 / 5.2 | PASS |
+| Hemorrhage + Third Time + Eye | 58 / 1.1 | 50 / 5.2 | 50 / 5.4 | 56 / 13.2 | 56 / 7.0 | PASS |
+| Machine Gun + Hemorrhage + Third Time + Eye | 21 / 1.1 | 21 / 5.2 | 50 / 5.4 | 65 / 11.8 | 54 / 9.3 | PASS |
+| Machine Gun + Hemorrhage + Tunnel Vision | 19 / 1.1 | 27 / 5.2 | 67 / 4.7 | 73 / 10.6 | 73 / 5.8 | PASS |
+| Plant Your Feet + AD III | 56 / 1.1 | 81 / 4.3 | 60 / 4.9 | 67 / 13.2 | 65 / 5.8 | PASS |
+| Spiked Shell + Armor III + Vitality III | 81 / 1.1 | 71 / 5.2 | 69 / 5.5 | 83 / 13.2 | 73 / 6.4 | PASS |
+| Adrenaline + Haste III + Fleet III | 48 / 1.3 | 50 / 5.1 | 56 / 5.2 | 73 / 11.9 | 71 / 5.3 | PASS |
+| Overkill + Boom + AD III | 75 / 1.1 | 85 / 3.8 | 77 / 4.2 | 44 / 10.6 | 63 / 4.5 | PASS |
+| Festering Arcana + AP III + Slow Burn | 54 / 1.1 | 48 / 5.2 | 44 / 5.5 | 54 / 13.2 | 56 / 7.6 | PASS |
+| Race + Rhythm + Cruel Wounds + Haste III | 63 / 0.9 | 65 / 3.9 | 75 / 3.4 | 77 / 6.4 | 83 / 2.7 | PASS\* |
+
+The Boom + Haste III + Rhythm row was measured before the final review's G1 fix (a Boom hit that crits, for a fighter with no damage row of its own, was not held to ×2.5) and is to be re-run.
+
+What it shows, as a player would find it: **Boom** helps Fire (75%), Plague (69%) and Sentenced (65%) and hurts Frost (44%), whose slow heavy hits run into the per-hit cap (a discoverable anti-synergy). **A Race to 0** is symmetric in a mirror (about 50% for everyone: its edge exists only in unequal fights, which were not measured) and ends fights quickly (Holy's stalled mirror falls from 8.8 s to 3.4 s). **Machine Gun** is neutral on melee weapons and a bad pick on a bow or a wand (the ranged windup does not shorten with attack speed) and for Fire (its backlash is per enemy swing); it becomes a real build with Hemorrhage, Third Time's the Charm and Eye for an Eye, which win for Plague, Frost and Holy on the reference weapons and for four factions on the sword. **Vitality III** is the strongest generalist base card, **Magic Resist** matters against Plague (the only magic damage left in mirrors) and **Fleet** is a farming stat, near-dead in a standing duel. None of this was measured in a camp, against unequal kits (Race to 0) or in a duel for the Second Skin barrier (`testing/TUNING_BALANCE.md` 11).
+
+### 12.10 Quests pay a card
+A quest's completion grants one **card** (a base card, granted directly) and pays the offer's GV from its own per-run pot (24 GV, apart from the mob and skip pot), with the toast "Quest complete: <Card title>"; the quest log and the planning screen show "Reward: Haste II (+16% attack speed) and 10 GV". The card's tier is the quest's time in camps: `tierPoints = (objective s + 0.4 × travel s) / 48 s × 1.35 × 1.15` (48 s is a camp of four mobs at 12 s a mob, 1.35 a normal camp's base card's average tier, 1.15 a premium for a walker's exposure), rounded into tier I-III, the player-kill quest capped at tier I and a **fed player one tier lower** (never under I) when its mob reward curve is below 0.65. The base is the stat the old buff of the quest's mob type gave (Attack Damage, Haste, Vitality, Ability Power, Fleet, Armor, Magic Resist, Leech); `testing/TUNING_BALANCE.md` 9.5 lists the 20 offers: for example the four cull quests pay a tier II card (Attack Damage, Haste or Vitality) for 10-11 GV, the banner fetches a tier II card (Fleet, Vitality, Haste, Attack Damage or Leech) for 8 GV, the small collect quests a tier I card (Haste, Armor, Magic Resist or Ability Power) for 8 GV, the elite hunt Ability Power I for 7 GV, the headhunter Attack Damage I for 5 GV and the long haul Haste II for 12 GV.
 
 ---
 
@@ -719,7 +968,9 @@ A target is "fighting someone else" when its target lock, its mob fight target o
 | Win (last one standing) | +50, only if the run had at least 3 players and the winner damaged at least 2 different opponents (guards against farming with a second profile). The win still counts either way. |
 | Player kill | +10 |
 | Bounty claimed | Per section 12.4 |
-| Mob kill | +2 (elites +10) × the mob reward curve (and the ×1.25 catch-up, so a hungry player's elite pays 12), rounded to whole GV, at most 30 per run from mobs |
+| Mob kill | +2 (elites +10) × the mob reward curve (and the ×1.25 catch-up, so a hungry player's elite pays 12), rounded to whole GV, at most 30 per run from mobs (chest skips count against the same 30). A kill pays no stat |
+| Chest skip with nothing to heal | +3, inside the same 30 |
+| Quest | The offer's GV (5 to 13), from a separate pot of at most 24 a run, and a card (section 12.10) |
 
 - **Spending.** GV buys **cosmetics only**: colours, trails, titles, golden weapon variants. Nothing that changes combat.
 - **Achievements and titles.** For example, 5 wins holding the same weapon unlocks its golden variant; per-faction milestones unlock titles.
@@ -788,14 +1039,14 @@ Hard counters are only fair if you can see them coming.
 | Fire | A burst of flame on any enemy who swings while engaged with Fire |
 | Frost | Frost on chilled enemies |
 | Fed players | Crown and rampage announcements (minimap pings are not built yet) |
-| Your buffs | A build strip under your HP: one chip per buff you hold, with its zone's colour and marker shape (never colour alone), the mob type's name (an elite's buff has a star), the stacks held, what they give now and what the next kill of that type adds. Hovering a chip gives the full wording, what the buff suits and what it is strong against. A buff whose effect needs on-hit statuses (R4b) is marked "(coming)". A feed line explains the mob reward: "Feed 2.5 (kills + mobs/4) · mobs pay x0.89" |
-| Buff news | A toast for your own gains ("Ember Imp +1.1 (3.2): +11.1% damage", or the buffs listed when a bounty kill moves several), a floating line over anyone else's, and a ring in the buff's zone colour on the fighter who gained |
-| Your passives | A row under the buff strip, shown once you hold one: a chip per passive with its zone's mark, its name and its rank (R1, R2). Hovering a chip shows what it gives at that rank, what rank 2 adds, and what it suits and counters |
-| Camp chest | While you stand within 88 units of a live chest, a card on the right edge: the camp's zone and name ("Plague camp"), a countdown, three skill cards (the skill, the rank the pick gives you, what it does, and who took it) and Skip. Cards grey just before the chest vanishes. In the world the chest wears a pick-range mark and a ring and timer that drain over its 15 seconds, with a cue when it drops. Your own pick is a line ("You took Whetstone") |
+| Your cards | A cards row under your HP: one chip per card you hold (a stacked card shows its count) with its tier, and a tooltip with what it does, its tags and the glossary line of each. Under it a build strip: AD, AP, armor, magic resist, attack and move speed, lifesteal, your card power and the PvP factor ("PvP ×1.39"). Both take no pointer; the tooltips are found by hit-test. Every term has an entry on the Mechanics page of the help card (`H`) |
+| Card and heal news | A line for your own pick ("You took Haste II"); "Armed: Bow" when a mob's weapon fills an empty hand; and after a camp you fought is cleared a green ring on its centre, a rising "+N" on each healed player and the toast "Camp cleared: +N health" |
+| Your hits | A critical strike's number is bigger and has a "!"; a card's bleed shows as small drips rather than a hit |
+| Camp chest | While you stand within 88 units of a live chest, a card on the right edge: the camp's zone and name ("Plague camp"), a countdown, three cards (title, tier badge, an augment's rarity frame, why it is on offer for you, what it does, its tag chips and who took it) and Skip. Cards grey just before the chest vanishes. In the world the chest wears a pick-range mark and a ring and timer that drain over its 15 seconds, with a cue when it drops. Your own pick is a line ("You took Haste II") |
 | Camps | The minimap and the planning or Tab map cross out a cleared camp, ring a camp somebody has fought at (a small muted ring and "Someone has fought here": the state never goes back, so it is history and not a fight under way), and show each live chest as a pulsing blip with its seconds left. "Plague camp cleared" is announced to everyone |
-| Barrier | A pale-blue bubble around the player, a blue segment on the HP bar and "+N barrier" in the readout, for everyone to see. Nothing gives one yet (skills, planned) |
-| Planning screen | The whole map with the zones (each a colour, a floor pattern and a marker shape), every camp (its mob type, its buff, a crown on an elite camp, your matchup against it with a sign and a tone: "+62%", "~35%", "!10%", "lose"), the weapon crates, your two spawns with "taken" live, who is in the room and who is ready, a countdown and the route you draw with its walking time. The lobby shows the same map small and read-only; in a run, hold Tab. The HUD line reads "Planning 0:07" |
-| Mobs | Faction colour and weapon like a player; the HP bar shows once a mob is hurt or fighting, and an elite's always shows. Elites wear a gold ring and a star over a gold name. A fallen mob shrinks and fades, and its weapon stays on the ground. Living mobs show as dots on the minimap |
+| Barrier | A pale-blue bubble around the player, a blue segment on the HP bar and "+N barrier" in the readout, for everyone to see. Second Skin gives one (up to 25% of max hp, decaying) |
+| Planning screen | The whole map with the zones (each a colour, a floor pattern and a marker shape), every camp (its mob type, its role and the weapon it drops, a crown on an elite camp, your matchup against it with a sign and a tone: "+62%", "~35%", "!10%", "lose"), the weapon crates, your two spawns with "taken" live, who is in the room and who is ready, a countdown and the route you draw with its walking time. The lobby shows the same map small and read-only; in a run, hold Tab. The HUD line reads "Planning 0:07" |
+| Mobs | Faction colour and weapon like a player, with a role mark on the disc (swarm: small dots, skirmisher: a chevron, caster: a ring, brute: a thick rim); the HP bar shows once a mob is hurt or fighting, and an elite's always shows. Elites wear a gold ring and a star over a gold name. A fallen mob shrinks and fades, and its weapon stays on the ground. Living mobs show as dots on the minimap |
 | Patience timer | Always on the HUD; a 30-second warning and a host voice line before the teleport |
 | Counter wheel | In the hub, both pentagrams with your pick highlighted |
 
@@ -821,7 +1072,7 @@ Hard counters are only fair if you can see them coming.
   - each faction beats exactly two;
   - power-scale invariance;
   - name-shuffle invariance;
-  - ±5/±10% jitter robustness;
+  - ±3/±5% jitter robustness (±10% is reported only: the compressed edges sit inside it);
   - a purity audit (no faction names in the rules);
   - the identity tests.
 - **Parity.** The game's TypeScript copy of the faction rules must reproduce the Python results for all 20 matchups.
@@ -830,14 +1081,15 @@ Hard counters are only fair if you can see them coming.
   - the faction cycle per weapon (5 weapons × 10 edges);
   - kiting tolerance.
 
-  `python3 testing/realtime_report.py` (needs numpy, about a minute) runs the last two as 20 Hz weapon duels, with signature openings, buff thresholds and the longest stretch with no swing. `python3 testing/test_kite.py` (about 5 s) is the kiting guarantee at duel pace against a shooter that walks between its rooted shots, one PASS or FAIL per cell, and `python3 testing/kite_windup_sweep.py` (about 10 s) sweeps the bow's and the wand's windups against it.
+  `python3 testing/realtime_report.py` (needs numpy, about a minute) runs the last two as 20 Hz weapon duels, with signature openings, buff thresholds and the longest stretch with no swing. `python3 testing/test_kite.py` (about 10 s) is the kiting guarantee at duel pace against a shooter that walks between its rooted shots (a perfect orb-walking underdog may win at most 65% under the noise model, section 9.6: one PASS, EXCEPT or FAIL per cell), and `python3 testing/kite_windup_sweep.py` (about 10 s) sweeps the bow's and the wand's windups against the older, stricter measure (a stress test now, not the gate).
   Results go to the designer before any tuning.
 - **The real-sim weapon harness**: `npm run harness -w @raid/server` (`-- --core` for a 30 s run without the sensitivity passes). Every weapon duel plays out in the real sim with two policy-driven clients; it prints the weapon matrix, a style grid for every edge with a ranged weapon (a ranged fighter can stand, strafe or kite; a melee fighter can charge straight or **weave**, approaching off the line and changing side every 0.4 s), an edge verdict (holds, or fails and why, with the factions where a reply is thin), the same edges when both fighters click each other (the target lock), and the kiting table (a shooter that never moves, stands, strafes, kites, **orb-walks** (the perfect kiter: it stands only for its windups) or **locks** its chaser). `-- --grid-setups full` runs every grid cell on all 18 setups instead of 3 (steadier, about 3 times the time).
-- **Mob and camp strength** (report only): `npx tsx packages/server/bench/mobDuel.ts` plays a starting player against one mob of every region (`--style stand` is the measure of section 11), and `npx tsx packages/server/bench/campDuel.ts` against a whole camp. Its `camp` pull places the mobs with their camp, so the first hit wakes them all through the real aggro rule; `single` (one at a time, the camp before R5) and `group` (all awake at the start, harsher) are kept. `--size N` sets the camp size, `--k` and `--elite-k` try another scale, and `--sweep` prints the pairings cleared (of 25) per scale and size. The owner's target for the weaker-mobs ruling is at least 20 of 25 faction × zone pairings clearing a full camp of 4: it measures 21.
-- **The faction cycle in the real sim**: `npm run harness:factions -w @raid/server -- --python` plays every edge with the same weapon on both sides and on the signature openings, with each hit and shot landing in the tick it starts, and checks it pair by pair against `testing/realtime.py` (60 of 60 cells agree). `-- --mode policy` plays them as moving fighters by the shared weapon policies from 18 starting setups, with staggers, blocks and projectile flight; its failing cells (the four shield mirrors and Plague's bow against Frost's shield) are weapon-layer problems, listed in `testing/TUNING_10.md` section 6. Both report and never block the build.
+- **Mob and camp strength** (report only): `npx tsx packages/server/bench/mobDuel.ts` plays a starting player against one mob of every region (`--style stand` is the measure of section 11), and `npx tsx packages/server/bench/campDuel.ts` against a whole camp. Its `camp` pull places the mobs with their camp, so the first hit wakes them all through the real aggro rule; `single` (one at a time, the camp before R5) and `group` (all awake at the start, harsher) are kept. `--size N` sets the camp size, `--k` and `--elite-k` try another scale, and `--sweep` prints the pairings cleared (of 25) per scale and size. A run starts on fists, so both benches start a player on fists unless `--weapon` says otherwise (`--types` prints one row per mob type and checks the gates); the target is at least 20 of 25 faction × zone pairings clearing a full camp of 4, and it measures 24 of 25 (4 seeds).
+- **The faction cycle in the real sim**: `npm run harness:factions -w @raid/server -- --python` plays every edge with the same weapon on both sides and on the signature openings, with each hit and shot landing in the tick it starts, and checks it pair by pair against `testing/realtime.py` (70 of 70 cells agree, fists included). `-- --mode policy` plays them as moving fighters by the shared weapon policies from 18 starting setups, with staggers, blocks and projectile flight; its failing cells (the four shield mirrors and Plague's bow against Frost's shield) are weapon-layer problems, listed in `testing/TUNING_10.md` section 6. Both report and never block the build.
+- **The balance benches** (report only; `testing/TUNING_BALANCE.md` has the definitions, the tables and the acceptance record). Each plays real-sim duels with the lock's controls and the play-noise model (`DuelSpec.damageScale`, sigma 0.45), and each acceptance line prints PASS, WARN or FAIL against a target and a tolerance: `npx tsx packages/server/bench/ttkCurve.ts` (A1-A5: the time-to-kill curve by minute), `matchups.ts --layer faction|weapon|fed` (A6-A9: the ten faction edges, each weapon edge pooled over the 25 faction pairs, a fed player against a fresh one), `farmVsFight.ts` (A10: does farming pay), `augments.ts` (A14: the strongest builds, the guards on), `pickValue.ts` (what one card is worth in a mirror duel), `mobExecute.ts` (A13: the Plague mob's execute) and `botPicks.ts` (what bots take from the chests); `mobDuel.ts` and `campDuel.ts` are A11 and A12.
 - **Budgets.** Server tick time with 8 players and the map's ~80 mobs, bytes per second per player, and what a map costs to make.
-  - **Tick:** `step()` with 8 players at 8 camps averages 0.2 to 0.4 ms and its p99 stays between 0.6 and 1 ms; the pathfinder's worst case (`--stress`: about 72 mobs awake, 52 fighting, 7.4 of 8 players holding a lock, every camp woken every second) averages 0.33 to 0.6 ms with a p99 of 0.9 to 3 ms (0.36 / 0.91 ms, `--buffs` 0.35 / 0.94 ms and `--stress` 0.60 / 1.44 ms on the R2 + R5 tree at load average 20); every buff at 4 stacks on all 8 players (`--buffs`) is a case of its own (gate: 5 ms average, 15 ms p99 for each case, best of five attempts, judged by the smaller of wall-clock and CPU time). `npx tsx packages/server/bench/stepBench.ts [--buffs] [--stress]`; `test/perf.test.ts` is the gate, and `test/pathLoad.test.ts` counts the path searches (97 a second against a throttle ceiling of 304; 0.03 ms each, 1.5 ms at worst).
-  - **Bandwidth:** per client, websocket payload, measured headless with the real encoder and the map's ~80 mobs at `MOB_K` 0.22, seeds 1 to 5, 732 and 2547: 6.1 to 7.1 KB/s typical, 8.9 to 10.6 KB/s with 20 to 25 mobs fighting (eight whole camps woken every half second, the most 8 players can pull), 6.0 to 7.0 KB/s typical with five camp chests up, and 3.1 to 3.3 KB/s with nobody fighting; a joiner's first full sync is 11.6 to 12.7 KB (gate: 20 KB/s; the figures of the 60-mob wedge map, 7.1 to 8.0, 9.4 to 12.1 and 3.0 to 3.2, are not comparable: that bench woke one mob at a time). Sleeping mobs cost nothing. Two things hold it down: all of a step's fx travel as one compact message (`fxs`, which also announces each arrow and ball: they are not in the synced state), and the synced numbers are narrow on the wire (float32 positions, uint32 timers). `npx tsx packages/server/bench/bandwidth.ts`; `test/bandwidth.test.ts` is the gate. StateView is not needed yet, and would help most on this larger map. The plan's 16.5 KB/s for the heavy case is a report-only target, not asserted. A reward chest's three arrays (`options`, `takenBy`, `pickers`) are on every weapon container too and cost 0.14 to 0.24 KB/s.
+  - **Tick:** `step()` with 8 players at 8 camps averages 0.2 to 0.4 ms and its p99 stays between 0.6 and 1 ms; the pathfinder's worst case (`--stress`: about 72 mobs awake, 52 fighting, 7.4 of 8 players holding a lock, every camp woken every second) averages 0.33 to 0.6 ms with a p99 of 0.9 to 3 ms (0.36 / 0.91 ms and `--stress` 0.60 / 1.44 ms on the R2 + R5 tree at load average 20; 0.22 / 0.44 ms on the balance-pass tree); every live card once on all 8 players (`--cards`) is a case of its own (gate: 5 ms average, 15 ms p99 for each case, best of five attempts, judged by the smaller of wall-clock and CPU time). `npx tsx packages/server/bench/stepBench.ts [--cards] [--stress]`; `test/perf.test.ts` is the gate, and `test/pathLoad.test.ts` counts the path searches (97 a second against a throttle ceiling of 304; 0.03 ms each, 1.5 ms at worst).
+  - **Bandwidth:** per client, websocket payload, measured headless with the real encoder and the map's ~80 mobs at `MOB_K` 0.22, seeds 1 to 5, 732 and 2547: 6.1 to 7.1 KB/s typical, 8.9 to 10.6 KB/s with 20 to 25 mobs fighting (eight whole camps woken every half second, the most 8 players can pull), 6.0 to 7.0 KB/s typical with five camp chests up, and 3.1 to 3.3 KB/s with nobody fighting; a joiner's first full sync is 11.6 to 12.7 KB (gate: 20 KB/s; the figures of the 60-mob wedge map, 7.1 to 8.0, 9.4 to 12.1 and 3.0 to 3.2, are not comparable: that bench woke one mob at a time). Sleeping mobs cost nothing. Two things hold it down: all of a step's fx travel as one compact message (`fxs`, which also announces each arrow and ball: they are not in the synced state), and the synced numbers are narrow on the wire (float32 positions, uint32 timers). `npx tsx packages/server/bench/bandwidth.ts`; `test/bandwidth.test.ts` is the gate. StateView is not needed yet, and would help most on this larger map. The plan's 16.5 KB/s for the heavy case is a report-only target, not asserted. A reward chest's three arrays (`options`, `takenBy`, `pickers`) are on every weapon container too and cost 0.14 to 0.24 KB/s. On the balance-pass tree (seed 1) typical is 7.05 KB/s, heavy 11.48, idle 3.45 and five camp chests up 7.00.
   - **Map generation:** on a quiet machine about 25 ms a certified map on average and 53 ms at p99 in Node with the lane tables warm (32.8 and 70.4 ms measured over 1,000 seeds on a busy one), against the targets of 40 and 120. The lane tables (four of them) take 44 MB per process and 40 to 75 ms to build; the build is paid once at boot, on the server's main thread and its worker, and in the client's worker. `npx tsx packages/shared/scripts/mapBench.ts`; `mapgen.perf.test.ts` gates the median at 45 ms, scaled by a yardstick measured on one machine. In Chrome 155 the worker's warm-up takes 55 to 80 ms for the tables and 121 to 152 ms for a throwaway attempt, and a published attempt then takes 86 ms on average, with the page unfrozen (150 ms and frozen when it ran in the page). At 4x CPU throttle it has not been measured.
   - **Certification sweeps:** `npx tsx packages/shared/scripts/mapSweep.ts <count>` runs an independent certifier, written apart from the generator, over seeds 0 to 1,999 (and 200 more with a demo zone style hook): no failures and no discards.
 - **End-to-end.** Bots play full arena runs to a winner, with GV and bounties balancing exactly.
@@ -850,20 +1102,20 @@ Hard counters are only fair if you can see them coming.
 |---|---|
 | Long fights and third-partying | In an 8-player arena, long duels invite a third player to clean up. Duel pace ×2 helps; it gets watched in playtests. |
 | Readable counters | Losing to a counter you didn't see coming feels random. Faction colours, weapon silhouettes and the counter hue are the mitigation. |
-| Kiting | Equal move speed lets ranged weapons kite. Held back by short ranges (bow 240 u, wand 220 u), by every attack rooting its shooter for a windup (bow 0.92 of the interval up to 0.6 s, wand 0.8 up to 0.4 s), and by ranged damage no higher than the melee weapons'. The check is against a shooter that walks away between its shots (section 9.5) and passes at duel pace in all 20 cells, with the thinnest, Fire over Plague with the bow, at 1.23 s of tolerance against 1.16 s of orb-walk free fire (x1.06). The margin is a few percent: a windup tweak, a range increase or a melee cut can flip it, and the check runs without attack-speed buffs. A Frost shooter with a windup under about 0.31 s could walk a chilled chaser out of reach for good, so the wand's windup cap must stay above about 0.35 s. In the real sim the harness's perfect orb-walker (`orbwalk`) is worst at x1.06 for the bow and x1.40 for the wand against a motionless shooter (1.05 to 1.15 s of free fire from a wand, about the model's 1.14 s for its tightest wand cell), and it is an upper bound: a right-click drops the lock, so each step of an orb-walk costs a click to move and a click to lock again (`testing/TUNING_CONTROLS.md`). Cover caps sight corridors at 480 u, now twice the bow's range, so it could be relaxed. The check and the harness never cast a Wish: `testing/WISHES.md` reasons about what Freeze, Blaze Step, Last Stand, Swarm and Trial do to them: Freeze and Blaze Step each end one approach's worth of kiting, Last Stand cuts a Holy chaser's free fire by a quarter to a half, Swarm is outside the model, and in a what-if Trial flips Fire over Sentenced (section 18, W5). |
+| Kiting | Equal move speed lets ranged weapons kite. Held back by short ranges (bow 240 u, wand 220 u), by every attack rooting its shooter for a windup (bow 0.92 of the interval up to 0.6 s, wand 0.8 up to 0.4 s; nothing can shorten them) and by ranged damage no higher than the melee weapons'. Since the compressed sheet the check is that a perfect orb-walking shooter (it roots for its windup at each shot and walks between) **wins at most 65% of its duels under the noise model** against the melee faction that beats it (section 9.6): it passes in all 20 cells with one named exception, Demon Blood over Fire against Fire's wand (r_kite 0.64 against the 0.78 the others hold, a recorded floor of 0.62). The margin is a few percent: a windup tweak, a range increase or a melee cut can flip it, and the model was designed without attack-speed cards (it holds to ×1.25 only; attack speed is capped at ×1.5 on the owner's ruling, and the real sim's KITE EDGES held to ×1.5 on the first sheet and have not been re-run on the compressed one). A Frost shooter with a windup under about 0.31 s could walk a chilled chaser out of reach for good, so the wand's windup cap must stay above about 0.35 s. In the real sim the harness's perfect orb-walker is worst at x1.40 for the wand against a motionless shooter (sword against wand), and it is an upper bound: a right-click drops the lock, so each step of an orb-walk costs a click to move and a click to lock again (`testing/TUNING_CONTROLS.md`). Cover caps sight corridors at 480 u, twice the bow's range; the owner dropped that requirement on 2026-10-27 (kiting is held back by windups and speed caps), and the generator still certifies it until the zone-shape rework lands. The check and the harness never cast a Wish: `testing/WISHES.md` reasons about what Freeze, Blaze Step, Last Stand, Swarm and Trial do to them: Freeze and Blaze Step each end one approach's worth of kiting, Last Stand cuts a Holy chaser's free fire by a quarter to a half, Swarm is outside the model, and in a what-if Trial flips Fire over Sentenced (section 18, W5). |
 | Weaving melee approach | (Measured before the Controls rework, with the old ranged move slows. After it, in the real sim: Bow over Sword 100% / 93% / 100% and Bow over Axe 93% / 100% / 93% against a straight charge / weave / jink, no thin Fire column for either, but Wand over Shield fails, below.) The weapon edges were tuned against a melee fighter that charges straight, then re-checked against a weave and a quick jink. All ten hold (Bow over Axe 82% against the jink once the axe is at 0.77; it was 44% at 0.8), but the Fire column stays thin for Bow over Axe, Bow over Sword and Wand over Shield (11 to 44%): Fire's 500 HP make hit-count cliffs, so a faction number (Phase 10) or a projectile that leads is what would move them (section 9.4, `testing/TUNING_9_1.md`). |
 | Frost frustration | Its movement slow makes it the hardest class to escape. That's its identity, but it gets watched. |
 | Frost against a chilled shooter | Before the Controls rework the chill stretched a shooter's cooldown but not the slow recovery after its shot, so between shots a chilled shooter walked away at full speed (the movement slow is only within 100 u). In the real sim Frost's axe still won every setup against Fire's wand but kept 2.7% HP in the worst case (36% when the chill stretched the recovery). The recovery is gone: a chilled shooter now roots for its windup and walks between shots, and the old numbers have not been re-measured (the weapon harness runs with signatures off; `testing/TUNING_CONTROLS.md`, open question 6). The earlier owner call (a longer chill-move radius or a Frost-only recovery stretch; `testing/TUNING_10.md` section 4) is moot in its old form. |
 | Controls are best guesses | The owner may overrule these (section 9.5): a windup the lock started is cancelled by the player's next order, as League does, with the cooldown refunded (a mob's stays committed); the click snap is 64 u; an empty click does nothing, so there is no attack-move; a lock is accepted and kept out to 640 u, and breaks after 1.5 s out of sight; it survives a swap or a pickup; the shield faces the locked enemy, else the cursor; a locked shot flies straight and can be dodged; the bow still ignores stagger. |
-| Wand over Shield in the policy matrix | After the Controls rework the weapon harness's policy wand loses to its policy shield, 23% (Fire 33, Sentenced 0, Plague 56, Frost 0, Holy 28; 100% before). It holds at 100% when both fighters click each other. The harness wand backs away from a charging shield, which with no ranged slow no longer pays; longer wand windups did not fix it and broke Axe over Wand. Reported, nothing changed, the ranged slows were not brought back. Owner call: accept it, or give the harness wand no back-off (`testing/TUNING_CONTROLS.md`). |
+| Wand over Shield in the policy matrix | After the Controls rework the weapon harness's policy wand loses to its policy shield, 23% (19% in the balance pass's last run; Sentenced and Frost at 0 in both; 100% before). It holds at 100% when both fighters click each other. The harness wand backs away from a charging shield, which with no ranged slow no longer pays; longer wand windups did not fix it and broke Axe over Wand. Reported, nothing changed, the ranged slows were not brought back. Owner call: accept it, or give the harness wand no back-off (`testing/TUNING_CONTROLS.md`). |
 | Sentenced feel | Its weapon hits are nearly zero by design; the brand visual has to carry the class. |
-| Fire's burn | Nearly cosmetic in the current numbers. |
-| Frost over Fire | Thinner since v3 in the engine: Frost keeps 49% HP (was 59%), because Fire's backlash reads Frost's faster rate. In the worst 20 Hz signature opening at k = 1 it keeps 44% (v2 47%; v3 with the pre-9.1 weapons 34%). It never flips: the smallest HP buff on Fire that flips it is ×1.90 (v2 ×1.97; v3 with the pre-9.1 weapons ×1.59). Raising Fire's own rate is free at equal damage per second (no engine result moves, at most 3 points in the 20 Hz duels); it is Frost's rate that feeds the backlash. |
-| Snowballing | Uncapped S-curves plus bounties need playtesting: are fed players fun to fight, and is hunting them worth it? |
+| Fire's burn | Still the small part of Fire's damage (18 a second against the backlash's 58 to 92 against Sentenced and Plague). Ability Power adds 0.6 per point to it, so a burn build exists for a player who looks for it. |
+| Frost over Fire | The widest edge of the compressed sheet: Frost keeps 36% hp in the engine (the top of the 10-35% band), wins 76% of fists duels under noise and the underdog's 24% is the floor the pass held; on the bow and wand sets it reads 79 / 21 (open question N3). Fire's backlash reads the foe's attack rate, so a faster Frost feeds it. |
+| Snowballing | The PvP factor (×0.75 to ×3.0 by card power) plus bounties and falling mob rewards need playtesting: are fed players fun to fight, is hunting them worth it, and is a fresh player's weak early damage (×0.75) fun? A fed player deals 3.4 times a fresh one's damage by design (Q9). |
 | The faction cycle matters most late | Early fights are mostly weapons, positioning and third parties. The cycle decides the 1v1s, often in the coliseum. |
 | Bounties within a tick | If several players hit a fed player in the same tick, who gets the payout has to be decided by a fair rule. |
-| Buffs past the counters | (Measured against the old three-stat curve, +32% HP at three stacks and a plateau of +66%; the per-mob-type buffs of 12.2 are smaller per buff, but a build stacks several, and the check has not been re-run with them.) In the 20 Hz check (same weapon on both sides, plus the signature openings; the 9.1 weapon numbers, Holy's lifesteal as in v3) the softest HP edge, Holy over Sentenced, flips at ×1.30 HP on the losing side (about three stacks in the S-curve of 12.2, +32%). The softest attack-speed edges, Plague over Frost at ×1.66 (×1.79 on its signature opening) and Frost over Holy at ×1.73 on its signature opening (×1.84 on the five mirrors), sit above the curve's plateau of about +47%. Stacked, HP ×1.2 with attack speed ×1.2 and HP ×1.2 with attack speed ×1.3 hold every edge at 60% or better. HP ×1.3 with attack speed ×1.2 does not: Holy over Sentenced then wins 0% with both sides on swords, 45% on bows and 52% on shields. With attack speed ×1.3 as well, Plague over Frost wins 0% on all five mirrors and Holy over Sentenced 0% on swords, 27% on bows and 29% on shields. Move speed isn't modelled there. The S-curve deliberately goes past these numbers (fed players can beat their counters); bounties are the release valve. **Ruled (after R4a):** fed players may beat their counters: the damage rows stay uncapped, attack speed from every source is capped at ×1.5 (12.2), and a buffed shooter beating Holy over Sentenced is accepted with no retune (`testing/TUNING_ROGUE.md` section 6). |
-| Weapon edges inside one faction | With signatures on, several weapon edges flip when both fighters are the same faction: in a Fire mirror Sword over Axe goes from 100% to 0% and Sword over Wand to 11%; in a Sentenced mirror Sword over Axe, Sword over Wand and Axe over Wand go to 0%. Sentenced's damage is almost all the mark times the weapon's damage multiplier, and a Fire sword's staggers cancel axe windups, so the axe swings less and takes less backlash. Owner decision: the weapon loop is designed for the faction cycle's openings, and nothing was retuned (`testing/TUNING_10.md` section 8). |
+| Cards past the counters | The per-kill buffs this row once measured are gone. On the compressed sheet a fed player beats the counters on purpose (a minute-5 kit beats a fresh fighter on fists in all 25 pairings and keeps 86% hp) and the guards bound the stacks: no build kills any faction in under 1.0 s outside the Fire mirror and the fewest hits on a kill are 3 (section 12.9). **Ruled:** fed players may beat their counters: the damage rows are capped only by G1, attack speed from every source is capped at ×1.5, and a buffed shooter beating Holy over Sentenced is accepted with no retune. Not measured: a buffed chaser, several cards on one shooter beyond the A14 bench, and the real-sim kiting check on the compressed sheet with cards. |
+| Weapon edges inside one faction | (Measured before the balance pass.) With signatures on, several weapon edges flip when both fighters are the same faction: in a Fire mirror Sword over Axe goes from 100% to 0% and Sword over Wand to 11%; in a Sentenced mirror Sword over Axe, Sword over Wand and Axe over Wand go to 0%. Sentenced's damage is almost all the mark times the weapon's damage multiplier, and a Fire sword's staggers cancel axe windups, so the axe swings less and takes less backlash. Owner decision: the weapon loop is designed for the faction cycle's openings, and nothing was retuned (`testing/TUNING_10.md` section 8). |
 | Wishes: no warning before Blaze Step and Last Stand (W1) | Both are instant (no cast time), so their tell comes only after the cast: a flare at both ends and a trail, a gold burst and a rim. A blink with a pre-cast is no escape and a survival button with a delay loses to burst, which is why they have none, but an enemy gets no read on either. Owner call: keep them instant, or give them a short telegraph. |
 | Wishes: Swarm hides only on an honest client (W2) | The browser does not draw a hidden fighter and the server refuses every lock and ability on it, but every client still receives every position and the server still accepts the low-level `attack` input, so a modified client can find the fighter and attack its true position. The fix is interest management (per-client state) and refusing `attack` from game clients; until then the cloud marks the place for everyone anyway. |
 | Wishes: Last Stand at the teleport and in sudden death (W3) | A Last Stand running when the coliseum teleport comes ends and still pays its heal (the damage was real and the teleport is the arena's, not an enemy's). Its 5 s floor also keeps a fighter alive through sudden death's burn for 5 s, which can decide a finish. Owner call: keep both, or pay nothing at the teleport. |
@@ -873,12 +1125,31 @@ Hard counters are only fair if you can see them coming.
 | Wishes: stunned shields still block (W6) | A stun freezes facing but not the guard: a shield blocks toward where it faced, so a flank beats a stunned shield and the frontal hit still bounces. Owner call: keep it, or let a stun drop the guard. |
 | Wishes: reconciliation with the roguelike plan (W7) | Settled: the attack slow is wired as a stat-mirror source, Frost's chill stays a faction signature and is not a status, and the statuses hold still while damage lands. Left for the skills phase: `barrier` and a crowd-control immunity are appended (three effect bits are spare), the move-speed status hands its slows and haste to the speed mirror when that lands (it then keeps only the stop), and an ability's effect list is meant to be the roguelike plan's on-trigger action list (settled for `status` and `cleanse`, which `TriggerAction` now takes from `AbilityEffect`; only `heal`, `barrier` and `cooldown` stay trigger-only until the skills phase). |
 | Wishes: the end-to-end runs require a Wish (W8) | The bot e2e replays once if no bot's Wish landed, as it does for a kill, a signature hit or a mob kill. If that ever fails twice, keep the invariants (no cast before the lock ends, at most one cast per bot, every fx names a player) and drop the requirement rather than loosen the others. |
-| Camps: how hard is a pull (R5) | The camp wakes together (owner ruling), so camp strength was retuned: MOB_K 0.22, ELITE_K 0.65, and a starter on its signature weapon clears a camp of 4 in 21 of 25 pairings (bench/campDuel.ts, section 11), against the target of 20. The misses are structural, not numbers: a Frost shield against Frost (both block), a Holy wand against a Sentenced sword camp, a Sentenced bow against Fire, and ranged starters in general (14 of 25 at 5 mobs). Elite camps clear in 9 of 25, on purpose. The figures come from one scripted player with no second weapon, never humans or camp-mates: playtests will move MOB_K, ELITE_K and the leash. The elite lever is ELITE_K (0.50 would clear 12 of 25 but a lone elite stops being a fight). |
+| Camps: how hard is a pull (R5) | The camp wakes together (owner ruling), so camp strength was retuned: MOB_K 0.22, ELITE_K 0.65. A starter on **fists** (every run starts there) clears a camp of 4 in 24 or 25 of 25 pairings and every normal type's camp in at least 80% of runs; elite camps clear in 4 to 10 of 25, on purpose (section 11, `testing/TUNING_BALANCE.md` 9). The figures come from one scripted player with no cards, never humans or camp-mates: playtests will move MOB_K, ELITE_K, the role numbers and the leash. The elite lever is ELITE_K. |
 | Shared chest: public contents, hidden pickers (R5) | A chest's options and takers are in the synced state (D17: contested, and they must survive a reconnect), so a modified client reads every chest on the map; the panel merely hides them out of range. A pick names its picker even while Swarm hides it (a pick is not a reveal), which shows a hidden player is within reach of that chest. Interest management would cover the first; whether a pick should reveal like a cast is the owner's call. |
 | Shared chest: the panel's clock (R5) | The panel greys its cards at the chest's expiry minus (half the round trip + 50 ms), but the round trip it uses is the prediction's order delay, not a measured ping, so a very slow or jittery link greys a card late or early. Some refusals (an option the chest lacks, a phase that is not active) are silent, and the panel then says "not confirmed" after 0.6 s. |
-| Passives are first picks (R5) | The numbers are the plan's (3.6), nine of 21 built, and the owner retunes them. Only Quickdraw and Swift Boots were run through the kiting check, and both were ruled on: Quickdraw shortens melee windups only (-50% / -75%, sized in whole ticks) and Swift Boots is off while shooting and for 2.5 s after (`testing/TUNING_ROGUE.md` section 7); with those rules a holder of either keeps the real sim's KITE EDGES at the baseline 1 of 20 orbwalk failures (a melee chaser holding Quickdraw: 0). Open: whether 2.5 s is too long a pause (a shorter one lets the boots back into the gap a chilled shooter idles in), and Last Rites' +25% attack speed against the ×1.5 cap. Fire and Frost chests offer neutrals only until the on-hit statuses land (R4b). |
+| Cards are first picks | The numbers beyond tier I and the augments' are first picks, tuned by the acceptance pass only where a gate asked (Machine Gun's hit multiplier, Tank Engine's rate, A Race to 0's lifesteal rule). Only Quickdraw and the Fleet cards were run through the kiting check, and as the passives of the first sheet. Open: whether 2.5 s is too long a pause for Fleet (a shorter one lets the boots back into the gap a chilled shooter idles in), and Last Rites' +25% attack speed against the ×1.5 cap. |
 | The Rime's ice (ZT-6) | The ice needs plain floor on all eight sides and the 480 u sight cap puts a rock in nearly every 3x3 of the Rime, so after the cover about 41 tiles of ice are left a map (3% of its floor; the recipe laid about 280): patches between rocks, not lakes. Levers: a per-zone cap for the Rime (it touches the certified anti-kiting guarantee), an ice rule that tolerates rocks at its corners, or lakes drawn by the art. Owner call. |
 | Themed generation costs attempts (ZT-6) | The themed generator takes 2.3% more attempts a seed than the plain one (1.041 against 1.018; the zone-terrain contract asked for 2%), about 38 ms a map at load 8-13 (79 p99). Playtests will say whether the Rime, the spawn pool's survival of the cover or the territory repair is worth another round of tuning. |
+| Balance pass, decided (Q2, Q4, Q8, Q9) | **Q2** the compressed sheet is accepted: Fire 835 hp and 100 hit leaning on burn and backlash, Frost 1,200 hp and 175 hit, Sentenced's mark ramping in 2.1 s paced (all identity tests pass). **Q4** a mob's weapon drop goes straight into an unarmed killer's hand, with nothing on the ground. **Q8** Thick Skull reads "+30% max health, but your hits can never critically strike". **Q9** the PvP factor keeps its ×3.0 ceiling: a fed player (P 10 or more) deals 3.4 times a fresh player's damage, so farming dominates fights by design. Also in force: attack speed is capped at ×1.5; Wishes stay flat; all mob power comes from camp chests (no per-kill buffs); builds are discovered, not forced (no card text names a faction or a weapon); quests pay a card through `completeQuest` with their own 24 GV pot. |
+| Balance pass, best guesses the owner kept (Q1, Q3, Q5, Q6, Q7) | **Q1** the variance model: sigma 0.45 of execution noise per fighter (each fighter's damage times `exp(0.45 Z)`) is the definition of an "even duel" behind every win % in `testing/TUNING_BALANCE.md`. **Q3** the kiting guarantee is "a perfect orb-walking underdog wins at most 65%", with one named exception (9.6). **Q5** signature damage types (burn and disease magic, backlash physical, the mark true) change Holy over Sentenced and Plague over Holy. **Q6** Whetstone, Swift Boots, Thick Hide and the 12 declared-only passives left the chest. **Q7** the augment Glass Cannon echoes Fire's role line ("Glass-cannon duelist") on the faction card. |
+| N1: the weapon scalings | Axe AD 1.0, bow AD 1.0 and wand AP 1.0 against the contract's 1.2 / 0.9 / 1.2, needed to hold the loop at minute 5 (it drifted to Sword over Axe 45, Bow over Axe 49 and Wand over Bow 86 otherwise). Keep, or restore and retune the axe and wand multipliers with the Python tables. Recommended: keep. |
+| N2: `BALL_AFTER_ARROW` 0.6 | Keeps Wand over Bow at 77% at minute 5 but loses the reference-set opening Holy over Sentenced noise-free at minute 0 (43%). The alternatives: 0.7 (Wand over Bow 83%, over the ceiling) or another reference weapon for Holy or Sentenced. Recommended: accept 0.6 (a run starts on fists, and the opening is reported, not judged). |
+| N3: Frost over Fire and Fire over Plague | Frost over Fire reads 79 / 21 on the bow and wand sets (the underdog floor of 24 missed by 3) and Fire over Plague keeps 36% on the axe and shield sets (tolerance 35). The sheet was left alone: a change means regenerating the Python references and re-running the oracle and the kite check. Accept, or a Frost hit −5% or a Fire armor pass through the optimizer. |
+| N4: the minute-5 Frost shield mirror | 2.94× the median TTK (tolerance 3×): the shield's kit holds three armor cards, so a shield mirror is a wall that the PvP curve cannot move against the median. A kit or a defense-scaling decision. |
+| N5: the literal per-step A3 reading | Minute 0 to 1 is ×1.96 by design (fists to the first weapon ×1.28, the first card ×1.47). Decide whether the intended rule is the bench's (monotone, minute 0 over minute 5 at least 3: PASS). |
+| N6: A14 in the sustain mirrors | Eight builds miss the strict "median kill at least half the base's" rule only in the Holy and Frost mirrors (Holy's mirror stalls 8.8 s against 6.4 s in the contract); the bench ships a PASS* reading (median at least 2.5 s where the base is at least 5 s). Adopt it, or soften Holy's lifesteal ramp. Trimming card numbers does not help (12.9). |
+| N7: Boom builds kill in 3 hits | The per-hit cap at 35% is the floor; 25% would give 4 but clips Frost's ordinary hits (its base kill 5.2 to 5.9 s). Recommended: accept 3. |
+| N8: farm-then-fight against its counter | 36% (tolerance 35; it was 44% before the axe's shred was cut from 8/24 to 3/6): Fire's axe against a fresh Frost on fists. The cut fixed Frost over Holy and Sword over Axe's Frost column. Accept, or confirm the trade. |
+| N9: the Plague-player column of A13 | 0.45× against the 0.5× target (pooled 0.94× passes): the Plague player's armor 190 shrugs off the other zones' physical mobs, and the fix would be another execute factor pinned in six tests for one informational cell. Recommended: accept. |
+| N10: Sentenced's base cards | The typical minute-5 kit is attack-damage shaped and the mark is true damage that no base card scales, so the reference-set edges Sentenced over Plague (42%), Sentenced over Frost (46%) and Plague over Holy (48%) invert at minute 5 (a kit artefact the contract already noted). Decide whether a base card, or the mark's cap, should scale with AD or AP. |
+| N11: discoverable anti-synergies and outliers | Machine Gun is neutral on melee and poor on bows, wands and Fire (the windup lever, backlash per swing); A Race to 0 is symmetric in a mirror and its edge exists only in unequal fights (unmeasured); Vitality III is the strongest generalist base card; Magic Resist and Fleet are near-dead in duel mirrors (Magic Resist matters against Plague, Fleet is a farming stat). Nothing was changed; they need a camp or a kiting measure. |
+| N12: fragility | The harness's Sword over Axe Frost column depends on the axe shred cap (6 holds, 9 or more flips it) and Sword over Wand on the stagger immunity step (1.0 against 1.1 s). A later change to either flips a verdict. |
+| N13: the map | The generator still builds 4 camps a zone and one elite camp, so the 8-camp rosters (two elite camps a zone, 120 options a run instead of 60) are data until the roguelike session's map lands; the planning chip and the bots' planning are zone-level and do not weigh a camp's mob type. |
+| Review m3: Iron Will and the client prediction | Iron Will weakens the chill's move cut and the bog on the server, but the weakening is on no synced mirror, so the client predicts the full ×0.70 (and the full bog factor): an Iron Will holder near a Frost fighter or on bog walks about 17% faster than predicted and slides forward under the correction caps. Fix: a synced slowResist mirror. Recommended: add it. |
+| Review m8: Adrenaline's speed is outside G10 | Adrenaline's ×1.4 move speed is a mod source applied after the rows' +30% cap, so it stacks with Fleet III's ×1.3 up to ×1.82 for 2 s after a hit of 10% max hp; no kite check measured it. Leave it, or cap the total like attack speed. Recommended: cap it, then measure it. |
+| Review m11: cards that do nothing for some factions | The chest roll is shared and build-blind, so Gathering Storm (Sentenced only), Slow Burn and Festering Arcana (signature damage-over-time factions only; Festering also needs AP) are offered to Frost and Holy pickers too. Give each a fallback row as Pestilence has, or skip a card no eligible picker can use. Recommended: fallback rows. |
+| What is measured and what is not | Not measurable in a 1v1 duel with stat cards: the wand's splash, the sword's and fists' on-hit power, Overkill, Wishful Thinking and Arcane Overload. Measured in duels but not where the card is for: Tank Engine's rate (a camp), the Second Skin barrier (unit-tested, not measured in a duel), A Race to 0 against unequal kits. Not re-measured on the compressed sheet: Quickdraw and the Fleet cards in the kiting check, attack speed above ×1.25 in the model, a buffed chaser. `testing/TUNING_BALANCE.md` 11. |
 
 ---
 
@@ -891,7 +1162,7 @@ Hard counters are only fair if you can see them coming.
 | **Patience timer** | The host's countdown; when it hits zero, everyone goes to the coliseum |
 | **Coliseum** | The walled arena at the map centre with lockable gates |
 | **Zone** | One of the five faction areas of the map: an organic shape of equal area that reaches the coliseum (section 5). The code calls it a region |
-| **Camp** | A clearing with 3 to 5 mob rest spots and a reward chest tile; four per zone, one of them the elite camp |
+| **Camp** | A clearing with 3 to 5 mob rest spots and a reward chest tile; four per zone today (eight is the roster's design), one of them the elite camp |
 | **Territory** | The part of a zone nearer to one camp than to the zone's other camps by walking distance; its camp's mobs leash to it |
 | **Pole** | The deepest point of a territory, farthest from its edge, where its camp stands. A zone's pole is where its name is drawn |
 | **Spawn pool** | The 24 to 32 candidate starts of a map, all about the same walk from the coliseum; planning deals each player two |
@@ -899,19 +1170,26 @@ Hard counters are only fair if you can see them coming.
 | **Map pool** | The queue of certified maps a server keeps ready on a worker thread, so a room never waits for the generator |
 | **Faction** | Your class for the run (Fire, Sentenced, Plague, Frost, Holy / Demon Blood) |
 | **Signature** | A faction's unique mechanic |
-| **Signature weapon** | The weapon each faction starts with |
+| **Reference weapon** | The weapon each faction is measured with (`SIGNATURE_WEAPONS`: the harness, the benches, the oracle). A run itself starts on fists |
+| **Fists** | What an empty hand fights with: reach 40, the fastest swing, a weak hit that pierces shields. Every run starts on them; they are not an item |
 | **Wish** | A faction's once-a-run ability on `D` (Freeze, Swarm, Trial, Blaze Step, Last Stand): locked for 45 s, then a 300 s cooldown |
 | **Cast** | Using an ability: validated, committed (cooldown spent, rooted if it has a cast time), then it lands and takes effect |
-| **Status** | A timed effect on a fighter (stun, root, silence, slows, anti-heal, a burn, hidden, a zone, a death floor, haste), all from one table with caps and cleanse classes |
+| **Status** | A timed effect on a fighter (stun, root, silence, slows, anti-heal, a burn, hidden, a zone, a death floor, haste, an armor shred), all from one table with caps and cleanse classes |
 | **Hidden** | Untargetable and not drawn for others until its own attack or cast reveals it (Swarm) |
 | **Engaged** | Fighting a specific enemy: you hit them recently or they hit you |
 | **Planning** | The 12-second step between the lobby and the run: pick one of two dealt spawns, read the camps, draw a route |
-| **Camp chest** | The shared chest a cleared camp drops: three passive skills for 15 s, one pick per player, each option to one player (12.5) |
-| **Passive** | A skill with two ranks that works for the whole run once picked from a camp chest; 21 designed, 9 built (12.5) |
+| **Camp chest** | The shared chest a cleared camp drops: three cards for 15 s, one pick per player, each option to one player (12.5) |
+| **Card** | What a chest or a quest gives: a base card (24: eight stats at three tiers, they stack), a conditional (11: needs a base card of its kind) or an augment (40: one each, a rule or a trade-off). All stat power is cards (12.2) |
+| **Card power / PvP factor** | Card power P is the sum of the tiers of your cards. The PvP factor is the multiplier on your damage to other players: 0.75 at P 0, 2.17 at P 6, 3.0 at the limit (10.4) |
+| **AD / AP** | Attack damage and ability power: stats cards add. Each weapon turns them into damage its own way (9.1); AP also adds to every damage over time you run |
+| **Guard** | A cap that bounds what a stack of cards can do (G1-G13, 12.7) |
+| **Role / mob type** | A mob's shape (grunt, swarm, brute, skirmisher, caster) and its type among the 30 (four normal and two elite per zone), each with its own weapon (11) |
+| **Camp heal** | The heal everyone who fought a camp gets when it is cleared: a little for a scratch, nearly everything when low (12.6) |
 | **Skip** | Taking nothing from a camp chest: heals 15% of max HP, or pays 3 GV when it cannot heal. It counts as your pick |
 | **Cleared** | A camp whose mobs are all dead. It never comes back |
-| **Buff** | What a mob type gives its killer: stacks on an S-curve, one buff per mob type (12.2) |
+| **TTK / even duel** | Time to kill: seconds from the first landed hit to the end of a duel in which both fighters hold the same kit. The design targets about 20 s at minute 0 on fists and about 5 s on the minute-5 kit (10.4) |
+| **Noise model** | How the benches stand in for two players' execution: each fighter's damage times `exp(0.45 Z)`, which makes a 10-35% hp edge win 60-70% of duels (`testing/TUNING_BALANCE.md`) |
 | **Feed** | Your run's kill score (player kills + a quarter per mob kill); sets the mob reward curve and the catch-up. The bounty counts player kills only |
-| **Bounty / shutdown** | GV and buffs paid for killing a player with several player kills |
+| **Bounty / shutdown** | GV paid for killing a player with several player kills (it moves no stat) |
 | **Edge** | One "A beats B" relationship in a counter loop |
 | **Margin** | Winner's remaining HP fraction minus the loser's, in points |

@@ -1,5 +1,7 @@
 # Roguelike tuning log (R4a): attack speed on buffs, and the kiting guarantee
 
+> **Note (balance pass).** Every figure below predates the balance pass (`TUNING_BALANCE.md`): it was measured on the first faction sheet (Fire 500 hp, Frost 1750 hp...), with the per-kill buffs (Plague Rat and the rest) and the R5 passives (Quickdraw, Swift Boots), which are gone. The compressed sheet, the typed signatures, the cards and the new kite assertion (a perfect orb-walking underdog wins at most 65% under the noise model) replace what it measured; the section 7 rules (Quickdraw shortens melee windups only, Fleet's move speed is off while shooting and for 2.5 s after) still stand and live on as the Quickdraw and Fleet cards. Flag names in this log are the ones of its day: `--shooter-buff id:n` (a buff; it no longer exists: use `--shooter-as X` or `--shooter-cards`), `--shooter-skill swiftBoots:N` is now `--shooter-cards fleet1|fleet2`, `--chaser-skill quickdraw:1` is `--chaser-cards quickdraw`, and `--winner-skill` / `--loser-skill` are `--winner-cards` / `--loser-cards`. The content is left as written.
+
 Report-only (ROGUELIKE_PLAN 6: every balance output lands here). Duel pace k = 2 throughout.
 
 ## 1. The question
@@ -57,7 +59,7 @@ Plague Rat value v at 3 stacks (asMult = 1 + v x level; failing cells / worst ma
 Stacks are continuous, so every v above 0.037 crosses the x1.08-1.105 dip at some stack count: no v in [0.0533, 0.08]
 passes the model at every level, and lowering only moves which stack count hits the dip (+4% fails at its plateau too).
 
-## 3. The real sim (`npm run harness -w @raid/server -- --kiting-only [--shooter-as X | --shooter-buff id:n]`)
+## 3. The real sim (`npm run harness -w @raid/server -- --kiting-only [--shooter-as X | --shooter-cards c,...]`; was `--shooter-buff id:n`)
 
 New pass KITE EDGES: the 20 cells as duels, signatures on: the faction winner with each melee weapon charges the loser,
 which starts at the edge of its range and plays the whole fight as `orbwalk` (the perfect kiter) or `lock` (a click), 10
@@ -143,7 +145,7 @@ Attack speed is not out of line: per stack (the 3-stack value / 3) Plague Rat is
 Proposals (change, measured effect; none applied):
 
 - Cap the damage key's sum from rows (one constant, like `AS_MULT_CAP`): Ember Imp alone at its plateau fails 4 orbwalk and
-  2 lock cells of KITE EDGES (Holy > Sentenced bow 0%), the model 7 of 20; measure the cap value with `--shooter-buff`.
+  2 lock cells of KITE EDGES (Holy > Sentenced bow 0%), the model 7 of 20; measure the cap value with `--shooter-buff` (since replaced by `--shooter-cards`).
 - Holy > Sentenced is the soft cell for every shooter buff (HP x1.28 flips it in the model; Acolyte at 3 stacks, Ember Imp,
   Penitent or Ice Golem at the plateau in the real sim): accept it (fed players beat counters, GAME_DESIGN 18) or thicken it.
 - Bloatfly's dot as a share of the holder's damage instead of flat points: +8% for everyone instead of 2-13% (R4b).
@@ -218,9 +220,9 @@ them; it is the axe's rank. The axe's committed windup is also its root, so the 
 
 ### 7.2 How it was measured (harness options added)
 
-`npm run harness -w @raid/server -- ...`: `--shooter-skill swiftBoots:2`, `--chaser-skill quickdraw:1`, `--winner-skill` / `--loser-skill` (the
-designed winner / loser of every weapon-matrix duel) grant passives through the chest's own `grantSkill` (duel.ts `skills`), so the shipped rule
-is what is measured; `--shooter-speed 1.06|1.10` is now Swift Boots rank 1|2 through that path. Bare multipliers stay for scans
+`npm run harness -w @raid/server -- ...`: `--shooter-cards fleet2` (then `--shooter-skill swiftBoots:2`), `--chaser-cards quickdraw` (then `--chaser-skill quickdraw:1`), `--winner-cards` / `--loser-cards` (then `--winner-skill` / `--loser-skill`; the
+designed winner / loser of every weapon-matrix duel) grant cards through the chest's own `grantCard` (duel.ts `cards`; then passives through `grantSkill`), so the shipped rule
+is what is measured; `--shooter-speed 1.06|1.10` is now a Fleet I|II card through that path. Bare multipliers stay for scans
 (`--shooter-windup`, `--chaser-windup`, `--winner-windup`, `--loser-windup`, `--shooter-move`: no Swift Boots pause, the pre-ruling bonus).
 `--kite-edge frost>fire,...` restricts KITE EDGES, `--edge-setups 32|128` widens its 10 setups per melee weapon (a cell on the 50% line moves
 10 points per duel, and by 15 to 25 points under a perturbation that changes nothing real). Python: `test_kite.py --shooter-windup X` stays as the
@@ -248,7 +250,7 @@ A chaser with Quickdraw breaks no cell and mends the baseline one; the shooter's
 orbwalk worst x1.40, sword vs wand) does not move with Quickdraw on either side.
 
 The weapon matrix (`--core`, 18 setups x 5 factions, style grids 3 x 5; baseline 9 of 10 edges hold, lock pass 10 of 10; Wand > Shield fails at
-23% in the policy matrix, a known result): Quickdraw on the melee fighter, rank 1 and rank 2 alike, through `--winner-skill`, `--loser-skill` and both:
+23% in the policy matrix, a known result): Quickdraw on the melee fighter, rank 1 and rank 2 alike, through `--winner-cards`, `--loser-cards` and both (then `--winner-skill`, `--loser-skill`):
 
 | edge | baseline | winner holds it (r1 / r2) | loser holds it (r1 / r2) | both (r1 / r2) |
 |---|---|---|---|---|
@@ -293,7 +295,7 @@ wand, shield: 38% in all, the baseline failure; Plague > Frost wand, shield 100%
 (the baseline and Frost > Fire wand, axe 20%) and 1 at rank 2. **`SWIFT_BOOTS_PAUSE_MS` = 2500**: the longest chilled gap (2.1 s) plus a margin for
 a slower cooldown (the Hoarfrost Armor attack slow arrives with R4b).
 
-**Results at the shipped pause** (KITE EDGES, 10 setups per melee weapon; `--shooter-skill swiftBoots:N`, the real passive path):
+**Results at the shipped pause** (KITE EDGES, 10 setups per melee weapon; `--shooter-cards fleet1|fleet2`, the real card path; then `--shooter-skill swiftBoots:N`):
 
 | shooter | orbwalk fails | lock fails | at attack speed x1.5 (orbwalk / lock) |
 |---|---|---|---|
