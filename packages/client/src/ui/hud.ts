@@ -64,9 +64,10 @@ export interface VitalsInput {
   barrier?: number;
 }
 
-/** The weapon in hand by name; "no weapon" for an empty slot or an id from newer server content. */
+/** The weapon in hand by name: "Fists" for an empty hand, "no weapon" for an id from newer server content. */
 export function heldWeaponName(me: Pick<VitalsInput, "weapon0" | "weapon1" | "slot">): string {
   const id = me.slot === 1 ? me.weapon1 : me.weapon0;
+  if (id === "") return WEAPONS.fists.name;
   return isWeaponId(id) ? WEAPONS[id].name : "no weapon";
 }
 

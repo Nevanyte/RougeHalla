@@ -47,7 +47,11 @@ interface Rig {
   readonly swings: Array<{ attacker: string; weapon: WeaponId; a: number }>;
 }
 
-/** `players` players p0, p1, ... in an active raid. They have no weapon and 1e9 hp, and stand far from HOME until moved. */
+/**
+ * `players` players p0, p1, ... in an active raid. They are passive Holy fighters (an empty hand, which is fists, and a signature
+ * that deals no damage: a Fire or Sentenced player standing next to a mob would burn or mark it) with 1e9 hp, and stand far
+ * from HOME until moved.
+ */
 function makeRig(opts: { players?: number; map?: GameMap; seed?: number; patience?: number } = {}): Rig {
   const n = opts.players ?? 1;
   const patience = opts.patience ?? 3600;
@@ -56,7 +60,7 @@ function makeRig(opts: { players?: number; map?: GameMap; seed?: number; patienc
   };
   const world = createGameWorld({ seed: 7, config, random: mulberry32(opts.seed ?? 99) });
   world.map = opts.map ?? arenaMap();
-  for (let i = 0; i < n; i++) addPlayer(world, `p${i}`, `player${i}`);
+  for (let i = 0; i < n; i++) addPlayer(world, `p${i}`, `player${i}`, { faction: "holy" });
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   for (let i = 0; i < n; i++) {
@@ -551,18 +555,18 @@ describe("pursuit", () => {
     expect(hitsOn(run(rig, 100), "p0").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("a mob with nothing in its hands stays put and goes home when the timer runs out", () => {
+  it("a mob with nothing in its hands fights with fists: it closes in to their short reach and punches", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced");
     mob.s.weapon0 = "";
     put(rig.world, "p0", HOME.x + 100, HOME.y);
     aggro(rig.world, mob, "p0", 10);
-    const log = spy(rig.world, mob);
-    run(rig, (MOB_GIVE_UP_SECONDS * 1000) / TICK_MS - 1);
+    const events = run(rig, 100);
+    const hits = hitsOn(events, "p0");
+    expect(hits.length).toBeGreaterThanOrEqual(1);
+    expect(hits.every((h) => h.by === mob.id && h.weapon === "fists")).toBe(true);
+    expect(dist(mob.s, rig.world.state.players.get("p0")!)).toBeLessThanOrEqual(POLICIES.fists.attackRange);
     expect(brain(mob).mode).toBe("fight");
-    expect(log.filter((l) => l.kind !== "aim")).toEqual([]);
-    run(rig, 1);
-    expect(brain(mob).mode).toBe("idle");
   });
 });
 

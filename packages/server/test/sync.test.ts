@@ -218,14 +218,14 @@ describe("schema round trip", () => {
     expect(snapshot(client)).toEqual(snapshot(world.state));
     expect(client.containers.size).toBe(world.state.containers.size);
     expect(client.containers.size).toBeGreaterThan(10);
-    // Everyone gets a faction by join order, its hp, and its signature weapon in the first slot: nothing else.
+    // Everyone gets a faction by join order, its hp, and both weapon slots empty (fists): nothing else.
     const [alice, bob] = [client.players.get("a")!, client.players.get("b")!];
     expect(alice).toMatchObject({
-      faction: "fire", hp: FACTIONS.fire.hp, maxHp: FACTIONS.fire.hp, weapon0: SIGNATURE_WEAPONS.fire, weapon1: "", slot: 0,
+      faction: "fire", hp: FACTIONS.fire.hp, maxHp: FACTIONS.fire.hp, weapon0: "", weapon1: "", slot: 0,
       drawStartedAt: 0, readyAt: 0,
     });
     expect(bob).toMatchObject({
-      faction: "sentenced", hp: FACTIONS.sentenced.hp, maxHp: FACTIONS.sentenced.hp, weapon0: SIGNATURE_WEAPONS.sentenced,
+      faction: "sentenced", hp: FACTIONS.sentenced.hp, maxHp: FACTIONS.sentenced.hp, weapon0: "",
       weapon1: "", slot: 0,
     });
     expect(client.mobs.size).toBe(0);
@@ -406,8 +406,8 @@ describe("schema round trip", () => {
   it("decodes the weapon fields: a pickup into the free slot, a swap, the bow draw and the cooldown it leaves", () => {
     // Seed 57: the bow needs an open line of 200 u from bob's spawn, and a spawn on a zone-styled map is may be hemmed in by its structures.
     const world = makeWorld(57, 2);
-    addPlayer(world, "a", "alice"); // fire: axe
-    addPlayer(world, "b", "bob"); // sentenced: bow
+    addPlayer(world, "a", "alice"); // fire: given its axe below (a run starts on fists)
+    addPlayer(world, "b", "bob"); // sentenced: given its bow
     const wire = new Wire(world);
     const client = wire.join();
     const tick = () => { step(world, TICK_MS); wire.flush(); };
@@ -416,8 +416,13 @@ describe("schema round trip", () => {
     const bob = () => client.players.get("b")!;
 
     tick(); // the run starts
-    expect(alice()).toMatchObject({ weapon0: "axe", weapon1: "", slot: 0, readyAt: 0 });
-    expect(bob()).toMatchObject({ weapon0: "bow", weapon1: "", slot: 0, drawStartedAt: 0 });
+    expect(alice()).toMatchObject({ weapon0: "", weapon1: "", slot: 0, readyAt: 0 });
+    expect(bob()).toMatchObject({ weapon0: "", weapon1: "", slot: 0, drawStartedAt: 0 });
+    world.state.players.get("a")!.weapon0 = SIGNATURE_WEAPONS.fire;
+    world.state.players.get("b")!.weapon0 = SIGNATURE_WEAPONS.sentenced;
+    tick();
+    expect(alice()).toMatchObject({ weapon0: "axe", weapon1: "", slot: 0 });
+    expect(bob()).toMatchObject({ weapon0: "bow", weapon1: "", slot: 0 });
 
     // A loose sword at alice's feet goes into her free slot and vanishes; the axe stays in hand.
     const sword = dropWeapon(world, world.state.players.get("a")!, "sword");
@@ -492,7 +497,7 @@ describe("schema round trip", () => {
   it("a projectile reaches a live client in the batch of the step that loosed it and is never patched; a client that joins mid-flight is sent the ones flying in a batch of its own", () => {
     const world = makeWorld(71, 2);
     addPlayer(world, "a", "alice");
-    addPlayer(world, "b", "bob"); // sentenced: a bow
+    addPlayer(world, "b", "bob").weapon0 = SIGNATURE_WEAPONS.sentenced; // sentenced: a bow (a run starts on fists)
     const wire = new Wire(world);
     const early = wire.join();
     let late: RaidState | null = null;
@@ -616,10 +621,11 @@ describe("schema round trip", () => {
     const rnd = mulberry32(seed * 7919);
     const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]!;
     const world = makeWorld(seed, 4);
-    addPlayer(world, "a", "alice"); // fire: axe
-    addPlayer(world, "b", "bob"); // sentenced: bow
-    addPlayer(world, "c", "carol"); // plague: bow
-    addPlayer(world, "d", "dave"); // frost: shield
+    // A run starts on fists; the fuzz wants weapons in hand to swing, draw and drop, so each is given its faction's signature weapon.
+    addPlayer(world, "a", "alice").weapon0 = SIGNATURE_WEAPONS.fire; // fire: axe
+    addPlayer(world, "b", "bob").weapon0 = SIGNATURE_WEAPONS.sentenced; // sentenced: bow
+    addPlayer(world, "c", "carol").weapon0 = SIGNATURE_WEAPONS.plague; // plague: bow
+    addPlayer(world, "d", "dave").weapon0 = SIGNATURE_WEAPONS.frost; // frost: shield
     let dummy = addMob(world, { kind: "dummy", name: "Dummy", at: world.map.spawns[0]!, facing: 1, weapon: "shield" });
 
     const wire = new Wire(world);

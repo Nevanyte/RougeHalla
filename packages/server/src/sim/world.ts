@@ -55,6 +55,14 @@ export interface SimConfig {
   hazards?: boolean | "all";
   /** Seconds after the run starts that every Wish stays locked (sim/abilities.ts armWishes); WISH_LOCK_SECONDS when absent. */
   wishLockSeconds?: number;
+  /**
+   * The PvP rules (sim/ledger.ts pvpScale and capPvp; BALANCE_CONTRACT 3.4, 4.6): true (the default) multiplies every
+   * player-to-player hit, and the mark's clock, by pvpFactor(the attacker's card power) and caps a hit (G2) and a source's damage
+   * over time (G3) at a share of the victim's max hp. false is plain damage: only for tests and benches that check the damage law's
+   * own arithmetic (rows, mitigation, hooks, a one-hit kill) and must not depend on who holds how many cards. The harness's
+   * `duelScale` still applies. A run never turns it off.
+   */
+  pvpRules?: boolean;
 }
 
 /**
@@ -230,6 +238,8 @@ export interface PlayerRuntime extends CombatRuntime {
   fired?: Set<string>;
   /** Rampage announcement throttle (sim/feed.ts). Created on first use. */
   announce?: AnnounceRuntime;
+  /** Camps this player helped clear this run (sim/campHeal.ts counts every player the clear was paid to, a full-hp one included). Absent = 0. Pack Leader reads it. */
+  campsCleared?: number;
   /** Heals spread over time still to come (Second Wind; sim/factions.ts healOverTime). Created on first use. */
   hots?: HealOverTime[];
 }
@@ -342,6 +352,11 @@ export interface LandedHit {
   sig?: SignatureKind;
   ability?: AbilityId;
   dot?: boolean;
+  /**
+   * The Race to 0 multiplier of the dealer already inside `amount` (G4; absent = 1): its extra damage feeds no lifesteal, so
+   * lifesteal reads amount / race.
+   */
+  race?: number;
 }
 
 /** A swing whose windup ended this tick (resolved in the melee phase). */
@@ -430,6 +445,18 @@ export interface CombatScratch {
   campWakes: Array<{ camp: number; target: string }>;
   /** The lobby's median feed as it stood before the pass (null outside one): every mob reward in the pass reads this one. */
   medianFeed: number | null;
+  /**
+   * Harness seam (balance pass, BALANCE_CONTRACT 1.1): a fighter's PvP outgoing damage is multiplied by its entry (the noise
+   * model and the flip bisection of the benches), next to the PvP factor in sim/ledger.ts. It also scales the mark's clock, as
+   * the factor does. Unset in a run; filled from `DuelSpec.damageScale`.
+   */
+  duelScale?: Map<string, number>;
+  /**
+   * A Race to 0 holder's cap (G4): fighter id -> the ceiling of its 1 / hp-fraction multiplier (at most HP_RACE_CAP). The card's
+   * `hpRace` row is the production source (sim/ledger.ts hpRaceCapOf is the one reader); this map is the override the guard
+   * tests and the benches fill. Absent = nobody holds one.
+   */
+  hpRace?: Map<string, number>;
 }
 
 /** Runs `pay` now, or, while the ledger is being applied, after all of its damage has landed. */
@@ -652,6 +679,13 @@ export interface World {
   abilities: AbilitiesRuntime | null;
   /** Quest offers and their server-only hidden state (sim/quests.ts); null when disabled or training. */
   quests: QuestsRuntime | null;
+  /**
+   * Who has damaged a camp since it was engaged: camp index (in map.camps; a training practice camp's is its MobState.camp - 1,
+   * which is 100 or more) -> the players who did damage above 0 to any of its mobs, a lethal hit included (mobLife.hurtMob).
+   * Created on first use. The camp-clear heal (sim/campHeal.ts) pays exactly this set, the chest's conditional offers read
+   * it through `campContribOf`, and it is cleared at the end of the `campCleared` hook chain's campHeal link.
+   */
+  campContrib?: Map<number, Set<string>>;
 }
 
 export function createWorld(opts: {

@@ -452,6 +452,7 @@ describe("spawnTraining", () => {
       const world = started(lobby(1, { dummies: true }));
       const bow = [...world.state.containers.values()].find((c) => c.kind === "ground" && c.items.at(0)?.def === "bow" && c.label === "Bow")!;
       const p = world.state.players.get(idOf(0))!;
+      p.weapon0 = "sword";
       const carried = p.weapon0;
       expect(p.weapon1).toBe("");
       place(world, idOf(0), bow);
@@ -459,6 +460,18 @@ describe("spawnTraining", () => {
       tick(world);
       expect(p.weapon1).toBe("bow");
       expect(p.weapon0).toBe(carried);
+      expect(world.state.containers.has(bow.id)).toBe(false);
+    });
+
+    it("arms an empty-handed player at once: the rack weapon goes straight into the hand (a run starts on fists)", () => {
+      const world = started(lobby(1, { dummies: true }));
+      const bow = [...world.state.containers.values()].find((c) => c.kind === "ground" && c.items.at(0)?.def === "bow" && c.label === "Bow")!;
+      const p = world.state.players.get(idOf(0))!;
+      expect([p.weapon0, p.weapon1, p.slot]).toEqual(["", "", 0]);
+      place(world, idOf(0), bow);
+      enqueueClientMessage(world.players.get(idOf(0))!.inputs, "pickup", { containerId: bow.id });
+      tick(world);
+      expect([p.weapon0, p.weapon1, p.slot]).toEqual(["bow", "", 0]);
       expect(world.state.containers.has(bow.id)).toBe(false);
     });
   });

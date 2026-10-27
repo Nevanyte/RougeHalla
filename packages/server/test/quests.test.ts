@@ -306,11 +306,12 @@ describe("collect quests", () => {
     }
     P(w, 0).x = tokens[0]!.x;
     P(w, 0).y = tokens[0]!.y;
+    P(w, 0).weapon0 = "sword"; // a run starts empty-handed; the token must not touch what is carried
     const first = qt.containers[0]!;
     pickup(w, 0, first);
     expect(qt.s.progress.get("p0")).toBe(1);
     expect(w.state.containers.has(first)).toBe(false);
-    expect(P(w, 0).weapon0).not.toBe("");
+    expect(P(w, 0).weapon0).toBe("sword");
     expect(qt.s.progress.get("p1") ?? 0).toBe(0);
   });
 

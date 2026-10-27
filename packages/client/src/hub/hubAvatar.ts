@@ -1,7 +1,7 @@
 // The hub avatar as a synced-state lookalike. PlayerView draws from a PlayerState; the hub has no room, so this builds a
 // plain object with the fields PlayerView (and FighterArt, TrailView, SignatureArt through it) reads, from the loaded
 // profile and the faction pick. Pure: the scene casts it to PlayerState at the one call site.
-import { SIGNATURE_WEAPONS, packLook, type FactionId, type ProfileDTO } from "@raid/shared";
+import { packLook, type FactionId, type ProfileDTO } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 
 /** The PlayerState fields a drawn player depends on, and nothing else. */
@@ -28,7 +28,8 @@ export function hubAvatarState(profile: ProfileDTO | null, faction: FactionId | 
     maxHp: 1,
     status: "alive",
     faction: faction ?? "",
-    weapon0: faction ? SIGNATURE_WEAPONS[faction] : "",
+    // A run starts with both slots empty: the avatar stands on fists (an empty hand is drawn as two fists once it has a faction).
+    weapon0: "",
     weapon1: "",
     slot: 0,
     drawStartedAt: 0,

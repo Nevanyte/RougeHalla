@@ -17,9 +17,17 @@ export function isRegionalKind(kind: string): kind is "mob" | "elite" {
 /**
  * The faction a regional mob fights as (before DUEL_PACE): its region's faction scaled by MOB_K, an elite's by ELITE_K.
  * `k` overrides the scale (balance sweeps); the game never passes it.
+ *
+ * A signature's `execute` is scaled by k once more (k squared overall, balance contract 6.1): its bonus damage per unit
+ * of the target's missing hp reads the PLAYER's hp fraction, and a player's pool is full-scale, so scaling it by k alone
+ * (as every point-damage number is, because the mob's own hp and hit shrank with it) left it 4-5x too strong: a Plague
+ * mob killed a 25%-hp player in 0.9-3.6 s, where any other zone took 5-120 s (bench/mobExecute.ts, acceptance A13).
+ * At k = 1 (a player-sized faction, the parity tests) nothing changes.
  */
 export function mobFaction(region: FactionId, elite: boolean, k: number = elite ? ELITE_K : MOB_K): FactionSpec {
-  return scaledFaction(FACTIONS[region], k);
+  const scaled = scaledFaction(FACTIONS[region], k);
+  const execute = scaled.params.execute;
+  return execute === undefined ? scaled : { ...scaled, params: { ...scaled.params, execute: execute * k } };
 }
 
 /** The weapon every mob of the region carries. */

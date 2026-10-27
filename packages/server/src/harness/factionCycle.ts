@@ -124,7 +124,9 @@ export function runDuel(a: Fighter, b: Fighter, offA: number, offB: number, opts
   const world = createGameWorld({
     config: {
       minPlayers: 2, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9,
-      suddenDeathSeconds: 1e9,
+      // The cycle at the design pace (DUEL_PACE), the way testing/realtime_paced.py models it: no PvP factor or caps (they
+      // are measured by bench/matchups.ts and bench/ttkCurve.ts).
+      suddenDeathSeconds: 1e9, pvpRules: false,
     },
     random: mulberry32(1),
     map: MAP,
@@ -225,7 +227,7 @@ function policyCell(a: Fighter, b: Fighter): DuelResult[] {
     const r = policyDuel({
       faction: a.faction, factions: [a.faction, b.faction], weapons: [a.weapon, b.weapon],
       distance: setup.distance, angle: setup.angle, delayTicks: setup.delayTicks,
-      arena: "open", perception: "client", capSeconds: POLICY_CAP_SECONDS, seed: 1 + i * 7, signatures: true,
+      arena: "open", perception: "client", capSeconds: POLICY_CAP_SECONDS, seed: 1 + i * 7, signatures: true, pvpRules: false,
     });
     return { win: r.winner ?? -1, frac0: r.hpFrac[0], frac1: r.hpFrac[1], t: r.seconds };
   });

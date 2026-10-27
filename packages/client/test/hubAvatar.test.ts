@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { FACTION_IDS, SIGNATURE_WEAPONS, packLook, unpackLook, type ProfileDTO } from "@raid/shared";
+import { FACTION_IDS, packLook, unpackLook, type ProfileDTO } from "@raid/shared";
 import { hubAvatarState } from "../src/hub/hubAvatar";
+import { heldWeapon } from "../src/render/FighterArt";
 
 function profile(equipped: Record<string, string>, owned: string[]): ProfileDTO {
   return {
@@ -57,14 +58,16 @@ describe("hubAvatarState", () => {
     expect(look.title?.id).toBe("title-rookie");
   });
 
-  it("takes the faction pick and holds its signature weapon", () => {
+  it("takes the faction pick and stands on fists (both slots empty, as a run starts)", () => {
     for (const faction of FACTION_IDS) {
       const state = hubAvatarState(null, faction, 1000);
       expect(state.faction).toBe(faction);
-      expect(state.weapon0).toBe(SIGNATURE_WEAPONS[faction]);
+      expect(state.weapon0).toBe("");
       expect(state.weapon1).toBe("");
       expect(state.slot).toBe(0);
+      expect(heldWeapon(state)).toBe("fists");
     }
+    expect(heldWeapon(hubAvatarState(null, null, 1000))).toBeNull();
   });
 
   it("faces where it is told, and returns a fresh object each time", () => {

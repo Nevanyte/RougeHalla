@@ -55,6 +55,12 @@ const DUST_COLOR = 0xb7bec3;
 const RIPPLE_MS = 420;
 const RIPPLE_COLOR = 0x80deea;
 const RIPPLE_WIDTH = 30;
+/** The green ring on a cleared camp's centre (the camp-clear heal): it spreads to this width (world units) while it fades. */
+const CAMP_RING_MS = 900;
+const CAMP_RING_COLOR = 0x81f78b;
+const CAMP_RING_WIDTH = 280;
+/** One ring per camp: a second heal of the same clear (several players are healed in one batch) within this is the same ring. */
+const CAMP_RING_DEDUPE_MS = 250;
 /** Launch cues wait in a queue of their own, so a stalled tab's flood of them can never push a real fx out of `pending`. */
 const MAX_LAUNCH_CUES = 48;
 /** A juice cue (hit-stop, shake, recoil) only plays for an event this near render time: a replay after a stall stays quiet. */
@@ -133,6 +139,8 @@ export interface FxHost {
   nearestFighter?(x: number, y: number, within: number): string | undefined;
   /** A camp as a phrase for its clear line ("Plague camp", "Fire elite camp"); `camp` is its index in map.camps. Undefined for an unknown one. */
   campLabel?(camp: number): string | undefined;
+  /** Where camp `camp` (its index in map.camps) is centred, for the heal ring; undefined for one the map does not have (a practice camp). */
+  campCentre?(camp: number): { x: number; y: number } | undefined;
   /**
    * The local player's own pick at reward chest `chest` as a line ("You took Whetstone", "You skipped the chest"); `option` is
    * the index into the chest's options, or -1 for a skip. Undefined when the chest is not known any more.
@@ -157,7 +165,7 @@ type Queued = TimedFx | CancelWindups | LaunchCue;
 
 type EffectKind =
   | "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number" | "flame" | "float" | "ring"
-  | "impact" | "dust" | "ripple";
+  | "impact" | "dust" | "ripple" | "campRing";
 
 interface Active {
   kind: EffectKind;
@@ -210,6 +218,8 @@ export class FxView {
   private readonly freeText: Phaser.GameObjects.Text[] = [];
   private lane = 0;
   private floatLane = 0;
+  /** When each camp's heal ring was last drawn (performance.now()), so one clear draws one ring. */
+  private readonly campRingAt = new Map<number, number>();
   private destroyed = false;
   /** The render time and clock state of the last update(), for the freshness of a juice cue. */
   private renderT = 0;
@@ -410,6 +420,9 @@ export class FxView {
         if (label) this.host.announce?.(`${label} cleared`);
         break;
       }
+      case "campHeal":
+        this.campHeal(fx, now);
+        break;
       case "chestTaken": {
         // Everyone's picks show in the chest panel's cards; the local player's own is told as a line.
         if (fx.by !== this.host.localId) break;
@@ -634,6 +647,25 @@ export class FxView {
     this.active.push({ kind: "decal", g, text: null, start: now, duration: DECAL_MS, id: "", x: 0, y: 0, a: 0 });
   }
 
+  /**
+   * Clearing a camp healed `fx.id`: the same rising "+N" a heal draws, and one green ring spreading over the camp's centre (once per
+   * clear, however many players it healed). A practice camp has no centre on the map: only the number. The server's toast tells
+   * the healed player the amount in words.
+   */
+  private campHeal(fx: FxOf<"campHeal">, now: number): void {
+    this.heal(fx.id, fx.amount, now);
+    const at = this.host.campCentre?.(fx.camp);
+    if (!at || !Number.isFinite(at.x) || !Number.isFinite(at.y)) return;
+    const last = this.campRingAt.get(fx.camp);
+    if (last !== undefined && now - last < CAMP_RING_DEDUPE_MS) return;
+    this.campRingAt.set(fx.camp, now);
+    const g = this.acquireGraphics(DEPTH_FX);
+    g.lineStyle(3, CAMP_RING_COLOR, 1).strokeEllipse(0, 0, CAMP_RING_WIDTH, CAMP_RING_WIDTH * Y_SCALE);
+    g.fillStyle(CAMP_RING_COLOR, 0.1).fillEllipse(0, 0, CAMP_RING_WIDTH, CAMP_RING_WIDTH * Y_SCALE);
+    g.setPosition(projX(at.x), projY(at.y));
+    this.active.push({ kind: "campRing", g, text: null, start: now, duration: CAMP_RING_MS, id: "", x: at.x, y: at.y, a: 0 });
+  }
+
   private heal(id: string, amount: number, now: number): void {
     const pos = this.host.position(id);
     if (!pos || !(amount >= MIN_HEAL_SHOWN)) return;
@@ -794,6 +826,12 @@ export class FxView {
           const k = easeOutCubic(p);
           e.g!.setPosition(projX(e.x) + Math.cos(e.a) * 9 * k, projY(e.y, 4 * k) + Math.sin(e.a) * Y_SCALE * 9 * k)
             .setScale(0.7 + 0.9 * p).setAlpha(0.6 * (1 - p));
+          break;
+        }
+        case "campRing": {
+          // Spreads from a fifth of its width (not at all under reduced motion: it only fades) and thins as it goes.
+          const grow = juiceScale("motion") > 0 ? 0.2 + 0.8 * easeOutCubic(p) : 1;
+          e.g!.setScale(grow).setAlpha(0.95 * (1 - p));
           break;
         }
         case "ripple": {

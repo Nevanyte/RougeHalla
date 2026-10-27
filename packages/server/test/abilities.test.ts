@@ -91,7 +91,7 @@ function arena(fighters: Fighter[], opts: RigOpts = {}): World {
     seed: 7,
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: patience, patienceMinSeconds: patience,
-      suddenDeathSeconds: opts.suddenDeath ?? 3600, ...(opts.lock === "default" ? {} : { wishLockSeconds: opts.lock ?? 0 }),
+      suddenDeathSeconds: opts.suddenDeath ?? 3600, pvpRules: false, ...(opts.lock === "default" ? {} : { wishLockSeconds: opts.lock ?? 0 }),
       ...(opts.training ? { training: true, dummies: false } : {}),
     },
     random: mulberry32(opts.seed ?? 8),
@@ -511,7 +511,7 @@ describe("Freeze (Frost)", () => {
   });
 
   it("cancels the target's windup, the bow's draw included: no arrow leaves, the cooldown stays spent", () => {
-    const world = arena([{ faction: "frost", at: ME }, { faction: "plague", at: near(500) }]);
+    const world = arena([{ faction: "frost", at: ME }, { faction: "plague", weapons: ["bow"], at: near(500) }]);
     expect(P(world, 1).weapon0).toBe("bow");
     lockOn(world, 1, 0);
     tick(world);
@@ -928,7 +928,7 @@ describe("Swarm (Plague)", () => {
   });
 
   it("a bow's attack keeps it shown until the arrow has left, however long the draw is stretched", () => {
-    const world = arena([{ faction: "plague", at: ME }, { faction: "fire", weapons: ["sword"], at: near(500) }]);
+    const world = arena([{ faction: "plague", weapons: ["bow"], at: ME }, { faction: "fire", weapons: ["sword"], at: near(500) }]);
     expect(P(world).weapon0).toBe("bow");
     cast(world, 0);
     runFor(world, SWARM_CAST_MS + TICK_MS);

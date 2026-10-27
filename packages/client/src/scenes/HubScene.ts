@@ -4,7 +4,7 @@
 // a PlayerState lookalike (hub/hubAvatar.ts), so the player's skin, outline, title, trail and faction show here too.
 import Phaser from "phaser";
 import {
-  FACTIONS, FACTION_WHEEL, PLAYER_RADIUS, PLAYER_SPEED, SIGNATURE_WEAPONS, WEAPONS, WEAPON_WHEEL, Y_SCALE, cssColor,
+  FACTIONS, FACTION_WHEEL, PLAYER_RADIUS, PLAYER_SPEED, WEAPONS, WEAPON_WHEEL, Y_SCALE, cssColor,
   type FactionId, type ProfileDTO,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -463,8 +463,9 @@ export class HubScene extends Phaser.Scene {
           break;
         }
         case "pedestal": {
-          const name = s.faction ? WEAPONS[SIGNATURE_WEAPONS[s.faction]].name : "";
-          const sign = this.label(projX(s.x), projY(s.y) + s.w * 0.4 + 6, `${s.label}\n${name}`, cssColor(s.color), 0.5, 0, 11, DEPTH_PROP + 1);
+          // A run starts on fists, so the sign names what sets the faction apart: its role.
+          const role = s.faction ? FACTIONS[s.faction].role : "";
+          const sign = this.label(projX(s.x), projY(s.y) + s.w * 0.4 + 6, `${s.label}\n${role}`, cssColor(s.color), 0.5, 0, 11, DEPTH_PROP + 1);
           const gem = this.track(this.add.graphics().setDepth(s.y - 8).setPosition(projX(s.x), projY(s.y) - GEM_LIFT));
           drawGem(gem, s.color);
           this.gems.push({ gfx: gem, y: gem.y, phase: s.x * 0.05 });
@@ -511,9 +512,9 @@ export class HubScene extends Phaser.Scene {
     const decal = this.layout.stations.find((s) => s.kind === "decal");
     if (this.wheels && decal) {
       this.wheels.clear();
-      const weapon = this.faction ? SIGNATURE_WEAPONS[this.faction] : null;
       drawWheel(this.wheels, FACTION_WHEEL, decal.x - WHEEL_OFFSET, decal.y, WHEEL_RADIUS, (id) => FACTIONS[id].color, this.faction);
-      drawWheel(this.wheels, WEAPON_WHEEL, decal.x + WHEEL_OFFSET, decal.y, WHEEL_RADIUS, (id) => WEAPONS[id].color, weapon);
+      // The weapon ring has no pick: a run starts on fists, which are not on it.
+      drawWheel(this.wheels, WEAPON_WHEEL, decal.x + WHEEL_OFFSET, decal.y, WHEEL_RADIUS, (id) => WEAPONS[id].color, null);
     }
     if (this.plates) {
       this.plates.clear();

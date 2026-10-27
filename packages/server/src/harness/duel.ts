@@ -17,6 +17,7 @@ import {
   type BuffId, type FactionId, type GameMap, type PolicyInput, type SkillId, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { grantBuff } from "../sim/buffs";
+import * as chests from "../sim/chests";
 import { grantSkill } from "../sim/chests";
 import { activeWeapon, combatant, timingsOf, type Combatant } from "../sim/combatant";
 import { recomputeMods } from "../sim/mods";
@@ -63,12 +64,33 @@ export interface DuelSpec {
    * folded as in a run), so the measurement is of the shipped rule. A rank 2 is two grants.
    */
   skills?: readonly [readonly SkillGrant[] | undefined, readonly SkillGrant[] | undefined];
+  /**
+   * Cards fighter 0 / fighter 1 holds from the duel's first tick (BALANCE_CONTRACT 1.3's kits), through the chest's own `grantCard`
+   * so the shipped rule is measured. TODO(cards, agent A3): `grantCard` lands with the card catalog; until it exists a duel that asks
+   * for cards throws (a kit's minute 0 holds none, so the minute-0 benches run today).
+   */
+  cards?: readonly [readonly string[] | undefined, readonly string[] | undefined];
+  /** Fighter 0 / fighter 1 starts at this fraction of its max hp (the farm-then-fight bench: a mob kill leaves about 94%). */
+  startHp?: readonly [number | undefined, number | undefined];
   /** An attack-speed multiplier for fighter 0 / fighter 1 on top of its buffs: a registered mod source (world.modSources). */
   asMult?: readonly [number | undefined, number | undefined];
   /** A bare windup multiplier for fighter 0 / fighter 1, from the same mod source (a scan of Quickdraw's numbers): scaleWindup shortens melee windups only. */
   windupMult?: readonly [number | undefined, number | undefined];
   /** A bare move-speed multiplier for fighter 0 / fighter 1, from the same mod source: no Swift Boots pause (`skills` is the shipped passive). */
   speedMult?: readonly [number | undefined, number | undefined];
+  /** The PvP rules (the factor and the caps) on (the default, as in a run) or off (a duel that isolates the damage law; see SimConfig.pvpRules). */
+  pvpRules?: boolean;
+  /**
+   * Fighter 0 / fighter 1's PvP outgoing-damage multiplier (the benches' noise model and flip bisection): fills
+   * `world.combat.duelScale`, which sim/ledger.ts multiplies in next to the PvP factor (and the mark's clock follows it).
+   * Absent: 1 and 1.
+   */
+  damageScale?: readonly [number, number];
+  /**
+   * Fighter 0 / fighter 1 holds a Race to 0 (G4) with this ceiling on its 1 / hp-fraction multiplier (guard tests and benches):
+   * fills `world.combat.hpRace`. Absent: none.
+   */
+  hpRace?: readonly [number | undefined, number | undefined];
   /** Called after every step (debugging and tests). */
   onTick?: (world: World, tick: number, events: readonly SimEvent[]) => void;
 }
@@ -298,7 +320,7 @@ export function runDuel(spec: DuelSpec): DuelResult {
     random: mulberry32(seed + 1),
     config: {
       minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER_SECONDS, patienceMinSeconds: NEVER_SECONDS,
-      suddenDeathSeconds: NEVER_SECONDS,
+      suddenDeathSeconds: NEVER_SECONDS, ...(spec.pvpRules === false ? { pvpRules: false } : {}),
     },
   }, { signatures: spec.signatures ?? false });
   // The world builds a map from its seed (about 15 ms, unused here); the duel's hand-built arena replaces it.
@@ -309,7 +331,8 @@ export function runDuel(spec: DuelSpec): DuelResult {
     const f = FACTIONS[faction];
     p.faction = faction;
     p.hp = p.maxHp = f.hp;
-    p.weapon0 = spec.weapons[i]!;
+    // Fists are an empty hand, never an item (BALANCE_CONTRACT 2.3).
+    p.weapon0 = spec.weapons[i] === "fists" ? "" : spec.weapons[i]!;
     p.weapon1 = "";
   }
   step(world, TICK_MS); // lobby -> active
@@ -342,13 +365,30 @@ export function runDuel(spec: DuelSpec): DuelResult {
   for (let i = 0; i < 2; i++) {
     const grants = spec.buffs?.[i] ?? [];
     const passives = spec.skills?.[i] ?? [];
-    if (grants.length === 0 && passives.length === 0 && extra(i) === null) continue;
+    const cards = spec.cards?.[i] ?? [];
+    if (grants.length === 0 && passives.length === 0 && cards.length === 0 && extra(i) === null) continue;
     const p = world.state.players.get(IDS[i]!)!;
     const rt = world.players.get(IDS[i]!)!;
     for (const g of grants) grantBuff(world, p, rt, g.id, g.stacks);
     const me = combatant(world, IDS[i]!) as Extract<Combatant, { kind: "player" }>;
     for (const g of passives) for (let r = 1; r <= g.rank; r++) grantSkill(world, me, g.id);
+    if (cards.length > 0) {
+      const grantCard = (chests as unknown as Record<string, unknown>)["grantCard"] as ((w: World, c: Combatant, id: string) => unknown) | undefined;
+      if (!grantCard) throw new Error("DuelSpec.cards needs sim/chests grantCard, which lands with the card catalog (agent A3)");
+      for (const id of cards) grantCard(world, me, id);
+    }
     recomputeMods(world, { kind: "player", id: IDS[i]!, s: p, rt });
+  }
+  spec.startHp?.forEach((frac, i) => {
+    if (frac === undefined) return;
+    const p = world.state.players.get(IDS[i]!)!;
+    p.hp = p.maxHp * frac;
+  });
+  if (spec.damageScale) world.combat.duelScale = new Map([[IDS[0]!, spec.damageScale[0]], [IDS[1]!, spec.damageScale[1]]]);
+  if (spec.hpRace) {
+    const caps = new Map<string, number>();
+    spec.hpRace.forEach((cap, i) => { if (cap !== undefined) caps.set(IDS[i]!, cap); });
+    if (caps.size > 0) world.combat.hpRace = caps;
   }
   if (!circleClear(world.map, starts[0], PLAYER_RADIUS) || !circleClear(world.map, starts[1], PLAYER_RADIUS)) {
     throw new Error(`duel start (${spec.distance} u at ${spec.angle ?? 0} rad) is inside a wall`);

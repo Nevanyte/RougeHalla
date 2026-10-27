@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITY_IDS, BUFF_IDS, formatStacks, FX_SCALE, mulberry32, packFx, STATUS_KINDS, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS,
+  ABILITY_IDS, ALL_WEAPON_IDS, BUFF_IDS, formatStacks, FX_SCALE, mulberry32, packFx, STATUS_KINDS, unpackFx, unpackLaunches, WEAPONS,
   type FxBatch, type FxEvent, type ProjectileEnd, type ProjectileLaunch, type TimedFx,
 } from "../src/index";
 
@@ -26,6 +26,7 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
   status: { kind: "status", id: "sess-002", status: "stun", ms: 1250.4, by: "sess-001" },
   campCleared: { kind: "campCleared", camp: 7 },
   chestTaken: { kind: "chestTaken", chest: "c4f", by: "sess-001", option: 2 },
+  campHeal: { kind: "campHeal", id: "sess-001", camp: 7, amount: 118.46 },
 };
 
 const T = 123450;
@@ -109,7 +110,7 @@ describe("fx codec: round trip", () => {
   });
 
   it("covers every weapon, buff and end reason", () => {
-    for (const weapon of WEAPON_IDS) {
+    for (const weapon of ALL_WEAPON_IDS) {
       expect(roundTrip({ kind: "windup", by: "a", weapon, a: 1, ms: 100 })).toMatchObject({ weapon });
       expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 1, weapon })).toMatchObject({ weapon });
       expect(roundTrip({ kind: "block", id: "a", by: "b", weapon })).toMatchObject({ weapon });
@@ -274,7 +275,7 @@ describe("fx codec: fighter ids by roster index", () => {
     ];
     const batch = packFx(fx, T, { roster: index });
     expect(batch.l[0]).toEqual([2, 0, 1, 120, 1]);
-    expect(batch.l[1]).toEqual([2, 2, null, 30, 0 + (0 + 1) * (WEAPON_IDS.length + 1)]);
+    expect(batch.l[1]).toEqual([2, 2, null, 30, 0 + (0 + 1) * 7]); // HIT_RADIX: the six weapon codes and "none"
     expect(batch.l[2]).toEqual([6, "Zz9yXx8wV", 1, 2, 1]);
     expect(unpackFx(batch, roster)).toEqual(fx.map((f) => ({ ...f, t: T })));
   });
@@ -375,7 +376,7 @@ describe("fx codec: buffs (roguelike R4a)", () => {
 describe("fx codec: hit flags", () => {
   it("round trips every weapon (or none) with every signature (or none)", () => {
     const sigs = [undefined, "burn", "backlash", "disease", "mark"] as const;
-    for (const weapon of [null, ...WEAPON_IDS]) {
+    for (const weapon of [null, ...ALL_WEAPON_IDS]) {
       for (const sig of sigs) {
         const fx: FxEvent = sig ? { kind: "hit", id: "a", by: "b", amount: 4.5, weapon, sig } : { kind: "hit", id: "a", by: "b", amount: 4.5, weapon };
         expect(roundTrip(fx), `${weapon} ${sig}`).toEqual({ ...fx, t: T });
@@ -384,12 +385,34 @@ describe("fx codec: hit flags", () => {
   });
 
   it("keeps weapon and signature in one element that fits a byte", () => {
-    for (const weapon of WEAPON_IDS) {
+    for (const weapon of ALL_WEAPON_IDS) {
       for (const sig of ["burn", "backlash", "disease", "mark"] as const) {
         const flags = packFx([{ kind: "hit", id: "a", by: "b", amount: 1, weapon, sig }], T).l[0]![4] as number;
         expect(flags).toBeLessThan(128);
       }
     }
+  });
+});
+
+describe("fx codec: fists on the wire", () => {
+  it("are weapon code 5, appended after the five loop weapons (the codes never move)", () => {
+    const codeOf = (weapon: "sword" | "bow" | "wand" | "shield" | "axe" | "fists"): unknown =>
+      packFx([{ kind: "windup", by: "a", weapon, a: 0, ms: 100 }], T).l[0]![2];
+    expect(["sword", "bow", "wand", "shield", "axe", "fists"].map((w) => codeOf(w as "sword"))).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it("keep the hit flags apart from the signatures: weapon + 7 x signature never collides", () => {
+    const seen = new Set<number>();
+    for (const weapon of [null, ...ALL_WEAPON_IDS]) {
+      for (const sig of [undefined, "burn", "backlash", "disease", "mark"] as const) {
+        const fx: FxEvent = sig ? { kind: "hit", id: "a", by: "b", amount: 1, weapon, sig } : { kind: "hit", id: "a", by: "b", amount: 1, weapon };
+        const flags = packFx([fx], T).l[0]![4] as number;
+        expect(seen.has(flags), `${weapon} ${sig}`).toBe(false);
+        seen.add(flags);
+      }
+    }
+    // A fists hit by a burn is code 5 + 1 = 6, plus (burn 0 + 1) x 7.
+    expect(packFx([{ kind: "hit", id: "a", by: "b", amount: 1, weapon: "fists", sig: "burn" }], T).l[0]![4]).toBe(6 + 7);
   });
 });
 
@@ -636,6 +659,23 @@ describe("fx codec: camps and chests (roguelike R5)", () => {
     ]);
   });
 
+  it("campHeal is [20, id, camp, amount x 10]: the healed fighter travels as its roster index", () => {
+    const roster = ["sess-001", "sess-002"];
+    const index = new Map(roster.map((id, i) => [id, i]));
+    const batch = packFx([{ kind: "campHeal", id: "sess-002", camp: 7, amount: 118.46 }], T, { roster: index });
+    expect(batch.l).toEqual([[20, 1, 7, 1185]]);
+    expect(unpackFx(batch, roster)).toEqual([{ kind: "campHeal", id: "sess-002", camp: 7, amount: 118.5, t: T }]);
+    // Without the roster the id stays a string, as every other id-bearing fx.
+    expect(packFx([{ kind: "campHeal", id: "sess-002", camp: 0, amount: 0.3 }], T).l).toEqual([[20, "sess-002", 0, 3]]);
+  });
+
+  it("drops a malformed campHeal tuple (no camp, a fraction, a negative camp, a roster index past the roster, no amount)", () => {
+    const dropped: boolean[] = [];
+    const bad: FxBatch = { t: T, l: [[20, "a", -1, 10], [20, "a", 1.5, 10], [20, "a", "3", 10], [20, "a", 3], [20, "a", 3, "x"], [20, 9, 3, 10], [20]] };
+    expect(unpackFx(bad, ["a"], (_tuple, unresolved) => dropped.push(unresolved))).toEqual([]);
+    expect(dropped).toEqual([false, false, false, false, false, true, false]);
+  });
+
   it("drops a malformed camp or chest tuple instead of guessing", () => {
     const dropped: unknown[] = [];
     const bad: FxBatch = { t: T, l: [[18, -1], [18, 1.5], [18], [19, 3, "a", 0], [19, "c1", "a", -2], [19, "c1", "a", 0.5], [19, "c1", "a"]] };
@@ -649,7 +689,7 @@ describe("fx codec: camps and chests (roguelike R5)", () => {
     );
     expect(codes).toEqual({
       windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10,
-      victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19,
+      victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19, campHeal: 20,
     });
     expect(new Set(Object.values(codes)).size).toBe(Object.keys(codes).length);
     // 11 (the retired combo) stays unused.

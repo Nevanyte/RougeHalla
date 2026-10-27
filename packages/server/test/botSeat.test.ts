@@ -73,7 +73,8 @@ describe("a bot's identity", () => {
     const [h, b] = [P(w, "h0"), P(w, "b0")];
     expect(b).toMatchObject({ name: "Bot0", status: "alive", look: 0 });
     expect(b.hp).toBe(b.maxHp);
-    expect(b.weapon0).not.toBe("");
+    expect([b.weapon0, b.weapon1, b.slot]).toEqual(["", "", 0]); // both start on fists, like any player
+    expect([b.weapon0, b.weapon1, b.slot]).toEqual([h.weapon0, h.weapon1, h.slot]);
     expect(RT(w, "b0").inputs).not.toBe(RT(w, "h0").inputs);
     expect(RT(w, "b0").profile).toBe("Bot0");
     expect(h.status).toBe("alive");

@@ -55,7 +55,7 @@ function arena(fighters: Fighter[], orderSalt?: number): World {
     seed: SEED,
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
-      suddenDeathSeconds: 3600,
+      suddenDeathSeconds: 3600, pvpRules: false,
     },
     random: mulberry32(SEED + 1),
   }, { signatures: false });

@@ -4,7 +4,7 @@
 // HYSTERESIS. Stateful per bot: the avoid list and chase timers of the pursuit-ring breaker, the exclusions after a failure,
 // and the mob hunt (huntAdapter.ts). Pure otherwise: time is the percept's, randomness is `ctx.rng.decide` and `.lapse`.
 import {
-  REGION_WEAPONS, SIGNATURE_WEAPONS, TARGET_RANGE, TILE, feedScore,
+  REGION_WEAPONS, TARGET_RANGE, TILE, feedScore,
   isRanged, rewardCurve, sigmoid,
   type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -567,7 +567,9 @@ class StrategyImpl implements Strategy {
       let sum = 0;
       let n = 0;
       for (const e of enemies) {
-        const theirs = e.snap.inHand ?? e.snap.otherSlot ?? (e.snap.faction ? SIGNATURE_WEAPONS[e.snap.faction] : null);
+        // What was seen in its hand, else in its other slot; an enemy never seen armed is on fists (a run starts that way) and
+        // there is no weapon to counter.
+        const theirs = e.snap.inHand ?? e.snap.otherSlot ?? null;
         if (!theirs) continue;
         sum += know.weaponEdge(w, theirs);
         n++;

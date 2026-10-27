@@ -303,13 +303,18 @@ async function untilActive(all: Player[]): Promise<void> {
   await until(() => all.every((p) => p.room.state.phase === "active"), "clients to see the run start");
 }
 
-/** Everyone in one room, waited until the run is on and all of them are alive. Nothing happens in it by itself. */
-async function startRun(accounts: Account[]): Promise<Player[]> {
+/**
+ * Everyone in one room, waited until the run is on and all of them are alive. Nothing happens in it by itself. A run starts on
+ * fists, but most of these tests are about the weapon in hand when the run ends, so unless `armed` is false each player is
+ * given their faction's reference weapon (SIGNATURE_WEAPONS) on the server once the run is on.
+ */
+async function startRun(accounts: Account[], armed = true): Promise<Player[]> {
   const [first, ...rest] = accounts;
   const lead = await createRoom(first!, { minPlayers: accounts.length });
   const all = [lead];
   for (const who of rest) all.push(await joinRoom(lead, who));
   await untilActive(all);
+  if (armed) for (const p of all) serverPlayer(p).weapon0 = SIGNATURE_WEAPONS[serverPlayer(p).faction as keyof typeof SIGNATURE_WEAPONS];
   return all;
 }
 
@@ -398,7 +403,7 @@ function inHand(p: Player): string {
   return s.slot === 1 ? s.weapon1 : s.weapon0;
 }
 
-/** What the first player into a room is given by the server's round-robin default: the weapon of `defaultFaction(0)`. */
+/** The weapon `startRun` gives the first player into a room (the server's round-robin default faction, `defaultFaction(0)`). */
 const FIRST_JOINER_WEAPON = SIGNATURE_WEAPONS[defaultFaction(0)];
 
 /** A winner's result and the weapon they held when the run was decided. */
@@ -615,7 +620,7 @@ describe("a look is cosmetic only", () => {
       );
       expect(sf, phase).toEqual(so);
       expect(sf.faction, `${phase}: the first joiner's faction`).toBe(defaultFaction(0));
-      expect(sf.weapon0, `${phase}: and its weapon`).toBe(FIRST_JOINER_WEAPON);
+      expect([sf.weapon0, sf.weapon1], `${phase}: and an empty hand`).toEqual(["", ""]);
       expect(runtimeOf(f), `${phase}: runtime`).toEqual(runtimeOf(o));
     };
     same("in the lobby");
@@ -927,6 +932,24 @@ describe("achievements through a run", () => {
 });
 
 describe("the weapon a win is counted for", () => {
+  it("a contested win on fists counts for no weapon (fists are not an item): the run is banked with no weapon at all", async () => {
+    const [A, B, C] = [await claim(), await claim(), await claim()];
+    const [a, b, c] = await startRun([A, B, C], false);
+    const recorded = vi.spyOn(server.store, "recordRun");
+    expect([serverPlayer(a!).weapon0, serverPlayer(a!).weapon1, inHand(a!)]).toEqual(["", "", ""]);
+    await hurt(a!, b!);
+    await hurt(a!, c!);
+    hitsLongAgo(worldOf(a!), [b!, c!]);
+    await leave(b!);
+    await leave(c!);
+    await until(() => a!.results.length === 1, "A's result");
+    const calls = recorded.mock.calls.filter(([name]) => name === A.name);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![1]).toEqual({ outcome: "won", kills: 0, gv: expect.any(Number), bounty: 0, winQualified: true });
+    expect(record(A).progress.qualifiedWins).toBe(1);
+    expect(record(A).progress.winsByWeapon).toEqual({});
+  });
+
   // The Room hands the store the weapon in hand when the run ends, and a faction only when the player picked one (these
   // clients join without, so none is recorded: a round-robin default must not count toward faction titles). Only a
   // qualified win counts, so winsByWeapon moves on a contested win and nowhere else.

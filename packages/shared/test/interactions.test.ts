@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  angleBetween, ballDeletesArrow, BALL_ARROW_RADIUS, bestSlot, decide, inArc, leadAim, MASK_MELEE, MASK_SIGHT, moveMultiplier,
+  ALL_WEAPON_IDS, angleBetween, ballDeletesArrow, BALL_ARROW_RADIUS, bestSlot, decide, inArc, leadAim, MASK_MELEE, MASK_SIGHT, moveMultiplier,
   onShieldFront, PLAYER_RADIUS, POLICIES, projectileOnShieldFront, reachMask, reflectVelocity, riposteShare,
   RIPOSTE_SHARE, SHIELD_HALF_ARC, shieldOutcome, STAGGER_IMMUNITY_SECONDS, staggerImmuneUntil, staggers, SWAP_SECONDS,
   swapReadyAt, swingVsBall, SWORD_BALL_SCALE, WEAPON_IDS, WEAPONS, wrapAngle, type HitSource,
@@ -116,6 +116,7 @@ describe("shieldOutcome", () => {
     ["a sword hit is riposted", { melee: "sword" }, "riposte"],
     ["a bash is blocked", { melee: "shield" }, "block"],
     ["an axe swing pierces", { melee: "axe" }, "pierce"],
+    ["a fists swing pierces", { melee: "fists" }, "pierce"],
     ["a bow (which never swings) pierces", { melee: "bow" }, "pierce"],
     ["a wand (which never swings) pierces", { melee: "wand" }, "pierce"],
   ];
@@ -132,15 +133,16 @@ describe("shieldOutcome", () => {
 describe("stagger", () => {
   it("only a sword swing staggers", () => {
     expect(staggers({ melee: "sword" })).toBe(true);
-    for (const w of WEAPON_IDS.filter((x) => x !== "sword")) expect(staggers({ melee: w })).toBe(false);
+    for (const w of ALL_WEAPON_IDS.filter((x) => x !== "sword")) expect(staggers({ melee: w })).toBe(false);
+    expect(staggers({ melee: "fists" })).toBe(false);
     expect(staggers({ projectile: "arrow" })).toBe(false);
     expect(staggers({ projectile: "ball" })).toBe(false);
   });
 
   it("grants STAGGER_IMMUNITY_SECONDS of immunity counted from the hit", () => {
-    expect(STAGGER_IMMUNITY_SECONDS).toBe(0.5);
-    expect(staggerImmuneUntil(0)).toBe(500);
-    expect(staggerImmuneUntil(12_340)).toBe(12_840);
+    expect(STAGGER_IMMUNITY_SECONDS).toBe(1.2);
+    expect(staggerImmuneUntil(0)).toBe(1200);
+    expect(staggerImmuneUntil(12_340)).toBe(13_540);
   });
 });
 
@@ -149,7 +151,7 @@ describe("swingVsBall and ballDeletesArrow", () => {
     expect(swingVsBall("sword")).toEqual({ scale: SWORD_BALL_SCALE });
     expect(SWORD_BALL_SCALE).toBe(0.5);
     expect(swingVsBall("axe")).toBe("destroy");
-    for (const w of ["shield", "bow", "wand"] as WeaponId[]) expect(swingVsBall(w)).toBeNull();
+    for (const w of ["shield", "bow", "wand", "fists"] as WeaponId[]) expect(swingVsBall(w)).toBeNull();
   });
 
   it("a ball deletes an arrow within BALL_ARROW_RADIUS (28 u), inclusive", () => {
@@ -575,6 +577,7 @@ describe("bestSlot", () => {
   it("picks the counter for every weapon in the loop when it holds one of them", () => {
     const counters: Record<WeaponId, WeaponId[]> = {
       sword: ["bow", "shield"], axe: ["sword", "bow"], wand: ["sword", "axe"], bow: ["wand", "shield"], shield: ["wand", "axe"],
+      fists: [], // not in the loop: nothing counters it, and it counters nothing
     };
     for (const theirs of WEAPON_IDS) {
       for (const counter of counters[theirs]) {
@@ -588,12 +591,12 @@ describe("bestSlot", () => {
 
 describe("reachMask", () => {
   it("stops an arc (melee) weapon at walls and LOW, and a projectile weapon or an empty hand at walls alone", () => {
-    for (const w of ["sword", "axe", "shield"] as const) expect(reachMask(w), w).toBe(MASK_MELEE);
+    for (const w of ["sword", "axe", "shield", "fists"] as const) expect(reachMask(w), w).toBe(MASK_MELEE);
     for (const w of ["bow", "wand"] as const) expect(reachMask(w), w).toBe(MASK_SIGHT);
     expect(reachMask(null)).toBe(MASK_SIGHT);
   });
 
   it("follows the weapon's shape, not a list: every arc weapon gets the melee mask and every projectile weapon the sight mask", () => {
-    for (const w of WEAPON_IDS) expect(reachMask(w), w).toBe(WEAPONS[w].shape.kind === "arc" ? MASK_MELEE : MASK_SIGHT);
+    for (const w of ALL_WEAPON_IDS) expect(reachMask(w), w).toBe(WEAPONS[w].shape.kind === "arc" ? MASK_MELEE : MASK_SIGHT);
   });
 });

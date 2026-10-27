@@ -9,7 +9,8 @@ A weapon is a % boost on the faction's base attack speed:
 
 Everything else is the v2 rule package from the counter review: normalized backlash per enemy swing
 (backlash x foe.rate x foe interval), signature bonus x weapon.dps, chill stretches cooldown progress per tick,
-bonus/chill clocks from first contact, float HP, cooldown remainders carry.
+bonus/chill clocks from first contact, float HP, cooldown remainders carry. Each signature part is mitigated with its own
+damage type (engine.PowerSpec.sig_types: burn and disease magic, backlash physical, the mark true).
 
 Not modelled by `duel`: geometry beyond a fixed approach time, projectile flight, stagger, windups, roots and buffs other
 than HP, attack speed and an outgoing damage multiplier (Side.dps scales the weapon hit and the signature bonus alike).
@@ -55,6 +56,9 @@ WEAPONS = {
     "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.92),
     "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.40, wshare=0.80),
     "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True,  windup=0.10, wshare=1.00),
+    # The empty hand (balance pass D3): the fastest melee, a weak hit. Not one of the five loop weapons (MELEE / RANGED / SIG
+    # below leave it out: nobody picks it, a run starts on it), but every pairing is still modelled.
+    "fists":  dict(speed=1.50, dps=0.60, floor=0.20, rng=40,  melee=True,  windup=0.10, wshare=1.00),
 }
 WNAMES = list(WEAPONS)
 MELEE = ["sword", "axe", "shield"]
@@ -162,6 +166,10 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
     hp = [np.full(P, s.maxhp) for s in sides]
     mx = [s.maxhp for s in sides]
     mit = [mitigate(1.0, a.spec, b.spec), mitigate(1.0, b.spec, a.spec)]
+    # Signature parts carry their own damage type (D6: burn and disease magic, backlash physical, the mark true): each part
+    # is mitigated on its own, as sim/factions.ts records it with SIGNATURE_SHARES.
+    pmit = [{part: mitigate(1.0, s.spec, o.spec, s.spec.sig_types.get(part)) for part in ("burn", "backlash", "disease", "mark")}
+            for s, o in ((a, b), (b, a))]
     hitraw = [s.hit_raw for s in sides]
     alive = np.ones(P, bool)
     win = np.full(P, -1, int)
@@ -185,20 +193,19 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
         dealt, heal = [], []
         for i in (0, 1):
             s, o = sides[i], sides[1 - i]
-            raw = swing[i] * hitraw[i]
+            d = swing[i] * hitraw[i] * mit[i]
             if t + EPS >= s.fx_start:
                 p = s.spec.params
                 mech = s.spec.mechanic
                 bm = s.bonus_mult
                 if mech == "dragonslayer":
                     per = p["backlash"] * o.spec.rate * interval(o.spec, o.weapon)
-                    raw = raw + bm * (p["burn"] * DT + per * swing[1 - i])
+                    d = d + bm * (p["burn"] * DT * pmit[i]["burn"] + per * swing[1 - i] * pmit[i]["backlash"])
                 elif mech == "rat_king":
                     foe = np.maximum(hp[1 - i], 0) / mx[1 - i]
-                    raw = raw + bm * (p["plague"] + p["execute"] * np.maximum(0.0, 0.5 - foe)) * DT
+                    d = d + bm * (p["plague"] + p["execute"] * np.maximum(0.0, 0.5 - foe)) * DT * pmit[i]["disease"]
                 elif mech == "marked":
-                    raw = raw + bm * min(p["mark_cap"], p["mark_ramp"] * (t - s.fx_start)) * DT
-            d = raw * mit[i]
+                    d = d + bm * min(p["mark_cap"], p["mark_ramp"] * (t - s.fx_start)) * DT * pmit[i]["mark"]
             dealt.append(d)
             if s.spec.sustain == "radiant" and s.lifesteal:
                 p = s.spec.params

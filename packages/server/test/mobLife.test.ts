@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buffRowsOf, ELITE_BUFF_STACKS, encodeMult, eliteTypeOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles,
   MOB_BUFF_STACKS, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobBuffStacks, mobFaction, mobRewardMultiplier, mobTypeById,
-  mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, TICK_MS, TILE, WEAPONS,
+  mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, SWAP_SECONDS, TICK_MS, TILE, WEAPONS,
   type FactionId, type FxEvent, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -46,7 +46,7 @@ function makeLobby(o: WorldOpts = {}): World {
   const players = o.players ?? 2;
   const config: SimConfig = {
     minPlayers: players, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60,
-    mobs: o.mobs ?? true,
+    mobs: o.mobs ?? true, pvpRules: false,
   };
   let uid = 0;
   const world = createGameWorld({ seed, config, random: o.random ?? mulberry32(seed + 1), newItemUid: () => `L${++uid}` });
@@ -947,6 +947,57 @@ describe("killMob: rewards", () => {
       }
     });
 
+    it("arms a killer who stands with an empty hand: the weapon goes into the hand, a toast says so, and nothing lies on the ground", () => {
+      for (const region of FACTION_IDS) {
+        const weapon = mobWeapon(region);
+        const { w, created } = killWith(region, ["", ""]);
+        expect(created, region).toEqual([]);
+        expect([P(w, 0).weapon0, P(w, 0).weapon1, P(w, 0).slot], region).toEqual([weapon, "", 0]);
+        expect(w.events.filter((e) => e.type === "toast"), region).toEqual([{ type: "toast", to: "p0", text: `Armed: ${WEAPONS[weapon].name}` }]);
+      }
+    });
+
+    it("arms the hand's own slot, not slot 0: the hand on an empty second slot takes the weapon and keeps the first slot's", () => {
+      const w = makeBare();
+      P(w, 0).weapon0 = "sword";
+      P(w, 0).slot = 1; // the hand is the empty second slot (fists)
+      const m = spawn(w, "plague", false, { x: P(w, 0).x + 8, y: P(w, 0).y });
+      const before = w.state.containers.size;
+      hurt(w, m, ["p0", m.s.hp]);
+      expect([P(w, 0).weapon0, P(w, 0).weapon1, P(w, 0).slot]).toEqual(["sword", "bow", 1]);
+      expect(w.state.containers.size).toBe(before);
+    });
+
+    it("costs the swap time like a pickup into the hand, and cancels what the killer was doing", () => {
+      const w = makeBare();
+      const m = spawn(w, "fire", false, { x: P(w, 0).x + 8, y: P(w, 0).y });
+      P(w, 0).readyAt = 0;
+      hurt(w, m, ["p0", m.s.hp]);
+      expect(P(w, 0).readyAt).toBe(w.state.serverTime + SWAP_SECONDS * 1000);
+      expect(RT(w, 0).weapon.action).toBeNull();
+    });
+
+    it("leaves the weapon on the ground for a killer whose hand is armed, even with a free second slot", () => {
+      const { w, created } = killWith("plague", ["sword", ""]);
+      expect(created).toHaveLength(1);
+      expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["sword", ""]);
+      expect(w.events.filter((e) => e.type === "toast")).toEqual([]);
+    });
+
+    it("leaves it on the ground for an empty-handed killer who went down in the same pass (a body cannot wield it)", () => {
+      const w = makeBare();
+      const m = spawn(w, "plague");
+      const n = w.state.containers.size;
+      w.combat.collecting = true;
+      hurt(w, m, ["p0", m.s.hp]);
+      RT(w, 0).down = { outcome: "died" } as never; // downed in the pass: not standing when the spoils are paid
+      w.combat.collecting = false;
+      for (const pay of w.combat.payouts) pay();
+      expect(w.state.containers.size).toBe(n + 1);
+      expect([P(w, 0).weapon0, P(w, 0).weapon1]).toEqual(["", ""]);
+      expect(w.events.filter((e) => e.type === "toast")).toEqual([]);
+    });
+
     it("is not dropped when the killer already holds that weapon type, in either slot", () => {
       expect(killWith("fire", ["axe", "sword"]).created).toEqual([]);
       expect(killWith("fire", ["sword", "axe"]).created).toEqual([]);
@@ -993,11 +1044,23 @@ describe("killMob: rewards", () => {
 
   it("pays in the order GV, then the buff (the weapon lies at the mob's feet after both)", () => {
     const w = makeBare();
-    const m = spawn(w, "plague"); // a bow: p0's fire starter holds no bow, so it is dropped
+    P(w, 0).weapon0 = "axe"; // a run starts empty-handed, which arms the killer instead (below): an armed hand leaves the drop
+    const m = spawn(w, "plague"); // a bow: p0's axe is not a bow, so it is dropped
     const containers = w.state.containers.size;
     hurt(w, m, ["p0", m.s.hp]);
     expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff"]);
     expect(w.state.containers.size).toBe(containers + 1);
+  });
+
+  it("pays an empty-handed killer in the order GV, then the buff, then the weapon in its hand with a toast (nothing lies on the ground)", () => {
+    const w = makeBare();
+    const m = spawn(w, "plague"); // a bow
+    const containers = w.state.containers.size;
+    hurt(w, m, ["p0", m.s.hp]);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff", "toast"]);
+    expect(w.events.at(-1)).toEqual({ type: "toast", to: "p0", text: "Armed: Bow" });
+    expect(w.state.containers.size).toBe(containers);
+    expect([P(w, 0).weapon0, P(w, 0).weapon1, P(w, 0).slot]).toEqual(["bow", "", 0]);
   });
 });
 
@@ -1338,12 +1401,12 @@ describe("rewards are paid after the whole ledger pass", () => {
     expect(w.combat.collecting).toBe(false);
     hurt(w, m, ["p0", m.s.hp]);
     expect(RT(w, 0).gv.mobs).toBe(GV_MOB);
-    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff"]);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff", "toast"]); // the empty-handed killer is armed with the axe
     const n = spawn(w, "fire");
     w.events = [];
     killMob(w, n, [entry(n.id, "p1", 4)], [4]);
     expect(RT(w, 1).gv.mobs).toBe(GV_MOB);
-    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff"]);
+    expect(kindsOf(w.events)).toEqual(["fx:death", "gv", "fx:buff", "toast"]);
   });
 
   describe("a killer who dies in the same pass", () => {

@@ -458,6 +458,52 @@ describe("swaps", () => {
   });
 });
 
+// ------------------------------------------------------------------------------------------------------------------ fists
+
+describe("an empty hand (a run starts on fists)", () => {
+  const bare: Partial<SelfView> = { weapons: [null, null], slot: 0 };
+
+  it("fights on fists: with both slots empty it locks the foe it hunts, as an armed bot does, instead of failing", () => {
+    const t = createTactics(fakeWorld());
+    const out = think(t, hunt, { self: bare, foes: [foe(300, 0)] });
+    expect(only(out, "lock")).toMatchObject({ target: "foe", priority: PRIORITY.combat });
+    expect(out.status.state).toBe("running");
+    expect(kinds(think(createTactics(fakeWorld()), farm, { self: bare, mobs: [mob(200, 0)] }))).toEqual(["lock"]);
+  });
+
+  it("counts as attacking once locked and inside fists' attack range, not at the sword's: fists reach 40 u", () => {
+    const t = createTactics(fakeWorld());
+    const spacing = lockSpacing("fists");
+    const close = think(t, hunt, { self: { ...bare, attackTarget: "foe" }, foes: [foe(spacing.attackRange - 4, 0)] });
+    expect(close.attacking).toBe(true);
+    // 10 u past fists' range plus the 24 u slack: inside a sword's, outside fists'.
+    const between = spacing.attackRange + 24 + 10;
+    expect(lockSpacing("sword").attackRange + 24).toBeGreaterThan(between);
+    const mid = think(createTactics(fakeWorld()), hunt, { self: { ...bare, attackTarget: "foe" }, foes: [foe(between, 0)] });
+    expect(mid.attacking, "inside a sword's range, outside fists'").toBe(false);
+    const sword = think(createTactics(fakeWorld()), hunt, { self: { weapons: ["sword", null], slot: 0, attackTarget: "foe" }, foes: [foe(between, 0)] });
+    expect(sword.attacking, "the same spot is in a sword's range").toBe(true);
+  });
+
+  it("takes up the weapon in the other slot (any weapon beats bare hands) and says so", () => {
+    const t = createTactics(fakeWorld());
+    const out = think(t, hunt, { self: { weapons: [null, "bow"], slot: 0 }, foes: [foe(300, 0)] });
+    expect(out.intents).toHaveLength(1);
+    expect(only(out, "swap")).toMatchObject({ slot: 1, priority: PRIORITY.combat });
+    expect(out.status).toMatchObject({ state: "running" });
+    expect(out.attacking).toBe(false);
+    const other = think(createTactics(fakeWorld()), hunt, { self: { weapons: ["wand", null], slot: 1 }, foes: [foe(300, 0)] });
+    expect(only(other, "swap")).toMatchObject({ slot: 0 });
+  });
+
+  it("does not swap between two empty slots, and fails only for a bot with no faction yet", () => {
+    const out = think(createTactics(fakeWorld()), hunt, { self: bare, foes: [foe(300, 0)] });
+    expect(kinds(out)).not.toContain("swap");
+    const none = think(createTactics(fakeWorld()), hunt, { self: { ...bare, faction: null }, foes: [foe(300, 0)] });
+    expect(none.status).toMatchObject({ state: "failed", why: "no faction yet" });
+  });
+});
+
 // ---------------------------------------------------------------------------------------------------------- the orb-walk
 
 describe("the orb-walk", () => {

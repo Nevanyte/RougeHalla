@@ -193,7 +193,13 @@ export type FxEvent =
   /** Camp `camp` (its index in map.camps and RaidState.camps) was cleared this tick: its shared chest drops at once. */
   | { kind: "campCleared"; camp: number }
   /** `by` made their pick at the reward container `chest`: option index `option` (into its `options`), or -1 for a skip. */
-  | { kind: "chestTaken"; chest: string; by: string; option: number };
+  | { kind: "chestTaken"; chest: string; by: string; option: number }
+  /**
+   * Clearing camp `camp` healed `id` by `amount` hp (balance contract 7: everyone who damaged it and stood at the clear).
+   * `camp` is its index in map.camps; a training room's practice camp has none on the map, so the client draws the
+   * number on the player and no ring (the index is then past map.camps).
+   */
+  | { kind: "campHeal"; id: string; camp: number; amount: number };
 
 /** How one player's run ended. `won` and `draw` only happen in a contested run (two or more starters). */
 export type RunOutcome = "won" | "draw" | "died" | "mia";

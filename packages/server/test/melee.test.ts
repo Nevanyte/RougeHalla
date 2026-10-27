@@ -81,7 +81,7 @@ function trail(world: World, id: string, samples: Array<[number, number, number]
 function arena(specs: Spec[], map: GameMap = openMap()): World {
   const config = {
     minPlayers: specs.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 300, patienceMinSeconds: 300,
-    suddenDeathSeconds: 60,
+    suddenDeathSeconds: 60, pvpRules: false,
   };
   const world = createGameWorld({ seed: 1234, config, random: mulberry32(5) }, { signatures: false });
   specs.forEach((_, i) => addPlayer(world, idOf(i), NAMES[i]!));

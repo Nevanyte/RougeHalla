@@ -189,6 +189,22 @@ describe("who to farm", () => {
     expect(e.step()).toMatchObject({ kind: "player" });
   });
 
+  it("hunts on fists: with both slots empty a mob of any weapon is a meal (fists pierce a shield), and the drop it earns is welcome", () => {
+    // A bow or a sword bot skips a shield mob (its arrows bounce, its blows are blocked); an empty-handed bot punches through.
+    const shield = new Scene().add("shield", mob("frost", 200, 0));
+    shield.self = { ...ME, weapons: [null, null], mobKills: 1 };
+    expect(shield.step()).toMatchObject({ kind: "mob", id: "shield" });
+    // Carrying nothing, any weapon is one it lacks: a nearer mob does not beat a farther one by much, but a drop is worth a detour.
+    const lacks = new Scene();
+    lacks.self = { ...ME, faction: "plague", weapons: [null, null], mobKills: 1 };
+    lacks.add("axe", mob("fire", 0, 200)).add("shield", mob("frost", 300, 0));
+    expect(lacks.step()).toMatchObject({ kind: "mob" });
+    // Mobs that fight from range are still left alone (a bow backs away out of its leash), fists or not.
+    const ranged = new Scene().add("bow", mob("plague", 200, 0));
+    ranged.self = { ...ME, weapons: [null, null], mobKills: 1 };
+    expect(ranged.step()).toMatchObject({ kind: "player" });
+  });
+
   it("skips mobs it cannot hurt or that cannot hurt it, and mobs that fight from range", () => {
     // A bow's arrows bounce off a shield mob; a shield bot's blocks make a sword mob give up; both are useless matchups.
     const bow = new Scene().add("shield", mob("frost", 200, 0));
@@ -495,7 +511,10 @@ describe("pieces", () => {
     expect(bestEdge(["bow", "axe"], "shield")).toBe(1); // the bow is reflected, the axe pierces
     expect(bestEdge(["shield", null], "shield")).toBe(-2); // two raised shields only block each other
     expect(bestEdge(["sword", "shield"], "shield")).toBe(-2);
-    expect(bestEdge([null, null], "axe")).toBe(-2);
+    // Carrying nothing is fighting on fists: neutral against everything, and never useless (they pierce a shield).
+    expect(bestEdge([null, null], "axe")).toBe(0);
+    expect(bestEdge([null, null], "shield")).toBe(0);
+    expect(bestEdge([null, null], "wand")).toBe(0);
   });
 
   it("useless: guards that stop a weapon, and shields that stop the mob", () => {

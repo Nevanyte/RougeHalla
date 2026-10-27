@@ -65,8 +65,9 @@ describe("vitals line", () => {
     expect(vitalsHpText(undefined, true)).toBe("");
   });
 
-  it("an empty slot or an unknown weapon id reads as no weapon", () => {
-    expect(heldWeaponName({ weapon0: "", weapon1: "bow", slot: 0 })).toBe("no weapon");
+  it("an empty slot is fists; an unknown weapon id reads as no weapon", () => {
+    expect(heldWeaponName({ weapon0: "", weapon1: "bow", slot: 0 })).toBe("Fists");
+    expect(vitalsHpText({ ...me, weapon0: "", weapon1: "" }, true)).toBe(" · Fists · HP 413/500");
     expect(heldWeaponName({ weapon0: "sword", weapon1: "laser", slot: 1 })).toBe("no weapon");
   });
 });

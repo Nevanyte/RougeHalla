@@ -1,7 +1,7 @@
 // Run lifecycle + the fixed-step update. `step()` is the only entry point the Room ticks; arena.ts decides
 // how a run ends.
 import {
-  AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, MOVE_MULT_FLOOR, mulberry32, SIGNATURE_WEAPONS, type FactionId, type Vec2,
+  AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, MOVE_MULT_FLOOR, mulberry32, type FactionId, type Vec2,
 } from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
 import { updateAbilities } from "./abilities";
@@ -40,7 +40,8 @@ export function addPlayer(
   p.hp = FACTIONS[faction].hp;
   p.maxHp = FACTIONS[faction].hp;
   p.status = "lobby";
-  p.weapon0 = SIGNATURE_WEAPONS[faction];
+  // Both slots start empty: an empty hand fights with fists (shared/weapons.ts), and a weapon comes from a chest, the ground or a mob.
+  p.weapon0 = "";
   p.weapon1 = "";
   p.slot = 0;
   const spot = lobbySpot(world, s.players.size);

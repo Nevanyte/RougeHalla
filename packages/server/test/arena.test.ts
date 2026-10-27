@@ -142,12 +142,12 @@ describe("beginRun", () => {
     expect(w.state).toMatchObject({ inColiseum: false, gatesLocked: false, suddenDeathAt: 0, winner: "", phase: "active" });
   });
 
-  it("starts everyone at their faction's hp with its signature weapon: join order picks the faction", () => {
+  it("starts everyone at their faction's hp on fists (both slots empty): join order picks the faction", () => {
     const w = startRun(6);
     for (let i = 0; i < 6; i++) {
       const faction = defaultFaction(i);
       expect(P(w, i), `p${i}`).toMatchObject({
-        faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: SIGNATURE_WEAPONS[faction], weapon1: "",
+        faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: "", weapon1: "",
         slot: 0, status: "alive",
       });
     }
@@ -739,7 +739,8 @@ describe("disconnect and reconnect grace", () => {
     // looses again) until the player is back.
     function drawing() {
       const w = startRun(3, { patienceSeconds: 3600 }, { game: true });
-      enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 }); // p1 is Sentenced: a bow
+      P(w, 1).weapon0 = SIGNATURE_WEAPONS.sentenced; // a run starts on fists: p1 (Sentenced) is given its bow
+      enqueueClientMessage(RT(w, 1).inputs, "attack", { a: 0 });
       runTo(w, 200);
       expect(P(w, 1).drawStartedAt).toBeGreaterThan(0);
       expect(RT(w, 1).weapon.held).toBe(true);
@@ -1665,6 +1666,8 @@ describe("applyDamage and downPlayer", () => {
 
   it("without a body hook, the weapons a downed player carried are discarded", () => {
     const w = startRun(2);
+    P(w, 0).weapon0 = SIGNATURE_WEAPONS.fire;
+    P(w, 1).weapon0 = SIGNATURE_WEAPONS.sentenced;
     P(w, 1).weapon1 = "sword";
     expect([P(w, 1).weapon0, P(w, 1).weapon1]).toEqual([SIGNATURE_WEAPONS.sentenced, "sword"]);
     downPlayer(w, P(w, 1), RT(w, 1), "died");

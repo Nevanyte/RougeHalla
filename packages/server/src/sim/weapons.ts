@@ -18,7 +18,8 @@ import {
 } from "@raid/shared";
 import { attackSpeedMult } from "./buffs";
 import {
-  activeWeapon, combatant, factionOf, hostile, isEvading, slotWeapon, standing, standingCombatants, timingsOf, type Combatant,
+  activeWeapon, combatant, factionOf, handIsEmpty, hostile, isEvading, slotItem, slotWeapon, standing, standingCombatants, timingsOf,
+  type Combatant,
 } from "./combatant";
 import { positionAt, velocityOf } from "./movement";
 import { actionBlocked, isStunned, isUntargetable } from "./status";
@@ -131,7 +132,9 @@ export const handleSwap: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "swap") return;
   if (actionBlocked(world, c)) return;
   const target = cmd.slot ?? (c.s.slot === 0 ? 1 : 0);
-  if (target === c.s.slot || !slotWeapon(c.s, target)) return;
+  // An empty slot is fists, so swapping to one is fine; two empty slots are the same hand, and swapping costs the swap time.
+  if (target === c.s.slot || slotWeapon(c.s, target) === null) return;
+  if (slotItem(c.s, target) === null && handIsEmpty(c.s)) return;
   c.s.slot = target;
   weaponChanged(world, c);
 };
@@ -237,7 +240,7 @@ function stepWeapon(world: World, c: Combatant): void {
   }
   if (w.action && now >= w.action.landsAt) land(world, c, w.action);
   const wants = w.held || now <= w.bufferedUntil;
-  if (!w.action && wants && now >= c.s.readyAt && !actionBlocked(world, c)) startAttack(world, c, weapon, tm);
+  if (!w.action && wants && now + READY_EPS_MS >= c.s.readyAt && !actionBlocked(world, c)) startAttack(world, c, weapon, tm);
 }
 
 /**

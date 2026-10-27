@@ -11,10 +11,11 @@
 //     (inArc(origin, req.a, shape.reach, shape.halfArc, targetPos, PLAYER_RADIUS)). A swing hits everyone eligible in it.
 //   - A target with a shield in hand (activeWeapon === "shield") whose front faces the attacker
 //     (onShieldFront(targetPos, target.facing, origin), both sampled positions, the holder's current facing):
-//     shieldOutcome({ melee: weapon }): "pierce" (axe) is a normal hit; "block" (a bash) is negated; "riposte" (sword)
-//     is negated and riposteShare() of the packet is recorded on the attacker, by the holder, weapon "shield",
+//     shieldOutcome({ melee: weapon }): "pierce" (axe, fists) is a normal hit; "block" (a bash) and "riposte" (sword) are
+//     blocked IN PART (balance pass): SHIELD_BLOCK_SHARE of the packet is stopped, the rest goes through as a normal hit with
+//     no stagger. A riposte also records riposteShare() of the BLOCKED part on the attacker, by the holder, weapon "shield",
 //     no stagger, `passive: true` (it is no attack of the holder's own: sim/factions.ts lets it set a target only for a
-//     holder that has none). Negated hits emit { kind: "block", id: holder, by: attacker, weapon } and never stagger.
+//     holder that has none). Blocked hits emit { kind: "block", id: holder, by: attacker, weapon } and never stagger.
 //   - A normal hit is recordHit({ victim, by: { id, name }, packet: req.packet, weapon, stagger: staggers({ melee }) }).
 //   - Balls: for every ball in ballsThisTick(world, attacker) whose path this tick (tickX, tickY -> x, y; a point for one
 //     loosed this tick) passes through the arc, sampled at the ATTACKER'S PRESENT position (balls fly in present time),
@@ -25,8 +26,8 @@
 //     whether or not it hit anything.
 //   - Drains world.combat.melee.
 import {
-  inArc, onShieldFront, PLAYER_RADIUS, RANGED_SLACK, raycast, reachMask, riposteShare, shieldOutcome, staggers, swingVsBall,
-  WEAPONS, type ArcShape, type GameMap, type Vec2, type WeaponId,
+  inArc, onShieldFront, PLAYER_RADIUS, RANGED_SLACK, raycast, reachMask, riposteShare, SHIELD_BLOCK_SHARE, shieldOutcome, staggers,
+  swingVsBall, WEAPONS, type ArcShape, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { activeWeapon, combatant, isEvading, isQuestGiver, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
@@ -62,7 +63,10 @@ export function resolveMelee(world: World): void {
   }
 }
 
-/** One swing reaches one body: a shield in front of it may negate the hit, otherwise it goes in the ledger. */
+/**
+ * One swing reaches one body: a shield in front of it blocks the hit in part (SHIELD_BLOCK_SHARE; the rest still lands, and
+ * never staggers), otherwise the whole hit goes in the ledger.
+ */
 function land(world: World, req: MeleeRequest, attacker: Combatant, target: Combatant, origin: Vec2, at: Vec2): void {
   const by = { id: attacker.id, name: attacker.s.name };
   if (activeWeapon(target.s) === "shield" && onShieldFront(at, target.s.facing, origin)) {
@@ -72,9 +76,12 @@ function land(world: World, req: MeleeRequest, attacker: Combatant, target: Comb
       if (outcome === "riposte") {
         recordHit(world, {
           victim: attacker.id, by: { id: target.id, name: target.s.name },
-          packet: { ...req.packet, raw: req.packet.raw * riposteShare() }, weapon: "shield", stagger: false, passive: true,
+          packet: { ...req.packet, raw: req.packet.raw * SHIELD_BLOCK_SHARE * riposteShare() }, weapon: "shield", stagger: false, passive: true,
         });
       }
+      recordHit(world, {
+        victim: target.id, by, packet: { ...req.packet, raw: req.packet.raw * (1 - SHIELD_BLOCK_SHARE) }, weapon: req.weapon, stagger: false,
+      });
       return;
     }
   }

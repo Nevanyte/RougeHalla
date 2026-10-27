@@ -10,8 +10,16 @@
 // is never rooted for good.
 import type { FactionId, FactionSpec } from "./factions";
 
-export type WeaponId = "sword" | "bow" | "wand" | "shield" | "axe";
+export type WeaponId = "sword" | "bow" | "wand" | "shield" | "axe" | "fists";
+/**
+ * The five loop weapons (GAME_DESIGN 9.2): the ones that are items (chests, the ground, a mob's hand, the training rack)
+ * and that form the counter wheel. Fists are not an item and not in the loop, so they are NOT here; see ALL_WEAPON_IDS.
+ */
 export const WEAPON_IDS: readonly WeaponId[] = ["sword", "bow", "wand", "shield", "axe"];
+/** Every weapon id, the loop's five and then fists (what an empty hand fights with). */
+export const ALL_WEAPON_IDS: readonly WeaponId[] = [...WEAPON_IDS, "fists"];
+/** What a fighter with an empty hand fights with. Never an item: it cannot be dropped, picked up or looted. */
+export const FISTS = "fists" as const satisfies WeaponId;
 
 export type ProjectileKind = "arrow" | "ball";
 
@@ -61,9 +69,16 @@ export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
     id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.77,
     shape: { kind: "arc", reach: 60, halfArc: Math.PI / 2 },
   },
+  // What an empty hand fights with: the shortest melee reach and the fastest cadence, at 0.60 of a faction's weapon dps
+  // (arming is worth x1.25-1.33). It pierces shields, never staggers and has no tie to the loop (WEAPON_BEATS).
+  fists: {
+    id: "fists", name: "Fists", color: 0xffcc80, boost: 1.5, floor: 0.2, dpsMult: 0.6,
+    shape: { kind: "arc", reach: 40, halfArc: Math.PI / 3 },
+  },
 };
 
-/** Each faction starts a run with its signature weapon (owner decision: Sentenced on the bow). */
+/** The design's reference weapon per faction (owner decision: Sentenced on the bow): the weapon the harness, the benches, the
+ * Python oracle and the test fixtures fight with. A run itself starts on fists (an empty hand), not on this. */
 export const SIGNATURE_WEAPONS: Readonly<Record<FactionId, WeaponId>> = {
   fire: "axe",
   sentenced: "bow",
@@ -82,7 +97,12 @@ export const WEAPON_BEATS: ReadonlyArray<readonly [WeaponId, WeaponId]> = [
 ];
 
 export function isWeaponId(v: unknown): v is WeaponId {
-  return typeof v === "string" && (WEAPON_IDS as readonly string[]).includes(v);
+  return typeof v === "string" && (ALL_WEAPON_IDS as readonly string[]).includes(v);
+}
+
+/** One of the five loop weapons (an item); false for fists. */
+export function isLoopWeapon(w: WeaponId): boolean {
+  return w !== "fists";
 }
 
 /** +1 when `a` beats `b` in the weapon loop, -1 when `b` beats `a`, 0 for a mirror. */
@@ -127,6 +147,8 @@ export function backlashPerSwing(backlash: number, foe: Pick<FactionSpec, "rate"
 // winds up, so a shooter that walks away between shots gets about interval / windup times the free fire of one that stands.
 const SWORD_WINDUP = 0.1;
 const BASH_WINDUP = 0.1;
+/** The punch: as short as a sword's (a missing case would be a windup of 0). */
+export const FISTS_WINDUP = 0.1;
 const AXE_WINDUP = 0.25;
 const AXE_WINDUP_SHARE = 0.25;
 const AXE_ROOT = 0.5;
@@ -161,6 +183,7 @@ export function weaponTimings(w: WeaponId, interval: number): WeaponTimings {
   switch (w) {
     case "sword": t.windup = Math.min(SWORD_WINDUP, interval); break;
     case "shield": t.windup = Math.min(BASH_WINDUP, interval); break;
+    case "fists": t.windup = Math.min(FISTS_WINDUP, interval); break;
     case "axe":
       t.windup = Math.min(AXE_WINDUP, AXE_WINDUP_SHARE * interval);
       t.root = Math.min(AXE_ROOT, AXE_ROOT_SHARE * interval);

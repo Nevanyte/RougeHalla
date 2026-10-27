@@ -85,7 +85,7 @@ interface RigOpts {
 }
 
 const BASE: SimConfig = {
-  minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 1e6, patienceMinSeconds: 1e6, suddenDeathSeconds: 1e6,
+  minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 1e6, patienceMinSeconds: 1e6, suddenDeathSeconds: 1e6, pvpRules: false,
 };
 
 /** An active run of players p0, p1, ... named player0, ... The first step starts it. */

@@ -1,4 +1,5 @@
-// How strong is a regional mob in the REAL sim? A player on a weapon (its faction's signature weapon by default) meets ONE
+// How strong is a regional mob in the REAL sim? A player on a weapon (FISTS by default: an empty hand, which is how every run
+// starts; `--weapon sig` gives the old view, its faction's signature weapon) meets ONE
 // mob of a region (the region's weapon, hp and damage scaled by k = MOB_K, or ELITE_K for an elite) on an open floor, and the
 // fight is played to the end through step(): the weapon state machines, the ledger, the signature systems, mobAI.thinkMobs
 // and settle(). The player is driven by the shared weapon policy `decide`, exactly like harness/duel.ts (the bots click their foe instead: bots/brain/tactics.ts).
@@ -6,8 +7,9 @@
 //   npx tsx bench/mobDuel.ts                       shipped MOB_K / ELITE_K: the 5x5 tables (normal and elite), 3 seeds
 //   npx tsx bench/mobDuel.ts --sweep               the k sweep (normal 0.20..0.60, elite 0.50..0.90), one summary row per k
 //   npx tsx bench/mobDuel.ts --reference           the continuous duel() reference (before the weapon layer and signatures)
-//   npx tsx bench/mobDuel.ts --weapons             the player on each of the 5 weapons (weapon-edge variants)
+//   npx tsx bench/mobDuel.ts --weapons             the player on fists and on each of the 5 weapons (weapon-edge variants)
 //   npx tsx bench/mobDuel.ts --one fire:holy [--elite] [--k 0.4] [--seed 2] [--weapon sword] [--trace]
+//   --weapon <id>|sig  (every mode) the starter's weapon: fists (default), one of the five, or sig = SIGNATURE_WEAPONS[faction]
 //   options: --seeds N (3)  --wake hit|aggro (hit)  --cap SECONDS (60)  --k X  --elite-k X  --json FILE
 //            --style policy|stand (policy)  --leash U (what-if, emulated)  --mobs-stand (what-if: ranged mobs don't back away)
 //            --sweep takes --leashes a,b,c  --ks a,b  --eks a,b
@@ -27,9 +29,9 @@
 // k reaches the sim through setMobScalesForHarness (sim/combatant.ts), set before placeMob and always restored.
 import { writeFileSync } from "node:fs";
 import {
-  decide, duel, ELITE_K, FACTION_IDS, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isFactionId, isRanged, isWeaponId, MOB_K,
-  MOB_LEASH_RADIUS, mulberry32, PLAYER_RADIUS, POLICIES, reachMask, REGION_WEAPONS, scaledFaction, segmentClear, SIGNATURE_WEAPONS, TICK_MS,
-  TILE, WEAPON_IDS, WEAPONS, type FactionId, type FactionSpec, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
+  ALL_WEAPON_IDS, decide, duel, ELITE_K, FACTION_IDS, FACTIONS, FISTS, hasLineOfSight, INTERP_DELAY_MS, isFactionId, isRanged, isWeaponId, MOB_K,
+  MOB_LEASH_RADIUS, mulberry32, PLAYER_RADIUS, POLICIES, reachMask, REGION_WEAPONS, mobFaction, segmentClear, SIGNATURE_WEAPONS, TICK_MS,
+  TILE, WEAPONS, type FactionId, type FactionSpec, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { buildArena } from "../src/harness/duel";
 import { activeWeapon, combatant, setMobScalesForHarness, timingsOf, type Combatant } from "../src/sim/combatant";
@@ -59,7 +61,7 @@ export interface MobDuelSpec {
   /** The scale for this kind of mob (MOB_K for a normal one, ELITE_K for an elite) when left out. */
   k?: number;
   seed: number;
-  /** The player's weapon; SIGNATURE_WEAPONS[player] when left out. */
+  /** The player's weapon; fists (an empty hand, the way a run starts) when left out. SIGNATURE_WEAPONS[player] is the old view. */
   weapon?: WeaponId;
   /** "hit": the player's own first landed hit wakes the mob (a mob is neutral until hurt). "aggro": woken at t = 0 with `aggro`. */
   wake?: Wake;
@@ -112,9 +114,12 @@ export interface MobDuelResult {
   stuck: { player: number; mob: number };
 }
 
-/** The player's spacing, copied at load: a what-if that changes POLICIES for the mobs (mobRetreat: false) must not change the player. */
+/**
+ * The player's spacing, copied at load: a what-if that changes POLICIES for the mobs (mobRetreat: false) must not change the player.
+ * Every weapon the player can hold is here, fists included: a weapon missing from this table leaves the player never attacking.
+ */
 const PLAYER_SPACING: Readonly<Record<WeaponId, SpacingPolicy>> = Object.fromEntries(
-  WEAPON_IDS.map((w) => [w, { ...POLICIES[w] }]),
+  ALL_WEAPON_IDS.map((w) => [w, { ...POLICIES[w] }]),
 ) as Record<WeaponId, SpacingPolicy>;
 
 const ARENA_TILES = 40;
@@ -217,7 +222,7 @@ export function runMobDuel(spec: MobDuelSpec): MobDuelResult {
   const wake = spec.wake ?? "hit";
   const style = spec.style ?? "policy";
   const v = variantOf(spec.seed, spec.distance ?? DEFAULT_DISTANCE);
-  const weapon = spec.weapon ?? SIGNATURE_WEAPONS[spec.player];
+  const weapon = spec.weapon ?? FISTS;
   const kind = spec.elite ? "elite" : "mob";
 
   // The mob's scale for this duel: placeMob builds its hp from it and the sim fights it at it. Always put back.
@@ -243,7 +248,7 @@ export function runMobDuel(spec: MobDuelSpec): MobDuelResult {
     }, { signatures: true });
 
     const p = addPlayer(world, PLAYER_ID, PLAYER_ID, { faction: spec.player });
-    p.weapon0 = weapon;
+    p.weapon0 = weapon === FISTS ? "" : weapon; // fists are an empty hand, not an item
     p.weapon1 = "";
     step(world, TICK_MS); // lobby -> active (no mobs: config.mobs is off, the one below is placed by hand)
     if (world.state.phase !== "active") throw new Error("mobDuel: the run did not start");
@@ -387,6 +392,8 @@ export interface Grid {
   seeds: number;
   /** cells[player][region] */
   cells: Record<FactionId, Record<FactionId, { results: MobDuelResult[]; stats: CellStats }>>;
+  /** The weapon each player faction fought with (fists unless the grid was run with another). */
+  weaponOf: (player: FactionId) => WeaponId;
 }
 
 export interface GridOpts {
@@ -410,7 +417,7 @@ export function runGrid(o: GridOpts): Grid {
     }
     o.log?.(`${o.elite ? "elite" : "normal"} k=${k}: ${player} done`);
   }
-  return { elite: o.elite, k, wake: o.wake ?? "hit", seeds, cells };
+  return { elite: o.elite, k, wake: o.wake ?? "hit", seeds, cells, weaponOf: (p) => o.weapon?.(p) ?? FISTS };
 }
 
 export function allResults(g: Grid): MobDuelResult[] {
@@ -475,7 +482,7 @@ export function gridTable(g: Grid, what: "wmw" | "time" | "gaveup" | "outcomes" 
       if (what === "outcomes") return `${Math.round(s.winRate * s.n)}W ${s.lost}L ${s.timeouts}T`;
       return `${pct(s.winRate)}/${pct(s.mean)}/${pct(s.worst)}`;
     });
-    return `| ${p} (${SIGNATURE_WEAPONS[p]}) | ${cells.join(" | ")} |`;
+    return `| ${p} (${g.weaponOf(p)}) | ${cells.join(" | ")} |`;
   });
   return [head, sep, ...rows].join("\n");
 }
@@ -509,12 +516,15 @@ function foldDps(spec: FactionSpec, m: number): FactionSpec {
   return { ...spec, hit: spec.hit * m, params };
 }
 
-/** The old continuous reference: player on the plain faction sheet against the mob at scale k; `fold` multiplies in each side's weapon dpsMult. */
-export function referenceDuel(player: FactionId, region: FactionId, k: number, fold: boolean): { won: boolean; left: number } {
+/**
+ * The old continuous reference: player on the plain faction sheet against the mob at scale k; `fold` multiplies in each side's
+ * weapon dpsMult (the player's is `weapon`'s, fists by default).
+ */
+export function referenceDuel(player: FactionId, region: FactionId, k: number, fold: boolean, weapon: WeaponId = FISTS): { won: boolean; left: number } {
   let a = FACTIONS[player];
-  let b = scaledFaction(FACTIONS[region], k);
+  let b = mobFaction(region, false, k); // scaledFaction, with the execute at k squared like the sim's mobs
   if (fold) {
-    a = foldDps(a, WEAPONS[SIGNATURE_WEAPONS[player]].dpsMult);
+    a = foldDps(a, WEAPONS[weapon].dpsMult);
     b = foldDps(b, WEAPONS[REGION_WEAPONS[region]].dpsMult);
   }
   const r = duel(a, b);
@@ -541,7 +551,7 @@ export function referenceTable(k: number, fold: boolean): { text: string; wins: 
 export function compareTable(g: Grid): string {
   const rows = FACTION_IDS.map((p) => {
     const cells = FACTION_IDS.map((r) => {
-      const ref = referenceDuel(p, r, g.k, true);
+      const ref = referenceDuel(p, r, g.k, true, g.weaponOf(p));
       const d = Math.round((g.cells[p][r].stats.mean - (ref.won ? ref.left : 0)) * 100);
       return d > 0 ? `+${d}` : String(d);
     });
@@ -556,6 +566,14 @@ export function compareTable(g: Grid): string {
 
 const NORMAL_SWEEP = [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6];
 const ELITE_SWEEP = [0.5, 0.6, 0.7, 0.8, 0.9];
+
+/** `--weapon <id>` or `sig` (each faction's SIGNATURE_WEAPONS entry, the old view): the starter's weapon per faction, undefined for fists. */
+function weaponFlagOf(flag: string | undefined): ((p: FactionId) => WeaponId) | undefined {
+  if (flag === undefined) return undefined;
+  if (flag === "sig") return (p) => SIGNATURE_WEAPONS[p];
+  if (!isWeaponId(flag)) throw new Error(`unknown weapon "${flag}" (an id, or sig for the signature weapons)`);
+  return () => flag;
+}
 
 function parseFlags(argv: string[]): { flags: Map<string, string>; bools: Set<string> } {
   const flags = new Map<string, string>();
@@ -581,13 +599,12 @@ function main(): void {
   if (flags.has("--one")) {
     const [player, region] = flags.get("--one")!.split(":");
     if (!isFactionId(player) || !isFactionId(region)) throw new Error("--one takes player:region, e.g. fire:holy");
-    const weaponFlag = flags.get("--weapon");
-    if (weaponFlag !== undefined && !isWeaponId(weaponFlag)) throw new Error(`unknown weapon "${weaponFlag}"`);
+    const weaponOf = weaponFlagOf(flags.get("--weapon"));
     const elite = bools.has("--elite");
     const trace = bools.has("--trace");
     const r = runMobDuel({
       player, region, elite, seed: flags.has("--seed") ? Number(flags.get("--seed")) : 1, wake, capSeconds,
-      k: flags.has("--k") ? Number(flags.get("--k")) : undefined, weapon: weaponFlag as WeaponId | undefined,
+      k: flags.has("--k") ? Number(flags.get("--k")) : undefined, weapon: weaponOf?.(player),
       leash: flags.has("--leash") ? Number(flags.get("--leash")) : undefined,
       style: (flags.get("--style") ?? "policy") as Style,
       mobRetreat: bools.has("--mobs-stand") ? false : undefined,
@@ -614,8 +631,9 @@ function main(): void {
   if (style !== "policy" && style !== "stand") throw new Error(`--style takes policy or stand, not "${style}"`);
   const mobRetreat = bools.has("--mobs-stand") ? false : undefined;
   const leash = flags.has("--leash") ? Number(flags.get("--leash")) : undefined;
+  const weaponFlag = weaponFlagOf(flags.get("--weapon"));
   const gridOf = (elite: boolean, k?: number, weapon?: (p: FactionId) => WeaponId, leashOverride?: number): Grid =>
-    runGrid({ elite, k, seeds, wake, style, capSeconds, weapon, leash: leashOverride ?? leash, mobRetreat, log });
+    runGrid({ elite, k, seeds, wake, style, capSeconds, weapon: weapon ?? weaponFlag, leash: leashOverride ?? leash, mobRetreat, log });
   const print = (title: string, body: string): void => { console.log(`\n### ${title}\n\n${body}`); };
 
   if (bools.has("--reference")) {
@@ -642,10 +660,10 @@ function main(): void {
   }
 
   if (bools.has("--weapons")) {
-    // The player on each weapon (its faction's stats unchanged): the weapon-edge variants.
+    // The player on fists and on each weapon (its faction's stats unchanged): the weapon-edge variants.
     const lines: string[] = [];
     for (const elite of [false, true]) {
-      for (const w of WEAPON_IDS) {
+      for (const w of ALL_WEAPON_IDS) {
         const g = gridOf(elite, undefined, () => w);
         lines.push(`${w}: ${summaryLine(g)}`);
         print(`${elite ? "elite" : "normal"} mob, every player faction on the ${w}`, gridTable(g));

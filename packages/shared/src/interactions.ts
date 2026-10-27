@@ -4,7 +4,8 @@
 //
 //   Shield (in hand, always raised toward the aim, +-SHIELD_HALF_ARC): a frontal arrow is reflected (the holder owns
 //     the new arrow); a frontal sword hit is negated and RIPOSTE_SHARE of it goes back to the swordsman; a frontal bash
-//     is negated. Axe swings and wand balls pierce it.
+//     is negated. Axe and fists swings and wand balls pierce it.
+//   Fists (an empty hand): no interaction of their own. They pierce a shield, never stagger and meet no ball.
 //   Sword: an unblocked hit staggers (cancels a windup or cast; a bow draw carries on), then STAGGER_IMMUNITY_SECONDS of
 //     immunity. Its swing halves (SWORD_BALL_SCALE) enemy balls it meets, once per ball.
 //   Axe: its swing destroys enemy balls it meets. No knockback (it would undo both of the axe's wins).
@@ -60,7 +61,9 @@ export function shieldOutcome(src: HitSource): ShieldOutcome {
   switch (src.melee) {
     case "sword": return "riposte";
     case "shield": return "block";
-    default: return "pierce"; // axe (bow and wand never swing)
+    case "axe": return "pierce";
+    case "fists": return "pierce"; // an empty hand is not a weapon the shield was built for
+    default: return "pierce"; // bow and wand never swing
   }
 }
 

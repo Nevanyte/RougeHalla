@@ -3,14 +3,16 @@
 // step.ts only runs actions for alive players in an active raid, so handlers don't re-check that.
 //   - A chest holds one weapon and stays (opened, empty) once taken. A loose weapon vanishes when taken. A body holds
 //     what the player carried when they went down.
-//   - Pickup takes the container's first weapon into an empty slot (the weapon in hand doesn't change), or, with both
-//     slots full, replaces the weapon in hand, which drops where the player stands; that counts as a swap
-//     (weaponChanged: the action is cancelled and the cooldown gets SWAP_SECONDS).
+//   - Pickup takes the container's first weapon into a free slot: the hand's own slot if it is empty (an unarmed hand arms
+//     at once, which counts as a swap), else the other slot if that is empty (the weapon in hand doesn't change). With both
+//     slots full it replaces the weapon in hand, which drops where the player stands; that counts as a swap too
+//     (weaponChanged: the action is cancelled and the cooldown gets SWAP_SECONDS). Fists are what an empty slot fights with,
+//     never an item: nothing drops, lies in a body or is picked up as fists.
 import {
-  hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, QUEST_ITEM_PREFIX, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
+  FISTS, hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, QUEST_ITEM_PREFIX, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
-import { activeWeapon, setSlot } from "./combatant";
+import { setSlot, slotItem } from "./combatant";
 import { rollChestWeapon, rollGroundWeapon } from "./lootTables";
 import { actionBlocked } from "./status";
 import { weaponChanged } from "./weapons";
@@ -122,16 +124,19 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
     if (!world.quests?.onQuestPickup(world, c, box)) toast(world, c.id, "Nothing to take");
     return;
   }
-  if (!isWeaponId(item.def)) { toast(world, c.id, "Nothing to take"); return; }
+  if (!isWeaponId(item.def) || item.def === FISTS) { toast(world, c.id, "Nothing to take"); return; }
 
   const def = item.def;
   box.items.splice(0, 1);
-  const empty = p.weapon0 === "" ? 0 : p.weapon1 === "" ? 1 : null;
-  if (empty !== null) {
-    setSlot(p, empty, def);
+  const hand: 0 | 1 = p.slot === 1 ? 1 : 0;
+  // A free slot: the hand's own if it is empty (the weapon is then taken up at once), else the other one (the hand stays).
+  const free = slotItem(p, hand) === null ? hand : slotItem(p, 0) === null ? 0 : slotItem(p, 1) === null ? 1 : null;
+  if (free !== null) {
+    setSlot(p, free, def);
+    if (free === hand) weaponChanged(world, c);
   } else {
-    const dropped = activeWeapon(p);
-    setSlot(p, p.slot === 1 ? 1 : 0, def);
+    const dropped = slotItem(p, hand);
+    setSlot(p, hand, def);
     if (dropped) dropWeapon(world, p, dropped);
     weaponChanged(world, c);
   }
@@ -139,9 +144,9 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   if (box.kind === "ground" && box.items.length === 0) world.state.containers.delete(box.id);
 };
 
-/** Leaves a body where the player went down, holding the weapons they carried. */
+/** Leaves a body where the player went down, holding the weapons they carried (fists were never carried). */
 export function dropBody(world: World, p: PlayerState): void {
-  const items = [p.weapon0, p.weapon1].filter((w) => w !== "").map((def) => ({ uid: world.newItemUid(), def }));
+  const items = [p.weapon0, p.weapon1].filter((w) => w !== "" && w !== FISTS).map((def) => ({ uid: world.newItemUid(), def }));
   addContainer(world, "body", p, p.name, items);
   p.weapon0 = "";
   p.weapon1 = "";

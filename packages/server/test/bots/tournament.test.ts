@@ -119,7 +119,11 @@ describe("runGame", () => {
         expect(b.place).toBeLessThanOrEqual(n);
         expect(["won", "draw", "died"]).toContain(b.outcome);
         expect(b.deaths).toBe(b.outcome === "died" ? 1 : 0);
-        expect(b.diedAtMs !== null).toBe(b.outcome === "died");
+        // The winner (or a drawer) may have fallen in the very tick of the last rival's death: the higher hp share at the tick's
+        // start takes the run (arena.ts settle), so its death fx is stamped with the same time as one who "died".
+        const fellWithTheLast = b.diedAtMs !== null && g.bots.some((o) => o.outcome === "died" && o.diedAtMs === b.diedAtMs);
+        expect(b.diedAtMs !== null && (b.outcome === "died" || fellWithTheLast)).toBe(b.diedAtMs !== null);
+        if (b.outcome === "died") expect(b.diedAtMs).not.toBeNull();
         expect(b.diedTo !== null).toBe(b.outcome === "died");
       }
       // The winner placed first; nobody who died placed first unless a draw.

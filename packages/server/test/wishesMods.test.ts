@@ -8,7 +8,7 @@ import {
 } from "@raid/shared";
 import { updateAbilities } from "../src/sim/abilities";
 import { grantBuff } from "../src/sim/buffs";
-import { combatant, timingsOf } from "../src/sim/combatant";
+import { activeWeapon, combatant, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { asMultOf, recomputeMods } from "../src/sim/mods";
@@ -28,7 +28,7 @@ function openMap(): GameMap {
 
 function run(): World {
   const world = createGameWorld({
-    config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
+    config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, pvpRules: false },
     random: mulberry32(6),
     map: openMap(),
   }, { signatures: false });
@@ -96,7 +96,7 @@ describe("the attack slow, the buffs and AS_MULT_CAP (R4a's mirrors)", () => {
     const w = run();
     const a = combatant(w, "a")!;
     const p = w.state.players.get("a")!;
-    const weapon = p.weapon0 as WeaponId;
+    const weapon = activeWeapon(p)!; // fists: a run starts with an empty hand
     const spec = pacedFaction(FACTIONS[p.faction as FactionId]);
     const interval = () => timingsOf(p, weapon)!.interval;
     const plain = interval();

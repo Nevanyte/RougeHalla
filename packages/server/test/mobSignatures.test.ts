@@ -328,8 +328,10 @@ describe("a regional mob fights with its region's signature at mob strength", ()
     });
 
     it("executes below half hp: the disease rises as the player falls under 50%", () => {
+      // A mob's execute is scaled by k squared (mobFaction, balance contract 6.1), so the rise is a fraction of a player-sized
+      // Plague's: measured at 10% hp, where it is clearest.
       const healthy = fight(1);
-      const hurt = fight(0.4);
+      const hurt = fight(0.1);
       const perTick = (f: ReturnType<typeof fight>): number[] =>
         f.logs.flatMap((l, i) => (l.mob.engaged ? [sum(mobBurn(l, f.rig, "disease").map((h) => h.amount)) / diseasePerTick(f.fracs[i]!)] : []));
       // Every engaged tick of the hurt player matches the formula at its hp share (exactly one disease hit per tick).
@@ -338,8 +340,8 @@ describe("a regional mob fights with its region's signature at mob strength", ()
         const hits = sigLanded(f.rig.landed, "disease");
         return sum(hits.map((h) => h.amount)) / hits.length;
       };
-      const expectedRise = diseaseDps(MOB_SPEC.plague, 0.4) / diseaseDps(MOB_SPEC.plague, 1);
-      expect(expectedRise).toBeGreaterThan(5);
+      const expectedRise = diseaseDps(MOB_SPEC.plague, 0.1) / diseaseDps(MOB_SPEC.plague, 1);
+      expect(expectedRise).toBeGreaterThan(1.5);
       expect(mean(hurt) / mean(healthy)).toBeGreaterThan(expectedRise * 0.99);
       expect(mean(hurt) / mean(healthy)).toBeLessThan(expectedRise * 1.01);
       expect(hurt.rig.p.sig & SIG_EXECUTE).toBeTruthy();

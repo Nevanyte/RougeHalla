@@ -47,16 +47,16 @@
 // systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
-  damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
+  diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, isDot, lifestealFraction, lifestealShare, markDps, markShare,
   reachMask, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec,
-  type SignatureKind, type TriggerAction, type WeaponId,
+  SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
 import { grantBarrier } from "./buffs";
 import {
   activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
-import { recordHit } from "./ledger";
+import { pvpScale, recordHit } from "./ledger";
 import { executeBandOf, lifestealRowsOf, markRateOf, triggersOf } from "./mods";
 import { healFactor } from "./status";
 import { chainHook, collisionMap, emit, payLater, tieRank, type PendingAction, type World } from "./world";
@@ -331,8 +331,10 @@ function signatureDamage(world: World, dtMs: number): void {
         }
       }
     }
-    // A markRate buff ramps the mark faster toward the same cap (1 for everyone else: only Sentenced reads markElapsed).
-    if (f.inReach && f.engaged) f.markElapsed += dt * markRateOf(c.s);
+    // A markRate buff ramps the mark faster toward the same cap (1 for everyone else: only Sentenced reads markElapsed). Against a
+    // player the clock also runs at the PvP factor of its owner (the harness's duelScale included), so the factor is a PvP-only
+    // DUEL_PACE: damage times f and the ramp times f squared leave an equal-power fight's outcome alone.
+    if (f.inReach && f.engaged) f.markElapsed += dt * markRateOf(c.s) * (f.target !== null ? pvpScale(world, c.id, f.target) : 1);
   }
 }
 
@@ -353,8 +355,9 @@ function bonus(
   world: World, c: Combatant, spec: FactionSpec, weapon: WeaponId, t: Combatant, sig: SignatureKind, raw: number,
 ): void {
   if (!(raw > 0)) return;
+  // Each signature deals its own damage type, whatever the faction's weapon hits are (SIGNATURE_SHARES, BALANCE_CONTRACT 5.2).
   recordHit(world, {
-    victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...damageShares(spec) }, weapon, stagger: false, sig,
+    victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...SIGNATURE_SHARES[sig] }, weapon, stagger: false, sig,
   });
 }
 
@@ -369,7 +372,8 @@ function afterDamage(world: World, dtMs: number): void {
   for (const h of world.combat.landed) {
     if (byId.has(h.victim)) sigOf(world, h.victim).combatAt = now;
     if (byId.has(h.by)) sigOf(world, h.by).combatAt = now;
-    dealt.set(h.by, (dealt.get(h.by) ?? 0) + h.amount);
+    // A Race to 0 holder's extra damage feeds no lifesteal (G4): it reads the amount without the multiplier.
+    dealt.set(h.by, (dealt.get(h.by) ?? 0) + h.amount / (h.race ?? 1));
     if (isDot(h.sig)) {
       const key = `${h.victim}|${h.by}|${h.sig}`;
       const acc = rt.dot.get(key);

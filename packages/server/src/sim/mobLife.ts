@@ -24,26 +24,28 @@
 //          multiplier read INSIDE the pass (every feed is still its tick-start value there, so the order kills are paid
 //          in never changes it);
 //       2. the buff of the mob's type (MobState.type; mobTypeOf) x mobBuffStacks(elite) x m stacks, through grantBuff;
-//       3. the mob's weapon dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer already holds
-//          that weapon type in either slot;
+//       3. the mob's weapon: straight into the hand of a killer who is standing with an empty hand (it arms them, with a
+//          toast, and nothing drops); otherwise dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer
+//          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing;
 //       4. the chainable mobKilled hook (quest objectives).
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
 //     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
 import {
-  campMobs, eliteTypeOf, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobBuffStacks, mobFaction, mobName, mobTypeById, mobWeapon,
-  normalTypesOf, type FactionId, type MobTypeId, type Vec2,
+  campMobs, eliteTypeOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobBuffStacks, mobFaction, mobName, mobTypeById, mobWeapon,
+  normalTypesOf, WEAPONS, type FactionId, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
 import { grantBuff } from "./buffs";
 import { campEngaged, campMobDied, ensureRosters } from "./camps";
-import { isQuestGiver, mobScale, type Combatant } from "./combatant";
+import { noteCampContributors } from "./campHeal";
+import { combatant, handIsEmpty, isQuestGiver, mobScale, setSlot, standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
 import { dropWeapon } from "./loot";
 import { aggro, newBrain, resetMob, wakeMatesOnKill } from "./mobAI";
 import { addMob } from "./mobs";
-import { cancelAction } from "./weapons";
+import { cancelAction, weaponChanged } from "./weapons";
 import { chainHook, emit, payLater, tieRank, type LedgerEntry, type World } from "./world";
 
 export type MobCombatant = Extract<Combatant, { kind: "mob" }>;
@@ -106,6 +108,7 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
   c.s.hp = Math.max(0, before - total);
   c.rt.lastHitAt = world.state.serverTime;
   campEngaged(world, c.s.camp);
+  noteCampContributors(world, c.s.camp, entries, amounts);
   if (c.s.hp <= 0) {
     killMob(world, c, entries, amounts, before);
   } else {
@@ -179,7 +182,7 @@ export function killMob(
   const { elite, region } = brain;
   const type = mobTypeOf(c.s.type, region, elite);
   const camp = c.s.camp - 1;
-  const weapon = c.s.weapon0;
+  const weapon = c.s.weapon0 === FISTS ? "" : c.s.weapon0; // fists are never an item
   const at = { x: c.s.x, y: c.s.y };
   if (killer === null) {
     // Nobody to pay, but the weapon lies where the mob fell all the same.
@@ -211,8 +214,26 @@ function payMobKill(world: World, killerId: string, region: FactionId, elite: bo
   }
   creditMobKill(world, p, rt, elite, m);
   grantBuff(world, p, rt, type, mobBuffStacks(elite) * m);
-  if (weapon !== "" && p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);
+  if (weapon !== "") awardMobWeapon(world, killerId, weapon, at);
   world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite });
+}
+
+/**
+ * The weapon a mob carried, after a kill by a player of this run. A killer who is standing with an empty hand is armed with
+ * it on the spot (the hand takes it up like a pickup into the hand: weaponChanged) and told so; nothing lies on the ground.
+ * Any other killer (armed, or down in this very pass and so unable to wield it) leaves it as a loose weapon at the mob's feet,
+ * unless they already hold that type in either slot.
+ */
+function awardMobWeapon(world: World, killerId: string, weapon: string, at: Vec2): void {
+  const killer = combatant(world, killerId);
+  if (killer?.kind === "player" && isWeaponId(weapon) && standing(killer) && handIsEmpty(killer.s)) {
+    setSlot(killer.s, killer.s.slot === 1 ? 1 : 0, weapon);
+    weaponChanged(world, killer);
+    emit(world, { type: "toast", to: killerId, text: `Armed: ${WEAPONS[weapon].name}` });
+    return;
+  }
+  const p = world.state.players.get(killerId)!;
+  if (p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);
 }
 
 /** An idle mob below full hp (hurt by someone who was gone before they could wake it) heals after this long unhurt: the design's heal lockout. */

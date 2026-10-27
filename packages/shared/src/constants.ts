@@ -134,6 +134,21 @@ export const BOUNTY_SCALE = 10;
 export const BOUNTY_FREE_KILLS = 2;
 export const BOUNTY_EXPONENT = 1.5;
 
+// Power and the PvP factor (balance pass, BALANCE_CONTRACT 3.4 / 4.6). Every player-to-player ledger entry (a weapon hit, a
+// signature's damage; not a Wish, not the arena, never a mob) is multiplied by pvpFactor(P), P the attacker's card power
+// (rules.ts cardPower): f(P) = PVP_F0 + (PVP_FMAX - PVP_F0) x (1 - exp(-P / PVP_P0)). Equal-power fights keep their outcome
+// (the mark's clock runs at the same factor, so it is a PvP-only DUEL_PACE); a fed player kills a fresh one many times sooner.
+// f(0) 0.75, f(1) 1.10, f(2) 1.39, f(3) 1.64, f(5) 2.02, f(6) 2.17, f(10) 2.58, f(15) 2.82.
+export const PVP_F0 = 0.75;
+export const PVP_FMAX = 3.0;
+export const PVP_P0 = 6;
+/** G2: no single player-to-player hit (not a damage-over-time tick) takes more than this share of the victim's max hp. */
+export const PVP_HIT_CAP_SHARE = 0.35;
+/** G3: one source's damage over time on one player takes at most this share of the victim's max hp per second. */
+export const PVP_DOT_CAP_SHARE = 0.15;
+/** G4: A Race to 0 multiplies the damage its holder deals and takes by 1 / hp fraction, but never by more than this. */
+export const HP_RACE_CAP = 2.5;
+
 // Combat (Phase 9). Weapon numbers and the faction x weapon formula live in weapons.ts; the rules between weapons
 // (blocks, reflections, interceptions, stagger) in interactions.ts.
 /** Duel pace k: every faction damage number is multiplied by k (Sentenced's mark ramp by k squared), hp is not. */
@@ -142,10 +157,28 @@ export const DUEL_PACE = 2;
 export const PROJECTILE_SUBSTEP_MS = 10;
 /** A wand ball deletes an enemy arrow whose centre comes within this of the ball's. */
 export const BALL_ARROW_RADIUS = 28;
+/**
+ * A ball that deletes an enemy arrow keeps this share of its damage (balance pass, BALANCE_CONTRACT 5.5): the wand's
+ * "answer to the bow" costs it some of the ball, so Wand > Bow is a win and not a wall (84% -> 62% pooled). At 0.4 the true
+ * mark kept going while the wand's balls were spent on arrows and Holy > Sentenced was lost outright. Provisional.
+ */
+export const BALL_AFTER_ARROW = 0.7;
 /** A raised shield covers hits arriving within this angle either side of where it faces (60 degrees). */
 export const SHIELD_HALF_ARC = Math.PI / 3;
-/** A frontal sword hit on a raised shield is negated, and this share of it is dealt back to the swordsman. */
+/**
+ * A frontal sword or bash hit on a raised shield is blocked only in part (balance pass, BALANCE_CONTRACT 5.5): this share of
+ * it is stopped, the rest (1 - this) goes through as a normal hit with no stagger. It ends the shield's "never hurt" matchups
+ * (Shield > Sword 96% -> 80%) and the shield-mirror stalemate (two shields used to block every bash). Provisional: the loop
+ * is tuned against the weapon-edge target (A7).
+ */
+export const SHIELD_BLOCK_SHARE = 0.35;
+/** The riposte: this share of the BLOCKED part of a sword hit (SHIELD_BLOCK_SHARE of it) is dealt back to the swordsman. */
 export const RIPOSTE_SHARE = 0.5;
+/**
+ * An arrow that meets a raised shield is reflected carrying only this share of its damage; the holder takes the rest
+ * (1 - this) as a normal hit (balance pass, BALANCE_CONTRACT 5.5). Provisional.
+ */
+export const ARROW_REFLECT_SHARE = 0.35;
 /**
  * An arrow is reflected at most this many times; the next shield front just blocks it. Two shields face to face at
  * contact range would otherwise bounce one forever (each reflection starts inside the other's reach).
@@ -153,8 +186,11 @@ export const RIPOSTE_SHARE = 0.5;
 export const MAX_ARROW_REFLECTIONS = 2;
 /** A sword swing that meets an enemy wand ball scales that ball's damage by this (once per ball). */
 export const SWORD_BALL_SCALE = 0.5;
-/** After a stagger the target can't be staggered again for this long. */
-export const STAGGER_IMMUNITY_SECONDS = 0.5;
+/**
+ * After a stagger the target can't be staggered again for this long (0.5 s until the balance pass: a sword could lock down
+ * a slow wand or axe; at 1.2 s Sword > Wand falls 85% -> 71% and Sword > Axe 71% -> 60% pooled). Provisional.
+ */
+export const STAGGER_IMMUNITY_SECONDS = 1.2;
 /** Swapping weapons cancels the current action and adds this to the shared attack cooldown. */
 export const SWAP_SECONDS = 0.25;
 /** A press this long before the cooldown ends still attacks the moment it does, even if released meanwhile. */
@@ -302,6 +338,18 @@ export const SKIP_HEAL_SHARE = 0.15;
 export const GV_SKIP = 3;
 /** D24: damaging one camp member wakes every idle member of that camp (false: each mob wakes on its own damage only). */
 export const CAMP_WIDE_AGGRO = true;
+/**
+ * Camp-clear heal (balance contract 7, shared/rules.ts `campHealAmount`): everyone who damaged a camp and stands when its last
+ * mob dies is healed `missing x f(m)`, m = the share of max hp missing, f(m) = LO + (HI - LO) x sigmoid((m - MID) / WIDTH). A
+ * scratched player gets a little back (95% hp: +1.4% of max), one ganked low nearly all of it (10% hp: +85%); everyone leaves a
+ * camp at 83-96%.
+ */
+export const CAMP_HEAL_LO = 0.25;
+export const CAMP_HEAL_HI = 0.95;
+export const CAMP_HEAL_MID = 0.40;
+export const CAMP_HEAL_WIDTH = 0.10;
+/** A player counts for a camp's clear heal inside its territory or within this of its centre. */
+export const CAMP_HEAL_RANGE = 12 * TILE;
 /** A heal spread over time (Second Wind) lands in steps this far apart, the first at once. */
 export const HEAL_OVER_TIME_STEP_MS = 500;
 /**

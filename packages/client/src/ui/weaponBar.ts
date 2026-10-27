@@ -1,7 +1,7 @@
 // Bottom-center weapon bar: the two slots (weapon, key, which one is in hand), the shared attack cooldown sweeping over
 // them, and a hint line when a weapon is within reach. The keys are drawn as keycaps (1, 2, Q, F). It only reflects the
 // synced state; the keys themselves are the scene's. Other HUD modules dock into its slot row (`dock`): the Wish slot.
-import { WEAPONS, isWeaponId, type WeaponId } from "@raid/shared";
+import { FISTS, WEAPONS, isWeaponId, type WeaponId } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import "./weaponBar.css";
 import { cssColor, el, uiRoot } from "./dom";
@@ -101,8 +101,9 @@ export class WeaponBar {
         const w = weaponOf(id);
         slot.root.classList.toggle("empty", w === null);
         slot.root.classList.toggle("active", me.slot === i);
+        // An empty slot is fists (what the hand fights with): dimmed, with a dashed swatch, but named.
         slot.swatch.style.background = w ? cssColor(WEAPONS[w].color) : "";
-        slot.name.textContent = w ? WEAPONS[w].name : "Empty";
+        slot.name.textContent = WEAPONS[w ?? FISTS].name;
       });
     }
 

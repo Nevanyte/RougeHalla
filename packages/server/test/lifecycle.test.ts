@@ -197,7 +197,7 @@ describe("createWorld / addPlayer", () => {
     expect(player(w, "a")).toBe(p);
     expect(p).toMatchObject({
       name: "alice", faction: "fire", hp: FACTIONS.fire.hp, maxHp: FACTIONS.fire.hp, status: "lobby",
-      weapon0: SIGNATURE_WEAPONS.fire, weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0,
+      weapon0: "", weapon1: "", slot: 0, drawStartedAt: 0, readyAt: 0,
       kills: 0, gv: 0, bounty: 0, immuneUntil: 0,
     });
     const rt = w.players.get("a")!;
@@ -208,25 +208,25 @@ describe("createWorld / addPlayer", () => {
     expect(rt.weapon).toEqual(newWeaponRuntime());
   });
 
-  it("gives each joiner the next faction in join order, with its hp and its signature weapon in the first slot", () => {
+  it("gives each joiner the next faction in join order, with its hp and both weapon slots empty (it fights on fists)", () => {
     const w = makeWorld();
     const joined = Array.from({ length: FACTION_IDS.length + 2 }, (_, i) => addPlayer(w, `p${i}`, `p${i}`));
     joined.forEach((p, i) => {
       const faction = FACTION_IDS[i % FACTION_IDS.length]!;
       expect(p).toMatchObject({
-        faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: SIGNATURE_WEAPONS[faction], weapon1: "", slot: 0,
+        faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: "", weapon1: "", slot: 0,
       });
     });
     expect(joined.slice(0, 5).map((p) => p.faction)).toEqual(["fire", "sentenced", "plague", "frost", "holy"]);
     expect(joined.slice(0, 5).map((p) => p.hp)).toEqual([500, 700, 1000, 1750, 1450]);
-    expect(joined.slice(0, 5).map((p) => p.weapon0)).toEqual(["axe", "bow", "bow", "shield", "wand"]);
+    expect(joined.map((p) => [p.weapon0, p.weapon1, p.slot])).toEqual(joined.map(() => ["", "", 0]));
   });
 
   it("brings nothing in: there is no inventory, only the weapon slots", () => {
     const w = makeWorld();
     const p = addPlayer(w, "a", "alice");
     expect("inventory" in p).toBe(false);
-    expect([p.weapon0, p.weapon1].filter((x) => x !== "")).toEqual([SIGNATURE_WEAPONS.fire]);
+    expect([p.weapon0, p.weapon1].filter((x) => x !== "")).toEqual([]); // a run starts on fists: weapons come from loot
   });
 
   it("follows the join counter, not the seats: a leave does not hand the next joiner the freed faction", () => {
@@ -333,6 +333,7 @@ describe("per-world registries", () => {
       step(w, TICK_MS);
       return a;
     });
+    for (const a of alices) a.weapon0 = SIGNATURE_WEAPONS.fire; // empty at the start of a run: give them something to clear
     downPlayer(w1, alices[0]!, w1.players.get("a")!, "died");
     downPlayer(w2, alices[1]!, w2.players.get("a")!, "died");
     expect(downed).toEqual(["w1:alice"]);
@@ -381,6 +382,7 @@ describe("createGameWorld", () => {
     const events = step(g, TICK_MS);
     // Alice (a bow in hand, so no swing needs a target in reach) stands on Bob: her arrow meets him wherever the map put them.
     arm(a, "bow");
+    b.weapon0 = SIGNATURE_WEAPONS.sentenced; // empty-handed at the start: Bob carries a bow, which his body will hold
     b.x = a.x;
     b.y = a.y;
     g.players.get("b")!.history = [];
@@ -694,8 +696,8 @@ describe("raid spawns", () => {
     expect(w.state.phase).toBe("active");
     expect(rtA.weapon).toEqual(newWeaponRuntime());
     expect([a.readyAt, a.drawStartedAt]).toEqual([0, 0]);
-    expect(a).toMatchObject({ faction: "fire", hp: 500, weapon0: "axe", weapon1: "", slot: 0 });
-    expect(b).toMatchObject({ faction: "sentenced", hp: 700, weapon0: "bow", weapon1: "", slot: 0 });
+    expect(a).toMatchObject({ faction: "fire", hp: 500, weapon0: "", weapon1: "", slot: 0 });
+    expect(b).toMatchObject({ faction: "sentenced", hp: 700, weapon0: "", weapon1: "", slot: 0 });
   });
 
   it("re-spawns players onto map spawns wherever they stood in the lobby", () => {

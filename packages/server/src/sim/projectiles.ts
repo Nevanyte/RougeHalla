@@ -3,19 +3,20 @@
 // from that. It is not in the synced state, only in `world.projectiles`. The server flies each one in present time, in
 // PROJECTILE_SUBSTEP_MS steps. In each step, in this order:
 //   1. it moves, stopping at a wall (collisionMap: closed gates block) or at the end of its range;
-//   2. a ball deletes every enemy arrow that came within BALL_ARROW_RADIUS of it during the step, in line of sight;
+//   2. a ball deletes every enemy arrow that came within BALL_ARROW_RADIUS of it during the step, in line of sight, and
+//      keeps BALL_AFTER_ARROW of its damage for each arrow it deleted;
 //   3. it meets the first body along its step whose centre, where that body was at that moment (history), comes within
 //      RANGED_HIT_REACH. An arrow on a raised shield's front is reflected: it stops, and a new arrow owned by the holder
 //      flies on from the contact point with the mirrored velocity, the full bow range (an arrow reflected before keeps
-//      only the range it has left) and the same damage; one already reflected MAX_ARROW_REFLECTIONS times is just
-//      blocked. Anything else is a hit, recorded in the damage ledger and applied with every other hit after melee.
+//      only the range it has left) and ARROW_REFLECT_SHARE of the damage, the holder taking the rest as a normal hit; one
+//      already reflected MAX_ARROW_REFLECTIONS times is just blocked. Anything else is a hit, recorded in the damage ledger and applied with every other hit after melee.
 // When it stops it leaves `world.projectiles`, and a `projEnd` fx says exactly where and why. Its owner is never hit by
 // it. It outlives its owner: its hit still lands (credited by name only once the owner has left or is out of the run).
 // Projectiles loosed this tick (spawnProjectiles, after the sweep) leave from where the owner's client drew it and
 // first move in the next tick's sweep.
 import {
-  ballDeletesArrow, MAX_ARROW_REFLECTIONS, PROJECTILE_SUBSTEP_MS, projectileOnShieldFront, RANGED_HIT_REACH, raycast,
-  reflectVelocity,
+  ARROW_REFLECT_SHARE, ballDeletesArrow, BALL_AFTER_ARROW, MAX_ARROW_REFLECTIONS, PROJECTILE_SUBSTEP_MS, projectileOnShieldFront,
+  RANGED_HIT_REACH, raycast, reflectVelocity,
   WEAPONS, type ProjectileEnd, type ProjectileKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { activeWeapon, combatant, isEvading, isQuestGiver, standingCombatants, type Combatant } from "./combatant";
@@ -214,6 +215,8 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         const at = closestApproach(ball, arrow);
         if (ballDeletesArrow(at.ball, at.arrow) && !raycast(map, at.ball.x, at.ball.y, at.arrow.x, at.arrow.y).hit) {
           endProjectile(world, arrow.pr, at.arrow.x, at.arrow.y, "deleted");
+          // Deleting an arrow costs the ball part of its damage (balance pass).
+          ball.pr.packet = { ...ball.pr.packet, raw: ball.pr.packet.raw * BALL_AFTER_ARROW };
         }
       }
     }
@@ -238,6 +241,11 @@ export function sweepProjectiles(world: World, dtMs: number): void {
           continue;
         }
         endProjectile(world, pr, hit.x, hit.y, "reflected");
+        // The shield returns only ARROW_REFLECT_SHARE of the arrow; the holder takes the rest as a normal hit (balance pass).
+        recordHit(world, {
+          victim: hit.c.id, by: { id: pr.owner, name: pr.ownerName }, packet: { ...pr.packet, raw: pr.packet.raw * (1 - ARROW_REFLECT_SHARE) },
+          weapon: pr.weapon, projectile: pr.id, stagger: false,
+        });
         const v = reflectVelocity(st.vx, st.vy, hit.c.s.facing);
         const bow = WEAPONS.bow.shape;
         // A first reflection flies the full bow range; an arrow already reflected keeps only what it has left, so two
@@ -246,7 +254,7 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         const range = pr.weapon === "shield" ? Math.max(0, left) : bow.kind === "projectile" ? bow.range : st.range;
         active.push(launch(world, {
           kind: "arrow", weapon: "shield", owner: hit.c.id, ownerName: hit.c.s.name, x: hit.x, y: hit.y,
-          vx: v.vx, vy: v.vy, t, range, packet: pr.packet, reflections: pr.reflections + 1,
+          vx: v.vx, vy: v.vy, t, range, packet: { ...pr.packet, raw: pr.packet.raw * ARROW_REFLECT_SHARE }, reflections: pr.reflections + 1,
         }));
         continue;
       }

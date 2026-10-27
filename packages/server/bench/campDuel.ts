@@ -18,8 +18,9 @@
 // last mobs.
 // It reports time to clear (from the first mob waking to the last death) and hp left; a report, never a gate.
 //
-//   npx tsx bench/campDuel.ts                 each faction on its signature weapon, every zone, normal and elite, all three pulls
-//   npx tsx bench/campDuel.ts --weapons       each faction on each of the five weapons
+//   npx tsx bench/campDuel.ts                 each faction on FISTS (an empty hand, how a run starts), every zone, normal and elite, all three pulls
+//   npx tsx bench/campDuel.ts --weapon sig    the old view: each faction on its signature weapon (or --weapon <id> for one weapon for all)
+//   npx tsx bench/campDuel.ts --weapons       each faction on fists and on each of the five weapons
 //   npx tsx bench/campDuel.ts --map           the camp pull on the real thing: seed s builds the zone-styled map of seed s, the camp is one of
 //                                             the zone's camps there (the elite camp for the elite rows), with its real territory leash, its
 //                                             clearing, its walls and hazards, and the player starts ~10 tiles out on walkable ground
@@ -28,7 +29,7 @@
 //            --sweep takes --ks a,b,c (0.45,0.40,..)  --eks a,b (the elite scale, 0.65)  --sizes a,b,c (--size)
 import { writeFileSync } from "node:fs";
 import {
-  circleClear, eliteTypeOf, ELITE_K, FACTION_IDS, findPath, generateMap, MOB_K, mulberry32, normalTypesOf, PLAYER_RADIUS, SIGNATURE_WEAPONS, TICK_MS, TILE, WEAPON_IDS, type CampDef,
+  circleClear, eliteTypeOf, ELITE_K, FACTION_IDS, findPath, generateMap, MOB_K, mulberry32, normalTypesOf, PLAYER_RADIUS, SIGNATURE_WEAPONS, TICK_MS, TILE, ALL_WEAPON_IDS, FISTS, isWeaponId, type CampDef,
   type FactionId, type GameMap, type MobTypeId, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
@@ -123,7 +124,7 @@ export function runCampDuel(spec: CampDuelSpec): CampDuelResult {
 
 function duelAt(spec: CampDuelSpec): CampDuelResult {
   const cap = spec.capSeconds ?? 90;
-  const weapon = spec.weapon ?? SIGNATURE_WEAPONS[spec.player];
+  const weapon = spec.weapon ?? FISTS;
   const v = variantOf(spec.seed, 320);
   const normal: MobTypeId = normalTypesOf(spec.zone)[0]!.id;
   const size = Math.max(spec.elite ? 2 : 1, spec.size ?? CAMP_SIZE);
@@ -165,7 +166,7 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
     map,
   }, { signatures: true });
   const p = addPlayer(world, PLAYER_ID, PLAYER_ID, { faction: spec.player });
-  p.weapon0 = weapon;
+  p.weapon0 = weapon === FISTS ? "" : weapon; // fists are an empty hand, not an item
   p.weapon1 = "";
   step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("campDuel: the run did not start");
@@ -323,8 +324,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const cap = Number(arg("--cap") ?? 90);
   const allWeapons = process.argv.includes("--weapons");
   const pulls = (arg("--pulls")?.split(",") ?? ALL_PULLS) as readonly Pull[];
+  const weaponFlag = arg("--weapon");
+  if (weaponFlag !== undefined && weaponFlag !== "sig" && !isWeaponId(weaponFlag)) throw new Error(`unknown weapon "${weaponFlag}" (an id, or sig for the signature weapons)`);
+  const starter = (player: FactionId): WeaponId => (weaponFlag === undefined ? FISTS : weaponFlag === "sig" ? SIGNATURE_WEAPONS[player] : weaponFlag as WeaponId);
   const rows = FACTION_IDS.flatMap((player) =>
-    (allWeapons ? WEAPON_IDS : [SIGNATURE_WEAPONS[player]]).map((weapon) => ({ player, weapon })));
+    (allWeapons ? ALL_WEAPON_IDS : [starter(player)]).map((weapon) => ({ player, weapon })));
   const key = (r: { player: FactionId; weapon: WeaponId }, zone: FactionId, elite: boolean, pull: Pull): string =>
     `${r.player}|${r.weapon}|${zone}|${elite}|${pull}`;
 

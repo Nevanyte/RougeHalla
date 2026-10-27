@@ -193,7 +193,7 @@ describe("the lobbyClosing hook", () => {
     expect(at.size).toBe(4); // distinct spawns
     expect(w.state.players.get("bot~7")!.bot).toBe(true);
     expect(w.players.get("bot~8")!.bot).toBe(true);
-    expect(w.state.players.get("bot~7")!.weapon0).not.toBe("");
+    expect(w.state.players.get("bot~7")!.weapon0).toBe(""); // like a human, it starts on fists
   });
 
   it("chained hooks all run, in the order they were added", () => {

@@ -17,7 +17,7 @@
 //      untouchable and shows no flag, but its hp rises), the attacks are not landing, or the chase is taking too long.
 import {
   campMatchup, isFactionId, isRanged, isRegionalKind, isWeaponId, matchupShare, nearestCamps, REGION_WEAPONS,
-  TILE, weaponEdge, type FactionId, type GameMap, type PlanMessage, type Vec2, type WeaponId,
+  TILE, weaponEdge, FISTS, type FactionId, type GameMap, type PlanMessage, type Vec2, type WeaponId,
 } from "@raid/shared";
 
 // It moved to shared (planning.ts) for the planning screen; re-exported so the bots' callers keep their import.
@@ -473,9 +473,11 @@ export function useless(mine: WeaponId, theirs: WeaponId): boolean {
 
 /**
  * The best weapon edge any carried weapon that is not useless has against `theirs` (we can swap to it): 1 beats, 0 mirror or
- * neutral, -1 loses. -2 when every carried weapon is useless against it (or none is carried).
+ * neutral, -1 loses. -2 when every carried weapon is useless against it. Carrying nothing is fighting on fists (a run starts
+ * that way): neutral, 0, and never useless (a fists swing pierces a raised shield and a ball does not stop it).
  */
 export function bestEdge(weapons: readonly (WeaponId | null)[], theirs: WeaponId): -2 | -1 | 0 | 1 {
+  if (weapons.every((w) => w === null)) return weaponEdge(FISTS, theirs);
   let best: -2 | -1 | 0 | 1 = -2;
   for (const w of weapons) {
     if (w === null || useless(w, theirs)) continue;
@@ -486,7 +488,8 @@ export function bestEdge(weapons: readonly (WeaponId | null)[], theirs: WeaponId
 
 /**
  * Which of two slots to hold against a mob carrying `theirs`: the one with the better edge, a useless weapon last; the current
- * slot on a tie; an empty slot never. (Against a player `bestSlot` of the policies is right: a player is not a mob that gives up.)
+ * slot on a tie; an empty slot never (a carried weapon, even a poor one, is held over fists, and the bots take up a weapon
+ * as soon as the hand is empty). (Against a player `bestSlot` of the policies is right: a player is not a mob that gives up.)
  */
 export function bestSlotVsMob(slots: readonly [WeaponId | null, WeaponId | null], current: 0 | 1, theirs: WeaponId | null): 0 | 1 {
   const score = (w: WeaponId | null): number => (w === null ? -Infinity : theirs === null ? 0 : useless(w, theirs) ? -2 : weaponEdge(w, theirs));

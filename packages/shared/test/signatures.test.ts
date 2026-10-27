@@ -70,9 +70,9 @@ describe("bonusMultiplier", () => {
 });
 
 describe("burnDps", () => {
-  it("is Fire's burn: 10 on the sheet, 20 paced", () => {
-    expect(burnDps(SHEET.fire)).toBe(10);
-    expect(burnDps(PACED.fire)).toBe(20);
+  it("is Fire's burn: 18 on the sheet, 36 paced", () => {
+    expect(burnDps(SHEET.fire)).toBe(18);
+    expect(burnDps(PACED.fire)).toBe(36);
   });
 
   it.each(FACTION_IDS.filter((f) => f !== "fire"))("is 0 for %s", (f) => {
@@ -82,25 +82,25 @@ describe("burnDps", () => {
 });
 
 describe("diseaseDps", () => {
-  it("is Plague's plague plus the execute that grows below half hp (sheet: 40 and 2050)", () => {
+  it("is Plague's plague plus the execute that grows below half hp (sheet: 43 and 415)", () => {
     const p = SHEET.plague;
-    expect(diseaseDps(p, 1.0)).toBe(40);
-    expect(diseaseDps(p, 0.75)).toBe(40);
-    expect(diseaseDps(p, 0.5)).toBe(40);
-    expect(diseaseDps(p, 0.25)).toBeCloseTo(40 + 2050 * 0.25, 9);
-    expect(diseaseDps(p, 0)).toBeCloseTo(40 + 2050 * 0.5, 9);
+    expect(diseaseDps(p, 1.0)).toBe(43);
+    expect(diseaseDps(p, 0.75)).toBe(43);
+    expect(diseaseDps(p, 0.5)).toBe(43);
+    expect(diseaseDps(p, 0.25)).toBeCloseTo(43 + 415 * 0.25, 9);
+    expect(diseaseDps(p, 0)).toBeCloseTo(43 + 415 * 0.5, 9);
   });
 
   it("paced: the plague and the execute are doubled", () => {
     const p = PACED.plague;
-    expect(diseaseDps(p, 1.0)).toBe(80);
-    expect(diseaseDps(p, 0.5)).toBe(80);
-    expect(diseaseDps(p, 0.25)).toBeCloseTo(80 + 4100 * 0.25, 9);
-    expect(diseaseDps(p, 0)).toBeCloseTo(80 + 4100 * 0.5, 9);
+    expect(diseaseDps(p, 1.0)).toBe(86);
+    expect(diseaseDps(p, 0.5)).toBe(86);
+    expect(diseaseDps(p, 0.25)).toBeCloseTo(86 + 830 * 0.25, 9);
+    expect(diseaseDps(p, 0)).toBeCloseTo(86 + 830 * 0.5, 9);
   });
 
   it("never goes below the plain disease for a foe above half hp", () => {
-    expect(diseaseDps(SHEET.plague, 3)).toBe(40);
+    expect(diseaseDps(SHEET.plague, 3)).toBe(43);
   });
 
   it.each(FACTION_IDS.filter((f) => f !== "plague"))("is 0 for %s", (f) => {
@@ -110,14 +110,14 @@ describe("diseaseDps", () => {
 });
 
 describe("markDps and markShare", () => {
-  it("ramps linearly from 0 with the seconds in reach, then holds at the cap (sheet: 35 per s, cap 275)", () => {
+  it("ramps linearly from 0 with the seconds in reach, then holds at the cap (sheet: 17.5 per s, cap 72)", () => {
     const s = SHEET.sentenced;
     expect(markDps(s, 0)).toBe(0);
-    expect(markDps(s, 1)).toBe(35);
-    expect(markDps(s, 4)).toBe(140);
-    expect(markDps(s, 275 / 35)).toBeCloseTo(275, 9);
-    expect(markDps(s, 8)).toBe(275);
-    expect(markDps(s, 100)).toBe(275);
+    expect(markDps(s, 1)).toBe(17.5);
+    expect(markDps(s, 2)).toBe(35);
+    expect(markDps(s, 72 / 17.5)).toBeCloseTo(72, 9);
+    expect(markDps(s, 5)).toBe(72);
+    expect(markDps(s, 100)).toBe(72);
   });
 
   it("treats a negative elapsed time as none", () => {
@@ -127,17 +127,17 @@ describe("markDps and markShare", () => {
 
   it("paced: the ramp is k squared and the cap k, so the mark fills in half the time", () => {
     const s = PACED.sentenced;
-    expect(markDps(s, 1)).toBe(140);
-    expect(markDps(s, 2)).toBe(280);
-    expect(markDps(s, 550 / 140)).toBeCloseTo(550, 9);
-    expect(markDps(s, 10)).toBe(550);
+    expect(markDps(s, 1)).toBe(70);
+    expect(markDps(s, 2)).toBe(140);
+    expect(markDps(s, 144 / 70)).toBeCloseTo(144, 9);
+    expect(markDps(s, 10)).toBe(144);
   });
 
   it("markShare is the mark's progress to its cap, 0..1", () => {
     expect(markShare(SHEET.sentenced, 0)).toBe(0);
-    expect(markShare(SHEET.sentenced, 1)).toBeCloseTo(35 / 275, 12);
+    expect(markShare(SHEET.sentenced, 1)).toBeCloseTo(17.5 / 72, 12);
     expect(markShare(SHEET.sentenced, 50)).toBe(1);
-    expect(markShare(PACED.sentenced, 1)).toBeCloseTo(140 / 550, 12);
+    expect(markShare(PACED.sentenced, 1)).toBeCloseTo(70 / 144, 12);
     expect(markShare(PACED.sentenced, 4)).toBe(1);
   });
 
@@ -155,9 +155,9 @@ describe("markDps and markShare", () => {
 });
 
 describe("chillMultiplier", () => {
-  it("is Frost's 1 - slow = 0.4, sheet and paced alike", () => {
-    expect(chillMultiplier(SHEET.frost)).toBeCloseTo(0.4, 12);
-    expect(chillMultiplier(PACED.frost)).toBeCloseTo(0.4, 12);
+  it("is Frost's 1 - slow = 0.48, sheet and paced alike", () => {
+    expect(chillMultiplier(SHEET.frost)).toBeCloseTo(0.48, 12);
+    expect(chillMultiplier(PACED.frost)).toBeCloseTo(0.48, 12);
   });
 
   it.each(FACTION_IDS.filter((f) => f !== "frost"))("is 1 (no chill) for %s", (f) => {

@@ -2,7 +2,7 @@
 // Both carry the same fighter fields in their synced state (x, y, facing, hp, faction, weapon slots, readyAt, ...)
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
-  attackInterval, ELITE_K, FACTIONS, isFactionId, isRegionalKind, isWeaponId, MOB_K, mobFaction, pacedFaction, scaleWindup, weaponTimings,
+  attackInterval, ELITE_K, FACTIONS, FISTS, isFactionId, isRegionalKind, isWeaponId, MOB_K, mobFaction, pacedFaction, scaleWindup, weaponTimings,
   type FactionId, type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
@@ -63,19 +63,37 @@ export function defenseOf(s: FighterState): { armor: number; shield: number } {
   return { armor: f.armor + bonus.armor, shield: f.shield + bonus.shield };
 }
 
+/**
+ * The weapon a slot fights with: the item in it, or fists for an empty slot (a hand is never weaponless: a run starts with
+ * both slots empty). Null only for a slot that is not 0 or 1. Use `slotItem` for what is physically in the slot.
+ */
 export function slotWeapon(s: FighterState, slot: number): WeaponId | null {
-  const w = slot === 0 ? s.weapon0 : slot === 1 ? s.weapon1 : "";
+  if (slot !== 0 && slot !== 1) return null;
+  const w = slot === 0 ? s.weapon0 : s.weapon1;
+  if (w === "") return FISTS;
   return isWeaponId(w) ? w : null;
 }
 
-/** The weapon in hand, or null (an empty slot, or a fighter with no weapons). */
+/** The loop weapon actually carried in a slot, or null for an empty slot. Fists are never an item (a literal "fists" counts as empty). */
+export function slotItem(s: FighterState, slot: number): WeaponId | null {
+  const w = slotWeapon(s, slot);
+  return w === null || w === FISTS ? null : w;
+}
+
+/** The weapon in hand: fists when the hand is empty. Null only for a fighter whose slot is out of range. */
 export function activeWeapon(s: FighterState): WeaponId | null {
   return slotWeapon(s, s.slot);
 }
 
+/** Nothing carried in the hand's slot: the fighter fights unarmed. */
+export function handIsEmpty(s: FighterState): boolean {
+  return slotItem(s, s.slot) === null;
+}
+
 export function setSlot(s: FighterState, slot: 0 | 1, w: WeaponId | null): void {
-  if (slot === 0) s.weapon0 = w ?? "";
-  else s.weapon1 = w ?? "";
+  const item = w === null || w === FISTS ? "" : w; // fists are what an empty slot fights with, never what it holds
+  if (slot === 0) s.weapon0 = item;
+  else s.weapon1 = item;
 }
 
 /** Rhythm of `w` in this fighter's hands (the asMult and windupMult mirrors applied), or null without a faction. */

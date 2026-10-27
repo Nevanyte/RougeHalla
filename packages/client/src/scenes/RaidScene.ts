@@ -312,6 +312,7 @@ export class RaidScene extends Phaser.Scene {
       },
       mobKind: (id) => this.room.state.mobs.get(id)?.kind,
       campLabel: (camp) => this.campLabel(camp),
+      campCentre: (camp) => this.campCentre(camp),
       chestPick: (chest, option) => this.chestPick(chest, option),
       projectileEnded: (id) => this.projectiles.finish(id),
       // At render time with the flash and the number, not on arrival (the render delay earlier): damageFlash judges the hit against max hp.
@@ -749,6 +750,12 @@ export class RaidScene extends Phaser.Scene {
   /** "Fire camp" / "Fire elite camp" for the clear line of camp `index` of the map. */
   private campLabel(index: number): string | undefined {
     return campLabel(this.mapView?.map.camps[index]);
+  }
+
+  /** Where camp `index` of the map is centred, for the camp-clear heal's ring (a practice camp has none on the map). */
+  private campCentre(index: number): { x: number; y: number } | undefined {
+    const camp = this.mapView?.map.camps[index];
+    return camp ? { x: camp.x, y: camp.y } : undefined;
   }
 
   /** The local player's own pick at a reward chest, as a line: what they took (at the rank they hold now), or a skip. */

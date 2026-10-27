@@ -203,10 +203,10 @@ describe("the training world (headless)", () => {
       }
     });
 
-    it.each(FACTION_IDS)("the player asking for %s holds its signature weapon and has its hp", (faction) => {
+    it.each(FACTION_IDS)("the player asking for %s starts on fists (the rack has the weapons) and has its hp", (faction) => {
       const p = me(trainingWorld(faction));
       expect(p).toMatchObject({
-        faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: SIGNATURE_WEAPONS[faction], weapon1: "", slot: 0,
+        faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: "", weapon1: "", slot: 0,
       });
     });
 
@@ -798,14 +798,13 @@ describe("the training room (live)", () => {
       await until(() => p.room.state.mobs.size === 2 && p.room.state.containers.size === world.state.containers.size, "the mobs and the rack to sync");
     });
 
-    it("gives the player the signature weapon and hp of the faction they asked for", async () => {
+    it("gives the player the hp of the faction they asked for and empty hands (fists)", async () => {
       const p = await startTraining(await claim(), { faction: "frost" });
       expect(serverPlayer(p)).toMatchObject({
-        faction: "frost", hp: FACTIONS.frost.hp, maxHp: FACTIONS.frost.hp, weapon0: SIGNATURE_WEAPONS.frost, weapon1: "", slot: 0,
+        faction: "frost", hp: FACTIONS.frost.hp, maxHp: FACTIONS.frost.hp, weapon0: "", weapon1: "", slot: 0,
       });
-      expect(SIGNATURE_WEAPONS.frost).toBe("shield");
       const seen = p.room.state.players.get(sessionOf(p))!;
-      expect([seen.faction, seen.weapon0, seen.maxHp]).toEqual(["frost", "shield", FACTIONS.frost.hp]);
+      expect([seen.faction, seen.weapon0, seen.weapon1, seen.maxHp]).toEqual(["frost", "", "", FACTIONS.frost.hp]);
     });
 
     it.each([
@@ -815,7 +814,7 @@ describe("the training room (live)", () => {
     ])("takes the server's default faction when asked for %s", async (_label, extra) => {
       const p = await startTraining(await claim(), extra);
       expect(serverPlayer(p)).toMatchObject({
-        faction: defaultFaction(0), weapon0: SIGNATURE_WEAPONS[defaultFaction(0)], hp: FACTIONS[defaultFaction(0)].hp,
+        faction: defaultFaction(0), weapon0: "", hp: FACTIONS[defaultFaction(0)].hp,
       });
     });
 
@@ -965,8 +964,9 @@ describe("the training room (live)", () => {
     it("a reflected arrow that downs the player puts them back on their feet at full health, with their weapons, and no result", async () => {
       const who = await claim();
       const before = snapshot(who);
-      const p = await startTraining(who, { faction: "sentenced" }); // the bow
+      const p = await startTraining(who, { faction: "sentenced" });
       expect(SIGNATURE_WEAPONS.sentenced).toBe("bow");
+      serverPlayer(p).weapon0 = SIGNATURE_WEAPONS.sentenced; // training starts on fists: the bow is taken from the rack in play
       const sid = sessionOf(p);
       const world = worldOf(p);
       const shield = mobIdNamed(p, "Shield dummy");
@@ -1457,6 +1457,7 @@ describe("the training room (live)", () => {
       const p = await startTraining(who, { faction: "sentenced" });
       const world = worldOf(p);
       const sp = serverPlayer(p);
+      sp.weapon0 = SIGNATURE_WEAPONS.sentenced; // training starts on fists: it carries a bow for the revive to keep
       const rt = world.players.get(sessionOf(p))!;
 
       // JavaScript runs this to the end before the next tick, so this really is between two ticks.

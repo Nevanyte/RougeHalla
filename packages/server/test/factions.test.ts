@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, engageRange, FACTION_IDS, FACTIONS,
-  HEAL_LOCKOUT_SECONDS,
+  HEAL_LOCKOUT_SECONDS, isRanged,
   lifestealFraction, mapFromTiles, markDps, markShare, mitigateShares, mulberry32, pacedFaction, PLAYER_SPEED,
-  SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, TARGET_FORGET_SECONDS,
+  SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_SHARES, SIGNATURE_WEAPONS, STAGGER_IMMUNITY_SECONDS, TARGET_FORGET_SECONDS,
   TICK_MS, TILE,
   TILE_FLOOR, TILE_WALL, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
@@ -28,7 +28,7 @@ const DT = TICK_MS / 1000;
 const BIG_HP = 1e6;
 const SIDE = 24;
 const CONFIG: SimConfig = {
-  minPlayers: 2, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9, suddenDeathSeconds: 1e9,
+  minPlayers: 2, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9, suddenDeathSeconds: 1e9, pvpRules: false,
 };
 const LINGER_TICKS = Math.round((ENGAGE_LINGER_SECONDS * 1000) / TICK_MS);
 const FORGET_TICKS = Math.round((TARGET_FORGET_SECONDS * 1000) / TICK_MS);
@@ -41,9 +41,16 @@ const CHILL = chillMultiplier(FACTIONS.frost);
 /** The factions as the sim fights them (DUEL_PACE applied). */
 const SPEC = Object.fromEntries(FACTION_IDS.map((id) => [id, pacedFaction(FACTIONS[id])])) as Record<FactionId, FactionSpec>;
 
-/** What a signature hit of `raw` by `owner` costs a `victim`: the owner's shares against the victim's armor and shield. */
-const mitigated = (owner: FactionId, victim: FactionId, raw: number): number =>
-  mitigateShares(raw, damageShares(SPEC[owner]), SPEC[victim]);
+/** The signature each damage-over-time faction runs (a Fire's other signature, the backlash, is named where it is meant). */
+const MAIN_SIG: Partial<Record<FactionId, SignatureKind>> = { fire: "burn", plague: "disease", sentenced: "mark" };
+
+/**
+ * What a signature hit of `raw` by `owner` costs a `victim`: the signature's own damage type (SIGNATURE_SHARES: burn and disease
+ * magic, backlash physical, the mark true) against the victim's armor and shield. A faction with no signature damage
+ * (Holy, Frost) deals its weapon shares.
+ */
+const mitigated = (owner: FactionId, victim: FactionId, raw: number, sig: SignatureKind | undefined = MAIN_SIG[owner]): number =>
+  mitigateShares(raw, sig ? SIGNATURE_SHARES[sig] : damageShares(SPEC[owner]), SPEC[victim]);
 
 // ---- harness ----
 
@@ -504,10 +511,15 @@ describe("reach and engagement", () => {
     }
   });
 
-  it("a fighter with an empty hand reaches nothing", () => {
-    const world = pair(null, 20);
-    tick(world);
-    expect(signatureState(world, "a")!.inReach).toBe(false);
+  it("a fighter with an empty hand reaches as far as fists do: engageRange(fists), the shortest of any weapon", () => {
+    const range = engageRange("fists");
+    expect(range).toBe(52);
+    for (const w of WEAPON_IDS.filter((x) => !isRanged(x))) expect(range, w).toBeLessThan(engageRange(w));
+    for (const [gap, reached] of [[range - 1, true], [range, true], [range + 1, false]] as const) {
+      const world = pair(null, gap);
+      tick(world);
+      expect(signatureState(world, "a")!.inReach, `gap ${gap}`).toBe(reached);
+    }
   });
 
   it("a wall between the two breaks the reach even inside the weapon's range", () => {
@@ -843,7 +855,7 @@ describe("Fire (dragonslayer)", () => {
     const hits = sigHits(log, "backlash");
     expect(hits).toHaveLength(1);
     const raw = backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, swung) * bonusMultiplier("axe");
-    expect(hits[0]!.amount).toBeCloseTo(mitigated("fire", "holy", raw), 9);
+    expect(hits[0]!.amount).toBeCloseTo(mitigated("fire", "holy", raw, "backlash"), 9);
     // Not damage over time: it is reported at once, as a hit fx on the swing.
     const fx = fxOf(log.events, "hit").filter((h) => h.sig === "backlash");
     expect(fx).toEqual([{ kind: "hit", id: "b", by: "a", amount: hits[0]!.amount, weapon: "axe", sig: "backlash" }]);
@@ -857,7 +869,7 @@ describe("Fire (dragonslayer)", () => {
     inj.swing("b", "axe");
     const busy = tick(world);
     const per = (w: WeaponId): number =>
-      mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, w) * bonusMultiplier("axe"));
+      mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, w) * bonusMultiplier("axe"), "backlash");
     expect(sigHits(busy, "backlash")).toHaveLength(3);
     expect(sigTotal(busy, "backlash")).toBeCloseTo(2 * per("sword") + per("axe"), 9);
     expect(sigHits(tick(world), "backlash")).toHaveLength(0);
@@ -903,7 +915,7 @@ describe("Fire (dragonslayer)", () => {
     expect(leftAt).toBeGreaterThan(0);
     expect(seen.map((s) => s.backlash.length)).toEqual(seen.map((_, i) => (i === leftAt ? 1 : 0)));
     const raw = backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, weapon) * bonusMultiplier("axe");
-    expect(seen[leftAt]!.backlash[0]!.amount).toBeCloseTo(mitigated("fire", "holy", raw), 9);
+    expect(seen[leftAt]!.backlash[0]!.amount).toBeCloseTo(mitigated("fire", "holy", raw, "backlash"), 9);
   });
 });
 
@@ -936,7 +948,7 @@ describe("Plague (rat king)", () => {
     const above = sigTotal(tick(duel(0.5)), "disease");
     const below = sigTotal(tick(duel(0.25)), "disease");
     const near = sigTotal(tick(duel(0.05)), "disease");
-    expect(below).toBeGreaterThan(above * 5);
+    expect(below).toBeGreaterThan(above * 3); // the compressed sheet's execute: 86 + 830 x 0.25 against 86 paced
     expect(near).toBeGreaterThan(below);
   });
 
@@ -1090,7 +1102,8 @@ describe("Sentenced (marked)", () => {
     expect(sigTotal(tick(world), "mark")).toBeCloseTo(expectedMark(DT), 9);
   });
 
-  it.each([[20, 25], [40, 50], [60, 75], [100, 100]])(
+  // The mark fills in 144 / 70 = 2.06 s paced (the compressed sheet), so 10, 21 and 31 ticks are a quarter, a half and three quarters.
+  it.each([[10, 25], [21, 50], [31, 75], [100, 100]])(
     "the target's brand after %d ticks in reach is %d percent: round(markShare x 20) x 5",
     (ticks, percent) => {
       const world = duel();
@@ -1106,7 +1119,7 @@ describe("Sentenced (marked)", () => {
     const world = duel([], {}, WALL);
     const inj = injector(world);
     inj.trade("s", "b");
-    run(world, 40);
+    run(world, 21);
     expect(P(world, "b").brand).toBe(50);
     inj.stopTrading();
     place(world, "b", ...HIDDEN);
@@ -1829,7 +1842,7 @@ describe("synced sig bits", () => {
     const world = makeWorld([
       { id: "a", faction: "fire", at: [300, 300] },
       { id: "s", faction: "sentenced", at: [260, 300] },
-      { id: "b", faction: "holy", at: [340, 300], weapon: null, hp: 100 },
+      { id: "b", faction: "holy", at: [340, 300], weapon: null, hp: 400 }, // enough to outlast 2 s of the compressed sheet's burn and mark
       { id: "c", faction: "plague", at: [700, 700], weapon: null },
     ]);
     noteContact(world, "a", "b");
@@ -1939,7 +1952,7 @@ describe("fairness", () => {
     // The injected hit carries physical shares, and Holy has no armor.
     const plain = mitigateShares(raw, { phys: 1, magic: 0, true: 0 }, SPEC.holy);
     const burn = mitigated("fire", "holy", burnDps(SPEC.fire) * bonusMultiplier("axe") * DT);
-    const backlash = mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, "sword") * bonusMultiplier("axe"));
+    const backlash = mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, "sword") * bonusMultiplier("axe"), "backlash");
     expect(log.landed).toHaveLength(3);
     expect(before - hpOf(world, "b")).toBeCloseTo(plain + burn + backlash, 6);
   });
@@ -2066,6 +2079,7 @@ describe("a stagger pauses damage over time", () => {
     axe: (i) => Math.min(0.25, 0.25 * i),
     wand: (i) => Math.min(0.4, 0.8 * i),
     bow: () => 0,
+    fists: (i) => Math.min(0.1, i),
   };
   const windupMs = (owner: FactionId, weapon: WeaponId): number => WINDUP[weapon](attackInterval(SPEC[owner], weapon)) * 1000;
 
@@ -2295,7 +2309,7 @@ describe("a stagger pauses damage over time", () => {
       const pauseMs = windupMs("fire", "axe");
       expect(pauseMs).toBeGreaterThanOrEqual(3 * TICK_MS); // room for paused ticks to show the difference
       const burn = perTick("fire", "axe");
-      const backlash = mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, "sword") * bonusMultiplier("axe"));
+      const backlash = mitigated("fire", "holy", backlashPerSwing(SPEC.fire.params.backlash!, SPEC.holy, "sword") * bonusMultiplier("axe"), "backlash");
       run(world, 3);
       const at = staggerTick(world, inj).now;
 
@@ -2347,14 +2361,16 @@ describe("a stagger pauses damage over time", () => {
       expect(signatureState(world, "x")!.dotPausedUntil).toBe(0);
     });
 
-    it("an empty hand can be staggered without a crash and pauses nothing, even once a weapon is picked up", () => {
+    it("an empty hand is fists: staggered, it pauses for the fists' windup like any melee weapon, and a weapon picked up after that deals full damage", () => {
       const world = duel("plague", null);
       const inj = injector(world);
       run(world, 2);
       const at = staggerTick(world, inj).now;
-      expect(signatureState(world, "p")!.dotPausedUntil).toBe(0);
+      expect(signatureState(world, "p")!.dotPausedUntil).toBeCloseTo(at + windupMs("plague", "fists"), 9);
       P(world, "p").weapon0 = "sword";
       const full = perTick("plague", "sword");
+      // The pause runs its windup out (two ticks); after that the sword's disease lands in full.
+      runUntil(world, at + windupMs("plague", "fists"));
       run(world, 3).forEach((log) => {
         expect(log.now).toBeGreaterThan(at);
         expect(sigTotal(log, "disease")).toBeCloseTo(full, 9);
@@ -2390,13 +2406,17 @@ describe("bonusMultiplier: every signature bonus follows the weapon in hand", ()
     expect(amountAt(owner, "bow")).toBeCloseTo((WEAPONS.bow.dpsMult / WEAPONS.sword.dpsMult) * amountAt(owner, "sword"), 9);
   });
 
-  it("an empty hand deals no signature damage at all", () => {
+  it("an empty hand is fists: its signature damage follows fists' dpsMult (0.60), like any weapon", () => {
+    for (const owner of OWNERS) {
+      expect(amountAt(owner, "fists")).toBeCloseTo(mitigated(owner, "holy", rawPerSecond(owner) * WEAPONS.fists.dpsMult * DT), 9);
+    }
+    // And an empty hand deals exactly what the fists do.
     const world = makeWorld([
       { id: "a", faction: "fire", at: [300, 300], weapon: null },
       { id: "b", faction: "holy", at: [340, 300], weapon: null },
     ]);
     noteContact(world, "a", "b");
-    for (const log of run(world, 5)) expect(log.landed).toHaveLength(0);
+    expect(sigTotal(run(world, TICKS).at(-1)!, "burn")).toBeCloseTo(amountAt("fire", "fists"), 9);
   });
 });
 

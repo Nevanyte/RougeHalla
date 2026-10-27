@@ -1,9 +1,9 @@
-// Counters tab: the two stacked counter loops (factions and weapons) as pentagrams, with the picked faction and its
-// signature weapon highlighted. The geometry and the matchups come from shared/wheel.ts, which reads them off BEATS /
+// Counters tab: the two stacked counter loops (factions and weapons) as pentagrams, with the picked faction highlighted
+// (a run starts on fists, which sit outside the weapon loop, so no weapon node is picked). The geometry and the matchups come from shared/wheel.ts, which reads them off BEATS /
 // WEAPON_BEATS, so a retuned loop redraws itself. Built as inline SVG (never innerHTML); the DOM is built once and a
 // new pick only changes classes and arrowheads.
 import {
-  FACTIONS, FACTION_WHEEL, SIGNATURE_WEAPONS, WEAPONS, WEAPON_WHEEL, isFactionId, wheelMatchups,
+  FACTIONS, FACTION_WHEEL, WEAPONS, WEAPON_WHEEL, isFactionId, wheelMatchups,
   type FactionId, type Wheel, type WeaponId,
 } from "@raid/shared";
 import { cssColor, el } from "../dom";
@@ -182,6 +182,14 @@ export interface WheelPick { faction: FactionId | null }
 
 const NO_PICK_HINT = "Pick a faction to see your matchups";
 
+/** The weapon ring's caption for a pick: every run starts on fists, which are not on the ring; a looted weapon joins it. */
+export function startingKitText(factionName: string): string[] {
+  return [
+    `${factionName} starts on fists: the fastest hands, the shortest reach, and a swing no shield stops.`,
+    "Fists sit outside this ring. Loot a weapon from a chest, the ground or a fallen mob and it takes its place on it.",
+  ];
+}
+
 function sentence(who: string, color: number, beats: readonly string[], losesTo: readonly string[]): HTMLElement {
   const p = el("p", "cw-sentence");
   const name = el("span", "cw-who", who);
@@ -224,18 +232,17 @@ export class CounterWheel implements HubPanel {
   /** Nothing here depends on the profile. */
   render(): void {}
 
-  /** Highlights the picked faction and its signature weapon; `{ faction: null }` clears it. Updates the DOM in place. */
+  /** Highlights the picked faction (the weapon ring has no pick: a run starts on fists); `{ faction: null }` clears it. Updates the DOM in place. */
   setPick(pick: WheelPick): void {
     const faction = isFactionId(pick.faction) ? pick.faction : null;
     this.faction = faction;
-    const weapon = faction === null ? null : SIGNATURE_WEAPONS[faction];
     this.factions.apply(wheelHighlight(FACTION_WHEEL, faction));
-    this.weapons.apply(wheelHighlight(WEAPON_WHEEL, weapon));
+    this.weapons.apply(wheelHighlight(WEAPON_WHEEL, null));
 
     this.hint.hidden = faction !== null;
     this.factionCaption.hidden = faction === null;
-    this.weaponCaption.hidden = weapon === null;
-    if (faction === null || weapon === null) {
+    this.weaponCaption.hidden = faction === null;
+    if (faction === null) {
       this.factionCaption.replaceChildren();
       this.weaponCaption.replaceChildren();
       return;
@@ -244,11 +251,7 @@ export class CounterWheel implements HubPanel {
     this.factionCaption.replaceChildren(
       sentence(FACTIONS[faction].displayName, FACTIONS[faction].color, f.beats.map((id) => FACTIONS[id].displayName), f.losesTo.map((id) => FACTIONS[id].displayName)),
     );
-    const w = wheelMatchups(WEAPON_WHEEL, weapon);
-    this.weaponCaption.replaceChildren(
-      el("p", "cw-sub", `${FACTIONS[faction].displayName} starts with the ${WEAPONS[weapon].name}`),
-      sentence(WEAPONS[weapon].name, WEAPONS[weapon].color, w.beats.map((id) => WEAPONS[id].name), w.losesTo.map((id) => WEAPONS[id].name)),
-    );
+    this.weaponCaption.replaceChildren(...startingKitText(FACTIONS[faction].displayName).map((t) => el("p", "cw-sub", t)));
   }
 
   /** The faction last passed to `setPick`. */

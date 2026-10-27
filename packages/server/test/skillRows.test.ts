@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buffScale, damageShares, decodeFlat, decodeMult, diseaseDps, encodeFlat, encodeMult, EXECUTE_BAND, FACTIONS, HEAL_OVER_TIME_STEP_MS,
-  healOverTimeSpanMs, healOverTimeSteps, mapFromTiles, mitigateShares, mulberry32, pacedFaction, SIG_EXECUTE, skillRows, skillText, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  healOverTimeSpanMs, healOverTimeSteps, mapFromTiles, mitigateShares, mulberry32, pacedFaction, SIG_EXECUTE, SIGNATURE_WEAPONS, skillRows, skillText, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type Effect, type FactionId, type GameMap, type SkillId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -38,7 +38,7 @@ function openMap(): GameMap {
 
 function startRun(factions: FactionId[], opts: { signatures?: boolean } = {}): World {
   const world = createGameWorld({
-    config: { minPlayers: factions.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
+    config: { minPlayers: factions.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, pvpRules: false },
     random: mulberry32(6),
     map: openMap(),
   }, { signatures: opts.signatures ?? false });
@@ -302,6 +302,7 @@ describe("Second Wind's heal over time", () => {
 /** A Plague p0 (Pestilence at `rank`, or none) engaged with a Frost p1 at bow range, signatures on. */
 function plagueRig(withSkill: boolean, rank: 1 | 2 = 1): World {
   const w = startRun(["plague", "frost"], { signatures: true });
+  P(w, 0).weapon0 = SIGNATURE_WEAPONS.plague; // the bow reaches the signature from 100 u; a run's fists (52 u) would not
   if (withSkill) give(w, 0, "pestilence", rank);
   P(w, 1).x = P(w, 0).x + 100;
   P(w, 1).y = P(w, 0).y;

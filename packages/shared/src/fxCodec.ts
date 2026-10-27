@@ -45,6 +45,7 @@
 //   status   [id, ST, ms, by|null]                  (a status instance newly applied to `id`)
 //   campCleared [camp]                      (the camp's index in map.camps)
 //   chestTaken  [chest, by, option]         (chest: the reward container's id, a string; option -1 = a skip)
+//   campHeal [id, camp, amount]             (camp: its index in map.camps; amount hp x 10, like heal)
 // Kind 11 was `combo` (the kill combos, retired in roguelike R4a): never emitted and never reused; a client reading one
 // drops it (onDrop).
 // Adding a field to an FxEvent means adding it to its tuple here (and to the round-trip test).
@@ -73,9 +74,9 @@ function table<K extends string>(code: Readonly<Record<K, number>>): Table<K> {
 /** "combo" stays in the table only to hold its code (11) forever: nothing packs it, and unpacking it yields nothing. */
 const KIND = table<FxEvent["kind"] | "combo">({
   windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10, combo: 11,
-  victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19,
+  victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19, campHeal: 20,
 });
-const WEAPON = table<WeaponId>({ sword: 0, bow: 1, wand: 2, shield: 3, axe: 4 });
+const WEAPON = table<WeaponId>({ sword: 0, bow: 1, wand: 2, shield: 3, axe: 4, fists: 5 });
 const PROJECTILE = table<ProjectileKind>({ arrow: 0, ball: 1 });
 const END = table<ProjectileEnd>({ hit: 0, wall: 1, range: 2, reflected: 3, deleted: 4, destroyed: 5, cleared: 6, blocked: 7 });
 const SIG = table<SignatureKind>({ burn: 0, backlash: 1, disease: 2, mark: 3 });
@@ -200,6 +201,7 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
     case "status": return [KC.status, fx.id, STATUS.code[fx.status], enc(fx.ms, MS), fx.by ?? null];
     case "campCleared": return [KC.campCleared, Math.round(fx.camp) + 0];
     case "chestTaken": return [KC.chestTaken, fx.chest, fx.by, Math.round(fx.option) + 0];
+    case "campHeal": return [KC.campHeal, fx.id, Math.round(fx.camp) + 0, enc(fx.amount, AMOUNT)];
     default: {
       const unknown: never = fx;
       void unknown;
@@ -389,6 +391,12 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
       const chest = typeof tuple[1] === "string" ? tuple[1] : undefined, by = str(tuple[2], names), option = tuple[3];
       return chest !== undefined && by !== undefined && typeof option === "number" && Number.isInteger(option) && option >= -1
         ? { kind, chest, by, option }
+        : null;
+    }
+    case "campHeal": {
+      const id = str(tuple[1], names), camp = tuple[2], amount = dec(tuple[3], AMOUNT);
+      return id !== undefined && typeof camp === "number" && Number.isInteger(camp) && camp >= 0 && amount !== undefined
+        ? { kind, id, camp, amount }
         : null;
     }
     default:

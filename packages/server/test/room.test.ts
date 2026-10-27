@@ -193,9 +193,9 @@ const worldOf = (p: Player) => serverRoom(p).world;
 const sessionOf = (p: Player) => p.room.sessionId;
 const serverPlayer = (p: Player) => worldOf(p).state.players.get(sessionOf(p))!;
 
-/** What a player starts a run with, given the order they joined their room in (0 = the first): nothing is brought in. */
+/** What a player starts a run with, given the order they joined their room in (0 = the first): nothing is brought in, so both slots are empty (fists). */
 function kitOf(faction: FactionId) {
-  return { faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: SIGNATURE_WEAPONS[faction], weapon1: "", slot: 0 };
+  return { faction, hp: FACTIONS[faction].hp, maxHp: FACTIONS[faction].hp, weapon0: "", weapon1: "", slot: 0 };
 }
 
 function starterKit(joinIndex: number) {
@@ -516,13 +516,13 @@ describe("matchmaking cost", () => {
 });
 
 describe("joining", () => {
-  it("takes credentials only: the player starts with their faction's hp and signature weapon, picked by the server, and the store is untouched", async () => {
+  it("takes credentials only: the player starts with their faction's hp and empty hands (fists), picked by the server, and the store is untouched", async () => {
     const who = await claim();
     const before = record(who);
     const p = await createRoom(who);
 
     expect(carried(p)).toEqual(starterKit(0));
-    await until(() => syncedLoadout(p).weapon0 !== "", "the weapon slots to sync");
+    await until(() => syncedLoadout(p).faction !== "", "the player to sync");
     expect(syncedLoadout(p)).toEqual(starterKit(0));
     expect(serverPlayer(p).name).toBe(who.name);
     expect(serverPlayer(p).status).toBe("lobby");
@@ -531,7 +531,7 @@ describe("joining", () => {
     expect(record(who)).toEqual(before);
   });
 
-  it("the faction picked in the hub is taken, with its signature weapon; a loadout or hp in the options is ignored", async () => {
+  it("the faction picked in the hub is taken, still on fists; a loadout or hp in the options is ignored", async () => {
     const who = await claim();
     const options = { ...joinOptions(who), loadout: ["gpu", "gold", "rifle"], faction: "holy", weapon0: "sword", hp: 99_999 };
     const p = track(who, await client.create<RaidState>(ROOM_NAME, options));
@@ -742,8 +742,9 @@ describe("a run", () => {
     // The swing and the death reach every client as fx, naming the fighters by session id.
     await until(() => [a!, b!, c!].every((p) => p.fx.some((f) => f.kind === "death")), "the death fx on every client");
     for (const p of [a!, b!, c!]) {
-      expect(p.fx.find((f) => f.kind === "windup"), p.who.name).toMatchObject({ by: sessionOf(a!), weapon: SIGNATURE_WEAPONS.fire });
-      expect(p.fx.find((f) => f.kind === "hit"), p.who.name).toMatchObject({ id: sessionOf(b!), by: sessionOf(a!), weapon: SIGNATURE_WEAPONS.fire });
+      // Nobody holds a weapon yet: the killer swings its fists.
+      expect(p.fx.find((f) => f.kind === "windup"), p.who.name).toMatchObject({ by: sessionOf(a!), weapon: "fists" });
+      expect(p.fx.find((f) => f.kind === "hit"), p.who.name).toMatchObject({ id: sessionOf(b!), by: sessionOf(a!), weapon: "fists" });
       expect(p.fx.find((f) => f.kind === "death"), p.who.name).toMatchObject({ id: sessionOf(b!), by: sessionOf(a!) });
     }
     expect(b!.results[0]).toMatchObject({
@@ -772,7 +773,7 @@ describe("a run", () => {
     expectBanked(B, 0, { runs: 1, deaths: 1 }); // leaving a lobby records nothing
   });
 
-  it("pickup and swap reach the sim: a chest's weapon fills the free slot, a swap puts it in hand, and the client sees both", async () => {
+  it("pickup and swap reach the sim: a chest's weapon arms the empty hand, a swap puts the empty slot (fists) in hand, and the client sees both", async () => {
     const [A, B] = [await claim(), await claim()];
     const [a] = await startRun([A, B]);
     const world = worldOf(a!);
@@ -783,8 +784,8 @@ describe("a run", () => {
     await sleep(120);
 
     a!.room.send("pickup", { containerId: chest.id });
-    await until(() => syncedLoadout(a!).weapon1 === weapon, "the chest's weapon in the second slot, on the client");
-    expect(syncedLoadout(a!)).toEqual({ ...starterKit(0), weapon1: weapon }); // the weapon in hand did not change
+    await until(() => syncedLoadout(a!).weapon0 === weapon, "the chest's weapon in the hand, on the client");
+    expect(syncedLoadout(a!)).toEqual({ ...starterKit(0), weapon0: weapon }); // the hand was empty (fists): it takes the weapon up
     expect(chest.items.length).toBe(0); // the chest stays, opened
 
     a!.room.send("swap", {});
@@ -794,7 +795,7 @@ describe("a run", () => {
     a!.room.send("swap", { slot: 2 }); // not a slot: refused by the parser, not an error
     a!.room.send("pickup", { containerId: "no-such-container" });
     await sleep(150);
-    expect(syncedLoadout(a!)).toEqual({ ...starterKit(0), weapon1: weapon });
+    expect(syncedLoadout(a!)).toEqual({ ...starterKit(0), weapon0: weapon });
     expect(a!.left).toBe(false);
   });
 
@@ -852,7 +853,7 @@ describe("a run", () => {
     expectBanked(C, 0, { runs: 1, deaths: 1 });
     expect(sum([A, B, C].map((who) => record(who).gv))).toBe(2 * GV_KILL + GV_WIN); // the ledger balances
     expect(recorded.mock.calls.map(([name]) => name).sort()).toEqual([A.name, B.name, C.name]); // one record per player
-    expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 2, gv: 2 * GV_KILL + GV_WIN, bounty: 0, weapon: expect.any(String), winQualified: true });
+    expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 2, gv: 2 * GV_KILL + GV_WIN, bounty: 0, winQualified: true });
     expect(banked).not.toHaveBeenCalled(); // bankGv is for voided runs only
     expect([A, B, C].some(isActive)).toBe(false);
     expect((await api(A.name, A.token)).body.profile).toMatchObject({ gv: 2 * GV_KILL + GV_WIN, stats: { runs: 1, wins: 1, kills: 2 } });
@@ -936,7 +937,7 @@ describe("a run", () => {
         gv: { kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: GV_KILL }, winBonusWithheld: true,
       });
       expect(b!.results[0]).toMatchObject({ outcome: "died", place: 2, gv: { total: 0 }, winBonusWithheld: false });
-      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL, bounty: 0, weapon: expect.any(String), winQualified: false });
+      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL, bounty: 0, winQualified: false });
       expectBanked(A, GV_KILL, { runs: 1, wins: 1, kills: 1 }); // the win counts, the bonus does not
       expectBanked(B, 0, { runs: 1, deaths: 1 });
       expect(worldOf(a!).state.winner).toBe(A.name);
@@ -955,7 +956,7 @@ describe("a run", () => {
         outcome: "won", profile: A.name, kills: 1, place: 1, players: 3,
         gv: { kills: GV_KILL, win: 0, total: GV_KILL }, winBonusWithheld: true,
       });
-      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL, bounty: 0, weapon: expect.any(String), winQualified: false });
+      expect(recorded.mock.calls.find(([name]) => name === A.name)![1]).toEqual({ outcome: "won", kills: 1, gv: GV_KILL, bounty: 0, winQualified: false });
       expectBanked(A, GV_KILL, { runs: 1, wins: 1, kills: 1 });
       expectBanked(B, 0, { runs: 1, deaths: 1 });
       expectBanked(C, 0, { runs: 1, deaths: 1 }); // MIA
@@ -1054,8 +1055,9 @@ describe("a run", () => {
 
   it("an arrow reaches every client as a launch in an fxs batch and is never in a patch; its projEnd names it", async () => {
     const [A, B, C] = [await claim(), await claim(), await claim()];
-    const [a, b, c] = await startRun([A, B, C]); // b is the Sentenced: a bow
+    const [a, b, c] = await startRun([A, B, C]); // b is the Sentenced: given a bow (a run starts on fists)
     const world = worldOf(b!);
+    serverPlayer(b!).weapon0 = SIGNATURE_WEAPONS.sentenced;
     expect(serverPlayer(b!).weapon0).toBe("bow");
     // An open line from the duel spot, so the arrow flies a few ticks before it stops.
     const at = duelSpot(world, [sessionOf(b!)]);

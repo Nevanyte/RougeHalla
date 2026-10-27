@@ -14,8 +14,9 @@ import { fullSetups } from "./matrix";
 
 const USAGE = `Usage: harness:factions [--mode trades|full|policy] [--nmax 12] [--sub 1] [--ref path.json | --python] [--json out.json]
 
-Runs the faction cycle through the real sim: every designed edge with the same weapon on both sides (10 x 5 mirror
-cells) and with both on their signature weapons (10 openings).
+Runs the faction cycle through the real sim: every designed edge with the same weapon on both sides (10 x 6 mirror
+cells: the five loop weapons and fists) and with both on their signature weapons (10 openings). The PvP factor is off
+(the cycle at the design pace, as realtime_paced.py models it).
 
   --mode trades  every swing that lands and every projectile that leaves hits the other fighter in that same tick, so
                  a duel is the faction rules alone; comparable with testing/realtime_paced.py (default)
@@ -31,8 +32,8 @@ cells) and with both on their signature weapons (10 openings).
 
 Report only: exits 0 unless the arguments are invalid or the run throws.`;
 
-/** The order of realtime.py's WEAPONS (and COUNTER_REVIEW.md's columns), not shared's WEAPON_IDS. */
-const MIRROR_WEAPONS: readonly WeaponId[] = ["sword", "axe", "bow", "wand", "shield"];
+/** The order of realtime.py's WEAPONS (and COUNTER_REVIEW.md's columns, then the empty hand), not shared's WEAPON_IDS. */
+const MIRROR_WEAPONS: readonly WeaponId[] = ["sword", "axe", "bow", "wand", "shield", "fists"];
 /** "Same hp" in the comparison; realtime_paced.py rounds the fractions to 6 decimals, so exact agreement shows ~5e-7. */
 const HP_TOLERANCE = 1e-4;
 

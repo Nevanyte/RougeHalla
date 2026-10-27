@@ -12,6 +12,7 @@
 // `campCleared` fx, then the `campCleared` hook, where sim/chests.ts drops the camp's shared chest. `reward` stays "" (R7).
 import { rollCampTypes } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
+import { payCampHeal } from "./campHeal";
 import { emit, payLater, type World } from "./world";
 
 /** CampState.state values. */
@@ -65,7 +66,10 @@ export function campEngaged(world: World, campRef: number): void {
 export function campMobDied(world: World, campRef: number): boolean {
   if (!(campRef >= 1)) return false;
   const s = world.state.camps[campRef - 1];
-  if (!s) return false;
+  if (!s) {
+    if (world.config.training) practiceMobDied(world, campRef);
+    return false;
+  }
   if (s.alive > 0) s.alive--;
   if (s.alive > 0 || s.state === CAMP_CLEARED) return false;
   s.state = CAMP_CLEARED;
@@ -75,6 +79,16 @@ export function campMobDied(world: World, campRef: number): boolean {
     world.hooks.campCleared?.(world, camp);
   });
   return true;
+}
+
+/**
+ * A mob of a training room's practice camp died (sim/training.ts: a camp the console placed, which the map and `state.camps` do
+ * not have): when it was the camp's last, the camp-clear heal is paid (sim/campHeal.ts) after the pass. No `campCleared` fx or
+ * hook: there is no chest and no map camp to name.
+ */
+function practiceMobDied(world: World, campRef: number): void {
+  for (const m of world.state.mobs.values()) if (m.camp === campRef && m.status === "alive") return;
+  payLater(world, () => payCampHeal(world, campRef - 1));
 }
 
 /**

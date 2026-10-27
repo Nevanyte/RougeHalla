@@ -25,6 +25,15 @@ describe("heldWeapon", () => {
     expect(heldWeapon({ weapon0: "bow", weapon1: "", slot: 1 })).toBeNull();
     expect(heldWeapon({ weapon0: "spear", weapon1: "", slot: 0 })).toBeNull();
   });
+
+  it("reads an empty slot as fists for a fighter with a faction", () => {
+    expect(heldWeapon({ weapon0: "bow", weapon1: "", slot: 1, faction: "fire" })).toBe("fists");
+    expect(heldWeapon({ weapon0: "", weapon1: "", slot: 0, faction: "holy" })).toBe("fists");
+    expect(heldWeapon({ weapon0: "", weapon1: "axe", slot: 1, faction: "holy" })).toBe("axe");
+    // No faction (a training dummy): nothing is drawn. An unknown id is nothing either way.
+    expect(heldWeapon({ weapon0: "", weapon1: "", slot: 0, faction: "" })).toBeNull();
+    expect(heldWeapon({ weapon0: "spear", weapon1: "", slot: 0, faction: "fire" })).toBeNull();
+  });
 });
 
 describe("bow draw display", () => {

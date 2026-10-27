@@ -1,5 +1,6 @@
 // The faction-cycle harness (src/harness/factionCycle.ts, trades mode) against testing/realtime.py: every phase pair of
-// all 60 cells must give the same winner and the same hp fractions as the Python reference at the game's duel pace.
+// all 70 cells (ten edges x the five loop weapons and fists, plus the ten signature openings) must give the same winner and the
+// same hp fractions as the Python reference at the game's duel pace (the PvP factor off: the cycle at the design pace).
 //
 // fixtures/realtime-paced.json is that reference's output. Regenerate it from the repo root after changing realtime.py,
 // the faction numbers or DUEL_PACE (needs python3 with numpy):
@@ -45,8 +46,8 @@ const maxDiff = (xs: number[], ys: number[]): number => Math.max(0, ...xs.map((x
 describe("fixture", () => {
   it("was generated at the game's duel pace, with every cell and a full grid of pairs", () => {
     expect(fixture.k).toBe(DUEL_PACE);
-    expect(fixture.cells).toHaveLength(60);
-    expect(fixture.cells.filter((c) => c.kind === "mirror")).toHaveLength(50);
+    expect(fixture.cells).toHaveLength(70);
+    expect(fixture.cells.filter((c) => c.kind === "mirror")).toHaveLength(60);
     expect(fixture.cells.filter((c) => c.kind === "sig")).toHaveLength(10);
     for (const c of fixture.cells) expect(c.pairs.length).toBe(c.stats.P);
   });

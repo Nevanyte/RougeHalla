@@ -15,7 +15,18 @@
 // damage included (it is the one relative number); the status table is frozen during the pass (changes are queued with
 // payLater), so it reads the same for every entry too. The arena's own burn and a dealer that is not a fighter in the world
 // are never multiplied.
-import { isDot, mitigateShares } from "@raid/shared";
+//
+// The balance pass adds three things to the same place (BALANCE_CONTRACT 3.4, 4.6):
+//   The PvP factor. An entry between two players (both in state.players; never a mob, a dummy, a Wish or the arena) is also
+//     multiplied by pvpFactor(card power of its attacker), outside the damage rows' early return, and by the harness's
+//     duelScale. Pass-start state again (a build changes only in the inputs phase), so no order decides it. The mark's clock
+//     (sim/factions.ts) runs at the same factor, so equal-power fights keep their outcome and only their pace changes.
+//   A Race to 0 (G4). A holder's entries are multiplied by 1 / its hp fraction as the pass began (up to HP_RACE_CAP), as are
+//     the entries it takes. The extra damage it DEALS feeds no lifesteal: a landed hit carries the multiplier (`race`).
+//   The caps (G2, G3), after mitigation in applyVictim: no player-to-player hit (not a damage-over-time tick) takes more than
+//     PVP_HIT_CAP_SHARE of the victim's max hp, and one source's damage over time on one player no more than
+//     PVP_DOT_CAP_SHARE of it per second (a budget per tick). They bound what a stack of cards can do in one blow.
+import { cardPower, hpRaceMult, isDot, mitigateShares, PVP_DOT_CAP_SHARE, PVP_HIT_CAP_SHARE, pvpFactor, TICK_MS } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
 import { hurtMob } from "./mobLife";
@@ -119,21 +130,80 @@ function vsProbe(world: World, by: string, victim: string): VsProbe {
   };
 }
 
+/**
+ * The PvP multiplier of attacker `by` against `victim`: pvpFactor(its card power) times the harness's duelScale, and 1 unless
+ * both are players of the run (a mob, a dummy and a fighter that already left are never scaled). The mark's clock reads it too.
+ */
+export function pvpScale(world: World, by: string, victim: string): number {
+  const a = world.state.players.get(by);
+  if (!a || !world.state.players.has(victim)) return 1;
+  const f = world.config.pvpRules === false ? 1 : pvpFactor(cardPower(a.build));
+  const noise = world.combat.duelScale?.get(by);
+  return noise === undefined ? f : f * noise;
+}
+
+/** The ceiling of a Race to 0 holder's multiplier (G4), or 0 for a fighter that holds none (see CombatScratch.hpRace). */
+function hpRaceCapOf(world: World, id: string): number {
+  // TODO(cards, agent A3): the card's folded `mult` row `hpRace` (sim/mods.ts) is the production source; `combat.hpRace` stays the override.
+  return world.combat.hpRace?.get(id) ?? 0;
+}
+
+/** hp-fraction multiplier of the Race to 0 `id` holds (1 for everyone else), from the hp as the pass began. */
+function hpRaceOf(world: World, id: string): number {
+  const cap = hpRaceCapOf(world, id);
+  return cap > 1 ? hpRaceMult(hpFrac(world, id), cap) : 1;
+}
+
+/** What outgoingMults answers: every entry's multiplier, and the Race to 0 share of it that lifesteal must not feed on. */
+interface Outgoing {
+  mult: ReadonlyMap<LedgerEntry, number>;
+  /** The dealer's own Race to 0 multiplier inside `mult` (only entries where it is above 1). */
+  race: ReadonlyMap<LedgerEntry, number>;
+}
+
 /** Each entry's outgoing multiplier (1 for most, and for every ability entry), from the state before the pass; only entries that differ are listed. */
-function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Map<LedgerEntry, number> {
-  const out = new Map<LedgerEntry, number>();
+function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
+  const mult = new Map<LedgerEntry, number>();
+  const race = new Map<LedgerEntry, number>();
   for (const e of ledger) {
     // Ability power is flat (the Wishes' D12): a Wish's damage and its DoT chunks never read the caster's buffs.
     if (e.arena || e.ability !== undefined || !(e.scale > 0)) continue;
     const by = world.state.players.get(e.by.id) ?? world.state.mobs.get(e.by.id);
     if (!by) continue;
-    const m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim));
-    if (m !== 1) out.set(e, m);
+    const dealt = hpRaceOf(world, e.by.id);
+    const m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim))
+      * pvpScale(world, e.by.id, e.victim) * dealt * hpRaceOf(world, e.victim);
+    if (dealt !== 1) race.set(e, dealt);
+    if (m !== 1) mult.set(e, m);
   }
-  return out;
+  return { mult, race };
 }
 
-function applyVictim(world: World, id: string, entries: LedgerEntry[], out: ReadonlyMap<LedgerEntry, number>): void {
+/**
+ * The guards on player-to-player damage (G2, G3), applied to the amounts already mitigated: a hit (not a damage-over-time tick)
+ * is cut to PVP_HIT_CAP_SHARE of the victim's max hp, and all of one source's damage over time on this victim in the tick to
+ * its PVP_DOT_CAP_SHARE-per-second budget, shrinking each of its entries by the same factor. The world's damage (the arena,
+ * mobs) is never capped.
+ */
+function capPvp(world: World, maxHp: number, entries: readonly LedgerEntry[], amounts: number[]): void {
+  if (world.config.pvpRules === false) return;
+  const hitCap = PVP_HIT_CAP_SHARE * maxHp;
+  const dotBudget = PVP_DOT_CAP_SHARE * maxHp * (TICK_MS / 1000);
+  const dotSum = new Map<string, number>();
+  entries.forEach((e, i) => {
+    if (e.arena || !(amounts[i]! > 0) || !world.state.players.has(e.by.id)) return;
+    if (isDot(e.sig) || e.dot) dotSum.set(e.by.id, (dotSum.get(e.by.id) ?? 0) + amounts[i]!);
+    else if (amounts[i]! > hitCap) amounts[i] = hitCap;
+  });
+  if (dotSum.size === 0) return;
+  entries.forEach((e, i) => {
+    if (e.arena || !(isDot(e.sig) || e.dot)) return;
+    const sum = dotSum.get(e.by.id);
+    if (sum !== undefined && sum > dotBudget) amounts[i] = amounts[i]! * (dotBudget / sum);
+  });
+}
+
+function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outgoing): void {
   const c = combatant(world, id);
   if (!c || !standing(c)) return;
   const def = defenseOf(c.s);
@@ -141,9 +211,10 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Read
   // place a status changes the damage of every source. The arena's own burn is no one's hit.
   const amounts = entries.map((e) => {
     if (!(e.scale > 0)) return 0;
-    const raw = e.packet.raw * e.scale * (out.get(e) ?? 1) * (e.arena ? 1 : damageFactor(world, e.by.id, id));
+    const raw = e.packet.raw * e.scale * (out.mult.get(e) ?? 1) * (e.arena ? 1 : damageFactor(world, e.by.id, id));
     return mitigateShares(raw, e.packet, def);
   });
+  if (c.kind === "player") capPvp(world, c.s.maxHp, entries, amounts);
   // A player's hits reach the one way down in the tick's secret order (players by rank, then anyone else), so an exact
   // tie for the kill never follows join order or the order the hits were recorded in. (The hit fx stay in entry order.)
   const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
@@ -177,6 +248,8 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Read
     const landed: LandedHit = { victim: id, by: e.by.id, amount: amount * landedShare, weapon: e.weapon, sig: e.sig };
     if (e.ability !== undefined) landed.ability = e.ability;
     if (e.dot) landed.dot = true;
+    const race = out.race.get(e);
+    if (race !== undefined) landed.race = race;
     world.combat.landed.push(landed);
     // Damage over time is reported in chunks (sim/factions.ts, sim/abilities.ts).
     if (!(isDot(e.sig) || e.dot)) {
