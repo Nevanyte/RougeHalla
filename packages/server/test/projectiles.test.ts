@@ -1072,7 +1072,8 @@ describe("shield reflection", () => {
   });
 
   it("credits the kill to the shield holder", () => {
-    const w = arena([archer(archerAt, 0.5), holder(holderAt), idle()]);
+    // 0.2 hp: the reflected arrow carries ARROW_REFLECT_SHARE (0.15) of its damage, about 0.4 hp against Sentenced's magic resist.
+    const w = arena([archer(archerAt, 0.2), holder(holderAt), idle()]);
     loose(w, [{ id: "archer", a: 0 }]);
     expect(flyUntilEnd(w).end.reason).toBe("reflected");
     const rest = flyUntilEnd(w);
@@ -1124,7 +1125,7 @@ describe("shield reflection", () => {
   });
 
   it("reflects off a shield held by a mob; a kill by that arrow is credited to its name only", () => {
-    const w = arena([archer(archerAt, 0.5), idle(), idle("idle2", { x: 1200, y: 100 })]);
+    const w = arena([archer(archerAt, 0.2), idle(), idle("idle2", { x: 1200, y: 100 })]);
     const mob = addMob(w, { kind: "dummy", name: "Warden", at: holderAt, facing: Math.PI, weapon: "shield" });
     loose(w, [{ id: "archer", a: 0 }]);
     expect(flyUntilEnd(w).end.reason).toBe("reflected");

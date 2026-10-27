@@ -48,7 +48,7 @@ gives every shooter a windup mod the way shared/mods.ts scaleWindup applies it (
 mult below 1 shortens melee windups only, so a ranged windup is left exactly as it is and the output equals the default's. The
 flag stays as the check that nothing shortens the lever. The model's figures read no melee windup (the chaser's duel is in
 continuous time and starts when it arrives), so a chaser carrying Quickdraw cannot move a cell here: the real sim's KITE EDGES
-(`npm run harness -w @raid/server -- --kiting-only --chaser-skill quickdraw:1`) is the measure of that side.
+(`npm run harness -w @raid/server -- --kiting-only --chaser-cards quickdraw`) is the measure of that side.
 """
 import argparse
 import math

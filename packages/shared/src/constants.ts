@@ -205,10 +205,17 @@ export const OVERKILL_RADIUS = 200;
 export const TANK_ENGINE_CAP = 250;
 
 // Weapon specials (BALANCE_CONTRACT 3.3). The axe shreds armor, the wand splashes, the sword's and fists' on-hit effects hit harder.
-/** Axe: each hit takes this much armor off its target for AXE_SHRED_MS, stacking up to AXE_SHRED_CAP (the target's armor never goes below 0). */
-export const AXE_SHRED_ARMOR = 8;
+/**
+ * Axe: each hit takes this much armor off its target for AXE_SHRED_MS, stacking up to AXE_SHRED_CAP (the target's armor never goes
+ * below 0). A re-applied stack refreshes whole, so a slow axe keeps its full stack going: the CAP is the shred a fight actually
+ * sees. Small on purpose (acceptance pass, testing/TUNING_BALANCE.md): the shred is flat armor, so it is worth most against the
+ * factions with the least of it (at 8 up to 24 it strips all of Frost's 20 armor, +20% physical damage, and Frost > Holy of the
+ * axe-only faction set and the weapon harness's Sword > Axe Frost column flipped, as they do at any cap of 9 or more);
+ * 3 up to 6 keeps both (the dense probe of that cell holds 100%) and leaves the axe its status without a faction edge.
+ */
+export const AXE_SHRED_ARMOR = 3;
 export const AXE_SHRED_MS = 3000;
-export const AXE_SHRED_CAP = 24;
+export const AXE_SHRED_CAP = 6;
 /** Wand: the ball's impact also hits every other enemy within this many units for this share of the ball's damage. */
 export const WAND_SPLASH_SHARE = 0.3;
 export const WAND_SPLASH_RADIUS = 48;
@@ -226,10 +233,14 @@ export const PROJECTILE_SUBSTEP_MS = 10;
 export const BALL_ARROW_RADIUS = 28;
 /**
  * A ball that deletes an enemy arrow keeps this share of its damage (balance pass, BALANCE_CONTRACT 5.5): the wand's
- * "answer to the bow" costs it some of the ball, so Wand > Bow is a win and not a wall (84% -> 62% pooled). At 0.4 the true
- * mark kept going while the wand's balls were spent on arrows and Holy > Sentenced was lost outright. Provisional.
+ * "answer to the bow" costs it some of the ball, so Wand > Bow is a win and not a wall. Acceptance pass (A7, pooled over the 25
+ * faction pairs, minute 0 / minute 5): 0.7 gave 74 / 83 (the cards favour the wand against the bow), 0.6 gives 70 / 77, 0.5 65 / 70.
+ * The floor is the signature-weapon set (Holy's wand against Sentenced's bow, Plague's bow against Holy's wand), which this one
+ * number pulls two ways: at 0.5 Holy > Sentenced is lost (36%) at minute 0, at 0.6 it is 43% and Plague > Holy 73%, and at minute 5
+ * the two are 60% and 48%. At 0.4 the true mark kept going while the wand's balls were spent on arrows and Holy > Sentenced was
+ * lost outright. Provisional.
  */
-export const BALL_AFTER_ARROW = 0.7;
+export const BALL_AFTER_ARROW = 0.6;
 /** A raised shield covers hits arriving within this angle either side of where it faces (60 degrees). */
 export const SHIELD_HALF_ARC = Math.PI / 3;
 /**
@@ -239,17 +250,19 @@ export const SHIELD_HALF_ARC = Math.PI / 3;
  * used to block every bash). Tuned against the weapon-edge target (A7, testing/TUNING_BALANCE.md): the contract's first value was
  * 0.35 (Shield > Sword 80% pooled at minute 0, and the shield-only faction set lost Holy > Fire and Holy > Sentenced outright:
  * every share of a hit a shield stops is taken off the hit-only factions' damage and not off the damage-over-time factions').
- * At 0.10 Shield > Sword is 64%, every edge of the shield-only set holds (hp left 11-36%). Provisional.
+ * At 0.10 Shield > Sword is 64% at minute 0 and 80% at minute 5 (the armor cards of a shield's kit make it a wall against a
+ * sword); 0.07 gives 60% / 64% and every edge of the shield-only set still holds (hp left 11-36%). Provisional.
  */
-export const SHIELD_BLOCK_SHARE = 0.10;
+export const SHIELD_BLOCK_SHARE = 0.07;
 /** The riposte: this share of the BLOCKED part of a sword hit (SHIELD_BLOCK_SHARE of it) is dealt back to the swordsman. */
 export const RIPOSTE_SHARE = 0.5;
 /**
  * An arrow that meets a raised shield is reflected carrying only this share of its damage; the holder takes the rest
- * (1 - this) as a normal hit (balance pass, BALANCE_CONTRACT 5.5; 0.35 in the contract, 0.25 after the A7 sweep: Shield > Bow
- * 80% -> 73% pooled). Provisional.
+ * (1 - this) as a normal hit (balance pass, BALANCE_CONTRACT 5.5; 0.35 in the contract, 0.25 after the first A7 sweep, 0.15 after
+ * the acceptance pass: Shield > Bow 73 / 87 -> 56 / 74 pooled at minute 0 / minute 5, where the shield's armor cards double as a wall
+ * against arrows). Provisional.
  */
-export const ARROW_REFLECT_SHARE = 0.25;
+export const ARROW_REFLECT_SHARE = 0.15;
 /**
  * An arrow is reflected at most this many times; the next shield front just blocks it. Two shields face to face at
  * contact range would otherwise bounce one forever (each reflection starts inside the other's reach).
@@ -259,9 +272,12 @@ export const MAX_ARROW_REFLECTIONS = 2;
 export const SWORD_BALL_SCALE = 0.5;
 /**
  * After a stagger the target can't be staggered again for this long (0.5 s until the balance pass: a sword could lock down
- * a slow wand or axe; at 1.2 s Sword > Wand falls 85% -> 71% and Sword > Axe 71% -> 60% pooled). Provisional.
+ * a slow wand or axe; at 1.2 s Sword > Wand falls 85% -> 71% and Sword > Axe 71% -> 60% pooled). The acceptance pass found
+ * the edge a step and not a slope: at 1.2 s the sword's cards leave Sword > Axe under its floor at minute 5 (45%), at 1.0 s
+ * Sword > Wand jumps from 71% to 81% at minute 0; 1.1 s keeps Sword > Wand at 71 / 74 and Sword > Axe at 60 / 55 (with the
+ * scalings of weapons.ts). Provisional.
  */
-export const STAGGER_IMMUNITY_SECONDS = 1.2;
+export const STAGGER_IMMUNITY_SECONDS = 1.1;
 /** Swapping weapons cancels the current action and adds this to the shared attack cooldown. */
 export const SWAP_SECONDS = 0.25;
 /** A press this long before the cooldown ends still attacks the moment it does, even if released meanwhile. */

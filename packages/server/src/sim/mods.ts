@@ -453,6 +453,11 @@ export function healTakenMultOf(s: FighterState): number {
   return Math.max(0, 1 + statSumsOf(s).healTaken);
 }
 
+/** The share of every heal a fighter receives that also becomes a barrier (Second Skin 0.3; G6 holds the barrier to 25% of max hp and decays it), 0 for none. */
+export function healBarrierOf(s: FighterState): number {
+  return Math.max(0, statSumsOf(s).healBarrier);
+}
+
 /** The share of a slow's strength a fighter resists (Iron Will 0.4), 0..1. */
 export function slowResistOf(s: FighterState): number {
   return Math.min(1, Math.max(0, statSumsOf(s).slowResist));

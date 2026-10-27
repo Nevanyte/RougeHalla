@@ -36,6 +36,12 @@ export interface ProjectileShape { kind: "projectile"; projectile: ProjectileKin
  * base attack speed. `ad` and `ap` are the attack damage and ability power mirrors (adBonus, apBonus), `hp` the bonus max hp
  * (max hp over the faction's), `def` the bonus armor plus the bonus magic resist. The ad, hp and def parts are physical damage,
  * the ap part magic. A missing key is 0.
+ *
+ * Acceptance pass (A7 at minute 5, where every fighter holds the cards of its kit): the contract's 1.2 on the axe and the wand and
+ * 0.9 on the bow gave a card more value per point of dpsMult on the axe and the wand than on the bow, so the minute-0 loop drifted
+ * (Sword > Axe 45, Bow > Axe 49, Wand > Bow 86 pooled at minute 5). One point of the weapon's own stat is now one point per second
+ * on the sword, the axe, the bow and the wand (the axe keeps its bonus-hp share, the wand its AD share); the shield and the fists
+ * keep the contract's numbers. The weapons are told apart by their dpsMult, windups, reach and specials, not by what a card is worth.
  */
 export interface WeaponScaling {
   ad?: number;
@@ -84,12 +90,12 @@ export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
     shape: { kind: "arc", reach: 64, halfArc: Math.PI / 4 },
   },
   bow: {
-    id: "bow", name: "Bow", color: 0xa1887f, boost: 0.95, floor: 0.25, dpsMult: 0.8, scaling: { ad: 0.9 },
+    id: "bow", name: "Bow", color: 0xa1887f, boost: 0.95, floor: 0.25, dpsMult: 0.8, scaling: { ad: 1.0 },
     onHitPower: 1,
     shape: { kind: "projectile", projectile: "arrow", speed: 900, range: 240 },
   },
   wand: {
-    id: "wand", name: "Wand", color: 0xce93d8, boost: 0.65, floor: 0.3, dpsMult: 0.8, scaling: { ad: 0.3, ap: 1.2 },
+    id: "wand", name: "Wand", color: 0xce93d8, boost: 0.65, floor: 0.3, dpsMult: 0.8, scaling: { ad: 0.3, ap: 1.0 },
     onHitPower: 1, special: { kind: "splash", share: WAND_SPLASH_SHARE, radius: WAND_SPLASH_RADIUS },
     shape: { kind: "projectile", projectile: "ball", speed: 380, range: 220 },
   },
@@ -100,7 +106,7 @@ export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
     shape: { kind: "arc", reach: 44, halfArc: Math.PI / 3 },
   },
   axe: {
-    id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.77, scaling: { ad: 1.2, hp: 0.02 },
+    id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.77, scaling: { ad: 1.0, hp: 0.02 },
     onHitPower: 1, special: { kind: "shred", armor: AXE_SHRED_ARMOR, ms: AXE_SHRED_MS, cap: AXE_SHRED_CAP },
     shape: { kind: "arc", reach: 60, halfArc: Math.PI / 2 },
   },

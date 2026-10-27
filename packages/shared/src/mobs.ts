@@ -170,11 +170,6 @@ export function elitesOf(zone: FactionId): MobTypeDef[] {
   return MOB_TYPES.filter((t) => t.zone === zone && t.elite);
 }
 
-/** @deprecated The zone has two elites now: the first of `elitesOf(zone)`. Kept so code that predates the second elite compiles. */
-export function eliteTypeOf(zone: FactionId): MobTypeDef {
-  return elitesOf(zone)[0]!;
-}
-
 /** Undefined for an id that is not in the table. */
 export function mobTypeById(id: string): MobTypeDef | undefined {
   return MOB_TYPE_BY_ID.get(id);

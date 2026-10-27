@@ -564,7 +564,7 @@ describe("AD and AP on the mirrors", () => {
 describe("packetFor: the weapons' AD and AP scaling", () => {
   // The contract's table (BALANCE_CONTRACT 3.3), typed out here so a change to WEAPONS.scaling has to change it too.
   const TABLE: Record<WeaponId, { ad?: number; ap?: number; hp?: number; def?: number }> = {
-    sword: { ad: 1.0 }, axe: { ad: 1.2, hp: 0.02 }, bow: { ad: 0.9 }, wand: { ad: 0.3, ap: 1.2 }, shield: { ap: 0.3, def: 0.4 },
+    sword: { ad: 1.0 }, axe: { ad: 1.0, hp: 0.02 }, bow: { ad: 1.0 }, wand: { ad: 0.3, ap: 1.0 }, shield: { ap: 0.3, def: 0.4 },
     fists: { ad: 0.6, ap: 0.6 },
   };
 

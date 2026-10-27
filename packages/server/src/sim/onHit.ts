@@ -10,13 +10,16 @@
 //   the cards' onHit rows  Hemorrhage's bleed: `per` of the hit's physical damage, dealt as a physical damage-over-time over `ms`. Each
 //                          hit is its own bleed (a status instance of its own), so a hit every half second keeps about four going; a
 //                          slow or an anti-heal row adds `per` strength per hit up to `cap` (the accumulating `add` of addStatus).
+//                          The hit it reads is the one WITHOUT the attacker's `hit` mult (Boom's x2.5, Machine Gun's x0.5): a proc
+//                          is a property of the swing, not of how hard it lands, so Machine Gun's twice-as-many swings are twice
+//                          the bleeds (its whole point as a build-around) and Boom's few big ones are fewer.
 //   on-hit power           the sword 1.5 and fists 1.2 (WeaponSpec.onHitPower), 1 for the rest.
 // The times the effects apply is 1, plus one for Fists of Fury's `twiceUnarmed` flag while the hand is empty, plus one for Third Time's
 // the Charm's `thirdCharm` flag on every third hit in a row on one target (the streak memory, sim/cardState.ts, as the pass began).
 // A returned hit (a riposte, a reflected arrow, Fire's backlash, Spiked Shell's thorns) applies them too, for a holder with Eye for an
 // Eye; a hit of `derived` entry (a splash) applies none.
 import { WEAPONS, type DamageShares } from "@raid/shared";
-import { hasFlag, onHitsOf } from "./mods";
+import { hasFlag, hitMultOf, onHitsOf } from "./mods";
 import { streakBefore } from "./cardState";
 import { handIsEmpty, standing, type Combatant } from "./combatant";
 import { addStatus } from "./status";
@@ -54,7 +57,8 @@ export function runOnHit(world: World, attacker: Combatant, victim: Combatant, e
   for (const row of rows) {
     if (row.status === "dot") {
       // The hit as it was recorded, before the multipliers: the bleed is mitigated, and scaled by the attacker's rows and the PvP factor, when it ticks.
-      const raw = e.packet.raw * e.scale * e.packet.phys * row.per * k;
+      const hit = streak ? hitMultOf(attacker.s) : 1;
+      const raw = (e.packet.raw / (hit > 0 ? hit : 1)) * e.scale * e.packet.phys * row.per * k;
       if (!(raw > 0) || !(row.ms > 0)) continue;
       addStatus(world, victim, {
         kind: "dot", source, ms: row.ms, tag: `bleed:${world.state.tick}`, add: { per: raw / (row.ms / 1000), cap: Number.MAX_VALUE },

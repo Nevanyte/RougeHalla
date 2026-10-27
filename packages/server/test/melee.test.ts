@@ -705,8 +705,8 @@ describe("stagger immunity", () => {
   }
   const hitIt = (world: World): SimEvent[] => tick(world, [{ by: "p0", weapon: "sword", a: 0 }]);
 
-  it("lasts STAGGER_IMMUNITY_SECONDS (1.2 s): hits inside it still hurt but do not stagger again", () => {
-    expect(IMMUNITY_MS).toBe(1200);
+  it("lasts STAGGER_IMMUNITY_SECONDS (1.1 s): hits inside it still hurt but do not stagger again", () => {
+    expect(IMMUNITY_MS).toBe(1100);
     const world = casterWorld();
     const first = hitIt(world);
     const t0 = world.state.serverTime;

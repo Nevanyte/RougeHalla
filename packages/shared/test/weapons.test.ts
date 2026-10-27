@@ -213,14 +213,15 @@ describe("fists (what an empty hand fights with)", () => {
 });
 
 describe("the weapon specials (BALANCE_CONTRACT 3.3) and their tags", () => {
-  it("the axe shreds 8 armor per hit for 3 s up to 24, the wand splashes 30% within 48 u, nothing else has a special", () => {
+  it("the axe shreds 3 armor per hit for 3 s up to 6, the wand splashes 30% within 48 u, nothing else has a special", () => {
     expect(WEAPONS.axe.special).toEqual({ kind: "shred", armor: AXE_SHRED_ARMOR, ms: AXE_SHRED_MS, cap: AXE_SHRED_CAP });
-    expect([AXE_SHRED_ARMOR, AXE_SHRED_MS, AXE_SHRED_CAP]).toEqual([8, 3000, 24]);
+    expect([AXE_SHRED_ARMOR, AXE_SHRED_MS, AXE_SHRED_CAP]).toEqual([3, 3000, 6]);
     expect(WEAPONS.wand.special).toEqual({ kind: "splash", share: WAND_SPLASH_SHARE, radius: WAND_SPLASH_RADIUS });
     expect([WAND_SPLASH_SHARE, WAND_SPLASH_RADIUS]).toEqual([0.3, 48]);
     for (const w of ["sword", "bow", "shield", "fists"] as const) expect(WEAPONS[w].special, w).toBeUndefined();
-    // The cap is three hits' worth, and the shred status is capped by the same number in the status table.
-    expect(AXE_SHRED_CAP).toBe(3 * AXE_SHRED_ARMOR);
+    // The cap is two hits' worth (the acceptance pass: a larger stack flips Frost's cells of the axe-only set and the harness), and the
+    // shred status is capped by the same number in the status table.
+    expect(AXE_SHRED_CAP).toBe(2 * AXE_SHRED_ARMOR);
     expect(STATUS_RULES.shred).toMatchObject({ cap: AXE_SHRED_CAP, maxMs: AXE_SHRED_MS });
   });
 

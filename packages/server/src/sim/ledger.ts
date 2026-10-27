@@ -22,8 +22,10 @@
 //     duelScale. Pass-start state again (a build changes only in the inputs phase), so no order decides it. The mark's clock
 //     (sim/factions.ts) runs at the same factor, so equal-power fights keep their outcome and only their pace changes.
 //   A Race to 0 (G4). A holder's entries are multiplied by 1 / its hp fraction as the pass began (up to HP_RACE_CAP), as are
-//     the entries it takes. The extra damage it DEALS feeds no lifesteal: a landed hit carries the multiplier (`race`). The ceiling is
-//     the card's folded `hpRace` row (sim/mods.ts hpRaceCapOf); `combat.hpRace` is a test seam that names one for a fighter.
+//     the entries it takes. The extra damage is nobody's earnings: a landed hit carries the multiplier (`race`: the holder's own
+//     on what it deals, the holder's again on what its victim loses to it), so the lifesteal of whoever dealt the hit reads the
+//     damage without it. (An opponent's Holy used to heal on the Race holder's whole x2.5, so the card won 0% against Holy.) The
+//     ceiling is the card's folded `hpRace` row (sim/mods.ts hpRaceCapOf); `combat.hpRace` is a test seam that names one for a fighter.
 //   The cards' readers (BALANCE_CONTRACT 4.6). Each entry is named by outgoingKindOf (a weapon hit, a damage-over-time tick, returned
 //     damage), so G1's cap shares the row multiplier with the attacker's own `hit`, `dot` or `returned` mult; and the `vs` tests that need
 //     the world (slowed, elite, higherPower) are answered by sim/vsProbe.ts, beside the ones here.
@@ -187,7 +189,7 @@ function hpRaceOf(world: World, id: string): number {
 /** What outgoingMults answers: every entry's multiplier, and the Race to 0 share of it that lifesteal must not feed on. */
 interface Outgoing {
   mult: ReadonlyMap<LedgerEntry, number>;
-  /** The dealer's own Race to 0 multiplier inside `mult` (only entries where it is above 1). */
+  /** The Race to 0 multipliers inside `mult`, the dealer's and its victim's together (only entries where they are above 1). */
   race: ReadonlyMap<LedgerEntry, number>;
 }
 
@@ -203,15 +205,16 @@ function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
     // Already multiplied (returned damage, Overkill's splash): only the damage it takes at low health under a Race to 0 still applies.
     if (e.final) {
       const taken = hpRaceOf(world, e.victim);
-      if (taken !== 1) mult.set(e, taken);
+      if (taken !== 1) { mult.set(e, taken); race.set(e, taken); }
       continue;
     }
     const by = world.state.players.get(e.by.id) ?? world.state.mobs.get(e.by.id);
     if (!by) continue;
     const dealt = hpRaceOf(world, e.by.id);
+    const taken = hpRaceOf(world, e.victim);
     const kind = outgoingKindOf(e);
     let m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim), kind, e.packet.mult)
-      * pvpScale(world, e.by.id, e.victim) * dealt * hpRaceOf(world, e.victim);
+      * pvpScale(world, e.by.id, e.victim) * dealt * taken;
     // Gambler: a weapon hit rolls double or half (after G1's cap, which only the card rows and the baked multipliers share).
     if (kind === "hit" && hasFlag(by, "gambler")) {
       const key = `${e.by.id}|${e.victim}`;
@@ -219,7 +222,7 @@ function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
       placeOf.set(key, place + 1);
       m *= gamblerFactor(world, e, place);
     }
-    if (dealt !== 1) race.set(e, dealt);
+    if (dealt * taken !== 1) race.set(e, dealt * taken);
     if (m !== 1) mult.set(e, m);
   }
   return { mult, race };

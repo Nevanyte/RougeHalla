@@ -286,8 +286,9 @@ const RIGS: Record<string, Rig> = {
     const w = startRun(["fire", "frost"]);
     hold(w, 0, "machineGun");
     expect(P(w, 0).asMult).toBe(2000);
-    expect(hitMultOf(P(w, 0))).toBe(0.4);
-    expect(packetFor(C(w, 0), "axe").raw).toBeCloseTo(damagePerHit(paced("fire"), "axe", 2) * 0.4, 9);
+    expect(hitMultOf(P(w, 0))).toBe(quoted("machineGun", 1));
+    expect(quoted("machineGun", 1)).toBe(0.5);
+    expect(packetFor(C(w, 0), "axe").raw).toBeCloseTo(damagePerHit(paced("fire"), "axe", 2) * 0.5, 9);
   },
   glassCannon: () => {
     const w = startRun(["fire", "frost"]);

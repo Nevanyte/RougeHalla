@@ -1362,7 +1362,7 @@ describe("stagger", () => {
   });
 
   it("is ignored for STAGGER_IMMUNITY_SECONDS after a stagger, then works again", () => {
-    expect(STAGGER_IMMUNITY_SECONDS).toBe(1.2);
+    expect(STAGGER_IMMUNITY_SECONDS).toBe(1.1);
     const imm = STAGGER_IMMUNITY_SECONDS * 1000;
     const world = startRun();
     arm(world, 0, "frost", "sword");

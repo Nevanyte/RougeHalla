@@ -39,6 +39,7 @@
 //                   bounded by the trade window, ENGAGE_TRADE_SECONDS since the last hit or block).
 //   lifestealMult, lifestealDot   Bloodthirst doubles the capped rows, Siphon adds a share for damage over time (shared lifestealTotal, G5).
 //   healTaken       heal() multiplies every heal but lifesteal by healTakenMultOf (Wellspring, Vampiric Pact).
+//   healBarrier     heal() turns a share of every heal received (lifesteal too, overheal included) into a capped, decaying barrier (Second Skin, G6).
 //   slowResist      Iron Will: the chill's attack-rate cut and move slow are weaker by that share (resistSlow), as are slowMove and
 //                   slowAttack statuses (sim/status.ts) and the bog (sim/terrainEffects.ts).
 // With signatures off (createGameWorld's `signatures: false`) none of these run.
@@ -64,14 +65,14 @@ import {
   markDps, markShare, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS,
   type DamageShares, type FactionSpec, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
-import { grantBarrier } from "./buffs";
+import { grantBarrier, grantHealBarrier } from "./buffs";
 import { rollDotCrit } from "./cardState";
 import {
   activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { pvpScale, recordHit } from "./ledger";
 import {
-  apOf, dotMultOf, executeBandOf, hasFlag, healTakenMultOf, lifestealDotOf, lifestealMultOf, lifestealRowsOf, lingerMultOf, markRateOf,
+  apOf, dotMultOf, executeBandOf, hasFlag, healBarrierOf, healTakenMultOf, lifestealDotOf, lifestealMultOf, lifestealRowsOf, lingerMultOf, markRateOf,
   returnedMultOf, slowResistOf, triggersOf,
 } from "./mods";
 import { addStatus, healFactor } from "./status";
@@ -641,6 +642,11 @@ export function heal(
   // Healing received is stronger or weaker by the fighter's cards (Wellspring, Vampiric Pact); lifesteal is exempt.
   if (!opts.lifesteal) amount *= healTakenMultOf(c.s);
   if (!(amount > 0)) return 0;
+  // Second Skin (G6): a share of the heal received, overheal included, also stands as a barrier (capped and decaying: sim/buffs.ts).
+  if (c.kind === "player") {
+    const share = healBarrierOf(c.s);
+    if (share > 0) grantHealBarrier(c.s, c.rt, share * amount, now);
+  }
   const before = c.s.hp;
   c.s.hp = Math.min(c.s.maxHp, c.s.hp + amount);
   const gained = c.s.hp - before;

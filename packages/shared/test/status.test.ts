@@ -88,8 +88,8 @@ describe("STATUS_RULES", () => {
     expect(rule("haste")).toMatchObject({ combine: "max", cap: 0.5 });
     expect(rule("dot")).toMatchObject({ combine: "sum" });
     expect(rule("dot").cap).toBeUndefined();
-    // The shred's value is armor points (AXE_SHRED_CAP): three hits of the axe's AXE_SHRED_ARMOR.
-    expect(rule("shred")).toMatchObject({ combine: "sum", cap: 24, maxMs: 3000 });
+    // The shred's value is armor points (AXE_SHRED_CAP): two hits of the axe's AXE_SHRED_ARMOR.
+    expect(rule("shred")).toMatchObject({ combine: "sum", cap: 6, maxMs: 3000 });
     expect(rule("zoned").combine).toBe("product");
     for (const k of ["stun", "root", "silence", "invulnerable", "untargetable", "hidden", "deathFloor"] as const) {
       expect(rule(k).combine, k).toBe("any");

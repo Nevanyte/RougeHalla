@@ -8,7 +8,9 @@ writes what and in which order. Section 11 lists every best guess as an owner qu
 Built: the brain and both drivers, the lobby fill, the learning store, the tournament, and the Wishes, planning, chests and
 hazards modules (section 8). Not built: the quest, Q/E skill and relic modules, the penalty for hunting an opponent whose Wish
 is ready, and the write side of the `spawn|…`/`boon|…` learning keys (end of section 8). Measured results are in 9.3 and
-`docs/BOTS_TUNING.md`; each says which map and tree it was taken on (the 64x64 wedge map before R2, or the 96x96 zone maps).
+`docs/BOTS_TUNING.md`; each says which map and tree it was taken on (the 64x64 wedge map before R2, or the 96x96 zone maps), and none was taken after the balance pass.
+
+**Since the balance pass** (cards, fists, 30 mob types; BALANCE_CONTRACT section 9): a bot starts on fists like everyone, takes a mob's weapon straight into its empty hand (`tactics/fight.ts` `arm` swaps to the other slot if that holds a weapon, else fights on fists), never reads or counts buffs (there are none: its power is `cardPower(build)`, the sum of its cards' tiers) and picks cards at a camp's chest by `cardScore` (section 8; `PersonaParams.risk`, section 5). The planning score, the routes and the mob choices are still zone-level, a faction against the zone's faction: they do not weigh a mob type's role or weapon, or the fists start.
 
 Already built on this branch (commit `febac38`, CLAUDE.md "Bots in the sim"): `PlayerState.bot`, `addPlayer(..., { bot })`,
 no kill or bounty GV for a bot victim, `RunResult.kills` without bot kills, the human-only win bonus, `RaidRoom.settle`
@@ -204,8 +206,9 @@ counts a landing it saw as unavailable for `WISH_COOLDOWN_SECONDS` (300 s) for e
 8), and the 45 s Wish lock is not modelled (owner question 16).
 
 **Routes.** Easy picks the nearest of 3 camps by straight line. Hard compares 10 by walking distance, weighs the matchup
-share. (It used to prefer camps whose `REGION_BUFF` matched the stat it was stacking toward a 3-stack combo; the combos are gone with
-the per-mob-type buffs of R4a, and weighing which buff a camp's mobs give is for a later pass.)
+share. (It used to prefer camps whose `REGION_BUFF` matched the stat it was stacking toward a 3-stack combo; the combos went with
+the per-mob-type buffs of R4a and the buffs themselves with the balance pass. A camp's type, role and weapon are shown on the planning screen
+but not weighed here: the route and the planning score read only the zone's faction, `matchupShare`.)
 
 ### 2.8 Why Hard is beatable
 
@@ -282,14 +285,14 @@ and the percept carries those map-wide too (`extras.chests`); the cards inside a
 
 | Fx | Observed when | Masked |
 |---|---|---|
-| windup, swing, cancel, stagger, heal, buff | The subject (`by`/`id`) is on screen, or it is self | – |
+| windup, swing, cancel, stagger, heal | The subject (`by`/`id`) is on screen, or it is self | – |
 | hit, block | The victim is on screen, or the victim is self | `by` is null unless the attacker is visible |
 | projEnd | Its (x, y) is on screen | – |
 | death of a player | Always: the "X was killed" announcement (`FxView`) | `at` and `by` only when on screen |
 | death of a mob | On screen | – |
 | bounty, teleport, victory | Always: announcements | – |
 | toast, result, private (`plan`, `reveal`) | Addressed to this bot | Never another player's |
-| `ext` (Wishes' cast, castLand, castEnd, status) | Subject on screen or self; never from a hidden caster | – |
+| `ext` (Wishes' cast, castLand, castEnd, status; the camp-clear `campHeal`, whose subject is the healed player) | Subject on screen or self; never from a hidden caster | – |
 
 World fx are composed with the world delay. Toasts, results and private messages use the self delay.
 
@@ -321,7 +324,7 @@ World fx are composed with the world delay. Toasts, results and private messages
 | `self` | `SelfView` |
 | `playerDistance` | The nearest visible enemy, doubled when out of sight |
 | `players` | Visible enemies plus `whereabouts` younger than 5 s |
-| `mobs` | `MobMemory` as `MobLike`. `maxHp = mobFaction(region, elite).hp`, which is what `mobLife.ts` sets. `hp` = the last hp share seen × maxHp, so a mob that leaves the screen never "heals", which `MobTracker` would read as walking home |
+| `mobs` | `MobMemory` as `MobLike`. `maxHp = mobFaction(region, elite).hp` (`huntAdapter.ts`): the zone's plain scaled faction, which is no longer what `mobLife.ts` sets (`mobTypeFaction(region, elite, type)`: the type's role scales hp too), so a swarm mob's or a brute's absolute hp is off by the role's multiplier while its share, which the rest reads, is exact. `hp` = the last hp share seen × maxHp, so a mob that leaves the screen never "heals", which `MobTracker` would read as walking home |
 | `walk` | `PathService.walk` |
 | `attacking` | Tactics' last output |
 | `shotByPlayerAt` | `mem.self.lastHitByPlayerAt` |
@@ -428,6 +431,7 @@ Tactics returns `attacking` (the stall watch's "busy") and a `GoalStatus`.
 | Chase give-up | 4 s | 9 s | 5 s | 3 s |
 | Mob kill goal / player threat radius | 9 / 250 u | 3 / 400 u | 6 / 300 u | 7 / 320 u |
 | Elite appetite / coliseum aggression | .8 / .3 | .3 / 1 | .5 / .5 | .4 / .2 |
+| Card risk (what it gives up for power at a chest) | .3 | .85 | .6 | .15 |
 
 **Composition.** The tier is execution: perception, timing, accuracy, knowledge, route quality. The persona is preference:
 weights and thresholds.
@@ -436,6 +440,7 @@ weights and thresholds.
 - An Easy Hunter is aggressive and sloppy: it engages at −0.3 on odds it half-knows, and decides through a T = 0.25 softmax.
 - A Hard Cautious bot kites well and flees early.
 - The one coupling is the orb-walk: `TierParams.orbwalk.p × PersonaParams.kite`.
+- `PersonaParams.risk` is read by the chest module alone (section 8, `cardScore`): it says how much a persona will give up for power when it takes a card.
 
 **Assignment.** Personas are drawn by `personaMix`, uniform by default; tiers by `tierMix`, 30/45/25 by default. Both use
 the manager's seeded stream.
@@ -514,7 +519,7 @@ store starts empty: bots are never worth stopping the server for.
 **The sim.** `addPlayer(..., { bot: true })` sets `PlayerState.bot` and `PlayerRuntime.bot` (`addPlayer` in `step.ts`,
 `schema.ts`). In `arena.ts`:
 - `creditKill` pays a bot victim's killer no kill GV and no bounty GV, counts `botKills`, and still runs the bounty hook
-  (the buff transfer, when the victim carried a bounty);
+  (nothing consumes it since the balance pass: a kill pays GV, never a stat);
 - `updateBounty` reads `kills − botKills`, so a kill of a bot does not climb the killer's bounty ladder (owner question 1,
   adopted: a bounty cannot be built on bots and cashed by an alt);
 - `RunResult.kills` is `p.kills − botKills`, and `killedByBot` is set when a bot downed the victim;
@@ -664,14 +669,14 @@ kept for the tests; the module picks through the softmax.
 **Chests (built, `modules/chests.ts`).** `perception.ts` fills `extras.chests` for every reward chest in the state (the minimap draws each
 one wherever it stands, with its seconds left) and `extras.camps` from `RaidState.camps`. `options` is null, and `takenBy` empty, unless the
 bot is alive within `CHEST_RANGE − CHEST_PANEL_SLACK` of the chest with a clear line (the rule of `ui/chestMath.ts` `pickReward`); another
-player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the walk, `chooseOption` for the card):
+player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the walk, `chooseOption` and `cardScore` for the card):
 - **Walk.** A module goal `chests/{chest}` offered when the hunt would walk (reachable in the chest's remaining life at 85% of speed, only
   a chest within twelve tiles while fighting or with an awake mob within 220 u, none while fleeing or below `fleeHp`), scored at
   `0.9 × (0.25 + 0.75 × persona.loot)`, plus a crowd bonus (`× persona.thirdParty`) when another player stands within 3 pick ranges of the
   chest, plus up to 0.2 for nearness, capped at 0.84 (a committed fight, 0.85, is never left for one). The walk decision never reads a
-  card: from afar every chest is "a skill". Tiers that do not path (Easy) walk a straight line × 1.3. A walk that gains less than 24 u in
+  card: from afar every chest is "a card". Tiers that do not path (Easy) walk a straight line × 1.3. A walk that gains less than 24 u in
   3 s of walking is given up.
-- **Pick.** In reach, a `choose` for the best free card the bot can use, else a skip, goes out whatever the bot is doing, once per chest
+- **Pick.** In reach, a `choose` for the best free card by `cardScore` (below), else a skip, goes out whatever the bot is doing, once per chest
   (a card lost to a faster hand is asked for again on another, 3 at most, inside 4 s), timed as the humanizer times a reading reaction to
   the panel opening (Hard is quick, Easy slow). A bot that has walked out of reach by the click time clicks nothing. It waits out a stun or a
   cast, and the goal keeps it at the chest until the pick shows.
@@ -681,7 +686,8 @@ player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the
   its time left), so a chest first seen old is picked at once and a young one in reach is stood at and waited for. An old chest in reach
   comes before a nearer young one. The bot's own perception delay (`INTERP_DELAY_MS` plus the downlink) already puts its first look at a
   chest past the hold; the rule keeps that true whatever a tier's reaction time becomes.
-- It keeps its own record of the skills it took (the HUD's passives row) to leave a card it holds at rank 2.
+- **What it takes** (`chestHunt.ts` `cardScore`; BALANCE_CONTRACT section 9; `test/botChests.test.ts`). A base card of a stat it already owns scores +3 and a new stat +1.5, plus its tier and how well the stat suits the weapon in hand (AD on the sword, axe and bow, AP on a wand, armor and magic resist on a shield, fists a hybrid, Fleet little to a shooter). A conditional whose base it owns scores +4 plus its tier (without the base it scores −∞: the server would refuse it). An augment scores its tier plus 1 to 3 by the persona's `risk` (1 + 2 × `risk`), fitted to the weapon and faction by the card's tags (block cards on a shield, ramping cards only for Sentenced, Fists of Fury only while unarmed, Quickdraw on a melee weapon). A card that gives something up (`costsSomething`: a stat row that hurts, a multiplier under 1, a rule that costs) is taken only from `TRADEOFF_RISK` (0.5), and A Race to 0 and Glass Cannon, the two that can end their owner, only above `DANGER_RISK` (0.7): the Hunter (.85) takes the trade-offs, the Opportunist (.6) some of them, the Farmer (.3) and the Cautious (.15) none. A unique card it already holds scores −∞ too; ties go to the first card; with no usable card it skips. `bench/botPicks.ts` prints what each persona ends up taking.
+- What it holds is its own cards row (the percept's `build`, a quest's card included), merged with a record kept here of the cards it took at chests whose patch has not come yet, so it never asks for a card the server would refuse.
 
 **Hazards (built, `modules/hazards.ts`).** The bot reads the tile under a fighter's centre through the shared `surfaceAt`, the table the sim burns and slows by (a fighter's home faction is exempt), and:
 - **Steps off embers.** Standing still (250 ms) on ground that burns it, with nothing locked and no loot goal, it sends a `move` to the nearest clean tile within 6 tiles (the tile and its four neighbours are not bad, so a click's scatter stays on good ground; else any tile that is not bad) that it can walk to in a straight line. Timed as a step, priority `goal`; a new decision at most every 600 ms, the same order offered again while it is on its way (up to 1.5 s or 20 u from arrival) so a hold's `stop` does not undo it. A walk in progress is left to finish: it may be crossing the field.
@@ -811,6 +817,9 @@ W), so the same seed and worker count replay. `--learn off` makes every game a p
 its starting band, Hard is under 0.25 and Easy over 0.10. The last tuned run before that merge (`MOB_K` 0.45, the three-stat
 buffs) had Easy 10.9% / Normal 17.1% / Hard 22.0%.
 
+Every tournament figure in this section and in `docs/BOTS_TUNING.md` predates the balance pass (fists start, cards for buffs and passives, the PvP
+factor, 30 mob types): the tier ordering may have moved, and the bands are to be re-measured with `npm run tournament` before they are quoted.
+
 **Measured on the zone maps** (the 96x96 maps the game builds, after the follow-up; same lineup, 400 games, real timers;
 `docs/BOTS_TUNING.md`, "After the follow-up"): per-bot win share Hard / Normal / Easy 18.9 / 15.8 / 15.4% on seed 3 and
 17.9 / 16.3 / 15.9% on seed 4, mean placement 3.40 / 3.57 / 3.53 and 3.42 / 3.58 / 3.50. The win-share order holds on both seeds
@@ -887,8 +896,8 @@ Every best guess in the bots, one list, each with the default the code uses. All
 1. **Bot kills and the bounty ladder: ADOPTED.** Killing a bot pays no GV and does not climb the killer's bounty ladder
    (`updateBounty` reads `kills − botKills`), so an alt cannot cash a bounty built on bots. The alternative was to keep it
    for gameplay (bots chase bountied humans).
-2. **The buff transfer from a bot's death** (half of a bountied victim's buffs go to the killer) runs as for humans. The kill
-   combos no longer exist.
+2. **The bounty hook for a bot's death** still runs as for humans, and since the balance pass it moves nothing: a kill pays GV, never a
+   stat. (It used to move half of a bountied victim's buffs to the killer. The kill combos no longer exist either.)
 3. **Stats from runs with bots.** `RunResult.kills` excludes bot kills. A win against bots counts in `stats.wins` but is not
    `winQualified` (fewer than 3 human starters). Should such a win count at all? The results screen says why the bonus is
    missing (`RunResult.winBonusWhy`, 7.1).
@@ -940,12 +949,15 @@ Every best guess in the bots, one list, each with the default the code uses. All
 27. **The faction pick** is the manager's, not the brain's: a softmax (T 0.3) over the learned `faction|<persona>|<faction>`
     biases with a 5% uniform floor and at most 2 of a faction per lobby, recorded as a learning key by `BotManager.onResult`.
 28. **Chest visibility.** Every chest is known map-wide from the minimap (place and seconds left); its cards are read only within
-    88 u with a clear line, as the client's panel shows them. The walk never looks at a card: from afar every chest is "a skill".
+    88 u with a clear line, as the client's panel shows them. The walk never looks at a card: from afar every chest is "a card".
 29. **Chest value and picks.** A walk is worth 0.9 × (0.25 + 0.75 × loot weight), more with a crowd at the chest and nearness,
-    capped at 0.84 so a committed fight is never left for one. The best free card the bot can use is taken, else a skip; a card
+    capped at 0.84 so a committed fight is never left for one. The best free card by `cardScore` is taken, else a skip; a card
     lost to a faster hand is asked for again on another, 3 asks inside 4 s at most.
 30. **Jukes stay in** although they are a small net loss (`docs/BOTS_TUNING.md` 4): they are the documented exploit (2.8). The
     orb-walk almost never fires with the paced numbers; the code and the tables stay for a Fire or Frost bow.
 31. **Persona numbers** (section 5): the fight edge, flee and re-engage hp, kite factor, chase give-up, mob kill goal, threat
     radius, elite appetite, and how long a bot holds in the coliseum (12 to 48 s after the teleport, the bolder personas
     first).
+32. **Card picks and persona risk** (section 8, `chestHunt.ts` `cardScore`): the scores (+3 to deepen a stat it owns, +1.5 for a new one,
+    +4 for a conditional it can use, an augment by 1 + 2 × `risk`), the weapon fit, `TRADEOFF_RISK` 0.5, `DANGER_RISK` 0.7 and the personas'
+    `risk` (.3 / .85 / .6 / .15) are guesses, untuned. Only the Hunter takes A Race to 0 or Glass Cannon; should any bot?

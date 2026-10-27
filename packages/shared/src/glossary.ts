@@ -34,7 +34,7 @@ export const TAG_GLOSSARY: Readonly<Record<MechanicTag, GlossaryEntry>> = {
   },
   onHit: {
     term: "On-hit",
-    text: "An effect a weapon hit applies when it lands.",
+    text: "An effect a weapon hit applies when it lands. It is as strong for a small hit as for a big one: more, smaller hits apply it more often.",
   },
   returned: {
     term: "Returned",
@@ -50,7 +50,7 @@ export const TAG_GLOSSARY: Readonly<Record<MechanicTag, GlossaryEntry>> = {
   },
   block: {
     term: "Block",
-    text: "A shield stopping most of a hit that arrives in front of it.",
+    text: "A shield stopping part of a hit that arrives in front of it (the rest still lands, and a blocked hit never staggers).",
   },
   ramping: {
     term: "Ramping",
@@ -135,10 +135,10 @@ export const WEAPON_TAGS: readonly WeaponTagRow[] = [
     weapon: "axe", tags: ["physical", "onHit"],
     note: `Heavy swings that root their wielder for a moment. Each hit shreds ${AXE_SHRED_ARMOR} armor for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}.`,
   },
-  { weapon: "bow", tags: ["physical"], note: "Arrows fly straight and can be dodged." },
+  { weapon: "bow", tags: ["physical"], note: "Arrows fly straight and can be dodged. Its draw never shortens with attack speed, so speed buys it little." },
   {
     weapon: "wand", tags: ["magic", "area"],
-    note: `Balls can delete arrows and splash ${Math.round(WAND_SPLASH_SHARE * 100)}% of their damage onto other enemies within ${WAND_SPLASH_RADIUS} u; most of its damage scales with AP.`,
+    note: `Balls can delete arrows and splash ${Math.round(WAND_SPLASH_SHARE * 100)}% of their damage onto other enemies within ${WAND_SPLASH_RADIUS} u; most of its damage scales with AP. Its windup never shortens with attack speed.`,
   },
   { weapon: "shield", tags: ["block", "returned"], note: "Bashes, blocks in front, ripostes and reflects arrows." },
   { weapon: "fists", tags: ["onHit"], note: `The fastest hands; an empty weapon slot fights with them. Their on-hit effects land ${WEAPONS.fists.onHitPower}x as hard.` },

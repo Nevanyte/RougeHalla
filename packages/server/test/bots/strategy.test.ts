@@ -3,7 +3,7 @@
 // follow the tier, the learned bias is bounded, the pursuit-ring breaker (ported from botOrbit.test.ts) turns on someone else,
 // and mobHunt is fed from what the bot has seen. The scenes are plain data over an open-field path service.
 import { describe, expect, it } from "vitest";
-import type { Vec2 } from "@raid/shared";
+import { mobFaction, mobTypeFaction, type Vec2 } from "@raid/shared";
 import {
   createHuntAdapter, huntConfigFor, mobLikeOf, NO_MOB_IN_REACH, wantsMobs,
 } from "../../src/bots/brain/huntAdapter";
@@ -1068,6 +1068,21 @@ describe("the hunt adapter feeds mobHunt from the percept and the memory (docs/B
     expect(like.status).toBe("alive");
     expect(mobLikeOf(mobMem("m", 100, { alive: false }))!.status).toBe("dead");
     expect(mobLikeOf(mobMem("m", 100, { kind: "dummy" }))).toBeNull();
+  });
+
+  it("reads the type's real hp: a seen mob's name is its type's, so a brute's maxHp carries the role's hpMult; unseen or unknown, the zone's plain mob", () => {
+    const plain = mobFaction("fire", false).hp;
+    expect(mobLikeOf(mobMem("m", 100, { faction: "fire", kind: "mob" }))!.maxHp).toBeCloseTo(plain, 9);
+    const brute = mobLikeOf({ ...mobMem("m", 100, { faction: "fire", kind: "mob" }), name: "Magma Brute" })!;
+    expect(brute.maxHp).toBeCloseTo(mobTypeFaction("fire", false, "magmaBrute").hp, 9);
+    expect(brute.maxHp).toBeGreaterThan(plain);
+    const imp = mobLikeOf({ ...mobMem("m", 100, { faction: "fire", kind: "mob" }), name: "Ember Imp" })!;
+    expect(imp.maxHp).toBeLessThan(plain);
+    const elite = mobLikeOf({ ...mobMem("m", 100, { faction: "fire", kind: "elite" }), name: "Ash Drake" })!;
+    expect(elite.maxHp).toBeCloseTo(mobTypeFaction("fire", true, "ashDrake").hp, 9);
+    // a name of another kind or zone is no type of this mob
+    expect(mobLikeOf({ ...mobMem("m", 100, { faction: "fire", kind: "mob" }), name: "Ash Drake" })!.maxHp).toBeCloseTo(plain, 9);
+    expect(mobLikeOf({ ...mobMem("m", 100, { faction: "frost", kind: "mob" }), name: "Magma Brute" })!.maxHp).toBeCloseTo(mobFaction("frost", false).hp, 9);
   });
 
   it("picks a mob in reach, and says 'no mob in reach' when there is none", () => {

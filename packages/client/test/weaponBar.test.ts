@@ -65,12 +65,12 @@ describe("the weapon bar's scaling line and tooltip", () => {
     const { bar, slots, part } = setup();
     bar.update(me("wand", ""), 0, 0, null);
     expect(part(slots()[0]!, "wb-name").textContent).toBe("Wand");
-    expect(part(slots()[0]!, "wb-scale").textContent).toBe("AP 1.2 + AD 0.3");
+    expect(part(slots()[0]!, "wb-scale").textContent).toBe("AP 1.0 + AD 0.3");
     expect(part(slots()[1]!, "wb-name").textContent).toBe("Fists");
     expect(part(slots()[1]!, "wb-scale").textContent).toBe(weaponScalingText("fists"));
     bar.update(me("sword", "axe"), 0, 0, null);
     expect(part(slots()[0]!, "wb-scale").textContent).toBe("AD 1.0");
-    expect(part(slots()[1]!, "wb-scale").textContent).toBe("AD 1.2 + bonus HP 0.02");
+    expect(part(slots()[1]!, "wb-scale").textContent).toBe("AD 1.0 + bonus HP 0.02");
   });
 
   it("shows the tooltip of the slot under the pointer (its scaling, tags and special) and hides it off the slots", () => {
@@ -85,7 +85,7 @@ describe("the weapon bar's scaling line and tooltip", () => {
     move(420, 600);
     expect(tip.hidden).toBe(false);
     expect(tip.textContent).toBe(weaponTipText("wand"));
-    expect(tip.textContent.split("\n")[1]).toBe("Scales with AP 1.2 + AD 0.3");
+    expect(tip.textContent.split("\n")[1]).toBe("Scales with AP 1.0 + AD 0.3");
     move(560, 600);
     expect(tip.textContent).toBe(weaponTipText("shield"));
     move(520, 600); // between the slots

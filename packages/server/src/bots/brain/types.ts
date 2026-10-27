@@ -731,6 +731,8 @@ export interface MobMemory {
   readonly id: FighterId;
   kind: string;
   faction: FactionId | null;
+  /** Its display name as last seen on screen: its type's ("Ember Imp"), so the hunt knows the hp its role gives it. Absent for a mob only ever dotted on the minimap. */
+  name?: string;
   /** Where its dot first stood (its camp spot), and the map camp that spot belongs to. */
   home: Vec2 | null;
   campId: string | null;

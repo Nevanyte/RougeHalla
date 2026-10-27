@@ -244,8 +244,8 @@ const AUGMENTS: readonly CardDef[] = [
   }),
   augment({
     id: "machineGun", title: "Machine Gun", tier: 2, tags: ["onHit"], ready: "a",
-    text: "Your attack speed is doubled, but each hit deals 0.4x damage.",
-    effects: [{ k: "mult", key: "asPost", v: 2 }, { k: "mult", key: "hit", v: 0.4 }],
+    text: "Your attack speed is doubled, but each hit deals half damage. Your on-hit effects keep their full strength.",
+    effects: [{ k: "mult", key: "asPost", v: 2 }, { k: "mult", key: "hit", v: 0.5 }],
   }),
   augment({
     id: "glassCannon", title: "Glass Cannon", tier: 2, tags: [], ready: "a",
@@ -291,8 +291,10 @@ const AUGMENTS: readonly CardDef[] = [
   }),
   augment({
     id: "tankEngine", title: "Tank Engine", tier: 2, tags: ["block"], ready: "a",
-    text: "Permanently gain 1 max health for every 4 damage your blocks prevent (up to +250).",
-    effects: [{ k: "trigger", on: "block", arg: 0, do: { do: "fortify", per: 0.25, cap: TANK_ENGINE_CAP } }],
+    // 1 max health per point prevented: a block stops only SHIELD_BLOCK_SHARE of a hit (about 10 points of a late duel's bash, 2-3 of a camp
+    // mob's), so the original 1 per 4 needed ~1000 prevented damage for the +250: sixteen camps of tanking. At 1 it takes about four.
+    text: "Permanently gain 1 max health for every point of damage your blocks prevent (up to +250).",
+    effects: [{ k: "trigger", on: "block", arg: 0, do: { do: "fortify", per: 1, cap: TANK_ENGINE_CAP } }],
   }),
   augment({
     id: "pocketSand", title: "Pocket Sand", tier: 1, tags: ["block", "slow"], ready: "a",

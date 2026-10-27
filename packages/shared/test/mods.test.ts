@@ -285,9 +285,11 @@ describe("mirrorTimings: ranged windups never shorten below their unbuffed value
 describe("the weapons' AD and AP scaling (BALANCE_CONTRACT 3.3)", () => {
   it("is the contract's table, for the five weapons and fists", () => {
     expect(WEAPONS.sword.scaling).toEqual({ ad: 1.0 });
-    expect(WEAPONS.axe.scaling).toEqual({ ad: 1.2, hp: 0.02 });
-    expect(WEAPONS.bow.scaling).toEqual({ ad: 0.9 });
-    expect(WEAPONS.wand.scaling).toEqual({ ad: 0.3, ap: 1.2 });
+    // The acceptance pass moved the axe (1.2), the bow (0.9) and the wand's AP (1.2) to 1.0 so that a card is worth the same per
+    // point of dpsMult on every weapon and the weapon loop holds at minute 5 as it does at minute 0 (weapons.ts WeaponScaling).
+    expect(WEAPONS.axe.scaling).toEqual({ ad: 1.0, hp: 0.02 });
+    expect(WEAPONS.bow.scaling).toEqual({ ad: 1.0 });
+    expect(WEAPONS.wand.scaling).toEqual({ ad: 0.3, ap: 1.0 });
     expect(WEAPONS.shield.scaling).toEqual({ ap: 0.3, def: 0.4 });
     expect(WEAPONS.fists.scaling).toEqual({ ad: 0.6, ap: 0.6 });
     expect(ALL_WEAPON_IDS).toHaveLength(6);
@@ -300,14 +302,14 @@ describe("the weapons' AD and AP scaling (BALANCE_CONTRACT 3.3)", () => {
     const I = 0.6;
     // sword: AD 1.0 (physical)
     expect(scalingDamage("sword", { ...ZERO, ad: 40 }, 1, I)).toEqual({ phys: 40 * I, magic: 0 });
-    // bow: AD 0.9
-    expect(scalingDamage("bow", { ...ZERO, ad: 40 }, 1, I).phys).toBeCloseTo(0.9 * 40 * I, 12);
-    // wand: AD 0.3 physical and AP 1.2 magic
+    // bow: AD 1.0
+    expect(scalingDamage("bow", { ...ZERO, ad: 40 }, 1, I).phys).toBeCloseTo(1.0 * 40 * I, 12);
+    // wand: AD 0.3 physical and AP 1.0 magic
     const wand = scalingDamage("wand", { ...ZERO, ad: 10, ap: 50 }, 1, I);
     expect(wand.phys).toBeCloseTo(0.3 * 10 * I, 12);
-    expect(wand.magic).toBeCloseTo(1.2 * 50 * I, 12);
-    // axe: AD 1.2 and 2% of the bonus max hp, both physical
-    expect(scalingDamage("axe", { ...ZERO, ad: 20, bonusMaxHp: 300 }, 1, I).phys).toBeCloseTo((1.2 * 20 + 0.02 * 300) * I, 12);
+    expect(wand.magic).toBeCloseTo(1.0 * 50 * I, 12);
+    // axe: AD 1.0 and 2% of the bonus max hp, both physical
+    expect(scalingDamage("axe", { ...ZERO, ad: 20, bonusMaxHp: 300 }, 1, I).phys).toBeCloseTo((1.0 * 20 + 0.02 * 300) * I, 12);
     // shield: AP 0.3 magic, and 0.4 of the bonus armor plus magic resist, physical
     const shield = scalingDamage("shield", { ...ZERO, ap: 20, bonusDefense: 60 }, 1, I);
     expect(shield.magic).toBeCloseTo(0.3 * 20 * I, 12);

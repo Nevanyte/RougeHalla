@@ -255,7 +255,7 @@ describe("the Mechanics page (data)", () => {
   it("lists each weapon with what it scales with and what it does, from the weapon table", () => {
     const rows = by("weapons").entries;
     expect(rows.map((e) => e.term)).toEqual(WEAPON_TAGS.map((r) => WEAPONS[r.weapon].name));
-    expect(rows.find((e) => e.term === "Wand")!.text).toContain("Scales with AP 1.2 + AD 0.3");
+    expect(rows.find((e) => e.term === "Wand")!.text).toContain("Scales with AP 1.0 + AD 0.3");
     expect(rows.find((e) => e.term === "Sword")!.text).toContain("Scales with AD 1.0");
     expect(rows.find((e) => e.term === "Fists")!.text).toContain("Scales with AD 0.6 + AP 0.6");
     for (const row of WEAPON_TAGS) expect(rows.find((e) => e.term === WEAPONS[row.weapon].name)!.text).toContain(row.note);

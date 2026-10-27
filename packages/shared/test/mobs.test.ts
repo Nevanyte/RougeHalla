@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITIES, CARDS, duel, ELITE_K, eliteTypeOf, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
+  ABILITIES, CARDS, duel, ELITE_K, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
   mobTypeById, mobTypeFaction, mobTypeIn, mobTypesOf, mobTypeWeapon, normalTypesOf, QUEST_DEFS,
   mobFaction, mobName, mobWeapon, pacedFaction, REGION_WEAPONS, scaledFaction, SIGNATURE_WEAPONS, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type MobKind, type MobRole, type MobTypeDef, type MobTypeId, type WeaponId,
@@ -323,13 +323,12 @@ describe("MOB_TYPES (the roguelike roster: 30 types, six per zone, with roles an
     }
   });
 
-  it("looks types up: mobTypesOf, normalTypesOf, elitesOf, eliteTypeOf (the first elite), mobTypeById", () => {
+  it("looks types up: mobTypesOf, normalTypesOf, elitesOf, mobTypeById", () => {
     for (const zone of REGIONS) {
       expect(mobTypesOf(zone), zone).toEqual([...normalTypesOf(zone), ...elitesOf(zone)]);
       expect(normalTypesOf(zone), zone).toHaveLength(4);
       expect(elitesOf(zone), zone).toHaveLength(2);
       for (const t of mobTypesOf(zone)) expect(t.zone).toBe(zone);
-      expect(eliteTypeOf(zone), zone).toBe(elitesOf(zone)[0]);
     }
   });
 
@@ -358,7 +357,7 @@ describe("MOB_TYPES (the roguelike roster: 30 types, six per zone, with roles an
     expect(shared.mobTypesOf).toBe(mobTypesOf);
     expect(shared.normalTypesOf).toBe(normalTypesOf);
     expect(shared.elitesOf).toBe(elitesOf);
-    expect(shared.eliteTypeOf).toBe(eliteTypeOf);
+    expect((shared as Record<string, unknown>).eliteTypeOf, "the one-elite alias is gone").toBeUndefined();
     expect(shared.mobTypeFaction).toBe(mobTypeFaction);
   });
 

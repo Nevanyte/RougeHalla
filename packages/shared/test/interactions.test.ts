@@ -140,9 +140,9 @@ describe("stagger", () => {
   });
 
   it("grants STAGGER_IMMUNITY_SECONDS of immunity counted from the hit", () => {
-    expect(STAGGER_IMMUNITY_SECONDS).toBe(1.2);
-    expect(staggerImmuneUntil(0)).toBe(1200);
-    expect(staggerImmuneUntil(12_340)).toBe(13_540);
+    expect(STAGGER_IMMUNITY_SECONDS).toBe(1.1);
+    expect(staggerImmuneUntil(0)).toBe(1100);
+    expect(staggerImmuneUntil(12_340)).toBe(13_440);
   });
 });
 

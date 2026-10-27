@@ -12,7 +12,8 @@ import {
   LS_CAP, MAX_HP_FLOOR_SHARE, MOVE_BONUS_CAP, mitigateShares, OUTGOING_ROW_CAP, PLAYER_SPEED, PVP_DOT_CAP_SHARE, PVP_HIT_CAP_SHARE, pvpFactor,
   SIG_CHILLED, TICK_MS, cardDef, type Effect,
 } from "@raid/shared";
-import { syncMaxHp } from "../src/sim/buffs";
+import { grantBarrier, syncMaxHp } from "../src/sim/buffs";
+import { heal as healFor } from "../src/sim/factions";
 import { combatant } from "../src/sim/combatant";
 import { rollAttackCrit } from "../src/sim/cardState";
 import { applyLedger, recordHit } from "../src/sim/ledger";
@@ -354,6 +355,73 @@ describe("G6: the barrier", () => {
   });
 });
 
+describe("G6 wired: Second Skin's barrier, and every barrier a grant makes", () => {
+  const SKIN: Effect = { k: "stat", stat: "healBarrier", v: 0.3 };
+  const FIRE_HP = FACTIONS.fire.hp;
+  const arena = (cards: Effect[] = [SKIN]) => {
+    const w = pvpArena([{ id: "a", faction: "fire" }, { id: "b", faction: "holy" }], { pvpRules: false, signatures: true });
+    rows(w, "a", cards);
+    return w;
+  };
+  const heal = (w: ReturnType<typeof pvpArena>, id: string, amount: number, lifesteal = false): number =>
+    healFor(w, combatant(w, id)!, amount, lifesteal ? { lifesteal: true } : { ignoreLockout: true });
+
+  it("a heal also grants a barrier of 30% of it, the overheal of a full pool included, and a fighter without the card gets none", () => {
+    const w = arena();
+    expect(P(w, "a").hp).toBe(FIRE_HP);
+    heal(w, "a", 100); // at full hp: nothing heals, 30 becomes barrier
+    expect(P(w, "a").barrier).toBeCloseTo(30, 6);
+    P(w, "a").hp = FIRE_HP - 40;
+    heal(w, "a", 100); // 40 heals, the whole 100 counts
+    expect(P(w, "a").hp).toBe(FIRE_HP);
+    expect(P(w, "a").barrier).toBeCloseTo(60, 6);
+    heal(w, "b", 100);
+    expect(P(w, "b").barrier).toBe(0);
+  });
+
+  it("lifesteal feeds it too, and a heal that does nothing (Vampiric Pact's healTaken -1) grants none", () => {
+    const w = arena();
+    heal(w, "a", 50, true);
+    expect(P(w, "a").barrier).toBeCloseTo(15, 6);
+    rows(w, "a", [SKIN, { k: "stat", stat: "healTaken", v: -1 }]);
+    const before = P(w, "a").barrier;
+    heal(w, "a", 100);
+    expect(P(w, "a").barrier).toBe(before);
+    heal(w, "a", 50, true); // lifesteal is exempt from healTaken
+    expect(P(w, "a").barrier).toBeCloseTo(before + 15, 6);
+  });
+
+  it("holds at 25% of max hp however much is healed (G6), and a barrier a grant makes is held to it too", () => {
+    const w = arena();
+    for (let i = 0; i < 20; i++) heal(w, "a", 1000);
+    expect(P(w, "a").barrier).toBeCloseTo(barrierCap(FIRE_HP), 6);
+    const w2 = arena([]);
+    grantBarrier(P(w2, "a"), RT(w2, "a"), 10 * FIRE_HP, w2.state.serverTime + 5000);
+    expect(P(w2, "a").barrier).toBeCloseTo(barrierCap(FIRE_HP), 6);
+  });
+
+  it("decays 5% of max hp a second and is gone in five seconds from full", () => {
+    const w = arena();
+    heal(w, "a", 1000);
+    expect(P(w, "a").barrier).toBeCloseTo(barrierCap(FIRE_HP), 6);
+    for (let i = 0; i < 20; i++) tick(w);
+    expect(P(w, "a").barrier).toBeCloseTo(barrierCap(FIRE_HP) - BARRIER_DECAY_SHARE_PER_SECOND * FIRE_HP, 4);
+    for (let i = 0; i < 80; i++) tick(w);
+    expect(P(w, "a").barrier).toBe(0);
+    expect(RT(w, "a").boost?.decays).toBeFalsy();
+  });
+
+  it("a hit takes the barrier before hp, and a fresh heal tops it up again", () => {
+    const w = arena();
+    heal(w, "a", 100);
+    inStep(w, () => { hit(w, "a", "b", 20); });
+    expect(P(w, "a").hp).toBe(FIRE_HP);
+    expect(P(w, "a").barrier).toBeLessThan(30);
+    heal(w, "a", 100);
+    expect(P(w, "a").barrier).toBeGreaterThan(30);
+  });
+});
+
 describe("G7: bonus armor and magic resist", () => {
   it("count as +200 at the most: a victim with +500 armor takes what +200 lets through", () => {
     const w = pvpArena([{ id: "a", faction: "holy" }, { id: "v", faction: "fire" }], { pvpRules: false });
@@ -584,6 +652,22 @@ describe("G4 from a card: the `hpRace` mult row is the source, not only the test
     expect(raced.healed).toBeCloseTo(plain.healed, 6);
     // Race + a lifesteal row: the heal is still the share of the unraced damage
     expect(run([race(HP_RACE_CAP), { k: "stat", stat: "lifesteal", v: 0.1 }]).healed).toBeCloseTo(100 * lifestealShare(0.5, 0.1), 6);
+  });
+
+  it("feeds no lifesteal with the extra damage it TAKES either: a Holy attacker heals on the hit it would have dealt, not on the holder's x2.5", () => {
+    const run = (card: Effect[]): { healed: number; dealt: number } => {
+      const w = pvpArena([{ id: "h", faction: "holy", hpFrac: 0.5, weapon: "wand" }, { id: "v", faction: "fire", hpFrac: 0.4 }], { pvpRules: false, signatures: true });
+      rows(w, "v", card);
+      const before = P(w, "h").hp;
+      const foe = P(w, "v").hp;
+      inStep(w, () => { hit(w, "v", "h", 100); });
+      return { healed: P(w, "h").hp - before, dealt: foe - P(w, "v").hp };
+    };
+    const plain = run([]);
+    expect(plain.healed).toBeCloseTo(50, 6);
+    const raced = run([race(HP_RACE_CAP)]);
+    expect(raced.dealt / plain.dealt, "the holder really took x2.5").toBeCloseTo(2.5, 6);
+    expect(raced.healed).toBeCloseTo(plain.healed, 6);
   });
 
   it("the test seam still beats the row for the fighter it names", () => {

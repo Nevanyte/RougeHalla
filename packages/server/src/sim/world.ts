@@ -291,8 +291,10 @@ export interface HealOverTime {
 
 /** Server-only timers behind a player's barrier. Times are server ms. */
 export interface BoostRuntime {
-  /** When the kill barrier (PlayerState.barrier) ends. */
+  /** When the barrier (PlayerState.barrier) ends. */
   shieldUntil: number;
+  /** The barrier came from a heal (Second Skin, G6): it also loses BARRIER_DECAY_SHARE_PER_SECOND of max hp a second (sim/buffs.ts expireBoosts). */
+  decays?: boolean;
 }
 
 /** When the player's bounty was last announced, and what it was (a rise since then is still waiting for the window to end). */
@@ -401,8 +403,8 @@ export interface LandedHit {
   ability?: AbilityId;
   dot?: boolean;
   /**
-   * The Race to 0 multiplier of the dealer already inside `amount` (G4; absent = 1): its extra damage feeds no lifesteal, so
-   * lifesteal reads amount / race.
+   * The Race to 0 multipliers already inside `amount` (G4; absent = 1), the dealer's and its victim's together: the extra damage
+   * feeds no lifesteal, whoever holds the card, so lifesteal reads amount / race.
    */
   race?: number;
   /** A critical strike (the entry's packet was one). */

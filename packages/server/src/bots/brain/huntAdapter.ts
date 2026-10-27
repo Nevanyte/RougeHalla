@@ -1,7 +1,7 @@
 // Feeds the unchanged MobHunter (../mobHunt) from a percept and the memory, as docs/BOTS.md 3.6 says. One adapter per bot: it
 // holds the hunter (its engagement, bans and retreat timers) and its per-bot MobHuntConfig. The strategy turns the answer into
 // a candidate goal: `mob` is a farm, `retreat` a flee, `player` no mob candidate this think.
-import { isRegionalKind, mobFaction, type FactionId, type Vec2 } from "@raid/shared";
+import { isRegionalKind, MOB_TYPES, mobFaction, mobTypeFaction, type FactionId, type Vec2 } from "@raid/shared";
 import {
   MOB_HUNT, MobHunter, type HuntDecision, type HuntInput, type MobHuntConfig, type MobHuntStats, type MobLike,
 } from "../mobHunt";
@@ -48,12 +48,17 @@ export function wantsMobs(d: HuntDecision): boolean {
 }
 
 const maxHps = new Map<string, number>();
-/** What `mobLife.ts` sets: the region faction scaled (hp is not paced). A mob of an unknown region is taken as a fire one. */
-function mobMaxHp(zone: FactionId | null, elite: boolean): number {
-  const key = `${zone ?? "?"}/${elite ? "e" : "m"}`;
+/**
+ * What `mobLife.ts` sets: the type's faction (the zone's scaled by the role's hp, hp is not paced). `name` is the display name the bot saw,
+ * which is the type's; a mob never seen on screen (a minimap dot) or of an unknown name is taken as its zone's plain mob, and a mob of an
+ * unknown zone as a fire one.
+ */
+function mobMaxHp(zone: FactionId | null, elite: boolean, name?: string): number {
+  const type = zone !== null && name ? MOB_TYPES.find((t) => t.zone === zone && t.elite === elite && t.name === name) : undefined;
+  const key = `${zone ?? "?"}/${elite ? "e" : "m"}/${type?.id ?? ""}`;
   let hp = maxHps.get(key);
   if (hp === undefined) {
-    hp = mobFaction(zone ?? "fire", elite).hp;
+    hp = type !== undefined ? mobTypeFaction(type.zone, elite, type.id).hp : mobFaction(zone ?? "fire", elite).hp;
     maxHps.set(key, hp);
   }
   return hp;
@@ -62,7 +67,7 @@ function mobMaxHp(zone: FactionId | null, elite: boolean): number {
 /** A remembered mob as the hunt reads a synced one. Its hp is the last share seen, so a mob that left the screen never heals. */
 export function mobLikeOf(m: Readonly<MobMemory>): MobLike | null {
   if (!isRegionalKind(m.kind)) return null;
-  const maxHp = mobMaxHp(m.faction, m.kind === "elite");
+  const maxHp = mobMaxHp(m.faction, m.kind === "elite", m.name);
   return {
     kind: m.kind, status: m.alive ? "alive" : "dead", x: m.pos.x, y: m.pos.y, hp: m.hpFrac * maxHp, maxHp,
     faction: m.faction ?? "", weapon0: m.inHand ?? "",

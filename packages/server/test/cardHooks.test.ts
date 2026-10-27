@@ -17,6 +17,7 @@ import { findStatus, statusValue, statusesOf } from "../src/sim/status";
 import type { LandedHit, LedgerEntry, SimEvent, World } from "../src/sim/world";
 import { chainHook } from "../src/sim/world";
 import { hit, inStep, P, pvpArena, RT, tick, type RigFighter } from "./support/pvpRig";
+import { quoted } from "./support/quoted";
 
 // ---------------------------------------------------------------------------------------------------------------------------- rig
 
@@ -297,6 +298,20 @@ describe("the on-hit pipeline", () => {
     expect(ratio("")).toBeCloseTo(1.2, 6);
   });
 
+  it("a bleed reads the hit WITHOUT the attacker's `hit` mult: Machine Gun's swings bleed in full, Boom's few big ones do not bleed 2.5x", () => {
+    // bleed value x 2 s = k x (the hit as the weapon dealt it) x 10% x physical share, so over the recorded raw it is k / hit.
+    const perRaw = (cards: string[]): number => {
+      const w = bag("sword", ["hemorrhage", ...cards]);
+      const seen = run(w, 15);
+      const e = seen.entries.find((x) => x.by.id === "a" && x.sig === undefined)!;
+      const inst = statusesOf(C(w, "v")).find((s) => s.kind === "dot" && s.tag?.startsWith("bleed:"))!;
+      return (inst.value * 2) / (e.packet.raw * e.packet.phys * 0.1);
+    };
+    const plain = perRaw([]);
+    expect(perRaw(["machineGun"]) / plain).toBeCloseTo(1 / quoted("machineGun", 1), 6);
+    expect(perRaw(["hereComesTheBoom"]) / plain).toBeCloseTo(1 / quoted("hereComesTheBoom", 1), 6);
+  });
+
   it("Fists of Fury: while unarmed the on-hit effects apply twice (and a held weapon turns that off)", () => {
     const plain = bag("", ["hemorrhage"]);
     run(plain, 15);
@@ -345,7 +360,7 @@ describe("the on-hit pipeline", () => {
 });
 
 describe("the axe's shred (a weapon special)", () => {
-  it("each axe hit takes 8 armor for 3 s, stacking up to 24; total armor never goes under 0", () => {
+  it("each axe hit takes AXE_SHRED_ARMOR armor for 3 s, stacking up to AXE_SHRED_CAP; total armor never goes under 0", () => {
     const w = arena([
       { id: "a", faction: "holy", weapon: "axe", at: near(200) },
       { id: "v", faction: "plague", weapon: "", at: near(230) },
@@ -363,7 +378,7 @@ describe("the axe's shred (a weapon special)", () => {
     expect(defenseOf(P(bare, "v")).armor).toBe(0);
   });
 
-  it("grows 8, 16, 24 with the hits and ends 3 s after the last one", () => {
+  it("grows 3, 6 with the hits (AXE_SHRED_ARMOR, then the cap) and ends 3 s after the last one", () => {
     const w = arena([
       { id: "a", faction: "holy", weapon: "axe", at: near(200) },
       { id: "v", faction: "frost", weapon: "", at: near(230) },
@@ -372,17 +387,18 @@ describe("the axe's shred (a weapon special)", () => {
     const values: number[] = [];
     run(w, 70, () => values.push(statusValue(w, C(w, "v"), "shred")));
     const distinct = [...new Set(values)];
-    expect(distinct.slice(0, 4)).toEqual([0, 8, 16, 24]);
+    expect(distinct.slice(0, 3)).toEqual([0, AXE_SHRED_ARMOR, AXE_SHRED_CAP]);
+    expect(AXE_SHRED_CAP).toBe(2 * AXE_SHRED_ARMOR);
     // Let go of the lock: it fades 3 s after the last axe hit.
     RT(w, "a").inputs.pushMove({ kind: "stop" });
     run(w, 2);
-    expect(statusValue(w, C(w, "v"), "shred")).toBe(24);
+    expect(statusValue(w, C(w, "v"), "shred")).toBe(AXE_SHRED_CAP);
     run(w, 62);
     expect(statusValue(w, C(w, "v"), "shred")).toBe(0);
     expect(P(w, "v").armorBonus).toBe(0);
   });
 
-  it("makes the armor-reduced fighter take more: an axe hit after three stacks does more than the first, against armor", () => {
+  it("makes the armor-reduced fighter take more: an axe hit after the full stack does more than the first, against armor", () => {
     const w = arena([
       { id: "a", faction: "holy", weapon: "axe", at: near(200) },
       { id: "v", faction: "plague", weapon: "", at: near(230) },
@@ -391,10 +407,10 @@ describe("the axe's shred (a weapon special)", () => {
     const hits = hitsOf(run(w, 100), "a", "v");
     expect(hits[0]!.amount).toBeLessThan(hits[4]!.amount);
     const spec = FACTIONS.plague;
-    const ratio = mitigateShares(1, { phys: 1, magic: 0, true: 0 }, { armor: Math.max(0, spec.armor - 24), shield: spec.shield })
+    const ratio = mitigateShares(1, { phys: 1, magic: 0, true: 0 }, { armor: Math.max(0, spec.armor - AXE_SHRED_CAP), shield: spec.shield })
       / mitigateShares(1, { phys: 1, magic: 0, true: 0 }, { armor: spec.armor, shield: spec.shield });
     expect(hits[4]!.amount / hits[0]!.amount).toBeCloseTo(ratio, 6);
-    expect(AXE_SHRED_ARMOR).toBe(8);
+    expect(AXE_SHRED_ARMOR).toBe(3);
   });
 });
 
@@ -504,7 +520,7 @@ describe("blocks", () => {
     expect(findStatus(C(w, "a"), "slowMove")).toBeUndefined();
   });
 
-  it("Tank Engine: 1 max health for every 4 damage the blocks prevent, kept for good", () => {
+  it("Tank Engine: 1 max health for every point of damage the blocks prevent, kept for good", () => {
     const w = blockArena(["tankEngine"]);
     const base = FACTIONS.holy.hp;
     const rt = RT(w, "h");
@@ -516,13 +532,13 @@ describe("blocks", () => {
     expect(untilBlocks(w, 3)).toBe(3);
     const prevented = rt.cards!.prevented;
     expect(prevented).toBeGreaterThan(0);
-    expect(P(w, "h").maxHp).toBeCloseTo(base + prevented / 4, 9);
-    expect(rt.cards!.tankHp).toBeCloseTo(prevented / 4, 9);
+    expect(P(w, "h").maxHp).toBeCloseTo(base + prevented, 9);
+    expect(rt.cards!.tankHp).toBeCloseTo(prevented, 9);
     // The hp that came with it stays: a card never leaves you lower on the bar (the holder took 90% of three hits, so not full).
     before = P(w, "h").maxHp;
     // A later grant of another card re-derives max hp from the rows and keeps the earned health.
     give(w, "h", "vitality1");
-    expect(P(w, "h").maxHp).toBeCloseTo(base * 1.09 + prevented / 4, 6);
+    expect(P(w, "h").maxHp).toBeCloseTo(base * 1.09 + prevented, 6);
     expect(blocks).toBeGreaterThanOrEqual(3);
   });
 

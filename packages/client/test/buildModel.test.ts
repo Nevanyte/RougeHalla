@@ -59,7 +59,7 @@ describe("the strip's cells", () => {
 
   it("explains how the held weapon uses AD and AP, and that AP also feeds every damage over time", () => {
     expect(stats({}, {}, "plague", "sword").by("ad").tip).toContain("Your Sword turns each point into 1 damage a second");
-    expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("Your Wand turns each point into 1.2 damage a second");
+    expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("Your Wand turns each point into 1 damage a second");
     expect(stats({}, {}, "plague", "wand").by("ap").tip).toContain("damage over time gains 0.6 a second per point");
     expect(stats({}, {}, "plague", "sword").by("ap").tip).toContain("gets nothing from it directly");
     expect(stats({}, {}, "plague", "bow").by("ap").tip).toContain("damage over time");
@@ -133,9 +133,9 @@ describe("the strip's cells", () => {
 describe("a weapon's scaling and special", () => {
   it("words the scaling biggest term first, with one decimal", () => {
     expect(weaponScalingText("sword")).toBe("AD 1.0");
-    expect(weaponScalingText("bow")).toBe("AD 0.9");
-    expect(weaponScalingText("wand")).toBe("AP 1.2 + AD 0.3");
-    expect(weaponScalingText("axe")).toBe("AD 1.2 + bonus HP 0.02");
+    expect(weaponScalingText("bow")).toBe("AD 1.0");
+    expect(weaponScalingText("wand")).toBe("AP 1.0 + AD 0.3");
+    expect(weaponScalingText("axe")).toBe("AD 1.0 + bonus HP 0.02");
     expect(weaponScalingText("shield")).toBe("bonus armor/MR 0.4 + AP 0.3");
     expect(weaponScalingText("fists")).toBe("AD 0.6 + AP 0.6");
   });
@@ -158,7 +158,7 @@ describe("a weapon's scaling and special", () => {
   it("makes the tooltip: name, scaling, special", () => {
     const lines = weaponTipText("wand").split("\n");
     expect(lines[0]).toBe("Wand");
-    expect(lines[1]).toBe("Scales with AP 1.2 + AD 0.3");
+    expect(lines[1]).toBe("Scales with AP 1.0 + AD 0.3");
     expect(lines[2]).toBe(weaponSpecialText("wand"));
     for (const id of ALL_WEAPON_IDS) expect(weaponTipText(id).split("\n")[0]).toBe(WEAPONS[id].name);
   });
