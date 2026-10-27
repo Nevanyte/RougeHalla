@@ -68,12 +68,15 @@ export function decodeMult(wire: number): number {
 
 /**
  * A weapon's timings with the windup scaled by `windupMult` (the decoded mirror), never past the interval. The axe's
- * root, which counts from the attack's start, stretches with it and never ends before the windup does. The server's
- * timingsOf and a client's draw and root read the same function.
+ * root, which counts from the attack's start, stretches with it and never ends before the windup does. The ranged windups
+ * (the anti-kiting lever) have a floor: a mult below 1 shortens them only down to max(windup x mult, min(windup, floor))
+ * (`windupFloor`, BOW_WINDUP_FLOOR / WAND_WINDUP_FLOOR), so a windup already under its floor stays as it is, and a mult of 1
+ * or more lengthens normally. Melee has no floor. The server's timingsOf and a client's draw and root read the same function.
  */
 export function scaleWindup(t: WeaponTimings, windupMult: number): WeaponTimings {
   if (windupMult === 1 || !Number.isFinite(windupMult)) return t;
-  const windup = Math.min(t.interval, t.windup * windupMult);
+  const floor = t.windupFloor === undefined ? 0 : Math.min(t.windup, t.windupFloor);
+  const windup = Math.min(t.interval, Math.max(t.windup * windupMult, floor));
   const root = t.root > 0 ? Math.max(windup, Math.min(t.interval, t.root * windupMult)) : 0;
   return { ...t, windup, root };
 }

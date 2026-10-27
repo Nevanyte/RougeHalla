@@ -397,6 +397,11 @@ export interface CombatScratch {
    */
   collecting: boolean;
   payouts: Array<() => void>;
+  /**
+   * Camp-wide wake requests made during the pass (sim/mobAI.ts): a camp, and the player its hit member hands on. Resolved once
+   * after the pass, so the order victims were processed in (join order) never decides whom a camp chases.
+   */
+  campWakes: Array<{ camp: number; target: string }>;
   /** The lobby's median feed as it stood before the pass (null outside one): every mob reward in the pass reads this one. */
   medianFeed: number | null;
 }
@@ -596,7 +601,7 @@ export function createWorld(opts: {
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], medianFeed: null },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], campWakes: [], medianFeed: null },
     random: opts.random,
     orderSalt,
     rewardRandom: rewardStream(opts.rewardSalt ?? rewardSaltFrom(orderSalt)),

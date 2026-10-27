@@ -173,31 +173,107 @@ beyond Plague Rat + Ember Imp at their plateaus (orbwalk 2, lock 2 fails: the Ho
   "buffs that counter the factions present" reads `counters`, which stays `["any"]`, so the change is wording, not balance.
 - Plague Rat stays +8% (section 4; the owner refused halving it).
 
-## 7. Quickdraw vs the kiting lever (pre-merge review of the R5 line; owner decision pending, no number changed)
+## 7. Quickdraw and Swift Boots vs the kiting lever (pre-merge review of the R5 line; Quickdraw ruled and floored, Swift Boots owner decision pending)
 
 The ranged windups are the anti-kiting lever (CLAUDE.md, Weapons and factions), and Quickdraw (neutral passive, windups 8% shorter
 at rank 1 and 12% at rank 2, in `skills.ts`) shortens exactly that. Section 3's shooters were buffs; this is a passive, held
-through a chest pick. The reviewer ran it through both gates. These are the reviewer's figures and have not been re-run here.
+through a chest pick. The pre-merge review ran it through both gates and found it ate the margin; the owner then ruled **"Floor
+the windup"**: Quickdraw still shortens windups but never below the anti-kiting minimums. Everything below was re-run on the
+branch with the floors in place.
 
-- **The model** (`test_kite.py`, a shooter with Quickdraw rank 1 or 2): Fire > Plague with the bow goes from x1.062 to x0.977 and
-  with the wand from x1.078 to x0.991. A cell under 1 means the chaser no longer arrives in time against an orb-walking shooter.
-- **The real sim** (KITE EDGES, `--kiting-only`, `orbwalk` = the perfect kiter; a cell fails when its weakest melee weapon wins
-  under half of 10 setups):
+### 7.1 The floors (shared/weapons.ts, applied by shared/mods.ts `scaleWindup`)
 
-  | shooter | orbwalk fails | lock fails |
+`scaled windup = min(interval, max(windup x mult, min(windup, floor)))` for the bow and the wand; the sword, bash and axe have no
+floor (0.1 s and 0.25 s, short by design and not part of the lever). A mult of 1 or more lengthens as before; a windup already under
+its floor (share-bound: Plague's bow and wand, Sentenced's and Holy's bow, a wand at high attack speed) is not shortened at all.
+The server's `timingsOf`, the client's bow gauge (`fullDrawSeconds`) and the local prediction read the same function.
+
+- **`BOW_WINDUP_FLOOR` = 0.55 s** (the owner's number). Rank 1 draws 0.552 s, rank 2 exactly 0.55 s (0.528 s without the floor). Only the
+  cap-bound bows (Fire's and Frost's 0.6 s) are above it: Sentenced's 0.524 s, Holy's 0.497 s and Plague's 0.255 s are not touched.
+- **`WAND_WINDUP_FLOOR` = 0.4 s, the wand's whole windup**: a windup mod does nothing to the wand. The owner expected a value in
+  [0.35, 0.4] (probably 0.36 to 0.38); the real sim says none is safe. The model holds every wand cell down to a 0.35 s windup (the
+  Frost shooter's own threshold is 0.31 s), but KITE EDGES does not:
+
+  | wand windup (cap-bound shooters: Frost, Fire, Sentenced, Holy) | wide scan, 32 setups per melee weapon, 8 edges | KITE EDGES (10 setups) |
   |---|---|---|
-  | none | 1 of 20 (Sentenced > Frost wand, shield 10%) | 0 |
-  | Quickdraw rank 1 or 2 | 3 of 20: the baseline one, Plague > Frost wand with the shield 0%, Frost > Fire wand with the axe 10-20% | 0 |
-  | Quickdraw rank 2 at the 1.5 attack-speed cap | 2 of 20: Plague > Frost with the bow drops to the sword at 10%, which flips that counter | 0 |
+  | 0.40 (no change) | 0 failing | 1 (the baseline cell) |
+  | 0.39 | 1: Sentenced > Frost, shield 19% (56% at 0.40) | 1 (same cell, shield 0% instead of 10%) |
+  | 0.38 | 2: adds Plague > Frost, shield 6% | 2 |
+  | 0.37 / 0.36 | 2 / 2 | not run / 3: adds Frost > Fire, axe 20% |
+  | 0.35 | 3: Frost > Fire, axe 47% | not run |
 
-  That is the same order as the other buffs of section 3 (Ember Imp 3 stacks: 3, its plateau: 4; Penitent and Acolyte: 2 to 4).
-  A locked (clicked) chase holds all 20 cells.
-- **Quickdraw is tick-quantized.** An attack lands on the first 50 ms tick at or after its windup ends (`sim/weapons.ts`
-  `stepWeapon`: `now >= landsAt`). From a start on the tick grid, 8% or 12% off the sword's 0.1 s, the wand's 0.4 s cap and the
-  axe's 0.25 s rounds back up to the same tick, so rank 1 gains nothing on those three and rank 2 adds nothing over rank 1 (the
-  bow's 0.6 s reaches 0.55 s at rank 2). A start between ticks (a held trigger whose cooldown ended mid-tick, `startAttack`
-  carries the remainder up to a tick back) gains the shortening on average. The real-sim figures above include this; the model
-  works in continuous time, so it overstates what a grid start gains. The card promises the nominal number, and the HUD tooltip
-  says the gain comes in whole ticks (`SkillDef.note`).
-- **Options for the owner**, none taken: leave it (the same order as the other buffs, and the pick costs a chest card), or
-  change the rows so the gain is a whole tick and re-run `test_kite.py` and the harness.
+  The Frost wand's windup is exactly 8 ticks (0.4 s) and the shield chaser has little slack against it (56% at baseline on the wide
+  scan); a tick-quantized windup shortens by (cap - floor) on average, so even 10 ms moves the cell. The only floor that adds no
+  failing cell is the cap itself. Option for the owner: a lower floor (0.38) costs one cell (Plague > Frost wand, shield), 0.36 two,
+  for a wand gain of 20 to 40 ms that tick quantization mostly erases (7.4).
+
+### 7.2 How it was measured
+
+New options, both reading the shooter's mod source (so `scaleWindup` and its floors run as in the sim): `npm run harness -w @raid/server
+-- --kiting-only --shooter-windup 0.92|0.88 [--shooter-as 1.5]` and `--shooter-speed 1.06|1.10` (duel.ts `windupMult` / `speedMult`
+next to `asMult`), and `python3 testing/test_kite.py --shooter-windup 0.92|0.88 [--shooter-as X]` (realtime.py `windup(...,
+windup_mult)` with `wfloor` per weapon; the default output of every tool is unchanged, diffed).
+
+### 7.3 Results with the floors
+
+The model (`test_kite.py`, k = 2, all 20 cells; `!` = fails):
+
+| shooter | Fire > Plague bow / wand margin | failing cells |
+|---|---|---|
+| none | 1.062 / 1.078 | 0 |
+| Quickdraw rank 1 or 2, before the floor (review) | 0.977 / 0.991 | 2 `!` |
+| Quickdraw rank 1 (x0.92), floors in | 1.062 / 1.078 | 0 |
+| Quickdraw rank 2 (x0.88), floors in | 1.062 / 1.078 | 0 |
+| rank 2 at attack speed x1.25 | tightest Fire > Plague wand 1.007 (= x1.25 alone) | 0 |
+| attack speed x1.5 alone | tightest Plague > Frost wand 0.371 | 6 (the accepted cap result, section 6) |
+| rank 2 at x1.5 | the same 6 cells; Plague > Frost bow 0.473 -> 0.378 | 6 |
+
+The cause of the old failures was Plague's share-bound windups (0.255 s bow, 0.262 s wand): the floor leaves them alone.
+
+The real sim (KITE EDGES, `orbwalk` = the perfect kiter, `lock` = a click; a cell fails when its weakest melee weapon wins under half of
+10 setups):
+
+| shooter | orbwalk fails | lock fails |
+|---|---|---|
+| none | 1 of 20 (Sentenced > Frost wand, shield 10%) | 0 |
+| Quickdraw rank 1 or 2, before the floor | 3: the baseline one, Plague > Frost wand (shield 0%), Frost > Fire wand (axe 10-20%) | 0 |
+| rank 1 (x0.92), floors in | 1: the baseline cell, unchanged (every other cell identical to none, bow hp left moves 1-9 points) | 0 |
+| rank 2 (x0.88), floors in | 1: the same | 0 |
+| attack speed x1.5 alone | 0 (thinnest Plague > Frost bow, sword 70%, 2% hp left) | 0 (80%) |
+| rank 1 at x1.5 | 1: Plague > Frost bow, sword 40%, 1% hp left | 0 (60%) |
+| rank 2 at x1.5 | 0 (Plague > Frost bow, sword 50%, 2% hp left) | 0 (60%) |
+| rank 2 at x1.5, before the floor | 2: Plague > Frost bow (sword 10%) **and** Frost > Holy wand (axe 40%) | 0 |
+
+The two failing cells at the cap before the floor were both Quickdraw's: the bow's, and Frost > Holy with the wand (Holy's share-bound
+0.34 s wand, which the floor now leaves alone). What is left at the cap is the bow's 0.55 s against 0.6 s on Plague > Frost: the
+10-setup cell reads 70% -> 40% (rank 1) and 50% (rank 2), but on a wider scan (48 setups per melee weapon) it is 83% at baseline and
+71% at both ranks, 2 to 3% hp left, so it holds, thinly. Without a windup mod the counter itself flips at x1.66 (section 3). The bow
+floor on its own (0.60, 0.552, 0.55, 0.528 -> 0.55 on the Fire and Frost bows, wide scan, 4 edges): 100% in every cell.
+
+### 7.4 What Quickdraw is now
+
+- Bow: Fire and Frost only, 0.05 s at best (rank 2). Wand: nothing. Sentenced, Plague and Holy bows: nothing.
+- Sword, bash and axe: the nominal 8% and 12%, but a windup ends on a 50 ms tick (`sim/weapons.ts` `stepWeapon`: `now >= landsAt`), so from a
+  start on the tick grid the 0.1 s sword and the 0.25 s axe gain nothing at either rank; a start between ticks (a held trigger whose
+  cooldown ended mid-tick, `startAttack` carries the remainder up to a tick back) gains the shortening on average. The model works in
+  continuous time and overstates what a grid start gains.
+- The card and tooltip: `worksWith` is now the bow and the axe (it listed the wand), and `SkillDef.note` says "Never below 0.55 s on the
+  bow, and the wand's 0.4 s does not shorten. A windup ends on a 50 ms tick, so the gain comes in whole ticks."
+- So the passive is close to cosmetic for most kits. If the owner wants it to matter, the lever is not the ranged windups: a melee
+  windup passive gains little through the tick grid too, so a different stat (cooldown, a stagger bonus) would be the retune. Not done.
+
+### 7.5 Swift Boots (the other kiting-relevant neutral; owner decision pending, NOT changed)
+
+A shooter with Swift Boots walks 6% (rank 1) or 10% (rank 2) faster than its unbuffed chaser, so it loses less ground between shots. The
+model has no move-speed option (`realtime.V` is one constant), so only the real sim was run (`--shooter-speed`), and it reproduces the
+review's numbers exactly:
+
+| shooter | orbwalk fails | lock fails |
+|---|---|---|
+| none | 1 of 20 (Sentenced > Frost wand, shield 10%) | 0 |
+| Swift Boots rank 1 (x1.06) | 2: the baseline one (shield 0%), Frost > Fire wand (axe 40%) | 0 |
+| Swift Boots rank 2 (x1.10) | 3: the baseline one (shield 0%), Plague > Frost wand (shield 40%), Frost > Fire wand (axe 0%) | 0 |
+
+The same two wand cells as Quickdraw before the floor (Frost's and Fire's wand shooters against a shield or an axe). That is the same
+order as the buffs of section 3 (Ember Imp 3 stacks: 3; Penitent and Acolyte: 2 to 4). Options, none taken: leave it like the buffs,
+or lower what the boots give (rank 2 at x1.06, say) and re-run `--shooter-speed`. Owner decision pending.

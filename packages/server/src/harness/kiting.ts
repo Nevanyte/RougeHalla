@@ -12,18 +12,26 @@ import {
 import { runDuel, type BuffGrant } from "./duel";
 import { spacingFor, type Style } from "./matrix";
 
-/** A buff for the shooter (fighter 1) of every kiting duel: buff stacks and/or a bare attack-speed multiplier. The chaser has none. */
-export interface ShooterBuff { buffs?: readonly BuffGrant[]; asMult?: number }
+/**
+ * A buff for the shooter (fighter 1) of every kiting duel: buff stacks and/or bare mod-source multipliers (attack speed,
+ * the windup: Quickdraw's 0.92 / 0.88 through scaleWindup, with the ranged floors; move speed: Swift Boots' 1.06 / 1.10).
+ * The chaser has none.
+ */
+export interface ShooterBuff { buffs?: readonly BuffGrant[]; asMult?: number; windupMult?: number; speedMult?: number }
 
 export function shooterBuffText(b: ShooterBuff | undefined): string {
   const parts = (b?.buffs ?? []).map((g) => `${g.id} x${g.stacks}`);
   if (b?.asMult !== undefined && b.asMult !== 1) parts.push(`attack speed x${b.asMult}`);
+  if (b?.windupMult !== undefined && b.windupMult !== 1) parts.push(`windup x${b.windupMult}`);
+  if (b?.speedMult !== undefined && b.speedMult !== 1) parts.push(`move speed x${b.speedMult}`);
   return parts.length ? parts.join(", ") : "none";
 }
 
 const shooterSpec = (b: ShooterBuff | undefined) => ({
   buffs: [undefined, b?.buffs] as const,
   asMult: [undefined, b?.asMult] as const,
+  windupMult: [undefined, b?.windupMult] as const,
+  speedMult: [undefined, b?.speedMult] as const,
 });
 
 export const MELEE_WEAPONS: readonly WeaponId[] = ["sword", "axe", "shield"];

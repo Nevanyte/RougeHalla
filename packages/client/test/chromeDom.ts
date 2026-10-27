@@ -62,12 +62,17 @@ export class FEl {
       if (on) this.classes.add(name); else this.classes.delete(name);
       return on;
     },
-    contains: (name: string): boolean => this.classes.has(name),
+    contains: (name: string): boolean => this.hasClass(name),
   };
   private text = "";
   private readonly listeners = new Map<string, Listener[]>();
 
   constructor(readonly tagName: string, private readonly doc: FakeDocument | null = null) {}
+
+  /** The real DOM's name for `parent` (ui/mapHold.ts walks it). */
+  get parentElement(): FEl | null {
+    return this.parent;
+  }
 
   get textContent(): string {
     return this.text;
