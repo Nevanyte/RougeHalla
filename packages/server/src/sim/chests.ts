@@ -24,14 +24,14 @@
 //     inputs, which already refuse it); the coliseum teleport and the end of the run remove every chest.
 // Reward containers are never weapon containers: `pickup` refuses them (loot.ts), and they hold no items.
 import {
-  CHEST_RANGE, CHEST_SECONDS, hasLineOfSight, isWallAt, nextRank, rollChestOptions, skillDef, SKIP_HEAL_SHARE, type Vec2,
+  CHEST_RANGE, CHEST_REFUSAL, CHEST_SECONDS, hasLineOfSight, isWallAt, nextRank, rollChestOptions, skillDef, SKIP_HEAL_SHARE, type Vec2,
 } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
 import { awardSkipGv } from "./arena";
 import { syncMaxHp } from "./buffs";
 import { standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
-import { addContainer, bornThisTick } from "./loot";
+import { addContainer, bornThisTick, forgetBirth } from "./loot";
 import { recomputeMods } from "./mods";
 import { actionBlocked } from "./status";
 import { chainHook, collisionMap, emit, type ActionHandler, type World } from "./world";
@@ -82,14 +82,14 @@ export function rewardChests(world: World): ContainerState[] {
 export const handleChoose: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "choose" || c.kind !== "player" || !standing(c)) return;
   // A pick is an action like a pickup: a stun or a pending cast blocks it (the Wishes' D5), and it uses up nothing.
-  if (actionBlocked(world, c)) { toast(world, c.id, "Can't do that now"); return; }
+  if (actionBlocked(world, c)) { toast(world, c.id, CHEST_REFUSAL.busy); return; }
   const p = c.s;
   const now = world.state.serverTime;
   const box = world.state.containers.get(cmd.chest);
-  if (!box || box.kind !== "reward" || bornThisTick(world, box.id) || !(now < box.expiresAt)) { toast(world, c.id, "Chest gone"); return; }
-  if (Math.hypot(p.x - box.x, p.y - box.y) > CHEST_RANGE) { toast(world, c.id, "Too far away"); return; }
-  if (!hasLineOfSight(collisionMap(world), p, box)) { toast(world, c.id, "Can't reach that"); return; }
-  if (box.pickers.includes(c.id)) { toast(world, c.id, "You already picked"); return; }
+  if (!box || box.kind !== "reward" || bornThisTick(world, box.id) || !(now < box.expiresAt)) { toast(world, c.id, CHEST_REFUSAL.gone); return; }
+  if (Math.hypot(p.x - box.x, p.y - box.y) > CHEST_RANGE) { toast(world, c.id, CHEST_REFUSAL.far); return; }
+  if (!hasLineOfSight(collisionMap(world), p, box)) { toast(world, c.id, CHEST_REFUSAL.blocked); return; }
+  if (box.pickers.includes(c.id)) { toast(world, c.id, CHEST_REFUSAL.picked); return; }
   if (cmd.pick === -1) {
     box.pickers.push(c.id);
     paySkip(world, c);
@@ -98,10 +98,10 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   }
   const i = cmd.pick;
   if (!(i >= 0 && i < box.options.length)) return;
-  if (box.takenBy[i] !== "") { toast(world, c.id, "Already taken"); return; }
+  if (box.takenBy[i] !== "") { toast(world, c.id, CHEST_REFUSAL.taken); return; }
   const id = box.options[i]!;
   const rank = nextRank(p.build, id);
-  if (rank === null) { toast(world, c.id, "Already at rank 2"); return; }
+  if (rank === null) { toast(world, c.id, CHEST_REFUSAL.maxed); return; }
   if (!skillDef(id)) return; // an option this server does not know: never rolled, so a broken container
   box.takenBy[i] = c.id;
   box.pickers.push(c.id);
@@ -134,12 +134,12 @@ export function expireChests(world: World): void {
   const now = world.state.serverTime;
   let gone: string[] | null = null;
   for (const [id, box] of world.state.containers) if (box.kind === "reward" && now >= box.expiresAt) (gone ??= []).push(id);
-  if (gone) for (const id of gone) world.state.containers.delete(id);
+  if (gone) for (const id of gone) { world.state.containers.delete(id); forgetBirth(world, id); }
 }
 
 /** Every chest goes (the coliseum teleport: the gates lock them out of reach; the end of the run). */
 export function clearChests(world: World): void {
-  for (const box of rewardChests(world)) world.state.containers.delete(box.id);
+  for (const box of rewardChests(world)) { world.state.containers.delete(box.id); forgetBirth(world, box.id); }
 }
 
 export function install(world: World): void {

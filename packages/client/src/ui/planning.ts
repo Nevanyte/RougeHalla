@@ -556,7 +556,7 @@ export class PlanningView {
     const parts = [campTitle(camp)];
     if (info) parts.push(info.buff ? `${info.name}: ${info.buff}` : info.name);
     const state = frame?.campStates?.[i] ?? 0;
-    if (state === 2) parts.push("Cleared: its chest is gone");
+    if (state === 2) parts.push("Cleared");
     else if (state === 1) parts.push("A fight is on here");
     if (me && state !== 2) parts.push(`For ${zoneName(me)}: ${describeMatchup(campMatchup(me, camp)).words}`);
     return parts.join(". ");

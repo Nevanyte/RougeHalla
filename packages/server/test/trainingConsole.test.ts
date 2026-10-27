@@ -4,7 +4,7 @@
 // real socket) is in test/training.test.ts.
 import { describe, expect, it } from "vitest";
 import {
-  CHEST_OPTIONS, CHEST_SECONDS, circleClear, decodeFlat, decodeMult, FACTIONS, hasLineOfSight, MOB_TYPES, mobFaction, mobTypeById,
+  CHEST_OPTIONS, CHEST_SECONDS, circleClear, decodeFlat, decodeMult, FACTIONS, GV_SKIP, hasLineOfSight, MOB_TYPES, mobFaction, mobTypeById,
   mobWeapon, mulberry32, nextRank, PLAYER_RADIUS, REGION_FACTIONS, SKILL_IDS, skillDef, skillLive, TICK_MS, TILE, TRAIN_CAMP_SIZE,
   TRAIN_DEFAULT_RANK, TRAIN_DEFAULT_STACKS, TRAIN_MAX_CHESTS, TRAIN_MAX_MOBS, TRAIN_MAX_MOBS_SPAWNED, TRAIN_MAX_STACKS,
   TRAIN_SPAWN_GAP_MS, WIRE_IDENTITY_MIRRORS, type FactionId, type FxEvent, type MobTypeId,
@@ -635,6 +635,34 @@ describe("train clear", () => {
     expect(rtOf(world).fired?.size ?? 0).toBe(0);
   });
 
+  it("the arrows and balls the practice mobs have in the air end with them: a projEnd 'cleared', and nothing lands after", () => {
+    const world = trainingWorld("fire");
+    train(world, { cmd: "camp", id: "plagueRat" }); // Plague's mobs carry the bow
+    const shooters = new Set(practiceMobs(world).map(([id]) => id));
+    const [lead] = practiceMobs(world);
+    const p = me(world);
+    p.x = lead![1].x + 150; // inside the bow's 240 u, in the open
+    p.y = lead![1].y;
+    rtOf(world).history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
+    aggro(world, combatant(world, lead![0]) as MobCombatant, ME, 1);
+    let inFlight: string[] = [];
+    for (let i = 0; i < 80 && inFlight.length === 0; i++) {
+      tick(world);
+      inFlight = [...world.projectiles.values()].filter((pr) => shooters.has(pr.owner)).map((pr) => pr.id);
+    }
+    expect(inFlight.length, "a practice mob loosed an arrow").toBeGreaterThan(0);
+    const hp = p.hp;
+
+    const events = train(world, { cmd: "clear" });
+    expect([...world.projectiles.values()].filter((pr) => shooters.has(pr.owner))).toEqual([]);
+    const ends = events.flatMap((e) => (e.type === "fx" && e.fx.kind === "projEnd" ? [e.fx] : []));
+    expect(ends.map((e) => e.id).sort()).toEqual(inFlight.sort());
+    expect(ends.every((e) => e.reason === "cleared")).toBe(true);
+    run(world, 40);
+    expect(p.hp).toBe(hp); // no arrow of a cleared mob finds the player
+    expect(p.status).toBe("alive");
+  });
+
   it("a player locked on a practice mob that is cleared away is simply let go, and the room keeps ticking", () => {
     const world = trainingWorld("fire");
     train(world, { cmd: "camp", id: "emberImp" });
@@ -667,6 +695,40 @@ describe("the console never makes the training room record anything", () => {
     expect(rtOf(world).resolved).toBe(false);
     expect(world.state).toMatchObject({ phase: "active", training: true, patienceEndsAt: 0, gatesLocked: false });
     expect(world.state.camps.length).toBe(0);
+  });
+
+  it("a chest SKIP that heals nothing (full hp, or in combat) pays no GV and sends no '+3 GV' toast in training, where an arena skip pays", () => {
+    const skip = (w: World, trainingOff = false): SimEvent[] => {
+      train(w, { cmd: "chest", options: ["whetstone"] }, GAP_TICKS);
+      if (trainingOff) w.config = { ...w.config, training: false }; // the console needed the flag; the pick does not
+      const [chest] = rewardChests(w);
+      rtOf(w).inputs.pushAction({ kind: "choose", chest: chest!.id, pick: -1 });
+      return run(w, 1);
+    };
+    const world = trainingWorld("plague");
+    expect(me(world).hp).toBe(me(world).maxHp); // nothing to heal: the GV branch
+    const events = skip(world);
+    expect(fxOf(events, "chestTaken")).toEqual([expect.objectContaining({ by: ME, option: -1 })]); // the skip itself went through
+    expect(events.filter((e) => e.type === "gv")).toEqual([]);
+    expect([me(world).gv, rtOf(world).gv]).toEqual([0, { kills: 0, mobs: 0, bounty: 0 }]);
+
+    // Hurt and out of combat: the heal pays, still no GV. In combat the heal is locked out (the other GV branch).
+    const hurt = trainingWorld("plague");
+    me(hurt).hp = me(hurt).maxHp * 0.5;
+    train(hurt, { cmd: "chest", options: ["whetstone"] }, GAP_TICKS);
+    const [box] = rewardChests(hurt);
+    hurt.factions!.fighters.get(ME)!.combatAt = hurt.state.serverTime + 5000; // inside the 3 s lockout when the pick lands
+    rtOf(hurt).inputs.pushAction({ kind: "choose", chest: box!.id, pick: -1 });
+    const lockedOut = run(hurt, 1);
+    expect(fxOf(lockedOut, "chestTaken")).toHaveLength(1);
+    expect(me(hurt).hp).toBe(me(hurt).maxHp * 0.5); // the heal was refused: the GV branch, and still nothing paid
+    expect(lockedOut.filter((e) => e.type === "gv")).toEqual([]);
+    expect(me(hurt).gv).toBe(0);
+
+    // The control: the same skip with the training flag off pays GV_SKIP, so the checks above could have failed.
+    const paying = trainingWorld("plague");
+    const paid = skip(paying, true);
+    expect(paid.filter((e) => e.type === "gv")).toEqual([{ type: "gv", id: ME, amount: GV_SKIP, reason: "skip" }]);
   });
 });
 

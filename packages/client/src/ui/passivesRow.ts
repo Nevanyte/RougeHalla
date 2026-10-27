@@ -28,6 +28,7 @@ export function rankTag(rank: number): string {
  *   At rank 2: +10% damage           only at rank 1: what a second pick of it adds
  *   Works with: anyone
  *   Strong against: ...              only when it has tags
+ *   (a caveat)                       only for a skill with a `note` (Quickdraw: windups end on 50 ms ticks)
  */
 export function passiveTip(def: SkillDef, rank: number, faction?: string): string {
   const lines = [
@@ -37,6 +38,7 @@ export function passiveTip(def: SkillDef, rank: number, faction?: string): strin
   if (rank < SKILL_MAX_RANK) lines.push(`At rank ${rank + 1}: ${skillText(def.id, rank + 1, faction)}`);
   lines.push(`Works with: ${def.worksWith.length > 0 ? tagList(def.worksWith) : "anyone"}`);
   if (def.counters.length > 0) lines.push(`Strong against: ${tagList(def.counters)}`);
+  if (def.note) lines.push(def.note);
   return lines.join("\n");
 }
 
@@ -66,6 +68,8 @@ export class PassivesRow {
   private tipAt = -1;
   private rects: Array<ChipRect | null> = [];
   private rectsDirty = true;
+  /** Where the list was when the rectangles were read: the row moves when the buff strip above it grows or wraps. */
+  private rectsKey = "";
 
   constructor() {
     for (const def of SKILLS) {
@@ -144,9 +148,12 @@ export class PassivesRow {
     this.rectsDirty = true;
   };
 
-  /** The chip under the client point, or -1. The rectangles are read again only after a repaint or a resize. */
+  /** The chip under the client point, or -1. The rectangles are read again after a repaint, a resize, or when the list has moved or changed size. */
   private chipAt(x: number, y: number): number {
-    if (this.rectsDirty) {
+    const l = this.list.getBoundingClientRect();
+    const key = `${l.left},${l.top},${l.width},${l.height}`;
+    if (this.rectsDirty || key !== this.rectsKey) {
+      this.rectsKey = key;
       this.rectsDirty = false;
       this.rects = this.chips.map((c) => {
         if (c.root.hidden) return null;

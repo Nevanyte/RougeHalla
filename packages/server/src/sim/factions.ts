@@ -48,7 +48,7 @@
 import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
-  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, hasLineOfSight, isDot, lifestealFraction, lifestealShare, markDps, markShare, SIG_BURNING,
+  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, isDot, lifestealFraction, lifestealShare, markDps, markShare, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind,
   type TriggerAction, type WeaponId,
 } from "@raid/shared";
@@ -106,8 +106,9 @@ export function install(world: World): void {
   chainHook(world, "weaponSwapped", onWeaponSwapped);
   chainHook(world, "hurt", onHurt);
   // A fresh fight in the coliseum: nobody carries a target, a mark or a chill through the teleport (the heal lockout
-  // keeps running). Triggers that re-arm at a teleport (Second Wind rank 2) may fire again.
-  chainHook(world, "teleported", (w) => { resetAll(w, true); rearmTriggers(w); });
+  // keeps running). Triggers that re-arm at a teleport (Second Wind rank 2) may fire again, and a heal still being paid out
+  // is dropped first, so the old one and the new one can never both run.
+  chainHook(world, "teleported", (w) => { resetAll(w, true); dropHealsOverTime(w); rearmTriggers(w); });
   chainHook(world, "raidStarted", (w) => resetAll(w, false));
   chainHook(world, "runEnded", flushDotFx);
 }
@@ -610,15 +611,15 @@ function runTrigger(world: World, c: Extract<Combatant, { kind: "player" }>, a: 
 }
 
 /**
- * A heal of `amount` spread over `ms`: max(1, round(ms / HEAL_OVER_TIME_STEP_MS)) equal steps HEAL_OVER_TIME_STEP_MS apart,
- * the first now (Second Wind: four steps of 5% of max hp over 2 s). Each step goes through heal(), so it stops for a
- * fighter who is no longer standing, and never passes max hp.
+ * A heal of `amount` spread over `ms`: healOverTimeSteps(ms) equal steps HEAL_OVER_TIME_STEP_MS apart, the first now
+ * (Second Wind: four steps of 5% of max hp, the last 1.5 s after the first). Each step goes through heal(), so it stops for
+ * a fighter who is no longer standing, and never passes max hp. The teleport forgets the steps still to come.
  */
 export function startHealOverTime(
   world: World, c: Extract<Combatant, { kind: "player" }>, amount: number, ms: number, ignoreLockout: boolean,
 ): void {
   if (!(amount > 0) || !standing(c)) return;
-  const steps = Math.max(1, Math.round(ms / HEAL_OVER_TIME_STEP_MS));
+  const steps = healOverTimeSteps(ms);
   const each = amount / steps;
   heal(world, c, each, { ignoreLockout });
   if (steps > 1) {
@@ -647,6 +648,11 @@ function healOverTime(world: World): void {
     }
     rt.hots = hots.filter((h) => h.left > 0);
   }
+}
+
+/** The teleport forgets the steps of every heal over time still to come (a fresh fight; the re-armed trigger may start its own). */
+function dropHealsOverTime(world: World): void {
+  for (const rt of world.players.values()) rt.hots = undefined;
 }
 
 /** The teleport: every once-trigger with `rearm: "teleport"` (Second Wind rank 2) may fire again. */

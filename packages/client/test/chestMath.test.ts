@@ -2,10 +2,10 @@
 // is and may be, and what the status line says.
 import { describe, expect, it } from "vitest";
 import {
-  CHEST_GREY_MS, CHEST_PANEL_SLACK, CHEST_RANGE, TILE, TILE_FLOOR, TILE_WALL, mapFromTiles, skipText,
+  CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, mapFromTiles, skipText,
 } from "@raid/shared";
 import {
-  PANEL_RANGE, campLabel, formatCountdown, greyAtMs, hasPicked, inPanelRange, isGreyed, myPick, optionCards, pickReward, poolName, rankBadge,
+  ChestMemory, DEFAULT_RTT_MS, chestPickLine, PANEL_CLOSE_RANGE, PANEL_RANGE, campLabel, rttFromOrderDelay, usableRtt, formatCountdown, greyAtMs, hasPicked, inPanelRange, isGreyed, myPick, optionCards, pickReward, poolName, rankBadge,
   pickLine, readReward, stateText, statusText, takenIndex, timeShare, trueServerNow, type Reward, type RewardSource,
 } from "../src/ui/chestMath";
 
@@ -36,6 +36,99 @@ describe("range", () => {
     // The server would accept this (96 u), the panel does not offer it: the position it holds can be a step behind.
     expect(inPanelRange({ x: 0, y: 0 }, { x: CHEST_RANGE - 1, y: 0 })).toBe(false);
     expect(inPanelRange({ x: 3, y: 4 }, { x: 0, y: 0 })).toBe(true);
+  });
+});
+
+describe("range, with hysteresis", () => {
+  it("an open panel stays until the player is PANEL_CLOSE_RANGE away, still inside the server's range", () => {
+    expect(PANEL_CLOSE_RANGE).toBe(PANEL_RANGE + CHEST_PANEL_HYSTERESIS);
+    expect(PANEL_CLOSE_RANGE).toBe(92);
+    expect(PANEL_CLOSE_RANGE).toBeLessThan(CHEST_RANGE);
+    const o = { x: 0, y: 0 };
+    expect(inPanelRange(o, { x: PANEL_RANGE + 1, y: 0 })).toBe(false); // not open: it does not open here
+    expect(inPanelRange(o, { x: PANEL_RANGE + 1, y: 0 }, true)).toBe(true); // open: it stays
+    expect(inPanelRange(o, { x: PANEL_CLOSE_RANGE, y: 0 }, true)).toBe(true);
+    expect(inPanelRange(o, { x: PANEL_CLOSE_RANGE + 0.5, y: 0 }, true)).toBe(false);
+  });
+
+  it("pickReward holds the chest it is told is open out to the close range, and no other", () => {
+    const edge = reward({ id: "edge", x: 500 + PANEL_RANGE + 2, y: 500 });
+    const other = reward({ id: "other", x: 500, y: 500 + PANEL_RANGE + 2 });
+    const from = { x: 500, y: 500 };
+    expect(pickReward([edge, other], from, "me", 1000)).toBeNull();
+    expect(pickReward([edge, other], from, "me", 1000, null, "edge")?.reward.id).toBe("edge");
+    expect(pickReward([edge, other], from, "me", 1000, null, "other")?.reward.id).toBe("other");
+    expect(pickReward([edge, other], from, "me", 1000, null, "gone")).toBeNull();
+    const far = reward({ id: "edge", x: 500 + PANEL_CLOSE_RANGE + 1, y: 500 });
+    expect(pickReward([far], from, "me", 1000, null, "edge")).toBeNull();
+  });
+});
+
+describe("the round trip the chest's clock uses", () => {
+  it("is one clamp for the panel and the ring: never negative, the default when it is not a number", () => {
+    expect(usableRtt(80)).toBe(80);
+    expect(usableRtt(0)).toBe(0);
+    expect(usableRtt(-30)).toBe(0);
+    expect(usableRtt(Number.NaN)).toBe(DEFAULT_RTT_MS);
+    expect(usableRtt(Infinity)).toBe(DEFAULT_RTT_MS);
+  });
+
+  it("is the prediction's order delay plus a tick (the delay runs up to a tick short), and a delay of -1 tick is no round trip", () => {
+    expect(rttFromOrderDelay(60)).toBe(60 + TICK_MS);
+    expect(rttFromOrderDelay(-TICK_MS)).toBe(0); // the lowest delay the prediction reports
+    expect(rttFromOrderDelay(-1000)).toBe(0);
+    expect(rttFromOrderDelay(Number.NaN)).toBe(DEFAULT_RTT_MS);
+    // A pick sent just before the grey-out is no longer offered where the old (unadjusted) delay still offered it.
+    const delay = 60;
+    const expiresAt = 15_000;
+    const estimate = expiresAt - delay - CHEST_GREY_MS - 20; // 20 ms inside the old margin
+    expect(isGreyed(expiresAt, trueServerNow(estimate, delay), delay)).toBe(false);
+    expect(isGreyed(expiresAt, trueServerNow(estimate, rttFromOrderDelay(delay)), rttFromOrderDelay(delay))).toBe(true);
+  });
+});
+
+describe("ChestMemory", () => {
+  it("keeps a chest's options for a few seconds after it was last seen, and forgets it then", () => {
+    const m = new ChestMemory();
+    m.note("c1", ["whetstone", "swiftBoots", "thickHide"], 1000);
+    expect(m.option("c1", 1)).toBe("swiftBoots");
+    expect(m.option("c1", 3)).toBeUndefined();
+    expect(m.option("c2", 0)).toBeUndefined();
+    m.forget(1000 + ChestMemory.KEEP_MS);
+    expect(m.size).toBe(1);
+    m.note("c1", ["whetstone", "swiftBoots", "thickHide"], 4000); // seen again: the clock restarts
+    m.forget(4000 + ChestMemory.KEEP_MS);
+    expect(m.size).toBe(1);
+    m.forget(4000 + ChestMemory.KEEP_MS + 1);
+    expect(m.size).toBe(0);
+    expect(m.option("c1", 0)).toBeUndefined();
+  });
+
+  it("copies the options (a schema array changes under it)", () => {
+    const live = ["whetstone", "swiftBoots"];
+    const m = new ChestMemory();
+    m.note("c1", live, 0);
+    live.length = 0;
+    expect(m.option("c1", 0)).toBe("whetstone");
+  });
+});
+
+describe("chestPickLine: the local player's own pick as a line", () => {
+  const rank = (held: Record<string, number>) => (skill: string): number => held[skill] ?? 0;
+  it("names the skill from the chest in the state, and from memory when the chest left it first", () => {
+    const m = new ChestMemory();
+    m.note("c1", ["pestilence", "whetstone", "swiftBoots"], 0);
+    const live = ["pestilence", "whetstone", "swiftBoots"];
+    expect(chestPickLine("c1", 1, live, m, rank({ whetstone: 1 }))).toBe("You took Whetstone");
+    expect(chestPickLine("c1", 1, live, m, rank({ whetstone: 2 }))).toBe("You took Whetstone (rank 2)");
+    // A pick in the chest's last ~100 ms is played after the chest has gone: the memory still has its cards.
+    expect(chestPickLine("c1", 2, undefined, m, rank({ swiftBoots: 1 }))).toBe("You took Swift Boots");
+    expect(chestPickLine("c1", 2, undefined, new ChestMemory(), rank({}))).toBeUndefined(); // never seen: no line, no crash
+    expect(chestPickLine("c1", 7, undefined, m, rank({}))).toBeUndefined();
+  });
+
+  it("a skip needs neither the chest nor the memory", () => {
+    expect(chestPickLine("gone", -1, undefined, new ChestMemory(), rank({}))).toBe("You skipped the chest");
   });
 });
 

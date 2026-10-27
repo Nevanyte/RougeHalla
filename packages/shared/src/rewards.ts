@@ -70,6 +70,26 @@ export function rollChestOptions(rng: Rng, opts: ChestRollOptions): SkillId[] {
   return [...zone, ...neutral, ...draw(rng, rest, count - zone.length - neutral.length)];
 }
 
+/**
+ * The toasts the server sends a player whose `choose` was refused (sim/chests.ts handleChoose): one list, so the client can
+ * tell a refusal of its pick from any other toast (a GV line, a kill) without guessing at wording.
+ */
+export const CHEST_REFUSAL = {
+  busy: "Can't do that now",
+  gone: "Chest gone",
+  far: "Too far away",
+  blocked: "Can't reach that",
+  picked: "You already picked",
+  taken: "Already taken",
+  maxed: "Already at rank 2",
+} as const;
+export const CHEST_REFUSALS: readonly string[] = Object.values(CHEST_REFUSAL);
+
+/** This toast text is the server refusing a chest pick. */
+export function isChestRefusal(text: string): boolean {
+  return CHEST_REFUSALS.includes(text);
+}
+
 /** What a skip gives (D12): heal SKIP_HEAL_SHARE of max hp when the heal lockout allows it, else GV_SKIP GV (under GV_MOB_CAP). */
 export const SKIP_REWARD: Readonly<{ healShare: number; gv: number }> = { healShare: SKIP_HEAL_SHARE, gv: GV_SKIP };
 

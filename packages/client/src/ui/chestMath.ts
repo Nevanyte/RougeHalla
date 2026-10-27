@@ -2,7 +2,8 @@
 // shows, what each card is and whether it can be picked, when everything greys out, and what the status line says. Nothing
 // here is ever sent: the server decides every pick; this only avoids offering one it would refuse.
 import {
-  CHEST_GREY_MS, CHEST_PANEL_SLACK, CHEST_RANGE, FACTIONS, chestOptionView, hasLineOfSight, isEliteCamp, rankIn, skillDef, skillText,
+  CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, FACTIONS, TICK_MS, chestOptionView, hasLineOfSight, isEliteCamp,
+  rankIn, skillDef, skillText,
   type BuildRanks, type CampDef, type ChestOptionView, type GameMap, type Vec2,
 } from "@raid/shared";
 
@@ -46,6 +47,26 @@ export function readReward(c: RewardSource, id: string): Reward | null {
 
 // --------------------------------------------------------------------------------------------------------------- time
 
+/** The round trip assumed when a scene has not measured one (or hands over something that is not a number), in ms. */
+export const DEFAULT_RTT_MS = 100;
+
+/**
+ * The round trip the chest's clock and its grey-out use, from whatever a scene estimates: never negative, and the default when it
+ * is not a number. The panel and the chest's ring (the scene's own clock) both read it, so they cannot disagree.
+ */
+export function usableRtt(ms: number): number {
+  return Number.isFinite(ms) ? Math.max(0, ms) : DEFAULT_RTT_MS;
+}
+
+/**
+ * A round trip from the prediction's order delay (`predict.motion.delay`). The delay is measured as the server's tick stamp less
+ * one tick less the send time, so it runs between 0 and a tick short of the real round trip: a pick sent in the last instant
+ * would be offered and then refused. One tick is added, which keeps the margin on the safe side.
+ */
+export function rttFromOrderDelay(delayMs: number): number {
+  return usableRtt(delayMs + TICK_MS);
+}
+
 /**
  * The server's own time now. The client's estimate of it (the clock the HUD counts down against) is built from patch
  * arrivals, so it runs one way trip behind the server: a pick sent now lands a full round trip after that estimate.
@@ -84,9 +105,15 @@ export function timeShare(expiresAt: number, trueNow: number, totalMs: number): 
 /** The most a player may be from a chest for the panel to open: the server's range less a margin for the position it has. */
 export const PANEL_RANGE = CHEST_RANGE - CHEST_PANEL_SLACK;
 
-/** Within the panel's range of the chest, from the LATEST SERVER position (never the predicted one). */
-export function inPanelRange(from: Vec2, chest: Vec2): boolean {
-  return Math.hypot(from.x - chest.x, from.y - chest.y) <= PANEL_RANGE;
+/** An open panel closes only beyond this (PANEL_RANGE plus the hysteresis), so a player weaving on the edge does not flicker it. */
+export const PANEL_CLOSE_RANGE = PANEL_RANGE + CHEST_PANEL_HYSTERESIS;
+
+/**
+ * Within the panel's range of the chest, from the LATEST SERVER position (never the predicted one). `open`: the panel is already
+ * showing this chest, which stays in range out to PANEL_CLOSE_RANGE.
+ */
+export function inPanelRange(from: Vec2, chest: Vec2, open = false): boolean {
+  return Math.hypot(from.x - chest.x, from.y - chest.y) <= (open ? PANEL_CLOSE_RANGE : PANEL_RANGE);
 }
 
 /** Whether `id` has made their pick here (an option or a skip). */
@@ -108,15 +135,16 @@ export interface PanelTarget {
 /**
  * The chest the panel shows: a live one (the server's time has not reached `expiresAt`) within PANEL_RANGE of `from`, with a
  * clear line to it when `map` is given (the server refuses a pick through a wall). A chest the player has not picked at comes
- * first, then the nearest; null when none qualifies.
+ * first, then the nearest; null when none qualifies. `openId` is the chest the panel shows now (if any): it keeps its place out
+ * to PANEL_CLOSE_RANGE instead of PANEL_RANGE (the hysteresis), and nothing else changes.
  */
 export function pickReward(
-  rewards: readonly Reward[], from: Vec2, myId: string, trueNow: number, map?: GameMap | null,
+  rewards: readonly Reward[], from: Vec2, myId: string, trueNow: number, map?: GameMap | null, openId?: string | null,
 ): PanelTarget | null {
   let best: PanelTarget | null = null;
   let bestSq = Infinity;
   for (const reward of rewards) {
-    if (reward.expiresAt <= trueNow || !inPanelRange(from, reward)) continue;
+    if (reward.expiresAt <= trueNow || !inPanelRange(from, reward, reward.id === openId)) continue;
     if (map && !hasLineOfSight(map, from, reward)) continue;
     const picked = hasPicked(reward, myId);
     const sq = (reward.x - from.x) ** 2 + (reward.y - from.y) ** 2;
@@ -237,6 +265,38 @@ export function myPick(reward: Reward, myId: string, build: BuildRanks | null | 
 
 // ---------------------------------------------------------------------------------------------------------------- feed lines
 
+/**
+ * What the scene remembers of each reward chest's options for a few seconds after it has left the state. The `chestTaken` fx is
+ * played in render time, 100 ms behind the state, so a pick in a chest's last instants arrives when the chest container is
+ * already gone, and its line ("You took Whetstone") would have nothing to name the skill from.
+ */
+export class ChestMemory {
+  /** How long a chest is remembered after it was last seen (ms): the fx delay plus plenty. */
+  static readonly KEEP_MS = 5000;
+  private readonly seen = new Map<string, { options: string[]; at: number }>();
+
+  /** The chest is in the state now. */
+  note(id: string, options: ArrayLike<string>, now: number): void {
+    const known = this.seen.get(id);
+    if (known && known.options.length === options.length) { known.at = now; return; }
+    this.seen.set(id, { options: Array.from(options), at: now });
+  }
+
+  /** Forgets chests not seen for KEEP_MS. */
+  forget(now: number): void {
+    for (const [id, e] of this.seen) if (now - e.at > ChestMemory.KEEP_MS) this.seen.delete(id);
+  }
+
+  /** The skill at card `index` of a chest seen earlier, or undefined. */
+  option(id: string, index: number): string | undefined {
+    return this.seen.get(id)?.options[index];
+  }
+
+  get size(): number {
+    return this.seen.size;
+  }
+}
+
 /** "Fire camp" / "Fire elite camp" for a camp's clear line ("... cleared"); undefined for a camp the map does not have. */
 export function campLabel(camp: Pick<CampDef, "zone" | "eliteSpot"> | undefined): string | undefined {
   return camp ? `${FACTIONS[camp.zone].displayName} ${isEliteCamp(camp) ? "elite " : ""}camp` : undefined;
@@ -250,4 +310,17 @@ export function pickLine(option: number, skill: string | undefined, rankHeld: nu
   if (option < 0) return "You skipped the chest";
   const def = skill === undefined ? undefined : skillDef(skill);
   return def ? `You took ${def.name}${rankHeld >= 2 ? " (rank 2)" : ""}` : undefined;
+}
+
+/**
+ * The line for the local player's own `chestTaken` fx. `live` is the chest's options in the state now (undefined once the chest
+ * has left it: a pick in its last instants is played after the chest is gone), `memory` what was seen of it, `rankOf` the rank
+ * the player holds of a skill now.
+ */
+export function chestPickLine(
+  chest: string, option: number, live: ArrayLike<string> | undefined, memory: ChestMemory, rankOf: (skill: string) => number,
+): string | undefined {
+  if (option < 0) return pickLine(option, undefined, 0);
+  const id = live ? Array.from(live)[option] : memory.option(chest, option);
+  return pickLine(option, id, id ? rankOf(id) : 0);
 }

@@ -5,19 +5,21 @@
 // away, the chest expires, or their pick is in.
 //
 // It never takes the canvas' clicks: the box is click-through and only the cards and the Skip button take the pointer (a left
-// click elsewhere still locks a target, a right-click still walks). Keyboard: C focuses the panel, then 1 2 3 pick the cards
-// and 0 skips; C or Esc hand the focus back. The digits are the panel's ONLY while it has focus, so the weapon keys work as
+// click elsewhere still locks a target, a right-click still walks; a click in the first CHEST_PANEL_CLICK_GUARD_MS after it
+// opens is ignored, so a spam-clicking cursor cannot take a pick unseen). Keyboard: C focuses the panel, then 1 2 3 pick the
+// cards and 0 skips; C or Esc hand the focus back. The cards and Skip are out of the browser's Tab order until C: a stray Tab
+// must not put the focus inside, where the digits and Esc would stop being the game's. The digits are the panel's ONLY while it has focus, so the weapon keys work as
 // ever otherwise. Every option greys out RTT/2 + CHEST_GREY_MS before the chest expires, and a pick the server refuses comes
 // back as its `toast` (noteToast) into the status line. The server decides everything: this only sends `choose`.
 import {
-  CHEST_OPTIONS, CHEST_SECONDS, FACTIONS, isFactionId, skipText,
+  CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_SECONDS, FACTIONS, isChestRefusal, isFactionId, skipText,
   type BuildRanks, type CampDef, type ClientMessages, type FactionId, type GameMap,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../net/localMotion";
 import { settings as appSettings, type Settings, type SettingsStore } from "../settings";
 import {
-  CHEST_FOCUS_KEY, formatCountdown, isGreyed, myPick, optionCards, pickReward, poolName, rankBadge, readReward, stateText,
-  statusText, timeShare, trueServerNow, type OptionCard, type PanelTarget, type Reward, type RewardSource,
+  CHEST_FOCUS_KEY, DEFAULT_RTT_MS, formatCountdown, isGreyed, myPick, optionCards, pickReward, poolName, rankBadge, readReward,
+  stateText, statusText, timeShare, trueServerNow, usableRtt, type OptionCard, type PanelTarget, type Reward, type RewardSource,
 } from "./chestMath";
 import { isTypingTarget } from "./chrome";
 import "./chestPanel.css";
@@ -110,8 +112,6 @@ interface Card {
   sig: string;
 }
 
-const DEFAULT_RTT_MS = 100;
-
 const zoneName = (zone: string): string => (isFactionId(zone) ? FACTIONS[zone].displayName : zone);
 
 export class ChestPanel {
@@ -147,6 +147,10 @@ export class ChestPanel {
   private greyed = false;
   /** A pick on its way: the chest, the option (-1 = skip) and the local time it was sent. */
   private pending: { chest: string; pick: number; at: number } | null = null;
+  /** When the panel last opened (the local clock): a mouse click in its first moments is ignored. */
+  private openedAt = -Infinity;
+  /** The buttons are in the Tab order (C took the keyboard). */
+  private tabbable = false;
   /** The server's refusal (or "not confirmed") to show, and since when. */
   private refused: string | null = null;
   private refusedAt = 0;
@@ -222,9 +226,11 @@ export class ChestPanel {
     this.list.setAttribute("aria-label", "Skills in the chest");
 
     this.skipButton.type = "button";
+    this.skipButton.tabIndex = -1;
     this.skipButton.append(keycap("0", "cp-key"), this.skipLabel);
     this.skipButton.addEventListener("click", (e) => this.onButton(e, this.skipButton, () => this.skip()));
     this.skipButton.addEventListener("contextmenu", (e: Event) => e.preventDefault());
+    this.skipButton.addEventListener("focusout", this.onFocusOut);
 
     this.status.setAttribute("role", "status");
     this.status.setAttribute("aria-live", "polite");
@@ -241,6 +247,7 @@ export class ChestPanel {
     const index = this.cards.length;
     const root = el("button", "cp-card");
     root.type = "button";
+    root.tabIndex = -1;
     const glyph = el("span", "cp-glyph");
     glyph.setAttribute("aria-hidden", "true");
     const name = el("span", "cp-name");
@@ -254,6 +261,8 @@ export class ChestPanel {
     root.addEventListener("click", (e) => this.onButton(e, root, () => this.pick(index)));
     // A right-click is a walk order: on a card it must not open the browser's menu instead.
     root.addEventListener("contextmenu", (e: Event) => e.preventDefault());
+    // Focus leaving the panel from a button (a Tab past the last one) takes the buttons out of the Tab order again.
+    root.addEventListener("focusout", this.onFocusOut);
     root.hidden = true;
     const card: Card = { root, glyph, name, rank, pool, text, state, sig: "" };
     this.cards.push(card);
@@ -267,11 +276,18 @@ export class ChestPanel {
 
   /**
    * A click on a card or Skip. A mouse click hands the keyboard back at once (the digits go on picking the weapon slot); the
-   * activation of a focused button by Enter or Space (detail 0) leaves the focus where the player put it.
+   * activation of a focused button by Enter or Space (detail 0) leaves the focus where the player put it. A mouse click in the
+   * first CHEST_PANEL_CLICK_GUARD_MS after the panel opened does nothing: it is most likely a click meant for the canvas that
+   * the card, appearing under the cursor, caught.
    */
   private onButton(e: Event, button: HTMLButtonElement, act: () => void): void {
+    const pointer = Boolean((e as { detail?: number }).detail);
+    if (pointer && this.now() - this.openedAt < CHEST_PANEL_CLICK_GUARD_MS) {
+      button.blur();
+      return;
+    }
     act();
-    if ((e as { detail?: number }).detail) button.blur();
+    if (pointer) button.blur();
   }
 
   // ----------------------------------------------------------------------------------------------------------- the frame
@@ -294,7 +310,7 @@ export class ChestPanel {
     let target: PanelTarget | null = null;
     if (frame.active && me?.alive) {
       const live = this.dismissed.size === 0 ? this.rewards : this.rewards.filter((r) => !this.dismissed.has(r.id));
-      target = pickReward(live, me, me.id, trueNow, frame.sight);
+      target = pickReward(live, me, me.id, trueNow, frame.sight, this.shownId || null);
     }
     if (!target || !me) {
       this.close();
@@ -325,8 +341,7 @@ export class ChestPanel {
 
   /** The round trip, as a usable number (a scene's estimate may be NaN before its first measure). */
   private rttMs(): number {
-    const v = this.rtt();
-    return Number.isFinite(v) && v >= 0 ? v : DEFAULT_RTT_MS;
+    return usableRtt(this.rtt());
   }
 
   /** Forgets what it kept for a chest that is gone. */
@@ -354,6 +369,7 @@ export class ChestPanel {
     const { reward, picked } = target;
     if (this.element.hidden) {
       this.element.hidden = false;
+      this.openedAt = this.now();
       this.keyTitle = "";
       this.keyStatus = "";
     }
@@ -485,10 +501,13 @@ export class ChestPanel {
     return true;
   }
 
-  /** The server's `toast` text, while a pick waits for its answer: a refusal ("Already taken", "Too far away"). True when it was ours. */
+  /**
+   * The server's `toast` text, while a pick waits for its answer: one of the chest's refusals ("Already taken", "Too far away";
+   * shared CHEST_REFUSALS). Any other toast (a GV line, a kill) is not the answer to the pick. True when it was ours.
+   */
   noteToast(text: string): boolean {
     const p = this.pending;
-    if (!p) return false;
+    if (!p || !isChestRefusal(text)) return false;
     this.pending = null;
     this.noteRefused(text, this.now());
     this.refresh();
@@ -514,6 +533,7 @@ export class ChestPanel {
   /** Takes the keyboard (C): the digits and Esc are the panel's until it gives it back. False while the panel is closed. */
   focus(): boolean {
     if (this.element.hidden) return false;
+    this.setTabbable(true);
     this.element.focus({ preventScroll: true });
     return true;
   }
@@ -522,7 +542,22 @@ export class ChestPanel {
   leave(): void {
     const active = document.activeElement as { blur?: () => void } | null;
     if (active && this.element.contains(active as Node)) active.blur?.();
+    this.setTabbable(false);
   }
+
+  /** The cards and Skip are in the Tab order only while the panel has the keyboard (C): -1 otherwise. */
+  private setTabbable(on: boolean): void {
+    if (on === this.tabbable) return;
+    this.tabbable = on;
+    const index = on ? 0 : -1;
+    for (const card of this.cards) card.root.tabIndex = index;
+    this.skipButton.tabIndex = index;
+  }
+
+  private readonly onFocusOut = (e: Event): void => {
+    const to = (e as { relatedTarget?: unknown }).relatedTarget as Node | null | undefined;
+    if (!to || !this.element.contains(to)) this.setTabbable(false);
+  };
 
   /**
    * The page's focus is inside one of its dialogs (the help card, the settings card): C is not the panel's then. A button left
@@ -535,6 +570,9 @@ export class ChestPanel {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
+    // Whatever key this is (a Tab included, which this capturing listener sees before the browser moves the focus): with the
+    // keyboard not in the panel (a click on the canvas took it away from the panel itself), its buttons are not in the Tab order.
+    if (this.tabbable && !this.focused) this.setTabbable(false);
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || this.element.hidden) return;
     if (isTypingTarget(e.target) || isTypingTarget(document.activeElement)) return;
     const action = chestKeyAction(e.code, { focused: this.focused, foreign: this.foreignFocus(), shift: e.shiftKey });

@@ -35,7 +35,7 @@
 // Kill combos (bursts, the kill shield, the cooldown reset) are gone (decision 7); they come back as relic and skill synergies.
 import {
   BOUNTY_STACK_SHARE, BUFF_REF_STACKS, BUFF_S0, BUFF_W, CATCHUP_GAP, CATCHUP_MULT, DUEL_PACE, LIFESTEAL_MAX, LS_CAP,
-  REWARD_FLOOR, REWARD_MID, REWARD_WIDTH,
+  HEAL_OVER_TIME_STEP_MS, REWARD_FLOOR, REWARD_MID, REWARD_WIDTH,
 } from "./constants";
 import { visitEffect, type Effect, type StatKey } from "./effects";
 import type { FactionId } from "./factions";
@@ -272,6 +272,16 @@ function pct(v: number): string {
   return String(Math.round(v * 1000) / 10);
 }
 
+/** How many equal steps a heal over time of nominal length `ms` is paid in, the first at once (Second Wind's 2000 is four). */
+export function healOverTimeSteps(ms: number): number {
+  return Math.max(1, Math.round(ms / HEAL_OVER_TIME_STEP_MS));
+}
+
+/** From its first step to its last: what a heal over time really spans, and what its text says (four steps 500 ms apart: 1.5 s). */
+export function healOverTimeSpanMs(ms: number): number {
+  return (healOverTimeSteps(ms) - 1) * HEAL_OVER_TIME_STEP_MS;
+}
+
 /** Points with at most one decimal: 10 "10", 10.84 "10.8". */
 function pts(v: number): string {
   return String(Math.round(v * 10) / 10);
@@ -344,7 +354,7 @@ export function effectText(e: Effect): string {
       const once = r.once ? (r.rearm === "teleport" ? " (once, and again after each teleport)" : " (once per run)") : "";
       const a = r.do;
       switch (a.do) {
-        case "heal": return `${when}: heal ${pct(a.share)}% of max HP${a.ms ? ` over ${pts(a.ms / 1000)} s` : ""}${once}`;
+        case "heal": return `${when}: heal ${pct(a.share)}% of max HP${a.ms ? ` over ${pts(healOverTimeSpanMs(a.ms) / 1000)} s` : ""}${once}`;
         case "barrier": return `${when}: a barrier of ${pct(a.share)}% of max HP for ${pts(a.ms / 1000)} s${once}`;
         case "status": return `${when}: ${a.status} for ${pts(a.ms / 1000)} s${once}`;
         case "cleanse": return `${when}: cleanse${once}`;

@@ -227,6 +227,49 @@ describe("the chest hunt", () => {
     expect(new Set(kinds)).toEqual(new Set(["none"]));
   });
 
+  it("a fight that keeps interrupting the walk does not reset the stall count: the record is the chest's, and counts walking only", () => {
+    // A chest 500 u off: walkable in peace, past fightWalk (12 tiles) while fighting. The bot is stuck and never moves.
+    const s = new Scene();
+    s.chests = [chest("c1", 500, 0)];
+    let gaveUp = -1;
+    for (let round = 0; round < 8 && gaveUp < 0; round++) {
+      s.fighting = false;
+      for (let t = 0; t < 1000; t += 50) if (s.step().kind === "none") { gaveUp = round; break; } // 1 s of walking...
+      s.fighting = true;
+      s.step(); // ...then a fight tick that drops the walk, and a walk again
+    }
+    expect(gaveUp, "given up on in the fourth round of walking, 3 s of it in all").toBeGreaterThanOrEqual(2);
+    expect(gaveUp).toBeLessThanOrEqual(3);
+    expect(s.hunter.stats.gaveUp).toBe(1);
+    expect(s.hunter.stats.walks, "one chest, one walk, however often it was interrupted").toBe(1);
+    expect(s.hunter.tried("c1")).toBe(true);
+  });
+
+  it("time spent away from a chest (fighting, retreating) is not stalling: the walk resumes with what it had", () => {
+    const s = new Scene();
+    s.chests = [chest("c1", 500, 0)];
+    for (let t = 0; t < 2000; t += 50) expect(s.step().kind).toBe("walk"); // 2 s of walking, going nowhere
+    s.fighting = true;
+    for (let t = 0; t < 6000; t += 500) expect(s.step(500).kind).toBe("none"); // 6 s of fighting (the chest is up for 15)
+    s.fighting = false;
+    for (let t = 0; t < 800; t += 50) expect(s.step().kind, "0.8 s more walking: 2.8 s of the 3").toBe("walk");
+    expect(s.hunter.stats.gaveUp).toBe(0);
+    for (let t = 0; t < 600; t += 50) s.step();
+    expect(s.hunter.stats.gaveUp).toBe(1);
+  });
+
+  it("a record for a chest that has gone from the state is dropped, and a new chest starts fresh", () => {
+    const s = new Scene();
+    s.chests = [chest("c1", 500, 0)];
+    for (let t = 0; t < 2500; t += 50) s.step();
+    s.chests = [];
+    s.step();
+    s.chests = [chest("c2", 500, 0)];
+    for (let t = 0; t < 2500; t += 50) expect(s.step().kind).toBe("walk");
+    expect(s.hunter.stats.gaveUp).toBe(0);
+    expect(s.hunter.stats.walks).toBe(2);
+  });
+
   it("does not give up on a walk that keeps closing in", () => {
     const s = new Scene();
     s.chests = [chest("c1", 1000, 0)];

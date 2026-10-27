@@ -111,6 +111,19 @@ describe("PassivesRow", () => {
   });
 });
 
+describe("passiveTip: Quickdraw's caveat", () => {
+  it("says windups end on ticks, under the other lines, and only Quickdraw has one", () => {
+    const tip = passiveTip(skillDef("quickdraw")!, 1);
+    const lines = tip.split("\n");
+    expect(lines.at(-1)).toBe(skillDef("quickdraw")!.note);
+    expect(lines.at(-1)).toMatch(/50 ms tick/);
+    expect(lines[1]).toBe("-8% windup time");
+    for (const def of SKILLS) if (def.id !== "quickdraw") expect(def.note, def.id).toBeUndefined();
+    // The cards (skillText) stay the rank's own line: the number is the rows', the caveat is the tooltip's.
+    expect(skillText("quickdraw", 1)).toBe("-8% windup time");
+  });
+});
+
 describe("passiveTip", () => {
   it("says the name, pool and rank, what the rank gives, what the next adds, and the matchup tags", () => {
     const tip = passiveTip(skillDef("whetstone")!, 1).split("\n");
@@ -200,6 +213,38 @@ describe("the row never takes the pointer", () => {
     // A chip that goes away takes its tooltip with it.
     row.update({ whetstone: 1 }, "fire", true);
     expect(on()).toEqual([]);
+  });
+
+  it("reads the chips' rectangles again when the row has moved or grown (the buff strip above it wrapped), with no repaint or resize", () => {
+    const dom = installFakeDom();
+    const { row, root, chips } = setup();
+    const list = (root.children as FakeEl[])[1]!;
+    row.update({ whetstone: 1, swiftBoots: 2 }, "fire", true);
+    const a = chips[index("swiftBoots")]!;
+    const b = chips[index("whetstone")]!;
+    list.rect = { left: 10, top: 300, width: 200, height: 16 };
+    a.rect = { left: 10, top: 300, width: 80, height: 16 };
+    b.rect = { left: 94, top: 300, width: 80, height: 16 };
+    const canvas = { tagName: "CANVAS" };
+    const move = (x: number, y: number): void => { dom.win.dispatchEvent(fakeEvent("pointermove", { clientX: x, clientY: y, target: canvas })); };
+    const on = (): string[] => SKILLS.filter((_, i) => chips[i]!.classes.has(PASSIVE_TIP_ON)).map((s) => s.id);
+    move(50, 308);
+    expect(on()).toEqual(["swiftBoots"]);
+    // The strip above gains a line: the whole row drops 22 px. Nothing was repainted and the window did not resize.
+    list.rect = { left: 10, top: 322, width: 200, height: 16 };
+    a.rect = { left: 10, top: 322, width: 80, height: 16 };
+    b.rect = { left: 94, top: 322, width: 80, height: 16 };
+    move(50, 308);
+    expect(on(), "the old place is empty now").toEqual([]);
+    move(50, 330);
+    expect(on()).toEqual(["swiftBoots"]);
+    move(120, 330);
+    expect(on()).toEqual(["whetstone"]);
+    // The row growing (a third chip wrapping it taller) is seen too.
+    list.rect = { left: 10, top: 322, width: 200, height: 40 };
+    b.rect = { left: 10, top: 344, width: 80, height: 16 };
+    move(50, 350);
+    expect(on()).toEqual(["whetstone"]);
   });
 
   it("never stops or cancels what it hears", () => {

@@ -91,7 +91,7 @@ describe("the script", () => {
     expect(source).not.toMatch(/pointerdown|pointerup|pointermove|mousedown|mouseup|mousemove|touchstart|wheel/);
   });
 
-  it("puts click and contextmenu on the cards and Skip only, and keydown on the window only", () => {
+  it("puts click, contextmenu and focusout on the cards and Skip only, and keydown on the window only", () => {
     const { win } = installChromeDom();
     const seen: Array<{ el: string; type: string }> = [];
     const original = FEl.prototype.addEventListener;
@@ -104,10 +104,10 @@ describe("the script", () => {
     expect(seen.length).toBeGreaterThan(0);
     for (const s of seen) {
       expect(["cp-card", "cp-skip"], `${s.type} on ${s.el}`).toContain(s.el);
-      expect(["click", "contextmenu"], s.type).toContain(s.type);
+      expect(["click", "contextmenu", "focusout"], s.type).toContain(s.type); // focusout: the Tab order, never a pointer
     }
-    expect(seen.filter((s) => s.el === "cp-card")).toHaveLength(6);
-    expect(seen.filter((s) => s.el === "cp-skip")).toHaveLength(2);
+    expect(seen.filter((s) => s.el === "cp-card")).toHaveLength(9);
+    expect(seen.filter((s) => s.el === "cp-skip")).toHaveLength(3);
     expect(win.keydownListeners).toBe(1);
     expect(fake(panel.element).className).toBe("chest-panel");
   });

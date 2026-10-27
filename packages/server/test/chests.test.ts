@@ -5,20 +5,22 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  CHEST_RANGE, CHEST_SECONDS, GV_MOB_CAP, GV_SKIP, mapFromTiles, mulberry32, nextRank, rollChestOptions, SKIP_HEAL_SHARE,
+  CHEST_RANGE, CHEST_REFUSAL, CHEST_REFUSALS, CHEST_SECONDS, GV_MOB_CAP, GV_SKIP, mapFromTiles, mulberry32, nextRank, rollChestOptions, SKIP_HEAL_SHARE,
   TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type CampDef, type FactionId, type FxEvent, type GameMap, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { downPlayer, teleportToColiseum } from "../src/sim/arena";
 import { CAMP_CLEARED, CAMP_ENGAGED, CAMP_IDLE } from "../src/sim/camps";
-import { dropRewardChest, rewardChests } from "../src/sim/chests";
+import { clearChests, dropRewardChest, rewardChests } from "../src/sim/chests";
 import { combatant } from "../src/sim/combatant";
 import { noteContact } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage, MAX_CHOOSE_PICK, parseChoose } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
+import { birthsRemembered } from "../src/sim/loot";
 import { hurtMob, killMob, type MobCombatant } from "../src/sim/mobLife";
 import { modRowsOf } from "../src/sim/mods";
+import { addStatus } from "../src/sim/status";
 import { actionOrder, addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, SimEvent, World } from "../src/sim/world";
 
@@ -227,6 +229,61 @@ describe("camp-wide aggro (D24)", () => {
     hit(w, a!, "p2", 3);
     expect(c!.rt.brain!.mode).toBe("fight");
     expect(c!.rt.brain!.target).toBe(a!.rt.brain!.target);
+  });
+
+  /** One ledger pass killing `m` outright, from `by`. */
+  const slay = (w: World, m: MobCombatant, by: string): void => {
+    recordHit(w, { victim: m.id, by: { id: by, name: by }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+    applyLedger(w);
+  };
+
+  it("a LETHAL hit wakes the idle mates onto the killer too, with no threat of their own, and no other camp", () => {
+    const w = run();
+    const [a, b, c] = campMobs(w, 0);
+    slay(w, a!, "p1");
+    expect(a!.s.status).toBe("dead");
+    for (const m of [b!, c!]) {
+      expect(m.rt.brain!.mode, m.id).toBe("fight");
+      expect(m.rt.brain!.target, m.id).toBe("p1");
+      expect(m.rt.brain!.threat.get("p1"), m.id).toBe(0);
+    }
+    expect(a!.rt.brain!.mode).toBe("idle"); // the dead one is reset, not woken
+    for (const m of campMobs(w, 1)) expect(m.rt.brain!.mode).toBe("idle");
+    // Credit is the dying mob's own: the wake gave the mates nothing to be killed over.
+    expect(fxOf(w.events, "death")[0]!.by).toBe("p1");
+    expect(RT(w, 1).mobKills).toBe(1);
+    slay(w, b!, "p2");
+    expect(fxOf(w.events, "death").find((d) => d.id === b!.id)!.by).toBe("p2");
+  });
+
+  it("a lethal hit does not wake a mate walking home, nor one already dead, nor a hidden killer's camp", () => {
+    const w = run();
+    const [a, b, c] = campMobs(w, 0);
+    b!.rt.brain!.mode = "return";
+    slay(w, a!, "p0");
+    expect(b!.rt.brain!.mode).toBe("return");
+    expect(c!.rt.brain!.mode).toBe("fight");
+
+    // A hidden killer is never handed to the mates (pickTarget would not choose it either).
+    const h = run();
+    const [x, y, z] = campMobs(h, 0);
+    addStatus(h, combatant(h, "p1")!, { kind: "hidden", source: { id: "x", name: "x" }, ms: 5000 });
+    slay(h, x!, "p1");
+    expect(x!.s.status).toBe("dead");
+    for (const m of [y!, z!]) expect(m.rt.brain!.mode, m.id).toBe("idle");
+  });
+
+  it("a killer who is already down hands nothing on, and a mob nobody in the run killed wakes no one", () => {
+    const w = run();
+    const [a, b] = campMobs(w, 0);
+    downPlayer(w, P(w, 1), RT(w, 1), "died");
+    slay(w, a!, "p1");
+    expect(a!.s.status).toBe("dead");
+    expect(b!.rt.brain!.mode).toBe("idle");
+    const v = run();
+    const [d, e] = campMobs(v, 0);
+    killMob(v, d!, [], []);
+    expect(e!.rt.brain!.mode).toBe("idle");
   });
 
   it("kill credit is unchanged: the pull earns nothing, the damage dealer gets the kill", () => {
@@ -460,6 +517,61 @@ describe("choose: picking at the chest", () => {
     tick(end);
     expect(end.state.phase).toBe("ended");
     expect(rewardChests(end)).toEqual([]);
+  });
+});
+
+describe("every refusal toast of a pick is one the client knows (shared CHEST_REFUSALS)", () => {
+  it("covers all seven reasons a handleChoose refusal has", () => {
+    const w = run();
+    clearCamp(w, 0); // the Fire camp: its chest has the wall tile 90 u east of it
+    tick(w);
+    const box = onlyChest(w);
+    const said = new Set<string>();
+    const note = (who: string): void => { for (const t of toasts(tick(w), who)) said.add(t); };
+    place(w, 0, box, 200); choose(w, 0, box.id, 0); note("p0"); // too far
+    place(w, 0, box, 90); choose(w, 0, box.id, 0); note("p0"); // east, behind the wall tile at (12, 5)
+    place(w, 0, box, 40); choose(w, 0, "nope", 0); note("p0"); // gone
+    choose(w, 0, box.id, 0); note("p0"); // p0 takes option 0 ...
+    choose(w, 0, box.id, 1); note("p0"); // ... and cannot pick twice
+    place(w, 1, box, -20); choose(w, 1, box.id, 0); note("p1"); // taken
+    place(w, 2, box, 30);
+    P(w, 2).build.set(box.options[2]!, 2);
+    choose(w, 2, box.id, 2); note("p2"); // maxed
+    addStatus(w, combatant(w, "p2")!, { kind: "stun", source: { id: "x", name: "x" }, ms: 1000 });
+    choose(w, 2, box.id, 1); note("p2"); // busy
+    expect([...said].sort()).toEqual([...CHEST_REFUSALS].sort());
+    for (const t of said) expect(Object.values(CHEST_REFUSAL)).toContain(t);
+  });
+});
+
+describe("a chest's birth is forgotten with the chest", () => {
+  const drop = (w: World, n: number): void => {
+    for (let i = 0; i < n; i++) dropRewardChest(w, { x: at(10), y: at(5) }, ["thickHide"], 0);
+  };
+
+  it("an expired chest nobody picked from leaves no entry behind, over many cycles", () => {
+    const w = run();
+    const base = birthsRemembered(w);
+    for (let cycle = 0; cycle < 4; cycle++) {
+      drop(w, 6); // between ticks: remembered until the next one publishes them
+      expect(birthsRemembered(w)).toBe(base + 6);
+      for (let i = 0; i < CHEST_SECONDS * (1000 / TICK_MS) + 2; i++) tick(w);
+      expect(rewardChests(w)).toEqual([]);
+      expect(birthsRemembered(w), `cycle ${cycle}`).toBe(base);
+    }
+  });
+
+  it("a chest taken away by the teleport or the console's clear is forgotten too", () => {
+    const w = run();
+    const base = birthsRemembered(w);
+    drop(w, 3);
+    clearChests(w);
+    expect(rewardChests(w)).toEqual([]);
+    expect(birthsRemembered(w)).toBe(base);
+    drop(w, 3);
+    teleportToColiseum(w);
+    expect(rewardChests(w)).toEqual([]);
+    expect(birthsRemembered(w)).toBe(base);
   });
 });
 

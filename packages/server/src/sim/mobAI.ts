@@ -100,6 +100,17 @@ export function aggro(world: World, c: MobCombatant, attackerId: string, amount:
   if (CAMP_WIDE_AGGRO && b.mode === "fight" && b.target !== null) wakeCamp(world, c, b.target);
 }
 
+/**
+ * D24 for a lethal hit: a mob that dies in one pass never reaches `aggro`'s fight branch, so its mates would stay asleep
+ * through a kill they just watched. Called by killMob with the credited killer: the same rules as a camp-wide wake (idle,
+ * living mates of the camp, no threat of their own, never a hidden or untargetable target), and only for a killer still
+ * standing. No recursion: wakeCamp wakes, it never damages.
+ */
+export function wakeMatesOnKill(world: World, c: MobCombatant, killerId: string): void {
+  if (!CAMP_WIDE_AGGRO || standingPlayer(world, killerId) === null) return;
+  wakeCamp(world, c, killerId);
+}
+
 function wake(world: World, b: MobBrain, target: string): void {
   b.mode = "fight";
   b.target = target;

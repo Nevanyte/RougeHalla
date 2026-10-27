@@ -217,9 +217,11 @@ export function awardGv(world: World, p: PlayerState, rt: PlayerRuntime, reason:
 
 /**
  * A chest skip that healed nothing (roguelike R5, D12): GV_SKIP GV, counted with the mob GV and so stopped by GV_MOB_CAP
- * like it. Returns the GV paid (0 once the cap is reached, or for a player whose result is out).
+ * like it. Returns the GV paid (0 once the cap is reached, for a player whose result is out, or in a training room).
  */
 export function awardSkipGv(world: World, p: PlayerState, rt: PlayerRuntime): number {
+  // The training room records nothing (practice kills pay none either): no GV, so no "+3 GV" toast.
+  if (world.config.training) return 0;
   return credit(world, p, rt, "skip", Math.min(GV_SKIP, Math.max(0, GV_MOB_CAP - rt.gv.mobs)));
 }
 

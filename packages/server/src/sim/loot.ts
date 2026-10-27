@@ -68,6 +68,16 @@ export function bornThisTick(world: World, id: string): boolean {
   return false;
 }
 
+/** A container leaves the state: its birth tick is no longer needed (a chest nobody picked from would keep it for good). */
+export function forgetBirth(world: World, id: string): void {
+  bornAt.get(world)?.delete(id);
+}
+
+/** How many births are remembered (for tests: the map must not grow with the containers that come and go). */
+export function birthsRemembered(world: World): number {
+  return bornAt.get(world)?.size ?? 0;
+}
+
 /** A loose weapon on the ground at `at`. */
 export function dropWeapon(world: World, at: Vec2, def: string): ContainerState {
   return addContainer(world, "ground", at, isWeaponId(def) ? WEAPONS[def].name : def, [{ uid: world.newItemUid(), def }]);

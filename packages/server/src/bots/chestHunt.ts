@@ -11,7 +11,9 @@
 //      most pace x speed, plus arriveSlackMs, inside the chest's remaining life). In a fight, or with an awake mob close, only a
 //      chest within fightWalk is worth leaving it for; running away at low hp walks to no chest.
 //   3. A chest is tried ONCE: asking for it (or a pick the state shows we already made) puts it in `done`, and a refused pick is
-//      never repeated. A walk that stops closing in for stallMs is given up on, so a chest behind a bad path never holds the bot.
+//      never repeated. A walk that stops closing in is given up on, so a chest behind a bad path never holds the bot: the
+//      record is kept per chest and counts only the time spent walking to it, so a fight that interrupts the walk (and starts
+//      it again a moment later) neither resets the count nor adds to it.
 //   4. A chest that has expired, or is gone from the state, is simply not in the input any more.
 import {
   CHEST_PANEL_SLACK, CHEST_RANGE, nextRank, PLAYER_SPEED, skillDef, skillRows, TILE,
@@ -43,9 +45,11 @@ export interface ChestHuntConfig {
   paceShare: number;
   /** In a fight, or with an awake mob close, only a chest this near (walking distance, u) is worth leaving it for. */
   fightWalk: number;
-  /** A walk that has not got `stallProgress` (u) closer for this long (ms) is given up on. */
+  /** A walk that has not got `stallProgress` (u) closer after this much walking (ms) is given up on. */
   stallMs: number;
   stallProgress: number;
+  /** One think counts for at most this long (ms) in the stall record: a long gap between thinks is not walking time. */
+  stallStepMaxMs: number;
   /** Walking distances are computed for this many of the nearest chests only, and kept this long (ms). */
   maxCandidates: number;
   walkCacheMs: number;
@@ -59,6 +63,7 @@ export const CHEST_HUNT: Readonly<ChestHuntConfig> = {
   fightWalk: 12 * TILE,
   stallMs: 3000,
   stallProgress: 24,
+  stallStepMaxMs: 500,
   maxCandidates: 3,
   walkCacheMs: 250,
 };
@@ -173,7 +178,10 @@ export class ChestHunter {
   readonly stats: ChestHuntStats = { walks: 0, gaveUp: 0 };
   /** Chests a pick was asked for, or that we have already picked at, or gave up on: never looked at again. */
   private readonly done = new Set<string>();
-  private walking: { id: string; best: number; since: number } | null = null;
+  /** The chest the last think walked to, and when: the next think adds the time between to that chest's stall record. */
+  private walking: { id: string; at: number } | null = null;
+  /** Per chest, not per walk: how close the bot has got and how long it has walked to it since it last got closer. */
+  private readonly stalls = new Map<string, { best: number; walkedMs: number }>();
   private readonly walks = new Map<string, { at: number; len: number | null }>();
 
   /** `log` hears each pick and each give-up (BotClient prints them with --verbose). */
@@ -193,6 +201,7 @@ export class ChestHunter {
   markDone(id: string): void {
     this.done.add(id);
     this.walks.delete(id);
+    this.stalls.delete(id);
     if (this.walking?.id === id) this.walking = null;
   }
 
@@ -211,11 +220,14 @@ export class ChestHunter {
       up.push({ chest, d: dist(self, chest), left, option: chooseOption(chest.options, chest.takenBy, self) });
     }
     up.sort((a, b) => a.d - b.d || (a.chest.id < b.chest.id ? -1 : 1));
+    // A record for a chest that is no longer up (expired, gone) is not needed any more.
+    for (const id of this.stalls.keys()) if (!up.some((u) => u.chest.id === id)) this.stalls.delete(id);
 
     // 1. In range with sight and time: pick now (a skip when nothing is usable).
     for (const u of up) {
       if (u.d > c.pickRange || u.left <= c.pickMarginMs || !inp.sight(u.chest)) continue;
       this.markDone(u.chest.id);
+      this.walking = null;
       return {
         kind: "pick", chest: u.chest.id, option: u.option,
         why: u.option >= 0 ? `taking option ${u.option} (${[...u.chest.options][u.option]})` : "nothing usable: skipping",
@@ -236,23 +248,30 @@ export class ChestHunter {
     }
     if (!best) { this.walking = null; return NONE; }
 
-    // 3. The walk must keep closing in.
+    // 3. The walk must keep closing in. The record belongs to the chest: stopping the walk for a fight and taking it up again
+    // keeps what it had (only the time spent walking to this chest counts, never the time away from it).
     const id = best.chest.id;
     const d = dist(self, best.chest);
-    let w = this.walking;
-    if (!w || w.id !== id) {
-      w = this.walking = { id, best: d, since: now };
+    const last = this.walking;
+    let st = this.stalls.get(id);
+    if (!st) {
+      st = { best: d, walkedMs: 0 };
+      this.stalls.set(id, st);
       this.stats.walks++;
       this.log(`going for chest ${id} (${Math.round(best.len)} u of walking)`);
-    } else if (d < w.best - c.stallProgress) {
-      w.best = d;
-      w.since = now;
-    } else if (now - w.since >= c.stallMs) {
-      this.log(`giving up on chest ${id}: not getting any closer`);
-      this.stats.gaveUp++;
-      this.markDone(id);
-      return NONE;
+    } else {
+      if (last?.id === id) st.walkedMs += Math.min(Math.max(0, now - last.at), c.stallStepMaxMs);
+      if (d < st.best - c.stallProgress) {
+        st.best = d;
+        st.walkedMs = 0;
+      } else if (st.walkedMs >= c.stallMs) {
+        this.log(`giving up on chest ${id}: not getting any closer`);
+        this.stats.gaveUp++;
+        this.markDone(id);
+        return NONE;
+      }
     }
+    this.walking = { id, at: now };
     return { kind: "walk", chest: id, to: { x: best.chest.x, y: best.chest.y }, why: `chest ${id}` };
   }
 

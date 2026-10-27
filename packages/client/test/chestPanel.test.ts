@@ -4,11 +4,11 @@
 // once, and reports what the server refused. Time is a number the test moves.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  CHEST_GREY_MS, CHEST_OPTIONS, TILE, TILE_FLOOR, TILE_WALL, generateMap, mapFromTiles, skipText,
+  CHEST_GREY_MS, CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_REFUSALS, TILE, TILE_FLOOR, TILE_WALL, generateMap, mapFromTiles, skipText,
   type ClientMessages, type GameMap,
 } from "@raid/shared";
 import { SettingsStore } from "../src/settings";
-import { PANEL_RANGE, type RewardSource } from "../src/ui/chestMath";
+import { PANEL_CLOSE_RANGE, PANEL_RANGE, type RewardSource } from "../src/ui/chestMath";
 import {
   ChestPanel, NOT_CONFIRMED_SAY, PENDING_EXPIRE_MS, PICKED_HOLD_MS, RECONNECTING_SAY, REFUSED_HOLD_MS, chestKeyAction,
   type ChestPanelFrame, type ChestPanelMe,
@@ -98,17 +98,55 @@ describe("when the panel is open", () => {
 
   it("follows the latest SERVER position: in reach inside the server's range less the slack, closed beyond it", () => {
     const r = setup();
+    r.me.x = 500 + PANEL_RANGE + 1;
+    r.frame();
+    expect(r.panel.isOpen, "it does not OPEN past the range").toBe(false);
     r.me.x = 500 + PANEL_RANGE;
     r.frame();
     expect(r.panel.isOpen).toBe(true);
-    r.me.x = 500 + PANEL_RANGE + 1;
+    r.me.x = 500 + PANEL_CLOSE_RANGE + 1;
     r.frame();
-    expect(r.panel.isOpen).toBe(false);
+    expect(r.panel.isOpen, "and closes only past the hysteresis").toBe(false);
     r.me.x = 500;
     r.me.y = 500 - PANEL_RANGE - 20;
     r.frame();
     expect(r.panel.isOpen).toBe(false);
     r.me.y = 500 - 10;
+    r.frame();
+    expect(r.panel.isOpen).toBe(true);
+  });
+
+  it("weaving on the edge does not flicker it: it opens at 88 u, holds to 92 u, keeps its pick on the way and its entrance does not replay", () => {
+    expect(PANEL_RANGE).toBe(88);
+    expect(PANEL_CLOSE_RANGE).toBe(92);
+    const r = setup();
+    r.clock.now = 1000;
+    r.me.x = 500 + PANEL_RANGE;
+    r.frame();
+    expect(r.panel.isOpen).toBe(true);
+    r.clock.now += 1000;
+    r.cards()[1]!.click(); // a pick in flight
+    expect(r.panel.pickPending).toBe(true);
+    let hidden = 0;
+    for (let i = 0; i < 8; i++) { // 400 ms: inside PENDING_EXPIRE_MS
+      r.clock.now += 50;
+      r.me.x = 500 + (i % 2 === 0 ? PANEL_RANGE + 3 : PANEL_RANGE - 1); // out to 91, back in to 87
+      r.frame();
+      if (!r.panel.isOpen) hidden++;
+    }
+    expect(hidden).toBe(0);
+    expect(r.panel.pickPending).toBe(true); // the wobble did not drop it
+    expect(r.root.hidden).toBe(false);
+    // Past the close range it does close, and a pick on its way is let go with it.
+    r.me.x = 500 + PANEL_CLOSE_RANGE + 1;
+    r.frame();
+    expect(r.panel.isOpen).toBe(false);
+    expect(r.panel.pickPending).toBe(false);
+    // Coming back, it opens again only inside the open range.
+    r.me.x = 500 + PANEL_RANGE + 2;
+    r.frame();
+    expect(r.panel.isOpen).toBe(false);
+    r.me.x = 500 + PANEL_RANGE;
     r.frame();
     expect(r.panel.isOpen).toBe(true);
   });
@@ -320,11 +358,47 @@ describe("picking by mouse", () => {
     expect(r.panel.focused).toBe(true);
     card.dispatch("click", { detail: 0 });
     expect(r.panel.focused).toBe(true);
-    // A refusal puts the pick back on offer; then a real click.
+    // A refusal puts the pick back on offer; then a real click (after the first moments, when a click is ignored).
     r.panel.noteToast("Already taken");
+    r.clock.now += CHEST_PANEL_CLICK_GUARD_MS;
     r.frame();
+    card.focus();
     card.dispatch("click", { detail: 1 });
     expect(r.panel.focused).toBe(false);
+    expect(r.sent).toHaveLength(2);
+  });
+
+  it("ignores a mouse click in the first moments after the panel opens (a spam-clicking cursor), not a key's activation, and not later", () => {
+    const r = setup({ chests: [] });
+    r.frame();
+    r.chests.set("c1", chest());
+    r.clock.now = 5000;
+    r.frame(); // opens now
+    expect(r.panel.isOpen).toBe(true);
+    r.cards()[1]!.dispatch("click", { detail: 1 });
+    r.skip().dispatch("click", { detail: 2 });
+    expect(r.sent).toEqual([]);
+    expect(r.panel.pickPending).toBe(false);
+    r.clock.now += CHEST_PANEL_CLICK_GUARD_MS - 1;
+    r.cards()[1]!.dispatch("click", { detail: 1 });
+    expect(r.sent).toEqual([]);
+    // A key activation (Enter on a focused card, detail 0) is deliberate: no guard.
+    r.cards()[2]!.dispatch("click", { detail: 0 });
+    expect(r.sent).toEqual([{ chest: "c1", pick: 2 }]);
+    r.panel.noteToast("Already taken");
+    r.clock.now += 1;
+    r.cards()[1]!.dispatch("click", { detail: 1 });
+    expect(r.sent).toHaveLength(2);
+    // Opening again (after a walk away and back) starts a new guard.
+    r.me.x = 5000;
+    r.frame();
+    r.panel.noteToast("x");
+    r.me.x = 540;
+    r.chests.set("c1", chest());
+    r.clock.now += 10;
+    r.frame();
+    r.cards()[0]!.dispatch("click", { detail: 1 });
+    expect(r.sent).toHaveLength(2);
   });
 
   it("never sends while the socket is reconnecting, and says so", () => {
@@ -434,6 +508,28 @@ describe("a pick the server refused", () => {
     expect(r.state()).toMatch(/One pick per chest/);
   });
 
+  it("takes only the chest's refusals as the answer: a skip's GV line or a kill's does not clear a pick on its way", () => {
+    const r = setup();
+    r.frame();
+    r.cards()[0]!.click();
+    for (const text of ["+3 GV (chest skip)", "+10 GV (kill)", "+4 GV (mob)", "Plague camp cleared", "Nothing to take", ""]) {
+      expect(r.panel.noteToast(text), text).toBe(false);
+      expect(r.panel.pickPending, text).toBe(true);
+      expect(r.cards().every((c) => c.disabled), text).toBe(true);
+    }
+    expect(r.panel.noteToast("Chest gone")).toBe(true);
+    expect(r.panel.pickPending).toBe(false);
+    // Every refusal the server sends does answer it.
+    for (const text of CHEST_REFUSALS) {
+      r.clock.now += 10_000; // past the refusal's hold
+      r.frame();
+      r.cards()[0]!.click();
+      expect(r.panel.pickPending, text).toBe(true);
+      expect(r.panel.noteToast(text), text).toBe(true);
+      expect(r.panel.pickPending, text).toBe(false);
+    }
+  });
+
   it("lets the refusal go after a while", () => {
     const r = setup();
     r.frame();
@@ -500,6 +596,16 @@ describe("greying at expiry", () => {
     expect(fast.cards().every((c) => !c.disabled)).toBe(true);
   });
 
+  it("a negative estimate is no round trip at all, the same clamp as the chest's ring: it is not read as the 100 ms default", () => {
+    const r = setup();
+    r.clock.rtt = -20;
+    // With no round trip the chest greys at expiresAt - CHEST_GREY_MS, the server's time being the estimate.
+    r.frame(15_000 - CHEST_GREY_MS - 1);
+    expect(r.cards().every((c) => !c.disabled)).toBe(true);
+    r.frame(15_000 - CHEST_GREY_MS);
+    expect(r.cards().every((c) => c.disabled)).toBe(true);
+  });
+
   it("an unknown round trip is a default one, not NaN", () => {
     const r = setup();
     r.clock.rtt = Number.NaN;
@@ -514,6 +620,68 @@ describe("greying at expiry", () => {
     r.panel.focus();
     r.win.press({ code: "Digit1" });
     r.win.press({ code: "Digit0" });
+    expect(r.sent).toEqual([]);
+  });
+});
+
+describe("the Tab order", () => {
+  it("keeps the cards and Skip out of it until C takes the keyboard, so a stray Tab cannot put the focus inside", () => {
+    const r = setup();
+    r.frame();
+    expect(r.cards().map((c) => c.tabIndex)).toEqual([-1, -1, -1]);
+    expect(r.skip().tabIndex).toBe(-1);
+    r.win.press({ code: "KeyC" });
+    expect(r.panel.focused).toBe(true);
+    expect(r.cards().map((c) => c.tabIndex)).toEqual([0, 0, 0]);
+    expect(r.skip().tabIndex).toBe(0);
+    r.win.press({ code: "KeyC" });
+    expect(r.panel.focused).toBe(false);
+    expect(r.cards().map((c) => c.tabIndex)).toEqual([-1, -1, -1]);
+    expect(r.skip().tabIndex).toBe(-1);
+  });
+
+  it("Esc, closing the panel and the focus leaving for the canvas all restore it; focus moving between the buttons does not", () => {
+    const r = setup();
+    r.frame();
+    r.win.press({ code: "KeyC" });
+    r.win.press({ code: "Escape" });
+    expect(r.cards().concat(r.skip()).every((b) => b.tabIndex === -1)).toBe(true);
+
+    r.win.press({ code: "KeyC" });
+    expect(r.cards()[0]!.tabIndex).toBe(0);
+    r.cards()[0]!.dispatch("focusout", { relatedTarget: r.cards()[1]! }); // Tab to the next card
+    expect(r.cards()[0]!.tabIndex).toBe(0);
+    r.cards()[2]!.dispatch("focusout", { relatedTarget: null }); // clicked the canvas
+    expect(r.cards().concat(r.skip()).every((b) => b.tabIndex === -1)).toBe(true);
+
+    r.win.press({ code: "KeyC" });
+    r.skip().dispatch("focusout", { relatedTarget: { outside: true } }); // Tab past the last button
+    expect(r.cards().concat(r.skip()).every((b) => b.tabIndex === -1)).toBe(true);
+
+    r.win.press({ code: "KeyC" });
+    r.me.x = 5000;
+    r.frame(); // walked away: it closes
+    expect(r.cards().concat(r.skip()).every((b) => b.tabIndex === -1)).toBe(true);
+  });
+
+  it("a click on the canvas that takes the focus off the panel's own box (no button had it) is seen at the next key, before a Tab could move in", () => {
+    const r = setup();
+    r.frame();
+    r.win.press({ code: "KeyC" });
+    expect(r.skip().tabIndex).toBe(0);
+    r.doc.activeElement = r.doc.body; // the canvas was clicked: the panel lost the focus without any focusout on a button
+    r.win.press({ code: "Tab" });
+    expect(r.cards().concat(r.skip()).every((b) => b.tabIndex === -1)).toBe(true);
+  });
+
+  it("with the buttons out of the Tab order, a browser Tab from the canvas never lands in the panel, so Esc and the digits stay the game's", () => {
+    const r = setup();
+    r.frame();
+    // What a Tab does in a browser: it can only focus an element with a tabIndex of 0 or more.
+    const tabbable = r.root.find((e) => e.tagName === "BUTTON" && e.tabIndex >= 0);
+    expect(tabbable).toEqual([]);
+    const digit = r.win.press({ code: "Digit1" });
+    expect(digit.defaultPrevented).toBe(false);
     expect(r.sent).toEqual([]);
   });
 });

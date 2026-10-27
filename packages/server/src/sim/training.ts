@@ -20,6 +20,7 @@ import { standing, type Combatant } from "./combatant";
 import { placeMob } from "./mobLife";
 import { recomputeMods } from "./mods";
 import { planPath } from "./movement";
+import { clearProjectilesOf } from "./projectiles";
 import { chainHook, collisionMap, emit, type ActionHandler, type PlayerRuntime, type World } from "./world";
 import { resetWeapons } from "./weapons";
 
@@ -314,7 +315,10 @@ function trainClear(world: World, c: PlayerCombatant): void {
   c.rt.hots = undefined;
   recomputeMods(world, c);
   syncMaxHp(p);
-  for (const id of practiceMobIds(world)) {
+  const gone = practiceMobIds(world);
+  // Their arrows and balls in the air go with them: an owner outliving its shot is the arena's rule, not a practice room's.
+  clearProjectilesOf(world, new Set(gone), "cleared");
+  for (const id of gone) {
     world.state.mobs.delete(id);
     world.mobs.delete(id);
   }

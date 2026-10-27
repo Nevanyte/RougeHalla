@@ -71,7 +71,8 @@ describe("camp states on the map screens", () => {
     view.update(frame({ campStates }));
     const cleared = camps()[0]!.getAttribute("aria-label")!;
     expect(cleared).toContain(campTitle(MAP.camps[0]!));
-    expect(cleared).toContain("Cleared: its chest is gone");
+    expect(cleared).toMatch(/\. Cleared$/); // not "its chest is gone": the chest is up for 15 s after the clear
+    expect(cleared).not.toContain("chest");
     expect(cleared).not.toContain("For ");
     expect(camps()[0]!.byClass("pl-chip")[0]!.hidden).toBe(true);
     const engaged = camps()[1]!.getAttribute("aria-label")!;

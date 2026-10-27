@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buffScale, damageShares, decodeFlat, decodeMult, diseaseDps, encodeFlat, encodeMult, EXECUTE_BAND, FACTIONS, HEAL_OVER_TIME_STEP_MS,
-  mapFromTiles, mitigateShares, mulberry32, pacedFaction, SIG_EXECUTE, skillRows, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  healOverTimeSpanMs, healOverTimeSteps, mapFromTiles, mitigateShares, mulberry32, pacedFaction, SIG_EXECUTE, skillRows, skillText, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type Effect, type FactionId, type GameMap, type SkillId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -245,6 +245,52 @@ const RIGS: Partial<Record<SkillId, Rig>> = {
     else expect(P(w, 0).hp).toBe(hp);
   },
 };
+
+describe("Second Wind's heal over time", () => {
+  it("spans 1.5 s (four steps 500 ms apart, the first at once), which is what its text says", () => {
+    expect(healOverTimeSteps(2000)).toBe(4);
+    expect(healOverTimeSpanMs(2000)).toBe(3 * HEAL_OVER_TIME_STEP_MS);
+    expect(skillText("secondWind", 1)).toContain("over 1.5 s");
+    expect(skillText("secondWind", 2)).toContain("over 1.5 s");
+    const w = startRun(["frost", "fire"], { signatures: true });
+    give(w, 0, "secondWind", 1);
+    setHpFrac(w, 0, 0.3);
+    const max = P(w, 0).maxHp;
+    hitFor(w, 1, "p0", 2000);
+    const first = P(w, 0).hp;
+    const t0 = w.state.serverTime;
+    const seen: Array<[number, number]> = [];
+    while (w.state.serverTime < t0 + 2000) {
+      step(w, TICK_MS);
+      seen.push([w.state.serverTime - t0, P(w, 0).hp]);
+    }
+    const at = (ms: number): number => seen.find(([t]) => t >= ms)![1];
+    expect(at(450)).toBeCloseTo(first, 6);
+    expect(at(500)).toBeCloseTo(first + 0.05 * max, 6);
+    expect(at(1450)).toBeCloseTo(first + 0.10 * max, 6);
+    expect(at(1500)).toBeCloseTo(first + 0.15 * max, 6);
+    expect(at(2000)).toBeCloseTo(first + 0.15 * max, 6); // nothing after the last step: 1.5 s, not 2 s
+  });
+
+  it("a teleport drops the steps still to come, so a re-armed rank 2 never pays the old heal on top of the new one", () => {
+    const w = startRun(["frost", "fire"], { signatures: true });
+    give(w, 0, "secondWind", 2);
+    const share = v("secondWind", 2);
+    setHpFrac(w, 0, 0.3);
+    hitFor(w, 1, "p0", 2000); // fires: a quarter at once, three steps to come
+    expect(P(w, 0).hp / P(w, 0).maxHp).toBeLessThan(0.6);
+    step(w, TICK_MS);
+    expect(RT(w, 0).hots?.length ?? 0).toBe(1);
+    teleportToColiseum(w);
+    expect(RT(w, 0).hots?.length ?? 0).toBe(0);
+    P(w, 0).immuneUntil = 0;
+    setHpFrac(w, 0, 0.2);
+    const hp = P(w, 0).hp - expectedHit(w, 1, "p0", 10, 1);
+    hitFor(w, 1, "p0", 10);
+    for (let i = 0; i < 60; i++) step(w, TICK_MS);
+    expect(P(w, 0).hp).toBeCloseTo(hp + share * P(w, 0).maxHp, 6); // exactly one heal
+  });
+});
 
 /** A Plague p0 (Pestilence at `rank`, or none) engaged with a Frost p1 at bow range, signatures on. */
 function plagueRig(withSkill: boolean, rank: 1 | 2 = 1): World {

@@ -31,7 +31,7 @@ import { WishFx } from "../render/WishFx";
 import { LockDisplay, pickTarget, targetable, unitCastDenial, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
 import { readCampStates, readCampTypes } from "../ui/campInfo";
-import { campLabel, pickLine, trueServerNow } from "../ui/chestMath";
+import { campLabel, ChestMemory, chestPickLine, rttFromOrderDelay, trueServerNow } from "../ui/chestMath";
 import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
@@ -99,6 +99,8 @@ export class RaidScene extends Phaser.Scene {
   private route!: RouteState;
   /** A cleared camp's shared chest: opens by itself in reach of the latest SERVER position (ui/chestPanel.ts). */
   private chestPanel: ChestPanel | null = null;
+  /** The options of the reward chests seen lately, for the local pick's line when the chest has already left the state. */
+  private chestMemory = new ChestMemory();
   private unbindToast: (() => void) | null = null;
   /** Scratch for the chest panel's frame and the minimap's chest blips and camp states (refilled every frame). */
   private readonly chestMe: ChestPanelMe = { id: "", x: 0, y: 0, alive: false, faction: "", build: null };
@@ -258,12 +260,13 @@ export class RaidScene extends Phaser.Scene {
     this.minimap.setShowRoute(getSettings().showRoute);
     this.unbindSettings = onSettingsChange((s) => this.minimap.setShowRoute(s.showRoute));
     this.chestPanel?.destroy();
+    this.chestMemory = new ChestMemory();
     this.chestPanel = new ChestPanel({
       send: (msg) => sendInput(this.room, "choose", msg),
       // What is sent while the socket reconnects is dropped (net/connection.ts): the panel must not show it as sent.
       canSend: () => !this.room.reconnection?.isReconnecting,
-      // The prediction's measured order delay is about a round trip: the grey-out margin and the chest's clock read it.
-      rtt: () => this.predict.motion.delay,
+      // The prediction's order delay runs up to a tick short of a round trip: the grey-out margin and the chest's clock read it plus a tick.
+      rtt: () => rttFromOrderDelay(this.predict.motion.delay),
     });
     // A refused pick comes back as the server's toast ("Already taken", "Too far away"): the panel's status line says why.
     this.unbindToast?.();
@@ -432,7 +435,7 @@ export class RaidScene extends Phaser.Scene {
     // Line of sight (pickup) follows the server's walls, closed gates included. mapView.map stays the open map.
     const sightMap = gatesLocked && map ? withGates(map) : map;
     this.nearest = me?.status === "alive" && sightMap ? nearestContainer(state.containers, sightMap, me) : null;
-    const chestNow = trueServerNow(serverNow, this.predict.motion.delay);
+    const chestNow = trueServerNow(serverNow, rttFromOrderDelay(this.predict.motion.delay));
     this.syncContainers(state, chestNow, now);
     this.updateChestPanel(state, me, sightMap ?? null, serverNow);
 
@@ -635,6 +638,7 @@ export class RaidScene extends Phaser.Scene {
       view.update(c);
       view.setHidden(this.bodyPending(c));
       if (c.kind === "reward") {
+        this.chestMemory.note(id, c.options, now);
         // The chest's clock: its ring drains and its seconds show, against the server's time now (not render time).
         const left = (c.expiresAt - chestNow) / 1000;
         const near = me !== undefined && Math.hypot(me.x - c.x, me.y - c.y) <= CHEST_RANGE * TIMER_TEXT_REACH;
@@ -642,6 +646,7 @@ export class RaidScene extends Phaser.Scene {
         if (left > 0) this.blips.push({ x: c.x, y: c.y, left });
       }
     });
+    this.chestMemory.forget(now);
     const nearestId = this.nearest?.id;
     for (const [id, view] of this.containerViews) {
       if (!seen.has(id)) { view.destroy(); this.containerViews.delete(id); continue; }
@@ -693,9 +698,10 @@ export class RaidScene extends Phaser.Scene {
 
   /** The local player's own pick at a reward chest, as a line: what they took (at the rank they hold now), or a skip. */
   private chestPick(chest: string, option: number): string | undefined {
-    const c = option >= 0 ? this.room.state.containers.get(chest) : undefined;
-    const id = c ? Array.from(c.options)[option] : undefined;
-    return pickLine(option, id, id ? rankIn(this.room.state.players.get(this.room.sessionId)?.build, id) : 0);
+    // The chest may be gone from the state already (the fx plays 100 ms late, and a pick in its last instants lands with it).
+    const live = option >= 0 ? this.room.state.containers.get(chest)?.options : undefined;
+    const build = this.room.state.players.get(this.room.sessionId)?.build;
+    return chestPickLine(chest, option, live, this.chestMemory, (skill) => rankIn(build, skill));
   }
 
   /** Remembers a death that FxView will play later, so the victim stays on screen until then (see `deaths`). */

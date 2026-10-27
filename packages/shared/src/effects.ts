@@ -59,7 +59,7 @@ export type OnHitStatus = Extract<StatusKind, "slowMove" | "slowAttack" | "antiH
  */
 export type TriggerAction =
   | Extract<AbilityEffect, { do: "status" | "cleanse" }>
-  /** `ms` (roguelike R5, Second Wind): spread over that long, in HEAL_OVER_TIME_STEP_MS steps, the first at once. */
+  /** `ms` (roguelike R5, Second Wind): paid in round(ms / HEAL_OVER_TIME_STEP_MS) equal steps, the first at once, so it spans one step less than `ms` (buffs.ts healOverTimeSpanMs). */
   | { do: "heal"; share: number; ignoreLockout?: boolean; ms?: number }
   | { do: "barrier"; share: number; ms: number }
   | { do: "cooldown"; ms: number };

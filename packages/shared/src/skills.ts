@@ -62,6 +62,8 @@ export interface SkillDef {
   ranks: readonly [SkillRank, SkillRank];
   worksWith: readonly SkillTag[];
   counters: readonly SkillTag[];
+  /** A caveat the HUD tooltip adds under the rank lines (Quickdraw: windups end on ticks). Not part of any card's text. */
+  note?: string;
 }
 
 type RankRow = { effects: readonly Effect[]; byFaction?: Partial<Record<FactionId, readonly Effect[]>>; text?: string };
@@ -211,6 +213,7 @@ const ROWS: readonly Row[] = [
     id: "quickdraw", pool: "neutral", kind: "passive", name: "Quickdraw", ready: "r5",
     ranks: [{ effects: [{ k: "stat", stat: "windup", v: -0.08 }] }, { effects: [{ k: "stat", stat: "windup", v: -0.12 }] }],
     worksWith: ["bow", "wand", "axe"], counters: ["kiters"],
+    note: "A windup ends on a 50 ms tick, so the gain comes in whole ticks: a short windup may not shorten at all.",
   },
   {
     id: "thickHide", pool: "neutral", kind: "passive", name: "Thick Hide", ready: "r5",

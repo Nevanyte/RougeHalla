@@ -268,6 +268,13 @@ export const CHEST_RANGE = 96;
  * position), so a pick it offers is not refused as too far.
  */
 export const CHEST_PANEL_SLACK = 8;
+/**
+ * Client: an open panel stays open until the player is this much farther than it opened at (CHEST_RANGE - CHEST_PANEL_SLACK),
+ * so weaving on the edge does not open and close it (and drop a pick in flight). Still inside CHEST_RANGE.
+ */
+export const CHEST_PANEL_HYSTERESIS = 4;
+/** Client: a mouse click on the panel is ignored this long after it opens (a spam-clicking cursor would take a pick unseen). */
+export const CHEST_PANEL_CLICK_GUARD_MS = 250;
 /** Client: every option greys out this long, plus half the round trip, before `expiresAt` (a later pick would be refused). */
 export const CHEST_GREY_MS = 50;
 /** A chest offers this many options (D6). */

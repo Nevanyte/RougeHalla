@@ -19,7 +19,7 @@
 //     killer is the player who did it the most damage over the whole fight (brain.threat: what each did since it last
 //     rested, plus this pass's hits; an exact tie goes to the lower tick rank) among players still in the run with no
 //     result out, so one last arrow cannot take an elite someone else wore down. With none, the mob just dies and its
-//     weapon still drops. The spoils are paid after the ledger pass (payLater), in this order:
+//     weapon still drops. The kill wakes the camp's idle mates onto that killer (mobAI.wakeMatesOnKill, D24), as any hit does. The spoils are paid after the ledger pass (payLater), in this order:
 //       1. creditMobKill (arena.ts): mob GV (x m, GV_MOB / GV_ELITE, capped) and the feed, where m is the reward
 //          multiplier read INSIDE the pass (every feed is still its tick-start value there, so the order kills are paid
 //          in never changes it);
@@ -40,7 +40,7 @@ import { mobScale, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
 import { dropWeapon } from "./loot";
-import { aggro, newBrain, resetMob } from "./mobAI";
+import { aggro, newBrain, resetMob, wakeMatesOnKill } from "./mobAI";
 import { addMob } from "./mobs";
 import { cancelAction } from "./weapons";
 import { chainHook, emit, payLater, tieRank, type LedgerEntry, type World } from "./world";
@@ -171,6 +171,8 @@ export function killMob(
   c.rt.weapon.bufferedUntil = 0;
   emit(world, { type: "fx", fx: { kind: "death", id: c.id, x: c.s.x, y: c.s.y, by: killer } });
   world.hooks.fighterOut?.(world, c.id, "down");
+  // A lethal hit never reaches aggro's fight branch, so the camp is woken here, onto the credited killer (D24).
+  if (killer !== null) wakeMatesOnKill(world, c, killer);
 
   const { elite } = brain;
   const type = mobTypeOf(c.s.type, brain.region, elite);

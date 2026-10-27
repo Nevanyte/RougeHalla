@@ -172,3 +172,32 @@ beyond Plague Rat + Ember Imp at their plateaus (orbwalk 2, lock 2 fails: the Ho
   +2% for Fire and +0.1% for Sentenced. `worksWith` only feeds the buff tooltip's "Works with" line; the planning screen's
   "buffs that counter the factions present" reads `counters`, which stays `["any"]`, so the change is wording, not balance.
 - Plague Rat stays +8% (section 4; the owner refused halving it).
+
+## 7. Quickdraw vs the kiting lever (pre-merge review of the R5 line; owner decision pending, no number changed)
+
+The ranged windups are the anti-kiting lever (CLAUDE.md, Weapons and factions), and Quickdraw (neutral passive, windups 8% shorter
+at rank 1 and 12% at rank 2, in `skills.ts`) shortens exactly that. Section 3's shooters were buffs; this is a passive, held
+through a chest pick. The reviewer ran it through both gates. These are the reviewer's figures and have not been re-run here.
+
+- **The model** (`test_kite.py`, a shooter with Quickdraw rank 1 or 2): Fire > Plague with the bow goes from x1.062 to x0.977 and
+  with the wand from x1.078 to x0.991. A cell under 1 means the chaser no longer arrives in time against an orb-walking shooter.
+- **The real sim** (KITE EDGES, `--kiting-only`, `orbwalk` = the perfect kiter; a cell fails when its weakest melee weapon wins
+  under half of 10 setups):
+
+  | shooter | orbwalk fails | lock fails |
+  |---|---|---|
+  | none | 1 of 20 (Sentenced > Frost wand, shield 10%) | 0 |
+  | Quickdraw rank 1 or 2 | 3 of 20: the baseline one, Plague > Frost wand with the shield 0%, Frost > Fire wand with the axe 10-20% | 0 |
+  | Quickdraw rank 2 at the 1.5 attack-speed cap | 2 of 20: Plague > Frost with the bow drops to the sword at 10%, which flips that counter | 0 |
+
+  That is the same order as the other buffs of section 3 (Ember Imp 3 stacks: 3, its plateau: 4; Penitent and Acolyte: 2 to 4).
+  A locked (clicked) chase holds all 20 cells.
+- **Quickdraw is tick-quantized.** An attack lands on the first 50 ms tick at or after its windup ends (`sim/weapons.ts`
+  `stepWeapon`: `now >= landsAt`). From a start on the tick grid, 8% or 12% off the sword's 0.1 s, the wand's 0.4 s cap and the
+  axe's 0.25 s rounds back up to the same tick, so rank 1 gains nothing on those three and rank 2 adds nothing over rank 1 (the
+  bow's 0.6 s reaches 0.55 s at rank 2). A start between ticks (a held trigger whose cooldown ended mid-tick, `startAttack`
+  carries the remainder up to a tick back) gains the shortening on average. The real-sim figures above include this; the model
+  works in continuous time, so it overstates what a grid start gains. The card promises the nominal number, and the HUD tooltip
+  says the gain comes in whole ticks (`SkillDef.note`).
+- **Options for the owner**, none taken: leave it (the same order as the other buffs, and the pick costs a chest card), or
+  change the rows so the gain is a whole tick and re-run `test_kite.py` and the harness.

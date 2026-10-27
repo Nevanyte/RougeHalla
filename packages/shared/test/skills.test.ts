@@ -2,8 +2,8 @@
 // their wording, and the interim option rule over many seeds and builds.
 import { describe, expect, it } from "vitest";
 import {
-  CHEST_OPTIONS, chestOptionView, chestPool, effectsText, FACTION_IDS, LIVE_SKILL_READY, mulberry32, nextRank, rankIn,
-  rollChestOptions, SKILL_IDS, SKILL_MAX_RANK, skillDef, skillLive, skillRows, SKILLS, skillsOf, skillText, skipText,
+  CHEST_OPTIONS, CHEST_REFUSAL, CHEST_REFUSALS, chestOptionView, chestPool, effectsText, FACTION_IDS, HEAL_OVER_TIME_STEP_MS,
+  healOverTimeSpanMs, healOverTimeSteps, isChestRefusal, LIVE_SKILL_READY, mulberry32, nextRank, rankIn, rollChestOptions, SKILL_IDS, SKILL_MAX_RANK, skillDef, skillLive, skillRows, SKILLS, skillsOf, skillText, skipText,
   type FactionId, type SkillId,
 } from "../src/index";
 
@@ -48,8 +48,8 @@ describe("the passive catalog", () => {
     expect(skillText("whetstone", 2)).toBe("+10% damage");
     expect(skillText("quickdraw", 2)).toBe("-12% windup time");
     expect(skillText("lastRites", 2)).toBe("+25% attack speed while below 40% HP");
-    expect(skillText("secondWind", 1)).toBe("Below 25% HP: heal 20% of max HP over 2 s (once per run)");
-    expect(skillText("secondWind", 2)).toBe("Below 25% HP: heal 30% of max HP over 2 s (once, and again after each teleport)");
+    expect(skillText("secondWind", 1)).toBe("Below 25% HP: heal 20% of max HP over 1.5 s (once per run)");
+    expect(skillText("secondWind", 2)).toBe("Below 25% HP: heal 30% of max HP over 1.5 s (once, and again after each teleport)");
     expect(skillText("whetstone", 0)).toBe("");
     expect(skillText("nope", 1)).toBe("");
   });
@@ -172,5 +172,28 @@ describe("the chest's cards", () => {
     expect(chestOptionView("pestilence", null, "plague")!.text).toBe("Execute starts at 60% HP (from 50%; Plague only)");
     expect(chestOptionView("nope", null)).toBeNull();
     expect(skipText()).toBe("Skip: heal 15% of max HP if out of combat, else +3 GV");
+  });
+});
+
+describe("the chest's refusals", () => {
+  it("are one list: every toast the server sends a refused pick, and nothing a GV or kill toast could match", () => {
+    expect([...CHEST_REFUSALS].sort()).toEqual([
+      "Already at rank 2", "Already taken", "Can't do that now", "Can't reach that", "Chest gone", "Too far away", "You already picked",
+    ]);
+    expect(Object.values(CHEST_REFUSAL).length).toBe(CHEST_REFUSALS.length);
+    for (const text of CHEST_REFUSALS) expect(isChestRefusal(text), text).toBe(true);
+    for (const text of ["+3 GV (chest skip)", "+10 GV (kill)", "Plague camp cleared", "", "chest gone", "Nothing to take"]) {
+      expect(isChestRefusal(text), text).toBe(false);
+    }
+  });
+});
+
+describe("a heal over time", () => {
+  it("is paid in round(ms / step) steps and spans one step less than ms, which is what its text says", () => {
+    expect([healOverTimeSteps(2000), healOverTimeSpanMs(2000)]).toEqual([4, 1500]);
+    expect([healOverTimeSteps(500), healOverTimeSpanMs(500)]).toEqual([1, 0]);
+    expect([healOverTimeSteps(0), healOverTimeSpanMs(0)]).toEqual([1, 0]);
+    expect(healOverTimeSteps(1200)).toBe(2);
+    expect(healOverTimeSpanMs(1200)).toBe(HEAL_OVER_TIME_STEP_MS);
   });
 });
