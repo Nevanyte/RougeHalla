@@ -67,7 +67,7 @@ class Loop {
     const events = step(w, TICK_MS);
     const batch = this.channel.batch(events.flatMap((e) => (e.type === "fx" ? [e.fx] : [])), w.state.serverTime, w.projectiles);
     for (const e of events) {
-      if (e.type === "toast" && m.isBot(e.to)) m.onToast(e.to, e.text);
+      if (e.type === "toast" && e.to !== null && m.isBot(e.to)) m.onToast(e.to, e.text);
       else if (e.type === "resolved" && (e.bot === true || w.players.get(e.id)?.bot)) m.onResult(e.id, e.result);
     }
     this.channel.extendRoster(w.state);

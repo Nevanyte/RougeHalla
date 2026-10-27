@@ -93,6 +93,7 @@ export function startPlanning(world: World): void {
   world.planning = { deals, holders: new Map(), report, starters: ids.length, startedHumans };
   // Known from here on, not only from the run's start: a result for a player who leaves in planning reports the starters.
   world.arena.startedWith = ids.length;
+  world.hooks.planningStarted?.(world);
   emit(world, { type: "planningStarted" });
   sendChanged(world);
 }

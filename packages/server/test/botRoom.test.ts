@@ -270,7 +270,7 @@ describe("shutdown", () => {
     awardGv(world, world.state.players.get(BOT)!, world.players.get(BOT)!, "mob");
     slay(world, BOT, sessionOf(b)); // the bot earns a kill's GV too
     await until(() => b.results.length === 1, "B's result");
-    expect(world.players.get(BOT)!.gv).toEqual({ kills: GV_KILL, mobs: GV_MOB, bounty: 0 });
+    expect(world.players.get(BOT)!.gv).toEqual({ kills: GV_KILL, mobs: GV_MOB, bounty: 0, quest: 0 });
 
     stopped = true;
     await server.stop();

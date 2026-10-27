@@ -863,7 +863,7 @@ describe("end of a contested run", () => {
     const results = resultsOf(events);
     expect(results[idOf(0)]).toEqual({
       outcome: "won", profile: "alice", durationSec: 0, kills: 0, killedBy: null, place: 1, players: 3,
-      gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN }, winBonusWithheld: false,
+      gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: GV_WIN, total: GV_WIN }, winBonusWithheld: false,
     });
     expect(P(w, 0).status).toBe("alive");
     expect(w.state.winner).toBe("alice");
@@ -936,7 +936,7 @@ describe("end of a contested run", () => {
     const events = runTo(w, 500);
     const winner = resultsOf(events)[idOf(0)]!;
     expect(winner).toMatchObject({ outcome: "won", kills: 1, place: 1, winBonusWithheld: false });
-    expect(winner.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: GV_KILL + GV_WIN });
+    expect(winner.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: GV_WIN, total: GV_KILL + GV_WIN });
     expect(resultsOf(events)[idOf(1)]).toMatchObject({ outcome: "died", killedBy: "alice", place: 2 });
     expect(fxOf(events, "death")).toEqual([
       { kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: idOf(0) },
@@ -1006,7 +1006,7 @@ describe("simultaneous last deaths", () => {
     expect(w.state.serverTime).toBe(4100);
     const results = resultsOf(events);
     expect(results[idOf(1)]).toMatchObject({
-      outcome: "won", place: 1, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN },
+      outcome: "won", place: 1, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: GV_WIN, total: GV_WIN },
       winBonusWithheld: false,
     });
     expect(results[idOf(0)]).toMatchObject({ outcome: "died", place: 2, killedBy: SUDDEN_DEATH_KILLER, gv: { win: 0 } });
@@ -1054,7 +1054,7 @@ describe("simultaneous last deaths", () => {
     const results = resultsOf(events);
     for (let i = 0; i < 3; i++) {
       expect(results[idOf(i)], `p${i}`).toMatchObject({
-        outcome: "draw", place: 1, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 },
+        outcome: "draw", place: 1, killedBy: null, gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 },
       });
       expect(P(w, i).status).toBe("dead");
     }
@@ -1083,8 +1083,8 @@ describe("simultaneous last deaths", () => {
     P(w, 0).hp = 0.05;
     P(w, 1).hp = 0.05;
     const results = resultsOf(tick(w));
-    expect(results[idOf(0)]!.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
-    expect(results[idOf(1)]!.gv).toEqual({ kills: 0, mobs: GV_MOB, bounty: 0, win: 0, total: GV_MOB });
+    expect(results[idOf(0)]!.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: GV_KILL });
+    expect(results[idOf(1)]!.gv).toEqual({ kills: 0, mobs: GV_MOB, bounty: 0, quest: 0, win: 0, total: GV_MOB });
   });
 
   it("the fraction at the start of the tick decides, not hp lost during it", () => {
@@ -1268,7 +1268,7 @@ describe("solo runs", () => {
     const events = runTo(w, 500);
     expect(resultsOf(events)[idOf(0)]).toEqual({
       outcome: "died", profile: "alice", durationSec: 0, kills: 0, killedBy: "test", place: 1, players: 1,
-      gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false,
+      gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: false,
     });
     expect(w.state).toMatchObject({ phase: "ended", winner: "" });
     expect(fxOf(events, "victory")).toEqual([{ kind: "victory", id: null, name: null, draw: false }]);
@@ -1280,7 +1280,7 @@ describe("solo runs", () => {
     removePlayer(w, idOf(0));
     const events = tick(w);
     expect(Object.values(resultsOf(events))).toEqual([
-      expect.objectContaining({ outcome: "mia", place: 1, players: 1, gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 } }),
+      expect.objectContaining({ outcome: "mia", place: 1, players: 1, gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 } }),
     ]);
     expect(w.state).toMatchObject({ phase: "ended", winner: "" });
     expect(ofType(events, "raidEnded")).toHaveLength(1);
@@ -1293,7 +1293,7 @@ describe("solo runs", () => {
     for (let i = 0; i < 4000 && w.state.phase === "active"; i++) events.push(...tick(w));
     expect(w.state.phase).toBe("ended");
     const r = resultsOf(events)[idOf(0)]!;
-    expect(r).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER, gv: { mobs: GV_MOB, bounty: 0, win: 0, total: GV_MOB } });
+    expect(r).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER, gv: { mobs: GV_MOB, bounty: 0, quest: 0, win: 0, total: GV_MOB } });
     expect(w.state.winner).toBe("");
   });
 });
@@ -1622,7 +1622,7 @@ describe("applyDamage and downPlayer", () => {
     const w = startRun(2);
     applyDamage(w, P(w, 1), RT(w, 1), 10, attacker(w, 0));
     expect(P(w, 0).kills).toBe(0);
-    expect(RT(w, 0).gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(RT(w, 0).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(w.events).toEqual([]);
   });
 
@@ -1767,7 +1767,7 @@ describe("Glorious Victory", () => {
   it("a kill pays the killer GV_KILL: rt.gv.kills, the synced p.gv and a gv event", () => {
     const w = startRun(3);
     kill(w, 1, attacker(w, 0));
-    expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
+    expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0 });
     expect(P(w, 0).gv).toBe(GV_KILL);
     expect(ofType(w.events, "gv")).toEqual([{ type: "gv", id: idOf(0), amount: GV_KILL, reason: "kill" }]);
     // After the death fx (that is what clients show it next to), before any bounty fx.
@@ -1780,7 +1780,7 @@ describe("Glorious Victory", () => {
     expect(RT(w, 0).gv.mobs).toBe(GV_MOB_CAP);
     kill(w, 1, attacker(w, 0));
     kill(w, 2, attacker(w, 0));
-    expect(RT(w, 0).gv).toEqual({ kills: 2 * GV_KILL, mobs: GV_MOB_CAP, bounty: 0 });
+    expect(RT(w, 0).gv).toEqual({ kills: 2 * GV_KILL, mobs: GV_MOB_CAP, bounty: 0, quest: 0 });
     expect(P(w, 0).gv).toBe(2 * GV_KILL + GV_MOB_CAP);
     expect(P(w, 0).kills).toBe(2);
   });
@@ -1835,7 +1835,7 @@ describe("Glorious Victory", () => {
     const events = runTo(w, 500);
     const results = resultsOf(events);
     expect(results[idOf(1)]).toMatchObject({
-      outcome: "died", kills: 1, killedBy: "carol", gv: { kills: GV_KILL, mobs: GV_MOB, bounty: 0, win: 0, total: GV_KILL + GV_MOB },
+      outcome: "died", kills: 1, killedBy: "carol", gv: { kills: GV_KILL, mobs: GV_MOB, bounty: 0, quest: 0, win: 0, total: GV_KILL + GV_MOB },
     });
     expect(results[idOf(3)]!.gv.total).toBe(0);
   });
@@ -1848,7 +1848,7 @@ describe("Glorious Victory", () => {
     expect(awardGv(w, P(w, 2), RT(w, 2), "kill")).toBe(0);
     expect(awardGv(w, P(w, 2), RT(w, 2), "mob")).toBe(0);
     expect(w.events).toHaveLength(events);
-    expect(RT(w, 2).gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(RT(w, 2).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(P(w, 2).gv).toBe(0);
   });
 
@@ -1859,7 +1859,7 @@ describe("Glorious Victory", () => {
       expect(awardGv(world, P(world, 0), RT(world, 0), "mob")).toBe(GV_MOB); // ...and a swing of theirs lands in the same tick
     });
     const results = resultsOf(runTo(w, 200));
-    expect(results[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB, bounty: 0, win: 0, total: GV_MOB });
+    expect(results[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB, bounty: 0, quest: 0, win: 0, total: GV_MOB });
   });
 
   it("unbankedGv is what the player has earned until their result is out", () => {
@@ -1909,11 +1909,11 @@ describe("Glorious Victory", () => {
     atTick(w, 900, (world) => kill(world, 3, attacker(world, 2)));
     const results = resultsOf(runTo(w, 900));
     expect(w.state.winner).toBe("carol");
-    expect(results[idOf(0)]!.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+    expect(results[idOf(0)]!.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: GV_KILL });
     expect(results[idOf(1)]!.gv.total).toBe(0);
     expect(results[idOf(3)]!.gv.total).toBe(0);
     expect(results[idOf(2)]!.gv).toEqual({
-      kills: 2 * GV_KILL, mobs: 5 * GV_MOB, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + 5 * GV_MOB + GV_WIN,
+      kills: 2 * GV_KILL, mobs: 5 * GV_MOB, bounty: 0, quest: 0, win: GV_WIN, total: 2 * GV_KILL + 5 * GV_MOB + GV_WIN,
     });
     const sum = Object.values(results).reduce((n, r) => n + r.gv.total, 0);
     expect(sum).toBe(3 * GV_KILL + 5 * GV_MOB + GV_WIN);
@@ -2234,7 +2234,7 @@ describe("win bonus eligibility", () => {
       const r = winnerOf(events);
       expect(r).toMatchObject({ outcome: "won", place: 1, players: 3, kills: 0, winBonusWithheld: false });
       expect(r, "an earned bonus has no reason").not.toHaveProperty("winBonusWhy");
-      expect(r.gv).toEqual({ kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN });
+      expect(r.gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0, win: GV_WIN, total: GV_WIN });
       expect(damagedBy(RT(w, 0))).toEqual([idOf(1), idOf(2)]);
     });
 
@@ -2252,7 +2252,7 @@ describe("win bonus eligibility", () => {
       const r = winnerOf(runTo(w, 200));
       expect(damagedBy(RT(w, 0))).toEqual([idOf(1)]);
       expect(r).toMatchObject({ outcome: "won", place: 1, players: 2, kills: 1, winBonusWithheld: true, winBonusWhy: "starters" });
-      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: GV_KILL });
     });
 
     it("withholds it from the winner of a 2-player run who did nothing because the other left", () => {
@@ -2275,7 +2275,7 @@ describe("win bonus eligibility", () => {
       atTick(w, 200, (world) => { kill(world, 2); kill(world, 1, attacker(world, 0)); });
       const r = winnerOf(runTo(w, 200));
       expect(r).toMatchObject({ outcome: "won", place: 1, players: 3, kills: 1, winBonusWithheld: true, winBonusWhy: "opponents" });
-      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: GV_KILL });
     });
 
     it("withholds it from a winner who damaged nobody, in a run of any size", () => {
@@ -2322,7 +2322,7 @@ describe("win bonus eligibility", () => {
       atTick(w, 200, (world) => kill(world, 1, attacker(world, 0)));
       const r = winnerOf(runTo(w, 200));
       expect(r).toMatchObject({ outcome: "won", players: 2, kills: 1, winBonusWithheld: true });
-      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
+      expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: GV_KILL });
     });
 
     it("counts the players present when it started: 4 joined, 1 left in the lobby, 3 started", () => {
@@ -2353,7 +2353,7 @@ describe("win bonus eligibility", () => {
       atTick(w, 200, (world) => { kill(world, 1, attacker(world, 0)); kill(world, 2, attacker(world, 0)); });
       const r = winnerOf(runTo(w, 200));
       expect(r).toMatchObject({ outcome: "won", kills: 2, winBonusWithheld: false });
-      expect(r.gv).toEqual({ kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN });
+      expect(r.gv).toEqual({ kills: 2 * GV_KILL, mobs: 0, bounty: 0, quest: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN });
     });
 
     it("damaging someone does not need a kill: the winner can have no kills and still be paid", () => {
@@ -2378,7 +2378,7 @@ describe("win bonus eligibility", () => {
       atTick(w, 200, (world) => kill(world, 2, attacker(world, 0)));
       const r = winnerOf(runTo(w, 200));
       expect(r).toMatchObject({ outcome: "won", players: 3, kills: 2, winBonusWithheld: false });
-      expect(r.gv).toEqual({ kills: 2 * GV_KILL, mobs: 0, bounty: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN });
+      expect(r.gv).toEqual({ kills: 2 * GV_KILL, mobs: 0, bounty: 0, quest: 0, win: GV_WIN, total: 2 * GV_KILL + GV_WIN });
     });
 
     it("self-damage does not count, lethal or not", () => {
@@ -2420,7 +2420,7 @@ describe("win bonus eligibility", () => {
       expect(w.state.phase).toBe("ended");
       const results = resultsOf(events);
       expect(results[idOf(0)]).toMatchObject({
-        outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true,
+        outcome: "won", place: 1, gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: true,
       });
       for (const i of [1, 2]) expect(results[idOf(i)], `p${i}`).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER, winBonusWithheld: false });
       expect(w.state.winner).toBe("alice");
@@ -2468,7 +2468,7 @@ describe("win bonus eligibility", () => {
       atTick(w, 200, (world) => { kill(world, 1, attacker(world, 0)); kill(world, 2); });
       const r = winnerOf(runTo(w, 200));
       expect(r).toMatchObject({ outcome: "won", winBonusWithheld: true });
-      expect(r.gv).toEqual({ kills: GV_KILL, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: GV_KILL + GV_MOB_CAP });
+      expect(r.gv).toEqual({ kills: GV_KILL, mobs: GV_MOB_CAP, bounty: 0, quest: 0, win: 0, total: GV_KILL + GV_MOB_CAP });
     });
   });
 
@@ -2622,7 +2622,7 @@ describe("win bonus eligibility", () => {
         outcome: "won", place: 1, kills: 1, winBonusWithheld: !paid,
         gv: { kills: GV_KILL, mobs: 5 * GV_MOB, bounty: 10, win: paid ? GV_WIN : 0, total: GV_KILL + 5 * GV_MOB + 10 + (paid ? GV_WIN : 0) },
       });
-      expect(results[idOf(0)]).toMatchObject({ outcome: "died", kills: 3, winBonusWithheld: false, gv: { kills: 3 * GV_KILL, bounty: 0, win: 0 } });
+      expect(results[idOf(0)]).toMatchObject({ outcome: "died", kills: 3, winBonusWithheld: false, gv: { kills: 3 * GV_KILL, bounty: 0, quest: 0, win: 0 } });
       const all = Object.values(results);
       for (const r of all) expect(r.gv.total).toBe(r.gv.kills + r.gv.mobs + r.gv.bounty + r.gv.win);
       const announced = ofType(events, "gv").reduce((n, e) => n + e.amount, 0);
@@ -2815,11 +2815,11 @@ describe("feed and bounty", () => {
           { type: "gv", id: idOf(7), amount: GV_KILL, reason: "kill" },
           { type: "gv", id: idOf(7), amount: bounty, reason: "bounty" },
         ]);
-        expect(RT(w, 7).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty });
+        expect(RT(w, 7).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty, quest: 0 });
         expect(P(w, 7).gv).toBe(GV_KILL + bounty);
         expect(P(w, 7).kills).toBe(1);
         // The victim keeps what they earned: their own result carries their kills and no bounty GV.
-        expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({ kills: kills * GV_KILL, mobs: 0, bounty: 0, win: 0, total: kills * GV_KILL });
+        expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({ kills: kills * GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: kills * GV_KILL });
         expect(RT(w, 0).gv.bounty).toBe(0);
       },
     );
@@ -2835,7 +2835,7 @@ describe("feed and bounty", () => {
       expect(bountyFxOf(w.events)).toEqual([{ kind: "bounty", id: idOf(4), name: "erin", bounty: 10 }]);
       expect(P(w, 4).bounty).toBe(10);
       expect(P(w, 4).gv).toBe(3 * GV_KILL + 10);
-      expect(RT(w, 4).gv).toEqual({ kills: 3 * GV_KILL, mobs: 0, bounty: 10 });
+      expect(RT(w, 4).gv).toEqual({ kills: 3 * GV_KILL, mobs: 0, bounty: 10, quest: 0 });
     });
 
     it("the killer's result carries the bounty, and the ledger adds up", () => {
@@ -2853,7 +2853,7 @@ describe("feed and bounty", () => {
         winBonusWithheld: false,
       });
       expect(results[idOf(0)]).toMatchObject({
-        outcome: "died", kills: 3, killedBy: "erin", gv: { kills: 3 * GV_KILL, mobs: 0, bounty: 0, win: 0, total: 3 * GV_KILL },
+        outcome: "died", kills: 3, killedBy: "erin", gv: { kills: 3 * GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 0, total: 3 * GV_KILL },
       });
       expect(P(w, 4).gv).toBe(GV_KILL + 10); // the synced gv is what was earned, not the win bonus
       const sum = Object.values(results).reduce((n, r) => n + r.gv.total, 0);
@@ -2924,7 +2924,7 @@ describe("feed and bounty", () => {
       slay(w, 7, [4]); // p7 collects p4's
       expect(claims.map((c) => [c.killer.id, c.victim.id, c.bounty])).toEqual([[idOf(4), idOf(0), 10], [idOf(7), idOf(4), 10]]);
       expect(RT(w, 4).gv.bounty).toBe(10);
-      expect(RT(w, 7).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 10 });
+      expect(RT(w, 7).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 10, quest: 0 });
       expect(P(w, 7).bounty).toBe(0);
     });
 
@@ -2935,7 +2935,7 @@ describe("feed and bounty", () => {
       kill(w, 0, attacker(w, 3));
       expect(claims).toEqual([]);
       expect(ofType(w.events, "gv").filter((e) => e.reason === "bounty")).toEqual([]);
-      expect(RT(w, 3).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
+      expect(RT(w, 3).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0 });
     });
 
     it("works without a hook installed", () => {
@@ -2959,7 +2959,7 @@ describe("feed and bounty", () => {
         outcome: "died", kills: 1, killedBy: "frank", gv: { kills: GV_KILL, bounty: 10, win: 0, total: GV_KILL + 10 },
       });
       expect(results[idOf(5)]).toMatchObject({
-        outcome: "won", kills: 1, gv: { kills: GV_KILL, bounty: 0, win: GV_WIN }, winBonusWithheld: false,
+        outcome: "won", kills: 1, gv: { kills: GV_KILL, bounty: 0, quest: 0, win: GV_WIN }, winBonusWithheld: false,
       });
       expect(w.state.winner).toBe("frank");
     });
@@ -2995,7 +2995,7 @@ describe("feed and bounty", () => {
       expect(results[idOf(0)]).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER, kills: 3 });
       // p4 never hurt anyone (sudden death killed p0): the win stands, the bonus does not.
       expect(results[idOf(4)]).toMatchObject({
-        outcome: "won", gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true,
+        outcome: "won", gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: true,
       });
       expect(ofType(rest, "gv")).toEqual([]);
       expect(claims).toEqual([]);
@@ -3013,7 +3013,7 @@ describe("feed and bounty", () => {
       expect(ofType(events, "gv")).toEqual([]);
       expect(claims).toEqual([]);
       // p4 won without hurting anyone: no bonus.
-      expect(resultsOf(events)[idOf(4)]).toMatchObject({ outcome: "won", gv: { bounty: 0, win: 0, total: 0 }, winBonusWithheld: true });
+      expect(resultsOf(events)[idOf(4)]).toMatchObject({ outcome: "won", gv: { bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: true });
     });
 
     it("a killer whose result is already out gets no kill credit at all: no kill, no GV, no bounty, no hook call", () => {
@@ -3033,7 +3033,7 @@ describe("feed and bounty", () => {
       expect(P(w, 4).kills).toBe(0);
       expect(P(w, 4).bounty).toBe(0);
       expect(P(w, 4).gv).toBe(0);
-      expect(RT(w, 4).gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+      expect(RT(w, 4).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
       expect(ofType(w.events, "gv")).toEqual([]);
       expect(bountyFxOf(w.events)).toEqual([]);
       expect(claims).toEqual([]);
@@ -3047,7 +3047,7 @@ describe("feed and bounty", () => {
       expect(creditMobKill(w, P(w, 0), RT(w, 0), true)).toBe(GV_ELITE);
       expect(RT(w, 0).mobKills).toBe(2);
       expect(P(w, 0).kills).toBe(0);
-      expect(RT(w, 0).gv).toEqual({ kills: 0, mobs: GV_MOB + GV_ELITE, bounty: 0 });
+      expect(RT(w, 0).gv).toEqual({ kills: 0, mobs: GV_MOB + GV_ELITE, bounty: 0, quest: 0 });
       expect(P(w, 0).gv).toBe(GV_MOB + GV_ELITE);
       expect(ofType(w.events, "gv")).toEqual([
         { type: "gv", id: idOf(0), amount: GV_MOB, reason: "mob" },
@@ -3101,8 +3101,8 @@ describe("feed and bounty", () => {
       kill(w, 0, attacker(w, 1));
       expect(ofType(w.events, "gv")).toEqual([{ type: "gv", id: idOf(1), amount: GV_KILL, reason: "kill" }]);
       expect(claims).toEqual([]);
-      expect(RT(w, 1).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
-      expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: GV_MOB_CAP });
+      expect(RT(w, 1).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0 });
+      expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB_CAP, bounty: 0, quest: 0, win: 0, total: GV_MOB_CAP });
     });
 
     it("a bounty built from player kills is claimed like any other, whatever the mob kills", () => {
@@ -3119,7 +3119,7 @@ describe("feed and bounty", () => {
       ]);
       expect(claims.map((c) => c.bounty)).toEqual([10]);
       expect(resultsOf(w.events)[idOf(0)]!.gv).toEqual({
-        kills: 3 * GV_KILL, mobs: GV_MOB_CAP, bounty: 0, win: 0, total: 3 * GV_KILL + GV_MOB_CAP,
+        kills: 3 * GV_KILL, mobs: GV_MOB_CAP, bounty: 0, quest: 0, win: 0, total: 3 * GV_KILL + GV_MOB_CAP,
       });
     });
 
@@ -3140,7 +3140,7 @@ describe("feed and bounty", () => {
       });
       const results = resultsOf(runTo(w, 200));
       expect(RT(w, 0).mobKills).toBe(1);
-      expect(results[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB, bounty: 0, win: 0, total: GV_MOB });
+      expect(results[idOf(0)]!.gv).toEqual({ kills: 0, mobs: GV_MOB, bounty: 0, quest: 0, win: 0, total: GV_MOB });
     });
   });
 
@@ -3239,11 +3239,11 @@ describe("feed and bounty", () => {
       expect(ofType(w.events, "gv")).toEqual([{ type: "gv", id: idOf(0), amount: GV_KILL, reason: "kill" }]);
       expect(P(w, 0).kills).toBe(1);
       expect(P(w, 0).gv).toBe(GV_KILL);
-      expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
+      expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0 });
       // The leaver's result is the same as any leaver's.
       expect(resultsOf(w.events)[idOf(1)]).toEqual({
         outcome: "mia", profile: "bob", durationSec: 2, kills: 0, killedBy: null, place: 4, players: 4,
-        gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false,
+        gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: false,
       });
       expect(fxOf(w.events, "death")).toEqual([]);
     });
@@ -3300,7 +3300,7 @@ describe("feed and bounty", () => {
       expect(bountyFxOf(w.events)).toEqual([{ kind: "bounty", id: idOf(4), name: "erin", bounty: 10 }]); // the 3rd kill
       expect(P(w, 4).kills).toBe(3);
       expect(P(w, 4).bounty).toBe(10);
-      expect(RT(w, 4).gv).toEqual({ kills: 3 * GV_KILL, mobs: 0, bounty: 10 });
+      expect(RT(w, 4).gv).toEqual({ kills: 3 * GV_KILL, mobs: 0, bounty: 10, quest: 0 });
       expect(claims).toHaveLength(1);
       expect(claims[0]).toMatchObject({ bounty: 10, killerBountyGv: 10, announced: 1 });
       expect(claims[0]!.killer).toBe(RT(w, 4));
@@ -3500,7 +3500,7 @@ describe("feed and bounty", () => {
         hit(w, 0, 1);
         w.events = [];
         finish(w, 1, "Warden");
-        expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 80 });
+        expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 80, quest: 0 });
         expect(ofType(w.events, "gv").map((e) => e.reason)).toEqual(["kill", "bounty"]);
         expect(P(w, 0).kills).toBe(1);
       });
@@ -3554,7 +3554,7 @@ describe("feed and bounty", () => {
       hit(w, 1, 1, 1000);
       expect(P(w, 1).status).toBe("dead");
       expect(P(w, 1).kills).toBe(0);
-      expect(RT(w, 1).gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+      expect(RT(w, 1).gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
       expect(ofType(w.events, "gv")).toEqual([]);
       expect(fxOf(w.events, "death")).toEqual([{ kind: "death", id: idOf(1), x: P(w, 1).x, y: P(w, 1).y, by: idOf(1) }]);
     });
@@ -3571,7 +3571,7 @@ describe("feed and bounty", () => {
       hit(w, 0, 1, 1000);
       expect(calls).toBe(1);
       expect(P(w, 0).kills).toBe(1);
-      expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 80 });
+      expect(RT(w, 0).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 80, quest: 0 });
       expect(fxOf(w.events, "death")).toHaveLength(1);
     });
   });

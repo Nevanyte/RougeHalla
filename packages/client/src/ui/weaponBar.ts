@@ -82,16 +82,17 @@ export class WeaponBar {
   /**
    * `patchT`: the server time of the newest patch (when a changed `readyAt` was set). `serverNow`: the estimated current
    * server time, which the cooldown counts down against. `pickup`: the weapon F would take, if one is in reach.
+   * `questLabel`: the quest token or parcel F would take instead.
    */
-  update(me: PlayerState | undefined, patchT: number, serverNow: number, pickup: WeaponId | null): void {
+  update(me: PlayerState | undefined, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel = ""): void {
     // The lobby hands out nothing yet: weapons arrive with the run.
     const show = me?.status === "alive";
     if (this.root.hidden === show) this.root.hidden = !show;
     if (!me || !show) return;
-    this.render(me, patchT, serverNow, pickup);
+    this.render(me, patchT, serverNow, pickup, questLabel);
   }
 
-  private render(me: PlayerState, patchT: number, serverNow: number, pickup: WeaponId | null): void {
+  private render(me: PlayerState, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel: string): void {
     const signature = `${me.weapon0}|${me.weapon1}|${me.slot}`;
     if (signature !== this.signature) {
       this.signature = signature;
@@ -111,6 +112,8 @@ export class WeaponBar {
       const take = WEAPONS[pickup].name;
       // With both slots full a pickup replaces the weapon in hand, which drops where the player stands.
       hint = me.weapon0 !== "" && me.weapon1 !== "" && hand ? `swap ${WEAPONS[hand].name} for ${take}` : `take ${take}`;
+    } else if (questLabel) {
+      hint = `take ${questLabel}`;
     }
     if (hint !== this.hintText) {
       this.hintText = hint;

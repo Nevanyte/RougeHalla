@@ -54,6 +54,18 @@ describe("tick budget", () => {
     expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
     expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);
+
+  // The quests' gate (the shipped default; the bench runs without them unless asked): the same run with the roster up, its
+  // givers standing among the mobs and its items on the ground.
+  it("the same with the quests on (givers, items and the lifecycle in the tick)", () => {
+    const r = bestOfFive({ quests: true });
+    expect(r.quests).toBeGreaterThanOrEqual(5);
+    // The camp mobs are topped up to the map's own count, and the quest givers stand on top of them.
+    expect(r.mobs).toBeGreaterThanOrEqual(72 + r.quests);
+    expect(r.avgFighting).toBeGreaterThan(8);
+    expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
+    expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
+  }, 120_000);
 });
 
 interface Gated {

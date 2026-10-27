@@ -271,7 +271,7 @@ describe("who is credited", () => {
     const claimed: Array<[string, string, number]> = [];
     w.hooks.bountyClaimed = (_w, killer, victim, bounty) => claimed.push([killer.id, victim.id, bounty]);
     const events = inStep(w, () => { hit(w, "v", "x", 40); hit(w, "v", "y", 90); hit(w, "v", "z", 40); });
-    expect(RT(w, "y").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 25 });
+    expect(RT(w, "y").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 25, quest: 0 });
     expect(P(w, "y").gv).toBe(GV_KILL + 25);
     expect(ofType(events, "gv")).toEqual([
       { type: "gv", id: "y", amount: GV_KILL, reason: "kill" },
@@ -702,7 +702,7 @@ describe("hits from combatants that are gone", () => {
     expect(resultsOf(events).c).toMatchObject({ outcome: "died", killedBy: "D" });
     expect(fxOf(events, "death")).toEqual([expect.objectContaining({ id: "c", by: "d" })]);
     expect([P(w, "d").kills, P(w, "d").gv]).toEqual([1, GV_KILL + 25]);
-    expect(RT(w, "d").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 25 });
+    expect(RT(w, "d").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 25, quest: 0 });
     expect([P(w, "a").kills, P(w, "a").gv]).toEqual([0, 0]);
     expect([...RT(w, "a").damaged]).toEqual([]);
     expect(RT(w, "c").lastHit).toEqual({ by: "d", at: w.state.serverTime });

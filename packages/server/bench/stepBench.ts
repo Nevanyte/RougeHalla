@@ -1,7 +1,7 @@
 // Budget check for the Phase 11 tick: a headless 8-player run with the map's regional mobs (20 camps of 3 to 5, about 80,
 // roguelike R2), eight players fighting at eight camps, arrows and balls in the air, mobs chasing and retreating.
 // Reports the cost of one `step()`.
-//   npx tsx packages/server/bench/stepBench.ts                       (from the repo root; --buffs, --stress)
+//   npx tsx packages/server/bench/stepBench.ts                       (from the repo root; --buffs, --stress, --quests)
 //   npx tsx packages/server/bench/stepBench.ts --bots 8              8 in-process fill bots instead of the scripted players
 // Flags: --seed N, --ticks N (measured, default 1200), --warmup N, --mobs N; with --bots also --tier easy|normal|hard (every bot),
 // --coliseum (the endgame: all eight sealed in), --clock cpu|wall (default wall) and --repeat N (min / median / max over N runs).
@@ -70,6 +70,8 @@ export interface BenchOptions {
   coliseum?: boolean;
   /** Every player starts with 4 stacks of every buff (roguelike R4a's gate: all buffs on 8 players). `--buffs` on the CLI. */
   buffs?: boolean;
+  /** Quest offers, givers and items (the shipped default, off here unless asked). `--quests` on the CLI; with `--bots` too (the bots do not take quests). */
+  quests?: boolean;
   /** The pathfinder's worst case: every camp woken every second, players re-locking every TARGET_REPATH_MS (see the header). `--stress` on the CLI. */
   stress?: boolean;
   /**
@@ -118,6 +120,8 @@ export interface BotsBench {
 export interface BenchResult {
   ticks: number;
   mobs: number;
+  /** Quest offers in the synced state at the end (0 with quests off): the run is only a quests run when this is above 0. */
+  quests: number;
   /** Mean over the measured ticks of how many mobs were fighting, how many were awake (fighting or walking home), and of arrows and balls in flight. */
   avgFighting: number;
   avgAwake: number;
@@ -152,15 +156,24 @@ export function gateMs(r: BenchResult): { avg: number; p99: number } {
 
 const NAMES = ["alice", "bob", "carol", "dave", "erin", "frank", "gina", "hank"];
 
-function config(players: number): SimConfig {
+function config(players: number, quests: boolean): SimConfig {
   // Nothing ends the run while we measure: no teleport, no sudden death.
   return {
     minPlayers: players, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 1e6, patienceMinSeconds: 1e6,
-    suddenDeathSeconds: 1e6, mobs: true,
+    suddenDeathSeconds: 1e6, mobs: true, quests,
   };
 }
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
+/** A camp mob, not a quest giver (quests add `kind: "quest"` mobs to world.mobs; the benches fight and count camp mobs only). */
+const isRegionalMob = (m: { kind: string }): boolean => m.kind === "mob" || m.kind === "elite";
+
+/** The camp mobs in the world (quest givers left out). */
+function regionalCount(world: World): number {
+  let n = 0;
+  for (const m of world.state.mobs.values()) if (isRegionalMob(m)) n++;
+  return n;
+}
 
 /** Ticks between the wake-ups (a mob already fighting just gains threat). */
 const WAKE_TICKS = 20;
@@ -202,12 +215,14 @@ function allCamps(world: World): BenchCamp[] {
  * clearing and so inside the camp's territory, and carries the camp's reference, so it leashes like the shipped mobs.
  */
 function topUp(world: World, target: number, camps: BenchCamp[], cursor: { i: number }): void {
-  while (world.mobs.size < target && camps.length > 0) {
+  let count = regionalCount(world);
+  while (count < target && camps.length > 0) {
     const ci = cursor.i++ % camps.length;
     const { region, camp } = camps[ci]!;
     const spot = camp.spots[cursor.i % camp.spots.length]!;
     const a = cursor.i * 2.4;
     placeMob(world, { region, elite: false, at: { x: spot.x + Math.cos(a) * 18, y: spot.y + Math.sin(a) * 18 }, camp: ci });
+    count++;
   }
 }
 
@@ -218,7 +233,7 @@ function nearestTwo(world: World, p: Vec2): [Near | null, Near | null] {
   let a: Near | null = null;
   let b: Near | null = null;
   for (const [mid, m] of world.state.mobs) {
-    if (m.status !== "alive") continue;
+    if (!isRegionalMob(m) || m.status !== "alive") continue;
     const d = dist(p, m);
     if (!a || d < a.d) {
       b = a;
@@ -233,7 +248,7 @@ function wakeEverything(world: World, ids: string[]): void {
   if (world.state.tick % WAKE_TICKS !== 0) return;
   for (const [mid, m] of world.state.mobs) {
     const rt = world.mobs.get(mid);
-    if (m.status !== "alive" || !rt?.brain || rt.brain.mode !== "idle") continue;
+    if (!isRegionalMob(m) || m.status !== "alive" || !rt?.brain || rt.brain.mode !== "idle") continue;
     let best: string | null = null;
     let bestD = Infinity;
     for (const id of ids) {
@@ -252,7 +267,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   if ((opts.bots ?? 0) > 0) return runBotsBench(opts);
   const players = opts.players ?? 8;
   const seed = opts.seed ?? 1;
-  const cfg = config(players);
+  const cfg = config(players, opts.quests === true);
   if (opts.hazards === false) cfg.hazards = false;
   const world = createGameWorld({
     seed, config: cfg, random: mulberry32(seed + 1), ...(opts.terrain === "heavy" ? { map: heavyTerrainMap(seed) } : {}),
@@ -358,6 +373,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   return {
     ticks: times.length,
     mobs: world.mobs.size,
+    quests: world.state.quests.size,
     avgFighting: fighting / times.length,
     avgAwake: awake / times.length,
     avgLocked: locked / times.length,
@@ -405,7 +421,7 @@ function runBotsBench(opts: BenchOptions): BenchResult {
   const room = createHeadlessRoom({
     seed,
     // Nothing ends the run while we measure (sudden death never comes); the headless defaults are short timers for a tournament.
-    config: { ...HEADLESS_CONFIG, patienceSeconds: patience, patienceMinSeconds: patience, suddenDeathSeconds: 1e6 },
+    config: { ...HEADLESS_CONFIG, patienceSeconds: patience, patienceMinSeconds: patience, suddenDeathSeconds: 1e6, quests: opts.quests === true },
     bots: { ...BOT_FILL_DEFAULTS, fillTo: count },
     lineup: Array.from({ length: count }, () => (opts.botTier ? { tier: opts.botTier } : {})),
   });
@@ -492,6 +508,7 @@ function runBotsBench(opts: BenchOptions): BenchResult {
     ...wholeStats,
     ticks: measured,
     mobs: world.mobs.size,
+    quests: world.state.quests.size,
     avgFighting: fighting / Math.max(1, measured),
     avgAwake: awake / Math.max(1, measured),
     avgLocked: locked / Math.max(1, measured),
@@ -546,7 +563,7 @@ const line = (label: string, s: TimingStats): string =>
 function printBots(r: BenchResult): void {
   const b = r.bots!;
   console.log(
-    `${r.ticks} ticks after a ${b.warmupTicks}-tick warm-up, ${b.bots} bots, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ` +
+    `${r.ticks} ticks after a ${b.warmupTicks}-tick warm-up, ${b.bots} bots, ${r.mobs} mobs (${r.quests} quest offers), ${r.avgFighting.toFixed(1)} fighting, ` +
     `${r.avgProjectiles.toFixed(1)} projectiles in flight, ${b.aliveBots} bots alive at the end, ${b.clock} clock` +
     `${b.gatesLocked ? ", coliseum gates locked" : ""}\n` +
     `  lineup: ${b.lineup.join(", ")}\n` +
@@ -577,11 +594,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ...(args.coliseum !== undefined ? { coliseum: true } : {}),
     ...(buffs ? { buffs: true } : {}),
     ...(args.stress !== undefined ? { stress: true } : {}),
+    ...(args.quests !== undefined ? { quests: true } : {}),
     ...(args.clock === "cpu" || args.clock === "wall" ? { clock: args.clock } : {}),
   };
   const f = f3;
   const show = (tag: string, r: BenchResult): void => console.log(
-    `${tag}${r.ticks} ticks, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgAwake.toFixed(1)} awake, ${r.avgLocked.toFixed(1)} locked players, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
+    `${tag}${r.ticks} ticks, ${r.mobs} mobs (${r.quests} quest offers), ${r.avgFighting.toFixed(1)} fighting, ${r.avgAwake.toFixed(1)} awake, ${r.avgLocked.toFixed(1)} locked players, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
     `step(): avg ${f(r.avgMs)} ms, p50 ${f(r.p50Ms)} ms, p99 ${f(r.p99Ms)} ms, max ${f(r.maxMs)} ms (gate: avg < ${AVG_BUDGET_MS}, p99 < ${P99_BUDGET_MS})\n` +
     `step() CPU time: avg ${f(r.cpuAvgMs)} ms, p99 ${f(r.cpuP99Ms)} ms (every thread of the process; wall time is inflated while the machine is busy, CPU time by the JIT and GC threads)`,
   );
@@ -607,8 +625,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   if (!runs[0]!.bots) {
     // The terrain variant: a hazard on every fourth floor tile, against the same map with the effects off.
-    const heavy = runStepBench({ terrain: "heavy", buffs });
-    const control = runStepBench({ terrain: "heavy", hazards: false, buffs });
+    const quests = opts.quests === true;
+    const heavy = runStepBench({ terrain: "heavy", buffs, quests });
+    const control = runStepBench({ terrain: "heavy", hazards: false, buffs, quests });
     show("terrain (every 4th tile a hazard): ", heavy);
     show("terrain map, effects off (control):  ", control);
     const s = heavy.hazardSeconds;

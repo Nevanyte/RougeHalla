@@ -20,7 +20,7 @@ import { step } from "../../sim/step";
 import type { SimConfig, SimEvent, World } from "../../sim/world";
 
 /** The GV toast a bot reads, spelt as the Room spells it (RaidRoom.GV_TOAST). */
-const GV_TOAST = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip" } as const;
+const GV_TOAST = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip", quest: "quest" } as const;
 
 /** Short timers like the e2e's: a run is over in minutes of simulated time. Mobs on, as the server has them. */
 export const HEADLESS_CONFIG: SimConfig = {
@@ -144,7 +144,7 @@ export function createHeadlessRoom(opts: HeadlessRoomOptions): HeadlessRoom {
           fxs.push(ev.fx);
           break;
         case "toast":
-          if (manager.isBot(ev.to)) manager.onToast(ev.to, ev.text);
+          if (ev.to !== null && manager.isBot(ev.to)) manager.onToast(ev.to, ev.text);
           break;
         case "resolved": {
           const bot = ev.bot === true || world.players.get(ev.id)?.bot === true;

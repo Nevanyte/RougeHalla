@@ -7,7 +7,7 @@
 //     slots full, replaces the weapon in hand, which drops where the player stands; that counts as a swap
 //     (weaponChanged: the action is cancelled and the cooldown gets SWAP_SECONDS).
 import {
-  hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
+  hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, QUEST_ITEM_PREFIX, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { activeWeapon, setSlot } from "./combatant";
@@ -117,7 +117,12 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   // Movement reach, not sight: a hand does not go through a fence (centres 56 u apart across one tile, INTERACT_RANGE 56).
   if (!hasLineOfSight(collisionMap(world), p, box, MASK_MOVE)) { toast(world, c.id, "Can't reach that"); return; }
   const item = box.items.length > 0 ? box.items.at(0) : undefined;
-  if (!item || !isWeaponId(item.def)) { toast(world, c.id, "Nothing to take"); return; }
+  if (!item) { toast(world, c.id, "Nothing to take"); return; }
+  if (item.def.startsWith(QUEST_ITEM_PREFIX)) {
+    if (!world.quests?.onQuestPickup(world, c, box)) toast(world, c.id, "Nothing to take");
+    return;
+  }
+  if (!isWeaponId(item.def)) { toast(world, c.id, "Nothing to take"); return; }
 
   const def = item.def;
   box.items.splice(0, 1);

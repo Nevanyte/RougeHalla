@@ -236,7 +236,7 @@ function playGame(seed: number, opts: { flipTags?: boolean; audit?: boolean } = 
     const fxs = events.flatMap((e): FxEvent[] => (e.type === "fx" ? [e.fx] : []));
     const batch = channel.batch(fxs, world.state.serverTime, world.projectiles);
     for (const e of events) {
-      if (e.type === "toast" && manager.isBot(e.to)) manager.onToast(e.to, e.text);
+      if (e.type === "toast" && e.to !== null && manager.isBot(e.to)) manager.onToast(e.to, e.text);
       else if (e.type === "resolved") manager.onResult(e.id, e.result);
     }
     channel.extendRoster(world.state);

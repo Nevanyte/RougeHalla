@@ -59,7 +59,7 @@ export function addPlayer(
     history: [],
     weapon: newWeaponRuntime(),
     killedBy: null,
-    gv: { kills: 0, mobs: 0, bounty: 0 },
+    gv: { kills: 0, mobs: 0, bounty: 0, quest: 0 },
     mobKills: 0,
     lastHit: null,
     damaged: new Set(),

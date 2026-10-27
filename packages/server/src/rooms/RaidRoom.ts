@@ -151,7 +151,7 @@ const SERVER_FULL = "the server is full: too many rooms are open right now";
 /** Every client message but `aim` is an order that spends the sender's budget (aim streams at up to 20 Hz and is its own, cheap, thing). */
 const FREE_MESSAGE_TYPE = "aim";
 
-const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip" };
+const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip", quest: "quest" };
 
 export class RaidRoom extends Room<{ state: RaidState }> {
   /** Set once by createServer(); rooms are constructed by the matchmaker. */
@@ -287,6 +287,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       random: Math.random,
       // The reward stream's own secret: never the public seed, and not orderSalt, which tie outcomes can leak (world.ts).
       rewardSalt: Array.from(new Uint32Array(randomBytes(16).buffer, 0, 4)),
+      // The hidden quests' own secret: four more crypto words, so their stream shares no state with the reward stream
+      // whose first outputs (rosters, chest options) every client sees.
+      questSalt: Array.from(new Uint32Array(randomBytes(16).buffer, 0, 4)),
     });
     if (this.training) installTraining(world);
     else if (config.bots.fillTo > 0) {
@@ -516,7 +519,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           fxs.push(ev.fx);
           break;
         case "toast":
-          this.toastTo(ev.to, ev.text);
+          if (ev.to === null) this.broadcast("toast", { text: ev.text });
+          else this.toastTo(ev.to, ev.text);
           break;
         case "resolved":
           this.settle(ev.id, ev.result, ev.bot === true);
@@ -532,6 +536,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           // A bot has no client: its deal goes into its next frame (the planning module reads it).
           if (this.bots?.isBot(ev.to)) this.bots.onPrivate(ev.to, "plan", ev.plan);
           else this.sendTo(ev.to, "plan", ev.plan);
+          break;
+        case "questReveal":
+          this.sendTo(ev.to, "questReveal", ev.quest);
           break;
         case "raidEnded":
           this.clock.setTimeout(() => void this.disconnect(), ENDED_LINGER_SECONDS * 1000);

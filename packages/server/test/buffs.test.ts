@@ -610,7 +610,7 @@ describe("the bounty moves half of each of the victim's buffs to the killer", ()
       { kind: "buff", id: idOf(4), buff: "iceGolem", stacks: 2, total: 2 },
     ]);
     // The bounty GV came with it.
-    expect(RT(w, 4).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 10 });
+    expect(RT(w, 4).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 10, quest: 0 });
   });
 
   it("max hp follows the hp buff gained, and the killer's hp rises by the same delta", () => {

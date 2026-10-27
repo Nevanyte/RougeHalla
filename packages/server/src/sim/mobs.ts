@@ -14,8 +14,8 @@ import { planPath } from "./movement";
 import { chainHook, collisionMap, newWeaponRuntime, nextId, type World } from "./world";
 
 export interface MobSpec {
-  /** A training dummy, or a regional mob / elite (sim/mobLife.ts). */
-  kind: "dummy" | "mob" | "elite";
+  /** A training dummy, a regional mob / elite (sim/mobLife.ts), or an unkillable quest giver (sim/quests.ts). */
+  kind: "dummy" | "mob" | "elite" | "quest";
   name: string;
   /** A FactionId (a regional mob's region); omitted for a dummy, which has none. */
   faction?: string;
@@ -61,7 +61,7 @@ export function addMob(world: World, spec: MobSpec): string {
 export function damageMob(world: World, c: Extract<Combatant, { kind: "mob" }>, amounts: readonly number[]): number {
   let total = 0;
   for (const a of amounts) if (a > 0) total += a;
-  if (!(total > 0) || c.s.status !== "alive") return 0;
+  if (!(total > 0) || c.s.status !== "alive" || c.s.kind === "quest") return 0;
   c.rt.lastHitAt = world.state.serverTime;
   c.s.hp -= total;
   if (c.s.hp <= 0) c.s.hp = c.s.maxHp;

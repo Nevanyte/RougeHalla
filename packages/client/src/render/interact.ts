@@ -1,6 +1,7 @@
 // The client's copy of the server's pickup rule, so the highlight, the F key and the weapon bar's hint agree with it.
-import { INTERACT_RANGE, MASK_MOVE, hasLineOfSight, isWeaponId, type GameMap, type Vec2, type WeaponId } from "@raid/shared";
+import { INTERACT_RANGE, MASK_MOVE, hasLineOfSight, isWeaponId, questDefById, type GameMap, type Vec2, type WeaponId } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
+import { questItemQuestId, type QuestCollection, type QuestStateLike } from "../ui/questModel";
 
 /**
  * Within INTERACT_RANGE and a line between the two points that nothing solid crosses: walls and LOW (a fence, a lava
@@ -21,21 +22,54 @@ export function containerWeapon(c: ContainerState): WeaponId | null {
   return isWeaponId(def) ? def : null;
 }
 
-/** The closest container holding a weapon that satisfies `canInteract`: what F takes. Opened chests and empty bodies are props. */
+export interface QuestPickupContext {
+  quests: QuestCollection;
+  localId: string;
+}
+
+/** No quest is known: no quest item is offered. The default when the caller has nothing to say about quests (a weapons-only test). */
+const NO_QUESTS: QuestPickupContext = { quests: { forEach: () => {} }, localId: "" };
+
+/**
+ * Whether the server would take this quest item for the local player (sim/loot.ts `handlePickup` -> sim/quests.ts
+ * `onQuestPickup`). It names the container the client sends, so there is no tie rule on the server: the client's choice is the
+ * one that counts, and an item the server refuses ("That quest is over", "you can carry one quest item", "You have enough
+ * tokens") must not be the one F picks, or it shadows a weapon lying next to it for as long as the player stands there.
+ */
+export function questItemEligible(c: ContainerState, context: QuestPickupContext): boolean {
+  const questId = questItemQuestId(c);
+  if (!questId) return false;
+  let quest: QuestStateLike | undefined;
+  let carrying = false;
+  context.quests.forEach((candidate, id) => {
+    if (candidate.carrier === context.localId) carrying = true;
+    if (candidate.id === questId || id === questId) quest = candidate;
+  });
+  if (!quest || quest.status !== "open") return false;
+  const def = questDefById(quest.def);
+  if (!def) return false;
+  if (def.kind === "fetch") return !carrying && quest.carrier === "";
+  return def.kind === "collect" && (quest.progress.get(context.localId) ?? 0) < def.count;
+}
+
+/** The closest weapon or quest item the server would take, in reach on the move mask: what F takes. */
 export function nearestContainer(
   containers: { forEach(cb: (c: ContainerState, id: string) => void): void },
   map: GameMap,
   from: Vec2,
+  questContext: QuestPickupContext = NO_QUESTS,
 ): ContainerState | null {
   let best: ContainerState | null = null;
   let bestSq = Infinity;
   containers.forEach((c) => {
-    if (containerWeapon(c) === null || !canInteract(map, from, c)) return;
     const sq = (c.x - from.x) ** 2 + (c.y - from.y) ** 2;
-    if (sq < bestSq) {
-      best = c;
-      bestSq = sq;
-    }
+    // Cheapest first: nearer than the best so far and within reach (canInteract is the exact test), the shape of the container,
+    // then the pickup rule, then the line.
+    if (sq >= bestSq || sq > (INTERACT_RANGE + 1) ** 2) return;
+    if (c.kind === "quest" ? c.items.length === 0 || !questItemEligible(c, questContext) : containerWeapon(c) === null) return;
+    if (!canInteract(map, from, c)) return;
+    best = c;
+    bestSq = sq;
   });
   return best;
 }

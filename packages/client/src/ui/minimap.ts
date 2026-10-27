@@ -16,6 +16,8 @@ import {
 } from "./minimapMath";
 import "./minimap.css";
 import { osPrefersReducedMotion, reducedMotionActive } from "./settingsPanel";
+import { paintQuestBlips } from "./questMap";
+import type { QuestMapBlip } from "./questModel";
 
 /** Overlay pixels the dot radii and line widths were drawn for; they scale with the minimap's size. */
 const REF_SIZE = 150;
@@ -33,8 +35,8 @@ const COLOR_ELITE_RIM = "#ffd54f";
 const COLOR_VIEW = "rgba(255, 255, 255, 0.85)";
 /** More than this many mob dots are not drawn (a 20-camp map has up to 100 mobs: 3-5 spots a camp). */
 const MAX_DOTS = 128;
-/** Inputs that decide a repaint: player x, y, alive, gates, mob dots, camera x, y, route, chest blips (and their pulse), camp states. */
-const INPUTS = 10;
+/** Inputs that decide a repaint: player x, y, alive, gates, mob dots, camera x, y, route, chest blips (and their pulse), camp states, quests. */
+const INPUTS = 11;
 /** The chest blip's ring breathes through these steps (0 = at rest, 1 = widest); 0 throughout under reduced motion. */
 const PULSE_STEPS: readonly number[] = [0, 0.33, 0.66, 1, 0.66, 0.33];
 /** ms per pulse step. */
@@ -127,6 +129,9 @@ export class Minimap {
   private campStates: number[] = [];
   private campStatesHash = 0;
   private campsMarked = false;
+  private questSource: readonly QuestMapBlip[] = [];
+  private quests: QuestMapBlip[] = [];
+  private questsHash = 0;
   private readonly reducedMotion: () => boolean;
 
   // Pointer state. A press is only ever started by a pointerdown on the canvas; the rest is followed on the window.
@@ -239,6 +244,18 @@ export class Minimap {
     this.campStatesHash = any ? hash : 0;
   }
 
+  setQuests(blips: readonly QuestMapBlip[]): void {
+    this.questSource = blips;
+    this.quests = blips.slice(0, 64);
+    let hash = 29;
+    for (const b of this.quests) {
+      hash = (Math.imul(hash, 31) + Math.round(b.x * this.k)) | 0;
+      hash = (Math.imul(hash, 31) + Math.round(b.y * this.k)) | 0;
+      hash = (Math.imul(hash, 31) + b.role.length + b.kind.length) | 0;
+    }
+    this.questsHash = this.quests.length === 0 ? 0 : (Math.imul(hash, 31) + this.quests.length) | 0;
+  }
+
   /** Repaints the static layer for a (new) map; the next update() paints it regardless of the throttle. */
   setMap(map: GameMap): void {
     this.map = map;
@@ -297,6 +314,7 @@ export class Minimap {
     const pulse = this.chestsHash !== 0 && !this.reducedMotion() ? Math.floor(now / PULSE_STEP_MS) % PULSE_STEPS.length : 0;
     cur[8] = this.chestsHash === 0 ? 0 : (Math.imul(this.chestsHash, 8) + pulse) | 0;
     cur[9] = this.campStatesHash;
+    cur[10] = this.questsHash;
     this.lastPaint = now;
     if (this.sameAsLast()) return;
     this.last.set(cur);
@@ -344,6 +362,7 @@ export class Minimap {
       this.px = backing / REF_SIZE;
       if (this.map) this.setMap(this.map);
       if (this.mobsSrc) this.setMobs(this.mobsSrc);
+      this.setQuests(this.questSource);
     }
     // The view rectangle depends on the visible world, which a resize changes even when the backing store stays.
     this.lastPaint = -Infinity;
@@ -379,6 +398,7 @@ export class Minimap {
     if (this.map && this.map.camps.length > 0) paintCamps(c, this.map.camps, k, px, this.campsMarked ? this.campStates : undefined);
     if (this.route && this.showRoute) paintRoute(c, this.route.points, this.route.stops, k, px, { alpha: ROUTE_ALPHA, next: this.route.next });
     if (this.chests.length > 0) paintChests(c, this.chests, k, px, PULSE_STEPS[pulseStep] ?? 0);
+    if (this.quests.length > 0) paintQuestBlips(c, this.quests, k, px);
 
     if (camera && this.viewW > 0) {
       // Clipped to the map: near an edge the camera sees past it, and the rectangle shows what of the map is in view.

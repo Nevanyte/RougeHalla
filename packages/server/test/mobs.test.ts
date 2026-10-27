@@ -238,7 +238,7 @@ describe("a dummy in a fight", () => {
     expect(p.hp).toBe(p.maxHp);
     expect(p.kills).toBe(0);
     expect(p.gv).toBe(0);
-    expect(world.players.get(idOf(0))!.gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(world.players.get(idOf(0))!.gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(ofType(events, "gv")).toEqual([]);
   });
 
@@ -326,7 +326,7 @@ describe("dummies and the arena", () => {
     expect(world.state.mobs.size).toBe(4);
     expect([p.kills, p.gv, p.bounty]).toEqual([0, 0, 0]);
     expect(world.players.get(idOf(0))!.mobKills).toBe(0);
-    expect(world.players.get(idOf(0))!.gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(world.players.get(idOf(0))!.gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(ofType(events, "gv")).toEqual([]);
   });
 });

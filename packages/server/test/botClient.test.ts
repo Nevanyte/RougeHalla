@@ -95,7 +95,7 @@ const sendOf = (b: BotClient) => (cmd: { type: string; msg: unknown }): boolean 
 function result(over: Partial<RunResult> = {}): RunResult {
   return {
     outcome: "won", profile: "tester", durationSec: 40, kills: 1, killedBy: null, place: 1, players: 4,
-    gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: false, ...over,
+    gv: { kills: 0, mobs: 0, bounty: 0, quest: 0, win: 0, total: 0 }, winBonusWithheld: false, ...over,
   };
 }
 
