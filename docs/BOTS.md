@@ -651,6 +651,12 @@ player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the
   (a card lost to a faster hand is asked for again on another, 3 at most, inside 4 s), timed as the humanizer times a reading reaction to
   the panel opening (Hard is quick, Easy slow). A bot that has walked out of reach by the click time clicks nothing. It waits out a stun or a
   cast, and the goal keeps it at the chest until the pick shows.
+- **Birth hold.** A chest born in a ledger pass (every camp's) is refused a pick until the second tick after it ("Chest gone"; `holdBirth`,
+  `sim/loot.ts`), and the bot's one try must not be spent on that. The module sends no `choose` for a chest younger than
+  `CHEST_HUNT.holdMs` (3 ticks: the hold and one more for a message that overtakes its patch), by the chest's own clock (`CHEST_SECONDS` less
+  its time left), so a chest first seen old is picked at once and a young one in reach is stood at and waited for. An old chest in reach
+  comes before a nearer young one. The bot's own perception delay (`INTERP_DELAY_MS` plus the downlink) already puts its first look at a
+  chest past the hold; the rule keeps that true whatever a tier's reaction time becomes.
 - It keeps its own record of the skills it took (the HUD's passives row) to leave a card it holds at rank 2.
 
 **Adopting `decideCast` (built).** Wishes is merged, so `brain/modules/wishes.ts` calls the shared `decideCast` / `hidesCaster`

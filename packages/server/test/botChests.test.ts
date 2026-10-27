@@ -1,7 +1,7 @@
 // How a bot treats a camp's shared chest (roguelike R5): bots/chestHunt.ts (pure: which option, pick or walk or nothing). The brain's
 // chests module adopts it (test/bots/chestsModule.test.ts has the module, perception's rule for what a chest shows, and whole games).
 import { describe, expect, it } from "vitest";
-import { CHEST_RANGE, CHEST_SECONDS, PLAYER_SPEED, TILE, type Vec2 } from "@raid/shared";
+import { CHEST_RANGE, CHEST_SECONDS, PLAYER_SPEED, TICK_MS, TILE, type Vec2 } from "@raid/shared";
 import {
   CHEST_HUNT, chooseOption, ChestHunter, optionScore, type ChestInput, type ChestLike, type ChestSelf,
 } from "../src/bots/chestHunt";
@@ -43,9 +43,11 @@ describe("which chest option a bot takes", () => {
   });
 
   it("holds back a skill that needs a weapon it does not carry", () => {
-    // Quickdraw is for the bow, wand and axe: a sword bot takes the boots over it, an axe bot the other way round.
-    expect(chooseOption(["quickdraw", "swiftBoots"], ["", ""], FIRE_SWORD)).toBe(1);
-    expect(chooseOption(["quickdraw", "swiftBoots"], ["", ""], { ...FIRE_SWORD, weapons: ["axe", null] })).toBe(0);
+    // Quickdraw is for the melee weapons (sword, axe, shield: a bow or wand windup never shortens): a wand bot scores it 3 below a sword or axe bot.
+    const wand = { ...FIRE_SWORD, weapons: ["wand", null] as const };
+    expect(optionScore("quickdraw", FIRE_SWORD) - optionScore("quickdraw", wand)).toBe(3);
+    expect(optionScore("quickdraw", { ...FIRE_SWORD, weapons: ["axe", null] })).toBe(optionScore("quickdraw", FIRE_SWORD));
+    expect(chooseOption(["quickdraw", "whetstone"], ["", ""], wand)).toBe(1);
   });
 
   it("is a pure function of what it is given: the same chest, the same answer, nothing changed", () => {
@@ -69,9 +71,14 @@ describe("which chest option a bot takes", () => {
 const NOW = 50_000;
 const SERVER = 1_000_000;
 
+/** A chest made OLD ms before SERVER: past its birth hold, so a test that is not about the hold picks at its first look. */
+const OLD = 1000;
+/** A chest made at the very tick the first step looks at it (Scene.step moves the clock 50 ms before it decides): age 0. */
+const BORN_AT_FIRST_LOOK = SERVER + 50 + CHEST_SECONDS * 1000;
+
 function chest(id: string, x: number, y: number, o: Partial<ChestLike> = {}): ChestLike {
   return {
-    id, kind: "reward", x, y, expiresAt: SERVER + CHEST_SECONDS * 1000,
+    id, kind: "reward", x, y, expiresAt: SERVER - OLD + CHEST_SECONDS * 1000,
     options: ["whetstone", "swiftBoots", "thickHide"], takenBy: ["", "", ""], pickers: [], ...o,
   };
 }
@@ -172,21 +179,52 @@ describe("the chest hunt", () => {
 
   it("does not walk to a chest it cannot reach before it vanishes", () => {
     const s = new Scene();
-    const reachable = (CHEST_SECONDS * 1000 - CHEST_HUNT.arriveSlackMs) / 1000 * PLAYER_SPEED * CHEST_HUNT.paceShare + CHEST_HUNT.pickRange;
+    const reachable = (CHEST_SECONDS * 1000 - OLD - CHEST_HUNT.arriveSlackMs) / 1000 * PLAYER_SPEED * CHEST_HUNT.paceShare + CHEST_HUNT.pickRange;
     s.chests = [chest("far", reachable + 200, 0)];
     expect(s.step()).toEqual({ kind: "none" });
     s.chests = [chest("edge", reachable - 100, 0)];
     expect(s.step().kind).toBe("walk");
   });
 
-  it("does not walk to a chest with no path, or to one with nothing left to take", () => {
+  it("does not walk to a chest with no path", () => {
     const blocked = new Scene();
     blocked.chests = [chest("c1", 400, 0)];
     blocked.walkLen = () => null;
     expect(blocked.step()).toEqual({ kind: "none" });
-    const empty = new Scene();
-    empty.chests = [chest("c1", 400, 0, { takenBy: ["a", "b", "c"] })];
-    expect(empty.step(), "a skip is not worth a walk").toEqual({ kind: "none" });
+  });
+
+  it("decides a walk from what a player sees from afar (a position, a clock, its own pick), not from the options or who took them", () => {
+    // A far chest whose three options are all taken still draws the walk: from here its contents are not on show.
+    const far = new Scene();
+    far.chests = [chest("c1", 400, 0, { takenBy: ["a", "b", "c"] })];
+    expect(far.step()).toMatchObject({ kind: "walk", chest: "c1" });
+    // ...and on arrival, where the panel shows them, the bot reads them: nothing usable is a skip.
+    far.self = { ...far.self, x: 330 };
+    expect(far.step()).toMatchObject({ kind: "pick", chest: "c1", option: -1 });
+
+    // Beyond pick range nothing reads the contents at all, however many thinks go by; within it they are read.
+    let reads = 0;
+    const watched = (id: string, x: number): ChestLike => {
+      const base = chest(id, x, 0);
+      return {
+        ...base,
+        get options() { reads++; return ["whetstone", "swiftBoots", "thickHide"]; },
+        get takenBy() { reads++; return ["", "", ""]; },
+      };
+    };
+    const s = new Scene();
+    s.chests = [watched("far", 400), watched("farther", 600)];
+    for (let i = 0; i < 5; i++) expect(s.step().kind).toBe("walk");
+    expect(reads, "the walk never looked inside").toBe(0);
+    s.self = { ...s.self, x: 340 };
+    expect(s.step()).toMatchObject({ kind: "pick", chest: "far" });
+    expect(reads).toBeGreaterThan(0);
+  });
+
+  it("two far chests are told apart by distance alone: the nearer wins even if the farther one has the better contents", () => {
+    const s = new Scene();
+    s.chests = [chest("near", 300, 0, { takenBy: ["a", "b", "c"] }), chest("far", 500, 0)];
+    expect(s.step()).toMatchObject({ kind: "walk", chest: "near" });
   });
 
   it("does not walk into a fight for a far chest, nor run to one at low hp, but picks at a chest already in range", () => {
@@ -301,5 +339,70 @@ describe("the chest hunt", () => {
     s.chests = [chest("c1", 400, 0)];
     for (let i = 0; i < 20; i++) s.step(); // one second
     expect(s.walkCalls).toBeLessThanOrEqual(1 + Math.ceil(1000 / CHEST_HUNT.walkCacheMs));
+  });
+});
+
+describe("the chest hunt and a chest's birth hold", () => {
+  it("holds the one try for the server's hold (two ticks) and one tick more", () => {
+    expect(CHEST_HUNT.holdMs).toBe(3 * TICK_MS);
+    expect(CHEST_HUNT.holdMs).toBeGreaterThan(2 * TICK_MS);
+    expect(CHEST_HUNT.holdMs).toBeLessThan(CHEST_SECONDS * 1000 - CHEST_HUNT.pickMarginMs); // it never eats the chest's life
+  });
+
+  it("a chest in reach at the first look gets no pick in its first ticks, then one pick, and no walk, read or try in between", () => {
+    let reads = 0;
+    const s = new Scene();
+    s.chests = [{
+      ...chest("c1", 60, 0, { expiresAt: BORN_AT_FIRST_LOOK }),
+      get options() { reads++; return ["whetstone", "swiftBoots", "thickHide"]; },
+    }];
+    // The looks at ages 0, 50 and 100 ms wait...
+    expect([s.step().kind, s.step().kind, s.step().kind]).toEqual(["none", "none", "none"]);
+    expect(s.hunter.tried("c1")).toBe(false);
+    expect(reads, "the options are not read while it waits").toBe(0);
+    // ...the one at 150 ms picks.
+    expect(s.step()).toMatchObject({ kind: "pick", chest: "c1", option: 2 });
+    expect(reads).toBeGreaterThan(0);
+    expect(s.walkCalls, "waiting started no walk").toBe(0);
+    expect(s.hunter.stats.walks).toBe(0);
+    for (let i = 0; i < 20; i++) expect(s.step()).toEqual({ kind: "none" });
+  });
+
+  it("a chest first seen already old is picked at once: the age is the chest's own, not the time since the bot looked", () => {
+    for (const ageMs of [CHEST_HUNT.holdMs, CHEST_HUNT.holdMs + 1, 700, 6000]) {
+      const s = new Scene();
+      s.chests = [chest("c1", 60, 0, { expiresAt: SERVER + 50 + CHEST_SECONDS * 1000 - ageMs })];
+      expect(s.step().kind, `${ageMs} ms old`).toBe("pick");
+    }
+    const young = new Scene();
+    young.chests = [chest("c1", 60, 0, { expiresAt: SERVER + 50 + CHEST_SECONDS * 1000 - (CHEST_HUNT.holdMs - 1) })];
+    expect(young.step().kind, "one ms short of the hold").toBe("none");
+    expect(young.step().kind, "and 50 ms on").toBe("pick");
+  });
+
+  it("a young chest out of reach is walked to as ever: the hold only delays the pick, and a bot that arrives early waits", () => {
+    const s = new Scene();
+    s.chests = [chest("c1", 400, 0, { expiresAt: BORN_AT_FIRST_LOOK })];
+    expect(s.step()).toMatchObject({ kind: "walk", chest: "c1" }); // age 0
+    s.self = { ...s.self, x: 330 }; // in reach at age 50 (an early arrival)
+    expect(s.step().kind).toBe("none"); // 50
+    expect(s.step().kind).toBe("none"); // 100
+    expect(s.step().kind).toBe("pick"); // 150
+  });
+
+  it("waiting for a young chest does not hold back a pick at an old one in reach, and walks to no third chest meanwhile", () => {
+    const s = new Scene();
+    s.chests = [chest("young", 60, 0, { expiresAt: BORN_AT_FIRST_LOOK }), chest("old", -60, 0)];
+    expect(s.step()).toMatchObject({ kind: "pick", chest: "old" });
+    s.chests = [chest("young", 60, 0, { expiresAt: BORN_AT_FIRST_LOOK + 50 }), chest("far", 500, 0)];
+    expect(s.step(), "the far chest waits while the one in reach is still in its hold").toEqual({ kind: "none" });
+    expect(s.hunter.stats.walks).toBe(0);
+  });
+
+  it("a young chest behind a wall is walked to (the hold applies to a pick, which needs the sight)", () => {
+    const s = new Scene();
+    s.sight = false;
+    s.chests = [chest("c1", 50, 0, { expiresAt: BORN_AT_FIRST_LOOK })];
+    expect(s.step().kind).toBe("walk");
   });
 });

@@ -114,13 +114,21 @@ const RIGS: Partial<Record<SkillId, Rig>> = {
     expect((P(w, 0).x - x0) / (P(plain, 0).x - px0)).toBeCloseTo(decodeMult(encodeMult(1 + v("swiftBoots", r))), 6);
   },
   quickdraw: (r) => {
-    const w = startRun(["sentenced", "frost"]);
-    const base = timingsOf(P(w, 0), "bow")!;
+    // Melee windups only (owner ruling "Melee windups only"): Fire's axe shortens by the rank's cut, its bow and wand do not.
+    const w = startRun(["fire", "frost"]);
+    const axe = timingsOf(P(w, 0), "axe")!;
+    const bow = timingsOf(P(w, 0), "bow")!;
+    const wand = timingsOf(P(w, 0), "wand")!;
+    expect(bow.windup).toBe(0.6);
     give(w, 0, "quickdraw", r);
     const m = decodeMult(encodeMult(1 + v("quickdraw", r)));
     expect(P(w, 0).windupMult).toBe(encodeMult(1 + v("quickdraw", r)));
     expect(m).toBeLessThan(1);
-    expect(timingsOf(P(w, 0), "bow")!.windup).toBeCloseTo(base.windup * m, 9);
+    expect(timingsOf(P(w, 0), "axe")!.windup).toBeCloseTo(axe.windup * m, 9);
+    expect(timingsOf(P(w, 0), "axe")!.root).toBeCloseTo(axe.root * m, 9);
+    expect(timingsOf(P(w, 0), "sword")!.windup).toBeCloseTo(0.1 * m, 9);
+    expect(timingsOf(P(w, 0), "bow")).toEqual(bow);
+    expect(timingsOf(P(w, 0), "wand")).toEqual(wand);
   },
   thickHide: (r) => {
     const w = startRun(["holy", "fire"]);
@@ -356,6 +364,38 @@ describe("buffs and passives fold together", () => {
     const ember = quoted("emberImp") * buffScale(3);
     expect(hitFor(w, 0, "p1", 100)).toBeCloseTo(expectedHit(w, 0, "p1", 100, 1 + ember + whet), 9);
   });
+});
+
+describe("a Wish's damage stays flat with every live passive held", () => {
+  const TRUE = { phys: 0, magic: 0, true: 1 } as const;
+
+  for (const faction of ["fire", "sentenced", "holy", "plague", "frost"] as const) {
+    it(`${faction}: an ability dot entry is untouched while the weapon entry beside it gets the passives' damage and vs rows`, () => {
+      const w = startRun([faction, "frost", "frost"], { signatures: true });
+      for (const id of LIVE) give(w, 0, id, 2);
+      // Every vs row holds against both victims: below 60% hp (Pestilence), a lock on a third party (Witness), a higher feed (Bounty Hunter).
+      for (const i of [1, 2]) {
+        setHpFrac(w, i, 0.25);
+        P(w, i).kills = 3;
+      }
+      RT(w, 1).weapon.lock = "p2";
+      RT(w, 2).weapon.lock = "p1";
+      let rows = 1;
+      for (const id of LIVE) {
+        for (const e of skillRows(id, 2, faction)) if ((e.k === "stat" && e.stat === "damage") || e.k === "vs") rows += e.v;
+      }
+      expect(rows, "the rig holds the damage and vs rows").toBeGreaterThan(1.3);
+      const by = { id: "p0", name: P(w, 0).name };
+      const before = { p1: P(w, 1).hp, p2: P(w, 2).hp };
+      recordHit(w, { victim: "p1", by, packet: { raw: 100, ...TRUE }, weapon: null, ability: "blaze", dot: true, stagger: false });
+      recordHit(w, { victim: "p2", by, packet: { raw: 100, ...TRUE }, weapon: "sword", stagger: false });
+      applyLedger(w);
+      expect(before.p1 - P(w, 1).hp).toBeCloseTo(100, 9);
+      expect(before.p2 - P(w, 2).hp).toBeCloseTo(100 * rows, 9);
+      // What the landed hit reports (kill credit, lifesteal) is flat too.
+      expect(w.combat.landed.find((h) => h.victim === "p1")!.amount).toBeCloseTo(100, 9);
+    });
+  }
 });
 
 // ------------------------------------------------------------------------------------------------- the order-free pass

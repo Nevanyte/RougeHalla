@@ -7,13 +7,17 @@
 //     therefore never looks at a card: from afar every chest is a skill, and that is all it is.
 //   - A walk is a module goal scored beside the others (loot weight, a crowd at the chest, how near it is) and run by `act`; whether
 //     it is worth walking, reachable in the chest's time, safe to leave a fight for, and when to give up on it is chestHunt.ts
-//     (`ChestHunter`, unchanged), fed from the percept.
+//     (`ChestHunter`), fed from the percept.
 //   - Within pick range the cards are read, and `choose` goes out once for the chest, whatever the bot is doing (a pick moves nobody):
 //     the best free card it can use (`chooseOption`), else a skip. It answers the panel opening, like a person reading three cards
 //     (the humanizer's reading reaction), so a Hard bot is quick and an Easy one slow. A pick that lost the race (someone took that
 //     card first: the next percept shows it) is made again on another card, three tries at most inside a few seconds.
+//   - Not in the chest's first `CHEST_HUNT.holdMs`: the server refuses a pick on a chest born in a ledger pass (every camp's) until the
+//     second tick after it ("Chest gone"), and the bot's one try must not be spent on that. The age is the chest's own (CHEST_SECONDS
+//     less its time left), so a chest first seen old is picked at once, and a young one in reach is stood at and waited for (a few
+//     thinks) with its pick withheld, whatever the reaction time of the tier.
 //   - What the bot holds is what it took: the HUD's passives row is the bot's own record, kept here from the chests it picked at.
-import { CHEST_RANGE, EFFECT_CASTING, EFFECT_STUNNED } from "@raid/shared";
+import { CHEST_RANGE, CHEST_SECONDS, EFFECT_CASTING, EFFECT_STUNNED } from "@raid/shared";
 import { CHEST_HUNT, ChestHunter, chooseOption, type ChestInput, type ChestLike } from "../../chestHunt";
 import {
   PRIORITY,
@@ -72,6 +76,12 @@ function stateOf(ctx: BrainContext): ChestState {
 
 const dist = (a: { readonly x: number; readonly y: number }, b: { readonly x: number; readonly y: number }): number => Math.hypot(a.x - b.x, a.y - b.y);
 
+/**
+ * Is the chest still inside the server's birth hold? Its age by its own clock (CHEST_SECONDS less its time left), so a chest first
+ * seen old, by a bot that was busy elsewhere or came from afar, is not waited for.
+ */
+const inHold = (ctx: BrainContext, c: RewardChestView): boolean => CHEST_SECONDS * 1000 - (c.expiresAt - ctx.p.now) < CHEST_HUNT.holdMs;
+
 /** The run is on, the bot stands, and the gates are open (the teleport takes every chest away). */
 const live = (ctx: BrainContext): boolean => ctx.p.self.status === "alive" && ctx.p.hud.phase === "active" && !ctx.p.hud.inColiseum;
 
@@ -129,14 +139,20 @@ function worth(ctx: BrainContext, c: RewardChestView): number {
   );
 }
 
-/** The nearest chest whose cards the bot can read, that it has not picked at and that has time left; null when its asks have run out. */
+/**
+ * The nearest chest whose cards the bot can read, that it has not picked at and that has time left; null when its asks have run
+ * out. One out of its birth hold comes before a nearer one still in it (the hunt does the same: the old one is picked at now).
+ */
 function cardsInReach(ctx: BrainContext, st: ChestState): RewardChestView | null {
   const { p } = ctx;
   if (!live(ctx)) return null;
   let chest: RewardChestView | null = null;
   for (const c of p.extras.chests ?? []) {
     if (c.options === null || c.picked || c.expiresAt - p.now <= CHEST_HUNT.pickMarginMs) continue;
-    if (chest === null || dist(p.self, c) < dist(p.self, chest)) chest = c;
+    if (chest === null) { chest = c; continue; }
+    const cHeld = inHold(ctx, c);
+    const bestHeld = inHold(ctx, chest);
+    if (cHeld === bestHeld ? dist(p.self, c) < dist(p.self, chest) : bestHeld) chest = c;
   }
   const ask = chest === null ? undefined : st.asks.get(chest.id);
   return chest !== null && ask !== undefined && p.now - ask.first > CHEST_RULES.askWindowMs ? null : chest;
@@ -153,6 +169,7 @@ function pickIntent(ctx: BrainContext, st: ChestState): Intent | null {
   if (((p.extras.effects?.[me.id] ?? 0) & (EFFECT_STUNNED | EFFECT_CASTING)) !== 0) return null;
   const chest = cardsInReach(ctx, st);
   if (chest === null || chest.options === null) return null;
+  if (inHold(ctx, chest)) return null; // too young: nothing is asked (no ask is counted) until the server would take the pick
 
   const option = chooseOption(chest.options, chest.takenBy, { faction: me.faction ?? "", weapons: me.weapons, build: st.build });
   const ask = st.asks.get(chest.id);
@@ -242,6 +259,8 @@ export const chestsModule: FeatureModule = {
       if (chest.options === null) intents.push({ kind: "move", to: { x: chest.x, y: chest.y }, priority: PRIORITY.goal, timing: walkTiming(ctx, id), why: `to reward chest ${id}` });
       return end("running", "walking to the chest", intents);
     }
+    // In reach of its cards but still in the birth hold: it stands and waits the few ticks (the hunt waits too), the pick not yet sent.
+    if (chest.options !== null && inHold(ctx, chest)) return end("running", "waiting out the chest's birth hold", intents);
     const ask = st.asks.get(id);
     if (pick || (chest.options !== null && ask !== undefined && p.now - ask.first <= CHEST_RULES.askWindowMs)) return end("running", "taking its pick", intents);
     return end("done", d.kind === "walk" ? "another chest is nearer" : "not worth the walk, or given up");

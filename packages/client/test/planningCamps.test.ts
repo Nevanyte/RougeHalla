@@ -1,6 +1,7 @@
 // A camp's state on the map screens (ui/planning.ts, the lobby preview and the hold-Tab map): a cleared camp's marker is dimmed
-// and crossed out (the `cleared` class, which planning.css draws), an engaged one wears a flame (`engaged`), both say so in
-// the marker's own words, and a cleared camp has no matchup chip left. With no states the markers are what they were.
+// and crossed out (the `cleared` class, which planning.css draws), one somebody fought at wears a small muted ring (`disturbed`:
+// the state is sticky history, so it says "Someone has fought here", never that a fight is on), both say so in the marker's own
+// words, and a cleared camp has no matchup chip left. With no states the markers are what they were.
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateMap, type GameMap } from "@raid/shared";
@@ -30,12 +31,12 @@ function setup() {
   const store = new SettingsStore({ getItem: () => null, setItem: () => {} });
   const view = new PlanningView({ map: MAP, route: new RouteState(null, null), send: () => {}, settings: store });
   const camps = (): PEl[] => asEl(view.element).byClass("pl-camp");
-  const states = (): string[] => camps().map((c) => (c.classList.contains("cleared") ? "cleared" : c.classList.contains("engaged") ? "engaged" : "idle"));
+  const states = (): string[] => camps().map((c) => (c.classList.contains("cleared") ? "cleared" : c.classList.contains("disturbed") ? "engaged" : "idle"));
   return { view, camps, states };
 }
 
 describe("camp states on the map screens", () => {
-  it("marks a cleared camp and an engaged one, and leaves the rest alone", () => {
+  it("marks a cleared camp and a disturbed one, and leaves the rest alone", () => {
     const { view, states } = setup();
     const n = MAP.camps.length;
     const campStates = Array.from({ length: n }, (_, i) => (i === 0 ? 2 : i === 1 ? 1 : 0));
@@ -76,7 +77,8 @@ describe("camp states on the map screens", () => {
     expect(cleared).not.toContain("For ");
     expect(camps()[0]!.byClass("pl-chip")[0]!.hidden).toBe(true);
     const engaged = camps()[1]!.getAttribute("aria-label")!;
-    expect(engaged).toContain("A fight is on here");
+    expect(engaged).toContain("Someone has fought here");
+    expect(engaged, "the state is sticky history, never a live fight").not.toMatch(/is on|under way|in progress|fighting/i);
     expect(engaged).toContain("For ");
     expect(camps()[1]!.byClass("pl-chip")[0]!.hidden).toBe(false);
   });
@@ -85,13 +87,17 @@ describe("camp states on the map screens", () => {
     const { view, camps, states } = setup();
     view.update(frame());
     expect(states().every((s) => s === "idle")).toBe(true);
-    for (const c of camps()) expect(c.getAttribute("aria-label")).not.toMatch(/Cleared|fight is on/);
+    for (const c of camps()) expect(c.getAttribute("aria-label")).not.toMatch(/Cleared|fought here/);
   });
 
-  it("draws both in the stylesheet: dimmed and crossed for cleared, a flame for engaged", () => {
+  it("draws both in the stylesheet: dimmed and crossed for cleared, a small muted ring (not a flame) for a disturbed camp", () => {
     expect(css).toMatch(/\.pl-camp\.cleared\s*\{[^}]*opacity:\s*0\.\d+/);
     expect(css).toMatch(/\.pl-camp\.cleared::after\s*\{[^}]*linear-gradient/);
-    expect(css).toMatch(/\.pl-camp\.engaged::before\s*\{[^}]*clip-path/);
+    const ring = /\.pl-camp\.disturbed::before\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(ring).toMatch(/border-radius:\s*50%/);
+    expect(ring).toMatch(/opacity:\s*0\.\d+/);
+    expect(ring).not.toMatch(/clip-path|#ff7043/);
+    expect(css).not.toContain(".pl-camp.engaged");
     // The cross is a shape, not a colour: it is drawn in a light line over a dark one.
     expect(css).toMatch(/#eceff1/);
   });

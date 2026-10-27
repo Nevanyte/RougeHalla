@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   CHEST_OPTIONS, CHEST_REFUSAL, CHEST_REFUSALS, chestOptionView, chestPool, effectsText, FACTION_IDS, HEAL_OVER_TIME_STEP_MS,
   healOverTimeSpanMs, healOverTimeSteps, isChestRefusal, LIVE_SKILL_READY, mulberry32, nextRank, rankIn, rollChestOptions, SKILL_IDS, SKILL_MAX_RANK, skillDef, skillLive, skillRows, SKILLS, skillsOf, skillText, skipText,
-  type FactionId, type SkillId,
+  SWIFT_BOOTS_PAUSE_MS, type FactionId, type SkillId,
 } from "../src/index";
 
 const R5_LIVE: SkillId[] = [
@@ -46,12 +46,33 @@ describe("the passive catalog", () => {
     }
     expect(skillText("whetstone", 1)).toBe("+6% damage");
     expect(skillText("whetstone", 2)).toBe("+10% damage");
-    expect(skillText("quickdraw", 2)).toBe("-12% windup time");
+    expect(skillText("quickdraw", 1)).toBe("-50% melee windup time");
+    expect(skillText("quickdraw", 2)).toBe("-75% melee windup time");
+    expect(skillText("swiftBoots", 2)).toBe("+10% move speed, but not while you shoot or for 2.5 s after a bow or wand shot");
     expect(skillText("lastRites", 2)).toBe("+25% attack speed while below 40% HP");
     expect(skillText("secondWind", 1)).toBe("Below 25% HP: heal 20% of max HP over 1.5 s (once per run)");
     expect(skillText("secondWind", 2)).toBe("Below 25% HP: heal 30% of max HP over 1.5 s (once, and again after each teleport)");
     expect(skillText("whetstone", 0)).toBe("");
     expect(skillText("nope", 1)).toBe("");
+  });
+
+  it("Quickdraw (owner ruling \"Melee windups only\"): a -50% / -75% windup cut for the sword, axe and shield, with the tick caveat", () => {
+    expect(skillRows("quickdraw", 1)).toEqual([{ k: "stat", stat: "windup", v: -0.5 }]);
+    expect(skillRows("quickdraw", 2)).toEqual([{ k: "stat", stat: "windup", v: -0.75 }]);
+    expect(skillDef("quickdraw")!.worksWith).toEqual(["sword", "axe", "shield"]);
+    expect(skillDef("quickdraw")!.worksWith).not.toContain("bow");
+    expect(skillDef("quickdraw")!.worksWith).not.toContain("wand");
+    expect(skillDef("quickdraw")!.note).toMatch(/Melee only/);
+    expect(skillDef("quickdraw")!.note).toMatch(/50 ms tick/);
+  });
+
+  it("Swift Boots (owner ruling \"No boost while shooting\"): +6% / +10% move speed `while notShooting` for the shared pause, for melee", () => {
+    expect(SWIFT_BOOTS_PAUSE_MS).toBe(2500);
+    expect(skillRows("swiftBoots", 1)).toEqual([{ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.06, ms: SWIFT_BOOTS_PAUSE_MS }]);
+    expect(skillRows("swiftBoots", 2)).toEqual([{ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.1, ms: SWIFT_BOOTS_PAUSE_MS }]);
+    expect(skillText("swiftBoots", 1)).toBe("+6% move speed, but not while you shoot or for 2.5 s after a bow or wand shot");
+    expect(skillDef("swiftBoots")!.worksWith).toEqual(["melee"]);
+    expect(skillDef("swiftBoots")!.counters).toEqual(["kiters"]);
   });
 
   it("Pestilence: Plague widens its execute, everyone else gets the damage row", () => {

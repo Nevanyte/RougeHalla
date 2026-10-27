@@ -58,7 +58,11 @@ export interface PlanningFrame {
   players: readonly PlanningPlayer[];
   /** RaidState.camps[i].type for every camp, "" where unknown. */
   campTypes: readonly string[];
-  /** RaidState.camps[i].state for every camp (0 idle, 1 engaged, 2 cleared): a cleared camp is crossed out. Absent: all idle. */
+  /**
+   * RaidState.camps[i].state for every camp (0 idle, 1 engaged, 2 cleared): a cleared camp is crossed out; an engaged one only
+   * means somebody fought there once (the state never goes back), so it is marked as disturbed, not as a fight under way.
+   * Absent: all idle.
+   */
   campStates?: readonly number[];
   /** The local fighter's ground position, for the in-run map. */
   local: { x: number; y: number; alive: boolean } | null;
@@ -529,7 +533,7 @@ export class PlanningView {
       const m = me ? describeMatchup(campMatchup(me, camp)) : null;
       const state = states?.[i] ?? 0;
       button.classList.toggle("cleared", state === 2);
-      button.classList.toggle("engaged", state === 1);
+      button.classList.toggle("disturbed", state === 1);
       chip.textContent = m?.chip ?? "";
       chip.className = `pl-chip${m ? ` tone-${m.tone}` : ""}`;
       // A cleared camp has nothing left to weigh up: no matchup chip.
@@ -557,7 +561,7 @@ export class PlanningView {
     if (info) parts.push(info.buff ? `${info.name}: ${info.buff}` : info.name);
     const state = frame?.campStates?.[i] ?? 0;
     if (state === 2) parts.push("Cleared");
-    else if (state === 1) parts.push("A fight is on here");
+    else if (state === 1) parts.push("Someone has fought here"); // history: the state is sticky, not a live fight
     if (me && state !== 2) parts.push(`For ${zoneName(me)}: ${describeMatchup(campMatchup(me, camp)).words}`);
     return parts.join(". ");
   }

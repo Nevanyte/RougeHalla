@@ -13,7 +13,9 @@
 //                (sim/buffs.ts syncMaxHp), damage (outgoingMult), lifesteal (lifestealOf), markRate (markRateOf).
 //   while        folds like a stat row while its condition holds. Only players that own such a row are checked, once a
 //                tick (updateMods, after damage), and refolded only when a condition flips: the mirror moves one tick
-//                after the condition, by design.
+//                after the condition, by design. `notShooting` (Swift Boots) is false from the tick a bow or wand attack
+//                starts (`weapon.action`, set in the weapon phase, so the end-of-tick check already sees it) until `ms`
+//                after the shot left (`weapon.lastShotAt`), so the speed mirror flips twice per bout of shooting.
 //   vs, scale    damage rows: outgoingMult adds them to the damage sum per hit (the ledger calls it before any victim
 //                of the pass takes damage, so it reads the state as the pass began). The tests that need more than the
 //                victim's hp (higherFeed, thirdParty: R5) are answered by the ledger's probe, from the same moment.
@@ -136,18 +138,26 @@ export function modRowsOf(p: PlayerState): Effect[] {
 }
 
 /** Does a `while` row's condition hold for this fighter now? */
-function holdsNow(c: Combatant, e: EffectOf<"while">): boolean {
+function holdsNow(world: World, c: Combatant, e: EffectOf<"while">): boolean {
   switch (e.cond) {
     // Chasing your lock = holding a target lock (on or off, so the mirror patches only when a lock starts or ends).
     case "chasingLock": return c.rt.weapon.lock !== null;
     case "hpBelow": return c.s.maxHp > 0 && c.s.hp / c.s.maxHp < e.arg;
     case "afterCast": return false; // R6: casts
+    case "notShooting": {
+      // Off from a bow or wand attack's start (its windup is `weapon.action`) until e.ms after the shot left; a windup that is
+      // cancelled never shoots, so it leaves no pause. Event-driven like the others: it flips at the first start of a bout of
+      // shooting and e.ms after its last shot, not between shots when they come closer than e.ms.
+      const w = c.rt.weapon;
+      if (w.action !== null && w.action.kind !== "swing") return false;
+      return world.state.serverTime - w.lastShotAt >= (e.ms ?? 0);
+    }
   }
 }
 
-function holdsOf(c: Combatant, b: Build): number {
+function holdsOf(world: World, c: Combatant, b: Build): number {
   let bits = 0;
-  for (let i = 0; i < b.whiles.length; i++) if (holdsNow(c, b.whiles[i]!)) bits |= 1 << i;
+  for (let i = 0; i < b.whiles.length; i++) if (holdsNow(world, c, b.whiles[i]!)) bits |= 1 << i;
   return bits;
 }
 
@@ -239,7 +249,7 @@ export function recomputeMods(world: World, c: Combatant): void {
   cache.src = src;
   if (isPlayerState(c.s)) {
     const b = buildOf(c.s);
-    b.holds = holdsOf(c, b);
+    b.holds = holdsOf(world, c, b);
     b.sums = fold(b);
     cache.build = b.rows.length > 0 ? b : null;
   }
@@ -383,7 +393,7 @@ export function updateMods(world: World): void {
         cond.delete(id);
         continue;
       }
-      const holds = holdsOf({ kind: "player", id, s, rt }, b);
+      const holds = holdsOf(world, { kind: "player", id, s, rt }, b);
       if (holds === b.holds) continue;
       b.holds = holds;
       b.sums = fold(b);

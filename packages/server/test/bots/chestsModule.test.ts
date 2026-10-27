@@ -19,6 +19,10 @@ import {
   type Stimulus, type TierId, type TimedCommand,
 } from "../../src/bots/brain/types";
 import { createHeadlessRoom } from "../../src/bots/tournament/headlessRoom";
+import { chestSpot, rewardChests } from "../../src/sim/chests";
+import { combatant } from "../../src/sim/combatant";
+import { applyLedger, recordHit } from "../../src/sim/ledger";
+import type { MobCombatant } from "../../src/sim/mobLife";
 import {
   FRAME_MS, plainContainer, plainPlayer, plainState, T0 as KIT_T0, toSchemaState,
 } from "./fairnessKit";
@@ -303,6 +307,74 @@ describe("the pick: one choose per chest, within reach, whatever the bot is doin
   it("takes the nearest of two chests in reach first", () => {
     const list = chooses(intentsOf({ chests: [chest("far", 80), chest("near", 20)] }));
     expect(list[0]!.msg.chest).toBe("near");
+  });
+});
+
+// ================================================================================================= the birth hold
+
+describe("the pick and a chest's birth hold (the server refuses a pick in the first two ticks of a chest born in a pass)", () => {
+  /** A chest `ageMs` old at NOW, by its own clock (CHEST_SECONDS less its time left). */
+  const aged = (id: string, d: number, ageMs: number, over: Partial<RewardChestView> = {}): RewardChestView =>
+    chest(id, d, { expiresAt: NOW + CHEST_SECONDS * 1000 - ageMs, ...over });
+
+  it("holds the pick for the server's hold (two ticks) and one tick more, and never eats the chest's life", () => {
+    expect(CHEST_HUNT.holdMs).toBe(3 * TICK_MS);
+    expect(CHEST_HUNT.holdMs).toBeGreaterThan(2 * TICK_MS);
+    expect(CHEST_HUNT.holdMs).toBeLessThan(CHEST_SECONDS * 1000 - CHEST_HUNT.pickMarginMs);
+  });
+
+  it("sends nothing for a chest younger than the hold, however slow or fast the tier, and the pick once it is out", () => {
+    for (const tier of ["hard", "normal", "easy"] as const) {
+      const cfg = cfgFor(tier);
+      for (const age of [0, TICK_MS, 2 * TICK_MS, CHEST_HUNT.holdMs - 1]) {
+        expect(intentsOf({ cfg, chests: [aged("rc1", 40, age)] }), `${tier} at ${age} ms`).toEqual([]);
+      }
+      const list = chooses(intentsOf({ cfg, chests: [aged("rc1", 40, CHEST_HUNT.holdMs)] }));
+      expect(list, `${tier} at the hold`).toHaveLength(1);
+      expect(list[0]!.msg.chest).toBe("rc1");
+    }
+  });
+
+  it("counts no ask while it waits: the first pick after the hold is the first ask, and a lost race is still answered", () => {
+    const cfg = cfgFor();
+    for (let k = 0; k < 3; k++) intentsOf({ cfg, now: NOW + k * TICK_MS, chests: [aged("rc1", 40, k * TICK_MS)] });
+    const first = chooses(intentsOf({ cfg, now: NOW + 3 * TICK_MS, chests: [aged("rc1", 40, 3 * TICK_MS)] }));
+    expect(first).toHaveLength(1);
+    // The card it asked for went to somebody else: a different card is asked for, as ever.
+    const taken = ["", "", ""];
+    taken[first[0]!.msg.pick] = "?";
+    const next = chooses(intentsOf({ cfg, now: NOW + 4 * TICK_MS, chests: [aged("rc1", 40, 4 * TICK_MS, { takenBy: taken })] }));
+    expect(next).toHaveLength(1);
+    expect(next[0]!.msg.pick).not.toBe(first[0]!.msg.pick);
+  });
+
+  it("a chest first seen already old is picked at once: the age is the chest's own, not the time since the bot looked", () => {
+    for (const age of [CHEST_HUNT.holdMs, 700, 6000]) expect(chooses(intentsOf({ chests: [aged("rc1", 40, age)] })), `${age} ms old`).toHaveLength(1);
+  });
+
+  it("an old chest in reach is picked at while a nearer one is still in its hold", () => {
+    const list = chooses(intentsOf({ chests: [aged("young", 20, 0), aged("old", 70, 2000)] }));
+    expect(list.map((i) => i.msg.chest)).toEqual(["old"]);
+    expect(intentsOf({ chests: [aged("young", 20, 0), aged("alsoYoung", 70, TICK_MS)] })).toEqual([]);
+  });
+
+  it("stays at a young chest in reach (the walk goal holds it there) and ends nothing while it waits", () => {
+    const cfg = cfgFor();
+    const young = [aged("rc1", 40, TICK_MS)];
+    expect(goalsOf({ cfg, chests: young }).map((g) => g.why)).toEqual(["taking its pick at chest rc1"]);
+    const c = scene({ cfg, chests: young });
+    chestsModule.observe!(c);
+    const out = chestsModule.act!(c, { kind: "module", module: "chests", data: { chest: "rc1" } });
+    expect(out.status).toMatchObject({ state: "running" });
+    expect(out.intents, "no walk (it is in reach) and no pick yet").toEqual([]);
+    const later = scene({ cfg, now: NOW + CHEST_HUNT.holdMs, chests: [aged("rc1", 40, TICK_MS + CHEST_HUNT.holdMs)] });
+    chestsModule.observe!(later);
+    expect(chestsModule.act!(later, { kind: "module", module: "chests", data: { chest: "rc1" } }).intents.map((i) => i.kind)).toEqual(["choose"]);
+  });
+
+  it("a young chest out of reach is walked to as ever: the hold delays only the pick", () => {
+    const g = goalsOf({ chests: [aged("rc1", 300, 0)] })[0];
+    expect(g?.goal).toEqual({ kind: "module", module: "chests", data: { chest: "rc1" } });
   });
 });
 
@@ -608,6 +680,67 @@ describe("chests through the frame ring", () => {
   });
 });
 
+// =========================================================================================== the real hold, in the real sim
+
+/**
+ * Bots against the real sim (the headless room, the Room's own tick order): a camp's last mob dies INSIDE a step, in the ledger
+ * pass, so its chest is born with the server's two-tick hold (holdBirth): a `choose` applied in the next tick gets "Chest gone". The
+ * brain is given no reaction time and no hesitation. This is the end-to-end check (the pick lands, no refusal); the rule itself is
+ * pinned on synthetic percepts above, because the bot's own perception delay (INTERP_DELAY_MS plus the downlink) already puts its
+ * first look at a chest past the hold.
+ */
+describe("a bot at a chest born in a ledger pass (the server's birth hold)", () => {
+  const NO_DELAY = { mu: 0, sigma: 0, tau: 0, floor: 0, cap: 0 };
+
+  function rig() {
+    const room = createHeadlessRoom({
+      seed: 7,
+      config: { patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, firstPatienceSeconds: 0 },
+      bots: { ...BOT_FILL_DEFAULTS, fillTo: 2 },
+      lineup: [{ tier: "hard", persona: "farmer" }, { tier: "hard", persona: "farmer" }],
+      startAtOnce: true,
+      createBrain: (cfg) => createBrain({ ...cfg, tier: { ...cfg.tier, reaction: NO_DELAY, daze: NO_DELAY, hesitation: { ...cfg.tier.hesitation, p: 0 } } }),
+    });
+    room.tick(); // the raid starts
+    const w = room.world;
+    expect(w.state.phase).toBe("active");
+    const [me, other] = room.seats.map((seat) => seat.id) as [string, string];
+    const mobs = [...w.state.mobs].filter(([, m]) => m.camp === 1).map(([id]) => combatant(w, id) as MobCombatant);
+    expect(mobs.length, "camp 0 has its mobs").toBeGreaterThan(1);
+    const kill = (m: MobCombatant): void => {
+      recordHit(w, { victim: m.id, by: { id: other, name: other }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+    };
+    for (const m of mobs.slice(1)) kill(m);
+    applyLedger(w); // all but one die between ticks: the camp is not cleared yet
+    expect(rewardChests(w)).toHaveLength(0);
+    let fired = false;
+    w.beforeDamage.push(() => { if (!fired) { fired = true; kill(mobs[0]!); } }); // the last one dies in the next step's own pass
+    return { room, w, me, spot: chestSpot(w, 0)! };
+  }
+
+  it("takes its first pick, not a 'Chest gone': it waits out the hold before it spends its one choose", () => {
+    const { room, w, me, spot } = rig();
+    const p = w.state.players.get(me)!;
+    const toasts: string[] = [];
+    const chooses = (): number => room.manager.brainOf(me)?.stats.commands.choose ?? 0;
+    const tickOnce = (): void => {
+      // It stands at the chest the whole time: nothing but the hold is in the way.
+      p.x = spot.x;
+      p.y = spot.y;
+      w.players.get(me)!.history = [{ t: w.state.serverTime, x: p.x, y: p.y }];
+      for (const e of room.tick()) if (e.type === "toast" && e.to === me) toasts.push(e.text);
+    };
+    tickOnce(); // the camp's last mob dies in this step; the chest is born and published
+    const box = rewardChests(w)[0]!;
+    expect(box, "the camp's chest dropped").toBeDefined();
+    const bornChooses = chooses();
+    for (let i = 0; i < 20; i++) tickOnce();
+    expect(chooses() - bornChooses, "its one choose went out").toBe(1);
+    expect(toasts.filter((t) => t === "Chest gone"), "the hold did not eat the try").toEqual([]);
+    expect([...box.pickers], "the server took the pick").toContain(me);
+  });
+});
+
 // ============================================================================================================== whole games
 
 describe("bots in whole games", () => {
@@ -639,7 +772,7 @@ describe("bots in whole games", () => {
   }
 
   it("across five short games the bots walk to the chests camps drop and take cards from them", () => {
-    let cleared = 0, picks = 0, skips = 0, commands = 0, refused = 0, takers = new Set<string>();
+    let cleared = 0, picks = 0, skips = 0, commands = 0, refused = 0, gone = 0, takers = new Set<string>();
     for (const seed of [3, 4, 7, 8, 9]) {
       const g = game(seed);
       cleared += g.cleared;
@@ -647,6 +780,7 @@ describe("bots in whole games", () => {
       skips += g.taken.filter((t) => t.option < 0).length;
       commands += g.chooseCommands;
       refused += g.refusals.length;
+      gone += g.refusals.filter((r) => r.endsWith("Chest gone")).length;
       for (const t of g.taken) takers.add(t.by);
       // The server's own rule, seen from the bots: nobody picked twice at one chest.
       expect(new Set(g.taken.map((t) => `${t.chest}/${t.by}`)).size, `seed ${seed}`).toBe(g.taken.length);
@@ -659,5 +793,7 @@ describe("bots in whole games", () => {
     // is no longer in reach of: refusals are rare.
     expect(commands).toBeLessThanOrEqual(picks + skips + 4);
     expect(refused).toBeLessThanOrEqual(3);
+    // A chest born in a ledger pass (every camp's) is refused for two ticks ("Chest gone"): a bot's one try waits that out.
+    expect(gone, "no pick spent on a chest still in its birth hold").toBe(0);
   });
 });

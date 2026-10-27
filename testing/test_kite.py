@@ -23,6 +23,14 @@ judges the same 20 cells with every shooter buffed (the chaser never is): --shoo
 interval / asMult down to the weapon's floor, damage per hit taking over past it; the windup's share follows the interval,
 its cap does not), --shooter-dmg an outgoing damage multiplier on weapon and signature damage alike (a `damage` buff row).
 The guarantee was designed without buffs; kite_buff_sweep.py sweeps the buff values.
+
+    python3 testing/test_kite.py --shooter-windup 0.88 [--shooter-as 1.5]
+
+gives every shooter a windup mod the way shared/mods.ts scaleWindup applies it (Quickdraw, owner ruling "Melee windups only"): a
+mult below 1 shortens melee windups only, so a ranged windup is left exactly as it is and the output equals the default's. The
+flag stays as the check that nothing shortens the lever. The model's tolerances read no melee windup (the chaser's duel is in
+continuous time and starts when it arrives), so a chaser carrying Quickdraw cannot move a cell here: the real sim's KITE EDGES
+(`npm run harness -w @raid/server -- --kiting-only --chaser-skill quickdraw:1`) is the measure of that side.
 """
 import argparse
 import json
@@ -58,6 +66,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="The kiting guarantee at duel pace k = 2.")
     ap.add_argument("--shooter-as", type=float, default=1.0, help="every shooter's attack-speed multiplier (default 1: no buff)")
     ap.add_argument("--shooter-dmg", type=float, default=1.0, help="every shooter's outgoing damage multiplier (default 1)")
+    ap.add_argument("--shooter-windup", type=float, default=1.0, help="every shooter's windup multiplier; below 1 it leaves ranged windups alone (default 1: none)")
     args = ap.parse_args(argv)
     failed = 0
 
@@ -71,11 +80,13 @@ def main(argv=None):
     check(W.BY["Fire"].hit == 300 and W.BY["Sentenced"].params["mark_ramp"] == 140 and W.BY["Fire"].hp == 500, "k = 2 numbers loaded")
 
     buffed = args.shooter_as != 1.0 or args.shooter_dmg != 1.0
-    if buffed:
-        print(f"shooter buffed: attack speed x{args.shooter_as:g}, damage x{args.shooter_dmg:g} (the chaser is not)")
+    if buffed or args.shooter_windup != 1.0:
+        print(f"shooter buffed: attack speed x{args.shooter_as:g}, damage x{args.shooter_dmg:g}"
+              + (f", windup x{args.shooter_windup:g} (ranged windups: {'never shortened' if args.shooter_windup < 1.0 else 'scaled'})"
+                 if args.shooter_windup != 1.0 else "") + " (the chaser is not)")
     worst = (float("inf"), "")
     tols = W.kite_tolerances(args.shooter_as, args.shooter_dmg) if buffed else None
-    for a, b, cells in W.kite_rows(tols, args.shooter_as):
+    for a, b, cells in W.kite_rows(tols, args.shooter_as, args.shooter_windup):
         for wb, (tol, tff, tff_orb) in cells.items():
             weakest = min(tol, key=tol.get)
             margin = tol[weakest] / tff_orb

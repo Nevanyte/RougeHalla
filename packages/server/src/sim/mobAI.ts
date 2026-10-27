@@ -23,7 +23,9 @@
 //     walking home ("return") is not woken, nor is a mob of another camp. A mate woken this way holds the target with no
 //     threat of its own (0): threat stays the damage each player did to THAT mob, which is what its kill credit reads
 //     (mobLife.killMob), so a pull never earns a kill. If its target goes down it turns on whoever has hurt it since, or
-//     gives up. Leash and give-up rules are the same as for any fight.
+//     gives up. Leash and give-up rules are the same as for any fight. Inside a ledger pass the wake is a request, settled
+//     after it: the camp's mates take the target that ranks first in the tick's secret order among the ones its hit members
+//     hold, so the result never follows the order the pass took its victims in (join order).
 //   - It only ever targets players; it never attacks another mob.
 //   - On the coliseum teleport (`resetMob`) it drops its fight, its inputs and its path and is put back on its camp spot at
 //     full hp: the gates lock behind the players, so a mob near the coliseum could not walk home.
@@ -38,7 +40,7 @@ import type { MobCombatant } from "./mobLife";
 import { velocityOf } from "./movement";
 import { isStunned, isUntargetableId } from "./status";
 import { cancelAction } from "./weapons";
-import { collisionMap, type MobBrain, type MobRuntime, type World } from "./world";
+import { collisionMap, payLater, tieRank, type MobBrain, type MobRuntime, type World } from "./world";
 
 /** A ranged mob retreats only to points this far inside its leash, so backing away never carries it over the edge. */
 const LEASH_MARGIN = 24;
@@ -107,7 +109,9 @@ export function aggro(world: World, c: MobCombatant, attackerId: string, amount:
  * standing. No recursion: wakeCamp wakes, it never damages.
  */
 export function wakeMatesOnKill(world: World, c: MobCombatant, killerId: string): void {
-  if (!CAMP_WIDE_AGGRO || standingPlayer(world, killerId) === null) return;
+  if (!CAMP_WIDE_AGGRO) return;
+  // In a pass the killer's standing is judged once it is over (resolveCampWakes): who has gone down so far depends on the order.
+  if (!world.combat.collecting && standingPlayer(world, killerId) === null) return;
   wakeCamp(world, c, killerId);
 }
 
@@ -125,14 +129,50 @@ function wake(world: World, b: MobBrain, target: string): void {
 /**
  * D24: every other idle, living member of `c`'s camp wakes onto `target` (no threat of its own: see the header). Not onto a
  * target that is hidden or untargetable (Swarm): pickTarget would never choose it, and the hit mob's own fight drops it next
- * tick, so the mates stay idle until a hit wakes them onto someone they can see.
+ * tick, so the mates stay idle until a hit wakes them onto someone they can see (the status table is frozen in a pass, so the
+ * answer is the same whenever it is asked). During a ledger pass the wake is only requested: victims are processed in
+ * recording order, which follows join order, so the first one would pick the camp's target. `resolveCampWakes` settles every
+ * request once the pass is over.
  */
 function wakeCamp(world: World, c: MobCombatant, target: string): void {
   const camp = c.s.camp;
   if (!(camp >= 1) || isUntargetableId(world, target)) return;
+  const cb = world.combat;
+  if (cb.collecting) {
+    if (cb.campWakes.length === 0) payLater(world, () => resolveCampWakes(world));
+    cb.campWakes.push({ camp, target });
+    return;
+  }
+  wakeMates(world, camp, target, c.id);
+}
+
+/**
+ * After a ledger pass: each camp with a wake request wakes its idle mates onto ONE target, the requested one that ranks first
+ * in the tick's secret order (`world.combat.rank`, the salted `tieRank` for an exact tie; both are public to no one), and only
+ * if that player is still standing. Every mob that was hit has woken onto its own attacker by then, whatever order the pass
+ * took the victims in, so only the mates nobody touched are left to hand on, and they take the same target in every order.
+ */
+function resolveCampWakes(world: World): void {
+  const requests = world.combat.campWakes;
+  world.combat.campWakes = [];
+  const first = new Map<number, string>();
+  const before = (a: string, b: string): boolean => {
+    const ra = world.combat.rank.get(a) ?? Infinity;
+    const rb = world.combat.rank.get(b) ?? Infinity;
+    return ra !== rb ? ra < rb : tieRank(world, a) < tieRank(world, b);
+  };
+  for (const { camp, target } of requests) {
+    if (standingPlayer(world, target) === null) continue;
+    const held = first.get(camp);
+    if (held === undefined || (held !== target && before(target, held))) first.set(camp, target);
+  }
+  for (const [camp, target] of first) wakeMates(world, camp, target, null);
+}
+
+function wakeMates(world: World, camp: number, target: string, exceptId: string | null): void {
   for (const rt of world.mobs.values()) {
     const b = rt.brain;
-    if (rt.id === c.id || b === undefined || b.mode !== "idle") continue;
+    if (rt.id === exceptId || b === undefined || b.mode !== "idle") continue;
     const s = world.state.mobs.get(rt.id);
     if (s === undefined || s.camp !== camp || s.status !== "alive") continue;
     if (!b.threat.has(target)) b.threat.set(target, 0);

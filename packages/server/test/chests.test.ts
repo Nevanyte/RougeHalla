@@ -286,6 +286,67 @@ describe("camp-wide aggro (D24)", () => {
     expect(e!.rt.brain!.mode).toBe("idle");
   });
 
+  describe("which player the whole camp chases never follows the order the pass took its victims in", () => {
+    const brains = (w: World): string => campMobs(w, 0).map((m) => `${m.rt.brain!.mode}:${m.rt.brain!.target}`).join(" | ");
+    /** One pass with these hits, in this order of recording, under a tick whose secret order puts `first` ahead of the others. */
+    const pass = (hits: Array<{ by: string; mob: number; raw?: number }>, first: string): { w: World; mobs: MobCombatant[] } => {
+      const w = run();
+      const rest = ["p0", "p1", "p2"].filter((id) => id !== first);
+      w.combat.rank = new Map([first, ...rest].map((id, i) => [id, i]));
+      const mobs = campMobs(w, 0);
+      for (const h of hits) {
+        recordHit(w, { victim: mobs[h.mob]!.id, by: { id: h.by, name: h.by }, packet: { raw: h.raw ?? 1, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+      }
+      applyLedger(w);
+      return { w, mobs };
+    };
+
+    it("two members hit by two players in one pass: [a, b] and [b, a] give the same brains, and the secret rank picks the untouched mate's target", () => {
+      for (const first of ["p0", "p1"]) {
+        const ab = pass([{ by: "p0", mob: 0 }, { by: "p1", mob: 1 }], first);
+        const ba = pass([{ by: "p1", mob: 1 }, { by: "p0", mob: 0 }], first);
+        expect(brains(ab.w), first).toBe(brains(ba.w));
+        // Each hit mob is on its own attacker; the one nobody touched takes whoever the tick's order puts first.
+        expect(ab.mobs.map((m) => m.rt.brain!.target), first).toEqual(["p0", "p1", first]);
+        expect(ab.mobs[2]!.rt.brain!.threat.get(first)).toBe(0);
+      }
+    });
+
+    it("a lethal hit hands its killer on in the same way: kill and hit in either order give the same brains", () => {
+      for (const first of ["p0", "p1"]) {
+        const kill = { by: "p0", mob: 0, raw: 1e6 };
+        const poke = { by: "p1", mob: 1 };
+        const one = pass([kill, poke], first);
+        const two = pass([poke, kill], first);
+        expect(one.mobs[0]!.s.status).toBe("dead");
+        expect(brains(one.w), first).toBe(brains(two.w));
+        expect(one.mobs.slice(1).map((m) => m.rt.brain!.target), first).toEqual(["p1", first]);
+      }
+    });
+
+    it("a killer who is down by the end of the pass hands nothing on; one still standing does", () => {
+      const standing = pass([{ by: "p0", mob: 0, raw: 1e6 }], "p0");
+      expect(standing.mobs.slice(1).map((m) => m.rt.brain!.target)).toEqual(["p0", "p0"]);
+      const w = run();
+      const mobs = campMobs(w, 0);
+      recordHit(w, { victim: mobs[0]!.id, by: { id: "p0", name: "p0" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+      // The killer is out by the time the pass is over (a hit of someone else's in the same pass): no wake onto a downed player.
+      recordHit(w, { victim: "p0", by: { id: "p2", name: "p2" }, packet: { raw: 1e9, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false });
+      applyLedger(w);
+      expect(P(w, 0).status).not.toBe("alive");
+      expect(mobs[0]!.s.status).toBe("dead");
+      for (const m of mobs.slice(1)) expect(m.rt.brain!.mode, m.id).toBe("idle");
+    });
+
+    it("outside a pass nothing is deferred: a wake is immediate, as before", () => {
+      const w = run();
+      const [a, b] = campMobs(w, 0);
+      hit(w, a!, "p1", 10);
+      expect(b!.rt.brain!.target).toBe("p1");
+      expect(w.combat.campWakes).toEqual([]);
+    });
+  });
+
   it("kill credit is unchanged: the pull earns nothing, the damage dealer gets the kill", () => {
     const w = run();
     const [a, b] = campMobs(w, 0);
@@ -458,6 +519,29 @@ describe("choose: picking at the chest", () => {
     expect(toasts(tick(w), "p0")).toEqual(["Chest gone"]);
     choose(w, 0, box.id, 0);
     tick(w);
+    expect(box.takenBy[0]).toBe("p0");
+  });
+
+  it("the bornAt guard: a chest born in a tick's own ledger pass is not pickable in the next tick either (an id guessed blind wins nothing)", () => {
+    const w = run();
+    const mobs = campMobs(w, 1);
+    const killer = (m: MobCombatant): void => {
+      recordHit(w, { victim: m.id, by: { id: "p1", name: "p1" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+    };
+    for (const m of mobs.slice(1)) killer(m);
+    applyLedger(w); // all but one die between ticks: the camp is not cleared yet
+    expect(rewardChests(w)).toHaveLength(0);
+    let fired = false;
+    w.beforeDamage.push(() => { if (!fired) { fired = true; killer(mobs[0]!); } }); // the camp's last mob dies INSIDE a step
+    tick(w);
+    const box = onlyChest(w);
+    place(w, 0, box);
+    choose(w, 0, box.id, 0); // the client has not been told about the chest yet: it guessed the id
+    expect(toasts(tick(w), "p0")).toEqual(["Chest gone"]);
+    expect([...box.pickers]).toEqual([]);
+    expect([...box.takenBy]).toEqual(["", "", ""]);
+    choose(w, 0, box.id, 0);
+    expect(toasts(tick(w), "p0")).toEqual([]);
     expect(box.takenBy[0]).toBe("p0");
   });
 
