@@ -1,5 +1,5 @@
 // Snapshot interpolation. Pure so it can be unit-tested and reused by headless bots.
-import { INTERP_DELAY_MS, TELEPORT_DISTANCE } from "./constants";
+import { INTERP_DELAY_MS, MAX_INTERP_DELAY_MS, MIN_INTERP_DELAY_MS, PATCH_MS, TELEPORT_DISTANCE } from "./constants";
 
 export interface Sample {
   t: number;
@@ -94,6 +94,9 @@ export class ServerClock {
 
   get synced(): boolean { return this.offset !== null; }
 
+  /** The estimated (server time − local time), 0 before the first patch. */
+  get offsetMs(): number { return this.offset ?? 0; }
+
   observe(serverTime: number, localNow: number): void {
     const sample = serverTime - localNow;
     if (this.offset === null || Math.abs(sample - this.offset) > this.resyncThresholdMs) {
@@ -105,6 +108,11 @@ export class ServerClock {
     else this.offset += Math.max(-this.maxSlewMs, Math.min(this.maxSlewMs, err));
   }
 
+  /** The server's clock stepped against ours for good (a hitch that dropped sim time): take this sample as the offset now, not by slewing. */
+  resync(serverTime: number, localNow: number): void {
+    this.offset = serverTime - localNow;
+  }
+
   now(localNow: number): number {
     return localNow + (this.offset ?? 0);
   }
@@ -113,3 +121,245 @@ export class ServerClock {
     return this.now(localNow) - delayMs;
   }
 }
+
+
+export interface RenderClockOptions {
+  /** The delay is never below / above this (ms), measured as `PATCH_MS` plus how far render time trails the patch stream's median. */
+  minMs: number;
+  maxMs: number;
+  /** Added to what the percentile asks: what a window of a few seconds could not see (a patch later than any in it). */
+  marginMs: number;
+  /** Which share of the recent patches the delay must be enough for (0..1). */
+  percentile: number;
+  /** How far back the percentile looks (ms of local time). */
+  windowMs: number;
+  /** Patches seen before the window is trusted; until then render time trails the clock by `initialMs`. */
+  warmup: number;
+  initialMs: number;
+  /** How fast the delay may grow, as a share of real time (0.2: render time then runs at 80% speed while it does). */
+  growRate: number;
+  /** How fast it may shrink when it is close to where it should be (0.01: render time runs at 101%)... */
+  shrinkRate: number;
+  /** ...and when it is `shrinkFarMs` or more away from it (after a bad stretch, or at the start). In between it is linear. */
+  shrinkFastRate: number;
+  shrinkFarMs: number;
+  /** Render time jumps FORWARD instead of slewing when the wanted value is this far (ms) ahead of it: a stalled tab, a resync. It never jumps back. */
+  snapMs: number;
+  /**
+   * A gap this long (ms) between two patches is a stall of the link or the tab, not jitter: what the window holds says nothing
+   * about the stream that follows, and the burst that ends the stall (patches arriving back to back, each judged against one
+   * far older) would fill it with 'late' patches. The window is emptied and the burst left out.
+   */
+  stallMs: number;
+  /**
+   * The stream has stepped against the local clock (the server dropped sim time after a hitch, or the link's latency changed for
+   * good) when the last `stepPatches` patches, spread over at least `stepSpanMs` of arrivals (a burst is not a step), all sit more
+   * than `stepMs` from the window's median on the same side. The window is then emptied (the median would take half of it to
+   * turn over) and render time waits for the stream instead of running on past it.
+   */
+  stepMs: number;
+  stepPatches: number;
+  stepSpanMs: number;
+  /** Patches since a flush before the median is taken from the new samples (until then the old one stands, and so does the delay asked). */
+  rewarmMin: number;
+}
+
+export const RENDER_CLOCK_DEFAULTS: RenderClockOptions = {
+  minMs: MIN_INTERP_DELAY_MS,
+  maxMs: MAX_INTERP_DELAY_MS,
+  marginMs: 10,
+  percentile: 0.98,
+  windowMs: 4000,
+  warmup: 20,
+  initialMs: INTERP_DELAY_MS,
+  growRate: 0.2,
+  shrinkRate: 0.01,
+  shrinkFastRate: 0.05,
+  shrinkFarMs: 80,
+  snapMs: 250,
+  stallMs: 1000,
+  stepMs: 100,
+  stepPatches: 3,
+  stepSpanMs: 80,
+  rewarmMin: 5,
+};
+
+/**
+ * Render time for a snapshot stream, drawn far enough behind the newest data that an interpolation segment is complete when render
+ * time reaches it, and no further.
+ *
+ * Each patch is judged by `r = (server time of the previous patch) − (local time it arrived)`: render time may be `r` ahead of local
+ * time at most, or the patch that completes the segment before the previous patch's time is not there yet when render time reaches
+ * it. `r` is one patch interval smaller when the network or the server's own step ran late, and when two ticks came in one patch
+ * (the previous patch's time is then 100 ms back). Render time is held at the `percentile` of the last few seconds of those, less
+ * a margin: the delay (`PATCH_MS` + how far that is behind the median `r`) is a function of the network and nothing else, so the
+ * estimate of the server clock under it (a ServerClock, which the scene also stamps its orders with) can wobble without moving the
+ * picture. It is bounded below and above, rises as fast as `growRate` allows and falls at `shrinkRate` (faster when far above what
+ * is asked).
+ *
+ * Render time never runs backwards. Against the local clock it moves down only by slewing, at no less than `1 − growRate` of real
+ * time, or, while it recovers from a stall or a step (below), by standing still; and it jumps only forward, when what is wanted is
+ * `snapMs` or more ahead of it. Two things are not jitter, and the window of the last seconds cannot tell about them in time:
+ *  - A stall: a gap of `stallMs` or more between patches (the link froze, the tab slept, a reconnect). The patches that end it
+ *    arrive back to back and each is judged against one far older, so a long one would fill over half the window and drag the
+ *    median with it. The window is emptied, that burst is left out, and the delay asked before stays until the new patches have
+ *    shown the median again (`rewarmMin`, then a full `warmup`).
+ *  - A step: the stream sits steadily more than `stepMs` from the window's median (the server dropped sim time after a hitch, so
+ *    its clock trails ours for good; or the link's latency changed for good). The median would take half the window to turn over,
+ *    and in that time render time would run past the newest data (down) or lag behind it (up). The window is emptied and seeded
+ *    with the patches that showed it, and render time waits for the stream (down) or jumps or shrinks to it (up).
+ */
+export class RenderClock {
+  /** The estimated server clock (`now()`): what orders are stamped with. A late patch moves it by at most `maxSlewMs`, never snaps it back. */
+  readonly clock: ServerClock;
+  readonly options: RenderClockOptions;
+  private samples: Array<{ at: number; r: number }> = [];
+  private scratch: number[] = [];
+  private pending: { t: number; at: number } | null = null;
+  private prevT = Number.NaN;
+  private lastArrival = Number.NaN;
+  /** After a stall: patches arriving back to back with its end are not samples. */
+  private skipping = false;
+  /** The window was emptied: until render time is where the new window asks it to be, it may stand still instead of slowing to 1 − growRate. */
+  private waiting = false;
+  /** A full window has been seen: what is asked is then a measurement, not the initial guess. */
+  private warmed = false;
+  /** render time = local time + this. */
+  private offset = 0;
+  private anchored = false;
+  private lastNow = 0;
+  private lastRender = -Infinity;
+  /** Median `r` and the delay asked for, as of the last frame. */
+  private median = 0;
+  private asked: number;
+
+  constructor(options: Partial<RenderClockOptions> = {}, clock?: ServerClock) {
+    this.options = { ...RENDER_CLOCK_DEFAULTS, ...options };
+    this.clock = clock ?? new ServerClock(2, 250, Infinity);
+    this.asked = this.options.initialMs;
+  }
+
+  /** A patch arrived (once per patch): its server time and the local time it arrived. */
+  onPatch(serverTime: number, localNow: number): void {
+    const o = this.options;
+    const gap = localNow - this.lastArrival;
+    this.lastArrival = localNow;
+    if (gap >= o.stallMs) {
+      this.samples = [];
+      this.waiting = true;
+      this.skipping = true;
+    } else if (this.skipping && gap >= PATCH_MS / 2) {
+      this.skipping = false;
+    }
+    if (Number.isFinite(this.prevT) && serverTime > this.prevT && !this.skipping) {
+      const s = this.samples;
+      s.push({ at: localNow, r: this.prevT - localNow });
+      while (s.length > 0 && s[0]!.at < localNow - o.windowMs) s.shift();
+      this.checkStep(serverTime, localNow);
+    }
+    if (!(serverTime <= this.prevT)) this.prevT = serverTime;
+    // Only the newest patch since the last frame feeds the clock: a burst after a stall would skew it.
+    if (!this.pending || serverTime > this.pending.t) this.pending = { t: serverTime, at: localNow };
+  }
+
+  /** The newest `stepPatches` samples all sit beyond `stepMs` of the median of the ones before, on one side, over `stepSpanMs`. */
+  private checkStep(serverTime: number, localNow: number): void {
+    const o = this.options;
+    const s = this.samples;
+    const n = s.length;
+    const k = o.stepPatches;
+    if (n < o.warmup + k || s[n - 1]!.at - s[n - k]!.at < o.stepSpanMs) return;
+    const median = this.medianR(0, n - k);
+    let below = true;
+    let above = true;
+    for (let i = n - k; i < n; i++) {
+      // Patches that came back to back are one event (the end of a hole in the link), not a stream that stayed shifted.
+      if (i > n - k && s[i]!.at - s[i - 1]!.at < PATCH_MS / 2) return;
+      const d = s[i]!.r - median;
+      if (d > -o.stepMs) below = false;
+      if (d < o.stepMs) above = false;
+    }
+    if (!below && !above) return;
+    this.samples = s.slice(n - k);
+    this.median = this.medianR(0, k);
+    this.waiting = below;
+    this.clock.resync(serverTime, localNow);
+  }
+
+  /** Once per frame, before sampling. */
+  renderTime(localNow: number): number {
+    if (this.pending) {
+      this.clock.observe(this.pending.t, this.pending.at);
+      this.pending = null;
+    }
+    const o = this.options;
+    const want = this.want();
+    const dt = this.anchored ? clamp(localNow - this.lastNow, 0, o.snapMs) : 0;
+    this.lastNow = localNow;
+    const diff = want - this.offset;
+    if (!this.anchored || diff > o.snapMs) {
+      this.offset = want;
+      this.anchored = true;
+      this.waiting = false;
+    } else {
+      // diff > 0: render time is further behind than asked, so it may move up (the delay shrinks): slowly, unless it is far.
+      // diff < 0: it is ahead of what is asked, so the delay must grow: at 1 − growRate of real time, or, after a stall or a step
+      // that left it far ahead of the data, by standing still until it is where the stream is.
+      if (diff >= 0 && this.samples.length >= o.rewarmMin) this.waiting = false;
+      const down = this.waiting ? 1 : o.growRate;
+      const shrink = o.shrinkRate + (o.shrinkFastRate - o.shrinkRate) * clamp((diff - o.shrinkFarMs / 4) / (o.shrinkFarMs * 3 / 4), 0, 1);
+      this.offset += clamp(diff, -down * dt, shrink * dt);
+    }
+    // A hold subtracts exactly the frame's time from the offset, and the floating point sum can come out a rounding error short.
+    let t = localNow + this.offset;
+    if (t < this.lastRender) { this.offset += this.lastRender - t; t = this.lastRender; }
+    this.lastRender = t;
+    return t;
+  }
+
+  /** The render offset wanted now (render time − local time), and the delay it makes (`asked`). */
+  private want(): number {
+    const o = this.options;
+    const s = this.samples;
+    if (s.length < o.warmup) {
+      if (!this.warmed) {
+        // Not enough to judge: trail the clock's estimate by the initial delay.
+        this.asked = o.initialMs;
+        this.median = this.clock.offsetMs - PATCH_MS;
+        return this.clock.offsetMs - o.initialMs;
+      }
+      // The window was emptied (a stall, a step): the delay asked before stands, and so does the median until a few new patches
+      // have shown where it is now.
+      if (s.length >= o.rewarmMin) this.median = this.medianR(0, s.length);
+      return this.median - (this.asked - PATCH_MS);
+    }
+    this.warmed = true;
+    const v = this.scratch;
+    v.length = 0;
+    for (const x of s) v.push(x.r);
+    v.sort((a, b) => a - b);
+    const low = v[Math.min(v.length - 1, Math.floor((1 - o.percentile) * v.length))]!;
+    this.median = v[v.length >> 1]!;
+    const lag = clamp(this.median - low + o.marginMs, o.minMs - PATCH_MS, o.maxMs - PATCH_MS);
+    this.asked = PATCH_MS + lag;
+    return this.median - lag;
+  }
+
+  private medianR(from: number, to: number): number {
+    const v = this.scratch;
+    v.length = 0;
+    for (let i = from; i < to; i++) v.push(this.samples[i]!.r);
+    v.sort((a, b) => a - b);
+    return v[v.length >> 1]!;
+  }
+
+  /** The delay the network asks for (ms): `PATCH_MS` plus how far render time is to trail the median patch. Render time slews towards it. */
+  get targetMs(): number { return this.asked; }
+
+  /** The delay render time has now (ms): the same measure as `targetMs`, so it is the one that is bounded and tuned. */
+  get delayMs(): number {
+    return this.anchored ? PATCH_MS + (this.median - this.offset) : this.options.initialMs;
+  }
+}
+
+function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }

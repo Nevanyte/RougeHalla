@@ -97,10 +97,12 @@ describe("LockDisplay", () => {
 
 describe("TargetRings", () => {
   function setup() {
-    const { scene, ofKind } = fakeScene();
+    const { scene, ofKind, baked } = fakeScene();
     const rings = new TargetRings(scene);
-    const [hover, lock] = ofKind("graphics") as [FakeObject, FakeObject];
-    return { rings, hover, lock };
+    // Images of baked ellipses: hover, lock, flash. `drawn(ring)` is what the texture each shows was drawn with.
+    const [hover, lock] = ofKind("image") as [FakeObject, FakeObject];
+    const drawn = (ring: FakeObject) => ({ calls: baked.get(String(ring.state.texture))?.calls ?? [] });
+    return { rings, hover, lock, drawn };
   }
 
   it("starts hidden", () => {
@@ -110,13 +112,14 @@ describe("TargetRings", () => {
   });
 
   it("draws each ring as a ground ellipse, the lock one stronger and red", () => {
-    const { hover, lock } = setup();
-    const widthOf = (g: FakeObject, call: string) => (g.calls.find(([n]) => n === call)![1] as number[])[2]!;
+    const { hover: hoverImage, lock: lockImage, drawn } = setup();
+    const [hover, lock] = [drawn(hoverImage), drawn(lockImage)];
+    const widthOf = (g: { calls: readonly (readonly [string, readonly unknown[]])[] }, call: string) => (g.calls.find(([n]) => n === call)![1] as number[])[2]!;
     expect(widthOf(hover, "strokeEllipse")).toBeCloseTo(PLAYER_RADIUS * 3.1, 9);
     expect(widthOf(lock, "strokeEllipse")).toBeCloseTo(PLAYER_RADIUS * 3.1, 9);
-    const heightOf = (g: FakeObject) => (g.calls.find(([n]) => n === "strokeEllipse")![1] as number[])[3]!;
+    const heightOf = (g: typeof hover) => (g.calls.find(([n]) => n === "strokeEllipse")![1] as number[])[3]!;
     expect(heightOf(lock)).toBeCloseTo(PLAYER_RADIUS * 3.1 * Y_SCALE, 9);
-    const strokes = (g: FakeObject) => g.calls.filter(([n]) => n === "lineStyle").map(([, a]) => a as number[]);
+    const strokes = (g: typeof hover) => g.calls.filter(([n]) => n === "lineStyle").map(([, a]) => a as number[]);
     expect(strokes(hover)[0]![1]).toBe(0xeceff1);
     expect(strokes(lock)[0]![1]).toBe(0xff5252);
     expect(strokes(lock)[0]![0]!).toBeGreaterThan(strokes(hover)[0]![0]!);

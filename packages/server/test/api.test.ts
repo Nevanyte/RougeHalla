@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, LEADERBOARD_MAX_MONTHS, PROFILE_TOKEN_HEADER, ROOM_NAME, monthKey,
+  LEADERBOARD_DEFAULT_LIMIT, LEADERBOARD_MAX_LIMIT, LEADERBOARD_MAX_MONTHS, PASSCODE_HEADER, PROFILE_TOKEN_HEADER, ROOM_NAME, monthKey,
   type LeaderboardResponse, type ProfileResponse,
 } from "@raid/shared";
 import { loadConfig } from "../src/config";
@@ -460,7 +460,7 @@ describe("GET /api/leaderboard", () => {
 });
 
 describe("/api: method and CORS rules", () => {
-  const ALLOW_HEADERS = `${PROFILE_TOKEN_HEADER}, content-type`;
+  const ALLOW_HEADERS = `${PROFILE_TOKEN_HEADER}, ${PASSCODE_HEADER}, content-type`;
   const foreign = { origin: "http://game.example.test" };
 
   it.each(["HEAD", "POST", "PUT", "PATCH", "DELETE"])("%s on a profile is refused with 405 and claims nothing", async (method) => {
@@ -558,6 +558,6 @@ describe("/api: method and CORS rules", () => {
     });
     expect(res.status).toBe(204);
     const allowed = (res.headers.get("access-control-allow-headers") ?? "").toLowerCase();
-    for (const h of ["content-type", "authorization", PROFILE_TOKEN_HEADER]) expect(allowed).toContain(h);
+    for (const h of ["content-type", "authorization", PROFILE_TOKEN_HEADER, PASSCODE_HEADER]) expect(allowed).toContain(h);
   });
 });

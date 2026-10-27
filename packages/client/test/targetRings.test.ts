@@ -1,5 +1,6 @@
 // TargetRings (render/TargetRings.ts): the lock ring's pulse when it lands on a new fighter, its breathing and the flash ring.
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { BAKE_SCALE } from "../src/render/bake";
 import { resetReducedMotionCache } from "../src/render/juice";
 import { LOCK_BREATH_SCALE, LOCK_PULSE_FROM, LOCK_PULSE_MS, TargetRings } from "../src/render/TargetRings";
 import { fakeScene } from "./fakes";
@@ -12,12 +13,14 @@ afterEach(() => {
 function setup() {
   const { scene, ofKind } = fakeScene();
   const rings = new TargetRings(scene);
-  const [hover, lock, flash] = ofKind("graphics");
+  // The rings are Images of baked ellipses, in this order.
+  const [hover, lock, flash] = ofKind("image");
   return { rings, hover: hover!, lock: lock!, flash: flash! };
 }
 
 const at = (x: number, y: number) => ({ x, y });
-const scaleOf = (g: { state: Record<string, unknown> }) => (g.state.scale ?? 1) as number;
+// A baked ring's own scale is 1 / BAKE_SCALE; the pulse and the breathing are on top of it.
+const scaleOf = (g: { state: Record<string, unknown> }) => ((g.state.scale ?? 1 / BAKE_SCALE) as number) * BAKE_SCALE;
 
 describe("the lock ring's pulse", () => {
   it("lands on a new lock big and bright, and settles to its own size in LOCK_PULSE_MS", () => {

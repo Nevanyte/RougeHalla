@@ -25,13 +25,13 @@ function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerS
 }
 
 function setup() {
-  const { scene, ofKind } = fakeScene();
+  const { scene, ofKind, bakedCalls } = fakeScene();
   const view = new PlayerView(scene, false);
-  const root = ofKind("container")[0]!;
+  const root = ofKind("container").at(-1)!;
   const kids = root.args[2] as FakeObject[];
   const ring = kids[CHILD.barrierRing]!;
   const bar = kids[CHILD.hpBar]!;
-  return { view, root, ring, bar, frame: (p: PlayerState, drawAsAlive = false) => view.update(0, 0, p, 1000, 1000, drawAsAlive) };
+  return { view, root, ring, bar, bakedCalls, frame: (p: PlayerState, drawAsAlive = false) => view.update(0, 0, p, 1000, 1000, drawAsAlive) };
 }
 
 /** The line width and alpha of the bubble's outline: both grow with the barrier. */
@@ -76,11 +76,13 @@ describe("PlayerView barrier", () => {
   it("adds the barrier to the hp bar after the hp, in its own colour", () => {
     const { bar, frame } = setup();
     frame(player({ hp: 500, barrier: 150 }));
-    const fills = argsOf(bar, "fillStyle").map((a) => a[0]);
-    expect(fills).toContain(BARRIER_COLOR);
-    const rects = argsOf(bar, "fillRect");
-    expect(rects).toHaveLength(3); // backing, hp, barrier
-    expect(rects[2]![0]).toBeGreaterThan(rects[1]![0] as number);
+    const [, fill, barrier] = bar.args[2] as FakeObject[];
+    expect(barrier!.state.visible).toBe(true);
+    expect(argsOf(barrier!, "setTint")[0]).toEqual([BARRIER_COLOR]);
+    // The barrier segment starts where the hp one ends.
+    const [fx, fw] = [argsOf(fill!, "setPosition")[0]![0] as number, argsOf(fill!, "setDisplaySize")[0]![0] as number];
+    expect(argsOf(barrier!, "setPosition")[0]![0]).toBeCloseTo(fx + fw, 9);
+    expect(argsOf(barrier!, "setDisplaySize")[0]![0]).toBeGreaterThan(0);
   });
 
   it("is hidden with the rest of the view for a player who is down", () => {
@@ -130,7 +132,7 @@ describe("PlayerView hidden fighters", () => {
   function twin(isLocal: boolean) {
     const { scene, ofKind } = fakeScene();
     const view = new PlayerView(scene, isLocal);
-    const root = ofKind("container")[0]!;
+    const root = ofKind("container").at(-1)!;
     return { view, root, frame: (p: PlayerState, drawAsAlive = false) => view.update(0, 0, p, 1000, 1000, drawAsAlive) };
   }
 
@@ -190,7 +192,7 @@ describe("PlayerView status marks", () => {
   it("draws the status layers in the container and nothing without a status", () => {
     const { scene, ofKind } = fakeScene();
     const view = new PlayerView(scene, false);
-    const status = (ofKind("container")[0]!.args[2] as FakeObject[])[STATUS]!;
+    const status = (ofKind("container").at(-1)!.args[2] as FakeObject[])[STATUS]!;
     view.update(0, 0, player(), 1000, 1000);
     expect(status.calls).toEqual([]);
     view.update(0, 0, player({ effects: EFFECT_STUNNED }), 1000, 1000);
@@ -202,77 +204,89 @@ describe("PlayerView status marks", () => {
 
 describe("PlayerView Wish icon", () => {
   function iconed(over: Partial<Record<keyof PlayerState, unknown>> = {}) {
-    const { scene, ofKind } = fakeScene();
+    const { scene, ofKind, baked } = fakeScene();
     const view = new PlayerView(scene, false);
-    const kids = ofKind("container")[0]!.args[2] as FakeObject[];
+    const kids = ofKind("container").at(-1)!.args[2] as FakeObject[];
     const icon = kids[ICON]!;
-    return { icon, frame: (renderT: number, more: Partial<Record<keyof PlayerState, unknown>> = {}) => view.update(0, 0, player({ ...over, ...more }), renderT, renderT) };
+    /** What the icon's texture draws (the Wish's silhouette in its colour), and how often it swapped texture or moved. */
+    const drawn = () => ({ calls: baked.get(String(icon.state.texture))?.calls ?? [] });
+    const swaps = () => argsOf(icon, "setTexture").length;
+    const moves = () => argsOf(icon, "setPosition").length;
+    const wishBakes = () => [...baked.keys()].filter((k) => k.startsWith("bk:wish:"));
+    return {
+      icon, drawn, swaps, moves, wishBakes,
+      frame: (renderT: number, more: Partial<Record<keyof PlayerState, unknown>> = {}) => view.update(0, 0, player({ ...over, ...more }), renderT, renderT),
+    };
   }
 
   it("draws the faction's Wish in grey until its ready time, then in its own colour", () => {
-    const { icon, frame } = iconed({ faction: "fire", wishReadyAt: 5000 });
+    const { drawn, frame } = iconed({ faction: "fire", wishReadyAt: 5000 });
     frame(1000);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
     frame(4999);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
     frame(5000);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([ABILITIES.blaze.color, 1]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([ABILITIES.blaze.color, 1]);
   });
 
   it("is in its own colour from the start when the Wish is ready (the training room, a spent cooldown)", () => {
-    const { icon, frame } = iconed({ faction: "frost", wishReadyAt: 0 });
+    const { drawn, frame } = iconed({ faction: "frost", wishReadyAt: 0 });
     frame(1000);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([ABILITIES.freeze.color, 1]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([ABILITIES.freeze.color, 1]);
   });
 
   it("is each faction's own icon", () => {
     for (const [faction, id] of [["frost", "freeze"], ["plague", "swarm"], ["sentenced", "trial"], ["fire", "blaze"], ["holy", "lastStand"]] as const) {
-      const { icon, frame } = iconed({ faction });
+      const { drawn, frame } = iconed({ faction });
       frame(1000);
-      expect(argsOf(icon, "fillStyle")[0]![0], faction).toBe(ABILITIES[id].color);
+      expect(argsOf(drawn(), "fillStyle")[0]![0], faction).toBe(ABILITIES[id].color);
     }
   });
 
   it("sits to the left of the name, level with it", () => {
     const { icon, frame } = iconed({ faction: "fire", name: "Ann" });
     frame(1000);
-    const [move] = argsOf(icon, "moveTo");
-    expect(move![0] as number).toBeLessThan(-9); // clear of the name's left edge (at least half its width out)
-    expect(move![1] as number).toBeLessThan(-14 - 12 - 18 + 5); // up at the name's line, over the head
+    const [x, y] = icon.state.position as [number, number];
+    expect(x).toBeLessThan(-9); // clear of the name's left edge (at least half its width out)
+    expect(y).toBeLessThan(-14 - 12 - 18 + 5); // up at the name's line, over the head
   });
 
-  it("is redrawn only when its look changes", () => {
-    const { icon, frame } = iconed({ faction: "fire", wishReadyAt: 5000 });
+  it("is baked once per Wish and ready state, shared by every fighter, and changes only when its look does", () => {
+    const { icon, swaps, moves, wishBakes, frame } = iconed({ faction: "fire", wishReadyAt: 5000 });
     frame(1000);
-    const clears = icon.clears;
-    expect(clears).toBeGreaterThan(0);
+    expect(wishBakes()).toHaveLength(1);
+    const [s, m] = [swaps(), moves()];
     frame(1016);
     frame(1032);
-    expect(icon.clears).toBe(clears);
+    expect([swaps(), moves()]).toEqual([s, m]);
     frame(5000);
-    expect(icon.clears).toBe(clears + 1);
+    expect(swaps()).toBe(s + 1);
+    expect(wishBakes()).toHaveLength(2);
     frame(5016);
-    expect(icon.clears).toBe(clears + 1);
+    expect(swaps()).toBe(s + 1);
+    const m2 = moves();
     frame(5032, { name: "Annabel" }); // the name moves it
-    expect(icon.clears).toBe(clears + 2);
+    expect(moves()).toBe(m2 + 1);
+    expect(swaps()).toBe(s + 1);
+    expect(icon.state.visible).toBe(true);
   });
 
   it("is not drawn in the lobby, where every Wish reads ready (the lock only starts with the run)", () => {
-    const { icon, frame } = iconed({ faction: "fire", status: "lobby", wishReadyAt: 0 });
+    const { icon, drawn, wishBakes, frame } = iconed({ faction: "fire", status: "lobby", wishReadyAt: 0 });
     frame(1000);
     expect(icon.state.visible).toBe(false);
-    expect(icon.calls.filter(([n]) => n === "fillPath")).toHaveLength(0);
+    expect(wishBakes()).toHaveLength(0);
     // The run starts: the same fighter is alive and its Wish is locked, so the icon appears grey.
     frame(1016, { status: "alive", wishReadyAt: 46000 });
     expect(icon.state.visible).toBe(true);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
   });
 
   it("is not drawn for a fighter with no faction", () => {
-    const { icon, frame } = iconed({ faction: "" });
+    const { icon, wishBakes, frame } = iconed({ faction: "" });
     frame(1000);
     expect(icon.state.visible).toBe(false);
-    expect(icon.calls.filter(([n]) => n === "fillPath")).toHaveLength(0);
+    expect(wishBakes()).toHaveLength(0);
   });
 });
 
@@ -282,10 +296,10 @@ describe("PlayerView bow draw", () => {
   // a windup mirror x0.85 leaves it alone, and so it does a Fire bow's 0.6 s draw (a windup mod never shortens a ranged windup: it
   // is still not full at 0.56 s). The mirrors are the wire form (thousandths), as the state carries them.
   const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null, now = 1450): boolean => {
-    const { root, view } = setup();
+    const { root, view, bakedCalls } = setup();
     const held = (root.args[2] as FakeObject[])[HELD]!;
     view.update(0, 0, player({ faction: "sentenced", weapon0: "bow", drawStartedAt: 1000, ...over }), now, now, false, false, facing);
-    return held.calls.some(([name]) => name === "strokeCircle");
+    return bakedCalls(held).includes("strokeCircle");
   };
 
   it("draws to the attack-speed and windup mirrors, with the synced facing and with a predicted one", () => {
