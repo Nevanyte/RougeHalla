@@ -24,7 +24,7 @@ import { enqueueClientMessage } from "../sim/inputs";
 import { positionAt } from "../sim/movement";
 import { addPlayer, step } from "../sim/step";
 import { moveMultiplierOf } from "../sim/weapons";
-import { collisionMap, type SimEvent, type World } from "../sim/world";
+import { collisionMap, type ModContribution, type SimEvent, type World } from "../sim/world";
 
 export type Arena = "open" | "pillars";
 /** How a projectile client sees its target: the render-time view with the leads a real client can make ("client"), that view taken at face value ("stale"), or the present ("present"). */
@@ -59,6 +59,10 @@ export interface DuelSpec {
   buffs?: readonly [readonly BuffGrant[] | undefined, readonly BuffGrant[] | undefined];
   /** An attack-speed multiplier for fighter 0 / fighter 1 on top of its buffs: a registered mod source (world.modSources). */
   asMult?: readonly [number | undefined, number | undefined];
+  /** A windup multiplier (Quickdraw: 0.92 / 0.88) for fighter 0 / fighter 1, from the same mod source: scaleWindup applies it with the ranged floors. */
+  windupMult?: readonly [number | undefined, number | undefined];
+  /** A move-speed multiplier (Swift Boots: 1.06 / 1.10) for fighter 0 / fighter 1, from the same mod source. */
+  speedMult?: readonly [number | undefined, number | undefined];
   /** Called after every step (debugging and tests). */
   onTick?: (world: World, tick: number, events: readonly SimEvent[]) => void;
 }
@@ -291,16 +295,26 @@ export function runDuel(spec: DuelSpec): DuelResult {
     rt.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
   }
   const extraAs = spec.asMult ?? [undefined, undefined];
-  if (extraAs.some((m) => m !== undefined && m !== 1)) {
+  const extraWindup = spec.windupMult ?? [undefined, undefined];
+  const extraSpeed = spec.speedMult ?? [undefined, undefined];
+  const extra = (i: number): ModContribution | null => {
+    const out: ModContribution = {};
+    const as = extraAs[i], wu = extraWindup[i], sp = extraSpeed[i];
+    if (as !== undefined && as !== 1) out.asMult = as;
+    if (wu !== undefined && wu !== 1) out.windupMult = wu;
+    if (sp !== undefined && sp !== 1) out.speedMult = sp;
+    return Object.keys(out).length > 0 ? out : null;
+  };
+  const hasExtra = [0, 1].some((i) => extra(i) !== null);
+  if (hasExtra) {
     world.modSources.push((_w, c) => {
       const i = indexOf(c.id);
-      const m = i === null ? undefined : extraAs[i];
-      return m !== undefined && m !== 1 ? { asMult: m } : null;
+      return i === null ? null : extra(i);
     });
   }
   for (let i = 0; i < 2; i++) {
     const grants = spec.buffs?.[i] ?? [];
-    if (grants.length === 0 && extraAs[i] === undefined) continue;
+    if (grants.length === 0 && extra(i) === null) continue;
     const p = world.state.players.get(IDS[i]!)!;
     const rt = world.players.get(IDS[i]!)!;
     for (const g of grants) grantBuff(world, p, rt, g.id, g.stacks);

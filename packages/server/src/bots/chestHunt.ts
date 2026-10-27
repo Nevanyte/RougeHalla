@@ -7,9 +7,11 @@
 //   1. A chest within pickRange (CHEST_RANGE less CHEST_PANEL_SLACK, as the client's panel does) with a line of sight and some
 //      life left gets the bot's one pick at once, whatever else it is doing: a `choose` moves nobody and costs the fight nothing.
 //      The pick is the best free option the bot can use (chooseOption), else a skip (-1).
-//   2. Otherwise the bot walks to the nearest chest that has an option it can use and that it can reach in time (the walk at
-//      most pace x speed, plus arriveSlackMs, inside the chest's remaining life). In a fight, or with an awake mob close, only a
-//      chest within fightWalk is worth leaving it for; running away at low hp walks to no chest.
+//   2. Otherwise the bot walks to the nearest live chest that it can reach in time (the walk at most pace x speed, plus
+//      arriveSlackMs, inside the chest's remaining life). In a fight, or with an awake mob close, only a chest within fightWalk
+//      is worth leaving it for; running away at low hp walks to no chest. Like a player, the bot decides the walk from what it
+//      sees of a chest from afar (where it is, how long it has left, whether it has picked there): the options and who took
+//      them are read only once the chest is within pickRange, where the panel shows them (D17). A trip can end in a skip.
 //   3. A chest is tried ONCE: asking for it (or a pick the state shows we already made) puts it in `done`, and a refused pick is
 //      never repeated. A walk that stops closing in is given up on, so a chest behind a bad path never holds the bot: the
 //      record is kept per chest and counts only the time spent walking to it, so a fight that interrupts the walk (and starts
@@ -123,7 +125,7 @@ function rowScore(e: Effect): number {
   }
 }
 
-/** Does a skill suit what the bot carries? A skill that names only weapons (Quickdraw's bow, wand and axe) and none is held does not. */
+/** Does a skill suit what the bot carries? A skill that names only weapons (Quickdraw's bow and axe: its wand floor is the wand's whole windup) and none is held does not. */
 function fits(def: SkillDef, weapons: readonly (WeaponId | null)[]): boolean {
   const named = def.worksWith as readonly string[];
   const only = named.filter((t) => t === "sword" || t === "bow" || t === "wand" || t === "shield" || t === "axe");
@@ -211,13 +213,13 @@ export class ChestHunter {
     if (inp.inColiseum) { this.walking = null; return NONE; }
 
     // The chests that are up, that we have not picked at, and their distance.
-    const up: { chest: ChestLike; d: number; left: number; option: number }[] = [];
+    const up: { chest: ChestLike; d: number; left: number }[] = [];
     for (const chest of inp.chests) {
       if (chest.kind !== "reward" || this.done.has(chest.id)) continue;
       if ([...chest.pickers].includes(self.id)) { this.markDone(chest.id); continue; } // we made our pick already
       const left = chest.expiresAt - serverTime;
       if (left <= 0) continue;
-      up.push({ chest, d: dist(self, chest), left, option: chooseOption(chest.options, chest.takenBy, self) });
+      up.push({ chest, d: dist(self, chest), left });
     }
     up.sort((a, b) => a.d - b.d || (a.chest.id < b.chest.id ? -1 : 1));
     // A record for a chest that is no longer up (expired, gone) is not needed any more.
@@ -226,11 +228,13 @@ export class ChestHunter {
     // 1. In range with sight and time: pick now (a skip when nothing is usable).
     for (const u of up) {
       if (u.d > c.pickRange || u.left <= c.pickMarginMs || !inp.sight(u.chest)) continue;
+      // The contents are read here and nowhere else: this is the distance at which a player's panel shows them.
+      const option = chooseOption(u.chest.options, u.chest.takenBy, self);
       this.markDone(u.chest.id);
       this.walking = null;
       return {
-        kind: "pick", chest: u.chest.id, option: u.option,
-        why: u.option >= 0 ? `taking option ${u.option} (${[...u.chest.options][u.option]})` : "nothing usable: skipping",
+        kind: "pick", chest: u.chest.id, option,
+        why: option >= 0 ? `taking option ${option} (${[...u.chest.options][option]})` : "nothing usable: skipping",
       };
     }
 
@@ -238,7 +242,6 @@ export class ChestHunter {
     if (inp.retreating) { this.walking = null; return NONE; }
     let best: { chest: ChestLike; len: number } | null = null;
     for (const u of up.slice(0, c.maxCandidates)) {
-      if (u.option < 0) continue; // nothing to take: a skip only heals or pays a little, not worth a walk
       const len = this.walkLength(u.chest, inp);
       if (len === null) continue;
       if (inp.fighting && len > c.fightWalk) continue;

@@ -136,6 +136,14 @@ export const BOW_WINDUP = 0.6;
 export const BOW_WINDUP_SHARE = 0.92;
 export const WAND_WINDUP = 0.4;
 export const WAND_WINDUP_SHARE = 0.8;
+// Floors for a windup mod (a `windupMult` below 1: Quickdraw), owner ruling "Floor the windup" (testing/TUNING_ROGUE.md
+// section 7): the ranged windups are the anti-kiting lever, so a mod may trim them only down to min(windup, floor). The bow's
+// is 0.55 s. The wand's is its whole 0.4 s: in the real sim's KITE EDGES any shorter wand windup breaks a cell (0.39:
+// Sentenced > Frost's shield cell; 0.38 adds Plague > Frost's; 0.36 or less Frost > Fire's), so a windup mod leaves the wand
+// alone. Melee windups (sword and bash 0.1 s, axe 0.25 s) are short by design, not part of the lever, and have no floor. A
+// windup already under its floor (share-bound at a high attack speed) stays as it is: the floor never shortens anything.
+export const BOW_WINDUP_FLOOR = 0.55;
+export const WAND_WINDUP_FLOOR = 0.4;
 
 /** Everything about one attack's rhythm, for a given interval. All in seconds. */
 export interface WeaponTimings {
@@ -149,6 +157,11 @@ export interface WeaponTimings {
   root: number;
   /** A projectile weapon (bow, wand). */
   ranged: boolean;
+  /**
+   * The shortest windup scaleWindup (shared/mods.ts) may give this attack when a windup mod is below 1: the ranged weapons
+   * only (BOW_WINDUP_FLOOR, WAND_WINDUP_FLOOR); absent for melee, whose windups scale freely.
+   */
+  windupFloor?: number;
 }
 
 export function weaponTimings(w: WeaponId, interval: number): WeaponTimings {
@@ -160,8 +173,14 @@ export function weaponTimings(w: WeaponId, interval: number): WeaponTimings {
       t.windup = Math.min(AXE_WINDUP, AXE_WINDUP_SHARE * interval);
       t.root = Math.min(AXE_ROOT, AXE_ROOT_SHARE * interval);
       break;
-    case "wand": t.windup = Math.min(WAND_WINDUP, WAND_WINDUP_SHARE * interval); break;
-    case "bow": t.windup = Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * interval); break;
+    case "wand":
+      t.windup = Math.min(WAND_WINDUP, WAND_WINDUP_SHARE * interval);
+      t.windupFloor = WAND_WINDUP_FLOOR;
+      break;
+    case "bow":
+      t.windup = Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * interval);
+      t.windupFloor = BOW_WINDUP_FLOOR;
+      break;
   }
   return t;
 }

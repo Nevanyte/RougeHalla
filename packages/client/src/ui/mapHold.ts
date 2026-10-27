@@ -1,7 +1,7 @@
 // Hold Tab during a run to see the whole map and your route; let go and it is gone. The key is taken from the browser (no focus
 // walk) only while the hold is allowed and nothing else wants Tab: not while typing, not inside an open panel (the settings or
-// help card keep their focus navigation), not with a modifier held. A lost window or a hidden tab lets go too, so the map can
-// never stay up.
+// help card, and the camp chest panel once C has given it the keyboard, keep their focus navigation), not with a modifier
+// held. A lost window or a hidden tab lets go too, so the map can never stay up.
 import { isTypingTarget } from "./chrome";
 
 /** What the hold reads of a KeyboardEvent. */
@@ -16,9 +16,12 @@ export interface HoldKey {
   preventDefault(): void;
 }
 
-const PANEL_CLASSES = ["settings-panel", "help-scrim"];
+const PANEL_CLASSES = ["settings-panel", "help-scrim", "chest-panel"];
 
-/** True when `node` is, or sits inside, the settings card or the help card (duck-typed, so it needs no DOM globals). */
+/**
+ * True when `node` is, or sits inside, the settings card, the help card or the camp chest panel (duck-typed, so it needs no
+ * DOM globals). The chest panel's buttons take focus only after C (ui/chestPanel.ts), so a Tab from the canvas is still the map's.
+ */
 export function insidePanel(node: unknown): boolean {
   for (let n = node as { classList?: { contains(c: string): boolean }; parentElement?: unknown } | null | undefined; n; n = n.parentElement as typeof n) {
     if (n.classList && PANEL_CLASSES.some((c) => n!.classList!.contains(c))) return true;

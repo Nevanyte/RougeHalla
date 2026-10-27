@@ -47,7 +47,7 @@ describe("which chest option a bot takes", () => {
   });
 
   it("holds back a skill that needs a weapon it does not carry", () => {
-    // Quickdraw is for the bow, wand and axe: a sword bot takes the boots over it, an axe bot the other way round.
+    // Quickdraw is for the bow and axe (the wand's floor is its whole windup): a sword bot takes the boots over it, an axe bot the other way round.
     expect(chooseOption(["quickdraw", "swiftBoots"], ["", ""], FIRE_SWORD)).toBe(1);
     expect(chooseOption(["quickdraw", "swiftBoots"], ["", ""], { ...FIRE_SWORD, weapons: ["axe", null] })).toBe(0);
   });
@@ -183,14 +183,45 @@ describe("the chest hunt", () => {
     expect(s.step().kind).toBe("walk");
   });
 
-  it("does not walk to a chest with no path, or to one with nothing left to take", () => {
+  it("does not walk to a chest with no path", () => {
     const blocked = new Scene();
     blocked.chests = [chest("c1", 400, 0)];
     blocked.walkLen = () => null;
     expect(blocked.step()).toEqual({ kind: "none" });
-    const empty = new Scene();
-    empty.chests = [chest("c1", 400, 0, { takenBy: ["a", "b", "c"] })];
-    expect(empty.step(), "a skip is not worth a walk").toEqual({ kind: "none" });
+  });
+
+  it("decides a walk from what a player sees from afar (a position, a clock, its own pick), not from the options or who took them", () => {
+    // A far chest whose three options are all taken still draws the walk: from here its contents are not on show.
+    const far = new Scene();
+    far.chests = [chest("c1", 400, 0, { takenBy: ["a", "b", "c"] })];
+    expect(far.step()).toMatchObject({ kind: "walk", chest: "c1" });
+    // ...and on arrival, where the panel shows them, the bot reads them: nothing usable is a skip.
+    far.self = { ...far.self, x: 330 };
+    expect(far.step()).toMatchObject({ kind: "pick", chest: "c1", option: -1 });
+
+    // Beyond pick range nothing reads the contents at all, however many thinks go by; within it they are read.
+    let reads = 0;
+    const watched = (id: string, x: number): ChestLike => {
+      const base = chest(id, x, 0);
+      return {
+        ...base,
+        get options() { reads++; return ["whetstone", "swiftBoots", "thickHide"]; },
+        get takenBy() { reads++; return ["", "", ""]; },
+      };
+    };
+    const s = new Scene();
+    s.chests = [watched("far", 400), watched("farther", 600)];
+    for (let i = 0; i < 5; i++) expect(s.step().kind).toBe("walk");
+    expect(reads, "the walk never looked inside").toBe(0);
+    s.self = { ...s.self, x: 340 };
+    expect(s.step()).toMatchObject({ kind: "pick", chest: "far" });
+    expect(reads).toBeGreaterThan(0);
+  });
+
+  it("two far chests are told apart by distance alone: the nearer wins even if the farther one has the better contents", () => {
+    const s = new Scene();
+    s.chests = [chest("near", 300, 0, { takenBy: ["a", "b", "c"] }), chest("far", 500, 0)];
+    expect(s.step()).toMatchObject({ kind: "walk", chest: "near" });
   });
 
   it("does not walk into a fight for a far chest, nor run to one at low hp, but picks at a chest already in range", () => {

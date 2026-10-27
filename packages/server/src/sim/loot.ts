@@ -58,6 +58,17 @@ export function addContainer(world: World, kind: ContainerKind, at: Vec2, label:
   return c;
 }
 
+/**
+ * Holds `id` back one tick: it counts as born in the NEXT tick, so it is first takeable in the one after. For a container born
+ * inside a tick (a camp's chest, made in the ledger pass of tick N): addContainer records N, which blocks nothing in tick N+1,
+ * and a scripted client guessing the predictable id would win the first pick over players who can only answer a patch they
+ * have seen. Between ticks addContainer already records tick + 1, so this changes nothing there.
+ */
+export function holdBirth(world: World, id: string): void {
+  const births = bornAt.get(world);
+  if (births?.has(id)) births.set(id, world.state.tick + 1);
+}
+
 /** True while `id` was created earlier in the tick being simulated. Forgets older births on the way. sim/chests.ts reads it too. */
 export function bornThisTick(world: World, id: string): boolean {
   const births = bornAt.get(world);
