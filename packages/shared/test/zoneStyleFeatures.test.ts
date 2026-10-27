@@ -2,8 +2,12 @@
 // route guard, each checked against a brute-force or independent reference, plus the Math spy over module load and every export.
 import { describe, expect, it, vi } from "vitest";
 import { fixedLayout } from "../src/coliseum";
-import { descentPath, walkField16 } from "../src/gridTopology";
-import { TILE_FLOOR, TILE_WALL } from "../src/map";
+import { findPath } from "../src/pathfind";
+import { descentPath, segmentBlocked, walkField16 } from "../src/gridTopology";
+import { tryAttempt } from "../src/mapgen";
+import { MASK_MOVE, TILE_FLOOR, TILE_WALL, mapFromTiles } from "../src/map";
+import type { StyleState } from "../src/styler";
+import { zoneStylerHook } from "../src/zoneStyle";
 import { mulberry32 } from "../src/rng";
 import { pseudoAngle as generatorPseudoAngle } from "../src/zones";
 import * as F from "../src/zoneStyle/features";
@@ -675,23 +679,120 @@ describe("route guard (3.9)", () => {
     expect(guard.worstStretch()).toBe(1000);
     expect(guard.worstMember()).toBeGreaterThanOrEqual(0);
     expect(guard.worstMember()).toBeLessThan(g.spawns.length);
-    // corridors: inside the zone, the union of corridorOf, 3 wide round each member's descent path
+    // corridors: inside the zone, the union of corridorOf, the Chebyshev-1 band of the member's string-pulled descent
     const union = new Uint8Array(g.n);
+    const ground = g.tiles.map((v, i) => (g.maskA[i] ? v : g.centreWalk[i] >= 0 ? TILE_FLOOR : TILE_WALL)) as Uint8Array;
     g.spawns.forEach((m, k) => {
       const mine = guard.corridorOf(k);
       expect(mine[0]).toBe(m);
       expect(new Set(mine).size).toBe(mine.length);
-      const near = new Set<number>();
-      for (const p of descentPath(g.centreWalk, g.tiles, g.w, g.h, m)) {
-        if (!g.maskA[p]) break;
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) near.add((Math.floor(p / g.w) + dy) * g.w + (p % g.w) + dx);
-      }
-      expect(new Set(mine)).toEqual(new Set([...near].filter((i) => g.maskA[i] === 1)));
+      expect(new Set(mine)).toEqual(new Set(pulledBand(ground, g.maskA, g.centreWalk, g.w, g.h, m)));
       for (const i of mine) union[i] = 1;
     });
     expect(Array.from(guard.corridor)).toEqual(Array.from(union));
     for (let i = 0; i < g.n; i++) if (guard.corridor[i]) expect(g.maskA[i]).toBe(1);
     expect(guard.corridorOf(99)).toEqual([]);
+  });
+
+  /** The corridor of one member, independently: pull the descent straight over `ground`, sample each segment, dilate by 1, keep the zone. */
+  function pulledBand(ground: Uint8Array, mask: Uint8Array, walk: Int32Array, w: number, h: number, member: number): number[] {
+    const raw = descentPath(walk, ground, w, h, member);
+    const pts = [raw[0]];
+    for (let a = 0; a < raw.length - 1;) {
+      let j = raw.length - 1;
+      while (j > a + 1 && segmentBlocked(ground, w, h, raw[a] % w, Math.floor(raw[a] / w), raw[j] % w, Math.floor(raw[j] / w), MASK_MOVE)) j--;
+      pts.push(raw[j]);
+      a = j;
+    }
+    const out = new Set<number>([pts[0]]);
+    for (let k = 0; k < pts.length; k++) {
+      const q = pts[Math.min(k + 1, pts.length - 1)];
+      const ax = pts[k] % w, ay = Math.floor(pts[k] / w), bx = q % w, by = Math.floor(q / w);
+      const steps = Math.max(Math.abs(bx - ax), Math.abs(by - ay)) * 2 || 1;
+      for (let t = 0; t <= steps; t++) {
+        const x = Math.round(ax + ((bx - ax) * t) / steps), y = Math.round(ay + ((by - ay) * t) / steps);
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (mask[(y + dy) * w + x + dx]) out.add((y + dy) * w + x + dx);
+      }
+    }
+    return [...out].filter((i) => mask[i] === 1);
+  }
+
+  it("a straight walk over open ground has the straight line as its corridor (the raw descent bows off it)", () => {
+    const w = 80, h = 50, n = w * h;
+    const tiles = new Uint8Array(n);
+    const maskA = new Uint8Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1) tiles[y * w + x] = TILE_WALL;
+      else if (x <= 37) maskA[y * w + x] = 1;
+    }
+    const centreWalk = walkField16(tiles, w, h, [25 * w + 40]);
+    const west = 25 * w + 5, northWest = 8 * w + 6;
+    const guard = F.makeRouteGuard({ w, h, mask: maskA, tiles, spawns: [west, northWest], centreWalk });
+    // the raw steepest descent from the west member does bow off row 25 (knight moves first)
+    const raw = descentPath(centreWalk, tiles, w, h, west);
+    expect(raw.some((i) => Math.floor(i / w) !== 25)).toBe(true);
+    // its corridor is exactly rows 24-26 from the tile west of the member to the zone's last column
+    const want = new Set<number>();
+    for (let y = 24; y <= 26; y++) for (let x = 4; x <= 37; x++) want.add(y * w + x);
+    expect(new Set(guard.corridorOf(0))).toEqual(want);
+    // the sloped one: every corridor tile lies within a tile and a half (a diagonal of the 3x3 dilation, 2.2 tiles) of the straight line from the member to the centre, and the line is covered
+    const c1 = guard.corridorOf(1);
+    const inSet = new Set(c1);
+    for (const i of c1) {
+      const x = (i % w) + 0.5, y = Math.floor(i / w) + 0.5;
+      expect(F.segDist2(x, y, 6.5, 8.5, 40.5, 25.5)).toBeLessThanOrEqual(5);
+    }
+    for (let x = 6; x <= 37; x++) {
+      const y = Math.round(8 + ((x - 6) * (25 - 8)) / (40 - 6));
+      expect(inSet.has(y * w + x), `line tile ${x},${y}`).toBe(true);
+    }
+    const perColumn = new Map<number, number>();
+    for (const i of c1) perColumn.set(i % w, (perColumn.get(i % w) ?? 0) + 1);
+    expect(Math.max(...perColumn.values())).toBeLessThanOrEqual(5);
+  });
+
+  it("the corridors cover at least 65% of the tiles of the members' real findPath walks in their own zone, on 8 generated maps (old stylers)", () => {
+    let on = 0, tot = 0, cap = 0;
+    const tilesOf = (W: number, from: { x: number; y: number }, path: Array<{ x: number; y: number }>): number[] => {
+      const out: number[] = [];
+      let a = from;
+      for (const p of path) {
+        const L = Math.sqrt((p.x - a.x) ** 2 + (p.y - a.y) ** 2);
+        for (let k = 0; k <= L; k += 4) out.push(Math.floor((a.y + ((p.y - a.y) * k) / L) / 32) * W + Math.floor((a.x + ((p.x - a.x) * k) / L) / 32));
+        a = p;
+      }
+      return out;
+    };
+    for (let seed = 0; cap < 8 && seed < 40; seed++) {
+      let pre: Uint8Array | null = null;
+      let state: StyleState | null = null;
+      tryAttempt(seed, 0, { styleZones: (st) => { pre = st.tiles.slice(); zoneStylerHook(st); state = st; } });
+      if (!state || !pre) continue;
+      const st = state as StyleState;
+      cap++;
+      const { w, h } = st;
+      const corridor = new Uint8Array(w * h);
+      for (let z = 1; z <= 5; z++) {
+        const mask = st.zone.map((v) => (v === z ? 1 : 0)) as Uint8Array;
+        const guard = F.makeRouteGuard({ w, h, mask, tiles: pre, spawns: st.spawns.filter((i) => mask[i] === 1), centreWalk: st.centreWalk });
+        for (let i = 0; i < w * h; i++) if (guard.corridor[i]) corridor[i] = 1;
+      }
+      const view = mapFromTiles(w, h, st.tiles.slice());
+      const centre = { x: 68 * 32 + 16, y: 68 * 32 + 16 };
+      for (const m of st.spawns) {
+        const from = { x: (m % w) * 32 + 16, y: Math.floor(m / w) * 32 + 16 };
+        const seen = new Set<number>();
+        for (const i of tilesOf(w, from, findPath(view, from, centre))) {
+          if (seen.has(i) || st.zone[i] !== st.zone[m]) continue;
+          seen.add(i);
+          tot++;
+          if (corridor[i]) on++;
+        }
+      }
+    }
+    expect(cap).toBe(8);
+    expect(tot).toBeGreaterThan(5000);
+    expect(on / tot).toBeGreaterThanOrEqual(0.65);
   });
 
   it("the zone field equals the whole-map walk field of the current tiles when only this zone changed (random walls, cut-offs included)", () => {
@@ -761,6 +862,11 @@ describe("route guard (3.9)", () => {
     expect(b.worstMember()).toBe(a.worstMember());
     // a guard that existed before zone B was rewritten reads the live array and agrees
     expect(live.worstStretch()).toBe(sa);
+    // a corridor reads this zone's tiles and the pick-time walk outside it: rewriting every tile of zone B, the seam included, changes nothing
+    const all = g.tiles.slice();
+    for (let i = 0; i < g.n; i++) if (g.maskB[i] && i !== g.centre) all[i] = r() < 0.5 ? TILE_WALL : TILE_FLOOR;
+    expect(Array.from(mk(all).corridor)).toEqual(Array.from(a.corridor));
+    expect(mk(all).corridorOf(2)).toEqual(a.corridorOf(2));
     expect(sa).toBeGreaterThanOrEqual(1000);
   });
 

@@ -33,7 +33,9 @@
 //    jogs one row over the free ground (an offset -half..half per step; stepCost(s, dt) is read once per state).
 //  - The route guard: `c.routeGuard()` (the context builds it with makeRouteGuard) is made on the first call from `c.spawns`,
 //    `c.centreWalk` and the tiles AS THEY ARE THEN, so ask for it before the first write when the corridors should be the
-//    open-ground ones. `guard.corridor` marks the 3-wide corridors of the members' baseline walks (this zone's tiles only),
+//    open-ground ones. `guard.corridor` marks the 3-wide corridors of the members' baseline walks, each walk the steepest descent
+//    PULLED STRAIGHT (the straight lines a real findPath walk follows; this zone's tiles only, so it covers about 74% of the
+//    tiles the real walks take inside their own zone, against about 50% for the raw descent),
 //    `corridorOf(k)` lists member k's own (its tile first, then in path order), `touches(tiles)` is the cheap filter,
 //    `worstStretch()` runs one zone-scoped walk field (about 0.25 ms on a real 136x136 zone; budget six calls a zone) and returns
 //    the worst member's walk as permille of its baseline: 1000 = none, ROUTE_STRETCH_MAX 1030 is the styler threshold (1020 for
@@ -46,8 +48,8 @@
 //    with `score(stamp, rot, mirror)` (higher is better; the stamp is reused between calls) and places the best that the guard
 //    accepts, whole or not at all, within 12 tries. `templateProblems(template)` is the validity check for a zone's own tests.
 import { RING_ROAD, fixedLayout } from "../coliseum";
-import { descentPath, walkField16 } from "../gridTopology";
-import { TILE_FLOOR } from "../map";
+import { descentPath, segmentBlocked, walkField16 } from "../gridTopology";
+import { MASK_MOVE, TILE_FLOOR, TILE_WALL } from "../map";
 import type { TileRect } from "../map";
 import type { NoiseKit, RouteGuard } from "./types";
 
@@ -713,7 +715,10 @@ export interface RouteGuardSource {
  * The zone's route guard (contract 3.9). The zone field is walkField16 relaxed over this zone's tiles only, seeded by every FLOOR
  * tile outside the zone within Chebyshev 2 of a zone tile (centreWalk >= 0) with its pick-time centreWalk value, so it reads this
  * zone's tiles and tiles no other zone may write (they keep a rim); another zone's writes never change a result. The corridors
- * follow each member's baseline steepest descent only while it stays in the zone.
+ * are drawn on this zone's tiles plus, outside it, the pick-time ground (floor where centreWalk >= 0), so they do not read other
+ * zones either: each member's baseline steepest descent over that ground, string-pulled with segmentBlocked(MASK_MOVE) (from each
+ * anchor the farthest later tile a straight segment between tile centres reaches), sampled twice per tile, dilated by Chebyshev 1
+ * and kept to the zone.
  */
 export function makeRouteGuard(c: RouteGuardSource): RouteGuard {
   const { w, h, mask, tiles } = c;
@@ -725,25 +730,42 @@ export function makeRouteGuard(c: RouteGuardSource): RouteGuard {
   for (let k = 0; k < members.length; k++) base[k] = walk![members[k]];
   const corridor = new Uint8Array(n);
   const perMember: number[][] = [];
+  // The ground the corridors are drawn on: this zone's tiles as they are now, and outside it what the pick saw (a tile is floor
+  // there when the pick-time walk reached it), so no other zone's writes can reach a corridor.
+  const ground = new Uint8Array(members.length > 0 ? n : 0);
+  if (members.length > 0) for (let i = 0; i < n; i++) ground[i] = mask[i] === 1 ? tiles[i] : walk![i] >= 0 ? TILE_FLOOR : TILE_WALL;
   for (let k = 0; k < members.length; k++) {
-    const path = descentPath(walk!, tiles as Uint8Array, w, h, members[k]);
+    // The baseline descent pulled straight: from each anchor the farthest later tile that a segment between tile centres reaches
+    // over open ground. A real walk is a string-pulled path, and the raw steepest descent on the 5-7-11 field takes knight moves
+    // first and bows off it, so the band of the raw path missed over half of the real walks.
+    const raw = descentPath(walk!, ground, w, h, members[k]);
+    const pts = [raw[0]];
+    for (let a = 0; a < raw.length - 1;) {
+      const ax = raw[a] % w, ay = (raw[a] - ax) / w;
+      let j = raw.length - 1;
+      for (; j > a + 1; j--) {
+        const bx = raw[j] % w;
+        if (!segmentBlocked(ground, w, h, ax, ay, bx, (raw[j] - bx) / w, MASK_MOVE)) break;
+      }
+      pts.push(raw[j]);
+      a = j;
+    }
+    // the band: every tile within Chebyshev 1 of a sample, two samples per tile of the longer axis, rounded half up
     const mine: number[] = [];
     const seen = new Set<number>();
-    for (const p of path) {
-      if (mask[p] !== 1) break;
-      const x = p % w, y = (p - x) / w;
-      if (!seen.has(p)) { seen.add(p); mine.push(p); corridor[p] = 1; }
-      for (let dy = -1; dy <= 1; dy++) {
-        const ny = y + dy;
-        if (ny < 0 || ny >= h) continue;
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx;
-          if (nx < 0 || nx >= w) continue;
-          const j = ny * w + nx;
-          if (mask[j] !== 1 || seen.has(j)) continue;
-          seen.add(j);
-          mine.push(j);
-          corridor[j] = 1;
+    const take = (i: number): void => { if (mask[i] === 1 && !seen.has(i)) { seen.add(i); mine.push(i); corridor[i] = 1; } };
+    take(pts[0]);
+    for (let s = 0; s < pts.length; s++) {
+      const ax = pts[s] % w, ay = (pts[s] - ax) / w;
+      const bx = pts[s < pts.length - 1 ? s + 1 : s] % w, by = (pts[s < pts.length - 1 ? s + 1 : s] - bx) / w;
+      const steps = 2 * Math.max(Math.abs(bx - ax), Math.abs(by - ay)) || 1;
+      for (let q = 0; q <= steps; q++) {
+        const x = ax + Math.floor((2 * (bx - ax) * q + steps) / (2 * steps)), y = ay + Math.floor((2 * (by - ay) * q + steps) / (2 * steps));
+        take(y * w + x);
+        for (let dy = -1; dy <= 1; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= h) continue;
+          for (let dx = -1; dx <= 1; dx++) { const nx = x + dx; if (nx >= 0 && nx < w) take(ny * w + nx); }
         }
       }
     }
