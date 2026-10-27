@@ -21,6 +21,8 @@
 //   while        folds into the stat mirrors only while its condition holds. `chasingLock` (Cinder Hound) holds while
 //                the player has a target lock: on or off, so the speedMult mirror patches only when a lock starts or ends.
 //                The sim re-checks it once per tick (server mods.ts), so the change shows one tick late, by design.
+//                `notShooting` (Swift Boots) is the inverse: it holds except from a bow or wand attack's start until its `ms`
+//                after the shot leaves, so the mirror patches twice per bout of shooting (off at the first start, on `ms` after the last shot).
 //   markRate     the Sentenced mark's ramp rate: the mark's engaged time grows (1 + markRate) x as fast, so it reaches
 //                the same cap sooner. No effect on any other faction (worksWith: sentenced).
 //   lifesteal    for any faction: heals that share of the damage the owner lands, exempt from the heal lockout like
@@ -294,7 +296,7 @@ function statWord(stat: StatKey): string {
     case "attackSpeed": return "attack speed";
     case "moveSpeed": return "move speed";
     case "damage": return "damage";
-    case "windup": return "windup time";
+    case "windup": return "melee windup time";
     case "lifesteal": return "lifesteal";
     case "markRate": return "mark ramp speed (Sentenced only)";
     case "healTaken": return "healing taken";
@@ -338,6 +340,7 @@ export function effectText(e: Effect): string {
         case "chasingLock": return `${amount} while chasing your target`;
         case "hpBelow": return `${amount} while below ${pct(r.arg)}% HP`;
         case "afterCast": return `${amount} for ${pts((r.ms ?? 0) / 1000)} s after a cast`;
+        case "notShooting": return `${amount}, but not while you shoot or for ${pts((r.ms ?? 0) / 1000)} s after a bow or wand shot`;
       }
     },
     onHit: (r) => {

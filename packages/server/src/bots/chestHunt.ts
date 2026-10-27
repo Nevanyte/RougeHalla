@@ -6,7 +6,11 @@
 // The rules:
 //   1. A chest within pickRange (CHEST_RANGE less CHEST_PANEL_SLACK, as the client's panel does) with a line of sight and some
 //      life left gets the bot's one pick at once, whatever else it is doing: a `choose` moves nobody and costs the fight nothing.
-//      The pick is the best free option the bot can use (chooseOption), else a skip (-1).
+//      The pick is the best free option the bot can use (chooseOption), else a skip (-1). Not in the chest's first holdMs: the
+//      server refuses a pick on a chest born in a ledger pass until the second tick after it (holdBirth, sim/loot.ts), and the
+//      one try must not be spent on that. The age is read off the chest itself (CHEST_SECONDS less its time left), so a chest
+//      first seen old (a bot that was busy elsewhere) is picked at once; a young one in reach is simply waited for (a few
+//      thinks, nothing else started) and its options are not read yet.
 //   2. Otherwise the bot walks to the nearest live chest that it can reach in time (the walk at most pace x speed, plus
 //      arriveSlackMs, inside the chest's remaining life). In a fight, or with an awake mob close, only a chest within fightWalk
 //      is worth leaving it for; running away at low hp walks to no chest. Like a player, the bot decides the walk from what it
@@ -18,7 +22,7 @@
 //      it again a moment later) neither resets the count nor adds to it.
 //   4. A chest that has expired, or is gone from the state, is simply not in the input any more.
 import {
-  CHEST_PANEL_SLACK, CHEST_RANGE, nextRank, PLAYER_SPEED, skillDef, skillRows, TILE,
+  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, nextRank, PLAYER_SPEED, skillDef, skillRows, TICK_MS, TILE,
   type BuildRanks, type Effect, type SkillDef, type Vec2, type WeaponId,
 } from "@raid/shared";
 
@@ -41,6 +45,12 @@ export interface ChestHuntConfig {
   pickRange: number;
   /** ...with at least this much of the chest's life left (ms): the message takes a trip and is applied on the next tick. */
   pickMarginMs: number;
+  /**
+   * ...and not before the chest is this old (ms, by its own clock: CHEST_SECONDS less its time left). The server holds a chest
+   * born in a ledger pass (every camp's) for two ticks after the one that made it ("Chest gone"); a pick sent before that is
+   * refused and the bot's one try is gone. One tick more than the hold, for a message that overtakes its patch.
+   */
+  holdMs: number;
   /** A walk is started only if it arrives with this much (ms) of the chest's life to spare... */
   arriveSlackMs: number;
   /** ...counting the walk at this share of PLAYER_SPEED (a path is not a straight line). */
@@ -60,6 +70,7 @@ export interface ChestHuntConfig {
 export const CHEST_HUNT: Readonly<ChestHuntConfig> = {
   pickRange: CHEST_RANGE - CHEST_PANEL_SLACK,
   pickMarginMs: 350,
+  holdMs: 3 * TICK_MS,
   arriveSlackMs: 1000,
   paceShare: 0.85,
   fightWalk: 12 * TILE,
@@ -125,7 +136,7 @@ function rowScore(e: Effect): number {
   }
 }
 
-/** Does a skill suit what the bot carries? A skill that names only weapons (Quickdraw's bow and axe: its wand floor is the wand's whole windup) and none is held does not. */
+/** Does a skill suit what the bot carries? A skill that names only weapons (Quickdraw's sword, axe and shield: it shortens melee windups only) and none is held does not. */
 function fits(def: SkillDef, weapons: readonly (WeaponId | null)[]): boolean {
   const named = def.worksWith as readonly string[];
   const only = named.filter((t) => t === "sword" || t === "bow" || t === "wand" || t === "shield" || t === "axe");
@@ -225,9 +236,11 @@ export class ChestHunter {
     // A record for a chest that is no longer up (expired, gone) is not needed any more.
     for (const id of this.stalls.keys()) if (!up.some((u) => u.chest.id === id)) this.stalls.delete(id);
 
-    // 1. In range with sight and time: pick now (a skip when nothing is usable).
+    // 1. In range with sight and time: pick now (a skip when nothing is usable), once the chest is out of its birth hold.
+    let held = false;
     for (const u of up) {
       if (u.d > c.pickRange || u.left <= c.pickMarginMs || !inp.sight(u.chest)) continue;
+      if (CHEST_SECONDS * 1000 - u.left < c.holdMs) { held = true; continue; } // too young: not read, not tried, not walked to
       // The contents are read here and nowhere else: this is the distance at which a player's panel shows them.
       const option = chooseOption(u.chest.options, u.chest.takenBy, self);
       this.markDone(u.chest.id);
@@ -237,6 +250,9 @@ export class ChestHunter {
         why: option >= 0 ? `taking option ${option} (${[...u.chest.options][option]})` : "nothing usable: skipping",
       };
     }
+
+    // A chest in reach that is still in its birth hold is waited for (a few ticks): walking off to another would only come back.
+    if (held) { this.walking = null; return NONE; }
 
     // 2. Walk to the nearest chest worth the trip.
     if (inp.retreating) { this.walking = null; return NONE; }

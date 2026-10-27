@@ -3,7 +3,7 @@
 // the damage sum, and the ledger stays order-free with the new `vs` rows (higherFeed, thirdParty, Pestilence's hpBelow).
 import { describe, expect, it } from "vitest";
 import {
-  BOW_WINDUP_FLOOR, buffScale, damageShares, decodeFlat, decodeMult, diseaseDps, encodeFlat, encodeMult, EXECUTE_BAND, FACTIONS, HEAL_OVER_TIME_STEP_MS,
+  buffScale, damageShares, decodeFlat, decodeMult, diseaseDps, encodeFlat, encodeMult, EXECUTE_BAND, FACTIONS, HEAL_OVER_TIME_STEP_MS,
   healOverTimeSpanMs, healOverTimeSteps, mapFromTiles, mitigateShares, mulberry32, pacedFaction, SIG_EXECUTE, skillRows, skillText, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type Effect, type FactionId, type GameMap, type SkillId,
 } from "@raid/shared";
@@ -114,15 +114,21 @@ const RIGS: Partial<Record<SkillId, Rig>> = {
     expect((P(w, 0).x - x0) / (P(plain, 0).x - px0)).toBeCloseTo(decodeMult(encodeMult(1 + v("swiftBoots", r))), 6);
   },
   quickdraw: (r) => {
-    // Fire's bow draws for the full 0.6 s cap, so it shows the shortening; the floor (windupFloor.test.ts) holds it at 0.55 s.
+    // Melee windups only (owner ruling "Melee windups only"): Fire's axe shortens by the rank's cut, its bow and wand do not.
     const w = startRun(["fire", "frost"]);
-    const base = timingsOf(P(w, 0), "bow")!;
-    expect(base.windup).toBe(0.6);
+    const axe = timingsOf(P(w, 0), "axe")!;
+    const bow = timingsOf(P(w, 0), "bow")!;
+    const wand = timingsOf(P(w, 0), "wand")!;
+    expect(bow.windup).toBe(0.6);
     give(w, 0, "quickdraw", r);
     const m = decodeMult(encodeMult(1 + v("quickdraw", r)));
     expect(P(w, 0).windupMult).toBe(encodeMult(1 + v("quickdraw", r)));
     expect(m).toBeLessThan(1);
-    expect(timingsOf(P(w, 0), "bow")!.windup).toBeCloseTo(Math.max(base.windup * m, BOW_WINDUP_FLOOR), 9);
+    expect(timingsOf(P(w, 0), "axe")!.windup).toBeCloseTo(axe.windup * m, 9);
+    expect(timingsOf(P(w, 0), "axe")!.root).toBeCloseTo(axe.root * m, 9);
+    expect(timingsOf(P(w, 0), "sword")!.windup).toBeCloseTo(0.1 * m, 9);
+    expect(timingsOf(P(w, 0), "bow")).toEqual(bow);
+    expect(timingsOf(P(w, 0), "wand")).toEqual(wand);
   },
   thickHide: (r) => {
     const w = startRun(["holy", "fire"]);
