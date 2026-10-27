@@ -3,7 +3,7 @@
 // tick. The slide integrator itself is tested in shared/test/walk.test.ts; here it is the fighter that walks.
 import { describe, expect, it } from "vitest";
 import {
-  circleClear, GV_KILL, hazardsOf, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, SLIP_GRIP_MS,
+  circleClear, generateMap, GV_KILL, hazardsOf, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, SLIP_GRIP_MS,
   TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, worldToTile,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -1228,11 +1228,12 @@ describe("the adapter", () => {
   });
 });
 
-describe("with the flag off, generated maps behave as before", () => {
-  /** A few scripted players on a generated map with its mobs: random orders, locks and attacks, for `seconds`. */
+describe("with nothing on the ground, generated maps behave as before", () => {
+  /** A few scripted players on a plain generated map (the zone stylers off) with its mobs: random orders, locks and attacks, for `seconds`. */
   function simulate(seed: number, hazards: boolean | undefined, seconds: number): { world: World; events: SimEvent[]; terrainEntries: number } {
     const world = createGameWorld({
       seed,
+      map: generateMap(seed, undefined, { styleZones: null }),
       config: { ...BASE, minPlayers: 4, mobs: true, ...(hazards === undefined ? {} : { hazards }) },
       random: mulberry32(seed + 1),
     });
@@ -1288,10 +1289,11 @@ describe("with the flag off, generated maps behave as before", () => {
     }
   }, 120_000);
 
-  it("the generated maps hold no terrain, so every pass returns on its first line", () => {
+  it("the plain generated maps hold no terrain, so every pass returns on its first line", () => {
     for (let seed = 1; seed <= 20; seed++) {
-      const world = createGameWorld({ seed, config: BASE, random: mulberry32(seed) });
+      const world = createGameWorld({ seed, map: generateMap(seed, undefined, { styleZones: null }), config: BASE, random: mulberry32(seed) });
       expect(world.map.terrain.every((k) => k === 0)).toBe(true);
     }
   });
+
 });

@@ -690,22 +690,37 @@ describe("sightBlockedTiles, moveBlockedTiles and moveComponentsOf (uncached, fo
 
 describe("generated maps and the new layers", () => {
   const maps = seeds(12, 1).map((s) => generateMap(s));
+  const plainMaps = seeds(12, 1).map((s) => generateMap(s, undefined, { styleZones: null }));
 
-  it("carry a zero terrain layer and no props, and tiles stay 0/1 (no LOW is generated yet)", () => {
-    for (const m of maps) {
+  it("carry a terrain layer of their own size, and the gated copy shares it", () => {
+    for (const m of [...maps, ...plainMaps]) {
       expect(m.terrain.length).toBe(m.w * m.h);
-      expect(m.terrain.every((k) => k === 0)).toBe(true);
-      expect(m.props).toEqual([]);
-      expect(m.tiles.every((t) => t === TILE_FLOOR || t === TILE_WALL)).toBe(true);
       expect(withGates(m).terrain).toBe(m.terrain);
     }
   });
 
-  it("have one floor component with the gates open and two with them closed, and sight equals movement", () => {
-    for (const m of maps) {
+  it("have a zero terrain layer, no props and only floor and wall tiles without the zone stylers", () => {
+    for (const m of plainMaps) {
+      expect(m.terrain.every((k) => k === 0)).toBe(true);
+      expect(m.props).toEqual([]);
+      expect(m.tiles.every((t) => t === TILE_FLOOR || t === TILE_WALL)).toBe(true);
+    }
+  });
+
+  it("have one floor component with the gates open and two with them closed; sight equals movement without low ground and differs exactly at it with", () => {
+    for (const m of [...maps, ...plainMaps]) {
       expect(Math.max(...moveComponents(m)) + 1).toBe(1);
       expect(Math.max(...moveComponents(withGates(m))) + 1).toBe(2);
-      expect(Array.from(sightMask(m))).toEqual(Array.from(moveMask(m)));
     }
+    for (const m of plainMaps) expect(Array.from(sightMask(m))).toEqual(Array.from(moveMask(m)));
+    let low = 0;
+    for (const m of maps) {
+      const sight = sightMask(m), move = moveMask(m);
+      for (let i = 0; i < sight.length; i++) {
+        expect(sight[i] === move[i], `tile ${i}`).toBe(m.tiles[i] !== TILE_LOW);
+        if (m.tiles[i] === TILE_LOW) low++;
+      }
+    }
+    expect(low, "the stylers laid low ground at all").toBeGreaterThan(0);
   });
 });

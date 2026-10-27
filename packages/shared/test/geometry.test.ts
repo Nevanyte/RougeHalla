@@ -688,8 +688,10 @@ describe("circleClear and segmentClear on LOW maps", () => {
 
 // Generated maps without stylers have no LOW tiles, and gates open and locked are both walls only: every query must give
 // exactly the numbers it gave before TILE_LOW and the masks existed. The hashes (FNV-1a over the 8 bytes of every result)
-// were recorded with the code before LOW (geometry.ts and pathfind.ts at f5dc7cd) on the 96x96 zone maps of seeds 1..5
-// (R2), where the masked code gives the same; they pin raycast, circleClear, segmentClear and findPath.
+// were first recorded with the code before LOW (geometry.ts and pathfind.ts at f5dc7cd) on the 96x96 zone maps of seeds 1..5
+// (R2), where the masked code gave the same; they pin raycast, circleClear, segmentClear and findPath. ZT-6 re-recorded them on the
+// same seeds' plain maps (`styleZones: null`: the generator now picks its spawn pool before the stylers and walls up small cut-off
+// pieces, so the plain maps moved; the geometry and pathfinding code did not).
 describe("identity golden on wall-only maps", () => {
   const f64 = new Float64Array(1);
   const bytes = new Uint8Array(f64.buffer);
@@ -702,7 +704,7 @@ describe("identity golden on wall-only maps", () => {
   function identityHashes(): { raycast: number; circle: number; segment: number; path: number } {
     let hr = 2166136261, hc = 2166136261, hs = 2166136261, hp = 2166136261;
     for (let seed = 1; seed <= 5; seed++) {
-      const open = generateMap(seed);
+      const open = generateMap(seed, undefined, { styleZones: null });
       const maps = [open, withGates(open)];
       for (let m = 0; m < 2; m++) {
         const map = maps[m];
@@ -732,6 +734,6 @@ describe("identity golden on wall-only maps", () => {
   }
 
   it("gives the same 5000 raycasts, 5000 disc tests, 5000 swept tests and 500 paths as the code before LOW", () => {
-    expect(identityHashes()).toEqual({ raycast: 3378893563, circle: 485332344, segment: 731386456, path: 3558464567 });
+    expect(identityHashes()).toEqual({ raycast: 1352108942, circle: 4235002456, segment: 2209238725, path: 871460771 });
   });
 });

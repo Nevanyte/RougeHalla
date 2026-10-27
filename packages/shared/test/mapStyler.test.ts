@@ -7,7 +7,7 @@ import { TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
 import { certifiedMap, generateMap, mapHash } from "../src/mapgen";
 import type { GameMap, } from "../src/map";
 import type { StyleState, ZoneStyleHook } from "../src/mapgen";
-import { TERRAINS, TERRAIN_NONE } from "../src/terrain";
+import { TERRAINS, TERRAIN_ICE, TERRAIN_NONE, validateTerrain } from "../src/terrain";
 import { certifyMap, demoStyleHook } from "./mapCertify";
 
 /** Seeds 300..322, plus 2168: its cover once walled up a pocket inside a ruin past the ruin's rock quota. */
@@ -34,6 +34,11 @@ describe("zone style hook (demo hook, 24 seeds)", () => {
   it("certifies styled maps as it does plain ones (validateTerrain included), discarding fewer than 5%", () => {
     const failures: string[] = [];
     maps.forEach((m, k) => { if (m) for (const f of certifyMap(m, { styled: true }).failures) failures.push(`seed ${SEEDS[k]}: ${f}`); });
+    // The demo hook has ICE again (a 6x6 sheet in the frost zone, plain floor on all eight sides of each tile): the generator keeps
+    // its T11 by keeping chunks off it and clearing the ICE beside any rock the cover stands there, so validateTerrain is clean.
+    const ice = maps.reduce((a, m) => a + (m ? m.terrain.reduce((n, k) => n + (k === TERRAIN_ICE ? 1 : 0), 0) : 0), 0);
+    expect(ice, "the demo hook's ice survives somewhere").toBeGreaterThan(50);
+    for (const m of maps) if (m) expect(validateTerrain(m, { styled: true }), `seed ${m.seed}`).toEqual([]);
     expect(failures.slice(0, 8), `${failures.length} failures`).toEqual([]);
     expect(maps.filter((m) => !m).length).toBeLessThanOrEqual(1);
   }, 120_000);

@@ -4,13 +4,13 @@
 // Test scaffolding only (it may use Math.sin; no recipe does).
 import { hash2, vnoise } from "../src/zoneStyle/kit";
 import { REGION_FACTIONS } from "../src/map";
-import type { StyleState } from "../src/zoneStyle";
+import type { ZoneStyleState } from "../src/zoneStyle";
 import { TILE_WALL } from "../src/map";
 
 export const OPEN_W = 96;
 
 export interface OpenFixture {
-  st: StyleState;
+  st: ZoneStyleState;
   w: number;
   h: number;
   /** The tiles before styling. */
@@ -62,7 +62,7 @@ export function openFixture(seed: number, w = OPEN_W, h = OPEN_W): OpenFixture {
       }
     }
   }
-  const st: StyleState = {
+  const st: ZoneStyleState = {
     w, h, seed, attempt: 0, tiles, terrain: new Uint8Array(n), props: [], zone, zoneFaction: REGION_FACTIONS, protect,
     territory: null, camps: [], keepLow: new Uint8Array(n),
   };

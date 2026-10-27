@@ -4,17 +4,19 @@
 //
 // Client and server both call generateMap(seed, attempt) and must get identical output, so:
 //  - every random decision of an attempt goes through one mulberry32 stream (seed for attempt 0, else
-//    seed + attempt * 0x9e3779b1) in a fixed order; each zone styler draws from a stream of its own (styler.ts);
+//    seed + attempt * 0x9e3779b1) in a fixed order; each zone styler draws from streams of its own
+//    (mulberry32(hashSeed(seed, attempt, zone, stream)), styler.ts);
 //  - nothing here may call Math.sin/cos/atan2/hypot/pow/exp/log/random: engines may differ in their last bit. Only
 //    + - * / sqrt floor ceil round abs min max are used (detSin/detCos in cover.ts are built from + - * /);
 //  - sorts use total comparators (value, then tile index); distance transforms and heap keys are integers.
 //
 // One attempt runs: the pillar variant and the faction order; the zones (zones.ts); the camps and territories; the
-// ruins; the stylers; the rock chunks; the camp spots; the spawn pool; the crates; the cover (cover.ts: two cheap
-// lattices, the coarse one, then the fine one that certifies the 480 u sight cap and screens the spawn pool); the
-// checks after the cover (the walking contour again, territory floor repair, floor share, territory radius); the
-// ground spots. Any failed check fails the attempt: there is no relaxed attempt. tryAttempt runs exactly one;
-// generateMap without an attempt runs them in order until one certifies.
+// ruins; the spawn pool (on the open ground, so the stylers cannot thin its candidates); the zone stylers (the pool's
+// 3x3 is theirs to leave alone, and hazards are cleared from its 5x5); the rock chunks; the camp spots; the crates; the
+// cover (cover.ts: two cheap lattices, the coarse one, then the fine one that certifies the 480 u sight cap and screens
+// the spawn pool); the checks after the cover (the walking contour again, territory floor repair, floor share,
+// territory radius); the ground spots. Any failed check fails the attempt: there is no relaxed attempt. tryAttempt runs
+// exactly one; generateMap without an attempt runs them in order until one certifies.
 import { MAP_TILES_H, MAP_TILES_W, TILE } from "./constants";
 import { CX, CY, RING_ROAD, fixedLayout } from "./coliseum";
 import {
@@ -32,15 +34,15 @@ import { mulberry32, pick, randInt as rngInt, shuffle } from "./rng";
 import type { Rng } from "./rng";
 import { ZONE_STYLE_HOOK } from "./styler";
 import type { StyleCamp, ZoneStyleHook } from "./styler";
-import { PROP_KINDS, TERRAINS, TERRAIN_NONE, validateTerrain } from "./terrain";
+import { PROP_KINDS, TERRAINS, TERRAIN_ICE, TERRAIN_NONE, validateTerrain } from "./terrain";
 import {
-  AREA_TOLERANCE, CAMP_HALO, CAMP_R, CAMP_TILES, RING_CONTACT_MIN, SLIVER_MAX, TERRITORY_RADIUS_MAX, ZONES, chamfer, d2i as tileD2, failed,
+  AREA_TOLERANCE, CAMP_HALO, CAMP_R, CAMP_TILES, RING_CONTACT_MIN, SLIVER_MAX, TERRITORY_RADIUS_MAX, ZONES, chamfer, d2i as tileD2, failed, note,
   partitionZones, placeCamps, repairTerritories, ringContact, sliverCounts, territoryReach2,
 } from "./zones";
 import type { CampLayout, CampSite, ZonePartition } from "./zones";
 
 export { LATTICE_ORIGIN, SIGHT_LATTICE, longestLane } from "./cover";
-export { CAMPS_PER_ZONE, CAMP_GAP, MAPGEN_FAILS, RING_CONTACT_MIN, SLIVER_MAX, TERRITORY_RADIUS_MAX } from "./zones";
+export { CAMPS_PER_ZONE, CAMP_GAP, MAPGEN_FAILS, MAPGEN_NOTES, RING_CONTACT_MIN, SLIVER_MAX, TERRITORY_RADIUS_MAX } from "./zones";
 export { STYLE_STREAM, ZONE_STYLE_HOOK, styleRng } from "./styler";
 export type { StyleCamp, StyleState, ZoneStyleHook } from "./styler";
 
@@ -85,6 +87,8 @@ const SPAWN_CAMP_PICK = 7;
 /** Members lie this far from the centre (fractions of R0): 24 to 46 tiles at 96x96. */
 const SPAWN_RING: readonly [number, number] = [0.5, 0.95];
 const POOL_TARGET = 32;
+/** The pool is picked up to this many members and trimmed to POOL_TARGET after the cover (which moves walking distances unevenly). */
+const POOL_PICK_TARGET = 40;
 const POOL_MIN = 24;
 /** Zones the pool must cover (each member then has a member of another zone to be dealt with). */
 const POOL_ZONES = 4;
@@ -384,9 +388,40 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   const ruinGrid = new Uint8Array(N), ruinNear1 = new Uint8Array(N);
   for (const b of buildings) { markRect(ruinGrid, b, 0); markRect(ruinNear1, b, 1); }
 
+  lap("terrain");
+  // --- Spawn pool: farthest-point packing on one walking-distance contour, on the open ground --------------------------------
+  // It is picked before the stylers: their walls, low ground and hazards leave about half of the candidates, and a pool that thin
+  // does not survive the cover's shifts in walking distance. The stylers get the pool's 3x3 as protected ground, and hazards are
+  // cleared from its 5x5 after them (validateTerrain T8). The walking contour is certified again after the cover.
+  const open3 = new Uint8Array(N);
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      let ok = true;
+      for (let j = -1; j <= 1 && ok; j++) for (let i = -1; i <= 1; i++) if (tiles[(y + j) * W + x + i] !== TILE_FLOOR) { ok = false; break; }
+      if (ok) open3[y * W + x] = 1;
+    }
+  }
+  let pool = pickSpawnPool(rng, tiles, zone, open3, ruinGrid, camps);
+  if (!pool) return null;
+  // The 3x3 of every member, and the 5x5 around it (chunks and the styler's hazards keep off it).
+  const poolHalo = new Uint8Array(N), pool5 = new Uint8Array(N);
+  for (const t of pool) { markRect(poolHalo, cell(t), 1); markRect(pool5, cell(t), 2); }
+  lap("spawns");
+
   const keepLow = new Uint8Array(N), terrain = new Uint8Array(N);
   let props: MapProp[] = [];
-  if (hook) applyStyleHook(seed, attempt, hook, decor, order, zone, territoryGrid, camps, ruinNear1, tiles, terrain, props, keepLow);
+  if (hook) {
+    const breach = applyStyleHook(seed, attempt, hook, decor, order, zone, territoryGrid, camps, ruinNear1, poolHalo, tiles, terrain, props, keepLow);
+    lap("styler");
+    if (breach !== null) return failed("A:styleBreach");
+    // T8: no hazard (a floor kind) in a spawn's 5x5; low ground such as lava or a fence may stand there.
+    for (let i = 0; i < N; i++) if (pool5[i] && terrain[i] !== TERRAIN_NONE && TERRAINS[terrain[i]].tile === TILE_FLOOR) terrain[i] = TERRAIN_NONE;
+  }
+  // ICE keeps one tile of clear ground around it (validateTerrain T11): no rock chunk stands on a tile that touches ICE and the
+  // cover takes one only as a last resort; where a rock lands, the ICE around it goes (clearIceBesideSolid). Nothing is
+  // marked on an unstyled map.
+  const iceNear = new Uint8Array(N);
+  if (hook) for (let i = 0; i < N; i++) if (terrain[i] === TERRAIN_ICE) markRect(iceNear, cell(i), 1);
   // A floor kind does not survive under a wall (a rock, a walled-up pocket); a LOW kind does, as decor (terrain.ts T3).
   const clearBuried = (): void => {
     if (!hook) return;
@@ -397,7 +432,7 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
     // Rock chunks (1-2 by 1-3 tiles), with a tile of air around each, off the ring road + 1, ruins + 1, camp halos and
     // anything that is not floor.
     const bad = new Uint8Array(N);
-    for (let i = 0; i < N; i++) if (distFp[i] <= RING_ROAD + 1 || ruinNear1[i] || tiles[i] !== TILE_FLOOR) bad[i] = 1;
+    for (let i = 0; i < N; i++) if (distFp[i] <= RING_ROAD + 1 || ruinNear1[i] || pool5[i] || iceNear[i] || tiles[i] !== TILE_FLOOR) bad[i] = 1;
     for (const c of camps) for (const [ox, oy] of CAMP_HALO) bad[c.site + oy * W + ox] = 1;
     const target = randInt(rng, CHUNKS_LO, CHUNKS_HI);
     let placed = 0;
@@ -424,13 +459,10 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   const zoneCode = (z: number): number => regionCode(order[z - 1]);
   const regionGrid = new Uint8Array(N);
   for (let i = 0; i < N; i++) regionGrid[i] = fp[i] ? REGION_COLISEUM : border[i] ? REGION_NONE : zoneCode(zone[i]);
-  const open3 = new Uint8Array(N);
-  for (let y = 1; y < H - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      let ok = true;
-      for (let j = -1; j <= 1 && ok; j++) for (let i = -1; i <= 1; i++) if (tiles[(y + j) * W + x + i] !== TILE_FLOOR) { ok = false; break; }
-      if (ok) open3[y * W + x] = 1;
-    }
+  // The safety nets walled nothing the pool needs: its 3x3 is still plain floor.
+  for (const t of pool) {
+    for (let q = 0; q < 8; q++) if (tiles[t + RING_DY[q] * W + RING_DX[q]] !== TILE_FLOOR) return failed("A:poolCut");
+    if (tiles[t] !== TILE_FLOOR) return failed("A:poolCut");
   }
   lap("terrain");
 
@@ -446,11 +478,6 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
     if (c.elite) spots.sort((a, b) => d2i(a, c.site) - d2i(b, c.site) || a - b);
     c.spots = spots;
   }
-
-  // --- Spawn pool: farthest-point packing on one walking-distance contour --------------------------------------------
-  let pool = pickSpawnPool(rng, tiles, hook ? terrain : null, zone, open3, ruinGrid, camps);
-  if (!pool) return null;
-  lap("spawns");
 
   // --- Weapon crates: 3-4 per zone against a wall -----------------------------------------------------------------
   const gapTiles = gapsPerBuilding.flat();
@@ -503,6 +530,7 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   for (const c of allCrates) { markRect(soft, cell(c), 1); prot[c] = 1; }
   for (const g of gapTiles) { prot[g.y * W + g.x] = 1; for (const d of NB4) prot[g.y * W + g.x + d] = 1; }
   for (let i = 0; i < N; i++) if (keepLow[i] && tiles[i] === TILE_LOW) prot[i] = 1;
+  for (let i = 0; i < N; i++) if (iceNear[i] && !prot[i]) soft[i] = 1;
   // A ruin takes a few rocks inside as furniture, never so many that less than 62% of the interior is open (index 0 is
   // "not in a ruin" and absorbs the bookkeeping for every other tile).
   const ruinOf = new Uint8Array(N), ruinQuota: number[] = [0], ruinBox: number[] = [0, 0, 0, 0];
@@ -530,8 +558,36 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   lap("coverFine");
 
   // --- After the cover ------------------------------------------------------------------------------------------------
-  // The walking contour again, on the final ground: keep the longest run of the pool, sorted by walk, that fits within
-  // WALK_BAND of one value (max <= min * (1 + b) / (1 - b)).
+  // Territory floor first: one piece per territory holding its camp. The repair may wall up a cut-off piece or move it to another
+  // zone, so it comes before the walking contour is judged: nothing after it changes a walkable tile.
+  // A stray piece is walled up unless it holds a crate, a pool member's 3x3, a camp's ground or a ruin.
+  const keepOpen = new Uint8Array(N);
+  for (let i = 0; i < N; i++) if (prot[i] || ruinGrid[i]) keepOpen[i] = 1;
+  const zoneBefore = rezonedCopy(hook !== null, zone);
+  const rezoned = repairTerritories(tiles, zone, camps, territoryGrid, keepOpen);
+  if (rezoned === null) return null;
+  if (rezoned > 0) { note("rezoned"); note("rezonedTiles", rezoned); }
+  if (rezoned > 0 && zoneBefore !== null) {
+    // A piece that changed zone takes its ground with it: a hazard of the old zone's kind goes back to plain ground (T6 wants a kind
+    // inside its home zone); low ground (lava, a fence) cannot be taken back, so a piece that holds any fails the attempt.
+    for (let i = 0; i < N; i++) {
+      if (zone[i] === zoneBefore[i] || terrain[i] === TERRAIN_NONE) continue;
+      if (TERRAINS[terrain[i]].tile !== TILE_FLOOR) return failed("A:rezoneLow");
+      terrain[i] = TERRAIN_NONE;
+    }
+  }
+  if (rezoned > 0) {
+    // A piece that changed zone may not take a crate with it, reach into a ruin's margin or leave the pool short of zones.
+    for (let z = 1; z <= ZONES; z++) for (const c of cratesByZone[z - 1]) if (zone[c] !== z) return failed("A:rezoneCrate");
+    for (const b of buildings) {
+      const z = zone[b.y * W + b.x];
+      for (let y = b.y - 1; y <= b.y + b.h; y++) for (let x = b.x - 1; x <= b.x + b.w; x++) if (zone[y * W + x] !== z) return failed("A:rezoneRuin");
+    }
+    if (new Set(pool.map((i) => zone[i])).size < POOL_ZONES) return failed("A:rezonePool");
+    for (let i = 0; i < N; i++) if (zone[i]) regionGrid[i] = zoneCode(zone[i]);
+  }
+  // The walking contour again, on the final ground (the repair's walls included): keep the longest run of the pool, sorted by walk,
+  // that fits within WALK_BAND of one value (max <= min * (1 + b) / (1 - b)).
   {
     const walk = walkDistances(tiles, CY * W + CX);
     if (pool.some((i) => walk[i] < 0)) return failed("A:spawnWalkPost");
@@ -542,22 +598,15 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
       while (j < sorted.length && walk[sorted[j]] <= walk[sorted[i]] * lim) j++;
       if (j - i > bj - bi) { bi = i; bj = j; }
     }
-    const keep = new Set(sorted.slice(bi, bj));
+    let run = sorted.slice(bi, bj);
+    if (run.length > POOL_TARGET) {
+      // Thin to POOL_TARGET from the extremes: the members farthest in walking distance from the run's median go first.
+      const med = walk[run[run.length >> 1]];
+      run = run.slice().sort((a, b) => Math.abs(walk[a] - med) - Math.abs(walk[b] - med) || a - b).slice(0, POOL_TARGET);
+    }
+    const keep = new Set(run);
     pool = pool.filter((i) => keep.has(i));
     if (pool.length < POOL_MIN || new Set(pool.map((i) => zone[i])).size < POOL_ZONES) return failed("A:spawnWalkPost");
-  }
-  // Territory floor: one piece per territory holding its camp (a repair may move small pieces to another zone).
-  const rezoned = repairTerritories(tiles, zone, camps, territoryGrid);
-  if (rezoned === null) return null;
-  if (rezoned > 0) {
-    // A piece that changed zone may not take a crate with it, reach into a ruin's margin or leave the pool short of zones.
-    for (let z = 1; z <= ZONES; z++) for (const c of cratesByZone[z - 1]) if (zone[c] !== z) return failed("A:rezoneCrate");
-    for (const b of buildings) {
-      const z = zone[b.y * W + b.x];
-      for (let y = b.y - 1; y <= b.y + b.h; y++) for (let x = b.x - 1; x <= b.x + b.w; x++) if (zone[y * W + x] !== z) return failed("A:rezoneRuin");
-    }
-    if (new Set(pool.map((i) => zone[i])).size < POOL_ZONES) return failed("A:rezonePool");
-    for (let i = 0; i < N; i++) if (zone[i]) regionGrid[i] = zoneCode(zone[i]);
   }
   const floorOf = new Int32Array(ZONES + 1), paintedOf = new Int32Array(ZONES + 1);
   for (let q = 0; q < F.painted.length; q++) {
@@ -582,6 +631,24 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
       if (slivers[z] > SLIVER_MAX) return failed("A:sliverPost");
     }
   }
+  // Each zone's floor is one 4-connected piece (the cover's guard prefers it; this is the guarantee).
+  {
+    const seen = new Uint8Array(N), queue = new Int32Array(N);
+    const started = new Uint8Array(ZONES + 1);
+    for (let q = 0; q < F.painted.length; q++) {
+      const t0 = F.painted[q], z = zone[t0];
+      if (tiles[t0] !== TILE_FLOOR || seen[t0]) continue;
+      if (started[z]) return failed("A:zoneFloorSplit");
+      started[z] = 1;
+      let head = 0, tail = 0;
+      queue[tail++] = t0;
+      seen[t0] = 1;
+      while (head < tail) {
+        const i = queue[head++];
+        for (let e = 0; e < 4; e++) { const j = i + NB4[e]; if (!seen[j] && zone[j] === z && tiles[j] === TILE_FLOOR) { seen[j] = 1; queue[tail++] = j; } }
+      }
+    }
+  }
   const reach2 = territoryReach2(camps, territoryGrid, tiles);
   for (let T = 1; T <= camps.length; T++) if (reach2[T] > TERRITORY_RADIUS_MAX * TERRITORY_RADIUS_MAX) return failed("A:radiusPost");
   lap("post");
@@ -590,6 +657,9 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   // terrain layer checked (terrain.ts) before the map is handed out.
   if (hook) {
     clearBuried();
+    // T11's net: ICE beside a wall (a rock the cover had to stand beside the lake, a walled-up pocket) goes back to plain ground.
+    const cleared = clearIceBesideSolid(tiles, terrain);
+    if (cleared > 0) note("iceCleared", cleared);
     props = props.filter((pr) => {
       const tx = Math.floor(pr.x / TILE), ty = Math.floor(pr.y / TILE), spec = PROP_KINDS[pr.kind];
       return spec !== undefined && tx >= 0 && ty >= 0 && tx < W && ty < H && tiles[ty * W + tx] === spec.on;
@@ -605,6 +675,14 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   for (const t of allCrates) markRect(noLoot, cell(t), 1);
   const groundSpots = pickGroundSpots(rng, tiles, noLoot, poolTiles).map(toWorld);
   if (groundSpots.length < GROUND_SPOTS_MIN) return failed("A:ground");
+  if (props.length > 0) {
+    // Decor stays off the places a fighter stands or loots, which the hook could not know yet (cosmetic: no draw, no hash).
+    const clear = new Uint8Array(N);
+    for (const t of pool) markRect(clear, cell(t), 1);
+    for (const t of allCrates) markRect(clear, cell(t), 1);
+    for (const g of groundSpots) markRect(clear, cell(Math.floor(g.y / TILE) * W + Math.floor(g.x / TILE)), 1);
+    props = props.filter((pr) => clear[Math.floor(pr.y / TILE) * W + Math.floor(pr.x / TILE)] === 0);
+  }
   const map = records(seed, attempt, tiles, terrain, props, regionGrid, zone, territoryGrid, order, camps, reach2, pool, cratesByZone, ruinGrid, buildings, groundSpots);
   if (hook && validateTerrain(map, { styled: true }).length > 0) return failed("A:terrain");
   lap("records");
@@ -614,15 +692,16 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
 /**
  * Runs the zone style hook once on the ground as it stands after the ruins, and checks it kept to the contract
  * (styler.ts): only floor turned to wall or low ground, terrain kinds on their class of tile, both only on painted tiles
- * outside the protected ones.
+ * outside the protected ones (the spawn pool's 3x3s, `poolHalo`, among them). Returns what the first breach was, or null
+ * when the hook kept to it: a breach fails the attempt (and the tests assert none ever happens), it never crashes a room.
  */
 function applyStyleHook(
   seed: number, attempt: number, hook: ZoneStyleHook, decor: boolean, order: readonly RegionFaction[], zone: Uint8Array, territoryGrid: Uint8Array,
-  camps: readonly CampSite[], ruinNear1: Uint8Array, tiles: Uint8Array, terrain: Uint8Array, props: MapProp[], keepLow: Uint8Array,
-): void {
+  camps: readonly CampSite[], ruinNear1: Uint8Array, poolHalo: Uint8Array, tiles: Uint8Array, terrain: Uint8Array, props: MapProp[], keepLow: Uint8Array,
+): string | null {
   const F = fixedLayout();
   const protect = new Uint8Array(N);
-  for (let i = 0; i < N; i++) if (F.border[i] || F.fp[i] || F.distFp[i] <= RING_ROAD + 1 || ruinNear1[i]) protect[i] = 1;
+  for (let i = 0; i < N; i++) if (F.border[i] || F.fp[i] || F.distFp[i] <= RING_ROAD + 1 || ruinNear1[i] || poolHalo[i]) protect[i] = 1;
   for (const t of F.laneOut) markRect(protect, { x: t.x, y: t.y, w: 1, h: 1 }, 1);
   for (const c of camps) for (const [ox, oy] of CAMP_HALO) protect[c.site + oy * W + ox] = 1;
   for (let y = 1; y <= CORNER_OPEN; y++) {
@@ -634,16 +713,36 @@ function applyStyleHook(
   const styleCamps: StyleCamp[] = camps.map((c, i) => ({ site: c.site, r: CAMP_R, territory: i + 1 }));
   hook({ w: W, h: H, seed, attempt, decor, tiles, terrain, props, zone, zoneFaction: order, protect, territoryGrid, camps: styleCamps, keepLow });
   if (!decor) props.length = 0;
-  const breach = (i: number, what: string): never => {
-    throw new Error(`zone style hook broke the contract at tile ${i % W},${Math.floor(i / W)}: ${what}`);
-  };
+  const breach = (i: number, what: string): string => `zone style hook broke the contract at tile ${i % W},${Math.floor(i / W)}: ${what}`;
   for (let i = 0; i < N; i++) {
     const t = tiles[i], k = terrain[i];
-    if (t !== before[i] && (before[i] !== TILE_FLOOR || (t !== TILE_WALL && t !== TILE_LOW) || !zone[i] || protect[i])) breach(i, `tile ${before[i]} -> ${t}`);
+    if (t !== before[i] && (before[i] !== TILE_FLOOR || (t !== TILE_WALL && t !== TILE_LOW) || !zone[i] || protect[i])) return breach(i, `tile ${before[i]} -> ${t}`);
     if (k === TERRAIN_NONE) continue;
     const spec = TERRAINS[k];
-    if (!spec || !zone[i] || protect[i] || !(spec.tile === t || (spec.tile === TILE_LOW && t === TILE_WALL))) breach(i, `terrain ${k} on tile ${t}`);
+    if (!spec || !zone[i] || protect[i] || !(spec.tile === t || (spec.tile === TILE_LOW && t === TILE_WALL))) return breach(i, `terrain ${k} on tile ${t}`);
   }
+  return null;
+}
+
+/** A copy of the zone grid to compare after the territory repair (only a styled map has terrain to fix up). */
+function rezonedCopy(styled: boolean, zone: Uint8Array): Uint8Array | null {
+  return styled ? zone.slice() : null;
+}
+
+/**
+ * validateTerrain T11's net: an ICE tile with a wall, a LOW tile or the map edge among its 8 neighbours goes back to plain ground
+ * (clearing ICE never makes another tile break the rule). Returns how many tiles it cleared.
+ */
+function clearIceBesideSolid(tiles: Uint8Array, terrain: Uint8Array): number {
+  let cleared = 0;
+  for (let i = 0; i < N; i++) {
+    if (terrain[i] !== TERRAIN_ICE) continue;
+    const x = i % W, y = (i - x) / W;
+    let bad = x === 0 || y === 0 || x === W - 1 || y === H - 1;
+    for (let q = 0; q < 8 && !bad; q++) bad = tiles[i + RING_DY[q] * W + RING_DX[q]] !== TILE_FLOOR;
+    if (bad) { terrain[i] = TERRAIN_NONE; cleared++; }
+  }
+  return cleared;
 }
 
 /** No terrain kind within Chebyshev distance `r` of tile i. */
@@ -659,14 +758,14 @@ function plainAround(terrain: Uint8Array, i: number, r: number): boolean {
 }
 
 /**
- * The spawn pool on the ground before the cover: candidates with a clear 3x3 and no terrain kind in their 5x5, outside ruins, SPAWN_RING from the
+ * The spawn pool on the open ground before the stylers and the cover: candidates with a clear 3x3, outside ruins, SPAWN_RING from the
  * centre and SPAWN_CAMP_PICK from camps; for contour levels at the 20th to 80th percentile of their walking distance to
- * the centre, farthest-point packing within POOL_PICK_BAND of the level, SPAWN_SEPARATION apart, up to POOL_TARGET
- * members. The level that packs the most members wins (ties: more zones). Null when no level gives POOL_MIN members in
+ * the centre, farthest-point packing within POOL_PICK_BAND of the level, SPAWN_SEPARATION apart, up to POOL_PICK_TARGET
+ * members (the cover trims them to POOL_TARGET). The level that packs the most members wins (ties: more zones). Null when no level gives POOL_MIN members in
  * POOL_ZONES zones within SPAWN_TRIES rounds.
  */
 function pickSpawnPool(
-  rng: Rng, tiles: Uint8Array, terrain: Uint8Array | null, zone: Uint8Array, open3: Uint8Array, ruinGrid: Uint8Array, camps: readonly CampSite[],
+  rng: Rng, tiles: Uint8Array, zone: Uint8Array, open3: Uint8Array, ruinGrid: Uint8Array, camps: readonly CampSite[],
 ): number[] | null {
   const walk = walkDistances(tiles, CY * W + CX);
   const lo2 = (SPAWN_RING[0] * R0) * (SPAWN_RING[0] * R0), hi2 = (SPAWN_RING[1] * R0) * (SPAWN_RING[1] * R0);
@@ -675,7 +774,7 @@ function pickSpawnPool(
   for (let y = 2; y < H - 2; y++) {
     for (let x = 2; x < W - 2; x++) {
       const i = y * W + x;
-      if (!zone[i] || !open3[i] || ruinGrid[i] || walk[i] < 0 || (terrain && !plainAround(terrain, i, 2))) continue;
+      if (!zone[i] || !open3[i] || ruinGrid[i] || walk[i] < 0) continue;
       const dx = x + 0.5 - CX, dy = y + 0.5 - CY, r2 = dx * dx + dy * dy;
       if (r2 < lo2 || r2 > hi2) continue;
       if (camps.every((c) => d2i(c.site, i) >= campGap2)) cands.push(i);
@@ -695,7 +794,7 @@ function pickSpawnPool(
       if (band.length === 0) continue;
       const chosen = [band[randInt(rng, 0, band.length)]];
       for (let q = 0; q < band.length; q++) minD[q] = d2i(band[q], chosen[0]);
-      while (chosen.length < POOL_TARGET) {
+      while (chosen.length < POOL_PICK_TARGET) {
         let b = -1, bd = -1;
         for (let q = 0; q < band.length; q++) if (minD[q] >= sep2 && minD[q] > bd) { bd = minD[q]; b = q; }
         if (b < 0) break;

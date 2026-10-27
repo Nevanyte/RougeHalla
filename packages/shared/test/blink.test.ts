@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BLAZE_MIN_DIST, BLAZE_RANGE, BLINK_STEP, blinkLanding, buildGameMapOf, circleClear, coliseumRingMask, findPath, floorComponents, generateMap,
+  BLAZE_MIN_DIST, BLAZE_RANGE, BLINK_STEP, blinkLanding, circleClear, coliseumRingMask, findPath, floorComponents, generateMap,
   inColiseum, mapFromTiles, moveComponents, mulberry32, PLAYER_RADIUS, REGION_COLISEUM, segmentCrossesRing, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, withGates,
   type GameMap, type Vec2,
 } from "../src/index";
@@ -200,7 +200,7 @@ describe("floorComponents", () => {
   });
 
   it("is moveComponents shifted up by one: the same pockets, 0 for every tile bodies cannot stand on (walls and LOW)", () => {
-    const styled = buildGameMapOf(5, true);
+    const styled = generateMap(5);
     expect(styled.tiles.some((t) => t === TILE_LOW)).toBe(true);
     for (const map of [generateMap(7), generateMap(12), styled, withGates(generateMap(7)), room(12, 8, [[5, 1, 5, 6]])]) {
       const lab = floorComponents(map), comp = moveComponents(map);

@@ -1,6 +1,6 @@
 // The 200-seed certification, in shards: seeds 0..199 are split over SHARDS test files (mapgen.cert.<k>.test.ts) so
 // vitest certifies them in parallel. Each shard certifies its seeds' maps as a map pool sees them (certifiedMap: the
-// first certified of 16 attempts), pins their hashes, runs the exact strip check on every 5th seed (40 in all) and the
+// first certified of 16 attempts, the zone stylers on: the certifier's `styler=zone` mode), pins their hashes, runs the exact strip check on every 5th seed (40 in all) and the
 // disc check on every 10th (20 in all), and reports the findPath walking ratio on every 10th seed offset by 5.
 import { describe, expect, it } from "vitest";
 import { MAX_SIGHT_CORRIDOR, TILE } from "../src/constants";
@@ -36,7 +36,7 @@ export function describeCertification(shard: number): void {
       const all: string[] = [];
       const stats: MapStats[] = [];
       for (const s of seeds) {
-        const r = certifyMap(mapFor(s));
+        const r = certifyMap(mapFor(s), { zone: true });
         stats.push(r.stats);
         for (const f of r.failures) all.push(`seed ${s}: ${f}`);
       }

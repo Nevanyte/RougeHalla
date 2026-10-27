@@ -1,7 +1,7 @@
-// The zone stylers: `styleZones(state)` is the entry the zone generator calls once per attempt (styleZones.ts); `styleFinishedMap`
-// is the dev adapter that applies them to a finished wedge map (finishedMap.ts).
+// The zone stylers: `styleZones(state)` is the entry the zone generator calls once per attempt (styleZones.ts), through
+// `zoneStylerHook` (hook.ts), the adapter at the generator's hook position (styler.ts).
 export * from "./types";
-export * from "./finishedMap";
+export { STYLER_STATS, resetStylerStats, zoneStylerHook } from "./hook";
 export { ZONE_STYLERS, styleZones, filterProps } from "./styleZones";
 export { ZONE_PROP_KINDS, PROP as ZONE_PROP } from "./propKinds";
 export { facetShelfCells } from "./rime";

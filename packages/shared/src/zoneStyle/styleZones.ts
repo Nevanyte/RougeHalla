@@ -15,7 +15,7 @@ import { scorch } from "./scorch";
 import { warren } from "./warren";
 import { ZONE_PROP_KINDS } from "./propKinds";
 import { ZONE_STYLE_CAPS } from "./types";
-import type { CampInfo, StyleResult, StyleState, StyleOptions, ZoneStyler } from "./types";
+import type { CampInfo, StyleResult, StyleOptions, ZoneStyleState, ZoneStyler } from "./types";
 
 /** One styler per faction; the registry the zone generator reads. */
 export const ZONE_STYLERS: Readonly<Record<RegionFaction, ZoneStyler<any>>> = {
@@ -33,7 +33,7 @@ const nowMs = (): number => (typeof performance !== "undefined" ? performance.no
  * WALL or LOW (and a LOW tile may become a wall); nothing is ever opened, and nothing protected, outside a zone or within
  * 3 tiles of a zone's rim is touched. Every write is guarded: the zone's floor (and each territory's) stays 4-connected.
  */
-export function styleZones(st: StyleState, opts: StyleOptions = {}): StyleResult[] {
+export function styleZones(st: ZoneStyleState, opts: StyleOptions = {}): StyleResult[] {
   const { w, h } = st;
   const n = w * h;
   for (const [name, arr] of [["tiles", st.tiles], ["terrain", st.terrain], ["zone", st.zone], ["protect", st.protect], ["keepLow", st.keepLow]] as const) {
@@ -90,7 +90,7 @@ export function styleZones(st: StyleState, opts: StyleOptions = {}): StyleResult
  * Drops the props whose tile no longer matches their kind (a cover rock fell on a floor prop, a floor kind was cleared). No
  * random draw; run it last, on the final tiles. Returns how many were dropped.
  */
-export function filterProps(props: StyleState["props"], tiles: Uint8Array, w: number, propKinds: readonly PropKindSpec[] = ZONE_PROP_KINDS): number {
+export function filterProps(props: ZoneStyleState["props"], tiles: Uint8Array, w: number, propKinds: readonly PropKindSpec[] = ZONE_PROP_KINDS): number {
   let out = 0;
   for (let i = 0; i < props.length; i++) {
     const p = props[i];

@@ -1,10 +1,11 @@
-// The zone-interior styler hook (zone-terrain contract, section 0; the zone-terrain session owns the stylers; R2 ships
-// none). generateMap calls the hook once per attempt with the whole zone grid, after the zone partition, the camps and
+// The zone-interior styler hook (zone-terrain contract, section 0; the stylers are zoneStyle/, wired in by zoneStyle/hook.ts).
+// generateMap calls the hook once per attempt with the whole zone grid, after the zone partition, the camps and
 // their territories and the generator's own ruins, and BEFORE the rock chunks, the spawn pool, the crates and the cover
 // passes, so the walking contour, the spawn and crate picks and the cover certification all see the styled ground. The
 // styler's sight-blocking walls count as cover before any rock is placed, so tall structures take the place of rocks.
 //
-// Contract (checked by generateMap after the hook; a breach throws, it is a bug in the styler, not a failed attempt):
+// Contract (checked by generateMap after the hook; a breach fails the attempt, counted as A:styleBreach in MAPGEN_FAILS, and
+// the tests assert that no seed ever has one: it is a styler bug, never a normal retry):
 //  - `tiles`: only TILE_FLOOR turned into TILE_WALL (blocks movement and sight) or TILE_LOW (blocks movement only:
 //    lava, fence, crevasse), only on painted tiles (`zone` > 0) outside `protect`. It never opens a wall.
 //  - `terrain` (all zero on entry): a LOW kind on a LOW or WALL tile, a floor kind (ember, bog, ice, light) on a FLOOR
@@ -12,18 +13,20 @@
 //    finished map: a failure fails the attempt.
 //  - `props`: decor, appended; the generator drops the ones whose tile ends up of another class than their kind wants.
 //  - floor kinds keep off what must stay plain: the generator picks spawn-pool members (5x5), crates (3x3) and ground
-//    spots only on tiles with no terrain, and a rock that lands on a floor kind clears it (a LOW kind under a rock stays,
-//    as decor).
+//    spots only on tiles with no floor hazard, and a rock that lands on a floor kind clears it (a LOW kind under a rock stays,
+//    as decor). ICE gets one tile of clear ground: no rock chunk or cover rock stands on a tile touching ICE (terrain.ts T11).
 //  - the walkable floor should stay one 4-connected piece: the generator walls up floor cut off from the centre, a camp
 //    clearing cut off fails the attempt, and so does a cut-off territory piece over STRAY_MAX tiles.
 //  - floor share: max/min walkable floor per zone <= 1.15 after the cover.
-//  - the cover may put a rock on any LOW tile not listed in `keepLow`; a straight run of kept LOW over 14.98 tiles cannot
-//    be cut and fails the attempt.
-//  - draws come from the styler's own streams (zone-terrain: hashSeed(seed, attempt, zoneIndex, stream)), never the
+//  - the cover may put a rock on any LOW tile not listed in `keepLow` (the zone stylers list none); a straight run of kept
+//    LOW over 14.98 tiles cannot be cut and fails the attempt.
+//  - draws come from the styler's own streams (`styleRng`: mulberry32(hashSeed(seed, attempt, zoneIndex, stream))), never the
 //    generator's.
+import { MAP_STYLERS } from "./constants";
 import type { MapProp, RegionFaction } from "./map";
-import { mulberry32 } from "./rng";
+import { hashSeed, mulberry32 } from "./rng";
 import type { Rng } from "./rng";
+import { zoneStylerHook } from "./zoneStyle/hook";
 
 /** A camp as the styler sees it: its site's tile index, clearing radius in tiles and territory id in `territoryGrid`. */
 export interface StyleCamp {
@@ -65,17 +68,16 @@ export interface StyleState {
 /** The hook: styles every zone of one attempt in one pass. */
 export type ZoneStyleHook = (state: StyleState) => void;
 
-/** The hook every map uses (client and server alike). None in R2: the zone-terrain session supplies it. */
-export const ZONE_STYLE_HOOK: ZoneStyleHook | null = null;
+/** The hook every map uses (client and server alike): the five zone stylers while MAP_STYLERS is on, none when it is off. */
+export const ZONE_STYLE_HOOK: ZoneStyleHook | null = MAP_STYLERS ? zoneStylerHook : null;
 
 /** The styler's streams per zone (zone-terrain contract 0.3): 0 shape, 1 decor (props; skipped with decor off), 2 surface. */
 export const STYLE_STREAM = { shape: 0, decor: 1, surface: 2 } as const;
 
 /**
- * A stream of the styler's own for (seed, attempt, zone index, stream); never the generator's.
- * PLACEHOLDER: the seed expression becomes `hashSeed(seed, attempt, zoneIndex, stream)` from shared/rng.ts when zone
- * terrain lands it (ZT-3); that one-line swap changes every styled map, so re-pin then.
+ * A stream of the styler's own for (seed, attempt, zone index, stream); never the generator's. The seed is `hashSeed`'s (shared/rng.ts,
+ * integer mixing only), the one stream function the stylers use.
  */
 export function styleRng(seed: number, attempt: number, zoneIndex: number, stream = 0): Rng {
-  return mulberry32((seed ^ 0x5bd1e995) + attempt * 0x27d4eb2d + zoneIndex * 0x165667b1 + stream * 0x9e3779b1);
+  return mulberry32(hashSeed(seed, attempt, zoneIndex, stream));
 }

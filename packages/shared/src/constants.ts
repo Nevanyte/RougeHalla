@@ -29,10 +29,12 @@ export const MAP_TILES_H = 96;
 export const WORLD_W = MAP_TILES_W * TILE;
 export const WORLD_H = MAP_TILES_H * TILE;
 /**
- * The zone stylers (terrain, hazards, props) on the maps the game builds: `buildGameMap` (gameMapBuild.ts) styles a finished
- * wedge map when this is on. Off = every map is exactly generateMap's. Flip only with the client's ice model merged.
+ * The zone stylers (terrain, hazards, props) on the maps the game builds: the generator's hook (styler.ts) runs the five
+ * zone stylers while this is on, and none when it is off (plain rock-and-ruin zones, for tests and what-if runs). It is a
+ * compile-time switch: the server, the bots and every client must be built with the same value, and the map's `mapHash`
+ * is what tells them apart.
  */
-export const MAP_STYLERS: boolean = false;
+export const MAP_STYLERS: boolean = true;
 export const PLAYER_RADIUS = 12;
 /** A projectile's own radius: it hits a body whose centre comes within PLAYER_RADIUS + this of its path. */
 export const RANGED_SLACK = 2;

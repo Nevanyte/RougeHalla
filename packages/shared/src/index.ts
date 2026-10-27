@@ -32,10 +32,6 @@ export * from "./mods";
 export * from "./walk";
 export * from "./gridTopology";
 export * from "./zoneStyle";
-export * from "./gameMapBuild";
-// Two StyleState types until the zone stylers are wired into the generator's hook (styler.ts): the barrel names the
-// generator's; the stylers' own is `zoneStyle/types.ts`, imported from there.
-export type { StyleState } from "./mapgen";
 export * from "./planning";
 export * from "./skills";
 export * from "./rewards";

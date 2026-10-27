@@ -6,18 +6,19 @@ import { MAP_TILES_H, MAP_TILES_W, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_C
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, tileToWorldCenter, withGates } from "../src/map";
 import type { GameMap, TilePt } from "../src/map";
 import {
-  CAMP_GAP, CAMPS_PER_ZONE, LATTICE_ORIGIN, MAX_ATTEMPTS, RING_CONTACT_MIN, SIGHT_LATTICE, SLIVER_MAX, TERRITORY_RADIUS_MAX, ZONE_STYLE_HOOK, styleRng,
+  CAMP_GAP, CAMPS_PER_ZONE, LATTICE_ORIGIN, MAPGEN_FAILS, MAX_ATTEMPTS, RING_CONTACT_MIN, SIGHT_LATTICE, SLIVER_MAX, TERRITORY_RADIUS_MAX, ZONE_STYLE_HOOK, styleRng,
   certifiedMap, generateMap, longestLane, mapHash, tryAttempt,
 } from "../src/mapgen";
 import type { ZoneStyleHook } from "../src/mapgen";
-import { PROP_KINDS, TERRAIN_LAVA } from "../src/terrain";
-import { mulberry32, randInt } from "../src/rng";
+import { PROP_KINDS, TERRAINS, TERRAIN_LAVA } from "../src/terrain";
+import { zoneStylerHook } from "../src/zoneStyle";
+import { hashSeed, mulberry32, randInt } from "../src/rng";
 import { WEAPONS } from "../src/weapons";
 import {
   CAMP_GAP_TILES, LATTICE, LATTICE_ANCHOR, MAP_SIZE, RING_CONTACT_MIN as CERT_F, SLIVER_MAX as CERT_S, TERRITORY_RADIUS_TILES, certifyMap, demoStyleHook,
   dist, fatLane, firstOpenSlope, hittableAim,
 } from "./mapCertify";
-import { PINNED_MAPS } from "./mapPins";
+import { PINNED_MAPS, PINNED_PLAIN } from "./mapPins";
 
 const seeds = (n: number, from = 0) => Array.from({ length: n }, (_, i) => from + i);
 const HEAVY_MS = 60_000;
@@ -29,6 +30,8 @@ function mapFor(seed: number): GameMap {
   return m;
 }
 const pinned = (s: number) => PINNED_MAPS[s].split(":");
+/** The certifier in `styler=zone` mode: what the game's maps (the zone stylers on) must pass. */
+const certifyZone = (m: GameMap) => certifyMap(m, { zone: true });
 const inRuin = (m: GameMap, i: number) => m.buildings.some((b) => i % m.w >= b.x && i % m.w < b.x + b.w && Math.floor(i / m.w) >= b.y && Math.floor(i / m.w) < b.y + b.h);
 
 describe("API", () => {
@@ -98,7 +101,7 @@ describe("API", () => {
       const a = generateMap(s);
       expect(a, `seed ${s}`).toEqual(generateMap(s));
       expect(a.seed).toBe(s);
-      expect(certifyMap(a).failures, `seed ${s}`).toEqual([]);
+      expect(certifyZone(a).failures, `seed ${s}`).toEqual([]);
     }
   }, HEAVY_MS);
 
@@ -133,7 +136,14 @@ describe("determinism", () => {
     }
   }, HEAVY_MS);
 
-  it("never calls Math.random or an engine-approximated Math function, module setup and lane tables included", async () => {
+  it("rebuilds 25 seeds byte for byte with the stylers off, as pinned in another process (the plain generator is still the plain generator)", () => {
+    for (const s of seeds(25)) {
+      const m = generateMap(s, undefined, { styleZones: null });
+      expect(`${s}:${m.attempt}:${mapHash(m)}`, `seed ${s}`).toBe(PINNED_PLAIN[s]);
+    }
+  }, HEAVY_MS);
+
+  it("never calls Math.random or an engine-approximated Math function, module setup, the zone stylers and lane tables included", async () => {
     // ECMAScript lets these differ in the last bit between engines; Math.sqrt is exact and allowed.
     const names = [
       "random", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
@@ -192,8 +202,8 @@ describe("determinism", () => {
 describe("the certifier", () => {
   it("catches broken maps: open ground without rocks, an unsealed arena, a walled clearing, a split territory", () => {
     const base = mapFor(1);
-    expect(certifyMap(base).failures).toEqual([]);
-    const names = (m: GameMap) => certifyMap(m).failures.map((f) => f.split(": ").slice(0, 2).join(": "));
+    expect(certifyZone(base).failures).toEqual([]);
+    const names = (m: GameMap) => certifyZone(m).failures.map((f) => f.split(": ").slice(0, 2).join(": "));
     {
       // No rocks: lanes run long and pool members can shoot each other.
       const m = structuredClone(base);
@@ -291,20 +301,37 @@ describe("the certifier", () => {
 });
 
 describe("styler hook", () => {
-  it("ships no stylers: every tile of a real map is floor or wall, with no terrain and no props", () => {
-    expect(ZONE_STYLE_HOOK).toBeNull();
-    for (const s of seeds(10)) {
+  it("runs the zone stylers by default: every map of seeds 1..10 has low ground and terrain, and only floor, wall and low tiles", () => {
+    expect(ZONE_STYLE_HOOK).not.toBeNull();
+    for (const s of seeds(10, 1)) {
       const m = mapFor(s);
+      expect(m.tiles.every((v) => v === TILE_FLOOR || v === TILE_WALL || v === TILE_LOW), `seed ${s}`).toBe(true);
+      expect(m.tiles.some((v) => v === TILE_LOW), `seed ${s} low ground`).toBe(true);
+      expect(m.terrain.some((v) => v !== 0), `seed ${s} terrain`).toBe(true);
+      expect(m.props.length, `seed ${s} props`).toBeGreaterThan(0);
+    }
+  });
+
+  it("builds a plain map with the hook off: no low ground, no terrain, no props", () => {
+    for (const s of seeds(10, 1)) {
+      const m = generateMap(s, undefined, { styleZones: null });
       expect(m.tiles.every((v) => v === TILE_FLOOR || v === TILE_WALL), `seed ${s}`).toBe(true);
-      expect(m.terrain.length, `seed ${s}`).toBe(m.w * m.h);
       expect(m.terrain.every((v) => v === 0), `seed ${s}`).toBe(true);
       expect(m.props, `seed ${s}`).toEqual([]);
     }
   });
 
-  it("keeps the generator's stream apart: a hook that draws but changes nothing leaves the map as it was", () => {
+  it("keeps the generator's stream apart: a hook that draws but changes nothing leaves the map as the plain generator makes it", () => {
     const draw: ZoneStyleHook = (st) => { for (let z = 1; z <= 5; z++) { const r = styleRng(st.seed, st.attempt, z); for (let i = 0; i < 100; i++) r(); } };
-    for (const s of seeds(5)) expect(generateMap(s, undefined, { styleZones: draw }), `seed ${s}`).toEqual(mapFor(s));
+    for (const s of seeds(5)) expect(generateMap(s, undefined, { styleZones: draw }), `seed ${s}`).toEqual(generateMap(s, undefined, { styleZones: null }));
+  });
+
+  it("styleRng is hashSeed's stream: the zone stylers' three streams per zone are independent", () => {
+    const first = (z: number, st: number): number => styleRng(5, 0, z, st)();
+    expect(first(1, 0)).toBe(mulberry32(hashSeed(5, 0, 1, 0))());
+    const vals = new Set<number>();
+    for (let z = 1; z <= 5; z++) for (let st = 0; st < 3; st++) vals.add(first(z, st));
+    expect(vals.size).toBe(15);
   });
 
   it("hands the hook the whole zone grid, the factions, the protected tiles and this attempt's camps and territories", () => {
@@ -357,8 +384,30 @@ describe("styler hook", () => {
     });
     expect(withProps).toBeGreaterThanOrEqual(3);
     expect(told.includes(true) && told.includes(false)).toBe(true);
-    for (const s of seeds(4)) expect(certifiedMap(s, { decor: false }), `seed ${s}: no hook`).toEqual(mapFor(s));
+    // The game's own hook: the server and the bots build with decor off, the client with it on, and the hash cannot tell.
+    let drawn = 0;
+    for (const s of seeds(6)) {
+      const on = mapFor(s), off = certifiedMap(s, { decor: false })!;
+      expect(off.props, `seed ${s}`).toEqual([]);
+      expect({ ...off, props: [] }, `seed ${s}`).toEqual({ ...on, props: [] });
+      expect(mapHash(off), `seed ${s}`).toBe(mapHash(on));
+      if (on.props.length > 0) drawn++;
+    }
+    expect(drawn, "the zone stylers drew props").toBe(6);
   });
+
+  it("builds every hashed layer the same with decor off, and the hash is the same, over 60 seeds of the game's own hook (the guard)", () => {
+    for (const s of seeds(60, 100)) {
+      const on = mapFor(s), off = generateMap(s, on.attempt, { decor: false });
+      expect(Buffer.from(off.tiles).equals(Buffer.from(on.tiles)), `seed ${s} tiles`).toBe(true);
+      expect(Buffer.from(off.terrain).equals(Buffer.from(on.terrain)), `seed ${s} terrain`).toBe(true);
+      expect(Buffer.from(off.regionGrid).equals(Buffer.from(on.regionGrid)), `seed ${s} regionGrid`).toBe(true);
+      expect(Buffer.from(off.territoryGrid).equals(Buffer.from(on.territoryGrid)), `seed ${s} territoryGrid`).toBe(true);
+      expect(off.camps, `seed ${s} camps`).toEqual(on.camps);
+      expect(off.spawnPool, `seed ${s} spawnPool`).toEqual(on.spawnPool);
+      expect(mapHash(off), `seed ${s}`).toBe(mapHash(on));
+    }
+  }, HEAVY_MS);
 
   it("a prop changes nothing the hash reads: add, move or drop the props of a map that has some", () => {
     withPropKind(() => {
@@ -373,7 +422,7 @@ describe("styler hook", () => {
     });
   });
 
-  it("throws when the hook breaks the contract", () => {
+  it("fails the attempt, never throws, when the hook breaks the contract (counted as A:styleBreach)", () => {
     const firstFree = (st: Parameters<ZoneStyleHook>[0]) => st.zone.findIndex((z, i) => z > 0 && st.protect[i] === 0 && st.tiles[i] === TILE_FLOOR);
     const breaches: [string, ZoneStyleHook][] = [
       ["a protected tile", (st) => { st.tiles[st.protect.findIndex((v, i) => v === 1 && st.zone[i] > 0 && st.tiles[i] === TILE_FLOOR)] = TILE_LOW; }],
@@ -382,6 +431,49 @@ describe("styler hook", () => {
       ["a LOW kind on floor", (st) => { st.terrain[firstFree(st)] = TERRAIN_LAVA; }],
       ["terrain on a protected tile", (st) => { st.terrain[st.protect.findIndex((v, i) => v === 1 && st.zone[i] > 0 && st.tiles[i] === TILE_FLOOR)] = 5; }],
     ];
-    for (const [what, hook] of breaches) expect(() => generateMap(2, undefined, { styleZones: hook }), what).toThrow(/broke the contract/);
+    for (const [what, hook] of breaches) {
+      const before = MAPGEN_FAILS["A:styleBreach"] ?? 0;
+      expect(tryAttempt(2, 0, { styleZones: hook }), what).toBeNull();
+      expect(() => generateMap(2, 0, { styleZones: hook }), what).toThrow(/does not certify/);
+      expect(MAPGEN_FAILS["A:styleBreach"], what).toBe(before + 2);
+    }
   });
+
+  it("protects every spawn-pool 3x3 from the stylers and leaves no floor hazard in a member's 5x5", () => {
+    // The pool is picked before the stylers: the hook is told its 3x3s as protected ground, then hazards are cleared from the 5x5s.
+    for (const s of seeds(8, 20)) {
+      const m = mapFor(s);
+      for (const p of m.spawnPool) {
+        const cx = Math.floor(p.x / TILE), cy = Math.floor(p.y / TILE);
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const i = (cy + dy) * m.w + cx + dx, k = m.terrain[i];
+            if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) expect(m.tiles[i] === TILE_FLOOR && k === 0, `seed ${s} spawn 3x3`).toBe(true);
+            else expect(k === 0 || TERRAINS[k].tile !== TILE_FLOOR, `seed ${s} spawn 5x5 hazard`).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it("never lets a LOW tile end as floor, and keeps a floor hazard off every wall (the cover may rock low ground, whose kind then stays as decor)", () => {
+    let low = 0, rocked = 0;
+    for (const s of seeds(12, 30)) {
+      const m = mapFor(s);
+      let seen: Uint8Array | null = null;
+      const spy: ZoneStyleHook = (st) => { zoneStylerHook(st); seen = st.tiles.slice(); };
+      generateMap(s, m.attempt, { styleZones: spy });
+      for (let i = 0; i < m.tiles.length; i++) {
+        if (seen![i] === TILE_LOW) {
+          low++;
+          expect(m.tiles[i], `seed ${s} tile ${i}`).not.toBe(TILE_FLOOR);
+          if (m.tiles[i] === TILE_WALL) { rocked++; expect(m.terrain[i], `seed ${s}: a rock on low ground keeps its kind`).not.toBe(0); }
+        }
+        const k = m.terrain[i];
+        if (k !== 0 && TERRAINS[k].tile === TILE_FLOOR) expect(m.tiles[i], `seed ${s} hazard under a wall at ${i}`).toBe(TILE_FLOOR);
+      }
+    }
+    expect(low, "the stylers laid low ground").toBeGreaterThan(0);
+    expect(rocked, "the cover stood a rock on low ground at least once").toBeGreaterThan(0);
+  }, HEAVY_MS);
 });

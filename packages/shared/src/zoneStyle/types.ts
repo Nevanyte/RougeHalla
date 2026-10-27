@@ -1,5 +1,5 @@
 // The zone styler contract: what a styler sees (contexts), what it may write (guarded blockers, surfaces, props) and what the
-// generator hands in (StyleState). Size-free: every size comes from the state.
+// generator hands in (ZoneStyleState). Size-free: every size comes from the state.
 import type { MapProp, RegionFaction, TilePt, TileRect } from "../map";
 import type { Rng } from "../rng";
 
@@ -126,7 +126,7 @@ export interface ZoneStyler<P = unknown> {
   props?(ctx: PropCtx, plan: P): void;
 }
 
-export interface StyleState {
+export interface ZoneStyleState {
   readonly w: number;
   readonly h: number;
   readonly seed: number;

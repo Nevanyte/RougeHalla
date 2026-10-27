@@ -448,13 +448,19 @@ export function placeCover(lt: LaneTable, target: number, rng: Rng, ground: Cove
   const open = openMask(tiles, regionGrid, new Uint8Array(N));
   const limit = target + LANE_EPS;
   // The territory guard: a rock on floor keeps that tile's territory floor locally connected (a simple point of the
-  // territory's own floor), so it never splits a territory whose pieces would stay linked only through another one.
+  // territory's own floor), so it never splits a territory whose pieces would stay linked only through another one. The
+  // zone's floor gets the same: a rock never cuts a zone into two floors that only another zone's ground joins.
   const guardOK = (t: number): boolean => {
     if (!guard || !guard[t]) return true;
-    const g = guard[t];
-    let m = 0;
-    for (let q = 0; q < 8; q++) { const j = t + RING_OFF[q]; if ((tiles[j] & MASK_MOVE) === 0 && guard[j] === g) m |= 1 << q; }
-    return SIMPLE[m] === 1;
+    const g = guard[t], z = regionGrid[t];
+    let m = 0, mz = 0;
+    for (let q = 0; q < 8; q++) {
+      const j = t + RING_OFF[q];
+      if ((tiles[j] & MASK_MOVE) !== 0) continue;
+      if (guard[j] === g) m |= 1 << q;
+      if (regionGrid[j] === z) mz |= 1 << q;
+    }
+    return SIMPLE[m] === 1 && SIMPLE[mz] === 1;
   };
   // A lane through k tiles is at most k * sqrt(2) long, so a shorter run of open tiles is never a long lane.
   const minRun = Math.floor(limit / 1.4142135623730951) + 1;

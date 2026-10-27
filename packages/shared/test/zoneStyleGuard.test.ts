@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
 import { TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA } from "../src/terrain";
 import { styleZones } from "../src/zoneStyle";
-import type { StyleState, ZoneStyler } from "../src/zoneStyle";
+import type { ZoneStyleState, ZoneStyler } from "../src/zoneStyle";
 import { rig } from "./zoneStyleRig";
 
 const floors = (tiles: Uint8Array): number => tiles.reduce((n, t) => n + (t === TILE_FLOOR ? 1 : 0), 0);
@@ -356,7 +356,7 @@ describe("blockers: footprint accounting with LOW tiles the pass did not write",
     const tiles = new Uint8Array(n), zone = new Uint8Array(n);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (!x || !y || x === W - 1 || y === H - 1) tiles[i] = TILE_WALL; else zone[i] = 1; }
     for (let x = 4; x < W - 4; x++) if (x % 6) tiles[20 * W + x] = TILE_LOW;
-    const st: StyleState = {
+    const st: ZoneStyleState = {
       w: W, h: H, seed: 5, attempt: 0, tiles, terrain: new Uint8Array(n), props: [], zone, zoneFaction: REGION_FACTIONS.slice(0, 1),
       protect: new Uint8Array(n), territory: null, camps: [], keepLow: new Uint8Array(n),
     };

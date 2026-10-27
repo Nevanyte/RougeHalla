@@ -1,36 +1,50 @@
 // Certification sweep with the independent certifier (test/mapCertify.ts):
-// `npx tsx packages/shared/scripts/mapSweep.ts <count> [from=0] [styler=demo]` (styler=demo: the demo zone style hook)
+// `npx tsx packages/shared/scripts/mapSweep.ts <count> [from=0] [styler=default|none|zone|demo]` (default: what the game builds, the
+// zone stylers while MAP_STYLERS is on; none: the plain generator; zone: the zone stylers whatever the flag; demo: the demo hook)
 // Every seed's pool map (certifiedMap) gets every per-map check; every 5th seed also the exact strip check at the
 // off-lattice angles, every 10th the 16 u disc check and the findPath walking ratio. Prints one JSON line of totals, so
 // several processes can each take a range and their lines can be merged.
 import { MAX_SIGHT_CORRIDOR, TILE } from "../src/constants";
 import { REGION_COLISEUM, REGION_NONE, TILE_WALL, withGates } from "../src/map";
-import { certifiedMap, warmMapgen } from "../src/mapgen";
-import { findPath } from "../src/pathfind";
+import { MAPGEN_FAILS, MAPGEN_NOTES, ZONE_STYLE_HOOK, certifiedMap, warmMapgen } from "../src/mapgen";
+import type { MapgenOptions } from "../src/mapgen";
+import { zoneStylerHook } from "../src/zoneStyle";
 import { LANE_SLACK_U, ZONE_COUNT, certifyMap, demoStyleHook, denseDisc, longestFreeStrip, offLatticeAngles, walkLength } from "../test/mapCertify";
+import type { CertifyOptions } from "../test/mapCertify";
 
 const args = process.argv.slice(2);
 const count = Number(args.find((a) => !a.includes("=")) ?? 100);
 const opt = (k: string): string | undefined => args.find((a) => a.startsWith(`${k}=`))?.slice(k.length + 1);
 const from = Number(opt("from") ?? 0);
-const styled = opt("styler") === "demo";
-const options = styled ? { styleZones: demoStyleHook } : undefined;
+const styler = opt("styler") ?? "default";
+if (!["default", "none", "zone", "demo"].includes(styler)) throw new Error(`styler=${styler}: expected default, none, zone or demo`);
+const options: MapgenOptions | undefined =
+  styler === "none" ? { styleZones: null } : styler === "demo" ? { styleZones: demoStyleHook } : styler === "zone" ? { styleZones: zoneStylerHook } : undefined;
+const mode: CertifyOptions = styler === "none" ? {} : styler === "demo" ? { styled: true } : styler === "zone" || ZONE_STYLE_HOOK !== null ? { zone: true } : {};
 
 warmMapgen();
 const thetas = offLatticeAngles();
 const out = {
-  from, count, styled, discarded: [] as number[], failed: [] as string[], attempts: [] as number[], lane: 0, sealed: 0, strip: 0, disc: 0, discSealed: 0,
+  from, count, styler, discarded: [] as number[], failed: [] as string[], attempts: [] as number[], lane: 0, sealed: 0, strip: 0, disc: 0, discSealed: 0,
   floorShare: 0, minContact: 1e9, maxSliver: 0, radius: [] as number[], pool: [] as number[], walk57: 0, walkPath: [] as number[], wallRun: 0, rocks: [] as number[],
-  /** Per pool member (every 10th seed): distinct tiles with terrain its findPath route to the centre crosses (contract 0.8, report only). */
+  /** Per pool member (every seed in zone mode): distinct tiles with terrain its findPath route to the centre crosses (contract 0.8, report only). */
   hazardTiles: [] as number[],
+  /** Terrain kind tiles per map, summed per zone in REGION_FACTIONS order, and the maps with each zone's characteristic terrain (lava, fence, bog, ice, light). */
+  kindTiles: [] as number[][],
+  themePresent: [0, 0, 0, 0, 0],
+  notes: {} as Record<string, number>,
+  fails: {} as Record<string, number>,
 };
+const THEME_KIND = [1, 2, 5, 6, 7]; // lava, fence, bog, ice, light
 for (let s = from; s < from + count; s++) {
   const m = certifiedMap(s, options);
   if (!m) { out.discarded.push(s); continue; }
   out.attempts.push(m.attempt);
-  const r = certifyMap(m, { styled });
+  const r = certifyMap(m, mode);
   for (const f of r.failures) out.failed.push(`seed ${s}: ${f}`);
   const st = r.stats;
+  out.hazardTiles.push(...st.hazardExposure);
+  st.kinds.forEach((row, z) => { if (row[THEME_KIND[z]] > 0) out.themePresent[z]++; });
   out.lane = Math.max(out.lane, st.lane * TILE);
   out.sealed = Math.max(out.sealed, st.sealedLane * TILE);
   out.floorShare = Math.max(out.floorShare, Math.max(...st.floor) / Math.min(...st.floor));
@@ -61,20 +75,8 @@ for (let s = from; s < from + count; s++) {
     const lens = m.spawnPool.map((p) => walkLength(m, p, m.coliseum.centre));
     if (Math.min(...lens) <= 0) out.failed.push(`seed ${s}: a pool member with no path to the centre`);
     out.walkPath.push(Math.max(...lens) / Math.min(...lens));
-    for (const p of m.spawnPool) {
-      const seen = new Set<number>();
-      let ax = p.x, ay = p.y;
-      for (const q of findPath(m, p, m.coliseum.centre)) {
-        const steps = Math.ceil(Math.hypot(q.x - ax, q.y - ay) / 8);
-        for (let k = 0; k <= steps; k++) {
-          const x = ax + ((q.x - ax) * k) / Math.max(1, steps), y = ay + ((q.y - ay) * k) / Math.max(1, steps);
-          const t = Math.floor(y / TILE) * m.w + Math.floor(x / TILE);
-          if (m.terrain[t] !== 0) seen.add(t);
-        }
-        ax = q.x; ay = q.y;
-      }
-      out.hazardTiles.push(seen.size);
-    }
   }
 }
+out.notes = { ...MAPGEN_NOTES };
+out.fails = { ...MAPGEN_FAILS };
 console.log(JSON.stringify(out));

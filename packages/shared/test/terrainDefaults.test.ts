@@ -1,6 +1,6 @@
-// What the terrain layers hold while nothing writes them: a generated map has an all-zero `terrain`, no `props` and only
-// floor and wall tiles (no LOW is generated yet), and a hand-built one gets the same defaults from mapFromTiles. A guard
-// for the flag-off promise of zone terrain: a map that no styler touched is the map it always was.
+// What the terrain layers hold while nothing writes them: a generated map with the zone stylers off has an all-zero `terrain`, no
+// `props` and only floor and wall tiles, and a hand-built one gets the same defaults from mapFromTiles. A guard for the flag-off
+// promise of zone terrain: a map that no styler touched is the map it always was.
 import { describe, expect, it } from "vitest";
 import { generateMap } from "../src/mapgen";
 import { mapFromTiles, TILE_FLOOR, TILE_LOW, TILE_WALL, withGates } from "../src/map";
@@ -8,9 +8,9 @@ import { mapFromTiles, TILE_FLOOR, TILE_LOW, TILE_WALL, withGates } from "../src
 describe("generated maps with nothing writing the terrain layers", () => {
   const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
 
-  it("seeds 1..60: terrain is all zero, props is empty, tiles are only floor and wall", () => {
+  it("seeds 1..60 with the stylers off: terrain is all zero, props is empty, tiles are only floor and wall", () => {
     for (const seed of SEEDS) {
-      const m = generateMap(seed);
+      const m = generateMap(seed, undefined, { styleZones: null });
       expect(m.terrain.length, `seed ${seed}`).toBe(m.w * m.h);
       expect(m.terrain.some((k) => k !== 0), `seed ${seed} terrain`).toBe(false);
       expect(m.props, `seed ${seed} props`).toEqual([]);
@@ -21,7 +21,7 @@ describe("generated maps with nothing writing the terrain layers", () => {
   }, 120_000);
 
   it("the layers are separate arrays: writing the terrain leaves the tiles alone, and the gated copy shares the terrain", () => {
-    const m = generateMap(SEEDS[0]!);
+    const m = generateMap(SEEDS[0]!, undefined, { styleZones: null });
     expect(m.terrain.buffer).not.toBe(m.tiles.buffer);
     const tilesBefore = Array.from(m.tiles);
     m.terrain.fill(7);

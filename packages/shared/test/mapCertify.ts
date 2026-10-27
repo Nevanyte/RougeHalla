@@ -16,7 +16,7 @@ import type { ZoneStyleHook } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
 import { randInt } from "../src/rng";
 import {
-  TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_LAVA, TERRAIN_LIGHT, TERRAIN_NONE, validateTerrain,
+  TERRAINS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TERRAIN_NONE, validateTerrain,
 } from "../src/terrain";
 
 // ---- The contract's numbers (not read from the generator) ----
@@ -58,13 +58,27 @@ export interface MapStats {
   pairsNear: number;
   rocks: number;
   wallRun: number;
+  /** Per zone (REGION_FACTIONS order): tiles of each terrain kind (index = kind id), walls included for the LOW kinds' pillars. */
+  kinds: number[][];
+  /** Per zone: the walkable floor's 4-connected pieces (zone mode only; 0 otherwise). */
+  zonePieces: number[];
+  /** Per pool member (zone mode only): distinct terrain tiles its findPath route to the centre crosses. Report only (contract 0.8). */
+  hazardExposure: number[];
+}
+
+export interface CertifyOptions {
+  /** The zone stylers ran: skips the small-rock-blob rule (a styler's structures may be long) and has validateTerrain check LOW kinds (T10). */
+  styled?: boolean;
+  /** `styler=zone`: the generator's own zone stylers ran. Implies `styled`, and adds the zone-floor connectivity check and the spawn-to-centre hazard exposure. */
+  zone?: boolean;
 }
 
 /**
  * Runs every per-map check; returns the failures (empty when the map certifies) and the measured numbers. `styled`
  * maps (zone stylers ran) skip the rule that outdoor walls are small rock blobs: a styler's structures may be long.
  */
-export function certifyMap(m: GameMap, opts: { styled?: boolean } = {}): { failures: string[]; stats: MapStats } {
+export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: string[]; stats: MapStats } {
+  const opts = { styled: !!(copts.styled || copts.zone), zone: !!copts.zone };
   const failures: string[] = [];
   const check = (name: string, ok: boolean, why?: () => string): void => {
     if (!ok) failures.push(`${name}${why ? `: ${why()}` : ""}`);
@@ -361,20 +375,30 @@ export function certifyMap(m: GameMap, opts: { styled?: boolean } = {}): { failu
   check("terrain: validateTerrain clean (T1-T10)", terrainErrors.length === 0, () => terrainErrors.slice(0, 2).join("; "));
   check("terrain: an unstyled map has no terrain, no low ground and no props", !!opts.styled || (m.terrain.every((v) => v === TERRAIN_NONE) && m.tiles.every((v) => v !== TILE_LOW) && m.props.length === 0));
   let hazard = "";
-  // A square of radius r; with `halo`, the clearing grown by one tile (the square of radius 3 less its four corners).
-  const plain = (cx: number, cy: number, r: number, what: string, halo = false): void => {
+  const kindAt = (x: number, y: number): number => m.terrain[y * W + x];
+  const isHazard = (k: number): boolean => k !== TERRAIN_NONE && TERRAINS[k].tile === TILE_FLOOR;
+  // A square of radius r around a tile: `any` kind (low ground included) or only floor hazards (ember, bog, ice, light).
+  const plain = (cx: number, cy: number, r: number, what: string, only: "any" | "hazard", halo = false): void => {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (halo && Math.abs(dx) === 3 && Math.abs(dy) === 3) continue;
-        if (m.terrain[(cy + dy) * W + cx + dx] !== TERRAIN_NONE) hazard = `${what} at ${cx},${cy}`;
+        const k = kindAt(cx + dx, cy + dy);
+        if (only === "any" ? k !== TERRAIN_NONE : isHazard(k)) hazard = `${what} at ${cx},${cy}`;
       }
     }
   };
-  for (const s of pool) plain(worldToTile(s.x), worldToTile(s.y), 2, "spawn 5x5");
-  for (const c of m.crateSpots) plain(worldToTile(c.x), worldToTile(c.y), 1, "crate 3x3");
-  for (const c of camps) plain(worldToTile(c.x), worldToTile(c.y), 3, "camp clearing and halo", true);
-  for (const g of m.groundSpots) plain(worldToTile(g.x), worldToTile(g.y), 0, "ground spot");
-  check("terrain: no kind on a spawn 5x5, a crate 3x3, a camp clearing and halo or a ground spot", hazard === "", () => hazard);
+  for (const s of pool) { plain(worldToTile(s.x), worldToTile(s.y), 1, "spawn 3x3", "any"); plain(worldToTile(s.x), worldToTile(s.y), 2, "spawn 5x5", "hazard"); }
+  for (const c of m.crateSpots) { plain(worldToTile(c.x), worldToTile(c.y), 1, "crate 3x3", "any"); }
+  for (const c of camps) plain(worldToTile(c.x), worldToTile(c.y), 3, "camp clearing and halo", "any", true);
+  for (const g of m.groundSpots) { plain(worldToTile(g.x), worldToTile(g.y), 0, "ground spot", "any"); plain(worldToTile(g.x), worldToTile(g.y), 1, "ground spot 3x3", "hazard"); }
+  check("terrain: no kind on a spawn 3x3, a crate 3x3, a camp clearing and halo or a ground spot; no floor hazard on a spawn 5x5 or a ground spot 3x3", hazard === "", () => hazard);
+  // ICE keeps one tile of clear ground (validateTerrain T11, checked again here without the validator's code).
+  let iceBad = "";
+  for (let i = 0; i < N; i++) {
+    if (m.terrain[i] !== TERRAIN_ICE) continue;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (m.tiles[i + dy * W + dx] !== TILE_FLOOR) iceBad = `${i % W},${Math.floor(i / W)}`;
+  }
+  check("terrain: every ICE tile has floor on all eight sides", iceBad === "", () => iceBad);
 
   // --- Reachability -----------------------------------------------------------------------------------------------------------
   const lab = open.label, home = lab[centre];
@@ -391,9 +415,42 @@ export function certifyMap(m: GameMap, opts: { styled?: boolean } = {}): { failu
 
   let rocks = 0;
   for (let i = 0; i < N; i++) if (isZone(m.regionGrid[i]) && m.tiles[i] === TILE_WALL) rocks++;
+  const kinds = codes.map(() => new Array<number>(TERRAINS.length).fill(0));
+  for (let i = 0; i < N; i++) if (isZone(m.regionGrid[i]) && m.terrain[i] !== TERRAIN_NONE) kinds[m.regionGrid[i] - 1][m.terrain[i]]++;
+
+  // --- styler=zone: the zone's own floor and the walk each spawn makes to the centre ------------------------------------------
+  const zonePieces = codes.map(() => 0);
+  const hazardExposure: number[] = [];
+  if (opts.zone) {
+    codes.forEach((c, z) => { zonePieces[z] = components(W, H, (i) => m.regionGrid[i] === c && move(m.tiles, i)).count; });
+    // Floor kinds only on FLOOR, LOW kinds only on LOW or WALL, each kind in its home zone: validateTerrain T3/T6 again, in the certifier's words.
+    let wrongHome = "";
+    for (let i = 0; i < N; i++) {
+      const k = m.terrain[i];
+      if (k === TERRAIN_NONE) continue;
+      const home = TERRAINS[k].home;
+      if (home === null || !isZone(m.regionGrid[i]) || REGION_FACTIONS[m.regionGrid[i] - 1] !== home) wrongHome = `${TERRAINS[k].key} at ${i % W},${Math.floor(i / W)}`;
+    }
+    check("styler=zone: every terrain kind lies in its home zone", wrongHome === "", () => wrongHome);
+    check("styler=zone: every zone's walkable floor is one 4-connected piece", zonePieces.every((n) => n === 1), () => zonePieces.join("/"));
+    for (const p of pool) {
+      const seen = new Set<number>();
+      let ax = p.x, ay = p.y;
+      for (const q of findPath(m, p, m.coliseum.centre)) {
+        const steps = Math.ceil(Math.hypot(q.x - ax, q.y - ay) / 8);
+        for (let k = 0; k <= steps; k++) {
+          const x = ax + ((q.x - ax) * k) / Math.max(1, steps), y = ay + ((q.y - ay) * k) / Math.max(1, steps);
+          const t = Math.floor(y / TILE) * W + Math.floor(x / TILE);
+          if (m.terrain[t] !== TERRAIN_NONE) seen.add(t);
+        }
+        ax = q.x; ay = q.y;
+      }
+      hazardExposure.push(seen.size);
+    }
+  }
   return {
     failures,
-    stats: { lane, sealedLane, painted, floor, contact, slivers, radius, leashShare, pool: pool.length, poolZones: zonesIn.size, walkRatio57, pairsNear, rocks, wallRun },
+    stats: { lane, sealedLane, painted, floor, contact, slivers, radius, leashShare, pool: pool.length, poolZones: zonesIn.size, walkRatio57, pairsNear, rocks, wallRun, kinds, zonePieces, hazardExposure },
   };
 }
 
@@ -823,7 +880,7 @@ function longestOutdoorWallRun(m: GameMap): number {
 /**
  * One pass over every zone, each kind in its home zone: fire gets a meandering lava river 2 wide and up to 24 long with
  * ember on its free banks, sentenced three fences of 5-9 tiles with a gap (kept: no rock may stand on them), frost a
- * 6-tile crevasse with a gap and a 4x4 ice patch, plague a 5x5 bog, holy a 3x3 patch of light; every zone two 2x2 walls.
+ * 6-tile crevasse with a gap and a 6x6 sheet of ice (only the tiles with plain floor on all eight sides), plague a 5x5 bog, holy a 3x3 patch of light; every zone two 2x2 walls.
  * With decor on, three props per zone from the decor stream (of an unknown kind while PROP_KINDS is empty, so the
  * generator drops them: the decor stream must change nothing else).
  */
@@ -870,8 +927,17 @@ export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, decor, zone,
       const at = cells[randInt(rng, 0, cells.length)];
       const horiz = rng() < 0.5;
       for (let k = 0; k < 6; k++) { const t = at + (horiz ? k : k * w); if (k !== 3 && free(t)) low(t, TERRAIN_CREVASSE); }
-      // No ICE: validateTerrain T11 keeps an ICE tile's 8 neighbours clear of walls and LOW, and the generator's rock chunks,
-      // cover and safety nets do not keep off them yet (the zone-terrain hook integration does).
+      // A sheet of ICE: validateTerrain T11 wants every ICE tile to have plain floor on all eight sides, so only tiles that do take it.
+      // The walls below and the generator's rocks may still stand beside it: the generator clears the ICE they touch.
+      const iceAt = cells[randInt(rng, 0, cells.length)];
+      for (let dy = 0; dy < 6; dy++) {
+        for (let dx = 0; dx < 6; dx++) {
+          const t = iceAt + dy * w + dx;
+          let clear = free(t) && (t % w) + 1 < w;
+          for (const d of [-w - 1, -w, -w + 1, -1, 1, w - 1, w, w + 1]) clear = clear && tiles[t + d] === TILE_FLOOR;
+          if (clear) terrain[t] = TERRAIN_ICE;
+        }
+      }
     } else if (faction === "plague") patch(5, TERRAIN_BOG);
     else if (faction === "holy") patch(3, TERRAIN_LIGHT);
     for (let b = 0; b < 2; b++) {

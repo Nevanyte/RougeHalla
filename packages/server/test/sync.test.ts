@@ -378,7 +378,8 @@ describe("schema round trip", () => {
   });
 
   it("decodes the weapon fields: a pickup into the free slot, a swap, the bow draw and the cooldown it leaves", () => {
-    const world = makeWorld(51, 2);
+    // Seed 57: the bow needs an open line of 200 u from bob's spawn, and a spawn on a zone-styled map is may be hemmed in by its structures.
+    const world = makeWorld(57, 2);
     addPlayer(world, "a", "alice"); // fire: axe
     addPlayer(world, "b", "bob"); // sentenced: bow
     const wire = new Wire(world);

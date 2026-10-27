@@ -14,8 +14,7 @@ import {
 } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
-import { buildGameMapOf } from "../src/gameMapBuild";
-import { ZONE_PROP, ZONE_PROP_KINDS, styleFinishedMap } from "../src/zoneStyle";
+import { ZONE_PROP, ZONE_PROP_KINDS } from "../src/zoneStyle";
 import {
   PROP_KINDS,
   TERRAINS,
@@ -633,23 +632,23 @@ describe("validateTerrain, T11 (ice keeps one tile of clear floor around it)", (
     expect(validateTerrain(plain())).toEqual([]);
   });
 
-  it("is passed by every styled finished map, seeds 1..40 (the styler kit refuses walls next to ice)", () => {
+  it("is passed by every generated map, seeds 1..40, which hold ice at all (the generator keeps rocks off the ice, or clears it beside one)", () => {
     let ice = 0;
     for (let seed = 1; seed <= 40; seed++) {
-      const styled = styleFinishedMap(generateMap(seed));
-      for (const k of styled.terrain) if (k === TERRAIN_ICE) ice++;
-      const errs = validateTerrain(styled, { styled: true });
-      expect(errs, `seed ${seed}`).toEqual([]);
+      const map = generateMap(seed);
+      for (const k of map.terrain) if (k === TERRAIN_ICE) ice++;
+      expect(validateTerrain(map, { styled: true }), `seed ${seed}`).toEqual([]);
     }
     expect(ice, "the seeds hold ice at all: not a vacuous pass").toBeGreaterThan(100);
   }, 60_000);
 });
 
 describe("validateTerrain on generated maps", () => {
-  it("accepts the wedge generator's maps, which have no terrain (seeds 1..12)", () => {
+  it("accepts the generator's maps with the stylers off, which have no terrain (seeds 1..12)", () => {
     for (let seed = 1; seed <= 12; seed++) {
-      const m = generateMap(seed);
-      expect(validateTerrain(m, { styled: true }), `seed ${seed}`).toEqual([]);
+      const m = generateMap(seed, undefined, { styleZones: null });
+      expect(m.terrain.every((k) => k === TERRAIN_NONE), `seed ${seed}`).toBe(true);
+      expect(validateTerrain(m), `seed ${seed}`).toEqual([]);
     }
   });
 });

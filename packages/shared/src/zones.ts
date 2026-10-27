@@ -13,7 +13,7 @@
 import { MAP_TILES_H, MAP_TILES_W } from "./constants";
 import { CX, CY, RING_ROAD, fixedLayout } from "./coliseum";
 import { NB4 as COVER_NB4, RING_OFF as COVER_RING_OFF, SIMPLE as COVER_SIMPLE } from "./cover";
-import { MASK_MOVE as MOVE_MASK } from "./map";
+import { MASK_MOVE as MOVE_MASK, TILE_WALL as WALL_TILE } from "./map";
 import { randInt as rngInt } from "./rng";
 import type { Rng } from "./rng";
 
@@ -24,7 +24,7 @@ const R0 = Math.min(W, H) / 2;
 export const ZONES = 5;
 // Hot loops read module-level copies of these imports: under a test runner's module system (vitest) every use of an
 // import is a property read on the module object, which cost this code about a third of its time.
-const NB4 = COVER_NB4, RING_OFF = COVER_RING_OFF, SIMPLE = COVER_SIMPLE, MASK_MOVE = MOVE_MASK, randInt = rngInt;
+const NB4 = COVER_NB4, RING_OFF = COVER_RING_OFF, SIMPLE = COVER_SIMPLE, MASK_MOVE = MOVE_MASK, TILE_WALL = WALL_TILE, randInt = rngInt;
 
 
 /** Ring-road tiles each zone must own (F): a frontage of at least 8 tiles along the 3-deep road. The road has 252, a fair share is 50. */
@@ -46,6 +46,8 @@ export const CAMP_GAP = 9;
 export const TERRITORY_RADIUS_MAX = 30;
 /** A cut-off floor piece of a territory this small (tiles) may change zone during the repair; a bigger one fails the attempt. */
 export const STRAY_MAX = 40;
+/** The most tiles of cut-off floor the repair walls up (it holds nothing and joins nothing: see repairTerritories). */
+export const WALL_UP_MAX = 120;
 
 /** Edge cost of the growth: COST_BASE + noise * COST_AMP / 256 (noise 0..255), so 12..47. */
 const COST_BASE = 12;
@@ -103,6 +105,9 @@ export const d2i = (a: number, b: number): number => {
 export const MAPGEN_FAILS: Record<string, number> = {};
 /** Counts a failure under `why` and returns null, the failed result. */
 export const failed = (why: string): null => { MAPGEN_FAILS[why] = (MAPGEN_FAILS[why] ?? 0) + 1; return null; };
+/** Things an attempt did on the way that are not failures (bench and tests read them; nothing in a map depends on them). */
+export const MAPGEN_NOTES: Record<string, number> = {};
+export const note = (what: string, n = 1): void => { MAPGEN_NOTES[what] = (MAPGEN_NOTES[what] ?? 0) + n; };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The zone-specific parts of the fixed layout, built once.
@@ -361,12 +366,17 @@ function balance(mask: Uint8Array, tiles: Int32Array, owner: Uint8Array, k: numb
     const chain: number[] = [];
     for (let v = lo; v !== hi; v = prev[v]) chain.push(v);
     chain.push(hi);
+    // A link that can only hand over part of m still hands that over: the next round takes up from there (stuck only when no tile moves).
+    let progressed = false;
     for (let c = chain.length - 1; c > 0; c--) {
       const from = chain[c], to = chain[c - 1];
-      if (peel(mask, tiles, owner, from, to, m, protect) < m) return false;
-      size[to] += m;
-      size[from] -= m;
+      const got = peel(mask, tiles, owner, from, to, m, protect);
+      size[to] += got;
+      size[from] -= got;
+      if (got > 0) progressed = true;
+      if (got < m) break;
     }
+    if (!progressed) return false;
   }
   return true;
 }
@@ -854,17 +864,47 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
 /**
  * After the cover: each territory's floor must be one 4-connected piece holding its camp. A floor piece cut off (by a
  * ruin wall, a styler wall or a rock) joins the same-zone territory whose floor it touches most. A piece that touches
- * only other zones' floor, of at most STRAY_MAX tiles, changes zone; bits of its old zone's painted area that this cuts
+ * only other zones' floor, of at most STRAY_MAX tiles, is walled up when it holds nothing in `keepOpen` and the rest of the
+ * floor stays one piece without it (the zone keeps its painted area: nothing changes zone); otherwise it changes zone;
+ * bits of its old zone's painted area that this cuts
  * off join the zone they touch, and the painted areas are evened out again by trading boundary WALL tiles only (floor
  * stays where the repair put it). Returns how many tiles changed zone, or null when a cut-off piece cannot be placed
  * (the attempt fails). `zone` and `territoryGrid` are updated in place.
  */
-export function repairTerritories(tiles: Uint8Array, zone: Uint8Array, camps: readonly CampSite[], territoryGrid: Uint8Array): number | null {
+export function repairTerritories(
+  tiles: Uint8Array, zone: Uint8Array, camps: readonly CampSite[], territoryGrid: Uint8Array, keepOpen: Uint8Array,
+): number | null {
   const F = fixedLayout();
   const comp = new Int32Array(N);
   const queue = new Int32Array(N);
   const isFloor = (i: number): boolean => (tiles[i] & MASK_MOVE) === 0;
   let stray = 0, rezoned = 0;
+  let floorTotal = 0;
+  for (let i = 0; i < N; i++) if (isFloor(i)) floorTotal++;
+  const flood = new Int32Array(N), floodMark = new Int32Array(N);
+  let floodNow = 0;
+  // Could the piece in queue[0..n) be walled up: nothing in it is kept open, and the rest of the floor is still one piece?
+  const wallable = (n: number): boolean => {
+    for (let k = 0; k < n; k++) if (keepOpen[queue[k]]) return false;
+    floodNow++;
+    // Mark the piece as visited so the walk around it cannot enter it, then walk the rest of the floor from the centre.
+    const piece = floodNow;
+    for (let k = 0; k < n; k++) floodMark[queue[k]] = piece;
+    floodNow++;
+    const start = CY * W + CX;
+    let head = 0, tail = 0, seen = 0;
+    flood[tail++] = start;
+    floodMark[start] = floodNow;
+    while (head < tail) {
+      const i = flood[head++];
+      seen++;
+      for (let e = 0; e < 4; e++) {
+        const j = i + NB4[e];
+        if (floodMark[j] !== piece && floodMark[j] !== floodNow && isFloor(j)) { floodMark[j] = floodNow; flood[tail++] = j; }
+      }
+    }
+    return seen === floorTotal - n;
+  };
   for (let round = 0; round < 8; round++) {
     comp.fill(-1);
     let moved = false;
@@ -899,10 +939,34 @@ export function repairTerritories(tiles: Uint8Array, zone: Uint8Array, camps: re
           else if (zone[j] === zone[s] && comp[j] > 0) touch[territoryGrid[j]]++;
         }
       }
-      let bestT = 0;
-      for (let u = 1; u <= camps.length; u++) if (touch[u] > 0 && (bestT === 0 || touch[u] > touch[bestT])) bestT = u;
+      // The piece joins the territory it touches most, among those whose camp keeps the whole piece within TERRITORY_RADIUS_MAX.
+      let bestT = 0, bestFits = false;
+      for (let u = 1; u <= camps.length; u++) {
+        if (touch[u] <= 0) continue;
+        let fits = true;
+        for (let k = 0; k < tail && fits; k++) fits = d2i(camps[u - 1].site, queue[k]) <= TERRITORY_RADIUS_MAX * TERRITORY_RADIUS_MAX;
+        if (bestT === 0 || (fits && !bestFits) || (fits === bestFits && touch[u] > touch[bestT])) { bestT = u; bestFits = fits; }
+      }
       // Only other zones' floor around it: from the second round on (when no same-zone home appeared), a small piece
       // changes zone and its tiles join the territory it opens onto most.
+      if (bestT > 0 && tail <= WALL_UP_MAX) {
+        // Joining would stretch the territory past TERRITORY_RADIUS_MAX from its camp: wall the piece up if it can be.
+        const site = camps[bestT - 1].site;
+        let far = false;
+        for (let k = 0; k < tail && !far; k++) far = d2i(site, queue[k]) > TERRITORY_RADIUS_MAX * TERRITORY_RADIUS_MAX;
+        if (far && wallable(tail)) {
+          for (let k = 0; k < tail; k++) tiles[queue[k]] = TILE_WALL;
+          floorTotal -= tail;
+          moved = true;
+          continue;
+        }
+      }
+      if (bestT === 0 && tail <= WALL_UP_MAX && round > 0 && wallable(tail)) {
+        for (let k = 0; k < tail; k++) tiles[queue[k]] = TILE_WALL;
+        floorTotal -= tail;
+        moved = true;
+        continue;
+      }
       if (bestT === 0 && tail <= STRAY_MAX && round > 0) {
         const other = new Int32Array(camps.length + 1);
         for (let k = 0; k < tail; k++) {
@@ -969,7 +1033,8 @@ export function repairTerritories(tiles: Uint8Array, zone: Uint8Array, camps: re
       for (let k = 0; k < tail; k++) zone[queue[k]] = nz;
       changed = true;
     }
-    if (!balance(F.paintedMask, F.painted, zone, ZONES, quota, keep)) return failed("A:areaPost");
+    // A trade that gets stuck stops the evening-out where it is: the areas are judged by the caller's spread check (AREA_TOLERANCE).
+    balance(F.paintedMask, F.painted, zone, ZONES, quota, keep);
     if (!changed) break;
   }
   // Every painted tile in a territory of its own zone: a wall that moved zone takes a neighbouring territory of its new zone.
