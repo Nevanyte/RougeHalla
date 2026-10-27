@@ -274,7 +274,14 @@ export class MapPool implements MapSource {
     const t0 = performance.now();
     for (let i = 0; i < MAP_FALLBACK_SEEDS; i++) {
       const seed = this.nextSeed();
-      const map = this.certify(seed);
+      let map: GameMap | null;
+      try {
+        map = this.certify(seed);
+      } catch (err) {
+        // A seed that throws (a bug in a styler, not a failed attempt) must not refuse the room's join: it is a discard like any other.
+        this.log(`[maps] seed ${seed} threw in the fallback: ${err instanceof Error ? err.message : String(err)}`);
+        map = null;
+      }
       if (!map) {
         this.stats.discards++;
         continue;

@@ -239,6 +239,20 @@ describe("the map pool's rules", () => {
     expect(never.stats.discards).toBe(MAP_FALLBACK_SEEDS);
   });
 
+  it("the fallback treats a seed whose certification throws as a discard and moves on to the next", () => {
+    let calls = 0;
+    const pool = new MapPool({
+      target: 0, warmMain: false, nextSeed: counter(40), ...quiet,
+      certify: (seed) => { if (++calls === 1) throw new Error("styler blew up"); return certifiedMap(seed, SERVER_MAPGEN); },
+    });
+    const map = pool.take();
+    expect(map.seed).toBe(41);
+    expect(pool.stats.discards).toBe(1);
+    const broken = new MapPool({ target: 0, warmMain: false, ...quiet, certify: () => { throw new Error("always"); } });
+    expect(() => broken.take()).toThrow(/certified in no attempt/);
+    expect(broken.stats.discards).toBe(MAP_FALLBACK_SEEDS);
+  });
+
   it("never serves a worker map that does not match its hash or its (seed, attempt)", async () => {
     const pool = new MapPool({
       target: 2, refillAt: 1, nextSeed: counter(300), warmMain: false, ...quiet,
