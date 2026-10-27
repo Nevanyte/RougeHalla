@@ -4,7 +4,7 @@
 import {
   FACTION_IDS, isRanged, POLICIES, WEAPON_BEATS, WEAPONS, type FactionId, type SpacingPolicy, type WeaponId,
 } from "@raid/shared";
-import { runDuel, type Arena, type DuelResult, type Perception } from "./duel";
+import { kitFields, runDuel, type Arena, type DuelResult, type FighterKit, type Perception } from "./duel";
 
 export type Edge = readonly [winner: WeaponId, loser: WeaponId];
 
@@ -73,6 +73,9 @@ export interface MatrixOptions {
   perception?: Perception;
   /** A cap for every duel, or one per faction (their mirror fights last very different times). */
   capSeconds?: number | Readonly<Record<FactionId, number>>;
+  /** What the designed winner (fighter 0) and the designed loser (fighter 1) hold: passives (Quickdraw), or a bare multiplier for a scan. None by default. */
+  winner?: FighterKit;
+  loser?: FighterKit;
 }
 
 export interface Cell {
@@ -135,7 +138,7 @@ function seedOf(edgeIndex: number, factionIndex: number, setupIndex: number): nu
 
 export function duelOf(
   edge: Edge, faction: FactionId, setup: Setup,
-  opts: { arena?: Arena; perception?: Perception; cap: number; seed: number; styles?: readonly [Style, Style] },
+  opts: { arena?: Arena; perception?: Perception; cap: number; seed: number; styles?: readonly [Style, Style]; winner?: FighterKit; loser?: FighterKit },
 ): DuelResult {
   return runDuel({
     faction,
@@ -149,6 +152,7 @@ export function duelOf(
     seed: opts.seed,
     spacing: opts.styles ? [spacingFor(edge[0], opts.styles[0]), spacingFor(edge[1], opts.styles[1])] : undefined,
     locks: opts.styles ? [opts.styles[0] === "lock", opts.styles[1] === "lock"] : undefined,
+    ...(opts.winner || opts.loser ? kitFields(opts.winner, opts.loser) : {}),
   });
 }
 
@@ -161,7 +165,7 @@ export function runMatrix(opts: MatrixOptions = {}, onCell?: (cell: Cell) => voi
     factions.forEach((faction, fi) => {
       const results = setups.map((setup, si) => duelOf(edge, faction, setup, {
         arena: opts.arena, perception: opts.perception, cap: capFor(opts.capSeconds, faction), seed: seedOf(ei, fi, si),
-        styles: opts.styles,
+        styles: opts.styles, winner: opts.winner, loser: opts.loser,
       }));
       const cell: Cell = { edge, faction, results };
       cells.push(cell);

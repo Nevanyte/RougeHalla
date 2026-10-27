@@ -91,6 +91,8 @@ export interface WeaponRuntime {
   lockGoal: Vec2 | null;
   /** When a `target` order last cost a path search (-Infinity: never): at most one per TARGET_REPATH_MS (sim/targeting.ts). */
   lockSearchAt: number;
+  /** Server ms the fighter's last bow arrow or wand ball left it (-Infinity: none yet). Swift Boots' `notShooting` pause counts from it (sim/mods.ts). */
+  lastShotAt: number;
 }
 
 /** Server-only combat data every fighter has, player or mob. */
@@ -711,6 +713,6 @@ export function nextId(world: World, prefix: string): string {
 export function newWeaponRuntime(): WeaponRuntime {
   return {
     action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity,
+    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity, lastShotAt: -Infinity,
   };
 }

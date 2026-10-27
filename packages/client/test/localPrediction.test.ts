@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
   EFFECT_SILENCED, EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, PLAYER_SPEED,
-  scaleWindup, SIG_CHILLED, TILE_FLOOR, TILE_WALL, WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx,
+  scaleWindup, SIG_CHILLED, skillRows, SWIFT_BOOTS_PAUSE_MS, TILE_FLOOR, TILE_WALL, WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
 import { LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalFighter, type OtherFighter, type SentCast } from "../src/net/localPrediction";
@@ -78,6 +78,29 @@ describe("walk speed", () => {
     expect(p.speedMult(0, chilled, [other({ status: "dead" })])).toBe(1);
     expect(p.speedMult(0, fighter(), [other()])).toBe(1); // not chilled: a Frost nearby does not slow it
     expect(p.speedMult(0, chilled, [])).toBe(1);
+  });
+
+  it("Swift Boots: the walk is the mirror through the pause after a shot, which the server writes as 1.06 -> 1 -> 1.06 (rank 1)", () => {
+    // Owner ruling "No boost while shooting": the server turns the bonus off while a bow or wand attack winds up and for
+    // SWIFT_BOOTS_PAUSE_MS after the shot, by patching `speedMult` (sim/mods.ts `notShooting`). The client knows no rule of its own:
+    // it decodes whichever value the latest patch carries, on and off, exactly as the sim's movement multiplies it.
+    for (const rank of [1, 2] as const) {
+      const row = skillRows("swiftBoots", rank)[0]!;
+      expect(row).toMatchObject({ k: "while", cond: "notShooting", ms: SWIFT_BOOTS_PAUSE_MS });
+      const on = decodeMult(encodeMult(1 + (row.k === "while" ? row.v : 0)));
+      expect([1.06, 1.1]).toContain(on);
+      const sequence = [encodeMult(on), encodeMult(1), encodeMult(1), encodeMult(on)];
+      const seen = sequence.map((wire) => p.speedMult(0, fighter({ speedMult: wire }), []));
+      expect(seen).toEqual([on, 1, 1, on]);
+      // It composes with the chill and with Last Stand's haste as any other speed mirror does, in the pause and out of it.
+      const chilled = (wire: number) => fighter({ speedMult: wire, sig: SIG_CHILLED });
+      expect(p.speedMult(0, chilled(encodeMult(on)), [other()])).toBeCloseTo(on * CHILL_MOVE_MULT, 12);
+      expect(p.speedMult(0, chilled(encodeMult(1)), [other()])).toBeCloseTo(CHILL_MOVE_MULT, 12);
+      // The model walks at that speed: a frame is handed the mirror's own number.
+      const q = new LocalPrediction();
+      expect(q.frameInput(0, true, fighter({ speedMult: encodeMult(on) }), [], false).speedMult).toBe(on);
+      expect(q.frameInput(0, true, fighter({ speedMult: encodeMult(1) }), [], false).speedMult).toBe(1);
+    }
   });
 
   it("the mirror multiplies with the chill", () => {

@@ -3,12 +3,20 @@
 // clock, as in botLock.test.ts; nothing here touches a socket or the real server.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  CHEST_RANGE, CHEST_SECONDS, mapFromTiles, PLAYER_SPEED, TILE, TILE_FLOOR, TILE_WALL, type TimedFx, type Vec2,
+  CHEST_RANGE, CHEST_SECONDS, mapFromTiles, mulberry32, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type TimedFx, type Vec2,
 } from "@raid/shared";
 import { BotClient } from "../src/bots/BotClient";
 import {
   CHEST_HUNT, chooseOption, ChestHunter, optionScore, type ChestInput, type ChestLike, type ChestSelf,
 } from "../src/bots/chestHunt";
+import { chestSpot, rewardChests } from "../src/sim/chests";
+import { combatant } from "../src/sim/combatant";
+import { createGameWorld } from "../src/sim/gameplay";
+import { enqueueClientMessage } from "../src/sim/inputs";
+import { applyLedger, recordHit } from "../src/sim/ledger";
+import type { MobCombatant } from "../src/sim/mobLife";
+import { addPlayer, step } from "../src/sim/step";
+import type { SimEvent, World } from "../src/sim/world";
 
 const ME = "me";
 const FIRE_SWORD: Pick<ChestSelf, "faction" | "weapons" | "build"> = { faction: "fire", weapons: ["sword", null], build: null };
@@ -47,9 +55,11 @@ describe("which chest option a bot takes", () => {
   });
 
   it("holds back a skill that needs a weapon it does not carry", () => {
-    // Quickdraw is for the bow and axe (the wand's floor is its whole windup): a sword bot takes the boots over it, an axe bot the other way round.
-    expect(chooseOption(["quickdraw", "swiftBoots"], ["", ""], FIRE_SWORD)).toBe(1);
-    expect(chooseOption(["quickdraw", "swiftBoots"], ["", ""], { ...FIRE_SWORD, weapons: ["axe", null] })).toBe(0);
+    // Quickdraw is for the melee weapons (sword, axe, shield: a bow or wand windup never shortens): a wand bot scores it 3 below a sword or axe bot.
+    const wand = { ...FIRE_SWORD, weapons: ["wand", null] as const };
+    expect(optionScore("quickdraw", FIRE_SWORD) - optionScore("quickdraw", wand)).toBe(3);
+    expect(optionScore("quickdraw", { ...FIRE_SWORD, weapons: ["axe", null] })).toBe(optionScore("quickdraw", FIRE_SWORD));
+    expect(chooseOption(["quickdraw", "whetstone"], ["", ""], wand)).toBe(1);
   });
 
   it("is a pure function of what it is given: the same chest, the same answer, nothing changed", () => {
@@ -73,9 +83,14 @@ describe("which chest option a bot takes", () => {
 const NOW = 50_000;
 const SERVER = 1_000_000;
 
+/** A chest made OLD ms before SERVER: past its birth hold, so a test that is not about the hold picks at its first look. */
+const OLD = 1000;
+/** A chest made at the very tick the first step looks at it (Scene.step moves the clock 50 ms before it decides): age 0. */
+const BORN_AT_FIRST_LOOK = SERVER + 50 + CHEST_SECONDS * 1000;
+
 function chest(id: string, x: number, y: number, o: Partial<ChestLike> = {}): ChestLike {
   return {
-    id, kind: "reward", x, y, expiresAt: SERVER + CHEST_SECONDS * 1000,
+    id, kind: "reward", x, y, expiresAt: SERVER - OLD + CHEST_SECONDS * 1000,
     options: ["whetstone", "swiftBoots", "thickHide"], takenBy: ["", "", ""], pickers: [], ...o,
   };
 }
@@ -176,7 +191,7 @@ describe("the chest hunt", () => {
 
   it("does not walk to a chest it cannot reach before it vanishes", () => {
     const s = new Scene();
-    const reachable = (CHEST_SECONDS * 1000 - CHEST_HUNT.arriveSlackMs) / 1000 * PLAYER_SPEED * CHEST_HUNT.paceShare + CHEST_HUNT.pickRange;
+    const reachable = (CHEST_SECONDS * 1000 - OLD - CHEST_HUNT.arriveSlackMs) / 1000 * PLAYER_SPEED * CHEST_HUNT.paceShare + CHEST_HUNT.pickRange;
     s.chests = [chest("far", reachable + 200, 0)];
     expect(s.step()).toEqual({ kind: "none" });
     s.chests = [chest("edge", reachable - 100, 0)];
@@ -339,6 +354,71 @@ describe("the chest hunt", () => {
   });
 });
 
+describe("the chest hunt and a chest's birth hold", () => {
+  it("holds the one try for the server's hold (two ticks) and one tick more", () => {
+    expect(CHEST_HUNT.holdMs).toBe(3 * TICK_MS);
+    expect(CHEST_HUNT.holdMs).toBeGreaterThan(2 * TICK_MS);
+    expect(CHEST_HUNT.holdMs).toBeLessThan(CHEST_SECONDS * 1000 - CHEST_HUNT.pickMarginMs); // it never eats the chest's life
+  });
+
+  it("a chest in reach at the first look gets no pick in its first ticks, then one pick, and no walk, read or try in between", () => {
+    let reads = 0;
+    const s = new Scene();
+    s.chests = [{
+      ...chest("c1", 60, 0, { expiresAt: BORN_AT_FIRST_LOOK }),
+      get options() { reads++; return ["whetstone", "swiftBoots", "thickHide"]; },
+    }];
+    // The looks at ages 0, 50 and 100 ms wait...
+    expect([s.step().kind, s.step().kind, s.step().kind]).toEqual(["none", "none", "none"]);
+    expect(s.hunter.tried("c1")).toBe(false);
+    expect(reads, "the options are not read while it waits").toBe(0);
+    // ...the one at 150 ms picks.
+    expect(s.step()).toMatchObject({ kind: "pick", chest: "c1", option: 2 });
+    expect(reads).toBeGreaterThan(0);
+    expect(s.walkCalls, "waiting started no walk").toBe(0);
+    expect(s.hunter.stats.walks).toBe(0);
+    for (let i = 0; i < 20; i++) expect(s.step()).toEqual({ kind: "none" });
+  });
+
+  it("a chest first seen already old is picked at once: the age is the chest's own, not the time since the bot looked", () => {
+    for (const ageMs of [CHEST_HUNT.holdMs, CHEST_HUNT.holdMs + 1, 700, 6000]) {
+      const s = new Scene();
+      s.chests = [chest("c1", 60, 0, { expiresAt: SERVER + 50 + CHEST_SECONDS * 1000 - ageMs })];
+      expect(s.step().kind, `${ageMs} ms old`).toBe("pick");
+    }
+    const young = new Scene();
+    young.chests = [chest("c1", 60, 0, { expiresAt: SERVER + 50 + CHEST_SECONDS * 1000 - (CHEST_HUNT.holdMs - 1) })];
+    expect(young.step().kind, "one ms short of the hold").toBe("none");
+    expect(young.step().kind, "and 50 ms on").toBe("pick");
+  });
+
+  it("a young chest out of reach is walked to as ever: the hold only delays the pick, and a bot that arrives early waits", () => {
+    const s = new Scene();
+    s.chests = [chest("c1", 400, 0, { expiresAt: BORN_AT_FIRST_LOOK })];
+    expect(s.step()).toMatchObject({ kind: "walk", chest: "c1" }); // age 0
+    s.self = { ...s.self, x: 330 }; // in reach at age 50 (an early arrival)
+    expect(s.step().kind).toBe("none"); // 50
+    expect(s.step().kind).toBe("none"); // 100
+    expect(s.step().kind).toBe("pick"); // 150
+  });
+
+  it("waiting for a young chest does not hold back a pick at an old one in reach, and walks to no third chest meanwhile", () => {
+    const s = new Scene();
+    s.chests = [chest("young", 60, 0, { expiresAt: BORN_AT_FIRST_LOOK }), chest("old", -60, 0)];
+    expect(s.step()).toMatchObject({ kind: "pick", chest: "old" });
+    s.chests = [chest("young", 60, 0, { expiresAt: BORN_AT_FIRST_LOOK + 50 }), chest("far", 500, 0)];
+    expect(s.step(), "the far chest waits while the one in reach is still in its hold").toEqual({ kind: "none" });
+    expect(s.hunter.stats.walks).toBe(0);
+  });
+
+  it("a young chest behind a wall is walked to (the hold applies to a pick, which needs the sight)", () => {
+    const s = new Scene();
+    s.sight = false;
+    s.chests = [chest("c1", 50, 0, { expiresAt: BORN_AT_FIRST_LOOK })];
+    expect(s.step().kind).toBe("walk");
+  });
+});
+
 // ---------------------------------------------------------------------------------------------------------------- the bot
 
 interface FakeFighter {
@@ -374,7 +454,7 @@ const SERVER_NOW = 5_000_000;
 
 function rewardChest(id: string, x: number, y: number, o: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    id, kind: "reward", x, y, label: "", items: [], camp: 1, expiresAt: SERVER_NOW + CHEST_SECONDS * 1000,
+    id, kind: "reward", x, y, label: "", items: [], camp: 1, expiresAt: SERVER_NOW - OLD + CHEST_SECONDS * 1000, // OLD ms old: past its hold
     options: ["whetstone", "swiftBoots", "thickHide"], takenBy: ["", "", ""], pickers: [], ...o,
   };
 }
@@ -530,6 +610,44 @@ describe("a bot at a camp's shared chest", () => {
     expect(s.b.chestStats).toEqual({ seen: 1, tried: 1, taken: 0, skipped: 0 });
   });
 
+  it("does not spend its one try on a chest in its first ticks: no choose at the first look, one at a later think, none after", () => {
+    const s = scene();
+    // Made in the very tick the bot looks at: age 0 by the chest's own clock.
+    s.state.containers.set("r1", rewardChest("r1", START.x + 50, START.y, { expiresAt: SERVER_NOW + CHEST_SECONDS * 1000 }));
+    s.tick(); // age 0
+    expect(s.types().filter((t) => t === "choose" || t === "move"), "nothing at the first look: no choose, no walk").toEqual([]);
+    expect(s.b.chestChoices.has("r1")).toBe(false);
+    expect(s.b.chestStats).toMatchObject({ seen: 1, tried: 0 });
+    s.tick(); // 50
+    s.tick(); // 100
+    expect(s.chooses()).toEqual([]);
+    s.tick(); // 150: out of the hold
+    expect(s.chooses()).toEqual([{ chest: "r1", pick: 2 }]);
+    for (let i = 0; i < 100; i++) s.tick();
+    expect(s.chooses()).toHaveLength(1);
+    expect(s.b.chestStats).toMatchObject({ seen: 1, tried: 1 });
+  });
+
+  it("picks at once at a chest it first sees already old (it was busy, or came from afar)", () => {
+    const s = scene();
+    s.state.containers.set("r1", rewardChest("r1", START.x + 50, START.y, { expiresAt: SERVER_NOW - 2000 + CHEST_SECONDS * 1000 }));
+    s.tick();
+    expect(s.chooses()).toEqual([{ chest: "r1", pick: 2 }]);
+  });
+
+  it("does not retry a pick that was refused after the hold either", () => {
+    const s = scene();
+    s.state.containers.set("r1", rewardChest("r1", START.x + 50, START.y, { expiresAt: SERVER_NOW + CHEST_SECONDS * 1000 }));
+    for (let i = 0; i < 4; i++) s.tick();
+    expect(s.chooses()).toHaveLength(1);
+    s.b.onToast("Chest gone"); // whatever the server said: the state still shows no pick
+    s.b.onToast("Already taken");
+    for (let i = 0; i < 200; i++) s.tick();
+    expect(s.chooses()).toHaveLength(1);
+    expect(s.b.chestChoices.get("r1")).toBe(1);
+    expect(s.b.chestStats).toEqual({ seen: 1, tried: 1, taken: 0, skipped: 0 });
+  });
+
   it("counts the chests it saw, tried, took and skipped, from the state and from the chestTaken fx, once each", () => {
     const s = scene();
     s.state.containers.set("a", rewardChest("a", START.x + 50, START.y));
@@ -602,5 +720,89 @@ describe("a bot at a camp's shared chest", () => {
     s.state.containers.set("r1", rewardChest("r1", 26 * TILE + 16, START.y));
     for (let i = 0; i < 10; i++) s.tick();
     expect(s.chooses()).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------- the real hold
+
+/**
+ * A bot against the real sim, no sockets: its `room` is the world's own state, and what it sends goes into the player's input
+ * queue as a socket handler would put it. A camp's last mob dies INSIDE a step (a ledger pass), so its chest is born with the
+ * server's two-tick hold (holdBirth): a `choose` that is applied in the next tick gets "Chest gone".
+ */
+describe("a bot at a chest born in a ledger pass (the server's birth hold)", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(CLOCK); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  function rig(): { w: World; b: Brain; sent: Sent } {
+    const w = createGameWorld({
+      seed: 1234,
+      config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true },
+      random: mulberry32(1235), rewardSalt: 4321,
+    });
+    addPlayer(w, "p0", "alice", { faction: "fire" });
+    addPlayer(w, "p1", "bob", { faction: "holy" });
+    step(w, TICK_MS);
+    expect(w.state.phase).toBe("active");
+    const sent: Sent = [];
+    const b = new BotClient() as unknown as Brain;
+    b.map = w.map;
+    b.room = {
+      sessionId: "p0", state: w.state,
+      send: (type: string, msg: Record<string, unknown>) => { sent.push({ type, msg }); enqueueClientMessage(w.players.get("p0")!.inputs, type, msg); },
+    };
+    const mobs = [...w.state.mobs].filter(([, m]) => m.camp === 1).map(([id]) => combatant(w, id) as MobCombatant);
+    expect(mobs.length, "camp 0 has its mobs").toBeGreaterThan(1);
+    const hit = (m: MobCombatant): void => {
+      recordHit(w, { victim: m.id, by: { id: "p1", name: "p1" }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
+    };
+    for (const m of mobs.slice(1)) hit(m);
+    applyLedger(w); // all but one die between ticks: the camp is not cleared yet
+    expect(rewardChests(w)).toHaveLength(0);
+    let fired = false;
+    w.beforeDamage.push(() => { if (!fired) { fired = true; hit(mobs[0]!); } }); // the last one dies in the next step's own pass
+    return { w, b, sent };
+  }
+
+  it("takes its first pick, not a 'Chest gone': it waits out the hold before it spends its one choose", () => {
+    const { w, b, sent } = rig();
+    const spot = chestSpot(w, 0)!;
+    const me = w.state.players.get("p0")!;
+    const toasts: string[] = [];
+    const tickOnce = (): SimEvent[] => {
+      const events = step(w, TICK_MS);
+      for (const e of events) if (e.type === "toast" && e.to === "p0") toasts.push(e.text);
+      vi.advanceTimersByTime(TICK_MS);
+      me.x = spot.x; // it stands at the chest the whole time: nothing but the hold is in the way
+      me.y = spot.y;
+      w.players.get("p0")!.history = [{ t: w.state.serverTime, x: me.x, y: me.y }];
+      b.think();
+      return events;
+    };
+    tickOnce(); // the camp's last mob dies in this step; the chest is born and published
+    const box = rewardChests(w)[0]!;
+    expect(box, "the camp's chest dropped").toBeDefined();
+    expect(sent.filter((m) => m.type === "choose"), "no choose at the first look").toEqual([]);
+    for (let i = 0; i < 10; i++) tickOnce();
+    expect(sent.filter((m) => m.type === "choose")).toHaveLength(1);
+    expect(toasts.filter((t) => t === "Chest gone"), "the hold did not eat the try").toEqual([]);
+    expect([...box.pickers], "the server took the pick").toContain("p0");
+    expect(b.chestStats).toMatchObject({ seen: 1, tried: 1 });
+    expect(b.chestStats.taken + b.chestStats.skipped, "and the bot saw it").toBe(1);
+    const mine = [...box.takenBy].indexOf("p0");
+    if (b.chestStats.taken === 1) {
+      expect(mine, "the option is marked as the bot's").toBeGreaterThanOrEqual(0);
+      expect(me.build.get(box.options[mine]!)).toBe(1);
+    }
+  });
+
+  it("(control) a pick sent at the first look is refused by the same hold: the wait is what the server needs", () => {
+    const { w } = rig();
+    step(w, TICK_MS); // the chest is born in this step's pass
+    const box = rewardChests(w)[0]!;
+    const q = w.players.get("p0")!.inputs;
+    enqueueClientMessage(q, "choose", { chest: box.id, pick: 0 });
+    const events = step(w, TICK_MS);
+    expect(events.filter((e) => e.type === "toast" && e.to === "p0").map((e) => (e as { text: string }).text)).toEqual(["Chest gone"]);
   });
 });

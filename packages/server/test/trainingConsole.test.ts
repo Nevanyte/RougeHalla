@@ -303,10 +303,10 @@ describe("train passive", () => {
     const p = me(world);
     train(world, { cmd: "buff", id: "plagueRat", amount: 3 });
     train(world, { cmd: "passive", id: "swiftBoots", rank: 2 }); // +10% move speed
-    train(world, { cmd: "passive", id: "quickdraw", rank: 2 }); // -12% windup
+    train(world, { cmd: "passive", id: "quickdraw", rank: 2 }); // -75% melee windup
     expect(decodeMult(p.asMult)).toBeCloseTo(1.08, 3);
     expect(decodeMult(p.speedMult)).toBeCloseTo(1.1, 3);
-    expect(decodeMult(p.windupMult)).toBeCloseTo(0.88, 3);
+    expect(decodeMult(p.windupMult)).toBeCloseTo(0.25, 3);
     train(world, { cmd: "passive", id: "swiftBoots", rank: 0 });
     expect(p.speedMult).toBe(IDENTITY.speedMult);
     expect(decodeMult(p.asMult)).toBeCloseTo(1.08, 3);

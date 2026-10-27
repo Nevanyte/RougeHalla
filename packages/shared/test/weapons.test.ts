@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, backlashPerSwing, BOW_WINDUP, BOW_WINDUP_FLOOR, BOW_WINDUP_SHARE, damagePerHit, DUEL_PACE, FACTION_IDS, FACTIONS, MAX_SIGHT_CORRIDOR,
+  attackInterval, backlashPerSwing, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, DUEL_PACE, FACTION_IDS, FACTIONS, MAX_SIGHT_CORRIDOR,
   pacedFaction, PLAYER_RADIUS, RANGED_HIT_REACH, RANGED_SLACK, SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS,
-  WAND_WINDUP, WAND_WINDUP_FLOOR, WAND_WINDUP_SHARE, weaponEdge, weaponTimings, type FactionId, type WeaponId,
+  WAND_WINDUP, WAND_WINDUP_SHARE, weaponEdge, weaponTimings, type FactionId, type WeaponId,
 } from "../src/index";
 
 /**
@@ -168,7 +168,7 @@ describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
 
   it("caps the wand cast at 0.4 s or 80% of the interval, with no slow after it", () => {
     expect([WAND_WINDUP, WAND_WINDUP_SHARE]).toEqual([0.4, 0.8]);
-    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.4, root: 0, ranged: true, windupFloor: WAND_WINDUP_FLOOR });
+    expect(weaponTimings("wand", 1.01)).toEqual({ interval: 1.01, windup: 0.4, root: 0, ranged: true });
     const fast = weaponTimings("wand", 0.3276);
     expect(fast.windup).toBeCloseTo(0.26208, 12);
     expect(fast).not.toHaveProperty("castSlow");
@@ -176,19 +176,17 @@ describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
 
   it("makes the bow's draw a fixed windup inside its interval: min(0.6 s, 92%), the same every shot", () => {
     expect([BOW_WINDUP, BOW_WINDUP_SHARE]).toEqual([0.6, 0.92]);
-    expect(weaponTimings("bow", 1.14)).toEqual({ interval: 1.14, windup: 0.6, root: 0, ranged: true, windupFloor: BOW_WINDUP_FLOOR });
+    expect(weaponTimings("bow", 1.14)).toEqual({ interval: 1.14, windup: 0.6, root: 0, ranged: true });
     expect(weaponTimings("bow", 0.2772).windup).toBeCloseTo(0.255024, 12);
     // No partial draws, no cooldown after the loose: the whole interval is the cycle.
     for (const key of ["fullDraw", "minDraw", "cooldown", "castSlow"]) expect(weaponTimings("bow", 1.14)).not.toHaveProperty(key);
   });
 
-  it("floors the ranged windups for a windup mod (owner ruling): bow 0.55 s, wand its whole 0.4 s; melee has no floor", () => {
-    expect([BOW_WINDUP_FLOOR, WAND_WINDUP_FLOOR]).toEqual([0.55, 0.4]);
-    expect(BOW_WINDUP_FLOOR).toBeLessThan(BOW_WINDUP);
-    expect(WAND_WINDUP_FLOOR).toBeLessThanOrEqual(WAND_WINDUP);
-    for (const w of ["sword", "shield", "axe"] as const) expect(weaponTimings(w, 1)).not.toHaveProperty("windupFloor");
-    expect(weaponTimings("bow", 0.3).windupFloor).toBe(BOW_WINDUP_FLOOR);
-    expect(weaponTimings("wand", 0.3).windupFloor).toBe(WAND_WINDUP_FLOOR);
+  it("carries no per-weapon floor: a windup mod shortens melee only, by scaleWindup's own rule (owner ruling \"Melee windups only\")", () => {
+    for (const w of ["sword", "shield", "axe", "bow", "wand"] as const) expect(weaponTimings(w, 1)).not.toHaveProperty("windupFloor");
+    expect(weaponTimings("bow", 0.3).ranged).toBe(true);
+    expect(weaponTimings("wand", 0.3).ranged).toBe(true);
+    for (const w of ["sword", "shield", "axe"] as const) expect(weaponTimings(w, 1).ranged).toBe(false);
   });
 
   it("lands sword and bash hits 0.1 s in", () => {
