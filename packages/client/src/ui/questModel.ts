@@ -146,7 +146,7 @@ export function questReady(quest: QuestStateLike, def: QuestDef, localId: string
 }
 
 export function questRows(
-  quests: QuestCollection, localId: string, serverNow: number,
+  quests: QuestCollection, localId: string, serverNow: number, localName = "",
 ): QuestRow[] {
   const rows: QuestRow[] = [];
   quests.forEach((quest) => {
@@ -154,15 +154,18 @@ export function questRows(
     const def = questDefById(quest.def);
     if (!def) return;
     const ready = questReady(quest, def, localId);
-    const expired = quest.status === "open" && serverNow >= quest.expiresAt;
+    const expired = quest.status === "expired" || (quest.status === "open" && serverNow >= quest.expiresAt);
     const status = quest.status === "done" ? `Done by ${quest.doneBy || "someone"}` : expired ? "Expired" : ready ? "Return to the giver" : "Open";
-    const progress = def.kind === "fetch" ? `${quest.carrier === localId ? 1 : 0} / 1` : `${numberText(Math.min(def.count, quest.progress.get(localId) ?? 0))} / ${numberText(def.count)}`;
+    const wonFetch = quest.status === "done" && def.kind === "fetch" && quest.doneBy === localName;
+    const progress = def.kind === "fetch" ? `${wonFetch || quest.carrier === localId ? 1 : 0} / 1` : `${numberText(Math.min(def.count, quest.progress.get(localId) ?? 0))} / ${numberText(def.count)}`;
     rows.push({
-      id: quest.id, def, quest, objective: questObjective(def), progress, time: formatQuestTime(quest.expiresAt - serverNow),
+      id: quest.id, def, quest, objective: questObjective(def), progress,
+      time: quest.status === "open" && !expired ? formatQuestTime(quest.expiresAt - serverNow) : "",
       reward: questReward(def), status, ready, expired,
     });
   });
-  rows.sort((a, b) => a.def.name.localeCompare(b.def.name));
+  const group = (row: QuestRow): number => row.quest.status === "open" && !row.expired ? 0 : row.quest.status === "done" ? 1 : 2;
+  rows.sort((a, b) => group(a) - group(b) || a.def.name.localeCompare(b.def.name));
   return rows;
 }
 

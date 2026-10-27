@@ -1,29 +1,12 @@
-// QUESTBENCH report-only balance harness.
-// Completion time is seconds from raid start to the automatic turn-in. Power is shared buffPower, not GV or passives.
-// The quest/farm ratio compares the median observed one-tick quest reward with the median pure-farm-only power at the
-// same elapsed times; it is an opportunity-cost estimate, not a paired counterfactual. Deaths/fights are within eight
-// tiles of a giver, quest item, or relevant kill camp and can be attributed to more than one nearby quest.
-import { buffPower, FACTION_IDS, mulberry32, TICK_MS, type Vec2 } from "@raid/shared";
+// QUESTBENCH report-only balance harness. See the printed READ THIS header for metric definitions.
+import { FACTION_IDS, mulberry32, TICK_MS, type Vec2 } from "@raid/shared";
 import { createGameWorld } from "../sim/gameplay";
 import { addPlayer, step } from "../sim/step";
 import type { SimConfig, World } from "../sim/world";
 import {
-  driveQuestPolicy, QUEST_SITE_RADIUS, QUEST_POLICY_IDS,
-  type PolicyMemory, type QuestDecisionView, type QuestDefView, type QuestPolicyId,
+  driveQuestPolicy, liveBuffPower, QUEST_SITE_RADIUS, QUEST_POLICY_IDS,
+  type PolicyMemory, type QuestDefView, type QuestPolicyId,
 } from "./questBenchPolicy";
-
-interface QuestOfferView extends QuestDecisionView {
-  containers?: string[];
-  placement?: { tokens?: Vec2[]; parcel?: Vec2 };
-}
-
-interface QuestsRuntimeView {
-  quests: Map<string, QuestOfferView>;
-}
-
-function questsRuntime(world: World): QuestsRuntimeView | undefined {
-  return (world as unknown as { quests?: QuestsRuntimeView }).quests;
-}
 
 export interface QuestBenchOptions {
   seeds: number;
@@ -37,9 +20,17 @@ export interface QuestCompletionSample {
   name: string;
   policy: QuestPolicyId;
   seconds: number;
+  costSeconds: number;
   buffBefore: number;
   buffAfter: number;
   buffGain: number;
+}
+
+export interface QuestAttemptSample {
+  defId: string;
+  name: string;
+  policy: QuestPolicyId;
+  playerId: string;
 }
 
 export interface PowerTimeline {
@@ -56,6 +47,7 @@ export interface QuestRunObservation {
   ticks: number;
   questRuntime: boolean;
   offers: Array<{ defId: string; name: string }>;
+  attempts: QuestAttemptSample[];
   completions: QuestCompletionSample[];
   sites: Record<string, { deaths: number; fights: number }>;
   timelines: PowerTimeline[];
@@ -69,19 +61,19 @@ export interface QuestBenchObservation {
 }
 
 interface TrackedOffer {
-  q: QuestOfferView;
+  q: NonNullable<World["quests"]>["quests"] extends Map<string, infer Q> ? Q : never;
   sites: Vec2[];
   counted: boolean;
 }
 
-function offerSites(world: World, q: QuestOfferView): Vec2[] {
+function offerSites(world: World, q: TrackedOffer["q"]): Vec2[] {
   const out: Vec2[] = [{ x: q.s.x, y: q.s.y }];
-  for (const id of q.containers ?? []) {
+  for (const id of q.containers) {
     const box = world.state.containers.get(id);
     if (box) out.push({ x: box.x, y: box.y });
   }
-  for (const at of q.placement?.tokens ?? []) out.push(at);
-  if (q.placement?.parcel) out.push(q.placement.parcel);
+  for (const at of q.placement.tokens ?? []) out.push(at);
+  if (q.placement.parcel) out.push(q.placement.parcel);
   const def = q.def;
   if (def.kind === "kill" && !def.players) {
     world.map.camps.forEach((camp) => {
@@ -114,14 +106,14 @@ function runOne(
   seed: number, scenario: string, lobby: "uniform" | "mixed", policies: readonly QuestPolicyId[], options: QuestBenchOptions,
   factionOffset = 0,
 ): QuestRunObservation {
-  const config: SimConfig & { quests?: boolean } = {
+  const config: SimConfig = {
     minPlayers: policies.length,
     lobbySeconds: 0,
     fillSeconds: 0,
-    patienceSeconds: 300,
-    patienceMinSeconds: 120,
-    suddenDeathSeconds: 60,
-    firstPatienceSeconds: 300,
+    patienceSeconds: 1_000_000,
+    patienceMinSeconds: 1_000_000,
+    suddenDeathSeconds: 1_000_000,
+    firstPatienceSeconds: 1_000_000,
     mobs: true,
     planSeconds: 0,
     quests: true,
@@ -139,10 +131,11 @@ function runOne(
   if (world.state.phase !== "active") throw new Error(`seed ${seed} ${scenario}: raid did not start`);
 
   const observation: QuestRunObservation = {
-    seed, scenario, ticks: 0, questRuntime: !!questsRuntime(world), offers: [], completions: [], sites: {}, timelines: [], mixed: [],
+    seed, scenario, ticks: 0, questRuntime: world.quests !== null, offers: [], attempts: [], completions: [], sites: {},
+    timelines: [], mixed: [],
   };
   const offers: TrackedOffer[] = [];
-  for (const q of questsRuntime(world)?.quests.values() ?? []) {
+  for (const q of world.quests?.quests.values() ?? []) {
     offers.push({ q, sites: offerSites(world, q), counted: false });
     observation.offers.push({ defId: q.def.id, name: q.def.name });
   }
@@ -152,26 +145,39 @@ function runOne(
   const previousStatus = new Map<string, string>();
   const previousTargets = new Map<string, string>();
   const previousMobModes = new Map<string, string>();
+  const previousCompletion = new Map<string, number>();
+  const selectedQuests = new Map<string, string | null>();
   const startedAt = world.state.raidStartedAt;
   for (const [id, p] of world.state.players) {
     memories.set(id, {
       goal: "", movedAt: -Infinity, pickupAt: -Infinity, questId: null, camp: 0, campOwner: "", itemId: null,
-      mobKills: p.mobKills, lastMobFaction: "", tourRegions: new Set(),
+      mobKills: p.mobKills, lastMobFaction: "", tourRegions: new Set(), farmCamp: 0, farmCampAt: 0,
+      farmCampKills: p.mobKills, farmRetreatUntil: 0, farmBanned: new Map(),
     });
-    timelines.set(id, { seconds: [0], power: [buffPower(p.buffs)] });
-    previousPower.set(id, buffPower(p.buffs));
+    timelines.set(id, { seconds: [0], power: [liveBuffPower(p.buffs)] });
+    previousPower.set(id, liveBuffPower(p.buffs));
     previousStatus.set(id, p.status);
     previousTargets.set(id, p.attackTarget);
+    selectedQuests.set(id, null);
+    previousCompletion.set(id, 0);
     if (lobby === "mixed") observation.mixed.push({ id, policy: policyAt(policies, id), win: false });
   }
   const maxTicks = Math.ceil(options.capSeconds * 1000 / TICK_MS);
   for (let tick = 0; tick < maxTicks && world.state.phase === "active"; tick++) {
     for (const [id] of world.players) {
       driveQuestPolicy(world, policyAt(policies, id), id, memories.get(id)!);
+      const selected = memories.get(id)!.questId;
+      if (selected !== selectedQuests.get(id)) {
+        selectedQuests.set(id, selected);
+        const q = selected ? world.quests?.quests.get(selected) : undefined;
+        if (q) observation.attempts.push({
+          defId: q.def.id, name: q.def.name, policy: policyAt(policies, id), playerId: id,
+        });
+      }
       const p = world.state.players.get(id)!;
       previousTargets.set(id, p.attackTarget);
       previousStatus.set(id, p.status);
-      previousPower.set(id, buffPower(p.buffs));
+      previousPower.set(id, liveBuffPower(p.buffs));
     }
     for (const [id, rt] of world.mobs) previousMobModes.set(id, rt.brain?.mode ?? "");
 
@@ -184,17 +190,19 @@ function runOne(
       if (offer.counted || q.s.status !== "done") continue;
       offer.counted = true;
       const player = [...world.state.players.entries()].find(([, p]) => p.name === q.s.doneBy);
-      const after = player ? buffPower(player[1].buffs) : 0;
+      const after = player ? liveBuffPower(player[1].buffs) : 0;
       const before = player ? previousPower.get(player[0]) ?? after : after;
       observation.completions.push({
         defId: q.def.id,
         name: q.def.name,
         policy: player ? policyAt(policies, player[0]) : "farm-only",
         seconds: elapsed,
+        costSeconds: player ? elapsed - (previousCompletion.get(player[0]) ?? 0) : elapsed,
         buffBefore: before,
         buffAfter: after,
         buffGain: after - before,
       });
+      if (player) previousCompletion.set(player[0], elapsed);
     }
     for (const [id, p] of world.state.players) {
       if (previousStatus.get(id) === "alive" && p.status !== "alive") noteSite(observation, offers, p, "deaths");
@@ -204,7 +212,7 @@ function runOne(
       let sample = Math.floor(timeline.seconds[timeline.seconds.length - 1]!) + 1;
       while (elapsed >= sample) {
         timeline.seconds.push(sample);
-        timeline.power.push(buffPower(p.buffs));
+        timeline.power.push(liveBuffPower(p.buffs));
         sample++;
       }
     }
@@ -228,11 +236,7 @@ function runOne(
     const timeline = timelines.get(id)!;
     if (timeline.seconds[timeline.seconds.length - 1] !== finalSeconds) {
       timeline.seconds.push(finalSeconds);
-      timeline.power.push(buffPower(p.buffs));
-    }
-    if (finalSeconds < options.capSeconds) {
-      timeline.seconds.push(options.capSeconds);
-      timeline.power.push(buffPower(p.buffs));
+      timeline.power.push(liveBuffPower(p.buffs));
     }
     observation.timelines.push({
       policy: policyAt(policies, id),
@@ -252,7 +256,7 @@ export function runQuestBench(options: QuestBenchOptions): QuestBenchObservation
         const label = `seed ${seed}/${options.seeds} ${policy} seat ${seat + 1}/${options.players}`;
         options.log?.(label);
         try {
-          out.runs.push(runOne(seed, policy, "uniform", [policy], options, seat));
+          out.runs.push(runOne(seed, policy, "uniform", [policy], options, seat + seed - 1));
         } catch (error) {
           out.errors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -280,6 +284,21 @@ export function timelinePowerAt(timeline: PowerTimeline, seconds: number): numbe
   const span = timeline.seconds[i]! - timeline.seconds[a]!;
   const share = span > 0 ? (seconds - timeline.seconds[a]!) / span : 0;
   return timeline.power[a]! + (timeline.power[i]! - timeline.power[a]!) * share;
+}
+
+/** First interpolated crossing, or null when this run is right-censored below the requested live-power gain. */
+export function farmSecondsForGain(timeline: PowerTimeline, gain: number): number | null {
+  if (!(gain > 0)) return 0;
+  for (let i = 0; i < timeline.seconds.length; i++) {
+    const power = timeline.power[i]!;
+    if (power < gain) continue;
+    if (i === 0) return timeline.seconds[i]!;
+    const before = timeline.power[i - 1]!;
+    const span = power - before;
+    const share = span > 0 ? (gain - before) / span : 0;
+    return timeline.seconds[i - 1]! + (timeline.seconds[i]! - timeline.seconds[i - 1]!) * share;
+  }
+  return null;
 }
 
 export function questDefName(def: QuestDefView): string {

@@ -126,6 +126,11 @@ export class Hud {
     uiRoot().append(this.root, this.center, this.deathLine);
   }
 
+  /** Bottom of the HUD plate in the unscaled #ui coordinate system, for overlays docked beneath it. */
+  get bottom(): number {
+    return this.root.offsetTop + this.root.offsetHeight;
+  }
+
   /** The ground chips for the tile the local fighter stands on; null shows none. Cheap to call every frame. */
   setTerrain(states: TerrainStates | null): void {
     this.terrain.update(states);

@@ -1,11 +1,11 @@
 #ui > .quest-log {
   position: absolute;
-  z-index: 8;
-  top: 92px;
+  z-index: 11;
+  top: var(--quest-log-top, 92px);
   left: 12px;
   box-sizing: border-box;
   width: min(370px, calc(var(--ui-w, 800px) - 24px));
-  max-height: calc(var(--ui-h, 600px) - 220px);
+  max-height: max(72px, calc(var(--ui-h, 600px) - var(--quest-log-top, 92px) - 108px));
   padding: 12px;
   overflow: auto;
   overscroll-behavior: contain;
@@ -33,5 +33,3 @@
 .quest-log-progress { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 11px; }
 .quest-log-status { color: var(--quest-color); text-align: right; }
 .quest-log-rumoured { margin-top: 10px; }
-html[data-ui-narrow] #ui > .quest-log { top: 72px; max-height: calc(var(--ui-h, 600px) - 180px); }
-html[data-ui-short] #ui > .quest-log { top: 64px; max-height: calc(var(--ui-h, 600px) - 150px); }

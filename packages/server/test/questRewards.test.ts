@@ -30,7 +30,7 @@ function makeRun(feed = 0): World {
     mobs: false,
     quests: true,
   };
-  const world = createGameWorld({ seed: 99, config, random: mulberry32(100), rewardSalt: 123, map: openMap() });
+  const world = createGameWorld({ config, random: mulberry32(100), rewardSalt: 123, map: openMap() });
   addPlayer(world, "p0", "alice");
   addPlayer(world, "p1", "bob");
   step(world, TICK_MS);
@@ -86,14 +86,14 @@ describe("quest rewards", () => {
     expect(fedStacks).toBeLessThan(hungryStacks * 0.5);
   });
 
-  it("uses the feed brake without adding the mob catch-up multiplier", () => {
+  it("uses the mob reward multiplier, including catch-up for a trailing player", () => {
     const world = makeRun();
     world.state.players.get("p1")!.kills = 20;
     const qt = ready(world, "cull-fire");
 
     complete(world, qt);
 
-    expect(P(world).buffs.get(qt.def.reward.buff)).toBeCloseTo(qt.def.reward.stacks * rewardCurve(0), 5);
+    expect(P(world).buffs.get(qt.def.reward.buff)).toBeCloseTo(qt.def.reward.stacks * rewardCurve(0) * 1.25, 5);
   });
 
   it("caps only the separate per-run quest GV pot at QUEST_GV_CAP", () => {

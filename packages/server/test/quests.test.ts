@@ -33,7 +33,7 @@ function makeLobby(o: WorldOpts = {}): World {
     suddenDeathSeconds: 60, mobs: false, quests: o.quests ?? true, training: o.training,
   };
   const seed = o.seed ?? 99;
-  const game = createGameWorld({ seed, config, random: mulberry32(seed + 1), map: openMap() });
+  const game = createGameWorld({ config, random: mulberry32(seed + 1), map: openMap() });
   for (let i = 0; i < players; i++) addPlayer(game, `p${i}`, NAMES[i]!);
   return game;
 }

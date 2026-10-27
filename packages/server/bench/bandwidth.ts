@@ -1,6 +1,6 @@
 // Budget check for the Phase 11 wire: bytes per second one client receives with 8 players and the map's 80 or so mobs
 // (20 camps of 3 to 5, roguelike R2), as many of them awake and fighting as 8 players can pull. Headless, no sockets: it runs the real sim and encodes what RaidRoom would send.
-//   npx tsx bench/bandwidth.ts                 (from packages/server; seed=N ticks=N override the defaults)
+//   npx tsx bench/bandwidth.ts                 (from packages/server; seed=N ticks=N quests=1 override the defaults)
 // test/bandwidth.test.ts runs the same scenarios against the gate (under 20 KB/s per client).
 //
 // What is counted, per client (the room has no StateView, so every client gets the same bytes):
@@ -76,6 +76,8 @@ export interface BandwidthOptions {
   strafeMs?: number;
   /** Camp chests (R5) kept up at all times besides the ones the fights drop: each picked at 3 s, skipped at 6 s, replaced when it expires. */
   chests?: number;
+  /** Quest offers, givers and items. Off by default; `quests=1` on the CLI. */
+  quests?: boolean;
   /** Called after every measured step, before the patch is encoded: for analysis scripts that look at what changed. */
   probe?: (world: World) => void;
   /** Called after every measured step with the size of that tick's patch frame (0 when nothing changed). */
@@ -121,13 +123,15 @@ function sessionId(rnd: () => number): string {
   return s;
 }
 
-function config(players: number, mobs: boolean): SimConfig {
+function config(players: number, mobs: boolean, quests: boolean): SimConfig {
   // Nothing ends the run while we measure: no patience teleport, no sudden death.
   return {
     minPlayers: players, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 1e6, patienceMinSeconds: 1e6,
-    suddenDeathSeconds: 1e6, mobs,
+    suddenDeathSeconds: 1e6, mobs, quests,
   };
 }
+
+const isRegionalMob = (m: { kind: string }): boolean => m.kind === "mob" || m.kind === "elite";
 
 /** Ticks between the wake-ups of an occupied camp: every mob of it turns on the player standing there (a mob already fighting just gains threat). */
 const WAKE_TICKS = 10;
@@ -175,13 +179,16 @@ interface Driver {
  * clearing and so inside the camp's territory, and carries the camp's reference: it leashes like the shipped mobs.
  */
 function topUp(world: World, d: Driver, target: number): void {
-  if (world.mobs.size >= target || d.camps.length === 0) return;
+  if (d.camps.length === 0) return;
   const count = d.camps.map(() => 0);
+  let total = 0;
   for (const [id, rt] of world.mobs) {
-    const ref = world.state.mobs.get(id)?.camp ?? 0;
-    if (rt.brain && ref >= 1 && ref <= count.length) count[ref - 1]!++;
+    const m = world.state.mobs.get(id)!;
+    if (!isRegionalMob(m)) continue;
+    total++;
+    if (rt.brain && m.camp >= 1 && m.camp <= count.length) count[m.camp - 1]!++;
   }
-  while (world.mobs.size < target) {
+  while (total < target) {
     let ci = 0;
     count.forEach((n, i) => {
       if (n < count[ci]!) ci = i;
@@ -193,6 +200,7 @@ function topUp(world: World, d: Driver, target: number): void {
       region, elite: false, at: freeFloorNear(world, spot, 12, 24, d.placeRnd) ?? spot, facing: Math.atan2(camp.y - spot.y, camp.x - spot.x),
       camp: ci,
     });
+    total++;
   }
 }
 
@@ -224,8 +232,11 @@ function nearestTarget(world: World, d: Driver, pid: string): Combatant | null {
       bestId = id;
     }
   };
-  if (d.campOf.has(pid)) for (const [mid, m] of world.state.mobs) consider(mid, m);
-  else for (const [oid, o] of world.state.players) if (oid !== pid) consider(oid, o);
+  if (d.campOf.has(pid)) {
+    for (const [mid, m] of world.state.mobs) if (isRegionalMob(m)) consider(mid, m);
+  } else {
+    for (const [oid, o] of world.state.players) if (oid !== pid) consider(oid, o);
+  }
   return bestId === null ? null : combatant(world, bestId);
 }
 
@@ -233,7 +244,7 @@ function nearestTarget(world: World, d: Driver, pid: string): Combatant | null {
 function drivePlayers(world: World, d: Driver, mobsWanted: number, strafeMs: number): void {
   const now = world.state.serverTime;
   d.ticks++;
-  if (mobsWanted > 0 && world.mobs.size < mobsWanted) topUp(world, d, mobsWanted);
+  if (mobsWanted > 0) topUp(world, d, mobsWanted);
   for (const pid of d.ids) {
     const c = combatant(world, pid);
     if (!c || c.s.status !== "alive") continue;
@@ -368,7 +379,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const map = generateMap(seed);
   const mobsWanted = opts.mobs ?? map.camps.reduce((n, c) => n + c.spots.length, 0);
   const world = createGameWorld({
-    seed, config: config(playerCount, mobsWanted > 0), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
+    seed, config: config(playerCount, mobsWanted > 0, opts.quests === true), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
   });
   // What the room's SchemaSerializer does in `reset(state)`, before anyone joins.
   const encoder = new Encoder(world.state);
@@ -420,7 +431,18 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     });
   } else {
     topUp(world, driver, mobsWanted);
-    if (camps === 0) teleportToColiseum(world);
+    if (camps === 0) {
+      teleportToColiseum(world);
+      // The north gate's inner lane is clear in every pillar variant: two rows give all eight players line of sight.
+      const gate = world.map.coliseum.gates[0]!;
+      ids.forEach((pid, i) => {
+        const tile = gate.tiles[i % gate.tiles.length]!;
+        const p = world.state.players.get(pid)!;
+        p.x = tileToWorldCenter(tile.x);
+        p.y = tileToWorldCenter(tile.y + 1 + Math.floor(i / gate.tiles.length));
+        world.players.get(pid)!.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
+      });
+    }
   }
   if (MELEE_STAND_IN) installMeleeStandIn(world);
 
@@ -523,6 +545,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const common: BandwidthOptions = {};
   if (args.seed !== undefined) common.seed = Number(args.seed);
   if (args.ticks !== undefined) common.ticks = Number(args.ticks);
+  common.quests = args.quests === "1" || args.quests === "true";
   const f = (n: number): string => n.toFixed(2);
   const show = (label: string, o: BandwidthOptions): void => {
     const r = runBandwidth({ ...common, ...o });

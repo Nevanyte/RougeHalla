@@ -36,7 +36,7 @@ export class PlanningQuests {
     this.element.hidden = !planning;
     this.markers.hidden = !planning;
     if (!planning) return;
-    const rows = this.quests ? questRows(this.quests, frame.localId, frame.serverNow) : [];
+    const rows = this.quests ? questRows(this.quests, frame.localId, frame.serverNow).filter((row) => row.quest.status === "open" && !row.expired) : [];
     const hidden = Math.max(0, Math.floor(frame.hiddenQuests ?? 0));
     const signature = rows.map((r) => `${r.id}|${r.def.expiresAtSec}|${r.status}`).join("|") + `|${hidden}|${this.map?.seed ?? ""}`;
     if (signature === this.signature) return;

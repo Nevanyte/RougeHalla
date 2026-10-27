@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { Decoder, Encoder, Reflection } from "@colyseus/schema";
+import type { RaidState } from "@raid/shared/schema";
 import {
   mapFromTiles, mulberry32, QUEST_REVEAL_RADIUS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, questDefById,
 } from "@raid/shared";
 import { createGameWorld } from "../src/sim/gameplay";
 import { offerQuest } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
-import type { SimConfig, SimEvent, World } from "../src/sim/world";
+import { tieRank, type SimConfig, type SimEvent, type World } from "../src/sim/world";
 
 function openMap(side = 24) {
   const tiles = new Uint8Array(side * side).fill(TILE_FLOOR);
@@ -26,7 +28,7 @@ function makeRun(): World {
     mobs: false,
     quests: true,
   };
-  const world = createGameWorld({ seed: 99, config, random: mulberry32(100), rewardSalt: 123, map: openMap() });
+  const world = createGameWorld({ config, random: mulberry32(1), rewardSalt: 123, map: openMap() });
   addPlayer(world, "p0", "alice");
   addPlayer(world, "p1", "bob");
   step(world, TICK_MS);
@@ -62,7 +64,7 @@ describe("hidden quests", () => {
     expect(synced).not.toContain(qt.def.giver);
   });
 
-  it("gives only the finder a private discovery, then publishes after exactly four seconds", () => {
+  it("gives only the lowest-tieRank finder a private discovery, then publishes after exactly four seconds", () => {
     const world = makeRun();
     const qt = offerHidden(world);
     for (const id of ["p0", "p1"]) {
@@ -71,18 +73,19 @@ describe("hidden quests", () => {
       p.y = qt.s.y;
     }
 
+    expect(tieRank(world, "p1")).toBeLessThan(tieRank(world, "p0"));
     const discoveredAt = world.state.serverTime + TICK_MS;
     const first = step(world, TICK_MS);
     const privateDiscoveries = first.filter((e) => {
       const candidate = e as unknown as { type: string; to?: string };
-      return candidate.type === "questReveal" && candidate.to === "p0";
+      return candidate.type === "questReveal" && candidate.to === "p1";
     });
     expect(privateDiscoveries).toHaveLength(1);
     expect(JSON.stringify(privateDiscoveries[0])).toContain(qt.id);
     expect(JSON.stringify(privateDiscoveries[0])).toContain(qt.def.id);
     expect(first.some((e) => {
       const candidate = e as unknown as { type: string; to?: string };
-      return candidate.type === "questReveal" && candidate.to === "p1";
+      return candidate.type === "questReveal" && candidate.to === "p0";
     })).toBe(false);
     expect(world.state.quests.has(qt.id)).toBe(false);
     expect(world.state.unknownQuests).toBe(1);
@@ -116,5 +119,26 @@ describe("hidden quests", () => {
     expect(world.state.quests.has(qt.id)).toBe(false);
     step(world, TICK_MS);
     expect(world.state.quests.has(qt.id)).toBe(true);
+  });
+
+  it("keeps hidden offers out of the encoded wire state until publication", () => {
+    const world = makeRun();
+    const qt = offerHidden(world);
+    const encoder = new Encoder(world.state);
+    const decoder = Reflection.decode(Reflection.encode(encoder)) as Decoder<RaidState>;
+    decoder.decode(encoder.encodeAll());
+
+    expect(decoder.state.quests.has(qt.id)).toBe(false);
+    expect([...decoder.state.mobs.values()].some((m) => m.kind === "quest")).toBe(false);
+    expect([...decoder.state.containers.values()].some((c) => c.kind === "quest")).toBe(false);
+    const p = world.state.players.get("p0")!;
+    p.x = qt.s.x;
+    p.y = qt.s.y;
+    run(world, 81);
+    decoder.decode(encoder.encode());
+
+    expect(decoder.state.quests.get(qt.id)?.def).toBe(qt.def.id);
+    expect(decoder.state.mobs.has(qt.npcId)).toBe(true);
+    expect(decoder.state.containers.has(qt.containers[0]!)).toBe(true);
   });
 });

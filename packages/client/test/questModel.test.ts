@@ -38,9 +38,19 @@ describe("quest presentation model", () => {
     expect(questTurnIn(ready, def, "me", { x: 500, y: 200 })).toBe(false);
   });
 
-  it("names the completer and reports an expired public offer", () => {
-    expect(questRows(quests([quest({ status: "done", doneBy: "Bravo" })]), "me", 5_000)[0]?.status).toBe("Done by Bravo");
-    expect(questRows(quests([quest()]), "me", 70_000)[0]).toMatchObject({ status: "Expired", time: "0:00", expired: true });
+  it("names the completer, stops closed timers and reports expired public offers", () => {
+    expect(questRows(quests([quest({ status: "done", doneBy: "Bravo" })]), "me", 5_000)[0]).toMatchObject({ status: "Done by Bravo", time: "" });
+    expect(questRows(quests([quest()]), "me", 70_000)[0]).toMatchObject({ status: "Expired", time: "", expired: true });
+    expect(questRows(quests([quest({ status: "expired" })]), "me", 5_000)[0]).toMatchObject({ status: "Expired", time: "", expired: true });
+  });
+
+  it("keeps the fetch winner's progress complete and groups open rows before closed rows", () => {
+    const done = quest({ id: "done", def: "banner-fire", status: "done", doneBy: "Me" });
+    const expired = quest({ id: "expired", def: "bloom-plague", status: "expired" });
+    const open = quest({ id: "open" });
+    const rows = questRows(quests([done, expired, open]), "me", 5_000, "Me");
+    expect(rows.map((row) => row.id)).toEqual(["open", "done", "expired"]);
+    expect(rows[1]).toMatchObject({ progress: "1 / 1", time: "" });
   });
 
   it("does not display a legacy unknown row and reads only the synced unknown count", () => {

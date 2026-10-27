@@ -43,13 +43,13 @@ export class QuestView {
     const seenGivers = new Set<string>();
     const carrierIds = new Set<string>();
     frame.quests.forEach((quest) => {
-      if (!visibleQuest(quest)) return;
+      if (!visibleQuest(quest) || quest.status !== "open") return;
       const def = questDefById(quest.def);
       if (!def) return;
       seenGivers.add(quest.id);
       const giver = this.givers.get(quest.id) ?? this.makeGiver(quest, def.giver, def.kind);
       this.givers.set(quest.id, giver);
-      giver.offer.setVisible(quest.status === "open");
+      giver.offer.setVisible(true);
       giver.hint.setVisible(frame.me?.status === "alive" && questTurnIn(quest, def, frame.localId, frame.me));
       if (quest.carrier) {
         const at = frame.positions.get(quest.carrier) ?? frame.players.get(quest.carrier);
@@ -73,7 +73,7 @@ export class QuestView {
       const questId = questItemQuestId(container);
       if (!questId) return;
       const quest = this.questById(frame.quests, questId);
-      if (!quest || !visibleQuest(quest)) return;
+      if (!quest || !visibleQuest(quest) || quest.status !== "open") return;
       const def = questDefById(quest.def);
       if (!def) return;
       seenItems.add(container.id);

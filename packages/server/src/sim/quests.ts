@@ -1,17 +1,19 @@
 import {
   hasLineOfSight, placeQuests, QUEST_ITEM_PREFIX, QUEST_REVEAL_HEAD_START_MS, QUEST_REVEAL_RADIUS,
-  QUEST_TURN_IN_RANGE, rewardCurve, selectQuests, type FactionId, type QuestDef, type Vec2,
+  QUEST_TURN_IN_RANGE, selectQuests, type MobTypeId, type QuestDef, type Vec2,
 } from "@raid/shared";
 import { QuestState, type ContainerState, type PlayerState } from "@raid/shared/schema";
 import { awardQuestGv } from "./arena";
 import { grantBuff } from "./buffs";
 import type { Combatant } from "./combatant";
-import { feedOfPlayer } from "./feed";
+import { mobRewardFor } from "./feed";
 import { addContainer, forgetBirth } from "./loot";
 import { addMob } from "./mobs";
 import { chainHook, collisionMap, emit, nextId, tieRank, type PlayerRuntime, type World } from "./world";
 
 export { QUEST_REVEAL_HEAD_START_MS } from "@raid/shared";
+
+const CLOSED_QUEST_LINGER_MS = 20_000;
 
 export interface QuestRuntime {
   id: string;
@@ -25,6 +27,7 @@ export interface QuestRuntime {
   publishAt: number;
   finder: string;
   lastCarrier: string;
+  closedAt: number;
 }
 
 export interface QuestsRuntime {
@@ -51,14 +54,17 @@ function syncUnknownCount(world: World): void {
   world.state.unknownQuests = n;
 }
 
-/** The roster and every hidden placement draw come only from the private reward stream. */
+/** The roster and every hidden placement draw come only from the private quest stream. */
 export function spawnQuests(world: World): void {
-  if (world.quests) return;
-  runtime(world);
-  const roster = selectQuests(world.rewardRandom);
-  for (const placement of placeQuests(world.map, roster, world.rewardRandom)) {
-    offerQuest(world, placement.def, placement.known, placement);
+  if (world.quests || !world.config.quests || world.config.training || world.map.camps.length === 0) return;
+  const random = world.questRandom;
+  const roster = selectQuests(random);
+  const placements = placeQuests(world.map, roster, random);
+  for (let i = placements.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [placements[i], placements[j]] = [placements[j]!, placements[i]!];
   }
+  for (const placement of placements) offerQuest(world, placement.def, placement.known, placement);
 }
 
 export function offerQuest(
@@ -74,7 +80,7 @@ export function offerQuest(
   s.status = "open";
   s.expiresAt = world.state.serverTime + def.expiresAtSec * 1000;
   const qt: QuestRuntime = {
-    id, def, s, npcId: "", containers: [], tours: new Map(), placement, published: false, publishAt: 0, finder: "", lastCarrier: "",
+    id, def, s, npcId: "", containers: [], tours: new Map(), placement, published: false, publishAt: 0, finder: "", lastCarrier: "", closedAt: 0,
   };
   q.quests.set(id, qt);
   if (known) publishQuest(world, qt);
@@ -161,7 +167,10 @@ function bump(qt: QuestRuntime, playerId: string, by: number): void {
   qt.s.progress.set(playerId, Math.min(qt.def.count, now + by));
 }
 
-function onMobKilled(world: World, killer: PlayerRuntime, mob: { region: FactionId; elite: boolean }): void {
+function onMobKilled(
+  world: World, killer: PlayerRuntime,
+  mob: { type: MobTypeId; zone: NonNullable<QuestDef["region"]>; camp: number; elite: boolean },
+): void {
   const q = world.quests;
   if (!q || world.state.phase !== "active") return;
   const p = world.state.players.get(killer.id);
@@ -173,9 +182,9 @@ function onMobKilled(world: World, killer: PlayerRuntime, mob: { region: Faction
     if (def.tour) {
       let seen = qt.tours.get(killer.id);
       if (!seen) qt.tours.set(killer.id, (seen = new Set()));
-      seen.add(mob.region);
+      seen.add(mob.zone);
       qt.s.progress.set(killer.id, Math.min(def.count, seen.size));
-    } else if (!def.elite && def.region && mob.region !== def.region) {
+    } else if (!def.elite && def.region && mob.zone !== def.region) {
       continue;
     } else {
       bump(qt, killer.id, 1);
@@ -217,6 +226,13 @@ function ready(qt: QuestRuntime, playerId: string): boolean {
   return (qt.s.progress.get(playerId) ?? 0) >= qt.def.count;
 }
 
+function removeGiver(world: World, qt: QuestRuntime): void {
+  if (!qt.npcId) return;
+  world.state.mobs.delete(qt.npcId);
+  world.mobs.delete(qt.npcId);
+  qt.npcId = "";
+}
+
 function completeQuest(world: World, qt: QuestRuntime, playerId: string): void {
   const p = world.state.players.get(playerId);
   const rt = world.players.get(playerId);
@@ -224,67 +240,115 @@ function completeQuest(world: World, qt: QuestRuntime, playerId: string): void {
   qt.s.status = "done";
   qt.s.doneBy = p.name;
   qt.s.carrier = "";
+  qt.closedAt = world.state.serverTime;
   const q = world.quests!;
   if (q.carried.get(playerId) === qt.id) q.carried.delete(playerId);
   removeContainers(world, qt);
+  removeGiver(world, qt);
   awardQuestGv(world, p, rt, qt.def.reward.gv);
-  grantBuff(world, p, rt, qt.def.reward.buff, qt.def.reward.stacks * rewardCurve(feedOfPlayer(p, rt)));
-  toast(world, playerId, `Quest complete: ${qt.def.name}`);
+  grantBuff(world, p, rt, qt.def.reward.buff, qt.def.reward.stacks * mobRewardFor(world, p, rt));
   announce(world, `${p.name} completed quest: ${qt.def.name}`);
 }
 
-function expireQuest(world: World, qt: QuestRuntime): void {
+function expireQuest(world: World, qt: QuestRuntime, withToast = true): boolean {
+  if (qt.s.status !== "open") return false;
   const q = world.quests!;
   if (qt.s.carrier !== "") {
     q.carried.delete(qt.s.carrier);
     qt.s.carrier = "";
   }
+  qt.closedAt = world.state.serverTime;
   removeContainers(world, qt);
-  if (qt.npcId) {
-    world.state.mobs.delete(qt.npcId);
-    world.mobs.delete(qt.npcId);
-    qt.npcId = "";
-  }
+  removeGiver(world, qt);
   if (qt.published) {
     qt.s.status = "expired";
-    announce(world, `Quest expired: ${qt.def.name}`);
-    return;
+    if (withToast) announce(world, `Quest expired: ${qt.def.name}`);
+    return true;
   }
   world.state.quests.delete(qt.id);
   q.quests.delete(qt.id);
   syncUnknownCount(world);
+  return false;
 }
 
-/** After the ledger: delayed reveals, expiry, then automatic turn-ins. Planning never calls this system. */
+function closeAll(world: World): void {
+  let expired = 0;
+  for (const qt of [...world.quests?.quests.values() ?? []]) if (expireQuest(world, qt, false)) expired++;
+  if (expired === 1) announce(world, "Quest expired");
+  else if (expired > 1) announce(world, `${expired} quests expired`);
+}
+
+function onCampCleared(world: World): void {
+  const q = world.quests;
+  if (!q) return;
+  const liveZones = new Set<string>();
+  let liveCamps = 0;
+  world.map.camps.forEach((camp, i) => {
+    if ((world.state.camps[i]?.alive ?? 0) <= 0) return;
+    liveZones.add(camp.zone);
+    liveCamps++;
+  });
+  const liveElites = [...world.state.mobs.values()].some((m) => m.kind === "elite" && m.status === "alive");
+  for (const qt of [...q.quests.values()]) {
+    const def = qt.def;
+    if (qt.s.status !== "open" || def.kind !== "kill" || def.players) continue;
+    const impossible = def.tour
+      ? liveZones.size < def.count
+      : def.elite
+        ? !liveElites
+        : def.region
+          ? !liveZones.has(def.region)
+          : liveCamps === 0;
+    if (impossible) expireQuest(world, qt);
+  }
+}
+
+/** After the ledger: cleanup, delayed reveals, expiry, then automatic turn-ins. Planning never calls this system. */
 export function questSystem(world: World): void {
   const q = world.quests;
   if (!q || q.quests.size === 0 || world.state.phase !== "active") return;
   const now = world.state.serverTime;
+  for (const qt of [...q.quests.values()]) {
+    if (qt.s.status !== "open" && now - qt.closedAt >= CLOSED_QUEST_LINGER_MS) {
+      q.quests.delete(qt.id);
+      world.state.quests.delete(qt.id);
+    }
+  }
   const map = collisionMap(world);
+  const expired: QuestRuntime[] = [];
 
   for (const qt of [...q.quests.values()]) {
     if (qt.s.status !== "open") continue;
-    if (now >= qt.s.expiresAt) { expireQuest(world, qt); continue; }
+    if (now >= qt.s.expiresAt) {
+      if (expireQuest(world, qt, false)) expired.push(qt);
+      continue;
+    }
     if (qt.published) continue;
     if (qt.publishAt > 0) {
       if (now >= qt.publishAt) publishQuest(world, qt);
       continue;
     }
+    if (world.state.gatesLocked) continue;
+    let finder: string | null = null;
     for (const [pid, p] of world.state.players) {
       const rt = world.players.get(pid);
       if (!standing(p, rt)) continue;
-      if (Math.hypot(p.x - qt.s.x, p.y - qt.s.y) <= QUEST_REVEAL_RADIUS) {
-        qt.finder = pid;
-        qt.publishAt = now + QUEST_REVEAL_HEAD_START_MS;
-        emit(world, {
-          type: "questReveal", to: pid,
-          quest: { id: qt.id, def: qt.def.id, x: qt.s.x, y: qt.s.y, expiresAt: qt.s.expiresAt },
-        });
-        toast(world, pid, `Quest discovered: ${qt.def.name} (${qt.def.giver})`);
-        break;
-      }
+      if (Math.hypot(p.x - qt.s.x, p.y - qt.s.y) > QUEST_REVEAL_RADIUS) continue;
+      if (finder !== null && tieRank(world, pid) > tieRank(world, finder)) continue;
+      finder = pid;
     }
+    if (finder === null) continue;
+    qt.finder = finder;
+    qt.publishAt = now + QUEST_REVEAL_HEAD_START_MS;
+    emit(world, {
+      type: "questReveal", to: finder,
+      quest: { id: qt.id, def: qt.def.id, x: qt.s.x, y: qt.s.y, expiresAt: qt.s.expiresAt },
+    });
+    toast(world, finder, `Quest discovered: ${qt.def.name} (${qt.def.giver})`);
   }
+  if (expired.length === 1) announce(world, `Quest expired: ${expired[0]!.def.name}`);
+  else if (expired.length > 1) announce(world, `${expired.length} quests expired`);
+  if (world.state.gatesLocked) return;
 
   for (const qt of q.quests.values()) {
     if (!qt.published || qt.s.status !== "open") continue;
@@ -315,6 +379,9 @@ export function install(world: World): void {
   chainHook(world, "raidStarted", raidStarted);
   chainHook(world, "mobKilled", onMobKilled);
   chainHook(world, "playerKilled", onPlayerKilled);
+  chainHook(world, "campCleared", onCampCleared);
+  chainHook(world, "teleported", closeAll);
+  chainHook(world, "runEnded", closeAll);
   const prevDrop = world.hooks.dropBody;
   world.hooks.dropBody = (w, p) => {
     prevDrop(w, p);

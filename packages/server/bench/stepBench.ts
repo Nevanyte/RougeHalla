@@ -1,7 +1,7 @@
 // Budget check for the Phase 11 tick: a headless 8-player run with the map's regional mobs (20 camps of 3 to 5, about 80,
 // roguelike R2), eight players fighting at eight camps, arrows and balls in the air, mobs chasing and retreating.
 // Reports the cost of one `step()`.
-//   npx tsx bench/stepBench.ts            (from packages/server; --buffs, --stress)
+//   npx tsx bench/stepBench.ts            (from packages/server; --buffs, --stress, --quests)
 // test/perf.test.ts runs the same scenarios against the gate (average < 5 ms, p99 < 15 ms per tick). The CLI also runs the
 // terrain variant (a hazard on every fourth floor tile, against the same map with the effects off; test/terrainPerf.test.ts).
 //
@@ -31,6 +31,8 @@ export interface BenchOptions {
   warmup?: number;
   /** Every player starts with 4 stacks of every buff (roguelike R4a's gate: all buffs on 8 players). `--buffs` on the CLI. */
   buffs?: boolean;
+  /** Quest offers, givers and items. Off by default; `--quests` on the CLI. */
+  quests?: boolean;
   /** The pathfinder's worst case: every camp woken every second, players re-locking every TARGET_REPATH_MS (see the header). `--stress` on the CLI. */
   stress?: boolean;
   /**
@@ -76,14 +78,15 @@ export function gateMs(r: BenchResult): { avg: number; p99: number } {
 
 const NAMES = ["alice", "bob", "carol", "dave", "erin", "frank", "gina", "hank"];
 
-function config(players: number): SimConfig {
+function config(players: number, quests: boolean): SimConfig {
   // Nothing ends the run while we measure: no teleport, no sudden death.
   return {
     minPlayers: players, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 1e6, patienceMinSeconds: 1e6,
-    suddenDeathSeconds: 1e6, mobs: true,
+    suddenDeathSeconds: 1e6, mobs: true, quests,
   };
 }
 
+const isRegionalMob = (m: { kind: string }): boolean => m.kind === "mob" || m.kind === "elite";
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
 /** Ticks between the wake-ups (a mob already fighting just gains threat). */
@@ -126,12 +129,15 @@ function allCamps(world: World): BenchCamp[] {
  * clearing and so inside the camp's territory, and carries the camp's reference, so it leashes like the shipped mobs.
  */
 function topUp(world: World, target: number, camps: BenchCamp[], cursor: { i: number }): void {
-  while (world.mobs.size < target && camps.length > 0) {
+  let count = 0;
+  for (const m of world.state.mobs.values()) if (isRegionalMob(m)) count++;
+  while (count < target && camps.length > 0) {
     const ci = cursor.i++ % camps.length;
     const { region, camp } = camps[ci]!;
     const spot = camp.spots[cursor.i % camp.spots.length]!;
     const a = cursor.i * 2.4;
     placeMob(world, { region, elite: false, at: { x: spot.x + Math.cos(a) * 18, y: spot.y + Math.sin(a) * 18 }, camp: ci });
+    count++;
   }
 }
 
@@ -142,7 +148,7 @@ function nearestTwo(world: World, p: Vec2): [Near | null, Near | null] {
   let a: Near | null = null;
   let b: Near | null = null;
   for (const [mid, m] of world.state.mobs) {
-    if (m.status !== "alive") continue;
+    if (!isRegionalMob(m) || m.status !== "alive") continue;
     const d = dist(p, m);
     if (!a || d < a.d) {
       b = a;
@@ -157,7 +163,7 @@ function wakeEverything(world: World, ids: string[]): void {
   if (world.state.tick % WAKE_TICKS !== 0) return;
   for (const [mid, m] of world.state.mobs) {
     const rt = world.mobs.get(mid);
-    if (m.status !== "alive" || !rt?.brain || rt.brain.mode !== "idle") continue;
+    if (!isRegionalMob(m) || m.status !== "alive" || !rt?.brain || rt.brain.mode !== "idle") continue;
     let best: string | null = null;
     let bestD = Infinity;
     for (const id of ids) {
@@ -175,7 +181,7 @@ function wakeEverything(world: World, ids: string[]): void {
 export function runStepBench(opts: BenchOptions = {}): BenchResult {
   const players = opts.players ?? 8;
   const seed = opts.seed ?? 1;
-  const cfg = config(players);
+  const cfg = config(players, opts.quests === true);
   if (opts.hazards === false) cfg.hazards = false;
   const world = createGameWorld({
     seed, config: cfg, random: mulberry32(seed + 1), ...(opts.terrain === "heavy" ? { map: heavyTerrainMap(seed) } : {}),
@@ -304,10 +310,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     `step() CPU time: avg ${f(r.cpuAvgMs)} ms, p99 ${f(r.cpuP99Ms)} ms (every thread of the process; wall time is inflated while the machine is busy, CPU time by the JIT and GC threads)`,
   );
   const buffs = process.argv.includes("--buffs");
-  show("", runStepBench({ buffs, stress: process.argv.includes("--stress") }));
+  const quests = process.argv.includes("--quests");
+  show("", runStepBench({ buffs, quests, stress: process.argv.includes("--stress") }));
   // The terrain variant: a hazard on every fourth floor tile, against the same map with the effects off.
-  const heavy = runStepBench({ terrain: "heavy", buffs });
-  const control = runStepBench({ terrain: "heavy", hazards: false, buffs });
+  const heavy = runStepBench({ terrain: "heavy", buffs, quests });
+  const control = runStepBench({ terrain: "heavy", hazards: false, buffs, quests });
   show("terrain (every 4th tile a hazard): ", heavy);
   show("terrain map, effects off (control):  ", control);
   const s = heavy.hazardSeconds;

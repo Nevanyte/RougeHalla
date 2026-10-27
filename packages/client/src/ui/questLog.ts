@@ -3,11 +3,14 @@ import { questKindCss, questRows, type QuestCollection, type QuestRow } from "./
 import "./questLog.css";
 
 export interface QuestLogFrame {
-  active: boolean;
+  phase: string;
+  training: boolean;
   quests: QuestCollection;
   hidden: number;
   localId: string;
+  localName?: string;
   serverNow: number;
+  hudBottom?: number;
 }
 
 function typing(target: EventTarget | null): boolean {
@@ -32,7 +35,7 @@ export class QuestLog {
   private readonly list = el("div", "quest-log-list");
   private readonly rumoured = el("div", "quest-log-rumoured");
   private open = false;
-  private active = false;
+  private enabled = false;
   private signature = "";
 
   constructor() {
@@ -50,21 +53,32 @@ export class QuestLog {
   }
 
   get visible(): boolean {
-    return this.open && this.active;
+    return this.open && this.enabled;
   }
 
   toggle(): void {
-    if (!this.active) return;
+    if (!this.enabled) return;
     this.open = !this.open;
     this.signature = "";
     this.element.hidden = !this.open;
   }
 
   update(frame: QuestLogFrame): void {
-    this.active = frame.active;
+    this.enabled = frame.phase === "active" || frame.phase === "planning";
     this.element.hidden = !this.visible;
     if (!this.visible) return;
-    const rows = questRows(frame.quests, frame.localId, frame.serverNow);
+    const top = Math.max(20, Math.ceil(frame.hudBottom ?? 84) + 8);
+    this.element.style.setProperty("--quest-log-top", `${top}px`);
+    if (frame.training) {
+      if (this.signature !== "practice") {
+        this.signature = "practice";
+        this.list.replaceChildren(el("p", "quest-log-empty", "No quests in practice"));
+        this.rumoured.textContent = "";
+        this.rumoured.hidden = true;
+      }
+      return;
+    }
+    const rows = questRows(frame.quests, frame.localId, frame.serverNow, frame.localName);
     const signature = rows.map((r) => `${r.id}|${r.time}|${r.progress}|${r.status}`).join("|") + `|${frame.hidden}`;
     if (signature === this.signature) return;
     this.signature = signature;

@@ -1,6 +1,7 @@
 // The client's copy of the server's pickup rule, so the highlight, the F key and the weapon bar's hint agree with it.
-import { INTERACT_RANGE, MASK_MOVE, hasLineOfSight, isWeaponId, type GameMap, type Vec2, type WeaponId } from "@raid/shared";
+import { INTERACT_RANGE, MASK_MOVE, hasLineOfSight, isWeaponId, questDefById, type GameMap, type Vec2, type WeaponId } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
+import { questItemQuestId, type QuestCollection, type QuestStateLike } from "../ui/questModel";
 
 /**
  * Within INTERACT_RANGE and a line between the two points that nothing solid crosses: walls and LOW (a fence, a lava
@@ -21,16 +22,39 @@ export function containerWeapon(c: ContainerState): WeaponId | null {
   return isWeaponId(def) ? def : null;
 }
 
-/** The closest container holding a weapon or quest item that satisfies `canInteract`: what F takes. */
+export interface QuestPickupContext {
+  quests: QuestCollection;
+  localId: string;
+}
+
+export function questItemEligible(c: ContainerState, context: QuestPickupContext): boolean {
+  const questId = questItemQuestId(c);
+  if (!questId) return false;
+  let quest: QuestStateLike | undefined;
+  let carrying = false;
+  context.quests.forEach((candidate, id) => {
+    if (candidate.carrier === context.localId) carrying = true;
+    if (candidate.id === questId || id === questId) quest = candidate;
+  });
+  if (!quest || quest.status !== "open") return false;
+  const def = questDefById(quest.def);
+  if (!def) return false;
+  if (def.kind === "fetch") return !carrying && quest.carrier === "";
+  return def.kind === "collect" && (quest.progress.get(context.localId) ?? 0) < def.count;
+}
+
+/** The closest weapon or locally eligible quest item satisfying `canInteract`: what F takes. */
 export function nearestContainer(
   containers: { forEach(cb: (c: ContainerState, id: string) => void): void },
   map: GameMap,
   from: Vec2,
+  questContext?: QuestPickupContext,
 ): ContainerState | null {
   let best: ContainerState | null = null;
   let bestSq = Infinity;
   containers.forEach((c) => {
-    if ((containerWeapon(c) === null && (c.kind !== "quest" || c.items.length === 0)) || !canInteract(map, from, c)) return;
+    const weapon = containerWeapon(c) !== null;
+    if ((!weapon && (c.kind !== "quest" || c.items.length === 0)) || (c.kind === "quest" && questContext && !questItemEligible(c, questContext)) || !canInteract(map, from, c)) return;
     const sq = (c.x - from.x) ** 2 + (c.y - from.y) ** 2;
     if (sq < bestSq) {
       best = c;

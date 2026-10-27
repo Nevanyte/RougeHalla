@@ -16,9 +16,11 @@ import {
 import { buffDef, buffText, rewardCurve, type BuffId } from "./buffs";
 import type { FactionId } from "./factions";
 import { circleClear } from "./geometry";
-import { tileIndex, tileToWorldCenter, worldToTile, type CampDef, type GameMap } from "./map";
+import {
+  MASK_MOVE, blocksTile, moveComponents, tileIndex, tileToWorldCenter, worldToTile, type CampDef, type GameMap,
+} from "./map";
 import type { Vec2 } from "./messages";
-import { findPath } from "./pathfind";
+import { TERRAIN_NONE, terrainAt } from "./terrain";
 
 export type QuestKind = "kill" | "collect" | "fetch";
 
@@ -263,17 +265,20 @@ export function freeTileNear(
 ): Vec2 | null {
   const cx = worldToTile(want.x);
   const cy = worldToTile(want.y);
+  const components = origin ? moveComponents(map) : null;
+  const source = origin && components ? components[tileIndex(map, worldToTile(origin.x), worldToTile(origin.y))] : -1;
   for (let r = 0; r <= maxTiles; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const tx = cx + dx;
         const ty = cy + dy;
-        if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h || used.has(tileIndex(map, tx, ty))) continue;
+        if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) continue;
+        const index = tileIndex(map, tx, ty);
+        if (used.has(index) || (components && (source < 0 || components[index] !== source))) continue;
         const at = { x: tileToWorldCenter(tx), y: tileToWorldCenter(ty) };
-        if (!circleClear(map, at, radius)) continue;
-        if (origin && findPath(map, origin, at, radius).length === 0) continue;
-        used.add(tileIndex(map, tx, ty));
+        if (!circleClear(map, at, radius, MASK_MOVE)) continue;
+        used.add(index);
         return at;
       }
     }
@@ -291,9 +296,8 @@ function outsideColiseum(map: GameMap, tx: number, ty: number, margin = 2): bool
 }
 
 /**
- * Givers stand on clear tile centres outside the coliseum and away from every spawnPool entry. The full tile scan
- * works on both wedge and zone maps; dense maps get a second pass at half the doorstep distance rather than losing
- * most of the roster. Bare hand-built maps have none of the map contract's sites and offer no quests.
+ * Givers stand on clear, plain floor outside the coliseum, at least three tiles beyond camp clearings and away from
+ * spawnPool entries. Dense maps get a second pass at half the doorstep distance; safety clearances are never relaxed.
  */
 export function npcCandidates(map: GameMap): Vec2[] {
   if (map.camps.length === 0 && map.spawnPool.length === 0 && map.regions.length === 0) return [];
@@ -301,9 +305,10 @@ export function npcCandidates(map: GameMap): Vec2[] {
     const out: Vec2[] = [];
     for (let ty = 0; ty < map.h; ty++) {
       for (let tx = 0; tx < map.w; tx++) {
-        if (!outsideColiseum(map, tx, ty)) continue;
+        if (!outsideColiseum(map, tx, ty) || blocksTile(map, tx, ty, MASK_MOVE)) continue;
         const at = { x: tileToWorldCenter(tx), y: tileToWorldCenter(ty) };
-        if (!circleClear(map, at, PLAYER_RADIUS)) continue;
+        if (!circleClear(map, at, PLAYER_RADIUS, MASK_MOVE) || terrainAt(map, at.x, at.y) !== TERRAIN_NONE) continue;
+        if (map.camps.some((c) => distance(c, at) < c.r + 3 * TILE)) continue;
         if (map.spawnPool.some((s) => distance(s, at) < spawnMinTiles * TILE)) continue;
         out.push(at);
       }
@@ -317,47 +322,54 @@ export function npcCandidates(map: GameMap): Vec2[] {
   return [...strict, ...relaxed];
 }
 
-/**
- * Up to `n` of the candidates, spread out: max-min greedy (each pick is the candidate farthest from those taken)
- * with a QUEST_NPC_GAP_TILES minimum, relaxed tile by tile down to half that when the map runs out of room,
- * best effort below that.
- */
+/** Up to `n` privately shuffled candidates, accepted greedily with a gap relaxed only as far as the dense fallback. */
 export function spreadSpots(candidates: Vec2[], n: number, random: () => number): Vec2[] {
   if (candidates.length === 0 || n <= 0) return [];
+  const target = Math.min(n, candidates.length);
   let best: Vec2[] = [];
   for (let gap = QUEST_NPC_GAP_TILES * TILE; gap >= Math.floor(QUEST_NPC_GAP_TILES / 2) * TILE; gap -= TILE) {
-    const taken = [candidates[Math.floor(random() * candidates.length)]!];
-    while (taken.length < n) {
-      let pick: Vec2 | null = null;
-      let pickD = -1;
-      for (const c of candidates) {
-        if (taken.includes(c)) continue;
-        const d = Math.min(...taken.map((t) => distance(t, c)));
-        if (d < gap) continue;
-        if (d > pickD) { pick = c; pickD = d; }
-      }
-      if (!pick) break;
-      taken.push(pick);
+    const taken: Vec2[] = [];
+    for (const candidate of shuffled(candidates, random)) {
+      if (taken.some((spot) => distance(spot, candidate) < gap)) continue;
+      taken.push(candidate);
+      if (taken.length >= target) break;
     }
     if (taken.length > best.length) best = taken;
-    if (taken.length >= n) break;
+    if (taken.length >= target) break;
   }
   return best;
 }
 
-/** A collect quest's tokens around the region's camp farthest from the giver, clear of the mobs' rest spots. */
+function campItemExclusions(map: GameMap): Set<number> {
+  const used = new Set<number>();
+  const exclude = (at: Vec2, halo: number): void => {
+    const cx = worldToTile(at.x);
+    const cy = worldToTile(at.y);
+    for (let dy = -halo; dy <= halo; dy++) {
+      for (let dx = -halo; dx <= halo; dx++) {
+        const tx = cx + dx;
+        const ty = cy + dy;
+        if (tx >= 0 && ty >= 0 && tx < map.w && ty < map.h) used.add(tileIndex(map, tx, ty));
+      }
+    }
+  };
+  for (const camp of map.camps) {
+    exclude(camp.chest, 1);
+    for (const spot of camp.spots) exclude(spot, 2);
+  }
+  return used;
+}
+
+/** A collect quest's tokens around the region's camp farthest from the giver, clear of every camp's protected tiles. */
 function campTokens(map: GameMap, region: FactionId, giver: Vec2, spawns: number, random: () => number): Vec2[] {
   const camps = map.camps.filter((c: CampDef) => c.zone === region);
   if (camps.length === 0) return [];
   const camp = camps.reduce((a, b) => distance(a, giver) >= distance(b, giver) ? a : b);
-  const used = new Set<number>();
-  for (const s of camp.spots) used.add(tileIndex(map, worldToTile(s.x), worldToTile(s.y)));
-  const near = (s: Vec2, p: Vec2): boolean =>
-    Math.max(Math.abs(worldToTile(s.x) - worldToTile(p.x)), Math.abs(worldToTile(s.y) - worldToTile(p.y))) < 2;
+  const used = campItemExclusions(map);
   const out: Vec2[] = [];
   const add = (want: Vec2): void => {
     const at = freeTileNear(map, want, used, giver, 8);
-    if (at && !camp.spots.some((s) => near(s, at))) out.push(at);
+    if (at) out.push(at);
   };
   for (let tries = 0; tries < spawns * 6 && out.length < spawns; tries++) {
     const a = random() * Math.PI * 2;
@@ -395,10 +407,10 @@ function siteTokens(map: GameMap, giver: Vec2, ring: "rim" | "mid", spawns: numb
     const camps = [...map.camps].sort(byCentre);
     const from = Math.floor(camps.length / 3);
     const to = Math.max(from + 1, Math.ceil(camps.length * 2 / 3));
-    sites = uniqueSites(camps.slice(from, to).flatMap((c) => [c.chest, c]));
+    sites = uniqueSites(camps.slice(from, to));
   }
   if (sites.length === 0) return [];
-  const used = new Set<number>();
+  const used = campItemExclusions(map);
   const out: Vec2[] = [];
   const start = Math.floor(random() * sites.length);
   for (let i = 0; i < spawns * 4 && out.length < spawns; i++) {
@@ -409,10 +421,6 @@ function siteTokens(map: GameMap, giver: Vec2, ring: "rim" | "mid", spawns: numb
   return out;
 }
 
-function campSites(camps: readonly CampDef[]): Vec2[] {
-  return camps.flatMap((c) => [c.chest, c, ...c.spots]);
-}
-
 /**
  * A fetch parcel uses only zone-tagged camps and starts (plus the region pole), never regionGrid or wedge radii.
  * The farthest reachable candidate at least QUEST_FETCH_MIN_TILES away wins; cramped maps keep the farthest fallback.
@@ -421,9 +429,9 @@ function parcelSpot(map: GameMap, giver: Vec2, region: FactionId | null, random:
   const camps = region === null ? map.camps : map.camps.filter((c) => c.zone === region);
   const starts = region === null ? map.spawnPool : map.spawnPool.filter((s) => s.zone === region);
   const pole = region === null ? [] : map.regions.filter((r) => r.id === region).map((r) => r.pole);
-  const sites = uniqueSites([...campSites(camps), ...starts, ...pole]);
+  const sites = uniqueSites([...camps, ...starts, ...pole]);
   if (sites.length === 0) return null;
-  const used = new Set<number>();
+  const used = campItemExclusions(map);
   const start = Math.floor(random() * sites.length);
   let best: Vec2 | null = null;
   let bestD = -1;
@@ -437,12 +445,11 @@ function parcelSpot(map: GameMap, giver: Vec2, region: FactionId | null, random:
 }
 
 /**
- * Lays the roster out on the map. Givers use spread floor candidates; a region-themed quest gets the free spot
- * farthest from that region's pole. Collect tokens use camps or spawnPool sites and fetch parcels use zone-tagged
- * sites. A quest whose pieces will not place is dropped rather than placed badly.
+ * Lays the roster out on the map. Region-themed placement is internal only; the returned order is privately shuffled so
+ * quest ids reveal neither theme nor placement order. A quest whose pieces will not place is dropped rather than placed badly.
  */
 export function placeQuests(map: GameMap, roster: RosterEntry[], random: () => number): QuestPlacement[] {
-  const spots = spreadSpots(npcCandidates(map), roster.length, random);
+  const spots = spreadSpots(npcCandidates(map), roster.length * 4, random);
   if (spots.length === 0) return [];
   const remaining = [...spots];
   const ordered = [...roster].sort((a, b) => Number(!!b.def.region) - Number(!!a.def.region));
@@ -477,5 +484,5 @@ export function placeQuests(map: GameMap, roster: RosterEntry[], random: () => n
     }
     out.push(placement);
   }
-  return out;
+  return shuffled(out, random);
 }

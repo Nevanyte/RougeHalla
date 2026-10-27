@@ -1,10 +1,22 @@
 import {
-  buffPower, campMatchup, ELITE_BUFF_STACKS, FACTION_IDS, INTERACT_RANGE, isFactionId, MOB_BUFF_STACKS, PLAYER_SPEED,
-  questDefById, stacksIn, TARGET_RANGE, TILE, type CampDef, type FactionId, type Vec2,
+  BUFFS, buffDef, buffPower, campMatchup, ELITE_BUFF_STACKS, FACTION_IDS, INTERACT_RANGE, isFactionId, MOB_BUFF_STACKS,
+  PLAYER_RADIUS, PLAYER_SPEED, questDefById, segmentClear, stacksIn, TARGET_RANGE, TILE,
+  type BuffStacks, type CampDef, type FactionId, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
+import { retreatPoint } from "../bots/mobHunt";
 import { enqueueClientMessage } from "../sim/inputs";
-import type { PlayerRuntime, World } from "../sim/world";
+import { collisionMap, type PlayerRuntime, type World } from "../sim/world";
+
+/** Power from buffs that apply without a status runtime; policy and reporting use this same valuation. */
+export function liveBuffPower(stacks: BuffStacks | null | undefined): number {
+  let sum = 0;
+  for (const def of BUFFS) {
+    const value = stacksIn(stacks, def.id);
+    if (!def.needs && value > 0) sum += buffPower({ [def.id]: value });
+  }
+  return sum;
+}
 
 export type QuestPolicyId = "farm-only" | "quest-greedy" | "mixed";
 export const QUEST_POLICY_IDS: readonly QuestPolicyId[] = ["farm-only", "quest-greedy", "mixed"];
@@ -67,6 +79,11 @@ export interface PolicyMemory {
   mobKills: number;
   lastMobFaction: string;
   tourRegions: Set<string>;
+  farmCamp: number;
+  farmCampAt: number;
+  farmCampKills: number;
+  farmRetreatUntil: number;
+  farmBanned: Map<number, number>;
 }
 
 interface Target {
@@ -111,7 +128,7 @@ function nearestMob(world: World, p: PlayerState, accept: (m: MobState) => boole
 
 function campTarget(
   world: World, p: PlayerState, mem: PolicyMemory, owner: string, accept: (m: MobState) => boolean = () => true,
-  acceptCamp?: (camp: CampDef) => boolean,
+  acceptCamp?: (camp: CampDef, index: number) => boolean,
 ): Target | null {
   if (mem.campOwner !== owner) {
     mem.campOwner = owner;
@@ -124,7 +141,7 @@ function campTarget(
     let best = -1;
     let bestDistance = Infinity;
     world.map.camps.forEach((camp, i) => {
-      if (acceptCamp && !acceptCamp(camp)) return;
+      if (acceptCamp && !acceptCamp(camp, i)) return;
       const alive = [...world.state.mobs.values()].some((m) => regional(m) && m.camp === i + 1 && accept(m));
       if (!alive) return;
       const d = distance(p, camp);
@@ -224,9 +241,9 @@ function rewardBuffId(q: QuestDecisionView): string | undefined {
 
 export function questRewardPower(p: PlayerState, q: QuestDecisionView): number {
   const id = rewardBuffId(q);
-  if (!id) return 0;
+  if (!id || buffDef(id)?.needs) return 0;
   const before = stacksIn(p.buffs, id);
-  return buffPower({ [id]: before + q.def.reward.stacks }) - buffPower({ [id]: before });
+  return liveBuffPower({ [id]: before + q.def.reward.stacks }) - liveBuffPower({ [id]: before });
 }
 
 function nearestQuest(world: World, p: PlayerState): QuestDecisionView | null {
@@ -267,7 +284,7 @@ function campValueRate(world: World, p: PlayerState): number {
   let value = 0;
   for (const [id, stacks] of grants) {
     const before = stacksIn(p.buffs, id);
-    value += buffPower({ [id]: before + stacks }) - buffPower({ [id]: before });
+    value += liveBuffPower({ [id]: before + stacks }) - liveBuffPower({ [id]: before });
   }
   const seconds = distance(p, first) / PLAYER_SPEED + 12 * mates.length;
   return seconds > 0 ? value / seconds : 0;
@@ -307,19 +324,48 @@ function nearestPlayer(world: World, playerId: string, p: PlayerState): Target |
 }
 
 function farm(world: World, playerId: string, p: PlayerState, rt: PlayerRuntime, mem: PolicyMemory): void {
-  let target: Target | null = null;
-  if (!world.state.gatesLocked) {
-    const normal = (camp: CampDef): boolean => camp.eliteSpot < 0;
-    const faction = isFactionId(p.faction) ? p.faction : null;
-    target = campTarget(world, p, mem, "farm-safe", () => true,
-      (camp) => normal(camp) && !!faction && campMatchup(faction, camp) > 0);
-    if (!target) target = campTarget(world, p, mem, "farm-normal", () => true, normal);
-    if (!target && buffPower(p.buffs) >= 3) {
-      target = campTarget(world, p, mem, "farm-elite", () => true,
-        (camp) => !!faction && campMatchup(faction, camp) > 0);
+  const now = world.state.serverTime;
+  const hp = p.maxHp > 0 ? p.hp / p.maxHp : 1;
+  const threats = [...world.state.mobs.values()].filter((m) => regional(m) && distance(p, m) < 12 * TILE);
+  if (hp < 0.35 && threats.length > 0) {
+    mem.farmRetreatUntil = now + 5000;
+    if (mem.camp > 0) mem.farmBanned.set(mem.camp, now + 30_000);
+    mem.camp = 0;
+  }
+  if (now < mem.farmRetreatUntil && threats.length > 0) {
+    const at = retreatPoint(p, threats, (a, b) => segmentClear(collisionMap(world), a, b, PLAYER_RADIUS));
+    if (at) {
+      moveTo(world, rt, mem, { key: `farm-retreat:${Math.round(at.x)}:${Math.round(at.y)}`, at });
+      return;
     }
   }
-  const endgame = target ?? nearestPlayer(world, playerId, p);
+
+  if (mem.farmCamp !== mem.camp || p.mobKills > mem.farmCampKills) {
+    mem.farmCamp = mem.camp;
+    mem.farmCampAt = now;
+    mem.farmCampKills = p.mobKills;
+  } else if (mem.camp > 0 && now - mem.farmCampAt >= 12_000) {
+    mem.farmBanned.set(mem.camp, now + 45_000);
+    mem.camp = 0;
+    mem.farmCamp = 0;
+    mem.farmCampAt = now;
+    mem.farmCampKills = p.mobKills;
+  }
+
+  let target: Target | null = null;
+  if (!world.state.gatesLocked && hp >= 0.55) {
+    const faction = isFactionId(p.faction) ? p.faction : null;
+    const available = (camp: CampDef, index: number): boolean => (mem.farmBanned.get(index + 1) ?? 0) <= now;
+    const normal = (camp: CampDef, index: number): boolean => camp.eliteSpot < 0 && available(camp, index);
+    target = campTarget(world, p, mem, "farm-safe", () => true,
+      (camp, index) => normal(camp, index) && !!faction && campMatchup(faction, camp) > 0);
+    if (!target) target = campTarget(world, p, mem, "farm-normal", () => true, normal);
+    if (!target && hp >= 0.85 && liveBuffPower(p.buffs) >= 10) {
+      target = campTarget(world, p, mem, "farm-elite", () => true,
+        (camp, index) => available(camp, index) && !!faction && campMatchup(faction, camp) > 0.25);
+    }
+  }
+  const endgame = world.state.gatesLocked ? target ?? nearestPlayer(world, playerId, p) : target;
   if (endgame) engage(world, p, rt, mem, endgame);
 }
 

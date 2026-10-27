@@ -47,7 +47,6 @@ function makeRun(fighters: Fighter[] = [
     wishLockSeconds: 0,
   };
   const world = createGameWorld({
-    seed: 7,
     config,
     random: mulberry32(8),
     rewardSalt: 71,

@@ -178,6 +178,7 @@ export function killMob(
 
   const { elite, region } = brain;
   const type = mobTypeOf(c.s.type, region, elite);
+  const camp = c.s.camp - 1;
   const weapon = c.s.weapon0;
   const at = { x: c.s.x, y: c.s.y };
   if (killer === null) {
@@ -185,7 +186,7 @@ export function killMob(
     if (weapon !== "") payLater(world, () => dropWeapon(world, at, weapon));
     return;
   }
-  payLater(world, () => payMobKill(world, killer!, region, elite, type, weapon, at, m));
+  payLater(world, () => payMobKill(world, killer!, region, elite, type, camp, weapon, at, m));
 }
 
 /**
@@ -198,7 +199,7 @@ export function mobTypeOf(type: string, region: FactionId, elite: boolean): MobT
   return elite ? eliteTypeOf(region).id : normalTypesOf(region)[0]!.id;
 }
 
-function payMobKill(world: World, killerId: string, region: FactionId, elite: boolean, type: MobTypeId, weapon: string, at: Vec2, m: number): void {
+function payMobKill(world: World, killerId: string, region: FactionId, elite: boolean, type: MobTypeId, camp: number, weapon: string, at: Vec2, m: number): void {
   // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed, buff or drop, so a
   // practice kill never changes the build the player set up.
   if (world.config.training) return;
@@ -211,7 +212,7 @@ function payMobKill(world: World, killerId: string, region: FactionId, elite: bo
   creditMobKill(world, p, rt, elite, m);
   grantBuff(world, p, rt, type, mobBuffStacks(elite) * m);
   if (weapon !== "" && p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);
-  world.hooks.mobKilled?.(world, rt, { region, elite });
+  world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite });
 }
 
 /** An idle mob below full hp (hurt by someone who was gone before they could wake it) heals after this long unhurt: the design's heal lockout. */

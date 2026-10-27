@@ -40,7 +40,7 @@ function makeRun(faction: FactionId): World {
     quests: true,
     wishLockSeconds: 0,
   };
-  const world = createGameWorld({ seed: 7, config, random: mulberry32(8), rewardSalt: 71, map: arenaMap() });
+  const world = createGameWorld({ config, random: mulberry32(8), rewardSalt: 71, map: arenaMap() });
   addPlayer(world, "p0", "alice", { faction });
   addPlayer(world, "p1", "bob", { faction: "frost" });
   step(world, TICK_MS);
@@ -116,17 +116,22 @@ describe("quest parcel carriers", () => {
     expectPublicParcelAtCarrier(world, qt);
   });
 
-  it("keeps the parcel by default on the coliseum teleport", () => {
+  it("expires the quest and removes the carried parcel on the coliseum teleport", () => {
     const world = makeRun("fire");
     const qt = carrying(world);
     const before = { x: P(world).x, y: P(world).y };
+    const npcId = qt.npcId;
 
     teleportToColiseum(world);
 
     expect(Math.hypot(P(world).x - before.x, P(world).y - before.y)).toBeGreaterThan(0);
     expect(world.state.inColiseum).toBe(true);
-    expectPublicParcelAtCarrier(world, qt);
+    expect(qt.s.status).toBe("expired");
+    expect(qt.s.carrier).toBe("");
+    expect(world.quests!.carried.size).toBe(0);
+    expect(world.state.mobs.has(npcId)).toBe(false);
+    expect([...world.state.containers.values()].some((c) => c.kind === "quest")).toBe(false);
     step(world, TICK_MS);
-    expectPublicParcelAtCarrier(world, qt);
+    expect(qt.s.status).toBe("expired");
   });
 });

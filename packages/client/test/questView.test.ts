@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EFFECT_HIDDEN } from "@raid/shared";
 import { QuestView, type QuestViewFrame } from "../src/render/QuestView";
-import type { QuestStateLike } from "../src/ui/questModel";
+import type { QuestContainerLike, QuestStateLike } from "../src/ui/questModel";
 import { fakeScene } from "./fakes";
 
 function frame(over: Partial<QuestViewFrame> = {}): QuestViewFrame {
@@ -39,6 +39,21 @@ describe("QuestView", () => {
     expect(giverChildren[3]!.state.visible).toBe(true);
     view.update(frame({ localId: "remote", me: { x: 500, y: 200, status: "alive" } }));
     expect(giverChildren[3]!.state.visible).toBe(false);
+    view.destroy();
+  });
+
+  it("does not draw closed givers, carriers or leftover quest items", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new QuestView(scene);
+    const closed: QuestStateLike = {
+      id: "q1", def: "banner-fire", x: 100, y: 200, status: "expired", doneBy: "", expiresAt: 1000,
+      carrier: "remote", progress: new Map(),
+    };
+    view.update(frame({
+      quests: { forEach(cb: (q: QuestStateLike, id: string) => void) { cb(closed, closed.id); } },
+      containers: { forEach(cb: (c: QuestContainerLike, id: string) => void) { cb({ id: "item", kind: "quest", x: 100, y: 200, label: "Parcel", items: [{ def: "quest:q1" }] }, "item"); } },
+    }));
+    expect(ofKind("container")).toHaveLength(0);
     view.destroy();
   });
 });

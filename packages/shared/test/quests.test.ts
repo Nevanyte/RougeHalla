@@ -1,18 +1,21 @@
 // The quest catalog, reward maths and contract-driven placement. Dense seeds 7829/10760 pin the placement fallbacks.
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { buffDef, buffText, rewardCurve } from "../src/buffs";
 import {
   QUEST_COUNT, QUEST_FETCH_MIN_TILES, QUEST_GV_CAP, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES,
   QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_HEAD_START_MS, QUEST_UNKNOWN_COUNT, TILE,
 } from "../src/constants";
 import { circleClear } from "../src/geometry";
-import { mapFromTiles, type GameMap } from "../src/map";
+import {
+  TILE_WALL, mapFromTiles, moveComponents, tileIndex, tileToWorldCenter, worldToTile, type CampDef, type GameMap,
+} from "../src/map";
 import { generateMap } from "../src/mapgen";
 import { mulberry32 } from "../src/rng";
 import { QuestState, RaidState } from "../src/schema";
+import { TERRAIN_NONE, terrainAt } from "../src/terrain";
 import {
   npcCandidates, parityGv, parityStacks, placeQuests, QUEST_DEFS, questDefById, questRewardStacks,
-  questRewardText, selectQuests, spreadSpots,
+  questRewardText, selectQuests, spreadSpots, type QuestPlacement, type RosterEntry,
 } from "../src/quests";
 
 describe("the catalog", () => {
@@ -116,26 +119,52 @@ describe("hidden and reward wire contracts", () => {
 });
 
 describe("placement", () => {
-  const seeds = [7, 1234, 7829, 10760];
-  const maps = new Map<number, GameMap>();
-
-  const mapOf = (seed: number): GameMap => {
-    let m = maps.get(seed);
-    if (!m) maps.set(seed, (m = generateMap(seed)));
-    return m;
-  };
-
-  it("puts every giver on clear floor, off spawnPool starts, out of the coliseum and spread apart", () => {
-    for (const seed of seeds) {
-      const map = mapOf(seed);
+  const seeds = [...Array.from({ length: 30 }, (_, i) => i + 1), 1234, 7829, 10760];
+  interface PlacementFixture {
+    map: GameMap;
+    roster: RosterEntry[];
+    placements: QuestPlacement[];
+    candidates: ReturnType<typeof npcCandidates>;
+  }
+  const fixtures = new Map<number, PlacementFixture>();
+  const fixtureOf = (seed: number): PlacementFixture => {
+    let fixture = fixtures.get(seed);
+    if (!fixture) {
+      const map = generateMap(seed);
       const roster = selectQuests(mulberry32(seed + 1));
-      const placements = placeQuests(map, roster, mulberry32(seed + 2));
+      fixture = {
+        map,
+        roster,
+        placements: placeQuests(map, roster, mulberry32(seed + 2)),
+        candidates: npcCandidates(map),
+      };
+      fixtures.set(seed, fixture);
+    }
+    return fixture;
+  };
+  const tileDist = (a: { x: number; y: number }, b: { x: number; y: number }): number =>
+    Math.max(Math.abs(worldToTile(a.x) - worldToTile(b.x)), Math.abs(worldToTile(a.y) - worldToTile(b.y)));
+
+  beforeAll(() => {
+    for (const seed of seeds) fixtureOf(seed);
+  }, 120_000);
+
+  it("puts every giver on safe plain floor, off starts and camps, out of the coliseum and spread apart", () => {
+    for (const seed of seeds) {
+      const { map, roster, placements } = fixtureOf(seed);
       expect(placements.length, `seed ${seed}`).toBe(roster.length);
       const rect = map.coliseum.rect;
+      const components = moveComponents(map);
+      const coliseumComponent = components[tileIndex(map, worldToTile(map.coliseum.centre.x), worldToTile(map.coliseum.centre.y))];
       for (const p of placements) {
         expect(circleClear(map, p.at, 12), `${p.def.id} on floor`).toBe(true);
+        expect(terrainAt(map, p.at.x, p.at.y), `${p.def.id} off terrain`).toBe(TERRAIN_NONE);
+        expect(components[tileIndex(map, worldToTile(p.at.x), worldToTile(p.at.y))], `${p.def.id} reachable`).toBe(coliseumComponent);
         for (const s of map.spawnPool) {
           expect(Math.hypot(s.x - p.at.x, s.y - p.at.y), `${p.def.id} off starts`).toBeGreaterThanOrEqual(Math.floor(QUEST_NPC_SPAWN_MIN_TILES / 2) * TILE);
+        }
+        for (const camp of map.camps) {
+          expect(Math.hypot(camp.x - p.at.x, camp.y - p.at.y), `${p.def.id} outside ${camp.id}`).toBeGreaterThanOrEqual(camp.r + 3 * TILE);
         }
         const tx = Math.floor(p.at.x / TILE);
         const ty = Math.floor(p.at.y / TILE);
@@ -151,23 +180,27 @@ describe("placement", () => {
     }
   });
 
-  it("scatters at least count tokens per collect quest on clear floor, and every fetch parcel a long walk from its giver", () => {
+  it("places enough reachable tokens and distant parcels off every camp chest and mob rest halo", () => {
     for (const seed of seeds) {
-      const map = mapOf(seed);
-      const roster = selectQuests(mulberry32(seed + 1));
-      const placements = placeQuests(map, roster, mulberry32(seed + 2));
+      const { map, placements } = fixtureOf(seed);
+      const components = moveComponents(map);
       for (const p of placements) {
-        if (p.def.kind === "collect") {
-          expect(p.tokens!.length, p.def.id).toBeGreaterThanOrEqual(p.def.count);
-          for (const t of p.tokens!) expect(circleClear(map, t, 12), `${p.def.id} token on floor`).toBe(true);
-        } else if (p.def.kind === "fetch") {
+        const pieces = [...(p.tokens ?? []), ...(p.parcel ? [p.parcel] : [])];
+        if (p.def.kind === "collect") expect(p.tokens!.length, p.def.id).toBeGreaterThanOrEqual(p.def.count);
+        if (p.def.kind === "fetch") {
           expect(p.parcel, p.def.id).toBeDefined();
-          expect(circleClear(map, p.parcel!, 12), `${p.def.id} parcel on floor`).toBe(true);
-          const d = Math.max(
-            Math.abs(Math.floor(p.parcel!.x / TILE) - Math.floor(p.at.x / TILE)),
-            Math.abs(Math.floor(p.parcel!.y / TILE) - Math.floor(p.at.y / TILE)),
-          );
-          expect(d, `${p.def.id} parcel far away`).toBeGreaterThanOrEqual(QUEST_FETCH_MIN_TILES);
+          expect(tileDist(p.parcel!, p.at), `${p.def.id} parcel far away`).toBeGreaterThanOrEqual(QUEST_FETCH_MIN_TILES);
+        }
+        const giverComponent = components[tileIndex(map, worldToTile(p.at.x), worldToTile(p.at.y))];
+        for (const piece of pieces) {
+          expect(circleClear(map, piece, 12), `${p.def.id} piece on floor`).toBe(true);
+          expect(components[tileIndex(map, worldToTile(piece.x), worldToTile(piece.y))], `${p.def.id} piece reachable`).toBe(giverComponent);
+          for (const camp of map.camps) {
+            expect(tileDist(piece, camp.chest), `${p.def.id} off ${camp.id} chest`).toBeGreaterThan(1);
+            for (const spot of camp.spots) {
+              expect(tileDist(piece, spot), `${p.def.id} off ${camp.id} mob rest`).toBeGreaterThan(2);
+            }
+          }
         }
       }
     }
@@ -175,10 +208,7 @@ describe("placement", () => {
 
   it("sends a region-themed quest's giver to the far side of the map from that region's pole", () => {
     for (const seed of seeds) {
-      const map = mapOf(seed);
-      const roster = selectQuests(mulberry32(seed + 1));
-      const placements = placeQuests(map, roster, mulberry32(seed + 2));
-      const candidates = npcCandidates(map);
+      const { map, placements, candidates } = fixtureOf(seed);
       const seen = new Set<string>();
       for (const p of placements) {
         if (!p.def.region || seen.has(p.def.region)) continue;
@@ -191,8 +221,48 @@ describe("placement", () => {
     }
   });
 
+  it("returns quest ids in privately shuffled order rather than region-themed order", () => {
+    const interleaved = seeds.some((seed) => {
+      const themed = fixtureOf(seed).placements.map((p) => !!p.def.region);
+      return themed.some((region, i) => !region && themed.slice(i + 1).some(Boolean));
+    });
+    expect(interleaved).toBe(true);
+  });
+
+  it("allows identical public giver positions with different hidden sets", () => {
+    const w = 80;
+    const tiles = new Uint8Array(w * 3).fill(TILE_WALL);
+    for (let i = 0; i < 12; i++) tiles[w + 2 + i * 6] = 0;
+    tiles[w + 75] = 0;
+    const map = mapFromTiles(w, 3, tiles);
+    const campAt = { x: tileToWorldCenter(75), y: tileToWorldCenter(1) };
+    const camp: CampDef = {
+      id: "fire-1", zone: "fire", ...campAt, r: 0, spots: [], eliteSpot: -1, chest: campAt, area: 1, radius: 0,
+    };
+    map.camps.push(camp);
+    const def = questDefById("headhunter")!;
+    const roster: RosterEntry[] = Array.from({ length: QUEST_COUNT }, (_, i) => ({ def, known: i < QUEST_KNOWN_COUNT }));
+    const positionSet = (placements: QuestPlacement[]): string => placements
+      .map((p) => `${worldToTile(p.at.x)},${worldToTile(p.at.y)}`).sort().join(";");
+    const seen = new Map<string, { hidden: string; stream: number }>();
+    let pair: { a: number; b: number } | null = null;
+    for (let stream = 1; stream <= 512 && !pair; stream++) {
+      const placements = placeQuests(map, roster, mulberry32(stream));
+      const known = positionSet(placements.filter((p) => p.known));
+      const hidden = positionSet(placements.filter((p) => !p.known));
+      const previous = seen.get(known);
+      if (previous && previous.hidden !== hidden) pair = { a: previous.stream, b: stream };
+      else if (!previous) seen.set(known, { hidden, stream });
+    }
+    if (!pair) throw new Error("no deterministic stream pair with equal public positions found");
+    const a = placeQuests(map, roster, mulberry32(pair.a));
+    const b = placeQuests(map, roster, mulberry32(pair.b));
+    expect(positionSet(a.filter((p) => p.known))).toBe(positionSet(b.filter((p) => p.known)));
+    expect(positionSet(a.filter((p) => !p.known))).not.toBe(positionSet(b.filter((p) => !p.known)));
+  });
+
   it("does not read legacy spawns, regionGrid or region anchors", () => {
-    const map = mapOf(7);
+    const map = fixtureOf(7).map;
     const contractOnly: GameMap = {
       ...map,
       spawns: [],
