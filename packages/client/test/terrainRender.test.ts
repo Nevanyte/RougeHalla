@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  buildGameMapOf, INTERACT_RANGE, mapFromTiles, PLAYER_RADIUS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE,
+  generateMap, INTERACT_RANGE, mapFromTiles, PLAYER_RADIUS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE,
   TERRAIN_LAVA, TERRAIN_LIGHT, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, Y_SCALE,
   type GameMap, type Vec2,
 } from "@raid/shared";
@@ -198,11 +198,12 @@ describe("MapView's plain way tints floor hazards", () => {
 
   it("draws a map with no floor terrain exactly as it was drawn before the tint: a LOW tile, a wall that kept a kind, plain maps", () => {
     // Digests taken from the code with the hazard tint taken out (the chunked plain way of the R2 + zone terrain merge, on
-    // 96x96 zone maps); the tint must leave them unchanged.
+    // 96x96 zone maps); the tint must leave them unchanged. ZT-6 re-recorded them on the same seeds' plain maps (`styleZones: null`:
+    // the generator's plain maps moved when it began picking its spawn pool before the stylers); the drawing code did not.
     const lava = room(12, 10, { "4,3": TERRAIN_LAVA });
     expect(digest(lava)).toBe("fb5da7bb9d7c13fa 14");
-    expect(digest(buildGameMapOf(3, false))).toBe("4f0d71ac9857d6f9 440");
-    expect(digest(buildGameMapOf(11, false))).toBe("b06ec3d689ea8d4f 440");
+    expect(digest(generateMap(3, undefined, { styleZones: null }))).toBe("2b1e599b4f8b8933 440");
+    expect(digest(generateMap(11, undefined, { styleZones: null }))).toBe("3d4e192630233cd7 440");
     // A floor kind on a tile that is not floor (a stale byte under a wall or LOW tile) is not drawn either.
     expect(digest(field({ "4,3": [TILE_LOW, TERRAIN_LAVA], "6,5": [TILE_WALL, TERRAIN_EMBER] }))).toBe(digest(field({ "4,3": [TILE_LOW, TERRAIN_LAVA], "6,5": [TILE_WALL, 0] })));
   });
@@ -240,8 +241,8 @@ describe("MapView's plain way tints floor hazards", () => {
   });
 
   it("falls back to it when baking a styled map fails: every floor hazard of the map is drawn", () => {
-    const seed = Array.from({ length: 12 }, (_, i) => i + 1).find((s) => buildGameMapOf(s, true).terrain.includes(TERRAIN_EMBER))!;
-    const map = buildGameMapOf(seed, true);
+    const seed = Array.from({ length: 12 }, (_, i) => i + 1).find((s) => generateMap(s).terrain.includes(TERRAIN_EMBER))!;
+    const map = generateMap(seed);
     // The runs the tint should make: maximal horizontal runs of one floor hazard kind on FLOOR tiles, cut where a floor chunk ends.
     let runs = 0;
     for (let ty = 0; ty < map.h; ty++) {

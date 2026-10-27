@@ -147,8 +147,9 @@ describe("the extraction out of the minimap changed no pixels", () => {
   });
 
   it("matches the reference body call for call on a generated map, with the patterns off", () => {
+    // The reference body predates floor hazards and low ground, so it is held to maps that have none (the stylers off).
     for (const seed of [7, 31]) {
-      const map = generateMap(seed);
+      const map = generateMap(seed, undefined, { styleZones: null });
       const a = rec();
       const b = rec();
       paintMapBase(ctxOf(a), map, BACKING, BACKING, K_GEN, { patterns: false });

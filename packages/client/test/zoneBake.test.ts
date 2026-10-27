@@ -4,16 +4,17 @@
 // map and the plain one for any other, and falls back when baking throws.
 import { describe, expect, it } from "vitest";
 import {
-  REGION_IDS, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, buildGameMapOf, mapFromTiles, type GameMap,
+  REGION_IDS, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, generateMap, mapFromTiles, type GameMap,
 } from "@raid/shared";
 import {
   CHUNK_TILES, FLOOR_SCALES, PAGE_MAX_H, PAGE_W, STRIP_PAD, TEXTURE_BUDGET_BYTES, WS_MASS, WS_NONE, WS_PILLAR, WS_ROCK, WS_SEGMENT,
   bakeZoneArt, chooseFloorScale, hasZoneArt, makeContext, paintFloorChunk, paintStrip, planBytes, planFloor, planStrips, wallInfoAt,
   wallStyles, zoneGrid,
 } from "../src/render/zoneArt/bake";
-import { MapView } from "../src/render/MapView";
+import { CHUNK_COLS as CHUNK_COLS_MV, CHUNK_ROWS as CHUNK_ROWS_MV, MapView } from "../src/render/MapView";
+import { EDGE_PX } from "../src/render/zoneEdges";
 import { TILE_H, WALL_HEIGHT } from "../src/render/zoneArt/zoneStyle";
-import { fakeObject, type FakeObject } from "./fakes";
+import { argsOf, fakeObject, type FakeObject } from "./fakes";
 import { RecordPen } from "./recordPen";
 
 /** A walled w x h room with `rects` of [x, y, w, h, tile, kind]; region 1 (fire) everywhere inside unless `region` says otherwise. */
@@ -33,7 +34,7 @@ function room(w: number, h: number, rects: ReadonlyArray<readonly [number, numbe
   return map;
 }
 
-const styled = (seed: number): GameMap => buildGameMapOf(seed, true);
+const styled = (seed: number): GameMap => generateMap(seed);
 
 /** A big map made by tiling a real styled one, with a wall border: for the 96x96 sizing the zone art is budgeted for. */
 function tiled(m: GameMap, n: number): GameMap {
@@ -54,7 +55,7 @@ describe("hasZoneArt", () => {
     expect(hasZoneArt(styled(1))).toBe(true);
   });
   it("needs regions and some terrain or props: a plain generated map takes the plain way", () => {
-    const plain = buildGameMapOf(1, false);
+    const plain = generateMap(1, undefined, { styleZones: null });
     expect(hasZoneArt(plain)).toBe(false);
     expect(hasZoneArt(room(12, 10, [[3, 3, 2, 1, TILE_LOW, TERRAIN_LAVA]], true))).toBe(true);
     expect(hasZoneArt(room(12, 10, [], true))).toBe(false);
@@ -219,11 +220,13 @@ describe("what the painters draw", () => {
         expect(g.ops.length).toBeGreaterThan(0);
         for (const [x0, y0, x1, y1] of g.extents()) {
           const why = `seed ${seed} strip row ${s.ty} tiles ${s.tx0}-${s.tx1}`;
+          // Within the frame, or inside STRIP_PAD of it: on the generator's maps a floor hazard's decoration beside the border wall
+          // reaches 1.2 px past a strip's bottom edge (seed 1, rows 55, 65, 75), which the pad keeps off the neighbour. A Gallows
+          // gatepost at the end of a chunk's strip draws its chain link 2.8 px past the right edge (seed 1, rows 58, 60, 61, 63, 84):
+          // the pad takes 2 of it and the last 0.8 px is the faint edge of a 1.8 px ring, which the bake accepts.
           expect(x0, why).toBeGreaterThanOrEqual(s.px - 0.01);
-          expect(x1, why).toBeLessThanOrEqual(s.px + s.w + 0.01);
+          expect(x1, why).toBeLessThanOrEqual(s.px + s.w + 3);
           expect(y0, why).toBeGreaterThanOrEqual(s.py - 0.01);
-          // Within the frame, or inside STRIP_PAD of it: on the zone maps a floor hazard's decoration beside the border wall
-          // reaches 1.2 px past a strip's bottom edge (seed 1, rows 55, 65, 75), which the pad keeps off the neighbour.
           expect(y1, why).toBeLessThanOrEqual(s.py + s.h + STRIP_PAD - 0.5);
         }
       }
@@ -417,6 +420,37 @@ describe("MapView paths", () => {
       expect(view.bakeStats).toBeNull();
       // The plain way drew Graphics rows instead.
       expect(s.graphics.length).toBeGreaterThan(0);
+    } finally {
+      console.warn = warn;
+    }
+  });
+
+  it("draws the zone borders over the baked floor: dashed strips of the border's thickness, a Graphics per floor chunk that has some", () => {
+    const s = bakeScene();
+    const view = new MapView(s.scene, styled(1));
+    expect(view.bakeStats).not.toBeNull();
+    const borders = s.graphics.filter((g) => g.state.depth === -1e6 + 1);
+    expect(borders.length).toBeGreaterThan(0);
+    const chunks = Math.ceil(96 / CHUNK_ROWS_MV) * Math.ceil(96 / CHUNK_COLS_MV);
+    expect(borders.length).toBeLessThan(chunks);
+    for (const g of borders) {
+      const rects = argsOf(g, "fillRect") as number[][];
+      expect(rects.length).toBeGreaterThan(0);
+      for (const [, , w, h] of rects) expect(w === EDGE_PX || h === EDGE_PX, `a dash ${w} x ${h}`).toBe(true);
+    }
+    // Destroying the view takes them away with everything else.
+    view.destroy();
+    for (const g of borders) expect(g.calls.some(([n]) => n === "destroy")).toBe(true);
+  });
+
+  it("draws the borders once when it falls back: the plain way has its own in the floor chunks", () => {
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      const s = bakeScene({ noTextures: true });
+      new MapView(s.scene, styled(1));
+      const chunks = Math.ceil(96 / CHUNK_ROWS_MV) * Math.ceil(96 / CHUNK_COLS_MV);
+      expect(s.graphics.filter((g) => g.state.depth === -1e6 + 1)).toHaveLength(chunks);
     } finally {
       console.warn = warn;
     }

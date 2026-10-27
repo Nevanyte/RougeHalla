@@ -232,29 +232,29 @@ describe("the Ground legend", () => {
     expect(help.isOpen).toBe(true);
   });
 
-  it("follows MAP_STYLERS by default: no Ground legend while the zone stylers are off", () => {
-    expect(MAP_STYLERS).toBe(false);
-    expect(groundLegendVisible()).toBe(false);
+  it("follows MAP_STYLERS by default: the Ground legend is in the card while the zone stylers are on (they are, since ZT-6)", () => {
+    expect(MAP_STYLERS).toBe(true);
+    expect(groundLegendVisible()).toBe(true);
     const { doc } = installChromeDom();
     const help = new HelpOverlay();
     const root = fake(help.element);
     doc.ui.append(root);
-    expect(root.byClass("help-ground")).toHaveLength(0);
-    expect(root.byClass("help-section")).toHaveLength(HELP_SECTIONS.length);
+    expect(root.byClass("help-ground")).toHaveLength(1);
+    expect(root.byClass("help-section")).toHaveLength(HELP_SECTIONS.length + 1);
   });
 
-  it("follows MAP_STYLERS by default: the Ground legend is in the card once the flag is on", async () => {
+  it("follows MAP_STYLERS by default: no Ground legend when the flag is off (plain maps have no terrain to explain)", async () => {
     vi.resetModules();
-    vi.doMock("@raid/shared", async (importOriginal) => ({ ...(await importOriginal<typeof import("@raid/shared")>()), MAP_STYLERS: true }));
+    vi.doMock("@raid/shared", async (importOriginal) => ({ ...(await importOriginal<typeof import("@raid/shared")>()), MAP_STYLERS: false }));
     try {
       const fresh = await import("../src/ui/helpOverlay");
-      expect(fresh.groundLegendVisible()).toBe(true);
+      expect(fresh.groundLegendVisible()).toBe(false);
       const { doc } = installChromeDom();
       const help = new fresh.HelpOverlay();
       const root = fake(help.element);
       doc.ui.append(root);
-      expect(root.byClass("help-ground")).toHaveLength(1);
-      expect(root.byClass("help-section")).toHaveLength(HELP_SECTIONS.length + 1);
+      expect(root.byClass("help-ground")).toHaveLength(0);
+      expect(root.byClass("help-section")).toHaveLength(HELP_SECTIONS.length);
     } finally {
       vi.doUnmock("@raid/shared");
       vi.resetModules();

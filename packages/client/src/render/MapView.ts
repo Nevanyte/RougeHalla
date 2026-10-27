@@ -163,6 +163,8 @@ export class MapView {
   private gatesLocked = false;
   /** The baked ground and walls of a styled map; null on the plain way. */
   private art: BakedArt | null = null;
+  /** The zone borders drawn over the baked floor (the plain way draws them in its floor chunks). */
+  private borders: Phaser.GameObjects.Graphics[] = [];
   /** The animated overlays and particles over the baked ground; null on the plain way. */
   private fx: TerrainFx | null = null;
   private terrainFx = true;
@@ -171,6 +173,7 @@ export class MapView {
   constructor(private readonly scene: Phaser.Scene, readonly map: GameMap) {
     if (hasZoneArt(map)) this.bake();
     if (!this.art) this.drawPlain();
+    else this.drawBorders();
     this.drawGates();
     scene.events?.on?.(PRE_RENDER, this.cull);
     scene.events?.on?.("postupdate", this.onPostUpdate);
@@ -210,6 +213,7 @@ export class MapView {
     for (const o of this.objects) o.destroy();
     this.objects.length = 0;
     this.chunks.length = 0;
+    this.borders.length = 0;
     this.lockedGates.length = 0;
     this.openGates = null;
   }
@@ -273,7 +277,39 @@ export class MapView {
     this.art = null;
     this.fx?.destroy();
     this.fx = null;
+    this.dropBorders();
     this.drawPlain();
+  }
+
+  /**
+   * The zone borders over the baked floor: the same dashed strips the plain way draws into its floor chunks, one Graphics per floor
+   * chunk that has some (culled with the chunks), just above the baked floor and under its animated overlays.
+   */
+  private drawBorders(): void {
+    const { map } = this;
+    const pieces = this.edgePieces();
+    for (let ty0 = 0; ty0 < map.h; ty0 += CHUNK_ROWS) {
+      for (let tx0 = 0; tx0 < map.w; tx0 += CHUNK_COLS) {
+        const list = pieces.get(chunkKey(tx0, ty0));
+        if (!list) continue;
+        const tx1 = Math.min(map.w, tx0 + CHUNK_COLS), ty1 = Math.min(map.h, ty0 + CHUNK_ROWS);
+        const g = this.addChunk(DEPTH_FLOOR + 1, { x: projX(tx0 * TILE), y: projY(ty0 * TILE), w: (tx1 - tx0) * TILE, h: projY(ty1 * TILE) - projY(ty0 * TILE) });
+        this.borders.push(g);
+        for (const { strip, from, to } of list) this.drawStrip(g, strip, from, to);
+      }
+    }
+  }
+
+  /** Takes the baked borders away (the plain way draws its own). */
+  private dropBorders(): void {
+    for (const g of this.borders) {
+      const at = this.objects.indexOf(g);
+      if (at >= 0) this.objects.splice(at, 1);
+      const c = this.chunks.findIndex((k) => k.g === g);
+      if (c >= 0) this.chunks.splice(c, 1);
+      g.destroy();
+    }
+    this.borders.length = 0;
   }
 
   /** A restored WebGL context has lost every texture's contents: bake again (after Phaser has rebuilt its own resources). */
@@ -283,7 +319,7 @@ export class MapView {
       this.art.destroy();
       this.art = null;
       this.bake();
-      if (!this.art) this.drawPlain();
+      if (!this.art) { this.dropBorders(); this.drawPlain(); }
       this.verifyBake();
     }, 0);
   };
