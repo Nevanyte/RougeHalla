@@ -599,6 +599,8 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   // --- Records ----------------------------------------------------------------------------------------------------
   const noLoot = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (ruinGrid[i] || fp[i] || terrain[i] !== TERRAIN_NONE) noLoot[i] = 1;
+  // validateTerrain T8: no floor hazard in a ground spot's 3x3 (a LOW kind may stand there). Nothing to mark on an unstyled map.
+  for (let i = 0; i < N; i++) if (terrain[i] !== TERRAIN_NONE && TERRAINS[terrain[i]].tile === TILE_FLOOR) markRect(noLoot, cell(i), 1);
   for (const t of clearing) noLoot[t] = 1;
   for (const t of allCrates) markRect(noLoot, cell(t), 1);
   const groundSpots = pickGroundSpots(rng, tiles, noLoot, poolTiles).map(toWorld);

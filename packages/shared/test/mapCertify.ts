@@ -16,7 +16,7 @@ import type { ZoneStyleHook } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
 import { randInt } from "../src/rng";
 import {
-  TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TERRAIN_NONE, validateTerrain,
+  TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_LAVA, TERRAIN_LIGHT, TERRAIN_NONE, validateTerrain,
 } from "../src/terrain";
 
 // ---- The contract's numbers (not read from the generator) ----
@@ -870,7 +870,8 @@ export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, decor, zone,
       const at = cells[randInt(rng, 0, cells.length)];
       const horiz = rng() < 0.5;
       for (let k = 0; k < 6; k++) { const t = at + (horiz ? k : k * w); if (k !== 3 && free(t)) low(t, TERRAIN_CREVASSE); }
-      patch(4, TERRAIN_ICE);
+      // No ICE: validateTerrain T11 keeps an ICE tile's 8 neighbours clear of walls and LOW, and the generator's rock chunks,
+      // cover and safety nets do not keep off them yet (the zone-terrain hook integration does).
     } else if (faction === "plague") patch(5, TERRAIN_BOG);
     else if (faction === "holy") patch(3, TERRAIN_LIGHT);
     for (let b = 0; b < 2; b++) {

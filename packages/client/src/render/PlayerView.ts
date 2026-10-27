@@ -12,6 +12,7 @@ import { SignatureArt } from "./SignatureArt";
 import { MarksMemory } from "./signatureLook";
 import { StatusArt } from "./StatusArt";
 import { TrailView } from "./TrailView";
+import { FeetFx, NO_STATES, showsFeet, type TerrainStates } from "./zoneArt/terrainFeedback";
 import { drawAbilityIcon } from "./wishArt";
 
 const HIT_FLASH_MS = 120;
@@ -81,6 +82,8 @@ export class PlayerView {
   private readonly art: FighterArt;
   private readonly signatures: SignatureArt;
   private readonly status: StatusArt;
+  /** The ground under it: flames, ripples, a skid streak, a resting ring. A scene object one depth under the container, not a child. Made the first time it has something to show, so a map without hazards (and the hub) allocates none. */
+  private feet: FeetFx | null = null;
   /** The faction's Wish, drawn small to the left of the name: coloured while its cooldown is over, grey before. */
   private readonly wishIcon: Phaser.GameObjects.Graphics;
   /** What the icon was last drawn for (ability, ready, name: the name sets where it sits); "" = none. */
@@ -181,10 +184,11 @@ export class PlayerView {
    * `drawAsAlive`: the player's death is still ahead of the render time they are drawn at, so keep showing them.
    * `signatures`: draw the faction signature marks (the synced values freeze when a run ends, so only while it is active).
    * `facing`: the local player's predicted facing (net/localMotion.ts), which replaces the synced one while it walks; null for the synced one.
+   * `ground`: what the tile under its feet does to it (render/zoneArt/terrainFeedback.ts); the feet effects show it.
    */
   update(
     x: number, y: number, p: PlayerState, renderT: number, patchT: number, drawAsAlive = false, signatures = false,
-    facing: number | null = null,
+    facing: number | null = null, ground: TerrainStates = NO_STATES,
   ): void {
     const now = performance.now();
     // The look is set once at join and never changes in a run, so this decodes once per player.
@@ -200,6 +204,7 @@ export class PlayerView {
       this.marks.read(0, 0, false);
       this.fig.reset();
       this.status.reset();
+      this.feet?.hide();
       return;
     }
     const alpha = hidden && this.isLocal ? HIDDEN_LOCAL_ALPHA : 1;
@@ -245,6 +250,8 @@ export class PlayerView {
 
     if (this.factionGold) this.goldHalo.setAlpha(GOLD_PULSE_MIN + (1 - GOLD_PULSE_MIN) * (0.5 + 0.5 * Math.sin(now / GOLD_PULSE_MS)));
     this.trail?.update(x, y, now);
+    if (this.feet === null && showsFeet(ground)) this.feet = new FeetFx(this.scene);
+    this.feet?.update(ground, x, y, now);
   }
 
   /** The art's view of `p` with `facing` in place of the synced one. */
@@ -358,6 +365,8 @@ export class PlayerView {
 
   destroy(): void {
     this.root.destroy();
+    this.feet?.destroy();
+    this.feet = null;
     this.trail?.destroy();
     this.trail = null;
   }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BLAZE_MIN_DIST, BLAZE_RANGE, BLINK_STEP, blinkLanding, circleClear, coliseumRingMask, findPath, floorComponents, generateMap,
-  inColiseum, mapFromTiles, mulberry32, PLAYER_RADIUS, REGION_COLISEUM, segmentCrossesRing, TILE, TILE_FLOOR, TILE_WALL, withGates,
+  BLAZE_MIN_DIST, BLAZE_RANGE, BLINK_STEP, blinkLanding, buildGameMapOf, circleClear, coliseumRingMask, findPath, floorComponents, generateMap,
+  inColiseum, mapFromTiles, moveComponents, mulberry32, PLAYER_RADIUS, REGION_COLISEUM, segmentCrossesRing, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, withGates,
   type GameMap, type Vec2,
 } from "../src/index";
 
@@ -197,6 +197,19 @@ describe("floorComponents", () => {
     expect(lab[5]).toBeGreaterThan(0);
     expect(lab[10]).toBeGreaterThan(0);
     expect(lab[5]).not.toBe(lab[10]);
+  });
+
+  it("is moveComponents shifted up by one: the same pockets, 0 for every tile bodies cannot stand on (walls and LOW)", () => {
+    const styled = buildGameMapOf(5, true);
+    expect(styled.tiles.some((t) => t === TILE_LOW)).toBe(true);
+    for (const map of [generateMap(7), generateMap(12), styled, withGates(generateMap(7)), room(12, 8, [[5, 1, 5, 6]])]) {
+      const lab = floorComponents(map), comp = moveComponents(map);
+      expect(lab).toHaveLength(comp.length);
+      for (let i = 0; i < comp.length; i++) {
+        if (lab[i] !== comp[i]! + 1) throw new Error(`tile ${i}: label ${lab[i]} against component ${comp[i]}`);
+        if (map.tiles[i] !== TILE_FLOOR) expect(lab[i]).toBe(0);
+      }
+    }
   });
 
   it("is cached per map object, and the locked copy has its own, with the arena sealed", () => {

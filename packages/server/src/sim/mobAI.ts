@@ -30,7 +30,7 @@
 //     full hp: the gates lock behind the players, so a mob near the coliseum could not walk home.
 import {
   CAMP_WIDE_AGGRO, decide, hasLineOfSight, leashOk, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_REPATH_MS, PLAYER_RADIUS,
-  segmentClear, TICK_MS, wrapAngle, type FactionId, type Vec2,
+  reachMask, segmentClear, TICK_MS, wrapAngle, type FactionId, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { activeWeapon, timingsOf } from "./combatant";
@@ -158,6 +158,7 @@ export function resetMob(world: World, c: MobCombatant): void {
   b.holding = false;
   c.rt.inputs.drain();
   c.rt.path = [];
+  c.rt.slip = null;
   cancelAction(world, c);
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
@@ -235,7 +236,8 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
     self,
     target: at,
     targetVel: velocityOf(world.players.get(id)!, target, now),
-    los: hasLineOfSight(map, self, at),
+    // A swing is stopped by LOW (a fence, a lava stream), a shot is not: a melee mob across one walks round, a ranged one shoots.
+    los: hasLineOfSight(map, self, at, reachMask(weapon)),
     weapon,
     ready: now >= s.readyAt,
     // The mob's inputs take effect on the next tick, like a client's.

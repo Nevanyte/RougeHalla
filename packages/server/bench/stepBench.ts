@@ -2,13 +2,17 @@
 // roguelike R2), eight players fighting at eight camps, arrows and balls in the air, mobs chasing and retreating.
 // Reports the cost of one `step()`.
 //   npx tsx bench/stepBench.ts            (from packages/server; --buffs, --stress)
-// test/perf.test.ts runs the same scenarios against the gate (average < 5 ms, p99 < 15 ms per tick).
+// test/perf.test.ts runs the same scenarios against the gate (average < 5 ms, p99 < 15 ms per tick). The CLI also runs the
+// terrain variant (a hazard on every fourth floor tile, against the same map with the effects off; test/terrainPerf.test.ts).
 //
 // `--stress` is the worst case for the pathfinder: every mob of every camp is woken onto its nearest player once a second
 // (a camp chasing for 12 tiles, giving up, walking home and waking again, so most of the 80 are in motion and repathing
 // every MOB_REPATH_MS), and the players play like clients with the target lock: a `target` order every TARGET_REPATH_MS,
 // alternating between their two nearest mobs, so every order is a lock change. test/pathLoad.test.ts counts the searches.
-import { BUFF_IDS, TARGET_REPATH_MS, TICK_MS, mulberry32, type CampDef, type FactionId, type Vec2 } from "@raid/shared";
+import {
+  BUFF_IDS, generateMap, mulberry32, TARGET_REPATH_MS, TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE_FLOOR,
+  type CampDef, type FactionId, type GameMap, type Vec2,
+} from "@raid/shared";
 import { grantBuff } from "../src/sim/buffs";
 import { aggro } from "../src/sim/mobAI";
 import { combatant } from "../src/sim/combatant";
@@ -29,6 +33,12 @@ export interface BenchOptions {
   buffs?: boolean;
   /** The pathfinder's worst case: every camp woken every second, players re-locking every TARGET_REPATH_MS (see the header). `--stress` on the CLI. */
   stress?: boolean;
+  /**
+   * "heavy": the generated map with a hazard on every fourth floor tile (ember, bog, ice and light in turn), camps and spawns
+   * included: the terrain passes at their worst. `hazards: false` plays the same map with the effects off (the control).
+   */
+  terrain?: "heavy";
+  hazards?: boolean;
 }
 
 export interface BenchResult {
@@ -53,6 +63,10 @@ export interface BenchResult {
    */
   cpuAvgMs: number;
   cpuP99Ms: number;
+  /** Fighter-seconds each hazard acted on (world.hazards.stats): all zero on a map without terrain or with the effects off. */
+  hazardSeconds: { ember: number; bog: number; ice: number; light: number };
+  /** Mean milliseconds per tick of the burn and light passes, timed on their own (the terrain variant only). */
+  passMs: { burn: number; light: number } | null;
 }
 
 /** The step cost a gate should judge: the smaller of the wall-clock and the CPU measure (see BenchResult.cpuAvgMs). */
@@ -74,6 +88,32 @@ const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
 /** Ticks between the wake-ups (a mob already fighting just gains threat). */
 const WAKE_TICKS = 20;
+
+/** The map of `seed` with a hazard on every fourth floor tile (a diagonal lattice), the four kinds in turn by 2 x 2 block. */
+export function heavyTerrainMap(seed: number): GameMap {
+  const map = generateMap(seed);
+  const terrain = new Uint8Array(map.w * map.h);
+  const kinds = [TERRAIN_EMBER, TERRAIN_BOG, TERRAIN_ICE, TERRAIN_LIGHT];
+  for (let y = 0; y < map.h; y++) {
+    for (let x = 0; x < map.w; x++) {
+      const i = y * map.w + x;
+      if (map.tiles[i] === TILE_FLOOR && (x + 2 * y) % 4 === 0) terrain[i] = kinds[((x >> 1) + (y >> 1)) & 3]!;
+    }
+  }
+  return { ...map, terrain };
+}
+
+/** Wraps the system called `name` in `list` so its time is summed into `acc`. */
+function timePass(list: Array<(w: World, dtMs: number) => void>, name: string, acc: { ms: number }): void {
+  const i = list.findIndex((f) => f.name === name);
+  if (i < 0) return;
+  const inner = list[i]!;
+  list[i] = (w, dt) => {
+    const t0 = process.hrtime.bigint();
+    inner(w, dt);
+    acc.ms += Number(process.hrtime.bigint() - t0) / 1e6;
+  };
+}
 
 interface BenchCamp { region: FactionId; camp: CampDef }
 
@@ -135,7 +175,17 @@ function wakeEverything(world: World, ids: string[]): void {
 export function runStepBench(opts: BenchOptions = {}): BenchResult {
   const players = opts.players ?? 8;
   const seed = opts.seed ?? 1;
-  const world = createGameWorld({ seed, config: config(players), random: mulberry32(seed + 1) });
+  const cfg = config(players);
+  if (opts.hazards === false) cfg.hazards = false;
+  const world = createGameWorld({
+    seed, config: cfg, random: mulberry32(seed + 1), ...(opts.terrain === "heavy" ? { map: heavyTerrainMap(seed) } : {}),
+  });
+  const burn = { ms: 0 };
+  const light = { ms: 0 };
+  if (opts.terrain === "heavy") {
+    timePass(world.beforeDamage, "burnPass", burn);
+    timePass(world.systems, "lightPass", light);
+  }
   // The map's own mobs (one per camp spot); a replacement is placed whenever the count falls below it.
   const targetMobs = opts.mobs ?? world.map.camps.reduce((n, c) => n + c.spots.length, 0);
   for (let i = 0; i < players; i++) addPlayer(world, `p${i}`, NAMES[i]!);
@@ -211,6 +261,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
     const wallMs = Number(process.hrtime.bigint() - t0) / 1e6;
     const cpu = process.cpuUsage(cpu0);
     const ms = (cpu.user + cpu.system) / 1000;
+    if (n === warmup - 1) { burn.ms = 0; light.ms = 0; }
     if (n >= warmup) {
       times.push(wallMs);
       cpus.push(ms);
@@ -240,15 +291,28 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
     maxMs: times[times.length - 1]!,
     cpuAvgMs,
     cpuP99Ms: cpus[Math.min(cpus.length - 1, Math.floor(0.99 * cpus.length))]!,
+    hazardSeconds: { ...world.hazards.stats.seconds },
+    passMs: opts.terrain === "heavy" ? { burn: burn.ms / times.length, light: light.ms / times.length } : null,
   };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const r = runStepBench({ buffs: process.argv.includes("--buffs"), stress: process.argv.includes("--stress") });
   const f = (n: number): string => n.toFixed(3);
-  console.log(
-    `${r.ticks} ticks, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgAwake.toFixed(1)} awake, ${r.avgLocked.toFixed(1)} locked players, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
+  const show = (tag: string, r: BenchResult): void => console.log(
+    `${tag}${r.ticks} ticks, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgAwake.toFixed(1)} awake, ${r.avgLocked.toFixed(1)} locked players, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
     `step(): avg ${f(r.avgMs)} ms, p50 ${f(r.p50Ms)} ms, p99 ${f(r.p99Ms)} ms, max ${f(r.maxMs)} ms (gate: avg < 5, p99 < 15)\n` +
     `step() CPU time: avg ${f(r.cpuAvgMs)} ms, p99 ${f(r.cpuP99Ms)} ms (every thread of the process; wall time is inflated while the machine is busy, CPU time by the JIT and GC threads)`,
+  );
+  const buffs = process.argv.includes("--buffs");
+  show("", runStepBench({ buffs, stress: process.argv.includes("--stress") }));
+  // The terrain variant: a hazard on every fourth floor tile, against the same map with the effects off.
+  const heavy = runStepBench({ terrain: "heavy", buffs });
+  const control = runStepBench({ terrain: "heavy", hazards: false, buffs });
+  show("terrain (every 4th tile a hazard): ", heavy);
+  show("terrain map, effects off (control):  ", control);
+  const s = heavy.hazardSeconds;
+  console.log(
+    `terrain passes: burn ${f(heavy.passMs!.burn)} ms/tick, light ${f(heavy.passMs!.light)} ms/tick, all effects together ` +
+    `${f(heavy.avgMs - control.avgMs)} ms/tick over the control (fighter-seconds on ember ${s.ember.toFixed(0)}, bog ${s.bog.toFixed(0)}, ice ${s.ice.toFixed(0)}, light ${s.light.toFixed(0)})`,
   );
 }

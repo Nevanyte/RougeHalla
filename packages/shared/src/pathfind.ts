@@ -18,7 +18,9 @@ export const SNAP_RADIUS = 4;
  * How many candidates past the anchor string pulling looks at (a performance cap; it never makes a hop invalid, since
  * every accepted hop passes segmentClear and the next candidate always passes). At 96x96 with long detours the pull
  * was 85% of findPath's cost; the mapgen's sight certificate keeps every straight hop to well under 32 tiles, so the
- * paths on generated maps are the same as without the cap.
+ * paths on generated maps are the same as without the cap. On hand-built maps with long open sight lines the window can
+ * reshape a small share of the paths (still valid, at most about 8% longer); relaxing MAX_SIGHT_CORRIDOR means
+ * measuring it again.
  */
 export const PULL_WINDOW = 32;
 

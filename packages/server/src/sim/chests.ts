@@ -24,7 +24,7 @@
 //     inputs, which already refuse it); the coliseum teleport and the end of the run remove every chest.
 // Reward containers are never weapon containers: `pickup` refuses them (loot.ts), and they hold no items.
 import {
-  CHEST_RANGE, CHEST_REFUSAL, CHEST_SECONDS, hasLineOfSight, isWallAt, nextRank, rollChestOptions, skillDef, SKIP_HEAL_SHARE, type Vec2,
+  CHEST_RANGE, CHEST_REFUSAL, CHEST_SECONDS, hasLineOfSight, isSolidAt, nextRank, rollChestOptions, skillDef, SKIP_HEAL_SHARE, type Vec2,
 } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
 import { awardSkipGv } from "./arena";
@@ -57,11 +57,11 @@ export function dropRewardChest(world: World, at: Vec2, options: readonly string
   return box;
 }
 
-/** Where camp `camp`'s chest stands: its chest tile, or its centre when that tile is a wall. */
+/** Where camp `camp`'s chest stands: its chest tile, or its centre when nobody can stand on that tile (a wall or LOW ground). */
 export function chestSpot(world: World, camp: number): Vec2 | null {
   const def = world.map.camps[camp];
   if (!def) return null;
-  return isWallAt(world.map, def.chest.x, def.chest.y) ? { x: def.x, y: def.y } : { x: def.chest.x, y: def.chest.y };
+  return isSolidAt(world.map, def.chest.x, def.chest.y) ? { x: def.x, y: def.y } : { x: def.chest.x, y: def.chest.y };
 }
 
 /** Rolls camp `camp`'s chest (world.rewardRandom only) and drops it. Null for a camp the map does not have. */

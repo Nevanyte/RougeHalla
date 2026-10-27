@@ -13,6 +13,7 @@ import { install as installMobs } from "./mobs";
 import { install as installMods } from "./mods";
 import { install as installProjectiles } from "./projectiles";
 import { install as installTargeting } from "./targeting";
+import { install as installTerrain } from "./terrainEffects";
 import { install as installWeapons } from "./weapons";
 import { createWorld, type World } from "./world";
 
@@ -33,6 +34,9 @@ const MODULES: Array<(world: World) => void> = [
   installChests,
   installMobLife,
   installMobAI,
+  // Terrain hazards: after the signatures (burn joins the ledger behind their entries) and the faction layer's afterDamage
+  // (light heals once this tick's combat clock is stamped), before the stat mirrors.
+  installTerrain,
   installAbilities,
   // Last: its system folds the stat mirrors once every other system of the tick has run.
   installMods,

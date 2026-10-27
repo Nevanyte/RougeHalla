@@ -7,7 +7,7 @@
 //     slots full, replaces the weapon in hand, which drops where the player stands; that counts as a swap
 //     (weaponChanged: the action is cancelled and the cooldown gets SWAP_SECONDS).
 import {
-  hasLineOfSight, INTERACT_RANGE, isWeaponId, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
+  hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { activeWeapon, setSlot } from "./combatant";
@@ -103,7 +103,8 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   // A camp's shared chest is taken with `choose` (sim/chests.ts), never with the weapon pickup.
   if (box.kind === "reward") { toast(world, c.id, "Nothing to take"); return; }
   if (Math.hypot(p.x - box.x, p.y - box.y) > INTERACT_RANGE) { toast(world, c.id, "Too far away"); return; }
-  if (!hasLineOfSight(collisionMap(world), p, box)) { toast(world, c.id, "Can't reach that"); return; }
+  // Movement reach, not sight: a hand does not go through a fence (centres 56 u apart across one tile, INTERACT_RANGE 56).
+  if (!hasLineOfSight(collisionMap(world), p, box, MASK_MOVE)) { toast(world, c.id, "Can't reach that"); return; }
   const item = box.items.length > 0 ? box.items.at(0) : undefined;
   if (!item || !isWeaponId(item.def)) { toast(world, c.id, "Nothing to take"); return; }
 

@@ -46,7 +46,12 @@ export const EFFECT_LAST_STAND = 1024;
 export const EFFECT_HASTE = 2048;
 export const EFFECT_CASTING = 4096;
 
-/** Best guesses for the caps and `maxMs` values: the R8 report retunes them (contract R5). */
+/**
+ * Best guesses for the caps and `maxMs` values: the R8 report retunes them (contract R5). `slowMove`'s 0.6 cap is a cap on the
+ * status alone: the product of ALL of a fighter's move modifiers (this slow, chill, buffs, bog) is floored at MOVE_MULT_FLOOR
+ * (0.35, terrain.ts) in the sim's walk (step.ts) and the client's prediction, so a capped slow (x0.4) with Frost's chill (x0.7)
+ * walks at 0.35, not 0.28. A stun, root or cast (0) stays 0.
+ */
 export const STATUS_RULES: Readonly<Record<StatusKind, StatusRule>> = {
   stun:         { maxMs: 3000,  combine: "any",     cleanse: "hard",  bit: EFFECT_STUNNED },
   root:         { maxMs: 3000,  combine: "any",     cleanse: "hard",  bit: EFFECT_ROOTED },

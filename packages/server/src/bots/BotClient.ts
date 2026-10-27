@@ -17,8 +17,8 @@
 import { Client, type Room } from "@colyseus/sdk";
 import {
   abilityInSlot, bestSlot, buffPower, rankOf, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_STUNNED, EFFECT_UNTARGETABLE, findPath, generateMap, hasLineOfSight,
-  INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, mapHashU32, PLAYER_RADIUS,
-  PROFILE_TOKEN_HEADER, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
+  INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, mapHashU32, MASK_MOVE, PLAYER_RADIUS,
+  PROFILE_TOKEN_HEADER, reachMask, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
   type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions,
   type PlanMessage, type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -742,7 +742,9 @@ export class BotClient {
       return false;
     }
     this.lockOn(me, foe, now);
-    return me.attackTarget === foe.id && foe.d <= lockSpacing(weapon).attackRange + ATTACK_SLACK && hasLineOfSight(this.collision(), me, foe.at);
+    // The weapon's reach, like the lock's own `clear`: a sword is stopped by a fence, an arrow is not.
+    return me.attackTarget === foe.id && foe.d <= lockSpacing(weapon).attackRange + ATTACK_SLACK
+      && hasLineOfSight(this.collision(), me, foe.at, reachMask(weapon));
   }
 
   /**
@@ -807,7 +809,8 @@ export class BotClient {
     }
     const c = s.containers.get(g.containerId)!;
     const map = this.collision();
-    if (dist(me, c) > PICKUP_DISTANCE || !hasLineOfSight(map, me, c)) {
+    // Movement reach, as the server's pickup test (no looting through a fence).
+    if (dist(me, c) > PICKUP_DISTANCE || !hasLineOfSight(map, me, c, MASK_MOVE)) {
       this.moveTo(c, now);
     } else if (!this.holding) {
       this.hold(); // let the position settle before asking: a pickup from a stale position is refused as too far

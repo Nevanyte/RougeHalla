@@ -10,7 +10,7 @@ import {
   certifiedMap, generateMap, longestLane, mapHash, tryAttempt,
 } from "../src/mapgen";
 import type { ZoneStyleHook } from "../src/mapgen";
-import { PROP_KINDS, TERRAIN_LAVA, type PropKindSpec } from "../src/terrain";
+import { PROP_KINDS, TERRAIN_LAVA } from "../src/terrain";
 import { mulberry32, randInt } from "../src/rng";
 import { WEAPONS } from "../src/weapons";
 import {
@@ -330,18 +330,12 @@ describe("styler hook", () => {
   });
 
   /**
-   * PROP_KINDS ships empty, so the generator drops every prop a hook draws (terrain.ts): to see props at all, register one
-   * floor kind for the duration of `fn` and take it out again.
+   * The generator keeps a hook's prop only when its kind's tile class matches the tile under it (terrain.ts PROP_KINDS, zone
+   * terrain's table): the demo hook draws kind 0, a floor kind, so its props on floor stay.
    */
   const withPropKind = <T>(fn: () => T): T => {
-    const kinds = PROP_KINDS as PropKindSpec[];
-    expect(kinds).toHaveLength(0);
-    kinds.push({ key: "test-stone", on: TILE_FLOOR, home: null });
-    try {
-      return fn();
-    } finally {
-      kinds.pop();
-    }
+    expect(PROP_KINDS[0]?.on).toBe(TILE_FLOOR);
+    return fn();
   };
 
   it("builds every hashed layer the same with decor off (the server and bots), with no props; the hook is told", () => {

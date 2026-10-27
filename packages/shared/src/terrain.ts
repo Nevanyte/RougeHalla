@@ -2,8 +2,10 @@
 // (that is `tiles`, map.ts): a kind only says which tile class it may sit on, and `validateTerrain` checks that the two
 // layers agree. Kind ids are append-only (generator output, tests and the client's art index them). The numbers below
 // are first picks for the hazards; their effects are applied by the sim (burn, bog, ice, light), not here.
-import { TILE } from "./constants";
+import { PLAYER_SPEED, TILE } from "./constants";
+import { FACTION_IDS } from "./factions";
 import {
+  MASK_MOVE,
   REGION_COLISEUM,
   REGION_FACTIONS,
   REGION_IDS,
@@ -16,6 +18,8 @@ import {
 } from "./map";
 import type { GameMap, RegionFaction } from "./map";
 import { SNAP_RADIUS } from "./pathfind";
+import { PROP_KINDS } from "./propKinds";
+import type { PropKindSpec } from "./propKinds";
 
 export const TERRAIN_NONE = 0;
 export const TERRAIN_LAVA = 1;
@@ -77,15 +81,9 @@ export function terrainAt(map: GameMap, x: number, y: number): number {
   return terrainAtTile(map, worldToTile(x), worldToTile(y));
 }
 
-/** What a decor sprite may stand on. Part D fills the table; append only. */
-export interface PropKindSpec {
-  readonly key: string;
-  /** The tile class its anchor must sit on (TILE_FLOOR, TILE_LOW or TILE_WALL). */
-  readonly on: number;
-  readonly home: RegionFaction | null;
-}
-
-export const PROP_KINDS: readonly PropKindSpec[] = [];
+// The prop table is owned here (the default of T9) but lives in a leaf module the zone stylers also place from.
+export { PROP_KINDS } from "./propKinds";
+export type { PropKindSpec } from "./propKinds";
 
 /** The faction behind a regionGrid code; undefined for none and the coliseum. */
 const FACTION_OF_CODE: readonly (RegionFaction | undefined)[] = REGION_IDS.map((id) => REGION_FACTIONS.find((f) => f === id));
@@ -111,10 +109,16 @@ export interface ValidateTerrainOptions {
  *   The rest apply to a generated map only (regions present):
  *   T6  LOW and kinded tiles lie in a faction region, and a kind with a home lies in that faction's region
  *   T7  FLOOR is one 4-connected component with the gates open and two with them closed
- *   T8  protected cells are FLOOR with no terrain: gate tiles, spawn 3x3s, inner spawn 3x3s, chests, camp clearings; the
- *       coliseum footprint has no LOW and no terrain
+ *   T8  protected cells are FLOOR with no terrain: gate tiles, spawn 3x3s, inner spawn 3x3s, chests, camp clearings (the tiles
+ *       whose centre lies within the camp's r); the coliseum footprint has no LOW and no terrain. On top of that no
+ *       FLOOR-kind hazard (ember, bog, ice, light; a LOW kind may stand there) on a spawn's 5x5 (spawns, spawnPool,
+ *       regions' spawns), on the 3x3 of every chest, crate spot, camp chest and ground-loot spot (`groundSpots`), or within
+ *       one tile (Chebyshev) of a camp clearing. This is the generator's certificate: it gates attempts on this check alone
  *   T9  each prop is in bounds, of a known kind, on its kind's tile class
  *   T10 (`styled` only) no LOW tile has kind NONE
+ *   T11 (any map, checked with T5) no other tile that blocks movement (wall or LOW) and no cell off the map in the
+ *       8-neighbourhood of an ICE tile: the slide (shared/walk.ts) cannot steer in a corridor its own overshoot fills, so
+ *       ice keeps one tile of clear floor around it
  */
 export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {}): string[] {
   const { w, h, tiles, terrain, regionGrid } = map;
@@ -182,6 +186,24 @@ export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {})
   for (let i = 0; i < n; i++) if (tiles[i] === TILE_LOW && dist[i] < 0) { if (countFar++ === 0) farLow = i; }
   if (countFar > 0) out.push(`T5 ${countFar} LOW tile(s) more than ${SNAP_RADIUS} tiles from any floor, first ${at(farLow)}`);
 
+  // T11: a map invariant (it holds with or without regions), checked wherever the terrain holds ICE.
+  let nearSolid = -1, countNear = 0;
+  for (let i = 0; i < n; i++) {
+    if (terrain[i] !== TERRAIN_ICE) continue;
+    const x = i % w, y = (i - x) / w;
+    let bad = false;
+    for (let dy = -1; dy <= 1 && !bad; dy++) {
+      for (let dx = -1; dx <= 1 && !bad; dx++) {
+        const nx = x + dx, ny = y + dy;
+        // The tile itself is T3's business (ice on a wall or LOW).
+        if (dx === 0 && dy === 0) continue;
+        bad = nx < 0 || ny < 0 || nx >= w || ny >= h || (tiles[ny * w + nx] & MASK_MOVE) !== 0;
+      }
+    }
+    if (bad && countNear++ === 0) nearSolid = i;
+  }
+  if (countNear > 0) out.push(`T11 ${countNear} ICE tile(s) with a wall, LOW tile or the map edge in their 8-neighbourhood, first ${at(nearSolid)}`);
+
   if (map.regions.length === 0) return out;
 
   // T6
@@ -237,7 +259,27 @@ export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {})
   around("spawn", [...map.spawns, ...map.spawnPool, ...map.regions.flatMap((r) => r.spawns)]);
   around("inner spawn", map.coliseum.innerSpawns);
   const toTile = (p: { x: number; y: number }) => ({ x: worldToTile(p.x), y: worldToTile(p.y) });
-  protect("chest", [...map.crateSpots, ...map.regions.flatMap((r) => r.chestSpots), ...map.camps.map((c) => c.chest)].map(toTile));
+  const chestCentres = [...map.crateSpots, ...map.regions.flatMap((r) => r.chestSpots), ...map.camps.map((c) => c.chest)];
+  protect("chest", chestCentres.map(toTile));
+  // No floor hazard near the places a fighter stands or loots, whatever the tiles are (a LOW kind such as lava or a fence is allowed).
+  const hazardFree = (what: string, tilesAround: Iterable<{ x: number; y: number }>, half: number): void => {
+    for (const c of tilesAround) {
+      for (let dy = -half; dy <= half; dy++) {
+        for (let dx = -half; dx <= half; dx++) {
+          const x = c.x + dx, y = c.y + dy;
+          if (x < 0 || y < 0 || x >= w || y >= h) continue;
+          const kind = terrain[y * w + x];
+          if (kind !== TERRAIN_NONE && TERRAINS[kind]?.tile === TILE_FLOOR) {
+            out.push(`T8 ${what} at (${c.x}, ${c.y}) holds a floor hazard at (${x}, ${y})`);
+            return;
+          }
+        }
+      }
+    }
+  };
+  hazardFree("spawn 5x5", [...map.spawns, ...map.spawnPool, ...map.regions.flatMap((r) => r.spawns)].map(toTile), 2);
+  hazardFree("chest or crate 3x3", chestCentres.map(toTile), 1);
+  hazardFree("ground-loot spot 3x3", map.groundSpots.map(toTile), 1);
   const clearing: { x: number; y: number }[] = [];
   for (const c of [...map.camps, ...map.regions.flatMap((r) => r.mobCamps)]) {
     const ctx = worldToTile(c.x), cty = worldToTile(c.y);
@@ -251,6 +293,7 @@ export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {})
     }
   }
   protect("camp clearing", clearing);
+  hazardFree("camp clearing (+1 tile)", clearing, 1);
 
   // T9
   const propKinds = opts.propKinds ?? PROP_KINDS;
@@ -279,4 +322,108 @@ function countComponents(comp: Int32Array): number {
   let max = -1;
   for (let i = 0; i < comp.length; i++) if (comp[i] > max) max = comp[i];
   return max + 1;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// What a surface does to one fighter (part B). The sim (server/src/sim/terrainEffects.ts) and the client's prediction ask
+// the same table, so both sides agree on the tile under a fighter's centre by construction.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** The product of all of a fighter's move modifiers (chill, buffs, bog, later statuses) never drops below this while it is above 0 (a root's 0 stays 0). */
+export const MOVE_MULT_FLOOR = 0.35;
+
+/** What a surface does to one fighter, its faction's home rule applied. Precomputed per (kind, faction): the lookup allocates nothing. */
+export interface SurfaceEffect {
+  readonly kind: number;
+  /** Walk speed multiplier (1 = none). */
+  readonly speedMult: number;
+  /** Slide traction in u/s^2 (see slipAccel); 0 = full grip (off ice, or exempt). */
+  readonly accel: number;
+  /** Share of max hp per second lost as true damage. */
+  readonly burnShare: number;
+  /** Share of max hp per second healed through heal(). */
+  readonly healShare: number;
+}
+
+/** Traction of a surface with `slipMs` milliseconds from rest to PLAYER_SPEED (0 = no slide). */
+export function slipAccel(slipMs: number): number {
+  return slipMs > 0 ? (PLAYER_SPEED * 1000) / slipMs : 0;
+}
+
+/**
+ * Column 0 is "no home rule" (an empty or unknown faction: a training dummy, a test); column 1 + i is FACTION_IDS[i].
+ * `exempt` gives the neutral effect on the kind's home faction; `boost` multiplies the kind's own magnitude (burn, heal, and
+ * the distance of speedMult from 1) by `homeMult`. A slide's traction is never boosted.
+ */
+const SURFACE: readonly (readonly SurfaceEffect[])[] = TERRAINS.map((spec, kind) => {
+  const base: SurfaceEffect = {
+    kind, speedMult: spec.speedMult, accel: slipAccel(spec.slipMs), burnShare: spec.burnShare, healShare: spec.healShare,
+  };
+  const neutral: SurfaceEffect = { kind, speedMult: 1, accel: 0, burnShare: 0, healShare: 0 };
+  const boosted: SurfaceEffect = {
+    kind,
+    speedMult: 1 + (spec.speedMult - 1) * spec.homeMult,
+    accel: base.accel,
+    burnShare: spec.burnShare * spec.homeMult,
+    healShare: spec.healShare * spec.homeMult,
+  };
+  const row: SurfaceEffect[] = [base];
+  for (const f of FACTION_IDS) {
+    const home = spec.home !== null && f === spec.home;
+    row.push(home && spec.homeRule === "exempt" ? neutral : home && spec.homeRule === "boost" ? boosted : base);
+  }
+  return row;
+});
+
+const FACTION_COLUMN: ReadonlyMap<string, number> = new Map(FACTION_IDS.map((f, i) => [f, i + 1]));
+
+/** `faction` is a fighter's `faction` string (player or regional mob); "" or an unknown one gets no home rule. A kind the table lacks is plain ground. */
+export function surfaceEffect(kind: number, faction: string): SurfaceEffect {
+  const row = SURFACE[kind] ?? SURFACE[TERRAIN_NONE];
+  return row[FACTION_COLUMN.get(faction) ?? 0];
+}
+
+/** The effect under a world point (a fighter's centre, the tile `terrainAt` reads). */
+export function surfaceAt(map: GameMap, x: number, y: number, faction: string): SurfaceEffect {
+  return surfaceEffect(terrainAt(map, x, y), faction);
+}
+
+/** Which effects a map holds at all: a system with nothing to do returns at once. */
+export interface MapHazards {
+  readonly burn: boolean;
+  readonly slow: boolean;
+  readonly slip: boolean;
+  readonly heal: boolean;
+}
+
+const hazardCache = new WeakMap<Uint8Array, MapHazards>();
+
+/**
+ * The kinds of effect the map's terrain holds (the base effect of every kind present, before any home rule), cached per
+ * `terrain` array, which `withGates` copies share. All false for a zeroed layer. A test that edits terrain after a query
+ * calls `forgetHazards`.
+ */
+export function hazardsOf(map: GameMap): MapHazards {
+  let h = hazardCache.get(map.terrain);
+  if (h) return h;
+  const present = new Uint8Array(256);
+  const t = map.terrain;
+  for (let i = 0; i < t.length; i++) present[t[i]] = 1;
+  let burn = false, slow = false, slip = false, heal = false;
+  for (let k = 1; k < TERRAINS.length; k++) {
+    if (!present[k]) continue;
+    const spec = TERRAINS[k];
+    if (spec.burnShare > 0) burn = true;
+    if (spec.speedMult !== 1) slow = true;
+    if (spec.slipMs > 0) slip = true;
+    if (spec.healShare > 0) heal = true;
+  }
+  h = { burn, slow, slip, heal };
+  hazardCache.set(map.terrain, h);
+  return h;
+}
+
+/** For a test that changes terrain after `hazardsOf` read it. */
+export function forgetHazards(map: GameMap): void {
+  hazardCache.delete(map.terrain);
 }
