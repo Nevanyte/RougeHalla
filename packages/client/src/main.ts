@@ -296,5 +296,5 @@ menu.show();
 // index.html's #boot goes once the hub scene has drawn and the profile has loaded or failed (the menu shows which).
 loading.show("Loading…", { timeoutMs: BOOT_TIMEOUT_MS });
 void Promise.all([whenReady(() => sceneRunning("hub")), menu.whenLoaded()]).then(() => { if (joinAttempt === 0) loading.hide(); });
-// The map worker builds its lane tables and warms up once the hub is drawn and the page is idle, long before a join needs it.
+// The map worker builds its layout tables and warms up once the hub is drawn and the page is idle, long before a join needs it.
 void whenReady(() => sceneRunning("hub")).then(() => warmWhenIdle());

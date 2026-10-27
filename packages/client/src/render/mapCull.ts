@@ -1,6 +1,6 @@
 // What the camera sees, as a box in projected pixels, and whether a chunk of the static map is in it. MapView hides the chunks
 // outside the box: a Phaser Graphics replays its whole command buffer every frame whether or not the camera shows it (there is no
-// culling for it), so a 96 x 96 map drawn as a handful of Graphics costs the same at any zoom. Pure, so it is tested without Phaser.
+// culling for it), so a 136 x 136 map drawn as a handful of Graphics costs the same at any zoom. Pure, so it is tested without Phaser.
 import { topLeftForScroll } from "../view/viewport";
 
 /** A rectangle in projected (drawn) pixels. */

@@ -10,7 +10,8 @@
     "bots": "tsx src/bots/runBots.ts",
     "tournament": "tsx src/bots/tournament/runTournament.ts",
     "harness:factions": "tsx src/harness/runFactionCycle.ts",
-    "harness": "tsx src/harness/runHarness.ts"
+    "harness": "tsx src/harness/runHarness.ts",
+    "harness:zones": "tsx src/harness/zoneDuel.ts"
   },
   "dependencies": {
     "@colyseus/core": "^0.18.10",

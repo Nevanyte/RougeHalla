@@ -1,15 +1,885 @@
-// Scorch (fire): volcanic badlands. Jagged obsidian ridges with 2-3 tile passes, one meandering lava river with fords and an
-// ember bank, two basalt pillar fields, open ash. The ridge passes and the fords are the chokepoints; Fire is exempt from
-// the embers. Parameters are part D 4.1's, scaled down for a zone smaller than 1710 tiles (see scale.ts).
+// Scorch (fire): Crater Basins (zone-shapes contract 4.1, options doc 6.1 option 2). Every camp of the zone sits in a basalt crater
+// (a jagged one-tile rim of radius 5-6.5 tiles, 7.5 for an elite camp) that opens through 2-3 named breaches, each aimed at a
+// neighbour on the camp graph (the MST of the zone's 8 camps and its front door, plus Brogue-style loops); between the craters
+// lies open ash, crossed by one lava river with 4-tile fords exactly where inter-crater routes (and the spawn members' walks)
+// cross it; the river's banks and fords are ember. The burnt-out forge is the zone's landmark. Fire is exempt from ember.
+//
+// Everything goes through placeFeature as a named feature: "crater" (job pen) with the camp's bowl as owned floor, "lavaRiver"
+// (job crossing) with its fords as owned floor, "landmark" forge (jobs landmark, lee). Integer geometry and the kit's noise only:
+// no trig, no Math.random; doubles appear only from + - * / and sqrt, which are exact on every engine.
+//
+// The route guard (contract 3.9) is honoured by construction, because a placed feature cannot be taken back: a crater gets an
+// extra breach where a spawn member's corridor meets its rim, and the river gets a ford where a corridor meets its band.
+//
+// Phase B note: this module still exports the old styler as `scorch` (the registry reads it until phase C) and the new one as
+// `scorchCraters`; phase C swaps the registry (see the end of the file).
 import { TILE_FLOOR, TILE_LOW, TILE_WALL } from "../map";
 import { TERRAIN_EMBER, TERRAIN_LAVA, TERRAIN_NONE } from "../terrain";
 import { breakLowRuns, chance, DIR8, flowPath, low, pickOpen, roomOf, steer, wall } from "./kit";
+import {
+  addShortcuts, campNodes, dirIndex16, dirSep16, dist2, inBeam, noiseQ, noisyPath, primMST, pseudoAngle, segDist2,
+} from "./features";
+import type { Edge, Node } from "./features";
+import { bestLandmark, stampTemplate } from "./landmarks";
+import type { LandmarkTemplate, Stamp } from "./landmarks";
 import { PROP } from "./propKinds";
 import { randInt } from "../rng";
-import type { PropCtx, ShapeCtx, SurfaceCtx, ZoneStyler } from "./types";
-import { sizeScale } from "./scale";
+import { FEATURE_MIN_PIECE } from "./types";
+import type { BaseCtx, CampInfo, LandmarkCtx, PropCtx, RouteGuard, ShapeCtx, SurfaceCtx, ZoneStyler } from "./types";
+import { RING_DX, RING_DY, SIMPLE } from "../gridTopology";
+import { areaScale, LANDMARKS_PER_ZONE, lenScale, sizeScale } from "./scale";
+
+// ------------------------------------------------------------------------------------------------ numbers (dials in bold: contract 4.1)
+/** Crater radius band, in quarter tiles: clamp(near / 2 - 0.8, 5.0, 6.5) tiles, an elite camp up to 7.5. */
+const R_MIN4 = 20, R_MAX4 = 26, R_MAX4_ELITE = 30;
+/** A breach is a strip 2.5 tiles each side of the bearing (about 5 tiles wide), in quarter tiles. */
+const BREACH_HALF4 = 10;
+const BREACHES_MIN = 2;
+/** Skeleton breaches per crater (corridor breaches come on top). */
+const BREACHES_MAX = 3;
+/** A smaller radius wins when its ring is this many permille freer. */
+const FREER_PERMILLE = 30;
+/** The rim is kept when this share of its planned tiles stands. */
+const RIM_KEEP_PERMILLE = 600;
+/** A crater with fewer rim tiles than this (after the short arcs go) is not built: the camp stays open. */
+const RIM_MIN = 8;
+/** Brogue shortcut test: the tree walk must be at least this many times the straight line, up to this many tiles long. */
+const LOOP_RATIO = 1.8, LOOP_MAX_LEN = 30;
+/** Ford length in path steps, the spacing between fords, and the closer spacing of corridor fords. */
+const FORD_STEPS = 4, FORD_SPACING = 9;
+/** Fords closer than this many steps become one (up to FORD_MAX_LEN steps long); the river keeps about one ford per FORD_PER_STEPS steps. */
+const FORD_MERGE = 6, FORD_MAX_LEN = 14, FORD_PER_STEPS = 16;
+const RIVER_MIN_STEPS = 12;
+/** The river spans 2 x this many tiles x lenScale along the zone (21 x 1.44 = 30 each side at 136). */
+const RIVER_HALF_PER_LEN = 21;
+const SECOND_TILE_Q = 716;
+const FORGE_DISC = 12;
+/** A forge keeps this many tiles from a crater's radius (R_est + margin from every camp centre). */
+const FORGE_MARGIN = Number((globalThis as any).process?.env?.FM ?? 3);
+const FORGE_TRIES = 48;
+
+export interface ScorchCrater {
+  /** CampInfo.index of the camp. */
+  readonly camp: number;
+  /** Camp centre tile. */
+  readonly x: number;
+  readonly y: number;
+  /** Radius in quarter tiles. */
+  readonly r4: number;
+  /** Breach bearings as DIR16 indices (the feature's params). */
+  readonly dirs: readonly number[];
+  /** Rim wall tiles that stand, in write order. */
+  readonly rim: readonly number[];
+}
 
 export interface ScorchPlan {
+  /** Tiles of the river's centre line, in flow order (empty when no river fitted). */
+  riverPath: number[];
+  /** Centre tile of each ford. */
+  fords: number[];
+  /** Lava tiles that stand. */
+  lava: number[];
+  /** The craters that stand, in camp order. */
+  craters: ScorchCrater[];
+  /** Skeleton edges (MST plus loops) and the loops among them. */
+  edges: number;
+  loops: number;
+}
+
+// ------------------------------------------------------------------------------------------------ the landmark: the burnt-out forge
+/** Contract 5.2, orientation 0 (9x7): two doors, a crate nook in two corners, a six-tile hearth. */
+export const FORGE: LandmarkTemplate = {
+  key: "forge",
+  jobs: ["landmark", "lee"],
+  rows: [
+    "###dd####",
+    "#c......#",
+    "#.......#",
+    "#..###..#",
+    "#..###..d",
+    "#c......d",
+    "#########",
+  ],
+};
+/** The landmark templates of this zone (index.ts and the generator's crates find them here). */
+export const SCORCH_LANDMARKS: readonly LandmarkTemplate[] = [FORGE];
+
+// ------------------------------------------------------------------------------------------------ helpers
+/** The zone's own camps (c.camps lists every camp of the map), in CampInfo order. */
+function zoneCamps(c: BaseCtx): CampInfo[] {
+  return c.camps.filter((k) => c.mask[k.y * c.w + k.x] === 1);
+}
+
+/** R4 for a camp: floor(4 * clamp(near / 2 - 0.8, 5.0, 6.5)), the elite's cap 7.5. */
+function radius4(camp: CampInfo, mine: readonly CampInfo[]): number {
+  const hi = camp.elite ? R_MAX4_ELITE : R_MAX4;
+  let near2 = -1;
+  for (const o of mine) {
+    if (o === camp) continue;
+    const d = dist2(camp.x, camp.y, o.x, o.y);
+    if (near2 < 0 || d < near2) near2 = d;
+  }
+  if (near2 < 0) return hi;
+  const r4 = Math.floor(2 * Math.sqrt(near2) - 3.2);
+  return r4 < R_MIN4 ? R_MIN4 : r4 > hi ? hi : r4;
+}
+
+/** Unit axis from the coliseum centre to the zone's centroid, its perpendicular, and depth / lateral readers. */
+interface Frame { ux: number; uy: number; vx: number; vy: number; cx: number; cy: number }
+function frameOf(c: BaseCtx): Frame {
+  const cx = c.w / 2, cy = c.h / 2;
+  let ux = c.zone.centroid.x - cx, uy = c.zone.centroid.y - cy;
+  const m = Math.sqrt(ux * ux + uy * uy);
+  if (m > 0) { ux /= m; uy /= m; } else { ux = 1; uy = 0; }
+  return { ux, uy, vx: -uy, vy: ux, cx, cy };
+}
+const depthAt = (f: Frame, x: number, y: number): number => (x - f.cx) * f.ux + (y - f.cy) * f.uy;
+const latAt = (f: Frame, x: number, y: number): number => (x - f.cx) * f.vx + (y - f.cy) * f.vy;
+
+/** The camp graph: nodes = camps (CampInfo order) + the front door; Prim MST from the door, plus up to LOOPS_MAX shortcuts. */
+function skeletonOf(c: BaseCtx, mine: readonly CampInfo[]): { nodes: Node[]; edges: Edge[]; loops: number } {
+  const nodes = campNodes({ ...c, camps: mine });
+  const root = nodes.length > mine.length ? nodes.length - 1 : 0;
+  const edges = nodes.length > 0 ? primMST(nodes, root) : [];
+  const loopsMax = Math.round(areaScale(c.zone.painted));
+  addShortcuts(nodes, edges as Edge[], loopsMax, LOOP_RATIO, LOOP_MAX_LEN);
+  return { nodes, edges, loops: Math.max(0, edges.length - (nodes.length - 1)) };
+}
+
+type Beam = readonly [number, number];
+
+/** Breach vectors of camp i: toward its skeleton neighbours (nearest first, at most BREACHES_MAX, at least 3 steps of the 16 apart), at least two. */
+function breachesOf(i: number, nodes: readonly Node[], edges: readonly Edge[]): Beam[] {
+  const me = nodes[i];
+  const others: { j: number; d2: number }[] = [];
+  for (const [a, b] of edges) {
+    const j = a === i ? b : b === i ? a : -1;
+    if (j >= 0) others.push({ j, d2: dist2(me.x, me.y, nodes[j].x, nodes[j].y) });
+  }
+  others.sort((p, q) => p.d2 - q.d2 || p.j - q.j);
+  const out: Beam[] = [];
+  const dirs: number[] = [];
+  const take = (u: Beam): boolean => {
+    const d = dirIndex16(u[0], u[1]);
+    for (const e of dirs) if (dirSep16(d, e) < 3) return false;
+    out.push(u);
+    dirs.push(d);
+    return true;
+  };
+  for (const o of others) {
+    if (out.length >= BREACHES_MAX) break;
+    take([nodes[o.j].x - me.x, nodes[o.j].y - me.y]);
+  }
+  if (out.length < BREACHES_MIN) {
+    // toward the nearest node whose bearing is at least 3 steps from every breach so far; none: opposite the first
+    const rest: { j: number; d2: number }[] = [];
+    for (let j = 0; j < nodes.length; j++) if (j !== i) rest.push({ j, d2: dist2(me.x, me.y, nodes[j].x, nodes[j].y) });
+    rest.sort((p, q) => p.d2 - q.d2 || p.j - q.j);
+    for (const o of rest) {
+      if (out.length >= BREACHES_MIN) break;
+      take([nodes[o.j].x - me.x, nodes[o.j].y - me.y]);
+    }
+    if (out.length === 0) take([1, 0]);
+    if (out.length < BREACHES_MIN) take([-out[0][0], -out[0][1]]);
+  }
+  return out;
+}
+
+/** One camp's rim raster: the jitter and second-tile noise are cached per tile, the rim is cut for any radius and breach set. */
+interface Raster {
+  /** Ordered rim tiles for a radius and breaches: first ring, jagged, a 30% second tile, ordered by angle from just past breach 0. */
+  rim(r4: number, beams: readonly Beam[]): number[];
+  /** Permille of the ideal one-tile ring (no jitter, no breaches) that is not open ground. */
+  blocked(r4: number): number;
+  /** Tiles of the bowl: inside radius - 0.5. */
+  bowl(r4: number): number[];
+}
+
+function rasterOf(c: ShapeCtx | LandmarkCtx, camp: CampInfo, k: number): Raster {
+  const { w, h, mask } = c;
+  const reach = Math.ceil(R_MAX4_ELITE / 4 + 2.4) + 1;
+  // the ideal ring of a radius (tile centres in [R - 0.5, R + 0.5)), cached: dx, dy, distance, pseudo-angle
+  const ringCache = new Map<number, { dx: number; dy: number; d: number; pa: number }[]>();
+  const ringOf = (r4: number): { dx: number; dy: number; d: number; pa: number }[] => {
+    let ring = ringCache.get(r4);
+    if (ring) return ring;
+    const R = r4 / 4;
+    const lo2 = (R - 0.5) * (R - 0.5), hi2 = (R + 0.5) * (R + 0.5);
+    ring = [];
+    for (let dy = -reach; dy <= reach; dy++) {
+      for (let dx = -reach; dx <= reach; dx++) {
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= lo2 && d2 < hi2) ring.push({ dx, dy, d: Math.sqrt(d2), pa: pseudoAngle(dx, dy) });
+      }
+    }
+    ringCache.set(r4, ring);
+    return ring;
+  };
+  const line = (x0: number, y0: number, x1: number, y1: number, out: number[]): void => {
+    // the tiles strictly between two tiles, one per step of the longer axis (Bresenham, integers)
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let s = 1; s < n; s++) out.push(x0 + Math.floor((2 * (x1 - x0) * s + n) / (2 * n)), y0 + Math.floor((2 * (y1 - y0) * s + n) / (2 * n)));
+  };
+  return {
+    rim(r4, beams) {
+      const R = r4 / 4;
+      const pa0 = beams.length > 0 ? pseudoAngle(beams[0][0], beams[0][1]) : 0;
+      // the ideal ring in angle order from just past breach 0: the arc length along it is the index (a smooth noise along it
+      // gives the rim its lean in and out, and the seam where the noise would jump lies inside breach 0)
+      const ring = ringOf(r4).map((t) => ({ t, key: (t.pa - pa0 + 4) % 4 })).sort((p, q) => p.key - q.key || p.t.dy - q.t.dy || p.t.dx - q.t.dx);
+      const out: number[] = [];
+      const seen = new Set<number>();
+      const put = (x: number, y: number): void => {
+        if (x < 0 || y < 0 || x >= w || y >= h) return;
+        const i = y * w + x;
+        if (seen.has(i)) return;
+        seen.add(i);
+        out.push(i);
+      };
+      let px = 0, py = 0, prev = -2;
+      for (let q = 0; q < ring.length; q++) {
+        const { dx, dy, d } = ring[q].t;
+        if (beams.some((b) => inBeam(dx, dy, b[0], b[1], BREACH_HALF4))) { prev = -2; continue; }
+        const j = ((noiseQ(c, q, 0, 3, 41 + k) - 512) * 1.1) / 512;
+        const f = (R + j) / d;
+        const rx = camp.x + Math.floor(dx * f + 0.5), ry = camp.y + Math.floor(dy * f + 0.5);
+        if (prev === q - 1 && (Math.abs(rx - px) > 1 || Math.abs(ry - py) > 1)) {
+          const fill: number[] = [];
+          line(px, py, rx, ry, fill);
+          for (let m = 0; m < fill.length; m += 2) put(fill[m], fill[m + 1]);
+        }
+        put(rx, ry);
+        // about three tiles in ten get a second tile outward
+        if (noiseQ(c, rx, ry, 5, 77 + k) > SECOND_TILE_Q) put(camp.x + Math.floor(dx * ((R + j + 1) / d) + 0.5), camp.y + Math.floor(dy * ((R + j + 1) / d) + 0.5));
+        px = rx; py = ry; prev = q;
+      }
+      // only open ground, and not inside a breach after the lean
+      return out.filter((i) => {
+        if (!mask[i] || !c.open(i)) return false;
+        const dx = (i % w) - camp.x, dy = Math.floor(i / w) - camp.y;
+        for (const b of beams) if (inBeam(dx, dy, b[0], b[1], BREACH_HALF4)) return false;
+        return true;
+      });
+    },
+    blocked(r4) {
+      const R = r4 / 4;
+      const lo2 = (R - 0.5) * (R - 0.5), hi2 = (R + 0.5) * (R + 0.5);
+      let total = 0, bad = 0;
+      for (let dy = -reach; dy <= reach; dy++) {
+        for (let dx = -reach; dx <= reach; dx++) {
+          const d2 = dx * dx + dy * dy;
+          if (d2 < lo2 || d2 >= hi2) continue;
+          total++;
+          const x = camp.x + dx, y = camp.y + dy;
+          if (x < 0 || y < 0 || x >= w || y >= h || !mask[y * w + x] || !c.open(y * w + x)) bad++;
+        }
+      }
+      return total === 0 ? 1000 : Math.floor((bad * 1000) / total);
+    },
+    bowl(r4) {
+      const R = r4 / 4;
+      const lim = (R - 0.5) * (R - 0.5);
+      const out: number[] = [];
+      for (let dy = -reach; dy <= reach; dy++) {
+        const y = camp.y + dy;
+        if (y < 0 || y >= h) continue;
+        for (let dx = -reach; dx <= reach; dx++) {
+          if (dx * dx + dy * dy >= lim) continue;
+          const x = camp.x + dx;
+          if (x < 0 || x >= w) continue;
+          const i = y * w + x;
+          if (mask[i]) out.push(i);
+        }
+      }
+      return out;
+    },
+  };
+}
+
+
+/** Keeps the 8-connected arcs of at least `min` tiles (the guard would give the shorter ones back anyway). */
+function keepArcs(tiles: readonly number[], w: number, min: number): number[] {
+  if (tiles.length < min) return [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const t of tiles) {
+    const x = t % w, y = (t - x) / w;
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+  }
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+  const at = new Int16Array(bw * bh).fill(-1);
+  tiles.forEach((t, q) => { const x = t % w, y = (t - x) / w; at[(y - y0) * bw + x - x0] = q; });
+  const comp = new Int16Array(tiles.length).fill(-1);
+  const sizes: number[] = [];
+  const stack: number[] = [];
+  for (let q = 0; q < tiles.length; q++) {
+    if (comp[q] >= 0) continue;
+    const id = sizes.length;
+    let size = 0;
+    comp[q] = id;
+    stack.push(q);
+    while (stack.length > 0) {
+      const cur = stack.pop()!;
+      size++;
+      const x = (tiles[cur] % w) - x0, y = Math.floor(tiles[cur] / w) - y0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue;
+          const j = at[ny * bw + nx];
+          if (j >= 0 && comp[j] < 0) { comp[j] = id; stack.push(j); }
+        }
+      }
+    }
+    sizes.push(size);
+  }
+  return tiles.filter((_, q) => sizes[comp[q]] >= min);
+}
+
+/** The zone's route guard, or null on a fixture that gave no builder. */
+function guardOf(c: ShapeCtx): RouteGuard | null {
+  try { return c.routeGuard(); } catch { return null; }
+}
+
+/**
+ * Does a spawn member's corridor (the 3-wide band around its walk, contract 3.9) stay walkable from its tile to its far end when
+ * the `walled` tiles are solid? 4-connected, so a diagonal chain of walls cuts it as it cuts a body. A feature cannot be taken
+ * back once placed, so the stylers decide with this test before placing: a rim or a river only cuts a walk when it cuts the band.
+ */
+function makeBandCheck(c: ShapeCtx): (band: readonly number[], walled: readonly number[]) => boolean {
+  const { w, h } = c;
+  const n = w * h;
+  const inBand = new Int32Array(n), seen = new Int32Array(n), solid = new Uint8Array(n);
+  const queue = new Int32Array(n);
+  let epoch = 0;
+  return (band, walled) => {
+    if (band.length < 12) return true;
+    epoch++;
+    for (const t of band) inBand[t] = epoch;
+    for (const t of walled) solid[t] = 1;
+    let ok = false;
+    const start = band[0];
+    if (c.tiles[start] === TILE_FLOOR && !solid[start]) {
+      let head = 0, tail = 0;
+      queue[tail++] = start;
+      seen[start] = epoch;
+      const visit = (j: number): void => {
+        if (inBand[j] === epoch && seen[j] !== epoch && c.tiles[j] === TILE_FLOOR && !solid[j]) { seen[j] = epoch; queue[tail++] = j; }
+      };
+      while (head < tail) {
+        const i = queue[head++];
+        const x = i % w;
+        if (x > 0) visit(i - 1);
+        if (x < w - 1) visit(i + 1);
+        if (i >= w) visit(i - w);
+        if (i < n - w) visit(i + w);
+      }
+      // the band's last sample: its final nine tiles
+      for (let q = band.length - 9; q < band.length; q++) if (seen[band[q]] === epoch) { ok = true; break; }
+    }
+    for (const t of walled) solid[t] = 0;
+    return ok;
+  };
+}
+
+// ------------------------------------------------------------------------------------------------ craters
+function placeCraters(c: ShapeCtx, mine: readonly CampInfo[], r4s: number[], nodes: readonly Node[], edges: readonly Edge[], G: RouteGuard | null, plan: ScorchPlan): void {
+  const connected = G && G.members.length > 0 ? makeBandCheck(c) : null;
+  const rimMark = connected ? new Uint8Array(c.w * c.h) : null;
+  for (let k = 0; k < mine.length; k++) {
+    const camp = mine[k];
+    const ras = rasterOf(c, camp, k);
+    // the radius: the largest, unless a smaller one has a ring clearly freer
+    let r4 = r4s[k];
+    const cands = [r4];
+    if (r4 - 4 >= R_MIN4) cands.push(r4 - 4);
+    if (r4 - 8 >= R_MIN4) cands.push(r4 - 8);
+    if (cands.length > 1) {
+      const base = ras.blocked(cands[0]);
+      let bestShare = base;
+      for (let q = 1; q < cands.length; q++) {
+        const s = ras.blocked(cands[q]);
+        if (s + FREER_PERMILLE <= base && s < bestShare) { bestShare = s; r4 = cands[q]; }
+      }
+    }
+    r4s[k] = r4;
+    const beams = breachesOf(k, nodes, edges).slice();
+    let rim = keepArcs(ras.rim(r4, beams), c.w, FEATURE_MIN_PIECE);
+    // route guard (contract 3.9): where the rim would cut a spawn member's corridor, one more breach at the crossing, as long as
+    // the crater keeps at least 60% of the rim it would have without it (a pen with no wall is no pen: the spawn gate drops the
+    // member whose walk it still cuts)
+    const floorTiles = Math.max(10, Math.floor((rim.length * RIM_KEEP_PERMILLE) / 1000));
+    if (G && connected && rimMark) {
+      for (let guardIter = 0; guardIter < 4 && rim.length > 0; guardIter++) {
+        for (const t of rim) rimMark[t] = 1;
+        let cut: readonly number[] | null = null;
+        let first = -1;
+        for (let m = 0; m < G.members.length && !cut; m++) {
+          const band = G.corridorOf(m);
+          first = -1;
+          for (let q = 0; q < band.length; q++) if (rimMark[band[q]] === 1) { first = q; break; }
+          if (first < 0 || !connected(band, []) || connected(band, rim)) continue;
+          cut = band;
+        }
+        let sx = 0, sy = 0, cnt = 0;
+        if (cut) {
+          const hx = cut[first] % c.w, hy = (cut[first] - hx) / c.w;
+          for (const t of cut) {
+            if (rimMark[t] !== 1) continue;
+            const x = t % c.w, y = (t - x) / c.w;
+            if (Math.abs(x - hx) <= 3 && Math.abs(y - hy) <= 3) { sx += x - camp.x; sy += y - camp.y; cnt++; }
+          }
+        }
+        for (const t of rim) rimMark[t] = 0;
+        if (!cut || cnt === 0) break;
+        const bx = Math.round(sx / cnt), by = Math.round(sy / cnt);
+        if (bx === 0 && by === 0) break;
+        const more = keepArcs(ras.rim(r4, [...beams, [bx, by]]), c.w, FEATURE_MIN_PIECE);
+        if (more.length < floorTiles) break;
+        beams.push([bx, by]);
+        rim = more;
+      }
+    }
+    const __c: any = (globalThis as any).__cnt;
+    if (__c && rim.length < RIM_MIN && ras.blocked(r4) < 100 && __c.dbgN < 6) { __c.dbgN++; console.log('SHORT camp', camp.index, camp.x, camp.y, 'r4', r4, 'beams', JSON.stringify(beams), 'raw', ras.rim(r4, beams).length, 'rawNoBeams', ras.rim(r4, []).length, 'blocked', ras.blocked(r4));
+      const pic = (tl: number[]) => { const set = new Set(tl); const rows: string[] = []; for (let dy = -9; dy <= 9; dy++) { let r = ''; for (let dx = -9; dx <= 9; dx++) r += dx === 0 && dy === 0 ? 'C' : set.has((camp.y + dy) * c.w + camp.x + dx) ? '#' : '.'; rows.push(r); } return rows.join('\n'); };
+      console.log(pic(ras.rim(r4, beams))); console.log('kept'); console.log(pic(rim)); }
+    if (__c) { __c.total++; if (rim.length < RIM_MIN) { __c.short++; __c.shortBeams[beams.length] = (__c.shortBeams[beams.length] ?? 0) + 1; __c.shortOpen.push(1000 - ras.blocked(r4)); } }
+    if (rim.length < RIM_MIN) continue;
+    const dirs = beams.map((b) => dirIndex16(b[0], b[1]));
+    const placed = c.placeFeature({
+      kind: "crater",
+      jobs: ["pen"],
+      anchor: [camp.x, camp.y],
+      params: [camp.index, r4, dirs.length, ...dirs],
+      blocks: rim.map((i) => [i, "wall"] as const),
+      floor: ras.bowl(r4),
+      mode: "trim",
+      minSharePermille: RIM_KEEP_PERMILLE,
+    });
+    if ((globalThis as any).__dbg) console.log('  placed', placed ? placed.written.length : null, 'of', rim.length);
+    if (__c && !placed) { __c.nullPlace++; __c.nullInfo.push([rim.length, beams.length]); }
+    if (placed) plan.craters.push({ camp: camp.index, x: camp.x, y: camp.y, r4, dirs, rim: placed.written });
+  }
+}
+
+// ------------------------------------------------------------------------------------------------ the river
+function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number[], nodes: readonly Node[], edges: readonly Edge[], G: RouteGuard | null, plan: ScorchPlan): void {
+  const { w, h } = c;
+  const rng = c.rng;
+  const F = frameOf(c);
+  // the zone's usable ground (open static rules) and its extent along and across the axis
+  const bb = c.zone.bbox;
+  const usable: number[] = [];
+  let dLo = Infinity, dHi = -Infinity, lLo = Infinity, lHi = -Infinity;
+  for (let y = bb.y; y < bb.y + bb.h; y++) {
+    for (let x = bb.x; x < bb.x + bb.w; x++) {
+      const i = y * w + x;
+      if (!c.open(i)) continue;
+      usable.push(i);
+      const d = depthAt(F, x + 0.5, y + 0.5), l = latAt(F, x + 0.5, y + 0.5);
+      if (d < dLo) dLo = d;
+      if (d > dHi) dHi = d;
+      if (l < lLo) lLo = l;
+      if (l > lHi) lHi = l;
+    }
+  }
+  if (usable.length < 60) return;
+  const dR = dLo + (dHi - dLo) * (0.4 + 0.2 * rng());
+  // The river is a stretch of RIVER_HALF tiles either side of the lateral position where the most routes cross its depth: the
+  // camp graph's edges that straddle dR and the spawn members' corridors (a strip zone is 100 tiles across: a full-width river
+  // would hold 250 lava tiles, twice the window of contract 4.1).
+  const half = Math.max(8, Math.round(RIVER_HALF_PER_LEN * lenScale(c.zone.painted)));
+  const lats: number[] = [];
+  for (const [ea, eb] of edges) {
+    const A = nodes[ea], B = nodes[eb];
+    const da = depthAt(F, A.x + 0.5, A.y + 0.5) - dR, db = depthAt(F, B.x + 0.5, B.y + 0.5) - dR;
+    if (da === db || (da < 0) === (db < 0)) continue;
+    const t = da / (da - db), la = latAt(F, A.x + 0.5, A.y + 0.5), lb = latAt(F, B.x + 0.5, B.y + 0.5);
+    lats.push(la + t * (lb - la));
+  }
+  if (G) {
+    for (let m = 0; m < G.members.length; m++) {
+      let sum = 0, cnt = 0;
+      for (const t of G.corridorOf(m)) {
+        const x = t % w, y = (t - x) / w;
+        if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dR) < 1) { sum += latAt(F, x + 0.5, y + 0.5); cnt++; }
+      }
+      if (cnt > 0) lats.push(sum / cnt);
+    }
+  }
+  lats.sort((p, q) => p - q);
+  let lC = (lLo + lHi) / 2;
+  if (lats.length > 0) {
+    let bi = 0, bn = 0;
+    for (let i = 0; i < lats.length; i++) {
+      let nIn = 0;
+      for (let j = i; j < lats.length && lats[j] <= lats[i] + 2 * half; j++) nIn++;
+      if (nIn > bn) { bn = nIn; bi = i; }
+    }
+    let last = bi;
+    while (last + 1 < lats.length && lats[last + 1] <= lats[bi] + 2 * half) last++;
+    lC = (lats[bi] + lats[last]) / 2;
+  }
+  let latA = lLo + 2, latB = lHi - 2;
+  if (lLo + 2 + half <= lHi - 2 - half) {
+    lC = lC < lLo + 2 + half ? lLo + 2 + half : lC > lHi - 2 - half ? lHi - 2 - half : lC;
+    latA = lC - half;
+    latB = lC + half;
+  }
+  const nearestTo = (d: number, l: number): number => {
+    const px = F.cx + d * F.ux + l * F.vx, py = F.cy + d * F.uy + l * F.vy;
+    let best = -1, bd = Infinity;
+    for (const i of usable) {
+      const x = i % w, y = (i - x) / w;
+      const e = (x + 0.5 - px) * (x + 0.5 - px) + (y + 0.5 - py) * (y + 0.5 - py);
+      if (e < bd) { bd = e; best = i; }
+    }
+    return best;
+  };
+  const a = nearestTo(dR, latA);
+  const b = nearestTo(dR + (rng() - 0.5) * 12, latB);
+  if (a < 0 || b < 0 || a === b) return;
+  // noisy cheapest path: +400 inside any crater (radius + 2.5), +8 per tile of depth off dR, ground the static rules refuse, corridor tiles
+  const crater2 = mine.map((_, q) => (r4s[q] / 4 + 2.5) * (r4s[q] / 4 + 2.5));
+  const cost = (j: number): number => {
+    const x = j % w, y = (j - x) / w;
+    let add = 0;
+    for (let q = 0; q < mine.length; q++) {
+      const dx = x - mine[q].x, dy = y - mine[q].y;
+      if (dx * dx + dy * dy < crater2[q]) { add = 400; break; }
+    }
+    const dd = depthAt(F, x + 0.5, y + 0.5) - dR;
+    add += Math.floor((dd < 0 ? -dd : dd) * 8);
+    if (!c.open(j)) add += 1000;
+    if (G && G.corridor[j] === 1) add += 6;
+    return add;
+  };
+  const path = noisyPath(c, a, b, 11, cost);
+  if ((globalThis as any).__dbg) console.log('river dR', dR.toFixed(1), 'half', half, 'lats', lats.map((x) => x.toFixed(1)).join(','), 'lC', lC.toFixed(1), 'lat', latA.toFixed(1), latB.toFixed(1), 'ext', dLo.toFixed(1), dHi.toFixed(1), lLo.toFixed(1), lHi.toFixed(1), 'a', a % w, Math.floor(a / w), 'b', b % w, Math.floor(b / w), 'len', path.length);
+  const len = path.length;
+  if (len < RIVER_MIN_STEPS) return;
+  // widths and the 2x2 / 3x3 square each step would stamp
+  const wd = new Uint8Array(len);
+  const sq: number[][] = [];
+  for (let s = 0; s < len; s++) {
+    wd[s] = noiseQ(c, s / 5, 3.3, 1, 13) > 716 ? 3 : 2;
+    const x = path[s] % w, y = (path[s] - x) / w;
+    const list: number[] = [];
+    for (let oy = 0; oy < wd[s]; oy++) {
+      for (let ox = 0; ox < wd[s]; ox++) {
+        const t = c.at(x + ox - (wd[s] >> 1), y + oy - (wd[s] >> 1));
+        if (t >= 0) list.push(t);
+      }
+    }
+    sq.push(list);
+  }
+  const n = w * h;
+  const mark = new Uint8Array(n);
+  // A ford is a run of path steps [s0, s1) the river leaves out: the tiles the squares of those steps would stamp stay floor
+  // (and belong to the river), the squares of every other step are lava.
+  type Ford = [number, number];
+  const blocksFor = (fords: readonly Ford[]): { tiles: number[]; keepOut: number[] } => {
+    mark.fill(0);
+    const inFord = new Uint8Array(len);
+    const keepOut: number[] = [];
+    for (const [s0, s1] of fords) {
+      for (let s = s0; s < s1; s++) {
+        inFord[s] = 1;
+        for (const t of sq[s]) if (mark[t] === 0) { mark[t] = 2; keepOut.push(t); }
+      }
+    }
+    const tiles: number[] = [];
+    for (let s = 0; s < len; s++) {
+      if (inFord[s]) continue;
+      for (const t of sq[s]) if (mark[t] === 0) { mark[t] = 1; tiles.push(t); }
+    }
+    return { tiles, keepOut };
+  };
+  let fords: Ford[] = [];
+  // Merge fords that lie within FORD_MERGE steps of each other (a lava stub shorter than that is no piece), up to FORD_MAX_LEN long.
+  const normalize = (list: Ford[]): Ford[] => {
+    const sorted = list.map((f) => [Math.max(2, f[0]), Math.min(len - 2, f[1])] as Ford).filter((f) => f[1] > f[0]).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    const out: Ford[] = [];
+    for (const f of sorted) {
+      const last = out.length > 0 ? out[out.length - 1] : null;
+      if (last && f[0] - last[1] < FORD_MERGE && Math.max(last[1], f[1]) - last[0] <= FORD_MAX_LEN) last[1] = Math.max(last[1], f[1]);
+      else out.push([f[0], f[1]]);
+    }
+    return out;
+  };
+  const around = (k: number): Ford => [k - (FORD_STEPS >> 1), k - (FORD_STEPS >> 1) + FORD_STEPS];
+  const apart = (k: number, gap: number): boolean => {
+    for (const f of fords) if (k >= f[0] - gap && k < f[1] + gap) return false;
+    return true;
+  };
+  // 1. a ford over each run of steps whose square meets a member's corridor (reserved first: the route guard, contract 3.9)
+  if (G && G.members.length > 0) {
+    const runs: Ford[] = [];
+    let open = -1, lastHit = -9;
+    for (let s = 0; s < len; s++) {
+      let hit = false;
+      for (const t of sq[s]) if (G.corridor[t] === 1) { hit = true; break; }
+      if (!hit) continue;
+      if (open >= 0 && s - lastHit <= 2) { runs[runs.length - 1][1] = s + 1; } else { runs.push([s, s + 1]); open = runs.length - 1; }
+      lastHit = s;
+    }
+    for (const r of runs) {
+      const need = FORD_STEPS - (r[1] - r[0]);
+      fords.push(need > 0 ? [r[0] - (need >> 1), r[1] + need - (need >> 1)] : [r[0], r[1]]);
+    }
+    fords = normalize(fords);
+  }
+  // 2. a ford on each skeleton edge that passes within 3 tiles of the path (the edge's middle 70%), FORD_SPACING from the others
+  const wantEdge = Math.max(2, Math.round(len / FORD_PER_STEPS));
+  const edgeAt: { k: number; d: number }[] = [];
+  for (const [ea, eb] of edges) {
+    const A = nodes[ea], B = nodes[eb];
+    const ax = A.x + 0.15 * (B.x - A.x), ay = A.y + 0.15 * (B.y - A.y), bx = A.x + 0.85 * (B.x - A.x), by = A.y + 0.85 * (B.y - A.y);
+    let bestS = -1, bestD = Infinity;
+    for (let s = 0; s < len; s++) {
+      const px = path[s] % w, py = (path[s] - px) / w;
+      const d = segDist2(px, py, ax, ay, bx, by);
+      if (d < bestD) { bestD = d; bestS = s; }
+    }
+    if (bestS >= 3 && bestS <= len - 4 && bestD <= 9) edgeAt.push({ k: bestS, d: bestD });
+  }
+  edgeAt.sort((p, q) => p.d - q.d || p.k - q.k);
+  for (const e of edgeAt) {
+    if (fords.length >= wantEdge) break;
+    if (apart(e.k, FORD_SPACING)) fords = normalize([...fords, around(e.k)]);
+  }
+  // 3. at least two fords (at 30% and 70% of a path that met no route)
+  for (const q of [0.3, 0.7, 0.5]) {
+    if (fords.length >= 2) break;
+    const k = Math.max(3, Math.min(len - 4, Math.floor(len * q)));
+    if (apart(k, 6)) fords = normalize([...fords, around(k)]);
+  }
+  const bl = blocksFor(fords);
+  if (bl.tiles.length < 12) return;
+  let widthSum = 0, widthN = 0;
+  for (let s = 0; s < len; s++) {
+    let inside = false;
+    for (const f of fords) if (s >= f[0] && s < f[1]) { inside = true; break; }
+    if (!inside) { widthSum += wd[s]; widthN++; }
+  }
+  const width2 = widthN > 0 ? Math.round((2 * widthSum) / widthN) : 4;
+  const fordTiles = fords.map((f) => path[(f[0] + f[1]) >> 1]);
+  const placed = c.placeFeature({
+    kind: "lavaRiver",
+    jobs: ["crossing"],
+    anchor: [path[0] % w, (path[0] - (path[0] % w)) / w],
+    params: [width2, fordTiles.length, ...fordTiles],
+    blocks: bl.tiles.map((t) => [t, "lava"] as const),
+    floor: bl.keepOut,
+    mode: "trim",
+  });
+  if (!placed) return;
+  plan.riverPath = path;
+  plan.fords = fordTiles;
+  plan.lava = placed.written.slice();
+}
+
+// ------------------------------------------------------------------------------------------------ the styler
+function shape(c: ShapeCtx): ScorchPlan {
+  const plan: ScorchPlan = { riverPath: [], fords: [], lava: [], craters: [], edges: 0, loops: 0 };
+  const mine = zoneCamps(c);
+  const G = (globalThis as any).__noGuard ? null : guardOf(c);
+  const { nodes, edges, loops } = skeletonOf(c, mine);
+  plan.edges = edges.length;
+  plan.loops = loops;
+  const r4s = mine.map((k) => radius4(k, mine));
+  placeCraters(c, mine, r4s, nodes, edges, G, plan);
+  placeRiver(c, mine, r4s, nodes, edges, G, plan);
+  return plan;
+}
+
+/** The ember bank: every free floor tile touching lava (8 neighbours) is EMBER, the fords' sides included. */
+function surface(c: SurfaceCtx, plan: ScorchPlan): void {
+  for (const t of plan.lava) {
+    const x = t % c.w, y = (t - x) / c.w;
+    for (const [dx, dy] of DIR8) {
+      const j = c.at(x + dx, y + dy);
+      if (j >= 0) c.surface(j, "ember");
+    }
+  }
+}
+
+function props(c: PropCtx, plan: ScorchPlan): void {
+  const { w } = c;
+  const bb = c.zone.bbox;
+  // crater lips: one rim wall in six
+  for (const cr of plan.craters) {
+    for (const t of cr.rim) {
+      const x = t % w, y = (t - x) / w;
+      const u = c.noise.hash(x, y, 3), v = Math.floor(c.noise.hash(x, y, 90) * 4);
+      if (u < 1 / 6) c.prop(PROP.crater_lip, x, y, v);
+      else if (u < 0.3) c.prop(PROP.glow_crack, x, y, v);
+    }
+  }
+  // the forge: walls glow, an anvil and a slag heap on its floor
+  for (const f of c.zoneFeatures()) {
+    if (f.kind !== "landmark" || f.variant !== FORGE.key) continue;
+    for (let y = f.bbox.y; y < f.bbox.y + f.bbox.h; y++) {
+      for (let x = f.bbox.x; x < f.bbox.x + f.bbox.w; x++) {
+        const i = y * w + x;
+        if (c.tiles[i] !== TILE_WALL || !c.isOwned(i)) continue;
+        if (c.noise.hash(x, y, 3) < 0.2) c.prop(PROP.glow_crack, x, y, Math.floor(c.noise.hash(x, y, 90) * 4));
+      }
+    }
+    const s = stampTemplate(FORGE, f.ax, f.ay, (f.p[0] & 3) as 0 | 1 | 2 | 3, f.p[1] === 1, c.w, c.h);
+    if (!s) continue;
+    const doorAt = new Set(s.doors);
+    const floor = s.floor.filter((i) => {
+      const x = i % w, y = (i - x) / w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (doorAt.has((y + dy) * w + x + dx)) return false;
+      return true;
+    });
+    if (floor.length < 2) continue;
+    const a = floor[Math.floor(c.noise.hash(f.ax, f.ay, 5) * floor.length)];
+    let b = floor[Math.floor(c.noise.hash(f.ay, f.ax, 6) * floor.length)];
+    if (b === a) b = floor[(floor.indexOf(a) + 1) % floor.length];
+    c.prop(PROP.anvil, a % w, (a - (a % w)) / w, 0);
+    c.prop(PROP.slag_heap, b % w, (b - (b % w)) / w, 0);
+  }
+  // the ash and the ember vents (the bank is the only place a vent opens)
+  for (let y = bb.y; y < bb.y + bb.h; y++) {
+    for (let x = bb.x; x < bb.x + bb.w; x++) {
+      const i = y * w + x;
+      if (!c.mask[i] || c.tiles[i] !== TILE_FLOOR) continue;
+      const v = Math.floor(c.noise.hash(x, y, 90) * 4);
+      if (c.terrain[i] === TERRAIN_EMBER) { if (c.noise.hash(x, y, 1) < 0.12) c.prop(PROP.ember_vent, x, y, v); }
+      else if (c.terrain[i] === TERRAIN_NONE && c.noise.hash(x, y, 2) < 0.02) c.prop(PROP.ash_drift, x, y, v);
+    }
+  }
+}
+
+// ------------------------------------------------------------------------------------------------ landmarks
+/**
+ * The guard's local test for a wall on tile i, read on the ground as it stands: the zone's floor ring around it and its
+ * territory's floor ring both stay in one piece (gridTopology's SIMPLE table). A landmark is placed whole or not at all, so the
+ * candidates that would be refused at a territory's narrow neck are left out before they are scored.
+ */
+function simpleWallOk(c: BaseCtx): (i: number) => boolean {
+  const { w, mask, tiles, territory } = c;
+  return (i) => {
+    const tv = territory ? territory[i] : 0;
+    let m = 0, mt = 0;
+    for (let q = 0; q < 8; q++) {
+      const j = i + RING_DY[q] * w + RING_DX[q];
+      if (tiles[j] !== TILE_FLOOR) continue;
+      if (!mask[j]) return false;
+      m |= 1 << q;
+      if (tv !== 0 && territory![j] === tv) mt |= 1 << q;
+    }
+    return SIMPLE[m] === 1 && (tv === 0 || SIMPLE[mt] === 1);
+  };
+}
+function landmark(c: LandmarkCtx): void {
+  const want = Math.min(LANDMARKS_PER_ZONE, Math.round(areaScale(c.zone.painted)));
+  if (want <= 0) return;
+  const mine = zoneCamps(c);
+  const { w, h } = c;
+  const n = w * h;
+  const ext = c.hard.slice();
+  const rEst = mine.map((k) => radius4(k, mine) / 4);
+  // no stamp tile within R_est + 3 of a camp centre
+  for (let q = 0; q < mine.length; q++) {
+    const lim = (rEst[q] + FORGE_MARGIN) * (rEst[q] + FORGE_MARGIN), reach = Math.ceil(rEst[q] + FORGE_MARGIN);
+    for (let dy = -reach; dy <= reach; dy++) {
+      const y = mine[q].y + dy;
+      if (y < 0 || y >= h) continue;
+      for (let dx = -reach; dx <= reach; dx++) {
+        const x = mine[q].x + dx;
+        if (x >= 0 && x < w && dx * dx + dy * dy < lim) ext[y * w + x] = 1;
+      }
+    }
+  }
+  // the zone's depth range (the middle 40% scores)
+  const F = frameOf(c);
+  const bb = c.zone.bbox;
+  let dLo = Infinity, dHi = -Infinity;
+  for (let y = bb.y; y < bb.y + bb.h; y++) {
+    for (let x = bb.x; x < bb.x + bb.w; x++) {
+      if (!c.mask[y * w + x]) continue;
+      const d = depthAt(F, x + 0.5, y + 0.5);
+      if (d < dLo) dLo = d;
+      if (d > dHi) dHi = d;
+    }
+  }
+  const span = dHi - dLo > 0 ? dHi - dLo : 1;
+  const simple = simpleWallOk(c);
+  const view: LandmarkCtx = { ...c, hard: ext, open: (i) => ext[i] === 0 && c.open(i) && simple(i),
+    placeFeature: (spec) => {
+      const r = c.placeFeature(spec);
+      if (!r && (globalThis as any).__lmdbg) {
+        const bad = spec.blocks.filter(([i]) => !c.canBlock(i, 'wall'));
+        const why: Record<string, number> = {};
+        for (const [i] of bad) { const k = !c.mask[i] ? 'mask' : c.hard[i] ? 'hard' : c.noBlock[i] ? 'noBlock' : c.tiles[i] !== TILE_FLOOR ? 'notFloor' : c.isOwned(i) ? 'owned' : 'guard'; why[k] = (why[k] ?? 0) + 1; }
+        console.log('  forge refused', spec.anchor.join(','), 'bad blocks', bad.length, JSON.stringify(why));
+      }
+      return r;
+    } };
+  const score = (s: Stamp, _rot?: number, _mirror?: boolean): number => {
+    const mx = s.bbox.x + s.bbox.w / 2, my = s.bbox.y + s.bbox.h / 2;
+    let near = Infinity, nearCamp = -1;
+    for (let q = 0; q < mine.length; q++) {
+      const d = Math.sqrt((mx - mine[q].x - 0.5) * (mx - mine[q].x - 0.5) + (my - mine[q].y - 0.5) * (my - mine[q].y - 0.5));
+      const m = d - (rEst[q] + FORGE_MARGIN);
+      if (m < near) { near = m; nearCamp = q; }
+    }
+    let sc = near > 6 ? 6 : near;
+    const f = (depthAt(F, mx, my) - dLo) / span;
+    if (f >= 0.3 && f <= 0.7) sc += 2;
+    // a door side faces the nearest camp
+    if (nearCamp >= 0) {
+      const tx = mine[nearCamp].x + 0.5 - mx, ty = mine[nearCamp].y + 0.5 - my, tl = Math.sqrt(tx * tx + ty * ty) || 1;
+      let best = -1;
+      for (const dI of s.doors) {
+        const ddx = (dI % w) + 0.5 - mx, ddy = Math.floor(dI / w) + 0.5 - my, dl = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+        const cs = (ddx * tx + ddy * ty) / (dl * tl);
+        if (cs > best) best = cs;
+      }
+      sc += 2 * best;
+    }
+    // a stable per-position wobble so seeds differ among equally good spots
+    return sc + (noiseQ(c, s.bbox.x, s.bbox.y, 7, 99) / 1024) * 2;
+  };
+  for (let k = 0; k < want; k++) {
+    let __n = 0; const score2 = (st: Stamp, a: number, b: boolean): number => { __n++; return score(st, a, b); };
+    const placed = bestLandmark(view, FORGE, score2, FORGE_TRIES);
+    if ((globalThis as any).__lmcnt) (globalThis as any).__lmcnt.push([k, __n, placed ? 1 : 0]);
+    if (!placed) break;
+    // the next forge keeps its distance from this one
+    const box = c.zoneFeatures().filter((f) => f.kind === "landmark")[k]?.bbox;
+    if (!box) break;
+    const mx = box.x + box.w / 2, my = box.y + box.h / 2;
+    const reach = FORGE_DISC + 1;
+    for (let dy = -reach; dy <= reach; dy++) {
+      const y = Math.floor(my) + dy;
+      if (y < 0 || y >= h) continue;
+      for (let dx = -reach; dx <= reach; dx++) {
+        const x = Math.floor(mx) + dx;
+        if (x >= 0 && x < w && (x + 0.5 - mx) * (x + 0.5 - mx) + (y + 0.5 - my) * (y + 0.5 - my) < FORGE_DISC * FORGE_DISC) ext[y * w + x] = 1;
+      }
+    }
+  }
+  void n;
+}
+
+/** The new Scorch styler, Crater Basins. Phase C: the registry (styleZones.ts) takes this one as `scorch`. */
+export const scorchCraters: ZoneStyler<ScorchPlan> = { id: "scorch", faction: "fire", version: 400, landmark, shape, surface, props };
+
+// ------------------------------------------------------------------------------------------------ LEGACY (phase A) styler
+// The wedge-era styler (ridges, one river, pillar fields): the registry (styleZones.ts) still reads it as `scorch` while the new
+// styler is tested in isolation. PHASE C SWAP (WP7): delete everything from this banner to the end of the file, delete the kit
+// imports it alone uses (breakLowRuns, chance, flowPath, low, pickOpen, roomOf, steer, wall, randInt, sizeScale, TILE_LOW), and end
+// the file with `export const scorch = scorchCraters;` (or rename scorchCraters to scorch); index.ts then exports the new
+// ScorchPlan, which already carries `riverPath` and `fords` for zoneStyleOpen.test.ts.
+
+export interface LegacyScorchPlan {
   /** Tiles of the lava river's kept stretch, in flow order (empty when no river fitted). */
   riverPath: number[];
   /** Centre tile of each ford (a gap in the river). */
@@ -18,10 +888,10 @@ export interface ScorchPlan {
   pillarFields: number;
 }
 
-function shape(c: ShapeCtx): ScorchPlan {
+function legacyShape(c: ShapeCtx): LegacyScorchPlan {
   const r = c.rng;
   const sc = sizeScale(c.zone.painted);
-  const plan: ScorchPlan = { riverPath: [], fords: [], ridges: 0, pillarFields: 0 };
+  const plan: LegacyScorchPlan = { riverPath: [], fords: [], ridges: 0, pillarFields: 0 };
   // 1. jagged obsidian ridges: 8-direction polylines, 1-2 thick, a 2-3 tile pass every 9-14 steps. A walk steers along the
   //    ground a finished map leaves free and ends where there is none.
   // 3 ridges (4 in a big zone) on open ground; a finished map leaves ground in strips, so more walks, each short
@@ -118,7 +988,7 @@ function shape(c: ShapeCtx): ScorchPlan {
 }
 
 /** The ember bank: every free floor tile touching lava (8 neighbours) is EMBER, fords included. */
-function surface(c: SurfaceCtx): void {
+function legacySurface(c: SurfaceCtx): void {
   for (let i = 0; i < c.w * c.h; i++) {
     if (c.terrain[i] !== TERRAIN_LAVA || c.tiles[i] !== TILE_LOW) continue;
     const x = i % c.w, y = (i - x) / c.w;
@@ -129,7 +999,7 @@ function surface(c: SurfaceCtx): void {
   }
 }
 
-function props(c: PropCtx): void {
+function legacyProps(c: PropCtx): void {
   const n = c.w * c.h;
   for (let i = 0; i < n; i++) {
     if (!c.mask[i]) continue;
@@ -147,4 +1017,4 @@ function props(c: PropCtx): void {
   }
 }
 
-export const scorch: ZoneStyler<ScorchPlan> = { id: "scorch", faction: "fire", version: 1, shape, surface, props };
+export const scorch: ZoneStyler<LegacyScorchPlan> = { id: "scorch", faction: "fire", version: 1, shape: legacyShape, surface: legacySurface, props: legacyProps };

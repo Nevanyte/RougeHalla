@@ -31,16 +31,16 @@ const COLOR_GATE = "#f44336";
 const COLOR_ELITE_RIM = "#ffd54f";
 /** What the camera sees. */
 const COLOR_VIEW = "rgba(255, 255, 255, 0.85)";
-/** More than this many mob dots are not drawn (a 20-camp map has up to 100 mobs: 3-5 spots a camp). */
-const MAX_DOTS = 128;
+/** More than this many mob dots are not drawn (a 40-camp map has up to 200 mobs: 3-5 spots a camp, 160 on average). */
+const MAX_DOTS = 224;
 /** Inputs that decide a repaint: player x, y, alive, gates, mob dots, camera x, y, route, chest blips (and their pulse), camp states. */
 const INPUTS = 10;
 /** The chest blip's ring breathes through these steps (0 = at rest, 1 = widest); 0 throughout under reduced motion. */
 const PULSE_STEPS: readonly number[] = [0, 0.33, 0.66, 1, 0.66, 0.33];
 /** ms per pulse step. */
 const PULSE_STEP_MS = 160;
-/** More than this many chest blips are not drawn (a map has about 15 camps). */
-const MAX_CHESTS = 32;
+/** More than this many chest blips are not drawn (a chest per cleared camp, each up 15 s: a map has 40 camps). */
+const MAX_CHESTS = 48;
 /** The route is drawn faint: the minimap is for steering, the route is a reminder. */
 const ROUTE_ALPHA = 0.6;
 

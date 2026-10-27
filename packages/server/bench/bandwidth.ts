@@ -1,5 +1,5 @@
-// Budget check for the Phase 11 wire: bytes per second one client receives with 8 players and the map's 80 or so mobs
-// (20 camps of 3 to 5, roguelike R2), as many of them awake and fighting as 8 players can pull. Headless, no sockets: it runs the real sim and encodes what RaidRoom would send.
+// Budget check for the Phase 11 wire: bytes per second one client receives with 8 players and the map's 170 or so mobs
+// (zone-shapes maps: 40 camps of 3 to 5; the roguelike R2 maps had 20 camps and about 80), as many of them awake and fighting as 8 players can pull. Headless, no sockets: it runs the real sim and encodes what RaidRoom would send.
 //   npx tsx bench/bandwidth.ts                 (from packages/server; seed=N ticks=N override the defaults)
 // test/bandwidth.test.ts runs the same scenarios against the gate (under 20 KB/s per client).
 //
@@ -51,7 +51,7 @@ import { positionAt } from "../src/sim/movement";
 import { addPlayer, step } from "../src/sim/step";
 import { collisionMap, emit, type MeleeRequest, type SimConfig, type World } from "../src/sim/world";
 
-/** The gate: ws payload KiB per second, per client, with 8 players and the map's ~80 mobs. */
+/** The gate: ws payload KiB per second, per client, with 8 players and the map's ~170 mobs. */
 export const BANDWIDTH_BUDGET_KBPS = 20;
 
 /**
@@ -77,7 +77,7 @@ export interface BandwidthOptions {
   bots?: number;
   /** Fixes every bot's tier; absent: drawn from the fill config's mix. */
   botTier?: TierId;
-  /** Mobs kept in the state: the map's own camp mobs (one per camp spot, about 80), then more next to camp spots when it holds fewer. 0 = none, and the sim runs with mobs off. */
+  /** Mobs kept in the state: the map's own camp mobs (one per camp spot, about 170), then more next to camp spots when it holds fewer. 0 = none, and the sim runs with mobs off. */
   mobs?: number;
   /**
    * Camps the players stand at (spread over the zones, players spread evenly over them); every mob of those camps is
@@ -406,7 +406,10 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
       seed, config: config(playerCount, mobsWanted > 0), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
     });
   }
-  // What the room's SchemaSerializer does in `reset(state)`, before anyone joins.
+  // What the room's SchemaSerializer does in `reset(state)`, before anyone joins. The server raises the encoder's buffer where it
+  // starts (src/index.ts ENCODER_BUFFER_BYTES: a 136x136 state is over the 16 KB default); the same here, or every run would log
+  // Colyseus' overflow warning.
+  Encoder.BUFFER_SIZE = Math.max(Encoder.BUFFER_SIZE, 64 * 1024);
   const encoder = new Encoder(world.state);
 
   const rnd = mulberry32(seed * 7 + 3);

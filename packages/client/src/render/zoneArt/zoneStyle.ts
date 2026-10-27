@@ -6,83 +6,21 @@
 // and chevrons, light = radial rays (and a vertical beam, which TerrainFx animates), fence = vertical bars, lava = flowing wavy
 // lines, crevasse = a jagged slit.
 import {
-  TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TILE, Y_SCALE,
+  TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, Y_SCALE,
 } from "@raid/shared";
+import {
+  EDGE_E, EDGE_N, EDGE_S, EDGE_W, LOW_HEIGHT, SHARD_HEIGHT, TILE_H, TILE_W, WALL_HEIGHT, bits, hashTile,
+  type Pen, type TileSpot,
+} from "./artBase";
 import { TERRAIN_PALETTE, ZONE_PALETTE, darken, mix, type ZoneKey } from "./palette";
+import {
+  SHAPE_FLAT_PROPS, SHAPE_WALL_PROPS, drawFeatureWall, drawRimLip, drawShapeFlatProp, drawShapeWallProp, paintsWholeWall,
+} from "./featureStyle";
+import type { WallLook } from "./artBase";
 
-/** One tile's ground footprint in projected pixels. */
-export const TILE_W = TILE;
-export const TILE_H = TILE * Y_SCALE;
-/** Pixels a wall's top face is lifted above its footprint (MapView re-exports it). Under one projected tile so a wall never hides the tile north of it. */
-export const WALL_HEIGHT = 14;
-/** A LOW block (a fence) is knee-high: half a wall. */
-export const LOW_HEIGHT = 7;
-/** Rime rocks are shards at 70% of a wall (D 7.3). */
-export const SHARD_HEIGHT = Math.round(WALL_HEIGHT * 0.7);
-
-/** The Graphics methods the art uses, so a stub can stand in for Phaser's Graphics. */
-export interface Pen {
-  fillStyle(color: number, alpha?: number): this;
-  lineStyle(width: number, color: number, alpha?: number): this;
-  fillRect(x: number, y: number, w: number, h: number): this;
-  strokeRect(x: number, y: number, w: number, h: number): this;
-  fillRoundedRect(x: number, y: number, w: number, h: number, radius: number | { tl: number; tr: number; bl: number; br: number }): this;
-  lineBetween(x1: number, y1: number, x2: number, y2: number): this;
-  fillCircle(x: number, y: number, r: number): this;
-  strokeCircle(x: number, y: number, r: number): this;
-  fillEllipse(x: number, y: number, w: number, h: number): this;
-  strokeEllipse(x: number, y: number, w: number, h: number): this;
-  fillTriangle(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number): this;
-  beginPath(): this;
-  moveTo(x: number, y: number): this;
-  lineTo(x: number, y: number): this;
-  closePath(): this;
-  fillPath(): this;
-  strokePath(): this;
-}
-
-/** Sides of a tile, as a bit set: the side faces north (up the screen), east, south, west. */
-export const EDGE_N = 1;
-export const EDGE_E = 2;
-export const EDGE_S = 4;
-export const EDGE_W = 8;
-
-/** Where one tile is painted. */
-export interface TileSpot {
-  /** Top-left of the tile's ground footprint in the target space (the texture being painted). */
-  x: number;
-  y: number;
-  /** Tile coordinates: features that must run on across neighbouring tiles read their phase from these. */
-  tx: number;
-  ty: number;
-  /** A 32-bit hash of the tile: which variant, how the marks fall. */
-  hash: number;
-  /** The sides whose neighbour is not the same kind of tile (an open edge gets the rim, the outline, the post). */
-  open: number;
-}
-
-// ------------------------------------------------------------------------------------------------------------------ hashing
-
-/** A 32-bit integer mix of a tile and a salt; deterministic, integer maths only. */
-export function hashTile(tx: number, ty: number, salt = 0): number {
-  let h = Math.imul(tx + 0x9e37, 0x85ebca6b) ^ Math.imul(ty + 0x7f4a, 0xc2b2ae35) ^ Math.imul(salt + 1, 0x27d4eb2f);
-  h ^= h >>> 15;
-  h = Math.imul(h, 0x2c1b3c6d);
-  h ^= h >>> 12;
-  h = Math.imul(h, 0x297a2d39);
-  h ^= h >>> 15;
-  return h >>> 0;
-}
-
-/** `n` bits of `h` from bit `shift`, as 0..2^n-1. */
-function bits(h: number, shift: number, n: number): number {
-  return (h >>> shift) & ((1 << n) - 1);
-}
-
-/** A 0..1 value from 8 bits of `h`. */
-function unit(h: number, shift: number): number {
-  return bits(h, shift, 8) / 255;
-}
+// The primitives live in artBase.ts (the leaf featureStyle.ts shares); everything that imported them from here still can.
+export { EDGE_E, EDGE_N, EDGE_S, EDGE_W, LOW_HEIGHT, SHARD_HEIGHT, TILE_H, TILE_W, WALL_HEIGHT, hashTile };
+export type { Pen, TileSpot, WallLook };
 
 // ------------------------------------------------------------------------------------------------------------------ plain floor
 
@@ -365,6 +303,15 @@ export interface WallInfo {
   front: boolean;
   /** For a pillar: the LOW kind it stands in (lava, fence, crevasse); 0 otherwise. */
   pillarKind: number;
+  /**
+   * The feature look of a wall that belongs to a named feature (featureArt.ts): absent or "plain" draws the zone's own wall exactly as
+   * before. A look changes marks and colours, never an edge, the lift apart (a shard is lower), so the bake's seam work still holds.
+   */
+  look?: WallLook;
+  /** A crater rim: the sides (EDGE_*) that face the camp's centre. */
+  inward?: number;
+  /** A barrow's mound: 0..1, how near the crown of the disc this tile is. */
+  dome?: number;
 }
 
 function chamfered(g: Pen, x: number, y: number, w: number, h: number, c: number, open: number, color: number): void {
@@ -393,6 +340,16 @@ export function drawWallTile(g: Pen, zone: ZoneKey, s: TileSpot, w: WallInfo): v
     drawPillar(g, zone, s, w);
     return;
   }
+  if (paintsWholeWall(w.look)) {
+    drawFeatureWall(g, zone, s, w);
+    return;
+  }
+  drawZoneWall(g, zone, s, w);
+  if (w.look === "rim") drawRimLip(g, s, w);
+}
+
+/** The zone's own wall: its top face and, where the south is open, its front face. */
+function drawZoneWall(g: Pen, zone: ZoneKey, s: TileSpot, w: WallInfo): void {
   const p = ZONE_PALETTE[zone];
   const top = s.y - w.lift;
   const frontY = s.y + TILE_H - w.lift;
@@ -605,15 +562,16 @@ export interface PropSpot {
 }
 
 /** The props that are painted into the floor: flat decals and small fixtures. */
-export const FLAT_PROPS: ReadonlySet<string> = new Set(["ember_vent", "ash_drift", "lantern", "bubble", "snow_drift", "frost_sparkle", "candelabra", "rubble", "stained_glass"]);
+export const FLAT_PROPS: ReadonlySet<string> = new Set(["ember_vent", "ash_drift", "lantern", "bubble", "snow_drift", "frost_sparkle", "candelabra", "rubble", "stained_glass", ...SHAPE_FLAT_PROPS]);
 
 /** The props that are part of a wall's face (baked into the strip) or stand on a LOW tile. */
 export const WALL_PROPS: ReadonlySet<string> = new Set([
   "glow_crack", "basalt_shard", "banner", "gallows", "cell_bars", "fungus_cap", "drip", "pipe", "ice_spire", "icicle", "column_cap", "banner_red", "chain",
+  ...SHAPE_WALL_PROPS,
 ]);
 
 /** Props that emit particles (TerrainFx): embers from a vent, spores from a bubble, sparkles from frost. */
-export const EMITTER_PROPS: ReadonlySet<string> = new Set(["ember_vent", "bubble", "frost_sparkle"]);
+export const EMITTER_PROPS: ReadonlySet<string> = new Set(["ember_vent", "bubble", "frost_sparkle", "brazier"]);
 
 /** A flat prop painted into a floor chunk. */
 export function drawFlatProp(g: Pen, p: PropSpot): void {
@@ -665,6 +623,8 @@ export function drawFlatProp(g: Pen, p: PropSpot): void {
       g.fillStyle(0xd4af37, 0.85).fillRect(x + 4, y - 5, 4, 10);
       break;
     }
+    default:
+      drawShapeFlatProp(g, p);
   }
 }
 
@@ -740,6 +700,8 @@ export function drawWallProp(g: Pen, p: PropSpot): void {
       g.lineStyle(1.5, TERRAIN_PALETTE.gallows.chain, 0.95);
       g.beginPath().moveTo(x - 8, y - LOW_HEIGHT).lineTo(x - 3, y - LOW_HEIGHT + 4).lineTo(x + 3, y - LOW_HEIGHT + 4).lineTo(x + 8, y - LOW_HEIGHT).strokePath();
       break;
+    default:
+      drawShapeWallProp(g, p);
   }
 }
 

@@ -3,15 +3,25 @@
 // certifier and of the mapgen tests of the 64x64 generator it replaced). It never reads the generator's bookkeeping: the contract's numbers are
 // written out here. Movement and sight go through the masks of map.ts: walkable is `(tile & MASK_MOVE) === 0` (TILE_LOW
 // blocks it), see-through is `(tile & MASK_SIGHT) === 0` (TILE_LOW lets sight through).
+//
+// Zone shapes (contract section 6). Two kinds of result, kept apart:
+//  - HARD: `certifyMap(...).failures`. A map with any failure is rejected. The shape gates (every zone WALL/LOW tile owned by a named
+//    feature, no zone wall piece under 6 tiles, tile classes and terrain kinds that fit the feature kind, sizes, no feature on a camp
+//    clearing/halo or a spawn pad) are the `strict` group: off while the old stylers run, on exactly when the generator's SHAPE_GATES
+//    is (phase C flips that one constant), or per zone with `strict: [faction, ...]` (a zone WP's own tests).
+//  - REPORT: `stats.zones[z]` (ZoneMeasures: ray profile, engagement pairs, camp graph with stretch and loops, wall pieces, terrain and
+//    feature counts) judged against `ZONE_WINDOWS` (contract section 4's per-zone windows) and `SWEEP_THRESHOLDS`; a breach is
+//    investigated, never an automatic failure. The measure functions are exported, pure and tested on hand-made grids.
+// Only maps, masks, the sim's raycast and findPath are imported: nothing the generator uses to build what is checked here.
 import { MAX_PLAYERS, TILE } from "../src/constants";
 import { raycast } from "../src/geometry";
 import {
   MASK_MOVE, MASK_SIGHT, REGION_COLISEUM, REGION_FACTIONS, REGION_NONE, REGION_WEAPONS, TILE_FLOOR, TILE_LOW, TILE_WALL, isWallTile, tileToWorldCenter,
   withGates, worldToTile,
 } from "../src/map";
-import type { GameMap, GateSide, TilePt, TileRect } from "../src/map";
+import type { GameMap, GateSide, RegionFaction, TilePt, TileRect } from "../src/map";
 import type { Vec2 } from "../src/messages";
-import { STYLE_STREAM, styleRng } from "../src/mapgen";
+import { SHAPE_GATES, STYLE_STREAM, styleRng } from "../src/mapgen";
 import type { ZoneStyleHook } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
 import { randInt } from "../src/rng";
@@ -48,6 +58,141 @@ export const GROUND_MIN = 30;
 export const GROUND_MAX = 45;
 export const FEATURES_MAX = 250;
 
+// ---- The measures' numbers (contract 6.2) ----
+/** Ray profile: 24 directions k * 15 degrees, from the centre of every zone FLOOR tile with even x and even y, capped at 40 tiles. */
+export const RAY_DIRECTIONS = 24;
+export const RAY_CAP_TILES = 40;
+/** The bow's range (7.5 tiles) and twice it: the two ray shares. */
+export const BOW_TILES = 7.5;
+export const FAR_TILES = 15;
+/** Engagement pairs: a fixed LCG seeded 12345 + 7 * zoneIndex draws until PAIR_TARGET pairs 3 to 7.5 tiles apart (at most PAIR_DRAWS draws). */
+export const PAIR_TARGET = 2500;
+export const PAIR_DRAWS = 6000;
+export const PAIR_MIN_TILES = 3;
+export const PAIR_MAX_TILES = 7.5;
+/** A camp-graph edge is traversable when its findPath route is at most ROUTE_MUL x the straight line + ROUTE_ADD_TILES. */
+export const ROUTE_MUL = 1.5;
+export const ROUTE_ADD_TILES = 4;
+/** The ring road's Chebyshev width around the coliseum footprint: the front door lies RING_ROAD + 1 < distance <= RING_ROAD + 4. */
+export const RING_ROAD_TILES = 3;
+/** Wall pieces: under PIECE_MIN tiles is a defect (the shape gates), at least PIECE_BIG is a "big" piece. */
+export const PIECE_MIN = 6;
+export const PIECE_BIG = 12;
+/** A landmark's interior (its box shrunk by one tile) must be at least this much floor. */
+export const LANDMARK_INTERIOR_FLOOR = 0.6;
+/** A landmark keeps this many tiles (Chebyshev) from every camp halo (clearing + 1). */
+export const LANDMARK_HALO_GAP = 3;
+/** The footprint (walls + LOW over painted tiles, percent) the shape pass may use: a report threshold. */
+export const FOOTPRINT_MAX_PCT = 13;
+
+// ---- The feature tables (contract 2.5-2.6, section 4), re-declared: map.ts's tables must equal these ----
+export const CERT_FEATURE_KINDS = ["landmark", "crater", "lavaRiver", "fenceRow", "gallows", "barrow", "mere", "headland", "spire", "causeway", "hall", "infill"] as const;
+export type CertFeatureKind = (typeof CERT_FEATURE_KINDS)[number];
+export const CERT_FEATURE_JOBS = ["landmark", "pen", "crossing", "lane", "fork", "lee", "choke", "cover", "rest", "seal"] as const;
+/** Landmark designs and the zone each belongs to (contract 5.2). */
+export const LANDMARK_ZONE: Readonly<Record<string, RegionFaction>> = {
+  forge: "fire", guardHouse: "sentenced", burrow: "plague", watchtower: "frost", shrine: "holy",
+};
+/** Tile classes a feature kind writes (WALL / LOW); a kind with neither owns floor only (a lake, a causeway). */
+const KIND_WRITES: Readonly<Record<CertFeatureKind, { wall: boolean; low: boolean }>> = {
+  landmark: { wall: true, low: false }, crater: { wall: true, low: false }, lavaRiver: { wall: false, low: true }, fenceRow: { wall: false, low: true },
+  gallows: { wall: true, low: false }, barrow: { wall: true, low: false }, mere: { wall: false, low: false }, headland: { wall: true, low: false },
+  spire: { wall: true, low: false }, causeway: { wall: false, low: false }, hall: { wall: true, low: false }, infill: { wall: true, low: false },
+};
+/** The terrain kind a LOW feature's tiles carry. */
+const KIND_TERRAIN: Readonly<Partial<Record<CertFeatureKind, number>>> = { lavaRiver: TERRAIN_LAVA, fenceRow: TERRAIN_FENCE };
+/** The jobs each kind may carry (section 4: the sets a styler names); a landmark always names "landmark". */
+const KIND_JOBS: Readonly<Record<CertFeatureKind, readonly string[]>> = {
+  landmark: ["landmark", "lee", "fork", "rest"], crater: ["pen"], lavaRiver: ["crossing"], fenceRow: ["lane"], gallows: ["landmark"],
+  barrow: ["fork", "choke"], mere: ["crossing"], headland: ["lee"], spire: ["landmark"], causeway: ["crossing", "lee"], hall: ["cover", "rest"], infill: ["seal"],
+};
+
+/** Ownership of floor hazards (ember, bog, ice, light) is a strict check of its own: the generator's gate speaks of WALL/LOW tiles. */
+export const STRICT_HAZARD_OWNERSHIP = true;
+
+export interface RayProfile {
+  /** Zone FLOOR tiles with even x and even y. */
+  samples: number;
+  rays: number;
+  /** Mean ray length in tiles. */
+  mean: number;
+  /** Share of rays at least BOW_TILES / FAR_TILES long (0..1). */
+  share75: number;
+  share15: number;
+  /** Mean of min(r, 7.5) / 7.5. */
+  openBow: number;
+}
+
+export interface PairProfile {
+  /** LCG draws used and pairs kept (3 to 7.5 tiles apart, both ends zone FLOOR). */
+  draws: number;
+  pairs: number;
+  /** Shares of the kept pairs (they sum to 1): a wall between them, else only LOW ground, else clear. */
+  wallBlocked: number;
+  lowSeparated: number;
+  clear: number;
+}
+
+export interface GraphNode { x: number; y: number; kind: "camp" | "door"; camp: number }
+
+export interface CampGraph {
+  nodes: GraphNode[];
+  /** Gabriel edges [a, b], a < b. */
+  edges: Array<readonly [number, number]>;
+  /** Per edge: findPath length / straight length (0 when there is no route). */
+  stretch: number[];
+  /** Per edge: the route stays within ROUTE_MUL x straight + ROUTE_ADD_TILES. */
+  traversable: boolean[];
+  /** Camp-camp edges only: mean and max stretch over those with a route. */
+  stretchMean: number;
+  stretchMax: number;
+  campEdges: number;
+  /** E - V + C over the traversable edges. */
+  loops: number;
+}
+
+export interface PieceStats {
+  /** 8-connected pieces of the class inside the zone. */
+  count: number;
+  tiles: number;
+  singles: number;
+  /** Pieces under PIECE_MIN tiles (singles included). */
+  under6: number;
+  /** Share of the class's tiles that lie in pieces of at least PIECE_BIG tiles. */
+  bigShare: number;
+  largest: number;
+  /** Every piece's size, ascending. */
+  sizes: number[];
+}
+
+export interface ZoneMeasures {
+  zone: RegionFaction;
+  painted: number;
+  floor: number;
+  walls: number;
+  lows: number;
+  /** (walls + lows) / painted, percent. */
+  footprint: number;
+  rays: RayProfile;
+  pairs: PairProfile;
+  graph: CampGraph;
+  wallPieces: PieceStats;
+  lowPieces: PieceStats;
+  /** Tiles of each terrain kind in the zone (index = kind id). */
+  terrain: number[];
+  /** ICE tiles over the zone's FLOOR tiles, percent. */
+  iceShare: number;
+  /** The zone's features by kind. */
+  features: Record<string, number>;
+  /** Barrows with a tunnel (p[1] === 1), a hall's piers (p[3]). */
+  tunnels: number;
+  piers: number;
+  /** Tiles owned by the zone's infill features. */
+  infillTiles: number;
+  /** Tiles between the zone's two elite camps (0 with fewer than two). */
+  eliteSep: number;
+}
+
 export interface MapStats {
   painted: number[];
   floor: number[];
@@ -65,12 +210,18 @@ export interface MapStats {
   hazardsOnWalks: number[];
   rocks: number;
   features: number;
+  /** Features of the whole map by kind. */
+  featureKinds: Record<string, number>;
   /** Per zone (REGION_FACTIONS order): tiles of each terrain kind (index = kind id), walls included for the LOW kinds' pillars. */
   kinds: number[][];
   /** Per zone: the walkable floor's 4-connected pieces (zone mode only; 0 otherwise). */
   zonePieces: number[];
   /** Per pool member (zone mode only): distinct terrain tiles its findPath route to the centre crosses. Report only (contract 0.8). */
   hazardExposure: number[];
+  /** The report measures per zone in REGION_FACTIONS order (empty when `measures` is off). */
+  zones: ZoneMeasures[];
+  /** The zone codes the strict group ran on (empty: it did not run). */
+  strictZones: number[];
 }
 
 export interface CertifyOptions {
@@ -78,11 +229,29 @@ export interface CertifyOptions {
   styled?: boolean;
   /** `styler=zone`: the generator's own zone stylers ran. Implies `styled`, and adds the zone-floor connectivity check and the spawn-to-centre hazard exposure. */
   zone?: boolean;
+  /**
+   * The shape gates' checks (ownership, wall pieces, tile classes, sizes, no overlap): true = every zone, a list = those zones only
+   * (a zone WP's own tests: the other zones still run the old stylers), false = none. Default: every zone in `zone` mode exactly when
+   * the generator's SHAPE_GATES is on (phase C flips that constant and this follows), none otherwise.
+   */
+  strict?: boolean | readonly RegionFaction[];
+  /** Compute the per-zone report measures (stats.zones). Default: on in `zone` mode. */
+  measures?: boolean;
+}
+
+/** The zone codes `strict` selects (see CertifyOptions.strict). */
+export function strictZoneCodes(zone: boolean, strict: CertifyOptions["strict"]): number[] {
+  const all = REGION_FACTIONS.map((_, z) => z + 1);
+  if (strict === undefined) return zone && SHAPE_GATES ? all : [];
+  if (strict === false) return [];
+  if (strict === true) return all;
+  return strict.map((f) => REGION_FACTIONS.indexOf(f) + 1);
 }
 
 /** Runs every per-map check; returns the failures (empty when the map certifies) and the measured numbers. */
 export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: string[]; stats: MapStats } {
   const opts = { styled: !!(copts.styled || copts.zone), zone: !!copts.zone };
+  const strictCodes = strictZoneCodes(opts.zone, copts.strict);
   const failures: string[] = [];
   const check = (name: string, ok: boolean, why?: () => string): void => {
     if (!ok) failures.push(`${name}${why ? `: ${why()}` : ""}`);
@@ -330,24 +499,16 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
     if (!isTileCentre(r.pole) || !move(m.tiles, pt) || m.regionGrid[pt] !== z + 1 || m.buildings.some((b) => inRect(b, pt % W, Math.floor(pt / W)))) views = `${r.id} pole`;
   });
   const interleaved: Vec2[] = [];
-  for (let n = 0; interleaved.length < pool.length; n++) for (const r of m.regions) if (r.spawns[n]) interleaved.push(r.spawns[n]);
+  for (let n = 0; interleaved.length < pool.length && n < pool.length; n++) for (const r of m.regions) if (r.spawns[n]) interleaved.push(r.spawns[n]);
   if (JSON.stringify(m.spawns) !== JSON.stringify(interleaved)) views = "spawns not interleaved by zone";
   if (JSON.stringify(m.crateSpots) !== JSON.stringify(m.regions.flatMap((r) => r.chestSpots))) views = "crateSpots";
   check("views: mobCamps, region spawns, spawns, crateSpots derive from camps and the pool; area is painted; pole is outdoor floor in the zone", views === "", () => views);
 
-  // --- Features --------------------------------------------------------------------------------------------------------
-  let feats = m.featureGrid instanceof Uint8Array && m.featureGrid.length === N && m.features.length <= FEATURES_MAX ? "" : "featureGrid or count";
-  const featCount = new Array<number>(m.features.length + 1).fill(0);
-  for (let i = 0; i < N && feats === ""; i++) {
-    const v = m.featureGrid[i];
-    if (v === 0) continue;
-    if (v > m.features.length) { feats = `featureGrid ${v} at ${i % W},${Math.floor(i / W)}`; break; }
-    featCount[v]++;
-    const f = m.features[v - 1];
-    if (!inRect(f.bbox, i % W, Math.floor(i / W))) feats = `feature ${v - 1} owns a tile outside its box`;
-  }
-  m.features.forEach((f, k) => { if (feats === "" && f.tiles !== featCount[k + 1]) feats = `feature ${k} counts ${f.tiles} tiles, owns ${featCount[k + 1]}`; });
-  check("features: at most 250, featureGrid names them, each one's tiles and box match its ownership", feats === "", () => feats);
+  // --- Features and pieces -----------------------------------------------------------------------------------------------
+  // The tables, the ownership grid, the landmarks' rules and the order always run; the shape gates (every zone WALL/LOW tile owned, no
+  // zone wall piece under 6 tiles, tile classes, sizes, no overlap with a clearing or a spawn pad) run on the strict zones only.
+  for (const f of featureProblems(m, strictCodes)) failures.push(f);
+  if (strictCodes.length > 0) for (const f of pieceProblems(m, strictCodes)) failures.push(f);
 
   // --- Crates, ground spots -----------------------------------------------------------------------------------------------
   const allSpots = camps.flatMap((c) => c.spots.map(tIdx));
@@ -466,11 +627,16 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
       hazardExposure.push(seen.size);
     }
   }
+  // --- The report measures (contract 6.2): never failures --------------------------------------------------------------------
+  const wantMeasures = copts.measures ?? opts.zone;
+  const zones = wantMeasures ? REGION_FACTIONS.map((_, z) => zoneMeasures(m, z)) : [];
+  const featureKinds: Record<string, number> = {};
+  for (const f of m.features) featureKinds[f.kind] = (featureKinds[f.kind] ?? 0) + 1;
   return {
     failures,
     stats: {
       painted, floor, contact, slivers, radius, leashShare, pool: pool.length, poolZones: zonesIn.size, walkRatio57, walkRatioPath, hazardsOnWalks, rocks,
-      features: m.features.length, kinds, zonePieces, hazardExposure,
+      features: m.features.length, featureKinds, kinds, zonePieces, hazardExposure, zones, strictZones: strictCodes,
     },
   };
 }
@@ -561,6 +727,585 @@ export function walkLength(m: GameMap, a: Vec2, b: Vec2): number {
   let len = 0, px = a.x, py = a.y;
   for (const q of findPath(m, a, b)) { len += Math.hypot(q.x - px, q.y - py); px = q.x; py = q.y; }
   return len;
+}
+
+// ---- The report measures (contract 6.2): pure, exported, tested on hand-made grids ---------------------------------------------
+
+const zoneCodeOf = (f: RegionFaction): number => REGION_FACTIONS.indexOf(f) + 1;
+const tileOf = (m: GameMap, p: Vec2): number => worldToTile(p.y) * m.w + worldToTile(p.x);
+
+/** 4- or 8-connected pieces of `ok` tiles: sizes in discovery order and the label of every tile (-1 off). */
+export function pieces(w: number, h: number, ok: (i: number) => boolean, eight: boolean): { sizes: number[]; label: Int32Array } {
+  const label = new Int32Array(w * h).fill(-1);
+  const stack = new Int32Array(w * h);
+  const sizes: number[] = [];
+  for (let s = 0; s < w * h; s++) {
+    if (label[s] >= 0 || !ok(s)) continue;
+    const id = sizes.length;
+    let top = 0, size = 0;
+    stack[top++] = s;
+    label[s] = id;
+    while (top > 0) {
+      const c = stack[--top], x = c % w, y = (c - x) / w;
+      size++;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if ((dx === 0 && dy === 0) || (!eight && dx !== 0 && dy !== 0)) continue;
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const j = ny * w + nx;
+          if (label[j] >= 0 || !ok(j)) continue;
+          label[j] = id;
+          stack[top++] = j;
+        }
+      }
+    }
+    sizes.push(size);
+  }
+  return { sizes, label };
+}
+
+/**
+ * 8-connected pieces of tile class `cls` (TILE_WALL or TILE_LOW) lying in zone `code`: count, singles, pieces under PIECE_MIN, the share
+ * of the class's tiles in pieces of at least PIECE_BIG, the largest.
+ */
+export function pieceStats(m: GameMap, code: number, cls: number): PieceStats {
+  const { sizes } = pieces(m.w, m.h, (i) => m.regionGrid[i] === code && m.tiles[i] === cls, true);
+  const tiles = sizes.reduce((a, v) => a + v, 0);
+  const big = sizes.filter((v) => v >= PIECE_BIG).reduce((a, v) => a + v, 0);
+  return {
+    count: sizes.length, tiles, singles: sizes.filter((v) => v === 1).length, under6: sizes.filter((v) => v < PIECE_MIN).length,
+    bigShare: tiles === 0 ? 0 : big / tiles, largest: sizes.length === 0 ? 0 : Math.max(...sizes), sizes: [...sizes].sort((a, b) => a - b),
+  };
+}
+
+// ---- Ray profile ----
+const DIR_COS = Array.from({ length: RAY_DIRECTIONS }, (_, k) => Math.cos((k * 2 * Math.PI) / RAY_DIRECTIONS));
+const DIR_SIN = Array.from({ length: RAY_DIRECTIONS }, (_, k) => Math.sin((k * 2 * Math.PI) / RAY_DIRECTIONS));
+
+/** The 24 ray lengths (tiles, capped at RAY_CAP_TILES) from the centre of tile (tx, ty) under MASK_SIGHT: walls stop a ray, LOW does not. */
+export function rayLengthsAt(m: GameMap, tx: number, ty: number): number[] {
+  const x0 = tileToWorldCenter(tx), y0 = tileToWorldCenter(ty), reach = RAY_CAP_TILES * TILE;
+  const out: number[] = [];
+  for (let k = 0; k < RAY_DIRECTIONS; k++) {
+    const r = raycast(m, x0, y0, x0 + DIR_COS[k] * reach, y0 + DIR_SIN[k] * reach, MASK_SIGHT);
+    out.push(Math.min(RAY_CAP_TILES, r.dist / TILE));
+  }
+  return out;
+}
+
+/** The ray profile of zone `code`: samples are its FLOOR tiles with even x and even y. */
+export function rayProfile(m: GameMap, code: number): RayProfile {
+  let samples = 0, rays = 0, sum = 0, n75 = 0, n15 = 0, open = 0;
+  for (let i = 0; i < m.w * m.h; i++) {
+    const x = i % m.w, y = (i - x) / m.w;
+    if ((x & 1) || (y & 1) || m.regionGrid[i] !== code || m.tiles[i] !== TILE_FLOOR) continue;
+    samples++;
+    for (const r of rayLengthsAt(m, x, y)) {
+      rays++;
+      sum += r;
+      if (r >= BOW_TILES) n75++;
+      if (r >= FAR_TILES) n15++;
+      open += Math.min(r, BOW_TILES) / BOW_TILES;
+    }
+  }
+  return { samples, rays, mean: rays ? sum / rays : 0, share75: rays ? n75 / rays : 0, share15: rays ? n15 / rays : 0, openBow: rays ? open / rays : 0 };
+}
+
+// ---- Engagement pairs ----
+/** The LCG of the pair sampling: s -> (s * 1103515245 + 12345) mod 2^31, exact (Math.imul wraps mod 2^32; the mask keeps 31 bits). */
+export const lcgNext = (s: number): number => (Math.imul(s, 1103515245) + 12345) & 0x7fffffff;
+
+/**
+ * Calls visit(tile index) for every tile the segment between the centres of tiles (ax, ay) and (bx, by) passes through, both ends
+ * included. A segment through a tile corner visits both tiles it squeezes between and the one beyond (the rule of the sim's raycast).
+ * Exact integer arithmetic. `visit` returning true stops the walk and the function returns true.
+ */
+export function walkSegment(w: number, ax: number, ay: number, bx: number, by: number, visit: (i: number) => boolean | void): boolean {
+  const sx = Math.sign(bx - ax), sy = Math.sign(by - ay), nx = Math.abs(bx - ax), ny = Math.abs(by - ay);
+  let x = ax, y = ay, ix = 0, iy = 0;
+  if (visit(y * w + x)) return true;
+  while (ix < nx || iy < ny) {
+    // The next vertical grid line is crossed at (ix + 1/2) / nx of the segment, the next horizontal one at (iy + 1/2) / ny.
+    const lhs = (1 + 2 * ix) * ny, rhs = (1 + 2 * iy) * nx;
+    if (ix < nx && iy < ny && lhs === rhs) {
+      if (visit(y * w + x + sx) || visit((y + sy) * w + x)) return true;
+      x += sx; y += sy; ix++; iy++;
+    } else if (iy >= ny || (ix < nx && lhs < rhs)) {
+      x += sx; ix++;
+    } else {
+      y += sy; iy++;
+    }
+    if (visit(y * w + x)) return true;
+  }
+  return false;
+}
+
+/**
+ * The engagement pairs of zone `code` (the zone's index in REGION_FACTIONS is `zoneIndex`): a fixed LCG seeded 12345 + 7 * zoneIndex
+ * draws a zone FLOOR tile A, then an offset (dx, dy) in [-7, 7]^2; the pair (A, B = A + offset) counts when B is a zone FLOOR tile and
+ * 3 <= distance <= 7.5 tiles between centres. It stops at PAIR_TARGET pairs or PAIR_DRAWS draws. Each pair is wall-blocked (the sim's
+ * raycast under MASK_SIGHT hits), else LOW-separated (the segment crosses a LOW tile), else clear.
+ */
+export function engagementPairs(m: GameMap, code: number, zoneIndex: number): PairProfile {
+  const W = m.w, cells: number[] = [];
+  for (let i = 0; i < W * m.h; i++) if (m.regionGrid[i] === code && m.tiles[i] === TILE_FLOOR) cells.push(i);
+  let s = 12345 + 7 * zoneIndex, draws = 0, pairs = 0, wall = 0, low = 0;
+  if (cells.length === 0) return { draws, pairs, wallBlocked: 0, lowSeparated: 0, clear: 0 };
+  // The low bits of a power-of-two LCG are weak: every draw uses bits 8 and up.
+  const draw = (n: number): number => { s = lcgNext(s); return (s >>> 8) % n; };
+  const lowAt = (i: number): boolean => (m.tiles[i] & TILE_LOW) !== 0;
+  while (draws < PAIR_DRAWS && pairs < PAIR_TARGET) {
+    draws++;
+    const a = cells[draw(cells.length)], dx = draw(15) - 7, dy = draw(15) - 7;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < PAIR_MIN_TILES * PAIR_MIN_TILES || d2 > PAIR_MAX_TILES * PAIR_MAX_TILES) continue;
+    const ax = a % W, ay = (a - ax) / W, bx = ax + dx, by = ay + dy;
+    if (bx < 0 || by < 0 || bx >= W || by >= m.h) continue;
+    const b = by * W + bx;
+    if (m.regionGrid[b] !== code || m.tiles[b] !== TILE_FLOOR) continue;
+    pairs++;
+    if (raycast(m, tileToWorldCenter(ax), tileToWorldCenter(ay), tileToWorldCenter(bx), tileToWorldCenter(by), MASK_SIGHT).hit) wall++;
+    else if (walkSegment(W, ax, ay, bx, by, lowAt)) low++;
+  }
+  return { draws, pairs, wallBlocked: pairs ? wall / pairs : 0, lowSeparated: pairs ? low / pairs : 0, clear: pairs ? (pairs - wall - low) / pairs : 0 };
+}
+
+// ---- Camp graph ----
+
+/** Chebyshev distance (tiles, capped at `cap`) from the coliseum region, 255 beyond. */
+function coliseumDistance(m: GameMap, cap: number): Uint8Array {
+  const W = m.w, N = W * m.h, d = new Uint8Array(N).fill(255), queue = new Int32Array(N);
+  let head = 0, tail = 0;
+  for (let i = 0; i < N; i++) if (m.regionGrid[i] === REGION_COLISEUM) { d[i] = 0; queue[tail++] = i; }
+  while (head < tail) {
+    const i = queue[head++];
+    if (d[i] >= cap) continue;
+    const x = i % W, y = (i - x) / W;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= m.h || d[ny * W + nx] !== 255) continue;
+        d[ny * W + nx] = d[i] + 1;
+        queue[tail++] = ny * W + nx;
+      }
+    }
+  }
+  return d;
+}
+
+/**
+ * The nodes of a zone's camp graph: its camps in `m.camps` order, then its front door: the zone FLOOR tile at ring distance RING_ROAD + 1
+ * < d <= RING_ROAD + 4 from the coliseum footprint nearest the centroid of the zone's painted tiles (ties lowest index). No door when no
+ * tile qualifies (a map without a coliseum).
+ */
+export function campGraphNodes(m: GameMap, faction: RegionFaction): GraphNode[] {
+  const W = m.w, code = zoneCodeOf(faction), out: GraphNode[] = [];
+  m.camps.forEach((c, k) => { if (c.zone === faction) out.push({ x: worldToTile(c.x), y: worldToTile(c.y), kind: "camp", camp: k }); });
+  let n = 0, cx = 0, cy = 0;
+  for (let i = 0; i < W * m.h; i++) if (m.regionGrid[i] === code) { n++; cx += (i % W) + 0.5; cy += Math.floor(i / W) + 0.5; }
+  if (n === 0) return out;
+  cx /= n; cy /= n;
+  const d = coliseumDistance(m, RING_ROAD_TILES + 4);
+  let best = -1, bd = Infinity;
+  for (let i = 0; i < W * m.h; i++) {
+    if (m.regionGrid[i] !== code || m.tiles[i] !== TILE_FLOOR || d[i] <= RING_ROAD_TILES + 1 || d[i] > RING_ROAD_TILES + 4) continue;
+    const ex = (i % W) + 0.5 - cx, ey = Math.floor(i / W) + 0.5 - cy, e = ex * ex + ey * ey;
+    if (e < bd) { bd = e; best = i; }
+  }
+  if (best >= 0) out.push({ x: best % W, y: Math.floor(best / W), kind: "door", camp: -1 });
+  return out;
+}
+
+/** The Gabriel graph: (a, b) is an edge when no third node k has (2xk - xa - xb)^2 + (2yk - ya - yb)^2 < (xa - xb)^2 + (ya - yb)^2. */
+export function gabriel(nodes: readonly { x: number; y: number }[]): Array<readonly [number, number]> {
+  const out: Array<readonly [number, number]> = [];
+  for (let a = 0; a < nodes.length; a++) {
+    for (let b = a + 1; b < nodes.length; b++) {
+      const dx = nodes[a].x - nodes[b].x, dy = nodes[a].y - nodes[b].y, d2 = dx * dx + dy * dy;
+      let ok = true;
+      for (let k = 0; k < nodes.length && ok; k++) {
+        if (k === a || k === b) continue;
+        const ex = 2 * nodes[k].x - nodes[a].x - nodes[b].x, ey = 2 * nodes[k].y - nodes[a].y - nodes[b].y;
+        if (ex * ex + ey * ey < d2) ok = false;
+      }
+      if (ok) out.push([a, b]);
+    }
+  }
+  return out;
+}
+
+/** E - V + C of a graph given by its edges over `n` nodes. */
+export function cyclomaticNumber(n: number, edges: ReadonlyArray<readonly [number, number]>): number {
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (a: number): number => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+  let comps = n;
+  for (const [a, b] of edges) { const ra = find(a), rb = find(b); if (ra !== rb) { parent[ra] = rb; comps--; } }
+  return edges.length - n + comps;
+}
+
+/** A findPath route's length in world units from `a` through its waypoints, or 0 when there is none. */
+export function routeLength(m: GameMap, a: Vec2, b: Vec2): number {
+  const path = findPath(m, a, b);
+  let len = 0, px = a.x, py = a.y;
+  for (const q of path) { len += Math.sqrt((q.x - px) * (q.x - px) + (q.y - py) * (q.y - py)); px = q.x; py = q.y; }
+  return path.length === 0 ? 0 : len;
+}
+
+/**
+ * The zone's camp graph: nodes (camps + front door), Gabriel edges, and for each edge the stretch (findPath route over the straight line
+ * between the node centres) and whether it is traversable (route <= ROUTE_MUL x straight + ROUTE_ADD_TILES). `loops` is E - V + C over
+ * the traversable edges; the stretch mean and max cover the camp-camp edges that have a route.
+ */
+export function campGraph(m: GameMap, faction: RegionFaction): CampGraph {
+  const nodes = campGraphNodes(m, faction), edges = gabriel(nodes);
+  const stretch: number[] = [], traversable: boolean[] = [];
+  const camp: number[] = [];
+  edges.forEach(([a, b]) => {
+    const pa = { x: tileToWorldCenter(nodes[a].x), y: tileToWorldCenter(nodes[a].y) }, pb = { x: tileToWorldCenter(nodes[b].x), y: tileToWorldCenter(nodes[b].y) };
+    const straight = Math.sqrt((pa.x - pb.x) * (pa.x - pb.x) + (pa.y - pb.y) * (pa.y - pb.y)), route = routeLength(m, pa, pb);
+    stretch.push(route > 0 && straight > 0 ? route / straight : 0);
+    traversable.push(route > 0 && route <= ROUTE_MUL * straight + ROUTE_ADD_TILES * TILE);
+    if (nodes[a].kind === "camp" && nodes[b].kind === "camp" && route > 0) camp.push(stretch[stretch.length - 1]);
+  });
+  const kept = edges.filter((_, k) => traversable[k]);
+  return {
+    nodes, edges, stretch, traversable, campEdges: edges.filter(([a, b]) => nodes[a].kind === "camp" && nodes[b].kind === "camp").length,
+    stretchMean: camp.length ? camp.reduce((a, v) => a + v, 0) / camp.length : 0, stretchMax: camp.length ? Math.max(...camp) : 0,
+    loops: cyclomaticNumber(nodes.length, kept),
+  };
+}
+
+/** Every report measure of zone `zi` (its index in REGION_FACTIONS). */
+export function zoneMeasures(m: GameMap, zi: number): ZoneMeasures {
+  const code = zi + 1, faction = REGION_FACTIONS[zi], N = m.w * m.h;
+  let painted = 0, floor = 0, walls = 0, lows = 0;
+  const terrain = new Array<number>(TERRAINS.length).fill(0);
+  for (let i = 0; i < N; i++) {
+    if (m.regionGrid[i] !== code) continue;
+    painted++;
+    if (m.tiles[i] === TILE_FLOOR) floor++;
+    else if (m.tiles[i] === TILE_WALL) walls++;
+    else if (m.tiles[i] === TILE_LOW) lows++;
+    if (m.terrain[i] !== TERRAIN_NONE) terrain[m.terrain[i]]++;
+  }
+  const features: Record<string, number> = {};
+  let tunnels = 0, piers = 0, infillTiles = 0;
+  for (const f of m.features) {
+    if (f.zone !== faction) continue;
+    features[f.kind] = (features[f.kind] ?? 0) + 1;
+    if (f.kind === "barrow" && f.p[1] === 1) tunnels++;
+    if (f.kind === "hall") piers += f.p[3] ?? 0;
+    if (f.kind === "infill") infillTiles += f.tiles;
+  }
+  const elites = m.camps.filter((c) => c.zone === faction && c.eliteSpot >= 0);
+  const eliteSep = elites.length >= 2 ? Math.sqrt((elites[0].x - elites[1].x) * (elites[0].x - elites[1].x) + (elites[0].y - elites[1].y) * (elites[0].y - elites[1].y)) / TILE : 0;
+  return {
+    zone: faction, painted, floor, walls, lows, footprint: painted ? (100 * (walls + lows)) / painted : 0,
+    rays: rayProfile(m, code), pairs: engagementPairs(m, code, zi), graph: campGraph(m, faction),
+    wallPieces: pieceStats(m, code, TILE_WALL), lowPieces: pieceStats(m, code, TILE_LOW), terrain,
+    iceShare: floor ? (100 * terrain[TERRAIN_ICE]) / floor : 0, features, tunnels, piers, infillTiles, eliteSep,
+  };
+}
+
+// ---- Features, ownership and pieces (contract 6.1 gates, 6.2 ownership) ----------------------------------------------------------
+
+/** First line of every failure of featureProblems, so a test (or a reader) can tell the checks apart. */
+export const FEATURE_CHECKS = {
+  grid: "features: featureGrid is a w*h Uint8Array naming at most 250 features",
+  table: "features: kind, variant, jobs, zone, params, anchor and box are in the tables and well formed",
+  tiles: "features: each feature's tiles equals its count in featureGrid, and its box contains them",
+  zone: "features: a feature owns tiles of its own zone only",
+  order: "features: in order: zones in REGION_FACTIONS order; a zone's landmarks first, its one infill last",
+  landmark: "features: a landmark names its zone's design, keeps its box + 1 inside the zone and 3 tiles from every camp halo, has doors 2+ wide and an interior at least 60% floor",
+  buildings: "features: map.buildings holds the landmarks' boxes, one each",
+  unowned: "features: every zone WALL or LOW tile belongs to a feature (strict)",
+  hazards: "features: every zone tile with a floor hazard belongs to a feature (strict)",
+  kindTiles: "features: a feature's WALL and LOW tiles fit its kind, and its LOW tiles carry the kind's terrain (strict)",
+  size: "features: a wall or LOW feature owns at least 6 such tiles (strict)",
+  overlap: "features: no feature puts a wall or LOW tile on a camp clearing, halo or spawn pad (owned floor may: a crater bowl, a hall aisle) (strict)",
+  jobs: "features: a feature's jobs are the ones its kind may carry (strict)",
+  pieces: "pieces: no zone WALL 8-piece has fewer than 6 tiles, so no single tile (strict)",
+} as const;
+
+/** The camps' halos (clearing of radius 2.5 tiles grown by one tile) and the spawn pool's 3x3 pads, as masks. */
+function protectedMasks(m: GameMap): { halo: Uint8Array; pad: Uint8Array } {
+  const W = m.w, N = W * m.h, halo = new Uint8Array(N), pad = new Uint8Array(N);
+  for (const c of m.camps) {
+    const cx = worldToTile(c.x), cy = worldToTile(c.y);
+    for (let dy = -4; dy <= 4; dy++) {
+      for (let dx = -4; dx <= 4; dx++) {
+        // A tile is in the halo when it touches (8-neighbourhood) a clearing tile: centre distance at most 2.5 tiles.
+        let near = false;
+        for (let oy = -1; oy <= 1 && !near; oy++) for (let ox = -1; ox <= 1; ox++) if ((dx + ox) * (dx + ox) + (dy + oy) * (dy + oy) <= 6.25) { near = true; break; }
+        const x = cx + dx, y = cy + dy;
+        if (near && x >= 0 && y >= 0 && x < W && y < m.h) halo[y * W + x] = 1;
+      }
+    }
+  }
+  for (const s of m.spawnPool) {
+    const sx = worldToTile(s.x), sy = worldToTile(s.y);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = sx + dx, y = sy + dy; if (x >= 0 && y >= 0 && x < W && y < m.h) pad[y * W + x] = 1; }
+  }
+  return { halo, pad };
+}
+
+/**
+ * The feature checks. Always: the grid, the tables, the counts and boxes, the zone of every owned tile, the order, the landmarks'
+ * rules, the buildings. For `strict` zone codes: every WALL or LOW tile (and floor hazard) of those zones is owned, the owner's kind
+ * fits the tile, sizes, overlaps and jobs. Each string is `FEATURE_CHECKS.<name>: why`.
+ */
+export function featureProblems(m: GameMap, strict: readonly number[] = []): string[] {
+  const out: string[] = [], W = m.w, H = m.h, N = W * H, F = m.features;
+  const once = new Set<string>();
+  const add = (check: keyof typeof FEATURE_CHECKS, key: string, why: string): void => {
+    if (once.has(`${check}|${key}`)) return;
+    once.add(`${check}|${key}`);
+    out.push(`${FEATURE_CHECKS[check]}: ${why}`);
+  };
+  if (!(m.featureGrid instanceof Uint8Array) || m.featureGrid.length !== N) { add("grid", "g", "featureGrid is not a w*h Uint8Array"); return out; }
+  if (F.length > FEATURES_MAX) add("grid", "count", `${F.length} features`);
+  const where = (i: number): string => `${i % W},${Math.floor(i / W)}`;
+  const strictSet = new Set(strict);
+  const kindSet = new Set<string>(CERT_FEATURE_KINDS), jobSet = new Set<string>(CERT_FEATURE_JOBS);
+  const owned = new Array<number>(F.length + 1).fill(0), walls = new Array<number>(F.length + 1).fill(0);
+  const zoneIdx = (f: { zone: string }): number => REGION_FACTIONS.indexOf(f.zone as RegionFaction);
+
+  F.forEach((f, k) => {
+    const id = `feature ${k} (${f.kind})`;
+    if (!kindSet.has(f.kind)) add("table", `kind${k}`, `${id} has a kind outside the table`);
+    if (zoneIdx(f) < 0) add("table", `zone${k}`, `${id} names no zone`);
+    if (!Array.isArray(f.jobs) || f.jobs.length < 1 || f.jobs.length > 2 || new Set(f.jobs).size !== f.jobs.length || f.jobs.some((j) => !jobSet.has(j))) add("table", `jobs${k}`, `${id} needs one or two distinct jobs from the table`);
+    const variantOk = f.kind === "landmark" ? f.variant in LANDMARK_ZONE : f.variant === "";
+    if (!variantOk) add("table", `variant${k}`, `${id} has variant "${f.variant}"`);
+    if (!Array.isArray(f.p) || f.p.some((v) => !Number.isInteger(v))) add("table", `p${k}`, `${id} has params that are not integers`);
+    if (!Number.isInteger(f.ax) || !Number.isInteger(f.ay) || f.ax < 0 || f.ay < 0 || f.ax >= W || f.ay >= H) add("table", `anchor${k}`, `${id} has an anchor off the map`);
+    const b = f.bbox;
+    if (!b || ![b.x, b.y, b.w, b.h].every(Number.isInteger) || b.w < 1 || b.h < 1 || b.x < 0 || b.y < 0 || b.x + b.w > W || b.y + b.h > H) add("table", `box${k}`, `${id} has a box off the map`);
+  });
+  for (let i = 0; i < N; i++) {
+    const v = m.featureGrid[i];
+    if (v === 0) continue;
+    if (v > F.length) { add("grid", `v${v}`, `featureGrid names feature ${v - 1} at ${where(i)} of ${F.length}`); continue; }
+    owned[v]++;
+    if (m.tiles[i] !== TILE_FLOOR) walls[v]++;
+    const f = F[v - 1], code = zoneCodeOf(f.zone as RegionFaction);
+    if (f.bbox && !inRect(f.bbox, i % W, Math.floor(i / W))) add("tiles", `box${v}`, `feature ${v - 1} owns ${where(i)} outside its box`);
+    if (m.regionGrid[i] !== code) add("zone", `z${v}`, `feature ${v - 1} (${f.kind}, ${f.zone}) owns ${where(i)} of region ${m.regionGrid[i]}`);
+  }
+  F.forEach((f, k) => { if (f.tiles !== owned[k + 1] || owned[k + 1] === 0) add("tiles", `n${k}`, `feature ${k} (${f.kind}) counts ${f.tiles} tiles, owns ${owned[k + 1]}`); });
+
+  // Order: zones in REGION_FACTIONS order; in a zone landmarks first, at most one infill and it last.
+  let lastZone = -1, stage = 0, infills = 0;
+  F.forEach((f, k) => {
+    const z = zoneIdx(f);
+    if (z < lastZone) add("order", `z${k}`, `feature ${k} (${f.zone}) comes after a later zone`);
+    if (z !== lastZone) { lastZone = z; stage = 0; infills = 0; }
+    const rank = f.kind === "landmark" ? 0 : f.kind === "infill" ? 2 : 1;
+    if (rank < stage) add("order", `r${k}`, `feature ${k} (${f.kind}) breaks the landmarks, shapes, infill order of its zone`);
+    stage = Math.max(stage, rank);
+    if (f.kind === "infill" && ++infills > 1) add("order", `i${k}`, `zone ${f.zone} has more than one infill`);
+  });
+
+  // Landmarks.
+  const { halo, pad } = protectedMasks(m);
+  const landmarks = F.map((f, k) => ({ f, k })).filter((e) => e.f.kind === "landmark");
+  const near = new Uint8Array(N); // tiles within LANDMARK_HALO_GAP - 1 (Chebyshev) of a halo tile
+  if (landmarks.length > 0) {
+    const r = LANDMARK_HALO_GAP - 1;
+    for (let i = 0; i < N; i++) {
+      if (!halo[i]) continue;
+      const x = i % W, y = (i - x) / W;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < H) near[ny * W + nx] = 1; }
+    }
+  }
+  for (const { f, k } of landmarks) {
+    const id = `landmark ${k} (${f.variant})`, code = zoneCodeOf(f.zone as RegionFaction), b = f.bbox;
+    if (LANDMARK_ZONE[f.variant] !== undefined && LANDMARK_ZONE[f.variant] !== f.zone) add("landmark", `d${k}`, `${id} is a ${LANDMARK_ZONE[f.variant]} design in the ${f.zone} zone`);
+    if (!b || b.x < 1 || b.y < 1 || b.x + b.w > W - 1 || b.y + b.h > H - 1) { add("landmark", `m${k}`, `${id} has no room for its margin`); continue; }
+    let margin = true;
+    for (let y = b.y - 1; y <= b.y + b.h && margin; y++) for (let x = b.x - 1; x <= b.x + b.w; x++) if (m.regionGrid[y * W + x] !== code) { margin = false; break; }
+    if (!margin) add("landmark", `m${k}`, `${id}: its box + 1 leaves the zone`);
+    const tiles: number[] = [];
+    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) if (m.featureGrid[y * W + x] === k + 1) tiles.push(y * W + x);
+    if (tiles.some((i) => near[i])) add("landmark", `h${k}`, `${id} is closer than ${LANDMARK_HALO_GAP} tiles to a camp halo`);
+    // Doors: the template's door tiles are p[2..]; each 4-connected run of them is at least 2 wide, and a door tile is walkable.
+    const doors = f.p.slice(2);
+    const doorSet = new Set(doors);
+    if (doors.length === 0) add("landmark", `o${k}`, `${id} has no door`);
+    if (doors.some((i) => i < 0 || i >= N || m.tiles[i] !== TILE_FLOOR || m.featureGrid[i] !== k + 1)) add("landmark", `o${k}`, `${id} has a door that is not an owned floor tile`);
+    for (const d of doors) {
+      let run = 1;
+      const stack = [d], seen = new Set([d]);
+      while (stack.length) {
+        const c = stack.pop()!;
+        for (const n of [c + 1, c - 1, c + W, c - W]) if (doorSet.has(n) && !seen.has(n)) { seen.add(n); stack.push(n); run++; }
+      }
+      if (run < 2) { add("landmark", `o${k}`, `${id} has a door ${where(d)} one tile wide`); break; }
+    }
+    // Interior: the box shrunk by one tile is at least LANDMARK_INTERIOR_FLOOR walkable floor.
+    let cells = 0, fl = 0;
+    for (let y = b.y + 1; y < b.y + b.h - 1; y++) for (let x = b.x + 1; x < b.x + b.w - 1; x++) { cells++; if (m.tiles[y * W + x] === TILE_FLOOR) fl++; }
+    if (cells > 0 && fl < LANDMARK_INTERIOR_FLOOR * cells) add("landmark", `f${k}`, `${id}: only ${fl} of ${cells} interior tiles are floor`);
+  }
+  // buildings: one box per landmark, each landmark's box inside a building box.
+  if (m.buildings.length !== landmarks.length) add("buildings", "n", `${m.buildings.length} buildings for ${landmarks.length} landmarks`);
+  else for (const { f, k } of landmarks) {
+    const b = f.bbox;
+    if (!m.buildings.some((q) => b.x >= q.x && b.y >= q.y && b.x + b.w <= q.x + q.w && b.y + b.h <= q.y + q.h)) add("buildings", `b${k}`, `landmark ${k} has no building box around it`);
+  }
+
+  if (strictSet.size === 0) return out;
+
+  // ---- Strict: the shape gates ----
+  let unowned = 0, firstUnowned = -1, unownedHazard = 0, firstHazard = -1;
+  for (let i = 0; i < N; i++) {
+    const code = m.regionGrid[i];
+    if (!strictSet.has(code)) continue;
+    const v = m.featureGrid[i], t = m.tiles[i];
+    if (v === 0 && (t === TILE_WALL || t === TILE_LOW)) { unowned++; if (firstUnowned < 0) firstUnowned = i; }
+    if (STRICT_HAZARD_OWNERSHIP && v === 0 && t === TILE_FLOOR && m.terrain[i] !== TERRAIN_NONE) { unownedHazard++; if (firstHazard < 0) firstHazard = i; }
+    if (v === 0 || v > F.length) continue;
+    const f = F[v - 1], kind = f.kind as CertFeatureKind;
+    if (!kindSet.has(kind)) continue;
+    const writes = KIND_WRITES[kind];
+    if ((t === TILE_WALL && !writes.wall) || (t === TILE_LOW && !writes.low)) add("kindTiles", `c${v}`, `feature ${v - 1} (${kind}) owns a ${t === TILE_WALL ? "WALL" : "LOW"} tile at ${where(i)}`);
+    const want = KIND_TERRAIN[kind];
+    if (t === TILE_LOW && want !== undefined && m.terrain[i] !== want) add("kindTiles", `t${v}`, `feature ${v - 1} (${kind}) has a LOW tile of terrain ${m.terrain[i]} at ${where(i)}`);
+    if ((t === TILE_WALL || t === TILE_LOW) && (halo[i] || pad[i])) add("overlap", `w${v}`, `feature ${v - 1} (${kind}) puts a ${t === TILE_WALL ? "wall" : "LOW tile"} on a camp halo or spawn pad at ${where(i)}`);
+  }
+  if (unowned > 0) add("unowned", "n", `${unowned} tiles, first at ${where(firstUnowned)}`);
+  if (unownedHazard > 0) add("hazards", "n", `${unownedHazard} tiles, first at ${where(firstHazard)}`);
+  F.forEach((f, k) => {
+    if (!strictSet.has(zoneCodeOf(f.zone as RegionFaction)) || !kindSet.has(f.kind)) return;
+    const kind = f.kind as CertFeatureKind, writes = KIND_WRITES[kind];
+    if ((writes.wall || writes.low) && kind !== "infill" && walls[k + 1] < PIECE_MIN) add("size", `s${k}`, `feature ${k} (${kind}) owns ${walls[k + 1]} wall or LOW tiles`);
+    if (kind === "landmark" && !f.jobs.includes("landmark")) add("jobs", `l${k}`, `landmark ${k} does not name the job "landmark"`);
+    if (f.jobs.some((j) => !KIND_JOBS[kind].includes(j))) add("jobs", `j${k}`, `feature ${k} (${kind}) carries jobs ${f.jobs.join("+")}`);
+  });
+  return out;
+}
+
+/** The wall-piece gate for the strict zones: no 8-connected zone WALL piece under PIECE_MIN tiles (a single tile is one). */
+export function pieceProblems(m: GameMap, strict: readonly number[]): string[] {
+  const out: string[] = [];
+  for (const code of strict) {
+    const s = pieceStats(m, code, TILE_WALL);
+    if (s.under6 > 0) out.push(`${FEATURE_CHECKS.pieces}: ${REGION_FACTIONS[code - 1]} has ${s.under6} (${s.singles} single tiles; sizes ${s.sizes.filter((v) => v < PIECE_MIN).join(",")})`);
+  }
+  return out;
+}
+
+/** What decor on/off must leave equal (contract 0.1.6: features and every hashed layer come from streams the decor never touches): problems, empty when equal. */
+export function decorProblems(on: GameMap, off: GameMap): string[] {
+  const out: string[] = [];
+  const same = (name: string, a: ArrayLike<number>, b: ArrayLike<number>): void => {
+    if (a.length !== b.length) { out.push(`${name} length`); return; }
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) { out.push(`${name} differs at ${i}`); return; }
+  };
+  same("tiles", on.tiles, off.tiles);
+  same("terrain", on.terrain, off.terrain);
+  same("regionGrid", on.regionGrid, off.regionGrid);
+  same("territoryGrid", on.territoryGrid, off.territoryGrid);
+  same("featureGrid", on.featureGrid, off.featureGrid);
+  const json = (name: string, a: unknown, b: unknown): void => { if (JSON.stringify(a) !== JSON.stringify(b)) out.push(`${name} differs`); };
+  json("features", on.features, off.features);
+  json("camps", on.camps, off.camps);
+  json("spawnPool", on.spawnPool, off.spawnPool);
+  json("buildings", on.buildings, off.buildings);
+  json("crateSpots", on.crateSpots, off.crateSpots);
+  json("groundSpots", on.groundSpots, off.groundSpots);
+  json("regions", on.regions, off.regions);
+  if (on.attempt !== off.attempt) out.push("attempt differs");
+  return out;
+}
+
+// ---- Report thresholds: contract section 4's per-zone windows and 6.2's sweep thresholds ---------------------------------------------
+
+/** One report measure of a zone, read off its ZoneMeasures. */
+export const ZONE_MEASURE_VALUES: Readonly<Record<string, (z: ZoneMeasures) => number>> = {
+  "rays>=7.5t %": (z) => 100 * z.rays.share75,
+  "rays>=15t %": (z) => 100 * z.rays.share15,
+  "ray mean t": (z) => z.rays.mean,
+  "open-bow %": (z) => 100 * z.rays.openBow,
+  "pairs wall %": (z) => 100 * z.pairs.wallBlocked,
+  "pairs LOW %": (z) => 100 * z.pairs.lowSeparated,
+  "stretch mean": (z) => z.graph.stretchMean,
+  "stretch max": (z) => z.graph.stretchMax,
+  "loops": (z) => z.graph.loops,
+  "walls": (z) => z.walls,
+  "LOW tiles": (z) => z.lows,
+  "footprint %": (z) => z.footprint,
+  "wall pieces": (z) => z.wallPieces.count,
+  "singles": (z) => z.wallPieces.singles,
+  "pieces<6": (z) => z.wallPieces.under6,
+  "big-piece %": (z) => 100 * z.wallPieces.bigShare,
+  "largest piece": (z) => z.wallPieces.largest,
+  "LOW pieces<6": (z) => z.lowPieces.under6,
+  "lava": (z) => z.terrain[TERRAIN_LAVA],
+  "ember": (z) => z.terrain[TERRAIN_EMBER],
+  "fence": (z) => z.terrain[TERRAIN_FENCE],
+  "crevasse": (z) => z.terrain[TERRAIN_CREVASSE],
+  "bog": (z) => z.terrain[TERRAIN_BOG],
+  "ice": (z) => z.terrain[TERRAIN_ICE],
+  "light": (z) => z.terrain[TERRAIN_LIGHT],
+  "ice % floor": (z) => z.iceShare,
+  "landmarks": (z) => z.features.landmark ?? 0,
+  "craters": (z) => z.features.crater ?? 0,
+  "fence rows": (z) => z.features.fenceRow ?? 0,
+  "barrows": (z) => z.features.barrow ?? 0,
+  "tunnels": (z) => z.tunnels,
+  "meres": (z) => z.features.mere ?? 0,
+  "headlands": (z) => z.features.headland ?? 0,
+  "spires": (z) => z.features.spire ?? 0,
+  "piers": (z) => z.piers,
+  "elite sep t": (z) => z.eliteSep,
+};
+
+export interface MeasureWindow {
+  lo: number;
+  hi: number;
+  /** When set the window is judged per seed: at least this share of the seeds must lie inside; else the mean must. */
+  share?: number;
+}
+const inf = Infinity;
+/** Contract section 4's per-zone acceptance windows at 136x136 (report-only: a breach is investigated). Keys are ZONE_MEASURE_VALUES names. */
+export const ZONE_WINDOWS: Readonly<Record<RegionFaction, Readonly<Record<string, MeasureWindow>>>> = {
+  fire: {
+    "craters": { lo: 7, hi: 8, share: 0.95 }, "walls": { lo: 150, hi: 300 }, "lava": { lo: 70, hi: 160 }, "ember": { lo: 80, hi: 200 },
+    "pieces<6": { lo: 0, hi: 0 }, "rays>=7.5t %": { lo: 48, hi: 64 }, "pairs wall %": { lo: 18, hi: inf }, "stretch mean": { lo: 0, hi: 1.12 },
+    "stretch max": { lo: 0, hi: 1.35 }, "loops": { lo: 1, hi: inf }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
+  },
+  sentenced: {
+    "fence rows": { lo: 6, hi: inf, share: 0.95 }, "fence": { lo: 150, hi: 320 }, "walls": { lo: 50, hi: 90 }, "rays>=7.5t %": { lo: 72, hi: 88 },
+    "pairs LOW %": { lo: 18, hi: inf }, "pairs wall %": { lo: 0, hi: 8 }, "LOW pieces<6": { lo: 0, hi: 0 }, "pieces<6": { lo: 0, hi: 0 },
+    "stretch mean": { lo: 0, hi: 1.15 }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
+  },
+  plague: {
+    "barrows": { lo: 8, hi: 12 }, "tunnels": { lo: 3, hi: 4 }, "walls": { lo: 250, hi: 420 }, "bog": { lo: 150, hi: 300 }, "loops": { lo: 6, hi: inf },
+    "rays>=7.5t %": { lo: 60, hi: 74 }, "pairs wall %": { lo: 8, hi: inf }, "stretch mean": { lo: 0, hi: 1.1 }, "stretch max": { lo: 0, hi: 1.3 },
+    "pieces<6": { lo: 0, hi: 0 }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
+  },
+  frost: {
+    "meres": { lo: 2, hi: 2, share: 0.6 }, "ice": { lo: 450, hi: 800 }, "ice % floor": { lo: 12, hi: inf, share: 0.95 }, "headlands": { lo: 4, hi: 6 },
+    "spires": { lo: 1, hi: inf, share: 0.8 }, "walls": { lo: 90, hi: 220 }, "rays>=7.5t %": { lo: 62, hi: 78 }, "pieces<6": { lo: 0, hi: 0 },
+    "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
+  },
+  holy: {
+    "piers": { lo: 18, hi: 30 }, "walls": { lo: 200, hi: 330 }, "light": { lo: 60, hi: 100 }, "rays>=7.5t %": { lo: 60, hi: 74 }, "pairs wall %": { lo: 10, hi: inf },
+    "stretch mean": { lo: 0, hi: 1.1 }, "pieces<6": { lo: 0, hi: 0 }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
+  },
+};
+
+/** Across a sweep (contract 6.2, report-only): attempts per seed, discards, findPath ratio p90 (max is hard at 1.2), hazards on walks p90. */
+export const SWEEP_THRESHOLDS = { attemptsPerSeed: 1.1, discards: 0, walkRatioP90: 1.17, hazardsP90: 6 } as const;
+
+/** Judges `values` (one per seed) against a window: the share inside and whether the window holds. */
+export function judgeWindow(values: readonly number[], w: MeasureWindow): { inside: number; mean: number; ok: boolean } {
+  const inside = values.length ? values.filter((v) => v >= w.lo - 1e-9 && v <= w.hi + 1e-9).length / values.length : 0;
+  const mean = values.length ? values.reduce((a, v) => a + v, 0) / values.length : 0;
+  const ok = values.length === 0 ? true : w.share !== undefined ? inside >= w.share : mean >= w.lo - 1e-9 && mean <= w.hi + 1e-9;
+  return { inside, mean, ok };
 }
 
 // ---- A demo zone style hook: low ground, floor hazards and styler walls for tests and sweeps ----------------------------

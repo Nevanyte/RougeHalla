@@ -118,8 +118,9 @@ export function fullMapSize(uiW: number, uiH: number): number {
 }
 
 // ---------------------------------------------------------------------------------------------------- legibility on a big map
-// A 96 x 96 map has 20 camps (at least 9 tiles apart), 5 zone labels and, while planning, 2 spawn marks. On the small corner
-// preview the marks are about as big as the room between camps, so the screen decides what fits: a camp's matchup chip hides
+// A 136 x 136 map has 40 camps (at least 9 tiles apart, two elites a zone), 5 zone labels and, while planning, 2 spawn marks. On the
+// small corner preview the marks are about as big as the room between camps (a camp is 1.1 to 2.2 px a tile there, so nine tiles are
+// 10 to 20 px against a 12 px marker), so the screen decides what fits: a camp's matchup chip hides
 // when its box would meet another mark (it shows again while its camp is hovered or focused), and a zone's name moves off the
 // camps to the nearest free spot inside its zone. All of it in overlay pixels from the sizes planning.css gives the marks.
 

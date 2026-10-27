@@ -63,6 +63,27 @@ export const TERRAIN_PALETTE = {
   sanctum: { gold: 0xd4af37, blood: 0x8e1b1b },
 } as const;
 
+/**
+ * The colours of the zone shapes (contract 7.5): a crater's lip and ash bowl, a barrow's moss, a hall's piers, and the masonry of the
+ * five landmark designs. Walls keep the zone's own wall palette for everything else; these are what a named feature adds, so a
+ * player reads "this wall is a crater" from the colour and the marks together (colour is never the only cue: featureStyle.ts).
+ */
+export const SHAPE_PALETTE = {
+  crater: { lip: 0xff9a4a, lipDeep: 0xb4501c, ash: 0x100b09, dust: 0x7a685c, crack: 0xff8a2a },
+  mound: { moss: 0x9bc05a, mossDark: 0x3f5a28, rock: 0x4c5a3a, earth: 0x5a4a32 },
+  pier: { shaft: 0xd9ceaa, cap: 0xfff0c0, base: 0x8c7f5a, gold: 0xd4af37, slab: 0x6a5f49 },
+  forge: { top: 0x3b3342, front: 0x1f1a26, rim: 0x7a6590, mortar: 0x120e18, glow: 0xff7a2a, hot: 0xffd27a, floor: 0x1c1513 },
+  guardHouse: { top: 0x8e919d, front: 0x535763, rim: 0xc8ccda, mortar: 0x34363f, iron: 0x1b1d24, floor: 0x33343b },
+  burrow: { top: 0x7c5c3e, front: 0x47341f, rim: 0xb08a62, mortar: 0x2a1f14, timber: 0x654526, timberHi: 0xa87a4a, root: 0x6f8f3c, floor: 0x33271c },
+  watchtower: { top: 0xcfe3f3, front: 0x7f9fba, rim: 0xffffff, mortar: 0x587792, ice: 0xeaf8ff, floor: 0x2f4357 },
+  shrine: { top: 0xf2ecd8, front: 0xcdc29f, rim: 0xffffff, mortar: 0xa59a78, gold: 0xd4af37, vein: 0x8f9db0, floor: 0x5d5545 },
+  gallows: { top: 0x6e553a, front: 0x3e2d1c, plank: 0x4a3826, rim: 0xa07f58, rope: 0xcbb28a },
+  tunnel: { dark: 0x050806, damp: 0x6f8a5a },
+  snow: { packed: 0xe3ecf2, shade: 0xb4c7d4 },
+  shore: { slush: 0xcfe9f7, rim: 0xeaf8ff },
+  ford: { slab: 0x6d6a66, slabHi: 0x9a968f, slabLo: 0x3c3a38 },
+} as const;
+
 export const WALL_TINT_NEUTRAL = 0x8a9099;
 
 // ---------------------------------------------------------------------------------------------------------------- colour maths

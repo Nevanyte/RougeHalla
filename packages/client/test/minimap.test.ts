@@ -70,15 +70,19 @@ describe("Minimap.setMobs", () => {
     expect(arcs()).toHaveLength(3);
   });
 
-  it("caps the dots at 128", () => {
+  it("draws every mob of a 40-camp map (up to 200 dots) and caps the dots at 224", () => {
+    const all = setup();
+    all.map.setMobs(Array.from({ length: 200 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
+    all.paint();
+    expect(all.arcs()).toHaveLength(200);
     const { map, paint, arcs } = setup();
-    map.setMobs(Array.from({ length: 200 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
+    map.setMobs(Array.from({ length: 300 }, (_, i) => mob({ x: i * 10, y: i * 5 })));
     paint();
-    expect(arcs()).toHaveLength(128);
+    expect(arcs()).toHaveLength(224);
     // The cap counts dots, not mobs offered: skipped ones do not use it up.
-    map.setMobs([...Array.from({ length: 100 }, () => mob({ status: "dead" })), ...Array.from({ length: 128 }, () => mob())]);
+    map.setMobs([...Array.from({ length: 100 }, () => mob({ status: "dead" })), ...Array.from({ length: 224 }, () => mob())]);
     paint();
-    expect(arcs().length).toBe(128 + 128);
+    expect(arcs().length).toBe(224 + 224);
   });
 
   it("repaints only when a dot appears, moves a pixel or goes, and not within the throttle", () => {

@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Dev page for the zone art (zone-shapes WP6): the baked map with synthetic or generated features, the minimap, the hold-Tab map and
+     the planning screen, on one page. Not part of the game build (vite builds index.html only). Start the dev server and open
+       /test/dev/zoneart.html?mode=game&seed=3&synth=1&cx=40&cy=40
+     mode: game | minimap | tab | planning; synth=0 uses the generator's map as it is; cx, cy: the camera in tiles; zoom: override. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Zone art</title>
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1b1f24; color: #e6e9ed; font-family: system-ui, sans-serif; }
+    </style>
+    <link rel="stylesheet" href="/src/view/stage.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <div id="game"></div>
+      <div id="ui"></div>
+    </div>
+    <pre id="report" style="position:fixed;left:6px;bottom:6px;margin:0;padding:4px 8px;background:rgba(0,0,0,.6);font-size:11px;z-index:50;pointer-events:none"></pre>
+    <script type="module" src="./zoneart.ts"></script>
+  </body>
+</html>

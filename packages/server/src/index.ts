@@ -3,6 +3,7 @@ import http from "node:http";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { defineRoom, defineServer, matchMaker } from "@colyseus/core";
+import { Encoder } from "@colyseus/schema";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import express, { type ErrorRequestHandler, type Request, type RequestHandler, type Response } from "express";
 import {
@@ -25,6 +26,16 @@ import {
   JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore, type ShopOutcome,
 } from "./persistence/ProfileStore";
 import { ActiveProfiles, RaidRoom } from "./rooms/RaidRoom";
+
+/**
+ * The schema encoder's buffer, per room (Colyseus' default is 16 KB). A 136x136 run's state is larger: the camps, the roster and
+ * about 160 mobs placed in one tick, and a joiner's first full sync is about 23 KB. The encoder grows its buffer on overflow and
+ * works, but logs a warning once in every room that does, so the buffer is sized for the state instead. 64 KB holds the largest
+ * state measured with room to spare; a room pays it once, as one allocation, and a bigger state still grows it. It must be set before
+ * the first room is built (an Encoder allocates its buffer when it is constructed), so it is set when this module loads.
+ */
+export const ENCODER_BUFFER_BYTES = 64 * 1024;
+Encoder.BUFFER_SIZE = ENCODER_BUFFER_BYTES;
 
 /** What a cross-origin page may send to /api (the token travels in a header, never a cookie). */
 const API_ALLOW_HEADERS = `${PROFILE_TOKEN_HEADER}, ${PASSCODE_HEADER}, content-type`;

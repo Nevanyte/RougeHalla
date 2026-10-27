@@ -1,5 +1,5 @@
 // The tick budget (docs/GAME_DESIGN.md 17) on a map where every fourth floor tile is a hazard (bench/stepBench.ts, the
-// "heavy" terrain variant): with 8 players and the map's ~80 mobs a step() still averages under 5 ms with a p99 under 15 ms,
+// "heavy" terrain variant): with 8 players and the map's ~170 mobs a step() still averages under 5 ms with a p99 under 15 ms,
 // and the effects are really running in it. Same method as perf.test.ts: the best of five attempts counts, each judged by
 // the smaller of its wall-clock and its CPU time (gateMs), since the machine may be busy and a real regression fails all.
 import { describe, expect, it } from "vitest";
@@ -20,9 +20,9 @@ function bestOfFive(): BenchResult {
 }
 
 describe("tick budget on hazard terrain", () => {
-  it("8 players and the map's ~80 mobs, a hazard on every fourth tile: step() averages under 5 ms with a p99 under 15 ms", () => {
+  it("8 players and the map's ~170 mobs, a hazard on every fourth tile: step() averages under 5 ms with a p99 under 15 ms", () => {
     const r = bestOfFive();
-    expect(r.mobs).toBeGreaterThanOrEqual(72);
+    expect(r.mobs).toBeGreaterThanOrEqual(150);
     // Not a vacuous pass: every effect acted on somebody.
     expect(r.hazardSeconds.ember).toBeGreaterThan(0);
     expect(r.hazardSeconds.bog).toBeGreaterThan(0);

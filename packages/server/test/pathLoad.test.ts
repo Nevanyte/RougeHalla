@@ -1,5 +1,5 @@
-// What the pathfinder costs on a 96 x 96 zone map when it is asked for the most the rules allow (roguelike R2): 80 mobs
-// woken onto the nearest player every second (each leg of a chase or a walk home is a search, at most one per
+// What the pathfinder costs on a 136 x 136 zone map (zone shapes; roguelike R2 was 96 x 96 with 80 mobs) when it is asked for the most
+// the rules allow: about 170 mobs woken onto the nearest player every second (each leg of a chase or a walk home is a search, at most one per
 // MOB_REPATH_MS per mob) and 8 players changing their target lock every TARGET_REPATH_MS (a search per accepted order, at
 // most one per TARGET_REPATH_MS per player, and the chase's re-plan on the same clock). Every search is counted through a
 // wrapped findPath (the sim plans paths only through it, as targetingThrottle.test.ts relies on), and timed.
@@ -51,7 +51,7 @@ describe("path searches under the worst fight the rules allow", () => {
     const ceiling = mobs * (1000 / MOB_REPATH_MS + 1) + PLAYERS * (2 * 1000) / TARGET_REPATH_MS;
     expect(perSecond).toBeLessThanOrEqual(ceiling);
     // And the load is real: a good part of the ceiling is used, so the throttles are what is being measured.
-    expect(r.avgAwake).toBeGreaterThan(40);
+    expect(r.avgAwake).toBeGreaterThan(80);
     expect(r.avgLocked).toBeGreaterThan(3);
     expect(perSecond).toBeGreaterThan(PLAYERS * (1000 / TARGET_REPATH_MS) * 0.5);
     // A search is cheap on this map: about 0.03 ms on average (the worst one measured 1.5 ms). The bound is for a machine

@@ -79,6 +79,11 @@ function handMapB(): GameMap {
   return map;
 }
 
+/** A generated map without its features (and the landmark boxes they came with): the painter's output is the pre-feature one. */
+function bare(map: GameMap): GameMap {
+  return { ...map, features: [], featureGrid: new Uint8Array(map.w * map.h) };
+}
+
 /** The original Minimap.setMap body, kept verbatim as the reference the extraction must reproduce. */
 function referenceBase(g: FakeObject, map: GameMap, w: number, h: number, k: number): void {
   const tile = TILE * k;
@@ -147,9 +152,10 @@ describe("the extraction out of the minimap changed no pixels", () => {
   });
 
   it("matches the reference body call for call on a generated map, with the patterns off", () => {
-    // The reference body predates floor hazards and low ground, so it is held to maps that have none (the stylers off).
+    // The reference body predates floor hazards, low ground and the zone shapes' feature colours, so it is held to maps that have
+    // none (the stylers off, and the landmarks the plain generator keeps taken out): a map with no features paints as it always did.
     for (const seed of [7, 31]) {
-      const map = generateMap(seed, undefined, { styleZones: null });
+      const map = bare(generateMap(seed, undefined, { styleZones: null }));
       const a = rec();
       const b = rec();
       paintMapBase(ctxOf(a), map, BACKING, BACKING, K_GEN, { patterns: false });

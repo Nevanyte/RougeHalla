@@ -13,7 +13,7 @@ import { createTactics } from "../../src/bots/brain/tactics";
 import { inReach } from "../../src/bots/brain/tactics/fight";
 import { createFrameRing } from "../../src/bots/brain/frames";
 import { perceive } from "../../src/bots/brain/perception";
-import type { BrainConfig, BrainServices, ComposeConfig, Goal, PathService, Percept } from "../../src/bots/brain/types";
+import { TIERS, type BrainConfig, type BrainServices, type ComposeConfig, type Goal, type PathService, type Percept } from "../../src/bots/brain/types";
 import { IN_PROCESS, plainContainer, plainPlayer, plainState, scenarioInputs, type Scenario } from "./fairnessKit";
 import { brainConfig, ctx as makeCtx, emptyMemory, features, fighter, hudView, percept, rngs, selfView } from "./fixtures";
 
@@ -199,7 +199,9 @@ describe("the span a walk is scored against is the map's own width", () => {
       walk: () => ({ dist: distance, exact: true }), path: (_a, b) => [b], los: () => true, clear: () => true, collisionMap: () => map,
     };
     const services: BrainServices = { paths: flat, log: () => {} };
-    const cfg: BrainConfig = brainConfig("hard", "farmer", { map, services });
+    // Only the first four camps (CAMP_MAX_WALKS) are walked through the service; the rest are scored by the straight line. A horizon of four
+    // keeps every candidate on the flat service, so the one on top is the same at every distance whatever the map is.
+    const cfg: BrainConfig = brainConfig("hard", "farmer", { map, services, tier: { ...TIERS.hard, route: { ...TIERS.hard.route, horizon: 4 } } });
     const strategy = createStrategy();
     const here = selfView({ faction: "fire", weapons: ["sword", null] });
     strategy.decide(makeCtx({ cfg, p: percept({ self: here, hud: hudView() }), rng: rngs(1) }), { kind: "idle" }, { state: "running", why: "" });

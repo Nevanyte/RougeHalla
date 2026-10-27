@@ -6,7 +6,7 @@
 //     of every border), walls with fake height and LOW tiles (lava, fence, crevasse: low blocks that stop bodies but not sight).
 //     A map with no zone art always takes this path.
 //
-// A 96 x 96 map is thousands of rectangles, and Phaser replays a Graphics' whole command buffer every frame, seen or not. So the
+// A 136 x 136 map is thousands of rectangles, and Phaser replays a Graphics' whole command buffer every frame, seen or not. So the
 // plain way builds the floor, the walls and the LOW rows in chunks (a band of rows by a run of columns each, `Chunk`), and every
 // frame, just before the scene renders, the chunks the camera does not show are hidden (`cull`, from render/mapCull.ts).
 import type Phaser from "phaser";
@@ -77,7 +77,7 @@ const ALPHA_GATE_EDGE = 0.35;
 const WALL_TINT = 0.12;
 /** The zone borders' strips, over the grid and under every wall. */
 export const ALPHA_EDGE = 0.9;
-/** Chunk size, in tiles: 96 x 96 makes 4 columns of 12 bands, of which a camera shows about a third by a half. */
+/** Chunk size, in tiles: 136 x 136 makes 6 columns of 17 bands, of which a camera shows about a third by a half. */
 export const CHUNK_COLS = 24;
 export const CHUNK_ROWS = 8;
 

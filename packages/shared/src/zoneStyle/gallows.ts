@@ -1,15 +1,559 @@
-// Gallows (sentenced): a ruined prison and courthouse. One orthogonal cell block with corridor and cell doors, two fenced
-// yards with at least two openings, a gallows plaza and a free fence line in a street. Fences stop bodies (and, by
-// MASK_MELEE, melee swings) but not shots or sight: Sentenced's bow shoots across, melee walks round. The generator's own
-// ruins are the courthouse and extra cell houses (the client draws them so). Part D 4.2's parameters, scaled to the zone.
+// Gallows (sentenced). THE ROWS (zone-shapes contract 4.2, WP2) is `gallowsRows` below; the phase A styler (a prison and courthouse:
+// cell blocks, yards, a plaza) is kept at the end of this file as `gallows` / `GallowsPlan` / `YardPlan` so the registry
+// (styleZones.ts), index.ts and the phase A tests stay as they are until WP7 swaps the registry in phase C (see LEGACY).
 import { TILE_FLOOR, TILE_LOW, TILE_WALL } from "../map";
 import { TERRAIN_FENCE } from "../terrain";
 import { randInt } from "../rng";
+import { ROUTE_STRETCH_MAX, campNodes, isqrt, viterbiPath, viterbiRows } from "./features";
 import { breakLowRuns, chance, openTiles, pickFrom, placeRing, ringTiles, roomOf, shuffle, wall, low, sideDoors } from "./kit";
 import type { Rect } from "./kit";
+import { bestLandmark, stampTemplate } from "./landmarks";
+import type { LandmarkTemplate, Stamp } from "./landmarks";
 import { PROP } from "./propKinds";
-import { sizeScale } from "./scale";
-import type { PropCtx, ShapeCtx, ZoneStyler } from "./types";
+import { LANDMARKS_PER_ZONE, areaScale, sizeScale } from "./scale";
+import type { LandmarkCtx, PropCtx, RouteGuard, ShapeCtx, ZoneStyler } from "./types";
+
+// ====================================================================================================================
+// THE ROWS (zone-shapes contract 4.2, WP2): long fenced lanes toward the coliseum; you see and shoot across everything, you cross
+// only at staggered gates. Fences (TILE_LOW + TERRAIN_FENCE) stop bodies and melee swings but not sight or shots, so Sentenced's bow
+// shoots across a row while a melee chaser walks to a gate (at most about 10 extra tiles: inside the guard's fenceDetour cap).
+//
+// Recipe, in the order it runs (shape pass; every wall and fence goes through placeFeature, whole or trimmed, no single tiles):
+//   1. axis: v = zone centroid - coliseum centre; rows run along x (s = x, t = y) when |vx| >= |vy|, else along y;
+//   2. row positions: the lateral t of each row, a 1-D Viterbi (viterbiRows) over the open runs of >= 8 tiles per line, rows 7-9 apart;
+//   3. the square: between two neighbouring rows, the 9-tile window nearest the zone's centroid (blocked tiles cost) is left open on
+//      both bounding rows, and the 3x3 wall gallows stands in it ("gallows" feature, whole);
+//   4. row paths: a second Viterbi per row (viterbiPath, 7 lateral states) follows the open ground by one-tile jogs; open stretches of
+//      >= 10 positions become fence, gates (gallowsGateOpen) are left out: 3 tiles every 12, the phase alternating 2 / 8 row to row,
+//      by true modulo over the whole row, so every fence tile lies within 5 tiles of a gate (detour <= 10 = the cap);
+//   5. the route guard: a pool member's baseline corridor is never fenced (it is treated like a blocked tile), so a member's walk to
+//      the coliseum is not stretched by a row; one worstStretch() at the end is the safety net;
+//   6. each row is one "fenceRow" feature (trim: fence pieces under 6 tiles are given back; job "lane"), p = [axis, rowIndex, phase].
+// Landmark: the guard house (GUARD_HOUSE), up to LANDMARKS_PER_ZONE per zone, the first nearest the zone's pole, the second nearest the
+// front door and >= 14 tiles from the first.
+//
+// The default styler is `gallowsRows`; `makeGallows(dials)` builds one with other dials (the zone duel harness and the ablations).
+// The registry still holds the phase A styler below (`gallows`) until WP7 swaps it in phase C (see the note at LEGACY).
+// ====================================================================================================================
+
+/** Gate rule dials (contract 4.2 step 4; WP8's zone duel harness builds its "rows" arena from the same constants and `gallowsGateOpen`). */
+export const GATE_PERIOD = 12;
+export const GATE_W = 3;
+/** The gate phase of row 0, 1, 2, ...: 2 for an even row index, 8 for an odd one (two rows shift a crosser about 6 tiles sideways). */
+export const GATE_PHASES: readonly number[] = [2, 8];
+/** Row gap (tiles between neighbouring rows), its target and the Viterbi's penalty per tile away from the target. */
+export const ROW_GAP_MIN = 7;
+export const ROW_GAP_MAX = 9;
+export const ROW_GAP_TARGET = 8;
+export const ROW_GAP_PENALTY = 2;
+/** A line counts for a row position only through open runs of at least this many tiles, and a row needs a bias of this many tiles. */
+export const ROW_OPEN_RUN_MIN = 8;
+export const ROW_VALUE_BIAS = 12;
+/** An open stretch of at least this many positions becomes fence. */
+export const ROW_MIN_RUN = 10;
+/** A row follows the open ground within +-ROW_WIGGLE tiles of its base position; the Viterbi's integer costs (x10 of the prototype). */
+export const ROW_WIGGLE = 3;
+export const ROW_BLOCKED_COST = 60;
+export const ROW_DEVIATION_COST = 6;
+export const ROW_JOG_COST = 12;
+/** The square: a window of this many tiles along the rows, the gallows' offsets in it (prototype order), and how many windows are tried. */
+export const SQUARE_WINDOW = 9;
+export const GALLOWS_OFFSETS_S: readonly number[] = [3, 2, 4, 1, 5];
+export const GALLOWS_OFFSETS_T: readonly number[] = [0, -1, 1, -2, 2];
+export const SQUARES = 1;
+const SQUARE_TRIES = 6;
+/** The smallest fence piece a row keeps (the guard's FEATURE_MIN_PIECE). */
+export const ROW_MIN_PIECE = 6;
+/** Second guard house at least this far (tiles, centre to centre) from the first. */
+export const HOUSE_MIN_SEP = 14;
+
+/**
+ * Is position `s` of a row a gate? `s` counts from the row's origin (the zone box's first tile along the row, `sLo`), `phase` is the
+ * row's (2 or 8). A TRUE modulo, so the lead of the row (s < phase) has gates too. A gate is `width` consecutive positions every
+ * `period`.
+ */
+export function gallowsGateOpen(s: number, phase: number, period: number = GATE_PERIOD, width: number = GATE_W): boolean {
+  return ((((s - phase) % period) + period) % period) < width;
+}
+
+/** The phase of row `index` (ascending lateral position): GATE_PHASES alternate, 2 on even indices. */
+export function gallowsRowPhase(index: number, phases: readonly number[] = GATE_PHASES): number {
+  return phases[((index % phases.length) + phases.length) % phases.length];
+}
+
+/** The farthest a fence tile can lie from a gate tile, in tiles, for a gate rule: (period - width + 1) / 2 rounded up. */
+export function gallowsMaxGateDistance(period: number = GATE_PERIOD, width: number = GATE_W): number {
+  return Math.ceil((period - width + 1) / 2);
+}
+
+/** The guard house (contract 5.2): 8x7, two doors, two crate nooks; jobs landmark + lee. Orientation 0. */
+export const GUARD_HOUSE: LandmarkTemplate = {
+  key: "guardHouse",
+  jobs: ["landmark", "lee"],
+  rows: [
+    "###dd###",
+    "#c....c#",
+    "#......#",
+    "#......#",
+    "#......d",
+    "#c.....d",
+    "########",
+  ],
+};
+
+/**
+ * Every dial of the Rows in one place. `route` is how the pool members' walks are kept: "open" never fences a corridor tile (the
+ * stretch stays 1000), "repair" fences everything and opens the worst member's corridor afterwards until the stretch is under the
+ * threshold (more fence, more route-guard calls), "none" does neither (ablations only).
+ */
+export interface GallowsDials {
+  gapMin: number;
+  gapMax: number;
+  gapTarget: number;
+  gapPenalty: number;
+  period: number;
+  width: number;
+  phases: readonly number[];
+  minRun: number;
+  squares: number;
+  route: "open" | "repair" | "none";
+}
+export const GALLOWS_DIALS: GallowsDials = {
+  gapMin: ROW_GAP_MIN, gapMax: ROW_GAP_MAX, gapTarget: ROW_GAP_TARGET, gapPenalty: ROW_GAP_PENALTY,
+  period: GATE_PERIOD, width: GATE_W, phases: GATE_PHASES, minRun: ROW_MIN_RUN, squares: SQUARES, route: "repair",
+};
+
+/** One placed row. */
+export interface GallowsRow {
+  /** p[0]: 0 = along x, 1 = along y. */
+  axis: number;
+  /** p[1]: index among the base rows, ascending lateral position (a row that did not stand leaves its index unused). */
+  index: number;
+  /** p[2]: 2 or 8. */
+  phase: number;
+  /** The base row's lateral coordinate (y for axis 0, x for axis 1). */
+  t0: number;
+  /** The fence tiles that stand (tile indices, write order). */
+  tiles: number[];
+  /** Fence tiles at the foot of a gate (a gate post stands there). */
+  posts: number[];
+  /** Gate tiles of the row (reserved floor, tile indices). */
+  gates: number[];
+}
+
+export interface GallowsRowsPlan {
+  /** 0 = rows along x, 1 = along y. */
+  axis: number;
+  /** The zone box's first tile along the rows (the origin of the gate rule) and the first lateral tile. */
+  sLo: number;
+  tLo: number;
+  /** Lateral coordinates the row Viterbi chose. */
+  baseRows: number[];
+  rows: GallowsRow[];
+  /** The gallows' 9 tiles (row-major), [] when none stands. */
+  gallows: number[];
+  /** The open window of the square: neighbouring base rows k, k + 1 and its first position (relative to sLo), or null. */
+  square: { k: number; s: number } | null;
+  /** Row path tiles left unfenced because a pool member's corridor lies on them. */
+  corridorOpened: number;
+  /** worstStretch() at the end (permille; 1000 when the zone has no members) and whether the safety net had to open anything. */
+  stretch: number;
+  repaired: number;
+  /** route-guard checks spent (worstStretch calls). */
+  checks: number;
+  /** Rows whose fence the repair gave back entirely (they stay recorded, owning gate floor only). */
+  emptyRows: number;
+  /** The guard house stamps (landmark pass), for the props. */
+  houses: number;
+}
+
+const EMPTY_PLAN = (): GallowsRowsPlan => ({
+  axis: 0, sLo: 0, tLo: 0, baseRows: [], rows: [], gallows: [], square: null, corridorOpened: 0, stretch: 1000, repaired: 0, checks: 0, emptyRows: 0, houses: 0,
+});
+
+/** The doubled-coordinate squared distance between a stamp's box centre and the point (px2, py2) (both doubled tile coordinates). */
+function boxDist2(bx: number, by: number, bw: number, bh: number, px2: number, py2: number): number {
+  const dx = 2 * bx + bw - px2, dy = 2 * by + bh - py2;
+  return dx * dx + dy * dy;
+}
+
+/**
+ * Does the stamp lie in one camp territory? A house across a territory boundary can cut a territory's floor in two (its walls
+ * split the part on one side from the rest unless a door happens to open onto it): the guard then refuses its walls, so such a
+ * stamp is scored last. Without a territory grid (a fixture) every stamp qualifies.
+ */
+function inOneTerritory(c: LandmarkCtx, s: Stamp): boolean {
+  const terr = c.territory;
+  if (!terr) return true;
+  let id = -1;
+  for (const list of [s.walls, s.floor, s.doors, s.nooks, s.lights]) {
+    for (const i of list) {
+      if (id < 0) id = terr[i];
+      else if (terr[i] !== id) return false;
+    }
+  }
+  return true;
+}
+
+/** The Rows' landmark pass: guard houses, whole or not at all (contract 4.2 step 9). */
+function landmarkRows(c: LandmarkCtx): void {
+  const want = Math.min(LANDMARKS_PER_ZONE, Math.round(areaScale(c.zone.painted)));
+  if (want < 1) return;
+  const pole = c.zone.pole;
+  const px2 = 2 * pole.x + 1, py2 = 2 * pole.y + 1;
+  const before = c.zoneFeatures().length;
+  const FAR = 1e12;
+  bestLandmark(c, GUARD_HOUSE, (s) => -boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, px2, py2) - (inOneTerritory(c, s) ? 0 : FAR));
+  if (want < 2) return;
+  const placed = c.zoneFeatures().slice(before).filter((f) => f.kind === "landmark");
+  const first = placed.length > 0 ? placed[0].bbox : null;
+  // the second: nearest the front door (else the zone's centroid), and HOUSE_MIN_SEP tiles from the first
+  const nodes = campNodes(c);
+  const door = nodes.length > 0 && nodes[nodes.length - 1].kind === "door" ? nodes[nodes.length - 1] : null;
+  const tx2 = door ? 2 * door.x + 1 : Math.round(2 * c.zone.centroid.x), ty2 = door ? 2 * door.y + 1 : Math.round(2 * c.zone.centroid.y);
+  const sep2 = 4 * HOUSE_MIN_SEP * HOUSE_MIN_SEP;
+  bestLandmark(c, GUARD_HOUSE, (s) => {
+    let sc = -boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, tx2, ty2);
+    if (!inOneTerritory(c, s)) sc -= FAR;
+    if (first && boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, 2 * first.x + first.w, 2 * first.y + first.h) < sep2) sc -= FAR;
+    return sc;
+  });
+}
+
+/** Route-guard checks a zone may spend (contract 3.9: at most 6). */
+const ROUTE_CHECKS_MAX = 6;
+
+/**
+ * Gives back the fence tiles of the plan's rows that lie within Chebyshev `radius` of a tile of `band`, then every fence piece left
+ * under ROW_MIN_PIECE tiles (8-connected, across all rows). A row it would empty keeps all its fence (a recorded row owns at least
+ * one fence tile). Returns the tiles released. The tiles stay owned by their row (a gate is owned floor); the plan's rows lose them.
+ */
+function openAround(c: ShapeCtx, plan: GallowsRowsPlan, band: readonly number[], radius: number): number {
+  const { w, h } = c;
+  const near = new Set<number>();
+  for (const b of band) {
+    const bx = b % w, by = (b - bx) / w;
+    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      const x = bx + dx, y = by + dy;
+      if (x >= 0 && y >= 0 && x < w && y < h) near.add(y * w + x);
+    }
+  }
+  const rel = new Set<number>();
+  for (const row of plan.rows) for (const i of row.tiles) if (near.has(i)) rel.add(i);
+  if (rel.size === 0) return 0;
+  // fence pieces under ROW_MIN_PIECE (8-connected over the rows' remaining fence)
+  const live = new Set<number>();
+  for (const row of plan.rows) for (const i of row.tiles) if (!rel.has(i)) live.add(i);
+  const seen = new Set<number>();
+  for (const start of [...live].sort((p, q) => p - q)) {
+    if (seen.has(start)) continue;
+    const comp = [start];
+    seen.add(start);
+    for (let head = 0; head < comp.length; head++) {
+      const x = comp[head] % w, y = (comp[head] - x) / w;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = ny * w + nx;
+        if (live.has(j) && !seen.has(j)) { seen.add(j); comp.push(j); }
+      }
+    }
+    if (comp.length < ROW_MIN_PIECE) for (const i of comp) rel.add(i);
+  }
+  for (const row of plan.rows) {
+    if (row.tiles.length > 0 && row.tiles.every((i) => rel.has(i))) for (const i of row.tiles) rel.delete(i);
+  }
+  let released = 0;
+  for (const i of [...rel].sort((p, q) => p - q)) if (c.release(i)) released++;
+  for (const row of plan.rows) {
+    row.tiles = row.tiles.filter((i) => c.tiles[i] === TILE_LOW);
+    row.posts = row.posts.filter((i) => c.tiles[i] === TILE_LOW);
+  }
+  return released;
+}
+
+/** The Rows' shape pass. */
+function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
+  const plan = EMPTY_PLAN();
+  const { w, h } = c;
+  const bb = c.zone.bbox;
+  const vx = c.zone.centroid.x - w / 2, vy = c.zone.centroid.y - h / 2;
+  const horizontal = Math.abs(vx) >= Math.abs(vy);
+  const tLo = horizontal ? bb.y : bb.x, nT = horizontal ? bb.h : bb.w;
+  const sLo = horizontal ? bb.x : bb.y, nS = horizontal ? bb.w : bb.h;
+  plan.axis = horizontal ? 0 : 1;
+  plan.sLo = sLo;
+  plan.tLo = tLo;
+  if (nS < d.minRun || nT < d.gapMin + 1) return plan;
+  let guard: RouteGuard | null = null;
+  try { guard = c.routeGuard(); } catch { guard = null; }
+  const corridor = d.route === "open" && guard ? guard.corridor : null;
+  /** Tile index of position s on line t. */
+  const idx = (s: number, t: number): number => (horizontal ? t * w + s : s * w + t);
+
+  // The open grid over the zone's box: okG[(t - tLo) * nS + (s - sLo)] = 1 where a blocker may land and no corridor lies.
+  const okG = new Uint8Array(nS * nT);
+  for (let tt = 0; tt < nT; tt++) {
+    for (let ss = 0; ss < nS; ss++) {
+      const i = idx(sLo + ss, tLo + tt);
+      okG[tt * nS + ss] = c.open(i) && (corridor === null || corridor[i] === 0) ? 1 : 0;
+    }
+  }
+  let corridorOpened = 0;
+  const okAt = (s: number, t: number): boolean => {
+    const ss = s - sLo, tt = t - tLo;
+    return ss >= 0 && tt >= 0 && ss < nS && tt < nT && okG[tt * nS + ss] === 1;
+  };
+
+  // 2. Row positions: a line is worth its open runs of >= 8 tiles, less a bias; rows 7-9 apart.
+  const value = new Int32Array(nT);
+  for (let tt = 0; tt < nT; tt++) {
+    let run = 0, sum = 0;
+    for (let ss = 0; ss <= nS; ss++) {
+      if (ss < nS && okG[tt * nS + ss] === 1) run++;
+      else { if (run >= ROW_OPEN_RUN_MIN) sum += run; run = 0; }
+    }
+    value[tt] = sum - ROW_VALUE_BIAS;
+  }
+  const base = viterbiRows(value, tLo, d.gapMin, d.gapMax, d.gapTarget, d.gapPenalty);
+  plan.baseRows = base;
+  if (base.length === 0) return plan;
+
+  // 3. The square: the 9-tile window between two neighbouring base rows nearest the centroid, blocked tiles costing.
+  let win: { k: number; s: number } | null = null;
+  if (d.squares > 0 && base.length >= 2 && nS >= SQUARE_WINDOW) {
+    const stride = nS + 1;
+    const blockedSum = new Int32Array((nT + 1) * stride);
+    for (let tt = 0; tt < nT; tt++) {
+      for (let ss = 0; ss < nS; ss++) {
+        blockedSum[(tt + 1) * stride + ss + 1] = blockedSum[tt * stride + ss + 1] + blockedSum[(tt + 1) * stride + ss] - blockedSum[tt * stride + ss] + (okG[tt * nS + ss] === 1 ? 0 : 1);
+      }
+    }
+    const cxi = Math.round(2 * c.zone.centroid.x), cyi = Math.round(2 * c.zone.centroid.y);
+    const cs2 = horizontal ? cxi : cyi, ct2 = horizontal ? cyi : cxi;
+    const cands: Array<{ score: number; k: number; s: number }> = [];
+    for (let k = 0; k + 1 < base.length; k++) {
+      const t0 = Math.max(0, base[k] - 1 - tLo), t1 = Math.min(nT - 1, base[k + 1] + 1 - tLo);
+      for (let ss = 0; ss + SQUARE_WINDOW <= nS; ss++) {
+        const blocked = blockedSum[(t1 + 1) * stride + ss + SQUARE_WINDOW] - blockedSum[t0 * stride + ss + SQUARE_WINDOW] - blockedSum[(t1 + 1) * stride + ss] + blockedSum[t0 * stride + ss];
+        const ds = 2 * (sLo + ss) + SQUARE_WINDOW - cs2, dt = base[k] + base[k + 1] + 1 - ct2;
+        cands.push({ score: isqrt(ds * ds + dt * dt) + 6 * blocked, k, s: ss });
+      }
+    }
+    cands.sort((a, b) => a.score - b.score || a.k - b.k || a.s - b.s);
+    /** The gallows at the first fitting offset of the window (k, ss), in the prototype's order; its tiles, or null. */
+    const stand = (k: number, ss: number): number[] | null => {
+      const mid = Math.round((base[k] + base[k + 1]) / 2);
+      for (const offS of GALLOWS_OFFSETS_S) {
+        for (const offT of GALLOWS_OFFSETS_T) {
+          const s0 = sLo + ss + offS, t0 = mid + offT - 1;
+          let free = true;
+          for (let a = 0; a < 3 && free; a++) for (let b = 0; b < 3; b++) if (!okAt(s0 + a, t0 + b)) { free = false; break; }
+          if (!free) continue;
+          const blocks: Array<readonly [number, "wall"]> = [];
+          for (let b = 0; b < 3; b++) for (let a = 0; a < 3; a++) blocks.push([idx(s0 + a, t0 + b), "wall"]);
+          blocks.sort((p, q) => p[0] - q[0]);
+          const placed = c.placeFeature({
+            kind: "gallows", jobs: ["landmark"], anchor: [horizontal ? s0 : t0, horizontal ? t0 : s0], params: [], blocks, mode: "whole",
+          });
+          if (placed) return placed.written.slice();
+        }
+      }
+      return null;
+    };
+    for (let q = 0; q < cands.length && q < SQUARE_TRIES && !win; q++) {
+      const tiles9 = stand(cands[q].k, cands[q].s);
+      if (!tiles9) continue;
+      plan.gallows = tiles9;
+      for (const i of tiles9) {
+        const x = i % w, y = (i - x) / w;
+        okG[((horizontal ? y : x) - tLo) * nS + ((horizontal ? x : y) - sLo)] = 0;
+      }
+      win = { k: cands[q].k, s: cands[q].s };
+    }
+  }
+  plan.square = win;
+
+  // 4. Row paths, runs, gates.
+  interface RowPlan { index: number; phase: number; t0: number; blocks: number[]; posts: Set<number>; gates: number[] }
+  const rowPlans: RowPlan[] = [];
+  const entryS: number[] = [], entryI: number[] = [];
+  for (let r = 0; r < base.length; r++) {
+    const t0 = base[r];
+    const phase = gallowsRowPhase(r, d.phases);
+    const path = viterbiPath(nS, ROW_WIGGLE, (k, dt) => (okAt(sLo + k, t0 + dt) ? 0 : ROW_BLOCKED_COST) + ROW_DEVIATION_COST * (dt < 0 ? -dt : dt), ROW_JOG_COST);
+    const rp: RowPlan = { index: r, phase, t0, blocks: [], posts: new Set<number>(), gates: [] };
+    entryS.length = 0;
+    entryI.length = 0;
+    let prevT = -1;
+    const flush = (): void => {
+      const len = entryS.length;
+      if (len > 0 && entryS[len - 1] - entryS[0] + 1 >= d.minRun) {
+        // segments: maximal stretches of fence between gates, windows and the run's ends
+        let seg: number[] = [];
+        let startFlank = false, prevGate = false;
+        const closeSeg = (endFlank: boolean): void => {
+          if (seg.length >= ROW_MIN_PIECE) {
+            for (const i of seg) rp.blocks.push(i);
+            if (startFlank) rp.posts.add(seg[0]);
+            if (endFlank) rp.posts.add(seg[seg.length - 1]);
+          }
+          seg = [];
+        };
+        for (let e = 0; e < len; e++) {
+          const s = entryS[e], i = entryI[e];
+          const gate = gallowsGateOpen(s - sLo, phase, d.period, d.width);
+          const skip = win !== null && (r === win.k || r === win.k + 1) && s >= sLo + win.s && s < sLo + win.s + SQUARE_WINDOW;
+          if (gate) {
+            rp.gates.push(i);
+            closeSeg(true);
+          } else if (skip) {
+            closeSeg(false);
+          } else {
+            if (seg.length === 0) startFlank = prevGate;
+            seg.push(i);
+          }
+          prevGate = gate;
+        }
+        closeSeg(false);
+      }
+      entryS.length = 0;
+      entryI.length = 0;
+      prevT = -1;
+    };
+    for (let k = 0; k < nS; k++) {
+      const s = sLo + k, t = t0 + path[k];
+      if (okAt(s, t)) {
+        if (entryS.length > 0 && t !== prevT && okAt(s - 1, t)) { entryS.push(s - 1); entryI.push(idx(s - 1, t)); }
+        entryS.push(s);
+        entryI.push(idx(s, t));
+        prevT = t;
+      } else {
+        if (corridor !== null && t >= tLo && t < tLo + nT) {
+          // a tile the corridor alone closed (not the guard's other rules)
+          const i = idx(s, t);
+          if (corridor[i] === 1 && c.open(i)) corridorOpened++;
+        }
+        flush();
+      }
+    }
+    flush();
+    rowPlans.push(rp);
+  }
+  plan.corridorOpened = corridorOpened;
+
+  // Gates are reserved before any row is written (a later blocker never closes one).
+  for (const rp of rowPlans) if (rp.blocks.length >= ROW_MIN_PIECE) for (const i of rp.gates) c.reserve(i);
+
+  // 6. Write: one fenceRow feature per row.
+  const { tiles } = c;
+  for (const rp of rowPlans) {
+    if (rp.blocks.length < ROW_MIN_PIECE) continue;
+    const first = rp.blocks[0];
+    const placed = c.placeFeature({
+      kind: "fenceRow", jobs: ["lane"], anchor: [first % w, (first - (first % w)) / w], params: [plan.axis, rp.index, rp.phase],
+      blocks: rp.blocks.map((i) => [i, "fence"] as const), mode: "trim", minPiece: ROW_MIN_PIECE,
+    });
+    if (!placed) continue;
+    plan.rows.push({
+      axis: plan.axis, index: rp.index, phase: rp.phase, t0: rp.t0, tiles: placed.written.slice(),
+      posts: [...rp.posts].filter((i) => tiles[i] === TILE_LOW).sort((p, q) => p - q), gates: rp.gates,
+    });
+  }
+
+  // 5. The route guard: the "open" mode already kept every corridor clear (one check is the safety net); "repair" opens the worst
+  //    member's corridor, the fence tiles on it and then near it, until the stretch is under the threshold.
+  if (guard && guard.members.length > 0) {
+    let st = guard.worstStretch();
+    plan.checks = 1;
+    if (d.route === "repair") {
+      let calls = 1, radius = 0;
+      while (st > ROUTE_STRETCH_MAX && calls < ROUTE_CHECKS_MAX) {
+        const opened = openAround(c, plan, guard.corridorOf(guard.worstMember()), radius);
+        if (opened === 0) { radius++; if (radius > 2) break; continue; }
+        plan.repaired += opened;
+        radius = 0;
+        st = guard.worstStretch();
+        calls++;
+        plan.checks = calls;
+      }
+    }
+    plan.stretch = st;
+  }
+  plan.emptyRows = plan.rows.filter((r) => r.tiles.length === 0).length;
+  plan.houses = c.zoneFeatures().filter((f) => f.kind === "landmark" && f.variant === GUARD_HOUSE.key).length;
+  return plan;
+}
+
+/** Decor of the Rows: chains on the fence, gate posts and lanterns at the gates, the gallows, banners and stocks in the guard houses. */
+function propsRows(c: PropCtx, plan: GallowsRowsPlan): void {
+  const { w, h } = c;
+  const hv = (x: number, y: number, salt: number): number => c.noise.hash(x, y, salt);
+  const var3 = (x: number, y: number): number => Math.floor(hv(x, y, 90) * 3);
+  for (const row of plan.rows) {
+    const posts = new Set(row.posts);
+    for (const i of row.tiles) {
+      const x = i % w, y = (i - x) / w;
+      if (c.tiles[i] !== TILE_LOW) continue;
+      if (posts.has(i)) {
+        c.prop(PROP.gate_post, x, y, var3(x, y));
+        if (hv(x, y, 5) < 1 / 3) {
+          // a lantern on the lane side of the post, one tile off the fence
+          const sx = plan.axis === 0 ? 0 : 1, sy = plan.axis === 0 ? 1 : 0;
+          const side = hv(x, y, 6) < 0.5 ? -1 : 1;
+          const lx = x + side * sx, ly = y + side * sy;
+          if (lx >= 0 && ly >= 0 && lx < w && ly < h && c.tiles[ly * w + lx] === TILE_FLOOR) c.prop(PROP.lantern, lx, ly, var3(lx, ly));
+        }
+      } else if (hv(x, y, 3) < 0.2) {
+        c.prop(PROP.chain, x, y, var3(x, y));
+      }
+    }
+  }
+  if (plan.gallows.length > 0) {
+    const mid = plan.gallows[4];
+    c.prop(PROP.gallows, mid % w, (mid - (mid % w)) / w, var3(mid % w, Math.floor(mid / w)));
+  }
+  for (const f of c.zoneFeatures()) {
+    if (f.kind !== "landmark" || f.variant !== GUARD_HOUSE.key) continue;
+    const s = stampTemplate(GUARD_HOUSE, f.ax, f.ay, (f.p[0] & 3) as 0 | 1 | 2 | 3, f.p[1] === 1, w, h);
+    if (!s) continue;
+    let banners = 0;
+    for (const i of s.walls) {
+      const x = i % w, y = (i - x) / w;
+      if (banners < 4 && c.tiles[i + w] === TILE_FLOOR && hv(x, y, 2) < 0.3 && c.prop(PROP.banner, x, y, var3(x, y))) banners++;
+    }
+    if (s.floor.length > 0) {
+      const i = s.floor[s.floor.length >> 1];
+      c.prop(PROP.stocks, i % w, (i - (i % w)) / w, var3(i % w, Math.floor(i / w)));
+    }
+  }
+}
+
+/** Builds a Rows styler with other dials (the default is `gallowsRows`). */
+export function makeGallows(dials: Partial<GallowsDials> = {}): ZoneStyler<GallowsRowsPlan> {
+  const d: GallowsDials = { ...GALLOWS_DIALS, ...dials };
+  return {
+    id: "gallows",
+    faction: "sentenced",
+    version: 400,
+    landmark: (c) => landmarkRows(c),
+    shape: (c) => shapeRows(c, d),
+    props: propsRows,
+  };
+}
+
+/** The Rows. */
+export const gallowsRows: ZoneStyler<GallowsRowsPlan> = makeGallows();
+
+// ====================================================================================================================
+// LEGACY (phase A, zone-shapes contract 1.3): the prison and courthouse styler the registry still runs. PHASE C (WP7): in
+// styleZones.ts import `gallowsRows as gallows` (or rename), then delete everything below this banner and the imports only it uses
+// (TERRAIN_FENCE, randInt, breakLowRuns, chance, openTiles, pickFrom, placeRing, ringTiles, roomOf, shuffle, wall, low, sideDoors,
+// Rect, sizeScale), rename `GallowsRowsPlan` to `GallowsPlan` and drop `YardPlan` from index.ts.
+// Old header: a ruined prison and courthouse. One orthogonal cell block with corridor and cell doors, two fenced yards with at
+// least two openings, a gallows plaza and a free fence line in a street. Fences stop bodies (and, by MASK_MELEE, melee swings) but
+// not shots or sight. The generator's own ruins were the courthouse and extra cell houses.
+// ====================================================================================================================
 
 export interface YardPlan {
   rect: Rect;

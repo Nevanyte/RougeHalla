@@ -54,9 +54,15 @@ describe("hasZoneArt", () => {
     expect(hasZoneArt(room(12, 10, [[3, 3, 2, 1, TILE_LOW, TERRAIN_LAVA]]))).toBe(false);
     expect(hasZoneArt(styled(1))).toBe(true);
   });
-  it("needs regions and some terrain or props: a plain generated map takes the plain way", () => {
+  it("needs regions and some terrain, props or named features: a plain generated map without features takes the plain way", () => {
+    // The plain generator keeps the landmarks (the zone stylers' own), so the feature-free map is that one with its features taken off.
     const plain = generateMap(1, undefined, { styleZones: null });
-    expect(hasZoneArt(plain)).toBe(false);
+    const bare: GameMap = { ...plain, features: [], featureGrid: new Uint8Array(plain.w * plain.h) };
+    expect(hasZoneArt(bare)).toBe(false);
+    // A feature that dresses a tile (a landmark, a crater) is art; a net's infill alone is not.
+    const feature = (kind: "landmark" | "infill"): GameMap => ({ ...bare, features: [{ kind, variant: "", zone: "fire", jobs: ["seal"], ax: 0, ay: 0, p: [], bbox: { x: 0, y: 0, w: 1, h: 1 }, tiles: 1 }] });
+    expect(hasZoneArt(feature("landmark"))).toBe(true);
+    expect(hasZoneArt(feature("infill"))).toBe(false);
     expect(hasZoneArt(room(12, 10, [[3, 3, 2, 1, TILE_LOW, TERRAIN_LAVA]], true))).toBe(true);
     expect(hasZoneArt(room(12, 10, [], true))).toBe(false);
   });

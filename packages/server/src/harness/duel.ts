@@ -13,7 +13,7 @@
 // state (a cheat), for comparison.
 import {
   circleClear, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, reachMask,
-  segmentClear, TICK_MS, TILE, TILE_WALL, decide,
+  segmentClear, TERRAIN_FENCE, TICK_MS, TILE, TILE_LOW, TILE_WALL, decide,
   type BuffId, type FactionId, type GameMap, type PolicyInput, type SkillId, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { grantBuff } from "../sim/buffs";
@@ -27,7 +27,14 @@ import { addPlayer, step } from "../sim/step";
 import { moveMultiplierOf } from "../sim/weapons";
 import { collisionMap, type ModContribution, type SimEvent, type World } from "../sim/world";
 
-export type Arena = "open" | "pillars";
+/**
+ * The arena a duel is fought in. "open" and "pillars" are the weapon harness's. The rows arenas are the zone duels' (zoneDuel.ts): the
+ * same 40x40 floor crossed by fence rows (LOW tiles, terrain fence), with gates cut by the Gallows' rule (ROWS_LAYOUTS). "rows" is the
+ * design (the shape of zoneStyle/gallows.ts: period 12, gate width 3), the others change one dial each ("rows10" a gate every 10,
+ * "rows4w" gates 4 wide, "rows6" three rows instead of four).
+ */
+export type Arena = "open" | "pillars" | RowsArena;
+export type RowsArena = "rows" | "rows10" | "rows4w" | "rows6";
 /** How a projectile client sees its target: the render-time view with the leads a real client can make ("client"), that view taken at face value ("stale"), or the present ("present"). */
 export type Perception = "client" | "stale" | "present";
 
@@ -42,13 +49,21 @@ export interface DuelSpec {
    * faction's signatures (backlash reads the enemy's weapon, the mark and DoT ignore shields) would colour it.
    */
   signatures?: boolean;
-  /** Start distance, centre to centre, along `angle`. */
+  /** Start distance, centre to centre, along `angle` (ignored when `starts` is given). */
   distance: number;
   /** Direction from fighter 0 to fighter 1 (radians). */
   angle?: number;
   /** Ticks each fighter waits before it starts acting: the start-phase offset. */
   delayTicks?: readonly [number, number];
   arena?: Arena;
+  /**
+   * Fight on this map instead of a hand-built arena (a generated zone map, a hand-made test map; `arena` is then ignored). The map object
+   * is used as is and never copied or changed, so its per-object caches (walk components, gates) are shared by every duel on it. Mobs
+   * stay off, whatever the map holds; terrain hazards work as in a run.
+   */
+  map?: GameMap;
+  /** Where fighter 0 and fighter 1 stand at the start, in world units, instead of centred on the arena `distance` apart along `angle`. */
+  starts?: readonly [Vec2, Vec2];
   capSeconds?: number;
   seed?: number;
   perception?: Perception;
@@ -136,18 +151,62 @@ export interface DuelResult {
   hitLog: HitRecord[];
 }
 
-const ARENA_TILES = 40;
+export const ARENA_TILES = 40;
 /** A body whose edge is this close to a wall counts as at the wall: backed up against it, a tile and a bit away. */
 const WALL_MARGIN = 36;
 const DEFAULT_CAP_SECONDS = 60;
 /** The run never reaches its patience timer or sudden death within a duel. */
 const NEVER_SECONDS = 1_000_000;
 
+/** A fence-row arena's rows and gates. Rows run along y at the tile columns `xs`; every row has gates of `width` tiles, one every `period`. */
+export interface RowsLayout {
+  xs: readonly number[];
+  period: number;
+  width: number;
+  /** The gate phase of an even row and of an odd row: the odd row's gates sit half a period after the even row's, so the rows stagger. */
+  phases: readonly [number, number];
+}
+
+/**
+ * The four fence-row arenas. "rows" is the Gallows rule of the zone-shapes contract (4.2: period 12, width 3, phases 2 and 8, a true
+ * modulo so the lead of a row has gates too); the variants change one dial each, and a variant's phases keep the half-period stagger
+ * (period 10: 2 and 7).
+ */
+export const ROWS_LAYOUTS: Readonly<Record<RowsArena, RowsLayout>> = {
+  rows: { xs: [8, 16, 24, 32], period: 12, width: 3, phases: [2, 8] },
+  rows10: { xs: [8, 16, 24, 32], period: 10, width: 3, phases: [2, 7] },
+  rows4w: { xs: [8, 16, 24, 32], period: 12, width: 4, phases: [2, 8] },
+  rows6: { xs: [10, 20, 30], period: 12, width: 3, phases: [2, 8] },
+};
+
+/** The first tile of a row along y: the arena's first interior tile (a zone's row starts at its own low edge, only the rule is shared). */
+export const ROWS_S_LO = 1;
+
+export const isRowsArena = (a: Arena): a is RowsArena => Object.hasOwn(ROWS_LAYOUTS, a);
+
+/** Is the tile at position `s` along row number `row` a gate? The Gallows' rule: ((s - sLo - phase) mod period) < width, a true modulo. */
+export function rowsGateOpen(layout: RowsLayout, row: number, s: number): boolean {
+  const phase = layout.phases[row % 2]!;
+  return (((s - ROWS_S_LO - phase) % layout.period) + layout.period) % layout.period < layout.width;
+}
+
 export function buildArena(arena: Arena, starts: readonly [Vec2, Vec2], seed: number): GameMap {
   const n = ARENA_TILES;
   const tiles = new Uint8Array(n * n);
   const wall = (tx: number, ty: number): void => { tiles[ty * n + tx] = TILE_WALL; };
   for (let i = 0; i < n; i++) { wall(i, 0); wall(i, n - 1); wall(0, i); wall(n - 1, i); }
+  if (isRowsArena(arena)) {
+    const layout = ROWS_LAYOUTS[arena];
+    const terrain = new Uint8Array(n * n);
+    layout.xs.forEach((x, row) => {
+      for (let y = ROWS_S_LO; y < n - 1; y++) {
+        if (rowsGateOpen(layout, row, y)) continue;
+        tiles[y * n + x] = TILE_LOW;
+        terrain[y * n + x] = TERRAIN_FENCE;
+      }
+    });
+    return mapFromTiles(n, n, tiles, 0, terrain);
+  }
   if (arena === "pillars") {
     const rng = mulberry32(seed ^ 0x9e3779b1);
     const [a, b] = starts;
@@ -290,11 +349,15 @@ export function runDuel(spec: DuelSpec): DuelResult {
   const seed = spec.seed ?? 1;
   const cap = spec.capSeconds ?? DEFAULT_CAP_SECONDS;
   const perception = spec.perception ?? "client";
-  const starts = startPoints(spec.distance, spec.angle ?? 0);
+  const starts: readonly [Vec2, Vec2] = spec.starts ?? startPoints(spec.distance, spec.angle ?? 0);
   const delays = spec.delayTicks ?? [0, 0];
+  const arena = spec.arena ?? "open";
+  // A map the caller made (a generated zone) or a fence-row arena is handed to the world ready; the weapon harness's own arenas are
+  // swapped in after it is built, as they always were.
+  const ready: GameMap | undefined = spec.map ?? (isRowsArena(arena) ? { ...buildArena(arena, starts, seed), spawns: [starts[0], starts[1]] } : undefined);
 
   const world = createGameWorld({
-    seed,
+    ...(ready ? { map: ready, seed: ready.seed } : { seed }),
     random: mulberry32(seed + 1),
     config: {
       minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER_SECONDS, patienceMinSeconds: NEVER_SECONDS,
@@ -302,7 +365,7 @@ export function runDuel(spec: DuelSpec): DuelResult {
     },
   }, { signatures: spec.signatures ?? false });
   // The world builds a map from its seed (about 15 ms, unused here); the duel's hand-built arena replaces it.
-  world.map = { ...buildArena(spec.arena ?? "open", starts, seed), spawns: [starts[0], starts[1]] };
+  if (!ready) world.map = { ...buildArena(arena, starts, seed), spawns: [starts[0], starts[1]] };
   for (let i = 0; i < 2; i++) {
     const p = addPlayer(world, IDS[i]!, IDS[i]!);
     const faction = spec.factions?.[i] ?? spec.faction;
@@ -351,7 +414,9 @@ export function runDuel(spec: DuelSpec): DuelResult {
     recomputeMods(world, { kind: "player", id: IDS[i]!, s: p, rt });
   }
   if (!circleClear(world.map, starts[0], PLAYER_RADIUS) || !circleClear(world.map, starts[1], PLAYER_RADIUS)) {
-    throw new Error(`duel start (${spec.distance} u at ${spec.angle ?? 0} rad) is inside a wall`);
+    throw new Error(spec.starts
+      ? `duel starts (${Math.round(starts[0].x)},${Math.round(starts[0].y)}) and (${Math.round(starts[1].x)},${Math.round(starts[1].y)}) are not both clear floor`
+      : `duel start (${spec.distance} u at ${spec.angle ?? 0} rad) is inside a wall`);
   }
 
   const locks = spec.locks ?? [false, false];

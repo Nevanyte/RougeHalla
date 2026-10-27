@@ -118,8 +118,11 @@ class Stage {
     const map = testMap();
     this.x = map.spawns[0]!.x;
     this.y = map.spawns[0]!.y;
-    this.foe = { id: "foe", x: map.spawns[1]!.x, y: map.spawns[1]!.y, hp: 100, alive: true };
-    for (const i of [2, 3, 4]) this.loose.set(`g${i}`, { x: map.spawns[i]!.x, y: map.spawns[i]!.y });
+    // The foe starts on the spawn nearest to the bot's and the three loose weapons on the next three, whatever the map is: the pool's
+    // order is by zone (the neighbour in the list is a whole zone away on a 136x136 map), and a bot that never meets the foe tests nothing.
+    const near = map.spawns.slice(1).sort((a, b) => Math.hypot(a.x - this.x, a.y - this.y) - Math.hypot(b.x - this.x, b.y - this.y));
+    this.foe = { id: "foe", x: near[0]!.x, y: near[0]!.y, hp: 100, alive: true };
+    near.slice(1, 4).forEach((q, k) => this.loose.set(`g${k + 2}`, { x: q.x, y: q.y }));
     this.rnd = mulberry32(seed * 7919 + 13);
   }
 
@@ -809,9 +812,10 @@ describe("a long run", () => {
     // Commands come out in click order.
     const ats = cmds.map((c) => c.tc.at);
     expect([...ats].sort((a, b) => a - b)).toEqual(ats);
-    // The bot played: it met the stage's foe (fought it, or, for a cautious bot on the 136x136 map, where the foe wanders twice the
-    // ground, fled from it), and it did more than one thing. WP8 rechecks the bots on the zone-shape maps.
-    expect(stage.kills + (r.brain.stats.goals.flee ?? 0), `goals ${JSON.stringify(r.brain.stats.goals)}`).toBeGreaterThan(0);
+    // The bot played: it met the stage's foe (killed it, hunted it, or, for a cautious bot, fled from it: the foe starts on the spawn
+    // nearest to the bot's and wanders the whole map after that, twice the ground of a 96x96 one), and it did more than one thing.
+    const met = stage.kills + (r.brain.stats.goals.flee ?? 0) + (r.brain.stats.goals.hunt ?? 0);
+    expect(met, `goals ${JSON.stringify(r.brain.stats.goals)}`).toBeGreaterThan(0);
     expect(Object.keys(r.brain.stats.goals).length).toBeGreaterThan(1); // 3+ on the 96x96 map; a cautious bot may only roam and flee on 136x136
     // The order numbers never skipped, however many there were.
     const seqs = cmds.filter((c) => c.tc.cmd.type === "move" || c.tc.cmd.type === "stop").map((c) => (c.tc.cmd.msg as { seq: number }).seq);
