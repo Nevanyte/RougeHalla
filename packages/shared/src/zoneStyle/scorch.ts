@@ -12,7 +12,8 @@
 // The route guard (contract 3.9) is honoured before the fact, because a placed feature cannot be taken back: a crater gets an extra
 // breach where a spawn member's corridor (the guard's 3-wide band along its walk) would be cut by the rim (as long as the crater
 // keeps 60% of its rim), the river gets a ford where a corridor meets its band, and the ember stays off the bank along a corridor.
-// The contract's `worstStretch()` is not called: it can only report what a feature has already done.
+// The contract's `worstStretch()` is called only for the craters: once for the stretch as it stands, then with a candidate rim as
+// `extraWallTiles` (before the rim is written, so nothing is placed and then measured); the river and the forge go by the corridor bands alone.
 //
 // Deviations from the contract text, with reasons (the WP1 report lists them with numbers):
 //  - the rim is the ideal one-tile ring pushed in and out by a smooth noise along the ring, its gaps filled by lines, not the

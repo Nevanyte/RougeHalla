@@ -60,7 +60,7 @@ export type MobTypeId =
 export interface MobTypeDef {
   id: MobTypeId;
   zone: FactionId;
-  /** Exactly one elite per zone, the last of its four rows. */
+  /** Exactly one elite TYPE per zone, the last of its four rows (the zone has two elite camps, each with one of this type). */
   elite: boolean;
   /** Display name. */
   name: string;

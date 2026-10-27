@@ -269,7 +269,7 @@ function installNetSimUnlessHosting(sim: NetSimParams, config: ServerConfig): ((
 export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool } = {}) {
   const store: ProfileStore = new JsonProfileStore(config.stashFile);
   const profiles = new ActiveProfiles();
-  // Warmed here, before the first room can ask: the main thread's lane tables (for a fallback) and the worker's queue.
+  // Warmed here, before the first room can ask: the main thread's mapgen tables (the fixed layout and the zone layout, for a fallback) and the worker's queue.
   const maps = (opts.maps ?? new MapPool({ target: config.mapPoolSize ?? MAP_POOL_TARGET })).start();
   const botStats = createBotStats(config);
   const rooms = new RoomCounter({ arena: config.maxArenaRooms, training: config.maxTrainingRooms });

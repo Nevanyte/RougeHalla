@@ -524,7 +524,7 @@ describe("surfaces", () => {
     const r = rig(rows);
     const band = r.rt.init.noBlock;
     band[r.at(2, 1)] = 1; // the ring band
-    band[r.at(4, 1)] = 2; // a ruin's ring
+    band[r.at(4, 1)] = 2; // a landmark's ring
     expect(r.surf.canSurface(r.at(2, 1), "bog")).toBe(false);
     expect(r.surf.canSurface(r.at(2, 1), "light")).toBe(true);
     expect(r.surf.canSurface(r.at(4, 1), "bog")).toBe(true);

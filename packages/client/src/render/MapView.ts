@@ -62,7 +62,7 @@ const DEPTH_GATE_MARK = -5e5;
 export const DEPTH_HIGHLIGHT = -4e5;
 
 const COLOR_OUTDOOR = 0x2a3038;
-/** Laid over a ruin's footprint on top of the region tint, so a ruin reads as indoors in every region. */
+/** Laid over a landmark building's box (map.buildings) on top of the region tint, so a building reads as indoors in every region. */
 const COLOR_INDOOR = 0x1c1612;
 const ALPHA_INDOOR = 0.45;
 const COLOR_WALL_TOP = 0x8a9099;

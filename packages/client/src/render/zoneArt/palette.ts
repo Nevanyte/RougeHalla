@@ -43,7 +43,7 @@ export const ZONE_PALETTE: Readonly<Record<ZoneKey, ZonePalette>> = {
     floor: 0x34495e, floorAlt: 0x3b546b, floorMark: 0x4c6a85,
     wallTop: 0xd4edf9, wallFront: 0x6f9fbd, wallRim: 0xffffff, accent: 0x4aa3df, particle: 0xffffff,
   },
-  // Sanctum: cathedral ruins; cream stone and gold.
+  // Sanctum: a cathedral hall; cream stone and gold.
   holy: {
     floor: 0x4a4234, floorAlt: 0x544b3b, floorMark: 0x6a5f49,
     wallTop: 0xe9dfc0, wallFront: 0xb3a37a, wallRim: 0xfff6d6, accent: 0xd4af37, particle: 0xfff2b0,
@@ -148,7 +148,7 @@ export function isZoneKey(id: string): id is ZoneKey {
 export const NEUTRAL_PALETTE = {
   floor: 0x2a3038,
   coliseumFloor: mix(0x2a3038, 0xc8b48a, 0.22),
-  /** Laid over a ruin's footprint, so a ruin reads as indoors in every zone. */
+  /** Laid over a landmark building's box (map.buildings), so a building reads as indoors in every zone. */
   indoor: 0x1c1612,
   indoorAlpha: 0.45,
 } as const;

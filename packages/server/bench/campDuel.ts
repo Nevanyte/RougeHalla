@@ -180,7 +180,7 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
     published.alive = roster.length;
     published.state = 0;
     if (spec.onMap) {
-      // The map's twenty camps are published by their own rosters; this camp's entry says what the duel fights.
+      // The map's camps are published by their own rosters; this camp's entry says what the duel fights.
       ensureRosters(world);
       const mine = world.state.camps[campRef]!;
       mine.type = published.type;

@@ -36,7 +36,7 @@ function room(w: number, h: number, rects: ReadonlyArray<readonly [number, numbe
 
 const styled = (seed: number): GameMap => generateMap(seed);
 
-/** A big map made by tiling a real styled one, with a wall border: for the 96x96 sizing the zone art is budgeted for. */
+/** A square map of side `n` made by tiling a real styled one, with a wall border: for the sizes other than the generated 136x136. */
 function tiled(m: GameMap, n: number): GameMap {
   const mk = (src: Uint8Array): Uint8Array => {
     const o = new Uint8Array(n * n);
@@ -351,7 +351,7 @@ describe("bakeZoneArt on a fake scene", () => {
     const m = styled(1);
     const s = bakeScene();
     const art = bakeZoneArt(s.scene, m);
-    // A 96x96 map bakes its floors at the scale that fits the budget (below 1).
+    // A generated 136x136 map bakes its floors at the scale that fits the budget (below 1).
     const floors = planFloor(m, chooseFloorScale(m));
     const { strips, pages } = planStrips(m);
     expect(art.stats.floorChunks).toBe(floors.length);

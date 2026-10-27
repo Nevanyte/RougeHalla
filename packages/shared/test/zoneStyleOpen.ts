@@ -1,6 +1,6 @@
 // Synthetic OPEN maps for the stylers, shaped like the zone generator's hook input: 96x96, a solid border, a coliseum disc in the
 // middle, five organic zones around it of about 1700 tiles each (the contract's areaScale 1 at 1710 tiles), and per zone four camp
-// clearings (9x9 with halo), three spawns (5x5) and three chests (3x3) as protected ground. No cover rocks.
+// clearings (9x9 with halo), three spawns (5x5) and three chests (3x3) as protected ground.
 //  - `openFixture(seed)` is the plain one the stylers were first measured on (no camps, no pool members: nothing for a camp graph or a
 //    route guard to read). Its output is pinned (mapPins OPEN_PINNED), so its geometry is part of the input: changing it moves every pin.
 //  - `openFixtureFull(seed)` adds what the generator hands a styler besides the ground: the camps (two elite per zone, the two farthest

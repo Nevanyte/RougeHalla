@@ -107,7 +107,7 @@ function wallAt(map: GameMap, tx: number, ty: number): boolean {
 
 /**
  * How each wall tile is drawn (WS_*): a pillar if it keeps a LOW kind; a lone rock when no wall touches it; a segment when it is part of
- * a straight run of three or more single stones (D 7.6: the cover pass lays rows of rocks, drawn as one low wall, not as stones); else
+ * a straight run of three or more single stones (a thin line of stones reads as one low wall, not as stones); else
  * a mass. 0 for a tile that is not a wall.
  */
 export function wallStyles(map: GameMap): Uint8Array {
@@ -393,7 +393,7 @@ function tileSeedHash(map: GameMap, tx: number, ty: number): number {
   return hashTile(tx, ty, map.seed);
 }
 
-/** Paints one floor chunk: every tile's ground, the ruins' shade, then the flat props. */
+/** Paints one floor chunk: every tile's ground, the landmark buildings' shade, then the flat props. */
 export function paintFloorChunk(g: Pen, ctx: BakeContext, c: FloorChunk): void {
   const { map, zones, looks } = ctx;
   const spot: TileSpot = { x: 0, y: 0, tx: 0, ty: 0, hash: 0, open: 0 };
@@ -446,7 +446,7 @@ export function paintFloorChunk(g: Pen, ctx: BakeContext, c: FloorChunk): void {
       }
     }
   }
-  // Ruins read as indoors in every zone.
+  // A landmark building's box reads as indoors in every zone.
   g.fillStyle(NEUTRAL_PALETTE.indoor, NEUTRAL_PALETTE.indoorAlpha);
   for (const b of map.buildings) {
     const x0 = Math.max(b.x, c.tx0), x1 = Math.min(b.x + b.w, c.tx1 + 1);

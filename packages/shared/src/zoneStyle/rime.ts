@@ -2,7 +2,7 @@
 // you run the lake (fast, exposed, slippery for everyone but Frost) or hug the shore behind faceted headlands. One mere per about
 // 1700 tiles of zone (two on a 136x136 map), each grown in the largest empty circle of the camps; three angular headlands jut into
 // every lake (whole or not at all, kept off the spawn walks), a small spire island stands in the middle, and a frozen watchtower
-// (the zone's landmark) stands by each lake. Nothing else is walled: no scatter, no chunks, no ruins, no crevasses.
+// (the zone's landmark) stands by each lake. Nothing else is walled: no scatter, no crevasses.
 //
 // Everything is integer maths and exact comparisons (thirds of a tile for distances, a quantized fBm for the shore); the only
 // floats are plain + - * / and Math.sqrt/round, so a map is the same on every engine. Every wall goes through placeFeature as a

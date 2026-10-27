@@ -4,7 +4,7 @@
 //
 // Contract (the spine; the track fills the bodies in):
 //   - Spawning, once per run in `raidStarted` and only when SimConfig.mobs is set: for every camp of map.camps, one mob per
-//     camp spot, in map order. The camp's `eliteSpot` holds the zone's one elite (kind "elite", the zone's elite type); every
+//     camp spot, in map order. The `eliteSpot` of each of a zone's two elite camps holds an elite (kind "elite", the zone's one elite type); every
 //     other spot is kind "mob" of the camp's type, the roster rolled at world build (sim/camps.ts, state.camps). A mob's
 //     state: faction = the zone id, weapon0 = the zone's weapon, type = its MobTypeId, camp = the camp's index + 1, name = the
 //     type's MOB_TYPES name, hp/maxHp = mobFaction(region, elite).hp (hp is not paced), status "alive", facing toward the
@@ -68,7 +68,7 @@ export function placeMob(
 }
 
 /**
- * Places every camp's mobs, one per spot of `map.camps`, in map order: the zone's elite at the camp's elite spot, the camp's
+ * Places every camp's mobs, one per spot of `map.camps`, in map order: the zone's elite type at an elite camp's elite spot, the camp's
  * published type (state.camps, rolled by sim/camps.ts) everywhere else, and each camp's `alive` set to what stands there.
  * A no-op for a map without camps (a hand-built test map).
  */

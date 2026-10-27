@@ -40,7 +40,7 @@ function makeWorld(cfg: Partial<SimConfig> = {}, seed = 1234, random = mulberry3
   return createGameWorld({ seed, config: makeConfig(cfg), random, newItemUid: counter() });
 }
 
-/** A walled hall of open floor (no ruins), with an optional predicate for the tiles that stay floor. Spawns are tiles. */
+/** A walled hall of open floor (no inner walls), with an optional predicate for the tiles that stay floor. Spawns are tiles. */
 function hall(w: number, h: number, spawns: Array<[number, number]>, open?: (tx: number, ty: number) => boolean): GameMap {
   const tiles = new Uint8Array(w * h);
   for (let ty = 0; ty < h; ty++) {
