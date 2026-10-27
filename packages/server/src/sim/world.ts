@@ -415,7 +415,7 @@ export interface ArenaRuntime {
   downedThisTick: Array<{ p: PlayerState; rt: PlayerRuntime }>;
   /** Players who went down between steps (a leave). Resolved at once, they still count as the next tick's deaths. */
   downsBetweenTicks: number;
-  /** Set when a player is abandoned mid-run (a server shutdown): the run is void and the sim stops advancing it. */
+  /** Set when a player is abandoned mid-run or in planning (a server shutdown): the run is void and the sim stops advancing it (planning never starts one). */
   voided: boolean;
   /**
    * Every player's bounty when the tick being simulated began. A kill in a tick pays the victim's bounty from here,
@@ -500,9 +500,11 @@ export interface WorldHooks {
    * A standing fighter just took `applied` damage in the ledger pass (applyLedger, once per victim per pass, after all of
    * its hits landed together, the arena's burn included; before the hit fx and hitLanded). It is still standing: a victim
    * the pass killed is not reported. Reactions to the fighter's own hp (Blood Saint's trigger, sim/factions.ts) hang here;
-   * they decide from the victim's own state only and defer what they pay with payLater.
+   * they decide from the victim's own state only and defer what they pay with payLater. `applied` is what reached the pool
+   * (a death floor that held the hp counts the whole hit), so `hpBefore`, the hp as the pass began, is what a "crossed the
+   * threshold" test must read, never hp + applied.
    */
-  hurt?(world: World, c: Combatant, applied: number): void;
+  hurt?(world: World, c: Combatant, applied: number, hpBefore: number): void;
   /**
    * Camp `camp` (its index in map.camps) just lost its last mob (sim/camps.ts). Called after the ledger pass that killed it
    * (payLater), right after the `campCleared` fx; sim/chests.ts drops the camp's shared chest here.

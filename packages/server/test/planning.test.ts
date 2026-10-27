@@ -408,6 +408,36 @@ describe("taken", () => {
     expect(at(world, c)).toEqual(poolAt(world, nearest));
   });
 
+  it("two players who picked nothing and share a dealt option: the secret order at the final tick decides who gets it, never the join order", () => {
+    const { world, ids } = planning(66, 2, { planSeconds: 2 });
+    const [a, b] = ids as [string, string];
+    handDeal(world, a, [3, 4]);
+    handDeal(world, b, [3, 4]);
+    // The function itself: whoever is first in the order it is handed takes the shared option, whichever joined first.
+    expect(assignSpawns(world, [a, b]).get(a)).toEqual(poolAt(world, 3));
+    expect(assignSpawns(world, [a, b]).get(b)).toEqual(poolAt(world, 4));
+    expect(assignSpawns(world, [b, a]).get(b)).toEqual(poolAt(world, 3));
+    expect(assignSpawns(world, [b, a]).get(a)).toEqual(poolAt(world, 4));
+    // And the planning tick hands it the tick's own actionOrder: over many salts the join-order player wins about half.
+    let joinerFirst = 0;
+    const trials = 120;
+    for (let seed = 1; seed <= trials; seed++) {
+      const t = planning(67, 2, { planSeconds: 1 }, { random: mulberry32(seed) });
+      const [x, y] = t.ids as [string, string];
+      handDeal(t.world, x, [3, 4]);
+      handDeal(t.world, y, [3, 4]);
+      stepUntil(t.world, () => t.world.state.serverTime + TICK_MS >= t.world.state.planEndsAt);
+      const order = actionOrder(t.world, t.world.state.tick + 1);
+      step(t.world, TICK_MS);
+      expect(t.world.state.phase).toBe("active");
+      expect(at(t.world, order[0]!), `seed ${seed}`).toEqual(poolAt(t.world, 3));
+      expect(at(t.world, order[1]!), `seed ${seed}`).toEqual(poolAt(t.world, 4));
+      if (order[0] === x) joinerFirst++;
+    }
+    expect(joinerFirst).toBeGreaterThan(trials * 0.3);
+    expect(joinerFirst).toBeLessThan(trials * 0.7);
+  });
+
   it("leaving during planning frees what the leaver held and tells whoever was dealt it (and goes MIA: see the next block)", () => {
     const { world, ids } = planning(64, 3, { planSeconds: 2 });
     const [a, b] = ids as [string, string];
@@ -614,6 +644,38 @@ describe("leaving during planning (owner ruling: a loss)", () => {
     expect(plans(events).map((e) => [e.to, e.plan.taken])).toEqual([[b, [false, false]]]);
   });
 
+  it("a void in planning is sticky: abandoning all but one with a tick between never starts the run or wins it for the last player", () => {
+    for (const n of [2, 3, MAX_PLAYERS]) {
+      const { world, ids } = planning(130 + n, n, { planSeconds: 5 });
+      world.events.splice(0);
+      const events: SimEvent[] = [];
+      for (const id of ids.slice(0, -1)) {
+        expect(abandonPlayer(world, id)).toBe(0);
+        events.push(...world.events.splice(0), ...step(world, TICK_MS));
+      }
+      // The last player is alone in a room that started with two or more: lastOneStanding would start the run now.
+      for (let i = 0; i < 4; i++) events.push(...step(world, TICK_MS));
+      expect(world.arena.voided, `${n} players`).toBe(true);
+      expect(world.state.phase, `${n} players`).toBe("planning");
+      expect(world.state.players.size).toBe(1);
+      expect(events.some((e) => e.type === "raidStarted" || e.type === "resolved")).toBe(false);
+      // Not even at the timer.
+      stepUntil(world, () => world.state.serverTime >= world.state.planEndsAt + TICK_MS);
+      expect(world.state.phase).toBe("planning");
+      expect(world.state.players.get(ids.at(-1)!)!.status).toBe("lobby");
+    }
+  });
+
+  it("without the void the same leaves do start the run at once (what the sticky void guards against)", () => {
+    const { world, ids } = planning(140, 3, { planSeconds: 5 });
+    removePlayer(world, ids[0]!);
+    removePlayer(world, ids[1]!);
+    world.events.splice(0);
+    const events = step(world, TICK_MS);
+    expect(world.arena.voided).toBe(false);
+    expect(events.some((e) => e.type === "raidStarted")).toBe(true);
+  });
+
   it("keeps the win bonus gate as it was: 3+ starters and damage on 2+ opponents, whoever left in planning", () => {
     const fight = (starters: number, leavers: number, victims: number) => {
       const { world, ids } = planning(120 + starters * 10 + leavers, starters, { planSeconds: 1 });
@@ -668,7 +730,14 @@ describe("Wishes and planning", () => {
     removePlayer(world, ids[0]!);
     expect(abandonPlayer(world, ids[1]!)).toBe(0);
     expect(out).toEqual([`${ids[0]}:removed`, `${ids[1]}:removed`]);
-    stepUntil(world, () => world.state.phase !== "planning");
+    // The abandon voided the room: it stays in planning (see "a void in planning is sticky"), and nothing throws ticking on.
+    for (let i = 0; i < 10; i++) step(world, TICK_MS);
+    expect(world.state.phase).toBe("planning");
+    // A plain leave lets the run start with the player who is left.
+    const other = planning(33, 3, { planSeconds: 3 });
+    removePlayer(other.world, other.ids[0]!);
+    stepUntil(other.world, () => other.world.state.phase !== "planning");
+    expect(other.world.state.phase).not.toBe("planning");
   });
 });
 

@@ -26,6 +26,14 @@ export function insidePanel(node: unknown): boolean {
   return false;
 }
 
+/**
+ * Whether Tab may be taken for the map: a run is on, it is not practice, and the results panel is not up. A player who died
+ * while others still fight sees the results ("Back to hub") with the phase still active, and must be able to Tab to it.
+ */
+export function mapHoldAllowed(state: { phase: string; training?: boolean }, resultsVisible: boolean): boolean {
+  return state.phase === "active" && state.training !== true && !resultsVisible;
+}
+
 export class MapHold {
   private down = false;
 

@@ -35,7 +35,7 @@ import { campLabel, pickLine, trueServerNow } from "../ui/chestMath";
 import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
-import { MapHold } from "../ui/mapHold";
+import { MapHold, mapHoldAllowed } from "../ui/mapHold";
 import type { ChestBlip } from "../ui/mapPainter";
 import { Minimap } from "../ui/minimap";
 import { PlanningView, planningModeFor, type PlanningPlayer } from "../ui/planning";
@@ -105,7 +105,7 @@ export class RaidScene extends Phaser.Scene {
   private readonly blips: ChestBlip[] = [];
   private readonly campStates: number[] = [];
   private readonly mapHold = new MapHold(
-    () => this.room.state.phase === "active" && this.room.state.training !== true,
+    () => mapHoldAllowed(this.room.state, this.resultsVisible?.() === true),
     () => { /* read each frame (update) */ },
   );
   private unbindMapHold: (() => void) | null = null;

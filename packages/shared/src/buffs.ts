@@ -9,9 +9,10 @@
 // grant, and a bounty moves half of a victim's stacks of each buff, fractions and all).
 //
 // How the table's rows are read (decisions R4a made where ROGUELIKE_PLAN 3.4 left room; the docs record them):
-//   damage       an outgoing multiplier on every hit the owner deals, weapon hits and signature damage alike (burn,
-//                disease, the mark, backlash), so Sentenced, whose damage is nearly all its mark, benefits in full. It is
-//                applied to the raw damage before armor and shield (server ledger.ts).
+//   damage       an outgoing multiplier on the weapon hits and the signature damage the owner deals (burn, disease, the
+//                mark, backlash), so Sentenced, whose damage is nearly all its mark, benefits in full. It is applied to
+//                the raw damage before armor and shield (server ledger.ts). Never on a Wish's ability damage: that is
+//                flat power (GAME_DESIGN 8.9).
 //   vs, scale    damage rows too: a `vs` row whose test holds for the victim, and a `scale` row's stepped bonus, add to
 //                the damage sum (1 + stat damage + vs + scale; rows within the damage key add, never multiply). Both read
 //                the state as the tick's ledger pass began, so the order hits are applied in never matters. `scale`

@@ -1,11 +1,12 @@
 // The ledger's outgoing multiplier (roguelike R4a, sim/ledger.ts + sim/mods.ts outgoingMult): damage, vs and scale rows
 // multiply every entry's raw damage before armor and shield, weapon hits and signature damage alike, fixed from the state
 // as the pass began, so the order entries were recorded in never changes a result. Also: the arena's burn is never
-// multiplied, a Sentenced damage buff reaches its mark, the `hurt` hook reports each surviving victim once a pass, and Wishes'
+// multiplied, a Sentenced damage buff reaches its mark, a Wish's ability entry (and its DoT chunks) is never multiplied (flat
+// power, owner ruling "Keep Wishes flat"), the `hurt` hook reports each surviving victim once a pass, and Wishes'
 // damageFactor (Trial's zone) multiplies in after the rows, just as order-free.
 import { describe, expect, it } from "vitest";
 import {
-  buffScale, damageShares, FACTIONS, mapFromTiles, mitigateShares, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
+  BUFFS, buffScale, damageShares, FACTIONS, mapFromTiles, mitigateShares, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
   TILE_WALL, type BuffId, type FactionId, type GameMap,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -161,6 +162,40 @@ describe("the outgoing multiplier keeps the ledger order-free", () => {
     applyLedger(w);
     expect(P(w, "p1").hp).toBe(8900);
   });
+
+  // Each attacker is also the other's victim in one pass, and each hit takes its victim across a Penitent step. The result must
+  // use every attacker's hp as the pass began, whichever fighter the ledger happens to settle first: a multiplier read lazily,
+  // when its attacker is settled as a victim (or when its own victim is), would give the two entry orders different damage.
+  it("cross-attacker Penitent: two fighters hitting each other in one pass use the start-of-pass hp, in either order of entries", () => {
+    const TRUE = { phys: 0, magic: 0, true: 1 } as const;
+    const setup = (): World => {
+      const w = startRun(["fire", "holy"]);
+      grant(w, "p0", "penitent", 6);
+      grant(w, "p1", "penitent", 6);
+      for (const [id, hp] of [["p0", 6010], ["p1", 5010]] as const) {
+        P(w, id).maxHp = 1e4;
+        P(w, id).hp = hp; // 39.9% and 49.9% missing: three and four whole steps; one hit each takes the other across the next
+      }
+      return w;
+    };
+    const entry = (w: World, by: string, victim: string, raw: number): void => {
+      recordHit(w, { victim, by: { id: by, name: P(w, by).name }, packet: { raw, ...TRUE }, weapon: "sword", stagger: false });
+    };
+    const hitFor = (steps: number) => 1 + quoted("penitent") * buffScale(6) * steps;
+    const runOrder = (order: ReadonlyArray<readonly [string, string, number]>): [number, number] => {
+      const w = setup();
+      for (const [by, victim, raw] of order) entry(w, by, victim, raw);
+      applyLedger(w);
+      return [P(w, "p0").hp, P(w, "p1").hp];
+    };
+    const a = ["p0", "p1", 100] as const; // p0 (3 steps at the pass start) hits p1: its 4-step hp is not p0's
+    const b = ["p1", "p0", 600] as const; // p1 (4 steps) hits p0 across 40% missing: p0 would be at 4 steps afterwards
+    const forward = runOrder([a, b]);
+    expect(runOrder([b, a])).toEqual(forward);
+    expect(forward).toEqual([6010 - 600 * hitFor(4), 5010 - 100 * hitFor(3)]);
+    // Not the lazy answer: the same hits with p0 read at 4 steps (its hp after b) differ, so a lazy read cannot pass.
+    expect(100 * hitFor(4)).not.toBeCloseTo(100 * hitFor(3), 6);
+  });
 });
 
 // ------------------------------------------------------------------------------------------- Trial's zone and the rows
@@ -229,6 +264,82 @@ describe("Trial's damageFactor and the outgoing rows", () => {
   });
 });
 
+// ----------------------------------------------------------------------------------------------- flat Wish power
+
+describe("a Wish's ability damage is flat power: the damage rows never multiply it (owner ruling \"Keep Wishes flat\")", () => {
+  const TRUE = { phys: 0, magic: 0, true: 1 } as const;
+  /** A Fire p0 with every kind of damage row, low on hp (Penitent) against victims under 30% (Executioner) and 100%. */
+  function buffed(withBuffs = true): World {
+    const w = startRun(["fire", "frost", "plague"]);
+    if (withBuffs) {
+      grant(w, "p0", "emberImp", 4);
+      grant(w, "p0", "executioner", 3);
+      grant(w, "p0", "penitent", 6);
+      grant(w, "p0", "wyrmling", 2.5);
+    }
+    for (const [id, frac] of [["p0", 0.55], ["p1", 0.25], ["p2", 0.25]] as const) {
+      P(w, id).maxHp = 1e4;
+      P(w, id).hp = 1e4 * frac;
+    }
+    return w;
+  }
+  const rowsFor = (): number => 1 + quoted("emberImp") * buffScale(4) + quoted("executioner") * buffScale(3)
+    + quoted("penitent") * buffScale(6) * 4; // p0 at 55%: four whole 10% steps missing; p1 and p2 are under 30%
+
+  it("an ability hit and a Blaze Step trail tick deal their raw damage; the same caster's weapon hit in the same pass gets the rows", () => {
+    const w = buffed();
+    const rows = rowsFor();
+    expect(rows).toBeGreaterThan(1.3);
+    const by = { id: "p0", name: P(w, "p0").name };
+    const before = { p1: P(w, "p1").hp, p2: P(w, "p2").hp };
+    // p1: the trail's burn chunk (ability + dot) and a one-shot ability hit; p2: a weapon hit of the same size.
+    recordHit(w, { victim: "p1", by, packet: { raw: 12, ...TRUE }, weapon: null, ability: "blaze", dot: true, stagger: false });
+    recordHit(w, { victim: "p1", by, packet: { raw: 80, ...TRUE }, weapon: null, ability: "blaze", stagger: false });
+    recordHit(w, { victim: "p2", by, packet: { raw: 92, ...TRUE }, weapon: "sword", stagger: false });
+    applyLedger(w);
+    expect(before.p1 - P(w, "p1").hp).toBeCloseTo(92, 9);
+    expect(before.p2 - P(w, "p2").hp).toBeCloseTo(92 * rows, 9);
+    // The hit that landed is reported at its flat size too (kill credit, mob threat and lifesteal read it).
+    const flat = w.combat.landed.filter((h) => h.victim === "p1" && h.by === "p0");
+    expect(flat.map((h) => h.amount)).toEqual([12, 80]);
+  });
+
+  it("a real burn status ticking in a stepped tick is identical with and without the buffs, and a weapon hit beside it is not", () => {
+    const loss = (withBuffs: boolean): [number, number] => {
+      const w = buffed(withBuffs);
+      const by = { id: "p0", name: P(w, "p0").name };
+      addStatus(w, combatant(w, "p1")!, { kind: "dot", source: by, ability: "blaze", ms: 5000, value: 30 });
+      // A weapon hit recorded in the tick's own recording phase (the tick starts with a clean ledger).
+      w.beforeDamage.push((world) => {
+        recordHit(world, { victim: "p2", by, packet: { raw: 50, ...TRUE }, weapon: "sword", stagger: false });
+      });
+      const h1 = P(w, "p1").hp;
+      const h2 = P(w, "p2").hp;
+      step(w, TICK_MS);
+      return [h1 - P(w, "p1").hp, h2 - P(w, "p2").hp];
+    };
+    const plain = loss(false);
+    const rich = loss(true);
+    expect(plain[0]).toBeCloseTo(30 * (TICK_MS / 1000), 9);
+    expect(rich[0]).toBeCloseTo(plain[0], 9);
+    expect(plain[1]).toBeCloseTo(50, 9);
+    expect(rich[1]).toBeCloseTo(50 * rowsFor(), 9);
+  });
+
+  it("Trial's damageFactor still multiplies ability damage, both ways, and the rows still do not", () => {
+    const w = trialPass();
+    const p0 = { id: "p0", name: P(w, "p0").name };
+    const p1 = { id: "p1", name: P(w, "p1").name };
+    const before = { p0: P(w, "p0").hp, p2: P(w, "p2").hp };
+    // p0 (Ember Imp + Wyrmling, zoned: deals x0.8) burns p2; p1 (Ember Imp, the zone's caster) burns p0 (x1.2 from the caster).
+    recordHit(w, { victim: "p2", by: p0, packet: { raw: 100, ...TRUE }, weapon: null, ability: "blaze", dot: true, stagger: false });
+    recordHit(w, { victim: "p0", by: p1, packet: { raw: 100, ...TRUE }, weapon: null, ability: "blaze", dot: true, stagger: false });
+    applyLedger(w);
+    expect(before.p2 - P(w, "p2").hp).toBeCloseTo(80, 9);
+    expect(before.p0 - P(w, "p0").hp).toBeCloseTo(120, 9);
+  });
+});
+
 // ------------------------------------------------------------------------------------------------ signature damage
 
 /** A Sentenced (bow) p0 engaged with a Frost p1 for `ticks` steps, with `n` Ember Imp stacks: the mark damage it landed. */
@@ -275,5 +386,48 @@ describe("the hurt hook", () => {
     }
     applyLedger(w);
     expect(seen).toEqual([["p1", 150, 850]]);
+  });
+
+  it("also reports the hp as the pass began, which a death floor's `applied` (the whole hit) cannot rebuild", () => {
+    const w = startRun(["fire", "frost"]);
+    const seen: Array<[number, number, number]> = [];
+    chainHook(w, "hurt", (_w, c: Combatant, applied, hpBefore) => { seen.push([applied, hpBefore, c.s.hp]); });
+    P(w, "p1").maxHp = 1000;
+    P(w, "p1").hp = 250;
+    addStatus(w, combatant(w, "p1")!, {
+      kind: "deathFloor", source: { id: "p1", name: "x" }, ability: "lastStand", ms: 5000, data: { floorHp: 100, healShare: 0.3 },
+    });
+    recordHit(w, { victim: "p1", by: { id: "p0", name: "x" }, packet: { raw: 500, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false });
+    applyLedger(w);
+    expect(seen).toEqual([[500, 250, 100]]);
+  });
+
+  it("Blood Saint's trigger, when its row is not `once`, fires only for a pass that takes the owner across 30%: not one held at the floor", () => {
+    const row = BUFFS.find((b) => b.id === "bloodSaint")!.effects[0] as { once?: boolean };
+    const wasOnce = row.once;
+    row.once = false;
+    try {
+      const run = (hp: number, floor: boolean, raw: number): number => {
+        const w = startRun(["frost", "fire"], true);
+        grant(w, "p0", "bloodSaint", 3);
+        P(w, "p0").maxHp = 1000;
+        P(w, "p0").hp = hp;
+        if (floor) {
+          addStatus(w, combatant(w, "p0")!, {
+            kind: "deathFloor", source: { id: "p0", name: "x" }, ability: "lastStand", ms: 5000, data: { floorHp: 100, healShare: 0.3 },
+          });
+        }
+        recordHit(w, { victim: "p0", by: { id: "p1", name: "x" }, packet: { raw, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false });
+        applyLedger(w);
+        return P(w, "p0").hp;
+      };
+      const heal = 0.2 * 1000;
+      expect(run(250, false, 100)).toBe(150); // already under 30%, no floor: no trigger
+      expect(run(250, true, 500)).toBe(100); // already under 30%, held at the floor by a big hit: still no trigger
+      expect(run(400, false, 200)).toBeCloseTo(200 + heal, 6); // 40% -> 20%: crossed
+      expect(run(400, true, 500)).toBeCloseTo(100 + heal, 6); // 40% -> the floor: crossed
+    } finally {
+      row.once = wasOnce;
+    }
   });
 });

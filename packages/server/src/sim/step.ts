@@ -103,14 +103,16 @@ export function removePlayer(world: World, id: string): void {
 
 /**
  * Removes a player without resolving them: no result, no MIA, no body, no death. For a server shutdown, where the
- * run is void: from then on the run is frozen, so a tick between two abandons can't hand the rest a win (or a
- * death) in a run that no longer counts. Returns the GV they had earned and not yet banked, which the Room still pays.
+ * run is void: from then on the run is frozen (in the run and in planning alike), so a tick between two abandons can't
+ * hand the rest a win (or a death) in a run that no longer counts, nor start a run that was already voided. Returns the
+ * GV they had earned and not yet banked, which the Room still pays.
  */
 export function abandonPlayer(world: World, id: string): number {
   const rt = world.players.get(id);
   const gv = rt ? unbankedGv(rt) : 0;
   if (rt) rt.resolved = true;
-  if (world.state.phase === "active") world.arena.voided = true;
+  // Sticky in planning too: updatePlanning never starts a void run (lastOneStanding would otherwise hand the last player a win).
+  if (world.state.phase === "active" || world.state.phase === "planning") world.arena.voided = true;
   world.hooks.fighterOut?.(world, id, "removed");
   world.state.players.delete(id);
   world.players.delete(id);

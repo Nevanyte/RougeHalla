@@ -346,10 +346,11 @@ function vsHolds(e: EffectOf<"vs">, victimFrac: number, probe: VsProbe | undefin
 }
 
 /**
- * What every hit `attacker` deals to a victim at hp fraction `victimFrac` is multiplied by, before armor and shield:
- * 1 + the damage sum + every `vs` row whose test holds + every `scale` row's stepped bonus (rows within the damage key
- * add). The ledger calls it for every entry before any victim of the pass takes damage, so both hp fractions (and what
- * `probe` answers) are as the pass began. 1 for a fighter with no damage rows (every mob today).
+ * What a weapon hit or signature damage `attacker` deals to a victim at hp fraction `victimFrac` is multiplied by,
+ * before armor and shield: 1 + the damage sum + every `vs` row whose test holds + every `scale` row's stepped bonus (rows
+ * within the damage key add). The ledger calls it for every entry before any victim of the pass takes damage, so both hp
+ * fractions (and what `probe` answers) are as the pass began, and skips ability entries (flat power) and the arena's
+ * burn. 1 for a fighter with no damage rows (every mob today).
  */
 export function outgoingMult(attacker: FighterState, victimFrac: number, probe?: VsProbe): number {
   const b = caches.get(attacker)?.build;

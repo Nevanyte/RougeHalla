@@ -559,12 +559,13 @@ export function heal(
  * row), then never again this run (PlayerRuntime.fired); any other row fires when a pass takes it across the threshold.
  * Decided from the fighter's own state only; what it does is paid after the pass (payLater).
  */
-function onHurt(world: World, c: Combatant, applied: number): void {
+function onHurt(world: World, c: Combatant, _applied: number, hpBefore: number): void {
   if (c.kind !== "player") return;
   const triggers = triggersOf(c.s);
   if (triggers.length === 0 || !(c.s.maxHp > 0)) return;
   const frac = c.s.hp / c.s.maxHp;
-  const before = (c.s.hp + applied) / c.s.maxHp;
+  // The hp as the pass began: hp + applied would overstate it when a death floor (Last Stand) held the hp up.
+  const before = hpBefore / c.s.maxHp;
   for (const { key, row } of triggers) {
     if (row.on !== "hpBelow" || !(frac < row.arg)) continue;
     if (row.once) {
