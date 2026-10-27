@@ -3,11 +3,12 @@
 The zone-shape rework replaced the R2 generator's random walls with five designed zone shapes on a bigger map. It was built on branch
 `claude/zone-shapes` (phase A `76232bc`, the trunk and the feature kit; phase B, the five stylers, the client art, the certifier and
 the zone duel harness; phase C1 `4f8c2cb`, the new stylers become the generator and the strict gates go on). Everything below was
-checked against the code at `4f8c2cb`. `docs/R2_GENERATOR_AS_BUILT.md` is the history of the generator this one replaced (the cover
+checked against the code at `4f8c2cb` and the phase C commits after it (the final pins, the zone duel harness's report, the certifier's elite ties, art fixes). `docs/R2_GENERATOR_AS_BUILT.md` is the history of the generator this one replaced (the cover
 pass, the 480 u sight cap, the lane tables, the ruins, the 96x96 map with 20 camps); where the two disagree this note rules.
 
-Numbers marked **PENDING** are still being measured by the integration runs (the merged 2000-seed sweep, the balance runs, the final
-benches); the owner's orchestrator fills them in. Numbers marked "phase B baseline" were taken earlier and stay as a reference.
+Measurements marked "at the zone-shapes merge" were taken on the final maps of the branch (the 2000-seed sweep, the balance runs and
+the benches, all report-only: nothing was retuned after them). Numbers marked "phase B baseline" or "phase C1" were taken earlier and
+stay as a reference.
 
 ## 1. The rulings, and why
 
@@ -16,7 +17,7 @@ The owner's brief (quoted from `ZONE_SHAPES_OPTIONS.md`, the proposal the picks 
 > "The walls and placement of them feel somewhat random and arbitrary, can you give them more of an intentional feel? Frankly there are FAR too many walls that are just placed randomly. I want each zone to have a different navigation feeling."
 
 The audit behind it (40 seeds of the R2 generator): the cover pass cut every sight lane over 15 tiles at the tile on the most lanes, so
-about 1,200 loose rocks (68% of the zone walls, 312 of them single tiles) set the total; every zone had the same dose (1,966-2,059 wall
+about 1,200 rocks (68% of the zone wall tiles; 312 single-tile pieces a map) set the total; every zone had the same dose (1,966-2,059 wall
 tiles, 8-11% of rays reaching bow range), so zones could not feel different; and 93% of the rocks cost no spawn a tile of walk, so they
 cut sight and shaped no route. The rulings that followed:
 
@@ -45,7 +46,7 @@ cut sight and shaped no route. The rulings that followed:
 5. **The map is about twice the area.** 136x136 tiles (`MAP_TILES_W`, `MAP_TILES_H`; `WORLD_W`, `WORLD_H` 4352 u; 2.007 times the area
    of 96x96), with the coliseum fixed at the centre. Eight camps per zone, exactly two of them elite: 40 camps a map. The owner wants a
    slower pace with mob farming as the main growth.
-6. **Defaults built for the owner's three open questions** (section 16 lists them as still open): two Rime meres of about 350 ice tiles
+6. **Defaults built for the owner's three open questions** (section 17 lists them as still open): two Rime meres of about 350 ice tiles
    each, crates 4-6 and ground spots 30-45 per zone, and the patience timers and the teleport unchanged although the walks are longer
    (spawn to coliseum is about 45-55 tiles, 9-10 s, against 35 tiles and 6.6 s at 96x96).
 
@@ -121,7 +122,7 @@ distance fields and heap keys; total comparators. The zone heap key `KEY` is 327
 
 The two elite camps of a zone are its two farthest from the coliseum centre, the second at least `ELITE_MIN_SEP` (16) tiles from the
 first (else the zone's next farthest that is; else its second farthest, noted as `eliteNear`; 70 of 70 seeds seated a second elite 16 or more
-tiles from the first in the contract's measurement). Both have `eliteSpot` 0 (the spot nearest the camp centre). `map.camps` has 40
+tiles from the first in the contract's measurement). Equally far camps tie exactly (integer squared tile distances) and either may stand; the certifier's `validElitePairs` allows each tied choice. Both have `eliteSpot` 0 (the spot nearest the camp centre). `map.camps` has 40
 entries in `REGION_FACTIONS` order then camp index, ids `fire-1` to `fire-8` and so on; `regions[].mobCamps` is a view, eight a zone with
 `elite` true on two; `territoryGrid` holds 1 to 40. Same-zone nearest neighbours are 11.7-44 tiles apart (p50 19.2), measured. `CAMP_GAP`
 stays 9: a gap of 12 seated too but doubled the zone stage's tail. A map has about 160 mobs (40 camps x 3-5 spots; 166 on the bench map).
@@ -151,7 +152,7 @@ A landmark is recorded as a feature (kind `landmark`, `variant` the template key
 template origin) and as a rectangle in `map.buildings` (the field kept its pre-landmark name; it is the landmark boxes now). The client
 shades a landmark's box as indoors, the pole and the ground spots keep out of the boxes, the pool candidates keep one tile off a box, and
 crates may stand inside: each landmark's nooks (owned floor with walls of its own on two orthogonal sides, no door within a tile) are tried
-first. Landmarks cost about 2 ms a map in `mapBench` (the contract's target was 1 ms; section 16).
+first. Landmarks cost about 2 ms a map in `mapBench` (the contract's target was 1 ms; section 17).
 
 ## 6. The feature system
 
@@ -227,7 +228,8 @@ writes tiles without features, which is what the certifier's demo hook passes): 
 of the zone's box, in all 8 orientations, and places the best the guard accepts within 12 tries; about 0.1-0.35 ms a call), the optional
 `bound` and `search` extras that only change the cost, `templateProblems`. `gridTopology.ts`: `walkField16`, `descentPath`,
 `segmentBlocked`, and the size-free `SIMPLE`, `walkDistances` (5/7). `zoneStyle/scale.ts`: `areaScale` (painted / 1710), `lenScale` (its
-square root) and `LANDMARKS_PER_ZONE` 2.
+square root) and `LANDMARKS_PER_ZONE` 2. `zoneStyle/kit.ts` keeps the older general tools: `makeNoise` (`hash2`, `vnoise`),
+`chamfer`, `floorComponents`, `repairConnectivity` (the net under the guard, which stays at zero) and `DIR8`.
 
 `walkField16` is a Dijkstra on the 16-neighbourhood (orthogonal 5, diagonal 7, knight move 11, in fifths of a tile; no corner cutting)
 over FLOOR only. Its error against the true walk is about 2%, against 7.7% for the 5/7 chamfer, which is why the pool is picked on it. It
@@ -272,11 +274,11 @@ in a few thousand missed), re-checked by the independent certifier on every seed
 
 ## 9. Crates and ground spots
 
-Crates: 4 to 6 a zone (`CRATES_MIN`, `CRATES_MAX`), against a WALL (4-neighbour), a plain 3x3 (no terrain within a tile), at least 2
-tiles from a pool member or a camp centre, 1 from a camp spot or a door tile, and apart (4, then 2, tiles). A landmark's nooks are tried
+Crates: 4 to 6 a zone (`CRATES_MIN`, `CRATES_MAX`), against a WALL (4-neighbour), a plain 3x3 (no terrain within a tile), at least 3
+tiles from a pool member or a camp centre, 2 from a camp spot or a door tile, and apart (4, then 2, tiles). A landmark's nooks are tried
 first. A zone that is short of wall (a plain zone with its landmarks off) places crates on open floor instead (noted `crateOpen`); fewer
 than 4 fails the attempt. Ground spots: 30 to 45 a map, on tiles with floor on all eight sides unless fewer than 90 qualify, outside
-landmark boxes, the coliseum, hazards' neighbourhoods, camp clearings, crate neighbours and 2 tiles from a pool member. These scale with the square root of the area (the 96x96
+landmark boxes, the coliseum, hazards' neighbourhoods, camp clearings, crate neighbours and the 2 tiles round a pool member. These scale with the square root of the area (the 96x96
 map had 3-4 crates a zone and 20-30 spots); the density is 0.72 of before and the nearest loot about 17% farther (owner question 2).
 
 ## 10. The five zones
@@ -287,17 +289,25 @@ any output change), its plan type and its landmark template. Counts that were pe
 2.6-4.6, the bow's 7.5 tiles); zone-spanning lengths scale with the square root (`lenScale` 1.44). "Dials" below are named constants in
 the module.
 
-The mean values are over 200 seeds in the phase C1 sweep; the windows are the contract's report windows in `ZONE_WINDOWS`
-(`test/mapCertify.ts`). **PENDING**: the merged 2000-seed sweep table replaces these means.
+Per-zone means over seeds 0-1999 at the zone-shapes merge (strict certifier, 16 shards merged); the windows are the contract's report
+windows in `ZONE_WINDOWS` (`test/mapCertify.ts`):
 
 | Measure | Scorch | Gallows | Warren | Rime | Sanctum |
 |---|---|---|---|---|---|
 | rays reaching 7.5 tiles (window) | 62.9% (48-64) | 85.3% (72-88) | 70.8% (60-74) | **81.7%** (62-78) | 70.8% (60-74) |
-| engagement pairs wall-blocked | 21.8% (>= 18) | 4.3% (<= 8) | 11.4% (>= 8) | 5.15% | 13.4% (>= 10) |
-| engagement pairs LOW-separated | 2.9% | 22.6% (>= 18) | 0 | 0 | 0 |
-| camp-graph loops | 5.04 (>= 1) | | | | |
-| footprint (walls + LOW, of painted) | 9.7% (<= 13) | | | | |
-| landmarks a zone | 1.93 | | | | |
+| rays reaching 15 tiles | 41.8% | 71.3% | 49.6% | 64.9% | 51.3% |
+| engagement pairs wall-blocked | 22.0% (>= 18) | 4.3% (<= 8) | 11.3% (>= 8) | 5.2% | 13.6% (>= 10) |
+| engagement pairs LOW-separated | 3.0% | 22.3% (>= 18) | 0 | 0 | 0 |
+| camp stretch mean / max | 1.04 / 1.21 | 1.07 / 1.21 | 1.03 / 1.09 | 1.01 / 1.05 | 1.02 / 1.07 |
+| camp-graph loops | 5.1 | 5.1 | 5.1 | 5.1 | 5.1 |
+| wall tiles / LOW tiles | 250 / 94 | 53 / 218 | 314 / 0 | 152 / 0 | 251 / 0 |
+| footprint (walls + LOW, of painted; <= 13%) | 9.7% | 7.7% | 8.9% | 4.3% | 7.1% |
+| wall pieces (none under 6, no singles) | 20.1 | 5.0 | 16.0 | 8.8 | 24.1 |
+| landmarks a zone | 1.90 | 2.00 | 1.99 | 1.69 | 1.87 |
+
+Per map (all zones): 46.7 features (at most 56; the cap is 250): landmark 9.45, crater 7.77, lavaRiver 1.00, fenceRow 9.12, gallows 1.00,
+barrow 8.39 (3.75 tunnels), mere 2.00, headland 4.32, spire 1.24, causeway 1.43, hall 1.00 (22.3 piers). Terrain tiles a map: lava 94,
+ember 132, fence 218, bog 195, ice 590 (17.4% of the Rime's floor), light 83. All five theme terrains are present on 2000 of 2000 maps.
 
 (Rays: 24 directions from the centre of every even-even floor tile of the zone, capped at 40 tiles. Pairs: 2,500 fixed-seed random floor
 pairs 3 to 7.5 tiles apart, classified by `raycast`.)
@@ -314,7 +324,7 @@ forge `landmark` + `lee`. Fire is exempt from ember, so the fords are its home g
   tile on about 30%), opened by 2 to 3 breaches 4.5 tiles wide, each aimed at a skeleton neighbour at least 3 `DIR16` steps apart, plus
   one more wherever the rim would cut a pool member's corridor while the crater keeps 60% of its rim. A crater by the zone edge counts the
   frontier as a breach. The bowl is owned floor. A crater that would stretch a member's walk past 1050 permille is left out and the camp
-  stays open. 7.5 craters a zone on average.
+  stays open. 7.77 craters a zone on average (window 7-8 on 95% of seeds).
 - **The lava river.** One stretch of about 54 x `lenScale` (78) path steps at 45-75% of the zone's depth, the depth that spares the most
   spawn walks, 2-3 tiles wide, routed by a noisy cheapest path that avoids the craters (+400 inside a crater's radius plus 2.5 tiles). Fords (4 path steps each) are planned per candidate stretch: one
   over every pool member's corridor and one per camp route that crosses it, at least 2. 70-160 lava tiles.
@@ -329,7 +339,7 @@ melee swings but not sight, arrows or balls. Jobs: fenceRow `lane`, gallows `lan
 
 - Rows run along the axis from the coliseum to the zone's centroid, snapped to x or y. Row positions come from a 1-D Viterbi
   (`viterbiRows`) over the open runs of at least 8 tiles, rows 7-9 apart (target 8); each row's path is a second Viterbi with one-tile
-  jogs. About 9.8 rows a zone, 226 fence tiles.
+  jogs. About 9.1 rows a zone, 218 fence tiles.
 - **Gates**: `gallowsGateOpen(s, phase)`, a true modulo, 3 tiles every 12 (`GATE_PERIOD`, `GATE_W`), phase 2 for even rows and 8 for odd,
   so every fence tile lies within 5 tiles of a gate and a crosser detours at most 10 tiles (the guard's `fenceDetour`). The zone duel
   harness builds its arena from the same function.
@@ -355,7 +365,7 @@ from bog, so the wet fork is its ground.
   20% of seeds at 8 or more; with this rule it is 8.4 and about 72.5%, and the worst stretch stays at 1000-1028 permille (sites are
   also dropped, the one with the most rock beside the worst member's corridor first, until `worstStretch` is at most 1030). A barrow
   also stands 2 tiles beyond its radius from every pool member.
-- 8.4 barrows, 3.8 tunnels, 199 bog tiles a zone; bog on a member's walk 0.2 tiles on average.
+- 8.39 barrows, 3.75 tunnels, 195 bog tiles a zone; bog on a member's walk 0.2 tiles on average (phase C1).
 
 ### 10.4 The Rime: The Mere (`rime.ts`)
 
@@ -367,8 +377,8 @@ keeps full grip) or hug the shore behind faceted headlands. Jobs: mere `crossing
   (distance from camps 5.6 tiles, the zone edge 4, the ring road 5.5, spawn pads 3.6, landmarks 3, and the pool members' corridors with no
   margin) by a binary search on an integer threshold to `LAKE_GROW` 400 tiles (the contract's 450; `ICE_WANT` 820 lets the first mere grow
   again when the lanes and shelves take too much), smoothed by two 3x3 majority passes. A second mere needs 3 tiles of clearance at its
-  seed and 18 tiles between seeds; a mere under `LAKE_MIN` 40 tiles is not built. About 17.4% of the zone's floor is ice: 589 tiles on
-  average over a 30-seed check at `4f8c2cb` (p10-p90 459-670, lowest 288, highest 700).
+  seed and 18 tiles between seeds; a mere under `LAKE_MIN` 40 tiles is not built. About 17.4% of the zone's floor is ice: 590 tiles on
+  average over seeds 0-1999 (a 30-seed check at `4f8c2cb`: p10-p90 459-670, lowest 288, highest 700).
 - **Headlands** (3 a lake) and a **spire** (an island of 8-11 tiles where the clearance is at least 4.5 tiles) are faceted shelves
   (`facetShelfCells`), whole or not at all, never on a real member route or its band. The Rime does not call `worstStretch` after them: the
   members whose way passes near a lake get their real `findPath` route, and no shelf stands on it.
@@ -392,7 +402,7 @@ shrine `landmark` + `rest`. Holy heals twice as much on light, so Holy rests in 
   cost about a third of the hall (13 piers a zone against 23). The feature owns the aisles within the radius. About 22 piers a zone
   (window 18-30).
 - **Light bays**: the 3x3 aisle crossings at multiples of 6 from the centre along the axes (5 bays, 9 when the radius is 16 or more); the
-  surface pass lights those and the shrine's nave. About 82 light tiles a zone.
+  surface pass lights those and the shrine's nave. About 83 light tiles a zone.
 - The shrine's slot search tries the axis ends first and then the cheapest slot that fits (a deviation from the contract's three slots,
   which left a shrine off 1 seed in 3: the zones are wedges or Ls about 60 tiles across).
 - Props: `column_cap`, `candelabra`, `stained_glass`, `altar`, `brazier`, `banner_red`.
@@ -429,8 +439,8 @@ relaxed to at least 4.5: a Gabriel graph of 9 nodes has 13 edges, so E - V + 1 i
   `PIN_STYLER_VERSIONS`. Run it in its own process: the pins that the certification shards compare against then also prove the generator
   is deterministic across processes. Without `final` it writes a PROVISIONAL line. **While any registered styler's `version` differs from
   `PIN_STYLER_VERSIONS`, `pinsApply()` is false and the pin tests skip** (so a styler under construction does not turn the generator's
-  tests red for everybody). The file at `4f8c2cb` is provisional (versions 1, stylers 400): **PENDING**, the final pins are recorded
-  after the merged sweep.
+  tests red for everybody). At the zone-shapes merge the pins were recorded for good: 200 map pins, 200 plain pins and 8 open-fixture
+  pins, all styler versions 400 (the provisional file of phase B, versions 1, skipped its pin tests).
 - `printMap.ts <seed> [attempt]` (zones, territories, camps, chests, crates, landmarks, features, the pool) and `printZone.ts <seed> [zone]
   [--plain] [--props] [--features]` (`--features` draws every owned tile as its feature kind's letter).
 
@@ -441,13 +451,16 @@ their breach rules, decor, the shape gates), `mapgen.perf.test.ts` (the cost gat
 `zoneStyleTopology.test.ts`, `gridTopology16.test.ts`, `zoneStyleOpen.test.ts` (the stylers on a synthetic open fixture,
 `zoneStyleOpen.ts`: size-free, rim, footprint, isolation, determinism, pins) and one `zoneStyle.<zone>.test.ts` per zone.
 
-**Results at phase C1** (1000 seeds, strict certifier): 0 failures, 0 decor mismatches, 0 discards, attempts per seed 1.005-1.011, findPath
-ratio at most 1.172, hazard tiles on a member's walk at most 8. **PENDING**: the merged 2000-seed sweep table (per-zone matrix and the
-threshold breaches).
+**Results at the zone-shapes merge** (seeds 0-1999, 16 shards merged, strict, `SHAPE_GATES` on): 0 hard failures, 0 decor mismatches, 0
+discards; attempts per seed 1.009; findPath spawn ratio at most 1.194 (hard limit 1.2), p90 1.133; hazard tiles on a member's walk at most
+8, p90 0; pool 24-32 (mean 26.9); floor share at most 1.137; elite camps at least 16.0 tiles apart on every map. The report-only breaches:
+the Rime's rays at bow range, 81.7% against the 62-78% window (6% of maps inside it; the known owner number, section 17), and the Rime's
+ice at least 12% of its floor on 94.5% of seeds against a 95% target. The 8 shard files run in about 7 s. Earlier, at phase C1 (1000
+seeds): 0 failures, attempts per seed 1.005-1.011, findPath ratio at most 1.172.
 
 The cost gate is `max(60, 1.5 x median)` styled and `max(45, 1.5 x median)` plain, scaled by a yardstick (`YARDSTICK_QUIET_MS` 5 on an
-Apple M5 Pro): `STYLED_GATE_MS` 93 and `PLAIN_GATE_MS` 48 as set in phase A (the stylers have changed since). **PENDING**: the final
-thresholds.
+Apple M5 Pro): `STYLED_GATE_MS` 93 and `PLAIN_GATE_MS` 48 (set in phase A from the measured medians; the header of
+`mapgen.perf.test.ts` has the numbers).
 
 ## 12. Performance
 
@@ -458,7 +471,7 @@ Generation (`mapBench`, per raw seed, every attempt until one certifies, Node 25
 | contract targets | <= 45 ms | <= 120 ms | <= 1.10 | stage targets: zones+camps 14, landmarks 1, spawns 3, styler 10, nets+crates+post+terrain+records 6, spawn gate 8 |
 | phase C1, 200 seeds | about 35 ms | | 1.005 | styler about 11 ms a map, landmarks about 2, spawn gate about 4; the plain generator about 27 ms |
 | 100 seeds at `4f8c2cb` while other agents ran | 44.4 ms | 88.9 ms | 1.010 | styler 14.0, zones 14.8, spawn gate 4.4, landmarks 2.8, spawns 3.4 ms a map |
-| final | **PENDING** | **PENDING** | **PENDING** | |
+| 60 seeds at the zone-shapes merge | 38.7 ms | 80 ms | | styler stage 12.1 ms (target 10), landmark stage 2.5 ms (target 1; both report-only); the plain generator about 31 ms; over 200 seeds 1.005 attempts a seed |
 
 R2's targets were a mean of 40 and a p99 of 120 at 96x96 with the cover (the cover was 54% of its time). Per-zone styler time at phase C1
 (loaded machine): Scorch 4.3 ms, Gallows 3.2, Rime 2.9, Sanctum 1.6, Warren 1.4; the contract allowed 2.0 ms a zone (2.5 for the Rime).
@@ -467,15 +480,18 @@ with the lane tables and no longer is.
 
 `PULL_WINDOW` (string-pulling candidates in `findPath`) went from 32 to 96 because open maps have hops longer than 32 candidates: on 40
 open 136x136 maps (2,000 path pairs each) 11.1% of paths were over 1% longer than the unbounded pull at 32, 4.2% at 48, 1.3% at 64 and
-0.06% at 96 (max ratio 1.062), for 7.5% more cost per path at p99 than 32. On the final maps `bench/pullWindow.ts` read 0.02% over 1%,
-max 1.0632, p99 cost 0.99x the unbounded pull. The generator's gate depends on it, so changing it re-pins every map.
+0.06% at 96 (max ratio 1.062), for 7.5% more cost per path at p99 than 32. Rechecked on 40 final maps x 2,000 paths at the zone-shapes
+merge (`bench/pullWindow.ts`): 0.02% of paths over 1% longer at 96 (max ratio 1.0632, p99 cost 0.99x the unbounded pull), against 6.64%
+at 32, 1.93% at 48 and 0.50% at 64. The generator's gate depends on it, so changing it re-pins every map.
 
 ## 13. Client
 
 - **Bake budget.** The floor alone is 64.9 MB at scale 1 on a 136x136 map (81 chunks of 17x17 tiles, 4352 x 3482 px and the overlap)
   against the old 48 MB budget; `TEXTURE_BUDGET_BYTES` is now 64 MB and `FLOOR_SCALES` is `[1, 0.75, 0.625, 0.5]`, so a map bakes its floors
-  at 0.75 (36.7 MB) and the wall pages (10-15 MB) fit with room to spare. Bake 86-104 ms (Chrome, 1x CPU), 770-980 scene children
-  (R2's bake had 612 images).
+  at 0.75 (36.7 MB) and the wall pages (10-15 MB) fit with room to spare. Measured at the zone-shapes merge (Chrome, 1x CPU): 81 floor
+  chunks at scale 0.75, 54.7 MB of the 64 MB budget, 666 strips, a 95 ms bake on the worker path, 980 scene children with 153 mobs, join
+  to scene 354 ms, a frame cost of p50 1.9 / p99 4.7 ms standing, a clean console and a matching `mapHash` (earlier phase B runs: 86-104 ms
+  and 770-980 children; R2's bake had 612 images).
 - **Feature art** (`render/zoneArt/artBase.ts`, `featureArt.ts`, `featureStyle.ts`) is keyed on `map.features` and `map.featureGrid`, never
   inferred from tile shapes: crater rims (a lip lit toward the camp centre) and their ash bowl, barrow mounds (rounded top, moss) and
   shadowed tunnels, fence rows and the gallows, the shore of a mere, causeways (packed snow), shards for headlands and spires, hall piers
@@ -488,13 +504,17 @@ max 1.0632, p99 cost 0.99x the unbounded pull. The generator's gate depends on i
   matchup chip hides when its box meets another mark and returns on hover or focus; a zone label moves to the nearest free spot inside
   its zone), show two elite crowns a zone, and the minimap caps its dots and chest blips for up to about 200 mobs.
 - **Worker**: `mapTransferables` includes `featureGrid`. The dev page `packages/client/test/dev/zoneart.html` (with `zoneart.ts`) and
-  `shots.mjs` take three screenshots per zone (game view, minimap, hold-Tab map) through a headless Chrome. **PENDING**: the screenshots
-  and the in-browser frame numbers on the final maps.
+  `shots.mjs` take three screenshots per zone (game view, minimap, hold-Tab map) through a headless Chrome. The set for the final maps
+  (seeds 1, 7 and 12 for every zone, a landmark close-up of seed 7 per zone and a run against a live server: 55 files) lives in the
+  owner's notes folder `zone-shapes-screens/`, not in the repository. To regenerate: start vite (`cd packages/client && npx vite --port
+  5791 --strictPort --host 127.0.0.1`), a headless Chrome with `--remote-debugging-port=9791`, then `node packages/client/test/dev/shots.mjs
+  <outDir> <seed> 0` (`0` shows the map exactly as the generator makes it; the default `1` dresses a plain map with synthetic features).
 
 ## 14. The zone duel harness and the Rows condition
 
-`npm run harness:zones -w @raid/server [-- --source rows|map|both] [--variants] [--seeds N] [--pairs P] [--zone a,b] [--edge a>b,..]
-[--cap S] [--rows-setups full|quick] [--quiet]` (`server/src/harness/zoneDuel.ts`, report only, about 5 s for the Rows alone). It fights duels where the
+`npm run harness:zones -w @raid/server [-- --source rows|map|both] [--variants] [--rows-setups full|quick] [--rows-seeds N]
+[--shooter lock|stand|strafe|kite|orbwalk] [--seeds N|a-b] [--pairs P] [--pair-kind any|obstructed|clear|fenced] [--zone a,b] [--edge a>b,..]
+[--cap S] [--quiet]` (`server/src/harness/zoneDuel.ts`, report only, about 5 s for the Rows alone). It fights duels where the
 terrain is, in the real sim with signatures on and both fighters locking each other.
 
 - **The Rows condition**: Fire (axe) against Sentenced (bow), starting on opposite sides of one row 4, 6 and 7.5 tiles apart, the line
@@ -502,12 +522,22 @@ terrain is, in the real sim with signatures on and both fighters locking each ot
   same 96 on open floor as the control. It holds when Fire wins at least half. **It holds: Fire wins 96 of 96 in the rows and 96 of 96 in
   the open**, with an hp margin of +50 points in the rows against +63 in the open, the detour 0.50 s on average (1.54 s at worst), and
   the closest win leaving Fire 21% of its hp; 13% of Sentenced's arrows crossed a fence. The variants (`rows10`, `rows4w`, `rows6`) also
-  hold at 100%.
-- **Headroom is thin in the worst pocket.** A sweep of only the worst pocket (the crossing 6 tiles from a gate) over the gate period read
-  100% at 12 (built), 92% at 16 and 25% at 20 (reported by the phase C run; that sweep is not in the harness). Do not widen the gate
-  period without rerunning the condition.
-- `--source map` fights every designed edge inside the real zones of generated maps, pairs of floor tiles 4 to 7.5 apart, against the same
-  duels on open floor. **PENDING**: the numbers on the final maps.
+  hold at 100%. The worst crossing (6 tiles from a gate) still wins by +24 points.
+- **Headroom is thin in the worst pocket.** A sweep of only the worst pocket over the gate period read 100% at 12 (built), 92% at 16 and
+  25% at 20 (the margin is +24 at period 12 and about +5 at 16; that sweep is not in the harness). Do not widen the gate period without
+  rerunning the condition; the gate spacing is also the lever if the owner wants the Rows gentler on melee.
+- `--source map` fights every designed edge inside the real zones of generated maps (`--seeds` map seeds, default 4; `--pairs` per zone, default 2), pairs of floor
+  tiles 4 to 7.5 apart (`--pair-kind` keeps only those a body cannot walk straight, those it can, or those with a fence on the line), against the same
+  duels on open floor, and ends with a melee-against-ranged table (seconds until the melee fighter's first hit, the shooter's free damage as a
+  share of the melee fighter's hp, the melee side's win rate; zone against open). At the zone-shapes merge: on real Gallows maps (40 seeds, 240 fenced pairs) Fire beats Sentenced 100%; over the
+  real zones' obstructed pairs (2,400 duels) the designed winner wins 90% in the zones against 90% on the open floor (hp margin 43
+  against 43), no edge flips, no zone loses more than 15 points (the worst: Fire over Plague in the Sentenced zone 90% against 100%,
+  Holy over Sentenced in the Fire zone 94% against 100%, Frost over Fire in the Sentenced zone 96% against 100%) and 14 of 2,400
+  winners changed.
+- **The ranged shift** (3,600 duels): a melee fighter reaches its first hit in 1.02 s against 0.82 s on open floor (+24%: Fire zone
+  +0.30 s, Sentenced +0.26, Plague +0.16, Frost +0.14, Holy +0.13), the shooter's free damage stays at 3% of its hp (5% in the Sentenced
+  zone) and melee still wins 66% against 67%. The one visible cost is the fenced Sentenced zone, Fire (axe) over Plague (bow): 91%
+  against 100%, contact after 1.15 s against 0.84 s, the shooter's free damage 6% against 3%.
 
 The harness also drives `duel.ts` with `Arena` "rows" (a 40x40 arena with fence rows at x = 8, 16, 24, 32 and the gate rule of
 section 10.2) and `map`/`starts` options; every existing report is unchanged byte for byte.
@@ -531,36 +561,56 @@ section 10.2) and `map`/`starts` options; every existing report is unchanged byt
   `zoneArt/bake.ts:110, 396, 449` (the cover pass and "ruins", which are landmark boxes now). `docs/R1_GENERATOR_NOTE.md`, `docs/BOTS.md`
   and `docs/BOTS_TUNING.md` still describe the 96x96 maps in their measurements, labelled as such.
 - **Bots and quests** read the map through the masks and `findPath` and place by `camps`, `spawnPool` and `regions[].pole`; poles avoid
-  landmark boxes, and landmarks are good giver spots (`features` of kind `landmark`). Their measurements on 136x136 maps are in their own
-  reports (`docs/BOTS_TUNING.md`, `docs/quests.md`): **PENDING**, the phase C tournament and `questBench` runs.
+  landmark boxes, and landmarks are good giver spots (`features` of kind `landmark`). Measured at the zone-shapes merge (section 16):
+  the bots' suites pass and the tournament shows no refused, lost or brain-error orders; `questBench` shows quests a bigger win over
+  farming than on the 96x96 maps. `docs/BOTS_TUNING.md` and `docs/quests.md` still carry their 96x96 tables (labelled as such).
 
-## 16. Balance and bench baselines
+## 16. Balance and bench results
 
-Taken at phase B (`76232bc`, 166 mobs) unless marked; **PENDING** rows are the phase C runs on the final maps.
+Everything here is report-only; nothing was retuned after it. "Baseline" is the phase B run at `76232bc` (166 mobs); "merge" is the final
+maps at the zone-shapes merge (177 mobs on the bench maps).
 
-| Measure | Phase B baseline | Gate or target | Final |
+| Measure | Baseline | Merge | Gate or target |
 |---|---|---|---|
-| `stepBench` (8 players, 166 mobs) avg / p99 | 0.38 / 0.66 ms; `--stress` 0.53 / 1.25; `--bots 8 --clock cpu` 0.91 / 1.83 | avg < 5 ms, p99 < 15 | **PENDING** |
-| `bandwidth` typical / heavy / idle, per client | 7.74 / 10.93 / 3.31 KB/s; a joiner's first sync 23.1 KB | < 20 KB/s | **PENDING** |
-| `campDuel --map`, camp pull, size 4: normal / elite camps cleared (of 25) | 21 / 9 | at least 20 (normal) | **PENDING** |
-| `mobDuel --style stand`: normal / elite cleared (of 25) | 24 / 22 | | **PENDING** |
-| bot tournament (lineup E,E,N,N,H,H) | games about twice as long (mean about 370 s against 173 s; the teleport fires in 100% against 50%) | | **PENDING** |
-| weapon harness, `harness:factions`, `test_kite.py` | no map input (they run on bare floor) | | **PENDING** (rerun) |
-| `harness:zones --source map` | not run | | **PENDING** |
+| `stepBench` (8 players) avg / p99 | 0.38 / 0.66 ms | 0.51 / 1.25 ms | avg < 5 ms, p99 < 15 |
+| `stepBench --stress` | 0.53 / 1.25 | 0.62 / 1.58 | the same |
+| `stepBench --buffs`, `--quests` | | 0.38 / 0.74; 0.36-0.38 / 0.61-0.75 | the same |
+| `stepBench --bots 8 --clock cpu`, whole tick | 0.91 / 1.83 | 0.74-0.87 / 1.4-1.7 | avg < 5, p99 < 15 |
+| the bots' share of that tick | | 0.47-0.56 / 1.1-1.3 | avg < 1.5, p99 < 6 |
+| `bandwidth` seed 1: typical / heavy / idle / five chests up / bots scenario | 7.74 / 10.93 / 3.31 | 6.49 / 10.59 / 3.25 / 6.82 / 5.33 KB/s | < 20 KB/s |
+| `bandwidth` seed 2 | | 7.18 / 9.81 / 3.31 / 6.84 / 5.41 KB/s; `quests=1` heavy about 10.6 | < 20 KB/s |
+| a joiner's first sync | 23.1 KB | 22.5-23.9 KB (24.5-26.1 with quests), no encoder overflow warning with the 64 KB buffer | |
+| `mobDuel --style stand`: normal / elite cleared (of 25) | 24 / 22 | 24 / 22 (91% / 54% hp left), byte-identical | |
+| `campDuel --map --pulls camp`, size 4: normal / elite camps cleared (of 25) | 21 / 9 | 21 / 9 | at least 20 (normal) |
+| weapon harness (2,925 duels) | | sections 1-8 byte-identical to before (open arenas, no map): 9 of 10 policy edges hold (Wand > Shield fails at 23%), target lock 10 of 10, kiting worst x1.40 (sword against an orb-walking wand) | |
+| `harness:factions --python` | | 60 of 60 agree; `--mode policy` openings 9 of 10 | |
+| bot tournament, 200 games, seed 3, lineup E,E,N,N,H,H: win rate per bot Easy / Normal / Hard | 14.9 / 15.3 / 19.9% (64x64 map) | 13.3 / 16.3 / 20.5% | |
+| the same: mean game, teleport, sudden death | 173.5 s, teleport 50% (64x64); 195.8 s (96x96) | 326.7 s, teleport 92%, sudden death 30%; 0 refused, lost or brain-error orders; 2 stalls over 8 s in 1,200 bot-games | |
+| `e2e`, `e2eFill`, `test/bots` | | 25 files, 821 tests pass | |
+| suites at the C1 commit | | shared 1,639, server 5,170, client 2,081 passed, 0 skipped | |
+
+Notes. The same tournament on the phase A tree (the old stylers on the 136x136 map) played 336.3 s games, so the longer games come from the map
+size and the 40 camps, not from the shapes. Holy bots take 1.5 mob kills a game against 4.4-4.7 for Fire, Plague and Frost.
+`questBench` (3 seeds x 5 seats) on the final maps gives lower quest-cost to farm ratios than the R2-map table in `docs/quests.md` (Long
+Haul 0.47, Ember Banner 0.58, Ashcaps 0.48, Frozen Standard 0.48, Grand Tour 0.34, Tithe 0.92, Reliquary 0.51, Quartermaster 0.72): on the
+bigger maps quests are a bigger win than farming. Completion: Long Haul 31 of 34, Frozen Standard 27 of 29, Ashcaps 27 of 28, Ember
+Banner 16 of 22, Reliquary 12 of 12, Tithe 7 of 13, Grand Tour 7 of 13, Loose Links 0 of 8, Shards of the Watch 0 of 2; the farm-only
+baseline, 15 runs: 7 reach the end, 5 died, 3 stalled.
 
 ## 17. Known limits and open owner numbers
 
 - **The Rime's rays reach bow range in 81.7% of cases** against the contract's window of 62-78%. The window was the contract's own
-  estimate, not an owner number; the lakes make the zone the most open. The 30-seed sweep flags it. Open owner question: accept it, or
-  fill the lakes' shores with more headlands.
+  estimate, not an owner number; the lakes make the zone the most open. The 2000-seed sweep flags it (6% of maps inside the window).
+  Open owner question: accept it, or fill the lakes' shores with more headlands.
 - **Small meres.** The second mere grows from the clearance left by the first and the camps, so on a seed with little room it is small
   (the first may grow to 250% of `LAKE_GROW` to make up `ICE_WANT`; only `LAKE_MIN` 40 tiles bounds a mere from below). In a 30-seed
   check at `4f8c2cb` a Rime held between 288 and 700 ice tiles against the window's 450-800 (judged on the mean, which read 589), had
   one watchtower rather than two on 13 seeds (the tower is placed per lake seed in the landmark stage and does not always fit) and no
-  spire on 3.
+  spire on 3. Over 2000 seeds the Rime's ice is at least 12% of its floor on 94.5% of them against a target of 95% (the second report-only
+  breach of the merge sweep).
 - **Barrows**: 8 or more on 72.5% of seeds, not 95% (section 10.3); the window judges the mean (8.2-8.4; 4 to 11 a zone over 30 seeds).
 - **Loops** window at least 4.5 (section 11).
-- **Landmark pass cost**: about 2 ms a map, 2.8 under load, against a target of 1.
+- **Landmark pass cost**: 2.5 ms a map at the merge (2-2.8 ms in other runs) against a target of 1; the styler stage reads 12.1 ms against a target of 10.
 - **Pool headroom is thin on open ground**: the ratio is 1.08-1.15 against a gate of 1.2. A styler that stretches walks costs attempts;
   the route guard exists for this. About 1 attempt in 100 still fails (1.005-1.011 attempts a seed; the one failure in a 100-seed
   check was `A:spawnRatio`).
@@ -571,7 +621,9 @@ Taken at phase B (`76232bc`, 166 mobs) unless marked; **PENDING** rows are the p
   (300 s first, 120-300 s scaled) and the teleport unchanged.
 - **The kiting guarantee has no maps behind it any more.** Walls cap nothing; the Sentenced and Plague bows and the Holy wand see more of
   a zone than before (rays at bow range went from about 11% of rays to 63-85%). The weapon harness and `test_kite.py` never read a map, so
-  they are unchanged; the zone duel harness covers the one condition the owner made conditional.
+  they are unchanged; the zone duel harness covers the one condition the owner made conditional. The ranged shift is small (melee reaches
+  its first hit 24% later, a shooter's free damage stays 3% of its hp); its one visible cost is Fire (axe) over Plague (bow) in the fenced
+  Sentenced zone, 91% against 100% on open floor, and the lever for it is the Rows' gate spacing (section 14: thin headroom).
 
 ## 18. How to add or change a zone shape
 
