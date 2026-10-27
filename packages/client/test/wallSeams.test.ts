@@ -1,13 +1,16 @@
-// The baked walls have no seam at a tile row boundary (render/zoneArt/bake.ts, "seams"). A wall several rows tall is one strip per row,
-// and each tile's top face used to be a rectangle at a fractional y (TILE_H is 25.6), so the two strips anti-aliased the boundary
-// texel separately and left a line of floor through it, 9-25 levels darker than the wall top, baked into the texture. These tests look
-// at pixels: test/wallRaster.ts paints the strips bake.ts paints (the real paintStrip, on a pen that keeps the shapes) into texels
-// the two ways a texture can be filled (Canvas-style coverage, and a GPU's aliased fill) and lays the Images over each other as a
-// GPU does at a fractional camera zoom (bilinear, with and without multisampling). A control paints the same walls the way the bake
-// did before the fix, to show the check can see the seam.
+// The baked walls have no seam at a tile row boundary, at a chunk join or under a mass that stands over a lower wall (render/zoneArt/
+// bake.ts, "seams"). A wall several rows tall is one strip per row, and each tile's top face used to be a rectangle at a fractional y
+// (TILE_H is 25.6), so the two strips anti-aliased the boundary texel separately and left a line of floor through it, 9-25 levels
+// darker than the wall top, baked into the texture. A wall wider than a chunk is one strip per chunk column, and the two Images
+// abutted at an integer x, where the texels at their edges blend with the empty page padding: up to half the floor showed through
+// at tile columns 15|16, 31|32 and so on. And a frost mass directly north of a shard left the 4 px between its top face and the
+// shard's showing the floor. These tests look at pixels: test/wallRaster.ts paints the strips bake.ts paints (the real paintStrip, on
+// a pen that keeps the shapes) into texels the two ways a texture can be filled (Canvas-style coverage, and a GPU's aliased fill) and
+// lays the Images over each other as a GPU does at a fractional camera zoom (bilinear, with and without multisampling). Controls
+// paint the same walls the way the bake did before each fix, to show the check can see the seam.
 import { describe, expect, it } from "vitest";
-import { REGION_FACTIONS, REGION_IDS, TILE, TILE_FLOOR, TILE_WALL, mapFromTiles, type GameMap } from "@raid/shared";
-import { SnapPen, makeContext, paintStrip, planStrips, wallInfoAt, type BakeContext } from "../src/render/zoneArt/bake";
+import { REGION_FACTIONS, REGION_IDS, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, type GameMap } from "@raid/shared";
+import { CHUNK_TILES, ClipPen, SnapPen, makeContext, paintStrip, planStrips, wallInfoAt, wallJoinsEast, type BakeContext } from "../src/render/zoneArt/bake";
 import { MapView } from "../src/render/MapView";
 import { ZONE_PALETTE } from "../src/render/zoneArt/palette";
 import { TILE_H, TILE_W, drawWallTile, hashTile, type Pen, type TileSpot } from "../src/render/zoneArt/zoneStyle";
@@ -139,6 +142,7 @@ describe("the edges of a stack, as the bake paints them", () => {
     for (const [tx, ty, w, h] of Object.values(STACKS)) {
       for (let r = ty; r < ty + h; r++) {
         for (const sh of rows.get(r)!) {
+          if (sh.line) continue; // a rim or a drip is a detail: only a horizontal one-pixel rim is moved, to the middle of a texel row
           const [x0, y0, x1, y1] = box(sh);
           if (x1 <= tx * TILE || x0 >= (tx + w) * TILE) continue;
           for (const v of [y0, y1]) expect(Math.abs(v - Math.round(v)), `row ${r}: ${JSON.stringify(sh.poly)}`).toBeLessThan(1e-9);
@@ -334,5 +338,358 @@ describe("a closed gate against the walls above and below it", () => {
       return Math.max(...[g * TILE_H - lift, (g + 1) * TILE_H - lift].map((line) => worstHole(renderPremult(layers, windowOver(8 * TILE + 8, line - 3, 10 * TILE - 8, line + 3, 1, 0, true)))));
     });
     expect(Math.max(...worst)).toBeGreaterThan(0.1);
+  });
+});
+
+// ------------------------------------------------------------------------------------------------------------------ chunk joins
+
+type StripOf = ReturnType<typeof planStrips>["strips"][number];
+
+/** The texels of a strip's frame, painted the way a texture is filled in `mode`. */
+function frameOf(map: GameMap, s: StripOf, mode: PaintMode, ctx: BakeContext = makeContext(map)): Float64Array {
+  const pen = new ShapePen();
+  paintStrip(pen, ctx, s);
+  return paintFrame(pen.shapes, s.px, s.py, s.w, s.h, mode);
+}
+
+/** A texel of a frame: its premultiplied RGBA. */
+const texel = (frame: Float64Array, w: number, col: number, row: number): number[] => [0, 1, 2, 3].map((c) => frame[(row * w + col) * 4 + c]!);
+
+/** `map` with the tiles of `rect` put in `zone`. */
+function inZone(map: GameMap, [x0, y0, rw, rh]: Rect, zone: Zone): GameMap {
+  for (let y = y0; y < y0 + rh; y++) for (let x = x0; x < x0 + rw; x++) map.regionGrid[y * map.w + x] = REGION_IDS.indexOf(zone);
+  return map;
+}
+
+/** The zoom and multisampling of a camera: the default zoom is 1, and the owner's window sits at 0.89 to 2. */
+const JOIN_CONFIGS: ReadonlyArray<readonly [zoom: number, msaa: boolean]> = [[0.89, true], [0.89, false], ...CONFIGS];
+
+/** Walls over the chunk edges at tile columns 16 and 32: a 3 x 3 block (a mass) and a run of 4 stones (a segment) across each. */
+const JOINS: ReadonlyArray<{ name: string; rect: Rect; edge: number }> = [
+  { name: "a 3 x 3 block over the 15|16 edge", rect: [14, 3, 3, 3], edge: 16 },
+  { name: "a 3 x 3 block over the 31|32 edge", rect: [30, 3, 3, 3], edge: 32 },
+  { name: "a run of 4 stones over the 15|16 edge", rect: [14, 10, 4, 1], edge: 16 },
+  { name: "a run of 4 stones over the 31|32 edge", rect: [30, 10, 4, 1], edge: 32 },
+];
+
+/** The world rectangle around the join of a wall over a chunk edge, inside its top faces or inside its last front face. */
+function joinWindow(map: GameMap, [, ty, , h]: Rect, edge: number, part: "top" | "front"): { x0: number; y0: number; x1: number; y1: number } {
+  const lift = wallInfoAt(makeContext(map), edge - 1, ty).lift;
+  const frontTop = (ty + h) * TILE_H - lift;
+  const x0 = edge * TILE - 20, x1 = edge * TILE + 20;
+  return part === "top" ? { x0, x1, y0: ty * TILE_H - lift + 3, y1: frontTop - 3 } : { x0, x1, y0: frontTop + 2, y1: (ty + h) * TILE_H - 2 };
+}
+
+describe.each(REGION_FACTIONS)("a %s wall across a chunk edge, pixel by pixel", (zone) => {
+  const map = wallMap(zone, JOINS.map((j) => j.rect), [], 48, 16);
+  const top = ZONE_PALETTE[zone].wallTop;
+  // Frost's top face has a dark facet across it (a diagonal, on purpose): there the check is that nothing shows through.
+  const flat = zone !== "frost";
+  const cases = JOINS.flatMap((j) => (["top", "front"] as const).map((part) => [`${j.name}: its ${part} face`, j, part] as const));
+
+  it("plans a strip that reaches one texel past the edge for each row of each join, two texels wider, and no other", () => {
+    const { strips } = planStrips(map);
+    const east = strips.filter((s) => s.east);
+    // 3 rows of the block and 1 of the run, at both edges.
+    expect(east.map((s) => [s.ty, s.tx1]).sort((a, b) => a[0]! - b[0]! || a[1]! - b[1]!)).toEqual([[3, 15], [3, 31], [4, 15], [4, 31], [5, 15], [5, 31], [10, 15], [10, 31]]);
+    for (const s of strips) expect(s.w, `row ${s.ty}, tiles ${s.tx0}-${s.tx1}`).toBe((s.tx1 - s.tx0 + 1) * TILE + (s.east ? 2 : 0));
+  });
+
+  it.each(cases)("is opaque, and the wall's own colour, at the join: %s", (_name, j, part) => {
+    const win = joinWindow(map, j.rect, j.edge, part);
+    for (const mode of MODES) {
+      const layers = bakedLayers(map, mode);
+      for (const [zoom, msaa] of JOIN_CONFIGS) {
+        for (const phase of PHASES) {
+          const picture = renderPremult(layers, windowOver(win.x0, win.y0, win.x1, win.y1, zoom, phase, msaa));
+          const why = `${mode} fill, zoom ${zoom}, multisampling ${msaa}, phase ${phase}`;
+          expect(worstHole(picture), why).toBeLessThan(HOLE);
+          if (part !== "top" || !flat) continue;
+          const rgb = overFloor(picture, 0x101418);
+          let worst = 0;
+          for (let k = 0; k < rgb.length; k += 3) for (let c = 0; c < 3; c++) worst = Math.max(worst, Math.abs(rgb[k + c]! - channels(top)[c]!));
+          expect(worst, why).toBeLessThan(1.5);
+        }
+      }
+    }
+  });
+
+  it("showed floor at the join before the fix: without the copy of the next column the filter leaves up to half of it (the control)", () => {
+    const j = JOINS[0]!;
+    const win = joinWindow(map, j.rect, j.edge, "top");
+    for (const mode of MODES) {
+      const layers = bakedLayers(map, mode, (pen, ctx, s) => paintStrip(pen, ctx, { ...s, east: false }));
+      let worst = 0;
+      for (const [zoom, msaa] of JOIN_CONFIGS) {
+        for (const phase of PHASES) worst = Math.max(worst, worstHole(renderPremult(layers, windowOver(win.x0, win.y0, win.x1, win.y1, zoom, phase, msaa))));
+      }
+      expect(worst, `${mode} fill`).toBeGreaterThan(0.2);
+    }
+  });
+
+  it("holds, in the texel past a strip's last tile, the next strip's first column texel for texel (its facet, rim and front face too), and nothing after", () => {
+    const ctx = makeContext(map);
+    const { strips } = planStrips(map);
+    expect(strips.filter((t) => t.east)).toHaveLength(8);
+    for (const mode of MODES) {
+      for (const s of strips.filter((t) => t.east)) {
+        const next = strips.find((t) => t.ty === s.ty && t.tx0 === s.tx1 + 1)!;
+        expect(next, `row ${s.ty}`).toBeDefined();
+        const a = frameOf(map, s, mode, ctx);
+        const b = frameOf(map, next, mode, ctx);
+        expect(next.h).toBe(s.h);
+        const col = (s.tx1 - s.tx0 + 1) * TILE;
+        // Frost's facet crosses the column on a slant, which the copy paints as coverage and a strip's own drawing as its fill rule
+        // does: a texel or two differ by the contrast of the facet. Everything else is equal.
+        const apart: number[] = [];
+        for (let row = 0; row < s.h; row++) {
+          const copy = texel(a, s.w, col, row), real = texel(b, next.w, 0, row);
+          const gap = Math.max(...copy.map((v, c) => Math.abs(v - real[c]!)));
+          if (gap > 1e-3) { apart.push(row); expect(gap, `${mode}, row ${s.ty}, texel row ${row}`).toBeLessThan(0.2); }
+          expect(texel(a, s.w, col + 1, row)[3], `${mode}, row ${s.ty}, texel row ${row}: the second extra texel stays empty`).toBe(0);
+        }
+        expect(apart.length, `${mode}, row ${s.ty}: texel rows ${apart}`).toBeLessThanOrEqual(zone === "frost" ? 2 : 0);
+      }
+    }
+  });
+});
+
+describe("a frost mass against a shard across a chunk edge", () => {
+  // A 2 x 2 mass (columns 14 and 15) with a run of three single stones (columns 16 to 18) starting at its north-east corner: the
+  // mass lifts 14 and the shard 10, so the two top faces are 4 px apart and overlap in the rows between.
+  const map = wallMap("frost", [[14, 3, 2, 2], [16, 3, 3, 1]], [], 48, 16);
+
+  it("is a mass beside a segment of another lift, which the copy covers too", () => {
+    const ctx = makeContext(map);
+    expect([wallInfoAt(ctx, 15, 3).style, wallInfoAt(ctx, 15, 3).lift]).toEqual(["mass", 14]);
+    expect([wallInfoAt(ctx, 16, 3).style, wallInfoAt(ctx, 16, 3).lift]).toEqual(["segment", 10]);
+    expect(planStrips(map).strips.find((s) => s.ty === 3 && s.tx1 === 15)!.east).toBe(true);
+  });
+
+  it("is opaque where the two top faces overlap, at any camera phase", () => {
+    const x0 = 16 * TILE - 20, x1 = 16 * TILE + 20, y0 = 3 * TILE_H - 10 + 3, y1 = 4 * TILE_H - 14 - 3;
+    for (const mode of MODES) {
+      const layers = bakedLayers(map, mode);
+      for (const [zoom, msaa] of JOIN_CONFIGS) {
+        for (const phase of PHASES) expect(worstHole(renderPremult(layers, windowOver(x0, y0, x1, y1, zoom, phase, msaa))), `${mode}, zoom ${zoom}, ${msaa}, ${phase}`).toBeLessThan(HOLE);
+      }
+    }
+  });
+});
+
+describe("a chunk edge that needs no copy", () => {
+  /** A 48 x 16 map with `rects` of one zone and `tweak` applied to it. */
+  const edgeMap = (rects: readonly Rect[], tweak: (m: GameMap) => void = () => undefined): GameMap => {
+    const map = wallMap("fire", rects, [], 48, 16);
+    tweak(map);
+    return map;
+  };
+  const set = (m: GameMap, [x0, y0, rw, rh]: Rect, tile: number, kind = 0): void => {
+    for (let y = y0; y < y0 + rh; y++) for (let x = x0; x < x0 + rw; x++) { m.tiles[y * m.w + x] = tile; m.terrain[y * m.w + x] = kind; }
+  };
+
+  const CASES: ReadonlyArray<readonly [name: string, build: () => GameMap, joins: boolean]> = [
+    ["a wall on the west side only", () => edgeMap([[15, 3, 1, 3]]), false],
+    ["a wall on the east side only", () => edgeMap([[16, 3, 1, 3]]), false],
+    ["a mass against a pillar (a wall in lava)", () => edgeMap([[14, 3, 2, 3], [16, 3, 1, 3]], (m) => set(m, [16, 3, 1, 3], TILE_WALL, TERRAIN_LAVA)), false],
+    ["a pillar against a mass", () => edgeMap([[15, 3, 1, 3], [16, 3, 2, 3]], (m) => set(m, [15, 3, 1, 3], TILE_WALL, TERRAIN_LAVA)), false],
+    ["a mass against a fence", () => edgeMap([[14, 3, 2, 3]], (m) => set(m, [16, 3, 1, 3], TILE_LOW, TERRAIN_FENCE)), false],
+    ["a mass that stops a tile short of the edge", () => edgeMap([[13, 3, 2, 3], [16, 3, 2, 3]]), false],
+    ["a mass at the end of the map", () => edgeMap([[46, 3, 2, 3]]), false],
+    ["a mass against a mass", () => edgeMap([[14, 3, 4, 3]]), true],
+  ];
+
+  it.each(CASES)("%s", (_name, build, joins) => {
+    const map = build();
+    const ctx = makeContext(map);
+    const { strips } = planStrips(map);
+    expect(strips.some((s) => s.east)).toBe(joins);
+    for (const row of [3, 4, 5]) expect(wallJoinsEast(map, ctx, 15, row) || wallJoinsEast(map, ctx, 47, row)).toBe(joins);
+    for (const s of strips.filter((t) => !t.east)) {
+      expect(s.w, `row ${s.ty}`).toBe((s.tx1 - s.tx0 + 1) * TILE);
+      // Nothing is painted past the tiles of a strip that has no copy: no stray texel.
+      const pen = new ShapePen();
+      paintStrip(pen, ctx, s);
+      for (const sh of pen.shapes) for (const [x] of sh.poly) expect(x, `row ${s.ty}, tiles ${s.tx0}-${s.tx1}`).toBeLessThanOrEqual(s.px + s.w + 1e-9);
+    }
+  });
+
+  it("joins a mass and a segment of any lift, a segment and a segment, and nothing else", () => {
+    const map = wallMap("frost", [[14, 3, 2, 2], [16, 3, 3, 1], [14, 10, 4, 1]], [], 48, 16);
+    const ctx = makeContext(map);
+    expect(wallJoinsEast(map, ctx, 15, 3)).toBe(true); // mass | segment
+    expect(wallJoinsEast(map, ctx, 15, 10)).toBe(true); // segment | segment
+    expect(wallJoinsEast(map, ctx, 15, 4)).toBe(false); // mass | floor
+    expect(wallJoinsEast(map, ctx, 14, 3)).toBe(true); // inside a chunk it is the same predicate (the plan only asks at chunk edges)
+    expect(wallJoinsEast(map, ctx, 47, 3)).toBe(false); // the map's end
+    expect(wallJoinsEast(map, ctx, -1, 3)).toBe(false);
+    expect(wallJoinsEast(map, ctx, 15, 99)).toBe(false);
+  });
+});
+
+describe("ClipPen", () => {
+  const clipped = (bounds: readonly [number, number, number, number], draw: (g: Pen) => void): RecordPen => {
+    const rec = new RecordPen();
+    draw(new ClipPen(rec, ...bounds));
+    return rec;
+  };
+  const ops = (rec: RecordPen): unknown[][] => rec.ops.map((o) => [o.name, ...o.args]);
+
+  it("cuts rectangles to its bounds (a rounded one is a plain rectangle) and drops the ones outside", () => {
+    const rec = clipped([10, 0, 11, 100], (g) => g.fillRect(0, 5, 32, 7).fillRoundedRect(8, 1, 6, 2, 3).fillRect(11, 0, 4, 4).fillRect(0, 0, 10, 10));
+    expect(rec.of("fillRect")).toEqual([[10, 5, 1, 7], [10, 1, 1, 2]]);
+    expect(clipped([-Infinity, 4, Infinity, 9], (g) => g.fillRect(2, 0, 5, 20)).of("fillRect")).toEqual([[2, 4, 5, 5]]);
+  });
+
+  it("paints a triangle cut to a column one texel wide as a rectangle a row high where the triangle slants, its alpha the part of the texel it covers", () => {
+    // The right triangle (0,0) (32,0) (0,32) cut to the column 3 <= x <= 4: a trapezoid of width 1, 29 tall at x = 3 and 28 at x = 4.
+    const rec = clipped([3, -Infinity, 4, Infinity], (g) => g.fillStyle(0xabcdef, 0.8).fillTriangle(0, 0, 32, 0, 0, 32));
+    const rects = rec.of("fillRect");
+    expect(rects).toHaveLength(29);
+    rects.forEach((r, row) => expect(r).toEqual([3, row, 1, 1]));
+    // 28 whole texels and half of the one under them: the area of the cut, 28.5, at the fill's alpha of 0.8.
+    expect(ops(rec).filter((o) => o[0] === "fillStyle")).toEqual([["fillStyle", 0xabcdef, 0.8], ["fillStyle", 0xabcdef, 0.4], ["fillStyle", 0xabcdef, 0.8]]);
+    expect(rec.count("fillPath")).toBe(0);
+  });
+
+  it("paints a path cut to a rectangle as a rectangle, a wide polygon as a path, and nothing where the bounds miss it", () => {
+    const square = clipped([0, 0, 8, 8], (g) => g.beginPath().moveTo(-4, -4).lineTo(12, -4).lineTo(12, 12).lineTo(-4, 12).closePath().fillPath());
+    expect(square.of("fillRect")).toEqual([[0, 0, 8, 8]]);
+    expect(square.count("fillPath")).toBe(0);
+    // A chamfered rectangle (0,0) (20,0) (24,4) (24,20) (0,20) cut at x = 22: the corner is still cut, so a path remains.
+    const wide = clipped([0, 0, 22, 100], (g) => g.beginPath().moveTo(0, 0).lineTo(20, 0).lineTo(24, 4).lineTo(24, 20).lineTo(0, 20).closePath().fillPath());
+    expect(wide.count("fillPath")).toBe(1);
+    expect(wide.paths[0]).toEqual([[0, 0], [20, 0], [22, 2], [22, 20], [0, 20]]);
+    const away = clipped([100, 0, 101, 5], (g) => g.fillTriangle(0, 0, 32, 0, 0, 32).beginPath().moveTo(0, 0).lineTo(9, 0).lineTo(9, 9).fillPath());
+    expect(ops(away)).toEqual([]);
+    // A polygon the bounds only touch has no area.
+    expect(ops(clipped([0, 10, 10, 20], (g) => g.fillTriangle(0, 0, 10, 0, 0, 10)))).toEqual([]);
+  });
+
+  it("paints a horizontal or vertical line as the rectangle of its stroke, cut to the bounds, in the stroke's colour, and restores the fill", () => {
+    const rec = clipped([4, 10, 8, 20], (g) => g.lineStyle(1, 0xffffff, 0.5)
+      .lineBetween(0, 10.5, 32, 10.5).lineBetween(0, 9.5, 32, 9.5).lineBetween(6.5, 0, 6.5, 40).lineBetween(2.5, 0, 2.5, 40));
+    expect(ops(rec)).toEqual([
+      ["lineStyle", 1, 0xffffff, 0.5],
+      ["fillStyle", 0xffffff, 0.5], ["fillRect", 4, 10, 4, 1], ["fillStyle", 0, 1],
+      ["fillStyle", 0xffffff, 0.5], ["fillRect", 6, 10, 1, 10], ["fillStyle", 0, 1],
+    ]);
+  });
+
+  it("drops strokes, circles, ellipses and slanted lines, and passes the fill style on", () => {
+    const rec = clipped([-Infinity, -Infinity, Infinity, Infinity], (g) => g.fillStyle(0x123456, 0.4).strokeRect(0, 0, 4, 4).fillCircle(2, 2, 3).strokeCircle(2, 2, 3)
+      .fillEllipse(2, 2, 3, 4).strokeEllipse(2, 2, 3, 4).lineBetween(0, 0, 5, 5).beginPath().moveTo(0, 0).lineTo(5, 5).strokePath());
+    expect(ops(rec)).toEqual([["fillStyle", 0x123456, 0.4]]);
+  });
+});
+
+// ------------------------------------------------------------------------------------------------------------------ the step
+
+describe.each(REGION_FACTIONS)("a %s mass directly north of a frost shard", (zone) => {
+  // A 3 x 2 block (columns 4 to 6, rows 3 and 4) over a pier one stone wide (column 5, rows 5 to 8): the pier is a run of single
+  // stones, a shard in frost (lift 10) under a mass of lift 14, so the mass's top face ends 4 px above the shard's starts.
+  const BLOCK: Rect = [4, 3, 3, 2];
+  const PIER: Rect = [5, 5, 1, 4];
+  const make = (): GameMap => inZone(wallMap(zone, [BLOCK, PIER]), PIER, "frost");
+  const map = make();
+  const ctx = makeContext(map);
+  // The control: the same block with floor under it, so its south face is a front face drawn in full.
+  const control = wallMap(zone, [BLOCK]);
+
+  it("has no front face of its own and a shard under it", () => {
+    expect(wallInfoAt(ctx, 5, 4)).toMatchObject({ style: "mass", lift: 14, front: false });
+    expect(wallInfoAt(ctx, 5, 5)).toMatchObject({ style: "segment", lift: 10 });
+    expect(wallInfoAt(makeContext(control), 5, 4)).toMatchObject({ style: "mass", lift: 14, front: true });
+  });
+
+  it("shows no floor through the 4 px between its top face and the shard's, at any camera phase", () => {
+    const x0 = 5 * TILE + 8, x1 = 6 * TILE - 8, y0 = 5 * TILE_H - 14 - 3, y1 = 5 * TILE_H - 10 + 3;
+    for (const mode of MODES) {
+      const layers = bakedLayers(map, mode);
+      for (const [zoom, msaa] of JOIN_CONFIGS) {
+        for (const phase of PHASES) expect(worstHole(renderPremult(layers, windowOver(x0, y0, x1, y1, zoom, phase, msaa))), `${mode}, zoom ${zoom}, ${msaa}, ${phase}`).toBeLessThan(HOLE);
+      }
+    }
+  });
+
+  it("is the mass's own front face there: the first rows of the front a floor south of it would show, texel for texel, and no more", () => {
+    const row = (m: GameMap): StripOf => planStrips(m).strips.find((s) => s.ty === 4)!;
+    const a = row(map), c = row(control);
+    expect([a.w, a.h, a.oy]).toEqual([c.w, c.h, c.oy]);
+    // The front face starts at the line the top face ends at, and the step runs to the line the shard starts at, plus a texel.
+    const first = Math.round(a.oy + TILE_H - 14);
+    expect(Math.round(a.oy + TILE_H - 10) - first).toBe(4);
+    for (const mode of MODES) {
+      const fa = frameOf(map, a, mode, ctx);
+      const fc = frameOf(control, c, mode);
+      for (let r = first - 1; r < first + 5; r++) {
+        for (let col = 0; col < a.w; col++) expect(texel(fa, a.w, col, r), `${mode}: texel ${col}, ${r}`).toEqual(texel(fc, c.w, col, r));
+      }
+      for (let col = 1 * TILE; col < 2 * TILE; col++) {
+        expect(texel(fa, a.w, col, first + 5)[3], `${mode}: texel ${col} under the step`).toBe(0);
+        expect(texel(fc, c.w, col, first + 5)[3], `${mode}: the control's front face goes on`).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+describe("what a step must not touch", () => {
+  const BLOCK: Rect = [4, 3, 3, 2];
+  const PIER: Rect = [5, 5, 1, 4];
+  const stripRow = (m: GameMap, ty: number): StripOf => planStrips(m).strips.find((s) => s.ty === ty)!;
+  /** Texel rows `from`..`to` of the tile column of tile 5 in strip row `ty`: whether any texel in them has paint. */
+  const painted = (m: GameMap, ty: number, from: number, to: number, mode: PaintMode = "area"): boolean => {
+    const s = stripRow(m, ty);
+    const f = frameOf(m, s, mode);
+    for (let r = from; r <= to; r++) for (let col = (5 - s.tx0) * TILE; col < (6 - s.tx0) * TILE; col++) if (texel(f, s.w, col, r)[3]! > 0) return true;
+    return false;
+  };
+  const first = (m: GameMap): number => Math.round(stripRow(m, 4).oy + TILE_H - 14);
+
+  it("gives a wall of the same lift only the one texel of top colour it had: a frost mass over a fire run", () => {
+    const map = inZone(wallMap("frost", [BLOCK, PIER]), PIER, "fire");
+    const ctx = makeContext(map);
+    expect([wallInfoAt(ctx, 5, 4).lift, wallInfoAt(ctx, 5, 5).lift]).toEqual([14, 14]);
+    const s = stripRow(map, 4);
+    const f = frameOf(map, s, "area", ctx);
+    const r = first(map);
+    expect(painted(map, 4, r - 1, r - 1)).toBe(true);
+    // The one texel under the top face, in the top colour of the mass's own zone.
+    expect(texel(f, s.w, 1.5 * TILE, r)).toEqual([...channels(ZONE_PALETTE.frost.wallTop).map((v) => v / 255), 1]);
+    expect(painted(map, 4, r + 1, s.h - 1)).toBe(false);
+  });
+
+  it("gives a wall over a pillar nothing: no step, no texel", () => {
+    const map = wallMap("fire", [BLOCK, PIER]);
+    for (let y = 5; y < 9; y++) map.terrain[y * map.w + 5] = TERRAIN_LAVA;
+    expect(wallInfoAt(makeContext(map), 5, 5).style).toBe("pillar");
+    expect(painted(map, 4, first(map), stripRow(map, 4).h - 1)).toBe(false);
+  });
+
+  it("leaves a wall over a fence as it was: a front face, drawn in full", () => {
+    const withFence = wallMap("frost", [BLOCK]);
+    withFence.tiles[5 * withFence.w + 5] = TILE_LOW;
+    withFence.terrain[5 * withFence.w + 5] = TERRAIN_FENCE;
+    const plain = wallMap("frost", [BLOCK]);
+    expect(wallInfoAt(makeContext(withFence), 5, 4).front).toBe(true);
+    const a = stripRow(withFence, 4), b = stripRow(plain, 4);
+    expect(frameOf(withFence, a, "area")).toEqual(frameOf(plain, b, "area"));
+  });
+
+  it("leaves a shard over a taller wall as it was: the taller one's top face covers its last 4 px, with no gap", () => {
+    // A run of three stones (column 5, rows 3 to 5, lift 10) ending on a 3 x 2 block (rows 6 and 7, lift 14).
+    const map = wallMap("frost", [[5, 3, 1, 3], [4, 6, 3, 2]]);
+    const ctx = makeContext(map);
+    expect([wallInfoAt(ctx, 5, 5).lift, wallInfoAt(ctx, 5, 6).lift]).toEqual([10, 14]);
+    const s = stripRow(map, 5);
+    const end = Math.round(s.oy + TILE_H - 10);
+    expect(painted(map, 5, end, s.h - 1)).toBe(false);
+    for (const mode of MODES) {
+      const layers = bakedLayers(map, mode);
+      const x0 = 5 * TILE + 8, x1 = 6 * TILE - 8, y0 = 6 * TILE_H - 14 - 3, y1 = 6 * TILE_H - 10 + 3;
+      for (const [zoom, msaa] of JOIN_CONFIGS) {
+        for (const phase of PHASES) expect(worstHole(renderPremult(layers, windowOver(x0, y0, x1, y1, zoom, phase, msaa))), `${mode}, zoom ${zoom}, ${msaa}, ${phase}`).toBeLessThan(HOLE);
+      }
+    }
   });
 });

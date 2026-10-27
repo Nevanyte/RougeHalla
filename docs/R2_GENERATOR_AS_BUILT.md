@@ -308,3 +308,18 @@ rebuild (50 seeds); the Math spy runs through a generation with the stylers on. 
 the server's pool worker reported a `mapHash` equal to Node's rebuild of its (seed, attempt). The client bakes a themed map in 59 ms
 (36 floor chunks, 576 strips, 3 pages, 45.2 MB of the 48 MB budget, 612 images) and draws at 144 fps (p99 frame 8.7 ms) walking from
 the Scorch into the Gallows in the browser pane.
+
+**Baked walls (client, `render/zoneArt/bake.ts`).** A wall or fence is one strip (one Image) per tile row and 16-tile chunk column, packed
+onto atlas pages and drawn at its row's south-edge depth. TILE_H is 25.6, so two rows meet between texels and two chunk columns meet
+where an Image's edge texels blend with the empty page padding; three things keep the seams out. *Rows:* a mass or segment tile is
+drawn through a `SnapPen` (every edge on a texel line) and its top face reaches one texel into the wall row under it. *Chunk joins:* a
+strip that ends at a chunk edge against a mass or segment of the next chunk (about 44 rows a map: 533 strips over seeds 1-12) is two
+texels wider and holds that wall's first column in the texel past its last tile, which `copyNextColumn` draws through a `ClipPen`; the
+images are added in strip order so the next strip draws over the copy. *Steps:* where the wall under a mass is lower (a frost mass over
+a Rime shard, lifts 14 and 10; 16 strips over seeds 1-12) the 4 px between the two top faces are the mass's south face, so its front art
+is drawn there, cut to those rows. A strip that joins nothing and steps over nothing draws exactly as before (6363 of 6912 strips over
+seeds 1-12 compared op for op), and the page count, strip count and texture bytes are unchanged (576 strips, 3 pages). `ClipPen` paints
+what it cuts as rectangles, because Phaser draws no path polygon one texel wide. `test/wallSeams.test.ts` rasterizes the strips in
+software at zoom 0.89, 1.37 and 2 with the camera at six phases; Chrome (multisampling on and off) shows 0 of the background through
+the joins and the step, against 0.50 and 1.0 before. One seam is left, where a front face meets the top face of the wall one row down
+(a concave corner, 0.38; CLAUDE.md, Known TODOs).
