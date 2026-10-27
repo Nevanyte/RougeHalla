@@ -207,6 +207,11 @@ one findPath tier on 147 of 200 maps.
 
 - The client side was not re-measured: R1's cold Chrome attempt (85 ms, 67 ms with a warm-up attempt) predates the
   30% speed-up. The pool, the worker and the `mapHash` mismatch path belong to the pool and client tracks.
+- The pool's worker (`server/src/mapPool.ts`) is restarted with a backoff (1 s doubling to 60 s) after a crash, a generator
+  error, a run of maps that fail the arrival check, and a hang: a worker that sends nothing for `MAP_WORKER_HANG_MS` (5 s)
+  while requests are in flight is terminated without waiting for it and restarted the same way (counted in `stats.hangs` and
+  `stats.crashes`), and rooms take the synchronous fallback meanwhile. The watchdog is one unreffed timer, armed only while
+  requests are out and restarted by every message the worker sends, so an idle pool holds none.
 - `styleRng` is `hashSeed`'s stream since ZT-6 (every styled map moved then).
 - Rock density is about 2040 wall tiles per map in the zones with the stylers on (1880 without): the stylers' walls did
   not bring it down.

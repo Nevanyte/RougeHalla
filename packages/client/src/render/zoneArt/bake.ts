@@ -5,6 +5,8 @@
 //   * wall strips: one image per tile row and chunk column holding a wall or a fence (trimmed to the tiles it covers), packed into
 //     a few atlas pages so the images share a texture. Each strip sits at the depth of its row's south edge, so fighters y-sort
 //     against walls as they did before.
+//   * seams: a wall several rows tall is one strip per row, and their top faces meet between texels. A wall tile's art is drawn
+//     through a SnapPen (every edge on a texel line) and a top face reaches one texel into the wall row under it; see "seams" below.
 // The plan (which chunks, which strips, where) is pure and tested; only `bakeZoneArt` touches Phaser. Phaser 4 draws into a texture
 // through a command buffer: `texture.draw(graphics)` then `texture.render()`.
 import Phaser from "phaser";
@@ -335,11 +337,15 @@ export interface BakeContext {
   /** Props by tile index, wall props only. */
   wallProps: Map<number, MapProp[]>;
   flatProps: Array<{ prop: MapProp; key: string }>;
+  /** The tiles of the coliseum's gates: floor in the map and so not baked, drawn by MapView as wall rows at the exact y while closed. */
+  gates: ReadonlySet<number>;
 }
 
 export function makeContext(map: GameMap): BakeContext {
   const plan = planProps(map);
-  return { map, zones: zoneGrid(map), styles: wallStyles(map), wallProps: plan.wall, flatProps: plan.flat };
+  const gates = new Set<number>();
+  for (const gate of map.coliseum.gates) for (const t of gate.tiles) gates.add(t.y * map.w + t.x);
+  return { map, zones: zoneGrid(map), styles: wallStyles(map), wallProps: plan.wall, flatProps: plan.flat, gates };
 }
 
 /** A zone to paint a tile with when it has none (the coliseum ring, a neutral wall): the plain grey cell stone. */
@@ -424,11 +430,126 @@ export function wallInfoAt(ctx: BakeContext, tx: number, ty: number): WallInfo {
   };
 }
 
+// ------------------------------------------------------------------------------------------------------------------ seams
+//
+// A wall several rows tall is one strip (one Image) per tile row, and the top faces of two rows meet at (ty + 1) * TILE_H - lift, a
+// fractional y (TILE_H is 25.6): between two texels of the pages, which hold one texel per projected pixel. Two things then draw a
+// line, 9-25 levels darker than the wall top and baked into the texture (it moves with the map, not with the camera):
+//   * Each strip anti-aliases its own rectangle, so the texel the boundary falls in is covered f by the upper face and 1 - f by the
+//     lower one, in two Images: they composite to 1 - f(1 - f), up to a quarter of the floor showing through.
+//   * Even with the boundary on a texel line, the upper strip's frame goes on below its top face (room for the front faces of its
+//     neighbours), so at a fractional camera zoom the texture filter ramps the alpha of its last row down exactly where the lower
+//     strip's first row ramps up.
+// So, with the walls' pages at one texel per pixel: (1) every y of a mass or segment tile's drawing is rounded to a texel line (the
+// EDGES are rounded, not the sizes, so a top face's bottom, the next row's top and the front face's top are one line); (2) a top
+// face reaches ONE texel into the wall row below it, which draws over the extension and so only supplies cover where the filter
+// ramps. Never over a front face: where the tile below is not a wall the edge is real, and the front face starts there. (3) A closed
+// gate is not baked (MapView draws it as a row of its own at the exact y, and the open gate is floor), so where a gate meets a wall
+// row, the rounding must not leave a gap between the two: see closeSeams.
+
+/** Rounds to a texel line of the wall pages. */
+const snap = (v: number): number => Math.round(v);
+
+/** Slack for the arithmetic of the projected y, so an edge on a texel line is not read as rounded away from a neighbour. */
+const SNAP_EPS = 1e-9;
+
+type PathStep = readonly [op: "move" | "line" | "close", x: number, y: number];
+
+/**
+ * A Pen that puts what it draws on the texel grid, for the top and front faces of the walls: the edges of rectangles (rounded ones
+ * too) and the corners of triangles and filled paths are rounded; a lone horizontal one pixel line, a top face's rim, keeps its
+ * place half a texel inside the row its face's top edge rounds to. Strokes, circles and ellipses are details and pass as they are.
+ */
+export class SnapPen implements Pen {
+  private lineWidth = 1;
+  private path: PathStep[] | null = null;
+
+  constructor(private readonly g: Pen) {}
+
+  fillStyle(color: number, alpha = 1): this { this.g.fillStyle(color, alpha); return this; }
+  lineStyle(width: number, color: number, alpha = 1): this { this.lineWidth = width; this.g.lineStyle(width, color, alpha); return this; }
+  fillRect(x: number, y: number, w: number, h: number): this {
+    const x0 = snap(x), y0 = snap(y);
+    this.g.fillRect(x0, y0, snap(x + w) - x0, snap(y + h) - y0);
+    return this;
+  }
+  strokeRect(x: number, y: number, w: number, h: number): this { this.g.strokeRect(x, y, w, h); return this; }
+  fillRoundedRect(x: number, y: number, w: number, h: number, radius: number | { tl: number; tr: number; bl: number; br: number }): this {
+    const x0 = snap(x), y0 = snap(y);
+    this.g.fillRoundedRect(x0, y0, snap(x + w) - x0, snap(y + h) - y0, radius);
+    return this;
+  }
+  lineBetween(x1: number, y1: number, x2: number, y2: number): this {
+    if (y1 === y2 && this.lineWidth === 1) {
+      const y = snap(y1 - 0.5) + 0.5;
+      this.g.lineBetween(x1, y, x2, y);
+    } else this.g.lineBetween(x1, y1, x2, y2);
+    return this;
+  }
+  fillCircle(x: number, y: number, r: number): this { this.g.fillCircle(x, y, r); return this; }
+  strokeCircle(x: number, y: number, r: number): this { this.g.strokeCircle(x, y, r); return this; }
+  fillEllipse(x: number, y: number, w: number, h: number): this { this.g.fillEllipse(x, y, w, h); return this; }
+  strokeEllipse(x: number, y: number, w: number, h: number): this { this.g.strokeEllipse(x, y, w, h); return this; }
+  fillTriangle(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number): this {
+    this.g.fillTriangle(snap(x1), snap(y1), snap(x2), snap(y2), snap(x3), snap(y3));
+    return this;
+  }
+  // A path is held until it is filled (corners rounded) or stroked (as drawn): the pen cannot tell which before then.
+  beginPath(): this { this.path = []; return this; }
+  moveTo(x: number, y: number): this { if (this.path) this.path.push(["move", x, y]); else this.g.moveTo(x, y); return this; }
+  lineTo(x: number, y: number): this { if (this.path) this.path.push(["line", x, y]); else this.g.lineTo(x, y); return this; }
+  closePath(): this { if (this.path) this.path.push(["close", 0, 0]); else this.g.closePath(); return this; }
+  fillPath(): this { this.flush(true); this.g.fillPath(); return this; }
+  strokePath(): this { this.flush(false); this.g.strokePath(); return this; }
+
+  private flush(rounded: boolean): void {
+    const path = this.path;
+    this.path = null;
+    if (!path) return;
+    this.g.beginPath();
+    for (const [op, x, y] of path) {
+      const px = rounded ? snap(x) : x;
+      const py = rounded ? snap(y) : y;
+      if (op === "close") this.g.closePath();
+      else if (op === "move") this.g.moveTo(px, py);
+      else this.g.lineTo(px, py);
+    }
+  }
+}
+
+/**
+ * The one texel strips of a mass or segment wall tile's top colour that close the seams its snapped top face leaves; `spot.y` is the
+ * tile's footprint in the page. They are drawn after the tile, on the tile's own columns.
+ *   * A wall row under it (no front face) that starts at the same line: the top face reaches one texel into it. A pillar or a
+ *     shorter shard under it starts elsewhere, and the extension would be a stray line, so those get none.
+ *   * A closed gate under it (the gate row is drawn at the exact y, over this tile's front face): when its edge was rounded UP into
+ *     the gate nothing is open, but rounded down the first row of the front face would show between the top face and the gate's
+ *     top, a dark line, so the top face takes that row.
+ *   * A closed gate above it (the gate row ends at the exact y, under this tile's top face): rounded down into the gate nothing is
+ *     open; rounded up, a sliver of floor would show between them, so the top face takes the row above.
+ */
+function closeSeams(g: Pen, ctx: BakeContext, spot: TileSpot, info: WallInfo, zone: ZoneKey): void {
+  const { map } = ctx;
+  const { tx, ty } = spot;
+  const top = spot.y - info.lift;
+  const bottom = top + TILE_H;
+  const colour = ZONE_PALETTE[zone].wallTop;
+  const strip = (y: number): void => { g.fillStyle(colour, 1).fillRect(spot.x, y, TILE_W, 1); };
+  if (!info.front) {
+    const below = wallInfoAt(ctx, tx, ty + 1);
+    if (below.style !== "pillar" && below.lift === info.lift) strip(snap(bottom));
+  } else if (ty + 1 < map.h && ctx.gates.has((ty + 1) * map.w + tx) && snap(bottom) < bottom - SNAP_EPS) {
+    strip(snap(bottom));
+  }
+  if (ty > 0 && ctx.gates.has((ty - 1) * map.w + tx) && snap(top) > top + SNAP_EPS) strip(snap(top) - 1);
+}
+
 /** Paints one strip into its place on a page: `g` is the page's Graphics, the strip sits at (s.px, s.py). */
 export function paintStrip(g: Pen, ctx: BakeContext, s: StripPlan): void {
   const { map } = ctx;
   const spot: TileSpot = { x: 0, y: 0, tx: 0, ty: s.ty, hash: 0, open: 0 };
   const prop: PropSpot = { key: "", x: 0, y: 0, v: 0, lift: 0 };
+  const snapped = new SnapPen(g);
   for (let tx = s.tx0; tx <= s.tx1; tx++) {
     const i = s.ty * map.w + tx;
     const tile = map.tiles[i];
@@ -442,7 +563,12 @@ export function paintStrip(g: Pen, ctx: BakeContext, s: StripPlan): void {
       const info = wallInfoAt(ctx, tx, s.ty);
       lift = info.lift;
       spot.open = info.open;
-      drawWallTile(g, ctx.zones[i] ?? NEUTRAL_WALL_ZONE, spot, info);
+      const zone = ctx.zones[i] ?? NEUTRAL_WALL_ZONE;
+      // Rocks stand alone and pillars are shafts: only a mass or a segment has a top face that meets another row's.
+      if (info.style === "mass" || info.style === "segment") {
+        drawWallTile(snapped, zone, spot, info);
+        closeSeams(g, ctx, spot, info, zone);
+      } else drawWallTile(g, zone, spot, info);
     } else {
       spot.open = fenceOpen(map, tx, s.ty);
       drawFenceTile(g, spot);
