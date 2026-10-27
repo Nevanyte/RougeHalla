@@ -173,31 +173,146 @@ beyond Plague Rat + Ember Imp at their plateaus (orbwalk 2, lock 2 fails: the Ho
   "buffs that counter the factions present" reads `counters`, which stays `["any"]`, so the change is wording, not balance.
 - Plague Rat stays +8% (section 4; the owner refused halving it).
 
-## 7. Quickdraw vs the kiting lever (pre-merge review of the R5 line; owner decision pending, no number changed)
+## 7. Quickdraw and Swift Boots vs the kiting lever (pre-merge review of the R5 line; owner rulings "Melee windups only" and "No boost while shooting")
 
-The ranged windups are the anti-kiting lever (CLAUDE.md, Weapons and factions), and Quickdraw (neutral passive, windups 8% shorter
-at rank 1 and 12% at rank 2, in `skills.ts`) shortens exactly that. Section 3's shooters were buffs; this is a passive, held
-through a chest pick. The reviewer ran it through both gates. These are the reviewer's figures and have not been re-run here.
+The ranged windups are the anti-kiting lever (CLAUDE.md, Weapons and factions). The pre-merge review ran the two neutral passives that
+touch it through the kiting gates and found both ate the margin: Quickdraw (windups shorter) on a shooter took the model's Fire > Plague
+cell from bow x1.062 to x0.977 and wand x1.078 to x0.991 and failed 3 of 20 real-sim orbwalk cells (baseline 1); Swift Boots (more move speed)
+on a shooter failed 2 of 20 at rank 1 and 3 at rank 2. The first ruling, "Floor the windup" (bow never below 0.55 s, the wand's whole 0.4 s),
+held the gates but left Quickdraw close to cosmetic, because the melee windups it still shortened are two and five 50 ms ticks long and the
+old -8% / -12% moved nothing on that grid. The owner then ruled, finally:
 
-- **The model** (`test_kite.py`, a shooter with Quickdraw rank 1 or 2): Fire > Plague with the bow goes from x1.062 to x0.977 and
-  with the wand from x1.078 to x0.991. A cell under 1 means the chaser no longer arrives in time against an orb-walking shooter.
-- **The real sim** (KITE EDGES, `--kiting-only`, `orbwalk` = the perfect kiter; a cell fails when its weakest melee weapon wins
-  under half of 10 setups):
+1. **Quickdraw: "Melee windups only."** It shortens the sword's, the shield bash's and the axe's windups, and no longer touches a bow or wand
+   windup at all: nothing shortens a ranged windup. Sized so a melee player feels it.
+2. **Swift Boots: "No boost while shooting."** Its move-speed bonus is off from the start of a bow or wand attack until a pause after the shot
+   leaves, and on otherwise (walking, chasing, melee). Sized so the KITE EDGES cells hold at both ranks.
 
-  | shooter | orbwalk fails | lock fails |
-  |---|---|---|
-  | none | 1 of 20 (Sentenced > Frost wand, shield 10%) | 0 |
-  | Quickdraw rank 1 or 2 | 3 of 20: the baseline one, Plague > Frost wand with the shield 0%, Frost > Fire wand with the axe 10-20% | 0 |
-  | Quickdraw rank 2 at the 1.5 attack-speed cap | 2 of 20: Plague > Frost with the bow drops to the sword at 10%, which flips that counter | 0 |
+### 7.1 Quickdraw: melee windups only
 
-  That is the same order as the other buffs of section 3 (Ember Imp 3 stacks: 3, its plateau: 4; Penitent and Acolyte: 2 to 4).
-  A locked (clicked) chase holds all 20 cells.
-- **Quickdraw is tick-quantized.** An attack lands on the first 50 ms tick at or after its windup ends (`sim/weapons.ts`
-  `stepWeapon`: `now >= landsAt`). From a start on the tick grid, 8% or 12% off the sword's 0.1 s, the wand's 0.4 s cap and the
-  axe's 0.25 s rounds back up to the same tick, so rank 1 gains nothing on those three and rank 2 adds nothing over rank 1 (the
-  bow's 0.6 s reaches 0.55 s at rank 2). A start between ticks (a held trigger whose cooldown ended mid-tick, `startAttack`
-  carries the remainder up to a tick back) gains the shortening on average. The real-sim figures above include this; the model
-  works in continuous time, so it overstates what a grid start gains. The card promises the nominal number, and the HUD tooltip
-  says the gain comes in whole ticks (`SkillDef.note`).
-- **Options for the owner**, none taken: leave it (the same order as the other buffs, and the pick costs a chest card), or
-  change the rows so the gain is a whole tick and re-run `test_kite.py` and the harness.
+`scaleWindup` (shared/mods.ts): a `windupMult` below 1 shortens a melee attack's windup (and the axe's root with it, never under the windup);
+a ranged attack's timings come back as the same object; a mult of 1 or more lengthens every weapon (no source does today). The floors are gone
+(`BOW_WINDUP_FLOOR`, `WAND_WINDUP_FLOOR`, `WeaponTimings.windupFloor`), and so is the per-weapon table they needed: the rule is the `ranged`
+flag the timings already carried. The server's `timingsOf`, the client's bow gauge and the axe-root prediction all read this one function; with no
+windup mod the output is the object `weaponTimings` returns, as before. (The mirror is one product: a future windup slow stacked on
+Quickdraw would lengthen a ranged windup by the slow times Quickdraw's share, so a ranged slow wants a mirror of its own.)
+
+An attack lands on the first 50 ms tick at or after start + windup, never in the tick that started it, so a cut only counts when it removes
+whole ticks. Ticks from the attack's start to its landing / to the fighter walking again (the axe's root), for a start on the tick grid (a
+start between ticks, which a held trigger's cooldown remainder makes, gains the same whole ticks for the sword and the bash and a fraction more
+for the axe; the sim test lands 8+ drifting sword swings in 2 then 1 ticks, every one):
+
+| windup, ticks (windup 0.1 s) | plain | rank 1 (-50%) | rank 2 (-75%) |
+|---|---|---|---|
+| sword, shield bash (all factions) | 2 | **1** | 1 (a tick is the floor) |
+| axe, Fire and Frost (0.25 s, root 0.5 s): landing / walking again | 5 / 10 | **3 / 5** | **2 / 3** |
+| axe, Sentenced (0.198 s, root 0.397 s) and Holy (0.188 s, 0.376 s) | 4 / 8 | 2 / 4 | 1 / 2 |
+| axe, Plague (0.097 s, root 0.193 s) | 2 / 4 | 1 / 2 | 1 / 1 |
+
+**Rank 1 = -50%, rank 2 = -75%** (`skills.ts`, text "-50% melee windup time"). Why: the sword and the bash step from two ticks to one only at a
+cut of 50% or more (a -8% or -12% cut, and anything under 50%, is two ticks on the grid), and the axe loses a tick per 20%. 50% is the smallest
+cut a sword player feels, and 75% is the cut that gives every faction's axe a second step at rank 2 (a -60% cut takes the Fire and Frost axe to two
+ticks, but leaves Sentenced's and Holy's at two where -75% reaches one). The sword and bash cannot go below one tick, so rank 2 adds nothing for
+them; it is the axe's rank. The axe's committed windup is also its root, so the rank 2 Fire axe is rooted 0.125 s of every 1.19 s instead of
+0.5 s: it hits a moving target sooner and walks sooner. `worksWith` is `["sword", "axe", "shield"]`; the tooltip note says melee only, whole ticks,
+"the sword and the bash lose one, the axe up to three".
+
+### 7.2 How it was measured (harness options added)
+
+`npm run harness -w @raid/server -- ...`: `--shooter-skill swiftBoots:2`, `--chaser-skill quickdraw:1`, `--winner-skill` / `--loser-skill` (the
+designed winner / loser of every weapon-matrix duel) grant passives through the chest's own `grantSkill` (duel.ts `skills`), so the shipped rule
+is what is measured; `--shooter-speed 1.06|1.10` is now Swift Boots rank 1|2 through that path. Bare multipliers stay for scans
+(`--shooter-windup`, `--chaser-windup`, `--winner-windup`, `--loser-windup`, `--shooter-move`: no Swift Boots pause, the pre-ruling bonus).
+`--kite-edge frost>fire,...` restricts KITE EDGES, `--edge-setups 32|128` widens its 10 setups per melee weapon (a cell on the 50% line moves
+10 points per duel, and by 15 to 25 points under a perturbation that changes nothing real). Python: `test_kite.py --shooter-windup X` stays as the
+check that nothing shortens the lever (its default output is byte-identical to before, diffed); the model has no melee windup on the chaser
+(`kite_tolerance` is independent of the windups, the chaser's duel starts when it arrives), so a chaser with Quickdraw cannot move a cell
+there, and it has no move-speed option (`realtime.V` is one constant): the real sim is the measure of both.
+
+### 7.3 Quickdraw results
+
+The model (`test_kite.py`, k = 2, 20 cells): `--shooter-windup` 0.92, 0.88, 0.5, 0.4 changes nothing: every cell line is identical to the default's
+(tightest Fire > Plague, bow x1.062, wand x1.078, 0 failing), and `--shooter-as 1.5 --shooter-windup 0.88` is identical to `--shooter-as 1.5` (the
+accepted 6 failing at the cap, section 6). Quickdraw on a ranged windup is no change by construction; this checks that nothing re-opened it.
+
+The real sim, KITE EDGES (`orbwalk` = the perfect kiter, `lock` = a click; 10 setups per melee weapon; a cell fails under 50%):
+
+| who holds it | orbwalk fails | lock fails | at attack speed x1.5 (orbwalk / lock) |
+|---|---|---|---|
+| nobody | 1 of 20 (Sentenced > Frost wand, shield 10%) | 0 | 0 / 0 (thinnest Plague > Frost bow, sword 70%, 2% hp left) |
+| the shooter, rank 1 or 2 | the same: 1 (the output is line for line the nobody run) | 0 | the same, line for line |
+| the melee chaser, rank 1 | **0** (the baseline cell goes 10% -> 60%, 8% hp left: a one-tick bash lands before the Frost wand's shield can be kited past) | 0 | 0 / 0, thinnest unchanged |
+| the melee chaser, rank 2 | **0** (the same 60%) | 0 | 0 / 0, thinnest unchanged |
+| shooter Swift Boots 2 and chaser Quickdraw 2 | 0 | 0 | |
+
+A chaser with Quickdraw breaks no cell and mends the baseline one; the shooter's side is untouched. The KITING table (seconds until in reach,
+orbwalk worst x1.40, sword vs wand) does not move with Quickdraw on either side.
+
+The weapon matrix (`--core`, 18 setups x 5 factions, style grids 3 x 5; baseline 9 of 10 edges hold, lock pass 10 of 10; Wand > Shield fails at
+23% in the policy matrix, a known result): Quickdraw on the melee fighter, rank 1 and rank 2 alike, through `--winner-skill`, `--loser-skill` and both:
+
+| edge | baseline | winner holds it (r1 / r2) | loser holds it (r1 / r2) | both (r1 / r2) |
+|---|---|---|---|---|
+| Axe > Wand (matrix / Fire column) | 92% / 67% | 100% / 100% | n/a (a wand) | 100% / 100% |
+| Wand > Shield (matrix) | 23% (fails) | n/a | 22% / 22% | 22% / 22% |
+| every other edge's matrix and verdict | | unchanged | unchanged | unchanged |
+| target lock pass (10 of 10 hold at all six runs) | Sword > Axe 100%, Axe > Wand 100% | Axe > Wand 93% (Fire 67%) / 100% | Sword > Axe 100% / 93% (Fire 67%) | Sword > Axe and Axe > Wand 93% / both 100% |
+| style grids (63 cells of 15 duels, a duel is 7 points) | | 2-3 cells move; the largest, Axe > Wand axe-stand vs wand-kite, 60% -> 100% | 8-10 cells move, none by more than 20 points (Bow > Axe, bow strafe vs axe stand 73% -> 93%) | 11-12 cells move, largest 40 (the same Axe > Wand cell) |
+
+No edge flips and no verdict changes except where the passive's holder gains (the Axe > Wand Fire column, the edge the controls rework logged as thin
+at 67%, reads 100%). The earlier scans with a bare multiplier at x0.5, x0.4 and x0.25 on both fighters read the same way (no flip), so the loop does not sit near
+the -75% either. Bow > Axe (the 0.76-0.77 window) does not move when the axe holds Quickdraw: 96% in the matrix at both ranks.
+
+### 7.4 Swift Boots: no boost while shooting
+
+**The rule.** `skills.ts`: one `while` row of `moveSpeed` +6% / +10% with the new condition `notShooting` and `ms` = `SWIFT_BOOTS_PAUSE_MS`
+(shared/constants.ts). The sim holds `WeaponRuntime.lastShotAt` (the server time a bow arrow or wand ball last left the fighter, set where the
+attack lands) and `sim/mods.ts` answers the condition from it: false while a bow or wand attack is in progress (its windup, from the tick it
+starts) and for the pause after the shot, true otherwise. A windup that is cancelled (a swap, a stagger, the player's own order) never shoots, so
+it leaves no pause and the bonus is back the tick after. The row is folded like the other `while` rows (once per tick, after damage), so the
+`speedMult` mirror patches when the pause opens (the same tick the attack starts, which already roots the fighter) and when it closes (the
+first tick after the pause ends); the client's prediction reads only that mirror, so it is as exact as for any speed mirror (a client test pins
+the mirror's on / off values through the prediction, a sim test that what the movement does per tick is the mirror's multiplier). It patches twice per
+bout of shooting, not per shot: holding a bow for 6 s (five shots, rank 2) writes the mirror 1.10 -> 1.00 once, and 1.00 -> 1.10 once the bout ends.
+Melee swings never touch it.
+
+**Sizing the pause.** The orbwalker walks between its shots, so the boots only matter if they are on in that gap. Unchilled, the longest gap
+(interval minus windup) is the Frost wand's 0.95 s, then Fire's wand 0.61 s and Frost's bow 0.54 s. A Frost chaser's chill stretches a chilled
+shooter's cooldown 2.5x, though, so Fire's wand idles 2.1 s between shots against Frost and Holy's 1.2 s: a pause shorter than that lets the boots
+back in the chilled gap. The Frost > Fire wand cell (axe) is the one that shows it, and it sits on the 50% line (baseline 68% over 128 setups per
+melee weapon, 50% at the default 10), so each configuration is read at 128 setups (`--kite-edge frost>fire,sentenced>frost,plague>frost
+--edge-setups 128`). The axe's win rate in Frost > Fire's wand orbwalk cell, by pause and rank (a bare x1.06 reads 41%, a bare x1.10 reads 0%):
+
+| pause | none | 0.75 s | 1.0 s | 1.25 s | 1.5 s | 1.75 s | 2.0 s | 2.25 s | **2.5 s** |
+|---|---|---|---|---|---|---|---|---|---|
+| rank 1 | 68% | 57% | 52% | 23% | 55% | 66% | 58% | 68% | **68%** |
+| rank 2 | 68% | 25% | 44% | 57% | 51% | 64% | 56% | 68% | **68%** |
+
+The cell does not move monotonically with the pause (the same 128 setups move by up to 45 points between neighbouring pauses), which is why a pause is
+judged where the boots stop reaching the fight at all: at 2.25 s and 2.5 s every line of the three cells is identical to the no-boots run, both ranks (Sentenced > Frost
+wand, shield: 38% in all, the baseline failure; Plague > Frost wand, shield 100%). At 1.0 s the default 10-setup KITE EDGES fails 2 cells at rank 1
+(the baseline and Frost > Fire wand, axe 20%) and 1 at rank 2. **`SWIFT_BOOTS_PAUSE_MS` = 2500**: the longest chilled gap (2.1 s) plus a margin for
+a slower cooldown (the Hoarfrost Armor attack slow arrives with R4b).
+
+**Results at the shipped pause** (KITE EDGES, 10 setups per melee weapon; `--shooter-skill swiftBoots:N`, the real passive path):
+
+| shooter | orbwalk fails | lock fails | at attack speed x1.5 (orbwalk / lock) |
+|---|---|---|---|
+| none | 1 of 20 (Sentenced > Frost wand, shield 10%) | 0 | 0 / 0 (Plague > Frost bow, sword 70%, 2% hp left) |
+| Swift Boots rank 1 (x1.06 outside the pause) | **1** (the same cell) | **0** | **0 / 0**, thinnest unchanged |
+| Swift Boots rank 2 (x1.10 outside the pause) | **1** (the same cell) | **0** | **0 / 0**, thinnest unchanged |
+| before the ruling: a bare x1.06 / x1.10 | 2 / 3 (adds Frost > Fire wand axe 40% / 0%, Plague > Frost wand shield 40%) | 0 | |
+
+The failing set is the baseline's at both ranks. The boots do change the approach (a shooter walking into range 6 to 10% faster: the KITING table's
+standing and lock times move by up to 0.05 s, hp left by 1 to 3 points); they never reach the orbwalk fights.
+
+### 7.5 What is left, and what the owner decides
+
+- **Sentenced > Frost wand, shield** is the baseline's one failing orbwalk cell (10% at the default setups, 38% over 128): it is not Swift Boots'
+  or Quickdraw's, and a chaser with Quickdraw lifts it (60%). Open, as before.
+- **The pause is long for "a short window".** 2.5 s is what the chill requires; the alternatives are a pause that follows the weapon's cooldown
+  (off until the weapon is ready again plus a short grace, which scales with chill and attack speed by itself, but patches more and no longer reads as one
+  constant) or accepting a shorter pause and a thinner Frost > Fire wand cell (a 1.0 s pause: 52% at rank 1, 44% at rank 2).
+- **Quickdraw's rank 2 adds nothing for the sword and the bash** (one tick is the floor); it is the axe's rank. -50% / -75% are the numbers that
+  remove ticks; a different split (-50% / -60%) leaves Sentenced's and Holy's axes at two ticks at rank 2.
+- **The windup mirror is a single product.** If a source ever lengthens windups, a ranged slow needs its own mirror (7.1).
+- The model has no chaser windup and no move-speed option; the real-sim KITE EDGES are the measure for both passives.

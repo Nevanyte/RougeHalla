@@ -2,9 +2,9 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId, type FieldKind,
-  type FxEvent, type GameMap, type GvReason, type PlanMessage, type ProjectileKind, type ProjectileLaunch, type RunResult,
-  type Sample, type SignatureKind, type StatusKind, type Vec2, type WeaponId,
+  generateMap, mapHashU32, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId,
+  type FieldKind, type FxEvent, type GameMap, type GvReason, type MobTypeId, type PlanMessage, type ProjectileKind, type ProjectileLaunch,
+  type RunResult, type Sample, type SignatureKind, type SlipState, type StatusKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
@@ -12,6 +12,7 @@ import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
 import type { PlanningRuntime } from "./planning";
 import type { QuestsRuntime } from "./quests";
+import type { TerrainRuntime } from "./terrainEffects";
 
 export interface SimConfig {
   minPlayers: number;
@@ -46,6 +47,12 @@ export interface SimConfig {
    * scales with the players like every later one (patienceMs). Timers after a death always scale.
    */
   firstPatienceSeconds?: number;
+  /**
+   * Terrain hazards (sim/terrainEffects.ts: ember burn, bog slow, the ice slide, light heal): true (the default) applies the
+   * effects of whatever terrain the map holds, with each faction's home rule; false switches every effect off and leaves the
+   * map as it is; "all" applies them to everyone, the home exemption (and the light boost) off. Measurement uses the last two.
+   */
+  hazards?: boolean | "all";
   /** Seconds after the run starts that every Wish stays locked (sim/abilities.ts armWishes); WISH_LOCK_SECONDS when absent. */
   wishLockSeconds?: number;
 }
@@ -94,6 +101,8 @@ export interface WeaponRuntime {
   lockGoal: Vec2 | null;
   /** When a `target` order last cost a path search (-Infinity: never): at most one per TARGET_REPATH_MS (sim/targeting.ts). */
   lockSearchAt: number;
+  /** Server ms the fighter's last bow arrow or wand ball left it (-Infinity: none yet). Swift Boots' `notShooting` pause counts from it (sim/mods.ts). */
+  lastShotAt: number;
 }
 
 /** Server-only combat data every fighter has, player or mob. */
@@ -105,6 +114,11 @@ export interface CombatRuntime {
   /** Recent authoritative positions (oldest first) for lag-compensated hit tests and present-time projectile sweeps. */
   history: Sample[];
   weapon: WeaponRuntime;
+  /**
+   * The slide on ice (shared/walk.ts), created the first tick the fighter stands on slippery ground and dropped when it grips
+   * again, on going down and on every teleport (sim/movement.ts walkFighter). Absent or null: walking the path exactly.
+   */
+  slip?: SlipState | null;
   /** Timed statuses on this fighter (sim/status.ts). Created on first use, so a hand-built runtime needs nothing. */
   statuses?: StatusInstance[];
   /** The ability being cast, if any (sim/abilities.ts). It is not a weapon action: it roots, but only its def's `cancelledBy` ends it. */
@@ -303,8 +317,8 @@ export interface LedgerEntry {
    */
   passive?: boolean;
   /**
-   * The arena's own damage (sudden death): it lands in the pass like any hit, but shows no `hit` fx and is not counted
-   * as combat, so `weapon` is never read.
+   * The world's own damage (sudden death, terrain hazards): it lands in the pass like any hit, but shows no `hit` fx and is
+   * not counted as combat, so `weapon` is never read.
    */
   arena?: boolean;
 }
@@ -400,6 +414,11 @@ export interface CombatScratch {
    */
   collecting: boolean;
   payouts: Array<() => void>;
+  /**
+   * Camp-wide wake requests made during the pass (sim/mobAI.ts): a camp, and the player its hit member hands on. Resolved once
+   * after the pass, so the order victims were processed in (join order) never decides whom a camp chases.
+   */
+  campWakes: Array<{ camp: number; target: string }>;
   /** The lobby's median feed as it stood before the pass (null outside one): every mob reward in the pass reads this one. */
   medianFeed: number | null;
 }
@@ -427,6 +446,24 @@ export interface ArenaRuntime {
   bountyAtTickStart: Map<string, number>;
 }
 
+/**
+ * Counters the terrain hazards keep for measurement (sim/terrainEffects.ts): nothing in the game reads them. `damage` is the
+ * hp each victim actually lost to each hazard kind ("ember"): what the ledger took off after armor, teleport immunity, a kill
+ * barrier, Last Stand's floor and overkill (WorldHooks.arenaHurt), not the burn asked for. `seconds` the fighter-seconds each
+ * kind acted on (a fighter its home rule exempts adds none), and `heal` the hp light restored per player.
+ */
+export interface HazardStats {
+  damage: Map<string, Record<string, number>>;
+  seconds: { ember: number; bog: number; ice: number; light: number };
+  heal: Map<string, number>;
+}
+
+export interface HazardRuntime { stats: HazardStats }
+
+export function newHazardStats(): HazardStats {
+  return { damage: new Map(), seconds: { ember: 0, bog: 0, ice: 0, light: 0 }, heal: new Map() };
+}
+
 export type SimEvent =
   | { type: "fx"; fx: FxEvent }
   | { type: "toast"; to: string | null; text: string }
@@ -446,8 +483,11 @@ export type SimEvent =
 /** Handles one queued action for a standing fighter (players today; Phase 11 mobs go through the same handlers). */
 export type ActionHandler = (world: World, c: Combatant, cmd: ActionCommand) => void;
 export type SimSystem = (world: World, dtMs: number) => void;
-/** A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. */
-export type MoveModifier = (world: World, c: Combatant) => number;
+/**
+ * A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. `dtMs` is the step being
+ * simulated (step.ts passes it; a caller outside the tick may not).
+ */
+export type MoveModifier = (world: World, c: Combatant, dtMs?: number) => number;
 
 /** What one mod source adds to a fighter's stat mirrors (sim/mods.ts): multipliers multiply in, flat bonuses add points. */
 export interface ModContribution {
@@ -480,8 +520,8 @@ export interface WorldHooks {
   bountyClaimed?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, bounty: number): void;
   /** A player just killed another player (kill GV and bounty paid); quest objectives chain here. */
   playerKilled?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, outcome: "died" | "mia"): void;
-  /** A regional mob's spoils were just paid; quest objectives chain here. */
-  mobKilled?(world: World, killer: PlayerRuntime, mob: { region: FactionId; elite: boolean }): void;
+  /** A regional mob's spoils were just paid; quest objectives chain here. `camp` is its map index, or -1 when camp-less. */
+  mobKilled?(world: World, killer: PlayerRuntime, mob: { type: MobTypeId; zone: FactionId; camp: number; elite: boolean }): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
   weaponSwapped?(world: World, c: Combatant): void;
   /** A fighter left the fight for good: a player went down (`down`) or left (`removed`), or a mob died (`down`). Modules clear their state for it. */
@@ -505,6 +545,13 @@ export interface WorldHooks {
    * do with payLater), never from what earlier victims of the same pass changed, or the ledger's order would matter.
    */
   hitLanded?(world: World, entry: LedgerEntry, applied: number): void;
+  /**
+   * The arena's own damage (an `arena` entry: sudden death, terrain) just took `hp` off `victim` (applyLedger, after the victim's
+   * damage): the hp it actually removed, not what it asked for. Armor, teleport immunity, a kill barrier, Last Stand's floor and
+   * overkill all come off first. When the victim also took other hits in the pass the removed hp is shared between the entries in
+   * proportion to their (mitigated) amounts. Unset by default; a measurement tap, it must not change the state.
+   */
+  arenaHurt?(world: World, victim: string, by: DamageSource, hp: number): void;
   /**
    * A standing fighter just took `applied` damage in the ledger pass (applyLedger, once per victim per pass, after all of
    * its hits landed together, the arena's burn included; before the hit fx and hitLanded). It is still standing: a victim
@@ -549,6 +596,8 @@ export interface World {
    * also keys tieRank, whose outcomes a client can observe (see CLAUDE.md), so it is not secret enough to roll rewards from.
    */
   rewardRandom: () => number;
+  /** A separately tagged 128-bit stream derived from the retained reward salt. Only hidden quest rolls may draw from it. */
+  questRandom: () => number;
   /** Events produced during the current step; drained by step(). */
   events: SimEvent[];
   /** True while step() runs. Things created outside it (e.g. a body from a leave) belong to the next tick. */
@@ -573,6 +622,10 @@ export interface World {
   factions: FactionsRuntime | null;
   /** The planning phase's private deal (sim/planning.ts): null until planning starts, kept (read-only) after it. */
   planning: PlanningRuntime | null;
+  /** Terrain hazards (sim/terrainEffects.ts); null until that module is installed. */
+  terrain: TerrainRuntime | null;
+  /** What the hazards did, for measurement. */
+  hazards: HazardRuntime;
   /** Areas and ability damage over time (sim/fields.ts); null until something uses them. */
   abilities: AbilitiesRuntime | null;
   /** Quest offers and their server-only hidden state (sim/quests.ts); null when disabled or training. */
@@ -580,11 +633,19 @@ export interface World {
 }
 
 export function createWorld(opts: {
-  seed: number;
+  /**
+   * The public seed. Required without a `map` (the map is generated from it). With a map, the map's own seed is what is
+   * published (with its attempt and hash, so a client rebuilds exactly this map), and a `seed` given as well must equal it:
+   * a mismatch throws, since a client would then regenerate a different map than the one played on.
+   */
+  seed?: number;
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
-  /** A ready map instead of generateMap(seed): hand-built test arenas and the harness skip the generator. */
+  /**
+   * A ready map instead of generateMap(seed): the live server's comes from its map pool (server/src/mapPool.ts, with
+   * `seed` = its seed), and hand-built test arenas and the harness skip the generator.
+   */
   map?: GameMap;
   /**
    * The secret behind `rewardRandom`: four crypto-random 32-bit words (the Room's), or a single number (tests), which is
@@ -593,24 +654,35 @@ export function createWorld(opts: {
   rewardSalt?: number | readonly number[];
 }): World {
   const state = new RaidState();
-  state.seed = opts.seed >>> 0;
+  const given = opts.seed === undefined ? undefined : opts.seed >>> 0;
+  if (opts.map && given !== undefined && given !== opts.map.seed >>> 0) {
+    throw new Error(`createWorld: seed ${given} does not match the map's seed ${opts.map.seed >>> 0}`);
+  }
+  if (!opts.map && given === undefined) throw new Error("createWorld: needs a seed or a map");
+  state.seed = opts.map ? opts.map.seed >>> 0 : given!;
   state.minPlayers = opts.config.minPlayers;
   // The only draw from opts.random here: tests script that stream, so the reward stream must not take from it.
   const orderSalt = Math.floor(opts.random() * 2 ** 32) >>> 0;
+  const rewardSalt = opts.rewardSalt ?? rewardSaltFrom(orderSalt);
+  const map = opts.map ?? generateMap(state.seed);
+  // What a client needs to build the same map with one attempt, and to know it did.
+  state.attempt = map.attempt;
+  state.mapHash = mapHashU32(map);
   return {
     state,
     config: opts.config,
-    map: opts.map ?? generateMap(state.seed),
+    map,
     idCounter: 0,
     joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], medianFeed: null },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], campWakes: [], medianFeed: null },
     random: opts.random,
     orderSalt,
-    rewardRandom: rewardStream(opts.rewardSalt ?? rewardSaltFrom(orderSalt)),
+    rewardRandom: rewardStream(rewardSalt),
+    questRandom: rewardStream(questSaltFrom(rewardSalt)),
     events: [],
     stepping: false,
     actions: {},
@@ -623,6 +695,8 @@ export function createWorld(opts: {
     arena: { startedWith: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
     planning: null,
+    terrain: null,
+    hazards: { stats: newHazardStats() },
     abilities: null,
     quests: null,
   };
@@ -639,25 +713,41 @@ function rewardSaltFrom(orderSalt: number): number {
   return (h ^ (h >>> 16)) >>> 0;
 }
 
+function saltWords(seed: number | readonly number[]): Uint32Array {
+  const words = new Uint32Array(4);
+  if (typeof seed !== "number") {
+    for (let i = 0; i < 4; i++) words[i] = (seed[i] ?? 0) >>> 0;
+    return words;
+  }
+  let x = seed >>> 0;
+  for (let i = 0; i < 4; i++) {
+    x = (x + 0x9e3779b9) >>> 0;
+    let z = x;
+    z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
+    z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
+    words[i] = (z ^ (z >>> 16)) >>> 0;
+  }
+  return words;
+}
+
+function questSaltFrom(seed: number | readonly number[]): number[] {
+  const words = saltWords(seed);
+  const out = new Uint32Array(4);
+  for (let i = 0; i < 4; i++) {
+    let h = (words[i]! ^ 0x51554553 ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0; // "QUES"
+    h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+    out[i] = (h ^ (h >>> 16)) >>> 0;
+  }
+  return Array.from(out);
+}
+
 /**
- * The reward stream: sfc32 over a 128-bit state, so seeing rolls (a revealed "?" camp, a chest's options) does not let a
- * client brute-force the seed the way a 32-bit mulberry32 state could be. A single number is expanded (splitmix32) into the
- * four words; the Room passes four crypto-random ones.
+ * A private 128-bit stream: sfc32 over four salt words, so seeing rolls does not let a client brute-force a 32-bit seed.
+ * A single number is expanded into four words; the Room passes four crypto-random ones.
  */
 export function rewardStream(seed: number | readonly number[]): () => number {
-  const words = new Uint32Array(4);
-  if (typeof seed === "number") {
-    let x = seed >>> 0;
-    for (let i = 0; i < 4; i++) {
-      x = (x + 0x9e3779b9) >>> 0;
-      let z = x;
-      z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
-      z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
-      words[i] = (z ^ (z >>> 16)) >>> 0;
-    }
-  } else {
-    for (let i = 0; i < 4; i++) words[i] = (seed[i] ?? 0) >>> 0;
-  }
+  const words = saltWords(seed);
   let a = words[0]!, b = words[1]!, c = words[2]!, d = words[3]!;
   const next = (): number => {
     const t0 = (a + b) | 0;
@@ -678,7 +768,7 @@ export function emit(world: World, ev: SimEvent): void {
 }
 
 type ChainableHook =
-  | "teleported" | "planningStarted" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt"
+  | "teleported" | "planningStarted" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt" | "arenaHurt"
   | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled";
 
 /** Adds a hook that runs after whatever was already installed for it. */
@@ -718,6 +808,6 @@ export function nextId(world: World, prefix: string): string {
 export function newWeaponRuntime(): WeaponRuntime {
   return {
     action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity,
+    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity, lastShotAt: -Infinity,
   };
 }

@@ -182,6 +182,13 @@ describe("animation timings scale with the interval (GAME_DESIGN 10.3)", () => {
     for (const key of ["fullDraw", "minDraw", "cooldown", "castSlow"]) expect(weaponTimings("bow", 1.14)).not.toHaveProperty(key);
   });
 
+  it("carries no per-weapon floor: a windup mod shortens melee only, by scaleWindup's own rule (owner ruling \"Melee windups only\")", () => {
+    for (const w of ["sword", "shield", "axe", "bow", "wand"] as const) expect(weaponTimings(w, 1)).not.toHaveProperty("windupFloor");
+    expect(weaponTimings("bow", 0.3).ranged).toBe(true);
+    expect(weaponTimings("wand", 0.3).ranged).toBe(true);
+    for (const w of ["sword", "shield", "axe"] as const) expect(weaponTimings(w, 1).ranged).toBe(false);
+  });
+
   it("lands sword and bash hits 0.1 s in", () => {
     expect(weaponTimings("sword", 0.78)).toEqual({ interval: 0.78, windup: 0.1, root: 0, ranged: false });
     expect(weaponTimings("shield", 1.04)).toMatchObject({ windup: 0.1, ranged: false });

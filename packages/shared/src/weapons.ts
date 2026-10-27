@@ -136,6 +136,11 @@ export const BOW_WINDUP = 0.6;
 export const BOW_WINDUP_SHARE = 0.92;
 export const WAND_WINDUP = 0.4;
 export const WAND_WINDUP_SHARE = 0.8;
+// A windup mod (a `windupMult` below 1: Quickdraw, owner ruling "Melee windups only", testing/TUNING_ROGUE.md section 7) shortens
+// the sword's, the shield bash's and the axe's windups and NEVER a ranged one: the bow's and the wand's windups are the anti-kiting
+// lever, so scaleWindup (shared/mods.ts) leaves them alone whatever the mult. A mult above 1 (a future slow) lengthens every weapon.
+// The melee windups are short by design (0.1 s is two 50 ms ticks, the axe's 0.25 s five), so a shortening only shows once it
+// removes whole ticks: see the table in testing/TUNING_ROGUE.md 7.1.
 
 /** Everything about one attack's rhythm, for a given interval. All in seconds. */
 export interface WeaponTimings {
@@ -160,8 +165,12 @@ export function weaponTimings(w: WeaponId, interval: number): WeaponTimings {
       t.windup = Math.min(AXE_WINDUP, AXE_WINDUP_SHARE * interval);
       t.root = Math.min(AXE_ROOT, AXE_ROOT_SHARE * interval);
       break;
-    case "wand": t.windup = Math.min(WAND_WINDUP, WAND_WINDUP_SHARE * interval); break;
-    case "bow": t.windup = Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * interval); break;
+    case "wand":
+      t.windup = Math.min(WAND_WINDUP, WAND_WINDUP_SHARE * interval);
+      break;
+    case "bow":
+      t.windup = Math.min(BOW_WINDUP, BOW_WINDUP_SHARE * interval);
+      break;
   }
   return t;
 }

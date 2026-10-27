@@ -10,9 +10,10 @@
 // where the Effect union can already say them, are never applied. R4b makes "r4b" live (firebrand, hoarfrostArmor) by
 // adding it to LIVE_SKILL_READY once the status runtime is in.
 //
-// Numbers are ROGUELIKE_PLAN 3.6's (the owner's "double them" ruling was for BuffDef rows only). The owner retunes them;
-// sessions do not.
+// Numbers are ROGUELIKE_PLAN 3.6's (the owner's "double them" ruling was for BuffDef rows only), except Quickdraw's and Swift Boots',
+// which the owner ruled on after the kiting check (testing/TUNING_ROGUE.md section 7). The owner retunes them; sessions do not.
 import { effectsText, type BuffTag } from "./buffs";
+import { SWIFT_BOOTS_PAUSE_MS } from "./constants";
 import type { Effect } from "./effects";
 import type { FactionId } from "./factions";
 
@@ -62,7 +63,7 @@ export interface SkillDef {
   ranks: readonly [SkillRank, SkillRank];
   worksWith: readonly SkillTag[];
   counters: readonly SkillTag[];
-  /** A caveat the HUD tooltip adds under the rank lines (Quickdraw: windups end on ticks). Not part of any card's text. */
+  /** A caveat the HUD tooltip adds under the rank lines (Quickdraw: windups end on ticks, melee only). Not part of any card's text. */
   note?: string;
 }
 
@@ -206,14 +207,17 @@ const ROWS: readonly Row[] = [
   },
   {
     id: "swiftBoots", pool: "neutral", kind: "passive", name: "Swift Boots", ready: "r5",
-    ranks: [{ effects: [{ k: "stat", stat: "moveSpeed", v: 0.06 }] }, { effects: [{ k: "stat", stat: "moveSpeed", v: 0.1 }] }],
-    worksWith: ["any"], counters: ["kiters"],
+    ranks: [
+      { effects: [{ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.06, ms: SWIFT_BOOTS_PAUSE_MS }] },
+      { effects: [{ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.1, ms: SWIFT_BOOTS_PAUSE_MS }] },
+    ],
+    worksWith: ["melee"], counters: ["kiters"],
   },
   {
     id: "quickdraw", pool: "neutral", kind: "passive", name: "Quickdraw", ready: "r5",
-    ranks: [{ effects: [{ k: "stat", stat: "windup", v: -0.08 }] }, { effects: [{ k: "stat", stat: "windup", v: -0.12 }] }],
-    worksWith: ["bow", "wand", "axe"], counters: ["kiters"],
-    note: "A windup ends on a 50 ms tick, so the gain comes in whole ticks: a short windup may not shorten at all.",
+    ranks: [{ effects: [{ k: "stat", stat: "windup", v: -0.5 }] }, { effects: [{ k: "stat", stat: "windup", v: -0.75 }] }],
+    worksWith: ["sword", "axe", "shield"], counters: ["kiters"],
+    note: "Melee only. A windup ends on a 50 ms tick, so it shortens in whole ticks: the sword and the bash lose one, the axe up to three. A bow or wand windup never shortens.",
   },
   {
     id: "thickHide", pool: "neutral", kind: "passive", name: "Thick Hide", ready: "r5",

@@ -33,7 +33,7 @@ const COLOR_GATE = "#f44336";
 const COLOR_ELITE_RIM = "#ffd54f";
 /** What the camera sees. */
 const COLOR_VIEW = "rgba(255, 255, 255, 0.85)";
-/** More than this many mob dots are not drawn (a map has about 40 mobs). */
+/** More than this many mob dots are not drawn (a 20-camp map has up to 100 mobs: 3-5 spots a camp). */
 const MAX_DOTS = 128;
 /** Inputs that decide a repaint: player x, y, alive, gates, mob dots, camera x, y, route, chest blips (and their pulse), camp states, quests. */
 const INPUTS = 11;
@@ -125,7 +125,7 @@ export class Minimap {
   /** Chests that are up (a cleared camp's shared chest), with the seconds each has left; drawn on top of the camps. */
   private chests: ChestBlip[] = [];
   private chestsHash = 0;
-  /** Each camp's state (RaidState.camps[i].state): a cleared camp is crossed out, an engaged one wears a flame. */
+  /** Each camp's state (RaidState.camps[i].state): a cleared camp is crossed out, a disturbed one (fought at once) wears a muted ring. */
   private campStates: number[] = [];
   private campStatesHash = 0;
   private campsMarked = false;
@@ -226,7 +226,8 @@ export class Minimap {
 
   /**
    * Each camp's state, in map.camps order (0 idle, 1 engaged, 2 cleared): a cleared camp is drawn dimmed and crossed out, an
-   * engaged one with a flame. All idle (or none) draws the plain markers. Takes effect at the next update().
+   * engaged one (somebody has fought there; the state is sticky history) with a small muted ring. All idle (or none) draws the
+   * plain markers. Takes effect at the next update().
    */
   setCampStates(states: ArrayLike<number>): void {
     const list = this.campStates;

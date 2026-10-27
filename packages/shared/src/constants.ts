@@ -11,8 +11,13 @@ export const SERVER_PORT = 2567;
 export const TICK_RATE = 20;
 export const TICK_MS = 1000 / TICK_RATE;
 export const PATCH_MS = TICK_MS;
-/** Clients render this far behind the estimated server clock (two ticks). */
+/**
+ * Clients render this far behind the estimated server clock (two ticks): the delay a client starts with and the one the harness
+ * and the bots assume a player sees. The client then adapts it to its network between the two bounds below (shared/interp.ts RenderClock).
+ */
 export const INTERP_DELAY_MS = 100;
+export const MIN_INTERP_DELAY_MS = 70;
+export const MAX_INTERP_DELAY_MS = 150;
 /**
  * How far back the server rewinds targets to match what an attacker saw (lag compensation).
  * Covers INTERP_DELAY_MS + RTT + one tick for clients up to ~150 ms RTT.
@@ -23,10 +28,18 @@ export const TELEPORT_DISTANCE = 200;
 
 // World
 export const TILE = 32;
-export const MAP_TILES_W = 64;
-export const MAP_TILES_H = 64;
+/** 96x96 tiles since the roguelike zones (R2): five zones of about 1710 painted tiles each around the fixed coliseum. */
+export const MAP_TILES_W = 96;
+export const MAP_TILES_H = 96;
 export const WORLD_W = MAP_TILES_W * TILE;
 export const WORLD_H = MAP_TILES_H * TILE;
+/**
+ * The zone stylers (terrain, hazards, props) on the maps the game builds: the generator's hook (styler.ts) runs the five
+ * zone stylers while this is on, and none when it is off (plain rock-and-ruin zones, for tests and what-if runs). It is a
+ * compile-time switch: the server, the bots and every client must be built with the same value, and the map's `mapHash`
+ * is what tells them apart.
+ */
+export const MAP_STYLERS: boolean = true;
 export const PLAYER_RADIUS = 12;
 /** A projectile's own radius: it hits a body whose centre comes within PLAYER_RADIUS + this of its path. */
 export const RANGED_SLACK = 2;
@@ -75,8 +88,6 @@ export const PLAN_SECONDS = 12;
 export const PLAN_WALK_TOLERANCE = 0.08;
 /** The live server's first patience timer, flat whatever the player count (env FIRST_PATIENCE_SECONDS; decision 10). Timers after a death keep the scaling. */
 export const FIRST_PATIENCE_SECONDS = 300;
-/** Only mapgen v1 still reads this (its extract circles); Phase 8b's map drops it. */
-export const EXTRACT_RADIUS = 64;
 
 // Arena
 /**
@@ -236,8 +247,14 @@ export const BOUNTY_ANNOUNCE_MS = 10_000;
 // by at least one starter: elites may stay harder (the owner's ruling).
 export const MOB_K = 0.22;
 export const ELITE_K = 0.65;
-/** A mob gives up the chase when it is this far from its camp, or has not dealt damage for MOB_GIVE_UP_SECONDS (damage it takes does not extend the fight). */
+/**
+ * A mob gives up the chase when it leaves its leash, or has not dealt damage for MOB_GIVE_UP_SECONDS (damage it takes does not extend the fight).
+ * The leash of a mob of a generated camp is the camp's territory inside MOB_LEASH_CAP (mobs.ts `leashOk`, ROGUELIKE_PLAN D15);
+ * this circle around its spot is the leash of a mob with no territory (a hand-built map, a test's mob).
+ */
 export const MOB_LEASH_RADIUS = 9 * TILE;
+/** The most a territory leash reaches from the mob's spot: min(camp.radius, this). Generated camps measure a radius of 10.8 to 30 tiles (7 of 3000 under 12 over seeds 1-150), so the cap binds on almost all of them, unless the territory's edge comes first. */
+export const MOB_LEASH_CAP = 12 * TILE;
 export const MOB_GIVE_UP_SECONDS = 6;
 /** Back within this of its camp spot, a returning mob is home again. */
 export const MOB_HOME_RADIUS = 10;
@@ -287,6 +304,14 @@ export const GV_SKIP = 3;
 export const CAMP_WIDE_AGGRO = true;
 /** A heal spread over time (Second Wind) lands in steps this far apart, the first at once. */
 export const HEAL_OVER_TIME_STEP_MS = 500;
+/**
+ * Swift Boots (R5, owner ruling "No boost while shooting"): its move-speed bonus is off from the moment a bow or wand attack
+ * starts until this long after the shot leaves, so the boots help walking, chasing and melee but never buy a shooter the walk
+ * back between shots (the ranged windups are the anti-kiting lever). 2.5 s because Frost's chill stretches a chilled shooter's
+ * cooldown 2.5x: Fire's wand then idles 2.1 s between shots, and a shorter pause lets the boots back in that gap (at rank 2 a
+ * 1.0 s pause leaves Frost > Fire's wand cell at 44% against 68% without the boots, testing/TUNING_ROGUE.md 7.5).
+ */
+export const SWIFT_BOOTS_PAUSE_MS = 2500;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;

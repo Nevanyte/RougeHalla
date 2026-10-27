@@ -1,6 +1,7 @@
 import { Client, type Room } from "@colyseus/sdk";
 import { ROOM_NAME, SERVER_PORT, TRAINING_ROOM_NAME, type ClientMessages, type JoinOptions } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
+import { readPasscode } from "./passcode";
 
 export type RaidRoom = Room<any, RaidState>;
 
@@ -10,8 +11,21 @@ function configuredServerUrl(): string | undefined {
   return fromEnv || undefined;
 }
 
+/**
+ * Where the game server is. VITE_SERVER_URL wins. Otherwise a production build is served by the server itself (`npm run
+ * playtest`, the Dockerfile), so the page's own origin is the server, and the SDK derives the websocket from it (an https
+ * page gets wss). A dev build runs on Vite's port and talks to the server on its own port (Vite proxies only /api).
+ */
 export function serverEndpoint(): string {
-  return configuredServerUrl() ?? `${location.protocol}//${location.hostname}:${SERVER_PORT}`;
+  const configured = configuredServerUrl();
+  if (configured) return configured;
+  return import.meta.env.DEV ? `${location.protocol}//${location.hostname}:${SERVER_PORT}` : location.origin;
+}
+
+/** The join options with the playtest passcode, when this page has one (a link with ?code=, or one remembered from before). */
+function withPasscode<T extends JoinOptions | Omit<JoinOptions, "mode">>(options: T): T {
+  const passcode = readPasscode();
+  return passcode ? { ...options, passcode } : options;
 }
 
 /**
@@ -69,13 +83,25 @@ export function detachRoom(room: RaidRoom): void {
   room.leave(false).catch(() => {});
 }
 
+/**
+ * Leaves a room for good and tells the server so (a consented leave): it frees the seat and the profile at once, even
+ * once the run is planning or on, where a dropped socket would hold them for the reconnect grace. Falls back to
+ * detachRoom when the socket cannot carry the message (mid-reconnect).
+ */
+export function leaveRoom(room: RaidRoom): void {
+  room.removeAllListeners();
+  room.reconnection.enabled = false;
+  // A send on a socket that is not open throws inside leave()'s promise: it surfaces as a rejection.
+  room.leave(true).catch(() => detachRoom(room));
+}
+
 export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
   client ??= new Client(serverEndpoint());
   // A seat reserved in the instant a run starts is refused ("raid already started");
   // the next joinOrCreate lands in a fresh lobby.
   for (let attempt = 0; ; attempt++) {
     try {
-      const room = await client.joinOrCreate<RaidState>(ROOM_NAME, options);
+      const room = await client.joinOrCreate<RaidState>(ROOM_NAME, withPasscode(options));
       tuneReconnection(room);
       return room;
     } catch (err) {
@@ -91,7 +117,7 @@ export async function joinRaid(options: JoinOptions): Promise<RaidRoom> {
 export async function joinTraining(options: Omit<JoinOptions, "mode">): Promise<RaidRoom> {
   client ??= new Client(serverEndpoint());
   // The server's "training" handler forces the mode; nothing the client sends decides it.
-  const room = await client.create<RaidState>(TRAINING_ROOM_NAME, options);
+  const room = await client.create<RaidState>(TRAINING_ROOM_NAME, withPasscode(options));
   tuneReconnection(room);
   return room;
 }

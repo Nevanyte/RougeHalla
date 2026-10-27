@@ -4,12 +4,12 @@
 import {
   BEATS, FACTION_IDS, FACTIONS, POLICIES, TICK_RATE, TILE, WEAPON_BEATS, type FactionId, type WeaponId,
 } from "@raid/shared";
-import type { Arena, DuelResult, Perception } from "./duel";
+import type { Arena, DuelResult, FighterKit, Perception } from "./duel";
 import {
   cellsOf, DEFAULT_CAPS, edgeName, fullSetups, formatEnds, formatHp, formatMatrix, hasGrid, isWatched, pooled, quickSetups,
   runMatrix, statsOf, stylesOf, WATCH, WEAVES, type Cell, type Edge, type MatrixOptions, type Setup, type Style,
 } from "./matrix";
-import { KITE_EDGE_DUELS, kiteEdgesReport, kitingReport, type ShooterBuff } from "./kiting";
+import { KITE_EDGE_DUELS, kiteEdgesReport, kitingReport, shooterBuffText, type ShooterBuff } from "./kiting";
 import { formatParity, parityReport, type ParityReport } from "./parity";
 
 export interface ReportOptions {
@@ -33,6 +33,15 @@ export interface ReportOptions {
   arena?: Arena | "both";
   /** A buff for the shooter of every kiting duel (the KITING section and KITE EDGES); the chaser has none. */
   shooter?: ShooterBuff;
+  /** The same for the melee chaser (Quickdraw on the chaser); the shooter's kit is `shooter`. */
+  chaser?: ShooterBuff;
+  /** What the designed winner / loser of every weapon-matrix duel holds (passives, or a bare multiplier for a scan). */
+  winner?: FighterKit;
+  loser?: FighterKit;
+  /** Only these faction edges (winner, loser) in KITE EDGES; the KITING table still covers every faction asked for. */
+  kiteEdges?: ReadonlyArray<readonly [FactionId, FactionId]>;
+  /** KITE EDGES setups per melee weapon: 10 (default), 32 or 128 (a cell on the 50% line moves with one duel). */
+  edgeSetups?: 10 | 32 | 128;
   /** Only the KITING section and the KITE EDGES pass (the faction edges against a kiting shooter, signatures on). */
   kitingOnly?: boolean;
   /** Progress lines while it runs. */
@@ -322,7 +331,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
   const capSeconds: MatrixOptions["capSeconds"] = opts.capSeconds ?? DEFAULT_CAPS;
   const setups: readonly Setup[] = opts.setups ?? (quick ? quickSetups() : fullSetups());
   const mainArena: Arena = opts.arena === "pillars" ? "pillars" : "open";
-  const base: MatrixOptions = { edges, factions, setups, perception, capSeconds, arena: mainArena };
+  const base: MatrixOptions = { edges, factions, setups, perception, capSeconds, arena: mainArena, winner: opts.winner, loser: opts.loser };
   // The extra passes use three setups (one per start distance); the sensitivity ones only run in the full report.
   const reduced = quickSetups();
   const gridSetups: readonly Setup[] = opts.gridSetups === "full" ? setups : reduced;
@@ -342,6 +351,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
     `time caps: ${typeof capSeconds === "number" ? `${capSeconds} s` : factions.map((f) => `${f} ${(capSeconds as Record<FactionId, number>)[f]} s`).join(", ")}`);
   out.push("Faction signatures (burn, backlash, mark, plague, chill, lifesteal) are off here (DuelSpec.signatures): these duels measure the weapons");
   out.push("alone, so a faction with slow or light hits (Sentenced above all) fights for minutes; npm run harness:factions measures the faction loop.");
+  if (opts.winner || opts.loser) out.push(`Held in every duel: the designed winner ${shooterBuffText(opts.winner)}; the designed loser ${shooterBuffText(opts.loser)}.`);
   out.push("Report-only: no outcome is asserted and no number is changed.");
   out.push("");
   out.push(heading("MATRIX  the designed winner's win% / median seconds of the duels that finished   (* = some duels hit the time cap)"));
@@ -404,7 +414,7 @@ export function buildReport(opts: ReportOptions = {}): HarnessReport {
 
   log("kiting");
   out.push(heading("KITING  the real sim: seconds until a melee fighter is in reach of a shooter that starts at the edge of its range, by how the shooter plays"));
-  const kiting = kitingReport(factions, opts.shooter);
+  const kiting = kitingReport(factions, opts.shooter, opts.chaser);
   out.push(...kiting.text.map((l) => `  ${l}`));
   duels += kiting.cells.length * factions.length;
   out.push("");
@@ -458,18 +468,18 @@ function kitingOnlyReport(
   const out: string[] = [];
   log("kiting");
   out.push("1. KITING  the real sim: seconds until a melee fighter is in reach of a shooter that starts at the edge of its range, by how the shooter plays");
-  const kiting = kitingReport(factions, opts.shooter);
+  const kiting = kitingReport(factions, opts.shooter, opts.chaser);
   out.push(...kiting.text.map((l) => `  ${l}`));
   out.push("");
   const kiteEdges = kiteEdgesReport({
-    shooter: opts.shooter, log,
-    edges: BEATS.filter(([a, b]) => factions.includes(a) && factions.includes(b)),
+    shooter: opts.shooter, chaser: opts.chaser, setups: opts.edgeSetups, log,
+    edges: opts.kiteEdges ?? BEATS.filter(([a, b]) => factions.includes(a) && factions.includes(b)),
   });
   out.push("2. KITE EDGES  the kiting guarantee (testing/test_kite.py) in the real sim: a melee faction winner charges a ranged loser that starts at the edge of its range and kites all fight");
   out.push(...kiteEdges.text.map((l) => `  ${l}`));
   out.push("");
   const parity = parityReport();
-  const duels = kiting.cells.length * factions.length + kiteEdges.cells.length * KITE_EDGE_DUELS;
+  const duels = kiting.cells.length * factions.length + kiteEdges.cells.length * (3 * (opts.edgeSetups ?? 10));
   out.push(`${duels} duels in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
   return { edges, factions, cells: [], verdicts: [], lock: [], parity, text: out.join("\n") };
 }

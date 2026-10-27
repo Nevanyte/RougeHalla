@@ -1,0 +1,14 @@
+/* The ground chips under the vitals (terrainChips.ts): the status of the tile you stand on, as a glyph and a word. */
+.hud-terrain { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; max-width: 256px; }
+.hud-terrain[hidden] { display: none; }
+.ground-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 6px;
+  font-size: 11px; line-height: 16px; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--c); border: 1px solid var(--c); border-radius: 10px; background: rgba(10, 12, 16, 0.72);
+}
+.ground-chip-glyph { font-size: 10px; }
+.ground-chip.burning { --c: #ff8a3d; }
+.ground-chip.slowed { --c: #aed581; }
+.ground-chip.ice { --c: #81d4fa; }
+.ground-chip.resting { --c: #ffd54f; }
+.ground-note { width: 100%; font-size: 11px; line-height: 14px; color: #aed581; }

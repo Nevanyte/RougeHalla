@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
+import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeedback";
 import { screenAngle } from "../src/render/projection";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
@@ -24,13 +25,13 @@ function player(over: Partial<Record<keyof PlayerState, unknown>> = {}): PlayerS
 }
 
 function setup() {
-  const { scene, ofKind } = fakeScene();
+  const { scene, ofKind, bakedCalls } = fakeScene();
   const view = new PlayerView(scene, false);
-  const root = ofKind("container")[0]!;
+  const root = ofKind("container").at(-1)!;
   const kids = root.args[2] as FakeObject[];
   const ring = kids[CHILD.barrierRing]!;
   const bar = kids[CHILD.hpBar]!;
-  return { view, root, ring, bar, frame: (p: PlayerState, drawAsAlive = false) => view.update(0, 0, p, 1000, 1000, drawAsAlive) };
+  return { view, root, ring, bar, bakedCalls, frame: (p: PlayerState, drawAsAlive = false) => view.update(0, 0, p, 1000, 1000, drawAsAlive) };
 }
 
 /** The line width and alpha of the bubble's outline: both grow with the barrier. */
@@ -75,11 +76,13 @@ describe("PlayerView barrier", () => {
   it("adds the barrier to the hp bar after the hp, in its own colour", () => {
     const { bar, frame } = setup();
     frame(player({ hp: 500, barrier: 150 }));
-    const fills = argsOf(bar, "fillStyle").map((a) => a[0]);
-    expect(fills).toContain(BARRIER_COLOR);
-    const rects = argsOf(bar, "fillRect");
-    expect(rects).toHaveLength(3); // backing, hp, barrier
-    expect(rects[2]![0]).toBeGreaterThan(rects[1]![0] as number);
+    const [, fill, barrier] = bar.args[2] as FakeObject[];
+    expect(barrier!.state.visible).toBe(true);
+    expect(argsOf(barrier!, "setTint")[0]).toEqual([BARRIER_COLOR]);
+    // The barrier segment starts where the hp one ends.
+    const [fx, fw] = [argsOf(fill!, "setPosition")[0]![0] as number, argsOf(fill!, "setDisplaySize")[0]![0] as number];
+    expect(argsOf(barrier!, "setPosition")[0]![0]).toBeCloseTo(fx + fw, 9);
+    expect(argsOf(barrier!, "setDisplaySize")[0]![0]).toBeGreaterThan(0);
   });
 
   it("is hidden with the rest of the view for a player who is down", () => {
@@ -129,7 +132,7 @@ describe("PlayerView hidden fighters", () => {
   function twin(isLocal: boolean) {
     const { scene, ofKind } = fakeScene();
     const view = new PlayerView(scene, isLocal);
-    const root = ofKind("container")[0]!;
+    const root = ofKind("container").at(-1)!;
     return { view, root, frame: (p: PlayerState, drawAsAlive = false) => view.update(0, 0, p, 1000, 1000, drawAsAlive) };
   }
 
@@ -189,7 +192,7 @@ describe("PlayerView status marks", () => {
   it("draws the status layers in the container and nothing without a status", () => {
     const { scene, ofKind } = fakeScene();
     const view = new PlayerView(scene, false);
-    const status = (ofKind("container")[0]!.args[2] as FakeObject[])[STATUS]!;
+    const status = (ofKind("container").at(-1)!.args[2] as FakeObject[])[STATUS]!;
     view.update(0, 0, player(), 1000, 1000);
     expect(status.calls).toEqual([]);
     view.update(0, 0, player({ effects: EFFECT_STUNNED }), 1000, 1000);
@@ -201,89 +204,102 @@ describe("PlayerView status marks", () => {
 
 describe("PlayerView Wish icon", () => {
   function iconed(over: Partial<Record<keyof PlayerState, unknown>> = {}) {
-    const { scene, ofKind } = fakeScene();
+    const { scene, ofKind, baked } = fakeScene();
     const view = new PlayerView(scene, false);
-    const kids = ofKind("container")[0]!.args[2] as FakeObject[];
+    const kids = ofKind("container").at(-1)!.args[2] as FakeObject[];
     const icon = kids[ICON]!;
-    return { icon, frame: (renderT: number, more: Partial<Record<keyof PlayerState, unknown>> = {}) => view.update(0, 0, player({ ...over, ...more }), renderT, renderT) };
+    /** What the icon's texture draws (the Wish's silhouette in its colour), and how often it swapped texture or moved. */
+    const drawn = () => ({ calls: baked.get(String(icon.state.texture))?.calls ?? [] });
+    const swaps = () => argsOf(icon, "setTexture").length;
+    const moves = () => argsOf(icon, "setPosition").length;
+    const wishBakes = () => [...baked.keys()].filter((k) => k.startsWith("bk:wish:"));
+    return {
+      icon, drawn, swaps, moves, wishBakes,
+      frame: (renderT: number, more: Partial<Record<keyof PlayerState, unknown>> = {}) => view.update(0, 0, player({ ...over, ...more }), renderT, renderT),
+    };
   }
 
   it("draws the faction's Wish in grey until its ready time, then in its own colour", () => {
-    const { icon, frame } = iconed({ faction: "fire", wishReadyAt: 5000 });
+    const { drawn, frame } = iconed({ faction: "fire", wishReadyAt: 5000 });
     frame(1000);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
     frame(4999);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
     frame(5000);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([ABILITIES.blaze.color, 1]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([ABILITIES.blaze.color, 1]);
   });
 
   it("is in its own colour from the start when the Wish is ready (the training room, a spent cooldown)", () => {
-    const { icon, frame } = iconed({ faction: "frost", wishReadyAt: 0 });
+    const { drawn, frame } = iconed({ faction: "frost", wishReadyAt: 0 });
     frame(1000);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([ABILITIES.freeze.color, 1]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([ABILITIES.freeze.color, 1]);
   });
 
   it("is each faction's own icon", () => {
     for (const [faction, id] of [["frost", "freeze"], ["plague", "swarm"], ["sentenced", "trial"], ["fire", "blaze"], ["holy", "lastStand"]] as const) {
-      const { icon, frame } = iconed({ faction });
+      const { drawn, frame } = iconed({ faction });
       frame(1000);
-      expect(argsOf(icon, "fillStyle")[0]![0], faction).toBe(ABILITIES[id].color);
+      expect(argsOf(drawn(), "fillStyle")[0]![0], faction).toBe(ABILITIES[id].color);
     }
   });
 
   it("sits to the left of the name, level with it", () => {
     const { icon, frame } = iconed({ faction: "fire", name: "Ann" });
     frame(1000);
-    const [move] = argsOf(icon, "moveTo");
-    expect(move![0] as number).toBeLessThan(-9); // clear of the name's left edge (at least half its width out)
-    expect(move![1] as number).toBeLessThan(-14 - 12 - 18 + 5); // up at the name's line, over the head
+    const [x, y] = icon.state.position as [number, number];
+    expect(x).toBeLessThan(-9); // clear of the name's left edge (at least half its width out)
+    expect(y).toBeLessThan(-14 - 12 - 18 + 5); // up at the name's line, over the head
   });
 
-  it("is redrawn only when its look changes", () => {
-    const { icon, frame } = iconed({ faction: "fire", wishReadyAt: 5000 });
+  it("is baked once per Wish and ready state, shared by every fighter, and changes only when its look does", () => {
+    const { icon, swaps, moves, wishBakes, frame } = iconed({ faction: "fire", wishReadyAt: 5000 });
     frame(1000);
-    const clears = icon.clears;
-    expect(clears).toBeGreaterThan(0);
+    expect(wishBakes()).toHaveLength(1);
+    const [s, m] = [swaps(), moves()];
     frame(1016);
     frame(1032);
-    expect(icon.clears).toBe(clears);
+    expect([swaps(), moves()]).toEqual([s, m]);
     frame(5000);
-    expect(icon.clears).toBe(clears + 1);
+    expect(swaps()).toBe(s + 1);
+    expect(wishBakes()).toHaveLength(2);
     frame(5016);
-    expect(icon.clears).toBe(clears + 1);
+    expect(swaps()).toBe(s + 1);
+    const m2 = moves();
     frame(5032, { name: "Annabel" }); // the name moves it
-    expect(icon.clears).toBe(clears + 2);
+    expect(moves()).toBe(m2 + 1);
+    expect(swaps()).toBe(s + 1);
+    expect(icon.state.visible).toBe(true);
   });
 
   it("is not drawn in the lobby, where every Wish reads ready (the lock only starts with the run)", () => {
-    const { icon, frame } = iconed({ faction: "fire", status: "lobby", wishReadyAt: 0 });
+    const { icon, drawn, wishBakes, frame } = iconed({ faction: "fire", status: "lobby", wishReadyAt: 0 });
     frame(1000);
     expect(icon.state.visible).toBe(false);
-    expect(icon.calls.filter(([n]) => n === "fillPath")).toHaveLength(0);
+    expect(wishBakes()).toHaveLength(0);
     // The run starts: the same fighter is alive and its Wish is locked, so the icon appears grey.
     frame(1016, { status: "alive", wishReadyAt: 46000 });
     expect(icon.state.visible).toBe(true);
-    expect(argsOf(icon, "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
+    expect(argsOf(drawn(), "fillStyle")[0]).toEqual([0x607d8b, 0.6]);
   });
 
   it("is not drawn for a fighter with no faction", () => {
-    const { icon, frame } = iconed({ faction: "" });
+    const { icon, wishBakes, frame } = iconed({ faction: "" });
     frame(1000);
     expect(icon.state.visible).toBe(false);
-    expect(icon.calls.filter(([n]) => n === "fillPath")).toHaveLength(0);
+    expect(wishBakes()).toHaveLength(0);
   });
 });
 
 describe("PlayerView bow draw", () => {
   const HELD = 9;
-  // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at attack-speed mirror x1.25 (0.419 s)
-  // or windup mirror x0.85 (0.446 s). The mirrors are the wire form (thousandths), as the state carries them.
-  const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null): boolean => {
-    const { root, view } = setup();
+  // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at attack-speed mirror x1.25 (0.419 s);
+  // a windup mirror x0.85 leaves it alone, and so it does a Fire bow's 0.6 s draw (a windup mod never shortens a ranged windup: it
+  // is still not full at 0.56 s). The mirrors are the wire form (thousandths), as the state carries them.
+  const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null, now = 1450): boolean => {
+    const { root, view, bakedCalls } = setup();
     const held = (root.args[2] as FakeObject[])[HELD]!;
-    view.update(0, 0, player({ faction: "sentenced", weapon0: "bow", drawStartedAt: 1000, ...over }), 1450, 1450, false, false, facing);
-    return held.calls.some(([name]) => name === "strokeCircle");
+    view.update(0, 0, player({ faction: "sentenced", weapon0: "bow", drawStartedAt: 1000, ...over }), now, now, false, false, facing);
+    return bakedCalls(held).includes("strokeCircle");
   };
 
   it("draws to the attack-speed and windup mirrors, with the synced facing and with a predicted one", () => {
@@ -291,7 +307,11 @@ describe("PlayerView bow draw", () => {
       expect(glows({}, facing), `identity, facing ${facing}`).toBe(false);
       expect(glows({ asMult: 1000 }, facing), `explicit identity, facing ${facing}`).toBe(false);
       expect(glows({ asMult: encodeMult(1.25) }, facing), `attack speed x1.25, facing ${facing}`).toBe(true);
-      expect(glows({ windupMult: encodeMult(0.85) }, facing), `windup x0.85, facing ${facing}`).toBe(true);
+      expect(glows({ windupMult: encodeMult(0.85) }, facing), `windup x0.85, facing ${facing}`).toBe(false);
+      expect(glows({ faction: "fire" }, facing, 1560), `fire identity, facing ${facing}`).toBe(false);
+      expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1560), `fire windup x0.85, facing ${facing}`).toBe(false);
+      expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1600), `fire windup x0.85 at 0.6 s, facing ${facing}`).toBe(true);
+      expect(glows({ faction: "fire", windupMult: encodeMult(0.5) }, facing, 1540), `fire windup x0.5 at 0.54 s, facing ${facing}`).toBe(false);
       expect(glows({ windupMult: encodeMult(1.2) }, facing), `windup x1.2, facing ${facing}`).toBe(false);
     }
   });
@@ -303,5 +323,37 @@ describe("PlayerView bow draw", () => {
 
   it("an older server with no mirror fields leaves them undefined: the unbuffed draw", () => {
     expect(glows({ asMult: undefined, windupMult: undefined }, null)).toBe(false);
+  });
+});
+
+describe("PlayerView feet effects", () => {
+  const burning: TerrainStates = { ...NO_STATES, kind: 4, burning: true };
+  const homeOnly: TerrainStates = { ...NO_STATES, kind: 4, home: true };
+
+  it("makes no Graphics for them until the fighter first stands on a hazard (unstyled maps and the hub allocate nothing)", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new PlayerView(scene, false);
+    const made = ofKind("graphics").length;
+    for (let i = 0; i < 3; i++) view.update(0, 0, player(), 1000 + i, 1000 + i);
+    view.update(0, 0, player(), 1010, 1010, false, false, null, homeOnly); // home ground with no effect shows nothing either
+    view.update(0, 0, player({ status: "dead", hp: 0 }), 1020, 1020); // an unseen fighter hides a feet effect that was never made
+    expect(ofKind("graphics")).toHaveLength(made);
+    view.update(10, 10, player(), 1030, 1030, false, false, null, burning);
+    const graphics = ofKind("graphics");
+    expect(graphics).toHaveLength(made + 1);
+    const feet = graphics[graphics.length - 1]!;
+    expect(feet.state.visible).toBe(true);
+    expect(feet.calls.some(([n]) => n === "fillCircle" || n === "fillTriangle" || n === "fillPoints" || n === "fillStyle")).toBe(true);
+    view.update(10, 10, player(), 1040, 1040, false, false, null, burning);
+    expect(ofKind("graphics")).toHaveLength(made + 1); // made once
+    view.update(10, 10, player(), 1050, 1050); // off the hazard: hidden, kept
+    expect(feet.state.visible).toBe(false);
+    view.destroy();
+    expect(feet.calls.some(([n]) => n === "destroy")).toBe(true);
+  });
+
+  it("destroys cleanly when it never made them", () => {
+    const { view } = setup();
+    expect(() => view.destroy()).not.toThrow();
   });
 });

@@ -6,7 +6,11 @@ export const UNREACHABLE_MESSAGE = "Can't reach the game server. Check your conn
 export const TIMEOUT_MESSAGE = "The game server took too long to answer. Please try again.";
 export const SERVER_PROBLEM_MESSAGE = "The game server had a problem. Please try again in a moment.";
 export const UNREADABLE_MESSAGE = "The server sent something this version of the game can't read. Reload the page and try again.";
-const RATE_LIMIT_MESSAGE = "Too many attempts. Wait a moment and try again.";
+export const RATE_LIMIT_MESSAGE = "Too many attempts. Wait a moment and try again.";
+export const PASSCODE_MESSAGE = "This playtest needs a passcode: open the link your host sent.";
+export const PASSCODE_THROTTLED_MESSAGE = "Too many wrong passcodes from your connection. Wait a minute, then open the link your host sent.";
+export const NEW_CALLSIGNS_MESSAGE = "Too many new callsigns were claimed lately. Try again in a while, or ask your host.";
+const SERVER_FULL_MESSAGE = "The server is full right now. Try again in a few minutes.";
 const RESTARTING_MESSAGE = "The server is restarting. Try again in a moment.";
 const NO_MODE_MESSAGE = "The server doesn't offer this game mode right now. Reload the page and try again.";
 const GONE_MESSAGE = "That run is no longer available. Try again.";
@@ -16,6 +20,8 @@ export const CALLSIGN_BUSY_MESSAGE =
   "That callsign is still in a run (another tab, or your last run is still closing). Try again in a few seconds, or use another callsign.";
 export const JOIN_CLOSED_MESSAGE = "The connection closed before you could join. Please try again.";
 export const JOIN_SLOW_MESSAGE = "Joining is taking too long. Check your connection and try again.";
+/** The room's map hash differs from the one this client built (net/roomMap.ts): the page is out of date with the server. */
+export const MAP_MISMATCH_MESSAGE = "This raid's map did not match your client. Please reload.";
 
 /** WebSocket close codes (1xxx) and Colyseus's own (4xxx), as the SDK reports them. */
 const CLOSE_NORMAL = new Set([1000, 1001, 4000]);
@@ -30,6 +36,9 @@ const TIMEOUT_RE = /timed? ?out|timeout|etimedout|took too long/i;
 
 /** What a failure says, in the order a refusal is most likely to match: the server's own join refusals first. */
 const MESSAGE_RULES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/wrong passcodes/i, PASSCODE_THROTTLED_MESSAGE],
+  [/passcode/i, PASSCODE_MESSAGE],
+  [/server is full/i, SERVER_FULL_MESSAGE],
   [/already in a (?:raid|run)/i, CALLSIGN_BUSY_MESSAGE],
   [/room was just opened for this profile/i, "A room for this callsign was just opened. Wait a few seconds and try again."],
   [/(?:raid|run) already started/i, "That run has already started. Try again to join the next one."],

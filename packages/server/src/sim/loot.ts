@@ -7,7 +7,7 @@
 //     slots full, replaces the weapon in hand, which drops where the player stands; that counts as a swap
 //     (weaponChanged: the action is cancelled and the cooldown gets SWAP_SECONDS).
 import {
-  hasLineOfSight, INTERACT_RANGE, isWeaponId, QUEST_ITEM_PREFIX, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
+  hasLineOfSight, INTERACT_RANGE, isWeaponId, MASK_MOVE, QUEST_ITEM_PREFIX, WEAPONS, type ContainerKind, type ItemDTO, type Vec2,
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { activeWeapon, setSlot } from "./combatant";
@@ -58,6 +58,17 @@ export function addContainer(world: World, kind: ContainerKind, at: Vec2, label:
   return c;
 }
 
+/**
+ * Holds `id` back one tick: it counts as born in the NEXT tick, so it is first takeable in the one after. For a container born
+ * inside a tick (a camp's chest, made in the ledger pass of tick N): addContainer records N, which blocks nothing in tick N+1,
+ * and a scripted client guessing the predictable id would win the first pick over players who can only answer a patch they
+ * have seen. Between ticks addContainer already records tick + 1, so this changes nothing there.
+ */
+export function holdBirth(world: World, id: string): void {
+  const births = bornAt.get(world);
+  if (births?.has(id)) births.set(id, world.state.tick + 1);
+}
+
 /** True while `id` was created earlier in the tick being simulated. Forgets older births on the way. sim/chests.ts reads it too. */
 export function bornThisTick(world: World, id: string): boolean {
   const births = bornAt.get(world);
@@ -103,7 +114,8 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   // A camp's shared chest is taken with `choose` (sim/chests.ts), never with the weapon pickup.
   if (box.kind === "reward") { toast(world, c.id, "Nothing to take"); return; }
   if (Math.hypot(p.x - box.x, p.y - box.y) > INTERACT_RANGE) { toast(world, c.id, "Too far away"); return; }
-  if (!hasLineOfSight(collisionMap(world), p, box)) { toast(world, c.id, "Can't reach that"); return; }
+  // Movement reach, not sight: a hand does not go through a fence (centres 56 u apart across one tile, INTERACT_RANGE 56).
+  if (!hasLineOfSight(collisionMap(world), p, box, MASK_MOVE)) { toast(world, c.id, "Can't reach that"); return; }
   const item = box.items.length > 0 ? box.items.at(0) : undefined;
   if (!item) { toast(world, c.id, "Nothing to take"); return; }
   if (item.def.startsWith(QUEST_ITEM_PREFIX)) {

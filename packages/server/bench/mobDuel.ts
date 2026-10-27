@@ -12,6 +12,11 @@
 //            --style policy|stand (policy)  --leash U (what-if, emulated)  --mobs-stand (what-if: ranged mobs don't back away)
 //            --sweep takes --leashes a,b,c  --ks a,b  --eks a,b
 //
+// The duel floor is a hand-built arena with no camp territory, so its mob keeps the 9-tile circle of MOB_LEASH_RADIUS (the
+// fallback). On a generated map a camp's mobs leash to the camp's territory within min(camp.radius, 12 tiles) of their
+// spots (ROGUELIKE_PLAN D15; shared `leashOk`): the median territory is about 330 tiles, so `--leash 336` (10.5 tiles) is the
+// nearest what-if, and `--leash 384` the cap. bench/campDuel.ts runs its camp with a territory of that size.
+//
 // Reuse: runMobDuel(spec) is the one-duel function; runGrid (the 25 pairings), cellStats, verdict and the table functions build on it.
 //
 // How a seed varies a duel (the sim has no rolls, so the same setup would repeat exactly): it picks the direction the player
@@ -23,7 +28,7 @@
 import { writeFileSync } from "node:fs";
 import {
   decide, duel, ELITE_K, FACTION_IDS, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isFactionId, isRanged, isWeaponId, MOB_K,
-  MOB_LEASH_RADIUS, mulberry32, PLAYER_RADIUS, POLICIES, REGION_WEAPONS, scaledFaction, segmentClear, SIGNATURE_WEAPONS, TICK_MS,
+  MOB_LEASH_RADIUS, mulberry32, PLAYER_RADIUS, POLICIES, reachMask, REGION_WEAPONS, scaledFaction, segmentClear, SIGNATURE_WEAPONS, TICK_MS,
   TILE, WEAPON_IDS, WEAPONS, type FactionId, type FactionSpec, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { buildArena } from "../src/harness/duel";
@@ -171,7 +176,7 @@ class PlayerClient {
     const map = world.map;
     const input: PolicyInput = {
       self: mine.pos, target: theirs.pos, targetVel: theirs.vel, selfVel: mine.vel,
-      los: hasLineOfSight(map, mine.pos, theirs.pos),
+      los: hasLineOfSight(map, mine.pos, theirs.pos, reachMask(weapon)),
       weapon,
       ready: now >= me.s.readyAt,
       walkable: (a, b) => segmentClear(map, a, b, PLAYER_RADIUS),
@@ -229,7 +234,6 @@ export function runMobDuel(spec: MobDuelSpec): MobDuelResult {
     const mobFacing = v.facing === "toward" ? toPlayer : v.facing === "side" ? toPlayer + Math.PI / 2 : toPlayer + Math.PI;
 
     const world = createGameWorld({
-      seed: spec.seed,
       random: mulberry32(spec.seed + 1),
       config: {
         minPlayers: 1, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER_SECONDS, patienceMinSeconds: NEVER_SECONDS,

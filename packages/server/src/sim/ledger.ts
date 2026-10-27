@@ -66,6 +66,7 @@ export function applyLedger(world: World): void {
   const c0 = world.combat;
   // A pass that threw would have left its queue and snapshot behind: start clean.
   c0.payouts = [];
+  c0.campWakes = [];
   c0.medianFeed = null;
   c0.collecting = true;
   // Every mob reward of the pass reads the lobby as it stood before it, not as kills earlier in the pass left it.
@@ -164,6 +165,11 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Read
   let landedShare = c.kind === "mob" && c.s.kind !== "dummy" && total > applied ? applied / total : 1;
   // What a kill barrier swallowed is not hp lost: lifesteal feeds on the rest.
   if (c.kind === "player" && barrierBefore > c.s.barrier && total > 0) landedShare = Math.max(0, 1 - (barrierBefore - c.s.barrier) / total);
+  // The arena's own damage reports the hp it took, its share of what the pass removed (a measurement tap: WorldHooks.arenaHurt).
+  const arenaHurt = world.hooks.arenaHurt;
+  if (arenaHurt && total > 0) {
+    entries.forEach((e, i) => { if (e.arena && amounts[i]! > 0) arenaHurt(world, id, e.by, (amounts[i]! * applied) / total); });
+  }
   const hitLanded = world.hooks.hitLanded;
   entries.forEach((e, i) => {
     const amount = amounts[i]!;

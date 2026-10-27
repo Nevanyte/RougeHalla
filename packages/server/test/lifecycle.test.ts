@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  AIM_STALE_MS, FACTION_IDS, FACTIONS, generateMap, GV_WIN, isWallAt, MAX_PLAYERS, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS,
+  AIM_STALE_MS, certifiedMap, FACTION_IDS, FACTIONS, generateMap, GV_WIN, isWallAt, mapHashU32, MAX_PLAYERS, MAX_REWIND_MS, mulberry32, PLAYER_RADIUS,
   PLAYER_SPEED, SIGNATURE_WEAPONS, TICK_MS, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, wrapAngle, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -167,6 +167,26 @@ describe("createWorld / addPlayer", () => {
       expect(w.map.seed).toBe(w.state.seed);
       expect(w.map).toEqual(generateMap(w.state.seed));
     }
+  });
+
+  it("publishes the seed of the map it is given, so (seed, attempt) always rebuilds that map; a seed that disagrees throws", () => {
+    // The first seed that certifies at attempt 1 (several of the first dozen do, see shared/test/mapPins.ts): a published seed alone would rebuild another map.
+    let seed = 0, map = certifiedMap(seed, { decor: false })!;
+    while (map.attempt !== 1) map = certifiedMap(++seed, { decor: false })!;
+    const cfg = makeConfig();
+    const w = createWorld({ map, config: cfg, random: mulberry32(1) });
+    expect(w.state.seed).toBe(seed);
+    expect(w.state.attempt).toBe(1);
+    expect(w.state.mapHash).toBe(mapHashU32(map));
+    expect(generateMap(w.state.seed, w.state.attempt, { decor: false })).toEqual(w.map);
+    // Spelling the same seed out is fine (as unsigned, like the state's); another one is a bug, not a choice.
+    expect(createWorld({ seed, map, config: cfg, random: mulberry32(1) }).state.seed).toBe(seed);
+    expect(createGameWorld({ seed: seed + 2 ** 32, map, config: cfg, random: mulberry32(1) }).state.seed).toBe(seed);
+    expect(() => createWorld({ seed: seed + 1, map, config: cfg, random: mulberry32(1) })).toThrow(new RegExp(`seed ${seed + 1} does not match the map's seed ${seed}`));
+    expect(() => createGameWorld({ seed: 1234, map, config: cfg, random: mulberry32(1) })).toThrow(/does not match the map's seed/);
+    // Without a map the seed is needed, and builds the map as ever.
+    expect(() => createWorld({ config: cfg, random: mulberry32(1) })).toThrow(/needs a seed or a map/);
+    expect(createWorld({ seed: 32, config: cfg, random: mulberry32(1) }).map).toEqual(generateMap(32));
   });
 
   it("registers synced state and server-only runtime for a joining player", () => {
@@ -835,7 +855,7 @@ describe("movement during a raid", () => {
     ];
     const tiles = new Uint8Array(12 * 7);
     rows.forEach((row, ty) => [...row].forEach((c, tx) => { tiles[ty * 12 + tx] = c === "#" ? TILE_WALL : TILE_FLOOR; }));
-    world.map = { ...world.map, w: 12, h: 7, tiles, buildings: [], spawns: [], crateSpots: [], groundSpots: [], extracts: [] };
+    world.map = { ...world.map, w: 12, h: 7, tiles, buildings: [], spawns: [], crateSpots: [], groundSpots: [] };
     p.x = 8 * 32 + 16;
     p.y = 3 * 32 + 16;
     const start = posOf(p);

@@ -5,7 +5,7 @@
 // with it. Hand-built camp arena as in chests.test.ts; Wishes ready at once (wishLockSeconds 0).
 import { describe, expect, it } from "vitest";
 import {
-  FIELD_KINDS, mapFromTiles, mulberry32, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  circleClear, FIELD_KINDS, hasLineOfSight, mapFromTiles, mulberry32, PLAYER_RADIUS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type CampDef, type FactionId, type FxEvent, type GameMap, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState } from "@raid/shared/schema";
@@ -44,7 +44,6 @@ function campMap(): GameMap {
 /** An active run on campMap with p0, p1, ... of these factions, Wishes ready at once. */
 function run(factions: FactionId[]): World {
   const w = createGameWorld({
-    seed: 11,
     config: {
       minPlayers: factions.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
       suddenDeathSeconds: 3600, mobs: true, wishLockSeconds: 0,
@@ -246,8 +245,11 @@ describe("the training console's clear and the Wishes' areas", () => {
     expect(enqueueClientMessage(inputs, "train", { cmd: "camp", id: "emberImp" }, { training: true })).toBe(true);
     tick(world);
     const [id, m] = [...world.state.mobs].find(([, mob]) => mob.kind === "mob")!;
-    me.x = m.x - 60;
-    me.y = m.y;
+    // 60 u from the mob with a clear line to it: the generated map decides on which side (the first of eight that has one).
+    const spot = Array.from({ length: 8 }, (_, k) => ({ x: m.x - 60 * Math.cos((k * Math.PI) / 4), y: m.y - 60 * Math.sin((k * Math.PI) / 4) }))
+      .find((q) => circleClear(world.map, q, PLAYER_RADIUS) && hasLineOfSight(world.map, q, m))!;
+    me.x = spot.x;
+    me.y = spot.y;
     world.players.get("p0")!.history = [{ t: world.state.serverTime, x: me.x, y: me.y }];
     expect(enqueueClientMessage(inputs, "cast", { slot: "wish", x: m.x, y: m.y, id })).toBe(true);
     ticks(world, 10); // Trial lands after 350 ms: a zone on the mob

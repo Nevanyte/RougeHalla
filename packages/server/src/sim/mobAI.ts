@@ -8,8 +8,9 @@
 //     it turns on the player with the most threat (damage done to it since it last rested) that is standing, wherever they
 //     stand, and goes "fight". "fight" chases and attacks that target by the weapon's spacing (policies.ts `decide`: close
 //     in while far or out of sight, stand and attack in range, ranged weapons back off when the target is closer than they
-//     like). It gives up, and goes "return", when it is farther than MOB_LEASH_RADIUS from home, or MOB_GIVE_UP_SECONDS
-//     pass without it dealing damage (damage it TAKES does not extend the fight, so a shooter out of its reach cannot hold
+//     like). It gives up, and goes "return", when it leaves its leash (a mob of a camp with a territory: the camp's
+//     territory cells within min(camp.radius, MOB_LEASH_CAP) of home, ROGUELIKE_PLAN D15; any other mob: MOB_LEASH_RADIUS
+//     around home; shared `leashOk`), or MOB_GIVE_UP_SECONDS pass without it dealing damage (damage it TAKES does not extend the fight, so a shooter out of its reach cannot hold
 //     it), or no standing player is left to fight. "return" is an evade: it walks home ignoring everyone, nothing hurts it
 //     (mobLife.hurtMob), it is whole again the moment it is "idle" within MOB_HOME_RADIUS of home (the walk is shorter than heal()'s lockout),
 //     where it faces homeFacing again. So kiting a mob from outside its leash gains nothing: each round ends with the mob
@@ -23,13 +24,15 @@
 //     walking home ("return") is not woken, nor is a mob of another camp. A mate woken this way holds the target with no
 //     threat of its own (0): threat stays the damage each player did to THAT mob, which is what its kill credit reads
 //     (mobLife.killMob), so a pull never earns a kill. If its target goes down it turns on whoever has hurt it since, or
-//     gives up. Leash and give-up rules are the same as for any fight.
+//     gives up. Leash and give-up rules are the same as for any fight. Inside a ledger pass the wake is a request, settled
+//     after it: the camp's mates take the target that ranks first in the tick's secret order among the ones its hit members
+//     hold, so the result never follows the order the pass took its victims in (join order).
 //   - It only ever targets players; it never attacks another mob.
 //   - On the coliseum teleport (`resetMob`) it drops its fight, its inputs and its path and is put back on its camp spot at
 //     full hp: the gates lock behind the players, so a mob near the coliseum could not walk home.
 import {
-  CAMP_WIDE_AGGRO, decide, hasLineOfSight, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_LEASH_RADIUS, MOB_REPATH_MS, PLAYER_RADIUS,
-  segmentClear, TICK_MS, wrapAngle, type FactionId, type Vec2,
+  CAMP_WIDE_AGGRO, decide, hasLineOfSight, leashOk, MOB_AIM_DEADBAND, MOB_GIVE_UP_SECONDS, MOB_HOME_RADIUS, MOB_REPATH_MS, PLAYER_RADIUS,
+  reachMask, segmentClear, TICK_MS, wrapAngle, type FactionId, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { activeWeapon, timingsOf } from "./combatant";
@@ -38,9 +41,9 @@ import type { MobCombatant } from "./mobLife";
 import { velocityOf } from "./movement";
 import { isStunned, isUntargetableId } from "./status";
 import { cancelAction } from "./weapons";
-import { collisionMap, type MobBrain, type MobRuntime, type World } from "./world";
+import { collisionMap, payLater, tieRank, type MobBrain, type MobRuntime, type World } from "./world";
 
-/** A ranged mob retreats only to points this far inside its leash, so backing away never carries it over the edge. */
+/** A ranged mob retreats only to points this far inside its leash (a territory's cells included), so backing away never carries it over the edge. */
 const LEASH_MARGIN = 24;
 /** A path ending this close to the camp spot is a walk to it; a mob this close to it is on it (world units). */
 const HEADING_HOME = 0.5;
@@ -65,7 +68,7 @@ function standingPlayer(world: World, id: string | null): PlayerState | null {
 /**
  * The standing player with the most threat (ties go to whoever hit first), or null. Players who are gone or down are
  * dropped from the threat list on the way. The target may stand beyond the leash (a bow shoots 240 u, so an archer can
- * hit a mob from outside its 288 u leash): the mob still goes for them, and gives up at the leash edge, rather than
+ * hit a mob from outside its leash): the mob still goes for them, and gives up at the leash edge, rather than
  * being shot at for free while it ignores it.
  */
 function pickTarget(world: World, b: MobBrain): string | null {
@@ -107,7 +110,9 @@ export function aggro(world: World, c: MobCombatant, attackerId: string, amount:
  * standing. No recursion: wakeCamp wakes, it never damages.
  */
 export function wakeMatesOnKill(world: World, c: MobCombatant, killerId: string): void {
-  if (!CAMP_WIDE_AGGRO || standingPlayer(world, killerId) === null) return;
+  if (!CAMP_WIDE_AGGRO) return;
+  // In a pass the killer's standing is judged once it is over (resolveCampWakes): who has gone down so far depends on the order.
+  if (!world.combat.collecting && standingPlayer(world, killerId) === null) return;
   wakeCamp(world, c, killerId);
 }
 
@@ -125,14 +130,50 @@ function wake(world: World, b: MobBrain, target: string): void {
 /**
  * D24: every other idle, living member of `c`'s camp wakes onto `target` (no threat of its own: see the header). Not onto a
  * target that is hidden or untargetable (Swarm): pickTarget would never choose it, and the hit mob's own fight drops it next
- * tick, so the mates stay idle until a hit wakes them onto someone they can see.
+ * tick, so the mates stay idle until a hit wakes them onto someone they can see (the status table is frozen in a pass, so the
+ * answer is the same whenever it is asked). During a ledger pass the wake is only requested: victims are processed in
+ * recording order, which follows join order, so the first one would pick the camp's target. `resolveCampWakes` settles every
+ * request once the pass is over.
  */
 function wakeCamp(world: World, c: MobCombatant, target: string): void {
   const camp = c.s.camp;
   if (!(camp >= 1) || isUntargetableId(world, target)) return;
+  const cb = world.combat;
+  if (cb.collecting) {
+    if (cb.campWakes.length === 0) payLater(world, () => resolveCampWakes(world));
+    cb.campWakes.push({ camp, target });
+    return;
+  }
+  wakeMates(world, camp, target, c.id);
+}
+
+/**
+ * After a ledger pass: each camp with a wake request wakes its idle mates onto ONE target, the requested one that ranks first
+ * in the tick's secret order (`world.combat.rank`, the salted `tieRank` for an exact tie; both are public to no one), and only
+ * if that player is still standing. Every mob that was hit has woken onto its own attacker by then, whatever order the pass
+ * took the victims in, so only the mates nobody touched are left to hand on, and they take the same target in every order.
+ */
+function resolveCampWakes(world: World): void {
+  const requests = world.combat.campWakes;
+  world.combat.campWakes = [];
+  const first = new Map<number, string>();
+  const before = (a: string, b: string): boolean => {
+    const ra = world.combat.rank.get(a) ?? Infinity;
+    const rb = world.combat.rank.get(b) ?? Infinity;
+    return ra !== rb ? ra < rb : tieRank(world, a) < tieRank(world, b);
+  };
+  for (const { camp, target } of requests) {
+    if (standingPlayer(world, target) === null) continue;
+    const held = first.get(camp);
+    if (held === undefined || (held !== target && before(target, held))) first.set(camp, target);
+  }
+  for (const [camp, target] of first) wakeMates(world, camp, target, null);
+}
+
+function wakeMates(world: World, camp: number, target: string, exceptId: string | null): void {
   for (const rt of world.mobs.values()) {
     const b = rt.brain;
-    if (rt.id === c.id || b === undefined || b.mode !== "idle") continue;
+    if (rt.id === exceptId || b === undefined || b.mode !== "idle") continue;
     const s = world.state.mobs.get(rt.id);
     if (s === undefined || s.camp !== camp || s.status !== "alive") continue;
     if (!b.threat.has(target)) b.threat.set(target, 0);
@@ -157,6 +198,7 @@ export function resetMob(world: World, c: MobCombatant): void {
   b.holding = false;
   c.rt.inputs.drain();
   c.rt.path = [];
+  c.rt.slip = null;
   cancelAction(world, c);
   c.rt.weapon.held = false;
   c.rt.weapon.bufferedUntil = 0;
@@ -204,7 +246,7 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
   // Last tick's trigger input has been applied by now, so this is what the sim holds; if anything else let go of it
   // (a teleport, a swap) the next `hold` presses again.
   b.holding = rt.weapon.held;
-  if (Math.hypot(s.x - b.home.x, s.y - b.home.y) > MOB_LEASH_RADIUS || now - b.lastCombatAt >= MOB_GIVE_UP_SECONDS * 1000) {
+  if (!leashOk(world.map, s.camp, b.home, s) || now - b.lastCombatAt >= MOB_GIVE_UP_SECONDS * 1000) {
     giveUp(world, s, rt, b, now, dtMs);
     return;
   }
@@ -229,11 +271,13 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
   const map = collisionMap(world);
   const tm = timingsOf(s, weapon);
   const home = b.home;
+  const campRef = s.camp;
   const out = decide({
     self,
     target: at,
     targetVel: velocityOf(world.players.get(id)!, target, now),
-    los: hasLineOfSight(map, self, at),
+    // A swing is stopped by LOW (a fence, a lava stream), a shot is not: a melee mob across one walks round, a ranged one shoots.
+    los: hasLineOfSight(map, self, at, reachMask(weapon)),
     weapon,
     ready: now >= s.readyAt,
     // The mob's inputs take effect on the next tick, like a client's.
@@ -241,7 +285,7 @@ function fight(world: World, s: MobState, rt: MobRuntime, b: MobBrain, now: numb
     windup: tm?.windup ?? 0,
     // A ranged mob backs off only inside its leash (past it the fight would end in an evade, and a melee player could
     // never catch it), and only to points that open the gap; cornered, decide() stands it still to shoot.
-    walkable: (from, to) => Math.hypot(to.x - home.x, to.y - home.y) <= MOB_LEASH_RADIUS - LEASH_MARGIN
+    walkable: (from, to) => leashOk(world.map, campRef, home, to, LEASH_MARGIN)
       && Math.hypot(to.x - at.x, to.y - at.y) > Math.hypot(from.x - at.x, from.y - at.y)
       && segmentClear(map, from, to, PLAYER_RADIUS),
   });

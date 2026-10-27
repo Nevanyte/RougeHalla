@@ -9,22 +9,23 @@
 import {
   BEATS, FACTION_IDS, FACTIONS, PLAYER_RADIUS, PLAYER_SPEED, WEAPONS, type FactionId, type WeaponId,
 } from "@raid/shared";
-import { runDuel, type BuffGrant } from "./duel";
+import { kitFields, runDuel, type FighterKit } from "./duel";
 import { spacingFor, type Style } from "./matrix";
 
-/** A buff for the shooter (fighter 1) of every kiting duel: buff stacks and/or a bare attack-speed multiplier. The chaser has none. */
-export interface ShooterBuff { buffs?: readonly BuffGrant[]; asMult?: number }
+/**
+ * What one fighter of a kiting duel holds (duel.ts FighterKit). The shooter (fighter 1) holds `shooter`, the melee chaser (fighter 0)
+ * `chaser`; each is none by default.
+ */
+export type ShooterBuff = FighterKit;
 
 export function shooterBuffText(b: ShooterBuff | undefined): string {
   const parts = (b?.buffs ?? []).map((g) => `${g.id} x${g.stacks}`);
+  for (const g of b?.skills ?? []) parts.push(`${g.id} rank ${g.rank}`);
   if (b?.asMult !== undefined && b.asMult !== 1) parts.push(`attack speed x${b.asMult}`);
+  if (b?.windupMult !== undefined && b.windupMult !== 1) parts.push(`windup x${b.windupMult}`);
+  if (b?.speedMult !== undefined && b.speedMult !== 1) parts.push(`move speed x${b.speedMult}`);
   return parts.length ? parts.join(", ") : "none";
 }
-
-const shooterSpec = (b: ShooterBuff | undefined) => ({
-  buffs: [undefined, b?.buffs] as const,
-  asMult: [undefined, b?.asMult] as const,
-});
 
 export const MELEE_WEAPONS: readonly WeaponId[] = ["sword", "axe", "shield"];
 export const RANGED_WEAPONS: readonly WeaponId[] = ["bow", "wand"];
@@ -64,7 +65,7 @@ function median(xs: number[]): number {
   return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
 }
 
-export function kitingReport(factions: readonly FactionId[] = FACTION_IDS, shooter?: ShooterBuff): KitingReport {
+export function kitingReport(factions: readonly FactionId[] = FACTION_IDS, shooter?: ShooterBuff, chaser?: ShooterBuff): KitingReport {
   const cells: KiteCell[] = [];
   const bound: Record<string, number> = {};
   for (const r of RANGED_WEAPONS) bound[r] = (rangeOf(r) - 60) / PLAYER_SPEED;
@@ -81,7 +82,7 @@ export function kitingReport(factions: readonly FactionId[] = FACTION_IDS, shoot
             faction, weapons: [m, r], distance: rangeOf(r) - 20, angle: 0.1, capSeconds: CAP_SECONDS, seed: 3,
             spacing: [undefined, spacingFor(r, style)],
             locks: [false, style === "lock"],
-            ...shooterSpec(shooter),
+            ...kitFields(chaser, shooter),
             onTick: (world, tick) => {
               if (contact !== null) return;
               const a = world.state.players.get("f0")!;
@@ -108,7 +109,7 @@ export function kitingReport(factions: readonly FactionId[] = FACTION_IDS, shoot
     if (c.style === "orbwalk" && ratio > worstOrbwalk.ratio) worstOrbwalk = { ratio, melee: c.melee, ranged: c.ranged };
   }
   const text: string[] = [];
-  if (shooter) text.push(`shooter buff: ${shooterBuffText(shooter)} (the chaser has none)`);
+  if (shooter || chaser) text.push(`shooter holds: ${shooterBuffText(shooter)}; chaser holds: ${shooterBuffText(chaser)}`);
   text.push(`standing-shooter bound (range - 60 u) / ${PLAYER_SPEED} u/s: bow ${bound.bow!.toFixed(2)} s, wand ${bound.wand!.toFixed(2)} s`);
   text.push(`${"".padEnd(16)}${KITE_STYLES.map((s) => s.padStart(14)).join("")}   seconds until in reach / the shooter's hits before then, % of hp  (+ = never within ${CAP_SECONDS} s)`);
   for (const r of RANGED_WEAPONS) {
@@ -148,13 +149,25 @@ export interface KiteEdgesReport { cells: KiteEdgeCell[]; text: string[] }
 /** Start offsets (ticks the winner / the loser waits) and directions: 5 x 2 = 10 setups per duel cell. */
 const EDGE_DELAYS: ReadonlyArray<readonly [number, number]> = [[0, 0], [0, 3], [0, 7], [3, 0], [7, 0]];
 const EDGE_ANGLES = [0.1, 0.8];
+/**
+ * More setups for a cell on the 50% line (`--edge-setups 32|128`, per melee weapon): 8 or 16 start offsets x 4 or 8 directions. The
+ * default is the 10 above; a single duel moves a 10-setup cell by 10 points.
+ */
+const WIDE_DELAYS: ReadonlyArray<readonly [number, number]> = [[0, 0], [0, 2], [0, 4], [0, 6], [2, 0], [4, 0], [6, 0], [3, 3]];
+const WIDE_ANGLES = [0.1, 0.45, 0.8, 1.15];
+const WIDER_DELAYS: ReadonlyArray<readonly [number, number]> = [
+  [0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [3, 3],
+];
+const WIDER_ANGLES = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0, 1.15];
 const EDGE_CAP_SECONDS = 150;
 /** Duels per KITE EDGES cell: every melee weapon on every setup. */
 export const KITE_EDGE_DUELS = MELEE_WEAPONS.length * EDGE_ANGLES.length * EDGE_DELAYS.length;
 
 export function kiteEdgesReport(
-  opts: { shooter?: ShooterBuff; edges?: ReadonlyArray<readonly [FactionId, FactionId]>; log?: (line: string) => void } = {},
+  opts: { shooter?: ShooterBuff; chaser?: ShooterBuff; edges?: ReadonlyArray<readonly [FactionId, FactionId]>; setups?: 10 | 32 | 128; log?: (line: string) => void } = {},
 ): KiteEdgesReport {
+  const angles = opts.setups === 128 ? WIDER_ANGLES : opts.setups === 32 ? WIDE_ANGLES : EDGE_ANGLES;
+  const delays = opts.setups === 128 ? WIDER_DELAYS : opts.setups === 32 ? WIDE_DELAYS : EDGE_DELAYS;
   const cells: KiteEdgeCell[] = [];
   for (const [a, b] of opts.edges ?? BEATS) {
     opts.log?.(`kite edges: ${a} > ${b}`);
@@ -165,12 +178,12 @@ export function kiteEdgesReport(
           let wins = 0;
           let hp = 0;
           let n = 0;
-          for (const angle of EDGE_ANGLES) {
-            for (const delayTicks of EDGE_DELAYS) {
+          for (const angle of angles) {
+            for (const delayTicks of delays) {
               const res = runDuel({
                 faction: a, factions: [a, b], weapons: [m, r], distance: rangeOf(r) - 20, angle, delayTicks,
                 capSeconds: EDGE_CAP_SECONDS, seed: 3 + n * 7, signatures: true,
-                spacing: [undefined, spacingFor(r, style)], locks: [false, style === "lock"], ...shooterSpec(opts.shooter),
+                spacing: [undefined, spacingFor(r, style)], locks: [false, style === "lock"], ...kitFields(opts.chaser, opts.shooter),
               });
               n++;
               if (res.winner === 0) { wins++; hp += res.hpFrac[0]; }
@@ -184,7 +197,7 @@ export function kiteEdgesReport(
     }
   }
   const text: string[] = [];
-  text.push(`shooter buff: ${shooterBuffText(opts.shooter)} (the chaser has none); ${EDGE_ANGLES.length * EDGE_DELAYS.length} setups per melee weapon, signatures on`);
+  text.push(`shooter holds: ${shooterBuffText(opts.shooter)}; chaser holds: ${shooterBuffText(opts.chaser)}; ${angles.length * delays.length} setups per melee weapon, signatures on`);
   text.push(`${"edge".padEnd(26)}${MELEE_WEAPONS.map((m) => m.padStart(13)).join("")}   weakest   (win% / mean hp left of the melee winner)`);
   const pct = (x: number): string => `${Math.round(x * 100)}%`;
   for (const c of cells) {

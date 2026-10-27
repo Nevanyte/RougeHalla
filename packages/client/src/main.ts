@@ -2,11 +2,14 @@
 import Phaser from "phaser";
 import type { FxBatch, JoinOptions, RoomMode, RunResult, ServerMessages } from "@raid/shared";
 import "./style.css";
-import { detachRoom, isCallsignBusy, joinRaid, joinTraining, type RaidRoom } from "./net/connection";
-import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
+import { detachRoom, isCallsignBusy, joinRaid, joinTraining, leaveRoom, type RaidRoom } from "./net/connection";
+import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, MAP_MISMATCH_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
 import { FxInbox } from "./net/fxInbox";
+import { mapLoader, warmWhenIdle } from "./net/mapWorker";
 import { PlanInbox } from "./net/planInbox";
+import { checkedMap, type CheckedMap } from "./net/roomMap";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
+import { applyPhaserFixes, wantsMsaa } from "./render/phaserFixes";
 import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
 import { Chrome } from "./ui/chrome";
@@ -25,8 +28,12 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.NONE, width: startView.deviceW, height: startView.deviceH, zoom: 1 },
   // Right-click is move-to. Set here once: a per-run call would add another canvas listener every run.
   disableContextMenu: true,
+  // powerPreference is a hint for machines with two GPUs (the default picks the integrated one there); the multisampling is dropped
+  // only for a big canvas on a dense screen, where it costs GPU time and its pixels are small (render/phaserFixes.ts `wantsMsaa`).
+  render: { powerPreference: "high-performance", antialiasGL: wantsMsaa(startView.deviceW * startView.deviceH, window.devicePixelRatio || 1) },
   scene: [HubScene, RaidScene],
 });
+applyPhaserFixes(game);
 // Keeps the stage, the canvas size, the cameras' zoom and the overlay's scale matching the window for the whole page.
 new ViewportManager(game);
 
@@ -153,6 +160,25 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
     return;
   }
   if (!wanted()) return;
+  // The map is never synced: the state names (seed, attempt), and the map worker builds exactly that attempt while the
+  // loading screen stays up (the page does not freeze). A room that closes meanwhile is noticed here, since the handlers
+  // below are not registered yet.
+  loading.setText(training ? "Building the training ground…" : "Building the map…");
+  const built = await mapOrClosed(joined);
+  if (!wanted()) return;
+  if (built === "closed") {
+    if (room === joined) room = null;
+    joinFailed(JOIN_CLOSED_MESSAGE);
+    return;
+  }
+  if (!built.ok) {
+    console.error(`[maps] map mismatch, leaving the room: ${built.detail}`);
+    if (room === joined) room = null;
+    // Consented, so the server frees the seat and the profile at once.
+    leaveRoom(joined);
+    joinFailed(MAP_MISMATCH_MESSAGE);
+    return;
+  }
   // Every handler ignores a room that is no longer the current one: a room left behind must not touch the next run.
   if (!training) {
     joined.onMessage("result", (r: RunResult) => {
@@ -197,6 +223,7 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   game.scene.stop("hub");
   game.scene.start("raid", {
     room: joined,
+    map: built.map,
     fxs,
     plan,
     toast: (text: string, tone?: ToastTone) => toasts.show(text, tone),
@@ -218,6 +245,18 @@ function flushPendingResult(): void {
 function cancelPendingResult(): void {
   if (pendingResult) clearTimeout(pendingResult.timer);
   pendingResult = null;
+}
+
+/** The room's checked map (net/roomMap.ts), or "closed" if the room closes first. */
+function mapOrClosed(r: RaidRoom): Promise<CheckedMap | "closed"> {
+  return new Promise((resolve) => {
+    const onLeave = () => resolve("closed");
+    r.onLeave.once(onLeave);
+    void checkedMap(r.state, mapLoader).then((m) => {
+      r.onLeave.remove(onLeave);
+      resolve(m);
+    });
+  });
 }
 
 /**
@@ -257,3 +296,5 @@ menu.show();
 // index.html's #boot goes once the hub scene has drawn and the profile has loaded or failed (the menu shows which).
 loading.show("Loading…", { timeoutMs: BOOT_TIMEOUT_MS });
 void Promise.all([whenReady(() => sceneRunning("hub")), menu.whenLoaded()]).then(() => { if (joinAttempt === 0) loading.hide(); });
+// The map worker builds its lane tables and warms up once the hub is drawn and the page is idle, long before a join needs it.
+void whenReady(() => sceneRunning("hub")).then(() => warmWhenIdle());

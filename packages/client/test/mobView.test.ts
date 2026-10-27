@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { EFFECT_DOT, EFFECT_STUNNED } from "@raid/shared";
 import type { MobState } from "@raid/shared/schema";
 import { MobView } from "../src/render/MobView";
+import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeedback";
 import { fakeScene, type FakeObject } from "./fakes";
 
 /** Matches `scene.add.container(0, 0, [...])` in MobView's constructor. */
@@ -20,7 +21,7 @@ function mob(over: Partial<Record<keyof MobState, unknown>> = {}): MobState {
 function setup() {
   const { scene, ofKind } = fakeScene();
   const view = new MobView(scene);
-  const root = ofKind("container")[0]!;
+  const root = ofKind("container").at(-1)!;
   const kids = root.args[2] as FakeObject[];
   return {
     view, root,
@@ -88,13 +89,13 @@ describe("MobView bar and name around a death", () => {
     const elite = mob({ kind: "elite", name: "Warden", maxHp: 700, hp: 400 });
     const dead = mob({ kind: "elite", name: "Warden", maxHp: 700, hp: 0, status: "dead" });
     frame(elite, 900, 950);
-    expect(bar.calls.length).toBeGreaterThan(0);
+    expect(bar.state.visible).toBe(true);
     expect(star.state.visible).toBe(true);
     // The dead patch (server time 1000) is 100 ms ahead of what is drawn: the body, the name and the bar still show.
     frame(dead, 900, 1000);
     expect(label.state.visible).toBe(true);
     expect(star.state.visible).toBe(true);
-    expect(bar.calls.length).toBeGreaterThan(0);
+    expect(bar.state.visible).toBe(true);
     frame(dead, 999, 1100);
     expect(label.state.visible).toBe(true);
     expect(star.state.visible).toBe(true);
@@ -102,7 +103,7 @@ describe("MobView bar and name around a death", () => {
     frame(dead, 1000, 1100);
     expect(label.state.visible).toBe(false);
     expect(star.state.visible).toBe(false);
-    expect(bar.calls).toEqual([]);
+    expect(bar.state.visible).toBe(false);
   });
 });
 
@@ -110,27 +111,27 @@ describe("MobView bar and name by state", () => {
   it("shows a calm mob's name faintly and no bar; hurt or fighting, the bar and the name at full strength", () => {
     const { frame, bar, label } = setup();
     frame(mob(), 1000, 1000);
-    expect(bar.calls).toEqual([]);
+    expect(bar.state.visible).toBe(false);
     expect(label.state.alpha).toBe(0.5);
     expect(label.state.text).toBe("Grunt");
     frame(mob({ hp: 250 }), 1050, 1050);
-    expect(bar.calls.length).toBeGreaterThan(0);
+    expect(bar.state.visible).toBe(true);
     expect(label.state.alpha).toBe(1);
     // Healed back to full and idle: the bar goes again.
     frame(mob(), 1100, 1100);
-    expect(bar.calls).toEqual([]);
+    expect(bar.state.visible).toBe(false);
     expect(label.state.alpha).toBe(0.5);
     // Swinging (its cooldown is running) or drawing a bow counts as fighting, at full health.
     frame(mob({ readyAt: 1300 }), 1150, 1150);
-    expect(bar.calls.length).toBeGreaterThan(0);
+    expect(bar.state.visible).toBe(true);
     frame(mob({ weapon0: "bow", drawStartedAt: 1160 }), 1200, 1200);
-    expect(bar.calls.length).toBeGreaterThan(0);
+    expect(bar.state.visible).toBe(true);
   });
 
   it("always shows an elite's bar, gold ring, star and gold bold name; a normal mob has none of them", () => {
     const { frame, bar, label, star, ring } = setup();
     frame(mob({ kind: "elite", name: "Warden", maxHp: 700, hp: 700 }), 1000, 1000);
-    expect(bar.calls.length).toBeGreaterThan(0);
+    expect(bar.state.visible).toBe(true);
     expect(star.state.visible).toBe(true);
     expect(ring.state.visible).toBe(true);
     expect(label.state.alpha).toBeUndefined(); // full strength from the start
@@ -140,17 +141,17 @@ describe("MobView bar and name by state", () => {
     frame(mob(), 1050, 1050);
     expect(star.state.visible).toBe(false);
     expect(ring.state.visible).toBe(false);
-    expect(bar.calls).toEqual([]);
+    expect(bar.state.visible).toBe(false);
   });
 
   it("keeps a training dummy's bar and name on, and draws no bar for a mob without hp", () => {
     const { frame, bar, label } = setup();
     frame(mob({ kind: "dummy", name: "Dummy", maxHp: 500, hp: 500 }), 1000, 1000);
-    expect(bar.calls.length).toBeGreaterThan(0);
+    expect(bar.state.visible).toBe(true);
     expect(label.state.alpha).toBeUndefined();
     const none = setup();
     none.frame(mob({ kind: "elite", maxHp: 0, hp: 0 }), 1000, 1000);
-    expect(none.bar.calls).toEqual([]);
+    expect(none.bar.state.visible).toBe(false);
   });
 });
 
@@ -179,5 +180,33 @@ describe("MobView status marks", () => {
     frame(mob(stunned), 1000, 1000);
     frame(mob(stunned), 1450, 1450);
     expect(status.calls).toEqual([]);
+  });
+});
+
+describe("MobView feet effects", () => {
+  const burning: TerrainStates = { ...NO_STATES, kind: 4, burning: true };
+
+  it("makes no Graphics for them until the mob first stands on a hazard, then once", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new MobView(scene);
+    const made = ofKind("graphics").length;
+    for (let i = 0; i < 3; i++) view.update(0, 0, mob(), 1000 + i, 1000 + i);
+    view.update(0, 0, mob({ status: "dead", hp: 0 }), 5000, 5000); // faded out: hides a feet effect that was never made
+    expect(ofKind("graphics")).toHaveLength(made);
+    view.update(0, 0, mob(), 6000, 6000, false, burning);
+    expect(ofKind("graphics")).toHaveLength(made + 1);
+    view.update(0, 0, mob(), 6050, 6050, false, burning);
+    expect(ofKind("graphics")).toHaveLength(made + 1);
+    const feet = ofKind("graphics")[made]!;
+    expect(feet.state.visible).toBe(true);
+    view.update(0, 0, mob(), 6100, 6100);
+    expect(feet.state.visible).toBe(false);
+    view.destroy();
+    expect(feet.calls.some(([n]) => n === "destroy")).toBe(true);
+  });
+
+  it("destroys cleanly when it never made them", () => {
+    const { view } = setup();
+    expect(() => view.destroy()).not.toThrow();
   });
 });

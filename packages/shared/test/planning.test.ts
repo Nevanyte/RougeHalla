@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   campMatchup, duel, FACTION_IDS, FACTIONS, findPath, generateMap, isEliteCamp, matchupShare, mobFaction, nearestCamps,
-  PLAN_WALK_TOLERANCE, PLAYER_SPEED, sameTier, spawnWalks, tierRatio, walkLength, walkSeconds,
+  PLAN_WALK_TOLERANCE, PLAYER_SPEED, primeSpawnWalks, sameTier, spawnWalks, tierRatio, walkLength, walkSeconds,
 } from "../src/index";
 
 describe("spawnWalks", () => {
@@ -22,7 +22,29 @@ describe("spawnWalks", () => {
     expect(spawnWalks(generateMap(7))).toEqual(walks); // deterministic: the client computes the same numbers
   });
 
-  it("every spawn of a wedge map reaches the centre, and most have a partner in their tier in another zone", () => {
+  it("primeSpawnWalks hands a map walks computed elsewhere: taken once, only one number per pool spawn, never over the cache", () => {
+    const worked = spawnWalks(generateMap(7)); // what a worker thread would compute and ship
+    const fresh = generateMap(7);
+    expect(primeSpawnWalks(fresh, worked)).toBe(true);
+    // The cache now answers (a copy: the shipped list is the sender's), with the same numbers a computation gives.
+    expect(spawnWalks(fresh)).toEqual(worked);
+    expect(spawnWalks(fresh)).toBe(spawnWalks(fresh));
+    // A second prime, even with other numbers, changes nothing: the first answer stands.
+    expect(primeSpawnWalks(fresh, worked.map((w) => w + 1))).toBe(false);
+    expect(spawnWalks(fresh)).toEqual(worked);
+
+    for (const bad of [worked.slice(1), [...worked, 1], worked.map(() => Number.NaN), worked.map((_, i) => (i === 0 ? -5 : 1)), "walks" as never]) {
+      const map = generateMap(7);
+      expect(primeSpawnWalks(map, bad)).toBe(false);
+      expect(spawnWalks(map)).toEqual(worked); // refused: it computes its own
+    }
+    // Infinity (a spawn with no path) is a legal walk.
+    const open = generateMap(7);
+    expect(primeSpawnWalks(open, worked.map((w, i) => (i === 0 ? Infinity : w)))).toBe(true);
+    expect(spawnWalks(open)[0]).toBe(Infinity);
+  });
+
+  it("every spawn of a generated map reaches the centre, and most have a partner in their tier in another zone", () => {
     let isolated = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const map = generateMap(seed);

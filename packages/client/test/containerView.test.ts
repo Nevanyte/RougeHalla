@@ -22,12 +22,13 @@ function setup(c: ContainerState = reward()) {
   const s = fakeScene();
   const view = new ContainerView(s.scene);
   view.update(c);
-  const [shape] = s.ofKind("graphics");
+  // The chest itself is a baked texture (render/bake.ts): what it shows is the drawing that made the shape Image's texture.
+  const shape = s.baked.get(String(s.ofKind("image")[0]!.state.texture))!;
   const root = s.ofKind("container")[0]!;
-  /** The ground marks, once setTimer has made them. */
-  const ground = (): FakeObject => s.ofKind("graphics")[2]!;
+  /** The ground marks, once setTimer has made them: the view's only Graphics. */
+  const ground = (): FakeObject => s.ofKind("graphics")[0]!;
   const text = (): FakeObject => s.ofKind("text")[1]!;
-  return { ...s, view, shape: shape!, root, ground, text, c };
+  return { ...s, view, shape, root, ground, text, c };
 }
 
 beforeEach(() => { settings.update({ reducedMotion: false, juice: 1 }); });
@@ -79,9 +80,9 @@ describe("a reward chest in the world", () => {
 
   it("draws nothing on the ground until it is timed, then one ring layer on the ground layer, flattened like the world", () => {
     const { view, ofKind, ground, c } = setup();
-    expect(ofKind("graphics")).toHaveLength(2);
+    expect(ofKind("graphics")).toHaveLength(0);
     view.setTimer(c, 15, true, 0);
-    expect(ofKind("graphics")).toHaveLength(3);
+    expect(ofKind("graphics")).toHaveLength(1);
     expect(ground().state.depth).toBe(DEPTH_HIGHLIGHT);
     expect(ground().state.scale).toEqual([1, Y_SCALE]);
     expect(ground().state.position).toEqual([300, 400 * Y_SCALE]);
@@ -213,7 +214,7 @@ describe("a reward chest in the world", () => {
     const crate = { ...reward({ kind: "chest" }), items: [{ uid: "u", def: "axe" }] } as unknown as ContainerState;
     view.update(crate);
     view.setTimer(crate, 10, true, 0);
-    expect(s.ofKind("graphics")).toHaveLength(2);
+    expect(s.ofKind("graphics")).toHaveLength(0);
     expect(s.ofKind("text")).toHaveLength(1);
   });
 });

@@ -117,10 +117,12 @@ describe("passiveTip: Quickdraw's caveat", () => {
     const lines = tip.split("\n");
     expect(lines.at(-1)).toBe(skillDef("quickdraw")!.note);
     expect(lines.at(-1)).toMatch(/50 ms tick/);
-    expect(lines[1]).toBe("-8% windup time");
+    expect(lines[1]).toBe("-50% melee windup time");
+    expect(lines.at(-1)).toMatch(/never shortens/);
     for (const def of SKILLS) if (def.id !== "quickdraw") expect(def.note, def.id).toBeUndefined();
     // The cards (skillText) stay the rank's own line: the number is the rows', the caveat is the tooltip's.
-    expect(skillText("quickdraw", 1)).toBe("-8% windup time");
+    expect(skillText("quickdraw", 1)).toBe("-50% melee windup time");
+    expect(skillText("quickdraw", 2)).toBe("-75% melee windup time");
   });
 });
 

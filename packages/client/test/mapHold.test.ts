@@ -176,4 +176,23 @@ describe("insidePanel", () => {
     expect(insidePanel(child)).toBe(true);
     expect(insidePanel({ classList: { contains: () => false }, parentElement: null })).toBe(false);
   });
+
+  it("finds the camp chest panel too, from its cards and its Skip button", () => {
+    installPlanningDom();
+    const panel = asEl(document.createElement("div"));
+    panel.classList.add("chest-panel");
+    const box = asEl(document.createElement("div"));
+    const card = asEl(document.createElement("button"));
+    card.classList.add("cp-card");
+    box.append(card);
+    panel.append(box);
+    expect(insidePanel(card)).toBe(true);
+    expect(insidePanel(panel)).toBe(true);
+    const { h, state } = hold();
+    state.focused = card;
+    const e = key({ target: card });
+    expect(h.keyDown(e)).toBe(false);
+    expect(e.prevented).toBe(false);
+    expect(h.held).toBe(false);
+  });
 });

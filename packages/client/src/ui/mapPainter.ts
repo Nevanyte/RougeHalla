@@ -1,11 +1,12 @@
 // Paints the whole map for the minimap, the lobby preview, the planning screen and the hold-Tab map: zone tints (with a pattern
-// per zone, so a zone is never told apart by hue alone), walls, the coliseum gates, camp markers (a shape per zone, a crown on
+// per zone, so a zone is never told apart by hue alone), the ground (floor hazards, LOW barriers), walls, the coliseum gates, camp markers (a shape per zone, a crown on
 // an elite), weapon crates, the route and the player. It only talks to a 2D context, so a test can hand it a recorder.
 //
 // Every function takes `k`, the context's pixels per world unit (size / mapSpan()), and `px`, its pixels per reference
 // overlay pixel (marks scale with the map's size). The static layer (`paintMapBase`) is painted once per map and size.
 import {
-  FACTIONS, FACTION_IDS, REGION_IDS, TILE, isWallTile,
+  FACTIONS, FACTION_IDS, REGION_IDS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA,
+  TERRAIN_LIGHT, TILE, TILE_FLOOR, TILE_LOW, isWallTile,
   type CampDef, type FactionId, type GameMap, type RegionId, type Vec2,
 } from "@raid/shared";
 import { cssColor } from "./dom";
@@ -22,6 +23,24 @@ export const COLOR_REGION: Record<RegionId, string | null> = {
   holy: "rgba(255, 241, 118, 0.22)",
   coliseum: "rgba(200, 180, 138, 0.3)",
 };
+/**
+ * LOW tiles (they stop bodies, not shots or sight), by terrain kind: painted over the region tints and under the walls. Lava is a
+ * hot orange block, a fence a thin pale line (a tile is only 1.5 to 3 px here), a crevasse a dark block with a blue edge.
+ */
+const COLOR_LOW_DEFAULT = "#7a808b";
+const COLOR_LOW: Readonly<Record<number, string>> = {
+  [TERRAIN_LAVA]: "#ff5a1f",
+  [TERRAIN_FENCE]: "#b9b0d6",
+  [TERRAIN_CREVASSE]: "#0a1626",
+};
+const COLOR_CREVASSE_EDGE = "#4aa3df";
+/** Floor hazards as faint tints over the region colour, under the LOW tiles and the walls (D 7.8). */
+const COLOR_HAZARD: Readonly<Record<number, string>> = {
+  [TERRAIN_EMBER]: "rgba(255, 138, 61, 0.8)",
+  [TERRAIN_BOG]: "rgba(95, 143, 58, 0.55)",
+  [TERRAIN_ICE]: "rgba(191, 233, 255, 0.55)",
+  [TERRAIN_LIGHT]: "rgba(255, 243, 176, 0.7)",
+};
 export const COLOR_OUTLINE = "#0b0e11";
 export const COLOR_CROWN = "#ffd54f";
 export const COLOR_CRATE = "#c8a46a";
@@ -30,6 +49,8 @@ export const COLOR_PLAYER = "#69f0ae";
 export const COLOR_PLAYER_DOWN = "#78909c";
 
 const TAU = Math.PI * 2;
+/** The size (px) the reference overlay pixel is taken against when a caller gives no `px` (the minimap's REF_SIZE). */
+const REF_BASE_SIZE = 150;
 
 /** The slice of a 2D context the painter uses. */
 export type PaintCtx = CanvasRenderingContext2D;
@@ -118,9 +139,127 @@ function forEachRegionRun(
   }
 }
 
+/** Calls `fn(start, end)` (end exclusive) for each maximal run of equal non-negative values in `values`. */
+function eachRun(values: ArrayLike<number>, fn: (start: number, end: number, value: number) => void): void {
+  let start = 0;
+  for (let i = 1; i <= values.length; i++) {
+    if (i < values.length && values[i] === values[start]) continue;
+    if (values[start]! >= 0) fn(start, i, values[start]!);
+    start = i;
+  }
+}
+
+/** Floor hazard tiles as runs of one kind per row, rounded outward like the walls'. */
+function paintHazards(g: PaintCtx, map: GameMap, tile: number): void {
+  const kinds: number[] = new Array(map.w);
+  for (let ty = 0; ty < map.h; ty++) {
+    const top = Math.floor(ty * tile);
+    const bottom = Math.ceil((ty + 1) * tile);
+    let any = false;
+    for (let tx = 0; tx < map.w; tx++) {
+      const i = ty * map.w + tx;
+      const k = map.tiles[i] === TILE_FLOOR && COLOR_HAZARD[map.terrain[i]!] !== undefined ? map.terrain[i]! : -1;
+      kinds[tx] = k;
+      any ||= k >= 0;
+    }
+    if (!any) continue;
+    eachRun(kinds, (start, end, k) => {
+      const left = Math.floor(start * tile);
+      g.fillStyle = COLOR_HAZARD[k]!;
+      g.fillRect(left, top, Math.ceil(end * tile) - left, bottom - top);
+    });
+  }
+}
+
+/** Whether a LOW tile is part of a fence line (a fence, or a LOW tile with a fence beside it counts through its own kind only). */
+function isFence(map: GameMap, tx: number, ty: number): boolean {
+  if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) return false;
+  const i = ty * map.w + tx;
+  return map.tiles[i] === TILE_LOW && map.terrain[i] === TERRAIN_FENCE;
+}
+
+/**
+ * LOW tiles: lava, a crevasse (with a blue edge) and any other kind as blocks, runs of one kind per row; fences as thin lines along
+ * the line they make (a horizontal run per row, a vertical run per column where the line goes up and down, a short stroke for a lone
+ * tile). `px` is the context's pixels per reference overlay pixel, for the crevasse's edge width.
+ */
+function paintLow(g: PaintCtx, map: GameMap, tile: number, px: number): void {
+  const kinds: number[] = new Array(map.w);
+  for (let ty = 0; ty < map.h; ty++) {
+    const top = Math.floor(ty * tile);
+    const bottom = Math.ceil((ty + 1) * tile);
+    let any = false;
+    for (let tx = 0; tx < map.w; tx++) {
+      const low = map.tiles[ty * map.w + tx] === TILE_LOW;
+      const k = low ? map.terrain[ty * map.w + tx]! : -1;
+      kinds[tx] = low && !isFence(map, tx, ty) ? k : -1;
+      any ||= kinds[tx]! >= 0;
+    }
+    if (!any) continue;
+    eachRun(kinds, (start, end, k) => {
+      const left = Math.floor(start * tile);
+      const width = Math.ceil(end * tile) - left;
+      g.fillStyle = COLOR_LOW[k] ?? COLOR_LOW_DEFAULT;
+      g.fillRect(left, top, width, bottom - top);
+      if (k === TERRAIN_CREVASSE) {
+        g.strokeStyle = COLOR_CREVASSE_EDGE;
+        g.lineWidth = Math.max(1, px * 0.7);
+        g.strokeRect(left + g.lineWidth / 2, top + g.lineWidth / 2, width - g.lineWidth, bottom - top - g.lineWidth);
+      }
+    });
+  }
+
+  // Fences: thin lines.
+  const thick = Math.max(1, Math.round(tile * 0.4));
+  // Set at the first fence drawn, not before: a map without any makes no call here (the painter's golden test pins that).
+  let fenceStyle = false;
+  const useFenceStyle = (): void => {
+    if (fenceStyle) return;
+    fenceStyle = true;
+    g.fillStyle = COLOR_LOW[TERRAIN_FENCE]!;
+  };
+  const sideways = (tx: number, ty: number): boolean => isFence(map, tx - 1, ty) || isFence(map, tx + 1, ty);
+  const updown = (tx: number, ty: number): boolean => isFence(map, tx, ty - 1) || isFence(map, tx, ty + 1);
+  const row: number[] = new Array(map.w);
+  for (let ty = 0; ty < map.h; ty++) {
+    let any = false;
+    for (let tx = 0; tx < map.w; tx++) {
+      // A tile that joins others sideways, or stands alone, is drawn in its row; a tile that only goes up and down in its column.
+      const f = isFence(map, tx, ty) && (sideways(tx, ty) || !updown(tx, ty));
+      row[tx] = f ? 0 : -1;
+      any ||= f;
+    }
+    if (!any) continue;
+    useFenceStyle();
+    const top = Math.floor(ty * tile) + Math.floor((Math.ceil((ty + 1) * tile) - Math.floor(ty * tile) - thick) / 2);
+    eachRun(row, (start, end) => {
+      const left = Math.floor(start * tile);
+      g.fillRect(left, top, Math.ceil(end * tile) - left, thick);
+    });
+  }
+  const col: number[] = new Array(map.h);
+  for (let tx = 0; tx < map.w; tx++) {
+    let any = false;
+    for (let ty = 0; ty < map.h; ty++) {
+      const f = isFence(map, tx, ty) && updown(tx, ty) && !sideways(tx, ty);
+      col[ty] = f ? 0 : -1;
+      any ||= f;
+    }
+    if (!any) continue;
+    useFenceStyle();
+    const left = Math.floor(tx * tile) + Math.floor((Math.ceil((tx + 1) * tile) - Math.floor(tx * tile) - thick) / 2);
+    eachRun(col, (start, end) => {
+      const top = Math.floor(start * tile);
+      g.fillRect(left, top, thick, Math.ceil(end * tile) - top);
+    });
+  }
+}
+
 export interface BaseOptions {
   /** Hatch each zone with its own pattern (ZONE_PATTERN) on top of the tint. Off keeps the minimap's original look. */
   patterns?: boolean;
+  /** The context's pixels per reference overlay pixel (the crevasse's edge width); the minimap's 150 px reference when absent. */
+  px?: number;
 }
 
 /** Pixels per repeat of the pattern tile for a map painted `size` pixels wide. */
@@ -178,7 +317,7 @@ export function makePatternTile(zone: FactionId, period: number, g: PaintCtx): C
 }
 
 /**
- * Paints the map's static layer into `w` x `h` pixels: the background, the zone tints (and their patterns), the walls. `k` is
+ * Paints the map's static layer into `w` x `h` pixels: the background, the zone tints, the ground (hazards, LOW), the zone patterns, the walls. `k` is
  * pixels per world unit. Call it once per map and size; the dynamic marks go on top of the result.
  */
 export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k: number, opts: BaseOptions = {}): void {
@@ -194,6 +333,10 @@ export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k:
     g.fillStyle = color;
     g.fillRect(left, top, width, height);
   });
+
+  // The ground: floor hazards (ember, bog, ice, light) as faint tints over the zone colour, so the zone's hatch stays readable on
+  // them; LOW tiles (lava, fence, crevasse) below, after the hatch. A barrier that is not drawn is an invisible wall to the player.
+  paintHazards(g, map, tile);
 
   if (opts.patterns) {
     // The pattern tile is anchored to the context's origin, so a hatch line continues across runs and rows.
@@ -212,6 +355,8 @@ export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k:
       g.fillRect(left, top, width, height);
     });
   }
+
+  paintLow(g, map, tile, opts.px ?? Math.max(1, w / REF_BASE_SIZE));
 
   // Horizontal runs of wall tiles per row; edges are rounded outward so neighbouring rows leave no hairline gaps.
   g.fillStyle = COLOR_WALL;
@@ -259,14 +404,18 @@ export const CAMP_CLEARED = 2;
 /** A cleared camp's marker is drawn this faint, under a cross. */
 const CLEARED_ALPHA = 0.38;
 const COLOR_CLEARED_CROSS = "#eceff1";
-const COLOR_ENGAGED = "#ff7043";
-/** A small flame on a unit base, at an engaged camp's upper right. */
-const FLAME: Poly = [[0, -1], [0.7, -0.1], [0.45, 0.9], [-0.45, 0.9], [-0.7, -0.1]];
+/**
+ * The mark of a camp somebody has fought at (CampState.state 1). That state is sticky history, not a live fight (mobs that
+ * lose their target walk home and heal, and nothing sets it back), so the mark is a small muted ring, never an alert colour.
+ */
+export const COLOR_DISTURBED = "#b0bec5";
+const DISTURBED_ALPHA = 0.7;
 
 /**
  * Camp markers: the zone's shape in its colour with a dark outline, an elite bigger and crowned. With `states` (one number per
- * camp, CAMP_*), a cleared camp is dimmed and crossed out so everyone reads what was taken, and an engaged one wears a small
- * flame; without them (or with 0s) the calls are exactly the plain markers'.
+ * camp, CAMP_*), a cleared camp is dimmed and crossed out so everyone reads what was taken, and a disturbed one (somebody has
+ * fought there; the state never goes back) wears a small muted ring; without them (or with 0s) the calls are exactly the plain
+ * markers'.
  */
 export function paintCamps(
   g: PaintCtx, camps: readonly Pick<CampDef, "zone" | "x" | "y" | "eliteSpot">[], k: number, px: number, states?: ArrayLike<number>,
@@ -312,11 +461,15 @@ export function paintCamps(
       g.strokeStyle = COLOR_OUTLINE;
       g.lineWidth = px;
     } else if (state === CAMP_ENGAGED) {
-      g.fillStyle = COLOR_ENGAGED;
+      g.globalAlpha = DISTURBED_ALPHA;
+      g.strokeStyle = COLOR_DISTURBED;
+      g.lineWidth = 1.4 * px;
       g.beginPath();
-      polyPath(g, FLAME, cx + r * 0.95, cy - r * 0.85, r * 0.55);
-      g.fill();
+      g.arc(cx + r * 0.95, cy - r * 0.85, r * 0.32, 0, TAU);
       g.stroke();
+      g.globalAlpha = 1;
+      g.strokeStyle = COLOR_OUTLINE;
+      g.lineWidth = px;
     }
   }
 }

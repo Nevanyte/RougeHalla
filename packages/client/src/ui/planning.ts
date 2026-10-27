@@ -8,7 +8,7 @@
 // placed by percent over the painted map (canvas), so the keyboard and screen readers reach them. Orders go out as `plan`
 // inputs only; the deal and the route stay on this client (the route is never sent).
 import {
-  FACTIONS, campMatchup, isEliteCamp, isFactionId, nearestCamps, spawnWalks, walkSeconds,
+  FACTIONS, campMatchup, isEliteCamp, isFactionId, nearestCamps, regionAt, spawnWalks, walkSeconds,
   type CampDef, type ClientMessages, type FactionId, type GameMap, type PlanMessage, type Vec2,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../net/localMotion";
@@ -22,8 +22,8 @@ import {
 } from "./mapPainter";
 import { mapSpan, minimapBacking, minimapToWorld } from "./minimapMath";
 import {
-  MAX_WAYPOINTS, ROUTE_REACH, cycleIndex, describeMatchup, formatClock, formatEta, fullMapSize, planningMapSize, previewMapSize,
-  routeAhead, type RoutePlan,
+  MAX_WAYPOINTS, ROUTE_REACH, campBoxes, crowdedChips, cycleIndex, describeMatchup, formatClock, formatEta, fullMapSize, glyphScale,
+  labelSizePx, placeLabels, planningMapSize, previewMapSize, routeAhead, zoneJump, type CampSpot, type PxBox, type RoutePlan,
 } from "./planningMath";
 import type { RouteState } from "./route";
 import { PlanningQuests } from "./questPlanning";
@@ -60,7 +60,11 @@ export interface PlanningFrame {
   players: readonly PlanningPlayer[];
   /** RaidState.camps[i].type for every camp, "" where unknown. */
   campTypes: readonly string[];
-  /** RaidState.camps[i].state for every camp (0 idle, 1 engaged, 2 cleared): a cleared camp is crossed out. Absent: all idle. */
+  /**
+   * RaidState.camps[i].state for every camp (0 idle, 1 engaged, 2 cleared): a cleared camp is crossed out; an engaged one only
+   * means somebody fought there once (the state never goes back), so it is marked as disturbed, not as a fight under way.
+   * Absent: all idle.
+   */
   campStates?: readonly number[];
   /** The local fighter's ground position, for the in-run map. */
   local: { x: number; y: number; alive: boolean } | null;
@@ -125,6 +129,8 @@ interface CampMarker {
 interface SpawnOption {
   index: 0 | 1;
   zone: FactionId | null;
+  /** Where it is on the map (a pool member), or null. */
+  at: Vec2 | null;
   /** What the option is, before its state ("Spawn 1: Fire, 0:23 walk to the coliseum"). */
   label: string;
   card: HTMLButtonElement;
@@ -189,6 +195,11 @@ export class PlanningView {
   private readonly quests = new PlanningQuests();
 
   private readonly camps: CampMarker[] = [];
+  /** The zone names on the map, in `map.regions` order; `relayout` moves them off the camps. */
+  private zoneLabels: HTMLElement[] = [];
+  /** The side of the map in overlay px for the mode shown (0 before the first), and the size of its marks (`--pl-glyph`). */
+  private sizePx = 0;
+  private glyph = 1;
   private spawnOptions: SpawnOption[] = [];
   private boonCards: HTMLButtonElement[] = [];
   private stopMarkers: HTMLButtonElement[] = [];
@@ -282,7 +293,7 @@ export class PlanningView {
     this.dyn.setAttribute("aria-hidden", "true");
     this.zones.setAttribute("aria-hidden", "true");
     this.markers.setAttribute("role", "group");
-    this.markers.setAttribute("aria-label", "Map markers. Arrow keys move between them.");
+    this.markers.setAttribute("aria-label", "Map markers. Arrow keys move between them; Page Up and Page Down jump between zones.");
     this.zones.append(this.quests.markers);
     this.mapWrap.append(this.base, this.dyn, this.zones, this.markers);
     this.dyn.addEventListener("click", this.onMapClick);
@@ -339,6 +350,7 @@ export class PlanningView {
     this.camps.length = 0;
     this.markers.replaceChildren();
     this.zones.replaceChildren(this.quests.markers);
+    this.zoneLabels = [];
     this.quests.setMap(map);
     this.spawnOptions = [];
     this.stopMarkers = [];
@@ -354,6 +366,7 @@ export class PlanningView {
       label.append(glyph(region.id), el("span", "pl-zone-name", zoneName(region.id)));
       place(label, region.pole);
       this.zones.append(label);
+      this.zoneLabels.push(label);
     }
     map.camps.forEach((camp, i) => {
       const button = el("button", `pl-camp${isEliteCamp(camp) ? " elite" : ""}`);
@@ -377,6 +390,7 @@ export class PlanningView {
     this.routeDirty = true;
     this.backing = 0;
     this.applyView();
+    this.relayout();
     this.refreshRover();
   }
 
@@ -398,7 +412,10 @@ export class PlanningView {
     const size = this.shownMode === "map" ? fullMapSize(uiW, uiH)
       : this.shownMode === "preview" ? previewMapSize(uiW, uiH) : planningMapSize(uiW, uiH, this.textScale);
     this.element.style.setProperty("--pl-size", `${size}px`);
-    this.element.style.setProperty("--pl-glyph", String(Math.round(Math.min(1.25, Math.max(0.55, size / 640)) * 100) / 100));
+    this.sizePx = size;
+    this.glyph = glyphScale(size);
+    this.element.style.setProperty("--pl-glyph", String(this.glyph));
+    this.relayout();
     const backing = minimapBacking(size, uiScale, dpr);
     if (backing === this.backing) return;
     this.backing = backing;
@@ -539,7 +556,7 @@ export class PlanningView {
       const m = me ? describeMatchup(campMatchup(me, camp)) : null;
       const state = states?.[i] ?? 0;
       button.classList.toggle("cleared", state === 2);
-      button.classList.toggle("engaged", state === 1);
+      button.classList.toggle("disturbed", state === 1);
       chip.textContent = m?.chip ?? "";
       chip.className = `pl-chip${m ? ` tone-${m.tone}` : ""}`;
       // A cleared camp has nothing left to weigh up: no matchup chip.
@@ -548,7 +565,42 @@ export class PlanningView {
       button.setAttribute("aria-label", label);
       button.title = label;
     });
+    this.relayout();
     this.lastInfo = "";
+  }
+
+  /**
+   * What fits on the map at its size now (see planningMath): the chips of camps that would crowd another mark hide (`crowded`:
+   * shown again while their camp is hovered or focused, planning.css), and each zone's name moves to the nearest free spot inside
+   * its zone. Called when the size, a chip's text or the spawn marks change: never per frame.
+   */
+  private relayout(): void {
+    const size = this.sizePx;
+    if (size <= 0) return;
+    const k = size / mapSpan();
+    const { glyph, textScale } = this;
+    const camps: CampSpot[] = this.camps.map(({ camp, chip }) => ({
+      x: camp.x * k, y: camp.y * k, elite: isEliteCamp(camp), chars: chip.hidden ? 0 : chip.textContent.length,
+    }));
+    const side = Math.max(20, 28 * glyph);
+    const marks: PxBox[] = this.shownMode !== "planning" ? [] : this.spawnOptions.flatMap((o) => (
+      o.at && o.marker ? [{ x: o.at.x * k - side / 2, y: o.at.y * k - side / 2, w: side, h: side }] : []
+    ));
+    const crowded = crowdedChips(camps, marks, glyph, textScale);
+    this.camps.forEach(({ chip }, i) => chip.classList.toggle("crowded", crowded[i] === true));
+
+    const regions = this.map.regions;
+    const wishes = regions.map((region) => {
+      const { w, h } = labelSizePx(zoneName(region.id).length, glyph, textScale);
+      return { x: region.pole.x * k, y: region.pole.y * k, w, h, inside: (px: number, py: number) => regionAt(this.map, px / k, py / k) === region.id };
+    });
+    const spots = placeLabels(wishes, [...campBoxes(camps, crowded, glyph, textScale), ...marks], size);
+    spots.forEach((at, i) => {
+      const label = this.zoneLabels[i];
+      if (!label) return;
+      label.style.setProperty("left", pct(at.x, size));
+      label.style.setProperty("top", pct(at.y, size));
+    });
   }
 
   private myFaction(frame: PlanningFrame | null): FactionId | null {
@@ -567,7 +619,7 @@ export class PlanningView {
     if (info) parts.push(info.buff ? `${info.name}: ${info.buff}` : info.name);
     const state = frame?.campStates?.[i] ?? 0;
     if (state === 2) parts.push("Cleared");
-    else if (state === 1) parts.push("A fight is on here");
+    else if (state === 1) parts.push("Someone has fought here"); // history: the state is sticky, not a live fight
     if (me && state !== 2) parts.push(`For ${zoneName(me)}: ${describeMatchup(campMatchup(me, camp)).words}`);
     return parts.join(". ");
   }
@@ -670,6 +722,7 @@ export class PlanningView {
     this.spawnBox.replaceChildren(el("h3", "pl-h", "Pick a spawn"));
     if (!plan) {
       this.spawnBox.append(el("p", "pl-small", "Waiting for your spawn options…"));
+      this.relayout();
       this.refreshRover();
       return;
     }
@@ -733,10 +786,11 @@ export class PlanningView {
         marker.addEventListener("focus", () => this.setRover(m));
         marks.push(marker);
       }
-      this.spawnOptions.push({ index, zone, label, card, badge, marker });
+      this.spawnOptions.push({ index, zone, at: spawn ? { x: spawn.x, y: spawn.y } : null, label, card, badge, marker });
     });
     // Before the camps in reading order (and in the tab order).
     this.markers.prepend(...marks);
+    this.relayout();
     this.refreshRover();
   }
 
@@ -971,6 +1025,12 @@ export class PlanningView {
     return [...spawns, ...this.camps.map((c) => c.button), ...this.stopMarkers];
   }
 
+  /** The zone of each marker in `list` ("" for a spawn or a route stop), for Page Up and Page Down. */
+  private markerZones(list: readonly HTMLButtonElement[]): string[] {
+    const zoneOf = new Map<HTMLButtonElement, string>(this.camps.map((c) => [c.button, c.camp.zone]));
+    return list.map((b) => zoneOf.get(b) ?? "");
+  }
+
   /** Roving tab stop: one marker is reachable with Tab, the arrow keys go between the rest. */
   private setRover(b: HTMLButtonElement): void {
     if (this.rover === b) return;
@@ -995,6 +1055,7 @@ export class PlanningView {
     else if (e.code === "ArrowLeft" || e.code === "ArrowUp") to = cycleIndex(at, list.length, -1);
     else if (e.code === "Home") to = 0;
     else if (e.code === "End") to = list.length - 1;
+    else if (e.code === "PageDown" || e.code === "PageUp") to = zoneJump(this.markerZones(list), at, e.code === "PageDown" ? 1 : -1);
     else if (e.code === "Delete" || e.code === "Backspace") {
       const stop = this.stopMarkers.indexOf(list[at]!);
       if (stop < 0) return;

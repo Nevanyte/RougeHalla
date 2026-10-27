@@ -1,10 +1,11 @@
 // The minimap's two additions for the camp chests: a pulsing gold blip with the seconds left while a chest is up, and a cleared
-// camp crossed out (an engaged one with a flame). The repaint rules: once a second while a chest drains, on a pulse step unless
+// camp crossed out (one somebody fought at wears a small muted ring). The repaint rules: once a second while a chest drains, on a pulse step unless
 // motion is reduced, and when a camp's state changes; with no chest and no state the minimap paints exactly what it painted
 // before. DOM and canvas are the fakes of test/fakes.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TILE_FLOOR, WORLD_H, WORLD_W, mapFromTiles, type CampDef, type GameMap } from "@raid/shared";
 import { Minimap } from "../src/ui/minimap";
+import { COLOR_DISTURBED } from "../src/ui/mapPainter";
 import { setView } from "../src/view/viewState";
 import { computeLayout } from "../src/view/viewport";
 import { argsOf, FakeEl, installFakeDom, type FakeObject } from "./fakes";
@@ -160,13 +161,13 @@ describe("camp states", () => {
     expect(idleAgain).toBeLessThan(cleared);
   });
 
-  it("shows an engaged camp's flame and ignores a state it does not know", () => {
+  it("shows the muted ring of a camp that has been fought at, and ignores a state it does not know", () => {
     const { minimap, ctx, paint, paints } = setup();
     paint();
     const first = paints();
     minimap.setCampStates([1, 0, 0]);
     paint();
-    expect(argsOf(ctx, "fillStyle=").some(([c]) => c === "#ff7043")).toBe(true);
+    expect(argsOf(ctx, "strokeStyle=").some(([c]) => c === COLOR_DISTURBED)).toBe(true);
     minimap.setCampStates([1, 9, -3]);
     paint();
     // 9 and -3 read as idle, the same as [1, 0, 0]: no repaint.
