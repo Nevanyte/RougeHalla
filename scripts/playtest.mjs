@@ -36,7 +36,8 @@ const clientDir = process.env.PLAYTEST_CLIENT_DIR ? path.resolve(process.env.PLA
 const guardScript = path.join(scriptsDir, "tunnelGuard.mjs");
 const DEFAULT_PORT = 2567;
 const HEALTH_TIMEOUT_MS = 60_000;
-const TUNNEL_URL_TIMEOUT_MS = 40_000;
+/** How long cloudflared gets to name (or, for a named tunnel, connect) its tunnel; PLAYTEST_TUNNEL_TIMEOUT_MS is for the launcher's own tests. */
+const TUNNEL_URL_TIMEOUT_MS = Number(process.env.PLAYTEST_TUNNEL_TIMEOUT_MS) > 0 ? Number(process.env.PLAYTEST_TUNNEL_TIMEOUT_MS) : 40_000;
 /** After cloudflared names the tunnel, how long to wait for its connection to register before sharing the address anyway. */
 const TUNNEL_REGISTER_GRACE_MS = 15_000;
 /** The check of the public link from this Mac: a first look this long after the link is up, then one every so often, for this long. */
@@ -263,7 +264,8 @@ let tunnelGone = new Promise(() => {});
  * A quick tunnel prints its https://....trycloudflare.com address as soon as it is allotted, well before the connection that
  * serves it is up (and before the name is in DNS), so this waits for "Registered tunnel connection" (or a few seconds'
  * grace) before handing the address out. A named tunnel's address is the owner's hostname; it is handed out once a connection
- * has registered. `onGone` runs if the tunnel ends after the address was handed out.
+ * has registered. `onGone` runs if the tunnel ends after the address was handed out, and only then: a tunnel that never
+ * came up (it exited, or the wait ran out, before any address was handed out) shared no link, so nothing "stopped".
  */
 function startTunnel({ port, named, hostname, stashFile, onGone }) {
   return new Promise((resolve) => {
@@ -284,11 +286,13 @@ function startTunnel({ port, named, hostname, stashFile, onGone }) {
     const tail = [];
     let url = null;
     let done = false;
+    let handedOut = false; // an address went to the caller, so a link may be out there
     let graceTimer = null;
     let timer = null;
     const finish = (value) => {
       if (done) return;
       done = true;
+      handedOut = value !== null;
       clearTimeout(timer);
       clearTimeout(graceTimer);
       resolve(value);
@@ -311,8 +315,8 @@ function startTunnel({ port, named, hostname, stashFile, onGone }) {
     timer = setTimeout(() => {
       if (url) return;
       note(named
-        ? `cloudflared did not connect the tunnel "${named}" to Cloudflare in time. Its last output:`
-        : "cloudflared gave no tunnel address in time. Its last output:");
+        ? `cloudflared did not connect the tunnel "${named}" to Cloudflare in time, so no public link was opened. Its last output:`
+        : "cloudflared gave no tunnel address in time, so no public link was opened. Its last output:");
       printTail();
       finish(null);
       if (alive(tunnel)) tunnel.kill("SIGTERM"); // a tunnel nobody was told about must not keep running
@@ -320,27 +324,31 @@ function startTunnel({ port, named, hostname, stashFile, onGone }) {
     tunnel.on("error", (err) => { note(`could not start the tunnel: ${err.message}`); finish(null); });
     tunnel.on("exit", (code) => {
       if (stopping) { finish(null); return; }
-      if (!done) {
-        if (named && CREDENTIALS_PROBLEM_RE.test(tail.join("\n"))) {
-          note(bold(`cloudflared could not run the tunnel "${named}": its credentials (or the login behind them) were not found, or the tunnel does not exist.`));
-          note("Set it up once on this Mac (README, A stable link):");
-          note(`  cloudflared tunnel login`);
-          note(`  cloudflared tunnel create ${named}`);
-          note(`  cloudflared tunnel route dns ${named} ${hostname}`);
-          note("cloudflared said:");
-        } else {
-          note(`cloudflared stopped (exit ${code}) before the tunnel was up. Its last output:`);
-        }
-        printTail();
-        finish(null);
-      } else {
+      if (handedOut) {
         log();
         note(bold("THE TUNNEL STOPPED. The public link no longer works."));
         note(named
           ? `Stop this (Ctrl+C) and run it again: the address stays https://${hostname}/.`
           : "Stop this (Ctrl+C) and run it again for a new link: a quick tunnel's address changes every start.");
         onGone();
+        return;
       }
+      // No address was ever handed out, so no link was shared and nothing "stopped". Either this is the first we hear of the
+      // failure (say why), or the wait ran out / the start failed and that handler has said so already (the timeout kills
+      // the tunnel, which lands here).
+      if (done) return;
+      if (named && CREDENTIALS_PROBLEM_RE.test(tail.join("\n"))) {
+        note(bold(`cloudflared could not run the tunnel "${named}": its credentials (or the login behind them) were not found, or the tunnel does not exist.`));
+        note("Set it up once on this Mac (README, A stable link):");
+        note(`  cloudflared tunnel login`);
+        note(`  cloudflared tunnel create ${named}`);
+        note(`  cloudflared tunnel route dns ${named} ${hostname}`);
+        note("cloudflared said:");
+      } else {
+        note(`cloudflared stopped (exit ${code}) before the tunnel was up, so no public link was opened. Its last output:`);
+      }
+      printTail();
+      finish(null);
     });
   });
 }

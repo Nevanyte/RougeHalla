@@ -34,7 +34,7 @@ async function freePort(): Promise<number> {
   });
 }
 
-/** A cloudflared that behaves like the real one's output, for the three cases that matter, and logs how it was called. */
+/** A cloudflared that behaves like the real one's output, for the cases that matter (it registers, it lacks credentials, it names no address, it exits early), and logs how it was called. */
 const FAKE_CLOUDFLARED = `#!${process.execPath}
 const fs = require("node:fs");
 const args = process.argv.slice(2);
@@ -43,7 +43,14 @@ fs.appendFileSync(process.env.FAKE_CF_LOG, JSON.stringify({ pid: process.pid, ar
 const mode = process.env.FAKE_CF_MODE || "ok";
 const out = (s) => process.stderr.write("2026-10-26T12:00:00Z " + s + "\\n");
 process.on("SIGTERM", () => { if (!process.env.FAKE_CF_IGNORE_TERM) process.exit(0); });
-if (args.includes("run")) {
+if (mode === "silent") {
+  out("INF Requesting new quick Tunnel on trycloudflare.com...");
+  out("WRN Retrying connection in up to 2s");
+} else if (mode === "earlyexit") {
+  out("INF Requesting new quick Tunnel on trycloudflare.com...");
+  out("ERR failed to request quick Tunnel: Post https://api.trycloudflare.com/tunnel: dial tcp: lookup api.trycloudflare.com: no such host");
+  process.exit(3);
+} else if (args.includes("run")) {
   if (mode === "nocreds") {
     out("INF Starting tunnel tunnelID=00000000-0000-0000-0000-000000000000");
     out("ERR Tunnel credentials file '/Users/test/.cloudflared/00000000-0000-0000-0000-000000000000.json' doesn't exist or is not a file");
@@ -208,8 +215,45 @@ describe("a tunnel that stops after the link was shared", () => {
     await sleep(8000);
     expect(l.output()).not.toMatch(/could not reach the public link/);
     expect(l.output().match(/THE TUNNEL STOPPED/g)).toHaveLength(1);
+    expect(l.output()).not.toMatch(/no public link was opened/);
     expect(l.proc.exitCode).toBeNull(); // the server goes on
     expect(await healthy()).toBe(true);
+  }, 90_000);
+});
+
+describe("a tunnel that never came up", () => {
+  // No address was handed out, so no link was shared: nothing "stopped", and no link file was ever written to mark down.
+  const expectNoLinkWasShared = async (l: Launcher) => {
+    await sleep(1500); // an exit (the timeout kills the tunnel) lands after the banner; give a wrong report time to show
+    const text = l.output();
+    expect(text).toMatch(/is running/);
+    expect(text).toMatch(/No public link: friends outside this network cannot join/);
+    expect(text).not.toContain("THE TUNNEL STOPPED");
+    expect(text).not.toMatch(/public link no longer works/);
+    expect(text).not.toContain("SHARE THIS LINK");
+    expect(fs.existsSync(`${stash}.link.json`)).toBe(false);
+    expect(l.proc.exitCode).toBeNull(); // the server goes on locally
+    expect(await healthy()).toBe(true);
+  };
+
+  it("one that gives no address before the wait runs out: says so with its last output, stops that cloudflared, reports no stopped link", async () => {
+    const l = launch([], { FAKE_CF_MODE: "silent", PLAYTEST_TUNNEL_TIMEOUT_MS: "1500" });
+    await waitForOutput(l, /is running/);
+    const text = l.output();
+    expect(text).toMatch(/cloudflared gave no tunnel address in time, so no public link was opened\. Its last output:/);
+    expect(text).toContain("Retrying connection in up to 2s"); // its last output is shown
+    const [fake] = fakePids();
+    await until(() => !alive(fake!), "the silent cloudflared to be stopped (a tunnel nobody was told about must not keep running)", 10_000);
+    await expectNoLinkWasShared(l);
+  }, 90_000);
+
+  it("one that exits before it registered: says why with its last output, reports no stopped link", async () => {
+    const l = launch([], { FAKE_CF_MODE: "earlyexit" });
+    await waitForOutput(l, /is running/);
+    const text = l.output();
+    expect(text).toMatch(/cloudflared stopped \(exit 3\) before the tunnel was up, so no public link was opened\. Its last output:/);
+    expect(text).toContain("failed to request quick Tunnel");
+    await expectNoLinkWasShared(l);
   }, 90_000);
 });
 
