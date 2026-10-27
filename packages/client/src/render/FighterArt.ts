@@ -6,7 +6,7 @@ import {
   isFactionId, isWeaponId, scaleWindup, weaponTimings, type WeaponId,
 } from "@raid/shared";
 import { BARRIER_COLOR } from "../ui/buffTheme";
-import { BAKE_SCALE, around, bakedImage, ensureBake, pixelImage, placeBake, swapBake, type Region } from "./bake";
+import { bakeScale, around, bakedImage, ensureBake, pixelImage, placeBake, swapBake, type Region } from "./bake";
 import { traceSector } from "./groundShapes";
 import { clamp01, juiceScale } from "./juice";
 import { BODY_LIFT, screenAngle } from "./projection";
@@ -270,7 +270,7 @@ export class FighterArt {
     placeBake(this.ground, SECTOR_REGION);
     this.held = pixelImage(scene).setVisible(false).setPosition(0, -BODY_LIFT);
     placeBake(this.held, WEAPON_REGION);
-    this.held.setScale(HELD_SCALE / BAKE_SCALE);
+    this.held.setScale(HELD_SCALE / bakeScale());
   }
 
   /** Golden weapon look on or off; takes effect at the next update(). */

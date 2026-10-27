@@ -6,7 +6,7 @@
 import Phaser from "phaser";
 import { CHEST_RANGE, CHEST_SECONDS, PLAYER_RADIUS, WEAPONS, Y_SCALE, type WeaponId } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
-import { BAKE_SCALE, bakedImage, placeBake, swapBake, type Region } from "./bake";
+import { bakeScale, bakedImage, placeBake, swapBake, type Region } from "./bake";
 import { WEAPON_REGION, weaponCenterX, weaponTexture } from "./FighterArt";
 import { containerWeapon } from "./interact";
 import { easeOutCubic, juiceScale } from "./juice";
@@ -237,7 +237,7 @@ export class ContainerView {
       const key = weaponTexture(this.scene, weapon);
       if (this.icon.texture.key !== key) this.icon.setTexture(key);
       placeBake(this.icon, WEAPON_REGION);
-      this.icon.setVisible(true).setScale(ICON_SCALE / BAKE_SCALE).setRotation(ICON_TILT)
+      this.icon.setVisible(true).setScale(ICON_SCALE / bakeScale()).setRotation(ICON_TILT)
         .setPosition(-mid * Math.cos(ICON_TILT), cy - mid * Math.sin(ICON_TILT));
     }
     this.label.setY(cy - 14);

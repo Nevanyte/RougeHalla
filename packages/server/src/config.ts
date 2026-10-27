@@ -16,6 +16,11 @@ export interface ServerConfig extends SimConfig {
   netJitterMs?: number;
   netLossPct?: number;
   netSeed?: number;
+  /**
+   * Install the network simulator even when hosting (ALLOW_NETSIM_WHEN_HOSTING=1). Off: a hosting server (sameOriginOnly) refuses to,
+   * with one warning, because it would add the delay and loss to every friend on the link.
+   */
+  allowNetSimWhenHosting: boolean;
   /** A training room whose player sends nothing for this long is closed (TRAINING_IDLE_SECONDS). */
   trainingIdleSeconds: number;
   /** The built client to serve from the same port as the API and the websocket (CLIENT_DIR). Unset: the server serves no pages (dev: Vite does). */
@@ -29,6 +34,9 @@ export interface ServerConfig extends SimConfig {
   corsOrigins: string[];
   /** The playtest passcode (PLAYTEST_PASSCODE). Unset: none is asked for. Set: needed to claim a callsign and to join a room. */
   passcode: string | undefined;
+  /** Wrong passcodes a minute per client address, and over the whole server, before it refuses with 429 (PASSCODE_FAILS_PER_MINUTE, PASSCODE_FAILS_PER_MINUTE_ALL; 0 = no limit). Counted on the profile route and on matchmaking. */
+  passcodeFailsPerMinute: number;
+  passcodeFailsPerMinuteAll: number;
   /** Rooms alive at once, per mode; a room beyond it is refused with "server is full" (MAX_ARENA_ROOMS, MAX_TRAINING_ROOMS; 0 = no limit). */
   maxArenaRooms: number;
   maxTrainingRooms: number;
@@ -58,6 +66,13 @@ const DEFAULT_MAX_ARENA_ROOMS = 4;
 const DEFAULT_MAX_TRAINING_ROOMS = 8;
 const DEFAULT_MAX_NEW_PROFILES_PER_HOUR = 30;
 const DEFAULT_MAX_NEW_PROFILES_PER_IP_PER_HOUR = 10;
+/**
+ * Wrong passcodes a minute. A friend mistypes a word a few times; a guesser sends thousands. 6 a minute per address leaves
+ * a dictionary of 100,000 words about 11 days from one address, and 40 a minute over all addresses (a guesser with many
+ * addresses, or a lockout of everyone while it lasts) about 42 hours. On whenever a passcode is set: with none, no guess is wrong.
+ */
+const DEFAULT_PASSCODE_FAILS_PER_MINUTE = 6;
+const DEFAULT_PASSCODE_FAILS_PER_MINUTE_ALL = 40;
 /**
  * In-match orders (everything but `aim`) per player. Measured: the browser sends a `move` every 100 ms while the right
  * button is held (49 in 5.1 s, 9.6 a second, gaps 99 to 125 ms), and one message per click or key press on top of that;
@@ -99,11 +114,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     netJitterMs: num(env.NET_JITTER_MS, 0),
     netLossPct: num(env.NET_LOSS_PCT, 0),
     ...(env.NET_SEED ? { netSeed: num(env.NET_SEED, 0) } : {}),
+    allowNetSimWhenHosting: env.ALLOW_NETSIM_WHEN_HOSTING === "1" || env.ALLOW_NETSIM_WHEN_HOSTING === "true",
     trainingIdleSeconds: num(env.TRAINING_IDLE_SECONDS, TRAINING_IDLE_SECONDS),
     clientDir: env.CLIENT_DIR ? path.resolve(env.CLIENT_DIR) : undefined,
     sameOriginOnly: hosting,
     corsOrigins: originList(env.CORS_ORIGINS),
     passcode: env.PLAYTEST_PASSCODE || undefined,
+    passcodeFailsPerMinute: Math.floor(limit(env.PASSCODE_FAILS_PER_MINUTE, DEFAULT_PASSCODE_FAILS_PER_MINUTE)),
+    passcodeFailsPerMinuteAll: Math.floor(limit(env.PASSCODE_FAILS_PER_MINUTE_ALL, DEFAULT_PASSCODE_FAILS_PER_MINUTE_ALL)),
     maxArenaRooms: Math.floor(limit(env.MAX_ARENA_ROOMS, whenHosting(DEFAULT_MAX_ARENA_ROOMS))),
     maxTrainingRooms: Math.floor(limit(env.MAX_TRAINING_ROOMS, whenHosting(DEFAULT_MAX_TRAINING_ROOMS))),
     maxNewProfilesPerHour: Math.floor(limit(env.MAX_NEW_PROFILES_PER_HOUR, whenHosting(DEFAULT_MAX_NEW_PROFILES_PER_HOUR))),

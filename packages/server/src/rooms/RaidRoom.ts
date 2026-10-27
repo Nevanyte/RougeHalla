@@ -9,14 +9,15 @@
 //   leave in planning recordRun(mia, 0 kills, 0 GV), as a leave in the run: planning is part of the run (a dropped client's
 //                     seat is held, as in the run, and goes MIA when the grace runs out). A shutdown voids it instead.
 import { randomBytes, randomInt } from "node:crypto";
-import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
+import { ErrorCode, Room, ServerError, type AuthContext, type Client } from "@colyseus/core";
 import {
   CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
   type FactionId, type FxEvent, type GameMap, type GvReason, type JoinOptions, type RoomMode, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { ServerConfig } from "../config";
-import { PASSCODE_REQUIRED, passcodeOk } from "../guards/passcode";
+import { addressOfContext } from "../guards/clientIp";
+import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, type PasscodeGate } from "../guards/passcode";
 import type { RoomCounter } from "../guards/roomCounter";
 import { TokenBucket } from "../guards/tokenBucket";
 import { generateMapAsync } from "../mapService";
@@ -108,6 +109,8 @@ export interface RoomContext {
   profiles: ActiveProfiles;
   /** Rooms alive now, per mode, against MAX_ARENA_ROOMS / MAX_TRAINING_ROOMS. */
   rooms: RoomCounter;
+  /** The passcode check, shared with the profile route so that a guesser's wrong tries are counted on both doors. */
+  passcodeGate: PasscodeGate;
 }
 
 /** What onAuth hands to onJoin via `client.auth`. */
@@ -155,10 +158,13 @@ export class RaidRoom extends Room<{ state: RaidState }> {
    * phase check and the profile registry claim. (Core logs at startup that the instance onAuth "will be ignored"; with a
    * `true` result it is not.)
    */
-  static async onAuth(_token: string, options: Partial<JoinOptions> | undefined): Promise<boolean> {
-    const { config, store, profiles } = RaidRoom.ctx;
+  static async onAuth(_token: string, options: Partial<JoinOptions> | undefined, context?: AuthContext): Promise<boolean> {
+    const { store, profiles, passcodeGate } = RaidRoom.ctx;
     // First: the passcode gates the whole door, so a refusal says nothing about profiles or rooms. Reconnections never get here.
-    if (!passcodeOk(options?.passcode, config.passcode)) throw refuse(PASSCODE_REQUIRED);
+    // Wrong guesses are counted per address (the one index.ts stamped on the request, never a header the caller wrote) and an
+    // address past its limit gets 429 without its guess being looked at.
+    const verdict = passcodeGate.check(options?.passcode, addressOfContext(context), Date.now());
+    if (!verdict.ok) throw verdict.blocked ? new ServerError(429, PASSCODE_THROTTLED) : refuse(PASSCODE_REQUIRED);
     const profile = checkCredentials(options, store);
     if (profiles.isActive(profile)) throw refuse("profile already in a raid");
     if (profiles.hasUnjoinedRoom(profile)) throw refuse("a room was just opened for this profile; join it or try again in a few seconds");

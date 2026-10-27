@@ -107,6 +107,7 @@ describe("on a page", () => {
     vi.stubGlobal("localStorage", {
       getItem: (k: string) => { if (storageBroken) throw new Error("denied"); return storage.get(k) ?? null; },
       setItem: (k: string, v: string) => { if (storageBroken) throw new Error("denied"); storage.set(k, v); },
+      removeItem: (k: string) => { if (storageBroken) throw new Error("denied"); storage.delete(k); },
     });
   }
 
@@ -139,27 +140,118 @@ describe("on a page", () => {
     expect(consumeSignInLink(() => { throw new Error("denied"); })).toBeNull();
   });
 
-  it("loading the profile client signs this browser into the callsign: the token is stored, sent, and the key is gone from the bar", async () => {
-    stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy&code=open-sesame#key=${UUID}`);
-    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ token: UUID, created: false, profile: {} }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchSpy);
-    const { fetchProfile } = await import("../src/net/profile");
-    expect(storage.get("raid.token.amy")).toBe(UUID);
-    expect(address.hash).toBe("");
-    expect(address.search).toBe("?profile=amy&code=open-sesame");
-    await fetchProfile("amy").catch(() => {}); // the stub's profile is not a whole one; only the request matters
-    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, { headers: Record<string, string> }];
-    expect(init.headers).toEqual({ [PROFILE_TOKEN_HEADER]: UUID, [PASSCODE_HEADER]: "open-sesame" });
+  /** A whole profile as the server sends it (profile.ts refuses anything less). */
+  const wholeProfile = (name: string) => ({
+    name, gv: 0, gvLifetime: 0, gvByMonth: {}, stats: {}, cosmetics: { owned: [], equipped: {} }, achievements: {},
+    progress: { winsByFaction: {}, winsByWeapon: {} },
   });
 
-  it("a link never replaces a token this browser already holds (a crafted link cannot lock the owner out), nor other callsigns'", async () => {
-    storage.set("raid.token.amy", "old-token");
-    storage.set("raid.token.bob", "bobs-token");
+  /** A server that knows one callsign with one token: 403 for any other, 200 with a whole profile for the right one. */
+  function stubServer(token: string) {
+    const seen: Array<string | undefined> = [];
+    const spy = vi.fn(async (_url: string, init: { headers: Record<string, string> }) => {
+      const sent = init.headers[PROFILE_TOKEN_HEADER];
+      seen.push(sent);
+      return sent === token
+        ? new Response(JSON.stringify({ token, created: false, profile: wholeProfile("amy") }), { status: 200 })
+        : new Response(JSON.stringify({ error: "profile belongs to someone else" }), { status: 403 });
+    });
+    vi.stubGlobal("fetch", spy);
+    return seen;
+  }
+
+  it("loading the profile client keeps a link's key apart until the server accepts it: then it is the token, sent, and the key is gone from the bar", async () => {
+    stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy&code=open-sesame#key=${UUID}`);
+    const seen = stubServer(UUID);
+    const { fetchProfile } = await import("../src/net/profile");
+    expect(storage.get("raid.token.amy")).toBeUndefined(); // not proven yet
+    expect(storage.get("raid.link.amy")).toBe(UUID);
+    expect(address.hash).toBe("");
+    expect(address.search).toBe("?profile=amy&code=open-sesame");
+    await fetchProfile("amy");
+    expect(seen).toEqual([UUID]);
+    expect(storage.get("raid.token.amy")).toBe(UUID);
+    expect(storage.get("raid.link.amy")).toBeUndefined();
+  });
+
+  it("a wrong key never blocks the right link: it is dropped when the server refuses it, and the owner's own link then signs in", async () => {
+    // A truncated copy (or a crafted link) first, on a browser that holds nothing for the callsign.
+    stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${UUID.slice(0, 20)}`);
+    let seen = stubServer(UUID);
+    let mod = await import("../src/net/profile");
+    await expect(mod.fetchProfile("amy")).rejects.toMatchObject({ kind: "taken" });
+    expect(seen).toEqual([UUID.slice(0, 20)]);
+    expect(storage.get("raid.link.amy")).toBeUndefined(); // dropped
+    expect(storage.get("raid.token.amy")).toBeUndefined(); // never promoted
+
+    // The wrong key opened twice in a row, then the right one before any request: the newest unproven key wins.
+    stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${"w".repeat(36)}`);
+    vi.resetModules();
+    mod = await import("../src/net/profile");
+    expect(storage.get("raid.link.amy")).toBe("w".repeat(36));
     stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${UUID}`);
-    await import("../src/net/profile");
-    expect(storage.get("raid.token.amy")).toBe("old-token");
+    vi.resetModules();
+    seen = stubServer(UUID);
+    mod = await import("../src/net/profile");
+    expect(storage.get("raid.link.amy")).toBe(UUID);
+    await mod.fetchProfile("amy");
+    expect(seen).toEqual([UUID]);
+    expect(storage.get("raid.token.amy")).toBe(UUID);
+    expect(storage.get("raid.link.amy")).toBeUndefined();
+  });
+
+  it("a link never replaces a token the server has accepted (a crafted link cannot lock the owner out), nor other callsigns'", async () => {
+    storage.set("raid.token.amy", UUID);
+    storage.set("raid.token.bob", "bobs-token");
+    stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${"c".repeat(36)}`);
+    const seen = stubServer(UUID);
+    const { fetchProfile } = await import("../src/net/profile");
+    expect(storage.get("raid.token.amy")).toBe(UUID);
+    expect(storage.get("raid.link.amy")).toBeUndefined(); // not even kept beside it
     expect(storage.get("raid.token.bob")).toBe("bobs-token");
     expect(address.hash).toBe("");
+    await fetchProfile("amy");
+    expect(seen).toEqual([UUID]);
+    expect(storage.get("raid.token.amy")).toBe(UUID);
+  });
+
+  it("a token the server itself refuses is kept but marked, and a link may be tried beside it: the right one replaces it, a wrong one costs nothing", async () => {
+    storage.set("raid.token.amy", "stale-token");
+    stubPage("https://fresh-origin.trycloudflare.com/?profile=amy");
+    stubServer(UUID);
+    let mod = await import("../src/net/profile");
+    await expect(mod.fetchProfile("amy")).rejects.toMatchObject({ kind: "taken" });
+    expect(storage.get("raid.token.amy")).toBe("stale-token"); // a 403 must not cost a token that may be good (a gateway's, say)
+
+    stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${"w".repeat(36)}`);
+    vi.resetModules();
+    let seen = stubServer(UUID);
+    mod = await import("../src/net/profile");
+    expect(storage.get("raid.link.amy")).toBe("w".repeat(36));
+    await expect(mod.fetchProfile("amy")).rejects.toMatchObject({ kind: "taken" });
+    expect(seen).toEqual(["w".repeat(36)]);
+    expect(storage.get("raid.link.amy")).toBeUndefined();
+    expect(storage.get("raid.token.amy")).toBe("stale-token");
+
+    stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${UUID}`);
+    vi.resetModules();
+    seen = stubServer(UUID);
+    mod = await import("../src/net/profile");
+    await mod.fetchProfile("amy");
+    expect(seen).toEqual([UUID]);
+    expect(storage.get("raid.token.amy")).toBe(UUID);
+    expect(storage.get("raid.rejected.amy")).toBeUndefined();
+  });
+
+  it("a request that fails for another reason keeps the link's key for the next try", async () => {
+    stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${UUID}`);
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    const { fetchProfile } = await import("../src/net/profile");
+    await expect(fetchProfile("amy")).rejects.toMatchObject({ kind: "unavailable" });
+    expect(storage.get("raid.link.amy")).toBe(UUID);
+    const seen = stubServer(UUID);
+    await fetchProfile("amy");
+    expect(seen).toEqual([UUID]);
   });
 
   it("a bad key stores nothing and the page still loads", async () => {
@@ -167,6 +259,7 @@ describe("on a page", () => {
     stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${"k".repeat(200)}`);
     await import("../src/net/profile");
     expect(storage.get("raid.token.amy")).toBe("kept");
+    expect(storage.get("raid.link.amy")).toBeUndefined();
     expect(address.hash).toBe("");
   });
 

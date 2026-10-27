@@ -157,7 +157,7 @@ describe("the profile requests", () => {
   it("a 401 reads as a plain passcode message, and a 429 as too many new callsigns", async () => {
     stubPage();
     const { fetchProfile } = await import("../src/net/profile");
-    const { friendlyError, PASSCODE_MESSAGE, NEW_CALLSIGNS_MESSAGE } = await import("../src/net/errors");
+    const { friendlyError, PASSCODE_MESSAGE, NEW_CALLSIGNS_MESSAGE, PASSCODE_THROTTLED_MESSAGE } = await import("../src/net/errors");
     vi.stubGlobal("fetch", vi.fn(async () => reply(401, { error: "this playtest needs a passcode", code: "passcode_required" })));
     const refused = await fetchProfile("amy").catch((e: unknown) => e);
     expect(friendlyError(refused)).toBe(PASSCODE_MESSAGE);
@@ -165,6 +165,9 @@ describe("the profile requests", () => {
     vi.stubGlobal("fetch", vi.fn(async () => reply(429, { error: "too many new callsigns lately, try again later" })));
     const capped = await fetchProfile("bob").catch((e: unknown) => e);
     expect(friendlyError(capped)).toBe(NEW_CALLSIGNS_MESSAGE);
+    vi.stubGlobal("fetch", vi.fn(async () => reply(429, { error: "too many wrong passcodes from this connection: wait a minute and try again", code: "passcode_throttled" })));
+    const guessed = await fetchProfile("cat").catch((e: unknown) => e);
+    expect(friendlyError(guessed)).toBe(PASSCODE_THROTTLED_MESSAGE);
   });
 
   it("a shop request refused with 429 reads as a plain rate-limit message", async () => {

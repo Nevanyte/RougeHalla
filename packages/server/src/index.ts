@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { defineRoom, defineServer, matchMaker } from "@colyseus/core";
@@ -10,8 +11,9 @@ import {
   type LeaderboardResponse, type ProfileDTO, type ProfileResponse, type ShopError, type ShopErrorCode, type ShopResponse,
 } from "@raid/shared";
 import { loadConfig, type ServerConfig } from "./config";
+import { clientAddress, stampClientAddress } from "./guards/clientIp";
 import { corsOrigin } from "./guards/cors";
-import { PASSCODE_REQUIRED, passcodeOk } from "./guards/passcode";
+import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, PasscodeGate } from "./guards/passcode";
 import { RoomCounter } from "./guards/roomCounter";
 import { KeyedTokenBuckets } from "./guards/tokenBucket";
 import { NewProfileLimiter } from "./guards/windowLimiter";
@@ -62,15 +64,8 @@ function configureCors(config: ServerConfig): void {
   };
 }
 
-/**
- * Who is asking, for the per-address cap on new profiles: Cloudflare's header when the request came through a tunnel (every
- * such request reaches us from 127.0.0.1), else the socket. A caller can forge the header when it reaches the port
- * directly; the cap over all addresses is what that cannot get around.
- */
-function clientIp(req: Request): string {
-  const forwarded = req.get("cf-connecting-ip")?.trim();
-  return (forwarded && forwarded.length <= 64 ? forwarded : req.socket.remoteAddress) ?? "unknown";
-}
+/** Who is asking, for the per-address caps: see guards/clientIp.ts (the socket's peer; Cloudflare's header only from a loopback peer). */
+const clientIp = (req: Request): string => clientAddress(req.socket.remoteAddress, req.get("cf-connecting-ip"));
 
 /** Serves the built client (index.html, hashed assets) from the same origin as the API and the websocket. */
 function serveClient(app: express.Application, dir: string): void {
@@ -222,16 +217,40 @@ const getOnly: RequestHandler = (req, res, next) => {
   res.status(405).json({ error: "method not allowed" });
 };
 
+/**
+ * The simulator delays and drops every connection, so a server on a public link (sameOriginOnly) refuses to install it:
+ * a variable left in the host's shell would slow every friend. ALLOW_NETSIM_WHEN_HOSTING=1 is the explicit override. Either way
+ * the log says what happened, once.
+ */
+function installNetSimUnlessHosting(sim: NetSimParams, config: ServerConfig): (() => void) | null {
+  if (!netSimEnabled(sim)) return null;
+  const what = `rtt ${sim.rttMs} ms, jitter ${sim.jitterMs} ms, loss ${sim.lossPct}%`;
+  if (config.sameOriginOnly && !config.allowNetSimWhenHosting) {
+    console.warn(
+      `[server] network simulator REFUSED (${what}): this server is hosting a public link, where it would slow every player. ` +
+      "Unset COLYSEUS_LATENCY, NET_JITTER_MS and NET_LOSS_PCT, or set ALLOW_NETSIM_WHEN_HOSTING=1 to install it anyway.",
+    );
+    return null;
+  }
+  console.log(`[server] network simulator ON (${what})${config.sameOriginOnly ? " while hosting (ALLOW_NETSIM_WHEN_HOSTING)" : ""}`);
+  return installNetSim(sim);
+}
+
 export function createServer(config: ServerConfig = loadConfig()) {
   const store: ProfileStore = new JsonProfileStore(config.stashFile);
   const profiles = new ActiveProfiles();
   const rooms = new RoomCounter({ arena: config.maxArenaRooms, training: config.maxTrainingRooms });
-  RaidRoom.ctx = { config, store, profiles, rooms };
+  const passcodeGate = new PasscodeGate(config.passcode, config.passcodeFailsPerMinute, config.passcodeFailsPerMinuteAll);
+  RaidRoom.ctx = { config, store, profiles, rooms, passcodeGate };
   configureCors(config);
   const newProfiles = new NewProfileLimiter(config.maxNewProfilesPerHour, config.maxNewProfilesPerIpPerHour, HOUR_MS);
   const shopBuckets = new KeyedTokenBuckets(config.shopBurst, config.shopPerSecond);
+  // Our own http server only to stamp each request with the address the guards count it under (guards/clientIp.ts); it is
+  // what WebSocketTransport would have made.
+  const httpServer = http.createServer();
+  stampClientAddress(httpServer);
   const server = defineServer({
-    transport: new WebSocketTransport(),
+    transport: new WebSocketTransport({ server: httpServer }),
     greet: false,
     // The handler's options win over the client's (Colyseus merges them that way), so the mode is the server's choice:
     // the arena handler can't be talked into creating a training room, and the training one can't create an arena.
@@ -287,8 +306,14 @@ export function createServer(config: ServerConfig = loadConfig()) {
           const isNew = store.get(name) === undefined;
           const ip = clientIp(req);
           if (isNew) {
-            if (!passcodeOk(req.get(PASSCODE_HEADER), config.passcode)) {
-              res.status(401).json({ error: PASSCODE_REQUIRED, code: "passcode_required" });
+            const verdict = passcodeGate.check(req.get(PASSCODE_HEADER), ip, Date.now());
+            if (!verdict.ok) {
+              if (verdict.blocked) {
+                res.set("Retry-After", String(Math.ceil(verdict.retryAfterMs / 1000)));
+                res.status(429).json({ error: PASSCODE_THROTTLED, code: "passcode_throttled" });
+              } else {
+                res.status(401).json({ error: PASSCODE_REQUIRED, code: "passcode_required" });
+              }
               return;
             }
             const waitMs = newProfiles.retryAfterMs(ip, Date.now());
@@ -365,7 +390,7 @@ export function createServer(config: ServerConfig = loadConfig()) {
   const sim: NetSimParams = {
     rttMs: config.latencyMs, jitterMs: config.netJitterMs ?? 0, lossPct: config.netLossPct ?? 0, seed: config.netSeed,
   };
-  const uninstallNetSim = netSimEnabled(sim) ? installNetSim(sim) : null;
+  const uninstallNetSim = installNetSimUnlessHosting(sim, config);
 
   /** Shuts the server down without exiting the process and resolves once the profiles are on disk. */
   async function stop(): Promise<void> {

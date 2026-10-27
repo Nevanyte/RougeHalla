@@ -32,7 +32,8 @@ let client: Client;
 beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-passcode-"));
   port = await freePort();
-  server = await startServer({ ...loadConfig({ PLAYTEST_PASSCODE: PASSCODE }), port, latencyMs: 0, stashFile: path.join(dir, "data", "stash.json"), lobbySeconds: 120, minPlayers: 99 });
+  // The wrong-guess limit has its own tests (passcodeThrottle.test.ts); these make dozens of wrong guesses from one address.
+  server = await startServer({ ...loadConfig({ PLAYTEST_PASSCODE: PASSCODE, PASSCODE_FAILS_PER_MINUTE: "0", PASSCODE_FAILS_PER_MINUTE_ALL: "0" }), port, latencyMs: 0, stashFile: path.join(dir, "data", "stash.json"), lobbySeconds: 120, minPlayers: 99 });
   client = new Client(`http://127.0.0.1:${port}`);
 });
 

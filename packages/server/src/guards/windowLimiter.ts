@@ -1,4 +1,4 @@
-// "At most N in any trailing hour" counters, on the caller's clock (see tokenBucket.ts). Used for new profiles.
+// "At most N in any trailing hour" counters, on the caller's clock (see tokenBucket.ts). Used for new profiles and wrong passcodes.
 
 /** At most `max` events in any trailing `windowMs`. `max` of 0 means no limit. */
 export class SlidingWindowLimiter {
@@ -39,10 +39,10 @@ export class SlidingWindowLimiter {
 }
 
 /**
- * New profiles: a cap over the whole server and one per client address. Only a profile that really got created is
- * recorded, so a refused attempt costs nothing and the maps hold at most what the global cap lets through in a window.
+ * "At most N in a window", over the whole server and for each client address. Only an event that really happened is
+ * recorded (a refused attempt costs nothing), so the maps hold at most what the global cap lets through in a window.
  */
-export class NewProfileLimiter {
+export class AddressWindowLimiter {
   private readonly all: SlidingWindowLimiter;
   private readonly perIp = new Map<string, SlidingWindowLimiter>();
 
@@ -50,7 +50,7 @@ export class NewProfileLimiter {
     this.all = new SlidingWindowLimiter(maxPerWindow, windowMs);
   }
 
-  /** 0 when `ip` may claim a new profile now, else how many ms it must wait. */
+  /** 0 when `ip` may go ahead now, else how many ms it must wait. */
   retryAfterMs(ip: string, now: number): number {
     return Math.max(this.all.retryAfterMs(now), this.perIp.get(ip)?.retryAfterMs(now) ?? 0);
   }
@@ -62,4 +62,12 @@ export class NewProfileLimiter {
     own.record(now);
     for (const [key, limiter] of this.perIp) if (limiter.isEmpty(now)) this.perIp.delete(key);
   }
+
+  /** Addresses with something recorded in the window, for the tests. */
+  get size(): number {
+    return this.perIp.size;
+  }
 }
+
+/** New profiles: a cap over the whole server and one per client address. */
+export class NewProfileLimiter extends AddressWindowLimiter {}

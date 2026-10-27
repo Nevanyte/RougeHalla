@@ -7,13 +7,18 @@ import {
 } from "@raid/shared";
 import { apiBase } from "./connection";
 import {
-  NEW_CALLSIGNS_MESSAGE, PASSCODE_MESSAGE, RATE_LIMIT_MESSAGE, SERVER_PROBLEM_MESSAGE, TIMEOUT_MESSAGE, UNREACHABLE_MESSAGE,
-  UNREADABLE_MESSAGE,
+  NEW_CALLSIGNS_MESSAGE, PASSCODE_MESSAGE, PASSCODE_THROTTLED_MESSAGE, RATE_LIMIT_MESSAGE, SERVER_PROBLEM_MESSAGE, TIMEOUT_MESSAGE,
+  UNREACHABLE_MESSAGE, UNREADABLE_MESSAGE,
 } from "./errors";
 import { readPasscode } from "./passcode";
 import { consumeSignInLink } from "./signin";
 
+/** A callsign's token as the server gave it: written only after the server accepted it, so whatever is here is proven. */
 const TOKEN_KEY_PREFIX = "raid.token.";
+/** The key a sign-in link carried, kept apart until the server accepts it (then it becomes the token above). */
+const LINK_KEY_PREFIX = "raid.link.";
+/** Set when the server refused the stored token itself: the one case where a link's key may be tried in its place. */
+const REJECTED_KEY_PREFIX = "raid.rejected.";
 const REQUEST_TIMEOUT_MS = 8000;
 /** The leaderboard is a garnish on the hub: give up on it sooner than on the profile. */
 const LEADERBOARD_TIMEOUT_MS = 4000;
@@ -45,11 +50,55 @@ function writeToken(name: string, token: string): void {
   }
 }
 
-// A sign-in link (/?profile=name#key=token, net/signin.ts) hands this browser the token of a callsign claimed on another
+function isRejected(name: string): boolean {
+  try {
+    return localStorage.getItem(REJECTED_KEY_PREFIX + name) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function setRejected(name: string, rejected: boolean): void {
+  try {
+    if (rejected) localStorage.setItem(REJECTED_KEY_PREFIX + name, "1");
+    else localStorage.removeItem(REJECTED_KEY_PREFIX + name);
+  } catch {
+    // Ignored: see readToken.
+  }
+}
+
+function readLinkKey(name: string): string | null {
+  try {
+    return localStorage.getItem(LINK_KEY_PREFIX + name);
+  } catch {
+    return null;
+  }
+}
+
+function writeLinkKey(name: string, key: string): void {
+  try {
+    localStorage.setItem(LINK_KEY_PREFIX + name, key);
+  } catch {
+    // Ignored: see readToken.
+  }
+}
+
+function clearLinkKey(name: string): void {
+  try {
+    localStorage.removeItem(LINK_KEY_PREFIX + name);
+  } catch {
+    // Ignored: see readToken.
+  }
+}
+
+// A sign-in link (/?profile=name#key=token, net/signin.ts) hands this browser the key of a callsign claimed on another
 // address. Taken here, once, when the page loads and before anything reads a token; the menu still picks the callsign from ?profile=.
-// A token this browser already holds for the callsign is kept: tokens never change, so a link can only add one, and a crafted
-// link with a wrong key cannot lock its owner out.
-consumeSignInLink((name, key) => { if (readToken(name) === null) writeToken(name, key); });
+// The key is only a claim until the server accepts it, so it waits in its own slot and the next profile request tries it.
+// Accepted, it becomes the token (writeToken) and the slot is cleared; refused (403), it is dropped, so a wrong key (a copy cut
+// short, a crafted link) never blocks the right link: that one simply takes the slot. A token the server has accepted is never
+// touched by a link, so a crafted link cannot replace a good one either. The one exception is a token the server itself has
+// refused (403): the key may then be tried in its place, and still only beside it, so a wrong key costs nothing.
+consumeSignInLink((name, key) => { if (readToken(name) === null || isRejected(name)) writeLinkKey(name, key); });
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -101,7 +150,10 @@ export function fetchProfile(name: string): Promise<ProfileResponse> {
 
 async function requestProfile(name: string): Promise<ProfileResponse> {
   const headers: Record<string, string> = {};
-  const token = readToken(name);
+  // A link's key is tried only where this browser holds no proven token, or the server has refused the one it holds.
+  const stored = readToken(name);
+  const pending = stored === null || isRejected(name) ? readLinkKey(name) : null;
+  const token = pending ?? stored;
   if (token) headers[PROFILE_TOKEN_HEADER] = token;
   // Only a brand-new callsign needs it (the server asks for it then), but a known one can carry it as well.
   const passcode = readPasscode();
@@ -115,10 +167,20 @@ async function requestProfile(name: string): Promise<ProfileResponse> {
     throw new ProfileError("unavailable", timedOut ? TIMEOUT_MESSAGE : UNREACHABLE_MESSAGE);
   }
 
-  if (res.status === 403) throw new ProfileError("taken", "That callsign is taken (its token isn't on this device)");
+  if (res.status === 403) {
+    // A key the server refused is worth nothing, and keeping it would only hide the real link behind it. A stored token it
+    // refuses is kept (a gateway's 403 must not cost a good token) but marked, so that a link may be tried beside it.
+    if (pending !== null) clearLinkKey(name);
+    else if (stored !== null) setRejected(name, true);
+    throw new ProfileError("taken", "That callsign is taken (its token isn't on this device)");
+  }
   if (res.status === 400) throw new ProfileError("invalid", "Invalid callsign");
   if (res.status === 401) throw new ProfileError("unavailable", PASSCODE_MESSAGE);
-  if (res.status === 429) throw new ProfileError("unavailable", NEW_CALLSIGNS_MESSAGE);
+  if (res.status === 429) {
+    // Two different limits answer 429: too many wrong passcodes from this address, and too many new callsigns lately.
+    const wrongPasscodes = await res.json().then((b: unknown) => isObject(b) && b.code === "passcode_throttled", () => false);
+    throw new ProfileError("unavailable", wrongPasscodes ? PASSCODE_THROTTLED_MESSAGE : NEW_CALLSIGNS_MESSAGE);
+  }
   // Vite's dev proxy (or any gateway) answers these when the game server behind it is down.
   if (res.status >= 502 && res.status <= 504) throw new ProfileError("unavailable", UNREACHABLE_MESSAGE);
   if (!res.ok) throw new ProfileError("unavailable", SERVER_PROBLEM_MESSAGE);
@@ -131,6 +193,8 @@ async function requestProfile(name: string): Promise<ProfileResponse> {
   }
   if (!isProfileResponse(body)) throw new ProfileError("unavailable", UNREADABLE_MESSAGE);
   writeToken(name, body.token);
+  clearLinkKey(name);
+  setRejected(name, false);
   return body;
 }
 

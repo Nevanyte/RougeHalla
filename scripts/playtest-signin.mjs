@@ -109,6 +109,15 @@ export function resolveTarget(args, stashFile, env) {
       "Start `npm run playtest` for a new one, or pass the address to use: --url <address>",
     );
   }
+  if (link.down) {
+    throw new SignInError(
+      `the tunnel of the running playtest has stopped, so ${link.url} no longer works.\n` +
+      (link.named
+        ? "Stop it (Ctrl+C) and run `npm run playtest` again: a named tunnel keeps the same address.\n"
+        : "Stop it (Ctrl+C) and run `npm run playtest` again for a new address (a quick tunnel's changes at every start).\n") +
+      "Or pass the address to use: --url <address>",
+    );
+  }
   return { url: link.url, passcode: passcode || (typeof link.passcode === "string" ? link.passcode : "") };
 }
 

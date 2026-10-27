@@ -1,8 +1,9 @@
 // render/mapBake.ts: the map's Graphics become baked textures, from outside MapView. The scene is fake (test/fakes.ts).
 import { describe, expect, it, vi } from "vitest";
 import {
-  REBAKE_DEBOUNCE_MS, RebakeGate, RUN_GAP, bakeMapView, clusterUnits, commandBounds, packShelves, replayCluster, splitUnits, wallScaleFor,
+  MAX_WALL_SCALE, REBAKE_DEBOUNCE_MS, RebakeGate, RUN_GAP, bakeMapView, clusterUnits, commandBounds, packShelves, replayCluster, splitUnits, wallScaleAt, wallScaleFor,
 } from "../src/render/mapBake";
+import { setBakeScale } from "../src/render/bake";
 import { argsOf, fakeCanvas, fakeScene, type FakeCanvas } from "./fakes";
 
 // Phaser's Graphics command ids: ARC 0, BEGIN_PATH 1, CLOSE_PATH 2, FILL_RECT 3, LINE_TO 4, MOVE_TO 5, LINE_STYLE 6, FILL_STYLE 7,
@@ -160,6 +161,15 @@ describe("packShelves", () => {
 describe("the baked density and when to bake again", () => {
   it("takes one texel per screen pixel, in half steps from 1 to 2", () => {
     expect([0.5, 1, 1.01, 1.37, 1.5, 1.51, 1.6, 2, 3].map(wallScaleFor)).toEqual([1, 1, 1.5, 1.5, 1.5, 2, 2, 2, 2]);
+  });
+
+  it("goes on to the page's density where the screen zooms past 2, no further than the camera needs", () => {
+    expect([1.6, 2, 2.01, 2.4, 2.5, 2.6, 4].map((z) => wallScaleAt(z, 3))).toEqual([2, 2, 2.5, 2.5, 2.5, 3, 3]);
+    expect([2.4, 2.6].map((z) => wallScaleAt(z, 2.5))).toEqual([2.5, 2.5]);
+    // The page's density can be 3 (fighters, rings) but the walls stop at MAX_WALL_SCALE: they are the memory.
+    setBakeScale(3);
+    try { expect([2.4, 2.7, 3].map((z) => wallScaleFor(z))).toEqual([2.5, 2.5, 2.5]); } finally { setBakeScale(null); }
+    expect(MAX_WALL_SCALE).toBe(2.5);
   });
 
   it("bakes again only for a zoom that asks for a denser bake and has held for the debounce time", () => {

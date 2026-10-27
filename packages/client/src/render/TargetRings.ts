@@ -5,7 +5,7 @@
 // LOCK_PULSE_FROM x with a flash ring.
 import Phaser from "phaser";
 import { PLAYER_RADIUS, Y_SCALE } from "@raid/shared";
-import { BAKE_SCALE, bakedImage, type Region } from "./bake";
+import { bakeScale, bakedImage, type Region } from "./bake";
 import { easeOutCubic, juiceScale, lerp } from "./juice";
 import { depthFor, projX, projY } from "./projection";
 import type { TargetPoint } from "./targeting";
@@ -76,9 +76,9 @@ export class TargetRings {
     const breath = 0.5 + 0.5 * Math.sin((now / LOCK_BREATH_MS) * Math.PI * 2);
     const settle = q < 1 ? lerp(LOCK_PULSE_FROM, 1, easeOutCubic(q)) : 1;
     const scale = 1 + (settle - 1) * m + LOCK_BREATH_SCALE * breath * m;
-    this.lock.setScale(scale / BAKE_SCALE).setAlpha(f > 0 ? lerp(LOCK_ALPHA_LOW, LOCK_ALPHA_HIGH, breath) : 1);
+    this.lock.setScale(scale / bakeScale()).setAlpha(f > 0 ? lerp(LOCK_ALPHA_LOW, LOCK_ALPHA_HIGH, breath) : 1);
     if (q < 1 && f > 0) {
-      this.flash.setPosition(projX(lock.x), projY(lock.y)).setDepth(depthFor(lock.y, DEPTH_BIAS + 0.06)).setScale(scale / BAKE_SCALE)
+      this.flash.setPosition(projX(lock.x), projY(lock.y)).setDepth(depthFor(lock.y, DEPTH_BIAS + 0.06)).setScale(scale / bakeScale())
         .setAlpha(Math.min(1, f) * (1 - q)).setVisible(true);
     } else {
       this.flash.setVisible(false);

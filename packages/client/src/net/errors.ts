@@ -8,6 +8,7 @@ export const SERVER_PROBLEM_MESSAGE = "The game server had a problem. Please try
 export const UNREADABLE_MESSAGE = "The server sent something this version of the game can't read. Reload the page and try again.";
 export const RATE_LIMIT_MESSAGE = "Too many attempts. Wait a moment and try again.";
 export const PASSCODE_MESSAGE = "This playtest needs a passcode: open the link your host sent.";
+export const PASSCODE_THROTTLED_MESSAGE = "Too many wrong passcodes from your connection. Wait a minute, then open the link your host sent.";
 export const NEW_CALLSIGNS_MESSAGE = "Too many new callsigns were claimed lately. Try again in a while, or ask your host.";
 const SERVER_FULL_MESSAGE = "The server is full right now. Try again in a few minutes.";
 const RESTARTING_MESSAGE = "The server is restarting. Try again in a moment.";
@@ -33,6 +34,7 @@ const TIMEOUT_RE = /timed? ?out|timeout|etimedout|took too long/i;
 
 /** What a failure says, in the order a refusal is most likely to match: the server's own join refusals first. */
 const MESSAGE_RULES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/wrong passcodes/i, PASSCODE_THROTTLED_MESSAGE],
   [/passcode/i, PASSCODE_MESSAGE],
   [/server is full/i, SERVER_FULL_MESSAGE],
   [/already in a (?:raid|run)/i, CALLSIGN_BUSY_MESSAGE],

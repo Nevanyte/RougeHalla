@@ -1,7 +1,10 @@
 // render/bake.ts: drawings that do not change are painted once into a texture and shown as Images. The scene is fake (test/fakes.ts):
 // its texture manager remembers what was baked.
-import { describe, expect, it } from "vitest";
-import { BAKE_SCALE, PIXEL_TEXTURE_KEY, around, bakedImage, ensureBake, pixelImage, placeBake, scaledPart, swapBake } from "../src/render/bake";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  BAKE_SCALE, MAX_BAKE_SCALE, PIXEL_TEXTURE_KEY, around, bakeScale, bakeScaleFor, bakedImage, ensureBake, pixelImage, placeBake, reachableZoom, scaledPart, setBakeScale, swapBake,
+} from "../src/render/bake";
+import { computeLayout } from "../src/view/viewport";
 import { argsOf, fakeScene, fk } from "./fakes";
 
 const REGION = { x0: -10, y0: -6, x1: 30, y1: 14 };
@@ -104,5 +107,60 @@ describe("scaledPart", () => {
     expect(argsOf(img, "setScale").at(-1)).toEqual([1 / BAKE_SCALE, 1 / BAKE_SCALE]);
     part.setPosition(3, 4);
     expect(argsOf(img, "setPosition").at(-1)).toEqual([3, 4]);
+  });
+});
+
+describe("the density of a bake", () => {
+  afterEach(() => { setBakeScale(null); vi.unstubAllGlobals(); });
+
+  it("takes one texel per screen pixel in half steps, never below BAKE_SCALE or above MAX_BAKE_SCALE", () => {
+    expect([0.5, 1, 1.6, 2, 2.0000000001].map(bakeScaleFor)).toEqual([2, 2, 2, 2, 2]);
+    expect([2.01, 2.4, 2.48, 2.5].map(bakeScaleFor)).toEqual([2.5, 2.5, 2.5, 2.5]);
+    expect([2.51, 2.9, 3, 5].map(bakeScaleFor)).toEqual([3, 3, 3, MAX_BAKE_SCALE]);
+    expect([NaN, Infinity].map(bakeScaleFor)).toEqual([2, 2]);
+  });
+
+  it("is BAKE_SCALE where there is no window, and what the screen allows where there is one", () => {
+    expect(reachableZoom()).toBe(0);
+    expect(bakeScale()).toBe(BAKE_SCALE);
+    setBakeScale(null);
+    // A 16-inch MacBook Pro: a 1500x900 window now (zoom 1.9) that can go fullscreen at 1728x1117 on a DPR 2 screen (zoom 2.48).
+    vi.stubGlobal("window", { innerWidth: 1500, innerHeight: 900, devicePixelRatio: 2, screen: { width: 1728, height: 1117 } });
+    expect(reachableZoom()).toBeCloseTo(computeLayout({ cssW: 1728, cssH: 1117, dpr: 2, hiDpi: true }).zoom, 9);
+    expect(reachableZoom()).toBeGreaterThan(2.4);
+    expect(bakeScale()).toBe(2.5);
+    // A small laptop that never zooms past 2 stays at the base density, a window already bigger than its screen counts.
+    setBakeScale(null);
+    vi.stubGlobal("window", { innerWidth: 1280, innerHeight: 800, devicePixelRatio: 2, screen: { width: 1440, height: 900 } });
+    expect(bakeScale()).toBe(BAKE_SCALE);
+    setBakeScale(null);
+    vi.stubGlobal("window", { innerWidth: 3840, innerHeight: 2160, devicePixelRatio: 1, screen: { width: 1920, height: 1080 } });
+    expect(bakeScale()).toBe(2.5);
+  });
+
+  it("is fixed once it is first read, so no view mixes two densities", () => {
+    vi.stubGlobal("window", { innerWidth: 1000, innerHeight: 700, devicePixelRatio: 1, screen: { width: 1000, height: 700 } });
+    expect(bakeScale()).toBe(BAKE_SCALE);
+    vi.stubGlobal("window", { innerWidth: 3840, innerHeight: 2160, devicePixelRatio: 1, screen: { width: 3840, height: 2160 } });
+    expect(bakeScale()).toBe(BAKE_SCALE);
+    setBakeScale(3);
+    expect(bakeScale()).toBe(3);
+  });
+
+  it("sizes the textures and the images that show them at the page's density", () => {
+    setBakeScale(2.5);
+    const { scene, baked } = fakeScene();
+    const real = bakedImage(scene, "thing", REGION, (g) => { g.fillRect(0, 0, 4, 4); });
+    const b = baked.get("bk:thing")!;
+    expect(b.size).toEqual([100, 50]);
+    expect(b.calls[0]![1]).toEqual([2.5, 2.5]);
+    expect(fk(real).state.scale).toBe(1 / 2.5);
+    const pose = scaledPart(real);
+    pose.setScale(1.5, 0.8);
+    const [sx, sy] = argsOf(fk(real), "setScale").at(-1) as number[];
+    expect([sx, sy]).toEqual([1.5 * (1 / 2.5), 0.8 * (1 / 2.5)]);
+    const other = pixelImage(scene);
+    placeBake(other, around(16));
+    expect(fk(other).state.scale).toBe(1 / 2.5);
   });
 });

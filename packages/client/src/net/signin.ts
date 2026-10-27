@@ -4,8 +4,10 @@
 // FRAGMENT: a browser never sends it to the server, and a tunnel or proxy cannot log it. It is taken out of the address
 // bar at once, so a reload, a bookmark or a screenshot no longer carries it. `?profile=` and `?code=` stay.
 //
-// Whoever holds the link is that callsign: the host sends each one privately (`npm run playtest:signin`). Opening one adds
-// the token only where this browser holds none for that callsign (profile.ts), so a crafted link cannot overwrite a good one.
+// Whoever holds the link is that callsign: the host sends each one privately (`npm run playtest:signin`). The key is only a
+// claim until the server accepts it: profile.ts keeps it apart, tries it on the next request, and drops it if it is refused.
+// Opening a link never touches a token this browser already proved, so a crafted link cannot overwrite a good one, and a
+// wrong key (a truncated copy) never blocks the right link.
 import { PROFILE_RE } from "@raid/shared";
 
 /** A token goes into an HTTP header: visible ASCII only (the server's are UUIDs, 36 characters). */

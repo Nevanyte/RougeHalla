@@ -3,7 +3,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { Client } from "@colyseus/sdk";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mulberry32, ROOM_NAME } from "@raid/shared";
 import { loadConfig } from "../src/config";
 import { startServer } from "../src/index";
@@ -237,5 +237,48 @@ describe("installed on a server", () => {
   it("with nothing set, a ping is near zero", async () => {
     const rtts = await pings({});
     expect(Math.max(...rtts)).toBeLessThan(40);
+  }, 30000);
+
+  /** A made-up built client: with CLIENT_DIR set the server is hosting (sameOriginOnly). */
+  function hostedClientDir(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-netsim-client-"));
+    fs.writeFileSync(path.join(dir, "index.html"), "<!doctype html><title>hosted</title>");
+    cleanups.push(() => fs.rmSync(dir, { recursive: true, force: true }));
+    return dir;
+  }
+
+  it("a server on a public link refuses to install it, with one loud warning, and pings stay fast", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    cleanups.push(() => { warn.mockRestore(); log.mockRestore(); });
+    const rtts = await pings({ COLYSEUS_LATENCY: "120", NET_LOSS_PCT: "5", CLIENT_DIR: hostedClientDir() });
+    expect(Math.max(...rtts)).toBeLessThan(60);
+    const refusals = warn.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator REFUSED/.test(m));
+    expect(refusals).toHaveLength(1);
+    expect(refusals[0]).toMatch(/rtt 120 ms/);
+    expect(refusals[0]).toMatch(/ALLOW_NETSIM_WHEN_HOSTING/);
+    expect(log.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator ON/.test(m))).toHaveLength(0);
+  }, 30000);
+
+  it("ALLOW_NETSIM_WHEN_HOSTING=1 installs it on a public link anyway, and says so", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    cleanups.push(() => log.mockRestore());
+    const rtts = await pings({ COLYSEUS_LATENCY: "120", ALLOW_NETSIM_WHEN_HOSTING: "1", CLIENT_DIR: hostedClientDir() });
+    const med = [...rtts].sort((a, b) => a - b)[Math.floor(rtts.length / 2)]!;
+    expect(med).toBeGreaterThanOrEqual(115);
+    const lines = log.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator ON/.test(m));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/rtt 120 ms/);
+    expect(lines[0]).toMatch(/while hosting/);
+  }, 30000);
+
+  it("a development server logs one line when it installs, and nothing when nothing is set", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    cleanups.push(() => log.mockRestore());
+    await pings({ COLYSEUS_LATENCY: "60" }, 2);
+    expect(log.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator ON \(rtt 60 ms/.test(m))).toHaveLength(1);
+    log.mockClear();
+    await pings({}, 2);
+    expect(log.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator/.test(m))).toHaveLength(0);
   }, 30000);
 });

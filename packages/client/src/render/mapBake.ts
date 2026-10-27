@@ -14,7 +14,16 @@
 //  - The runs of every row are packed into a few atlas pages (one texture each), not a texture a run: a frame draws with a handful
 //    of texture units instead of one per row on screen, which also keeps the quad batch from flushing when its units run out. Each
 //    run gets a one texel gutter that repeats its edge, so the texture filter never reads a neighbour (the same as the clamped edge
-//    of a texture of its own: rows that meet at an edge show no seam).
+//    of a texture of its own). The gutter alone does NOT make two stacked rows meet: see Seams.
+//  - Seams. A wall two or more tiles tall is one row per tile, each its own Image, and the rows used to meet at y = 25.6 k - 14,
+//    between two texels. Canvas anti-aliases the rectangles of two textures separately, so the boundary texel came out with alpha f
+//    in one and 1 - f in the other and composited to 1 - f(1 - f) (a quarter of the floor showing through at worst, a line 20-40
+//    levels darker, crawling as the camera moves). And a run's frame is the box of its whole cluster, so wherever the cluster has a
+//    front face elsewhere a top face's lower edge is interior to the frame: the texture filter ramps the alpha to zero right where
+//    the next row's quad begins. `alignUnits` removes both from the drawing units alone, so MapView needs no change: every
+//    rectangle edge moves to the texel grid (a run's texels are fully covered or empty, never anti-aliased), and a top face that has
+//    another row's rectangle starting where it ends is extended one texel into that row, so the lower Image covers the extension's
+//    ramp. A top face over a front face (no wall below) is not extended: that edge is a real one.
 //  - A page is painted on a canvas this file makes, uploaded once (`addImage`, so Phaser builds no CanvasTexture and its full-size
 //    ImageData copy), and the canvas is shrunk to 1x1 afterwards: only the GPU copy stays. In WebGL the one thing that would want
 //    the pixels again is a lost context: Phaser re-uploads from the canvas, so the bake listens for the renderer's restore event
@@ -24,7 +33,7 @@
 //    rises past the baked density's half step and then stops changing for REBAKE_DEBOUNCE_MS, the walls are baked again. A zoom that
 //    falls keeps the sharper bake.
 import type Phaser from "phaser";
-import { BAKE_SCALE, type Region } from "./bake";
+import { bakeScale, type Region } from "./bake";
 import type { MapView } from "./MapView";
 
 /** The command ids of Phaser's Graphics command buffer, and how many numbers follow each (Phaser.GameObjects.Graphics.Commands). */
@@ -95,8 +104,17 @@ function addCommand(box: Box, b: ArrayLike<number>, i: number, line: number): vo
   else if (id === FILL_TRIANGLE || id === STROKE_TRIANGLE) for (let k = 0; k < 6; k += 2) addPoint(box, b[a + k]!, b[a + k + 1]!, pad);
 }
 
-const regionOf = (box: Box): Region | null =>
-  box.x0 <= box.x1 && box.y0 <= box.y1 ? { x0: Math.floor(box.x0), y0: Math.floor(box.y0), x1: Math.ceil(box.x1), y1: Math.ceil(box.y1) } : null;
+/** A box's region: whole world pixels, or with `grid` texels per pixel, the multiples of 1/grid around it (a box already on the grid stays). */
+const regionOf = (box: Box, grid?: number): Region | null => {
+  if (!(box.x0 <= box.x1 && box.y0 <= box.y1)) return null;
+  if (grid === undefined) return { x0: Math.floor(box.x0), y0: Math.floor(box.y0), x1: Math.ceil(box.x1), y1: Math.ceil(box.y1) };
+  const lo = (v: number): number => Math.floor(v * grid + SNAP_EPS) / grid;
+  const hi = (v: number): number => Math.ceil(v * grid - SNAP_EPS) / grid;
+  return { x0: lo(box.x0), y0: lo(box.y0), x1: hi(box.x1), y1: hi(box.y1) };
+};
+
+/** Slack for the arithmetic of the grid: an edge this close to a texel line is on it (and a half way value rounds up, for every caller alike). */
+const SNAP_EPS = 1e-7;
 
 // ------------------------------------------------------------------------------------------------------------------ runs
 
@@ -161,8 +179,11 @@ export interface Cluster {
   readonly units: readonly DrawUnit[];
 }
 
-/** Groups units by x: sorted by their left edge, a unit that starts within `gap` of the group so far joins it. Empty boxes are dropped. */
-export function clusterUnits(units: readonly DrawUnit[], gap: number): Cluster[] {
+/**
+ * Groups units by x: sorted by their left edge, a unit that starts within `gap` of the group so far joins it. Empty boxes are dropped.
+ * A cluster's region is whole world pixels, or with `grid` the multiples of 1/grid (the texel grid of a bake at that density).
+ */
+export function clusterUnits(units: readonly DrawUnit[], gap: number, grid?: number): Cluster[] {
   const live = units.map((u, i) => ({ u, i })).filter(({ u }) => u.box.x0 <= u.box.x1 && u.box.y0 <= u.box.y1);
   live.sort((a, b) => a.u.box.x0 - b.u.box.x0 || a.i - b.i);
   const groups: { box: Box; members: { u: DrawUnit; i: number }[] }[] = [];
@@ -176,7 +197,7 @@ export function clusterUnits(units: readonly DrawUnit[], gap: number): Cluster[]
     } else groups.push({ box: { ...m.u.box }, members: [m] });
   }
   return groups.map((g) => ({
-    region: regionOf(g.box)!,
+    region: regionOf(g.box, grid)!,
     units: g.members.sort((a, b) => a.i - b.i).map((m) => m.u),
   }));
 }
@@ -193,6 +214,105 @@ export function replayCluster(units: readonly DrawUnit[]): number[] {
     out.push(...u.cmds);
   }
   return out;
+}
+
+// ------------------------------------------------------------------------------------------------------------------- seams
+
+/** `v` moved to the nearest multiple of 1/scale (a texel line of a bake at that density). */
+const snapTo = (v: number, scale: number): number => Math.round(v * scale + SNAP_EPS) / scale;
+
+/** What the rectangles of other drawings do at one y: where they start (`top`) or where they end (`bottom`), by x. */
+export class RectIndex {
+  private readonly byY = new Map<number, { src: number; x0: number; x1: number; y: number }[]>();
+  private static key = (y: number): number => Math.round(y * 64);
+  constructor(private readonly edge: "top" | "bottom") {}
+
+  /** Takes the rectangles of command buffer `cmds`, which belongs to drawing number `src`. */
+  add(src: number, cmds: readonly number[]): void {
+    for (let i = 0; i < cmds.length;) {
+      const n = ARGS[cmds[i]!];
+      if (n === undefined) return;
+      if (cmds[i] === FILL_RECT) {
+        const x = cmds[i + 1]!;
+        const y = this.edge === "top" ? cmds[i + 2]! : cmds[i + 2]! + cmds[i + 4]!;
+        const k = RectIndex.key(y);
+        const list = this.byY.get(k) ?? [];
+        list.push({ src, x0: x, x1: x + cmds[i + 3]!, y });
+        this.byY.set(k, list);
+      }
+      i += 1 + n;
+    }
+  }
+
+  /**
+   * The parts of [x0, x1) under which a rectangle of ANOTHER drawing than `src` has its edge at `y` (within a hundredth of a pixel),
+   * merged and in order. A row's own front face starts where its top face ends, so the drawing tells the two apart.
+   */
+  at(src: number, y: number, x0: number, x1: number): [number, number][] {
+    const hits: [number, number][] = [];
+    const k = RectIndex.key(y);
+    for (let d = -1; d <= 1; d++) {
+      for (const r of this.byY.get(k + d) ?? []) {
+        if (r.src === src || Math.abs(r.y - y) > 0.01) continue;
+        const a = Math.max(x0, r.x0);
+        const b = Math.min(x1, r.x1);
+        if (a < b) hits.push([a, b]);
+      }
+    }
+    hits.sort((p, q) => p[0] - q[0]);
+    const out: [number, number][] = [];
+    for (const h of hits) {
+      const last = out[out.length - 1];
+      if (last && h[0] <= last[1]) last[1] = Math.max(last[1], h[1]);
+      else out.push([h[0], h[1]]);
+    }
+    return out;
+  }
+}
+
+/** What lies against a rectangle's edges, for `alignUnits`: the x parts [x0, x1) of a rectangle at which something else meets it at y. */
+export interface Neighbours {
+  /** Another baked row starts where this rectangle ends: it covers whatever this extends into. */
+  below(y: number, x0: number, x1: number): [number, number][];
+  /** Something that is not baked (a closed gate's row) ends where this rectangle starts: an exact edge this must not leave a gap against. */
+  above(y: number, x0: number, x1: number): [number, number][];
+}
+
+/**
+ * Makes the plain rectangles among a wall row's units meet their neighbours at a texel line, for a bake at `scale` texels per pixel
+ * (see Seams in the header). Every edge moves to the nearest multiple of 1/scale, at most half a texel. Where `below` names parts of
+ * the rectangle's width under which another baked row starts at the y it ends, a one texel high copy of it is added there, extending
+ * it into that row (the lower Image is drawn over it). Where `above` names parts that an unbaked drawing ends against at the y it
+ * starts, and the edge was rounded down (away from it), a one texel copy is added above, so a rounded edge cannot leave a gap of
+ * floor between the two. Anything that is not a lone rectangle (a path) is left as it was.
+ */
+export function alignUnits(units: readonly DrawUnit[], scale: number, near: Neighbours): DrawUnit[] {
+  return units.map((u) => {
+    if (u.cmds.length !== 1 + ARGS[FILL_RECT]! || u.cmds[0] !== FILL_RECT) return u;
+    const [x, y, w, h] = [u.cmds[1]!, u.cmds[2]!, u.cmds[3]!, u.cmds[4]!];
+    const x0 = snapTo(x, scale);
+    const y0 = snapTo(y, scale);
+    const x1 = snapTo(x + w, scale);
+    const y1 = snapTo(y + h, scale);
+    const cmds: number[] = [FILL_RECT, x0, y0, x1 - x0, y1 - y0];
+    for (const [a, b] of near.below(y + h, x, x + w)) {
+      const sa = snapTo(a, scale);
+      cmds.push(FILL_RECT, sa, y1, snapTo(b, scale) - sa, 1 / scale);
+    }
+    // Only when the edge was rounded down, away from what it meets: rounded up, the rectangle already overlaps it.
+    if (y0 > y + SNAP_EPS) {
+      for (const [a, b] of near.above(y, x, x + w)) {
+        const sa = snapTo(a, scale);
+        cmds.push(FILL_RECT, sa, y0 - 1 / scale, snapTo(b, scale) - sa, 1 / scale);
+      }
+    }
+    const box = emptyBox();
+    for (let i = 0; i < cmds.length; i += 5) {
+      addPoint(box, cmds[i + 1]!, cmds[i + 2]!, 0);
+      addPoint(box, cmds[i + 1]! + cmds[i + 3]!, cmds[i + 2]! + cmds[i + 4]!, 0);
+    }
+    return { ...u, box, cmds };
+  });
 }
 
 // ----------------------------------------------------------------------------------------------------------------- packing
@@ -247,8 +367,21 @@ export const RUN_GAP = 64;
 /** A floor layer is so low in contrast that half the texels do not show; walls have hard edges against it and need them. */
 const FLOOR_DEPTH_BELOW = -9e5;
 
-/** Texels per world pixel for the walls at camera `zoom`: 1 to BAKE_SCALE in half steps (a sharp map takes one texel per screen pixel). */
-export const wallScaleFor = (zoom: number): number => Math.min(BAKE_SCALE, Math.max(1, Math.ceil(zoom * 2) / 2));
+/**
+ * The densest the walls are baked, whatever the page's density: 2.5 texels per pixel is sharp to a camera zoom of 2.5, which a
+ * 4K display or a 16-inch MacBook Pro fullscreen reaches (2.4-2.48), and costs 61 MB of GPU texture against 46 MB at 2 (seed 7).
+ * A third step would be about 110 MB (estimated, 2.25x) for the few windows that zoom past 2.5, where 2.5 only softens by 10%.
+ */
+export const MAX_WALL_SCALE = 2.5;
+
+/**
+ * Texels per world pixel for the walls at camera `zoom`: 1 up to `cap` in half steps (a sharp map takes one texel per screen
+ * pixel), so the walls cost no more than the camera needs.
+ */
+export const wallScaleAt = (zoom: number, cap: number): number => Math.min(cap, Math.max(1, Math.ceil(zoom * 2) / 2));
+
+/** `wallScaleAt` under the page's own density (BAKE_SCALE, or more where the screen zooms past 2) and MAX_WALL_SCALE. */
+export const wallScaleFor = (zoom: number): number => wallScaleAt(zoom, Math.min(bakeScale(), MAX_WALL_SCALE));
 
 /** How long the camera zoom must hold still before a denser bake starts (a window being dragged changes it every frame). */
 export const REBAKE_DEBOUNCE_MS = 300;
@@ -314,14 +447,14 @@ const isGraphics = (o: Phaser.GameObjects.GameObject): o is GraphicsObject =>
   o.type === "Graphics" && Array.isArray((o as Partial<GraphicsObject>).commandBuffer);
 
 /** A Graphics MapView drew, kept as plain numbers: its commands survive the Graphics, so a bake can be repeated. */
-interface Source {
+export interface Source {
   readonly depth: number;
   readonly floor: boolean;
   readonly cmds: readonly number[];
 }
 
-/** One drawing in a texture: where it goes in the world (integers), its commands and the depth of its Image. */
-interface Item {
+/** One drawing in a texture: where it goes in the world (whole pixels, or on the texel grid for a wall run), its commands and the depth of its Image. */
+export interface Item {
   readonly region: Region;
   readonly cmds: readonly number[];
   readonly depth: number;
@@ -334,42 +467,55 @@ const defaultCanvas = (w: number, h: number): HTMLCanvasElement => {
   return c;
 };
 
-/** A drawing cut into chunks of at most `side` world pixels each way. */
+/** A drawing cut into chunks of at most `side` world pixels each way (`side` times the density is a whole number of texels, so a cut falls on a texel line). */
 function chunks(region: Region, side: number): Region[] {
   const out: Region[] = [];
-  for (let y = region.y0; y < region.y1; y += side) {
-    for (let x = region.x0; x < region.x1; x += side) {
+  for (let j = 0; region.y0 + j * side < region.y1 - SNAP_EPS; j++) {
+    for (let i = 0; region.x0 + i * side < region.x1 - SNAP_EPS; i++) {
+      const x = region.x0 + i * side;
+      const y = region.y0 + j * side;
       out.push({ x0: x, y0: y, x1: Math.min(region.x1, x + side), y1: Math.min(region.y1, y + side) });
     }
   }
   return out;
 }
 
-/** What each source bakes: the floor whole (in chunks), a wall row as its runs. */
-function itemsOf(sources: readonly Source[], scale: number): { floor: Item[]; walls: Item[] } {
+/**
+ * What each source bakes: the floor whole (in chunks), a wall row as its runs, their rectangles aligned to the texel grid at `scale`
+ * and extended where they meet another row (`alignUnits`). `loose` are drawings next to the walls that are not baked (the closed
+ * gates' rows). Exported for tests.
+ */
+export function bakeItems(sources: readonly Source[], scale: number, loose: readonly Source[] = []): { floor: Item[]; walls: Item[] } {
   const floor: Item[] = [];
   const walls: Item[] = [];
-  for (const src of sources) {
+  const starts = new RectIndex("top");
+  const ends = new RectIndex("bottom");
+  sources.forEach((src, i) => { if (!src.floor) starts.add(i, src.cmds); });
+  // Their numbers are their own: a loose drawing is never the one a baked rectangle belongs to.
+  loose.forEach((src, i) => ends.add(-1 - i, src.cmds));
+  sources.forEach((src, si) => {
     const whole = commandBounds(src.cmds);
-    if (!whole) continue;
-    // A floor chunk has no gutter, a wall run has two texels of it: a run is cut so that it still fits a page.
-    const side = Math.floor((MAX_TEXELS - (src.floor ? 0 : 2 * GUTTER)) / (src.floor ? Math.min(1, scale) : scale));
+    if (!whole) return;
+    // A floor chunk has no gutter, a wall run has two texels of it: a run is cut so that it still fits a page, at a whole number of texels.
+    const side = (MAX_TEXELS - (src.floor ? 0 : 2 * GUTTER)) / (src.floor ? Math.min(1, scale) : scale);
     const parts: { region: Region; cmds: readonly number[] }[] = [];
     const units = src.floor ? null : splitUnits(src.cmds);
-    if (units) for (const c of clusterUnits(units, RUN_GAP)) parts.push({ region: c.region, cmds: replayCluster(c.units) });
-    else parts.push({ region: whole, cmds: src.cmds });
+    if (units) {
+      const aligned = alignUnits(units, scale, { below: (y, x0, x1) => starts.at(si, y, x0, x1), above: (y, x0, x1) => ends.at(si, y, x0, x1) });
+      for (const c of clusterUnits(aligned, RUN_GAP, scale)) parts.push({ region: c.region, cmds: replayCluster(c.units) });
+    } else parts.push({ region: whole, cmds: src.cmds });
     for (const part of parts) {
       for (const region of chunks(part.region, side)) (src.floor ? floor : walls).push({ region, cmds: part.cmds, depth: src.depth });
     }
-  }
+  });
   return { floor, walls };
 }
 
 /** The world rectangle of a run's texels is `scale` per world pixel, rounded up. */
-const texelsOf = (r: Region, scale: number): Cell => ({ w: Math.ceil((r.x1 - r.x0) * scale), h: Math.ceil((r.y1 - r.y0) * scale) });
+const texelsOf = (r: Region, scale: number): Cell => ({ w: Math.ceil((r.x1 - r.x0) * scale - SNAP_EPS), h: Math.ceil((r.y1 - r.y0) * scale - SNAP_EPS) });
 
 /**
- * Bakes what it can of `mapView`'s objects at `zoom` (the camera's: texels per world pixel are picked from it, 1 to BAKE_SCALE in
+ * Bakes what it can of `mapView`'s objects at `zoom` (the camera's: texels per world pixel are picked from it, 1 to the page's bake density in
  * half steps, and the floor takes at most 1). The originals are destroyed; the result owns the Images and the textures, bakes the
  * walls again when `update` sees the zoom rise, and frees everything in `destroy`.
  */
@@ -378,13 +524,16 @@ export function bakeMapView(scene: Phaser.Scene, mapView: MapView, zoom: number,
   const makeCanvas = options.makeCanvas ?? defaultCanvas;
   const now = options.now ?? (() => performance.now());
   const sources: Source[] = [];
+  /** The closed gates' rows: not baked, but the walls next to them are drawn to meet them. */
+  const loose: Source[] = [];
 
   for (const obj of objects) {
     // Floor (far below everything) and wall rows (y-sorted, depth >= 0); hidden ones are the closed gates, and the open-gate mark
     // lies between the two depth ranges: both are toggled by MapView and stay as they are.
-    if (!isGraphics(obj) || !obj.visible || obj.commandBuffer.length === 0) continue;
+    if (!isGraphics(obj) || obj.commandBuffer.length === 0) continue;
     const floor = obj.depth <= FLOOR_DEPTH_BELOW;
     if (!floor && obj.depth < 0) continue;
+    if (!obj.visible) { if (!floor) loose.push({ depth: obj.depth, floor: false, cmds: obj.commandBuffer.slice() }); continue; }
     if (!commandBounds(obj.commandBuffer)) continue;
     sources.push({ depth: obj.depth, floor, cmds: obj.commandBuffer.slice() });
     obj.destroy();
@@ -444,7 +593,7 @@ export function bakeMapView(scene: Phaser.Scene, mapView: MapView, zoom: number,
   function build(wallScale: number): void {
     const t0 = now();
     const gen = generation++;
-    const { floor, walls } = itemsOf(sources, wallScale);
+    const { floor, walls } = bakeItems(sources, wallScale, loose);
     const painter = scene.make.graphics({}, false) as GraphicsObject;
     let pages = 0;
     let texels = 0;
