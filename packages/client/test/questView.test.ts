@@ -42,6 +42,27 @@ describe("QuestView", () => {
     view.destroy();
   });
 
+  it("takes a giver, its item and its carrier marker off the world the moment the offer closes", () => {
+    const live: QuestStateLike = {
+      id: "q1", def: "banner-fire", x: 100, y: 200, status: "open", doneBy: "", expiresAt: 1000, carrier: "remote", progress: new Map(),
+    };
+    const item: QuestContainerLike = { id: "item", kind: "quest", x: 300, y: 300, label: "Parcel", items: [{ def: "quest:q1" }] };
+    const quests = (q: QuestStateLike) => ({ forEach(cb: (q: QuestStateLike, id: string) => void) { cb(q, q.id); } });
+    const containers = { forEach(cb: (c: QuestContainerLike, id: string) => void) { cb(item, item.id); } };
+    const at = { positions: new Map([["remote", { x: 700, y: 800 }]]), players: { get: () => undefined } };
+    for (const status of ["done", "expired"]) {
+      const { scene, ofKind } = fakeScene();
+      const view = new QuestView(scene);
+      view.update(frame({ quests: quests(live), containers, ...at }));
+      const roots = ofKind("container");
+      expect(roots, status).toHaveLength(3);
+      expect(roots.some((r) => r.calls.some(([n]) => n === "destroy")), status).toBe(false);
+      view.update(frame({ quests: quests({ ...live, status, doneBy: "Bravo" }), containers, ...at }));
+      expect(roots.every((r) => r.calls.some(([n]) => n === "destroy")), status).toBe(true);
+      view.destroy();
+    }
+  });
+
   it("does not draw closed givers, carriers or leftover quest items", () => {
     const { scene, ofKind } = fakeScene();
     const view = new QuestView(scene);

@@ -5,7 +5,8 @@
 // the middle of a step), so the best of five attempts counts (one attempt is a second of play) and each is judged by the
 // smaller of its wall-clock and its CPU time (gateMs): a real regression raises both, in every attempt.
 // The third case is R4a's gate: every buff at 4 stacks on all 8 players (the fold in sim/mods.ts and updateMods run for
-// every fighter).
+// every fighter). The fourth is the quests' (the shipped default, off in the bench unless asked): the same run with the
+// roster up, its givers standing as mobs and its items on the ground.
 import { describe, expect, it } from "vitest";
 import { gateMs, runStepBench, type BenchOptions, type BenchResult } from "../bench/stepBench";
 
@@ -45,6 +46,16 @@ describe("tick budget", () => {
   it("the same with every buff at 4 stacks on all 8 players (R4a's gate)", () => {
     const r = bestOfFive({ buffs: true });
     expect(r.mobs).toBeGreaterThanOrEqual(72);
+    expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
+    expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
+  }, 120_000);
+
+  it("the same with the quests on (givers, items and the lifecycle in the tick)", () => {
+    const r = bestOfFive({ quests: true });
+    // The regional mobs are topped up to the map's own count, and the quest givers stand on top of them.
+    expect(r.quests).toBeGreaterThanOrEqual(5);
+    expect(r.mobs).toBeGreaterThanOrEqual(72 + r.quests);
+    expect(r.avgFighting).toBeGreaterThan(8);
     expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
     expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);

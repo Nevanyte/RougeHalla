@@ -50,6 +50,7 @@ import { TrainingBar } from "../ui/trainingBar";
 import { WeaponBar } from "../ui/weaponBar";
 import { getSettings, onSettingsChange } from "../settings";
 import { screenToWorld } from "../view/viewport";
+import { currentView } from "../view/viewState";
 
 export interface RaidSceneData {
   room: RaidRoom;
@@ -464,7 +465,8 @@ export class RaidScene extends Phaser.Scene {
     const map = this.mapView?.map;
     // Pickup reach uses the move mask (a fence stops a hand), on the server's map: closed gates included. mapView.map stays the open map.
     const pickupMap = gatesLocked && map ? withGates(map) : map;
-    expireQuestPreviews(this.questPreviews, serverNow);
+    // A hidden offer's private preview never gets a public row once the gates are locked or the run is over: the server deletes it silently.
+    expireQuestPreviews(this.questPreviews, serverNow, gatesLocked || state.phase === "ended");
     const questData = questCollections(state, this.questPreviews.values(), serverNow);
     this.nearest = me?.status === "alive" && pickupMap ? nearestContainer(state.containers, pickupMap, me, {
       quests: questData.quests, localId: this.room.sessionId,
@@ -478,7 +480,8 @@ export class RaidScene extends Phaser.Scene {
     });
     this.questLog.update({
       phase: state.phase, training: state.training === true, quests: questData.quests, hidden: questData.hidden,
-      localId: this.room.sessionId, localName: me?.name, serverNow, hudBottom: this.hud.bottom,
+      localId: this.room.sessionId, localName: me?.name, serverNow,
+      ui: { w: currentView().uiW, h: currentView().uiH }, plate: () => this.hud.plate,
     });
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.

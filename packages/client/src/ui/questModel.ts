@@ -51,6 +51,8 @@ export interface QuestRow {
   status: string;
   ready: boolean;
   expired: boolean;
+  /** Done or expired (by the server's word or by the clock): no timer, no live styling, listed after the open rows. */
+  closed: boolean;
 }
 
 export interface QuestMapBlip extends QuestPosition {
@@ -68,7 +70,13 @@ export function questFromReveal(message: QuestRevealMessage): QuestStateLike {
   };
 }
 
-export function expireQuestPreviews(previews: Map<string, QuestStateLike>, serverNow: number): void {
+/**
+ * Forgets private reveal previews whose deadline passed. With `closed` (the coliseum gates are locked, or the run is over) it
+ * forgets all of them: the server deletes an offer that never went public at the teleport and at the run's end without a word,
+ * so a preview would otherwise stay in the log as an open offer nobody can reach until its own timer ran out.
+ */
+export function expireQuestPreviews(previews: Map<string, QuestStateLike>, serverNow: number, closed = false): void {
+  if (closed) { previews.clear(); return; }
   for (const [id, preview] of previews) if (serverNow >= preview.expiresAt) previews.delete(id);
 }
 
@@ -94,11 +102,9 @@ export function questCollections(
     },
   } : publicQuests;
   const count = s.unknownQuests ?? 0;
-  return {
-    quests,
-    containers: s.containers ?? EMPTY_CONTAINERS,
-    hidden: Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0,
-  };
+  // The server counts a revealed offer as hidden until it goes public; the finder already sees it as a preview row.
+  const hidden = Number.isFinite(count) ? Math.max(0, Math.floor(count) - pending.size) : 0;
+  return { quests, containers: s.containers ?? EMPTY_CONTAINERS, hidden };
 }
 
 export function visibleQuest(quest: QuestStateLike): boolean {
@@ -155,16 +161,20 @@ export function questRows(
     if (!def) return;
     const ready = questReady(quest, def, localId);
     const expired = quest.status === "expired" || (quest.status === "open" && serverNow >= quest.expiresAt);
+    const closed = expired || quest.status === "done";
     const status = quest.status === "done" ? `Done by ${quest.doneBy || "someone"}` : expired ? "Expired" : ready ? "Return to the giver" : "Open";
-    const wonFetch = quest.status === "done" && def.kind === "fetch" && quest.doneBy === localName;
-    const progress = def.kind === "fetch" ? `${wonFetch || quest.carrier === localId ? 1 : 0} / 1` : `${numberText(Math.min(def.count, quest.progress.get(localId) ?? 0))} / ${numberText(def.count)}`;
+    // The server clears a parcel's carrier at the turn-in, so the winner would read 0 / 1: the name on the row says who finished it.
+    const mine = quest.status === "done" && localName !== "" && quest.doneBy === localName;
+    const progress = mine
+      ? `${numberText(def.count)} / ${numberText(def.count)}`
+      : def.kind === "fetch" ? `${quest.carrier === localId ? 1 : 0} / 1` : `${numberText(Math.min(def.count, quest.progress.get(localId) ?? 0))} / ${numberText(def.count)}`;
     rows.push({
       id: quest.id, def, quest, objective: questObjective(def), progress,
-      time: quest.status === "open" && !expired ? formatQuestTime(quest.expiresAt - serverNow) : "",
-      reward: questReward(def), status, ready, expired,
+      time: closed ? "" : formatQuestTime(quest.expiresAt - serverNow),
+      reward: questReward(def), status, ready, expired, closed,
     });
   });
-  const group = (row: QuestRow): number => row.quest.status === "open" && !row.expired ? 0 : row.quest.status === "done" ? 1 : 2;
+  const group = (row: QuestRow): number => !row.closed ? 0 : row.quest.status === "done" ? 1 : 2;
   rows.sort((a, b) => group(a) - group(b) || a.def.name.localeCompare(b.def.name));
   return rows;
 }

@@ -126,9 +126,13 @@ export class Hud {
     uiRoot().append(this.root, this.center, this.deathLine);
   }
 
-  /** Bottom of the HUD plate in the unscaled #ui coordinate system, for overlays docked beneath it. */
-  get bottom(): number {
-    return this.root.offsetTop + this.root.offsetHeight;
+  /**
+   * The HUD plate's box (status, vitals, buff strip, passives, arena lines) in the unscaled #ui coordinate system, for overlays
+   * docked beside or beneath it (the J quest log). Reads layout: call it only when something needs it.
+   */
+  get plate(): { left: number; top: number; right: number; bottom: number } {
+    const root = this.root;
+    return { left: root.offsetLeft, top: root.offsetTop, right: root.offsetLeft + root.offsetWidth, bottom: root.offsetTop + root.offsetHeight };
   }
 
   /** The ground chips for the tile the local fighter stands on; null shows none. Cheap to call every frame. */

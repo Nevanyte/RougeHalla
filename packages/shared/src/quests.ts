@@ -251,22 +251,58 @@ function poolsSize(pools: Map<QuestKind, QuestDef[]>): number {
 }
 
 // --- Placement -------------------------------------------------------------------------------------------------------
+// Everything here reads the map contract only (camps, spawnPool, regions[].pole, the coliseum, tiles and terrain), so it
+// holds for any zone shape. Reachability is moveComponents: exactly the tiles findPath can walk between, in one flood per
+// map (cached), not a path search per candidate. Every position comes from the stream the caller hands in; the server's is
+// the private quest stream, and the known and unknown offers draw from their own passes (placeQuests).
 
 export interface QuestPlacement { def: QuestDef; known: boolean; at: Vec2; tokens?: Vec2[]; parcel?: Vec2 }
 
 const distance = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
+/** Flat tile index of a world point, or -1 off the map. */
+function indexAt(map: GameMap, at: Vec2): number {
+  const tx = worldToTile(at.x);
+  const ty = worldToTile(at.y);
+  return tx < 0 || ty < 0 || tx >= map.w || ty >= map.h ? -1 : tileIndex(map, tx, ty);
+}
+
+/** The walkable component (moveComponents id) of the tile under `at`, -1 on a wall or off the map. */
+function componentAt(map: GameMap, at: Vec2): number {
+  const i = indexAt(map, at);
+  return i < 0 ? -1 : moveComponents(map)[i]!;
+}
+
 /**
- * A clear floor tile near `want` (ring search out to `maxTiles`), not yet `used`, reachable from `origin` when one is
- * given. radius is the body that must fit there (a player's by default).
+ * The walkable component every quest piece must lie in: the one holding the coliseum centre, where everyone is sent when
+ * the gates lock. A hand-built map whose centre is a wall uses the component with most spawnPool starts instead, and -1
+ * (no restriction) when it has neither.
  */
-export function freeTileNear(
-  map: GameMap, want: Vec2, used: Set<number>, origin?: Vec2, maxTiles = 16, radius = PLAYER_RADIUS,
-): Vec2 | null {
+export function questHomeComponent(map: GameMap): number {
+  const home = componentAt(map, map.coliseum.centre);
+  if (home >= 0) return home;
+  const votes = new Map<number, number>();
+  for (const start of map.spawnPool) {
+    const c = componentAt(map, start);
+    if (c >= 0) votes.set(c, (votes.get(c) ?? 0) + 1);
+  }
+  let best = -1;
+  let most = 0;
+  for (const [c, n] of votes) if (n > most || (n === most && c < best)) { best = c; most = n; }
+  return best;
+}
+
+/**
+ * The first clear plain-floor tile in a ring search around `want` (out to `maxTiles`) that is not `used`, is no hazard
+ * and, when `component` is a number, lies in that walkable component. Nothing is claimed.
+ */
+function scanFreeTile(
+  map: GameMap, want: Vec2, used: ReadonlySet<number>, component: number | null, maxTiles: number, radius: number,
+): { at: Vec2; index: number } | null {
+  if (component !== null && component < 0) return null;
+  const comps = component === null ? null : moveComponents(map);
   const cx = worldToTile(want.x);
   const cy = worldToTile(want.y);
-  const components = origin ? moveComponents(map) : null;
-  const source = origin && components ? components[tileIndex(map, worldToTile(origin.x), worldToTile(origin.y))] : -1;
   for (let r = 0; r <= maxTiles; r++) {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
@@ -275,15 +311,28 @@ export function freeTileNear(
         const ty = cy + dy;
         if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) continue;
         const index = tileIndex(map, tx, ty);
-        if (used.has(index) || (components && (source < 0 || components[index] !== source))) continue;
+        if (used.has(index) || (comps && comps[index] !== component)) continue;
         const at = { x: tileToWorldCenter(tx), y: tileToWorldCenter(ty) };
-        if (!circleClear(map, at, radius, MASK_MOVE)) continue;
-        used.add(index);
-        return at;
+        if (terrainAt(map, at.x, at.y) !== TERRAIN_NONE || !circleClear(map, at, radius, MASK_MOVE)) continue;
+        return { at, index };
       }
     }
   }
   return null;
+}
+
+/**
+ * A clear plain-floor tile near `want` (ring search out to `maxTiles`; no zone hazard, so a token never lies in embers),
+ * not yet `used` and claimed in it, reachable from `origin` when one is given (a floor tile of the same walkable
+ * component, so findPath succeeds). radius is the body that must fit there (a player's by default).
+ */
+export function freeTileNear(
+  map: GameMap, want: Vec2, used: Set<number>, origin?: Vec2, maxTiles = 16, radius = PLAYER_RADIUS,
+): Vec2 | null {
+  const found = scanFreeTile(map, want, used, origin ? componentAt(map, origin) : null, maxTiles, radius);
+  if (!found) return null;
+  used.add(found.index);
+  return found.at;
 }
 
 /** Chebyshev distance in tiles. */
@@ -295,21 +344,46 @@ function outsideColiseum(map: GameMap, tx: number, ty: number, margin = 2): bool
   return tx < r.x - margin || tx >= r.x + r.w + margin || ty < r.y - margin || ty >= r.y + r.h + margin;
 }
 
+/** Marks every tile whose centre lies within `radius` of `at` (the same test as `distance(at, tile centre) < radius`). */
+function markDisc(mask: Uint8Array, map: GameMap, at: Vec2, radius: number): void {
+  const reach = Math.ceil(radius / TILE) + 1;
+  const cx = worldToTile(at.x);
+  const cy = worldToTile(at.y);
+  for (let ty = Math.max(0, cy - reach); ty <= Math.min(map.h - 1, cy + reach); ty++) {
+    for (let tx = Math.max(0, cx - reach); tx <= Math.min(map.w - 1, cx + reach); tx++) {
+      if (Math.hypot(tileToWorldCenter(tx) - at.x, tileToWorldCenter(ty) - at.y) < radius) mask[ty * map.w + tx] = 1;
+    }
+  }
+}
+
 /**
- * Givers stand on clear, plain floor outside the coliseum, at least three tiles beyond camp clearings and away from
+ * Where a giver may stand: plain floor (no wall, low ground or zone hazard) that a player can walk to from the coliseum,
+ * outside it, at least three tiles beyond every camp clearing and from every camp chest and mob rest tile, and away from
  * spawnPool entries. Dense maps get a second pass at half the doorstep distance; safety clearances are never relaxed.
+ * The camp and start clearances are stamped into one mask first, so the scan itself is a few cheap tests per tile.
  */
 export function npcCandidates(map: GameMap): Vec2[] {
   if (map.camps.length === 0 && map.spawnPool.length === 0 && map.regions.length === 0) return [];
+  const comps = moveComponents(map);
+  const home = questHomeComponent(map);
+  const margin = 3 * TILE;
+  const camps = new Uint8Array(map.w * map.h);
+  for (const c of map.camps) {
+    markDisc(camps, map, c, c.r + margin);
+    markDisc(camps, map, c.chest, margin);
+    for (const spot of c.spots) markDisc(camps, map, spot, margin);
+  }
   const scan = (spawnMinTiles: number): Vec2[] => {
+    const starts = new Uint8Array(map.w * map.h);
+    for (const s of map.spawnPool) markDisc(starts, map, s, spawnMinTiles * TILE);
     const out: Vec2[] = [];
     for (let ty = 0; ty < map.h; ty++) {
       for (let tx = 0; tx < map.w; tx++) {
-        if (!outsideColiseum(map, tx, ty) || blocksTile(map, tx, ty, MASK_MOVE)) continue;
+        const index = tileIndex(map, tx, ty);
+        if (camps[index] || starts[index] || !outsideColiseum(map, tx, ty) || blocksTile(map, tx, ty, MASK_MOVE)) continue;
+        if (home >= 0 && comps[index] !== home) continue;
         const at = { x: tileToWorldCenter(tx), y: tileToWorldCenter(ty) };
-        if (!circleClear(map, at, PLAYER_RADIUS, MASK_MOVE) || terrainAt(map, at.x, at.y) !== TERRAIN_NONE) continue;
-        if (map.camps.some((c) => distance(c, at) < c.r + 3 * TILE)) continue;
-        if (map.spawnPool.some((s) => distance(s, at) < spawnMinTiles * TILE)) continue;
+        if (terrainAt(map, at.x, at.y) !== TERRAIN_NONE || !circleClear(map, at, PLAYER_RADIUS, MASK_MOVE)) continue;
         out.push(at);
       }
     }
@@ -322,15 +396,20 @@ export function npcCandidates(map: GameMap): Vec2[] {
   return [...strict, ...relaxed];
 }
 
-/** Up to `n` privately shuffled candidates, accepted greedily with a gap relaxed only as far as the dense fallback. */
-export function spreadSpots(candidates: Vec2[], n: number, random: () => number): Vec2[] {
+/**
+ * Up to `n` spots: the candidates privately shuffled once, then taken greedily when they keep the gap to every spot
+ * already taken and to every `avoid` spot (givers placed earlier). The gap relaxes tile by tile down to half of
+ * QUEST_NPC_GAP_TILES when the map runs out of room. Each pick depends on the whole shuffle, never on a single draw.
+ */
+export function spreadSpots(candidates: Vec2[], n: number, random: () => number, avoid: readonly Vec2[] = []): Vec2[] {
   if (candidates.length === 0 || n <= 0) return [];
   const target = Math.min(n, candidates.length);
+  const order = shuffled(candidates, random);
   let best: Vec2[] = [];
   for (let gap = QUEST_NPC_GAP_TILES * TILE; gap >= Math.floor(QUEST_NPC_GAP_TILES / 2) * TILE; gap -= TILE) {
     const taken: Vec2[] = [];
-    for (const candidate of shuffled(candidates, random)) {
-      if (taken.some((spot) => distance(spot, candidate) < gap)) continue;
+    for (const candidate of order) {
+      if (avoid.some((spot) => distance(spot, candidate) < gap) || taken.some((spot) => distance(spot, candidate) < gap)) continue;
       taken.push(candidate);
       if (taken.length >= target) break;
     }
@@ -340,6 +419,7 @@ export function spreadSpots(candidates: Vec2[], n: number, random: () => number)
   return best;
 }
 
+/** Tiles no token or parcel may take: a halo round every camp's chest (1 tile) and mob rest spots (2 tiles). */
 function campItemExclusions(map: GameMap): Set<number> {
   const used = new Set<number>();
   const exclude = (at: Vec2, halo: number): void => {
@@ -361,11 +441,12 @@ function campItemExclusions(map: GameMap): Set<number> {
 }
 
 /** A collect quest's tokens around the region's camp farthest from the giver, clear of every camp's protected tiles. */
-function campTokens(map: GameMap, region: FactionId, giver: Vec2, spawns: number, random: () => number): Vec2[] {
+function campTokens(
+  map: GameMap, region: FactionId, giver: Vec2, spawns: number, random: () => number, used: Set<number>,
+): Vec2[] {
   const camps = map.camps.filter((c: CampDef) => c.zone === region);
   if (camps.length === 0) return [];
   const camp = camps.reduce((a, b) => distance(a, giver) >= distance(b, giver) ? a : b);
-  const used = campItemExclusions(map);
   const out: Vec2[] = [];
   const add = (want: Vec2): void => {
     const at = freeTileNear(map, want, used, giver, 8);
@@ -394,7 +475,9 @@ function uniqueSites(sites: readonly Vec2[]): Vec2[] {
 }
 
 /** Middle-camp and outer-start token placement, expressed entirely in the map contract rather than wedge rings. */
-function siteTokens(map: GameMap, giver: Vec2, ring: "rim" | "mid", spawns: number, random: () => number): Vec2[] {
+function siteTokens(
+  map: GameMap, giver: Vec2, ring: "rim" | "mid", spawns: number, random: () => number, used: Set<number>,
+): Vec2[] {
   const centre = map.coliseum.centre;
   const byCentre = (a: Vec2, b: Vec2): number => distance(a, centre) - distance(b, centre);
   let sites: Vec2[];
@@ -410,7 +493,6 @@ function siteTokens(map: GameMap, giver: Vec2, ring: "rim" | "mid", spawns: numb
     sites = uniqueSites(camps.slice(from, to));
   }
   if (sites.length === 0) return [];
-  const used = campItemExclusions(map);
   const out: Vec2[] = [];
   const start = Math.floor(random() * sites.length);
   for (let i = 0; i < spawns * 4 && out.length < spawns; i++) {
@@ -423,66 +505,103 @@ function siteTokens(map: GameMap, giver: Vec2, ring: "rim" | "mid", spawns: numb
 
 /**
  * A fetch parcel uses only zone-tagged camps and starts (plus the region pole), never regionGrid or wedge radii.
- * The farthest reachable candidate at least QUEST_FETCH_MIN_TILES away wins; cramped maps keep the farthest fallback.
+ * The farthest reachable candidate wins; only that tile is claimed in `used` (the probes of the other sites are not).
  */
-function parcelSpot(map: GameMap, giver: Vec2, region: FactionId | null, random: () => number): Vec2 | null {
+function parcelSpot(
+  map: GameMap, giver: Vec2, region: FactionId | null, random: () => number, used: Set<number>,
+): Vec2 | null {
   const camps = region === null ? map.camps : map.camps.filter((c) => c.zone === region);
   const starts = region === null ? map.spawnPool : map.spawnPool.filter((s) => s.zone === region);
   const pole = region === null ? [] : map.regions.filter((r) => r.id === region).map((r) => r.pole);
   const sites = uniqueSites([...camps, ...starts, ...pole]);
-  if (sites.length === 0) return null;
-  const used = campItemExclusions(map);
+  const source = componentAt(map, giver);
+  if (sites.length === 0 || source < 0) return null;
   const start = Math.floor(random() * sites.length);
-  let best: Vec2 | null = null;
+  let best: { at: Vec2; index: number } | null = null;
   let bestD = -1;
   for (let i = 0; i < sites.length; i++) {
-    const at = freeTileNear(map, sites[(start + i) % sites.length]!, used, giver, 12);
-    if (!at) continue;
-    const d = tileDist(at, giver);
-    if (d > bestD) { best = at; bestD = d; }
+    const found = scanFreeTile(map, sites[(start + i) % sites.length]!, used, source, 12, PLAYER_RADIUS);
+    if (!found) continue;
+    const d = tileDist(found.at, giver);
+    if (d > bestD) { best = found; bestD = d; }
   }
-  return best;
+  if (best) used.add(best.index);
+  return best ? best.at : null;
+}
+
+/** Spots one pass keeps per quest it places, so a region-themed quest can take the one farthest from its pole. */
+const SPOT_OVERSAMPLE = 4;
+
+export interface PlaceOptions {
+  /**
+   * The stream the UNKNOWN offers (their givers and pieces) draw from; the known ones draw from `random`. It defaults to
+   * `random`: the server passes one private stream, and the split exists so a test can hold the known positions fixed and
+   * vary only the hidden pass, proving the five public givers do not determine the five hidden ones.
+   */
+  hiddenRandom?: () => number;
 }
 
 /**
- * Lays the roster out on the map. Region-themed placement is internal only; the returned order is privately shuffled so
- * quest ids reveal neither theme nor placement order. A quest whose pieces will not place is dropped rather than placed badly.
+ * Lays the roster out on the map in two passes, the known offers first and then the unknown ones. Each pass shuffles
+ * the candidate tiles with its stream and takes spots greedily against the gap (the unknown pass also keeps the gap to the
+ * known givers), so no giver is a function of the public map and the other givers. A region-themed quest takes the pass's
+ * spot farthest from its region's pole; its pieces follow. Every piece lies on the giver's walkable component, off the
+ * camps' chest and mob-rest halos and off zone hazards, and no two share a tile. A quest whose pieces will not place is
+ * dropped rather than placed badly. The returned order is privately shuffled with `random`, so a quest's place in it (the
+ * id the server hands out) reveals neither its theme nor its pass.
  */
-export function placeQuests(map: GameMap, roster: RosterEntry[], random: () => number): QuestPlacement[] {
-  const spots = spreadSpots(npcCandidates(map), roster.length * 4, random);
-  if (spots.length === 0) return [];
-  const remaining = [...spots];
-  const ordered = [...roster].sort((a, b) => Number(!!b.def.region) - Number(!!a.def.region));
+export function placeQuests(
+  map: GameMap, roster: RosterEntry[], random: () => number, options: PlaceOptions = {},
+): QuestPlacement[] {
+  const candidates = npcCandidates(map);
+  if (candidates.length === 0 || roster.length === 0) return [];
+  const hiddenRandom = options.hiddenRandom ?? random;
+  const used = campItemExclusions(map);
+  const givers: Vec2[] = [];
   const out: QuestPlacement[] = [];
-  for (const entry of ordered) {
-    if (remaining.length === 0) break;
-    let at: Vec2;
-    if (entry.def.region) {
-      const pole = map.regions.find((r) => r.id === entry.def.region)?.pole ?? map.coliseum.centre;
-      let bestI = 0;
-      let bestD = -1;
-      for (let i = 0; i < remaining.length; i++) {
-        const d = distance(remaining[i]!, pole);
-        if (d > bestD) { bestD = d; bestI = i; }
+  for (const known of [true, false]) {
+    const group = roster.filter((entry) => entry.known === known);
+    if (group.length === 0) continue;
+    const rand = known ? random : hiddenRandom;
+    const open = candidates.filter((c) => !used.has(indexAt(map, c)));
+    const remaining = spreadSpots(open, group.length * SPOT_OVERSAMPLE, rand, givers);
+    const ordered = [...group].sort((a, b) => Number(!!b.def.region) - Number(!!a.def.region));
+    const placed: QuestPlacement[] = [];
+    for (const entry of ordered) {
+      if (remaining.length === 0) break;
+      let at: Vec2;
+      if (entry.def.region) {
+        const pole = map.regions.find((r) => r.id === entry.def.region)?.pole ?? map.coliseum.centre;
+        let bestI = 0;
+        let bestD = -1;
+        for (let i = 0; i < remaining.length; i++) {
+          const d = distance(remaining[i]!, pole);
+          if (d > bestD) { bestD = d; bestI = i; }
+        }
+        at = remaining.splice(bestI, 1)[0]!;
+      } else {
+        at = remaining.shift()!;
       }
-      at = remaining.splice(bestI, 1)[0]!;
-    } else {
-      at = remaining.shift()!;
+      givers.push(at);
+      used.add(indexAt(map, at));
+      placed.push({ def: entry.def, known, at });
     }
-    const placement: QuestPlacement = { def: entry.def, known: entry.known, at };
-    if (entry.def.kind === "collect") {
-      const spawns = entry.def.tokenSpawns ?? entry.def.count;
-      const tokens = entry.def.tokens === "camp" && entry.def.region
-        ? campTokens(map, entry.def.region, at, spawns, random)
-        : siteTokens(map, at, entry.def.tokens === "rim" ? "rim" : "mid", spawns, random);
-      if (tokens.length < entry.def.count) continue;
-      placement.tokens = tokens;
-    } else if (entry.def.kind === "fetch") {
-      const parcel = parcelSpot(map, at, entry.def.region ?? null, random);
-      if (!parcel) continue;
-      placement.parcel = parcel;
+    for (const placement of placed) {
+      const { def, at } = placement;
+      if (def.kind === "collect") {
+        const spawns = def.tokenSpawns ?? def.count;
+        const tokens = def.tokens === "camp" && def.region
+          ? campTokens(map, def.region, at, spawns, rand, used)
+          : siteTokens(map, at, def.tokens === "rim" ? "rim" : "mid", spawns, rand, used);
+        if (tokens.length < def.count) continue;
+        placement.tokens = tokens;
+      } else if (def.kind === "fetch") {
+        const parcel = parcelSpot(map, at, def.region ?? null, rand, used);
+        if (!parcel) continue;
+        placement.parcel = parcel;
+      }
+      out.push(placement);
     }
-    out.push(placement);
   }
   return shuffled(out, random);
 }

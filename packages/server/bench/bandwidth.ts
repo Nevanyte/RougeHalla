@@ -102,8 +102,10 @@ export interface BandwidthResult {
   avgFighting: number;
   avgAwake: number;
   avgProjectiles: number;
-  /** Mobs in the state at the end. */
+  /** Mobs in the state at the end (quest givers included when quests are on). */
   mobs: number;
+  /** Quest offers in the synced state at the end (0 with quests off). */
+  quests: number;
   /** The first full-state sync a joiner gets (protocol byte and ws header included). Not part of the rates. */
   initialSyncBytes: number;
   /** fx bytes by kind, for finding what to shrink: each tuple's share of its frame; "launch" are the projectiles. "(batch)" is what is left: ws header, message type, `t`. */
@@ -535,6 +537,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     avgAwake: awake / ticks,
     avgProjectiles: projectiles / ticks,
     mobs: world.mobs.size,
+    quests: world.state.quests.size,
     initialSyncBytes,
     fxByKind,
   };
@@ -550,7 +553,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const show = (label: string, o: BandwidthOptions): void => {
     const r = runBandwidth({ ...common, ...o });
     console.log(
-      `${label}: ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
+      `${label}: ${r.mobs} mobs (${r.quests} quest offers), ${r.avgFighting.toFixed(1)} fighting, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
       `  total ${f(r.totalKBps)} KB/s = patch ${f(r.patchKBps)} (${r.patchFramesPerSecond.toFixed(0)} frames/s)` +
       ` + fx ${f(r.fxKBps)} (${r.fxFramesPerSecond.toFixed(0)} frames/s)   joiner's first sync ${(r.initialSyncBytes / KIB).toFixed(1)} KB`,
     );

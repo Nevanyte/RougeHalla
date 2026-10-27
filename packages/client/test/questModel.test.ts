@@ -53,6 +53,37 @@ describe("quest presentation model", () => {
     expect(rows[1]).toMatchObject({ progress: "1 / 1", time: "" });
   });
 
+  it("shows the winner of any kind a full count, and never mistakes a nameless viewer for the winner", () => {
+    const wonKill = quest({ id: "k", status: "done", doneBy: "Me", progress: new Map() });
+    expect(questRows(quests([wonKill]), "me", 5_000, "Me")[0]).toMatchObject({ progress: "3 / 3", time: "", closed: true });
+    const bravoFetch = quest({ id: "f", def: "banner-fire", status: "done", doneBy: "Bravo" });
+    expect(questRows(quests([bravoFetch]), "me", 5_000, "Me")[0]?.progress).toBe("0 / 1");
+    const nobody = quest({ id: "n", def: "banner-fire", status: "done", doneBy: "" });
+    expect(questRows(quests([nobody]), "me", 5_000, "")[0]?.progress).toBe("0 / 1");
+  });
+
+  it("counts a closed row by the server's word or by the clock, and never gives it a timer", () => {
+    const rows = questRows(quests([quest({ id: "a", status: "done", doneBy: "Bravo" }), quest({ id: "b", status: "expired" }), quest({ id: "c" })]), "me", 70_000);
+    expect(rows.map((r) => [r.id, r.closed, r.time])).toEqual([["a", true, ""], ["b", true, ""], ["c", true, ""]]);
+    expect(questRows(quests([quest()]), "me", 5_000)[0]).toMatchObject({ closed: false, time: "1:00" });
+  });
+
+  it("does not count a revealed offer as rumoured while its preview row is shown", () => {
+    const preview = questFromReveal({ id: "q1", def: "cull-fire", x: 100, y: 200, expiresAt: 65_000 });
+    expect(questCollections({ quests: quests([]), unknownQuests: 5 }, preview, 0).hidden).toBe(4);
+    expect(questCollections({ quests: quests([quest()]), unknownQuests: 4 }, preview, 0).hidden).toBe(4);
+    expect(questCollections({ quests: quests([]), unknownQuests: 0 }, preview, 0).hidden).toBe(0);
+  });
+
+  it("forgets every private preview once the gates lock or the run ends, since the server deletes them silently", () => {
+    const first = questFromReveal({ id: "q1", def: "cull-fire", x: 100, y: 200, expiresAt: 65_000 });
+    const store = new Map([["q1", first]]);
+    expireQuestPreviews(store, 1_000);
+    expect(store.size).toBe(1);
+    expireQuestPreviews(store, 1_000, true);
+    expect(store.size).toBe(0);
+  });
+
   it("does not display a legacy unknown row and reads only the synced unknown count", () => {
     const data = questCollections({ quests: quests([quest({ known: false })]), unknownQuests: 5 });
     expect(data.hidden).toBe(5);
@@ -121,6 +152,18 @@ describe("quest minimap model", () => {
     const ready = quest({ def: "bloom-plague", progress: new Map([["me", 3]]) });
     const data = questMinimapBlips(quests([ready]), boxes([]), "me", { x: 100, y: 100 }, new Map(), null);
     expect(data).toContainEqual({ role: "objective", kind: "collect", x: 100, y: 200 });
+  });
+
+  it("leaves no giver, carrier or objective for a done or expired offer", () => {
+    for (const status of ["done", "expired"]) {
+      const closed = quest({ def: "banner-fire", status, carrier: "remote", doneBy: "Bravo" });
+      const data = questMinimapBlips(
+        quests([closed]), boxes([container({ x: 280, y: 400 })]), "me", { x: 300, y: 400 }, new Map([["remote", { x: 700, y: 800 }]]), null,
+      );
+      expect(data, status).toEqual([]);
+    }
+    const ready = quest({ def: "bloom-plague", status: "done", progress: new Map([["me", 3]]) });
+    expect(questMinimapBlips(quests([ready]), boxes([]), "me", { x: 100, y: 100 }, new Map(), null)).toEqual([]);
   });
 
   it("does not leak an unknown giver", () => {

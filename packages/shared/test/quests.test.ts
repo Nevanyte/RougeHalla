@@ -7,7 +7,7 @@ import {
 } from "../src/constants";
 import { circleClear } from "../src/geometry";
 import {
-  TILE_WALL, mapFromTiles, moveComponents, tileIndex, tileToWorldCenter, worldToTile, type CampDef, type GameMap,
+  MASK_MOVE, TILE_WALL, blocksTile, mapFromTiles, moveComponents, tileIndex, tileToWorldCenter, worldToTile, type CampDef, type GameMap,
 } from "../src/map";
 import { generateMap } from "../src/mapgen";
 import { mulberry32 } from "../src/rng";
@@ -163,8 +163,13 @@ describe("placement", () => {
         for (const s of map.spawnPool) {
           expect(Math.hypot(s.x - p.at.x, s.y - p.at.y), `${p.def.id} off starts`).toBeGreaterThanOrEqual(Math.floor(QUEST_NPC_SPAWN_MIN_TILES / 2) * TILE);
         }
+        expect(blocksTile(map, worldToTile(p.at.x), worldToTile(p.at.y), MASK_MOVE), `${p.def.id} on walkable ground (no wall, no low ground)`).toBe(false);
         for (const camp of map.camps) {
           expect(Math.hypot(camp.x - p.at.x, camp.y - p.at.y), `${p.def.id} outside ${camp.id}`).toBeGreaterThanOrEqual(camp.r + 3 * TILE);
+          expect(Math.hypot(camp.chest.x - p.at.x, camp.chest.y - p.at.y), `${p.def.id} off ${camp.id}'s chest`).toBeGreaterThanOrEqual(3 * TILE);
+          for (const spot of camp.spots) {
+            expect(Math.hypot(spot.x - p.at.x, spot.y - p.at.y), `${p.def.id} off ${camp.id}'s mob rest tiles`).toBeGreaterThanOrEqual(3 * TILE);
+          }
         }
         const tx = Math.floor(p.at.x / TILE);
         const ty = Math.floor(p.at.y / TILE);
@@ -194,6 +199,7 @@ describe("placement", () => {
         const giverComponent = components[tileIndex(map, worldToTile(p.at.x), worldToTile(p.at.y))];
         for (const piece of pieces) {
           expect(circleClear(map, piece, 12), `${p.def.id} piece on floor`).toBe(true);
+          expect(terrainAt(map, piece.x, piece.y), `${p.def.id} piece off hazards`).toBe(TERRAIN_NONE);
           expect(components[tileIndex(map, worldToTile(piece.x), worldToTile(piece.y))], `${p.def.id} piece reachable`).toBe(giverComponent);
           for (const camp of map.camps) {
             expect(tileDist(piece, camp.chest), `${p.def.id} off ${camp.id} chest`).toBeGreaterThan(1);
@@ -221,12 +227,21 @@ describe("placement", () => {
     }
   });
 
-  it("returns quest ids in privately shuffled order rather than region-themed order", () => {
-    const interleaved = seeds.some((seed) => {
-      const themed = fixtureOf(seed).placements.map((p) => !!p.def.region);
-      return themed.some((region, i) => !region && themed.slice(i + 1).some(Boolean));
-    });
-    expect(interleaved).toBe(true);
+  it("returns the offers in a privately shuffled order: the region-themed ones do not come first within either half", () => {
+    // Region-first within a half is what the placement passes produce internally and what a shuffle yields about one run in
+    // ten at most; without the final shuffle every seed would be sorted, and the quest ids would give the themes away.
+    const themedFirst = (flags: boolean[]): boolean => flags.every((region, i) => i === 0 || !(region && !flags[i - 1]));
+    let informative = 0;
+    let sorted = 0;
+    for (const seed of seeds) {
+      const placements = fixtureOf(seed).placements;
+      const halves = [true, false].map((known) => placements.filter((p) => p.known === known).map((p) => !!p.def.region));
+      if (halves.some((flags) => !flags.some(Boolean) || flags.every(Boolean))) continue;
+      informative++;
+      if (halves.every(themedFirst)) sorted++;
+    }
+    expect(informative).toBeGreaterThan(8);
+    expect(sorted).toBeLessThanOrEqual(Math.ceil(informative / 5));
   });
 
   it("allows identical public giver positions with different hidden sets", () => {

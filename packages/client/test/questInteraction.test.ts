@@ -39,6 +39,33 @@ describe("quest item interaction", () => {
     expect(nearestContainer(boxes([item, weapon]), map, { x: 32, y: 32 }, context(quest({ status: "expired" })))).toBe(weapon);
   });
 
+  it("falls to the weapon next to a quest item for every case the server refuses (sim/quests.ts onQuestPickup)", () => {
+    const at = { x: 32, y: 32 };
+    const refused: Array<[string, QuestPickupContext]> = [
+      ["tokens already at the count", context(quest({ def: "bloom-plague", progress: new Map([["me", 3]]) }))],
+      ["a parcel already in hand", context(quest({ id: "q2", def: "banner-holy", carrier: "me" }))],
+      ["a closed offer (done)", context(quest({ status: "done", doneBy: "Bravo" }))],
+      ["a closed offer (expired)", context(quest({ status: "expired" }))],
+      ["an offer the client does not know", context()],
+      ["a parcel somebody else carries", context(quest({ def: "banner-holy", carrier: "remote" }))],
+    ];
+    for (const [label, ctx] of refused) {
+      expect(nearestContainer(boxes([item, weapon]), map, at, ctx), label).toBe(weapon);
+    }
+  });
+
+  it("still takes the nearer of an eligible quest item and a weapon, the farther one next", () => {
+    const at = { x: 32, y: 32 };
+    const ctx = context(quest({ def: "bloom-plague", progress: new Map([["me", 2]]) }));
+    expect(nearestContainer(boxes([item, weapon]), map, at, ctx)).toBe(item);
+    expect(nearestContainer(boxes([item, box("w2", "ground", "bow", 36)]), map, { x: 40, y: 32 }, ctx)?.id).toBe("w2");
+  });
+
+  it("offers no quest item at all to a caller that knows no quests, and keeps the weapon", () => {
+    expect(nearestContainer(boxes([item]), map, { x: 32, y: 32 })).toBeNull();
+    expect(nearestContainer(boxes([item, weapon]), map, { x: 32, y: 32 })).toBe(weapon);
+  });
+
   it("does not offer an empty quest container", () => {
     const empty = box("q", "quest", "quest:q1");
     (empty as unknown as { items: unknown[] }).items = [];

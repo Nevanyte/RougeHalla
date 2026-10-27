@@ -46,6 +46,8 @@ export interface BenchOptions {
 export interface BenchResult {
   ticks: number;
   mobs: number;
+  /** Quest offers in the synced state at the end (0 with quests off): the run is only a quests run when this is above 0. */
+  quests: number;
   /** Mean over the measured ticks of how many mobs were fighting, how many were awake (fighting or walking home), and of arrows and balls in flight. */
   avgFighting: number;
   avgAwake: number;
@@ -287,6 +289,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   return {
     ticks: times.length,
     mobs: world.mobs.size,
+    quests: world.state.quests.size,
     avgFighting: fighting / times.length,
     avgAwake: awake / times.length,
     avgLocked: locked / times.length,
@@ -305,7 +308,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const f = (n: number): string => n.toFixed(3);
   const show = (tag: string, r: BenchResult): void => console.log(
-    `${tag}${r.ticks} ticks, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgAwake.toFixed(1)} awake, ${r.avgLocked.toFixed(1)} locked players, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
+    `${tag}${r.ticks} ticks, ${r.mobs} mobs (${r.quests} quest offers), ${r.avgFighting.toFixed(1)} fighting, ${r.avgAwake.toFixed(1)} awake, ${r.avgLocked.toFixed(1)} locked players, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
     `step(): avg ${f(r.avgMs)} ms, p50 ${f(r.p50Ms)} ms, p99 ${f(r.p99Ms)} ms, max ${f(r.maxMs)} ms (gate: avg < 5, p99 < 15)\n` +
     `step() CPU time: avg ${f(r.cpuAvgMs)} ms, p99 ${f(r.cpuP99Ms)} ms (every thread of the process; wall time is inflated while the machine is busy, CPU time by the JIT and GC threads)`,
   );

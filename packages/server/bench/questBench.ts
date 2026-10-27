@@ -8,9 +8,9 @@ import { buildQuestBenchReport } from "../src/harness/questBenchReport";
 
 const USAGE = [
   "usage: npm run questbench -w @raid/server [-- options]",
-  "  --quick       one seed, three seats per policy, 120 s cap (unless explicitly overridden)",
+  "  --quick       one seed, five seats per policy (all five factions), 120 s cap (unless explicitly overridden)",
   "  --seeds N     generated-map seeds 1..N (default 3; quick 1)",
-  "  --players N   2..8 solo seats per policy and mixed-lobby players (default 4; quick 3)",
+  "  --players N   2..8 solo seats per policy and mixed-lobby players (default 5, one per faction; quick 5)",
   "  --cap N       seconds per run (default 300; quick 120)",
   "  --quiet       no per-lobby progress on stderr",
   "  --help        this help",
@@ -24,7 +24,7 @@ function positiveInt(value: string, flag: string): number {
 
 function parseArgs(argv: string[]): QuestBenchOptions & { quiet: boolean; help: boolean } {
   const quick = argv.includes("--quick");
-  const out = { seeds: quick ? 1 : 3, players: quick ? 3 : 4, capSeconds: quick ? 120 : 300, quiet: false, help: false };
+  const out = { seeds: quick ? 1 : 3, players: 5, capSeconds: quick ? 120 : 300, quiet: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const eq = arg.startsWith("--") ? arg.indexOf("=") : -1;

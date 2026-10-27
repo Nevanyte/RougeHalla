@@ -27,6 +27,15 @@ export interface QuestPickupContext {
   localId: string;
 }
 
+/** No quest is known: no quest item is offered. The default when the caller has nothing to say about quests (a weapons-only test). */
+const NO_QUESTS: QuestPickupContext = { quests: { forEach: () => {} }, localId: "" };
+
+/**
+ * Whether the server would take this quest item for the local player (sim/loot.ts `handlePickup` -> sim/quests.ts
+ * `onQuestPickup`). It names the container the client sends, so there is no tie rule on the server: the client's choice is the
+ * one that counts, and an item the server refuses ("That quest is over", "you can carry one quest item", "You have enough
+ * tokens") must not be the one F picks, or it shadows a weapon lying next to it for as long as the player stands there.
+ */
 export function questItemEligible(c: ContainerState, context: QuestPickupContext): boolean {
   const questId = questItemQuestId(c);
   if (!questId) return false;
@@ -43,23 +52,24 @@ export function questItemEligible(c: ContainerState, context: QuestPickupContext
   return def.kind === "collect" && (quest.progress.get(context.localId) ?? 0) < def.count;
 }
 
-/** The closest weapon or locally eligible quest item satisfying `canInteract`: what F takes. */
+/** The closest weapon or quest item the server would take, in reach on the move mask: what F takes. */
 export function nearestContainer(
   containers: { forEach(cb: (c: ContainerState, id: string) => void): void },
   map: GameMap,
   from: Vec2,
-  questContext?: QuestPickupContext,
+  questContext: QuestPickupContext = NO_QUESTS,
 ): ContainerState | null {
   let best: ContainerState | null = null;
   let bestSq = Infinity;
   containers.forEach((c) => {
-    const weapon = containerWeapon(c) !== null;
-    if ((!weapon && (c.kind !== "quest" || c.items.length === 0)) || (c.kind === "quest" && questContext && !questItemEligible(c, questContext)) || !canInteract(map, from, c)) return;
     const sq = (c.x - from.x) ** 2 + (c.y - from.y) ** 2;
-    if (sq < bestSq) {
-      best = c;
-      bestSq = sq;
-    }
+    // Cheapest first: nearer than the best so far and within reach (canInteract is the exact test), the shape of the container,
+    // then the pickup rule, then the line.
+    if (sq >= bestSq || sq > (INTERACT_RANGE + 1) ** 2) return;
+    if (c.kind === "quest" ? c.items.length === 0 || !questItemEligible(c, questContext) : containerWeapon(c) === null) return;
+    if (!canInteract(map, from, c)) return;
+    best = c;
+    bestSq = sq;
   });
   return best;
 }

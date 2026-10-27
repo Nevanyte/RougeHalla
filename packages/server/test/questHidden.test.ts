@@ -17,9 +17,9 @@ function openMap(side = 24) {
   return mapFromTiles(side, side, tiles);
 }
 
-function makeRun(): World {
+function makeRun(players = 2): World {
   const config: SimConfig = {
-    minPlayers: 2,
+    minPlayers: players,
     lobbySeconds: 15,
     fillSeconds: 0,
     patienceSeconds: 3600,
@@ -31,6 +31,7 @@ function makeRun(): World {
   const world = createGameWorld({ config, random: mulberry32(1), rewardSalt: 123, map: openMap() });
   addPlayer(world, "p0", "alice");
   addPlayer(world, "p1", "bob");
+  if (players > 2) addPlayer(world, "p2", "carol");
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   return world;
@@ -64,7 +65,71 @@ describe("hidden quests", () => {
     expect(synced).not.toContain(qt.def.giver);
   });
 
-  it("gives only the lowest-tieRank finder a private discovery, then publishes after exactly four seconds", () => {
+  // step() raises the tick before the quest system reads the ranks, so the rank that decides the reveal is the NEXT tick's.
+  function rankNextTick(world: World, id: string): number {
+    const tick = world.state.tick;
+    world.state.tick = tick + 1;
+    try { return tieRank(world, id); } finally { world.state.tick = tick; }
+  }
+  /** Picks a secret salt under which `low` outranks `high` at the reveal tick. */
+  function rig(world: World, low: string, high: string): void {
+    for (let salt = 1; salt < 4000; salt++) {
+      world.orderSalt = salt;
+      if (rankNextTick(world, low) < rankNextTick(world, high)) return;
+    }
+    throw new Error("no salt found");
+  }
+  const revealsTo = (events: SimEvent[]): string[] =>
+    events.flatMap((e) => (e.type === "questReveal" ? [e.to] : []));
+
+  it.each([["p1", "p0"], ["p0", "p1"]])(
+    "makes the lowest-tieRank player the finder, not the first to join: %s outranks %s",
+    (low, high) => {
+      const world = makeRun();
+      const qt = offerHidden(world);
+      for (const id of [low, high]) {
+        const p = world.state.players.get(id)!;
+        p.x = qt.s.x + QUEST_REVEAL_RADIUS - 10;
+        p.y = qt.s.y;
+      }
+      rig(world, low, high);
+
+      const first = step(world, TICK_MS);
+
+      expect(revealsTo(first)).toEqual([low]);
+      expect(qt.finder).toBe(low);
+      expect(JSON.stringify(first.find((e) => e.type === "questReveal"))).toContain(qt.id);
+      expect(world.state.quests.has(qt.id)).toBe(false);
+    },
+  );
+
+  it("passes over a lower-ranked player who is out of range or down", () => {
+    const world = makeRun(3);
+    const near = world.state.players.get("p0")!;
+    const far = world.state.players.get("p1")!;
+    const dead = world.state.players.get("p2")!;
+    const place = (p: typeof near, qt: { s: { x: number; y: number } }, dx: number): void => {
+      p.x = qt.s.x + dx;
+      p.y = qt.s.y;
+    };
+
+    const first = offerHidden(world);
+    place(near, first, QUEST_REVEAL_RADIUS - 10);
+    place(far, first, QUEST_REVEAL_RADIUS + 40);
+    place(dead, first, -1000);
+    rig(world, "p1", "p0");
+    expect(revealsTo(step(world, TICK_MS))).toEqual(["p0"]);
+
+    const second = offerHidden(world);
+    place(near, second, QUEST_REVEAL_RADIUS - 10);
+    place(far, second, -1000);
+    place(dead, second, 0);
+    dead.status = "dead";
+    rig(world, "p2", "p0");
+    expect(revealsTo(step(world, TICK_MS))).toEqual(["p0"]);
+  });
+
+  it("gives only the finder a private discovery, then publishes after exactly four seconds", () => {
     const world = makeRun();
     const qt = offerHidden(world);
     for (const id of ["p0", "p1"]) {
@@ -72,33 +137,26 @@ describe("hidden quests", () => {
       p.x = qt.s.x + QUEST_REVEAL_RADIUS - 10;
       p.y = qt.s.y;
     }
+    rig(world, "p1", "p0");
 
-    expect(tieRank(world, "p1")).toBeLessThan(tieRank(world, "p0"));
     const discoveredAt = world.state.serverTime + TICK_MS;
-    const first = step(world, TICK_MS);
-    const privateDiscoveries = first.filter((e) => {
-      const candidate = e as unknown as { type: string; to?: string };
-      return candidate.type === "questReveal" && candidate.to === "p1";
-    });
-    expect(privateDiscoveries).toHaveLength(1);
-    expect(JSON.stringify(privateDiscoveries[0])).toContain(qt.id);
-    expect(JSON.stringify(privateDiscoveries[0])).toContain(qt.def.id);
-    expect(first.some((e) => {
-      const candidate = e as unknown as { type: string; to?: string };
-      return candidate.type === "questReveal" && candidate.to === "p0";
-    })).toBe(false);
+    const events = step(world, TICK_MS);
+    expect(revealsTo(events)).toEqual(["p1"]);
     expect(world.state.quests.has(qt.id)).toBe(false);
     expect(world.state.unknownQuests).toBe(1);
 
-    run(world, 79);
+    // The other scout stands there the whole head start and never hears of it; only the finder is ever told.
+    events.push(...run(world, 79));
     expect(world.state.serverTime).toBe(discoveredAt + 3950);
     expect(world.state.quests.has(qt.id)).toBe(false);
 
-    step(world, TICK_MS);
+    events.push(...step(world, TICK_MS));
     expect(world.state.serverTime).toBe(discoveredAt + 4000);
+    expect(revealsTo(events)).toEqual(["p1"]);
     expect(world.state.quests.get(qt.id)?.def).toBe(qt.def.id);
     expect(world.state.quests.get(qt.id)?.status).toBe("open");
     expect(world.state.unknownQuests).toBe(0);
+    expect(events.some((e) => e.type === "toast" && e.to === null && e.text.includes("bob") && e.text.includes(qt.def.name))).toBe(true);
   });
 
   it("does not let a second scout shorten the finder's head start", () => {

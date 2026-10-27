@@ -40,15 +40,17 @@ describe("PlanningQuests", () => {
   });
 
   it("does not list or mark closed quests as live planning offers", () => {
-    const dom = installPlanningDom();
-    const view = new PlanningQuests();
-    const closed = { ...state, status: "expired" };
-    view.update({
-      mode: "planning", serverNow: 0, localId: "me", hiddenQuests: 0,
-      quests: { forEach(cb: (q: QuestStateLike, id: string) => void) { cb(closed, closed.id); } },
-    });
-    expect(dom.ui.byClass("pl-quest-name")).toHaveLength(0);
-    expect(dom.ui.byClass("pl-questmark")).toHaveLength(0);
-    expect(view.element.textContent).toContain("No public quest offers this run.");
+    for (const status of ["expired", "done"]) {
+      const dom = installPlanningDom();
+      const view = new PlanningQuests();
+      const closed = { ...state, status, doneBy: "Bravo" };
+      view.update({
+        mode: "planning", serverNow: 0, localId: "me", hiddenQuests: 0,
+        quests: { forEach(cb: (q: QuestStateLike, id: string) => void) { cb(closed, closed.id); } },
+      });
+      expect(dom.ui.byClass("pl-quest-name"), status).toHaveLength(0);
+      expect(dom.ui.byClass("pl-questmark"), status).toHaveLength(0);
+      expect(view.element.textContent, status).toContain("No public quest offers this run.");
+    }
   });
 });

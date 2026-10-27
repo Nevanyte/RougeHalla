@@ -78,6 +78,22 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.fxByKind.chestTaken!.frames).toBeGreaterThan(10);
   });
 
+  // Quests (the shipped default, off in the benches unless asked): seed 1 measures 6.84 KB/s typical against 6.52 without them
+  // and 10.55 heavy against 10.91 (the fights differ a little: the bench players never target a giver), and a joiner's first
+  // sync grows by about 2 KB. The coliseum endgame closes every quest, so the idle case has none to measure.
+  it("quests on (the shipped default): the offers are in the state, typical and heavy stay under 20 KB/s and within 1.5 KB/s of the same runs without", () => {
+    const typicalQuests = run("typicalQuests", { camps: TYPICAL_CAMPS, quests: true });
+    const heavyQuests = run("heavyQuests", { camps: HEAVY_CAMPS, quests: true });
+    expect(typical().quests).toBe(0);
+    expect(typicalQuests.quests).toBeGreaterThanOrEqual(5);
+    expect(heavyQuests.quests).toBeGreaterThanOrEqual(5);
+    expect(typicalQuests.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+    expect(heavyQuests.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+    expect(Math.abs(typicalQuests.totalKBps - typical().totalKBps)).toBeLessThan(1.5);
+    expect(Math.abs(heavyQuests.totalKBps - heavy().totalKBps)).toBeLessThan(1.5);
+    expect(typicalQuests.initialSyncBytes).toBeGreaterThan(typical().initialSyncBytes);
+  });
+
   it("is deterministic for a seed", () => {
     const a = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });
     const b = runBandwidth({ camps: TYPICAL_CAMPS, ticks: 300, seed: 7 });

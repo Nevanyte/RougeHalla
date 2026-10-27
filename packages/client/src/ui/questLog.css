@@ -1,11 +1,15 @@
+/* The J quest log (ui/questLog.ts). Its box comes from ui/questLogLayout.ts through the four custom properties below: under the
+   HUD plate's measured bottom edge (the plate grows with the buff strip), clear of the weapon bar. The fallbacks only matter
+   for the frame before the first placement, and the log is hidden then. z-index ladder (chest panel 8, planning screen 10,
+   toasts 15, chrome 20): above the planning screen so J works there, under the toasts and the chrome. */
 #ui > .quest-log {
   position: absolute;
   z-index: 11;
   top: var(--quest-log-top, 92px);
-  left: 12px;
+  left: var(--quest-log-left, 12px);
   box-sizing: border-box;
-  width: min(370px, calc(var(--ui-w, 800px) - 24px));
-  max-height: max(72px, calc(var(--ui-h, 600px) - var(--quest-log-top, 92px) - 108px));
+  width: var(--quest-log-width, min(370px, calc(var(--ui-w, 800px) - 24px)));
+  max-height: var(--quest-log-max-h, calc(var(--ui-h, 600px) - 220px));
   padding: 12px;
   overflow: auto;
   overscroll-behavior: contain;
@@ -23,7 +27,8 @@
 .quest-log-list { display: flex; flex-direction: column; gap: 8px; }
 .quest-log-row { padding: 8px 9px; background: var(--card, #161b21); border: 1px solid var(--line, #2b323c); border-left: 3px solid var(--quest-color); border-radius: 5px; }
 .quest-log-row.ready { border-color: var(--quest-color); }
-.quest-log-row.expired { opacity: 0.62; }
+/* A finished offer (done or expired) is history: dimmed, no timer, after the open ones. */
+.quest-log-row.closed { opacity: 0.62; border-left-style: dashed; }
 .quest-log-head { display: flex; align-items: baseline; gap: 7px; }
 .quest-log-name { flex: 1; margin: 0; font-size: 13px; }
 .quest-log-kind { color: var(--quest-color); font-size: 10px; text-transform: uppercase; }

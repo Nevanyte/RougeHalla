@@ -17,6 +17,7 @@ import { LoadingScreen, whenReady } from "./ui/loading";
 import { Menu, type RaidRequest } from "./ui/menu";
 import { ResultsScreen } from "./ui/results";
 import { Toasts, type ToastTone } from "./ui/toast";
+import { QuestToasts } from "./ui/questToasts";
 import { ViewportManager, measureLayout } from "./view/viewportManager";
 
 const startView = measureLayout();
@@ -52,6 +53,8 @@ const menu = new Menu({
 const results = new ResultsScreen({ onContinue: () => backToMenu() });
 const banner = new Banner();
 const toasts = new Toasts();
+// Quest lifecycle lines are folded (one completion line for the completer, one line for the offers that expire together) before the toast stack.
+const questToasts = new QuestToasts((text) => toasts.show(text), () => room?.state.players.get(room.sessionId)?.name ?? "");
 // Takes over index.html's static #boot screen: up from page load until the hub is drawn, and again while a room is joined.
 const loading = new LoadingScreen();
 // FPS/ping readout, fullscreen, settings and help for the whole page. `chrome.modalOpen` is for the hub's `isBlocked`.
@@ -190,7 +193,7 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   }
   joined.onMessage("toast", (t: ServerMessages["toast"]) => {
     if (room !== joined) return;
-    toasts.show(t.text);
+    questToasts.push(t.text);
   });
   joined.onDrop((code, reason) => {
     if (room !== joined) return;
@@ -285,6 +288,7 @@ function backToMenu(message = ""): void {
   loading.hide();
   results.hide();
   toasts.clear();
+  questToasts.reset();
   game.scene.stop("raid");
   startHub();
   // Reloads the profile, so the GV balance includes what this run paid out.

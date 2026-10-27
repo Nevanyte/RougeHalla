@@ -45,7 +45,7 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 | Hub | Menu-based hub (GV, faction pick, counter wheel, shop, leaderboard), then a walkable hub with training grounds |
 
 ### 2.2 Later (designed, not in the first playable)
-- **Quest NPCs.** Unique arena NPCs each offer a simple quest. The first player to finish it gets that NPC's unique reward (items, armor, sometimes abilities).
+- **Quest NPCs.** Unique arena NPCs each offer a simple quest. The first player to finish it gets that NPC's unique reward (items, armor, sometimes abilities). A first version is built and no longer "later": ten standing offers per run (five known in planning, five scouted), paid in a mob-type buff and a capped quest GV, with no unique items or abilities (`docs/quests.md`).
 - **Raid-boss mobs.** Some neutral creatures reach raid-boss strength.
 - **Secrets and lore.** Hidden spots for rare loot, cosmetics and lore snippets that point to deeper secrets.
 - **Social.** Friends list, hosting 1v1s, private matches, text chat.
@@ -603,7 +603,7 @@ A 20-tick-per-second simulation of the damage rules above reproduces the full fa
 - **Leash numbers.** Any hit from a player wakes the mob, wherever the player stands. It gives up when it leaves its leash, or 6 s after it last **dealt** damage (damage it takes does not extend the fight), or with nobody left to fight. It then walks home **ignoring everyone and taking no damage**: it starts nothing new (a shot already in the air still lands), and it is not a body, so swings and shots pass through it (its shield neither blocks nor reflects). It is whole again the moment it arrives, and is neutral again. A mob hurt by someone who was gone before it could wake heals after 3 s unhurt. So a shooter out of its reach gains nothing by kiting it: every round ends with a whole mob, and a ranged weapon has to burst a melee mob down inside one round. A mob whose shield blocks or reflects a hit wakes too. A bow or wand mob backs away from a player who is too close, but only inside its leash and only to open the gap; cornered at the edge it stands and shoots. A hit on one mob wakes its whole camp (above), and each woken mob then follows this paragraph on its own. That call matters at four mobs a camp: in the scripted camp duels a starting kit clears a camp with every mob awake in only 8 of 75 runs (24 of 75 with three mobs), so waking the whole camp waits on weaker mobs, which the owner wants and the camp runtime will tune. Mobs never hurt each other, and their shots fly past each other. Dead mobs do not respawn. When the patience timer teleports everyone into the coliseum, every living mob is put back on its camp spot at full health.
 - **Same input path as players.** Mobs use the same input rules and combat code as players, so a sword mob and a sword player behave identically. A mob holds the trigger itself (it never locks a target), and its windups root it like anyone's.
 - **Mob types.** The 20 types (four per region) are in section 12.2 with their buffs. Each camp's `alive` count is synced, and a mob's type and camp ride its state. A cleared camp drops a shared skill chest (section 12.5); relics in the chest and "?" camps that hide their reward are planned, not built (see `docs/ROGUELIKE_PLAN.md`).
-- **Later.** Raid-boss mobs and quest NPCs (section 2.2).
+- **Later.** Raid-boss mobs (section 2.2). Quest NPCs have a first version (`docs/quests.md`).
 
 ---
 

@@ -276,6 +276,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       random: Math.random,
       // The reward stream's own secret: never the public seed, and not orderSalt, which tie outcomes can leak (world.ts).
       rewardSalt: Array.from(new Uint32Array(randomBytes(16).buffer, 0, 4)),
+      // The hidden quests' own secret: four more crypto words, so their stream shares no state with the reward stream
+      // whose first outputs (rosters, chest options) every client sees.
+      questSalt: Array.from(new Uint32Array(randomBytes(16).buffer, 0, 4)),
     });
     if (this.training) installTraining(world);
     this.built = world;

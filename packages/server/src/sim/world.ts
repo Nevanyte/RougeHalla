@@ -596,7 +596,12 @@ export interface World {
    * also keys tieRank, whose outcomes a client can observe (see CLAUDE.md), so it is not secret enough to roll rewards from.
    */
   rewardRandom: () => number;
-  /** A separately tagged 128-bit stream derived from the retained reward salt. Only hidden quest rolls may draw from it. */
+  /**
+   * The quests' own 128-bit stream (rosters and every giver, token and parcel position): quest code draws only from it,
+   * never from `rewardRandom` or `random`, so switching quests on or off moves neither. The Room seeds it from its own
+   * crypto words (`questSalt`), so it is independent of the reward stream whose early outputs (rosters, chest options)
+   * players see; without one it is a mixed derivation of the reward salt (tests).
+   */
   questRandom: () => number;
   /** Events produced during the current step; drained by step(). */
   events: SimEvent[];
@@ -652,6 +657,11 @@ export function createWorld(opts: {
    * expanded. Derived from orderSalt when absent (tests only).
    */
   rewardSalt?: number | readonly number[];
+  /**
+   * The secret behind `questRandom`, in the same forms. The Room passes four more crypto-random words, so the hidden
+   * quests do not share a state with the reward stream; without it (tests) the stream is mixed from the reward salt.
+   */
+  questSalt?: number | readonly number[];
 }): World {
   const state = new RaidState();
   const given = opts.seed === undefined ? undefined : opts.seed >>> 0;
@@ -682,7 +692,7 @@ export function createWorld(opts: {
     random: opts.random,
     orderSalt,
     rewardRandom: rewardStream(rewardSalt),
-    questRandom: rewardStream(questSaltFrom(rewardSalt)),
+    questRandom: rewardStream(opts.questSalt ?? questSaltFrom(rewardSalt)),
     events: [],
     stepping: false,
     actions: {},
@@ -730,16 +740,27 @@ function saltWords(seed: number | readonly number[]): Uint32Array {
   return words;
 }
 
+/**
+ * A quest salt from the reward salt, for a world whose Room gave none (tests): four lanes under a tag, mixed so that each
+ * output word depends on all four input words (a leaked reward word says nothing of one quest word) while the whole map
+ * stays 128 bits in, 128 bits out (every step is a bijection of its own lane given the others).
+ */
 function questSaltFrom(seed: number | readonly number[]): number[] {
-  const words = saltWords(seed);
-  const out = new Uint32Array(4);
-  for (let i = 0; i < 4; i++) {
-    let h = (words[i]! ^ 0x51554553 ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0; // "QUES"
+  const fmix = (x: number): number => {
+    let h = x >>> 0;
     h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
     h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-    out[i] = (h ^ (h >>> 16)) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  };
+  const rotl = (x: number, k: number): number => ((x << k) | (x >>> (32 - k))) >>> 0;
+  const words = saltWords(seed);
+  const lane = Array.from(words, (w, i) => (w ^ 0x51554553 ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0); // "QUES"
+  for (let round = 0; round < 3; round++) {
+    for (let i = 0; i < 4; i++) {
+      lane[i] = fmix((lane[i]! + (lane[(i + 1) & 3]! ^ rotl(lane[(i + 2) & 3]!, 7 + 5 * i))) >>> 0);
+    }
   }
-  return Array.from(out);
+  return lane;
 }
 
 /**

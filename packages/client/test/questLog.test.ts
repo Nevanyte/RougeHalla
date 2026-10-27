@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { QuestLog, type QuestLogFrame } from "../src/ui/questLog";
+import { questDefById } from "@raid/shared";
+import { QuestLog, questLogAvailable, type QuestLogFrame } from "../src/ui/questLog";
+import { QUEST_LOG_BOTTOM_RESERVE, QUEST_LOG_GAP } from "../src/ui/questLogLayout";
 import type { QuestStateLike } from "../src/ui/questModel";
+import { computeLayout } from "../src/view/viewport";
 import { asEl, installPlanningDom } from "./planningDom";
 
 const state: QuestStateLike = {
@@ -100,15 +103,117 @@ describe("QuestLog", () => {
     log.destroy();
   });
 
-  it("follows the live HUD bottom instead of covering a taller buff plate", () => {
+  it("sits under the live HUD plate at 800x600 and the common 16:9 sizes, however tall the buff strip grows", () => {
     const dom = installPlanningDom();
     const log = new QuestLog();
-    log.update(frame({ hudBottom: 220 }));
+    for (const [w, h] of [[800, 600], [1280, 720], [1366, 768], [1920, 1080]] as const) {
+      const view = computeLayout({ cssW: w, cssH: h, dpr: 1, hiDpi: true });
+      const ui = { w: view.uiW, h: view.uiH };
+      for (const bottom of [84, 220, 360]) {
+        const plate = { left: 12, top: 10, right: 290, bottom };
+        log.update(frame({ ui, plate: () => plate }));
+        if (!log.visible) log.toggle();
+        log.update(frame({ ui, plate: () => plate }));
+        const props = asEl(log.element).style.props;
+        const top = Number.parseFloat(props["--quest-log-top"]!);
+        const maxH = Number.parseFloat(props["--quest-log-max-h"]!);
+        expect(top, `${w}x${h} plate ${bottom}`).toBeGreaterThanOrEqual(bottom + QUEST_LOG_GAP);
+        expect(top + maxH, `${w}x${h} plate ${bottom}`).toBeLessThanOrEqual(ui.h - QUEST_LOG_BOTTOM_RESERVE);
+        expect(Number.parseFloat(props["--quest-log-left"]!) + Number.parseFloat(props["--quest-log-width"]!)).toBeLessThanOrEqual(ui.w - 12);
+      }
+    }
+    void dom;
+    log.destroy();
+  });
+
+  it("asks for the plate only while it is up and writes its box only when it moved", () => {
+    installPlanningDom();
+    const log = new QuestLog();
+    let reads = 0;
+    const ui = { w: 1000, h: 750 };
+    const plate = (bottom: number) => () => { reads++; return { left: 12, top: 10, right: 290, bottom }; };
+    log.update(frame({ ui, plate: plate(100) }));
+    expect(reads).toBe(0);
     log.toggle();
-    log.update(frame({ hudBottom: 220 }));
-    expect(asEl(log.element).style.props["--quest-log-top"]).toBe("228px");
-    log.update(frame({ hudBottom: 360 }));
-    expect(asEl(log.element).style.props["--quest-log-top"]).toBe("368px");
+    const writes: string[] = [];
+    const style = asEl(log.element).style;
+    const set = style.setProperty.bind(style);
+    style.setProperty = (k: string, v: string) => { writes.push(k); set(k, v); };
+    log.update(frame({ ui, plate: plate(100) }));
+    log.update(frame({ ui, plate: plate(100) }));
+    expect(reads).toBe(2);
+    expect(writes.filter((k) => k === "--quest-log-top")).toHaveLength(1);
+    log.update(frame({ ui, plate: plate(260) }));
+    expect(asEl(log.element).style.props["--quest-log-top"]).toBe("268px");
+    expect(writes.filter((k) => k === "--quest-log-top")).toHaveLength(2);
+    log.destroy();
+  });
+
+  it("opens only in planning and the run, and the game's other keys pass through untouched", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog();
+    const available = ["lobby", "planning", "active", "ended"].filter(questLogAvailable);
+    expect(available).toEqual(["planning", "active"]);
+    for (const phase of ["planning", "active"]) {
+      log.update(frame({ phase }));
+      expect(dom.press("KeyJ").defaultPrevented).toBe(true);
+      log.update(frame({ phase }));
+      expect(log.visible, phase).toBe(true);
+      dom.press("KeyJ");
+      log.update(frame({ phase }));
+      expect(log.visible, phase).toBe(false);
+    }
+    // Planning's own keys, the chest panel's (C, the digits, Esc) and Tab are none of the log's business.
+    log.update(frame({ phase: "planning" }));
+    for (const code of ["Digit1", "Digit2", "Digit0", "ArrowLeft", "ArrowDown", "Enter", "Delete", "KeyC", "Escape", "Tab", "KeyF"]) {
+      const event = dom.press(code);
+      expect(event.defaultPrevented, code).toBe(false);
+      expect(event.propagationStopped, code).toBe(false);
+    }
+    expect(log.visible).toBe(false);
+    log.destroy();
+  });
+
+  it("leaves J to an open dialog (the help or settings card)", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog();
+    log.update(frame());
+    const dialog = dom.doc.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    const button = dom.doc.createElement("button");
+    dialog.append(button);
+    dom.ui.append(dialog);
+    (dialog as unknown as { closest: (s: string) => unknown }).closest = (selector: string) => (selector === '[role="dialog"]' ? dialog : null);
+    (button as unknown as { closest: (s: string) => unknown }).closest = (selector: string) => (selector === '[role="dialog"]' ? dialog : null);
+    button.focus();
+    expect(dom.press("KeyJ").defaultPrevented).toBe(false);
+    log.update(frame());
+    expect(log.visible).toBe(false);
+    log.destroy();
+  });
+
+  it("lists open offers first, then done, then expired, with no timer and a full count on a closed row", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog();
+    const rows: QuestStateLike[] = [
+      { ...state, id: "x", def: "banner-fire", status: "expired" },
+      { ...state, id: "d", def: "banner-holy", status: "done", doneBy: "Me", carrier: "" },
+      { ...state, id: "o", def: "cull-fire" },
+      { ...state, id: "d2", def: "bloom-plague", status: "done", doneBy: "Bravo" },
+    ];
+    const many = { forEach(cb: (q: QuestStateLike, id: string) => void) { for (const q of rows) cb(q, q.id); } };
+    const f = frame({ quests: many, localName: "Me", serverNow: 5_000 });
+    log.update(f);
+    log.toggle();
+    log.update(f);
+    const nameOf = (id: string): string => questDefById(id)!.name;
+    const doneNames = [nameOf("banner-holy"), nameOf("bloom-plague")].sort((a, b) => a.localeCompare(b));
+    expect(dom.ui.byClass("quest-log-name").map((n) => n.textContent)).toEqual([nameOf("cull-fire"), ...doneNames, nameOf("banner-fire")]);
+    const articles = dom.ui.byClass("quest-log-row");
+    expect(articles.map((a) => a.classList.contains("closed"))).toEqual([false, true, true, true]);
+    expect(dom.ui.byClass("quest-log-time")).toHaveLength(1);
+    const mine = articles.find((a) => a.textContent.includes("Done by Me"))!;
+    expect(mine.textContent).toContain("Your progress 1 / 1");
     log.destroy();
   });
 });

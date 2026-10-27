@@ -33,6 +33,12 @@ export interface QuestRuntime {
 export interface QuestsRuntime {
   quests: Map<string, QuestRuntime>;
   carried: Map<string, string>;
+  /**
+   * A camp was cleared this tick. The kill offers are re-checked in questSystem, after the pass has paid every kill: the
+   * campCleared hook runs BEFORE the clearing kill's own mobKilled (killMob queues it first), so checking in the hook would
+   * expire an offer that kill has just finished.
+   */
+  recheck: boolean;
   onQuestPickup(world: World, c: Extract<Combatant, { kind: "player" }>, box: ContainerState): boolean;
 }
 
@@ -45,7 +51,7 @@ function announce(world: World, text: string): void {
 }
 
 function runtime(world: World): QuestsRuntime {
-  return world.quests ?? (world.quests = { quests: new Map(), carried: new Map(), onQuestPickup });
+  return world.quests ?? (world.quests = { quests: new Map(), carried: new Map(), recheck: false, onQuestPickup });
 }
 
 function syncUnknownCount(world: World): void {
@@ -57,14 +63,13 @@ function syncUnknownCount(world: World): void {
 /** The roster and every hidden placement draw come only from the private quest stream. */
 export function spawnQuests(world: World): void {
   if (world.quests || !world.config.quests || world.config.training || world.map.camps.length === 0) return;
+  runtime(world); // from here a second call (planning start, then raid start) is a no-op even if nothing places
   const random = world.questRandom;
   const roster = selectQuests(random);
-  const placements = placeQuests(world.map, roster, random);
-  for (let i = placements.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [placements[i], placements[j]] = [placements[j]!, placements[i]!];
-  }
-  for (const placement of placements) offerQuest(world, placement.def, placement.known, placement);
+  // placeQuests returns its offers privately shuffled and each offer takes the next id in that order, so an id carries
+  // neither the quest's theme nor whether it is a known one. Placement is a few ms of flood and scan, run here at
+  // planning start (or the run's first tick without planning), never in an active-run tick.
+  for (const placement of placeQuests(world.map, roster, random)) offerQuest(world, placement.def, placement.known, placement);
 }
 
 export function offerQuest(
@@ -233,73 +238,115 @@ function removeGiver(world: World, qt: QuestRuntime): void {
   qt.npcId = "";
 }
 
-function completeQuest(world: World, qt: QuestRuntime, playerId: string): void {
-  const p = world.state.players.get(playerId);
-  const rt = world.players.get(playerId);
-  if (!p || !rt || !standing(p, rt)) return;
-  qt.s.status = "done";
-  qt.s.doneBy = p.name;
-  qt.s.carrier = "";
-  qt.closedAt = world.state.serverTime;
-  const q = world.quests!;
-  if (q.carried.get(playerId) === qt.id) q.carried.delete(playerId);
-  removeContainers(world, qt);
-  removeGiver(world, qt);
-  awardQuestGv(world, p, rt, qt.def.reward.gv);
-  grantBuff(world, p, rt, qt.def.reward.buff, qt.def.reward.stacks * mobRewardFor(world, p, rt));
-  announce(world, `${p.name} completed quest: ${qt.def.name}`);
-}
-
-function expireQuest(world: World, qt: QuestRuntime, withToast = true): boolean {
-  if (qt.s.status !== "open") return false;
+/**
+ * An open offer ends here, however it ends: its carried parcel link, ground items and giver go at once, and its timer
+ * stops. A public row then stays CLOSED_QUEST_LINGER_MS for the log (status "done" or "expired"), swept by questSystem.
+ */
+function retire(world: World, qt: QuestRuntime): void {
   const q = world.quests!;
   if (qt.s.carrier !== "") {
     q.carried.delete(qt.s.carrier);
     qt.s.carrier = "";
   }
   qt.closedAt = world.state.serverTime;
+  qt.s.expiresAt = Math.min(qt.s.expiresAt, qt.closedAt);
   removeContainers(world, qt);
   removeGiver(world, qt);
+}
+
+function completeQuest(world: World, qt: QuestRuntime, playerId: string): void {
+  const p = world.state.players.get(playerId);
+  const rt = world.players.get(playerId);
+  if (!p || !rt || !standing(p, rt)) return;
+  qt.s.status = "done";
+  qt.s.doneBy = p.name;
+  retire(world, qt);
+  awardQuestGv(world, p, rt, qt.def.reward.gv);
+  grantBuff(world, p, rt, qt.def.reward.buff, qt.def.reward.stacks * mobRewardFor(world, p, rt));
+  announce(world, `${p.name} completed quest: ${qt.def.name}`);
+}
+
+/**
+ * Closes an open offer without pay. A public one stays as "expired" for the log (returns true: the caller announces it);
+ * one nobody has seen is deleted and leaves no trace but the lower unknown count (returns false).
+ */
+function expireQuest(world: World, qt: QuestRuntime): boolean {
+  if (qt.s.status !== "open") return false;
+  retire(world, qt);
   if (qt.published) {
     qt.s.status = "expired";
-    if (withToast) announce(world, `Quest expired: ${qt.def.name}`);
     return true;
   }
   world.state.quests.delete(qt.id);
-  q.quests.delete(qt.id);
+  world.quests!.quests.delete(qt.id);
   syncUnknownCount(world);
   return false;
 }
 
-function closeAll(world: World): void {
-  let expired = 0;
-  for (const qt of [...world.quests?.quests.values() ?? []]) if (expireQuest(world, qt, false)) expired++;
-  if (expired === 1) announce(world, "Quest expired");
-  else if (expired > 1) announce(world, `${expired} quests expired`);
+function announceExpired(world: World, expired: readonly QuestRuntime[]): void {
+  if (expired.length === 1) announce(world, `Quest expired: ${expired[0]!.def.name}`);
+  else if (expired.length > 1) announce(world, `${expired.length} quests expired`);
 }
 
+/** The coliseum teleport and the run's end: nothing can be delivered any more, so every open offer closes, unpaid. */
+function closeAll(world: World, loud: boolean): void {
+  const expired: QuestRuntime[] = [];
+  for (const qt of [...world.quests?.quests.values() ?? []]) if (expireQuest(world, qt)) expired.push(qt);
+  if (loud) announceExpired(world, expired);
+}
+
+/** Camps never respawn, so the mobs standing now are all the kills a kill offer will ever get. */
 function onCampCleared(world: World): void {
-  const q = world.quests;
-  if (!q) return;
-  const liveZones = new Set<string>();
-  let liveCamps = 0;
-  world.map.camps.forEach((camp, i) => {
-    if ((world.state.camps[i]?.alive ?? 0) <= 0) return;
-    liveZones.add(camp.zone);
-    liveCamps++;
-  });
-  const liveElites = [...world.state.mobs.values()].some((m) => m.kind === "elite" && m.status === "alive");
-  for (const qt of [...q.quests.values()]) {
+  if (world.quests) world.quests.recheck = true;
+}
+
+/**
+ * Whether any standing player could still finish this kill offer: they either already have the whole objective (the turn-in
+ * is all that is left) or the live mobs it counts still cover what they lack. A dead or departed player's progress is
+ * worth nothing. Returns true when no player is standing at all (the run is over; nothing to close early).
+ */
+function killSupplyLeft(
+  world: World, qt: QuestRuntime, zones: ReadonlyMap<string, number>, elites: number,
+): boolean {
+  const def = qt.def;
+  let anyone = false;
+  for (const [pid, p] of world.state.players) {
+    if (!standing(p, world.players.get(pid))) continue;
+    anyone = true;
+    const have = qt.s.progress.get(pid) ?? 0;
+    const need = def.count - have; // zero or less: the whole objective is done and only the turn-in is left
+    if (def.tour) {
+      const seen = qt.tours.get(pid);
+      let fresh = 0;
+      for (const [zone, n] of zones) if (n > 0 && !seen?.has(zone)) fresh++;
+      if (fresh >= need) return true;
+    } else if (def.elite) {
+      if (elites >= need) return true;
+    } else if (def.region) {
+      if ((zones.get(def.region) ?? 0) >= need) return true;
+    } else {
+      let all = 0;
+      for (const n of zones.values()) all += n;
+      if (all >= need) return true;
+    }
+  }
+  return !anyone;
+}
+
+/** Closes the kill offers whose targets are gone (called from questSystem once a camp was cleared). */
+function closeImpossible(world: World, out: QuestRuntime[]): void {
+  const zones = new Map<string, number>();
+  let elites = 0;
+  for (const rt of world.mobs.values()) {
+    const s = world.state.mobs.get(rt.id);
+    if (!rt.brain || !s || s.status !== "alive" || (s.kind !== "mob" && s.kind !== "elite")) continue;
+    zones.set(rt.brain.region, (zones.get(rt.brain.region) ?? 0) + 1);
+    if (rt.brain.elite) elites++;
+  }
+  for (const qt of [...world.quests!.quests.values()]) {
     const def = qt.def;
     if (qt.s.status !== "open" || def.kind !== "kill" || def.players) continue;
-    const impossible = def.tour
-      ? liveZones.size < def.count
-      : def.elite
-        ? !liveElites
-        : def.region
-          ? !liveZones.has(def.region)
-          : liveCamps === 0;
-    if (impossible) expireQuest(world, qt);
+    if (!killSupplyLeft(world, qt, zones, elites) && expireQuest(world, qt)) out.push(qt);
   }
 }
 
@@ -316,11 +363,15 @@ export function questSystem(world: World): void {
   }
   const map = collisionMap(world);
   const expired: QuestRuntime[] = [];
+  if (q.recheck) {
+    q.recheck = false;
+    closeImpossible(world, expired);
+  }
 
   for (const qt of [...q.quests.values()]) {
     if (qt.s.status !== "open") continue;
     if (now >= qt.s.expiresAt) {
-      if (expireQuest(world, qt, false)) expired.push(qt);
+      if (expireQuest(world, qt)) expired.push(qt);
       continue;
     }
     if (qt.published) continue;
@@ -346,8 +397,7 @@ export function questSystem(world: World): void {
     });
     toast(world, finder, `Quest discovered: ${qt.def.name} (${qt.def.giver})`);
   }
-  if (expired.length === 1) announce(world, `Quest expired: ${expired[0]!.def.name}`);
-  else if (expired.length > 1) announce(world, `${expired.length} quests expired`);
+  announceExpired(world, expired);
   if (world.state.gatesLocked) return;
 
   for (const qt of q.quests.values()) {
@@ -380,8 +430,8 @@ export function install(world: World): void {
   chainHook(world, "mobKilled", onMobKilled);
   chainHook(world, "playerKilled", onPlayerKilled);
   chainHook(world, "campCleared", onCampCleared);
-  chainHook(world, "teleported", closeAll);
-  chainHook(world, "runEnded", closeAll);
+  chainHook(world, "teleported", (w) => closeAll(w, true));
+  chainHook(world, "runEnded", (w) => closeAll(w, false));
   const prevDrop = world.hooks.dropBody;
   world.hooks.dropBody = (w, p) => {
     prevDrop(w, p);
