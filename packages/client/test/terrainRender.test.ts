@@ -2,9 +2,11 @@
 // bodies is drawn. MapView's plain way (a map with no zone art, or the fallback when baking fails: the zone art itself is
 // zoneBake.test.ts) draws a low block per kind on the map; the minimap paints a colour per kind. A wall's front face is
 // unchanged. The scene and the DOM are fake (test/fakes.ts).
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  INTERACT_RANGE, mapFromTiles, PLAYER_RADIUS, TERRAIN_CREVASSE, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, Y_SCALE,
+  buildGameMapOf, INTERACT_RANGE, mapFromTiles, PLAYER_RADIUS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE,
+  TERRAIN_LAVA, TERRAIN_LIGHT, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, Y_SCALE,
   type GameMap, type Vec2,
 } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
@@ -13,7 +15,7 @@ import { LOW_HEIGHT, MapView, WALL_HEIGHT } from "../src/render/MapView";
 import { Minimap } from "../src/ui/minimap";
 import { setView } from "../src/view/viewState";
 import { computeLayout } from "../src/view/viewport";
-import { argsOf, fakeScene, installFakeDom, type FakeEl, type FakeObject } from "./fakes";
+import { argsOf, fakeObject, fakeScene, installFakeDom, type FakeEl, type FakeObject } from "./fakes";
 
 /** A walled `w` x `h` room of floor; `low` maps "tx,ty" to a terrain kind for a LOW tile, `walls` are extra WALL tiles. */
 function room(w: number, h: number, low: Record<string, number> = {}, walls: ReadonlyArray<readonly [number, number]> = []): GameMap {
@@ -160,6 +162,109 @@ describe("MapView draws LOW tiles", () => {
     const plain = graphics(room(12, 10, {}, [[4, 2]])).find((o) => depthOf(o) === 3 * TILE)!;
     expect(calls(wallRow, "fillRect")).toEqual(calls(plain, "fillRect"));
     expect(fillColors(wallRow)).toEqual(fillColors(plain));
+  });
+});
+
+// ---- the plain way's floor hazards ----------------------------------------------------------------------------------------------
+// If the bake fails the map is drawn the plain way, and a floor hazard (ember, bog, ice, light) must still show. A map with no such
+// terrain must draw exactly what it drew before the tint existed (pinned below as digests of every call of every made object).
+
+describe("MapView's plain way tints floor hazards", () => {
+  const DEPTH_FLOOR = -1e6;
+  const floorOf = (map: GameMap): FakeObject => {
+    const { scene, ofKind } = fakeScene();
+    new MapView(scene, map);
+    return ofKind("graphics").find((g) => g.state.depth === DEPTH_FLOOR)!;
+  };
+  /** A walled room with `cells`: "tx,ty" to [tile, kind]. */
+  function field(cells: Record<string, readonly [number, number]>, w = 12, h = 10): GameMap {
+    const m = room(w, h);
+    for (const [key, [tile, kind]] of Object.entries(cells)) {
+      const [tx, ty] = key.split(",").map(Number) as [number, number];
+      m.tiles[ty * w + tx] = tile;
+      m.terrain[ty * w + tx] = kind;
+    }
+    return m;
+  }
+  const digest = (map: GameMap): string => {
+    const { scene, made } = fakeScene();
+    new MapView(scene, map);
+    const h = createHash("sha256");
+    for (const o of made) h.update(JSON.stringify([o.kind, o.args, o.calls]));
+    return `${h.digest("hex").slice(0, 16)} ${made.length}`;
+  };
+
+  it("draws a map with no floor terrain exactly as it was drawn before the tint: a LOW tile, a wall that kept a kind, plain maps", () => {
+    // Digests taken from the code before the hazard tint was added.
+    const lava = room(12, 10, { "4,3": TERRAIN_LAVA });
+    expect(digest(lava)).toBe("0c81527520d30c37 12");
+    expect(digest(buildGameMapOf(3, false))).toBe("323a37676a0f67dc 72");
+    expect(digest(buildGameMapOf(11, false))).toBe("d92a18ae69a2b376 72");
+    // A floor kind on a tile that is not floor (a stale byte under a wall or LOW tile) is not drawn either.
+    expect(digest(field({ "4,3": [TILE_LOW, TERRAIN_LAVA], "6,5": [TILE_WALL, TERRAIN_EMBER] }))).toBe(digest(field({ "4,3": [TILE_LOW, TERRAIN_LAVA], "6,5": [TILE_WALL, 0] })));
+  });
+
+  it("adds one tint and one rim per horizontal run of a kind to the floor, between the indoor overlay and the grid, and nothing else", () => {
+    const base = floorOf(room(12, 10)).calls;
+    const firstGrid = base.findIndex(([n]) => n === "lineStyle");
+    const head = base.slice(0, firstGrid), tail = base.slice(firstGrid);
+    const map = field({
+      "3,3": [TILE_FLOOR, TERRAIN_EMBER], "4,3": [TILE_FLOOR, TERRAIN_EMBER], "7,5": [TILE_FLOOR, TERRAIN_BOG],
+      "3,6": [TILE_FLOOR, TERRAIN_ICE], "8,2": [TILE_FLOOR, TERRAIN_LIGHT], "9,2": [TILE_FLOOR, TERRAIN_LIGHT], "10,2": [TILE_FLOOR, TERRAIN_ICE],
+    });
+    const calls = floorOf(map).calls;
+    expect(calls.slice(0, head.length)).toEqual(head);
+    expect(calls.slice(calls.length - tail.length)).toEqual(tail);
+    const mid = calls.slice(head.length, calls.length - tail.length);
+    // Rows 2, 3, 5, 6; row 2 holds two runs (light, then ice): 5 runs, four calls each, in reading order.
+    expect(mid).toHaveLength(5 * 4);
+    const rects = mid.filter(([n]) => n === "fillRect").map(([, a]) => a as number[]);
+    const expected = [[8, 2, 2], [10, 2, 1], [3, 3, 2], [7, 5, 1], [3, 6, 1]];
+    expect(rects).toHaveLength(expected.length);
+    expected.forEach(([tx, ty, len], i) => {
+      const [x, y, w, h] = rects[i]!;
+      expect([x, w]).toEqual([tx! * TILE, len! * TILE]);
+      expect(y).toBeCloseTo(ty! * TILE * Y_SCALE, 6);
+      expect(h).toBeCloseTo(TILE * Y_SCALE, 6);
+    });
+    expect(mid.filter(([n]) => n === "strokeRect").map(([, a]) => a)).toEqual(rects);
+    // Each kind has its own colour, and none is the floor's (an outdoor base fill or the indoor overlay).
+    const fills = mid.filter(([n]) => n === "fillStyle").map(([, a]) => a[0]);
+    const base0 = new Set(head.filter(([n]) => n === "fillStyle").map(([, a]) => a[0]));
+    expect(new Set(fills).size).toBe(4); // light, ice, ember, bog, ice
+    for (const c of fills) expect(base0.has(c)).toBe(false);
+    for (const [, a] of mid.filter(([n]) => n === "fillStyle")) expect(a[1]).toBeGreaterThan(0);
+  });
+
+  it("falls back to it when baking a styled map fails: every floor hazard of the map is drawn", () => {
+    const seed = Array.from({ length: 12 }, (_, i) => i + 1).find((s) => buildGameMapOf(s, true).terrain.includes(TERRAIN_EMBER))!;
+    const map = buildGameMapOf(seed, true);
+    // The runs the tint should make: maximal horizontal runs of one floor hazard kind on FLOOR tiles.
+    let runs = 0;
+    for (let ty = 0; ty < map.h; ty++) {
+      let prev = -1;
+      for (let tx = 0; tx < map.w; tx++) {
+        const i = ty * map.w + tx;
+        const k = map.tiles[i] === TILE_FLOOR && [TERRAIN_EMBER, TERRAIN_BOG, TERRAIN_ICE, TERRAIN_LIGHT].includes(map.terrain[i]!) ? map.terrain[i]! : -1;
+        if (k >= 0 && k !== prev) runs++;
+        prev = k;
+      }
+    }
+    expect(runs).toBeGreaterThan(0);
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      const made: FakeObject[] = [];
+      const add = new Proxy({}, { get: (_t, kind: string) => (...args: unknown[]) => { const o = fakeObject(kind, args); made.push(o); return o; } });
+      // A scene with no dynamic textures: the bake throws and MapView draws the plain way.
+      const scene = { add, textures: { addDynamicTexture: () => null }, cameras: { main: fakeObject("camera") } } as never;
+      const view = new MapView(scene, map);
+      expect(view.bakeStats).toBeNull();
+      const floor = made.find((o) => o.kind === "graphics" && o.state.depth === DEPTH_FLOOR)!;
+      expect(argsOf(floor, "strokeRect")).toHaveLength(runs);
+    } finally {
+      console.warn = warn;
+    }
   });
 });
 

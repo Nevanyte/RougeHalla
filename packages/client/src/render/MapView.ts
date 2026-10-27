@@ -6,11 +6,13 @@
 //     but not sight) as a few Graphics rows that Phaser replays every frame. A map with no zone art always takes this path.
 import Phaser from "phaser";
 import {
-  REGION_IDS, TERRAIN_CREVASSE, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_LOW, Y_SCALE, isWallTile, withGates,
+  REGION_IDS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TILE,
+  TILE_FLOOR, TILE_LOW, Y_SCALE, isWallTile, withGates,
   type GameMap, type RegionId,
 } from "@raid/shared";
 import { depthFor, projX, projY } from "./projection";
 import { BakedArt, bakeZoneArt, hasZoneArt, makeContext, type BakeStats } from "./zoneArt/bake";
+import { TERRAIN_PALETTE, lighten } from "./zoneArt/palette";
 import { TerrainFx } from "./zoneArt/TerrainFx";
 import { LOW_HEIGHT, WALL_HEIGHT } from "./zoneArt/zoneStyle";
 
@@ -28,6 +30,19 @@ const LOW_BY_KIND: Readonly<Record<number, LowLook>> = {
   [TERRAIN_LAVA]: { top: 0xff5a14, front: 0xa63a0c, rim: 0xffa060 },
   [TERRAIN_FENCE]: LOW_DEFAULT,
   [TERRAIN_CREVASSE]: { top: 0x0a1626, front: 0x050b14, rim: 0x2a4a6a },
+};
+
+/**
+ * How a floor hazard (ember, bog, ice, light) is tinted when the map is drawn the plain way: the baked art is the real picture, this
+ * is what a failed bake leaves, so a player never walks on a hazard that is not drawn. A tint over the region floor plus a lighter rim
+ * per run; the colours are the zone art's own (zoneArt/palette.ts).
+ */
+interface HazardTint { fill: number; alpha: number; rim: number }
+const HAZARD_TINT: Readonly<Record<number, HazardTint>> = {
+  [TERRAIN_EMBER]: { fill: TERRAIN_PALETTE.ember.glow, alpha: 0.5, rim: TERRAIN_PALETTE.ember.cracks },
+  [TERRAIN_BOG]: { fill: TERRAIN_PALETTE.bog.surface, alpha: 0.45, rim: TERRAIN_PALETTE.bog.bubbles },
+  [TERRAIN_ICE]: { fill: TERRAIN_PALETTE.ice.body, alpha: 0.5, rim: TERRAIN_PALETTE.ice.highlight },
+  [TERRAIN_LIGHT]: { fill: TERRAIN_PALETTE.light.warm, alpha: 0.4, rim: lighten(TERRAIN_PALETTE.light.beam, 0.3) },
 };
 
 /**
@@ -278,10 +293,42 @@ export class MapView {
       g.fillRect(projX(b.x * TILE), projY(b.y * TILE), b.w * TILE, b.h * TILE * Y_SCALE);
     }
 
+    this.drawHazards(g);
+
     // White at low alpha so one grid reads on both the outdoor and the indoor floor.
     g.lineStyle(1, 0xffffff, 0.05);
     for (let tx = 0; tx <= map.w; tx++) g.lineBetween(projX(tx * TILE), projY(0), projX(tx * TILE), projY(worldH));
     for (let ty = 0; ty <= map.h; ty++) g.lineBetween(projX(0), projY(ty * TILE), projX(worldW), projY(ty * TILE));
+  }
+
+  /**
+   * The plain way's floor hazards: a tint per horizontal run of one kind (ember, bog, ice, light) over the floor, under the grid.
+   * Draws nothing at all, not even a style call, on a map without such terrain.
+   */
+  private drawHazards(g: Phaser.GameObjects.Graphics): void {
+    const { map } = this;
+    const { w, h, tiles, terrain } = map;
+    let any = false;
+    for (let i = 0; i < terrain.length && !any; i++) any = tiles[i] === TILE_FLOOR && HAZARD_TINT[terrain[i]!] !== undefined;
+    if (!any) return;
+    const kind: number[] = new Array(w);
+    for (let ty = 0; ty < h; ty++) {
+      let row = false;
+      for (let tx = 0; tx < w; tx++) {
+        const k = terrain[ty * w + tx]!;
+        const hazard = tiles[ty * w + tx] === TILE_FLOOR && HAZARD_TINT[k] !== undefined;
+        kind[tx] = hazard ? k : -1;
+        row ||= hazard;
+      }
+      if (!row) continue;
+      const top = projY(ty * TILE);
+      const height = projY((ty + 1) * TILE) - top;
+      forEachRun(kind, (start, len, k) => {
+        const tint = HAZARD_TINT[k]!;
+        g.fillStyle(tint.fill, tint.alpha).fillRect(projX(start * TILE), top, len * TILE, height);
+        g.lineStyle(1, tint.rim, 0.6).strokeRect(projX(start * TILE), top, len * TILE, height);
+      });
+    }
   }
 
   /**
