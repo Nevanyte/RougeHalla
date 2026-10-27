@@ -12,8 +12,9 @@ Everything else is the v2 rule package from the counter review: normalized backl
 bonus/chill clocks from first contact, float HP, cooldown remainders carry.
 
 Not modelled by `duel`: geometry beyond a fixed approach time, projectile flight, stagger, windups, roots and buffs other
-than HP and attack speed. engine.duel is the design source of truth; this checks that its cycle survives discrete
-swings. Every first-swing phase pair is swept (numpy arrays of shape (P,)).
+than HP, attack speed and an outgoing damage multiplier (Side.dps scales the weapon hit and the signature bonus alike).
+engine.duel is the design source of truth; this checks that its cycle survives discrete swings. Every first-swing phase
+pair is swept (numpy arrays of shape (P,)).
 
 The kite check is the exception: it needs geometry. Every attack roots its fighter for a windup (the controls rework: the
 old ranged move slows are gone) and a fighter walks at full speed between attacks, so a shooter can orb-walk away from a
@@ -230,7 +231,7 @@ def free_fire_time(loser_name, ranged):
     return (WEAPONS[ranged]["rng"] - REACH) / (V * chill_of(Side(BY[loser_name], ranged)))
 
 
-def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=60.0):
+def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=60.0, as_mult=1.0):
     """Seconds until a melee chaser closes from the shooter's range to melee reach on a shooter that orb-walks: a small
     kinematic model at the sim's DT = 0.05 mirroring the TS rules.
 
@@ -249,11 +250,13 @@ def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=6
     the free-fire window. The shooter's cooldown and move speed are unchilled all the way in, the conservative way.
 
     `stand=True` is the shooter that never walks away (same rooted-or-not clock, but it never moves): the kinematic twin of
-    `free_fire_time`, equal to it unless the shooter is Frost. Returns inf if the chaser has not arrived after t_max."""
+    `free_fire_time`, equal to it unless the shooter is Frost. `as_mult` is the shooter's attack-speed multiplier (a buff):
+    the interval and the windup's share follow it as in the TS sim (interval floor included; the cap does not move).
+    Returns inf if the chaser has not arrived after t_max."""
     spec = BY[loser_name]
     rng = float(WEAPONS[ranged]["rng"])
-    iv = interval(spec, ranged)
-    wu = min(windup(spec, ranged), iv)
+    iv = interval(spec, ranged, as_mult)
+    wu = min(windup(spec, ranged, as_mult), iv)
     frost = spec.aura == "wall_of_ice"
     gap = rng
     for k in range(int(round(t_max / DT))):
@@ -270,12 +273,21 @@ def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=6
     return float("inf")
 
 
-def kite_tolerance(a, wa, b, wb, hi=90.0, nmax=50):
+def shooter_side(b, wb, as_mult=1.0, dmg=1.0):
+    """The ranged loser's Side with a buff: `as_mult` its attack-speed multiplier (interval / as_mult down to the floor, damage
+    per hit taking over past it, as shared/weapons.ts attackInterval / damagePerHit), `dmg` an outgoing damage multiplier on
+    every hit, weapon and signature alike (a `damage` row: the TS ledger's outgoingMult)."""
+    dps = None if dmg == 1.0 else WEAPONS[wb]["dps"] * dmg
+    return Side(BY[b], wb, as_mult=as_mult, dps=dps)
+
+
+def kite_tolerance(a, wa, b, wb, hi=90.0, nmax=50, as_mult=1.0, dmg=1.0):
     """Seconds the melee winner a (holding wa) can arrive late and still beat the ranged loser b (holding wb) at least half
     the time, with b firing at full output, bonus clock running, from the start. 0.0 if it loses even on time, inf if it
-    still wins after `hi` seconds. Independent of the windups (the shooter's cadence is its interval either way)."""
+    still wins after `hi` seconds. Independent of the windups (the shooter's cadence is its interval either way).
+    `as_mult` / `dmg` buff the shooter (shooter_side); the winner is never buffed."""
     def wr(T):
-        return edge_stats(duel(Side(BY[a], wa, act_start=T, fx_start=T), Side(BY[b], wb), nmax=nmax))["rate"]
+        return edge_stats(duel(Side(BY[a], wa, act_start=T, fx_start=T), shooter_side(b, wb, as_mult, dmg), nmax=nmax))["rate"]
 
     if wr(0) < 0.5:
         return 0.0
@@ -291,20 +303,21 @@ def kite_tolerance(a, wa, b, wb, hi=90.0, nmax=50):
     return lo
 
 
-def kite_tolerances():
+def kite_tolerances(as_mult=1.0, dmg=1.0):
     """The expensive half of the kite check: {(winner, loser, ranged weapon): {melee weapon: tolerance}} for every faction
-    edge. It does not depend on the windups, so a sweep over them computes it once."""
-    return {(a, b, wb): {wa: kite_tolerance(a, wa, b, wb) for wa in MELEE} for a, b in BEATS for wb in RANGED}
+    edge. It does not depend on the windups, so a sweep over them computes it once. `as_mult` / `dmg` buff every shooter."""
+    return {(a, b, wb): {wa: kite_tolerance(a, wa, b, wb, as_mult=as_mult, dmg=dmg) for wa in MELEE} for a, b in BEATS for wb in RANGED}
 
 
-def kite_rows(tols=None):
+def kite_rows(tols=None, as_mult=1.0):
     """The kite check, one row per faction edge: [(winner, loser, {ranged weapon: ({melee weapon: tolerance}, Tff standing,
     Tff orb-walk)})]. A cell is STOLEN when the weakest melee weapon's tolerance is below the orb-walk free-fire time (the
-    standing time is the lower bound it is printed beside). Pass `tols` (from kite_tolerances) to reuse the tolerances."""
-    tols = tols or kite_tolerances()
+    standing time is the lower bound it is printed beside). Pass `tols` (from kite_tolerances) to reuse the tolerances, and
+    the same `as_mult` the tolerances were computed with (the shooter's attack speed moves its orb-walk too)."""
+    tols = tols or kite_tolerances(as_mult)
     rows = []
     for a, b in BEATS:
-        cells = {wb: (tols[(a, b, wb)], free_fire_time(b, wb), orbwalk_free_fire(b, wb, a)) for wb in RANGED}
+        cells = {wb: (tols[(a, b, wb)], free_fire_time(b, wb), orbwalk_free_fire(b, wb, a, as_mult=as_mult)) for wb in RANGED}
         rows.append((a, b, cells))
     return rows
 

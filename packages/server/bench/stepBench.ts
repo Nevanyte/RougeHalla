@@ -3,9 +3,10 @@
 //   npx tsx bench/stepBench.ts            (from packages/server)
 // test/perf.test.ts runs the same scenario against the gate (average < 5 ms, p99 < 15 ms per tick).
 import {
-  generateMap, mulberry32, TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE_FLOOR,
+  BUFF_IDS, generateMap, mulberry32, TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE_FLOOR,
   type FactionId, type GameMap, type MobCampDef, type Vec2,
 } from "@raid/shared";
+import { grantBuff } from "../src/sim/buffs";
 import { aggro } from "../src/sim/mobAI";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -20,6 +21,8 @@ export interface BenchOptions {
   /** Ticks measured after the warm-up. */
   ticks?: number;
   warmup?: number;
+  /** Every player starts with 4 stacks of every buff (roguelike R4a's gate: all buffs on 8 players). `--buffs` on the CLI. */
+  buffs?: boolean;
   /**
    * "heavy": the generated map with a hazard on every fourth floor tile (ember, bog, ice and light in turn), camps and spawns
    * included: the terrain passes at their worst. `hazards: false` plays the same map with the effects off (the control).
@@ -117,6 +120,9 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   for (let i = 0; i < players; i++) addPlayer(world, `p${i}`, NAMES[i]!);
   step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("the bench run did not start");
+  if (opts.buffs) {
+    for (const [id, rt] of world.players) for (const b of BUFF_IDS) grantBuff(world, world.state.players.get(id)!, rt, b, 4);
+  }
 
   const camps = allCamps(world);
   const cursor = { i: 0 };
@@ -196,10 +202,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     `${tag}${r.ticks} ticks, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
     `step(): avg ${f(r.avgMs)} ms, p50 ${f(r.p50Ms)} ms, p99 ${f(r.p99Ms)} ms, max ${f(r.maxMs)} ms (gate: avg < 5, p99 < 15)`,
   );
-  show("", runStepBench());
+  const buffs = process.argv.includes("--buffs");
+  show("", runStepBench({ buffs }));
   // The terrain variant: a hazard on every fourth floor tile, against the same map with the effects off.
-  const heavy = runStepBench({ terrain: "heavy" });
-  const control = runStepBench({ terrain: "heavy", hazards: false });
+  const heavy = runStepBench({ terrain: "heavy", buffs });
+  const control = runStepBench({ terrain: "heavy", hazards: false, buffs });
   show("terrain (every 4th tile a hazard): ", heavy);
   show("terrain map, effects off (control):  ", control);
   const s = heavy.hazardSeconds;

@@ -5,11 +5,22 @@
 // (players), hurtMob (regional mobs) or damageMob (dummies). Rewards for the kills of a pass (GV, bounties, stacks,
 // shields, drops) are queued while the damage lands and paid after the last victim has taken theirs (payLater), so a
 // kill's spoils never decide who survives the pass.
+//
+// The outgoing multiplier (roguelike R4a): a weapon hit's or signature damage's raw damage is multiplied by its attacker's
+// damage rows (stat damage, `vs` rows whose test holds against the victim, `scale` rows; sim/mods.ts outgoingMult) before
+// armor and shield. Every entry's multiplier is fixed at the start of the pass, before any victim takes damage, from the
+// hp fractions as they stood then, so the order victims are processed in never changes it. A Wish's ability entry (`ability`
+// set: its damage and its damage-over-time chunks) is NOT multiplied: ability power is flat (owner ruling "Keep Wishes flat",
+// GAME_DESIGN 8.9). The status runtime's damageFactor (Trial's zone, sim/status.ts) multiplies in after the rows, ability
+// damage included (it is the one relative number); the status table is frozen during the pass (changes are queued with
+// payLater), so it reads the same for every entry too. The arena's own burn and a dealer that is not a fighter in the world
+// are never multiplied.
 import { isDot, mitigateShares } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
+import { outgoingMult } from "./mods";
 import { damageFactor } from "./status";
 import { stagger } from "./weapons";
 import { lobbyMedianFeed } from "./feed";
@@ -50,6 +61,8 @@ export function applyLedger(world: World): void {
     if (list) list.push(e);
     else byVictim.set(e.victim, [e]);
   }
+  // Before anything lands: every multiplier reads the hp as the pass began.
+  const out = outgoingMults(world, ledger);
   const c0 = world.combat;
   // A pass that threw would have left its queue and snapshot behind: start clean.
   c0.payouts = [];
@@ -58,7 +71,7 @@ export function applyLedger(world: World): void {
   // Every mob reward of the pass reads the lobby as it stood before it, not as kills earlier in the pass left it.
   c0.medianFeed = lobbyMedianFeed(world);
   try {
-    for (const [id, entries] of byVictim) applyVictim(world, id, entries);
+    for (const [id, entries] of byVictim) applyVictim(world, id, entries, out);
   } finally {
     c0.collecting = false;
   }
@@ -72,15 +85,35 @@ export function applyLedger(world: World): void {
   }
 }
 
-function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
+/** hp / maxHp of a fighter, or 1 when it has no hp bar (nothing is tested against it then). */
+function hpFrac(world: World, id: string): number {
+  const s = world.state.players.get(id) ?? world.state.mobs.get(id);
+  return s && s.maxHp > 0 ? s.hp / s.maxHp : 1;
+}
+
+/** Each entry's outgoing multiplier (1 for most, and for every ability entry), from the state before the pass; only entries that differ are listed. */
+function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Map<LedgerEntry, number> {
+  const out = new Map<LedgerEntry, number>();
+  for (const e of ledger) {
+    // Ability power is flat (the Wishes' D12): a Wish's damage and its DoT chunks never read the caster's buffs.
+    if (e.arena || e.ability !== undefined || !(e.scale > 0)) continue;
+    const by = world.state.players.get(e.by.id) ?? world.state.mobs.get(e.by.id);
+    if (!by) continue;
+    const m = outgoingMult(by, hpFrac(world, e.victim));
+    if (m !== 1) out.set(e, m);
+  }
+  return out;
+}
+
+function applyVictim(world: World, id: string, entries: LedgerEntry[], out: ReadonlyMap<LedgerEntry, number>): void {
   const c = combatant(world, id);
   if (!c || !standing(c)) return;
   const def = defenseOf(c.s);
-  // damageFactor (Trial's zone) is the one place a status changes the damage of every source, before mitigation; the arena's
-  // own burn is no one's hit.
+  // Before mitigation: the attacker's outgoing rows (`out`, read as the pass began), then damageFactor (Trial's zone), the one
+  // place a status changes the damage of every source. The arena's own burn is no one's hit.
   const amounts = entries.map((e) => {
     if (!(e.scale > 0)) return 0;
-    const raw = e.packet.raw * e.scale * (e.arena ? 1 : damageFactor(world, e.by.id, id));
+    const raw = e.packet.raw * e.scale * (out.get(e) ?? 1) * (e.arena ? 1 : damageFactor(world, e.by.id, id));
     return mitigateShares(raw, e.packet, def);
   });
   // A player's hits reach the one way down in the tick's secret order (players by rank, then anyone else), so an exact
@@ -88,6 +121,7 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
   const rank = (i: number): number => world.combat.rank.get(entries[i]!.by.id) ?? Infinity;
   const order = entries.map((_, i) => i).sort((a, b) => rank(a) - rank(b));
   const barrierBefore = c.kind === "player" ? c.s.barrier : 0;
+  const hpBefore = c.s.hp;
   const applied = c.kind === "player"
     ? applyHits(world, c.s, c.rt, order.map((i): Hit => ({ amount: amounts[i]!, source: sourceOf(world, entries[i]!.by) })))
     : c.s.kind === "dummy"
@@ -95,6 +129,8 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[]): void {
       : hurtMob(world, c, order.map((i) => amounts[i]!), order.map((i) => entries[i]!));
   // Nothing got through (teleport immunity, a mob walking home): no numbers, no stagger.
   if (!(applied > 0)) return;
+  // A survivor's own reactions to its hp (Blood Saint): they read only its own state and pay later.
+  if (standing(c)) world.hooks.hurt?.(world, c, applied, hpBefore);
   // A regional mob has little hp: what a lifesteal can feed on is the hp the hits actually removed, not the overkill.
   let total = 0;
   for (const a of amounts) total += a;

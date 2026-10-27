@@ -10,11 +10,13 @@
 
 *Revision (Wishes). Each faction gets one once-a-run ability, a **Wish**, on `D` (section 8.8): Freeze, Swarm, Trial, Blaze Step and Last Stand. They run on a status and ability framework that the later active skills and relics reuse (section 8.9). No faction, weapon or mob number changed, and the weapon harness and the kiting check do not cast a Wish (`testing/WISHES.md` reasons about what each one does to them).*
 
+*Revision (Roguelike R3 and R4a). A planning step now sits between the lobby and the run (section 3), and the first patience timer is a flat 5:00 (section 6). Camps are mono-type, and every mob type drops its own buff (sections 11 and 12): the three-stat S-curve and its kill combos are gone, and a single buff is smaller than the old stat plateaus (mostly +4% to +30% at the quoted value, after the owner doubled the first picks). The rest of the roguelike plan (zone maps, camp chests, skills, relics, start boons) is planned, not built: see `docs/ROGUELIKE_PLAN.md`. No faction or weapon number changed.*
+
 ---
 
 ## 1. The game in one paragraph
 
-RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. You pick one of five factions, step out of the hub into an arena with up to seven other players, and start with almost nothing: your faction's signature weapon and your wits. You build a run by looting chests, fighting the neutral creatures of five regions (each region drops its own weapon and stat buffs), and picking fights you can win. Two counter loops decide every fight: **faction against faction** and **weapon against weapon**. There is no shrinking zone. Instead, the impatient host of the Arena runs a visible **patience timer**. If nobody dies before it runs out, everyone is teleported into the central coliseum and locked in until someone falls. The last player standing earns **Glorious Victory (GV)**. Everything you found during the run is gone when it ends. GV, cosmetics, titles and achievements are what you keep.
+RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. You pick one of five factions, step out of the hub into an arena with up to seven other players, and start with almost nothing: your faction's signature weapon and your wits. You build a run by looting chests, fighting the neutral creatures of five regions (each region drops its own weapon, and each kind of creature its own buff), and picking fights you can win. Two counter loops decide every fight: **faction against faction** and **weapon against weapon**. There is no shrinking zone. Instead, the impatient host of the Arena runs a visible **patience timer**. If nobody dies before it runs out, everyone is teleported into the central coliseum and locked in until someone falls. The last player standing earns **Glorious Victory (GV)**. Everything you found during the run is gone when it ends. GV, cosmetics, titles and achievements are what you keep.
 
 ---
 
@@ -30,9 +32,10 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 | Weapons | All 5 (Sword, Bow, Wand, Shield, Axe) with their counters and interactions; 2 weapon slots |
 | Wishes | One once-a-run ability per faction on `D` (Freeze, Swarm, Trial, Blaze Step, Last Stand), section 8.8 |
 | Map | 5 faction regions around a central coliseum with lockable gates |
-| PvE | Neutral regional mobs that fight back and drop GV, a stat buff and their weapon; chests |
+| Planning | A 12 s planning step after the lobby: pick 1 of 2 dealt spawns, see every camp's mob type, its buff and your matchup, draw a route |
+| PvE | Neutral regional mobs in mono-type camps that fight back and drop GV, their type's buff and their weapon; chests |
 | Pressure | Patience timer → coliseum teleport → gates locked → sudden death |
-| Snowballing | Feed score, S-curve buffs with combo thresholds, falling mob rewards, bounties |
+| Snowballing | Feed score, per-mob-type S-curve buffs, falling mob rewards, bounties |
 | Persistence | Profile with GV, stats, cosmetics (shop), achievements, titles, monthly GV leaderboard |
 | Hub | Menu-based hub (GV, faction pick, counter wheel, shop, leaderboard), then a walkable hub with training grounds |
 
@@ -42,6 +45,7 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 - **Secrets and lore.** Hidden spots for rare loot, cosmetics and lore snippets that point to deeper secrets.
 - **Social.** Friends list, hosting 1v1s, private matches, text chat.
 - **Hub NPCs** that exist only in the hub.
+- **The roguelike overhaul** (planned, see `docs/ROGUELIKE_PLAN.md`): zone maps with random shapes, a shared chest that a cleared camp drops (skills and relics, one pick per player), two active skills on Q and E, relics, curses, "?" camps that hide their reward, and a start boon picked on the planning screen. Planning, mono-type camps and the per-type buffs are built (sections 3, 11 and 12).
 
 ### 2.3 Out of scope for now
 - **Real-money purchases.** The shop design allows them (cosmetics only), but no payments are built.
@@ -53,14 +57,15 @@ RougeHalla is a top-down, League-of-Legends-angled **roguelike battle arena**. Y
 ## 3. A run, start to finish
 
 1. **Hub.** You see your GV balance, titles and leaderboard position. You pick a **faction** for this run; your **signature weapon** comes with it. A counter wheel shows both loops and where your pick sits.
-2. **Enter the Arena.** You climb the stairs (in the menu hub: press *Enter Arena*). You join a lobby of up to 8. The lobby starts the run when enough players are in or a short timer runs out.
-3. **Spawn.** Players spawn spread out at the edges of the five regions.
-4. **Early run.** Loot chests, hunt neutral mobs for buffs, GV and weapons, and route toward the region whose weapon counters what you're seeing.
-5. **Mid run.** Fights break out. Every death resets the patience timer. Fed players gain bounties and get marked on everyone's minimap.
-6. **Patience runs out.** If nobody dies for the full timer, the host teleports everyone alive into the **coliseum** and locks the gates. The gates open again as soon as someone dies.
-7. **Endgame.** As players die, the patience timer shortens. With few players left, fights happen often, in the open or in the coliseum.
-8. **Glorious Victory.** The last one standing wins and gets the win bonus. Everyone keeps the GV they earned during the run. Run gear (weapons, buffs) is gone.
-9. **Results → hub.** The results screen shows kills, GV earned, bounties claimed and time survived. Then you're back in the hub.
+2. **Enter the Arena.** You climb the stairs (in the menu hub: press *Enter Arena*). You join a lobby of up to 8, which shows the map, every camp's mob type and the factions in the room. The lobby starts the run when enough players are in or a short timer runs out.
+3. **Planning.** A 12-second planning screen (`PLAN_SECONDS`) follows, the room locked and nobody able to move, fight or be hurt. You are dealt **two spawns** at about the same walking distance from the coliseum (within 8% of a shared value) and in different zones, and you pick one. The first player to pick a spawn holds it, and a spawn someone else took shows as taken at once; within one tick a secret order decides. The screen also shows every camp with its mob type, the buff it gives and how your faction fares against it, and the buffs that counter the factions in the room. You can draw a **route** (up to 12 stops, with its walking time), which shows faintly during the run. Pressing Ready locks your pick, and the run starts early once everyone connected is ready. With no pick you get your first free spawn. **Planning is part of the run** (owner ruling): leaving now, or dropping and not coming back in time, counts as going missing (MIA), a loss: a run and a death in your stats and no GV, so nobody can look at the deal and requeue for free. Only the lobby is free to leave. A leaver still counts as a starter; if everyone but one leaves, the run starts at once and the last player wins without the win bonus. A server restart during planning voids the run for everyone instead. A dropped player keeps the seat and, if they reconnect in time, their pick. A start boon is planned for this screen (see `docs/ROGUELIKE_PLAN.md`), not built.
+4. **Spawn.** Players start at the spawn they picked, spread out at the edges of the five regions. The first patience timer (a flat 5:00) and each faction's Wish lock (the first 45 s) count from this moment, not from the end of the lobby.
+5. **Early run.** Hunt neutral mobs for buffs, GV and weapons, loot chests, and route toward the camps whose buff and weapon you want and the region whose weapon counters what you're seeing. Holding Tab shows the whole map and your route.
+6. **Mid run.** Fights break out. Every death resets the patience timer. Fed players gain bounties and get marked on everyone's minimap.
+7. **Patience runs out.** If nobody dies for the full timer, the host teleports everyone alive into the **coliseum** and locks the gates. The gates open again as soon as someone dies.
+8. **Endgame.** As players die, the patience timer shortens. With few players left, fights happen often, in the open or in the coliseum.
+9. **Glorious Victory.** The last one standing wins and gets the win bonus. Everyone keeps the GV they earned during the run. Run gear (weapons, buffs) is gone.
+10. **Results → hub.** The results screen shows kills, GV earned, bounties claimed and time survived. Then you're back in the hub.
 
 ---
 
@@ -104,7 +109,7 @@ The map is generated from a seed. The server and every client build the same map
 - **The coliseum** sits in the centre, with 4 gates. The gates are wall tiles that close on command. Inside are spawn spots for the teleport.
 - **Cover.** Walls and obstacles keep sight lines short: with the gates open, no straight one-tile-wide (32 u) strip of open floor is longer than 480 units (twice the bow's 240-unit range since the 9.1 tuning), at any angle. That holds in every region, inside the coliseum and through its gates. Narrower gaps are not guaranteed.
 - **Chests and mob camps** are spread per region; players spawn at the region edges.
-- **Camp definitions (data only).** Besides the per-region camp lists, the map now describes every camp as one definition (its region, centre, 3-5 rest spots, the elite's spot, a reward chest tile and a leash radius, the 9 tiles of section 11) and keeps a pool of candidate player starts tagged by region. Nothing reads them yet: chests that camps drop and choosing between two starts are planned, not built (see `docs/ROGUELIKE_PLAN.md`).
+- **Camp definitions.** Besides the per-region camp lists, the map describes every camp as one definition (its region, centre, 3-5 rest spots, the elite's spot, a reward chest tile and a leash radius, the 9 tiles of section 11) and keeps a pool of candidate player starts tagged by region (15 on today's maps). The mobs spawn from the camp definitions, and the planning step deals two starts from the pool (section 3). The reward chest tile is unused: chests that camps drop are planned, not built (see `docs/ROGUELIKE_PLAN.md`).
 
 The coliseum always has pillars. With the gates open or closed, no 32 u-wide corridor inside or through it is longer than 480 units, so archers can't kite across the final arena (and the bow's range is 240 u anyway).
 
@@ -134,6 +139,7 @@ There is **no shrinking zone**. Pressure comes from the Arena's host losing pati
 |---|---|
 | Patience timer | Visible to all. Resets every time a **player** dies (mobs don't count). |
 | Timer length scales with players alive | 5:00 with 8 alive, shrinking linearly to 2:00 at 3 or fewer. Each reset uses the current count. |
+| The first timer | A flat 5:00 whatever the player count (`FIRST_PATIENCE_SECONDS`), armed when planning ends, so planning does not eat into it. Without it a lobby of 3 or fewer would start on 2:00. Every timer after a death scales as above. |
 | Expiry | Everyone alive is teleported to the coliseum and the gates lock. A 30-second warning precedes it. |
 | Teleport safety | 1.5 s of immunity after arriving (no damage taken or dealt); arrows and balls in flight are cleared. |
 | Gates reopen | The moment any player dies. The timer resets and players can roam again. |
@@ -245,7 +251,7 @@ Remove a signature and the class must visibly lose: a main signature has to flip
 Each faction has one **Wish**: an ability on `D` for the moment the weapons do not cover (stopping a kiter, leaving a lost fight, turning a duel). A Wish is **flat**: no buff, relic or cooldown reduction changes it, and it reads neither the feed nor your stacks. Numbers are in `shared/src/abilities.ts` and every one of them is a best guess (section 18).
 
 **Rules (all five)**
-- **Locked, then 300 s.** A Wish is locked for the first 45 s of a run, then it is ready. A cast spends the 300 s cooldown at once, so a run sees a Wish once and at most twice. In the practice room it is ready at once and cools down in 5 s.
+- **Locked, then 300 s.** A Wish is locked for the first 45 s of a run (counted from the moment the run starts, after the planning step), then it is ready. A cast spends the 300 s cooldown at once, so a run sees a Wish once and at most twice. In the practice room it is ready at once and cools down in 5 s.
 - **Everyone can see whether it is up.** The ready time is public: every fighter's name carries a small icon of its Wish, coloured when ready and grey while locked or cooling down. Your own slot sits at the right end of the weapon bar (icon, key, a sweep and the time left, a cast bar, and a short line saying why a press did nothing: "Ready in 4:12", "Stunned", "No target", "Out of range", "No line of sight", "Can't blink there").
 - **A refusal is free; a begun cast is not.** The server refuses a cast, with no cooldown and no effect, unless the run is active, you stand, the coliseum teleport is not within the last 0.3 s (a cast you aimed at the old world would land from the new spot toward a stale cursor), you are not stunned or silenced (a root does not stop a Wish), you are not already casting, the Wish is ready and its target is valid. Once a cast is accepted its cooldown is spent. If it then fails when it lands (its target is gone, hidden, immune, walking home, farther than range plus 32 u of slack for lag, or behind a wall) or is interrupted (a stun or a silence on the caster, or the caster goes down or leaves), the cooldown stays spent: a fizzle is the enemy's reward. The one exception is the coliseum teleport: a cast it cancels is refunded, because the arena's timer is nobody's outplay.
 - **A cast time roots, and only crowd control breaks it.** A Wish with a cast time (Freeze 0.25 s, Swarm 0.25 s, Trial 0.35 s) roots its caster until it lands and shows a telegraph to everyone. Starting it cancels the attack the caster's lock was winding up (the attack's cooldown is refunded, as for any order), and no weapon attack starts while it casts. Only a stun or a silence interrupts it: a sword stagger never wastes a 300 s ability. The target lock survives a cast (Swarm and Blaze Step are the exceptions, below).
@@ -268,7 +274,7 @@ Each faction has one **Wish**: an ability on `D` for the moment the weapons do n
 
 **Blaze Step.** No cast time: the blink happens in the tick the press is applied. It lands on the cursor's point if that is within 300 u, else 300 u along that line, or at the farthest valid point short of it, never nearer than 64 u (a nearer cursor still blinks 64 u; a cursor on top of you has no direction and is refused). A point is valid if a body fits there (not in rock, not off the map), it is on the same stretch of floor as you (no sealed pockets), the straight line never crosses the coliseum's outer wall except through an open gate, and with the gates locked it is on the same side of the coliseum as you. So it crosses ordinary walls and never changes who is inside the coliseum. If there is no valid point the press is refused for free. It is an order of its own, like a move: it cancels your windup and drops your lock and your walk (other fighters' locks on you stay and path to the new place: a chaser that cannot see you goes after you, it is not dropped by the line-of-sight grace, and only the lock's range ends it). The trail is a band 40 u wide from where you started to where you landed. For 2.5 s anyone but you who stands on it (a mob too) burns for 30 true damage a second (armor and shield do not touch it), and the burn lingers 2 s after the last contact: about 60 for a crossing, more for standing in it. A chaser's path does not avoid it. The trail outlives its caster.
 
-**Last Stand.** No cast time. For 5 s the fighter cannot fall below 1 hp and walks 30% faster (it adds 0.3 × 170 u/s to the base: it does not multiply buff stacks). A hit on it while it stands at the floor still lands: it staggers, shows its number and counts like any hit, though hp stays at 1. Every point of hp loss that reaches it in those 5 s is counted: after armor, shield and the kill barrier, **including the overkill the floor prevented**, and sudden death's burn included. At the end, 30% of that is healed back, through the usual heal rule without the 3 s out-of-combat lockout (an anti-heal still cuts it), up to max hp. The coliseum teleport ends it early and still pays; death, leaving and the end of the run pay nothing. It is a loan: do not burst a Holy in it, wait for it to end.
+**Last Stand.** No cast time. For 5 s the fighter cannot fall below 1 hp and walks 30% faster (it adds 0.3 × 170 u/s on top of whatever the speed buffs give: it does not multiply them). A hit on it while it stands at the floor still lands: it staggers, shows its number and counts like any hit, though hp stays at 1. Every point of hp loss that reaches it in those 5 s is counted: after armor, shield and the barrier, **including the overkill the floor prevented**, and sudden death's burn included. At the end, 30% of that is healed back, through the usual heal rule without the 3 s out-of-combat lockout (an anti-heal still cuts it), up to max hp. The coliseum teleport ends it early and still pays; death, leaving and the end of the run pay nothing. It is a loan: do not burst a Holy in it, wait for it to end.
 
 **Telegraphs.** What everyone sees:
 
@@ -318,7 +324,7 @@ For designers. The Wishes sit on two frameworks that the later active skills, re
 5. **Effects** are a closed list of verbs: apply a status, cleanse, set a death floor, put a zone on the target, put a cloud on the caster, blink, leave a trail. Later phases append more (damage, heal, barrier, projectile, area, cooldown).
 
 - **Ability damage** is named. It is recorded in the ledger under the caster with no weapon, so kill credit, the bounty, mob threat and the kill-credit window work as for a weapon. It is never a signature contact (it does not start or keep an engagement) but it feeds lifesteal and the heal lockout's combat clock, as signature damage does. Damage over time from an ability is reported in 0.5 s chunks and causes no damage flash.
-- **Flat power.** No ability number reads buffs. Haste adds to the base speed and trail damage is true damage. Trial's ±20% is the one relative number, by the owner's rule.
+- **Flat power.** No ability number reads buffs (the damage, vs and scale rows of the buffs never multiply an ability's damage or its damage-over-time ticks: the ledger skips those entries; owner ruling "Keep Wishes flat"). Haste adds to the base speed and trail damage is true damage. Trial's ±20% is the one relative number, by the owner's rule.
 - **Lifecycle.**
 
 | Event | Pending cast | Statuses on it | Areas | Last Stand heal |
@@ -566,47 +572,71 @@ A 20-tick-per-second simulation of the damage rules above reproduces the full fa
 - **Aggro and leash.** Once hit, a mob chases and fights with spacing that suits its weapon. If you run far enough it gives up, walks home and regenerates.
 - **Drops.** On death a mob gives:
   - a little **GV**;
-  - a **stat buff** (max HP, attack speed, or move speed);
+  - **stacks of its type's buff** (section 12.2);
   - **its weapon**, unless the killer already holds that weapon type.
-- **Strength.** A mob is its region's faction with hp and every damage number scaled by **0.45**, and an elite by **0.65**. Measured in the real simulation (signatures and the Phase 9.1 ranges included, one mob at a time, a scripted player who stands and fights): the starting kit finishes a normal mob in 24 of the 25 starter-against-region pairings, with about 80% hp left (the worst finished pairing, Fire against a Demon Blood mob, 55%). An elite is finished with the starting kit in about 23 of 25 pairings, leaving the player about 58% hp on average; the others are not finishable with the signature weapon alone, so a second weapon is the answer there, and that is the choice. A Frost shield against a Frost shield mob blocks forever, so the weapons you pick up decide which camps you farm. A player who backs away from a melee mob while shooting can lose to it: the mob chases to its leash, gives up, heals and comes back, and in the same simulation that wore a Plague bow down in one duel of three against the Frost mob. Each region has **one elite**: the first mob of its elite camp. The other mobs of that camp are normal.
-- **Drop numbers.** GV is 2 (elite 10) and a buff is 1.1 stacks (elite 2.2, so that three drops reach the three-stack combo), both times the mob reward curve of section 12.3. The stat of the drop is the region's own 60% of the time (Fire and Demon Blood: attack speed; Plague and Frost: max HP; Sentenced: move speed) and one of the other two otherwise, so the map is also a shopping list for a combo. The weapon lies where the mob fell and anyone can take it; it is not dropped when the killer already holds that weapon type.
+- **Mono-type camps.** Every camp is one mob type: its normal mobs all share it, and the zone's one elite (the mob at the elite spot of its elite camp) is that zone's elite type. A zone has four types, three normal and the elite (Fire: Ember Imp, Cinder Hound, Magma Brute and the elite Wyrmling), and each gives its own buff (the table in 12.2). Types are drawn per zone without repeats when the room is built: a zone with three camps shows each normal type once, and on today's maps a zone has two camps (78% of zones) or three, so one type is often absent. A fourth camp would repeat one. The roster is public from the lobby on: the planning screen names every camp's type and buff, so the map is also a shopping list for buffs. Mobs of one zone still fight identically (their zone's faction and weapon, scaled as below): the types differ by name and buff only.
+- **Strength.** A mob is its region's faction with hp and every damage number scaled by **0.45**, and an elite by **0.65**. (Pending: the owner ruled the mobs weaker, `MOB_K` 0.22, shipped only on the R5 branch; the figures in this paragraph are the 0.45 tuning and will move with it.) Measured in the real simulation (signatures and the Phase 9.1 ranges included, one mob at a time, a scripted player who stands and fights): the starting kit finishes a normal mob in 23 of the 25 starter-against-region pairings (re-run on the merged tree; the 24 this section once gave no longer reproduces: Frost's shield against the Frost mob and Holy's wand against the Sentenced mob fail), with about 80% hp left (the worst finished pairing, Fire against a Demon Blood mob, 55%). An elite is finished with the starting kit in about 22 of 25 pairings, leaving the player about 58% hp on average; the others are not finishable with the signature weapon alone, so a second weapon is the answer there, and that is the choice. A Frost shield against a Frost shield mob blocks forever, so the weapons you pick up decide which camps you farm. A player who backs away from a melee mob while shooting can lose to it: the mob chases to its leash, gives up, heals and comes back, and in the same simulation that wore a Plague bow down in one duel of three against the Frost mob. Each region has **one elite**: the first mob of its elite camp. The other mobs of that camp are normal.
+- **Drop numbers.** GV is 2 (elite 10) and a buff is 1.1 stacks of the mob's type (elite 3.1), both times the mob reward curve of section 12.3. At full reward (a feed near 0, the curve at about 0.98) three kills of one camp give about 3.2 stacks, the buff's quoted value (3 stacks), and one elite kill gives about 3.0 on its own. The weapon lies where the mob fell and anyone can take it; it is not dropped when the killer already holds that weapon type.
 - **Who gets the kill.** The player who did the mob the most damage over the whole fight (since it last rested), among those still in the run, so a late shot cannot steal an elite. An exact tie goes by the tick's secret order. A mob that nobody in the run hit drops its weapon and pays nothing.
-- **Leash numbers.** Any hit from a player wakes the mob, wherever the player stands. It gives up when it is 9 tiles from its camp, or 6 s after it last **dealt** damage (damage it takes does not extend the fight), or with nobody left to fight. It then walks home **ignoring everyone and taking no damage**: it starts nothing new (a shot already in the air still lands), and it is not a body, so swings and shots pass through it (its shield neither blocks nor reflects). It is whole again the moment it arrives, and is neutral again. A mob hurt by someone who was gone before it could wake heals after 3 s unhurt. So a shooter out of its reach gains nothing by kiting it: every round ends with a whole mob, and a ranged weapon has to burst a melee mob down inside one round. A mob whose shield blocks or reflects a hit wakes too. A bow or wand mob backs away from a player who is too close, but only inside its leash and only to open the gap; cornered at the edge it stands and shoots. Camp mates do not help each other: only the mob that was hit wakes. Mobs never hurt each other, and their shots fly past each other. Dead mobs do not respawn. When the patience timer teleports everyone into the coliseum, every living mob is put back on its camp spot at full health.
+- **Leash numbers.** Any hit from a player wakes the mob, wherever the player stands. It gives up when it is 9 tiles from its camp, or 6 s after it last **dealt** damage (damage it takes does not extend the fight), or with nobody left to fight. It then walks home **ignoring everyone and taking no damage**: it starts nothing new (a shot already in the air still lands), and it is not a body, so swings and shots pass through it (its shield neither blocks nor reflects). It is whole again the moment it arrives, and is neutral again. A mob hurt by someone who was gone before it could wake heals after 3 s unhurt. So a shooter out of its reach gains nothing by kiting it: every round ends with a whole mob, and a ranged weapon has to burst a melee mob down inside one round. A mob whose shield blocks or reflects a hit wakes too. A bow or wand mob backs away from a player who is too close, but only inside its leash and only to open the gap; cornered at the edge it stands and shoots. Camp mates do not help each other: only the mob that was hit wakes (whether one hit should wake the whole camp is the owner's call, planned with the camp runtime). Mobs never hurt each other, and their shots fly past each other. Dead mobs do not respawn. When the patience timer teleports everyone into the coliseum, every living mob is put back on its camp spot at full health.
 - **Same input path as players.** Mobs use the same input rules and combat code as players, so a sword mob and a sword player behave identically. A mob holds the trigger itself (it never locks a target), and its windups root it like anyone's.
-- **Mob types (data only).** A table of 20 mob types exists, four per region: three normal types and the elite (Fire: Ember Imp, Cinder Hound, Magma Brute, and the Wyrmling). Every type still fights exactly as this section describes, and nothing yet gives a type its own drop, look or buff; a themed buff per type is planned, not built (see `docs/ROGUELIKE_PLAN.md`).
+- **Mob types.** The 20 types (four per region) are in section 12.2 with their buffs. Each camp's `alive` count is synced, and a mob's type and camp ride its state. What clearing a camp gives beyond its mobs' drops (a shared chest with skills or a relic, "?" camps that hide their reward) is planned, not built (see `docs/ROGUELIKE_PLAN.md`).
 - **Later.** Raid-boss mobs and quest NPCs (section 2.2).
 
 ---
 
 ## 12. Snowballing and anti-snowballing
 
-Getting fed should feel like a fed League carry or a Slay the Spire run where the combos "just hit". Getting ahead is meant to feel powerful. The limits are soft: **rewards fall off and bounties rise**, rather than hard caps.
+Getting fed should feel like a fed League carry or a Slay the Spire run where the build "just comes together". Getting ahead is meant to feel powerful. The limits are soft: **rewards fall off and bounties rise**, rather than hard caps.
 
 ### 12.1 Feed score
 `feed = player kills + 0.25 × mob kills` for the current run.
 
-### 12.2 Buffs: uncapped, S-shaped
-Each buff stack you collect adds to that stat along an S-curve: small at first, a spike around the 3rd to 5th stack, then a plateau.
+### 12.2 Buffs: one per mob type, S-shaped
+Every mob type (section 11) gives its own buff, and a kill adds stacks of the buff of the mob's type. A buff's numbers follow an S-curve of its stacks: small at first, a spike around the 3rd to 5th stack, then a plateau. The numbers in the table below are the value **at 3 stacks** (the quoted value); at n stacks every number of the buff is multiplied by S(n) / S(3), with S(x) = sigmoid(x − 3) − sigmoid(−3):
 
-| Stacks of one stat | Max HP | Attack speed | Move speed |
-|---|---|---|---|
-| 1 | +5% | +4% | +2% |
-| 2 | +16% | +11% | +7% |
-| **3** | **+32%** | **+23%** | **+14%** |
-| **4** | **+48%** | **+34%** | **+21%** |
-| 5 | +58% | +42% | +25% |
-| 6 | +63% | +45% | +27% |
-| 8+ | about +66% | about +47% | about +28% |
+| Stacks | 1 | 2 | **3** | **4** | 5 | 6 | 8 | plateau |
+|---|---|---|---|---|---|---|---|---|
+| Share of the quoted value | ×0.16 | ×0.49 | **×1** | **×1.51** | ×1.84 | ×2.00 | ×2.09 | about ×2.1 |
 
-**Combo thresholds.** Reaching 3 and then 5 stacks of one stat unlocks a set bonus that fires on **every kill** (a player's or a mob's). Stacks are real numbers (a drop is scaled by the reward curve below), and a higher tier replaces the lower tier of the same stat. These are the run-defining moments; the numbers below are the Phase 11 picks and get tuned in playtests.
+So Ember Imp's +10% damage is +1.6% at 1 stack, +4.9% at 2, +10% at 3, +15.1% at 4, +20% at 6 and about +21% at the plateau. Stacks are real numbers: a drop is scaled by the reward curve below, and a bounty moves half of each buff. A drop is 1.1 stacks (an elite 3.1) times that curve, so three kills of one camp, or one elite kill, reach the quoted value when you are hungry. Rows of one stat from different buffs add (two +5% damage rows are +10%, never ×1.1025), and different stats multiply where the game combines them (attack speed with damage per hit, move speed with the chill). An on-hit effect's cap never rises: more stacks reach it sooner and no further.
 
-| Stat | 3 stacks | 5 stacks |
-|---|---|---|
-| Attack speed | **Dash on kill**: 2.5× move speed for 0.4 s | **Cascade**: the dash, and a kill resets your attack cooldown |
-| Max HP | **Shield on kill**: absorbs 15% of max HP for 5 s | **Bulwark**: 30% of max HP for 8 s |
-| Move speed | **Bloodrush**: 1.5× move speed for 3 s | **Frenzy run**: 1.8× for 5 s |
+| Zone | Mob type | Buff at 3 stacks | Cap | Strong against |
+|---|---|---|---|---|
+| Fire | Ember Imp | +10% damage | plateau | anyone |
+| Fire | Cinder Hound | +10% move speed while chasing your target | plateau | kiters, bow users, wand users |
+| Fire | Magma Brute | +6% max HP and +20 magic resist | plateau | Fire, Sentenced, magic damage |
+| Fire | Wyrmling (elite) | +20% damage to targets above 70% HP | plateau | high-HP fighters, Frost, Demon Blood |
+| Sentenced | Bailiff | +16% mark ramp speed (Sentenced only) | plateau | – |
+| Sentenced | Chain Warden | Your hits slow movement 10% for 1 s (up to 25%) \* | 25% total | kiters, bow users, wand users |
+| Sentenced | Inquisitor | +12% damage to a target you have kept hitting for 3 s \* | plateau | long duels |
+| Sentenced | Executioner (elite) | +30% damage to targets below 30% HP | plateau | healers, Demon Blood |
+| Plague | Plague Rat | +8% attack speed | plateau | anyone |
+| Plague | Bloatfly | Your hits deal 8 damage/s for 3 s \* | 1 instance per source (it refreshes) | Frost, high-HP fighters |
+| Plague | Rot Monk | Your hits cut healing 12% for 3 s (up to 40%) \* | 40% total | Demon Blood, lifesteal, healers |
+| Plague | Rat Ogre (elite) | +16% damage to targets below 50% HP | plateau | – |
+| Frost | Frost Wisp | Your hits slow attacks 6% for 2 s (up to 15%) \* | 15% total | Plague, fast attackers |
+| Frost | Ice Golem | +8% max HP | plateau | burst damage |
+| Frost | Rime Stalker | +20 armor | plateau | Plague, Frost, Demon Blood, physical damage |
+| Frost | Glacial Warden (elite) | +20% damage to slowed or chilled targets \* | plateau | – |
+| Demon Blood | Acolyte | +4% lifesteal | all lifesteal rows together at most 25% | sustain |
+| Demon Blood | Seraph Shard | +16 magic resist | plateau | Fire, Sentenced, magic damage |
+| Demon Blood | Penitent | +2% damage per 10% HP missing | plateau | comebacks |
+| Demon Blood | Blood Saint (elite) | Below 30% HP: heal 20% of max HP (once per run) | once per run | burst damage |
 
-A shield absorbs before HP in the one place all damage goes through, so it also soaks sudden death. A max-HP stack raises HP by the same amount, so you never end up lower on the bar than before.
+\* Not built: these effects put statuses on a hit (slows, damage over time, anti-heal) or test them ("slowed", "streak"). The status system exists (it came with the Wishes, section 8.9); wiring it to hits is a later phase (R4b). The HUD and the planning screen show the buff and mark it "(coming)", and it does nothing yet.
+
+How the rows work:
+- **Damage** (Ember Imp, the vs and scale rows) is a multiplier on the weapon hits and the signature damage you deal (burn, backlash, disease, the mark), applied before armor and magic resist. It never touches a Wish's damage: ability power is flat (8.9). So Sentenced, whose damage is almost all its mark, benefits in full. The conditions (target above 70% or below 30% or 50% HP, Penitent's missing HP) are read as the tick's hits began, so the order hits are applied in never matters. Penitent adds its bonus per whole 10% of your own missing HP, in steps.
+- **Magic resist** is the faction's `shield` stat (section 8.1, rule 3: it cuts the magic share of a hit; the buff text says "magic resist" so it is not read as the barrier), and **armor** its armor stat. Both are flat points added to the faction's own, under the same `1 / (1 + stat / 100)` reduction. A max-HP buff raises HP by the same amount, so you never end up lower on the bar than before.
+- **Attack speed is capped, damage is not.** Attack speed from every source together never goes above ×1.5 (the League approach: one cap on the total, applied after every source multiplies, so a slow still lands below it); buffs alone never reach it (Plague Rat's plateau is ×1.17), it matters once passives, skills and relics stack (`testing/TUNING_ROGUE.md`). The damage rows have no cap, on purpose (owner ruling): a fed player may beat a counter, and a buffed shooter can beat Holy over Sentenced (section 18). The on-hit effects and lifesteal have caps of their own. Damage rows from different buffs add: Ember Imp, Executioner, Rat Ogre and Penitent at 3 stacks each give +74% against a target below 30% HP while you are at 10% HP or less (×2.56 at the plateau). Flat armor and magic resist count most for a faction that has none of that stat: +20 armor makes Fire or Holy (armor 0) take about 15% to 17% less from a Plague, Frost or Holy hit at 3 stacks (26% to 30% at the plateau), and Magma Brute plus Seraph Shard (+36 magic resist) make Plague (no shield) take about 26% less from Fire or Sentenced (about 43% at the plateau). The reduction is `1 / (1 + stat / 100)`, so it never reaches zero.
+- **Cinder Hound** speeds you up while you hold a target lock, one tick after the lock starts or ends.
+- **Bailiff** makes Sentenced's mark ramp toward its cap faster by that much, and does nothing for anyone else.
+- **Acolyte** gives lifesteal to any faction, with no heal lockout, like Holy's own. Holy's lifesteal comes on top and the total never passes 100% (the 25% cap is on the buffs alone).
+- **Blood Saint** heals the first time a hit leaves you below 30% HP, once per run, even inside the heal lockout; the healed share scales with the stacks like any number.
+- **Kill combos are gone.** The bursts, the kill shield and the cooldown reset of the old three-stat system no longer exist; they come back as relic and skill synergies (planned). The barrier still exists as a stat for the HP bar (a pale-blue segment) and has no source until skills arrive.
+
+One buff is smaller than one stat of the old three-stat system, whose plateau was +66% HP, +47% attack speed and +28% move speed, but a build stacks several. The owner doubled the first picks (every value above is twice the plan's draft; caps, durations, thresholds and the drops are unchanged). The numbers stay first picks, and the mob reward curve, the catch-up and the bounty were tuned to the old magnitudes.
 
 ### 12.3 Mob rewards fall as you get fed
 Mob GV and buff value are multiplied by a curve that's near full while you're hungry, drops sharply around a feed of 5, and never goes below 30%:
@@ -628,7 +658,7 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 
 - **Announcement.** When a player's bounty first appears and when it grows, the host announces "*name* is on a rampage — bounty N GV", at most once per player per 10 s. A rise inside that window is held back and announced with its value when the window ends.
 - **Crown.** Bountied players wear a crown. *Not built yet:* their position flashing on everyone's minimap for 2 s every 10 s.
-- **Shutdown.** Killing a bountied player pays the bounty and **half their buff stacks** to the killer, so comebacks are real.
+- **Shutdown.** Killing a bountied player pays the bounty and **half the stacks of each buff they hold** to the killer (a buff you did not have starts at that half), so comebacks are real.
 - **Trade-off, intended.** A fed player can beat their counters, as in League. Bounties and falling rewards are the release valves.
 - A big bounty can be worth more than winning (52 GV at 5 player kills against a 50 GV win bonus). That makes hunting the fed player a goal in its own right.
 
@@ -671,8 +701,23 @@ Players more than 2 feed behind the lobby median get **×1.25** from mobs (catch
 | F | Pick up a weapon or open a chest |
 | D | Cast your faction's Wish (section 8.8): 300 s cooldown, locked for the first 45 s of a run. Freeze and Trial take the enemy nearest the cursor (within 64 u, like a left-click), Blaze Step blinks toward the cursor, Swarm and Last Stand need no aim |
 | S | Stop: stops walking and drops the attack target |
+| Hold Tab | During a run: the whole map with your route and where you are; let go and it is gone. It does not take Tab from a text field or an open settings or help card |
 
-Every attack roots you for its windup (section 9.5): you can walk between attacks but not during one, and a walk ordered during one starts when it ends.
+Every attack roots you for its windup (section 9.5): you can walk between attacks but not during one. An attack your lock started is cancelled by your next walk, stop or lock on another fighter (9.5); a mob's, which is not a click, stays committed, and a walk ordered during it starts when it ends.
+
+**Planning screen.** While the room plans (section 3) nobody moves, so none of the above works; the screen has its own controls:
+
+| Input | Action |
+|---|---|
+| 1 / 2, or click a spawn card | Pick the first or second dealt spawn (the other lets go) |
+| Click on the map | Add a route stop; a click on a stop takes it out (up to 12) |
+| Arrow keys, Home, End | Move between the map's markers (the spawns, the camps, the route's stops) |
+| Enter on a camp | Add a route stop there |
+| Delete on a route stop | Take it out |
+| Tab | Move between the options and buttons |
+| Ready | Lock your pick; the run starts early once everyone connected is ready |
+
+Settings add "Show route" (the route on the minimap and the Tab map) and a map text size of 100%, 125% or 150% (these screens only).
 
 ---
 
@@ -692,9 +737,10 @@ Hard counters are only fair if you can see them coming.
 | Fire | A burst of flame on any enemy who swings while engaged with Fire |
 | Frost | Frost on chilled enemies |
 | Fed players | Crown and rampage announcements (minimap pings are not built yet) |
-| Your buffs | Three rows under your HP (max HP, attack speed, move speed): stacks held, the bonus they give, a bar toward the next combo tier and the combo's name once unlocked. A feed line explains the mob reward: "Feed 2.5 (kills + mobs/4) · mobs pay x0.89" |
-| Combos | A toast when a tier unlocks, and a ring in the stat's colour each time a kill sets one off |
-| Kill shield | A pale-blue bubble around the player, a blue segment on the HP bar and "+N shield" in the readout, for everyone to see |
+| Your buffs | A build strip under your HP: one chip per buff you hold, with its zone's colour and marker shape (never colour alone), the mob type's name (an elite's buff has a star), the stacks held, what they give now and what the next kill of that type adds. Hovering a chip gives the full wording, what the buff suits and what it is strong against. A buff whose effect needs on-hit statuses (R4b) is marked "(coming)". A feed line explains the mob reward: "Feed 2.5 (kills + mobs/4) · mobs pay x0.89" |
+| Buff news | A toast for your own gains ("Ember Imp +1.1 (3.2): +11.1% damage", or the buffs listed when a bounty kill moves several), a floating line over anyone else's, and a ring in the buff's zone colour on the fighter who gained |
+| Barrier | A pale-blue bubble around the player, a blue segment on the HP bar and "+N barrier" in the readout, for everyone to see. Nothing gives one yet (skills, planned) |
+| Planning screen | The whole map with the zones (each a colour, a floor pattern and a marker shape), every camp (its mob type, its buff, a crown on an elite camp, your matchup against it with a sign and a tone: "+62%", "~35%", "!10%", "lose"), the weapon crates, your two spawns with "taken" live, who is in the room and who is ready, a countdown and the route you draw with its walking time. The lobby shows the same map small and read-only; in a run, hold Tab. The HUD line reads "Planning 0:07" |
 | Mobs | Faction colour and weapon like a player; the HP bar shows once a mob is hurt or fighting, and an elite's always shows. Elites wear a gold ring and a star over a gold name. A fallen mob shrinks and fades, and its weapon stays on the ground. Living mobs show as dots on the minimap |
 | Patience timer | Always on the HUD; a 30-second warning and a host voice line before the teleport |
 | Counter wheel | In the hub, both pentagrams with your pick highlighted |
@@ -702,12 +748,13 @@ Hard counters are only fair if you can see them coming.
 ---
 
 ## 16. How it's built (short)
-- **Authoritative server.** Colyseus 0.18 runs the game at a fixed 20 ticks per second. Clients only send inputs (move, stop, target, aim, swap, pickup, cast; the low-level attack and release stay for mobs and the harness); the server decides every hit, death and reward, and since the Controls rework it also plays the fight of a locked target (walking, attacking, aiming).
-- **Client.** Phaser 4 draws the world in a fake-3D angled view. Everything is drawn 100 ms in the past and smoothed, so motion looks fluid.
+- **Authoritative server.** Colyseus 0.18 runs the game at a fixed 20 ticks per second. Clients only send inputs (move, stop, target, aim, swap, pickup, cast, and plan during the planning step; the low-level attack and release stay for mobs and the harness); the server decides every hit, death and reward, and since the Controls rework it also plays the fight of a locked target (walking, attacking, aiming).
+- **Client.** Phaser 4 draws the world in a fake-3D angled view. Every other fighter is drawn 100 ms in the past and smoothed, so motion looks fluid; your own fighter is predicted, so an order answers at once, and each server patch pulls it back in line.
 - **Hits feel fair under lag.**
   - A low-level melee attack checks against where things were when you clicked ("what I saw is what I hit"). A locked attack, which is all the game client makes, is timed in the present, one tick back, and aimed at its target as it lands.
   - Arrows and balls fly in real server time; each one is sent once and its straight flight is computed on every screen.
 - **The map is seeded.** Only the seed and the gate state are sent.
+- **Hidden information.** The planning deal (which two spawns you were dealt, and which are taken) is drawn from a private server stream and reaches you only in your own private message, never in the shared state; camp rosters come from the same stream but are published, since the planning screen shows them. Your route stays in your browser and is never sent.
 - **Persistence.** Profiles (GV, stats, cosmetics) live in a crash-safe JSON file behind a store interface, so a database can replace it later.
 - **Bots.** Headless bots play full runs and power the end-to-end tests. They play like a person with the game's controls: they walk, click their foe (`target`) and let the server fight, swap and pick up weapons, and cast their faction's Wish by the intent tags of the ability.
 
@@ -733,8 +780,8 @@ Hard counters are only fair if you can see them coming.
 - **The real-sim weapon harness**: `npm run harness -w @raid/server` (`-- --core` for a 30 s run without the sensitivity passes). Every weapon duel plays out in the real sim with two policy-driven clients; it prints the weapon matrix, a style grid for every edge with a ranged weapon (a ranged fighter can stand, strafe or kite; a melee fighter can charge straight or **weave**, approaching off the line and changing side every 0.4 s), an edge verdict (holds, or fails and why, with the factions where a reply is thin), the same edges when both fighters click each other (the target lock), and the kiting table (a shooter that never moves, stands, strafes, kites, **orb-walks** (the perfect kiter: it stands only for its windups) or **locks** its chaser). `-- --grid-setups full` runs every grid cell on all 18 setups instead of 3 (steadier, about 3 times the time).
 - **The faction cycle in the real sim**: `npm run harness:factions -w @raid/server -- --python` plays every edge with the same weapon on both sides and on the signature openings, with each hit and shot landing in the tick it starts, and checks it pair by pair against `testing/realtime.py` (60 of 60 cells agree). `-- --mode policy` plays them as moving fighters by the shared weapon policies from 18 starting setups, with staggers, blocks and projectile flight; its failing cells (the four shield mirrors and Plague's bow against Frost's shield) are weapon-layer problems, listed in `testing/TUNING_10.md` section 6. Both report and never block the build.
 - **Budgets.** Server tick time with 8 players and 60 mobs, and bytes per second per player.
-  - **Tick:** `step()` averages about 0.1 ms and its p99 stays under 0.5 ms with 15 mobs fighting (gate: 5 ms average, 15 ms p99). `npx tsx packages/server/bench/stepBench.ts`; `test/perf.test.ts` is the gate.
-  - **Bandwidth:** per client, websocket payload, measured headless with the real encoder: about 10 KB/s with 13 to 18 mobs fighting (9.1 to 10.5 over seven seeds) and 14.1 to 16.3 KB/s with 30 to 37 fighting, 4 KB/s with nobody fighting (gate: 20 KB/s). Sleeping mobs cost nothing. Two things hold it down: all of a step's fx travel as one compact message (`fxs`, which also announces each arrow and ball: they are not in the synced state), and the synced numbers are narrow on the wire (float32 positions, uint32 timers). `npx tsx packages/server/bench/bandwidth.ts`; `test/bandwidth.test.ts` is the gate. StateView is not needed yet.
+  - **Tick:** `step()` averages about 0.1 to 0.2 ms and its p99 stays under 0.5 ms with 15 mobs fighting, also with every buff at 4 stacks on all 8 players (`--buffs`: 0.15 ms average and 0.44 ms p99 in one run) (gate: 5 ms average, 15 ms p99, for both cases). `npx tsx packages/server/bench/stepBench.ts [--buffs]`; `test/perf.test.ts` is the gate and runs both.
+  - **Bandwidth:** per client, websocket payload, measured headless with the real encoder: 7.0 to 8.0 KB/s with about 18 mobs fighting (seeds 1 to 7), 10.1 to 12.3 KB/s with about 32 fighting and 2.9 to 3.2 KB/s with nobody fighting, on the merged R3/R4a and Wishes tree (gate: 20 KB/s; the plan's 16.5 KB/s for the heavy case is a report-only target, not asserted; this document's earlier figures, 9.1 to 16.3 KB/s, no longer reproduce). Sleeping mobs cost nothing. Two things hold it down: all of a step's fx travel as one compact message (`fxs`, which also announces each arrow and ball: they are not in the synced state), and the synced numbers are narrow on the wire (float32 positions, uint32 timers). `npx tsx packages/server/bench/bandwidth.ts`; `test/bandwidth.test.ts` is the gate. StateView is not needed yet.
 - **End-to-end.** Bots play full arena runs to a winner, with GV and bounties balancing exactly.
 
 ---
@@ -757,7 +804,7 @@ Hard counters are only fair if you can see them coming.
 | Snowballing | Uncapped S-curves plus bounties need playtesting: are fed players fun to fight, and is hunting them worth it? |
 | The faction cycle matters most late | Early fights are mostly weapons, positioning and third parties. The cycle decides the 1v1s, often in the coliseum. |
 | Bounties within a tick | If several players hit a fed player in the same tick, who gets the payout has to be decided by a fair rule. |
-| Buffs past the counters | In the 20 Hz check (same weapon on both sides, plus the signature openings; the 9.1 weapon numbers, Holy's lifesteal as in v3) the softest HP edge, Holy over Sentenced, flips at ×1.30 HP on the losing side (about three stacks in the S-curve of 12.2, +32%). The softest attack-speed edges, Plague over Frost at ×1.66 (×1.79 on its signature opening) and Frost over Holy at ×1.73 on its signature opening (×1.84 on the five mirrors), sit above the curve's plateau of about +47%. Stacked, HP ×1.2 with attack speed ×1.2 and HP ×1.2 with attack speed ×1.3 hold every edge at 60% or better. HP ×1.3 with attack speed ×1.2 does not: Holy over Sentenced then wins 0% with both sides on swords, 45% on bows and 52% on shields. With attack speed ×1.3 as well, Plague over Frost wins 0% on all five mirrors and Holy over Sentenced 0% on swords, 27% on bows and 29% on shields. Move speed isn't modelled there. The S-curve deliberately goes past these numbers (fed players can beat their counters); bounties are the release valve. |
+| Buffs past the counters | (Measured against the old three-stat curve, +32% HP at three stacks and a plateau of +66%; the per-mob-type buffs of 12.2 are smaller per buff, but a build stacks several, and the check has not been re-run with them.) In the 20 Hz check (same weapon on both sides, plus the signature openings; the 9.1 weapon numbers, Holy's lifesteal as in v3) the softest HP edge, Holy over Sentenced, flips at ×1.30 HP on the losing side (about three stacks in the S-curve of 12.2, +32%). The softest attack-speed edges, Plague over Frost at ×1.66 (×1.79 on its signature opening) and Frost over Holy at ×1.73 on its signature opening (×1.84 on the five mirrors), sit above the curve's plateau of about +47%. Stacked, HP ×1.2 with attack speed ×1.2 and HP ×1.2 with attack speed ×1.3 hold every edge at 60% or better. HP ×1.3 with attack speed ×1.2 does not: Holy over Sentenced then wins 0% with both sides on swords, 45% on bows and 52% on shields. With attack speed ×1.3 as well, Plague over Frost wins 0% on all five mirrors and Holy over Sentenced 0% on swords, 27% on bows and 29% on shields. Move speed isn't modelled there. The S-curve deliberately goes past these numbers (fed players can beat their counters); bounties are the release valve. **Ruled (after R4a):** fed players may beat their counters: the damage rows stay uncapped, attack speed from every source is capped at ×1.5 (12.2), and a buffed shooter beating Holy over Sentenced is accepted with no retune (`testing/TUNING_ROGUE.md` section 6). |
 | Weapon edges inside one faction | With signatures on, several weapon edges flip when both fighters are the same faction: in a Fire mirror Sword over Axe goes from 100% to 0% and Sword over Wand to 11%; in a Sentenced mirror Sword over Axe, Sword over Wand and Axe over Wand go to 0%. Sentenced's damage is almost all the mark times the weapon's damage multiplier, and a Fire sword's staggers cancel axe windups, so the axe swings less and takes less backlash. Owner decision: the weapon loop is designed for the faction cycle's openings, and nothing was retuned (`testing/TUNING_10.md` section 8). |
 | Wishes: no warning before Blaze Step and Last Stand (W1) | Both are instant (no cast time), so their tell comes only after the cast: a flare at both ends and a trail, a gold burst and a rim. A blink with a pre-cast is no escape and a survival button with a delay loses to burst, which is why they have none, but an enemy gets no read on either. Owner call: keep them instant, or give them a short telegraph. |
 | Wishes: Swarm hides only on an honest client (W2) | The browser does not draw a hidden fighter and the server refuses every lock and ability on it, but every client still receives every position and the server still accepts the low-level `attack` input, so a modified client can find the fighter and attack its true position. The fix is interest management (per-client state) and refusing `attack` from game clients; until then the cloud marks the place for everyone anyway. |
@@ -766,7 +813,7 @@ Hard counters are only fair if you can see them coming.
 | Wishes: Swarm drops its caster's lock (W9) | Casting Swarm drops your lock, and only the lock: your walk goes on after the cast, because an escape must not stop you. Otherwise a Plague locked on a foe kept swinging out of the cloud and was revealed at once, so the 300 s escape did nothing. The cost: a Plague that wants to fight from it must click again, which shows it for the swing and 0.5 s. Owner call: keep it, or keep the lock and have a hidden fighter's lock hold no trigger. The bots slip away while their Swarm is casting and hidden and never lock anyone then. |
 | Wishes: numbers are best guesses (W5) | Every Wish number, the trail's burn (30 true damage a second for 2 s, about 60 a crossing), the 5 s practice cooldown, and the maximum times and caps in the status table (8.9). A balance pass retunes them; the harness and the kiting check do not cast. The first thing to look at is Trial against a charging Fire: in the 20 Hz what-if its x1.2 and x0.8 over a 2.5 s duel (inside the 5 s ring) cut Fire over Sentenced's tolerance from 1.89 s to 0.88 s (bow) and 1.74 s to 0.83 s (wand) against 1.16 s and 1.49 s of free fire (`testing/WISHES.md`). |
 | Wishes: stunned shields still block (W6) | A stun freezes facing but not the guard: a shield blocks toward where it faced, so a flank beats a stunned shield and the frontal hit still bounces. Owner call: keep it, or let a stun drop the guard. |
-| Wishes: reconciliation with the roguelike plan (W7) | Settled: the attack slow is wired as a stat-mirror source, Frost's chill stays a faction signature and is not a status, and the statuses hold still while damage lands. Left for the skills phase: `barrier` and a crowd-control immunity are appended (three effect bits are spare), the move-speed status hands its slows and haste to the speed mirror when that lands (it then keeps only the stop), and an ability's effect list is meant to be the roguelike plan's on-trigger action list (the plan's own `TriggerAction` still has a copy of the shared verbs). |
+| Wishes: reconciliation with the roguelike plan (W7) | Settled: the attack slow is wired as a stat-mirror source, Frost's chill stays a faction signature and is not a status, and the statuses hold still while damage lands. Left for the skills phase: `barrier` and a crowd-control immunity are appended (three effect bits are spare), the move-speed status hands its slows and haste to the speed mirror when that lands (it then keeps only the stop), and an ability's effect list is meant to be the roguelike plan's on-trigger action list (settled for `status` and `cleanse`, which `TriggerAction` now takes from `AbilityEffect`; only `heal`, `barrier` and `cooldown` stay trigger-only until the skills phase). |
 | Wishes: the end-to-end runs require a Wish (W8) | The bot e2e replays once if no bot's Wish landed, as it does for a kill, a signature hit or a mob kill. If that ever fails twice, keep the invariants (no cast before the lock ends, at most one cast per bot, every fx names a player) and drop the requirement rather than loosen the others. |
 
 ---
@@ -787,6 +834,8 @@ Hard counters are only fair if you can see them coming.
 | **Status** | A timed effect on a fighter (stun, root, silence, slows, anti-heal, a burn, hidden, a zone, a death floor, haste), all from one table with caps and cleanse classes |
 | **Hidden** | Untargetable and not drawn for others until its own attack or cast reveals it (Swarm) |
 | **Engaged** | Fighting a specific enemy: you hit them recently or they hit you |
+| **Planning** | The 12-second step between the lobby and the run: pick one of two dealt spawns, read the camps, draw a route |
+| **Buff** | What a mob type gives its killer: stacks on an S-curve, one buff per mob type (12.2) |
 | **Feed** | Your run's kill score (player kills + a quarter per mob kill); sets the mob reward curve and the catch-up. The bounty counts player kills only |
 | **Bounty / shutdown** | GV and buffs paid for killing a player with several player kills |
 | **Edge** | One "A beats B" relationship in a counter loop |

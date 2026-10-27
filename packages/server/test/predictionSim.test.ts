@@ -98,8 +98,7 @@ class SimRig {
   private fighter(): LocalFighter {
     const p = this.server;
     return {
-      x: p.x, y: p.y, faction: p.faction, sig: p.sig, stacksHp: p.stacksHp, stacksAs: p.stacksAs, stacksMs: p.stacksMs, effects: p.effects,
-      asMult: p.asMult, speedMult: p.speedMult,
+      x: p.x, y: p.y, faction: p.faction, sig: p.sig, effects: p.effects, asMult: p.asMult, windupMult: p.windupMult, speedMult: p.speedMult,
     };
   }
 

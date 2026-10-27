@@ -22,7 +22,12 @@ export type ActionCommand =
    * Cast the ability in `slot` (sim/abilities.ts validates it). (x, y): the cursor's ground point, clamped like a `move`'s.
    * `id`: a unit target. `t`: the render time the client was drawing (clamped later). `seq`: echoed in moveSeq, accepted or refused.
    */
-  | { kind: "cast"; slot: AbilitySlot; x: number; y: number; id?: string; t?: number; seq?: number };
+  | { kind: "cast"; slot: AbilitySlot; x: number; y: number; id?: string; t?: number; seq?: number }
+  /** The planning screen (sim/planning.ts reads it during planning only; every other phase drops it). */
+  | PlanCommand;
+
+/** A `plan` input: indexes into the player's own two dealt options, and the ready latch. At least one field is set. */
+export type PlanCommand = { kind: "plan"; spawn?: 0 | 1; boon?: 0 | 1; ready?: boolean };
 
 /** Actions beyond this per tick are dropped (spam guard, not a gameplay limit). */
 export const MAX_ACTIONS_PER_TICK = 6;
@@ -93,6 +98,24 @@ export function parseId(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 && v.length <= 64 ? v : null;
 }
 
+/**
+ * A `plan` message, or null: an object whose `spawn` and `boon`, when present, are exactly 0 or 1 and whose `ready`, when
+ * present, is a boolean, with at least one of the three. Anything else (an index of 2, "1", a fraction, an empty object)
+ * is refused whole.
+ */
+export function parsePlan(msg: unknown): PlanCommand | null {
+  if (!isRecord(msg)) return null;
+  const { spawn, boon, ready } = msg;
+  const index = (v: unknown): v is 0 | 1 | undefined => v === undefined || v === 0 || v === 1;
+  if (!index(spawn) || !index(boon) || (ready !== undefined && typeof ready !== "boolean")) return null;
+  if (spawn === undefined && boon === undefined && ready === undefined) return null;
+  const cmd: PlanCommand = { kind: "plan" };
+  if (spawn !== undefined) cmd.spawn = spawn;
+  if (boon !== undefined) cmd.boon = boon;
+  if (ready !== undefined) cmd.ready = ready;
+  return cmd;
+}
+
 /** Turns an untrusted client message into a queued command. Returns false if rejected. */
 export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown): boolean {
   switch (type) {
@@ -156,6 +179,12 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown):
       if (typeof msg.t === "number" && Number.isFinite(msg.t)) cmd.t = msg.t;
       const seq = parseSeq(msg);
       if (seq !== undefined) cmd.seq = seq;
+      q.pushAction(cmd);
+      return true;
+    }
+    case "plan": {
+      const cmd = parsePlan(msg);
+      if (!cmd) return false;
       q.pushAction(cmd);
       return true;
     }

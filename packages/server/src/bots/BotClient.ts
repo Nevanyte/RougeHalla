@@ -10,18 +10,19 @@
 // intent tags of the ability (abilityPolicy.ts) once it is ready, and never picks a player it cannot target (hidden). It joins asking for a faction
 // when told to (`faction`), and a pursuit loop between players (three bots on a ring, each chasing the one ahead) is
 // broken by turning on someone else for a while (ORBIT_*). The arena (teleport, locked gates, sudden death) needs no
-// handling: after the teleport there are no mobs in reach and the bot just keeps hunting players.
+// handling: after the teleport there are no mobs in reach and the bot just keeps hunting players. When the server plans
+// (phase "planning"), it picks the better of its two dealt spawns for farming from its private `plan` message and presses ready.
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  abilityInSlot, bestSlot, buildGameMap, rankOf, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_UNTARGETABLE, findPath, hasLineOfSight, INTERACT_RANGE,
-  isFactionId, isWeaponId, lockSpacing, MASK_MOVE, PLAYER_RADIUS,
+  abilityInSlot, bestSlot, buffPower, buildGameMap, rankOf, EFFECT_CASTING, EFFECT_HIDDEN, EFFECT_UNTARGETABLE, findPath,
+  hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId, lockSpacing, MASK_MOVE, PLAYER_RADIUS,
   PROFILE_TOKEN_HEADER, reachMask, ROOM_NAME, segmentClear, TARGET_RANGE, TILE, unpackFx, withGates,
   type ClientMessages, type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions,
-  type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
+  type PlanMessage, type ProfileResponse, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { decideCast, hidesCaster, type CastSituation } from "./abilityPolicy";
-import { bestSlotVsMob, mobWeapon, pathLength, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
+import { bestSlotVsMob, mobWeapon, pathLength, planPick, retreatPoint, MobHunter, type HuntDecision } from "./mobHunt";
 
 type ClientRoom = Room<any, RaidState>;
 
@@ -141,6 +142,11 @@ const PICKUP_RETRY_MS = 400;
 /** Inside this distance of a container we start taking; keeps a margin under INTERACT_RANGE for stale positions. */
 const PICKUP_DISTANCE = INTERACT_RANGE - 12;
 
+/** Planning: with no `plan` message this long (ms) into the phase, the bot just says it is ready (the server picks for it). */
+const PLAN_WAIT_MS = 1000;
+/** A spawn pick the server has not confirmed (the message still shows no pick) is sent again after this long (ms). */
+const PLAN_RESEND_MS = 400;
+
 /** A Wish is tried at most this often (ms): a refused or fizzled cast costs nothing, so it is simply asked again. */
 const WISH_TRY_MS = 1000;
 /**
@@ -179,7 +185,7 @@ export class BotClient {
   /** `teleport` fx seen: how many times the arena moved everyone into the coliseum. */
   teleports = 0;
   /** Inputs sent so far, by message type. */
-  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, cast: 0 };
+  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, plan: 0, cast: 0 };
 
   private profile = "";
   private room!: ClientRoom;
@@ -223,6 +229,13 @@ export class BotClient {
   private lastHunt = "";
   /** When a hit fx last showed a player (not a mob; a player's damage-over-time hit counts too) hurting us: the hunt's "being shot at" evidence. */
   private playerHitAt = -Infinity;
+  /** Planning: the latest private deal, the spawn option asked for and when, when the phase was first seen, and the latch. */
+  private plan: PlanMessage | null = null;
+  /** `plan` messages received (the tests read it: the server deals every player). */
+  plansSeen = 0;
+  private planAsked: { k: 0 | 1; at: number } | null = null;
+  private planSeenAt = 0;
+  private readySent = false;
   /** When anyone (a mob, a burn) last hurt us, and when we last asked for our Wish. */
   private hitAt = -Infinity;
   private wishTriedAt = -Infinity;
@@ -271,6 +284,8 @@ export class BotClient {
     this.room = await this.join(base, options);
     this.roomId = this.room.roomId;
     const room = this.room;
+    // Before anything is awaited: the last player in starts the planning phase, and its deal can beat the first state.
+    room.onMessage("plan", (m: PlanMessage) => { this.plansSeen++; this.plan = m; });
     for (let i = 0; !room.state?.players; i++) {
       if (i > 500) { void room.leave(true).catch(() => {}); throw new Error("no room state from the server"); }
       await sleep(10);
@@ -372,6 +387,7 @@ export class BotClient {
   private think(): void {
     const s = this.room.state;
     const me = s.players.get(this.room.sessionId);
+    if (!this.finished && s.phase === "planning" && me) { this.planStart(me, Date.now()); return; }
     if (this.finished || s.phase !== "active" || me?.status !== "alive") return;
     if (this.opts.abandonAfterMs !== undefined && s.serverTime - s.raidStartedAt >= this.opts.abandonAfterMs) {
       this.log("abandoning the run");
@@ -443,6 +459,36 @@ export class BotClient {
     }
   }
 
+  /**
+   * The planning screen, as a player would use it: take the better of the two dealt spawns for farming (planPick: the
+   * matchup of the camps nearest each, mobHunt.ts), wait for the server to confirm the pick (or say it was taken: then the
+   * other one), and press ready. With no deal (none came, or both options are taken) it presses ready and lets the server
+   * pick.
+   */
+  private planStart(me: PlayerState, now: number): void {
+    if (this.readySent) return;
+    if (this.planSeenAt === 0) this.planSeenAt = now;
+    const m = this.plan;
+    if (!m) {
+      if (now - this.planSeenAt >= PLAN_WAIT_MS) this.ready();
+      return;
+    }
+    if (m.pick >= 0) { this.ready(); return; }
+    const k = isFactionId(me.faction) ? planPick(this.map, m, me.faction, inHand(me)) : (m.taken[0] ? 1 : 0);
+    if (k === -1 || m.taken[k]) { this.ready(); return; }
+    const a = this.planAsked;
+    if (a && a.k === k && now - a.at < PLAN_RESEND_MS) return;
+    this.log(`planning: picking spawn ${m.spawns[k]} (option ${k})`);
+    this.planAsked = { k, at: now };
+    this.send("plan", { spawn: k });
+  }
+
+  private ready(): void {
+    this.readySent = true;
+    this.log("planning: ready");
+    this.send("plan", { ready: true });
+  }
+
   /** What to do this think: run, fetch a weapon, fight a mob or a player, or stand. True when the bot is attacking a foe (see `attacking`). */
   private act(me: PlayerState, enemy: Enemy | null, hunt: HuntDecision, now: number): boolean {
     if (hunt.kind === "retreat" && this.retreat(me, hunt, now)) { this.pauseChase(enemy, now); return false; }
@@ -490,7 +536,7 @@ export class BotClient {
       self: {
         faction: isFactionId(me.faction) ? me.faction : null,
         x: me.x, y: me.y, hp: me.hp, maxHp: me.maxHp, weapons: [asWeapon(me.weapon0), asWeapon(me.weapon1)],
-        stacks: me.stacksHp + me.stacksAs + me.stacksMs, mobKills: me.mobKills,
+        stacks: buffPower(me.buffs), mobKills: me.mobKills,
       },
       playerDistance: enemy ? this.threatDistance(me, players) : Infinity,
       players,

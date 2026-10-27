@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FACTIONS, attackInterval, buffMultiplier, encodeMult, weaponTimings } from "@raid/shared";
+import { FACTIONS, WIRE_IDENTITY_MIRRORS, attackInterval, encodeMult, scaleWindup, weaponTimings } from "@raid/shared";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { DrawTrack, FighterArt, HpBar, fullDrawSeconds, heldWeapon, type FighterFields } from "../src/render/FighterArt";
 import { argsOf, fakeScene } from "./fakes";
@@ -129,53 +129,75 @@ describe("bow draw start under a chill", () => {
 });
 
 describe("fullDrawSeconds", () => {
-  // The server's bow windup (sim/combatant.ts timingsOf(...).windup on a real player of each faction, 9 decimals) for 0, 1.1, 3
-  // and 7 attack-speed stacks. server/test/mobHunt.test.ts compares the bots' copy of the formula with timingsOf live; this is the
-  // client's half: a draw gauge that drifts from the server's shows a full bow before (or after) it is. The client reads the
-  // attack-speed MIRROR the server folds those stacks into (`asMult`), so each row is checked at the mirror the stacks give.
-  // Regenerate with the weapon numbers (weapons.ts / factions.ts) when they change; BOW_WINDUP and BOW_WINDUP_SHARE (the controls
-  // tuning lever) move every entry.
-  const SERVER_FULL_DRAW: Record<string, readonly number[]> = {
-    fire: [0.6, 0.6, 0.6, 0.535901332],
-    sentenced: [0.524216524, 0.503405103, 0.427482716, 0.357267554],
-    plague: [0.255024255, 0.24489978, 0.23, 0.23],
-    frost: [0.6, 0.6, 0.6, 0.6],
-    holy: [0.496626181, 0.476910097, 0.404983625, 0.338463999],
+  // The server's bow windup (sim/combatant.ts timingsOf(...).windup on a real PlayerState of each faction whose `asMult` and
+  // `windupMult` mirrors hold the encoded value, 9 decimals): one row per windup mirror (x1, x0.85, x1.2), one column per
+  // attack-speed mirror (x1, x1.05, x1.25, x1.6). server/test/mobHunt.test.ts compares the bots' copy of the formula with
+  // timingsOf live; this is the client's half: a draw gauge that drifts from the server's shows a full bow before (or after)
+  // it is. The client reads the MIRRORS the server folds its buffs into, in wire form (thousandths). Regenerate with the weapon
+  // numbers (weapons.ts / factions.ts) when they change; BOW_WINDUP and BOW_WINDUP_SHARE (the controls tuning lever) move
+  // every entry.
+  const AS = [1, 1.05, 1.25, 1.6];
+  const WINDUP = [1, 0.85, 1.2];
+  const SERVER_FULL_DRAW: Record<string, readonly (readonly number[])[]> = {
+    fire: [[0.6, 0.6, 0.6, 0.491452991], [0.51, 0.51, 0.51, 0.417735043], [0.72, 0.72, 0.683760684, 0.534188034]],
+    sentenced: [
+      [0.524216524, 0.499253833, 0.419373219, 0.327635328],
+      [0.445584046, 0.424365758, 0.356467236, 0.278490028],
+      [0.56980057, 0.542667209, 0.455840456, 0.356125356],
+    ],
+    plague: [[0.255024255, 0.242880243, 0.23, 0.23], [0.216770617, 0.206448206, 0.1955, 0.1955], [0.277200277, 0.264000264, 0.25, 0.25]],
+    frost: [[0.6, 0.6, 0.6, 0.6], [0.51, 0.51, 0.51, 0.51], [0.72, 0.72, 0.72, 0.712250712]],
+    holy: [
+      [0.496626181, 0.472977315, 0.397300945, 0.310391363],
+      [0.422132254, 0.402030718, 0.337705803, 0.263832659],
+      [0.539811066, 0.514105777, 0.431848853, 0.337381916],
+    ],
   };
-  const STACKS = [0, 1.1, 3, 7];
-  /** The mirror the server writes for `stacks` attack-speed stacks. */
-  const mirror = (stacks: number) => encodeMult(buffMultiplier("attackSpeed", stacks));
+  /** The wire value the server writes for a multiplier. */
+  const wire = encodeMult;
+  const IDENTITY = WIRE_IDENTITY_MIRRORS.asMult;
 
-  it("equals the server's full draw for every faction at the mirror of 0, 1.1, 3 and 7 attack-speed stacks", () => {
-    for (const [faction, row] of Object.entries(SERVER_FULL_DRAW)) {
-      STACKS.forEach((stacks, i) => expect(fullDrawSeconds(faction, mirror(stacks)), `${faction} with ${stacks} stacks`).toBeCloseTo(row[i]!, 8));
+  it("equals the server's full draw for every faction at every attack-speed and windup mirror", () => {
+    for (const [faction, rows] of Object.entries(SERVER_FULL_DRAW)) {
+      WINDUP.forEach((wu, r) => AS.forEach((as, c) => {
+        expect(fullDrawSeconds(faction, wire(as), wire(wu)), `${faction} as x${as} windup x${wu}`).toBeCloseTo(rows[r]![c]!, 8);
+      }));
     }
   });
 
-  it("a mirror of exactly 1 is the unbuffed draw, and so is a fighter with none (a mob) and 0 without a faction", () => {
-    for (const [faction, row] of Object.entries(SERVER_FULL_DRAW)) {
-      expect(fullDrawSeconds(faction, 1), faction).toBeCloseTo(row[0]!, 8);
-      expect(fullDrawSeconds(faction, undefined), faction).toBeCloseTo(row[0]!, 8);
-      expect(fullDrawSeconds(faction), faction).toBe(fullDrawSeconds(faction, 1));
+  it("the identity mirrors (1000 thousandths) are the unbuffed draw, and so is a fighter with none (a mob); 0 without a faction", () => {
+    expect(IDENTITY).toBe(1000);
+    for (const [faction, rows] of Object.entries(SERVER_FULL_DRAW)) {
+      expect(fullDrawSeconds(faction, IDENTITY, IDENTITY), faction).toBeCloseTo(rows[0]![0]!, 8);
+      expect(fullDrawSeconds(faction, undefined, undefined), faction).toBeCloseTo(rows[0]![0]!, 8);
+      expect(fullDrawSeconds(faction), faction).toBe(fullDrawSeconds(faction, IDENTITY, IDENTITY));
     }
-    expect(fullDrawSeconds("", 1.5)).toBe(0);
-    expect(fullDrawSeconds("nobody", 1.5)).toBe(0);
+    expect(fullDrawSeconds("", wire(1.5))).toBe(0);
+    expect(fullDrawSeconds("nobody", wire(1.5))).toBe(0);
   });
 
-  it("shortens with the mirror until the bow's interval floor", () => {
-    expect(fullDrawSeconds("sentenced", mirror(7))).toBeLessThan(fullDrawSeconds("sentenced", 1) - 0.1);
-    expect(fullDrawSeconds("plague", mirror(7))).toBe(fullDrawSeconds("plague", mirror(20)));
+  it("shortens with the attack-speed mirror until the bow's interval floor", () => {
+    expect(fullDrawSeconds("sentenced", wire(1.6))).toBeLessThan(fullDrawSeconds("sentenced", IDENTITY) - 0.1);
+    expect(fullDrawSeconds("plague", wire(1.6))).toBe(fullDrawSeconds("plague", wire(20)));
   });
 
-  it("follows the mirror alone: a mirror shortens it with no stacks anywhere", () => {
-    // 1.5 is no stack count's multiplier in particular: any source of attack speed shows in the draw.
-    expect(fullDrawSeconds("sentenced", 1.5)).toBeLessThan(fullDrawSeconds("sentenced", 1));
-    expect(fullDrawSeconds("sentenced", 1.5)).toBeCloseTo(weaponTimings("bow", attackInterval(FACTIONS.sentenced, "bow", 1.5)).windup, 12);
+  it("follows the mirrors alone, through the shared formulas", () => {
+    // 1.5 is no buff's multiplier in particular: any source of attack speed or windup shows in the draw.
+    const t = scaleWindup(weaponTimings("bow", attackInterval(FACTIONS.sentenced, "bow", 1.5)), 0.8);
+    expect(fullDrawSeconds("sentenced", wire(1.5), wire(0.8))).toBeCloseTo(t.windup, 12);
+    expect(fullDrawSeconds("sentenced", wire(1.5))).toBeLessThan(fullDrawSeconds("sentenced"));
+    expect(fullDrawSeconds("sentenced", IDENTITY, wire(0.8))).toBeCloseTo(fullDrawSeconds("sentenced") * 0.8, 12);
+  });
+
+  it("the windup mirror scales the pull on its own: a longer windup, a longer draw", () => {
+    expect(fullDrawSeconds("sentenced", IDENTITY, wire(1.2))).toBeGreaterThan(fullDrawSeconds("sentenced"));
+    expect(fullDrawSeconds("sentenced", IDENTITY, wire(0.85))).toBeLessThan(fullDrawSeconds("sentenced"));
   });
 
   it("is what the gauge uses: the same draw is full with the mirror and not without", () => {
-    // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw at 3 stacks' mirror (0.427 s), which glows.
-    const glowing = (fields: Partial<FighterFields> & { stacksAs?: number }) => {
+    // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw at attack speed x1.25 (0.419 s) or windup
+    // x0.85 (0.446 s), which glows; and 0.45 s of a windup x1.2 draw (0.570 s) is not full.
+    const glowing = (fields: Partial<FighterFields>) => {
       const graphics = [fakeGraphics(), fakeGraphics()];
       let i = 0;
       const art = new FighterArt({ add: { graphics: () => graphics[i++] } } as never);
@@ -183,10 +205,12 @@ describe("fullDrawSeconds", () => {
       return graphics[1]!.calls.includes("strokeCircle");
     };
     expect(glowing({})).toBe(false);
-    expect(glowing({ asMult: 1 })).toBe(false);
-    expect(glowing({ asMult: mirror(3) })).toBe(true);
-    // Stacks without the mirror (a stale or unknown field) do not shorten the gauge: the mirror is what the server simulated with.
-    expect(glowing({ stacksAs: 3, asMult: 1 })).toBe(false);
+    expect(glowing({ asMult: IDENTITY, windupMult: IDENTITY })).toBe(false);
+    expect(glowing({ asMult: wire(1.25) })).toBe(true);
+    expect(glowing({ windupMult: wire(0.85) })).toBe(true);
+    expect(glowing({ windupMult: wire(1.2) })).toBe(false);
+    // Both together: a longer windup against a faster rate.
+    expect(glowing({ asMult: wire(1.25), windupMult: wire(1.2) })).toBe(false);
   });
 });
 

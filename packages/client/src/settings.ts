@@ -11,7 +11,14 @@ export interface Settings {
   showPing: boolean;
   /** Render the canvas at the screen's own pixel density (capped at 2x). Off = 1 canvas pixel per CSS pixel: faster, softer. */
   hiDpi: boolean;
+  /** Draw the route planned on the planning screen on the minimap and the hold-Tab map during a run. */
+  showRoute: boolean;
+  /** Text size of the map and planning screens, one of TEXT_SCALES (1 = as designed). */
+  textScale: number;
 }
+
+/** The text sizes the settings card offers: 100%, 125% and 150%. */
+export const TEXT_SCALES: readonly number[] = [1, 1.25, 1.5];
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   juice: 1,
@@ -19,6 +26,8 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   showFps: true,
   showPing: true,
   hiDpi: true,
+  showRoute: true,
+  textScale: 1,
 });
 
 export const SETTINGS_KEY = "raidbr.settings.v1";
@@ -34,6 +43,12 @@ function bool(v: unknown, fallback: boolean): boolean {
   return typeof v === "boolean" ? v : fallback;
 }
 
+/** The offered text size nearest `v`; the fallback for anything that is not a finite number. */
+function nearestScale(v: unknown, fallback: number): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) return fallback;
+  return TEXT_SCALES.reduce((best, s) => (Math.abs(s - v) < Math.abs(best - v) ? s : best), TEXT_SCALES[0]!);
+}
+
 /** Anything (a parsed file, a patch) turned into a complete, valid Settings: unknown keys dropped, bad values defaulted. */
 export function sanitizeSettings(raw: unknown, base: Readonly<Settings> = DEFAULT_SETTINGS): Settings {
   const o = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
@@ -44,6 +59,8 @@ export function sanitizeSettings(raw: unknown, base: Readonly<Settings> = DEFAUL
     showFps: bool(o.showFps, base.showFps),
     showPing: bool(o.showPing, base.showPing),
     hiDpi: bool(o.hiDpi, base.hiDpi),
+    showRoute: bool(o.showRoute, base.showRoute),
+    textScale: nearestScale(o.textScale, base.textScale),
   };
 }
 

@@ -3,7 +3,7 @@
 // tick. The slide integrator itself is tested in shared/test/walk.test.ts; here it is the fighter that walks.
 import { describe, expect, it } from "vitest";
 import {
-  buffMultiplier, circleClear, GV_KILL, hazardsOf, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, SLIP_GRIP_MS,
+  circleClear, GV_KILL, hazardsOf, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, SLIP_GRIP_MS,
   TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, worldToTile,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -17,9 +17,8 @@ import { recordHit } from "../src/sim/ledger";
 import { aggro, resetMob } from "../src/sim/mobAI";
 import { hurtMob, placeMob, type MobCombatant } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
-import { grantStacks } from "../src/sim/buffs";
 import { advanceAlongPath, planPath, regripPath, tickVelocity, walkFighter } from "../src/sim/movement";
-import { speedMultOf } from "../src/sim/mods";
+import { recomputeMods, speedMultOf } from "../src/sim/mods";
 import { addPlayer, startRaid, step } from "../src/sim/step";
 import { applyBog, LIGHT_FX_MS, slipAccelOf, surfaceOf, TERRAIN_SOURCE } from "../src/sim/terrainEffects";
 import { installTraining } from "../src/sim/training";
@@ -475,12 +474,13 @@ describe("bog slow", () => {
     expect(walker.x - x0).toBeCloseTo(PLAYER_SPEED * 0.49, 6);
   });
 
-  it("with 3 move stacks the buff multiplies in as well", () => {
+  it("a faster walk from the speed mirror multiplies in as well", () => {
     const world = bogWorld([{ faction: "fire", at: at(3, 10) }, { faction: "sentenced", at: at(3, 24) }]);
-    grantStacks(world, P(world, "p0"), RT(world, "p0"), "moveSpeed", 3);
+    // Whatever feeds the mirror (a buff's stats, a status, a skill): a mod source here.
+    world.modSources.push((_w, c) => (c.id === "p0" ? { speedMult: 1.2 } : null));
+    recomputeMods(world, combatant(world, "p0")!);
     const buff = speedMultOf(P(world, "p0"));
-    expect(buff).toBeGreaterThan(1.05);
-    expect(buff).toBeCloseTo(buffMultiplier("moveSpeed", 3), 1);
+    expect(buff).toBeCloseTo(1.2, 3);
     const moved = walkOneSecond(world, "p0");
     expect(moved).toBeCloseTo(PLAYER_SPEED * 0.7 * buff, 6);
   });

@@ -1,31 +1,18 @@
-// What the HUD and the toasts say about buffs, the kill barrier and the feed (GAME_DESIGN 12, 15). Pure, so the numbers and
-// the wording are tested without a DOM; the client only lays the strings out. The maths itself is buffs.ts and rules.ts.
+// What the HUD and the toasts say about buffs, the barrier and the feed (GAME_DESIGN 12, 15). Pure, so the numbers and the
+// wording are tested without a DOM; the client only lays the strings out. The maths itself is buffs.ts and rules.ts.
 import {
-  BUFF_STATS, buffBonus, catchUpMultiplier, comboFor, comboProgress, COMBOS, comboTier, median, mobRewardMultiplier,
-  type BuffStat, type ComboSpec, type ComboTier, type Stacks,
+  BUFFS, buffDef, buffScale, buffText, catchUpMultiplier, median, mobRewardMultiplier, stacksIn, type BuffDef, type BuffId,
+  type BuffStacks, type BuffTag,
 } from "./buffs";
-import { COMBO_TIER1_STACKS, COMBO_TIER2_STACKS, FEED_MOB_KILL_WEIGHT } from "./constants";
+import { FEED_MOB_KILL_WEIGHT } from "./constants";
+import type { FactionId } from "./factions";
+import { mobBuffStacks } from "./mobs";
 import { feedScore } from "./rules";
 
-export const BUFF_LABELS: Readonly<Record<BuffStat, string>> = {
-  hp: "Max HP",
-  attackSpeed: "Attack speed",
-  moveSpeed: "Move speed",
-};
-
-/**
- * Stacks as the player reads them: one decimal, to the nearest tenth (so a drop of 1.1 on top of nothing reads 1.1, the
- * same as the toast), except that a number short of a combo threshold never rounds up onto it: 2.97 reads 2.9, so a
- * "3.0" always means the first combo is unlocked.
- */
+/** Stacks as the player reads them: one decimal, to the nearest tenth (a grant of 1.1 on top of nothing reads 1.1, as the toast does). */
 export function formatStacks(stacks: number): string {
   if (!(stacks > 0)) return "0.0";
-  let tenths = Math.round(stacks * 10);
-  // comboTier carries the float32 slack: 2.9999995 has unlocked the combo and reads 3.0.
-  const tier = comboTier(stacks);
-  if (tier < 1 && tenths >= COMBO_TIER1_STACKS * 10) tenths = COMBO_TIER1_STACKS * 10 - 1;
-  else if (tier < 2 && tenths >= COMBO_TIER2_STACKS * 10) tenths = COMBO_TIER2_STACKS * 10 - 1;
-  return (tenths / 10).toFixed(1);
+  return (Math.round(stacks * 10) / 10).toFixed(1);
 }
 
 /** Stacks just gained, for a toast: one decimal, rounded to nearest. */
@@ -43,72 +30,71 @@ export function formatMult(mult: number): string {
   return `x${mult.toFixed(2)}`;
 }
 
-/** One HUD row: a stat, the stacks held, what they give and how far the next combo is. */
-export interface BuffRow {
-  stat: BuffStat;
-  label: string;
+/** One entry of the build strip: a buff held, what its stacks give now, and what the next kill of its type adds. */
+export interface BuffView {
+  id: BuffId;
+  name: string;
+  /** The zone whose mobs give it (its colour). */
+  zone: FactionId;
+  elite: boolean;
   stacks: number;
   /** One decimal (formatStacks). */
   stacksText: string;
-  bonus: number;
-  /** "+23%" */
-  bonusText: string;
-  tier: ComboTier;
-  /** Stacks the next combo tier needs; null at the top. */
-  next: number | null;
-  /** 0..1, stacks / next (1 at the top). */
-  progress: number;
-  /** The combo reached (the highest tier), or null below the first threshold. */
-  combo: ComboSpec | null;
+  /** buffScale(stacks): its quoted numbers times this. */
+  scale: number;
+  /** The line at these stacks: "+5.4% damage". */
+  text: string;
+  /** The quoted line (at 3 stacks). */
+  quoted: string;
+  /** False while a row needs the status runtime (shown, not applied until R4b). */
+  active: boolean;
+  /** Stacks one more kill of this type adds at the reward multiplier given (an elite type's own grant for an elite). */
+  nextGain: number;
+  /** The line once that kill is in. */
+  nextText: string;
+  worksWith: readonly BuffTag[];
+  counters: readonly BuffTag[];
 }
 
-export function buffRow(stat: BuffStat, stacks: number): BuffRow {
+function viewOf(def: BuffDef, stacks: number, reward: number): BuffView {
   const held = stacks > 0 ? stacks : 0;
-  const { tier, next } = comboProgress(held);
-  const bonus = buffBonus(stat, held);
+  const gain = mobBuffStacks(def.elite) * (reward > 0 ? reward : 0);
   return {
-    stat,
-    label: BUFF_LABELS[stat],
-    stacks: held,
-    stacksText: formatStacks(held),
-    bonus,
-    bonusText: formatBonus(bonus),
-    tier,
-    next,
-    progress: next === null ? 1 : Math.min(1, held / next),
-    combo: comboFor(stat, held),
+    id: def.id, name: def.name, zone: def.zone, elite: def.elite,
+    stacks: held, stacksText: formatStacks(held), scale: buffScale(held),
+    text: buffText(def.id, held), quoted: def.text, active: def.needs === undefined,
+    nextGain: gain, nextText: buffText(def.id, held + gain),
+    worksWith: def.worksWith, counters: def.counters,
   };
 }
 
-/** The three rows, in BUFF_STATS order (Max HP, Attack speed, Move speed). */
-export function buffRows(stacks: Stacks): BuffRow[] {
-  return BUFF_STATS.map((stat) => buffRow(stat, stacks[stat]));
+/** The view of one buff at `stacks` (null for an id not in the catalog). `reward`: what a mob pays the player now (feedView). */
+export function buffView(id: string, stacks: number, reward = 1): BuffView | null {
+  const def = buffDef(id);
+  return def ? viewOf(def, stacks, reward) : null;
 }
 
-/** The stacks of a synced player (PlayerState's three float fields). */
-export function stacksOfPlayer(p: { stacksHp: number; stacksAs: number; stacksMs: number }): Stacks {
-  return { hp: p.stacksHp, attackSpeed: p.stacksAs, moveSpeed: p.stacksMs };
+/** Every buff held (stacks above 0), in catalog order (zone order, normals then the elite). */
+export function buffViews(stacks: BuffStacks, reward = 1): BuffView[] {
+  const out: BuffView[] = [];
+  for (const def of BUFFS) {
+    const n = stacksIn(stacks, def.id);
+    if (n > 0) out.push(viewOf(def, n, reward));
+  }
+  return out;
 }
 
-/** True once any stat has a stack: the HUD hides the buff rows until then. */
-export function hasAnyStacks(stacks: Stacks): boolean {
-  return BUFF_STATS.some((s) => stacks[s] > 0);
+/** True once any buff has a stack: the HUD hides the build strip until then. */
+export function hasAnyBuffs(stacks: BuffStacks): boolean {
+  return BUFFS.some((def) => stacksIn(stacks, def.id) > 0);
 }
 
-/** The combo with this id from the catalog, or undefined (an id from newer server content). */
-export function comboById(id: string): ComboSpec | undefined {
-  return COMBOS.find((c) => c.id === id);
-}
-
-/** "+1.1 Attack speed (3.2)": the toast for a drop of `gained` stacks that brought the stat to `total`. */
-export function buffToast(stat: string, gained: number, total: number): string {
-  const label = (BUFF_LABELS as Readonly<Record<string, string>>)[stat] ?? stat;
-  return `+${formatGain(gained)} ${label} (${formatStacks(total)})`;
-}
-
-/** "Combo unlocked: Dash on kill" */
-export function comboToast(combo: ComboSpec): string {
-  return `Combo unlocked: ${combo.name}`;
+/** "Ember Imp +1.1 (3.2): +5.4% damage": the toast for `gained` stacks of `id` that brought it to `total`. */
+export function buffToast(id: string, gained: number, total: number): string {
+  const def = buffDef(id);
+  const name = def?.name ?? id;
+  const line = def ? `: ${buffText(id, total)}` : "";
+  return `${name} +${formatGain(gained)} (${formatStacks(total)})${line}`;
 }
 
 // ------------------------------------------------------------------------------------------------------------ feed
@@ -142,15 +128,18 @@ export function lobbyMedianFeed(players: Iterable<{ status: string; kills: numbe
   return median(feeds);
 }
 
-// ------------------------------------------------------------------------------------------------- kill barrier
+// ------------------------------------------------------------------------------------------------------ barrier
 
-/** The biggest kill shield a combo gives, as a share of max hp (Bulwark, 30%): a full ring on the body. */
-export const MAX_BARRIER_SHARE = Math.max(0, ...COMBOS.map((c) => c.onKill.shield?.share ?? 0));
+/**
+ * A barrier of this share of max hp draws as a full ring on the body. The kill combos that gave one are gone; R6's
+ * skills bring barriers back, and this is the scale they draw against (the old Bulwark's 30%).
+ */
+export const BARRIER_FULL_SHARE = 0.3;
 
-/** 0..1: how full a kill barrier of `barrier` hp is against the most any combo gives at this max hp. */
+/** 0..1: how full a barrier of `barrier` hp is against BARRIER_FULL_SHARE of max hp. */
 export function barrierStrength(barrier: number, maxHp: number): number {
-  if (!(barrier > 0) || !(maxHp > 0) || !(MAX_BARRIER_SHARE > 0)) return 0;
-  return Math.min(1, barrier / (maxHp * MAX_BARRIER_SHARE));
+  if (!(barrier > 0) || !(maxHp > 0)) return 0;
+  return Math.min(1, barrier / (maxHp * BARRIER_FULL_SHARE));
 }
 
 /**
@@ -165,8 +154,8 @@ export function hpBarFractions(hp: number, maxHp: number, barrier: number): { hp
   return { hp: h / total, barrier: b / total };
 }
 
-/** The HUD's hp readout: "HP 400/500", and "HP 400/500 +75 shield" while a kill barrier holds. */
+/** The HUD's hp readout: "HP 400/500", and "HP 400/500 +75 barrier" while a barrier holds. */
 export function hpText(hp: number, maxHp: number, barrier: number): string {
   const base = `HP ${Math.ceil(hp)}/${Math.round(maxHp)}`;
-  return barrier > 0 && Math.ceil(barrier) > 0 ? `${base} +${Math.ceil(barrier)} shield` : base;
+  return barrier > 0 && Math.ceil(barrier) > 0 ? `${base} +${Math.ceil(barrier)} barrier` : base;
 }

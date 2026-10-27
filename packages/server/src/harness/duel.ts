@@ -14,9 +14,11 @@
 import {
   circleClear, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, reachMask,
   segmentClear, TICK_MS, TILE, TILE_WALL, decide,
-  type FactionId, type GameMap, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
+  type BuffId, type FactionId, type GameMap, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
+import { grantBuff } from "../sim/buffs";
 import { activeWeapon, combatant, timingsOf, type Combatant } from "../sim/combatant";
+import { recomputeMods } from "../sim/mods";
 import { createGameWorld } from "../sim/gameplay";
 import { enqueueClientMessage } from "../sim/inputs";
 import { positionAt } from "../sim/movement";
@@ -53,9 +55,16 @@ export interface DuelSpec {
   spacing?: readonly [SpacingPolicy | undefined, SpacingPolicy | undefined];
   /** Fighter 0 / fighter 1 plays by locking the other (the target lock): `target` once, again whenever it is not locked; no aim, move or trigger. */
   locks?: readonly [boolean, boolean];
+  /** Buffs fighter 0 / fighter 1 holds from the duel's first tick (grantBuff, so its mirrors fold as in a run). */
+  buffs?: readonly [readonly BuffGrant[] | undefined, readonly BuffGrant[] | undefined];
+  /** An attack-speed multiplier for fighter 0 / fighter 1 on top of its buffs: a registered mod source (world.modSources). */
+  asMult?: readonly [number | undefined, number | undefined];
   /** Called after every step (debugging and tests). */
   onTick?: (world: World, tick: number, events: readonly SimEvent[]) => void;
 }
+
+/** Stacks of one buff a duel fighter starts with. */
+export interface BuffGrant { id: BuffId; stacks: number }
 
 /** One landed hit, as the sim reported it. `by` is the fighter index. */
 export interface HitRecord { t: number; by: 0 | 1; amount: number; weapon: WeaponId | null }
@@ -280,6 +289,22 @@ export function runDuel(spec: DuelSpec): DuelResult {
     p.y = starts[i]!.y;
     p.facing = Math.atan2(starts[1 - i]!.y - starts[i]!.y, starts[1 - i]!.x - starts[i]!.x);
     rt.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
+  }
+  const extraAs = spec.asMult ?? [undefined, undefined];
+  if (extraAs.some((m) => m !== undefined && m !== 1)) {
+    world.modSources.push((_w, c) => {
+      const i = indexOf(c.id);
+      const m = i === null ? undefined : extraAs[i];
+      return m !== undefined && m !== 1 ? { asMult: m } : null;
+    });
+  }
+  for (let i = 0; i < 2; i++) {
+    const grants = spec.buffs?.[i] ?? [];
+    if (grants.length === 0 && extraAs[i] === undefined) continue;
+    const p = world.state.players.get(IDS[i]!)!;
+    const rt = world.players.get(IDS[i]!)!;
+    for (const g of grants) grantBuff(world, p, rt, g.id, g.stacks);
+    recomputeMods(world, { kind: "player", id: IDS[i]!, s: p, rt });
   }
   if (!circleClear(world.map, starts[0], PLAYER_RADIUS) || !circleClear(world.map, starts[1], PLAYER_RADIUS)) {
     throw new Error(`duel start (${spec.distance} u at ${spec.angle ?? 0} rad) is inside a wall`);

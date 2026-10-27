@@ -1,4 +1,4 @@
-// The ground on the minimap (ui/minimap.ts: floor hazards as faint tints, lava as a block, a fence as a thin line, a crevasse with a
+// The ground on the minimap (ui/mapPainter.ts, painted by ui/minimap.ts: floor hazards as faint tints, lava as a block, a fence as a thin line, a crevasse with a
 // blue edge) and in the help card (ui/groundLegend.ts: the "Ground" section, read from the terrain catalog). The DOM and the canvas
 // are fakes (test/fakes.ts, test/chromeDom.ts); no colour literal is pinned beyond "this kind differs from that one".
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -3,9 +3,10 @@
 // fails it.
 import { describe, expect, it } from "vitest";
 import {
-  assertNever, buffBonus, buffMultiplier, decodeFlat, decodeMirrors, decodeMult, EFFECT_KINDS, EFFECT_KINDS_COMPLETE,
+  assertNever, buffDef, buffRows, buffScale, decodeFlat, decodeMirrors, decodeMult, EFFECT_KINDS, EFFECT_KINDS_COMPLETE,
   EFFECT_STATS, encodeFlat, encodeMirrors, encodeMult, FLAT_STATS, FLAT_WIRE_PER_POINT, foldStatRows, IDENTITY_MIRRORS,
-  isFlatStat, MIRROR_FIELDS, MOD_MULT_MAX, MOD_MULT_MIN, mirrorsFromSums, requirementsMet, visitEffect, zeroSums,
+  isFlatStat, MIRROR_FIELDS, MOD_MULT_MAX, MOD_MULT_MIN, mirrorsFromSums, MULT_WIRE_PER_UNIT, requirementsMet, visitEffect,
+  WIRE_IDENTITY_MIRRORS, zeroSums,
   type Effect, type EffectKind, type EffectVisitor, type OnHitStatus, type StatKey, type StatusKind, type TriggerAction,
 } from "../src/index";
 import { PlayerState } from "../src/schema";
@@ -132,16 +133,38 @@ describe("foldStatRows", () => {
     expect(foldStatRows(rows, { holds: () => true, owns: () => true })).toEqual({ ...zeroSums(), attackSpeed: 0.25, armor: 4, windup: -0.08 });
   });
 
-  it("a stack's S-curve bonus as a stat row folds to exactly buffMultiplier", () => {
+  // The quoted numbers are read from the catalog, so a retune is a data edit; what is pinned here is the fold and the wire.
+  const quotedV = (id: string, i = 0): number => (buffDef(id)!.effects[i] as { v: number }).v;
+
+  it("a buff's rows at n stacks fold to 1 + quoted x S(n) / S(3), to the thousandth on the wire", () => {
+    const rat = quotedV("plagueRat"); // attack speed
+    const hound = quotedV("cinderHound"); // move speed, but only while chasing a lock
+    expect(rat).toBe(0.08);
+    expect(hound).toBe(0.1);
     for (const n of [0, 0.3, 1.1, 2.5, 3, 5, 8.25]) {
-      const sums = foldStatRows([
-        { k: "stat", stat: "attackSpeed", v: buffBonus("attackSpeed", n) },
-        { k: "stat", stat: "moveSpeed", v: buffBonus("moveSpeed", n) },
-      ]);
-      const m = encodeMirrors(mirrorsFromSums(sums));
-      expect(decodeMult(m.asMult), `${n}`).toBe(buffMultiplier("attackSpeed", n));
-      expect(decodeMult(m.speedMult), `${n}`).toBe(buffMultiplier("moveSpeed", n));
+      const rows = buffRows({ plagueRat: n, cinderHound: n });
+      const idle = encodeMirrors(mirrorsFromSums(foldStatRows(rows)));
+      const chasing = encodeMirrors(mirrorsFromSums(foldStatRows(rows, { holds: (e) => e.cond === "chasingLock" })));
+      const k = buffScale(n);
+      expect(Math.abs(decodeMult(idle.asMult) - (1 + rat * k)), `${n} attack speed`).toBeLessThanOrEqual(0.5 / MULT_WIRE_PER_UNIT + 1e-12);
+      expect(Math.abs(decodeMult(chasing.asMult) - (1 + rat * k)), `${n} attack speed while chasing`).toBeLessThanOrEqual(0.5 / MULT_WIRE_PER_UNIT + 1e-12);
+      expect(decodeMult(idle.speedMult), `${n} speed without a lock`).toBe(1);
+      expect(Math.abs(decodeMult(chasing.speedMult) - (1 + hound * k)), `${n} speed chasing`).toBeLessThanOrEqual(0.5 / MULT_WIRE_PER_UNIT + 1e-12);
     }
+  });
+
+  it("a buff's flat rows fold to points: Rime Stalker's armor and Magma Brute's magic resist, in tenths on the wire", () => {
+    const armor = quotedV("rimeStalker");
+    const brute = quotedV("magmaBrute", 1); // magic resist
+    const bruteHp = quotedV("magmaBrute", 0);
+    const shard = quotedV("seraphShard");
+    expect([armor, brute, bruteHp, shard]).toEqual([20, 20, 0.06, 16]);
+    const sums = foldStatRows(buffRows({ rimeStalker: 3, magmaBrute: 3 }));
+    expect(sums).toMatchObject({ armor, shield: brute, maxHp: bruteHp });
+    const wire = encodeMirrors(mirrorsFromSums(sums));
+    expect([wire.armorBonus, wire.shieldBonus]).toEqual([Math.round(armor * FLAT_WIRE_PER_POINT), Math.round(brute * FLAT_WIRE_PER_POINT)]);
+    // Two sources of one key add: Seraph Shard's magic resist joins Magma Brute's.
+    expect(foldStatRows(buffRows({ magmaBrute: 3, seraphShard: 3 })).shield).toBe(brute + shard);
   });
 });
 
@@ -149,21 +172,29 @@ describe("the mirror codec", () => {
   it("the identity: defaults on PlayerState, an empty fold, and decoding them", () => {
     expect(MIRROR_FIELDS).toEqual(["asMult", "windupMult", "speedMult", "armorBonus", "shieldBonus"]);
     expect(IDENTITY_MIRRORS).toEqual({ asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0 });
+    // The multipliers are uint16 thousandths on the state: a default PlayerState holds 1000, which decodes to 1.
+    expect(WIRE_IDENTITY_MIRRORS).toEqual({ asMult: 1000, windupMult: 1000, speedMult: 1000, armorBonus: 0, shieldBonus: 0 });
     const p = new PlayerState();
-    expect(MIRROR_FIELDS.map((f) => p[f])).toEqual(MIRROR_FIELDS.map((f) => IDENTITY_MIRRORS[f]));
+    expect(MIRROR_FIELDS.map((f) => p[f])).toEqual(MIRROR_FIELDS.map((f) => WIRE_IDENTITY_MIRRORS[f]));
     expect(decodeMirrors(p)).toEqual(IDENTITY_MIRRORS);
-    expect(encodeMirrors(mirrorsFromSums(zeroSums()))).toEqual(IDENTITY_MIRRORS);
+    expect(encodeMirrors(mirrorsFromSums(zeroSums()))).toEqual(WIRE_IDENTITY_MIRRORS);
   });
 
-  it("multipliers: the double itself, clamped to [MOD_MULT_MIN, MOD_MULT_MAX], non-finite as 1", () => {
-    for (const x of [1, 0.8, 1.2345678901234567, buffMultiplier("attackSpeed", 3.3)]) {
-      expect(decodeMult(encodeMult(x))).toBe(x);
+  it("multipliers: whole thousandths, clamped to [MOD_MULT_MIN, MOD_MULT_MAX] on the wire, non-finite as 1", () => {
+    expect(MULT_WIRE_PER_UNIT).toBe(1000);
+    for (const x of [1, 0.8, 1.235, 1 + 0.04 * buffScale(3.3)]) {
+      const wire = encodeMult(x);
+      expect(Number.isInteger(wire), `${x}`).toBe(true);
+      expect(wire, `${x}`).toBe(Math.round(x * 1000));
+      expect(decodeMult(wire), `${x}`).toBe(wire / 1000);
     }
-    expect(encodeMult(0)).toBe(MOD_MULT_MIN);
-    expect(encodeMult(-3)).toBe(MOD_MULT_MIN);
-    expect(encodeMult(1e9)).toBe(MOD_MULT_MAX);
-    expect(encodeMult(Number.NaN)).toBe(1);
-    expect(encodeMult(Number.POSITIVE_INFINITY)).toBe(1);
+    // Not a multiple of 0.001: the wire rounds it, and what decodes is the rounded value (the one the sim uses).
+    expect(decodeMult(encodeMult(1.2345678901234567))).toBe(1.235);
+    expect(encodeMult(0)).toBe(MOD_MULT_MIN * 1000);
+    expect(encodeMult(-3)).toBe(MOD_MULT_MIN * 1000);
+    expect(encodeMult(1e9)).toBe(MOD_MULT_MAX * 1000);
+    expect(encodeMult(Number.NaN)).toBe(1000);
+    expect(encodeMult(Number.POSITIVE_INFINITY)).toBe(1000);
     // A server build without the mirror fields leaves them undefined on the client: no modifier, never NaN.
     expect(decodeMult(undefined as unknown as number)).toBe(1);
     expect(decodeMult(Number.NaN)).toBe(1);
@@ -183,7 +214,7 @@ describe("the mirror codec", () => {
 
   it("decodeMirrors decodes every field of the wire form", () => {
     const wire = encodeMirrors({ asMult: 0.75, windupMult: 1.12, speedMult: 1.3, armorBonus: 12.3, shieldBonus: -4 });
-    expect(wire).toEqual({ asMult: 0.75, windupMult: 1.12, speedMult: 1.3, armorBonus: 123, shieldBonus: -40 });
+    expect(wire).toEqual({ asMult: 750, windupMult: 1120, speedMult: 1300, armorBonus: 123, shieldBonus: -40 });
     expect(decodeMirrors(wire)).toEqual({ asMult: 0.75, windupMult: 1.12, speedMult: 1.3, armorBonus: 12.3, shieldBonus: -4 });
   });
 });

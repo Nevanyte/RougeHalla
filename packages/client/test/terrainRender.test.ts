@@ -194,7 +194,8 @@ describe("the minimap paints LOW tiles", () => {
   /** The colours `map` paints beyond the plain room's. */
   const added = (map: GameMap): string[] => {
     const known = new Set(plain().map((f) => f.color));
-    return [...new Set(paint(map).map((f) => f.color))].filter((c) => !known.has(c));
+    // A zone's hatch is painted with a pattern object, not a colour string: only colours count here.
+    return [...new Set(paint(map).map((f) => f.color))].filter((c) => typeof c === "string" && !known.has(c));
   };
   /** The one colour a lone LOW tile of `kind` is painted in. */
   const lowColour = (kind: number): string => {

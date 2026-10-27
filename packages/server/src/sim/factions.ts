@@ -19,6 +19,13 @@
 //   Frost      chills everyone engaged with it either way: its own target, and whoever has it as an engaged target
 //   Holy       heals lifestealFraction(own hp fraction at the start of the tick) of all the damage it lands, on
 //              anyone, with no lockout (it needs no engagement)
+// Buffs (roguelike R4a; their rows fold in sim/mods.ts) act here too:
+//   lifesteal  any faction: `lifesteal` rows (capped at LS_CAP) heal that share of the damage landed, like Holy's and on
+//              top of it (the total never above LIFESTEAL_MAX), exempt from the lockout
+//   markRate   a Sentenced fighter's engaged time on its mark grows (1 + markRate) x as fast: the same cap, sooner
+//   triggers   Blood Saint: the first time a ledger pass leaves the owner standing below the row's hp share, it heals the
+//              row's share of max hp, ignoring the lockout, once per run (the `hurt` hook; paid after the pass)
+// With signatures off (createGameWorld's `signatures: false`) none of these run.
 // Every bonus is raw damage x bonusMultiplier(the owner's weapon in hand), mitigated with the owner's damage shares. It
 // joins this tick's ledger (beforeDamage), so it lands at the same moment as the tick's hits and no order decides.
 //
@@ -36,15 +43,18 @@
 import {
   attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
   damageShares, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
-  engageRange, HEAL_LOCKOUT_SECONDS, hasLineOfSight, isDot, lifestealFraction, markDps, markShare, reachMask, SIG_BURNING,
-  SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec, type SignatureKind, type WeaponId,
+  engageRange, HEAL_LOCKOUT_SECONDS, hasLineOfSight, isDot, lifestealFraction, lifestealShare, markDps, markShare, reachMask,
+  SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec,
+  type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
+import { grantBarrier } from "./buffs";
 import {
   activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { recordHit } from "./ledger";
+import { lifestealRowsOf, markRateOf, triggersOf } from "./mods";
 import { healFactor } from "./status";
-import { chainHook, collisionMap, emit, tieRank, type PendingAction, type World } from "./world";
+import { chainHook, collisionMap, emit, payLater, tieRank, type PendingAction, type World } from "./world";
 
 /** One fighter's signature state. Times are server ms. */
 export interface SigFighter {
@@ -88,6 +98,7 @@ export function install(world: World): void {
   world.systems.push(afterDamage);
   world.moveModifiers.push(chillMoveMultiplier);
   chainHook(world, "weaponSwapped", onWeaponSwapped);
+  chainHook(world, "hurt", onHurt);
   // A fresh fight in the coliseum: nobody carries a target, a mark or a chill through the teleport (the heal lockout
   // keeps running).
   chainHook(world, "teleported", (w) => resetAll(w, true));
@@ -312,7 +323,8 @@ function signatureDamage(world: World, dtMs: number): void {
         }
       }
     }
-    if (f.inReach && f.engaged) f.markElapsed += dt;
+    // A markRate buff ramps the mark faster toward the same cap (1 for everyone else: only Sentenced reads markElapsed).
+    if (f.inReach && f.engaged) f.markElapsed += dt * markRateOf(c.s);
   }
 }
 
@@ -359,8 +371,11 @@ function afterDamage(world: World, dtMs: number): void {
   }
   for (const [id, amount] of dealt) {
     const c = byId.get(id);
-    const spec = c ? factionOf(c.s) : null;
-    if (c && spec?.sustain) heal(world, c, amount * lifestealFraction(spec, sigOf(world, id).hpFrac), { lifesteal: true });
+    if (!c) continue;
+    const spec = factionOf(c.s);
+    const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) : 0;
+    const share = lifestealShare(own, lifestealRowsOf(c.s));
+    if (share > 0) heal(world, c, amount * share, { lifesteal: true });
   }
 
   staggerPause(world, fighters);
@@ -503,10 +518,11 @@ function onWeaponSwapped(world: World, c: Combatant): void {
 }
 
 /**
- * Heals a standing fighter by up to `amount` (never past max hp) and emits a `heal` fx. Heals other than Holy's
- * lifesteal are refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage (`ignoreLockout`: Last Stand's
- * payback, which comes right after the damage it answers). An anti-heal status scales every heal, lifesteal included (healFactor).
- * `quiet` sends no fx (a mob's regeneration heals every tick, which would be a heal number every tick). Returns the hp gained.
+ * Heals a standing fighter by up to `amount` (never past max hp) and emits a `heal` fx. Heals other than lifesteal are
+ * refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage, unless `ignoreLockout` (Blood Saint's
+ * trigger; Last Stand's payback, which comes right after the damage it answers), which skips that lockout and nothing else.
+ * An anti-heal status scales every heal, lifesteal included (healFactor). `quiet` sends no fx (a mob's regeneration heals
+ * every tick, which would be a heal number every tick). Returns the hp gained.
  */
 export function heal(
   world: World, c: Combatant, amount: number, opts: { lifesteal?: boolean; quiet?: boolean; ignoreLockout?: boolean } = {},
@@ -522,4 +538,54 @@ export function heal(
   const gained = c.s.hp - before;
   if (gained > 0 && !opts.quiet) emit(world, { type: "fx", fx: { kind: "heal", id: c.id, amount: gained } });
   return gained;
+}
+
+/**
+ * The `hurt` hook: a fighter still standing after a ledger pass checks its `hpBelow` trigger rows against its own hp.
+ * A `once` row fires the first time a pass leaves it below the threshold (even if it was already below when it got the
+ * row), then never again this run (PlayerRuntime.fired); any other row fires when a pass takes it across the threshold.
+ * Decided from the fighter's own state only; what it does is paid after the pass (payLater).
+ */
+function onHurt(world: World, c: Combatant, _applied: number, hpBefore: number): void {
+  if (c.kind !== "player") return;
+  const triggers = triggersOf(c.s);
+  if (triggers.length === 0 || !(c.s.maxHp > 0)) return;
+  const frac = c.s.hp / c.s.maxHp;
+  // The hp as the pass began: hp + applied would overstate it when a death floor (Last Stand) held the hp up.
+  const before = hpBefore / c.s.maxHp;
+  for (const { key, row } of triggers) {
+    if (row.on !== "hpBelow" || !(frac < row.arg)) continue;
+    if (row.once) {
+      const fired = (c.rt.fired ??= new Set());
+      if (fired.has(key)) continue;
+      fired.add(key);
+    } else if (before < row.arg) {
+      continue;
+    }
+    runTrigger(world, c, row.do);
+  }
+}
+
+/**
+ * A trigger's action, paid after the pass. No row uses a status, cleanse or cooldown action yet: R4b runs the first two
+ * through sim/status.ts (addStatus, cleanse), as a cast's landing does, and R6 the cooldown.
+ */
+function runTrigger(world: World, c: Extract<Combatant, { kind: "player" }>, a: TriggerAction): void {
+  switch (a.do) {
+    case "heal": {
+      const amount = a.share * c.s.maxHp;
+      payLater(world, () => { heal(world, c, amount, { ignoreLockout: a.ignoreLockout === true }); });
+      return;
+    }
+    case "barrier": {
+      const hp = a.share * c.s.maxHp;
+      const until = world.state.serverTime + a.ms;
+      payLater(world, () => { if (standing(c)) grantBarrier(c.s, c.rt, hp, until); });
+      return;
+    }
+    case "status":
+    case "cleanse":
+    case "cooldown":
+      return;
+  }
 }
