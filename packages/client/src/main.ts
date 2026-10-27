@@ -7,6 +7,7 @@ import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, friendlyClose, friendlyError } 
 import { FxInbox } from "./net/fxInbox";
 import { PlanInbox } from "./net/planInbox";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
+import { applyPhaserFixes, wantsMsaa } from "./render/phaserFixes";
 import { RaidScene } from "./scenes/RaidScene";
 import { Banner } from "./ui/banner";
 import { Chrome } from "./ui/chrome";
@@ -25,8 +26,12 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.NONE, width: startView.deviceW, height: startView.deviceH, zoom: 1 },
   // Right-click is move-to. Set here once: a per-run call would add another canvas listener every run.
   disableContextMenu: true,
+  // powerPreference is a hint for machines with two GPUs (the default picks the integrated one there); the multisampling is dropped
+  // only for a big canvas on a dense screen, where it costs GPU time and its pixels are small (render/phaserFixes.ts `wantsMsaa`).
+  render: { powerPreference: "high-performance", antialiasGL: wantsMsaa(startView.deviceW * startView.deviceH, window.devicePixelRatio || 1) },
   scene: [HubScene, RaidScene],
 });
+applyPhaserFixes(game);
 // Keeps the stage, the canvas size, the cameras' zoom and the overlay's scale matching the window for the whole page.
 new ViewportManager(game);
 

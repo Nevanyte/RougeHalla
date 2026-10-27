@@ -2,32 +2,17 @@ import { describe, expect, it } from "vitest";
 import { FACTIONS, WIRE_IDENTITY_MIRRORS, attackInterval, encodeMult, scaleWindup, weaponTimings } from "@raid/shared";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { DrawTrack, FighterArt, HpBar, fullDrawSeconds, heldWeapon, type FighterFields } from "../src/render/FighterArt";
-import { argsOf, fakeScene } from "./fakes";
+import { argsOf, fakeScene, type FakeObject } from "./fakes";
 
-/** A stand-in for Phaser's Graphics that records the draw calls made since its last clear(). */
-function fakeGraphics() {
-  const calls: string[] = [];
-  const g: Record<string, unknown> = new Proxy({ calls }, {
-    get(target, prop: string) {
-      if (prop === "calls") return target.calls;
-      return (..._args: unknown[]) => {
-        if (prop === "clear") calls.length = 0;
-        else calls.push(prop);
-        return g;
-      };
-    },
-  });
-  return g as { calls: string[] } & Record<string, unknown>;
-}
-
+/** The weapon in hand is an Image of a baked drawing: `drawing()` reads what the bake it shows now drew. */
 function setup() {
-  const graphics = [fakeGraphics(), fakeGraphics()];
-  let i = 0;
-  const scene = { add: { graphics: () => graphics[i++] } };
-  const art = new FighterArt(scene as any);
+  const { scene, ofKind, baked } = fakeScene();
+  const art = new FighterArt(scene);
+  const held = ofKind("image")[1]!;
+  const calls = () => (baked.get(String(held.state.texture))?.calls ?? []).map(([n]) => n);
   /** The bow shows a nocked arrow (a lineBetween from the nock to the arrowhead) only while a draw is on screen. */
-  const drawing = () => graphics[1]!.calls.includes("lineBetween");
-  return { art, drawing };
+  const drawing = () => calls().includes("lineBetween");
+  return { art, drawing, calls };
 }
 
 const bowman = (drawStartedAt: number): FighterFields => ({
@@ -198,11 +183,9 @@ describe("fullDrawSeconds", () => {
     // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw at attack speed x1.25 (0.419 s) or windup
     // x0.85 (0.446 s), which glows; and 0.45 s of a windup x1.2 draw (0.570 s) is not full.
     const glowing = (fields: Partial<FighterFields>) => {
-      const graphics = [fakeGraphics(), fakeGraphics()];
-      let i = 0;
-      const art = new FighterArt({ add: { graphics: () => graphics[i++] } } as never);
+      const { art, calls } = setup();
       art.update({ ...bowman(1000), faction: "sentenced", ...fields }, 1450, 1450);
-      return graphics[1]!.calls.includes("strokeCircle");
+      return calls().includes("strokeCircle");
     };
     expect(glowing({})).toBe(false);
     expect(glowing({ asMult: IDENTITY, windupMult: IDENTITY })).toBe(false);
@@ -221,52 +204,67 @@ describe("HpBar", () => {
   function bar() {
     const { scene, ofKind } = fakeScene();
     const hp = new HpBar(scene);
-    const g = ofKind("graphics")[0]!;
-    /** The colour of the hp segment the last repaint drew (the first fillStyle after the black backing), or null for no repaint since. */
-    const fills = () => argsOf(g, "fillStyle").map((a) => a[0]);
-    return { hp, g, fills };
+    const root = ofKind("container")[0]!;
+    const [back, fill, barrier] = root.args[2] as FakeObject[];
+    /** The sizes the hp rectangle was given, in order: one per repaint. */
+    const sizes = () => argsOf(fill!, "setDisplaySize");
+    /** The colours it was tinted with, in order. */
+    const tints = () => argsOf(fill!, "setTint").map((a) => a[0]);
+    return { hp, root, back: back!, fill: fill!, barrier: barrier!, sizes, tints };
   }
 
   it("repaints when hp changes by half a pixel and not before", () => {
-    const { hp, g } = bar();
+    const { hp, sizes } = bar();
     hp.draw(1000, 1000, 0, 0);
-    expect(g.clears).toBe(1);
+    expect(sizes()).toHaveLength(1);
     hp.draw(1000, 1000, 0, 0);
-    expect(g.clears).toBe(1);
+    expect(sizes()).toHaveLength(1);
     hp.draw(999, 1000, 0, 0); // 28 px bar: 56 half pixels, one is 17.9 hp
-    expect(g.clears).toBe(1);
+    expect(sizes()).toHaveLength(1);
     hp.draw(900, 1000, 0, 0);
-    expect(g.clears).toBe(2);
-    expect(argsOf(g, "fillRect")[1]).toEqual([-14, 0, 25, 4]); // 90% of the 28 px bar, to the half pixel
+    expect(sizes()).toHaveLength(2);
+    expect(sizes()[1]).toEqual([25, 4]); // 90% of the 28 px bar, to the half pixel
   });
 
   it("repaints with the new colour when hp crosses 50% or 25% inside the same half pixel", () => {
-    const { hp, g, fills } = bar();
+    const { hp, sizes, tints } = bar();
     hp.draw(501, 1000, 0, 0);
-    expect(fills()).toEqual([0x000000, GREEN]);
+    expect(tints()).toEqual([GREEN]);
     hp.draw(499, 1000, 0, 0); // the same 28 half pixels
-    expect(g.clears).toBe(2);
-    expect(fills()).toEqual([0x000000, YELLOW]);
+    expect(sizes()).toHaveLength(2);
+    expect(tints()).toEqual([GREEN, YELLOW]);
     hp.draw(251, 1000, 0, 0);
     hp.draw(249, 1000, 0, 0);
-    expect(fills()).toEqual([0x000000, RED]);
+    expect(tints().at(-1)).toBe(RED);
   });
 
   it("colours by hp against max hp, so a barrier that shrinks the bar leaves healthy hp green", () => {
-    const { hp, fills } = bar();
+    const { hp, tints, barrier } = bar();
     hp.draw(700, 1000, 800, 0); // hp is 70% of max hp but 47% of the shrunken bar
-    expect(fills()).toEqual([0x000000, GREEN, BARRIER_COLOR]);
+    expect(tints()).toEqual([GREEN]);
+    expect(barrier.state.visible).toBe(true);
+    expect(argsOf(barrier, "setTint")[0]).toEqual([BARRIER_COLOR]);
+  });
+
+  it("lays the barrier after the hp, with the backing under both", () => {
+    const { hp, back, fill, barrier } = bar();
+    hp.draw(500, 1000, 150, 0);
+    expect(argsOf(back, "setDisplaySize")[0]).toEqual([28, 4]);
+    const [fx, fw] = [argsOf(fill, "setPosition")[0]![0] as number, argsOf(fill, "setDisplaySize")[0]![0] as number];
+    expect(argsOf(barrier, "setPosition")[0]![0]).toBeCloseTo(fx + fw, 9);
+    expect(argsOf(barrier, "setDisplaySize")[0]![0]).toBeGreaterThan(0);
   });
 
   it("hides (once) and draws again afterwards", () => {
-    const { hp, g } = bar();
+    const { hp, root } = bar();
     hp.draw(500, 1000, 0, 0);
+    expect(root.state.visible).toBe(true);
     hp.hide();
-    expect(g.calls).toEqual([]);
-    const clears = g.clears;
+    expect(root.state.visible).toBe(false);
+    const hides = argsOf(root, "setVisible").length;
     hp.hide();
-    expect(g.clears).toBe(clears);
+    expect(argsOf(root, "setVisible")).toHaveLength(hides);
     hp.draw(500, 1000, 0, 0);
-    expect(g.calls.length).toBeGreaterThan(0);
+    expect(root.state.visible).toBe(true);
   });
 });

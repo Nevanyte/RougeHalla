@@ -1,4 +1,5 @@
 // FighterArt's juice (render/FighterArt.ts): the weapon's pose turn, the wand's cast charge and the bow's tension glow.
+// The weapon in hand is an Image of a baked drawing, so what it draws is read from the bake its texture names.
 import { describe, expect, it } from "vitest";
 import { FighterArt, type FighterFields } from "../src/render/FighterArt";
 import { argsOf, fakeScene } from "./fakes";
@@ -8,10 +9,14 @@ const fighter = (over: Partial<FighterFields> = {}): FighterFields => ({
 });
 
 function setup() {
-  const { scene, ofKind } = fakeScene();
+  const { scene, ofKind, baked } = fakeScene();
   const art = new FighterArt(scene);
-  const [ground, held] = ofKind("graphics");
-  return { art, ground: ground!, held: held! };
+  const [ground, held] = ofKind("image");
+  /** The draw calls of the bake the weapon shows now. */
+  const drawn = () => ({ calls: baked.get(String(held!.state.texture))?.calls ?? [] });
+  /** How many times the weapon swapped to another bake. */
+  const swaps = () => held!.calls.filter(([n]) => n === "setTexture").length;
+  return { art, ground: ground!, held: held!, drawn, swaps };
 }
 
 describe("the weapon's pose turn", () => {
@@ -26,54 +31,54 @@ describe("the weapon's pose turn", () => {
 });
 
 describe("the wand's charge", () => {
-  it("swells the orb and adds a bright core as it grows, redrawing in steps", () => {
-    const { art, held } = setup();
+  it("swells the orb and adds a bright core as it grows, swapping the bake in steps", () => {
+    const { art, drawn, swaps } = setup();
     art.update(fighter(), 1000, 1000);
-    const plain = argsOf(held, "fillCircle").length;
-    const clears = held.clears;
+    const plain = argsOf(drawn(), "fillCircle").length;
+    const before = swaps();
     art.setCharge(0.5);
     art.update(fighter(), 1016, 1016);
-    expect(held.clears).toBe(clears + 1);
-    const half = argsOf(held, "fillCircle");
+    expect(swaps()).toBe(before + 1);
+    const half = argsOf(drawn(), "fillCircle");
     expect(half.length).toBe(plain + 2);
     // The outer glow (the one with the biggest radius) grows with the charge.
     const big = (calls: unknown[][]) => Math.max(...calls.map((c) => c[2] as number));
     art.setCharge(1);
     art.update(fighter(), 1032, 1032);
-    expect(big(argsOf(held, "fillCircle"))).toBeGreaterThan(big(half));
-    // Still the same step: no redraw.
-    const n = held.clears;
+    expect(big(argsOf(drawn(), "fillCircle"))).toBeGreaterThan(big(half));
+    // Still the same step: the same bake stays.
+    const n = swaps();
     art.setCharge(1.0001);
     art.update(fighter(), 1048, 1048);
-    expect(held.clears).toBe(n);
+    expect(swaps()).toBe(n);
   });
 
   it("goes with the cast: back to the plain orb at 0", () => {
-    const { art, held } = setup();
+    const { art, drawn } = setup();
     art.setCharge(1);
     art.update(fighter(), 1000, 1000);
     art.setCharge(0);
     art.update(fighter(), 1016, 1016);
-    expect(argsOf(held, "fillCircle")).toHaveLength(3);
+    expect(argsOf(drawn(), "fillCircle")).toHaveLength(3);
   });
 
   it("means nothing to other weapons", () => {
-    const { art, held } = setup();
+    const { art, swaps } = setup();
     art.update(fighter({ weapon0: "sword" }), 1000, 1000);
-    const clears = held.clears;
+    const before = swaps();
     art.setCharge(1);
     art.update(fighter({ weapon0: "sword" }), 1016, 1016);
-    expect(held.clears).toBe(clears);
+    expect(swaps()).toBe(before);
   });
 
   it("clamps what it is given", () => {
     const { art, held } = setup();
     art.setCharge(7);
     art.update(fighter(), 1000, 1000);
-    const a = argsOf(held, "fillCircle");
+    const a = held.state.texture;
     art.setCharge(1);
     art.update(fighter(), 1016, 1016);
-    expect(argsOf(held, "fillCircle")).toEqual(a);
+    expect(held.state.texture).toBe(a);
   });
 });
 
@@ -92,14 +97,25 @@ describe("the bow's tension", () => {
   });
 
   it("warms the arrowhead on the way to a full draw with a glow and no ring (the ring is the ready cue)", () => {
-    const { art, held } = setup();
+    const { art, drawn } = setup();
     art.update(bow(1000), 1200, 1200); // 38%: nothing yet
-    const early = argsOf(held, "fillCircle").length;
-    expect(argsOf(held, "strokeCircle")).toEqual([]);
+    const early = argsOf(drawn(), "fillCircle").length;
+    expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
     art.update(bow(1000), 1450, 1450); // 86%
-    expect(argsOf(held, "fillCircle").length).toBe(early + 1);
-    expect(argsOf(held, "strokeCircle")).toEqual([]);
+    expect(argsOf(drawn(), "fillCircle").length).toBe(early + 1);
+    expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
     art.update(bow(1000), 1600, 1600); // full
-    expect(argsOf(held, "strokeCircle")).toHaveLength(1);
+    expect(argsOf(drawn(), "strokeCircle")).toHaveLength(1);
+  });
+
+  it("shows the ready ring only at a full draw, not from rounding 99% up to the last step", () => {
+    const { art, drawn } = setup();
+    art.update(bow(1000), 1519, 1519); // 99.1% of the 0.524 s draw
+    expect(art.pull).toBeGreaterThan(0.99);
+    expect(art.pull).toBeLessThan(1);
+    expect(argsOf(drawn(), "strokeCircle")).toEqual([]);
+    art.update(bow(1000), 1524.3, 1524.3);
+    expect(art.pull).toBe(1);
+    expect(argsOf(drawn(), "strokeCircle")).toHaveLength(1);
   });
 });

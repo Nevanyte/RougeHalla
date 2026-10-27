@@ -20,8 +20,11 @@ export interface FakeObject {
 
 export function fakeObject(kind: string, args: readonly unknown[] = []): FakeObject {
   const target = { kind, args, calls: [] as Call[], state: {} as Record<string, unknown>, clears: 0 };
+  // An image starts on the texture it was made with; `texture.key` follows setTexture like Phaser's.
+  if (kind === "image") target.state.texture = args[2];
   const proxy: FakeObject = new Proxy(target, {
     get(t, prop) {
+      if (prop === "texture") return { key: t.state.texture };
       if (prop in t) return (t as Record<string | symbol, unknown>)[prop];
       if (typeof prop === "symbol" || prop === "then") return undefined;
       return (...a: unknown[]) => {
@@ -39,9 +42,19 @@ export function fakeObject(kind: string, args: readonly unknown[] = []): FakeObj
   return proxy;
 }
 
-/** A Phaser scene whose `add.*` factories make fake objects, kept in `made` in creation order. */
+/** A texture a view baked (see render/bake.ts): the draw calls that made it and its size in texels. */
+export interface FakeBake {
+  calls: Call[];
+  size: readonly [number, number];
+}
+
+/**
+ * A Phaser scene whose `add.*` factories make fake objects, kept in `made` in creation order. Its texture manager remembers what was
+ * baked into it (`baked`, by key, drawn through `make.graphics` and `generateTexture`), so a test can read what a texture shows.
+ */
 export function fakeScene() {
   const made: FakeObject[] = [];
+  const baked = new Map<string, FakeBake>();
   const add = new Proxy({}, {
     get: (_t, kind: string) => (...args: unknown[]) => {
       const o = fakeObject(kind, args);
@@ -49,15 +62,37 @@ export function fakeScene() {
       return o;
     },
   });
-  const scene = { add, cameras: { main: fakeObject("camera") } } as never;
-  return { scene, made, ofKind: (kind: string) => made.filter((o) => o.kind === kind) };
+  const textures = { exists: (key: string) => baked.has(key), remove: (key: string) => baked.delete(key) };
+  const make = {
+    graphics: () => {
+      const g = fakeObject("graphics");
+      // Phaser's Graphics keeps what it draws as a flat array of numbers (see render/mapBake.ts).
+      g.commandBuffer = [];
+      g.calls.length = 0; // that assignment is set-up, not drawing
+      return new Proxy(g, {
+        get(t, prop) {
+          if (prop === "generateTexture") {
+            return (key: string, w: number, h: number) => { baked.set(key, { calls: [...t.calls], size: [w, h] }); return t; };
+          }
+          return t[prop as string];
+        },
+      });
+    },
+  };
+  const scene = { add, make, textures, cameras: { main: fakeObject("camera") } } as never;
+  /** The names of the draw calls that made the texture an image shows now. */
+  const bakedCalls = (image: FakeObject): string[] => (baked.get(String(image.state.texture))?.calls ?? []).map(([n]) => n);
+  return { scene, made, baked, bakedCalls, ofKind: (kind: string) => made.filter((o) => o.kind === kind) };
 }
+
+/** A Phaser object the views made from this fake scene, seen as the fake it is (its recorded calls and state). */
+export const fk = (o: unknown): FakeObject => o as FakeObject;
 
 /** The names of the calls in `o.calls`, in order. */
 export const names = (o: FakeObject): string[] => o.calls.map(([n]) => n);
 
 /** The arguments of the calls to `name` in `o.calls`. */
-export const argsOf = (o: FakeObject, name: string): unknown[][] => o.calls.filter(([n]) => n === name).map(([, a]) => [...a]);
+export const argsOf = (o: { calls: readonly Call[] }, name: string): unknown[][] => o.calls.filter(([n]) => n === name).map(([, a]) => [...a]);
 
 // ---------------------------------------------------------------------------------------------------------------- DOM
 

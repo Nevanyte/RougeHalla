@@ -19,6 +19,7 @@ import { ContainerView } from "../render/ContainerView";
 import { FieldView } from "../render/FieldView";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
 import { containerWeapon, nearestContainer } from "../render/interact";
+import { bakeMapView, type BakedMap } from "../render/mapBake";
 import { MapView } from "../render/MapView";
 import { MobView } from "../render/MobView";
 import { PlayerView } from "../render/PlayerView";
@@ -87,6 +88,7 @@ export class RaidScene extends Phaser.Scene {
   private containerViews = new Map<string, ContainerView>();
   private projectiles!: ProjectileView;
   private mapView: MapView | null = null;
+  private bakedMap: BakedMap | null = null;
   private highlight!: ContainerHighlight;
   private rings!: TargetRings;
   private minimap!: Minimap;
@@ -997,9 +999,12 @@ export class RaidScene extends Phaser.Scene {
 
   /** The map is never synced, only its seed; both sides derive it with generateMap. */
   private buildMap(seed: number): void {
+    this.bakedMap?.destroy();
     this.mapView?.destroy();
     const map = generateMap(seed);
     this.mapView = new MapView(this, map);
+    // The static floor and wall rows become textured quads: see render/mapBake.ts.
+    this.bakedMap = bakeMapView(this, this.mapView, this.cameras.main.zoom);
     this.minimap.setMap(map);
     // The map screens are built once per room; a new seed (never within a room) repaints them.
     if (this.planning) this.planning.setMap(map);
@@ -1055,6 +1060,8 @@ export class RaidScene extends Phaser.Scene {
     this.mobViews.clear();
     for (const v of this.containerViews.values()) v.destroy();
     this.containerViews.clear();
+    this.bakedMap?.destroy();
+    this.bakedMap = null;
     this.mapView?.destroy();
     this.mapView = null;
     this.highlight.destroy();
