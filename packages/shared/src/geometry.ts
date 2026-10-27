@@ -1,4 +1,6 @@
-// Segment / grid-ray helpers shared by server sim (hitscan, LOS, bots) and client (fog, aim).
+// Segment / grid-ray helpers shared by server sim (hitscan, LOS, bots) and client (fog, aim). Lengths use
+// Math.sqrt(dx * dx + dy * dy), never Math.hypot: the generator calls findPath (segmentClear, raycast) to certify spawn walks, and
+// hypot may differ in its last bit between engines (zone-shapes contract 0.1.5).
 import { TILE } from "./constants";
 import { MASK_MOVE, MASK_SIGHT } from "./map";
 import type { GameMap } from "./map";
@@ -15,7 +17,8 @@ export function distPointToSegment(
   let t = len2 > 0 ? ((px - ax) * abx + (py - ay) * aby) / len2 : 0;
   if (t < 0) t = 0;
   else if (t > 1) t = 1;
-  return Math.hypot(px - (ax + abx * t), py - (ay + aby * t));
+  const ex = px - (ax + abx * t), ey = py - (ay + aby * t);
+  return Math.sqrt(ex * ex + ey * ey);
 }
 
 /** Does the tile (tx, ty) stop a query with this mask? Out of bounds blocks every query. `blocksTile` with the map's fields hoisted. */
@@ -45,7 +48,7 @@ export function raycast(map: GameMap, x0: number, y0: number, x1: number, y1: nu
 
   const dx = x1 - x0;
   const dy = y1 - y0;
-  const len = Math.hypot(dx, dy);
+  const len = Math.sqrt(dx * dx + dy * dy);
   if (len === 0) return { hit: false, x: x1, y: y1, dist: 0 };
 
   const stepX = dx > 0 ? 1 : dx < 0 ? -1 : 0;
@@ -127,7 +130,7 @@ export function segmentClear(map: GameMap, a: Vec2, b: Vec2, radius: number, mas
   if (raycast(map, a.x, a.y, b.x, b.y, mask).hit) return false;
   const dx = b.x - a.x;
   const dy = b.y - a.y;
-  const len = Math.hypot(dx, dy);
+  const len = Math.sqrt(dx * dx + dy * dy);
   if (len === 0 || radius <= 0) return true;
   const nx = -dy / len;
   const ny = dx / len;

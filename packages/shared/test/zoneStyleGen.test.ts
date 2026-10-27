@@ -107,14 +107,16 @@ describe("the hook adapter and zone isolation at the generator's hook", () => {
       const hook: ZoneStyleHook = (st) => {
         const direct = {
           w: st.w, h: st.h, seed: st.seed, attempt: st.attempt, tiles: st.tiles.slice(), terrain: st.terrain.slice(), props: [] as typeof st.props,
-          zone: st.zone, zoneFaction: st.zoneFaction, protect: st.protect, territory: st.territoryGrid, camps: st.camps, keepLow: new Uint8Array(st.tiles.length),
+          zone: st.zone, zoneFaction: st.zoneFaction, protect: st.protect, territory: st.territoryGrid, camps: st.camps,
+          spawns: st.spawns, centreWalk: st.centreWalk, features: st.features.slice(), featureOwner: st.featureOwner.slice(),
         };
         styleZones(direct, { decor: st.decor });
         zoneStylerHook(st);
         expect(Buffer.from(st.tiles).equals(Buffer.from(direct.tiles)), `seed ${s} tiles`).toBe(true);
         expect(Buffer.from(st.terrain).equals(Buffer.from(direct.terrain)), `seed ${s} terrain`).toBe(true);
         expect(st.props, `seed ${s} props`).toEqual(direct.props);
-        expect(st.keepLow.every((v) => v === 0), `seed ${s}: keepLow stays empty`).toBe(true);
+        expect(st.features, `seed ${s} features`).toEqual(direct.features);
+        expect(Buffer.from(st.featureOwner).equals(Buffer.from(direct.featureOwner)), `seed ${s} featureOwner`).toBe(true);
         checked++;
       };
       generateMap(s, m.attempt, { styleZones: hook });
@@ -132,7 +134,8 @@ describe("the hook adapter and zone isolation at the generator's hook", () => {
           const before = st.tiles.slice();
           styleZones({
             w: st.w, h: st.h, seed: st.seed, attempt: st.attempt, tiles: st.tiles, terrain: st.terrain, props: st.props, zone: st.zone,
-            zoneFaction: st.zoneFaction, protect: st.protect, territory: st.territoryGrid, camps: st.camps, keepLow: st.keepLow,
+            zoneFaction: st.zoneFaction, protect: st.protect, territory: st.territoryGrid, camps: st.camps,
+            spawns: st.spawns, centreWalk: st.centreWalk, features: st.features, featureOwner: st.featureOwner,
           }, { decor: st.decor, stylers });
           out = { tiles: st.tiles.slice(), terrain: st.terrain.slice(), zone: st.zone.slice(), before };
         };

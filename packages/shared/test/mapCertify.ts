@@ -3,7 +3,7 @@
 // certifier and of the mapgen tests of the 64x64 generator it replaced). It never reads the generator's bookkeeping: the contract's numbers are
 // written out here. Movement and sight go through the masks of map.ts: walkable is `(tile & MASK_MOVE) === 0` (TILE_LOW
 // blocks it), see-through is `(tile & MASK_SIGHT) === 0` (TILE_LOW lets sight through).
-import { MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, TILE } from "../src/constants";
+import { MAX_PLAYERS, TILE } from "../src/constants";
 import { raycast } from "../src/geometry";
 import {
   MASK_MOVE, MASK_SIGHT, REGION_COLISEUM, REGION_FACTIONS, REGION_NONE, REGION_WEAPONS, TILE_FLOOR, TILE_LOW, TILE_WALL, isWallTile, tileToWorldCenter,
@@ -19,33 +19,36 @@ import {
   TERRAINS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TERRAIN_NONE, validateTerrain,
 } from "../src/terrain";
 
-// ---- The contract's numbers (not read from the generator) ----
-export const MAP_SIZE = 96;
-/** The certifying lattice: 48 directions, lines a quarter tile apart, anchored at the coliseum centre less (32, 32). */
-export const LATTICE = { dirs: 48, step: 0.25, target: MAX_SIGHT_CORRIDOR / TILE - 0.02 };
-export const LATTICE_ANCHOR = MAP_SIZE / 2 - 32;
-const LANE_EPS = 1e-9;
-/** Float slack so a corridor of exactly the bound, summed from tile crossings, never reads as a hair over. */
-export const LANE_SLACK_U = 1e-6;
+// ---- The contract's numbers (not read from the generator; zone-shapes contract 6.1-6.3) ----
+export const MAP_SIZE = 136;
 export const ZONE_COUNT = 5;
 export const AREA_SPREAD_MAX = 8;
 export const FLOOR_SHARE_MAX = 1.15;
 export const RING_CONTACT_MIN = 24;
 export const SLIVER_MAX = 100;
-export const CAMPS_PER_ZONE = 4;
+export const CAMPS_PER_ZONE = 8;
+export const ELITES_PER_ZONE = 2;
+export const ELITE_MIN_SEP_TILES = 16;
 export const CAMP_GAP_TILES = 9;
 export const TERRITORY_RADIUS_TILES = 30;
+/** Pool members closer than SPAWN_SAFE_TILES need a wall on the straight line between them; none closer than SPAWN_SEP_TILES. */
+export const SPAWN_SAFE_TILES = 10;
 export const SPAWN_SEP_TILES = 5;
 export const SPAWN_CAMP_TILES = 5;
 export const POOL_MIN = 24;
 export const POOL_MAX = 32;
 export const POOL_ZONES = 4;
-export const WALK_BAND = 0.08;
-const FAN_RAYS = 801;
+/** The members' findPath walks to the coliseum centre: max/min (a certificate). */
+export const WALK_RATIO_MAX = 1.2;
+/** Floor-hazard tiles (ember, bog, ice) under a member's findPath walk, at most. */
+export const HAZARD_WALK_MAX = 8;
+export const CRATES_MIN = 4;
+export const CRATES_MAX = 6;
+export const GROUND_MIN = 30;
+export const GROUND_MAX = 45;
+export const FEATURES_MAX = 250;
 
 export interface MapStats {
-  lane: number;
-  sealedLane: number;
   painted: number[];
   floor: number[];
   contact: number[];
@@ -54,10 +57,14 @@ export interface MapStats {
   leashShare: number[];
   pool: number;
   poolZones: number;
+  /** The BFS 5/7 walk ratio over the pool (report only since the findPath gate). */
   walkRatio57: number;
-  pairsNear: number;
+  /** The findPath walk ratio over the pool (certified <= WALK_RATIO_MAX). */
+  walkRatioPath: number;
+  /** Floor-hazard tiles under each member's findPath walk. */
+  hazardsOnWalks: number[];
   rocks: number;
-  wallRun: number;
+  features: number;
   /** Per zone (REGION_FACTIONS order): tiles of each terrain kind (index = kind id), walls included for the LOW kinds' pillars. */
   kinds: number[][];
   /** Per zone: the walkable floor's 4-connected pieces (zone mode only; 0 otherwise). */
@@ -67,16 +74,13 @@ export interface MapStats {
 }
 
 export interface CertifyOptions {
-  /** The zone stylers ran: skips the small-rock-blob rule (a styler's structures may be long) and has validateTerrain check LOW kinds (T10). */
+  /** The zone stylers ran: validateTerrain checks LOW kinds (T10). */
   styled?: boolean;
   /** `styler=zone`: the generator's own zone stylers ran. Implies `styled`, and adds the zone-floor connectivity check and the spawn-to-centre hazard exposure. */
   zone?: boolean;
 }
 
-/**
- * Runs every per-map check; returns the failures (empty when the map certifies) and the measured numbers. `styled`
- * maps (zone stylers ran) skip the rule that outdoor walls are small rock blobs: a styler's structures may be long.
- */
+/** Runs every per-map check; returns the failures (empty when the map certifies) and the measured numbers. */
 export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: string[]; stats: MapStats } {
   const opts = { styled: !!(copts.styled || copts.zone), zone: !!copts.zone };
   const failures: string[] = [];
@@ -101,7 +105,7 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
     else if (!b && m.regionGrid[i] === REGION_NONE) gridBad = `no region at ${x},${y}`;
     else if (m.regionGrid[i] > REGION_COLISEUM) gridBad = `region code ${m.regionGrid[i]}`;
   }
-  check("grid: 96x96, tiles 0/1/2, border wall and none, every other tile in a zone or the coliseum", m.w === MAP_SIZE && m.h === MAP_SIZE && gridBad === "", () => gridBad);
+  check("grid: 136x136, tiles 0/1/2, border wall and none, every other tile in a zone or the coliseum", m.w === MAP_SIZE && m.h === MAP_SIZE && gridBad === "", () => gridBad);
   check("grid: territoryGrid and regionGrid are w*h Uint8Arrays", m.territoryGrid instanceof Uint8Array && m.territoryGrid.length === N && m.regionGrid.length === N);
 
   // --- Connectivity ----------------------------------------------------------------------------------------------------
@@ -181,17 +185,6 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
   }
   check("coliseum: centre tile floor, MAX_PLAYERS inner spawns with a clear 3x3 reachable sealed, pillars present and off the centre, inner spawns and gate lanes", innerOK && pillars > 0 && !pillarBad, () => `inner ${innerOK} pillars ${pillars} misplaced ${pillarBad}`);
 
-  // --- Sight: lattice lanes (open and sealed); the exact strip and disc checks are separate (costly) --------------------
-  const sightOpen = new Uint8Array(N), sealedOpen = new Uint8Array(N);
-  for (let i = 0; i < N; i++) {
-    sightOpen[i] = (m.tiles[i] & MASK_SIGHT) === 0 && m.regionGrid[i] !== REGION_NONE ? 1 : 0;
-    sealedOpen[i] = (locked.tiles[i] & MASK_SIGHT) === 0 && m.regionGrid[i] === REGION_COLISEUM ? 1 : 0;
-  }
-  const lane = fatLane(sightOpen, W, H, LATTICE.dirs, LATTICE.step, LATTICE_ANCHOR, LATTICE_ANCHOR);
-  const sealedLane = fatLane(sealedOpen, W, H, LATTICE.dirs, LATTICE.step, LATTICE_ANCHOR, LATTICE_ANCHOR);
-  check("sight: every lattice lane (48 dirs, 1/4-tile lines, anchored at the coliseum) <= 14.98 tiles, gates open", lane * TILE <= LATTICE.target * TILE + LANE_SLACK_U, () => `${(lane * TILE).toFixed(1)} u`);
-  check("sight: the same inside the coliseum with the gates closed", sealedLane * TILE <= LATTICE.target * TILE + LANE_SLACK_U, () => `${(sealedLane * TILE).toFixed(1)} u`);
-
   // --- Zones -------------------------------------------------------------------------------------------------------------
   const painted = codes.map((c) => { let k = 0; for (let i = 0; i < N; i++) if (m.regionGrid[i] === c) k++; return k; });
   const floor = codes.map((c) => { let k = 0; for (let i = 0; i < N; i++) if (m.regionGrid[i] === c && move(m.tiles, i)) k++; return k; });
@@ -222,7 +215,7 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
   // --- Camps and territories -------------------------------------------------------------------------------------------
   const camps = m.camps;
   const perZone = REGION_FACTIONS.map((f) => camps.filter((c) => c.zone === f));
-  check("camps: 4 per zone, exactly one elite camp per zone", perZone.every((cs) => cs.length === CAMPS_PER_ZONE && cs.filter((c) => c.eliteSpot >= 0).length === 1), () => perZone.map((cs) => cs.length).join("/"));
+  check("camps: 8 per zone, exactly two elite camps per zone", perZone.every((cs) => cs.length === CAMPS_PER_ZONE && cs.filter((c) => c.eliteSpot >= 0).length === ELITES_PER_ZONE), () => perZone.map((cs) => `${cs.length}:${cs.filter((c) => c.eliteSpot >= 0).length}`).join("/"));
   check("camps: ids in zone order, then index from 1", JSON.stringify(camps.map((c) => c.id)) === JSON.stringify(perZone.flatMap((cs, z) => cs.map((_, k) => `${REGION_FACTIONS[z]}-${k + 1}`))) && camps.every((c, i) => i === 0 || REGION_FACTIONS.indexOf(c.zone) >= REGION_FACTIONS.indexOf(camps[i - 1].zone)));
   let spacing = Infinity;
   for (let i = 0; i < camps.length; i++) for (let j = i + 1; j < camps.length; j++) spacing = Math.min(spacing, dist(camps[i], camps[j]));
@@ -262,8 +255,13 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
     leashShare.push(near / area);
   });
   for (const f of REGION_FACTIONS) {
-    const zc = camps.filter((c) => c.zone === f), elite = zc.find((c) => c.eliteSpot >= 0);
-    if (elite) check(`camps: ${f} elite camp is the zone's camp farthest from the centre`, zc.every((c) => dist(elite, m.coliseum.centre) >= dist(c, m.coliseum.centre) - 1e-9));
+    // The elite camps: the zone's camp farthest from the centre, then the next farthest at least 16 tiles from it (else the second farthest).
+    const zc = camps.filter((c) => c.zone === f).map((c, k) => ({ c, k, d: dist(c, m.coliseum.centre) }));
+    zc.sort((a, b) => b.d - a.d || a.k - b.k);
+    if (zc.length < 2) continue;
+    const first = zc[0].c, second = (zc.slice(1).find((e) => dist(e.c, first) >= ELITE_MIN_SEP_TILES * TILE - 1e-9) ?? zc[1]).c;
+    const elites = zc.filter((e) => e.c.eliteSpot >= 0).map((e) => e.c);
+    check(`camps: ${f} elite camps are its farthest from the centre and the next farthest 16+ tiles from it`, elites.length === 2 && elites.includes(first) && elites.includes(second), () => elites.map((c) => c.id).join(","));
   }
 
   // --- Spawn pool --------------------------------------------------------------------------------------------------------
@@ -276,9 +274,9 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
     if (!isTileCentre(s)) poolTile = "not a tile centre";
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!move(m.tiles, (y + dy) * W + x + dx)) poolTile = `3x3 at ${x},${y}`;
     if (REGION_FACTIONS[m.regionGrid[y * W + x] - 1] !== s.zone) poolTile = `zone tag at ${x},${y}`;
-    if (m.buildings.some((b) => inRect(b, x, y))) poolTile = `in a ruin at ${x},${y}`;
+    if (m.buildings.some((b) => inRect(b, x, y))) poolTile = `in a landmark at ${x},${y}`;
   }
-  check("spawns: tile centres with a clear 3x3 of floor, outside ruins, tagged with their tile's zone", poolTile === "", () => poolTile);
+  check("spawns: tile centres with a clear 3x3 of floor, outside landmarks, tagged with their tile's zone", poolTile === "", () => poolTile);
   let sepMin = Infinity, campMin = Infinity;
   for (let i = 0; i < pool.length; i++) {
     for (let j = i + 1; j < pool.length; j++) sepMin = Math.min(sepMin, dist(pool[i], pool[j]));
@@ -286,23 +284,39 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
   }
   check("spawns: 5+ tiles apart, pool-wide", sepMin >= SPAWN_SEP_TILES * TILE - 1e-9, () => `${(sepMin / TILE).toFixed(2)}`);
   check("spawns: 5+ tiles from every camp centre", campMin >= SPAWN_CAMP_TILES * TILE - 1e-9, () => `${(campMin / TILE).toFixed(2)}`);
-  const offenders: string[] = [];
-  let pairsNear = 0;
+  // Spawn safety (owner ruling): two members closer than 10 tiles have a wall on the straight line between their centres.
+  let unsafe = "";
   for (let i = 0; i < pool.length; i++) {
     for (let j = i + 1; j < pool.length; j++) {
-      if (dist(pool[i], pool[j]) > MAX_SIGHT_CORRIDOR) continue;
-      pairsNear++;
-      for (const [a, b] of [[pool[i], pool[j]], [pool[j], pool[i]]] as const) {
-        const fan = hittableAim(m, a, b, RANGED_HIT_REACH), exact = firstOpenSlope(m, a, b, RANGED_HIT_REACH);
-        if (fan !== null || exact !== null) offenders.push(`${a.x},${a.y} -> ${b.x},${b.y} (fan ${fan?.toFixed(3)}, exact ${exact?.toFixed(3)})`);
-      }
+      if (dist(pool[i], pool[j]) >= SPAWN_SAFE_TILES * TILE - 1e-9) continue;
+      if (!raycast(m, pool[i].x, pool[i].y, pool[j].x, pool[j].y, MASK_SIGHT).hit) unsafe = `${pool[i].x},${pool[i].y} and ${pool[j].x},${pool[j].y}`;
     }
   }
-  check("spawns: no member can shoot another within 480 u, both ways (raycast fan and exact cone)", offenders.length === 0, () => offenders.slice(0, 3).join("; "));
+  check("spawns: members under 10 tiles apart have a wall on the line between them", unsafe === "", () => unsafe);
   const w57 = walk57(m, centre);
   const walks = pool.map((s) => w57[tIdx(s)]);
   const walkRatio57 = Math.max(...walks) / Math.min(...walks);
-  check("spawns: all within 8% of one walking distance to the centre (BFS 5/7, after cover)", walks.every((v) => v > 0 && v < 1 << 29) && walkRatio57 <= (1 + WALK_BAND) / (1 - WALK_BAND) + 1e-12, () => walkRatio57.toFixed(4));
+  // The findPath walks (the generator's spawn gate, re-measured): max/min <= 1.2, and at most 8 floor-hazard tiles on each.
+  const pathWalks: number[] = [], hazardsOnWalks: number[] = [];
+  for (const p of pool) {
+    let len = 0, ax = p.x, ay = p.y;
+    const seen = new Set<number>();
+    for (const q of findPath(m, p, m.coliseum.centre)) {
+      len += Math.sqrt((q.x - ax) * (q.x - ax) + (q.y - ay) * (q.y - ay));
+      const steps = Math.ceil(Math.sqrt((q.x - ax) * (q.x - ax) + (q.y - ay) * (q.y - ay)) / 4);
+      for (let k = 0; k <= steps; k++) {
+        const t = Math.floor((ay + ((q.y - ay) * k) / Math.max(1, steps)) / TILE) * W + Math.floor((ax + ((q.x - ax) * k) / Math.max(1, steps)) / TILE);
+        const kind = m.terrain[t];
+        if (kind === TERRAIN_EMBER || kind === TERRAIN_BOG || kind === TERRAIN_ICE) seen.add(t);
+      }
+      ax = q.x; ay = q.y;
+    }
+    pathWalks.push(len);
+    hazardsOnWalks.push(seen.size);
+  }
+  const walkRatioPath = Math.max(...pathWalks) / Math.min(...pathWalks);
+  check("spawns: every member walks to the centre (findPath), max/min <= 1.2", Math.min(...pathWalks) > 0 && walkRatioPath <= WALK_RATIO_MAX + 1e-9, () => walkRatioPath.toFixed(4));
+  check("spawns: at most 8 floor-hazard tiles on every member's walk", Math.max(0, ...hazardsOnWalks) <= HAZARD_WALK_MAX, () => `${Math.max(...hazardsOnWalks)}`);
 
   // --- Views and records --------------------------------------------------------------------------------------------------
   check("regions: five in REGION_FACTIONS order", JSON.stringify(m.regions.map((r) => r.id)) === JSON.stringify(REGION_FACTIONS));
@@ -321,54 +335,58 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
   if (JSON.stringify(m.crateSpots) !== JSON.stringify(m.regions.flatMap((r) => r.chestSpots))) views = "crateSpots";
   check("views: mobCamps, region spawns, spawns, crateSpots derive from camps and the pool; area is painted; pole is outdoor floor in the zone", views === "", () => views);
 
-  // --- Crates, ground spots, ruins, outdoor walls -----------------------------------------------------------------------
+  // --- Features --------------------------------------------------------------------------------------------------------
+  let feats = m.featureGrid instanceof Uint8Array && m.featureGrid.length === N && m.features.length <= FEATURES_MAX ? "" : "featureGrid or count";
+  const featCount = new Array<number>(m.features.length + 1).fill(0);
+  for (let i = 0; i < N && feats === ""; i++) {
+    const v = m.featureGrid[i];
+    if (v === 0) continue;
+    if (v > m.features.length) { feats = `featureGrid ${v} at ${i % W},${Math.floor(i / W)}`; break; }
+    featCount[v]++;
+    const f = m.features[v - 1];
+    if (!inRect(f.bbox, i % W, Math.floor(i / W))) feats = `feature ${v - 1} owns a tile outside its box`;
+  }
+  m.features.forEach((f, k) => { if (feats === "" && f.tiles !== featCount[k + 1]) feats = `feature ${k} counts ${f.tiles} tiles, owns ${featCount[k + 1]}`; });
+  check("features: at most 250, featureGrid names them, each one's tiles and box match its ownership", feats === "", () => feats);
+
+  // --- Crates, ground spots -----------------------------------------------------------------------------------------------
   const allSpots = camps.flatMap((c) => c.spots.map(tIdx));
   const chebT = (a: number, b: number): number => Math.max(Math.abs((a % W) - (b % W)), Math.abs(Math.floor(a / W) - Math.floor(b / W)));
   let crates = "";
   const seenCrates = new Set<number>();
   for (const r of m.regions) {
-    if (r.chestSpots.length < 3 || r.chestSpots.length > 4) crates = `${r.id}: ${r.chestSpots.length}`;
+    if (r.chestSpots.length < CRATES_MIN || r.chestSpots.length > CRATES_MAX) crates = `${r.id}: ${r.chestSpots.length}`;
     r.chestSpots.forEach((p, i) => {
       const t = tIdx(p), x = t % W, y = Math.floor(t / W);
       if (!isTileCentre(p) || !move(m.tiles, t) || REGION_FACTIONS[m.regionGrid[t] - 1] !== r.id || fpd[t] <= 3 || x < 2 || y < 2 || x > W - 3 || y > H - 3) crates = `${r.id} crate ${x},${y} placement`;
-      if (!(isWallTile(m, x - 1, y) || isWallTile(m, x + 1, y) || isWallTile(m, x, y - 1) || isWallTile(m, x, y + 1))) crates = `${r.id} crate ${x},${y} not against a wall`;
+      // Against a wall; or (phase A, a zone with too few walls) on open floor with a clear 3x3.
+      let clear3 = true;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!move(m.tiles, (y + dy) * W + x + dx)) clear3 = false;
+      if (!(isWallTile(m, x - 1, y) || isWallTile(m, x + 1, y) || isWallTile(m, x, y - 1) || isWallTile(m, x, y + 1)) && !clear3) crates = `${r.id} crate ${x},${y} neither against a wall nor in the open`;
       if (pool.some((s) => chebT(tIdx(s), t) < 3) || allSpots.some((s) => chebT(s, t) < 2) || camps.some((c) => chebT(tIdx(c), t) < 3)) crates = `${r.id} crate ${x},${y} too near a spawn, spot or camp`;
       if (seenCrates.has(t)) crates = "duplicate";
       seenCrates.add(t);
       for (let j = 0; j < i; j++) if (chebT(tIdx(r.chestSpots[j]), t) < 2) crates = `${r.id} crates touch`;
     });
   }
-  check("crates: 3-4 per zone, floor against a wall, in the zone, off the ring road and the border ring, apart from spawns, spots, camps and each other", crates === "", () => crates);
+  check("crates: 4-6 per zone, floor against a wall (or in the open), in the zone, off the ring road and the border ring, apart from spawns, spots, camps and each other", crates === "", () => crates);
   const clearingSet = new Set<number>();
   for (const c of camps) { const cx = worldToTile(c.x), cy = worldToTile(c.y); for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (dx * dx + dy * dy <= 6.25) clearingSet.add((cy + dy) * W + cx + dx); }
-  let ground = m.groundSpots.length >= 20 && m.groundSpots.length <= 30 ? "" : `${m.groundSpots.length} spots`;
+  let ground = m.groundSpots.length >= GROUND_MIN && m.groundSpots.length <= GROUND_MAX ? "" : `${m.groundSpots.length} spots`;
   if (new Set(m.groundSpots.map(tIdx)).size !== m.groundSpots.length) ground = "duplicates";
   for (const p of m.groundSpots) {
     const t = tIdx(p), x = t % W, y = Math.floor(t / W);
     if (!isTileCentre(p) || !move(m.tiles, t) || m.regionGrid[t] === REGION_COLISEUM || m.buildings.some((b) => inRect(b, x, y)) || clearingSet.has(t)) ground = `${x},${y} placement`;
     if (pool.some((s) => dist(s, p) < 3 * TILE) || m.crateSpots.some((c) => chebT(tIdx(c), t) < 2)) ground = `${x},${y} near a spawn or crate`;
   }
-  check("ground: 20-30 distinct floor spots outside ruins, camp clearings and the coliseum, off spawns and crates", ground === "", () => ground);
-  let ruins = "";
-  const perZoneRuins = new Array<number>(ZONE_COUNT + 1).fill(0);
+  check("ground: 30-45 distinct floor spots outside landmarks, camp clearings and the coliseum, off spawns and crates", ground === "", () => ground);
+  let landmarks = "";
   m.buildings.forEach((b, bi) => {
     const code = m.regionGrid[b.y * W + b.x];
-    perZoneRuins[code]++;
-    if (!isZone(code) || b.w < 7 || b.w > 9 || b.h < 7 || b.h > 9 || b.x < 4 || b.y < 4 || b.x + b.w > W - 4 || b.y + b.h > H - 4) ruins = `ruin ${bi} size or place`;
-    for (let y = b.y - 1; y <= b.y + b.h; y++) for (let x = b.x - 1; x <= b.x + b.w; x++) if (m.regionGrid[y * W + x] !== code || fpd[y * W + x] < 4) ruins = `ruin ${bi} margin`;
-    for (const t of clearingSet) { const x = t % W, y = Math.floor(t / W); if (x >= b.x - 2 && x < b.x + b.w + 2 && y >= b.y - 2 && y < b.y + b.h + 2) ruins = `ruin ${bi} near a camp clearing`; }
-    for (let j = 0; j < bi; j++) { const o = m.buildings[j]; if (Math.max(o.x - (b.x + b.w), b.x - (o.x + o.w), o.y - (b.y + b.h), b.y - (o.y + o.h)) < 2) ruins = `ruins ${j},${bi} touch`; }
-    const doors = doorRuns(m, b);
-    if (doors.length < 1 || doors.length > 3 || new Set(doors.map((d) => d.side)).size !== doors.length || doors.some((d) => d.len !== 2 || d.start < 1 || d.start + d.len > (d.side % 2 === 0 ? b.w : b.h) - 1)) ruins = `ruin ${bi} doors`;
-    for (const [cx, cy] of [[b.x, b.y], [b.x + b.w - 1, b.y], [b.x, b.y + b.h - 1], [b.x + b.w - 1, b.y + b.h - 1]]) if (!isWallTile(m, cx, cy)) ruins = `ruin ${bi} corner`;
-    let interior = 0, free = 0;
-    for (let y = b.y + 1; y < b.y + b.h - 1; y++) for (let x = b.x + 1; x < b.x + b.w - 1; x++) { interior++; if (move(m.tiles, y * W + x)) free++; }
-    if (free / interior <= 0.6) ruins = `ruin ${bi} interior ${free}/${interior}`;
+    if (!isZone(code)) landmarks = `landmark ${bi} not in a zone`;
+    for (let y = b.y - 1; y <= b.y + b.h; y++) for (let x = b.x - 1; x <= b.x + b.w; x++) if (m.regionGrid[y * W + x] !== code) landmarks = `landmark ${bi} margin`;
   });
-  if (perZoneRuins.slice(1).some((k) => k > 2)) ruins = `ruins per zone ${perZoneRuins.slice(1).join("/")}`;
-  check("ruins: 0-2 per zone, 7-9 a side inside one zone (+1 margin), off the ring road, apart, clear of camps, 1-3 doors, open inside", ruins === "", () => ruins);
-  const wallRun = longestOutdoorWallRun(m);
-  if (!opts.styled) check("cover: outdoor walls stay small blobs: no straight run of 15 tiles", wallRun <= MAX_SIGHT_CORRIDOR / TILE - 1, () => `${wallRun}`);
+  check("landmarks: each box (+1 margin) inside one zone", landmarks === "", () => landmarks);
 
   // --- Terrain (zone-terrain contract) ----------------------------------------------------------------------------------------
   const terrainErrors = validateTerrain(m, { styled: opts.styled });
@@ -450,7 +468,10 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
   }
   return {
     failures,
-    stats: { lane, sealedLane, painted, floor, contact, slivers, radius, leashShare, pool: pool.length, poolZones: zonesIn.size, walkRatio57, pairsNear, rocks, wallRun, kinds, zonePieces, hazardExposure },
+    stats: {
+      painted, floor, contact, slivers, radius, leashShare, pool: pool.length, poolZones: zonesIn.size, walkRatio57, walkRatioPath, hazardsOnWalks, rocks,
+      features: m.features.length, kinds, zonePieces, hazardExposure,
+    },
   };
 }
 
@@ -508,274 +529,6 @@ function sliverTiles(m: GameMap, code: number): number {
   return s;
 }
 
-const snapZero = (v: number): number => (Math.abs(v) < 1e-12 ? 0 : v);
-
-/**
- * The longest lattice lane in tiles: for `dirs` directions (angle k*pi/dirs) the lines {p : n.(p - origin) = j*step} are
- * walked tile by tile (Amanatides-Woo); a lane is an interval along which both of two adjacent lines run through open
- * tiles only. Crossings shorter than 1e-9 (a corner touch) neither break nor extend a run.
- */
-export function fatLane(open: Uint8Array, w: number, h: number, dirs: number, step: number, ox = 0, oy = 0): number {
-  let prev = new Float64Array(1024), cur = new Float64Array(1024);
-  let best = 0;
-  for (let k = 0; k < dirs; k++) {
-    const a = (k * Math.PI) / dirs;
-    const dx = snapZero(Math.cos(a)), dy = snapZero(Math.sin(a));
-    const nx = -dy, ny = dx;
-    const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
-    const tdx = dx === 0 ? Infinity : 1 / Math.abs(dx), tdy = dy === 0 ? Infinity : 1 / Math.abs(dy);
-    const corners = [-ox * nx - oy * ny, (w - ox) * nx - oy * ny, -ox * nx + (h - oy) * ny, (w - ox) * nx + (h - oy) * ny];
-    const jMin = Math.ceil(Math.min(...corners) / step), jMax = Math.floor(Math.max(...corners) / step);
-    const walk = (j: number, out: Float64Array): number => {
-      const bx = ox + j * step * nx, by = oy + j * step * ny;
-      let t0 = -Infinity, t1 = Infinity;
-      if (dx !== 0) { const p = -bx / dx, q = (w - bx) / dx; t0 = Math.max(t0, Math.min(p, q)); t1 = Math.min(t1, Math.max(p, q)); }
-      else if (bx < 0 || bx > w) return 0;
-      if (dy !== 0) { const p = -by / dy, q = (h - by) / dy; t0 = Math.max(t0, Math.min(p, q)); t1 = Math.min(t1, Math.max(p, q)); }
-      else if (by < 0 || by > h) return 0;
-      if (!(t1 - t0 > LANE_EPS)) return 0;
-      const e = Math.min(1e-7, (t1 - t0) / 2);
-      let cx = Math.min(w - 1, Math.max(0, Math.floor(bx + (t0 + e) * dx)));
-      let cy = Math.min(h - 1, Math.max(0, Math.floor(by + (t0 + e) * dy)));
-      let tMaxX = dx === 0 ? Infinity : ((dx > 0 ? cx + 1 : cx) - bx) / dx;
-      let tMaxY = dy === 0 ? Infinity : ((dy > 0 ? cy + 1 : cy) - by) / dy;
-      let t = t0, runStart = NaN, runEnd = 0, n = 0;
-      for (;;) {
-        const tn = Math.min(tMaxX, tMaxY, t1);
-        if (tn - t >= LANE_EPS) {
-          if (open[cy * w + cx]) { if (Number.isNaN(runStart)) runStart = t; runEnd = tn; }
-          else if (!Number.isNaN(runStart)) { if (n < 500) { out[2 * n] = runStart; out[2 * n + 1] = runEnd; n++; } runStart = NaN; }
-        }
-        if (tn >= t1) break;
-        if (tMaxX < tMaxY) { cx += sx; tMaxX += tdx; } else { cy += sy; tMaxY += tdy; }
-        t = tn;
-        if (cx < 0 || cy < 0 || cx >= w || cy >= h) break;
-      }
-      if (!Number.isNaN(runStart) && n < 500) { out[2 * n] = runStart; out[2 * n + 1] = runEnd; n++; }
-      return n;
-    };
-    let prevN = 0;
-    for (let j = jMin; j <= jMax; j++) {
-      const n = walk(j, cur);
-      for (let i = 0, q = 0; i < n && q < prevN;) {
-        const lo = Math.max(cur[2 * i], prev[2 * q]), hi = Math.min(cur[2 * i + 1], prev[2 * q + 1]);
-        if (hi - lo > best) best = hi - lo;
-        if (cur[2 * i + 1] < prev[2 * q + 1]) i++; else q++;
-      }
-      const tmp = prev; prev = cur; cur = tmp; prevN = n;
-    }
-  }
-  return best;
-}
-
-/**
- * The longest strip of width `wt` tiles, at the angles `thetas` and offsets `ostep` apart, whose interior meets no
- * blocked tile, in tiles. Every blocked tile is clipped against each slab it meets; a free strip is a gap between the
- * stretches they block. Slabs shrink by 1e-7 so a wall touching only the side does not count. Sampling only under-reports.
- */
-export function longestFreeStrip(blocked: Uint8Array, w: number, h: number, wt: number, thetas: readonly number[], ostep: number): { len: number; deg: number } {
-  const bx: number[] = [], by: number[] = [];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (blocked[y * w + x]) { bx.push(x); by.push(y); }
-  const nb = bx.length, SHRINK = 1e-7, range = new Float64Array(2);
-  const i0s = new Int32Array(nb), i1s = new Int32Array(nb);
-  let best = 0, bestDeg = 0;
-  for (const th of thetas) {
-    const dx = Math.cos(th), dy = Math.sin(th), nx = -dy, ny = dx;
-    const oMin = Math.min(0, nx * w, ny * h, nx * w + ny * h) - wt, oMax = Math.max(0, nx * w, ny * h, nx * w + ny * h);
-    const nO = Math.ceil((oMax - oMin) / ostep) + 1;
-    const start = new Int32Array(nO + 1);
-    for (let t = 0; t < nb; t++) {
-      const p0 = nx * bx[t] + ny * by[t];
-      const pmin = Math.min(p0, p0 + nx, p0 + ny, p0 + nx + ny), pmax = Math.max(p0, p0 + nx, p0 + ny, p0 + nx + ny);
-      const i0 = Math.max(0, Math.floor((pmin - wt - oMin) / ostep)), i1 = Math.min(nO - 1, Math.ceil((pmax - oMin) / ostep));
-      i0s[t] = i0; i1s[t] = i1;
-      for (let i = i0; i <= i1; i++) start[i + 1]++;
-    }
-    for (let i = 0; i < nO; i++) start[i + 1] += start[i];
-    const from = new Float64Array(start[nO]), to = new Float64Array(start[nO]);
-    const fill = start.slice(0, nO);
-    for (let t = 0; t < nb; t++) {
-      for (let i = i0s[t]; i <= i1s[t]; i++) {
-        const lo = oMin + i * ostep + SHRINK, hi = oMin + i * ostep + wt - SHRINK;
-        if (clipSquare(bx[t], by[t], nx, ny, dx, dy, lo, hi, range)) { const f = fill[i]++; from[f] = range[0]; to[f] = range[1]; }
-      }
-    }
-    for (let i = 0; i < nO; i++) {
-      const a = start[i], b = fill[i];
-      if (b - a < 2) continue;
-      for (let p = a + 1; p < b; p++) {
-        const f = from[p], e = to[p];
-        let q = p - 1;
-        while (q >= a && from[q] > f) { from[q + 1] = from[q]; to[q + 1] = to[q]; q--; }
-        from[q + 1] = f; to[q + 1] = e;
-      }
-      let reach = to[a];
-      for (let p = a + 1; p < b; p++) {
-        if (from[p] - reach > best) { best = from[p] - reach; bestDeg = (th * 180) / Math.PI; }
-        if (to[p] > reach) reach = to[p];
-      }
-    }
-  }
-  return { len: best, deg: bestDeg };
-}
-
-const sqX = new Float64Array(4), sqY = new Float64Array(4), sqV = new Float64Array(4);
-function clipSquare(x: number, y: number, nx: number, ny: number, dx: number, dy: number, lo: number, hi: number, out: Float64Array): boolean {
-  sqX[0] = x; sqX[1] = x + 1; sqX[2] = x + 1; sqX[3] = x;
-  sqY[0] = y; sqY[1] = y; sqY[2] = y + 1; sqY[3] = y + 1;
-  let vmin = Infinity, vmax = -Infinity;
-  for (let c = 0; c < 4; c++) { const v = nx * sqX[c] + ny * sqY[c]; sqV[c] = v; if (v < vmin) vmin = v; if (v > vmax) vmax = v; }
-  if (!(vmin < hi && vmax > lo)) return false;
-  let mn = Infinity, mx = -Infinity;
-  for (let c = 0; c < 4; c++) {
-    if (sqV[c] >= lo && sqV[c] <= hi) { const u = dx * sqX[c] + dy * sqY[c]; if (u < mn) mn = u; if (u > mx) mx = u; }
-    const d = (c + 1) & 3;
-    for (let side = 0; side < 2; side++) {
-      const bound = side === 0 ? lo : hi;
-      const fa = sqV[c] - bound, fb = sqV[d] - bound;
-      if ((fa < 0 && fb > 0) || (fa > 0 && fb < 0)) {
-        const t = fa / (fa - fb);
-        const u = dx * (sqX[c] + t * (sqX[d] - sqX[c])) + dy * (sqY[c] + t * (sqY[d] - sqY[c]));
-        if (u < mn) mn = u;
-        if (u > mx) mx = u;
-      }
-    }
-  }
-  out[0] = mn; out[1] = mx;
-  return mn <= mx;
-}
-
-/** The off-lattice angles of the exact strip check: midpoints between neighbouring directions of the 32- and 48-direction lattices. */
-export function offLatticeAngles(): number[] {
-  const lattices = [32, 48];
-  const onLattice = (th: number): boolean => lattices.some((n) => Math.abs((th * n) / Math.PI - Math.round((th * n) / Math.PI)) < 1e-9);
-  return lattices.flatMap((n) => Array.from({ length: n }, (_, k) => ((k + 0.5) * Math.PI) / n)).filter((th) => !onLattice(th));
-}
-
-/** Earliest t >= 0 at which a disc of radius r centred at (px, py) + t*(dx, dy) overlaps the tile square (qx, qy); Infinity if never. */
-function discHitsTile(px: number, py: number, dx: number, dy: number, qx: number, qy: number, r: number): number {
-  let best = Infinity;
-  for (let pass = 0; pass < 2; pass++) {
-    const x0 = pass === 0 ? qx - r : qx, x1 = pass === 0 ? qx + 1 + r : qx + 1;
-    const y0 = pass === 0 ? qy : qy - r, y1 = pass === 0 ? qy + 1 : qy + 1 + r;
-    let lo = -Infinity, hi = Infinity, miss = false;
-    if (dx === 0) { if (px <= x0 || px >= x1) miss = true; }
-    else { const p = (x0 - px) / dx, q = (x1 - px) / dx; lo = Math.max(lo, Math.min(p, q)); hi = Math.min(hi, Math.max(p, q)); }
-    if (!miss) {
-      if (dy === 0) { if (py <= y0 || py >= y1) miss = true; }
-      else { const p = (y0 - py) / dy, q = (y1 - py) / dy; lo = Math.max(lo, Math.min(p, q)); hi = Math.min(hi, Math.max(p, q)); }
-    }
-    if (!miss && lo < hi && hi > 0) best = Math.min(best, Math.max(lo, 0));
-  }
-  for (let c = 0; c < 4; c++) {
-    const fx = px - (qx + (c & 1)), fy = py - (qy + (c >> 1));
-    const b = fx * dx + fy * dy, disc = b * b - (fx * fx + fy * fy - r * r);
-    if (disc > 0) { const sq = Math.sqrt(disc); if (-b + sq > 0) best = Math.min(best, Math.max(-b - sq, 0)); }
-  }
-  return best;
-}
-
-function discReach(open: Uint8Array, near: Uint8Array, w: number, h: number, cx: number, cy: number, dx: number, dy: number, r: number): number {
-  const px = cx + 0.5, py = cy + 0.5;
-  const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
-  const tdx = dx === 0 ? Infinity : 1 / Math.abs(dx), tdy = dy === 0 ? Infinity : 1 / Math.abs(dy);
-  let tMaxX = 0.5 * tdx, tMaxY = 0.5 * tdy;
-  let t = 0, tBlock = Infinity;
-  for (;;) {
-    if (t >= tBlock) return tBlock;
-    const tn = tMaxX < tMaxY ? tMaxX : tMaxY;
-    if (near[cy * w + cx]) {
-      for (let j = -1; j <= 1; j++) {
-        for (let i = -1; i <= 1; i++) {
-          const x = cx + i, y = cy + j;
-          if (x < 0 || y < 0 || x >= w || y >= h || !open[y * w + x]) tBlock = Math.min(tBlock, discHitsTile(px, py, dx, dy, x, y, r));
-        }
-      }
-    }
-    if (tn - t >= LANE_EPS && !open[cy * w + cx]) return Math.min(tBlock, t);
-    if (tMaxX < tMaxY) { cx += sx; tMaxX += tdx; } else { cy += sy; tMaxY += tdy; }
-    t = tn;
-    if (cx < 0 || cy < 0 || cx >= w || cy >= h) return Math.min(tBlock, t);
-  }
-}
-
-/** The longest straight segment through any open tile centre, in `dirs` directions, along which a disc of radius r stays on open tiles (tiles). */
-export function denseDisc(open: Uint8Array, w: number, h: number, r: number, dirs = 64): number {
-  const near = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      for (let j = -1; j <= 1 && !near[y * w + x]; j++) {
-        for (let i = -1; i <= 1; i++) {
-          const nx = x + i, ny = y + j;
-          if (nx < 0 || ny < 0 || nx >= w || ny >= h || !open[ny * w + nx]) { near[y * w + x] = 1; break; }
-        }
-      }
-    }
-  }
-  let best = 0;
-  for (let k = 0; k < dirs; k++) {
-    const a = (k * Math.PI) / dirs;
-    const dx = snapZero(Math.cos(a)), dy = snapZero(Math.sin(a));
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        if (!open[y * w + x]) continue;
-        const len = discReach(open, near, w, h, x, y, dx, dy, r) + discReach(open, near, w, h, x, y, -dx, -dy, r);
-        if (len > best) best = len;
-      }
-    }
-  }
-  return best;
-}
-
-/**
- * Sampled check with the sim's own wall test: FAN_RAYS aims across the cone from `a` that can hit a target at `b`
- * (centre within `reach` of the ray), each cast with `raycast` up to MAX_SIGHT_CORRIDOR. Returns the first aim that
- * hits (degrees off the centre line), or null.
- */
-export function hittableAim(m: GameMap, a: Vec2, b: Vec2, reach: number): number | null {
-  const L = dist(a, b), ang0 = Math.atan2(b.y - a.y, b.x - a.x), maxOff = Math.asin(Math.min(1, reach / L)), half = (FAN_RAYS - 1) / 2;
-  for (let k = 0; k < FAN_RAYS; k++) {
-    const off = ((k - half) / half) * maxOff;
-    const dx = Math.cos(ang0 + off), dy = Math.sin(ang0 + off);
-    const s = (b.x - a.x) * dx + (b.y - a.y) * dy, perp = Math.abs((b.x - a.x) * dy - (b.y - a.y) * dx);
-    if (s < 0 || perp > reach + 1e-9) continue;
-    const wall = raycast(m, a.x, a.y, a.x + dx * MAX_SIGHT_CORRIDOR, a.y + dy * MAX_SIGHT_CORRIDOR);
-    if (s <= (wall.hit ? wall.dist : MAX_SIGHT_CORRIDOR)) return (off * 180) / Math.PI;
-  }
-  return null;
-}
-
-/**
- * Exact check: the aims that hit are the slopes |cross/dot| <= reach / sqrt(L^2 - reach^2) about the centre line, and
- * each passes the target at s >= sqrt(L^2 - reach^2). A wall tile in front whose far corner is nearer than that stops
- * every aim between its extreme corners' slopes; the cone is shut when such tiles cover the whole interval. Returns the
- * first open slope (degrees) or null. It can only over-report.
- */
-export function firstOpenSlope(m: GameMap, a: Vec2, b: Vec2, reach: number): number | null {
-  const L = dist(a, b), sMin = Math.sqrt(L * L - reach * reach), edge = reach / sMin;
-  const dx = (b.x - a.x) / L, dy = (b.y - a.y) / L;
-  const tx0 = worldToTile(Math.min(a.x, b.x)) - 1, tx1 = worldToTile(Math.max(a.x, b.x)) + 1;
-  const ty0 = worldToTile(Math.min(a.y, b.y)) - 1, ty1 = worldToTile(Math.max(a.y, b.y)) + 1;
-  const spans: [number, number][] = [];
-  for (let ty = ty0; ty <= ty1; ty++) {
-    for (let tx = tx0; tx <= tx1; tx++) {
-      if (!isWallTile(m, tx, ty)) continue;
-      let lo = Infinity, hi = -Infinity, far = 0, front = true;
-      for (let c = 0; c < 4; c++) {
-        const rx = (tx + (c & 1)) * TILE - a.x, ry = (ty + (c >> 1)) * TILE - a.y, along = rx * dx + ry * dy;
-        if (along <= 0) { front = false; break; }
-        const slope = (dx * ry - dy * rx) / along;
-        lo = Math.min(lo, slope); hi = Math.max(hi, slope); far = Math.max(far, Math.hypot(rx, ry));
-      }
-      if (front && far < sMin && hi >= -edge && lo <= edge) spans.push([lo, hi]);
-    }
-  }
-  spans.sort((p, q) => p[0] - q[0]);
-  let covered = -edge;
-  for (const [lo, hi] of spans) { if (lo > covered + 1e-9) break; if (hi > covered) covered = hi; }
-  return covered >= edge - 1e-9 ? null : (Math.atan(covered) * 180) / Math.PI;
-}
-
 /** Walking distance (5 straight, 7 diagonal, no corner cutting) over walkable tiles, by a bucketed Dijkstra. */
 export function walk57(m: GameMap, from: number): Int32Array {
   const w = m.w, N = w * m.h, d = new Int32Array(N).fill(1 << 30), done = new Uint8Array(N);
@@ -810,81 +563,16 @@ export function walkLength(m: GameMap, a: Vec2, b: Vec2): number {
   return len;
 }
 
-/** Floor runs along each side of a ruin's wall ring: side 0 top, 1 right, 2 bottom, 3 left. */
-function doorRuns(m: GameMap, b: TileRect): { side: number; start: number; len: number }[] {
-  const runs: { side: number; start: number; len: number }[] = [];
-  for (let side = 0; side < 4; side++) {
-    const len = side % 2 === 0 ? b.w : b.h;
-    let runStart = -1;
-    for (let i = 0; i <= len; i++) {
-      let floor = false;
-      if (i < len) {
-        const tx = side === 0 || side === 2 ? b.x + i : side === 1 ? b.x + b.w - 1 : b.x;
-        const ty = side === 1 || side === 3 ? b.y + i : side === 0 ? b.y : b.y + b.h - 1;
-        floor = m.tiles[ty * m.w + tx] === TILE_FLOOR;
-      }
-      if (floor && runStart < 0) runStart = i;
-      if (!floor && runStart >= 0) { runs.push({ side, start: runStart, len: i - runStart }); runStart = -1; }
-    }
-  }
-  return runs;
-}
-
-/**
- * The longest straight run of outdoor wall tiles (in a zone, outside ruins) that belongs to a wall blob not touching
- * the border: rocks and chunks only chain by touching, so a long run would be a barrier, not cover.
- */
-function longestOutdoorWallRun(m: GameMap): number {
-  const W = m.w;
-  const outdoor = (x: number, y: number): boolean => x > 0 && y > 0 && x < W - 1 && y < m.h - 1 && m.tiles[y * W + x] === TILE_WALL &&
-    m.regionGrid[y * W + x] >= 1 && m.regionGrid[y * W + x] <= ZONE_COUNT && !m.buildings.some((b) => inRect(b, x, y));
-  const seen = new Uint8Array(W * m.h), wall = new Uint8Array(W * m.h);
-  for (let y = 1; y < m.h - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      if (!outdoor(x, y) || seen[y * W + x]) continue;
-      const tiles: TilePt[] = [];
-      let border = false;
-      const stack = [[x, y]];
-      seen[y * W + x] = 1;
-      while (stack.length) {
-        const [cx, cy] = stack.pop()!;
-        tiles.push({ x: cx, y: cy });
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = cx + dx, ny = cy + dy;
-            if (m.regionGrid[ny * W + nx] === REGION_NONE) border = true;
-            if (outdoor(nx, ny) && !seen[ny * W + nx]) { seen[ny * W + nx] = 1; stack.push([nx, ny]); }
-          }
-        }
-      }
-      if (!border) for (const t of tiles) wall[t.y * W + t.x] = 1;
-    }
-  }
-  let longest = 0;
-  for (let y = 1; y < m.h - 1; y++) {
-    for (let x = 1; x < W - 1; x++) {
-      if (!wall[y * W + x]) continue;
-      for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
-        if (wall[(y - dy) * W + x - dx]) continue;
-        let run = 0;
-        while (wall[(y + dy * run) * W + x + dx * run]) run++;
-        longest = Math.max(longest, run);
-      }
-    }
-  }
-  return longest;
-}
-
 // ---- A demo zone style hook: low ground, floor hazards and styler walls for tests and sweeps ----------------------------
 
 /**
  * One pass over every zone, each kind in its home zone: fire gets a meandering lava river 2 wide and up to 24 long with
- * ember on its free banks, sentenced three fences of 5-9 tiles with a gap (kept: no rock may stand on them), frost a
+ * ember on its free banks, sentenced three fences of 5-9 tiles with a gap, frost a
  * 6-tile crevasse with a gap and a 6x6 sheet of ice (only the tiles with plain floor on all eight sides), plague a 5x5 bog, holy a 3x3 patch of light; every zone two 2x2 walls.
  * With decor on, three props per zone from the decor stream (of an unknown kind while PROP_KINDS is empty, so the
  * generator drops them: the decor stream must change nothing else).
  */
-export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, decor, zone, zoneFaction, protect, tiles, terrain, props, keepLow }) => {
+export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, decor, zone, zoneFaction, protect, tiles, terrain, props }) => {
   const N = w * h;
   for (let z = 1; z <= zoneFaction.length; z++) {
     const faction = zoneFaction[z - 1];
@@ -920,7 +608,6 @@ export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, decor, zone,
           const t = at + (horiz ? k : k * w);
           if (k === gap || !free(t)) continue;
           low(t, TERRAIN_FENCE);
-          keepLow[t] = 1;
         }
       }
     } else if (faction === "frost") {

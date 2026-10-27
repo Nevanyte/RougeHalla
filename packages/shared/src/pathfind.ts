@@ -17,10 +17,9 @@ export const SNAP_RADIUS = 4;
 /**
  * How many candidates past the anchor string pulling looks at (a performance cap; it never makes a hop invalid, since
  * every accepted hop passes segmentClear and the next candidate always passes). At 96x96 with long detours the pull
- * was 85% of findPath's cost; the mapgen's sight certificate keeps every straight hop to well under 32 tiles, so the
- * paths on generated maps are the same as without the cap. On hand-built maps with long open sight lines the window can
- * reshape a small share of the paths (still valid, at most about 8% longer); relaxing MAX_SIGHT_CORRIDOR means
- * measuring it again.
+ * was 85% of findPath's cost. A window shorter than a straight hop splits it, so the path can come out a little longer; the
+ * generator certifies the spawn walks with findPath, so changing it re-pins every map. Measured on the open 136x136 maps
+ * (zone-shapes contract 7.1; the table is in the WP0a report): see the value below.
  */
 export const PULL_WINDOW = 32;
 
@@ -193,6 +192,19 @@ function clampClear(map: GameMap, p: Vec2, gx: number, gy: number, radius: numbe
   if (isSolidTile(map, gx, gy + 1)) y = Math.min(y, y0 + TILE - radius);
   const clamped = { x, y };
   return circleClear(map, clamped, radius) ? clamped : { x: tileToWorldCenter(gx), y: tileToWorldCenter(gy) };
+}
+
+/** Length of a walk from `from` through `points` (findPath's waypoints, which leave `from` out): the sum of Math.sqrt(dx*dx + dy*dy). */
+export function pathLength(from: Vec2, points: readonly Vec2[]): number {
+  let total = 0;
+  let ax = from.x, ay = from.y;
+  for (const p of points) {
+    const dx = p.x - ax, dy = p.y - ay;
+    total += Math.sqrt(dx * dx + dy * dy);
+    ax = p.x;
+    ay = p.y;
+  }
+  return total;
 }
 
 /**

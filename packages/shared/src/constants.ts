@@ -28,14 +28,17 @@ export const TELEPORT_DISTANCE = 200;
 
 // World
 export const TILE = 32;
-/** 96x96 tiles since the roguelike zones (R2): five zones of about 1710 painted tiles each around the fixed coliseum. */
-export const MAP_TILES_W = 96;
-export const MAP_TILES_H = 96;
+/**
+ * 136x136 tiles since the zone shapes (zone-shapes contract 0.1.1; 96x96 in R2): five zones of about 3534 painted tiles each around
+ * the fixed coliseum. Even, so the coliseum centre CX = W / 2 stays a tile corner and the pillar shift CX - 32 an integer.
+ */
+export const MAP_TILES_W = 136;
+export const MAP_TILES_H = 136;
 export const WORLD_W = MAP_TILES_W * TILE;
 export const WORLD_H = MAP_TILES_H * TILE;
 /**
  * The zone stylers (terrain, hazards, props) on the maps the game builds: the generator's hook (styler.ts) runs the five
- * zone stylers while this is on, and none when it is off (plain rock-and-ruin zones, for tests and what-if runs). It is a
+ * zone stylers while this is on, and none when it is off (plain zones with their landmarks, for tests and what-if runs). It is a
  * compile-time switch: the server, the bots and every client must be built with the same value, and the map's `mapHash`
  * is what tells them apart.
  */
@@ -43,27 +46,12 @@ export const MAP_STYLERS: boolean = true;
 export const PLAYER_RADIUS = 12;
 /** A projectile's own radius: it hits a body whose centre comes within PLAYER_RADIUS + this of its path. */
 export const RANGED_SLACK = 2;
-/**
- * A projectile hits a player whose centre comes within this of its path; mapgen's spawn screens use it. Arrows and
- * balls both use exactly this, so a spawn pair that passes the screen can't be hit from spawn.
- */
+/** A projectile hits a player whose centre comes within this of its path. Arrows and balls both use exactly this. */
 export const RANGED_HIT_REACH = PLAYER_RADIUS + RANGED_SLACK;
 export const PLAYER_SPEED = 170;
 /** Picking up a weapon (F) reaches containers whose centre is this close, with line of sight. */
 export const INTERACT_RANGE = 56;
 export const WEAPON_SLOTS = 2;
-/**
- * Anti-kiting: with the coliseum gates open, mapgen guarantees that every straight strip SIGHT_CORRIDOR_WIDTH (one
- * tile) wide, at any angle and offset, runs at most MAX_SIGHT_CORRIDOR through open floor. Open floor includes every
- * region, the gates-closed coliseum and lines through the gates. The cap was the bow's range (480) so an archer could
- * not backpedal forever; the 9.1 tuning cut the bow to 240 and the wand to 220, and every attack now roots its shooter
- * for a windup (the controls rework: the bow's and the wand's are what holds an orb-walking shooter to the kite check,
- * testing/test_kite.py), so today it only has to stay at or above every projectile's range, and the spawn screens are
- * certified for the full 480. Narrower corridors are not guaranteed: a 24 u gap (PLAYER_RADIUS is 12, so a player fits)
- * measured up to 473 u and a 16 u gap up to about 580 u. The owner deferred those.
- */
-export const MAX_SIGHT_CORRIDOR = 480;
-export const SIGHT_CORRIDOR_WIDTH = 32;
 
 // Run flow
 export const MAX_PLAYERS = 8;
