@@ -209,9 +209,10 @@ export interface GvBreakdown { kills: number; mobs: number; bounty: number; win:
 
 export interface ItemDTO { uid: string; def: string }
 
-/** Sent once per player when their run resolves; by then its GV is banked. */
+/** Why the results screen shows no win bonus: "starters" = fewer than WIN_BONUS_MIN_PLAYERS human starters, "opponents" = damaged fewer than WIN_BONUS_MIN_OPPONENTS different human players. */
 export type WinBonusWhy = "starters" | "opponents";
 
+/** Sent once per player when their run resolves; by then its GV is banked. */
 export interface RunResult {
   outcome: RunOutcome;
   profile: string;
@@ -227,8 +228,8 @@ export interface RunResult {
   players: number;
   gv: GvBreakdown;
   /**
-   * True only for a winner whose win bonus was withheld: the run started with fewer than WIN_BONUS_MIN_PLAYERS, or
-   * they damaged fewer than WIN_BONUS_MIN_OPPONENTS different players.
+   * True only for a winner whose win bonus was withheld: the run started with fewer than WIN_BONUS_MIN_PLAYERS human
+   * starters, or they damaged fewer than WIN_BONUS_MIN_OPPONENTS different human players (fill bots count for neither).
    */
   winBonusWithheld: boolean;
   /**

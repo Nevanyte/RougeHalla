@@ -20,6 +20,16 @@ export function playerLabel(players: { get(id: string): Nameable | undefined }, 
   return p ? displayName(p) : undefined;
 }
 
+/** The chest panel's `nameOf` for a scene: reads the room's players when asked (the room may not exist yet), tagging a bot. */
+export function chestNameOf(
+  getPlayers: () => { get(id: string): Nameable | undefined } | undefined,
+): (id: string) => string | undefined {
+  return (id) => {
+    const players = getPlayers();
+    return players ? playerLabel(players, id) : undefined;
+  };
+}
+
 /** Something to walk the room's players with: a MapSchema's `forEach`, or an array's. */
 export interface PlayerWalk {
   forEach(each: (p: Nameable) => void): void;
