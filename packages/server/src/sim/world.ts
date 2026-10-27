@@ -615,7 +615,7 @@ export function createWorld(opts: {
   return {
     state,
     config: opts.config,
-    map: opts.map ?? buildGameMap(state.seed),
+    map: opts.map ?? buildGameMap(state.seed, { decor: false }), // the sim never reads props
     idCounter: 0,
     joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),

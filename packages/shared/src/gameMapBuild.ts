@@ -6,11 +6,19 @@ import type { GameMap } from "./map";
 import { generateMap } from "./mapgen";
 import { styleFinishedMap } from "./zoneStyle/finishedMap";
 
-/** `styled` picks the branch explicitly (tests); buildGameMap reads MAP_STYLERS. */
-export function buildGameMapOf(seed: number, styled: boolean): GameMap {
-  return styled ? styleFinishedMap(generateMap(seed)) : generateMap(seed);
+export interface BuildGameMapOptions {
+  /**
+   * false = no props (decor): tiles and terrain are byte-equal either way. The server and the bots never read props, so they
+   * pass false; the client keeps the default (true) for the art. Has no effect while the stylers are off.
+   */
+  decor?: boolean;
 }
 
-export function buildGameMap(seed: number): GameMap {
-  return buildGameMapOf(seed, MAP_STYLERS);
+/** `styled` picks the branch explicitly (tests); buildGameMap reads MAP_STYLERS. */
+export function buildGameMapOf(seed: number, styled: boolean, opts: BuildGameMapOptions = {}): GameMap {
+  return styled ? styleFinishedMap(generateMap(seed), { decor: opts.decor !== false }) : generateMap(seed);
+}
+
+export function buildGameMap(seed: number, opts: BuildGameMapOptions = {}): GameMap {
+  return buildGameMapOf(seed, MAP_STYLERS, opts);
 }

@@ -357,4 +357,31 @@ describe("buildGameMap", () => {
       expect(Array.from(a.tiles).some((v, i) => v !== raw.tiles[i]) || a.terrain.some((v) => v !== 0), `seed ${s}`).toBe(true);
     }
   });
+
+  it("takes { decor: false } (the server and the bots): no props, tiles and terrain byte-equal to the decorated map, and the default keeps the props", { timeout: 60_000 }, () => {
+    for (const s of [0, 3, 11, 42]) {
+      const full = buildGameMapOf(s, true), bare = buildGameMapOf(s, true, { decor: false }), explicit = buildGameMapOf(s, true, { decor: true });
+      expect(full.props.length, `seed ${s}`).toBeGreaterThan(0);
+      expect(explicit.props, `seed ${s}`).toEqual(full.props);
+      expect(bare.props, `seed ${s}`).toEqual([]);
+      expect(Array.from(bare.tiles), `seed ${s}`).toEqual(Array.from(full.tiles));
+      expect(Array.from(bare.terrain), `seed ${s}`).toEqual(Array.from(full.terrain));
+      expect(bare.regions, `seed ${s}`).toEqual(full.regions);
+      expect(validateTerrain(bare, { styled: true }), `seed ${s}`).toEqual([]);
+    }
+  });
+
+  it("ignores { decor } while the stylers are off: the generator's map, byte for byte", { timeout: 60_000 }, () => {
+    for (const s of [0, 1, 7]) {
+      const raw = generateMap(s);
+      for (const opts of [{}, { decor: false }, { decor: true }]) {
+        const a = buildGameMap(s, opts), b = buildGameMapOf(s, false, opts);
+        for (const m of [a, b]) {
+          expect(Array.from(m.tiles), `seed ${s}`).toEqual(Array.from(raw.tiles));
+          expect(Array.from(m.terrain), `seed ${s}`).toEqual(Array.from(raw.terrain));
+          expect(m.props, `seed ${s}`).toEqual(raw.props);
+        }
+      }
+    }
+  });
 });

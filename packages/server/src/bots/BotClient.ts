@@ -290,7 +290,7 @@ export class BotClient {
       if (i > 500) { void room.leave(true).catch(() => {}); throw new Error("no room state from the server"); }
       await sleep(10);
     }
-    this.map = buildGameMap(room.state.seed);
+    this.map = buildGameMap(room.state.seed, { decor: false }); // a bot never reads props
     this.log(`joined ${room.roomId} (${body.profile.gv} GV)`);
 
     room.reconnection.enabled = false; // a bot that drops is simply done
