@@ -11,6 +11,7 @@ import {
   UNREADABLE_MESSAGE,
 } from "./errors";
 import { readPasscode } from "./passcode";
+import { consumeSignInLink } from "./signin";
 
 const TOKEN_KEY_PREFIX = "raid.token.";
 const REQUEST_TIMEOUT_MS = 8000;
@@ -43,6 +44,10 @@ function writeToken(name: string, token: string): void {
     // Ignored: see readToken.
   }
 }
+
+// A sign-in link (/?profile=name#key=token, net/signin.ts) hands this browser the token of a callsign claimed on another
+// address. Taken here, once, when the page loads and before anything reads a token; the menu still picks the callsign from ?profile=.
+consumeSignInLink(writeToken);
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);

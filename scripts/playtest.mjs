@@ -8,17 +8,21 @@
 // The `--` is npm's: without it npm keeps the flags for itself. Environment: PLAYTEST_PASSCODE (ask players for a passcode),
 // STASH_FILE (the profile file; default ~/.rougehalla/playtest-profiles.json), RAID_PORT (the default port), and every
 // other server setting in packages/server/src/config.ts (MAX_ARENA_ROOMS, ORDER_PER_SECOND, ...).
+//
+// A quick tunnel's address is new at every start and a browser keeps a callsign's token per address, so returning players
+// need a sign-in link: `npm run playtest:signin -- <callsign>` (scripts/playtest-signin.mjs). While the tunnel is up this
+// script records its address next to the profile file (playtestLink.mjs) for that command, and removes it on exit.
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { linkFilePath, removeLinkFile, stashFileFrom, writeLinkFile } from "./playtestLink.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const clientDir = path.join(root, "packages", "client", "dist");
 const DEFAULT_PORT = 2567;
-const DEFAULT_STASH = path.join(os.homedir(), ".rougehalla", "playtest-profiles.json");
 const HEALTH_TIMEOUT_MS = 60_000;
 const TUNNEL_URL_TIMEOUT_MS = 40_000;
 /** After cloudflared names the tunnel, how long to wait for its connection to register before sharing the address anyway. */
@@ -143,9 +147,13 @@ function startServer(port, stashFile) {
   const env = { ...process.env, NODE_ENV: "production", CLIENT_DIR: clientDir, RAID_PORT: String(port), STASH_FILE: stashFile };
   // One process: tsx's CLI wrapper would relay a signal to a child as well, so Ctrl+C would reach the server twice. Its own
   // process group (detached) keeps the terminal's Ctrl+C from reaching it directly: it gets the single signal we forward.
+  // Its stdin is a pipe whose write end only this script holds. However this script dies (a crash, SIGKILL), the pipe
+  // closes, and the server, told by RAID_EXIT_ON_STDIN_END, shuts down gracefully (profiles flushed, lock freed) instead
+  // of staying behind on the port. Nothing is ever written to it, and it is never closed on purpose.
   const server = spawn(process.execPath, ["--import", "tsx", path.join("packages", "server", "src", "index.ts")], {
-    cwd: root, env, stdio: ["ignore", "inherit", "inherit"], detached: true,
+    cwd: root, env: { ...env, RAID_EXIT_ON_STDIN_END: "1" }, stdio: ["pipe", "inherit", "inherit"], detached: true,
   });
+  server.stdin.on("error", () => {}); // a server that is already gone: nothing to tell it
   children.server = server;
   return server;
 }
@@ -272,8 +280,21 @@ function banner({ port, stashFile, shareUrl, passcode }) {
   log(`  This Mac:   http://localhost:${port}${passcode ? `/?code=${encodeURIComponent(passcode)}` : ""}`);
   for (const url of lan) log(`  Same Wi-Fi: ${url}${passcode ? `/?code=${encodeURIComponent(passcode)}` : ""}`);
   log(`  Passcode:   ${passcode ? "on (it is in the links above)" : "off"}`);
+  if (!passcode) {
+    log("              Anyone with the link can claim new callsigns (30 an hour). To ask for a");
+    log("              passcode:  PLAYTEST_PASSCODE=<a word> npm run playtest");
+  }
   log(`  Profiles:   ${stashFile}`);
   log();
+  if (shareUrl) {
+    log(bold("  RETURNING PLAYERS need their sign-in link."));
+    log("  This address is new, and a browser keeps a callsign only for the address it was");
+    log("  made on. Print a player's link and send it to that player alone:");
+    log("      npm run playtest:signin -- <callsign>        (--all: every callsign)");
+    log("  New players just pick a callsign. A stable address that survives restarts needs");
+    log("  a named Cloudflare tunnel on your own domain (README, Hosting a playtest).");
+    log();
+  }
   log("  Ctrl+C once to stop. It saves the profiles first.");
   log(bar);
   log();
@@ -289,7 +310,7 @@ async function main() {
   if (!(await portIsFree(args.port))) {
     fail(`port ${args.port} is already in use (another playtest, or npm run dev?). Stop it, or pick another: npm run playtest -- --port ${args.port + 1}`);
   }
-  const stashFile = process.env.STASH_FILE || DEFAULT_STASH;
+  const stashFile = stashFileFrom();
   fs.mkdirSync(path.dirname(stashFile), { recursive: true });
 
   if (args.build) await buildClient();
@@ -320,6 +341,10 @@ async function main() {
   }
   if (stopping) return;
 
+  // The server holds the profile file's lock now, so a link file still here is from a launcher that died without cleaning up.
+  fs.rmSync(linkFilePath(stashFile), { force: true });
+  process.on("exit", () => removeLinkFile(stashFile));
+
   let shareUrl = null;
   if (args.tunnel) {
     if (!haveCloudflared()) {
@@ -329,6 +354,7 @@ async function main() {
       note("opening a Cloudflare quick tunnel...");
       const url = await startTunnel(args.port);
       if (url && !stopping) {
+        writeLinkFile(stashFile, { url, port: args.port, pid: process.pid, passcode: passcode || null });
         shareUrl = `${url}/${passcode ? `?code=${encodeURIComponent(passcode)}` : ""}`;
         banner({ port: args.port, stashFile, shareUrl, passcode });
         const problem = await verifyTunnel(url);
