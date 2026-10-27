@@ -5,7 +5,7 @@
 import { BLAZE_MIN_DIST, BLAZE_RANGE, BLINK_STEP } from "./abilities";
 import { PLAYER_RADIUS, TILE } from "./constants";
 import { circleClear } from "./geometry";
-import { REGION_COLISEUM, TILE_FLOOR, TILE_WALL, inColiseum, isSolidTile, withGates, worldToTile, type GameMap } from "./map";
+import { REGION_COLISEUM, TILE_WALL, inColiseum, isSolidTile, moveComponents, withGates, worldToTile, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
 
 const components = new WeakMap<GameMap, Int32Array>();
@@ -15,31 +15,15 @@ const components = new WeakMap<GameMap, Int32Array>();
  * stand on either), 1.. for the floor tiles of each component. Cached per
  * map object, so the locked copy from `withGates(map)` has its own (the locked gates seal the coliseum). Two tiles are the
  * same pocket of floor iff their labels are equal; a player (a disc wider than nothing, narrower than a tile) can walk
- * between 4-connected tiles but never cuts a corner between two diagonal ones.
+ * between 4-connected tiles but never cuts a corner between two diagonal ones. It is `moveComponents` (map.ts: -1 on solid
+ * tiles, ids 0.. in row-major order of each component's first tile) shifted up by one, so a label is 0 for "not floor".
  */
 export function floorComponents(map: GameMap): Int32Array {
   const cached = components.get(map);
   if (cached) return cached;
-  const { w, h, tiles } = map;
-  const n = w * h;
-  const label = new Int32Array(n);
-  const stack = new Int32Array(n);
-  let next = 0;
-  for (let start = 0; start < n; start++) {
-    if (tiles[start] !== TILE_FLOOR || label[start] !== 0) continue;
-    next++;
-    let top = 0;
-    stack[top++] = start;
-    label[start] = next;
-    while (top > 0) {
-      const i = stack[--top];
-      const x = i % w;
-      if (x > 0 && tiles[i - 1] === TILE_FLOOR && label[i - 1] === 0) { label[i - 1] = next; stack[top++] = i - 1; }
-      if (x < w - 1 && tiles[i + 1] === TILE_FLOOR && label[i + 1] === 0) { label[i + 1] = next; stack[top++] = i + 1; }
-      if (i >= w && tiles[i - w] === TILE_FLOOR && label[i - w] === 0) { label[i - w] = next; stack[top++] = i - w; }
-      if (i < n - w && tiles[i + w] === TILE_FLOOR && label[i + w] === 0) { label[i + w] = next; stack[top++] = i + w; }
-    }
-  }
+  const comp = moveComponents(map);
+  const label = new Int32Array(comp.length);
+  for (let i = 0; i < comp.length; i++) label[i] = comp[i] + 1;
   components.set(map, label);
   return label;
 }
