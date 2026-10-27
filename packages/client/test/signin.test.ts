@@ -152,13 +152,14 @@ describe("on a page", () => {
     expect(init.headers).toEqual({ [PROFILE_TOKEN_HEADER]: UUID, [PASSCODE_HEADER]: "open-sesame" });
   });
 
-  it("a link for a callsign replaces that callsign's old token, and leaves the other callsigns' alone", async () => {
+  it("a link never replaces a token this browser already holds (a crafted link cannot lock the owner out), nor other callsigns'", async () => {
     storage.set("raid.token.amy", "old-token");
     storage.set("raid.token.bob", "bobs-token");
     stubPage(`https://fresh-origin.trycloudflare.com/?profile=amy#key=${UUID}`);
     await import("../src/net/profile");
-    expect(storage.get("raid.token.amy")).toBe(UUID);
+    expect(storage.get("raid.token.amy")).toBe("old-token");
     expect(storage.get("raid.token.bob")).toBe("bobs-token");
+    expect(address.hash).toBe("");
   });
 
   it("a bad key stores nothing and the page still loads", async () => {

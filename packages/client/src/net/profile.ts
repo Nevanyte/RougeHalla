@@ -47,7 +47,9 @@ function writeToken(name: string, token: string): void {
 
 // A sign-in link (/?profile=name#key=token, net/signin.ts) hands this browser the token of a callsign claimed on another
 // address. Taken here, once, when the page loads and before anything reads a token; the menu still picks the callsign from ?profile=.
-consumeSignInLink(writeToken);
+// A token this browser already holds for the callsign is kept: tokens never change, so a link can only add one, and a crafted
+// link with a wrong key cannot lock its owner out.
+consumeSignInLink((name, key) => { if (readToken(name) === null) writeToken(name, key); });
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
