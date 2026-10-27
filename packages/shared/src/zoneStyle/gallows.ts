@@ -218,7 +218,9 @@ function landmarkRows(c: LandmarkCtx): void {
   const placed = c.zoneFeatures().slice(before).filter((f) => f.kind === "landmark");
   const first = placed.length > 0 ? placed[0].bbox : null;
   // the second: nearest the front door (else the zone's centroid), and HOUSE_MIN_SEP tiles from the first
-  const nodes = campNodes(c);
+  // BaseCtx.camps lists every camp of the map: keep this zone's before building anything from them
+  const zoneCamps = c.camps.filter((k) => { const i = c.at(Math.floor(k.x), Math.floor(k.y)); return i >= 0 && c.mask[i] === 1; });
+  const nodes = campNodes({ w: c.w, h: c.h, mask: c.mask, tiles: c.tiles, zone: c.zone, camps: zoneCamps });
   const door = nodes.length > 0 && nodes[nodes.length - 1].kind === "door" ? nodes[nodes.length - 1] : null;
   const tx2 = door ? 2 * door.x + 1 : Math.round(2 * c.zone.centroid.x), ty2 = door ? 2 * door.y + 1 : Math.round(2 * c.zone.centroid.y);
   const sep2 = 4 * HOUSE_MIN_SEP * HOUSE_MIN_SEP;

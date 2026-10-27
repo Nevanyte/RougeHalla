@@ -43,6 +43,10 @@ const FREER_PERMILLE = 30;
 const RIM_KEEP_PERMILLE = 600;
 /** A crater with fewer rim tiles than this (after the short arcs go) is not built: the camp stays open. */
 const RIM_MIN = 8;
+/** The guard's margin from a zone's edge in chamfer thirds (rimTiles 3 x 3); a crater whose ring the edge takes is a crescent. */
+const FRONTIER_EDGE = 9;
+/** A ring this many tiles of which the zone's edge takes is open on that side: the frontier counts as a breach (contract 4.1). */
+const FRONTIER_MIN = 8;
 /** Brogue shortcut test: the tree walk must be at least this many times the straight line, up to this many tiles long. */
 const LOOP_RATIO = 1.8, LOOP_MAX_LEN = 30;
 /** Ford length in path steps, the spacing between fords, and the closer spacing of corridor fords. */
@@ -50,8 +54,8 @@ const FORD_STEPS = 4, FORD_SPACING = 9;
 /** Fords closer than this many steps become one (up to FORD_MAX_LEN steps long); the river keeps about one ford per FORD_PER_STEPS steps. */
 const FORD_MERGE = 4, FORD_MAX_LEN = 12, FORD_PER_STEPS = 16;
 const RIVER_MIN_STEPS = 12;
-/** The river is about this many path steps x lenScale long (44 x 1.44 = 63 at 136); its path may be RIVER_REACH times that before a stretch is cut from it. */
-const RIVER_STEPS_PER_LEN = 44, RIVER_REACH = 1.8;
+/** The river is about this many path steps x lenScale long (54 x 1.44 = 78 at 136); its path may be RIVER_REACH times that before a stretch is cut from it. */
+const RIVER_STEPS_PER_LEN = 54, RIVER_REACH = 1.8;
 const LAVA_WANT_LO = 85, LAVA_WANT_HI = 140;
 const RIVER_DEPTH_LO = 0.5, RIVER_DEPTH_HI = 0.68;
 /** Ground within this many tiles of the river's depth counts as ground the river can follow (it wanders round the craters). */
@@ -198,6 +202,8 @@ interface Raster {
   blocked(r4: number): number;
   /** Tiles of the bowl: inside radius - 0.5. */
   bowl(r4: number): number[];
+  /** The ideal ring tiles the zone's edge takes (outside the zone or inside its 3-tile margin): their number and summed offsets. */
+  frontier(r4: number): { count: number; sx: number; sy: number };
 }
 
 function rasterOf(c: ShapeCtx | LandmarkCtx, camp: CampInfo, k: number): Raster {
@@ -280,6 +286,22 @@ function rasterOf(c: ShapeCtx | LandmarkCtx, camp: CampInfo, k: number): Raster 
         }
       }
       return total === 0 ? 1000 : Math.floor((bad * 1000) / total);
+    },
+    frontier(r4) {
+      const R = r4 / 4;
+      const lo2 = (R - 0.5) * (R - 0.5), hi2 = (R + 0.5) * (R + 0.5);
+      let count = 0, sx = 0, sy = 0;
+      for (let dy = -reach; dy <= reach; dy++) {
+        for (let dx = -reach; dx <= reach; dx++) {
+          const d2 = dx * dx + dy * dy;
+          if (d2 < lo2 || d2 >= hi2) continue;
+          const x = camp.x + dx, y = camp.y + dy;
+          if (x < 0 || y < 0 || x >= w || y >= h) { count++; sx += dx; sy += dy; continue; }
+          const i = y * w + x;
+          if (!mask[i] || c.edgeDist[i] < FRONTIER_EDGE) { count++; sx += dx; sy += dy; }
+        }
+      }
+      return { count, sx, sy };
     },
     bowl(r4) {
       const R = r4 / 4;
@@ -410,7 +432,16 @@ function placeCraters(c: ShapeCtx, mine: readonly CampInfo[], r4s: number[], nod
       }
     }
     r4s[k] = r4;
-    const beams = breachesOf(k, nodes, edges).slice();
+    let beams = breachesOf(k, nodes, edges).slice();
+    // A crater by the zone's edge is a crescent: the frontier side of the ring is open ground (the guard keeps walls three tiles
+    // from the edge), which is a breach of its own, so the skeleton cuts it once, toward its nearest neighbour, and the flanks stay.
+    const fr = ras.frontier(r4);
+    let frontierDir = -1;
+    if (fr.count >= FRONTIER_MIN && (fr.sx !== 0 || fr.sy !== 0)) {
+      frontierDir = dirIndex16(fr.sx, fr.sy);
+      beams = beams.filter((b) => dirSep16(dirIndex16(b[0], b[1]), frontierDir) >= 3).slice(0, 1);
+      if (beams.length === 0) beams = breachesOf(k, nodes, edges).slice(0, 1);
+    }
     let rim = keepArcs(ras.rim(r4, beams), c.w, FEATURE_MIN_PIECE);
     // route guard (contract 3.9): where the rim would cut a spawn member's corridor, one more breach at the crossing, as long as
     // the crater keeps at least 60% of the rim it would have without it (a pen with no wall is no pen: the spawn gate drops the
@@ -452,6 +483,7 @@ function placeCraters(c: ShapeCtx, mine: readonly CampInfo[], r4s: number[], nod
     if (__c) { __c.total++; if (rim.length < RIM_MIN) { __c.short++; __c.shortBeams[beams.length] = (__c.shortBeams[beams.length] ?? 0) + 1; __c.shortOpen.push(1000 - ras.blocked(r4)); } }
     if (rim.length < RIM_MIN) continue;
     const dirs = beams.map((b) => dirIndex16(b[0], b[1]));
+    if (frontierDir >= 0 && dirs.every((d) => dirSep16(d, frontierDir) >= 3)) dirs.push(frontierDir);
     const placed = c.placeFeature({
       kind: "crater",
       jobs: ["pen"],
