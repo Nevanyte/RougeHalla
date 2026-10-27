@@ -2,6 +2,7 @@
 // gameplay module. Modules expose `install(world)` and register into world.actions / world.systems / world.hooks.
 import { install as installAbilities } from "./abilities";
 import { install as installBuffs } from "./buffs";
+import { install as installCamps } from "./camps";
 import { install as installFactions } from "./factions";
 import { install as installFeed } from "./feed";
 import { install as installLoot } from "./loot";
@@ -25,6 +26,8 @@ const MODULES: Array<(world: World) => void> = [
   installMobs,
   installBuffs,
   installFeed,
+  // Before mobLife: the rosters are published (from rewardRandom) at build, so the lobby and planning can read them.
+  installCamps,
   installMobLife,
   installMobAI,
   installAbilities,

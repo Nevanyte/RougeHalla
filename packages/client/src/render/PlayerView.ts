@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import {
-  EFFECT_HIDDEN, GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, Y_SCALE, activeGold, barrierStrength, cssColor, unpackLook,
-  wishOf, type Look,
+  EFFECT_HIDDEN, GOLD_COLOR, GOLD_EDGE, PLAYER_RADIUS, TELEPORT_IMMUNITY_MS, WIRE_IDENTITY_MIRRORS, Y_SCALE, activeGold, barrierStrength,
+  cssColor, unpackLook, wishOf, type Look,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
@@ -17,7 +17,7 @@ import { drawAbilityIcon } from "./wishArt";
 
 const HIT_FLASH_MS = 120;
 const SHIELD_COLOR = 0x4fc3f7;
-/** The kill barrier's bubble, redrawn when it moves by one of this many steps of a full (biggest combo) shield. */
+/** The barrier's bubble, redrawn when it moves by one of this many steps of a full shield (BARRIER_FULL_SHARE of max hp). */
 const BARRIER_STEPS = 8;
 /** The local player's marks: a white ring on the ground and a white rim on the body. */
 const LOCAL_MARK = 0xffffff;
@@ -107,7 +107,10 @@ export class PlayerView {
   private lookWord = -1;
   private look: Look | null = null;
   /** The fields the art reads, with the facing replaced: reused every frame a predicted facing is shown. */
-  private readonly faced: FighterFields = { facing: 0, faction: "", weapon0: "", weapon1: "", slot: 0, drawStartedAt: 0, asMult: 1 };
+  private readonly faced: FighterFields = {
+    facing: 0, faction: "", weapon0: "", weapon1: "", slot: 0, drawStartedAt: 0,
+    asMult: WIRE_IDENTITY_MIRRORS.asMult, windupMult: WIRE_IDENTITY_MIRRORS.windupMult,
+  };
   private usingFaction: string | undefined;
   private usingWeapon: string | undefined;
   private factionGold = false;
@@ -235,7 +238,7 @@ export class PlayerView {
     this.signatures.update(this.marks.sig, this.marks.brand, signatures);
     this.status.update(effects, now);
 
-    // The kill barrier (public state) rides the bar as a pale blue segment and wraps the body as a bubble.
+    // The barrier (public state) rides the bar as a pale blue segment and wraps the body as a bubble.
     const barrier = p.barrier > 0 ? p.barrier : 0;
     this.hpBar.draw(p.hp, p.maxHp, barrier, -BODY_LIFT - PLAYER_RADIUS - 8);
     this.setBarrier(barrierStrength(barrier, p.maxHp));
@@ -268,6 +271,7 @@ export class PlayerView {
     f.slot = p.slot;
     f.drawStartedAt = p.drawStartedAt;
     f.asMult = p.asMult;
+    f.windupMult = p.windupMult;
     return f;
   }
 
@@ -347,7 +351,7 @@ export class PlayerView {
     this.wishIcon.setPosition(-width / 2 - WISH_ICON_GAP - WISH_ICON_SIZE / 2, LABEL_Y - 6.5);
   }
 
-  /** Draws the barrier bubble at `strength` (0..1: how close to the biggest shield any combo gives); 0 clears it. A no-op while the step is unchanged. */
+  /** Draws the barrier bubble at `strength` (0..1: barrierStrength, a barrier against BARRIER_FULL_SHARE of max hp); 0 clears it. A no-op while the step is unchanged. */
   private setBarrier(strength: number): void {
     const step = strength > 0 ? Math.max(1, Math.round(strength * BARRIER_STEPS)) : 0;
     if (step === this.barrierStep) return;

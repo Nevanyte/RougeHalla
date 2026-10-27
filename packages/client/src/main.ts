@@ -5,6 +5,7 @@ import "./style.css";
 import { detachRoom, isCallsignBusy, joinRaid, joinTraining, type RaidRoom } from "./net/connection";
 import { JOIN_CLOSED_MESSAGE, JOIN_SLOW_MESSAGE, friendlyClose, friendlyError } from "./net/errors";
 import { FxInbox } from "./net/fxInbox";
+import { PlanInbox } from "./net/planInbox";
 import { HubScene, type HubSceneData } from "./scenes/HubScene";
 import { applyPhaserFixes, wantsMsaa } from "./render/phaserFixes";
 import { RaidScene } from "./scenes/RaidScene";
@@ -147,6 +148,9 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   // state, and the scene is not there yet to take it. The SDK drops a message no handler is registered for.
   const fxs = new FxInbox();
   joined.onMessage("fxs", (batch: FxBatch) => fxs.push(batch));
+  // The private planning deal is held the same way: the newest message replaces the older ones, and the scene reads it when it starts.
+  const plan = new PlanInbox();
+  joined.onMessage("plan", (m: ServerMessages["plan"]) => plan.push(m));
   if (!(await firstState(joined))) {
     // The room closed before its first patch, so the leave handler below was never registered.
     if (room === joined) room = null;
@@ -199,6 +203,7 @@ async function enterRoom(mode: RoomMode, request: RaidRequest): Promise<void> {
   game.scene.start("raid", {
     room: joined,
     fxs,
+    plan,
     toast: (text: string, tone?: ToastTone) => toasts.show(text, tone),
     resultsVisible: () => results.visible,
     ...(training ? { leaveTraining: () => backToMenu() } : {}),

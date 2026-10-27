@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { buffToast, COMBOS, comboToast, type BuffStat, type ComboId, type TimedFx } from "@raid/shared";
+import { buffToast, FACTIONS, type BuffId, type TimedFx } from "@raid/shared";
 import { FxView, type FxHost } from "../src/render/FxView";
 import { Toasts } from "../src/ui/toast";
-import { fakeScene, FakeEl, installFakeDom } from "./fakes";
+import { argsOf, fakeScene, FakeEl, installFakeDom } from "./fakes";
 
 function setup() {
   const localHits: number[] = [];
@@ -48,8 +48,8 @@ describe("FxView local hits", () => {
   });
 });
 
-// The local player's buff and combo news, a mob's death line and the remote floats (Phase 11).
-describe("FxView buff and combo news", () => {
+// The local player's buff news and the remote floats (Phase 11, R4a: one buff per mob type).
+describe("FxView buff news", () => {
   const NAMES: Record<string, string> = { me: "Me", foe: "Foe", elite1: "Warden", mob1: "Grunt" };
   const KINDS: Record<string, string> = { elite1: "elite", mob1: "mob" };
 
@@ -68,98 +68,105 @@ describe("FxView buff and combo news", () => {
     };
     return { fx, lines, made, ofKind, play };
   }
-  const buff = (id: string, stat: BuffStat, stacks: number, total: number): TimedFx => ({ kind: "buff", id, stat, stacks, total, t: 0 });
-  const combo = (id: string, name: ComboId, proc = false): TimedFx => ({ kind: "combo", id, combo: name, proc, t: 0 });
+  const buff = (id: string, b: BuffId, stacks: number, total: number): TimedFx => ({ kind: "buff", id, buff: b, stacks, total, t: 0 });
   const death = (id: string, by: string | null): TimedFx => ({ kind: "death", id, x: 50, y: 60, by, t: 0 });
 
-  it("tells a bounty kill's six news lines as one buff line and one combo line, the combo last", () => {
+  it("keeps a single event's own wording: the name, the stacks gained and held, and what they give", () => {
     const { lines, play } = news();
-    // transferStacks grants each stat in turn: buff, combo, buff, combo, buff, combo; the victim's death line comes with them.
+    play([buff("me", "emberImp", 1.1, 1.1)]);
+    expect(lines).toEqual([[buffToast("emberImp", 1.1, 1.1), "buff"]]);
+    expect(lines[0]![0]).toMatch(/^Ember Imp \+1\.1 \(1\.1\): \+\d+(\.\d)?% damage$/);
+  });
+
+  it("tells a bounty kill's buffs as one line, in the order gained, the rest counted", () => {
+    const { lines, play } = news();
+    // transferBuffs grants each buff the victim held in turn; the victim's death line comes with them.
     play([
       death("foe", "me"),
-      buff("me", "hp", 2, 4), combo("me", "shield"),
-      buff("me", "attackSpeed", 2, 4), combo("me", "dash"),
-      buff("me", "moveSpeed", 2, 4), combo("me", "bloodrush"),
+      buff("me", "emberImp", 2, 4), buff("me", "bailiff", 1.5, 3), buff("me", "acolyte", 1, 2), buff("me", "bloodSaint", 0.5, 1),
     ]);
     expect(lines).toEqual([
       ["Foe was killed", undefined],
-      ["+2.0 Max HP, +2.0 Attack speed, +2.0 Move speed", "buff"],
-      ["Combos unlocked: Shield on kill, Dash on kill, Bloodrush", "combo"],
+      ["Ember Imp +2.0, Bailiff +1.5, Acolyte +1.0 and 1 more", "buff"],
     ]);
   });
 
-  it("keeps the toast stack's three slots for all of it: the combo unlock is not pushed out", () => {
+  it("keeps the toast stack's three slots for all of it: the buff news is not pushed out", () => {
     vi.useFakeTimers();
     const { ui } = installFakeDom();
     const toasts = new Toasts();
     const { play } = news({ announce: (text, tone) => toasts.show(text, tone) });
     play([
       death("foe", "me"), { kind: "bounty", id: "foe", name: "Foe", bounty: 90, t: 0 },
-      buff("me", "hp", 2, 4), combo("me", "shield"), buff("me", "attackSpeed", 2, 4), combo("me", "dash"),
+      buff("me", "emberImp", 2, 4), buff("me", "bailiff", 2, 4), buff("me", "acolyte", 2, 4),
     ]);
     const root = (ui.children[0] as FakeEl).children as FakeEl[];
     const shown = root.filter((n) => !n.removed).map((n) => n.textContent);
     expect(shown).toHaveLength(3);
-    expect(shown[2]).toBe("Combos unlocked: Shield on kill, Dash on kill");
-    expect(shown[1]).toBe("+2.0 Max HP, +2.0 Attack speed");
+    expect(shown[2]).toBe("Ember Imp +2.0, Bailiff +2.0, Acolyte +2.0");
+    expect(root.filter((n) => !n.removed).map((n) => n.className)[2]).toBe("toast buff");
     toasts.destroy();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  it("keeps a single event's own wording", () => {
+  it("sums a buff gained twice in one frame into one line with the latest total", () => {
     const { lines, play } = news();
-    play([buff("me", "attackSpeed", 1.1, 1.1)]);
-    play([combo("me", "dash")], 1100);
-    expect(lines).toEqual([
-      [buffToast("attackSpeed", 1.1, 1.1), "buff"],
-      [comboToast(COMBOS.find((c) => c.id === "dash")!), "combo"],
-    ]);
-    expect(lines[0]![0]).toBe("+1.1 Attack speed (1.1)");
-    expect(lines[1]![0]).toBe("Combo unlocked: Dash on kill");
-  });
-
-  it("sums a stat gained twice in one frame into one line with the latest total", () => {
-    const { lines, play } = news();
-    play([buff("me", "attackSpeed", 1.1, 1.1), buff("me", "attackSpeed", 1.1, 2.2)]);
-    expect(lines).toEqual([["+2.2 Attack speed (2.2)", "buff"]]);
+    play([buff("me", "plagueRat", 1.1, 1.1), buff("me", "plagueRat", 1.1, 2.2)]);
+    expect(lines).toEqual([[buffToast("plagueRat", 2.2, 2.2), "buff"]]);
   });
 
   it("tells the news of different frames separately, and says nothing for a frame without any", () => {
     const { fx, lines, play } = news();
-    play([buff("me", "hp", 1.1, 1.1)], 1000);
+    play([buff("me", "emberImp", 1.1, 1.1)], 1000);
     fx.update(1050, 0, true);
-    play([combo("me", "shield")], 1100);
-    expect(lines.map(([text]) => text)).toEqual(["+1.1 Max HP (1.1)", "Combo unlocked: Shield on kill"]);
+    play([buff("me", "bailiff", 1.1, 1.1)], 1100);
+    expect(lines.map(([text]) => text)).toEqual([buffToast("emberImp", 1.1, 1.1), buffToast("bailiff", 1.1, 1.1)]);
   });
 
-  it("floats other players' news over them instead of toasting it", () => {
+  it("floats other players' gains over them, in the buff's name, instead of toasting them", () => {
     const { lines, play, ofKind } = news();
-    play([buff("foe", "attackSpeed", 1.1, 1.1), combo("foe", "dash")]);
+    play([buff("foe", "plagueRat", 1.1, 1.1)]);
     expect(lines).toEqual([]);
-    const texts = ofKind("text").map((t) => t.state.text);
-    expect(texts).toEqual(["+1.1 Attack speed", "Dash on kill!"]);
-    expect(ofKind("graphics")).toHaveLength(1); // the ring around the fighter that unlocked a combo
+    expect(ofKind("text").map((t) => t.state.text)).toEqual(["+1.1 Plague Rat"]);
   });
 
-  it("answers a combo that fires on a kill with a ring and no toast", () => {
+  it("rings the fighter in the buff's zone colour, for the local player and for others", () => {
+    const { play, ofKind } = news();
+    play([buff("foe", "iceGolem", 1.1, 1.1)]);
+    play([buff("me", "emberImp", 1.1, 1.1)], 1100);
+    const rings = ofKind("graphics");
+    expect(rings).toHaveLength(2);
+    expect(argsOf(rings[0]!, "lineStyle")[0]![1]).toBe(FACTIONS.frost.color);
+    expect(argsOf(rings[1]!, "lineStyle")[0]![1]).toBe(FACTIONS.fire.color);
+  });
+
+  it("names a buff this build does not know by its id, and never throws on it", () => {
     const { lines, play, ofKind } = news();
-    play([combo("me", "shield", true)]);
-    expect(lines).toEqual([]);
-    expect(ofKind("graphics")).toHaveLength(1);
+    play([buff("me", "fromANewerServer" as BuffId, 1, 1), buff("foe", "fromANewerServer" as BuffId, 1, 1)]);
+    expect(lines).toEqual([["fromANewerServer +1.0 (1.0)", "buff"]]);
+    expect(ofKind("text").map((t) => t.state.text)).toEqual(["+1.0 fromANewerServer"]);
   });
 
-  it("ignores a combo id it does not know, a drop of nothing and a fighter it cannot place", () => {
+  it("ignores a drop of nothing and a fighter it cannot place", () => {
     const { lines, play, made } = news({ position: () => undefined });
-    play([combo("me", "from-a-newer-server" as ComboId), combo("foe", "from-a-newer-server" as ComboId), buff("me", "hp", 0, 0)]);
-    play([combo("foe", "dash"), buff("foe", "hp", 1.1, 1.1)], 1100);
+    play([buff("me", "emberImp", 0, 0)]);
+    play([buff("foe", "emberImp", 1.1, 1.1)], 1100);
     expect(lines).toEqual([]);
     expect(made).toEqual([]);
   });
 
   it("does not announce into the void when the host has no sink", () => {
     const { play } = news({ announce: undefined });
-    expect(() => play([buff("me", "hp", 1.1, 1.1), combo("me", "shield")])).not.toThrow();
+    expect(() => play([buff("me", "emberImp", 1.1, 1.1)])).not.toThrow();
+  });
+
+  it("drops the retired combo event without a trace", () => {
+    const { lines, play, made } = news();
+    // Code 11 never reaches the view (unpackFx drops it), but an old queue entry of that kind must be a no-op too.
+    play([{ kind: "combo", id: "me", combo: "dash", proc: false, t: 0 } as unknown as TimedFx]);
+    expect(lines).toEqual([]);
+    expect(made).toEqual([]);
   });
 });
 

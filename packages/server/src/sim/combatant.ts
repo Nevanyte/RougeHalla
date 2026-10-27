@@ -2,11 +2,12 @@
 // Both carry the same fighter fields in their synced state (x, y, facing, hp, faction, weapon slots, readyAt, ...)
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
-  attackInterval, ELITE_K, FACTIONS, isFactionId, isRegionalKind, isWeaponId, MOB_K, mobFaction, pacedFaction, weaponTimings, type FactionId,
-  type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
+  attackInterval, ELITE_K, FACTIONS, isFactionId, isRegionalKind, isWeaponId, MOB_K, mobFaction, pacedFaction, scaleWindup, weaponTimings,
+  type FactionId, type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
 import { attackSpeedMult } from "./buffs";
+import { defenseBonusOf, windupMultOf } from "./mods";
 import { positionAt } from "./movement";
 import type { MobRuntime, PlayerRuntime, World } from "./world";
 
@@ -51,10 +52,15 @@ export function factionOf(s: FighterState): FactionSpec | null {
   return PACED[s.faction];
 }
 
-/** Armor and shield the damage law reads; a fighter without a faction has neither. */
+/**
+ * Armor and shield the damage law reads: the faction's, plus what the fighter's mods add (the armorBonus and shieldBonus
+ * mirrors). A fighter without a faction (a training dummy) has neither.
+ */
 export function defenseOf(s: FighterState): { armor: number; shield: number } {
   const f = factionOf(s);
-  return f ? { armor: f.armor, shield: f.shield } : { armor: 0, shield: 0 };
+  if (!f) return { armor: 0, shield: 0 };
+  const bonus = defenseBonusOf(s);
+  return { armor: f.armor + bonus.armor, shield: f.shield + bonus.shield };
 }
 
 export function slotWeapon(s: FighterState, slot: number): WeaponId | null {
@@ -72,10 +78,10 @@ export function setSlot(s: FighterState, slot: 0 | 1, w: WeaponId | null): void 
   else s.weapon1 = w ?? "";
 }
 
-/** Rhythm of `w` in this fighter's hands (attack-speed buffs applied), or null without a faction. */
+/** Rhythm of `w` in this fighter's hands (the asMult and windupMult mirrors applied), or null without a faction. */
 export function timingsOf(s: FighterState, w: WeaponId): WeaponTimings | null {
   const f = factionOf(s);
-  return f ? weaponTimings(w, attackInterval(f, w, attackSpeedMult(s))) : null;
+  return f ? scaleWindup(weaponTimings(w, attackInterval(f, w, attackSpeedMult(s))), windupMultOf(s)) : null;
 }
 
 /**

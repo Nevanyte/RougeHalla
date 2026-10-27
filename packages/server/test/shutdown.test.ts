@@ -169,6 +169,8 @@ beforeAll(async () => {
     patienceSeconds: 120, // nothing happens in the arena by itself
     patienceMinSeconds: 120,
     suddenDeathSeconds: 120,
+    planSeconds: 0, // today's flow: the run starts straight from the lobby
+    firstPatienceSeconds: 0,
     latencyMs: 0,
     stashFile: profileFile,
   });

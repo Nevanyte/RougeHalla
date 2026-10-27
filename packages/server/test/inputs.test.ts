@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CLIENT_MESSAGE_TYPES, WORLD_H, WORLD_W, type ClientMessageType } from "@raid/shared";
 import {
-  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePoint, parseSeq,
+  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePlan, parsePoint, parseSeq,
   type ActionCommand,
 } from "../src/sim/inputs";
 
@@ -725,6 +725,46 @@ describe("enqueueClientMessage", () => {
     });
   });
 
+  describe("plan", () => {
+    it.each([
+      [{ spawn: 0 }, { kind: "plan", spawn: 0 }],
+      [{ spawn: 1 }, { kind: "plan", spawn: 1 }],
+      [{ boon: 1 }, { kind: "plan", boon: 1 }],
+      [{ ready: true }, { kind: "plan", ready: true }],
+      [{ ready: false }, { kind: "plan", ready: false }],
+      [{ spawn: 1, boon: 0, ready: true }, { kind: "plan", spawn: 1, boon: 0, ready: true }],
+      [{ spawn: 0, x: 99, pick: 5, kind: "move" }, { kind: "plan", spawn: 0 }],
+    ])("queues %j", (msg, want) => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "plan", msg)).toBe(true);
+      expect(q.actions).toEqual([want]);
+      expect(parsePlan(msg)).toEqual(want);
+    });
+
+    it.each([
+      ["an empty object", {}],
+      ["only unknown fields", { pick: 0 }],
+      ["a spawn of 2", { spawn: 2 }],
+      ["a negative spawn", { spawn: -1 }],
+      ["a fractional spawn", { spawn: 0.5 }],
+      ["a spawn as a string", { spawn: "1" }],
+      ["a pool index", { spawn: 7 }],
+      ["a boon of 2", { boon: 2 }],
+      ["a null spawn", { spawn: null }],
+      ["ready as a number", { ready: 1 }],
+      ["ready as a string", { ready: "true" }],
+      ["a good spawn with a bad ready", { spawn: 0, ready: "yes" }],
+      ["a good ready with a bad spawn", { spawn: 3, ready: true }],
+      ["null payload", null],
+      ["a number payload", 1],
+    ])("rejects %s whole", (_n, msg) => {
+      const q = fresh();
+      expect(enqueueClientMessage(q, "plan", msg)).toBe(false);
+      expect(q.actions).toEqual([]);
+      expect(parsePlan(msg)).toBeNull();
+    });
+  });
+
   describe("cast", () => {
     it("queues a validated action: the slot, the clamped cursor point, and nothing else", () => {
       const q = fresh();
@@ -854,6 +894,7 @@ describe("enqueueClientMessage", () => {
       release: { a: 0.5, t: 100 },
       swap: { slot: 1 },
       pickup: { containerId: "c1" },
+      plan: { spawn: 1, ready: true },
       cast: { slot: "wish", x: 100, y: 100 },
     };
 

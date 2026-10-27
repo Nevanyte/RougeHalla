@@ -32,6 +32,18 @@ describe("status line", () => {
     expect(statusLine(lobby, 20_000)).toBe("Waiting for players 1/2 — run starts in 0:00");
   });
 
+  it("the planning line counts the seconds to the end of planning, rounded up, and survives a missing end", () => {
+    const planning = { ...arena, phase: "planning", planEndsAt: 12_000 };
+    expect(statusLine(planning, 0)).toBe("Planning 0:12");
+    expect(statusLine(planning, 4_900)).toBe("Planning 0:08");
+    expect(statusLine(planning, 11_999)).toBe("Planning 0:01");
+    expect(statusLine(planning, 20_000)).toBe("Planning 0:00");
+    expect(statusLine({ ...arena, phase: "planning" }, 0)).toBe("Planning");
+    expect(statusLine({ ...arena, phase: "planning", planEndsAt: 0 }, 0)).toBe("Planning");
+    // Practice shows its banner whatever the phase.
+    expect(statusLine({ ...planning, training: true }, 0)).toBe(TRAINING_BANNER);
+  });
+
   it("the arena end lines name the winner when there is one", () => {
     expect(statusLine({ ...arena, phase: "ended", winner: "Ada" }, 0)).toBe("Run over — Ada is victorious");
     expect(statusLine({ ...arena, phase: "ended" }, 0)).toBe("Run over");

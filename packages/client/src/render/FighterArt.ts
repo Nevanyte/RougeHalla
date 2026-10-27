@@ -2,8 +2,8 @@
 // PlayerView and MobView, which pass the synced fields and read nothing else; everything here is cosmetic.
 import Phaser from "phaser";
 import {
-  FACTIONS, GOLD_COLOR, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, Y_SCALE, attackInterval, decodeMult, hpBarFractions, isFactionId,
-  isWeaponId, weaponTimings, type WeaponId,
+  FACTIONS, GOLD_COLOR, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, WIRE_IDENTITY_MIRRORS, Y_SCALE, attackInterval, decodeMult, hpBarFractions,
+  isFactionId, isWeaponId, scaleWindup, weaponTimings, type WeaponId,
 } from "@raid/shared";
 import { BARRIER_COLOR } from "../ui/buffTheme";
 import { BAKE_SCALE, around, bakedImage, ensureBake, pixelImage, placeBake, swapBake, type Region } from "./bake";
@@ -28,8 +28,10 @@ export interface FighterFields {
   weapon1: string;
   slot: number;
   drawStartedAt: number;
-  /** The attack-speed mirror, wire form (a player's `asMult`; a mob has none and attacks at its faction's rate: 1). */
+  /** The attack-speed mirror, wire form (a player's `asMult`, thousandths; a mob has none and attacks at its faction's rate). */
   asMult?: number;
+  /** The windup mirror, wire form (a player's `windupMult`, thousandths; a mob has none). */
+  windupMult?: number;
 }
 
 /** The weapon in hand, or null (an empty slot, or an id from newer server content). */
@@ -134,14 +136,18 @@ const HELD_SCALE = 1.15;
 const DRAW_PUSH_SLACK_MS = 100;
 
 /**
- * Seconds a bow takes to loose (the server's own formula: the interval shrinks with the attack-speed mirror `asMult`, and the
- * windup is a share of it up to a cap), or 0 without a faction. The draw is fixed now, so full pull is the whole windup.
- * A mob's faction is scaled down in hp and damage only, so its rate, and with it the draw, is the plain faction's; its
- * multiplier is 1.
+ * Seconds a bow takes to loose (the server's own formula, timingsOf: the interval shrinks with the attack-speed mirror
+ * `asMult`, the windup is a share of it up to a cap, and the windup mirror `windupMult` then scales it through scaleWindup),
+ * or 0 without a faction. Both mirrors are the wire form (thousandths), as the state carries them; an absent one is the
+ * identity. The draw is fixed now, so full pull is the whole windup. A mob's faction is scaled down in hp and damage only,
+ * so its rate, and with it the draw, is the plain faction's, with no mirrors.
  */
-export function fullDrawSeconds(faction: string, asMult = 1): number {
+export function fullDrawSeconds(
+  faction: string, asMult: number = WIRE_IDENTITY_MIRRORS.asMult, windupMult: number = WIRE_IDENTITY_MIRRORS.windupMult,
+): number {
   if (!isFactionId(faction)) return 0;
-  return weaponTimings("bow", attackInterval(FACTIONS[faction], "bow", decodeMult(asMult))).windup;
+  const timings = weaponTimings("bow", attackInterval(FACTIONS[faction], "bow", decodeMult(asMult)));
+  return scaleWindup(timings, decodeMult(windupMult)).windup;
 }
 
 /** One start of a draw as the server had it, and the server time of the patch that first showed it. */
@@ -286,8 +292,8 @@ export class FighterArt {
     const weapon = heldWeapon(f);
     // Tracked every frame, not only with a bow in hand, so a draw that a swap cancelled can't linger.
     const drawing = this.draw.track(f.drawStartedAt, renderT, patchT);
-    // Only while a bow is being drawn: the time to full draw follows the attack-speed mirror, which changes with a drop.
-    const full = weapon === "bow" && drawing ? fullDrawSeconds(f.faction, f.asMult) : 0;
+    // Only while a bow is being drawn: the time to full draw follows the attack-speed and windup mirrors, which change with a drop.
+    const full = weapon === "bow" && drawing ? fullDrawSeconds(f.faction, f.asMult, f.windupMult) : 0;
     // Clamped at both ends: a chill can leave the start a few ms ahead of render time while the draw is on screen.
     const pull = full > 0 ? Math.max(0, Math.min(1, (renderT - this.draw.start) / 1000 / full)) : -1;
     this.pull = pull;
@@ -326,7 +332,7 @@ const HP_BAR_H = 4;
 const BAR_BACK_COLOR = 0x000000;
 
 /**
- * The small hp bar over a fighter: hp in green to red, then the kill barrier in pale blue after it (both as shares of
+ * The small hp bar over a fighter: hp in green to red, then the barrier in pale blue after it (both as shares of
  * max hp). `top` is the bar's y in the view's local frame. It changes only when what it shows moves by half a pixel or
  * its colour changes. Three flat rectangles, each an Image of the shared 1x1 white texture.
  */

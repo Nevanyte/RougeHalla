@@ -1,6 +1,6 @@
 // Wire contracts. Client→server messages are inputs only; the server decides outcomes.
 import type { AbilityId, AbilitySlot, CastEndReason } from "./abilities";
-import type { BuffStat, ComboId } from "./buffs";
+import type { BuffId } from "./buffs";
 import type { FactionId } from "./factions";
 import type { SignatureKind } from "./signatures";
 import type { StatusKind } from "./status";
@@ -8,7 +8,12 @@ import type { ProjectileKind, WeaponId } from "./weapons";
 
 export interface Vec2 { x: number; y: number }
 
-export type RaidPhase = "lobby" | "active" | "ended";
+/**
+ * "planning" (roguelike R3) sits between the lobby and the run when the server's planSeconds is above 0: the room is locked,
+ * each player is dealt two spawns in a private `plan` message and picks one; nobody moves, fights or is hurt. It ends at
+ * `RaidState.planEndsAt`, or as soon as every connected player is ready (`PlayerState.planReady`), and then the run starts.
+ */
+export type RaidPhase = "lobby" | "planning" | "active" | "ended";
 /**
  * A lone survivor wins and stays "alive" (state.winner names them). A winner decided between players who went down in
  * the same last tick, and everyone in a draw, are "dead".
@@ -62,6 +67,14 @@ export interface ClientMessages {
   /** Take a weapon from a chest, the ground or a body in reach (F). With both slots full, the one in hand is dropped. */
   pickup: { containerId: string };
   /**
+   * The planning screen (phase "planning" only; dropped in any other phase). `spawn` and `boon` are indexes into the two
+   * options of the player's own private `plan` message (0 or 1, nothing else); at least one field must be there. The
+   * first player to pick a spawn holds it, and everyone else who was dealt it is told it is taken. Picking the other option
+   * lets go of the first. `ready: true` latches (false changes nothing) and freezes the picks; the run starts early once
+   * every connected player is ready.
+   */
+  plan: { spawn?: 0 | 1; boon?: 0 | 1; ready?: boolean };
+  /**
    * Cast the ability in `slot` ("wish" = the faction's Wish, key D; "q"/"e" arrive with skills). (x, y): the cursor's ground
    * point (clamped like `move`; the point or direction, ignored by self casts). `id`: a unit target. `t`: render time (clamped;
    * unused until skills rewind). `seq`: as for `move`, echoed in moveSeq (sent with a blink). Refused silently, at no cost,
@@ -70,7 +83,7 @@ export interface ClientMessages {
   cast: { slot: AbilitySlot; x: number; y: number; id?: string; t?: number; seq?: number };
 }
 export type ClientMessageType = keyof ClientMessages;
-export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "cast"];
+export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast"];
 
 /** Why a projectile stopped (a `projEnd` fx). */
 export type ProjectileEnd =
@@ -127,10 +140,9 @@ export type FxEvent =
   | { kind: "teleport" }
   /** A player's bounty rose: "<name> is on a rampage — bounty N GV". At most one per player per BOUNTY_ANNOUNCE_MS; a rise held back goes out when the window ends. */
   | { kind: "bounty"; id: string; name: string; bounty: number }
-  /** `id` gained buff stacks (a mob drop or a bounty): `stacks` of `stat`, and the new total. */
-  | { kind: "buff"; id: string; stat: BuffStat; stacks: number; total: number }
-  /** `id` reached a combo tier (`proc` false) or a kill set it off (`proc` true). */
-  | { kind: "combo"; id: string; combo: ComboId; proc: boolean }
+  /** `id` gained buff stacks (a mob kill or a bounty): `stacks` of `buff` (a BuffId), and the new total. */
+  | { kind: "buff"; id: string; buff: BuffId; stacks: number; total: number }
+  // "combo" (wire code 11) is retired with the kill combos (roguelike R4a): never emitted, its code never reused.
   /** The run is over. `id`/`name` are the winner's; both null with `draw` for a draw, and without it when nobody won (a solo run, or everyone left). */
   | { kind: "victory"; id: string | null; name: string | null; draw: boolean }
   /**
@@ -217,11 +229,36 @@ export interface ProjectileLaunch {
   range: number;
 }
 
+/**
+ * One player's planning deal (roguelike R3), sent to that player only: when planning starts, again whenever anything in it
+ * changes (an option of theirs taken or freed by someone else, their own pick), and on a reconnect during planning. Nothing
+ * of it is in the synced state. The latest message replaces the earlier ones.
+ */
+export interface PlanMessage {
+  /** Server time planning ends (the same as RaidState.planEndsAt; it can end sooner when everyone is ready). */
+  endsAt: number;
+  /**
+   * The two spawns dealt, as indexes into `generateMap(seed).spawnPool`: both at about the same walking distance from the
+   * coliseum centre (planning.ts `spawnWalks`) and in different zones where the pool allows. -1 only on a map with no spawn pool.
+   */
+  spawns: [number, number];
+  /** That option is held by another player's pick (never set for the player's own pick). */
+  taken: [boolean, boolean];
+  /** The player's own spawn pick (an index into `spawns`), or -1 for none yet. */
+  pick: -1 | 0 | 1;
+  /** The start boons dealt (BoonId); empty until roguelike R7. */
+  boons: string[];
+  /** The player's own boon pick, or -1. */
+  boon: -1 | 0 | 1;
+}
+
 /** Server → client. */
 export interface ServerMessages {
   fxs: FxBatch;
   toast: { text: string };
   result: RunResult;
+  /** Private: only the player it is dealt to receives it (see PlanMessage). */
+  plan: PlanMessage;
 }
 
 /**
