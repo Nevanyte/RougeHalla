@@ -139,7 +139,7 @@ describe("the painter's feature layer", () => {
 
 // Recorded from handFeatureMap() at 240 px (see the test above).
 const GOLDEN_FEATURE_CALLS = 208;
-const GOLDEN_FEATURE_HASH = "e96a2d8f534afcf7";
+const GOLDEN_FEATURE_HASH = "55b8ae92dd6901e9"; // re-pinned when the fence line went from #b9b0d6 to #f1ecff (brighter on the zone tint)
 
 describe("what the map screens show of the shapes at the sizes they are drawn", () => {
   const synth = synthMap({ seed: 3 });
@@ -190,7 +190,7 @@ describe("what the map screens show of the shapes at the sizes they are drawn", 
         fences++;
         const tx = i % synth.w, ty = Math.floor(i / synth.w);
         let any = false;
-        for (let py = Math.floor(ty * t); py < Math.ceil((ty + 1) * t) && !any; py++) for (let px = Math.floor(tx * t); px < Math.ceil((tx + 1) * t); px++) if (r.at(px, py) === "#b9b0d6") { any = true; break; }
+        for (let py = Math.floor(ty * t); py < Math.ceil((ty + 1) * t) && !any; py++) for (let px = Math.floor(tx * t); px < Math.ceil((tx + 1) * t); px++) if (r.at(px, py) === "#f1ecff") { any = true; break; }
         if (any) drawn++;
       }
       expect(fences).toBeGreaterThan(100);

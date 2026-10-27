@@ -309,7 +309,7 @@ export function drawFloorLook(g: Pen, look: FloorLook, s: FloorSpot): void {
       const c = SHAPE_PALETTE.crater;
       const ring = clamp01((s.dist - (s.radius - 3.4)) / 2.6);
       const step = Math.round(ring * 8) / 8;
-      if (step > 0) g.fillStyle(c.ash, 0.1 + 0.4 * step).fillRect(x, y, TILE_W, TILE_H);
+      if (step > 0) g.fillStyle(c.ash, 0.12 + 0.5 * step).fillRect(x, y, TILE_W, TILE_H);
       else if (bits(h, 6, 2) === 0) g.fillStyle(c.dust, 0.14).fillRect(x, y, TILE_W, TILE_H);
       if (step >= 0.5 && bits(h, 2, 2) === 0) {
         g.lineStyle(1, c.crack, 0.55);
@@ -352,7 +352,7 @@ export function drawFloorLook(g: Pen, look: FloorLook, s: FloorSpot): void {
     case "causeway": {
       // Packed snow across the lake: pale, with two trodden ruts and drifted specks.
       const k = SHAPE_PALETTE.snow;
-      g.fillStyle(k.packed, 0.6).fillRect(x, y, TILE_W, TILE_H);
+      g.fillStyle(k.packed, 0.85).fillRect(x, y, TILE_W, TILE_H);
       g.fillStyle(k.shade, 0.55);
       g.fillRect(x + 4, y + 7, 9, 1).fillRect(x + 17 + bits(h, 2, 3), y + 7, 8, 1);
       g.fillRect(x + 3 + bits(h, 5, 3), y + 17, 10, 1).fillRect(x + 18, y + 17, 8, 1);

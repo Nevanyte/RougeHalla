@@ -348,7 +348,7 @@ describe("a floor of each look", () => {
     expect(alpha(0.5)).toBe(0);
     expect(alpha(5.4)).toBeGreaterThan(alpha(3.5));
     expect(alpha(5.4)).toBeGreaterThan(0.3);
-    expect(alpha(5.4)).toBeLessThanOrEqual(0.5);
+    expect(alpha(5.4)).toBeLessThanOrEqual(0.65);
   });
 
   it("draws the shore's bright rim only along the sides that meet the ice, and a doorway's sill across the way through", () => {

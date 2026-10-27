@@ -20,8 +20,9 @@
 // Report-only: no outcome is asserted and no number is changed. It exits 0 unless the arguments are invalid or a run throws.
 import { pathToFileURL } from "node:url";
 import {
+  FACTIONS,
   BEATS, circleClear, FACTION_IDS, findPath, generateMap, hasLineOfSight, mulberry32, moveComponents, pathLength, PLAYER_RADIUS, PLAYER_SPEED,
-  REGION_IDS, segmentClear, SIGNATURE_WEAPONS, TICK_MS, TILE, TILE_LOW, worldToTile,
+  isRanged, raycast, REGION_IDS, segmentClear, SIGNATURE_WEAPONS, TERRAIN_FENCE, TICK_MS, TILE, TILE_LOW, worldToTile,
   type FactionId, type GameMap, type Vec2,
 } from "@raid/shared";
 import { wilson as wilsonScore } from "../bots/tournament/report";
@@ -432,8 +433,11 @@ export interface ZonePair {
   obstructed: boolean;
 }
 
-/** Which pairs to draw: any, only those a body cannot walk straight ("obstructed"), or only those it can ("clear"). */
-export type PairKind = "any" | "obstructed" | "clear";
+/**
+ * Which pairs to draw: any, only those a body cannot walk straight ("obstructed"), only those it can ("clear"), or only those with a
+ * fence on the straight line between them ("fenced": a fence row between the two, the Gallows' own case on a real map).
+ */
+export type PairKind = "any" | "obstructed" | "clear" | "fenced";
 
 /**
  * `count` pairs of floor tiles in `zone` of `map`, 4 to 7.5 tiles apart, both with room for a body, both in the zone and in one walkable
@@ -465,6 +469,10 @@ export function zonePairs(map: GameMap, zone: FactionId, count: number, salt = 0
     if (d < PAIR_MIN_TILES || d > PAIR_MAX_TILES) continue;
     const obstructed = !segmentClear(map, a, b, PLAYER_RADIUS);
     if ((kind === "obstructed" && !obstructed) || (kind === "clear" && obstructed)) continue;
+    if (kind === "fenced") {
+      const hit = raycast(map, a.x, a.y, b.x, b.y, TILE_LOW);
+      if (!hit.hit || map.terrain[worldToTile(hit.y) * map.w + worldToTile(hit.x)] !== TERRAIN_FENCE) continue;
+    }
     out.push({ a, b, tiles: d, angle: Math.atan2(b.y - a.y, b.x - a.x), obstructed });
   }
   return out;
@@ -596,6 +604,37 @@ export function mapReport(opts: MapRunOptions): MapReport {
   text.push("");
   block("EVERY PAIR", () => true);
   block("OBSTRUCTED PAIRS ONLY", (r) => r.obstructed);
+  // Melee against ranged: how long the melee fighter needs for its first hit and what the shooter lands before that, in the zone and in the control.
+  const meleeRanged = records.filter((r) => isRanged(SIGNATURE_WEAPONS[r.edge[0]]) !== isRanged(SIGNATURE_WEAPONS[r.edge[1]]));
+  if (meleeRanged.length > 0) {
+    const stats = (r: DuelResult, meleeIdx: 0 | 1): { contact: number | null; free: number } => {
+      const first = r.hitLog.find((h) => h.by === meleeIdx && h.weapon !== null);
+      const shooterIdx = meleeIdx === 0 ? 1 : 0;
+      const free = r.hitLog.filter((h) => h.by === shooterIdx && (first === undefined || h.t <= first.t)).reduce((a, h) => a + h.amount, 0);
+      return { contact: first?.t ?? null, free };
+    };
+    text.push("  MELEE AGAINST RANGED (the designed pairs where exactly one side shoots): seconds until the melee fighter's first hit, and the shooter's damage before it as a share of the melee fighter's hp");
+    text.push(`  ${"zone".padEnd(10)}${"duels".padStart(6)}${"contact zone/open".padStart(20)}${"shooter free dmg zone/open".padStart(30)}${"melee side wins zone/open".padStart(28)}`);
+    const rowsFor = (label: string, rs: MapDuelRecord[]): void => {
+      const meleeIdxOf = (r: MapDuelRecord): 0 | 1 => (isRanged(SIGNATURE_WEAPONS[r.edge[0]]) ? 1 : 0);
+      const get = (pick: (r: MapDuelRecord) => DuelResult): { c: number | null; f: number | null; w: number } => {
+        const cs: number[] = [], fs: number[] = [];
+        let wins = 0;
+        for (const r of rs) {
+          const mi = meleeIdxOf(r), res = pick(r), st = stats(res, mi);
+          if (st.contact !== null) cs.push(st.contact);
+          fs.push(st.free / FACTIONS[r.edge[mi]].hp);
+          if (res.winner === mi) wins++;
+        }
+        return { c: mean(cs), f: mean(fs), w: rs.length ? wins / rs.length : 0 };
+      };
+      const z = get((r) => r.inZone), o = get((r) => r.open);
+      text.push(`  ${label.padEnd(10)}${String(rs.length).padStart(6)}${`${num(z.c, 2, "s")}/${num(o.c, 2, "s")}`.padStart(20)}${`${pct(z.f ?? 0)}/${pct(o.f ?? 0)}`.padStart(30)}${`${pct(z.w)}/${pct(o.w)}`.padStart(28)}`);
+    };
+    for (const zone of zones) rowsFor(zone, meleeRanged.filter((r) => r.zone === zone));
+    rowsFor("all", meleeRanged);
+    text.push("");
+  }
   text.push("  designed winner's win rate by edge, every pair: in the zone / open control");
   text.push(`  ${"edge".padEnd(20)}${zones.map((z) => z.padStart(13)).join("")}${"all zones".padStart(13)}`);
   const worst: Array<{ label: string; delta: number; n: number }> = [];
@@ -631,7 +670,7 @@ const USAGE = [
   "  --rows-seeds N        rows: duels per setup (default 1; N seeds change the shuffled order the sim breaks ties in)",
   "  --seeds N[,M..] | a-b map: the map seeds, N meaning 1..N (default 4)",
   "  --pairs P             map: pairs of floor tiles per zone and map (default 2)",
-  "  --pair-kind k         map: any (default), obstructed (a body cannot walk the straight line between the pair) or clear",
+  "  --pair-kind k         map: any (default), obstructed (a body cannot walk the straight line between the pair), clear, or fenced (a fence on the line)",
   "  --shooter s           rows: lock (default, the contract's condition) or stand, strafe, kite, orbwalk: a STRESS where Sentenced plays that style",
   "  --zone a,b            map: only these zones (fire, sentenced, plague, frost, holy)",
   "  --edge w>l,..         map: only these designed faction edges",
@@ -716,7 +755,7 @@ export function parseZoneArgs(argv: readonly string[]): ZoneCli {
       }
       case "--pair-kind": {
         const v = value();
-        if (v !== "any" && v !== "obstructed" && v !== "clear") throw new UsageError(`--pair-kind takes any, obstructed or clear, not "${v}"`);
+        if (v !== "any" && v !== "obstructed" && v !== "clear" && v !== "fenced") throw new UsageError(`--pair-kind takes any, obstructed, clear or fenced, not "${v}"`);
         cli.pairKind = v;
         break;
       }

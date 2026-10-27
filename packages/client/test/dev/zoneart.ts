@@ -30,8 +30,14 @@ function stat(v: number[]): Stats {
  * Where the camera looks for `focus=<zone>` (the screenshots): the zone's signature shape (a crater, a fence row, a barrow, a mere, the
  * hall), else its pole. In tiles.
  */
-function focusOf(m: GameMap, zone: string): { x: number; y: number } {
-  const kind = { fire: "crater", sentenced: "fenceRow", plague: "barrow", frost: "mere", holy: "hall" }[zone];
+function focusOf(m: GameMap, spec: string): { x: number; y: number } {
+  // "fire" (the zone's signature shape) or "fire:landmark" (a feature kind of the zone; "fire:landmark:1" its second).
+  const [zone, want, nth] = spec.split(":");
+  const kind = want ?? { fire: "crater", sentenced: "fenceRow", plague: "barrow", frost: "mere", holy: "hall" }[zone!];
+  if (want) {
+    const f = m.features.filter((g) => g.zone === zone && g.kind === want)[Number(nth ?? 0)];
+    if (f) return { x: f.bbox.x + f.bbox.w / 2, y: f.bbox.y + f.bbox.h / 2 };
+  }
   const f = m.features.find((g) => g.zone === zone && g.kind === kind) ?? m.features.find((g) => g.zone === zone && g.kind !== "infill");
   if (f) return { x: f.bbox.x + f.bbox.w / 2, y: f.bbox.y + f.bbox.h / 2 };
   const pole = m.regions.find((r) => r.id === zone)?.pole;
@@ -39,7 +45,7 @@ function focusOf(m: GameMap, zone: string): { x: number; y: number } {
 }
 const focus = q.get("focus") ? focusOf(map, q.get("focus")!) : null;
 
-const api: Record<string, unknown> = { map, seed, mode };
+const api: Record<string, unknown> = { map, seed, mode, focus };
 
 /**
  * The map worker as the page runs it (net/mapWorker.ts's module worker): the warm-up (layout tables and a throwaway attempt), then

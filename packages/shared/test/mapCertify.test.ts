@@ -13,7 +13,7 @@ import { TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA } 
 import {
   BOW_TILES, CERT_FEATURE_JOBS, CERT_FEATURE_KINDS, FEATURE_CHECKS, LANDMARK_ZONE, PAIR_DRAWS, PAIR_TARGET, RAY_DIRECTIONS, ZONE_MEASURE_VALUES,
   ZONE_WINDOWS, campGraph, campGraphNodes, certifyMap, classifyPair, cyclomaticNumber, decorProblems, engagementPairs, featureProblems, gabriel, judgeWindow, lcgNext,
-  pieceProblems, pieceStats, pieces, rayLengthsAt, rayProfile, strictZoneCodes, walkSegment, zoneMeasures,
+  pieceProblems, pieceStats, pieces, rayLengthsAt, rayProfile, strictZoneCodes, validElitePairs, walkSegment, zoneMeasures,
 } from "./mapCertify";
 
 // ---- Hand-made grids ---------------------------------------------------------------------------------------------------------
@@ -358,6 +358,27 @@ describe("pieces", () => {
 });
 
 // ---- The camp graph -----------------------------------------------------------------------------------------------------------
+
+describe("elite pairs", () => {
+  const centre = { x: tileToWorldCenter(68), y: tileToWorldCenter(68) };
+  const at = (tx: number, ty: number): CampDef => camp("fire", tx, ty);
+  it("takes the farthest camp, then the farthest 16+ tiles from it, and falls back to the second farthest", () => {
+    // distances from the centre (68, 68): A 50, B 45 (only 5 from A), C 40 (30 from A), D 10.
+    const zc = [at(68, 18), at(68, 23), at(28, 68), at(68, 78)];
+    expect(validElitePairs(zc, centre)).toEqual([[0, 2]]);
+    // Everything within 16 tiles of the farthest: the fallback is the second farthest.
+    const close = [at(68, 18), at(68, 23), at(70, 25), at(68, 30)];
+    expect(validElitePairs(close, centre)).toEqual([[0, 1]]);
+  });
+  it("lets either of two equally far camps stand, as first or as second", () => {
+    // B and C are exactly as far from the centre (symmetric about the vertical axis), both 16+ tiles from A.
+    const zc = [at(68, 10), at(40, 40), at(96, 40), at(68, 80)];
+    const pairs = validElitePairs(zc, centre);
+    expect(pairs).toEqual([[0, 1], [0, 2]]);
+    const tiedFirst = [at(10, 68), at(126, 68), at(68, 80)];
+    expect(validElitePairs(tiedFirst, centre)).toEqual([[0, 1], [1, 0]]);
+  });
+});
 
 describe("camp graph", () => {
   it("has the Gabriel edges: a collinear triple loses its long edge, a square keeps all six (its diagonals touch the circle), a triangle all three", () => {

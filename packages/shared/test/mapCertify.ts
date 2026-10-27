@@ -19,7 +19,7 @@ import {
   MASK_MOVE, MASK_SIGHT, REGION_COLISEUM, REGION_FACTIONS, REGION_NONE, REGION_WEAPONS, TILE_FLOOR, TILE_LOW, TILE_WALL, isWallTile, tileToWorldCenter,
   withGates, worldToTile,
 } from "../src/map";
-import type { GameMap, GateSide, RegionFaction, TilePt, TileRect } from "../src/map";
+import type { CampDef, GameMap, GateSide, RegionFaction, TilePt, TileRect } from "../src/map";
 import type { Vec2 } from "../src/messages";
 import { SHAPE_GATES, STYLE_STREAM, styleRng } from "../src/mapgen";
 import type { ZoneStyleHook } from "../src/mapgen";
@@ -425,12 +425,12 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
   });
   for (const f of REGION_FACTIONS) {
     // The elite camps: the zone's camp farthest from the centre, then the next farthest at least 16 tiles from it (else the second farthest).
-    const zc = camps.filter((c) => c.zone === f).map((c, k) => ({ c, k, d: dist(c, m.coliseum.centre) }));
-    zc.sort((a, b) => b.d - a.d || a.k - b.k);
+    // Distances are exact (integer squared tile distances), and a tie between equally far camps lets either stand.
+    const zc = camps.filter((c) => c.zone === f);
     if (zc.length < 2) continue;
-    const first = zc[0].c, second = (zc.slice(1).find((e) => dist(e.c, first) >= ELITE_MIN_SEP_TILES * TILE - 1e-9) ?? zc[1]).c;
-    const elites = zc.filter((e) => e.c.eliteSpot >= 0).map((e) => e.c);
-    check(`camps: ${f} elite camps are its farthest from the centre and the next farthest 16+ tiles from it`, elites.length === 2 && elites.includes(first) && elites.includes(second), () => elites.map((c) => c.id).join(","));
+    const elites = zc.map((c, k) => (c.eliteSpot >= 0 ? k : -1)).filter((k) => k >= 0);
+    const ok = elites.length === 2 && validElitePairs(zc, m.coliseum.centre).some(([a, b]) => (a === elites[0] && b === elites[1]) || (a === elites[1] && b === elites[0]));
+    check(`camps: ${f} elite camps are its farthest from the centre and the next farthest 16+ tiles from it`, ok, () => zc.filter((c) => c.eliteSpot >= 0).map((c) => c.id).join(","));
   }
 
   // --- Spawn pool --------------------------------------------------------------------------------------------------------
@@ -640,6 +640,27 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
       features: m.features.length, featureKinds, kinds, zonePieces, hazardExposure, zones, strictZones: strictCodes,
     },
   };
+}
+
+/**
+ * The elite pairs the rule allows for a zone's camps (indices into `zoneCamps`): a first elite among the camps farthest from the
+ * coliseum centre, a second among the farthest of the camps at least ELITE_MIN_SEP_TILES from it (else of all the others). Squared
+ * distances in tiles are integers, so equally far camps tie exactly and each tied choice is allowed.
+ */
+export function validElitePairs(zoneCamps: readonly CampDef[], centre: Vec2): Array<[number, number]> {
+  const tx = (v: number): number => worldToTile(v);
+  const d2 = (a: { x: number; y: number }, b: { x: number; y: number }): number => (tx(a.x) - tx(b.x)) * (tx(a.x) - tx(b.x)) + (tx(a.y) - tx(b.y)) * (tx(a.y) - tx(b.y));
+  const fromCentre = zoneCamps.map((c) => d2(c, centre));
+  const top = Math.max(...fromCentre), out: Array<[number, number]> = [];
+  zoneCamps.forEach((first, a) => {
+    if (fromCentre[a] !== top) return;
+    const others = zoneCamps.map((_, k) => k).filter((k) => k !== a);
+    const far = others.filter((k) => d2(zoneCamps[k], first) >= ELITE_MIN_SEP_TILES * ELITE_MIN_SEP_TILES);
+    const pool = far.length > 0 ? far : others;
+    const best = Math.max(...pool.map((k) => fromCentre[k]));
+    for (const k of pool) if (fromCentre[k] === best) out.push([a, k]);
+  });
+  return out;
 }
 
 // ---- Checkers -----------------------------------------------------------------------------------------------------------

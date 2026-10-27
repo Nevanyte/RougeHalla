@@ -31,7 +31,7 @@ export const COLOR_REGION: Record<RegionId, string | null> = {
 const COLOR_LOW_DEFAULT = "#7a808b";
 const COLOR_LOW: Readonly<Record<number, string>> = {
   [TERRAIN_LAVA]: "#ff5a1f",
-  [TERRAIN_FENCE]: "#b9b0d6",
+  [TERRAIN_FENCE]: "#f1ecff",
   [TERRAIN_CREVASSE]: "#0a1626",
 };
 const COLOR_CREVASSE_EDGE = "#4aa3df";

@@ -616,11 +616,14 @@ export function drawFlatProp(g: Pen, p: PropSpot): void {
       g.fillStyle(0x8a7d62, 1).fillRect(x - 6, y - 2, 5, 1).fillRect(x + 1, y, 6, 1);
       break;
     case "stained_glass": {
+      // A rosette of coloured light on the floor: a lozenge of four glass quarters in lead, not a stray bar of colour.
       const blood = TERRAIN_PALETTE.sanctum.blood;
-      g.fillStyle(0x2a2418, 0.9).fillRect(x - 9, y - 6, 18, 12);
-      g.fillStyle(blood, 0.85).fillRect(x - 8, y - 5, 5, 10);
-      g.fillStyle(0x2c5aa0, 0.85).fillRect(x - 2, y - 5, 5, 10);
-      g.fillStyle(0xd4af37, 0.85).fillRect(x + 4, y - 5, 4, 10);
+      g.fillStyle(0x2a2418, 0.75).fillTriangle(x - 10, y, x, y - 7, x + 10, y).fillTriangle(x - 10, y, x, y + 7, x + 10, y);
+      g.fillStyle(blood, 0.8).fillTriangle(x - 8, y, x, y - 5, x, y);
+      g.fillStyle(0x2c5aa0, 0.8).fillTriangle(x, y - 5, x + 8, y, x, y);
+      g.fillStyle(0xd4af37, 0.8).fillTriangle(x + 8, y, x, y + 5, x, y);
+      g.fillStyle(0x4aa36a, 0.8).fillTriangle(x, y + 5, x - 8, y, x, y);
+      g.fillStyle(0xfff2b0, 0.9).fillRect(x - 1, y - 1, 2, 2);
       break;
     }
     default:

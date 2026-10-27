@@ -4,7 +4,7 @@
 // stops what the sim says it stops, and that the default duel path is the one it was before the zone duels existed.
 import { describe, expect, it } from "vitest";
 import {
-  BEATS, circleClear, findPath, hasLineOfSight, mapFromTiles, MASK_SIGHT, PLAYER_RADIUS, SIGNATURE_WEAPONS, TERRAIN_FENCE, TILE, TILE_FLOOR, TILE_LOW,
+  BEATS, circleClear, findPath, forgetMapCaches, hasLineOfSight, mapFromTiles, raycast, MASK_SIGHT, PLAYER_RADIUS, SIGNATURE_WEAPONS, TERRAIN_FENCE, TILE, TILE_FLOOR, TILE_LOW,
   TILE_WALL, REGION_IDS, type FactionId, type GameMap,
 } from "@raid/shared";
 import {
@@ -337,6 +337,20 @@ describe("a duel on a ready map, at explicit starts", () => {
     for (const p of zonePairs(map, "fire", 6, 0, "clear")) expect(p.obstructed).toBe(false);
   });
 
+  it("draws fenced pairs only across a fence row (a LOW tile of the fence terrain on the straight line), never across a wall or lava", () => {
+    const map = walledMap();
+    // Turn the wall into a fence with a gap, and put a lava column (LOW, not a fence) at x = 10.
+    for (let y = 1; y < 30; y++) { map.tiles[y * 40 + 20] = TILE_LOW; map.terrain[y * 40 + 20] = TERRAIN_FENCE; map.tiles[y * 40 + 10] = TILE_LOW; map.terrain[y * 40 + 10] = 1; }
+    forgetMapCaches(map);
+    const pairs = zonePairs(map, "fire", 30, 0, "fenced");
+    expect(pairs).toHaveLength(30);
+    for (const p of pairs) {
+      const hit = raycast(map, p.a.x, p.a.y, p.b.x, p.b.y, TILE_LOW);
+      expect(hit.hit).toBe(true);
+      expect(map.terrain[Math.floor(hit.y / TILE) * 40 + Math.floor(hit.x / TILE)]).toBe(TERRAIN_FENCE);
+    }
+  });
+
   it("runs every designed edge on both fighters' signature weapons for every pair, in the zone and on the open floor", () => {
     const map = walledMap();
     const edges = BEATS.slice(0, 3);
@@ -361,8 +375,8 @@ describe("a duel on a ready map, at explicit starts", () => {
 
 describe("the zone duel CLI", () => {
   it("parses its options and refuses a bad one", () => {
-    const cli = parseZoneArgs(["--source", "both", "--variants", "--seeds", "3-5", "--pairs", "4", "--zone", "fire,holy", "--edge", "fire>sentenced,holy>fire", "--cap", "60", "--pair-kind", "obstructed", "--shooter", "orbwalk", "--rows-setups", "quick", "--rows-seeds", "3", "--quiet"]);
-    expect(cli).toMatchObject({ source: "both", variants: true, seeds: [3, 4, 5], pairs: 4, zones: ["fire", "holy"], cap: 60, pairKind: "obstructed", shooter: "orbwalk", rowsSetups: "quick", rowsSeeds: 3, quiet: true });
+    const cli = parseZoneArgs(["--source", "both", "--variants", "--seeds", "3-5", "--pairs", "4", "--zone", "fire,holy", "--edge", "fire>sentenced,holy>fire", "--cap", "60", "--pair-kind", "fenced", "--shooter", "orbwalk", "--rows-setups", "quick", "--rows-seeds", "3", "--quiet"]);
+    expect(cli).toMatchObject({ source: "both", variants: true, seeds: [3, 4, 5], pairs: 4, zones: ["fire", "holy"], cap: 60, pairKind: "fenced", shooter: "orbwalk", rowsSetups: "quick", rowsSeeds: 3, quiet: true });
     expect(cli.edges).toEqual([["fire", "sentenced"], ["holy", "fire"]]);
     expect(parseZoneArgs(["--seeds", "2"]).seeds).toEqual([1, 2]);
     expect(parseZoneArgs(["--seeds", "7,9"]).seeds).toEqual([7, 9]);
@@ -380,5 +394,6 @@ describe("the zone duel CLI", () => {
     expect(text).toContain("EVERY PAIR");
     expect(text).toContain("OBSTRUCTED PAIRS ONLY");
     expect(text).toContain("fire > sentenced");
+    expect(text).toContain("MELEE AGAINST RANGED"); // fire > sentenced is an axe against a bow
   }, 60_000);
 });

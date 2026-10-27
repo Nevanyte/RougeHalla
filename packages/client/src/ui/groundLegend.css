@@ -27,3 +27,5 @@
     #0a1626;
 }
 html[data-ui-narrow] .help-ground-term { margin-top: 6px; }
+/* The "Shapes of the land" heading under the terrain list (groundLegend.ts): a small caps label, set apart from the rows above it. */
+.help-ground-sub { margin: 12px 0 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #aeb7c2; }
