@@ -4,6 +4,7 @@
 // registered at the bottom of this file, so every caller of `enabledModules` gets them without naming them.
 import type { CastPolicy, FeatureModule, Features } from "../types";
 import { chestsModule } from "./chests";
+import { hazardsModule } from "./hazards";
 import { planningModule } from "./planning";
 import { wishesModule } from "./wishes";
 
@@ -43,3 +44,4 @@ export function resetModules(): void {
 registerModule(wishesModule);
 registerModule(planningModule);
 registerModule(chestsModule);
+registerModule(hazardsModule);

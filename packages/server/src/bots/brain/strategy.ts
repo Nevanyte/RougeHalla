@@ -105,7 +105,8 @@ const PATROL_REVISIT_MS = 45_000;
 const PATROL_AGE_FULL_MS = 120_000;
 const ARRIVED = 96;
 const HOLD_SAFE = 260;
-const MAP_SPAN = 2000;
+/** A walk is scored against the map's own width (the old 2000 u was a 64 x 64 map; a 96 x 96 one is 3072 u a side). */
+const mapSpan = (map: { readonly w: number }): number => map.w * TILE;
 const EXCLUDE_FAILED_MS = 5000;
 const EXCLUDE_DONE_MS = 1500;
 
@@ -641,7 +642,7 @@ class StrategyImpl implements Strategy {
         if (w === null) continue;
         walk = w.dist;
       }
-      const value = 0.3 + 0.4 * share + 0.25 * (1 - Math.min(1, walk / MAP_SPAN));
+      const value = 0.3 + 0.4 * share + 0.25 * (1 - Math.min(1, walk / mapSpan(cfg.map)));
       let u = persona.pve * CAMP_ROAM_FACTOR * value;
       if (elite) u *= 0.55 + 0.45 * persona.eliteAppetite;
       if (cm?.contestedAt != null && p.now - cm.contestedAt < 20_000) u *= 0.7;
@@ -675,7 +676,7 @@ class StrategyImpl implements Strategy {
       const visited = mem.camps.get(camp.id)?.visitedAt ?? null;
       const age = visited === null ? PATROL_AGE_FULL_MS : p.now - visited;
       if (age < PATROL_REVISIT_MS) continue;
-      const score = Math.min(1, age / PATROL_AGE_FULL_MS) - d / (2 * MAP_SPAN);
+      const score = Math.min(1, age / PATROL_AGE_FULL_MS) - d / (2 * mapSpan(cfg.map));
       if (!best || score > best.score) best = { camp, id: camp.id, score };
     }
     if (!best) return null;

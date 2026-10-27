@@ -3,7 +3,7 @@
 // the server. What stays here is what only the player decides: whom to click, which weapon to hold, when to walk away
 // (kite.ts) and when not to start. The bot never sends aim, attack or release.
 import {
-  bestSlot, isRanged, lockSpacing, TARGET_RANGE,
+  bestSlot, hasLineOfSight, isRanged, lockSpacing, MASK_SIGHT, reachMask, TARGET_RANGE,
   type FactionId, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { bestSlotVsMob, mobWeapon } from "../../mobHunt";
@@ -57,6 +57,17 @@ const BOUNTY_MIN_HP = 0.7;
 /** Sudden death: the bot ahead on hp share keeps this far from its opponent; the lead needed to start and to keep doing it (hp shares). */
 const SD_KEEP = 340;
 const SD_BAND = 0.02;
+/**
+ * Is the foe within the weapon's REACH, as the server's lock decides it (sim/targeting.ts: `reachMask(weapon)` on the collision map)?
+ * Sight is not reach: a fence, a lava stream or a crevasse stops a swing but not a shot or a look, so across one a melee bot is
+ * still being walked round and attacks nothing. A ranged weapon's reach is sight, which is the foe's own `los`.
+ */
+export function inReach(ctx: BrainContext, foe: { readonly x: number; readonly y: number; readonly los: boolean }, weapon: WeaponId): boolean {
+  if (!foe.los) return false;
+  const mask = reachMask(weapon);
+  return mask === MASK_SIGHT || hasLineOfSight(ctx.svc.paths.collisionMap(), ctx.p.self, foe, mask);
+}
+
 /** A melee foe is a chaser when it closes in on the bot, was seen chasing, or is this close (u); farther than CHASE_RANGE it is not yet. */
 const CHASE_CLOSE = 260;
 const CHASE_RANGE = 380;
@@ -268,7 +279,7 @@ export function createFight(deps: FightDeps): Fight {
 
     const locked = self.attackTarget === foe.id;
     const spacing = lockSpacing(weapon);
-    const attacking = locked && foe.seen && foe.los && foe.dist <= spacing.attackRange + ATTACK_SLACK;
+    const attacking = locked && foe.seen && inReach(ctx, foe, weapon) && foe.dist <= spacing.attackRange + ATTACK_SLACK;
     const mine = self.maxHp > 0 ? self.hp / self.maxHp : 1;
     const swap = swapFor(ctx, foe, weapon);
     /** Out of the ordinary: the watch for a fight going nowhere starts again from here. */

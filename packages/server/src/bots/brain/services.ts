@@ -1,13 +1,14 @@
 // The brain's pathfinding (docs/BOTS.md 1, change 6): shared `findPath` behind a per-tick budget and a short cache. One budget
-// is shared by every bot of a room (BOT_PATH_BUDGET_PER_TICK searches a tick, about 0.1 ms each on a 64x64 map), so eight bots
-// thinking at once cannot add up to a long step. A search that does not fit the budget is answered with the straight line x 1.3
+// is shared by every bot of a room (BOT_PATH_BUDGET_PER_TICK searches a tick, about 0.3 ms each camp to camp on a 96x96 zone map,
+// 0.1 ms on the old 64x64 one; about 6% of a game's walk answers are over budget), so eight bots thinking at once cannot add up
+// to a long step. A search that does not fit the budget is answered with the straight line x 1.3
 // (`exact: false`), or, when the same trip was worked out not long ago, with that answer: a walking distance to a camp barely
 // moves, and a distance that flips between "A* says 410" and "line says 560" from one think to the next makes goals flap.
 //
 // The driver owns the clock: it calls `budget.startTick()` once per room step and `paths.setFrame(now, gatesLocked)` once per
 // frame (the brain also calls setFrame from every percept it reads, which is the same two values for every bot of a room).
 // Nothing here reads a clock or draws a random number.
-import { findPath, hasLineOfSight, PLAYER_RADIUS, segmentClear, withGates, type GameMap, type Vec2 } from "@raid/shared";
+import { findPath, hasLineOfSight, MASK_MOVE, PLAYER_RADIUS, segmentClear, withGates, type GameMap, type Vec2 } from "@raid/shared";
 import { pathLength } from "../mobHunt";
 import { BOT_PATH_BUDGET_PER_TICK, type PathService, type ServerMs } from "./types";
 
@@ -132,8 +133,9 @@ export function createPathService(map: GameMap, budget: PathBudget): RoomPathSer
       if (!finite(from, to)) return null;
       return trip(from, to)?.path ?? null;
     },
+    // Sight (walls only) for what is seen and shot; the move mask (walls and low ground) for where a body can walk in a line.
     los: (a, b) => hasLineOfSight(collision(), a, b),
-    clear: (a, b) => segmentClear(collision(), a, b, PLAYER_RADIUS),
+    clear: (a, b) => segmentClear(collision(), a, b, PLAYER_RADIUS, MASK_MOVE),
     collisionMap: collision,
     get stats() { return stats; },
   };

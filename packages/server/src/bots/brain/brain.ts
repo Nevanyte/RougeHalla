@@ -103,6 +103,9 @@ function guardModules(mods: readonly FeatureModule[], log: (msg: string) => void
     ...(m.observe ? { observe: (ctx: BrainContext): void => { run(m, "observe", () => m.observe!(ctx), undefined); } } : {}),
     ...(m.goals ? { goals: (ctx: BrainContext): readonly GoalDecision[] => run(m, "goals", () => m.goals!(ctx), []) } : {}),
     ...(m.intents ? { intents: (ctx: BrainContext, g: Goal): readonly Intent[] => run(m, "intents", () => m.intents!(ctx, g), []) } : {}),
+    ...(m.adjust
+      ? { adjust: (ctx: BrainContext, g: Goal, intents: readonly Intent[]): readonly Intent[] => run(m, "adjust", () => m.adjust!(ctx, g, intents), intents) }
+      : {}),
     ...(m.act
       ? {
         act: (ctx: BrainContext, g: Extract<Goal, { kind: "module" }>): TacticsOutput => run<TacticsOutput>(
@@ -256,7 +259,9 @@ export const createBrain: BrainFactory = (cfg: BrainConfig): Brain => {
     const out = tactics.act(ctx, g);
     const extra: Intent[] = [];
     for (const m of mods) if (m.intents) extra.push(...m.intents(ctx, g));
-    return extra.length === 0 ? out : { ...out, intents: mergeIntents(out.intents, extra) };
+    let intents = extra.length === 0 ? out.intents : mergeIntents(out.intents, extra);
+    for (const m of mods) if (m.adjust) intents = m.adjust(ctx, g, intents);
+    return intents === out.intents ? out : { ...out, intents };
   }
 
   const brain: Brain = {

@@ -11,7 +11,7 @@ import * as shared from "@raid/shared";
 import {
   abilityInSlot, buffPower, CHEST_PANEL_SLACK, CHEST_RANGE, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight,
   hpBarFractions, INTERACT_RANGE, isDot,
-  isFactionId, isWeaponId, TELEPORT_IMMUNITY_MS, TERRAIN_EMBER, TERRAIN_LIGHT, unpackFx, unpackLaunches, WEAPONS, withGates,
+  isFactionId, isWeaponId, MASK_MOVE, TELEPORT_IMMUNITY_MS, TERRAIN_EMBER, TERRAIN_LIGHT, unpackFx, unpackLaunches, WEAPONS, withGates,
   type FactionId, type FxBatch, type GameMap, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -690,7 +690,9 @@ function wishView(me: PlayerLike): WishView | null {
 /**
  * Containers in the box, as ContainerView draws them: a chest shut or open, a loose weapon's icon, a body and its label. A
  * chest's or a body's weapon shows only for the interaction target: the nearest container with a weapon within
- * INTERACT_RANGE and line of sight of the bot's latest position (the highlight, the weapon bar's hint, what F takes).
+ * INTERACT_RANGE and a line that nothing solid crosses, LOW included (the movement mask, as the server's pickup and the client's
+ * `canInteract` read it: a hand does not go through a fence) from the bot's latest position (the highlight, the weapon bar's hint,
+ * what F takes).
  */
 function seeContainers(state: StateLike, map: GameMap, self: SelfView, near: (x: number, y: number) => boolean): ContainerSeen[] {
   const sight = state.gatesLocked ? withGates(map) : map;
@@ -703,7 +705,7 @@ function seeContainers(state: StateLike, map: GameMap, self: SelfView, near: (x:
     const x = f32(c.x), y = f32(c.y);
     if (!near(x, y)) continue;
     const kind = c.kind;
-    const reach = canAct && Math.hypot(self.x - x, self.y - y) <= INTERACT_RANGE && hasLineOfSight(sight, self, { x, y });
+    const reach = canAct && Math.hypot(self.x - x, self.y - y) <= INTERACT_RANGE && hasLineOfSight(sight, self, { x, y }, MASK_MOVE);
     boxed.push({ id, c, x, y, kind, reach });
     if (!reach) continue;
     const w = firstWeapon(c);

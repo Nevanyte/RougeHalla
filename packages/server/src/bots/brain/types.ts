@@ -309,7 +309,7 @@ export interface Features {
   readonly relics: boolean;
   /** RaidState.camps (CampState; R5). */
   readonly camps: boolean;
-  /** The map carries floor hazards (ember, bog, ice, light in `GameMap.terrain`; R2's zone terrain). No module reads it yet. */
+  /** The map carries floor hazards (ember, bog, ice, light in `GameMap.terrain`; R2's zone terrain). The `hazards` module reads it. */
   readonly hazards: boolean;
 }
 
@@ -843,8 +843,9 @@ export interface PathService {
   /** The walking distance, or null when there is no path. Over budget: straight line x 1.3, `exact` false. */
   walk(from: Vec2, to: Vec2): { readonly dist: number; readonly exact: boolean } | null;
   path(from: Vec2, to: Vec2): readonly Vec2[] | null;
-  /** hasLineOfSight / segmentClear(PLAYER_RADIUS) on the collision map (gates locked per the HUD). */
+  /** hasLineOfSight on the collision map (gates locked per the HUD): SIGHT, so low ground (lava, a fence, a crevasse) does not stop it. */
   los(a: Vec2, b: Vec2): boolean;
+  /** segmentClear(PLAYER_RADIUS) under the MOVE mask: a straight walk for a body, which low ground does stop. */
   clear(a: Vec2, b: Vec2): boolean;
   collisionMap(): GameMap;
 }
@@ -1046,6 +1047,11 @@ export interface FeatureModule {
   intents?(ctx: BrainContext, goal: Goal): readonly Intent[];
   /** Executes its own `module` goals. */
   act?(ctx: BrainContext, goal: Extract<Goal, { kind: "module" }>): TacticsOutput;
+  /**
+   * The intents of a tactics goal after the merge of every module's `intents`, for a module that corrects what they say rather than
+   * adds to it (hazards moves a walk's destination off bad ground). Returns the list it was given when it changes nothing.
+   */
+  adjust?(ctx: BrainContext, goal: Goal, intents: readonly Intent[]): readonly Intent[];
 }
 
 /** Mirror of the Wishes contract section 6 `CastSituation` (bots/abilityPolicy.ts there). */

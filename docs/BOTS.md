@@ -609,14 +609,14 @@ whose `enabled(features)` is false is never called. A test runs a whole game wit
 Wishes feature (`ext` fx and `extras.wish`).
 
 **Modules** (`brain/modules/`, `FeatureModule`). Each has `observe`, `goals` (candidates scored with the rest), `intents`
-(merged into tactics' output) and `act` (for its own `module` goals).
+(merged into tactics' output), `adjust` (corrects the merged intents of a tactics goal: hazards only) and `act` (for its own `module` goals).
 
 | Module | Percept extras | Behaviour |
 |---|---|---|
 | `wishes` (and R6 `skills`, same code for the q/e slots) | `wish`, `skills`, `effects`, `fields`; `ext` cast, castLand, castEnd, status | Builds the contract's `CastSituation` from the percept: me (hp share, effect bits, hit within 1.5 s), foe (the goal's target if visible), threat (the nearest visible enemy, "chasing" = velocity toward me with cos > 0.7 and closing). Calls the shared `decideCast` and emits a `cast` intent, timed as a reaction to the stimulus or a step. Never while casting, before `readyAt`, or (for units) on an untargetable foe. Memory turns `castLand` by X into `wishSeenAt`/`wishReadyGuess`. Built: see below |
 | `planning` (R3, built) | `plan` (private message, read from the percept's events) | See below |
 | `chests` (R5, built; relics R7) | `camps`, `chests` (place and expiry map-wide, as the minimap draws them; the cards only within `CHEST_RANGE − 8` with line of sight, as the panel shows) | See below |
-| `hazards` (zone terrain) | Map hazard data (seed-derived) | Penalises flee, kite and hold points in hazards; a reflex "step out" when standing in a damaging one |
+| `hazards` (R2 zone terrain, built) | The map's `terrain` (seed-derived), through the shared `surfaceAt` | See below |
 
 **Planning (built, `modules/planning.ts`).** `detectFeatures` reports `planning` true on the merged schema (`plan` in
 `CLIENT_MESSAGE_TYPES`). The deal reaches the brain as a private `plan` message (the Room routes a bot's to `bots.onPrivate`), and
@@ -659,6 +659,12 @@ player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the
   chest past the hold; the rule keeps that true whatever a tier's reaction time becomes.
 - It keeps its own record of the skills it took (the HUD's passives row) to leave a card it holds at rank 2.
 
+**Hazards (built, `modules/hazards.ts`).** The bot reads the tile under a fighter's centre through the shared `surfaceAt`, the table the sim burns and slows by (a fighter's home faction is exempt), and:
+- **Steps off embers.** Standing still (250 ms) on ground that burns it, with nothing locked and no loot goal, it sends a `move` to the nearest clean tile within 6 tiles (the tile and its four neighbours are not bad, so a click's scatter stays on good ground; else any tile that is not bad) that it can walk to in a straight line. Timed as a step, priority `goal`; a new decision at most every 600 ms, the same order offered again while it is on its way (up to 1.5 s or 20 u from arrival) so a hold's `stop` does not undo it. A walk in progress is left to finish: it may be crossing the field.
+- **Redirects a long walk (`adjust`).** A `move` of 4+ tiles whose destination is bad ground for the bot (embers; bog or ice when not at home on them) is moved onto the nearest clean tile within 3 tiles. A dodge, a juke or an orb-walk step is shorter and never detoured. The server's A* still routes through hazards: `findPath` has no terrain cost, and none was added.
+- **Looks for light** when hurt (below `persona.reengageHp`), lying low (`hold` ambush or wait) and not engaged: a `move` to the nearest light tile within 8 tiles it can walk to in a line.
+Reach is read with the server's own masks elsewhere (`fight.ts` `inReach`, `perception.ts` `seeContainers`, `PathService.clear`): see CLAUDE.md "The bots on the R2 zone maps".
+
 **Adopting `decideCast` (built).** Wishes is merged, so `brain/modules/wishes.ts` calls the shared `decideCast` / `hidesCaster`
 (`bots/abilityPolicy.ts`, pure and shared-only) directly: the one import outside the brain's folder, allowed for that file alone
 (`boundary.test.ts`). It is registered in `modules/index.ts`, so every driver that asks `enabledModules(features)` gets it; the
@@ -687,7 +693,6 @@ player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the
 - `FighterSeen.displaceSeq` and `drawFullMs`: neither is in the percept;
 - the Q/E skill and relic modules (`detectFeatures` reports `relics` true because `PlayerState.build` exists, with no module
   behind it, and `skills` false);
-- the hazards module (zone terrain is not on main yet).
 
 ---
 
@@ -703,6 +708,7 @@ player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the
 | `strategy.test.ts` | Personas order goals as in 5; hysteresis; softmax and lapse frequencies; learned bias bounded; the pursuit-ring breaker (ports `botOrbit.test.ts`) |
 | `tactics.test.ts` | One lock click, re-sent only when not taken, never aim, attack or release (ports `botLock.test.ts`); orb-walk cycle timing; dodge feasibility and juke timing (2.6); swaps by edge; pickups only when interactable; coliseum hold; sudden-death avoidance |
 | `learning.test.ts` | Round trip; version; atomic write (crash between write and rename leaves the old file); bad file moved aside; refuses the stash path; bias within ±0.25 after 1000 identical wins; decay |
+| `hazards.test.ts`, `reachSight.test.ts` | The hazards module on a hand-built terrain map (step off, redirect, light, a whole brain, the `adjust` seam); reach is not sight: a melee bot across low ground is not attacking, a weapon across it is not interactable, `clear` is the move mask, the span is the map's width |
 | `wishes.test.ts`, `planningModule.test.ts`, `chestsModule.test.ts` | The three modules on synthetic percepts, through a whole brain, and in whole headless games. `test/botPlanning.test.ts` (the room never waits out the planning timer for bots) and `test/botChests.test.ts` (the pure chest policy) sit beside them |
 | `botManager.test.ts` | Arrival schedule and HUD count; `lobbyClosing` top-up; a human join yields a seat; callsign collisions; the delay line (arrival = at + latency, monotonic, applied at the next step); results never banked and no profile created (spy on `store`); dispose flushes |
 
@@ -809,7 +815,7 @@ packages/server/src/bots/
   brain/services.ts         PathService (budget, cache)                              I
   brain/brain.ts            createBrain: the tick loop of 4                          I
   brain/runner.ts           BotRunner: perceive -> ring -> brain -> adapter          I
-  brain/modules/*.ts        index (registry), wishes, planning, chests (hazards: not built)   W (as each feature lands)
+  brain/modules/*.ts        index (registry), wishes, planning, chests, hazards              W (as each feature lands)
   learning/BotStatsStore.ts the stats file                                           L
   BotManager.ts, callsigns.ts   in-process driver, fill, delay line                  D1
   BotClient.ts (rewrite), runBots.ts (--tier --persona --seed --stats)  network adapter, CLI  D2
