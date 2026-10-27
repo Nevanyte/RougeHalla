@@ -23,6 +23,7 @@ import { MapView } from "../render/MapView";
 import { MobView } from "../render/MobView";
 import { PlayerView } from "../render/PlayerView";
 import { ProjectileView } from "../render/ProjectileView";
+import { QuestView } from "../render/QuestView";
 import { BODY_LIFT, projX, projY, unproject } from "../render/projection";
 import { ScreenJuice } from "../render/screenJuice";
 import { TargetRings } from "../render/TargetRings";
@@ -39,6 +40,8 @@ import { MapHold, mapHoldAllowed } from "../ui/mapHold";
 import type { ChestBlip } from "../ui/mapPainter";
 import { Minimap } from "../ui/minimap";
 import { PlanningView, planningModeFor, type PlanningPlayer } from "../ui/planning";
+import { QuestLog } from "../ui/questLog";
+import { expireQuestPreviews, questCollections, questFromReveal, questMinimapBlips, type QuestStateLike } from "../ui/questModel";
 import { RouteState } from "../ui/route";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import type { ToastTone } from "../ui/toast";
@@ -88,6 +91,10 @@ export class RaidScene extends Phaser.Scene {
   private views = new Map<string, PlayerView>();
   private mobViews = new Map<string, MobView>();
   private containerViews = new Map<string, ContainerView>();
+  private questView!: QuestView;
+  private questLog!: QuestLog;
+  private readonly questPreviews = new Map<string, QuestStateLike>();
+  private unbindQuestReveal: (() => void) | null = null;
   private projectiles!: ProjectileView;
   private mapView: MapView | null = null;
   private highlight!: ContainerHighlight;
@@ -239,6 +246,8 @@ export class RaidScene extends Phaser.Scene {
     this.lastAimSentAt = 0;
     this.lastArenaPatchT = 0;
     this.hud = new Hud();
+    this.questLog = new QuestLog();
+    this.questPreviews.clear();
     this.weaponBar = new WeaponBar();
     this.wishSlot = new AbilitySlotView({ key: "D" });
     this.weaponBar.dock(this.wishSlot.element);
@@ -298,6 +307,11 @@ export class RaidScene extends Phaser.Scene {
       wishFx: (fx, now) => this.wishFx.play(fx, now),
     });
     this.fieldView = new FieldView(this);
+    this.questView = new QuestView(this);
+    this.unbindQuestReveal = this.room.onMessage("questReveal", (message: ServerMessages["questReveal"]) => {
+      const preview = questFromReveal(message);
+      this.questPreviews.set(preview.id, preview);
+    });
     this.wishFx = new WishFx(this, {
       localId: this.room.sessionId,
       position: (id) => this.visiblePosition(id),
@@ -416,6 +430,7 @@ export class RaidScene extends Phaser.Scene {
     }
     const seenMobs = new Set<string>();
     state.mobs.forEach((m, id) => {
+      if (m.kind === "quest") return;
       seenMobs.add(id);
       let view = this.mobViews.get(id);
       if (!view) { view = new MobView(this, this.fx); this.mobViews.set(id, view); }
@@ -438,6 +453,16 @@ export class RaidScene extends Phaser.Scene {
     const chestNow = trueServerNow(serverNow, rttFromOrderDelay(this.predict.motion.delay));
     this.syncContainers(state, chestNow, now);
     this.updateChestPanel(state, me, sightMap ?? null, serverNow);
+    expireQuestPreviews(this.questPreviews, serverNow);
+    const questData = questCollections(state, this.questPreviews.values(), serverNow);
+    this.questView.update({
+      quests: questData.quests, containers: questData.containers, players: state.players, positions: this.rendered,
+      localId: this.room.sessionId, me, highlightId: this.nearest?.kind === "quest" ? this.nearest.id : undefined,
+    });
+    this.questLog.update({
+      active: state.phase === "active" && !state.training, quests: questData.quests, hidden: questData.hidden,
+      localId: this.room.sessionId, serverNow,
+    });
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.
     this.updateTargets(me, now);
@@ -452,6 +477,7 @@ export class RaidScene extends Phaser.Scene {
     // Redraws only when the player's dot (or the gates) actually changed.
     this.minimap.setMobs(state.mobs);
     this.minimap.setChests(this.blips);
+    this.minimap.setQuests(questMinimapBlips(questData.quests, questData.containers, this.room.sessionId, this.rendered.get(this.room.sessionId), this.rendered, map ?? null));
     this.fillCampStates(state, map?.camps.length ?? 0);
     this.minimap.setCampStates(this.campStates);
     const cam = this.cameras.main;
@@ -462,7 +488,7 @@ export class RaidScene extends Phaser.Scene {
 
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     this.hud.update(state, me, serverNow);
-    this.weaponBar.update(me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null);
+    this.weaponBar.update(me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "quest" ? this.nearest.label : "");
     this.updateWishSlot(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
     this.trackRoute(state, me);
@@ -480,11 +506,13 @@ export class RaidScene extends Phaser.Scene {
     const players: PlanningPlayer[] = [];
     state.players.forEach((p, id) => { players.push({ faction: p.faction, ready: p.planReady, me: id === this.room.sessionId }); });
     const at = this.rendered.get(this.room.sessionId);
+    const questData = questCollections(state, this.questPreviews.values(), serverNow);
     view.update({
       mode, serverNow, endsAt: state.planEndsAt, meReady: me?.planReady === true, players,
       campTypes: readCampTypes(state, this.mapView?.map.camps.length ?? 0),
       campStates: this.campStates,
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
+      quests: questData.quests, hiddenQuests: questData.hidden, localId: this.room.sessionId,
     });
   }
 
@@ -632,6 +660,7 @@ export class RaidScene extends Phaser.Scene {
     this.blips.length = 0;
     const me = this.rendered.get(this.room.sessionId);
     state.containers.forEach((c, id) => {
+      if (c.kind === "quest") return;
       seen.add(id);
       let view = this.containerViews.get(id);
       if (!view) { view = new ContainerView(this); this.containerViews.set(id, view); }
@@ -837,7 +866,7 @@ export class RaidScene extends Phaser.Scene {
     const selfId = this.room.sessionId;
     this.room.state.players.forEach((p, id) => { if (id !== selfId) add(id, p.status, p.effects); });
     // Behind the locked coliseum gates every mob is out of reach (the server refuses them), so a click can't snap to one.
-    if (!this.room.state.gatesLocked) this.room.state.mobs.forEach((m, id) => add(id, m.status, m.effects));
+    if (!this.room.state.gatesLocked) this.room.state.mobs.forEach((m, id) => { if (m.kind !== "quest") add(id, m.status, m.effects); });
     return list;
   }
 
@@ -1138,6 +1167,9 @@ export class RaidScene extends Phaser.Scene {
     this.fx.destroy();
     this.wishFx.destroy();
     this.fieldView.destroy();
+    this.questView.destroy();
+    this.unbindQuestReveal?.();
+    this.unbindQuestReveal = null;
     this.predict.reset();
     this.juice.reset();
     this.projectiles.destroy();
@@ -1171,6 +1203,7 @@ export class RaidScene extends Phaser.Scene {
     this.deaths.clear();
     this.inHand.clear();
     this.hud.destroy();
+    this.questLog.destroy();
     this.trainingBar?.destroy();
     this.trainingBar = null;
     this.weaponBar.destroy();

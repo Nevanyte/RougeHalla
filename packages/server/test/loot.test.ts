@@ -930,7 +930,7 @@ describe("pickup races", () => {
           const losers = ids.filter((id) => id !== winners[0]);
           // A chest is still there, empty; a loose weapon is gone from under the later taker.
           const why = kind === "chest" ? "Nothing to take" : "Nothing there";
-          expect(toastsOf(events).sort((x, y) => x.to.localeCompare(y.to)), label)
+          expect(toastsOf(events).sort((x, y) => (x.to ?? "").localeCompare(y.to ?? "")), label)
             .toEqual(losers.map((to) => ({ to, text: why })).sort((x, y) => x.to.localeCompare(y.to)));
           for (const id of losers) expect(slotsOf(world, id), label).toEqual(["sword", ""]);
           expect(world.state.containers.has(box.id), label).toBe(kind === "chest");

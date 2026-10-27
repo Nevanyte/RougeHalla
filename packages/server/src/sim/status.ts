@@ -17,7 +17,7 @@ import {
   type StatusKind,
 } from "@raid/shared";
 import { moveSpeedMult } from "./buffs";
-import { standing, type Combatant } from "./combatant";
+import { isQuestGiver, standing, type Combatant } from "./combatant";
 import { recomputeMods } from "./mods";
 import { emit, payLater, type DamageSource, type StatusInstance, type World } from "./world";
 
@@ -52,14 +52,14 @@ const keyOf = (st: { ability?: AbilityId; tag?: string }): string => st.ability 
 /**
  * Applies a status (D21). Instance key = (kind, source.id, ability ?? tag ?? ""). A re-application extends `until` to the
  * later time; `value` takes the larger, or accumulates with `add`; `data` is replaced. `until` is at most now + the kind's
- * maxMs. Refused (null): a playersOnly kind on a mob; any kind on a fighter that is not standing; no time. While the ledger
+ * maxMs. Refused (null): a playersOnly kind on a mob; anything on a quest giver or a fighter not standing; no time. While the ledger
  * pass runs it is queued with payLater and returns null (D20). A fresh instance emits `status` (unless `quiet`).
  * invulnerable raises immuneUntil (D23). Refreshes the bits, then calls world.hooks.statusApplied(world, c, inst, fresh).
  */
 export function addStatus(world: World, c: Combatant, a: StatusApply, opts?: { quiet?: boolean }): StatusInstance | null {
   const rule = STATUS_RULES[a.kind];
   if (rule.playersOnly && c.kind !== "player") return null;
-  if (!standing(c) || !(a.ms > 0)) return null;
+  if (isQuestGiver(c) || !standing(c) || !(a.ms > 0)) return null;
   if (world.combat.collecting) {
     payLater(world, () => { addStatus(world, c, a, opts); });
     return null;

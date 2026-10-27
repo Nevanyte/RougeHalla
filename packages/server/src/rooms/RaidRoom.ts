@@ -128,7 +128,7 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
   return profile;
 }
 
-const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip" };
+const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip", quest: "quest" };
 
 export class RaidRoom extends Room<{ state: RaidState }> {
   /** Set once by createServer(); rooms are constructed by the matchmaker. */
@@ -417,7 +417,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           fxs.push(ev.fx);
           break;
         case "toast":
-          this.sendTo(ev.to, "toast", { text: ev.text });
+          if (ev.to === null) this.broadcast("toast", { text: ev.text });
+          else this.sendTo(ev.to, "toast", { text: ev.text });
           break;
         case "resolved":
           this.settle(ev.id, ev.result);
@@ -431,6 +432,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           break;
         case "plan":
           this.sendTo(ev.to, "plan", ev.plan);
+          break;
+        case "questReveal":
+          this.sendTo(ev.to, "questReveal", ev.quest);
           break;
         case "raidEnded":
           this.clock.setTimeout(() => void this.disconnect(), ENDED_LINGER_SECONDS * 1000);

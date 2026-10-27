@@ -25,7 +25,8 @@
 //          in never changes it);
 //       2. the buff of the mob's type (MobState.type; mobTypeOf) x mobBuffStacks(elite) x m stacks, through grantBuff;
 //       3. the mob's weapon dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer already holds
-//          that weapon type in either slot.
+//          that weapon type in either slot;
+//       4. the chainable mobKilled hook (quest objectives).
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
 //     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
@@ -36,7 +37,7 @@ import {
 import { creditMobKill } from "./arena";
 import { grantBuff } from "./buffs";
 import { campEngaged, campMobDied, ensureRosters } from "./camps";
-import { mobScale, type Combatant } from "./combatant";
+import { isQuestGiver, mobScale, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
 import { dropWeapon } from "./loot";
@@ -97,7 +98,7 @@ export function spawnRegionalMobs(world: World): void {
  */
 export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[], entries: readonly LedgerEntry[]): number {
   const brain = c.rt.brain;
-  if (!brain || brain.mode === "return" || c.s.status !== "alive") return 0;
+  if (isQuestGiver(c) || !brain || brain.mode === "return" || c.s.status !== "alive") return 0;
   let total = 0;
   for (const a of amounts) if (a > 0) total += a;
   if (!(total > 0)) return 0;
@@ -174,8 +175,8 @@ export function killMob(
   // A lethal hit never reaches aggro's fight branch, so the camp is woken here, onto the credited killer (D24).
   if (killer !== null) wakeMatesOnKill(world, c, killer);
 
-  const { elite } = brain;
-  const type = mobTypeOf(c.s.type, brain.region, elite);
+  const { elite, region } = brain;
+  const type = mobTypeOf(c.s.type, region, elite);
   const weapon = c.s.weapon0;
   const at = { x: c.s.x, y: c.s.y };
   if (killer === null) {
@@ -183,7 +184,7 @@ export function killMob(
     if (weapon !== "") payLater(world, () => dropWeapon(world, at, weapon));
     return;
   }
-  payLater(world, () => payMobKill(world, killer!, elite, type, weapon, at, m));
+  payLater(world, () => payMobKill(world, killer!, region, elite, type, weapon, at, m));
 }
 
 /**
@@ -196,7 +197,7 @@ export function mobTypeOf(type: string, region: FactionId, elite: boolean): MobT
   return elite ? eliteTypeOf(region).id : normalTypesOf(region)[0]!.id;
 }
 
-function payMobKill(world: World, killerId: string, elite: boolean, type: MobTypeId, weapon: string, at: Vec2, m: number): void {
+function payMobKill(world: World, killerId: string, region: FactionId, elite: boolean, type: MobTypeId, weapon: string, at: Vec2, m: number): void {
   // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed, buff or drop, so a
   // practice kill never changes the build the player set up.
   if (world.config.training) return;
@@ -209,6 +210,7 @@ function payMobKill(world: World, killerId: string, elite: boolean, type: MobTyp
   creditMobKill(world, p, rt, elite, m);
   grantBuff(world, p, rt, type, mobBuffStacks(elite) * m);
   if (weapon !== "" && p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);
+  world.hooks.mobKilled?.(world, rt, { region, elite });
 }
 
 /** An idle mob below full hp (hurt by someone who was gone before they could wake it) heals after this long unhurt: the design's heal lockout. */

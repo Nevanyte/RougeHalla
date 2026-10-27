@@ -1,0 +1,37 @@
+#ui > .quest-log {
+  position: absolute;
+  z-index: 8;
+  top: 92px;
+  left: 12px;
+  box-sizing: border-box;
+  width: min(370px, calc(var(--ui-w, 800px) - 24px));
+  max-height: calc(var(--ui-h, 600px) - 220px);
+  padding: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: var(--text, #e6e9ed);
+  background: var(--panel, rgba(20, 24, 30, 0.96));
+  border: 1px solid var(--line-strong, #3a434f);
+  border-radius: 8px;
+  box-shadow: var(--shadow-pop, 0 4px 14px rgba(0, 0, 0, 0.45));
+  pointer-events: auto;
+}
+
+.quest-log-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.quest-log-title h2 { margin: 0; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
+.quest-log-key { padding: 1px 6px; color: var(--muted, #aeb7c2); border: 1px solid var(--line-hi, #4a5563); border-radius: 4px; }
+.quest-log-list { display: flex; flex-direction: column; gap: 8px; }
+.quest-log-row { padding: 8px 9px; background: var(--card, #161b21); border: 1px solid var(--line, #2b323c); border-left: 3px solid var(--quest-color); border-radius: 5px; }
+.quest-log-row.ready { border-color: var(--quest-color); }
+.quest-log-row.expired { opacity: 0.62; }
+.quest-log-head { display: flex; align-items: baseline; gap: 7px; }
+.quest-log-name { flex: 1; margin: 0; font-size: 13px; }
+.quest-log-kind { color: var(--quest-color); font-size: 10px; text-transform: uppercase; }
+.quest-log-time { font-variant-numeric: tabular-nums; color: var(--accent, #ffe082); }
+.quest-log-giver, .quest-log-reward, .quest-log-rumoured, .quest-log-empty { color: var(--muted, #aeb7c2); font-size: 11px; }
+.quest-log-objective { margin: 5px 0; font-size: 12px; }
+.quest-log-progress { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 11px; }
+.quest-log-status { color: var(--quest-color); text-align: right; }
+.quest-log-rumoured { margin-top: 10px; }
+html[data-ui-narrow] #ui > .quest-log { top: 72px; max-height: calc(var(--ui-h, 600px) - 180px); }
+html[data-ui-short] #ui > .quest-log { top: 64px; max-height: calc(var(--ui-h, 600px) - 150px); }

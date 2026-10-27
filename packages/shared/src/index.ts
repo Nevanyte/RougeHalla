@@ -31,3 +31,4 @@ export * from "./planning";
 export * from "./skills";
 export * from "./rewards";
 export * from "./training";
+export * from "./quests";

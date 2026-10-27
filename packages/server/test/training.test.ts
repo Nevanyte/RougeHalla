@@ -162,7 +162,7 @@ function expectNoConsequences(world: World, events: SimEvent[]): void {
   const p = me(world);
   const rt = world.players.get(ME)!;
   expect([p.kills, p.gv, p.bounty]).toEqual([0, 0, 0]);
-  expect(rt.gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+  expect(rt.gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
   expect(rt.mobKills).toBe(0);
   expect(rt.resolved).toBe(false);
   expect(ofType(events, "resolved")).toEqual([]);
@@ -891,7 +891,7 @@ describe("the training room (live)", () => {
       const [T, B] = [await claim(), await claim()];
       const resultOf = (who: Account): RunResult => ({
         outcome: "won", profile: who.name, durationSec: 5, kills: 3, killedBy: null, place: 1, players: 4,
-        gv: { kills: 3 * GV_KILL, mobs: 0, bounty: 0, win: 100, total: 3 * GV_KILL + 100 }, winBonusWithheld: false,
+        gv: { kills: 3 * GV_KILL, mobs: 0, bounty: 0, quest: 0, win: 100, total: 3 * GV_KILL + 100 }, winBonusWithheld: false,
       });
       const recordRun = vi.spyOn(server.store, "recordRun");
       const before = snapshot(T);
@@ -938,7 +938,7 @@ describe("the training room (live)", () => {
 
       const sp = serverPlayer(p);
       expect([sp.kills, sp.gv, sp.bounty]).toEqual([0, 0, 0]);
-      expect(world.players.get(sessionOf(p))!.gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+      expect(world.players.get(sessionOf(p))!.gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
       expect(p.toasts.filter((t) => /GV/.test(t))).toEqual([]);
       expect(p.results).toEqual([]);
       await until(() => p.room.state.players.get(sessionOf(p))?.gv === 0, "the client to see no GV");
@@ -1327,7 +1327,7 @@ describe("the training room (live)", () => {
       expect(serverPlayer(p).buffs.size).toBe(0);
       expect(worldOf(p).state.mobs.size).toBe(mobs);
       expect(worldOf(p).state.containers.size).toBe(containers);
-      expect(p.toasts).toEqual([]);
+      expect(p.toasts.filter((text) => !text.startsWith("Quest discovered:"))).toEqual([]);
     });
   });
 

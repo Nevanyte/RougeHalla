@@ -50,6 +50,7 @@ beforeAll(async () => {
   server = await startServer({
     ...loadConfig({}),
     mobs: true,
+    quests: false,
     port,
     stashFile: path.join(dir, "data", "stash.json"),
     latencyMs: 0,

@@ -35,7 +35,8 @@ function gvRows(r: RunResult): HTMLElement {
   const gv = r.gv;
   const box = el("div", "gv-box");
   const winText = r.winBonusWithheld ? WITHHELD : "Win bonus";
-  for (const [text, amount] of [["Kills", gv.kills], ["Mobs", gv.mobs], ["Bounties", gv.bounty], [winText, gv.win]] as const) {
+  const quest = (gv as typeof gv & { quest?: number }).quest;
+  for (const [text, amount] of [["Kills", gv.kills], ["Mobs", gv.mobs], ["Bounties", gv.bounty], ["Quests", quest], [winText, gv.win]] as const) {
     // `|| 0`: a field missing from the payload (an older server) reads as nothing earned, not as "+NaN".
     const earned = amount || 0;
     const row = el("div", earned > 0 ? "gv-row" : "gv-row zero");

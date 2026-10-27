@@ -11,6 +11,7 @@ import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
 import type { PlanningRuntime } from "./planning";
+import type { QuestsRuntime } from "./quests";
 
 export interface SimConfig {
   minPlayers: number;
@@ -27,6 +28,8 @@ export interface SimConfig {
   dummies?: boolean;
   /** Regional mobs: place a mob at every camp spot when the run starts (sim/mobLife.ts). Off unless set; the server turns it on. */
   mobs?: boolean;
+  /** NPC quests, rolled at planning start (or raid start without planning). Always off in training. */
+  quests?: boolean;
   /**
    * A training world (sim/training.ts): the run never ends and nothing is recorded: no patience timer, teleport, sudden
    * death, results or GV, and a fighter who goes down is revived. Implies the training setup (`dummies`).
@@ -183,7 +186,7 @@ export interface PlayerRuntime extends CombatRuntime {
   profile: string;
   killedBy: string | null;
   /** GV earned this run, by source. A win bonus is decided when the run resolves and is never kept here. */
-  gv: { kills: number; mobs: number; bounty: number };
+  gv: { kills: number; mobs: number; bounty: number; quest: number };
   /** Mobs killed this run (feeds the feed score with FEED_MOB_KILL_WEIGHT; player kills are PlayerState.kills). */
   mobKills: number;
   /** hp / maxHp when the tick being simulated began: the tie-break between simultaneous last deaths. */
@@ -426,12 +429,14 @@ export interface ArenaRuntime {
 
 export type SimEvent =
   | { type: "fx"; fx: FxEvent }
-  | { type: "toast"; to: string; text: string }
+  | { type: "toast"; to: string | null; text: string }
   | { type: "raidStarted" }
   /** The lobby closed into the planning phase (sim/planning.ts): the Room locks itself, as it does at raidStarted. */
   | { type: "planningStarted" }
   /** A player's private planning deal changed (or was just dealt): the Room sends `plan` to that player only. */
   | { type: "plan"; to: string; plan: PlanMessage }
+  /** A hidden offer's private head-start reveal; public sync follows four seconds later. */
+  | { type: "questReveal"; to: string; quest: import("@raid/shared").QuestRevealMessage }
   | { type: "raidEnded" }
   /** Feedback only: GV a player just earned. It is banked through their `resolved` result, never from this. */
   | { type: "gv"; id: string; amount: number; reason: GvReason }
@@ -462,6 +467,8 @@ export type ModSource = (world: World, c: Combatant) => ModContribution | null;
 export interface WorldHooks {
   /** A player went down (died/mia) with their run gear still on them. Default: discard it. */
   dropBody(world: World, p: PlayerState): void;
+  /** The lobby just turned into planning: private deals and public planning offers are ready. */
+  planningStarted?(world: World): void;
   /** The lobby just turned into an active raid: players are placed and `raidStartedAt` is set. */
   raidStarted?(world: World): void;
   /**
@@ -471,8 +478,10 @@ export interface WorldHooks {
   teleported?(world: World): void;
   /** `killer` just claimed `victim`'s bounty (already paid). sim/buffs.ts moves half of each of the victim's buffs here. */
   bountyClaimed?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, bounty: number): void;
-  /** A player just killed another player (kill GV paid, bounty claimed). Nothing hangs here since the kill combos went (R4a); R7's kill triggers will. */
-  playerKilled?(world: World, killer: PlayerRuntime): void;
+  /** A player just killed another player (kill GV and bounty paid); quest objectives chain here. */
+  playerKilled?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, outcome: "died" | "mia"): void;
+  /** A regional mob's spoils were just paid; quest objectives chain here. */
+  mobKilled?(world: World, killer: PlayerRuntime, mob: { region: FactionId; elite: boolean }): void;
   /** A fighter changed the weapon in hand (a swap, or a pickup that replaced it). Phase 10 resets a Sentenced mark. */
   weaponSwapped?(world: World, c: Combatant): void;
   /** A fighter left the fight for good: a player went down (`down`) or left (`removed`), or a mob died (`down`). Modules clear their state for it. */
@@ -566,6 +575,8 @@ export interface World {
   planning: PlanningRuntime | null;
   /** Areas and ability damage over time (sim/fields.ts); null until something uses them. */
   abilities: AbilitiesRuntime | null;
+  /** Quest offers and their server-only hidden state (sim/quests.ts); null when disabled or training. */
+  quests: QuestsRuntime | null;
 }
 
 export function createWorld(opts: {
@@ -613,6 +624,7 @@ export function createWorld(opts: {
     factions: null,
     planning: null,
     abilities: null,
+    quests: null,
   };
 }
 
@@ -666,8 +678,8 @@ export function emit(world: World, ev: SimEvent): void {
 }
 
 type ChainableHook =
-  | "teleported" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt"
-  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared";
+  | "teleported" | "planningStarted" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt"
+  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

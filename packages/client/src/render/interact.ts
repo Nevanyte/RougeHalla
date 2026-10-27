@@ -20,7 +20,7 @@ export function containerWeapon(c: ContainerState): WeaponId | null {
   return isWeaponId(def) ? def : null;
 }
 
-/** The closest container holding a weapon that satisfies `canInteract`: what F takes. Opened chests and empty bodies are props. */
+/** The closest container holding a weapon or quest item that satisfies `canInteract`: what F takes. */
 export function nearestContainer(
   containers: { forEach(cb: (c: ContainerState, id: string) => void): void },
   map: GameMap,
@@ -29,7 +29,7 @@ export function nearestContainer(
   let best: ContainerState | null = null;
   let bestSq = Infinity;
   containers.forEach((c) => {
-    if (containerWeapon(c) === null || !canInteract(map, from, c)) return;
+    if ((containerWeapon(c) === null && (c.kind !== "quest" || c.items.length === 0)) || !canInteract(map, from, c)) return;
     const sq = (c.x - from.x) ** 2 + (c.y - from.y) ** 2;
     if (sq < bestSq) {
       best = c;

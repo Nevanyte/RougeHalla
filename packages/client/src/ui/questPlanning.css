@@ -1,0 +1,10 @@
+.pl-quests { display: flex; flex-direction: column; gap: 5px; }
+.pl-quest { padding: 5px 7px; background: var(--card, #161b21); border: 1px solid var(--line, #2b323c); border-left: 3px solid var(--quest-color); border-radius: 5px; font-size: 0.88em; }
+.pl-quest-head { display: flex; align-items: baseline; gap: 6px; }
+.pl-quest-name { flex: 1; }
+.pl-quest-kind { color: var(--quest-color); font-size: 0.78em; text-transform: uppercase; }
+.pl-quest-time { color: var(--accent, #ffe082); font-variant-numeric: tabular-nums; }
+.pl-quest-giver, .pl-quest-reward { color: var(--muted, #aeb7c2); font-size: 0.86em; }
+.pl-quest-hidden { color: var(--accent, #ffe082); }
+.pl-quest-marks { position: absolute; inset: 0; pointer-events: none; }
+.pl-questmark { position: absolute; display: flex; align-items: center; justify-content: center; width: calc(20px * var(--pl-glyph, 1)); height: calc(20px * var(--pl-glyph, 1)); min-width: 14px; min-height: 14px; transform: translate(-50%, -50%); color: #101318; background: var(--quest-color); border: 2px solid #101318; border-radius: 50%; font-size: calc(13px * var(--pl-glyph, 1)); font-weight: 900; text-shadow: none; filter: drop-shadow(0 0 2px #fff); }

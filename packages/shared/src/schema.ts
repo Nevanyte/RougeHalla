@@ -204,6 +204,31 @@ export const ContainerState = schema({
 }, "ContainerState");
 export type ContainerState = SchemaType<typeof ContainerState>;
 
+/**
+ * One publicly visible quest offer (shared/quests.ts has the def, keyed by `def`). Unknown quests stay in the server
+ * runtime and have no entry here until their reveal head start ends. Every visible quest is a standing offer to all:
+ * the first player to finish takes the reward.
+ */
+export const QuestState = schema({
+  id: t.string().default(""),
+  /** QuestDef id (the catalog is shared code, so only the id crosses the wire). */
+  def: t.string().default(""),
+  /** The giver's position (also a kind "quest" entry in `mobs`). */
+  x: t.float32().default(0),
+  y: t.float32().default(0),
+  /** "open" | "done" | "expired". Public expired offers stay here for the quest log. */
+  status: t.string().default("open"),
+  /** Display name of who finished it. */
+  doneBy: t.string().default(""),
+  /** Server time the offer lapses. */
+  expiresAt: t.number().default(0),
+  /** Player id carrying this fetch quest's parcel, "" while it lies on the ground. */
+  carrier: t.string().default(""),
+  /** Objective progress per player id (kills or tokens, capped at the def's count). */
+  progress: t.map("float32"),
+}, "QuestState");
+export type QuestState = SchemaType<typeof QuestState>;
+
 export const RaidState = schema({
   /** RaidPhase */
   phase: t.string().default("lobby"),
@@ -232,6 +257,10 @@ export const RaidState = schema({
   players: t.map(PlayerState),
   mobs: t.map(MobState),
   containers: t.map(ContainerState),
+  /** Public and revealed quest offers by runtime id. Unknown offers are absent, including their ids, defs and positions. */
+  quests: t.map(QuestState),
+  /** Number of offers still hidden from everyone. This count is the only synced information about them. */
+  unknownQuests: t.uint8().default(0),
   /** The ability areas, keyed by field id: set once, then deleted. */
   fields: t.map(FieldState),
   /**
