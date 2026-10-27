@@ -5,6 +5,12 @@ Working log of the tuning of the three skill tiers (docs/BOTS.md 2.2, 5, 9.3). E
 (the default), 400 games = 800 bot-games per tier. A per-bot win share has a 95% Wilson half-width of about 2.5 points at 800
 bot-games, a tier's mean placement a 90% half-width of about 0.08.
 
+**Where each part was measured.** Sections 0 to 5 were taken on the 64x64 wedge map before the roguelike merge (R3 planning, R4a
+per-mob buffs, R5 camps and chests): `MOB_K` 0.45, the three-stat S-curve buffs, no camp-wide aggro, no planning or chest module.
+Section 6 was taken after that merge (`MOB_K` 0.22, per-mob buffs, camp-wide aggro, the planning and chest modules) and still on
+the 64x64 map, before R2's 96x96 zone maps, the hazards module and the reach fix. Section 7 is the only part measured on the zone
+maps the game builds today, so none of the earlier tables describes the tree that ships now.
+
 Diagnostics added for this work (no behaviour): `--tune JSON|@file` (patches the TIERS / PERSONAS tables and the temporary decision
 switches before the games, `tournament/tune.ts`), and in each `GameSummary` the optional `firstKillMs`, `deathLog`, `firstHits`
 and per bot `firstMobKillMs` (`tournament/game.ts`). The Wish lock needed no fix: `HEADLESS_CONFIG` leaves `wishLockSeconds`
@@ -94,11 +100,12 @@ again and again. Two changes, for every tier:
 Result: Easy over 8 s in 6 of 800 bot-games (max 10.0 s, from a 1.2 s hesitation on top of a reaction at its 1.4 s cap on top of
 a slow think), Normal 0, Hard 0.
 
-## 6. State at the merge
+## 6. State at the R3/R4a/R5 merge (the 64x64 map, before R2)
 
 Sections 0 to 5 were measured before main's roguelike work (R3 planning, R4a per-mob buffs, R5 camps and shared chests) was merged
-into this branch. This is the first full run after it, on the tree that ships: `MOB_K` 0.22, per-mob buffs, the planning module
-(its 12 s window is not played here, see below) and the chest module on, tier tables as committed.
+into this branch. This is the first full run after it, on the 64x64 map (R2's zone maps came after this run): `MOB_K` 0.22,
+per-mob buffs, the planning module (its 12 s window is not played here, see below) and the chest module on, tier tables as
+committed.
 
 ```
 npm run tournament -- --games 400 --workers 8 --lineup E,E,N,N,H,H --patience 300 --sudden 60 --max-minutes 15 --seed 3 --quiet
@@ -130,12 +137,63 @@ hard                 366       240               35             0
   section 0's starting point (15.1 / 15.1 / 19.8). I did not re-run section 3's experiments after the merge, so I cannot say
   whether weaker mobs (`MOB_K` 0.22: farming is cheaper, so restraint pays less), the camp-wide aggro the hunt does not know of, or
   the chest module moved it.
+* **Before the merge.** The last tuned run before it (the tuned tables, just before commit `0c07ee9`; same lineup, seed and real
+  timers; `MOB_K` 0.45, the three-stat buffs) gave wins of Easy 10.9% / Normal 17.1% / Hard 22.0%, mean placement 3.90 / 3.45 /
+  3.15, a median game of 219 s and 1.9 / 2.3 / 2.4 mob kills a bot-game (the table is not kept in this log). The merge flattened
+  that ordering to the one above.
 * **Planning is not in these games.** `HEADLESS_CONFIG` leaves `planSeconds` unset, so the headless room starts the raid at once
   and the planning module never acts here. Its effect on a run (a better start for Hard than for Easy) is not measured.
 * **Stalls.** 20 bot-games stood still over 8 s (longest: Easy 17.8 s, Normal 15.6 s, Hard 11.8 s), against 6 of 800 and a 10 s
-  maximum in section 5. Not investigated. One candidate, not confirmed: the chest module keeps a bot at a chest while its pick is
-  pending, a deliberate wait that the stall watch (`brain.ts` `watchStall`) does not list.
+  maximum in section 5. Not investigated here. One candidate, not confirmed: the chest module keeps a bot at a chest while its pick is
+  pending, a deliberate wait that the stall watch (`brain.ts` `watchStall`) does not list. The stalls of the zone maps were traced
+  later and fixed (section 7); whether these 20 had the same cause was not checked.
 * **Who wins.** By faction: Plague 34.2%, Frost 24.4%, Sentenced 10.6%, Fire 7.3%, Holy 6.9% of bot-games; by persona: hunter 21.0%,
   cautious 18.3%, opportunist 16.0%, farmer 11.3%. That spread is the factions' and the sim's, not the tiers'.
 
-Tuning stopped here by owner decision. The numbers above are the baseline for whoever picks it up again.
+Tuning stopped here by owner decision. The numbers above are the baseline on the 64x64 map; section 7 has the one on the zone maps.
+
+## 7. After the follow-up (the zone maps; the lock kept on a camp mate)
+
+The first full runs on the 96x96 zone maps showed 32 bot-games in 2400 (seed 3) and 28 (seed 4) standing still over 8 s, 30 of
+the 32 on Holy or Frost. A replay of 100 of those games put all 11 stalls against Frost shield mobs that a wand or an axe cannot
+hurt, with the lock flipping between bunched camp mates: a camp fights as one (camp-wide aggro), so its mobs crowd the bot, a click
+meant for one lands on its neighbour within `TARGET_SNAP_RADIUS`, and a `target` on another fighter cancels the windup the lock was
+winding up (CLAUDE.md "Target lock").
+
+**The change** (`tactics/fight.ts` `lockedMate`). For a mob goal, when the server's lock is on a live mob within `MATE_RADIUS`
+(140 u) of the goal's mob or in its camp, the fight is that mate's: the bot sends no click, counts as attacking when the mate is in
+reach, and the swap and the orb-walk read the mate. A mate is not kept when it is walking home, an elite while the goal's mob is
+none, a shooter while the goal's mob is none, or something the bot's weapons cannot hurt (`bestEdge` of -2 or worse). A lock on a
+player, or an empty lock, is clicked as before.
+
+**Measured.** The same tree with and without the change; `npm run tournament -- --games 400 --workers 8 --lineup E,E,N,N,H,H
+--patience 300 --sudden 60 --max-minutes 15 --seed S --quiet`, S = 3 and 4, learning on, 2400 bot-games each (800 a tier). The
+"after" column of seed 3 was re-run on the committed tree and came out identical (tier table, stalls).
+
+| | seed 3 before | seed 3 after | seed 4 before | seed 4 after |
+|---|---|---|---|---|
+| bot-games standing still over 8 s (over 4 s) | 32 (62) | 0 (0) | 28 (69) | 0 (2) |
+| longest stall | 23.3 s | 3.8 s | 30.5 s | 8.0 s |
+| lock clicks on the wrong fighter, per bot-game | 1.9 | 0.8 | 1.9 | 0.8 |
+| lock clicks, per bot-game | 8 | 6 | 8 | 6 |
+| mob kills per bot-game | 3.23 | 3.23 | 3.25 | 3.25 |
+| bots dead to a mob / to a bot (of 2400) | 839 / 1058 | 834 / 1059 | 906 / 994 | 882 / 1020 |
+| mob goals dropped per bot-game | 0.48 | 0.62 | 0.51 | 0.61 |
+| mean / median game | 187.3 / 196.7 s | 195.8 / 208.2 s | 189.4 / 194.8 s | 195.4 / 204.6 s |
+| win share Hard / Normal / Easy | 17.5 / 18.1 / 14.4% | 18.9 / 15.8 / 15.4% | 18.3 / 16.5 / 15.3% | 17.9 / 16.3 / 15.9% |
+| mean placement Hard / Normal / Easy | 3.50 / 3.44 / 3.56 | 3.40 / 3.57 / 3.53 | 3.40 / 3.55 / 3.55 | 3.42 / 3.58 / 3.50 |
+
+* **The stall is gone.** No bot stood still over 8 s on either seed, so the bound of BOTS.md 9.3 passes again, and a bot
+  clicks the wrong fighter less than half as often (what is left is the tiers' misclick and slip model plus crowds).
+* **Nothing else moved beyond noise.** Mob kills are identical, deaths to a mob and to a bot move by a few percent, the win shares
+  move by 1 to 3 points either way (the 95% half-width is about 2.5), the mean game is 3 to 5% longer (the median 5 to 6%). Hard
+  is first by win share after the change on both seeds; before it, seed 3 had Normal ahead of Hard. That is not claimed as an
+  effect of the change. The tiers are as weakly separated as in section 6: Hard leads by about 0.1 to 0.2 of mean placement,
+  Normal and Easy are not apart (Normal is behind Easy on placement on both seeds).
+* **What it costs.** `MobHunter` drops the goal's mob after `stallAttackMs` (3 s) of attacking without hurting it ("attacks do
+  not hurt it") and bans it for `stallBanMs` (30 s). A bot that now stays on the mate does no damage to the goal's mob, so the
+  hunt gives up on it more often: 0.48 to 0.62 and 0.51 to 0.61 goals dropped per bot-game. A later fix: switch the hunter's
+  target to the locked mate, so the ban does not fall on a mob the bot never meant to leave.
+* **Still open** (CLAUDE.md "Known TODOs"): the hunt sizes a fight against one mob although the whole camp wakes (D24), and a
+  flee walks a straight line away (`retreatPoint`) instead of a route; 72% of the deaths in a replay of 40 games were while
+  fleeing.

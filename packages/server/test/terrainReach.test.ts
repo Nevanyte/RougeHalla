@@ -7,7 +7,8 @@
 // in the shared map module; the "flip" cases prove it is the only thing that decides melee's reach, by making reachMask
 // answer MASK_SIGHT for every weapon through a mock (the constant itself is never edited); the mock also records the weapon
 // each call was made for. findPath is wrapped to count the path searches an order costs. (The old scripted BotClient's
-// attack-ready test was checked here too; the brain-driven bots do not read reachMask yet: CLAUDE.md, Known TODOs.)
+// attack-ready test was checked here too. The brain-driven bots read the same mask in bots/brain/tactics/fight.ts `inReach`, and
+// test/bots/reachSight.test.ts pins that: this file is the sim's reach, not the bots'.)
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   circleClear, moveComponents, mulberry32, PLAYER_RADIUS, POLICIES, TERRAIN_LAVA, TICK_MS, TILE, TILE_LOW, worldToTile,
