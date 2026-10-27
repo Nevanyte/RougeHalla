@@ -3,11 +3,21 @@
 // draws are what they were, and never from the public seed, so a client cannot read a camp's type off the map). The result
 // is published as `RaidState.camps`, one CampState per `map.camps` entry at the same index; geometry stays seed-derived.
 // Mobs themselves still appear at `raidStarted` (mobLife.spawnRegionalMobs reads the roster), and the planning screen reads
-// `state.camps` during the lobby. This module owns only the roster and `alive`: a camp's `state` and `reward` belong to the
-// camp runtime (R5) and stay 0 and "" here.
+// `state.camps` during the lobby.
+//
+// The camp runtime (roguelike R5, ROGUELIKE_PLAN 3.3): a camp's `state` goes 0 (idle) -> 1 (engaged: the first damage to any
+// member, sim/mobLife.ts hurtMob) -> 2 (cleared: its last member died, whoever or whatever killed it). Engaged never goes
+// back to idle, and cleared is for good: camps never respawn, and the coliseum teleport (which puts LIVING mobs back on their
+// spots) leaves a cleared camp cleared. The clear is paid after the ledger pass that killed the last member (payLater): the
+// `campCleared` fx, then the `campCleared` hook, where sim/chests.ts drops the camp's shared chest. `reward` stays "" (R7).
 import { rollCampTypes } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
-import type { World } from "./world";
+import { emit, payLater, type World } from "./world";
+
+/** CampState.state values. */
+export const CAMP_IDLE = 0;
+export const CAMP_ENGAGED = 1;
+export const CAMP_CLEARED = 2;
 
 /**
  * Rolls every camp's roster and replaces `state.camps` with it: one CampState per `map.camps` entry, `type` the camp's
@@ -39,14 +49,32 @@ export function ensureRosters(world: World): void {
   rollRosters(world);
 }
 
-/**
- * A mob of camp `campRef` (MobState.camp: the camp's index + 1, 0 = none) died: one fewer alive, never below 0. A reference to
- * no published camp is ignored (a mob placed by a test without one).
- */
-export function campMobDied(world: World, campRef: number): void {
+/** A member of camp `campRef` (MobState.camp: index + 1, 0 = none) took damage: an idle camp is engaged from now on. */
+export function campEngaged(world: World, campRef: number): void {
   if (!(campRef >= 1)) return;
   const s = world.state.camps[campRef - 1];
-  if (s && s.alive > 0) s.alive--;
+  if (s && s.state === CAMP_IDLE) s.state = CAMP_ENGAGED;
+}
+
+/**
+ * A mob of camp `campRef` (MobState.camp: the camp's index + 1, 0 = none) died: one fewer alive, never below 0. The last one
+ * clears the camp at once (state 2) and, after the ledger pass, sends `campCleared` and calls the `campCleared` hook (the
+ * chest). A reference to no published camp is ignored (a mob placed by a test without one). Returns true when this death
+ * cleared the camp.
+ */
+export function campMobDied(world: World, campRef: number): boolean {
+  if (!(campRef >= 1)) return false;
+  const s = world.state.camps[campRef - 1];
+  if (!s) return false;
+  if (s.alive > 0) s.alive--;
+  if (s.alive > 0 || s.state === CAMP_CLEARED) return false;
+  s.state = CAMP_CLEARED;
+  const camp = campRef - 1;
+  payLater(world, () => {
+    emit(world, { type: "fx", fx: { kind: "campCleared", camp } });
+    world.hooks.campCleared?.(world, camp);
+  });
+  return true;
 }
 
 /**

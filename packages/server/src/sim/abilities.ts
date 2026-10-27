@@ -49,7 +49,7 @@ export function install(world: World): void {
   chainHook(world, "raidStarted", armWishes);
   // The teleport resets the fight: every cast is cancelled (and refunded), every status and field ends, a Last Stand still pays.
   chainHook(world, "teleported", (w) => clearAll(w, "teleport"));
-  chainHook(world, "runEnded", (w) => clearAll(w, "runEnd"));
+  chainHook(world, "runEnded", (w) => { flushAbilityDot(w); clearAll(w, "runEnd"); });
   // Down in the ledger pass: the status table is frozen there (D20), so what a death clears waits for its end like the spoils.
   chainHook(world, "fighterOut", (w, id, cause) => payLater(w, () => clearFighter(w, id, cause)));
   chainHook(world, "attackStarted", onAttackStarted);
@@ -536,9 +536,16 @@ export function abilityDotFx(world: World): void {
     else a.dot.set(key, { victim: h.victim, by: h.by, ability: h.ability, amount: h.amount });
   }
   if (!a || now - a.dotSince < DOT_FX_MS) return;
+  flushAbilityDot(world);
+}
+
+/** The ability damage over time landed since the last report, one `hit` fx per pair; also when the run ends (its last chunk). */
+function flushAbilityDot(world: World): void {
+  const a = world.abilities;
+  if (!a) return;
   for (const d of a.dot.values()) {
     emit(world, { type: "fx", fx: { kind: "hit", id: d.victim, by: d.by, amount: d.amount, weapon: null, ability: d.ability } });
   }
   a.dot.clear();
-  a.dotSince = now;
+  a.dotSince = world.state.serverTime;
 }

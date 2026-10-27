@@ -21,14 +21,17 @@
 // camps (about 4.6 each), those of an occupied camp are woken every 3 s, and a dead mob is replaced at its camp so the
 // load stays level for as long as the run lasts. Results are deterministic for a seed (nothing here reads the clock or
 // Math.random).
+// `chests` (roguelike R5) keeps that many camp chests up through the measurement on top of the ones the fights drop: each
+// is rolled like a real one, picked by a player at 3 s and skipped by another at 6 s, and replaced once it expires.
 import { getMessageBytes, Protocol } from "@colyseus/core";
 import { Encoder } from "@colyseus/schema";
 import {
-  circleClear, decide, inArc, mulberry32, PLAYER_RADIUS, raycast, staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter,
+  CHEST_SECONDS, circleClear, decide, inArc, mulberry32, PLAYER_RADIUS, raycast, staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter,
   WEAPONS, type FactionId, type FxBatch, type FxEvent, type MobCampDef, type Vec2,
 } from "@raid/shared";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { teleportToColiseum } from "../src/sim/arena";
+import { grantSkill, rewardChests, rollChest } from "../src/sim/chests";
 import { activeWeapon, combatant, standingCombatants, timingsOf, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
@@ -36,7 +39,7 @@ import { aggro } from "../src/sim/mobAI";
 import { placeMob } from "../src/sim/mobLife";
 import { positionAt } from "../src/sim/movement";
 import { addPlayer, step } from "../src/sim/step";
-import { collisionMap, type MeleeRequest, type SimConfig, type World } from "../src/sim/world";
+import { collisionMap, emit, type MeleeRequest, type SimConfig, type World } from "../src/sim/world";
 
 /** The gate: ws payload KiB per second, per client, with 8 players and 60 mobs. */
 export const BANDWIDTH_BUDGET_KBPS = 20;
@@ -70,6 +73,8 @@ export interface BandwidthOptions {
   warmup?: number;
   /** Ms between a player's strafe moves. */
   strafeMs?: number;
+  /** Camp chests (R5) kept up at all times besides the ones the fights drop: each picked at 3 s, skipped at 6 s, replaced when it expires. */
+  chests?: number;
   /** Called after every measured step, before the patch is encoded: for analysis scripts that look at what changed. */
   probe?: (world: World) => void;
   /** Called after every measured step with the size of that tick's patch frame (0 when nothing changed). */
@@ -153,6 +158,8 @@ interface Driver {
   placeRnd: () => number;
   cursor: number;
   ticks: number;
+  /** The next camp a kept-up chest is rolled at (`chests`). */
+  chestCursor: number;
 }
 
 /**
@@ -321,6 +328,37 @@ function installMeleeStandIn(world: World): void {
   });
 }
 
+/**
+ * Keeps `wanted` reward chests up (rolled at the map's camps in turn, the way a clear drops them), and has each picked by a
+ * player 3 s after it dropped and skipped by another at 6 s, through the same grant and the same fx as `choose`.
+ */
+function keepChests(world: World, d: Driver, wanted: number): void {
+  const camps = world.map.camps.length;
+  if (camps === 0) return;
+  const live = rewardChests(world);
+  for (let n = live.length; n < wanted; n++) {
+    const box = rollChest(world, d.chestCursor++ % camps);
+    if (box) live.push(box);
+  }
+  const now = world.state.serverTime;
+  for (const box of live) {
+    const age = now - (box.expiresAt - CHEST_SECONDS * 1000);
+    const who = d.ids[(Number.parseInt(box.id.slice(1), 36) + box.pickers.length) % d.ids.length]!;
+    if (box.pickers.includes(who)) continue;
+    if (age >= 3000 && box.pickers.length === 0 && box.options.length > 0) {
+      const p = world.state.players.get(who)!;
+      const rt = world.players.get(who)!;
+      box.takenBy[0] = who;
+      box.pickers.push(who);
+      grantSkill(world, { kind: "player", id: who, s: p, rt }, box.options[0]!);
+      emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: who, option: 0 } });
+    } else if (age >= 6000 && box.pickers.length === 1) {
+      box.pickers.push(who);
+      emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: who, option: -1 } });
+    }
+  }
+}
+
 export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const seed = opts.seed ?? 1;
   const playerCount = opts.players ?? 8;
@@ -329,6 +367,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const ticks = opts.ticks ?? 1200;
   const warmup = opts.warmup ?? 200;
   const strafeMs = opts.strafeMs ?? 600;
+  const chestsWanted = opts.chests ?? 0;
 
   let uid = 0;
   const world = createGameWorld({
@@ -349,7 +388,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
 
   const driver: Driver = {
     ids, camps: allCamps(world), campOf: new Map(), strafeAt: new Map(), rnd,
-    placeRnd: mulberry32(seed * 13 + 5), cursor: 0, ticks: 0,
+    placeRnd: mulberry32(seed * 13 + 5), cursor: 0, ticks: 0, chestCursor: 0,
   };
   if (camps > 0 && mobsWanted > 0) {
     // The occupied camps: the first camp of each region in turn (so the fights are spread over the map), then the regions' second camps...
@@ -407,6 +446,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
 
   for (let n = 0; n < warmup + ticks; n++) {
     drivePlayers(world, driver, mobsWanted, strafeMs);
+    if (chestsWanted > 0) keepChests(world, driver, chestsWanted);
     const events = step(world, TICK_MS);
     const measuring = n >= warmup;
 
@@ -499,5 +539,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   show(`typical (${TYPICAL_CAMPS} camps, 2 players each)`, { camps: TYPICAL_CAMPS });
   show(`heavy   (${HEAVY_CAMPS} camps, 1 player each)`, { camps: HEAVY_CAMPS });
   show("idle    (60 mobs, none awake)", { camps: 0 });
+  show(`chests  (typical, and 5 camp chests up)`, { camps: TYPICAL_CAMPS, chests: 5 });
   show("no mobs (players only)", { camps: 0, mobs: 0 });
 }

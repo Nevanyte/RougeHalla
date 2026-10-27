@@ -128,7 +128,7 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
   return profile;
 }
 
-const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty" };
+const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip" };
 
 export class RaidRoom extends Room<{ state: RaidState }> {
   /** Set once by createServer(); rooms are constructed by the matchmaker. */
@@ -215,7 +215,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       this.onMessage(type, (client: Client, msg: unknown) => {
         const rt = this.built?.players.get(client.sessionId);
         // Only an input that was accepted counts as presence: junk would otherwise keep an abandoned training room open for good.
-        if (rt && enqueueClientMessage(rt.inputs, type, msg)) this.lastInputAt = Date.now();
+        if (rt && enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) this.lastInputAt = Date.now();
       });
     }
     this.setTimestep((elapsed) => this.tick(elapsed), TICK_MS);

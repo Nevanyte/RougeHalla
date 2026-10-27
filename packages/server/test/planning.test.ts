@@ -303,7 +303,8 @@ describe("the spawn deal", () => {
     // Camp rosters are rolled from the same private stream on purpose and published (D16): they are not the deal.
     const synced = (w: World) => JSON.stringify({ ...w.state.toJSON(), camps: undefined });
     expect(synced(one.world)).toBe(synced(two.world));
-    expect(synced(one.world)).not.toMatch(/spawns|taken|pick|boon/);
+    // As keys: the reward containers' own `takenBy` and `pickers` fields (R5) are no deal.
+    expect(synced(one.world)).not.toMatch(/"(spawns|taken|pick|boons?)"/);
     expect(one.world.state.toJSON()).toMatchObject({ phase: "planning", planEndsAt: one.world.state.planEndsAt });
   });
 

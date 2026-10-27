@@ -17,7 +17,7 @@ const typical = () => run("typical", { camps: TYPICAL_CAMPS });
 const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
 
 describe("bandwidth budget (per client, ws payload)", () => {
-  // Seed 1 measures 7.02 KB/s with about 19 mobs fighting (7.0 to 8.0 over seeds 1 to 7).
+  // Seed 1 measures 7.68 KB/s on the R5 tree (7.02 with about 19 mobs fighting, 7.0 to 8.0 over seeds 1 to 7, before R5).
   it("typical: 4 camps fought by 2 players each, 60 mobs: under 20 KB/s", () => {
     const r = typical();
     expect(r.mobs).toBeGreaterThanOrEqual(58); // topped up to 60 every tick; the last tick's kills are replaced in the next
@@ -25,8 +25,8 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  // Seed 1 measures 10.13 KB/s with about 32 mobs fighting (10.1 to 12.3 over seeds 1 to 7). The plan's 16.5 KB/s target for this
-  // case is a report-only figure; the budget asserted here is the 20 KB/s one.
+  // Seed 1 measures 11.71 KB/s on the R5 tree (10.13 with about 32 mobs fighting, 10.1 to 12.3 over seeds 1 to 7, before R5). The
+  // plan's 16.5 KB/s target for this case is a report-only figure; the budget asserted here is the 20 KB/s one.
   it("heavy: 8 camps fought by 1 player each, 60 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
@@ -63,6 +63,14 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(withMobs.avgAwake).toBe(0);
     expect(alone.patchKBps).toBeGreaterThan(1);
     expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan(0.1);
+  });
+
+  // Roguelike R5: seed 1 measures 7.16 KB/s against 6.87 for the same run without them (5 chests up, each picked and skipped).
+  it("5 camp chests up the whole time, on the typical load: under 20 KB/s, under 1 KB/s more than without them", () => {
+    const r = run("chests", { camps: TYPICAL_CAMPS, chests: 5 });
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+    expect(r.totalKBps - typical().totalKBps).toBeLessThan(1);
+    expect(r.fxByKind.chestTaken!.frames).toBeGreaterThan(10);
   });
 
   it("is deterministic for a seed", () => {

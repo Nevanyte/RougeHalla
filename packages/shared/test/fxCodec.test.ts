@@ -24,6 +24,8 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
   castLand: { kind: "castLand", by: "sess-001", ability: "blaze", target: null, x: 100.2, y: 200.8, x2: 340.5, y2: 410.1 },
   castEnd: { kind: "castEnd", by: "sess-001", ability: "trial", reason: "interrupted" },
   status: { kind: "status", id: "sess-002", status: "stun", ms: 1250.4, by: "sess-001" },
+  campCleared: { kind: "campCleared", camp: 7 },
+  chestTaken: { kind: "chestTaken", chest: "c4f", by: "sess-001", option: 2 },
 };
 
 const T = 123450;
@@ -613,5 +615,44 @@ describe("fx codec: abilities and statuses", () => {
       }
     }
     expect(unpackFx(JSON.parse(JSON.stringify(batch)) as FxBatch, NONE)).toEqual(unpackFx(batch, NONE));
+  });
+});
+
+describe("fx codec: camps and chests (roguelike R5)", () => {
+  it("campCleared is [18, camp] and chestTaken [19, chest, by, option], appended after the Wishes' status (17)", () => {
+    const roster = ["sess-001", "sess-002"];
+    const index = new Map(roster.map((id, i) => [id, i]));
+    const batch = packFx([
+      { kind: "campCleared", camp: 0 },
+      { kind: "chestTaken", chest: "c1z", by: "sess-002", option: 1 },
+      { kind: "chestTaken", chest: "c1z", by: "sess-001", option: -1 },
+    ], T, { roster: index });
+    // The chest id stays a string; the picker travels as its roster index.
+    expect(batch.l).toEqual([[18, 0], [19, "c1z", 1, 1], [19, "c1z", 0, -1]]);
+    expect(unpackFx(batch, roster)).toEqual([
+      { kind: "campCleared", camp: 0, t: T },
+      { kind: "chestTaken", chest: "c1z", by: "sess-002", option: 1, t: T },
+      { kind: "chestTaken", chest: "c1z", by: "sess-001", option: -1, t: T },
+    ]);
+  });
+
+  it("drops a malformed camp or chest tuple instead of guessing", () => {
+    const dropped: unknown[] = [];
+    const bad: FxBatch = { t: T, l: [[18, -1], [18, 1.5], [18], [19, 3, "a", 0], [19, "c1", "a", -2], [19, "c1", "a", 0.5], [19, "c1", "a"]] };
+    expect(unpackFx(bad, NONE, (tuple) => dropped.push(tuple))).toEqual([]);
+    expect(dropped).toHaveLength(7);
+  });
+
+  it("gives every kind its own code, in merge order: R0 and the Wishes unchanged, the R5 kinds after them", () => {
+    const codes = Object.fromEntries(
+      (Object.keys(EXAMPLES) as FxEvent["kind"][]).map((kind) => [kind, packFx([EXAMPLES[kind]], T).l[0]![0]]),
+    );
+    expect(codes).toEqual({
+      windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10,
+      victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19,
+    });
+    expect(new Set(Object.values(codes)).size).toBe(Object.keys(codes).length);
+    // 11 (the retired combo) stays unused.
+    expect(Object.values(codes)).not.toContain(11);
   });
 });

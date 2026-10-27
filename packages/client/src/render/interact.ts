@@ -10,9 +10,12 @@ export function canInteract(map: GameMap, from: Vec2, to: Vec2): boolean {
   return Math.hypot(from.x - to.x, from.y - to.y) <= INTERACT_RANGE && hasLineOfSight(map, from, to);
 }
 
-/** The weapon a pickup would take from this container (its first item), or null: an opened chest, an empty body. */
+/**
+ * The weapon a pickup would take from this container (its first item), or null: an opened chest, an empty body, and a camp's
+ * shared reward chest, which is taken with `choose` from the chest panel and never with F (it holds no items).
+ */
 export function containerWeapon(c: ContainerState): WeaponId | null {
-  if (c.items.length === 0) return null;
+  if (c.kind === "reward" || c.items.length === 0) return null;
   const def = c.items.at(0).def;
   return isWeaponId(def) ? def : null;
 }

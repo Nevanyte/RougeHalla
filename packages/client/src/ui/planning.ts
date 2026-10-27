@@ -58,6 +58,8 @@ export interface PlanningFrame {
   players: readonly PlanningPlayer[];
   /** RaidState.camps[i].type for every camp, "" where unknown. */
   campTypes: readonly string[];
+  /** RaidState.camps[i].state for every camp (0 idle, 1 engaged, 2 cleared): a cleared camp is crossed out. Absent: all idle. */
+  campStates?: readonly number[];
   /** The local fighter's ground position, for the in-run map. */
   local: { x: number; y: number; alive: boolean } | null;
 }
@@ -519,14 +521,19 @@ export class PlanningView {
   /** The matchup chips and the type lines of the camps: they follow the local faction and what the room says of each camp. */
   private renderCamps(frame: PlanningFrame): void {
     const me = this.myFaction(frame);
-    const key = `${me ?? ""}|${frame.campTypes.join(",")}`;
+    const states = frame.campStates;
+    const key = `${me ?? ""}|${frame.campTypes.join(",")}|${states ? states.join("") : ""}`;
     if (key === this.keyCamps) return;
     this.keyCamps = key;
     this.camps.forEach(({ camp, button, chip }, i) => {
       const m = me ? describeMatchup(campMatchup(me, camp)) : null;
+      const state = states?.[i] ?? 0;
+      button.classList.toggle("cleared", state === 2);
+      button.classList.toggle("engaged", state === 1);
       chip.textContent = m?.chip ?? "";
       chip.className = `pl-chip${m ? ` tone-${m.tone}` : ""}`;
-      chip.hidden = m === null;
+      // A cleared camp has nothing left to weigh up: no matchup chip.
+      chip.hidden = m === null || state === 2;
       const label = this.campLine(i, frame);
       button.setAttribute("aria-label", label);
       button.title = label;
@@ -548,7 +555,10 @@ export class PlanningView {
     const info = campTypeInfo(frame?.campTypes[i]);
     const parts = [campTitle(camp)];
     if (info) parts.push(info.buff ? `${info.name}: ${info.buff}` : info.name);
-    if (me) parts.push(`For ${zoneName(me)}: ${describeMatchup(campMatchup(me, camp)).words}`);
+    const state = frame?.campStates?.[i] ?? 0;
+    if (state === 2) parts.push("Cleared");
+    else if (state === 1) parts.push("A fight is on here");
+    if (me && state !== 2) parts.push(`For ${zoneName(me)}: ${describeMatchup(campMatchup(me, camp)).words}`);
     return parts.join(". ");
   }
 

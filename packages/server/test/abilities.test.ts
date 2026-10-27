@@ -1250,6 +1250,24 @@ describe("Blaze Step (Fire)", () => {
       expect(fxOf("status")).toHaveLength(1);
     });
 
+    it("what is left of a chunk is reported when the run ends", () => {
+      const world = trio();
+      place(world, "p1", near(450, 320));
+      blaze(world, near(900));
+      run(world, 3);
+      expect(fxOf("hit")).toEqual([]);
+      const lost = 1000 - P(world, 1).hp;
+      expect(lost).toBeGreaterThan(0);
+      removePlayer(world, "p2");
+      removePlayer(world, "p1");
+      tick(world);
+      expect(world.state.phase).toBe("ended");
+      const chunks = fxOf("hit");
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]).toMatchObject({ id: "p1", by: "p0", weapon: null, ability: "blaze" });
+      expect(chunks[0]!.amount).toBeCloseTo(lost, 6);
+    });
+
     it("standing on the trail keeps it burning: the burn runs out BLAZE_BURN_MS after the trail ends", () => {
       const world = trio();
       place(world, "p1", near(450, 320));

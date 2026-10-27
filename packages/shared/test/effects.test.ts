@@ -89,7 +89,7 @@ describe("the Effect union", () => {
   });
 
   it("the stat keys: fractions for EffectStat, points for FlatStat", () => {
-    expect(EFFECT_STATS).toHaveLength(10);
+    expect(EFFECT_STATS).toHaveLength(11);
     expect(FLAT_STATS).toEqual(["armor", "shield"]);
     const all: StatKey[] = [...EFFECT_STATS, ...FLAT_STATS];
     expect(all.filter(isFlatStat)).toEqual(["armor", "shield"]);

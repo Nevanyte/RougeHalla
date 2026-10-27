@@ -418,7 +418,7 @@ html[data-ui-short] .faction-card:not(.selected):not(:focus-visible) .faction-de
 
 /* ==========================================================================
    Connection banner (ui/banner.ts): a pill at the top centre.
-   z-index ladder inside #ui: the HUD and the rest (auto) < the map screens (planning.css, 10) < this banner and the toasts
+   z-index ladder inside #ui: the HUD and the rest (auto) < the chest panel (chestPanel.css, 8) < the map screens (planning.css, 10) < this banner and the toasts
    (15) < the chrome's buttons (chrome.css, 20) < its settings card (60) < the help card (70). The planning screen dims the whole
    world, so a dropped connection and a server error must show above it; the chrome's cards still cover them.
    ========================================================================== */

@@ -126,6 +126,13 @@ export interface FxHost {
   localHurt?(fx: FxOf<"hit">): void;
   /** The fighter drawn nearest ground point (x, y) within `within` units, if any: whoever an arrow or a ball left from. */
   nearestFighter?(x: number, y: number, within: number): string | undefined;
+  /** A camp as a phrase for its clear line ("Plague camp", "Fire elite camp"); `camp` is its index in map.camps. Undefined for an unknown one. */
+  campLabel?(camp: number): string | undefined;
+  /**
+   * The local player's own pick at reward chest `chest` as a line ("You took Whetstone", "You skipped the chest"); `option` is
+   * the index into the chest's options, or -1 for a skip. Undefined when the chest is not known any more.
+   */
+  chestPick?(chest: string, option: number): string | undefined;
   /**
    * Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!".
    * `tone` marks the local player's buff news.
@@ -392,6 +399,19 @@ export class FxView {
       case "buff":
         this.buff(fx, now);
         break;
+      case "campCleared": {
+        // Its shared chest drops at once (ContainerView plays the drop cue); everyone hears which camp fell.
+        const label = this.host.campLabel?.(fx.camp);
+        if (label) this.host.announce?.(`${label} cleared`);
+        break;
+      }
+      case "chestTaken": {
+        // Everyone's picks show in the chest panel's cards; the local player's own is told as a line.
+        if (fx.by !== this.host.localId) break;
+        const line = this.host.chestPick?.(fx.chest, fx.option);
+        if (line) this.host.announce?.(line, "ok");
+        break;
+      }
       case "victory":
         if (fx.name) this.host.announce?.(`${fx.name} is victorious`);
         else if (fx.draw) this.host.announce?.("Draw");
