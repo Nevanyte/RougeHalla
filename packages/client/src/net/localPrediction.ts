@@ -1,5 +1,5 @@
 // What the client knows about its own fighter's speed and roots, for LocalMotion (net/localMotion.ts): the synced stat mirrors'
-// walking speed, attack speed and windup (never the buff stacks or any effect: whatever feeds the mirrors, the server folds it
+// walking speed, attack speed and windup (never the cards or any effect: whatever feeds the mirrors, the server folds it
 // and the client reads the decoded result), the chill, the axe's root after its swing, and what the abilities do to it: a stun
 // or a root, a cast's own root, Last Stand's haste, and a blink (`noteCast`, which the scene calls when the player casts).
 // Presentation only, and only as good as the client's knowledge: anything it gets wrong the server's samples correct (a wrong

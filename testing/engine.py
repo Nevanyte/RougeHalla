@@ -7,6 +7,8 @@ Design contract (enforced by test_rpsls.py):
      the opponent's identity, only numbers every fighter has (hp fraction, attack rate).
   3. Defense is a universal law: every packet is split into physical / magic / true
      shares; armor cuts the physical share, shield cuts the magic share, true ignores both.
+     A weapon hit uses the attacker's shares; a signature part may carry its own (burn magic,
+     backlash physical, disease magic, the mark true: PowerSpec.sig_types).
   4. Nothing in this file mentions a power by name. Counters emerge from the numbers.
 
 Units: HP in points, rates in attacks/second, damage in points, time in seconds.
@@ -28,29 +30,31 @@ class State:
 
 # ----------------------------------------------------------------------------
 # Signature mechanics. Each returns BONUS RAW DAMAGE PER SECOND added on top of
-# rate * hit. Keys are the mechanic ids stored on PowerSpec.mechanic.
+# rate * hit, as a dict of named parts ({"burn": .., "backlash": ..}) so every
+# part can carry its own damage type (PowerSpec.sig_types; balance pass, D6).
+# Keys are the mechanic ids stored on PowerSpec.mechanic.
 # ----------------------------------------------------------------------------
-def dragonslayer(p: dict, s: State) -> float:
+def dragonslayer(p: dict, s: State) -> dict:
     """Burn DoT plus backlash that grows with the TARGET's attack rate.
     Rewards punishing fast attackers; fizzles against slow ones."""
-    return p["burn"] + p["backlash"] * s.foe_rate
+    return {"burn": p["burn"], "backlash": p["backlash"] * s.foe_rate}
 
 
-def rat_king(p: dict, s: State) -> float:
+def rat_king(p: dict, s: State) -> dict:
     """Constant disease DPS, then a ReLU execute once the target is below 50% HP."""
-    return p["plague"] + p["execute"] * max(0.0, 0.5 - s.foe_hp_frac)
+    return {"disease": p["plague"] + p["execute"] * max(0.0, 0.5 - s.foe_hp_frac)}
 
 
-def marked(p: dict, s: State) -> float:
+def marked(p: dict, s: State) -> dict:
     """Mark bonus ramps with elapsed TIME (not attack count), then caps."""
-    return min(p["mark_cap"], p["mark_ramp"] * s.t)
+    return {"mark": min(p["mark_cap"], p["mark_ramp"] * s.t)}
 
 
-def none_(p: dict, s: State) -> float:
-    return 0.0
+def none_(p: dict, s: State) -> dict:
+    return {}
 
 
-BONUS: Dict[str, Callable[[dict, State], float]] = {
+BONUS: Dict[str, Callable[[dict, State], dict]] = {
     "dragonslayer": dragonslayer, "rat_king": rat_king, "marked": marked, "plain": none_,
 }
 
@@ -86,6 +90,9 @@ class PowerSpec:
     aura: str = ""               # key into AURA ("" = none)
     sustain: str = ""            # key into SUSTAIN ("" = none)
     params: dict = field(default_factory=dict)   # mechanic / aura / sustain numbers
+    # The signature bonus's own damage type (balance pass, D6): a part with no entry uses the attacker's shares.
+    # {"burn": (phys, true), "backlash": (...), ...} per bonus part; magic = the rest of the packet.
+    sig_types: dict = field(default_factory=dict)
 
     @property
     def magic(self) -> float:    # remainder is magic damage, reduced by SHIELD
@@ -101,11 +108,12 @@ def scaled(spec: PowerSpec, k: float) -> PowerSpec:
     return replace(spec, hp=spec.hp * k, hit=spec.hit * k, params=p)
 
 
-def mitigate(raw: float, atk: PowerSpec, dfn: PowerSpec) -> float:
-    """Universal damage law. dfn contributes ONLY its own armor and shield."""
-    return raw * (atk.phys / (1.0 + dfn.armor / 100.0)
-                  + atk.magic / (1.0 + dfn.shield / 100.0)
-                  + atk.true)
+def mitigate(raw: float, atk: PowerSpec, dfn: PowerSpec, shares=None) -> float:
+    """Universal damage law. dfn contributes ONLY its own armor and shield. `shares` = (phys, true) of this packet
+    (a typed signature), else the attacker's own."""
+    phys, tru = shares if shares is not None else (atk.phys, atk.true)
+    magic = max(0.0, 1.0 - phys - tru)
+    return raw * (phys / (1.0 + dfn.armor / 100.0) + magic / (1.0 + dfn.shield / 100.0) + tru)
 
 
 def duel(a: PowerSpec, b: PowerSpec, dt: float = 0.002, t_max: float = 120.0):
@@ -123,8 +131,9 @@ def duel(a: PowerSpec, b: PowerSpec, dt: float = 0.002, t_max: float = 120.0):
         for i in (0, 1):
             o = 1 - i
             st = State(t, rate[i], rate[o], max(hp[i], 0) / f[i].hp, max(hp[o], 0) / f[o].hp)
-            raw = (rate[i] * f[i].hit + BONUS[f[i].mechanic](f[i].params, st)) * dt
-            dealt = mitigate(raw, f[i], f[o])
+            dealt = mitigate(rate[i] * f[i].hit * dt, f[i], f[o])
+            for part, v in BONUS[f[i].mechanic](f[i].params, st).items():
+                dealt += mitigate(v * dt, f[i], f[o], f[i].sig_types.get(part))
             out[i] = dealt
             if f[i].sustain:
                 heal[i] = dealt * SUSTAIN[f[i].sustain](f[i].params, st.own_hp_frac)

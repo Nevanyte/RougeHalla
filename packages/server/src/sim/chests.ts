@@ -1,10 +1,11 @@
-// A cleared camp's shared chest (roguelike R5, ROGUELIKE_PLAN 3.3, D1-D3, D12, D16, D17).
+// A cleared camp's shared chest (roguelike R5, ROGUELIKE_PLAN 3.3, D1-D3, D12, D16, D17; the cards, BALANCE_CONTRACT 4.8).
 //
 //   - The drop: when a camp is cleared (sim/camps.ts, after the ledger pass), a container of kind "reward" appears on the
-//     camp's chest tile (CampDef.chest; the camp's centre if that tile is a wall). Its options are rolled from
-//     world.rewardRandom only (shared/rewards.ts rollChestOptions, the camp's zone, no build: each picker's own ranks decide
-//     what a pick gives), and it holds them in synced state with `takenBy` and `pickers` (public by design, D17). It
-//     expires CHEST_SECONDS after the drop (`expiresAt`), never extended.
+//     camp's chest tile (CampDef.chest; the camp's centre if that tile is a wall). Its three options are cards (shared/cards.ts),
+//     rolled from world.rewardRandom only (shared/rewards.ts rollChestOptions): an elite camp's chest by the elite tier odds, and
+//     the conditional card and the augment by what the camp's ELIGIBLE pickers own (sim/campHeal.ts eligibleContributors: the
+//     players who fought the camp and stand near it at the clear). It holds them in synced state with `takenBy` and `pickers`
+//     (public by design, D17). It expires CHEST_SECONDS after the drop (`expiresAt`), never extended.
 //   - `choose` (an action, so within a tick picks resolve in the shuffled actionOrder; step.ts runs actions only for alive
 //     players in an active run). Checked in this order, each refusal a private toast that uses up nothing:
 //       the picker is a standing player (not down, no result out) .......................... silent
@@ -16,20 +17,23 @@
 //       the picker has not picked here yet (an option or a skip) ........................... "You already picked"
 //       a skip, or an option index the chest has (else ignored) ........................... silent
 //       the option is free ................................................................ "Already taken"
-//       the picker does not hold it at its top rank ........................................ "Already at rank 2"
-//     Then the option is theirs (`takenBy`), they join `pickers`, the passive goes to rank 1 or 2 in PlayerState.build, the
-//     mods are folded again at once (sim/mods.ts; max hp follows), and a `chestTaken` fx goes out. A skip (`pick` -1) joins
+//       a conditional needs a card of its base in the picker's build ....................... "Needs <Base title>"
+//       a unique card (a conditional or an augment) is not already held ..................... "Already yours"
+//     Then the option is theirs (`takenBy`), they join `pickers`, the card is added to PlayerState.build (a base card stacks),
+//     the mods are folded again at once (sim/mods.ts; max hp follows), and a `chestTaken` fx goes out. A skip (`pick` -1) joins
 //     `pickers` and pays D12: heal SKIP_HEAL_SHARE of max hp through heal() (the 3 s lockout applies); if that heals nothing
 //     (in combat, or at full hp), GV_SKIP GV under GV_MOB_CAP (arena.ts awardSkipGv); `chestTaken` with option -1.
 //   - Removal: the `expireChests` system removes a chest in the tick serverTime reaches `expiresAt` (after that tick's
 //     inputs, which already refuse it); the coliseum teleport and the end of the run remove every chest.
 // Reward containers are never weapon containers: `pickup` refuses them (loot.ts), and they hold no items.
 import {
-  CHEST_RANGE, CHEST_REFUSAL, CHEST_SECONDS, hasLineOfSight, isSolidAt, nextRank, rollChestOptions, skillDef, SKIP_HEAL_SHARE, type Vec2,
+  CHEST_RANGE, CHEST_REFUSAL, CHEST_SECONDS, cardBlock, cardDef, countIn, hasLineOfSight, isEliteCamp, isSolidAt, rollChestOptions,
+  SKIP_HEAL_SHARE, type Vec2,
 } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
 import { awardSkipGv } from "./arena";
 import { syncMaxHp } from "./buffs";
+import { eligibleContributors } from "./campHeal";
 import { standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { addContainer, bornThisTick, forgetBirth, holdBirth } from "./loot";
@@ -37,14 +41,14 @@ import { recomputeMods } from "./mods";
 import { actionBlocked } from "./status";
 import { chainHook, collisionMap, emit, type ActionHandler, type World } from "./world";
 
-export const REWARD_LABEL = "Skill Chest";
+export const REWARD_LABEL = "Card Chest";
 
 function toast(world: World, to: string, text: string): void {
   emit(world, { type: "toast", to, text });
 }
 
 /**
- * A reward container at `at` with these options (SkillIds, in card order), expiring CHEST_SECONDS from now. `camp` is the
+ * A reward container at `at` with these options (card ids, in card order), expiring CHEST_SECONDS from now. `camp` is the
  * camp's index in map.camps (stored + 1), or omitted for a chest that belongs to no camp (the training console's).
  */
 export function dropRewardChest(world: World, at: Vec2, options: readonly string[], camp?: number): ContainerState {
@@ -66,12 +70,16 @@ export function chestSpot(world: World, camp: number): Vec2 | null {
   return isSolidAt(world.map, def.chest.x, def.chest.y) ? { x: def.x, y: def.y } : { x: def.chest.x, y: def.chest.y };
 }
 
-/** Rolls camp `camp`'s chest (world.rewardRandom only) and drops it. Null for a camp the map does not have. */
+/**
+ * Rolls camp `camp`'s chest (world.rewardRandom only) and drops it. An elite camp rolls the elite tier odds; the conditional card
+ * and the augment read the builds of the camp's eligible contributors (none: no conditional). Null for a camp the map does not have.
+ */
 export function rollChest(world: World, camp: number): ContainerState | null {
   const def = world.map.camps[camp];
   const at = chestSpot(world, camp);
   if (!def || !at) return null;
-  return dropRewardChest(world, at, rollChestOptions(world.rewardRandom, { zone: def.zone }), camp);
+  const pickers = eligibleContributors(world, camp).map((c) => c.s.build);
+  return dropRewardChest(world, at, rollChestOptions(world.rewardRandom, { elite: isEliteCamp(def), pickers }), camp);
 }
 
 /** Every reward container now in the state. */
@@ -102,27 +110,28 @@ export const handleChoose: ActionHandler = (world, c, cmd) => {
   if (!(i >= 0 && i < box.options.length)) return;
   if (box.takenBy[i] !== "") { toast(world, c.id, CHEST_REFUSAL.taken); return; }
   const id = box.options[i]!;
-  const rank = nextRank(p.build, id);
-  if (rank === null) { toast(world, c.id, CHEST_REFUSAL.maxed); return; }
-  if (!skillDef(id)) return; // an option this server does not know: never rolled, so a broken container
+  if (!cardDef(id)) return; // an option this server does not know: never rolled, so a broken container
+  const block = cardBlock(id, p.build);
+  if (block) { toast(world, c.id, block.text); return; } // "Needs <Base>" or CHEST_REFUSAL.owned
   box.takenBy[i] = c.id;
   box.pickers.push(c.id);
-  grantSkill(world, c, id);
+  grantCard(world, c, id);
   emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: c.id, option: i } });
 };
 
 /**
- * One rank of skill `id` for a player: rank 1, or rank 2 when they hold rank 1. The mods are folded again at once (a passive
- * acts from this tick on) and max hp follows. Returns the new rank, or null (an unknown id, or already at the top rank).
- * The chest's pick goes through here; the training console may too.
+ * One copy of card `id` for a player: the build's count goes up by one (a base card stacks; a unique card is held once). The mods are
+ * folded again at once (the card acts from this tick on) and max hp follows. Returns the new count, or null (an unknown id, a unique
+ * card already held, or a conditional without a card of its base). The chest's pick goes through here, and so do a quest's card and
+ * the training console's.
  */
-export function grantSkill(world: World, c: Extract<Combatant, { kind: "player" }>, id: string): number | null {
-  const rank = nextRank(c.s.build, id);
-  if (rank === null || !skillDef(id)) return null;
-  c.s.build.set(id, rank);
+export function grantCard(world: World, c: Extract<Combatant, { kind: "player" }>, id: string): number | null {
+  if (!cardDef(id) || cardBlock(id, c.s.build)) return null;
+  const count = Math.min(255, countIn(c.s.build, id) + 1);
+  c.s.build.set(id, count);
   recomputeMods(world, c);
   syncMaxHp(c.s);
-  return rank;
+  return count;
 }
 
 /** D12: a skip heals SKIP_HEAL_SHARE of max hp when the heal lockout allows; healing nothing (lockout, full hp) pays GV_SKIP. */

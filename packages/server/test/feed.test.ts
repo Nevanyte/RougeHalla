@@ -1,14 +1,13 @@
 // The feed on the server (sim/feed.ts and the creditMobKill / updateBounty hunks in arena.ts): a player's feed, the lobby
 // median, what mobs pay, and the rampage announcement with its throttle. The curve itself (rewardCurve, catchUpMultiplier,
-// median) is tested in packages/shared/test/buffs.test.ts; this is the part that reads the sim state.
+// median) is tested in packages/shared/test/feedRewards.test.ts; this is the part that reads the sim state.
 import { describe, expect, it } from "vitest";
 import {
-  BOUNTY_ANNOUNCE_MS, CATCHUP_MULT, ELITE_BUFF_STACKS, feedView, FEED_MOB_KILL_WEIGHT, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP,
-  lobbyMedianFeed as hudMedianFeed, mobRewardMultiplier, mulberry32, rewardCurve, TICK_MS, type FxEvent,
+  BOUNTY_ANNOUNCE_MS, CATCHUP_MULT, FEED_MOB_KILL_WEIGHT, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP,
+  mobRewardMultiplier, mulberry32, rewardCurve, TICK_MS, type FxEvent,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { applyDamage, creditMobKill, downPlayer, markDropped, type Attacker } from "../src/sim/arena";
-import { grantBuff } from "../src/sim/buffs";
 import {
   announceBounty, feedOfPlayer, flushAnnouncements, install as installFeed, lobbyMedianFeed, mobRewardFor,
 } from "../src/sim/feed";
@@ -26,6 +25,7 @@ const idOf = (i: number): string => `p${i}`;
 function makeConfig(n: number): SimConfig {
   return {
     minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 1,
+    pvpRules: false,
   };
 }
 
@@ -228,41 +228,6 @@ describe("mobRewardFor", () => {
   });
 });
 
-describe("the HUD's feed line against the server's feed", () => {
-  // The client has no server: it counts the lobby median from public state (shared/buffView.ts) and the HUD shows what a mob pays.
-  // Both must be the sim's numbers or the line lies.
-  it("reads the same median and the same reward on a world with alive, dead, mia and just-downed players", () => {
-    const w = lobby([[0], [1], [2, 4], [0, 10], [5], [3, 2], [4], [1, 1]]); // feeds 0, 1, 3, 2.5, 5, 3.5, 4, 1.25
-    const agree = (label: string): void => {
-      const hud = hudMedianFeed(w.state.players.values());
-      expect(hud, label).toBe(lobbyMedianFeed(w));
-      for (let i = 0; i < 8; i++) {
-        if (P(w, i).status !== "alive") continue;
-        expect(feedView(P(w, i).kills, P(w, i).mobKills, hud).reward, `${label}, p${i}`).toBeCloseTo(mobRewardFor(w, P(w, i), RT(w, i)), 12);
-      }
-    };
-    agree("all alive");
-    expect(lobbyMedianFeed(w)).toBe(2.75);
-    kill(w, 4);
-    expect(P(w, 4).status).toBe("dead");
-    agree("after a death");
-    expect(lobbyMedianFeed(w)).toBe(2.5);
-    downPlayer(w, P(w, 5), RT(w, 5), "mia");
-    expect(P(w, 5).status).toBe("mia");
-    agree("after a leaver");
-    expect(lobbyMedianFeed(w)).toBe(1.875);
-    // Downed in a tick whose result is not out yet: the HUD sees the status the sim wrote at once.
-    w.stepping = true;
-    kill(w, 6);
-    w.stepping = false;
-    expect(RT(w, 6).resolved).toBe(false);
-    agree("downed this tick");
-    // The three who left the fight had the highest feeds and count for nothing on both sides.
-    expect(lobbyMedianFeed(w)).toBe(1.25); // p0 0, p1 1, p2 3, p3 2.5, p7 1.25
-    expect(feedView(0, 0, hudMedianFeed(w.state.players.values())).catchUp).toBe(false);
-  });
-});
-
 /** A lethal hit from `by` on `victim`, recorded in the ledger (it lands in the next pass). */
 function strike(w: World, victim: string, by: string): void {
   recordHit(w, { victim, by: { id: by, name: by }, packet: { raw: 1e6, phys: 1, magic: 0, true: 0 }, weapon: "sword", stagger: false });
@@ -282,9 +247,6 @@ function pass(w: World): SimEvent[] {
 
 const elite = (w: World): string => placeMob(w, { region: "fire", elite: true, at: { x: 200, y: 200 } });
 
-/** The buff stacks `id` was paid in `events` (there is one `buff` fx per mob kill). */
-const stacksPaid = (events: SimEvent[], id: string): number => fxOf(events, "buff").filter((b) => b.id === id).reduce((n, b) => n + b.stacks, 0);
-
 describe("the lobby median of a ledger pass", () => {
   it("is the lobby as it stood before the pass: a player who goes down in it does not change what a mob kill of the pass pays", () => {
     const w = startRun(4);
@@ -302,7 +264,6 @@ describe("the lobby median of a ledger pass", () => {
     expect(RT(w, 1).down).not.toBeNull();
     // Without p1 the lobby is [0, 2.5, 4] with median 2.5, 2.5 ahead of p0, which would pay p0 the catch-up. It must not.
     expect(mobRewardMultiplier(0, 2.5)).toBeGreaterThan(mobRewardMultiplier(0, 1.75));
-    expect(stacksPaid(events, idOf(0))).toBeCloseTo(ELITE_BUFF_STACKS * rewardCurve(0), 12);
     expect(gvOf(events).filter((e) => e.id === idOf(0))).toEqual([{ type: "gv", id: idOf(0), amount: Math.round(GV_ELITE * rewardCurve(0)), reason: "elite" }]);
     // The pass is over: the snapshot is gone and the live lobby counts again.
     expect(w.combat.medianFeed).toBeNull();
@@ -324,8 +285,6 @@ describe("the lobby median of a ledger pass", () => {
     const events = pass(w);
 
     expect(fxOf(events, "death").map((d) => d.by)).toEqual([idOf(1), idOf(0)]);
-    expect(stacksPaid(events, idOf(1))).toBeCloseTo(ELITE_BUFF_STACKS * rewardCurve(1.75), 12);
-    expect(stacksPaid(events, idOf(0))).toBeCloseTo(ELITE_BUFF_STACKS * rewardCurve(0), 12); // no catch-up: 1.0 times the curve
     expect(mobRewardMultiplier(0, 2.125)).toBeGreaterThan(mobRewardMultiplier(0, 2));
     expect(gvOf(events).map((e) => [e.id, e.amount])).toEqual([
       [idOf(1), Math.round(GV_ELITE * rewardCurve(1.75))], [idOf(0), Math.round(GV_ELITE * rewardCurve(0))],
@@ -493,25 +452,23 @@ describe("the bounty ignores mob kills", () => {
     expect(P(w, 0).bounty).toBe(0);
   });
 
-  it("killing a player whose feed is all mobs pays the kill and no bounty, moves no stacks, and never calls the claim hook", () => {
+  it("killing a player whose feed is all mobs pays the kill and no bounty, moves no cards, and never calls the claim hook", () => {
     const w = lobby([[0], [0], [0], [0]]);
     let claims = 0;
     const prev = w.hooks.bountyClaimed;
     w.hooks.bountyClaimed = (world, killer, victim, bounty) => { claims++; prev?.(world, killer, victim, bounty); };
     for (let i = 0; i < 48; i++) creditMobKill(w, P(w, 0), RT(w, 0), false); // feed 12
-    grantBuff(w, P(w, 0), RT(w, 0), "iceGolem", 4);
-    grantBuff(w, P(w, 0), RT(w, 0), "plagueRat", 6);
-    grantBuff(w, P(w, 0), RT(w, 0), "emberImp", 2);
+    P(w, 0).build.set("vitality3", 2);
+    P(w, 0).build.set("haste2", 1);
     w.events = [];
     kill(w, 0, attacker(w, 1));
     expect(gvOf(w.events)).toEqual([{ type: "gv", id: idOf(1), amount: GV_KILL, reason: "kill" }]);
     expect(claims).toBe(0);
-    expect(P(w, 1).buffs.size).toBe(0);
-    expect(fxOf(w.events, "buff")).toEqual([]);
+    expect(P(w, 1).build.size).toBe(0);
     expect(RT(w, 1).gv.bounty).toBe(0);
   });
 
-  it("with player kills too, the bounty follows the player kills only, and a claim pays that amount and half of every buff held", () => {
+  it("with player kills too, the bounty follows the player kills only, and a claim pays that amount in GV and no card", () => {
     const w = startRun(8);
     let claims = 0;
     const prev = w.hooks.bountyClaimed;
@@ -522,8 +479,8 @@ describe("the bounty ignores mob kills", () => {
     expect(P(w, 0).bounty).toBe(10);
     kill(w, 4, attacker(w, 0));
     expect(P(w, 0).bounty).toBe(28); // 4 player kills, not a feed of 9
-    grantBuff(w, P(w, 0), RT(w, 0), "plagueRat", 4);
-    grantBuff(w, P(w, 0), RT(w, 0), "iceGolem", 3.5);
+    P(w, 0).build.set("haste2", 2);
+    P(w, 0).build.set("vitality3", 1);
     w.events = [];
     kill(w, 0, attacker(w, 5));
     expect(gvOf(w.events)).toEqual([
@@ -531,9 +488,7 @@ describe("the bounty ignores mob kills", () => {
       { type: "gv", id: idOf(5), amount: 28, reason: "bounty" },
     ]);
     expect(claims).toBe(1);
-    expect(P(w, 5).buffs.get("plagueRat")).toBe(2);
-    expect(P(w, 5).buffs.get("iceGolem")).toBe(1.75); // fractions and all, buff by buff
-    expect([...P(w, 5).buffs.keys()].sort()).toEqual(["iceGolem", "plagueRat"]); // nothing the victim did not hold
+    expect(P(w, 5).build.size).toBe(0); // the victim's cards stay with the victim: a kill gives no stat
   });
 });
 

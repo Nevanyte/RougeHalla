@@ -242,17 +242,17 @@ describe("a dummy in a fight", () => {
     expect(ofType(events, "gv")).toEqual([]);
   });
 
-  it("reflects the arrow with a shield facing it: the dummy is untouched and the arrow flies back at the shooter", () => {
+  it("reflects the arrow with a shield facing it: the dummy takes the part it did not return and the reflected arrow flies back at the shooter", () => {
     const { world, p, dummy } = range("shield");
     const events = shoot(world);
     expect(fxOf(events, "projEnd").map((e) => e.reason)).toEqual(["reflected", "hit"]);
     expect(fxOf(events, "block")).toMatchObject([{ id: dummy, by: idOf(0), weapon: "bow" }]);
-    expect(mobOf(world, dummy).hp).toBe(DUMMY_HP);
-    expect(world.mobs.get(dummy)!.lastHitAt).toBe(0);
+    expect(mobOf(world, dummy).hp).toBeLessThan(DUMMY_HP); // 1 - ARROW_REFLECT_SHARE of the arrow gets through
     // The reflected arrow is the dummy's, and it lands on the archer.
     const hits = fxOf(events, "hit");
-    expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ id: idOf(0), by: dummy, weapon: "shield" });
+    expect(hits).toHaveLength(2);
+    expect(hits).toContainEqual(expect.objectContaining({ id: dummy, by: idOf(0), weapon: "bow" }));
+    expect(hits).toContainEqual(expect.objectContaining({ id: idOf(0), by: dummy, weapon: "shield" }));
     expect(p.hp).toBeLessThan(p.maxHp);
     expect(world.projectiles.size).toBe(0);
   });
@@ -452,6 +452,7 @@ describe("spawnTraining", () => {
       const world = started(lobby(1, { dummies: true }));
       const bow = [...world.state.containers.values()].find((c) => c.kind === "ground" && c.items.at(0)?.def === "bow" && c.label === "Bow")!;
       const p = world.state.players.get(idOf(0))!;
+      p.weapon0 = "sword";
       const carried = p.weapon0;
       expect(p.weapon1).toBe("");
       place(world, idOf(0), bow);
@@ -459,6 +460,18 @@ describe("spawnTraining", () => {
       tick(world);
       expect(p.weapon1).toBe("bow");
       expect(p.weapon0).toBe(carried);
+      expect(world.state.containers.has(bow.id)).toBe(false);
+    });
+
+    it("arms an empty-handed player at once: the rack weapon goes straight into the hand (a run starts on fists)", () => {
+      const world = started(lobby(1, { dummies: true }));
+      const bow = [...world.state.containers.values()].find((c) => c.kind === "ground" && c.items.at(0)?.def === "bow" && c.label === "Bow")!;
+      const p = world.state.players.get(idOf(0))!;
+      expect([p.weapon0, p.weapon1, p.slot]).toEqual(["", "", 0]);
+      place(world, idOf(0), bow);
+      enqueueClientMessage(world.players.get(idOf(0))!.inputs, "pickup", { containerId: bow.id });
+      tick(world);
+      expect([p.weapon0, p.weapon1, p.slot]).toEqual(["bow", "", 0]);
       expect(world.state.containers.has(bow.id)).toBe(false);
     });
   });

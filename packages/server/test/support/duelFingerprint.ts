@@ -1,5 +1,5 @@
 // A fingerprint of the default duel path: a fixed set of specs that touch every part of duel.ts that existed before the zone
-// duels (open and pillar arenas, locks, signatures, perceptions, start offsets, buffs), each reduced to a sha256 of its result
+// duels (open and pillar arenas, locks, signatures, perceptions, start offsets, cards), each reduced to a sha256 of its result
 // (everything but the spec echo, which holds a callback). The hashes in zoneDuel.test.ts were taken BEFORE duel.ts learned
 // `map`, `starts` and the rows arena, so a changed hash means a default duel is no longer what it was.
 import { createHash } from "node:crypto";
@@ -19,9 +19,9 @@ export const FINGERPRINT_SPECS: ReadonlyArray<readonly [name: string, spec: Duel
   ["fire bow mirror start offset", { faction: "fire", weapons: ["bow", "bow"], distance: 300, delayTicks: [20, 0], capSeconds: 4, seed: 5 }],
   ["holy bow>sword stale", { faction: "holy", weapons: ["bow", "sword"], distance: 300, angle: 0.1, perception: "stale", capSeconds: 8, seed: 9 }],
   ["holy bow>sword present", { faction: "holy", weapons: ["bow", "sword"], distance: 300, angle: 0.1, perception: "present", capSeconds: 8, seed: 9 }],
-  ["fire wand>shield buffed", {
+  ["fire wand>shield carded", {
     faction: "fire", weapons: ["wand", "shield"], distance: 300, angle: 0.8, capSeconds: 10, seed: 4,
-    buffs: [[{ id: "plagueRat", stacks: 3 }], undefined], asMult: [1.2, undefined],
+    cards: [["haste1"], undefined], asMult: [1.2, undefined],
   }],
 ];
 

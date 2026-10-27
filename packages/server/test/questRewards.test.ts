@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buffDef, mapFromTiles, mulberry32, questDefById, QUEST_GV_CAP, rewardCurve, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  cardPower, mapFromTiles, mulberry32, questDefById, QUEST_FEED_BRAKE, QUEST_GV_CAP, rewardCurve, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -58,19 +58,24 @@ function complete(world: World, qt: QuestRuntime): SimEvent[] {
 }
 
 describe("quest rewards", () => {
-  it("pays a real buff from the objective's far zone", () => {
+  it("pays the quest's card (a base card of its tier) and a toast, and the GV beside it", () => {
     const world = makeRun();
     const qt = ready(world, "cull-fire");
     const reward = qt.def.reward;
-    const before = P(world).buffs.get(reward.buff) ?? 0;
+    expect(reward.card).toBe("ad2");
+    expect(P(world).build.get(reward.card) ?? 0).toBe(0);
 
-    complete(world, qt);
+    const events = complete(world, qt);
 
-    expect(buffDef(reward.buff)?.zone).toBe(qt.def.farZone);
-    expect(P(world).buffs.get(reward.buff)).toBeCloseTo(before + reward.stacks * rewardCurve(0), 5);
+    expect(P(world).build.get(reward.card)).toBe(1);
+    expect(P(world).build.size).toBe(1);
+    expect(events.filter((e) => e.type === "toast" && e.to === "p0").map((e) => (e as { text: string }).text)).toContain("Quest complete: Attack Damage II");
+    expect(RT(world).gv.quest).toBe(reward.gv);
+    // The card folds at once: Attack Damage II is 21 AD on the mirror.
+    expect(P(world).adBonus).toBe(210);
   });
 
-  it("scales the buff grant by rewardCurve(feed), including a fed player's brake", () => {
+  it("drops a fed player's card one tier once the mob reward curve is under the brake, and never below tier 1", () => {
     const hungry = makeRun(0);
     const fed = makeRun(20);
     const hungryQuest = ready(hungry, "cull-fire");
@@ -79,21 +84,33 @@ describe("quest rewards", () => {
     complete(hungry, hungryQuest);
     complete(fed, fedQuest);
 
-    const hungryStacks = P(hungry).buffs.get(hungryQuest.def.reward.buff)!;
-    const fedStacks = P(fed).buffs.get(fedQuest.def.reward.buff)!;
-    expect(hungryStacks).toBeCloseTo(hungryQuest.def.reward.stacks * rewardCurve(0), 5);
-    expect(fedStacks).toBeCloseTo(fedQuest.def.reward.stacks * rewardCurve(20), 5);
-    expect(fedStacks).toBeLessThan(hungryStacks * 0.5);
+    expect(rewardCurve(0)).toBeGreaterThanOrEqual(QUEST_FEED_BRAKE);
+    expect(rewardCurve(20)).toBeLessThan(QUEST_FEED_BRAKE);
+    expect(P(hungry).build.get("ad2")).toBe(1);
+    expect(P(fed).build.get("ad1")).toBe(1);
+    expect(P(fed).build.get("ad2") ?? 0).toBe(0);
+    // A tier-1 quest card has nowhere to fall.
+    const fedHunter = ready(fed, "headhunter");
+    complete(fed, fedHunter);
+    expect(P(fed).build.get("ad1")).toBe(2);
   });
 
-  it("uses the mob reward multiplier, including catch-up for a trailing player", () => {
+  it("does not use the catch-up: the brake reads the feed curve alone, and a trailing player's tier is the nominal one", () => {
     const world = makeRun();
     world.state.players.get("p1")!.kills = 20;
     const qt = ready(world, "cull-fire");
 
     complete(world, qt);
 
-    expect(P(world).buffs.get(qt.def.reward.buff)).toBeCloseTo(qt.def.reward.stacks * rewardCurve(0) * 1.25, 5);
+    expect(P(world).build.get("ad2")).toBe(1);
+  });
+
+  it("pays the same card to the same quest whoever else is in the lobby, and a base card stacks across quests", () => {
+    const world = makeRun();
+    complete(world, ready(world, "cull-fire")); // ad2
+    complete(world, ready(world, "cull-sentenced")); // ad2 again
+    expect(P(world).build.get("ad2")).toBe(2);
+    expect(cardPower(P(world).build)).toBe(4);
   });
 
   it("caps only the separate per-run quest GV pot at QUEST_GV_CAP", () => {

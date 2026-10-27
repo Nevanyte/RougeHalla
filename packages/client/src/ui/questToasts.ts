@@ -1,8 +1,8 @@
 // Quest lifecycle toasts, folded before they reach the 3-slot toast stack (ui/toast.ts drops the OLDEST when a fourth comes, and
-// a turn-in already brings the "+N GV (quest)" line and the buff news): the server announces a completion once, to everyone,
+// a turn-in already brings the "+N GV (quest)" line and the card news): the server announces a completion once, to everyone,
 // and batches the offers that close in one tick into one line, and this is the client's own guard on both, so a second line
-// for the same event (an older server's private "Quest complete" next to the public announcement, or several expiry lines in
-// one burst) never evicts the GV toast. Pure apart from the timer, which a test injects.
+// for the same event (the completer's private "Quest complete: <card paid>" next to the public "<name> completed quest: <offer>", or
+// several expiry lines in one burst) never evicts the GV toast. Pure apart from the timer, which a test injects.
 
 export const QUEST_TOAST_WINDOW_MS = 150;
 /** A completion line is a duplicate of the one just shown for the same offer within this long. */
@@ -35,8 +35,8 @@ export class QuestToasts {
   private expired = 0;
   private expiredName: string | null = null;
   private timer: unknown = null;
-  /** Offers whose completion line was shown for the local player, by offer name, and when. */
-  private readonly completed = new Map<string, number>();
+  /** When the local player's own "Quest complete: <card>" line was last shown (it names the card paid, not the offer). */
+  private ownCompleteAt = -Infinity;
 
   constructor(
     private readonly show: (text: string) => void,
@@ -56,15 +56,14 @@ export class QuestToasts {
       this.timer ??= this.timers.set(() => this.flush(), QUEST_TOAST_WINDOW_MS);
       return;
     }
-    const own = COMPLETE_PRIVATE.exec(text);
-    const pub = own ? null : COMPLETE_PUBLIC.exec(text);
-    const name = own ? own[1]! : pub && pub[1] === this.localName() && this.localName() !== "" ? pub[2]! : null;
-    if (name !== null) {
-      const now = this.timers.now();
-      const last = this.completed.get(name);
-      if (last !== undefined && now - last < QUEST_TOAST_DUPLICATE_MS) return;
-      this.completed.set(name, now);
-      for (const [key, at] of this.completed) if (now - at >= QUEST_TOAST_DUPLICATE_MS) this.completed.delete(key);
+    // The completer is told twice: privately "Quest complete: Haste II" (the card they were paid) and, with everyone, "Me completed quest:
+    // Cinder Cull". The private line carries the news, so the public line naming the local player right after it is the duplicate.
+    const now = this.timers.now();
+    if (COMPLETE_PRIVATE.test(text)) {
+      this.ownCompleteAt = now;
+    } else {
+      const pub = COMPLETE_PUBLIC.exec(text);
+      if (pub && pub[1] === this.localName() && this.localName() !== "" && now - this.ownCompleteAt < QUEST_TOAST_DUPLICATE_MS) return;
     }
     this.show(text);
   }
@@ -86,6 +85,6 @@ export class QuestToasts {
     this.timer = null;
     this.expired = 0;
     this.expiredName = null;
-    this.completed.clear();
+    this.ownCompleteAt = -Infinity;
   }
 }

@@ -14,18 +14,19 @@
 //
 // Everything here tolerates `world.abilities === null` (nothing has used it yet) and fighters with no statuses.
 import {
-  ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, DOT_FX_MS, effectSide,
+  ABILITIES, abilityCooldownMs, abilityInSlot, blinkLanding, CAST_RANGE_SLACK, CAST_TELEPORT_GRACE_MS, CRIT_MULT, DOT_FX_MS, effectSide,
   hasLineOfSight,
   HIDDEN_REVEAL_MS, MAX_REWIND_MS, rankOf, setSlotReadyAt, slotReadyAt, TICK_MS, WISH_LOCK_SECONDS,
   type AbilityDef, type AbilityEffect, type AbilityId, type AbilityRank, type CastCancel, type CastEndReason, type DamageShares,
   type Vec2,
 } from "@raid/shared";
+import { cardsOf, rollDotCrit } from "./cardState";
 import { combatant, hostile, isEvading, standing, standingCombatants, type Combatant } from "./combatant";
 import { displace } from "./displace";
 import { heal } from "./factions";
 import { abilitiesRt, addField, fieldsOf, onTrail, removeField, removeFieldsWhere } from "./fields";
 import { recordHit } from "./ledger";
-import { recomputeMods } from "./mods";
+import { dotMultOf, recomputeMods, wishCooldownMultOf } from "./mods";
 import {
   addStatus, attackSlowFactor, castBlocked, cleanse, isUntargetable, refreshEffects, removeStatuses, reveal,
   statusesOf, statusMoveMultiplier,
@@ -150,7 +151,10 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
   }
 
   const prevReadyAt = slotReadyAt(c.s, cmd.slot);
-  setSlotReadyAt(c.s, cmd.slot, now + abilityCooldownMs(def, rank, { training: world.config.training === true }));
+  const cooldownMs = abilityCooldownMs(def, rank, { training: world.config.training === true, wishCooldownMult: wishCooldownMultOf(c.s) });
+  setSlotReadyAt(c.s, cmd.slot, now + cooldownMs);
+  // Wishful Thinking shortens this cooldown, never under half of it (G13): it needs to know when the Wish was spent and for how long.
+  if (cmd.slot === "wish") cardsOf(c.rt).wishCast = { at: now, cooldownMs };
   const cast: CastRuntime = {
     ability: def.id, rank, slot: cmd.slot, startedAt: now, landsAt: now + r.castMs, target: target ? target.id : null, point,
     landing: null, prevReadyAt, lagMs: Math.min(MAX_REWIND_MS, Math.max(TICK_MS, now - (cmd.t ?? now))),
@@ -515,9 +519,16 @@ export function statusDamage(world: World, dtMs: number): void {
     if (!standing(c) || isEvading(c)) continue;
     for (const st of statusesOf(c)) {
       if (st.kind !== "dot" || st.until <= now) continue;
+      const raw = (st.value * dtMs) / 1000;
+      // A card's damage over time (a bleed, Festering Arcana's tail) is its owner's: Boom's x1.25 and Slow Burn's x0.7 multiply it as they do a
+      // signature's (G1's `own` counts that mult, so it is in the packet and not in `mult`), and it can critically strike (Cruel Wounds); a Wish's is flat.
+      const owner = st.ability === undefined && st.source.id !== c.id ? combatant(world, st.source.id) : null;
+      const base = owner ? raw * dotMultOf(owner.s) : raw;
+      const crit = owner !== null && rollDotCrit(world, owner);
       recordHit(world, {
-        victim: c.id, by: st.source, packet: { raw: (st.value * dtMs) / 1000, ...(st.shares ?? TRUE_SHARES) }, weapon: null,
-        ...(st.ability !== undefined ? { ability: st.ability } : {}), dot: true, stagger: false,
+        victim: c.id, by: st.source,
+        packet: { raw: crit ? base * CRIT_MULT : base, ...(st.shares ?? TRUE_SHARES), ...(crit ? { crit: true, mult: CRIT_MULT } : {}) },
+        weapon: null, ...(st.ability !== undefined ? { ability: st.ability } : {}), dot: true, stagger: false,
       });
     }
   }

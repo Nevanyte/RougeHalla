@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOW_WINDUP, FACTIONS, WIRE_IDENTITY_MIRRORS, attackInterval, encodeMult, scaleWindup, weaponTimings } from "@raid/shared";
+import { BOW_WINDUP, FACTIONS, WIRE_IDENTITY_MIRRORS, encodeMult, mirrorTimings } from "@raid/shared";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { DrawTrack, FighterArt, HpBar, fullDrawSeconds, heldWeapon, type FighterFields } from "../src/render/FighterArt";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
@@ -24,6 +24,15 @@ describe("heldWeapon", () => {
     expect(heldWeapon({ weapon0: "bow", weapon1: "axe", slot: 1 })).toBe("axe");
     expect(heldWeapon({ weapon0: "bow", weapon1: "", slot: 1 })).toBeNull();
     expect(heldWeapon({ weapon0: "spear", weapon1: "", slot: 0 })).toBeNull();
+  });
+
+  it("reads an empty slot as fists for a fighter with a faction", () => {
+    expect(heldWeapon({ weapon0: "bow", weapon1: "", slot: 1, faction: "fire" })).toBe("fists");
+    expect(heldWeapon({ weapon0: "", weapon1: "", slot: 0, faction: "holy" })).toBe("fists");
+    expect(heldWeapon({ weapon0: "", weapon1: "axe", slot: 1, faction: "holy" })).toBe("axe");
+    // No faction (a training dummy): nothing is drawn. An unknown id is nothing either way.
+    expect(heldWeapon({ weapon0: "", weapon1: "", slot: 0, faction: "" })).toBeNull();
+    expect(heldWeapon({ weapon0: "spear", weapon1: "", slot: 0, faction: "fire" })).toBeNull();
   });
 });
 
@@ -118,25 +127,27 @@ describe("fullDrawSeconds", () => {
   // `windupMult` mirrors hold the encoded value, 9 decimals): one row per windup mirror (x1, x0.85, x1.2), one column per
   // attack-speed mirror (x1, x1.05, x1.25, x1.6). server/test/mobHunt.test.ts compares the bots' copy of the formula with
   // timingsOf live; this is the client's half: a draw gauge that drifts from the server's shows a full bow before (or after)
-  // it is. The client reads the MIRRORS the server folds its buffs into, in wire form (thousandths). Regenerate with the weapon
+  // it is. The client reads the MIRRORS the server folds its cards into, in wire form (thousandths). Regenerate with the weapon
   // numbers (weapons.ts / factions.ts) when they change; BOW_WINDUP and BOW_WINDUP_SHARE (the controls tuning lever) move
   // every entry. A windup mirror below 1 shortens no bow draw (owner ruling "Melee windups only": Quickdraw is for the sword, the
-  // bash and the axe): the x0.85 row equals the x1 row for every faction.
+  // bash and the axe): the x0.85 row equals the x1 row for every faction. Since the balance pass (G9, shared mirrorTimings) attack
+  // speed shortens no bow draw either: a windup that is a share of the interval (Sentenced, Plague, Holy) stays at its base-speed
+  // value when the fighter is faster, so every column of the x1 and x0.85 rows is the same number (the anti-kiting lever).
   const AS = [1, 1.05, 1.25, 1.6];
   const WINDUP = [1, 0.85, 1.2];
   const SERVER_FULL_DRAW: Record<string, readonly (readonly number[])[]> = {
-    fire: [[0.6, 0.6, 0.6, 0.491452991], [0.6, 0.6, 0.6, 0.491452991], [0.72, 0.72, 0.683760684, 0.534188034]],
+    fire: [[0.6, 0.6, 0.6, 0.6], [0.6, 0.6, 0.6, 0.6], [0.72, 0.72, 0.683760684, 0.6]],
     sentenced: [
-      [0.524216524, 0.499253833, 0.419373219, 0.327635328],
-      [0.524216524, 0.499253833, 0.419373219, 0.327635328],
-      [0.56980057, 0.542667209, 0.455840456, 0.356125356],
+      [0.524216524, 0.524216524, 0.524216524, 0.524216524],
+      [0.524216524, 0.524216524, 0.524216524, 0.524216524],
+      [0.56980057, 0.542667209, 0.524216524, 0.524216524],
     ],
-    plague: [[0.255024255, 0.242880243, 0.23, 0.23], [0.255024255, 0.242880243, 0.23, 0.23], [0.277200277, 0.264000264, 0.25, 0.25]],
+    plague: [[0.255024255, 0.255024255, 0.255024255, 0.255024255], [0.255024255, 0.255024255, 0.255024255, 0.255024255], [0.277200277, 0.264000264, 0.255024255, 0.255024255]],
     frost: [[0.6, 0.6, 0.6, 0.6], [0.6, 0.6, 0.6, 0.6], [0.72, 0.72, 0.72, 0.712250712]],
     holy: [
-      [0.496626181, 0.472977315, 0.397300945, 0.310391363],
-      [0.496626181, 0.472977315, 0.397300945, 0.310391363],
-      [0.539811066, 0.514105777, 0.431848853, 0.337381916],
+      [0.496626181, 0.496626181, 0.496626181, 0.496626181],
+      [0.496626181, 0.496626181, 0.496626181, 0.496626181],
+      [0.539811066, 0.514105777, 0.496626181, 0.496626181],
     ],
   };
   /** The wire value the server writes for a multiplier. */
@@ -162,16 +173,21 @@ describe("fullDrawSeconds", () => {
     expect(fullDrawSeconds("nobody", wire(1.5))).toBe(0);
   });
 
-  it("shortens with the attack-speed mirror until the bow's interval floor", () => {
-    expect(fullDrawSeconds("sentenced", wire(1.6))).toBeLessThan(fullDrawSeconds("sentenced", IDENTITY) - 0.1);
-    expect(fullDrawSeconds("plague", wire(1.6))).toBe(fullDrawSeconds("plague", wire(20)));
+  it("is never shorter than at base speed for a faster fighter (G9), and grows with a slower one up to the cap", () => {
+    for (const f of ["fire", "frost", "sentenced", "plague", "holy"]) {
+      for (const as of [1.05, 1.25, 1.6, 20]) expect(fullDrawSeconds(f, wire(as)), `${f} x${as}`).toBe(fullDrawSeconds(f));
+    }
+    // A Sentenced bow's windup is a share of its interval: at attack speed x0.8 it would be 0.655 s, so the cap holds it at BOW_WINDUP.
+    expect(fullDrawSeconds("sentenced", wire(0.9))).toBeGreaterThan(fullDrawSeconds("sentenced"));
+    expect(fullDrawSeconds("sentenced", wire(0.8))).toBe(BOW_WINDUP);
   });
 
   it("follows the mirrors alone, through the shared formulas", () => {
     // 1.5 is no buff's multiplier in particular: any source of attack speed or windup shows in the draw.
-    const t = scaleWindup(weaponTimings("bow", attackInterval(FACTIONS.sentenced, "bow", 1.5)), 1.2);
+    const t = mirrorTimings(FACTIONS.sentenced, "bow", 1.5, 1.2);
     expect(fullDrawSeconds("sentenced", wire(1.5), wire(1.2))).toBeCloseTo(t.windup, 12);
-    expect(fullDrawSeconds("sentenced", wire(1.5))).toBeLessThan(fullDrawSeconds("sentenced"));
+    expect(fullDrawSeconds("sentenced", wire(1.5))).toBe(fullDrawSeconds("sentenced"));
+    expect(mirrorTimings(FACTIONS.sentenced, "bow", 0.9, 1.2).windup).toBeCloseTo(fullDrawSeconds("sentenced", wire(0.9), wire(1.2)), 12);
     expect(fullDrawSeconds("fire", IDENTITY, wire(1.05))).toBeCloseTo(0.63, 12);
   });
 
@@ -188,22 +204,27 @@ describe("fullDrawSeconds", () => {
     expect(fullDrawSeconds("fire", IDENTITY, wire(0.25))).toBe(BOW_WINDUP);
   });
 
-  it("is what the gauge uses: the same draw is full with the mirror and not without", () => {
-    // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw at attack speed x1.25 (0.419 s), which
-    // glows; a windup x0.85 does not shorten it (a windup mod never shortens a ranged windup), and 0.45 s of a windup x1.2 draw
-    // (0.570 s) is not full.
-    const glowing = (fields: Partial<FighterFields>) => {
+  it("is what the gauge uses: a faster rate no longer fills the pull early (G9), a longer windup fills it later", () => {
+    // 0.45 s into a Sentenced bow's draw: 86% of the 0.524 s base pull. Attack speed x1.25 once made it full (0.419 s) and the gauge
+    // glowed; since G9 the pull stays 0.524 s, as the server holds it, so it does not. A windup x0.85 does not shorten it (a windup
+    // mod never shortens a ranged windup), and 0.45 s of a windup x1.2 draw (0.570 s) is not full.
+    const glowingAt = (elapsed: number, fields: Partial<FighterFields>) => {
       const { art, calls } = setup();
-      art.update({ ...bowman(1000), faction: "sentenced", ...fields }, 1450, 1450);
+      art.update({ ...bowman(1000), faction: "sentenced", ...fields }, 1000 + elapsed, 1000 + elapsed);
       return calls().includes("strokeCircle");
     };
-    expect(glowing({})).toBe(false);
-    expect(glowing({ asMult: IDENTITY, windupMult: IDENTITY })).toBe(false);
-    expect(glowing({ asMult: wire(1.25) })).toBe(true);
-    expect(glowing({ windupMult: wire(0.85) })).toBe(false);
-    expect(glowing({ windupMult: wire(1.2) })).toBe(false);
-    // Both together: a longer windup against a faster rate.
-    expect(glowing({ asMult: wire(1.25), windupMult: wire(1.2) })).toBe(false);
+    expect(glowingAt(450, {})).toBe(false);
+    expect(glowingAt(450, { asMult: IDENTITY, windupMult: IDENTITY })).toBe(false);
+    expect(glowingAt(450, { asMult: wire(1.25) })).toBe(false);
+    expect(glowingAt(450, { windupMult: wire(0.85) })).toBe(false);
+    expect(glowingAt(450, { windupMult: wire(1.2) })).toBe(false);
+    expect(glowingAt(450, { asMult: wire(1.25), windupMult: wire(1.2) })).toBe(false);
+    // Past the base pull (0.524 s) the faster bow is full, as the server looses it; a longer windup alone is not yet (0.570 s), and a
+    // faster rate takes that back (the windup cannot pass the interval, mirrorTimings: 0.524 s in the table above).
+    expect(glowingAt(530, { asMult: wire(1.25) })).toBe(true);
+    expect(glowingAt(530, { asMult: wire(1.6) })).toBe(true);
+    expect(glowingAt(530, { windupMult: wire(1.2) })).toBe(false);
+    expect(glowingAt(530, { asMult: wire(1.25), windupMult: wire(1.2) })).toBe(true);
   });
 
   it("the gauge's full draw is never early for a windup mirror below 1: a Fire bow is not full at 0.56 s, whatever the mirror, and is at 0.6 s", () => {

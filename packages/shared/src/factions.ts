@@ -1,12 +1,15 @@
 // The five factions and the universal combat law, ported 1:1 from testing/engine.py and
-// testing/classes.py (v3 numbers; the design source of truth is testing/CLASS_SHEET.md). Pure: the
-// duel() here must keep reproducing the Python reference results (packages/shared/test/factions.test.ts).
+// testing/classes.py (the balance pass's compressed sheet, BALANCE_CONTRACT 5.2; the design source of truth is
+// testing/CLASS_SHEET.md and testing/TUNING_BALANCE.md). Pure: the duel() here must keep reproducing the Python
+// reference results (packages/shared/test/factions.test.ts).
 //
 // Rules of the law: every damage packet splits into physical / magic / true shares (a property of
-// the attacker); armor cuts the physical share, shield the magic share, true ignores both, each as
-// 1 / (1 + stat/100). Signature mechanics read only the attacker's own params and universal state,
-// never the opponent's identity, so counters emerge from the numbers alone.
+// the attacker, or, for a signature part, of the signature: SIGNATURE_SHARES); armor cuts the physical share, shield
+// the magic share, true ignores both, each as 1 / (1 + stat/100). Signature mechanics read only the attacker's own
+// params and universal state, never the opponent's identity, so counters emerge from the numbers alone.
 import { DUEL_PACE } from "./constants";
+import { SIGNATURE_SHARES } from "./signatureShares";
+import type { SignatureKind } from "./signatures";
 
 export type FactionId = "fire" | "sentenced" | "plague" | "frost" | "holy";
 export type MechanicId = "dragonslayer" | "marked" | "rat_king" | "plain";
@@ -41,28 +44,28 @@ export interface FactionSpec {
 export const FACTIONS: Readonly<Record<FactionId, FactionSpec>> = {
   fire: {
     id: "fire", name: "Fire", displayName: "Fire", role: "Glass-cannon duelist", theme: "Dragonslayer, living fire", color: 0xff7043,
-    hp: 500, rate: 0.6, hit: 150, phys: 0.0, trueShare: 0.0, armor: 0, shield: 125,
-    mechanic: "dragonslayer", params: { burn: 10, backlash: 200 },
+    hp: 835, rate: 0.6, hit: 100, phys: 0.0, trueShare: 0.0, armor: 0, shield: 45,
+    mechanic: "dragonslayer", params: { burn: 18, backlash: 145 },
   },
   sentenced: {
     id: "sentenced", name: "Sentenced", displayName: "Sentenced", role: "Patient executioner", theme: "Marked for judgment", color: 0x9575cd,
-    hp: 700, rate: 0.9, hit: 5, phys: 0.0, trueShare: 0.0, armor: 100, shield: 50,
-    mechanic: "marked", params: { mark_ramp: 35, mark_cap: 275 },
+    hp: 800, rate: 0.9, hit: 10, phys: 0.0, trueShare: 0.0, armor: 125, shield: 210,
+    mechanic: "marked", params: { mark_ramp: 17.5, mark_cap: 72 },
   },
   plague: {
     id: "plague", name: "Plague", displayName: "Plague", role: "Attrition swarm", theme: "Rat King, disease", color: 0x9ccc65,
-    hp: 1000, rate: 1.85, hit: 20, phys: 0.8, trueShare: 0.0, armor: 200, shield: 0,
-    mechanic: "rat_king", params: { plague: 40, execute: 2050 },
+    hp: 1375, rate: 1.85, hit: 20, phys: 0.8, trueShare: 0.0, armor: 190, shield: 0,
+    mechanic: "rat_king", params: { plague: 43, execute: 415 },
   },
   frost: {
     id: "frost", name: "Frost", displayName: "Frost", role: "Control bruiser", theme: "Living wall of ice", color: 0x4fc3f7,
-    hp: 1750, rate: 0.45, hit: 90, phys: 0.9, trueShare: 0.0, armor: 100, shield: 100,
-    mechanic: "plain", aura: "wall_of_ice", params: { slow: 0.6 },
+    hp: 1200, rate: 0.45, hit: 175, phys: 0.9, trueShare: 0.0, armor: 20, shield: 190,
+    mechanic: "plain", aura: "wall_of_ice", params: { slow: 0.52 },
   },
   holy: {
     id: "holy", name: "Holy", displayName: "Demon Blood", role: "Sustain juggernaut", theme: "Light that burns brighter near death", color: 0xfff176,
-    hp: 1450, rate: 0.95, hit: 65, phys: 1.0, trueShare: 0.0, armor: 0, shield: 250,
-    mechanic: "plain", sustain: "radiant", params: { ls0: 0.25, ls1: 1.25, ls_cap: 1.0 },
+    hp: 1400, rate: 0.95, hit: 96, phys: 1.0, trueShare: 0.0, armor: 0, shield: 250,
+    mechanic: "plain", sustain: "radiant", params: { ls0: 0.1, ls1: 0.8, ls_cap: 0.75 },
   },
 };
 
@@ -103,15 +106,25 @@ export interface CombatState {
   foeHpFrac: number;
 }
 
-/** Bonus raw damage per second added on top of rate × hit. */
-export function bonusDps(spec: FactionSpec, s: CombatState): number {
+/**
+ * Bonus raw damage per second added on top of rate × hit, split into its signature parts (each is mitigated as its own
+ * damage type: SIGNATURE_SHARES). Listed in the order the Python engine adds them.
+ */
+export function bonusParts(spec: FactionSpec, s: CombatState): ReadonlyArray<readonly [SignatureKind, number]> {
   const p = spec.params;
   switch (spec.mechanic) {
-    case "dragonslayer": return p.burn! + p.backlash! * s.foeRate;
-    case "rat_king": return p.plague! + p.execute! * Math.max(0, 0.5 - s.foeHpFrac);
-    case "marked": return Math.min(p.mark_cap!, p.mark_ramp! * s.t);
-    default: return 0;
+    case "dragonslayer": return [["burn", p.burn!], ["backlash", p.backlash! * s.foeRate]];
+    case "rat_king": return [["disease", p.plague! + p.execute! * Math.max(0, 0.5 - s.foeHpFrac)]];
+    case "marked": return [["mark", Math.min(p.mark_cap!, p.mark_ramp! * s.t)]];
+    default: return [];
   }
+}
+
+/** The signature bonus as one number: the raw damage per second of every part together, before any mitigation. */
+export function bonusDps(spec: FactionSpec, s: CombatState): number {
+  let sum = 0;
+  for (const [, v] of bonusParts(spec, s)) sum += v;
+  return sum;
 }
 
 /** Multiplier this faction's aura applies to its opponent's attack rate (1 = none). */
@@ -183,8 +196,8 @@ export function duel(a: FactionSpec, b: FactionSpec, dt = 0.002, tMax = 120): Du
         t, ownRate: rate[i]!, foeRate: rate[o]!,
         ownHpFrac: Math.max(hp[i]!, 0) / f[i].hp, foeHpFrac: Math.max(hp[o]!, 0) / f[o]!.hp,
       };
-      const raw = (rate[i]! * f[i].hit + bonusDps(f[i], st)) * dt;
-      const dealt = mitigate(raw, f[i], f[o]!);
+      let dealt = mitigate(rate[i]! * f[i].hit * dt, f[i], f[o]!);
+      for (const [sig, v] of bonusParts(f[i], st)) dealt += mitigateShares(v * dt, SIGNATURE_SHARES[sig], f[o]!);
       out[i] = dealt;
       heal[i] = dealt * lifestealFraction(f[i], st.ownHpFrac);
     }

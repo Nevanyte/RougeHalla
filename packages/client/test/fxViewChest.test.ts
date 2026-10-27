@@ -1,6 +1,6 @@
 // The two fx the camp chests add (FxView): a camp cleared is told to everyone ("Plague camp cleared"), a pick at a chest is told
-// to the player who made it ("You took Whetstone"). Both play at render time like every fx, and only through the host's own
-// words: a host that cannot say which camp or which skill says nothing.
+// to the player who made it ("You took Haste II"). Both play at render time like every fx, and only through the host's own
+// words: a host that cannot say which camp or which card says nothing.
 import { describe, expect, it } from "vitest";
 import type { TimedFx } from "@raid/shared";
 import { FxView, type FxHost } from "../src/render/FxView";
@@ -56,10 +56,10 @@ describe("campCleared", () => {
 describe("chestTaken", () => {
   it("tells the local player's own pick, as good news", () => {
     const asked: Array<[string, number]> = [];
-    const { fx, lines } = setup({ chestPick: (chest, option) => { asked.push([chest, option]); return "You took Whetstone"; } });
+    const { fx, lines } = setup({ chestPick: (chest, option) => { asked.push([chest, option]); return "You took Haste II"; } });
     fx.enqueue(taken("me", 1, 1000));
     fx.update(1100, 0, true);
-    expect(lines).toEqual([["You took Whetstone", "ok"]]);
+    expect(lines).toEqual([["You took Haste II", "ok"]]);
     expect(asked).toEqual([["c1", 1]]);
   });
 

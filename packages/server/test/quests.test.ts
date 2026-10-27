@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   INTERACT_RANGE, mapFromTiles, mulberry32, QUEST_COUNT, QUEST_ITEM_PREFIX, QUEST_KNOWN_COUNT, questDefById,
-  QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, QUEST_UNKNOWN_COUNT, rewardCurve, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, QUEST_UNKNOWN_COUNT, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type FactionId, type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -203,7 +203,7 @@ describe("kill quests", () => {
 });
 
 describe("turn-in", () => {
-  it("completes once: quest GV, a curved far-zone buff, a toast, and one winner", () => {
+  it("completes once: quest GV, the quest's card, a toast, and one winner", () => {
     const w = makeRun();
     const qt = offer(w, "cull-fire");
     for (let i = 0; i < 3; i++) killMobOf(w, "fire", "p0");
@@ -212,21 +212,21 @@ describe("turn-in", () => {
     P(w, 0).y = GIVER.y;
     P(w, 1).x = GIVER.x;
     P(w, 1).y = GIVER.y;
-    const stacks0 = P(w, 0).buffs.get(qt.def.reward.buff) ?? 0;
-    const stacks1 = P(w, 1).buffs.get(qt.def.reward.buff) ?? 0;
     const ev = step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
     expect(["alice", "bob"]).toContain(qt.s.doneBy);
     const winner = qt.s.doneBy === "alice" ? 0 : 1;
-    const expected = qt.def.reward.stacks * rewardCurve(0.75);
     expect(RT(w, winner).gv.quest).toBe(qt.def.reward.gv);
     expect(RT(w, winner).gv.quest + RT(w, 1 - winner).gv.quest).toBe(qt.def.reward.gv);
-    expect(P(w, winner).buffs.get(qt.def.reward.buff)).toBeCloseTo((winner === 0 ? stacks0 : stacks1) + expected, 5);
-    expect(P(w, 1 - winner).buffs.get(qt.def.reward.buff)).toBeCloseTo(winner === 0 ? stacks1 : stacks0, 5);
+    // A feed of 0.75 is nowhere near the brake: the nominal card, once, to the winner alone.
+    expect(P(w, winner).build.get(qt.def.reward.card)).toBe(1);
+    expect(P(w, 1 - winner).build.size).toBe(0);
+    expect(ev.some((e) => e.type === "toast" && e.to === (winner === 0 ? "p0" : "p1") && e.text === "Quest complete: Attack Damage II")).toBe(true);
     expect(ev.some((e) => e.type === "gv" && e.reason === "quest" && e.amount === qt.def.reward.gv)).toBe(true);
     expect(ev.some((e) => e.type === "toast" && e.to === null && e.text.includes(qt.s.doneBy) && e.text.includes(qt.def.name))).toBe(true);
     step(w, TICK_MS);
-    expect(P(w, 1 - winner).buffs.get(qt.def.reward.buff)).toBeCloseTo(winner === 0 ? stacks1 : stacks0, 5);
+    expect(P(w, 1 - winner).build.size).toBe(0);
+    expect(P(w, winner).build.get(qt.def.reward.card)).toBe(1); // paid once
   });
 
   it.each([["p0", "p1"], ["p1", "p0"]])(
@@ -247,7 +247,7 @@ describe("turn-in", () => {
       expect(qt.s.doneBy).toBe(low === "p0" ? "alice" : "bob");
       expect(w.players.get(low)!.gv.quest).toBe(qt.def.reward.gv);
       expect(w.players.get(high)!.gv.quest).toBe(0);
-      expect(w.state.players.get(high)!.buffs.get(qt.def.reward.buff) ?? 0).toBe(0);
+      expect(w.state.players.get(high)!.build.get(qt.def.reward.card) ?? 0).toBe(0);
     },
   );
 
@@ -306,11 +306,12 @@ describe("collect quests", () => {
     }
     P(w, 0).x = tokens[0]!.x;
     P(w, 0).y = tokens[0]!.y;
+    P(w, 0).weapon0 = "sword"; // a run starts empty-handed; the token must not touch what is carried
     const first = qt.containers[0]!;
     pickup(w, 0, first);
     expect(qt.s.progress.get("p0")).toBe(1);
     expect(w.state.containers.has(first)).toBe(false);
-    expect(P(w, 0).weapon0).not.toBe("");
+    expect(P(w, 0).weapon0).toBe("sword");
     expect(qt.s.progress.get("p1") ?? 0).toBe(0);
   });
 
@@ -355,7 +356,7 @@ describe("collect quests", () => {
     P(w, 0).y = GIVER.y;
     step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
-    expect(P(w, 0).buffs.get(qt.def.reward.buff)).toBeCloseTo(qt.def.reward.stacks * rewardCurve(0), 5);
+    expect(P(w, 0).build.get(qt.def.reward.card)).toBe(1);
   });
 });
 
@@ -380,7 +381,7 @@ describe("fetch quests", () => {
     step(w, TICK_MS);
     expect(qt.s.status).toBe("done");
     expect(w.quests!.carried.has("p0")).toBe(false);
-    expect(P(w, 0).buffs.get(qt.def.reward.buff)).toBeCloseTo(qt.def.reward.stacks * rewardCurve(0), 5);
+    expect(P(w, 0).build.get(qt.def.reward.card)).toBe(1);
   });
 
   it("a carrier who goes down drops the parcel where they fell, and anyone may reclaim it", () => {

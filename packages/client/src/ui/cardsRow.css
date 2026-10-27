@@ -1,0 +1,51 @@
+/* The cards row (ui/cardsRow.ts): in the HUD plate under the vitals, one small chip per card held (its title and, for a base card
+   held more than once, its count). It is click-through all the way down: it sits over the world at the top left, so a right-click
+   move or a left-click lock under it must reach the canvas, and the aim keeps streaming. Its tooltip is therefore not a :hover:
+   cardsRow.ts hit-tests the pointer against the chips' rectangles and sets .tip-on on the chip. */
+.hud-cards { margin-top: 4px; width: 256px; max-width: 100%; pointer-events: none; }
+.cards-label { margin-bottom: 2px; font-size: 10px; line-height: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+.cards-list { display: flex; flex-wrap: wrap; gap: 3px; pointer-events: none; }
+.cards-chip {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 5px;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+  color: var(--text-soft);
+  background: rgba(0, 0, 0, 0.28);
+  border-left: 3px solid var(--muted);
+  border-radius: 3px;
+  pointer-events: none;
+}
+/* The kind is told by the edge as well as the tooltip: a base card is plain, a conditional dashed, an augment gold. */
+.cards-chip.conditional { border-left-style: dashed; }
+.cards-chip.augment { border-left-color: var(--gold); }
+.cards-name { font-weight: 600; }
+.cards-count { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); }
+.cards-count:empty { display: none; }
+
+.cards-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(var(--ui-w, 800px) * 0.34);
+  padding: 6px 8px;
+  white-space: pre-line;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line-hi);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+}
+.cards-chip.tip-on .cards-tip { display: block; }

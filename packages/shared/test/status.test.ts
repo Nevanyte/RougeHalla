@@ -11,10 +11,10 @@ const ALL_BITS = [
 ];
 
 describe("status kinds", () => {
-  it("lists thirteen kinds in the wire order, each once", () => {
+  it("lists fourteen kinds in the wire order, each once (shred was appended by the balance pass)", () => {
     expect([...STATUS_KINDS]).toEqual([
       "stun", "root", "silence", "slowMove", "slowAttack", "antiHeal", "dot",
-      "invulnerable", "untargetable", "hidden", "zoned", "deathFloor", "haste",
+      "invulnerable", "untargetable", "hidden", "zoned", "deathFloor", "haste", "shred",
     ]);
     expect(new Set(STATUS_KINDS).size).toBe(STATUS_KINDS.length);
   });
@@ -53,6 +53,8 @@ describe("effect bits", () => {
     expect(new Set(ruleBits).size).toBe(ruleBits.length);
     expect(ruleBits.sort((a, b) => a - b)).toEqual(ALL_BITS.filter((b) => b !== EFFECT_CASTING));
     expect(STATUS_RULES.invulnerable.bit).toBe(0);
+    // The axe's shred travels in the armor mirror as a negative bonus, so it needs no bit.
+    expect(STATUS_RULES.shred.bit).toBe(0);
   });
 });
 
@@ -67,9 +69,9 @@ describe("STATUS_RULES", () => {
     }
   });
 
-  it("cleanses crowd control hard, slows and damage over time soft, and the rest never", () => {
+  it("cleanses crowd control hard, slows, damage over time and the axe's shred soft, and the rest never", () => {
     for (const k of ["stun", "root", "silence"] as const) expect(rule(k).cleanse, k).toBe("hard");
-    for (const k of ["slowMove", "slowAttack", "antiHeal", "dot"] as const) expect(rule(k).cleanse, k).toBe("soft");
+    for (const k of ["slowMove", "slowAttack", "antiHeal", "dot", "shred"] as const) expect(rule(k).cleanse, k).toBe("soft");
     for (const k of ["invulnerable", "untargetable", "hidden", "zoned", "deathFloor", "haste"] as const) expect(rule(k).cleanse, k).toBe("never");
   });
 
@@ -86,6 +88,8 @@ describe("STATUS_RULES", () => {
     expect(rule("haste")).toMatchObject({ combine: "max", cap: 0.5 });
     expect(rule("dot")).toMatchObject({ combine: "sum" });
     expect(rule("dot").cap).toBeUndefined();
+    // The shred's value is armor points (AXE_SHRED_CAP): two hits of the axe's AXE_SHRED_ARMOR.
+    expect(rule("shred")).toMatchObject({ combine: "sum", cap: 6, maxMs: 3000 });
     expect(rule("zoned").combine).toBe("product");
     for (const k of ["stun", "root", "silence", "invulnerable", "untargetable", "hidden", "deathFloor"] as const) {
       expect(rule(k).combine, k).toBe("any");
@@ -96,7 +100,7 @@ describe("STATUS_RULES", () => {
   it("caps a slow below total immobility, and every cap is a share in (0, 1)", () => {
     for (const k of STATUS_KINDS) {
       const cap = rule(k).cap;
-      if (cap !== undefined) {
+      if (cap !== undefined && k !== "shred") { // the shred's cap is armor points, not a share
         expect(cap, k).toBeGreaterThan(0);
         expect(cap, k).toBeLessThan(1);
       }

@@ -3,7 +3,7 @@
 // the server. What stays here is what only the player decides: whom to click, which weapon to hold, when to walk away
 // (kite.ts) and when not to start. The bot never sends aim, attack or release.
 import {
-  bestSlot, hasLineOfSight, isRanged, isRegionalKind, lockSpacing, MASK_SIGHT, reachMask, TARGET_RANGE,
+  bestSlot, FISTS, hasLineOfSight, isRanged, isRegionalKind, lockSpacing, MASK_SIGHT, reachMask, TARGET_RANGE,
   type FactionId, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { bestEdge, bestSlotVsMob, mobWeapon } from "../../mobHunt";
@@ -267,14 +267,15 @@ export function createFight(deps: FightDeps): Fight {
     };
   }
 
-  /** The hand holds nothing: take the other slot if it has a weapon. */
-  function arm(self: SelfView): TacticsOutput {
+  /**
+   * The hand holds nothing (fists): take the other slot if it has a weapon, since any weapon beats bare hands. Null when it has
+   * none: the bot then fights on fists, which is how every run starts.
+   */
+  function arm(self: SelfView): TacticsOutput | null {
     const other = self.weapons[self.slot === 0 ? 1 : 0];
-    if (self.faction !== null && other !== null) {
-      const intent: Intent = { kind: "swap", slot: self.slot === 0 ? 1 : 0, priority: PRIORITY.combat, timing: { kind: "step" }, why: "empty hand" };
-      return { intents: [intent], status: running("taking the other weapon"), attacking: false };
-    }
-    return { intents: [], status: failed(self.faction === null ? "no faction yet" : "nothing to fight with"), attacking: false };
+    if (other === null) return null;
+    const intent: Intent = { kind: "swap", slot: self.slot === 0 ? 1 : 0, priority: PRIORITY.combat, timing: { kind: "step" }, why: "empty hand" };
+    return { intents: [intent], status: running("taking the other weapon"), attacking: false };
   }
 
   function act(ctx: BrainContext, ref: FightRef, knowsSd: boolean): TacticsOutput {
@@ -282,8 +283,14 @@ export function createFight(deps: FightDeps): Fight {
     const self = p.self;
     const now = p.now;
     if (self.status !== "alive") return { intents: [], status: failed("not alive"), attacking: false };
-    const weapon = self.weapons[self.slot];
-    if (weapon === null || self.faction === null) return arm(self);
+    if (self.faction === null) return { intents: [], status: failed("no faction yet"), attacking: false };
+    const inHand = self.weapons[self.slot];
+    if (inHand === null) {
+      const armed = arm(self);
+      if (armed) return armed;
+    }
+    // An empty hand with nothing in the other slot fights with fists, as the server does (sim/combatant.ts activeWeapon).
+    const weapon: WeaponId = inHand ?? FISTS;
 
     const look = lookup(ctx, ref.id);
     if (look.state === "dead") { engagement = null; return { intents: [], status: { state: "done", why: "target down" }, attacking: false }; }

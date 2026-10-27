@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ERROR_HOLD_MS, FADE_MS, HOLD_MS, OK_HOLD_MS, Toasts, holdFor } from "../src/ui/toast";
+import { ERROR_HOLD_MS, FADE_MS, HOLD_MS, OK_HOLD_MS, Toasts, holdFor, toastTone } from "../src/ui/toast";
 import { installUiDom, type UiEl } from "./uiDom";
 
 let ui: UiEl;
@@ -118,5 +118,14 @@ describe("toast stack", () => {
     toasts.show("a");
     toasts.destroy();
     expect(ui.children).toHaveLength(0);
+  });
+});
+
+describe("toastTone: the player's own gains read amber", () => {
+  it("tags the armed, camp heal, quest card and GV lines, and nothing else", () => {
+    for (const text of ["Armed: Bow", "Camp cleared: +120 health", "Quest complete: Haste II", "+10 GV (quest)", "+2 GV"]) expect(toastTone(text), text).toBe("buff");
+    for (const text of ["Too far away", "Already yours", "Needs Leech", "Bravo completed quest: Ashcaps", "Quest expired: Ashcaps", "Chest gone"]) {
+      expect(toastTone(text), text).toBeUndefined();
+    }
   });
 });

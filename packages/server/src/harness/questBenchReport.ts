@@ -94,9 +94,9 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     "- Marginal: the same ratio with the farm time measured from the moment each farm run reached the power the player already",
     "  had before the quest (a quest done late in a build gains its Δ where the S-curve and the camps are different); farm runs",
     "  that never got that far are left out and it needs 3 of them. The two agree for a quest done from nothing.",
-    "- Power is live buffPower: shared buffPower leaving out every buff whose buffDef(id).needs is set (Chain Warden,",
-    "  Inquisitor, Bloatfly, Rot Monk, Frost Wisp, Glacial Warden: main never applies them) from every figure, the policies'",
-    "  valuations included. Passives and GV are not power. Quest Δ is the change on the completion tick (median before → after).",
+    "- Power is live card power: shared cardPower (the sum of tier x count) over the live cards only, so a card that waits for its hook",
+    "  counts for nothing in any figure, the policies' valuations included. GV is not power. Quest Δ is the change on the completion",
+    "  tick (median before → after): the tier of the card (one tier less for a fed player).",
     "- Completion rate = completions by the player who chose the quest / first choices of it (one per player and quest). Farm-only",
     "  seats never choose a quest and the lobby that merely offered it is not counted; a kill-a-player quest (†) needs another",
     "  standing player, so only mixed lobbies can attempt it. 'seeds' is the distinct map seeds among the attempts: the policies",
@@ -129,17 +129,17 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     const tried = attempts.filter((a) => a.defId === defId);
     const done = completions.filter((c) => c.defId === defId);
     const doneByChooser = done.filter((c) => c.costSeconds !== null);
-    const priced = doneByChooser.filter((c) => c.buffGain >= MIN_GAIN);
+    const priced = doneByChooser.filter((c) => c.powerGain >= MIN_GAIN);
     const worthless = doneByChooser.length - priced.length;
     const farmTimes: number[] = [];
     const ratios: number[] = [];
     const marginalRatios: number[] = [];
     const upperBounds: number[] = [];
     for (const completion of priced) {
-      const atRisk = farm.map((t) => marginalTimeToGain(t, completion.buffBefore, completion.buffGain)).filter((o) => o !== null);
+      const atRisk = farm.map((t) => marginalTimeToGain(t, completion.powerBefore, completion.powerGain)).filter((o) => o !== null);
       const marginal = atRisk.length >= MARGINAL_MIN_RUNS ? kaplanMeierMedian(atRisk) : null;
       if (marginal !== null && marginal > 0) marginalRatios.push(completion.costSeconds! / marginal);
-      const farmSeconds = kaplanMeierMedian(farm.map((t) => timeToGain(t, completion.buffGain)));
+      const farmSeconds = kaplanMeierMedian(farm.map((t) => timeToGain(t, completion.powerGain)));
       if (farmSeconds !== null && farmSeconds > 0) {
         farmTimes.push(farmSeconds);
         ratios.push(completion.costSeconds! / farmSeconds);
@@ -148,10 +148,10 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
       }
     }
     const censored = priced.length - ratios.length;
-    const gains = done.map((c) => c.buffGain);
+    const gains = done.map((c) => c.powerGain);
     const costs = doneByChooser.map((c) => c.costSeconds!);
-    const before = done.length ? median(done.map((c) => c.buffBefore)) : NaN;
-    const after = done.length ? median(done.map((c) => c.buffAfter)) : NaN;
+    const before = done.length ? median(done.map((c) => c.powerBefore)) : NaN;
+    const after = done.length ? median(done.map((c) => c.powerAfter)) : NaN;
     const site = runs.reduce((cell, r) => {
       const value = r.sites[defId];
       cell.deaths += value?.deaths ?? 0;
@@ -212,7 +212,7 @@ export function buildQuestBenchReport(observation: QuestBenchObservation): strin
     ];
   })));
 
-  lines.push("", "## Policy live buffPower", "");
+  lines.push("", "## Policy live card power", "");
   lines.push("Mean (median; runs still going / runs). A run that ended earlier is absent from later columns, never carried flat.", "");
   lines.push(...table(["policy", "1 min", "2 min", "3 min", "5 min"], QUEST_POLICY_IDS.map((policy) => {
     const cells = [60, 120, 180, 300].map((seconds) => {

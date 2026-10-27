@@ -8,7 +8,7 @@ import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeed
 import { fakeScene, type FakeObject } from "./fakes";
 
 /** Matches `scene.add.container(0, 0, [...])` in MobView's constructor. */
-const CHILD = { eliteRing: 1, hpBar: 8, label: 9, eliteStar: 10, status: 11 } as const;
+const CHILD = { eliteRing: 1, body: 4, roleGlyph: 5, hpBar: 9, label: 10, eliteStar: 11, status: 12 } as const;
 const DEATH_MS = 450;
 
 function mob(over: Partial<Record<keyof MobState, unknown>> = {}): MobState {
@@ -19,14 +19,14 @@ function mob(over: Partial<Record<keyof MobState, unknown>> = {}): MobState {
 }
 
 function setup() {
-  const { scene, ofKind } = fakeScene();
+  const { scene, ofKind, bakedCalls } = fakeScene();
   const view = new MobView(scene);
   const root = ofKind("container").at(-1)!;
   const kids = root.args[2] as FakeObject[];
   return {
     view, root,
-    ring: kids[CHILD.eliteRing]!, bar: kids[CHILD.hpBar]!, label: kids[CHILD.label]!, star: kids[CHILD.eliteStar]!,
-    status: kids[CHILD.status]!,
+    ring: kids[CHILD.eliteRing]!, body: kids[CHILD.body]!, glyph: kids[CHILD.roleGlyph]!, bar: kids[CHILD.hpBar]!, label: kids[CHILD.label]!,
+    star: kids[CHILD.eliteStar]!, status: kids[CHILD.status]!, bakedCalls,
     /** One frame at render time `t` with the newest patch at `patchT`. */
     frame: (m: MobState, t: number, patchT = t) => view.update(0, 0, m, t, patchT),
   };
@@ -152,6 +152,64 @@ describe("MobView bar and name by state", () => {
     const none = setup();
     none.frame(mob({ kind: "elite", maxHp: 0, hp: 0 }), 1000, 1000);
     expect(none.bar.state.visible).toBe(false);
+  });
+});
+
+describe("MobView role marks (a type's role on the disc)", () => {
+  /** A rim is the third `lineStyle` call width of the disc's bake; read it off the body image's texture key. */
+  const rimOf = (body: FakeObject): number => Number(String(body.state.texture).split(":").at(-3));
+
+  it("draws nothing for a grunt, a mob without a type and a type it does not know, and a glyph for each other role", () => {
+    for (const type of ["", "bailiff", "someNewMob"]) {
+      const { frame, glyph } = setup();
+      frame(mob({ type }), 1000);
+      expect(glyph.state.visible, type).toBe(false);
+    }
+    const looks = new Map<string, string>();
+    for (const [type, name] of [["emberImp", "dots"], ["cinderHound", "chevron"], ["flameCaller", "ring"]] as const) {
+      const { frame, glyph, bakedCalls } = setup();
+      frame(mob({ type }), 1000);
+      expect(glyph.state.visible, type).toBe(true);
+      expect(String(glyph.state.texture), type).toBe(`bk:role:${name}`);
+      expect(bakedCalls(glyph).length, type).toBeGreaterThan(0);
+      looks.set(type, String(glyph.state.texture));
+    }
+    expect(new Set(looks.values()).size).toBe(3);
+  });
+
+  it("points a skirmisher's chevron the way it faces, and leaves the dots and the ring alone", () => {
+    const hound = setup();
+    hound.frame(mob({ type: "cinderHound", facing: 0 }), 1000);
+    hound.frame(mob({ type: "cinderHound", facing: 1.2 }), 1050);
+    expect(hound.glyph.state.rotation).not.toBe(0);
+    const imp = setup();
+    imp.frame(mob({ type: "emberImp", facing: 1.2 }), 1000);
+    expect(imp.glyph.state.rotation).toBe(0);
+  });
+
+  it("gives a brute a thick rim, an elite brute the thick rim in gold, and takes it away with the type", () => {
+    const { frame, body } = setup();
+    frame(mob({ type: "bailiff" }), 1000);
+    expect(rimOf(body)).toBe(2);
+    frame(mob({ type: "chainWarden" }), 1050);
+    expect(rimOf(body)).toBe(5);
+    frame(mob({ type: "gaoler", kind: "elite" }), 1100);
+    expect(rimOf(body)).toBe(5);
+    expect(String(body.state.texture)).toContain(":5:");
+    frame(mob({ type: "executioner", kind: "elite" }), 1150);
+    expect(rimOf(body)).toBe(3);
+    frame(mob({ type: "emberImp" }), 1200);
+    expect(rimOf(body)).toBe(2);
+  });
+
+  it("follows the type: the glyph goes with a grunt type and comes back with a caster one", () => {
+    const { frame, glyph } = setup();
+    frame(mob({ type: "flameCaller" }), 1000);
+    expect(glyph.state.visible).toBe(true);
+    frame(mob({ type: "bailiff" }), 1050);
+    expect(glyph.state.visible).toBe(false);
+    frame(mob({ type: "flameCaller" }), 1100);
+    expect(glyph.state.visible).toBe(true);
   });
 });
 

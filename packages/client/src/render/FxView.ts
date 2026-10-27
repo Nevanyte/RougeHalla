@@ -4,11 +4,10 @@
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
 import {
-  ABILITIES, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffDef, formatGain, isAbilityDot, isDot,
+  ABILITIES, PLAYER_RADIUS, WEAPONS, Y_SCALE, isAbilityDot, isDot,
   type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx,
 } from "@raid/shared";
-import { ELITE_COLOR, buffColor } from "../ui/buffTheme";
-import { buffNewsText, type BuffNews } from "../ui/buffTip";
+import { ELITE_COLOR } from "../ui/buffTheme";
 import { cssColor } from "../ui/dom";
 import type { ToastTone } from "../ui/toast";
 import type { FigureCues } from "./figurePose";
@@ -30,8 +29,6 @@ const DECAL_MS = 2000;
 const HEAL_MS = 800;
 const FLOAT_MS = 1100;
 const RING_MS = 380;
-/** The ring a gain of buff stacks draws on its fighter, in body radii at its widest. */
-const BUFF_RING_SIZE = 1.9;
 const HIT_NUMBER_MS = 700;
 const STAGGER_MS = 500;
 const FLAME_MS = 380;
@@ -55,6 +52,12 @@ const DUST_COLOR = 0xb7bec3;
 const RIPPLE_MS = 420;
 const RIPPLE_COLOR = 0x80deea;
 const RIPPLE_WIDTH = 30;
+/** The green ring on a cleared camp's centre (the camp-clear heal): it spreads to this width (world units) while it fades. */
+const CAMP_RING_MS = 900;
+const CAMP_RING_COLOR = 0x81f78b;
+const CAMP_RING_WIDTH = 280;
+/** One ring per camp: a second heal of the same clear (several players are healed in one batch) within this is the same ring. */
+const CAMP_RING_DEDUPE_MS = 250;
 /** Launch cues wait in a queue of their own, so a stalled tab's flood of them can never push a real fx out of `pending`. */
 const MAX_LAUNCH_CUES = 48;
 /** A juice cue (hit-stop, shake, recoil) only plays for an event this near render time: a replay after a stall stays quiet. */
@@ -82,10 +85,10 @@ const DECAL_HOLD = 0.25;
 const HEAL_START_HEIGHT = BODY_LIFT + PLAYER_RADIUS + 38;
 const HEAL_RISE = 28;
 const HIT_START_HEIGHT = BODY_LIFT + PLAYER_RADIUS + 20;
-/** Other players' buff news floats above the heal numbers' lane. */
+/** A short line floating over a fighter starts above the heal numbers' lane. */
 const FLOAT_START_HEIGHT = HEAL_START_HEIGHT + 14;
 const FLOAT_RISE = 22;
-/** Floats that follow one another (several buffs gained in one frame) stack this many pixels apart, over this many lanes. */
+/** Floats that follow one another stack this many pixels apart, over this many lanes. */
 const FLOAT_LANES = 3;
 const FLOAT_LANE_PX = 13;
 const HIT_RISE = 34;
@@ -105,6 +108,9 @@ const DOT_COLORS: Readonly<Record<SignatureKind, string>> = {
   backlash: "#ff7043",
 };
 const DOT_NUMBER_SIZE = 11;
+/** A card's bleed arrives like a signature's damage over time (a hit with no weapon, signature or ability), in blood red. A critical strike's number is bigger. */
+const BLEED_COLOR = "#e53935";
+const CRIT_EXTRA_SIZE = 5;
 /** The backlash flame's layers, outer to inner: size relative to the tongue, and colour. */
 const FLAME_LAYERS: ReadonlyArray<readonly [number, number]> = [[1, 0xff5722], [0.62, 0xffc107]];
 /** A heal under this is not drawn: Holy's lifesteal pays in fractions on most ticks. */
@@ -133,14 +139,16 @@ export interface FxHost {
   nearestFighter?(x: number, y: number, within: number): string | undefined;
   /** A camp as a phrase for its clear line ("Plague camp", "Fire elite camp"); `camp` is its index in map.camps. Undefined for an unknown one. */
   campLabel?(camp: number): string | undefined;
+  /** Where camp `camp` (its index in map.camps) is centred, for the heal ring; undefined for one the map does not have (a practice camp). */
+  campCentre?(camp: number): { x: number; y: number } | undefined;
   /**
-   * The local player's own pick at reward chest `chest` as a line ("You took Whetstone", "You skipped the chest"); `option` is
+   * The local player's own pick at reward chest `chest` as a line ("You took Haste II", "You skipped the chest"); `option` is
    * the index into the chest's options, or -1 for a skip. Undefined when the chest is not known any more.
    */
   chestPick?(chest: string, option: number): string | undefined;
   /**
    * Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!".
-   * `tone` marks the local player's buff news.
+   * `tone` colours it ("ok" for the local player's own good news).
    */
   announce?(text: string, tone?: ToastTone): void;
   /** A cast, its landing or end, or a status (WishFx draws them): handed over at render time, with the clock `now` effects run on. */
@@ -157,7 +165,7 @@ type Queued = TimedFx | CancelWindups | LaunchCue;
 
 type EffectKind =
   | "windup" | "cast" | "swing" | "burst" | "mark" | "decal" | "heal" | "number" | "flame" | "float" | "ring"
-  | "impact" | "dust" | "ripple";
+  | "impact" | "dust" | "ripple" | "campRing";
 
 interface Active {
   kind: EffectKind;
@@ -210,6 +218,8 @@ export class FxView {
   private readonly freeText: Phaser.GameObjects.Text[] = [];
   private lane = 0;
   private floatLane = 0;
+  /** When each camp's heal ring was last drawn (performance.now()), so one clear draws one ring. */
+  private readonly campRingAt = new Map<number, number>();
   private destroyed = false;
   /** The render time and clock state of the last update(), for the freshness of a juice cue. */
   private renderT = 0;
@@ -217,12 +227,6 @@ export class FxView {
   /** Live impact and dust effects, capped so a crowd fight stays cheap. */
   private impacts = 0;
   private dusts = 0;
-  /**
-   * The local player's buff news of this update(), told as one line when it ends (flushNews). A bounty kill moves a share of
-   * every buff its victim held: a line each in one frame would fill the toast stack and push the rest out of it.
-   */
-  private newsBuffs: BuffNews[] = [];
-
   constructor(private readonly scene: Phaser.Scene, private readonly host: FxHost) {}
 
   /** Called for every `fx` message as it arrives; nothing is drawn until update() finds it due. */
@@ -305,7 +309,6 @@ export class FxView {
     this.synced = clockSynced;
     this.drain(this.pending, renderT, now, clockSynced);
     this.drain(this.launches, renderT, now, clockSynced);
-    this.flushNews();
     this.advance(now);
   }
 
@@ -326,7 +329,6 @@ export class FxView {
     this.destroyed = true;
     this.pending.length = 0;
     this.launches.length = 0;
-    this.newsBuffs.length = 0;
     for (const e of this.active) { e.g?.destroy(); e.text?.destroy(); }
     this.active.length = 0;
     this.impacts = 0;
@@ -401,15 +403,15 @@ export class FxView {
         if (name && bounty > 0) this.host.announce?.(`${name} is on a rampage — bounty ${bounty} GV`);
         break;
       }
-      case "buff":
-        this.buff(fx, now);
-        break;
       case "campCleared": {
         // Its shared chest drops at once (ContainerView plays the drop cue); everyone hears which camp fell.
         const label = this.host.campLabel?.(fx.camp);
         if (label) this.host.announce?.(`${label} cleared`);
         break;
       }
+      case "campHeal":
+        this.campHeal(fx, now);
+        break;
       case "chestTaken": {
         // Everyone's picks show in the chest panel's cards; the local player's own is told as a line.
         if (fx.by !== this.host.localId) break;
@@ -480,7 +482,7 @@ export class FxView {
 
   private hit(fx: FxOf<"hit">, now: number): void {
     if (fx.id === this.host.localId) this.host.localHit?.(fx);
-    const dot = isDot(fx.sig) || isAbilityDot(fx.ability);
+    const dot = isDot(fx.sig) || isAbilityDot(fx.ability) || (fx.weapon === null && fx.sig === undefined && fx.ability === undefined);
     // Damage over time is a steady drip, not a blow: no body flash for it.
     if (!dot) this.host.view(fx.id)?.flash();
     // Fire's backlash: the swinger (`id`) is scorched by its own swing.
@@ -498,15 +500,15 @@ export class FxView {
       amount = Math.round(fx.amount);
       if (amount < 1) return;
       // A signature's colour, else the ability's own (a burning trail is orange).
-      color = fx.sig ? DOT_COLORS[fx.sig] : cssColor(fx.ability ? ABILITIES[fx.ability]?.color ?? 0xffffff : 0xffffff);
+      color = fx.sig ? DOT_COLORS[fx.sig] : fx.ability ? cssColor(ABILITIES[fx.ability]?.color ?? 0xffffff) : BLEED_COLOR;
       size = DOT_NUMBER_SIZE;
     } else {
       color = fx.id === this.host.localId ? HIT_ON_ME : fx.by === this.host.localId ? HIT_BY_ME : HIT_OTHERS;
-      size = 13 + Math.min(7, Math.floor(amount / 40));
+      size = 13 + Math.min(7, Math.floor(amount / 40)) + (fx.crit ? CRIT_EXTRA_SIZE : 0);
     }
     const lane = this.lane++ % HIT_LANES;
     const text = this.acquireText(color, size);
-    text.setText(String(amount)).setDepth(DEPTH_FX_TEXT).setPosition(projX(pos.x), projY(pos.y, HIT_START_HEIGHT));
+    text.setText(fx.crit && !dot ? `${amount}!` : String(amount)).setDepth(DEPTH_FX_TEXT).setPosition(projX(pos.x), projY(pos.y, HIT_START_HEIGHT));
     this.active.push({
       kind: "number", g: null, text, start: now, duration: HIT_NUMBER_MS, id: fx.id, x: pos.x, y: pos.y,
       a: (lane - (HIT_LANES - 1) / 2) * HIT_LANE_PX,
@@ -634,6 +636,25 @@ export class FxView {
     this.active.push({ kind: "decal", g, text: null, start: now, duration: DECAL_MS, id: "", x: 0, y: 0, a: 0 });
   }
 
+  /**
+   * Clearing a camp healed `fx.id`: the same rising "+N" a heal draws, and one green ring spreading over the camp's centre (once per
+   * clear, however many players it healed). A practice camp has no centre on the map: only the number. The server's toast tells
+   * the healed player the amount in words.
+   */
+  private campHeal(fx: FxOf<"campHeal">, now: number): void {
+    this.heal(fx.id, fx.amount, now);
+    const at = this.host.campCentre?.(fx.camp);
+    if (!at || !Number.isFinite(at.x) || !Number.isFinite(at.y)) return;
+    const last = this.campRingAt.get(fx.camp);
+    if (last !== undefined && now - last < CAMP_RING_DEDUPE_MS) return;
+    this.campRingAt.set(fx.camp, now);
+    const g = this.acquireGraphics(DEPTH_FX);
+    g.lineStyle(3, CAMP_RING_COLOR, 1).strokeEllipse(0, 0, CAMP_RING_WIDTH, CAMP_RING_WIDTH * Y_SCALE);
+    g.fillStyle(CAMP_RING_COLOR, 0.1).fillEllipse(0, 0, CAMP_RING_WIDTH, CAMP_RING_WIDTH * Y_SCALE);
+    g.setPosition(projX(at.x), projY(at.y));
+    this.active.push({ kind: "campRing", g, text: null, start: now, duration: CAMP_RING_MS, id: "", x: at.x, y: at.y, a: 0 });
+  }
+
   private heal(id: string, amount: number, now: number): void {
     const pos = this.host.position(id);
     if (!pos || !(amount >= MIN_HEAL_SHOWN)) return;
@@ -654,33 +675,6 @@ export class FxView {
     if (!name) return;
     const killer = fx.by ? this.host.name(fx.by) : undefined;
     this.host.announce?.(killer ? `${name} was slain by ${killer}` : `${name} was slain`);
-  }
-
-  /**
-   * Stacks of a mob type's buff gained: a ring in the buff's zone colour on the fighter (everyone sees whose zone it came
-   * from), a toast for the local player, a small floating line over anyone else.
-   */
-  private buff(fx: FxOf<"buff">, now: number): void {
-    if (!(fx.stacks > 0)) return;
-    const color = buffColor(fx.buff);
-    this.ring(fx.id, color, BUFF_RING_SIZE, now);
-    if (fx.id === this.host.localId) {
-      this.newsBuffs.push({ buff: fx.buff, gained: fx.stacks, total: fx.total });
-      return;
-    }
-    this.floatText(fx.id, `+${formatGain(fx.stacks)} ${buffDef(fx.buff)?.name ?? fx.buff}`, cssColor(color), now);
-  }
-
-  /**
-   * Tells the local player what update() collected: one line. A single buff keeps its own wording ("Ember Imp +1.1 (3.2): +5.4%
-   * damage"); several (a bounty kill) are listed, a buff gained twice summed (buffNewsText).
-   */
-  private flushNews(): void {
-    const buffs = this.newsBuffs;
-    if (buffs.length === 0) return;
-    this.newsBuffs = [];
-    if (!this.host.announce) return;
-    this.host.announce(buffNewsText(buffs), "buff");
   }
 
   /** A ring around the fighter that grows to `size` body radii while it fades. */
@@ -794,6 +788,12 @@ export class FxView {
           const k = easeOutCubic(p);
           e.g!.setPosition(projX(e.x) + Math.cos(e.a) * 9 * k, projY(e.y, 4 * k) + Math.sin(e.a) * Y_SCALE * 9 * k)
             .setScale(0.7 + 0.9 * p).setAlpha(0.6 * (1 - p));
+          break;
+        }
+        case "campRing": {
+          // Spreads from a fifth of its width (not at all under reduced motion: it only fades) and thins as it goes.
+          const grow = juiceScale("motion") > 0 ? 0.2 + 0.8 * easeOutCubic(p) : 1;
+          e.g!.setScale(grow).setAlpha(0.95 * (1 - p));
           break;
         }
         case "ripple": {

@@ -1,14 +1,14 @@
 // CLI: runs the weapon duel harness and prints its report.
 //   npm run harness -w @raid/server [-- --quick] [--faction fire,holy] [--edge wand>bow] [--perception client|stale|present]
 //                                   [--arena open|pillars|both] [--cap SECONDS] [--quiet]
-//                                   [--kiting-only] [--shooter-buff plagueRat:3,emberImp:3] [--shooter-as 1.08]
-//                                   [--shooter-skill swiftBoots:2] [--chaser-skill quickdraw:1] [--winner-skill quickdraw:1] [--loser-skill quickdraw:1]
+//                                   [--kiting-only] [--shooter-cards haste2,fleet2] [--shooter-as 1.08]
+//                                   [--chaser-cards quickdraw] [--winner-cards quickdraw] [--loser-cards quickdraw]
 //                                   [--shooter-windup 0.88] [--shooter-move 1.1]
 // The full report takes about a minute; --quick (three setups per cell, no sensitivity passes) a few seconds; --kiting-only
-// (the kiting table and the faction edges against a kiting shooter, a buffed one with --shooter-*) about 35 s. It never
+// (the kiting table and the faction edges against a kiting shooter, one holding cards with --shooter-*) about 35 s. It never
 // fails on an outcome: it is information for the owner.
-import { BEATS, WEAPON_BEATS, isBuffId, isFactionId, isWeaponId, skillDef, skillLive, type FactionId } from "@raid/shared";
-import type { Arena, BuffGrant, Perception, SkillGrant } from "./duel";
+import { BEATS, WEAPON_BEATS, cardLive, isCardId, isFactionId, isWeaponId, type FactionId } from "@raid/shared";
+import type { Arena, Perception } from "./duel";
 import type { Edge } from "./matrix";
 import { buildReport, type ReportOptions } from "./report";
 
@@ -23,11 +23,10 @@ const USAGE = [
   "  --arena a             open (default), pillars (replaces the open one) or both",
   "  --cap seconds         one time cap for every faction",
   "  --quiet               no progress lines",
-  "  --shooter-buff b:n,..  the shooter of every kiting duel holds these buffs (id:stacks, e.g. plagueRat:3); the chaser none",
-  "  --shooter-as x        the shooter of every kiting duel attacks x times as fast on top of its buffs (a mod source)",
-  "  --shooter-speed x     Swift Boots on the shooter of every kiting duel, the shipped passive: 1.06 is rank 1, 1.10 rank 2 (= --shooter-skill swiftBoots:1|2)",
-  "  --shooter-skill s:r,.. the shooter of every kiting duel holds these passives at rank r through the chest's own grant (swiftBoots:2, quickdraw:1): the shipped rule",
-  "  --chaser-skill s:r,..  the same for the melee chaser (Quickdraw on the chaser); --winner-skill / --loser-skill: the designed winner / loser of every weapon-matrix duel",
+  "  --shooter-cards c,..  the shooter of every kiting duel holds these cards through the chest's own grant (a card id twice is two copies: haste2,haste2,fleet2); the chaser none",
+  "  --shooter-as x        the shooter of every kiting duel attacks x times as fast on top of its cards (a mod source)",
+  "  --shooter-speed x     a Fleet card on the shooter of every kiting duel, the shipped rule: 1.06 is Fleet I, 1.10 Fleet II (= --shooter-cards fleet1|fleet2)",
+  "  --chaser-cards c,..   the same for the melee chaser (Quickdraw on the chaser); --winner-cards / --loser-cards: the designed winner / loser of every weapon-matrix duel",
   "  --shooter-windup x    a bare windup multiplier on the shooter (a scan; scaleWindup shortens melee windups only, so a shooter's ranged windups do not move); also --chaser-windup, --winner-windup, --loser-windup",
   "  --shooter-move x      a bare move-speed multiplier on the shooter (the pre-ruling Swift Boots: no pause after a shot, for comparison); also --chaser-move",
   "  --kite-edge a>b,..    only these faction edges (winner>loser, e.g. frost>fire) in KITE EDGES",
@@ -46,14 +45,11 @@ function mult(flag: string, v: string): number {
   return n;
 }
 
-/** "swiftBoots:2,quickdraw:1" -> passives at ranks, refusing a name the catalog lacks, a skill that is not live and a rank outside 1..2. */
-function parseSkills(spec: string): SkillGrant[] {
-  return spec.split(",").map((part) => {
-    const [id, r] = part.split(":");
-    const rank = Number(r);
-    const def = id ? skillDef(id) : undefined;
-    if (!def || !skillLive(def) || (rank !== 1 && rank !== 2)) fail(`"${part}" is not skill:rank (a live passive and rank 1 or 2, e.g. swiftBoots:2)`);
-    return { id: def.id, rank: rank as 1 | 2 };
+/** "haste2,haste2,quickdraw" -> card ids (a repeat is another copy), refusing a name the catalog lacks and a card that is not live yet. */
+function parseCards(spec: string): string[] {
+  return spec.split(",").map((id) => {
+    if (!isCardId(id) || !cardLive(id)) fail(`"${id}" is not a live card id (e.g. haste2, fleet2, quickdraw)`);
+    return id;
   });
 }
 
@@ -115,17 +111,6 @@ function parseArgs(argv: string[]): ReportOptions & { quiet: boolean } {
         opts.capSeconds = n;
         break;
       }
-      case "--shooter-buff": {
-        const buffs: BuffGrant[] = [];
-        for (const spec of value().split(",")) {
-          const [id, n] = spec.split(":");
-          const stacks = Number(n);
-          if (!isBuffId(id) || !(stacks > 0)) fail(`"${spec}" is not buff:stacks (e.g. plagueRat:3)`);
-          buffs.push({ id, stacks });
-        }
-        opts.shooter = { ...opts.shooter, buffs };
-        break;
-      }
       case "--shooter-as": {
         const n = Number(value());
         if (!(n > 0)) fail("--shooter-as needs a positive multiplier");
@@ -133,17 +118,17 @@ function parseArgs(argv: string[]): ReportOptions & { quiet: boolean } {
         break;
       }
       case "--shooter-speed": {
-        // Swift Boots through the real passive path (its pause after a shot included): 1.06 is rank 1, 1.10 rank 2.
+        // A Fleet card through the real grant (its pause after a shot included): 1.06 is Fleet I, 1.10 Fleet II.
         const v = value();
-        const rank = Number(v) === 1.06 ? 1 : Number(v) === 1.1 ? 2 : 0;
-        if (rank === 0) fail(`--shooter-speed takes 1.06 (Swift Boots rank 1) or 1.10 (rank 2), not "${v}"; --shooter-skill and --shooter-move take anything else`);
-        opts.shooter = { ...opts.shooter, skills: [...(opts.shooter?.skills ?? []), { id: "swiftBoots", rank }] };
+        const id = Number(v) === 1.06 ? "fleet1" : Number(v) === 1.1 ? "fleet2" : null;
+        if (id === null) fail(`--shooter-speed takes 1.06 (Fleet I) or 1.10 (Fleet II), not "${v}"; --shooter-cards and --shooter-move take anything else`);
+        opts.shooter = { ...opts.shooter, cards: [...(opts.shooter?.cards ?? []), id] };
         break;
       }
-      case "--shooter-skill": opts.shooter = { ...opts.shooter, skills: parseSkills(value()) }; break;
-      case "--chaser-skill": opts.chaser = { ...opts.chaser, skills: parseSkills(value()) }; break;
-      case "--winner-skill": opts.winner = { ...opts.winner, skills: parseSkills(value()) }; break;
-      case "--loser-skill": opts.loser = { ...opts.loser, skills: parseSkills(value()) }; break;
+      case "--shooter-cards": opts.shooter = { ...opts.shooter, cards: parseCards(value()) }; break;
+      case "--chaser-cards": opts.chaser = { ...opts.chaser, cards: parseCards(value()) }; break;
+      case "--winner-cards": opts.winner = { ...opts.winner, cards: parseCards(value()) }; break;
+      case "--loser-cards": opts.loser = { ...opts.loser, cards: parseCards(value()) }; break;
       case "--shooter-windup": opts.shooter = { ...opts.shooter, windupMult: mult(flag, value()) }; break;
       case "--chaser-windup": opts.chaser = { ...opts.chaser, windupMult: mult(flag, value()) }; break;
       case "--winner-windup": opts.winner = { ...opts.winner, windupMult: mult(flag, value()) }; break;

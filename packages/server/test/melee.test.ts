@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   damagePerHit, damageShares, FACTIONS, mapFromTiles, mitigateShares, mulberry32, pacedFaction, RIPOSTE_SHARE,
-  STAGGER_IMMUNITY_SECONDS, SWORD_BALL_SCALE, TICK_MS, TILE_FLOOR, TILE_WALL, WEAPONS,
+  SHIELD_BLOCK_SHARE, STAGGER_IMMUNITY_SECONDS, SWORD_BALL_SCALE, TICK_MS, TILE_FLOOR, TILE_WALL, WEAPONS,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { combatant, standingCombatants } from "../src/sim/combatant";
@@ -81,7 +81,7 @@ function trail(world: World, id: string, samples: Array<[number, number, number]
 function arena(specs: Spec[], map: GameMap = openMap()): World {
   const config = {
     minPlayers: specs.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 300, patienceMinSeconds: 300,
-    suddenDeathSeconds: 60,
+    suddenDeathSeconds: 60, pvpRules: false,
   };
   const world = createGameWorld({ seed: 1234, config, random: mulberry32(5) }, { signatures: false });
   specs.forEach((_, i) => addPlayer(world, idOf(i), NAMES[i]!));
@@ -471,7 +471,7 @@ describe("lag compensation", () => {
     trail(world, "p0", [[100, 300, 256], [0, 380, 256]]);
     const seen = swing(world, "p0", "sword", 0, { lag: 100 });
     expect(fxOf(seen.events, "block")).toHaveLength(1);
-    expect(seen.ledger.map((e) => e.victim)).toEqual(["p0"]);
+    expect(victimsOf(seen)).toEqual(["p0", holder].sort()); // the riposte on the swordsman, the part the shield let through on the holder
     // And the other way round: drawn behind the shield, standing in front of it now.
     trail(world, "p0", [[100, 380, 256], [0, 300, 256]]);
     const behind = swing(world, "p0", "sword", Math.PI, { lag: 100 });
@@ -507,23 +507,31 @@ describe("shield", () => {
     return { world, holder: dummy(world, HOLDER, { weapon: "shield", facing: Math.PI, ...extra }) };
   }
 
-  it("negates a frontal sword hit, deals half of it back, credited to the holder, with no stagger", () => {
+  it("blocks a frontal sword hit in part: SHIELD_BLOCK_SHARE of it is stopped and RIPOSTE_SHARE of that goes back, credited to the holder; the rest lands, with no stagger", () => {
     const { world, holder } = front();
     const packet: DamagePacket = { raw: 100, phys: 0.8, magic: 0.2, true: 0 };
     const { ledger, events } = swing(world, "p0", "sword", 0, { packet });
-    expect(ledger).toHaveLength(1);
-    expect(ledger[0]).toMatchObject({
-      victim: "p0", by: { id: holder, name: "dummy" }, weapon: "shield", stagger: false, scale: 1,
-      packet: { raw: 100 * RIPOSTE_SHARE, phys: 0.8, magic: 0.2, true: 0 },
+    expect(ledger).toHaveLength(2);
+    expect(ledger.find((e) => e.victim === "p0")).toMatchObject({
+      victim: "p0", by: { id: holder, name: "dummy" }, weapon: "shield", stagger: false, passive: true, scale: 1,
+      packet: { raw: 100 * SHIELD_BLOCK_SHARE * RIPOSTE_SHARE, phys: 0.8, magic: 0.2, true: 0 },
+    });
+    expect(ledger.find((e) => e.victim === holder)).toMatchObject({
+      victim: holder, by: { id: "p0" }, weapon: "sword", stagger: false, scale: 1,
+      packet: { raw: 100 * (1 - SHIELD_BLOCK_SHARE), phys: 0.8, magic: 0.2, true: 0 },
     });
     expect(fxOf(events, "block")).toEqual([{ kind: "block", id: holder, by: "p0", weapon: "sword" }]);
     expect(packet.raw).toBe(100);
   });
 
-  it("negates a frontal bash outright", () => {
+  it("blocks a frontal bash in part too: no riposte, the rest of it lands without a stagger", () => {
     const { world, holder } = front();
     const { ledger, events } = swing(world, "p0", "shield", 0);
-    expect(ledger).toEqual([]);
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0]).toMatchObject({
+      victim: holder, by: { id: "p0" }, weapon: "shield", stagger: false, packet: { raw: 100 * (1 - SHIELD_BLOCK_SHARE) },
+    });
+    expect(ledger[0]!.passive).toBeUndefined();
     expect(fxOf(events, "block")).toEqual([{ kind: "block", id: holder, by: "p0", weapon: "shield" }]);
   });
 
@@ -549,7 +557,7 @@ describe("shield", () => {
     const blocked = (offDeg: number): boolean => {
       put(world, "p0", polar(HOLDER, 40, offDeg));
       const { ledger, events } = swing(world, "p0", "sword", deg(offDeg + 180));
-      return fxOf(events, "block").length === 1 && ledger.every((e) => e.victim === "p0");
+      return fxOf(events, "block").length === 1 && ledger.some((e) => e.victim === "p0" && e.passive === true);
     };
     for (const off of [0, 30, 59, -59, 60, -60]) expect(blocked(off), `${off} deg`).toBe(true);
     for (const off of [61, -61, 90, 135, 180]) expect(blocked(off), `${off} deg`).toBe(false);
@@ -560,7 +568,7 @@ describe("shield", () => {
     put(world, "p0", HOLDER);
     const { ledger, events } = swing(world, "p0", "sword", 0);
     expect(fxOf(events, "block")).toHaveLength(1);
-    expect(ledger.map((e) => e.victim)).toEqual(["p0"]);
+    expect(ledger.some((e) => e.victim === "p0" && e.passive === true)).toBe(true);
   });
 
   it("only blocks while the shield is in hand", () => {
@@ -575,20 +583,23 @@ describe("shield", () => {
     expect(fxOf(swing(world, "p0", "sword", 0).events, "block")).toHaveLength(1);
   });
 
-  it("blocks the targets it covers and lets the rest of a cleave through", () => {
+  it("blocks the targets it covers and lets the rest of a cleave through whole", () => {
     const { world, holder } = front();
     const plain = dummy(world, polar(ORIGIN, 40, 30));
     const { ledger, events } = swing(world, "p0", "sword", 0);
     expect(fxOf(events, "block").map((f) => f.id)).toEqual([holder]);
-    expect(ledger.map((e) => `${e.victim}:${e.weapon}`).sort()).toEqual([`${plain}:sword`, "p0:shield"].sort());
+    expect(ledger.map((e) => `${e.victim}:${e.weapon}`).sort()).toEqual([`${plain}:sword`, `${holder}:sword`, "p0:shield"].sort());
+    expect(ledger.find((e) => e.victim === plain)!.packet.raw).toBe(100);
+    expect(ledger.find((e) => e.victim === holder)!.packet.raw).toBeCloseTo(100 * (1 - SHIELD_BLOCK_SHARE), 9);
   });
 
   it("a player holding a shield blocks like a dummy does", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "shield", HOLDER, { facing: Math.PI })]);
     const { ledger, events } = swing(world, "p0", "sword", 0);
     expect(fxOf(events, "block")).toEqual([{ kind: "block", id: "p1", by: "p0", weapon: "sword" }]);
-    expect(ledger).toHaveLength(1);
-    expect(ledger[0]).toMatchObject({ victim: "p0", by: { id: "p1", name: "bob" }, weapon: "shield", stagger: false });
+    expect(ledger).toHaveLength(2);
+    expect(ledger.find((e) => e.victim === "p0")).toMatchObject({ victim: "p0", by: { id: "p1", name: "bob" }, weapon: "shield", stagger: false });
+    expect(ledger.find((e) => e.victim === "p1")).toMatchObject({ victim: "p1", by: { id: "p0" }, weapon: "sword", stagger: false });
   });
 
   it("neither a block nor the riposte staggers anyone", () => {
@@ -599,7 +610,7 @@ describe("shield", () => {
     expect(fxOf(events, "stagger")).toEqual([]);
     expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(0);
     expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(0);
-    expect(hpLost(world, 1)).toBe(0);
+    expect(hpLost(world, 1)).toBeGreaterThan(0); // the part the shield does not stop
     expect(hpLost(world, 0)).toBeGreaterThan(0);
   });
 });
@@ -641,7 +652,7 @@ describe("sword stagger, through real windups", () => {
     const events = run(world, 3);
     expect(world.state.serverTime).toBe(250);
     expect(fxOf(events, "stagger")).toEqual([]); // nothing was cancelled, so nothing is marked
-    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(250 + 500);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(250 + IMMUNITY_MS);
     expect(P(world, 0).drawStartedAt).toBe(100);
     expect(RT(world, 0).weapon.action).toMatchObject({ kind: "draw", startedAt: 100 });
     expect(hpLost(world, 0)).toBeGreaterThan(0);
@@ -677,10 +688,13 @@ describe("sword stagger, through real windups", () => {
   });
 });
 
+const IMMUNITY_MS = STAGGER_IMMUNITY_SECONDS * 1000;
+
 describe("stagger immunity", () => {
   /** A wand caster 40 u from p0 (the swordsman); `cast` puts a cast in progress on it, which a stagger cancels and marks. */
   function casterWorld(): World {
-    const world = arena([fighter("plague", "sword", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0))]);
+    // A tall pool: a hit every tick for 1.2 s must not kill the caster (the plain 100-raw packet, 24 times).
+    const world = arena([fighter("plague", "sword", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0), { hp: 50_000 })]);
     cast(world);
     return world;
   }
@@ -691,16 +705,16 @@ describe("stagger immunity", () => {
   }
   const hitIt = (world: World): SimEvent[] => tick(world, [{ by: "p0", weapon: "sword", a: 0 }]);
 
-  it("lasts half a second: hits inside it still hurt but do not stagger again", () => {
-    expect(STAGGER_IMMUNITY_SECONDS * 1000).toBe(500);
+  it("lasts STAGGER_IMMUNITY_SECONDS (1.1 s): hits inside it still hurt but do not stagger again", () => {
+    expect(IMMUNITY_MS).toBe(1100);
     const world = casterWorld();
     const first = hitIt(world);
     const t0 = world.state.serverTime;
     expect(fxOf(first, "stagger")).toHaveLength(1);
     expect(RT(world, 1).weapon.action).toBeNull(); // the cast was cancelled
     let lost = hpLost(world, 1);
-    // A hit every tick for the next 450 ms, each on a caster with a new cast in progress.
-    for (let ms = 50; ms <= 450; ms += 50) {
+    // A hit every tick for the rest of the immunity (up to a tick before it ends), each on a caster with a new cast in progress.
+    for (let ms = 50; ms <= IMMUNITY_MS - 50; ms += 50) {
       cast(world);
       const events = hitIt(world);
       expect(world.state.serverTime).toBe(t0 + ms);
@@ -711,18 +725,19 @@ describe("stagger immunity", () => {
     }
   });
 
-  it("is over exactly 500 ms after the stagger", () => {
+  it("is over exactly STAGGER_IMMUNITY_SECONDS after the stagger", () => {
     const world = casterWorld();
     hitIt(world);
     const t0 = world.state.serverTime;
-    for (let i = 0; i < 8; i++) tick(world);
+    const ticksBefore = IMMUNITY_MS / TICK_MS - 2;
+    for (let i = 0; i < ticksBefore; i++) tick(world);
     cast(world);
-    expect(fxOf(hitIt(world), "stagger")).toEqual([]); // t0 + 450
-    expect(world.state.serverTime).toBe(t0 + 450);
-    const again = hitIt(world); // t0 + 500
-    expect(world.state.serverTime).toBe(t0 + 500);
+    expect(fxOf(hitIt(world), "stagger")).toEqual([]); // one tick before the end
+    expect(world.state.serverTime).toBe(t0 + IMMUNITY_MS - TICK_MS);
+    const again = hitIt(world); // exactly at the end
+    expect(world.state.serverTime).toBe(t0 + IMMUNITY_MS);
     expect(fxOf(again, "stagger")).toHaveLength(1);
-    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(t0 + 1000);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(t0 + 2 * IMMUNITY_MS);
   });
 
   it("two swordsmen landing on one target in the same tick stagger it once", () => {
@@ -741,7 +756,7 @@ describe("stagger immunity", () => {
     const events = hitIt(world);
     expect(hpLost(world, 1)).toBeGreaterThan(0);
     expect(fxOf(events, "stagger")).toEqual([]);
-    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + IMMUNITY_MS);
   });
 
   it("a hit that does no damage (teleport immunity) does not stagger", () => {
@@ -989,46 +1004,46 @@ describe("balls in real fights", () => {
 // ---- exact numbers ------------------------------------------------------------------------------------------------
 
 describe("damage through the faction formula", () => {
-  // Fire's axe: rate 0.6 x hit 150 x DUEL_PACE 2 x dpsMult 0.77 x interval 1 / (0.6 x 1.4) = 82.5 x 2 = 165 raw, all
+  // Fire's axe: rate 0.6 x hit 100 x DUEL_PACE 2 x dpsMult 0.77 x interval 1 / (0.6 x 1.4) = 55 x 2 = 110 raw, all
   // magic. It lands 250 ms after the press: the sixth step.
-  const FIRE_AXE = 138.6 / 0.84;
+  const FIRE_AXE = 92.4 / 0.84;
   const SWORD_PLAGUE = 30 / 2.15;
 
-  it("Fire's axe on a dummy does 165 and moves nobody", () => {
+  it("Fire's axe on a dummy does 110 and moves nobody", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("holy", "wand", FAR)]);
     const d = dummy(world, polar(ORIGIN, 40, 0));
     tap(world, 0, 0);
     const events = run(world, 6);
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(FIRE_AXE, 9);
-    expect(FIRE_AXE).toBeCloseTo(165, 3);
+    expect(FIRE_AXE).toBeCloseTo(110, 3);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: d, by: "p0", amount: expect.closeTo(FIRE_AXE, 9), weapon: "axe" }]);
     run(world, 10);
     expect({ x: mob(world, d).x, y: mob(world, d).y }).toEqual(polar(ORIGIN, 40, 0));
     expect({ x: P(world, 0).x, y: P(world, 0).y }).toEqual(ORIGIN);
   });
 
-  it("Fire's axe on Frost is cut by Frost's shield (100): 82.5", () => {
+  it("Fire's axe on Frost is cut by Frost's shield (190): 110 / 2.9", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(82.5, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(110 / 2.9, 3);
   });
 
-  it("the axe pierces Frost's raised shield for the same 82.5", () => {
+  it("the axe pierces Frost's raised shield for the same 110 / 2.9", () => {
     const world = arena([fighter("fire", "axe", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
     tap(world, 0, 0);
     const events = run(world, 6);
-    expect(hpLost(world, 1)).toBeCloseTo(82.5, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(110 / 2.9, 3);
     expect(fxOf(events, "block")).toEqual([]);
   });
 
-  it("Plague's sword (80% physical, 20% magic) on a dummy does 13.953, on Frost 6.977", () => {
+  it("Plague's sword (80% physical, 20% magic) on a dummy does 13.953, on Frost (armor 20, shield 190) 10.265", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "wand", polar(ORIGIN, 40, 0))]);
     const d = dummy(world, polar(ORIGIN, 40, 20));
     tap(world, 0, 0);
     run(world, 3); // lands at 200 ms
     expect(DUMMY_HP - mob(world, d).hp).toBeCloseTo(SWORD_PLAGUE, 9);
-    expect(hpLost(world, 1)).toBeCloseTo(SWORD_PLAGUE / 2, 9); // armor 100 and shield 100 both halve it
+    expect(hpLost(world, 1)).toBeCloseTo(SWORD_PLAGUE * (0.8 / 1.2 + 0.2 / 2.9), 9);
     expect(SWORD_PLAGUE).toBeCloseTo(13.9535, 4);
   });
 
@@ -1036,20 +1051,23 @@ describe("damage through the faction formula", () => {
     const world = arena([fighter("frost", "shield", ORIGIN), fighter("holy", "wand", polar(ORIGIN, 40, 0))]);
     tap(world, 0, 0);
     run(world, 3);
-    expect(hpLost(world, 1)).toBeCloseTo(84.375 * (0.9 + 0.1 / 3.5), 9);
-    expect(hpLost(world, 1)).toBeCloseTo(78.3482, 3);
+    expect(hpLost(world, 1)).toBeCloseTo(164.0625 * (0.9 + 0.1 / 3.5), 9);
+    expect(hpLost(world, 1)).toBeCloseTo(152.3438, 3);
   });
 
-  it("a sword into a raised shield: the holder takes nothing, the swordsman 50% of his own hit through his own defense", () => {
+  it("a sword into a raised shield: the holder takes the part the shield lets through, the swordsman RIPOSTE_SHARE of the part it stops, through his own defense", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("frost", "shield", polar(ORIGIN, 40, 0), { facing: Math.PI })]);
     tap(world, 0, 0);
     const events = run(world, 3);
-    // Plague: armor 200 on its 80% physical, no shield on its 20% magic.
-    const riposte = SWORD_PLAGUE * RIPOSTE_SHARE * (0.8 / 3 + 0.2);
+    // Plague: armor 190 on its 80% physical, no shield on its 20% magic; Frost: armor 20, shield 190.
+    const riposte = SWORD_PLAGUE * SHIELD_BLOCK_SHARE * RIPOSTE_SHARE * (0.8 / 2.9 + 0.2);
+    const through = SWORD_PLAGUE * (1 - SHIELD_BLOCK_SHARE) * (0.8 / 1.2 + 0.2 / 2.9);
     expect(hpLost(world, 0)).toBeCloseTo(riposte, 9);
-    expect(riposte).toBeCloseTo(3.2558, 4);
-    expect(hpLost(world, 1)).toBe(0);
-    expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "p0", by: "p1", amount: expect.closeTo(riposte, 9), weapon: "shield" }]);
+    expect(hpLost(world, 1)).toBeCloseTo(through, 9);
+    const hits = fxOf(events, "hit");
+    expect(hits).toHaveLength(2);
+    expect(hits).toContainEqual({ kind: "hit", id: "p0", by: "p1", amount: expect.closeTo(riposte, 9), weapon: "shield" });
+    expect(hits).toContainEqual({ kind: "hit", id: "p1", by: "p0", amount: expect.closeTo(through, 9), weapon: "sword" });
     expect(fxOf(events, "stagger")).toEqual([]);
   });
 
@@ -1060,8 +1078,9 @@ describe("damage through the faction formula", () => {
     world.beforeDamage.push((w) => { ledger.push(...w.combat.ledger.map((e) => ({ ...e }))); });
     tap(world, 0, 0);
     const events = run(world, 3);
-    expect(ledger).toHaveLength(1);
-    expect(ledger[0]).toMatchObject({ victim: "p0", by: { id: "p1" }, weapon: "shield", passive: true });
+    expect(ledger).toHaveLength(2);
+    expect(ledger.find((e) => e.victim === "p0")).toMatchObject({ victim: "p0", by: { id: "p1" }, weapon: "shield", passive: true });
+    expect(ledger.find((e) => e.victim === "p1")!.passive).toBeUndefined(); // the part the shield let through is the swordsman's own attack
     expect(fxOf(events, "block")).toEqual([{ kind: "block", id: "p1", by: "p0", weapon: "sword" }]);
     expect(fxOf(events, "block")[0]).not.toHaveProperty("passive");
   });
@@ -1108,14 +1127,14 @@ describe("simultaneous swings", () => {
     expect(hpLost(world, 1)).toBeCloseTo(each, 9);
     // Each swing had already landed when the other's hit came in, so neither had a windup to cancel: no marks, but both are immune.
     expect(fxOf(events, "stagger")).toEqual([]);
-    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
-    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+    expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(world.state.serverTime + IMMUNITY_MS);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + IMMUNITY_MS);
   });
 
   it("a fighter that another swing staggers in the same tick still lands its own axe", () => {
     const world = arena([fighter("plague", "sword", ORIGIN), fighter("fire", "axe", polar(ORIGIN, 40, 0)), fighter("holy", "wand", FAR)]);
     const events = tick(world, [{ by: "p0", weapon: "sword", a: 0 }, { by: "p1", weapon: "axe", a: Math.PI }]);
-    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + 500);
+    expect(RT(world, 1).weapon.staggerImmuneUntil).toBe(world.state.serverTime + IMMUNITY_MS);
     expect(RT(world, 0).weapon.staggerImmuneUntil).toBe(0);
     expect(hpLost(world, 0)).toBeGreaterThan(0);
     expect(hpLost(world, 1)).toBeGreaterThan(0);
@@ -1158,5 +1177,5 @@ describe("simultaneous swings", () => {
   });
 });
 
-/** Plague's sword on a Plague body: 13.953 raw, 80% physical through armor 200, 20% magic through shield 0. */
-const SWORD_PLAGUE_VS_PLAGUE = (30 / 2.15) * (0.8 / 3 + 0.2);
+/** Plague's sword on a Plague body: 13.953 raw, 80% physical through armor 190, 20% magic through shield 0. */
+const SWORD_PLAGUE_VS_PLAGUE = (30 / 2.15) * (0.8 / 2.9 + 0.2);

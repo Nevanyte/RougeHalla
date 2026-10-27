@@ -1,10 +1,10 @@
-// The chests module (docs/BOTS.md 8, roguelike R5): a cleared camp's shared chest holds three skills for CHEST_SECONDS, one pick each,
+// The chests module (docs/BOTS.md 8, roguelike R5): a cleared camp's shared chest holds three cards for CHEST_SECONDS, one pick each,
 // first come first served. The bot does what a person does.
 //
 //   - Every chest that is up is a gold blip on the minimap with its seconds left, so the bot knows where each is and for how long
 //     (`extras.chests`, map-wide). It does NOT know what is in one: the cards show only while the panel is open, within pick range and
 //     in sight, and perception hands them over under exactly that rule (`options` is null otherwise). The decision to walk to a chest
-//     therefore never looks at a card: from afar every chest is a skill, and that is all it is.
+//     therefore never looks at a card: from afar every chest is a card, and that is all it is.
 //   - A walk is a module goal scored beside the others (loot weight, a crowd at the chest, how near it is) and run by `act`; whether
 //     it is worth walking, reachable in the chest's time, safe to leave a fight for, and when to give up on it is chestHunt.ts
 //     (`ChestHunter`), fed from the percept.
@@ -16,7 +16,9 @@
 //     second tick after it ("Chest gone"), and the bot's one try must not be spent on that. The age is the chest's own (CHEST_SECONDS
 //     less its time left), so a chest first seen old is picked at once, and a young one in reach is stood at and waited for (a few
 //     thinks) with its pick withheld, whatever the reaction time of the tier.
-//   - What the bot holds is what it took: the HUD's passives row is the bot's own record, kept here from the chests it picked at.
+//   - What the bot holds is what its own cards row shows (the percept's `build`, a quest's card included), merged with a record kept here
+//     from the chests it picked at, so a pick whose patch has not come yet already counts. The pick is `cardScore`: its own base
+//     first, a conditional whose base it owns, then an augment by the persona's `risk`, all fitted to the weapon in hand.
 import { CHEST_RANGE, CHEST_SECONDS, EFFECT_CASTING, EFFECT_STUNNED } from "@raid/shared";
 import { CHEST_HUNT, ChestHunter, chooseOption, type ChestInput, type ChestLike } from "../../chestHunt";
 import {
@@ -27,7 +29,7 @@ import {
 
 /** The module's numbers (u, ms, utility on strategy's 0..1 scale). */
 export const CHEST_RULES = {
-  /** A reachable chest to a bot that lives for loot: a permanent skill for a short walk (times 0.25 + 0.75 x persona.loot). */
+  /** A reachable chest to a bot that lives for loot: a permanent card for a short walk (times 0.25 + 0.75 x persona.loot). */
   value: 0.9,
   /** More for the persona that likes a crowd (x persona.thirdParty) when another player stands at the chest: it is about to go. */
   crowd: 0.15,
@@ -53,7 +55,7 @@ interface Ask { first: ServerMs; option: number; n: number }
 interface ChestState {
   /** The walk the goal is running: its stall record and the chests it gave up on. */
   readonly hunter: ChestHunter;
-  /** Skill id -> rank, from the chests this bot took a card at. */
+  /** Card id -> count, from the chests this bot took a card at (a base card stacks, any other is held once). */
   readonly build: Record<string, number>;
   readonly counted: Set<string>;
   /** When each chest's cards were first readable, and the pick asked for. */
@@ -81,6 +83,15 @@ const dist = (a: { readonly x: number; readonly y: number }, b: { readonly x: nu
  * seen old, by a bot that was busy elsewhere or came from afar, is not waited for.
  */
 const inHold = (ctx: BrainContext, c: RewardChestView): boolean => CHEST_SECONDS * 1000 - (c.expiresAt - ctx.p.now) < CHEST_HUNT.holdMs;
+
+/** What the bot holds: its own cards row (the percept), and the cards it took at a chest whose patch has not come yet. */
+function ownBuild(ctx: BrainContext, st: ChestState): Record<string, number> {
+  const seen = ctx.p.self.build;
+  if (!seen) return st.build;
+  const out: Record<string, number> = { ...seen };
+  for (const [id, n] of Object.entries(st.build)) out[id] = Math.max(out[id] ?? 0, n);
+  return out;
+}
 
 /** The run is on, the bot stands, and the gates are open (the teleport takes every chest away). */
 const live = (ctx: BrainContext): boolean => ctx.p.self.status === "alive" && ctx.p.hud.phase === "active" && !ctx.p.hud.inColiseum;
@@ -118,7 +129,7 @@ function huntInput(ctx: BrainContext, st: ChestState, skipTried: boolean): Chest
   return {
     now: p.now,
     serverTime: p.now,
-    self: { id: me.id, x: me.x, y: me.y, faction: me.faction ?? "", weapons: me.weapons, build: st.build },
+    self: { id: me.id, x: me.x, y: me.y, faction: me.faction ?? "", weapons: me.weapons, slot: me.slot, risk: cfg.persona.risk, build: ownBuild(ctx, st) },
     chests,
     walk: (to) => (cfg.tier.route.walkPaths ? ctx.svc.paths.walk(me, to)?.dist ?? null : dist(me, to) * 1.3),
     sight: (to) => ctx.svc.paths.los(me, to),
@@ -171,7 +182,9 @@ function pickIntent(ctx: BrainContext, st: ChestState): Intent | null {
   if (chest === null || chest.options === null) return null;
   if (inHold(ctx, chest)) return null; // too young: nothing is asked (no ask is counted) until the server would take the pick
 
-  const option = chooseOption(chest.options, chest.takenBy, { faction: me.faction ?? "", weapons: me.weapons, build: st.build });
+  const option = chooseOption(chest.options, chest.takenBy, {
+    faction: me.faction ?? "", weapons: me.weapons, slot: me.slot, risk: ctx.cfg.persona.risk, build: ownBuild(ctx, st),
+  });
   const ask = st.asks.get(chest.id);
   if (!ask) st.asks.set(chest.id, { first: p.now, option, n: 1 });
   else if (ask.option !== option) {
@@ -215,8 +228,8 @@ export const chestsModule: FeatureModule = {
       const i = c.takenBy.indexOf(ctx.p.self.id);
       if (i < 0) continue;
       st.counted.add(c.id);
-      const skill = c.options[i];
-      if (skill) st.build[skill] = Math.min(2, (st.build[skill] ?? 0) + 1);
+      const card = c.options[i];
+      if (card) st.build[card] = (st.build[card] ?? 0) + 1;
     }
   },
 

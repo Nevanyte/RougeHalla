@@ -292,7 +292,8 @@ describe("PlayerView Wish icon", () => {
 
 describe("PlayerView bow draw", () => {
   const HELD = 9;
-  // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at attack-speed mirror x1.25 (0.419 s);
+  // 0.45 s into a Sentenced bow's draw: 86% of the 0.524 s base pull, not a full draw (the glow) at any attack-speed mirror: since the
+  // balance pass (G9, shared mirrorTimings) attack speed never shortens a ranged windup, so x1.25 draws as long as x1 (it was 0.419 s);
   // a windup mirror x0.85 leaves it alone, and so it does a Fire bow's 0.6 s draw (a windup mod never shortens a ranged windup: it
   // is still not full at 0.56 s). The mirrors are the wire form (thousandths), as the state carries them.
   const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null, now = 1450): boolean => {
@@ -306,7 +307,9 @@ describe("PlayerView bow draw", () => {
     for (const facing of [null, -0.4]) {
       expect(glows({}, facing), `identity, facing ${facing}`).toBe(false);
       expect(glows({ asMult: 1000 }, facing), `explicit identity, facing ${facing}`).toBe(false);
-      expect(glows({ asMult: encodeMult(1.25) }, facing), `attack speed x1.25, facing ${facing}`).toBe(true);
+      expect(glows({ asMult: encodeMult(1.25) }, facing), `attack speed x1.25, facing ${facing}`).toBe(false);
+      expect(glows({ asMult: encodeMult(1.25) }, facing, 1530), `attack speed x1.25 at 0.53 s, facing ${facing}`).toBe(true);
+      expect(glows({ windupMult: encodeMult(1.2) }, facing, 1530), `windup x1.2 at 0.53 s (0.570 s draw), facing ${facing}`).toBe(false);
       expect(glows({ windupMult: encodeMult(0.85) }, facing), `windup x0.85, facing ${facing}`).toBe(false);
       expect(glows({ faction: "fire" }, facing, 1560), `fire identity, facing ${facing}`).toBe(false);
       expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1560), `fire windup x0.85, facing ${facing}`).toBe(false);
@@ -316,9 +319,9 @@ describe("PlayerView bow draw", () => {
     }
   });
 
-  it("reads nothing but the mirrors: the buffs map does not shorten the pull", () => {
-    // A held buff reaches the draw only through the mirror the server folds it into (an unfolded buff changes nothing here).
-    expect(glows({ buffs: new Map([["plagueRat", 6]]) }, null)).toBe(false);
+  it("reads nothing but the mirrors: the cards map does not shorten the pull", () => {
+    // A held card reaches the draw only through the mirror the server folds it into (an unfolded card changes nothing here).
+    expect(glows({ build: new Map([["haste1", 6]]) }, null)).toBe(false);
   });
 
   it("an older server with no mirror fields leaves them undefined: the unbuffed draw", () => {

@@ -35,8 +35,9 @@ export type RegionId = RegionFaction | "coliseum" | "none";
 export type RegionWeapon = WeaponId;
 
 /**
- * A region's mobs always carry one weapon type, so every type is farmable in exactly one region and the
- * map doubles as a shopping list for counters. Independent of the factions' signature start weapons.
+ * The weapon a region's mobs carry by default: what a mob placed without a type holds, and one of the two or three weapons the
+ * zone's 30-type roster drops (each MobTypeDef in mobs.ts carries its own, so every weapon is farmable in at least two zones).
+ * Independent of the factions' signature start weapons.
  */
 export const REGION_WEAPONS: Readonly<Record<RegionFaction, RegionWeapon>> = {
   fire: "axe",
@@ -103,7 +104,7 @@ export interface MobCampDef {
   spots: Vec2[];
   /** Exactly two camps per region are elite (their CampDefs have an eliteSpot). */
   elite: boolean;
-  /** What every mob of this camp carries: REGION_WEAPONS[region]. */
+  /** The region's default weapon (REGION_WEAPONS[region]); what a mob carries is its TYPE's weapon (mobs.ts MobTypeDef.weapon). */
   weapon: RegionWeapon;
 }
 

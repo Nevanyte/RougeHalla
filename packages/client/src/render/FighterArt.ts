@@ -2,8 +2,8 @@
 // PlayerView and MobView, which pass the synced fields and read nothing else; everything here is cosmetic.
 import Phaser from "phaser";
 import {
-  FACTIONS, GOLD_COLOR, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, WIRE_IDENTITY_MIRRORS, Y_SCALE, attackInterval, decodeMult, hpBarFractions,
-  isFactionId, isWeaponId, scaleWindup, weaponTimings, type WeaponId,
+  FACTIONS, FISTS, GOLD_COLOR, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, WIRE_IDENTITY_MIRRORS, Y_SCALE, decodeMult, hpBarFractions,
+  isFactionId, isWeaponId, mirrorTimings, type WeaponId,
 } from "@raid/shared";
 import { BARRIER_COLOR } from "../ui/buffTheme";
 import { bakeScale, around, bakedImage, ensureBake, pixelImage, placeBake, swapBake, type Region } from "./bake";
@@ -34,9 +34,14 @@ export interface FighterFields {
   windupMult?: number;
 }
 
-/** The weapon in hand, or null (an empty slot, or an id from newer server content). */
-export function heldWeapon(f: Pick<FighterFields, "weapon0" | "weapon1" | "slot">): WeaponId | null {
+/**
+ * The weapon in hand: an empty slot of a fighter with a faction is fists (what the server fights with), so a fighter whose
+ * hand is empty is drawn with two fists. Null for an id from newer server content, and for an empty slot of a fighter with no
+ * faction (a training dummy) or when the caller does not say (`faction` left out).
+ */
+export function heldWeapon(f: Pick<FighterFields, "weapon0" | "weapon1" | "slot"> & { faction?: string }): WeaponId | null {
   const id = f.slot === 1 ? f.weapon1 : f.weapon0;
+  if (id === "") return f.faction !== undefined && isFactionId(f.faction) ? FISTS : null;
   return isWeaponId(id) ? id : null;
 }
 
@@ -48,6 +53,7 @@ export function weaponCenterX(w: WeaponId): number {
     case "bow": return R + 9;
     case "wand": return R + 10;
     case "shield": return R + 4;
+    case "fists": return R + 4;
   }
 }
 
@@ -111,6 +117,12 @@ export function drawWeapon(g: Phaser.GameObjects.Graphics, w: WeaponId, pull = -
       g.lineStyle(7, color, 1).beginPath().arc(0, 0, R + 6, -0.85, 0.85).strokePath();
       g.lineStyle(1.5, OUTLINE, 0.95).fillStyle(0xeceff1, 1).fillCircle(R + 6, 0, 2.5).strokeCircle(R + 6, 0, 2.5);
       break;
+    case "fists":
+      // Two round fists up front in a guard, the leading one a little further out, each with a pale knuckle highlight.
+      g.fillStyle(color, 1).fillCircle(R + 5, -6.5, 4.8).strokeCircle(R + 5, -6.5, 4.8);
+      g.fillStyle(color, 1).fillCircle(R + 1.5, 6.5, 4.8).strokeCircle(R + 1.5, 6.5, 4.8);
+      g.fillStyle(0xffffff, 0.45).fillCircle(R + 6.6, -7.9, 1.5).fillCircle(R + 3.1, 5.1, 1.5);
+      break;
   }
 }
 
@@ -136,9 +148,10 @@ const HELD_SCALE = 1.15;
 const DRAW_PUSH_SLACK_MS = 100;
 
 /**
- * Seconds a bow takes to loose (the server's own formula, timingsOf: the interval shrinks with the attack-speed mirror
- * `asMult`, the windup is a share of it up to a cap, and the windup mirror `windupMult` then scales it through scaleWindup),
- * or 0 without a faction. Both mirrors are the wire form (thousandths), as the state carries them; an absent one is the
+ * Seconds a bow takes to loose (the server's own formula, timingsOf, which is shared mirrorTimings: the interval shrinks with the
+ * attack-speed mirror `asMult`, the windup is a share of it up to a cap but never below its value at base speed (G9, the kite
+ * lever: a bow that is faster than base keeps its pull, so a share-limited bow draws as long as the server holds it), and the windup
+ * mirror `windupMult` then scales it through scaleWindup), or 0 without a faction. Both mirrors are the wire form (thousandths), as the state carries them; an absent one is the
  * identity. The draw is fixed now, so full pull is the whole windup. A mob's faction is scaled down in hp and damage only,
  * so its rate, and with it the draw, is the plain faction's, with no mirrors.
  */
@@ -146,8 +159,7 @@ export function fullDrawSeconds(
   faction: string, asMult: number = WIRE_IDENTITY_MIRRORS.asMult, windupMult: number = WIRE_IDENTITY_MIRRORS.windupMult,
 ): number {
   if (!isFactionId(faction)) return 0;
-  const timings = weaponTimings("bow", attackInterval(FACTIONS[faction], "bow", decodeMult(asMult)));
-  return scaleWindup(timings, decodeMult(windupMult)).windup;
+  return mirrorTimings(FACTIONS[faction], "bow", decodeMult(asMult), decodeMult(windupMult)).windup;
 }
 
 /** One start of a draw as the server had it, and the server time of the patch that first showed it. */
@@ -286,7 +298,7 @@ export class FighterArt {
   /**
    * `renderT`: the server time being drawn. `patchT`: the server time of the newest patch, which stamps when a draw
    * stopped (the state ran ahead of what is drawn, so the pull is kept until render time reaches that moment).
-   * Returns the weapon in hand.
+   * Returns the weapon in hand (fists for the empty hand of a fighter with a faction).
    */
   update(f: FighterFields, renderT: number, patchT: number): WeaponId | null {
     const weapon = heldWeapon(f);

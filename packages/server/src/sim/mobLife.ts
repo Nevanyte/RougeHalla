@@ -1,14 +1,16 @@
 // A regional mob's life (GAME_DESIGN 11): it is placed at its camp when the run starts, takes damage through the ledger
-// (hurtMob), dies once (killMob: GV, a buff, its weapon), lies there MOB_CORPSE_MS and is removed. The AI that moves it
+// (hurtMob), dies once (killMob: GV, its weapon), lies there MOB_CORPSE_MS and is removed. The AI that moves it
 // and decides its attacks is mobAI.ts. A training dummy (kind "dummy") is not handled here: see mobs.ts.
 //
 // Contract (the spine; the track fills the bodies in):
 //   - Spawning, once per run in `raidStarted` and only when SimConfig.mobs is set: for every camp of map.camps, one mob per
-//     camp spot, in map order. The `eliteSpot` of each of a zone's two elite camps holds an elite (kind "elite", the zone's one elite type); every
-//     other spot is kind "mob" of the camp's type, the roster rolled at world build (sim/camps.ts, state.camps). A mob's
-//     state: faction = the zone id, weapon0 = the zone's weapon, type = its MobTypeId, camp = the camp's index + 1, name = the
-//     type's MOB_TYPES name, hp/maxHp = mobFaction(region, elite).hp (hp is not paced), status "alive", facing toward the
-//     camp centre. Its runtime gets a MobBrain (mode "idle", home = the spot) and a staggered `phase`. Ids come from addMob
+//     camp spot, in map order. The camp's `eliteSpot` holds the camp's elite (kind "elite", CampState.elite: the k-th elite
+//     camp of a zone has the zone's k-th elite type); every other spot is kind "mob" of the camp's type, the roster rolled at
+//     world build (sim/camps.ts, state.camps). A mob's state: faction = the zone id, type = its MobTypeId, weapon0 = the TYPE's
+//     weapon (a caster shoots; what a kill drops), camp = the camp's index + 1, name = the type's MOB_TYPES name,
+//     hp/maxHp = mobTypeFaction(region, elite, type).hp (the zone faction x k x the role's hpMult; hp is not paced), status
+//     "alive", facing toward the camp centre. The role's damage multiplier lives in combatant.factionOf and its speed in
+//     mobRoleMove below; nothing else about a mob depends on its type. Its runtime gets a MobBrain (mode "idle", home = the spot) and a staggered `phase`. Ids come from addMob
 //     (mobs.ts), so they are unique and the order is deterministic for a map. killMob counts the camp's `alive` down.
 //   - hurtMob(world, c, amounts, entries) is the ledger's way down for a regional mob (ledger.ts calls it instead of
 //     damageMob when kind != "dummy"). `amounts[i]` is the mitigated damage of `entries[i]`. It removes the hp (never
@@ -23,54 +25,58 @@
 //       1. creditMobKill (arena.ts): mob GV (x m, GV_MOB / GV_ELITE, capped) and the feed, where m is the reward
 //          multiplier read INSIDE the pass (every feed is still its tick-start value there, so the order kills are paid
 //          in never changes it);
-//       2. the buff of the mob's type (MobState.type; mobTypeOf) x mobBuffStacks(elite) x m stacks, through grantBuff;
-//       3. the mob's weapon dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer already holds
-//          that weapon type in either slot;
-//       4. the chainable mobKilled hook (quest objectives).
+//       2. the mob's weapon: straight into the hand of a killer who is standing with an empty hand (it arms them, with a
+//          toast, and nothing drops); otherwise dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer
+//          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing. The weapons of every mob a
+//          killer kills in one pass are settled together at its first pay-out, in mob id order (the lowest id arms an empty hand);
+//       3. the chainable mobKilled hook (quest objectives).
+//     A kill gives no stat (the per-kill buffs went with the balance pass): power comes from the camps' chests and quests only.
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
 //     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
 import {
-  campMobs, eliteTypeOf, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobBuffStacks, mobFaction, mobName, mobTypeById, mobWeapon,
-  normalTypesOf, type FactionId, type MobTypeId, type Vec2,
+  campMobs, elitesOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobName, mobTypeById, mobTypeFaction, mobTypeIn,
+  mobTypeWeapon, normalTypesOf, WEAPONS, type FactionId, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
-import { grantBuff } from "./buffs";
 import { campEngaged, campMobDied, ensureRosters } from "./camps";
-import { isQuestGiver, mobScale, type Combatant } from "./combatant";
+import { noteCampContributors } from "./campHeal";
+import { combatant, handIsEmpty, isQuestGiver, mobScale, setSlot, standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { mobRewardFor } from "./feed";
 import { dropWeapon } from "./loot";
 import { aggro, newBrain, resetMob, wakeMatesOnKill } from "./mobAI";
 import { addMob } from "./mobs";
-import { cancelAction } from "./weapons";
+import { cancelAction, weaponChanged } from "./weapons";
 import { chainHook, emit, payLater, tieRank, type LedgerEntry, type World } from "./world";
 
 export type MobCombatant = Extract<Combatant, { kind: "mob" }>;
 
 /**
- * Adds one regional mob of `region` resting at `at`: state (kind, name, faction, weapon, hp from mobFaction) and runtime
+ * Adds one regional mob of `region` resting at `at`: state (kind, name, faction, weapon, hp from mobTypeFaction) and runtime
  * (a fresh MobBrain). The camp spawner and the tests both go through this. Returns its id.
- * `type` (a MobTypeId, MobState.type) names it by its MOB_TYPES row instead of the region's two-name table, and `camp` (the
- * camp's 0-based index in map.camps; stored +1 in MobState.camp) links it to its CampState. Both are optional: a mob placed
- * without them has no camp, and `mobTypeOf` gives it the region's default type.
+ * `type` (a MobTypeId, MobState.type) names it by its MOB_TYPES row instead of the region's two-name table, gives it the type's
+ * weapon and its role's hp (damage and speed follow from MobState.type in combatant.factionOf and the move modifier below), and
+ * `camp` (the camp's 0-based index in map.camps; stored +1 in MobState.camp) links it to its CampState. Both are optional: a
+ * mob placed without them has no camp, carries the region's weapon with a grunt's numbers, and `mobTypeOf` gives it the
+ * region's default type. A type of another region is ignored for the numbers and the weapon (it only names the mob).
  */
 export function placeMob(
   world: World, o: { region: FactionId; elite: boolean; at: Vec2; facing?: number; type?: MobTypeId; camp?: number },
 ): string {
   const id = addMob(world, {
     kind: o.elite ? "elite" : "mob", name: (o.type !== undefined ? mobTypeById(o.type)?.name : undefined) ?? mobName(o.region, o.elite),
-    at: o.at, facing: o.facing, hp: mobFaction(o.region, o.elite, mobScale(o.elite)).hp,
-    faction: o.region, weapon: mobWeapon(o.region), type: o.type, camp: o.camp !== undefined ? o.camp + 1 : undefined,
+    at: o.at, facing: o.facing, hp: mobTypeFaction(o.region, o.elite, o.type, mobScale(o.elite)).hp,
+    faction: o.region, weapon: mobTypeWeapon(o.region, o.type), type: o.type, camp: o.camp !== undefined ? o.camp + 1 : undefined,
   });
   world.mobs.get(id)!.brain = newBrain(o.region, o.elite, o.at, o.facing ?? 0, (world.idCounter * 137) % MOB_REPATH_MS);
   return id;
 }
 
 /**
- * Places every camp's mobs, one per spot of `map.camps`, in map order: the zone's elite type at an elite camp's elite spot, the camp's
- * published type (state.camps, rolled by sim/camps.ts) everywhere else, and each camp's `alive` set to what stands there.
- * A no-op for a map without camps (a hand-built test map).
+ * Places every camp's mobs, one per spot of `map.camps`, in map order: the camp's published elite (CampState.elite) at its
+ * elite spot, the camp's published type (state.camps, rolled by sim/camps.ts) everywhere else, and each camp's `alive` set to
+ * what stands there. A no-op for a map without camps (a hand-built test map).
  */
 export function spawnRegionalMobs(world: World): void {
   // A training world (sim/training.ts) has its dummies and nothing else: mobs would pay GV and feed that nothing records.
@@ -79,8 +85,9 @@ export function spawnRegionalMobs(world: World): void {
   ensureRosters(world);
   world.map.camps.forEach((camp, ci) => {
     const published = world.state.camps[ci]!;
-    const campType = mobTypeById(published.type)?.id ?? normalTypesOf(camp.zone)[0]!.id;
-    const roster = campMobs(camp, campType);
+    const campType = mobTypeIn(camp.zone, published.type)?.id ?? normalTypesOf(camp.zone)[0]!.id;
+    const eliteType = mobTypeIn(camp.zone, published.elite)?.id;
+    const roster = campMobs(camp, campType, eliteType);
     camp.spots.forEach((spot, i) => {
       placeMob(world, {
         region: camp.zone, elite: roster[i]!.elite, type: roster[i]!.type, camp: ci, at: spot,
@@ -106,6 +113,7 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
   c.s.hp = Math.max(0, before - total);
   c.rt.lastHitAt = world.state.serverTime;
   campEngaged(world, c.s.camp);
+  noteCampContributors(world, c.s.camp, entries, amounts);
   if (c.s.hp <= 0) {
     killMob(world, c, entries, amounts, before);
   } else {
@@ -120,7 +128,7 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
 /**
  * The mob dies this tick. The kill goes to the player who did it the most damage over the whole fight (what each did
  * since it last rested, plus this pass's hits; an exact tie goes to the lower tick rank) among those still in the run,
- * with the death fx naming them; with none it simply falls, and its weapon still drops. The spoils (GV and feed, a buff,
+ * with the death fx naming them; with none it simply falls, and its weapon still drops. The spoils (GV and feed,
  * the weapon) are paid once every victim of the pass has taken their damage (payLater), so they cannot
  * decide who survives it. A player who went down in the same pass still gets the GV and the feed, like any other kill GV.
  * `hpBefore` is the hp the mob had when this pass reached it: the pass's hits count for the hp they removed, so the
@@ -179,40 +187,101 @@ export function killMob(
   const { elite, region } = brain;
   const type = mobTypeOf(c.s.type, region, elite);
   const camp = c.s.camp - 1;
-  const weapon = c.s.weapon0;
+  const weapon = c.s.weapon0 === FISTS ? "" : c.s.weapon0; // fists are never an item
   const at = { x: c.s.x, y: c.s.y };
   if (killer === null) {
     // Nobody to pay, but the weapon lies where the mob fell all the same.
     if (weapon !== "") payLater(world, () => dropWeapon(world, at, weapon));
     return;
   }
-  payLater(world, () => payMobKill(world, killer!, region, elite, type, camp, weapon, at, m));
+  if (weapon !== "" && !world.config.training) queueWeapon(world, killer, { mob: c.id, weapon, at });
+  payLater(world, () => payMobKill(world, killer!, c.id, region, elite, type, camp, weapon, at, m));
 }
 
 /**
- * The mob's type: MobState.type when it names one, else (a mob placed before rosters assign types) the zone's elite type
- * for an elite and its first normal type for any other.
+ * The mob's type: MobState.type when it names one, else (a mob placed before rosters assign types) the zone's first elite
+ * type for an elite and its first normal type for any other.
  */
 export function mobTypeOf(type: string, region: FactionId, elite: boolean): MobTypeId {
   const t = mobTypeById(type);
   if (t) return t.id;
-  return elite ? eliteTypeOf(region).id : normalTypesOf(region)[0]!.id;
+  return elite ? elitesOf(region)[0]!.id : normalTypesOf(region)[0]!.id;
 }
 
-function payMobKill(world: World, killerId: string, region: FactionId, elite: boolean, type: MobTypeId, camp: number, weapon: string, at: Vec2, m: number): void {
-  // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed, buff or drop, so a
+function payMobKill(
+  world: World, killerId: string, mobId: string, region: FactionId, elite: boolean, type: MobTypeId, camp: number, weapon: string, at: Vec2, m: number,
+): void {
+  // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed or drop, so a
   // practice kill never changes the build the player set up.
   if (world.config.training) return;
   const p = world.state.players.get(killerId);
   const rt = world.players.get(killerId);
   if (!p || !rt || rt.resolved) {
-    if (weapon !== "") dropWeapon(world, at, weapon);
+    if (weapon !== "") {
+      unqueueWeapon(world, killerId, mobId);
+      dropWeapon(world, at, weapon);
+    }
     return;
   }
   creditMobKill(world, p, rt, elite, m);
-  grantBuff(world, p, rt, type, mobBuffStacks(elite) * m);
-  if (weapon !== "" && p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);
+  settleWeapons(world, killerId);
   world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite });
+}
+
+/** A weapon a killed mob carried, waiting for its killer's pay-out. */
+interface WeaponAward { mob: string; weapon: string; at: Vec2 }
+
+/**
+ * The weapons of the mobs a player killed in one pass, by killer. The pay-outs run in the order the victims were applied, which follows
+ * the order the hits were recorded (join order), and the first weapon to be handed out arms an empty hand while the rest lie loose: so the
+ * pass's weapons are settled together, at the killer's first pay-out, in mob id order, and no processing order decides which one arms.
+ */
+const weaponAwards = new WeakMap<World, Map<string, WeaponAward[]>>();
+
+function queueWeapon(world: World, killerId: string, award: WeaponAward): void {
+  let by = weaponAwards.get(world);
+  if (!by) weaponAwards.set(world, by = new Map());
+  const list = by.get(killerId);
+  if (list) list.push(award);
+  else by.set(killerId, [award]);
+}
+
+/** A killer that is gone has no hand to arm: the mob's own pay-out drops its weapon, so it leaves the queue. */
+function unqueueWeapon(world: World, killerId: string, mobId: string): void {
+  const list = weaponAwards.get(world)?.get(killerId);
+  if (!list) return;
+  const i = list.findIndex((a) => a.mob === mobId);
+  if (i >= 0) list.splice(i, 1);
+  if (list.length === 0) weaponAwards.get(world)!.delete(killerId);
+}
+
+/** Mob ids count up in base 36 (nextId), so the shorter one is the earlier. */
+const byMobId = (a: WeaponAward, b: WeaponAward): number => a.mob.length - b.mob.length || (a.mob < b.mob ? -1 : a.mob > b.mob ? 1 : 0);
+
+function settleWeapons(world: World, killerId: string): void {
+  const by = weaponAwards.get(world);
+  const list = by?.get(killerId);
+  if (!by || !list) return;
+  by.delete(killerId);
+  for (const a of list.sort(byMobId)) awardMobWeapon(world, killerId, a.weapon, a.at);
+}
+
+/**
+ * The weapon a mob carried, after a kill by a player of this run. A killer who is standing with an empty hand is armed with
+ * it on the spot (the hand takes it up like a pickup into the hand: weaponChanged) and told so; nothing lies on the ground.
+ * Any other killer (armed, or down in this very pass and so unable to wield it) leaves it as a loose weapon at the mob's feet,
+ * unless they already hold that type in either slot.
+ */
+function awardMobWeapon(world: World, killerId: string, weapon: string, at: Vec2): void {
+  const killer = combatant(world, killerId);
+  if (killer?.kind === "player" && isWeaponId(weapon) && standing(killer) && handIsEmpty(killer.s)) {
+    setSlot(killer.s, killer.s.slot === 1 ? 1 : 0, weapon);
+    weaponChanged(world, killer);
+    emit(world, { type: "toast", to: killerId, text: `Armed: ${WEAPONS[weapon].name}` });
+    return;
+  }
+  const p = world.state.players.get(killerId)!;
+  if (p.weapon0 !== weapon && p.weapon1 !== weapon) dropWeapon(world, at, weapon);
 }
 
 /** An idle mob below full hp (hurt by someone who was gone before they could wake it) heals after this long unhurt: the design's heal lockout. */
@@ -257,8 +326,18 @@ function resetAllMobs(world: World): void {
   }
 }
 
+/**
+ * world.moveModifiers entry: a regional mob walks at its type's role speed (swarm and skirmisher faster than a player, brute
+ * slower; shared MOB_ROLE_DEFS). A player, a dummy, a quest giver and a mob without a type of its region walk at 1.
+ */
+export function mobRoleMove(_world: World, c: Combatant): number {
+  if (c.kind !== "mob" || c.s.type === "") return 1;
+  return mobTypeIn(c.s.faction as FactionId, c.s.type)?.moveMult ?? 1;
+}
+
 export function install(world: World): void {
   world.systems.push(reapMobs);
+  world.moveModifiers.push(mobRoleMove);
   if (world.config.mobs) chainHook(world, "raidStarted", spawnRegionalMobs);
   chainHook(world, "teleported", resetAllMobs);
 }

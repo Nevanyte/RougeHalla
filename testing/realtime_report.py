@@ -17,6 +17,8 @@ args = sys.argv[1:]
 cand = W.load(args.pop(0)) if args and args[0].endswith(".json") else {}
 want = set((args[0] if args else "cad,engine,rpsls,mirror,sig,kite,buff,gap").split(","))
 BY, WEAPONS, WNAMES, SIG = W.BY, W.WEAPONS, W.WNAMES, W.SIG
+#: the five loop weapons: fists (an empty hand) are in the mirror tables, but nobody pairs them against a chosen weapon
+LOOP = [w for w in WNAMES if w != "fists"]
 print(f"=== {W.NAME}")
 print("factions:", {n: (p.rate, p.hit, round(p.rate * p.hit, 2)) for n, p in BY.items()}, "backlash", BY["Fire"].params["backlash"])
 print("weapons:", {w: (f"+{v['speed']*100:.0f}%", v["dps"], v["floor"]) for w, v in WEAPONS.items()})
@@ -91,8 +93,8 @@ if "sig" in want:
     for a, b in BEATS:
         st = edge_stats(duel(S(a, SIG[a]), S(b, SIG[b]), sub=2))
         bad = []
-        for wa in WNAMES:
-            for wb in WNAMES:
+        for wa in LOOP:
+            for wb in LOOP:
                 s2 = edge_stats(duel(S(a, wa), S(b, wb), nmax=40))
                 if s2["rate"] < 0.6:
                     bad.append(f"{wa}/{wb}:{s2['rate']*100:.0f}%")
@@ -146,8 +148,8 @@ if "gap" in want:
     worst = (0, "")
     for a, b in BEATS:
         m, arg = 0, ""
-        for wa in WNAMES:
-            for wb in WNAMES:
+        for wa in LOOP:
+            for wb in LOOP:
                 r = duel(S(a, wa), S(b, wb), nmax=30, track_gap=True)
                 g = float(max(r["gap"][0].max(), r["gap"][1].max()))
                 if g > m:

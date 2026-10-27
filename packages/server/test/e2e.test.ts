@@ -29,7 +29,7 @@ import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from
 import { matchMaker, Room } from "@colyseus/core";
 import {
   CATCHUP_MULT, GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, MOB_TYPES, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, rewardCurve, ROOM_NAME,
-  SIGNATURE_WEAPONS, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, WISHES,
+  SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, WISHES,
   type FactionId, type FxBatch, type ProfileResponse, type RunOutcome, type RunResult, type SignatureKind, type TimedFx,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -229,7 +229,7 @@ async function playRun(
     expect(new Set(bots.map((b) => b.roomId)).size).toBe(1);
     const roomId = bots[0]!.roomId;
 
-    // The server's own player for each bot has the faction it asked for and that faction's signature weapon. Read
+    // The server's own player for each bot has the faction it asked for and an empty hand (it fights on fists). Read
     // before the first await, so even the quitter (which leaves a second into the run) is still in the state.
     const serverRoom = matchMaker.getLocalRoomById(roomId) as Room<{ state: RaidState }> | undefined;
     expect(serverRoom, "the room the bots joined").toBeDefined();
@@ -239,7 +239,7 @@ async function playRun(
       expect(entry, `${name} has a player in the room`).toBeDefined();
       const [id, p] = entry!;
       expect(p.faction, `${name} asked for ${lineup[i]}`).toBe(lineup[i]);
-      expect(p.weapon0, `${name} (${p.faction}) starts with its signature weapon`).toBe(SIGNATURE_WEAPONS[lineup[i]!]);
+      expect([p.weapon0, p.weapon1, p.slot], `${name} (${p.faction}) starts on fists: both slots empty`).toEqual(["", "", 0]);
       factionOfSession.set(id, p.faction as FactionId);
     }
     for (const name of names) {

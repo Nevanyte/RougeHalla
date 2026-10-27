@@ -120,10 +120,12 @@ describe("bandwidth budget (per client, ws payload)", () => {
     for (const d of diffs) expect(d).toBeLessThan(2);
   }, 120_000);
 
-  // Quests (the shipped default, off in the benches unless asked): seed 1 measures 6.84 KB/s typical against 6.52 without them
-  // and 10.55 heavy against 10.91 (the fights differ a little: the bench players never target a giver), and a joiner's first
-  // sync grows by about 2 KB. The coliseum endgame closes every quest, so the idle case has none to measure.
-  it("quests on (the shipped default): the offers are in the state, typical and heavy stay under 20 KB/s and within 1.5 KB/s of the same runs without", () => {
+  // Quests (the shipped default, off in the benches unless asked). On the zone maps with the balance pass (seeds 1-3) typical
+  // measures 8.82 / 8.30 / 7.23 KB/s against 7.29 / 6.98 / 6.53 without them and heavy 11.85 / 10.19 / 10.37 against 12.21 / 10.09 /
+  // 10.37; the typical gap follows the fights (10.5 -> 14.3, 9.5 -> 12.1 and 8.4 -> 10.6 camp mobs fighting with quests on), not
+  // the quest rows, so the tolerance is 2 KB/s. A joiner's first sync grows by about 2 KB. The coliseum endgame closes every
+  // quest, so the idle case has none to measure.
+  it("quests on (the shipped default): the offers are in the state, typical and heavy stay under 20 KB/s and within 2 KB/s of the same runs without", () => {
     const typicalQuests = run("typicalQuests", { camps: TYPICAL_CAMPS, quests: true });
     const heavyQuests = run("heavyQuests", { camps: HEAVY_CAMPS, quests: true });
     expect(typical().quests).toBe(0);
@@ -131,8 +133,8 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(heavyQuests.quests).toBeGreaterThanOrEqual(5);
     expect(typicalQuests.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
     expect(heavyQuests.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
-    expect(Math.abs(typicalQuests.totalKBps - typical().totalKBps)).toBeLessThan(1.5);
-    expect(Math.abs(heavyQuests.totalKBps - heavy().totalKBps)).toBeLessThan(1.5);
+    expect(Math.abs(typicalQuests.totalKBps - typical().totalKBps)).toBeLessThan(2);
+    expect(Math.abs(heavyQuests.totalKBps - heavy().totalKBps)).toBeLessThan(2);
     expect(typicalQuests.initialSyncBytes).toBeGreaterThan(typical().initialSyncBytes);
   });
 

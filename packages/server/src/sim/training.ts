@@ -3,22 +3,22 @@
 // run's consequences: there is no patience timer, teleport or sudden death, no result, no GV and nothing recorded on the
 // profile. Whoever goes down is put back on their feet. Everything here sits behind the flag: an arena world never reaches it.
 //
-// The practice console (the `train` message, roguelike R4a/R5): set a buff's stacks or a passive's rank, spawn a practice camp,
-// drop a reward chest with chosen options, or clear all of it. It is refused at the door outside training
+// The practice console (the `train` message, roguelike R4a/R5; cards since the balance pass): set how many copies of a card the
+// player holds, spawn a practice camp, drop a reward chest with chosen options, or clear all of it. It is refused at the door outside training
 // (inputs.ts enqueueClientMessage), only installed here (a world without installTraining has no `train` handler) and checked
-// again in the handler. It changes the player through the same paths a kill or a pick does (grantBuff, build + recomputeMods +
-// syncMaxHp, placeMob, dropRewardChest), and none of it is paid or recorded: a practice mob has no camp in the map, so no chest
-// drops for its death, and its kill pays no GV, feed, buff or drop (mobLife.payMobKill returns in a training world).
+// again in the handler. It changes the player through the same paths a pick does (build + recomputeMods + syncMaxHp, placeMob,
+// dropRewardChest), and none of it is paid or recorded: a practice mob has no camp in the map, so no chest drops for its death
+// (its clear still heals), and its kill pays no GV, feed or drop (mobLife.payMobKill returns in a training world).
 import {
-  buffDef, buffText, circleClear, hasLineOfSight, isFactionId, isRegionalKind, mobTypeById, PLAYER_RADIUS, rollChestOptions, skillDef,
-  skillLive, skillText, stacksIn, TILE, tileToWorldCenter, TRAIN_CAMP_SIZE, TRAIN_MAX_CHESTS, TRAIN_MAX_MOBS, TRAIN_MAX_MOBS_SPAWNED,
-  TRAIN_SPAWN_GAP_MS, worldToTile, type BuffId, type SkillId, type Vec2,
+  cardBlock, cardDef, cardLive, circleClear, countIn, hasLineOfSight, isRegionalKind, mobTypeById, PLAYER_RADIUS, rollChestOptions,
+  TILE, tileToWorldCenter, TRAIN_CAMP_SIZE, TRAIN_MAX_CHESTS, TRAIN_MAX_MOBS, TRAIN_MAX_MOBS_SPAWNED, TRAIN_SPAWN_GAP_MS, worldToTile,
+  type CardId, type Vec2,
 } from "@raid/shared";
-import { grantBuff, syncMaxHp } from "./buffs";
+import { syncMaxHp } from "./buffs";
 import { clearChests, dropRewardChest, rewardChests } from "./chests";
 import { standing, type Combatant } from "./combatant";
 import { placeMob } from "./mobLife";
-import { recomputeMods } from "./mods";
+import { recomputeMods, setFlatMaxHp, triggersOf } from "./mods";
 import { planPath } from "./movement";
 import { clearProjectilesOf } from "./projectiles";
 import { chainHook, collisionMap, emit, type ActionHandler, type PlayerRuntime, type World } from "./world";
@@ -115,55 +115,47 @@ const one = (n: number): string => String(Math.round(n * 10) / 10);
 export const handleTrain: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "train" || c.kind !== "player" || !world.config.training || !standing(c)) return;
   switch (cmd.cmd) {
-    case "buff": trainBuff(world, c, cmd.id, cmd.amount); return;
-    case "passive": trainPassive(world, c, cmd.id, cmd.rank); return;
+    case "card": trainCard(world, c, cmd.id, cmd.count); return;
     case "camp": trainCamp(world, c, cmd.id); return;
     case "chest": trainChest(world, c, cmd.options); return;
     case "clear": trainClear(world, c); return;
   }
 };
 
-/** Re-arms the once-per-run triggers whose key starts with `prefix` (a removed buff or passive fires again when given back). */
+/** Re-arms the once-per-run triggers whose key starts with `prefix` (a removed card fires again when given back). */
 function rearm(rt: PlayerRuntime, prefix: string): void {
   if (!rt.fired) return;
   for (const key of [...rt.fired]) if (key.startsWith(prefix)) rt.fired.delete(key);
 }
 
-/** Sets the stacks of one buff: a rise goes through grantBuff (its `buff` fx and toast), a fall or a removal re-folds the rows by hand. */
-function trainBuff(world: World, c: PlayerCombatant, id: BuffId, amount: number): void {
+/**
+ * Sets how many copies of card `id` the player holds, the way a chest pick does it: the build, the rows re-folded, max hp following.
+ * A unique card is held once at most; a conditional needs a card of its base to be added (else nothing changes and the toast says
+ * so); 0 removes the card. The console only sets what it is told to, so removing a base card leaves its conditionals in place.
+ */
+function trainCard(world: World, c: PlayerCombatant, id: CardId, count: number): void {
   const p = c.s;
-  const def = buffDef(id);
-  const held = stacksIn(p.buffs, id);
-  if (amount > held) {
-    grantBuff(world, p, c.rt, id, amount - held);
-  } else if (amount < held) {
-    if (amount > 0) p.buffs.set(id, amount);
-    else {
-      p.buffs.delete(id);
-      rearm(c.rt, `${id}:`);
+  const def = cardDef(id)!;
+  const want = def.unique ? Math.min(1, count) : count;
+  if (want > 0 && def.kind === "conditional" && countIn(p.build, id) === 0) {
+    const block = cardBlock(id, p.build);
+    if (block?.reason === "needs") {
+      toast(world, c.id, `${def.title}: ${block.text}`);
+      return;
     }
-    recomputeMods(world, c);
-    syncMaxHp(p);
   }
-  const name = def?.name ?? id;
-  const note = def?.needs === "status" ? " (needs the status system: not applied yet)" : "";
-  toast(world, c.id, amount > 0 ? `${name} ${one(amount)} stacks: ${buffText(id, amount)}${note}` : `${name} removed`);
-}
-
-/** Sets one passive's rank (0 removes it) the way a chest pick does: the build, the rows re-folded, max hp following. */
-function trainPassive(world: World, c: PlayerCombatant, id: SkillId, rank: 0 | 1 | 2): void {
-  const p = c.s;
-  const def = skillDef(id)!;
-  if (rank === 0) {
+  if (want === 0) {
     p.build.delete(id);
-    rearm(c.rt, `skill:${id}:`);
+    rearm(c.rt, `card:${id}:`);
   } else {
-    p.build.set(id, rank);
+    p.build.set(id, want);
   }
   recomputeMods(world, c);
+  // Tank Engine's earned max hp goes with its card (a pick never removes one, so nothing else lets it go).
+  if (want === 0 && !triggersOf(p).some((t) => t.row.do.do === "fortify")) dropTankHp(c);
   syncMaxHp(p);
-  const note = skillLive(def) ? "" : " (not live yet: no effect)";
-  toast(world, c.id, rank > 0 ? `${def.name} rank ${rank}: ${skillText(id, rank, p.faction)}${note}` : `${def.name} removed`);
+  const note = cardLive(def) ? "" : " (not live yet: no effect)";
+  toast(world, c.id, want > 0 ? `${def.title}${def.unique ? "" : ` x${want}`}: ${def.text}${note}` : `${def.title} removed`);
 }
 
 /** One number per tile, so a set of claimed tiles needs no strings (the stride keeps columns from wrapping into rows). */
@@ -286,8 +278,8 @@ function trainCamp(world: World, c: PlayerCombatant, typeId: string): void {
   toast(world, c.id, `Practice camp: ${spots.length} x ${type.name}${type.elite ? " (elite)" : ""}`);
 }
 
-/** A reward chest about two tiles from the player, in view, with `options` (empty: three random live skills for the player's faction). */
-function trainChest(world: World, c: PlayerCombatant, options: readonly SkillId[]): void {
+/** A reward chest about two tiles from the player, in view, with `options` (empty: a normal camp's roll, for what the player holds). */
+function trainChest(world: World, c: PlayerCombatant, options: readonly CardId[]): void {
   const run = practiceOf(world);
   if (!dropAllowed(world, c, run.lastChestAt)) return;
   if (rewardChests(world).length >= TRAIN_MAX_CHESTS) {
@@ -301,21 +293,35 @@ function trainChest(world: World, c: PlayerCombatant, options: readonly SkillId[
     toast(world, c.id, "No free floor in view for a chest");
     return;
   }
-  const faction = isFactionId(c.s.faction) ? c.s.faction : "fire";
-  const ids: readonly SkillId[] = options.length > 0 ? options : rollChestOptions(world.rewardRandom, { zone: faction });
+  const ids: readonly CardId[] = options.length > 0 ? options : rollChestOptions(world.rewardRandom, { pickers: [c.s.build] });
   dropRewardChest(world, at, ids);
   run.lastChestAt = world.state.serverTime;
-  const names = ids.map((id) => `${skillDef(id)?.name ?? id}${skillLive(id) ? "" : " (not live yet)"}`);
+  const names = ids.map((id) => `${cardDef(id)?.title ?? id}${cardLive(id) ? "" : " (not live yet)"}`);
   toast(world, c.id, `Chest: ${names.join(", ")}`);
 }
 
-/** Removes every buff and passive the player holds, every practice mob and every reward chest; once-per-run triggers fire again. */
+/** Tank Engine's tally and the max hp it earned (sim/cardHooks.ts onBlocked), which syncMaxHp adds on top of the rows. */
+function dropTankHp(c: PlayerCombatant): void {
+  setFlatMaxHp(c.s, 0);
+  if (c.rt.cards) c.rt.cards.prevented = c.rt.cards.tankHp = 0;
+}
+
+/**
+ * Removes every card the player holds, every practice mob and every reward chest; once-per-run triggers fire again, and what the cards
+ * left in the player's memory goes too (the crit, streak and boost memory, Tank Engine's earned max hp, a barrier, the camps counted): a
+ * cleared practice player is the one that joined.
+ */
 function trainClear(world: World, c: PlayerCombatant): void {
   const p = c.s;
-  p.buffs.clear();
   p.build.clear();
   c.rt.fired?.clear();
   c.rt.hots = undefined;
+  c.rt.cards = undefined;
+  c.rt.boost = undefined;
+  c.rt.campsCleared = 0;
+  world.campContrib?.clear();
+  p.barrier = 0;
+  setFlatMaxHp(p, 0);
   recomputeMods(world, c);
   syncMaxHp(p);
   const gone = practiceMobIds(world);
@@ -326,5 +332,5 @@ function trainClear(world: World, c: PlayerCombatant): void {
     world.mobs.delete(id);
   }
   clearChests(world);
-  toast(world, c.id, "Cleared: buffs, passives, practice mobs and chests");
+  toast(world, c.id, "Cleared: cards, practice mobs and chests");
 }

@@ -3,8 +3,8 @@
     python3 realtime_paced.py [--k 2] [--sub 1] [--nmax 12] [--cells mirror,sig] [--pairs] > out.json
 
 DUEL_PACE k (GAME_DESIGN 10.2): every faction hit and damage param x k, Sentenced's mark ramp x k^2, hp unchanged.
-Cells: "mirror" is every designed edge (winner first) with the same weapon on both sides; "sig" is every edge with
-both on their signature weapons. Each cell is realtime.duel on its phase grid; --pairs adds every phase pair's
+Cells: "mirror" is every designed edge (winner first) with the same weapon on both sides (the five loop weapons and fists,
+in realtime.py's WEAPONS order); "sig" is every edge with both on their signature weapons. Each cell is realtime.duel on its phase grid; --pairs adds every phase pair's
 result (a-major, as the harness runs them).
 """
 import argparse

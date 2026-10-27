@@ -16,7 +16,7 @@ function mob(region: FactionId, x: number, y: number, o: Partial<MobLike> = {}):
   return { kind: "mob", status: "alive", x, y, hp, maxHp: hp, faction: region, weapon0: REGION_WEAPON[region], ...o };
 }
 
-const ME: HuntSelf = { faction: "plague", x: 0, y: 0, hp: 1000, maxHp: 1000, weapons: ["sword", null], stacks: 0, mobKills: 0 };
+const ME: HuntSelf = { faction: "plague", x: 0, y: 0, hp: 1000, maxHp: 1000, weapons: ["sword", null], power: 0, mobKills: 0 };
 
 /** One scene: the bot, the mobs (by id) and a straight-line walk. Every field can be overridden per call. */
 class Scene {
@@ -182,11 +182,27 @@ describe("who to farm", () => {
     both.self = { ...ME, faction: "plague", weapons: ["axe", null], mobKills: 1 };
     both.add("sword", mob("sentenced", 200, 0)).add("shield", mob("frost", 450, 0));
     expect(both.step()).toMatchObject({ id: "shield" });
-    // An elite whose weapon beats ours is not worth it, whatever the stacks.
+    // An elite whose weapon beats ours is not worth it, whatever the card power.
     const e = new Scene();
-    e.self = { ...ME, faction: "holy", weapons: ["axe", null], stacks: 3, mobKills: 1 };
+    e.self = { ...ME, faction: "holy", weapons: ["axe", null], power: 6, mobKills: 1 };
     e.add("swordElite", mob("sentenced", 200, 0, { kind: "elite", maxHp: 600 }));
     expect(e.step()).toMatchObject({ kind: "player" });
+  });
+
+  it("hunts on fists: with both slots empty a mob of any weapon is a meal (fists pierce a shield), and the drop it earns is welcome", () => {
+    // A bow or a sword bot skips a shield mob (its arrows bounce, its blows are blocked); an empty-handed bot punches through.
+    const shield = new Scene().add("shield", mob("frost", 200, 0));
+    shield.self = { ...ME, weapons: [null, null], mobKills: 1 };
+    expect(shield.step()).toMatchObject({ kind: "mob", id: "shield" });
+    // Carrying nothing, any weapon is one it lacks: a nearer mob does not beat a farther one by much, but a drop is worth a detour.
+    const lacks = new Scene();
+    lacks.self = { ...ME, faction: "plague", weapons: [null, null], mobKills: 1 };
+    lacks.add("axe", mob("fire", 0, 200)).add("shield", mob("frost", 300, 0));
+    expect(lacks.step()).toMatchObject({ kind: "mob" });
+    // Mobs that fight from range are still left alone (a bow backs away out of its leash), fists or not.
+    const ranged = new Scene().add("bow", mob("plague", 200, 0));
+    ranged.self = { ...ME, weapons: [null, null], mobKills: 1 };
+    expect(ranged.step()).toMatchObject({ kind: "player" });
   });
 
   it("skips mobs it cannot hurt or that cannot hurt it, and mobs that fight from range", () => {
@@ -228,26 +244,26 @@ describe("who to farm", () => {
     expect(plague.step()).toMatchObject({ kind: "mob", id: "axe" });
   });
 
-  it("leaves elites to bots with stacks or full hp, and to those who can afford the duel", () => {
+  it("leaves elites to bots with card power or full hp, and to those who can afford the duel", () => {
     const elite = (region: FactionId) => mob(region, 200, 0, { kind: "elite", maxHp: 600 });
     // Full hp, but Frost keeps only 23% against the Sentenced elite: too narrow.
     const narrow = new Scene().add("e", elite("sentenced"));
     narrow.self = { ...ME, faction: "frost", weapons: ["axe", null], hp: 950 };
     expect(narrow.step()).toMatchObject({ kind: "player" });
-    // ...unless three stacks make it worth the risk (the bar drops to eliteSureShare, 0.4: still not 23%).
+    // ...unless six card power makes it worth the risk (the bar drops to eliteSureShare, 0.4: still not 23%).
     const stackedNarrow = new Scene().add("e", elite("sentenced"));
-    stackedNarrow.self = { ...ME, faction: "frost", weapons: ["axe", null], hp: 950, stacks: 3 };
+    stackedNarrow.self = { ...ME, faction: "frost", weapons: ["axe", null], hp: 950, power: 6 };
     expect(stackedNarrow.step()).toMatchObject({ kind: "player" });
     // Plague keeps 78% against the Frost elite (the axe beats its shield too): fine at full hp...
     const strong = new Scene().add("e", elite("frost"));
     strong.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 950 };
     expect(strong.step()).toMatchObject({ kind: "mob", id: "e" });
-    // ...not when hurt without stacks, fine again with a stack.
+    // ...not when hurt without power, fine again with four card power.
     const hurt = new Scene().add("e", elite("frost"));
     hurt.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 700 };
     expect(hurt.step()).toMatchObject({ kind: "player" });
     const stacked = new Scene().add("e", elite("frost"));
-    stacked.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 700, stacks: 1 };
+    stacked.self = { ...ME, faction: "plague", weapons: ["axe", null], hp: 700, power: 4 };
     expect(stacked.step()).toMatchObject({ kind: "mob", id: "e" });
   });
 
@@ -495,7 +511,10 @@ describe("pieces", () => {
     expect(bestEdge(["bow", "axe"], "shield")).toBe(1); // the bow is reflected, the axe pierces
     expect(bestEdge(["shield", null], "shield")).toBe(-2); // two raised shields only block each other
     expect(bestEdge(["sword", "shield"], "shield")).toBe(-2);
-    expect(bestEdge([null, null], "axe")).toBe(-2);
+    // Carrying nothing is fighting on fists: neutral against everything, and never useless (they pierce a shield).
+    expect(bestEdge([null, null], "axe")).toBe(0);
+    expect(bestEdge([null, null], "shield")).toBe(0);
+    expect(bestEdge([null, null], "wand")).toBe(0);
   });
 
   it("useless: guards that stop a weapon, and shields that stop the mob", () => {
@@ -527,9 +546,9 @@ describe("pieces", () => {
     expect(mobWeapon({ weapon0: "", faction: "" })).toBeNull();
   });
 
-  it("matchupShare follows the duel table: everyone beats a normal mob of their own region, Fire keeps little against Holy", () => {
+  it("matchupShare follows the duel table: everyone beats a normal mob of their own region, Fire keeps little against a Frost elite", () => {
     for (const f of Object.keys(FACTIONS) as FactionId[]) expect(matchupShare(f, f, false)).toBeGreaterThan(0.5);
-    expect(matchupShare("fire", "holy", true)).toBe(0); // a loss
+    expect(matchupShare("fire", "frost", true)).toBeLessThan(0.4); // the compressed sheet leaves no flat loss; this is the worst pairing
     expect(matchupShare("holy", "fire", false)).toBeGreaterThan(0.9);
   });
 

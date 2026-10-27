@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ABILITY_IDS, BUFF_IDS, formatStacks, FX_SCALE, mulberry32, packFx, STATUS_KINDS, unpackFx, unpackLaunches, WEAPON_IDS, WEAPONS,
+  ABILITY_IDS, ALL_WEAPON_IDS, FX_SCALE, mulberry32, packFx, STATUS_KINDS, unpackFx, unpackLaunches, WEAPONS,
   type FxBatch, type FxEvent, type ProjectileEnd, type ProjectileLaunch, type TimedFx,
 } from "../src/index";
 
@@ -18,7 +18,6 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
   heal: { kind: "heal", id: "sess-001", amount: 7.77 },
   teleport: { kind: "teleport" },
   bounty: { kind: "bounty", id: "sess-001", name: "Rampager", bounty: 35 },
-  buff: { kind: "buff", id: "sess-001", buff: "plagueRat", stacks: 1.0667, total: 2.9964 },
   victory: { kind: "victory", id: "sess-001", name: "Rampager", draw: false },
   cast: { kind: "cast", by: "sess-001", ability: "freeze", ms: 250, target: "sess-002", x: 640.4, y: 320.6 },
   castLand: { kind: "castLand", by: "sess-001", ability: "blaze", target: null, x: 100.2, y: 200.8, x2: 340.5, y2: 410.1 },
@@ -26,6 +25,7 @@ const EXAMPLES: { [K in FxEvent["kind"]]: FxOf<K> } = {
   status: { kind: "status", id: "sess-002", status: "stun", ms: 1250.4, by: "sess-001" },
   campCleared: { kind: "campCleared", camp: 7 },
   chestTaken: { kind: "chestTaken", chest: "c4f", by: "sess-001", option: 2 },
+  campHeal: { kind: "campHeal", id: "sess-001", camp: 7, amount: 118.46 },
 };
 
 const T = 123450;
@@ -51,7 +51,7 @@ function expectSame(got: TimedFx, want: FxEvent, t = T): void {
   const w = want as unknown as Record<string, unknown>;
   const perUnit: Record<string, number> = {
     x: scale.pos, y: scale.pos, x0: scale.pos, y0: scale.pos, x2: scale.pos, y2: scale.pos, a: scale.angle, ms: scale.ms, t0: scale.ms,
-    amount: scale.amount, stacks: scale.stacks, total: scale.stacks, bounty: 1,
+    amount: scale.amount, bounty: 1,
   };
   for (const key of Object.keys(w)) {
     if (typeof w[key] === "number") within(g[key] as number, w[key] as number, perUnit[key] ?? Infinity);
@@ -77,9 +77,6 @@ describe("fx codec: round trip", () => {
     expect(roundTrip({ kind: "swing", by: "a", weapon: "sword", x: 10.4, y: 10.6, a: 1.5749 })).toMatchObject({ x: 10, y: 11, a: 1.57 });
     expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 3.14159, weapon: "sword" })).toMatchObject({ amount: 3.1 });
     expect(roundTrip({ kind: "windup", by: "a", weapon: "sword", a: 0, ms: 349.6 })).toMatchObject({ ms: 350 });
-    expect(roundTrip({ kind: "buff", id: "a", buff: "iceGolem", stacks: 1.0664, total: 2.4996 })).toMatchObject({ stacks: 1.066, total: 2.5 });
-    // There are no combo thresholds any more: a total is the nearest thousandth, 3.000 included.
-    expect(roundTrip({ kind: "buff", id: "a", buff: "iceGolem", stacks: 1.0664, total: 2.9996 })).toMatchObject({ stacks: 1.066, total: 3 });
   });
 
   it("handles negative coordinates and angles, and never produces -0", () => {
@@ -108,13 +105,12 @@ describe("fx codec: round trip", () => {
     expect(roundTrip(sloppyVictory)).toMatchObject({ kind: "victory", id: null, name: null, draw: true });
   });
 
-  it("covers every weapon, buff and end reason", () => {
-    for (const weapon of WEAPON_IDS) {
+  it("covers every weapon and end reason", () => {
+    for (const weapon of ALL_WEAPON_IDS) {
       expect(roundTrip({ kind: "windup", by: "a", weapon, a: 1, ms: 100 })).toMatchObject({ weapon });
       expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 1, weapon })).toMatchObject({ weapon });
       expect(roundTrip({ kind: "block", id: "a", by: "b", weapon })).toMatchObject({ weapon });
     }
-    for (const buff of BUFF_IDS) expect(roundTrip({ kind: "buff", id: "a", buff, stacks: 1, total: 2 })).toMatchObject({ buff });
     const ends: ProjectileEnd[] = ["hit", "wall", "range", "reflected", "blocked", "deleted", "destroyed", "cleared"];
     for (const reason of ends) {
       for (const proj of ["arrow", "ball"] as const) {
@@ -138,6 +134,23 @@ describe("fx codec: round trip", () => {
     expect(roundTrip({ kind: "block", id: "a", by: "b", weapon: "shield", passive: false })).toEqual(
       { kind: "block", id: "a", by: "b", weapon: "shield", t: T },
     );
+  });
+
+  it("carries a critical strike in the hit's flags (+64): no extra element, whatever the weapon and signature", () => {
+    for (const weapon of [null, "sword", "fists", "wand"] as const) {
+      for (const sig of [undefined, "burn", "mark"] as const) {
+        const fx: FxEvent = { kind: "hit", id: "a", by: "b", amount: 7.5, weapon, ...(sig ? { sig } : {}), crit: true };
+        expect(roundTrip(fx), `${weapon} ${sig}`).toEqual({ ...fx, t: T });
+        expect(packFx([fx], T).l[0], `${weapon} ${sig}`).toHaveLength(5);
+      }
+    }
+    // A crit with an ability still carries the ability code as the fifth element.
+    const withAbility: FxEvent = { kind: "hit", id: "a", by: "b", amount: 3, weapon: null, ability: "blaze", crit: true };
+    expect(roundTrip(withAbility)).toEqual({ ...withAbility, t: T });
+    // A plain hit never decodes as a crit, and `crit: false` is the same as leaving it off.
+    expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe" })).not.toHaveProperty("crit");
+    expect(packFx([{ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe" }], T).l[0]![4]).toBe(5);
+    expect(packFx([{ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe", crit: true }], T).l[0]![4]).toBe(5 + 64);
   });
 
   it("skips a hit whose signature code is unknown rather than dropping the signature silently", () => {
@@ -229,14 +242,14 @@ describe("fx codec: bad input is skipped, not thrown on", () => {
       [0, "a", 1, 100],                    // windup, missing ms
       [0, "a", 77, 100, 200],              // windup, unknown weapon
       [0, "a", 1, "x", 200],               // windup, angle is a string
-      [2, "a", "b", 10, 77],               // hit, unknown weapon (and signature)
+      [2, "a", "b", 10, 177],              // hit, unknown weapon (and signature), even past the critical-strike flag
       [2, "a", "b", 10, -1],               // hit, negative flags
       [2, "a", "b", 10, 1.5],              // hit, fractional flags
       [2, 7, "b", 10, 1],                  // hit, id is a roster index the roster does not have
       [2, -1, "b", 10, 1],                 // hit, id is a negative number
       [5, "p", 0, 9, 1, 2, 3, 4, 5],       // projEnd, unknown reason
       [11, "a", 0, 1],                     // combo: retired, dropped even when well formed
-      [10, "a", 20, 1000, 2000],           // buff, unknown buff code
+      [10, "a", 0, 1000, 2000],            // buff: retired like combo, dropped even when well formed
       [12, null, null],                    // victory, no draw flag
       [4, Number.NaN],                     // stagger, id is a number
       [13, Number.NaN],                    // cancel, id is a number
@@ -274,7 +287,7 @@ describe("fx codec: fighter ids by roster index", () => {
     ];
     const batch = packFx(fx, T, { roster: index });
     expect(batch.l[0]).toEqual([2, 0, 1, 120, 1]);
-    expect(batch.l[1]).toEqual([2, 2, null, 30, 0 + (0 + 1) * (WEAPON_IDS.length + 1)]);
+    expect(batch.l[1]).toEqual([2, 2, null, 30, 0 + (0 + 1) * 7]); // HIT_RADIX: the six weapon codes and "none"
     expect(batch.l[2]).toEqual([6, "Zz9yXx8wV", 1, 2, 1]);
     expect(unpackFx(batch, roster)).toEqual(fx.map((f) => ({ ...f, t: T })));
   });
@@ -346,21 +359,14 @@ describe("fx codec: unreadable tuples are reported", () => {
   });
 });
 
-describe("fx codec: buffs (roguelike R4a)", () => {
-  it("a buff names its BuffId by code, in MOB_TYPES order: [10, id, code, stacks, total]", () => {
-    expect(BUFF_IDS).toHaveLength(20);
-    BUFF_IDS.forEach((buff, code) => {
-      expect(packFx([{ kind: "buff", id: "a", buff, stacks: 1.1, total: 3.3 }], T).l).toEqual([[10, "a", code, 1100, 3300]]);
-    });
-  });
-
-  it("the totals are the nearest thousandth, and read the way the HUD reads them", () => {
-    for (const total of [0, 0.0004, 1.0667, 2.9964, 2.9996, 3.4996, 4.2, 6.6666]) {
-      const out = unpackFx(packFx([{ kind: "buff", id: "a", buff: "emberImp", stacks: 1, total }], T), NONE)[0]!;
-      if (out.kind !== "buff") throw new Error("not a buff");
-      expect(out.total).toBeCloseTo(Math.round(total * 1000) / 1000, 12);
-      expect(formatStacks(out.total)).toBe(formatStacks(Math.round(total * 1000) / 1000));
-    }
+describe("fx codec: the retired buff and combo kinds", () => {
+  it("the retired buff code (10) is never emitted, and a client drops it through onDrop", () => {
+    const old = { kind: "buff", id: "a", buff: "emberImp", stacks: 1.1, total: 3.3 } as unknown as FxEvent;
+    expect(packFx([old], T).l).toEqual([]);
+    const dropped: unknown[] = [];
+    const batch: FxBatch = { t: T, l: [[10, "a", 0, 1100, 3300]] };
+    expect(unpackFx(batch, NONE, (tuple) => dropped.push(tuple))).toEqual([]);
+    expect(dropped).toHaveLength(1);
   });
 
   it("the retired combo code (11) is never emitted, and a client drops it through onDrop", () => {
@@ -375,7 +381,7 @@ describe("fx codec: buffs (roguelike R4a)", () => {
 describe("fx codec: hit flags", () => {
   it("round trips every weapon (or none) with every signature (or none)", () => {
     const sigs = [undefined, "burn", "backlash", "disease", "mark"] as const;
-    for (const weapon of [null, ...WEAPON_IDS]) {
+    for (const weapon of [null, ...ALL_WEAPON_IDS]) {
       for (const sig of sigs) {
         const fx: FxEvent = sig ? { kind: "hit", id: "a", by: "b", amount: 4.5, weapon, sig } : { kind: "hit", id: "a", by: "b", amount: 4.5, weapon };
         expect(roundTrip(fx), `${weapon} ${sig}`).toEqual({ ...fx, t: T });
@@ -384,12 +390,34 @@ describe("fx codec: hit flags", () => {
   });
 
   it("keeps weapon and signature in one element that fits a byte", () => {
-    for (const weapon of WEAPON_IDS) {
+    for (const weapon of ALL_WEAPON_IDS) {
       for (const sig of ["burn", "backlash", "disease", "mark"] as const) {
         const flags = packFx([{ kind: "hit", id: "a", by: "b", amount: 1, weapon, sig }], T).l[0]![4] as number;
         expect(flags).toBeLessThan(128);
       }
     }
+  });
+});
+
+describe("fx codec: fists on the wire", () => {
+  it("are weapon code 5, appended after the five loop weapons (the codes never move)", () => {
+    const codeOf = (weapon: "sword" | "bow" | "wand" | "shield" | "axe" | "fists"): unknown =>
+      packFx([{ kind: "windup", by: "a", weapon, a: 0, ms: 100 }], T).l[0]![2];
+    expect(["sword", "bow", "wand", "shield", "axe", "fists"].map((w) => codeOf(w as "sword"))).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it("keep the hit flags apart from the signatures: weapon + 7 x signature never collides", () => {
+    const seen = new Set<number>();
+    for (const weapon of [null, ...ALL_WEAPON_IDS]) {
+      for (const sig of [undefined, "burn", "backlash", "disease", "mark"] as const) {
+        const fx: FxEvent = sig ? { kind: "hit", id: "a", by: "b", amount: 1, weapon, sig } : { kind: "hit", id: "a", by: "b", amount: 1, weapon };
+        const flags = packFx([fx], T).l[0]![4] as number;
+        expect(seen.has(flags), `${weapon} ${sig}`).toBe(false);
+        seen.add(flags);
+      }
+    }
+    // A fists hit by a burn is code 5 + 1 = 6, plus (burn 0 + 1) x 7.
+    expect(packFx([{ kind: "hit", id: "a", by: "b", amount: 1, weapon: "fists", sig: "burn" }], T).l[0]![4]).toBe(6 + 7);
   });
 });
 
@@ -636,6 +664,23 @@ describe("fx codec: camps and chests (roguelike R5)", () => {
     ]);
   });
 
+  it("campHeal is [20, id, camp, amount x 10]: the healed fighter travels as its roster index", () => {
+    const roster = ["sess-001", "sess-002"];
+    const index = new Map(roster.map((id, i) => [id, i]));
+    const batch = packFx([{ kind: "campHeal", id: "sess-002", camp: 7, amount: 118.46 }], T, { roster: index });
+    expect(batch.l).toEqual([[20, 1, 7, 1185]]);
+    expect(unpackFx(batch, roster)).toEqual([{ kind: "campHeal", id: "sess-002", camp: 7, amount: 118.5, t: T }]);
+    // Without the roster the id stays a string, as every other id-bearing fx.
+    expect(packFx([{ kind: "campHeal", id: "sess-002", camp: 0, amount: 0.3 }], T).l).toEqual([[20, "sess-002", 0, 3]]);
+  });
+
+  it("drops a malformed campHeal tuple (no camp, a fraction, a negative camp, a roster index past the roster, no amount)", () => {
+    const dropped: boolean[] = [];
+    const bad: FxBatch = { t: T, l: [[20, "a", -1, 10], [20, "a", 1.5, 10], [20, "a", "3", 10], [20, "a", 3], [20, "a", 3, "x"], [20, 9, 3, 10], [20]] };
+    expect(unpackFx(bad, ["a"], (_tuple, unresolved) => dropped.push(unresolved))).toEqual([]);
+    expect(dropped).toEqual([false, false, false, false, false, true, false]);
+  });
+
   it("drops a malformed camp or chest tuple instead of guessing", () => {
     const dropped: unknown[] = [];
     const bad: FxBatch = { t: T, l: [[18, -1], [18, 1.5], [18], [19, 3, "a", 0], [19, "c1", "a", -2], [19, "c1", "a", 0.5], [19, "c1", "a"]] };
@@ -648,11 +693,12 @@ describe("fx codec: camps and chests (roguelike R5)", () => {
       (Object.keys(EXAMPLES) as FxEvent["kind"][]).map((kind) => [kind, packFx([EXAMPLES[kind]], T).l[0]![0]]),
     );
     expect(codes).toEqual({
-      windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10,
-      victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19,
+      windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9,
+      victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19, campHeal: 20,
     });
     expect(new Set(Object.values(codes)).size).toBe(Object.keys(codes).length);
-    // 11 (the retired combo) stays unused.
+    // 10 (the retired buff) and 11 (the retired combo) stay unused.
+    expect(Object.values(codes)).not.toContain(10);
     expect(Object.values(codes)).not.toContain(11);
   });
 });

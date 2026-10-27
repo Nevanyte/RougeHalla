@@ -4,7 +4,7 @@
 // the whole brain (`assertBlind(run, ...)` with a `run` that returns the commands), so a leak anywhere downstream fails the
 // same way. Plain states here satisfy perception's StateLike; toSchemaState builds the real schema objects from one.
 import {
-  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, FACTION_IDS, hasLineOfSight, INTERACT_RANGE, isWeaponId, mulberry32, packFx, SKILL_IDS, WEAPON_IDS,
+  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, FACTION_IDS, hasLineOfSight, INTERACT_RANGE, isWeaponId, mulberry32, packFx, CARD_IDS, WEAPON_IDS,
   type FxBatch, type FxEvent, type GameMap, type ProjectileLaunch, type Rng, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { CampState, ContainerState, ItemState, MobState, PlayerState, RaidState } from "@raid/shared/schema";
@@ -27,8 +27,8 @@ export interface PlainPlayer {
   name: string; look: number; bot: boolean; x: number; y: number; facing: number; hp: number; maxHp: number; status: string;
   faction: string; weapon0: string; weapon1: string; slot: number; moveSeq: number; attackTarget: string; drawStartedAt: number;
   readyAt: number; kills: number; gv: number; bounty: number; immuneUntil: number; sig: number; brand: number; mobKills: number;
-  /** Buff stacks by mob type (the build strip): only the bot's own are ever read. */
-  buffs: Map<string, number>;
+  /** The cards held, id -> count (the build strip): only the bot's own are ever read. */
+  build: Map<string, number>;
   /** The stat mirrors in their wire form: multipliers are uint16 thousandths (1000 = x1), flats int16 tenths. */
   asMult: number; windupMult: number; speedMult: number; armorBonus: number;
   shieldBonus: number; barrier: number;
@@ -68,7 +68,7 @@ export function plainPlayer(over: Partial<PlainPlayer> = {}): PlainPlayer {
   return {
     name: "P", look: 0, bot: false, x: 0, y: 0, facing: 0, hp: 500, maxHp: 500, status: "alive", faction: "fire", weapon0: "axe",
     weapon1: "", slot: 0, moveSeq: 0, attackTarget: "", drawStartedAt: 0, readyAt: 0, kills: 0, gv: 0, bounty: 0, immuneUntil: 0, sig: 0,
-    brand: 0, mobKills: 0, buffs: new Map(), asMult: 1000, windupMult: 1000, speedMult: 1000, armorBonus: 0, shieldBonus: 0,
+    brand: 0, mobKills: 0, build: new Map(), asMult: 1000, windupMult: 1000, speedMult: 1000, armorBonus: 0, shieldBonus: 0,
     barrier: 0, ...over,
   };
 }
@@ -110,10 +110,10 @@ export function toSchemaState(p: PlainState): RaidState {
   s.winner = p.winner;
   s.training = p.training;
   for (const [id, src] of p.players) {
-    const { effects: _effects, buffs, ...fields } = src;
+    const { effects: _effects, build, ...fields } = src;
     const ps = new PlayerState();
     Object.assign(ps, fields);
-    for (const [buff, stacks] of buffs) ps.buffs.set(buff, stacks);
+    for (const [card, count] of build) ps.build.set(card, count);
     s.players.set(id, ps);
   }
   for (const [id, src] of p.mobs) {
@@ -234,9 +234,9 @@ function ringPoint(rng: Rng, self: Vec2): Vec2 {
 
 const randomWeapon = (rng: Rng): WeaponId => pick(rng, WEAPON_IDS);
 
-/** Three buffs held at random stacks (up to `max`): what a player's build strip shows, and nothing a bot may read of another. */
-function randomBuffs(rng: Rng, max: number): Map<string, number> {
-  return new Map([["emberImp", range(rng, 0, max)], ["plagueRat", range(rng, 0, max)], ["cinderHound", range(rng, 0, max)]]);
+/** Three cards held at random counts (up to `max`): what a player's build strip shows, and nothing a bot may read of another. */
+function randomCards(rng: Rng, max: number): Map<string, number> {
+  return new Map([["ad1", Math.floor(range(rng, 0, max + 1))], ["haste2", Math.floor(range(rng, 0, max + 1))], ["fleet1", Math.floor(range(rng, 0, max + 1))]]);
 }
 
 function randomPlayer(rng: Rng, name: string, at: Vec2, t: number): PlainPlayer {
@@ -249,7 +249,7 @@ function randomPlayer(rng: Rng, name: string, at: Vec2, t: number): PlainPlayer 
     readyAt: t + Math.round(range(rng, -300, 900)), kills: Math.floor(rng() * 4), gv: Math.floor(rng() * 90),
     bounty: chance(rng, 0.25) ? 10 * Math.floor(1 + rng() * 4) : 0, immuneUntil: chance(rng, 0.2) ? t + 800 : 0,
     sig: Math.floor(rng() * 16), brand: 5 * Math.floor(rng() * 6), mobKills: Math.floor(rng() * 9),
-    buffs: randomBuffs(rng, 4), asMult: Math.round(range(rng, 1000, 1400)), speedMult: Math.round(range(rng, 1000, 1300)),
+    build: randomCards(rng, 4), asMult: Math.round(range(rng, 1000, 1400)), speedMult: Math.round(range(rng, 1000, 1300)),
     barrier: chance(rng, 0.2) ? range(rng, 10, 120) : 0, look: Math.floor(rng() * 1e6), bot: chance(rng, 0.5),
   });
 }
@@ -327,7 +327,7 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   }
   const me = plainPlayer({
     name: `Self_${seed}`, x: start.x, y: start.y, faction: pick(rng, FACTION_IDS), weapon0: randomWeapon(rng), weapon1: randomWeapon(rng),
-    hp: 420, maxHp: 500, buffs: new Map([["emberImp", 1.25], ["plagueRat", 0.5]]), kills: 1, gv: 12, asMult: 1100, readyAt: T0 + 300, attackTarget: "p1", bot: true,
+    hp: 420, maxHp: 500, build: new Map([["ad1", 2], ["haste2", 1]]), kills: 1, gv: 12, asMult: 1100, readyAt: T0 + 300, attackTarget: "p1", bot: true,
   });
   if (statusEffects) {
     base.get("h1")!.effects = 256;
@@ -357,7 +357,7 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   // within pick range and in sight. Two out of range all along (one on screen, one far) for the perturbations; one in reach of every
   // self (if the walls allow a spot) for the brain to pick at. A stream of their own, so the scenario above is the one it always was.
   const crng = mulberry32(seed * 104729 + 7);
-  const cards = (): string[] => Array.from({ length: 3 }, () => pick(crng, SKILL_IDS));
+  const cards = (): string[] => Array.from({ length: 3 }, () => pick(crng, CARD_IDS));
   const reward = (id: string, at: Vec2): PlainContainer =>
     plainContainer({
       id, kind: "reward", x: at.x, y: at.y, camp: 1 + Math.floor(crng() * 5), expiresAt: T0 + CHEST_SECONDS * 1000 + 40_000,
@@ -412,8 +412,9 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
     if (chance(rng, 0.3)) events.push({ kind: "hit", id: "p3", by: "p2", amount: 4.2, weapon: null, sig: "burn" });
     if (chance(rng, 0.2)) events.push({ kind: "block", id: "p3", by: "f3", weapon: "bow" });
     if (chance(rng, 0.3)) events.push({ kind: "heal", id: "p2", amount: pick(rng, [0.4, 6.3]) });
-    if (chance(rng, 0.2)) events.push({ kind: "buff", id: "p1", buff: "plagueRat", stacks: 0.734, total: 2.41 });
-    if (chance(rng, 0.2)) events.push({ kind: "buff", id: "me", buff: "emberImp", stacks: 0.5, total: 1.75 });
+    // The retired buff fx used to be rolled here (two draws): they stay, so every scenario keeps the shape it had.
+    chance(rng, 0.2);
+    chance(rng, 0.2);
     if (chance(rng, 0.15)) events.push({ kind: "stagger", id: "m1" });
     if (chance(rng, 0.15)) events.push({ kind: "cancel", id: "p1" });
     if (statusEffects && chance(rng, 0.5)) events.push({ kind: "windup", by: "h1", weapon: "wand", a: 0.5, ms: 400 });
@@ -595,7 +596,7 @@ export const PERTURBATIONS: readonly Perturbation[] = [
         for (const id of [...s.roles.onscreenPlayers, ...(s.roles.hidden.length > 0 ? ["u1"] : [])]) {
           const p = f.state.players.get(id)!;
           if (p.slot === 1) p.weapon0 = randomWeapon(rng); else p.weapon1 = chance(rng, 0.2) ? "" : randomWeapon(rng);
-          p.buffs = randomBuffs(rng, 9);
+          p.build = randomCards(rng, 9);
           p.kills = Math.floor(rng() * 9); p.gv = Math.floor(rng() * 500); p.mobKills = Math.floor(rng() * 30);
           p.readyAt = Math.round(range(rng, 0, 300_000)); p.attackTarget = pick(rng, ["", "me", "p2", "m1", "f1"]);
           p.moveSeq = Math.floor(rng() * 256); p.look = Math.floor(rng() * 2 ** 31);
@@ -644,7 +645,7 @@ export const PERTURBATIONS: readonly Perturbation[] = [
     apply(s, rng) {
       const ids = s.roles.rewardChests ?? [];
       const who = ["", "p1", "p2", "f1", "f3"];
-      const cards = new Map(ids.map((id) => [id, Array.from({ length: 3 }, () => pick(rng, SKILL_IDS))]));
+      const cards = new Map(ids.map((id) => [id, Array.from({ length: 3 }, () => pick(rng, CARD_IDS))]));
       const taken = new Map(ids.map((id) => [id, Array.from({ length: 3 }, () => pick(rng, who))]));
       const pickers = new Map(ids.map((id) => [id, who.slice(1).filter(() => chance(rng, 0.5))]));
       const camp = new Map(ids.map((id) => [id, 1 + Math.floor(rng() * 5)]));
@@ -666,7 +667,7 @@ export const PERTURBATIONS: readonly Perturbation[] = [
     },
   },
   {
-    name: "fx off screen: blows, casts, heals, buffs, deaths, launches and stops nobody here can see",
+    name: "fx off screen: blows, casts, heals, deaths, launches and stops nobody here can see",
     apply(s, rng) {
       const selves = selvesOf(s);
       const far = [...s.roles.farPlayers, ...s.roles.farMobs];
@@ -679,7 +680,7 @@ export const PERTURBATIONS: readonly Perturbation[] = [
           { kind: "hit", id: subject(), by: null, amount: 3, weapon: null, sig: "disease" },
           { kind: "block", id: subject(), by: subject(), weapon: "sword" },
           { kind: "heal", id: subject(), amount: 9 },
-          { kind: "buff", id: subject(), buff: "cinderHound", stacks: 1.1, total: 3.3 },
+          { kind: "heal", id: subject(), amount: 3 }, // where the retired buff fx stood: one more roll of the 0.7 filter below
           { kind: "stagger", id: subject() },
           { kind: "cancel", id: subject() },
           { kind: "death", id: pick(rng, ["fm1", "fm2", "fm3"]), ...farPoint(rng, s.map, [selves[k]!]), by: subject() },

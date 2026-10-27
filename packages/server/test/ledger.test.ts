@@ -55,7 +55,7 @@ function arena(fighters: Fighter[], orderSalt?: number): World {
     seed: SEED,
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
-      suddenDeathSeconds: 3600,
+      suddenDeathSeconds: 3600, pvpRules: false,
     },
     random: mulberry32(SEED + 1),
   }, { signatures: false });
@@ -221,9 +221,9 @@ describe("all the hits of a tick land at once", () => {
   });
 
   it("compares hp fractions, not hp: the smaller pool at a higher fraction wins", () => {
-    const { results } = mutual(500, 630); // Fire 500 of 500 against Sentenced 630 of 700: more hp, lower fraction
-    expect(results.a).toMatchObject({ outcome: "won" });
-    expect(results.b).toMatchObject({ outcome: "died" });
+    const { results } = mutual(720, 700); // Fire 720 of 835 against Sentenced 700 of 800: more hp, lower fraction
+    expect(results.b).toMatchObject({ outcome: "won" });
+    expect(results.a).toMatchObject({ outcome: "died" });
   });
 
   it("calls an exact tie a draw: both share place 1, nobody is the winner", () => {
@@ -384,10 +384,10 @@ describe("mitigation", () => {
   // Armor cuts the physical share, shield the magic share, true none: each as 1 / (1 + stat / 100).
   it("cuts the physical share by armor, the magic share by shield, and true damage by neither, for every faction", () => {
     const expected: Record<FactionId, { physical: number; magic: number }> = {
-      fire: { physical: 100, magic: 100 / 2.25 }, // armor 0, shield 125
-      sentenced: { physical: 100 / 2, magic: 100 / 1.5 }, // armor 100, shield 50
-      plague: { physical: 100 / 3, magic: 100 }, // armor 200, shield 0
-      frost: { physical: 100 / 2, magic: 100 / 2 }, // armor 100, shield 100
+      fire: { physical: 100, magic: 100 / 1.45 }, // armor 0, shield 45
+      sentenced: { physical: 100 / 2.25, magic: 100 / 3.1 }, // armor 125, shield 210
+      plague: { physical: 100 / 2.9, magic: 100 }, // armor 190, shield 0
+      frost: { physical: 100 / 1.2, magic: 100 / 2.9 }, // armor 20, shield 190
       holy: { physical: 100, magic: 100 / 3.5 }, // armor 0, shield 250
     };
     for (const [victim, want] of Object.entries(expected) as Array<[FactionId, { physical: number; magic: number }]>) {
@@ -399,7 +399,7 @@ describe("mitigation", () => {
 
   it("splits a mixed packet by its shares", () => {
     const shares: DamageShares = { phys: 0.5, magic: 0.25, true: 0.25 };
-    expect(lost("sentenced", shares)).toBeCloseTo(100 * (0.5 / 2 + 0.25 / 1.5 + 0.25), 9);
+    expect(lost("sentenced", shares)).toBeCloseTo(100 * (0.5 / 2.25 + 0.25 / 3.1 + 0.25), 9);
   });
 
   it("agrees with the faction damage law for a real faction's packet", () => {
@@ -415,7 +415,7 @@ describe("mitigation", () => {
       hit(w, "v", "y", 100, { shares: MAGIC });
       hit(w, "v", "x", 100, { shares: TRUE });
     });
-    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(100 / 2 + 100 / 1.5 + 100, 9);
+    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(100 / 2.25 + 100 / 3.1 + 100, 9);
   });
 });
 
@@ -423,7 +423,7 @@ describe("scale", () => {
   it("multiplies the raw damage before the damage law", () => {
     const w = arena([fighter("v", "sentenced"), fighter("x")]);
     inStep(w, () => hit(w, "v", "x", 100, { scale: 0.5 }));
-    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(25, 9);
+    expect(FACTIONS.sentenced.hp - P(w, "v").hp).toBeCloseTo(50 / 2.25, 9); // 100 x 0.5, then Sentenced's armor 125
   });
 
   it("makes a scale-0 entry deal nothing: no hp, no hit fx, no credit, no lastHit", () => {
@@ -455,8 +455,8 @@ describe("the hit fx", () => {
       hit(w, "v", "x", 50, { shares: TRUE, weapon: "bow" });
     });
     expect(fxOf(events, "hit")).toEqual([
-      { kind: "hit", id: "v", by: "x", amount: expect.closeTo(50, 9), weapon: "sword" },
-      { kind: "hit", id: "v", by: "y", amount: expect.closeTo(100 / 1.5, 9), weapon: "wand" },
+      { kind: "hit", id: "v", by: "x", amount: expect.closeTo(100 / 2.25, 9), weapon: "sword" },
+      { kind: "hit", id: "v", by: "y", amount: expect.closeTo(100 / 3.1, 9), weapon: "wand" },
       { kind: "hit", id: "v", by: "x", amount: expect.closeTo(50, 9), weapon: "bow" },
     ]);
   });

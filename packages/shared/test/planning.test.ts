@@ -136,6 +136,8 @@ describe("matchupShare (moved here from the bots for the planning screen)", () =
     for (const me of FACTION_IDS) for (const region of FACTION_IDS) {
       expect(matchupShare(me, region, true)).toBeLessThanOrEqual(matchupShare(me, region, false));
     }
-    expect(matchupShare("fire", "holy", true)).toBe(0);
+    // The compressed sheet (balance pass) leaves no pair a flat loss against an elite; the hardest is a Fire against a Frost elite.
+    expect(matchupShare("fire", "frost", true)).toBeLessThan(0.4);
+    expect(matchupShare("fire", "frost", true)).toBeGreaterThan(0);
   });
 });

@@ -9,7 +9,8 @@ A weapon is a % boost on the faction's base attack speed:
 
 Everything else is the v2 rule package from the counter review: normalized backlash per enemy swing
 (backlash x foe.rate x foe interval), signature bonus x weapon.dps, chill stretches cooldown progress per tick,
-bonus/chill clocks from first contact, float HP, cooldown remainders carry.
+bonus/chill clocks from first contact, float HP, cooldown remainders carry. Each signature part is mitigated with its own
+damage type (engine.PowerSpec.sig_types: burn and disease magic, backlash physical, the mark true).
 
 Not modelled by `duel`: geometry beyond a fixed approach time, projectile flight, stagger, windups, roots and buffs other
 than HP, attack speed and an outgoing damage multiplier (Side.dps scales the weapon hit and the signature bonus alike).
@@ -19,7 +20,9 @@ pair is swept (numpy arrays of shape (P,)).
 The kite check is the exception: it needs geometry. Every attack roots its fighter for a windup (the controls rework: the
 old ranged move slows are gone) and a fighter walks at full speed between attacks, so a shooter can orb-walk away from a
 melee chaser, who only closes the gap while the shooter is rooted. `orbwalk_free_fire` is a small kinematic model of that,
-`kite_tolerance` the duel model's side of it (how late the melee winner may arrive), `kite_rows` both.
+`kite_tolerance` the duel model's side of it (how late the melee winner may arrive), `kite_rows` both. The balance pass judges
+the check differently (test_kite.py): a perfect orb-walking underdog must win at most 65% under the noise model, i.e.
+`kite_ratio`'s r_kite = r x (1 - free fire / T) >= 0.78, with `flip_multiplier` (r) and `kill_time` (T) its model figures.
 
 What-if file (JSON, optional): {"name": str, "factions": {Name: {rate, hit, params: {...}}}, "weapons": {w: {...}}}.
 Call load(path) before using BY/WEAPONS.
@@ -55,6 +58,9 @@ WEAPONS = {
     "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.92),
     "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.40, wshare=0.80),
     "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True,  windup=0.10, wshare=1.00),
+    # The empty hand (balance pass D3): the fastest melee, a weak hit. Not one of the five loop weapons (MELEE / RANGED / SIG
+    # below leave it out: nobody picks it, a run starts on it), but every pairing is still modelled.
+    "fists":  dict(speed=1.50, dps=0.60, floor=0.20, rng=40,  melee=True,  windup=0.10, wshare=1.00),
 }
 WNAMES = list(WEAPONS)
 MELEE = ["sword", "axe", "shield"]
@@ -162,6 +168,10 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
     hp = [np.full(P, s.maxhp) for s in sides]
     mx = [s.maxhp for s in sides]
     mit = [mitigate(1.0, a.spec, b.spec), mitigate(1.0, b.spec, a.spec)]
+    # Signature parts carry their own damage type (D6: burn and disease magic, backlash physical, the mark true): each part
+    # is mitigated on its own, as sim/factions.ts records it with SIGNATURE_SHARES.
+    pmit = [{part: mitigate(1.0, s.spec, o.spec, s.spec.sig_types.get(part)) for part in ("burn", "backlash", "disease", "mark")}
+            for s, o in ((a, b), (b, a))]
     hitraw = [s.hit_raw for s in sides]
     alive = np.ones(P, bool)
     win = np.full(P, -1, int)
@@ -185,20 +195,19 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
         dealt, heal = [], []
         for i in (0, 1):
             s, o = sides[i], sides[1 - i]
-            raw = swing[i] * hitraw[i]
+            d = swing[i] * hitraw[i] * mit[i]
             if t + EPS >= s.fx_start:
                 p = s.spec.params
                 mech = s.spec.mechanic
                 bm = s.bonus_mult
                 if mech == "dragonslayer":
                     per = p["backlash"] * o.spec.rate * interval(o.spec, o.weapon)
-                    raw = raw + bm * (p["burn"] * DT + per * swing[1 - i])
+                    d = d + bm * (p["burn"] * DT * pmit[i]["burn"] + per * swing[1 - i] * pmit[i]["backlash"])
                 elif mech == "rat_king":
                     foe = np.maximum(hp[1 - i], 0) / mx[1 - i]
-                    raw = raw + bm * (p["plague"] + p["execute"] * np.maximum(0.0, 0.5 - foe)) * DT
+                    d = d + bm * (p["plague"] + p["execute"] * np.maximum(0.0, 0.5 - foe)) * DT * pmit[i]["disease"]
                 elif mech == "marked":
-                    raw = raw + bm * min(p["mark_cap"], p["mark_ramp"] * (t - s.fx_start)) * DT
-            d = raw * mit[i]
+                    d = d + bm * min(p["mark_cap"], p["mark_ramp"] * (t - s.fx_start)) * DT * pmit[i]["mark"]
             dealt.append(d)
             if s.spec.sustain == "radiant" and s.lifesteal:
                 p = s.spec.params
@@ -212,8 +221,12 @@ def duel(a: Side, b: Side, sub=1, nmax=None, t_max=400.0, track_gap=None):
                 g = np.where(np.isnan(last[i]), 0.0, t - last[i])
                 gap[i] = np.where(ev, np.maximum(gap[i], g), gap[i])
                 last[i] = np.where(ev, t, last[i])
-        n0 = np.minimum(mx[0], hp[0] - dealt[1] + heal[0])
-        n1 = np.minimum(mx[1], hp[1] - dealt[0] + heal[1])
+        # Damage first, then the heal, as the sim orders it (applyLedger, then the lifesteal system): a fighter the tick's damage
+        # takes to 0 is dead, whatever it healed in the same tick. (Netting the two let a Holy survive a blow its own hit healed.)
+        pre0 = hp[0] - dealt[1]
+        pre1 = hp[1] - dealt[0]
+        n0 = np.where(pre0 <= 0, pre0, np.minimum(mx[0], pre0 + heal[0]))
+        n1 = np.where(pre1 <= 0, pre1, np.minimum(mx[1], pre1 + heal[1]))
         hp[0] = np.where(alive, n0, hp[0])
         hp[1] = np.where(alive, n1, hp[1])
         d0, d1 = hp[0] <= 0, hp[1] <= 0
@@ -310,6 +323,48 @@ def kite_tolerance(a, wa, b, wb, hi=90.0, nmax=50, as_mult=1.0, dmg=1.0):
         else:
             hi = mid
     return lo
+
+
+def flip_multiplier(a, wa, b, wb, as_mult=1.0, dmg=1.0, lo=0.1, hi=32.0, nmax=50):
+    """r, the flip multiplier of the kite check (balance pass, BALANCE_CONTRACT 5.4): the smallest multiplier on the ranged loser
+    b's damage (weapon and signature alike, on top of `dmg`) with which it beats the melee winner a (holding wa) at least half the
+    time in the standing duel, both firing from the start. With constant rates r is the ratio of the loser's time to kill to the
+    winner's, and the favourite's hp left h = 1 - 1/r. `lo` / `hi` bound the search (the answer is clamped to them)."""
+    def under_wins(m):
+        r = duel(Side(BY[a], wa), shooter_side(b, wb, as_mult, dmg * m), nmax=nmax)
+        return edge_stats(r)["rate"] < 0.5
+
+    if under_wins(lo):
+        return lo
+    if not under_wins(hi):
+        return hi
+    while hi / lo > 1.002:
+        mid = math.sqrt(lo * hi)
+        if under_wins(mid):
+            hi = mid
+        else:
+            lo = mid
+    return math.sqrt(lo * hi)
+
+
+def kill_time(b, wb, a, wa, as_mult=1.0, dmg=1.0, nmax=50):
+    """T, the time the ranged loser b (holding wb) needs to kill the melee winner a (holding wa) in the same model when a does
+    no damage at all (its swings, and so Fire's backlash on them, still happen): the median over the phase grid. a's own damage
+    would end the duel first; this is what b's damage alone takes."""
+    r = duel(shooter_side(b, wb, as_mult, dmg), Side(BY[a], wa, dps=0.0), nmax=nmax)
+    return float(np.median(r["t"]))
+
+
+def kite_ratio(a, wa, b, wb, as_mult=1.0, dmg=1.0, windup_mult=1.0, nmax=50):
+    """The kite check's figures for one cell: r (flip_multiplier), T (kill_time), F (orbwalk_free_fire: the seconds a perfect
+    orb-walking shooter fires before the chaser arrives) and r_kite = r x (1 - F / T), the flip multiplier the shooter needs once
+    the unanswered fire has been paid: the free fire shortens the shooter's work by F of its T seconds. inf free fire (the
+    chaser never arrives) is r_kite = -inf."""
+    r = flip_multiplier(a, wa, b, wb, as_mult, dmg, nmax=nmax)
+    t = kill_time(b, wb, a, wa, as_mult, dmg, nmax=nmax)
+    f = orbwalk_free_fire(b, wb, a, as_mult=as_mult, windup_mult=windup_mult)
+    r_kite = -math.inf if f == math.inf else r * (1.0 - f / t)
+    return dict(r=r, T=t, F=f, r_kite=r_kite)
 
 
 def kite_tolerances(as_mult=1.0, dmg=1.0):

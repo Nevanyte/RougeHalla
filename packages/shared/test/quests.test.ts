@@ -1,6 +1,7 @@
 // The quest catalog, reward maths and contract-driven placement. Dense seeds 7829/10760 pin the placement fallbacks.
 import { beforeAll, describe, expect, it } from "vitest";
-import { buffDef, buffText, rewardCurve } from "../src/buffs";
+import { cardDef, cardText, cardTitle } from "../src/cards";
+import { rewardCurve } from "../src/rules";
 import {
   QUEST_COUNT, QUEST_FETCH_MIN_TILES, QUEST_GV_CAP, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES,
   QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_HEAD_START_MS, QUEST_REVEAL_RADIUS, QUEST_UNKNOWN_COUNT, TILE,
@@ -14,8 +15,9 @@ import { mulberry32 } from "../src/rng";
 import { QuestState, RaidState } from "../src/schema";
 import { TERRAIN_NONE, terrainAt } from "../src/terrain";
 import {
-  npcCandidates, parityGv, parityStacks, placeQuests, QUEST_DEFS, questDefById, questRewardStacks,
-  questRewardText, selectQuests, spreadSpots, type QuestPlacement, type RosterEntry,
+  CAMP_SECONDS, CARD_TIER_RATE, npcCandidates, parityGv, placeQuests, QUEST_DEFS, QUEST_FEED_BRAKE, questBase, questDefById,
+  questRewardCard, questRewardText, questTier, questTierPoints, selectQuests, spreadSpots, STACK_PREMIUM, type QuestPlacement,
+  type RosterEntry,
 } from "../src/quests";
 
 describe("the catalog", () => {
@@ -29,45 +31,75 @@ describe("the catalog", () => {
     expect(questDefById("nope")).toBeUndefined();
   });
 
-  it("pays every reward inside the time-parity band of its objective and travel (a player kill has no mob parity)", () => {
+  /** BALANCE_CONTRACT 8.4's table: quest -> [tier points, card, GV]. The points are the rule's, the card is the catalog's. */
+  const CONTRACT_TABLE: Record<string, [number, string, number]> = {
+    "cull-fire": [1.94, "ad2", 10], "cull-sentenced": [1.94, "ad2", 10], "cull-plague": [1.94, "haste2", 10], "cull-frost": [2.13, "vitality2", 11],
+    "elite-hunt": [1.42, "ap1", 7], "headhunter": [0, "ad1", 5], "grand-tour": [2.46, "fleet2", 13], "bloom-plague": [1.46, "haste1", 8],
+    "shards-frost": [1.46, "armor1", 8], "ashcap-fire": [1.46, "mr1", 8], "chains-sentenced": [1.46, "ap1", 8], "tithe-holy": [1.46, "ap1", 8],
+    "cache": [1.81, "haste2", 10], "tithe-rim": [2.23, "vitality2", 12], "banner-fire": [1.55, "fleet2", 8], "banner-frost": [1.55, "vitality2", 8],
+    "banner-plague": [1.55, "haste2", 8], "banner-sentenced": [1.55, "ad2", 8], "banner-holy": [1.55, "leech2", 8], "long-haul": [2.2, "haste2", 12],
+  };
+
+  it("pays the card the tier rule says: points = (objSec + 0.4 x travelSec) / 48 x 1.35 x 1.15, tier = round clamped to 1-3, a player kill at tier 1", () => {
+    expect([CAMP_SECONDS, CARD_TIER_RATE, STACK_PREMIUM, QUEST_FEED_BRAKE]).toEqual([48, 1.35, 1.15, 0.65]);
+    for (const d of QUEST_DEFS) {
+      const want = d.players ? 1 : Math.max(1, Math.min(3, Math.round(questTierPoints(d.objSec, d.travelSec))));
+      expect(questTier(d), d.id).toBe(want);
+      const card = cardDef(d.reward.card);
+      expect(card, d.id).toBeDefined();
+      expect(card!.kind, d.id).toBe("base");
+      expect(card!.tier, `${d.id} pays ${d.reward.card}`).toBe(want);
+      expect(card!.ready, d.id).toBe("a");
+      expect(questBase(d), d.id).toBe(card!.base);
+      if (d.region) expect(d.farZone, d.id).toBe(d.region);
+    }
+  });
+
+  it("matches the contract's table of twenty rows, points and GV included", () => {
+    expect(Object.keys(CONTRACT_TABLE).sort()).toEqual(QUEST_DEFS.map((d) => d.id).sort());
+    for (const d of QUEST_DEFS) {
+      const [points, card, gv] = CONTRACT_TABLE[d.id]!;
+      expect(d.reward.card, d.id).toBe(card);
+      expect(d.reward.gv, d.id).toBe(gv);
+      if (!d.players) expect(Math.round(questTierPoints(d.objSec, d.travelSec) * 100) / 100, d.id).toBeCloseTo(points, 2);
+    }
+  });
+
+  it("keeps every GV amount inside the time-parity band of its objective and travel (a player kill has no mob parity)", () => {
     for (const d of QUEST_DEFS) {
       if (d.players) continue;
-      const stacks = parityStacks(d.objSec, d.travelSec);
       const gv = parityGv(d.objSec, d.travelSec);
-      expect(d.reward.stacks / stacks, `${d.id} stacks`).toBeGreaterThanOrEqual(0.7);
-      expect(d.reward.stacks / stacks, `${d.id} stacks`).toBeLessThanOrEqual(1.35);
       expect(d.reward.gv / gv, `${d.id} gv`).toBeGreaterThanOrEqual(0.7);
       expect(d.reward.gv / gv, `${d.id} gv`).toBeLessThanOrEqual(1.35);
     }
   });
 
-  it("pays a real, currently applicable buff from each quest's far zone", () => {
-    for (const d of QUEST_DEFS) {
-      const buff = buffDef(d.reward.buff);
-      expect(buff, d.id).toBeDefined();
-      expect(buff!.zone, d.id).toBe(d.farZone);
-      expect(buff!.needs, `${d.id} reward must not be inert catalog-only text`).toBeUndefined();
-      if (d.region) expect(d.farZone, d.id).toBe(d.region);
-    }
-  });
-
   it("makes nominal reward text useful to both the planning screen and quest log", () => {
     for (const d of QUEST_DEFS) {
-      const buff = buffDef(d.reward.buff)!;
       const text = questRewardText(d);
-      expect(text, d.id).toContain(buff.name);
-      expect(text, d.id).toContain(buffText(buff.id, d.reward.stacks));
+      expect(text, d.id).toContain(cardTitle(d.reward.card));
+      expect(text, d.id).toContain(cardText(d.reward.card));
       expect(text, d.id).toContain(`${d.reward.gv} GV`);
     }
-    expect(questRewardText(questDefById("cull-fire")!)).toBe("7 Ember Imp stacks (+20.7% damage) and 10 GV");
+    expect(questRewardText(questDefById("cull-fire")!)).toBe("Attack Damage II (+21 attack damage) and 10 GV");
+    expect(questRewardText(questDefById("bloom-plague")!)).toBe("Haste I (+9% attack speed) and 8 GV");
   });
 
-  it("scales only the buff stacks through the mob feed curve", () => {
+  it("drops a fed player's card one tier (never below tier 1) once the mob reward curve is under the brake", () => {
     for (const d of QUEST_DEFS) {
-      expect(questRewardStacks(d, 0), d.id).toBeCloseTo(d.reward.stacks * rewardCurve(0), 12);
-      expect(questRewardStacks(d, 12), d.id).toBeCloseTo(d.reward.stacks * rewardCurve(12), 12);
-      expect(questRewardStacks(d, 12), d.id).toBeLessThan(questRewardStacks(d, 0));
+      expect(questRewardCard(d, 0), d.id).toBe(d.reward.card);
+      const tier = cardDef(d.reward.card)!.tier;
+      const fed = questRewardCard(d, 12);
+      expect(rewardCurve(12)).toBeLessThan(QUEST_FEED_BRAKE);
+      expect(cardDef(fed)!.tier, d.id).toBe(Math.max(1, tier - 1));
+      expect(cardDef(fed)!.base, d.id).toBe(cardDef(d.reward.card)!.base);
     }
+    // The brake is the curve at a feed of 5 (0.65): a feed just under it keeps the tier, one just over drops it.
+    const d = questDefById("cull-fire")!;
+    expect(rewardCurve(4.9)).toBeGreaterThanOrEqual(QUEST_FEED_BRAKE);
+    expect(questRewardCard(d, 4.9)).toBe("ad2");
+    expect(rewardCurve(5.1)).toBeLessThan(QUEST_FEED_BRAKE);
+    expect(questRewardCard(d, 5.1)).toBe("ad1");
   });
 
   it("never offers more time than the patience timer would (every quest expires within five minutes)", () => {

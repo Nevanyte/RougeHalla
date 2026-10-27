@@ -64,7 +64,7 @@ function makeWorld(n: number, cfg: { patienceSeconds?: number } = {}): World {
     seed: 7,
     config: {
       minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds, patienceMinSeconds: patienceSeconds,
-      suddenDeathSeconds: 60,
+      suddenDeathSeconds: 60, pvpRules: false,
     },
     random: mulberry32(8),
   });
@@ -186,12 +186,14 @@ beforeEach(() => {
 });
 
 describe("setup", () => {
-  it("gives each joiner the next faction's signature weapon in the first slot and nothing in the second", () => {
+  it("gives each joiner the next faction and both weapon slots empty: a run starts on fists", () => {
     const world = makeWorld(5);
     const defs = [...world.state.players.values()].map((p) => [p.faction, p.weapon0, p.weapon1, p.slot]);
     expect(defs).toEqual([
-      ["fire", "axe", "", 0], ["sentenced", "bow", "", 0], ["plague", "bow", "", 0], ["frost", "shield", "", 0], ["holy", "wand", "", 0],
+      ["fire", "", "", 0], ["sentenced", "", "", 0], ["plague", "", "", 0], ["frost", "", "", 0], ["holy", "", "", 0],
     ]);
+    for (const p of world.state.players.values()) expect(activeWeapon(p)).toBe("fists");
+    // The signature weapons are the design's reference weapons, not what anybody starts with.
     expect(SIGNATURE_WEAPONS.fire).toBe("axe");
   });
 
@@ -328,13 +330,18 @@ describe("the trigger and the shared cooldown", () => {
     expect(landed).toHaveLength(1);
   });
 
-  it("a fighter with an empty hand never attacks", () => {
+  it("a fighter with an empty hand attacks with fists: a 0.1 s windup that lands as a swing, then the fists' cadence", () => {
     const world = startRun();
     arm(world, 0, "fire", "");
     press(world);
     run(world, 20);
-    expect(fxOf("windup")).toHaveLength(0);
-    expect(P(world).readyAt).toBe(0);
+    const windups = fxOf("windup");
+    expect(windups.length).toBeGreaterThan(1);
+    expect(windups.every((w) => w.weapon === "fists")).toBe(true);
+    // Fire's fists: interval 1 / (rate x 2.5) at duel pace, the swing lands weaponTimings' 0.1 s after each start.
+    expect(landed[0]!.at - windups[0]!.at).toBe(ceilTick(timings("fire", "fists").windup * 1000));
+    expect(landed[0]!.req.weapon).toBe("fists");
+    expect(windups[1]!.at - windups[0]!.at).toBe(ceilTick(intervalMs("fire", "fists")));
   });
 });
 
@@ -706,19 +713,29 @@ describe("swapping", () => {
     expect(P(world).slot).toBe(0);
   });
 
-  it("to the slot already in hand, or to an empty slot, is ignored: no cooldown, no hook", () => {
+  it("to the slot already in hand is ignored: no cooldown, no hook", () => {
     const world = start();
     swap(world, 0, 0);
     tick(world);
     expect(P(world).slot).toBe(0);
     expect(P(world).readyAt).toBe(0);
+    expect(swapped).toHaveLength(0);
+  });
+
+  it("to an empty slot is allowed: the hand then fights on fists, and the swap costs the swap time like any other", () => {
+    const world = start();
     P(world).weapon1 = "";
     swap(world);
-    swap(world, 0, 1);
+    tick(world);
+    expect(P(world).slot).toBe(1);
+    expect(activeWeapon(P(world))).toBe("fists");
+    expect(P(world).readyAt).toBeGreaterThan(0);
+    expect(swapped).toEqual([{ id: "p0", slot: 1 }]);
+    swap(world, 0, 0);
     tick(world);
     expect(P(world).slot).toBe(0);
-    expect(P(world).readyAt).toBe(0);
-    expect(swapped).toHaveLength(0);
+    expect(activeWeapon(P(world))).toBe("sword");
+    expect(swapped).toHaveLength(2);
   });
 
   it("a fighter with nothing in either slot can't swap", () => {
@@ -1286,7 +1303,7 @@ describe("stagger", () => {
     expect(stagger(world, C(world))).toBe(true);
     expect(RT(world).weapon.action).toBeNull();
     expect(P(world).readyAt).toBe(ready);
-    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + 500);
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + STAGGER_IMMUNITY_SECONDS * 1000);
     expect(world.events.some((e) => e.type === "fx" && e.fx.kind === "stagger" && e.fx.id === "p0")).toBe(true);
     run(world, 10);
     expect(landed).toHaveLength(0);
@@ -1345,7 +1362,8 @@ describe("stagger", () => {
   });
 
   it("is ignored for STAGGER_IMMUNITY_SECONDS after a stagger, then works again", () => {
-    expect(STAGGER_IMMUNITY_SECONDS).toBe(0.5);
+    expect(STAGGER_IMMUNITY_SECONDS).toBe(1.1);
+    const imm = STAGGER_IMMUNITY_SECONDS * 1000;
     const world = startRun();
     arm(world, 0, "frost", "sword");
     expect(stagger(world, C(world))).toBe(true);
@@ -1355,12 +1373,12 @@ describe("stagger", () => {
     expect(RT(world).weapon.action).not.toBeNull();
     expect(stagger(world, C(world))).toBe(false); // immune: the swing is not cancelled
     expect(RT(world).weapon.action).not.toBeNull();
-    runTo(world, first + 450);
+    runTo(world, first + imm - TICK_MS);
     expect(stagger(world, C(world))).toBe(false);
-    expect(RT(world).weapon.staggerImmuneUntil).toBe(first + 500);
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(first + imm);
     tick(world);
     expect(stagger(world, C(world))).toBe(true);
-    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + 500);
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + imm);
     tick(world);
     // The swing had landed by then, so none of the three found a windup to cancel: no marks (see the next test).
     expect(fxOf("stagger")).toHaveLength(0);
@@ -1375,7 +1393,7 @@ describe("stagger", () => {
     tick(bow);
     expect(RT(bow).weapon.action?.kind).toBe("draw");
     expect(stagger(bow, C(bow))).toBe(true); // still starts the immunity ...
-    expect(RT(bow).weapon.staggerImmuneUntil).toBe(T(bow) + 500);
+    expect(RT(bow).weapon.staggerImmuneUntil).toBe(T(bow) + STAGGER_IMMUNITY_SECONDS * 1000);
     expect(marks(bow)).toBe(0); // ... but nothing was interrupted, so there is no mark
 
     const idle = startRun();

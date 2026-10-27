@@ -71,8 +71,19 @@ describe("WeaponBar keycaps", () => {
     expect(first!.byClass("wb-name")[0]!.textContent).toBe("Sword");
     expect(second!.byClass("wb-name")[0]!.textContent).toBe("Bow");
     bar.update(me({ weapon0: "sword", weapon1: "", slot: 0 }), 0, 0, null);
-    expect(second!.byClass("wb-name")[0]!.textContent).toBe("Empty");
+    // An empty slot fights with fists, so it says so (dimmed, but named).
+    expect(second!.byClass("wb-name")[0]!.textContent).toBe("Fists");
     expect(second!.classes.has("empty")).toBe(true);
+    expect(first!.classes.has("empty")).toBe(false);
+  });
+
+  it("names both slots Fists on a fresh run (a run starts with both slots empty)", () => {
+    const { bar, root } = setup();
+    bar.update(me({ weapon0: "", weapon1: "", slot: 0 }), 0, 0, null);
+    const slots = root.byClass("wb-slot");
+    expect(slots.map((s) => s.byClass("wb-name")[0]!.textContent)).toEqual(["Fists", "Fists"]);
+    expect(slots.map((s) => s.classes.has("empty"))).toEqual([true, true]);
+    expect(slots[0]!.classes.has("active")).toBe(true);
   });
 });
 
@@ -87,6 +98,14 @@ describe("WeaponBar pickup hint", () => {
     expect(hint.hidden).toBe(false);
     expect(hintText.textContent).toBe("take Axe");
     expect(hint.allText).toBe("Ftake Axe");
+  });
+
+  it("says take, not swap, with an empty hand or a free slot (a pickup arms the empty hand)", () => {
+    const { bar, hintText } = setup();
+    bar.update(me({ weapon0: "", weapon1: "", slot: 0 }), 0, 0, "bow");
+    expect(hintText.textContent).toBe("take Bow");
+    bar.update(me({ weapon0: "sword", weapon1: "", slot: 1 }), 0, 0, "bow");
+    expect(hintText.textContent).toBe("take Bow");
   });
 
   it("says swap when both slots are full, naming the weapon in hand", () => {

@@ -120,11 +120,25 @@ describe("weaponTexture and the weapon in hand", () => {
     expect(fk(a.held).state.visible).toBe(true);
   });
 
-  it("hides the weapon when nothing is in hand", () => {
+  it("draws two fists for the empty hand of a fighter with a faction", () => {
+    const { scene, baked } = fakeScene();
+    const art = new FighterArt(scene);
+    art.update(fighter(), 1000, 1000);
+    expect(art.update(fighter({ weapon0: "" }), 1016, 1016)).toBe("fists");
+    expect(fk(art.held).state.visible).toBe(true);
+    const calls = baked.get(String(fk(art.held).state.texture))!.calls;
+    // Two round fists, each filled and outlined, plus the two knuckle highlights.
+    expect(calls.filter(([n]) => n === "strokeCircle")).toHaveLength(2);
+    expect(calls.filter(([n]) => n === "fillCircle")).toHaveLength(4);
+    // The swapped-to empty slot reads the same way.
+    expect(art.update(fighter({ weapon0: "sword", slot: 1 }), 1032, 1032)).toBe("fists");
+  });
+
+  it("hides the weapon when nothing is in hand of a fighter with no faction (a training dummy)", () => {
     const { scene } = fakeScene();
     const art = new FighterArt(scene);
     art.update(fighter(), 1000, 1000);
-    art.update(fighter({ weapon0: "" }), 1016, 1016);
+    expect(art.update(fighter({ weapon0: "", faction: "" }), 1016, 1016)).toBeNull();
     expect(fk(art.held).state.visible).toBe(false);
   });
 });

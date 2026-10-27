@@ -1,6 +1,6 @@
 // Where the J quest log sits. Pure: the overlay's laid-out size (`--ui-w` x `--ui-h`, view/viewport.ts) and the HUD plate's box
-// in, a box out. The plate (status, vitals, arena timer, hint, the buff strip and the passives row) is the one thing on the
-// left that matters, and it grows to about 420 px of buff chips, so the log is placed under its measured bottom edge instead
+// in, a box out. The plate (status, vitals, arena timer, hint and the cards row) is the one thing on the
+// left that matters, and it grows with the cards held, so the log is placed under its measured bottom edge instead
 // of at a fixed top. The rest of the log's neighbourhood: the weapon bar and the toast stack at the bottom centre, the
 // coliseum/sudden-death lines at the top centre, the minimap and the chest panel on the right.
 

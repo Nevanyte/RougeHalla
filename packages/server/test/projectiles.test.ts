@@ -8,19 +8,20 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Decoder, Encoder, getRawChangesCallback, Reflection } from "@colyseus/schema";
 import {
-  BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, MAX_ARROW_REFLECTIONS,
+  ARROW_REFLECT_SHARE, BALL_AFTER_ARROW, BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, MAX_ARROW_REFLECTIONS,
   mitigateShares, mulberry32,
   pacedFaction, PLAYER_SPEED, PROJECTILE_SUBSTEP_MS, RANGED_HIT_REACH, reflectVelocity, SIGNATURE_WEAPONS, SWORD_BALL_SCALE, TICK_MS, TILE,
-  TILE_FLOOR, TILE_WALL, unpackFx, unpackLaunches, WEAPONS, type FactionId, type FxEvent, type GameMap, type ProjectileLaunch,
+  TILE_FLOOR, TILE_WALL, unpackFx, unpackLaunches, WEAPONS, type Effect, type FactionId, type FxEvent, type GameMap, type ProjectileLaunch,
   type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { applyDamage } from "../src/sim/arena";
-import { activeWeapon, standingCombatants, timingsOf } from "../src/sim/combatant";
+import { activeWeapon, combatant, standingCombatants, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger } from "../src/sim/ledger";
 import { addMob } from "../src/sim/mobs";
+import { recomputeMods, setExtraRows } from "../src/sim/mods";
 import { positionAt, recordHistory } from "../src/sim/movement";
 import {
   ballsThisTick, endProjectile, interceptBall, spawnProjectiles, sweepProjectiles,
@@ -122,7 +123,7 @@ function arena(fighters: Fighter[], map: GameMap = openMap()): World {
     seed: SEED,
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
-      suddenDeathSeconds: 3600,
+      suddenDeathSeconds: 3600, pvpRules: false,
     },
     random: mulberry32(SEED + 1),
   }, { signatures: false });
@@ -918,14 +919,16 @@ describe("shield reflection", () => {
     });
     expect(v.vx).toBeCloseTo(-900, 6);
     expect(next).toMatchObject({ kind: "arrow", weapon: "shield", owner: "holder", ownerName: "Holder" });
-    expect(next.packet).toEqual(packet);
+    // The shield returns only ARROW_REFLECT_SHARE of the arrow; the holder takes the rest as a hit.
+    expect(next.packet).toEqual({ ...packet, raw: packet.raw * ARROW_REFLECT_SHARE });
     // It left in the substep of the contact, so its time is on the 10 ms grid inside this tick.
     const tickStart = w.state.serverTime - TICK_MS;
     expect(next.launch.t).toBeGreaterThan(tickStart);
     expect((next.launch.t - tickStart) % 10).toBe(0);
     expect(fxOf(events, "block")).toEqual([{ kind: "block", id: "holder", by: "archer", weapon: "bow" }]);
-    expect(fxOf(events, "hit")).toEqual([]);
-    expect(P(w, "holder").hp).toBe(FACTIONS.frost.hp);
+    const through = hitAmount("sentenced", "bow", "frost") * (1 - ARROW_REFLECT_SHARE);
+    expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "holder", by: "archer", amount: expect.closeTo(through, 9), weapon: "bow" }]);
+    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo(through, 9);
   });
 
   it("mirrors an oblique arrow about the shield's facing, keeps its speed and flies the full bow range from the contact", () => {
@@ -980,7 +983,10 @@ describe("shield reflection", () => {
     expect(reasons).toEqual(["reflected", "reflected", "blocked"]);
     expect(ranges).toEqual([ARROW.range, expect.closeTo(ARROW.range - 172, 6)]);
     expect(flown * TICK_MS).toBeLessThan(2000);
-    expect([P(w, "holder").hp, P(w, "holder2").hp]).toEqual([FACTIONS.frost.hp, FACTIONS.frost.hp]);
+    // Each reflection costs the holder the part it did not return (1 - share) of what the arrow still carries; the block takes nothing more.
+    const full = hitAmount("sentenced", "bow", "frost");
+    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo(full * (1 - ARROW_REFLECT_SHARE), 9);
+    expect(FACTIONS.frost.hp - P(w, "holder2").hp).toBeCloseTo(full * ARROW_REFLECT_SHARE * (1 - ARROW_REFLECT_SHARE), 9);
   });
 
   it("a block of an arrow that was already reflected is passive: it is no attack of the holder that owns it", () => {
@@ -1029,7 +1035,9 @@ describe("shield reflection", () => {
     expect(w.projectiles.size).toBe(0);
     expect(out.reflected).toBeLessThanOrEqual(MAX_ARROW_REFLECTIONS);
     expect(out.ticks).toBeLessThan(20);
-    expect([P(w, "a").hp, P(w, "b").hp]).toEqual([FACTIONS.frost.hp, FACTIONS.frost.hp]);
+    // The two reflections cost the pair share^k x (1 - share) of the arrow each: together 1 - share^reflections of it.
+    const lost = FACTIONS.frost.hp * 2 - P(w, "a").hp - P(w, "b").hp;
+    expect(lost).toBeCloseTo(hitAmount("sentenced", "bow", "frost") * (1 - ARROW_REFLECT_SHARE ** out.reflected), 9);
   });
 
   it("ends every arrow chain quickly from any angle around the overlapping pair (a sweep of the geometry)", () => {
@@ -1058,14 +1066,60 @@ describe("shield reflection", () => {
     const { end, events } = flyUntilEnd(w);
     expect(end).toMatchObject({ reason: "hit" });
     expect(end.x).toBeCloseTo(214, 6);
-    const expected = mitigateShares(packet.raw, packet, FACTIONS.sentenced);
+    const expected = mitigateShares(packet.raw * ARROW_REFLECT_SHARE, packet, FACTIONS.sentenced);
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "archer", by: "holder", amount: expect.closeTo(expected, 9), weapon: "shield" }]);
     expect(FACTIONS.sentenced.hp - P(w, "archer").hp).toBeCloseTo(expected, 9);
-    expect(expected).toBeCloseTo((2.0513 * DUEL_PACE) / (1 + 50 / 100), 3); // sentenced arrows are all magic: only its shield counts
+    expect(expected).toBeCloseTo((4.1026 * DUEL_PACE * ARROW_REFLECT_SHARE) / (1 + 210 / 100), 3); // sentenced arrows are all magic: only its shield counts
+  });
+
+  it("a reflected arrow is returned damage: passive, so a Spiked Shell on the archer does not answer its own arrow (the final review's m1)", () => {
+    const w = arena([archer(archerAt), holder(holderAt), idle()]);
+    P(w, "archer").build.set("spikedShell", 1);
+    recomputeMods(w, combatant(w, "archer")!);
+    loose(w, [{ id: "archer", a: 0 }]);
+    flyUntilEnd(w);
+    const { end } = flyUntilEnd(w);
+    expect(end).toMatchObject({ reason: "hit" });
+    const back = w.combat.landed.filter((h) => h.victim === "archer");
+    expect(back).toHaveLength(1);
+    expect(back[0]).toMatchObject({ by: "holder", weapon: "shield", passive: true });
+    // Not a melee hit taken: nothing queued for the next tick, and the archer's hit does not count as a weapon hit of the holder's.
+    expect(w.combat.deferred).toEqual([]);
+  });
+
+  it("the arrow that hits the first holder's shield again is returned damage too (the second reflection's rest)", () => {
+    const w = arena([archer({ x: 400, y: 320 }), holder({ x: 500, y: 320 }), { ...holder({ x: 300, y: 320 }, 0), id: "holder2" }]);
+    loose(w, [{ id: "archer", a: 0 }]);
+    applyDamage(w, P(w, "archer"), RT(w, "archer"), 5000, "test");
+    const seen: Array<{ by: string; victim: string; passive?: boolean }> = [];
+    for (let n = 0; n < 40 && w.projectiles.size > 0; n++) {
+      tick(w);
+      for (const h of w.combat.landed) seen.push(h);
+    }
+    // holder takes the archer's own arrow as a normal hit; holder2 takes holder's reflected arrow, which is returned damage.
+    expect(seen.find((h) => h.victim === "holder")).toMatchObject({ by: "archer" });
+    expect(seen.find((h) => h.victim === "holder")?.passive).toBeUndefined();
+    expect(seen.find((h) => h.victim === "holder2")).toMatchObject({ by: "holder", passive: true });
+  });
+
+  it("a Boom holder's returned x1.25 is in the arrow it reflects, and only in that (the final review's m2)", () => {
+    const hitOn = (rows: Effect[]): number => {
+      const w = arena([archer(archerAt), holder(holderAt), idle()]);
+      setExtraRows(w, combatant(w, "holder")!, rows);
+      loose(w, [{ id: "archer", a: 0 }]);
+      flyUntilEnd(w);
+      flyUntilEnd(w);
+      return FACTIONS.sentenced.hp - P(w, "archer").hp;
+    };
+    const plain = hitOn([]);
+    expect(plain).toBeGreaterThan(0);
+    expect(hitOn([{ k: "mult", key: "returned", v: 1.25 }])).toBeCloseTo(plain * 1.25, 9);
+    expect(hitOn([{ k: "mult", key: "dot", v: 1.25 }, { k: "mult", key: "hit", v: 2.5 }])).toBeCloseTo(plain, 9); // the other kinds' mults are not
   });
 
   it("credits the kill to the shield holder", () => {
-    const w = arena([archer(archerAt, 1), holder(holderAt), idle()]);
+    // 0.2 hp: the reflected arrow carries ARROW_REFLECT_SHARE (0.15) of its damage, about 0.4 hp against Sentenced's magic resist.
+    const w = arena([archer(archerAt, 0.2), holder(holderAt), idle()]);
     loose(w, [{ id: "archer", a: 0 }]);
     expect(flyUntilEnd(w).end.reason).toBe("reflected");
     const rest = flyUntilEnd(w);
@@ -1087,7 +1141,9 @@ describe("shield reflection", () => {
     const { end, events } = flyUntilEnd(w);
     expect(end.reason).toBe(covered ? "reflected" : "hit");
     expect(fxOf(events, "block")).toHaveLength(covered ? 1 : 0);
-    expect(fxOf(events, "hit")).toHaveLength(covered ? 0 : 1);
+    // Covered: the part the shield does not return still hits the holder; uncovered: the whole arrow does.
+    expect(fxOf(events, "hit")).toHaveLength(1);
+    expect(fxOf(events, "hit")[0]!.amount).toBeCloseTo(hitAmount("sentenced", "bow", "frost") * (covered ? 1 - ARROW_REFLECT_SHARE : 1), 9);
   });
 
   it("hits a holder whose shield faces away", () => {
@@ -1111,11 +1167,11 @@ describe("shield reflection", () => {
     const { end, events } = flyUntilEnd(w);
     expect(end).toMatchObject({ proj: "ball", reason: "hit" });
     expect(fxOf(events, "block")).toEqual([]);
-    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo((65 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 100 / 100), 9);
+    expect(FACTIONS.frost.hp - P(w, "holder").hp).toBeCloseTo((96 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 20 / 100), 9);
   });
 
   it("reflects off a shield held by a mob; a kill by that arrow is credited to its name only", () => {
-    const w = arena([archer(archerAt, 1), idle(), idle("idle2", { x: 1200, y: 100 })]);
+    const w = arena([archer(archerAt, 0.2), idle(), idle("idle2", { x: 1200, y: 100 })]);
     const mob = addMob(w, { kind: "dummy", name: "Warden", at: holderAt, facing: Math.PI, weapon: "shield" });
     loose(w, [{ id: "archer", a: 0 }]);
     expect(flyUntilEnd(w).end.reason).toBe("reflected");
@@ -1143,8 +1199,10 @@ describe("balls and arrows meeting in the air", () => {
 
   it("deletes an enemy arrow that comes within BALL_ARROW_RADIUS of the ball and flies on", () => {
     const { w, arrow, ball } = headOn(20);
+    const ballRaw = ball.packet.raw;
     const { end, events } = flyUntilEnd(w);
     expect(end).toMatchObject({ id: arrow.id, proj: "arrow", reason: "deleted" });
+    expect(ball.packet.raw).toBeCloseTo(ballRaw * BALL_AFTER_ARROW, 12); // deleting an arrow costs the ball part of its damage
     // At the substep it went, the ball (where its announced straight line puts it) was within the radius of where the arrow stopped.
     const st = ball.launch;
     const ballAt = (t: number): Vec2 => ({ x: st.x + (st.vx * (t - st.t)) / 1000, y: st.y + (st.vy * (t - st.t)) / 1000 });
@@ -1384,22 +1442,22 @@ describe("a projectile outlives its owner", () => {
 });
 
 describe("damage numbers", () => {
-  it("cuts a Sentenced arrow on Fire by Fire's shield only (all magic): 2.0513 x DUEL_PACE / (1 + 125 / 100)", () => {
+  it("cuts a Sentenced arrow on Fire by Fire's shield only (all magic): 4.1026 x DUEL_PACE / (1 + 45 / 100)", () => {
     const w = arena([archer(), target({ x: 400, y: 320 }), idle()]);
     loose(w, [{ id: "archer", a: 0 }]);
     const packet = lastProjectile(w).packet;
-    expect(packet.raw).toBeCloseTo(2.0513 * DUEL_PACE, 3);
+    expect(packet.raw).toBeCloseTo(4.1026 * DUEL_PACE, 3);
     expect(packet).toMatchObject({ phys: 0, magic: 1, true: 0 });
     flyUntilEnd(w);
-    expect(FACTIONS.fire.hp - P(w, "target").hp).toBeCloseTo((2.0513 * DUEL_PACE) / (1 + 125 / 100), 3);
+    expect(FACTIONS.fire.hp - P(w, "target").hp).toBeCloseTo((4.1026 * DUEL_PACE) / (1 + 45 / 100), 3);
   });
 
   it("cuts a Holy ball on Frost by Frost's armor (it is all physical)", () => {
     const w = arena([mage(), { id: "frost", at: { x: 400, y: 320 }, faction: "frost", facing: 0 }, idle()]);
     castBall(w, "mage", 0);
     flyUntilEnd(w);
-    // hit x pace x wand multiplier / (1 + boost), then Frost's 100 armor.
-    expect(FACTIONS.frost.hp - P(w, "frost").hp).toBeCloseTo((65 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 100 / 100), 9);
+    // hit x pace x wand multiplier / (1 + boost), then Frost's 20 armor.
+    expect(FACTIONS.frost.hp - P(w, "frost").hp).toBeCloseTo((96 * DUEL_PACE * WEAPONS.wand.dpsMult) / 1.65 / (1 + 20 / 100), 9);
   });
 });
 
@@ -1477,9 +1535,10 @@ describe("swing interceptions", () => {
 
   it("only touches the ledger entries of the ball it was handed", () => {
     // Two balls reach two different bodies in the same tick; only the first is halved.
+    // The two bodies stand farther apart than the wand's splash reaches (each ball would otherwise also splash the other body).
     const w = arena([
-      mage({ x: 200, y: 300 }), { ...mage({ x: 200, y: 340 }), id: "mage2" },
-      { id: "frostA", at: { x: 500, y: 300 }, faction: "frost", facing: 0 }, { id: "frostB", at: { x: 500, y: 340 }, faction: "frost", facing: 0 },
+      mage({ x: 200, y: 300 }), { ...mage({ x: 200, y: 420 }), id: "mage2" },
+      { id: "frostA", at: { x: 500, y: 300 }, faction: "frost", facing: 0 }, { id: "frostB", at: { x: 500, y: 420 }, faction: "frost", facing: 0 },
     ]);
     castBalls(w, [{ id: "mage", a: 0 }, { id: "mage2", a: 0 }]);
     const [a, b] = [...w.projectiles.values()];

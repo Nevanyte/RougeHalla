@@ -1,17 +1,17 @@
 // The camp runtime and the contested shared chest (roguelike R5; sim/camps.ts, sim/chests.ts, mobAI.ts camp-wide aggro):
-// a camp is engaged, then cleared for good; its chest drops on the camp's chest tile with options from the private reward
-// stream; everyone near it takes one pick, first come first served in the tick's secret order; it is gone at exactly
+// a camp is engaged, then cleared for good; its chest drops on the camp's chest tile with three cards from the private reward
+// stream (a base card, a conditional or a second base card, an augment); everyone near it takes one pick, first come first served in the tick's secret order; it is gone at exactly
 // CHEST_SECONDS, at the teleport and when the run ends.
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  CHEST_RANGE, CHEST_REFUSAL, CHEST_REFUSALS, CHEST_SECONDS, GV_MOB_CAP, GV_SKIP, mapFromTiles, mulberry32, nextRank, rollChestOptions, SKIP_HEAL_SHARE,
-  TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type CampDef, type FactionId, type FxEvent, type GameMap, type Vec2,
+  cardDef, cardPower, CHEST_RANGE, CHEST_REFUSAL, CHEST_REFUSALS, CHEST_SECONDS, GV_MOB_CAP, GV_SKIP, mapFromTiles, mulberry32, needsRefusal,
+  rollChestOptions, SKIP_HEAL_SHARE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, type CampDef, type FactionId, type FxEvent, type GameMap, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { downPlayer, teleportToColiseum } from "../src/sim/arena";
 import { CAMP_CLEARED, CAMP_ENGAGED, CAMP_IDLE } from "../src/sim/camps";
-import { clearChests, dropRewardChest, rewardChests } from "../src/sim/chests";
+import { clearChests, dropRewardChest, grantCard, rewardChests } from "../src/sim/chests";
 import { combatant } from "../src/sim/combatant";
 import { noteContact } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -23,6 +23,7 @@ import { modRowsOf } from "../src/sim/mods";
 import { addStatus } from "../src/sim/status";
 import { actionOrder, addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, SimEvent, World } from "../src/sim/world";
+import { withNotLive } from "./support/notLive";
 
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 
@@ -52,13 +53,13 @@ function campMap(): GameMap {
 
 interface RunOpts { players?: number; salt?: number; signatures?: boolean; random?: () => number }
 
-/** A run on campMap with p0, p1, ... (Frost, so nothing of theirs is a passive's special case), started on the first step. */
+/** A run on campMap with p0, p1, ... (Frost, so nothing of theirs is a card's special case), started on the first step. */
 function run(o: RunOpts = {}): World {
   const n = o.players ?? 3;
   const w = createGameWorld({
     config: {
       minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600,
-      mobs: true,
+      mobs: true, pvpRules: false,
     },
     random: o.random ?? mulberry32(12),
     rewardSalt: o.salt ?? 99,
@@ -146,8 +147,13 @@ describe("camp state: idle, engaged, cleared for good", () => {
     expect(box.items.length).toBe(0);
     expect([...box.takenBy]).toEqual(box.options.map(() => ""));
     expect([...box.pickers]).toEqual([]);
-    // Fire has no live passive yet: neutrals only.
+    // Three distinct live cards: a base card first, an augment last (nobody who fought it stood near it, so no conditional).
     expect(box.options.length).toBe(3);
+    expect(new Set(box.options).size).toBe(3);
+    expect(cardDef(box.options[0]!)!.kind).toBe("base");
+    expect(cardDef(box.options[1]!)!.kind).toBe("base");
+    expect(cardDef(box.options[2]!)!.kind).toBe("augment");
+    expect(box.options.every((id) => cardDef(id)!.ready === "a")).toBe(true);
   });
 
   it("clears even when no player killed the last mob (no killer), and never twice", () => {
@@ -156,8 +162,8 @@ describe("camp state: idle, engaged, cleared for good", () => {
     expect(w.state.camps[1]!.state).toBe(CAMP_CLEARED);
     expect(rewardChests(w)).toHaveLength(1);
     expect(fxOf(w.events, "campCleared")).toEqual([{ kind: "campCleared", camp: 1 }]);
-    // Holy has Last Rites: it is the first card.
-    expect(onlyChest(w).options[0]).toBe("lastRites");
+    // Nobody fought it: no eligible picker, so no conditional card.
+    expect([...onlyChest(w).options].some((id) => cardDef(id)!.kind === "conditional")).toBe(false);
     for (const m of campMobs(w, 1)) killMob(w, m, [], []);
     expect(rewardChests(w)).toHaveLength(1);
   });
@@ -381,8 +387,8 @@ describe("the chest's options come from the private reward stream", () => {
       differs = JSON.stringify([...onlyChest(other).options]) !== JSON.stringify(opts);
     }
     expect(differs).toBe(true);
-    expect(opts[0]).toBe("lastRites");
-    expect(opts).toHaveLength(rollChestOptions(mulberry32(1), { zone: "holy" }).length);
+    expect(cardDef(opts[0]!)!.kind).toBe("base");
+    expect(opts).toHaveLength(rollChestOptions(mulberry32(1)).length);
   });
 });
 
@@ -394,7 +400,7 @@ describe("choose: picking at the chest", () => {
     return { w, box: onlyChest(w) };
   }
 
-  it("takes an option: the build gets rank 1, the mods fold it, takenBy and pickers say so, and a chestTaken goes out", () => {
+  it("takes an option: the build gets the card, the mods fold it, takenBy and pickers say so, and a chestTaken goes out", () => {
     const { w, box } = chestRun();
     place(w, 0, box, 40);
     const id = box.options[1]!;
@@ -503,7 +509,7 @@ describe("choose: picking at the chest", () => {
       random: mulberry32(1), map: campMap(),
     }, { signatures: false });
     addPlayer(lobby, "p0", "a");
-    const early = dropRewardChest(lobby, lobby.state.players.get("p0")!, ["whetstone"]);
+    const early = dropRewardChest(lobby, lobby.state.players.get("p0")!, ["haste1"]);
     enqueueClientMessage(lobby.players.get("p0")!.inputs, "choose", { chest: early.id, pick: 0 });
     step(lobby, TICK_MS);
     expect(lobby.state.phase).toBe("lobby");
@@ -513,7 +519,7 @@ describe("choose: picking at the chest", () => {
   it("the bornAt guard: a chest made between ticks cannot be picked in the tick that first publishes it", () => {
     const w = run();
     place(w, 0, P(w, 0));
-    const box = dropRewardChest(w, P(w, 0), ["whetstone", "swiftBoots"]);
+    const box = dropRewardChest(w, P(w, 0), ["haste1", "fleet1"]);
     choose(w, 0, box.id, 0);
     expect(toasts(tick(w), "p0")).toEqual(["Chest gone"]);
     choose(w, 0, box.id, 0);
@@ -544,29 +550,50 @@ describe("choose: picking at the chest", () => {
     expect(box.takenBy[0]).toBe("p0");
   });
 
-  it("picking a skill you hold gives rank 2; one at rank 2 is refused and the pick is not used", () => {
+  it("a base card stacks: picking Haste I again gives a count of 2, and a pick of it is never refused for count", () => {
     const w = run();
     const drop = (): ContainerState => {
-      const b = dropRewardChest(w, P(w, 0), ["whetstone", "swiftBoots"]);
+      const b = dropRewardChest(w, P(w, 0), ["haste1", "wellspring"]);
+      tick(w);
+      return b;
+    };
+    for (let n = 1; n <= 4; n++) {
+      const b = drop();
+      choose(w, 0, b.id, 0);
+      expect(toasts(tick(w), "p0")).toEqual([]);
+      expect(P(w, 0).build.get("haste1")).toBe(n);
+      expect(b.takenBy[0]).toBe("p0");
+    }
+    expect(cardPower(P(w, 0).build)).toBe(4);
+  });
+
+  it("a unique card already held is refused ('Already yours') and the pick is not used; a conditional without its base says what it needs", () => {
+    const w = run();
+    const drop = (): ContainerState => {
+      const b = dropRewardChest(w, P(w, 0), ["wellspring", "bloodthirst", "ad1"]);
       tick(w);
       return b;
     };
     const one = drop();
     choose(w, 0, one.id, 0);
     tick(w);
-    expect(P(w, 0).build.get("whetstone")).toBe(1);
+    expect(P(w, 0).build.get("wellspring")).toBe(1);
     const two = drop();
     choose(w, 0, two.id, 0);
-    tick(w);
-    expect(P(w, 0).build.get("whetstone")).toBe(2);
-    expect(nextRank(P(w, 0).build, "whetstone")).toBeNull();
-    const three = drop();
-    choose(w, 0, three.id, 0);
-    expect(toasts(tick(w), "p0")).toEqual(["Already at rank 2"]);
-    expect(three.takenBy[0]).toBe("");
-    choose(w, 0, three.id, 1);
-    tick(w);
-    expect(three.takenBy[1]).toBe("p0");
+    expect(toasts(tick(w), "p0")).toEqual(["Already yours"]);
+    expect(two.takenBy[0]).toBe("");
+    expect([...two.pickers]).toEqual([]);
+    // The conditional needs a Leech card: refused, not used up.
+    choose(w, 0, two.id, 1);
+    expect(toasts(tick(w), "p0")).toEqual([needsRefusal("leech")]);
+    expect(needsRefusal("leech")).toBe("Needs Leech");
+    expect(two.takenBy[1]).toBe("");
+    // A Leech card of any tier opens it.
+    expect(grantCard(w, combatant(w, "p0") as never, "leech2")).toBe(1);
+    choose(w, 0, two.id, 1);
+    expect(toasts(tick(w), "p0")).toEqual([]);
+    expect(two.takenBy[1]).toBe("p0");
+    expect(P(w, 0).build.get("bloodthirst")).toBe(1);
   });
 
   it("an index the chest does not have is ignored without using the pick; `replace` is accepted and ignored", () => {
@@ -604,7 +631,7 @@ describe("choose: picking at the chest", () => {
 });
 
 describe("every refusal toast of a pick is one the client knows (shared CHEST_REFUSALS)", () => {
-  it("covers all seven reasons a handleChoose refusal has", () => {
+  it("covers all seven fixed reasons a handleChoose refusal has (and a conditional's Needs <Base> is recognised too)", () => {
     const w = run();
     clearCamp(w, 0); // the Fire camp: its chest has the wall tile 90 u east of it
     tick(w);
@@ -618,8 +645,8 @@ describe("every refusal toast of a pick is one the client knows (shared CHEST_RE
     choose(w, 0, box.id, 1); note("p0"); // ... and cannot pick twice
     place(w, 1, box, -20); choose(w, 1, box.id, 0); note("p1"); // taken
     place(w, 2, box, 30);
-    P(w, 2).build.set(box.options[2]!, 2);
-    choose(w, 2, box.id, 2); note("p2"); // maxed
+    P(w, 2).build.set(box.options[2]!, 1);
+    choose(w, 2, box.id, 2); note("p2"); // already yours (the augment: unique)
     addStatus(w, combatant(w, "p2")!, { kind: "stun", source: { id: "x", name: "x" }, ms: 1000 });
     choose(w, 2, box.id, 1); note("p2"); // busy
     expect([...said].sort()).toEqual([...CHEST_REFUSALS].sort());
@@ -629,7 +656,7 @@ describe("every refusal toast of a pick is one the client knows (shared CHEST_RE
 
 describe("a chest's birth is forgotten with the chest", () => {
   const drop = (w: World, n: number): void => {
-    for (let i = 0; i < n; i++) dropRewardChest(w, { x: at(10), y: at(5) }, ["thickHide"], 0);
+    for (let i = 0; i < n; i++) dropRewardChest(w, { x: at(10), y: at(5) }, ["armor1"], 0);
   };
 
   it("an expired chest nobody picked from leaves no entry behind, over many cycles", () => {
@@ -661,7 +688,7 @@ describe("a chest's birth is forgotten with the chest", () => {
 describe("the skip (D12)", () => {
   function skipRig(signatures = false): { w: World; box: ContainerState } {
     const w = run({ signatures });
-    const box = dropRewardChest(w, P(w, 0), ["whetstone"]);
+    const box = dropRewardChest(w, P(w, 0), ["haste1"]);
     place(w, 0, box);
     tick(w);
     return { w, box };
@@ -712,7 +739,7 @@ describe("the skip (D12)", () => {
 });
 
 describe("the loop on a generated zone map (server-side, until the bots pick)", () => {
-  it("clear a camp with hits, walk to the chest, pick: the passive is in the build and the mods", () => {
+  it("clear a camp with hits, walk to the chest, pick: the card is in the build and the mods", () => {
     const w = createGameWorld({
       seed: 1234,
       config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true },
@@ -793,5 +820,104 @@ describe("the choose message", () => {
     ]) {
       expect(parseChoose(bad), JSON.stringify(bad)).toBeNull();
     }
+  });
+});
+
+describe("grantCard", () => {
+  const me = (w: World) => combatant(w, "p0") as Extract<NonNullable<ReturnType<typeof combatant>>, { kind: "player" }>;
+
+  it("adds one copy and returns the new count: a base card stacks, the mirrors and max hp follow in the same call", () => {
+    const w = run();
+    expect(grantCard(w, me(w), "haste2")).toBe(1);
+    expect(grantCard(w, me(w), "haste2")).toBe(2);
+    expect(P(w, 0).build.get("haste2")).toBe(2);
+    expect(P(w, 0).asMult).toBe(1320);
+    const hp = P(w, 0).hp;
+    const max = P(w, 0).maxHp;
+    expect(grantCard(w, me(w), "vitality3")).toBe(1);
+    expect(P(w, 0).maxHp).toBeCloseTo(max * 1.25, 6);
+    expect(P(w, 0).hp).toBeCloseTo(hp + (P(w, 0).maxHp - max), 6);
+  });
+
+  it("refuses an unknown id, a unique card already held, and a conditional without a card of its base (and changes nothing)", () => {
+    const w = run();
+    expect(grantCard(w, me(w), "whetstone")).toBeNull();
+    expect(grantCard(w, me(w), "")).toBeNull();
+    expect(grantCard(w, me(w), "hearty")).toBeNull(); // needs Vitality
+    expect(P(w, 0).build.size).toBe(0);
+    expect(grantCard(w, me(w), "vitality1")).toBe(1);
+    expect(grantCard(w, me(w), "hearty")).toBe(1);
+    expect(grantCard(w, me(w), "hearty")).toBeNull(); // unique
+    expect(grantCard(w, me(w), "glassCannon")).toBe(1);
+    expect(grantCard(w, me(w), "glassCannon")).toBeNull();
+    expect([...P(w, 0).build.entries()].sort()).toEqual([["glassCannon", 1], ["hearty", 1], ["vitality1", 1]]);
+  });
+
+  it("a card that waits for its hook can be held (a test's, the console's) but folds nothing", () => {
+    withNotLive(["overkill"], () => {
+      const w = run();
+      expect(grantCard(w, me(w), "overkill")).toBe(1);
+      expect(P(w, 0).build.get("overkill")).toBe(1);
+      expect(modRowsOf(P(w, 0))).toEqual([]);
+    });
+  });
+});
+
+describe("what a chest offers depends on who fought the camp", () => {
+  /** Holy camp 1 cleared by p0, who stands at `where` (a far spawn tile, or the camp itself) holding `cards`. */
+  function chestFor(salt: number, where: "near" | "far", cards: string[], camp = 1): ContainerState {
+    const w = run({ salt, players: 2 });
+    for (const id of cards) expect(grantCard(w, combatant(w, "p0") as never, id)).not.toBeNull();
+    if (where === "near") place(w, 0, w.map.camps[camp]!);
+    // Contributors are recorded as hits land: a hit from p0 on a member first, then the kills.
+    clearCamp(w, camp);
+    return onlyChest(w);
+  }
+
+  it("a contributor standing near the camp who holds a base card can be offered its conditionals; one far away or without the base never", () => {
+    let near = 0;
+    for (let salt = 1; salt <= 60; salt++) {
+      const box = chestFor(salt, "near", ["leech1"]);
+      for (const id of box.options) {
+        const def = cardDef(id)!;
+        if (def.kind === "conditional") {
+          near++;
+          expect(def.requires, `salt ${salt}`).toBe("leech");
+        }
+      }
+      for (const [where, cards] of [["far", ["leech1"]], ["near", []], ["far", []]] as const) {
+        expect([...chestFor(salt, where, [...cards]).options].some((id) => cardDef(id)!.kind === "conditional"), `salt ${salt} ${where} ${cards}`).toBe(false);
+      }
+    }
+    expect(near).toBeGreaterThan(15); // about half of 60
+    expect(near).toBeLessThan(45);
+  });
+
+  it("an elite camp's chest rolls the higher tiers (10/60/30 against 70/25/5)", () => {
+    const elite = (): GameMap => {
+      const m = campMap();
+      m.camps[1] = { ...m.camps[1]!, eliteSpot: 0 };
+      return m;
+    };
+    let normalTier = 0, eliteTier = 0, n = 0;
+    for (let salt = 1; salt <= 80; salt++) {
+      for (const mapOf of [campMap, elite]) {
+        const w = createGameWorld({
+          config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true, pvpRules: false },
+          random: mulberry32(12), rewardSalt: salt, map: mapOf(),
+        }, { signatures: false });
+        addPlayer(w, "p0", "a", { faction: "frost" });
+        addPlayer(w, "p1", "b", { faction: "frost" });
+        step(w, TICK_MS);
+        clearCamp(w, 1);
+        const tier = cardDef(onlyChest(w).options[0]!)!.tier;
+        if (mapOf === campMap) normalTier += tier;
+        else eliteTier += tier;
+      }
+      n++;
+    }
+    expect(eliteTier / n).toBeGreaterThan(normalTier / n + 0.5);
+    expect(eliteTier / n).toBeGreaterThan(2);
+    expect(normalTier / n).toBeLessThan(1.6);
   });
 });

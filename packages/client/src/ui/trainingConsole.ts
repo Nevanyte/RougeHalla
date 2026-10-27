@@ -1,5 +1,5 @@
 // The practice console of the training room (roguelike R4a/R5): a collapsed "Console" button in the training bar that opens a small
-// panel to set a mob type's buff, set a passive's rank, spawn a practice camp, drop a skill chest and clear it all. It only sends
+// panel to set how many copies of a card the player holds, spawn a practice camp, drop a card chest and clear it all. It only sends
 // `train` messages (shared/messages.ts TrainMessage); the server applies them in a training room and drops them anywhere else, so
 // nothing here decides an outcome. DOM only. The TrainingBar builds it for a training room alone, so an arena run never has one.
 //
@@ -8,10 +8,11 @@
 // because a focused select blocks the game's keys (RaidScene.isTyping) and Phaser's canvas never takes the focus back by itself.
 // The panel is click-through like the rest of the bar: only the buttons and the selects take the pointer.
 import {
-  buffDef, buffText, MOB_TYPES, REGION_FACTIONS, skillDef, skillLive, skillText, SKILLS, TRAIN_DEFAULT_RANK, TRAIN_DEFAULT_STACKS,
-  TRAIN_MAX_STACKS, TRAIN_STACK_CHOICES, type MobTypeDef, type SkillDef, type TrainMessage,
+  BASE_TITLES, CARDS, FACTIONS, MOB_ROLE_DEFS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT,
+  TRAIN_MAX_CARD_COUNT, WEAPONS, cardDef, cardLive, isFactionId, tagLabel, tierRoman,
+  type CardDef, type CardKind, type MobTypeDef, type TrainMessage,
 } from "@raid/shared";
-import { zoneLabel } from "./buffTip";
+import { cardKindLabel } from "./chestMath";
 import { el } from "./dom";
 import "./trainingConsole.css";
 
@@ -21,75 +22,73 @@ export type SendTrain = (msg: TrainMessage) => void;
 
 export interface ConsoleGroup<T> { label: string; items: T[] }
 
-/** The 20 mob types grouped by zone (zone order, each zone's three normals then its elite): the buff and camp picker. */
+/** A zone as the picker words it: "Demon Blood zone". */
+export function zoneLabel(zone: string): string {
+  return `${isFactionId(zone) ? FACTIONS[zone].displayName : zone} zone`;
+}
+
+/** The 30 mob types grouped by zone (zone order, each zone's four normals then its two elites): the camp picker. */
 export function mobTypeGroups(): Array<ConsoleGroup<MobTypeDef>> {
   return REGION_FACTIONS.map((zone) => ({ label: zoneLabel(zone), items: MOB_TYPES.filter((t) => t.zone === zone) }));
 }
 
-/** The 21 passives grouped by the pool that offers them (the five zones, then the neutrals). */
-export function skillGroups(): Array<ConsoleGroup<SkillDef>> {
-  const groups: Array<ConsoleGroup<SkillDef>> = REGION_FACTIONS.map((zone) => ({
-    label: zoneLabel(zone), items: SKILLS.filter((s) => s.pool === zone),
-  }));
-  groups.push({ label: "Neutral", items: SKILLS.filter((s) => s.pool === "neutral") });
-  return groups;
+const CARD_GROUPS: ReadonlyArray<{ kind: CardKind; label: string }> = [
+  { kind: "base", label: "Base cards" }, { kind: "conditional", label: "Conditional cards" }, { kind: "augment", label: "Augments" },
+];
+
+/** The 75 cards grouped by kind (base, conditional, augment), each in catalog order. */
+export function cardGroups(): Array<ConsoleGroup<CardDef>> {
+  return CARD_GROUPS.map(({ kind, label }) => ({ label, items: CARDS.filter((c) => c.kind === kind) }));
 }
 
-/** A mob type's option text: its name, "(elite)" for a zone's elite. */
+/** A mob type's option text: its name, "elite" for a zone's elite, its role and the weapon it carries ("Ember Imp (swarm, axe)"). */
 export function mobTypeLabel(t: MobTypeDef): string {
-  return t.elite ? `${t.name} (elite)` : t.name;
+  const role = MOB_ROLE_DEFS[t.role].label.toLowerCase();
+  return `${t.name} (${t.elite ? "elite, " : ""}${role}, ${WEAPONS[t.weapon].name.toLowerCase()})`;
 }
 
-/** A passive's option text: its name, "(not live)" while the server does not apply it. */
-export function skillLabel(s: SkillDef): string {
-  return skillLive(s) ? s.name : `${s.name} (not live)`;
+/** What a mob type is, for its option's tooltip: the zone, the role's line and the weapon a kill drops. */
+export function mobTypeHint(t: MobTypeDef): string {
+  const weapon = WEAPONS[t.weapon].name.toLowerCase();
+  return `${t.name}, ${t.elite ? "an elite of the " : "a mob of the "}${zoneLabel(t.zone)}. ${MOB_ROLE_DEFS[t.role].blurb} Carries ${/^[aeiou]/.test(weapon) ? "an" : "a"} ${weapon}, which a kill can drop.`;
 }
 
-/** What setting `stacks` of the mob type's buff does, in the buff's own words; the pending ones say so. "" for an unknown id. */
-export function buffHint(id: string, stacks: number): string {
-  const def = buffDef(id);
+/** A card's option text: its title, "(not live yet)" while the server does not apply it. */
+export function cardLabel(c: CardDef): string {
+  return cardLive(c) ? c.title : `${c.title} (not live yet)`;
+}
+
+/** What holding `count` copies of the card does, in its own words; a card that does nothing yet says so. "" for an unknown id. */
+export function cardHint(id: string, count: number): string {
+  const def = cardDef(id);
   if (!def) return "";
-  const head = `${def.name} (${def.elite ? "elite, " : ""}${zoneLabel(def.zone)})`;
-  const body = stacks > 0 ? `${stacks} stack${stacks === 1 ? "" : "s"}: ${buffText(id, stacks)}` : "taken off";
-  const note = def.needs === "status" ? " Not applied yet: the status system is coming." : "";
-  return `${head} ${body}.${note}`;
-}
-
-/** What rank `rank` of the passive does, for the player's faction; "not live" ones say they are set but do nothing. */
-export function passiveHint(id: string, rank: number, faction?: string): string {
-  const def = skillDef(id);
-  if (!def) return "";
-  const pool = def.pool === "neutral" ? "Neutral" : zoneLabel(def.pool);
-  const body = rank > 0 ? `rank ${rank}: ${skillText(id, rank, faction)}` : "taken off";
-  const note = skillLive(def) ? "" : " Not live yet: it is set but does nothing.";
-  return `${def.name} (${pool}) ${body}.${note}`;
+  const head = `${def.title} (${cardKindLabel(def.kind)}, tier ${tierRoman(def.tier)})`;
+  if (count <= 0) return `${head} taken off.`;
+  const text = /[.!?]$/.test(def.text) ? def.text : `${def.text}.`;
+  const copies = !def.unique && count > 1 ? ` Held x${count}.` : "";
+  const needs = def.requires ? ` Needs a ${BASE_TITLES[def.requires]} card first.` : "";
+  const tags = def.tags.length > 0 ? ` Tags: ${def.tags.map(tagLabel).join(", ")} (H, Mechanics page).` : "";
+  const note = cardLive(def) ? "" : " Not live yet: it is set but does nothing.";
+  return `${head} ${text}${copies}${needs}${tags}${note}`;
 }
 
 /** The messages the buttons send, one function each so the shapes are in one place. */
 export const trainMessages = {
-  buff: (id: string, amount: number): TrainMessage => ({ cmd: "buff", id, amount }),
-  passive: (id: string, rank: number): TrainMessage => ({ cmd: "passive", id, rank }),
+  card: (id: string, count: number): TrainMessage => ({ cmd: "card", id, count }),
   camp: (id: string): TrainMessage => ({ cmd: "camp", id }),
   chest: (options?: readonly string[]): TrainMessage => (options && options.length > 0 ? { cmd: "chest", options: [...options] } : { cmd: "chest" }),
   clear: (): TrainMessage => ({ cmd: "clear" }),
 } as const;
 
-/** The ranks the picker offers: 1 and 2 and 0 for "remove". */
-const RANK_CHOICES: ReadonlyArray<{ value: number; text: string }> = [
-  { value: 1, text: "Rank 1" }, { value: 2, text: "Rank 2" }, { value: 0, text: "Remove" },
-];
-
-/** The stack counts the picker offers: the shared choices, and 0 for "remove". */
-const STACK_CHOICES: ReadonlyArray<{ value: number; text: string }> = [
-  ...TRAIN_STACK_CHOICES.map((n) => ({ value: n, text: `${n} stack${n === 1 ? "" : "s"}` })),
+/** The copy counts the picker offers: the shared choices, and 0 for "remove". */
+const COUNT_CHOICES: ReadonlyArray<{ value: number; text: string }> = [
+  ...TRAIN_CARD_COUNT_CHOICES.map((n) => ({ value: n, text: `${n} ${n === 1 ? "copy" : "copies"}` })),
   { value: 0, text: "Remove" },
 ];
 
 // ---------------------------------------------------------------------------------------------------------- the DOM
 
 export interface ConsoleOptions {
-  /** The local player's faction (a passive's line is worded for it: Pestilence reads differently for Plague). */
-  faction?: () => string | undefined;
   /** The panel opened or closed (the bar hides its tips while the panel is open). */
   onToggle?: (open: boolean) => void;
 }
@@ -99,11 +98,9 @@ export class TrainingConsole {
   private readonly toggle = el("button", "btn small train-toggle");
   private readonly panel = el("div", "train-panel");
   private readonly mobSelect = el("select", "train-select train-mob");
-  private readonly stacksSelect = el("select", "train-select train-stacks");
-  private readonly buffHintLine = el("div", "train-hint train-hint-buff");
-  private readonly skillSelect = el("select", "train-select train-skill");
-  private readonly rankSelect = el("select", "train-select train-rank");
-  private readonly skillHintLine = el("div", "train-hint train-hint-skill");
+  private readonly cardSelect = el("select", "train-select train-card");
+  private readonly countSelect = el("select", "train-select train-count");
+  private readonly cardHintLine = el("div", "train-hint train-hint-card");
   private opened = false;
   /** The selects the pointer went down on since their last change: that change is a mouse choice, and gives the focus back to the game. */
   private readonly pointerOn = new Set<HTMLSelectElement>();
@@ -117,35 +114,31 @@ export class TrainingConsole {
 
     this.toggle.type = "button";
     this.toggle.textContent = "Console";
-    this.toggle.title = "Practice console: set buffs and passives, spawn a camp, drop a chest";
+    this.toggle.title = "Practice console: set cards, spawn a camp (its clear heals you), drop a card chest";
     this.toggle.setAttribute("aria-expanded", "false");
     this.toggle.setAttribute("aria-controls", panelId);
     this.toggle.addEventListener("click", (ev) => { this.setOpen(!this.opened); this.releaseFocus(ev, this.toggle); });
 
     this.fillMobTypes();
-    this.fillStacks();
-    this.fillSkills();
-    this.fillRanks();
+    this.fillCards();
+    this.fillCounts();
 
     this.panel.append(
-      this.title("Buffs and camps"),
-      this.row("Mob type", this.mobSelect),
-      this.row("Stacks", this.stacksSelect, this.button("train-btn-buff", "Set buff", "Set this many stacks of the mob type's buff", () => this.setBuff())),
-      this.row("", this.button("train-btn-camp", "Spawn camp", "A practice camp of this mob type near you: it pays nothing", () => this.spawnCamp())),
-      this.buffHintLine,
-      this.title("Passives and chests"),
-      this.row("Passive", this.skillSelect),
-      this.row("Rank", this.rankSelect, this.button("train-btn-passive", "Set passive", "Set this passive's rank on your build", () => this.setPassive())),
-      this.skillHintLine,
+      this.title("Camps"),
+      this.row("Mob type", this.mobSelect, this.button("train-btn-camp", "Spawn camp", "A practice camp of this mob type near you: no GV and no drops, but clearing it gives the camp-clear heal", () => this.spawnCamp())),
+      this.title("Cards and chests"),
+      this.row("Card", this.cardSelect),
+      this.row("Copies", this.countSelect, this.button("train-btn-card", "Set card", "Set how many copies of this card you hold", () => this.setCard())),
+      this.cardHintLine,
       this.row(
         "Chest",
-        this.button("train-btn-chest-pick", "With passive", "Drop a skill chest offering only the passive picked above", () => this.dropChest(true)),
-        this.button("train-btn-chest-random", "Random", "Drop a skill chest with three random live options for your faction", () => this.dropChest(false)),
+        this.button("train-btn-chest-pick", "With card", "Drop a card chest offering only the card picked above", () => this.dropChest(true)),
+        this.button("train-btn-chest-random", "Random", "Drop a card chest with three rolled options", () => this.dropChest(false)),
       ),
-      this.row("", this.button("train-btn-clear", "Clear all", "Remove every buff, passive, practice mob and chest", () => this.clear())),
+      this.row("", this.button("train-btn-clear", "Clear all", "Remove every card, practice mob and chest", () => this.clear())),
     );
 
-    for (const select of [this.mobSelect, this.stacksSelect, this.skillSelect, this.rankSelect]) this.wireSelect(select);
+    for (const select of [this.mobSelect, this.cardSelect, this.countSelect]) this.wireSelect(select);
     this.panel.addEventListener("keydown", (ev) => this.onKeyDown(ev as KeyboardEvent));
     this.root.append(this.toggle, this.panel);
     this.refresh();
@@ -163,36 +156,25 @@ export class TrainingConsole {
     this.opts.onToggle?.(open);
   }
 
-  /** Words the two hint lines (and the selects' tooltips) for what is picked now. Runs on every change of a select. */
+  /** Words the hint line (and the selects' tooltips) for what is picked now. Runs on every change of a select. */
   refresh(): void {
-    const mob = this.mobSelect.value;
-    const stacks = this.stacks();
-    const buff = buffHint(mob, stacks);
-    this.buffHintLine.textContent = buff;
-    this.mobSelect.title = buff;
-    this.stacksSelect.title = buff;
-    const skill = this.skillSelect.value;
-    const passive = passiveHint(skill, this.rank(), this.opts.faction?.());
-    this.skillHintLine.textContent = passive;
-    this.skillSelect.title = passive;
-    this.rankSelect.title = passive;
-  }
-
-  setBuff(): void {
-    this.send(trainMessages.buff(this.mobSelect.value, this.stacks()));
+    const hint = cardHint(this.cardSelect.value, this.count());
+    this.cardHintLine.textContent = hint;
+    this.cardSelect.title = hint;
+    this.countSelect.title = hint;
   }
 
   spawnCamp(): void {
     this.send(trainMessages.camp(this.mobSelect.value));
   }
 
-  setPassive(): void {
-    this.send(trainMessages.passive(this.skillSelect.value, this.rank()));
+  setCard(): void {
+    this.send(trainMessages.card(this.cardSelect.value, this.count()));
   }
 
-  /** `withPassive`: offer only the picked passive; else the server rolls three. */
-  dropChest(withPassive: boolean): void {
-    this.send(trainMessages.chest(withPassive ? [this.skillSelect.value] : undefined));
+  /** `withCard`: offer only the picked card; else the server rolls three. */
+  dropChest(withCard: boolean): void {
+    this.send(trainMessages.chest(withCard ? [this.cardSelect.value] : undefined));
   }
 
   clear(): void {
@@ -205,14 +187,11 @@ export class TrainingConsole {
 
   // -------------------------------------------------------------------------------------------------------- building
 
-  private stacks(): number {
-    const n = Number(this.stacksSelect.value);
-    return Number.isFinite(n) ? Math.min(TRAIN_MAX_STACKS, Math.max(0, n)) : TRAIN_DEFAULT_STACKS;
-  }
-
-  private rank(): number {
-    const n = Number(this.rankSelect.value);
-    return n === 0 || n === 1 || n === 2 ? n : TRAIN_DEFAULT_RANK;
+  /** The copies to set: the picker's, clamped to the shared range, and at most 1 for a card that is held once (the server caps it the same way). */
+  private count(): number {
+    const n = Number(this.countSelect.value);
+    const copies = Number.isFinite(n) ? Math.min(TRAIN_MAX_CARD_COUNT, Math.max(0, Math.floor(n))) : TRAIN_DEFAULT_CARD_COUNT;
+    return cardDef(this.cardSelect.value)?.unique ? Math.min(1, copies) : copies;
   }
 
   private title(text: string): HTMLElement {
@@ -250,36 +229,29 @@ export class TrainingConsole {
     for (const g of mobTypeGroups()) {
       const group = el("optgroup");
       group.label = g.label;
-      for (const t of g.items) group.append(this.option(t.id, mobTypeLabel(t), buffHint(t.id, TRAIN_DEFAULT_STACKS)));
+      for (const t of g.items) group.append(this.option(t.id, mobTypeLabel(t), mobTypeHint(t)));
       this.mobSelect.append(group);
     }
     this.mobSelect.value = MOB_TYPES[0]!.id;
     this.mobSelect.setAttribute("aria-label", "Mob type");
   }
 
-  private fillStacks(): void {
-    for (const c of STACK_CHOICES) this.stacksSelect.append(this.option(String(c.value), c.text, ""));
-    this.stacksSelect.value = String(TRAIN_DEFAULT_STACKS);
-    this.stacksSelect.setAttribute("aria-label", "Stacks");
-  }
-
-  private fillSkills(): void {
-    const faction = (): string | undefined => this.opts.faction?.();
-    for (const g of skillGroups()) {
+  private fillCards(): void {
+    for (const g of cardGroups()) {
       const group = el("optgroup");
       group.label = g.label;
-      for (const s of g.items) group.append(this.option(s.id, skillLabel(s), passiveHint(s.id, 1, faction())));
-      this.skillSelect.append(group);
+      for (const c of g.items) group.append(this.option(c.id, cardLabel(c), cardHint(c.id, 1)));
+      this.cardSelect.append(group);
     }
-    // The first live passive (the ones before it are catalog data the sim does not apply yet).
-    this.skillSelect.value = (SKILLS.find(skillLive) ?? SKILLS[0]!).id;
-    this.skillSelect.setAttribute("aria-label", "Passive");
+    // The first live card (the ones after it in the list may be catalog data the sim does not apply yet).
+    this.cardSelect.value = (CARDS.find(cardLive) ?? CARDS[0]!).id;
+    this.cardSelect.setAttribute("aria-label", "Card");
   }
 
-  private fillRanks(): void {
-    for (const c of RANK_CHOICES) this.rankSelect.append(this.option(String(c.value), c.text, ""));
-    this.rankSelect.value = String(TRAIN_DEFAULT_RANK);
-    this.rankSelect.setAttribute("aria-label", "Rank");
+  private fillCounts(): void {
+    for (const c of COUNT_CHOICES) this.countSelect.append(this.option(String(c.value), c.text, ""));
+    this.countSelect.value = String(TRAIN_DEFAULT_CARD_COUNT);
+    this.countSelect.setAttribute("aria-label", "Copies");
   }
 
   private wireSelect(select: HTMLSelectElement): void {

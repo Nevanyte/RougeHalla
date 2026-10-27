@@ -897,7 +897,7 @@ describe("enqueueClientMessage", () => {
       plan: { spawn: 1, ready: true },
       cast: { slot: "wish", x: 100, y: 100 },
       choose: { chest: "c1", pick: -1 },
-      train: { cmd: "buff", id: "emberImp", amount: 3 },
+      train: { cmd: "card", id: "ad1", count: 3 },
     };
 
     it("every client message type is accepted with a valid payload", () => {

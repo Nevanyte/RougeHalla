@@ -13,11 +13,12 @@
 // without terrain costs one cached object read per pass. The `apply*` functions are what callers use; their bodies are the
 // only thing a later move onto the status runtime changes (part B 6).
 import {
-  HEAL_LOCKOUT_SECONDS, hazardsOf, surfaceAt, surfaceEffect, TERRAIN_NONE, TICK_MS, type MapHazards, type SurfaceEffect,
+  HEAL_LOCKOUT_SECONDS, hazardsOf, resistSlow, surfaceAt, surfaceEffect, TERRAIN_NONE, TICK_MS, type MapHazards, type SurfaceEffect,
 } from "@raid/shared";
 import { combatant, isEvading, standing, standingCombatants, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { recordHit } from "./ledger";
+import { slowResistOf } from "./mods";
 import { chainHook, emit, type DamageSource, type World } from "./world";
 
 const TERRAIN_PREFIX = "terrain:";
@@ -82,7 +83,8 @@ export function applyBog(world: World, c: Combatant, dtMs: number = TICK_MS): nu
   if (!hazardsFor(world).slow) return 1;
   const e = surfaceOf(world, c);
   if (e.speedMult !== 1) countHazardSeconds(world, "bog", dtMs);
-  return e.speedMult;
+  // The bog is a slow like any other: Iron Will (slowResist) makes it weaker.
+  return resistSlow(e.speedMult, slowResistOf(c.s));
 }
 
 /** v1: records this tick's burn on the ledger. v2 would add or refresh a dot status. */

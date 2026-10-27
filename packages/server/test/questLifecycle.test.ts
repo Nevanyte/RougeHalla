@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  generateMap, mapFromTiles, mulberry32, normalTypesOf, questDefById, eliteTypeOf, TICK_MS, TILE,
+  generateMap, mapFromTiles, mulberry32, normalTypesOf, questDefById, elitesOf, TICK_MS, TILE,
   type FactionId, type GameMap,
 } from "@raid/shared";
 import { teleportToColiseum } from "../src/sim/arena";
@@ -144,7 +144,7 @@ describe("quest lifecycle", () => {
     expect(world.state.unknownQuests).toBe(0);
     expect(world.state.mobs.has(npcId)).toBe(false);
     expect(world.players.get("p0")!.gv.quest).toBe(0);
-    expect(world.state.players.get("p0")!.buffs.size).toBe(0);
+    expect(world.state.players.get("p0")!.build.size).toBe(0);
 
     const p = world.state.players.get("p0")!;
     p.x = hidden.s.x;
@@ -192,7 +192,7 @@ describe("quest lifecycle", () => {
     expect(published.s.status).toBe("expired");
     expect(world.quests!.quests.has(hidden.id)).toBe(false);
     expect(world.players.get("p0")!.gv.quest).toBe(0);
-    expect(world.state.players.get("p0")!.buffs.size).toBe(0);
+    expect(world.state.players.get("p0")!.build.size).toBe(0);
     expect(toasts(world.events)).toEqual([]);
   });
 
@@ -222,7 +222,7 @@ describe("the mobKilled payload", () => {
   it("names the elite type, its zone, its camp index and the elite flag for an elite of a camp", () => {
     const world = makeRun();
     const seen = recorded(world);
-    const type = eliteTypeOf("frost").id;
+    const type = elitesOf("frost")[0]!.id;
 
     slay(world, placeMob(world, { region: "frost", elite: true, type, camp: 7, at: AT }));
 

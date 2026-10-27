@@ -7,18 +7,20 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  buffViews, CLIENT_MESSAGE_TYPES, damageShares, decodeMult, DUMMY_HP, DUMMY_RESET_SECONDS, FACTIONS, GV_KILL, mulberry32, raycast,
+  CLIENT_MESSAGE_TYPES, countIn, damageShares, decodeFlat, decodeMult, DUMMY_HP, DUMMY_RESET_SECONDS, FACTIONS, GV_KILL, mulberry32, raycast,
   SIGNATURE_WEAPONS, SWAP_SECONDS, TICK_MS, unpackFx, unpackLaunches, type FxEvent, type ProjectileLaunch, type TimedFx, type Vec2,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { applyDamage } from "../src/sim/arena";
-import { grantBarrier, grantBuff } from "../src/sim/buffs";
+import { grantBarrier } from "../src/sim/buffs";
+import { grantCard } from "../src/sim/chests";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { dropWeapon } from "../src/sim/loot";
 import { addMob, damageMob } from "../src/sim/mobs";
+import { setExtraRows } from "../src/sim/mods";
 import { spawnProjectiles } from "../src/sim/projectiles";
 import { addPlayer, removePlayer, step } from "../src/sim/step";
 import type { SimConfig, SimEvent, World } from "../src/sim/world";
@@ -63,10 +65,11 @@ function snapshot(state: RaidState) {
   const players = [...state.players]
     .map(([key, p]) => ({
       key, name: p.name, bot: p.bot, ...fighter(p), status: p.status, kills: p.kills, gv: p.gv, bounty: p.bounty, immuneUntil: u32(p.immuneUntil),
-      mobKills: p.mobKills, buffs: [...p.buffs].map(([id, n]) => [id, f32(n)] as const).sort(([a], [b]) => a.localeCompare(b)),
+      mobKills: p.mobKills, build: [...p.build].map(([id, n]) => [id, n] as const).sort(([a], [b]) => a.localeCompare(b)),
       barrier: f32(p.barrier),
       // The stat mirrors are exact on the wire: the client decodes the very value the sim used.
       asMult: p.asMult, windupMult: p.windupMult, speedMult: p.speedMult, armorBonus: p.armorBonus, shieldBonus: p.shieldBonus,
+      adBonus: p.adBonus, apBonus: p.apBonus,
     }))
     .sort(byKey);
   const mobs = [...state.mobs]
@@ -218,14 +221,14 @@ describe("schema round trip", () => {
     expect(snapshot(client)).toEqual(snapshot(world.state));
     expect(client.containers.size).toBe(world.state.containers.size);
     expect(client.containers.size).toBeGreaterThan(10);
-    // Everyone gets a faction by join order, its hp, and its signature weapon in the first slot: nothing else.
+    // Everyone gets a faction by join order, its hp, and both weapon slots empty (fists): nothing else.
     const [alice, bob] = [client.players.get("a")!, client.players.get("b")!];
     expect(alice).toMatchObject({
-      faction: "fire", hp: FACTIONS.fire.hp, maxHp: FACTIONS.fire.hp, weapon0: SIGNATURE_WEAPONS.fire, weapon1: "", slot: 0,
+      faction: "fire", hp: FACTIONS.fire.hp, maxHp: FACTIONS.fire.hp, weapon0: "", weapon1: "", slot: 0,
       drawStartedAt: 0, readyAt: 0,
     });
     expect(bob).toMatchObject({
-      faction: "sentenced", hp: FACTIONS.sentenced.hp, maxHp: FACTIONS.sentenced.hp, weapon0: SIGNATURE_WEAPONS.sentenced,
+      faction: "sentenced", hp: FACTIONS.sentenced.hp, maxHp: FACTIONS.sentenced.hp, weapon0: "",
       weapon1: "", slot: 0,
     });
     expect(client.mobs.size).toBe(0);
@@ -318,7 +321,7 @@ describe("schema round trip", () => {
     expect(snapshot(client)).toEqual(snapshot(world.state));
   });
 
-  it("decodes the buffs map, the stat mirrors, the barrier and the mob kills, and the HUD reads the decoded stacks as the player earned them", () => {
+  it("decodes the build map (card id -> count), the stat mirrors, the barrier and the mob kills, and a base card held twice is a count of 2", () => {
     const world = makeWorld(41, 2);
     addPlayer(world, "a", "alice");
     addPlayer(world, "b", "bob");
@@ -327,18 +330,20 @@ describe("schema round trip", () => {
     const tick = () => { step(world, TICK_MS); wire.flush(); };
     tick(); // the run starts
     const [p, rt] = [world.state.players.get("a")!, world.players.get("a")!];
-    expect(client.players.get("a")!.buffs.size).toBe(0);
+    const me = { kind: "player" as const, id: "a", s: p, rt };
+    expect(client.players.get("a")!.build.size).toBe(0);
     const baseMaxHp = p.maxHp;
-    // 1.1 is what a mob drops; the map entries are added by the first grant of each buff.
-    grantBuff(world, p, rt, "emberImp", 1.1); // damage: no mirror
-    grantBuff(world, p, rt, "cinderHound", 0.7); // move speed while chasing a lock: the speedMult mirror stays 1
-    grantBuff(world, p, rt, "plagueRat", 3.4); // attack speed: the asMult mirror
-    grantBuff(world, p, rt, "iceGolem", 3.4); // max hp, and the hp that comes with it
+    // The map entries are added by the first grant of each card.
+    grantCard(world, me, "ad1"); // attack damage: the adBonus mirror
+    grantCard(world, me, "fleet1"); // move speed while not shooting: the speedMult mirror
+    grantCard(world, me, "haste2"); // attack speed: the asMult mirror
+    grantCard(world, me, "haste2");
+    grantCard(world, me, "vitality3"); // max hp, and the hp that comes with it
     grantBarrier(p, rt, 40, world.state.serverTime + 5000);
     p.mobKills = 300; // more than a byte holds
     expect(p.barrier).toBe(40);
     expect(p.asMult).toBeGreaterThan(1000);
-    expect(p.maxHp).toBeGreaterThan(baseMaxHp); // grown by the Ice Golem rows
+    expect(p.maxHp).toBeGreaterThan(baseMaxHp); // grown by the Vitality rows
     tick();
 
     const mine = client.players.get("a")!;
@@ -348,26 +353,53 @@ describe("schema round trip", () => {
     expect(mine.maxHp).toBeGreaterThan(baseMaxHp);
     expect(mine.asMult).toBe(p.asMult); // the mirrors are exact on the wire: the client decodes the value the sim used
     expect(decodeMult(mine.asMult)).toBeGreaterThan(1);
-    expect(mine.speedMult).toBe(1000);
-    expect([...mine.buffs].map(([id, n]) => [id, +n.toFixed(4)]).sort(([x], [y]) => String(x).localeCompare(String(y)))).toEqual([
-      ["cinderHound", 0.7], ["emberImp", 1.1], ["iceGolem", 3.4], ["plagueRat", 3.4],
+    expect(mine.speedMult).toBe(p.speedMult);
+    expect([...mine.build].map(([id, n]) => [id, n]).sort(([x], [y]) => String(x).localeCompare(String(y)))).toEqual([
+      ["ad1", 1], ["fleet1", 1], ["haste2", 2], ["vitality3", 1],
     ]);
+    expect(countIn(mine.build, "haste2")).toBe(2);
     expect(snapshot(client)).toEqual(snapshot(world.state));
     expect(snapshot(connect(wire.encoder).state)).toEqual(snapshot(world.state)); // and a client joining now
-    // What the HUD shows is read off the decoded player: 1.1 stays 1.1 (a narrower field would read 1.0), in catalog order.
-    const rows = buffViews(mine.buffs);
-    expect(rows.map((r) => [r.id, r.stacksText])).toEqual([["emberImp", "1.1"], ["cinderHound", "0.7"], ["plagueRat", "3.4"], ["iceGolem", "3.4"]]);
 
-    // A later grant of a buff already held patches its entry in place (a map entry changes, nothing is added).
-    grantBuff(world, p, rt, "emberImp", 1.1);
+    // A later copy of a card already held patches its entry in place (a map entry changes, nothing is added).
+    grantCard(world, me, "haste2");
     tick();
-    expect(mine.buffs.size).toBe(4);
-    expect(mine.buffs.get("emberImp")!).toBeCloseTo(2.2, 5);
+    expect(mine.build.size).toBe(4);
+    expect(mine.build.get("haste2")).toBe(3);
     expect(snapshot(client)).toEqual(snapshot(world.state));
-    expect(buffViews(mine.buffs).find((r) => r.id === "emberImp")!.stacksText).toBe("2.2");
     // The other player is untouched.
     expect(client.players.get("b")!).toMatchObject({ mobKills: 0, barrier: 0, asMult: 1000, speedMult: 1000, windupMult: 1000 });
-    expect(client.players.get("b")!.buffs.size).toBe(0);
+    expect(client.players.get("b")!.build.size).toBe(0);
+  });
+
+  it("decodes the AD and AP mirrors bit for bit, as int16 tenths, and patches them only when they change", () => {
+    const world = makeWorld(43, 2);
+    addPlayer(world, "a", "alice");
+    addPlayer(world, "b", "bob");
+    const wire = new Wire(world);
+    const client = wire.join();
+    const tick = () => { step(world, TICK_MS); wire.flush(); };
+    tick();
+    const [p, rt] = [world.state.players.get("a")!, world.players.get("a")!];
+    const mine = client.players.get("a")!;
+    expect([mine.adBonus, mine.apBonus]).toEqual([0, 0]);
+    // 33 AD, and 12.34 AP times Arcane Overload's x1.5 (18.51: rounded to whole tenths on the wire, 185)
+    setExtraRows(world, { kind: "player", id: "a", s: p, rt }, [
+      { k: "flat", stat: "ad", v: 33 }, { k: "flat", stat: "ap", v: 12.34 }, { k: "mult", key: "ap", v: 1.5 },
+    ]);
+    expect([p.adBonus, p.apBonus]).toEqual([330, 185]);
+    tick();
+    expect([mine.adBonus, mine.apBonus]).toEqual([p.adBonus, p.apBonus]);
+    expect([decodeFlat(mine.adBonus), decodeFlat(mine.apBonus)]).toEqual([33, 18.5]);
+    expect(snapshot(client)).toEqual(snapshot(world.state));
+    expect(snapshot(connect(wire.encoder).state)).toEqual(snapshot(world.state)); // and a client joining now
+    // The other player never patched them.
+    expect(client.players.get("b")!).toMatchObject({ adBonus: 0, apBonus: 0 });
+    // Taking the rows away patches them back to the identity.
+    setExtraRows(world, { kind: "player", id: "a", s: p, rt }, []);
+    tick();
+    expect([mine.adBonus, mine.apBonus]).toEqual([0, 0]);
+    expect(snapshot(client)).toEqual(snapshot(world.state));
   });
 
   it("decodes a teleport and sudden death: gates, coliseum, immunity and the timers", () => {
@@ -406,8 +438,8 @@ describe("schema round trip", () => {
   it("decodes the weapon fields: a pickup into the free slot, a swap, the bow draw and the cooldown it leaves", () => {
     // Seed 57: the bow needs an open line of 200 u from bob's spawn, and a spawn on a zone-styled map is may be hemmed in by its structures.
     const world = makeWorld(57, 2);
-    addPlayer(world, "a", "alice"); // fire: axe
-    addPlayer(world, "b", "bob"); // sentenced: bow
+    addPlayer(world, "a", "alice"); // fire: given its axe below (a run starts on fists)
+    addPlayer(world, "b", "bob"); // sentenced: given its bow
     const wire = new Wire(world);
     const client = wire.join();
     const tick = () => { step(world, TICK_MS); wire.flush(); };
@@ -416,8 +448,13 @@ describe("schema round trip", () => {
     const bob = () => client.players.get("b")!;
 
     tick(); // the run starts
-    expect(alice()).toMatchObject({ weapon0: "axe", weapon1: "", slot: 0, readyAt: 0 });
-    expect(bob()).toMatchObject({ weapon0: "bow", weapon1: "", slot: 0, drawStartedAt: 0 });
+    expect(alice()).toMatchObject({ weapon0: "", weapon1: "", slot: 0, readyAt: 0 });
+    expect(bob()).toMatchObject({ weapon0: "", weapon1: "", slot: 0, drawStartedAt: 0 });
+    world.state.players.get("a")!.weapon0 = SIGNATURE_WEAPONS.fire;
+    world.state.players.get("b")!.weapon0 = SIGNATURE_WEAPONS.sentenced;
+    tick();
+    expect(alice()).toMatchObject({ weapon0: "axe", weapon1: "", slot: 0 });
+    expect(bob()).toMatchObject({ weapon0: "bow", weapon1: "", slot: 0 });
 
     // A loose sword at alice's feet goes into her free slot and vanishes; the axe stays in hand.
     const sword = dropWeapon(world, world.state.players.get("a")!, "sword");
@@ -492,7 +529,7 @@ describe("schema round trip", () => {
   it("a projectile reaches a live client in the batch of the step that loosed it and is never patched; a client that joins mid-flight is sent the ones flying in a batch of its own", () => {
     const world = makeWorld(71, 2);
     addPlayer(world, "a", "alice");
-    addPlayer(world, "b", "bob"); // sentenced: a bow
+    addPlayer(world, "b", "bob").weapon0 = SIGNATURE_WEAPONS.sentenced; // sentenced: a bow (a run starts on fists)
     const wire = new Wire(world);
     const early = wire.join();
     let late: RaidState | null = null;
@@ -616,10 +653,11 @@ describe("schema round trip", () => {
     const rnd = mulberry32(seed * 7919);
     const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]!;
     const world = makeWorld(seed, 4);
-    addPlayer(world, "a", "alice"); // fire: axe
-    addPlayer(world, "b", "bob"); // sentenced: bow
-    addPlayer(world, "c", "carol"); // plague: bow
-    addPlayer(world, "d", "dave"); // frost: shield
+    // A run starts on fists; the fuzz wants weapons in hand to swing, draw and drop, so each is given its faction's signature weapon.
+    addPlayer(world, "a", "alice").weapon0 = SIGNATURE_WEAPONS.fire; // fire: axe
+    addPlayer(world, "b", "bob").weapon0 = SIGNATURE_WEAPONS.sentenced; // sentenced: bow
+    addPlayer(world, "c", "carol").weapon0 = SIGNATURE_WEAPONS.plague; // plague: bow
+    addPlayer(world, "d", "dave").weapon0 = SIGNATURE_WEAPONS.frost; // frost: shield
     let dummy = addMob(world, { kind: "dummy", name: "Dummy", at: world.map.spawns[0]!, facing: 1, weapon: "shield" });
 
     const wire = new Wire(world);

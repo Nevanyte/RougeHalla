@@ -81,7 +81,8 @@ describe("headlessRoom", () => {
 // ================================================================================================================== one game
 
 describe("runGame", () => {
-  const options = { seed: 11, lineup: LINEUP, config: SHORT, maxSimMs: 90_000 };
+  // 150 s of sim: on the 136x136 zone maps with fists starts the short games run 53-99 s (seeds 11-13), about a second of wall each.
+  const options = { seed: 11, lineup: LINEUP, config: SHORT, maxSimMs: 150_000 };
 
   it("replays byte for byte from the same seed, and plays differently from another", () => {
     const a = JSON.stringify(runGame(options));
@@ -119,7 +120,11 @@ describe("runGame", () => {
         expect(b.place).toBeLessThanOrEqual(n);
         expect(["won", "draw", "died"]).toContain(b.outcome);
         expect(b.deaths).toBe(b.outcome === "died" ? 1 : 0);
-        expect(b.diedAtMs !== null).toBe(b.outcome === "died");
+        // The winner (or a drawer) may have fallen in the very tick of the last rival's death: the higher hp share at the tick's
+        // start takes the run (arena.ts settle), so its death fx is stamped with the same time as one who "died".
+        const fellWithTheLast = b.diedAtMs !== null && g.bots.some((o) => o.outcome === "died" && o.diedAtMs === b.diedAtMs);
+        expect(b.diedAtMs !== null && (b.outcome === "died" || fellWithTheLast)).toBe(b.diedAtMs !== null);
+        if (b.outcome === "died") expect(b.diedAtMs).not.toBeNull();
         expect(b.diedTo !== null).toBe(b.outcome === "died");
       }
       // The winner placed first; nobody who died placed first unless a draw.

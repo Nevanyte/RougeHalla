@@ -3,7 +3,7 @@
 // rules; and the dispatch of the world goals. Everything runs on plain-data contexts from fixtures.ts, seeded, with no clock.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, FACTIONS, hasLineOfSight, lockSpacing, mapFromTiles, mulberry32, pacedFaction, TARGET_RANGE, TILE,
+  attackInterval, FACTIONS, hasLineOfSight, lockSpacing, mapFromTiles, mirrorTimings, mulberry32, pacedFaction, TARGET_RANGE, TILE,
   type GameMap, type Rng, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { createTactics, channelOf } from "../../src/bots/brain/tactics";
@@ -455,6 +455,52 @@ describe("swaps", () => {
     const ignorant: Knowledge = { ...fullKnowledge(), weaponEdge: () => 0 };
     const t = createTactics(fakeWorld());
     expect(kinds(think(t, hunt, swapScene({ know: ignorant })))).toEqual(["lock"]);
+  });
+});
+
+// ------------------------------------------------------------------------------------------------------------------ fists
+
+describe("an empty hand (a run starts on fists)", () => {
+  const bare: Partial<SelfView> = { weapons: [null, null], slot: 0 };
+
+  it("fights on fists: with both slots empty it locks the foe it hunts, as an armed bot does, instead of failing", () => {
+    const t = createTactics(fakeWorld());
+    const out = think(t, hunt, { self: bare, foes: [foe(300, 0)] });
+    expect(only(out, "lock")).toMatchObject({ target: "foe", priority: PRIORITY.combat });
+    expect(out.status.state).toBe("running");
+    expect(kinds(think(createTactics(fakeWorld()), farm, { self: bare, mobs: [mob(200, 0)] }))).toEqual(["lock"]);
+  });
+
+  it("counts as attacking once locked and inside fists' attack range, not at the sword's: fists reach 40 u", () => {
+    const t = createTactics(fakeWorld());
+    const spacing = lockSpacing("fists");
+    const close = think(t, hunt, { self: { ...bare, attackTarget: "foe" }, foes: [foe(spacing.attackRange - 4, 0)] });
+    expect(close.attacking).toBe(true);
+    // 10 u past fists' range plus the 24 u slack: inside a sword's, outside fists'.
+    const between = spacing.attackRange + 24 + 10;
+    expect(lockSpacing("sword").attackRange + 24).toBeGreaterThan(between);
+    const mid = think(createTactics(fakeWorld()), hunt, { self: { ...bare, attackTarget: "foe" }, foes: [foe(between, 0)] });
+    expect(mid.attacking, "inside a sword's range, outside fists'").toBe(false);
+    const sword = think(createTactics(fakeWorld()), hunt, { self: { weapons: ["sword", null], slot: 0, attackTarget: "foe" }, foes: [foe(between, 0)] });
+    expect(sword.attacking, "the same spot is in a sword's range").toBe(true);
+  });
+
+  it("takes up the weapon in the other slot (any weapon beats bare hands) and says so", () => {
+    const t = createTactics(fakeWorld());
+    const out = think(t, hunt, { self: { weapons: [null, "bow"], slot: 0 }, foes: [foe(300, 0)] });
+    expect(out.intents).toHaveLength(1);
+    expect(only(out, "swap")).toMatchObject({ slot: 1, priority: PRIORITY.combat });
+    expect(out.status).toMatchObject({ state: "running" });
+    expect(out.attacking).toBe(false);
+    const other = think(createTactics(fakeWorld()), hunt, { self: { weapons: ["wand", null], slot: 1 }, foes: [foe(300, 0)] });
+    expect(only(other, "swap")).toMatchObject({ slot: 0 });
+  });
+
+  it("does not swap between two empty slots, and fails only for a bot with no faction yet", () => {
+    const out = think(createTactics(fakeWorld()), hunt, { self: bare, foes: [foe(300, 0)] });
+    expect(kinds(out)).not.toContain("swap");
+    const none = think(createTactics(fakeWorld()), hunt, { self: { ...bare, faction: null }, foes: [foe(300, 0)] });
+    expect(none.status).toMatchObject({ state: "failed", why: "no faction yet" });
   });
 });
 
@@ -1017,5 +1063,39 @@ describe("the numbers under the cycle", () => {
     expect(bow.intervalMs).toBeCloseTo(attackInterval(spec, "bow") * 1000, 6);
     expect(bow.windupMs).toBeLessThanOrEqual(600);
     expect(bow.windupMs).toBeGreaterThan(0);
+  });
+
+  // The bots' timings are shared mirrorTimings, the function the server's timingsOf and the client's bow pull read: a ranged windup
+  // is the anti-kiting lever and never goes below its value at base speed, however fast the fighter is (G9).
+  it("a faster bot's ranged windup stays at its base-speed value, and the cooldown still shrinks", () => {
+    for (const faction of ["fire", "sentenced", "plague", "frost", "holy"] as const) {
+      for (const weapon of ["bow", "wand"] as const) {
+        const base = ownTimings(selfView({ faction, asMult: 1 }), weapon)!;
+        for (const asMult of [1.05, 1.25, 1.6]) {
+          const fast = ownTimings(selfView({ faction, asMult }), weapon)!;
+          expect(fast.windupMs, `${faction} ${weapon} x${asMult}`).toBeCloseTo(base.windupMs, 9);
+          expect(fast.intervalMs, `${faction} ${weapon} x${asMult}`).toBeLessThan(base.intervalMs);
+        }
+      }
+    }
+  });
+
+  it("is mirrorTimings for every faction, weapon and mirror, and a melee windup follows the windup mirror", () => {
+    for (const faction of ["fire", "sentenced", "plague", "frost", "holy"] as const) {
+      const spec = pacedFaction(FACTIONS[faction]);
+      for (const weapon of ["sword", "axe", "bow", "wand", "shield"] as const) {
+        for (const [asMult, windupMult] of [[1, 1], [1.4, 1], [0.8, 1], [1.2, 0.5], [1, 1.2]] as const) {
+          const t = mirrorTimings(spec, weapon, asMult, windupMult);
+          const own = ownTimings(selfView({ faction, asMult, windupMult }), weapon)!;
+          expect(own.intervalMs, `${faction} ${weapon} ${asMult}/${windupMult}`).toBeCloseTo(t.interval * 1000, 9);
+          expect(own.windupMs, `${faction} ${weapon} ${asMult}/${windupMult}`).toBeCloseTo(t.windup * 1000, 9);
+        }
+      }
+    }
+    // Quickdraw halves a sword's windup and leaves a bow's alone
+    expect(ownTimings(selfView({ faction: "fire", windupMult: 0.5 }), "sword")!.windupMs)
+      .toBeLessThan(ownTimings(selfView({ faction: "fire" }), "sword")!.windupMs);
+    expect(ownTimings(selfView({ faction: "fire", windupMult: 0.5 }), "bow")!.windupMs)
+      .toBe(ownTimings(selfView({ faction: "fire" }), "bow")!.windupMs);
   });
 });

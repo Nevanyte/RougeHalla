@@ -1,25 +1,26 @@
 // The quest catalog and its placement (GAME_DESIGN 2.2; sim/quests.ts runs these in a raid). Quests are standing
 // offers to the whole lobby: five public offers support spawn planning, while five private offers stay out of synced
-// state until scouted. Every objective pulls players away from their spawn and pays a buff from the zone it visits.
+// state until scouted. Every objective pulls players away from their spawn and pays a card and some GV.
 //
-// Balance ("roughly time parity with farming, slightly more for the risk"): FARM_SECONDS_PER_MOB is the all-in
-// seconds of farming one mob (fight, walk between camps, regen), so a player farming flat out earns
-// FARM_STACK_RATE stacks and FARM_GV_RATE GV per second. A quest costs objSec at the objective plus travelSec of
-// pure walking; walking only earns TRAVEL_RATE_SHARE of the farm rate (camps met on the way), so the time-parity
-// reward is parityStacks / parityGv, and a quest should pay a little OVER that — the STACK_PREMIUM — because the
-// walker is exposed (a gank target carrying a parcel) in a way a camper is not. The catalog test holds every quest
-// (headhunter excepted: a player kill has no mob parity) inside a band around its parity, so the numbers below and
-// this formula cannot drift apart.
+// Balance ("roughly time parity with farming, slightly more for the risk"; BALANCE_CONTRACT 8.4): a player farming flat out clears a
+// camp (CAMP_SECONDS, four mobs of FARM_SECONDS_PER_MOB each) in the time a quest asks, and a normal camp's chest gives CARD_TIER_RATE
+// tier points on average. A quest costs objSec at the objective plus travelSec of pure walking; walking only earns TRAVEL_RATE_SHARE of
+// the farm rate (camps met on the way). Its card's tier is those camps' worth of points, rounded into 1-3 (questTier), and pays a
+// little OVER parity, STACK_PREMIUM, because the walker is exposed (a gank target carrying a parcel) in a way a camper is not. The
+// base stat comes from the zone it visits (the old buff's stat); the player-kill quest (no mob parity) is capped at tier 1. A fed
+// player (the mob reward curve below QUEST_FEED_BRAKE) gets one tier less (questRewardCard). The catalog test holds every card to
+// this rule, and every GV amount inside a band around its parity, so the numbers below and the formulas cannot drift apart.
 import {
   PLAYER_RADIUS, QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_RADIUS, TILE,
 } from "./constants";
-import { buffDef, buffText, rewardCurve, type BuffId } from "./buffs";
+import { cardText, cardTitle, type CardId, type CardTier } from "./cards";
 import type { FactionId } from "./factions";
 import { circleClear } from "./geometry";
 import {
   MASK_MOVE, blocksTile, moveComponents, tileIndex, tileToWorldCenter, worldToTile, type CampDef, type GameMap,
 } from "./map";
 import type { Vec2 } from "./messages";
+import { rewardCurve } from "./rules";
 import { TERRAIN_NONE, terrainAt } from "./terrain";
 
 export type QuestKind = "kill" | "collect" | "fetch";
@@ -37,7 +38,7 @@ export interface QuestDef {
   count: number;
   /** The region the objective sits in (kill/collect/fetch): the giver is placed far from its pole. */
   region?: FactionId;
-  /** The zone whose mob buff this quest pays. It is explicit for objectives that visit several or any zone. */
+  /** The zone whose mobs the objective is about (its colour in the log). It is explicit for objectives that visit several or any zone. */
   farZone: FactionId;
   /** Kill quest: only an elite counts, from any zone. (Combining it with `region` is not supported: the sim never reads the region of an elite def.) */
   elite?: boolean;
@@ -53,28 +54,32 @@ export interface QuestDef {
   objSec: number;
   /** Expected seconds of pure travel the offer asks for; feeds the parity maths above. */
   travelSec: number;
-  /** Nominal reward before the server applies rewardCurve(feed) to the buff stacks. */
-  reward: { buff: BuffId; stacks: number; gv: number };
+  /** The card it pays at the nominal tier (questTier: before the feed brake, questRewardCard) and the GV it adds. */
+  reward: { card: CardId; gv: number };
   /** The offer lapses this many seconds into the run (no farming first, turning in at leisure). */
   expiresAtSec: number;
 }
 
-// --- The time-parity formula (see the header) ------------------------------------------------------------------------
+// --- The time-parity formulas (see the header) ----------------------------------------------------------------------
 
 /** All-in seconds of farming one mob: the fight, the walk to the next camp, the regen pause. */
 export const FARM_SECONDS_PER_MOB = 12;
-/** Stacks per second of flat-out farming (MOB_BUFF_STACKS over FARM_SECONDS_PER_MOB). */
-export const FARM_STACK_RATE = 1.1 / FARM_SECONDS_PER_MOB;
+/** All-in seconds of clearing a camp of four: the unit a quest's time is counted in. */
+export const CAMP_SECONDS = 4 * FARM_SECONDS_PER_MOB;
+/** Tier points a normal camp's chest gives on average (70/25/5 base tiers, a third of the options being useful: 1.35). */
+export const CARD_TIER_RATE = 1.35;
 /** GV per second of flat-out farming (GV_MOB over FARM_SECONDS_PER_MOB). */
 export const FARM_GV_RATE = 2 / FARM_SECONDS_PER_MOB;
 /** Travel still earns this share of the farm rate (camps and loot met on the way). */
 export const TRAVEL_RATE_SHARE = 0.4;
-/** Stacks pay this much over parity: the walker is the gank target, the camper is not. */
+/** A quest pays this much over parity: the walker is the gank target, the camper is not. */
 export const STACK_PREMIUM = 1.15;
+/** A player whose mob reward curve is below this (fed: it is the curve at a feed of 5) gets a quest card one tier lower. */
+export const QUEST_FEED_BRAKE = 0.65;
 
-/** Stacks a quest taking (objSec at the objective + travelSec walking) should pay to beat farming by the premium. */
-export function parityStacks(objSec: number, travelSec: number): number {
-  return (objSec * FARM_STACK_RATE + travelSec * FARM_STACK_RATE * TRAVEL_RATE_SHARE) * STACK_PREMIUM;
+/** The tier points a quest taking (objSec at the objective + travelSec walking) should pay to beat farming by the premium. */
+export function questTierPoints(objSec: number, travelSec: number): number {
+  return ((objSec + TRAVEL_RATE_SHARE * travelSec) / CAMP_SECONDS) * CARD_TIER_RATE * STACK_PREMIUM;
 }
 
 /** GV the same quest should pay for time parity (no premium: GV is the consolation half of a reward). */
@@ -89,104 +94,104 @@ export const QUEST_DEFS: readonly QuestDef[] = [
   {
     id: "cull-fire", kind: "kill", name: "Cinder Cull", giver: "Ashmother Vela",
     text: "The ashwoods breed vermin faster than we can burn them. Cull three.", count: 3, region: "fire", farZone: "fire",
-    objSec: 36, travelSec: 60, reward: { buff: "emberImp", stacks: 7, gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "ad2", gv: 10 }, expiresAtSec: 150,
   },
   {
     id: "cull-sentenced", kind: "kill", name: "Break the Chains", giver: "Magistrate Ohm",
     text: "Three convicts walk free who shouldn't. Remind them what chains are for.", count: 3, region: "sentenced", farZone: "sentenced",
-    objSec: 36, travelSec: 60, reward: { buff: "executioner", stacks: 7, gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "ad2", gv: 10 }, expiresAtSec: 150,
   },
   {
     id: "cull-plague", kind: "kill", name: "Plague Purge", giver: "Sister Mercia",
     text: "The rats carry it further every night. Three fewer carriers, please.", count: 3, region: "plague", farZone: "plague",
-    objSec: 36, travelSec: 60, reward: { buff: "plagueRat", stacks: 7, gv: 10 }, expiresAtSec: 150,
+    objSec: 36, travelSec: 60, reward: { card: "haste2", gv: 10 }, expiresAtSec: 150,
   },
   {
     id: "cull-frost", kind: "kill", name: "Thaw the Watch", giver: "Warden Sigur",
     text: "Rimeguards on the far ridge, three of them. End their watch.", count: 3, region: "frost", farZone: "frost",
-    objSec: 36, travelSec: 75, reward: { buff: "iceGolem", stacks: 7.5, gv: 11 }, expiresAtSec: 165,
+    objSec: 36, travelSec: 75, reward: { card: "vitality2", gv: 11 }, expiresAtSec: 165,
   },
   {
     id: "elite-hunt", kind: "kill", name: "Worth the Walk", giver: "Huntmaster Brack",
     text: "Any elite, anywhere. Prove you can bring down something that fights back.", count: 1, elite: true, farZone: "fire",
-    objSec: 20, travelSec: 60, reward: { buff: "wyrmling", stacks: 5, gv: 7 }, expiresAtSec: 240,
+    objSec: 20, travelSec: 60, reward: { card: "ap1", gv: 7 }, expiresAtSec: 240,
   },
   {
     id: "headhunter", kind: "kill", name: "A Head for a Head", giver: "The Broker",
     text: "One of your fellow champions. Any of them. I don't deal in specifics.", count: 1, players: true, farZone: "sentenced",
-    objSec: 30, travelSec: 60, reward: { buff: "executioner", stacks: 3, gv: 5 }, expiresAtSec: 300,
+    objSec: 30, travelSec: 60, reward: { card: "ad1", gv: 5 }, expiresAtSec: 300,
   },
   {
     id: "grand-tour", kind: "kill", name: "The Grand Tour", giver: "Cartographer Ines",
     text: "Blood on your blade in three different lands. Bring me the itinerary.", count: 3, tour: 3, farZone: "fire",
-    objSec: 36, travelSec: 100, reward: { buff: "cinderHound", stacks: 8.5, gv: 13 }, expiresAtSec: 300,
+    objSec: 36, travelSec: 100, reward: { card: "fleet2", gv: 13 }, expiresAtSec: 300,
   },
   // Collect (7)
   {
     id: "bloom-plague", kind: "collect", name: "Blight Blooms", giver: "Apothecary Nyx",
     text: "Pale blooms grow where the rats nest. Three, stems and all.", count: 3, region: "plague", farZone: "plague", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { buff: "plagueRat", stacks: 5, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "haste1", gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "shards-frost", kind: "collect", name: "Shards of the Watch", giver: "Smith Halvar",
     text: "Rimeshard splinters litter the far camp. Three will reforge nicely.", count: 3, region: "frost", farZone: "frost", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { buff: "rimeStalker", stacks: 5, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "armor1", gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "ashcap-fire", kind: "collect", name: "Ashcaps", giver: "Cook Farrell",
     text: "Ashcap mushrooms, the big grey ones, from the ember camp. Three. Don't ask what for.", count: 3, region: "fire", farZone: "fire", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { buff: "magmaBrute", stacks: 5, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "mr1", gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "chains-sentenced", kind: "collect", name: "Loose Links", giver: "Warden Ohm the Younger",
     text: "Broken links from the chain camp, three of them. Evidence, you understand.", count: 3, region: "sentenced", farZone: "sentenced", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { buff: "bailiff", stacks: 5, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "ap1", gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "tithe-holy", kind: "collect", name: "The Tithe", giver: "Cantor Lucien",
     text: "Blood tokens the imps hoard at their camp. Three, for the collection plate.", count: 3, region: "holy", farZone: "holy", tokens: "camp", tokenSpawns: 5,
-    objSec: 15, travelSec: 75, reward: { buff: "penitent", stacks: 5, gv: 8 }, expiresAtSec: 180,
+    objSec: 15, travelSec: 75, reward: { card: "ap1", gv: 8 }, expiresAtSec: 180,
   },
   {
     id: "cache", kind: "collect", name: "The Quartermaster's Cache", giver: "Quartermaster Bly",
     text: "I scattered supply stubs around the middle camps. Four of them buy you my gratitude.", count: 4, farZone: "plague", tokens: "mid", tokenSpawns: 6,
-    objSec: 20, travelSec: 90, reward: { buff: "plagueRat", stacks: 6.5, gv: 10 }, expiresAtSec: 220,
+    objSec: 20, travelSec: 90, reward: { card: "haste2", gv: 10 }, expiresAtSec: 220,
   },
   {
     id: "tithe-rim", kind: "collect", name: "Offerings at the Edge", giver: "Pilgrim Saoirse",
     text: "Five shrines by the outer starts, an offering at each. The long way round is the point.", count: 5, farZone: "frost", tokens: "rim", tokenSpawns: 8,
-    objSec: 25, travelSec: 110, reward: { buff: "iceGolem", stacks: 8, gv: 12 }, expiresAtSec: 240,
+    objSec: 25, travelSec: 110, reward: { card: "vitality2", gv: 12 }, expiresAtSec: 240,
   },
   // Fetch (6)
   {
     id: "banner-fire", kind: "fetch", name: "The Ember Banner", giver: "Herald Kest",
     text: "My banner stands in the ashlands. Carry it back and mind the carrier's curse: everyone sees you.", count: 1, region: "fire", farZone: "fire",
-    objSec: 8, travelSec: 100, reward: { buff: "cinderHound", stacks: 5.5, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "fleet2", gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "banner-frost", kind: "fetch", name: "The Frozen Standard", giver: "Skald Runa",
     text: "A standard lost on the glacier. Bring it home and I'll sing of you.", count: 1, region: "frost", farZone: "frost",
-    objSec: 8, travelSec: 100, reward: { buff: "iceGolem", stacks: 5.5, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "vitality2", gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "banner-plague", kind: "fetch", name: "The Physician's Satchel", giver: "Physician Aldous",
     text: "My satchel, left behind in the sicklands. Fetch it and try not to touch anything.", count: 1, region: "plague", farZone: "plague",
-    objSec: 8, travelSec: 100, reward: { buff: "plagueRat", stacks: 5.5, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "haste2", gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "banner-sentenced", kind: "fetch", name: "The Warden's Seal", giver: "Clerk Demain",
     text: "The old seal lies in the prison yards. Bureaucracy demands its return.", count: 1, region: "sentenced", farZone: "sentenced",
-    objSec: 8, travelSec: 100, reward: { buff: "executioner", stacks: 5.5, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "ad2", gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "banner-holy", kind: "fetch", name: "The Reliquary", giver: "Abbot Gavril",
     text: "A reliquary abandoned at the blood shrine. Handle with reverence. And haste.", count: 1, region: "holy", farZone: "holy",
-    objSec: 8, travelSec: 100, reward: { buff: "acolyte", stacks: 5.5, gv: 8 }, expiresAtSec: 200,
+    objSec: 8, travelSec: 100, reward: { card: "leech2", gv: 8 }, expiresAtSec: 200,
   },
   {
     id: "long-haul", kind: "fetch", name: "The Long Haul", giver: "Freight Captain Mora",
     text: "One parcel, the whole way across. Nobody who matters will carry it. Will you?", count: 1, farZone: "plague",
-    objSec: 8, travelSec: 150, reward: { buff: "plagueRat", stacks: 8, gv: 12 }, expiresAtSec: 280,
+    objSec: 8, travelSec: 150, reward: { card: "haste2", gv: 12 }, expiresAtSec: 280,
   },
 ];
 
@@ -197,17 +202,34 @@ export function questDefById(id: string): QuestDef | undefined {
   return QUEST_DEF_BY_ID.get(id);
 }
 
-/** Nominal reward wording for the quest log and planning screen, including the buff's scaled effect. */
-export function questRewardText(def: QuestDef): string {
-  const buff = buffDef(def.reward.buff);
-  const stacks = String(Math.round(def.reward.stacks * 100) / 100);
-  if (!buff) return `${def.reward.gv} GV`;
-  return `${stacks} ${buff.name} stacks (${buffText(buff.id, def.reward.stacks)}) and ${def.reward.gv} GV`;
+/** The nominal tier of a quest's card: its tier points rounded into 1-3, and at most 1 for the player-kill quest (no mob parity). */
+export function questTier(def: Pick<QuestDef, "objSec" | "travelSec" | "players">): CardTier {
+  if (def.players) return 1;
+  const points = questTierPoints(def.objSec, def.travelSec);
+  return Math.max(1, Math.min(3, Math.round(points))) as CardTier;
 }
 
-/** Actual buff stacks to grant at completion: the nominal quest reward through the same feed brake as mob rewards. */
-export function questRewardStacks(def: QuestDef, feed: number): number {
-  return def.reward.stacks * rewardCurve(feed);
+/** The base stat of a quest's card ("ad" for "ad2"). */
+export function questBase(def: Pick<QuestDef, "reward">): string {
+  return def.reward.card.replace(/[123]$/, "");
+}
+
+/**
+ * The card a player is paid for completing the quest with this feed: the quest's nominal card, one tier lower (at least 1) once the
+ * mob reward curve at their feed has fallen below QUEST_FEED_BRAKE.
+ */
+export function questRewardCard(def: Pick<QuestDef, "reward">, feed: number): CardId {
+  const base = questBase(def);
+  const tier = Number(def.reward.card.slice(base.length)) as CardTier;
+  const lowered = rewardCurve(feed) < QUEST_FEED_BRAKE ? Math.max(1, tier - 1) : tier;
+  return `${base}${lowered}` as CardId;
+}
+
+/** Nominal reward wording for the quest log and planning screen: "Haste II (+16% attack speed) and 10 GV". */
+export function questRewardText(def: QuestDef): string {
+  const title = cardTitle(def.reward.card);
+  if (title === "") return `${def.reward.gv} GV`;
+  return `${title} (${cardText(def.reward.card)}) and ${def.reward.gv} GV`;
 }
 
 // --- The roster ------------------------------------------------------------------------------------------------------

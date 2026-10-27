@@ -3,7 +3,7 @@ import {
   FACTIONS, FACTION_IDS, FACTION_WHEEL, SIGNATURE_WEAPONS, WEAPONS, WEAPON_IDS, WEAPON_WHEEL, wheelMatchups, type Wheel,
 } from "@raid/shared";
 import { describe, expect, it } from "vitest";
-import { joinNames, matchupText, trimSegment, wheelDescription, wheelHighlight } from "../src/ui/hub/counterWheel";
+import { joinNames, matchupText, startingKitText, trimSegment, wheelDescription, wheelHighlight } from "../src/ui/hub/counterWheel";
 
 const count = (roles: string[], role: string) => roles.filter((r) => r === role).length;
 
@@ -65,6 +65,16 @@ describe("wheelHighlight", () => {
       expect(h.pick).toBe(SIGNATURE_WEAPONS[f]);
       expect(h.nodes[SIGNATURE_WEAPONS[f]]).toBe("pick");
     }
+  });
+});
+
+describe("the weapon ring's caption", () => {
+  it("says a run starts on fists, which are not on the ring, and names the faction", () => {
+    const [first, second] = startingKitText("Demon Blood");
+    expect(first).toBe("Demon Blood starts on fists: the fastest hands, the shortest reach, and a swing no shield stops.");
+    expect(second).toContain("outside this ring");
+    // The ring is the five loop weapons; fists are not a node of it.
+    expect(WEAPON_WHEEL.nodes.map((n) => n.id)).not.toContain("fists");
   });
 });
 

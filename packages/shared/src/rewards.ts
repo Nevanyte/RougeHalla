@@ -1,78 +1,101 @@
-// A camp's shared chest (roguelike R5, ROGUELIKE_PLAN 3.3): what it offers and what a skip gives. Pure: the sim rolls the
-// options with `world.rewardRandom` (never `world.random`, never the public seed: D16) and puts them in the synced reward
-// container (D17); the client reads the same helpers to word the cards.
+// A camp's shared chest (BALANCE_CONTRACT 4.8): what it offers and what a skip gives. Pure: the sim rolls the options with
+// `world.rewardRandom` (never `world.random`, never the public seed: D16) and puts them in the synced reward container (D17); the
+// client reads the same helpers to word the cards.
 //
-// The option rule (CHEST_RULE):
-//   "interim" (R5, until R6's actives): CHEST_OPTIONS options = at most ONE live passive of the camp's zone, then live
-//             neutral passives, no duplicates. A zone with no live passive (Fire and Frost until R4b) gives neutrals only.
-//   "d6"      (R6, ROGUELIKE_PLAN D6): 2 from the zone's pool + 1 neutral; a pool that runs short is filled from the other.
-// Options never include a skill the build already holds at its top rank (a maxed skill can't be picked); one held at
-// rank 1 is offered and gives rank 2. The SHARED chest is rolled with no build (each picker's own ranks decide what a pick
-// gives, and the server refuses a maxed one), so `build` is for personal rolls (R7) and the tests.
-// Draws: one rng() per option taken (a partial Fisher-Yates over each pool), zone options first, then the neutrals; the
-// options keep that order (the zone's card is the first one).
-import { CHEST_OPTIONS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
-import type { FactionId } from "./factions";
+// The roll: three distinct cards (CHEST_OPTIONS), in this order, one `rng()` per decision:
+//   1. a BASE card: its tier (the camp's odds, CHEST_TIER_ODDS), then which of that tier's eight;
+//   2. a CONDITIONAL (probability CHEST_CONDITIONAL_CHANCE, a coin first), picked from the live conditionals whose base at least one
+//      ELIGIBLE picker owns and that not every eligible picker already holds; when the coin says no, or none qualifies, a second BASE
+//      card of a different stat (tier, then which);
+//   3. an AUGMENT: its tier, then which of that tier's live augments that not every eligible picker holds (none left in the tier: the
+//      nearest tier that has one, lower first; no augment at all: a third base card).
+// "Eligible pickers" are the players who may take from this chest: those who damaged the camp and stand near it at the clear
+// (sim/campHeal.ts). With none, no conditional is offered. A chest always has at least one unconditional card (1 is a base card).
+// Tier odds: a normal camp's base card 70/25/5 and its augment 50/45/5; an elite camp's both 10/60/30. A conditional is tier 2.
+// The SHARED chest is rolled once for everyone; each picker's own build decides what a pick refuses (needs a base; already yours).
+import { CHEST_CONDITIONAL_CHANCE, CHEST_TIER_ODDS, GV_SKIP, SKIP_HEAL_SHARE } from "./constants";
+import {
+  BASE_STAT_IDS, BASE_TITLES, CARD_TIERS, baseCardId, cardBlock, cardDef, cardLive, cardsOfKind, countIn, ownsBase, whyOffered,
+  type BaseStatId, type CardCounts, type CardDef, type CardId, type CardKind, type CardTier, type MechanicTag, type WhyOffered,
+} from "./cards";
 import type { Rng } from "./rng";
-import { nextRank, skillDef, skillsOf, skillText, type BuildRanks, type SkillId, type SkillPool } from "./skills";
-
-export type ChestRule = "interim" | "d6";
-/** The rule chests roll with now. R6 switches it to "d6". */
-export const CHEST_RULE: ChestRule = "interim";
 
 export interface ChestRollOptions {
-  /** The camp's zone: its pool is the zone half of the roll. */
-  zone: FactionId;
-  /** Ranks already held: maxed skills are never offered. Omit for the shared chest. */
-  build?: BuildRanks | null;
-  /** Only live skills (LIVE_SKILL_READY). Default true; false is for catalog tests. */
+  /** An elite camp's chest (tier odds 10/60/30); default a normal camp's. */
+  elite?: boolean;
+  /** The builds of the eligible pickers (conditional and augment offers read them). Omit or empty: no conditional, every augment. */
+  pickers?: readonly CardCounts[];
+  /** Only live cards (LIVE_CARD_READY). Default true; false is for catalog tests. */
   readyOnly?: boolean;
-  /** Default CHEST_RULE. */
-  rule?: ChestRule;
-  /** Default CHEST_OPTIONS. */
-  count?: number;
 }
 
-/** The ids a pool can offer under these options (catalog order). */
-export function chestPool(pool: SkillPool, opts: Pick<ChestRollOptions, "build" | "readyOnly"> = {}): SkillId[] {
-  return skillsOf(pool, { liveOnly: opts.readyOnly !== false })
-    .filter((s) => nextRank(opts.build, s.id) !== null)
-    .map((s) => s.id);
+type Odds = readonly [number, number, number];
+
+function tierFor(rng: Rng, odds: Odds): CardTier {
+  const r = rng() * (odds[0] + odds[1] + odds[2]);
+  return r < odds[0] ? 1 : r < odds[0] + odds[1] ? 2 : 3;
 }
 
-/** Takes up to `n` ids from `pool` without repeats (a partial Fisher-Yates on a copy: one rng() per id taken). */
-function draw(rng: Rng, pool: readonly SkillId[], n: number): SkillId[] {
-  const a = pool.slice();
-  const k = Math.min(n, a.length);
-  for (let i = 0; i < k; i++) {
-    const j = i + Math.floor(rng() * (a.length - i));
-    const t = a[i]!;
-    a[i] = a[j]!;
-    a[j] = t;
+function pickIn<T>(rng: Rng, pool: readonly T[]): T {
+  return pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))]!;
+}
+
+/** The tiers to look in for a pool, nearest `tier` first (lower first on a tie). */
+function tierOrder(tier: CardTier): CardTier[] {
+  return [...CARD_TIERS].sort((a, b) => Math.abs(a - tier) - Math.abs(b - tier) || a - b);
+}
+
+const heldByAll = (pickers: readonly CardCounts[], id: string): boolean => pickers.length > 0 && pickers.every((b) => countIn(b, id) > 0);
+
+/** A base card of `tier` whose stat is not in `except`. */
+function baseCard(rng: Rng, tier: CardTier, except: readonly BaseStatId[]): CardId {
+  const pool = BASE_STAT_IDS.filter((b) => !except.includes(b));
+  return baseCardId(pickIn(rng, pool), tier);
+}
+
+/** The conditionals a chest may offer these pickers: live, a picker owns the base, and not every picker holds it. Catalog order. */
+export function conditionalPool(pickers: readonly CardCounts[], readyOnly = true): CardDef[] {
+  return cardsOfKind("conditional", { liveOnly: readyOnly }).filter(
+    (c) => pickers.some((b) => ownsBase(b, c.requires!)) && !heldByAll(pickers, c.id),
+  );
+}
+
+/** The augments of `tier` a chest may offer these pickers: live and not held by every picker. Catalog order. */
+export function augmentPool(tier: CardTier, pickers: readonly CardCounts[], readyOnly = true): CardDef[] {
+  return cardsOfKind("augment", { liveOnly: readyOnly }).filter((c) => c.tier === tier && !heldByAll(pickers, c.id));
+}
+
+/** A chest's options (card ids, no duplicates): a base card, a conditional or a second base card, an augment. */
+export function rollChestOptions(rng: Rng, opts: ChestRollOptions = {}): CardId[] {
+  const odds = opts.elite ? CHEST_TIER_ODDS.elite : CHEST_TIER_ODDS.normal;
+  const pickers = opts.pickers ?? [];
+  const readyOnly = opts.readyOnly !== false;
+  const out: CardId[] = [];
+  const used: BaseStatId[] = [];
+  const takeBase = (): void => {
+    const id = baseCard(rng, tierFor(rng, odds.base), used);
+    used.push(cardDef(id)!.base!);
+    out.push(id);
+  };
+  takeBase();
+  const pool = conditionalPool(pickers, readyOnly);
+  if (rng() < CHEST_CONDITIONAL_CHANCE && pool.length > 0) out.push(pickIn(rng, pool).id);
+  else takeBase();
+  const want = tierFor(rng, odds.augment);
+  let pick: CardDef | null = null;
+  for (const t of tierOrder(want)) {
+    const augments = augmentPool(t, pickers, readyOnly);
+    if (augments.length > 0) { pick = pickIn(rng, augments); break; }
   }
-  return a.slice(0, k);
-}
-
-/** A chest's options (skill ids, no duplicates), zone options first. Fewer than `count` only when the pools run dry. */
-export function rollChestOptions(rng: Rng, opts: ChestRollOptions): SkillId[] {
-  const count = opts.count ?? CHEST_OPTIONS;
-  const zonePool = chestPool(opts.zone, opts);
-  const neutralPool = chestPool("neutral", opts);
-  if ((opts.rule ?? CHEST_RULE) === "interim") {
-    const zone = draw(rng, zonePool, Math.min(1, count));
-    return [...zone, ...draw(rng, neutralPool, count - zone.length)];
-  }
-  const zone = draw(rng, zonePool, Math.min(2, count));
-  const neutral = draw(rng, neutralPool, count - zone.length);
-  if (zone.length + neutral.length >= count) return [...zone, ...neutral];
-  // A pool ran short: fill from what is left of the zone's.
-  const rest = zonePool.filter((id) => !zone.includes(id));
-  return [...zone, ...neutral, ...draw(rng, rest, count - zone.length - neutral.length)];
+  if (pick) out.push(pick.id);
+  else takeBase();
+  return out;
 }
 
 /**
  * The toasts the server sends a player whose `choose` was refused (sim/chests.ts handleChoose): one list, so the client can
- * tell a refusal of its pick from any other toast (a GV line, a kill) without guessing at wording.
+ * tell a refusal of its pick from any other toast (a GV line, a kill) without guessing at wording. A conditional's "Needs <Base>"
+ * carries the base's title, so it is recognised by its prefix (isChestRefusal).
  */
 export const CHEST_REFUSAL = {
   busy: "Can't do that now",
@@ -81,13 +104,19 @@ export const CHEST_REFUSAL = {
   blocked: "Can't reach that",
   picked: "You already picked",
   taken: "Already taken",
-  maxed: "Already at rank 2",
+  owned: "Already yours",
 } as const;
 export const CHEST_REFUSALS: readonly string[] = Object.values(CHEST_REFUSAL);
+export const CHEST_REFUSAL_NEEDS_PREFIX = "Needs ";
+
+/** "Needs Leech": the refusal of a conditional card by a picker who has no card of its base. */
+export function needsRefusal(base: BaseStatId): string {
+  return `${CHEST_REFUSAL_NEEDS_PREFIX}${BASE_TITLES[base]}`;
+}
 
 /** This toast text is the server refusing a chest pick. */
 export function isChestRefusal(text: string): boolean {
-  return CHEST_REFUSALS.includes(text);
+  return CHEST_REFUSALS.includes(text) || (text.startsWith(CHEST_REFUSAL_NEEDS_PREFIX) && BASE_STAT_IDS.some((b) => text === needsRefusal(b)));
 }
 
 /** What a skip gives (D12): heal SKIP_HEAL_SHARE of max hp when the heal lockout allows it, else GV_SKIP GV (under GV_MOB_CAP). */
@@ -99,23 +128,39 @@ export function skipText(): string {
 }
 
 /** One option as the chest panel shows it to a picker. */
-export interface ChestOptionView {
-  id: SkillId;
-  name: string;
-  /** The rank picking it gives this picker (2 when they own it at rank 1); the top rank when `maxed`. */
-  rank: number;
-  /** That rank in one line, for the picker's faction. */
+export interface CardOptionView {
+  id: CardId;
+  title: string;
+  tier: CardTier;
+  kind: CardKind;
   text: string;
-  /** The picker already holds it at the top rank: they cannot pick it. */
-  maxed: boolean;
-  pool: SkillPool;
+  tags: readonly MechanicTag[];
+  /** A base card: the stat it deepens. */
+  base?: BaseStatId;
+  /** A conditional: the base it needs. */
+  requires?: BaseStatId;
+  /** The picker's own reason this card is on the panel ("Deepens your Attack Damage", "You have Leech", "New"). */
+  why: WhyOffered;
+  /** Why this picker could not take it (the server refuses with the same words), or null when they can. */
+  blocked: { reason: "needs" | "owned"; text: string } | null;
+  /** How many of this card the picker holds now. */
+  held: number;
 }
 
-/** A synced option id seen by a picker with this build and faction; null for an id the catalog does not know. */
-export function chestOptionView(id: string, build: BuildRanks | null | undefined, faction?: string): ChestOptionView | null {
-  const def = skillDef(id);
+/** A synced option id seen by a picker with this build; null for an id the catalog does not know. */
+export function cardOptionView(id: string, build: CardCounts | null | undefined): CardOptionView | null {
+  const def = cardDef(id);
   if (!def) return null;
-  const next = nextRank(build, id);
-  const r = next ?? 2;
-  return { id: def.id, name: def.name, rank: r, text: skillText(id, r, faction), maxed: next === null, pool: def.pool };
+  const view: CardOptionView = {
+    id: def.id, title: def.title, tier: def.tier, kind: def.kind, text: def.text, tags: def.tags,
+    why: whyOffered(id, build)!, blocked: cardBlock(id, build), held: countIn(build, id),
+  };
+  if (def.base) view.base = def.base;
+  if (def.requires) view.requires = def.requires;
+  return view;
+}
+
+/** Is `id` a card chests can roll right now (live)? */
+export function cardOfferable(id: string): boolean {
+  return cardLive(id);
 }

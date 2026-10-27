@@ -2,9 +2,10 @@
    by itself while a chest is in reach. It is NOT a modal and never takes the canvas' clicks: a left-click elsewhere still locks a
    target and a right-click still walks. So the root and the box are click-through, and only the cards and Skip take the pointer
    (index.html's "#ui > *" is auto, which the selector below outranks; nothing in here turns the pointer back on for the rest).
-   z-index ladder: above the build tooltip (5), under the map screens (planning.css, 10), the toasts (15) and the chrome (20).
-   Sizes follow --cp-text (the text size setting, set by the script). Zone and rank are told by glyph and words, never by hue alone;
-   a card that cannot be picked says why in words (taken, maxed) as well as being greyed. */
+   z-index ladder: above the cards row's tooltip (5), under the map screens (planning.css, 10), the toasts (15) and the chrome (20).
+   Sizes follow --cp-text (the text size setting, set by the script). A card's tier is told by its roman numeral and its kind by
+   words, never by hue alone; a card that cannot be picked says why in words (taken, "Needs Leech", "Already yours") as well as
+   being greyed. */
 #ui > .chest-panel {
   position: absolute;
   z-index: 8;
@@ -79,22 +80,51 @@
 .cp-card:focus-visible, .cp-skip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .cp-card-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .cp-name { flex: 1; min-width: 0; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.cp-rank { flex: none; padding: 0 5px; font-size: 0.82em; font-weight: 700; color: var(--accent); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); }
-.cp-pool { font-size: 0.8em; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); }
+.cp-tier { flex: none; padding: 0 5px; font-size: 0.82em; font-weight: 700; color: var(--accent); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); }
+.cp-kind { font-size: 0.8em; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); }
 .cp-text { font-size: 0.92em; color: var(--text-soft); }
 .cp-state { font-size: 0.88em; font-weight: 600; color: var(--warn); }
 .cp-key { flex: none; }
+/* The tag chips (a hover or a tap puts the glossary line in the status line) and the augment's rarity flair. */
+.cp-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 1px; }
+.cp-tags[hidden], .cp-flair[hidden] { display: none; }
+.cp-tag {
+  padding: 0 5px;
+  font-size: 0.74em;
+  line-height: 1.5;
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+.cp-card:hover:not(:disabled) .cp-tag:hover { color: var(--text); border-color: var(--accent-dim); }
+.cp-flair { flex: none; font-size: 0.9em; line-height: 1; color: var(--muted); }
+/* An augment wears a frame by tier: plain, silver, gold (never by hue alone: the tier numeral and the flair glyph say it too). */
+.cp-card.rarity-plain { border-color: var(--line-hi); }
+.cp-card.rarity-silver {
+  border-color: #cfd8dc;
+  background: linear-gradient(160deg, rgba(207, 216, 220, 0.12), var(--card) 55%);
+}
+.cp-card.rarity-silver .cp-flair, .cp-card.rarity-silver .cp-tier { color: #cfd8dc; }
+.cp-card.rarity-gold {
+  border-color: var(--gold);
+  background: linear-gradient(160deg, rgba(255, 213, 79, 0.18), var(--card) 60%);
+  box-shadow: 0 0 6px rgba(255, 213, 79, 0.28);
+}
+.cp-card.rarity-gold .cp-flair { color: var(--gold); }
+.cp-card.rarity-gold .cp-tier { color: var(--gold); border-color: var(--gold); }
 
-/* A card nobody can take: greyed AND worded. Taken is struck through; maxed is dashed. */
-.cp-card.taken, .cp-card.maxed, .cp-card.unknown, .cp-card.greyed { cursor: not-allowed; opacity: 0.55; }
+/* A card nobody can take: greyed AND worded. Taken is struck through; blocked (needs a card, already yours) is dashed. */
+.cp-card.taken, .cp-card.blocked, .cp-card.unknown, .cp-card.greyed { cursor: not-allowed; opacity: 0.55; }
 .cp-card.taken .cp-name { text-decoration: line-through; }
-.cp-card.maxed, .cp-card.unknown { border-style: dashed; }
+.cp-card.blocked, .cp-card.unknown { border-style: dashed; }
 .cp-card.greyed:not(.mine) { filter: grayscale(1); }
+.cp-card.rarity-gold.taken, .cp-card.rarity-gold.blocked, .cp-card.rarity-gold.greyed { box-shadow: none; }
 .cp-card.mine { opacity: 1; cursor: default; border-color: var(--ok-line); background: rgba(18, 46, 24, 0.55); }
 .cp-card.mine .cp-state { color: var(--ok-text); }
 .cp-card.sending { border-color: var(--accent); }
 /* Closed because it was picked or is about to vanish, but free: not clickable any more. */
-.cp-card.off:not(.taken):not(.maxed):not(.unknown):not(.mine) { cursor: not-allowed; }
+.cp-card.off:not(.taken):not(.blocked):not(.unknown):not(.mine) { cursor: not-allowed; }
 
 .cp-skip { display: flex; align-items: center; gap: 6px; padding: 4px 8px; color: var(--muted); font-size: 0.92em; }
 .cp-skip:disabled { cursor: not-allowed; opacity: 0.55; }
@@ -103,6 +133,12 @@
 .cp-status { min-height: 1.3em; font-size: 0.92em; color: var(--text-soft); pointer-events: none; }
 .cp-hint { font-size: 0.8em; color: var(--dim); pointer-events: none; }
 .cp-hint .keycap { margin-inline: 1px; }
+
+/* Short or narrow overlays: the hint line and the tag chips give way (the card's own tooltip still has the glossary), the cards tighten. */
+html[data-ui-short] .cp-hint, html[data-ui-short] .cp-tags { display: none; }
+html[data-ui-short] .cp-box { gap: 4px; padding: 6px 8px 7px; }
+html[data-ui-short] .cp-card { padding: 4px 7px 5px; }
+html[data-ui-narrow] #ui > .chest-panel { width: min(calc(220px * var(--cp-text, 1)), calc(var(--ui-w, 800px) * 0.5)); }
 
 @keyframes cp-pulse { 50% { opacity: 0.45; } }
 

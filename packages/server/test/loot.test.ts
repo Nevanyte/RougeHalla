@@ -414,7 +414,7 @@ describe("pickup", () => {
     expect(world.state.containers.size).toBe(0);
   });
 
-  it("fills an empty slot 0 first, whichever slot is in hand", () => {
+  it("fills the hand's own slot when it is empty, else an empty slot 0 first, else slot 1", () => {
     const world = startRaid([alice(["", "axe"])]);
     P(world, "a").slot = 1;
     const sword = putContainer(world, "ground", AT, ["sword"]);
@@ -428,6 +428,63 @@ describe("pickup", () => {
     pickup(bare, "b", wand.id);
     tick(bare);
     expect(slotsOf(bare, "b")).toEqual(["wand", ""]);
+
+    // The hand is the empty slot 1 (fists), the other slot holds a weapon: the pickup goes into the hand, not slot 0.
+    const second = startRaid([carol(["axe", ""])]);
+    P(second, "c").slot = 1;
+    const bow = putContainer(second, "ground", AT, ["bow"]);
+    pickup(second, "c", bow.id);
+    tick(second);
+    expect(slotsOf(second, "c")).toEqual(["axe", "bow"]);
+    // Both empty and the hand on slot 1: the hand's slot, not slot 0.
+    const both = startRaid([alice(["", ""])]);
+    P(both, "a").slot = 1;
+    const blade = putContainer(both, "ground", AT, ["sword"]);
+    pickup(both, "a", blade.id);
+    tick(both);
+    expect(slotsOf(both, "a")).toEqual(["", "sword"]);
+  });
+
+  it("arms an empty hand at once and counts it as a swap: the cooldown grows by SWAP_SECONDS, the action is cancelled and the hook runs", () => {
+    const world = startRaid([alice(["", ""])]);
+    const swapped: string[] = [];
+    world.hooks.weaponSwapped = (_w, c) => swapped.push(c.id);
+    const p = P(world, "a");
+    p.readyAt = 0;
+    const bow = putContainer(world, "ground", AT, ["bow"]);
+    pickup(world, "a", bow.id);
+    tick(world);
+    expect(slotsOf(world, "a")).toEqual(["bow", ""]);
+    expect(p.slot).toBe(0);
+    expect(p.readyAt).toBe(world.state.serverTime + SWAP_SECONDS * 1000);
+    expect(swapped).toEqual(["a"]);
+    // Nothing lay on the ground for the hand's fists: the player is the only thing that changed.
+    expect(world.state.containers.has(bow.id)).toBe(false);
+    expect(world.state.containers.size).toBe(0);
+  });
+
+  it("a weapon in the other slot does not stop an empty hand from taking the pickup into the hand (and the other slot stays)", () => {
+    const world = startRaid([alice(["sword", ""])]);
+    P(world, "a").slot = 1; // the hand is the empty second slot
+    const swapped: string[] = [];
+    world.hooks.weaponSwapped = (_w, c) => swapped.push(c.id);
+    const wand = putContainer(world, "ground", AT, ["wand"]);
+    pickup(world, "a", wand.id);
+    tick(world);
+    expect(slotsOf(world, "a")).toEqual(["sword", "wand"]);
+    expect(P(world, "a").slot).toBe(1);
+    expect(swapped).toEqual(["a"]);
+  });
+
+  it("never picks fists up: a container that holds them has nothing to take", () => {
+    const world = startRaid([alice(["", ""])]);
+    const odd = putContainer(world, "ground", AT, ["fists"]);
+    const before = dump(world);
+    pickup(world, "a", odd.id);
+    expect(toastsOf(tick(world))).toEqual([{ to: "a", text: "Nothing to take" }]);
+    expect(slotsOf(world, "a")).toEqual(["", ""]);
+    expect(defsOf(odd)).toEqual(["fists"]);
+    expect(dump(world)).toBe(before);
   });
 
   it("with both slots full replaces the weapon in hand; the old one drops where the player stands, as a swap", () => {
@@ -868,6 +925,22 @@ describe("bodies", () => {
     const body = [...world.state.containers.values()].find((c) => c.kind === "body")!;
     expect(defsOf(body)).toEqual(["shield", "axe"]);
     expect(ofType(events, "fx").filter((e) => e.fx.kind === "death")).toEqual([]);
+  });
+
+  it("dropBody leaves no fists in a body: an empty slot (and a literal fists) is not an item", () => {
+    const world = startRaid([alice(["", ""])]);
+    dropBody(world, P(world, "a"));
+    const bodies = () => [...world.state.containers.values()].filter((c) => c.kind === "body");
+    expect(bodies().map(defsOf)).toEqual([[]]);
+
+    const armed = startRaid([alice(["", "bow"])]);
+    dropBody(armed, P(armed, "a"));
+    expect([...armed.state.containers.values()].filter((c) => c.kind === "body").map(defsOf)).toEqual([["bow"]]);
+
+    const odd = startRaid([alice(["fists" as WeaponId, "sword"])]);
+    dropBody(odd, P(odd, "a"));
+    expect([...odd.state.containers.values()].filter((c) => c.kind === "body").map(defsOf)).toEqual([["sword"]]);
+    expect([P(odd, "a").weapon0, P(odd, "a").weapon1]).toEqual(["", ""]);
   });
 
   it("dropBody called directly takes exactly what the player carries, in slot order", () => {

@@ -13,13 +13,16 @@
 // The cooldown carries its remainder: an attack from a trigger already down when the cooldown ended counts from that
 // moment (at most one tick back), so cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
 import {
-  ATTACK_BUFFER_MS, damagePerHit, damageShares, leadAim, MAX_REWIND_MS, moveMultiplier, staggerImmuneUntil, swapReadyAt,
-  TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
+  ATTACK_BUFFER_MS, attackInterval, CRIT_MULT, damagePerHit, damageShares, leadAim, MAX_REWIND_MS, moveMultiplier, PLANT_FEET_BONUS,
+  scalingDamage, staggerImmuneUntil, swapReadyAt, TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import { attackSpeedMult } from "./buffs";
+import { plantArmed, rollAttackCrit, spendPlant } from "./cardState";
 import {
-  activeWeapon, combatant, factionOf, hostile, isEvading, slotWeapon, standing, standingCombatants, timingsOf, type Combatant,
+  activeWeapon, combatant, factionOf, handIsEmpty, hostile, isEvading, slotItem, slotWeapon, standing, standingCombatants, timingsOf,
+  type Combatant,
 } from "./combatant";
+import { hasFlag, hitMultOf, scalingStatsOf } from "./mods";
 import { positionAt, velocityOf } from "./movement";
 import { actionBlocked, isStunned, isUntargetable } from "./status";
 import {
@@ -85,11 +88,30 @@ export function dropLock(c: Combatant): boolean {
   return true;
 }
 
-/** The raw damage packet of a hit with `weapon` in this fighter's hands. */
+/**
+ * The raw damage packet of a hit with `weapon` in this fighter's hands: the faction's own hit (damagePerHit, with its shares)
+ * plus what the weapon scales the fighter's AD, AP, bonus max hp and bonus defense into (BALANCE_CONTRACT 3.3, shared
+ * scalingDamage: the ad, hp and def parts physical, the ap part magic, each times asMult x interval), all times the fighter's `hit`
+ * mult (Boom, Machine Gun). One packet, its shares blended, so the ledger is unchanged. A fighter with no AD, AP, bonus hp or
+ * defense and no `hit` mult gets exactly the faction's packet.
+ */
 export function packetFor(c: Combatant, weapon: WeaponId): DamagePacket {
   const f = factionOf(c.s);
   if (!f) return { raw: 0, phys: 1, magic: 0, true: 0 };
-  return { raw: damagePerHit(f, weapon, attackSpeedMult(c.s)), ...damageShares(f) };
+  const as = attackSpeedMult(c.s);
+  const base = damagePerHit(f, weapon, as);
+  const shares = damageShares(f);
+  const hit = hitMultOf(c.s);
+  const { phys, magic } = scalingDamage(weapon, scalingStatsOf(c.s), as, attackInterval(f, weapon, as));
+  if (phys === 0 && magic === 0) return { raw: hit === 1 ? base : base * hit, ...shares };
+  const total = base + phys + magic;
+  if (!(total > 0)) return { raw: 0, ...shares };
+  return {
+    raw: total * hit,
+    phys: (base * shares.phys + phys) / total,
+    magic: (base * shares.magic + magic) / total,
+    true: (base * shares.true) / total,
+  };
 }
 
 /** The fighter now aims at `a`: the shield faces it, the next attack goes there, and walking no longer turns it. */
@@ -131,7 +153,10 @@ export const handleSwap: ActionHandler = (world, c, cmd) => {
   if (cmd.kind !== "swap") return;
   if (actionBlocked(world, c)) return;
   const target = cmd.slot ?? (c.s.slot === 0 ? 1 : 0);
-  if (target === c.s.slot || !slotWeapon(c.s, target)) return;
+  // An empty slot is fists, so swapping to one is fine; two empty slots are the same hand, and swapping costs the swap time.
+  if (target === c.s.slot || slotWeapon(c.s, target) === null) return;
+  if (target === 1 && hasFlag(c.s, "lockSecondSlot")) return; // Committed: the second slot is not used
+  if (slotItem(c.s, target) === null && handIsEmpty(c.s)) return;
   c.s.slot = target;
   weaponChanged(world, c);
 };
@@ -226,6 +251,12 @@ export function updateWeapons(world: World): void {
   for (const c of standingCombatants(world)) stepWeapon(world, c);
 }
 
+/**
+ * A cooldown or a windup that ends exactly on a tick (an interval of 2/3 s lands three swings on 2.000 s) is due on that tick, whichever way
+ * float noise in the carried times falls (testing/realtime.py's EPS, 1e-9 s): otherwise a swing slips a whole tick on some sums.
+ */
+const TIE_EPS_MS = 1e-6;
+
 function stepWeapon(world: World, c: Combatant): void {
   const now = world.state.serverTime;
   const w = c.rt.weapon;
@@ -235,9 +266,9 @@ function stepWeapon(world: World, c: Combatant): void {
     if (w.action) cancelAction(world, c);
     return;
   }
-  if (w.action && now >= w.action.landsAt) land(world, c, w.action);
+  if (w.action && now + TIE_EPS_MS >= w.action.landsAt) land(world, c, w.action);
   const wants = w.held || now <= w.bufferedUntil;
-  if (!w.action && wants && now >= c.s.readyAt && !actionBlocked(world, c)) startAttack(world, c, weapon, tm);
+  if (!w.action && wants && now + TIE_EPS_MS >= c.s.readyAt && !actionBlocked(world, c)) startAttack(world, c, weapon, tm);
 }
 
 /**
@@ -249,11 +280,18 @@ function lockedFoe(world: World, c: Combatant, id: string | undefined): Combatan
   return t && standing(t) && hostile(c, t) && !isEvading(t) && !isUntargetable(world, t) ? t : null;
 }
 
-/** The windup is over: the swing becomes a melee request, the ball or arrow a spawn request. */
-function land(world: World, c: Combatant, act: PendingAction): void {
+/**
+ * The windup is over: the swing becomes a melee request, the ball or arrow a spawn request. This is the attack landing, so it is
+ * where a critical strike is decided (the fighter's own accumulator, sim/cardState.ts rollAttackCrit): the hit it makes is 1.5x
+ * and flagged, for every body a swing meets. A cancelled windup never gets here, so it counts for nothing.
+ */
+function land(world: World, c: Combatant, planned: PendingAction): void {
   const now = world.state.serverTime;
   const w = c.rt.weapon;
   w.action = null;
+  const act: PendingAction = rollAttackCrit(c)
+    ? { ...planned, packet: { ...planned.packet, raw: planned.packet.raw * CRIT_MULT, crit: true, mult: (planned.packet.mult ?? 1) * CRIT_MULT } }
+    : planned;
   const foe = lockedFoe(world, c, act.target);
   if (act.kind === "swing") {
     const rewindT = rewindTime(now, w.lagMs);
@@ -263,7 +301,7 @@ function land(world: World, c: Combatant, act: PendingAction): void {
       const to = positionAt(foe.rt, foe.s, rewindT);
       a = Math.atan2(to.y - from.y, to.x - from.x);
     }
-    world.combat.melee.push({ attacker: c.id, weapon: act.weapon, a, rewindT, packet: act.packet });
+    world.combat.melee.push({ attacker: c.id, weapon: act.weapon, a, rewindT, packet: act.packet, ...(act.rangeMult !== undefined ? { rangeMult: act.rangeMult } : {}) });
     return;
   }
   const shape = WEAPONS[act.weapon].shape;
@@ -275,7 +313,10 @@ function land(world: World, c: Combatant, act: PendingAction): void {
   // A locked shot whose target fell keeps the aim it started with (at that target), not a cursor aim that came after.
   const a = foe ? leadAim(act.origin, foe.s, velocityOf(foe.rt, foe.s, now), shape.speed)
     : act.kind === "draw" && act.target === undefined ? w.aim : act.a;
-  world.combat.spawns.push({ owner: c.id, kind: shape.projectile, weapon: act.weapon, a, packet: act.packet, origin: act.origin });
+  world.combat.spawns.push({
+    owner: c.id, kind: shape.projectile, weapon: act.weapon, a, packet: act.packet, origin: act.origin,
+    ...(act.rangeMult !== undefined ? { rangeMult: act.rangeMult } : {}),
+  });
   if (act.kind === "draw") c.s.drawStartedAt = 0;
 }
 
@@ -286,11 +327,22 @@ function startAttack(world: World, c: Combatant, weapon: WeaponId, tm: WeaponTim
   const start = w.pressedAt <= c.s.readyAt ? Math.max(c.s.readyAt, now - TICK_MS) : now;
   w.bufferedUntil = 0;
   const landsAt = start + tm.windup * 1000;
-  const packet = packetFor(c, weapon);
+  let packet = packetFor(c, weapon);
+  // Plant Your Feet: standing still long enough arms this attack with more range and damage (spent by it; the damage is a baked multiplier G1 counts).
+  let rangeMult: number | undefined;
+  if (plantArmed(world, c)) {
+    const bonus = 1 + PLANT_FEET_BONUS;
+    packet = { ...packet, raw: packet.raw * bonus, mult: (packet.mult ?? 1) * bonus };
+    rangeMult = bonus;
+    spendPlant(world, c);
+  }
   const target = w.lock ?? undefined;
   const act: PendingAction = WEAPONS[weapon].shape.kind === "arc"
-    ? { kind: "swing", weapon, startedAt: start, landsAt, a: w.aim, packet, target }
-    : { kind: weapon === "bow" ? "draw" : "cast", weapon, startedAt: start, landsAt, a: w.aim, packet, origin: drawnOrigin(world, c), target };
+    ? { kind: "swing", weapon, startedAt: start, landsAt, a: w.aim, packet, target, ...(rangeMult !== undefined ? { rangeMult } : {}) }
+    : {
+      kind: weapon === "bow" ? "draw" : "cast", weapon, startedAt: start, landsAt, a: w.aim, packet, origin: drawnOrigin(world, c), target,
+      ...(rangeMult !== undefined ? { rangeMult } : {}),
+    };
   w.action = act;
   c.s.readyAt = start + tm.interval * 1000;
   if (tm.root > 0) w.rootUntil = start + tm.root * 1000;

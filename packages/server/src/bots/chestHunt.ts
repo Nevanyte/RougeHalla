@@ -1,4 +1,5 @@
-// What a headless bot does about a cleared camp's shared chest (ROGUELIKE_PLAN R5: D1-D3, CHEST_* in shared/constants.ts).
+// What a headless bot does about a cleared camp's shared chest (ROGUELIKE_PLAN R5: D1-D3, CHEST_* in shared/constants.ts; the cards
+// of the balance pass, BALANCE_CONTRACT 9: `cardScore` is the chooser, the persona's `risk` decides what it will give up for power).
 // Pure, like mobHunt.ts: it reads a snapshot (the bot, the reward containers in the state, the clock) and answers "pick now",
 // "walk to this chest" or "nothing". BotClient executes the answer: one `choose` message, or a `move`. Nothing here touches a
 // socket or a clock of its own.
@@ -22,8 +23,8 @@
 //      it again a moment later) neither resets the count nor adds to it.
 //   4. A chest that has expired, or is gone from the state, is simply not in the input any more.
 import {
-  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, nextRank, PLAYER_SPEED, skillDef, skillRows, TICK_MS, TILE,
-  type BuildRanks, type Effect, type SkillDef, type Vec2, type WeaponId,
+  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, cardBlock, cardDef, ownsBase, PLAYER_SPEED, TICK_MS, TILE,
+  type CardCounts, type CardDef, type Vec2, type WeaponId,
 } from "@raid/shared";
 
 /** The part of a state.containers entry the hunt reads: a kind "reward" container (ContainerState). */
@@ -34,7 +35,7 @@ export interface ChestLike {
   y: number;
   /** Server time (ms, the clock of `state.serverTime`) it vanishes. */
   expiresAt: number;
-  /** SkillIds in card order, and who took each ("" = free), and everyone who has made their pick or skipped. */
+  /** Card ids in card order, and who took each ("" = free), and everyone who has made their pick or skipped. */
   options: Iterable<string>;
   takenBy: Iterable<string>;
   pickers: Iterable<string>;
@@ -91,8 +92,12 @@ export interface ChestSelf {
   faction: string;
   /** The carried weapons (both slots; null = empty). */
   weapons: readonly (WeaponId | null)[];
-  /** The skills it holds (PlayerState.build): a pick of one at the top rank is not possible. */
-  build: BuildRanks | null;
+  /** The slot in hand (0 or 1; default 0): an empty hand fights with fists. */
+  slot?: 0 | 1;
+  /** The persona's risk (0..1, PersonaParams.risk; default 0.5): how much it will give up for power. See cardScore. */
+  risk?: number;
+  /** The cards it holds (PlayerState.build, id -> count): a conditional without its base, or a unique card already held, cannot be picked. */
+  build: CardCounts | null;
 }
 
 export interface ChestInput {
@@ -125,47 +130,111 @@ export type ChestDecision =
 const NONE: ChestDecision = { kind: "none" };
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
-/** The effect rows' worth to a fighter, in points: damage, attack speed and hp are what a duel is made of. */
-function rowScore(e: Effect): number {
-  switch (e.k) {
-    case "stat":
-      return e.stat === "damage" || e.stat === "attackSpeed" || e.stat === "maxHp" || e.stat === "executeBand" ? 3 : 1;
-    case "flat": return 1.5;
-    case "trigger": return 2;
-    default: return 1.5;
+/** Weapons whose hits scale with attack damage (AD) and those that scale with ability power (AP): shared WeaponSpec.scaling. */
+const AD_WEAPONS: readonly WeaponId[] = ["sword", "axe", "bow"];
+const MELEE_WEAPONS: readonly WeaponId[] = ["sword", "axe", "shield", "fists"];
+/** The factions whose signature is a damage over time: AP feeds it whatever the weapon (AP_DOT_RATIO). */
+const DOT_FACTIONS: readonly string[] = ["fire", "sentenced", "plague"];
+
+/** The two augments that can end their owner (a x2.5 damage taken at low health; a quarter of the health gone): only a bold persona takes them. */
+const DANGEROUS: readonly string[] = ["raceToZero", "glassCannon"];
+/** A persona takes a card that gives something up from this risk, and a dangerous one only above DANGER_RISK. */
+export const TRADEOFF_RISK = 0.5;
+export const DANGER_RISK = 0.7;
+
+/** The rule switches that are a price (the other flags only turn a hook on): Committed locks the second slot, Thick Skull forbids crits, Gambler gambles. */
+const COST_FLAGS: ReadonlySet<string> = new Set(["lockSecondSlot", "noCrit", "gambler"]);
+/** The stats for which a smaller number is the better one (a shorter windup, less damage taken, a shorter cooldown). */
+const LOWER_IS_BETTER: ReadonlySet<string> = new Set(["windup", "damageTaken", "cooldown"]);
+
+/**
+ * Does the card give up something for its power (a stat row that hurts, a multiplier under 1, a rule that costs, or a multiplier that
+ * hurts: a doubled Wish cooldown, the damage a Race to 0 takes)? Such a card needs a persona with risk to take it.
+ */
+export function costsSomething(def: CardDef): boolean {
+  return def.effects.some((e) => {
+    switch (e.k) {
+      case "stat": return LOWER_IS_BETTER.has(e.stat) ? e.v > 0 : e.v < 0;
+      case "mult": return e.v < 1 || e.key === "wishCooldown" || e.key === "hpRace";
+      case "flag": return COST_FLAGS.has(e.flag);
+      default: return false;
+    }
+  });
+}
+
+/** The weapon the bot fights with now: the slot in hand, fists for an empty one. */
+export function activeWeapon(self: Pick<ChestSelf, "weapons" | "slot">): WeaponId {
+  return self.weapons[self.slot ?? 0] ?? "fists";
+}
+
+/**
+ * How well a base stat suits the weapon in hand (BALANCE_CONTRACT 9): AD on a weapon that scales with it, AP on a wand, armor and magic
+ * resist on a shield, the fists a hybrid (half of both); AP is also worth something to a faction whose signature is a damage over time.
+ */
+function baseFit(base: string, weapon: WeaponId, faction: string): number {
+  switch (base) {
+    case "ad": return AD_WEAPONS.includes(weapon) ? 1 : weapon === "fists" ? 0.5 : weapon === "wand" ? -0.5 : -1;
+    case "ap": return weapon === "wand" ? 1 : weapon === "fists" ? 0.5 : DOT_FACTIONS.includes(faction) ? 0 : -1;
+    case "armor":
+    case "mr": return weapon === "shield" ? 1 : 0;
+    // Fleet is off while shooting: the ranged weapons get little from it.
+    case "fleet": return weapon === "bow" || weapon === "wand" ? -0.5 : 0;
+    default: return 0;
   }
 }
 
-/** Does a skill suit what the bot carries? A skill that names only weapons (Quickdraw's sword, axe and shield: it shortens melee windups only) and none is held does not. */
-function fits(def: SkillDef, weapons: readonly (WeaponId | null)[]): boolean {
-  const named = def.worksWith as readonly string[];
-  const only = named.filter((t) => t === "sword" || t === "bow" || t === "wand" || t === "shield" || t === "axe");
-  if (only.length === 0 || only.length < named.length) return true; // it names no weapon, or something broader as well
-  return only.some((t) => weapons.includes(t as WeaponId));
+/** How well an augment or conditional suits the weapon in hand and the faction, from what the card is about (its tags and a few rules). */
+function ruleFit(def: CardDef, weapon: WeaponId, faction: string, carried: number): number {
+  let fit = 0;
+  for (const tag of def.tags) {
+    if (tag === "physical") fit += AD_WEAPONS.includes(weapon) ? 0.5 : weapon === "wand" ? -0.5 : 0;
+    else if (tag === "magic") fit += weapon === "wand" ? 0.5 : weapon === "fists" ? 0.25 : -0.25;
+    else if (tag === "block") fit += weapon === "shield" ? 1 : -1;
+    else if (tag === "ramping") fit += faction === "sentenced" ? 1 : -2; // only the mark ramps
+    else if (tag === "slow") fit += faction === "frost" ? 1 : 0;
+  }
+  if (def.id === "fistsOfFury") fit += weapon === "fists" ? 2 : -3; // it does nothing once the bot is armed
+  if (def.id === "quickdraw") fit += MELEE_WEAPONS.includes(weapon) ? 1 : -1; // melee windups only
+  if (def.id === "committed" && carried > 1) fit -= 2; // it locks the second slot the bot is using
+  return fit;
 }
 
 /**
- * How much a free option is worth to this bot (higher is better): the skill's own zone is its faction's pool (+4), what its
- * rows do for a fight (damage, attack speed and max hp most), a rank 2 upgrade a little, and a skill that needs a weapon the bot
- * does not hold is held back. An id the catalog does not know (newer server content) scores 0: still takeable.
+ * How much a free option is worth to this bot (higher is better; BALANCE_CONTRACT 9):
+ *   base         a stat it already owns +3 (deepen), a new one +1.5, plus its tier and how well the stat suits the weapon in hand
+ *   conditional  its base is owned (or the pick is refused): +4 and its tier, plus the fit of its tags
+ *   augment      its tier plus 1 to 3 by the persona's risk (1 + 2 x risk) and the fit of its tags; a card that gives something up
+ *                is refused below risk 0.5, and A Race to 0 and Glass Cannon at or below 0.7
+ * A card it cannot take (a conditional without its base, a unique card it holds) scores -Infinity, and an id the catalog does not
+ * know (newer server content) scores 0: still takeable.
  */
-export function optionScore(id: string, self: Pick<ChestSelf, "faction" | "weapons" | "build">): number {
-  const def = skillDef(id);
-  const next = nextRank(self.build, id);
-  if (!def || next === null) return 0;
-  let score = def.pool === self.faction ? 4 : 0;
-  for (const row of skillRows(id, next, self.faction)) score += rowScore(row);
-  if (next === 2) score += 0.5;
-  if (!fits(def, self.weapons)) score -= 3;
-  return score;
+export function cardScore(id: string, self: Pick<ChestSelf, "faction" | "weapons" | "build" | "slot" | "risk">): number {
+  const def = cardDef(id);
+  if (!def) return 0;
+  if (cardBlock(id, self.build)) return -Infinity;
+  const weapon = activeWeapon(self);
+  const risk = self.risk ?? 0.5;
+  const carried = self.weapons.filter((w) => w !== null).length;
+  switch (def.kind) {
+    case "base": return (ownsBase(self.build, def.base!) ? 3 : 1.5) + def.tier + baseFit(def.base!, weapon, self.faction);
+    case "conditional": return 4 + def.tier + ruleFit(def, weapon, self.faction, carried);
+    case "augment": {
+      if (DANGEROUS.includes(def.id) && !(risk > DANGER_RISK)) return -Infinity;
+      if (costsSomething(def) && risk < TRADEOFF_RISK) return -Infinity;
+      return def.tier + 1 + 2 * Math.min(1, Math.max(0, risk)) + ruleFit(def, weapon, self.faction, carried);
+    }
+  }
 }
 
+/** The name the first version gave it. */
+export const optionScore = cardScore;
+
 /**
- * The index of the option to take: the best-scoring free one the bot can use (not taken by someone, not held at the top rank),
+ * The index of the option to take: the best-scoring free one the bot can use (not taken by someone, not refused to it by its build),
  * the first of equals; -1 when there is none (skip).
  */
 export function chooseOption(
-  options: Iterable<string>, takenBy: Iterable<string>, self: Pick<ChestSelf, "faction" | "weapons" | "build">,
+  options: Iterable<string>, takenBy: Iterable<string>, self: Pick<ChestSelf, "faction" | "weapons" | "build" | "slot" | "risk">,
 ): number {
   const ids = [...options];
   const taken = [...takenBy];
@@ -173,8 +242,8 @@ export function chooseOption(
   let bestScore = -Infinity;
   for (let i = 0; i < ids.length; i++) {
     if ((taken[i] ?? "") !== "") continue;
-    if (nextRank(self.build, ids[i]!) === null) continue;
-    const score = optionScore(ids[i]!, self);
+    const score = cardScore(ids[i]!, self);
+    if (score === -Infinity) continue;
     if (score > bestScore) { best = i; bestScore = score; }
   }
   return best;

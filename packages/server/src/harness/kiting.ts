@@ -19,8 +19,7 @@ import { spacingFor, type Style } from "./matrix";
 export type ShooterBuff = FighterKit;
 
 export function shooterBuffText(b: ShooterBuff | undefined): string {
-  const parts = (b?.buffs ?? []).map((g) => `${g.id} x${g.stacks}`);
-  for (const g of b?.skills ?? []) parts.push(`${g.id} rank ${g.rank}`);
+  const parts = [...(b?.cards ?? [])];
   if (b?.asMult !== undefined && b.asMult !== 1) parts.push(`attack speed x${b.asMult}`);
   if (b?.windupMult !== undefined && b.windupMult !== 1) parts.push(`windup x${b.windupMult}`);
   if (b?.speedMult !== undefined && b.speedMult !== 1) parts.push(`move speed x${b.speedMult}`);

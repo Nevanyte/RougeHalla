@@ -43,6 +43,8 @@ export const POLICIES: Readonly<Record<WeaponId, SpacingPolicy>> = {
   sword: melee("sword"),
   axe: melee("axe"),
   shield: melee("shield"),
+  // The shortest reach: far 34 u (a body is 12), swing from 46 u centre to centre (edge to edge about 22 u).
+  fists: melee("fists"),
   bow: ranged("bow", 400 / 480, 0.92, 220 / 480),
   // Balls are slow: fight closer, so a target can't simply walk out of the way.
   wand: ranged("wand", 280 / 420, 0.8, 160 / 420),

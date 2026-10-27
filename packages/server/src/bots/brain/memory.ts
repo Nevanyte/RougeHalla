@@ -590,7 +590,7 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
       if (!m) {
         const home = { x: v.x, y: v.y };
         m = {
-          id: v.id, kind: v.kind, faction: v.faction, home, campId: campAt(home), pos: home, dotAt: now, seenAt: null, hpFrac: v.hpFrac,
+          id: v.id, kind: v.kind, faction: v.faction, name: v.name, home, campId: campAt(home), pos: home, dotAt: now, seenAt: null, hpFrac: v.hpFrac,
           inHand: v.inHand, awake: false, returning: false, alive: true,
         };
         mobs.set(v.id, m);
@@ -598,6 +598,7 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
       if (!m.alive) continue;
       m.kind = v.kind;
       if (v.faction !== null) m.faction = v.faction;
+      m.name = v.name;
       m.pos = { x: v.x, y: v.y };
       m.inHand = v.inHand;
       if (v.status !== "alive") {

@@ -15,8 +15,9 @@ import { CHEST_RULES, chestsModule } from "../../src/bots/brain/modules/chests";
 import { perceive, type PerceptionInput, type StateLike } from "../../src/bots/brain/perception";
 import {
   BOT_FILL_DEFAULTS, TIERS,
+  PERSONA_IDS, PERSONAS,
   type BrainConfig, type Command, type FighterView, type Goal, type Intent, type MemoryView, type MobMemory, type PersonaId, type RewardChestView,
-  type Stimulus, type TierId, type TimedCommand,
+  type SelfView, type Stimulus, type TierId, type TimedCommand,
 } from "../../src/bots/brain/types";
 import { createHeadlessRoom } from "../../src/bots/tournament/headlessRoom";
 import { chestSpot, rewardChests } from "../../src/sim/chests";
@@ -32,7 +33,7 @@ const CHEST_FEATURES = features({ messageTypes: ["move", "stop", "target", "aim"
 const IDLE: Goal = { kind: "idle" };
 const NOW = 200_000;
 const PICK = CHEST_HUNT.pickRange;
-const CARDS = ["whetstone", "swiftBoots", "thickHide"] as const;
+const CARDS = ["vitality1", "armor1", "ad2"] as const;
 
 /** The longest straight, walkable run of the cave-like test map that is at least this long (u). */
 const RUN = 410;
@@ -79,6 +80,9 @@ interface Scene {
   stimuli?: Stimulus[];
   inColiseum?: boolean;
   at?: Vec2;
+  /** The cards the bot holds (the percept's `build`: its own cards row) and the weapons it carries. */
+  build?: Record<string, number>;
+  weapons?: SelfView["weapons"];
 }
 
 function mobMemory(over: Partial<MobMemory> = {}): MobMemory {
@@ -90,7 +94,7 @@ function scene(s: Scene = {}): ReturnType<typeof makeCtx> {
   const now = s.now ?? NOW;
   const base = emptyMemory();
   const mem: MemoryView = { ...base, stimuli: s.stimuli ?? [], mobs: new Map((s.mobs ?? []).map((m) => [m.id, m])) };
-  const self = { ...ME, ...(s.at ?? {}), hp: s.hp ?? 100 };
+  const self = { ...ME, ...(s.at ?? {}), hp: s.hp ?? 100, ...(s.build ? { build: s.build } : {}), ...(s.weapons ? { weapons: s.weapons } : {}) };
   return makeCtx({
     cfg, mem, rng: rngs(cfg.seed), engaged: s.engaged ?? false,
     p: percept({
@@ -175,8 +179,8 @@ describe("what a bot sees of a reward chest (perception)", () => {
   it("a down bot reads no cards; and the cards of one chest do not leak into another", () => {
     const f = view([reward("c", 30)], { status: "dead" });
     expect(f.extras.chests![0]).toMatchObject({ options: null, takenBy: [] });
-    const g = view([reward("a", 30, { options: ["whetstone", "a", "b"] }), reward("b", 60, { options: ["c", "d", "swiftBoots"] })]);
-    expect(g.extras.chests!.map((c) => c.options)).toEqual([["whetstone", "a", "b"], ["c", "d", "swiftBoots"]]);
+    const g = view([reward("a", 30, { options: ["vitality1", "a", "b"] }), reward("b", 60, { options: ["c", "d", "armor1"] })]);
+    expect(g.extras.chests!.map((c) => c.options)).toEqual([["vitality1", "a", "b"], ["c", "d", "armor1"]]);
   });
 
   it("another player's pick is a '?', its own is its id; picked says whether the bot has picked (a skip counts), in range or not", () => {
@@ -234,9 +238,41 @@ describe("the pick: one choose per chest, within reach, whatever the bot is doin
     const list = intentsOf({ chests: [chest("rc1", 40)] });
     expect(list).toHaveLength(1);
     const pick = chooses(list)[0]!;
-    expect(pick.msg).toEqual({ chest: "rc1", pick: chooseOption(CARDS, ["", "", ""], { faction: "fire", weapons: ["sword", null], build: null }) });
+    expect(pick.msg).toEqual({ chest: "rc1", pick: chooseOption(CARDS, ["", "", ""], { faction: "fire", weapons: ["sword", null], slot: 0, risk: PERSONAS.farmer.risk, build: {} }) });
     expect(pick.priority).toBe(1);
     expect(pick.timing).toEqual({ kind: "react", stimulus: { kind: "chestUp", at: NOW, subject: "rc1", central: true } });
+  });
+
+  it("takes the card its persona's risk allows: the same three cards, three kinds of persona, three picks", () => {
+    const options = ["witness", "raceToZero", "hereComesTheBoom"];
+    const pickOf = (persona: PersonaId): number => {
+      const list = chooses(intentsOf({ cfg: cfgFor("hard", persona), chests: [chest("rc1", 40, { options })] }));
+      expect(list, persona).toHaveLength(1);
+      return (list[0]!.msg as { pick: number }).pick;
+    };
+    expect(Object.fromEntries(PERSONA_IDS.map((id) => [id, pickOf(id)]))).toEqual({ farmer: 0, hunter: 1, opportunist: 2, cautious: 0 });
+    // The module hands the chooser the persona's own number, not a default.
+    for (const id of PERSONA_IDS) {
+      const cfg = cfgFor("hard", id);
+      const list = chooses(intentsOf({ cfg, chests: [chest("rc1", 40, { options })] }));
+      expect((list[0]!.msg as { pick: number }).pick).toBe(chooseOption(options, ["", "", ""], { faction: "fire", weapons: ["sword", null], build: {}, slot: 0, risk: PERSONAS[id].risk }));
+    }
+  });
+
+  it("reads what it holds from its own cards row, a quest's card included: a conditional whose base came from a quest is taken", () => {
+    const options = ["witness", "bloodthirst", "armor1"];
+    const none = chooses(intentsOf({ chests: [chest("rc1", 40, { options })] }));
+    expect((none[0]!.msg as { pick: number }).pick).not.toBe(1); // no leech card: Bloodthirst is refused
+    const held = chooses(intentsOf({ chests: [chest("rc2", 40, { options })], build: { leech2: 1 } }));
+    expect((held[0]!.msg as { pick: number }).pick).toBe(1);
+  });
+
+  it("fits the card to the weapon in hand, not to the first slot", () => {
+    const options = ["ap1", "ad1", "vitality1"];
+    const sword = chooses(intentsOf({ chests: [chest("rc1", 40, { options })] }));
+    expect((sword[0]!.msg as { pick: number }).pick).toBe(1);
+    const wand = chooses(intentsOf({ chests: [chest("rc2", 40, { options })], weapons: ["wand", null] }));
+    expect((wand[0]!.msg as { pick: number }).pick).toBe(0);
   });
 
   it("whatever it is doing: fighting, farming, fleeing, walking somewhere else", () => {
@@ -279,15 +315,24 @@ describe("the pick: one choose per chest, within reach, whatever the bot is doin
     expect(intentsOf({ cfg, now: NOW + CHEST_RULES.askWindowMs + 100, chests: [chest("rc1", 40, { takenBy: ["?", "?", ""] })] })).toEqual([]);
   });
 
-  it("leaves a card the bot holds at the top rank, and keeps count of what it took (the HUD's own record)", () => {
+  it("leaves a unique card the bot holds, and keeps count of what it took (the HUD's own record)", () => {
     const cfg = cfgFor();
     const mine = (id: string, cards: string[], took: number) =>
       chest(id, 40, { options: cards, takenBy: ["", "", ""].map((_, i) => (i === took ? "me" : "")), picked: true });
-    // Two chests it took whetstone at: the third offers it again, but it holds it at rank 2.
-    intentsOf({ cfg, now: NOW, chests: [mine("a", ["whetstone", "x", "y"], 0)] });
-    intentsOf({ cfg, now: NOW + 50, chests: [mine("a", ["whetstone", "x", "y"], 0), mine("b", ["whetstone", "swiftBoots", "y"], 0)] });
-    const list = chooses(intentsOf({ cfg, now: NOW + 100, chests: [chest("c", 40, { options: ["whetstone", "swiftBoots", "thickHide"] })] }));
-    expect(list[0]!.msg.pick, "whetstone is maxed").not.toBe(0);
+    // It took Witness at one chest: the next offers it again, but a unique card is held once.
+    intentsOf({ cfg, now: NOW, chests: [mine("a", ["witness", "x", "y"], 0)] });
+    const list = chooses(intentsOf({ cfg, now: NOW + 100, chests: [chest("c", 40, { options: ["witness", "bountyHunter", "glassCannon"] })] }));
+    expect(list[0]!.msg.pick, "Witness is held").toBe(1);
+  });
+
+  it("takes a base card again however often it holds it (it stacks)", () => {
+    const cfg = cfgFor();
+    const mine = (id: string) => chest(id, 40, { options: ["ad1", "x", "y"], takenBy: ["me", "", ""], picked: true });
+    intentsOf({ cfg, now: NOW, chests: [mine("a")] });
+    intentsOf({ cfg, now: NOW + 50, chests: [mine("a"), mine("b")] });
+    intentsOf({ cfg, now: NOW + 80, chests: [mine("a"), mine("b"), mine("c")] });
+    const list = chooses(intentsOf({ cfg, now: NOW + 100, chests: [chest("d", 40, { options: ["ad1", "vitality1", "armor1"] })] }));
+    expect(list[0]!.msg.pick, "Attack Damage I a fourth time, still the best").toBe(0);
   });
 
   it("is silent about a chest whose cards are shut, one it has picked at, one about to vanish, and out of the run", () => {

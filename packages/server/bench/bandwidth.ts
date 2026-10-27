@@ -41,7 +41,7 @@ import type { BotManagerStats } from "../src/bots/BotManager";
 import { createHeadlessRoom, type HeadlessRoom } from "../src/bots/tournament/headlessRoom";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { teleportToColiseum } from "../src/sim/arena";
-import { grantSkill, rewardChests, rollChest } from "../src/sim/chests";
+import { grantCard, rewardChests, rollChest } from "../src/sim/chests";
 import { activeWeapon, combatant, standingCombatants, timingsOf, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
@@ -382,7 +382,7 @@ function keepChests(world: World, d: Driver, wanted: number): void {
       const rt = world.players.get(who)!;
       box.takenBy[0] = who;
       box.pickers.push(who);
-      grantSkill(world, { kind: "player", id: who, s: p, rt }, box.options[0]!);
+      grantCard(world, { kind: "player", id: who, s: p, rt }, box.options[0]!);
       emit(world, { type: "fx", fx: { kind: "chestTaken", chest: box.id, by: who, option: 0 } });
     } else if (age >= 6000 && box.pickers.length === 1) {
       box.pickers.push(who);

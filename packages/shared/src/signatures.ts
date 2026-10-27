@@ -3,8 +3,8 @@
 // the server; everything here is a function of plain numbers, so it can be tested on its own.
 //
 // Every signature bonus is raw damage per second (backlash: per enemy swing), multiplied by the attacker's weapon
-// dpsMult (bonusMultiplier) and then mitigated like a hit with the attacker's damage shares. Pass a paced faction
-// (pacedFaction) for in-game numbers.
+// dpsMult (bonusMultiplier) and then mitigated by the signature's own damage type (SIGNATURE_SHARES: burn and disease
+// magic, backlash physical, the mark true). Pass a paced faction (pacedFaction) for in-game numbers.
 import { PLAYER_RADIUS, RANGED_HIT_REACH } from "./constants";
 import { BEATS, type FactionId, type FactionSpec } from "./factions";
 import { WEAPONS, weaponEdge, type WeaponId } from "./weapons";
@@ -34,6 +34,8 @@ export const DOT_FX_MS = 500;
 
 /** The signature a damage packet came from (a `hit` fx and a ledger entry carry it). */
 export type SignatureKind = "burn" | "backlash" | "disease" | "mark";
+/** The damage type (shares of the packet) each signature deals, whatever the faction's own shares are. */
+export { SIGNATURE_SHARES } from "./signatureShares";
 /** Damage over time: applied every tick, reported in DOT_FX_MS chunks, and never a reason for a damage flash. */
 export function isDot(sig: SignatureKind | undefined): boolean {
   return sig === "burn" || sig === "disease" || sig === "mark";

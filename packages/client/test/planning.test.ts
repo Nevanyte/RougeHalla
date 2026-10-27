@@ -3,11 +3,10 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  FACTION_IDS, FACTIONS, PLAYER_SPEED, TILE, WORLD_H, WORLD_W, campMatchup, findPath, generateMap, isEliteCamp, spawnWalks, walkLength,
+  elitesOf, FACTION_IDS, FACTIONS, normalTypesOf, PLAYER_SPEED, TILE, WORLD_H, WORLD_W, campMatchup, findPath, generateMap, isEliteCamp, spawnWalks, walkLength,
   type ClientMessages, type GameMap, type PlanMessage,
 } from "@raid/shared";
 import { DEFAULT_SETTINGS, SettingsStore } from "../src/settings";
-import { counterBuffs } from "../src/ui/campInfo";
 import { describeMatchup, formatEta } from "../src/ui/planningMath";
 import { PlanningView, campTitle, planningModeFor, type PlanningFrame, type PlanningMode } from "../src/ui/planning";
 import { MAX_WAYPOINTS } from "../src/ui/planningMath";
@@ -143,7 +142,7 @@ describe("the lobby preview", () => {
     expect(sent).toEqual([]);
   });
 
-  it("reads a camp on hover or focus: its zone, elite crown, matchup and (once the room says it) its mob type and buff", () => {
+  it("reads a camp on hover or focus: its zone, elite crown, matchup and (once the room says it) its mob type, role, weapon and elite", () => {
     const { view, camp, q } = setup();
     view.update(frame({ mode: "preview" }));
     const i = MAP.camps.findIndex(isEliteCamp);
@@ -153,14 +152,28 @@ describe("the lobby preview", () => {
     expect(q("pl-info").textContent).toContain("For Plague:");
     camp(i).dispatch("mouseleave");
     expect(q("pl-info").textContent).toMatch(/Planning starts when the lobby fills/);
-    // A camp whose type the room names shows the type and its buff line.
+    // A camp whose type the room names shows the type, its role and the weapon it drops; an elite camp names its elite too. A kill
+    // gives no stat, so there is no buff line.
     const zone = MAP.camps[i]!.zone;
+    const normal = normalTypesOf(zone)[0]!;
+    const elite = elitesOf(zone)[0]!;
     const types = MAP.camps.map(() => "");
-    types[i] = { fire: "wyrmling", sentenced: "executioner", plague: "ratOgre", frost: "glacialWarden", holy: "bloodSaint" }[zone];
-    view.update(frame({ mode: "preview", campTypes: types }));
+    const elites = MAP.camps.map(() => "");
+    types[i] = normal.id;
+    elites[i] = elite.id;
+    view.update(frame({ mode: "preview", campTypes: types, campElites: elites }));
     camp(i).dispatch("focus");
-    expect(q("pl-info").textContent).toMatch(/[A-Z][a-z]+( [A-Z][a-z]+)?: /);
-    expect(camp(i).getAttribute("aria-label")).toContain(zone === "fire" ? "Wyrmling" : zone === "holy" ? "Blood Saint" : "");
+    const text = q("pl-info").textContent;
+    expect(text).toContain(`${normal.name} (`);
+    expect(text).toMatch(/\(\w+: [a-z ]+\), drops an? [A-Z][a-z]+/);
+    expect(text).toContain(`Elite: ${elite.name} (`);
+    expect(text).not.toMatch(/buff/i);
+    expect(camp(i).getAttribute("aria-label")).toContain(normal.name);
+    // Without the elite list (a server before it) only the camp's own type shows.
+    view.update(frame({ mode: "preview", campTypes: types }));
+    camp(i).dispatch("mouseleave");
+    camp(i).dispatch("focus");
+    expect(q("pl-info").textContent).not.toContain("Elite:");
   });
 
   it("leaves the pointer to the world: the root is click-through and only its card takes it (planning.css)", () => {
@@ -358,25 +371,6 @@ describe("who is here, and what counters them", () => {
     const items = people.byClass("pl-person");
     expect(items.map((i) => i.classList.contains("ready"))).toEqual([false, false, true]);
     expect(items[0]!.classList.contains("me")).toBe(true);
-  });
-
-  it("names the buffs that counter the other factions present, with where they are won", () => {
-    const { open, q } = setup();
-    open();
-    const hint = q("pl-hint");
-    expect(hint.hidden).toBe(false);
-    const want = counterBuffs(["holy", "fire"]);
-    expect(want.length).toBeGreaterThan(0);
-    for (const h of want) {
-      expect(hint.textContent).toContain(`Against ${FACTIONS[h.faction].displayName}:`);
-      for (const b of h.buffs) expect(hint.textContent).toContain(`${b.name} (${FACTIONS[b.zone].displayName})`);
-    }
-  });
-
-  it("shows no hint when nobody else is here", () => {
-    const { open, q } = setup();
-    open(plan(), { players: [{ faction: "plague", ready: false, me: true }] });
-    expect(q("pl-hint").hidden).toBe(true);
   });
 });
 

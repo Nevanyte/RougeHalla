@@ -14,7 +14,7 @@
 //     randomness comes from the seeded streams in BrainRngs, so a headless tournament replays exactly.
 import {
   INTERP_DELAY_MS, Y_SCALE,
-  type BuffId, type ClientMessages, type FactionId, type GameMap, type ProjectileEnd, type ProjectileKind,
+  type ClientMessages, type FactionId, type GameMap, type ProjectileEnd, type ProjectileKind,
   type Rng, type RunOutcome, type RunResult, type SignatureKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 
@@ -116,7 +116,7 @@ export interface TierParams {
   readonly wary: number;
   /**
    * Mob farming is paid for in hp (a starter loses about 20% of it on each of its first two kills and gets no hp back): the matchup
-   * share a normal mob and an elite need (mobHunt's `mobMinShare` / `eliteMinShare`; an elite is also taken with three stacks at
+   * share a normal mob and an elite need (mobHunt's `mobMinShare` / `eliteMinShare`; an elite is also taken with six card power at
    * 0.4), and the hp share below which no new mob fight is opened.
    */
   readonly caution: { readonly mobShare: number; readonly eliteShare: number; readonly startHp: number };
@@ -239,28 +239,34 @@ export interface PersonaParams {
   readonly eliteAppetite: number;
   /** Inside the coliseum before sudden death: 0 holds the ring's edge and waits, 1 opens fights. */
   readonly coliseum: number;
+  /**
+   * What it takes from a chest when a card gives something up for its power (balance pass, BALANCE_CONTRACT 9; chestHunt.ts cardScore):
+   * an augment is worth +1 to +3 by this, a trade-off augment (Here Comes the Boom, Machine Gun...) only from 0.5, and the two that
+   * can kill their owner (A Race to 0, Glass Cannon) only above 0.7.
+   */
+  readonly risk: number;
 }
 
 export const PERSONAS: Readonly<Record<PersonaId, PersonaParams>> = {
   farmer: {
     id: "farmer", pve: 1, pvp: 0.3, loot: 0.7, bounty: 0.2, thirdParty: 0.2, engageEdge: 1.3, bountyCaution: 0.5,
     fleeHp: 0.4, reengageHp: 0.75, kite: 0.4, chaseGiveUpMs: 4000, mobKillGoal: 9, playerThreat: 250, eliteAppetite: 0.8,
-    coliseum: 0.3,
+    coliseum: 0.3, risk: 0.3,
   },
   hunter: {
     id: "hunter", pve: 0.35, pvp: 1, loot: 0.3, bounty: 1, thirdParty: 0.5, engageEdge: 0.3, bountyCaution: 0,
     fleeHp: 0.2, reengageHp: 0.5, kite: 0.2, chaseGiveUpMs: 9000, mobKillGoal: 3, playerThreat: 400, eliteAppetite: 0.3,
-    coliseum: 1,
+    coliseum: 1, risk: 0.85,
   },
   opportunist: {
     id: "opportunist", pve: 0.6, pvp: 0.7, loot: 1, bounty: 0.6, thirdParty: 1, engageEdge: 0.8, bountyCaution: 0.3,
     fleeHp: 0.35, reengageHp: 0.7, kite: 0.5, chaseGiveUpMs: 5000, mobKillGoal: 6, playerThreat: 300, eliteAppetite: 0.5,
-    coliseum: 0.5,
+    coliseum: 0.5, risk: 0.6,
   },
   cautious: {
     id: "cautious", pve: 0.7, pvp: 0.4, loot: 0.5, bounty: 0.2, thirdParty: 0.4, engageEdge: 1.6, bountyCaution: 0.6,
     fleeHp: 0.55, reengageHp: 0.9, kite: 1, chaseGiveUpMs: 3000, mobKillGoal: 7, playerThreat: 320, eliteAppetite: 0.4,
-    coliseum: 0.2,
+    coliseum: 0.2, risk: 0.15,
   },
 };
 
@@ -337,10 +343,14 @@ export interface SelfView {
   readonly immuneUntil: ServerMs;
   readonly sig: number;
   readonly brand: number;
-  /** The build strip's power in stacks at the quoted value (shared buffPower over the buffs the HUD shows: 3 for one buff at 3 stacks). */
-  readonly stacks: number;
+  /** The build's card power (shared cardPower: the sum of tier x count over the cards the HUD's build strip shows). */
+  readonly power: number;
+  /** The cards it holds, id -> count: what its own cards row shows (a quest's card included). Absent in a scene that does not set it. */
+  readonly build?: Readonly<Record<string, number>>;
   /** Decoded stat mirrors (shared mods.ts decodeMult): the HUD's attack and move speed. */
   readonly asMult: number;
+  /** The windup mirror, decoded (what shared mirrorTimings reads; absent: 1). */
+  readonly windupMult?: number;
   readonly speedMult: number;
   readonly kills: number;
   readonly mobKills: number;
@@ -516,7 +526,6 @@ export type ObservedEvent = EventBase & (
   /** A player's death is announced by name everywhere ("X was killed"); `at` and `by` only when it happened on screen. */
   | { readonly kind: "death"; readonly id: FighterId; readonly name: string; readonly by: FighterId | null; readonly mob: boolean }
   | { readonly kind: "heal"; readonly id: FighterId; readonly amount: number }
-  | { readonly kind: "buff"; readonly id: FighterId; readonly buff: BuffId; readonly stacks: number; readonly total: number }
   | { readonly kind: "teleport" }
   | { readonly kind: "bounty"; readonly id: FighterId; readonly name: string; readonly bounty: number }
   | { readonly kind: "victory"; readonly id: FighterId | null; readonly name: string | null; readonly draw: boolean }
@@ -722,6 +731,8 @@ export interface MobMemory {
   readonly id: FighterId;
   kind: string;
   faction: FactionId | null;
+  /** Its display name as last seen on screen: its type's ("Ember Imp"), so the hunt knows the hp its role gives it. Absent for a mob only ever dotted on the minimap. */
+  name?: string;
   /** Where its dot first stood (its camp spot), and the map camp that spot belongs to. */
   home: Vec2 | null;
   campId: string | null;

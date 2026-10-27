@@ -1,7 +1,7 @@
 // Perception (docs/BOTS.md 3): the one brain file that reads the synced state. Each frame it copies out what the game client
 // would draw for this player and nothing more, as plain data (a Frame): positions through Math.fround and timers truncated,
 // so the server's doubles and a client's decoded float32s give the same Frame; other fighters' hp as a bar; no field the
-// client never draws (the other weapon slot, stacks, kills, gv, readyAt, attackTarget, moveSeq, look, mirrors). A Frame
+// client never draws (the other weapon slot, card power, kills, gv, readyAt, attackTarget, moveSeq, look, mirrors). A Frame
 // holds a FRAME_MARGIN beyond the window so frames.ts can apply the exact window around the delayed self.
 //
 // Both drivers build a PerceptionInput: BotManager from the server's RaidState and the very `fxs` batches the Room
@@ -9,7 +9,7 @@
 // state.roster with unpackFx/unpackLaunches, exactly as RaidScene does.
 import * as shared from "@raid/shared";
 import {
-  abilityInSlot, buffPower, CHEST_PANEL_SLACK, CHEST_RANGE, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight,
+  abilityInSlot, cardPower, CHEST_PANEL_SLACK, CHEST_RANGE, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight,
   hpBarFractions, INTERACT_RANGE, isDot,
   isFactionId, isWeaponId, MASK_MOVE, TELEPORT_IMMUNITY_MS, TERRAIN_EMBER, TERRAIN_LIGHT, unpackFx, unpackLaunches, WEAPONS, withGates,
   type FactionId, type FxBatch, type GameMap, type RunResult, type TimedFx, type Vec2, type WeaponId,
@@ -68,9 +68,11 @@ export interface PlayerLike extends FighterLike {
   readonly mobKills: number;
   readonly gv: number;
   readonly moveSeq: number;
-  /** The buffs held by mob type (the build strip's chips). Optional: a server that predates them leaves it out. */
-  readonly buffs?: { get(id: string): number | undefined };
+  /** The cards held, id -> count (the build strip). Optional: a server that predates them leaves it out. */
+  readonly build?: { forEach(cb: (count: number, id: string) => void): void };
   readonly asMult: number;
+  /** The windup mirror, wire form (thousandths). Optional: a server that predates it leaves it out. */
+  readonly windupMult?: number;
   readonly speedMult: number;
   /** The Wish's ready time (server ms, 0 = ready): the weapon bar's cooldown widget shows it. Read for the bot itself only. */
   readonly wishReadyAt?: number;
@@ -298,6 +300,13 @@ export function detectFeatures(probe: FeatureProbe): Features {
 
 // ================================================================================================================ perceive
 
+/** The synced build map (id -> count) as a plain record; what the bot's own cards row shows. */
+function buildRecord(build: PlayerLike["build"]): Record<string, number> {
+  const out: Record<string, number> = {};
+  build?.forEach((count, id) => { if (count > 0) out[id] = count; });
+  return out;
+}
+
 function selfView(id: FighterId, p: PlayerLike): SelfView {
   return {
     id,
@@ -318,8 +327,10 @@ function selfView(id: FighterId, p: PlayerLike): SelfView {
     immuneUntil: u32(p.immuneUntil),
     sig: p.sig,
     brand: p.brand,
-    stacks: buildPower(p.buffs),
+    power: cardPower(p.build),
+    build: buildRecord(p.build),
     asMult: decodeMult(p.asMult),
+    windupMult: p.windupMult === undefined ? 1 : decodeMult(p.windupMult),
     speedMult: decodeMult(p.speedMult),
     kills: p.kills,
     mobKills: p.mobKills,
@@ -329,21 +340,12 @@ function selfView(id: FighterId, p: PlayerLike): SelfView {
   };
 }
 
-/**
- * The build strip's power (shared buffPower: 3 for one buff at 3 stacks) over the stacks as the wire carries them (float32), so
- * the server's doubles and a client's decoded values give the same number.
- */
-function buildPower(buffs: PlayerLike["buffs"]): number {
-  if (buffs === undefined) return 0;
-  return f32(buffPower({ get: (id) => { const n = buffs.get(id); return n === undefined ? undefined : f32(n); } }));
-}
-
 /** The bot is not in the state (not joined yet, or gone): a placeholder that sees nothing of its own. */
 function absentSelf(id: FighterId): SelfView {
   return {
     id, name: "", x: 0, y: 0, facing: 0, status: "mia", hp: 0, maxHp: 0, barrier: 0, faction: null, weapons: [null, null], slot: 0,
     attackTarget: null, drawStartedAt: 0, readyAt: 0, immuneUntil: 0, sig: 0, brand: 0,
-    stacks: 0, asMult: 1, speedMult: 1, kills: 0, mobKills: 0, gv: 0, bounty: 0, moveSeq: 0,
+    power: 0, asMult: 1, speedMult: 1, kills: 0, mobKills: 0, gv: 0, bounty: 0, moveSeq: 0,
   };
 }
 
@@ -410,7 +412,7 @@ interface Seen {
 }
 
 const KNOWN_FX: ReadonlySet<string> = new Set([
-  "windup", "swing", "hit", "block", "stagger", "cancel", "projEnd", "death", "heal", "teleport", "bounty", "buff", "victory",
+  "windup", "swing", "hit", "block", "stagger", "cancel", "projEnd", "death", "heal", "teleport", "bounty", "victory",
 ]);
 
 /** A fighter the bot can see in this frame (itself, or drawn in the box), and where. */
@@ -488,16 +490,6 @@ function observe(fx: TimedFx, s: Seen): ObservedEvent | null {
     case "bounty": {
       const name = s.state.players.get(fx.id)?.name || fx.name;
       return { kind: "bounty", t, at: null, id: fx.id, name, bounty: Math.round(fx.bounty) };
-    }
-    case "buff": {
-      const at = seenAt(s, fx.id);
-      if (!at || !(fx.stacks > 0)) return null;
-      // Over someone else only "+1.1 Attack speed" floats up: their total is never drawn (-1 = unknown).
-      const mine = fx.id === s.selfId;
-      return {
-        kind: "buff", t, at, id: fx.id, buff: fx.buff,
-        stacks: mine ? fx.stacks : Math.round(fx.stacks * 10) / 10, total: mine ? fx.total : -1,
-      };
     }
     case "victory":
       return { kind: "victory", t, at: null, id: fx.id, name: fx.name, draw: fx.draw };

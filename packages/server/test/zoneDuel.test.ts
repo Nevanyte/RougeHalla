@@ -18,23 +18,25 @@ import { fingerprints } from "./support/duelFingerprint";
 
 // ---------------------------------------------------------------------------------------------------------------- the default path
 
-// Taken from duel.ts BEFORE it learned `map`, `starts` and the rows arenas (see support/duelFingerprint.ts).
+// Taken from duel.ts BEFORE it learned `map`, `starts` and the rows arenas (see support/duelFingerprint.ts), and taken again when
+// the balance pass changed combat on purpose (the merge checked that duel.ts with the zone duels gives exactly the balance
+// branch's own hashes for these specs).
 const PINNED: ReadonlyArray<readonly [string, string]> = [
-  ["holy wand>bow open", "a454c8be4b72b8a9"],
-  ["fire bow>wand open", "e5c7fda7bb8af2cc"],
-  ["fire sword>axe open", "baa74724795a3b07"],
-  ["frost shield mirror capped", "14f56b657b4cdcf6"],
-  ["fire sword mirror pillars", "6c92ca1c860022aa"],
-  ["plague bow mirror pillars", "d56c1e1ea5b15192"],
-  ["fire/sentenced locks signatures", "7f531f367baa0e5f"],
-  ["fire bow mirror start offset", "08ff2f5d83035203"],
-  ["holy bow>sword stale", "50efcd52cf136489"],
-  ["holy bow>sword present", "75cfd8b94af36fcc"],
-  ["fire wand>shield buffed", "958fdee85c7601fe"],
+  ["holy wand>bow open", "ae297e421041137e"],
+  ["fire bow>wand open", "70e0bbaa8a28bac6"],
+  ["fire sword>axe open", "87eaacf215f78424"],
+  ["frost shield mirror capped", "50c295994ca5a9ea"],
+  ["fire sword mirror pillars", "45ace09b5d79c6fc"],
+  ["plague bow mirror pillars", "2c6458db6d969601"],
+  ["fire/sentenced locks signatures", "c6767a17742ed0f9"],
+  ["fire bow mirror start offset", "4bb0b25600e476bb"],
+  ["holy bow>sword stale", "69f13a80effc123f"],
+  ["holy bow>sword present", "2f1c3eb1ac10b282"],
+  ["fire wand>shield carded", "c7e66ced2be8b93a"],
 ];
 
 describe("the default duel path", () => {
-  it("gives the same result, to the last number, as before the zone duels (open and pillar arenas, locks, signatures, perceptions, offsets, buffs)", () => {
+  it("gives the same result, to the last number, as before the zone duels (open and pillar arenas, locks, signatures, perceptions, offsets, cards)", () => {
     expect(fingerprints()).toEqual(PINNED.map(([n, h]) => [n, h]));
   });
 

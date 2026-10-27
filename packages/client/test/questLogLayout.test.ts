@@ -10,7 +10,7 @@ const uiOf = (w: number, h: number) => {
   const view = computeLayout({ cssW: w, cssH: h, dpr: 1, hiDpi: true });
   return { w: view.uiW, h: view.uiH };
 };
-/** Fresh run (status, vitals), a few buffs and passives, a crowded buff strip (about 420 px of chips). */
+/** Fresh run (status, vitals), a few cards, a crowded cards row (about 420 px of chips). */
 const PLATES: PlateBox[] = [
   { left: 12, top: 10, right: 290, bottom: 84 },
   { left: 12, top: 10, right: 290, bottom: 240 },
@@ -44,7 +44,7 @@ describe("placeQuestLog", () => {
     expect(box).toEqual({ left: 12, top: 92, width: 340, maxHeight: 750 - 92 - QUEST_LOG_BOTTOM_RESERVE });
   });
 
-  it("follows the plate down as the buff strip grows, and stays out of the top-centre lines on a wide screen", () => {
+  it("follows the plate down as the cards row grows, and stays out of the top-centre lines on a wide screen", () => {
     const ui = uiOf(1920, 1080);
     const short = placeQuestLog(ui, PLATES[0]!);
     const tall = placeQuestLog(ui, PLATES[2]!);

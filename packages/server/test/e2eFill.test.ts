@@ -237,9 +237,12 @@ describe("fill bots in a real arena room", () => {
       const result = results[0]!;
       expect(["won", "died", "draw"]).toContain(result.outcome);
       expect(result.players).toBe(FILL_TO);
-      // Nothing a bot earned, lost or was killed for is the human's: no GV, no kills, no win bonus (it fought no human).
+      // Nothing a bot earned, lost or was killed for is the human's: no player-kill GV, no kills, no win bonus (it fought no human). The
+      // human's own fists can land a mob kill (a swing at a bot hits every enemy in its arc, and a camp a bot woke is nearby), so mob GV
+      // is the human's own and the total must be exactly what the breakdown says.
       expect(result.kills).toBe(0);
-      expect(result.gv).toMatchObject({ kills: 0, bounty: 0, win: 0, total: 0 });
+      expect(result.gv).toMatchObject({ kills: 0, bounty: 0, win: 0 });
+      expect(result.gv.total).toBe(result.gv.kills + result.gv.mobs + result.gv.bounty + result.gv.quest + result.gv.win);
       if (result.outcome === "won") expect(result.winBonusWithheld).toBe(true);
       expect(bots!.stats.refused).toBe(0);
       expect(bots!.stats.errors).toBe(0);
@@ -251,7 +254,7 @@ describe("fill bots in a real arena room", () => {
       for (const name of botNames) expect(server.store.get(name), `a profile for the bot ${name}`).toBeUndefined();
       const record = server.store.get(me.name)!;
       expect(record.stats).toMatchObject({ runs: 1, kills: 0 });
-      expect(record.gv).toBe(0);
+      expect(record.gv, "the banked GV is the run's own total, mob GV included").toBe(result.gv.total);
       await server.store.flush();
       const onDisk = JSON.parse(fs.readFileSync(profileFile, "utf8")) as { profiles: Record<string, unknown> };
       expect(Object.keys(onDisk.profiles)).toEqual([me.name]);

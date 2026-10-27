@@ -72,12 +72,12 @@ describe("a quest through its whole life on a generated map", () => {
     // Turned in: standing at the giver completes it, pays it, and takes the giver and the spare tokens away.
     P(world).x = qt.s.x;
     P(world).y = qt.s.y;
-    const stacksBefore = P(world).buffs.get(qt.def.reward.buff) ?? 0;
+    const cardsBefore = P(world).build.get(qt.def.reward.card) ?? 0;
     step(world, TICK_MS);
     expect(qt.s.status).toBe("done");
     expect(qt.s.doneBy).toBe("alice");
     expect(world.players.get("p0")!.gv.quest).toBe(Math.min(qt.def.reward.gv, 24));
-    expect(P(world).buffs.get(qt.def.reward.buff) ?? 0).toBeGreaterThan(stacksBefore);
+    expect(P(world).build.get(qt.def.reward.card) ?? 0).toBeGreaterThan(cardsBefore);
     expect(world.state.mobs.has(qt.npcId)).toBe(false);
     expect(qt.containers).toEqual([]);
     expect(questContainers(world).some((c) => c.items.at(0)?.def === QUEST_ITEM_PREFIX + qt.id)).toBe(false);

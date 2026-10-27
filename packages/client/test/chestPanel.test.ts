@@ -4,7 +4,8 @@
 // once, and reports what the server refused. Time is a number the test moves.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  CHEST_GREY_MS, CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_REFUSALS, TILE, TILE_FLOOR, TILE_WALL, generateMap, mapFromTiles, skipText,
+  CHEST_GREY_MS, CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_REFUSALS, TAG_GLOSSARY, TILE, TILE_FLOOR, TILE_WALL, generateMap, mapFromTiles,
+  skipText,
   type ClientMessages, type GameMap,
 } from "@raid/shared";
 import { SettingsStore } from "../src/settings";
@@ -29,7 +30,7 @@ const MAP: GameMap = generateMap(7);
 const NAMES: Record<string, string> = { bob: "Bob", eve: "Eve" };
 
 const chest = (over: Partial<RewardSource> = {}): RewardSource => ({
-  kind: "reward", x: 500, y: 500, camp: 2, expiresAt: 15_000, options: ["pestilence", "whetstone", "swiftBoots"],
+  kind: "reward", x: 500, y: 500, camp: 2, expiresAt: 15_000, options: ["haste2", "wellspring", "armor1"],
   takenBy: ["", "", ""], pickers: [], ...over,
 });
 
@@ -58,7 +59,7 @@ function setup(over: { map?: GameMap | null; chests?: Array<[string, RewardSourc
   const sent: Array<ClientMessages["choose"]> = [];
   const clock = { now: 0, rtt: 100, sending: true };
   const chests = new Map<string, RewardSource>(over.chests ?? [["c1", chest()]]);
-  const me: ChestPanelMe = { id: "me", x: 540, y: 500, alive: true, faction: "plague", build: {} };
+  const me: ChestPanelMe = { id: "me", x: 540, y: 500, alive: true, build: {} };
   const panel = new ChestPanel({
     send: (m) => { sent.push(m); },
     canSend: () => clock.sending,
@@ -82,7 +83,8 @@ function setup(over: { map?: GameMap | null; chests?: Array<[string, RewardSourc
 
 const cardName = (c: FEl): string => c.byClass("cp-name")[0]!.textContent;
 const cardState = (c: FEl): string => c.byClass("cp-state")[0]!.textContent;
-const cardRank = (c: FEl): string => c.byClass("cp-rank")[0]!.textContent;
+const cardTier = (c: FEl): string => c.byClass("cp-tier")[0]!.textContent;
+const cardKind = (c: FEl): string => c.byClass("cp-kind")[0]!.textContent;
 const cardText = (c: FEl): string => c.byClass("cp-text")[0]!.textContent;
 
 describe("when the panel is open", () => {
@@ -161,7 +163,7 @@ describe("when the panel is open", () => {
     expect(r.cards().every((c) => c.hidden || cardName(c) === "")).toBe(true);
     r.me.x = 540;
     r.frame();
-    expect(r.cards().map(cardName)).toEqual(["Pestilence", "Whetstone", "Swift Boots"]);
+    expect(r.cards().map(cardName)).toEqual(["Haste II", "Wellspring", "Armor I"]);
   });
 
   it("closes when the chest expires, and when the player is down, or the run is not on", () => {
@@ -237,42 +239,69 @@ describe("what it shows", () => {
     expect(noMap.text("cp-title")).toBe("Camp chest");
   });
 
-  it("shows each option's name, its words for the player's faction, its pool, and a Rank 2 badge only for a skill held at rank 1", () => {
+  it("shows each option's name, its tier as a roman badge, its kind and why it is offered, and its text", () => {
     const r = setup();
-    r.me.build = { whetstone: 1 };
+    r.me.build = { ad1: 1 };
     r.frame();
     const cards = r.cards();
-    expect(cards.map(cardName)).toEqual(["Pestilence", "Whetstone", "Swift Boots"]);
-    expect(cards.map(cardRank)).toEqual(["", "Rank 2", ""]);
-    expect(cards.map((c) => c.byClass("cp-pool")[0]!.textContent)).toEqual(["Plague", "Neutral", "Neutral"]);
-    expect(cardText(cards[1]!)).toMatch(/10%/);
-    expect(cardText(cards[0]!)).not.toBe("");
+    expect(cards.map(cardName)).toEqual(["Haste II", "Wellspring", "Armor I"]);
+    expect(cards.map(cardTier)).toEqual(["II", "I", "I"]);
+    expect(cards.map(cardKind)).toEqual(["Base · New", "Augment", "Base · New"]);
+    expect(cardText(cards[0]!)).toBe("+16% attack speed");
+    expect(cardText(cards[1]!)).toMatch(/25% stronger/);
     expect(cards.map((c) => c.disabled)).toEqual([false, false, false]);
     expect(r.skip().byClass("cp-skip-text")[0]!.textContent).toBe(skipText());
     expect(r.state()).toMatch(/One pick per chest/);
   });
 
   it("fills a chest with fewer options than the cards: the spare ones stay hidden", () => {
-    const r = setup({ chests: [["c1", chest({ options: ["whetstone"], takenBy: [""] })]] });
+    const r = setup({ chests: [["c1", chest({ options: ["haste2"], takenBy: [""] })]] });
     r.frame();
     expect(r.cards().map((c) => c.hidden)).toEqual([false, true, true]);
   });
 
-  it("a maxed option is muted and cannot be picked, by click or key", () => {
+  it("a one-per-player card the player holds is muted as Already yours and cannot be picked, by click or key", () => {
     const r = setup();
-    r.me.build = { swiftBoots: 2 };
+    r.me.build = { wellspring: 1 };
     r.frame();
-    const maxed = r.cards()[2]!;
-    expect(maxed.disabled).toBe(true);
-    expect(cardState(maxed)).toMatch(/Maxed/);
-    expect(maxed.hasClass("maxed")).toBe(true);
-    maxed.click();
+    const owned = r.cards()[1]!;
+    expect(owned.disabled).toBe(true);
+    expect(cardState(owned)).toBe("Already yours");
+    expect(owned.hasClass("blocked")).toBe(true);
+    owned.click();
     expect(r.sent).toEqual([]);
-    expect(r.panel.pick(2)).toBe(false);
+    expect(r.panel.pick(1)).toBe(false);
     r.panel.focus();
-    r.win.press({ code: "Digit3" });
+    r.win.press({ code: "Digit2" });
     expect(r.sent).toEqual([]);
-    expect(r.state()).toBe("Option 3 is not available.");
+    expect(r.state()).toBe("Option 2 is not available.");
+  });
+
+  it("a conditional card whose base the player lacks says Needs Leech and cannot be picked; with the base it can", () => {
+    const r = setup({ chests: [["c1", chest({ options: ["haste2", "bloodthirst", "wellspring"] })]] });
+    r.frame();
+    const needs = r.cards()[1]!;
+    expect(needs.disabled).toBe(true);
+    expect(cardState(needs)).toBe("Needs Leech");
+    expect(needs.hasClass("blocked")).toBe(true);
+    expect(cardKind(needs)).toBe("Conditional · Needs Leech");
+    needs.click();
+    expect(r.sent).toEqual([]);
+    r.me.build = { leech2: 1 };
+    r.frame();
+    expect(r.cards()[1]!.disabled).toBe(false);
+    expect(cardState(r.cards()[1]!)).toBe("");
+    expect(cardKind(r.cards()[1]!)).toBe("Conditional · You have Leech");
+  });
+
+  it("a base card stays pickable however many copies the player holds", () => {
+    const r = setup();
+    r.me.build = { haste2: 3 };
+    r.frame();
+    expect(r.cards()[0]!.disabled).toBe(false);
+    expect(cardKind(r.cards()[0]!)).toBe("Base · Deepens your Haste");
+    expect(r.panel.pick(0)).toBe(true);
+    expect(r.sent).toEqual([{ chest: "c1", pick: 0 }]);
   });
 
   it("greys an option another player took, from the state, and says who", () => {
@@ -329,6 +358,91 @@ describe("what it shows", () => {
     for (let i = 0; i < 10; i++) r.frame(1000 + i);
     expect(name.textWrites).toBe(writes);
     expect(status.textWrites).toBe(statusWrites);
+  });
+});
+
+describe("tags, rarity and the glossary", () => {
+  const BOOM = ["hereComesTheBoom", "machineGun", "slowBurn"] as const;
+  const tagsOf = (c: FEl): FEl[] => c.byClass("cp-tag");
+
+  it("shows a chip per tag on each card, with the tag's name", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    expect(r.cards().map((c) => tagsOf(c).map((t) => t.textContent))).toEqual([
+      ["Damage over time", "Returned"], ["On-hit"], ["Damage over time"],
+    ]);
+    // A card with no tags has no chip row.
+    const plain = setup({ chests: [["c1", chest({ options: ["haste2", "armor1", "ad1"] })]] });
+    plain.frame();
+    expect(tagsOf(plain.cards()[0]!)).toEqual([]);
+    expect(plain.cards()[0]!.byClass("cp-tags")[0]!.hidden).toBe(true);
+    expect(tagsOf(plain.cards()[1]!).map((t) => t.textContent)).toEqual(["Physical"]);
+  });
+
+  it("frames an augment by its tier and flairs it; a base card has neither", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    const [gold, silver, plain] = r.cards() as [FEl, FEl, FEl];
+    expect(gold.hasClass("rarity-gold")).toBe(true);
+    expect(silver.hasClass("rarity-silver")).toBe(true);
+    expect(plain.hasClass("rarity-plain")).toBe(true);
+    expect(gold.byClass("cp-flair")[0]!.hidden).toBe(false);
+    expect(gold.byClass("cp-flair")[0]!.textContent).not.toBe("");
+    const base = setup({ chests: [["c1", chest({ options: ["haste2", "ad3", "armor1"] })]] });
+    base.frame();
+    for (const c of base.cards()) {
+      expect(c.className).not.toMatch(/rarity-/);
+      expect(c.byClass("cp-flair")[0]!.hidden).toBe(true);
+    }
+  });
+
+  it("puts the glossary line of a hovered chip in the status line, and the usual line back when the pointer leaves", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    const chip = tagsOf(r.cards()[0]!)[0]!;
+    chip.dispatch("pointerenter");
+    expect(r.state()).toBe(`Damage over time: ${TAG_GLOSSARY.dot.text}`);
+    chip.dispatch("pointerleave");
+    expect(r.state()).toMatch(/One pick per chest/);
+  });
+
+  it("a tap on a chip shows its line and does not pick the card", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.clock.now = 5000;
+    r.frame();
+    const chip = tagsOf(r.cards()[0]!)[1]!;
+    const e = chip.dispatch("click", { detail: 1 });
+    expect(e.propagationStopped).toBe(true);
+    expect(r.sent).toEqual([]);
+    expect(r.state()).toBe(`Returned: ${TAG_GLOSSARY.returned.text}`);
+  });
+
+  it("an urgent line wins over the glossary: a refusal or a result is not hidden by a hover", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.clock.now = 5000;
+    r.frame();
+    tagsOf(r.cards()[0]!)[0]!.dispatch("pointerenter");
+    expect(r.state()).toMatch(/Damage over time:/);
+    r.panel.pick(1);
+    expect(r.state()).toBe("Sending your pick...");
+  });
+
+  it("the card's own hover text names the card, why it is offered, its text and each tag's glossary line", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    const lines = r.cards()[0]!.title.split("\n");
+    expect(lines[0]).toBe("Here Comes the Boom (tier III)");
+    expect(lines[1]).toBe("Augment");
+    expect(lines).toContain(`Returned: ${TAG_GLOSSARY.returned.text}`);
+  });
+
+  it("repainting a card (a pick elsewhere) drops the glossary line a hover had put up", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    tagsOf(r.cards()[0]!)[0]!.dispatch("pointerenter");
+    r.chests.set("c1", chest({ options: [...BOOM], takenBy: ["bob", "", ""], pickers: ["bob"] }));
+    r.frame();
+    expect(r.state()).toMatch(/One pick per chest/);
   });
 });
 
@@ -479,10 +593,10 @@ describe("picking by mouse", () => {
 describe("one pick per player", () => {
   it("shows a taken option as the player's own, stops offering, and says what they took", () => {
     const r = setup();
-    r.me.build = { whetstone: 1 };
+    r.me.build = { wellspring: 1 };
     r.chests.set("c1", chest({ takenBy: ["", "me", ""], pickers: ["me"] }));
     r.frame();
-    expect(r.state()).toBe("You took Whetstone.");
+    expect(r.state()).toBe("You took Wellspring.");
     expect(r.cards().every((c) => c.disabled)).toBe(true);
     expect(r.skip().disabled).toBe(true);
     const mine = r.cards()[1]!;
@@ -494,13 +608,13 @@ describe("one pick per player", () => {
     expect(r.sent).toEqual([]);
   });
 
-  it("says rank 2 once the skill is held at rank 2", () => {
+  it("says x2 once a base card is held twice", () => {
     const r = setup();
-    r.me.build = { whetstone: 2 };
-    r.chests.set("c1", chest({ takenBy: ["", "me", ""], pickers: ["me"] }));
+    r.me.build = { haste2: 2 };
+    r.chests.set("c1", chest({ takenBy: ["me", "", ""], pickers: ["me"] }));
     r.frame();
-    expect(r.state()).toBe("You took Whetstone (rank 2).");
-    expect(cardRank(r.cards()[1]!)).toBe("Rank 2");
+    expect(r.state()).toBe("You took Haste II (x2).");
+    expect(cardTier(r.cards()[0]!)).toBe("II");
   });
 
   it("a skip counts as the pick: the summary says so and nothing is offered", () => {
@@ -617,7 +731,7 @@ describe("a pick the server refused", () => {
     r.chests.set("c1", chest({ takenBy: ["me", "", ""], pickers: ["me"] }));
     r.frame();
     expect(r.panel.pickPending).toBe(false);
-    expect(r.state()).toBe("You took Pestilence.");
+    expect(r.state()).toBe("You took Haste II.");
   });
 });
 

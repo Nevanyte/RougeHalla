@@ -3,13 +3,11 @@
 // test/uiDom.ts: a button is clicked with `fire`, a select is "chosen" by assigning its value and firing its change.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  buffText, MOB_TYPES, REGION_FACTIONS, skillLive, skillText, SKILLS, TRAIN_DEFAULT_RANK, TRAIN_DEFAULT_STACKS, TRAIN_MAX_STACKS,
-  TRAIN_STACK_CHOICES, type TrainMessage,
+  CARDS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, cardLive, type TrainMessage,
 } from "@raid/shared";
-import { zoneLabel } from "../src/ui/buffTip";
 import { TrainingBar } from "../src/ui/trainingBar";
 import {
-  buffHint, mobTypeGroups, mobTypeLabel, passiveHint, skillGroups, skillLabel, TrainingConsole, trainMessages,
+  cardGroups, cardHint, cardLabel, mobTypeGroups, mobTypeHint, mobTypeLabel, TrainingConsole, trainMessages, zoneLabel,
 } from "../src/ui/trainingConsole";
 import { installUiDom, type UiEl } from "./uiDom";
 
@@ -33,10 +31,10 @@ beforeEach(() => { ({ ui } = installUiDom()); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 /** A console in the page (the bar around it is TrainingBar's business, below) and the messages it sends. */
-function mount(faction?: string): { console: TrainingConsole; sent: TrainMessage[]; root: UiEl; opened: boolean[] } {
+function mount(): { console: TrainingConsole; sent: TrainMessage[]; root: UiEl; opened: boolean[] } {
   const sent: TrainMessage[] = [];
   const opened: boolean[] = [];
-  const c = new TrainingConsole((m) => sent.push(m), { faction: () => faction, onToggle: (o) => opened.push(o) });
+  const c = new TrainingConsole((m) => sent.push(m), { onToggle: (o) => opened.push(o) });
   ui.append(c.root as unknown as UiEl);
   return { console: c, sent, root: c.root as unknown as UiEl, opened };
 }
@@ -44,61 +42,70 @@ function mount(faction?: string): { console: TrainingConsole; sent: TrainMessage
 const btn = (root: UiEl, name: string): UiEl => root.byClass(`train-btn-${name}`)!;
 
 describe("what the console offers", () => {
-  it("lists the 20 mob types by zone, in zone order, each zone's three normals and then its elite", () => {
+  it("lists the 30 mob types by zone, in zone order, each zone's four normals and then its two elites", () => {
     const groups = mobTypeGroups();
     expect(groups.map((g) => g.label)).toEqual(REGION_FACTIONS.map(zoneLabel));
-    expect(groups.map((g) => g.items.length)).toEqual([4, 4, 4, 4, 4]);
+    expect(groups.map((g) => g.items.length)).toEqual([6, 6, 6, 6, 6]);
     expect(groups.flatMap((g) => g.items.map((t) => t.id))).toEqual(MOB_TYPES.map((t) => t.id));
-    for (const g of groups) expect(g.items.map((t) => t.elite)).toEqual([false, false, false, true]);
-    expect(mobTypeLabel(MOB_TYPES[3]!)).toBe("Wyrmling (elite)");
-    expect(mobTypeLabel(MOB_TYPES[0]!)).toBe("Ember Imp");
+    for (const g of groups) expect(g.items.map((t) => t.elite)).toEqual([false, false, false, false, true, true]);
   });
 
-  it("lists the 21 passives by pool: the five zones, then the neutrals, each once", () => {
-    const groups = skillGroups();
-    expect(groups.map((g) => g.label)).toEqual([...REGION_FACTIONS.map(zoneLabel), "Neutral"]);
-    const ids = groups.flatMap((g) => g.items.map((s) => s.id));
-    expect(ids).toHaveLength(21);
-    expect(new Set(ids).size).toBe(21);
-    expect([...ids].sort()).toEqual(SKILLS.map((s) => s.id).sort());
-    const firebrand = SKILLS.find((s) => s.id === "firebrand")!;
-    const whetstone = SKILLS.find((s) => s.id === "whetstone")!;
-    expect(skillLive(firebrand)).toBe(false);
-    expect(skillLabel(firebrand)).toBe("Firebrand (not live)");
-    expect(skillLabel(whetstone)).toBe("Whetstone");
+  it("words a mob type with its role and the weapon it carries, an elite as such", () => {
+    const type = (id: string) => MOB_TYPES.find((t) => t.id === id)!;
+    expect(mobTypeLabel(type("emberImp"))).toBe("Ember Imp (swarm, axe)");
+    expect(mobTypeLabel(type("wyrmling"))).toBe("Wyrmling (elite, grunt, axe)");
+    expect(mobTypeLabel(type("flameCaller"))).toBe("Flame Caller (caster, wand)");
+    expect(mobTypeLabel(type("gaoler"))).toBe("Gaoler (elite, brute, shield)");
+    expect(mobTypeHint(type("emberImp"))).toBe("Ember Imp, a mob of the Fire zone. Fast and fragile. Carries an axe, which a kill can drop.");
+    expect(mobTypeHint(type("bailiff"))).toContain("Carries a sword, which a kill can drop.");
+    expect(mobTypeHint(type("archon"))).toContain("an elite of the Demon Blood zone");
+    for (const t of MOB_TYPES) {
+      expect(mobTypeLabel(t), t.id).toContain(t.name);
+      expect(mobTypeHint(t), t.id).toContain(t.name);
+    }
   });
 
-  it("words a buff from buffText, and says so when the server does not apply it yet", () => {
-    expect(buffHint("emberImp", 3)).toBe(`Ember Imp (${zoneLabel("fire")}) 3 stacks: ${buffText("emberImp", 3)}.`);
-    expect(buffHint("emberImp", 1)).toContain("1 stack:");
-    expect(buffHint("wyrmling", 6)).toContain("elite,");
-    expect(buffHint("chainWarden", 3)).toMatch(/Not applied yet/);
-    expect(buffHint("emberImp", 0)).toMatch(/taken off/);
-    expect(buffHint("nope", 3)).toBe("");
+  it("lists the 75 cards by kind: the 24 base cards, the 11 conditionals, the 40 augments, each once, in catalog order", () => {
+    const groups = cardGroups();
+    expect(groups.map((g) => g.label)).toEqual(["Base cards", "Conditional cards", "Augments"]);
+    expect(groups.map((g) => g.items.length)).toEqual([24, 11, 40]);
+    const ids = groups.flatMap((g) => g.items.map((c) => c.id));
+    expect(ids).toHaveLength(75);
+    expect(new Set(ids).size).toBe(75);
+    expect(ids).toEqual(CARDS.map((c) => c.id));
+    expect(groups.map((g) => g.items.every((c) => c.kind === (g.label === "Base cards" ? "base" : g.label === "Augments" ? "augment" : "conditional")))).toEqual([true, true, true]);
   });
 
-  it("words a passive from skillText for the player's faction, and says when it is set but does nothing", () => {
-    expect(passiveHint("whetstone", 2)).toBe(`Whetstone (Neutral) rank 2: ${skillText("whetstone", 2)}.`);
-    expect(passiveHint("pestilence", 1, "plague")).toContain("Execute starts at 60% HP");
-    expect(passiveHint("pestilence", 1, "fire")).toContain("+8% damage to targets below 60% HP");
-    expect(passiveHint("firebrand", 1, "fire")).toMatch(/Not live yet: it is set but does nothing/);
-    expect(passiveHint("whetstone", 0)).toMatch(/taken off/);
-    expect(passiveHint("nope", 1)).toBe("");
+  it("marks a card the server does not apply yet, and no other", () => {
+    const rhythm = CARDS.find((c) => c.id === "rhythm")!;
+    const haste = CARDS.find((c) => c.id === "haste2")!;
+    expect(cardLabel({ ...rhythm, ready: "b" })).toBe("Rhythm (not live yet)");
+    expect(cardLabel({ ...rhythm, ready: "a" })).toBe("Rhythm");
+    expect(cardLabel(haste)).toBe("Haste II");
+    expect(CARDS.filter((c) => cardLabel(c).endsWith("(not live yet)")).map((c) => c.id)).toEqual(CARDS.filter((c) => !cardLive(c)).map((c) => c.id));
   });
 
-  it("the stack and rank choices are the shared ones plus Remove", () => {
+  it("words a card from its own text, the copies held, what a conditional needs, and says when the server does not apply it yet", () => {
+    expect(cardHint("haste2", 1)).toBe("Haste II (Base, tier II) +16% attack speed.");
+    expect(cardHint("haste2", 3)).toBe("Haste II (Base, tier II) +16% attack speed. Held x3.");
+    expect(cardHint("wellspring", 3)).not.toContain("Held"); // a one-per-player card is held once
+    expect(cardHint("bloodthirst", 1)).toContain("Needs a Leech card first.");
+    for (const waiting of CARDS.filter((c) => !cardLive(c))) expect(cardHint(waiting.id, 1), waiting.id).toMatch(/Not live yet: it is set but does nothing\.$/);
+    expect(cardHint("rhythm", 1)).toContain("Tags: Critical strike (H, Mechanics page).");
+    expect(cardHint("haste2", 0)).toBe("Haste II (Base, tier II) taken off.");
+    expect(cardHint("nope", 1)).toBe("");
+  });
+
+  it("the count choices are the shared ones plus Remove", () => {
     const { root } = mount();
-    const stacks = root.byClass("train-stacks")!;
-    const values = [...stacks.walk()].filter((n) => n.tag === "option").map(valueOf);
-    expect(values).toEqual([...TRAIN_STACK_CHOICES.map(String), "0"]);
-    expect(Math.max(...TRAIN_STACK_CHOICES)).toBe(TRAIN_MAX_STACKS);
-    const ranks = [...root.byClass("train-rank")!.walk()].filter((n) => n.tag === "option").map(valueOf);
-    expect(ranks).toEqual(["1", "2", "0"]);
+    const values = [...root.byClass("train-count")!.walk()].filter((n) => n.tag === "option").map(valueOf);
+    expect(values).toEqual([...TRAIN_CARD_COUNT_CHOICES.map(String), "0"]);
+    expect(Math.max(...TRAIN_CARD_COUNT_CHOICES)).toBe(TRAIN_MAX_CARD_COUNT);
   });
 });
 
 describe("the pickers", () => {
-  it("the mob type picker holds the 20 types in five zone groups, each with its buff for a tooltip", () => {
+  it("the mob type picker holds the 30 types in five zone groups, each with its role, weapon and zone for a tooltip", () => {
     const { root } = mount();
     const select = root.byClass("train-mob")!;
     const groups = select.children.filter((c): c is UiEl => typeof c !== "string");
@@ -108,31 +115,30 @@ describe("the pickers", () => {
     expect(options.map(valueOf)).toEqual(MOB_TYPES.map((t) => t.id));
     expect(options.map((o) => o.text)).toEqual(MOB_TYPES.map(mobTypeLabel));
     for (const [i, o] of options.entries()) {
-      expect((o as unknown as { title: string }).title).toBe(buffHint(MOB_TYPES[i]!.id, TRAIN_DEFAULT_STACKS));
-      expect((o as unknown as { title: string }).title).toContain(buffText(MOB_TYPES[i]!.id, TRAIN_DEFAULT_STACKS));
+      expect((o as unknown as { title: string }).title).toBe(mobTypeHint(MOB_TYPES[i]!));
     }
     expect(select.getAttribute("aria-label")).toBe("Mob type");
   });
 
-  it("the passive picker holds the 21 passives in six groups, with skillText for a tooltip and the not live ones marked", () => {
-    const { root } = mount("holy");
-    const select = root.byClass("train-skill")!;
+  it("the card picker holds the 75 cards in three kind groups, with the card's words for a tooltip and the not live ones marked", () => {
+    const { root } = mount();
+    const select = root.byClass("train-card")!;
     const groups = select.children.filter((c): c is UiEl => typeof c !== "string");
-    expect(groups).toHaveLength(6);
+    expect(groups.map((g) => (g as unknown as { label: string }).label)).toEqual(["Base cards", "Conditional cards", "Augments"]);
     const options = [...select.walk()].filter((n) => n.tag === "option");
-    expect(options).toHaveLength(21);
-    expect(options.map((o) => o.text)).toEqual(skillGroups().flatMap((g) => g.items.map(skillLabel)));
-    const lastRites = options.find((o) => valueOf(o) === "lastRites")!;
-    expect((lastRites as unknown as { title: string }).title).toBe(passiveHint("lastRites", 1, "holy"));
-    expect((lastRites as unknown as { title: string }).title).toContain(skillText("lastRites", 1, "holy"));
-    expect(options.filter((o) => o.text.endsWith("(not live)")).map(valueOf).sort()).toEqual(
-      SKILLS.filter((s) => !skillLive(s)).map((s) => s.id).sort(),
-    );
+    expect(options).toHaveLength(75);
+    expect(options.map(valueOf)).toEqual(CARDS.map((c) => c.id));
+    expect(options.map((o) => o.text)).toEqual(CARDS.map(cardLabel));
+    const hereComesTheBoom = options.find((o) => valueOf(o) === "hereComesTheBoom")!;
+    expect((hereComesTheBoom as unknown as { title: string }).title).toBe(cardHint("hereComesTheBoom", 1));
+    expect(options.filter((o) => o.text.endsWith("(not live yet)")).map(valueOf).sort()).toEqual(CARDS.filter((c) => !cardLive(c)).map((c) => c.id).sort());
+    expect(valueOf(select)).toBe("ad1"); // the first live card
+    expect(select.getAttribute("aria-label")).toBe("Card");
   });
 
   it("every control has a name for a screen reader, and the panel and its toggle are tied together", () => {
     const { root } = mount();
-    for (const cls of ["train-mob", "train-stacks", "train-skill", "train-rank"]) expect(root.byClass(cls)!.getAttribute("aria-label"), cls).toBeTruthy();
+    for (const cls of ["train-mob", "train-card", "train-count"]) expect(root.byClass(cls)!.getAttribute("aria-label"), cls).toBeTruthy();
     const toggle = root.byClass("train-toggle")!;
     const panel = root.byClass("train-panel")!;
     expect(toggle.getAttribute("aria-controls")).toBe(panel.id);
@@ -161,16 +167,26 @@ describe("opening and closing", () => {
 });
 
 describe("the messages the buttons send", () => {
-  it("Set buff sends the picked mob type and stack count", () => {
+  it("Set card sends the picked card and copy count, 0 for Remove", () => {
     const { root, sent } = mount();
-    mouseClick(btn(root, "buff"));
-    expect(sent).toEqual([{ cmd: "buff", id: MOB_TYPES[0]!.id, amount: TRAIN_DEFAULT_STACKS }]); // what the pickers say before anyone touches them
-    choose(root.byClass("train-mob")!, "bailiff");
-    choose(root.byClass("train-stacks")!, "6");
-    mouseClick(btn(root, "buff"));
-    choose(root.byClass("train-stacks")!, "0");
-    mouseClick(btn(root, "buff"));
-    expect(sent.slice(1)).toEqual([{ cmd: "buff", id: "bailiff", amount: 6 }, { cmd: "buff", id: "bailiff", amount: 0 }]);
+    mouseClick(btn(root, "card"));
+    expect(sent).toEqual([{ cmd: "card", id: "ad1", count: TRAIN_DEFAULT_CARD_COUNT }]); // what the pickers say before anyone touches them
+    choose(root.byClass("train-card")!, "haste2");
+    choose(root.byClass("train-count")!, "3");
+    mouseClick(btn(root, "card"));
+    choose(root.byClass("train-count")!, "0");
+    mouseClick(btn(root, "card"));
+    expect(sent.slice(1)).toEqual([{ cmd: "card", id: "haste2", count: 3 }, { cmd: "card", id: "haste2", count: 0 }]);
+  });
+
+  it("a card that is held once is never sent with more than one copy (the server caps it the same way), but can still be removed", () => {
+    const { root, sent } = mount();
+    choose(root.byClass("train-card")!, "wellspring");
+    choose(root.byClass("train-count")!, String(TRAIN_MAX_CARD_COUNT));
+    mouseClick(btn(root, "card"));
+    choose(root.byClass("train-count")!, "0");
+    mouseClick(btn(root, "card"));
+    expect(sent).toEqual([{ cmd: "card", id: "wellspring", count: 1 }, { cmd: "card", id: "wellspring", count: 0 }]);
   });
 
   it("Spawn camp sends the picked mob type, an elite's too", () => {
@@ -182,55 +198,43 @@ describe("the messages the buttons send", () => {
     expect(sent).toEqual([{ cmd: "camp", id: "rotMonk" }, { cmd: "camp", id: "wyrmling" }]);
   });
 
-  it("Set passive sends the picked skill and rank, 0 for Remove", () => {
+  it("the chest buttons send the picked card as the only option, or nothing for the server's rolled three; Clear all sends clear", () => {
     const { root, sent } = mount();
-    mouseClick(btn(root, "passive"));
-    expect(sent).toEqual([{ cmd: "passive", id: SKILLS.find(skillLive)!.id, rank: TRAIN_DEFAULT_RANK }]); // the first live one
-    choose(root.byClass("train-skill")!, "thickHide");
-    choose(root.byClass("train-rank")!, "2");
-    mouseClick(btn(root, "passive"));
-    choose(root.byClass("train-rank")!, "0");
-    mouseClick(btn(root, "passive"));
-    expect(sent.slice(1)).toEqual([{ cmd: "passive", id: "thickHide", rank: 2 }, { cmd: "passive", id: "thickHide", rank: 0 }]);
-  });
-
-  it("the chest buttons send the picked passive as the only option, or nothing for the server's random three; Clear all sends clear", () => {
-    const { root, sent } = mount();
-    choose(root.byClass("train-skill")!, "witness");
+    choose(root.byClass("train-card")!, "leech1");
     mouseClick(btn(root, "chest-pick"));
     mouseClick(btn(root, "chest-random"));
     mouseClick(btn(root, "clear"));
-    expect(sent).toEqual([{ cmd: "chest", options: ["witness"] }, { cmd: "chest" }, { cmd: "clear" }]);
+    expect(sent).toEqual([{ cmd: "chest", options: ["leech1"] }, { cmd: "chest" }, { cmd: "clear" }]);
     expect("options" in sent[1]!).toBe(false);
   });
 
-  it("every message it can send is one the server's `train` accepts: a known command with known ids, ranks and amounts", () => {
+  it("every message it can send is one the server's `train` accepts: a known command with known ids and counts", () => {
     const { root, sent } = mount();
-    const skills = [...root.byClass("train-skill")!.walk()].filter((n) => n.tag === "option").map(valueOf);
+    const cards = [...root.byClass("train-card")!.walk()].filter((n) => n.tag === "option").map(valueOf);
     for (const id of MOB_TYPES.map((t) => t.id)) {
       choose(root.byClass("train-mob")!, id);
-      for (const n of [...TRAIN_STACK_CHOICES, 0]) { choose(root.byClass("train-stacks")!, String(n)); mouseClick(btn(root, "buff")); }
       mouseClick(btn(root, "camp"));
     }
-    for (const id of skills) {
-      choose(root.byClass("train-skill")!, id);
-      for (const r of [0, 1, 2]) { choose(root.byClass("train-rank")!, String(r)); mouseClick(btn(root, "passive")); }
+    for (const id of cards) {
+      choose(root.byClass("train-card")!, id);
+      for (const n of [...TRAIN_CARD_COUNT_CHOICES, 0]) { choose(root.byClass("train-count")!, String(n)); mouseClick(btn(root, "card")); }
       mouseClick(btn(root, "chest-pick"));
     }
-    const ids = new Set(MOB_TYPES.map((t) => t.id));
-    const skillIds = new Set(SKILLS.map((s) => s.id));
+    const mobs = new Set(MOB_TYPES.map((t) => t.id));
+    const known = new Map(CARDS.map((c) => [c.id as string, c]));
     for (const m of sent) {
-      if (m.cmd === "buff") { expect(ids.has(m.id as never)).toBe(true); expect(m.amount).toBeGreaterThanOrEqual(0); expect(m.amount).toBeLessThanOrEqual(TRAIN_MAX_STACKS); }
-      else if (m.cmd === "camp") expect(ids.has(m.id as never)).toBe(true);
-      else if (m.cmd === "passive") { expect(skillIds.has(m.id as never)).toBe(true); expect([0, 1, 2]).toContain(m.rank); }
-      else if (m.cmd === "chest") { expect(m.options).toHaveLength(1); expect(skillIds.has(m.options![0] as never)).toBe(true); }
+      if (m.cmd === "camp") expect(mobs.has(m.id as never)).toBe(true);
+      else if (m.cmd === "card") {
+        expect(known.has(m.id)).toBe(true);
+        expect(m.count).toBeGreaterThanOrEqual(0);
+        expect(m.count).toBeLessThanOrEqual(known.get(m.id)!.unique ? 1 : TRAIN_MAX_CARD_COUNT);
+      } else if (m.cmd === "chest") { expect(m.options).toHaveLength(1); expect(known.has(m.options![0]!)).toBe(true); }
     }
-    expect(sent.length).toBe(20 * (TRAIN_STACK_CHOICES.length + 2) + 21 * 4);
+    expect(sent.length).toBe(MOB_TYPES.length + 75 * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
   });
 
   it("the message builders are the one place that makes the shapes", () => {
-    expect(trainMessages.buff("emberImp", 3)).toEqual({ cmd: "buff", id: "emberImp", amount: 3 });
-    expect(trainMessages.passive("whetstone", 1)).toEqual({ cmd: "passive", id: "whetstone", rank: 1 });
+    expect(trainMessages.card("haste2", 2)).toEqual({ cmd: "card", id: "haste2", count: 2 });
     expect(trainMessages.camp("wyrmling")).toEqual({ cmd: "camp", id: "wyrmling" });
     expect(trainMessages.chest()).toEqual({ cmd: "chest" });
     expect(trainMessages.chest([])).toEqual({ cmd: "chest" });
@@ -239,23 +243,24 @@ describe("the messages the buttons send", () => {
   });
 });
 
-describe("the hint lines", () => {
-  it("say what is picked now, and follow every change of a select, for the faction asked for", () => {
-    const { root } = mount("plague");
-    const buffLine = root.byClass("train-hint-buff")!;
-    const skillLine = root.byClass("train-hint-skill")!;
-    expect(buffLine.text).toBe(buffHint(MOB_TYPES[0]!.id, TRAIN_DEFAULT_STACKS));
-    choose(root.byClass("train-mob")!, "chainWarden");
-    expect(buffLine.text).toBe(buffHint("chainWarden", TRAIN_DEFAULT_STACKS));
-    expect(buffLine.text).toMatch(/Not applied yet/);
-    choose(root.byClass("train-stacks")!, "12");
-    expect(buffLine.text).toBe(buffHint("chainWarden", 12));
-    choose(root.byClass("train-skill")!, "pestilence");
-    choose(root.byClass("train-rank")!, "2");
-    expect(skillLine.text).toContain("Execute starts at 70% HP");
-    // The select repeats the line as its tooltip.
-    expect((root.byClass("train-skill") as unknown as { title: string }).title).toBe(skillLine.text);
-    expect((root.byClass("train-mob") as unknown as { title: string }).title).toBe(buffLine.text);
+describe("the hint line", () => {
+  it("says what is picked now, and follows every change of a select", () => {
+    const { root } = mount();
+    const line = root.byClass("train-hint-card")!;
+    expect(line.text).toBe(cardHint("ad1", TRAIN_DEFAULT_CARD_COUNT));
+    choose(root.byClass("train-card")!, "bloodthirst");
+    expect(line.text).toBe(cardHint("bloodthirst", 1));
+    expect(line.text).toContain("Needs a Leech card first.");
+    choose(root.byClass("train-card")!, "haste3");
+    choose(root.byClass("train-count")!, "9");
+    expect(line.text).toBe(cardHint("haste3", 9));
+    expect(line.text).toContain("Held x9.");
+    // A card held once reads the same at any count the picker shows: the line says what will be sent.
+    choose(root.byClass("train-card")!, "wellspring");
+    expect(line.text).toBe(cardHint("wellspring", 1));
+    // The selects repeat the line as their tooltip.
+    expect((root.byClass("train-card") as unknown as { title: string }).title).toBe(line.text);
+    expect((root.byClass("train-count") as unknown as { title: string }).title).toBe(line.text);
   });
 });
 
@@ -336,10 +341,10 @@ describe("in the training bar", () => {
     expect(sent).toEqual([{ cmd: "clear" }]);
   });
 
-  it("words the passives for the faction the bar is told of", () => {
-    bar({ send: () => {}, faction: () => "plague" });
-    choose(ui.byClass("train-skill")!, "pestilence");
-    expect(ui.byClass("train-hint-skill")!.text).toContain("Execute starts at 60% HP");
+  it("words the card it has picked in the bar's console", () => {
+    bar({ send: () => {} });
+    choose(ui.byClass("train-card")!, "pestilence");
+    expect(ui.byClass("train-hint-card")!.text).toContain("Pestilence (Augment, tier II)");
   });
 
   it("hides the tips while the console is open and shows them again after, until their own time runs out", () => {

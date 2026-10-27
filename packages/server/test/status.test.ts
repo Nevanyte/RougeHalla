@@ -61,7 +61,7 @@ function arena(fighters: Array<string | Fighter> = ["a", "b", "c"], opts: { sign
   const world = createGameWorld({
     seed: 11,
     config: {
-      minPlayers: list.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600,
+      minPlayers: list.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, pvpRules: false,
     },
     random: mulberry32(12),
   }, { signatures: opts.signatures ?? false });

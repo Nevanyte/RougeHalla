@@ -31,7 +31,7 @@ describe("QuestLog", () => {
     expect(dom.ui.byClass("quest-log-objective")[0]?.textContent).toBe("Kill 3 mobs in Fire");
     expect(dom.ui.byClass("quest-log-progress")[0]?.textContent).toContain("Your progress 2 / 3");
     expect(dom.ui.byClass("quest-log-time")[0]?.textContent).toBe("1:00");
-    expect(dom.ui.byClass("quest-log-reward")[0]?.textContent).toContain("Ember Imp");
+    expect(dom.ui.byClass("quest-log-reward")[0]?.textContent).toContain("Attack Damage II (+21 attack damage) and 10 GV");
     expect(dom.ui.byClass("quest-log-status")[0]?.textContent).toBe("Open");
     expect(dom.ui.byClass("quest-log-rumoured")[0]?.textContent).toContain("+5 rumoured");
     dom.press("KeyJ");
@@ -106,7 +106,7 @@ describe("QuestLog", () => {
     log.destroy();
   });
 
-  it("sits under the live HUD plate at 800x600 and the common 16:9 sizes, however tall the buff strip grows", () => {
+  it("sits under the live HUD plate at 800x600 and the common 16:9 sizes, however tall the cards row grows", () => {
     const dom = installPlanningDom();
     const log = new QuestLog();
     for (const [w, h] of [[800, 600], [1280, 720], [1366, 768], [1920, 1080]] as const) {

@@ -47,7 +47,11 @@ interface Rig {
   readonly swings: Array<{ attacker: string; weapon: WeaponId; a: number }>;
 }
 
-/** `players` players p0, p1, ... in an active raid. They have no weapon and 1e9 hp, and stand far from HOME until moved. */
+/**
+ * `players` players p0, p1, ... in an active raid. They are passive Holy fighters (an empty hand, which is fists, and a signature
+ * that deals no damage: a Fire or Sentenced player standing next to a mob would burn or mark it) with 1e9 hp, and stand far
+ * from HOME until moved.
+ */
 function makeRig(opts: { players?: number; map?: GameMap; seed?: number; patience?: number } = {}): Rig {
   const n = opts.players ?? 1;
   const patience = opts.patience ?? 3600;
@@ -56,7 +60,7 @@ function makeRig(opts: { players?: number; map?: GameMap; seed?: number; patienc
   };
   const world = createGameWorld({ seed: 7, config, random: mulberry32(opts.seed ?? 99) });
   world.map = opts.map ?? arenaMap();
-  for (let i = 0; i < n; i++) addPlayer(world, `p${i}`, `player${i}`);
+  for (let i = 0; i < n; i++) addPlayer(world, `p${i}`, `player${i}`, { faction: "holy" });
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");
   for (let i = 0; i < n; i++) {
@@ -551,18 +555,18 @@ describe("pursuit", () => {
     expect(hitsOn(run(rig, 100), "p0").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("a mob with nothing in its hands stays put and goes home when the timer runs out", () => {
+  it("a mob with nothing in its hands fights with fists: it closes in to their short reach and punches", () => {
     const rig = makeRig();
     const mob = spawn(rig.world, "sentenced");
     mob.s.weapon0 = "";
     put(rig.world, "p0", HOME.x + 100, HOME.y);
     aggro(rig.world, mob, "p0", 10);
-    const log = spy(rig.world, mob);
-    run(rig, (MOB_GIVE_UP_SECONDS * 1000) / TICK_MS - 1);
+    const events = run(rig, 100);
+    const hits = hitsOn(events, "p0");
+    expect(hits.length).toBeGreaterThanOrEqual(1);
+    expect(hits.every((h) => h.by === mob.id && h.weapon === "fists")).toBe(true);
+    expect(dist(mob.s, rig.world.state.players.get("p0")!)).toBeLessThanOrEqual(POLICIES.fists.attackRange);
     expect(brain(mob).mode).toBe("fight");
-    expect(log.filter((l) => l.kind !== "aim")).toEqual([]);
-    run(rig, 1);
-    expect(brain(mob).mode).toBe("idle");
   });
 });
 
@@ -1142,7 +1146,7 @@ describe("blocks", () => {
     events.flatMap((e) => (e.type === "fx" && e.fx.kind === "block" && e.fx.id === id ? [e.fx] : []));
 
   it.each([["shield"], ["sword"]] as const)(
-    "an idle Frost mob wakes onto the player whose %s hit it blocked, though nothing damaged it",
+    "an idle Frost mob wakes onto the player whose %s hit it blocked in part (the block is contact, and the rest of the hit lands)",
     (weapon) => {
       const { rig, mob } = frostRig(weapon);
       enqueueClientMessage(rig.world.players.get("p0")!.inputs, "attack", { a: Math.PI });
@@ -1154,18 +1158,17 @@ describe("blocks", () => {
       }
       expect(blocked).toHaveLength(1);
       expect(blocked[0]).toMatchObject({ id: mob.id, by: "p0", weapon });
-      // The block fx and the wake are in the same tick, with the mob still whole.
+      // The block fx and the wake are in the same tick; a shield stops only SHIELD_BLOCK_SHARE of the hit, so the mob is hurt too.
       expect(brain(mob).mode).toBe("fight");
       expect(brain(mob).target).toBe("p0");
-      expect(mob.s.hp).toBe(mob.s.maxHp);
-      expect(hitsOn(rig.events, mob.id)).toEqual([]);
+      expect(mob.s.hp).toBeLessThan(mob.s.maxHp);
       // It fights back: it goes on to bash the player (a shield facing it blocks the bash).
       const events = run(rig, 40);
       expect(hitsOn(events, "p0").some((h) => h.by === mob.id) || blocksOn(events, "p0").some((b) => b.by === mob.id)).toBe(true);
     },
   );
 
-  it("an idle Frost mob wakes onto the archer whose arrow it reflected", () => {
+  it("an idle Frost mob wakes onto the archer whose arrow it reflected (in part)", () => {
     const { rig, mob } = frostRig("bow", 160);
     const inputs = rig.world.players.get("p0")!.inputs;
     let blocked: ReturnType<typeof blocksOn> = [];
@@ -1183,7 +1186,7 @@ describe("blocks", () => {
     expect(events.some((e) => e.type === "fx" && e.fx.kind === "projEnd" && e.fx.reason === "reflected")).toBe(true);
     expect(brain(mob).mode).toBe("fight");
     expect(brain(mob).target).toBe("p0");
-    expect(mob.s.hp).toBe(mob.s.maxHp);
+    expect(mob.s.hp).toBeLessThan(mob.s.maxHp); // the part of the arrow the shield does not return hits the mob
     // The reflected arrow is the mob's own shot and finds the archer.
     const later = run(rig, 20);
     expect(hitsOn(later, "p0").some((h) => h.by === mob.id && h.weapon === "shield")).toBe(true);

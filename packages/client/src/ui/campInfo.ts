@@ -1,22 +1,49 @@
-// What the planning screen says of a camp's mobs and of the buffs that answer the factions in the room. This is the only
-// client module that reads the mob roster and the buff catalog for the planning screen, and it reads them defensively: a type id the
-// catalog does not know (newer server content) is shown as its raw id, never an error.
-import {
-  FACTIONS, buffText, buffsCountering, isFactionId, mobTypeById, type FactionId,
-} from "@raid/shared";
+// What the planning screen says of a camp's mobs. This is the only client module that reads the mob roster for the planning screen,
+// and it reads it defensively: a type id the catalog does not know (newer server content) is shown as its raw id, never an error.
+// A camp is its type (a role and a weapon: what its kills drop, or arm an empty hand with) and, for an elite camp, its elite. A kill
+// gives no stat, so there is no buff text here.
+import { MOB_ROLE_DEFS, WEAPONS, mobTypeById, type MobTypeDef } from "@raid/shared";
 
-export interface CampTypeInfo {
-  /** The mob type's display name ("Ember Imp"), or the raw id for one this build does not know. */
+/** One mob type as the planning screen reads it. */
+export interface MobTypeInfo {
+  /** The display name ("Ember Imp"), or the raw id for one this build does not know. */
   name: string;
-  /** The buff its kills give, in words ("+5% damage"); "" when the catalog has none. */
-  buff: string;
+  /** The role's label ("Swarm"), "" for a type this build does not know. */
+  role: string;
+  /** What the role means in a fight ("Fast and fragile."), "" for an unknown type. */
+  blurb: string;
+  /** The weapon every mob of the type carries and drops ("Axe"), "" for an unknown type. */
+  weapon: string;
 }
 
-/** The camp's mob type (RaidState.camps[i].type): null while the room does not say (empty or not synced yet). */
-export function campTypeInfo(type: string | undefined): CampTypeInfo | null {
+export interface CampTypeInfo extends MobTypeInfo {
+  /** The camp's elite type, when it has one (an elite camp). */
+  elite?: MobTypeInfo;
+}
+
+function typeInfo(id: string, def: MobTypeDef | undefined = mobTypeById(id)): MobTypeInfo {
+  if (!def) return { name: id, role: "", blurb: "", weapon: "" };
+  const role = MOB_ROLE_DEFS[def.role];
+  return { name: def.name, role: role.label, blurb: role.blurb, weapon: WEAPONS[def.weapon].name };
+}
+
+/** The camp's mob type (RaidState.camps[i].type) and its elite (.elite, "" for none): null while the room does not say (empty or not synced yet). */
+export function campTypeInfo(type: string | undefined, elite?: string): CampTypeInfo | null {
   if (!type) return null;
-  const def = mobTypeById(type);
-  return { name: def?.name ?? type, buff: def ? buffText(type) : "" };
+  return elite ? { ...typeInfo(type), elite: typeInfo(elite) } : typeInfo(type);
+}
+
+/**
+ * The planning screen's sentence for a camp's mobs: "Ember Imp (Swarm: fast and fragile), drops an Axe" and, for an elite camp,
+ * "Elite: Ash Drake (Caster: shoots from range), drops a Wand". A type this build does not know is just its id.
+ */
+export function campMobsText(info: CampTypeInfo): string {
+  const one = (t: MobTypeInfo): string => {
+    if (!t.role) return t.name;
+    const blurb = t.blurb.replace(/\.$/, "").toLowerCase();
+    return `${t.name} (${t.role}: ${blurb}), drops ${/^[aeiou]/i.test(t.weapon) ? "an" : "a"} ${t.weapon}`;
+  };
+  return info.elite ? `${one(info)}. Elite: ${one(info.elite)}` : one(info);
 }
 
 /** `RaidState.camps[i].type` for each of `count` camps, "" where the state has no camps (a server before them) or no type yet. */
@@ -30,6 +57,17 @@ export function readCampTypes(state: unknown, count: number): string[] {
   return out;
 }
 
+/** `RaidState.camps[i].elite` for each of `count` camps: "" for a camp without an elite, where the state has no camps (a server before them) or none yet. */
+export function readCampElites(state: unknown, count: number): string[] {
+  const camps = (state as { camps?: ArrayLike<{ elite?: unknown }> | undefined } | null | undefined)?.camps;
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const e = camps?.[i]?.elite;
+    out.push(typeof e === "string" ? e : "");
+  }
+  return out;
+}
+
 /** `RaidState.camps[i].state` for each of `count` camps (0 idle, 1 engaged, 2 cleared), 0 where the state has none. */
 export function readCampStates(state: unknown, count: number): number[] {
   const camps = (state as { camps?: ArrayLike<{ state?: unknown }> | undefined } | null | undefined)?.camps;
@@ -39,27 +77,4 @@ export function readCampStates(state: unknown, count: number): number[] {
     out.push(s === 1 || s === 2 ? s : 0);
   }
   return out;
-}
-
-export interface CounterHint {
-  faction: FactionId;
-  buffs: { id: string; name: string; zone: FactionId }[];
-}
-
-/** For each faction present, up to `perFaction` buffs whose `counters` name it (the buff catalog is the source). Empty when none do. */
-export function counterBuffs(present: readonly string[], perFaction = 3): CounterHint[] {
-  const out: CounterHint[] = [];
-  const seen = new Set<FactionId>();
-  for (const f of present) {
-    if (!isFactionId(f) || seen.has(f)) continue;
-    seen.add(f);
-    const buffs = buffsCountering(f).slice(0, perFaction).map((b) => ({ id: b.id, name: b.name, zone: b.zone }));
-    if (buffs.length > 0) out.push({ faction: f, buffs });
-  }
-  return out;
-}
-
-/** One line per faction: "Against Demon Blood: Executioner (Sentenced), Rot Monk (Plague)". */
-export function counterHintLines(hints: readonly CounterHint[]): string[] {
-  return hints.map((h) => `Against ${FACTIONS[h.faction].displayName}: ${h.buffs.map((b) => `${b.name} (${FACTIONS[b.zone].displayName})`).join(", ")}`);
 }

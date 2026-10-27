@@ -25,15 +25,30 @@ function harness(localName = "Me") {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("quest toasts", () => {
-  it("shows the completer ONE completion line, whichever order the private and the public line arrive in", () => {
+  it("shows the completer ONE completion line: the private line naming the card paid, then not the public line naming the offer", () => {
     const a = harness();
-    a.toasts.push("Quest complete: Cinder Cull");
+    a.toasts.push("Quest complete: Attack Damage II");
     a.toasts.push("Me completed quest: Cinder Cull");
-    expect(a.shown).toEqual(["Quest complete: Cinder Cull"]);
+    expect(a.shown).toEqual(["Quest complete: Attack Damage II"]);
+    // An older server that names the offer in the private line is folded the same way.
+    const old = harness();
+    old.toasts.push("Quest complete: Cinder Cull");
+    old.toasts.push("Me completed quest: Cinder Cull");
+    expect(old.shown).toEqual(["Quest complete: Cinder Cull"]);
+    // The card news is never the one dropped: a public line that came first leaves the private one to show.
     const b = harness();
     b.toasts.push("Me completed quest: Cinder Cull");
-    b.toasts.push("Quest complete: Cinder Cull");
-    expect(b.shown).toEqual(["Me completed quest: Cinder Cull"]);
+    b.toasts.push("Quest complete: Attack Damage II");
+    expect(b.shown).toEqual(["Me completed quest: Cinder Cull", "Quest complete: Attack Damage II"]);
+  });
+
+  it("does not fold a public line for another offer once the duplicate window is over, nor a rival's line at any time", () => {
+    const h = harness();
+    h.toasts.push("Quest complete: Haste II");
+    h.toasts.push("Bravo completed quest: Ashcaps");
+    h.advance(QUEST_TOAST_DUPLICATE_MS + 1);
+    h.toasts.push("Me completed quest: Thaw the Watch");
+    expect(h.shown).toEqual(["Quest complete: Haste II", "Bravo completed quest: Ashcaps", "Me completed quest: Thaw the Watch"]);
   });
 
   it("still shows a rival's completion, and the same offer's line again once the duplicate window is over", () => {
@@ -87,8 +102,8 @@ describe("quest toasts", () => {
     const dom = installPlanningDom();
     const stack = new Toasts();
     const quest = new QuestToasts((text) => stack.show(text), () => "Me");
-    for (const text of ["Quest complete: Cinder Cull", "Me completed quest: Cinder Cull", "+10 GV (quest)", "Emberling +1"]) quest.push(text);
-    expect(dom.ui.byClass("toast").map((t) => t.textContent)).toEqual(["Quest complete: Cinder Cull", "+10 GV (quest)", "Emberling +1"]);
+    for (const text of ["Quest complete: Attack Damage II", "Me completed quest: Cinder Cull", "+10 GV (quest)", "Emberling +1"]) quest.push(text);
+    expect(dom.ui.byClass("toast").map((t) => t.textContent)).toEqual(["Quest complete: Attack Damage II", "+10 GV (quest)", "Emberling +1"]);
     stack.destroy();
   });
 });

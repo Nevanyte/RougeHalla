@@ -15,7 +15,7 @@ import { ORDER_EXPIRE_MS } from "../net/localMotion";
 import { settings as appSettings, type Settings, type SettingsStore } from "../settings";
 import { currentView, onViewChange } from "../view/viewState";
 import type { ViewLayout } from "../view/viewport";
-import { campTypeInfo, counterBuffs, counterHintLines } from "./campInfo";
+import { campMobsText, campTypeInfo } from "./campInfo";
 import { el, uiRoot } from "./dom";
 import {
   CROWN_CLIP_PATH, ZONE_PATTERN, paintCrates, paintMapBase, paintPlayer, paintRoute, zoneClipPath, zoneColor,
@@ -60,6 +60,8 @@ export interface PlanningFrame {
   players: readonly PlanningPlayer[];
   /** RaidState.camps[i].type for every camp, "" where unknown. */
   campTypes: readonly string[];
+  /** RaidState.camps[i].elite for every camp: the elite type of an elite camp, "" for any other (or where unknown). Absent: none. */
+  campElites?: readonly string[];
   /**
    * RaidState.camps[i].state for every camp (0 idle, 1 engaged, 2 cleared): a cleared camp is crossed out; an engaged one only
    * means somebody fought there once (the state never goes back), so it is marked as disturbed, not as a fight under way.
@@ -184,7 +186,6 @@ export class PlanningView {
   private readonly readyButton = el("button", "pl-ready", "Ready");
   private readonly readyCount = el("span", "pl-readycount");
   private readonly playerBox = el("section", "pl-box pl-people");
-  private readonly hintBox = el("section", "pl-box pl-hint");
   private readonly routeBox = el("section", "pl-box pl-routebox");
   private readonly routeText = el("div", "pl-route-text");
   private readonly routeNote = el("div", "pl-route-note");
@@ -229,7 +230,6 @@ export class PlanningView {
   private keyCamps = "";
   private keyPlan = "";
   private keyRoute = "";
-  private keyHint: string | null = null;
   private backing = 0;
   private layout: ViewLayout;
   private textScale = 1;
@@ -307,7 +307,6 @@ export class PlanningView {
     this.spawnBox.setAttribute("aria-label", "Spawn options");
     this.boonBox.setAttribute("aria-label", "Start boons");
     this.playerBox.setAttribute("aria-label", "Players");
-    this.hintBox.setAttribute("aria-label", "Counter buffs");
     this.routeBox.setAttribute("aria-label", "Route");
 
     this.readyButton.type = "button";
@@ -326,7 +325,7 @@ export class PlanningView {
 
     this.status.setAttribute("role", "status");
     this.status.setAttribute("aria-live", "polite");
-    this.side.append(this.spawnBox, this.boonBox, this.readyRow, this.quests.element, this.playerBox, this.hintBox, this.routeBox, this.status);
+    this.side.append(this.spawnBox, this.boonBox, this.readyRow, this.quests.element, this.playerBox, this.routeBox, this.status);
     const body = el("div", "pl-body");
     body.append(this.mapCol, this.side);
     this.element.append(body);
@@ -446,7 +445,6 @@ export class PlanningView {
     this.renderCamps(frame);
     this.renderPlan(frame);
     this.renderRoute(frame);
-    this.renderHint(frame);
     this.quests.update({ mode: frame.mode, serverNow: frame.serverNow, localId: frame.localId ?? "", quests: frame.quests, hiddenQuests: frame.hiddenQuests });
   }
 
@@ -470,11 +468,9 @@ export class PlanningView {
     this.playerBox.hidden = mode === "map";
     for (const b of [this.spawnBox, this.readyRow, this.routeBox]) b.hidden = !planning;
     this.syncBoonBox();
-    this.hintBox.hidden = !planning;
     this.showInfo(-1);
     this.keyPeople = "";
     this.keyRoute = "";
-    this.keyHint = null;
     this.routeDirty = true;
     this.applyView();
     if (wasPlanning && !planning) {
@@ -614,9 +610,9 @@ export class PlanningView {
     if (!marker) return "";
     const { camp } = marker;
     const me = this.myFaction(frame);
-    const info = campTypeInfo(frame?.campTypes[i]);
+    const info = campTypeInfo(frame?.campTypes[i], frame?.campElites?.[i]);
     const parts = [campTitle(camp)];
-    if (info) parts.push(info.buff ? `${info.name}: ${info.buff}` : info.name);
+    if (info) parts.push(campMobsText(info));
     const state = frame?.campStates?.[i] ?? 0;
     if (state === 2) parts.push("Cleared");
     else if (state === 1) parts.push("Someone has fought here"); // history: the state is sticky, not a live fight
@@ -984,20 +980,6 @@ export class PlanningView {
     if (skipped > 0) notes.push(`${skipped} stop${skipped === 1 ? " has" : "s have"} no way in and ${skipped === 1 ? "is" : "are"} skipped.`);
     if (stops >= MAX_WAYPOINTS) notes.push(`A route holds ${MAX_WAYPOINTS} stops.`);
     this.routeNote.textContent = notes.join(" ");
-  }
-
-  private renderHint(frame: PlanningFrame): void {
-    if (this.shownMode !== "planning") return;
-    const others = frame.players.filter((p) => !p.me).map((p) => p.faction);
-    const key = others.join(",");
-    if (key === this.keyHint) return;
-    this.keyHint = key;
-    const lines = counterHintLines(counterBuffs(others));
-    this.hintBox.replaceChildren();
-    this.hintBox.hidden = lines.length === 0;
-    if (lines.length === 0) return;
-    this.hintBox.append(el("h3", "pl-h", "Buffs that counter them"));
-    for (const line of lines) this.hintBox.append(el("p", "pl-small", line));
   }
 
   /** A click on the map while planning: a stop where the pointer is. */

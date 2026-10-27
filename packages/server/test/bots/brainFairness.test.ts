@@ -113,7 +113,8 @@ const LINEUP: ReadonlyArray<{ tier: TierId; persona: PersonaId }> = [
 ];
 /** A player within the window plus this (u) of a bot, at any step, may legitimately be on its screen (delays, interpolation). */
 const EXPOSE_MARGIN = 100;
-const MAX_TICKS = 2400;
+/** 3 minutes: a run starts on fists, whose duels are slower, and the seed-31 game ends at tick 2408 (it ended inside 2400 with every bot armed). */
+const MAX_TICKS = 3600;
 
 interface BotAudit {
   readonly id: string;

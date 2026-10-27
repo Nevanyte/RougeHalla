@@ -1,15 +1,18 @@
 // Timed statuses on players and mobs: the kinds, their wire codes, and the one table that holds every cap and stacking rule
 // (STATUS_RULES). The runtime that applies them is server/src/sim/status.ts; this file is data and bits, so the client can
 // read `PlayerState.effects` and draw or predict from it.
+import { AXE_SHRED_CAP, AXE_SHRED_MS } from "./constants";
 
 /** Wire order (the `status` fx code): append only. */
 export type StatusKind =
   | "stun" | "root" | "silence" | "slowMove" | "slowAttack" | "antiHeal" | "dot"
-  | "invulnerable" | "untargetable" | "hidden" | "zoned" | "deathFloor" | "haste";
+  | "invulnerable" | "untargetable" | "hidden" | "zoned" | "deathFloor" | "haste"
+  /** Armor taken off the victim (the axe's special): `value` is the points, summed over instances up to the cap. Appended in the balance pass. */
+  | "shred";
 
 export const STATUS_KINDS: readonly StatusKind[] = [
   "stun", "root", "silence", "slowMove", "slowAttack", "antiHeal", "dot",
-  "invulnerable", "untargetable", "hidden", "zoned", "deathFloor", "haste",
+  "invulnerable", "untargetable", "hidden", "zoned", "deathFloor", "haste", "shred",
 ];
 
 /** What cleanse() removes: "soft" (slows, anti-heal, dots), "hard" (crowd control too), never "never" (D21). */
@@ -66,6 +69,8 @@ export const STATUS_RULES: Readonly<Record<StatusKind, StatusRule>> = {
   zoned:        { maxMs: 6000,  combine: "product", cleanse: "never", bit: EFFECT_ZONED },
   deathFloor:   { maxMs: 6000,  combine: "any",     cleanse: "never", bit: EFFECT_LAST_STAND, playersOnly: true },
   haste:        { maxMs: 8000,  combine: "max", cap: 0.5, cleanse: "never", bit: EFFECT_HASTE },
+  // No effect bit: the armor mirror carries it to the client (a negative bonus), nothing else needs to draw it.
+  shred:        { maxMs: AXE_SHRED_MS, combine: "sum", cap: AXE_SHRED_CAP, cleanse: "soft", bit: 0 },
 };
 
 /** A hidden fighter's own attack or cast reveals it from its start until it lands plus this (ms). */

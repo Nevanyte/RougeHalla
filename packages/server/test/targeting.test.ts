@@ -4,12 +4,12 @@
 //   players p0 (the one that locks), p1, p2 ...   training dummies (no faction, 5000 hp, never fight back)   regional mobs.
 import { describe, expect, it } from "vitest";
 import {
-  damagePerHit, FACTIONS, hasLineOfSight, leadAim, mapFromTiles, MOB_AIM_DEADBAND, mulberry32, pacedFaction, PLAYER_SPEED, TARGET_LOS_GRACE_MS,
+  damagePerHit, FACTIONS, hasLineOfSight, leadAim, lockSpacing, mapFromTiles, MOB_AIM_DEADBAND, mulberry32, pacedFaction, PLAYER_SPEED, TARGET_LOS_GRACE_MS,
   TARGET_RANGE, TARGET_REPATH_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WEAPONS, weaponTimings, attackInterval,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { applyDamage, downPlayer, markDropped } from "../src/sim/arena";
-import { combatant, hostile, type Combatant } from "../src/sim/combatant";
+import { activeWeapon, combatant, hostile, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { placeMob } from "../src/sim/mobLife";
@@ -55,7 +55,7 @@ function arena(fighters: Fighter[], map: GameMap = arenaMap()): World {
     seed: 7,
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
-      suddenDeathSeconds: 3600,
+      suddenDeathSeconds: 3600, pvpRules: false,
     },
     random: mulberry32(8),
   }, { signatures: false });
@@ -256,10 +256,13 @@ describe("the target order", () => {
       ignoredByTick(world, id(1));
     });
 
-    it("is anything at all when the fighter holds no weapon", () => {
+    it("is accepted when the fighter holds no weapon: an empty hand fights on fists, and locks like any other", () => {
       const { world } = duel();
       P(world).weapon0 = "";
-      ignored(world, id(1));
+      expect(activeWeapon(P(world))).toBe("fists");
+      handleTarget(world, C(world), { kind: "target", id: id(1) });
+      expect(W(world).lock).toBe(id(1));
+      expect(P(world).attackTarget).toBe(id(1));
     });
 
     it("is refused for a trigger held before, which it leaves held", () => {
@@ -657,11 +660,16 @@ describe("how a lock ends", () => {
     ended(world);
   });
 
-  it("when the fighter holds no weapon any more", () => {
+  it("not when the fighter holds no weapon any more: the empty hand is fists, and the chase carries on", () => {
     const { world } = chasing();
     P(world).weapon0 = "";
     tick(world);
-    ended(world);
+    expect(W(world).lock).toBe(id(1));
+    expect(P(world).attackTarget).toBe(id(1));
+    // It closes in to the fists' own spacing, not the sword's.
+    run(world, 60);
+    expect(W(world).lock).toBe(id(1));
+    expect(Math.hypot(P(world, 1).x - P(world).x, P(world, 1).y - P(world).y)).toBeLessThan(lockSpacing("fists").attackRange + 8);
   });
 
   it("when the fighter goes down, or its connection drops", () => {

@@ -126,7 +126,9 @@ export function castDenial(m: AbilitySlotModel): string | null {
 /**
  * The length (ms) of the cooldown the sweep counts down from. The server syncs only when a slot is ready again, so a changed
  * `readyAt` starts a new length: the time it was set (the patch's `patchT`) to the new ready time. The first sight of a
- * cooldown already running (a reconnect) gives its remaining time: the wedge starts full and still empties on time.
+ * cooldown already running (a reconnect) gives its remaining time: the wedge starts full and still empties on time. A ready time
+ * that moves EARLIER while the old cooldown is still running (Wishful Thinking trims a second a hit, a refund) keeps the length:
+ * it is the same cooldown, so the ring jumps forward instead of starting over at full.
  */
 export class CooldownTracker {
   private readyAt = 0;
@@ -134,8 +136,9 @@ export class CooldownTracker {
 
   observe(readyAt: number, patchT: number): number {
     if (readyAt !== this.readyAt) {
+      const trimmed = this.readyAt > patchT && readyAt < this.readyAt;
+      this.length = trimmed ? Math.max(this.length, readyAt - patchT, 1) : Math.max(1, readyAt - patchT);
       this.readyAt = readyAt;
-      this.length = Math.max(1, readyAt - patchT);
     }
     return this.length;
   }

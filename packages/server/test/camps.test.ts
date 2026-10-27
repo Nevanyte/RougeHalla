@@ -4,7 +4,8 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  CAMPS_PER_ZONE, campMobs, eliteTypeOf, FACTION_IDS, mapFromTiles, mobTypeById, mulberry32, normalTypesOf, TICK_MS, type FactionId, type MobTypeId,
+  BAG_COPIES, CAMPS_PER_ZONE, campMobs, ELITE_K, elitesOf, MOB_K, mobTypeFaction, FACTION_IDS, mapFromTiles, mobTypeById, mulberry32, normalTypesOf, rollCampElites, rollCampTypes,
+  TICK_MS, type FactionId, type MobTypeId,
 } from "@raid/shared";
 import { campMobDied, ensureRosters, rollRosters } from "../src/sim/camps";
 import { combatant } from "../src/sim/combatant";
@@ -54,6 +55,9 @@ describe("the published roster", () => {
     w.map.camps.forEach((camp, i) => {
       const s = w.state.camps[i]!;
       expect(normalIds(camp.zone), camp.id).toContain(s.type);
+      // An elite camp publishes its elite (one of the zone's two), any other camp none.
+      if (camp.eliteSpot >= 0) expect(elitesOf(camp.zone).map((t) => t.id), camp.id).toContain(s.elite);
+      else expect(s.elite, camp.id).toBe("");
       expect(s.alive, camp.id).toBe(camp.spots.length);
       expect(s.reward).toBe("");
       expect(s.state).toBe(0);
@@ -68,35 +72,61 @@ describe("the published roster", () => {
   });
 
   /**
-   * D5 on an 8-camp zone (the zone shapes' maps): the first three camps (in camp order) take the zone's three normal types, none
-   * twice; every later camp repeats one of them (rosters.ts: one draw each), so all three types stand in the zone, eight camps in all.
-   * The Wishes session redoes the rosters for 8 camps and 2 elites (zone-shapes contract 7.2).
+   * Balance contract 6.4 on the map's zones: a zone's camps take the first entries (in camp order) of ONE shuffled bag of its four
+   * normal types twice, so no type stands in more than two camps and a zone of eight shows each exactly twice; every type is its
+   * zone's own; the elite camps hold the zone's elites one each, in camp order, and the other camps none.
    */
-  function expectD5(w: World, label: string): void {
+  function expectBag(w: World, label: string): void {
+    const elites = rollCampElites(w.map.camps);
     for (const zone of FACTION_IDS) {
-      const types = w.map.camps.flatMap((c, i) => (c.zone === zone ? [w.state.camps[i]!.type] : []));
+      const idx = w.map.camps.flatMap((c, i) => (c.zone === zone ? [i] : []));
+      const types = idx.map((i) => w.state.camps[i]!.type);
       expect(types.length, `${label} ${zone}`).toBe(CAMPS_PER_ZONE);
-      expect(new Set(types.slice(0, 3)).size, `${label} ${zone}: no repeat in the first three`).toBe(3);
-      expect(new Set(types), `${label} ${zone}: all three types stand somewhere`).toEqual(new Set(normalIds(zone)));
+      for (const t of types) {
+        expect(mobTypeById(t)?.zone, `${label} ${zone}`).toBe(zone);
+        expect(mobTypeById(t)?.elite, `${label} ${zone}`).toBe(false);
+      }
       const counts = [...new Set(types)].map((t) => types.filter((u) => u === t).length);
-      expect(counts.reduce((a, b) => a + b, 0), `${label} ${zone}: every camp has a type`).toBe(CAMPS_PER_ZONE);
-      expect(Math.min(...counts), `${label} ${zone}: every type at least once`).toBeGreaterThanOrEqual(1);
-      for (const t of types) expect(mobTypeById(t)?.zone, `${label} ${zone}`).toBe(zone);
+      expect(Math.max(...counts), `${label} ${zone}: no type in more than ${BAG_COPIES} camps`).toBeLessThanOrEqual(BAG_COPIES);
+      if (types.length === BAG_COPIES * normalIds(zone).length) expect(counts.sort(), `${label} ${zone}: each type exactly twice`).toEqual([2, 2, 2, 2]);
+      idx.forEach((i) => expect(w.state.camps[i]!.elite, `${label} ${w.map.camps[i]!.id}`).toBe(elites[i]));
     }
   }
 
-  it.each([1, 2, 3, 100, 732])("seed %i follows D5: eight camps a zone, the first three distinct, the rest repeats, every type its zone's own", (seed) => {
-    expectD5(lobby({ seed }), `seed ${seed}`);
+  it.each([1, 2, 3, 100, 732])("seed %i follows the bag roster: every zone's camps from one shuffled bag, every type its zone's own", (seed) => {
+    expectBag(lobby({ seed }), `seed ${seed}`);
   });
 
-  it("holds D5 over many worlds, and the salt alone decides which types a map's zones have", () => {
+  it("holds the bag roster over many worlds, and the salt alone decides which types a map's zones have", () => {
     const seen = new Set<string>();
     for (let salt = 0; salt < 40; salt++) {
       const w = lobby({ seed: 21, salt });
       seen.add(roster(w).join());
-      expectD5(w, `salt ${salt}`);
+      expectBag(w, `salt ${salt}`);
     }
     expect(seen.size).toBeGreaterThan(10); // the same map rolls many different rosters
+  });
+
+  it("rolls eight camps per zone with two elite camps as the contract says: each type twice, the elites one each, seven draws a zone", () => {
+    const w = lobby({ seed: 11 });
+    const geometry = FACTION_IDS.map((zone) => w.map.camps.find((c) => c.zone === zone)!);
+    const camps = FACTION_IDS.flatMap((zone, zi) =>
+      Array.from({ length: 8 }, (_, i) => ({ ...geometry[zi]!, id: `${zone}-${i + 1}`, eliteSpot: i === 1 || i === 5 ? 0 : -1 })));
+    w.map = { ...w.map, camps };
+    // What the roll reads is the stream's next numbers: build the expectation from a twin stream, then check the draw count.
+    const twin = createGameWorld({ seed: 11, config: BASE, random: mulberry32(12), rewardSalt: 5 });
+    const control = createGameWorld({ seed: 11, config: BASE, random: mulberry32(12), rewardSalt: 5 });
+    twin.map = w.map;
+    control.map = w.map;
+    rollRosters(twin);
+    const want = rollCampTypes(camps.map((c) => c.zone), control.rewardRandom);
+    expect(roster(twin)).toEqual(want);
+    expect(twin.rewardRandom()).toBe(control.rewardRandom()); // the same 35 numbers were drawn
+    FACTION_IDS.forEach((zone, zi) => {
+      const mine = [...twin.state.camps].slice(zi * 8, zi * 8 + 8);
+      expect([...new Set(mine.map((c) => c.type))].map((t) => mine.filter((c) => c.type === t).length), zone).toEqual([2, 2, 2, 2]);
+      expect(mine.map((c) => c.elite), zone).toEqual(["", elitesOf(zone)[0]!.id, "", "", "", elitesOf(zone)[1]!.id, "", ""]);
+    });
   });
 
   it("is the same for the same reward salt and different for another", () => {
@@ -156,7 +186,7 @@ describe("what the camps place", () => {
     const w = run({ seed });
     const mobs = mobsOf(w);
     const expected = w.map.camps.flatMap((camp, ci) =>
-      campMobs(camp, w.state.camps[ci]!.type as MobTypeId).map((m, spot) => ({ camp, ci, spot, ...m })));
+      campMobs(camp, w.state.camps[ci]!.type as MobTypeId, (w.state.camps[ci]!.elite || undefined) as MobTypeId | undefined).map((m, spot) => ({ camp, ci, spot, ...m })));
     expect(mobs.length).toBe(expected.length);
     expected.forEach((e, i) => {
       const { s } = mobs[i]!;
@@ -178,15 +208,21 @@ describe("what the camps place", () => {
       if (normals.length > 0) expect(normals[0]!.s.type).toBe(w.state.camps[ci]!.type);
       expect(here.filter((m) => m.s.kind === "elite").length, camp.id).toBe(camp.eliteSpot >= 0 ? 1 : 0);
     });
+    // Every zone's elites are the elite types of its elite camps (the k-th elite camp holds the k-th elite type).
     for (const zone of FACTION_IDS) {
-      // Two elite camps per zone (zone-shapes 0.1.2), one elite each, both the zone's elite type until the Wishes session's rosters.
+      const eliteCamps = w.map.camps.flatMap((c, ci) => (c.zone === zone && c.eliteSpot >= 0 ? [ci] : []));
       const elites = mobs.filter((m) => m.s.kind === "elite" && m.s.faction === zone);
-      expect(elites).toHaveLength(2);
-      for (const e of elites) expect(e.s.type).toBe(eliteTypeOf(zone).id);
+      expect(elites).toHaveLength(eliteCamps.length);
+      eliteCamps.forEach((ci, k) => {
+        const e = elites.find((m) => m.s.camp === ci + 1)!;
+        expect(e.s.type).toBe(elitesOf(zone)[k % 2]!.id);
+        expect(e.s.type).toBe(w.state.camps[ci]!.elite);
+        expect(e.s.weapon0).toBe(mobTypeById(e.s.type)!.weapon);
+      });
     }
   });
 
-  it("keeps the old ids, order, hp, faction and weapon: only type, camp and name are new", () => {
+  it("keeps the old ids, order and faction, and each mob carries its type's weapon and role hp", () => {
     const w = run({ seed: 2 });
     const expected = w.map.regions.flatMap((r) => r.mobCamps.flatMap((camp) =>
       camp.spots.map((spot, i) => ({ camp, spot, elite: camp.elite && i === 0 }))));
@@ -195,7 +231,9 @@ describe("what the camps place", () => {
     expected.forEach((e, i) => {
       expect(mobs[i]!.s.kind).toBe(e.elite ? "elite" : "mob");
       expect(mobs[i]!.s.faction).toBe(e.camp.region);
-      expect(mobs[i]!.s.weapon0).toBe(e.camp.weapon);
+      const type = mobTypeById(mobs[i]!.s.type)!;
+      expect(mobs[i]!.s.weapon0).toBe(type.weapon);
+      expect(mobs[i]!.s.maxHp).toBeCloseTo(mobTypeFaction(e.camp.region, e.elite, type.id, e.elite ? ELITE_K : MOB_K).hp, 3);
       expect({ x: mobs[i]!.s.x, y: mobs[i]!.s.y }).toEqual(e.spot);
     });
     expect([...w.state.mobs.keys()]).toEqual([...w.mobs.keys()]);
@@ -209,7 +247,7 @@ describe("what the camps place", () => {
     expect(plain.s.type).toBe("");
     expect(plain.s.name).toBe("Rimeguard");
     expect(mobTypeOf(plain.s.type, "frost", false)).toBe(normalTypesOf("frost")[0]!.id);
-    expect(mobTypeOf("", "frost", true)).toBe(eliteTypeOf("frost").id);
+    expect(mobTypeOf("", "frost", true)).toBe(elitesOf("frost")[0]!.id);
     const typed = combatant(w, placeMob(w, { region: "frost", elite: false, at: { x: 100, y: 100 }, type: "iceGolem", camp: 4 })) as MobCombatant;
     expect(typed.s.type).toBe("iceGolem");
     expect(typed.s.name).toBe("Ice Golem");
@@ -361,7 +399,7 @@ describe("on the wire", () => {
     encoder.discardChanges();
     const client = decoder.state;
     const view = (s: RaidState) => ({
-      camps: [...s.camps].map((c) => ({ type: c.type, reward: c.reward, alive: c.alive, state: c.state })),
+      camps: [...s.camps].map((c) => ({ type: c.type, elite: c.elite, reward: c.reward, alive: c.alive, state: c.state })),
       mobs: [...s.mobs].map(([id, m]) => [id, m.type, m.camp, m.name]),
     });
     expect(client.camps.length).toBe(w.map.camps.length);

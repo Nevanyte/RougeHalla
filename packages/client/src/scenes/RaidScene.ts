@@ -2,7 +2,7 @@
 import Phaser from "phaser";
 import {
   abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS,
-  hasLineOfSight, isAbilityDot, rankIn, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
+  countIn, feedScore, hasLineOfSight, isAbilityDot, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
@@ -33,7 +33,7 @@ import { WishFx } from "../render/WishFx";
 import { GroundFeedback, NO_STATES, type TerrainStates } from "../render/zoneArt/terrainFeedback";
 import { LockDisplay, pickTarget, targetable, unitCastDenial, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
-import { readCampStates, readCampTypes } from "../ui/campInfo";
+import { readCampElites, readCampStates, readCampTypes } from "../ui/campInfo";
 import { campLabel, ChestMemory, chestPickLine, rttFromOrderDelay, trueServerNow } from "../ui/chestMath";
 import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
@@ -121,7 +121,7 @@ export class RaidScene extends Phaser.Scene {
   private chestMemory = new ChestMemory();
   private unbindToast: (() => void) | null = null;
   /** Scratch for the chest panel's frame and the minimap's chest blips and camp states (refilled every frame). */
-  private readonly chestMe: ChestPanelMe = { id: "", x: 0, y: 0, alive: false, faction: "", build: null };
+  private readonly chestMe: ChestPanelMe = { id: "", x: 0, y: 0, alive: false, build: null };
   private readonly blips: ChestBlip[] = [];
   private readonly campStates: number[] = [];
   private readonly mapHold = new MapHold(
@@ -312,6 +312,7 @@ export class RaidScene extends Phaser.Scene {
       },
       mobKind: (id) => this.room.state.mobs.get(id)?.kind,
       campLabel: (camp) => this.campLabel(camp),
+      campCentre: (camp) => this.campCentre(camp),
       chestPick: (chest, option) => this.chestPick(chest, option),
       projectileEnded: (id) => this.projectiles.finish(id),
       // At render time with the flash and the number, not on arrival (the render delay earlier): damageFlash judges the hit against max hp.
@@ -389,10 +390,7 @@ export class RaidScene extends Phaser.Scene {
     const now = performance.now();
     // Not read in create(): tolerate the flag arriving with a later patch.
     if (state.training && !this.trainingBar) {
-      this.trainingBar = new TrainingBar(this.leaveTraining, {
-        send: (msg) => sendInput(this.room, "train", msg),
-        faction: () => this.room.state.players.get(this.room.sessionId)?.faction,
-      });
+      this.trainingBar = new TrainingBar(this.leaveTraining, { send: (msg) => sendInput(this.room, "train", msg) });
     }
     this.trainingBar?.update(now);
     // The one place render time is read: it consumes the clock's pending patch, so everything else this frame
@@ -484,7 +482,7 @@ export class RaidScene extends Phaser.Scene {
     });
     this.questLog.update({
       phase: state.phase, training: state.training === true, quests: questData.quests, hidden: questData.hidden,
-      localId: this.room.sessionId, localName: me?.name, serverNow,
+      localId: this.room.sessionId, localName: me?.name, serverNow, feed: me ? feedScore(me.kills, me.mobKills) : undefined,
       ui: { w: currentView().uiW, h: currentView().uiH }, plate: () => this.hud.plate,
     });
 
@@ -535,6 +533,7 @@ export class RaidScene extends Phaser.Scene {
     view.update({
       mode, serverNow, endsAt: state.planEndsAt, meReady: me?.planReady === true, players,
       campTypes: readCampTypes(state, this.mapView?.map.camps.length ?? 0),
+      campElites: readCampElites(state, this.mapView?.map.camps.length ?? 0),
       campStates: this.campStates,
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
       quests: questData.quests, hiddenQuests: questData.hidden, localId: this.room.sessionId,
@@ -722,7 +721,6 @@ export class RaidScene extends Phaser.Scene {
       local.x = me.x;
       local.y = me.y;
       local.alive = me.status === "alive";
-      local.faction = me.faction;
       local.build = me.build;
     }
     this.chestFrame.active = state.phase === "active";
@@ -751,12 +749,18 @@ export class RaidScene extends Phaser.Scene {
     return campLabel(this.mapView?.map.camps[index]);
   }
 
-  /** The local player's own pick at a reward chest, as a line: what they took (at the rank they hold now), or a skip. */
+  /** Where camp `index` of the map is centred, for the camp-clear heal's ring (a practice camp has none on the map). */
+  private campCentre(index: number): { x: number; y: number } | undefined {
+    const camp = this.mapView?.map.camps[index];
+    return camp ? { x: camp.x, y: camp.y } : undefined;
+  }
+
+  /** The local player's own pick at a reward chest, as a line: the card they took (with how many they hold now), or a skip. */
   private chestPick(chest: string, option: number): string | undefined {
     // The chest may be gone from the state already (the fx plays 100 ms late, and a pick in its last instants lands with it).
     const live = option >= 0 ? this.room.state.containers.get(chest)?.options : undefined;
     const build = this.room.state.players.get(this.room.sessionId)?.build;
-    return chestPickLine(chest, option, live, this.chestMemory, (skill) => rankIn(build, skill));
+    return chestPickLine(chest, option, live, this.chestMemory, (card) => countIn(build, card));
   }
 
   /** Remembers a death that FxView will play later, so the victim stays on screen until then (see `deaths`). */

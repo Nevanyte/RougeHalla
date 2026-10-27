@@ -1,6 +1,6 @@
 // The z-index ladder inside #ui. The planning screen dims the whole world at about 84% opacity, so the connection banner and the
 // toasts (a dropped socket, a server error) must sit above it, and still under the chrome's buttons and its cards.
-//   HUD and the rest (auto, the build tooltip 5)  <  map screens (10)  <  banner and toasts  <=  chrome (20)  <  settings card (60)  <  help card (70)
+//   HUD and the rest (auto, the cards tooltip 5)  <  map screens (10)  <  banner and toasts  <=  chrome (20)  <  settings card (60)  <  help card (70)
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -8,7 +8,7 @@ const read = (name: string): string => readFileSync(new URL(`../src/${name}`, im
 const style = read("style.css");
 const planningCss = read("ui/planning.css");
 const chromeCss = read("ui/chrome.css");
-const buffsCss = read("ui/buffsHud.css");
+const cardsCss = read("ui/cardsRow.css");
 const loadingCss = read("ui/loading.css");
 
 /** The z-index of the rule whose selector is exactly `selector` in `css` (a missing rule or a missing z-index fails loudly). */
@@ -42,8 +42,8 @@ describe("the z-index ladder", () => {
     expect(toasts).toBeLessThan(z(chromeCss, "#ui > .help-scrim"));
   });
 
-  it("keeps the rest of the ladder in order: the build tooltip under the planning screen, which is under the chrome, its cards and the boot screen", () => {
-    expect(z(buffsCss, ".buff-tip")).toBeLessThan(planning);
+  it("keeps the rest of the ladder in order: the cards tooltip under the planning screen, which is under the chrome, its cards and the boot screen", () => {
+    expect(z(cardsCss, ".cards-tip")).toBeLessThan(planning);
     expect(planning).toBeLessThan(chrome);
     expect(chrome).toBeLessThan(z(chromeCss, "#ui > .settings-panel"));
     expect(z(chromeCss, "#ui > .settings-panel")).toBeLessThan(z(chromeCss, "#ui > .help-scrim"));

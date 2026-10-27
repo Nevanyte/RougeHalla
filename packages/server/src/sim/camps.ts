@@ -10,8 +10,9 @@
 // back to idle, and cleared is for good: camps never respawn, and the coliseum teleport (which puts LIVING mobs back on their
 // spots) leaves a cleared camp cleared. The clear is paid after the ledger pass that killed the last member (payLater): the
 // `campCleared` fx, then the `campCleared` hook, where sim/chests.ts drops the camp's shared chest. `reward` stays "" (R7).
-import { rollCampTypes } from "@raid/shared";
+import { rollCampElites, rollCampTypes } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
+import { payCampHeal } from "./campHeal";
 import { emit, payLater, type World } from "./world";
 
 /** CampState.state values. */
@@ -21,16 +22,20 @@ export const CAMP_CLEARED = 2;
 
 /**
  * Rolls every camp's roster and replaces `state.camps` with it: one CampState per `map.camps` entry, `type` the camp's
- * normal mob type, `alive` its spot count (one mob per spot), `reward` "" and `state` 0. Draws only from `world.rewardRandom`
- * (zones in first-seen order, see rollCampTypes). A map without camps (a hand-built test map) publishes none.
+ * normal mob type, `elite` its elite's type ("" for a camp without an elite spot), `alive` its spot count (one mob per
+ * spot), `reward` "" and `state` 0. Draws only from `world.rewardRandom` (zones in first-seen order, seven draws each, see
+ * rollCampTypes); the elites are a function of the camp order (rollCampElites) and draw nothing. A map without camps (a
+ * hand-built test map) publishes none.
  */
 export function rollRosters(world: World): void {
   const camps = world.map.camps;
   const types = rollCampTypes(camps.map((c) => c.zone), world.rewardRandom);
+  const elites = rollCampElites(camps);
   world.state.camps.clear();
   camps.forEach((camp, i) => {
     const s = new CampState();
     s.type = types[i]!;
+    s.elite = elites[i]!;
     s.reward = "";
     s.alive = camp.spots.length;
     s.state = 0;
@@ -65,7 +70,10 @@ export function campEngaged(world: World, campRef: number): void {
 export function campMobDied(world: World, campRef: number): boolean {
   if (!(campRef >= 1)) return false;
   const s = world.state.camps[campRef - 1];
-  if (!s) return false;
+  if (!s) {
+    if (world.config.training) practiceMobDied(world, campRef);
+    return false;
+  }
   if (s.alive > 0) s.alive--;
   if (s.alive > 0 || s.state === CAMP_CLEARED) return false;
   s.state = CAMP_CLEARED;
@@ -75,6 +83,16 @@ export function campMobDied(world: World, campRef: number): boolean {
     world.hooks.campCleared?.(world, camp);
   });
   return true;
+}
+
+/**
+ * A mob of a training room's practice camp died (sim/training.ts: a camp the console placed, which the map and `state.camps` do
+ * not have): when it was the camp's last, the camp-clear heal is paid (sim/campHeal.ts) after the pass. No `campCleared` fx or
+ * hook: there is no chest and no map camp to name.
+ */
+function practiceMobDied(world: World, campRef: number): void {
+  for (const m of world.state.mobs.values()) if (m.camp === campRef && m.status === "alive") return;
+  payLater(world, () => payCampHeal(world, campRef - 1));
 }
 
 /**

@@ -1,5 +1,6 @@
 // The faction-cycle harness (src/harness/factionCycle.ts, trades mode) against testing/realtime.py: every phase pair of
-// all 60 cells must give the same winner and the same hp fractions as the Python reference at the game's duel pace.
+// all 70 cells (ten edges x the five loop weapons and fists, plus the ten signature openings) must give the same winner and the
+// same hp fractions as the Python reference at the game's duel pace (the PvP factor off: the cycle at the design pace).
 //
 // fixtures/realtime-paced.json is that reference's output. Regenerate it from the repo root after changing realtime.py,
 // the faction numbers or DUEL_PACE (needs python3 with numpy):
@@ -33,20 +34,13 @@ const T_TOLERANCE = 1e-3;
 
 const label = (c: FixtureCell): string => `${c.kind} ${c.a.faction}(${c.a.weapon}) > ${c.b.faction}(${c.b.weapon})`;
 
-/**
- * Fight times are only comparable where Holy is not the loser: realtime.py applies Holy's lifesteal in the same tick as
- * the killing blow while the sim applies damage first, so a few pairs end one to three of the winner's intervals earlier
- * in the sim. The winner and the hp fractions are unaffected, and are always compared.
- */
-const timesComparable = (c: FixtureCell): boolean => c.b.faction !== "holy";
-
 const maxDiff = (xs: number[], ys: number[]): number => Math.max(0, ...xs.map((x, i) => Math.abs(x - ys[i]!)));
 
 describe("fixture", () => {
   it("was generated at the game's duel pace, with every cell and a full grid of pairs", () => {
     expect(fixture.k).toBe(DUEL_PACE);
-    expect(fixture.cells).toHaveLength(60);
-    expect(fixture.cells.filter((c) => c.kind === "mirror")).toHaveLength(50);
+    expect(fixture.cells).toHaveLength(70);
+    expect(fixture.cells.filter((c) => c.kind === "mirror")).toHaveLength(60);
     expect(fixture.cells.filter((c) => c.kind === "sig")).toHaveLength(10);
     for (const c of fixture.cells) expect(c.pairs.length).toBe(c.stats.P);
   });
@@ -70,11 +64,9 @@ describe("parity with realtime.py (trades mode)", () => {
       expect(Math.abs(stats.worst - cell.stats.worst)).toBeLessThan(FRAC_TOLERANCE);
       expect(Math.abs(stats.mean - cell.stats.mean)).toBeLessThan(FRAC_TOLERANCE);
 
-      if (timesComparable(cell)) {
-        expect(maxDiff(results.map((r) => r.t), cell.pairs.map((p) => p[3]))).toBeLessThan(T_TOLERANCE);
-        expect(Math.abs(stats.t - cell.stats.t)).toBeLessThan(T_TOLERANCE);
-        expect(Math.abs(stats.tmax - cell.stats.tmax)).toBeLessThan(T_TOLERANCE);
-      }
+      expect(maxDiff(results.map((r) => r.t), cell.pairs.map((p) => p[3]))).toBeLessThan(T_TOLERANCE);
+      expect(Math.abs(stats.t - cell.stats.t)).toBeLessThan(T_TOLERANCE);
+      expect(Math.abs(stats.tmax - cell.stats.tmax)).toBeLessThan(T_TOLERANCE);
     });
   }
 });
@@ -102,14 +94,14 @@ describe("phaseGrid", () => {
     expect(offs[1]).toBeCloseTo(interval / 48, 12);
   });
 
-  it("stretches the span to interval / 0.4 for a side under Frost's chill, at the same spacing", () => {
+  it("stretches the span to interval / 0.48 for a side under Frost's chill, at the same spacing", () => {
     const { offs, m } = phaseGrid(fireAxe, frostShield);
-    const span = interval / 0.4;
-    expect(m).toBeCloseTo(0.4, 12);
-    // 2.976190 s is 59.5 ticks: 60 offsets, 0.049603 s apart, the last one a step short of the span.
-    expect(offs).toHaveLength(60);
+    const span = interval / 0.48;
+    expect(m).toBeCloseTo(0.48, 12);
+    // 2.480159 s is 49.6 ticks: 50 offsets, 0.049603 s apart, the last one a step short of the span.
+    expect(offs).toHaveLength(50);
     expect(offs[1]).toBeCloseTo(interval / 24, 12);
-    expect(offs[59]! + offs[1]!).toBeCloseTo(span, 12);
+    expect(offs[49]! + offs[1]!).toBeCloseTo(span, 12);
   });
 
   it("thins to nmax offsets that include the first and the last", () => {
