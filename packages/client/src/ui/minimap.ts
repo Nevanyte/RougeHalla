@@ -123,7 +123,7 @@ export class Minimap {
   /** Chests that are up (a cleared camp's shared chest), with the seconds each has left; drawn on top of the camps. */
   private chests: ChestBlip[] = [];
   private chestsHash = 0;
-  /** Each camp's state (RaidState.camps[i].state): a cleared camp is crossed out, an engaged one wears a flame. */
+  /** Each camp's state (RaidState.camps[i].state): a cleared camp is crossed out, a disturbed one (fought at once) wears a muted ring. */
   private campStates: number[] = [];
   private campStatesHash = 0;
   private campsMarked = false;
@@ -221,7 +221,8 @@ export class Minimap {
 
   /**
    * Each camp's state, in map.camps order (0 idle, 1 engaged, 2 cleared): a cleared camp is drawn dimmed and crossed out, an
-   * engaged one with a flame. All idle (or none) draws the plain markers. Takes effect at the next update().
+   * engaged one (somebody has fought there; the state is sticky history) with a small muted ring. All idle (or none) draws the
+   * plain markers. Takes effect at the next update().
    */
   setCampStates(states: ArrayLike<number>): void {
     const list = this.campStates;

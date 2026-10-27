@@ -299,6 +299,14 @@ export const GV_SKIP = 3;
 export const CAMP_WIDE_AGGRO = true;
 /** A heal spread over time (Second Wind) lands in steps this far apart, the first at once. */
 export const HEAL_OVER_TIME_STEP_MS = 500;
+/**
+ * Swift Boots (R5, owner ruling "No boost while shooting"): its move-speed bonus is off from the moment a bow or wand attack
+ * starts until this long after the shot leaves, so the boots help walking, chasing and melee but never buy a shooter the walk
+ * back between shots (the ranged windups are the anti-kiting lever). 2.5 s because Frost's chill stretches a chilled shooter's
+ * cooldown 2.5x: Fire's wand then idles 2.1 s between shots, and a shorter pause lets the boots back in that gap (at rank 2 a
+ * 1.0 s pause leaves Frost > Fire's wand cell at 44% against 68% without the boots, testing/TUNING_ROGUE.md 7.5).
+ */
+export const SWIFT_BOOTS_PAUSE_MS = 2500;
 
 // Rendering (client only, but kept here so tools/bots agree on the projection)
 export const Y_SCALE = 0.8;

@@ -66,6 +66,7 @@ export function applyLedger(world: World): void {
   const c0 = world.combat;
   // A pass that threw would have left its queue and snapshot behind: start clean.
   c0.payouts = [];
+  c0.campWakes = [];
   c0.medianFeed = null;
   c0.collecting = true;
   // Every mob reward of the pass reads the lobby as it stood before it, not as kills earlier in the pass left it.

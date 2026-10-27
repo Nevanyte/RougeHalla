@@ -42,8 +42,12 @@ export type VsTest = "hpAbove" | "hpBelow" | "slowed" | "rooted" | "streak" | "t
 /** What a `scale` row grows with: +`per` of its bonus for every `step` of the source (stepped, so it rarely patches). */
 export type ScaleSource = "ownMissingHp";
 
-/** Conditions a `while` row holds under (`arg` is the threshold, `ms` how long it lasts after the event where one applies). */
-export type WhileCond = "chasingLock" | "hpBelow" | "afterCast";
+/**
+ * Conditions a `while` row holds under (`arg` is the threshold, `ms` how long it lasts after the event where one applies).
+ * `notShooting` (Swift Boots, owner ruling "No boost while shooting") holds EXCEPT from the moment a bow or wand attack starts
+ * until `ms` after it lands: the one condition that is off for a window, not on.
+ */
+export type WhileCond = "chasingLock" | "hpBelow" | "afterCast" | "notShooting";
 
 /** Events a `trigger` row fires on (`arg` is the hp threshold for hpBelow). */
 export type TriggerOn = "hpBelow" | "kill" | "hitTaken";

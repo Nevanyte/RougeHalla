@@ -14,9 +14,10 @@
 import {
   circleClear, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, reachMask,
   segmentClear, TICK_MS, TILE, TILE_WALL, decide,
-  type BuffId, type FactionId, type GameMap, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
+  type BuffId, type FactionId, type GameMap, type PolicyInput, type SkillId, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { grantBuff } from "../sim/buffs";
+import { grantSkill } from "../sim/chests";
 import { activeWeapon, combatant, timingsOf, type Combatant } from "../sim/combatant";
 import { recomputeMods } from "../sim/mods";
 import { createGameWorld } from "../sim/gameplay";
@@ -24,7 +25,7 @@ import { enqueueClientMessage } from "../sim/inputs";
 import { positionAt } from "../sim/movement";
 import { addPlayer, step } from "../sim/step";
 import { moveMultiplierOf } from "../sim/weapons";
-import { collisionMap, type SimEvent, type World } from "../sim/world";
+import { collisionMap, type ModContribution, type SimEvent, type World } from "../sim/world";
 
 export type Arena = "open" | "pillars";
 /** How a projectile client sees its target: the render-time view with the leads a real client can make ("client"), that view taken at face value ("stale"), or the present ("present"). */
@@ -57,14 +58,44 @@ export interface DuelSpec {
   locks?: readonly [boolean, boolean];
   /** Buffs fighter 0 / fighter 1 holds from the duel's first tick (grantBuff, so its mirrors fold as in a run). */
   buffs?: readonly [readonly BuffGrant[] | undefined, readonly BuffGrant[] | undefined];
+  /**
+   * Passives fighter 0 / fighter 1 holds from the duel's first tick, through the chest's own grant (grantSkill: the build, the rows
+   * folded as in a run), so the measurement is of the shipped rule. A rank 2 is two grants.
+   */
+  skills?: readonly [readonly SkillGrant[] | undefined, readonly SkillGrant[] | undefined];
   /** An attack-speed multiplier for fighter 0 / fighter 1 on top of its buffs: a registered mod source (world.modSources). */
   asMult?: readonly [number | undefined, number | undefined];
+  /** A bare windup multiplier for fighter 0 / fighter 1, from the same mod source (a scan of Quickdraw's numbers): scaleWindup shortens melee windups only. */
+  windupMult?: readonly [number | undefined, number | undefined];
+  /** A bare move-speed multiplier for fighter 0 / fighter 1, from the same mod source: no Swift Boots pause (`skills` is the shipped passive). */
+  speedMult?: readonly [number | undefined, number | undefined];
   /** Called after every step (debugging and tests). */
   onTick?: (world: World, tick: number, events: readonly SimEvent[]) => void;
 }
 
 /** Stacks of one buff a duel fighter starts with. */
 export interface BuffGrant { id: BuffId; stacks: number }
+
+/** A passive a duel fighter starts with, at `rank` (1 or 2). */
+export interface SkillGrant { id: SkillId; rank: 1 | 2 }
+
+/**
+ * What one fighter of a duel holds beyond its faction and weapon: buff stacks, passives through the chest's own grant (`skills`,
+ * so the shipped rule is measured) and bare mod-source multipliers for scans (no Swift Boots pause, no Quickdraw rank). Fighter 0
+ * and fighter 1 of a duel each hold one.
+ */
+export interface FighterKit { buffs?: readonly BuffGrant[]; skills?: readonly SkillGrant[]; asMult?: number; windupMult?: number; speedMult?: number }
+
+/** The DuelSpec fields that give fighter 0 `first` and fighter 1 `second`. */
+export function kitFields(first: FighterKit | undefined, second: FighterKit | undefined): Pick<DuelSpec, "buffs" | "skills" | "asMult" | "windupMult" | "speedMult"> {
+  return {
+    buffs: [first?.buffs, second?.buffs],
+    skills: [first?.skills, second?.skills],
+    asMult: [first?.asMult, second?.asMult],
+    windupMult: [first?.windupMult, second?.windupMult],
+    speedMult: [first?.speedMult, second?.speedMult],
+  };
+}
 
 /** One landed hit, as the sim reported it. `by` is the fighter index. */
 export interface HitRecord { t: number; by: 0 | 1; amount: number; weapon: WeaponId | null }
@@ -291,19 +322,32 @@ export function runDuel(spec: DuelSpec): DuelResult {
     rt.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
   }
   const extraAs = spec.asMult ?? [undefined, undefined];
-  if (extraAs.some((m) => m !== undefined && m !== 1)) {
+  const extraWindup = spec.windupMult ?? [undefined, undefined];
+  const extraSpeed = spec.speedMult ?? [undefined, undefined];
+  const extra = (i: number): ModContribution | null => {
+    const out: ModContribution = {};
+    const as = extraAs[i], wu = extraWindup[i], sp = extraSpeed[i];
+    if (as !== undefined && as !== 1) out.asMult = as;
+    if (wu !== undefined && wu !== 1) out.windupMult = wu;
+    if (sp !== undefined && sp !== 1) out.speedMult = sp;
+    return Object.keys(out).length > 0 ? out : null;
+  };
+  const hasExtra = [0, 1].some((i) => extra(i) !== null);
+  if (hasExtra) {
     world.modSources.push((_w, c) => {
       const i = indexOf(c.id);
-      const m = i === null ? undefined : extraAs[i];
-      return m !== undefined && m !== 1 ? { asMult: m } : null;
+      return i === null ? null : extra(i);
     });
   }
   for (let i = 0; i < 2; i++) {
     const grants = spec.buffs?.[i] ?? [];
-    if (grants.length === 0 && extraAs[i] === undefined) continue;
+    const passives = spec.skills?.[i] ?? [];
+    if (grants.length === 0 && passives.length === 0 && extra(i) === null) continue;
     const p = world.state.players.get(IDS[i]!)!;
     const rt = world.players.get(IDS[i]!)!;
     for (const g of grants) grantBuff(world, p, rt, g.id, g.stacks);
+    const me = combatant(world, IDS[i]!) as Extract<Combatant, { kind: "player" }>;
+    for (const g of passives) for (let r = 1; r <= g.rank; r++) grantSkill(world, me, g.id);
     recomputeMods(world, { kind: "player", id: IDS[i]!, s: p, rt });
   }
   if (!circleClear(world.map, starts[0], PLAYER_RADIUS) || !circleClear(world.map, starts[1], PLAYER_RADIUS)) {

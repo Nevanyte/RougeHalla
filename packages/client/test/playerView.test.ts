@@ -278,12 +278,13 @@ describe("PlayerView Wish icon", () => {
 
 describe("PlayerView bow draw", () => {
   const HELD = 9;
-  // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at attack-speed mirror x1.25 (0.419 s)
-  // or windup mirror x0.85 (0.446 s). The mirrors are the wire form (thousandths), as the state carries them.
-  const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null): boolean => {
+  // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, a full draw (the glow) at attack-speed mirror x1.25 (0.419 s);
+  // a windup mirror x0.85 leaves it alone, and so it does a Fire bow's 0.6 s draw (a windup mod never shortens a ranged windup: it
+  // is still not full at 0.56 s). The mirrors are the wire form (thousandths), as the state carries them.
+  const glows = (over: Partial<Record<keyof PlayerState, unknown>>, facing: number | null, now = 1450): boolean => {
     const { root, view } = setup();
     const held = (root.args[2] as FakeObject[])[HELD]!;
-    view.update(0, 0, player({ faction: "sentenced", weapon0: "bow", drawStartedAt: 1000, ...over }), 1450, 1450, false, false, facing);
+    view.update(0, 0, player({ faction: "sentenced", weapon0: "bow", drawStartedAt: 1000, ...over }), now, now, false, false, facing);
     return held.calls.some(([name]) => name === "strokeCircle");
   };
 
@@ -292,7 +293,11 @@ describe("PlayerView bow draw", () => {
       expect(glows({}, facing), `identity, facing ${facing}`).toBe(false);
       expect(glows({ asMult: 1000 }, facing), `explicit identity, facing ${facing}`).toBe(false);
       expect(glows({ asMult: encodeMult(1.25) }, facing), `attack speed x1.25, facing ${facing}`).toBe(true);
-      expect(glows({ windupMult: encodeMult(0.85) }, facing), `windup x0.85, facing ${facing}`).toBe(true);
+      expect(glows({ windupMult: encodeMult(0.85) }, facing), `windup x0.85, facing ${facing}`).toBe(false);
+      expect(glows({ faction: "fire" }, facing, 1560), `fire identity, facing ${facing}`).toBe(false);
+      expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1560), `fire windup x0.85, facing ${facing}`).toBe(false);
+      expect(glows({ faction: "fire", windupMult: encodeMult(0.85) }, facing, 1600), `fire windup x0.85 at 0.6 s, facing ${facing}`).toBe(true);
+      expect(glows({ faction: "fire", windupMult: encodeMult(0.5) }, facing, 1540), `fire windup x0.5 at 0.54 s, facing ${facing}`).toBe(false);
       expect(glows({ windupMult: encodeMult(1.2) }, facing), `windup x1.2, facing ${facing}`).toBe(false);
     }
   });

@@ -9,7 +9,8 @@
 //     players in an active run). Checked in this order, each refusal a private toast that uses up nothing:
 //       the picker is a standing player (not down, no result out) .......................... silent
 //       the picker is not stunned or casting (status.ts actionBlocked, as for a pickup) ...... "Can't do that now"
-//       the chest exists, is a reward, was not created this tick, and now < expiresAt ...... "Chest gone"
+//       the chest exists, is a reward, is not younger than one tick (a chest born in a tick's ledger pass is first pickable
+//       two ticks on: holdBirth), and now < expiresAt ....................................... "Chest gone"
 //       the picker's SERVER position is within CHEST_RANGE of the chest's centre ............ "Too far away"
 //       with line of sight on collisionMap(world) ......................................... "Can't reach that"
 //       the picker has not picked here yet (an option or a skip) ........................... "You already picked"
@@ -31,7 +32,7 @@ import { awardSkipGv } from "./arena";
 import { syncMaxHp } from "./buffs";
 import { standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
-import { addContainer, bornThisTick, forgetBirth } from "./loot";
+import { addContainer, bornThisTick, forgetBirth, holdBirth } from "./loot";
 import { recomputeMods } from "./mods";
 import { actionBlocked } from "./status";
 import { chainHook, collisionMap, emit, type ActionHandler, type World } from "./world";
@@ -48,6 +49,7 @@ function toast(world: World, to: string, text: string): void {
  */
 export function dropRewardChest(world: World, at: Vec2, options: readonly string[], camp?: number): ContainerState {
   const box = addContainer(world, "reward", at, REWARD_LABEL, []);
+  holdBirth(world, box.id); // a chest born in a ledger pass is first pickable two ticks on (an id guessed blind wins nothing)
   box.camp = camp !== undefined && camp >= 0 ? camp + 1 : 0;
   box.expiresAt = world.state.serverTime + CHEST_SECONDS * 1000;
   for (const id of options) {

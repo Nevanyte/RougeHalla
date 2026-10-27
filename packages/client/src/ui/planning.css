@@ -167,16 +167,19 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
     linear-gradient(to top right, transparent 47%, #eceff1 47% 53%, transparent 53%),
     linear-gradient(to top left, transparent 47%, #eceff1 47% 53%, transparent 53%);
 }
-.pl-camp.engaged::before {
+/* Somebody has fought here once (the state never goes back): a small muted ring, history and not an alert. */
+.pl-camp.disturbed::before {
   content: "";
   position: absolute;
-  right: -3px;
-  top: -3px;
-  width: 9px;
-  height: 11px;
+  right: -4px;
+  top: -4px;
+  width: 7px;
+  height: 7px;
+  box-sizing: border-box;
+  border: 1.5px solid #b0bec5;
+  border-radius: 50%;
+  opacity: 0.7;
   pointer-events: none;
-  background: #ff7043;
-  clip-path: polygon(50% 0%, 85% 45%, 72% 100%, 28% 100%, 15% 45%);
 }
 
 .pl-crown {

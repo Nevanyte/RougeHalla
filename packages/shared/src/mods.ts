@@ -67,12 +67,17 @@ export function decodeMult(wire: number): number {
 }
 
 /**
- * A weapon's timings with the windup scaled by `windupMult` (the decoded mirror), never past the interval. The axe's
- * root, which counts from the attack's start, stretches with it and never ends before the windup does. The server's
- * timingsOf and a client's draw and root read the same function.
+ * A weapon's timings with the windup scaled by `windupMult` (the decoded mirror), never past the interval. The axe's root,
+ * which counts from the attack's start, stretches with it and never ends before the windup does. A mult below 1 shortens
+ * MELEE windups only (the sword's, the bash's, the axe's): the ranged windups are the anti-kiting lever and nothing shortens
+ * them (owner ruling "Melee windups only", testing/TUNING_ROGUE.md section 7), so a ranged attack's timings come back as they
+ * were (the same object). A mult of 1 or more lengthens every weapon. The server's timingsOf and a client's draw and root
+ * read the same function. (No source lengthens windups today. If one does, the mirror is one product: a Quickdraw rank
+ * under a slow would still lengthen the ranged windup by the slow times Quickdraw's share, so a ranged slow wants its own mirror.)
  */
 export function scaleWindup(t: WeaponTimings, windupMult: number): WeaponTimings {
   if (windupMult === 1 || !Number.isFinite(windupMult)) return t;
+  if (t.ranged && windupMult < 1) return t;
   const windup = Math.min(t.interval, t.windup * windupMult);
   const root = t.root > 0 ? Math.max(windup, Math.min(t.interval, t.root * windupMult)) : 0;
   return { ...t, windup, root };

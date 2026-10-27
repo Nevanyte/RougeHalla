@@ -98,6 +98,8 @@ export interface WeaponRuntime {
   lockGoal: Vec2 | null;
   /** When a `target` order last cost a path search (-Infinity: never): at most one per TARGET_REPATH_MS (sim/targeting.ts). */
   lockSearchAt: number;
+  /** Server ms the fighter's last bow arrow or wand ball left it (-Infinity: none yet). Swift Boots' `notShooting` pause counts from it (sim/mods.ts). */
+  lastShotAt: number;
 }
 
 /** Server-only combat data every fighter has, player or mob. */
@@ -409,6 +411,11 @@ export interface CombatScratch {
    */
   collecting: boolean;
   payouts: Array<() => void>;
+  /**
+   * Camp-wide wake requests made during the pass (sim/mobAI.ts): a camp, and the player its hit member hands on. Resolved once
+   * after the pass, so the order victims were processed in (join order) never decides whom a camp chases.
+   */
+  campWakes: Array<{ camp: number; target: string }>;
   /** The lobby's median feed as it stood before the pass (null outside one): every mob reward in the pass reads this one. */
   medianFeed: number | null;
 }
@@ -657,7 +664,7 @@ export function createWorld(opts: {
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], medianFeed: null },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], campWakes: [], medianFeed: null },
     random: opts.random,
     orderSalt,
     rewardRandom: rewardStream(opts.rewardSalt ?? rewardSaltFrom(orderSalt)),
@@ -769,6 +776,6 @@ export function nextId(world: World, prefix: string): string {
 export function newWeaponRuntime(): WeaponRuntime {
   return {
     action: null, rootUntil: 0, staggerImmuneUntil: 0, held: false, pressedAt: 0, bufferedUntil: 0, aim: 0, aimAt: 0, lagMs: 0,
-    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity,
+    lock: null, lockSeen: false, lockLosLostAt: 0, lockPlanAt: -Infinity, lockGoal: null, lockSearchAt: -Infinity, lastShotAt: -Infinity,
   };
 }
