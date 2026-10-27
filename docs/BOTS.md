@@ -5,9 +5,10 @@ reaction times and misclicks, the screen and minimap a human has and nothing mor
 more. The contract every implementer codes against is `packages/server/src/bots/brain/types.ts`. Section 10 says who
 writes what and in which order. Section 11 lists every best guess as an owner question.
 
-Built: the brain and both drivers, the lobby fill, the learning store, the tournament, and the Wishes, planning and chests
-modules (section 8). Not built: the quest, Q/E skill, relic and hazard modules (end of section 8). Measured results are in
-9.3 and `docs/BOTS_TUNING.md`.
+Built: the brain and both drivers, the lobby fill, the learning store, the tournament, and the Wishes, planning, chests and
+hazards modules (section 8). Not built: the quest, Q/E skill and relic modules, the penalty for hunting an opponent whose Wish
+is ready, and the write side of the `spawn|…`/`boon|…` learning keys (end of section 8). Measured results are in 9.3 and
+`docs/BOTS_TUNING.md`; each says which map and tree it was taken on (the 64x64 wedge map before R2, or the 96x96 zone maps).
 
 Already built on this branch (commit `febac38`, CLAUDE.md "Bots in the sim"): `PlayerState.bot`, `addPlayer(..., { bot })`,
 no kill or bounty GV for a bot victim, `RunResult.kills` without bot kills, the human-only win bonus, `RaidRoom.settle`
@@ -23,7 +24,7 @@ Numbers marked "measured" were taken on this branch: `npx tsx bench/stepBench.ts
 **Decision.** There is one pure brain (`bots/brain/`) and two drivers:
 - **`BotManager`** (in-process) runs fill bots inside `RaidRoom`. Each bot is a `PlayerState` with `bot: true` and a
   `PlayerRuntime`. Its commands go through a latency delay line into `enqueueClientMessage(rt.inputs, type, msg)`, the call a
-  human's message takes (`RaidRoom.ts:216`).
+  human's message takes (`RaidRoom`'s message handler).
 - **`BotClient`** (network) is the `npm run bots` CLI and the e2e player. It reads the SDK-decoded `room.state` and `fxs`,
   and sends with `room.send`.
 
@@ -32,18 +33,22 @@ Both build their input for the same `perception.ts`, run the same `BotRunner` (`
 
 | Criterion | In-process (chosen for fill) | Headless network clients |
 |---|---|---|
-| Never touches persistence | No profile, token or seat exists. `settle` drops its result (`RaidRoom.ts:430-433`) | Joining needs a profile and token (`checkCredentials`, `RaidRoom.ts:121-127`), a profile per bot, and `recordRun` on every result: exactly what the brief forbids |
-| Same validation and timing as a human | Same `enqueueClientMessage`. Arrival between steps is applied by the next step, as a socket message is | Same, plus the Colyseus 100 msg/s guard (`RaidRoom.ts:156`). The humanizer caps bots at 2-3 msg/s anyway |
+| Never touches persistence | No profile, token or seat exists. `RaidRoom.settle` drops its result | Joining needs a profile and token (`checkCredentials` in `RaidRoom.ts`), a profile per bot, and `recordRun` on every result: exactly what the brief forbids |
+| Same validation and timing as a human | Same `enqueueClientMessage`. Arrival between steps is applied by the next step, as a socket message is | Same, plus the Colyseus 100 msg/s guard (`maxMessagesPerSecond` in `RaidRoom`). The humanizer caps bots at 2-3 msg/s anyway |
 | Scale | No socket, no per-client patch encode, no downlink | A WebSocket each and a full patch stream each |
 | Tick budget | Brain CPU is on the server's event loop: budgeted, see below | Brain CPU in another process |
 | CLI shares the brain | Yes: runner + perception | Yes: the same runner |
 
-**Measured budget** (the merged tree, planning and chest modules on; seed 1). `step()` alone with 8 players and 60 mobs
+**Measured budget** (the 64x64 map with 60 mobs, planning and chest modules on, before R2; seed 1). `step()` alone with 8 players and 60 mobs
 averages 0.45 ms with a p99 of 6.1 ms (`bench/stepBench.ts`; the gate is 5 / 15 ms). With 8 in-process fill bots
 (`stepBench.ts --bots 8 --clock cpu`) the whole tick averages 1.28 ms with a p99 of 2.97 ms, and the bots' share (`beforeStep` +
 `afterPatch`) averages 0.94 ms with a p99 of 2.55 ms. The first 200 ticks are reported apart: a cold process spikes to 36 ms on
 tick 3, in the bots' share (probably the first strategy decisions of eight bots, not profiled; not gated; stagger or warm them at boot if it matters). Typical bandwidth is
-7.68 KB/s per client, 4.04 KB/s in the `bots` scenario (`bench/bandwidth.ts`; the gate is 20). One-off timings from the
+7.68 KB/s per client, 4.04 KB/s in the `bots` scenario (`bench/bandwidth.ts`; the gate is 20). On the 96x96 zone maps with 82
+mobs (the follow-up tree, seed 1, one run of each): `step()` alone averages 0.20 ms wall (0.43 ms CPU) with a p99 of 0.45 ms (3.1
+CPU); with 8 bots the whole tick averages 0.68 ms (p99 1.65) and the bots' share 0.48 ms (p99 1.47), the first 200 ticks peaking
+at 18 ms on tick 3; bandwidth is 6.52 KB/s typical and 4.67 KB/s in the `bots` scenario. Timings move with machine load (CLAUDE.md
+quotes 1.4 / 1.0 ms from another run of the same bench), so the gates are what holds. One-off timings from the
 design phase (not re-run): `findPath` on a 64x64 map averages 0.092 ms (p99 0.307 ms), walks of
 300-500 u average 0.025 ms, and line of sight takes 0.4 µs. The brain's own gate is 8 bots ≤ 1.5 ms average and ≤ 6 ms p99 per
 tick, kept three ways:
@@ -59,7 +64,7 @@ changes:
    plus the downlink fresher than any human. The runner's frame ring reads the world at `now − worldDelayMs` (100 + 30) and
    the bot itself at `now − selfDelayMs` (30; 0 over the network, whose latency is real).
 2. **One frame per patch, not per step.** A Room callback runs up to `MAX_CATCHUP_STEPS` (3) steps and sends one patch
-   (`RaidRoom.ts:374-389`). A frame per step would show bots states no client ever receives. Commands still flush before
+   (`RaidRoom.tick`, `MAX_CATCHUP_STEPS`). A frame per step would show bots states no client ever receives. Commands still flush before
    every step, because arrival is per step.
 3. **`tick(percept) → TimedCommand[]` every frame** replaces `think(percept, now)`. The humanizer releases clicks at their
    own times between thinks, and `now` is in the percept. The think cadence is internal (`TierParams.thinkMs`).
@@ -70,7 +75,7 @@ changes:
    choices, the same reason `world.rewardRandom` is apart from `world.random`.
 6. **Injected services.** The brain needs pathfinding. It gets it through a budgeted `PathService` over shared `findPath`.
 7. **Fed the same fx as clients.** The in-process driver hands perception the very `FxBatch` the Room broadcasts
-   (`RaidRoom.ts:423`), decoded with `unpackFx`/`unpackLaunches` like the client does. A bot can never see an fx no client
+   (`RaidRoom.handleEvents`, collected in `botBatches`), decoded with `unpackFx`/`unpackLaunches` like the client does. A bot can never see an fx no client
    got.
 8. **No loopback sockets for fill.** A localhost client would still need a profile, and its near-zero latency would be the
    wrong one anyway.
@@ -125,7 +130,7 @@ behind), and a crowd adds wrong picks.
 
 - **A lock intent becomes a cursor point**: the target's drawn position at `viewT`, minus its velocity × `lagS`, plus
   scatter. It is resolved with a port of the client's `pickTarget` (`render/targeting.ts:12-25`, `brain/clicks.ts`, pinned
-  equal by a test) over the candidates the client offers (`RaidScene.ts:625-636`): other alive players on screen, and mobs
+  equal by a test) over the candidates the client offers (`RaidScene.targetCandidates`): other alive players on screen, and mobs
   unless `gatesLocked`, all within `TARGET_SNAP_RADIUS` 64 u.
 - **A miss sends nothing.** A click on empty ground does nothing. The miss becomes a `clickMissed` stimulus: the bot notices
   no ring and clicks again after a reaction.
@@ -190,7 +195,7 @@ Two commands per shot (about 80-120 APM) means Normal's APM cap thins its orb-wa
 
 **The wheels.** A bot knows each of the 10 faction and 10 weapon edges with chance `knowledge` (fixed at creation, from
 `decide`). An unknown edge reads 0. Every bot reads the matchup tint the UI shows every human (`matchupTint`, in sight within
-`MATCHUP_RANGE` 450, `signatures.ts:113-127`). Knowledge therefore matters beyond 450 u or out of sight: whom to hunt from
+`MATCHUP_RANGE` 450, `signatures.ts:119-134`). Knowledge therefore matters beyond 450 u or out of sight: whom to hunt from
 afar, which second weapon to pick up, which camps to route through.
 
 **The rules.** A bot knows the sudden-death rule (`suddenDeathShare` burns every hp pool at the same share, so the lower
@@ -229,11 +234,11 @@ The micro is the server's lock for everyone, so a human out-plays a Hard bot on 
 
 `computeLayout` (`client/src/view/viewport.ts:82-107`) fixes the world height every player sees at `REF_VIEW_H` = 900
 projected px (`:9`). That is 900 / `Y_SCALE` 0.8 = 1125 world units. The width follows the aspect: 4:3 shows 1200 u, 16:9
-1600 u, and 21:9 is the cap at 2100 u. The camera centres on the drawn player (`RaidScene.ts:321`).
+1600 u, and 21:9 is the cap at 2100 u. The camera centres on the drawn player (`RaidScene`, `cameras.main.centerOn`).
 
 **Bots assume 16:9**, the common monitor: `BOT_VIEW = { halfW: 800, halfH: 562.5 }`. An entity is on screen when its
 centre's `|dx| ≤ 800` and `|dy| ≤ 562.5` from the bot's position at `now − selfDelay`. On a 64 × 64 map (2048 u) that is 43%
-of the map; on the planned 96 × 96 map, 19%.
+of the map; on the 96 × 96 map the game builds (3072 u), 19%.
 
 **No fog of war.** The client draws everything in the camera rectangle; walls do not hide fighters. The window has no line
 of sight test. Line of sight matters only where the UI uses it: the tint, interactability, and the lock's own rules.
@@ -241,7 +246,7 @@ of sight test. Line of sight matters only where the UI uses it: the tint, intera
 ### 3.2 The minimap (`ui/minimap.ts`)
 
 **It shows** walls and region tints, the closed gates, every living regional mob as a dot (faction colour, gold rim for an
-elite; dummies and the dead are skipped, `:158-179`), the camera rectangle, and **the local player only** (`:324-378`).
+elite; dummies and the dead are skipped: `Minimap.setMobs`), the camera rectangle, and **the local player only**.
 **It shows no other player.** The Wishes contract keeps it that way for hidden players.
 
 **So the percept gets** every living mob's dot map-wide: position rounded to 16 u, refreshed every 100 ms (its repaint
@@ -255,13 +260,13 @@ and the percept carries those map-wide too (`extras.chests`); the cards inside a
 | Field | Source | Limit |
 |---|---|---|
 | `self` | `players[selfId]`: position, facing, status, hp, maxHp, barrier, faction, both weapons, slot, attackTarget, drawStartedAt, readyAt, immuneUntil, sig, brand, stacks (the build strip's power: shared `buffPower` over the buffs held, in stacks at the quoted value), mirrors (`decodeMirrors`), kills, mobKills, gv, bounty, moveSeq | Exact: the HUD shows it (buff rows, bars, lock ring) |
-| `hud` | `RaidState` phase, training, lobbyEndsAt, raidStartedAt, patienceEndsAt, suddenDeathAt, inColiseum, gatesLocked, startedWith, minPlayers, winner; `alive` counts all players alive | Exact (`ui/hud.ts:146-150` counts the whole room) |
-| `fighters[]` | Other players on screen: name, bot, position, facing, status, hp share, barrier share, faction, **weapon in hand only** (`FighterArt.ts:35-37`), drawStartedAt (the pull), bounty (the crown, `PlayerView.ts:209`), immune, sig, brand, targetable | Window. Hp at 5% steps (a bar, not a number). Never `weapon1`, stacks, kills, gv, readyAt, attackTarget, mirrors, moveSeq or look |
+| `hud` | `RaidState` phase, training, lobbyEndsAt, raidStartedAt, patienceEndsAt, suddenDeathAt, inColiseum, gatesLocked, startedWith, minPlayers, winner; `alive` counts all players alive | Exact (`ui/hud.ts` counts the whole room) |
+| `fighters[]` | Other players on screen: name, bot, position, facing, status, hp share, barrier share, faction, **weapon in hand only** (`FighterArt.ts` `heldWeapon`), drawStartedAt (the pull), bounty (the crown, `PlayerView.setCrown`), immune, sig, brand, targetable | Window. Hp at 5% steps (a bar, not a number). Never `weapon1`, stacks, kills, gv, readyAt, attackTarget, mirrors, moveSeq or look |
 | `fighters[]` (computed) | `vx`, `vy` from frames 100 ms apart; `dist`; `los`; `tint` (the UI's hue); `central` | 0 velocity if not on screen in both frames |
 | `mobs[]` | kind, name, faction, position, facing, status, hp share, weapon in hand, drawStartedAt, sig, brand | Window |
 | `minimap` | Living mob dots and `gatesLocked` | Whole map, 16 u, 10 Hz |
-| `containers[]` | kind, position, a body's label, closed or open. Weapon: a ground weapon's icon always (`ContainerView.ts:83-125`); a weapon chest's or body's only while `canInteract` (56 u and line of sight, `interact.ts:9-11`), as the weapon bar shows. A camp's reward chest is not a weapon target: its place and expiry are in `extras.chests` map-wide, its cards only within 88 u with a clear line | Window |
-| `projectiles[]` | `fxs` launch tuples flown to `viewT`; `from` = the visible fighter nearest the origin within 56 u (`FxView.ts:60,513`) | Its position at `viewT` is in the window |
+| `containers[]` | kind, position, a body's label, closed or open. Weapon: a ground weapon's icon always (`ContainerView`); a weapon chest's or body's only while `canInteract` (`INTERACT_RANGE` and a clear line on the move mask, `render/interact.ts`), as the weapon bar shows. A camp's reward chest is not a weapon target: its place and expiry are in `extras.chests` map-wide, its cards only within 88 u with a clear line | Window |
+| `projectiles[]` | `fxs` launch tuples flown to `viewT`; `from` = the visible fighter nearest the origin within 56 u (`FxView.ts` `LAUNCH_NEAR`) | Its position at `viewT` is in the window |
 | `events[]` | Decoded `fxs` + toasts to self + the result + private messages | 3.4 |
 | `extras` | Per feature (8) | Per feature |
 
@@ -280,7 +285,7 @@ and the percept carries those map-wide too (`extras.chests`); the cards inside a
 | windup, swing, cancel, stagger, heal, buff | The subject (`by`/`id`) is on screen, or it is self | – |
 | hit, block | The victim is on screen, or the victim is self | `by` is null unless the attacker is visible |
 | projEnd | Its (x, y) is on screen | – |
-| death of a player | Always: the "X was killed" announcement (`FxView.ts:359-369`) | `at` and `by` only when on screen |
+| death of a player | Always: the "X was killed" announcement (`FxView`) | `at` and `by` only when on screen |
 | death of a mob | On screen | – |
 | bounty, teleport, victory | Always: announcements | – |
 | toast, result, private (`plan`, `reveal`) | Addressed to this bot | Never another player's |
@@ -309,7 +314,7 @@ World fx are composed with the world delay. Toasts, results and private messages
 ### 3.6 Feeding mobHunt from the percept
 
 `MobHunter` (`bots/mobHunt.ts`) stays as it is, pure and unchanged. `brain/huntAdapter.ts` builds its `HuntInput`
-(`mobHunt.ts:216-236`):
+(`mobHunt.ts` `HuntInput`):
 
 | HuntInput field | Built from |
 |---|---|
@@ -379,7 +384,9 @@ The old BotClient's pursuit-ring breaker lives here. A hunt that has not closed 
 `persona.chaseGiveUpMs` drops its target, which is then avoided for 6 s unless it comes within 150 u or hits the bot.
 
 **Tactics** (`tactics.ts`, `TacticsLayer`) executes the goal as intents, with `Knowledge` and the shared policies:
-- **Approach and lock.** Walk until the target is within `TARGET_RANGE − 40`, then lock and leave the chase to the server.
+- **Approach and lock.** Walk until the target is within `TARGET_RANGE − 40`, then lock and leave the chase to the server. For
+  a mob goal, a lock the server already has on a camp mate is kept (`fight.ts` `lockedMate`): the camp fights as one, a click
+  meant for the goal's mob lands on a bunched neighbour, and clicking again only cancels the swing being wound up.
 - **Spacing and kiting** by matchup, with `matchupScore`, `factionEdge`, `weaponEdge` and `lockSpacing`.
 - **Swaps.** `bestSlot`, and `bestSlotVsMob` against a mob. Never mid-draw, at most every 2-4 s, and only after seeing the
   foe's weapon (a `newThreat` or `foeSwapped` reaction).
@@ -488,7 +495,7 @@ are confounders (a Hard bot places well whatever it picked), so each key gets th
 - Entries are capped at 2000; the smallest `n` goes first.
 
 **Writes.** Coalesced, at most every 10 s plus on room dispose and shutdown. Atomic: temp file, fsync, rename, directory
-fsync, the `ProfileStore.ts:428` pattern copied rather than imported. An unparsable file is moved aside to `.bad-<ts>` and the
+fsync, `ProfileStore`'s write pattern copied rather than imported. An unparsable file is moved aside to `.bad-<ts>` and the
 store starts empty: bots are never worth stopping the server for.
 
 **Who reads and writes.**
@@ -504,37 +511,45 @@ store starts empty: bots are never worth stopping the server for.
 
 ### 7.1 Built (`febac38`)
 
-**The sim.** `addPlayer(..., { bot: true })` sets `PlayerState.bot` and `PlayerRuntime.bot` (`step.ts:26-53`,
-`schema.ts:20`). In `arena.ts`:
+**The sim.** `addPlayer(..., { bot: true })` sets `PlayerState.bot` and `PlayerRuntime.bot` (`addPlayer` in `step.ts`,
+`schema.ts`). In `arena.ts`:
 - `creditKill` pays a bot victim's killer no kill GV and no bounty GV, counts `botKills`, and still runs the bounty hook
   (the buff transfer, when the victim carried a bounty);
 - `updateBounty` reads `kills − botKills`, so a kill of a bot does not climb the killer's bounty ladder (owner question 1,
   adopted: a bounty cannot be built on bots and cashed by an alt);
-- `RunResult.kills` is `p.kills − botKills` (`:316`), and `killedByBot` is set (`:140`, `:318`);
-- the win bonus reads `arena.startedHumans` and `damagedHumans` (`:65`, `:124`, `:412-413`);
-- a bot's `resolved` event carries `bot: true` (`:324`).
+- `RunResult.kills` is `p.kills − botKills`, and `killedByBot` is set when a bot downed the victim;
+- the win bonus reads `arena.startedHumans` and `damagedHumans` (`withheldWhy`), and a withheld bonus says which rule held it
+  back in `RunResult.winBonusWhy`: `"starters"` (fewer than `WIN_BONUS_MIN_PLAYERS` human starters; checked first, and also
+  given to a run that was not contested) or `"opponents"` (damage on fewer than `WIN_BONUS_MIN_OPPONENTS` other humans). A
+  player cannot tell from the state which fighters count for the bonus, so the results screen needs the server to say;
+- a bot's `resolved` event carries `bot: true`.
 
-**The Room.** `RaidRoom.settle` returns before `recordRun`, the registry and `pendingResults` for a bot (`:430-433`).
+**The Room.** `RaidRoom.settle` returns before `recordRun`, the registry and `pendingResults` for a bot.
 
-**The client.** `render/displayName.ts` draws `[BOT] name` on nameplates, announcements, the winner line and the results
-killer. `test/botSeat.test.ts` (sim) and `test/botRoom.test.ts` (a real Room) pin all of it.
+**The client.** `render/displayName.ts` draws `[BOT] name` on nameplates, announcements, the winner line, the results killer
+and the chest cards' "Taken by" (`playerLabel`). The results screen (`ui/results.ts`) reads `winBonusWhy`: "No win bonus:
+fewer than 3 human starters" or "No win bonus: you damaged fewer than 2 other human players", and for a payload with no reason
+(an older server) the rule as a whole. `test/botSeat.test.ts` (sim) and `test/botRoom.test.ts` (a real Room) pin all of it.
 
 ### 7.2 Built (the fill)
 
 **`sim/step.ts`.**
-- `updateLobby` (`:136-145`): the `minPlayers` shortening to `fillSeconds` counts **humans** only, so filler never cuts a
-  human's countdown. `MAX_PLAYERS` still counts everyone.
+- `updateLobby`: the `minPlayers` shortening to `fillSeconds` counts **humans** only, so filler never cuts a human's
+  countdown, and so does the immediate start at `MAX_PLAYERS`: eight HUMANS start a lobby at once, a lobby that holds bots
+  does not. Bots never close a lobby early, so a human can always take a bot's seat (`onJoin` below) until the countdown ends
+  or eight humans are in.
 - A new chainable hook, `WorldHooks.lobbyClosing?(world)`, called in `updateLobby` right before `startRaid`. It is the
   manager's last top-up; `addPlayer` inside the step is safe there because `startRaid` places everyone next.
 
 **`rooms/RaidRoom.ts`.**
 - `buildWorld` creates a `BotManager` for an arena room with `fillTo > 0`.
-- `tick()` calls `bots.beforeStep(serverTime + TICK_MS)` before each `step`, and `bots.afterPatch(batches)` once after
+- `tick()` calls `bots.lobbyTick()` (in the lobby) and `bots.beforeStep(serverTime + TICK_MS)` before each `step`, and `bots.afterPatch(batches)` once after
   `broadcastPatch`, with the batches `handleEvents` broadcast in that callback.
 - `handleEvents` routes a toast or gv event addressed to a bot to `bots.onToast`.
 - `settle`: `if (bot) { this.bots?.onResult(sessionId, result); return; }` (learning gets the result; nothing else changes).
 - `onJoin`: if `state.players.size >= MAX_PLAYERS`, call `bots.yieldSeat()` first. It removes the newest lobby bot, and a
-  lobby leave costs nothing. Colyseus `maxClients` still counts humans.
+  lobby leave costs nothing. Colyseus `maxClients` counts clients, which are humans, so a human the matchmaker admits always
+  finds a seat: the bots hold at most `MAX_PLAYERS` minus the humans.
 - `handleEvents` sends a bot's private `plan` message to `bots.onPrivate` instead of a socket.
 - `onDispose` calls `bots.dispose()`, which flushes the stats.
 
@@ -566,8 +581,9 @@ onResult(id: string, result: RunResult): void; dispose(): void;
 - `look` is 0.
 
 **Edge cases.**
-- **Never a lobby of bots alone.** Bots arrive only while a human client is in the room, and when the last client leaves,
-  Colyseus `autoDispose` disposes the room. Lobby or run, nothing was recorded for the bots, and no learning happens: void.
+- **Never a lobby of bots alone.** The arrivals and the closing top-up (`lobbyClosing`) both need a human in the room, bots
+  alone never start the raid (a lobby the fill brought to `MAX_PLAYERS` waits for its countdown), and when the last client
+  leaves, Colyseus `autoDispose` disposes the room. Lobby or run, nothing was recorded for the bots, and no learning happens: void.
 - **All humans dead but still connected.** The run plays out (they spectate), and the bots' results feed learning.
 - **Training rooms never fill.**
 
@@ -599,8 +615,8 @@ spent in the Room's message handler for a real client's message, while a bot's c
 
 ## 8. The feature seam
 
-Wishes, the planning screen and chests are merged and have their modules. Q/E skills, relics and zone terrain are not on
-main yet. The brain grows with them without naming a symbol this branch lacks.
+Wishes, the planning screen, chests and zone terrain are merged and have their modules (`wishes`, `planning`, `chests`,
+`hazards`). Q/E skills and relics are not on main yet. The brain grows with them without naming a symbol this branch lacks.
 
 **Detection** (`perception.ts` `detectFeatures`, once per room; fills `Features`):
 - `CLIENT_MESSAGE_TYPES.includes(type)` at runtime;
@@ -610,7 +626,7 @@ main yet. The brain grows with them without naming a symbol this branch lacks.
 - shared exports by `(shared as unknown as Record<string, unknown>)["ABILITIES"]` after `import * as shared`;
 - new fx kinds: `unpackFx` decodes whatever the shared codec knows, and perception passes kinds it does not name through as
   `ext`;
-- the map's hazard field by presence.
+- the map's floor hazards (`map.terrain`) by presence.
 
 **Enforcement.** A `Command` whose type is not in `Features.messageTypes` is refused by the adapter (`supports`). A module
 whose `enabled(features)` is false is never called. A test runs a whole game with every feature off, and one with a faked
@@ -714,11 +730,11 @@ Reach is read with the server's own masks elsewhere (`fight.ts` `inReach`, `perc
 | `humanizer.test.ts` | Reaction samples over 2000 stimuli: mean within ±10% of the tier's, none below floor; refractory spacing; dedupe; lock misclick rates within ±1.5 points of 2.2 |
 | `memory.test.ts` | Stimuli; whereabouts growth and expiry; the other-slot belief; Wish guess; camp cleared from dots; mob hp never refilled off screen |
 | `strategy.test.ts` | Personas order goals as in 5; hysteresis; softmax and lapse frequencies; learned bias bounded; the pursuit-ring breaker (ports `botOrbit.test.ts`) |
-| `tactics.test.ts` | One lock click, re-sent only when not taken, never aim, attack or release (ports `botLock.test.ts`); orb-walk cycle timing; dodge feasibility and juke timing (2.6); swaps by edge; pickups only when interactable; coliseum hold; sudden-death avoidance |
+| `tactics.test.ts` | One lock click, re-sent only when not taken, never aim, attack or release (ports `botLock.test.ts`); orb-walk cycle timing; dodge feasibility and juke timing (2.6); swaps by edge; pickups only when interactable; coliseum hold; sudden-death avoidance; a lock on a camp mate is kept, not re-clicked (`lockedMate`) |
 | `learning.test.ts` | Round trip; version; atomic write (crash between write and rename leaves the old file); bad file moved aside; refuses the stash path; bias within ±0.25 after 1000 identical wins; decay |
 | `hazards.test.ts`, `reachSight.test.ts` | The hazards module on a hand-built terrain map (step off, redirect, light, a whole brain, the `adjust` seam); reach is not sight: a melee bot across low ground is not attacking, a weapon across it is not interactable, `clear` is the move mask, the span is the map's width |
 | `wishes.test.ts`, `planningModule.test.ts`, `chestsModule.test.ts` | The three modules on synthetic percepts, through a whole brain, and in whole headless games. `test/botPlanning.test.ts` (the room never waits out the planning timer for bots) and `test/botChests.test.ts` (the pure chest policy) sit beside them |
-| `botManager.test.ts` | Arrival schedule and HUD count; `lobbyClosing` top-up; a human join yields a seat; callsign collisions; the delay line (arrival = at + latency, monotonic, applied at the next step); results never banked and no profile created (spy on `store`); dispose flushes |
+| `botManager.test.ts` | Arrival schedule and HUD count; `lobbyClosing` top-up; a human join yields a seat; an open lobby always has a seat for the next human; bots alone never start the raid (`test/botLobby.test.ts` is the sim side: bots never shorten the countdown or close the lobby early); callsign collisions; the delay line (arrival = at + latency, monotonic, applied at the next step); results never banked and no profile created (spy on `store`); dispose flushes |
 
 The two old BotClient internals tests (`botLock`, `botOrbit`) move to the brain tests above. `mobHunt.test.ts`'s BotClient
 fx case moves to memory (`lastHitByPlayerAt`).
@@ -728,7 +744,7 @@ fx case moves to memory (`lastHitByPlayerAt`).
 - **e2e stays green.**
   - `BotClient` is rewritten as the network adapter, keeping its public surface: `connect`, `run`, `roomId`, `token`,
     `resultsSeen`, `teleports`, `sent`, `stats` (`BrainStats` includes `mobTargets`, `mobDrops`, `retreats`, `mobFocusMs`,
-    `grabs`, `maxStallMs`), `sessionId`, `seed`, the private field `room` (the e2e reads `bot["room"]`, `e2e.test.ts:118`),
+    `grabs`, `maxStallMs`), `sessionId`, `seed`, the private field `room` (the e2e reads `bot["room"]`),
     the `BotOptions` fields, and new `tier`, `persona`, `seed`.
   - The e2e pins tier `hard` and personas `[hunter, hunter, farmer, opportunist]` (index 1 is the bot that quits a second into
     the run) so kills and mob kills keep their odds. Every run is planned first through the planning module, and when a camp was
@@ -741,7 +757,7 @@ fx case moves to memory (`lastHitByPlayerAt`).
   - No profile exists for any bot name.
   - `bot-stats.json` is written.
   - The human's result has no GV from bot kills, and `kills` excludes them.
-- **Tick budget.** `perf.test.ts` gains 8 in-process bots + 60 mobs.
+- **Tick budget.** `perf.test.ts` gains 8 in-process bots + the map's mobs (60 on the old 64x64 map, about 80 on a zone map).
   - (`step` + `beforeStep` + `afterPatch`) per tick: average < 5 ms, p99 < 15 ms;
   - the bots' share alone: average < 1.5 ms, p99 < 6 ms;
   - `stepBench.ts --bots 8` reports it.
@@ -764,7 +780,9 @@ a diagnostic) and `--quiet`.
 - Shortened timers by default: patience 120 s scaling to 48 s, sudden death 30 s; a game is capped at 12 simulated minutes.
 - The games have no planning phase (`planSeconds` is unset in `HEADLESS_CONFIG`), so the planning module is registered but never
   acts in a tournament; the chests module does.
-- Measured (real timers, 8 workers): 400 games in 47 s, about 0.85 s of worker time and 174 simulated seconds per game.
+- Measured (real timers, 8 workers). On the 64x64 map, before R2: 400 games in 47 s, about 0.85 s of worker time and 174
+  simulated seconds per game. On the 96x96 zone maps (seed 3, the follow-up tree): 400 games in 80 s (120 s in an earlier run),
+  about 2.3 s of worker time and 196 simulated seconds per game.
 
 **Deterministic per seed.** One game replays byte for byte from its seed (tested). With learning on the stats store lives in
 memory per worker, so a game also depends on the games before it in its worker; the split is fixed (game g goes to worker g mod
@@ -787,10 +805,17 @@ W), so the same seed and worker count replay. `--learn off` makes every game a p
 - Measured reaction means within ±10% of the table. Zero commands refused by `enqueueClientMessage`. Zero APM breaches. Zero
   brain errors, no game at the 12-minute cap, and no bot standing still over 8 s.
 
-**Measured at the merge** (real timers, lineup E,E,N,N,H,H, 400 games, seed 3; the table is in `docs/BOTS_TUNING.md`, "State at
-the merge"): per-bot win share Hard 19.9%, Normal 15.3%, Easy 14.9%; mean placement 3.36, 3.57, 3.56. Hard is separated from the
-other two; Normal and Easy are not (their placement intervals overlap). Only Normal is inside its starting band, Hard is under
-0.25 and Easy over 0.10. The tuning that got here is `docs/BOTS_TUNING.md`; tuning stopped at this point by owner decision.
+**Measured at the R3/R4a/R5 merge** (the 64x64 map, before R2; real timers, lineup E,E,N,N,H,H, 400 games, seed 3; the table is in
+`docs/BOTS_TUNING.md`, "State at the merge"): per-bot win share Hard 19.9%, Normal 15.3%, Easy 14.9%; mean placement 3.36, 3.57,
+3.56. Hard is separated from the other two; Normal and Easy are not (their placement intervals overlap). Only Normal is inside
+its starting band, Hard is under 0.25 and Easy over 0.10. The last tuned run before that merge (`MOB_K` 0.45, the three-stat
+buffs) had Easy 10.9% / Normal 17.1% / Hard 22.0%.
+
+**Measured on the zone maps** (the 96x96 maps the game builds, after the follow-up; same lineup, 400 games, real timers;
+`docs/BOTS_TUNING.md`, "After the follow-up"): per-bot win share Hard / Normal / Easy 18.9 / 15.8 / 15.4% on seed 3 and
+17.9 / 16.3 / 15.9% on seed 4, mean placement 3.40 / 3.57 / 3.53 and 3.42 / 3.58 / 3.50. The win-share order holds on both seeds
+and the placement order does not (Normal behind Easy); the bands are met by Normal only; no bot stood still over 8 s. Tuning
+stopped by owner decision.
 
 **Exploit scenarios** (planned: `test/bots/exploits.test.ts` does not exist yet; scripted opponents in the real sim, one Hard
 bot), each to pass against its baseline over 50 seeds:
@@ -845,7 +870,7 @@ and `Percept` builders live in `test/bots/fixtures.ts` (P owns them), so S, T, H
 3. **Phase C.** D1 builds `BotManager`, and R wires it into the Room. Gate 2: `e2eFill`, perf and bandwidth with 8 bots,
    botRoom and botSeat still green.
 4. **Phase D.** Q builds the tournament; tuning only changes `TIERS` and `PERSONAS`. Gate 3: the ranking criteria.
-5. **Phase E.** W adds feature modules as Wishes, R3, R5, R6, R7 and zone terrain merge, starting with `wishesAdapter.ts`.
+5. **Phase E.** W adds feature modules as features merge: Wishes, R3, R5 and zone terrain are done (`wishes`, `planning`, `chests`, `hazards`); R6 and R7 (Q/E skills, relics, boons) wait.
 6. **Docs, last.** CLAUDE.md:
    - a "Bots" architecture rule: the percept boundary, the delay line, `enqueueClientMessage`, the fill rules;
    - the Commands block: `npm run tournament`, the new `npm run bots` flags;
@@ -865,9 +890,10 @@ Every best guess in the bots, one list, each with the default the code uses. All
 2. **The buff transfer from a bot's death** (half of a bountied victim's buffs go to the killer) runs as for humans. The kill
    combos no longer exist.
 3. **Stats from runs with bots.** `RunResult.kills` excludes bot kills. A win against bots counts in `stats.wins` but is not
-   `winQualified` (fewer than 3 human starters). Should such a win count at all?
-4. **Fill to 6, arriving over the last 12 s** (decided), bots never shorten the countdown, and a human who joins a full lobby
-   takes the newest bot's seat.
+   `winQualified` (fewer than 3 human starters). Should such a win count at all? The results screen says why the bonus is
+   missing (`RunResult.winBonusWhy`, 7.1).
+4. **Fill to 6, arriving over the last 12 s** (decided), bots never shorten the countdown or close the lobby early (eight
+   humans start it at once, bots do not count), and a human who joins a full lobby takes the newest bot's seat.
 5. **Tier mix 30/45/25 (decided), personas uniform.** Should the mix adapt to the humans' skill (no rating exists)?
 6. **The assumed screen is 16:9** (decided; 800 × 562.5 u half-extents). The bots read the minimap's mob dots and chest blips
    map-wide but it shows no player, so they never peek at one, as a human cannot.
@@ -882,8 +908,8 @@ Every best guess in the bots, one list, each with the default the code uses. All
 12. **Bots never stream `aim`.** A shield bot without a lock faces its walk direction, a slight handicap. Allow a 5 Hz aim
     toward the main threat?
 13. **What "Hard is beatable" means.** The tournament bands in 9.3 and the human target of at least 1 win in 4 against 5 Hard
-    bots. At the merge the bands are not met (9.3: Hard 19.9%, Normal 15.3%, Easy 14.9%) and tuning stopped there; keep the
-    bands as the target, or take these as the tiers?
+    bots. At the merge the bands are not met (9.3: Hard 19.9%, Normal 15.3%, Easy 14.9% on the 64x64 map; 18.9 / 15.8 / 15.4% on
+    the zone maps) and tuning stopped there; keep the bands as the target, or take these as the tiers?
 14. **Learning** is on by default, half-life about 69 runs, bias at most ±0.075 utility. CLI bots learn only with `--stats`.
     The file sits next to the profile file.
 15. **The minimap ids shortcut** (3.2), standing for tracking dots by continuity.

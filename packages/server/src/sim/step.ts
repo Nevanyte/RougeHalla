@@ -159,15 +159,15 @@ export function startRaid(world: World, placed?: ReadonlyMap<string, Vec2>): voi
 function updateLobby(world: World): void {
   const s = world.state;
   for (const rt of world.players.values()) rt.inputs.drain();
-  const n = s.players.size;
-  if (n === 0) return;
-  // Server-filled bots never shorten a human's countdown (docs/BOTS.md 7.2): only humans count towards minPlayers.
+  if (s.players.size === 0) return;
+  // Server-filled bots never shorten a human's countdown or close the lobby early (docs/BOTS.md 7.2): only humans count towards
+  // minPlayers and towards a full lobby, so a lobby of bots and humans stays open to the next human (who takes a bot's seat).
   let humans = 0;
   for (const rt of world.players.values()) if (!rt.bot) humans++;
   if (humans >= world.config.minPlayers) {
     s.lobbyEndsAt = Math.min(s.lobbyEndsAt, s.serverTime + world.config.fillSeconds * 1000);
   }
-  if (n >= MAX_PLAYERS || s.serverTime >= s.lobbyEndsAt) {
+  if (humans >= MAX_PLAYERS || s.serverTime >= s.lobbyEndsAt) {
     world.hooks.lobbyClosing?.(world);
     if (planningEnabled(world)) startPlanning(world);
     else startRaid(world);

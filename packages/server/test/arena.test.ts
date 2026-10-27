@@ -2233,6 +2233,7 @@ describe("win bonus eligibility", () => {
       const events = runTo(w, 200);
       const r = winnerOf(events);
       expect(r).toMatchObject({ outcome: "won", place: 1, players: 3, kills: 0, winBonusWithheld: false });
+      expect(r, "an earned bonus has no reason").not.toHaveProperty("winBonusWhy");
       expect(r.gv).toEqual({ kills: 0, mobs: 0, bounty: 0, win: GV_WIN, total: GV_WIN });
       expect(damagedBy(RT(w, 0))).toEqual([idOf(1), idOf(2)]);
     });
@@ -2250,7 +2251,7 @@ describe("win bonus eligibility", () => {
       atTick(w, 200, (world) => kill(world, 1, attacker(world, 0)));
       const r = winnerOf(runTo(w, 200));
       expect(damagedBy(RT(w, 0))).toEqual([idOf(1)]);
-      expect(r).toMatchObject({ outcome: "won", place: 1, players: 2, kills: 1, winBonusWithheld: true });
+      expect(r).toMatchObject({ outcome: "won", place: 1, players: 2, kills: 1, winBonusWithheld: true, winBonusWhy: "starters" });
       expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
     });
 
@@ -2260,9 +2261,10 @@ describe("win bonus eligibility", () => {
       const events = tick(w);
       expect(damagedBy(RT(w, 0))).toEqual([]);
       expect(winnerOf(events)).toMatchObject({
-        outcome: "won", place: 1, players: 2, gv: { win: 0, total: 0 }, winBonusWithheld: true,
+        outcome: "won", place: 1, players: 2, gv: { win: 0, total: 0 }, winBonusWithheld: true, winBonusWhy: "starters",
       });
       expect(resultsOf(events)[idOf(1)]).toMatchObject({ outcome: "mia", winBonusWithheld: false });
+      expect(resultsOf(events)[idOf(1)]).not.toHaveProperty("winBonusWhy");
     });
 
     it("withholds it at 3 starters from a winner who damaged only 1 opponent, however many times they hit them", () => {
@@ -2272,7 +2274,7 @@ describe("win bonus eligibility", () => {
       expect(RT(w, 0).damaged.size).toBe(1); // one opponent, however many blows
       atTick(w, 200, (world) => { kill(world, 2); kill(world, 1, attacker(world, 0)); });
       const r = winnerOf(runTo(w, 200));
-      expect(r).toMatchObject({ outcome: "won", place: 1, players: 3, kills: 1, winBonusWithheld: true });
+      expect(r).toMatchObject({ outcome: "won", place: 1, players: 3, kills: 1, winBonusWithheld: true, winBonusWhy: "opponents" });
       expect(r.gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, win: 0, total: GV_KILL });
     });
 
@@ -2280,7 +2282,7 @@ describe("win bonus eligibility", () => {
       for (const n of [3, 4, MAX_PLAYERS]) {
         const w = startRun(n, LONG);
         atTick(w, 200, (world) => killRest(world, 1, n));
-        expect(winnerOf(runTo(w, 200)), `${n} players`).toMatchObject({ outcome: "won", gv: { win: 0 }, winBonusWithheld: true });
+        expect(winnerOf(runTo(w, 200)), `${n} players`).toMatchObject({ outcome: "won", gv: { win: 0 }, winBonusWithheld: true, winBonusWhy: "opponents" });
       }
     });
 
@@ -2585,7 +2587,7 @@ describe("win bonus eligibility", () => {
       expect(order).toEqual(["p1", "p0", "victory", "raidEnded"]);
     });
 
-    it("differs from a paid win only in the flag and the bonus: same events, same result otherwise", () => {
+    it("differs from a paid win only in the flag, its reason and the bonus: same events, same result otherwise", () => {
       const play = (hurtFirst: number[]) => {
         const w = startRun(3, LONG);
         for (const v of hurtFirst) strike(w, 0, v);
@@ -2598,7 +2600,7 @@ describe("win bonus eligibility", () => {
       expect(kinds(withheld.events)).toEqual(kinds(paid.events));
       expect(winnerOf(paid.events)).toMatchObject({ winBonusWithheld: false, gv: { win: GV_WIN } });
       expect(winnerOf(withheld.events)).toMatchObject({ winBonusWithheld: true, gv: { win: 0 } });
-      const bare = (r: RunResult): RunResult => ({ ...r, gv: { ...r.gv, win: 0, total: r.gv.kills }, winBonusWithheld: false });
+      const bare = ({ winBonusWhy: _why, ...r }: RunResult): RunResult => ({ ...r, gv: { ...r.gv, win: 0, total: r.gv.kills }, winBonusWithheld: false });
       expect(bare(winnerOf(withheld.events))).toEqual(bare(winnerOf(paid.events)));
       expect(withheld.w.state.winner).toBe(paid.w.state.winner);
       expect(P(withheld.w, 0).kills).toBe(P(paid.w, 0).kills);

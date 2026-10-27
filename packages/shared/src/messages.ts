@@ -210,6 +210,8 @@ export interface GvBreakdown { kills: number; mobs: number; bounty: number; win:
 export interface ItemDTO { uid: string; def: string }
 
 /** Sent once per player when their run resolves; by then its GV is banked. */
+export type WinBonusWhy = "starters" | "opponents";
+
 export interface RunResult {
   outcome: RunOutcome;
   profile: string;
@@ -229,6 +231,12 @@ export interface RunResult {
    * they damaged fewer than WIN_BONUS_MIN_OPPONENTS different players.
    */
   winBonusWithheld: boolean;
+  /**
+   * Why the bonus was withheld, for the results screen; present only with `winBonusWithheld`. The bonus counts humans only
+   * (bots fill a lobby), so a player cannot tell from the state which rule held it back: "starters" is fewer than
+   * WIN_BONUS_MIN_PLAYERS human starters, "opponents" is damage on fewer than WIN_BONUS_MIN_OPPONENTS other humans.
+   */
+  winBonusWhy?: WinBonusWhy;
   /** Achievement ids this run unlocked, set by the Room when it banks the run. Absent when nothing unlocked. */
   achievements?: string[];
 }

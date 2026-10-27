@@ -283,7 +283,7 @@ describe("the win bonus counts humans only", () => {
     slay(w, "h0", "h1");
     expect(RT(w, "h0").damaged.size).toBe(6); // plenty of opponents, but only one of them human
     const r = resultsOf(tick(w)).h0!;
-    expect(r).toMatchObject({ outcome: "won", winBonusWithheld: true, players: 7 });
+    expect(r).toMatchObject({ outcome: "won", winBonusWithheld: true, winBonusWhy: "starters", players: 7 });
     expect(r.gv.win).toBe(0);
   });
 
@@ -295,7 +295,7 @@ describe("the win bonus counts humans only", () => {
     drop(w, "h2"); // died to something else: not damage from the winner
     expect(RT(w, "h0").damaged.size).toBe(4);
     const r = resultsOf(tick(w)).h0!;
-    expect(r).toMatchObject({ outcome: "won", winBonusWithheld: true });
+    expect(r).toMatchObject({ outcome: "won", winBonusWithheld: true, winBonusWhy: "opponents" });
     expect(r.gv.win).toBe(0);
   });
 
@@ -306,6 +306,7 @@ describe("the win bonus counts humans only", () => {
     slay(w, "h0", "h2");
     const r = resultsOf(tick(w)).h0!;
     expect(r).toMatchObject({ outcome: "won", winBonusWithheld: false, kills: 2 });
+    expect(r).not.toHaveProperty("winBonusWhy");
     expect(r.gv.win).toBe(GV_WIN);
     // The kills of bots paid no GV; the two human kills did.
     expect(r.gv.kills).toBe(2 * GV_KILL);
@@ -315,7 +316,29 @@ describe("the win bonus counts humans only", () => {
     const w = startRun(3, 0);
     slay(w, "h0", "h1");
     slay(w, "h0", "h2");
-    expect(resultsOf(tick(w)).h0).toMatchObject({ outcome: "won", winBonusWithheld: false, gv: { win: GV_WIN } });
+    const r = resultsOf(tick(w)).h0!;
+    expect(r).toMatchObject({ outcome: "won", winBonusWithheld: false, gv: { win: GV_WIN } });
+    expect(r).not.toHaveProperty("winBonusWhy");
+  });
+
+  it("a human-only run that falls short gives the same reasons", () => {
+    const small = startRun(2, 0);
+    slay(small, "h0", "h1");
+    expect(resultsOf(tick(small)).h0).toMatchObject({ outcome: "won", winBonusWithheld: true, winBonusWhy: "starters" });
+    const idle = startRun(3, 0);
+    slay(idle, "h0", "h1");
+    drop(idle, "h2");
+    expect(resultsOf(tick(idle)).h0).toMatchObject({ outcome: "won", winBonusWithheld: true, winBonusWhy: "opponents" });
+  });
+
+  it("only a withheld win carries a reason: a loser or a draw never does", () => {
+    const w = startRun(2, 2);
+    slay(w, "h0", "b0");
+    slay(w, "h0", "b1");
+    slay(w, "h0", "h1");
+    const results = resultsOf(tick(w));
+    expect(results.h0).toHaveProperty("winBonusWhy", "starters");
+    for (const id of ["h1", "b0", "b1"]) expect(results[id], id).not.toHaveProperty("winBonusWhy");
   });
 
   it("a bot's death is damage to a bot, not a human opponent, even when the bot is gone from the world by the end", () => {
@@ -325,6 +348,6 @@ describe("the win bonus counts humans only", () => {
     slay(w, "h0", "h1");
     drop(w, "h2");
     expect(RT(w, "h0").damagedHumans?.size).toBe(1);
-    expect(resultsOf(tick(w)).h0).toMatchObject({ outcome: "won", winBonusWithheld: true });
+    expect(resultsOf(tick(w)).h0).toMatchObject({ outcome: "won", winBonusWithheld: true, winBonusWhy: "opponents" });
   });
 });
