@@ -10,7 +10,8 @@
 import { walkField16 } from "../src/gridTopology";
 import { hash2, vnoise } from "../src/zoneStyle/kit";
 import { REGION_FACTIONS, TILE_WALL, mapFromTiles } from "../src/map";
-import type { GameMap, RegionFaction } from "../src/map";
+import type { CampDef, GameMap, RegionFaction } from "../src/map";
+import { TERRAIN_ICE } from "../src/terrain";
 import type { ZoneStyleState } from "../src/zoneStyle";
 
 export const OPEN_W = 96;
@@ -130,8 +131,9 @@ export const OPEN_PIN_CASES: ReadonlyArray<readonly [number, RegionFaction]> = [
 
 /**
  * The styled fixture as a GameMap the certifier can read: tiles, terrain, the zones as regions, and the feature log as `features` /
- * `featureGrid` (tile counts and boxes recomputed from the ownership, as the generator's `records()` does). `featureOwner` and
- * `features` come from the state, so only a fixture that carries them (openFixtureFull) has any.
+ * `featureGrid` (tile counts and boxes recomputed from the ownership, as the generator's `records()` does, which also puts the camps
+ * in contract order, renumbers a crater's camp index to match and counts a mere's ICE). `featureOwner` and `features` come from the
+ * state, so only a fixture that carries them (openFixtureFull) has any.
  */
 export function openMap(f: OpenFixture): GameMap {
   const { st, w, h } = f;
@@ -151,6 +153,23 @@ export function openMap(f: OpenFixture): GameMap {
       b.x0 = Math.min(b.x0, x); b.y0 = Math.min(b.y0, y); b.x1 = Math.max(b.x1, x); b.y1 = Math.max(b.y1, y);
     }
     box.forEach((b, k) => { if (b.x1 >= 0) m.features[k].bbox = { x: b.x0, y: b.y0, w: b.x1 - b.x0 + 1, h: b.y1 - b.y0 + 1 }; });
+    // the camps in contract order (by zone, then the state's order) and the craters' camp index renumbered to it
+    const zoneOf = (site: number): number => st.zone[site];
+    const order = st.camps.map((_, i) => i).sort((a, b) => zoneOf(st.camps[a].site) - zoneOf(st.camps[b].site) || a - b);
+    const renumber = new Int32Array(st.camps.length);
+    const perZone = REGION_FACTIONS.map(() => 0);
+    m.camps = order.map((ci, n) => {
+      renumber[ci] = n;
+      const c = st.camps[ci], z = zoneOf(c.site) - 1;
+      const x = (c.site % w) * 32 + 16, y = Math.floor(c.site / w) * 32 + 16;
+      return { id: `${REGION_FACTIONS[z]}-${++perZone[z]}`, zone: REGION_FACTIONS[z], x, y, r: c.r * 32, spots: [], eliteSpot: c.elite ? 0 : -1, chest: { x, y }, area: 0, radius: 0 } as CampDef;
+    });
+    const ice = m.features.map(() => 0);
+    for (let i = 0; i < w * h; i++) if (m.featureGrid[i] !== 0 && m.terrain[i] === TERRAIN_ICE) ice[m.featureGrid[i] - 1]++;
+    m.features.forEach((d, k) => {
+      if (d.kind === "crater" && d.p.length > 0 && d.p[0] >= 0 && d.p[0] < st.camps.length) d.p[0] = renumber[d.p[0]];
+      if (d.kind === "mere" && d.p.length > 1) d.p[1] = ice[k];
+    });
   }
   return m;
 }

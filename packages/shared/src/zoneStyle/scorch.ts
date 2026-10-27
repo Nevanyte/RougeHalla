@@ -26,25 +26,24 @@
 //  - the forge keeps R_est + 3 from the camp centres (R_est + 2 when that leaves no room); a pre-filter leaves out the tiles the
 //    guard would refuse (the simple-point test at a territory's neck) because a landmark is whole or nothing.
 //
-// Phase B note: this module still exports the old styler as `scorch` (the registry reads it until phase C) and the new one as
-// `scorchCraters`; phase C swaps the registry (see the banner before the old styler).
-import { TILE_FLOOR, TILE_LOW, TILE_WALL } from "../map";
-import { TERRAIN_EMBER, TERRAIN_LAVA, TERRAIN_NONE } from "../terrain";
-import { breakLowRuns, chance, DIR8, flowPath, low, pickOpen, roomOf, steer, wall } from "./kit";
+import { TILE_FLOOR, TILE_WALL } from "../map";
+import { TERRAIN_EMBER, TERRAIN_NONE } from "../terrain";
+import { DIR8 } from "./kit";
 import {
-  addShortcuts, campNodes, dirIndex16, dirSep16, dist2, inBeam, noiseQ, noisyPath, primMST, pseudoAngle, segDist2,
+  ROUTE_STRETCH_MAX, addShortcuts, campNodes, dirIndex16, dirSep16, dist2, inBeam, noiseQ, noisyPath, primMST, pseudoAngle, segDist2,
 } from "./features";
 import type { Edge, Node } from "./features";
 import { bestLandmark, stampTemplate } from "./landmarks";
 import type { LandmarkTemplate, Stamp } from "./landmarks";
 import { PROP } from "./propKinds";
-import { randInt } from "../rng";
 import { FEATURE_MIN_PIECE } from "./types";
 import type { BaseCtx, CampInfo, LandmarkCtx, PropCtx, RouteGuard, ShapeCtx, SurfaceCtx, ZoneStyler } from "./types";
 import { RING_DX, RING_DY, SIMPLE } from "../gridTopology";
-import { areaScale, LANDMARKS_PER_ZONE, lenScale, sizeScale } from "./scale";
+import { areaScale, LANDMARKS_PER_ZONE, lenScale } from "./scale";
 
 // ------------------------------------------------------------------------------------------------ numbers
+/** A crater that, whatever its breaches, stretches a spawn member's walk past this (permille) is left out. */
+const CRATER_STRETCH_MAX = 1050;
 /** Crater radius band in quarter tiles: floor(4 x clamp(near / 2 - 0.8, 5.0, 6.5)) tiles, an elite camp up to 7.5. */
 const R_MIN4 = 20, R_MAX4 = 26, R_MAX4_ELITE = 30;
 /** A breach is a strip 2.25 tiles each side of the bearing (4.5 wide; contract 4.1 says 2.5, the doc says 4-5 tiles), in quarter tiles. */
@@ -435,6 +434,9 @@ function makeBandCheck(c: ShapeCtx): (band: readonly number[], walled: readonly 
 function placeCraters(c: ShapeCtx, mine: readonly CampInfo[], r4s: number[], nodes: readonly Node[], edges: readonly Edge[], G: RouteGuard | null, plan: ScorchPlan): void {
   const connected = G && G.members.length > 0 ? makeBandCheck(c) : null;
   const rimMark = connected ? new Uint8Array(c.w * c.h) : null;
+  // The worst member stretch as the craters stand so far: a rim that touches a corridor is asked about (contract 4.1.6) and must not
+  // push it past ROUTE_STRETCH_MAX (or past what it was: an earlier crater, a forge, may already stand over it).
+  let stretch = G && G.members.length > 0 ? G.worstStretch() : 1000;
   for (let k = 0; k < mine.length; k++) {
     const camp = mine[k];
     const ras = rasterOf(c, camp, k);
@@ -498,7 +500,44 @@ function placeCraters(c: ShapeCtx, mine: readonly CampInfo[], r4s: number[], nod
         rim = more;
       }
     }
-    if (rim.length < RIM_MIN) continue;
+    // The guard's word (contract 4.1.6): a rim that stretches a member's walk past the threshold gets one more breach where the
+    // rim crosses the worst member's corridor (as above, while it keeps 60% of its rim), at most twice; a crater that still stretches
+    // a walk past CRATER_STRETCH_MAX (the 5% the contract accepts elsewhere) is left out, the camp stays open ground.
+    let over = false;
+    if (G && G.members.length > 0 && rim.length >= RIM_MIN) {
+      for (let tries = 0; ; tries++) {
+        if (!G.touches(rim)) break;
+        const s = G.worstStretch(rim);
+        if (s <= Math.max(ROUTE_STRETCH_MAX, stretch)) { stretch = Math.max(stretch, s); break; }
+        // a breach to add: the rim tiles on the worst member's corridor, around the first of them
+        const band = G.corridorOf(G.worstMember());
+        const onRim = new Set<number>(rim);
+        let first = -1;
+        for (let q = 0; q < band.length && first < 0; q++) if (onRim.has(band[q])) first = band[q];
+        let more: number[] | null = null, bx = 0, by = 0;
+        if (tries < 2 && first >= 0) {
+          const hx = first % c.w, hy = (first - hx) / c.w;
+          let sx = 0, sy = 0, cnt = 0;
+          for (const t of band) {
+            if (!onRim.has(t)) continue;
+            const x = t % c.w, y = (t - x) / c.w;
+            if (Math.abs(x - hx) <= 3 && Math.abs(y - hy) <= 3) { sx += x - camp.x; sy += y - camp.y; cnt++; }
+          }
+          bx = Math.round(sx / cnt); by = Math.round(sy / cnt);
+          if (cnt > 0 && (bx !== 0 || by !== 0)) {
+            const wider = keepArcs(ras.rim(r4, [...beams, [bx, by]]), c.w, FEATURE_MIN_PIECE);
+            if (wider.length >= floorTiles) more = wider;
+          }
+        }
+        if (more === null) {
+          if (s > CRATER_STRETCH_MAX) over = true; else stretch = Math.max(stretch, s);
+          break;
+        }
+        beams.push([bx, by]);
+        rim = more;
+      }
+    }
+    if (over || rim.length < RIM_MIN) continue;
     const dirs = beams.map((b) => dirIndex16(b[0], b[1]));
     if (frontierDir >= 0 && dirs.every((d) => dirSep16(d, frontierDir) >= 3)) dirs.push(frontierDir);
     const placed = c.placeFeature({
@@ -780,13 +819,25 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
       }
       const width2 = widthN > 0 ? Math.round((2 * widthSum) / widthN) : 4;
       const fordTiles = p.fords.map((f) => path[(f[0] + f[1]) >> 1]);
+      // The river owns its ember bank (the surface pass cannot own a tile; the shape gates want every changed tile owned): the free
+      // floor round the lava it plans, off the spawn corridors except at a ford (the rule `plan.noEmber` applies to the lava that
+      // stands). Floor a refused lava tile leaves unlit stays owned plain floor.
+      const fordSet = new Set<number>(bl.keepOut);
+      const bank = new Set<number>();
+      for (const t of bl.tiles) {
+        const x = t % w, y = (t - x) / w;
+        for (const [dx, dy] of DIR8) {
+          const j = c.at(x + dx, y + dy);
+          if (j >= 0 && c.tiles[j] === TILE_FLOOR && !fordSet.has(j) && !(G && G.members.length > 0 && G.corridor[j] === 1)) bank.add(j);
+        }
+      }
       const placed = c.placeFeature({
         kind: "lavaRiver",
         jobs: ["crossing"],
         anchor: [path[cand.s0] % w, (path[cand.s0] - (path[cand.s0] % w)) / w],
         params: [width2, fordTiles.length, ...fordTiles],
         blocks: bl.tiles.map((t) => [t, "lava"] as const),
-        floor: bl.keepOut,
+        floor: [...bl.keepOut, ...Array.from(bank).sort((p1, p2) => p1 - p2)],
         mode: "trim",
       });
       if (!placed) continue;
@@ -993,152 +1044,5 @@ function landmark(c: LandmarkCtx): void {
   }
 }
 
-/** The new Scorch styler, Crater Basins. Phase C: the registry (styleZones.ts) takes this one as `scorch`. */
-export const scorchCraters: ZoneStyler<ScorchPlan> = { id: "scorch", faction: "fire", version: 400, landmark, shape, surface, props };
-
-// ------------------------------------------------------------------------------------------------ LEGACY (phase A) styler
-// The wedge-era styler (ridges, one river, pillar fields): the registry (styleZones.ts) still reads it as `scorch` while the new
-// styler is tested in isolation. PHASE C SWAP (WP7): delete everything from this banner to the end of the file, delete the kit
-// imports it alone uses (breakLowRuns, chance, flowPath, low, pickOpen, roomOf, steer, wall, randInt, sizeScale, TILE_LOW), and end
-// the file with `export const scorch = scorchCraters;` (or rename scorchCraters to scorch); index.ts then exports the new
-// ScorchPlan, which already carries `riverPath` and `fords` for zoneStyleOpen.test.ts.
-
-export interface LegacyScorchPlan {
-  /** Tiles of the lava river's kept stretch, in flow order (empty when no river fitted). */
-  riverPath: number[];
-  /** Centre tile of each ford (a gap in the river). */
-  fords: number[];
-  ridges: number;
-  pillarFields: number;
-}
-
-function legacyShape(c: ShapeCtx): LegacyScorchPlan {
-  const r = c.rng;
-  const sc = sizeScale(c.zone.painted);
-  const plan: LegacyScorchPlan = { riverPath: [], fords: [], ridges: 0, pillarFields: 0 };
-  // 1. jagged obsidian ridges: 8-direction polylines, 1-2 thick, a 2-3 tile pass every 9-14 steps. A walk steers along the
-  //    ground a finished map leaves free and ends where there is none.
-  // 3 ridges (4 in a big zone) on open ground; a finished map leaves ground in strips, so more walks, each short
-  const nR = roomOf(c) > 0.4 ? (c.zone.painted > 1900 ? 4 : 3) : 5;
-  const lenLo = Math.max(10, Math.floor(12 * sc)), lenHi = Math.max(lenLo + 4, Math.floor(22 * sc));
-  for (let k = 0; k < nR; k++) {
-    const s = pickOpen(c);
-    if (!s) continue;
-    plan.ridges++;
-    let [x, y] = s;
-    let h = randInt(r, 0, 8);
-    const len = randInt(r, lenLo, lenHi);
-    let since = randInt(r, 0, 5), gap = 0, nextGap = randInt(r, 9, 15);
-    for (let st = 0; st < len; st++) {
-      if (gap > 0) gap--;
-      else {
-        wall(c, x, y);
-        if (chance(r, 0.6)) { const [sx, sy] = DIR8[(h + 2) & 7]; wall(c, x + sx, y + sy); }
-        if (++since >= nextGap) { gap = randInt(r, 2, 4); since = 0; nextGap = randInt(r, 9, 15); }
-      }
-      if (chance(r, 0.22)) h = (h + (chance(r, 0.5) ? 1 : 7)) & 7;
-      const nh = steer(c, x, y, h, chance(r, 0.5));
-      if (nh < 0) break;
-      h = nh;
-      x += DIR8[h][0]; y += DIR8[h][1];
-    }
-  }
-  // 2. one lava river: a flow path between two free tiles on opposite sides of the zone's box, a stretch of it kept (2-3
-  //    wide, two fords)
-  const bb = c.zone.bbox;
-  const nearestFree = (cx: number, cy: number): number => {
-    let best = -1, bd = 1e9;
-    for (let y = bb.y; y < bb.y + bb.h; y++) {
-      for (let x = bb.x; x < bb.x + bb.w; x++) {
-        const i = y * c.w + x;
-        if (!c.mask[i] || c.tiles[i] !== TILE_FLOOR || c.hard[i]) continue;
-        const d = (x - cx) * (x - cx) + (y - cy) * (y - cy);
-        if (d < bd) { bd = d; best = i; }
-      }
-    }
-    return best;
-  };
-  const KEEP = Math.max(14, Math.floor(36 * sc));
-  const fordLen = sc < 0.8 ? 3 : 4;
-  let full: number[] = [];
-  for (let attempt = 0; attempt < 3 && full.length < KEEP; attempt++) {
-    const horizontal = chance(r, 0.5);
-    const a0 = horizontal ? nearestFree(bb.x, randInt(r, bb.y + 6, Math.max(bb.y + 7, bb.y + bb.h - 6))) : nearestFree(randInt(r, bb.x + 6, Math.max(bb.x + 7, bb.x + bb.w - 6)), bb.y);
-    const b0 = horizontal ? nearestFree(bb.x + bb.w - 1, randInt(r, bb.y + 6, Math.max(bb.y + 7, bb.y + bb.h - 6))) : nearestFree(randInt(r, bb.x + 6, Math.max(bb.x + 7, bb.x + bb.w - 6)), bb.y + bb.h - 1);
-    const p = a0 < 0 || b0 < 0 ? [] : flowPath(c, a0, b0, 11, (j) => (c.open(j) ? 0 : 50));
-    if (p.length > full.length) full = p;
-  }
-  if (full.length >= 8) {
-    const keep = Math.min(KEEP, full.length);
-    const s0 = full.length > keep ? randInt(r, 0, full.length - keep + 1) : 0;
-    const path = full.slice(s0, s0 + keep);
-    const f1 = Math.floor(path.length * (0.22 + r() * 0.1)), f2 = Math.floor(path.length * (0.62 + r() * 0.1));
-    plan.riverPath = path;
-    // a ford stays open: no stamp of the river may take its tiles
-    for (const f of [f1, f2]) for (let k = f; k < Math.min(path.length, f + fordLen); k++) c.reserve(path[k]);
-    for (let s = 0; s < path.length; s++) {
-      if ((s >= f1 && s < f1 + fordLen) || (s >= f2 && s < f2 + fordLen)) continue;
-      const wd = c.noise.value(s / 5, 3.3, 1, 13) > 0.65 ? 3 : 2;
-      const x = path[s] % c.w, y = (path[s] - x) / c.w;
-      for (let oy = 0; oy < wd; oy++) {
-        for (let ox = 0; ox < wd; ox++) {
-          const tx = x + ox - (wd >> 1), ty = y + oy - (wd >> 1);
-          low(c, tx, ty, "lava");
-        }
-      }
-    }
-    for (const f of [f1, f2]) {
-      const mid = path[Math.min(path.length - 1, f + (fordLen >> 1))];
-      plan.fords.push(mid);
-    }
-  }
-  // 3. basalt pillar fields (two, 5x5 lattice cells at pitch 3, scaled)
-  const half = sc < 0.8 ? 1 : 2;
-  for (let p = 0; p < 2; p++) {
-    const s = pickOpen(c);
-    if (!s) continue;
-    plan.pillarFields++;
-    for (let b = -half; b <= half; b++) {
-      for (let a = -half; a <= half; a++) {
-        if (!chance(r, 0.7)) continue;
-        const x = s[0] + a * 3 + randInt(r, 0, 2), y = s[1] + b * 3 + randInt(r, 0, 2);
-        if (wall(c, x, y) && chance(r, 0.25)) wall(c, x + (chance(r, 0.5) ? 1 : 0), y + 1);
-      }
-    }
-  }
-  // 4. no straight LOW run over 12 tiles: a basalt pillar stands in the river
-  breakLowRuns(c, 12);
-  return plan;
-}
-
-/** The ember bank: every free floor tile touching lava (8 neighbours) is EMBER, fords included. */
-function legacySurface(c: SurfaceCtx): void {
-  for (let i = 0; i < c.w * c.h; i++) {
-    if (c.terrain[i] !== TERRAIN_LAVA || c.tiles[i] !== TILE_LOW) continue;
-    const x = i % c.w, y = (i - x) / c.w;
-    for (const [dx, dy] of DIR8) {
-      const j = c.at(x + dx, y + dy);
-      if (j >= 0) c.surface(j, "ember");
-    }
-  }
-}
-
-function legacyProps(c: PropCtx): void {
-  const n = c.w * c.h;
-  for (let i = 0; i < n; i++) {
-    if (!c.mask[i]) continue;
-    const x = i % c.w, y = (i - x) / c.w;
-    const v = Math.floor(c.noise.hash(x, y, 90) * 4);
-    const t = c.tiles[i], k = c.terrain[i];
-    if (t === TILE_FLOOR) {
-      if (k === TERRAIN_EMBER) { if (c.noise.hash(x, y, 1) < 0.12) c.prop(PROP.ember_vent, x, y, v); }
-      else if (k === TERRAIN_NONE && c.noise.hash(x, y, 2) < 0.02) c.prop(PROP.ash_drift, x, y, v);
-    } else if (t === TILE_WALL) {
-      const u = c.noise.hash(x, y, 3);
-      if (u < 0.12) c.prop(PROP.glow_crack, x, y, v);
-      else if (u < 0.17) c.prop(PROP.basalt_shard, x, y, v);
-    }
-  }
-}
-
-export const scorch: ZoneStyler<LegacyScorchPlan> = { id: "scorch", faction: "fire", version: 1, shape: legacyShape, surface: legacySurface, props: legacyProps };
+/** The Scorch styler: Crater Basins. */
+export const scorch: ZoneStyler<ScorchPlan> = { id: "scorch", faction: "fire", version: 400, landmark, shape, surface, props };

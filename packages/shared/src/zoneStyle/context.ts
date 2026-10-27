@@ -559,6 +559,11 @@ export class ZoneRuntime {
     const { mask, hard, tiles, terrain, noBlock } = init;
     if (!mask[i] || hard[i] || tiles[i] !== TILE_FLOOR || terrain[i] !== TERRAIN_NONE) return false;
     if (kind !== "light" && noBlock[i] === 1) return false;
+    // A landmark's floor is protected no more (its feature owns it); only its light may be lit there, no hazard.
+    if (kind !== "light") {
+      const o = init.featureOwner[i];
+      if (o !== 0 && init.features[o - 1].kind === "landmark") return false;
+    }
     // A hazard that slows a walk (bog, ice) never lies on a pool member's corridor (contract 3.9): the spawn gate caps the hazard
     // tiles on every member's walk.
     if ((kind === "bog" || kind === "ice") && this.guard !== null && this.guard.corridor[i] === 1) return false;
@@ -604,12 +609,18 @@ function streamSeedOf(init: ZoneRuntimeInit, stream: number): number {
   return hashSeed(init.seed, init.attempt, init.info.index, stream);
 }
 
+/** The camps whose centre lies in the zone (`camps` of a context is this zone's: the stylers' graphs are over its own camps). */
+function zoneCampsOf(init: ZoneRuntimeInit): readonly CampInfo[] {
+  const { mask, w } = init;
+  return init.camps.filter((k) => mask[k.y * w + k.x] === 1);
+}
+
 /** The read-only part every context shares; `stream` picks the rng (0 shape, 1 decor, 2 surface, 3 landmark). */
 function baseOf(rt: ZoneRuntime, stream: number): BaseCtx {
   const { init } = rt;
   return {
     w: init.w, h: init.h, seed: init.seed, attempt: init.attempt, zone: init.info, mask: init.mask, hard: init.hard, noBlock: init.noBlock,
-    tiles: init.tiles, terrain: init.terrain, edgeDist: init.edgeDist, territory: init.territory, camps: init.camps,
+    tiles: init.tiles, terrain: init.terrain, edgeDist: init.edgeDist, territory: init.territory, camps: zoneCampsOf(init),
     rng: mulberry32(streamSeedOf(init, stream)),
     noise: makeNoise(streamSeedOf(init, stream + 100)),
     at: (x, y) => rt.at(x, y),

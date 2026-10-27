@@ -122,7 +122,7 @@ export interface LandmarkResult {
 /**
  * The landmark stage (contract 2.1 stage 4, 5.1): each zone's `styler.landmark` in zone index order, through the guard with
  * LANDMARK_CAPS (its own 4% budget) on stream 3, appending to `st.features` and writing `st.featureOwner`. Landmarks write walls
- * only; `terrain` stays all zero. Zones whose styler has no `landmark` (the phase A stylers) place none.
+ * only; `terrain` stays all zero. Zones whose styler has no `landmark` place none.
  */
 export function styleLandmarks(
   st: LandmarkState, opts: { stylers?: Partial<Record<RegionFaction, ZoneStyler<unknown>>>; caps?: Partial<StyleCaps> } = {},

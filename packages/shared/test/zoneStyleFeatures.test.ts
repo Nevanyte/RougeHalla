@@ -278,12 +278,12 @@ describe("graphs over nodes (3.5)", () => {
     const fl = fixedLayout();
     const mask = new Uint8Array(n), tiles = new Uint8Array(n);
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (!fl.fp[y * W + x]) mask[y * W + x] = 1;
-    const camps = [{ x: 20, y: 30, elite: true, index: 7 }, { x: 50, y: 40, elite: false, index: 9 }, { x: 60, y: 70 }];
+    const camps = [{ x: 20, y: 30, elite: true, index: 7 }, { x: 50, y: 40, elite: false, index: 9 }, { x: 30, y: 100 }];
     const centroid = { x: 30.25, y: 50.75 };
     const c = { w: W, h: H, mask, tiles, zone: { bbox: { x: 1, y: 1, w: W - 2, h: H - 2 }, centroid }, camps };
     const nodes = F.campNodes(c);
     expect(nodes.length).toBe(4);
-    expect(nodes.slice(0, 3).map((p) => [p.x, p.y, p.kind, p.camp, p.elite])).toEqual([[20, 30, "camp", 7, true], [50, 40, "camp", 9, false], [60, 70, "camp", 2, false]]);
+    expect(nodes.slice(0, 3).map((p) => [p.x, p.y, p.kind, p.camp, p.elite])).toEqual([[20, 30, "camp", 7, true], [50, 40, "camp", 9, false], [30, 100, "camp", 2, false]]);
     const door = nodes[3];
     expect(door.kind).toBe("door");
     expect(door.camp).toBe(-1);
@@ -302,9 +302,14 @@ describe("graphs over nodes (3.5)", () => {
     const walled = tiles.slice();
     for (let i = 0; i < n; i++) if (fl.distFp[i] > 4 && fl.distFp[i] <= 7) walled[i] = TILE_WALL;
     expect(F.campNodes({ ...c, tiles: walled }).length).toBe(3);
-    const small = F.campNodes({ w: 40, h: 40, mask: new Uint8Array(1600).fill(1), tiles: new Uint8Array(1600), zone: { bbox: { x: 0, y: 0, w: 40, h: 40 }, centroid: { x: 20, y: 20 } }, camps });
+    const small = F.campNodes({ w: 40, h: 40, mask: new Uint8Array(1600).fill(1), tiles: new Uint8Array(1600), zone: { bbox: { x: 0, y: 0, w: 40, h: 40 }, centroid: { x: 20, y: 20 } }, camps: [{ x: 5, y: 5 }, { x: 10, y: 12 }, { x: 30, y: 30 }] });
     expect(small.length).toBe(3);
     expect(F.campNodes({ ...c, camps: [] }).length).toBe(1);
+    // the context's camps list every camp of the map: the ones whose centre is outside the zone are left out, the rest keep their order
+    const everyCamp = [{ x: 68, y: 68, elite: true, index: 1 }, camps[0], { x: -3, y: 4, index: 5 }, { x: 500, y: 2 }, camps[1], { x: 0, y: 0, index: 8 }, camps[2]];
+    const filtered = F.campNodes({ ...c, camps: everyCamp });
+    expect(filtered.map((p) => [p.x, p.y, p.kind, p.camp, p.elite])).toEqual(nodes.map((p) => [p.x, p.y, p.kind, p.camp, p.elite]).map((row, i) => (i === 2 ? [30, 100, "camp", 6, false] : row)));
+    expect(F.campNodes({ ...c, camps: [camps[0], camps[1], camps[2]] })).toEqual(nodes);
   });
 });
 
@@ -883,6 +888,48 @@ describe("route guard (3.9)", () => {
       expect(empty.worstMember()).toBe(-1);
       expect(empty.corridor.some((v) => v === 1)).toBe(false);
     }
+  });
+
+  it("worstStretch(extra) asks about walls that are not written: the same answer as writing them, and c.tiles is never touched", () => {
+    let stretched = 0, cut = 0;
+    for (let t = 0; t < 12; t++) {
+      const g = world(300 + t, 0.05, 0.1, 5);
+      const guard = F.makeRouteGuard({ w: g.w, h: g.h, mask: g.maskA, tiles: g.tiles, spawns: g.spawns, centreWalk: g.centreWalk });
+      const r = mulberry32(8800 + t);
+      const extra: number[] = [];
+      for (let i = 0; i < g.n; i++) if (g.maskA[i] && g.tiles[i] === TILE_FLOOR && r() < 0.04 + 0.02 * t) extra.push(i);
+      const before = g.tiles.slice();
+      const asked = guard.worstStretch(extra);
+      const askedMember = guard.worstMember();
+      expect(Array.from(g.tiles), "tiles untouched").toEqual(Array.from(before));
+      const typed = guard.worstStretch(Int32Array.from(extra));
+      expect(typed).toBe(asked);
+      expect(guard.worstStretch(), "the plain call is unaffected").toBe(1000);
+      for (const i of extra) g.tiles[i] = TILE_WALL;
+      const written = guard.worstStretch();
+      expect(asked, `world ${t}`).toBe(written);
+      expect(askedMember).toBe(guard.worstMember());
+      if (written === F.ROUTE_CUT_OFF) cut++; else if (written > 1000) stretched++;
+      g.tiles.set(before);
+    }
+    expect(stretched).toBeGreaterThan(1);
+    expect(cut).toBeGreaterThan(0);
+    // none, an empty list and indices off the grid change nothing
+    const g = world(5, 0.05, 0.05);
+    const guard = F.makeRouteGuard({ w: g.w, h: g.h, mask: g.maskA, tiles: g.tiles, spawns: g.spawns, centreWalk: g.centreWalk });
+    expect(guard.worstStretch([])).toBe(1000);
+    expect(guard.worstStretch(undefined)).toBe(1000);
+    expect(guard.worstStretch([-5, g.n, g.n + 40])).toBe(1000);
+    // a wall across the zone with a gap: stretched; the gap closed too: cut off
+    const column: number[] = [];
+    for (let y = 1; y < g.h - 1; y++) column.push(y * g.w + 30);
+    expect(guard.worstStretch(column.filter((i) => ![2, 3].includes(Math.floor(i / g.w))))).toBeGreaterThan(1030);
+    expect(guard.worstStretch(column)).toBe(F.ROUTE_CUT_OFF);
+    expect(guard.worstMember()).toBe(0);
+    expect(guard.worstStretch()).toBe(1000);
+    // a guard without members answers 1000 whatever it is asked
+    const none = F.makeRouteGuard({ w: g.w, h: g.h, mask: g.maskA, tiles: g.tiles, spawns: [], centreWalk: g.centreWalk });
+    expect(none.worstStretch(column)).toBe(1000);
   });
 
   it("a member the field never reached, or outside the zone, is not a member", () => {

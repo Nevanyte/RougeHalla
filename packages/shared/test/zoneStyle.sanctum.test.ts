@@ -1,9 +1,9 @@
-// Sanctum: The Hypostyle (zone-shapes contract 4.5, WP5; zoneStyle/sanctum.ts `hypostyle`). Three layers:
+// Sanctum: The Hypostyle (zone-shapes contract 4.5, WP5; zoneStyle/sanctum.ts `sanctum`). Three layers:
 //  - the hall's tables and the shrine template, and the styler on small hand-built zones (a runtime on a grid, a stub route guard);
-//  - the styler on generated maps: the generator is run with a test-local pair of hooks that map the holy zone to the NEW styler and
-//    leave the other four on the registry's old ones (the registry itself is WP7's to swap in phase C): ownership, whole piers, the
+//  - the styler on generated maps: the generator is run with a pair of hooks that map the holy zone to the registry's styler and
+//    leave the other four on the registry's too (`mapOf` swaps one for the isolation tests): ownership, whole piers, the
 //    lattice, light, shrines, the acceptance windows of contract 4.5 / 8.4 over the first 50 seeds (WP5 ran 200 for its report),
-//    attempts against the old styler, validateTerrain;
+//    attempts per seed, validateTerrain;
 //  - isolation (another zone's styler changes nothing here and vice versa), determinism, decor off, and the Math spy.
 import { describe, expect, it, vi } from "vitest";
 import { MASK_SIGHT, REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
@@ -20,8 +20,8 @@ import { landmarkCtx, makeScratch, shapeCtx, surfaceCtx, ZoneRuntime, zoneInfoOf
 import { gabrielEdges, ROUTE_STRETCH_MAX } from "../src/zoneStyle/features";
 import { stampTemplate, templateProblems } from "../src/zoneStyle/landmarks";
 import { chamfer } from "../src/zoneStyle/kit";
-import { HALL_PITCH, SANCTUM_TEMPLATES, SHRINE, hallAxis, hallLayout, hallRadius, hypostyle } from "../src/zoneStyle/sanctum";
-import type { HypostylePlan } from "../src/zoneStyle/sanctum";
+import { HALL_PITCH, SANCTUM_TEMPLATES, SHRINE, hallAxis, hallLayout, hallRadius, sanctum } from "../src/zoneStyle/sanctum";
+import type { SanctumPlan } from "../src/zoneStyle/sanctum";
 import { ZONE_STYLE_CAPS, LANDMARK_CAPS } from "../src/zoneStyle/types";
 import { ZONE_PROP_KINDS } from "../src/zoneStyle/propKinds";
 
@@ -30,14 +30,14 @@ const HOLY: RegionFaction = "holy";
 const HOLY_CODE = REGION_FACTIONS.indexOf(HOLY) + 1;
 
 // ------------------------------------------------------------------------------------------------ hooks for generated maps
-/** The hooks WP7 will replace with the registry: the holy zone runs the new styler, the others whatever the registry has. */
-function hooks(mapOf: (zone: RegionFaction) => ZoneStyler<unknown> | undefined = () => hypostyle as ZoneStyler<unknown>): {
+/** The registry as hooks (`mapOf` names the holy zone's styler, the registry's by default): the others run whatever the registry has. */
+function hooks(mapOf: (zone: RegionFaction) => ZoneStyler<unknown> | undefined = () => sanctum as ZoneStyler<unknown>): {
   style: ZoneStyleHook;
   landmarks: LandmarkHook;
   /** The holy zone's plan and styler result of the LAST style pass (the certified attempt's: the loop stops at it). */
-  last: { plan: HypostylePlan | null; ms: number; landmarkMs: number; refused: number; repaired: number; joinChecks: number };
+  last: { plan: SanctumPlan | null; ms: number; landmarkMs: number; refused: number; repaired: number; joinChecks: number };
 } {
-  const last = { plan: null as HypostylePlan | null, ms: 0, landmarkMs: 0, refused: 0, repaired: 0, joinChecks: 0 };
+  const last = { plan: null as SanctumPlan | null, ms: 0, landmarkMs: 0, refused: 0, repaired: 0, joinChecks: 0 };
   const stylers: Partial<Record<RegionFaction, ZoneStyler<unknown>>> = { holy: mapOf(HOLY) };
   const style: ZoneStyleHook = (st) => {
     const res = styleZones({
@@ -46,7 +46,7 @@ function hooks(mapOf: (zone: RegionFaction) => ZoneStyler<unknown> | undefined =
       spawns: st.spawns, centreWalk: st.centreWalk, features: st.features, featureOwner: st.featureOwner,
     }, { decor: st.decor, stylers });
     const r = res.find((x) => x.faction === HOLY)!;
-    last.plan = r.plan as HypostylePlan;
+    last.plan = r.plan as SanctumPlan;
     last.ms = r.ms; last.refused = r.refused; last.repaired = r.repaired; last.joinChecks = r.joinChecks;
   };
   const landmarks: LandmarkHook = (st) => {
@@ -56,7 +56,7 @@ function hooks(mapOf: (zone: RegionFaction) => ZoneStyler<unknown> | undefined =
   return { style, landmarks, last };
 }
 
-interface Built { seed: number; map: GameMap; plan: HypostylePlan; ms: number; landmarkMs: number }
+interface Built { seed: number; map: GameMap; plan: SanctumPlan; ms: number; landmarkMs: number }
 const built = new Map<number, Built>();
 function holyMap(seed: number): Built {
   let b = built.get(seed);
@@ -278,13 +278,13 @@ describe("the shrine and the hall's tables", () => {
   });
 
   it("the styler's identity: id sanctum, faction holy, version 400, with all four passes", () => {
-    expect(hypostyle.id).toBe("sanctum");
-    expect(hypostyle.faction).toBe("holy");
-    expect(hypostyle.version).toBe(400);
-    expect(typeof hypostyle.landmark).toBe("function");
-    expect(typeof hypostyle.shape).toBe("function");
-    expect(typeof hypostyle.surface).toBe("function");
-    expect(typeof hypostyle.props).toBe("function");
+    expect(sanctum.id).toBe("sanctum");
+    expect(sanctum.faction).toBe("holy");
+    expect(sanctum.version).toBe(400);
+    expect(typeof sanctum.landmark).toBe("function");
+    expect(typeof sanctum.shape).toBe("function");
+    expect(typeof sanctum.surface).toBe("function");
+    expect(typeof sanctum.props).toBe("function");
     expect(LANDMARKS_PER_ZONE).toBeGreaterThanOrEqual(2);
     expect(areaScale(3534)).toBeGreaterThan(2);
   });
@@ -294,7 +294,7 @@ describe("the shrine and the hall's tables", () => {
 describe("the hall on hand-built zones", () => {
   it("fills an open 70x70 zone with 32 whole piers on the lattice of its centre: 288 wall tiles, 9 bays, one feature with p = [axis, 6, 19, 32, 9]", () => {
     const f = fixture(70);
-    const plan = hypostyle.shape(shapeCtx(f.rt)) as HypostylePlan;
+    const plan = sanctum.shape(shapeCtx(f.rt)) as SanctumPlan;
     expect(plan.hall).toBe(true);
     expect(plan.radius).toBe(19);
     expect(plan.axis).toBe(hallAxis(f.rt.init.info));
@@ -318,7 +318,7 @@ describe("the hall on hand-built zones", () => {
     expect(f.owner[plan.cy * f.w + plan.cx]).toBe(1);
     // surface: nine bays, every tile of each 3x3
     const surf = surfaceCtx(f.rt);
-    hypostyle.surface!(surf, plan);
+    sanctum.surface!(surf, plan);
     expect(plan.lit.length).toBe(9);
     let light = 0;
     for (let i = 0; i < f.terrain.length; i++) if (f.terrain[i] === TERRAIN_LIGHT) { light++; expect(f.tiles[i]).toBe(TILE_FLOOR); }
@@ -339,7 +339,7 @@ describe("the hall on hand-built zones", () => {
       props: [], edgeDist, territory: null, camps: [], caps: { ...ZONE_STYLE_CAPS, rimTiles: 0, footprintPct: 100 }, scratch: makeScratch(n), wrote: new Uint8Array(n),
       propKinds: ZONE_PROP_KINDS, features, featureOwner: new Uint16Array(n), spawns: [], centreWalk: null,
     });
-    const plan = hypostyle.shape(shapeCtx(rt)) as HypostylePlan;
+    const plan = sanctum.shape(shapeCtx(rt)) as SanctumPlan;
     expect(plan.hall).toBe(true);
     expect(plan.axis).toBe(1);
     const walls: number[] = [];
@@ -355,7 +355,7 @@ describe("the hall on hand-built zones", () => {
       const hard: number[] = [];
       for (let t = 0; t < 70 * 70; t++) if (next() % 100 < 2 + seed) hard.push(t);
       const f = fixture(70, { hard });
-      const plan = hypostyle.shape(shapeCtx(f.rt)) as HypostylePlan;
+      const plan = sanctum.shape(shapeCtx(f.rt)) as SanctumPlan;
       const walls: number[] = [];
       for (let i = 0; i < f.tiles.length; i++) if (f.tiles[i] === TILE_WALL && f.rt.init.mask[i]) walls.push(i);
       expect(walls.length, `seed ${seed}`).toBe(9 * plan.piers.length);
@@ -367,7 +367,7 @@ describe("the hall on hand-built zones", () => {
 
   it("places two shrines whole, doors toward the hall, then a hall that keeps clear of them", () => {
     const f = fixture(70, { caps: { ...LANDMARK_CAPS, rimTiles: 0 } });
-    hypostyle.landmark!(landmarkCtx(f.rt));
+    sanctum.landmark!(landmarkCtx(f.rt));
     const shrines = f.features.filter((x) => x.kind === "landmark");
     expect(shrines.length).toBe(2);
     for (const s of shrines) {
@@ -387,7 +387,7 @@ describe("the hall on hand-built zones", () => {
     const n = f.w * f.h;
     for (const s of shrines) for (let y = s.bbox.y - 1; y <= s.bbox.y + s.bbox.h; y++) for (let x = s.bbox.x - 1; x <= s.bbox.x + s.bbox.w; x++) { f.rt.init.hard[y * f.w + x] = 1; f.rt.init.noBlock[y * f.w + x] = 1; }
     expect(n).toBeGreaterThan(0);
-    const plan = hypostyle.shape(shapeCtx(f.rt)) as HypostylePlan;
+    const plan = sanctum.shape(shapeCtx(f.rt)) as SanctumPlan;
     expect(plan.hall).toBe(true);
     // each shrine faces the hall: its doors lie on the hall's side of the box centre
     for (const s of shrines) {
@@ -401,7 +401,7 @@ describe("the hall on hand-built zones", () => {
   });
 
   describe("the route guard's stretch decides which piers stay (stub guards)", () => {
-    /** A guard whose stretch is 1000 until a wall stands on its corridor band and `bad` permille while one does. */
+    /** A guard whose stretch is 1000 until a wall stands on its corridor band (or is asked about there) and `bad` permille while one does. */
     function stub(fx: () => Fixture, bad: number, band: (w: number) => number[], log: { calls: number }): (c: BaseCtx) => RouteGuard {
       return () => {
         const corridor = new Uint8Array(fx().w * fx().h);
@@ -409,7 +409,12 @@ describe("the hall on hand-built zones", () => {
         return {
           members: [1], base: Int32Array.of(100), corridor,
           corridorOf: () => band(fx().w),
-          worstStretch: () => { log.calls++; for (const i of band(fx().w)) if (fx().tiles[i] === TILE_WALL) return bad; return 1000; },
+          worstStretch: (extra?: ArrayLike<number>) => {
+            log.calls++;
+            for (const i of band(fx().w)) if (fx().tiles[i] === TILE_WALL) return bad;
+            if (extra) for (let k = 0; k < extra.length; k++) if (corridor[extra[k]]) return bad;
+            return 1000;
+          },
           worstMember: () => 0,
           touches: (t) => { for (let k = 0; k < t.length; k++) if (corridor[t[k]]) return true; return false; },
         };
@@ -422,7 +427,7 @@ describe("the hall on hand-built zones", () => {
       const calm = { calls: 0 };
       let fxRef!: Fixture;
       fxRef = fixture(70, { guard: stub(() => fxRef, 1000, band, calm) });
-      const plan = hypostyle.shape(shapeCtx(fxRef.rt)) as HypostylePlan;
+      const plan = sanctum.shape(shapeCtx(fxRef.rt)) as SanctumPlan;
       expect(plan.piers.length).toBe(32);
       expect(plan.measures).toBe(1);
       expect(plan.stretch).toBe(1000);
@@ -431,7 +436,7 @@ describe("the hall on hand-built zones", () => {
       const tight = { calls: 0 };
       let fy!: Fixture;
       fy = fixture(70, { guard: stub(() => fy, 1100, band, tight) });
-      const plan2 = hypostyle.shape(shapeCtx(fy.rt)) as HypostylePlan;
+      const plan2 = sanctum.shape(shapeCtx(fy.rt)) as SanctumPlan;
       expect(plan2.hall).toBe(true);
       expect(plan2.piers.length).toBeLessThan(32);
       expect(plan2.piers.length).toBeGreaterThanOrEqual(4);
@@ -459,7 +464,7 @@ describe("the hall on hand-built zones", () => {
         members: [1], base: Int32Array.of(100), corridor: (() => { const c = new Uint8Array(fz.w * fz.h); for (const i of band(fz.w)) c[i] = 1; return c; })(),
         corridorOf: () => band(fz.w), worstStretch: () => { stuck.calls++; return 1200; }, worstMember: () => 0, touches: () => false,
       }) });
-      const plan = hypostyle.shape(shapeCtx(fz.rt)) as HypostylePlan;
+      const plan = sanctum.shape(shapeCtx(fz.rt)) as SanctumPlan;
       expect(stuck.calls).toBeLessThanOrEqual(6);
       expect(plan.hall).toBe(true);
       // the fallback left the corridor band clear of piers
@@ -469,7 +474,7 @@ describe("the hall on hand-built zones", () => {
 });
 
 // ================================================================================================ generated maps
-describe("the styler on generated maps (seeds 0-49, the holy zone new, the others old)", () => {
+describe("the styler on generated maps (seeds 0-49, the five zone stylers)", () => {
   it("raises no breach, needs no repair, and every holy wall is owned by a hall or a shrine of the holy zone: no single tile, no wall piece under 6", () => {
     const breaches = MAPGEN_FAILS["A:styleBreach"] ?? 0;
     for (const s of SEEDS) {
@@ -523,6 +528,8 @@ describe("the styler on generated maps (seeds 0-49, the holy zone new, the other
         if (m.terrain[i] !== TERRAIN_LIGHT) continue;
         expect(m.regionGrid[i], `seed ${s} light outside the zone`).toBe(HOLY_CODE);
         const x = i % m.w, y = (i - x) / m.w;
+        // a shrine's own light (its `l` tiles) belongs to the shrine, not to a bay
+        if (m.features[m.featureGrid[i] - 1].kind === "landmark") continue;
         const u = axis === 0 ? x - hall.ax : y - hall.ay, v = axis === 0 ? y - hall.ay : x - hall.ax;
         const a = Math.round(u / 6), b = Math.round(v / 6);
         expect(Math.abs(u - 6 * a) <= 1 && Math.abs(v - 6 * b) <= 1, `seed ${s}: light at ${x},${y} is off every crossing`).toBe(true);
@@ -539,7 +546,7 @@ describe("the styler on generated maps (seeds 0-49, the holy zone new, the other
   }, HEAVY_MS);
 
   it("the shrines: placed whole on at least 90% of the seeds (and two on most), doors true, outside the camps' clearings, and the crates take their nooks", () => {
-    let withOne = 0, withTwo = 0, withCrate = 0;
+    let withOne = 0, withTwo = 0, withCrate = 0, shrineLights = 0, shrineLit = 0;
     for (const s of SEEDS) {
       const { map: m } = holyMap(s);
       const shrines = m.features.filter((f) => f.zone === HOLY && f.kind === "landmark");
@@ -560,6 +567,7 @@ describe("the styler on generated maps (seeds 0-49, the holy zone new, the other
           expect(m.tiles[i], `seed ${s} shrine floor`).toBe(TILE_FLOOR);
           expect(m.featureGrid[i], `seed ${s} shrine floor owner`).toBe(m.features.indexOf(f) + 1);
         }
+        for (const i of st.lights) { shrineLights++; if (m.terrain[i] === TERRAIN_LIGHT) shrineLit++; }
         expect(f.p.slice(2)).toEqual(st.doors.slice().sort((a, b) => a - b));
         expect(m.buildings.some((b) => b.x === f.bbox.x && b.y === f.bbox.y && b.w === f.bbox.w && b.h === f.bbox.h), `seed ${s} building`).toBe(true);
         // a camp's clearing and its halo stay clear of the shrine's box
@@ -574,6 +582,10 @@ describe("the styler on generated maps (seeds 0-49, the holy zone new, the other
     expect(withOne).toBeGreaterThanOrEqual(Math.ceil(0.9 * SEEDS.length));
     expect(withTwo).toBeGreaterThanOrEqual(Math.ceil(0.6 * SEEDS.length));
     expect(withCrate).toBeGreaterThanOrEqual(Math.ceil(0.6 * withOne));
+    // the shrine's `l` tiles are lit: its box is no longer protect (its feature owns it), so the surface pass reaches them
+    console.info(`[sanctum] shrine light: ${shrineLit} of ${shrineLights} tiles lit`);
+    expect(shrineLights).toBeGreaterThan(0);
+    expect(shrineLit / shrineLights).toBeGreaterThanOrEqual(0.95);
   }, HEAVY_MS);
 
   it("meets the acceptance windows of contract 4.5 (means over the 50 seeds): piers 18-30 and at least 14 on 95%, walls 200-330, light 60-100, rays at bow range 60-74%, blocked pairs >= 10%, camp stretch <= 1.10", () => {
@@ -613,16 +625,15 @@ describe("the styler on generated maps (seeds 0-49, the holy zone new, the other
     for (const g of guard) expect(g).toBeLessThanOrEqual(ROUTE_STRETCH_MAX);
   }, HEAVY_MS);
 
-  it("certifies with validateTerrain (T1-T11) and costs the generator no more attempts than the old styler (50 seeds, both certified)", () => {
-    let attemptsNew = 0, attemptsOld = 0;
+  it("certifies with validateTerrain (T1-T11) and costs the generator about one attempt per seed (50 seeds)", () => {
+    let attempts = 0;
     for (const s of SEEDS) {
       const { map: m } = holyMap(s);
       expect(validateTerrain(m, { styled: true }), `seed ${s}`).toEqual([]);
-      attemptsNew += m.attempt + 1;
-      attemptsOld += certifiedMap(s)!.attempt + 1;
+      attempts += m.attempt + 1;
     }
-    console.info(`[sanctum] attempts per seed: new ${(attemptsNew / SEEDS.length).toFixed(3)}, old ${(attemptsOld / SEEDS.length).toFixed(3)}`);
-    expect(attemptsNew).toBeLessThanOrEqual(attemptsOld + 1);
+    console.info(`[sanctum] attempts per seed: ${(attempts / SEEDS.length).toFixed(3)}`);
+    expect(attempts / SEEDS.length).toBeLessThanOrEqual(1.15);
   }, HEAVY_MS);
 
   it("is fast: the shape + surface + props passes and the landmark pass, per call (a report; the bound on the median only catches a blow-up on a loaded machine)", () => {
@@ -658,7 +669,7 @@ describe("isolation, determinism and integer maths", () => {
         generateOnce(s, attempt, style, h.landmarks);
         return out;
       };
-      const withNew = record(hypostyle as ZoneStyler<unknown>), withNoop = record(noop);
+      const withNew = record(sanctum as ZoneStyler<unknown>), withNoop = record(noop);
       const holyZone = withNew.faction.indexOf(HOLY) + 1;
       let holyChanged = 0;
       for (let i = 0; i < withNew.tiles.length; i++) {
@@ -706,7 +717,7 @@ describe("isolation, determinism and integer maths", () => {
       const fresh = await import("../src/mapgen");
       const zs = await import("../src/zoneStyle");
       const san = await import("../src/zoneStyle/sanctum");
-      const stylers = { holy: san.hypostyle as ZoneStyler<unknown> };
+      const stylers = { holy: san.sanctum as ZoneStyler<unknown> };
       const style: ZoneStyleHook = (st) => {
         zs.styleZones({
           w: st.w, h: st.h, seed: st.seed, attempt: st.attempt, tiles: st.tiles, terrain: st.terrain, props: st.props, zone: st.zone,

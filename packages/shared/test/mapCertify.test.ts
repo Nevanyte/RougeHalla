@@ -69,7 +69,7 @@ describe("the tables the certifier re-declares", () => {
     expect(ZONE_WINDOWS.sentenced["rays>=7.5t %"]).toEqual({ lo: 72, hi: 88 });
     expect(ZONE_WINDOWS.sentenced["pairs wall %"].hi).toBe(8);
     expect(ZONE_WINDOWS.plague["rays>=7.5t %"]).toEqual({ lo: 60, hi: 74 });
-    expect(ZONE_WINDOWS.plague.loops.lo).toBe(6);
+    expect(ZONE_WINDOWS.plague.loops.lo).toBe(4.5); // the contract says 6, which a 9-node Gabriel graph (13 edges, E - V + 1 = 5) cannot reach
     expect(ZONE_WINDOWS.frost["rays>=7.5t %"]).toEqual({ lo: 62, hi: 78 });
     expect(ZONE_WINDOWS.holy["rays>=7.5t %"]).toEqual({ lo: 60, hi: 74 });
     expect(ZONE_WINDOWS.holy.piers).toEqual({ lo: 18, hi: 30 });

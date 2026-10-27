@@ -58,7 +58,8 @@ export interface StyleState {
   readonly zoneFaction: readonly RegionFaction[];
   /**
    * Read: 1 where nothing may change: the border, the coliseum, the ring road and one tile beyond, the gate lanes and one
-   * tile around them, camp halos (clearing + 1), landmark boxes + 1, the 4x4 map corners and the pool members' 3x3s. The styler
+   * tile around them, camp halos (clearing + 1), the ring round each landmark box (its own tiles are owned by its feature, so
+   * not protect: props and light may stand there), the 4x4 map corners and the pool members' 3x3s. The styler
    * keeps its own 3-tile rim margin from zone boundaries on top of this.
    */
   readonly protect: Uint8Array;

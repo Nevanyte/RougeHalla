@@ -1,7 +1,7 @@
 // The styler toolkit: stateless noise, tile geometry, distance fields and the shapes the recipes are built from. Nothing here
 // draws the generator's random stream or touches Math beyond + - * / sqrt floor ceil abs min max and Math.imul, so a
 // styled map is byte-identical on every engine. Size-free: w and h always come from the caller.
-import { TILE_FLOOR, TILE_LOW } from "../map";
+import { TILE_FLOOR } from "../map";
 import { randInt, shuffle } from "../rng";
 import type { Rng } from "../rng";
 import type { BaseCtx, NoiseKit, ShapeCtx } from "./types";
@@ -311,82 +311,6 @@ export function pickFrom(c: ShapeCtx, list: readonly number[]): [number, number]
   if (list.length === 0) return null;
   const i = list[randInt(c.rng, 0, list.length)];
   return [i % c.w, (i - (i % c.w)) / c.w];
-}
-
-/** A random tile a blocker could land on (ShapeCtx.open) that passes `ok`, drawn from the zone's bounding box; null when there is none. One rng draw. */
-export function pickOpen(c: ShapeCtx, ok: (x: number, y: number) => boolean = () => true): [number, number] | null {
-  const { bbox } = c.zone;
-  const cand: number[] = [];
-  for (let y = bbox.y; y < bbox.y + bbox.h; y++) {
-    for (let x = bbox.x; x < bbox.x + bbox.w; x++) {
-      const i = y * c.w + x;
-      if (c.open(i) && ok(x, y)) cand.push(i);
-    }
-  }
-  if (cand.length === 0) return null;
-  const i = cand[randInt(c.rng, 0, cand.length)];
-  return [i % c.w, (i - (i % c.w)) / c.w];
-}
-
-/**
- * How much of the zone a blocker could land on: open tiles over painted tiles. About 0.7 on open ground (the recipes' habitat,
- * a zone before cover) and about 0.13 on the ground the generator hands the stylers (the protect list, then the spawn pool's 3x3s). The recipes size their footprints
- * as a share of the ZONE, so they ask for the same amount of wall wherever and take what the ground allows.
- */
-export function roomOf(c: ShapeCtx): number {
-  const { bbox, painted } = c.zone;
-  let open = 0;
-  for (let y = bbox.y; y < bbox.y + bbox.h; y++) for (let x = bbox.x; x < bbox.x + bbox.w; x++) if (c.open(y * c.w + x)) open++;
-  return painted === 0 ? 0 : open / painted;
-}
-
-/**
- * The heading closest to h (then h+1, h-1, h+2, h-2) whose next tile from (x, y) is open, or -1. The side tried first is the
- * sign of `bias`. Lets a ridge or a crevasse follow the strips of ground a finished map leaves free.
- */
-export function steer(c: ShapeCtx, x: number, y: number, h: number, bias: boolean): number {
-  const order = bias ? [0, 1, -1, 2, -2] : [0, -1, 1, -2, 2];
-  for (const d of order) {
-    const hh = (h + d + 8) & 7;
-    const i = c.at(x + DIR8[hh][0], y + DIR8[hh][1]);
-    if (i >= 0 && c.open(i)) return hh;
-  }
-  return -1;
-}
-
-/**
- * Breaks every straight (axis-aligned) run of LOW tiles longer than `max` by turning one tile every `max` into a WALL (the
- * LOW kind stays: a pillar in the river, a post in the fence). A straight LOW run is a sight lane the cover pass could not
- * be sure to cut, and it is a long walk-around. Returns the walls placed.
- */
-export function breakLowRuns(c: ShapeCtx, max = 12): number {
-  const { w, h, tiles } = c;
-  let n = 0;
-  for (const vertical of [false, true]) {
-    const A = vertical ? w : h, B = vertical ? h : w;
-    for (let a = 0; a < A; a++) {
-      let start = -1;
-      for (let b = 0; b <= B; b++) {
-        const i = b < B ? (vertical ? b * w + a : a * w + b) : -1;
-        if (i >= 0 && tiles[i] === TILE_LOW) {
-          if (start < 0) start = b;
-          continue;
-        }
-        if (start >= 0 && b - start > max) {
-          // a wall every `max` tiles along the run, pushed one tile to either side where the guard refuses the spot
-          for (let p = start + max - 1; p < b; p += max) {
-            for (const q of [p, p - 1, p + 1]) {
-              if (q < start || q >= b) continue;
-              const k = vertical ? q * w + a : a * w + q;
-              if (tiles[k] === TILE_LOW && c.block(k, "wall")) { n++; break; }
-            }
-          }
-        }
-        start = -1;
-      }
-    }
-  }
-  return n;
 }
 
 /** Longest straight (axis-aligned) run of tiles equal to `code` in the grid. */

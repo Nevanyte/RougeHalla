@@ -18,15 +18,11 @@
 // tiles in featureGrid; the lit bays are its TERRAIN_LIGHT tiles.
 import { TILE_FLOOR, TILE_WALL } from "../map";
 import type { MapFeature } from "../map";
-import { TERRAIN_LIGHT } from "../terrain";
-import { randInt } from "../rng";
 import { DIR16, ROUTE_STRETCH_MAX, dirSep16, dist2, isqrt } from "./features";
 import { placeLandmark, stampFits, stampTemplate } from "./landmarks";
 import type { LandmarkTemplate, Stamp } from "./landmarks";
-import { chance, roomOf, wall } from "./kit";
-import type { Rect } from "./kit";
 import { PROP } from "./propKinds";
-import { LANDMARKS_PER_ZONE, areaScale, lenScale, sizeScale } from "./scale";
+import { LANDMARKS_PER_ZONE, areaScale, lenScale } from "./scale";
 import type { BaseCtx, BlockKind, LandmarkCtx, PropCtx, RouteGuard, ShapeCtx, SurfaceCtx, ZoneInfo, ZoneStyler } from "./types";
 
 // ================================================================================================ the Hypostyle (WP5)
@@ -69,7 +65,7 @@ export const SHRINE: LandmarkTemplate = {
 export const SANCTUM_TEMPLATES: readonly LandmarkTemplate[] = [SHRINE];
 
 /** What the Hypostyle built: handed from `shape` to `surface` and `props`, and read by the tests and printZone. */
-export interface HypostylePlan {
+export interface SanctumPlan {
   /** Did the hall stand (at least HALL_MIN_PIERS piers)? When false every other field is empty. */
   hall: boolean;
   /** The hall centre tile (x, y) and axis: 0 = u along x, 1 = u along y. */
@@ -319,25 +315,21 @@ function shrineStamps(c: BaseCtx): Stamp[] {
 }
 
 /**
- * The guard's worst member stretch (permille) if the piers with these top-left tiles stood. The route guard reads the LIVE tiles, so
- * the piers are written for the measurement and given back at once: nothing runs in between, and the feature log, the owners and the
- * counters are never touched (the real piers go through placeFeature afterwards). Needs a pier-free ground: every top-left tile is
- * an `open` window, so FLOOR before and after.
+ * The guard's worst member stretch (permille) if the piers with these top-left tiles stood: the guard is asked about their 9 tiles
+ * each as walls that are not written (the live tiles are never touched). Needs a pier-free ground: every top-left tile is an
+ * `open` window, so FLOOR now.
  */
-function stretchWith(guard: RouteGuard, live: Uint8Array, corners: readonly number[], w: number): number {
-  for (const k of corners) for (let b = 0; b < 3; b++) for (let a = 0; a < 3; a++) live[k + b * w + a] = TILE_WALL;
-  try {
-    return guard.worstStretch();
-  } finally {
-    for (const k of corners) for (let b = 0; b < 3; b++) for (let a = 0; a < 3; a++) live[k + b * w + a] = TILE_FLOOR;
-  }
+function stretchWith(guard: RouteGuard, corners: readonly number[], w: number): number {
+  const extra: number[] = [];
+  for (const k of corners) for (let b = 0; b < 3; b++) for (let a = 0; a < 3; a++) extra.push(k + b * w + a);
+  return guard.worstStretch(extra);
 }
 
-const EMPTY_PLAN = (): HypostylePlan => ({
+const EMPTY_PLAN = (): SanctumPlan => ({
   hall: false, cx: -1, cy: -1, axis: 0, radius: 0, piers: [], planned: 0, bays: [], lit: [], floor: [], feature: -1, stretch: 0, measures: 0, shrineLit: 0,
 });
 
-function hallShape(c: ShapeCtx): HypostylePlan {
+function hallShape(c: ShapeCtx): SanctumPlan {
   const plan = EMPTY_PLAN();
   const axis = hallAxis(c.zone), r = hallRadius(c.zone.painted), w = c.w;
   const best = scanCentre(c, c.open, axis, r, lineOfShrines(c));
@@ -358,14 +350,13 @@ function hallShape(c: ShapeCtx): HypostylePlan {
   try { guard = c.routeGuard(); } catch { guard = null; }
   let stretch = 0, measures = 0;
   if (guard !== null && guard.members.length > 0) {
-    const live = c.tiles as Uint8Array;
     const touch = new Uint8Array(w * c.h);
     const touches = (corner: number): boolean => {
       for (let b = 0; b < 3; b++) for (let a = 0; a < 3; a++) if (touch[corner + b * w + a] === 1) return true;
       return false;
     };
     for (; measures < STRETCH_TRIES;) {
-      stretch = stretchWith(guard, live, kept, w);
+      stretch = stretchWith(guard, kept, w);
       measures++;
       if (stretch <= ROUTE_STRETCH_MAX) break;
       touch.fill(0);
@@ -378,7 +369,7 @@ function hallShape(c: ShapeCtx): HypostylePlan {
       // still too long: the contract's rule, every pier off every corridor
       const g = guard;
       const next = kept.filter((k) => { for (let b = 0; b < 3; b++) for (let a = 0; a < 3; a++) if (g.corridor[k + b * w + a] === 1) return false; return true; });
-      if (next.length >= HALL_MIN_PIERS) { kept = next; stretch = stretchWith(guard, live, kept, w); measures++; }
+      if (next.length >= HALL_MIN_PIERS) { kept = next; stretch = stretchWith(guard, kept, w); measures++; }
     }
   }
   if (kept.length < HALL_MIN_PIERS) return plan;
@@ -390,14 +381,14 @@ function hallShape(c: ShapeCtx): HypostylePlan {
   const floor: number[] = [];
   for (const [du, dv] of layout.floor) {
     const i = hallTile(c, cx, cy, axis, du, dv);
-    if (i >= 0 && c.mask[i] === 1 && c.hard[i] === 0) floor.push(i);
+    if (i >= 0 && c.mask[i] === 1 && c.hard[i] === 0 && !c.isOwned(i)) floor.push(i);
   }
   // the bays that will be lit: the crossing's centre tile is zone FLOOR, unprotected and plain ground (no pier stands on a crossing);
   // the surface pass lights every tile of the 3x3 the guard allows
   const bays: number[] = [];
   for (const [u, v] of layout.bays) {
     const i = hallTile(c, cx, cy, axis, u, v);
-    if (i >= 0 && c.mask[i] === 1 && c.hard[i] === 0 && c.tiles[i] === TILE_FLOOR && c.terrain[i] === 0) bays.push(i);
+    if (i >= 0 && c.mask[i] === 1 && c.hard[i] === 0 && !c.isOwned(i) && c.tiles[i] === TILE_FLOOR && c.terrain[i] === 0) bays.push(i);
   }
   const placed = c.placeFeature({
     kind: "hall", jobs: ["cover", "rest"], anchor: [cx, cy], params: [axis, HALL_PITCH, r, kept.length, bays.length],
@@ -422,20 +413,29 @@ function hallShape(c: ShapeCtx): HypostylePlan {
   return plan;
 }
 
-function hallSurface(c: SurfaceCtx, plan: HypostylePlan): void {
+function hallSurface(c: SurfaceCtx, plan: SanctumPlan): void {
   const w = c.w;
+  // The shrines' tiles belong to the shrines (their box is no longer protect): a bay lights nothing of them.
+  const shrines = shrineStamps(c);
+  const theirs = new Set<number>();
+  for (const s of shrines) for (const list of [s.walls, s.floor, s.doors, s.nooks, s.lights]) for (const i of list) theirs.add(i);
   // light: the 3x3 round each bay's centre, where the guard allows it (a camp's halo or a pool pad can bite a corner out)
   for (const centre of plan.bays) {
     const x = centre % w, y = (centre - x) / w;
     let n = 0;
-    for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) if (c.surface(c.at(x + a, y + b), "light")) n++;
+    for (let b = -1; b <= 1; b++) {
+      for (let a = -1; a <= 1; a++) {
+        const i = c.at(x + a, y + b);
+        if (!theirs.has(i) && c.surface(i, "light")) n++;
+      }
+    }
     if (n > 0) plan.lit.push(centre);
   }
   // the shrines' light cells ("l" of the template): lit where the guard allows it
-  for (const s of shrineStamps(c)) for (const i of s.lights) if (c.surface(i, "light")) plan.shrineLit++;
+  for (const s of shrines) for (const i of s.lights) if (c.surface(i, "light")) plan.shrineLit++;
 }
 
-function hallProps(c: PropCtx, plan: HypostylePlan): void {
+function hallProps(c: PropCtx, plan: SanctumPlan): void {
   const w = c.w;
   const variant = (x: number, y: number): number => Math.floor(c.noise.hash(x, y, 90) * 3);
   if (plan.hall) {
@@ -459,226 +459,7 @@ function hallProps(c: PropCtx, plan: HypostylePlan): void {
   }
 }
 
-/** The new Sanctum styler (version 400). Phase B: registered by nobody yet; WP7 swaps it in as `sanctum` in phase C. */
-export const hypostyle: ZoneStyler<HypostylePlan> = {
+/** The Sanctum styler: the Hypostyle (version 400). */
+export const sanctum: ZoneStyler<SanctumPlan> = {
   id: "sanctum", faction: "holy", version: 400, landmark: hallLandmarks, shape: hallShape, surface: hallSurface, props: hallProps,
 };
-
-// ================================================================================================ the old styler (v1)
-// Kept as `sanctum` until phase C swaps the registry (styleZones.ts, index.ts) to `hypostyle`; WP7 deletes everything below then
-// (and renames HypostylePlan to SanctumPlan, hypostyle to sanctum).
-// Sanctum (holy): cathedral ruins. Symmetric colonnades, broken arches and cloister courtyards with a light shaft each.
-// Symmetry is per structure (each colonnade and cloister mirrors about its own axis): four camp clearings, spawns and ruins
-// make a zone-wide mirror impossible. Colonnade rows are the most efficient lane cutters (0.9 rock tile per pillar tile).
-// Holy heals double in light: an economy advantage (a rest chain), not a duel one. Part D 4.5's recipe, scaled to the zone.
-// A structure is a list of pillar sites computed from its centre, size and axis alone; where it goes is chosen by sampling
-// centres and keeping the one whose sites fall on the most open ground (a finished map leaves little clean ground, so a free
-// rectangle is rare), and a cloister needs a clean 3x3 of floor for its shaft.
-export type StructureKind = "nave" | "cloister" | "avenue";
-
-export interface StructurePlan {
-  kind: StructureKind;
-  rect: Rect;
-  /** The structure's long axis is horizontal; its mirror line runs along it. */
-  horizontal: boolean;
-  cx: number;
-  cy: number;
-  /** Pillar positions before any break coin: mirror-symmetric by construction (tile indices). */
-  planned: number[];
-  /** The pillars (and walls) the styler actually wrote. */
-  placed: number[];
-  /** Centre tile of the 3x3 light shaft, or -1 when no clean 3x3 fitted. */
-  shaft: number;
-  /** Altar wall tiles (the nave). */
-  altar: number[];
-}
-
-export interface SanctumPlan {
-  structures: StructurePlan[];
-}
-
-/** One pillar site: its offset from the structure's centre along (v) and across (u) the long axis, and the chance it is broken. */
-interface Site { u: number; v: number; broken: number }
-
-interface Layout {
-  kind: StructureKind;
-  /** Half extent along and across the long axis. */
-  halfLong: number;
-  halfShort: number;
-  sites: Site[];
-  /** Sites mirrored about the axis: (u, v) and (-u, v) both exist. */
-  altar: Array<[number, number]>;
-  /** The shaft's centre offset (u, v). */
-  shaft: [number, number];
-}
-
-/** A cloister: a ring of pillars at pitch 2 with four 2-tile gaps and a light shaft in the middle. */
-function cloister(hs: number): Layout {
-  const sites: Site[] = [];
-  for (let a = -hs; a <= hs; a++) {
-    for (let b = -hs; b <= hs; b++) {
-      const edge = Math.abs(a) === hs || Math.abs(b) === hs;
-      if (!edge || (Math.abs(a) <= 1 && Math.abs(b) === hs) || (Math.abs(b) <= 1 && Math.abs(a) === hs)) continue;
-      if ((Math.abs(a) === hs && ((b + hs) & 1) !== 0) || (Math.abs(b) === hs && ((a + hs) & 1) !== 0)) continue;
-      sites.push({ u: a, v: b, broken: 0.12 });
-    }
-  }
-  return { kind: "cloister", halfLong: hs, halfShort: hs, sites, altar: [], shaft: [0, 0] };
-}
-
-/** An avenue (two pillar rows) or a nave (two colonnades, arches near the ends, an altar). */
-function colonnade(kind: "nave" | "avenue", half: number, U: number): Layout {
-  const sites: Site[] = [];
-  for (let v = -half + 1; v <= half - 1; v += 2) { sites.push({ u: U, v, broken: 0.15 }); sites.push({ u: -U, v, broken: 0.15 }); }
-  const altar: Array<[number, number]> = [];
-  if (kind === "nave") {
-    for (const v of [-half + 2, half - 2]) { sites.push({ u: 2, v, broken: 0.35 }); sites.push({ u: -2, v, broken: 0.35 }); }
-    for (const du of [-1, 0, 1]) altar.push([du, half - 1]);
-  }
-  return { kind, halfLong: half, halfShort: U + 1, sites, altar, shaft: kind === "nave" ? [0, -3] : [0, 0] };
-}
-
-interface Step { kind: StructureKind; layouts: Layout[] }
-
-function plan(sc: number): Step[] {
-  const big = sc >= 0.85;
-  const clo: Layout[] = big ? [cloister(4), cloister(3)] : [cloister(3)];
-  const nave: Layout[] = big ? [colonnade("nave", 12, 4), colonnade("nave", 9, 4)] : [colonnade("nave", 8, 4), colonnade("nave", 6, 3)];
-  const avenue: Layout[] = [colonnade("avenue", big ? 8 : 6, 3), colonnade("avenue", big ? 6 : 5, 2)];
-  return [
-    { kind: "nave", layouts: nave },
-    { kind: "cloister", layouts: clo },
-    { kind: "cloister", layouts: clo },
-    { kind: "avenue", layouts: avenue },
-    { kind: "cloister", layouts: clo },
-    { kind: "avenue", layouts: avenue },
-  ];
-}
-
-function shape(c: ShapeCtx): SanctumPlan {
-  const r = c.rng;
-  const w = c.w;
-  const sc = sizeScale(c.zone.painted);
-  const out: SanctumPlan = { structures: [] };
-  // on open ground a structure must stand wholly on ground it can take; a finished map leaves strips, so a third of it will do
-  const minOpen = roomOf(c) > 0.4 ? 0.9 : 0.3;
-  const taken: Rect[] = [];
-  const bb = c.zone.bbox;
-  const apart = (a: Rect, b: Rect): boolean => a.x + a.w + 2 <= b.x || b.x + b.w + 2 <= a.x || a.y + a.h + 2 <= b.y || b.y + b.h + 2 <= a.y;
-  /** A clean 3x3 of floor (LIGHT stands on any unprotected floor, the ring band included) around (sx, sy) or one tile off it; the centre index or -1. */
-  const shaftAt = (sx: number, sy: number): number => {
-    for (const [ox, oy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      let clean = true;
-      for (let b = -1; b <= 1 && clean; b++) {
-        for (let a = -1; a <= 1; a++) {
-          const i = c.at(sx + ox + a, sy + oy + b);
-          if (i < 0 || c.tiles[i] !== TILE_FLOOR || c.hard[i] || !c.mask[i] || c.isReserved(i)) { clean = false; break; }
-        }
-      }
-      if (clean) return c.at(sx + ox, sy + oy);
-    }
-    return -1;
-  };
-  // centres of the clean 3x3 patches of floor: where a shaft can stand (a cloister is built around one)
-  const patches: number[] = [];
-  for (let y = bb.y; y < bb.y + bb.h; y++) {
-    for (let x = bb.x; x < bb.x + bb.w; x++) {
-      const i = c.at(x, y);
-      if (c.tiles[i] === TILE_FLOOR && c.mask[i] && !c.hard[i] && shaftAt(x, y) === i) patches.push(i);
-    }
-  }
-  for (const step of plan(sc)) {
-    let best: { layout: Layout; cx: number; cy: number; horizontal: boolean; score: number; rect: Rect; shaft: number } | null = null;
-    for (let t = 0; t < 160; t++) {
-      const layout = step.layouts[randInt(r, 0, step.layouts.length)];
-      const horizontal = chance(r, 0.5);
-      let cx = bb.x + randInt(r, 0, bb.w), cy = bb.y + randInt(r, 0, bb.h);
-      if (layout.kind !== "avenue" && patches.length > 0 && chance(r, 0.75)) {
-        const p = patches[randInt(r, 0, patches.length)];
-        const px = p % w, py = (p - px) / w;
-        cx = layout.kind === "cloister" || !horizontal ? px : px + 3;
-        cy = layout.kind === "cloister" || horizontal ? py : py + 3;
-      }
-      const at = (u: number, v: number): number => (horizontal ? c.at(cx + v, cy + u) : c.at(cx + u, cy + v));
-      const hl = layout.halfLong, hsh = layout.halfShort;
-      const rect: Rect = horizontal ? { x: cx - hl, y: cy - hsh, w: 2 * hl + 1, h: 2 * hsh + 1 } : { x: cx - hsh, y: cy - hl, w: 2 * hsh + 1, h: 2 * hl + 1 };
-      if (taken.some((o) => !apart(o, rect))) continue;
-      let open = 0, inZone = 0;
-      for (const s of layout.sites) {
-        const i = at(s.u, s.v);
-        if (i >= 0 && c.mask[i]) inZone++;
-        if (i >= 0 && c.open(i)) open++;
-      }
-      if (inZone < Math.ceil(layout.sites.length * 0.8) || open < Math.ceil(layout.sites.length * minOpen)) continue;
-      // a cloister or nave wants a light shaft: a clean 3x3 of floor is worth six pillars, but a structure without one stands
-      let shaft = -1;
-      if (layout.kind !== "avenue") {
-        const si = at(layout.shaft[0], layout.shaft[1]);
-        if (si >= 0) shaft = shaftAt(si % w, (si - (si % w)) / w);
-      }
-      const score = open + (shaft >= 0 ? 6 : 0);
-      if (!best || score > best.score) best = { layout, cx, cy, horizontal, score, rect, shaft };
-    }
-    if (!best) continue;
-    const { layout, cx, cy, horizontal } = best;
-    const at = (u: number, v: number): number => (horizontal ? c.at(cx + v, cy + u) : c.at(cx + u, cy + v));
-    const st: StructurePlan = { kind: layout.kind, rect: best.rect, horizontal, cx, cy, planned: [], placed: [], shaft: best.shaft, altar: [] };
-    if (best.shaft >= 0) for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) c.reserve(c.at((best.shaft % w) + a, Math.floor(best.shaft / w) + b));
-    for (const s of layout.sites) {
-      const i = at(s.u, s.v);
-      if (i < 0) continue;
-      st.planned.push(i);
-      if (chance(r, s.broken)) continue;
-      if (wall(c, i % w, (i - (i % w)) / w)) st.placed.push(i);
-    }
-    for (const [u, v] of layout.altar) {
-      const i = at(u, v);
-      if (i >= 0 && wall(c, i % w, (i - (i % w)) / w)) { st.placed.push(i); st.altar.push(i); }
-    }
-    out.structures.push(st);
-    taken.push(best.rect);
-  }
-  return out;
-}
-
-function surface(c: SurfaceCtx, plan: SanctumPlan): void {
-  for (const st of plan.structures) {
-    if (st.shaft < 0) continue;
-    const sx = st.shaft % c.w, sy = (st.shaft - sx) / c.w;
-    for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) c.surface(c.at(sx + a, sy + b), "light");
-  }
-}
-
-function props(c: PropCtx, plan: SanctumPlan): void {
-  const n = c.w * c.h;
-  const pillar = new Uint8Array(n);
-  for (const st of plan.structures) for (const i of st.placed) pillar[i] = 1;
-  const nearAltar = new Uint8Array(n);
-  for (const st of plan.structures) {
-    for (const i of st.altar) {
-      const x = i % c.w, y = (i - x) / c.w;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const j = c.at(x + dx, y + dy); if (j >= 0) nearAltar[j] = 1; }
-    }
-  }
-  for (let i = 0; i < n; i++) {
-    if (!c.mask[i]) continue;
-    const x = i % c.w, y = (i - x) / c.w;
-    const v = Math.floor(c.noise.hash(x, y, 90) * 3);
-    const t = c.tiles[i];
-    if (t === TILE_WALL) {
-      if (pillar[i] && c.noise.hash(x, y, 1) < 0.35) c.prop(PROP.column_cap, x, y, v);
-      else if (c.noise.hash(x, y, 2) < 0.04) c.prop(PROP.banner_red, x, y, v);
-    } else if (t === TILE_FLOOR) {
-      if (nearAltar[i] && c.noise.hash(x, y, 3) < 0.4) c.prop(PROP.candelabra, x, y, v);
-      else if (c.terrain[i] === 0 && c.noise.hash(x, y, 4) < 0.01) c.prop(PROP.rubble, x, y, v);
-      else if (c.terrain[i] === 0) {
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-          const j = c.at(x + dx, y + dy);
-          if (j >= 0 && c.terrain[j] === TERRAIN_LIGHT) { if (c.noise.hash(x, y, 5) < 0.3) c.prop(PROP.stained_glass, x, y, v); break; }
-        }
-      }
-    }
-  }
-}
-
-export const sanctum: ZoneStyler<SanctumPlan> = { id: "sanctum", faction: "holy", version: 1, shape, surface, props };

@@ -269,7 +269,8 @@ describe("the feature art in the bake", () => {
   });
 
   it("paints nothing of the shapes on a map with no features: no shape colour in any floor chunk or strip", () => {
-    const bare: GameMap = { ...REAL[0]!, features: [], featureGrid: new Uint8Array(REAL[0]!.w * REAL[0]!.h) };
+    // no props either: the styler's own props (a crater lip on a rim wall) are drawn in the shape palette's colours on purpose
+    const bare: GameMap = { ...REAL[0]!, features: [], featureGrid: new Uint8Array(REAL[0]!.w * REAL[0]!.h), props: [] };
     const bctx = makeContext(bare);
     const shape = new Set<number>();
     for (const group of Object.values(SHAPE_PALETTE)) for (const c of Object.values(group)) shape.add(c);
@@ -284,7 +285,9 @@ describe("the feature art in the bake", () => {
       paintStrip(g, bctx, s);
       paints += g.ops.length;
       // The zone art's own colours may coincide with a shape colour by chance; the shapes' accents (lips, ash, tunnel, ford) may not appear.
-      for (const c of [SHAPE_PALETTE.crater.lip, SHAPE_PALETTE.crater.ash, SHAPE_PALETTE.tunnel.dark, SHAPE_PALETTE.pier.cap]) expect(usesColour(g, c)).toBe(false);
+      for (const [name, c] of [["crater.lip", SHAPE_PALETTE.crater.lip], ["crater.ash", SHAPE_PALETTE.crater.ash], ["tunnel.dark", SHAPE_PALETTE.tunnel.dark], ["pier.cap", SHAPE_PALETTE.pier.cap]] as const) {
+        expect(usesColour(g, c), `strip row ${s.ty}: ${name}`).toBe(false);
+      }
     }
     expect(paints).toBeGreaterThan(10000);
     expect(shape.size).toBeGreaterThan(30);

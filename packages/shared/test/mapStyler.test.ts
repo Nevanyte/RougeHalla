@@ -54,7 +54,7 @@ describe("zone style hook (demo hook, 24 seeds)", () => {
       const m = certifiedMap(s, { styleZones: demoStyleHook, shapeGates: false });
       if (!m) continue;
       const spy = spyOn();
-      generateMap(s, m.attempt, { styleZones: spy.hook });
+      generateMap(s, m.attempt, { styleZones: spy.hook, shapeGates: false });
       expect(spy.low.length, `seed ${s}: the hook wrote no low ground`).toBeGreaterThan(0);
       for (const i of spy.low) {
         expect(m.tiles[i], `seed ${s}: low tile ${i % m.w},${Math.floor(i / m.w)} ended as floor`).not.toBe(TILE_FLOOR);

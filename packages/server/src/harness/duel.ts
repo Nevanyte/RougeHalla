@@ -12,7 +12,7 @@
 // (perception "client"); "stale" aims at the stale view with no lead (what the bots do) and "present" reads the present
 // state (a cheat), for comparison.
 import {
-  circleClear, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, reachMask,
+  circleClear, FACTIONS, gallowsGateOpen, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, reachMask,
   segmentClear, TERRAIN_FENCE, TICK_MS, TILE, TILE_LOW, TILE_WALL, decide,
   type BuffId, type FactionId, type GameMap, type PolicyInput, type SkillId, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -184,10 +184,9 @@ export const ROWS_S_LO = 1;
 
 export const isRowsArena = (a: Arena): a is RowsArena => Object.hasOwn(ROWS_LAYOUTS, a);
 
-/** Is the tile at position `s` along row number `row` a gate? The Gallows' rule: ((s - sLo - phase) mod period) < width, a true modulo. */
+/** Is the tile at position `s` along row number `row` a gate? The Gallows' own rule (shared `gallowsGateOpen`), counted from the arena's first interior tile. */
 export function rowsGateOpen(layout: RowsLayout, row: number, s: number): boolean {
-  const phase = layout.phases[row % 2]!;
-  return (((s - ROWS_S_LO - phase) % layout.period) + layout.period) % layout.period < layout.width;
+  return gallowsGateOpen(s - ROWS_S_LO, layout.phases[row % 2]!, layout.period, layout.width);
 }
 
 export function buildArena(arena: Arena, starts: readonly [Vec2, Vec2], seed: number): GameMap {

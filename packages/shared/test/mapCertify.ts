@@ -1324,7 +1324,8 @@ export const ZONE_WINDOWS: Readonly<Record<RegionFaction, Readonly<Record<string
     "stretch mean": { lo: 0, hi: 1.15 }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
   },
   plague: {
-    "barrows": { lo: 8, hi: 12 }, "tunnels": { lo: 3, hi: 4 }, "walls": { lo: 250, hi: 420 }, "bog": { lo: 150, hi: 300 }, "loops": { lo: 6, hi: inf },
+    "barrows": { lo: 8, hi: 12 }, "tunnels": { lo: 3, hi: 4 }, "walls": { lo: 250, hi: 420 }, "bog": { lo: 150, hi: 300 }, "loops": { lo: 4.5, hi: inf },
+    // loops: the Gabriel graph of 9 nodes has 13 edges, so E - V + 1 is 5 (the contract's 6 needs 14 edges)
     "rays>=7.5t %": { lo: 60, hi: 74 }, "pairs wall %": { lo: 8, hi: inf }, "stretch mean": { lo: 0, hi: 1.1 }, "stretch max": { lo: 0, hi: 1.3 },
     "pieces<6": { lo: 0, hi: 0 }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
   },
@@ -1359,15 +1360,16 @@ export function judgeWindow(values: readonly number[], w: MeasureWindow): { insi
  * With decor on, three props per zone from the decor stream (of an unknown kind while PROP_KINDS is empty, so the
  * generator drops them: the decor stream must change nothing else).
  */
-export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, decor, zone, zoneFaction, protect, tiles, terrain, props }) => {
+export const demoStyleHook: ZoneStyleHook = ({ w, h, seed, attempt, decor, zone, zoneFaction, protect, tiles, terrain, props, featureOwner }) => {
   const N = w * h;
   for (let z = 1; z <= zoneFaction.length; z++) {
     const faction = zoneFaction[z - 1];
     const rng = styleRng(seed, attempt, REGION_FACTIONS.indexOf(faction) + 1, STYLE_STREAM.shape);
     const cells: number[] = [];
-    for (let i = 0; i < N; i++) if (zone[i] === z && !protect[i] && tiles[i] === TILE_FLOOR) cells.push(i);
+    for (let i = 0; i < N; i++) if (zone[i] === z && !protect[i] && featureOwner[i] === 0 && tiles[i] === TILE_FLOOR) cells.push(i);
     if (cells.length === 0) continue;
-    const free = (i: number): boolean => i >= 0 && i < N && zone[i] === z && protect[i] === 0 && tiles[i] === TILE_FLOOR && terrain[i] === TERRAIN_NONE;
+    // a landmark's tiles are its feature's, not protect: the demo hook keeps off them as the guard does
+    const free = (i: number): boolean => i >= 0 && i < N && zone[i] === z && protect[i] === 0 && featureOwner[i] === 0 && tiles[i] === TILE_FLOOR && terrain[i] === TERRAIN_NONE;
     const low = (i: number, kind: number): void => { tiles[i] = TILE_LOW; terrain[i] = kind; };
     const patch = (side: number, kind: number): void => {
       const at = cells[randInt(rng, 0, cells.length)];

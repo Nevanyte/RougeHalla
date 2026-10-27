@@ -118,8 +118,9 @@ export interface RouteGuard {
   /** Corridor tiles per member (for ford, gate and breach placement). */
   corridorOf(k: number): readonly number[];
   /** Recomputes the zone field on the current tiles and returns the worst member stretch in permille (1000 = none; a member cut off
-   *  returns 1_000_000). */
-  worstStretch(): number;
+   *  returns 1_000_000). With a list of tile indices it asks the same as if those tiles were walls too (a feature not written yet):
+   *  the live tiles are not touched. */
+  worstStretch(extraWallTiles?: ArrayLike<number>): number;
   /** The member index with the worst stretch at the last worstStretch() call. */
   worstMember(): number;
   /** Does any of these tiles lie on a corridor? (cheap filter: only features that touch a corridor need worstStretch). */
@@ -156,6 +157,7 @@ export interface BaseCtx {
   /** 3-4 chamfer distance (thirds of a tile) from a zone tile to the nearest tile outside the zone. */
   readonly edgeDist: Readonly<Int32Array>;
   readonly territory: Uint8Array | null;
+  /** The camps whose centre lies in this zone (their `index` is the generator's camp index), so `campNodes(c)` is this zone's graph. */
   readonly camps: readonly CampInfo[];
   /** This pass's stream for this zone. */
   readonly rng: Rng;

@@ -1,6 +1,6 @@
-// Scorch, Crater Basins (zone-shapes contract 4.1, WP1): the new styler `scorchCraters` on the generator's real maps, in isolation
-// (a test-local hook runs it for the fire zone and the registry's stylers for the other four, as the phase B brief prescribes;
-// WP7 swaps the registry in phase C). What is checked: the feature contract (ownership, params, pieces, the footprint), the
+// Scorch, Crater Basins (zone-shapes contract 4.1, WP1): the registry's styler `scorch` on the generator's real maps (the five
+// new stylers, the shape gates on; `hooks()` is the registry, and `overrides` swaps a zone's styler in the style pass only, for the
+// isolation test). What is checked: the feature contract (ownership, params, pieces, the footprint), the
 // acceptance windows of 4.1 on 40 seeds (the 200-seed table is in the WP1 report), zone isolation, determinism, the Math ban,
 // the forge landmark and the route guard (hazards on the spawn walks, the camp graph's stretch).
 import { describe, expect, it, vi } from "vitest";
@@ -17,7 +17,7 @@ import type { StyleResult, ZoneStyler } from "../src/zoneStyle";
 import { gabrielEdges } from "../src/zoneStyle/features";
 import type { Node } from "../src/zoneStyle/features";
 import { stampTemplate, templateProblems } from "../src/zoneStyle/landmarks";
-import { FORGE, SCORCH_LANDMARKS, scorch, scorchCraters } from "../src/zoneStyle/scorch";
+import { FORGE, SCORCH_LANDMARKS, scorch } from "../src/zoneStyle/scorch";
 import type { ScorchPlan } from "../src/zoneStyle/scorch";
 
 const HEAVY_MS = 180_000;
@@ -26,12 +26,12 @@ const FIRE = REGION_FACTIONS.indexOf("fire") + 1;
 const SEEDS = Array.from({ length: 40 }, (_, i) => i);
 
 /**
- * The test-local registry: the new Scorch for fire, the registry's stylers for the rest. `overrides` swaps a zone's styler in the
- * style pass only: the landmark stage keeps the registry's, because every zone's landmarks shape the ground the spawn pool is
- * picked on, so a zone isolation test must hold that stage fixed (a styler under construction elsewhere may place landmarks).
+ * The registry as hooks. `overrides` swaps a zone's styler in the style pass only: the landmark stage keeps the registry's,
+ * because every zone's landmarks shape the ground the spawn pool is picked on, so a zone isolation test must hold that stage
+ * fixed (full-registry isolation is not a property: a landmark changes the pool).
  */
 function hooks(overrides: Partial<Record<RegionFaction, ZoneStyler<unknown>>> = {}, record?: { fire: StyleResult | null }): MapgenOptions {
-  const landmarkStylers = { fire: scorchCraters as ZoneStyler<unknown> };
+  const landmarkStylers = { fire: scorch as ZoneStyler<unknown> };
   const stylers = { ...landmarkStylers, ...overrides };
   const styleZonesHook: ZoneStyleHook = (st) => {
     const results = styleZones({
@@ -93,7 +93,7 @@ describe("the forge template", () => {
   });
 });
 
-describe("the new Scorch on the generator's maps (40 seeds, the others old)", () => {
+describe("Scorch on the generator's maps (40 seeds, the five zone stylers)", () => {
   it("never breaks the hook contract and builds the 8 camps' craters, a river and a forge on the fire zone of (nearly) every map", () => {
     MAPGEN_FAILS["A:styleBreach"] = 0;
     let craters7 = 0, rivers = 0, forges = 0;
@@ -205,7 +205,7 @@ describe("the new Scorch on the generator's maps (40 seeds, the others old)", ()
 
   it("is open at bow range 48-68% of rays on average, walls off 16%+ of engagement pairs, keeps the camp graph short (stretch mean <= 1.12) and looped", () => {
     const sample = SEEDS.slice(0, 10);
-    let ray = 0, pairs = 0;
+    let ray = 0, pairs = 0, stretch = 0;
     for (const s of sample) {
       const m = mapOf(s);
       const floors: number[] = [];
@@ -246,8 +246,11 @@ describe("the new Scorch on the generator's maps (40 seeds, the others old)", ()
         const pa = { x: camps[a].x, y: camps[a].y }, pb = { x: camps[b].x, y: camps[b].y };
         sum += pathLength(pa, findPath(m, pa, pb)) / Math.sqrt((pa.x - pb.x) * (pa.x - pb.x) + (pa.y - pb.y) * (pa.y - pb.y));
       }
-      expect(sum / edges.length, `seed ${s}: camp-graph stretch mean`).toBeLessThanOrEqual(1.12);
+      // the contract's window is the zone's mean over maps (<= 1.12); one map may sit above it (seed 7 of the registry's maps: 1.128)
+      expect(sum / edges.length, `seed ${s}: camp-graph stretch mean`).toBeLessThanOrEqual(1.2);
+      stretch += sum / edges.length;
     }
+    expect(stretch / sample.length, "camp-graph stretch mean over the maps").toBeLessThanOrEqual(1.12);
     expect(ray / sample.length, "share of rays at least 7.5 tiles").toBeGreaterThan(0.48);
     expect(ray / sample.length).toBeLessThan(0.68);
     expect(pairs / sample.length, "engagement pairs wall-blocked").toBeGreaterThan(0.16);
@@ -386,7 +389,7 @@ describe("integer maths", () => {
       const gen = await import("../src/mapgen");
       const zs = await import("../src/zoneStyle");
       const sc = await import("../src/zoneStyle/scorch");
-      const stylers = { fire: sc.scorchCraters as ZoneStyler<unknown> };
+      const stylers = { fire: sc.scorch as ZoneStyler<unknown> };
       const opts: MapgenOptions = {
         styleZones: (st) => { zs.styleZones({
           w: st.w, h: st.h, seed: st.seed, attempt: st.attempt, tiles: st.tiles, terrain: st.terrain, props: st.props, zone: st.zone,
@@ -410,15 +413,10 @@ describe("integer maths", () => {
 });
 
 describe("attempts per seed", () => {
-  it("is not worse with the new styler than with the old one (60 seeds; the 600-seed figure is in the report)", () => {
-    const attempts = (opts: MapgenOptions | undefined): number => {
-      let sum = 0;
-      for (const s of Array.from({ length: 60 }, (_, i) => 1000 + i)) sum += (certifiedMap(s, opts)?.attempt ?? 9) + 1;
-      return sum / 60;
-    };
-    const oldStyler = attempts(hooks({ fire: scorch as ZoneStyler<unknown> }));
-    const newStyler = attempts(hooks());
-    expect(newStyler, `old ${oldStyler.toFixed(3)}, new ${newStyler.toFixed(3)}`).toBeLessThanOrEqual(oldStyler + 0.05);
+  it("is about one with the five stylers and the shape gates on (60 seeds; the 200-seed figure is mapBench's)", () => {
+    let sum = 0;
+    for (const s of Array.from({ length: 60 }, (_, i) => 1000 + i)) sum += (certifiedMap(s)?.attempt ?? 9) + 1;
+    expect(sum / 60, "attempts per seed").toBeLessThanOrEqual(1.15);
   }, HEAVY_MS);
 });
 

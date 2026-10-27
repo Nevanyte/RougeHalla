@@ -25,12 +25,12 @@
 // stretch stays at 1000-1028 permille (the limit is 1030). A barrow also stands 2 tiles beyond its radius from every pool member.
 import { TILE_FLOOR, TILE_WALL } from "../map";
 import { areaScale, LANDMARKS_PER_ZONE } from "./scale";
-import { campNodes, dirIndex16, discOffsets, gabrielEdges, noiseQ, segDist2 } from "./features";
+import { ROUTE_STRETCH_MAX, campNodes, dirIndex16, discOffsets, gabrielEdges, noiseQ, segDist2 } from "./features";
 import type { Node } from "./features";
 import { placeLandmark, stampFits, stampTemplate } from "./landmarks";
 import type { LandmarkTemplate } from "./landmarks";
 import { PROP } from "./propKinds";
-import type { BaseCtx, FeatureSpec, LandmarkCtx, PlacedFeature, PropCtx, ShapeCtx, SurfaceCtx, ZoneStyler } from "./types";
+import type { BaseCtx, FeatureSpec, LandmarkCtx, PlacedFeature, PropCtx, RouteGuard, ShapeCtx, SurfaceCtx, ZoneStyler } from "./types";
 
 /** The collapsed burrow (contract 5.2, orientation 0): two 2-wide doors on the west and east sides, two crate nooks, two walls of 15. */
 export const BURROW: LandmarkTemplate = {
@@ -121,10 +121,9 @@ const BURROW_ROAD_NEAR2 = 25;
 // ------------------------------------------------------------------------------------------------ the road graph
 interface Road { readonly a: Node; readonly b: Node; readonly dx: number; readonly dy: number; readonly d2: number; readonly len: number }
 
-/** The zone's camps and its front door as graph nodes (the context's camps are every camp of the map: the kit's campNodes takes the list as given). */
+/** The zone's camps and its front door as graph nodes (the context's camps are this zone's). */
 function zoneNodes(c: BaseCtx): Node[] {
-  const mine = c.camps.filter((k) => c.mask[k.y * c.w + k.x] === 1);
-  return campNodes({ w: c.w, h: c.h, mask: c.mask, tiles: c.tiles, zone: c.zone, camps: mine });
+  return campNodes(c);
 }
 
 const nodeKey = (n: Node): number => n.y * 100000 + n.x;
@@ -421,6 +420,13 @@ function siteOf(g: Ground, road: Road, k: number): BarrowSite | null {
   return null;
 }
 
+/** Is rock tile i on the 3-wide slot a tunnel bores along the site's road (|across| < 1.5)? */
+function inSlot(site: BarrowSite, i: number, w: number): boolean {
+  const ex = (i % w) - site.cx, ey = Math.floor(i / w) - site.cy;
+  const cross = ex * site.road.dy - ey * site.road.dx;
+  return 16 * cross * cross < 36 * site.road.d2;
+}
+
 /** Places a barrow (a trim feature: the rock, with the slot and the crescent owned as floor). Null when it does not stand. */
 function placeBarrow(c: ShapeCtx, site: BarrowSite, tunnel: boolean): { placed: PlacedFeature; slot: number[] } | null {
   const { road, cx, cy } = site;
@@ -428,11 +434,7 @@ function placeBarrow(c: ShapeCtx, site: BarrowSite, tunnel: boolean): { placed: 
   const slot: number[] = [];
   const blocks: Array<readonly [number, "wall"]> = [];
   for (const i of site.rock) {
-    if (tunnel) {
-      const ex = (i % w) - cx, ey = Math.floor(i / w) - cy;
-      const cross = ex * road.dy - ey * road.dx;
-      if (16 * cross * cross < 36 * road.d2) { slot.push(i); continue; }
-    }
+    if (tunnel && inSlot(site, i, w)) { slot.push(i); continue; }
     blocks.push([i, "wall"]);
   }
   const spec: FeatureSpec = {
@@ -446,6 +448,37 @@ function placeBarrow(c: ShapeCtx, site: BarrowSite, tunnel: boolean): { placed: 
   };
   const placed = c.placeFeature(spec);
   return placed ? { placed, slot } : null;
+}
+
+/** Measurements the route guard may be asked for while the plan is pruned (the guard's budget is six a zone). */
+const ROUTE_TRIES = 4;
+
+/**
+ * Leaves out barrows until the plan's rock (a tunnel barrow's slot stays floor) no longer stretches the worst member's walk past
+ * ROUTE_STRETCH_MAX: each round drops the site with the most rock tiles beside that member's corridor. `sites` is edited in place.
+ */
+function pruneForRoute(
+  guard: RouteGuard, sites: BarrowSite[], tunnelOrder: (list: readonly BarrowSite[]) => number[], tunnelsMax: number, w: number, h: number,
+): void {
+  for (let round = 0; round < ROUTE_TRIES; round++) {
+    const bored = new Set<number>(tunnelOrder(sites).slice(0, Math.max(0, tunnelsMax)));
+    const rock: number[] = [];
+    sites.forEach((site, k) => { for (const i of site.rock) if (!(bored.has(k) && inSlot(site, i, w))) rock.push(i); });
+    if (guard.worstStretch(rock) <= ROUTE_STRETCH_MAX) return;
+    const near = new Uint8Array(w * h);
+    for (const t of guard.corridorOf(guard.worstMember())) {
+      const x = t % w, y = (t - x) / w;
+      for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) if (x + ox >= 0 && y + oy >= 0 && x + ox < w && y + oy < h) near[(y + oy) * w + x + ox] = 1;
+    }
+    let worst = -1, worstScore = 0;
+    sites.forEach((site, k) => {
+      let score = 0;
+      for (const i of site.rock) if (near[i] === 1) score++;
+      if (score > worstScore) { worstScore = score; worst = k; }
+    });
+    if (worst < 0) return;
+    sites.splice(worst, 1);
+  }
 }
 
 function shape(c: ShapeCtx): WarrenPlan {
@@ -486,8 +519,15 @@ function shape(c: ShapeCtx): WarrenPlan {
     for (const i of site.crescent) g.seen[i] = 2;
   }
 
+  // 1b. The route guard's word on the plan (contract 4.3.5): measured with the rock standing (the guard is asked about walls that are
+  //     not written yet), a plan that stretches a member's walk past the threshold loses the barrow that crowds that member's
+  //     corridor most, and is measured again (a placed feature cannot be taken back, so this is the only place to act).
+  const tunnelOrder = (list: readonly BarrowSite[]): number[] =>
+    list.map((_, i) => i).filter((i) => list[i].r4 >= R4_TUNNEL).sort((p, q) => list[q].r4 - list[p].r4 || list[p].off2 - list[q].off2 || list[q].road.d2 - list[p].road.d2 || p - q);
+  if (guard.members.length > 0) pruneForRoute(guard, sites, tunnelOrder, tunnelsMax, w, h);
+
   // 2. Write: the tunnel barrows first (the largest radii, the nearest their road among equals), then the rest, each as a trim feature.
-  const bigFirst = sites.map((_, i) => i).filter((i) => sites[i].r4 >= R4_TUNNEL).sort((p, q) => sites[q].r4 - sites[p].r4 || sites[p].off2 - sites[q].off2 || sites[q].road.d2 - sites[p].road.d2 || p - q);
+  const bigFirst = tunnelOrder(sites);
   let tunnelsLeft = tunnelsMax;
   const done = new Uint8Array(sites.length);
   const roadOf = new Map<WarrenBarrow, Road>();

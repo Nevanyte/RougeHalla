@@ -1,9 +1,10 @@
-// The Rime's styler (zone-shapes contract 4.4, WP4): the Mere. The styler runs alone here: a test-local hook maps the frost zone to the
-// new styler and every other zone to a no-op, so what is measured is the Rime and nothing a neighbour does (the generator's real
-// registry is swapped in phase C). Covered: the watchtower template in all 8 orientations, the shelf shapes, 60 generated maps with
-// the shape gates ON (ownership, wall pieces of at least 6, no breach) and the acceptance windows of the Mere (lakes, ICE, headlands,
-// spire, tower, walls), the spawn walks (no headland lengthens a pool member's findPath walk by over 2%, no walk crosses more than
-// 8 ICE tiles), ICE rules (T11, camps, lakes only), determinism, decor-off equality, zone isolation, the Math spy, and a synthetic fixture.
+// The Rime's styler (zone-shapes contract 4.4, WP4): the Mere. It runs on the generator's real registry (the five zone stylers, the
+// shape gates on); the synthetic fixture and the isolation test set the other four zones' style-pass stylers to no-ops (or scattered
+// walls) while every zone's landmark stage stays the registry's. Covered: the watchtower template in all 8 orientations, the shelf
+// shapes, 60 generated maps with the shape gates ON (ownership, wall pieces of at least 6, no breach) and the acceptance windows of
+// the Mere (lakes, ICE, headlands, spire, tower, walls), the spawn walks (no headland lengthens a pool member's findPath walk by
+// over 2%, no walk crosses more than 8 ICE tiles), ICE rules (T11, camps, lakes only), determinism, decor-off equality, zone
+// isolation, the Math spy, and a synthetic fixture.
 import { describe, expect, it } from "vitest";
 import { MAPGEN_FAILS, generateMap, mapHash } from "../src/mapgen";
 import type { LandmarkHook, ZoneStyleHook } from "../src/mapgen";
@@ -33,9 +34,12 @@ const scatter = (faction: RegionFaction): ZoneStyler<unknown> => ({
     return null;
   },
 });
+/** The Rime and a no-op in the other four zones (the synthetic fixture, the isolation test's baseline). */
 const frostOnly = (): Partial<Record<RegionFaction, ZoneStyler<unknown>>> => ({
   fire: noop("fire"), sentenced: noop("sentenced"), plague: noop("plague"), holy: noop("holy"), frost: rime as ZoneStyler<unknown>,
 });
+/** The registry's five stylers (the generator's own maps). */
+const registry = (): Partial<Record<RegionFaction, ZoneStyler<unknown>>> => ({ frost: rime as ZoneStyler<unknown> });
 
 function hooksFor(stylers: Partial<Record<RegionFaction, ZoneStyler<unknown>>>): { styleZones: ZoneStyleHook; landmarks: LandmarkHook } {
   return {
@@ -46,15 +50,16 @@ function hooksFor(stylers: Partial<Record<RegionFaction, ZoneStyler<unknown>>>):
         spawns: st.spawns, centreWalk: st.centreWalk, features: st.features, featureOwner: st.featureOwner,
       }, { decor: st.decor, stylers });
     },
-    landmarks: (st) => { styleLandmarks(st, { stylers }); },
+    // the landmark stage is the registry's whatever the style pass runs (the pool depends on every zone's landmarks)
+    landmarks: (st) => { styleLandmarks(st, { stylers: { frost: stylers.frost ?? rime } as Partial<Record<RegionFaction, ZoneStyler<unknown>>> }); },
   };
 }
 
 const cache = new Map<number, GameMap>();
-/** The map of a seed with the Rime alone and the shape gates on (a seed whose attempt breaks a gate would throw here). */
+/** The map of a seed with the registry's stylers and the shape gates on (a seed whose attempt breaks a gate would throw here). */
 function mapFor(seed: number): GameMap {
   let m = cache.get(seed);
-  if (!m) { m = generateMap(seed, undefined, { ...hooksFor(frostOnly()), shapeGates: true }); cache.set(seed, m); }
+  if (!m) { m = generateMap(seed, undefined, { ...hooksFor(registry()), shapeGates: true }); cache.set(seed, m); }
   return m;
 }
 
@@ -253,9 +258,9 @@ describe("the Rime on generated maps (the other four zones no-ops, shape gates o
 
   it("is deterministic (two builds hash equal) and decor off changes nothing a hash covers", () => {
     for (const s of [3, 17, 41]) {
-      const a = generateMap(s, undefined, { ...hooksFor(frostOnly()), shapeGates: true });
-      const b = generateMap(s, undefined, { ...hooksFor(frostOnly()), shapeGates: true });
-      const c = generateMap(s, undefined, { ...hooksFor(frostOnly()), shapeGates: true, decor: false });
+      const a = generateMap(s, undefined, { ...hooksFor(registry()), shapeGates: true });
+      const b = generateMap(s, undefined, { ...hooksFor(registry()), shapeGates: true });
+      const c = generateMap(s, undefined, { ...hooksFor(registry()), shapeGates: true, decor: false });
       expect(mapHash(b)).toBe(mapHash(a));
       expect(mapHash(c)).toBe(mapHash(a));
       expect(Buffer.from(c.tiles).equals(Buffer.from(a.tiles))).toBe(true);
@@ -300,7 +305,7 @@ describe("the Rime on generated maps (the other four zones no-ops, shape gates o
     const M = Math as unknown as Record<string, (...a: number[]) => number>;
     for (const f of forbidden) { originals.set(f, M[f]); M[f] = () => { throw new Error(`Math.${f} used`); }; }
     try {
-      for (const s of [2, 29]) generateMap(s, undefined, { ...hooksFor(frostOnly()), shapeGates: true });
+      for (const s of [2, 29]) generateMap(s, undefined, { ...hooksFor(registry()), shapeGates: true });
     } finally {
       for (const f of forbidden) M[f] = originals.get(f)!;
     }

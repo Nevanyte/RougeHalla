@@ -1,7 +1,7 @@
 // Gallows, the Rows (zone-shapes contract 4.2, WP2): the gate rule the zone duel harness shares, the guard house template, the
-// styler on a synthetic open fixture (both axes), and on the generator's maps with ONLY this styler new and the others old (a
-// test-local hook: the registry still holds the phase A styler until WP7 swaps it in phase C). The 200-seed acceptance table is a
-// script's (the report), these are the invariants every seed must keep.
+// styler on a synthetic open fixture (both axes), and on the generator's maps with the five zone stylers (the registry; the shape
+// gates on). `others` swaps the other zones' stylers in the style pass only, for the isolation tests. The 200-seed acceptance table
+// is a script's (the report), these are the invariants every seed must keep.
 import { describe, expect, it, vi } from "vitest";
 import { MAPGEN_FAILS, generateMap, mapHash } from "../src/mapgen";
 import type { LandmarkHook, ZoneStyleHook } from "../src/mapgen";
@@ -11,9 +11,9 @@ import { TERRAIN_FENCE, validateTerrain } from "../src/terrain";
 import { styleLandmarks, styleZones } from "../src/zoneStyle/styleZones";
 import {
   GALLOWS_DIALS, GATE_PERIOD, GATE_PHASES, GATE_W, GUARD_HOUSE, ROW_GAP_MAX, ROW_GAP_MIN, ROW_MIN_PIECE, gallowsGateOpen, gallowsMaxGateDistance,
-  gallowsRowPhase, gallowsRows, makeGallows,
+  gallowsRowPhase, gallows, makeGallows,
 } from "../src/zoneStyle/gallows";
-import type { GallowsRowsPlan } from "../src/zoneStyle/gallows";
+import type { GallowsPlan } from "../src/zoneStyle/gallows";
 import { stampTemplate, templateProblems } from "../src/zoneStyle/landmarks";
 import { ROUTE_STRETCH_MAX } from "../src/zoneStyle/features";
 import { ZONE_PROP_KINDS } from "../src/zoneStyle/propKinds";
@@ -25,10 +25,10 @@ const FACTION: RegionFaction = "sentenced";
 const ZONE_CODE = REGION_FACTIONS.indexOf(FACTION) + 1;
 
 // ------------------------------------------------------------------------------------------------ the generator, one new styler
-interface Sink { plan: GallowsRowsPlan | null; results: StyleResult[] }
+interface Sink { plan: GallowsPlan | null; results: StyleResult[] }
 
 /**
- * The test-local hook: this zone gets `styler`, every other zone its registry styler (the phase A ones today). `others` replaces
+ * The test-local hook: this zone gets `styler`, every other zone its registry styler. `others` replaces
  * other zones' styler in the STYLE pass only (the landmark pass keeps the registry's, so the pool and the protect the style pass
  * sees are the same either way); `record` receives the tiles and terrain right after the style pass.
  */
@@ -44,7 +44,7 @@ function hooks(styler: ZoneStyler<any>, sink?: Sink, others: Partial<Record<Regi
       }, { decor: st.decor, stylers });
       if (sink) {
         sink.results = results;
-        sink.plan = (results.find((r) => r.faction === FACTION)?.plan as GallowsRowsPlan | undefined) ?? null;
+        sink.plan = (results.find((r) => r.faction === FACTION)?.plan as GallowsPlan | undefined) ?? null;
       }
       record?.({ tiles: st.tiles.slice(), terrain: st.terrain.slice() });
     },
@@ -52,15 +52,15 @@ function hooks(styler: ZoneStyler<any>, sink?: Sink, others: Partial<Record<Regi
   };
 }
 
-const cache = new Map<number, { map: GameMap; plan: GallowsRowsPlan }>();
-/** The map of `seed` with the new Gallows only (shapeGates off: the other zones' phase A stylers write unowned tiles). */
-function mapOf(seed: number, styler: ZoneStyler<any> = gallowsRows): { map: GameMap; plan: GallowsRowsPlan } {
-  const cached = styler === gallowsRows ? cache.get(seed) : undefined;
+const cache = new Map<number, { map: GameMap; plan: GallowsPlan }>();
+/** The map of `seed` with the registry's stylers (or `styler` for the sentenced zone), the shape gates on. */
+function mapOf(seed: number, styler: ZoneStyler<any> = gallows): { map: GameMap; plan: GallowsPlan } {
+  const cached = styler === gallows ? cache.get(seed) : undefined;
   if (cached) return cached;
   const sink: Sink = { plan: null, results: [] };
-  const map = generateMap(seed, undefined, { ...hooks(styler, sink), shapeGates: false });
+  const map = generateMap(seed, undefined, hooks(styler, sink));
   const out = { map, plan: sink.plan! };
-  if (styler === gallowsRows) cache.set(seed, out);
+  if (styler === gallows) cache.set(seed, out);
   return out;
 }
 
@@ -245,10 +245,10 @@ describe("the Rows on an open fixture", () => {
   for (const c of cases) {
     it(`${c.name}`, () => {
       const f = fixture(c.w, c.h, ...c.box);
-      styleLandmarks(f.lm, { stylers: { [FACTION]: gallowsRows } });
+      styleLandmarks(f.lm, { stylers: { [FACTION]: gallows } });
       expect(f.lm.features.length, "guard houses stood in the landmark stage").toBeGreaterThanOrEqual(1);
-      const results = styleZones(f.st, { stylers: { [FACTION]: gallowsRows } });
-      const plan = results[0].plan as GallowsRowsPlan;
+      const results = styleZones(f.st, { stylers: { [FACTION]: gallows } });
+      const plan = results[0].plan as GallowsPlan;
       const { w, h } = c;
       expect(plan.axis).toBe(c.axis);
       expect(plan.rows.length, "rows").toBeGreaterThanOrEqual(5);
@@ -320,8 +320,8 @@ describe("the Rows on an open fixture", () => {
   it("is deterministic and leaves tiles and terrain the same with decor off", () => {
     const run = (decor: boolean): { tiles: Uint8Array; terrain: Uint8Array; owner: Uint16Array; props: number } => {
       const f = fixture(120, 100, 50, 8, 114, 66);
-      styleLandmarks(f.lm, { stylers: { [FACTION]: gallowsRows } });
-      styleZones(f.st, { stylers: { [FACTION]: gallowsRows }, decor });
+      styleLandmarks(f.lm, { stylers: { [FACTION]: gallows } });
+      styleZones(f.st, { stylers: { [FACTION]: gallows }, decor });
       return { tiles: f.st.tiles, terrain: f.st.terrain, owner: f.st.featureOwner!, props: f.st.props.length };
     };
     const a = run(true), b = run(true), c = run(false);
@@ -335,13 +335,13 @@ describe("the Rows on an open fixture", () => {
   });
 
   it("builds a styler with other dials: period 10 (phases 2 and 7) and gate width 4 move the gates, no square leaves the rows whole", () => {
-    const run = (styler: ZoneStyler<any>): { tiles: Uint8Array; plan: GallowsRowsPlan } => {
+    const run = (styler: ZoneStyler<any>): { tiles: Uint8Array; plan: GallowsPlan } => {
       const f = fixture(120, 100, 50, 8, 114, 66);
       styleLandmarks(f.lm, { stylers: { [FACTION]: styler } });
       const r = styleZones(f.st, { stylers: { [FACTION]: styler } });
-      return { tiles: f.st.tiles, plan: r[0].plan as GallowsRowsPlan };
+      return { tiles: f.st.tiles, plan: r[0].plan as GallowsPlan };
     };
-    const base = run(gallowsRows);
+    const base = run(gallows);
     const p10 = run(makeGallows({ period: 10 })), w4 = run(makeGallows({ width: 4 })), none = run(makeGallows({ squares: 0 }));
     expect(Buffer.from(p10.tiles).equals(Buffer.from(base.tiles))).toBe(false);
     expect(Buffer.from(w4.tiles).equals(Buffer.from(base.tiles))).toBe(false);
@@ -362,7 +362,7 @@ describe("the Rows on the generator's maps (50 seeds, only this styler new)", ()
     }
     expect(MAPGEN_FAILS["A:styleBreach"] ?? 0).toBe(0);
     for (const s of [3, 11]) {
-      const again = generateMap(s, undefined, { ...hooks(gallowsRows), shapeGates: false });
+      const again = generateMap(s, undefined, hooks(gallows));
       expect(mapHash(again), `seed ${s}`).toBe(mapHash(mapOf(s).map));
     }
   }, HEAVY_MS);
@@ -467,19 +467,19 @@ describe("the Rows on the generator's maps (50 seeds, only this styler new)", ()
     const afterStyle = (s: number, attempt: number, styler: ZoneStyler<any>, others: Partial<Record<RegionFaction, ZoneStyler<any>>>): { tiles: Uint8Array; terrain: Uint8Array } => {
       let rec: { tiles: Uint8Array; terrain: Uint8Array } | null = null;
       // the landmark pass is always the Rows' (the pool and the protect the style pass sees stay the same)
-      try { generateMap(s, attempt, { ...hooks(styler, undefined, others, (r) => { rec = r; }, gallowsRows), shapeGates: false }); } catch { /* a later stage may refuse a map with unstyled zones */ }
+      try { generateMap(s, attempt, hooks(styler, undefined, others, (r) => { rec = r; }, gallows)); } catch { /* a later stage may refuse a map with unstyled zones */ }
       if (!rec) throw new Error(`seed ${s}: the style pass did not run`);
       return rec;
     };
     for (const s of [2, 7, 13, 21]) {
       const { map } = mapOf(s);
-      const plain = generateMap(s, undefined, { ...hooks(gallowsRows), shapeGates: false, decor: false });
+      const plain = generateMap(s, undefined, { ...hooks(gallows), decor: false });
       expect(mapHash(plain), `seed ${s} decor off`).toBe(mapHash(map));
       const mask = (i: number): boolean => map.regionGrid[i] === ZONE_CODE;
       const others: Partial<Record<RegionFaction, ZoneStyler<any>>> = {};
       for (const f of REGION_FACTIONS) if (f !== FACTION) others[f] = noop(f);
-      const full = afterStyle(s, map.attempt, gallowsRows, {});
-      const solo = afterStyle(s, map.attempt, gallowsRows, others);
+      const full = afterStyle(s, map.attempt, gallows, {});
+      const solo = afterStyle(s, map.attempt, gallows, others);
       const gone = afterStyle(s, map.attempt, noop(FACTION), {});
       let styled = 0;
       for (let i = 0; i < full.tiles.length; i++) {
@@ -499,7 +499,7 @@ describe("the Rows on the generator's maps (50 seeds, only this styler new)", ()
     let withMembers = 0;
     for (const s of SEEDS.slice(0, 12)) {
       const sink: Sink = { plan: null, results: [] };
-      generateMap(s, undefined, { ...hooks(open, sink), shapeGates: false });
+      generateMap(s, undefined, hooks(open, sink));
       expect(sink.plan!.stretch, `seed ${s}`).toBeLessThanOrEqual(1010);
       if (sink.plan!.stretch >= 1000 && sink.plan!.corridorOpened > 0) withMembers++;
     }
@@ -514,7 +514,7 @@ describe("the Rows on the generator's maps (50 seeds, only this styler new)", ()
     const spies = names.map((n) => vi.spyOn(Math, n));
     const calls: Record<string, number> = {};
     try {
-      for (const s of [40, 41, 42]) generateMap(s, undefined, { ...hooks(makeGallows({ route: "repair" })), shapeGates: false });
+      for (const s of [40, 41, 42]) generateMap(s, undefined, hooks(makeGallows({ route: "repair" })));
       names.forEach((n, i) => { calls[`Math.${n}`] = spies[i].mock.calls.length; });
     } finally {
       for (const sp of spies) sp.mockRestore();

@@ -675,7 +675,6 @@ function shelfTiles(c: BaseCtx, rng: Rng, centre: number, rad: number): number[]
 // ------------------------------------------------------------------------------------------------ shape
 function shape(c: ShapeCtx): RimePlan {
   const { w, h } = c;
-  const n = w * h;
   const plan: RimePlan = { lakes: [], shelves: [], causeway: [], routed: 0 };
   const real = realGuard(c);
   const clr = clearanceField(c, true, real ? real.corridor : null);

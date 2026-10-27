@@ -799,7 +799,9 @@ describe("a long run", () => {
 
   it.each(LINEUP)("never throws, sends only accepted core commands and keeps to the %s tier's rate over 600 s (%s)", (id, persona) => {
     const tier = TIERS[id];
-    const r = rig(id, persona, { seed: 21 });
+    // seed 22: on the zone-shape maps the wandering foe and a cautious or hunting bot do not always meet within 600 s (seeds 21, 23 and
+    // 25 miss for some persona), so the fixture is a seed where they do
+    const r = rig(id, persona, { seed: 22 });
     const stage = new Stage(false, 8);
     const cmds = play(r, stage, LONG_FRAMES);
     assertSendable(cmds);

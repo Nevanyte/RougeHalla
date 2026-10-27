@@ -6,6 +6,7 @@ import { TILE_FLOOR, TILE_WALL } from "../src/map";
 import { landmarkCtx } from "../src/zoneStyle/context";
 import * as L from "../src/zoneStyle/landmarks";
 import type { LandmarkTemplate, Stamp } from "../src/zoneStyle/landmarks";
+import type { TileRect } from "../src/map";
 import type { StyleCaps } from "../src/zoneStyle/types";
 import { rig } from "./zoneStyleRig";
 
@@ -344,6 +345,85 @@ describe("stampFits, placeLandmark and bestLandmark (through ZoneRuntime.placeFe
     }
   });
 
+  it("a LandmarkSearch gives the answers of plain bestLandmark calls, call after call (tables patched after a placement, rebuilt after a foreign write)", () => {
+    const w = 52, h = 38;
+    const hard: Array<[number, number]> = [[12, 10], [13, 10], [30, 22], [31, 22], [40, 8], [25, 30]];
+    const scoreA = (s: Stamp): number => -((s.bbox.x - 40) ** 2 + (s.bbox.y - 12) ** 2);
+    const scoreB = (s: Stamp, rot: number): number => -((s.bbox.x - 14) ** 2 + (s.bbox.y - 26) ** 2) - rot;
+    const scoreC = (s: Stamp): number => (s.bbox.x * 7 + s.bbox.y * 3) % 5; // ties galore
+    for (const [t1, t2, t3] of [[FORGE, GUARD_HOUSE, SHRINE], [BURROW, WATCHTOWER, FORGE], [GUARD_HOUSE, GUARD_HOUSE, GUARD_HOUSE]]) {
+      const plain = zone(w, h, { hard }), shared = zone(w, h, { hard }), viaOpts = zone(w, h, { hard });
+      const a1 = L.bestLandmark(plain.c, t1, scoreA), a2 = L.bestLandmark(plain.c, t2, scoreB), a3 = L.bestLandmark(plain.c, t3, scoreC);
+      const sr = L.makeLandmarkSearch(shared.c);
+      expect(sr.context).toBe(shared.c);
+      const b1 = sr.best(t1, scoreA), b2 = sr.best(t2, scoreB), b3 = sr.best(t3, scoreC);
+      const sr2 = L.makeLandmarkSearch(viaOpts.c);
+      const c1 = L.bestLandmark(viaOpts.c, t1, scoreA, undefined, { search: sr2 }), c2 = L.bestLandmark(viaOpts.c, t2, scoreB, 12, { search: sr2 }), c3 = L.bestLandmark(viaOpts.c, t3, scoreC, 12, { search: sr2 });
+      expect([a1, a2, a3].every((x) => x !== null)).toBe(true);
+      expect(b1).toEqual(a1); expect(b2).toEqual(a2); expect(b3).toEqual(a3);
+      expect(c1).toEqual(a1); expect(c2).toEqual(a2); expect(c3).toEqual(a3);
+      expect(shared.rt.init.features).toEqual(plain.rt.init.features);
+      expect(viaOpts.rt.init.features).toEqual(plain.rt.init.features);
+      expect(Array.from(shared.tiles)).toEqual(Array.from(plain.tiles));
+      expect(Array.from(viaOpts.tiles)).toEqual(Array.from(plain.tiles));
+    }
+    // a write the search did not make: the tables are rebuilt (a wall inside the best spot would otherwise stay a candidate)
+    const plain = zone(w, h), shared = zone(w, h);
+    const sr = L.makeLandmarkSearch(shared.c);
+    expect(sr.best(FORGE, scoreA)).not.toBeNull();
+    expect(L.bestLandmark(plain.c, FORGE, scoreA)).not.toBeNull();
+    for (const z of [plain, shared]) { expect(z.c.block(z.at(20, 14), "wall")).toBe(true); expect(z.c.block(z.at(21, 20), "wall")).toBe(true); }
+    const p2 = L.bestLandmark(plain.c, GUARD_HOUSE, scoreB), s2 = sr.best(GUARD_HOUSE, scoreB);
+    expect(s2).toEqual(p2);
+    expect(shared.rt.init.features).toEqual(plain.rt.init.features);
+    // reset() forgets the tables; a search of another context is ignored by bestLandmark
+    sr.reset();
+    expect(sr.best(SHRINE, scoreC)).toEqual(L.bestLandmark(plain.c, SHRINE, scoreC));
+    const other = zone(w, h);
+    expect(L.bestLandmark(other.c, FORGE, scoreA, 12, { search: sr })).not.toBeNull();
+    expect(shared.rt.init.features.length).toBe(plain.rt.init.features.length);
+  });
+
+  it("a valid upper bound changes nothing but how many candidates are scored", () => {
+    const w = 52, h = 38;
+    const tx = 36, ty = 14;
+    const territoryLike = (s: Stamp): number => s.walls.reduce((a, i) => a + (i % 3), 0); // reads the lists: an expensive score
+    for (const t of [FORGE, BURROW, SHRINE]) {
+      for (const tries of [1, 3, 12, 40]) {
+        const plainZ = zone(w, h, { hard: [[20, 12], [21, 12]] }), boundZ = zone(w, h, { hard: [[20, 12], [21, 12]] });
+        let plainCalls = 0, boundCalls = 0;
+        const dist = (x: number, y: number, bw: number, bh: number): number => {
+          const dx = Math.max(x - tx, 0, tx - (x + bw - 1)), dy = Math.max(y - ty, 0, ty - (y + bh - 1));
+          return dx * dx + dy * dy;
+        };
+        // the score: distance to a point, minus a penalty that depends on the stamp's lists (>= 0), with ties from a coarse term
+        const score = (s: Stamp): number => { plainCalls++; return -dist(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h) - (territoryLike(s) % 4 === 0 ? 0 : 3); };
+        const score2 = (s: Stamp): number => { boundCalls++; return -dist(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h) - (territoryLike(s) % 4 === 0 ? 0 : 3); };
+        const a = L.bestLandmark(plainZ.c, t, score, tries);
+        const b = L.bestLandmark(boundZ.c, t, score2, tries, { bound: (box) => -dist(box.x, box.y, box.w, box.h) });
+        expect(b, `${t.key} tries ${tries}`).toEqual(a);
+        expect(boundZ.rt.init.features).toEqual(plainZ.rt.init.features);
+        expect(boundCalls).toBeLessThanOrEqual(plainCalls);
+        if (tries <= 12) expect(boundCalls).toBeLessThan(plainCalls / 2);
+      }
+    }
+    // the tightest bound (the score itself), a bound of +Infinity and of NaN, with a score of many ties
+    const ties = (s: Stamp): number => (s.bbox.x + s.bbox.y) % 3;
+    for (const bound of [(box: TileRect) => (box.x + box.y) % 3, () => Infinity, () => NaN]) {
+      for (const tries of [1, 5, 12]) {
+        const pz = zone(w, h), bz = zone(w, h);
+        const a = L.bestLandmark(pz.c, GUARD_HOUSE, ties, tries), b = L.bestLandmark(bz.c, GUARD_HOUSE, ties, tries, { bound });
+        expect(b).toEqual(a);
+        expect(bz.rt.init.features).toEqual(pz.rt.init.features);
+      }
+    }
+    // with no tries the score still sees every candidate (and nothing is placed)
+    const seen = new Set<string>();
+    const z0 = zone(w, h);
+    expect(L.bestLandmark(z0.c, FORGE, (s, r, m) => { seen.add(`${s.bbox.x},${s.bbox.y},${r},${m}`); return 0; }, 0, { bound: () => 0 })).toBeNull();
+    expect(seen.size).toBeGreaterThan(100);
+  });
+
   it("bestLandmark falls through to the next candidate when the guard refuses one, within `tries`, and keeps the gap for a second landmark", () => {
     // ICE beside the top candidate's wall: the guard refuses that spot, so the next-best stands
     const w = 44, h = 32;
@@ -412,6 +492,9 @@ describe("determinism", () => {
       lm.placeLandmark(z.c, SHRINE, s, 3, true); driven.add("placeLandmark");
       lm.bestLandmark(z.c, FORGE, (st, rot) => st.bbox.x + rot); driven.add("bestLandmark");
       lm.templateProblems(BURROW); driven.add("templateProblems");
+      const search = lm.makeLandmarkSearch(z.c); driven.add("makeLandmarkSearch");
+      search.best(FORGE, (st) => st.bbox.y, 12, () => 1000); search.reset();
+      lm.bestLandmark(z.c, GUARD_HOUSE, (st) => st.bbox.x, 12, { search, bound: () => 1000 });
       driven.add("LANDMARK_GAP"); driven.add("LANDMARK_TRIES");
       void lm.LANDMARK_GAP; void lm.LANDMARK_TRIES;
       for (const [name] of Object.entries(lm)) if (!driven.has(name)) undriven.push(name);

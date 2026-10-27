@@ -1,7 +1,7 @@
-// The Warren: The Barrows (zone-shapes contract 4.3, WP3). The styler alone on the generator (a test-local hook: Warren in the plague
-// zone, a no-op in the other four, shape gates on, so the generator itself checks ownership, pieces and the terrain rules), on a
-// synthetic zone with hand-placed camps, and its acceptance windows over 200 seeds at 136x136. The other stylers are not involved:
-// this file passes whatever the registry holds for them.
+// The Warren: The Barrows (zone-shapes contract 4.3, WP3). The styler on the generator (the registry's five stylers, shape gates on,
+// so the generator itself checks ownership, pieces and the terrain rules), on a synthetic zone with hand-placed camps (the other
+// four zones are no-ops there), its acceptance windows over 200 seeds at 136x136, and the isolation test: every zone's landmark
+// stage stays the registry's and only the style-pass stylers vary.
 import { describe, expect, it, vi } from "vitest";
 import { PLAYER_RADIUS, TILE } from "../src/constants";
 import { raycast } from "../src/geometry";
@@ -26,17 +26,23 @@ import { openFixture } from "./zoneStyleOpen";
 const HEAVY_MS = 240_000;
 const PLAGUE = REGION_FACTIONS.indexOf("plague") + 1;
 
-// ------------------------------------------------------------------------------------------------ the test-local hook
+// ------------------------------------------------------------------------------------------------ the hooks
 const noop = (faction: RegionFaction): ZoneStyler<unknown> => ({ id: "scorch", faction, version: 0, shape: () => null });
-/** Warren in the plague zone and a no-op in the other four: nothing else shapes the map. */
+/** Warren in the plague zone and a no-op in the other four: nothing else shapes the fixture or the isolation run. */
 function onlyWarren(plague: ZoneStyler<any> = warren): Partial<Record<RegionFaction, ZoneStyler<unknown>>> {
   const out: Partial<Record<RegionFaction, ZoneStyler<unknown>>> = {};
   for (const f of REGION_FACTIONS) out[f] = f === "plague" ? plague : noop(f);
   return out;
 }
+/** The registry with the plague zone's styler replaced (the other four are the registry's own). */
+const registryWith = (plague: ZoneStyler<any> = warren): Partial<Record<RegionFaction, ZoneStyler<unknown>>> => ({ plague });
 
 interface Captured { plan: WarrenPlan | null; stretch: number; members: number; ms: number; cpu: number; lmCpu: number; repaired: number }
-/** The generator options with the Warren-only hook; `cap` collects the plague zone's plan, its route-guard stretch and its time per attempt. */
+/**
+ * The generator options: `stylers` run in the style pass (a zone missing from it runs the registry's), the landmark stage runs the
+ * registry's for every zone but the plague one, which takes `stylers.plague`. `cap` collects the plague zone's plan, its route-guard
+ * stretch and its time per attempt.
+ */
 function optionsFor(stylers: Partial<Record<RegionFaction, ZoneStyler<unknown>>>, cap?: Captured, gates = true): MapgenOptions {
   const styleHook: ZoneStyleHook = (st) => {
     const results = styleZones({
@@ -49,7 +55,7 @@ function optionsFor(stylers: Partial<Record<RegionFaction, ZoneStyler<unknown>>>
   };
   const landmarkHook: LandmarkHook = (st) => {
     if (cap) { cap.cpu = 0; cap.lmCpu = 0; }
-    styleLandmarks(st, { stylers });
+    styleLandmarks(st, { stylers: stylers.plague ? { plague: stylers.plague } : {} });
   };
   return { styleZones: styleHook, landmarks: landmarkHook, shapeGates: gates };
 }
@@ -464,7 +470,7 @@ describe("integer-only", () => {
     const guarded: ZoneStyler<WarrenPlan> = {
       ...warren, landmark: spied(warren.landmark!), shape: spied(warren.shape), surface: spied(warren.surface!), props: spied(warren.props!),
     };
-    for (const seed of [11, 12, 13]) generateMap(seed, undefined, optionsFor(onlyWarren(guarded)));
+    for (const seed of [11, 12, 13]) generateMap(seed, undefined, optionsFor(registryWith(guarded)));
     expect(calls).toEqual(Object.fromEntries(names.map((n) => [`Math.${n}`, 0])));
   }, HEAVY_MS);
 });
@@ -506,7 +512,7 @@ function runSweep(): Row[] {
   for (const k of Object.keys(MAPGEN_FAILS)) delete MAPGEN_FAILS[k];
   sweep = SEEDS.map((seed) => {
     const cap: Captured = { plan: null, stretch: 1000, members: 0, ms: 0, cpu: 0, lmCpu: 0, repaired: 0 };
-    const m = generateMap(seed, undefined, optionsFor(onlyWarren(measuring(cap)), cap));
+    const m = generateMap(seed, undefined, optionsFor(registryWith(measuring(cap)), cap));
     const zoneFeatures = m.features.filter((f) => f.zone === "plague");
     const burrows = zoneFeatures.filter((f) => f.kind === "landmark" && f.variant === "burrow");
     let barrowWalls = 0, walls = 0, bog = 0, unowned = 0;
@@ -534,7 +540,7 @@ function runSweep(): Row[] {
   return sweep;
 }
 
-describe("the Warren on the generator's maps (200 seeds, Warren alone, shape gates on)", () => {
+describe("the Warren on the generator's maps (200 seeds, the five zone stylers, shape gates on)", () => {
   it("certifies every seed with no styler breach, no unowned tile, no wall piece under 6 and no feature overflow", () => {
     const rows = runSweep();
     expect(MAPGEN_FAILS["A:styleBreach"] ?? 0).toBe(0);
@@ -549,7 +555,6 @@ describe("the Warren on the generator's maps (200 seeds, Warren alone, shape gat
       for (const s of r.bogPieces) expect(s, `seed ${r.seed}: a bog piece`).toBeGreaterThanOrEqual(1);
       expect(validateTerrain(r.map, { styled: true }), `seed ${r.seed}`).toEqual([]);
     }
-    // Warren alone leaves the floor shares to the plain zones, so a seed may need a second attempt (floor share); the old styler was 1.04
     const attempts = mean(rows.map((r) => r.attempt + 1));
     expect(attempts, `attempts per seed ${attempts.toFixed(3)}`).toBeLessThanOrEqual(1.1);
   }, HEAVY_MS);
@@ -685,10 +690,10 @@ describe("the Warren on the generator's maps (200 seeds, Warren alone, shape gat
 
   it("builds the same map twice, with the decor off too (the hash covers every layer but props)", () => {
     for (const r of runSweep().slice(0, 12)) {
-      const again = tryAttempt(r.seed, r.attempt, optionsFor(onlyWarren()));
+      const again = tryAttempt(r.seed, r.attempt, optionsFor(registryWith()));
       expect(again, `seed ${r.seed}`).not.toBeNull();
       expect(mapHash(again!), `seed ${r.seed}`).toBe(r.hash);
-      const bare = tryAttempt(r.seed, r.attempt, { ...optionsFor(onlyWarren()), decor: false });
+      const bare = tryAttempt(r.seed, r.attempt, { ...optionsFor(registryWith()), decor: false });
       expect(mapHash(bare!), `seed ${r.seed} decor off`).toBe(r.hash);
       expect(bare!.props.length).toBe(0);
     }

@@ -62,10 +62,10 @@ const segmentBlocked = topoSegmentBlocked;
 
 /**
  * The shape gates (contract 2.1 stage 13, 3.1): every zone WALL/LOW tile owned by a feature of its zone, no zone wall piece under 6
- * tiles. Off while the old stylers run (phase A: they write tiles without features); on from phase C. `MapgenOptions.shapeGates`
- * overrides it for a custom test hook.
+ * tiles. On since phase C (the five zone stylers write only through features). `MapgenOptions.shapeGates` overrides it for a custom
+ * test hook that writes tiles without features (mapCertify's demo hook).
  */
-export const SHAPE_GATES: boolean = false;
+export const SHAPE_GATES: boolean = true;
 /** Most features a map may hold (featureGrid is one byte per tile). */
 const FEATURES_MAX = 250;
 
@@ -309,7 +309,7 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, lan
   // --- 6. The zone stylers ------------------------------------------------------------------------------------------------
   const terrain = new Uint8Array(N);
   let props: MapProp[] = [];
-  const protect = styleProtect(camps, landmarkNear1, poolHalo);
+  const protect = styleProtect(camps, landmarkNear1, featureOwner, poolHalo);
   if (hook) {
     const breach = applyStyleHook(
       seed, attempt, hook, decor, gates, order, zone, territoryGrid, styleCamps, protect, tiles, terrain, props, pool, centreWalk, features, featureOwner,
@@ -408,7 +408,7 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, lan
     };
     take(nooks.concat(cands));
     if (chosen.length < CRATES_MIN) {
-      // A zone with too few walls for its crates (phase A: a plain zone without landmarks has none): crates stand on open floor with a
+      // A zone with too few walls for its crates (a plain zone without landmarks has none): crates stand on open floor with a
       // clear 3x3 instead, the other rules unchanged. With landmarks in every zone this does not happen.
       const open: number[] = [];
       for (let y = 2; y < H - 2; y++) {
@@ -611,12 +611,16 @@ function markCorners(grid: Uint8Array): void {
 
 /**
  * The ground the stylers may not touch (styler.ts `protect`): the border, the coliseum, the ring road and one tile beyond, the gate lanes and
- * one tile around them, the camp halos (clearing + 1), the landmark boxes + 1, the 4x4 map corners and the spawn pool's 3x3s (`poolHalo`).
+ * one tile around them, the camp halos (clearing + 1), the ring round each landmark box (the box grown by 1) without the tiles a landmark
+ * owns, the 4x4 map corners and the spawn pool's 3x3s (`poolHalo`). A landmark's own tiles are not protect: its feature owns them (the
+ * guard refuses every owned tile), so its props and its shrine's light can stand there; a box cell the template does not use stays protected.
  */
-function styleProtect(camps: readonly CampSite[], landmarkNear1: Uint8Array, poolHalo: Uint8Array): Uint8Array {
+function styleProtect(camps: readonly CampSite[], landmarkNear1: Uint8Array, featureOwner: Uint16Array, poolHalo: Uint8Array): Uint8Array {
   const F = fixedLayout();
   const protect = new Uint8Array(N);
-  for (let i = 0; i < N; i++) if (F.border[i] || F.fp[i] || F.distFp[i] <= RING_ROAD + 1 || landmarkNear1[i] || poolHalo[i]) protect[i] = 1;
+  for (let i = 0; i < N; i++) {
+    if (F.border[i] || F.fp[i] || F.distFp[i] <= RING_ROAD + 1 || (landmarkNear1[i] && featureOwner[i] === 0) || poolHalo[i]) protect[i] = 1;
+  }
   for (const t of F.laneOut) markRect(protect, { x: t.x, y: t.y, w: 1, h: 1 }, 1);
   for (const c of camps) for (const [ox, oy] of CAMP_HALO) protect[c.site + oy * W + ox] = 1;
   markCorners(protect);

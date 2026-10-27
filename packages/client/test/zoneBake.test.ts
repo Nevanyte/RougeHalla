@@ -269,13 +269,14 @@ describe("what the painters draw", () => {
       const g = new RecordPen();
       paintFloorChunk(g, ctx, c);
       expect(g.ops.length).toBeGreaterThan(c.w / 4);
-      // A prop may brush the edge by up to 28 px: on the zone maps (seed 1) a prop on a chunk's first column reaches 27.5 px
-      // to its left (20 px was enough on the first styled maps); the texture clips what lies beyond.
+      // A prop may brush the edge by up to 32 px: on the zone maps (seed 1) a prop on a chunk's first column reaches 27.5 px
+      // to its left (20 px was enough on the first styled maps), and with the landmarks' interiors open to props (phase C) a tall
+      // one reaches 31 px above a chunk's top row; the texture clips what lies beyond.
       for (const [x0, y0, x1, y1] of g.extents()) {
-        expect(x0).toBeGreaterThanOrEqual(-28);
-        expect(y0).toBeGreaterThanOrEqual(-28);
-        expect(x1).toBeLessThanOrEqual(c.w + TILE + 28);
-        expect(y1).toBeLessThanOrEqual(c.h + TILE_H + 28);
+        expect(x0).toBeGreaterThanOrEqual(-32);
+        expect(y0).toBeGreaterThanOrEqual(-32);
+        expect(x1).toBeLessThanOrEqual(c.w + TILE + 32);
+        expect(y1).toBeLessThanOrEqual(c.h + TILE_H + 32);
       }
     }
   });

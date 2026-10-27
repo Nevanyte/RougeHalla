@@ -6,8 +6,8 @@
 //    STYLER_STATS (benches and tests read it; nothing in a map depends on it);
 //  - `camps[].r` is in TILES on both sides (CAMP_R), so it passes as it is.
 // The generator's `protect` is the stylers' `hard`; it adds no `noBlock` or `noProp` of its own (its protect list already
-// holds the ring road + 1, the camp halos and the landmark boxes + 1, and it filters props against the final spawn, crate and
-// ground spots itself).
+// holds the ring road + 1, the camp halos and the ring round the landmark boxes, and it filters props against the final spawn,
+// crate and ground spots itself). A landmark's own tiles are not in it, so `noProp` (= protect) leaves its interior free.
 import type { RegionFaction } from "../map";
 import type { LandmarkState, StyleState, ZoneStyleHook } from "../styler";
 import { styleLandmarks, styleZones } from "./styleZones";

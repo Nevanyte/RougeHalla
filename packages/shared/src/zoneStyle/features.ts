@@ -19,7 +19,8 @@
 //    APPENDS its new edges to `edges` (in place) and RETURNS ONLY THE EDGES IT ADDED (so call it as a statement, or
 //    `const extra = addShortcuts(...)`; never `edges = addShortcuts(...)`); `cyclomatic(nodes.length, edges)` counts the loops.
 //    Edges are always [a, b] with a < b, indices into the node list (camps in CampInfo order, the front door last when there is
-//    one; the door needs the generator's grid size, so a fixture of another size has none).
+//    one; the door needs the generator's grid size, so a fixture of another size has none). `campNodes` keeps only the camps whose
+//    centre tile is in `c.mask`, so `{ ...c }` with the context's own `camps` (all 40 of the map) is the zone's graph.
 //  - Fields: `chamferFrom(sources, w, h)` is in thirds of a tile (3 orthogonal, 4 diagonal; with no source every tile keeps
 //    CHAMFER_FAR = 1 << 20). Build a clearance as min(dX - margin, ...), then `argmaxIn` (the largest empty circle),
 //    `floodAbove`/`tauForArea` (the lake: the flood of {value >= tau} from a seed, tau found by binary search over the region's own
@@ -37,8 +38,9 @@
 //    PULLED STRAIGHT (the straight lines a real findPath walk follows; this zone's tiles only, so it covers about 74% of the
 //    tiles the real walks take inside their own zone, against about 50% for the raw descent),
 //    `corridorOf(k)` lists member k's own (its tile first, then in path order), `touches(tiles)` is the cheap filter,
-//    `worstStretch()` runs one zone-scoped walk field (about 0.25 ms on a real 136x136 zone; budget six calls a zone) and returns
-//    the worst member's walk as permille of its baseline: 1000 = none, ROUTE_STRETCH_MAX 1030 is the styler threshold (1020 for
+//    `worstStretch(extraWallTiles?)` runs one zone-scoped walk field (about 0.25 ms on a real 136x136 zone; budget six calls a zone)
+//    and returns the worst member's walk as permille of its baseline (with a list of tile indices it asks the same for a feature
+//    that is NOT written yet: those tiles count as walls on a private copy, c.tiles is never touched): 1000 = none, ROUTE_STRETCH_MAX 1030 is the styler threshold (1020 for
 //    the Mere's headlands and spires), ROUTE_CUT_OFF 1_000_000 = a member can no longer get out. It reads this zone's tiles and
 //    the fixed pick-time walk of the tiles around the zone (which no other zone writes: they keep a rim), so another zone's
 //    writes never change it. `worstMember()` is the member index of the last worstStretch() call. A hazard (bog, ice) never goes
@@ -179,11 +181,16 @@ export interface CampSource {
 /**
  * The zone's camps (elite flags from CampInfo) and its front door: the zone FLOOR tile with RING_ROAD + 1 < distFp <= RING_ROAD + 4
  * (the coliseum footprint's Chebyshev distance, fixedLayout) nearest the zone centroid (ties lowest index); no door when none, and
- * none on a grid that is not the generator's size (a fixture). Camps in CampInfo order, door last.
+ * none on a grid that is not the generator's size (a fixture). Camps in CampInfo order, door last. `c.camps` may list every camp of
+ * the map: a camp whose centre tile is not in `c.mask` is left out (a list already filtered gives the same nodes as before).
  */
 export function campNodes(c: CampSource): Node[] {
-  const out: Node[] = c.camps.map((k, j) => ({ x: k.x, y: k.y, kind: "camp", camp: k.index ?? j, elite: k.elite === true }));
   const { w, h } = c;
+  const out: Node[] = [];
+  c.camps.forEach((k, j) => {
+    if (k.x < 0 || k.y < 0 || k.x >= w || k.y >= h || c.mask[k.y * w + k.x] !== 1) return;
+    out.push({ x: k.x, y: k.y, kind: "camp", camp: k.index ?? j, elite: k.elite === true });
+  });
   const fl = fixedLayout();
   if (fl.distFp.length !== w * h) return out;
   const { bbox, centroid } = c.zone;
@@ -698,6 +705,15 @@ export const ROUTE_STRETCH_MAX = 1030;
 /** What worstStretch() returns when a member can no longer reach the coliseum. */
 export const ROUTE_CUT_OFF = 1_000_000;
 
+/**
+ * A RouteGuard whose worstStretch can also be asked about walls that are not written. (types.ts's RouteGuard carries the same
+ * optional parameter once the integrator adds it; until then this is the type makeRouteGuard hands out.)
+ */
+export interface RouteGuardX extends RouteGuard {
+  /** worstStretch() as if these tile indices were walls too; c.tiles is not touched. No list, or an empty one: the plain call. */
+  worstStretch(extraWallTiles?: ArrayLike<number>): number;
+}
+
 /** What makeRouteGuard reads of a context (a BaseCtx has it: `spawns` and `centreWalk` are the generator's new fields). */
 export interface RouteGuardSource {
   readonly w: number;
@@ -720,7 +736,7 @@ export interface RouteGuardSource {
  * anchor the farthest later tile a straight segment between tile centres reaches), sampled twice per tile, dilated by Chebyshev 1
  * and kept to the zone.
  */
-export function makeRouteGuard(c: RouteGuardSource): RouteGuard {
+export function makeRouteGuard(c: RouteGuardSource): RouteGuardX {
   const { w, h, mask, tiles } = c;
   const n = w * h;
   const walk = c.centreWalk;
@@ -800,15 +816,24 @@ export function makeRouteGuard(c: RouteGuardSource): RouteGuard {
     for (let k = 0; k < list.length; k++) { const t = keys[k] % 2097152; seedTiles[k] = t; seedValues[k] = walk![t]; }
   }
   let worstK = -1;
+  let probe: Uint8Array | null = null;
   return {
     members,
     base,
     corridor,
     corridorOf: (k) => perMember[k] ?? [],
-    worstStretch(): number {
+    worstStretch(extraWallTiles?: ArrayLike<number>): number {
       worstK = -1;
       if (members.length === 0) return 1000;
-      const field = walkField16(tiles as Uint8Array, w, h, seedTiles, seedValues, mask);
+      let ground = tiles as Uint8Array;
+      if (extraWallTiles !== undefined && extraWallTiles.length > 0) {
+        // the candidate's walls on a private copy of the tiles: c.tiles is never written
+        if (probe === null) probe = new Uint8Array(n);
+        probe.set(tiles);
+        for (let k = 0; k < extraWallTiles.length; k++) { const i = extraWallTiles[k]; if (i >= 0 && i < n) probe[i] = TILE_WALL; }
+        ground = probe;
+      }
+      const field = walkField16(ground, w, h, seedTiles, seedValues, mask);
       let worst = -1;
       for (let k = 0; k < members.length; k++) {
         const v = field[members[k]];
