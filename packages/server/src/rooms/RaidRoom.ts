@@ -136,6 +136,7 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
 
 /** What a creation refused for the room cap says (net/errors.ts matches "server is full"). */
 const SERVER_FULL = "the server is full: too many rooms are open right now";
+const ROOM_CLOSED_WHILE_CREATING = "the room closed while its map was being made: try again";
 
 /** Every client message but `aim` is an order that spends the sender's budget (aim streams at up to 20 Hz and is its own, cheap, thing). */
 const FREE_MESSAGE_TYPE = "aim";
@@ -201,6 +202,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private training = false;
   /** The mode this room was counted under in ctx.rooms; null when it was refused or has been given back (see onCreate and onDispose). */
   private counted: RoomMode | null = null;
+  /** Set by onDispose: a room that was disposed while onCreate was still waiting for its map must not be listed (see onCreate). */
+  private disposed = false;
   /** Each player's order budget (a token bucket), made on its first order. */
   private readonly budgets = new Map<string, TokenBucket>();
   /** Orders dropped for being over a budget, in this room: for the log and for the tests. */
@@ -259,6 +262,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // costs: generating it inline stalled every other room for 20-80 ms (mapService.ts). No world exists until the first join,
     // and tick() ignores a room without one.
     this.map = await generateMapAsync(this.seed);
+    // Core arms this room's auto-dispose timer (the seat reservation window) before onCreate runs, and a room nobody has a seat
+    // in yet is disposed when it fires: onDispose ran during the await above, the clock and the timestep are cleared, and core
+    // would still list the room once this returns. A room that is not alive is refused instead (its place under the cap was given
+    // back in onDispose, exactly once, and core's own discard of a failed creation finds nothing left to dispose).
+    if (this.disposed) throw new ServerError(ErrorCode.MATCHMAKE_UNHANDLED, ROOM_CLOSED_WHILE_CREATING);
   }
 
   private buildWorld(): World {
@@ -421,6 +429,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   /** Safety net: onLeave normally empties `seats`; this keeps a leak from locking a profile out for good. */
   onDispose() {
     const { profiles, rooms } = RaidRoom.ctx;
+    this.disposed = true;
     // Whatever else happens below, the room's place under the cap is given back, once, and only if it was ever taken.
     if (this.counted) rooms.close(this.counted);
     this.counted = null;
