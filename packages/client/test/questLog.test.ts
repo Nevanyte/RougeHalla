@@ -55,6 +55,9 @@ describe("QuestLog", () => {
       expect(event.propagationStopped).toBe(true);
       expect(event.defaultPrevented).toBe(false);
     }
+    const menu = asEl(log.element).dispatch("contextmenu", { button: 2 });
+    expect(menu.propagationStopped, "a right-click on the log never reaches the game").toBe(true);
+    expect(menu.defaultPrevented, "nor opens the browser menu").toBe(true);
     expect(leaked).toBe(0);
     const css = readFileSync(new URL("../src/ui/questLog.css", import.meta.url), "utf8");
     expect(css).toContain("overflow: auto");

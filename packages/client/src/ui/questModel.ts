@@ -152,7 +152,7 @@ export function questReady(quest: QuestStateLike, def: QuestDef, localId: string
 }
 
 export function questRows(
-  quests: QuestCollection, localId: string, serverNow: number, localName = "",
+  quests: QuestCollection, localId: string, serverNow: number, localName = "", planning = false,
 ): QuestRow[] {
   const rows: QuestRow[] = [];
   quests.forEach((quest) => {
@@ -160,7 +160,8 @@ export function questRows(
     const def = questDefById(quest.def);
     if (!def) return;
     const ready = questReady(quest, def, localId);
-    const expired = quest.status === "expired" || (quest.status === "open" && serverNow >= quest.expiresAt);
+    // In planning the clock is frozen and the server re-anchors `expiresAt` at raid start, so show the fixed duration instead.
+    const expired = quest.status === "expired" || (!planning && quest.status === "open" && serverNow >= quest.expiresAt);
     const closed = expired || quest.status === "done";
     const status = quest.status === "done" ? `Done by ${quest.doneBy || "someone"}` : expired ? "Expired" : ready ? "Return to the giver" : "Open";
     // The server clears a parcel's carrier at the turn-in, so the winner would read 0 / 1: the name on the row says who finished it.
@@ -170,7 +171,7 @@ export function questRows(
       : def.kind === "fetch" ? `${quest.carrier === localId ? 1 : 0} / 1` : `${numberText(Math.min(def.count, quest.progress.get(localId) ?? 0))} / ${numberText(def.count)}`;
     rows.push({
       id: quest.id, def, quest, objective: questObjective(def), progress,
-      time: closed ? "" : formatQuestTime(quest.expiresAt - serverNow),
+      time: closed ? "" : formatQuestTime(planning ? def.expiresAtSec * 1000 : quest.expiresAt - serverNow),
       reward: questReward(def), status, ready, expired, closed,
     });
   });

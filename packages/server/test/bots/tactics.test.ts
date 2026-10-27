@@ -883,6 +883,8 @@ describe("flee", () => {
     expect(only(out, "lock")).toMatchObject({ target: "foe" });
     expect(out.status).toMatchObject({ state: "running", why: expect.stringContaining("cornered") });
     expect(think(createTactics(fakeWorld()), flee({ from: [at(20, 0)] }), { map: box }).status.state).toBe("failed");
+    const giver = mob(10, 0, { id: "giver", kind: "quest", faction: null, inHand: null }, box);
+    expect(think(createTactics(fakeWorld()), flee({ from: [at(20, 0)] }), { map: box, mobs: [giver] }).status.state, "a quest giver is no one to fight").toBe("failed");
   });
 });
 

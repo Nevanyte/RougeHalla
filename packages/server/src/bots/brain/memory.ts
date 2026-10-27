@@ -19,7 +19,7 @@
 //   castSeen       subject = caster; chestUp = reward chest id; teleport/planOffer: none
 // `clickMissed` cannot be seen in a percept (the humanizer owns it) and is never emitted here.
 import {
-  ENGAGE_TRADE_SECONDS, MOB_LEASH_RADIUS, PLAYER_RADIUS, PLAYER_SPEED, RANGED_HIT_REACH, WISH_COOLDOWN_SECONDS,
+  ENGAGE_TRADE_SECONDS, isRegionalKind, MOB_LEASH_RADIUS, PLAYER_RADIUS, PLAYER_SPEED, RANGED_HIT_REACH, WISH_COOLDOWN_SECONDS,
   type FactionId, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
 import {
@@ -583,7 +583,8 @@ export function createMemory(cfg: MemoryConfig): MemoryApi {
     }
 
     for (const v of p.mobs) {
-      if (v.kind === "dummy") continue;
+      // Dummies and quest givers are never fought, so they are not remembered as camp mobs.
+      if (!isRegionalKind(v.kind)) continue;
       const a = mobAux(v.id);
       let m = mobs.get(v.id);
       if (!m) {

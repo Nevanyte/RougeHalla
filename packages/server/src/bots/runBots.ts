@@ -179,9 +179,9 @@ function formatRun({ profile, result, error, abandoned }: BotRun, faction: Facti
   if (abandoned) return `${profile.padEnd(10)} ABANDONED  left the run on purpose`;
   if (!result) return `${profile.padEnd(10)} ERROR      ${error ?? "no result"}`;
   const by = result.killedBy ? `  by ${result.killedBy}` : "";
-  const { kills, mobs, bounty, win, total } = result.gv;
+  const { kills, mobs, bounty, quest, win, total } = result.gv;
   const withheld = result.winBonusWithheld ? " withheld" : "";
-  const gv = `GV +${total} (kills ${kills}, mobs ${mobs}, bounty ${bounty}, win ${win}${withheld})`;
+  const gv = `GV +${total} (kills ${kills}, mobs ${mobs}, bounty ${bounty}, quests ${quest ?? 0}, win ${win}${withheld})`;
   return `${profile.padEnd(10)} ${faction.padEnd(9)} ${brain.padEnd(18)} ${result.outcome.padEnd(10)} place ${result.place}/${result.players}  kills ${result.kills}  ${gv}  ${result.durationSec}s${by}`;
 }
 

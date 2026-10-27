@@ -56,6 +56,11 @@ describe("lockCandidates is the client's candidate rule", () => {
     expect(lockCandidates(p).map((c) => c.id)).toEqual(["a"]);
   });
 
+  it("never offers a quest giver, as the client does not (the server refuses a lock on one)", () => {
+    const p = percept({ fighters: [fighter({ id: "a" })], mobs: [mobView({ id: "m1" }), mobView({ id: "giver", kind: "quest", faction: null })] });
+    expect(lockCandidates(p).map((c) => c.id).sort()).toEqual(["a", "m1"]);
+  });
+
   it("uses the drawn position, not a remembered one", () => {
     const p = percept({ fighters: [fighter({ id: "a", x: 321, y: 123 })] });
     expect(lockCandidates(p)).toEqual([{ id: "a", x: 321, y: 123 }]);

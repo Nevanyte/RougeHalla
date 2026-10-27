@@ -42,6 +42,8 @@ describe("quest presentation model", () => {
     expect(questRows(quests([quest({ status: "done", doneBy: "Bravo" })]), "me", 5_000)[0]).toMatchObject({ status: "Done by Bravo", time: "" });
     expect(questRows(quests([quest()]), "me", 70_000)[0]).toMatchObject({ status: "Expired", time: "", expired: true });
     expect(questRows(quests([quest({ status: "expired" })]), "me", 5_000)[0]).toMatchObject({ status: "Expired", time: "", expired: true });
+    // Planning: the clock is frozen and expiresAt is re-anchored at raid start, so the row shows the offer's fixed duration.
+    expect(questRows(quests([quest()]), "me", 70_000, "", true)[0]).toMatchObject({ status: "Open", time: "2:30", expired: false });
   });
 
   it("keeps the fetch winner's progress complete and groups open rows before closed rows", () => {

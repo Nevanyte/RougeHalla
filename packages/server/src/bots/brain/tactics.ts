@@ -5,7 +5,7 @@
 // Arbitration (BOTS.md 4): a reflex (the first flee step, a dodge, a juke) takes the order channel at PRIORITY.reflex and
 // reports status "blocked", so strategy decides again on the same frame. The humanizer owns every delay; this layer only says
 // what and, for the humanizer, which stimulus or time it answers.
-import { type Vec2 } from "@raid/shared";
+import { isRegionalKind, type Vec2 } from "@raid/shared";
 import {
   PRIORITY, type BrainContext, type Goal, type Intent, type IntentChannel, type Stimulus, type TacticsLayer, type TacticsOutput,
 } from "./types";
@@ -61,7 +61,7 @@ export function createTactics(world: WorldTactics = createWorldTactics()): Tacti
       // Cornered: no heading is clear. Fight whatever is nearest on screen.
       const nearest = [
         ...p.fighters.filter((f) => f.status === "alive").map((f) => ({ id: f.id, d: f.dist, mob: false })),
-        ...p.mobs.filter((m) => m.status === "alive" && m.kind !== "dummy").map((m) => ({ id: m.id, d: m.dist, mob: true })),
+        ...p.mobs.filter((m) => m.status === "alive" && isRegionalKind(m.kind)).map((m) => ({ id: m.id, d: m.dist, mob: true })),
       ].sort((a, b) => a.d - b.d)[0];
       if (!nearest) return { intents: [], status: { state: "failed", why: "cornered with nobody in sight" }, attacking: false };
       const out = fight.act(ctx, { id: nearest.id, kind: nearest.mob ? "farm" : "fight" }, knowsSuddenDeath ?? false);

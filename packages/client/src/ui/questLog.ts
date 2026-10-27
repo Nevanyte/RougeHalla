@@ -59,9 +59,10 @@ export class QuestLog {
     this.element.append(head, this.list, this.rumoured);
     this.element.hidden = true;
     uiRoot().append(this.element);
-    for (const type of ["pointerdown", "mousedown", "touchstart", "contextmenu", "wheel"]) {
+    for (const type of ["pointerdown", "mousedown", "touchstart", "wheel"]) {
       this.element.addEventListener(type, this.stopPointer, { passive: true });
     }
+    this.element.addEventListener("contextmenu", this.noMenu);
     window.addEventListener("keydown", this.onKeyDown);
   }
 
@@ -90,7 +91,7 @@ export class QuestLog {
       }
       return;
     }
-    const rows = questRows(frame.quests, frame.localId, frame.serverNow, frame.localName);
+    const rows = questRows(frame.quests, frame.localId, frame.serverNow, frame.localName, frame.phase === "planning");
     const signature = rows.map((r) => `${r.id}|${r.time}|${r.progress}|${r.status}`).join("|") + `|${frame.hidden}`;
     if (signature === this.signature) return;
     this.signature = signature;
@@ -101,9 +102,10 @@ export class QuestLog {
 
   destroy(): void {
     window.removeEventListener("keydown", this.onKeyDown);
-    for (const type of ["pointerdown", "mousedown", "touchstart", "contextmenu", "wheel"]) {
+    for (const type of ["pointerdown", "mousedown", "touchstart", "wheel"]) {
       this.element.removeEventListener(type, this.stopPointer);
     }
+    this.element.removeEventListener("contextmenu", this.noMenu);
     this.element.remove();
   }
 
@@ -122,6 +124,7 @@ export class QuestLog {
   }
 
   private readonly stopPointer = (event: Event): void => { event.stopPropagation(); };
+  private readonly noMenu = (event: Event): void => { event.preventDefault(); event.stopPropagation(); };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (event.code !== "KeyJ" || event.repeat || event.ctrlKey || event.metaKey || event.altKey || !this.enabled) return;
