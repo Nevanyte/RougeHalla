@@ -500,4 +500,10 @@ describe("the stylesheet and the script", () => {
     expect(scene).toContain('sendInput(this.room, "questAccept", msg)');
     expect(scene).toContain("pickInteraction(");
   });
+
+  it("sends a pickup for a quest item of an unaccepted offer (the server's refusal toast) and hints it on the weapon bar", () => {
+    expect(scene).toContain('if (it.kind === "pickup" || it.kind === "blocked") sendInput(this.room, "pickup", { containerId: it.container.id })');
+    expect(scene).toContain("questAcceptFirstText(blocked.def)");
+    expect(scene).toContain("const focus = this.nearest ?? this.blockedItem");
+  });
 });

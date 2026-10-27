@@ -2,7 +2,7 @@
 import Phaser from "phaser";
 import {
   abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS,
-  countIn, feedScore, hasLineOfSight, isAbilityDot, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
+  countIn, feedScore, hasLineOfSight, isAbilityDot, questAcceptFirstText, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
@@ -153,6 +153,8 @@ export class RaidScene extends Phaser.Scene {
   private announce: ((text: string) => void) | undefined;
   /** Weapon or eligible quest item the local player could take: alive, and in range on the server's move-mask rule. Null when F talks to a giver instead. */
   private nearest: ContainerState | null = null;
+  /** The quest item F would only be refused ("Accept ... first"), when nothing to take or talk to is in reach: highlighted like `nearest`. */
+  private blockedItem: ContainerState | null = null;
   /** What F does now: the nearest of that pickup and a quest giver in talking reach (render/interact.ts pickInteraction). */
   private interaction: Interaction | null = null;
   /** A quest giver's offer, opened by F next to the giver (ui/questDialog.ts); Accept sends `questAccept`. */
@@ -249,6 +251,7 @@ export class RaidScene extends Phaser.Scene {
     this.containerViews = new Map();
     this.rendered.clear();
     this.nearest = null;
+    this.blockedItem = null;
     this.interaction = null;
     this.lastMoveSentAt = 0;
     this.renderT = 0;
@@ -494,13 +497,15 @@ export class RaidScene extends Phaser.Scene {
       quests: questData.quests, localId: this.room.sessionId,
     }) : null;
     this.nearest = this.interaction?.kind === "pickup" ? this.interaction.container : null;
+    this.blockedItem = this.interaction?.kind === "blocked" ? this.interaction.container : null;
+    const questFocus = this.nearest ?? this.blockedItem;
     const chestNow = trueServerNow(serverNow, rttFromOrderDelay(this.predict.motion.delay));
     this.syncContainers(state, chestNow, now);
     this.updateChestPanel(state, me, pickupMap ?? null, serverNow);
     this.updateQuestDialog(state, me, pickupMap ?? null, serverNow);
     this.questView.update({
       quests: questData.quests, containers: questData.containers, players: state.players, positions: this.rendered,
-      localId: this.room.sessionId, me, highlightId: this.nearest?.kind === "quest" ? this.nearest.id : undefined,
+      localId: this.room.sessionId, me, highlightId: questFocus?.kind === "quest" ? questFocus.id : undefined,
     });
     this.questLog.update({
       phase: state.phase, training: state.training === true, quests: questData.quests, hidden: questData.hidden,
@@ -534,9 +539,10 @@ export class RaidScene extends Phaser.Scene {
     this.hud.setTerrain(this.localGround);
     this.hud.update(state, me, serverNow);
     const talk = this.interaction?.kind === "talk" ? this.interaction : null;
+    const blocked = this.interaction?.kind === "blocked" ? this.interaction : null;
     this.weaponBar.update(
       me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "quest" ? this.nearest.label : "",
-      talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`) : "",
+      talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`) : blocked ? questAcceptFirstText(blocked.def) : "",
     );
     this.updateWishSlot(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
@@ -727,12 +733,13 @@ export class RaidScene extends Phaser.Scene {
       }
     });
     this.chestMemory.forget(now);
-    const nearestId = this.nearest?.id;
+    const focus = this.nearest ?? this.blockedItem;
+    const nearestId = focus?.id;
     for (const [id, view] of this.containerViews) {
       if (!seen.has(id)) { view.destroy(); this.containerViews.delete(id); continue; }
       view.setHighlight(id === nearestId);
     }
-    if (this.nearest) this.highlight.show(this.nearest.x, this.nearest.y);
+    if (focus) this.highlight.show(focus.x, focus.y);
     else this.highlight.hide();
   }
 
@@ -1197,7 +1204,8 @@ export class RaidScene extends Phaser.Scene {
 
   /**
    * F: closes an open quest offer; else does the nearest thing there is to do: take the weapon or quest item (`pickup`), or open the
-   * dialog of the quest giver in reach (the dialog sends `questAccept` itself, on Accept).
+   * dialog of the quest giver in reach (the dialog sends `questAccept` itself, on Accept). A quest item of an offer not accepted yet
+   * is sent as a `pickup` too: the server leaves it and its toast says to accept at the giver first.
    */
   private interact(): void {
     if (this.questDialog?.isOpen) {
@@ -1206,7 +1214,7 @@ export class RaidScene extends Phaser.Scene {
     }
     const it = this.interaction;
     if (!it) return;
-    if (it.kind === "pickup") sendInput(this.room, "pickup", { containerId: it.container.id });
+    if (it.kind === "pickup" || it.kind === "blocked") sendInput(this.room, "pickup", { containerId: it.container.id });
     else this.questDialog?.open(it.quest.id);
   }
 

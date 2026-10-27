@@ -38,21 +38,38 @@ const NO_QUESTS: QuestPickupContext = { quests: { forEach: () => {} }, localId: 
  * tokens") must not be the one F picks, or it shadows a weapon lying next to it for as long as the player stands there.
  */
 export function questItemEligible(c: ContainerState, context: QuestPickupContext): boolean {
+  const found = openQuestOfItem(c, context);
+  if (!found) return false;
+  const { quest, def, carrying } = found;
+  // Nothing of an offer is taken before it is accepted at its giver: the server leaves the item and says so.
+  if (!questAccepted(quest, context.localId)) return false;
+  if (def.kind === "fetch") return !carrying && quest.carrier === "";
+  return def.kind === "collect" && (quest.progress.get(context.localId) ?? 0) < def.count;
+}
+
+/** The open offer a quest item belongs to (and whether the local player carries a parcel already), or null: unknown, closed, or no such def. */
+function openQuestOfItem(c: ContainerState, context: QuestPickupContext): { quest: QuestStateLike; def: QuestDef; carrying: boolean } | null {
   const questId = questItemQuestId(c);
-  if (!questId) return false;
+  if (!questId) return null;
   let quest: QuestStateLike | undefined;
   let carrying = false;
   context.quests.forEach((candidate, id) => {
     if (candidate.carrier === context.localId) carrying = true;
     if (candidate.id === questId || id === questId) quest = candidate;
   });
-  if (!quest || quest.status !== "open") return false;
+  if (!quest || quest.status !== "open") return null;
   const def = questDefById(quest.def);
-  if (!def) return false;
-  // Nothing of an offer is taken before it is accepted at its giver: the server leaves the item and says so.
-  if (!questAccepted(quest, context.localId)) return false;
-  if (def.kind === "fetch") return !carrying && quest.carrier === "";
-  return def.kind === "collect" && (quest.progress.get(context.localId) ?? 0) < def.count;
+  return def ? { quest, def, carrying } : null;
+}
+
+/**
+ * The offer behind a quest item the local player could reach but has not accepted: the server leaves it where it lies and answers
+ * "Accept <quest> at <giver> first" (sim/quests.ts `onQuestPickup`). Only a public offer: a private preview has no giver to point at.
+ */
+export function questItemBlocked(c: ContainerState, context: QuestPickupContext): { quest: QuestStateLike; def: QuestDef } | null {
+  const found = openQuestOfItem(c, context);
+  if (!found || !visibleQuest(found.quest) || questAccepted(found.quest, context.localId)) return null;
+  return { quest: found.quest, def: found.def };
 }
 
 /** The closest weapon or quest item the server would take, in reach on the move mask: what F takes. */
@@ -78,6 +95,29 @@ export function nearestContainer(
 }
 
 /**
+ * The closest quest item in reach that is blocked only because its offer is not accepted yet (`questItemBlocked`), with its offer.
+ * Never what F takes: `nearestContainer` skips it, so it cannot shadow a weapon lying next to it.
+ */
+export function nearestBlockedItem(
+  containers: { forEach(cb: (c: ContainerState, id: string) => void): void },
+  map: GameMap,
+  from: Vec2,
+  questContext: QuestPickupContext,
+): { container: ContainerState; quest: QuestStateLike; def: QuestDef } | null {
+  let best: { container: ContainerState; quest: QuestStateLike; def: QuestDef } | null = null;
+  let bestSq = Infinity;
+  containers.forEach((c) => {
+    const sq = (c.x - from.x) ** 2 + (c.y - from.y) ** 2;
+    if (c.kind !== "quest" || sq >= bestSq || sq > (INTERACT_RANGE + 1) ** 2) return;
+    const blocked = questItemBlocked(c, questContext);
+    if (!blocked || !canInteract(map, from, c)) return;
+    best = { container: c, ...blocked };
+    bestSq = sq;
+  });
+  return best;
+}
+
+/**
  * The closest open public offer whose giver the local player could talk to now (the server's accept rule: within QUEST_ACCEPT_RANGE
  * and a clear line on the collision map, `canTalk`), or null. Pass the public offers (RaidState.quests): a private reveal preview
  * has no giver yet. An offer already accepted is still talked to: the dialog then shows its progress.
@@ -97,12 +137,19 @@ export function nearestGiver(quests: QuestCollection, map: GameMap, from: Vec2):
   return best;
 }
 
-/** What F does: take a weapon or quest item from a container, or talk to a quest giver (open its offer's dialog). */
-export type Interaction = { kind: "pickup"; container: ContainerState } | { kind: "talk"; quest: QuestStateLike; def: QuestDef };
+/**
+ * What F does: take a weapon or quest item from a container, talk to a quest giver (open its offer's dialog), or, with nothing else in
+ * reach, try a quest item of an offer not accepted yet (`blocked`: F sends the `pickup` and the server's refusal says to accept at the giver).
+ */
+export type Interaction =
+  | { kind: "pickup"; container: ContainerState }
+  | { kind: "talk"; quest: QuestStateLike; def: QuestDef }
+  | { kind: "blocked"; container: ContainerState; quest: QuestStateLike; def: QuestDef };
 
 /**
  * The one thing F does at `from`: the nearest interactable wins, a weapon or an item the server would take (`nearestContainer`)
  * against a giver in talking reach (`nearestGiver`). A tie goes to the pickup, so a weapon lying at a giver's feet is still taken.
+ * A quest item the player has not accepted yet is the last resort (`nearestBlockedItem`): a weapon or a giver in reach wins, so it never shadows them.
  * `publicQuests` are RaidState.quests (the givers); `questContext` is what `nearestContainer` reads of the quests (its previews included).
  */
 export function pickInteraction(
@@ -117,5 +164,7 @@ export function pickInteraction(
   if (giver && (!container || Math.hypot(giver.quest.x - from.x, giver.quest.y - from.y) < Math.hypot(container.x - from.x, container.y - from.y))) {
     return { kind: "talk", quest: giver.quest, def: giver.def };
   }
-  return container ? { kind: "pickup", container } : null;
+  if (container) return { kind: "pickup", container };
+  const blocked = nearestBlockedItem(containers, map, from, questContext);
+  return blocked ? { kind: "blocked", ...blocked } : null;
 }

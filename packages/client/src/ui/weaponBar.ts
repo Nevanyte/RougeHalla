@@ -109,7 +109,7 @@ export class WeaponBar {
    * `patchT`: the server time of the newest patch (when a changed `readyAt` was set). `serverNow`: the estimated current
    * server time, which the cooldown counts down against. `pickup`: the weapon F would take, if one is in reach.
    * `questLabel`: the quest token or parcel F would take instead. `talkHint`: what F does at a quest giver ("talk to Ashmother Vela"),
-   * when that is the nearest thing to use.
+   * when that is the nearest thing to use, or the refusal a quest item of an unaccepted offer would get ("Accept ... at ... first").
    */
   update(me: PlayerState | undefined, patchT: number, serverNow: number, pickup: WeaponId | null, questLabel = "", talkHint = ""): void {
     // The lobby hands out nothing yet: weapons arrive with the run.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { QUEST_ACCEPT_RANGE, TILE_FLOOR, TILE_WALL, mapFromTiles } from "@raid/shared";
+import { QUEST_ACCEPT_RANGE, TILE_FLOOR, TILE_WALL, mapFromTiles, questAcceptFirstText, questDefById } from "@raid/shared";
 import type { ContainerState } from "@raid/shared/schema";
-import { nearestContainer, nearestGiver, pickInteraction, type QuestPickupContext } from "../src/render/interact";
+import { nearestBlockedItem, nearestContainer, nearestGiver, pickInteraction, questItemBlocked, type QuestPickupContext } from "../src/render/interact";
 import type { QuestStateLike } from "../src/ui/questModel";
 
 const map = mapFromTiles(8, 8, new Uint8Array(64).fill(TILE_FLOOR));
@@ -127,5 +127,60 @@ describe("F: a weapon or quest item against a quest giver", () => {
     const b = giverAt(50, { id: "b", def: "cull-plague" });
     const it = pickInteraction(boxes([]), quests(a, b), map, from);
     expect(it).toMatchObject({ kind: "talk", quest: { id: "b" } });
+  });
+});
+
+describe("F at a quest item of an offer not accepted yet", () => {
+  const from = { x: 32, y: 32 };
+  const none = quest({ accepted: new Map() });
+  const token = box("q", "quest", "quest:q1", 40);
+  const parcel = box("p", "quest", "quest:q1", 40);
+  const quests = (...rows: QuestStateLike[]) => ({ forEach(cb: (q: QuestStateLike, id: string) => void) { for (const q of rows) cb(q, q.id); } });
+
+  it("is a blocked interaction naming the offer, so F sends the pickup and the server's refusal says to accept at the giver", () => {
+    const ctx = context(quest({ def: "bloom-plague", accepted: new Map() }));
+    const it = pickInteraction(boxes([token]), quests(), map, from, ctx);
+    expect(it).toMatchObject({ kind: "blocked", container: token, quest: { id: "q1" }, def: { name: questDefById("bloom-plague")!.name } });
+    const bloom = questDefById("bloom-plague")!;
+    expect(questAcceptFirstText(bloom)).toBe(`Accept ${bloom.name} at ${bloom.giver} first`);
+    // A parcel (fetch) and an offer only somebody else accepted block the same way.
+    expect(pickInteraction(boxes([parcel]), quests(), map, from, context(quest({ def: "banner-holy", accepted: new Map() })))).toMatchObject({ kind: "blocked" });
+    expect(pickInteraction(boxes([token]), quests(), map, from, context(quest({ accepted: new Map([["remote", true]]) })))).toMatchObject({ kind: "blocked" });
+  });
+
+  it("is a pickup once the offer is accepted", () => {
+    expect(pickInteraction(boxes([token]), quests(), map, from, context(quest({ def: "bloom-plague" })))).toMatchObject({ kind: "pickup", container: token });
+  });
+
+  it("never shadows a weapon or a giver in reach", () => {
+    const ctx = context(none);
+    const weapon = box("w", "ground", "sword", 56);
+    expect(pickInteraction(boxes([token, weapon]), quests(), map, from, ctx)).toMatchObject({ kind: "pickup", container: weapon });
+    const giver = quest({ id: "g", def: "cull-fire", x: 60, y: 32, accepted: new Map() });
+    expect(pickInteraction(boxes([token]), quests(giver), map, from, ctx)).toMatchObject({ kind: "talk", quest: { id: "g" } });
+    // The item is nearer than the giver and still loses: talking is what lifts the block.
+    expect(pickInteraction(boxes([token]), quests({ ...giver, x: 64 }), map, from, ctx)).toMatchObject({ kind: "talk" });
+  });
+
+  it("is offered only in reach on the move mask, for an open public offer", () => {
+    expect(pickInteraction(boxes([box("q", "quest", "quest:q1", 32 + 80)]), quests(), map, from, context(none))).toBeNull();
+    const tiles = new Uint8Array(64).fill(TILE_FLOOR);
+    for (let y = 0; y < 8; y++) tiles[y * 8 + 1] = TILE_WALL;
+    const walled = mapFromTiles(8, 8, tiles);
+    expect(nearestBlockedItem(boxes([box("q", "quest", "quest:q1", 72)]), walled, { x: 16, y: 32 }, context(none))).toBeNull();
+    expect(nearestBlockedItem(boxes([box("q", "quest", "quest:q1", 72)]), map, { x: 16, y: 32 }, context(none))).not.toBeNull();
+    for (const status of ["done", "expired"]) expect(pickInteraction(boxes([token]), quests(), map, from, context(quest({ accepted: new Map(), status }))), status).toBeNull();
+    // A private preview (no giver yet) and an offer the client does not know have nothing to point at.
+    expect(questItemBlocked(token as never, context(quest({ accepted: new Map(), known: false })))).toBeNull();
+    expect(pickInteraction(boxes([token]), quests(), map, from, context())).toBeNull();
+  });
+
+  it("takes the nearest blocked item, and is not a blocked item once the offer is accepted but the item is refused for another reason", () => {
+    const near = box("n", "quest", "quest:q2", 36);
+    const ctx = context(none, quest({ id: "q2", def: "banner-holy", accepted: new Map() }));
+    expect(nearestBlockedItem(boxes([token, near]), map, from, ctx)).toMatchObject({ container: near, quest: { id: "q2" } });
+    const full = quest({ def: "bloom-plague", progress: new Map([["me", 3]]) });
+    expect(pickInteraction(boxes([token]), quests(), map, from, context(full))).toBeNull();
+    expect(pickInteraction(boxes([parcel]), quests(), map, from, context(quest({ def: "banner-holy", carrier: "remote" })))).toBeNull();
   });
 });
