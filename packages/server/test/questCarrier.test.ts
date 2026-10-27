@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  mapFromTiles, mulberry32, questDefById, SWARM_CAST_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  blinkLanding, mapFromTiles, mulberry32, questDefById, SWARM_CAST_MS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type FactionId, type GameMap, type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -80,40 +80,61 @@ function cast(world: World, x: number, y: number): void {
   expect(enqueueClientMessage(world.players.get("p0")!.inputs, "cast", { slot: "wish", x, y })).toBe(true);
 }
 
-function expectPublicParcelAtCarrier(world: World, qt: QuestRuntime): void {
-  const carrier = P(world, qt.s.carrier);
-  expect(carrier).toBeDefined();
+/**
+ * A carried parcel has no position of its own: everyone sees it at the player the synced quest row names as its carrier.
+ * So what must hold is that the row names the carrier, that this player stands at `at` (a point the test worked out before
+ * the step or from the shared blink rule, never read back from the player it is compared with), that the sim's carried link
+ * agrees, and that no parcel was left on the ground at the old place.
+ */
+function expectPublicParcelAt(world: World, qt: QuestRuntime, at: Vec2): void {
+  const row = world.state.quests.get(qt.id);
+  expect(row?.carrier, "the synced row names the carrier").toBe("p0");
+  const carrier = world.state.players.get(row!.carrier);
+  expect(carrier, "and that carrier is a player in the room").toBeDefined();
+  expect({ x: carrier!.x, y: carrier!.y }).toEqual(at);
   expect(world.quests!.carried.get("p0")).toBe(qt.id);
-  expect(qt.s.carrier).toBe("p0");
-  expect({ x: carrier.x, y: carrier.y }).toEqual({ x: P(world).x, y: P(world).y });
   expect([...world.state.containers.values()].some((c) => c.kind === "quest")).toBe(false);
+}
+
+/** The parcel goes where the carrier goes: move the carrier somewhere new and the same synced row follows it there. */
+function expectParcelFollows(world: World, qt: QuestRuntime): void {
+  const to = { x: 9 * TILE, y: 21 * TILE };
+  place(world, "p0", to);
+  step(world, TICK_MS);
+  expectPublicParcelAt(world, qt, to);
 }
 
 describe("quest parcel carriers", () => {
   it("keeps the parcel and its public carrier position through Swarm", () => {
     const world = makeRun("plague");
     const qt = carrying(world);
-    cast(world, P(world).x, P(world).y);
+    const at = { x: P(world).x, y: P(world).y }; // Swarm does not move the caster
+    cast(world, at.x, at.y);
     step(world, TICK_MS);
     const landsAt = world.players.get("p0")!.cast!.landsAt;
     while (world.state.serverTime < landsAt) step(world, TICK_MS);
 
     expect(isHidden(world, combatant(world, "p0")!)).toBe(true);
     expect(world.state.serverTime).toBeGreaterThanOrEqual(SWARM_CAST_MS);
-    expectPublicParcelAtCarrier(world, qt);
+    expectPublicParcelAt(world, qt, at);
     step(world, TICK_MS);
-    expectPublicParcelAtCarrier(world, qt);
+    expectPublicParcelAt(world, qt, at);
+    expectParcelFollows(world, qt);
   });
 
   it("keeps the parcel at the carrier's new position after Blaze Step", () => {
     const world = makeRun("fire");
     const qt = carrying(world);
     const before = { x: P(world).x, y: P(world).y };
-    cast(world, before.x - 250, before.y);
+    const target = { x: before.x - 250, y: before.y };
+    const landing = blinkLanding(world.map, false, before, target);
+    expect(landing, "the arena lets the blink land").not.toBeNull();
+    cast(world, target.x, target.y);
     step(world, TICK_MS);
 
     expect(Math.hypot(P(world).x - before.x, P(world).y - before.y)).toBeGreaterThan(100);
-    expectPublicParcelAtCarrier(world, qt);
+    expectPublicParcelAt(world, qt, landing!);
+    expectParcelFollows(world, qt);
   });
 
   it("expires the quest and removes the carried parcel on the coliseum teleport", () => {

@@ -2,7 +2,7 @@
 // clearing) or an attacker's point of view (what the five public givers say about the five hidden ones). The generated-map
 // checks (seeds 1..30 and more) live in quests.test.ts.
 import { describe, expect, it, vi } from "vitest";
-import { QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, TILE } from "../src/constants";
+import { QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_RADIUS, TILE } from "../src/constants";
 import {
   TILE_FLOOR, TILE_WALL, mapFromTiles, moveComponents, tileIndex, tileToWorldCenter, worldToTile, type CampDef, type GameMap,
 } from "../src/map";
@@ -20,7 +20,8 @@ vi.mock("../src/pathfind", async (importOriginal) => {
 
 import { findPath } from "../src/pathfind";
 import {
-  npcCandidates, placeQuests, questDefById, questHomeComponent, spreadSpots, type QuestPlacement, type RosterEntry,
+  npcCandidates, placeQuests, questDefById, questHomeComponent, QUEST_HIDDEN_START_CLEARANCES, selectQuests, spreadSpots,
+  type QuestPlacement, type RosterEntry,
 } from "../src/quests";
 
 const QUEST_UNKNOWN = QUEST_COUNT - QUEST_KNOWN_COUNT;
@@ -310,6 +311,71 @@ describe("the hidden givers are not a function of the public ones", () => {
     // A shuffle lands in these orders about 1 time in 200 (the region-first sort did it every time).
     expect(themedFirst).toBeLessThan(runs / 4);
     expect(knownFirst).toBeLessThan(runs / 4);
+  });
+});
+
+describe("hidden givers keep out of the reveal radius of every start", () => {
+  const nearestStart = (map: GameMap, at: Vec2): number => Math.min(...map.spawnPool.map((s) => Math.hypot(at.x - s.x, at.y - s.y)));
+  const clear = QUEST_REVEAL_RADIUS + 2 * TILE;
+
+  it("never puts a hidden giver within the reveal radius plus two tiles of any spawn-pool member (seeds 1..30, all offers placed)", () => {
+    let hidden = 0;
+    let knownInside = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const map = generateMap(seed);
+      const offers = selectQuests(mulberry32(seed + 1));
+      const placed = placeQuests(map, offers, mulberry32(seed + 2));
+      expect(placed.length, `seed ${seed}: no offer dropped`).toBe(offers.length);
+      for (const p of placed) {
+        if (p.known) {
+          // The public givers keep only the ordinary start clearance: a third of them DO lie inside the reveal radius.
+          expect(nearestStart(map, p.at), `seed ${seed}: ${p.def.id}`).toBeGreaterThanOrEqual(Math.floor(QUEST_NPC_SPAWN_MIN_TILES / 2) * TILE);
+          if (nearestStart(map, p.at) < QUEST_REVEAL_RADIUS) knownInside++;
+          continue;
+        }
+        hidden++;
+        expect(nearestStart(map, p.at), `seed ${seed}: hidden ${p.def.id}`).toBeGreaterThanOrEqual(clear);
+      }
+    }
+    expect(hidden).toBe(30 * QUEST_UNKNOWN);
+    expect(knownInside, "the known givers are not subject to the hidden clearance").toBeGreaterThan(0);
+  });
+
+  it("leaves the known pass exactly as it was: the same known givers with or without any hidden offer in the roster", () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const map = generateMap(seed);
+      const offers = selectQuests(mulberry32(seed + 1));
+      const full = placeQuests(map, offers, mulberry32(seed + 2)).filter((p) => p.known);
+      const knownOnly = placeQuests(map, offers.filter((o) => o.known), mulberry32(seed + 2));
+      expect(keyOf(full), `seed ${seed}`).toBe(keyOf(knownOnly));
+    }
+  });
+
+  it("relaxes the clearance on a cramped map instead of dropping a hidden offer, and keeps the stricter one where there is room", () => {
+    const roomy = arena();
+    const cramped = arena({ w: 40, h: 16, camps: [campAt("fire", 1, 10, 5, 2 * TILE), campAt("frost", 1, 30, 10, 2 * TILE)] });
+    // Control: the cramped map really has no ground beyond the strict clearance for the hidden offers.
+    const beyond = npcCandidates(cramped).filter((c) => nearestStart(cramped, c) >= clear);
+    expect(beyond.length).toBeLessThan(QUEST_UNKNOWN * 2);
+    let relaxedPlaced = 0;
+    for (const random of streams(10)) {
+      for (const [map, strict] of [[roomy, true], [cramped, false]] as const) {
+        const placed = placeQuests(map, roster(), random);
+        const hidden = placed.filter((p) => !p.known);
+        if (strict) {
+          expect(hidden.length).toBe(QUEST_UNKNOWN);
+          for (const h of hidden) expect(nearestStart(map, h.at)).toBeGreaterThanOrEqual(clear);
+        } else {
+          relaxedPlaced += hidden.length;
+          expect(placed.filter((p) => p.known).length, "the known offers are placed as before").toBe(QUEST_KNOWN_COUNT);
+        }
+      }
+    }
+    expect(relaxedPlaced, "the hidden offers of a cramped map still get placed").toBeGreaterThan(0);
+  });
+
+  it("steps down from the reveal radius plus two tiles to none, strictest first", () => {
+    expect([...QUEST_HIDDEN_START_CLEARANCES]).toEqual([clear, QUEST_REVEAL_RADIUS, QUEST_REVEAL_RADIUS / 2, 0]);
   });
 });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   INTERACT_RANGE, mapFromTiles, mulberry32, QUEST_COUNT, QUEST_ITEM_PREFIX, QUEST_KNOWN_COUNT, questDefById,
-  QUEST_REVEAL_RADIUS, QUEST_UNKNOWN_COUNT, rewardCurve, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, QUEST_UNKNOWN_COUNT, rewardCurve, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type FactionId, type Vec2,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
@@ -13,18 +13,24 @@ import { hurtMob, placeMob } from "../src/sim/mobLife";
 import { offerQuest, type QuestRuntime } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, SimConfig, World } from "../src/sim/world";
+import { rig } from "./support/questRig";
 
 const NAMES = ["alice", "bob", "carol"];
 
-function openMap(side = 24) {
+function openMap(side = 24, walls: ReadonlyArray<readonly [number, number]> = []) {
   const tiles = new Uint8Array(side * side).fill(TILE_FLOOR);
   for (let i = 0; i < side; i++) {
     for (const [x, y] of [[i, 0], [i, side - 1], [0, i], [side - 1, i]] as const) tiles[y * side + x] = TILE_WALL;
   }
+  for (const [x, y] of walls) tiles[y * side + x] = TILE_WALL;
   return mapFromTiles(side, side, tiles);
 }
 
-interface WorldOpts { players?: number; quests?: boolean; training?: boolean; seed?: number }
+interface WorldOpts {
+  players?: number; quests?: boolean; training?: boolean; seed?: number;
+  /** Extra wall tiles [tx, ty] on the otherwise open map. */
+  walls?: ReadonlyArray<readonly [number, number]>;
+}
 
 function makeLobby(o: WorldOpts = {}): World {
   const players = o.players ?? 2;
@@ -33,7 +39,7 @@ function makeLobby(o: WorldOpts = {}): World {
     suddenDeathSeconds: 60, mobs: false, quests: o.quests ?? true, training: o.training,
   };
   const seed = o.seed ?? 99;
-  const game = createGameWorld({ config, random: mulberry32(seed + 1), map: openMap() });
+  const game = createGameWorld({ config, random: mulberry32(seed + 1), map: openMap(24, o.walls) });
   for (let i = 0; i < players; i++) addPlayer(game, `p${i}`, NAMES[i]!);
   return game;
 }
@@ -67,10 +73,10 @@ const RT = (w: World, i: number) => w.players.get(`p${i}`)!;
 
 const GIVER: Vec2 = { x: 6 * TILE, y: 6 * TILE };
 
-function offer(w: World, defId: string, extra: { tokens?: Vec2[]; parcel?: Vec2; known?: boolean } = {}): QuestRuntime {
+function offer(w: World, defId: string, extra: { tokens?: Vec2[]; parcel?: Vec2; known?: boolean; at?: Vec2 } = {}): QuestRuntime {
   const def = questDefById(defId);
   if (!def) throw new Error(`unknown quest ${defId}`);
-  return offerQuest(w, def, extra.known ?? true, { at: GIVER, tokens: extra.tokens, parcel: extra.parcel });
+  return offerQuest(w, def, extra.known ?? true, { at: extra.at ?? GIVER, tokens: extra.tokens, parcel: extra.parcel });
 }
 
 const entry = (victim: string, by: string, raw: number): LedgerEntry => ({
@@ -221,6 +227,53 @@ describe("turn-in", () => {
     expect(ev.some((e) => e.type === "toast" && e.to === null && e.text.includes(qt.s.doneBy) && e.text.includes(qt.def.name))).toBe(true);
     step(w, TICK_MS);
     expect(P(w, 1 - winner).buffs.get(qt.def.reward.buff)).toBeCloseTo(winner === 0 ? stacks1 : stacks0, 5);
+  });
+
+  it.each([["p0", "p1"], ["p1", "p0"]])(
+    "gives a same-tick finish to the lower tieRank, not the first to join: %s outranks %s",
+    (low, high) => {
+      const w = makeRun();
+      const qt = offer(w, "cull-fire");
+      for (const id of [low, high]) {
+        qt.s.progress.set(id, qt.def.count);
+        P(w, id === "p0" ? 0 : 1).x = GIVER.x;
+        P(w, id === "p0" ? 0 : 1).y = GIVER.y;
+      }
+      rig(w, low, high);
+
+      step(w, TICK_MS);
+
+      expect(qt.s.status).toBe("done");
+      expect(qt.s.doneBy).toBe(low === "p0" ? "alice" : "bob");
+      expect(w.players.get(low)!.gv.quest).toBe(qt.def.reward.gv);
+      expect(w.players.get(high)!.gv.quest).toBe(0);
+      expect(w.state.players.get(high)!.buffs.get(qt.def.reward.buff) ?? 0).toBe(0);
+    },
+  );
+
+  // A giver at tile (7, 6) and a wall column at x tile 8: a player at tile 9 is 52 u from it, inside the 64 u turn-in range.
+  const WALLED_GIVER: Vec2 = { x: 240, y: 200 };
+  const BEHIND: Vec2 = { x: 292, y: 200 };
+
+  it("needs line of sight: a player in range on the far side of a wall does not turn in, and does in the open", () => {
+    const walled = makeRun({ players: 1, walls: [[8, 5], [8, 6], [8, 7]] });
+    const blocked = offer(walled, "cull-fire", { at: WALLED_GIVER });
+    blocked.s.progress.set("p0", blocked.def.count);
+    P(walled, 0).x = BEHIND.x;
+    P(walled, 0).y = BEHIND.y;
+    expect(Math.hypot(BEHIND.x - WALLED_GIVER.x, BEHIND.y - WALLED_GIVER.y)).toBeLessThanOrEqual(QUEST_TURN_IN_RANGE);
+    for (let i = 0; i < 5; i++) step(walled, TICK_MS);
+    expect(blocked.s.status).toBe("open");
+    expect(RT(walled, 0).gv.quest).toBe(0);
+
+    // Control: the same positions with no wall between them complete it, so the wall is what stopped the turn-in.
+    const open = makeRun({ players: 1 });
+    const clear = offer(open, "cull-fire", { at: WALLED_GIVER });
+    clear.s.progress.set("p0", clear.def.count);
+    P(open, 0).x = BEHIND.x;
+    P(open, 0).y = BEHIND.y;
+    step(open, TICK_MS);
+    expect(clear.s.status).toBe("done");
   });
 
   it("pays out through a resolution: the run result has a quest row", () => {

@@ -7,7 +7,8 @@ import {
 import { createGameWorld } from "../src/sim/gameplay";
 import { offerQuest } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
-import { tieRank, type SimConfig, type SimEvent, type World } from "../src/sim/world";
+import type { SimConfig, SimEvent, World } from "../src/sim/world";
+import { rig } from "./support/questRig";
 
 function openMap(side = 24) {
   const tiles = new Uint8Array(side * side).fill(TILE_FLOOR);
@@ -65,20 +66,6 @@ describe("hidden quests", () => {
     expect(synced).not.toContain(qt.def.giver);
   });
 
-  // step() raises the tick before the quest system reads the ranks, so the rank that decides the reveal is the NEXT tick's.
-  function rankNextTick(world: World, id: string): number {
-    const tick = world.state.tick;
-    world.state.tick = tick + 1;
-    try { return tieRank(world, id); } finally { world.state.tick = tick; }
-  }
-  /** Picks a secret salt under which `low` outranks `high` at the reveal tick. */
-  function rig(world: World, low: string, high: string): void {
-    for (let salt = 1; salt < 4000; salt++) {
-      world.orderSalt = salt;
-      if (rankNextTick(world, low) < rankNextTick(world, high)) return;
-    }
-    throw new Error("no salt found");
-  }
   const revealsTo = (events: SimEvent[]): string[] =>
     events.flatMap((e) => (e.type === "questReveal" ? [e.to] : []));
 

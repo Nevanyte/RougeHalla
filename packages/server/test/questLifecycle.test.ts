@@ -286,16 +286,82 @@ describe("closing a kill offer early (the camps are cleared for good)", () => {
     const tour = offer(world, "grand-tour");
     const elite = offer(world, "elite-hunt");
     const unseen = offer(world, "cull-plague", false);
+    expect(world.state.unknownQuests).toBe(1);
     const events = step(world, TICK_MS);
 
     expect(frost.s.status).toBe("expired");
     expect(tour.s.status).toBe("expired");
     expect(fire.s.status).toBe("open");
     expect(elite.s.status).toBe("open");
-    expect(world.quests!.quests.has(unseen.id)).toBe(false);
-    expect(world.state.unknownQuests).toBe(0);
+    // The hidden cull of the emptied plague zone is as impossible as the frost one, but the camp clear must not delete it:
+    // that would drop the public unknownQuests count and tell every client a hidden offer of that zone existed.
+    expect(world.quests!.quests.get(unseen.id)).toBe(unseen);
+    expect(unseen.s.status).toBe("open");
+    expect(world.state.unknownQuests).toBe(1);
     expect(toasts(events).filter((t) => t.includes("expired"))).toEqual(["2 quests expired"]);
     expect(world.state.mobs.has(frost.npcId)).toBe(false);
+  });
+
+  it("never changes the public unknown count by a camp clear: hidden offers close only at their own deadline, publication or the end", () => {
+    const world = makeRun({ map, mobs: true });
+    const cull = offer(world, "cull-plague", false);
+    const hunt = offer(world, "elite-hunt", false);
+    const hiddenIds = [cull.id, hunt.id];
+    expect(world.state.unknownQuests).toBe(2);
+    const p0 = world.state.players.get("p0")!;
+    p0.maxHp = 1e9;
+    p0.hp = 1e9;
+
+    // Every camp of every zone falls, one tick at a time: each clear sets the re-check, and the count never moves.
+    const counts: number[] = [];
+    for (const id of liveMobs(world)) {
+      slay(world, id);
+      step(world, TICK_MS);
+      counts.push(world.state.unknownQuests);
+    }
+    expect(liveMobs(world)).toEqual([]);
+    expect(p0.status, "a standing player is what would make the offers impossible rather than moot").toBe("alive");
+    expect(counts.length).toBeGreaterThan(10);
+    expect(new Set(counts)).toEqual(new Set([2]));
+    for (const id of hiddenIds) {
+      expect(world.quests!.quests.get(id)?.s.status).toBe("open");
+      expect(world.state.quests.has(id)).toBe(false);
+    }
+    expect(world.state.unknownQuests).toBe(2);
+
+    // Their own deadline is the only thing left that takes one: it still drops the count, as it always did.
+    cull.s.expiresAt = world.state.serverTime + TICK_MS;
+    step(world, TICK_MS);
+    expect(world.quests!.quests.has(cull.id)).toBe(false);
+    expect(world.state.unknownQuests).toBe(1);
+  });
+
+  it("closes a hidden offer that is already impossible the moment it goes public, as an ordinary expired row", () => {
+    const world = makeRun({ map, mobs: true });
+    for (const id of liveMobs(world, (zone) => zone === "plague")) slay(world, id);
+    const dead = offer(world, "cull-plague", false);
+    const p = world.state.players.get("p0")!;
+    p.maxHp = 1e9;
+    p.hp = 1e9;
+    step(world, TICK_MS);
+    expect(dead.s.status).toBe("open");
+    expect(world.state.unknownQuests).toBe(1);
+
+    // Scouted: the first ticks reveal it to the finder only; nothing public happens before the head start ends.
+    p.x = dead.s.x;
+    p.y = dead.s.y;
+    const events = step(world, TICK_MS);
+    expect(events.some((e) => e.type === "questReveal")).toBe(true);
+    expect(world.state.quests.has(dead.id)).toBe(false);
+    let published = events;
+    while (world.state.serverTime < dead.publishAt) published = step(world, TICK_MS);
+
+    // Public, so its closure is the ordinary one: an expired row the log shows, a toast, no giver.
+    expect(dead.published).toBe(true);
+    expect(world.state.quests.get(dead.id)?.status).toBe("expired");
+    expect(world.state.mobs.has(dead.npcId)).toBe(false);
+    expect(toasts(published).some((t) => t.includes("Quest expired") && t.includes(dead.def.name))).toBe(true);
+    expect(world.state.unknownQuests).toBe(0);
   });
 
   it("looks at the supply a player still lacks: two kills short with only one mob left closes it", () => {

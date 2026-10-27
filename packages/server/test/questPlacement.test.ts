@@ -181,11 +181,14 @@ describe("the hidden offers cannot be recomputed", () => {
   const SALTS = Array.from({ length: 16 }, (_, i) => [200 + i, 2, 3, 4]);
 
   it("hands out ids in a private shuffle: neither theme nor the known/hidden split shows in their order", () => {
+    // 48 salts, not the 16 of the others: the claim is a rate (about 13% of the halves land themed-first by chance, over
+    // 300 salts; a sort gives 100%), and 16 salts is a sample small enough for a legitimate shuffle to flip by luck.
+    const SHUFFLE_SALTS = Array.from({ length: 48 }, (_, i) => [200 + i, 2, 3, 4]);
     const themedFirst = (flags: boolean[]): boolean => flags.every((region, i) => i === 0 || !(region && !flags[i - 1]));
     let informative = 0;
     let sorted = 0;
     let knownFirst = 0;
-    for (const rewardSalt of SALTS) {
+    for (const rewardSalt of SHUFFLE_SALTS) {
       const world = makeWorld({ map: MAP, rewardSalt });
       const inIdOrder = runtimeQuests(world); // the map keeps insertion order: the order the ids were handed out in
       expect(inIdOrder.length).toBe(QUEST_COUNT);
@@ -200,7 +203,7 @@ describe("the hidden offers cannot be recomputed", () => {
       if (inIdOrder.slice(0, QUEST_KNOWN_COUNT).every((qt) => qt.published)) knownFirst++;
     }
     // A shuffle lands in these orders now and then (about one in ten per half, one in 250 for the split); a sort, always.
-    expect(informative).toBeGreaterThan(12);
+    expect(informative).toBeGreaterThan(36);
     expect(sorted).toBeLessThanOrEqual(Math.ceil(informative / 4));
     expect(knownFirst).toBeLessThanOrEqual(2);
   });

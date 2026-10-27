@@ -112,7 +112,7 @@ describe("killing a bot", () => {
   it("pays no kill GV and no GV event, and counts as a kill in the run", () => {
     const w = startRun(2, 3);
     slay(w, "h0", "b0");
-    expect(RT(w, "h0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(RT(w, "h0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(P(w, "h0").gv).toBe(0);
     expect(ofType(w.events, "gv")).toEqual([]);
     expect(P(w, "h0").kills).toBe(1);
@@ -144,10 +144,10 @@ describe("killing a bot", () => {
     expect(RT(w, "h0").botKills).toBe(3);
     expect(P(w, "h0").bounty).toBe(0);
     expect(ofType(w.events, "fx").filter((e) => e.fx.kind === "bounty")).toEqual([]);
-    expect(RT(w, "h0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(RT(w, "h0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     // A rival who then kills the "rampaging" bot-farmer is paid the kill and nothing more.
     slay(w, "h1", "h0");
-    expect(RT(w, "h1").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0 });
+    expect(RT(w, "h1").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 0, quest: 0 });
   });
 
   it("the ladder counts the killer's human kills only, whatever order the bot kills come in", () => {
@@ -188,7 +188,7 @@ describe("killing a bot", () => {
     const w = startRun(3, 1);
     P(w, "h1").bounty = 90;
     slay(w, "h0", "h1");
-    expect(RT(w, "h0").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 90 });
+    expect(RT(w, "h0").gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 90, quest: 0 });
   });
 
   it("the kill hooks run for it like for any kill (the playerKilled hook runs)", () => {
@@ -206,13 +206,13 @@ describe("killing a bot", () => {
     removePlayer(w, "b0");
     expect(P(w, "h0").kills).toBe(1);
     expect(RT(w, "h0").botKills).toBe(1);
-    expect(RT(w, "h0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(RT(w, "h0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
   });
 
   it("two bots killing each other change nothing outside the run: nothing is banked for either", () => {
     const w = startRun(2, 3);
     slay(w, "b0", "b1");
-    expect(RT(w, "b0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0 });
+    expect(RT(w, "b0").gv).toEqual({ kills: 0, mobs: 0, bounty: 0, quest: 0 });
     expect(P(w, "b0").kills).toBe(1);
   });
 

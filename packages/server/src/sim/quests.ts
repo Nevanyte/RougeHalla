@@ -50,6 +50,14 @@ function announce(world: World, text: string): void {
   emit(world, { type: "toast", to: null, text });
 }
 
+/**
+ * Fill bots (docs/BOTS.md) take no part in quests, whatever they stand next to. They have no quest policy, so a bot that
+ * happened to stand at a token, a parcel or a giver would win an offer a human was racing for, and a bot's death pays no GV
+ * (arena.ts creditKill), so it must not advance or pay a kill quest either. This is the one test every entry point asks:
+ * kills and deaths, pickups, the finder of a hidden giver, the turn-in, the early-closure supply count.
+ */
+const takesPart = (rt: PlayerRuntime | undefined): rt is PlayerRuntime => !!rt && !rt.bot;
+
 function runtime(world: World): QuestsRuntime {
   return world.quests ?? (world.quests = { quests: new Map(), carried: new Map(), recheck: false, onQuestPickup });
 }
@@ -134,7 +142,7 @@ function removeContainers(world: World, qt: QuestRuntime): void {
 function onQuestPickup(world: World, c: Extract<Combatant, { kind: "player" }>, box: ContainerState): boolean {
   const q = world.quests;
   const item = box.items.at(0);
-  if (!q || !item || !item.def.startsWith(QUEST_ITEM_PREFIX)) return false;
+  if (!q || !item || !item.def.startsWith(QUEST_ITEM_PREFIX) || !takesPart(c.rt)) return false;
   const qt = q.quests.get(item.def.slice(QUEST_ITEM_PREFIX.length));
   if (!qt || !qt.published || qt.s.status !== "open") { toast(world, c.id, "That quest is over"); return true; }
   if (qt.def.kind === "fetch") {
@@ -177,7 +185,7 @@ function onMobKilled(
   mob: { type: MobTypeId; zone: NonNullable<QuestDef["region"]>; camp: number; elite: boolean },
 ): void {
   const q = world.quests;
-  if (!q || world.state.phase !== "active") return;
+  if (!q || world.state.phase !== "active" || !takesPart(killer)) return;
   const p = world.state.players.get(killer.id);
   if (!p || p.status !== "alive") return;
   for (const qt of q.quests.values()) {
@@ -197,9 +205,9 @@ function onMobKilled(
   }
 }
 
-function onPlayerKilled(world: World, killer: PlayerRuntime, _victim: PlayerRuntime, outcome: "died" | "mia"): void {
+function onPlayerKilled(world: World, killer: PlayerRuntime, victim: PlayerRuntime, outcome: "died" | "mia"): void {
   const q = world.quests;
-  if (!q || outcome !== "died" || world.state.phase !== "active") return;
+  if (!q || outcome !== "died" || world.state.phase !== "active" || !takesPart(killer) || !takesPart(victim)) return;
   const p = world.state.players.get(killer.id);
   if (!p || p.status !== "alive") return;
   for (const qt of q.quests.values()) {
@@ -223,8 +231,9 @@ function dropParcel(world: World, p: PlayerState): void {
   announce(world, `${p.name} dropped parcel: ${qt.def.name}`);
 }
 
+/** A player a quest can see: a human who is alive, up and not yet resolved. */
 const standing = (p: PlayerState, rt: PlayerRuntime | undefined): rt is PlayerRuntime =>
-  p.status === "alive" && !!rt && !rt.down && !rt.resolved;
+  p.status === "alive" && takesPart(rt) && !rt.down && !rt.resolved;
 
 function ready(qt: QuestRuntime, playerId: string): boolean {
   if (qt.def.kind === "fetch") return qt.s.carrier === playerId;
@@ -333,8 +342,13 @@ function killSupplyLeft(
   return !anyone;
 }
 
-/** Closes the kill offers whose targets are gone (called from questSystem once a camp was cleared). */
-function closeImpossible(world: World, out: QuestRuntime[]): void {
+/**
+ * Closes the kill offers whose targets are gone (called from questSystem once a camp was cleared, and for one offer the tick
+ * it is published). A hidden offer is never closed here: its deletion would lower the public `unknownQuests` on the tick a
+ * camp is cleared and so tell everyone a hidden offer of that zone existed. It stays hidden until its own deadline, the
+ * teleport or the run's end, and is checked the moment it goes public (`only`), where closing it leaks nothing.
+ */
+function closeImpossible(world: World, out: QuestRuntime[], only?: QuestRuntime): void {
   const zones = new Map<string, number>();
   let elites = 0;
   for (const rt of world.mobs.values()) {
@@ -343,9 +357,9 @@ function closeImpossible(world: World, out: QuestRuntime[]): void {
     zones.set(rt.brain.region, (zones.get(rt.brain.region) ?? 0) + 1);
     if (rt.brain.elite) elites++;
   }
-  for (const qt of [...world.quests!.quests.values()]) {
+  for (const qt of only ? [only] : [...world.quests!.quests.values()]) {
     const def = qt.def;
-    if (qt.s.status !== "open" || def.kind !== "kill" || def.players) continue;
+    if (!qt.published || qt.s.status !== "open" || def.kind !== "kill" || def.players) continue;
     if (!killSupplyLeft(world, qt, zones, elites) && expireQuest(world, qt)) out.push(qt);
   }
 }
@@ -376,7 +390,10 @@ export function questSystem(world: World): void {
     }
     if (qt.published) continue;
     if (qt.publishAt > 0) {
-      if (now >= qt.publishAt) publishQuest(world, qt);
+      if (now >= qt.publishAt) {
+        publishQuest(world, qt);
+        closeImpossible(world, expired, qt);
+      }
       continue;
     }
     if (world.state.gatesLocked) continue;

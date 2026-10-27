@@ -1,6 +1,8 @@
 # Quest bot interface
 
-Bots quest through the same public state and inputs as a human client. This is an interface contract only: the quest system adds no bot-only message, and the headless bots in `packages/server/src/bots` do not choose quests (only the `questBench` policies do, and they read what a client reads). Rules a bot may rely on are in `docs/quests.md`; this file is what it reads and sends.
+Bots quest through the same public state and inputs as a human client. This is an interface contract only: the quest system adds no bot-only message, and the headless bots in `packages/server/src/bots` do not choose quests (only the `questBench` policies do, and they read what a client reads).
+
+**Fill bots take no part in quests.** A server-filled bot (`PlayerState.bot`, docs/BOTS.md) is ignored by the quest sim at every entry point, so the rest of this file describes a client a future quest decision module would drive, not what the fill bots do today. A fill bot gets no mob, player-kill, token or parcel progress, its `pickup` of a quest item is refused (the item stays), it cannot turn in or win an offer, it is never the finder of a hidden giver (the next human in range is) and receives no `questReveal`, and it is not counted as someone who could still finish a kill offer. Killing one advances "A Head for a Head" for nobody and pays nothing (a bot's death pays no kill GV, and bots touch no profile or GV), and a bot's kill of a human advances nothing either. The guard is `takesPart` in `sim/quests.ts`. A quest-playing bot would have to be exempted there on purpose. Rules a bot may rely on are in `docs/quests.md`; this file is what it reads and sends.
 
 ## Public information
 
@@ -15,7 +17,7 @@ Read the ordinary room state and shared catalog:
 - `QuestState.carrier`: player id carrying a fetch parcel, or `""` while it is not carried. A carrier remains public through Swarm and Blaze Step. Completion, expiry, coliseum teleport and run end clear the carrier and remove the parcel; no parcel survives teleport closure.
 - `RaidState.containers`: visible token and ground-parcel positions. Quest containers use kind `quest`; their first item's def is `QUEST_ITEM_PREFIX + quest id`, and their container ids are what `pickup` takes. A carried parcel has no ground container.
 - `RaidState.players`: carrier positions and the bot's own position, buffs and feed inputs. Use public positions for ordinary navigation and combat decisions.
-- `RaidState.unknownQuests`: how many offers remain hidden from everyone. It is only a count, with no defs, positions or per-player progress. It counts an offer a finder has previewed but that is not public yet, and it falls when an offer is published and also when a hidden offer is closed unseen (its deadline, an early kill closure, the teleport, run end), without saying which.
+- `RaidState.unknownQuests`: how many offers remain hidden from everyone. It is only a count, with no defs, positions or per-player progress. It counts an offer a finder has previewed but that is not public yet. It falls when an offer is published, when a hidden offer's own deadline passes, and to 0 at the teleport and the run's end; a camp clear never moves it, and an impossible hidden offer is closed only after it goes public. A drop at a deadline only one def has (165, 220 or 280 s) names that def; no drop says where an offer stood.
 
 During planning, the five known `QuestState` rows and `unknownQuests` are available for spawn/route policy. Giver mobs and item containers do not exist until `raidStarted`. The world is frozen; use the normal private `plan` deal and `plan` input, not quest movement or pickup inputs.
 
@@ -23,7 +25,7 @@ During planning, the five known `QuestState` rows and `unknownQuests` are availa
 
 The standing player within `QUEST_REVEAL_RADIUS` (12 tiles) of an unknown giver with the lowest secret `tieRank` is its finder and receives `questReveal` before that offer enters synced state; join order does not choose the finder, and a bot cannot know it will be one. The `QuestRevealMessage` payload is `{ id, def, x, y, expiresAt }`: enough to identify the offer through the shared def, walk to its giver and read its active deadline. It gives only that finder a four-second (`QUEST_REVEAL_HEAD_START_MS`) information head start, not exclusive progress, after which the offer becomes public for everyone. A bot may use only reveal messages delivered to its own client. It must not assume another bot or player received the message, and it may act on the offer only when its own `questReveal` or the later synced entry makes it available. No new reveal starts once the coliseum gates are locked.
 
-A previewed offer can still be closed before it is published, and then it never appears: its deadline, an early kill closure, the teleport or the run's end delete it without a message. Drop a preview whose `expiresAt` has passed, and every preview at the teleport and the run's end.
+A previewed offer can still be closed before it is published, and then it never appears: its deadline, the teleport or the run's end delete it without a message. Drop a preview whose `expiresAt` has passed, and every preview at the teleport and the run's end.
 
 Ordinary private `toast` messages can explain discovery, a pickup refusal or completion, but are not a separate quest command channel. The existing private `plan` message remains the only source of the bot's spawn deal.
 
@@ -32,9 +34,9 @@ Ordinary private `toast` messages can explain discovery, a pickup refusal or com
 The server decides all of it; a bot only needs to know what to aim for.
 
 - A mob kill counts for the player the server credits (the one who did the mob the most damage, not necessarily the last hitter), if that player is still standing when the kill is paid. The hook the server evaluates carries `{ type, zone, camp, elite }`: the mob-type id, its zone, its camp's index in `map.camps` (-1 for a mob with no camp) and whether it was an elite. A region offer counts any mob of that zone, Worth the Walk any elite, the Grand Tour distinct zones.
-- A player kill counts only when the victim's outcome is `died`; a rival who leaves (MIA) does not.
+- A player kill counts only when the victim's outcome is `died`; a rival who leaves (MIA) does not, and neither killer nor victim may be a fill bot.
 - Tokens count on pickup, up to the offer's `count`. A fetch is done by the carrier standing at the giver.
-- A kill offer closes early (unpaid) when no standing player could still finish it: nobody has the whole objective, and the live mobs it counts no longer cover what each lacks. Camp clears set this up; the server checks after the tick's damage.
+- A kill offer closes early (unpaid) when no standing player could still finish it: nobody has the whole objective, and the live mobs it counts no longer cover what each lacks. Camp clears set this up; the server checks after the tick's damage. Hidden offers are not closed this way; one that is impossible is checked once when it goes public.
 
 ## Inputs
 

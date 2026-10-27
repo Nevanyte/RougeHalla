@@ -11,7 +11,7 @@
 // (headhunter excepted: a player kill has no mob parity) inside a band around its parity, so the numbers below and
 // this formula cannot drift apart.
 import {
-  PLAYER_RADIUS, QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, QUEST_NPC_SPAWN_MIN_TILES, TILE,
+  PLAYER_RADIUS, QUEST_COUNT, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES, QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_RADIUS, TILE,
 } from "./constants";
 import { buffDef, buffText, rewardCurve, type BuffId } from "./buffs";
 import type { FactionId } from "./factions";
@@ -39,7 +39,7 @@ export interface QuestDef {
   region?: FactionId;
   /** The zone whose mob buff this quest pays. It is explicit for objectives that visit several or any zone. */
   farZone: FactionId;
-  /** Kill quest: elites count (with region, one elite of it; without, any elite). */
+  /** Kill quest: only an elite counts, from any zone. (Combining it with `region` is not supported: the sim never reads the region of an elite def.) */
   elite?: boolean;
   /** Kill quest: player kills count (the gank offer; nothing else does). */
   players?: boolean;
@@ -532,6 +532,40 @@ function parcelSpot(
 /** Spots one pass keeps per quest it places, so a region-themed quest can take the one farthest from its pole. */
 const SPOT_OVERSAMPLE = 4;
 
+/**
+ * How far from every spawn-pool start a hidden giver must stand: the reveal radius plus two tiles. The reveal is a plain
+ * distance test with no line of sight, so a giver inside it would reveal itself on the first tick to whoever spawned there
+ * and "hidden" would be nominal. A cramped map relaxes this step by step (see hiddenSpots); the known givers keep only the
+ * ordinary start clearance of npcCandidates, since they are public anyway.
+ */
+export const QUEST_HIDDEN_START_CLEARANCES: readonly number[] = [
+  QUEST_REVEAL_RADIUS + 2 * TILE, QUEST_REVEAL_RADIUS, QUEST_REVEAL_RADIUS / 2, 0,
+];
+/** The strictest clearance that leaves this many spots per hidden offer is used (two: the themed pick still has a choice). */
+const HIDDEN_MIN_SPOTS_PER_OFFER = 2;
+
+/**
+ * Where the hidden pass takes its giver spots: the candidates beyond the strictest start clearance that still leaves room
+ * for every hidden offer (HIDDEN_MIN_SPOTS_PER_OFFER each), else the clearance with the most spots. Which clearance applies
+ * depends only on the public map, never on the stream; the spots within it come from the private stream as before.
+ */
+function hiddenSpots(
+  map: GameMap, open: readonly Vec2[], offers: number, random: () => number, avoid: readonly Vec2[],
+): Vec2[] {
+  const want = offers * SPOT_OVERSAMPLE;
+  const enough = Math.min(want, offers * HIDDEN_MIN_SPOTS_PER_OFFER);
+  let best: Vec2[] = [];
+  for (const clearance of QUEST_HIDDEN_START_CLEARANCES) {
+    const pool = clearance > 0
+      ? open.filter((c) => map.spawnPool.every((s) => distance(c, s) >= clearance))
+      : [...open];
+    const spots = spreadSpots(pool, want, random, avoid);
+    if (spots.length >= enough) return spots;
+    if (spots.length > best.length) best = spots;
+  }
+  return best;
+}
+
 export interface PlaceOptions {
   /**
    * The stream the UNKNOWN offers (their givers and pieces) draw from; the known ones draw from `random`. It defaults to
@@ -544,11 +578,12 @@ export interface PlaceOptions {
 /**
  * Lays the roster out on the map in two passes, the known offers first and then the unknown ones. Each pass shuffles
  * the candidate tiles with its stream and takes spots greedily against the gap (the unknown pass also keeps the gap to the
- * known givers), so no giver is a function of the public map and the other givers. A region-themed quest takes the pass's
- * spot farthest from its region's pole; its pieces follow. Every piece lies on the giver's walkable component, off the
- * camps' chest and mob-rest halos and off zone hazards, and no two share a tile. A quest whose pieces will not place is
- * dropped rather than placed badly. The returned order is privately shuffled with `random`, so a quest's place in it (the
- * id the server hands out) reveals neither its theme nor its pass.
+ * known givers, and stays QUEST_REVEAL_RADIUS + 2 tiles from every spawn-pool start, relaxed only on a cramped map, so it
+ * cannot reveal itself to a player on the first tick: see hiddenSpots), so no giver is a function of the public map and the
+ * other givers. A region-themed quest takes the pass's spot farthest from its region's pole; its pieces follow. Every piece
+ * lies on the giver's walkable component, off the camps' chest and mob-rest halos and off zone hazards, and no two share a
+ * tile. A quest whose pieces will not place is dropped rather than placed badly. The returned order is privately shuffled
+ * with `random`, so a quest's place in it (the id the server hands out) reveals neither its theme nor its pass.
  */
 export function placeQuests(
   map: GameMap, roster: RosterEntry[], random: () => number, options: PlaceOptions = {},
@@ -564,7 +599,9 @@ export function placeQuests(
     if (group.length === 0) continue;
     const rand = known ? random : hiddenRandom;
     const open = candidates.filter((c) => !used.has(indexAt(map, c)));
-    const remaining = spreadSpots(open, group.length * SPOT_OVERSAMPLE, rand, givers);
+    const remaining = known
+      ? spreadSpots(open, group.length * SPOT_OVERSAMPLE, rand, givers)
+      : hiddenSpots(map, open, group.length, rand, givers);
     const ordered = [...group].sort((a, b) => Number(!!b.def.region) - Number(!!a.def.region));
     const placed: QuestPlacement[] = [];
     for (const entry of ordered) {
