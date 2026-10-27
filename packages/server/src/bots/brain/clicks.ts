@@ -29,13 +29,13 @@ export function pickTarget(cursor: TargetPoint, candidates: Iterable<TargetCandi
 
 /**
  * Every fighter a left click could lock, as the client offers them (RaidScene.targetCandidates): the other players and the
- * mobs that are alive and drawn, mobs not while the coliseum gates are locked. A fighter that is untargetable is not offered
- * (the server would refuse it); the percept never holds the bot itself.
+ * mobs that are alive and drawn, mobs not while the coliseum gates are locked. A fighter that is untargetable is not offered,
+ * nor is a quest giver (the server refuses both); the percept never holds the bot itself.
  */
 export function lockCandidates(p: Pick<Percept, "fighters" | "mobs" | "hud">): TargetCandidate[] {
   const list: TargetCandidate[] = [];
   for (const f of p.fighters) if (f.status === "alive" && f.targetable) list.push({ id: f.id, x: f.x, y: f.y });
-  if (!p.hud.gatesLocked) for (const m of p.mobs) if (m.status === "alive") list.push({ id: m.id, x: m.x, y: m.y });
+  if (!p.hud.gatesLocked) for (const m of p.mobs) if (m.status === "alive" && m.kind !== "quest") list.push({ id: m.id, x: m.x, y: m.y });
   return list;
 }
 

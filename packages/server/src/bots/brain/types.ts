@@ -411,7 +411,7 @@ export interface FighterView extends FighterSeen {
 
 export interface MobSeen {
   readonly id: FighterId;
-  /** MobKind: "mob" | "elite" | "dummy". */
+  /** MobKind: "mob" | "elite" | "dummy" | "quest". */
   readonly kind: string;
   readonly name: string;
   readonly faction: FactionId | null;

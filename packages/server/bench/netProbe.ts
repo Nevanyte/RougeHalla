@@ -636,7 +636,7 @@ class Session {
       if (d <= TARGET_RANGE) out.push({ id, d });
     };
     state.players.forEach((p, id) => { if (id !== this.sid) add(id, p.status); });
-    if (!state.gatesLocked) state.mobs.forEach((p, id) => add(id, p.status));
+    if (!state.gatesLocked) state.mobs.forEach((p, id) => { if (p.kind !== "quest") add(id, p.status); });
     // Prefer the far ones: a click near the limit is where drawn positions and the server's disagree.
     out.sort((a, b) => b.d - a.d);
     return out.map((o) => o.id);
