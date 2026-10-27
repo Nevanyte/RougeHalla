@@ -3,6 +3,7 @@
 // cut to, and the bake of a map with features on a fake scene. Real generated maps and the synthetic one of test/synthFeatures.ts
 // (every feature kind, the Gallows' rows along either axis); the milliseconds and the frame cost are measured in a real browser
 // (test/dev/zoneart.html), not here.
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MAP_TILES_H, MAP_TILES_W, TILE, generateMap, type GameMap } from "@raid/shared";
 import {
@@ -14,6 +15,7 @@ import { planFx } from "../src/render/zoneArt/TerrainFx";
 import { SHAPE_PALETTE } from "../src/render/zoneArt/palette";
 import { TILE_H } from "../src/render/zoneArt/zoneStyle";
 import { fakeObject, type FakeObject } from "./fakes";
+import { oldKindsMap } from "./oldKinds";
 import { RecordPen } from "./recordPen";
 import { synthMap } from "./synthFeatures";
 
@@ -201,6 +203,24 @@ describe("what the shapes paint stays in its frame", () => {
     }
   });
 });
+
+describe("a map with no features", () => {
+  it("is painted as the art painted it before the zone shapes (golden: recorded against the phase-A code, which this matches call for call)", () => {
+    // Over real maps (features and the twelve new props taken off) the new and the phase-A bake drew 3836 of 3836 floor chunks and strips
+    // identically; this pins a hand-built map with every old kind of wall and ground, so the guard needs no generator.
+    const map = oldKindsMap();
+    const ctx = makeContext(map);
+    const sig = createHash("sha256");
+    let ops = 0;
+    for (const c of planFloor(map)) { const g = new RecordPen(); paintFloorChunk(g, ctx, c); sig.update(g.signature()); ops += g.ops.length; }
+    for (const s of planStrips(map, ctx).strips) { const g = new RecordPen(); paintStrip(g, ctx, s); sig.update(g.signature()); ops += g.ops.length; }
+    expect(ops).toBe(OLD_KINDS_OPS);
+    expect(sig.digest("hex").slice(0, 16)).toBe(OLD_KINDS_HASH);
+  });
+});
+// Recorded from the phase-A art (git 76232bc), and equal to what the art draws now.
+const OLD_KINDS_OPS = 10270;
+const OLD_KINDS_HASH = "1da88f4d4bce410d";
 
 describe("the feature art in the bake", () => {
   const map = SYNTH[0]!;

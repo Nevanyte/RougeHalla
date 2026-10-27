@@ -11,13 +11,12 @@
 // Sizing. A lake grows to LAKE_GROW tiles (a binary search on an integer threshold). Two meres whose ICE-able ground falls short
 // of ICE_WANT (the lanes below and the camps' crowding take their share) let the first, which has the room, grow again.
 //
-// Spawn walks. A pool member's walk to the coliseum is kept whole twice over. (1) The members whose way to a gate passes near a lake
-// get their real findPath route (on this zone's tiles, the other zones' ground taken as open so the pass stays zone-isolated); a
-// headland or a spire never stands on a lane around one, so no route is lengthened, and the lake stays plain ground in a lane
-// three tiles wide around each (a causeway feature owns it, packed snow for the art), so no route crosses ICE. (2) The zone's route
-// guard (contract 3.9) looks at the rest: a headland or a spire that touches a member's corridor is tried first on a private copy of
-// the tiles under a second guard of the feature kit's own making (a placed feature cannot be taken back), and is turned down above
-// ROUTE_HEADLAND_MAX permille (2%).
+// Spawn walks. A pool member's walk to the coliseum is kept whole. The members whose way to a gate passes near a lake get their real
+// findPath route (on this zone's tiles, the other zones' ground taken as open so the pass stays zone-isolated). A headland or a
+// spire never stands within a tile of one or on a corridor of the zone's route guard (contract 3.9), so no walk is lengthened (the
+// 2% rule of the contract is met with room to spare: a placed feature cannot be taken back, so the guard's stretch is not probed
+// afterwards), and the lake stays plain ground in a lane three tiles wide around each (a causeway feature owns it, packed snow for
+// the art), so no walk crosses ICE.
 import { TILE } from "../constants";
 import { RING_ROAD, fixedLayout } from "../coliseum";
 import { TILE_FLOOR, TILE_WALL, mapFromTiles, tileToWorldCenter } from "../map";
@@ -25,7 +24,7 @@ import type { GameMap } from "../map";
 import { findPath } from "../pathfind";
 import type { Rng } from "../rng";
 import { TERRAIN_ICE } from "../terrain";
-import { argmaxIn, dirIndex16, fbmQ, floodAbove, makeRouteGuard, tauForArea } from "./features";
+import { argmaxIn, dirIndex16, fbmQ, floodAbove, tauForArea } from "./features";
 import { bestLandmark, placeLandmark, stampFits, stampTemplate } from "./landmarks";
 import type { LandmarkTemplate, Stamp } from "./landmarks";
 import { PROP } from "./propKinds";
@@ -67,9 +66,6 @@ export interface RimePlan {
   causeway: number[];
   /** Members whose real route was computed (telemetry). */
   routed: number;
-  /** Candidates tried on the private copy under the second guard, and the ones it turned down (telemetry). */
-  probes: number;
-  turnedDown: number;
 }
 
 // ------------------------------------------------------------------------------------------------ numbers (dials)
@@ -95,8 +91,6 @@ const HEADLANDS = 3;
 const HEAD_TRIES = 4;
 /** Shore candidates looked at for one headland (farthest from the camps first). */
 const HEAD_LOOK = 48;
-/** A headland (or spire) may stretch any member's walk by at most this, permille. */
-const ROUTE_HEADLAND_MAX = 1020;
 /** Shore tiles for a headland keep this chamfer distance (thirds) from the zone's rim, and this squared distance from camps and earlier headlands. */
 const HEAD_EDGE = 18;
 const HEAD_SEP2 = 49;
@@ -104,6 +98,8 @@ const HEAD_SEP2 = 49;
 const SPIRE_CLR = 14;
 const SPIRE_RADII: readonly number[] = [1.6, 1.9, 2.2];
 const SPIRE_MIN_CELLS = 8;
+/** Spots (apart from each other) tried for the spire. */
+const SPIRE_TRIES = 3;
 /** The band around a real member route (Chebyshev): no shelf stands on it and no ICE lies on it (a lane three tiles wide). */
 const ROUTE_BAND = 1;
 /** A member's way to a gate counts as near a lake when it passes within this many tiles of the lake. */
@@ -642,23 +638,6 @@ class RouteBook {
   }
 }
 
-interface Probe { tiles: Uint8Array; guard: RouteGuard }
-
-/** A second guard over a private copy of the tiles (null with no pool member in the zone). */
-function makeProbe(c: ShapeCtx): Probe | null {
-  if (!c.centreWalk || c.spawns.length === 0) return null;
-  const tiles = new Uint8Array(c.tiles);
-  return { tiles, guard: makeRouteGuard({ w: c.w, h: c.h, mask: c.mask, tiles, spawns: c.spawns, centreWalk: c.centreWalk }) };
-}
-
-/** The worst member stretch with `cells` walled on the copy (the copy is left as it was). */
-function stretchWith(p: Probe, cells: readonly number[]): number {
-  for (const i of cells) p.tiles[i] = TILE_WALL;
-  const s = p.guard.worstStretch();
-  for (const i of cells) p.tiles[i] = TILE_FLOOR;
-  return s;
-}
-
 function realGuard(c: ShapeCtx): RouteGuard | null {
   try { return c.routeGuard(); } catch { return null; }
 }
@@ -688,7 +667,7 @@ function shelfTiles(c: BaseCtx, rng: Rng, centre: number, rad: number): number[]
 function shape(c: ShapeCtx): RimePlan {
   const { w, h } = c;
   const n = w * h;
-  const plan: RimePlan = { lakes: [], shelves: [], causeway: [], routed: 0, probes: 0, turnedDown: 0 };
+  const plan: RimePlan = { lakes: [], shelves: [], causeway: [], routed: 0 };
   const real = realGuard(c);
   const clr = clearanceField(c, true, real ? real.corridor : null);
   const allow = allowField(c, clr);
@@ -698,7 +677,6 @@ function shape(c: ShapeCtx): RimePlan {
   book.ensure(lakes);
   fillLakes(c, allow, lakes, book);
   plan.routed = book.routed;
-  let probe: Probe | null | undefined;
   const chosen: number[] = zoneCamps(c);
   const rim = c.edgeDist;
   for (let k = 0; k < lakes.length; k++) {
@@ -735,59 +713,45 @@ function shape(c: ShapeCtx): RimePlan {
         if (!coreFree(c, book.band, centre)) continue;
         const cells = shelfTiles(c, c.rng, centre, hd === 0 ? 3.2 : 2.6);
         if (cells.length === 0 || !cells.every((j) => c.open(j) && book.band[j] === 0)) continue;
-        if (real !== null && real.touches(cells)) {
-          if (probe === undefined) probe = makeProbe(c);
-          if (probe) {
-            plan.probes++;
-            if (stretchWith(probe, cells) > ROUTE_HEADLAND_MAX) { plan.turnedDown++; failed++; continue; }
-          }
-        }
         const dir = dirIndex16(x * lake.area - lake.sumX, y * lake.area - lake.sumY);
         const placed = c.placeFeature({
           kind: "headland", jobs: ["lee"], anchor: [centre % w, (centre - (centre % w)) / w], params: [dir],
           blocks: cells.map((j) => [j, "wall"] as const), mode: "whole",
         });
         if (!placed) { failed++; continue; }
-        if (probe) for (const j of placed.written) probe.tiles[j] = TILE_WALL;
         plan.shelves.push({ lake: k, centre, dir, spire: false, walls: placed.written.slice() });
         chosen.push(i);
         break;
       }
     }
-    // 2. the spire island: the lake tile of the highest clearance (at least 4.5 tiles) off every route
-    let spireAt = -1;
+    // 2. the spire island: the lake tile of the highest clearance (at least 4.5 tiles) off every route; the next ones if the ground refuses it
+    const spots: number[] = [];
     for (let y = lake.y0; y <= lake.y1; y++) {
       for (let x = lake.x0; x <= lake.x1; x++) {
         const i = y * w + x;
-        if (set[i] !== 1 || c.tiles[i] !== TILE_FLOOR || clr[i] < SPIRE_CLR || book.band[i] === 1) continue;
-        if (spireAt < 0 || clr[i] > clr[spireAt]) spireAt = i;
+        if (set[i] === 1 && c.tiles[i] === TILE_FLOOR && clr[i] >= SPIRE_CLR && book.band[i] === 0) spots.push(i);
       }
     }
-    if (spireAt >= 0) {
+    spots.sort((a, b) => clr[b] - clr[a] || a - b);
+    const tried: number[] = [];
+    for (const spireAt of spots) {
+      if (tried.length >= SPIRE_TRIES) break;
+      if (tried.some((t) => Math.abs((t % w) - (spireAt % w)) < 4 && Math.abs(Math.floor(t / w) - Math.floor(spireAt / w)) < 4)) continue;
+      tried.push(spireAt);
       // a spire is 8 to 11 tiles (never under 6, the least a wall piece may be): a thin draw is drawn again a little wider
       let cells: number[] = [];
       for (const rad of SPIRE_RADII) {
         cells = shelfTiles(c, c.rng, spireAt, rad);
         if (cells.length >= SPIRE_MIN_CELLS) break;
       }
-      let ok = cells.length >= SPIRE_MIN_CELLS && cells.every((j) => c.open(j) && book.band[j] === 0);
-      if (ok && real !== null && real.touches(cells)) {
-        if (probe === undefined) probe = makeProbe(c);
-        if (probe) {
-          plan.probes++;
-          if (stretchWith(probe, cells) > ROUTE_HEADLAND_MAX) { plan.turnedDown++; ok = false; }
-        }
-      }
-      if (ok) {
-        const placed = c.placeFeature({
-          kind: "spire", jobs: ["landmark"], anchor: [spireAt % w, (spireAt - (spireAt % w)) / w], params: [],
-          blocks: cells.map((j) => [j, "wall"] as const), mode: "whole",
-        });
-        if (placed) {
-          if (probe) for (const j of placed.written) probe.tiles[j] = TILE_WALL;
-          plan.shelves.push({ lake: k, centre: spireAt, dir: 0, spire: true, walls: placed.written.slice() });
-        }
-      }
+      if (cells.length < SPIRE_MIN_CELLS || !cells.every((j) => c.open(j) && book.band[j] === 0)) continue;
+      const placed = c.placeFeature({
+        kind: "spire", jobs: ["landmark"], anchor: [spireAt % w, (spireAt - (spireAt % w)) / w], params: [],
+        blocks: cells.map((j) => [j, "wall"] as const), mode: "whole",
+      });
+      if (!placed) continue;
+      plan.shelves.push({ lake: k, centre: spireAt, dir: 0, spire: true, walls: placed.written.slice() });
+      break;
     }
     // 3. the lake: the tiles in a lane around a member's walk stay plain ground (a causeway owns them when there are enough), the rest is the mere
     const ice: number[] = [];

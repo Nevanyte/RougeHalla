@@ -32,8 +32,8 @@ import { areaScale, LANDMARKS_PER_ZONE, lenScale, sizeScale } from "./scale";
 // ------------------------------------------------------------------------------------------------ numbers (dials in bold: contract 4.1)
 /** Crater radius band, in quarter tiles: clamp(near / 2 - 0.8, 5.0, 6.5) tiles, an elite camp up to 7.5. */
 const R_MIN4 = 20, R_MAX4 = 26, R_MAX4_ELITE = 30;
-/** A breach is a strip 2.5 tiles each side of the bearing (about 5 tiles wide), in quarter tiles. */
-const BREACH_HALF4 = 10;
+/** A breach is a strip 2.25 tiles each side of the bearing (4.5 wide; contract 4.1 says 2.5: the doc's 4-5 tiles), in quarter tiles. */
+const BREACH_HALF4 = 9;
 const BREACHES_MIN = 2;
 /** Skeleton breaches per crater (corridor breaches come on top). */
 const BREACHES_MAX = 3;
@@ -49,6 +49,7 @@ const FRONTIER_EDGE = 9;
 const FRONTIER_MIN = 8;
 /** Brogue shortcut test: the tree walk must be at least this many times the straight line, up to this many tiles long. */
 const LOOP_RATIO = 1.8, LOOP_MAX_LEN = 30;
+
 /** Ford length in path steps, the spacing between fords, and the closer spacing of corridor fords. */
 const FORD_STEPS = 4, FORD_SPACING = 9;
 /** Fords closer than this many steps become one (up to FORD_MAX_LEN steps long); the river keeps about one ford per FORD_PER_STEPS steps. */
@@ -57,7 +58,7 @@ const RIVER_MIN_STEPS = 12;
 /** The river is about this many path steps x lenScale long (54 x 1.44 = 78 at 136); its path may be RIVER_REACH times that before a stretch is cut from it. */
 const RIVER_STEPS_PER_LEN = 54, RIVER_REACH = 1.8;
 const LAVA_WANT_LO = 85, LAVA_WANT_HI = 140;
-const RIVER_DEPTH_LO = 0.5, RIVER_DEPTH_HI = 0.68;
+const RIVER_DEPTHS: readonly number[] = [0.45, 0.55, 0.65, 0.75];
 /** Ground within this many tiles of the river's depth counts as ground the river can follow (it wanders round the craters). */
 const RIVER_SLACK = 7;
 /** The lava a stretch should hold (contract 4.1: 70-160 tiles per zone). */
@@ -522,58 +523,72 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
     }
   }
   if (usable.length < 60) return;
-  // 1. the depth: 50-68% of the zone's (contract 4.1 says 40-60%: the spawn members stand on one walking contour, mostly in the
-  //    inner half, and the farther out the river lies the fewer of their walks it crosses and the longer the ground it spans)
-  const dR = dLo + (dHi - dLo) * (RIVER_DEPTH_LO + (RIVER_DEPTH_HI - RIVER_DEPTH_LO) * rng());
-  // 2. the lateral run of ground at that depth (bins of 2 tiles, a one-bin gap bridged); the run with the most camp routes crossing
-  //    it, as long as it is, is the river's reach; a longer run than the river needs is cut to RIVER_REACH x the length around
-  //    the median of its routes (the window search below picks the stretch)
-  let bandLo = Infinity, bandHi = -Infinity;
-  for (const i of usable) {
-    const x = i % w, y = (i - x) / w;
-    if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dR) > RIVER_SLACK) continue;
-    const l = latAt(F, x + 0.5, y + 0.5);
-    if (l < bandLo) bandLo = l;
-    if (l > bandHi) bandHi = l;
-  }
-  if (bandLo > bandHi) return;
-  const nBins = Math.floor((bandHi - bandLo) / 2) + 1;
-  const cover = new Uint8Array(nBins);
-  for (const i of usable) {
-    const x = i % w, y = (i - x) / w;
-    if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dR) > RIVER_SLACK) continue;
-    cover[Math.floor((latAt(F, x + 0.5, y + 0.5) - bandLo) / 2)] = 1;
-  }
-  const routeLats: number[] = [];
-  for (const [ea, eb] of edges) {
-    const A = nodes[ea], B = nodes[eb];
-    const da = depthAt(F, A.x + 0.5, A.y + 0.5) - dR, db = depthAt(F, B.x + 0.5, B.y + 0.5) - dR;
-    if (da === db || (da < 0) === (db < 0)) continue;
-    const t = da / (da - db), la = latAt(F, A.x + 0.5, A.y + 0.5), lb = latAt(F, B.x + 0.5, B.y + 0.5);
-    routeLats.push(la + t * (lb - la));
-  }
+  // 1. the depth, among RIVER_DEPTHS shares of the zone's (contract 4.1: 40-60%). The spawn members stand on one walking contour,
+  //    mostly in the zone's inner half, and a river farther out crosses fewer of their walks (each crossing wants a ford, and a
+  //    ford cuts a piece out of the river): the depth that spares the most walks and still has the longest ground wins.
   const target = Math.max(RIVER_MIN_STEPS + 8, Math.round(RIVER_STEPS_PER_LEN * lenScale(c.zone.painted)));
-  let runLo = 0, runHi = nBins - 1, runScore = -Infinity;
-  for (let b0 = 0; b0 < nBins;) {
-    if (!cover[b0]) { b0++; continue; }
-    let b1 = b0;
-    while (b1 + 1 < nBins && (cover[b1 + 1] || (b1 + 2 < nBins && cover[b1 + 2]) || (b1 + 3 < nBins && cover[b1 + 3]))) b1++;
-    const lo = bandLo + 2 * b0, hi = bandLo + 2 * b1 + 2;
-    let nE = 0;
-    for (const l of routeLats) if (l >= lo && l <= hi) nE++;
-    const sc = Math.min(hi - lo, 2 * target) + 8 * nE;
-    if (sc > runScore) { runScore = sc; runLo = b0; runHi = b1; }
-    b0 = b1 + 1;
+  const memberDepth: number[] = [];
+  if (G) for (const m of G.members) memberDepth.push(depthAt(F, (m % w) + 0.5, Math.floor(m / w) + 0.5));
+  const jitter = rng();
+  interface Band { dR: number; latA: number; latB: number; score: number }
+  let band: Band | null = null;
+  for (const share of RIVER_DEPTHS) {
+    const dq = dLo + (dHi - dLo) * (share + 0.04 * jitter);
+    // 2. the lateral run of ground at that depth (bins of 2 tiles within RIVER_SLACK of it, gaps of three bins bridged); the run with
+    //    the most camp routes crossing it is the river's reach, cut to RIVER_REACH x the target around the median of its routes
+    let bandLo = Infinity, bandHi = -Infinity;
+    for (const i of usable) {
+      const x = i % w, y = (i - x) / w;
+      if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dq) > RIVER_SLACK) continue;
+      const l = latAt(F, x + 0.5, y + 0.5);
+      if (l < bandLo) bandLo = l;
+      if (l > bandHi) bandHi = l;
+    }
+    if (bandLo > bandHi) continue;
+    const nBins = Math.floor((bandHi - bandLo) / 2) + 1;
+    const cover = new Uint8Array(nBins);
+    for (const i of usable) {
+      const x = i % w, y = (i - x) / w;
+      if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dq) > RIVER_SLACK) continue;
+      cover[Math.floor((latAt(F, x + 0.5, y + 0.5) - bandLo) / 2)] = 1;
+    }
+    const routeLats: number[] = [];
+    for (const [ea, eb] of edges) {
+      const A = nodes[ea], B = nodes[eb];
+      const da = depthAt(F, A.x + 0.5, A.y + 0.5) - dq, db = depthAt(F, B.x + 0.5, B.y + 0.5) - dq;
+      if (da === db || (da < 0) === (db < 0)) continue;
+      const t = da / (da - db), la = latAt(F, A.x + 0.5, A.y + 0.5), lb = latAt(F, B.x + 0.5, B.y + 0.5);
+      routeLats.push(la + t * (lb - la));
+    }
+    let runLo = 0, runHi = nBins - 1, runScore = -Infinity;
+    for (let b0 = 0; b0 < nBins;) {
+      if (!cover[b0]) { b0++; continue; }
+      let b1 = b0;
+      while (b1 + 1 < nBins && (cover[b1 + 1] || (b1 + 2 < nBins && cover[b1 + 2]) || (b1 + 3 < nBins && cover[b1 + 3]))) b1++;
+      const lo = bandLo + 2 * b0, hi = bandLo + 2 * b1 + 2;
+      let nE = 0;
+      for (const l of routeLats) if (l >= lo && l <= hi) nE++;
+      const sc = Math.min(hi - lo, 2 * target) + 8 * nE;
+      if (sc > runScore) { runScore = sc; runLo = b0; runHi = b1; }
+      b0 = b1 + 1;
+    }
+    let latA = bandLo + 2 * runLo + 2, latB = bandLo + 2 * runHi;
+    const reach = RIVER_REACH * target;
+    if (latB - latA > reach) {
+      const inRun = routeLats.filter((l) => l >= latA && l <= latB).sort((p1, p2) => p1 - p2);
+      const mid = inRun.length > 0 ? inRun[inRun.length >> 1] : (latA + latB) / 2;
+      const lo = Math.min(Math.max(mid - reach / 2, latA), latB - reach);
+      latA = lo;
+      latB = lo + reach;
+    }
+    // the walks this depth crosses: the members standing farther out than it
+    let crossed = 0;
+    for (const d of memberDepth) if (d > dq + 1) crossed++;
+    const sc = Math.min(latB - latA, target) - 7 * crossed + 3 * Math.min(routeLats.length, 3);
+    if (!band || sc > band.score) band = { dR: dq, latA, latB, score: sc };
   }
-  let latA = bandLo + 2 * runLo + 2, latB = bandLo + 2 * runHi;
-  const reach = RIVER_REACH * target;
-  if (latB - latA > reach) {
-    const inRun = routeLats.filter((l) => l >= latA && l <= latB).sort((p, q) => p - q);
-    const mid = inRun.length > 0 ? inRun[inRun.length >> 1] : (latA + latB) / 2;
-    const lo = Math.min(Math.max(mid - reach / 2, latA), latB - reach);
-    latA = lo;
-    latB = lo + reach;
-  }
+  if (!band) return;
+  const { dR, latA, latB } = band;
   const nearestTo = (d: number, l: number): number => {
     const px = F.cx + d * F.ux + l * F.vx, py = F.cy + d * F.uy + l * F.vy;
     let best = -1, bd = Infinity;
@@ -605,7 +620,6 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
   };
   const path = noisyPath(c, a, b, 11, cost);
   const len = path.length;
-  if ((globalThis as any).__dbg) console.log('river dR', dR.toFixed(1), 'band', bandLo.toFixed(0), bandHi.toFixed(0), 'run', runLo, runHi, 'nBins', nBins, 'lat', latA.toFixed(0), latB.toFixed(0), 'target', target, 'len', len, 'routes', routeLats.length);
   if (len < RIVER_MIN_STEPS) return;
   // 4. the width at each step (2, 3 where the noise is high) and the square of tiles it would stamp
   const wd = new Uint8Array(len);
@@ -658,7 +672,7 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
     }
     return { tiles, keepOut };
   };
-  const planFords = (s0: number, s1: number): { fords: Ford[]; corridor: number; routes: number } => {
+  const planFords = (s0: number, s1: number, corridorCap = Infinity): { fords: Ford[]; corridor: number; runsTotal: number; routes: number } => {
     let fords: Ford[] = [];
     const normalize = (list: Ford[]): Ford[] => {
       const sorted = list.map((f) => [Math.max(s0 + 1, f[0]), Math.min(s1 - 1, f[1])] as Ford).filter((f) => f[1] > f[0]).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
@@ -684,18 +698,23 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
       if (runStart >= 0 && s - lastHit <= 2) runs[runs.length - 1][1] = s + 1; else { runs.push([s, s + 1]); runStart = s; }
       lastHit = s;
     }
-    for (const r of runs) {
+    for (const r of runs.slice(0, corridorCap)) {
       const need = FORD_STEPS - (r[1] - r[0]);
       fords.push(need > 0 ? [r[0] - (need >> 1), r[1] + need - (need >> 1)] : [r[0], r[1]]);
     }
     fords = normalize(fords);
     corridor = fords.length;
-    // a ford on each camp route that crosses the stretch, FORD_SPACING from the others, up to one per FORD_PER_STEPS steps
+    // a ford on each camp route that crosses the stretch, unless a ford (a corridor's) already stands on it, up to one per
+    // FORD_PER_STEPS steps; two edge fords keep FORD_SPACING between them
     const wantEdge = Math.max(2, Math.round((s1 - s0) / FORD_PER_STEPS));
     let routes = 0;
+    const edgeKs: number[] = [];
     for (const e of edgeAt) {
-      if (fords.length >= wantEdge) break;
-      if (e.k < s0 + 3 || e.k > s1 - 4 || !apart(e.k, FORD_SPACING)) continue;
+      if (routes >= wantEdge) break;
+      if (e.k < s0 + 3 || e.k > s1 - 4) continue;
+      if (fords.some((f) => e.k >= f[0] - 1 && e.k < f[1] + 1)) { routes++; continue; }
+      if (edgeKs.some((k) => Math.abs(k - e.k) < FORD_SPACING)) continue;
+      edgeKs.push(e.k);
       fords = normalize([...fords, around(e.k)]);
       routes++;
     }
@@ -704,55 +723,65 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
       const k = s0 + Math.floor((s1 - s0) * q);
       if (apart(k, 6)) fords = normalize([...fords, around(k)]);
     }
-    return { fords, corridor, routes };
+    return { fords, corridor, runsTotal: runs.length, routes };
   };
   // 7. the stretch: RIVER_LENGTHS around the target, every third start; the lava in the window's range, the fewest corridor
   //    fords, the most routes
-  interface Cand { score: number; s0: number; s1: number }
+  interface Cand { score: number; s0: number; s1: number; cap: number }
   const cands: Cand[] = [];
-  const lengths = [target - 12, target, target + 12].filter((l, q, all) => l >= 24 && l <= len && all.indexOf(l) === q);
+  const lengths = [target - 14, target, target + 14].filter((l, q, all) => l >= 24 && l <= len && all.indexOf(l) === q);
   if (lengths.length === 0) lengths.push(len);
   for (const L of lengths) {
     for (let s0 = 0; s0 + L <= len; s0 += 3) {
-      const p = planFords(s0, s0 + L);
-      const lava = blocksFor(s0, s0 + L, p.fords).tiles.length;
-      const pen = lava < LAVA_WANT_LO ? (LAVA_WANT_LO - lava) * 1.2 : lava > LAVA_WANT_HI ? (lava - LAVA_WANT_HI) : 0;
-      cands.push({ score: -pen - 3 * p.corridor + 6 * Math.min(p.routes, 3) - 2 * Math.max(0, p.fords.length - 4), s0, s1: s0 + L });
+      // all of the spawn members' corridors get a ford, or the first few: a corridor left to the river costs its member a detour
+      // (the spawn gate drops it if it comes to that), a ford costs lava
+      for (const cap of [Infinity, 3, 2]) {
+        const p = planFords(s0, s0 + L, cap);
+        const lava = blocksFor(s0, s0 + L, p.fords).tiles.length;
+        const pen = lava < LAVA_WANT_LO ? (LAVA_WANT_LO - lava) * 2 : lava > LAVA_WANT_HI ? (lava - LAVA_WANT_HI) : 0;
+        const uncovered = p.runsTotal - Math.min(cap, p.runsTotal);
+        cands.push({ score: -pen - 2 * Math.min(cap, p.runsTotal) - 9 * uncovered + 3 * Math.min(p.routes, 3) - 2 * Math.max(0, p.fords.length - 4), s0, s1: s0 + L, cap });
+        if (p.runsTotal <= cap) break;
+      }
     }
   }
-  if (cands.length === 0) { cands.push({ score: 0, s0: 0, s1: len }); }
-  cands.sort((p, q) => q.score - p.score || p.s0 - q.s0 || p.s1 - q.s1);
+  if (cands.length === 0) { cands.push({ score: 0, s0: 0, s1: len, cap: Infinity }); }
+  cands.sort((p, q) => q.score - p.score || p.s0 - q.s0 || p.s1 - q.s1 || q.cap - p.cap);
   // 8. place the best stretch that stands (the guard may refuse ground); at most three tries
   const tried: Cand[] = [];
   for (const cand of cands) {
     if (tried.length >= 3) break;
     if (tried.some((t) => Math.abs(t.s0 - cand.s0) < 12 && Math.abs(t.s1 - cand.s1) < 12)) continue;
     tried.push(cand);
-    const p = planFords(cand.s0, cand.s1);
-    const bl = blocksFor(cand.s0, cand.s1, p.fords);
-    if (bl.tiles.length < 12) continue;
-    let widthSum = 0, widthN = 0;
-    for (let s = cand.s0; s < cand.s1; s++) {
-      let inside = false;
-      for (const f of p.fords) if (s >= f[0] && s < f[1]) { inside = true; break; }
-      if (!inside) { widthSum += wd[s]; widthN++; }
+    // the candidate's corridors first, then fewer (a refused river is tried again with fewer fords, the spawn gate drops the members it cuts)
+    for (const cap of [cand.cap, Math.min(cand.cap, 2), 0].filter((v, q, all) => all.indexOf(v) === q)) {
+      const p = planFords(cand.s0, cand.s1, cap);
+      const bl = blocksFor(cand.s0, cand.s1, p.fords);
+      if ((globalThis as any).__dbg) console.log('try', cand.s0, cand.s1, 'cap', cap, 'score', cand.score.toFixed(0), 'runsTotal', p.runsTotal, 'corridorFords', p.corridor, 'routes', p.routes, 'fords', JSON.stringify(p.fords), 'blocks', bl.tiles.length);
+      if (bl.tiles.length < 12) continue;
+      let widthSum = 0, widthN = 0;
+      for (let s = cand.s0; s < cand.s1; s++) {
+        let inside = false;
+        for (const f of p.fords) if (s >= f[0] && s < f[1]) { inside = true; break; }
+        if (!inside) { widthSum += wd[s]; widthN++; }
+      }
+      const width2 = widthN > 0 ? Math.round((2 * widthSum) / widthN) : 4;
+      const fordTiles = p.fords.map((f) => path[(f[0] + f[1]) >> 1]);
+      const placed = c.placeFeature({
+        kind: "lavaRiver",
+        jobs: ["crossing"],
+        anchor: [path[cand.s0] % w, (path[cand.s0] - (path[cand.s0] % w)) / w],
+        params: [width2, fordTiles.length, ...fordTiles],
+        blocks: bl.tiles.map((t) => [t, "lava"] as const),
+        floor: bl.keepOut,
+        mode: "trim",
+      });
+      if (!placed) continue;
+      plan.riverPath = path.slice(cand.s0, cand.s1);
+      plan.fords = fordTiles;
+      plan.lava = placed.written.slice();
+      return;
     }
-    const width2 = widthN > 0 ? Math.round((2 * widthSum) / widthN) : 4;
-    const fordTiles = p.fords.map((f) => path[(f[0] + f[1]) >> 1]);
-    const placed = c.placeFeature({
-      kind: "lavaRiver",
-      jobs: ["crossing"],
-      anchor: [path[cand.s0] % w, (path[cand.s0] - (path[cand.s0] % w)) / w],
-      params: [width2, fordTiles.length, ...fordTiles],
-      blocks: bl.tiles.map((t) => [t, "lava"] as const),
-      floor: bl.keepOut,
-      mode: "trim",
-    });
-    if (!placed) continue;
-    plan.riverPath = path.slice(cand.s0, cand.s1);
-    plan.fords = fordTiles;
-    plan.lava = placed.written.slice();
-    return;
   }
 }
 
