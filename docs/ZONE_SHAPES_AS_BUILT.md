@@ -92,9 +92,9 @@ from streams of its own: `styleRng(seed, attempt, zone, stream)` = `mulberry32(h
 surface: 2, landmark: 3 }`, and its value noise is salted `stream + 100`. The landmark stage runs whatever the style hook is (the plain
 generator `styleZones: null` keeps its landmarks, so crates still have walls); `MAP_STYLERS` only switches the style hook.
 
-The hook position moved: the landmarks and the pool are placed before the stylers (the pool before them since ZT-6, the landmarks at the
-old ruins' place), the cover and the chunks are gone, and the crates are picked after the stylers on the finished ground (they used to
-come before the cover). The generator checks each hook after it runs (`A:styleBreach`, never seen on a swept seed): only FLOOR may turn to
+Against R2: the landmarks take the ruins' place, ahead of the pool; the pool is picked on the 5-7-11 field instead of the 5/7 chamfer; the
+style hook still sits after the pool; the rock chunks and the cover pass are gone, so the safety nets follow the hook directly; the spawn
+gate and the shape gates are new. The generator checks each hook after it runs (`A:styleBreach`, never seen on a swept seed): only FLOOR may turn to
 WALL or LOW, only on painted tiles outside `protect`; with the shape gates on, every tile whose class or terrain kind the hook changed
 is owned by a feature of that tile's zone; the landmark stage may only turn zone floor outside the landmark protect to WALL, each tile
 owned by a landmark of its zone.
@@ -276,7 +276,7 @@ Crates: 4 to 6 a zone (`CRATES_MIN`, `CRATES_MAX`), against a WALL (4-neighbour)
 tiles from a pool member or a camp centre, 1 from a camp spot or a door tile, and apart (4, then 2, tiles). A landmark's nooks are tried
 first. A zone that is short of wall (a plain zone with its landmarks off) places crates on open floor instead (noted `crateOpen`); fewer
 than 4 fails the attempt. Ground spots: 30 to 45 a map, on tiles with floor on all eight sides unless fewer than 90 qualify, outside
-landmark boxes, hazards' neighbourhoods, camp clearings and crate neighbours. These scale with the square root of the area (the 96x96
+landmark boxes, the coliseum, hazards' neighbourhoods, camp clearings, crate neighbours and 2 tiles from a pool member. These scale with the square root of the area (the 96x96
 map had 3-4 crates a zone and 20-30 spots); the density is 0.72 of before and the nearest loot about 17% farther (owner question 2).
 
 ## 10. The five zones
@@ -316,7 +316,7 @@ forge `landmark` + `lee`. Fire is exempt from ember, so the fords are its home g
   frontier as a breach. The bowl is owned floor. A crater that would stretch a member's walk past 1050 permille is left out and the camp
   stays open. 7.5 craters a zone on average.
 - **The lava river.** One stretch of about 54 x `lenScale` (78) path steps at 45-75% of the zone's depth, the depth that spares the most
-  spawn walks, 2-3 tiles wide, never within a crater plus 2.5 tiles. Fords (4 path steps each) are planned per candidate stretch: one
+  spawn walks, 2-3 tiles wide, routed by a noisy cheapest path that avoids the craters (+400 inside a crater's radius plus 2.5 tiles). Fords (4 path steps each) are planned per candidate stretch: one
   over every pool member's corridor and one per camp route that crosses it, at least 2. 70-160 lava tiles.
 - **Ember** on every free floor tile 8-adjacent to lava, the fords' sides included, except bank tiles on a corridor that are no ford's;
   the river owns its bank as floor.
@@ -352,8 +352,9 @@ from bog, so the wet fork is its ground.
   in pieces of 8 or more, kept off the corridors and 3 tiles from a camp clearing.
 - **Deviation from the contract, measured**: a barrow may not stand on a member's walk line (the middle row of a corridor) and may clip at
   most 3 tiles of it; it may overlap the corridor's fringe. Keeping every barrow off the whole 3-wide corridor left 6.1 barrows a zone and
-  20% of seeds at 8 or more; with this rule it is 8.4 and about 72.5%, and the worst stretch stays at 1000-1028 permille. A barrow also
-  stands 2 tiles beyond its radius from every pool member.
+  20% of seeds at 8 or more; with this rule it is 8.4 and about 72.5%, and the worst stretch stays at 1000-1028 permille (sites are
+  also dropped, the one with the most rock beside the worst member's corridor first, until `worstStretch` is at most 1030). A barrow
+  also stands 2 tiles beyond its radius from every pool member.
 - 8.4 barrows, 3.8 tunnels, 199 bog tiles a zone; bog on a member's walk 0.2 tiles on average.
 
 ### 10.4 The Rime: The Mere (`rime.ts`)
@@ -365,8 +366,9 @@ keeps full grip) or hug the shore behind faceted headlands. Jobs: mere `crossing
 - **Lakes**: two meres on a zone of 2,600 or more painted tiles (one below), each grown from the largest empty circle of a clearance field
   (distance from camps 5.6 tiles, the zone edge 4, the ring road 5.5, spawn pads 3.6, landmarks 3, and the pool members' corridors with no
   margin) by a binary search on an integer threshold to `LAKE_GROW` 400 tiles (the contract's 450; `ICE_WANT` 820 lets the first mere grow
-  again when the lanes and shelves take too much), smoothed by two 3x3 majority passes. Roughly 17.4% of the zone's floor is ice, 589
-  ice tiles on average (459-670).
+  again when the lanes and shelves take too much), smoothed by two 3x3 majority passes. A second mere needs 3 tiles of clearance at its
+  seed and 18 tiles between seeds; a mere under `LAKE_MIN` 40 tiles is not built. About 17.4% of the zone's floor is ice: 589 tiles on
+  average over a 30-seed check at `4f8c2cb` (p10-p90 459-670, lowest 288, highest 700).
 - **Headlands** (3 a lake) and a **spire** (an island of 8-11 tiles where the clearance is at least 4.5 tiles) are faceted shelves
   (`facetShelfCells`), whole or not at all, never on a real member route or its band. The Rime does not call `worstStretch` after them: the
   members whose way passes near a lake get their real `findPath` route, and no shelf stands on it.
@@ -383,9 +385,12 @@ shrine `landmark` + `rest`. Holy heals twice as much on light, so Holy rests in 
 
 - A lattice of 3x3 piers on a 6-tile pitch (pier offset 2 + 6i; aisles 3 wide), on the zone's main axis, inside a radius of
   `clamp(round(13 x lenScale), 11, 19)` (19 at 136) round the centre where the most piers fit whole, minus the distance to the pole, plus
-  a bonus on the line through the two shrines. Each pier is one `placeFeature` group, so it stands whole or not at all; piers that touch a
-  corridor are pre-emptively dropped and the worst stretch is measured (at most 6 measurements). The feature owns the aisles within the
-  radius. About 22 piers a zone (windows: 18-30).
+  a bonus on the line through the two shrines. Each pier is one `placeFeature` group, so it stands whole or not at all. The route guard
+  decides after the fact of a plan, not before: the whole lattice is asked about first (`worstStretch` with the piers as not-yet-written
+  walls), and while a member's walk would stretch past 1030 permille the piers touching the worst member's corridor come out (at most 4
+  measurements, then the contract's every-pier-off-every-corridor rule). Skipping every corridor pier up front, as the contract wrote it,
+  cost about a third of the hall (13 piers a zone against 23). The feature owns the aisles within the radius. About 22 piers a zone
+  (window 18-30).
 - **Light bays**: the 3x3 aisle crossings at multiples of 6 from the centre along the axes (5 bays, 9 when the radius is 16 or more); the
   surface pass lights those and the shrine's nave. About 82 light tiles a zone.
 - The shrine's slot search tries the axis ends first and then the cheapest slot that fits (a deviation from the contract's three slots,
@@ -452,7 +457,7 @@ Generation (`mapBench`, per raw seed, every attempt until one certifies, Node 25
 |---|---|---|---|---|
 | contract targets | <= 45 ms | <= 120 ms | <= 1.10 | stage targets: zones+camps 14, landmarks 1, spawns 3, styler 10, nets+crates+post+terrain+records 6, spawn gate 8 |
 | phase C1, 200 seeds | about 35 ms | | 1.005 | styler about 11 ms a map, landmarks about 2, spawn gate about 4; the plain generator about 27 ms |
-| 100 seeds while other agents ran | 44.4 ms | 88.9 ms | 1.010 | styler 14.0, zones 14.8, spawn gate 4.4, landmarks 2.8, spawns 3.4 ms a map |
+| 100 seeds at `4f8c2cb` while other agents ran | 44.4 ms | 88.9 ms | 1.010 | styler 14.0, zones 14.8, spawn gate 4.4, landmarks 2.8, spawns 3.4 ms a map |
 | final | **PENDING** | **PENDING** | **PENDING** | |
 
 R2's targets were a mean of 40 and a p99 of 120 at 96x96 with the cover (the cover was 54% of its time). Per-zone styler time at phase C1
@@ -470,7 +475,7 @@ max 1.0632, p99 cost 0.99x the unbounded pull. The generator's gate depends on i
 - **Bake budget.** The floor alone is 64.9 MB at scale 1 on a 136x136 map (81 chunks of 17x17 tiles, 4352 x 3482 px and the overlap)
   against the old 48 MB budget; `TEXTURE_BUDGET_BYTES` is now 64 MB and `FLOOR_SCALES` is `[1, 0.75, 0.625, 0.5]`, so a map bakes its floors
   at 0.75 (36.7 MB) and the wall pages (10-15 MB) fit with room to spare. Bake 86-104 ms (Chrome, 1x CPU), 770-980 scene children
-  (R2: 612).
+  (R2's bake had 612 images).
 - **Feature art** (`render/zoneArt/artBase.ts`, `featureArt.ts`, `featureStyle.ts`) is keyed on `map.features` and `map.featureGrid`, never
   inferred from tile shapes: crater rims (a lip lit toward the camp centre) and their ash bowl, barrow mounds (rounded top, moss) and
   shadowed tunnels, fence rows and the gallows, the shore of a mere, causeways (packed snow), shards for headlands and spires, hall piers
@@ -489,7 +494,7 @@ max 1.0632, p99 cost 0.99x the unbounded pull. The generator's gate depends on i
 ## 14. The zone duel harness and the Rows condition
 
 `npm run harness:zones -w @raid/server [-- --source rows|map|both] [--variants] [--seeds N] [--pairs P] [--zone a,b] [--edge a>b,..]
-[--cap S] [--rows-setups full|quick] [--quiet]` (`server/src/harness/zoneDuel.ts`, report only, about 5-15 s). It fights duels where the
+[--cap S] [--rows-setups full|quick] [--quiet]` (`server/src/harness/zoneDuel.ts`, report only, about 5 s for the Rows alone). It fights duels where the
 terrain is, in the real sim with signatures on and both fighters locking each other.
 
 - **The Rows condition**: Fire (axe) against Sentenced (bow), starting on opposite sides of one row 4, 6 and 7.5 tiles apart, the line
@@ -516,9 +521,9 @@ section 10.2) and `map`/`starts` options; every existing report is unchanged byt
 - **Generic by construction** (read the map through `camps`, masks and `findPath`; no change needed): `mobAI`, `mobLife`, the lock chase,
   `planning.ts` (`isEliteCamp`, `campMatchup`), `sim/camps.ts` and the schema (`camp` is a uint8, up to 255), the bots' brain (their budgets
   scale with `WORLD_W`), `campDuel --map`, the quest placement (it reads only the map contract). Rosters: `rollZoneTypes` still draws a
-  zone's 3 normal types shuffled and repeats them for camps past the third, and `campMobs` puts the zone's one elite *type* at every camp
-  with an `eliteSpot`, so a zone's 8 camps hold each normal type two or three times and its 2 elite camps both hold the zone's elite
-  type. More mob types per zone are the mob session's change.
+  zone's 3 normal types shuffled and gives each of the camps past the third a random one of them, and `campMobs` puts the zone's one elite
+  *type* at every camp with an `eliteSpot`, so a zone's 8 camps hold every normal type at least once and its 2 elite camps both hold
+  the zone's elite type. More mob types per zone are the mob session's change.
 - **Stale statements and comments found at `4f8c2cb`** (not edited here): `server/src/index.ts:272` ("the main thread's lane tables"),
   `server/src/sim/mobLife.ts:7` and `shared/src/mobs.ts:63` ("the zone's one elite" / "exactly one elite per zone": they mean one elite
   type), `server/src/bots/brain/strategy.ts:108` and `services.ts:3` (96x96 figures), `shared/src/zoneStyle/scorch.ts:15` (says
@@ -548,14 +553,17 @@ Taken at phase B (`76232bc`, 166 mobs) unless marked; **PENDING** rows are the p
 - **The Rime's rays reach bow range in 81.7% of cases** against the contract's window of 62-78%. The window was the contract's own
   estimate, not an owner number; the lakes make the zone the most open. The 30-seed sweep flags it. Open owner question: accept it, or
   fill the lakes' shores with more headlands.
-- **Small meres.** The second mere grows from the clearance left by the first and the camps, so on some seeds it is small (the first can
-  grow to `ICE_WANT`); a small lake (under `LAKE_MIN` 40 tiles) gets no headlands, spire or tower, so a Rime has fewer than 2 watchtowers
-  on about 3 seeds in 10 (1.57 a zone in 30 seeds).
-- **Barrows**: 8 or more on 72.5% of seeds, not 95% (section 10.3); the window judges the mean (8.2-8.4).
+- **Small meres.** The second mere grows from the clearance left by the first and the camps, so on a seed with little room it is small
+  (the first may grow to 250% of `LAKE_GROW` to make up `ICE_WANT`; only `LAKE_MIN` 40 tiles bounds a mere from below). In a 30-seed
+  check at `4f8c2cb` a Rime held between 288 and 700 ice tiles against the window's 450-800 (judged on the mean, which read 589), had
+  one watchtower rather than two on 13 seeds (the tower is placed per lake seed in the landmark stage and does not always fit) and no
+  spire on 3.
+- **Barrows**: 8 or more on 72.5% of seeds, not 95% (section 10.3); the window judges the mean (8.2-8.4; 4 to 11 a zone over 30 seeds).
 - **Loops** window at least 4.5 (section 11).
 - **Landmark pass cost**: about 2 ms a map, 2.8 under load, against a target of 1.
 - **Pool headroom is thin on open ground**: the ratio is 1.08-1.15 against a gate of 1.2. A styler that stretches walks costs attempts;
-  the route guard exists for this. About 1 attempt in 100 fails `A:spawnRatio` or `A:camps`.
+  the route guard exists for this. About 1 attempt in 100 still fails (1.005-1.011 attempts a seed; the one failure in a 100-seed
+  check was `A:spawnRatio`).
 - **Joiner's first sync is 23 KB** with a 64 KB encoder buffer; a bigger roster or more mobs would grow it (interest management,
   `StateView`, is still the real fix).
 - **Owner questions with their defaults built** (GAME_DESIGN 18): two Rime meres of about 350 ice tiles, or one grown toward 700; loot at
