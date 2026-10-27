@@ -11,6 +11,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build -w @raid/client",
     "playtest": "node scripts/playtest.mjs",
+    "playtest:signin": "node scripts/playtest-signin.mjs",
     "bots": "npm run bots -w @raid/server",
     "harness:factions": "npm run harness:factions -w @raid/server --"
   },

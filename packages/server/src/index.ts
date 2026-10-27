@@ -389,11 +389,34 @@ export async function startServer(config: ServerConfig = loadConfig()) {
   return server;
 }
 
+/**
+ * `scripts/playtest.mjs` gives the server a stdin pipe it never writes to and sets RAID_EXIT_ON_STDIN_END. When the pipe
+ * ends, the launcher is gone (it was killed or crashed; a normal stop signals the server first), and a server left behind
+ * would keep the port and the profile file's lock: so it shuts down the way a SIGTERM does (rooms closed, GV banked,
+ * profiles flushed, lock freed). Off unless the flag is set: a stdin that is /dev/null ends at once.
+ */
+function shutDownWhenStdinEnds(server: RaidServer): void {
+  let ended = false;
+  const onEnd = () => {
+    if (ended) return;
+    ended = true;
+    console.log("[server] the launcher is gone (its pipe closed): shutting down");
+    void server.gracefullyShutdown(true);
+  };
+  process.stdin.on("end", onEnd);
+  process.stdin.on("close", onEnd);
+  process.stdin.on("error", onEnd);
+  process.stdin.resume(); // reading is what notices the end
+}
+
 const entry = process.argv[1];
 if (entry && import.meta.url === pathToFileURL(entry).href) {
   const config = loadConfig();
   startServer(config).then(
-    () => console.log(`[server] listening on :${config.port}`),
+    (server) => {
+      console.log(`[server] listening on :${config.port}`);
+      if (process.env.RAID_EXIT_ON_STDIN_END) shutDownWhenStdinEnds(server);
+    },
     (err) => {
       console.error(err);
       process.exit(1);
