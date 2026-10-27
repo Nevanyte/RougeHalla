@@ -92,6 +92,14 @@ export interface ClientMessages {
    */
   choose: { chest: string; pick: number; replace?: 0 | 1 };
   /**
+   * Accept a public quest offer at its giver (F next to the giver opens the dialog; shared/quests.ts). Only an accepted offer
+   * counts for the player: kills, tokens, the parcel and the turn-in all read it. An action like `pickup`: refused, with a toast
+   * and no change, when the run is not active, the player is not standing or is stunned or casting, the offer is not public and
+   * open, the player's SERVER position is farther than QUEST_ACCEPT_RANGE from the giver or has no line of sight to it, or it
+   * is already accepted. Dropped silently for a fill bot. Not accepted in a training room (it has no quests).
+   */
+  questAccept: { quest: string };
+  /**
    * The training room's practice console (shared/training.ts, server sim/training.ts). Dropped (and not counted as presence)
    * unless the room is a training room, so an arena client can never use it. Nothing it does is recorded or paid.
    */
@@ -114,7 +122,7 @@ export type TrainMessage =
 
 export type ClientMessageType = keyof ClientMessages;
 export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = [
-  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train",
+  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train", "questAccept",
 ];
 
 /** Why a projectile stopped (a `projEnd` fx). */

@@ -8,6 +8,7 @@ import { createGameWorld } from "../src/sim/gameplay";
 import { offerQuest, type QuestRuntime } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
 import type { SimConfig, SimEvent, World } from "../src/sim/world";
+import { accept } from "./support/questRig";
 
 const GIVER: Vec2 = { x: 6 * TILE, y: 6 * TILE };
 
@@ -44,6 +45,7 @@ const RT = (world: World) => world.players.get("p0")!;
 
 function ready(world: World, defId: string): QuestRuntime {
   const qt = offerQuest(world, questDefById(defId)!, true, { at: GIVER });
+  accept(world, qt);
   qt.s.progress.set("p0", qt.def.count);
   P(world).x = GIVER.x;
   P(world).y = GIVER.y;

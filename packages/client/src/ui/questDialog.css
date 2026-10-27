@@ -1,0 +1,102 @@
+/* The quest dialog (ui/questDialog.ts): a card docked at the left edge, mid-height, that F opens next to a quest giver. It is NOT a
+   modal and never takes the canvas' clicks: a left-click elsewhere still locks a target and a right-click still walks. So the root
+   and the box are click-through, and only the two buttons take the pointer (index.html's "#ui > *" is auto, which the selector below
+   outranks; nothing in here turns the pointer back on for the rest).
+   z-index ladder: above the chest panel (8), under the map screens (planning.css, 10), the quest log (11), the toasts (15) and the
+   chrome (20). Sizes follow --qd-text (the text size setting, set by the script). The state of an offer is told in words (the
+   "Accepted" badge, "Not accepted yet"), never by hue alone; --qd-color is the quest kind's colour, as in the log. */
+#ui > .quest-dialog {
+  position: absolute;
+  z-index: 9;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+  width: min(calc(280px * var(--qd-text, 1)), calc(var(--ui-w, 800px) * 0.46));
+  max-height: calc(var(--ui-h, 600px) - 160px);
+  display: flex;
+  flex-direction: column;
+  font-size: calc(13px * var(--qd-text, 1));
+  line-height: 1.3;
+  pointer-events: none;
+  outline: none;
+  user-select: none;
+}
+.quest-dialog[hidden] { display: none !important; }
+
+.qd-box {
+  box-sizing: border-box;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 11px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line-hi);
+  border-left: 3px solid var(--qd-color, var(--accent));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+  overflow: hidden;
+  animation: panel-in var(--dur) var(--ease);
+}
+.quest-dialog.focused .qd-box { border-color: var(--accent); border-left-color: var(--qd-color, var(--accent)); box-shadow: 0 0 0 1px var(--accent), var(--shadow-pop); }
+
+.qd-head { display: flex; align-items: baseline; gap: 7px; min-width: 0; pointer-events: none; }
+.qd-title { flex: 1; min-width: 0; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.qd-kind { flex: none; font-size: 0.78em; letter-spacing: 0.06em; text-transform: uppercase; color: var(--qd-color, var(--muted)); }
+.qd-timer { flex: none; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+.qd-giver { font-size: 0.9em; font-weight: 600; color: var(--text-soft); pointer-events: none; }
+.qd-brief { font-size: 0.88em; font-style: italic; color: var(--dim); pointer-events: none; }
+.qd-objective { color: var(--text); pointer-events: none; }
+.qd-reward { font-size: 0.92em; color: var(--text-soft); pointer-events: none; }
+.qd-progress { font-size: 0.92em; font-weight: 600; color: var(--ok-text); pointer-events: none; }
+.qd-progress.off { color: var(--warn); }
+.qd-status { min-height: 1.3em; font-size: 0.92em; color: var(--text-soft); pointer-events: none; }
+.qd-status.refused { color: var(--danger-text); }
+
+.qd-buttons { display: flex; align-items: center; gap: 6px; pointer-events: none; }
+/* The only things that take the pointer. */
+.qd-accept, .qd-close {
+  box-sizing: border-box;
+  margin: 0;
+  font: inherit;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+}
+.qd-accept { flex: 1; display: flex; align-items: center; gap: 6px; padding: 5px 9px; font-weight: 700; border-color: var(--accent-line); }
+.qd-close { flex: none; display: flex; align-items: center; gap: 6px; padding: 5px 9px; color: var(--muted); }
+.qd-accept:hover:not(:disabled), .qd-close:hover:not(:disabled) { background: var(--card-hover); border-color: var(--accent-dim); }
+.qd-accept:focus-visible, .qd-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.qd-accept:disabled { cursor: not-allowed; opacity: 0.55; }
+.qd-accept[hidden], .qd-badge[hidden] { display: none; }
+.qd-badge {
+  flex: 1;
+  padding: 5px 9px;
+  font-weight: 700;
+  color: var(--ok-text);
+  background: rgba(18, 46, 24, 0.55);
+  border: 1px solid var(--ok-line);
+  border-radius: var(--radius);
+  pointer-events: none;
+}
+.qd-key { flex: none; }
+
+.qd-hint { font-size: 0.8em; color: var(--dim); pointer-events: none; }
+.qd-hint .keycap { margin-inline: 1px; }
+
+/* Short or narrow overlays: the hint line and the flavour line give way, the box tightens. */
+html[data-ui-short] .qd-hint, html[data-ui-short] .qd-brief { display: none; }
+html[data-ui-short] .qd-box { gap: 4px; padding: 6px 9px 7px; }
+html[data-ui-narrow] #ui > .quest-dialog { width: min(calc(240px * var(--qd-text, 1)), calc(var(--ui-w, 800px) * 0.5)); }
+
+/* Reduced motion: the settings switch (html[data-reduced-motion]) or the system's: a plain appearance. */
+@media (prefers-reduced-motion: reduce) {
+  .qd-box { animation: none; }
+}
+html[data-reduced-motion] .qd-box { animation: none; }

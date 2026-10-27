@@ -13,6 +13,7 @@ import { offerQuest, type QuestRuntime } from "../src/sim/quests";
 import { isHidden } from "../src/sim/status";
 import { addPlayer, step } from "../src/sim/step";
 import type { SimConfig, World } from "../src/sim/world";
+import { accept } from "./support/questRig";
 
 const PARCEL = { x: 20 * TILE, y: 6 * TILE };
 
@@ -64,6 +65,7 @@ function place(world: World, id: string, at: Vec2): void {
 
 function carrying(world: World): QuestRuntime {
   const qt = offerQuest(world, questDefById("banner-frost")!, true, { at: { x: 6 * TILE, y: 6 * TILE }, parcel: PARCEL });
+  accept(world, qt);
   place(world, "p0", PARCEL);
   step(world, TICK_MS);
   step(world, TICK_MS);

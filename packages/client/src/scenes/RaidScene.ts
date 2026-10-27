@@ -19,7 +19,7 @@ import { ContainerView, TIMER_TEXT_REACH } from "../render/ContainerView";
 import { chestNameOf, displayName } from "../render/displayName";
 import { FieldView } from "../render/FieldView";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
-import { containerWeapon, nearestContainer } from "../render/interact";
+import { containerWeapon, pickInteraction, type Interaction } from "../render/interact";
 import { MapView } from "../render/MapView";
 import { MobView } from "../render/MobView";
 import { PlayerView } from "../render/PlayerView";
@@ -42,6 +42,7 @@ import { MapHold, mapHoldAllowed } from "../ui/mapHold";
 import type { ChestBlip } from "../ui/mapPainter";
 import { Minimap } from "../ui/minimap";
 import { PlanningView, planningModeFor, type PlanningPlayer } from "../ui/planning";
+import { QuestDialog, type QuestDialogFrame, type QuestDialogMe } from "../ui/questDialog";
 import { QuestLog } from "../ui/questLog";
 import { expireQuestPreviews, questCollections, questFromReveal, questMinimapBlips, type QuestStateLike } from "../ui/questModel";
 import { RouteState } from "../ui/route";
@@ -150,8 +151,16 @@ export class RaidScene extends Phaser.Scene {
   private trainingBar: TrainingBar | null = null;
   private leaveTraining: (() => void) | undefined;
   private announce: ((text: string) => void) | undefined;
-  /** Weapon or eligible quest item the local player could take: alive, and in range on the server's move-mask rule. */
+  /** Weapon or eligible quest item the local player could take: alive, and in range on the server's move-mask rule. Null when F talks to a giver instead. */
   private nearest: ContainerState | null = null;
+  /** What F does now: the nearest of that pickup and a quest giver in talking reach (render/interact.ts pickInteraction). */
+  private interaction: Interaction | null = null;
+  /** A quest giver's offer, opened by F next to the giver (ui/questDialog.ts); Accept sends `questAccept`. */
+  private questDialog: QuestDialog | null = null;
+  private readonly dialogMe: QuestDialogMe = { id: "", x: 0, y: 0, alive: false };
+  private readonly dialogFrame: QuestDialogFrame = {
+    active: false, serverNow: 0, me: null, quests: { forEach: () => {} }, sight: null,
+  };
   private marker!: Phaser.GameObjects.Ellipse;
   private lastMoveSentAt = 0;
   /** Where the camera looks while the minimap is held with the left button (ground units); null = at the local player. */
@@ -240,6 +249,7 @@ export class RaidScene extends Phaser.Scene {
     this.containerViews = new Map();
     this.rendered.clear();
     this.nearest = null;
+    this.interaction = null;
     this.lastMoveSentAt = 0;
     this.renderT = 0;
     this.teleportAt = 0;
@@ -290,7 +300,16 @@ export class RaidScene extends Phaser.Scene {
     });
     // A refused pick comes back as the server's toast ("Already taken", "Too far away"): the panel's status line says why.
     this.unbindToast?.();
-    this.unbindToast = this.room.onMessage("toast", (t: ServerMessages["toast"]) => { this.chestPanel?.noteToast(t.text); });
+    this.questDialog?.destroy();
+    this.questDialog = new QuestDialog({
+      send: (msg) => sendInput(this.room, "questAccept", msg),
+      // What is sent while the socket reconnects is dropped (net/connection.ts): the dialog must not show it as sent.
+      canSend: () => !this.room.reconnection?.isReconnecting,
+    });
+    this.unbindToast = this.room.onMessage("toast", (t: ServerMessages["toast"]) => {
+      this.chestPanel?.noteToast(t.text);
+      this.questDialog?.noteToast(t.text);
+    });
     this.buildMap(data.map);
     this.unbindPlan = data.plan?.attach((m) => this.planning?.setPlan(m)) ?? null;
     this.unbindMapHold = this.mapHold.bind();
@@ -470,12 +489,15 @@ export class RaidScene extends Phaser.Scene {
     // A hidden offer's private preview never gets a public row once the gates are locked or the run is over: the server deletes it silently.
     expireQuestPreviews(this.questPreviews, serverNow, gatesLocked || state.phase === "ended");
     const questData = questCollections(state, this.questPreviews.values(), serverNow);
-    this.nearest = me?.status === "alive" && pickupMap ? nearestContainer(state.containers, pickupMap, me, {
+    // F: the nearest of a weapon or quest item to take and a quest giver to talk to (the public offers only: a preview has no giver yet).
+    this.interaction = me?.status === "alive" && pickupMap ? pickInteraction(state.containers, state.quests, pickupMap, me, {
       quests: questData.quests, localId: this.room.sessionId,
     }) : null;
+    this.nearest = this.interaction?.kind === "pickup" ? this.interaction.container : null;
     const chestNow = trueServerNow(serverNow, rttFromOrderDelay(this.predict.motion.delay));
     this.syncContainers(state, chestNow, now);
     this.updateChestPanel(state, me, pickupMap ?? null, serverNow);
+    this.updateQuestDialog(state, me, pickupMap ?? null, serverNow);
     this.questView.update({
       quests: questData.quests, containers: questData.containers, players: state.players, positions: this.rendered,
       localId: this.room.sessionId, me, highlightId: this.nearest?.kind === "quest" ? this.nearest.id : undefined,
@@ -511,7 +533,11 @@ export class RaidScene extends Phaser.Scene {
     if (this.resultsVisible?.()) this.hud.noteResultShown();
     this.hud.setTerrain(this.localGround);
     this.hud.update(state, me, serverNow);
-    this.weaponBar.update(me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "quest" ? this.nearest.label : "");
+    const talk = this.interaction?.kind === "talk" ? this.interaction : null;
+    this.weaponBar.update(
+      me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null, this.nearest?.kind === "quest" ? this.nearest.label : "",
+      talk ? (this.questDialog?.isOpen ? "close the quest offer" : `talk to ${talk.def.giver}`) : "",
+    );
     this.updateWishSlot(me, state, serverNow, now);
     this.updatePlanning(state, me, serverNow);
     this.trackRoute(state, me);
@@ -729,6 +755,29 @@ export class RaidScene extends Phaser.Scene {
     this.chestFrame.containers = state.containers;
     this.chestFrame.sight = sight;
     panel.update(this.chestFrame);
+  }
+
+  /** The quest dialog's frame: it closes by itself when the player walks out of reach, the offer ends, or the run is not on. */
+  private updateQuestDialog(state: RaidState, me: PlayerState | undefined, sight: GameMap | null, serverNow: number): void {
+    const dialog = this.questDialog;
+    if (!dialog) return;
+    let local: QuestDialogMe | null = null;
+    if (me) {
+      local = this.dialogMe;
+      local.id = this.room.sessionId;
+      local.x = me.x;
+      local.y = me.y;
+      local.alive = me.status === "alive";
+    }
+    const frame = this.dialogFrame;
+    frame.active = state.phase === "active";
+    frame.serverNow = serverNow;
+    frame.me = local;
+    frame.quests = state.quests;
+    frame.sight = sight;
+    frame.feed = me ? feedScore(me.kills, me.mobKills) : undefined;
+    frame.localName = me?.name;
+    dialog.update(frame);
   }
 
   private readonly chestFrame: ChestPanelFrame = {
@@ -1139,12 +1188,26 @@ export class RaidScene extends Phaser.Scene {
       return;
     }
     if (e.code === "KeyQ") sendInput(this.room, "swap", {});
-    else if (e.code === "KeyF") {
-      if (this.nearest) sendInput(this.room, "pickup", { containerId: this.nearest.id });
-    } else {
+    else if (e.code === "KeyF") this.interact();
+    else {
       const digit = /^(?:Digit|Numpad)([12])$/.exec(e.code);
       if (digit) sendInput(this.room, "swap", { slot: Number(digit[1]) - 1 });
     }
+  }
+
+  /**
+   * F: closes an open quest offer; else does the nearest thing there is to do: take the weapon or quest item (`pickup`), or open the
+   * dialog of the quest giver in reach (the dialog sends `questAccept` itself, on Accept).
+   */
+  private interact(): void {
+    if (this.questDialog?.isOpen) {
+      this.questDialog.close();
+      return;
+    }
+    const it = this.interaction;
+    if (!it) return;
+    if (it.kind === "pickup") sendInput(this.room, "pickup", { containerId: it.container.id });
+    else this.questDialog?.open(it.quest.id);
   }
 
   /** The map is never synced: main.ts hands the scene the one it built from (seed, attempt) and checked. */
@@ -1224,6 +1287,8 @@ export class RaidScene extends Phaser.Scene {
     this.unbindToast = null;
     this.chestPanel?.destroy();
     this.chestPanel = null;
+    this.questDialog?.destroy();
+    this.questDialog = null;
     this.unbindMapHold?.();
     this.unbindMapHold = null;
     this.unbindSettings?.();

@@ -42,6 +42,8 @@ export class PlanningQuests {
     if (signature === this.signature) return;
     this.signature = signature;
     this.element.replaceChildren(el("h3", "pl-h", "Known quests"));
+    // Nothing counts before the player accepts, and accepting is a talk with the giver, so planning says where it happens.
+    if (rows.length > 0) this.element.append(el("p", "pl-small pl-quest-accept", "Accept at the giver in the run: only accepted quests count."));
     if (rows.length === 0) this.element.append(el("p", "pl-small", "No public quest offers this run."));
     for (const row of rows) {
       const card = el("div", `pl-quest kind-${row.def.kind}`);

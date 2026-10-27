@@ -232,6 +232,26 @@ export function questRewardText(def: QuestDef): string {
   return `${title} (${cardText(def.reward.card)}) and ${def.reward.gv} GV`;
 }
 
+/**
+ * The toasts the server sends a player whose `questAccept` was refused (sim/quests.ts handleQuestAccept): one list, so the client can
+ * tell a refusal of its accept from any other toast without guessing at wording. The first three are the chest's and the pickup's
+ * own words.
+ */
+export const QUEST_REFUSAL = {
+  busy: "Can't do that now",
+  far: "Too far away",
+  blocked: "Can't reach that",
+  over: "That quest is over",
+  already: "You already accepted that quest",
+} as const;
+export const QUEST_REFUSALS: readonly string[] = Object.values(QUEST_REFUSAL);
+
+/** The private toast of a successful accept. */
+export const questAcceptedText = (def: Pick<QuestDef, "name">): string => `Quest accepted: ${def.name}`;
+
+/** The refusal of a quest token or parcel that its picker has not accepted the offer for. */
+export const questAcceptFirstText = (def: Pick<QuestDef, "name" | "giver">): string => `Accept ${def.name} at ${def.giver} first`;
+
 // --- The roster ------------------------------------------------------------------------------------------------------
 
 export interface RosterEntry { def: QuestDef; known: boolean }

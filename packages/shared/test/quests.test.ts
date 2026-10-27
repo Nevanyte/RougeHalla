@@ -3,9 +3,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { cardDef, cardText, cardTitle } from "../src/cards";
 import { rewardCurve } from "../src/rules";
 import {
-  QUEST_COUNT, QUEST_FETCH_MIN_TILES, QUEST_GV_CAP, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES,
-  QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_HEAD_START_MS, QUEST_REVEAL_RADIUS, QUEST_UNKNOWN_COUNT, TILE,
+  QUEST_ACCEPT_RANGE, QUEST_COUNT, QUEST_FETCH_MIN_TILES, QUEST_GV_CAP, QUEST_KNOWN_COUNT, QUEST_NPC_GAP_TILES,
+  QUEST_NPC_SPAWN_MIN_TILES, QUEST_REVEAL_HEAD_START_MS, QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, QUEST_UNKNOWN_COUNT, TILE,
 } from "../src/constants";
+import { CLIENT_MESSAGE_TYPES } from "../src/messages";
 import { circleClear } from "../src/geometry";
 import {
   MASK_MOVE, TILE_WALL, blocksTile, mapFromTiles, moveComponents, tileIndex, tileToWorldCenter, worldToTile, type CampDef, type GameMap,
@@ -15,7 +16,8 @@ import { mulberry32 } from "../src/rng";
 import { QuestState, RaidState } from "../src/schema";
 import { TERRAIN_NONE, terrainAt } from "../src/terrain";
 import {
-  CAMP_SECONDS, CARD_TIER_RATE, npcCandidates, parityGv, placeQuests, QUEST_DEFS, QUEST_FEED_BRAKE, questBase, questDefById,
+  CAMP_SECONDS, CARD_TIER_RATE, npcCandidates, parityGv, placeQuests, QUEST_DEFS, QUEST_FEED_BRAKE, QUEST_REFUSAL, QUEST_REFUSALS,
+  questAcceptedText, questAcceptFirstText, questBase, questDefById,
   questRewardCard, questRewardText, questTier, questTierPoints, selectQuests, spreadSpots, STACK_PREMIUM, type QuestPlacement,
   type RosterEntry,
 } from "../src/quests";
@@ -328,5 +330,35 @@ describe("placement", () => {
   it("keeps bare hand-built maps quest-free and handles an empty spread request", () => {
     expect(placeQuests(mapFromTiles(20, 20, new Uint8Array(400)), selectQuests(mulberry32(1)), mulberry32(2))).toEqual([]);
     expect(spreadSpots([{ x: 32, y: 32 }], 0, () => { throw new Error("must not draw"); })).toEqual([]);
+  });
+});
+
+describe("accepting", () => {
+  it("talks at the turn-in's own reach, and the message is on the wire list after the older ones", () => {
+    expect(QUEST_ACCEPT_RANGE).toBe(QUEST_TURN_IN_RANGE);
+    expect(CLIENT_MESSAGE_TYPES).toContain("questAccept");
+    // The list is a wire order: new types only at the end.
+    expect(CLIENT_MESSAGE_TYPES.slice(0, 12)).toEqual(["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train"]);
+    expect(CLIENT_MESSAGE_TYPES[12]).toBe("questAccept");
+  });
+
+  it("keeps a public per-quest accepted set, empty to begin with, that the state holds by player id", () => {
+    const q = new QuestState();
+    expect(q.accepted.size).toBe(0);
+    q.accepted.set("p1", true);
+    expect(q.accepted.get("p1")).toBe(true);
+    expect(q.accepted.get("p2")).toBeUndefined();
+    const state = new RaidState();
+    state.quests.set("q", q);
+    expect(state.quests.get("q")!.accepted.get("p1")).toBe(true);
+  });
+
+  it("words the toasts from the def, and lists every refusal once, none of them a success line", () => {
+    const def = questDefById("cull-fire")!;
+    expect(questAcceptedText(def)).toBe("Quest accepted: Cinder Cull");
+    expect(questAcceptFirstText(def)).toBe("Accept Cinder Cull at Ashmother Vela first");
+    expect(QUEST_REFUSALS).toEqual(Object.values(QUEST_REFUSAL));
+    expect(new Set(QUEST_REFUSALS).size).toBe(QUEST_REFUSALS.length);
+    expect(QUEST_REFUSALS).not.toContain(questAcceptedText(def));
   });
 });

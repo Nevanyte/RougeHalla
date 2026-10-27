@@ -40,7 +40,10 @@ function rowElement(row: QuestRow): HTMLElement {
   const objective = el("p", "quest-log-objective", row.objective);
   const progress = el("div", "quest-log-progress");
   progress.append(el("span", undefined, `Your progress ${row.progress}`), el("span", "quest-log-status", row.status));
-  root.append(head, el("div", "quest-log-giver", row.def.giver), objective, progress, el("div", "quest-log-reward", `Reward: ${row.reward}`));
+  root.append(head, el("div", "quest-log-giver", row.def.giver), objective, progress);
+  // Whether the offer counts for the player: nothing does until they accept at the giver (F next to it).
+  if (row.acceptance !== "") root.append(el("div", `quest-log-accept${row.accepted ? " yes" : " no"}`, row.acceptance));
+  root.append(el("div", "quest-log-reward", `Reward: ${row.reward}`));
   return root;
 }
 
@@ -94,7 +97,7 @@ export class QuestLog {
       return;
     }
     const rows = questRows(frame.quests, frame.localId, frame.serverNow, frame.localName, frame.phase === "planning", frame.feed);
-    const signature = rows.map((r) => `${r.id}|${r.time}|${r.progress}|${r.status}|${r.reward}`).join("|") + `|${frame.hidden}`;
+    const signature = rows.map((r) => `${r.id}|${r.time}|${r.progress}|${r.status}|${r.reward}|${r.acceptance}`).join("|") + `|${frame.hidden}`;
     if (signature === this.signature) return;
     this.signature = signature;
     this.list.replaceChildren(...(rows.length > 0 ? rows.map(rowElement) : [el("p", "quest-log-empty", "No quests revealed yet.")]));

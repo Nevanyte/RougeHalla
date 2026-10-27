@@ -452,6 +452,8 @@ export const QUEST_REVEAL_RADIUS = 12 * TILE;
 export const QUEST_REVEAL_HEAD_START_MS = 4000;
 /** Turn-in reach: standing this close to the giver with the objective met completes the quest (INTERACT_RANGE is for loot). */
 export const QUEST_TURN_IN_RANGE = 64;
+/** Talk reach: standing this close to a giver (with a clear line) lets a player accept its offer (F, then `questAccept`). The turn-in's own radius. */
+export const QUEST_ACCEPT_RANGE = QUEST_TURN_IN_RANGE;
 /** A giver never spawns closer than this to a player start. */
 export const QUEST_NPC_SPAWN_MIN_TILES = 8;
 /** Givers keep at least this far apart (relaxed to half when a map runs out of room). */

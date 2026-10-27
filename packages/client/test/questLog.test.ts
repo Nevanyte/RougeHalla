@@ -18,6 +18,34 @@ const frame = (over: Partial<QuestLogFrame> = {}): QuestLogFrame => ({
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("QuestLog acceptance", () => {
+  it("marks an open row Accepted, or Not accepted with the giver to talk to, and says what to do in planning", () => {
+    const dom = installPlanningDom();
+    const log = new QuestLog();
+    const rows = (accepted: Map<string, boolean> | undefined) => {
+      const q = { ...state, accepted };
+      return { forEach(cb: (q: QuestStateLike, id: string) => void) { cb(q, q.id); } };
+    };
+    log.update(frame({ quests: rows(new Map([["me", true]])) }));
+    log.toggle();
+    log.update(frame({ quests: rows(new Map([["me", true]])) }));
+    expect(dom.ui.byClass("quest-log-accept")[0]?.textContent).toBe("Accepted");
+    expect(dom.ui.byClass("quest-log-accept")[0]?.className).toContain(" yes");
+    log.update(frame({ quests: rows(new Map()) }));
+    expect(dom.ui.byClass("quest-log-accept")[0]?.textContent).toBe(`Not accepted: talk to ${questDefById("cull-fire")!.giver}`);
+    expect(dom.ui.byClass("quest-log-accept")[0]?.className).toContain(" no");
+    // The row's own status word is untouched.
+    expect(dom.ui.byClass("quest-log-status")[0]?.textContent).toBe("Open");
+    log.update(frame({ phase: "planning", quests: rows(undefined) }));
+    expect(dom.ui.byClass("quest-log-accept")[0]?.textContent).toBe("Accept at the giver in the run");
+    // A finished row has no acceptance line.
+    const done = { forEach(cb: (q: QuestStateLike, id: string) => void) { cb({ ...state, status: "done", doneBy: "Bravo" }, state.id); } };
+    log.update(frame({ quests: done }));
+    expect(dom.ui.byClass("quest-log-accept")).toHaveLength(0);
+    log.destroy();
+  });
+});
+
 describe("QuestLog", () => {
   it("toggles with J and lists the objective, progress, time, reward, status and hidden count", () => {
     const dom = installPlanningDom();

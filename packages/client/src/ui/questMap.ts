@@ -18,8 +18,15 @@ export function paintQuestBlips(
       ctx.lineTo(x, y + r);
       ctx.lineTo(x - r, y);
       ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
+      // An offer not yet accepted is an outline, one the player holds is solid: a call to action against a job in hand.
+      if (blip.accepted === false) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1.5, 1.5 * px);
+        ctx.stroke();
+      } else {
+        ctx.fill();
+        ctx.stroke();
+      }
     } else if (blip.role === "carrier") {
       const r = 3.4 * px;
       ctx.fillRect(x - r, y - r, r * 2, r * 2);

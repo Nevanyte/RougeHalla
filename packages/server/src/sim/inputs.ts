@@ -31,6 +31,8 @@ export type ActionCommand =
   | PlanCommand
   /** A pick at a cleared camp's shared chest (sim/chests.ts): option `pick`, or -1 to skip. `replace` is R6's (ignored). */
   | ChooseCommand
+  /** Accept a quest offer at its giver (sim/quests.ts handleQuestAccept validates it). */
+  | QuestAcceptCommand
   /** The training console (sim/training.ts; only ever queued for a training world: see enqueueClientMessage). */
   | TrainCommand;
 
@@ -46,6 +48,9 @@ export type TrainCommand =
 
 /** A `choose` input: a reward container id and an option index (-1 = skip). */
 export type ChooseCommand = { kind: "choose"; chest: string; pick: number; replace?: 0 | 1 };
+
+/** A `questAccept` input: the runtime id of a public quest offer (RaidState.quests key). */
+export type QuestAcceptCommand = { kind: "questAccept"; quest: string };
 
 /** The highest option index a `choose` may name (a chest has CHEST_OPTIONS today; the parser leaves room to grow). */
 export const MAX_CHOOSE_PICK = 15;
@@ -154,6 +159,13 @@ export function parseChoose(msg: unknown): ChooseCommand | null {
   const cmd: ChooseCommand = { kind: "choose", chest, pick: pick + 0 };
   if (replace !== undefined) cmd.replace = replace;
   return cmd;
+}
+
+/** A `questAccept` message, or null: `quest` a short id string. Whether it names an open public offer in reach is the sim's to check. */
+export function parseQuestAccept(msg: unknown): QuestAcceptCommand | null {
+  if (!isRecord(msg)) return null;
+  const quest = parseId(msg.quest);
+  return quest ? { kind: "questAccept", quest } : null;
 }
 
 /**
@@ -277,6 +289,12 @@ export function enqueueClientMessage(q: InputQueue, type: string, msg: unknown, 
     }
     case "choose": {
       const cmd = parseChoose(msg);
+      if (!cmd) return false;
+      q.pushAction(cmd);
+      return true;
+    }
+    case "questAccept": {
+      const cmd = parseQuestAccept(msg);
       if (!cmd) return false;
       q.pushAction(cmd);
       return true;

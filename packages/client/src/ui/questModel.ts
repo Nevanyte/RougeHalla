@@ -8,6 +8,11 @@ export interface QuestProgress {
   get(id: string): number | undefined;
 }
 
+/** QuestState.accepted: the player ids that accepted the offer at its giver. Absent on a private reveal preview (nobody can accept it yet). */
+export interface QuestAccepted {
+  get(id: string): boolean | undefined;
+}
+
 export interface QuestStateLike {
   id: string;
   def: string;
@@ -19,6 +24,12 @@ export interface QuestStateLike {
   expiresAt: number;
   carrier: string;
   progress: QuestProgress;
+  accepted?: QuestAccepted;
+}
+
+/** Whether the local player accepted this offer: nothing counts for them (kills, tokens, the parcel, the turn-in) until they have. */
+export function questAccepted(quest: QuestStateLike, localId: string): boolean {
+  return quest.accepted?.get(localId) === true;
 }
 
 export interface QuestCollection {
@@ -51,6 +62,10 @@ export interface QuestRow {
   reward: string;
   status: string;
   ready: boolean;
+  /** The local player accepted it at the giver. */
+  accepted: boolean;
+  /** The row's acceptance line: "Accepted", "Not accepted: talk to <giver>", or in planning where nobody can accept yet, what to do in the run. "" for a closed row. */
+  acceptance: string;
   expired: boolean;
   /** Done or expired (by the server's word or by the clock): no timer, no live styling, listed after the open rows. */
   closed: boolean;
@@ -59,6 +74,8 @@ export interface QuestRow {
 export interface QuestMapBlip extends QuestPosition {
   role: "giver" | "objective" | "carrier";
   kind: QuestKind;
+  /** A giver blip: the local player accepted its offer (drawn solid; an offer not yet accepted is an outline). */
+  accepted?: boolean;
 }
 
 const EMPTY_QUESTS: QuestCollection = { forEach: () => {} };
@@ -179,6 +196,7 @@ export function questRows(
     const def = questDefById(quest.def);
     if (!def) return;
     const ready = questReady(quest, def, localId);
+    const accepted = questAccepted(quest, localId);
     // In planning the clock is frozen and the server re-anchors `expiresAt` at raid start, so show the fixed duration instead.
     const expired = quest.status === "expired" || (!planning && quest.status === "open" && serverNow >= quest.expiresAt);
     const closed = expired || quest.status === "done";
@@ -188,10 +206,11 @@ export function questRows(
     const progress = mine
       ? `${numberText(def.count)} / ${numberText(def.count)}`
       : def.kind === "fetch" ? `${quest.carrier === localId ? 1 : 0} / 1` : `${numberText(Math.min(def.count, quest.progress.get(localId) ?? 0))} / ${numberText(def.count)}`;
+    const acceptance = closed ? "" : planning ? "Accept at the giver in the run" : accepted ? "Accepted" : `Not accepted: talk to ${def.giver}`;
     rows.push({
       id: quest.id, def, quest, objective: questObjective(def), progress,
       time: closed ? "" : formatQuestTime(planning ? def.expiresAtSec * 1000 : quest.expiresAt - serverNow),
-      reward: questReward(def, feed), status, ready, expired, closed,
+      reward: questReward(def, feed), status, ready, accepted, acceptance, expired, closed,
     });
   });
   const group = (row: QuestRow): number => !row.closed ? 0 : row.quest.status === "done" ? 1 : 2;
@@ -214,7 +233,10 @@ export function questMinimapBlips(
   local: QuestPosition | undefined, positions: ReadonlyMap<string, QuestPosition>, map: GameMap | null,
 ): QuestMapBlip[] {
   const out: QuestMapBlip[] = [];
+  // The one nearest objective points at an offer the local player accepted; only with none of those does it point at the
+  // nearest open giver (an offer not yet accepted counts for nothing, so its items and kill zone are not what to walk to).
   const objectives: QuestMapBlip[] = [];
+  const givers: QuestMapBlip[] = [];
   const ground = new Map<string, QuestContainerLike[]>();
   containers.forEach((container) => {
     const questId = questItemQuestId(container);
@@ -227,10 +249,15 @@ export function questMinimapBlips(
     if (!visibleQuest(quest) || quest.status !== "open") return;
     const def = questDefById(quest.def);
     if (!def) return;
-    out.push({ role: "giver", kind: def.kind, x: quest.x, y: quest.y });
+    const accepted = questAccepted(quest, localId);
+    out.push({ role: "giver", kind: def.kind, x: quest.x, y: quest.y, accepted });
     if (quest.carrier) {
       const at = positions.get(quest.carrier);
       if (at) out.push({ role: "carrier", kind: def.kind, x: at.x, y: at.y });
+    }
+    if (!accepted) {
+      givers.push({ role: "objective", kind: def.kind, x: quest.x, y: quest.y });
+      return;
     }
     if (questReady(quest, def, localId)) {
       objectives.push({ role: "objective", kind: def.kind, x: quest.x, y: quest.y });
@@ -243,11 +270,12 @@ export function questMinimapBlips(
       if (region) objectives.push({ role: "objective", kind: def.kind, x: region.pole.x, y: region.pole.y });
     }
   });
-  if (local && objectives.length > 0) {
-    let nearest = objectives[0]!;
+  const candidates = objectives.length > 0 ? objectives : givers;
+  if (local && candidates.length > 0) {
+    let nearest = candidates[0]!;
     let best = (nearest.x - local.x) ** 2 + (nearest.y - local.y) ** 2;
-    for (let i = 1; i < objectives.length; i++) {
-      const candidate = objectives[i]!;
+    for (let i = 1; i < candidates.length; i++) {
+      const candidate = candidates[i]!;
       const distance = (candidate.x - local.x) ** 2 + (candidate.y - local.y) ** 2;
       if (distance < best) { nearest = candidate; best = distance; }
     }

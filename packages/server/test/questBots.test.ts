@@ -15,7 +15,7 @@ import { hurtMob, placeMob } from "../src/sim/mobLife";
 import { offerQuest, type QuestRuntime } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, SimConfig, SimEvent, World } from "../src/sim/world";
-import { rig } from "./support/questRig";
+import { accept, rig } from "./support/questRig";
 
 const GIVER: Vec2 = { x: 6 * TILE, y: 6 * TILE };
 /** Well outside QUEST_REVEAL_RADIUS of the giver. */
@@ -51,7 +51,10 @@ const P = (w: World, id: string): PlayerState => w.state.players.get(id)!;
 const RT = (w: World, id: string) => w.players.get(id)!;
 
 function offer(w: World, defId: string, extra: { tokens?: Vec2[]; parcel?: Vec2; known?: boolean; at?: Vec2 } = {}): QuestRuntime {
-  return offerQuest(w, questDefById(defId)!, extra.known ?? true, { at: extra.at ?? GIVER, tokens: extra.tokens, parcel: extra.parcel });
+  const qt = offerQuest(w, questDefById(defId)!, extra.known ?? true, { at: extra.at ?? GIVER, tokens: extra.tokens, parcel: extra.parcel });
+  // Bots included: these tests are about the bot exclusion, which must stay the rule that stops them, not a missing accept.
+  accept(w, qt);
+  return qt;
 }
 
 function place(w: World, id: string, at: Vec2): void {

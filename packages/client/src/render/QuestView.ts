@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { PLAYER_RADIUS, Y_SCALE, questDefById, type QuestKind } from "@raid/shared";
-import { questItemQuestId, questKindColor, questTurnIn, visibleQuest, type QuestCollection, type QuestContainerCollection, type QuestPosition, type QuestStateLike } from "../ui/questModel";
+import { questAccepted, questItemQuestId, questKindColor, questTurnIn, visibleQuest, type QuestCollection, type QuestContainerCollection, type QuestPosition, type QuestStateLike } from "../ui/questModel";
 import { BODY_LIFT, depthFor, projX, projY } from "./projection";
 
 interface QuestPlayer {
@@ -23,6 +23,8 @@ interface GiverView {
   root: Phaser.GameObjects.Container;
   offer: Phaser.GameObjects.Text;
   hint: Phaser.GameObjects.Text;
+  /** The mark now drawn: "!" for an offer the local player has not accepted, "?" for one they hold. */
+  accepted: boolean | null;
 }
 
 interface ItemView {
@@ -50,6 +52,12 @@ export class QuestView {
       const giver = this.givers.get(quest.id) ?? this.makeGiver(quest, def.giver, def.kind);
       this.givers.set(quest.id, giver);
       giver.offer.setVisible(true);
+      // An offer not yet accepted is a bright "!" (a call to action: F at the giver); one held is a dim "?" (a job in hand).
+      const accepted = questAccepted(quest, frame.localId);
+      if (giver.accepted !== accepted) {
+        giver.accepted = accepted;
+        giver.offer.setText(accepted ? "?" : "!").setAlpha(accepted ? 0.6 : 1);
+      }
       giver.hint.setVisible(frame.me?.status === "alive" && questTurnIn(quest, def, frame.localId, frame.me));
       if (quest.carrier) {
         const at = frame.positions.get(quest.carrier) ?? frame.players.get(quest.carrier);
@@ -123,7 +131,7 @@ export class QuestView {
       ...LABEL_STYLE, fontSize: "12px", fontStyle: "bold", color: "#fff59d",
     }).setOrigin(0.5, 0).setVisible(false);
     const root = this.scene.add.container(projX(quest.x), projY(quest.y), [shape, label, offer, hint]).setDepth(depthFor(quest.y));
-    return { root, offer, hint };
+    return { root, offer, hint, accepted: null };
   }
 
   private makeItem(x: number, y: number, text: string, kind: QuestKind): ItemView {
