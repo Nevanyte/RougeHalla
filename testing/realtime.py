@@ -47,11 +47,13 @@ CHILL_MOVE_MULT = 0.7      # ...and multiplies their move speed by this
 # speed: boost on the faction's attack rate; dps: damage multiplier; floor: shortest interval (binds only under buffs);
 # windup/wshare: the attacker is rooted for min(windup, wshare x interval) seconds from the attack starting (the TS
 # BOW_WINDUP / BOW_WINDUP_SHARE etc. in shared/weapons.ts; the axe's extra root is not modelled). Used by the kite model only.
+# wfloor: the shortest a windup mod (a windup multiplier below 1, Quickdraw) takes a ranged windup, BOW_WINDUP_FLOOR /
+# WAND_WINDUP_FLOOR in shared/weapons.ts: windup() applies it only when asked for a windup_mult below 1 (melee: no floor).
 WEAPONS = {
     "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=60,  melee=True,  windup=0.10, wshare=1.00),
     "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=60,  melee=True,  windup=0.25, wshare=0.25),
-    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.92),
-    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.40, wshare=0.80),
+    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.92, wfloor=0.55),
+    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.40, wshare=0.80, wfloor=0.40),
     "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True,  windup=0.10, wshare=1.00),
 }
 WNAMES = list(WEAPONS)
@@ -87,11 +89,17 @@ def interval(spec, wname, as_mult=1.0, floor=True):
     return max(w["floor"], raw) if floor else raw
 
 
-def windup(spec, wname, as_mult=1.0):
+def windup(spec, wname, as_mult=1.0, windup_mult=1.0):
     """Seconds the attacker is rooted from an attack starting until it lands / the projectile leaves: the weapon's windup
-    cap or its share of the interval, whichever is shorter (shared/weapons.ts weaponTimings)."""
+    cap or its share of the interval, whichever is shorter (shared/weapons.ts weaponTimings). `windup_mult` is a windup mod
+    (Quickdraw 0.92 / 0.88) as shared/mods.ts scaleWindup applies it: max(windup x mult, min(windup, floor)) for a ranged
+    weapon, so a mult below 1 never takes the windup under its floor and never shortens one that is already under it; a mult
+    of 1 or more just scales it (never past the interval)."""
     w = WEAPONS[wname]
-    return min(w["windup"], w["wshare"] * interval(spec, wname, as_mult))
+    base = min(w["windup"], w["wshare"] * interval(spec, wname, as_mult))
+    if windup_mult == 1.0:
+        return base
+    return min(interval(spec, wname, as_mult), max(base * windup_mult, min(base, w.get("wfloor", 0.0))))
 
 
 def per_hit(spec, wname, as_mult=1.0, dps=None):
@@ -231,7 +239,7 @@ def free_fire_time(loser_name, ranged):
     return (WEAPONS[ranged]["rng"] - REACH) / (V * chill_of(Side(BY[loser_name], ranged)))
 
 
-def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=60.0, as_mult=1.0):
+def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=60.0, as_mult=1.0, windup_mult=1.0):
     """Seconds until a melee chaser closes from the shooter's range to melee reach on a shooter that orb-walks: a small
     kinematic model at the sim's DT = 0.05 mirroring the TS rules.
 
@@ -252,11 +260,12 @@ def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=6
     `stand=True` is the shooter that never walks away (same rooted-or-not clock, but it never moves): the kinematic twin of
     `free_fire_time`, equal to it unless the shooter is Frost. `as_mult` is the shooter's attack-speed multiplier (a buff):
     the interval and the windup's share follow it as in the TS sim (interval floor included; the cap does not move).
+    `windup_mult` is the shooter's windup mod (windup(): Quickdraw, with the ranged floors).
     Returns inf if the chaser has not arrived after t_max."""
     spec = BY[loser_name]
     rng = float(WEAPONS[ranged]["rng"])
     iv = interval(spec, ranged, as_mult)
-    wu = min(windup(spec, ranged, as_mult), iv)
+    wu = min(windup(spec, ranged, as_mult, windup_mult), iv)
     frost = spec.aura == "wall_of_ice"
     gap = rng
     for k in range(int(round(t_max / DT))):
@@ -309,15 +318,16 @@ def kite_tolerances(as_mult=1.0, dmg=1.0):
     return {(a, b, wb): {wa: kite_tolerance(a, wa, b, wb, as_mult=as_mult, dmg=dmg) for wa in MELEE} for a, b in BEATS for wb in RANGED}
 
 
-def kite_rows(tols=None, as_mult=1.0):
+def kite_rows(tols=None, as_mult=1.0, windup_mult=1.0):
     """The kite check, one row per faction edge: [(winner, loser, {ranged weapon: ({melee weapon: tolerance}, Tff standing,
     Tff orb-walk)})]. A cell is STOLEN when the weakest melee weapon's tolerance is below the orb-walk free-fire time (the
     standing time is the lower bound it is printed beside). Pass `tols` (from kite_tolerances) to reuse the tolerances, and
-    the same `as_mult` the tolerances were computed with (the shooter's attack speed moves its orb-walk too)."""
+    the same `as_mult` the tolerances were computed with (the shooter's attack speed moves its orb-walk too). `windup_mult` is
+    the shooter's windup mod; the tolerances do not depend on it, only the orb-walk time does."""
     tols = tols or kite_tolerances(as_mult)
     rows = []
     for a, b in BEATS:
-        cells = {wb: (tols[(a, b, wb)], free_fire_time(b, wb), orbwalk_free_fire(b, wb, a, as_mult=as_mult)) for wb in RANGED}
+        cells = {wb: (tols[(a, b, wb)], free_fire_time(b, wb), orbwalk_free_fire(b, wb, a, as_mult=as_mult, windup_mult=windup_mult)) for wb in RANGED}
         rows.append((a, b, cells))
     return rows
 

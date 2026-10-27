@@ -259,14 +259,18 @@ export const CAMP_CLEARED = 2;
 /** A cleared camp's marker is drawn this faint, under a cross. */
 const CLEARED_ALPHA = 0.38;
 const COLOR_CLEARED_CROSS = "#eceff1";
-const COLOR_ENGAGED = "#ff7043";
-/** A small flame on a unit base, at an engaged camp's upper right. */
-const FLAME: Poly = [[0, -1], [0.7, -0.1], [0.45, 0.9], [-0.45, 0.9], [-0.7, -0.1]];
+/**
+ * The mark of a camp somebody has fought at (CampState.state 1). That state is sticky history, not a live fight (mobs that
+ * lose their target walk home and heal, and nothing sets it back), so the mark is a small muted ring, never an alert colour.
+ */
+export const COLOR_DISTURBED = "#b0bec5";
+const DISTURBED_ALPHA = 0.7;
 
 /**
  * Camp markers: the zone's shape in its colour with a dark outline, an elite bigger and crowned. With `states` (one number per
- * camp, CAMP_*), a cleared camp is dimmed and crossed out so everyone reads what was taken, and an engaged one wears a small
- * flame; without them (or with 0s) the calls are exactly the plain markers'.
+ * camp, CAMP_*), a cleared camp is dimmed and crossed out so everyone reads what was taken, and a disturbed one (somebody has
+ * fought there; the state never goes back) wears a small muted ring; without them (or with 0s) the calls are exactly the plain
+ * markers'.
  */
 export function paintCamps(
   g: PaintCtx, camps: readonly Pick<CampDef, "zone" | "x" | "y" | "eliteSpot">[], k: number, px: number, states?: ArrayLike<number>,
@@ -312,11 +316,15 @@ export function paintCamps(
       g.strokeStyle = COLOR_OUTLINE;
       g.lineWidth = px;
     } else if (state === CAMP_ENGAGED) {
-      g.fillStyle = COLOR_ENGAGED;
+      g.globalAlpha = DISTURBED_ALPHA;
+      g.strokeStyle = COLOR_DISTURBED;
+      g.lineWidth = 1.4 * px;
       g.beginPath();
-      polyPath(g, FLAME, cx + r * 0.95, cy - r * 0.85, r * 0.55);
-      g.fill();
+      g.arc(cx + r * 0.95, cy - r * 0.85, r * 0.32, 0, TAU);
       g.stroke();
+      g.globalAlpha = 1;
+      g.strokeStyle = COLOR_OUTLINE;
+      g.lineWidth = px;
     }
   }
 }

@@ -2,6 +2,7 @@
 //   npm run harness -w @raid/server [-- --quick] [--faction fire,holy] [--edge wand>bow] [--perception client|stale|present]
 //                                   [--arena open|pillars|both] [--cap SECONDS] [--quiet]
 //                                   [--kiting-only] [--shooter-buff plagueRat:3,emberImp:3] [--shooter-as 1.08]
+//                                   [--shooter-windup 0.88] [--shooter-speed 1.1]
 // The full report takes about a minute; --quick (three setups per cell, no sensitivity passes) a few seconds; --kiting-only
 // (the kiting table and the faction edges against a kiting shooter, a buffed one with --shooter-*) about 35 s. It never
 // fails on an outcome: it is information for the owner.
@@ -23,6 +24,8 @@ const USAGE = [
   "  --quiet               no progress lines",
   "  --shooter-buff b:n,..  the shooter of every kiting duel holds these buffs (id:stacks, e.g. plagueRat:3); the chaser none",
   "  --shooter-as x        the shooter of every kiting duel attacks x times as fast on top of its buffs (a mod source)",
+  "  --shooter-windup x    the shooter of every kiting duel's windups are x times as long (Quickdraw: 0.92 rank 1, 0.88 rank 2), with the ranged floors",
+  "  --shooter-speed x     the shooter of every kiting duel walks x times as fast (Swift Boots: 1.06 rank 1, 1.10 rank 2)",
   "  --kiting-only         only the KITING section and KITE EDGES (the faction edges against a kiting shooter, signatures on)",
 ].join("\n");
 
@@ -104,6 +107,18 @@ function parseArgs(argv: string[]): ReportOptions & { quiet: boolean } {
         const n = Number(value());
         if (!(n > 0)) fail("--shooter-as needs a positive multiplier");
         opts.shooter = { ...opts.shooter, asMult: n };
+        break;
+      }
+      case "--shooter-windup": {
+        const n = Number(value());
+        if (!(n > 0)) fail("--shooter-windup needs a positive multiplier");
+        opts.shooter = { ...opts.shooter, windupMult: n };
+        break;
+      }
+      case "--shooter-speed": {
+        const n = Number(value());
+        if (!(n > 0)) fail("--shooter-speed needs a positive multiplier");
+        opts.shooter = { ...opts.shooter, speedMult: n };
         break;
       }
       case "--kiting-only": opts.kitingOnly = true; break;

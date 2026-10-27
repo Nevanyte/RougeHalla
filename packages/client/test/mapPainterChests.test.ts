@@ -1,11 +1,11 @@
-// The map painter's two additions for the camp chests (ui/mapPainter.ts): a cleared camp is dimmed and crossed out, an engaged one
-// wears a flame, and a chest that is up is a gold blip with its seconds. With no state and no chest the painter makes exactly the
+// The map painter's two additions for the camp chests (ui/mapPainter.ts): a cleared camp is dimmed and crossed out, one somebody
+// fought at (the sticky "engaged" state) wears a small muted ring, and a chest that is up is a gold blip with its seconds. With no state and no chest the painter makes exactly the
 // calls it made before (the reference below is the old paintCamps, kept verbatim). The 2D context is a call recorder.
 import { describe, expect, it } from "vitest";
 import { FACTIONS, FACTION_IDS, type CampDef, type FactionId } from "@raid/shared";
 import { cssColor } from "../src/ui/dom";
 import {
-  CAMP_CLEARED, CAMP_ENGAGED, CAMP_IDLE, COLOR_CHEST, COLOR_CROWN, COLOR_OUTLINE, SHAPE_POLYGON, ZONE_SHAPE, paintCamps, paintChests,
+  CAMP_CLEARED, CAMP_ENGAGED, CAMP_IDLE, COLOR_CHEST, COLOR_CROWN, COLOR_DISTURBED, COLOR_OUTLINE, SHAPE_POLYGON, ZONE_SHAPE, paintCamps, paintChests,
   zoneColor, type PaintCtx,
 } from "../src/ui/mapPainter";
 import { argsOf, fakeObject, names, type FakeObject } from "./fakes";
@@ -128,17 +128,33 @@ describe("a cleared camp", () => {
   });
 });
 
-describe("an engaged camp", () => {
-  it("wears a small orange flame beside its marker, and is not dimmed or crossed", () => {
+describe("a camp somebody has fought at (state 1, sticky)", () => {
+  it("wears a small muted ring beside its marker, not an alert: no orange, no fill, not dimmed or crossed", () => {
     const plain = rec();
     paintCamps(ctxOf(plain), [camp("plague", 400, 300)], K, 1);
     const g = rec();
     paintCamps(ctxOf(g), [camp("plague", 400, 300)], K, 1, [CAMP_ENGAGED]);
-    expect(argsOf(g, "fillStyle=").map(([c]) => c)).toEqual([zoneColor("plague"), "#ff7043"]);
-    expect(names(g).filter((n) => n === "fill")).toHaveLength(2);
-    expect(g.calls.some(([n]) => n === "globalAlpha=")).toBe(false);
-    // The flame is five points: a moveTo and four lineTos more than the plain marker.
-    expect(names(g).filter((n) => n === "lineTo").length - names(plain).filter((n) => n === "lineTo").length).toBe(4);
+    expect(argsOf(g, "fillStyle=").map(([c]) => c)).toEqual([zoneColor("plague")]);
+    expect(argsOf(g, "strokeStyle=").map(([c]) => c)).toContain(COLOR_DISTURBED);
+    expect(COLOR_DISTURBED).not.toBe("#ff7043");
+    expect(names(g).filter((n) => n === "fill")).toHaveLength(1);
+    expect(argsOf(g, "arc")).toHaveLength(1);
+    // The ring is faint, and the alpha is back to 1 for whatever is drawn next; the marker itself is not dimmed.
+    const alphas = argsOf(g, "globalAlpha=").map(([a]) => a as number);
+    expect(alphas).toHaveLength(2);
+    expect(alphas[0]!).toBeLessThan(1);
+    expect(alphas[1]).toBe(1);
+    // A ring is one arc and a stroke: no polygon points beyond the plain marker's own.
+    expect(names(g).filter((n) => n === "lineTo")).toHaveLength(names(plain).filter((n) => n === "lineTo").length);
+  });
+
+  it("leaves the next camp's strokes as they were: outline colour and width are restored", () => {
+    const both = rec();
+    paintCamps(ctxOf(both), [camp("plague", 400, 300), camp("holy", 900, 300)], K, 1, [CAMP_ENGAGED, CAMP_IDLE]);
+    const alone = rec();
+    paintCamps(ctxOf(alone), [camp("holy", 900, 300)], K, 1);
+    const tail = (g: FakeObject) => g.calls.slice(-14).map(([n, a]) => `${n}:${JSON.stringify(a)}`);
+    expect(tail(both)).toEqual(tail(alone));
   });
 });
 

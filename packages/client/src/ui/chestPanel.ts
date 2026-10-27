@@ -7,9 +7,10 @@
 // It never takes the canvas' clicks: the box is click-through and only the cards and the Skip button take the pointer (a left
 // click elsewhere still locks a target, a right-click still walks; a click in the first CHEST_PANEL_CLICK_GUARD_MS after it
 // opens is ignored, so a spam-clicking cursor cannot take a pick unseen). Keyboard: C focuses the panel, then 1 2 3 pick the
-// cards and 0 skips; C or Esc hand the focus back. The cards and Skip are out of the browser's Tab order until C: a stray Tab
-// must not put the focus inside, where the digits and Esc would stop being the game's. The digits are the panel's ONLY while it has focus, so the weapon keys work as
-// ever otherwise. Every option greys out RTT/2 + CHEST_GREY_MS before the chest expires, and a pick the server refuses comes
+// cards and 0 skips; C or Esc hand the focus back, and so does a pick or skip sent by key (the digits are the weapon slots again
+// during the summary). The cards and Skip are out of the browser's Tab order until C: a stray Tab must not put the focus
+// inside, where the digits and Esc would stop being the game's, and once inside, Tab walks the buttons (the hold-Tab map
+// leaves it alone, ui/mapHold.ts). The digits are the panel's ONLY while it has focus, so the weapon keys work as ever otherwise. Every option greys out RTT/2 + CHEST_GREY_MS before the chest expires, and a pick the server refuses comes
 // back as its `toast` (noteToast) into the status line. The server decides everything: this only sends `choose`.
 import {
   CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_SECONDS, FACTIONS, isChestRefusal, isFactionId, skipText,
@@ -588,11 +589,15 @@ export class ChestPanel {
       case "leave":
         this.leave();
         break;
+      // A pick or a skip that was sent hands the keyboard back at once, like a mouse click: the digits are the weapon slots
+      // again while the summary shows (a refusal costs one C to try again).
       case "skip":
-        if (!this.skip()) this.say("You can't skip this chest now.");
+        if (this.skip()) this.leave();
+        else this.say("You can't skip this chest now.");
         break;
       case "pick":
-        if (!this.pick(action.index)) this.say(`Option ${action.index + 1} is not available.`);
+        if (this.pick(action.index)) this.leave();
+        else this.say(`Option ${action.index + 1} is not available.`);
         break;
     }
     this.refresh();

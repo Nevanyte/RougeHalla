@@ -13,6 +13,7 @@ import {
   ChestPanel, NOT_CONFIRMED_SAY, PENDING_EXPIRE_MS, PICKED_HOLD_MS, RECONNECTING_SAY, REFUSED_HOLD_MS, chestKeyAction,
   type ChestPanelFrame, type ChestPanelMe,
 } from "../src/ui/chestPanel";
+import { MapHold } from "../src/ui/mapHold";
 import { campTitle } from "../src/ui/planning";
 import { fake, installChromeDom, type FEl, type FakeDocument, type FakeWindow } from "./chromeDom";
 
@@ -686,6 +687,47 @@ describe("the Tab order", () => {
   });
 });
 
+describe("the hold-Tab map beside the panel", () => {
+  /** A MapHold on the fake window, as RaidScene binds it in a run; `held` follows it. */
+  function withMapHold(r: Rig): { held: () => boolean; unbind: () => void; release: () => void } {
+    const hold = new MapHold(() => true);
+    const unbind = hold.bind();
+    return { held: () => hold.held, unbind, release: () => hold.release() };
+  }
+
+  it("Tab is the map's until C gives the panel the keyboard; then Tab walks its buttons and the map stays down", () => {
+    const r = setup();
+    r.frame();
+    const map = withMapHold(r);
+    // The panel does not have the keyboard: a Tab from the canvas is the map's, as ever.
+    const open = r.win.press({ code: "Tab" });
+    expect(open.defaultPrevented).toBe(true);
+    expect(map.held()).toBe(true);
+    map.release();
+    // C takes the keyboard: the focus is on a card, whose Tab must be the browser's (no preventDefault), not the map's.
+    r.win.press({ code: "KeyC" });
+    expect(r.panel.focused).toBe(true);
+    r.cards()[0]!.focus();
+    for (const target of [r.cards()[0]!, r.cards()[2]!, r.skip()]) {
+      r.skip().focus();
+      target.focus();
+      const tab = r.win.press({ code: "Tab" });
+      expect(tab.defaultPrevented).toBe(false);
+      expect(map.held()).toBe(false);
+    }
+    // The panel's own box holding the focus (C just pressed) is the panel's too.
+    r.panel.focus();
+    expect(r.win.press({ code: "Tab" }).defaultPrevented).toBe(false);
+    expect(map.held()).toBe(false);
+    // Back out of the panel: the next Tab is the map's again.
+    r.win.press({ code: "Escape" });
+    expect(r.panel.focused).toBe(false);
+    expect(r.win.press({ code: "Tab" }).defaultPrevented).toBe(true);
+    expect(map.held()).toBe(true);
+    map.unbind();
+  });
+});
+
 describe("the keyboard", () => {
   it("C takes the keyboard while the panel is up, and C or Esc give it back", () => {
     const r = setup();
@@ -721,6 +763,44 @@ describe("the keyboard", () => {
     }
   });
 
+  it("a pick or a skip sent by key hands the keyboard back at once: the digits are the weapon slots again during the summary", () => {
+    for (const code of ["Digit1", "Numpad3", "Digit0"]) {
+      const r = setup();
+      r.frame();
+      r.win.press({ code: "KeyC" });
+      expect(r.panel.focused, code).toBe(true);
+      r.win.press({ code });
+      expect(r.sent, code).toHaveLength(1);
+      expect(r.panel.focused, code).toBe(false);
+      expect(r.cards().concat(r.skip()).every((b) => b.tabIndex === -1), code).toBe(true);
+      // The next 1 or 2 is the scene's (a weapon swap): not consumed, not answered with "not available".
+      const scene: string[] = [];
+      r.win.addEventListener("keydown", (e: { code: string }) => scene.push(e.code));
+      for (const swap of ["Digit1", "Digit2"]) {
+        const e = r.win.press({ code: swap });
+        expect(e.defaultPrevented, `${code} then ${swap}`).toBe(false);
+        expect(e.propagationStopped, `${code} then ${swap}`).toBe(false);
+      }
+      expect(scene, code).toEqual(["Digit1", "Digit2"]);
+      expect(r.sent, code).toHaveLength(1);
+      expect(r.state(), code).not.toMatch(/not available/);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("a key pick that was not sent keeps the keyboard (the status says why), so another digit can be tried", () => {
+    const r = setup();
+    r.chests.set("c1", chest({ takenBy: ["bob", "", ""], pickers: ["bob"] }));
+    r.frame();
+    r.panel.focus();
+    r.win.press({ code: "Digit1" });
+    expect(r.sent).toEqual([]);
+    expect(r.panel.focused).toBe(true);
+    r.win.press({ code: "Digit2" });
+    expect(r.sent).toEqual([{ chest: "c1", pick: 1 }]);
+    expect(r.panel.focused).toBe(false);
+  });
+
   it("the digits belong to the weapon slots until C: nothing is taken, nothing is stopped", () => {
     const r = setup();
     r.frame();
@@ -746,8 +826,9 @@ describe("the keyboard", () => {
       expect(e.propagationStopped, code).toBe(false);
     }
     expect(scene).toEqual(["KeyQ", "KeyS", "KeyF", "Digit4", "Digit9", "KeyW"]);
-    // Its own never reach it.
+    // Its own never reach it (the pick hands the keyboard back, so C takes it again before Esc).
     r.win.press({ code: "Digit2" });
+    r.win.press({ code: "KeyC" });
     r.win.press({ code: "Escape" });
     expect(scene).toHaveLength(6);
   });

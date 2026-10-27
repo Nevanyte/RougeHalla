@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FACTIONS, WIRE_IDENTITY_MIRRORS, attackInterval, encodeMult, scaleWindup, weaponTimings } from "@raid/shared";
+import { BOW_WINDUP, BOW_WINDUP_FLOOR, FACTIONS, WIRE_IDENTITY_MIRRORS, attackInterval, encodeMult, scaleWindup, weaponTimings } from "@raid/shared";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { DrawTrack, FighterArt, HpBar, fullDrawSeconds, heldWeapon, type FighterFields } from "../src/render/FighterArt";
 import { argsOf, fakeScene } from "./fakes";
@@ -135,21 +135,22 @@ describe("fullDrawSeconds", () => {
   // timingsOf live; this is the client's half: a draw gauge that drifts from the server's shows a full bow before (or after)
   // it is. The client reads the MIRRORS the server folds its buffs into, in wire form (thousandths). Regenerate with the weapon
   // numbers (weapons.ts / factions.ts) when they change; BOW_WINDUP and BOW_WINDUP_SHARE (the controls tuning lever) move
-  // every entry.
+  // every entry. A windup mirror below 1 shortens the draw only down to BOW_WINDUP_FLOOR (0.55 s): the x0.85 row is 0.55 for the
+  // cap-bound Fire and Frost bows and the x1 row for the others, whose draws are already under the floor.
   const AS = [1, 1.05, 1.25, 1.6];
   const WINDUP = [1, 0.85, 1.2];
   const SERVER_FULL_DRAW: Record<string, readonly (readonly number[])[]> = {
-    fire: [[0.6, 0.6, 0.6, 0.491452991], [0.51, 0.51, 0.51, 0.417735043], [0.72, 0.72, 0.683760684, 0.534188034]],
+    fire: [[0.6, 0.6, 0.6, 0.491452991], [0.55, 0.55, 0.55, 0.491452991], [0.72, 0.72, 0.683760684, 0.534188034]],
     sentenced: [
       [0.524216524, 0.499253833, 0.419373219, 0.327635328],
-      [0.445584046, 0.424365758, 0.356467236, 0.278490028],
+      [0.524216524, 0.499253833, 0.419373219, 0.327635328],
       [0.56980057, 0.542667209, 0.455840456, 0.356125356],
     ],
-    plague: [[0.255024255, 0.242880243, 0.23, 0.23], [0.216770617, 0.206448206, 0.1955, 0.1955], [0.277200277, 0.264000264, 0.25, 0.25]],
-    frost: [[0.6, 0.6, 0.6, 0.6], [0.51, 0.51, 0.51, 0.51], [0.72, 0.72, 0.72, 0.712250712]],
+    plague: [[0.255024255, 0.242880243, 0.23, 0.23], [0.255024255, 0.242880243, 0.23, 0.23], [0.277200277, 0.264000264, 0.25, 0.25]],
+    frost: [[0.6, 0.6, 0.6, 0.6], [0.55, 0.55, 0.55, 0.55], [0.72, 0.72, 0.72, 0.712250712]],
     holy: [
       [0.496626181, 0.472977315, 0.397300945, 0.310391363],
-      [0.422132254, 0.402030718, 0.337705803, 0.263832659],
+      [0.496626181, 0.472977315, 0.397300945, 0.310391363],
       [0.539811066, 0.514105777, 0.431848853, 0.337381916],
     ],
   };
@@ -186,17 +187,30 @@ describe("fullDrawSeconds", () => {
     const t = scaleWindup(weaponTimings("bow", attackInterval(FACTIONS.sentenced, "bow", 1.5)), 0.8);
     expect(fullDrawSeconds("sentenced", wire(1.5), wire(0.8))).toBeCloseTo(t.windup, 12);
     expect(fullDrawSeconds("sentenced", wire(1.5))).toBeLessThan(fullDrawSeconds("sentenced"));
-    expect(fullDrawSeconds("sentenced", IDENTITY, wire(0.8))).toBeCloseTo(fullDrawSeconds("sentenced") * 0.8, 12);
+    expect(fullDrawSeconds("fire", IDENTITY, wire(0.95))).toBeCloseTo(0.57, 12);
   });
 
-  it("the windup mirror scales the pull on its own: a longer windup, a longer draw", () => {
+  it("the windup mirror scales the pull on its own: a longer windup, a longer draw, and a shorter one only down to the floor", () => {
     expect(fullDrawSeconds("sentenced", IDENTITY, wire(1.2))).toBeGreaterThan(fullDrawSeconds("sentenced"));
-    expect(fullDrawSeconds("sentenced", IDENTITY, wire(0.85))).toBeLessThan(fullDrawSeconds("sentenced"));
+    expect(fullDrawSeconds("fire", IDENTITY, wire(1.2))).toBeCloseTo(0.72, 12);
+    // Quickdraw rank 1 (x0.92) is above the 0.55 s floor, rank 2 (x0.88, 0.528 s) is held at it, and so is anything shorter.
+    expect(fullDrawSeconds("fire", IDENTITY, wire(0.92))).toBeCloseTo(0.552, 12);
+    for (const m of [0.88, 0.85, 0.5, 0.05]) {
+      expect(fullDrawSeconds("fire", IDENTITY, wire(m)), `fire x${m}`).toBe(BOW_WINDUP_FLOOR);
+      expect(fullDrawSeconds("frost", IDENTITY, wire(m)), `frost x${m}`).toBe(BOW_WINDUP_FLOOR);
+    }
+    // Sentenced's, Plague's and Holy's draws are already under the floor (share-bound): a shorter windup leaves them alone.
+    for (const f of ["sentenced", "plague", "holy"]) {
+      expect(fullDrawSeconds(f, IDENTITY, wire(0.88)), f).toBe(fullDrawSeconds(f));
+      expect(fullDrawSeconds(f, wire(1.25), wire(0.5)), f).toBe(fullDrawSeconds(f, wire(1.25)));
+    }
+    expect(BOW_WINDUP_FLOOR).toBeLessThan(BOW_WINDUP);
   });
 
   it("is what the gauge uses: the same draw is full with the mirror and not without", () => {
-    // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw at attack speed x1.25 (0.419 s) or windup
-    // x0.85 (0.446 s), which glows; and 0.45 s of a windup x1.2 draw (0.570 s) is not full.
+    // 0.45 s into a Sentenced bow's draw: 86% of the unbuffed 0.524 s, but a full draw at attack speed x1.25 (0.419 s), which
+    // glows; a windup x0.85 does not shorten it (0.524 s is under the bow's 0.55 s floor), and 0.45 s of a windup x1.2 draw
+    // (0.570 s) is not full.
     const glowing = (fields: Partial<FighterFields>) => {
       const graphics = [fakeGraphics(), fakeGraphics()];
       let i = 0;
@@ -207,10 +221,24 @@ describe("fullDrawSeconds", () => {
     expect(glowing({})).toBe(false);
     expect(glowing({ asMult: IDENTITY, windupMult: IDENTITY })).toBe(false);
     expect(glowing({ asMult: wire(1.25) })).toBe(true);
-    expect(glowing({ windupMult: wire(0.85) })).toBe(true);
+    expect(glowing({ windupMult: wire(0.85) })).toBe(false);
     expect(glowing({ windupMult: wire(1.2) })).toBe(false);
     // Both together: a longer windup against a faster rate.
     expect(glowing({ asMult: wire(1.25), windupMult: wire(1.2) })).toBe(false);
+  });
+
+  it("the gauge's full draw follows the floor: a Fire bow at 0.54 s is not full for any windup mirror, at 0.56 s it is for x0.88 and under", () => {
+    const glowingAt = (elapsed: number, fields: Partial<FighterFields>) => {
+      const graphics = [fakeGraphics(), fakeGraphics()];
+      let i = 0;
+      const art = new FighterArt({ add: { graphics: () => graphics[i++] } } as never);
+      art.update({ ...bowman(1000), faction: "fire", ...fields }, 1000 + elapsed, 1000 + elapsed);
+      return graphics[1]!.calls.includes("strokeCircle");
+    };
+    for (const m of [1, 0.92, 0.88, 0.5]) expect(glowingAt(540, { windupMult: wire(m) }), `x${m} at 0.54 s`).toBe(false);
+    expect(glowingAt(560, {})).toBe(false); // the unbuffed 0.6 s draw
+    expect(glowingAt(560, { windupMult: wire(0.92) })).toBe(true); // 0.552 s
+    for (const m of [0.88, 0.5]) expect(glowingAt(560, { windupMult: wire(m) }), `x${m} at 0.56 s`).toBe(true);
   });
 });
 

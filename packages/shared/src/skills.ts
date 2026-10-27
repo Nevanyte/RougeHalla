@@ -212,8 +212,8 @@ const ROWS: readonly Row[] = [
   {
     id: "quickdraw", pool: "neutral", kind: "passive", name: "Quickdraw", ready: "r5",
     ranks: [{ effects: [{ k: "stat", stat: "windup", v: -0.08 }] }, { effects: [{ k: "stat", stat: "windup", v: -0.12 }] }],
-    worksWith: ["bow", "wand", "axe"], counters: ["kiters"],
-    note: "A windup ends on a 50 ms tick, so the gain comes in whole ticks: a short windup may not shorten at all.",
+    worksWith: ["bow", "axe"], counters: ["kiters"],
+    note: "Never below 0.55 s on the bow, and the wand's 0.4 s does not shorten. A windup ends on a 50 ms tick, so the gain comes in whole ticks.",
   },
   {
     id: "thickHide", pool: "neutral", kind: "passive", name: "Thick Hide", ready: "r5",
