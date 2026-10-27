@@ -664,7 +664,7 @@ function realGuard(c: ShapeCtx): RouteGuard | null {
 }
 
 /** Is the 3x3 around `centre` open ground off the band? Every shelf contains it, so a candidate that fails needs no shelf drawn. */
-function coreFree(c: BaseCtx, band: Uint8Array, centre: number): boolean {
+function coreFree(c: ShapeCtx, band: Uint8Array, centre: number): boolean {
   const { w, h } = c;
   const x = centre % w, y = (centre - x) / w;
   if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) return false;

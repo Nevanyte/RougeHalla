@@ -479,6 +479,7 @@ function placeCraters(c: ShapeCtx, mine: readonly CampInfo[], r4s: number[], nod
       }
     }
     const __c: any = (globalThis as any).__cnt;
+    if (__c && rim.length >= RIM_MIN) { __c.raw = (__c.raw ?? 0) + ras.rim(r4, beams).length; __c.kept = (__c.kept ?? 0) + rim.length; __c.n = (__c.n ?? 0) + 1; }
     if (__c && rim.length < RIM_MIN) { const raw = ras.rim(r4, beams); __c.dropped.push([camp.index, r4, ras.blocked(r4), beams.length, raw.length, rim.length, camp.elite ? 1 : 0]); }
     if (__c) { __c.total++; if (rim.length < RIM_MIN) { __c.short++; __c.shortBeams[beams.length] = (__c.shortBeams[beams.length] ?? 0) + 1; __c.shortOpen.push(1000 - ras.blocked(r4)); } }
     if (rim.length < RIM_MIN) continue;
