@@ -1,18 +1,33 @@
 // Scorch (fire): Crater Basins (zone-shapes contract 4.1, options doc 6.1 option 2). Every camp of the zone sits in a basalt crater
-// (a jagged one-tile rim of radius 5-6.5 tiles, 7.5 for an elite camp) that opens through 2-3 named breaches, each aimed at a
-// neighbour on the camp graph (the MST of the zone's 8 camps and its front door, plus Brogue-style loops); between the craters
-// lies open ash, crossed by one lava river with 4-tile fords exactly where inter-crater routes (and the spawn members' walks)
-// cross it; the river's banks and fords are ember. The burnt-out forge is the zone's landmark. Fire is exempt from ember.
+// (a jagged one-tile rim of radius 5-6.5 tiles, up to 7.5 for an elite camp) that opens through 2-3 named breaches, each aimed at a
+// neighbour on the camp graph (the MST of the zone's 8 camps and its front door, plus Brogue-style shortcuts); between the craters
+// lies open ash, crossed by one lava river with fords (4 path steps, a gap 3-5 tiles wide) where the camp routes and the spawn
+// members' walks cross it; the river's banks and fords are ember. The burnt-out forge is the zone's landmark. Fire is exempt from ember.
 //
 // Everything goes through placeFeature as a named feature: "crater" (job pen) with the camp's bowl as owned floor, "lavaRiver"
 // (job crossing) with its fords as owned floor, "landmark" forge (jobs landmark, lee). Integer geometry and the kit's noise only:
-// no trig, no Math.random; doubles appear only from + - * / and sqrt, which are exact on every engine.
+// no trig, no Math.random; doubles appear only from + - * / and sqrt, which are exact on every engine. Seeded: the shape stream
+// (the river's two draws) and the pass's noise; the craters and the forge are pure functions of the ground.
 //
-// The route guard (contract 3.9) is honoured by construction, because a placed feature cannot be taken back: a crater gets an
-// extra breach where a spawn member's corridor meets its rim, and the river gets a ford where a corridor meets its band.
+// The route guard (contract 3.9) is honoured before the fact, because a placed feature cannot be taken back: a crater gets an extra
+// breach where a spawn member's corridor (the guard's 3-wide band along its walk) would be cut by the rim (as long as the crater
+// keeps 60% of its rim), the river gets a ford where a corridor meets its band, and the ember stays off the bank along a corridor.
+// The contract's `worstStretch()` is not called: it can only report what a feature has already done.
+//
+// Deviations from the contract text, with reasons (the WP1 report lists them with numbers):
+//  - the rim is the ideal one-tile ring pushed in and out by a smooth noise along the ring, its gaps filled by lines, not the
+//    jittered annulus of the raster (that one tears into arcs under 6 tiles); the second tile, the breaches' order and the
+//    "no arc under 6" rule are the contract's. A breach is 2.25 tiles each side (the doc's 4-5 tiles), not 2.5: with 2.5 the rays
+//    at bow range lie above the 48-64% window.
+//  - a crater by the zone's edge keeps one skeleton breach and counts the frontier side as the second (p[2], p[3..]).
+//  - the river is a stretch of about 54 x lenScale path steps, not the zone's whole width (a strip zone is 100+ tiles across: the
+//    lava would be twice the 70-160 window and the footprint would not hold with the craters), placed at 45-75% of the zone's depth
+//    where the fewest spawn walks cross it, and its fords are planned per candidate stretch (a window search).
+//  - the forge keeps R_est + 3 from the camp centres (R_est + 2 when that leaves no room); a pre-filter leaves out the tiles the
+//    guard would refuse (the simple-point test at a territory's neck) because a landmark is whole or nothing.
 //
 // Phase B note: this module still exports the old styler as `scorch` (the registry reads it until phase C) and the new one as
-// `scorchCraters`; phase C swaps the registry (see the end of the file).
+// `scorchCraters`; phase C swaps the registry (see the banner before the old styler).
 import { TILE_FLOOR, TILE_LOW, TILE_WALL } from "../map";
 import { TERRAIN_EMBER, TERRAIN_LAVA, TERRAIN_NONE } from "../terrain";
 import { breakLowRuns, chance, DIR8, flowPath, low, pickOpen, roomOf, steer, wall } from "./kit";
@@ -29,10 +44,10 @@ import type { BaseCtx, CampInfo, LandmarkCtx, PropCtx, RouteGuard, ShapeCtx, Sur
 import { RING_DX, RING_DY, SIMPLE } from "../gridTopology";
 import { areaScale, LANDMARKS_PER_ZONE, lenScale, sizeScale } from "./scale";
 
-// ------------------------------------------------------------------------------------------------ numbers (dials in bold: contract 4.1)
-/** Crater radius band, in quarter tiles: clamp(near / 2 - 0.8, 5.0, 6.5) tiles, an elite camp up to 7.5. */
+// ------------------------------------------------------------------------------------------------ numbers
+/** Crater radius band in quarter tiles: floor(4 x clamp(near / 2 - 0.8, 5.0, 6.5)) tiles, an elite camp up to 7.5. */
 const R_MIN4 = 20, R_MAX4 = 26, R_MAX4_ELITE = 30;
-/** A breach is a strip 2.25 tiles each side of the bearing (4.5 wide; contract 4.1 says 2.5: the doc's 4-5 tiles), in quarter tiles. */
+/** A breach is a strip 2.25 tiles each side of the bearing (4.5 wide; contract 4.1 says 2.5, the doc says 4-5 tiles), in quarter tiles. */
 const BREACH_HALF4 = 9;
 const BREACHES_MIN = 2;
 /** Skeleton breaches per crater (corridor breaches come on top). */
@@ -45,27 +60,29 @@ const RIM_KEEP_PERMILLE = 600;
 const RIM_MIN = 8;
 /** The guard's margin from a zone's edge in chamfer thirds (rimTiles 3 x 3); a crater whose ring the edge takes is a crescent. */
 const FRONTIER_EDGE = 9;
-/** A ring this many tiles of which the zone's edge takes is open on that side: the frontier counts as a breach (contract 4.1). */
+/** A ring of which the zone's edge takes this many tiles is open on that side: the frontier counts as a breach (contract 4.1). */
 const FRONTIER_MIN = 8;
+/** The second tile of the rim: noise above this (of 1023) puts one outward of a rim tile, about three in ten. */
+const SECOND_TILE_Q = 716;
 /** Brogue shortcut test: the tree walk must be at least this many times the straight line, up to this many tiles long. */
 const LOOP_RATIO = 1.8, LOOP_MAX_LEN = 30;
 
-/** Ford length in path steps, the spacing between fords, and the closer spacing of corridor fords. */
+/** A ford is FORD_STEPS path steps of the river left out; edge fords keep FORD_SPACING steps apart. */
 const FORD_STEPS = 4, FORD_SPACING = 9;
-/** Fords closer than this many steps become one (up to FORD_MAX_LEN steps long); the river keeps about one ford per FORD_PER_STEPS steps. */
+/** Fords closer than FORD_MERGE steps become one (up to FORD_MAX_LEN steps long); the camp routes get about one ford per FORD_PER_STEPS steps. */
 const FORD_MERGE = 4, FORD_MAX_LEN = 12, FORD_PER_STEPS = 16;
 const RIVER_MIN_STEPS = 12;
-/** The river is about this many path steps x lenScale long (54 x 1.44 = 78 at 136); its path may be RIVER_REACH times that before a stretch is cut from it. */
+/** The river is about RIVER_STEPS_PER_LEN x lenScale path steps long (54 x 1.44 = 78 at 136); its path may run RIVER_REACH times that before a stretch is cut from it. */
 const RIVER_STEPS_PER_LEN = 54, RIVER_REACH = 1.8;
+/** The lava a stretch should hold (contract 4.1: 70-160 tiles per zone). */
 const LAVA_WANT_LO = 85, LAVA_WANT_HI = 140;
+/** The river's depth, as shares of the zone's depth (contract 4.1: 40-60%); the least crossed by spawn walks wins. */
 const RIVER_DEPTHS: readonly number[] = [0.45, 0.55, 0.65, 0.75];
 /** Ground within this many tiles of the river's depth counts as ground the river can follow (it wanders round the craters). */
 const RIVER_SLACK = 7;
-/** The lava a stretch should hold (contract 4.1: 70-160 tiles per zone). */
-const SECOND_TILE_Q = 716;
-const FORGE_DISC = 12;
 /** A forge keeps R_est + 3 tiles from every camp centre (R_est + 2 when that leaves no room), and FORGE_DISC from another forge. */
 const FORGE_MARGINS: readonly number[] = [3, 2];
+const FORGE_DISC = 12;
 const FORGE_TRIES = 48;
 
 export interface ScorchCrater {
@@ -93,7 +110,7 @@ export interface ScorchPlan {
   noEmber: number[];
   /** The craters that stand, in camp order. */
   craters: ScorchCrater[];
-  /** Skeleton edges (MST plus loops) and the loops among them. */
+  /** Skeleton edges (the MST of the camps and the door, plus the shortcuts) and the shortcuts among them. */
   edges: number;
   loops: number;
 }
@@ -671,7 +688,7 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
     }
     return { tiles, keepOut };
   };
-  const planFords = (s0: number, s1: number, corridorCap = Infinity): { fords: Ford[]; corridor: number; runsTotal: number; routes: number } => {
+  const planFords = (s0: number, s1: number, corridorCap = Infinity): { fords: Ford[]; runsTotal: number; routes: number } => {
     let fords: Ford[] = [];
     const normalize = (list: Ford[]): Ford[] => {
       const sorted = list.map((f) => [Math.max(s0 + 1, f[0]), Math.min(s1 - 1, f[1])] as Ford).filter((f) => f[1] > f[0]).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
@@ -689,7 +706,6 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
     };
     const around = (k: number): Ford => [k - (FORD_STEPS >> 1), k - (FORD_STEPS >> 1) + FORD_STEPS];
     // a ford over each run of steps whose square meets a member's corridor (the route guard, contract 3.9)
-    let corridor = 0;
     let runStart = -1, lastHit = -9;
     const runs: Ford[] = [];
     for (let s = s0; s < s1; s++) {
@@ -702,7 +718,6 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
       fords.push(need > 0 ? [r[0] - (need >> 1), r[1] + need - (need >> 1)] : [r[0], r[1]]);
     }
     fords = normalize(fords);
-    corridor = fords.length;
     // a ford on each camp route that crosses the stretch, unless a ford (a corridor's) already stands on it, up to one per
     // FORD_PER_STEPS steps; two edge fords keep FORD_SPACING between them
     const wantEdge = Math.max(2, Math.round((s1 - s0) / FORD_PER_STEPS));
@@ -722,10 +737,10 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
       const k = s0 + Math.floor((s1 - s0) * q);
       if (apart(k, 6)) fords = normalize([...fords, around(k)]);
     }
-    return { fords, corridor, runsTotal: runs.length, routes };
+    return { fords, runsTotal: runs.length, routes };
   };
-  // 7. the stretch: RIVER_LENGTHS around the target, every third start; the lava in the window's range, the fewest corridor
-  //    fords, the most routes
+  // 7. the stretch: three lengths round the target, every third step as a start; the lava in range, every spawn corridor with a
+  //    ford (or the first few), the most routes
   interface Cand { score: number; s0: number; s1: number; cap: number }
   const cands: Cand[] = [];
   const lengths = [target - 14, target, target + 14].filter((l, q, all) => l >= 24 && l <= len && all.indexOf(l) === q);
