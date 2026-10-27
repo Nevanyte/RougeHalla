@@ -262,7 +262,12 @@ export class ZoneRuntime {
     const { mask, hard, tiles, noBlock, edgeDist, territory } = init;
     if (!mask[i] || hard[i]) return false;
     const t = tiles[i];
-    if (t === TILE_LOW) return kind === "wall" && this.wallRunOk(i);
+    if (t === TILE_LOW) {
+      if (kind !== "wall" || !this.wallRunOk(i)) return false;
+      // A LOW tile this pass wrote turns from COST_LOW into the cheaper COST_WALL (the budget only drops, no check). One it did
+      // not write (the generator's river) is a NEW wall in the footprint and pays the wall cost like a floor tile.
+      return init.wrote[i] === 1 || COST_WALL * this.walls + COST_LOW * this.lows + COST_WALL <= this.limit100;
+    }
     if (t !== TILE_FLOOR) return false;
     if (noBlock[i] || this.reserved[i] || edgeDist[i] < this.rimMin) return false;
     const x = i % w, y = (i - x) / w;
@@ -305,9 +310,10 @@ export class ZoneRuntime {
     }
     const { tiles, terrain, wrote } = this.init;
     if (tiles[i] === TILE_LOW) {
-      // A pillar standing in the river: the LOW kind stays on the tile (decor only), movement is unchanged.
+      // A pillar standing in the river: the LOW kind stays on the tile (decor only), sight is now blocked. Only a tile this pass
+      // wrote gives its LOW count back; a river the generator laid is not ours to refund, the pillar is a new wall.
       tiles[i] = TILE_WALL;
-      this.lows--;
+      if (wrote[i]) this.lows--;
       this.walls++;
     } else if (kind === "wall") {
       tiles[i] = TILE_WALL;

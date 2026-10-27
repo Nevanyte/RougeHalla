@@ -14,7 +14,8 @@ import {
 } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
-import { ZONE_PROP_KINDS, styleFinishedMap } from "../src/zoneStyle";
+import { buildGameMapOf } from "../src/gameMapBuild";
+import { ZONE_PROP, ZONE_PROP_KINDS, styleFinishedMap } from "../src/zoneStyle";
 import {
   PROP_KINDS,
   TERRAINS,
@@ -89,8 +90,13 @@ describe("the terrain catalog", () => {
     expect(light).toMatchObject({ healShare: 0.006, homeRule: "boost", homeMult: 2, burnShare: 0, speedMult: 1, slipMs: 0 });
   });
 
-  it("starts the prop table empty (part D fills it)", () => {
-    expect(PROP_KINDS).toEqual([]);
+  it("owns the real prop table: the stylers' own array, ids append only", () => {
+    expect(PROP_KINDS).toBe(ZONE_PROP_KINDS);
+    expect(PROP_KINDS).toHaveLength(22);
+    expect(PROP_KINDS.map((k) => k.key).slice(0, 5)).toEqual(["ember_vent", "glow_crack", "basalt_shard", "ash_drift", "banner"]);
+    expect(PROP_KINDS[ZONE_PROP.stained_glass]).toMatchObject({ key: "stained_glass", home: "holy" });
+    expect(new Set(PROP_KINDS.map((k) => k.key)).size).toBe(PROP_KINDS.length);
+    for (const k of PROP_KINDS) expect([TILE_FLOOR, TILE_LOW, TILE_WALL], k.key).toContain(k.on);
   });
 });
 
@@ -390,6 +396,110 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     expect(only(edge)).toEqual(["T8"]);
   });
 
+  it("T8 hazard rings: no floor hazard on a spawn's 5x5, beside a crate or chest, near a ground-loot spot, or within one tile of a camp clearing", () => {
+    const only = (m: GameMap): string[] => ruleIds(validateTerrain(m));
+    const first = (m: GameMap): string => validateTerrain(m).find((e) => e.startsWith("T8")) ?? "";
+    /** The fire room with no spawn, so each ring is judged alone: crate (8,5), one camp at (13,3) (clearing: a plus of 5 tiles), camp chest (13,2). */
+    const bare = (): GameMap => {
+      const m = regioned();
+      m.spawns = [];
+      m.regions[0].spawns = [];
+      m.camps = [{ ...m.camps[0], id: "fire-2", x: tc(13), y: tc(3), spots: [{ x: tc(13), y: tc(3) }], chest: { x: tc(13), y: tc(2) } }];
+      return m;
+    };
+    expect(validateTerrain(bare())).toEqual([]);
+
+    // A spawn: the corners and edges of its 5x5 (the 3x3 is the plain-floor rule, the outer ring the hazard rule)
+    for (const [dx, dy] of [[-2, -2], [2, -2], [-2, 2], [2, 2], [2, 0], [-2, 1], [2, 1]]) {
+      const m = regioned();
+      put(m, 9 + dx, 3 + dy, TILE_FLOOR, TERRAIN_EMBER);
+      expect(only(m), `ember at ${dx},${dy}`).toEqual(["T8"]);
+      expect(first(m), `ember at ${dx},${dy}`).toContain("spawn 5x5");
+    }
+    const pool = regioned();
+    pool.spawnPool = [{ x: tc(12), y: tc(4), zone: "fire" }];
+    put(pool, 14, 2, TILE_FLOOR, TERRAIN_EMBER); // the corner of a pool spawn's 5x5, far from the main spawn's
+    expect(only(pool)).toEqual(["T8"]);
+    expect(first(pool)).toContain("spawn 5x5");
+    const regionSpawn = regioned();
+    regionSpawn.spawns = [];
+    put(regionSpawn, 11, 5, TILE_FLOOR, TERRAIN_EMBER); // the region's own spawn list counts
+    expect(only(regionSpawn)).toEqual(["T8"]);
+    const outside = regioned();
+    put(outside, 12, 5, TILE_FLOOR, TERRAIN_EMBER); // x = 12 is past the 5x5 (7..11)
+    expect(only(outside)).toEqual([]);
+    const lowInRing = regioned();
+    put(lowInRing, 11, 5, TILE_LOW, TERRAIN_LAVA); // a LOW kind may stand in the ring
+    expect(only(lowInRing)).toEqual([]);
+
+    // A crate (or chest) 3x3: beside it and on its diagonals; two tiles off is fine; a LOW kind is allowed
+    for (const [x, y] of [[7, 5], [9, 5], [7, 4], [8, 4], [9, 4]]) {
+      const m = bare();
+      put(m, x, y, TILE_FLOOR, TERRAIN_EMBER);
+      expect(only(m), `beside the crate: ${x},${y}`).toEqual(["T8"]);
+      expect(first(m), `beside the crate: ${x},${y}`).toContain("chest or crate 3x3");
+    }
+    const crateTwo = bare();
+    put(crateTwo, 10, 5, TILE_FLOOR, TERRAIN_EMBER); // two tiles from the crate at (8,5)
+    expect(only(crateTwo)).toEqual([]);
+    const crateLow = bare();
+    put(crateLow, 9, 4, TILE_LOW, TERRAIN_LAVA);
+    expect(only(crateLow)).toEqual([]);
+    const campChest = bare();
+    put(campChest, 14, 1, TILE_FLOOR, TERRAIN_EMBER); // the camp chest is at (13,2): its 3x3 reaches (14,1)
+    expect(only(campChest)).toEqual(["T8"]);
+    expect(first(campChest)).toContain("chest or crate 3x3");
+
+    // A ground-loot spot at (8,2): on it and in its 3x3, whichever floor kind; two tiles off or a LOW kind is fine
+    const spotted = (): GameMap => { const m = bare(); m.groundSpots = [{ x: tc(8), y: tc(2) }]; return m; };
+    expect(validateTerrain(spotted())).toEqual([]);
+    for (const kind of [TERRAIN_EMBER, TERRAIN_BOG, TERRAIN_ICE, TERRAIN_LIGHT]) {
+      for (const [x, y] of [[8, 2], [9, 3], [7, 1]]) {
+        const m = spotted();
+        put(m, x, y, TILE_FLOOR, kind);
+        expect(ruleIds(validateTerrain(m)), `${TERRAINS[kind].key} at ${x},${y}`).toContain("T8");
+        expect(first(m), `${TERRAINS[kind].key} at ${x},${y}`).toContain("ground-loot spot 3x3");
+      }
+    }
+    const groundEmber = spotted();
+    put(groundEmber, 8, 2, TILE_FLOOR, TERRAIN_EMBER);
+    expect(only(groundEmber)).toEqual(["T8"]); // fire's own kind in fire's room: nothing else objects
+    const groundTwo = spotted();
+    put(groundTwo, 10, 2, TILE_FLOOR, TERRAIN_EMBER); // two tiles from the spot
+    expect(only(groundTwo)).toEqual([]);
+    const groundLow = spotted();
+    put(groundLow, 9, 2, TILE_LOW, TERRAIN_LAVA);
+    expect(only(groundLow)).toEqual([]);
+    const noGround = bare();
+    put(noGround, 8, 2, TILE_FLOOR, TERRAIN_EMBER); // without the spot nothing protects (8,2)
+    expect(only(noGround)).toEqual([]);
+
+    // A camp clearing is the plus of tiles within r = 40 of (13,3): (13,3) (12,3) (14,3) (13,2) (13,4). One tile outside it is a
+    // violation, two tiles outside is fine; a LOW kind in the halo is allowed, and a hazard IN the clearing breaks plain floor.
+    const halo = bare();
+    put(halo, 11, 3, TILE_FLOOR, TERRAIN_EMBER);
+    expect(only(halo)).toEqual(["T8"]);
+    expect(first(halo)).toContain("camp clearing (+1 tile)");
+    const haloDiagonal = bare();
+    put(haloDiagonal, 14, 5, TILE_FLOOR, TERRAIN_EMBER); // the clearing's (13,4) has (14,5) on its diagonal
+    expect(only(haloDiagonal)).toEqual(["T8"]);
+    expect(first(haloDiagonal)).toContain("camp clearing (+1 tile)");
+    const twoOut = bare();
+    put(twoOut, 10, 3, TILE_FLOOR, TERRAIN_EMBER);
+    expect(only(twoOut)).toEqual([]);
+    const haloLow = bare();
+    put(haloLow, 11, 3, TILE_LOW, TERRAIN_LAVA);
+    expect(only(haloLow)).toEqual([]);
+    const inside = bare();
+    put(inside, 12, 3, TILE_FLOOR, TERRAIN_EMBER);
+    expect(validateTerrain(inside)).toContain("T8 camp clearing tile (12, 3) is not plain floor");
+    const mobCamp = bare();
+    mobCamp.regions[0].mobCamps = [{ id: "fire-mob", region: "fire", x: tc(9), y: tc(4), r: 40, spots: [{ x: tc(9), y: tc(4) }], elite: false, weapon: "sword" }];
+    put(mobCamp, 11, 4, TILE_FLOOR, TERRAIN_EMBER); // a region mob camp's halo counts as well (its clearing's (10,4) is a tile away)
+    expect(only(mobCamp)).toEqual(["T8"]);
+    expect(first(mobCamp)).toContain("camp clearing (+1 tile)");
+  });
+
   it("T9: a prop must be in bounds, of a known kind, and stand on its kind's tile class", () => {
     const m = regioned();
     expect(validateTerrain(m)).toEqual([]);
@@ -400,8 +510,14 @@ describe("validateTerrain, T6..T10 (generated-looking maps)", () => {
     expect(validateTerrain(ok, { propKinds: kinds })).toEqual([]);
 
     const unknown = regioned();
-    unknown.props.push({ kind: 0, x: tc(8), y: tc(1), v: 0 }); // PROP_KINDS is empty
+    unknown.props.push({ kind: PROP_KINDS.length, x: tc(8), y: tc(1), v: 0 }); // one past the default table
     expect(ruleIds(validateTerrain(unknown))).toEqual(["T9"]);
+    const known = regioned();
+    known.props.push({ kind: ZONE_PROP.ember_vent, x: tc(10), y: tc(5), v: 0 }); // the default table is the real one: a fire vent on floor is fine
+    expect(validateTerrain(known, { styled: true })).toEqual([]);
+    const wrongTile = regioned();
+    wrongTile.props.push({ kind: ZONE_PROP.glow_crack, x: tc(10), y: tc(5), v: 0 }); // a wall decor on floor
+    expect(ruleIds(validateTerrain(wrongTile))).toEqual(["T9"]);
     const unknown2 = regioned();
     unknown2.props.push({ kind: 2, x: tc(8), y: tc(1), v: 0 });
     expect(ruleIds(validateTerrain(unknown2, { propKinds: kinds }))).toEqual(["T9"]);
@@ -522,7 +638,7 @@ describe("validateTerrain, T11 (ice keeps one tile of clear floor around it)", (
     for (let seed = 1; seed <= 40; seed++) {
       const styled = styleFinishedMap(generateMap(seed));
       for (const k of styled.terrain) if (k === TERRAIN_ICE) ice++;
-      const errs = validateTerrain(styled, { styled: true, propKinds: ZONE_PROP_KINDS });
+      const errs = validateTerrain(styled, { styled: true });
       expect(errs, `seed ${seed}`).toEqual([]);
     }
     expect(ice, "the seeds hold ice at all: not a vacuous pass").toBeGreaterThan(100);

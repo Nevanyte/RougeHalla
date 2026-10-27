@@ -167,7 +167,10 @@ export interface StyleOptions {
 export interface StyleResult {
   readonly index: number;
   readonly faction: RegionFaction;
-  /** Tiles written as WALL or LOW (a LOW turned wall counts once as LOW and once as WALL). */
+  /**
+   * Tiles this pass holds as WALL or LOW: `walls + low`. A LOW tile this pass wrote that was later walled MOVES from `low` to
+   * `walls` (counted once); a LOW tile the generator laid that was walled counts as a wall only, and never lowers `low`.
+   */
   readonly blocked: number;
   readonly walls: number;
   readonly low: number;

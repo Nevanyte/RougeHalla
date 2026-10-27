@@ -297,6 +297,8 @@ export function attackSlowFactor(world: World, c: Combatant): number {
  * world.moveModifiers entry: 0 if cannotMove; else (1 − slowMove) × hasteMultiplier(moveSpeedMult(world, c), haste). The
  * buffs' own modifier multiplies in too, so haste ends up ADDING value × PLAYER_SPEED to the stacks' speed (D12), not
  * multiplying it. If R0's speedMult mirror later folds slows and haste in, this keeps only the 0 (one source of truth).
+ * The product of ALL move modifiers (this one, chill, buffs, bog) is floored at MOVE_MULT_FLOOR (0.35) in step.ts, so a
+ * slow at its 0.6 cap (x0.4) together with chill (x0.7) walks at 0.35, not 0.28; only this function's 0 passes through.
  */
 export function statusMoveMultiplier(world: World, c: Combatant): number {
   const list = c.rt.statuses;

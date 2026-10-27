@@ -18,6 +18,8 @@ import {
 } from "./map";
 import type { GameMap, RegionFaction } from "./map";
 import { SNAP_RADIUS } from "./pathfind";
+import { PROP_KINDS } from "./propKinds";
+import type { PropKindSpec } from "./propKinds";
 
 export const TERRAIN_NONE = 0;
 export const TERRAIN_LAVA = 1;
@@ -79,15 +81,9 @@ export function terrainAt(map: GameMap, x: number, y: number): number {
   return terrainAtTile(map, worldToTile(x), worldToTile(y));
 }
 
-/** What a decor sprite may stand on. Part D fills the table; append only. */
-export interface PropKindSpec {
-  readonly key: string;
-  /** The tile class its anchor must sit on (TILE_FLOOR, TILE_LOW or TILE_WALL). */
-  readonly on: number;
-  readonly home: RegionFaction | null;
-}
-
-export const PROP_KINDS: readonly PropKindSpec[] = [];
+// The prop table is owned here (the default of T9) but lives in a leaf module the zone stylers also place from.
+export { PROP_KINDS } from "./propKinds";
+export type { PropKindSpec } from "./propKinds";
 
 /** The faction behind a regionGrid code; undefined for none and the coliseum. */
 const FACTION_OF_CODE: readonly (RegionFaction | undefined)[] = REGION_IDS.map((id) => REGION_FACTIONS.find((f) => f === id));
@@ -113,8 +109,11 @@ export interface ValidateTerrainOptions {
  *   The rest apply to a generated map only (regions present):
  *   T6  LOW and kinded tiles lie in a faction region, and a kind with a home lies in that faction's region
  *   T7  FLOOR is one 4-connected component with the gates open and two with them closed
- *   T8  protected cells are FLOOR with no terrain: gate tiles, spawn 3x3s, inner spawn 3x3s, chests, camp clearings, and no floor hazard on a spawn's 5x5 or a chest's 3x3; the
- *       coliseum footprint has no LOW and no terrain
+ *   T8  protected cells are FLOOR with no terrain: gate tiles, spawn 3x3s, inner spawn 3x3s, chests, camp clearings (the tiles
+ *       whose centre lies within the camp's r); the coliseum footprint has no LOW and no terrain. On top of that no
+ *       FLOOR-kind hazard (ember, bog, ice, light; a LOW kind may stand there) on a spawn's 5x5 (spawns, spawnPool,
+ *       regions' spawns), on the 3x3 of every chest, crate spot, camp chest and ground-loot spot (`groundSpots`), or within
+ *       one tile (Chebyshev) of a camp clearing. This is the generator's certificate: it gates attempts on this check alone
  *   T9  each prop is in bounds, of a known kind, on its kind's tile class
  *   T10 (`styled` only) no LOW tile has kind NONE
  *   T11 (any map, checked with T5) no other tile that blocks movement (wall or LOW) and no cell off the map in the
@@ -262,25 +261,25 @@ export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {})
   const toTile = (p: { x: number; y: number }) => ({ x: worldToTile(p.x), y: worldToTile(p.y) });
   const chestCentres = [...map.crateSpots, ...map.regions.flatMap((r) => r.chestSpots), ...map.camps.map((c) => c.chest)];
   protect("chest", chestCentres.map(toTile));
-  // The ground near a spawn (5x5, what the generator certifies) and a chest (3x3) carries no floor hazard, whatever the tiles are.
-  const hazardFree = (what: string, centres: Iterable<{ x: number; y: number }>, half: number): void => {
-    for (const p of centres) {
-      const cx = worldToTile(p.x), cy = worldToTile(p.y);
+  // No floor hazard near the places a fighter stands or loots, whatever the tiles are (a LOW kind such as lava or a fence is allowed).
+  const hazardFree = (what: string, tilesAround: Iterable<{ x: number; y: number }>, half: number): void => {
+    for (const c of tilesAround) {
       for (let dy = -half; dy <= half; dy++) {
         for (let dx = -half; dx <= half; dx++) {
-          const x = cx + dx, y = cy + dy;
+          const x = c.x + dx, y = c.y + dy;
           if (x < 0 || y < 0 || x >= w || y >= h) continue;
           const kind = terrain[y * w + x];
           if (kind !== TERRAIN_NONE && TERRAINS[kind]?.tile === TILE_FLOOR) {
-            out.push(`T8 ${what} ${2 * half + 1}x${2 * half + 1} at (${cx}, ${cy}) holds a floor hazard`);
+            out.push(`T8 ${what} at (${c.x}, ${c.y}) holds a floor hazard at (${x}, ${y})`);
             return;
           }
         }
       }
     }
   };
-  hazardFree("spawn", [...map.spawns, ...map.spawnPool, ...map.regions.flatMap((r) => r.spawns)], 2);
-  hazardFree("chest", chestCentres, 1);
+  hazardFree("spawn 5x5", [...map.spawns, ...map.spawnPool, ...map.regions.flatMap((r) => r.spawns)].map(toTile), 2);
+  hazardFree("chest or crate 3x3", chestCentres.map(toTile), 1);
+  hazardFree("ground-loot spot 3x3", map.groundSpots.map(toTile), 1);
   const clearing: { x: number; y: number }[] = [];
   for (const c of [...map.camps, ...map.regions.flatMap((r) => r.mobCamps)]) {
     const ctx = worldToTile(c.x), cty = worldToTile(c.y);
@@ -294,6 +293,7 @@ export function validateTerrain(map: GameMap, opts: ValidateTerrainOptions = {})
     }
   }
   protect("camp clearing", clearing);
+  hazardFree("camp clearing (+1 tile)", clearing, 1);
 
   // T9
   const propKinds = opts.propKinds ?? PROP_KINDS;

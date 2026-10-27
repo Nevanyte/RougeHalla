@@ -106,21 +106,27 @@ describe("styled finished maps (200 seeds)", () => {
     });
   }, HEAVY_MS);
 
-  it("keeps tiles in {floor, wall, low} and passes validateTerrain with the stylers on (T1-T10)", () => {
+  it("keeps tiles in {floor, wall, low} and passes validateTerrain with the stylers on (T1-T11), with its DEFAULT prop table", () => {
     eachEntry(({ styled }, s) => {
+      expect(validateTerrain(styled, { styled: true }), `seed ${s}`).toEqual([]);
       expect(validateTerrain(styled, { styled: true, propKinds: ZONE_PROP_KINDS }), `seed ${s}`).toEqual([]);
       for (const t of styled.tiles) expect(t === 0 || t === 1 || t === 2).toBe(true);
       for (const k of styled.terrain) expect(k).toBeLessThan(TERRAINS.length);
     });
   }, HEAVY_MS);
 
-  it("passes validateTerrain(map, { styled: true }) with its DEFAULT prop table when no props are drawn (decor off, 60 seeds)", () => {
-    // terrain.ts's PROP_KINDS is still empty, so a map with props needs { propKinds: ZONE_PROP_KINDS }; the gameplay layers alone are clean
+  it("passes validateTerrain(map, { styled: true }) with its DEFAULT prop table whether decor is on or off (60 seeds)", () => {
+    // terrain.ts owns the real prop table: R2's certifier calls validateTerrain with no propKinds on a map with props
+    let propsSeen = 0;
     for (const s of SEEDS.slice(0, 60)) {
+      const decorated = entry(s).styled;
+      propsSeen += decorated.props.length;
+      expect(validateTerrain(decorated, { styled: true }), `seed ${s} (decor on)`).toEqual([]);
       const bare = styleFinishedMap(entry(s).raw, { decor: false });
       expect(bare.props, `seed ${s}`).toEqual([]);
-      expect(validateTerrain(bare, { styled: true }), `seed ${s}`).toEqual([]);
+      expect(validateTerrain(bare, { styled: true }), `seed ${s} (decor off)`).toEqual([]);
     }
+    expect(propsSeen, "the seeds carry props at all: not a vacuous pass").toBeGreaterThan(300);
   }, HEAVY_MS);
 
   it("keeps one 4-connected floor component with the gates open and two with them closed", () => {

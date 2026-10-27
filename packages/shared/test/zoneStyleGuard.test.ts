@@ -1,7 +1,9 @@
 // The styler guard on hand-built grids: what a write may and may not do. The grid legend is in zoneStyleRig.ts.
 import { describe, expect, it } from "vitest";
-import { TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
-import { TERRAIN_ICE, TERRAIN_LAVA } from "../src/terrain";
+import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
+import { TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA } from "../src/terrain";
+import { styleZones } from "../src/zoneStyle";
+import type { StyleState, ZoneStyler } from "../src/zoneStyle";
 import { rig } from "./zoneStyleRig";
 
 const floors = (tiles: Uint8Array): number => tiles.reduce((n, t) => n + (t === TILE_FLOOR ? 1 : 0), 0);
@@ -303,6 +305,85 @@ describe("blockers: where they may stand", () => {
     expect(lowRig.shape.block(lowRig.at(3, 2), "lava")).toBe(true); // 1.0 of 2.88
     expect(lowRig.shape.block(lowRig.at(6, 2), "lava")).toBe(true);
     expect(lowRig.shape.canBlock(lowRig.at(8, 3), "lava")).toBe(false); // 3.0 > 2.88
+  });
+});
+
+describe("blockers: footprint accounting with LOW tiles the pass did not write", () => {
+  const river = [
+    "###########",
+    "#.........#",
+    "#.FFFFFFF.#",
+    "#.........#",
+    "###########",
+  ];
+
+  it("walls a pre-existing LOW tile as a new wall: no refund, no negative LOW count, the wall cost is checked", () => {
+    const r = rig(river, { caps: { footprintPct: 100 } });
+    expect(r.shape.canBlock(r.at(4, 2), "wall")).toBe(true);
+    expect(r.shape.block(r.at(4, 2), "wall")).toBe(true);
+    expect(r.tiles[r.at(4, 2)]).toBe(TILE_WALL);
+    expect(r.terrain[r.at(4, 2)]).toBe(TERRAIN_FENCE); // the kind stays: a pillar in the feature
+    expect(r.rt.lows).toBe(0); // it was never ours to give back
+    expect(r.rt.walls).toBe(1);
+    // the same tile cannot be taken twice, and it cannot be released (the pass did not lay the LOW tile)
+    expect(r.shape.canBlock(r.at(4, 2), "wall")).toBe(false);
+    expect(r.shape.release(r.at(4, 2))).toBe(false);
+  });
+
+  it("charges the wall cost for it: a budget of two walls refuses the third pillar in somebody else's river", () => {
+    // 9x3 = 27 zone tiles at 8%: 2.16 effective tiles, so 6 walls (2.10) fit, the 7th (2.45) does not
+    const r = rig(river, { caps: { footprintPct: 8 } });
+    const river7 = [3, 4, 5, 6, 7, 8, 2].map((x) => r.at(x, 2));
+    let placed = 0;
+    for (const i of river7) if (r.shape.block(i, "wall")) placed++;
+    expect(placed).toBe(6);
+    expect(r.rt.walls).toBe(6);
+    expect(r.rt.lows).toBe(0);
+    expect(r.shape.canBlock(river7[6], "wall")).toBe(false);
+    // while a LOW tile the pass wrote itself still turns into a pillar for free (the budget only drops)
+    const own = rig(["###########", "#.........#", "#.........#", "#.........#", "###########"], { caps: { footprintPct: 8 } });
+    expect(own.shape.block(own.at(3, 2), "lava")).toBe(true); // 1.0 of 2.16
+    expect(own.shape.block(own.at(7, 2), "lava")).toBe(true); // 2.0 of 2.16
+    expect(own.shape.canBlock(own.at(5, 2), "lava")).toBe(false); // 3.0 would pass the cap
+    expect(own.shape.canBlock(own.at(3, 2), "wall")).toBe(true);
+    expect(own.shape.block(own.at(3, 2), "wall")).toBe(true);
+    expect(own.rt.lows).toBe(1);
+    expect(own.rt.walls).toBe(1);
+  });
+
+  it("keeps the pass's own footprint under the cap when it walls a generator-made river (styleZones, the review's scenario)", () => {
+    const W = 40, H = 40, n = W * H;
+    const tiles = new Uint8Array(n), zone = new Uint8Array(n);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (!x || !y || x === W - 1 || y === H - 1) tiles[i] = TILE_WALL; else zone[i] = 1; }
+    for (let x = 4; x < W - 4; x++) if (x % 6) tiles[20 * W + x] = TILE_LOW;
+    const st: StyleState = {
+      w: W, h: H, seed: 5, attempt: 0, tiles, terrain: new Uint8Array(n), props: [], zone, zoneFaction: REGION_FACTIONS.slice(0, 1),
+      protect: new Uint8Array(n), territory: null, camps: [], keepLow: new Uint8Array(n),
+    };
+    const before = tiles.slice();
+    // walls every LOW tile, then fills floor with walls until the guard refuses
+    const greedy: ZoneStyler<null> = {
+      id: "scorch", faction: "fire", version: 0,
+      shape: (ctx) => {
+        for (let i = 0; i < n; i++) if (ctx.tiles[i] === TILE_LOW) ctx.block(i, "wall");
+        for (let i = 0; i < n; i += 3) ctx.block(i, "wall");
+        return null;
+      },
+    };
+    const [res] = styleZones(st, { stylers: { fire: greedy } });
+    let painted = 0, fromFloor = 0, fromLow = 0;
+    for (let i = 0; i < n; i++) {
+      if (zone[i]) painted++;
+      if (before[i] === TILE_FLOOR && tiles[i] === TILE_WALL) fromFloor++;
+      if (before[i] === TILE_LOW && tiles[i] === TILE_WALL) fromLow++;
+    }
+    expect(fromLow, "the greedy styler walled the river").toBeGreaterThan(10);
+    expect(res.low, "no LOW was written, so none is counted").toBe(0);
+    expect(res.walls).toBe(fromFloor + fromLow);
+    expect(res.blocked).toBe(res.walls);
+    const effective = (0.35 * (fromFloor + fromLow)) / painted;
+    expect(effective, "the effective footprint of the pass stays under the 8% cap").toBeLessThanOrEqual(0.08 + 1e-9);
+    expect(effective, "and the budget was the binding limit, not the styler's patience").toBeGreaterThan(0.07);
   });
 });
 
