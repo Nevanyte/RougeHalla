@@ -268,6 +268,7 @@ function land(world: World, c: Combatant, act: PendingAction): void {
   }
   const shape = WEAPONS[act.weapon].shape;
   if (shape.kind !== "projectile") return;
+  w.lastShotAt = now;
   // The shot leaves from its drawn origin: a locked one led at where the target is now and where it is heading. Otherwise
   // an arrow goes along the aim held when the draw ends (a bow is aimed while drawn, as it was when it loosed on release)
   // and a ball where its cast was aimed (as it always was): the 9.1 edges were tuned with both.

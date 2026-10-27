@@ -47,13 +47,13 @@ CHILL_MOVE_MULT = 0.7      # ...and multiplies their move speed by this
 # speed: boost on the faction's attack rate; dps: damage multiplier; floor: shortest interval (binds only under buffs);
 # windup/wshare: the attacker is rooted for min(windup, wshare x interval) seconds from the attack starting (the TS
 # BOW_WINDUP / BOW_WINDUP_SHARE etc. in shared/weapons.ts; the axe's extra root is not modelled). Used by the kite model only.
-# wfloor: the shortest a windup mod (a windup multiplier below 1, Quickdraw) takes a ranged windup, BOW_WINDUP_FLOOR /
-# WAND_WINDUP_FLOOR in shared/weapons.ts: windup() applies it only when asked for a windup_mult below 1 (melee: no floor).
+# A windup mod (a windup multiplier below 1, Quickdraw; owner ruling "Melee windups only") never shortens a ranged windup:
+# windup() applies it to the melee weapons only (shared/mods.ts scaleWindup), so there are no ranged floors to carry.
 WEAPONS = {
     "sword":  dict(speed=1.15, dps=0.75, floor=0.25, rng=60,  melee=True,  windup=0.10, wshare=1.00),
     "axe":    dict(speed=0.40, dps=0.77, floor=0.35, rng=60,  melee=True,  windup=0.25, wshare=0.25),
-    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.92, wfloor=0.55),
-    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.40, wshare=0.80, wfloor=0.40),
+    "bow":    dict(speed=0.95, dps=0.80, floor=0.25, rng=240, melee=False, windup=0.60, wshare=0.92),
+    "wand":   dict(speed=0.65, dps=0.80, floor=0.30, rng=220, melee=False, windup=0.40, wshare=0.80),
     "shield": dict(speed=0.60, dps=0.75, floor=0.30, rng=60,  melee=True,  windup=0.10, wshare=1.00),
 }
 WNAMES = list(WEAPONS)
@@ -92,14 +92,14 @@ def interval(spec, wname, as_mult=1.0, floor=True):
 def windup(spec, wname, as_mult=1.0, windup_mult=1.0):
     """Seconds the attacker is rooted from an attack starting until it lands / the projectile leaves: the weapon's windup
     cap or its share of the interval, whichever is shorter (shared/weapons.ts weaponTimings). `windup_mult` is a windup mod
-    (Quickdraw 0.92 / 0.88) as shared/mods.ts scaleWindup applies it: max(windup x mult, min(windup, floor)) for a ranged
-    weapon, so a mult below 1 never takes the windup under its floor and never shortens one that is already under it; a mult
-    of 1 or more just scales it (never past the interval)."""
+    (Quickdraw) as shared/mods.ts scaleWindup applies it: a mult below 1 shortens MELEE windups only and leaves a ranged
+    windup exactly as it was (the anti-kiting lever is never shortened); a mult of 1 or more scales any weapon (never past
+    the interval). Continuous time: the sim lands an attack on the first 50 ms tick at or after its windup, which this does not."""
     w = WEAPONS[wname]
     base = min(w["windup"], w["wshare"] * interval(spec, wname, as_mult))
-    if windup_mult == 1.0:
+    if windup_mult == 1.0 or (windup_mult < 1.0 and not w["melee"]):
         return base
-    return min(interval(spec, wname, as_mult), max(base * windup_mult, min(base, w.get("wfloor", 0.0))))
+    return min(interval(spec, wname, as_mult), base * windup_mult)
 
 
 def per_hit(spec, wname, as_mult=1.0, dps=None):
@@ -260,7 +260,7 @@ def orbwalk_free_fire(loser_name, ranged, winner_name=None, stand=False, t_max=6
     `stand=True` is the shooter that never walks away (same rooted-or-not clock, but it never moves): the kinematic twin of
     `free_fire_time`, equal to it unless the shooter is Frost. `as_mult` is the shooter's attack-speed multiplier (a buff):
     the interval and the windup's share follow it as in the TS sim (interval floor included; the cap does not move).
-    `windup_mult` is the shooter's windup mod (windup(): Quickdraw, with the ranged floors).
+    `windup_mult` is the shooter's windup mod (windup(): Quickdraw; it never shortens a ranged windup).
     Returns inf if the chaser has not arrived after t_max."""
     spec = BY[loser_name]
     rng = float(WEAPONS[ranged]["rng"])

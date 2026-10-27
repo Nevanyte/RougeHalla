@@ -7,8 +7,8 @@
 // It never takes the canvas' clicks: the box is click-through and only the cards and the Skip button take the pointer (a left
 // click elsewhere still locks a target, a right-click still walks; a click in the first CHEST_PANEL_CLICK_GUARD_MS after it
 // opens is ignored, so a spam-clicking cursor cannot take a pick unseen). Keyboard: C focuses the panel, then 1 2 3 pick the
-// cards and 0 skips; C or Esc hand the focus back, and so does a pick or skip sent by key (the digits are the weapon slots again
-// during the summary). The cards and Skip are out of the browser's Tab order until C: a stray Tab must not put the focus
+// cards and 0 skips; C or Esc hand the focus back, and so does a pick or skip sent by key or by Enter/Space on a focused card or
+// Skip (the digits are the weapon slots again during the summary). The cards and Skip are out of the browser's Tab order until C: a stray Tab must not put the focus
 // inside, where the digits and Esc would stop being the game's, and once inside, Tab walks the buttons (the hold-Tab map
 // leaves it alone, ui/mapHold.ts). The digits are the panel's ONLY while it has focus, so the weapon keys work as ever otherwise. Every option greys out RTT/2 + CHEST_GREY_MS before the chest expires, and a pick the server refuses comes
 // back as its `toast` (noteToast) into the status line. The server decides everything: this only sends `choose`.
@@ -276,19 +276,25 @@ export class ChestPanel {
   }
 
   /**
-   * A click on a card or Skip. A mouse click hands the keyboard back at once (the digits go on picking the weapon slot); the
-   * activation of a focused button by Enter or Space (detail 0) leaves the focus where the player put it. A mouse click in the
-   * first CHEST_PANEL_CLICK_GUARD_MS after the panel opened does nothing: it is most likely a click meant for the canvas that
-   * the card, appearing under the cursor, caught.
+   * A click on a card or Skip (`act` says whether its order was sent). A mouse click hands the keyboard back at once (the digits
+   * go on picking the weapon slot); so does the activation of a focused button by Enter or Space (detail 0) once its order is
+   * sent, like a digit pick: the digits are the weapon slots again during the summary. An order that was not sent (a refused
+   * or reconnecting pick) leaves the focus where the player put it. A mouse click in the first CHEST_PANEL_CLICK_GUARD_MS after
+   * the panel opened does nothing: it is most likely a click meant for the canvas that the card, appearing under the cursor,
+   * caught.
    */
-  private onButton(e: Event, button: HTMLButtonElement, act: () => void): void {
+  private onButton(e: Event, button: HTMLButtonElement, act: () => boolean): void {
     const pointer = Boolean((e as { detail?: number }).detail);
     if (pointer && this.now() - this.openedAt < CHEST_PANEL_CLICK_GUARD_MS) {
       button.blur();
       return;
     }
-    act();
+    const sent = act();
     if (pointer) button.blur();
+    else if (sent) {
+      this.leave();
+      this.refresh();
+    }
   }
 
   // ----------------------------------------------------------------------------------------------------------- the frame

@@ -351,14 +351,15 @@ describe("picking by mouse", () => {
     expect(r.sent).toHaveLength(1);
   });
 
-  it("a mouse click hands the keyboard back at once; Enter on a focused card leaves it where it was", () => {
+  it("a mouse click hands the keyboard back at once, and so does Enter on a focused card once its pick is sent", () => {
     const r = setup();
     r.frame();
     const card = r.cards()[0]!;
     card.focus();
     expect(r.panel.focused).toBe(true);
     card.dispatch("click", { detail: 0 });
-    expect(r.panel.focused).toBe(true);
+    expect(r.sent).toHaveLength(1);
+    expect(r.panel.focused).toBe(false);
     // A refusal puts the pick back on offer; then a real click (after the first moments, when a click is ignored).
     r.panel.noteToast("Already taken");
     r.clock.now += CHEST_PANEL_CLICK_GUARD_MS;
@@ -367,6 +368,48 @@ describe("picking by mouse", () => {
     card.dispatch("click", { detail: 1 });
     expect(r.panel.focused).toBe(false);
     expect(r.sent).toHaveLength(2);
+  });
+
+  it("after Enter on a focused card or on Skip, the digits are the weapon slots again during the summary", () => {
+    for (const via of ["card", "skip"] as const) {
+      const r = setup();
+      r.frame();
+      r.win.press({ code: "KeyC" });
+      const button = via === "card" ? r.cards()[1]! : r.skip();
+      button.focus();
+      expect(r.panel.focused, via).toBe(true);
+      button.dispatch("click", { detail: 0 }); // Enter or Space on the focused button
+      expect(r.sent, via).toEqual([{ chest: "c1", pick: via === "card" ? 1 : -1 }]);
+      expect(r.panel.focused, via).toBe(false);
+      expect(r.cards().concat(r.skip()).every((b) => b.tabIndex === -1), via).toBe(true);
+      const scene: string[] = [];
+      r.win.addEventListener("keydown", (e: { code: string }) => scene.push(e.code));
+      for (const code of ["Digit1", "Digit2", "Digit0"]) {
+        const e = r.win.press({ code });
+        expect(e.defaultPrevented, `${via} then ${code}`).toBe(false);
+        expect(e.propagationStopped, `${via} then ${code}`).toBe(false);
+      }
+      expect(scene, via).toEqual(["Digit1", "Digit2", "Digit0"]);
+      expect(r.sent, via).toHaveLength(1);
+      expect(r.state(), via).not.toMatch(/not available/);
+    }
+  });
+
+  it("an Enter on a card whose pick was not sent keeps the keyboard, so another can be tried", () => {
+    const r = setup();
+    r.frame();
+    r.win.press({ code: "KeyC" });
+    const card = r.cards()[0]!;
+    card.focus();
+    r.clock.sending = false; // reconnecting: the order is neither sent nor shown as sent
+    card.dispatch("click", { detail: 0 });
+    expect(r.sent).toEqual([]);
+    expect(r.panel.focused).toBe(true);
+    expect(r.state()).toBe(RECONNECTING_SAY);
+    r.clock.sending = true;
+    card.dispatch("click", { detail: 0 });
+    expect(r.sent).toEqual([{ chest: "c1", pick: 0 }]);
+    expect(r.panel.focused).toBe(false);
   });
 
   it("ignores a mouse click in the first moments after the panel opens (a spam-clicking cursor), not a key's activation, and not later", () => {

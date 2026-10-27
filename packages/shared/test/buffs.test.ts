@@ -187,7 +187,7 @@ describe("scaleEffect", () => {
 describe("effectText", () => {
   it("writes a stat row with its sign: fractions as percent, one decimal at most", () => {
     expect(effectText({ k: "stat", stat: "damageTaken", v: -0.1 })).toBe("-10% damage taken");
-    expect(effectText({ k: "stat", stat: "windup", v: -0.08 })).toBe("-8% windup time");
+    expect(effectText({ k: "stat", stat: "windup", v: -0.08 })).toBe("-8% melee windup time"); // a windup cut shortens melee windups only
     expect(effectText({ k: "stat", stat: "healTaken", v: 0.0539 })).toBe("+5.4% healing taken");
     expect(effectText({ k: "stat", stat: "cooldown", v: -0.2 })).toBe("-20% cooldown time");
     expect(effectText({ k: "stat", stat: "maxHp", v: 0.03 })).toBe("+3% max HP");
@@ -215,6 +215,8 @@ describe("effectText", () => {
     expect(effectText({ k: "while", cond: "hpBelow", arg: 0.3, stat: "attackSpeed", v: 0.25 })).toBe("+25% attack speed while below 30% HP");
     expect(effectText({ k: "while", cond: "afterCast", arg: 0, stat: "armor", v: 4, ms: 2500 })).toBe("+4 armor for 2.5 s after a cast");
     expect(effectText({ k: "while", cond: "hpBelow", arg: 0.5, stat: "shield", v: -2 })).toBe("-2 magic resist while below 50% HP");
+    expect(effectText({ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.06, ms: 2500 }))
+      .toBe("+6% move speed, but not while you shoot or for 2.5 s after a bow or wand shot");
   });
 
   it("writes every trigger action and event, 'once per run' only for a once row", () => {
