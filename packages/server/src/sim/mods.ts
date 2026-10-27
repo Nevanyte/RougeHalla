@@ -484,12 +484,18 @@ export function hitMultOf(s: FighterState): number {
   return foldedOf(s).mults.hit;
 }
 
-/** Multiplies every damage-over-time tick the fighter deals (Boom 1.25, Slow Burn 0.7); sim/factions.ts `bonus` applies it. */
+/**
+ * Multiplies every damage-over-time tick the fighter deals (Boom 1.25, Slow Burn 0.7): a signature's (sim/factions.ts `bonus`) and a
+ * card's (a bleed, Festering Arcana's tail: sim/abilities.ts `statusDamage`); a Wish's burn is flat and never reads it.
+ */
 export function dotMultOf(s: FighterState): number {
   return foldedOf(s).mults.dot;
 }
 
-/** Multiplies the damage the fighter returns to attackers (Boom 1.25); sim/factions.ts's backlash applies it. */
+/**
+ * Multiplies the damage the fighter returns to attackers (Boom 1.25): Fire's backlash (sim/factions.ts), Spiked Shell (sim/cardHooks.ts), a
+ * riposte (sim/melee.ts) and an arrow its shield reflects (sim/projectiles.ts).
+ */
 export function returnedMultOf(s: FighterState): number {
   return foldedOf(s).mults.returned;
 }
@@ -560,8 +566,11 @@ export interface VsProbe {
   streak?(): number;
 }
 
-/** Does a `vs` row's test hold against a victim at hp fraction `victimFrac`? (A test that needs the world is the probe's.) */
-function vsHolds(e: EffectOf<"vs">, victimFrac: number, probe: VsProbe | undefined): boolean {
+/**
+ * Does a `vs` row's test hold against a victim at hp fraction `victimFrac`? (A test that needs the world is the probe's.) `streak` is the
+ * probe's streak answer for an entry that is a weapon hit, and undefined for any other (the streak cards say "hit": a bleed is none).
+ */
+function vsHolds(e: EffectOf<"vs">, victimFrac: number, probe: VsProbe | undefined, streak: (() => number) | undefined): boolean {
   switch (e.test) {
     case "hpAbove": return victimFrac > e.arg;
     case "hpBelow": return victimFrac < e.arg;
@@ -573,7 +582,7 @@ function vsHolds(e: EffectOf<"vs">, victimFrac: number, probe: VsProbe | undefin
     case "playerAbove": return victimFrac > e.arg && (probe?.player?.() ?? false);
     case "rooted": return probe?.rooted?.() ?? false;
     // Holds while the hits already landed in a row on this target are `arg` or fewer: arg 0 is the first hit on a new target.
-    case "streak": return probe?.streak !== undefined && probe.streak() <= e.arg;
+    case "streak": return streak !== undefined && streak() <= e.arg;
     default: return assertNever(e.test, "vs test");
   }
 }
@@ -603,22 +612,31 @@ export function outgoingKindOf(e: Pick<LedgerEntry, "sig" | "dot" | "passive" | 
  * `kind`) never passes OUTGOING_ROW_CAP, so Boom's x2.5 leaves no room for a damage row and Glass Cannon on a plain hit stops at x2.5.
  * The ledger calls it for every entry before any victim of the pass takes damage, so both hp
  * fractions (and what `probe` answers) are as the pass began, and skips ability entries (flat power) and the arena's
- * burn. 1 for a fighter with no damage rows (every mob today). `kind` defaults to "other"; the ledger names it per entry. `baked` is
- * the multiplier the entry's packet already carries beyond the fighter's own mult of its kind (a critical strike's 1.5, Plant Your
- * Feet's 1.25): it shares G1's cap with them, so the rows give way to it instead of going past x2.5.
+ * burn. The `streak` rows (First Impressions, Tunnel Vision) count only for a weapon hit (`kind` "hit"). 1 for a fighter with no
+ * build (every mob today), and for one with no damage rows unless its own mult and `baked` already pass the cap (Boom with a crit: the
+ * answer is then the ceiling, below 1, so a damage card never LOWERS a hit). `kind` defaults to "other"; the ledger names it per entry.
+ * `baked` is the multiplier the entry's packet already carries beyond the fighter's own mult of its kind (a critical strike's 1.5, Plant
+ * Your Feet's 1.25): it shares G1's cap with them, so the rows give way to it instead of going past x2.5.
  */
 export function outgoingMult(attacker: FighterState, victimFrac: number, probe?: VsProbe, kind: OutgoingKind = "other", baked = 1): number {
   const b = caches.get(attacker)?.build;
-  if (!hasDamageRows(b)) return 1;
+  if (!b) return 1;
+  const m = b.folded.mults;
+  const own = (kind === "hit" ? m.hit : kind === "dot" ? m.dot : kind === "returned" ? m.returned : 1) * (baked > 0 ? baked : 1);
+  const ceiling = own > 1 ? OUTGOING_ROW_CAP / own : OUTGOING_ROW_CAP;
+  // No damage row: nothing to add, but Boom's x2.5 with a crit's x1.5 (or Plant Your Feet's x1.25) already passes the cap on its own,
+  // and a fighter without rows must not hit harder than the same one with a damage card (the cap cuts the packet back to x2.5).
+  if (!hasDamageRows(b)) return Math.min(1, ceiling);
   let sum = b.sums.damage;
-  for (const e of b.vs) if (vsHolds(e, victimFrac, probe)) sum += e.v;
+  const streak = kind === "hit" ? probe?.streak : undefined;
+  for (const e of b.vs) if (vsHolds(e, victimFrac, probe, streak)) sum += e.v;
   for (const e of b.scales) {
     if (!(e.step > 0)) continue;
     let bonus = 0;
     if (e.src === "campsCleared") {
       bonus = e.per * Math.floor(b.camps / e.step + 1e-9);
     } else if (e.src === "streak") {
-      bonus = e.per * Math.floor((probe?.streak?.() ?? 0) / e.step + 1e-9);
+      bonus = e.per * Math.floor((streak?.() ?? 0) / e.step + 1e-9);
     } else if (attacker.maxHp > 0) {
       const missing = Math.max(0, 1 - attacker.hp / attacker.maxHp);
       // Stepped: +per for every whole step of missing hp (a hair of float slack so exactly 20% missing is two steps).
@@ -626,9 +644,6 @@ export function outgoingMult(attacker: FighterState, victimFrac: number, probe?:
     }
     sum += e.cap !== undefined && bonus > e.cap ? e.cap : bonus;
   }
-  const m = b.folded.mults;
-  const own = (kind === "hit" ? m.hit : kind === "dot" ? m.dot : kind === "returned" ? m.returned : 1) * (baked > 0 ? baked : 1);
-  const ceiling = own > 1 ? OUTGOING_ROW_CAP / own : OUTGOING_ROW_CAP;
   return Math.max(0, Math.min(1 + sum, ceiling));
 }
 

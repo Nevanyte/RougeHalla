@@ -620,6 +620,55 @@ describe("train clear", () => {
     expect(rtOf(world).fired?.size ?? 0).toBe(0);
   });
 
+  it("also forgets what the cards left behind: Tank Engine's earned max hp, the crit and streak memory, a barrier, the camps counted (the final review's m9)", () => {
+    const world = trainingWorld("holy");
+    const p = me(world);
+    const rt = rtOf(world);
+    train(world, { cmd: "card", id: "tankEngine" });
+    train(world, { cmd: "card", id: "secondSkin" });
+    const holder = combatant(world, ME)!;
+    const bag = combatant(world, [...world.state.mobs].find(([, m]) => m.kind === "dummy")![0])!;
+    for (let i = 0; i < 10; i++) world.hooks.blocked?.(world, holder, bag, { raw: 200, phys: 1, magic: 0, true: 0 }, true);
+    expect(p.maxHp, "Tank Engine earned some").toBeGreaterThan(baseHp("holy"));
+    p.barrier = 80;
+    rt.boost = { shieldUntil: world.state.serverTime + 60_000, decays: true };
+    rt.campsCleared = 4;
+    world.campContrib = new Map([[PRACTICE_CAMP_FIRST, new Set([ME])]]);
+    expect(rt.cards?.tankHp).toBeGreaterThan(0);
+
+    train(world, { cmd: "clear" });
+    expect(p.maxHp).toBe(baseHp("holy"));
+    expect(p.hp).toBeLessThanOrEqual(baseHp("holy"));
+    expect(p.barrier).toBe(0);
+    expect(rt.boost?.shieldUntil ?? 0).toBe(0);
+    expect(rt.campsCleared ?? 0).toBe(0);
+    expect(world.campContrib?.size ?? 0).toBe(0);
+    expect(rt.cards?.tankHp ?? 0).toBe(0);
+    expect(rt.cards?.prevented ?? 0).toBe(0);
+    // A card taken again starts from nothing: the earned hp is not remembered anywhere.
+    train(world, { cmd: "card", id: "tankEngine" });
+    expect(p.maxHp).toBe(baseHp("holy"));
+    run(world, 40);
+    expect(p.maxHp).toBe(baseHp("holy"));
+  });
+
+  it("`card tankEngine 0` takes the earned max hp with it, and another card's removal leaves it alone", () => {
+    const world = trainingWorld("holy");
+    const p = me(world);
+    train(world, { cmd: "card", id: "tankEngine" });
+    train(world, { cmd: "card", id: "vitality1" });
+    const holder = combatant(world, ME)!;
+    const bag = combatant(world, [...world.state.mobs].find(([, m]) => m.kind === "dummy")![0])!;
+    for (let i = 0; i < 10; i++) world.hooks.blocked?.(world, holder, bag, { raw: 200, phys: 1, magic: 0, true: 0 }, true);
+    const earned = rtOf(world).cards!.tankHp;
+    expect(earned).toBeGreaterThan(0);
+    train(world, { cmd: "card", id: "vitality1", count: 0 });
+    expect(p.maxHp).toBeCloseTo(baseHp("holy") + earned, 6);
+    train(world, { cmd: "card", id: "tankEngine", count: 0 });
+    expect(p.maxHp).toBe(baseHp("holy"));
+    expect(rtOf(world).cards?.tankHp ?? 0).toBe(0);
+  });
+
   it("the arrows and balls the practice mobs have in the air end with them: a projEnd 'cleared', and nothing lands after", () => {
     const world = trainingWorld("fire");
     train(world, { cmd: "camp", id: "plagueRat" }); // Plague's mobs carry the bow

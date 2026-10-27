@@ -1091,6 +1091,44 @@ describe("killMob: rewards", () => {
       expect(killWith("fire", ["sword", "bow"]).created).toHaveLength(1);
     });
 
+    it("two mobs with different weapons killed by one empty-handed player in one pass: the lower id arms the hand, whatever order the hits were recorded in (the final review's m6)", () => {
+      const outcome = (reverse: boolean, regions: [FactionId, FactionId]): { hand: string[]; loose: string[]; ids: string[] } => {
+        const w = makeBare();
+        const mobs = regions.map((r, i) => spawn(w, r, false, { x: P(w, 0).x + 8, y: P(w, 0).y + 12 * i }));
+        const before = new Set(w.state.containers.keys());
+        for (const m of reverse ? [...mobs].reverse() : mobs) strike(w, m.id, "p0", 1e6);
+        pass(w);
+        const created = [...w.state.containers.keys()].filter((id) => !before.has(id));
+        return {
+          hand: [P(w, 0).weapon0, P(w, 0).weapon1],
+          loose: created.flatMap((id) => w.state.containers.get(id)!.items.map((it) => it.def)),
+          ids: mobs.map((m) => m.id),
+        };
+      };
+      for (const regions of [["fire", "plague"], ["plague", "fire"], ["holy", "frost"]] as Array<[FactionId, FactionId]>) {
+        const first = mobWeapon(regions[0]);
+        const second = mobWeapon(regions[1]);
+        expect(first, regions.join()).not.toBe(second);
+        const forward = outcome(false, regions);
+        const backward = outcome(true, regions);
+        expect(forward.hand, `${regions.join()} forward`).toEqual([first, ""]); // the mob placed first has the lower id
+        expect(forward.loose).toEqual([second]);
+        expect(backward, `${regions.join()} recorded the other way round`).toEqual({ ...forward });
+      }
+    });
+
+    it("two mobs with the same weapon killed in one pass arm one and drop nothing, in either order", () => {
+      for (const reverse of [false, true]) {
+        const w = makeBare();
+        const mobs = [spawn(w, "plague", false, { x: P(w, 0).x + 8, y: P(w, 0).y }), spawn(w, "plague", false, { x: P(w, 0).x + 8, y: P(w, 0).y + 12 })];
+        const n = w.state.containers.size;
+        for (const m of reverse ? [...mobs].reverse() : mobs) strike(w, m.id, "p0", 1e6);
+        pass(w);
+        expect([P(w, 0).weapon0, P(w, 0).weapon1], String(reverse)).toEqual(["bow", ""]);
+        expect(w.state.containers.size, String(reverse)).toBe(n);
+      }
+    });
+
     it("can be picked up like any loose weapon, once it has been published", () => {
       const { w, created } = killWith("holy", ["sword", ""]);
       const id = created[0]!;

@@ -143,12 +143,30 @@ describe("CooldownTracker", () => {
     expect(t.observe(331_000, 31_050)).toBe(300_000);
   });
 
-  it("starts over on a ready time that moved earlier (a refund) with what is left, and never reports under 1 ms", () => {
+  it("keeps the length when the ready time moves earlier while the slot is still cooling (a Wishful Thinking trim, a refund): the ring jumps forward, it does not start over", () => {
+    const t = new CooldownTracker();
+    expect(t.observe(331_000, 31_000)).toBe(300_000);
+    // Each hit trims a second off the running cooldown: the same 300 s ring, 1 s further on.
+    expect(t.observe(330_000, 32_000)).toBe(300_000);
+    expect(t.observe(329_000, 32_500)).toBe(300_000);
+    expect(t.observe(326_000, 33_000)).toBe(300_000);
+    // A trim that brings it to ready (its time is now) keeps the ring too; a fresh cast then starts a length of its own, and its trims keep that.
+    expect(t.observe(34_000, 34_000)).toBe(300_000);
+    expect(t.observe(250_000, 50_000)).toBe(200_000);
+    expect(t.observe(249_000, 51_000)).toBe(200_000);
+  });
+
+  it("starts a length of its own for a later ready time, and for one first seen after the old cooldown had ended; never reports under 1 ms", () => {
     const t = new CooldownTracker();
     t.observe(331_000, 31_000);
-    expect(t.observe(46_000, 40_000)).toBe(6000);
-    expect(t.observe(0, 50_000)).toBe(1);
-    expect(t.observe(50_000, 50_000)).toBe(1);
+    // The cooldown ended at 331 s; a cast at 340 s is a new length (the ready time moved LATER).
+    expect(t.observe(640_000, 340_000)).toBe(300_000);
+    // A short cooldown after it: the old one had ended, so an earlier ready time than before is still a fresh length.
+    const u = new CooldownTracker();
+    u.observe(100_000, 10_000);
+    expect(u.observe(60_000, 120_000)).toBe(1); // already past its ready time when first seen: never under 1 ms
+    expect(u.observe(0, 130_000)).toBe(1);
+    expect(u.observe(130_000, 130_000)).toBe(1);
   });
 
   it("the first sight of a cooldown already running (a reconnect) is the time left", () => {

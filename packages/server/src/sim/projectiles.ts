@@ -21,6 +21,7 @@ import {
 } from "@raid/shared";
 import { activeWeapon, combatant, isEvading, isQuestGiver, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
+import { returnedMultOf } from "./mods";
 import { positionAt } from "./movement";
 import { chainHook, collisionMap, emit, nextId, type DamagePacket, type ProjectileRuntime, type World } from "./world";
 
@@ -245,10 +246,11 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         endProjectile(world, pr, hit.x, hit.y, "reflected");
         const shooter = combatant(world, pr.owner);
         if (shooter) world.hooks.blocked?.(world, hit.c, shooter, { ...pr.packet, raw: pr.packet.raw * ARROW_REFLECT_SHARE }, false);
-        // The shield returns only ARROW_REFLECT_SHARE of the arrow; the holder takes the rest as a normal hit (balance pass).
+        // The shield returns only ARROW_REFLECT_SHARE of the arrow; the holder takes the rest as a normal hit (balance pass). An arrow
+        // that was reflected already (weapon "shield") is damage its owner returns: see returnedFlag.
         recordHit(world, {
-          victim: hit.c.id, by: { id: pr.owner, name: pr.ownerName }, packet: { ...pr.packet, raw: pr.packet.raw * (1 - ARROW_REFLECT_SHARE) },
-          weapon: pr.weapon, projectile: pr.id, stagger: false,
+          victim: hit.c.id, by: { id: pr.owner, name: pr.ownerName }, packet: returnedPacket(world, pr, pr.packet.raw * (1 - ARROW_REFLECT_SHARE)),
+          weapon: pr.weapon, projectile: pr.id, stagger: false, ...returnedFlag(pr),
         });
         const v = reflectVelocity(st.vx, st.vy, hit.c.s.facing);
         const bow = WEAPONS.bow.shape;
@@ -263,13 +265,27 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         continue;
       }
       recordHit(world, {
-        victim: hit.c.id, by: { id: pr.owner, name: pr.ownerName }, packet: pr.packet, weapon: pr.weapon,
-        projectile: pr.id, stagger: false,
+        victim: hit.c.id, by: { id: pr.owner, name: pr.ownerName }, packet: returnedPacket(world, pr, pr.packet.raw), weapon: pr.weapon,
+        projectile: pr.id, stagger: false, ...returnedFlag(pr),
       });
       splashFrom(world, pr, hit.c, bodies, t, map);
       endProjectile(world, pr, hit.x, hit.y, "hit");
     }
   }
+}
+
+/**
+ * A reflected arrow (weapon "shield", owned by the holder) is damage RETURNED to its shooter, as a riposte is: its entry is `passive`
+ * (kind "returned" for G1; it sets off no `hitTaken`, so a Spiked Shell on the archer never answers its own arrow, and counts as no hit of
+ * the holder's for the streak, the on-hit effects or Wishful Thinking), and the holder's `returned` mult (Boom's x1.25) is in its packet.
+ * Any other projectile is its shooter's hit as ever.
+ */
+const returnedFlag = (pr: ProjectileRuntime): { passive?: true } => (pr.weapon === "shield" ? { passive: true } : {});
+
+function returnedPacket(world: World, pr: ProjectileRuntime, raw: number): DamagePacket {
+  if (pr.weapon !== "shield") return raw === pr.packet.raw ? pr.packet : { ...pr.packet, raw };
+  const owner = combatant(world, pr.owner);
+  return { ...pr.packet, raw: owner ? raw * returnedMultOf(owner.s) : raw };
 }
 
 /**

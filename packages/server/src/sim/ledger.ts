@@ -229,6 +229,15 @@ function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
 }
 
 /**
+ * Is the entry a player's, whoever is still in the room? Everything that is not the world's damage (the arena's, terrain's, a mob's or a
+ * dummy's) is: a projectile outlives its owner, so a shooter who quit while its arrow flew is still capped, not let through uncapped.
+ * (A departed player's build left with it, so pvpScale and outgoingMults have nothing to read of it: its arrow lands at the plain sheet.)
+ */
+function byPlayer(world: World, e: LedgerEntry): boolean {
+  return !e.arena && !world.mobs.has(e.by.id);
+}
+
+/**
  * The guards on player-to-player damage (G2, G3), applied to the amounts already mitigated: a hit (not a damage-over-time tick)
  * is cut to PVP_HIT_CAP_SHARE of the victim's max hp, and all of one source's damage over time on this victim in the tick to
  * its PVP_DOT_CAP_SHARE-per-second budget, shrinking each of its entries by the same factor. The world's damage (the arena,
@@ -240,13 +249,13 @@ function capPvp(world: World, maxHp: number, entries: readonly LedgerEntry[], am
   const dotBudget = PVP_DOT_CAP_SHARE * maxHp * (TICK_MS / 1000);
   const dotSum = new Map<string, number>();
   entries.forEach((e, i) => {
-    if (e.arena || !(amounts[i]! > 0) || !world.state.players.has(e.by.id)) return;
+    if (!(amounts[i]! > 0) || !byPlayer(world, e)) return;
     if (isDot(e.sig) || e.dot) dotSum.set(e.by.id, (dotSum.get(e.by.id) ?? 0) + amounts[i]!);
     else if (amounts[i]! > hitCap) amounts[i] = hitCap;
   });
   if (dotSum.size === 0) return;
   entries.forEach((e, i) => {
-    if (e.arena || !(isDot(e.sig) || e.dot)) return;
+    if (!byPlayer(world, e) || !(isDot(e.sig) || e.dot)) return;
     const sum = dotSum.get(e.by.id);
     if (sum !== undefined && sum > dotBudget) amounts[i] = amounts[i]! * (dotBudget / sum);
   });

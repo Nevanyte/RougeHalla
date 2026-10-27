@@ -7,13 +7,16 @@
 import { describe, expect, it } from "vitest";
 import {
   AXE_SHRED_ARMOR, AXE_SHRED_CAP, CRIT_CHANCE_MAX, CRIT_MULT, FACTIONS, FISTS_ON_HIT_POWER, GAMBLER_CHANCE, mitigateShares,
-  PLANT_FEET_BONUS, SHIELD_BLOCK_SHARE, SWORD_ON_HIT_POWER, TANK_ENGINE_CAP, WAND_SPLASH_SHARE, WAND_SPLASH_RADIUS, WEAPONS,
+  PLANT_FEET_BONUS, SHIELD_BLOCK_SHARE, SWORD_ON_HIT_POWER, TANK_ENGINE_CAP, TICK_MS, WAND_SPLASH_SHARE, WAND_SPLASH_RADIUS, WEAPONS,
   WISHFUL_BUDGET_MS, type WeaponId,
 } from "@raid/shared";
+import { teleportToColiseum } from "../src/sim/arena";
 import { grantCard } from "../src/sim/chests";
 import { combatant, defenseOf, type Combatant } from "../src/sim/combatant";
 import { signatureState } from "../src/sim/factions";
-import { findStatus, statusValue, statusesOf } from "../src/sim/status";
+import { deferHit } from "../src/sim/ledger";
+import { placeMob } from "../src/sim/mobLife";
+import { addStatus, findStatus, statusValue, statusesOf } from "../src/sim/status";
 import type { LandedHit, LedgerEntry, SimEvent, World } from "../src/sim/world";
 import { chainHook } from "../src/sim/world";
 import { hit, inStep, P, pvpArena, RT, tick, type RigFighter } from "./support/pvpRig";
@@ -195,6 +198,31 @@ describe("streaks", () => {
     const onU = hitsOf(run(w, 160), "a", "u");
     expect(onU[0]!.amount).toBeCloseTo(hits[1]!.amount * 1.4, 6);
     expect(onU[1]!.amount).toBeCloseTo(hits[1]!.amount, 6);
+  });
+
+  it("First Impressions is for hits: a bleed that keeps ticking on the target the player has switched away from takes no +40% (the final review's m10)", () => {
+    const w = arena([
+      { id: "a", faction: "holy", weapon: "sword", at: near(200) },
+      { id: "v", faction: "holy", weapon: "", at: near(230) },
+      { id: "u", faction: "holy", weapon: "", at: near(200, 250) },
+    ]);
+    give(w, "a", "hemorrhage", "firstImpressions");
+    lock(w, "a", "v");
+    run(w, 12); // the first sword hit on v: +40%, and a bleed that lasts 2 s
+    expect(bleeds(w, "v").length).toBeGreaterThan(0);
+    lock(w, "a", "u");
+    let ticks = 0;
+    while (RT(w, "a").cards?.streak?.target !== "u" && ticks++ < 60) tick(w);
+    expect(RT(w, "a").cards?.streak?.target, "the streak moved to u").toBe("u");
+    // v is no streak target now (its count reads 0, the "new target" First Impressions rewards): its bleed ticks are plain.
+    const live = statusesOf(C(w, "v")).filter((x) => x.kind === "dot" && x.tag?.startsWith("bleed:") && x.until - w.state.serverTime > 200);
+    expect(live.length, "a bleed still running on v").toBeGreaterThan(0);
+    const perSecond = live.reduce((n, x) => n + x.value, 0);
+    const seen = run(w, 1);
+    const ticksOnV = seen.entries.filter((e) => e.dot === true && e.weapon === null && e.by.id === "a" && e.victim === "v");
+    expect(ticksOnV.length).toBeGreaterThan(0);
+    const dealt = seen.landed.flat().filter((l) => l.dot === true && l.by === "a" && l.victim === "v").reduce((n, l) => n + l.amount, 0);
+    expect(dealt).toBeCloseTo((perSecond * TICK_MS) / 1000, 6);
   });
 
   it("the memory ends after STREAK_GAP_SECONDS without a hit: the same target is new again", () => {
@@ -592,6 +620,25 @@ describe("blocks", () => {
 
 // --------------------------------------------------------------------------------------------------------------- returned damage
 
+describe("Boom's returned x1.25 and the riposte (the final review's m2)", () => {
+  it("a sword riposte is returned damage: the holder's `returned` mult is in it, and no other kind's is", () => {
+    const riposteOf = (cards: readonly string[]): { raw: number; amount: number } => {
+      const w = blockArena(cards);
+      const seen = run(w, 40);
+      const e = seen.entries.find((x) => x.by.id === "h" && x.passive === true)!;
+      expect(e, `${cards.join()} riposted`).toBeDefined();
+      const landed = seen.landed.flat().find((l) => l.by === "h" && l.victim === "a" && l.passive)!;
+      return { raw: e.packet.raw, amount: landed.amount };
+    };
+    const plain = riposteOf([]);
+    const boom = riposteOf(["hereComesTheBoom"]);
+    expect(boom.raw).toBeCloseTo(plain.raw * quoted("hereComesTheBoom", 3), 9);
+    expect(boom.amount).toBeCloseTo(plain.amount * quoted("hereComesTheBoom", 3), 9);
+    // Slow Burn's x0.7 is for damage over time: it leaves a riposte alone.
+    expect(riposteOf(["slowBurn"]).raw).toBeCloseTo(plain.raw, 9);
+  });
+});
+
 describe("Spiked Shell", () => {
   it("a melee attacker takes 15% of the damage it deals to you back as physical damage, in the next tick's ledger", () => {
     const w = arena([
@@ -638,6 +685,110 @@ describe("Spiked Shell", () => {
     const returned = seen.landed.flat().filter((l) => l.passive);
     const hits = seen.landed.flat().filter((l) => !l.passive && l.weapon !== null && !l.dot);
     expect(returned.length).toBe(hits.length);
+  });
+});
+
+// ---------------------------------------------------------------------------------------- damage over time under Boom and Slow Burn
+
+describe("the `dot` mult reaches a card's damage over time (the final review's m2)", () => {
+  /** What one tick of `a`'s bleeds on `v` recorded, over what their status instances say a tick is worth: the factor the owner's cards put on it. */
+  function bleedFactor(cards: readonly string[]): number {
+    const w = bag("bow", ["hemorrhage", ...cards]);
+    const sums = (): number => statusesOf(C(w, "v")).filter((x) => x.kind === "dot" && x.tag?.startsWith("bleed:")).reduce((n, x) => n + x.value, 0);
+    for (let i = 0; i < 200 && !(sums() > 0 && statusesOf(C(w, "v")).every((x) => x.until - w.state.serverTime > 300)); i++) tick(w);
+    const perSecond = sums();
+    expect(perSecond, "a bleed to read").toBeGreaterThan(0);
+    const seen = run(w, 1);
+    const ticks = seen.entries.filter((e) => e.dot === true && e.weapon === null && e.by.id === "a" && e.victim === "v");
+    expect(ticks.length).toBeGreaterThan(0);
+    return ticks.reduce((n, e) => n + e.packet.raw, 0) / ((perSecond * TICK_MS) / 1000);
+  }
+
+  it("Boom's x1.25 and Slow Burn's x0.7 multiply a bleed's ticks, as they do a signature's", () => {
+    expect(bleedFactor([])).toBeCloseTo(1, 9);
+    expect(bleedFactor(["hereComesTheBoom"])).toBeCloseTo(quoted("hereComesTheBoom", 2), 9);
+    expect(bleedFactor(["slowBurn"])).toBeCloseTo(quoted("slowBurn", 1), 9);
+    expect(quoted("hereComesTheBoom", 2)).toBe(1.25);
+    expect(quoted("slowBurn", 1)).toBe(0.7);
+  });
+
+  it("a Wish's damage over time stays flat: no card multiplies it (owner ruling \"Keep Wishes flat\")", () => {
+    const tickOf = (ability: "blaze" | undefined): number => {
+      const w = bag("", ["hereComesTheBoom"]);
+      addStatus(w, C(w, "v"), {
+        kind: "dot", source: { id: "a", name: "A" }, ms: 3000, value: 30, data: { shares: { phys: 0, magic: 0, true: 1 } }, ...(ability ? { ability } : { tag: "x" }),
+      });
+      const seen = run(w, 1);
+      const e = seen.entries.find((x) => x.dot === true && x.by.id === "a" && x.victim === "v")!;
+      return e.packet.raw / ((30 * TICK_MS) / 1000);
+    };
+    expect(tickOf("blaze")).toBeCloseTo(1, 9);
+    expect(tickOf(undefined)).toBeCloseTo(1.25, 9);
+  });
+
+  it("Festering Arcana's tail is damage over time too: a Slow Burn holder's tail is 30% lighter", () => {
+    const tailTotal = (cards: readonly string[]): number => {
+      const w = arena([
+        { id: "a", faction: "fire", weapon: "axe", at: near(200) },
+        { id: "v", faction: "holy", weapon: "", at: near(230) },
+      ], { signatures: true });
+      give(w, "a", "ap3", "festeringArcana", ...cards);
+      lock(w, "a", "v");
+      run(w, 30);
+      RT(w, "a").inputs.pushMove({ kind: "move", x: 200, y: 600 });
+      P(w, "v").x = 900;
+      P(w, "v").y = 100;
+      RT(w, "v").history = [{ t: w.state.serverTime, x: 900, y: 100 }];
+      const seen = run(w, 300);
+      return seen.entries.filter((e) => e.dot && e.weapon === null && e.by.id === "a").reduce((n, e) => n + e.packet.raw, 0);
+    };
+    const plain = tailTotal([]);
+    expect(plain).toBeCloseTo(4 * (33 / 8), 6);
+    expect(tailTotal(["slowBurn"])).toBeCloseTo(plain * 0.7, 6);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------- what the next tick's ledger holds
+
+describe("entries queued for the next tick do not survive the teleport or the run's end (the final review's m4)", () => {
+  /** A mob of 100 u away at half hp, with a returned hit and a splash queued on it for the next tick, as a pass just before a teleport leaves them. */
+  function queued(): { w: World; id: string } {
+    const w = arena([{ id: "a", faction: "holy", weapon: "sword", at: near(200) }, { id: "b", faction: "holy", weapon: "", at: near(240) }]);
+    const id = placeMob(w, { region: "holy", elite: false, at: near(700) });
+    for (const passive of [true, false]) {
+      deferHit(w, {
+        victim: id, by: { id: "a", name: "A" }, packet: { raw: 40, phys: 1, magic: 0, true: 0 }, weapon: passive ? "sword" : null, stagger: false,
+        ...(passive ? { passive: true, final: true } : { derived: true, final: true }),
+      });
+    }
+    expect(w.combat.deferred).toHaveLength(2);
+    return { w, id };
+  }
+
+  it("the coliseum teleport empties them: a mob put back at full hp takes nothing from a pass that ended before it", () => {
+    const { w, id } = queued();
+    const mob = w.state.mobs.get(id)!;
+    teleportToColiseum(w);
+    expect(w.combat.deferred).toEqual([]);
+    const seen = run(w, 2);
+    expect(seen.landed.flat().filter((h) => h.victim === id)).toEqual([]);
+    expect(mob.hp).toBe(mob.maxHp);
+    // Never woken: it did not take a hit on a player now behind locked gates.
+    expect(w.mobs.get(id)!.brain?.target ?? null).toBeNull();
+  });
+
+  it("the run's end empties them too", () => {
+    const { w } = queued();
+    w.hooks.runEnded?.(w);
+    expect(w.combat.deferred).toEqual([]);
+  });
+
+  it("an ordinary tick still lands what the last one queued (a Spiked Shell's return)", () => {
+    const w = arena([{ id: "a", faction: "holy", weapon: "sword", at: near(200) }, { id: "h", faction: "holy", weapon: "", at: near(230) }]);
+    give(w, "h", "spikedShell");
+    lock(w, "a", "h");
+    const seen = run(w, 40);
+    expect(seen.landed.flat().filter((l) => l.by === "h" && l.victim === "a" && l.passive).length).toBeGreaterThan(0);
   });
 });
 

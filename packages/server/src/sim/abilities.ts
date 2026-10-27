@@ -26,7 +26,7 @@ import { displace } from "./displace";
 import { heal } from "./factions";
 import { abilitiesRt, addField, fieldsOf, onTrail, removeField, removeFieldsWhere } from "./fields";
 import { recordHit } from "./ledger";
-import { recomputeMods, wishCooldownMultOf } from "./mods";
+import { dotMultOf, recomputeMods, wishCooldownMultOf } from "./mods";
 import {
   addStatus, attackSlowFactor, castBlocked, cleanse, isUntargetable, refreshEffects, removeStatuses, reveal,
   statusesOf, statusMoveMultiplier,
@@ -520,12 +520,14 @@ export function statusDamage(world: World, dtMs: number): void {
     for (const st of statusesOf(c)) {
       if (st.kind !== "dot" || st.until <= now) continue;
       const raw = (st.value * dtMs) / 1000;
-      // A card's damage over time (a bleed, Festering Arcana's tail) can critically strike for its owner (Cruel Wounds); a Wish's is flat.
+      // A card's damage over time (a bleed, Festering Arcana's tail) is its owner's: Boom's x1.25 and Slow Burn's x0.7 multiply it as they do a
+      // signature's (G1's `own` counts that mult, so it is in the packet and not in `mult`), and it can critically strike (Cruel Wounds); a Wish's is flat.
       const owner = st.ability === undefined && st.source.id !== c.id ? combatant(world, st.source.id) : null;
+      const base = owner ? raw * dotMultOf(owner.s) : raw;
       const crit = owner !== null && rollDotCrit(world, owner);
       recordHit(world, {
         victim: c.id, by: st.source,
-        packet: { raw: crit ? raw * CRIT_MULT : raw, ...(st.shares ?? TRUE_SHARES), ...(crit ? { crit: true, mult: CRIT_MULT } : {}) },
+        packet: { raw: crit ? base * CRIT_MULT : base, ...(st.shares ?? TRUE_SHARES), ...(crit ? { crit: true, mult: CRIT_MULT } : {}) },
         weapon: null, ...(st.ability !== undefined ? { ability: st.ability } : {}), dot: true, stagger: false,
       });
     }

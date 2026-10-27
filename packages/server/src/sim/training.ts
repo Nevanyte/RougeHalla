@@ -18,7 +18,7 @@ import { syncMaxHp } from "./buffs";
 import { clearChests, dropRewardChest, rewardChests } from "./chests";
 import { standing, type Combatant } from "./combatant";
 import { placeMob } from "./mobLife";
-import { recomputeMods } from "./mods";
+import { recomputeMods, setFlatMaxHp, triggersOf } from "./mods";
 import { planPath } from "./movement";
 import { clearProjectilesOf } from "./projectiles";
 import { chainHook, collisionMap, emit, type ActionHandler, type PlayerRuntime, type World } from "./world";
@@ -151,6 +151,8 @@ function trainCard(world: World, c: PlayerCombatant, id: CardId, count: number):
     p.build.set(id, want);
   }
   recomputeMods(world, c);
+  // Tank Engine's earned max hp goes with its card (a pick never removes one, so nothing else lets it go).
+  if (want === 0 && !triggersOf(p).some((t) => t.row.do.do === "fortify")) dropTankHp(c);
   syncMaxHp(p);
   const note = cardLive(def) ? "" : " (not live yet: no effect)";
   toast(world, c.id, want > 0 ? `${def.title}${def.unique ? "" : ` x${want}`}: ${def.text}${note}` : `${def.title} removed`);
@@ -298,12 +300,28 @@ function trainChest(world: World, c: PlayerCombatant, options: readonly CardId[]
   toast(world, c.id, `Chest: ${names.join(", ")}`);
 }
 
-/** Removes every card the player holds, every practice mob and every reward chest; once-per-run triggers fire again. */
+/** Tank Engine's tally and the max hp it earned (sim/cardHooks.ts onBlocked), which syncMaxHp adds on top of the rows. */
+function dropTankHp(c: PlayerCombatant): void {
+  setFlatMaxHp(c.s, 0);
+  if (c.rt.cards) c.rt.cards.prevented = c.rt.cards.tankHp = 0;
+}
+
+/**
+ * Removes every card the player holds, every practice mob and every reward chest; once-per-run triggers fire again, and what the cards
+ * left in the player's memory goes too (the crit, streak and boost memory, Tank Engine's earned max hp, a barrier, the camps counted): a
+ * cleared practice player is the one that joined.
+ */
 function trainClear(world: World, c: PlayerCombatant): void {
   const p = c.s;
   p.build.clear();
   c.rt.fired?.clear();
   c.rt.hots = undefined;
+  c.rt.cards = undefined;
+  c.rt.boost = undefined;
+  c.rt.campsCleared = 0;
+  world.campContrib?.clear();
+  p.barrier = 0;
+  setFlatMaxHp(p, 0);
   recomputeMods(world, c);
   syncMaxHp(p);
   const gone = practiceMobIds(world);

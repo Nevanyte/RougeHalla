@@ -11,16 +11,17 @@ import {
   ARROW_REFLECT_SHARE, BALL_AFTER_ARROW, BALL_ARROW_RADIUS, damagePerHit, damageShares, DUEL_PACE, FACTIONS, GV_KILL, mapFromTiles, MAX_ARROW_REFLECTIONS,
   mitigateShares, mulberry32,
   pacedFaction, PLAYER_SPEED, PROJECTILE_SUBSTEP_MS, RANGED_HIT_REACH, reflectVelocity, SIGNATURE_WEAPONS, SWORD_BALL_SCALE, TICK_MS, TILE,
-  TILE_FLOOR, TILE_WALL, unpackFx, unpackLaunches, WEAPONS, type FactionId, type FxEvent, type GameMap, type ProjectileLaunch,
+  TILE_FLOOR, TILE_WALL, unpackFx, unpackLaunches, WEAPONS, type Effect, type FactionId, type FxEvent, type GameMap, type ProjectileLaunch,
   type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { applyDamage } from "../src/sim/arena";
-import { activeWeapon, standingCombatants, timingsOf } from "../src/sim/combatant";
+import { activeWeapon, combatant, standingCombatants, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger } from "../src/sim/ledger";
 import { addMob } from "../src/sim/mobs";
+import { recomputeMods, setExtraRows } from "../src/sim/mods";
 import { positionAt, recordHistory } from "../src/sim/movement";
 import {
   ballsThisTick, endProjectile, interceptBall, spawnProjectiles, sweepProjectiles,
@@ -1069,6 +1070,51 @@ describe("shield reflection", () => {
     expect(fxOf(events, "hit")).toEqual([{ kind: "hit", id: "archer", by: "holder", amount: expect.closeTo(expected, 9), weapon: "shield" }]);
     expect(FACTIONS.sentenced.hp - P(w, "archer").hp).toBeCloseTo(expected, 9);
     expect(expected).toBeCloseTo((4.1026 * DUEL_PACE * ARROW_REFLECT_SHARE) / (1 + 210 / 100), 3); // sentenced arrows are all magic: only its shield counts
+  });
+
+  it("a reflected arrow is returned damage: passive, so a Spiked Shell on the archer does not answer its own arrow (the final review's m1)", () => {
+    const w = arena([archer(archerAt), holder(holderAt), idle()]);
+    P(w, "archer").build.set("spikedShell", 1);
+    recomputeMods(w, combatant(w, "archer")!);
+    loose(w, [{ id: "archer", a: 0 }]);
+    flyUntilEnd(w);
+    const { end } = flyUntilEnd(w);
+    expect(end).toMatchObject({ reason: "hit" });
+    const back = w.combat.landed.filter((h) => h.victim === "archer");
+    expect(back).toHaveLength(1);
+    expect(back[0]).toMatchObject({ by: "holder", weapon: "shield", passive: true });
+    // Not a melee hit taken: nothing queued for the next tick, and the archer's hit does not count as a weapon hit of the holder's.
+    expect(w.combat.deferred).toEqual([]);
+  });
+
+  it("the arrow that hits the first holder's shield again is returned damage too (the second reflection's rest)", () => {
+    const w = arena([archer({ x: 400, y: 320 }), holder({ x: 500, y: 320 }), { ...holder({ x: 300, y: 320 }, 0), id: "holder2" }]);
+    loose(w, [{ id: "archer", a: 0 }]);
+    applyDamage(w, P(w, "archer"), RT(w, "archer"), 5000, "test");
+    const seen: Array<{ by: string; victim: string; passive?: boolean }> = [];
+    for (let n = 0; n < 40 && w.projectiles.size > 0; n++) {
+      tick(w);
+      for (const h of w.combat.landed) seen.push(h);
+    }
+    // holder takes the archer's own arrow as a normal hit; holder2 takes holder's reflected arrow, which is returned damage.
+    expect(seen.find((h) => h.victim === "holder")).toMatchObject({ by: "archer" });
+    expect(seen.find((h) => h.victim === "holder")?.passive).toBeUndefined();
+    expect(seen.find((h) => h.victim === "holder2")).toMatchObject({ by: "holder", passive: true });
+  });
+
+  it("a Boom holder's returned x1.25 is in the arrow it reflects, and only in that (the final review's m2)", () => {
+    const hitOn = (rows: Effect[]): number => {
+      const w = arena([archer(archerAt), holder(holderAt), idle()]);
+      setExtraRows(w, combatant(w, "holder")!, rows);
+      loose(w, [{ id: "archer", a: 0 }]);
+      flyUntilEnd(w);
+      flyUntilEnd(w);
+      return FACTIONS.sentenced.hp - P(w, "archer").hp;
+    };
+    const plain = hitOn([]);
+    expect(plain).toBeGreaterThan(0);
+    expect(hitOn([{ k: "mult", key: "returned", v: 1.25 }])).toBeCloseTo(plain * 1.25, 9);
+    expect(hitOn([{ k: "mult", key: "dot", v: 1.25 }, { k: "mult", key: "hit", v: 2.5 }])).toBeCloseTo(plain, 9); // the other kinds' mults are not
   });
 
   it("credits the kill to the shield holder", () => {

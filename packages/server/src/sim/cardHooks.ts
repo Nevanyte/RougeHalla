@@ -44,6 +44,9 @@ export function install(world: World): void {
   chainHook(world, "raidStarted", resetAll);
   // A fresh fight in the coliseum: no streak and no boost survive the teleport (every status ends there too).
   chainHook(world, "teleported", resetFight);
+  // What a pass queued for the next tick (a return, a splash) answers a fight that is over: it must not land on a mob the teleport just put back.
+  chainHook(world, "teleported", dropDeferred);
+  chainHook(world, "runEnded", dropDeferred);
   chainHook(world, "runEnded", flushBleeds);
   world.modSources.push(cardSource);
   world.systems.push(afterDamage);
@@ -73,6 +76,10 @@ function resetAll(world: World): void {
   for (const rt of world.players.values()) rt.cards = undefined;
   pending.delete(world);
   bleeds.delete(world);
+}
+
+function dropDeferred(world: World): void {
+  world.combat.deferred = [];
 }
 
 function resetFight(world: World): void {

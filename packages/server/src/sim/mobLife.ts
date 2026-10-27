@@ -27,7 +27,8 @@
 //          in never changes it);
 //       2. the mob's weapon: straight into the hand of a killer who is standing with an empty hand (it arms them, with a
 //          toast, and nothing drops); otherwise dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer
-//          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing;
+//          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing. The weapons of every mob a
+//          killer kills in one pass are settled together at its first pay-out, in mob id order (the lowest id arms an empty hand);
 //       3. the chainable mobKilled hook (quest objectives).
 //     A kill gives no stat (the per-kill buffs went with the balance pass): power comes from the camps' chests and quests only.
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
@@ -193,7 +194,8 @@ export function killMob(
     if (weapon !== "") payLater(world, () => dropWeapon(world, at, weapon));
     return;
   }
-  payLater(world, () => payMobKill(world, killer!, region, elite, type, camp, weapon, at, m));
+  if (weapon !== "" && !world.config.training) queueWeapon(world, killer, { mob: c.id, weapon, at });
+  payLater(world, () => payMobKill(world, killer!, c.id, region, elite, type, camp, weapon, at, m));
 }
 
 /**
@@ -206,19 +208,62 @@ export function mobTypeOf(type: string, region: FactionId, elite: boolean): MobT
   return elite ? elitesOf(region)[0]!.id : normalTypesOf(region)[0]!.id;
 }
 
-function payMobKill(world: World, killerId: string, region: FactionId, elite: boolean, type: MobTypeId, camp: number, weapon: string, at: Vec2, m: number): void {
+function payMobKill(
+  world: World, killerId: string, mobId: string, region: FactionId, elite: boolean, type: MobTypeId, camp: number, weapon: string, at: Vec2, m: number,
+): void {
   // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed or drop, so a
   // practice kill never changes the build the player set up.
   if (world.config.training) return;
   const p = world.state.players.get(killerId);
   const rt = world.players.get(killerId);
   if (!p || !rt || rt.resolved) {
-    if (weapon !== "") dropWeapon(world, at, weapon);
+    if (weapon !== "") {
+      unqueueWeapon(world, killerId, mobId);
+      dropWeapon(world, at, weapon);
+    }
     return;
   }
   creditMobKill(world, p, rt, elite, m);
-  if (weapon !== "") awardMobWeapon(world, killerId, weapon, at);
+  settleWeapons(world, killerId);
   world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite });
+}
+
+/** A weapon a killed mob carried, waiting for its killer's pay-out. */
+interface WeaponAward { mob: string; weapon: string; at: Vec2 }
+
+/**
+ * The weapons of the mobs a player killed in one pass, by killer. The pay-outs run in the order the victims were applied, which follows
+ * the order the hits were recorded (join order), and the first weapon to be handed out arms an empty hand while the rest lie loose: so the
+ * pass's weapons are settled together, at the killer's first pay-out, in mob id order, and no processing order decides which one arms.
+ */
+const weaponAwards = new WeakMap<World, Map<string, WeaponAward[]>>();
+
+function queueWeapon(world: World, killerId: string, award: WeaponAward): void {
+  let by = weaponAwards.get(world);
+  if (!by) weaponAwards.set(world, by = new Map());
+  const list = by.get(killerId);
+  if (list) list.push(award);
+  else by.set(killerId, [award]);
+}
+
+/** A killer that is gone has no hand to arm: the mob's own pay-out drops its weapon, so it leaves the queue. */
+function unqueueWeapon(world: World, killerId: string, mobId: string): void {
+  const list = weaponAwards.get(world)?.get(killerId);
+  if (!list) return;
+  const i = list.findIndex((a) => a.mob === mobId);
+  if (i >= 0) list.splice(i, 1);
+  if (list.length === 0) weaponAwards.get(world)!.delete(killerId);
+}
+
+/** Mob ids count up in base 36 (nextId), so the shorter one is the earlier. */
+const byMobId = (a: WeaponAward, b: WeaponAward): number => a.mob.length - b.mob.length || (a.mob < b.mob ? -1 : a.mob > b.mob ? 1 : 0);
+
+function settleWeapons(world: World, killerId: string): void {
+  const by = weaponAwards.get(world);
+  const list = by?.get(killerId);
+  if (!by || !list) return;
+  by.delete(killerId);
+  for (const a of list.sort(byMobId)) awardMobWeapon(world, killerId, a.weapon, a.at);
 }
 
 /**

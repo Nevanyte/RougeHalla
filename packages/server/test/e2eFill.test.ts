@@ -254,7 +254,7 @@ describe("fill bots in a real arena room", () => {
       for (const name of botNames) expect(server.store.get(name), `a profile for the bot ${name}`).toBeUndefined();
       const record = server.store.get(me.name)!;
       expect(record.stats).toMatchObject({ runs: 1, kills: 0 });
-      expect(record.gv).toBe(0);
+      expect(record.gv, "the banked GV is the run's own total, mob GV included").toBe(result.gv.total);
       await server.store.flush();
       const onDisk = JSON.parse(fs.readFileSync(profileFile, "utf8")) as { profiles: Record<string, unknown> };
       expect(Object.keys(onDisk.profiles)).toEqual([me.name]);

@@ -31,6 +31,7 @@ import {
 } from "@raid/shared";
 import { activeWeapon, combatant, isEvading, isQuestGiver, standing, standingCombatants, type Combatant } from "./combatant";
 import { recordHit } from "./ledger";
+import { returnedMultOf } from "./mods";
 import { positionAt } from "./movement";
 import { ballsThisTick, interceptBall } from "./projectiles";
 import { collisionMap, emit, type MeleeRequest, type ProjectileRuntime, type World } from "./world";
@@ -77,9 +78,11 @@ function land(world: World, req: MeleeRequest, attacker: Combatant, target: Comb
       // The cards that answer a block (Tank Engine, Pocket Sand, Best Offense); this phase is outside the ledger pass, so what they apply counts at once.
       world.hooks.blocked?.(world, target, attacker, { ...req.packet, raw: req.packet.raw * SHIELD_BLOCK_SHARE }, true);
       if (outcome === "riposte") {
+        // Returned damage: the holder's `returned` mult (Boom's x1.25) is in the packet, as in Fire's backlash and Spiked Shell (G1 counts it).
         recordHit(world, {
           victim: attacker.id, by: { id: target.id, name: target.s.name },
-          packet: { ...req.packet, raw: req.packet.raw * SHIELD_BLOCK_SHARE * riposteShare() }, weapon: "shield", stagger: false, passive: true,
+          packet: { ...req.packet, raw: req.packet.raw * SHIELD_BLOCK_SHARE * riposteShare() * returnedMultOf(target.s) }, weapon: "shield", stagger: false,
+          passive: true,
         });
       }
       recordHit(world, {

@@ -16,14 +16,16 @@ import { grantBarrier, syncMaxHp } from "../src/sim/buffs";
 import { heal as healFor } from "../src/sim/factions";
 import { combatant } from "../src/sim/combatant";
 import { rollAttackCrit } from "../src/sim/cardState";
+import { packetFor } from "../src/sim/weapons";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { placeMob } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import {
-  critChanceOf, lifestealMultOf, lifestealRowsOf, outgoingKindOf, outgoingMult, setExtraRows, speedMultOf, wishCooldownMultOf, type OutgoingKind,
+  critChanceOf, lifestealMultOf, lifestealRowsOf, outgoingKindOf, outgoingMult, recomputeMods, setExtraRows, speedMultOf, wishCooldownMultOf, type OutgoingKind,
   type VsProbe,
 } from "../src/sim/mods";
 import { addStatus } from "../src/sim/status";
+import { removePlayer } from "../src/sim/step";
 import { hit, inStep, MAGIC, pvpArena, P, RT, tick, TRUE, type HitOpts } from "./support/pvpRig";
 
 const HOLY_HP = FACTIONS.holy.hp;
@@ -78,6 +80,27 @@ describe("G2: the PvP per-hit cap", () => {
     hit(v3, "v", mob, 100_000);
     applyLedger(v3);
     expect(P(v3, "v").status).toBe("dead");
+  });
+
+  it("still caps a hit whose player attacker has left the room (an arrow in flight when its shooter quit; the final review's m5)", () => {
+    const w = pvpArena([{ id: "a", faction: "fire" }, { id: "b", faction: "fire" }, { id: "v", faction: "holy" }]);
+    hit(w, "v", "a", 100_000);
+    removePlayer(w, "a");
+    expect(w.state.players.has("a")).toBe(false);
+    applyLedger(w);
+    expect(P(w, "v").hp).toBeCloseTo(HOLY_HP * 0.65, 9);
+    // The same for G3: a gone shooter's damage over time shares the 15%-a-second budget as it did before it left.
+    const w2 = pvpArena([{ id: "a", faction: "sentenced" }, { id: "b", faction: "fire" }, { id: "v", faction: "holy" }]);
+    hit(w2, "v", "a", 500, { sig: "mark", shares: TRUE });
+    removePlayer(w2, "a");
+    applyLedger(w2);
+    expect(HOLY_HP - P(w2, "v").hp).toBeCloseTo(PVP_DOT_CAP_SHARE * HOLY_HP * DT, 9);
+    // A mob's hit (the world's damage) is still no one's to cap, and neither is the arena's.
+    const w3 = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }]);
+    const mob = addMob(w3, { kind: "dummy", name: "Warden", at: { x: 900, y: 320 } });
+    hit(w3, "v", mob, 100_000);
+    applyLedger(w3);
+    expect(P(w3, "v").status).toBe("dead");
   });
 
   it("is on the victim being a player: a mob takes the whole hit", () => {
@@ -536,6 +559,38 @@ describe("G1 in the ledger: an entry's own mult shares the cap, by the kind of e
   });
 });
 
+describe("the `streak` rows are for weapon hits (the final review's m10)", () => {
+  const firstImpression: Effect = { k: "vs", test: "streak", arg: 0, v: 0.4 };
+  const tunnelVision: Effect = { k: "scale", src: "streak", per: 0.04, step: 1, cap: 0.4 };
+
+  it("outgoingMult: First Impressions and Tunnel Vision count for a weapon hit and for no other kind of entry", () => {
+    const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+    rows(w, "a", [firstImpression]);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 0 }, "hit")).toBeCloseTo(1.4, 12);
+    for (const kind of ["dot", "returned", "other"] as const) expect(outgoingMult(P(w, "a"), 1, { streak: () => 0 }, kind), kind).toBe(1);
+    rows(w, "a", [tunnelVision]);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 5 }, "hit")).toBeCloseTo(1.2, 12);
+    for (const kind of ["dot", "returned", "other"] as const) expect(outgoingMult(P(w, "a"), 1, { streak: () => 5 }, kind), kind).toBe(1);
+    // The other `vs` and `scale` rows still reach every kind (that is how a damage row reaches Sentenced's mark).
+    rows(w, "a", [dmg(0.3), firstImpression, { k: "vs", test: "hpBelow", arg: 2, v: 0.2 }]);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 0 }, "dot")).toBeCloseTo(1.5, 12);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 0 }, "hit")).toBeCloseTo(1.9, 12);
+  });
+
+  it("through the ledger: a burn tick on a target that is no streak target takes no First Impressions, a weapon hit does", () => {
+    const lost = (o: HitOpts): number => {
+      const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+      rows(w, "a", [firstImpression]);
+      hit(w, "v", "a", 100, o);
+      applyLedger(w);
+      return HOLY_HP - P(w, "v").hp;
+    };
+    expect(lost({})).toBeCloseTo(140, 9);
+    expect(lost({ sig: "burn", shares: TRUE })).toBeCloseTo(100, 9);
+    expect(lost({ dot: true, weapon: null, shares: TRUE })).toBeCloseTo(100, 9);
+  });
+});
+
 describe("the `vs` rows that need the world, through the ledger (sim/vsProbe.ts)", () => {
   const vs = (test: "slowed" | "elite" | "higherPower"): Effect => ({ k: "vs", test, arg: 0, v: 0.3 });
 
@@ -718,6 +773,56 @@ describe("G1 with a critical strike or Plant Your Feet baked into the packet", (
     expect(lostWith([dmg(1.2)], 1.25, false)).toBeCloseTo(250, 9);
   });
 
+  it("holds for a fighter with NO damage row too: Boom and a crit are x2.5 in all, with or without a damage card (the final review's M1)", () => {
+    // Boom's mult rows are no damage row, so the early return used to skip the cap: x3.75 here, and any damage card LOWERED it to x2.5.
+    // The packet of a base-100 hit of Boom's holder already holds its x2.5 (packetFor), a crit's x1.5 and Plant Your Feet's x1.25: `raw`.
+    const lostRaw = (list: Effect[], raw: number, baked: number): number => {
+      const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+      rows(w, "a", list);
+      recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw, phys: 1, magic: 0, true: 0, mult: baked, ...(baked > 1 ? { crit: true } : {}) }, weapon: "axe", stagger: false });
+      applyLedger(w);
+      return HOLY_HP - P(w, "v").hp;
+    };
+    expect(lostRaw([mult("hit", 2.5)], 375, 1.5)).toBeCloseTo(250, 9);
+    expect(lostRaw([mult("hit", 2.5)], 375, 1.5)).toBeCloseTo(lostRaw([mult("hit", 2.5), dmg(0.35)], 375, 1.5), 9);
+    expect(lostRaw([mult("hit", 2.5)], 100 * 2.5 * 1.25 * 1.5, 1.25 * 1.5), "a crit and Plant Your Feet together").toBeCloseTo(250, 9);
+    // Under the cap nothing changes: a crit alone, Boom alone, and a fighter with no rows at all.
+    expect(lostRaw([], 150, 1.5)).toBeCloseTo(150, 9);
+    expect(lostRaw([mult("hit", 2.5)], 250, 1)).toBeCloseTo(250, 9);
+    expect(lostRaw([mult("hit", 0.4)], 60, 1.5)).toBeCloseTo(60, 9); // Machine Gun: x0.4 and a crit stay far under it
+    // The pure reader says the same: a ceiling for a fighter with no damage row, 1 when nothing passes it.
+    const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+    rows(w, "a", [mult("hit", 2.5)]);
+    expect(outgoingMult(P(w, "a"), 1, undefined, "hit", 1.5)).toBeCloseTo(2.5 / (2.5 * 1.5), 12);
+    expect(outgoingMult(P(w, "a"), 1, undefined, "hit")).toBe(1);
+    expect(outgoingMult(P(w, "a"), 1, undefined, "dot", 1.5)).toBe(1);
+    rows(w, "a", [mult("dot", 1.25)]);
+    expect(outgoingMult(P(w, "a"), 1, undefined, "dot", 2)).toBeCloseTo(1, 12); // 1.25 x 2 = 2.5: exactly the cap
+    expect(outgoingMult(P(w, "a"), 1, undefined, "dot", 3)).toBeCloseTo(2.5 / 3.75, 12);
+  });
+
+  it("the real cards: Boom + Haste + Rhythm's crit lands the same with or without Glass Cannon, and no more than Boom's plain hit", () => {
+    const landed = (build: Record<string, number>, asCrit: boolean): number => {
+      const w = pvpArena([{ id: "a", faction: "fire", weapon: "sword", build }, { id: "v", faction: "holy" }], { pvpRules: false });
+      const a = combatant(w, "a")!;
+      recomputeMods(w, a);
+      const plain = packetFor(a, "sword");
+      let crit = false;
+      for (let i = 0; i < 3 && !crit; i++) crit = rollAttackCrit(a); // Rhythm: the 3rd attack crits
+      expect(crit).toBe(true);
+      const packet = asCrit ? { ...plain, raw: plain.raw * CRIT_MULT, crit: true, mult: CRIT_MULT } : plain;
+      recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet, weapon: "sword", stagger: false });
+      applyLedger(w);
+      return HOLY_HP - P(w, "v").hp;
+    };
+    const boom = { hereComesTheBoom: 1, haste1: 1, rhythm: 1 };
+    const plain = landed(boom, false);
+    // Boom's x2.5 and the crit's x1.5 are x3.75 of the faction's hit; G1 holds the whole to x2.5, which is Boom's plain hit: a crit adds nothing.
+    expect(landed(boom, true)).toBeCloseTo(plain, 9);
+    expect(landed({ ...boom, glassCannon: 1 }, true)).toBeCloseTo(landed(boom, true), 9);
+    expect(landed({ ...boom, glassCannon: 1 }, false)).toBeCloseTo(plain, 9);
+  });
+
   it("outgoingMult takes the baked multiplier as its fifth argument, 1 by default", () => {
     const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
     rows(w, "a", [dmg(1.2)]);
@@ -729,12 +834,12 @@ describe("G1 with a critical strike or Plant Your Feet baked into the packet", (
   it("Tunnel Vision's streak rows and a Glass Cannon's stat row share the cap like any other damage row", () => {
     const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
     rows(w, "a", [dmg(1.5), { k: "scale", src: "streak", per: 0.04, step: 1, cap: 0.4 }]);
-    expect(outgoingMult(P(w, "a"), 1, { streak: () => 10 })).toBe(2.5);
-    expect(outgoingMult(P(w, "a"), 1, { streak: () => 3 })).toBeCloseTo(2.5, 12); // 1 + 1.5 + 0.12 = 2.62
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 10 }, "hit")).toBe(2.5);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 3 }, "hit")).toBeCloseTo(2.5, 12); // 1 + 1.5 + 0.12 = 2.62
     rows(w, "a", [dmg(0.5), { k: "scale", src: "streak", per: 0.04, step: 1, cap: 0.4 }]);
-    expect(outgoingMult(P(w, "a"), 1, { streak: () => 3 })).toBeCloseTo(1.62, 12);
-    expect(outgoingMult(P(w, "a"), 1, { streak: () => 40 })).toBeCloseTo(1.9, 12); // the row's own cap of +40%
-    expect(outgoingMult(P(w, "a"), 1)).toBeCloseTo(1.5, 12); // no probe: no streak
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 3 }, "hit")).toBeCloseTo(1.62, 12);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 40 }, "hit")).toBeCloseTo(1.9, 12); // the row's own cap of +40%
+    expect(outgoingMult(P(w, "a"), 1, undefined, "hit")).toBeCloseTo(1.5, 12); // no probe: no streak
   });
 });
 
