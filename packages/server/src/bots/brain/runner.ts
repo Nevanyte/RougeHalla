@@ -13,7 +13,7 @@ export interface BotRunnerOptions {
   readonly brain: Brain;
   readonly adapter: BotAdapter;
   readonly cfg: RunnerConfig;
-  /** generateMap(state.seed), open gates. */
+  /** The room's map (generateMap(seed, attempt)), open gates. */
   readonly map: GameMap;
   readonly features: Features;
   /** The tier's attention centre (TierParams.attention.central): the Percept marks fighters inside it. */

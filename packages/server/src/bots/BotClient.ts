@@ -1,12 +1,13 @@
 // A headless player over the network (docs/BOTS.md 1): the network driver of the human-like brain. It talks to the server the
 // way the web client does: HTTP for the profile, then a Colyseus room where it reads the SDK-decoded state and the `fxs`
 // batches and sends inputs only (move, stop, target, swap, pickup). It never touches server internals; the map comes from the
-// public seed. Everything it decides is the brain's (bots/brain/): one frame per state patch goes into the runner, and what
-// comes out is sent with `room.send` at once, because the socket is the latency (the runner is configured with no self delay
-// and the client's own render delay for the world). The fill bots of the server run the same brain in-process (BotManager).
+// public seed and attempt, checked against the published hash (roomMap). Everything it decides is the brain's (bots/brain/):
+// one frame per state patch goes into the runner, and what comes out is sent with `room.send` at once, because the socket is
+// the latency (the runner is configured with no self delay and the client's own render delay for the world). The fill bots of
+// the server run the same brain in-process (BotManager).
 import { Client, type Room } from "@colyseus/sdk";
 import {
-  CLIENT_MESSAGE_TYPES, generateMap, INTERP_DELAY_MS, mulberry32, PROFILE_TOKEN_HEADER, ROOM_NAME, unpackFx,
+  CLIENT_MESSAGE_TYPES, generateMap, INTERP_DELAY_MS, mapHashU32, mulberry32, PROFILE_TOKEN_HEADER, ROOM_NAME, unpackFx,
   type ClientMessageType, type FactionId, type FxBatch, type GameMap, type JoinOptions, type ProfileResponse, type RunResult,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -23,6 +24,31 @@ import {
 import { createBotStatsStore, NO_BIAS } from "./learning/BotStatsStore";
 
 type ClientRoom = Room<any, RaidState>;
+
+/** The map the bots of this process built last: the bots of one room (runBots, the e2e run) build it once. Read-only. */
+let lastMap: { seed: number; attempt: number; map: GameMap } | null = null;
+
+const hex = (h: number): string => (h >>> 0).toString(16).padStart(8, "0");
+
+/**
+ * A room's map as every client builds it: exactly the published attempt of the published seed (one attempt, never a
+ * loop), checked against the published hash. A mismatch, or an attempt that does not certify here, means this code and
+ * the server's build different maps: a hard error.
+ */
+export function roomMap(state: { seed: number; attempt: number; mapHash: number }): GameMap {
+  const { seed, attempt } = state;
+  let map = lastMap && lastMap.seed === seed && lastMap.attempt === attempt ? lastMap.map : null;
+  if (!map) {
+    // Like the server, no decor: the bots draw nothing, and the hash leaves props out.
+    map = generateMap(seed, attempt, { decor: false });
+    lastMap = { seed, attempt, map };
+  }
+  const hash = mapHashU32(map);
+  if (hash !== state.mapHash >>> 0) {
+    throw new Error(`map mismatch on seed ${seed} attempt ${attempt}: built ${hex(hash)}, the server published ${hex(state.mapHash)}`);
+  }
+  return map;
+}
 
 export interface BotOptions {
   verbose?: boolean;
@@ -264,7 +290,7 @@ export class BotClient {
 
   /** Builds the brain and its runner for this room: the map, what the server can do, the tier and the persona. */
   private start(room: ClientRoom, gv: number): void {
-    const map: GameMap = generateMap(room.state.seed);
+    const map: GameMap = roomMap(room.state);
     const selfId = room.sessionId;
     const features = detectFeatures({ state: room.state, player: room.state.players.get(selfId), map });
     const seed = this.opts.seed ?? hashName(this.profile);

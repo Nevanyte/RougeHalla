@@ -32,7 +32,6 @@ function openMap(): GameMap {
 /** p0 of `faction` holding Swift Boots at `rank` in an active run, p1 a bystander parked far away (out of every line of fire). */
 function startRun(faction: FactionId, rank: 0 | 1 | 2): World {
   const world = createGameWorld({
-    seed: 5,
     config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
     random: mulberry32(6),
     map: openMap(),

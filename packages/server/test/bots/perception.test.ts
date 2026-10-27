@@ -355,10 +355,12 @@ describe("both drivers perceive the same", () => {
     for (const [state, player] of [[server, new PlayerState()], [client, client.players.get("me")!]] as const) {
       const f = detectFeatures({ state, player, map: testMap() });
       // The merged schema: the Wish, the status bits, the areas, planning (`plan`), the camps and chests (`choose`) and the build
-      // (relics) exist; the Q/E fields are in the schema but no ability fills them. (Detected, not yet used: no module acts on them.)
+      // (relics) exist; the Q/E fields are in the schema but no ability fills them; the zone map carries floor hazards.
+      // (Detected, not yet used: no module acts on them.)
       expect(f).toEqual(featureSet({
         messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train"],
         wishes: true, statusEffects: true, fields: true, skills: false, planning: true, chests: true, camps: true, relics: true,
+        hazards: true,
       }));
       expect("barrier" in player).toBe(true);
       expect("wishReadyAt" in player).toBe(true);
@@ -375,6 +377,9 @@ describe("both drivers perceive the same", () => {
     expect(detectFeatures({ state: { players: new Map() }, player: { effects: 0, wishReadyAt: 0 }, map: null, messageTypes: ["move"] }))
       .toMatchObject({ wishes: false, skills: false, statusEffects: true });
     expect(detectFeatures({ state: {}, player: null, map: { ...testMap(), hazards: [] } as never }).hazards).toBe(true);
+    // R2's zone maps carry their floor hazards in `terrain`; a map with none (an all-zero layer) has no hazard feature.
+    expect(detectFeatures({ state: {}, player: null, map: testMap() }).hazards).toBe(true);
+    expect(detectFeatures({ state: {}, player: null, map: { ...testMap(), terrain: new Uint8Array(testMap().terrain.length) } }).hazards).toBe(false);
   });
 });
 

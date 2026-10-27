@@ -11,7 +11,7 @@ import * as shared from "@raid/shared";
 import {
   abilityInSlot, buffPower, CHEST_PANEL_SLACK, CHEST_RANGE, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight,
   hpBarFractions, INTERACT_RANGE, isDot,
-  isFactionId, isWeaponId, TELEPORT_IMMUNITY_MS, unpackFx, unpackLaunches, WEAPONS, withGates,
+  isFactionId, isWeaponId, TELEPORT_IMMUNITY_MS, TERRAIN_EMBER, TERRAIN_LIGHT, unpackFx, unpackLaunches, WEAPONS, withGates,
   type FactionId, type FxBatch, type GameMap, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
@@ -235,7 +235,7 @@ export interface FeatureProbe {
   readonly state: object;
   /** A PlayerState instance: `new PlayerState()` in-process, any decoded player over the network. Default: the state's first. */
   readonly player?: object | null;
-  /** generateMap(seed): its hazard field, by presence. */
+  /** The room's map (generateMap(seed, attempt)): its floor hazards (`terrain`, R2's zone terrain), by presence. */
   readonly map?: GameMap | null;
   /** The message types the server accepts. Default shared CLIENT_MESSAGE_TYPES (client and server ship together). */
   readonly messageTypes?: readonly string[];
@@ -267,12 +267,21 @@ function firstPlayer(state: object): object | null {
  * What this server and branch can do (docs/BOTS.md 8), by runtime presence only: message types, schema fields by
  * `key in instance` (prototype accessors answer), shared exports by name, the map's hazards. Once per room.
  */
+/** A tile of ember, bog, ice or light anywhere (the floor kinds that act on a fighter; lava, fence and crevasse only block). */
+function hasFloorHazard(map: GameMap): boolean {
+  const terrain = (map as { terrain?: ArrayLike<number> }).terrain;
+  if (!terrain) return false;
+  for (let i = 0; i < terrain.length; i++) if (terrain[i]! >= TERRAIN_EMBER && terrain[i]! <= TERRAIN_LIGHT) return true;
+  return false;
+}
+
 export function detectFeatures(probe: FeatureProbe): Features {
   const types = [...(probe.messageTypes ?? CLIENT_MESSAGE_TYPES)];
   const accepts = (t: string): boolean => types.includes(t);
   const player = probe.player ?? firstPlayer(probe.state);
   const has = (o: object | null | undefined, key: string): boolean => o != null && key in o;
-  const hazards = probe.map != null && has(probe.map, "hazards") && (probe.map as unknown as Record<string, unknown>)["hazards"] != null;
+  const hazards = probe.map != null && (hasFloorHazard(probe.map)
+    || (has(probe.map, "hazards") && (probe.map as unknown as Record<string, unknown>)["hazards"] != null));
   return {
     messageTypes: types,
     wishes: accepts("cast") && has(player, "wishReadyAt") && sharedExport("ABILITIES") !== undefined,

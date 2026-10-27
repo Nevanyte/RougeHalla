@@ -1,7 +1,7 @@
 // The hand (docs/BOTS.md 2.3): where a click lands, and what the game client makes of it. A left click goes through a port of
 // the client's own picker over the candidates the client offers; a right click on the ground is scattered and stays on
 // screen. Pure given the streams handed in: when anything is clicked is the humanizer's business.
-import { TARGET_SNAP_RADIUS, WORLD_H, WORLD_W, isWallAt, type GameMap, type Rng, type Vec2 } from "@raid/shared";
+import { TARGET_SNAP_RADIUS, WORLD_H, WORLD_W, isSolidAt, type GameMap, type Rng, type Vec2 } from "@raid/shared";
 import { chance, gaussian } from "./random";
 import { BOT_VIEW, type FighterId, type Percept, type TierParams } from "./types";
 
@@ -96,14 +96,14 @@ const WALL_RETRIES = 4;
 
 /**
  * Scatter around `centre` with a 2D Gaussian and keep the click on the ground: a person aims at floor they can see, so a draw
- * that lands in a wall is aimed again (the server would otherwise path to the nearest floor, maybe through the other side of
- * the wall). `fit` keeps the click where it can go: on screen for a ground click, in the world for a minimap one.
+ * that lands on a tile that blocks a body (a wall, or the low ground of a river, a fence or a crevasse: the move mask) is aimed
+ * again (the server would otherwise path to the nearest floor, maybe on the other side). `fit` keeps the click where it can go: on screen for a ground click, in the world for a minimap one.
  */
 function scatter(motor: Rng, map: GameMap, centre: Vec2, sigma: number, fit: (pt: Vec2) => Vec2): Vec2 {
-  const onWall = isWallAt(map, centre.x, centre.y);
+  const onWall = isSolidAt(map, centre.x, centre.y);
   for (let i = 0; i < WALL_RETRIES; i++) {
     const pt = fit({ x: centre.x + gaussian(motor, 0, sigma), y: centre.y + gaussian(motor, 0, sigma) });
-    if (onWall || !isWallAt(map, pt.x, pt.y)) return pt;
+    if (onWall || !isSolidAt(map, pt.x, pt.y)) return pt;
   }
   return fit(centre);
 }
@@ -120,7 +120,7 @@ export function edgeToward(map: GameMap, self: Vec2, to: Vec2): Vec2 {
   let pt = { x: self.x, y: self.y };
   for (const f of [0.97, 0.85, 0.7, 0.55, 0.4]) {
     pt = { x: self.x + dx * t * f, y: self.y + dy * t * f };
-    if (!isWallAt(map, pt.x, pt.y)) break;
+    if (!isSolidAt(map, pt.x, pt.y)) break;
   }
   return pt;
 }

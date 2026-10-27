@@ -404,7 +404,8 @@ describe("schema round trip", () => {
   });
 
   it("decodes the weapon fields: a pickup into the free slot, a swap, the bow draw and the cooldown it leaves", () => {
-    const world = makeWorld(51, 2);
+    // Seed 57: the bow needs an open line of 200 u from bob's spawn, and a spawn on a zone-styled map is may be hemmed in by its structures.
+    const world = makeWorld(57, 2);
     addPlayer(world, "a", "alice"); // fire: axe
     addPlayer(world, "b", "bob"); // sentenced: bow
     const wire = new Wire(world);
@@ -698,6 +699,19 @@ describe("schema round trip", () => {
       }
       const mob = world.state.mobs.get(dummy)!;
       if (rnd() < 0.2) mob.hp = Math.max(1, mob.maxHp * rnd());
+
+      if (tick === 30) {
+        // One scripted shot, so an arrow is in the air at the end of a step whatever the fuzz's random aims did: the fuzz
+        // stands players next to containers, and on a 96 x 96 zone map those are often tucked against a wall (seed 1: no
+        // arrow ever outlived its step). Carol, alive until tick 60, stands on a spawn, which is open on every side, and
+        // looses along the longest open line.
+        const carol = world.state.players.get("c")!;
+        carol.x = world.map.spawns[2]!.x;
+        carol.y = world.map.spawns[2]!.y;
+        const packet = { raw: 1, ...damageShares(FACTIONS.plague) };
+        world.combat.spawns.push({ owner: "c", weapon: "bow", kind: "arrow", a: openAim(world, carol, world.state.players.get("a")!), packet });
+        spawnProjectiles(world); // step() clears the queue first, so it is launched here, between steps, as the flight test does
+      }
 
       // Weapon slots only change by a pickup (a swap moves the slot index, a down player's are cleared).
       const slots = new Map([...world.state.players].map(([id, p]) => [id, [p.weapon0, p.weapon1]]));

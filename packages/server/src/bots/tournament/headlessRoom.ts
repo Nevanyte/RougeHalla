@@ -9,8 +9,8 @@
 //
 // What it does not do: persistence (nothing is banked, no profile exists), the lock on the room or the linger after the end.
 import {
-  mulberry32, TICK_MS,
-  type FxBatch, type RunResult,
+  generateMap, mulberry32, TICK_MS,
+  type FxBatch, type GameMap, type RunResult,
 } from "@raid/shared";
 import { BotManager, type BotSeatOverrides } from "../BotManager";
 import type { BotFillConfig, BotSeatSpec, BotStatsStoreApi, BrainFactory, Features } from "../brain/types";
@@ -34,8 +34,13 @@ export const HEADLESS_CONFIG: SimConfig = {
 };
 
 export interface HeadlessRoomOptions {
-  /** The world's seed (the map, `generateMap(seed)`). Also seeds the sim's own random stream and the reward stream. */
+  /**
+   * The world's seed (the map, `generateMap(seed)`: its first certified attempt, built here on this thread, never from a pool).
+   * Also seeds the sim's own random stream and the reward stream.
+   */
   seed: number;
+  /** A ready map of `seed` (its seed must match), so a caller that already built it does not pay for it twice. */
+  map?: GameMap;
   /** Timers and flags over HEADLESS_CONFIG. */
   config?: Partial<SimConfig>;
   /** The fill configuration the manager reads (latency, jitter, mixes; `fillTo` and `arrivalSeconds` when it fills a lobby). */
@@ -94,7 +99,8 @@ function mix(seed: number, tag: number): number {
 export function createHeadlessRoom(opts: HeadlessRoomOptions): HeadlessRoom {
   const seed = opts.seed >>> 0;
   const world = createGameWorld({
-    seed,
+    // As the server builds it: no decor (props are cosmetic, the sim never reads them, and the hash leaves them out).
+    map: opts.map ?? generateMap(seed, undefined, { decor: false }),
     config: { ...HEADLESS_CONFIG, ...opts.config },
     random: mulberry32(mix(seed, 1)),
     // A fixed secret: a game replays exactly. (A live Room draws this from crypto.)

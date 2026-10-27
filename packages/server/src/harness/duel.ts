@@ -12,8 +12,8 @@
 // (perception "client"); "stale" aims at the stale view with no lead (what the bots do) and "present" reads the present
 // state (a cheat), for comparison.
 import {
-  circleClear, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, segmentClear, TICK_MS,
-  TILE, TILE_WALL, decide,
+  circleClear, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, reachMask,
+  segmentClear, TICK_MS, TILE, TILE_WALL, decide,
   type BuffId, type FactionId, type GameMap, type PolicyInput, type SkillId, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { grantBuff } from "../sim/buffs";
@@ -240,7 +240,7 @@ class Client {
       target: theirs.pos,
       targetVel: theirs.vel,
       selfVel: mine.vel,
-      los: hasLineOfSight(map, mine.pos, theirs.pos),
+      los: hasLineOfSight(map, mine.pos, theirs.pos, reachMask(weapon)),
       weapon,
       ready: now >= me.s.readyAt,
       walkable: (a, b) => segmentClear(map, a, b, PLAYER_RADIUS),

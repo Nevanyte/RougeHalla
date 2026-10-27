@@ -1,7 +1,7 @@
 // Run lifecycle + the fixed-step update. `step()` is the only entry point the Room ticks; arena.ts decides
 // how a run ends.
 import {
-  AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, mulberry32, SIGNATURE_WEAPONS, type FactionId, type Vec2,
+  AIM_STALE_MS, defaultFaction, FACTIONS, MAX_PLAYERS, MOVE_MULT_FLOOR, mulberry32, SIGNATURE_WEAPONS, type FactionId, type Vec2,
 } from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
 import { updateAbilities } from "./abilities";
@@ -10,7 +10,7 @@ import { combatant, standingCombatants, type Combatant } from "./combatant";
 import { InputQueue } from "./inputs";
 import { applyLedger } from "./ledger";
 import { resolveMelee } from "./melee";
-import { advanceAlongPath, planPath, recordHistory } from "./movement";
+import { planPath, recordHistory, walkFighter } from "./movement";
 import { leavePlanning, planningEnabled, startPlanning, updatePlanning } from "./planning";
 import { clearProjectiles, spawnProjectiles, sweepProjectiles } from "./projectiles";
 import { isStunned } from "./status";
@@ -146,6 +146,9 @@ export function startRaid(world: World, placed?: ReadonlyMap<string, Vec2>): voi
     const rt = world.players.get(id)!;
     rt.inputs.drain();
     rt.history = [{ t: s.serverTime, x: p.x, y: p.y }];
+    // Placed at rest, with the history reset above. terrainEffects' raidStarted hook clears every slide too (mobs included), but a
+    // world without that module still places its players right.
+    rt.slip = null;
     resetWeapons({ kind: "player", id, s: p, rt });
   }
   beginRun(world);
@@ -249,12 +252,16 @@ function updateActive(world: World, dtMs: number): void {
   updateWeapons(world);
   for (const sys of world.afterWeapons) sys(world, dtMs);
   const fighters = standingCombatants(world);
-  // Every multiplier is read before anyone moves, so none depends on who moved first (the chill reads distances).
-  const mults = fighters.map((c) => world.moveModifiers.reduce((m, mod) => m * mod(world, c), moveMultiplierOf(world, c)));
+  // Every multiplier is read before anyone moves, so none depends on who moved first (the chill reads distances). Their
+  // product never drops below MOVE_MULT_FLOOR while it is above 0 (a root's 0 stays 0).
+  const mults = fighters.map((c) => {
+    const m = world.moveModifiers.reduce((acc, mod) => acc * mod(world, c, dtMs), moveMultiplierOf(world, c));
+    return m > 0 && m < MOVE_MULT_FLOOR ? MOVE_MULT_FLOOR : m;
+  });
   fighters.forEach((c, i) => {
     const w = c.rt.weapon;
     const aiming = w.aimAt > 0 && now - w.aimAt < AIM_STALE_MS;
-    advanceAlongPath(c.s, c.rt, dt, aiming, mults[i]!);
+    walkFighter(world, c, dt, aiming, mults[i]!);
   });
   // Record after everyone has moved so hit tests see one consistent tick.
   for (const c of fighters) recordHistory(c.rt, c.s, now);

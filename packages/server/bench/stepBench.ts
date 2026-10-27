@@ -1,28 +1,32 @@
-// Budget check for the Phase 11 tick: a headless 8-player run with 60 regional mobs, most players fighting mobs near
-// their camps, arrows and balls in the air, mobs chasing and retreating. Reports the cost of one `step()`.
-//   npx tsx packages/server/bench/stepBench.ts                       (from the repo root)
-//   npx tsx packages/server/bench/stepBench.ts --buffs               every player starts with 4 stacks of every buff (R4a's gate)
+// Budget check for the Phase 11 tick: a headless 8-player run with the map's regional mobs (20 camps of 3 to 5, about 80,
+// roguelike R2), eight players fighting at eight camps, arrows and balls in the air, mobs chasing and retreating.
+// Reports the cost of one `step()`.
+//   npx tsx packages/server/bench/stepBench.ts                       (from the repo root; --buffs, --stress)
 //   npx tsx packages/server/bench/stepBench.ts --bots 8              8 in-process fill bots instead of the scripted players
 // Flags: --seed N, --ticks N (measured, default 1200), --warmup N, --mobs N; with --bots also --tier easy|normal|hard (every bot),
 // --coliseum (the endgame: all eight sealed in), --clock cpu|wall (default wall) and --repeat N (min / median / max over N runs).
-// test/perf.test.ts runs the same scenarios against the gates.
+// test/perf.test.ts runs the same scenarios against the gates (average < 5 ms, p99 < 15 ms per tick). Without --bots the CLI
+// also runs the terrain variant (a hazard on every fourth floor tile, against the same map with the effects off;
+// test/terrainPerf.test.ts).
 //
-// Two clocks for the scripted-player run. Wall time per step is what the CLI has always reported, but on a loaded machine (another
-// test file, another process) a step that was preempted counts the wait too: 0.59 ms average and 8.8 ms p99 were seen against
-// 0.15 and 0.43 unloaded. The gate therefore reads `gateMs`: per step, the smaller of the wall time and this thread's CPU time
-// (process.threadCpuUsage, else process.cpuUsage), which a descheduled step does not accrue. A real regression adds work, so it
-// raises both; a stall that is not the sim's own cost raises only the wall time. Where the CPU clock is too coarse to time one
-// step (a probe at the start decides) the gate falls back to the wall time. A bots run is on the one clock `--clock` names.
+// `--stress` is the worst case for the pathfinder: every mob of every camp is woken onto its nearest player once a second
+// (a camp chasing for 12 tiles, giving up, walking home and waking again, so most of the 80 are in motion and repathing
+// every MOB_REPATH_MS), and the players play like clients with the target lock: a `target` order every TARGET_REPATH_MS,
+// alternating between their two nearest mobs, so every order is a lock change. test/pathLoad.test.ts counts the searches.
 //
 // With `--bots N` the players are N fill bots seated by the BotManager in a headless room (bots/tournament/headlessRoom.ts, the
-// Room's own tick order): no human, 60 mobs, nothing ends the run, a bot below half its hp is healed so none drops out of the
-// measurement. One Room tick is timed as three stretches, whose sum is the whole tick the gate reads:
+// Room's own tick order): no human, the map's mobs, nothing ends the run, a bot below half its hp is healed so none drops out of
+// the measurement. One Room tick is timed as three stretches, whose sum is the whole tick the gate reads:
 //   beforeStep  the due commands reach the bots' input queues
 //   step        the sim step, plus the Room's own event routing and fx batch (what a Room does with or without bots)
 //   afterPatch  every bot's frame: perceive, compose, memory, strategy, tactics, humanizer
 // The bots' share is beforeStep + afterPatch. The first `warmup` ticks (200 with bots: JIT warm-up and the first path
-// searches make them spike) are left out of the gated numbers and reported on their own.
-import { BUFF_IDS, TICK_MS, mulberry32, type FactionId, type MobCampDef, type Vec2 } from "@raid/shared";
+// searches make them spike) are left out of the gated numbers and reported on their own. A bots run is on the one clock
+// `--clock` names.
+import {
+  BUFF_IDS, generateMap, mulberry32, TARGET_REPATH_MS, TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE_FLOOR,
+  type CampDef, type FactionId, type GameMap, type Vec2,
+} from "@raid/shared";
 import { BOT_FILL_DEFAULTS, TIER_IDS, type TierId } from "../src/bots/brain/types";
 import type { BotManagerStats } from "../src/bots/BotManager";
 import { createHeadlessRoom, HEADLESS_CONFIG } from "../src/bots/tournament/headlessRoom";
@@ -30,6 +34,7 @@ import { grantBuff } from "../src/sim/buffs";
 import { aggro } from "../src/sim/mobAI";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
+import { enqueueClientMessage } from "../src/sim/inputs";
 import { placeMob } from "../src/sim/mobLife";
 import { addPlayer, step } from "../src/sim/step";
 import type { SimConfig, World } from "../src/sim/world";
@@ -58,13 +63,21 @@ export interface BenchOptions {
   /**
    * Which clock times a bots run. "wall" (default) is elapsed time, which a busy machine inflates with spikes that are not ours;
    * "cpu" is the CPU time of this thread (`process.threadCpuUsage`, microsecond steps), which preemption by other processes
-   * cannot add to. The gates in test/perf.test.ts read "cpu"; the scripted-player run has only the wall clock.
+   * cannot add to. The bots' gates in test/perf.test.ts read "cpu"; the scripted-player run times both clocks (gateMs).
    */
   clock?: "wall" | "cpu";
   /** The endgame: the patience timer (10 s) sends everyone into the locked coliseum, where they fight each other with no mob awake. */
   coliseum?: boolean;
   /** Every player starts with 4 stacks of every buff (roguelike R4a's gate: all buffs on 8 players). `--buffs` on the CLI. */
   buffs?: boolean;
+  /** The pathfinder's worst case: every camp woken every second, players re-locking every TARGET_REPATH_MS (see the header). `--stress` on the CLI. */
+  stress?: boolean;
+  /**
+   * "heavy": the generated map with a hazard on every fourth floor tile (ember, bog, ice and light in turn), camps and spawns
+   * included: the terrain passes at their worst. `hazards: false` plays the same map with the effects off (the control).
+   */
+  terrain?: "heavy";
+  hazards?: boolean;
 }
 
 /** Milliseconds per tick (or per stretch of it). */
@@ -102,18 +115,39 @@ export interface BotsBench {
   commands: Record<string, number>;
 }
 
-export interface BenchResult extends TimingStats {
+export interface BenchResult {
   ticks: number;
   mobs: number;
-  /** Mean over the measured ticks of how many mobs were fighting, and of arrows and balls in flight. */
+  /** Mean over the measured ticks of how many mobs were fighting, how many were awake (fighting or walking home), and of arrows and balls in flight. */
   avgFighting: number;
+  avgAwake: number;
+  /** Mean number of players holding a target lock (the stress scenario's players re-lock every TARGET_REPATH_MS). */
+  avgLocked: number;
   avgProjectiles: number;
-  /** Set for a bots run. avgMs, p50Ms, p99Ms and maxMs are then the whole tick; without bots they are the wall-clock cost of step(). */
+  /** Wall-clock milliseconds per step(). */
+  avgMs: number;
+  p50Ms: number;
+  p99Ms: number;
+  maxMs: number;
+  /**
+   * The same per step() in CPU milliseconds (`process.cpuUsage`, user + system of every thread of the process). A machine
+   * busy with other work preempts the process in the middle of a step, which wall time counts and CPU time does not; CPU
+   * time in turn counts the JIT and GC threads, so it reads higher than wall time on a quiet machine. A gate that must hold
+   * in both worlds takes the smaller of the two (`gateMs`).
+   */
+  cpuAvgMs: number;
+  cpuP99Ms: number;
+  /** Set for a bots run. avgMs, p50Ms, p99Ms and maxMs (and the cpu pair) are then the whole tick on its clock. */
   bots?: BotsBench;
-  /** The CPU milliseconds per step() of the sim's thread, or null when the CPU clock is too coarse to time one step (a bots run: its whole tick when it ran on the cpu clock). */
-  cpuMs: TimingStats | null;
-  /** What the scripted-player gate reads: per step the smaller of the wall time and the CPU time (the wall time alone without a usable CPU clock). A bots run: its whole tick on its clock. */
-  gateMs: TimingStats;
+  /** Fighter-seconds each hazard acted on (world.hazards.stats): all zero on a map without terrain or with the effects off. */
+  hazardSeconds: { ember: number; bog: number; ice: number; light: number };
+  /** Mean milliseconds per tick of the burn and light passes, timed on their own (the terrain variant only). */
+  passMs: { burn: number; light: number } | null;
+}
+
+/** The step cost a gate should judge: the smaller of the wall-clock and the CPU measure (see BenchResult.cpuAvgMs). */
+export function gateMs(r: BenchResult): { avg: number; p99: number } {
+  return { avg: Math.min(r.avgMs, r.cpuAvgMs), p99: Math.min(r.p99Ms, r.cpuP99Ms) };
 }
 
 const NAMES = ["alice", "bob", "carol", "dave", "erin", "frank", "gina", "hank"];
@@ -128,66 +162,109 @@ function config(players: number): SimConfig {
 
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
-function allCamps(world: World): Array<{ region: FactionId; camp: MobCampDef }> {
-  const out: Array<{ region: FactionId; camp: MobCampDef }> = [];
-  for (const r of world.map.regions) for (const camp of r.mobCamps) out.push({ region: r.id, camp });
-  return out;
-}
+/** Ticks between the wake-ups (a mob already fighting just gains threat). */
+const WAKE_TICKS = 20;
 
-/** Adds mobs next to camp spots (round robin) until there are `target`. */
-function topUp(world: World, target: number, camps: ReturnType<typeof allCamps>, cursor: { i: number }): void {
-  while (world.mobs.size < target && camps.length > 0) {
-    const { region, camp } = camps[cursor.i++ % camps.length]!;
-    const spot = camp.spots[cursor.i % camp.spots.length]!;
-    const a = cursor.i * 2.4;
-    placeMob(world, { region, elite: false, at: { x: spot.x + Math.cos(a) * 18, y: spot.y + Math.sin(a) * 18 } });
+/** The map of `seed` with a hazard on every fourth floor tile (a diagonal lattice), the four kinds in turn by 2 x 2 block. */
+export function heavyTerrainMap(seed: number): GameMap {
+  const map = generateMap(seed);
+  const terrain = new Uint8Array(map.w * map.h);
+  const kinds = [TERRAIN_EMBER, TERRAIN_BOG, TERRAIN_ICE, TERRAIN_LIGHT];
+  for (let y = 0; y < map.h; y++) {
+    for (let x = 0; x < map.w; x++) {
+      const i = y * map.w + x;
+      if (map.tiles[i] === TILE_FLOOR && (x + 2 * y) % 4 === 0) terrain[i] = kinds[((x >> 1) + (y >> 1)) & 3]!;
+    }
   }
+  return { ...map, terrain };
 }
 
-function stats(times: readonly number[]): TimingStats {
-  if (times.length === 0) return { avgMs: 0, p50Ms: 0, p99Ms: 0, maxMs: 0 };
-  const sorted = [...times].sort((a, b) => a - b);
-  const at = (q: number): number => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]!;
-  return {
-    avgMs: times.reduce((a, b) => a + b, 0) / times.length,
-    p50Ms: at(0.5),
-    p99Ms: at(0.99),
-    maxMs: sorted[sorted.length - 1]!,
+/** Wraps the system called `name` in `list` so its time is summed into `acc`. */
+function timePass(list: Array<(w: World, dtMs: number) => void>, name: string, acc: { ms: number }): void {
+  const i = list.findIndex((f) => f.name === name);
+  if (i < 0) return;
+  const inner = list[i]!;
+  list[i] = (w, dt) => {
+    const t0 = process.hrtime.bigint();
+    inner(w, dt);
+    acc.ms += Number(process.hrtime.bigint() - t0) / 1e6;
   };
 }
 
-const wallMs = (): number => Number(process.hrtime.bigint()) / 1e6;
-const cpuMs = (): number => {
-  const u = process.threadCpuUsage();
-  return (u.user + u.system) / 1000;
-};
+interface BenchCamp { region: FactionId; camp: CampDef }
 
-/** CPU time of the calling thread (the sim's), else of the whole process (its GC and compiler threads count too): the difference from `prev` when given. */
-const cpuClock: (prev?: NodeJS.CpuUsage) => NodeJS.CpuUsage =
-  (process as { threadCpuUsage?: (prev?: NodeJS.CpuUsage) => NodeJS.CpuUsage }).threadCpuUsage?.bind(process) ?? process.cpuUsage.bind(process);
+function allCamps(world: World): BenchCamp[] {
+  return world.map.camps.map((camp) => ({ region: camp.zone, camp }));
+}
 
 /**
- * Can the CPU clock time one step? A ~0.3 ms spin must show a CPU delta between 0 and 0.5 ms on at least one of a few
- * tries: a clock that only advances by scheduler ticks (1 ms or more) never does.
+ * Adds mobs next to camp spots (round robin) until there are `target`. A replacement stands 18 u off a spot, inside the
+ * clearing and so inside the camp's territory, and carries the camp's reference, so it leashes like the shipped mobs.
  */
-export function cpuClockIsFine(): boolean {
-  for (let k = 0; k < 40; k++) {
-    const c0 = cpuClock();
-    const t0 = process.hrtime.bigint();
-    while (process.hrtime.bigint() - t0 < 300_000n) { /* spin */ }
-    const d = cpuClock(c0);
-    const us = d.user + d.system;
-    if (us > 0 && us < 500) return true;
+function topUp(world: World, target: number, camps: BenchCamp[], cursor: { i: number }): void {
+  while (world.mobs.size < target && camps.length > 0) {
+    const ci = cursor.i++ % camps.length;
+    const { region, camp } = camps[ci]!;
+    const spot = camp.spots[cursor.i % camp.spots.length]!;
+    const a = cursor.i * 2.4;
+    placeMob(world, { region, elite: false, at: { x: spot.x + Math.cos(a) * 18, y: spot.y + Math.sin(a) * 18 }, camp: ci });
   }
-  return false;
+}
+
+interface Near { x: number; y: number; id: string; d: number }
+
+/** The two live mobs nearest to `p`, nearest first. */
+function nearestTwo(world: World, p: Vec2): [Near | null, Near | null] {
+  let a: Near | null = null;
+  let b: Near | null = null;
+  for (const [mid, m] of world.state.mobs) {
+    if (m.status !== "alive") continue;
+    const d = dist(p, m);
+    if (!a || d < a.d) {
+      b = a;
+      a = { x: m.x, y: m.y, id: mid, d };
+    } else if (!b || d < b.d) b = { x: m.x, y: m.y, id: mid, d };
+  }
+  return [a, b];
+}
+
+/** Stress: once per WAKE_TICKS every idle mob turns on its nearest player, wherever that is. */
+function wakeEverything(world: World, ids: string[]): void {
+  if (world.state.tick % WAKE_TICKS !== 0) return;
+  for (const [mid, m] of world.state.mobs) {
+    const rt = world.mobs.get(mid);
+    if (m.status !== "alive" || !rt?.brain || rt.brain.mode !== "idle") continue;
+    let best: string | null = null;
+    let bestD = Infinity;
+    for (const id of ids) {
+      const p = world.state.players.get(id)!;
+      const d = dist(p, m);
+      if (p.status === "alive" && d < bestD) {
+        bestD = d;
+        best = id;
+      }
+    }
+    if (best !== null) aggro(world, { kind: "mob", id: mid, s: m, rt }, best, 1);
+  }
 }
 
 export function runStepBench(opts: BenchOptions = {}): BenchResult {
   if ((opts.bots ?? 0) > 0) return runBotsBench(opts);
   const players = opts.players ?? 8;
-  const targetMobs = opts.mobs ?? 60;
   const seed = opts.seed ?? 1;
-  const world = createGameWorld({ seed, config: config(players), random: mulberry32(seed + 1) });
+  const cfg = config(players);
+  if (opts.hazards === false) cfg.hazards = false;
+  const world = createGameWorld({
+    seed, config: cfg, random: mulberry32(seed + 1), ...(opts.terrain === "heavy" ? { map: heavyTerrainMap(seed) } : {}),
+  });
+  const burn = { ms: 0 };
+  const light = { ms: 0 };
+  if (opts.terrain === "heavy") {
+    timePass(world.beforeDamage, "burnPass", burn);
+    timePass(world.systems, "lightPass", light);
+  }
+  // The map's own mobs (one per camp spot); a replacement is placed whenever the count falls below it.
+  const targetMobs = opts.mobs ?? world.map.camps.reduce((n, c) => n + c.spots.length, 0);
   for (let i = 0; i < players; i++) addPlayer(world, `p${i}`, NAMES[i]!);
   step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("the bench run did not start");
@@ -210,69 +287,113 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   });
 
   const times: number[] = [];
-  const cpuTimes: number[] = [];
-  const gateTimes: number[] = [];
-  const cpuFine = cpuClockIsFine();
+  const cpus: number[] = [];
   let fighting = 0;
+  let awake = 0;
+  let locked = 0;
   let projectiles = 0;
   const warmup = opts.warmup ?? 100;
   const ticks = opts.ticks ?? 1200;
 
+  const stress = opts.stress === true;
+  const campOf = new Map(ids.map((id, i) => [id, (i * 2) % camps.length]));
+
   for (let n = 0; n < warmup + ticks; n++) {
     topUp(world, targetMobs, camps, cursor);
+    if (stress) wakeEverything(world, ids);
     for (const id of ids) {
       const p = world.state.players.get(id)!;
       const rt = world.players.get(id)!;
       if (p.status !== "alive") continue;
       // The bench is about the sim's cost, not about who wins: nobody dies.
       p.hp = p.maxHp;
-      let near: { x: number; y: number; id: string; d: number } | null = null;
-      for (const [mid, m] of world.state.mobs) {
-        if (m.status !== "alive") continue;
-        const d = dist(p, m);
-        if (!near || d < near.d) near = { x: m.x, y: m.y, id: mid, d };
-      }
+      const [near, second] = nearestTwo(world, p);
       if (!near) continue;
       const a = Math.atan2(near.y - p.y, near.x - p.x);
+      if (stress) {
+        // The game client's way: a lock on one of the two nearest mobs every TARGET_REPATH_MS, alternating, so every order is a change.
+        if (n % Math.round(TARGET_REPATH_MS / TICK_MS) === ids.indexOf(id) % 5) {
+          const pick = (n / Math.round(TARGET_REPATH_MS / TICK_MS)) % 2 < 1 || !second ? near : second;
+          enqueueClientMessage(rt.inputs, "target", { id: pick.id });
+        }
+        continue;
+      }
       rt.inputs.pushAim(a);
       if (n % 8 === 0) rt.inputs.pushAction({ kind: "attack", a });
       // A new walk every second or so keeps the pathfinder in the measurement.
       if (n % 25 === (ids.indexOf(id) * 3) % 25) rt.inputs.pushMove({ kind: "move", x: near.x - Math.cos(a) * 90, y: near.y - Math.sin(a) * 90 });
-      if (n % 60 === 0 && near.d < 300) {
-        const m = combatant(world, near.id);
-        if (m?.kind === "mob" && m.s.kind !== "dummy") aggro(world, m, id, 1);
+      // Whole camps wake: every mob of the player's camp turns on it (a camp-mate hurt wakes the rest, D24).
+      if (n % WAKE_TICKS === 0) {
+        const ci = campOf.get(id)!;
+        for (const [mid, m] of world.state.mobs) {
+          if (m.camp !== ci + 1 || m.status !== "alive") continue;
+          const mc = combatant(world, mid);
+          if (mc?.kind === "mob" && mc.s.kind !== "dummy") aggro(world, mc, id, 1);
+        }
       }
     }
-    const c0 = cpuClock();
+    const cpu0 = process.cpuUsage();
     const t0 = process.hrtime.bigint();
     step(world, TICK_MS);
-    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-    const cd = cpuClock(c0);
-    const cpu = (cd.user + cd.system) / 1000;
+    const wallMs = Number(process.hrtime.bigint() - t0) / 1e6;
+    const cpu = process.cpuUsage(cpu0);
+    const ms = (cpu.user + cpu.system) / 1000;
+    if (n === warmup - 1) { burn.ms = 0; light.ms = 0; }
     if (n >= warmup) {
-      times.push(ms);
-      cpuTimes.push(cpu);
-      gateTimes.push(cpuFine ? Math.min(ms, cpu) : ms);
+      times.push(wallMs);
+      cpus.push(ms);
       projectiles += world.projectiles.size;
-      for (const m of world.mobs.values()) if (m.brain?.mode === "fight") fighting++;
+      for (const rt of world.players.values()) if (rt.weapon.lock !== null) locked++;
+      for (const m of world.mobs.values()) {
+        if (m.brain?.mode === "fight") fighting++;
+        if (m.brain !== undefined && m.brain.mode !== "idle") awake++;
+      }
     }
   }
 
+  const cpuAvgMs = cpus.reduce((a, b) => a + b, 0) / cpus.length;
+  cpus.sort((a, b) => a - b);
+  times.sort((a, b) => a - b);
+  const at = (q: number): number => times[Math.min(times.length - 1, Math.floor(q * times.length))]!;
   return {
     ticks: times.length,
     mobs: world.mobs.size,
     avgFighting: fighting / times.length,
+    avgAwake: awake / times.length,
+    avgLocked: locked / times.length,
     avgProjectiles: projectiles / times.length,
-    ...stats(times),
-    cpuMs: cpuFine ? stats(cpuTimes) : null,
-    gateMs: stats(gateTimes),
+    avgMs: times.reduce((a, b) => a + b, 0) / times.length,
+    p50Ms: at(0.5),
+    p99Ms: at(0.99),
+    maxMs: times[times.length - 1]!,
+    cpuAvgMs,
+    cpuP99Ms: cpus[Math.min(cpus.length - 1, Math.floor(0.99 * cpus.length))]!,
+    hazardSeconds: { ...world.hazards.stats.seconds },
+    passMs: opts.terrain === "heavy" ? { burn: burn.ms / times.length, light: light.ms / times.length } : null,
   };
 }
+
+function stats(times: readonly number[]): TimingStats {
+  if (times.length === 0) return { avgMs: 0, p50Ms: 0, p99Ms: 0, maxMs: 0 };
+  const sorted = [...times].sort((a, b) => a - b);
+  const at = (q: number): number => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]!;
+  return {
+    avgMs: times.reduce((a, b) => a + b, 0) / times.length,
+    p50Ms: at(0.5),
+    p99Ms: at(0.99),
+    maxMs: sorted[sorted.length - 1]!,
+  };
+}
+
+const wallNow = (): number => Number(process.hrtime.bigint()) / 1e6;
+const cpuNow = (): number => {
+  const u = process.threadCpuUsage();
+  return (u.user + u.system) / 1000;
+};
 
 /** The bots run: a human-less lineup in a headless room, every tick timed in its three stretches. */
 function runBotsBench(opts: BenchOptions): BenchResult {
   const count = Math.min(8, Math.floor(opts.bots ?? 8));
-  const targetMobs = opts.mobs ?? 60;
   const seed = opts.seed ?? 1;
   const coliseum = opts.coliseum === true;
   const warmup = opts.warmup ?? (coliseum ? BOTS_COLISEUM_WARMUP_TICKS : BOTS_WARMUP_TICKS);
@@ -280,7 +401,7 @@ function runBotsBench(opts: BenchOptions): BenchResult {
   const patience = coliseum ? 10 : 1e6;
   // Older Node has no per-thread CPU clock: the run is then on the wall clock, and says so.
   const clock = opts.clock === "cpu" && typeof process.threadCpuUsage === "function" ? "cpu" : "wall";
-  const nowMs = clock === "cpu" ? cpuMs : wallMs;
+  const nowMs = clock === "cpu" ? cpuNow : wallNow;
   const room = createHeadlessRoom({
     seed,
     // Nothing ends the run while we measure (sudden death never comes); the headless defaults are short timers for a tournament.
@@ -289,6 +410,8 @@ function runBotsBench(opts: BenchOptions): BenchResult {
     lineup: Array.from({ length: count }, () => (opts.botTier ? { tier: opts.botTier } : {})),
   });
   const { world, manager } = room;
+  // The map's own mobs (one per camp spot), as the scripted run keeps them.
+  const targetMobs = opts.mobs ?? world.map.camps.reduce((n, c) => n + c.spots.length, 0);
 
   // Stopwatches on the manager's two entry points; the stretch between them is the sim's.
   let beforeMs = 0;
@@ -317,6 +440,8 @@ function runBotsBench(opts: BenchOptions): BenchResult {
   let camps: ReturnType<typeof allCamps> = [];
   const cursor = { i: 0 };
   let fighting = 0;
+  let awake = 0;
+  let locked = 0;
   let projectiles = 0;
   let measured = 0;
 
@@ -341,7 +466,11 @@ function runBotsBench(opts: BenchOptions): BenchResult {
     if (n >= warmup) {
       measured++;
       projectiles += world.projectiles.size;
-      for (const m of world.mobs.values()) if (m.brain?.mode === "fight") fighting++;
+      for (const rt of world.players.values()) if (rt.weapon.lock !== null) locked++;
+      for (const m of world.mobs.values()) {
+        if (m.brain?.mode === "fight") fighting++;
+        if (m.brain !== undefined && m.brain.mode !== "idle") awake++;
+      }
     }
   }
 
@@ -364,9 +493,14 @@ function runBotsBench(opts: BenchOptions): BenchResult {
     ticks: measured,
     mobs: world.mobs.size,
     avgFighting: fighting / Math.max(1, measured),
+    avgAwake: awake / Math.max(1, measured),
+    avgLocked: locked / Math.max(1, measured),
     avgProjectiles: projectiles / Math.max(1, measured),
-    cpuMs: clock === "cpu" ? wholeStats : null,
-    gateMs: wholeStats,
+    // One clock for a bots run: gateMs reads the whole tick on it.
+    cpuAvgMs: wholeStats.avgMs,
+    cpuP99Ms: wholeStats.p99Ms,
+    hazardSeconds: { ...world.hazards.stats.seconds },
+    passMs: null,
     bots: {
       bots: count,
       clock,
@@ -405,9 +539,9 @@ function argsOf(argv: readonly string[]): Record<string, string> {
   return out;
 }
 
-const f = (n: number): string => n.toFixed(3);
+const f3 = (n: number): string => n.toFixed(3);
 const line = (label: string, s: TimingStats): string =>
-  `  ${label.padEnd(11)} avg ${f(s.avgMs)}  p50 ${f(s.p50Ms)}  p99 ${f(s.p99Ms)}  max ${f(s.maxMs)} ms`;
+  `  ${label.padEnd(11)} avg ${f3(s.avgMs)}  p50 ${f3(s.p50Ms)}  p99 ${f3(s.p99Ms)}  max ${f3(s.maxMs)} ms`;
 
 function printBots(r: BenchResult): void {
   const b = r.bots!;
@@ -419,9 +553,9 @@ function printBots(r: BenchResult): void {
     `${line("whole tick", b.whole)}   (gate: avg < ${AVG_BUDGET_MS}, p99 < ${P99_BUDGET_MS})\n` +
     `${line("bots' share", b.share)}   (gate: avg < ${BOTS_SHARE_AVG_BUDGET_MS}, p99 < ${BOTS_SHARE_P99_BUDGET_MS})\n` +
     `${line("beforeStep", b.beforeStep)}\n${line("step + room", b.step)}\n${line("afterPatch", b.afterPatch)}\n` +
-    `  warm-up (first ${b.warmupTicks} ticks, not gated): whole avg ${f(b.warm.wholeAvgMs)} max ${f(b.warm.wholeMaxMs)} ms, ` +
-    `bots' share avg ${f(b.warm.shareAvgMs)} max ${f(b.warm.shareMaxMs)} ms (worst tick ${b.warm.worstTick})\n` +
-    `  worst bots' share after warm-up: ${f(b.worstShare.ms)} ms at tick ${b.worstShare.tick}\n` +
+    `  warm-up (first ${b.warmupTicks} ticks, not gated): whole avg ${f3(b.warm.wholeAvgMs)} max ${f3(b.warm.wholeMaxMs)} ms, ` +
+    `bots' share avg ${f3(b.warm.shareAvgMs)} max ${f3(b.warm.shareMaxMs)} ms (worst tick ${b.warm.worstTick})\n` +
+    `  worst bots' share after warm-up: ${f3(b.worstShare.ms)} ms at tick ${b.worstShare.tick}\n` +
     `  manager: ${b.manager.frames} frames, ${b.manager.sent} commands sent, ${b.manager.applied} applied, ${b.manager.refused} refused, ` +
     `${b.manager.errors} errors\n` +
     `  commands: ${Object.entries(b.commands).filter(([, n]) => n > 0).map(([t, n]) => `${t} ${n}`).join(", ")}`,
@@ -432,6 +566,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = argsOf(process.argv.slice(2));
   const botTier = args.tier as TierId | undefined;
   if (botTier !== undefined && !TIER_IDS.includes(botTier)) throw new Error(`--tier takes ${TIER_IDS.join(" | ")}`);
+  const buffs = args.buffs !== undefined;
   const opts: BenchOptions = {
     ...(args.seed !== undefined ? { seed: Number(args.seed) } : {}),
     ...(args.ticks !== undefined ? { ticks: Number(args.ticks) } : {}),
@@ -440,26 +575,24 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ...(args.bots !== undefined ? { bots: Number(args.bots) } : {}),
     ...(botTier ? { botTier } : {}),
     ...(args.coliseum !== undefined ? { coliseum: true } : {}),
-    ...(args.buffs !== undefined ? { buffs: true } : {}),
+    ...(buffs ? { buffs: true } : {}),
+    ...(args.stress !== undefined ? { stress: true } : {}),
     ...(args.clock === "cpu" || args.clock === "wall" ? { clock: args.clock } : {}),
   };
+  const f = f3;
+  const show = (tag: string, r: BenchResult): void => console.log(
+    `${tag}${r.ticks} ticks, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgAwake.toFixed(1)} awake, ${r.avgLocked.toFixed(1)} locked players, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
+    `step(): avg ${f(r.avgMs)} ms, p50 ${f(r.p50Ms)} ms, p99 ${f(r.p99Ms)} ms, max ${f(r.maxMs)} ms (gate: avg < ${AVG_BUDGET_MS}, p99 < ${P99_BUDGET_MS})\n` +
+    `step() CPU time: avg ${f(r.cpuAvgMs)} ms, p99 ${f(r.cpuP99Ms)} ms (every thread of the process; wall time is inflated while the machine is busy, CPU time by the JIT and GC threads)`,
+  );
   const repeat = Math.max(1, Number(args.repeat ?? 1));
   const runs: BenchResult[] = [];
   for (let i = 0; i < repeat; i++) {
     const r = runStepBench(opts);
     runs.push(r);
-    if (r.bots) {
-      if (repeat > 1) console.log(`--- run ${i + 1} of ${repeat}`);
-      printBots(r);
-    } else {
-      const row = (name: string, x: TimingStats): string => `${name}: avg ${f(x.avgMs)} ms, p50 ${f(x.p50Ms)} ms, p99 ${f(x.p99Ms)} ms, max ${f(x.maxMs)} ms`;
-      console.log(
-        `${r.ticks} ticks, ${r.mobs} mobs, ${r.avgFighting.toFixed(1)} fighting, ${r.avgProjectiles.toFixed(1)} projectiles in flight\n` +
-        `${row("step() wall", r)}\n` +
-        `${r.cpuMs ? row("step() cpu ", r.cpuMs) : "step() cpu : clock too coarse, the gate reads wall time"}\n` +
-        `${row("step() gate ", r.gateMs)} (gate: avg < ${AVG_BUDGET_MS}, p99 < ${P99_BUDGET_MS}; the gate reads the smaller of wall and cpu per step)`,
-      );
-    }
+    if (repeat > 1) console.log(`--- run ${i + 1} of ${repeat}`);
+    if (r.bots) printBots(r);
+    else show("", r);
   }
   if (repeat > 1) {
     const of = (pick: (r: BenchResult) => number): string => {
@@ -471,5 +604,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     if (runs[0]!.bots) {
       console.log(`  ${"bots' share".padEnd(14)} avg: ${of((r) => r.bots!.share.avgMs)}   p99: ${of((r) => r.bots!.share.p99Ms)}`);
     }
+  }
+  if (!runs[0]!.bots) {
+    // The terrain variant: a hazard on every fourth floor tile, against the same map with the effects off.
+    const heavy = runStepBench({ terrain: "heavy", buffs });
+    const control = runStepBench({ terrain: "heavy", hazards: false, buffs });
+    show("terrain (every 4th tile a hazard): ", heavy);
+    show("terrain map, effects off (control):  ", control);
+    const s = heavy.hazardSeconds;
+    console.log(
+      `terrain passes: burn ${f(heavy.passMs!.burn)} ms/tick, light ${f(heavy.passMs!.light)} ms/tick, all effects together ` +
+      `${f(heavy.avgMs - control.avgMs)} ms/tick over the control (fighter-seconds on ember ${s.ember.toFixed(0)}, bog ${s.bog.toFixed(0)}, ice ${s.ice.toFixed(0)}, light ${s.light.toFixed(0)})`,
+    );
   }
 }

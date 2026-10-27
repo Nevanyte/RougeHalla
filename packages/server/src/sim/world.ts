@@ -2,15 +2,16 @@
 // Nothing in sim/ may import @colyseus/core or know about sockets.
 import { randomUUID } from "node:crypto";
 import {
-  generateMap, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId, type FieldKind,
-  type FxEvent, type GameMap, type GvReason, type PlanMessage, type ProjectileKind, type ProjectileLaunch, type RunResult,
-  type Sample, type SignatureKind, type StatusKind, type Vec2, type WeaponId,
+  generateMap, mapHashU32, mulberry32, withGates, type AbilityId, type AbilitySlot, type DamageShares, type FactionId,
+  type FieldKind, type FxEvent, type GameMap, type GvReason, type PlanMessage, type ProjectileKind, type ProjectileLaunch,
+  type RunResult, type Sample, type SignatureKind, type SlipState, type StatusKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { RaidState, type PlayerState } from "@raid/shared/schema";
 import type { Combatant } from "./combatant";
 import type { FactionsRuntime } from "./factions";
 import type { ActionCommand, InputQueue } from "./inputs";
 import type { PlanningRuntime } from "./planning";
+import type { TerrainRuntime } from "./terrainEffects";
 
 export interface SimConfig {
   minPlayers: number;
@@ -43,6 +44,12 @@ export interface SimConfig {
    * scales with the players like every later one (patienceMs). Timers after a death always scale.
    */
   firstPatienceSeconds?: number;
+  /**
+   * Terrain hazards (sim/terrainEffects.ts: ember burn, bog slow, the ice slide, light heal): true (the default) applies the
+   * effects of whatever terrain the map holds, with each faction's home rule; false switches every effect off and leaves the
+   * map as it is; "all" applies them to everyone, the home exemption (and the light boost) off. Measurement uses the last two.
+   */
+  hazards?: boolean | "all";
   /** Seconds after the run starts that every Wish stays locked (sim/abilities.ts armWishes); WISH_LOCK_SECONDS when absent. */
   wishLockSeconds?: number;
 }
@@ -104,6 +111,11 @@ export interface CombatRuntime {
   /** Recent authoritative positions (oldest first) for lag-compensated hit tests and present-time projectile sweeps. */
   history: Sample[];
   weapon: WeaponRuntime;
+  /**
+   * The slide on ice (shared/walk.ts), created the first tick the fighter stands on slippery ground and dropped when it grips
+   * again, on going down and on every teleport (sim/movement.ts walkFighter). Absent or null: walking the path exactly.
+   */
+  slip?: SlipState | null;
   /** Timed statuses on this fighter (sim/status.ts). Created on first use, so a hand-built runtime needs nothing. */
   statuses?: StatusInstance[];
   /** The ability being cast, if any (sim/abilities.ts). It is not a weapon action: it roots, but only its def's `cancelledBy` ends it. */
@@ -311,8 +323,8 @@ export interface LedgerEntry {
    */
   passive?: boolean;
   /**
-   * The arena's own damage (sudden death): it lands in the pass like any hit, but shows no `hit` fx and is not counted
-   * as combat, so `weapon` is never read.
+   * The world's own damage (sudden death, terrain hazards): it lands in the pass like any hit, but shows no `hit` fx and is
+   * not counted as combat, so `weapon` is never read.
    */
   arena?: boolean;
 }
@@ -442,6 +454,24 @@ export interface ArenaRuntime {
   bountyAtTickStart: Map<string, number>;
 }
 
+/**
+ * Counters the terrain hazards keep for measurement (sim/terrainEffects.ts): nothing in the game reads them. `damage` is the
+ * hp each victim actually lost to each hazard kind ("ember"): what the ledger took off after armor, teleport immunity, a kill
+ * barrier, Last Stand's floor and overkill (WorldHooks.arenaHurt), not the burn asked for. `seconds` the fighter-seconds each
+ * kind acted on (a fighter its home rule exempts adds none), and `heal` the hp light restored per player.
+ */
+export interface HazardStats {
+  damage: Map<string, Record<string, number>>;
+  seconds: { ember: number; bog: number; ice: number; light: number };
+  heal: Map<string, number>;
+}
+
+export interface HazardRuntime { stats: HazardStats }
+
+export function newHazardStats(): HazardStats {
+  return { damage: new Map(), seconds: { ember: 0, bog: 0, ice: 0, light: 0 }, heal: new Map() };
+}
+
 export type SimEvent =
   | { type: "fx"; fx: FxEvent }
   | { type: "toast"; to: string; text: string }
@@ -459,8 +489,11 @@ export type SimEvent =
 /** Handles one queued action for a standing fighter (players today; Phase 11 mobs go through the same handlers). */
 export type ActionHandler = (world: World, c: Combatant, cmd: ActionCommand) => void;
 export type SimSystem = (world: World, dtMs: number) => void;
-/** A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. */
-export type MoveModifier = (world: World, c: Combatant) => number;
+/**
+ * A factor on a fighter's move speed this tick (Frost's chill; Phase 11 buffs). All of them multiply. `dtMs` is the step being
+ * simulated (step.ts passes it; a caller outside the tick may not).
+ */
+export type MoveModifier = (world: World, c: Combatant, dtMs?: number) => number;
 
 /** What one mod source adds to a fighter's stat mirrors (sim/mods.ts): multipliers multiply in, flat bonuses add points. */
 export interface ModContribution {
@@ -519,6 +552,13 @@ export interface WorldHooks {
    * do with payLater), never from what earlier victims of the same pass changed, or the ledger's order would matter.
    */
   hitLanded?(world: World, entry: LedgerEntry, applied: number): void;
+  /**
+   * The arena's own damage (an `arena` entry: sudden death, terrain) just took `hp` off `victim` (applyLedger, after the victim's
+   * damage): the hp it actually removed, not what it asked for. Armor, teleport immunity, a kill barrier, Last Stand's floor and
+   * overkill all come off first. When the victim also took other hits in the pass the removed hp is shared between the entries in
+   * proportion to their (mitigated) amounts. Unset by default; a measurement tap, it must not change the state.
+   */
+  arenaHurt?(world: World, victim: string, by: DamageSource, hp: number): void;
   /**
    * A standing fighter just took `applied` damage in the ledger pass (applyLedger, once per victim per pass, after all of
    * its hits landed together, the arena's burn included; before the hit fx and hitLanded). It is still standing: a victim
@@ -587,16 +627,28 @@ export interface World {
   factions: FactionsRuntime | null;
   /** The planning phase's private deal (sim/planning.ts): null until planning starts, kept (read-only) after it. */
   planning: PlanningRuntime | null;
+  /** Terrain hazards (sim/terrainEffects.ts); null until that module is installed. */
+  terrain: TerrainRuntime | null;
+  /** What the hazards did, for measurement. */
+  hazards: HazardRuntime;
   /** Areas and ability damage over time (sim/fields.ts); null until something uses them. */
   abilities: AbilitiesRuntime | null;
 }
 
 export function createWorld(opts: {
-  seed: number;
+  /**
+   * The public seed. Required without a `map` (the map is generated from it). With a map, the map's own seed is what is
+   * published (with its attempt and hash, so a client rebuilds exactly this map), and a `seed` given as well must equal it:
+   * a mismatch throws, since a client would then regenerate a different map than the one played on.
+   */
+  seed?: number;
   config: SimConfig;
   random: () => number;
   newItemUid?: () => string;
-  /** A ready map instead of generateMap(seed): hand-built test arenas and the harness skip the generator. */
+  /**
+   * A ready map instead of generateMap(seed): the live server's comes from its map pool (server/src/mapPool.ts, with
+   * `seed` = its seed), and hand-built test arenas and the harness skip the generator.
+   */
   map?: GameMap;
   /**
    * The secret behind `rewardRandom`: four crypto-random 32-bit words (the Room's), or a single number (tests), which is
@@ -605,14 +657,23 @@ export function createWorld(opts: {
   rewardSalt?: number | readonly number[];
 }): World {
   const state = new RaidState();
-  state.seed = opts.seed >>> 0;
+  const given = opts.seed === undefined ? undefined : opts.seed >>> 0;
+  if (opts.map && given !== undefined && given !== opts.map.seed >>> 0) {
+    throw new Error(`createWorld: seed ${given} does not match the map's seed ${opts.map.seed >>> 0}`);
+  }
+  if (!opts.map && given === undefined) throw new Error("createWorld: needs a seed or a map");
+  state.seed = opts.map ? opts.map.seed >>> 0 : given!;
   state.minPlayers = opts.config.minPlayers;
   // The only draw from opts.random here: tests script that stream, so the reward stream must not take from it.
   const orderSalt = Math.floor(opts.random() * 2 ** 32) >>> 0;
+  const map = opts.map ?? generateMap(state.seed);
+  // What a client needs to build the same map with one attempt, and to know it did.
+  state.attempt = map.attempt;
+  state.mapHash = mapHashU32(map);
   return {
     state,
     config: opts.config,
-    map: opts.map ?? generateMap(state.seed),
+    map,
     idCounter: 0,
     joined: 0,
     newItemUid: opts.newItemUid ?? (() => randomUUID()),
@@ -635,6 +696,8 @@ export function createWorld(opts: {
     arena: { startedWith: 0, startedHumans: 0, downedThisTick: [], downsBetweenTicks: 0, voided: false, bountyAtTickStart: new Map() },
     factions: null,
     planning: null,
+    terrain: null,
+    hazards: { stats: newHazardStats() },
     abilities: null,
   };
 }
@@ -689,7 +752,7 @@ export function emit(world: World, ev: SimEvent): void {
 }
 
 type ChainableHook =
-  | "teleported" | "lobbyClosing" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt"
+  | "teleported" | "lobbyClosing" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt" | "arenaHurt"
   | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared";
 
 /** Adds a hook that runs after whatever was already installed for it. */

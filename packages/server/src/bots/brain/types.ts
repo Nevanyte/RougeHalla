@@ -309,7 +309,7 @@ export interface Features {
   readonly relics: boolean;
   /** RaidState.camps (CampState; R5). */
   readonly camps: boolean;
-  /** The map carries terrain hazards (zone-terrain branch). */
+  /** The map carries floor hazards (ember, bog, ice, light in `GameMap.terrain`; R2's zone terrain). No module reads it yet. */
   readonly hazards: boolean;
 }
 
@@ -645,7 +645,7 @@ export interface Percept {
 /** What perception needs besides the driver's state (the state type itself lives in perception.ts). */
 export interface PerceiveContext {
   readonly selfId: FighterId;
-  /** generateMap(state.seed): open gates; perception applies withGates itself when the HUD says they are locked. */
+  /** The room's map (generateMap(seed, attempt)): open gates; perception applies withGates itself when the HUD says they are locked. */
   readonly map: GameMap;
   readonly features: Features;
   /** The previous frame's minimap, reused until MINIMAP_REFRESH_MS has passed. */
@@ -1118,7 +1118,7 @@ export interface BrainConfig {
   readonly tier: TierParams;
   readonly persona: PersonaParams;
   readonly seed: number;
-  /** generateMap(state.seed), open gates. */
+  /** The room's map (generateMap(seed, attempt)), open gates. */
   readonly map: GameMap;
   readonly features: Features;
   readonly learned: LearnedBias;
@@ -1187,7 +1187,7 @@ export interface BotRunnerApi<I> {
 
 /** Ids of server-filled bots: "~" never appears in a Colyseus session id, so the two can never collide. */
 export const BOT_ID_PREFIX = "bot~";
-/** findPath calls all the bots of one room may make per tick (about 0.1 ms each on a 64x64 map, docs/BOTS.md 1). */
+/** findPath calls all the bots of one room may make per tick (about 0.1 ms each on the old 64x64 maps, docs/BOTS.md 1; not re-measured at 96x96). */
 export const BOT_PATH_BUDGET_PER_TICK = 8;
 
 /** config.ts `bots` (env names in docs/BOTS.md 7.3). */

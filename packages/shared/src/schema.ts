@@ -249,5 +249,11 @@ export const RaidState = schema({
   planEndsAt: t.uint32().default(0),
   /** One per map camp, in `map.camps` order (roguelike R4a; filled at world build by the camps track, empty until then). */
   camps: t.array(CampState),
+
+  // The map (roguelike R2, D20): it is never synced, only how to build it. Set once at world build.
+  /** The certified generator attempt of `seed`: clients and bots run exactly `generateMap(seed, attempt)`, one attempt. */
+  attempt: t.uint8().default(0),
+  /** `mapHashU32` of the server's map. A client whose own map hashes to anything else has desynced, and leaves. */
+  mapHash: t.uint32().default(0),
 }, "RaidState");
 export type RaidState = SchemaType<typeof RaidState>;

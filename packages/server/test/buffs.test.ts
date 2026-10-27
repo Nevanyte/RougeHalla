@@ -861,7 +861,7 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
     // Distance walked in the 4th tick of a chase of a target 14 tiles away: the lock is taken on tick 1 and the mirror
     // follows it by the end of that tick (the condition is read once a tick), so by tick 3 the walk is at its pace.
     const run = (stacks: number): number => {
-      const world = createGameWorld({ seed: 7, config: makeConfig(2), random: mulberry32(8), map });
+      const world = createGameWorld({ config: makeConfig(2), random: mulberry32(8), map });
       addPlayer(world, "p0", "alice");
       addPlayer(world, "p1", "bob");
       step(world, TICK_MS);

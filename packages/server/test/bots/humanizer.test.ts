@@ -713,7 +713,8 @@ describe("walks to the edge of the screen", () => {
   it.each(TIER_IDS)("%s: an off-screen destination is clicked on the screen edge or on the minimap, never in between", (id) => {
     const tier = { ...TIERS[id], hesitation: NO_HESITATION };
     const r = rig(tier, { seed: 15 });
-    const to = { x: me.x + 1500, y: me.y + 200 };
+    // West: on the seed-7 zone map the screen's edge east of the default self is wall or low ground, west of it floor.
+    const to = { x: me.x - 1500, y: me.y + 200 };
     const N = 3000;
     let edge = 0;
     for (let i = 0; i < N; i++) {
@@ -723,7 +724,7 @@ describe("walks to the edge of the screen", () => {
       const onScreen = Math.abs(m.x - me.x) <= 800 && Math.abs(m.y - me.y) <= 562.5;
       if (onScreen) {
         edge++;
-        expect(m.x).toBeGreaterThan(me.x + 600);
+        expect(m.x).toBeLessThan(me.x - 600);
       } else {
         expect(Math.hypot(m.x - to.x, m.y - to.y)).toBeLessThan(tier.minimapSigma * 6);
       }

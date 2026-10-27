@@ -627,7 +627,7 @@ describe("a walking player's disc stays out of the walls", () => {
       for (let tx = 1; tx < map.w - 1; tx++) {
         if (map.tiles[ty * map.w + tx] !== TILE_FLOOR) continue;
         let walls = 0;
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) walls += map.tiles[(ty + dy) * map.w + tx + dx]!;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) walls += map.tiles[(ty + dy) * map.w + tx + dx] !== TILE_FLOOR ? 1 : 0;
         if (walls > 0) out.push([tx, ty]);
       }
     }

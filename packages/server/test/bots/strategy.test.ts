@@ -875,7 +875,10 @@ describe("roaming and looting", () => {
     const cfg = config("hard", "farmer");
     const s = createStrategy();
     const d = decide(s, cfg, {});
-    const camps = s.state.candidates.filter((c) => c.goal.kind === "roam" && (c.goal.why === "explore" || c.goal.why === "camp"));
+    // The patrol's walk ("looking for people", no opener) is a roam to a camp too; on the seed-7 zone map it picks a camp (the
+    // fire elite next to the default self) that the camp roam skips, so the two no longer merge into one candidate.
+    const camps = s.state.candidates.filter((c) => c.goal.kind === "roam" && (c.goal.why === "explore" || c.goal.why === "camp")
+      && !c.why.startsWith("looking for people"));
     expect(camps.length).toBeGreaterThan(0);
     for (const c of camps) expect(c.choice).toMatch(/^opener\|fire\|(sentenced|fire|frost)$/);
     expect(["roam", "farm"]).toContain(d.goal.kind);

@@ -7,7 +7,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateMap, hasLineOfSight, packFx, PLAYER_RADIUS, segmentClear, type GameMap, type RunResult, type Vec2 } from "@raid/shared";
+import {
+  generateMap, hasLineOfSight, mapHashU32, packFx, PLAYER_RADIUS, segmentClear, type GameMap, type RunResult, type Vec2,
+} from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { BotClient, type BotOptions } from "../src/bots/BotClient";
 import { PERSONA_IDS } from "../src/bots/brain/types";
@@ -52,7 +54,8 @@ function openingFor(map: GameMap, d: number): { home: Vec2; foe: Vec2 } {
 function rig(opts: BotOptions = {}): Rig {
   const map = generateMap(SEED);
   const { home, foe } = openingFor(map, FOE_DISTANCE);
-  const state = plainState({ seed: SEED, serverTime: 100_000, raidStartedAt: 60_000 });
+  // The map as a room publishes it (R2): the seed, its certified attempt and the hash the bot checks its own build against.
+  const state = plainState({ seed: SEED, attempt: map.attempt, mapHash: mapHashU32(map), serverTime: 100_000, raidStartedAt: 60_000 });
   state.players.set("me", plainPlayer({ name: "me", x: home.x, y: home.y, weapon0: "sword" }));
   // Hurt (40%): an even fight is one a Hard hunter weighs and turns down (BOTS_TUNING.md), so the foe has to look worth taking.
   state.players.set("foe", plainPlayer({ name: "foe", x: foe.x, y: foe.y, weapon0: "sword", hp: 200 }));

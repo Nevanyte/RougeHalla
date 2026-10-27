@@ -641,8 +641,12 @@ describe("train clear", () => {
     const shooters = new Set(practiceMobs(world).map(([id]) => id));
     const [lead] = practiceMobs(world);
     const p = me(world);
-    p.x = lead![1].x + 150; // inside the bow's 240 u, in the open
-    p.y = lead![1].y;
+    // Inside the bow's 240 u, in the open: the first spot (ring 150 u, then nearer and farther; 16 directions) with room for a body and a clear line to the mob.
+    const around = (r: number) => Array.from({ length: 16 }, (_, k) => ({ x: lead![1].x + Math.cos((k * Math.PI) / 8) * r, y: lead![1].y + Math.sin((k * Math.PI) / 8) * r }));
+    const spot = [150, 120, 180, 90, 210].flatMap(around).find((at) => circleClear(world.map, at, PLAYER_RADIUS) && hasLineOfSight(world.map, at, lead![1]));
+    expect(spot, "an open spot within the bow's range of the practice mob").toBeDefined();
+    p.x = spot!.x;
+    p.y = spot!.y;
     rtOf(world).history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
     aggro(world, combatant(world, lead![0]) as MobCombatant, ME, 1);
     let inFlight: string[] = [];

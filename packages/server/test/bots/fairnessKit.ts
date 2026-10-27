@@ -59,6 +59,9 @@ export interface PlainState {
   roster: string[];
   /** RaidState.camps, one per map camp. */
   camps?: PlainCamp[];
+  /** RaidState.attempt and mapHash (R2): what a network bot rebuilds the map from and checks it against (BotClient roomMap). */
+  attempt?: number;
+  mapHash?: number;
 }
 
 export function plainPlayer(over: Partial<PlainPlayer> = {}): PlainPlayer {

@@ -20,6 +20,8 @@ export function displace(world: World, c: Combatant, to: Vec2): void {
   c.s.x = to.x;
   c.s.y = to.y;
   c.rt.history = [{ t: world.state.serverTime, x: to.x, y: to.y }];
+  // A blink or a pull does not carry the slide of the ice it left (sim/movement.ts walkFighter).
+  c.rt.slip = null;
   const goal = c.rt.path.length > 0 ? c.rt.path[c.rt.path.length - 1]! : null;
   if (goal) c.rt.path = planPath(world, to, goal);
   c.s.displaceSeq = (c.s.displaceSeq + 1) & 0xff;

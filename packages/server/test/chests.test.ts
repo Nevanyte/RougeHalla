@@ -56,7 +56,6 @@ interface RunOpts { players?: number; salt?: number; signatures?: boolean; rando
 function run(o: RunOpts = {}): World {
   const n = o.players ?? 3;
   const w = createGameWorld({
-    seed: 11,
     config: {
       minPlayers: n, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600,
       mobs: true,
@@ -167,7 +166,7 @@ describe("camp state: idle, engaged, cleared for good", () => {
     const map = campMap();
     map.camps[0] = { ...map.camps[0]!, chest: { x: at(12), y: at(5) } };
     const w = createGameWorld({
-      seed: 11, config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true },
+      config: { minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true },
       random: mulberry32(12), rewardSalt: 1, map,
     }, { signatures: false });
     addPlayer(w, "p0", "a", { faction: "frost" });
@@ -500,7 +499,7 @@ describe("choose: picking at the chest", () => {
     expect(toasts(ev, "p2").concat(toasts(ev, "p3"))).toEqual([]);
 
     const lobby = createGameWorld({
-      seed: 11, config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true },
+      config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600, mobs: true },
       random: mulberry32(1), map: campMap(),
     }, { signatures: false });
     addPlayer(lobby, "p0", "a");
@@ -712,7 +711,7 @@ describe("the skip (D12)", () => {
   });
 });
 
-describe("the loop on a generated wedge map (server-side, until the bots pick)", () => {
+describe("the loop on a generated zone map (server-side, until the bots pick)", () => {
   it("clear a camp with hits, walk to the chest, pick: the passive is in the build and the mods", () => {
     const w = createGameWorld({
       seed: 1234,
