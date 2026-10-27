@@ -400,6 +400,102 @@ describe("a human and a bot's seat", () => {
   });
 });
 
+/** RaidRoom.onJoin, headless: a human joining a lobby that holds MAX_PLAYERS makes the newest bot give its seat up first. */
+function joinHuman(w: World, m: BotManager, n: number): void {
+  if (w.state.players.size >= MAX_PLAYERS) m.yieldSeat();
+  human(w, n);
+}
+
+describe("an open lobby always has a seat for the next human", () => {
+  it("each human the matchmaker admits gets one, until eight humans fill the lobby: only then does it close", () => {
+    const w = makeWorld({ lobbySeconds: 600, minPlayers: 99 });
+    const m = manager(w, { fillTo: MAX_PLAYERS });
+    human(w, 0);
+    for (let i = 0; i < MAX_PLAYERS - 1; i++) expect(m.addBot()).not.toBeNull();
+    const loop = new Loop(w, m);
+    for (let n = 2; n <= MAX_PLAYERS; n++) {
+      for (let i = 0; i < 3; i++) loop.tick(); // the lobby is full of players and has been for a while
+      expect(w.state.phase, `before human ${n}`).toBe("lobby");
+      joinHuman(w, m, n - 1);
+      expect(w.state.players.has(`h${n - 1}`), `human ${n} has a seat`).toBe(true);
+      expect(w.state.players.size).toBe(MAX_PLAYERS);
+      expect(humansIn(w)).toBe(n);
+      // The newest bot goes first: bot~1 is the last one standing.
+      expect(botsIn(w), `human ${n}`).toEqual(Array.from({ length: MAX_PLAYERS - n }, (_, i) => `bot~${i + 1}`));
+      loop.tick();
+      expect(w.state.phase, `human ${n}`).toBe(n < MAX_PLAYERS ? "lobby" : "active");
+    }
+    expect(m.stats.yielded).toBe(MAX_PLAYERS - 1); // all seven bots, one per human after the first
+    // Eight humans and not a bot to displace: the matchmaker's maxClients is what turns the ninth away (test/botGuards.test.ts).
+    expect(botsIn(w)).toEqual([]);
+    expect(m.yieldSeat()).toBe(false);
+  });
+
+  it("bots alone never start the raid: a lobby the fill brought to MAX_PLAYERS waits for the countdown", () => {
+    const w = makeWorld();
+    const m = manager(w, { fillTo: MAX_PLAYERS });
+    human(w, 0);
+    const loop = new Loop(w, m);
+    let fullAt = -1;
+    loop.until(() => {
+      if (fullAt < 0 && w.state.players.size === MAX_PLAYERS) fullAt = w.state.serverTime;
+      if (w.state.phase === "lobby") expect(w.state.lobbyEndsAt).toBe(30_000);
+      return w.state.phase !== "lobby";
+    });
+    expect(fullAt).toBeGreaterThan(0);
+    expect(fullAt).toBeLessThanOrEqual(30_000 - 1000); // the last arrival, with the lobby still open
+    expect(w.state.serverTime).toBe(30_000); // and the raid starts when the countdown ends, not when the last bot is in
+    expect(w.state.phase).toBe("active");
+    expect(w.state.players.size).toBe(MAX_PLAYERS);
+    expect(botsIn(w)).toHaveLength(MAX_PLAYERS - 1);
+  });
+
+  it("a lone human gets the same lobby time with BOTS_FILL_TO 8 as with no bots at all", () => {
+    const lobby = (fillTo: number): { startedAt: number; size: number } => {
+      const w = makeWorld();
+      const m = manager(w, { fillTo });
+      human(w, 0);
+      const loop = new Loop(w, m);
+      loop.until(() => w.state.phase !== "lobby");
+      expect(w.state.lobbyEndsAt).toBe(30_000);
+      return { startedAt: w.state.serverTime, size: w.state.players.size };
+    };
+    expect(lobby(0)).toEqual({ startedAt: 30_000, size: 1 });
+    expect(lobby(MAX_PLAYERS)).toEqual({ startedAt: 30_000, size: MAX_PLAYERS });
+  });
+
+  it("humans joining while the bots arrive still end at the fill target, and the top-up never passes MAX_PLAYERS", () => {
+    const w = makeWorld({ minPlayers: 99 }); // nobody shortens the countdown
+    const m = manager(w, { fillTo: MAX_PLAYERS });
+    human(w, 0);
+    const loop = new Loop(w, m);
+    loop.until(() => w.state.serverTime >= 22_000);
+    expect(w.state.players.size).toBeGreaterThan(1);
+    joinHuman(w, m, 1);
+    joinHuman(w, m, 2);
+    loop.until(() => w.state.phase !== "lobby");
+    expect(w.state.serverTime).toBe(30_000);
+    expect(w.state.players.size).toBe(MAX_PLAYERS);
+    expect(humansIn(w)).toBe(3);
+    expect(botsIn(w)).toHaveLength(MAX_PLAYERS - 3);
+    for (const [id, p] of w.state.players) expect(p.status, id).toBe("alive");
+  });
+
+  it("the closing top-up seats bots up to the fill target and never above MAX_PLAYERS minus the humans", () => {
+    for (const humans of [1, 2, 5, MAX_PLAYERS - 1, MAX_PLAYERS]) {
+      for (const fillTo of [4, 6, MAX_PLAYERS, 99]) {
+        const w = makeWorld();
+        const m = manager(w, { fillTo });
+        for (let i = 0; i < humans; i++) human(w, i);
+        m.lobbyClosing();
+        const wanted = Math.max(humans, Math.min(fillTo, MAX_PLAYERS));
+        expect(w.state.players.size, `${humans} humans, fill ${fillTo}`).toBe(wanted);
+        expect(botsIn(w), `${humans} humans, fill ${fillTo}`).toHaveLength(wanted - humans);
+      }
+    }
+  });
+});
+
 // --------------------------------------------------------------------------------------------------------------- the fill
 
 describe("who arrives", () => {

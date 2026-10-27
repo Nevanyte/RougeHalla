@@ -523,7 +523,8 @@ killer. `test/botSeat.test.ts` (sim) and `test/botRoom.test.ts` (a real Room) pi
 
 **`sim/step.ts`.**
 - `updateLobby` (`:136-145`): the `minPlayers` shortening to `fillSeconds` counts **humans** only, so filler never cuts a
-  human's countdown. `MAX_PLAYERS` still counts everyone.
+  human's countdown, and the lobby's early start at `MAX_PLAYERS` counts humans only: bots never close a lobby early, so a human
+  can always take a bot's seat (`onJoin` below) until the countdown ends or eight humans are in.
 - A new chainable hook, `WorldHooks.lobbyClosing?(world)`, called in `updateLobby` right before `startRaid`. It is the
   manager's last top-up; `addPlayer` inside the step is safe there because `startRaid` places everyone next.
 

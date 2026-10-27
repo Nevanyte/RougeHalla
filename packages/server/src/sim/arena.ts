@@ -27,7 +27,7 @@ import {
   bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_SKIP, GV_WIN,
   KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, suddenDeathShare, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
-  type Vec2,
+  type Vec2, type WinBonusWhy,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { absorbShield } from "./buffs";
@@ -339,7 +339,7 @@ export function missInPlanning(world: World, p: PlayerState, rt: PlayerRuntime):
 }
 
 function resolve(
-  world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOutcome, place: number, win: number, winBonusWithheld = false,
+  world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOutcome, place: number, win: number, winBonusWhy?: WinBonusWhy,
 ): void {
   if (rt.resolved) return;
   rt.resolved = true;
@@ -359,7 +359,8 @@ function resolve(
     place,
     players: world.arena.startedWith,
     gv,
-    winBonusWithheld,
+    winBonusWithheld: winBonusWhy !== undefined,
+    ...(winBonusWhy ? { winBonusWhy } : {}),
   };
   emit(world, { type: "resolved", id: rt.id, result, ...(rt.bot ? { bot: true as const } : {}) });
 }
@@ -429,8 +430,8 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
   }
   for (const w of winners) {
     if (draw) { resolve(world, w.p, w.rt, "draw", 1, 0); continue; }
-    const earned = contested && earnedWinBonus(world, w.rt);
-    resolve(world, w.p, w.rt, "won", 1, earned ? GV_WIN : 0, !earned);
+    const why = contested ? withheldWhy(world, w.rt) : "starters";
+    resolve(world, w.p, w.rt, "won", 1, why ? 0 : GV_WIN, why);
   }
 
   const winner = !draw && winners.length === 1 ? winners[0]! : null;
@@ -449,9 +450,13 @@ function endRun(world: World, alive: Entry[], downed: Entry[], contested: boolea
   emit(world, { type: "raidEnded" });
 }
 
-/** Humans only: bots fill a lobby but never make a run count for the win bonus (owner question, docs/BOTS.md "Owner questions"). */
-function earnedWinBonus(world: World, rt: PlayerRuntime): boolean {
-  return world.arena.startedHumans >= WIN_BONUS_MIN_PLAYERS && (rt.damagedHumans?.size ?? 0) >= WIN_BONUS_MIN_OPPONENTS;
+/**
+ * Why a winner gets no win bonus, or undefined when they earned it. Humans only: bots fill a lobby but never make a run count
+ * for it (owner question, docs/BOTS.md "Owner questions"). The starters check comes first, so a run that fails both says that.
+ */
+function withheldWhy(world: World, rt: PlayerRuntime): WinBonusWhy | undefined {
+  if (world.arena.startedHumans < WIN_BONUS_MIN_PLAYERS) return "starters";
+  return (rt.damagedHumans?.size ?? 0) < WIN_BONUS_MIN_OPPONENTS ? "opponents" : undefined;
 }
 
 /**

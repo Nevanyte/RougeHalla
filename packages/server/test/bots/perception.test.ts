@@ -830,8 +830,19 @@ describe("projectiles, tint, containers, minimap", () => {
 // ============================================================================================================== performance
 
 describe("cost", () => {
+  // The clock is the thread's CPU time (`process.threadCpuUsage`, as test/perf.test.ts reads it for the bots' gates) where the
+  // runtime has it: a busy machine preempting the test adds nothing to it. Without it the wall clock stands in. Timing noise only
+  // ever adds, so the number judged is the fastest of several repeats, after a warm-up pass has let the JIT settle.
+  const cpuMs = (): number => {
+    const u = process.threadCpuUsage();
+    return (u.user + u.system) / 1000;
+  };
+  const clockMs = typeof process.threadCpuUsage === "function" ? cpuMs : () => performance.now();
+  const TICKS = 40;
+  const REPEATS = 5;
+
   it("perceive + compose stay a small part of the brain's 1.5 ms per tick for 8 bots", () => {
-    const scenarios = Array.from({ length: 8 }, (_, i) => buildScenario(100 + i, { frames: 40 }));
+    const scenarios = Array.from({ length: 8 }, (_, i) => buildScenario(100 + i, { frames: TICKS }));
     // 60 mobs about, as on a full map.
     for (const s of scenarios) {
       for (const f of s.frames) {
@@ -839,23 +850,39 @@ describe("cost", () => {
       }
     }
     const inputs = scenarios.map(scenarioInputs);
-    const rings = scenarios.map(() => createFrameRing());
-    const last: Array<MinimapView | null> = scenarios.map(() => null);
-    let frames: Frame[] = [];
-    const t0 = performance.now();
-    for (let k = 0; k < 40; k++) {
-      frames = [];
-      for (const [b, s] of scenarios.entries()) {
-        const frame = perceive(inputs[b]![k]!, { selfId: "me", map: s.map, features: s.features, lastMinimap: last[b]! });
-        last[b] = frame.minimap;
-        rings[b]!.push(frame);
-        rings[b]!.compose({ ...IN_PROCESS, map: s.map, features: s.features, attentionCentral: 0.65 });
-        frames.push(frame);
+
+    /** One pass over the 40 ticks with fresh rings (the frames' times only increase within a pass): ms per tick for all 8 bots. */
+    const pass = (): { perTick: number; frames: Frame[] } => {
+      const rings = scenarios.map(() => createFrameRing());
+      const last: Array<MinimapView | null> = scenarios.map(() => null);
+      let frames: Frame[] = [];
+      const t0 = clockMs();
+      for (let k = 0; k < TICKS; k++) {
+        frames = [];
+        for (const [b, s] of scenarios.entries()) {
+          const frame = perceive(inputs[b]![k]!, { selfId: "me", map: s.map, features: s.features, lastMinimap: last[b]! });
+          last[b] = frame.minimap;
+          rings[b]!.push(frame);
+          rings[b]!.compose({ ...IN_PROCESS, map: s.map, features: s.features, attentionCentral: 0.65 });
+          frames.push(frame);
+        }
       }
+      return { perTick: (clockMs() - t0) / TICKS, frames };
+    };
+
+    pass();
+    pass();
+    let best = Infinity;
+    let frames: Frame[] = [];
+    for (let r = 0; r < REPEATS; r++) {
+      const p = pass();
+      best = Math.min(best, p.perTick);
+      frames = p.frames;
     }
-    const perTick = (performance.now() - t0) / 40;
     expect(frames.length).toBe(8);
-    // Measured about 0.25 ms per tick for all 8 once warm (perceive 0.12, compose 0.11); the bound only catches a pathological regression.
-    expect(perTick).toBeLessThan(3);
-  });
+    // Measured about 0.25 ms per tick for all 8 once warm (perceive 0.12, compose 0.11) and about 0.35 on CPU time with 30
+    // busy processes on 18 cores. The bound is four times the quiet figure and two thirds of the brain's whole 1.5 ms: code five
+    // times slower fails it, a loaded machine does not.
+    expect(best).toBeLessThan(1);
+  }, 60_000);
 });

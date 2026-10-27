@@ -3,10 +3,10 @@
 // the server. What stays here is what only the player decides: whom to click, which weapon to hold, when to walk away
 // (kite.ts) and when not to start. The bot never sends aim, attack or release.
 import {
-  bestSlot, hasLineOfSight, isRanged, lockSpacing, MASK_SIGHT, reachMask, TARGET_RANGE,
+  bestSlot, hasLineOfSight, isRanged, isRegionalKind, lockSpacing, MASK_SIGHT, reachMask, TARGET_RANGE,
   type FactionId, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { bestSlotVsMob, mobWeapon } from "../../mobHunt";
+import { bestEdge, bestSlotVsMob, mobWeapon } from "../../mobHunt";
 import {
   PRIORITY, type BrainContext, type FighterId, type FighterView, type GoalStatus, type Intent, type MobView, type SelfView,
   type TacticsOutput,
@@ -67,6 +67,13 @@ export function inReach(ctx: BrainContext, foe: { readonly x: number; readonly y
   const mask = reachMask(weapon);
   return mask === MASK_SIGHT || hasLineOfSight(ctx.svc.paths.collisionMap(), ctx.p.self, foe, mask);
 }
+
+/**
+ * A camp fights as one (camp-wide aggro), so its mobs bunch round the bot and a click meant for one lands on its neighbour. A lock on
+ * a mob this close (u) to the goal's mob, or in its camp, is a lock on the same fight: the server is already swinging at it, and
+ * clicking the goal's mob again only cancels that windup (CLAUDE.md "Target lock") for a flip between two mates.
+ */
+const MATE_RADIUS = 140;
 
 /** A melee foe is a chaser when it closes in on the bot, was seen chasing, or is this close (u); farther than CHASE_RANGE it is not yet. */
 const CHASE_CLOSE = 260;
@@ -157,6 +164,26 @@ function isMeleeChaser(ctx: BrainContext, foe: Foe): boolean {
   const me = ctx.p.self;
   const closing = ((me.x - foe.x) * foe.vx + (me.y - foe.y) * foe.vy) / Math.max(foe.dist, 1);
   return closing > CHASE_SPEED || foe.dist < CHASE_CLOSE || ctx.mem.fighters.get(foe.id)?.chasingMe === true;
+}
+
+/**
+ * The camp mate of the goal's mob the lock is on, if it is a fight worth keeping: a live mob (not walking home) the bot's weapons
+ * can hurt, no elite when the goal's mob is none, no shooter when the goal's mob is no shooter (mobHunt's `skipRanged`: they back
+ * off to their leash). Null when the lock is empty, on the goal's mob, on a player, or on a mob that is not worth the fight.
+ */
+function lockedMate(ctx: BrainContext, foe: Foe): Foe | null {
+  const { p, mem } = ctx;
+  const id = p.self.attackTarget;
+  if (!foe.mob || id === null || id === foe.id) return null;
+  const m = p.mobs.find((x) => x.id === id);
+  if (!m || m.status !== "alive" || !isRegionalKind(m.kind) || mem.mobs.get(id)?.returning === true) return null;
+  const camp = mem.mobs.get(id)?.campId ?? null;
+  if (dist(m, foe) > MATE_RADIUS && (camp === null || camp !== mem.mobs.get(foe.id)?.campId)) return null;
+  const goalKind = p.mobs.find((x) => x.id === foe.id)?.kind ?? mem.mobs.get(foe.id)?.kind;
+  if (m.kind === "elite" && goalKind !== "elite") return null;
+  const mate = fromMob(m);
+  if (mate.theirs !== null && (bestEdge(p.self.weapons, mate.theirs) <= -2 || (isRanged(mate.theirs) && !(foe.theirs !== null && isRanged(foe.theirs))))) return null;
+  return mate;
 }
 
 const lockIntent = (ctx: BrainContext, foe: Foe, why: string): Intent => ({
@@ -277,11 +304,14 @@ export function createFight(deps: FightDeps): Fight {
     }
     lastFightAt = now;
 
-    const locked = self.attackTarget === foe.id;
+    // The lock is on the goal's mob, or on a camp mate (see lockedMate): then the fight is that mate's, and nothing is re-clicked.
+    const mate = lockedMate(ctx, foe);
+    const on = mate ?? foe;
+    const locked = self.attackTarget === foe.id || mate !== null;
     const spacing = lockSpacing(weapon);
-    const attacking = locked && foe.seen && inReach(ctx, foe, weapon) && foe.dist <= spacing.attackRange + ATTACK_SLACK;
+    const attacking = locked && on.seen && inReach(ctx, on, weapon) && on.dist <= spacing.attackRange + ATTACK_SLACK;
     const mine = self.maxHp > 0 ? self.hp / self.maxHp : 1;
-    const swap = swapFor(ctx, foe, weapon);
+    const swap = swapFor(ctx, on, weapon);
     /** Out of the ordinary: the watch for a fight going nowhere starts again from here. */
     const touch = (): void => { if (progress) progress.since = now; };
     const finish = (order: Intent | null, status: GoalStatus, att: boolean): TacticsOutput => ({
@@ -344,8 +374,8 @@ export function createFight(deps: FightDeps): Fight {
     }
 
     // A ranged bot against a melee chaser, with the chance it rolled for this engagement: shoot, walk, shoot (kite.ts).
-    if (engagement.kite && foe.seen && isRanged(weapon) && isMeleeChaser(ctx, foe)) {
-      const k = orb.step(ctx, foe, weapon, locked);
+    if (engagement.kite && on.seen && isRanged(weapon) && isMeleeChaser(ctx, on)) {
+      const k = orb.step(ctx, on, weapon, locked);
       if (k === "wait") return finish(null, running("orb-walk: stepping off"), false);
       if (k) { ordered(); return finish(k, running("orb-walk"), false); }
     }

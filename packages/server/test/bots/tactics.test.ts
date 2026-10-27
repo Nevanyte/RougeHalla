@@ -317,6 +317,76 @@ describe("approach and lock", () => {
   });
 });
 
+// ------------------------------------------------------------------------------------------------------------ camp mates
+
+describe("a camp fights as one: the lock on a mate is kept", () => {
+  const memMob = (id: string, over: Partial<MobMemory> = {}): MobMemory => ({
+    id, kind: "mob", faction: "fire", home: at(0, 0), campId: null, pos: at(100, 0), dotAt: NOW, seenAt: NOW, hpFrac: 1, inHand: "axe",
+    awake: true, returning: false, alive: true, ...over,
+  });
+  const goal = mob(70, 0, { id: "mob1" });
+  const mate = (over: Partial<MobView> = {}) => mob(60, 30, { id: "mob2", ...over });
+  const locked = (id: string): Partial<SelfView> => ({ attackTarget: id });
+
+  it("sends no click while the lock is on a mate in reach, and counts as attacking", () => {
+    const t = createTactics(fakeWorld());
+    for (let i = 0; i < 20; i++) {
+      const out = think(t, farm, { now: NOW + i * 100, self: locked("mob2"), mobs: [goal, mate()] });
+      expect(out.intents, "the server is swinging at a mate: a click would only cancel its windup").toEqual([]);
+      expect(out.attacking).toBe(true);
+      expect(out.status.state).toBe("running");
+    }
+  });
+
+  it("clicks the goal's mob when the lock is empty, and when it is on a player", () => {
+    const t = createTactics(fakeWorld());
+    const out = think(t, farm, { mobs: [goal, mate()] });
+    expect(only(out, "lock")).toMatchObject({ target: "mob1" });
+    expect(out.attacking).toBe(false);
+    const onPlayer = think(createTactics(fakeWorld()), farm, { self: locked("foe"), mobs: [goal, mate()], foes: [foe(300, 0)] });
+    expect(only(onPlayer, "lock")).toMatchObject({ target: "mob1" });
+  });
+
+  it("clicks again when the mate it was locked on is dead", () => {
+    const t = createTactics(fakeWorld());
+    const out = think(t, farm, { self: locked("mob2"), mobs: [goal, mate({ status: "dead" })] });
+    expect(only(out, "lock")).toMatchObject({ target: "mob1" });
+    expect(out.attacking).toBe(false);
+    const gone = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal] });
+    expect(only(gone, "lock"), "off the screen too").toMatchObject({ target: "mob1" });
+  });
+
+  it("keeps the lock on a mob of the same camp however far apart they stand, but re-clicks one of another camp", () => {
+    const far = mob(60, 300, { id: "mob2" });
+    const one = memMob("mob1", { campId: "c1" });
+    const same = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal, far], memMobs: [one, memMob("mob2", { campId: "c1" })] });
+    expect(same.intents).toEqual([]);
+    const other = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal, far], memMobs: [one, memMob("mob2", { campId: "c2" })] });
+    expect(only(other, "lock")).toMatchObject({ target: "mob1" });
+    const unknown = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal, far] });
+    expect(only(unknown, "lock"), "no camp known and not bunched").toMatchObject({ target: "mob1" });
+  });
+
+  it("does not keep a lock on a mate it cannot hurt, one walking home, a shooter, or an elite the goal is not", () => {
+    const sword: Partial<SelfView> = { weapons: ["sword", null], attackTarget: "mob2" };
+    const shield = think(createTactics(fakeWorld()), farm, { self: sword, mobs: [goal, mate({ inHand: "shield", faction: "frost" })] });
+    expect(only(shield, "lock"), "a sword does nothing against a shield").toMatchObject({ target: "mob1" });
+    const home = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal, mate()], memMobs: [memMob("mob2", { returning: true })] });
+    expect(only(home, "lock"), "untouchable: it walks home").toMatchObject({ target: "mob1" });
+    const shooter = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal, mate({ inHand: "bow" })] });
+    expect(only(shooter, "lock"), "mobHunt leaves shooters alone: they back off to their leash").toMatchObject({ target: "mob1" });
+    const elite = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [goal, mate({ kind: "elite" })] });
+    expect(only(elite, "lock"), "the hunt did not choose the elite").toMatchObject({ target: "mob1" });
+    const bothElite = think(createTactics(fakeWorld()), farm, { self: locked("mob2"), mobs: [mob(70, 0, { id: "mob1", kind: "elite" }), mate({ kind: "elite" })] });
+    expect(bothElite.intents).toEqual([]);
+  });
+
+  it("only mobs: a player's lock on another player is still corrected, and a mate is no excuse for a player", () => {
+    const hunting = think(createTactics(fakeWorld()), hunt, { self: locked("mob2"), foes: [foe(300, 0)], mobs: [mate()] });
+    expect(only(hunting, "lock")).toMatchObject({ target: "foe" });
+  });
+});
+
 // ------------------------------------------------------------------------------------------------------------------ swaps
 
 describe("swaps", () => {

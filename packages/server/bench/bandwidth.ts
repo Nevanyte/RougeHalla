@@ -417,12 +417,14 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     ids.push(id);
     addPlayer(world, id, `Player${i + 1}x`);
   }
-  // The bots take the seats the clients left, and the raid starts with the next tick (a full lobby does not wait).
+  // The bots take the seats the clients left. Bots never close a lobby early, so the countdown is ended by hand: the raid starts
+  // with the next tick.
   for (let i = 0; i < botCount; i++) {
     const spec = room!.manager.addBot(opts.botTier ? { tier: opts.botTier } : {});
     if (spec === null) throw new Error("the bandwidth lobby has no seat for a bot");
     botIds.push(spec.id);
   }
+  if (botCount > 0) world.state.lobbyEndsAt = world.state.serverTime;
   if (room) room.tick();
   else step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("the bandwidth run did not start");

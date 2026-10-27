@@ -2,7 +2,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { Client } from "@colyseus/sdk";
+import { Client, type Room } from "@colyseus/sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mulberry32, ROOM_NAME } from "@raid/shared";
 import { loadConfig } from "../src/config";
@@ -201,43 +201,93 @@ function freePort(): Promise<number> {
   });
 }
 
+// Every wait below is on a condition (a ping answered, a room left, a server stopped) with its own generous limit, so a loaded
+// machine only makes the test slower, and a real hang fails with a message that says which wait it was.
+const STEP_MS = 30_000;
+const SERVER_TEST_MS = 120_000;
+
+/** `p`, or a rejection saying what did not finish within `ms`. */
+function within<T>(ms: number, what: string, p: Promise<T>): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} did not finish within ${ms} ms`)), ms);
+  });
+  return Promise.race([p, limit]).finally(() => clearTimeout(timer));
+}
+
+const median = (xs: number[]): number => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
+
 describe("installed on a server", () => {
+  // Servers in one process share Colyseus's matchmaker, RaidRoom.ctx and the simulator's patches: stopping one closes every room,
+  // another server's too. So a test runs ONE server at a time, and `pings` closes its server (the client first, then the server)
+  // before it returns. A client whose room the shutdown has already closed never settles `room.leave()` (the SDK registers its
+  // listener after the close it would wait for) nor answers `room.ping()`, which is what once hung this hook for 10 s when a
+  // second server's stop took longer than the first one's simulated half round trip. afterEach only catches a test that threw.
   const cleanups: Array<() => Promise<void> | void> = [];
   afterEach(async () => {
     for (const c of cleanups.splice(0).reverse()) await c();
-  });
+  }, SERVER_TEST_MS);
+
+  const pingOnce = (room: Room): Promise<number> =>
+    within(STEP_MS, "a ping", new Promise<number>((resolve, reject) => {
+      if (!room.connection.isOpen) reject(new Error("the connection is closed"));
+      else room.ping(resolve);
+    }));
 
   async function pings(env: Record<string, string>, n = 6): Promise<number[]> {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-netsim-"));
     const port = await freePort();
     const saved = process.env.COLYSEUS_LATENCY;
     process.env.COLYSEUS_LATENCY = env.COLYSEUS_LATENCY ?? "";
-    const server = await startServer({
-      ...loadConfig({ ...env, MIN_PLAYERS: "2", LOBBY_SECONDS: "120" }), port, stashFile: path.join(dir, "stash.json"),
-    });
-    if (saved === undefined) delete process.env.COLYSEUS_LATENCY;
-    else process.env.COLYSEUS_LATENCY = saved;
-    cleanups.push(async () => { await server.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
-    const base = `http://127.0.0.1:${port}`;
-    const prof = (await (await fetch(`${base}/api/profile/netsim1`)).json()) as { token: string };
-    const room = await new Client(base).joinOrCreate(ROOM_NAME, { profile: "netsim1", token: prof.token });
-    cleanups.push(async () => { room.reconnection.enabled = false; await room.leave(true).catch(() => {}); });
-    const out: number[] = [];
-    for (let i = 0; i < n; i++) out.push(await new Promise<number>((res) => room.ping(res)));
-    return out;
+    let server: Awaited<ReturnType<typeof startServer>>;
+    try {
+      server = await startServer({
+        ...loadConfig({ ...env, MIN_PLAYERS: "2", LOBBY_SECONDS: "120" }), port, stashFile: path.join(dir, "stash.json"),
+      });
+    } finally {
+      if (saved === undefined) delete process.env.COLYSEUS_LATENCY;
+      else process.env.COLYSEUS_LATENCY = saved;
+    }
+    let room: Room | null = null;
+    let closed = false;
+    const close = async () => {
+      if (closed) return;
+      closed = true;
+      try {
+        if (room?.connection?.isOpen) {
+          room.reconnection.enabled = false;
+          await within(STEP_MS, "room.leave", room.leave(true)).catch(() => {}); // the server stop below ends the room anyway
+        }
+        await within(STEP_MS, "server.stop", server.stop());
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    cleanups.push(close);
+    try {
+      const base = `http://127.0.0.1:${port}`;
+      const prof = (await (await fetch(`${base}/api/profile/netsim1`)).json()) as { token: string };
+      room = await within(STEP_MS, "joinOrCreate", new Client(base).joinOrCreate(ROOM_NAME, { profile: "netsim1", token: prof.token }));
+      const out: number[] = [];
+      for (let i = 0; i < n; i++) out.push(await pingOnce(room));
+      return out;
+    } finally {
+      await close();
+    }
   }
 
   it("with the round trip set, a ping takes about that long, and not twice as long (Colyseus's own COLYSEUS_LATENCY is out)", async () => {
     const rtts = await pings({ COLYSEUS_LATENCY: "120" });
-    const med = [...rtts].sort((a, b) => a - b)[Math.floor(rtts.length / 2)]!;
-    expect(med).toBeGreaterThanOrEqual(115);
-    expect(med).toBeLessThan(160);
-  }, 30000);
+    // Twice the delay would be 240; a busy machine only adds to the upper side.
+    expect(median(rtts)).toBeGreaterThanOrEqual(115);
+    expect(median(rtts)).toBeLessThan(200);
+  }, SERVER_TEST_MS);
 
   it("with nothing set, a ping is near zero", async () => {
     const rtts = await pings({});
-    expect(Math.max(...rtts)).toBeLessThan(40);
-  }, 30000);
+    // The median: one scheduling hiccup on a loaded machine must not fail it, a simulated 100 ms or more on every ping would.
+    expect(median(rtts)).toBeLessThan(40);
+  }, SERVER_TEST_MS);
 
   /** A made-up built client: with CLIENT_DIR set the server is hosting (sameOriginOnly). */
   function hostedClientDir(): string {
@@ -252,33 +302,34 @@ describe("installed on a server", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     cleanups.push(() => { warn.mockRestore(); log.mockRestore(); });
     const rtts = await pings({ COLYSEUS_LATENCY: "120", NET_LOSS_PCT: "5", CLIENT_DIR: hostedClientDir() });
-    expect(Math.max(...rtts)).toBeLessThan(60);
+    expect(median(rtts)).toBeLessThan(60); // installed, every ping would take 120 or more
     const refusals = warn.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator REFUSED/.test(m));
     expect(refusals).toHaveLength(1);
     expect(refusals[0]).toMatch(/rtt 120 ms/);
     expect(refusals[0]).toMatch(/ALLOW_NETSIM_WHEN_HOSTING/);
     expect(log.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator ON/.test(m))).toHaveLength(0);
-  }, 30000);
+  }, SERVER_TEST_MS);
 
   it("ALLOW_NETSIM_WHEN_HOSTING=1 installs it on a public link anyway, and says so", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     cleanups.push(() => log.mockRestore());
     const rtts = await pings({ COLYSEUS_LATENCY: "120", ALLOW_NETSIM_WHEN_HOSTING: "1", CLIENT_DIR: hostedClientDir() });
-    const med = [...rtts].sort((a, b) => a - b)[Math.floor(rtts.length / 2)]!;
-    expect(med).toBeGreaterThanOrEqual(115);
+    expect(median(rtts)).toBeGreaterThanOrEqual(115);
     const lines = log.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator ON/.test(m));
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatch(/rtt 120 ms/);
     expect(lines[0]).toMatch(/while hosting/);
-  }, 30000);
+  }, SERVER_TEST_MS);
 
   it("a development server logs one line when it installs, and nothing when nothing is set", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     cleanups.push(() => log.mockRestore());
+    // Each server is stopped before the next starts (see above), so the lines counted are its own: the spy is cleared in between
+    // and the filters name the simulator's line.
     await pings({ COLYSEUS_LATENCY: "60" }, 2);
     expect(log.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator ON \(rtt 60 ms/.test(m))).toHaveLength(1);
     log.mockClear();
     await pings({}, 2);
     expect(log.mock.calls.map((c) => String(c[0])).filter((m) => /network simulator/.test(m))).toHaveLength(0);
-  }, 30000);
+  }, SERVER_TEST_MS);
 });

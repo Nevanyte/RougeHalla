@@ -16,7 +16,7 @@ import {
 } from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
 import { ContainerView, TIMER_TEXT_REACH } from "../render/ContainerView";
-import { displayName } from "../render/displayName";
+import { displayName, playerLabel } from "../render/displayName";
 import { FieldView } from "../render/FieldView";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
 import { containerWeapon, nearestContainer } from "../render/interact";
@@ -701,7 +701,7 @@ export class RaidScene extends Phaser.Scene {
 
   private readonly chestFrame: ChestPanelFrame = {
     active: false, serverNow: 0, me: null, containers: { forEach: () => {} },
-    nameOf: (id) => this.room?.state.players.get(id)?.name, sight: null,
+    nameOf: (id) => this.room ? playerLabel(this.room.state.players, id) : undefined, sight: null,
   };
 
   /** RaidState.camps[i].state of each camp into `campStates` (0 idle, 1 engaged, 2 cleared). */

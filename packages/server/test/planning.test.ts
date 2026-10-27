@@ -560,7 +560,7 @@ describe("leaving during planning (owner ruling: a loss)", () => {
       type: "resolved", id: c,
       result: {
         outcome: "won", profile: "name2", durationSec: 0, kills: 0, killedBy: null, place: 1, players: 3,
-        gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true,
+        gv: { kills: 0, mobs: 0, bounty: 0, win: 0, total: 0 }, winBonusWithheld: true, winBonusWhy: "opponents",
       },
     }]);
   });

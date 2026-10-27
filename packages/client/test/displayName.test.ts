@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOT_TAG, displayName, winnerLabel } from "../src/render/displayName";
+import { BOT_TAG, displayName, playerLabel, winnerLabel } from "../src/render/displayName";
 
 describe("displayName", () => {
   it("tags a bot and leaves a person's name as it is", () => {
@@ -30,5 +30,19 @@ describe("winnerLabel", () => {
     expect(winnerLabel("Old", players)).toBe("Old");
     expect(winnerLabel("Gone", players)).toBe("Gone");
     expect(winnerLabel("", players)).toBe("");
+  });
+});
+
+describe("playerLabel", () => {
+  const players = new Map([["a", { name: "Ada", bot: false }], ["g", { name: "Grimbold", bot: true }], ["o", { name: "Old" }]]);
+
+  it("looks a player up by id and tags a bot", () => {
+    expect(playerLabel(players, "g")).toBe(`${BOT_TAG} Grimbold`);
+    expect(playerLabel(players, "a")).toBe("Ada");
+    expect(playerLabel(players, "o")).toBe("Old");
+  });
+
+  it("is undefined for an id the room does not have", () => {
+    expect(playerLabel(players, "ghost")).toBeUndefined();
   });
 });

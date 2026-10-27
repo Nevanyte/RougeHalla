@@ -153,9 +153,7 @@ describe("bots and the room caps", () => {
     const watch = watchPersistence();
     const first = await join(account());
     const view = serverRoom(first);
-    // Frozen between steps, so a lobby that reaches MAX_PLAYERS stays a lobby long enough for the next human to arrive in it
-    // (the sim closes a full lobby on its next step; the window the yield exists for is the one before that step).
-    vi.spyOn(view, "tick").mockImplementation(() => {});
+    // The room keeps ticking: bots alone never close a lobby, so a lobby that holds MAX_PLAYERS stays open for the next human.
     const bots = view.bots!;
     expect(bots).toBeDefined();
     for (let i = 0; i < FILL_TO; i++) expect(bots.addBot()).not.toBeNull();
@@ -166,11 +164,16 @@ describe("bots and the room caps", () => {
     // not seats for the matchmaker (maxClients counts clients), so the room is never "full" while a bot holds a place.
     const joined = [first];
     for (let n = 2; n <= MAX_PLAYERS; n++) {
+      // Eight humans close the lobby on the next step; frozen before the last one, the full lobby below stays a lobby (a lobby leave
+      // records nothing). Until then the steps run: seven humans and a bot, or eight places held by bots and humans, stay open.
+      if (n === MAX_PLAYERS) vi.spyOn(view, "tick").mockImplementation(() => {});
       const room = await join(account());
       joined.push(room);
       expect(room.roomId, `human ${n} joined the open lobby`).toBe(first.roomId);
       expect(server.rooms.count("arena"), `human ${n}`).toBe(1);
       // The first fits beside the bots (7 of 8 places taken); from the second on the lobby is full and the newest bot yields.
+      await sleep(120); // a few steps with the lobby full of players
+      expect(view.world.state.phase, `lobby still open after human ${n}`).toBe("lobby");
       expect(view.world.state.players.size).toBe(MAX_PLAYERS);
       expect(humansIn(view.world)).toBe(n);
       expect(botsIn(view.world)).toBe(MAX_PLAYERS - n);
