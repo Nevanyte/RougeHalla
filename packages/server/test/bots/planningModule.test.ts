@@ -20,9 +20,10 @@ const T0 = 100_000;
 const IDLE: Goal = { kind: "idle" };
 const PLAN_FEATURES = features({ messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan"], planning: true });
 
-/** On the test map for a fire bot with a sword: spawn 11 is a fine start (score 1.98), spawn 3 a poor one (0.27). */
-const GOOD = 11;
-const POOR = 3;
+/** On the test map (seed 7, 136x136, phase A pins) for a fire bot with a sword: spawn 15 is a fine start (score 1.98), spawn 5 a poor
+ *  one (0.27). The indices follow the map: re-pick them when the pins move (print planSpawnScore over the pool). */
+const GOOD = 15;
+const POOR = 5;
 const FIRE_SWORD = { faction: "fire" as const, weapons: ["sword", null] as const };
 
 /** The private `plan` message (shared PlanMessage) as the server sends it. */

@@ -1,5 +1,7 @@
-// The generator's cost gate (ROGUELIKE_PLAN R2: median batches <= 45 ms for the plain generator; ZT-6: <= 60 ms with the zone
-// stylers on, which cost about one more attempt in four and 5-6 ms of styler per attempt), in a file of its own.
+// The generator's cost gate, in a file of its own. The zone-shape rework (contract 6.5) sets the gates to max(60, 1.5 x the measured
+// median) with the stylers and max(45, 1.5 x the measured median) without, at 136x136 (phase A: the old stylers through the new
+// runtime, no cover; measured 60.7-64.2 ms scaled with the stylers, 30.6-32.7 ms without, 2026-10-27 on the reference machine under
+// load): STYLED_GATE_MS 93 and PLAIN_GATE_MS 48. (R2's gates were 60 and 45 at 96x96 with the cover.)
 //
 // The full suite runs its files in parallel processes; on a big.LITTLE machine with more workers than fast cores a file
 // can land on a slow core and share memory bandwidth with eight certification shards, which made raw timings 2-5x the
@@ -12,6 +14,9 @@ import { certifiedMap, warmMapgen } from "../src/mapgen";
 
 /** The yardstick's cost on the reference machine, quiet (ms). */
 const YARDSTICK_QUIET_MS = 5;
+/** The gates (ms per raw seed, scaled to the quiet reference machine): see the header. */
+const STYLED_GATE_MS = 93;
+const PLAIN_GATE_MS = 48;
 const big = new Uint16Array(16 << 20);
 for (let i = 0; i < big.length; i++) big[i] = (i * 2654435761) >>> 20;
 
@@ -42,7 +47,7 @@ function yardstick(): number {
 const median = (v: readonly number[]) => [...v].sort((a, b) => a - b)[Math.floor((v.length - 1) / 2)];
 
 describe("performance", () => {
-  it("certifies a map per raw seed well under the budget: median of 7 batches of 8 seeds <= 60 ms with the zone stylers, <= 45 ms without (scaled to the quiet reference machine)", () => {
+  it(`certifies a map per raw seed well under the budget: median of 7 batches of 8 seeds <= ${STYLED_GATE_MS} ms with the zone stylers, <= ${PLAIN_GATE_MS} ms without (scaled to the quiet reference machine)`, () => {
     warmMapgen();
     for (let i = 0; i < 16; i++) { certifiedMap(80_000 + i); certifiedMap(80_100 + i, { styleZones: null }); }
     for (let i = 0; i < 4; i++) yardstick();
@@ -79,7 +84,7 @@ describe("performance", () => {
       `[perf] certifiedMap median of 7 batches: ${med.toFixed(1)} ms scaled to the quiet machine (raw ${raw.map((v) => v.toFixed(1)).join(", ")} ms); ` +
       `without the zone stylers ${medPlain.toFixed(1)} ms`,
     );
-    expect(med).toBeLessThanOrEqual(60);
-    expect(medPlain).toBeLessThanOrEqual(45);
+    expect(med).toBeLessThanOrEqual(STYLED_GATE_MS);
+    expect(medPlain).toBeLessThanOrEqual(PLAIN_GATE_MS);
   }, 120_000);
 });

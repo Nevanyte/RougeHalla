@@ -17,11 +17,13 @@ export const SNAP_RADIUS = 4;
 /**
  * How many candidates past the anchor string pulling looks at (a performance cap; it never makes a hop invalid, since
  * every accepted hop passes segmentClear and the next candidate always passes). At 96x96 with long detours the pull
- * was 85% of findPath's cost. A window shorter than a straight hop splits it, so the path can come out a little longer; the
- * generator certifies the spawn walks with findPath, so changing it re-pins every map. Measured on the open 136x136 maps
- * (zone-shapes contract 7.1; the table is in the WP0a report): see the value below.
+ * was 85% of findPath's cost. A window shorter than a straight hop splits it, so the path comes out a little longer: the open
+ * 136x136 maps (zone-shapes contract 7.1: 40 maps, 2000 pairs each) had 11.1% of paths over 1% longer than unbounded at 32, 4.2% at
+ * 48, 1.3% at 64 and 0.06% at 96 (max 1.062), for 7.5% more cost per path at p99 than 32 (and 3% more per stepBench --stress tick);
+ * 96 is the smallest window with at most 0.5% of paths over 1% longer. The generator certifies the spawn walks with findPath, so
+ * changing it re-pins every map.
  */
-export const PULL_WINDOW = 32;
+export const PULL_WINDOW = 96;
 
 interface Scratch {
   n: number;

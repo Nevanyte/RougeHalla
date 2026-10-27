@@ -164,21 +164,24 @@ describe("spawnRegionalMobs", () => {
     expect(new Set(mobs.map((m) => m.rt.brain!.phase)).size).toBeGreaterThan(1); // staggered, not all on one tick
   });
 
-  it.each(SEEDS)("seed %i: exactly one elite per region, the first spot of the elite camp; its camp-mates are normal mobs", (seed) => {
+  it.each(SEEDS)("seed %i: exactly two elites per region (one per elite camp), each at the first spot of its camp; their camp-mates are normal mobs", (seed) => {
     const w = makeRun({ seed });
     for (const region of w.map.regions) {
       const mine = allMobs(w).filter((m) => m.rt.brain!.region === region.id);
       const elites = mine.filter((m) => m.s.kind === "elite");
-      expect(elites, region.id).toHaveLength(1);
-      const eliteCamp = region.mobCamps.filter((c) => c.elite);
-      expect(eliteCamp).toHaveLength(1);
-      expect({ x: elites[0]!.s.x, y: elites[0]!.s.y }).toEqual(eliteCamp[0]!.spots[0]);
-      expect(elites[0]!.s.hp).toBe(mobFaction(region.id, true).hp);
-      expect(elites[0]!.s.hp).toBeGreaterThan(mobFaction(region.id, false).hp);
-      for (const spot of eliteCamp[0]!.spots.slice(1)) {
-        const mate = mine.find((m) => m.s.x === spot.x && m.s.y === spot.y)!;
-        expect(mate.s.kind).toBe("mob");
-        expect(mate.s.maxHp).toBe(mobFaction(region.id, false).hp);
+      expect(elites, region.id).toHaveLength(2);
+      const eliteCamps = region.mobCamps.filter((c) => c.elite);
+      expect(eliteCamps).toHaveLength(2);
+      for (const camp of eliteCamps) {
+        const elite = elites.find((e) => e.s.x === camp.spots[0]!.x && e.s.y === camp.spots[0]!.y)!;
+        expect(elite, camp.id).toBeDefined();
+        expect(elite.s.hp).toBe(mobFaction(region.id, true).hp);
+        expect(elite.s.hp).toBeGreaterThan(mobFaction(region.id, false).hp);
+        for (const spot of camp.spots.slice(1)) {
+          const mate = mine.find((m) => m.s.x === spot.x && m.s.y === spot.y)!;
+          expect(mate.s.kind).toBe("mob");
+          expect(mate.s.maxHp).toBe(mobFaction(region.id, false).hp);
+        }
       }
     }
     expect(FACTION_IDS.every((f) => allMobs(w).some((m) => m.s.kind === "elite" && m.s.faction === f))).toBe(true);

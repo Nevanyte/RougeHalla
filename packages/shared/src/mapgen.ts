@@ -131,10 +131,12 @@ function pickGroundSpots(rng: Rng, tiles: Uint8Array, skip: Uint8Array, spawns: 
   // Loot lies in the open: tiles with floor all round come first, so a body can stand on it; a tile beside a wall is only used
   // when there are too few of those.
   const cands: TilePt[] = [], nooks: TilePt[] = [];
+  // Nothing within 2 tiles (Chebyshev) of a spawn.
+  const nearSpawn = new Uint8Array(N);
+  for (const s of spawns) markRect(nearSpawn, { x: s.x, y: s.y, w: 1, h: 1 }, 2);
   for (let y = 1; y < H - 1; y++) {
     for (let x = 1; x < W - 1; x++) {
-      if (tiles[y * W + x] !== TILE_FLOOR || skip[y * W + x]) continue;
-      if (spawns.some((s) => Math.max(Math.abs(s.x - x), Math.abs(s.y - y)) < 3)) continue;
+      if (tiles[y * W + x] !== TILE_FLOOR || skip[y * W + x] || nearSpawn[y * W + x]) continue;
       let clear = true;
       for (let q = 0; q < 8 && clear; q++) if (tiles[(y + RING_DY[q]) * W + x + RING_DX[q]] !== TILE_FLOOR) clear = false;
       (clear ? cands : nooks).push({ x, y });
@@ -287,14 +289,15 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, lan
   // It is picked before the stylers, which get each member's 3x3 as protected ground (hazards are cleared from its 5x5 after
   // them: validateTerrain T8) and its pick-time walk for their route guards. The spawn gate certifies the real walks at the end.
   const centreWalk = walkField16(tiles, W, H, [CY * W + CX]);
-  const open3 = new Uint8Array(N);
-  for (let y = 1; y < H - 1; y++) {
+  // A clear 3x3 of floor: three floor tiles in a row, in three rows.
+  const row3 = new Uint8Array(N), open3 = new Uint8Array(N);
+  for (let y = 0; y < H; y++) {
     for (let x = 1; x < W - 1; x++) {
-      let ok = true;
-      for (let j = -1; j <= 1 && ok; j++) for (let i = -1; i <= 1; i++) if (tiles[(y + j) * W + x + i] !== TILE_FLOOR) { ok = false; break; }
-      if (ok) open3[y * W + x] = 1;
+      const i = y * W + x;
+      if (tiles[i - 1] === TILE_FLOOR && tiles[i] === TILE_FLOOR && tiles[i + 1] === TILE_FLOOR) row3[i] = 1;
     }
   }
+  for (let i = W; i < N - W; i++) if (row3[i - W] && row3[i] && row3[i + W]) open3[i] = 1;
   const picked = pickSpawnPool(rng, tiles, zone, open3, landmarkNear1, camps, centreWalk);
   if (!picked) return null;
   const pool = picked;
@@ -702,15 +705,25 @@ function pickSpawnPool(
   rng: Rng, tiles: Uint8Array, zone: Uint8Array, open3: Uint8Array, landmarkNear1: Uint8Array, camps: readonly CampSite[], walk: Int32Array,
 ): number[] | null {
   const lo2 = (SPAWN_RING[0] * R0) * (SPAWN_RING[0] * R0), hi2 = (SPAWN_RING[1] * R0) * (SPAWN_RING[1] * R0);
-  const campGap2 = SPAWN_CAMP_PICK * SPAWN_CAMP_PICK;
+  // Tiles closer than SPAWN_CAMP_PICK to a camp centre (squared distance under its square).
+  const nearCamp = new Uint8Array(N);
+  for (const c of camps) {
+    const cx = c.site % W, cy = (c.site - cx) / W;
+    for (let dy = -SPAWN_CAMP_PICK + 1; dy < SPAWN_CAMP_PICK; dy++) {
+      for (let dx = -SPAWN_CAMP_PICK + 1; dx < SPAWN_CAMP_PICK; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (dx * dx + dy * dy < SPAWN_CAMP_PICK * SPAWN_CAMP_PICK && x >= 0 && y >= 0 && x < W && y < H) nearCamp[y * W + x] = 1;
+      }
+    }
+  }
   const cands: number[] = [];
   for (let y = 2; y < H - 2; y++) {
     for (let x = 2; x < W - 2; x++) {
       const i = y * W + x;
-      if (!zone[i] || !open3[i] || landmarkNear1[i] || walk[i] < 0) continue;
+      if (!zone[i] || !open3[i] || landmarkNear1[i] || walk[i] < 0 || nearCamp[i]) continue;
       const dx = x + 0.5 - CX, dy = y + 0.5 - CY, r2 = dx * dx + dy * dy;
       if (r2 < lo2 || r2 > hi2) continue;
-      if (camps.every((c) => d2i(c.site, i) >= campGap2)) cands.push(i);
+      cands.push(i);
     }
   }
   if (cands.length === 0) return failed("A:spawnNone");
@@ -726,11 +739,15 @@ function pickSpawnPool(
   const minD = new Int32Array(cands.length), ok = new Uint8Array(cands.length);
   let pool: number[] = [], bestScore = -1;
   const zonesOf = (list: readonly number[]): number => new Set(list.map((i) => zone[i])).size;
+  // The band of each contour level (the same in every round: only the first member's draw differs).
+  const bands: number[][] = [];
+  for (let qi = 2; qi <= 8; qi++) {
+    const level = walks[Math.floor(((walks.length - 1) * qi) / 10)];
+    const lo = level * (1 - POOL_PICK_BAND), hi = level * (1 + POOL_PICK_BAND);
+    bands.push(cands.filter((i) => walk[i] >= lo && walk[i] <= hi));
+  }
   for (let tryNo = 0; tryNo < SPAWN_TRIES; tryNo++) {
-    for (let qi = 2; qi <= 8; qi++) {
-      const level = walks[Math.floor(((walks.length - 1) * qi) / 10)];
-      const lo = level * (1 - POOL_PICK_BAND), hi = level * (1 + POOL_PICK_BAND);
-      const band = cands.filter((i) => walk[i] >= lo && walk[i] <= hi);
+    for (const band of bands) {
       if (band.length === 0) continue;
       const chosen = [band[randInt(rng, 0, band.length)]];
       for (let q = 0; q < band.length; q++) { minD[q] = d2i(band[q], chosen[0]); ok[q] = admissible(band[q], chosen[0]) ? 1 : 0; }

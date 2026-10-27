@@ -99,10 +99,13 @@ const CORE_DT = 15;
  */
 const HALO_DT = 20;
 
+/** Tile coordinates by index (d2i's tables: a division per call cost the camp stage a third of its time at 136x136). */
+const TX = new Int32Array(N), TY = new Int32Array(N);
+for (let i = 0; i < N; i++) { TX[i] = i % W; TY[i] = (i - (i % W)) / W; }
 /** Squared distance between two tiles, by index. */
 export const d2i = (a: number, b: number): number => {
-  const ax = a % W, ay = (a - ax) / W, bx = b % W, by = (b - bx) / W;
-  return (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
+  const dx = TX[a] - TX[b], dy = TY[a] - TY[b];
+  return dx * dx + dy * dy;
 };
 
 /** Failed stages and attempts by reason ("A:" marks a failed attempt, the rest are stage retries), for the bench; never read by the generator. */
@@ -759,22 +762,24 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
       }
       const k = CAMPS_PER_ZONE;
       // Seeds for coverage (k-center): the first by best-candidate sampling, each next one at the open site nearest the
-      // zone tile farthest from the seeds so far, so no part of the zone is left far from every camp.
+      // zone tile farthest from the seeds so far, so no part of the zone is left far from every camp. Each tile's distance to
+      // the nearest seed and each site's spacing are kept up to date as seeds are added (the same answers as a full rescan).
       let at = bestCandidates(rng, sites, 1, CAMP_CANDIDATES, placed, gap2);
+      const minD = new Int32Array(Zt.length).fill(1 << 30);
+      const spaced = clear.slice();
+      let seen = 0;
       while (at.length > 0 && at.length < k) {
-        let far = -1, farD = -1;
-        for (let q = 0; q < Zt.length; q++) {
-          let md = 1 << 30;
-          for (const o of at) md = Math.min(md, d2i(o, Zt[q]));
-          if (md > farD) { farD = md; far = Zt[q]; }
+        for (; seen < at.length; seen++) {
+          const o = at[seen];
+          for (let q = 0; q < Zt.length; q++) { const d = d2i(o, Zt[q]); if (d < minD[q]) minD[q] = d; }
+          for (let q = 0; q < sites.length; q++) if (spaced[q] && d2i(o, sites[q]) < gap2) spaced[q] = 0;
         }
+        let far = -1, farD = -1;
+        for (let q = 0; q < Zt.length; q++) if (minD[q] > farD) { farD = minD[q]; far = Zt[q]; }
         let next = -1, nextD = 1 << 30;
         for (let q = 0; q < sites.length; q++) {
+          if (!spaced[q]) continue;
           const c = sites[q];
-          if (!clear[q]) continue;
-          let spaced = true;
-          for (const o of at) if (d2i(o, c) < gap2) { spaced = false; break; }
-          if (!spaced) continue;
           const d = d2i(c, far);
           if (d < nextD) { nextD = d; next = c; }
         }

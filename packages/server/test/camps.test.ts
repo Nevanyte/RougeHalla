@@ -68,8 +68,9 @@ describe("the published roster", () => {
   });
 
   /**
-   * D5 on a 4-camp zone: the first three camps (in camp order) take the zone's three normal types, none twice; the fourth
-   * repeats one of them, so a zone's type counts are exactly [1, 1, 2] and no type of the zone is absent.
+   * D5 on an 8-camp zone (the zone shapes' maps): the first three camps (in camp order) take the zone's three normal types, none
+   * twice; every later camp repeats one of them (rosters.ts: one draw each), so all three types stand in the zone, eight camps in all.
+   * The Wishes session redoes the rosters for 8 camps and 2 elites (zone-shapes contract 7.2).
    */
   function expectD5(w: World, label: string): void {
     for (const zone of FACTION_IDS) {
@@ -77,13 +78,14 @@ describe("the published roster", () => {
       expect(types.length, `${label} ${zone}`).toBe(CAMPS_PER_ZONE);
       expect(new Set(types.slice(0, 3)).size, `${label} ${zone}: no repeat in the first three`).toBe(3);
       expect(new Set(types), `${label} ${zone}: all three types stand somewhere`).toEqual(new Set(normalIds(zone)));
-      const counts = [...new Set(types)].map((t) => types.filter((u) => u === t).length).sort();
-      expect(counts, `${label} ${zone}: one type repeats`).toEqual([1, 1, 2]);
+      const counts = [...new Set(types)].map((t) => types.filter((u) => u === t).length);
+      expect(counts.reduce((a, b) => a + b, 0), `${label} ${zone}: every camp has a type`).toBe(CAMPS_PER_ZONE);
+      expect(Math.min(...counts), `${label} ${zone}: every type at least once`).toBeGreaterThanOrEqual(1);
       for (const t of types) expect(mobTypeById(t)?.zone, `${label} ${zone}`).toBe(zone);
     }
   }
 
-  it.each([1, 2, 3, 100, 732])("seed %i follows D5: four camps a zone, the first three distinct, one type repeated, every type its zone's own", (seed) => {
+  it.each([1, 2, 3, 100, 732])("seed %i follows D5: eight camps a zone, the first three distinct, the rest repeats, every type its zone's own", (seed) => {
     expectD5(lobby({ seed }), `seed ${seed}`);
   });
 
@@ -177,9 +179,10 @@ describe("what the camps place", () => {
       expect(here.filter((m) => m.s.kind === "elite").length, camp.id).toBe(camp.eliteSpot >= 0 ? 1 : 0);
     });
     for (const zone of FACTION_IDS) {
+      // Two elite camps per zone (zone-shapes 0.1.2), one elite each, both the zone's elite type until the Wishes session's rosters.
       const elites = mobs.filter((m) => m.s.kind === "elite" && m.s.faction === zone);
-      expect(elites).toHaveLength(1);
-      expect(elites[0]!.s.type).toBe(eliteTypeOf(zone).id);
+      expect(elites).toHaveLength(2);
+      for (const e of elites) expect(e.s.type).toBe(eliteTypeOf(zone).id);
     }
   });
 

@@ -59,11 +59,11 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
         expect(REGION_FACTIONS[m.regionGrid[i] - 1], `seed ${s} tile ${i} (${TERRAINS[k].key})`).toBe(TERRAINS[k].home);
       }
     }
-    // Colonnades: the Sanctum is the zone with the most freestanding wall tiles per painted tile after the stylers (pillar rows).
+    // Colonnades: the Sanctum's pillar rows stand as walls (the old styler under the new caps: about 80-90 on seed 1).
     let walls = 0;
     const m = mapFor(1), code = REGION_FACTIONS.indexOf("holy") + 1;
     for (let i = 0; i < m.tiles.length; i++) if (m.regionGrid[i] === code && m.tiles[i] === TILE_WALL) walls++;
-    expect(walls).toBeGreaterThan(100);
+    expect(walls).toBeGreaterThan(50);
   }, HEAVY_MS);
 
   it("certifies every one of them with validateTerrain (T1-T11, spawn 5x5 and ground spots hazard-free), and its themes are visible: low ground on all of them", () => {
@@ -76,7 +76,7 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
     expect(MAPGEN_FAILS["A:styleBreach"] ?? 0).toBe(0);
   }, HEAVY_MS);
 
-  it("never needs the styler's connectivity net; the cover's rocks clear the ICE beside them and the Rime freezes over what is left clear", () => {
+  it("never needs the styler's connectivity net, and keeps its ICE: no freezing of clear ground (deleted with the cover), the ICE net clears next to nothing", () => {
     resetStylerStats();
     for (const k of Object.keys(MAPGEN_NOTES)) delete MAPGEN_NOTES[k];
     let ice = 0, attempts = 0;
@@ -87,12 +87,12 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
     }
     expect(STYLER_STATS.calls).toBeGreaterThanOrEqual(attempts);
     expect(STYLER_STATS.repaired, "a write that left the zone's floor cut: the guards keep it at 0").toBe(0);
-    expect(ice / 60, "ice tiles per map left after the cover").toBeGreaterThan(20);
-    // Not vacuous: the cover does stand rocks in lakes, and the net does clear the ice beside them.
-    expect(MAPGEN_NOTES["iceCleared"] ?? 0).toBeGreaterThan(0);
-    expect(MAPGEN_NOTES["iceFrozen"] ?? 0).toBeGreaterThan(0);
+    expect(ice / 60, "ice tiles per map").toBeGreaterThan(20);
+    // The guard keeps blockers off ICE's neighbours, so only a nets wall can stand beside ICE (expected about 0; noted, never failing).
+    expect(MAPGEN_NOTES["iceCleared"] ?? 0).toBeLessThanOrEqual(60);
+    expect(MAPGEN_NOTES["iceFrozen"]).toBeUndefined();
     // A report, not a gate (the bench is): the styler pass costs a few ms per attempt.
-    console.info(`[styler] ${(STYLER_STATS.ms / Math.max(1, STYLER_STATS.calls)).toFixed(2)} ms per attempt over ${STYLER_STATS.calls} attempts; ice ${(ice / 60).toFixed(0)} tiles per map; cleared beside rocks ${MAPGEN_NOTES["iceCleared"]} in all`);
+    console.info(`[styler] ${(STYLER_STATS.ms / Math.max(1, STYLER_STATS.calls)).toFixed(2)} ms per attempt over ${STYLER_STATS.calls} attempts; ice ${(ice / 60).toFixed(0)} tiles per map; cleared beside walls ${MAPGEN_NOTES["iceCleared"] ?? 0} in all`);
   }, HEAVY_MS);
 });
 

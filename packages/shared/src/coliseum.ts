@@ -50,7 +50,7 @@ export interface FixedLayout {
   gates: readonly GateDef[];
   /** The strip inside each gate, gate wide and LANE_DEPTH deep: kept free of pillars. */
   laneIn: Uint8Array;
-  /** The strip outside each gate, one tile wider on each side and LANE_DEPTH deep: always floor, never a rock. */
+  /** The strip outside each gate, one tile wider on each side and LANE_DEPTH deep: always floor (protected, never walled). */
   laneOut: readonly TilePt[];
   innerTiles: readonly TilePt[];
   /** The 8 pillar variants (each layout as listed, then transposed), as masks. */

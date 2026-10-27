@@ -208,9 +208,9 @@ describe("the span a walk is scored against is the map's own width", () => {
     return camps[0]!.utility;
   }
 
-  it("a 96-tile map scores a walk by 3072 u, not by the 2000 u of the old 64-tile one", () => {
+  it("a 136-tile map scores a walk by 4352 u, not by the 2000 u of the old 64-tile one", () => {
     const map = generateMap(7);
-    expect(map.w).toBe(96);
+    expect(map.w).toBe(136);
     const span = map.w * TILE;
     // value falls linearly with the walk up to the span: the drop from 0 to 1000 u over the drop from 0 to the span is 1000 / span.
     const u0 = campUtility(map, 0);

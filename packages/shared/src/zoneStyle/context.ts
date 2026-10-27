@@ -500,11 +500,21 @@ export class ZoneRuntime {
         back.length = 0;
       }
       let stands = 0;
-      for (let b = 0; b < blocks.length; b++) if (entry[b] >= 0) stands++;
+      for (let b = 0; b < blocks.length; b++) if (entry[b] >= 0 && tiles[blocks[b][0]] !== TILE_FLOOR) stands++;
       ok = stands * 1000 >= (spec.minSharePermille ?? 600) * blocks.length;
     }
+    // The blocks that stand, each tile once (a tile listed twice, or given back after a later write, counts as it ends up).
     const written: number[] = [];
-    if (ok) for (let b = 0; b < blocks.length; b++) if (entry[b] >= 0) written.push(blocks[b][0]);
+    if (ok) {
+      const sc = init.scratch;
+      const stamp = ++sc.epoch;
+      for (let b = 0; b < blocks.length; b++) {
+        const i = blocks[b][0];
+        if (entry[b] < 0 || tiles[i] === TILE_FLOOR || sc.mark[i] === stamp) continue;
+        sc.mark[i] = stamp;
+        written.push(i);
+      }
+    }
     // Floor tiles: FLOOR in this zone and owned by nobody (the blocks just written are no longer FLOOR).
     const floor: number[] = [];
     if (ok && spec.floor) {

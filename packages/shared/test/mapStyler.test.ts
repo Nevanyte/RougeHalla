@@ -28,7 +28,7 @@ function spyOn(): { hook: ZoneStyleHook; low: number[]; kinds: Map<number, numbe
 }
 
 describe("zone style hook (demo hook, 24 seeds)", () => {
-  const maps: (GameMap | null)[] = SEEDS.map((s) => certifiedMap(s, { styleZones: demoStyleHook }));
+  const maps: (GameMap | null)[] = SEEDS.map((s) => certifiedMap(s, { styleZones: demoStyleHook, shapeGates: false }));
 
   it("certifies styled maps as it does plain ones (validateTerrain included), discarding fewer than 5%", () => {
     const failures: string[] = [];
@@ -43,13 +43,13 @@ describe("zone style hook (demo hook, 24 seeds)", () => {
   }, 120_000);
 
   it("rebuilds a styled map from (seed, attempt) byte for byte", () => {
-    for (const m of maps.slice(0, 6)) if (m) expect(mapHash(generateMap(m.seed, m.attempt, { styleZones: demoStyleHook }))).toBe(mapHash(m));
+    for (const m of maps.slice(0, 6)) if (m) expect(mapHash(generateMap(m.seed, m.attempt, { styleZones: demoStyleHook, shapeGates: false }))).toBe(mapHash(m));
   }, 120_000);
 
   it("never lets low ground become floor (a wall standing on it keeps its kind, as decor), and no floor hazard ends under a wall", () => {
     let floorKinds = 0;
     for (const s of SEEDS.slice(0, 8)) {
-      const m = certifiedMap(s, { styleZones: demoStyleHook });
+      const m = certifiedMap(s, { styleZones: demoStyleHook, shapeGates: false });
       if (!m) continue;
       const spy = spyOn();
       generateMap(s, m.attempt, { styleZones: spy.hook });

@@ -119,7 +119,8 @@ describe("the plan", () => {
       for (const c of chunks) {
         expect(c.tw % 2).toBe(0);
         expect(c.th % 2).toBe(0);
-        expect(c.w).toBeGreaterThanOrEqual(CHUNK_TILES * TILE);
+        // A full chunk, or the last partial one of a map whose side is not a whole number of chunks (136 = 8.5 chunks).
+        expect(c.w).toBeGreaterThanOrEqual(Math.min(CHUNK_TILES, m.w - c.tx0) * TILE);
         for (let ty = c.ty0; ty < Math.min(m.h, c.ty0 + CHUNK_TILES); ty++) for (let tx = c.tx0; tx < Math.min(m.w, c.tx0 + CHUNK_TILES); tx++) owner[ty * m.w + tx]++;
       }
       // Every tile that is not plain wall is in a chunk.
@@ -214,16 +215,16 @@ describe("the plan", () => {
   });
 
   it("keeps a 64x64 map inside the texture budget at full scale, and bakes a bigger one at a lower floor scale so it fits", () => {
-    // The generated maps are 96x96 since R2: the 64x64 case is the top-left window of a real styled one.
+    // The generated maps are 136x136 since the zone shapes: the 64x64 case is the top-left window of a real styled one.
     const small = tiled(maps[0]!, 64);
     expect(chooseFloorScale(small)).toBe(1);
     expect(planBytes(planFloor(small, 1), planStrips(small).pages)).toBeLessThanOrEqual(TEXTURE_BUDGET_BYTES);
-    for (const big of [maps[0]!, tiled(small, 96)]) {
+    for (const big of [maps[0]!, tiled(small, maps[0]!.w)]) {
       const scale = chooseFloorScale(big);
       expect(FLOOR_SCALES).toContain(scale);
       expect(scale).toBeLessThan(1);
       const pages = planStrips(big).pages;
-      // A real 96x96 zone map and one tiled from the 64x64 window both fit, at a lower floor scale.
+      // A real 136x136 zone map and one tiled from the 64x64 window both fit, at a lower floor scale.
       expect(planBytes(planFloor(big, scale), pages) <= TEXTURE_BUDGET_BYTES).toBe(true);
       expect(chooseFloorScale(big, 1)).toBe(FLOOR_SCALES[FLOOR_SCALES.length - 1]);
     }
@@ -376,7 +377,10 @@ describe("bakeZoneArt on a fake scene", () => {
   });
 
   it("adds the strip images in strip order, whatever page each is on: equal depths draw in that order, so a join copy lies under the next strip", () => {
-    const m = styled(1);
+    // A styled room dense with short walls: its strips need several pages (a 136x136 zone map's fit on one since the cover is gone).
+    const rects: Array<readonly [number, number, number, number, number, number?]> = [[10, 10, 3, 1, TILE_LOW, TERRAIN_LAVA]];
+    for (let y = 4; y < 132; y += 4) for (let x = 4; x < 130; x += 5) rects.push([x, y, 2, 1, TILE_WALL]);
+    const m = room(136, 136, rects, true);
     const s = bakeScene();
     bakeZoneArt(s.scene, m);
     const { strips, pages } = planStrips(m);
@@ -462,11 +466,12 @@ describe("MapView paths", () => {
 
   it("draws the zone borders over the baked floor: dashed strips of the border's thickness, a Graphics per floor chunk that has some", () => {
     const s = bakeScene();
-    const view = new MapView(s.scene, styled(1));
+    const m = styled(1);
+    const view = new MapView(s.scene, m);
     expect(view.bakeStats).not.toBeNull();
     const borders = s.graphics.filter((g) => g.state.depth === -1e6 + 1);
     expect(borders.length).toBeGreaterThan(0);
-    const chunks = Math.ceil(96 / CHUNK_ROWS_MV) * Math.ceil(96 / CHUNK_COLS_MV);
+    const chunks = Math.ceil(m.h / CHUNK_ROWS_MV) * Math.ceil(m.w / CHUNK_COLS_MV);
     expect(borders.length).toBeLessThan(chunks);
     for (const g of borders) {
       const rects = argsOf(g, "fillRect") as number[][];
@@ -483,8 +488,9 @@ describe("MapView paths", () => {
     console.warn = () => {};
     try {
       const s = bakeScene({ noTextures: true });
-      new MapView(s.scene, styled(1));
-      const chunks = Math.ceil(96 / CHUNK_ROWS_MV) * Math.ceil(96 / CHUNK_COLS_MV);
+      const m = styled(1);
+      new MapView(s.scene, m);
+      const chunks = Math.ceil(m.h / CHUNK_ROWS_MV) * Math.ceil(m.w / CHUNK_COLS_MV);
       expect(s.graphics.filter((g) => g.state.depth === -1e6 + 1)).toHaveLength(chunks);
     } finally {
       console.warn = warn;

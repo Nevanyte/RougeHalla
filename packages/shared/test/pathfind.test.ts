@@ -818,23 +818,25 @@ describe("findPath unreachable goals", () => {
 });
 
 describe("PULL_WINDOW", () => {
-  it("is 32", () => {
-    expect(PULL_WINDOW).toBe(32);
+  it("is 96 (zone-shapes contract 7.1, measured on the open 136x136 maps)", () => {
+    expect(PULL_WINDOW).toBe(96);
   });
 
-  it("changes no path on generated maps (against the same search without the window and the reject)", () => {
+  it("lengthens at most 0.5% of paths on generated maps by more than 1% (against the same search without the window and the reject)", () => {
     const rng = mulberry32(8);
-    let compared = 0, nonEmpty = 0, longest = 0;
+    let compared = 0, nonEmpty = 0, longest = 0, longer = 0, same = 0;
     for (let seed = 1; seed <= 16; seed++) {
       const open = generateMap(seed);
       for (const map of seed % 2 === 0 ? [open, withGates(open)] : [open]) {
         for (let i = 0; i < 40; i++) {
           const a = { x: 40 + rng() * (map.w * TILE - 80), y: 40 + rng() * (map.h * TILE - 80) };
           const b = { x: 40 + rng() * (map.w * TILE - 80), y: 40 + rng() * (map.h * TILE - 80) };
-          const path = findPath(map, a, b);
-          expect(path, `seed ${seed} query ${i}`).toEqual(findPathReference(map, a, b));
+          const path = findPath(map, a, b), ref = findPathReference(map, a, b);
+          expect(path.length === 0, `seed ${seed} query ${i}: reachability`).toBe(ref.length === 0);
           compared++;
           if (path.length > 0) nonEmpty++;
+          if (JSON.stringify(path) === JSON.stringify(ref)) same++;
+          if (pathLength(a, path) > 1.01 * pathLength(a, ref)) longer++;
           longest = Math.max(longest, path.length);
         }
       }
@@ -842,6 +844,8 @@ describe("PULL_WINDOW", () => {
     expect(compared).toBeGreaterThan(900);
     expect(nonEmpty).toBeGreaterThan(500);
     expect(longest).toBeGreaterThan(3);
+    expect(longer, `${longer} of ${compared} paths over 1% longer`).toBeLessThanOrEqual(Math.floor(0.005 * compared));
+    expect(same, "nearly every path is the unwindowed one").toBeGreaterThan(0.95 * compared);
   });
 
   it("keeps findPath on a 96x96 serpentine of LOW rivers well under the same search without the window", () => {

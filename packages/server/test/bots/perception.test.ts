@@ -316,7 +316,8 @@ describe("both drivers perceive the same", () => {
     const last: { server: MinimapView | null; client: MinimapView | null } = { server: null, client: null };
     const cfg: ComposeConfig = { ...IN_PROCESS, map, features, attentionCentral: 0.65 };
     let percepts = 0, fx = 0;
-    for (let tick = 0; tick < 140; tick++) {
+    // Long enough for the walkers to reach "me" across the 136x136 map's spawns (140 ticks did on the 96x96 one).
+    for (let tick = 0; tick < 400; tick++) {
       if (w.state.phase === "active" && tick % 10 === 0) {
         // Walk about and pick fights, so there is motion, locks and fx.
         for (const id of ["b", "c", "d"]) {

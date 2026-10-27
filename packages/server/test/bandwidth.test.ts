@@ -60,14 +60,15 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeGreaterThan(typical().totalKBps);
   });
 
-  it("idle mobs cost nothing: the map's ~80 resting mobs add under 0.1 KB/s of patches to the players alone", () => {
-    // Both runs: the coliseum endgame, 8 players sealed in fighting each other, so no mob can be hit and woken.
+  it("idle mobs cost nothing: the map's ~160 resting mobs add under 0.1 KB/s per 80 mobs of patches to the players alone", () => {
+    // Both runs: the coliseum endgame, 8 players sealed in fighting each other, so no mob can be hit and woken. The zone shapes'
+    // maps (136x136, 40 camps) hold about 160 mobs, twice the R2 maps' 80: the bound scales with them (0.145 KB/s measured for 166).
     const alone = run("alone", { mobs: 0, camps: 0 });
     const withMobs = run("idle", { camps: 0 });
-    expect(withMobs.mobs).toBeGreaterThanOrEqual(72);
+    expect(withMobs.mobs).toBeGreaterThanOrEqual(140);
     expect(withMobs.avgAwake).toBe(0);
     expect(alone.patchKBps).toBeGreaterThan(1);
-    expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan(0.1);
+    expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan((0.1 * withMobs.mobs) / 80);
   });
 
   // 7 fill bots (BotManager, in a headless room: the Room's tick order) and one driven client at a camp (docs/BOTS.md 9.2).

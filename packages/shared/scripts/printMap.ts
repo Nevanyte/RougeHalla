@@ -1,9 +1,9 @@
 // ASCII dump of generateMap(seed[, attempt]): `npx tsx packages/shared/scripts/printMap.ts 1234 [attempt]`
-// Zones, territories, camps, chests, crates and the spawn pool.
-import { MAX_SIGHT_CORRIDOR, TILE } from "../src/constants";
-import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, regionAtTile, withGates, worldToTile } from "../src/map";
+// Zones, territories, camps, chests, crates, landmarks, features and the spawn pool.
+import { TILE } from "../src/constants";
+import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, regionAtTile, worldToTile } from "../src/map";
 import type { RegionId } from "../src/map";
-import { generateMap, longestLane, mapHash } from "../src/mapgen";
+import { generateMap, mapHash } from "../src/mapgen";
 import { TERRAIN_CREVASSE, TERRAIN_FENCE, TERRAIN_LAVA } from "../src/terrain";
 
 const seed = Number(process.argv[2] ?? 1);
@@ -14,7 +14,7 @@ const FLOOR_CH: Record<RegionId, string> = { none: "?", fire: "f", sentenced: "s
 // A LOW tile is drawn by its terrain kind; a kindless one (a hand-built barrier) is "L".
 const LOW_CH: Record<number, string> = { [TERRAIN_LAVA]: "~", [TERRAIN_FENCE]: "|", [TERRAIN_CREVASSE]: ":" };
 const gateTiles = new Set(map.coliseum.gates.flatMap((g) => g.tiles.map((t) => t.y * W + t.x)));
-const inRuin = (x: number, y: number) => map.buildings.some((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
+const inLandmark = (x: number, y: number) => map.buildings.some((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
 
 const grid: string[][] = [];
 for (let y = 0; y < map.h; y++) {
@@ -23,7 +23,7 @@ for (let y = 0; y < map.h; y++) {
     const i = y * W + x, t = map.tiles[i], region = regionAtTile(map, x, y);
     let ch: string;
     if (gateTiles.has(i)) ch = "=";
-    else if (t === TILE_WALL) ch = region === "none" || region === "coliseum" || inRuin(x, y) ? "#" : "o";
+    else if (t === TILE_WALL) ch = region === "none" || region === "coliseum" || inLandmark(x, y) ? "#" : "o";
     else if (t === TILE_LOW) ch = LOW_CH[map.terrain[i]] ?? "L";
     else {
       ch = FLOOR_CH[region];
@@ -55,16 +55,16 @@ for (let y = 0; y < map.h; y++) {
     if (region === "none" || region === "coliseum") continue;
     if (t === TILE_LOW) low++;
     if (t !== TILE_WALL) open++;
-    else if (!inRuin(x, y)) rocks++;
+    else if (!inLandmark(x, y)) rocks++;
   }
 }
 console.log(
   `seed ${seed}, attempt ${map.attempt}, ${W}x${map.h}, mapHash ${mapHash(map)}: ${map.camps.length} camps, ${map.spawnPool.length} spawns in the pool ` +
-  `(${new Set(map.spawnPool.map((s) => s.zone)).size} zones), ${map.buildings.length} ruins, ${map.crateSpots.length} crates, ${map.groundSpots.length} ground spots, ` +
-  `${rocks} rock tiles (${((100 * rocks) / (rocks + open)).toFixed(0)}% of the zones), ${low} low tiles; longest lattice lane ${longestLane(map).toFixed(0)} u ` +
-  `(${longestLane(withGates(map)).toFixed(0)} u gates closed; cap ${MAX_SIGHT_CORRIDOR})`,
+  `(${new Set(map.spawnPool.map((s) => s.zone)).size} zones), ${map.buildings.length} landmarks, ${map.crateSpots.length} crates, ${map.groundSpots.length} ground spots, ` +
+  `${rocks} zone wall tiles outside landmarks (${((100 * rocks) / (rocks + open)).toFixed(0)}% of the zones), ${low} low tiles; ${map.features.length} features ` +
+  `(${[...new Set(map.features.map((f) => f.kind))].map((k) => `${k} ${map.features.filter((f) => f.kind === k).length}`).join(", ")})`,
 );
-console.log("legend: f s p i h zone floor (UPPER: on a territory edge)  o rock  # wall/ruin/border  ~ lava  | fence  : crevasse  L other low ground  = gate  . coliseum floor  T inner spawn");
+console.log("legend: f s p i h zone floor (UPPER: on a territory edge)  o zone wall  # wall/landmark/border  ~ lava  | fence  : crevasse  L other low ground  = gate  . coliseum floor  T inner spawn");
 console.log("        M camp (its chest tile)  E elite camp  m mob spot  C crate  g ground spot  S spawn pool member");
 for (const f of REGION_FACTIONS) {
   const r = map.regions.find((g) => g.id === f)!, code = REGION_FACTIONS.indexOf(f) + 1;

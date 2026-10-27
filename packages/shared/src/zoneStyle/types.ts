@@ -148,7 +148,7 @@ export interface BaseCtx {
   readonly hard: Uint8Array;
   /**
    * Per tile: 0 = free; nonzero = no blocker. 1 (and every `hard` tile) takes no hazard but LIGHT or nothing; 2 is a margin that
-   * takes any floor hazard (a ruin's ring, a ridge pass).
+   * takes any floor hazard (a landmark's ring, a ridge pass).
    */
   readonly noBlock: Uint8Array;
   readonly tiles: Readonly<Uint8Array>;
@@ -240,7 +240,7 @@ export interface ZoneStyleState {
   readonly protect: Uint8Array;
   /**
    * Tiles that take no blocker without being protected outright: 1 = the band past the ring road (LIGHT may stand there, other
-   * hazards may not), 2 = a margin that takes any floor hazard (a ruin's ring, a ridge pass). Defaults to nothing.
+   * hazards may not), 2 = a margin that takes any floor hazard (a landmark's ring, a ridge pass). Defaults to nothing.
    */
   readonly noBlock?: Uint8Array;
   /** Tiles that take no prop (spawn 3x3, chests, camp spots, gate lanes, ground spots). Defaults to `protect`. */

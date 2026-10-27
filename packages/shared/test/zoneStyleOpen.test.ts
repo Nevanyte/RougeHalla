@@ -366,9 +366,11 @@ function openZoneHash(r: Run, faction: RegionFaction): number {
 // 8 pairs, every zone at least once, on the synthetic fixture of the seed (openFixture's geometry is part of the input: changing the
 // fixture moves every pin). After a deliberate change to a styler, read the new values off the failing assertion, paste them here
 // and bump the styler's `version`.
+// Provisional (zone-shapes phase A: the old stylers under the new guard caps, 13% at 1.0 per wall, no wall-run or wall-detour cap);
+// WP7 re-pins after the new stylers land.
 const OPEN_PINNED: Array<[number, RegionFaction, number]> = [
-  [1, "fire", 4096451231], [2, "fire", 779071877], [3, "sentenced", 1689526337], [4, "sentenced", 3417527168],
-  [5, "plague", 2362090306], [6, "plague", 3152801347], [7, "frost", 1860200574], [8, "holy", 1135868384],
+  [1, "fire", 4096451231], [2, "fire", 568631572], [3, "sentenced", 1689526337], [4, "sentenced", 3417527168],
+  [5, "plague", 614918037], [6, "plague", 2647845391], [7, "frost", 1860200574], [8, "holy", 1135868384],
 ];
 
 describe("the stylers on the open fixture, beyond the dev adapter", () => {

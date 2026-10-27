@@ -1,9 +1,11 @@
-// ASCII dump of one zone of a generated map: `npx tsx packages/shared/scripts/printZone.ts <seed> [zone] [--plain] [--props]`
+// ASCII dump of one zone of a generated map: `npx tsx packages/shared/scripts/printZone.ts <seed> [zone] [--plain] [--props] [--features]`
 // zone is a faction id (fire sentenced plague frost holy), a zone name (scorch gallows warren rime sanctum) or the faction's
 // code 1..5 (REGION_FACTIONS order); omitted = all five. --plain builds the same seed without the zone stylers (another
-// map: the generator's later stages see other ground); --props marks the decor.
+// map: the generator's later stages see other ground); --props marks the decor; --features draws every tile a feature owns as
+// its kind's letter (map.featureGrid) instead of its terrain.
 import { generateMap } from "../src/mapgen";
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, worldToTile } from "../src/map";
+import type { FeatureKind } from "../src/map";
 import {
   TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT,
 } from "../src/terrain";
@@ -24,10 +26,18 @@ for (const s of map.spawnPool) mark.set(worldToTile(s.y) * w + worldToTile(s.x),
 for (const c of map.crateSpots) mark.set(worldToTile(c.y) * w + worldToTile(c.x), "C");
 for (const c of map.camps) mark.set(worldToTile(c.chest.y) * w + worldToTile(c.chest.x), c.eliteSpot >= 0 ? "E" : "M");
 
+/** One letter per feature kind (--features). */
+const FEATURE_GLYPH: Record<FeatureKind, string> = {
+  landmark: "K", crater: "O", lavaRiver: "R", fenceRow: "F", gallows: "G", barrow: "B", mere: "Q", headland: "H", spire: "^",
+  causeway: "=", hall: "X", infill: "x",
+};
+const showFeatures = flags.has("--features");
+
 function glyph(i: number): string {
   const t = map.tiles[i], k = map.terrain[i];
   if (mark.has(i)) return mark.get(i)!;
   if (propAt.has(i)) return "*";
+  if (showFeatures && map.featureGrid[i] !== 0) return FEATURE_GLYPH[map.features[map.featureGrid[i] - 1].kind];
   if (t === TILE_WALL) return k !== 0 ? "P" : "#";
   if (t === TILE_LOW) return k === TERRAIN_LAVA ? "~" : k === TERRAIN_FENCE ? "|" : k === TERRAIN_CREVASSE ? ":" : "?";
   if (k === TERRAIN_EMBER) return "e";
@@ -57,5 +67,8 @@ for (const code of which) {
   }
   const pct = (n: number): string => `${n} (${((100 * n) / painted).toFixed(1)}%)`;
   console.log(`painted ${painted}  floor ${floor}  walls ${pct(walls)} (pillars in a LOW feature ${pillars})  low ${pct(low)}  hazard ${pct(hazard)}  props ${map.props.filter((p) => map.regionGrid[worldToTile(p.y) * w + worldToTile(p.x)] === code).length}`);
+  const feats = map.features.filter((f) => f.zone === faction);
+  console.log(`features ${feats.length}: ${feats.map((f) => `${f.kind}${f.variant ? `/${f.variant}` : ""} ${f.tiles}t [${f.jobs.join(",")}] p=${JSON.stringify(f.p)}`).join("; ")}`);
 }
-console.log("legend: # wall or rock  P pillar in a LOW feature  ~ lava  | fence  : crevasse  e ember  b bog  i ice  L light  . floor  * prop (--props)  S spawn pool member  C crate  M camp chest  E elite camp chest");
+console.log("legend: # wall  P pillar in a LOW feature  ~ lava  | fence  : crevasse  e ember  b bog  i ice  L light  . floor  * prop (--props)  S spawn pool member  C crate  M camp chest  E elite camp chest");
+if (showFeatures) console.log(`features: ${Object.entries(FEATURE_GLYPH).map(([k, g]) => `${g} ${k}`).join("  ")}`);

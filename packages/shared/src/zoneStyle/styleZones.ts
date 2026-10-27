@@ -165,7 +165,7 @@ export function styleLandmarks(
 }
 
 /**
- * Drops the props whose tile no longer matches their kind (a cover rock fell on a floor prop, a floor kind was cleared). No
+ * Drops the props whose tile no longer matches their kind (a net walled a floor prop's tile, a floor kind was cleared). No
  * random draw; run it last, on the final tiles. Returns how many were dropped.
  */
 export function filterProps(props: ZoneStyleState["props"], tiles: Uint8Array, w: number, propKinds: readonly PropKindSpec[] = ZONE_PROP_KINDS): number {

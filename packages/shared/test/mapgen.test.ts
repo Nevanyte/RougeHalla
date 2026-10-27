@@ -9,7 +9,7 @@ import {
   CAMP_GAP, CAMPS_PER_ZONE, ELITES_PER_ZONE, ELITE_MIN_SEP, MAPGEN_FAILS, MAX_ATTEMPTS, RING_CONTACT_MIN, SHAPE_GATES, SLIVER_MAX, TERRITORY_RADIUS_MAX,
   ZONE_STYLE_HOOK, styleRng, certifiedMap, generateMap, mapHash, tryAttempt,
 } from "../src/mapgen";
-import type { ZoneStyleHook } from "../src/mapgen";
+import type { MapgenOptions, ZoneStyleHook } from "../src/mapgen";
 import { raycast } from "../src/geometry";
 import { findPath } from "../src/pathfind";
 import { PROP_KINDS, TERRAINS, TERRAIN_LAVA } from "../src/terrain";
@@ -337,8 +337,9 @@ describe("styler hook", () => {
     let withProps = 0;
     withPropKind(() => {
       for (const s of seeds(4)) {
-        const on = generateMap(s, undefined, { styleZones: hook });
-        const off = generateMap(s, on.attempt, { styleZones: hook, decor: false });
+        // The demo hook writes tiles without features: it runs with the shape gates off (contract 6.3).
+        const on = generateMap(s, undefined, { styleZones: hook, shapeGates: false });
+        const off = generateMap(s, on.attempt, { styleZones: hook, decor: false, shapeGates: false });
         // Not vacuous: the decor stream really put props on the decorated map.
         if (on.props.length > 0) withProps++;
         expect(on.props.length, `seed ${s}`).toBeGreaterThan(0);
@@ -377,7 +378,7 @@ describe("styler hook", () => {
 
   it("a prop changes nothing the hash reads: add, move or drop the props of a map that has some", () => {
     withPropKind(() => {
-      const base = generateMap(1, undefined, { styleZones: demoStyleHook });
+      const base = generateMap(1, undefined, { styleZones: demoStyleHook, shapeGates: false });
       expect(base.props.length).toBeGreaterThan(0);
       const h = mapHash(base);
       const more = structuredClone(base);
@@ -403,6 +404,26 @@ describe("styler hook", () => {
       expect(() => generateMap(2, 0, { styleZones: hook }), what).toThrow(/does not certify/);
       expect(MAPGEN_FAILS["A:styleBreach"], what).toBe(before + 2);
     }
+  });
+
+  it("gates the shapes when asked: the phase A stylers write tiles no feature owns, so SHAPE_GATES on fails their attempts as breaches", () => {
+    const before = MAPGEN_FAILS["A:styleBreach"] ?? 0;
+    expect(tryAttempt(2, 0, { shapeGates: true })).toBeNull();
+    expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
+    // With no style hook the zones hold only the landmarks and the nets' infill: nothing for the ownership rule to refuse.
+    const plain = tryAttempt(2, 0, { styleZones: null, shapeGates: true });
+    if (plain) for (let i = 0; i < plain.tiles.length; i++) if (plain.regionGrid[i] >= 1 && plain.regionGrid[i] <= 5 && plain.tiles[i] !== TILE_FLOOR) expect(plain.featureGrid[i]).not.toBe(0);
+  });
+
+  it("checks the landmark stage's contract: a wall no landmark of the zone owns fails the attempt (A:styleBreach), and the log is in the map", () => {
+    const before = MAPGEN_FAILS["A:styleBreach"] ?? 0;
+    const rogue = (st: Parameters<NonNullable<MapgenOptions["landmarks"]>>[0]): void => {
+      st.tiles[st.zone.findIndex((z, i) => z > 0 && st.protect[i] === 0 && st.tiles[i] === TILE_FLOOR)] = TILE_WALL;
+    };
+    expect(tryAttempt(2, 0, { landmarks: rogue })).toBeNull();
+    expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
+    // A landmark hook that records nothing and writes nothing changes nothing (phase A: no styler has a landmark yet).
+    expect(mapHash(tryAttempt(2, 0, { landmarks: () => {} })!)).toBe(mapHash(tryAttempt(2, 0)!));
   });
 
   it("protects every spawn-pool 3x3 from the stylers and leaves no floor hazard in a member's 5x5", () => {

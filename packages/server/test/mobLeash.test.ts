@@ -248,7 +248,7 @@ describe("the territory leash", () => {
 describe("the territory leash on generated maps", () => {
   it.each([1, 2])("seed %i: a mob of every camp, woken onto a far player, never leaves its camp's territory by more than a step and gets home", (seed) => {
     const map = generateMap(seed);
-    expect(map.camps).toHaveLength(20);
+    expect(map.camps).toHaveLength(40);
     const config: SimConfig = {
       minPlayers: 1, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 60,
     };
@@ -259,8 +259,11 @@ describe("the territory leash on generated maps", () => {
       const p = world.state.players.get("p0")!;
       p.weapon0 = "";
       p.hp = p.maxHp = 1e9;
-      // The player stands on the nearest other camp's centre: a reachable floor tile outside this territory.
-      const other = map.camps.filter((_, i) => i !== ci).reduce((a, b) => (dist(a, camp) < dist(b, camp) ? a : b));
+      // The player stands on the nearest other camp's centre at least 21 tiles away: a reachable floor tile outside this territory,
+      // beyond what a bow mob standing at its leash (12 tiles) can shoot (7.5 tiles). With eight camps a zone (136x136) the nearest
+      // camp can be 12 tiles away, close enough for a ranged mob to keep hitting from inside its territory and never give up.
+      const far = map.camps.filter((c, i) => i !== ci && dist(c, camp) >= 21 * 32);
+      const other = far.reduce((a, b) => (dist(a, camp) < dist(b, camp) ? a : b));
       p.x = other.x;
       p.y = other.y;
       world.players.get("p0")!.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
