@@ -653,6 +653,30 @@ describe("features (placeFeature, contract 3.1)", () => {
     expect(p!.written).toHaveLength(3);
   });
 
+  it("trim: a tile written twice (LOW, then wall) inside a piece that is given back ends as it began, whatever the feature does with the rest", () => {
+    const r = rig(room);
+    const lone = r.at(6, 5);
+    const before = { tile: r.tiles[lone], kind: r.terrain[lone], wrote: r.rt.init.wrote[lone] };
+    // a row of 8 stands (a piece of 8); far from it one tile is listed twice, a fence and then a wall on it: a piece of 1, given
+    // back. The give-back must undo the newest write first, or the fence write is restored last and the tile stays LOW.
+    const blocks: Array<[number, "wall" | "fence"]> = [...line(r, 2, 2, 9), [lone, "fence"], [lone, "wall"]];
+    const p = r.shape.placeFeature({ kind: "fenceRow", jobs: ["lane"], anchor: [2, 2], blocks, mode: "trim" });
+    expect(p).not.toBeNull(); // 8 of 10 blocks stand: 800 permille >= 600
+    expect(p!.written).toEqual(line(r, 2, 2, 9).map(([i]) => i));
+    expect({ tile: r.tiles[lone], kind: r.terrain[lone], wrote: r.rt.init.wrote[lone] }).toEqual(before);
+    expect(r.tiles[lone]).toBe(TILE_FLOOR);
+    expect([r.rt.walls, r.rt.lows]).toEqual([8, 0]);
+    expect(r.rt.init.featureOwner[lone]).toBe(0);
+    // the counters agree with the grid: every wall and LOW tile of the zone is accounted for
+    let walls = 0, lows = 0;
+    for (let i = 0; i < r.tiles.length; i++) {
+      if (!r.rt.init.mask[i]) continue;
+      if (r.tiles[i] === TILE_WALL) walls++;
+      else if (r.tiles[i] === TILE_LOW) lows++;
+    }
+    expect([walls, lows]).toEqual([r.rt.walls, r.rt.lows]);
+  });
+
   it("groups: each group stands whole or not at all; the feature needs minGroups of them", () => {
     const r = rig(room);
     r.shape.reserve(r.at(10, 5));

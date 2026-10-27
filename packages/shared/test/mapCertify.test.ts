@@ -11,10 +11,11 @@ import { SHAPE_GATES, generateMap, mapHash } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
 import { TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA } from "../src/terrain";
 import {
-  BOW_TILES, CERT_FEATURE_JOBS, CERT_FEATURE_KINDS, FEATURE_CHECKS, LANDMARK_ZONE, PAIR_DRAWS, PAIR_TARGET, RAY_DIRECTIONS, ZONE_MEASURE_VALUES,
-  ZONE_WINDOWS, campGraph, campGraphNodes, certifyMap, classifyPair, cyclomaticNumber, decorProblems, engagementPairs, featureProblems, gabriel, judgeWindow, lcgNext,
-  pieceProblems, pieceStats, pieces, rayLengthsAt, rayProfile, strictZoneCodes, validElitePairs, walkSegment, zoneMeasures,
+  BOW_TILES, CERT_FEATURE_JOBS, CERT_FEATURE_KINDS, FEATURE_CHECKS, FENCE_CHECKS, FENCE_DETOUR_TILES, FENCE_RUN_MAX, LANDMARK_ZONE, PAIR_DRAWS, PAIR_TARGET, RAY_DIRECTIONS,
+  ZONE_MEASURE_VALUES, ZONE_WINDOWS, campGraph, campGraphNodes, certifyMap, classifyPair, cyclomaticNumber, decorProblems, engagementPairs, featureProblems, fenceProblems,
+  fenceReport, gabriel, judgeWindow, lcgNext, pieceProblems, pieceStats, pieces, rayLengthsAt, rayProfile, strictZoneCodes, validElitePairs, walkSegment, zoneMeasures,
 } from "./mapCertify";
+import type { CertifyOptions } from "./mapCertify";
 
 // ---- Hand-made grids ---------------------------------------------------------------------------------------------------------
 
@@ -68,6 +69,8 @@ describe("the tables the certifier re-declares", () => {
     expect(ZONE_WINDOWS.fire["pairs wall %"].lo).toBe(18);
     expect(ZONE_WINDOWS.sentenced["rays>=7.5t %"]).toEqual({ lo: 72, hi: 88 });
     expect(ZONE_WINDOWS.sentenced["pairs wall %"].hi).toBe(8);
+    expect(ZONE_WINDOWS.sentenced["fence detour"]).toEqual({ lo: 0, hi: 10, share: 1 });
+    expect(ZONE_WINDOWS.sentenced["fence run"]).toEqual({ lo: 0, hi: 9, share: 1 });
     expect(ZONE_WINDOWS.plague["rays>=7.5t %"]).toEqual({ lo: 60, hi: 74 });
     expect(ZONE_WINDOWS.plague.loops.lo).toBe(4.5); // the contract says 6, which a 9-node Gabriel graph (13 edges, E - V + 1 = 5) cannot reach
     expect(ZONE_WINDOWS.frost["rays>=7.5t %"]).toEqual({ lo: 62, hi: 78 });
@@ -354,6 +357,128 @@ describe("pieces", () => {
     expect(pieceProblems(bad, [2])).toEqual([]);
     expect(pieceProblems(good, [1])).toEqual([]);
     expect(pieceProblems(bad, [])).toEqual([]);
+  });
+});
+
+// ---- The Gallows' fence rules (contract 4.2) -------------------------------------------------------------------------------------
+
+describe("fence rows: the detour and the gate rule, in the certifier's own search", () => {
+  /** A 26x8 room of zone 1 whose row y=3 is `row` (24 characters, x = 1..24); `under` replaces the same columns of row y=4, `over` those of row y=2. */
+  const room = (row: string, under = ".".repeat(24), over = ".".repeat(24)): GameMap => {
+    expect(row.length).toBe(24);
+    const edge = "B".repeat(26), line = (r: string): string => `B${r}B`;
+    return gridMap([edge, line(".".repeat(24)), line(over), line(row), line(under), line(".".repeat(24)), line(".".repeat(24)), edge]);
+  };
+  // gates 3 wide every 12 at the most: fence 1..4, gate 5..7, fence 8..16 (a run of 9), gate 17..19, fence 20..24
+  const GOOD = "~~~~" + "..." + "~".repeat(9) + "..." + "~".repeat(5);
+
+  it("accepts the rule at its limits: a crosser detours exactly 10 steps at the worst tile, and the longest run is the 9 of a 12-tile period", () => {
+    const r = fenceReport(room(GOOD), 1);
+    expect(r).toEqual({ tiles: 18, pairs: 36, worstExtra: FENCE_DETOUR_TILES, runMax: FENCE_RUN_MAX, problems: [] });
+    expect(fenceProblems(room(GOOD), [1])).toEqual([]);
+  });
+
+  it("measures the extra steps as twice the walk to the nearest gate tile", () => {
+    // fence 1..9, gate 10..12, fence 13..24: x = 1 is 9 tiles from the gate (18 extra steps), x = 24 is 12 tiles from it (24)
+    const far = fenceReport(room("~".repeat(9) + "..." + "~".repeat(12)), 1);
+    expect(far.worstExtra).toBe(2 * (24 - 12));
+    expect(far.problems[0]).toContain("fence 1,3");
+  });
+
+  it("flags a gate missing: a run of 17 and tiles 17 steps from a gate", () => {
+    const r = fenceReport(room("~~~~" + "..." + "~".repeat(17)), 1);
+    expect(r.runMax).toBe(17);
+    const lines = fenceProblems(room("~~~~" + "..." + "~".repeat(17)), [1]);
+    expect(lines.some((l) => l.startsWith(FENCE_CHECKS.run))).toBe(true);
+    expect(lines.some((l) => l.startsWith(FENCE_CHECKS.detour))).toBe(true);
+  });
+
+  it("flags a run of 10 on its own: gates 13 apart still keep every tile within 5 of a gate, so only the gate rule is broken", () => {
+    const row = "~~~~" + "..." + "~".repeat(10) + "..." + "~~~~";
+    const r = fenceReport(room(row), 1);
+    expect(r.runMax).toBe(10);
+    expect(r.worstExtra).toBe(FENCE_DETOUR_TILES);
+    const lines = fenceProblems(room(row), [1]);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].startsWith(FENCE_CHECKS.run)).toBe(true);
+  });
+
+  it("flags a detour on its own: a gate that opens onto a wall is no crossing, though no run is over 9", () => {
+    const under = "...." + "###" + ".".repeat(17);
+    const r = fenceReport(room(GOOD, under), 1);
+    expect(r.runMax).toBe(FENCE_RUN_MAX);
+    expect(r.worstExtra).toBeGreaterThan(FENCE_DETOUR_TILES);
+    const lines = fenceProblems(room(GOOD, under), [1]);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.every((l) => l.startsWith(FENCE_CHECKS.detour))).toBe(true);
+  });
+
+  it("walks the zone's own floor only: a gate of another zone's floor is no crossing", () => {
+    const row = "~~~~" + "ooo" + "~".repeat(9) + "..." + "~".repeat(5);
+    expect(fenceReport(room(row), 1).worstExtra).toBeGreaterThan(FENCE_DETOUR_TILES);
+    expect(fenceReport(room(GOOD), 1).worstExtra).toBe(FENCE_DETOUR_TILES);
+  });
+
+  it("walks only pairs with floor of the zone all the way across: a wall beside the fence leaves no pair there", () => {
+    const over = "####" + ".".repeat(20);
+    const r = fenceReport(room(GOOD, ".".repeat(24), over), 1);
+    expect(r.pairs).toBe(36 - 8); // the four tiles x = 1..4 lose both their pairs
+    expect(r.problems).toEqual([]);
+  });
+
+  it("counts a zone with no fence as clean, and a zone's fence only in that zone", () => {
+    expect(fenceReport(room(".".repeat(24)), 1)).toEqual({ tiles: 0, pairs: 0, worstExtra: 0, runMax: 0, problems: [] });
+    expect(fenceReport(room(GOOD), 2).tiles).toBe(0);
+    expect(fenceProblems(room("~".repeat(24)), [2])).toEqual([]);
+    expect(fenceProblems(room("~".repeat(24)), [1]).length).toBeGreaterThan(0);
+  });
+
+  describe("on the game's own maps", () => {
+    const m = generateMap(4);
+    const zi = REGION_FACTIONS.indexOf("sentenced");
+    const strictFence = (map: GameMap, strict: NonNullable<CertifyOptions["strict"]>): string[] =>
+      certifyMap(map, { zone: true, measures: false, strict }).failures.filter((f) => f.startsWith("fence:"));
+
+    it("hold on the Gallows: fence rows exist, the detour is within 10 and no run is over 9; no other zone has fence", () => {
+      const r = fenceReport(m, zi + 1);
+      expect(r.tiles).toBeGreaterThan(100);
+      expect(r.pairs).toBeGreaterThan(100);
+      expect(r.worstExtra).toBeLessThanOrEqual(FENCE_DETOUR_TILES);
+      expect(r.runMax).toBeLessThanOrEqual(FENCE_RUN_MAX);
+      expect(r.problems).toEqual([]);
+      REGION_FACTIONS.forEach((f, z) => { if (f !== "sentenced") expect(fenceReport(m, z + 1).tiles, f).toBe(0); });
+      expect(zoneMeasures(m, zi)).toMatchObject({ fenceDetour: r.worstExtra, fenceRun: r.runMax });
+      expect(strictFence(m, true)).toEqual([]);
+    });
+
+    it("fail when a gate is fenced shut, in the strict zone only", () => {
+      const broken = structuredClone(m);
+      const code = zi + 1, W = broken.w;
+      const fenceAt = (i: number): boolean => broken.regionGrid[i] === code && broken.tiles[i] === TILE_LOW && broken.terrain[i] === TERRAIN_FENCE;
+      const floorAt = (i: number): boolean => broken.regionGrid[i] === code && broken.tiles[i] === TILE_FLOOR && broken.terrain[i] === 0;
+      const runBefore = (i: number, d: number): number => { let n = 0; while (fenceAt(i - (n + 1) * d)) n++; return n; };
+      // a gate: three floor tiles in a line with fence at both ends; close the one whose neighbouring runs are longest
+      let best: { tiles: number[]; run: number } | null = null;
+      for (let i = 0; i < broken.w * broken.h; i++) {
+        for (const d of [1, W]) {
+          if (!fenceAt(i) || !floorAt(i + d) || !floorAt(i + 2 * d) || !floorAt(i + 3 * d) || !fenceAt(i + 4 * d)) continue;
+          let right = 0;
+          while (fenceAt(i + (4 + right) * d)) right++;
+          const run = runBefore(i, d) + 1 + 3 + right;
+          if (!best || run > best.run) best = { tiles: [i + d, i + 2 * d, i + 3 * d], run };
+        }
+      }
+      expect(best, "a three-tile gate between fence").not.toBeNull();
+      for (const t of best!.tiles) { broken.tiles[t] = TILE_LOW; broken.terrain[t] = TERRAIN_FENCE; }
+      const lines = strictFence(broken, ["sentenced"]);
+      expect(lines.some((l) => l.startsWith(FENCE_CHECKS.detour))).toBe(true);
+      expect(lines.some((l) => l.startsWith(FENCE_CHECKS.run))).toBe(best!.run > FENCE_RUN_MAX);
+      expect(fenceReport(broken, code).runMax).toBeGreaterThanOrEqual(best!.run);
+      // the strict group is the gate: off, or on for other zones only, the fence is not looked at
+      expect(strictFence(broken, false)).toEqual([]);
+      expect(strictFence(broken, ["fire", "holy"])).toEqual([]);
+      expect(strictFence(broken, true).length).toBeGreaterThan(0);
+    });
   });
 });
 

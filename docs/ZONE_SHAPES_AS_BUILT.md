@@ -26,7 +26,9 @@ cut sight and shaped no route. The rulings that followed:
    (44 MB per process), `longestLane` and the lane certifier are deleted, and open ground and long sightlines are allowed. The kiting
    guarantee now rests on the windups and the short ranges alone (CLAUDE.md, Known TODOs, weapons); a wall is a design tool.
 2. **Every zone gets its own navigation feel, and every wall belongs to a named feature with a job.** A feature that has no job is not
-   built, a feature stands whole or not at all, and a leftover wall piece under 6 tiles is dropped (no single-tile rocks). The owner
+   built, a feature is a transaction that stands or is rolled back (landmarks, the gallows, headlands, spires, meres and causeways stand
+   whole or not at all; the Sanctum's hall is built pier by pier; craters, the lava river, fence rows and barrows are trimmed and stand
+   with at least 60% of their blocks: section 6), and a leftover wall piece under 6 tiles is dropped (no single-tile rocks). The owner
    picked one shape per zone from three proposals each:
 
    | Zone | Pick | In one line |
@@ -46,9 +48,13 @@ cut sight and shaped no route. The rulings that followed:
 5. **The map is about twice the area.** 136x136 tiles (`MAP_TILES_W`, `MAP_TILES_H`; `WORLD_W`, `WORLD_H` 4352 u; 2.007 times the area
    of 96x96), with the coliseum fixed at the centre. Eight camps per zone, exactly two of them elite: 40 camps a map. The owner wants a
    slower pace with mob farming as the main growth.
-6. **Defaults built for the owner's three open questions** (section 17 lists them as still open): two Rime meres of about 350 ice tiles
-   each, crates 4-6 and ground spots 30-45 per zone, and the patience timers and the teleport unchanged although the walks are longer
-   (spawn to coliseum is about 45-55 tiles, 9-10 s, against 35 tiles and 6.6 s at 96x96).
+6. **Defaults built for the owner's three open questions** (section 17 lists them as still open): two Rime meres, each grown to
+   `LAKE_GROW` 400 lake tiles and about 295 ice tiles once the lanes, headlands and spire have taken their share (590 a Rime), crates
+   4-6 per zone (20-30 a map) and ground spots 30-45 per MAP (one pick for the whole map, not one per zone), and the patience timers
+   and the teleport unchanged although the walks are longer. Spawn to the coliseum centre, the walk the gate certifies and the planning
+   ETA shows, measured over 30 seeds (808 starts): 57.0 / 62.7 / 67.4 tiles at p10 / p50 / p90, 10.7 / 11.8 / 12.7 s at base speed
+   (min 52.9 tiles, max 72.2). The same measure (`spawnWalks`) on the 96x96 maps of `main`: 44.7 / 50.2 / 53.9 tiles, 8.4 / 9.4 / 10.1 s.
+   An earlier version of this note gave 45-55 tiles and 9-10 s for the new maps, which is what the OLD maps measure.
 
 ## 2. What was deleted
 
@@ -82,11 +88,11 @@ attempt). One attempt, in `mapgen.ts` `buildMap` (the names in brackets are the 
 | 6 | `styler` | the style hook: each zone's shape, surface and props, on streams 0 to 2; hazards cleared from the pool members' 5x5s (T8) | `A:styleBreach` |
 | 7 | `nets` | lane floors, camp clearings, `enforceConnectivity` (walls it adds on zone tiles become each zone's `infill` feature), `clearBuried`, the region grid | `A:campCut`, `A:poolCut` |
 | 8 | `crates` | camp spots (3-5 each; an elite camp's sorted so spot 0 is nearest the centre), then 4-6 crates a zone (section 9) | `A:crates` |
-| 9 | `post` | territory repair, rezone guards, floor share 1.15, area spread, ring contact, slivers, zone floor one piece, territory radius 30 | `A:rezone*`, `A:floorShare`, `A:areaPost`, `A:ringPost`, `A:sliverPost`, `A:zoneFloorSplit`, `A:radiusPost` |
+| 9 | `post` | territory repair, rezone guards, floor share 1.15, area spread, ring contact, slivers, zone floor one piece, territory radius 30 | `A:rezone*`, `A:terrStray`, `A:zoneSplit`, `A:terrWalls` (the territory repair), `A:floorShare`, `A:areaPost`, `A:ringPost`, `A:sliverPost`, `A:zoneFloorSplit`, `A:radiusPost` |
 | 10 | `terrain` | `clearBuried`, `clearIceBesideSolid` (a net that should clear nothing; noted when it does), the prop filter | |
-| 11 | `records` | ground spots 30-45, the prop filter, then `records()`: camps in contract order, features renumbered by zone, `featureGrid`, `buildings` | `A:ground` |
-| 12 | `spawnGate` | the real-`findPath` fairness gate on the finished tiles (section 8) | `A:spawnWalk`, `A:spawnRatio` |
-| 13 | `gates` | `SHAPE_GATES` (every zone WALL or LOW tile owned, no zone wall piece under 6 tiles, at most 250 features), then `validateTerrain` T1-T11 | `A:unowned`, `A:wallPiece`, `A:features`, `A:terrain` |
+| 11 | `records` (first lap) | ground spots 30-45 for the whole map (`pickGroundSpots`, one call), the prop filter | `A:ground` |
+| 12 | `spawnGate`, then `records` (second lap) | the real-`findPath` fairness gate on the finished tiles (section 8); then the feature cap (`A:features`, at most 250, checked on every map whether or not the shape gates are on), then `records()`: camps in contract order, features renumbered by zone, `featureGrid`, `buildings`, and the gate's walks handed to the map | `A:spawnWalk`, `A:spawnRatio`, `A:features` |
+| 13 | `gates` | `SHAPE_GATES` (every zone WALL or LOW tile owned, no zone wall piece under 6 tiles), then `validateTerrain` T1-T11 | `A:unowned`, `A:wallPiece`, `A:terrain` |
 
 The main stream is drawn only at stages 1, 2, 5, 8 and 11, in that order (changing the order moves every map). Each zone's styler draws
 from streams of its own: `styleRng(seed, attempt, zone, stream)` = `mulberry32(hashSeed(...))`, `STYLE_STREAM` = `{ shape: 0, decor: 1,
@@ -167,6 +173,13 @@ back in reverse order with its counters. Three modes:
   (default `FEATURE_MIN_PIECE` 6, counting walls already on the map) gives those tiles back; the feature is kept only if at least
   `minSharePermille` (default 600) of its blocks stand;
 - `groups`: each group (a pier) is whole; the feature is kept if at least `minGroups` stand.
+
+Who uses which mode. `whole` (all or nothing): landmarks, the gallows, headlands, spires, meres and causeways. `groups`: the Sanctum's hall
+(each 3x3 pier whole, the hall kept with at least `HALL_MIN_PIERS` 4). `trim` (kept with at least 60% of its blocks: `minSharePermille`
+600, the craters' `RIM_KEEP_PERMILLE` is 600 too): the Scorch's crater rims and lava river, the Gallows' fence rows and the Warren's
+barrows. So "whole or not at all" is true of the landmarks and the small features and false of a trimmed one, which stands in part.
+The tiles a trim gives back are undone newest write first, like a rollback, so a tile written twice in one feature (a fence and then a
+wall on it) ends at its original value (`zoneStyleGuard.test.ts`).
 
 The guard (`canBlock`) refuses a tile unless it is FLOOR of the zone's own mask, not `hard` (protect), not reserved, not owned by
 a feature, at least `rimTiles` 3 from the zone edge and not on the grid's edge, not beside ICE, within the footprint budget, a fence
@@ -265,7 +278,11 @@ The pool is picked at stage 5, after the landmarks and before the stylers (a poo
   `SPAWN_WALK_RATIO_MAX` 1.2 and more than `POOL_MIN` remain, the extreme member whose removal leaves the smaller ratio is dropped (ties:
   the longer walk, then the higher tile). Under 24 members or 4 zones, or an unmet ratio, fails the attempt (`A:spawnRatio`). The kept
   walks are primed into the planning cache (`primeSpawnWalks`), so the server's map worker ships them with the map. The R3 deal reads
-  the same `spawnPool`; its tier rule (`PLAN_WALK_TOLERANCE` 8%) is unchanged.
+  the same `spawnPool`; its tier rule (`PLAN_WALK_TOLERANCE` 8%) is unchanged. `spawnGate` measures and `gateSpawnWalks` (exported,
+  pure) decides which members stay; `mapgen.test.ts` unit-tests it on a made-up pool (the ratio at 1.2 and not 1.1 or 1.5, a long and a
+  short extreme, both ends, the hazard cap at exactly 8, the floor of 24 members and of 4 zones), because no pinned seed exercises the
+  drop loop closely enough to notice a changed constant: before that test, changing 1.2 to 1.5 or skipping the loop altered none of the
+  200 pinned maps.
 - **The route guard keeps the pick true.** On open ground at 136x136 the ratio is 1.08-1.15, so the stylers have about 4% of headroom;
   every styler runs the route guard so its walls and hazards stay inside it.
 
@@ -415,8 +432,15 @@ and sealed with them closed; the clearings; zones (areas within 8, ring contact 
 findPath ratio <= 1.2 and hazard tiles <= 8 on every member's walk; crates 4-6 and ground spots 30-45; `validateTerrain` T1-T11; and, in
 strict mode (`zone && SHAPE_GATES`), ownership of every WALL, LOW and floor-hazard tile, no wall piece under 6 tiles, tile classes and
 terrain kinds that fit the feature kind, per-feature sizes and jobs, no feature on a camp clearing or a spawn pad, landmarks (one zone,
-doors at least 2 wide, interior at least 60% floor, 3 tiles from camp halos), whole gallows and piers. The certifier re-declares every
-constant it checks and imports nothing from the generator.
+doors at least 2 wide, interior at least 60% floor, 3 tiles from camp halos), whole gallows and piers, and the Gallows' fence rules
+(`fenceReport`, the certifier's own breadth-first search: every pair of zone floor tiles 1 to 3 steps either side of a fence tile walks
+within 2k + 10 steps, and no straight run of fence is longer than 9, the gate period 12 less the gate 3; held on all 1,200 seeds checked,
+at a worst extra of exactly 10 and a longest run of exactly 9, so there is no slack). The certifier re-declares every constant it checks.
+It does import a little from the generator side (`test/mapCertify.ts`): `SHAPE_GATES` (what strict=auto follows), `STYLE_STREAM` and
+`styleRng` (the demo hook), and from the sim `findPath`, `raycast` and `validateTerrain`. Sharing `findPath` and `raycast` is deliberate:
+they define the walk and the sight being measured. `validateTerrain` (T1-T10) is the generator's own terrain gate, and the certifier
+re-checks only part of it in its own code (ICE, kinds and homes). What stays independent: every other check is written in the
+certifier from the `GameMap` alone, and the ownership of a tile cannot be re-derived there (it cannot tell which feature should own it).
 
 **Report-only** (`stats.zones[z]`, judged against `ZONE_WINDOWS` and `SWEEP_THRESHOLDS`; a breach is investigated, never an automatic
 failure): the ray profile, engagement pairs, the camp graph (stretch of each camp-to-camp edge as findPath length over straight length, and
@@ -472,6 +496,11 @@ Generation (`mapBench`, per raw seed, every attempt until one certifies, Node 25
 | phase C1, 200 seeds | about 35 ms | | 1.005 | styler about 11 ms a map, landmarks about 2, spawn gate about 4; the plain generator about 27 ms |
 | 100 seeds at `4f8c2cb` while other agents ran | 44.4 ms | 88.9 ms | 1.010 | styler 14.0, zones 14.8, spawn gate 4.4, landmarks 2.8, spawns 3.4 ms a map |
 | 60 seeds at the zone-shapes merge | 38.7 ms | 80 ms | | styler stage 12.1 ms (target 10), landmark stage 2.5 ms (target 1; both report-only); the plain generator about 31 ms; over 200 seeds 1.005 attempts a seed |
+| 300 seeds at the final review, the server's path (`certifiedMap`, decor off), machine load about 5 | 32.6 ms | 64.0 ms (worst 80.3, seed 214) | 1.010 | the decor path's worst 79.7 ms; the client's single attempt: mean 32.3, worst 70.2; p50 30.9 |
+
+The numbers the rest of the docs quote are the last row: a certified map costs about 33 ms on average, 64 ms at p99 and 80 ms at worst (300 seeds, the server's path). That is also the
+cost of the main-thread fallback when the map pool is empty (`mapPool.ts` logs it; the 45 / 120 in its comments are the targets, not
+measurements, and the older 35 ms and 75-120 ms p99 figures were estimates).
 
 R2's targets were a mean of 40 and a p99 of 120 at 96x96 with the cover (the cover was 54% of its time). Per-zone styler time at phase C1
 (loaded machine): Scorch 4.3 ms, Gallows 3.2, Rime 2.9, Sanctum 1.6, Warren 1.4; the contract allowed 2.0 ms a zone (2.5 for the Rime).
@@ -488,7 +517,7 @@ at 32, 1.93% at 48 and 0.50% at 64. The generator's gate depends on it, so chang
 
 - **Bake budget.** The floor alone is 64.9 MB at scale 1 on a 136x136 map (81 chunks of 17x17 tiles, 4352 x 3482 px and the overlap)
   against the old 48 MB budget; `TEXTURE_BUDGET_BYTES` is now 64 MB and `FLOOR_SCALES` is `[1, 0.75, 0.625, 0.5]`, so a map bakes its floors
-  at 0.75 (36.7 MB) and the wall pages (10-15 MB) fit with room to spare. Measured at the zone-shapes merge (Chrome, 1x CPU): 81 floor
+  at 0.75 (36.7 MB) and the wall pages (15.5-17.9 MB, 52-55 MB of colour in all) fit with room to spare. Measured at the zone-shapes merge (Chrome, 1x CPU): 81 floor
   chunks at scale 0.75, 54.7 MB of the 64 MB budget, 666 strips, a 95 ms bake on the worker path, 980 scene children with 153 mobs, join
   to scene 354 ms, a frame cost of p50 1.9 / p99 4.7 ms standing, a clean console and a matching `mapHash` (earlier phase B runs: 86-104 ms
   and 770-980 children; R2's bake had 612 images).
@@ -554,12 +583,12 @@ section 10.2) and `map`/`starts` options; every existing report is unchanged byt
   zone's 3 normal types shuffled and gives each of the camps past the third a random one of them, and `campMobs` puts the zone's one elite
   *type* at every camp with an `eliteSpot`, so a zone's 8 camps hold every normal type at least once and its 2 elite camps both hold
   the zone's elite type. More mob types per zone are the mob session's change.
-- **Stale statements and comments found at `4f8c2cb`** (not edited here): `server/src/index.ts:272` ("the main thread's lane tables"),
-  `server/src/sim/mobLife.ts:7` and `shared/src/mobs.ts:63` ("the zone's one elite" / "exactly one elite per zone": they mean one elite
-  type), `server/src/bots/brain/strategy.ts:108` and `services.ts:3` (96x96 figures), `shared/src/zoneStyle/scorch.ts:15` (says
-  `worstStretch()` is not called; `placeCraters` calls it), and in the client `render/MapView.ts:65`, `zoneArt/palette.ts:151` and
-  `zoneArt/bake.ts:110, 396, 449` (the cover pass and "ruins", which are landmark boxes now). `docs/R1_GENERATOR_NOTE.md`, `docs/BOTS.md`
-  and `docs/BOTS_TUNING.md` still describe the 96x96 maps in their measurements, labelled as such.
+- **Stale code comments** found at `4f8c2cb` (the lane tables in `server/src/index.ts`, "one elite per zone" in `mobLife.ts` and
+  `mobs.ts`, the 96x96 figures in the bots' `strategy.ts` and `services.ts`, `worstStretch()` in `scorch.ts`, the cover pass and "ruins"
+  in the client's `MapView.ts`, `palette.ts` and `bake.ts`) were corrected in `c9e5882` (comments only). Two known leftovers: the Rime's
+  headland comment in `zoneStyle/features.ts` still says the headlands use the 1020 guard, though `rime.ts` never calls `worstStretch`,
+  and `docs/R2_GENERATOR_AS_BUILT.md` lines 9 and 77 disagree on which of its items still hold. `docs/R1_GENERATOR_NOTE.md`,
+  `docs/BOTS.md` and `docs/BOTS_TUNING.md` still describe the 96x96 maps in their measurements, labelled as such.
 - **Bots and quests** read the map through the masks and `findPath` and place by `camps`, `spawnPool` and `regions[].pole`; poles avoid
   landmark boxes, and landmarks are good giver spots (`features` of kind `landmark`). Measured at the zone-shapes merge (section 16):
   the bots' suites pass and the tournament shows no refused, lost or brain-error orders; `questBench` shows quests a bigger win over
@@ -616,9 +645,21 @@ baseline, 15 runs: 7 reach the end, 5 died, 3 stalled.
   check was `A:spawnRatio`).
 - **Joiner's first sync is 23 KB** with a 64 KB encoder buffer; a bigger roster or more mobs would grow it (interest management,
   `StateView`, is still the real fix).
-- **Owner questions with their defaults built** (GAME_DESIGN 18): two Rime meres of about 350 ice tiles, or one grown toward 700; loot at
-  4-6 crates and 30-45 ground spots, or the old density (6-8 crates, 40-60 spots); longer spawn walks (9-10 s) with the patience timers
-  (300 s first, 120-300 s scaled) and the teleport unchanged.
+- **Owner questions with their defaults built** (GAME_DESIGN 18): two Rime meres of about 295 ice tiles each (590 a Rime), or one grown
+  toward 700; loot at 4-6 crates a zone (20-30 a map) and 30-45 ground spots a map, or the old density (6-8 crates a zone, 40-60 spots a
+  map); longer spawn walks (about 11.8 s at p50, 10.7-12.7 at p10-p90, against 9.4 s on the 96x96 maps) with the patience timers (300 s
+  first, 120-300 s scaled) and the teleport unchanged.
+- **GPU memory of the bake is probably about twice its colour size (unverified).** The scene's baked textures are DynamicTextures, and
+  Phaser 4 creates each one's framebuffer with a depth-stencil renderbuffer because `render.stencil` is on by default
+  (`packages/client/src/main.ts` sets no `stencil`; Phaser's `DrawingContext.js` passes `renderer.config.stencil` to `createFramebuffer`),
+  so the 52-55 MB of colour the budget counts may cost 100 MB or more on the GPU, with less headroom on integrated GPUs and phones.
+  Not measured in a browser, and the client has no mask or stencil use (a first look found none: unverified). A possible later saving:
+  `render: { stencil: false }`, or count the renderbuffer in `planBytes`.
+- **A ranged mob can keep shooting from inside its own territory.** Camps can stand 11.7 tiles apart (same-zone nearest neighbours,
+  section 4), and a mob gives up only 6 s after it last dealt damage, so a bow or wand mob pulled from one camp can keep hitting a player
+  who retreats to the neighbouring camp, wherever it stands inside its own leash. `server/test/mobLeash.test.ts` was changed to pick a
+  camp at least 21 tiles away for this reason. Not played, only read from that test: watch it in the playtest. If it bites, a mob could
+  also give up after N seconds outside the leash radius of its camp, whatever damage it deals.
 - **The kiting guarantee has no maps behind it any more.** Walls cap nothing; the Sentenced and Plague bows and the Holy wand see more of
   a zone than before (rays at bow range went from about 11% of rays to 63-85%). The weapon harness and `test_kite.py` never read a map, so
   they are unchanged; the zone duel harness covers the one condition the owner made conditional. The ranged shift is small (melee reaches

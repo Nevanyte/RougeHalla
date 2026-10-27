@@ -834,6 +834,19 @@ function spawnGate(tiles: Uint8Array, pool: readonly number[], terrain: Uint8Arr
     for (const i of marked) seen[i] = 0;
     hazards.push(hz);
   }
+  const keep = gateSpawnWalks(pool, walks, hazards, (t) => zone[t]);
+  return keep && { pool: keep.map((k) => pool[k]), walks: keep.map((k) => walks[k]) };
+}
+
+/**
+ * The spawn gate's drop rule on measured walks (pure: `spawnGate` measures, this decides). `pool[k]` is member k's tile, `walks[k]`
+ * its findPath walk to the coliseum centre, `hazards[k]` the floor-hazard tiles under that walk. Members over HAZARD_WALK_MAX go
+ * first; then, while the max/min walk is over SPAWN_WALK_RATIO_MAX and more than POOL_MIN are left, the longest or the shortest walk
+ * goes (whichever leaves the smaller ratio; a tie between the two: the longer; among equal walks: the higher tile index). Fails
+ * (null, counted) when the ratio cannot be met at POOL_MIN, or fewer than POOL_MIN members or POOL_ZONES zones are left. The
+ * indices kept, in pick order.
+ */
+export function gateSpawnWalks(pool: readonly number[], walks: readonly number[], hazards: readonly number[], zoneOf: (tile: number) => number): number[] | null {
   let keep: number[] = [];
   for (let k = 0; k < pool.length; k++) if (hazards[k] <= HAZARD_WALK_MAX) keep.push(k);
   if (keep.length < pool.length) note("spawnHazardDrop", pool.length - keep.length);
@@ -855,8 +868,8 @@ function spawnGate(tiles: Uint8Array, pool: readonly number[], terrain: Uint8Arr
     keep = keep.filter((k) => k !== drop);
     note("spawnRatioDrop");
   }
-  if (keep.length < POOL_MIN || new Set(keep.map((k) => zone[pool[k]])).size < POOL_ZONES) { note("gate:hazardShort"); return failed("A:spawnRatio"); }
-  return { pool: keep.map((k) => pool[k]), walks: keep.map((k) => walks[k]) };
+  if (keep.length < POOL_MIN || new Set(keep.map((k) => zoneOf(pool[k]))).size < POOL_ZONES) { note("gate:hazardShort"); return failed("A:spawnRatio"); }
+  return keep;
 }
 
 /**

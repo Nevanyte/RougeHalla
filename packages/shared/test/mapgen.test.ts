@@ -7,7 +7,7 @@ import { MASK_SIGHT, REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "..
 import type { GameMap } from "../src/map";
 import {
   CAMP_GAP, CAMPS_PER_ZONE, ELITES_PER_ZONE, ELITE_MIN_SEP, MAPGEN_FAILS, MAX_ATTEMPTS, RING_CONTACT_MIN, SHAPE_GATES, SLIVER_MAX, TERRITORY_RADIUS_MAX,
-  ZONE_STYLE_HOOK, styleRng, certifiedMap, generateMap, mapHash, tryAttempt,
+  ZONE_STYLE_HOOK, styleRng, certifiedMap, gateSpawnWalks, generateMap, mapHash, tryAttempt,
 } from "../src/mapgen";
 import type { MapgenOptions, ZoneStyleHook } from "../src/mapgen";
 import { raycast } from "../src/geometry";
@@ -263,6 +263,78 @@ describe("the certifier", () => {
       expect(st.pool, `seed ${s}`).toBeGreaterThanOrEqual(24);
     }
   }, HEAVY_MS);
+});
+
+describe("the spawn gate's drop rule (gateSpawnWalks, contract 2.3)", () => {
+  // The numbers are the contract's, written out on purpose: max/min walk 1.2, at most 8 floor-hazard tiles on a walk, a pool of at least 24 over at least 4 zones.
+  const T0 = 1000;
+  const zones = (n: number) => (t: number) => (t - T0) % n;
+  /** `n` members whose walks run base..base+6 (ratio 1.1 at 60, in no sorted order); `edit` overrides single members. */
+  const pool = (n: number, edit: { base?: number; walk?: Record<number, number>; hazard?: Record<number, number> } = {}) => ({
+    pool: Array.from({ length: n }, (_, k) => T0 + k),
+    walks: Array.from({ length: n }, (_, k) => edit.walk?.[k] ?? (edit.base ?? 60) + ((k * 5) % 7)),
+    hazards: Array.from({ length: n }, (_, k) => edit.hazard?.[k] ?? 0),
+  });
+  const run = (p: ReturnType<typeof pool>, zoneCount = 6) => gateSpawnWalks(p.pool, p.walks, p.hazards, zones(zoneCount));
+  const all = (n: number, ...without: number[]) => Array.from({ length: n }, (_, k) => k).filter((k) => !without.includes(k));
+  const fails = () => MAPGEN_FAILS["A:spawnRatio"] ?? 0;
+
+  it("keeps every member, in pick order, when the ratio is within 1.2 (1.18 stays, whatever the order of the walks)", () => {
+    expect(run(pool(30))).toEqual(all(30));
+    expect(run(pool(30, { walk: { 7: 70.8 } }))).toEqual(all(30)); // 70.8 / 60 = 1.18
+  });
+
+  it("drops one extreme long walk, and only it (1.33 is over 1.2 and under 1.5)", () => {
+    expect(run(pool(30, { walk: { 11: 80 } }))).toEqual(all(30, 11));
+  });
+
+  it("drops one extreme short walk, and only it", () => {
+    // the others run 80..86; one member walks 40: dropping the longest would leave 2.1, dropping the shortest 1.08
+    expect(run(pool(30, { base: 80, walk: { 4: 40 } }))).toEqual(all(30, 4));
+  });
+
+  it("drops both ends when both are extreme, the one that leaves the smaller ratio first", () => {
+    expect(run(pool(30, { walk: { 3: 30, 20: 120 } }))).toEqual(all(30, 3, 20));
+  });
+
+  it("drops members over 8 hazard tiles before any ratio drop, and keeps one at exactly 8", () => {
+    const hz = run(pool(30, { hazard: { 2: 9, 9: 8, 15: 40 } }));
+    expect(hz).toEqual(all(30, 2, 15)); // a mid-range walk with 9 goes though the ratio holds; 8 stays
+    // hazard drops and a ratio drop add up: the extreme walk has no hazards, the other member has 9
+    expect(run(pool(30, { walk: { 11: 80 }, hazard: { 5: 9 } }))).toEqual(all(30, 5, 11));
+  });
+
+  it("fails the attempt (counted as A:spawnRatio) when the hazard drops leave fewer than 24, and passes at 24", () => {
+    const before = fails();
+    expect(run(pool(26, { hazard: { 0: 9, 1: 9, 2: 9 } }))).toBeNull(); // 23 left
+    expect(fails()).toBe(before + 1);
+    expect(run(pool(26, { hazard: { 0: 9, 1: 9 } }))).toEqual(all(26, 0, 1)); // 24 left
+    expect(fails()).toBe(before + 1);
+  });
+
+  it("will not drop below 24 for the ratio: 25 members with one extreme pass at 24, 24 members with one extreme fail", () => {
+    const before = fails();
+    expect(run(pool(25, { walk: { 6: 100 } }))).toEqual(all(25, 6));
+    expect(fails()).toBe(before);
+    expect(run(pool(24, { walk: { 6: 100 } }))).toBeNull();
+    expect(fails()).toBe(before + 1);
+    // two extremes need two drops: 25 would have to go to 23
+    expect(run(pool(25, { walk: { 6: 100, 7: 30 } }))).toBeNull();
+    expect(fails()).toBe(before + 2);
+  });
+
+  it("fails when the members left cover fewer than 4 zones, including when the drop itself removes the fourth", () => {
+    const before = fails();
+    expect(run(pool(30), 3)).toBeNull();
+    expect(run(pool(30), 4)).toEqual(all(30));
+    // 25 members in three zones and member 25 alone in a fourth: dropping it (the long walk) leaves three zones
+    const p = pool(26, { walk: { 25: 100 } });
+    const zoneOf = (t: number) => (t - T0 === 25 ? 3 : (t - T0) % 3);
+    expect(gateSpawnWalks(p.pool, p.walks, p.hazards, zoneOf)).toBeNull(); // the long walk is the only member of the fourth zone
+    expect(fails()).toBe(before + 2);
+    const q = pool(26, { walk: { 25: 63 } });
+    expect(gateSpawnWalks(q.pool, q.walks, q.hazards, zoneOf)).toEqual(all(26));
+  });
 });
 
 describe("styler hook", () => {

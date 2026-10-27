@@ -496,7 +496,8 @@ export class ZoneRuntime {
         // The piece is small: every written tile in it goes back (the search above enumerated the whole piece).
         const stamp = sc.epoch;
         for (let c = 0; c < blocks.length; c++) if (entry[c] >= 0 && sc.mark[blocks[c][0]] === stamp && tiles[blocks[c][0]] !== TILE_FLOOR) back.push(c);
-        for (const c of back) { this.giveBack(entry[c]); entry[c] = -1; }
+        // Newest write first, as a rollback does: a tile written twice (LOW, then wall) must end at its original value.
+        for (let q = back.length - 1; q >= 0; q--) { const c = back[q]; this.giveBack(entry[c]); entry[c] = -1; }
         back.length = 0;
       }
       let stands = 0;

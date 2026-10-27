@@ -12,7 +12,10 @@
 //  - REPORT: `stats.zones[z]` (ZoneMeasures: ray profile, engagement pairs, camp graph with stretch and loops, wall pieces, terrain and
 //    feature counts) judged against `ZONE_WINDOWS` (contract section 4's per-zone windows) and `SWEEP_THRESHOLDS`; a breach is
 //    investigated, never an automatic failure. The measure functions are exported, pure and tested on hand-made grids.
-// Only maps, masks, the sim's raycast and findPath are imported: nothing the generator uses to build what is checked here.
+// Imports: maps, masks, the sim's raycast and findPath (they define the walk and the sight being measured) and validateTerrain (the
+// generator's own terrain gate T1-T10, which this file re-checks only in part), and from mapgen SHAPE_GATES (what strict=auto
+// follows), STYLE_STREAM and styleRng (the demo hook). Nothing the generator builds a map with is read: every check below is written
+// out here, from the GameMap alone (the Gallows' fence checks included: fenceReport has its own search).
 import { MAX_PLAYERS, TILE } from "../src/constants";
 import { raycast } from "../src/geometry";
 import {
@@ -57,6 +60,15 @@ export const CRATES_MAX = 6;
 export const GROUND_MIN = 30;
 export const GROUND_MAX = 45;
 export const FEATURES_MAX = 250;
+/** Fence rows (contract 4.2): a pair of zone floor tiles k = 1..FENCE_REACH_TILES either side of a fence tile (floor all the way between) must walk in at most 2k + FENCE_DETOUR_TILES steps. */
+export const FENCE_DETOUR_TILES = 10;
+export const FENCE_REACH_TILES = 3;
+/** Fence rows: gates are GATE_WIDTH_TILES wide every GATE_PERIOD_TILES along a row, so a straight run of fence is at most the difference. */
+export const GATE_PERIOD_TILES = 12;
+export const GATE_WIDTH_TILES = 3;
+export const FENCE_RUN_MAX = GATE_PERIOD_TILES - GATE_WIDTH_TILES;
+/** The detour search stops this many steps past the allowed ones (a pair it cannot reach in time reports FENCE_SEARCH_TILES + 1 extra steps). */
+const FENCE_SEARCH_TILES = 40;
 
 // ---- The measures' numbers (contract 6.2) ----
 /** Ray profile: 24 directions k * 15 degrees, from the centre of every zone FLOOR tile with even x and even y, capped at 40 tiles. */
@@ -191,6 +203,9 @@ export interface ZoneMeasures {
   infillTiles: number;
   /** Tiles between the zone's two elite camps (0 with fewer than two). */
   eliteSep: number;
+  /** The zone's fence rows (fenceReport): the worst extra steps a pair across a fence tile walks over 2k, and the longest straight run of fence tiles. */
+  fenceDetour: number;
+  fenceRun: number;
 }
 
 export interface MapStats {
@@ -510,6 +525,7 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
   // zone wall piece under 6 tiles, tile classes, sizes, no overlap with a clearing or a spawn pad) run on the strict zones only.
   for (const f of featureProblems(m, strictCodes)) failures.push(f);
   if (strictCodes.length > 0) for (const f of pieceProblems(m, strictCodes)) failures.push(f);
+  if (strictCodes.length > 0) for (const f of fenceProblems(m, strictCodes)) failures.push(f);
 
   // --- Crates, ground spots -----------------------------------------------------------------------------------------------
   const allSpots = camps.flatMap((c) => c.spots.map(tIdx));
@@ -1026,6 +1042,7 @@ export function zoneMeasures(m: GameMap, zi: number): ZoneMeasures {
     if (f.kind === "hall") piers += f.p[3] ?? 0;
     if (f.kind === "infill") infillTiles += f.tiles;
   }
+  const fence = fenceReport(m, code);
   const elites = m.camps.filter((c) => c.zone === faction && c.eliteSpot >= 0);
   const eliteSep = elites.length >= 2 ? Math.sqrt((elites[0].x - elites[1].x) * (elites[0].x - elites[1].x) + (elites[0].y - elites[1].y) * (elites[0].y - elites[1].y)) / TILE : 0;
   return {
@@ -1033,6 +1050,7 @@ export function zoneMeasures(m: GameMap, zi: number): ZoneMeasures {
     rays: rayProfile(m, code), pairs: engagementPairs(m, code, zi), graph: campGraph(m, faction),
     wallPieces: pieceStats(m, code, TILE_WALL), lowPieces: pieceStats(m, code, TILE_LOW), terrain,
     iceShare: floor ? (100 * terrain[TERRAIN_ICE]) / floor : 0, features, tunnels, piers, infillTiles, eliteSep,
+    fenceDetour: fence.worstExtra, fenceRun: fence.runMax,
   };
 }
 
@@ -1259,6 +1277,99 @@ export function pieceProblems(m: GameMap, strict: readonly number[]): string[] {
   return out;
 }
 
+/** First line of every failure of fenceProblems. */
+export const FENCE_CHECKS = {
+  detour: `fence: every pair of zone floor tiles 1 to ${FENCE_REACH_TILES} steps either side of a fence tile (floor between) walks in at most 2k + ${FENCE_DETOUR_TILES} steps (strict)`,
+  run: `fence: no straight run of fence tiles is longer than ${FENCE_RUN_MAX}, the gate period ${GATE_PERIOD_TILES} less the gate ${GATE_WIDTH_TILES} (strict)`,
+} as const;
+
+export interface FenceReport {
+  /** TILE_LOW + TERRAIN_FENCE tiles of the zone, and the floor pairs across them that were walked. */
+  tiles: number;
+  pairs: number;
+  /** The most extra steps any pair walks over 2k (FENCE_SEARCH_TILES + 1 for a pair not reached in time); 0 with no pair. */
+  worstExtra: number;
+  /** The longest straight (row or column) run of consecutive fence tiles. */
+  runMax: number;
+  /** The first few breaches of the two rules, each one line (a run's contains " run of "). */
+  problems: string[];
+}
+
+/**
+ * The Gallows' fence rules on a finished map (contract 4.2), measured with this file's own search. For every fence tile of zone
+ * `code`, along its row and along its column, for k = 1.. up to FENCE_REACH_TILES while both tiles k steps either side are floor of
+ * the zone (floor all the way between, as the guard reads it): the two tiles must still walk to each other over the zone's own
+ * walkable floor, 4-connected, in at most 2k + FENCE_DETOUR_TILES steps (the fence tile is LOW, so solid). And no straight run of
+ * fence tiles is longer than the gate rule allows (gates 3 wide every 12, so 9): a fence tile within 5 tiles of a gate is what makes
+ * the first rule hold.
+ */
+export function fenceReport(m: GameMap, code: number): FenceReport {
+  const W = m.w, H = m.h, N = W * H;
+  const out: FenceReport = { tiles: 0, pairs: 0, worstExtra: 0, runMax: 0, problems: [] };
+  const isFence = (i: number): boolean => m.regionGrid[i] === code && m.tiles[i] === TILE_LOW && m.terrain[i] === TERRAIN_FENCE;
+  const floorOf = (i: number): boolean => m.regionGrid[i] === code && (m.tiles[i] & MASK_MOVE) === 0;
+  const fence: number[] = [];
+  for (let i = 0; i < N; i++) if (isFence(i)) fence.push(i);
+  out.tiles = fence.length;
+  if (fence.length === 0) return out;
+  const seen = new Int32Array(N), depth = new Uint8Array(N), queue = new Int32Array(N);
+  let stamp = 0;
+  /** Steps of the shortest walk from a to b over the zone's floor, or -1 when it takes more than `limit`. */
+  const walk = (a: number, b: number, limit: number): number => {
+    stamp++;
+    let head = 0, tail = 0;
+    queue[tail++] = a; seen[a] = stamp; depth[a] = 0;
+    while (head < tail) {
+      const cur = queue[head++];
+      if (cur === b) return depth[cur];
+      if (depth[cur] >= limit) continue;
+      const x = cur % W, y = (cur - x) / W;
+      for (let e = 0; e < 4; e++) {
+        const nx = x + (e === 1 ? 1 : e === 3 ? -1 : 0), ny = y + (e === 0 ? -1 : e === 2 ? 1 : 0);
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const j = ny * W + nx;
+        if (seen[j] === stamp || !floorOf(j)) continue;
+        seen[j] = stamp; depth[j] = depth[cur] + 1; queue[tail++] = j;
+      }
+    }
+    return -1;
+  };
+  const zoneName = REGION_FACTIONS[code - 1];
+  const note = (line: string): void => { if (out.problems.length < 4) out.problems.push(line); };
+  for (const i of fence) {
+    const x = i % W, y = (i - x) / W;
+    for (const across of ["x", "y"] as const) {
+      for (let k = 1; k <= FENCE_REACH_TILES; k++) {
+        const ax = across === "x" ? x - k : x, ay = across === "y" ? y - k : y, bx = across === "x" ? x + k : x, by = across === "y" ? y + k : y;
+        if (ax < 0 || ay < 0 || bx >= W || by >= H) break;
+        const a = ay * W + ax, b = by * W + bx;
+        if (!floorOf(a) || !floorOf(b)) break;
+        out.pairs++;
+        const steps = walk(a, b, 2 * k + FENCE_SEARCH_TILES);
+        const extra = steps < 0 ? FENCE_SEARCH_TILES + 1 : steps - 2 * k;
+        if (extra > out.worstExtra) out.worstExtra = extra;
+        if (extra > FENCE_DETOUR_TILES) note(`${zoneName} fence ${x},${y}: the pair ${k} steps either side along ${across} walks ${steps < 0 ? `more than ${2 * k + FENCE_SEARCH_TILES}` : steps} steps, over ${2 * k + FENCE_DETOUR_TILES}`);
+      }
+    }
+    // A run is measured from its first tile, once.
+    for (const along of ["x", "y"] as const) {
+      if ((along === "x" ? x > 0 : y > 0) && isFence(along === "x" ? i - 1 : i - W)) continue;
+      let len = 1;
+      while (along === "x" ? x + len < W && isFence(i + len) : y + len < H && isFence(i + len * W)) len++;
+      if (len > out.runMax) out.runMax = len;
+      if (len > FENCE_RUN_MAX) note(`${zoneName} fence run of ${len} along ${along} from ${x},${y}, over ${FENCE_RUN_MAX}`);
+    }
+  }
+  return out;
+}
+
+/** The fence rules for the strict zones: problems, each starting with its FENCE_CHECKS line (a zone with no fence has none). */
+export function fenceProblems(m: GameMap, strict: readonly number[]): string[] {
+  const out: string[] = [];
+  for (const code of strict) for (const line of fenceReport(m, code).problems) out.push(`${line.includes(" run of ") ? FENCE_CHECKS.run : FENCE_CHECKS.detour}: ${line}`);
+  return out;
+}
+
 /** What decor on/off must leave equal (contract 0.1.6: features and every hashed layer come from streams the decor never touches): problems, empty when equal. */
 export function decorProblems(on: GameMap, off: GameMap): string[] {
   const out: string[] = [];
@@ -1316,6 +1427,8 @@ export const ZONE_MEASURE_VALUES: Readonly<Record<string, (z: ZoneMeasures) => n
   "landmarks": (z) => z.features.landmark ?? 0,
   "craters": (z) => z.features.crater ?? 0,
   "fence rows": (z) => z.features.fenceRow ?? 0,
+  "fence detour": (z) => z.fenceDetour,
+  "fence run": (z) => z.fenceRun,
   "barrows": (z) => z.features.barrow ?? 0,
   "tunnels": (z) => z.tunnels,
   "meres": (z) => z.features.mere ?? 0,
@@ -1340,7 +1453,8 @@ export const ZONE_WINDOWS: Readonly<Record<RegionFaction, Readonly<Record<string
     "stretch max": { lo: 0, hi: 1.35 }, "loops": { lo: 1, hi: inf }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
   },
   sentenced: {
-    "fence rows": { lo: 6, hi: inf, share: 0.95 }, "fence": { lo: 150, hi: 320 }, "walls": { lo: 50, hi: 90 }, "rays>=7.5t %": { lo: 72, hi: 88 },
+    "fence rows": { lo: 6, hi: inf, share: 0.95 }, "fence detour": { lo: 0, hi: FENCE_DETOUR_TILES, share: 1 }, "fence run": { lo: 0, hi: FENCE_RUN_MAX, share: 1 },
+    "fence": { lo: 150, hi: 320 }, "walls": { lo: 50, hi: 90 }, "rays>=7.5t %": { lo: 72, hi: 88 },
     "pairs LOW %": { lo: 18, hi: inf }, "pairs wall %": { lo: 0, hi: 8 }, "LOW pieces<6": { lo: 0, hi: 0 }, "pieces<6": { lo: 0, hi: 0 },
     "stretch mean": { lo: 0, hi: 1.15 }, "footprint %": { lo: 0, hi: FOOTPRINT_MAX_PCT },
   },
