@@ -5,6 +5,10 @@ reaction times and misclicks, the screen and minimap a human has and nothing mor
 more. The contract every implementer codes against is `packages/server/src/bots/brain/types.ts`. Section 10 says who
 writes what and in which order. Section 11 lists every best guess as an owner question.
 
+Built: the brain and both drivers, the lobby fill, the learning store, the tournament, and the Wishes, planning and chests
+modules (section 8). Not built: the quest, Q/E skill, relic and hazard modules (end of section 8). Measured results are in
+9.3 and `docs/BOTS_TUNING.md`.
+
 Already built on this branch (commit `febac38`, CLAUDE.md "Bots in the sim"): `PlayerState.bot`, `addPlayer(..., { bot })`,
 no kill or bounty GV for a bot victim, `RunResult.kills` without bot kills, the human-only win bonus, `RaidRoom.settle`
 dropping a bot's result, and the `[BOT] name` tag in the client. This document builds on that and does not change it.
@@ -34,9 +38,14 @@ Both build their input for the same `perception.ts`, run the same `BotRunner` (`
 | Tick budget | Brain CPU is on the server's event loop: budgeted, see below | Brain CPU in another process |
 | CLI shares the brain | Yes: runner + perception | Yes: the same runner |
 
-**Measured budget.** Today `step()` with 8 players and 60 mobs averages 0.157 ms, with a p99 of 0.439 ms, against the 5 / 15
-ms gate. Typical bandwidth is 10.15 KB/s per client. `findPath` on a 64x64 map averages 0.092 ms (p99 0.307 ms). Walks of
-300-500 u average 0.025 ms. Line of sight takes 0.4 µs. The brain's own gate is 8 bots ≤ 1.5 ms average and ≤ 6 ms p99 per
+**Measured budget** (the merged tree, planning and chest modules on; seed 1). `step()` alone with 8 players and 60 mobs
+averages 0.45 ms with a p99 of 6.1 ms (`bench/stepBench.ts`; the gate is 5 / 15 ms). With 8 in-process fill bots
+(`stepBench.ts --bots 8 --clock cpu`) the whole tick averages 1.28 ms with a p99 of 2.97 ms, and the bots' share (`beforeStep` +
+`afterPatch`) averages 0.94 ms with a p99 of 2.55 ms. The first 200 ticks are reported apart: a cold process spikes to 36 ms on
+tick 3, in the bots' share (probably the first strategy decisions of eight bots, not profiled; not gated; stagger or warm them at boot if it matters). Typical bandwidth is
+7.68 KB/s per client, 4.04 KB/s in the `bots` scenario (`bench/bandwidth.ts`; the gate is 20). One-off timings from the
+design phase (not re-run): `findPath` on a 64x64 map averages 0.092 ms (p99 0.307 ms), walks of
+300-500 u average 0.025 ms, and line of sight takes 0.4 µs. The brain's own gate is 8 bots ≤ 1.5 ms average and ≤ 6 ms p99 per
 tick, kept three ways:
 - thinks are staggered (each bot has a phase offset, like `MOB_REPATH_MS`; about 2 tactical thinks per tick for 8 bots);
 - a room-wide `BOT_PATH_BUDGET_PER_TICK = 8` `findPath` calls, with a 1 s cache;
@@ -148,7 +157,7 @@ Independent decisions are spaced by the refractory gap, so two simultaneous thre
 
 - **APM.** A token bucket per bot (rate `apm/60` per second, size `burst`, `minGapMs` between commands). Channels are
   `order` (move, stop, target), `swap`, `pickup`, `cast` and `menu`, with one pending intent each. Priorities run reflex >
-  combat > goal > chore. A starved intent waits, and a newer one on its channel replaces it (`HumanizerStats.throttled` and
+  combat > goal > chore. A starved intent waits (dropped after 1.5 s), and a newer one on its channel replaces it (`HumanizerStats.throttled` and
   `superseded`).
 - **Hesitation.** A per-decision chance of one pause, drawn from the `lapse` stream.
 - **Lapses.** Every option choice (goal, target, weapon slot, loot) is a softmax over utilities (scale about 0..1) at
@@ -184,8 +193,10 @@ Two commands per shot (about 80-120 APM) means Normal's APM cap thins its orb-wa
 `MATCHUP_RANGE` 450, `signatures.ts:113-127`). Knowledge therefore matters beyond 450 u or out of sight: whom to hunt from
 afar, which second weapon to pick up, which camps to route through.
 
-**The rules.** A Hard bot knows the sudden-death rule (`suddenDeathShare` burns every hp pool at the same share, so the lower
-hp share falls first, `rules.ts:31`) with chance `knowledge`. It knows the 45 s Wish lock and the 300 s cooldown the same way.
+**The rules.** A bot knows the sudden-death rule (`suddenDeathShare` burns every hp pool at the same share, so the lower
+hp share falls first, `rules.ts:31`) with chance `knowledge`, drawn once per bot. The Wish rules are not gated that way: memory
+counts a landing it saw as unavailable for `WISH_COOLDOWN_SECONDS` (300 s) for every tier, nothing reads that guess yet (section
+8), and the 45 s Wish lock is not modelled (owner question 16).
 
 **Routes.** Easy picks the nearest of 3 camps by straight line. Hard compares 10 by walking distance, weighs the matchup
 share. (It used to prefer camps whose `REGION_BUFF` matched the stat it was stacking toward a 3-stack combo; the combos are gone with
@@ -193,8 +204,7 @@ the per-mob-type buffs of R4a, and weighing which buff a camp's mobs give is for
 
 ### 2.8 Why Hard is beatable
 
-Hard matches a good human's reflexes and loses on reads. Every point below is meant to be exploited, and is tested as an
-exploit scenario (9.3):
+Hard matches a good human's reflexes and loses on reads. Every point below is meant to be exploited (9.3 lists the exploit scenarios, which are not written yet):
 1. **A fixed reaction floor.** Nothing answers faster than the 140 ms floor plus 160 ms of view and uplink delay. A bait
    draws a predictable answer.
 2. **Feints work.** 80% of cancelled windups still draw a dodge. Each dodge drops the bot's lock and costs about 0.3-0.5 s of
@@ -237,7 +247,8 @@ elite; dummies and the dead are skipped, `:158-179`), the camera rectangle, and 
 **So the percept gets** every living mob's dot map-wide: position rounded to 16 u, refreshed every 100 ms (its repaint
 rate), with faction and elite; no hp, no weapon. **Dots carry ids**: a human tells dots apart by continuity and dots never
 swap, so ids stand for that and let memory tie a dot to its camp spot. A dot leaving its spot, and a camp's dots vanishing,
-are legitimately "awake" and "cleared".
+are legitimately "awake" and "cleared". Since R5 it also draws each camp's reward chest as a gold blip with its seconds left,
+and the percept carries those map-wide too (`extras.chests`); the cards inside are shown only by the chest panel (8).
 
 ### 3.3 Percept fields
 
@@ -249,7 +260,7 @@ are legitimately "awake" and "cleared".
 | `fighters[]` (computed) | `vx`, `vy` from frames 100 ms apart; `dist`; `los`; `tint` (the UI's hue); `central` | 0 velocity if not on screen in both frames |
 | `mobs[]` | kind, name, faction, position, facing, status, hp share, weapon in hand, drawStartedAt, sig, brand | Window |
 | `minimap` | Living mob dots and `gatesLocked` | Whole map, 16 u, 10 Hz |
-| `containers[]` | kind, position, a body's label, closed or open. Weapon: a ground weapon's icon always (`ContainerView.ts:83-125`); a chest's or body's only while `canInteract` (56 u and line of sight, `interact.ts:9-11`), as the weapon bar shows | Window |
+| `containers[]` | kind, position, a body's label, closed or open. Weapon: a ground weapon's icon always (`ContainerView.ts:83-125`); a weapon chest's or body's only while `canInteract` (56 u and line of sight, `interact.ts:9-11`), as the weapon bar shows. A camp's reward chest is not a weapon target: its place and expiry are in `extras.chests` map-wide, its cards only within 88 u with a clear line | Window |
 | `projectiles[]` | `fxs` launch tuples flown to `viewT`; `from` = the visible fighter nearest the origin within 56 u (`FxView.ts:60,513`) | Its position at `viewT` is in the window |
 | `events[]` | Decoded `fxs` + toasts to self + the result + private messages | 3.4 |
 | `extras` | Per feature (8) | Per feature |
@@ -257,7 +268,7 @@ are legitimately "awake" and "cleared".
 **Never in a percept:**
 - `RaidState.tick` (`noSync`) and the roster, which is used only to decode;
 - anything off screen except dots and announcements;
-- chest and body contents out of interact range;
+- a weapon chest's or body's contents out of interact range, and a reward chest's cards out of its panel range (88 u, clear line);
 - off-screen mob hp;
 - hidden fighters;
 - anything from `World` (paths, other players' locks, mob brains and threat tables, loot rolls, `rewardRandom`, "?" rewards).
@@ -288,7 +299,7 @@ World fx are composed with the world delay. Toasts, results and private messages
 | What | Kept | Decay |
 |---|---|---|
 | Each opponent: faction, weapons seen, the believed other slot (the last different in-hand weapon), last position and velocity, hp share, bounty, alive or dead, hits on me and mine on it, engaged with whom, chasing me, feints | Whole run | Position: `whereabouts` radius grows at 0.6 × 170 u/s; forgotten after `memorySpanMs` (25/35/45 s). Hp forgotten after 20 s. Deaths are permanent |
-| Wish seen cast (`ext` castLand) | Until seen + 300 s | A human's "about five minutes". Before any cast: ready at start + 45 s if the bot knows the lock rule |
+| Wish seen cast (`ext` castLand) | Until seen + 300 s | A human's "about five minutes". No guess is made before a first cast (the 45 s lock is not modelled), and nothing reads the guess yet |
 | Mobs: home spot, camp, last dot, last hp seen, awake, returning | Whole run | Hp held at the last value seen, never refilled while off screen |
 | Camps: living dots, cleared at, contested at, visited at | Whole run | – |
 | Containers seen: position, closed, weapon, skipped | Whole run | A loose weapon unseen for 60 s is assumed taken |
@@ -364,7 +375,7 @@ tick(p):  stim = memory.observe(p)                                    // MemoryV
 4. **Re-decide** every `strategyMs`, on salient stimuli (newThreat, lowHp, teleport, targetDown, announcement, chestUp,
    planOffer), and whenever tactics reports done, failed or blocked.
 
-The pursuit-ring breaker of today's bot (`BotClient.ts:116-120`) lives here. A hunt that has not closed 40 u in
+The old BotClient's pursuit-ring breaker lives here. A hunt that has not closed 40 u in
 `persona.chaseGiveUpMs` drops its target, which is then avoided for 6 s unless it comes within 150 u or hits the bot.
 
 **Tactics** (`tactics.ts`, `TacticsLayer`) executes the goal as intents, with `Knowledge` and the shared policies:
@@ -454,8 +465,11 @@ overrides it and `off` disables it. The store refuses a path equal to the stash 
 - `opener|<faction>|<region of the first camp farmed>`;
 - `second|<faction>|<second weapon taken>`.
 
-Later: `spawn|<faction>|<zone>`, `boon|<faction>|<boon>`, `skill|<faction>|<skill>`, `relic|<faction>|<relic>`,
-`camp|<faction>|<mob type>`. Memory records a key when its goal is taken (`recordChoice`).
+Also read, never written yet: `spawn|<faction>|<zone>` and `boon|<faction>|<boon>` (the planning module adds their bias to its
+choice, but a module cannot record one: that needs an optional `choice?: ChoiceKey` on `Intent`, as `GoalDecision` has). Later:
+`skill|<faction>|<skill>`, `relic|<faction>|<relic>`, `camp|<faction>|<mob type>`. The brain records a key (`recordChoice`) when a
+goal decision that carries one is taken; the faction key is added by `BotManager.onResult`, because the faction was the manager's
+pick, not a brain decision.
 
 **Score.** Per resolved run, the placement score is `s = (players − place) / (players − 1)`; a draw counts as place 1. Tiers
 are confounders (a Hard bot places well whatever it picked), so each key gets the residual
@@ -493,7 +507,9 @@ store starts empty: bots are never worth stopping the server for.
 **The sim.** `addPlayer(..., { bot: true })` sets `PlayerState.bot` and `PlayerRuntime.bot` (`step.ts:26-53`,
 `schema.ts:20`). In `arena.ts`:
 - `creditKill` pays a bot victim's killer no kill GV and no bounty GV, counts `botKills`, and still runs the bounty hook
-  (stack transfer) and the combos (`:167-181`);
+  (the buff transfer, when the victim carried a bounty);
+- `updateBounty` reads `kills − botKills`, so a kill of a bot does not climb the killer's bounty ladder (owner question 1,
+  adopted: a bounty cannot be built on bots and cashed by an alt);
 - `RunResult.kills` is `p.kills − botKills` (`:316`), and `killedByBot` is set (`:140`, `:318`);
 - the win bonus reads `arena.startedHumans` and `damagedHumans` (`:65`, `:124`, `:412-413`);
 - a bot's `resolved` event carries `bot: true` (`:324`).
@@ -503,7 +519,7 @@ store starts empty: bots are never worth stopping the server for.
 **The client.** `render/displayName.ts` draws `[BOT] name` on nameplates, announcements, the winner line and the results
 killer. `test/botSeat.test.ts` (sim) and `test/botRoom.test.ts` (a real Room) pin all of it.
 
-### 7.2 To build
+### 7.2 Built (the fill)
 
 **`sim/step.ts`.**
 - `updateLobby` (`:136-145`): the `minPlayers` shortening to `fillSeconds` counts **humans** only, so filler never cuts a
@@ -519,7 +535,7 @@ killer. `test/botSeat.test.ts` (sim) and `test/botRoom.test.ts` (a real Room) pi
 - `settle`: `if (bot) { this.bots?.onResult(sessionId, result); return; }` (learning gets the result; nothing else changes).
 - `onJoin`: if `state.players.size >= MAX_PLAYERS`, call `bots.yieldSeat()` first. It removes the newest lobby bot, and a
   lobby leave costs nothing. Colyseus `maxClients` still counts humans.
-- A future `sendTo` of a private message to a bot id goes to `bots.onPrivate`.
+- `handleEvents` sends a bot's private `plan` message to `bots.onPrivate` instead of a socket.
 - `onDispose` calls `bots.dispose()`, which flushes the stats.
 
 **`BotManager` API** (`bots/BotManager.ts`; the Room's only bot surface):
@@ -575,8 +591,8 @@ their lobbies stay as they are. With the default on, `npm run bots -- 3` on a de
 
 ## 8. The feature seam
 
-Wishes, the planning screen, chests, Q/E skills, relics and zone terrain are mid-build on other branches. The brain grows
-with them without naming a symbol this branch lacks.
+Wishes, the planning screen and chests are merged and have their modules. Q/E skills, relics and zone terrain are not on
+main yet. The brain grows with them without naming a symbol this branch lacks.
 
 **Detection** (`perception.ts` `detectFeatures`, once per room; fills `Features`):
 - `CLIENT_MESSAGE_TYPES.includes(type)` at runtime;
@@ -617,8 +633,9 @@ phase. The module, as a person at the planning screen:
 - **Ready** a last look after the choices stood (Hard 0.3-0.8 s, Normal 0.5-1.4 s, Easy 0.8-2.2 s), and in any case before the last
   `min(2.5 s, 30% of the window)`. With no deal at all it presses Ready about a second in. A bot that never readies is covered by the
   server's planning timer, which places it on its first free option.
-The write side of the `spawn|…`/`boon|…` keys (recording the choice for the stats file) waits for an intent-level `choice` field:
-a module cannot call `recordChoice` today.
+The write side of the `spawn|…`/`boon|…` keys (recording the choice for the stats file) waits for an optional `choice?:
+ChoiceKey` on `Intent`: a module cannot call `recordChoice` today. `mobHunt.ts` `planPick` is the pure argmax of the same score,
+kept for the tests; the module picks through the softmax.
 
 **Chests (built, `modules/chests.ts`).** `perception.ts` fills `extras.chests` for every reward chest in the state (the minimap draws each
 one wherever it stands, with its seconds left) and `extras.camps` from `RaidState.camps`. `options` is null, and `takenBy` empty, unless the
@@ -657,6 +674,15 @@ player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the
   Frost player whose Freeze is up needs a hook in strategy. The client shows every fighter's Wish icon coloured when ready
   (PlayerView), so perception could carry a plain `wishReady` per drawn fighter instead of a guess.
 
+**Not built** (CLAUDE.md "Known TODOs" has the same list):
+- the quest decision module (deferred by the owner);
+- the penalty for hunting an opponent whose Wish is ready: an additive `FighterSeen.wishReady` plus a strategy hook (above);
+- the write side of the `spawn|…`/`boon|…` learning keys (needs `choice?: ChoiceKey` on `Intent`, 6.2);
+- `FighterSeen.displaceSeq` and `drawFullMs`: neither is in the percept;
+- the Q/E skill and relic modules (`detectFeatures` reports `relics` true because `PlayerState.build` exists, with no module
+  behind it, and `skills` false);
+- the hazards module (zone terrain is not on main yet).
+
 ---
 
 ## 9. Tests and measurement
@@ -671,6 +697,7 @@ player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the
 | `strategy.test.ts` | Personas order goals as in 5; hysteresis; softmax and lapse frequencies; learned bias bounded; the pursuit-ring breaker (ports `botOrbit.test.ts`) |
 | `tactics.test.ts` | One lock click, re-sent only when not taken, never aim, attack or release (ports `botLock.test.ts`); orb-walk cycle timing; dodge feasibility and juke timing (2.6); swaps by edge; pickups only when interactable; coliseum hold; sudden-death avoidance |
 | `learning.test.ts` | Round trip; version; atomic write (crash between write and rename leaves the old file); bad file moved aside; refuses the stash path; bias within ±0.25 after 1000 identical wins; decay |
+| `wishes.test.ts`, `planningModule.test.ts`, `chestsModule.test.ts` | The three modules on synthetic percepts, through a whole brain, and in whole headless games. `test/botPlanning.test.ts` (the room never waits out the planning timer for bots) and `test/botChests.test.ts` (the pure chest policy) sit beside them |
 | `botManager.test.ts` | Arrival schedule and HUD count; `lobbyClosing` top-up; a human join yields a seat; callsign collisions; the delay line (arrival = at + latency, monotonic, applied at the next step); results never banked and no profile created (spy on `store`); dispose flushes |
 
 The two old BotClient internals tests (`botLock`, `botOrbit`) move to the brain tests above. `mobHunt.test.ts`'s BotClient
@@ -683,7 +710,10 @@ fx case moves to memory (`lastHitByPlayerAt`).
     `resultsSeen`, `teleports`, `sent`, `stats` (`BrainStats` includes `mobTargets`, `mobDrops`, `retreats`, `mobFocusMs`,
     `grabs`, `maxStallMs`), `sessionId`, `seed`, the private field `room` (the e2e reads `bot["room"]`, `e2e.test.ts:118`),
     the `BotOptions` fields, and new `tier`, `persona`, `seed`.
-  - The e2e pins tier `hard` and personas `[hunter, farmer, hunter, opportunist]` so kills and mob kills keep their odds.
+  - The e2e pins tier `hard` and personas `[hunter, hunter, farmer, opportunist]` (index 1 is the bot that quits a second into
+    the run) so kills and mob kills keep their odds. Every run is planned first through the planning module, and when a camp was
+    cleared some bot must have taken a chest option (a replay criterion beside the kill, the signature hit, the mob kill and the
+    landed Wish).
   - Hesitations (≤ 1.2 s) stay far under its 8 s stall bound.
 - **New `e2eFill.test.ts`.**
   - One SDK human client with `BOTS_FILL_TO=4` gets 3 fill bots, flagged `bot`, inside the last 12 s.
@@ -703,17 +733,26 @@ fx case moves to memory (`lastHitByPlayerAt`).
 npm run tournament -w @raid/server -- --games 400 --workers 6 --lineup E,E,N,N,H,H --seed 1 [--learn off] [--persona mix]
 ```
 
+More flags: `--faction`, `--patience S`, `--sudden S` and `--max-minutes M` (the tuning log plays the real timers, `--patience 300
+--sudden 60 --max-minutes 15`), `--latency`, `--jitter`, `--json FILE`, `--tune JSON|@file` (patches the TIERS / PERSONAS tables for
+a diagnostic) and `--quiet`.
+
 **One game.**
 - Headless, with no Room: `createGameWorld` + `step` + `FxChannel` in the Room's order, and the `BotManager` delay line and
   runners.
 - Six bots join and `startRaid` runs at once; mobs are on.
-- Shortened timers: patience 120 s scaling to 48 s, sudden death 30 s; a game is capped at 12 simulated minutes.
-- At about 0.7 ms per tick, a 6-minute game takes about 5 s, so 400 games take about 6 minutes over 6 `worker_threads`.
+- Shortened timers by default: patience 120 s scaling to 48 s, sudden death 30 s; a game is capped at 12 simulated minutes.
+- The games have no planning phase (`planSeconds` is unset in `HEADLESS_CONFIG`), so the planning module is registered but never
+  acts in a tournament; the chests module does.
+- Measured (real timers, 8 workers): 400 games in 47 s, about 0.85 s of worker time and 174 simulated seconds per game.
 
-**Deterministic per seed.** The same seed gives a byte-identical summary (this is tested).
+**Deterministic per seed.** One game replays byte for byte from its seed (tested). With learning on the stats store lives in
+memory per worker, so a game also depends on the games before it in its worker; the split is fixed (game g goes to worker g mod
+W), so the same seed and worker count replay. `--learn off` makes every game a pure function of its seed.
 
 **Report.**
-- Per tier: wins per bot with Wilson 95% intervals, mean placement, kills and deaths, damage dealt, mob kills;
+- Per tier: wins per bot with Wilson 95% intervals, mean placement, kills and deaths, damage dealt, mob kills, how the bots
+  died (to a bot, a mob, sudden death);
 - reaction-time p10, p50, p90 and mean, per tier and stimulus;
 - lock misclick and wrong-pick rates; move scatter RMS;
 - APM mean and peak;
@@ -725,15 +764,21 @@ npm run tournament -w @raid/server -- --games 400 --workers 6 --lineup E,E,N,N,H
 - Mean placement and win share order **Hard > Normal > Easy**, with non-overlapping 90% intervals at 400 games.
 - Per-bot win share: Hard ≤ 0.40 (not untouchable), Easy ≥ 0.03.
 - Starting bands to tune toward: Hard 0.25-0.35, Normal 0.13-0.20, Easy 0.04-0.10.
-- Measured reaction means within ±10% of the table. Zero commands refused by `enqueueClientMessage`. Zero APM breaches.
+- Measured reaction means within ±10% of the table. Zero commands refused by `enqueueClientMessage`. Zero APM breaches. Zero
+  brain errors, no game at the 12-minute cap, and no bot standing still over 8 s.
 
-**Exploit scenarios** (`test/bots/exploits.test.ts`; scripted opponents in the real sim, one Hard bot), each passing
-against its baseline over 50 seeds:
+**Measured at the merge** (real timers, lineup E,E,N,N,H,H, 400 games, seed 3; the table is in `docs/BOTS_TUNING.md`, "State at
+the merge"): per-bot win share Hard 19.9%, Normal 15.3%, Easy 14.9%; mean placement 3.36, 3.57, 3.56. Hard is separated from the
+other two; Normal and Easy are not (their placement intervals overlap). Only Normal is inside its starting band, Hard is under
+0.25 and Easy over 0.10. The tuning that got here is `docs/BOTS_TUNING.md`; tuning stopped at this point by owner decision.
+
+**Exploit scenarios** (planned: `test/bots/exploits.test.ts` does not exist yet; scripted opponents in the real sim, one Hard
+bot), each to pass against its baseline over 50 seeds:
 - **Feint.** A feinting wand forces significantly more dodge-drops than an honest one.
 - **Third party.** A third party from off screen lands its first hit before the Hard bot turns, in ≥ 60% of seeds.
 - **Kite-cutting.** A chaser that leads the straight-away kite catches it in fewer seconds than a plain chaser.
 
-A CI smoke runs 2 games and checks determinism. The full tournament is a report command, like the harness.
+A CI smoke (`test/bots/tournament.test.ts`) plays a game and checks that it replays byte for byte. The full tournament is a report command, like the harness.
 
 **Humans.** The owner plays 10 runs against 5 Hard bots. Target: a competent player wins at least 1 in 4, and every
 weakness in 2.8 is felt (owner question 13).
@@ -758,12 +803,13 @@ packages/server/src/bots/
   brain/services.ts         PathService (budget, cache)                              I
   brain/brain.ts            createBrain: the tick loop of 4                          I
   brain/runner.ts           BotRunner: perceive -> ring -> brain -> adapter          I
-  brain/modules/*.ts        index (registry), wishes, planning, chests, hazards      W (as each feature lands)
+  brain/modules/*.ts        index (registry), wishes, planning, chests (hazards: not built)   W (as each feature lands)
   learning/BotStatsStore.ts the stats file                                           L
   BotManager.ts, callsigns.ts   in-process driver, fill, delay line                  D1
   BotClient.ts (rewrite), runBots.ts (--tier --persona --seed --stats)  network adapter, CLI  D2
   tournament/runTournament.ts, tournament/worker.ts                                  Q
-  mobHunt.ts                unchanged (R3 later moves matchupShare to shared)
+  mobHunt.ts                the mob hunt, plus planSpawnScore and planPick for the planning module
+  chestHunt.ts              pure chest policy (walk or pick), the chests module's engine
 sim/step.ts, rooms/RaidRoom.ts, config.ts: 7.2 and 7.3                               R
 ```
 
@@ -790,36 +836,70 @@ and `Percept` builders live in `test/bots/fixtures.ts` (P owns them), so S, T, H
 
 ## 11. Owner questions
 
-Each of these is a best guess, already in the code or the tables, and easy to change.
+Every best guess in the bots, one list, each with the default the code uses. All are easy to change. The numbers are stable
+(other documents cite them); 21 and up are the guesses the implementers added after the first twenty.
 
-1. **Bot kills and the bounty ladder (a loophole in the built default).** Killing a bot pays no GV, but the kill still
-   raises the killer's bounty (`updateBounty` reads `p.kills`, `arena.ts:243-250`). A human who kills 3 bots wears a 10 GV
-   bounty, which an alt can cash for 10 GV plus 10 GV kill GV. Recommendation: `bountyFor(p.kills − botKills)`. The
-   alternative is to keep it, for gameplay (bots chase bountied humans).
-2. **Stack transfer and combos from bot kills** run as for humans (gameplay parity). Keep?
+1. **Bot kills and the bounty ladder: ADOPTED.** Killing a bot pays no GV and does not climb the killer's bounty ladder
+   (`updateBounty` reads `kills − botKills`), so an alt cannot cash a bounty built on bots. The alternative was to keep it
+   for gameplay (bots chase bountied humans).
+2. **The buff transfer from a bot's death** (half of a bountied victim's buffs go to the killer) runs as for humans. The kill
+   combos no longer exist.
 3. **Stats from runs with bots.** `RunResult.kills` excludes bot kills. A win against bots counts in `stats.wins` but is not
-   `winQualified` (with fewer than 3 human starters). Should such a win count at all?
-4. **Fill target 6, arrival over the last 12 s,** with bots not shortening the countdown and a human join taking a bot's
-   seat.
-5. **Tier mix 30/45/25 and personas uniform.** Should the mix adapt to the humans' skill (no rating exists)?
-6. **The assumed screen is 16:9** (800 × 562.5 u half-extents). Bots never peek the minimap, though humans can.
-7. **Callsigns.** Human-looking names checked read-only against existing profiles. Or use no lookup, and let `[BOT]`
+   `winQualified` (fewer than 3 human starters). Should such a win count at all?
+4. **Fill to 6, arriving over the last 12 s** (decided), bots never shorten the countdown, and a human who joins a full lobby
+   takes the newest bot's seat.
+5. **Tier mix 30/45/25 (decided), personas uniform.** Should the mix adapt to the humans' skill (no rating exists)?
+6. **The assumed screen is 16:9** (decided; 800 × 562.5 u half-extents). The bots read the minimap's mob dots and chest blips
+   map-wide but it shows no player, so they never peek at one, as a human cannot.
+7. **Callsigns.** Human-looking names, checked read-only against existing profiles. Or no lookup, and let `[BOT]`
    disambiguate?
-8. **Bots ignore the `[BOT]` flag** when choosing whom to fight (tested). Should they prefer humans, or avoid ganging up on
-   them?
+8. **Bots ignore the `[BOT]` flag** when choosing whom to fight (tested). Should they prefer humans, or avoid ganging up on them?
 9. **A run with only bots left standing** plays out while humans spectate. Fast-forward or void it instead?
 10. **Latency emulation** is 30 ± 8 ms each way, the same for all tiers. Should it vary per bot, like real players?
-11. **Reaction distributions** (ex-Gaussian, means 450/280/200 ms), APM caps 60/110/170, the misclick rates in 2.2, and
-    the dodge and juke chances.
+11. **The humanizer's numbers** (2.2): reaction means 450/280/200 ms (ex-Gaussian), APM 60/110/170 with bursts 3/4/5, hesitation
+    12/7/4%, the misclick rates (a lone Easy bot misses a lock click 7.4% of the time, Normal 1.2%, Hard 0.2%), and the
+    dodge and juke chances.
 12. **Bots never stream `aim`.** A shield bot without a lock faces its walk direction, a slight handicap. Allow a 5 Hz aim
     toward the main threat?
-13. **What "Hard is beatable" means.** The tournament bands in 9.3, and the human target of at least 1 win in 4 against 5
-    Hard bots.
-14. **Learning.** Run on by default, half-life about 69 runs, bias at most ±0.075 utility. CLI bots learn only with
-    `--stats`. File next to the profile file.
+13. **What "Hard is beatable" means.** The tournament bands in 9.3 and the human target of at least 1 win in 4 against 5 Hard
+    bots. At the merge the bands are not met (9.3: Hard 19.9%, Normal 15.3%, Easy 14.9%) and tuning stopped there; keep the
+    bands as the target, or take these as the tiers?
+14. **Learning** is on by default, half-life about 69 runs, bias at most ±0.075 utility. CLI bots learn only with `--stats`.
+    The file sits next to the profile file.
 15. **The minimap ids shortcut** (3.2), standing for tracking dots by continuity.
-16. **The Wish cooldown memory** assumes the rule is known (300 s, 45 s lock) by Normal and Hard with chance `knowledge`.
+16. **Rule knowledge.** A bot knows the sudden-death rule with chance `knowledge` (drawn once per bot). Wish memory is not
+    gated by it: every tier counts a Wish it saw land as unavailable for 300 s, and no tier models the 45 s Wish lock; nothing
+    reads the guess yet. Gate both by `knowledge` as 2.7 once said, or leave them?
 17. **Bots in training rooms:** never, for now. A sparring partner later?
 18. **Bot cosmetics:** `look` is 0, so bots wear none.
 19. **Fill in `npm run dev`** is on by default (6). Should the dev script set it to 0?
 20. **The lobby line** could also say how many bots are present, e.g. "Waiting for players 4/2 (3 bots)". Wanted?
+21. **Easy and its Wish.** Easy only casts escape and sustain Wishes (never Freeze or Trial) and remembers its Wish 60% of the
+    times it becomes available; Normal and Hard use every intent.
+22. **A mob's windup counts as a `windupAtMe` stimulus,** answered like a player's (reaction, then the feasibility check of 2.6).
+23. **A remembered opponent's hp resets to full after 20 s unseen,** and its whereabouts are forgotten after 25/35/45 s
+    (Easy/Normal/Hard).
+24. **Fight appraisal, wariness and mob caution** (`docs/BOTS_TUNING.md` 3). The tiers differ by the quality of their choices:
+    how a bot sizes up a fight (the hp lead decides, the hue hardly does), how far it keeps from a player it does not want to
+    fight (0/300/450 u), and which mobs it takes (matchup share and hp). A first-minute opening penalty (up to +3.5 logit,
+    fading over 60 s) holds fights back early. This rests on the sim's currency: hp does not regenerate and the patience timer
+    sends everyone to the coliseum, so the player who spends least hp wins. Execution (reaction, accuracy, APM) separates the
+    tiers hardly at all, because the server plays the fight for everyone.
+25. **Planning and chest timing.** The planning module reads the screen 2-4 s (Hard), 3-6 s (Normal) or 4-8 s (Easy) after the
+    deal, scaled down in a short window and never over 55% of it, then readies 0.3-0.8, 0.5-1.4 or 0.8-2.2 s after its last
+    choice. Chest walks and picks are answered as a reading reaction (1.5 × the tier's reaction), not as a 1.5-4 s dwell, and
+    its spawn pick goes through the tier's softmax (Easy sometimes takes the worse start).
+26. **The e2e persona order** is `[hunter, hunter, farmer, opportunist]` at Hard, index 1 being the bot that quits a second in,
+    so the farmer's seat stays and the mob kills lean on it.
+27. **The faction pick** is the manager's, not the brain's: a softmax (T 0.3) over the learned `faction|<persona>|<faction>`
+    biases with a 5% uniform floor and at most 2 of a faction per lobby, recorded as a learning key by `BotManager.onResult`.
+28. **Chest visibility.** Every chest is known map-wide from the minimap (place and seconds left); its cards are read only within
+    88 u with a clear line, as the client's panel shows them. The walk never looks at a card: from afar every chest is "a skill".
+29. **Chest value and picks.** A walk is worth 0.9 × (0.25 + 0.75 × loot weight), more with a crowd at the chest and nearness,
+    capped at 0.84 so a committed fight is never left for one. The best free card the bot can use is taken, else a skip; a card
+    lost to a faster hand is asked for again on another, 3 asks inside 4 s at most.
+30. **Jukes stay in** although they are a small net loss (`docs/BOTS_TUNING.md` 4): they are the documented exploit (2.8). The
+    orb-walk almost never fires with the paced numbers; the code and the tables stay for a Fire or Frost bow.
+31. **Persona numbers** (section 5): the fight edge, flee and re-engage hp, kite factor, chase give-up, mob kill goal, threat
+    radius, elite appetite, and how long a bot holds in the coliseum (12 to 48 s after the teleport, the bolder personas
+    first).

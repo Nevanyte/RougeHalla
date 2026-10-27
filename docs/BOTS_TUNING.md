@@ -93,3 +93,49 @@ again and again. Two changes, for every tier:
   wandering into the others. The stall watch does not count a deliberate hold.
 Result: Easy over 8 s in 6 of 800 bot-games (max 10.0 s, from a 1.2 s hesitation on top of a reaction at its 1.4 s cap on top of
 a slow think), Normal 0, Hard 0.
+
+## 6. State at the merge
+
+Sections 0 to 5 were measured before main's roguelike work (R3 planning, R4a per-mob buffs, R5 camps and shared chests) was merged
+into this branch. This is the first full run after it, on the tree that ships: `MOB_K` 0.22, per-mob buffs, the planning module
+(its 12 s window is not played here, see below) and the chest module on, tier tables as committed.
+
+```
+npm run tournament -- --games 400 --workers 8 --lineup E,E,N,N,H,H --patience 300 --sudden 60 --max-minutes 15 --seed 3 --quiet
+```
+
+```
+games: 400 with a winner, 0 draws, 0 cut off at the cap
+length: mean 173.5 s, median 174.6 s, min 19.3 s, max 608.4 s (simulated, raid start to end)
+first death: median 14.3 s into the raid; teleport in 50% of games, sudden death in 25%
+throughput: 400 games in 46.9 s wall = 8.52 games/s with 8 workers (1478.3 simulated s per wall s)
+
+tier    bot-games  wins         win/bot [95%]  share of wins  draws        place [90%]  kills  deaths  dmg  mob dmg  mob kills   gv  alive s
+------  ---------  ----  --------------------  -------------  -----  -----------------  -----  ------  ---  -------  ---------  ---  -------
+easy          800   119  14.9% [12.6%, 17.5%]          29.8%      0  3.56 [3.48, 3.65]   0.52    0.85  597      687       2.37  5.7     90.4
+normal        800   122  15.3% [12.9%, 17.9%]          30.5%      0  3.57 [3.48, 3.66]   0.50    0.85  500      686       2.48  5.8     92.8
+hard          800   159  19.9% [17.3%, 22.8%]          39.8%      0  3.36 [3.27, 3.45]   0.52    0.80  425      713       2.42  5.8     97.7
+
+HOW THEY DIED   to a bot  to a mob  to sudden death  never fought
+easy                 446       209               26             1
+normal               412       225               41             0
+hard                 366       240               35             0
+```
+
+* **Separation.** Hard is ahead of Normal and Easy (19.9% against 15.3% and 14.9%; placement 3.36 against 3.57 and 3.56, the
+  intervals clear). Normal and Easy are not apart: 0.01 of placement, intervals overlapping. Only Normal sits in its starting band
+  (BOTS.md 9.3); Hard is under 0.25 and Easy over 0.10. The reaction means hold for Normal (1.06 of the table) and Hard (1.06) and
+  not for Easy (499 ms against 450, 1.11: the attention-scaled `newThreat` and the reading `chestUp` run long).
+* **Against section 3.** The restraint experiments there gave Hard 24 to 34% (42% for the turtle) with Easy and Normal falling. This run is closer to
+  section 0's starting point (15.1 / 15.1 / 19.8). I did not re-run section 3's experiments after the merge, so I cannot say
+  whether weaker mobs (`MOB_K` 0.22: farming is cheaper, so restraint pays less), the camp-wide aggro the hunt does not know of, or
+  the chest module moved it.
+* **Planning is not in these games.** `HEADLESS_CONFIG` leaves `planSeconds` unset, so the headless room starts the raid at once
+  and the planning module never acts here. Its effect on a run (a better start for Hard than for Easy) is not measured.
+* **Stalls.** 20 bot-games stood still over 8 s (longest: Easy 17.8 s, Normal 15.6 s, Hard 11.8 s), against 6 of 800 and a 10 s
+  maximum in section 5. Not investigated. One candidate, not confirmed: the chest module keeps a bot at a chest while its pick is
+  pending, a deliberate wait that the stall watch (`brain.ts` `watchStall`) does not list.
+* **Who wins.** By faction: Plague 34.2%, Frost 24.4%, Sentenced 10.6%, Fire 7.3%, Holy 6.9% of bot-games; by persona: hunter 21.0%,
+  cautious 18.3%, opportunist 16.0%, farmer 11.3%. That spread is the factions' and the sim's, not the tiers'.
+
+Tuning stopped here by owner decision. The numbers above are the baseline for whoever picks it up again.

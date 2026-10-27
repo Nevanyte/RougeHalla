@@ -468,7 +468,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
           void this.lock();
           break;
         case "plan":
-          // A bot has no client: its deal goes into its next frame (a planning module will read it).
+          // A bot has no client: its deal goes into its next frame (the planning module reads it).
           if (this.bots?.isBot(ev.to)) this.bots.onPrivate(ev.to, "plan", ev.plan);
           else this.sendTo(ev.to, "plan", ev.plan);
           break;
