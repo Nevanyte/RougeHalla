@@ -7,8 +7,9 @@
 // Accepting (handleTarget). The target must be another combatant that is standing, not evading, hostile (not the fighter
 // itself, and a mob never locks a mob: only players lock at all) and within TARGET_RANGE centre to centre, and the player
 // must hold a weapon. Anything else is ignored without changing a thing. Line of sight is not needed: an enemy seen behind
-// a pillar is locked and the chase walks around it, as in LoL (nothing is attacked without a clear line). Accepting locks
-// it and lets go of the trigger (the upkeep below holds it from then on).
+// a pillar is locked and the chase walks around it, as in LoL (nothing is attacked without a clear line). A target across
+// a fence (LOW) is in sight, so it is locked with no search and the chase finds the way. Accepting locks it and lets go
+// of the trigger (the upkeep below holds it from then on).
 //
 // Orders replace each other in arrival order within a tick (step.ts applies a move where it arrived among the actions):
 // `move` and `stop` end the lock (dropLock, weapons.ts), as does `attack`; a `target` ends whatever came before it. A
@@ -20,7 +21,8 @@
 // Upkeep (updateTargets, once per tick right after the inputs, before the weapons). For every locked player: the lock ends
 // when the target is no longer standing, is evading, is farther than TARGET_RANGE, has been out of line of sight for
 // TARGET_LOS_GRACE_MS after having been in it (until then the chase paths around the wall; a target locked behind a wall
-// is chased until it is first seen), or the player holds no weapon. Ending it clears the
+// is chased until it is first seen), or the player holds no weapon. A melee lock across a fence is seen but not "clear"
+// (reachMask: LOW stops a swing, not a shot), so it walks round and holds no trigger. Ending it clears the
 // trigger and the chase path: the player stops where it stands. Otherwise policies.ts `decide` plays the weapon with
 // lockSpacing (close in until within the weapon's `far`, then stand and attack, never back off) against the target's
 // present position and its velocity:
@@ -30,8 +32,8 @@
 //           written only past MOB_AIM_DEADBAND, as a mob's is
 // An attack the lock starts remembers its target and is aimed again at it as it lands or leaves (weapons.ts `land`).
 import {
-  decide, hasLineOfSight, lockSpacing, MOB_AIM_DEADBAND, TARGET_LOS_GRACE_MS, TARGET_RANGE, TARGET_REPATH_MS, TICK_MS, wrapAngle,
-  type Vec2,
+  decide, hasLineOfSight, lockSpacing, MASK_SIGHT, MOB_AIM_DEADBAND, moveComponents, reachMask, TARGET_LOS_GRACE_MS, TARGET_RANGE,
+  TARGET_REPATH_MS, TICK_MS, worldToTile, wrapAngle, type Vec2,
 } from "@raid/shared";
 import {
   activeWeapon, combatant, hostile, isEvading, standing, timingsOf, type Combatant,
@@ -116,8 +118,13 @@ function follow(world: World, c: Combatant): void {
   if (isStunned(world, c)) return;
   const self = { x: c.s.x, y: c.s.y };
   const at = { x: t.s.x, y: t.s.y };
-  const los = hasLineOfSight(collisionMap(world), self, at);
-  if (los) {
+  const map = collisionMap(world);
+  // `seen` is sight (what drives the lock's drop rules); `clear` is the weapon's reach (what `decide` plays on). One ray
+  // while the two masks are the same: a ranged weapon's reach is sight.
+  const seen = hasLineOfSight(map, self, at);
+  const reach = reachMask(weapon);
+  const clear = reach === MASK_SIGHT ? seen : seen && hasLineOfSight(map, self, at, reach);
+  if (seen) {
     w.lockSeen = true;
     w.lockLosLostAt = 0;
   } else if (!w.lockSeen) {
@@ -129,13 +136,13 @@ function follow(world: World, c: Combatant): void {
   }
 
   const out = decide({
-    self, target: at, targetVel: velocityOf(t.rt, at, now), los, weapon, ready: now >= c.s.readyAt, windup: tm.windup,
+    self, target: at, targetVel: velocityOf(t.rt, at, now), los: clear, weapon, ready: now >= c.s.readyAt, windup: tm.windup,
     spacing: lockSpacing(weapon),
   });
 
   if (out.move === "stop") {
     if (c.rt.path.length > 0) c.rt.path = [];
-  } else if (out.move !== null && !chase(world, c, out.move, now, los)) {
+  } else if (out.move !== null && !chase(world, c, out.move, now, seen)) {
     return;
   }
 
@@ -153,12 +160,27 @@ function follow(world: World, c: Combatant): void {
   if (Math.abs(wrapAngle(out.aim - c.s.facing)) >= MOB_AIM_DEADBAND) c.s.facing = out.aim;
 }
 
+/** Do both stand on floor, in different move components? Then no path exists and none will (a LOW-sealed pocket, locked gates). */
+function sealedOff(world: World, a: Vec2, b: Vec2): boolean {
+  const map = collisionMap(world);
+  const ax = worldToTile(a.x);
+  const ay = worldToTile(a.y);
+  const bx = worldToTile(b.x);
+  const by = worldToTile(b.y);
+  if (Math.min(ax, ay, bx, by) < 0 || Math.max(ax, bx) >= map.w || Math.max(ay, by) >= map.h) return false;
+  const comp = moveComponents(map);
+  const ca = comp[ay * map.w + ax]!;
+  const cb = comp[by * map.w + bx]!;
+  return ca >= 0 && cb >= 0 && ca !== cb;
+}
+
 /**
  * Walks toward `goal`: plans a path when there is none or the goal moved, but not more often than TARGET_REPATH_MS. A goal
- * in sight that can't be planned to leaves the path as it was (as a move order to such a point does); one out of sight with
- * no way to it ends the lock (the gates locked between them). Returns false when it ended the lock.
+ * in sight that can't be planned to keeps the path as it was (as a move order to such a point does), unless it is provably
+ * unreachable (a different move component: sight passes over LOW, so a sealed pocket is seen). One out of sight with no way
+ * to it ends the lock (the gates locked between them). Returns false when it ended the lock.
  */
-function chase(world: World, c: Combatant, goal: Vec2, now: number, los: boolean): boolean {
+function chase(world: World, c: Combatant, goal: Vec2, now: number, seen: boolean): boolean {
   const w = c.rt.weapon;
   const moved = w.lockGoal === null || Math.hypot(goal.x - w.lockGoal.x, goal.y - w.lockGoal.y) > GOAL_MOVED;
   if (!moved && c.rt.path.length > 0) return true;
@@ -167,7 +189,7 @@ function chase(world: World, c: Combatant, goal: Vec2, now: number, los: boolean
   w.lockGoal = { x: goal.x, y: goal.y };
   const path = planPath(world, c.s, goal);
   if (path.length > 0) c.rt.path = path;
-  else if (!los) {
+  else if (!seen || sealedOff(world, c.s, goal)) {
     dropLock(c);
     return false;
   }

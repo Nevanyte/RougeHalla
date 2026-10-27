@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ABILITIES, BARRIER_FULL_SHARE, EFFECT_HIDDEN, EFFECT_STUNNED, WIRE_IDENTITY_MIRRORS, encodeMult } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { PlayerView } from "../src/render/PlayerView";
+import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeedback";
 import { screenAngle } from "../src/render/projection";
 import { BARRIER_COLOR } from "../src/ui/buffTheme";
 import { argsOf, fakeScene, type FakeObject } from "./fakes";
@@ -308,5 +309,37 @@ describe("PlayerView bow draw", () => {
 
   it("an older server with no mirror fields leaves them undefined: the unbuffed draw", () => {
     expect(glows({ asMult: undefined, windupMult: undefined }, null)).toBe(false);
+  });
+});
+
+describe("PlayerView feet effects", () => {
+  const burning: TerrainStates = { ...NO_STATES, kind: 4, burning: true };
+  const homeOnly: TerrainStates = { ...NO_STATES, kind: 4, home: true };
+
+  it("makes no Graphics for them until the fighter first stands on a hazard (unstyled maps and the hub allocate nothing)", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new PlayerView(scene, false);
+    const made = ofKind("graphics").length;
+    for (let i = 0; i < 3; i++) view.update(0, 0, player(), 1000 + i, 1000 + i);
+    view.update(0, 0, player(), 1010, 1010, false, false, null, homeOnly); // home ground with no effect shows nothing either
+    view.update(0, 0, player({ status: "dead", hp: 0 }), 1020, 1020); // an unseen fighter hides a feet effect that was never made
+    expect(ofKind("graphics")).toHaveLength(made);
+    view.update(10, 10, player(), 1030, 1030, false, false, null, burning);
+    const graphics = ofKind("graphics");
+    expect(graphics).toHaveLength(made + 1);
+    const feet = graphics[graphics.length - 1]!;
+    expect(feet.state.visible).toBe(true);
+    expect(feet.calls.some(([n]) => n === "fillCircle" || n === "fillTriangle" || n === "fillPoints" || n === "fillStyle")).toBe(true);
+    view.update(10, 10, player(), 1040, 1040, false, false, null, burning);
+    expect(ofKind("graphics")).toHaveLength(made + 1); // made once
+    view.update(10, 10, player(), 1050, 1050); // off the hazard: hidden, kept
+    expect(feet.state.visible).toBe(false);
+    view.destroy();
+    expect(feet.calls.some(([n]) => n === "destroy")).toBe(true);
+  });
+
+  it("destroys cleanly when it never made them", () => {
+    const { view } = setup();
+    expect(() => view.destroy()).not.toThrow();
   });
 });

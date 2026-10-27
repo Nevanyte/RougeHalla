@@ -122,7 +122,6 @@ export function runDuel(a: Fighter, b: Fighter, offA: number, offB: number, opts
   const mode = opts.mode ?? "trades";
   const tMax = opts.tMax ?? 400;
   const world = createGameWorld({
-    seed: 1,
     config: {
       minPlayers: 2, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9,
       suddenDeathSeconds: 1e9,

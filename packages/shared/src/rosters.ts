@@ -10,7 +10,7 @@ import { pick, shuffle, type Rng } from "./rng";
 /**
  * The normal types of `campCount` camps of one zone, in camp order. The zone's three normal types are shuffled (Fisher-Yates,
  * two draws) and handed out in that order, so no type repeats while camps last: a 3-camp zone has each type once, a 2-camp
- * zone (wedge maps) one type absent, a 1-camp zone one. Every camp past the third takes one more draw to repeat one of the
+ * zone (a hand-built map) one type absent, a 1-camp zone one. Every camp past the third takes one more draw to repeat one of the
  * three. Nothing is drawn for a zone with no camps.
  */
 export function rollZoneTypes(zone: FactionId, campCount: number, rng: Rng): MobTypeId[] {

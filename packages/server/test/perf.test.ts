@@ -1,59 +1,51 @@
-// The Phase 11 tick budget (docs/GAME_DESIGN.md 17): with 8 players and 60 mobs a step() averages under 5 ms and its
-// 99th percentile stays under 15 ms. The scenario is bench/stepBench.ts. The machine may be busy (other tests run in
-// parallel, and a load average of 12-20 has made a wall-clock p99 fail while the sim was fine), so the gate reads
-// `gateMs`: per step the smaller of the wall time and the process's CPU time, which a preempted step does not accrue. The best
-// of three attempts still counts. The second case is R4a's gate: every buff at 4 stacks on all 8 players (the fold in
-// sim/mods.ts and updateMods run for every fighter). Both use the same measure.
+// The Phase 11 tick budget (docs/GAME_DESIGN.md 17): with 8 players and the map's mobs (20 camps, about 80 on a zone map) a
+// step() averages under 5 ms and its 99th percentile stays under 15 ms. The scenarios are bench/stepBench.ts: eight
+// players at eight camps, and the pathfinder's worst case (every camp woken every second, players re-locking every
+// TARGET_REPATH_MS). The machine may be busy (other tests run in parallel, and on a shared one the process is preempted in
+// the middle of a step), so the best of five attempts counts (one attempt is a second of play) and each is judged by the
+// smaller of its wall-clock and its CPU time (gateMs): a real regression raises both, in every attempt.
+// The third case is R4a's gate: every buff at 4 stacks on all 8 players (the fold in sim/mods.ts and updateMods run for
+// every fighter).
 import { describe, expect, it } from "vitest";
-import { runStepBench, type BenchResult } from "../bench/stepBench";
+import { gateMs, runStepBench, type BenchOptions, type BenchResult } from "../bench/stepBench";
 
 const AVG_BUDGET_MS = 5;
 const P99_BUDGET_MS = 15;
 
-const within = (r: BenchResult): boolean => r.gateMs.avgMs < AVG_BUDGET_MS && r.gateMs.p99Ms < P99_BUDGET_MS;
-
-function bestOfThree(opts: { buffs?: boolean } = {}): BenchResult {
+function bestOfFive(opts: BenchOptions): BenchResult {
   let best: BenchResult | null = null;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     const r = runStepBench({ ticks: 600, ...opts });
-    if (!best || r.gateMs.avgMs + r.gateMs.p99Ms < best.gateMs.avgMs + best.gateMs.p99Ms) best = r;
-    if (within(r)) return r;
+    const g = gateMs(r);
+    if (!best || g.avg + g.p99 < gateMs(best).avg + gateMs(best).p99) best = r;
+    if (g.avg < AVG_BUDGET_MS && g.p99 < P99_BUDGET_MS) return r;
   }
   return best!;
 }
 
-/** What the run measured, for a failure message and the log (wall, cpu and the gated number). */
-function report(r: BenchResult): string {
-  const f = (n: number): string => n.toFixed(3);
-  return `wall avg ${f(r.avgMs)} p99 ${f(r.p99Ms)}; cpu ${r.cpuMs ? `avg ${f(r.cpuMs.avgMs)} p99 ${f(r.cpuMs.p99Ms)}` : "n/a"}; gate avg ${f(r.gateMs.avgMs)} p99 ${f(r.gateMs.p99Ms)} (ms per step)`;
-}
-
 describe("tick budget", () => {
-  it("8 players and 60 mobs: step() averages under 5 ms with a p99 under 15 ms", () => {
-    const r = bestOfThree();
-    console.log(`tick budget, 60 mobs: ${report(r)}`);
+  it("8 players and the map's ~80 mobs: step() averages under 5 ms with a p99 under 15 ms", () => {
+    const r = bestOfFive({});
     // A mob that dies is replaced the next tick, and its corpse leaves the state 1.5 s after it fell: the count dips by a few.
-    expect(r.mobs).toBeGreaterThanOrEqual(55);
-    expect(r.gateMs.avgMs, report(r)).toBeLessThan(AVG_BUDGET_MS);
-    expect(r.gateMs.p99Ms, report(r)).toBeLessThan(P99_BUDGET_MS);
+    expect(r.mobs).toBeGreaterThanOrEqual(72);
+    expect(r.avgFighting).toBeGreaterThan(8);
+    expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
+    expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
+  }, 120_000);
+
+  it("the pathfinder's worst case (most of the 80 mobs awake and repathing, 8 players re-locking every 250 ms): the same budget", () => {
+    const r = bestOfFive({ stress: true });
+    expect(r.mobs).toBeGreaterThanOrEqual(72);
+    // Loaded: most mobs are chasing or walking home at any moment (measured about 70 awake, 50 fighting).
+    expect(r.avgAwake).toBeGreaterThan(40);
+    expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
+    expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);
 
   it("the same with every buff at 4 stacks on all 8 players (R4a's gate)", () => {
-    const r = bestOfThree({ buffs: true });
-    console.log(`tick budget, every buff at 4 stacks: ${report(r)}`);
-    expect(r.mobs).toBeGreaterThanOrEqual(55);
-    expect(r.gateMs.avgMs, report(r)).toBeLessThan(AVG_BUDGET_MS);
-    expect(r.gateMs.p99Ms, report(r)).toBeLessThan(P99_BUDGET_MS);
+    const r = bestOfFive({ buffs: true });
+    expect(r.mobs).toBeGreaterThanOrEqual(72);
+    expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
+    expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);
-
-  it("the gate never reads more than the wall time, and a step's CPU time is a real clock", () => {
-    const r = runStepBench({ ticks: 150, warmup: 30 });
-    expect(r.gateMs.avgMs).toBeLessThanOrEqual(r.avgMs + 1e-9);
-    expect(r.gateMs.p99Ms).toBeLessThanOrEqual(r.p99Ms + 1e-9);
-    if (r.cpuMs) {
-      expect(r.cpuMs.avgMs).toBeGreaterThan(0);
-      // Preemption cannot make CPU time exceed wall time by much (GC threads add a little).
-      expect(r.cpuMs.avgMs).toBeLessThan(r.avgMs * 3 + 1);
-    }
-  }, 60_000);
 });

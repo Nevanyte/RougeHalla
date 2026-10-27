@@ -8,14 +8,15 @@
 //   leave in lobby    nothing
 //   leave in planning recordRun(mia, 0 kills, 0 GV), as a leave in the run: planning is part of the run (a dropped client's
 //                     seat is held, as in the run, and goes MIA when the grace runs out). A shutdown voids it instead.
-import { randomBytes, randomInt } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
+  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
   type FactionId, type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { ServerConfig } from "../config";
+import type { MapSource } from "../mapPool";
 import type { ProfileStore } from "../persistence/ProfileStore";
 import { markDropped, markReconnected } from "../sim/arena";
 import { createGameWorld } from "../sim/gameplay";
@@ -102,6 +103,8 @@ export interface RoomContext {
   config: ServerConfig;
   store: ProfileStore;
   profiles: ActiveProfiles;
+  /** Certified maps, taken synchronously at a room's first join (mapPool.ts). */
+  maps: MapSource;
 }
 
 /** What onAuth hands to onJoin via `client.auth`. */
@@ -157,10 +160,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
    */
   maxMessagesPerSecond = 100;
 
-  /** Built on the first join (buildWorld): the map is the one real cost of a room, and a room nobody joins never pays it. */
+  /** Built on the first join (buildWorld), with a map from the pool: a room nobody joins never takes one. */
   private built: World | undefined;
-  /** Picked at creation so that the map does not depend on when the first player arrives. */
-  private seed = 0;
   /** The profile that asked for this room, until a player joins it (or the room is disposed). */
   private opener: string | null = null;
   private accumulator = 0;
@@ -194,8 +195,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   onCreate(options?: Partial<JoinOptions>) {
     const { config, profiles } = RaidRoom.ctx;
     this.training = options?.mode === "training";
-    // All that a room nobody joins gets: the world and its map are built on the first join (buildWorld).
-    this.seed = randomInt(0, 2 ** 31);
+    // A room nobody joins gets nothing more: the world, and its map from the pool, come with the first join (buildWorld).
     const opener = options?.profile;
     if (typeof opener === "string" && PROFILE_RE.test(opener)) {
       this.opener = opener;
@@ -226,9 +226,16 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   private buildWorld(): World {
-    const { config } = RaidRoom.ctx;
+    const { config, maps } = RaidRoom.ctx;
+    // Synchronous: a certified map made ahead on the pool's worker (an empty pool certifies one here, logged). A training
+    // room needs no seed of its own: it gets a copy of a recent map, so a burst of practice rooms does not drain the pool.
+    const map = this.training ? maps.takeForTraining() : maps.take();
+    // The planning deal reads the spawn walks (a pooled map arrives with them; a map certified here does not). Worked out now,
+    // as the room is built, so no later tick pays for them: the planning start is a tick with every player in it.
+    if (!this.training) spawnWalks(map);
     const world = createGameWorld({
-      seed: this.seed,
+      // The seed is the map's own (createWorld): what is published always rebuilds this map.
+      map,
       // Training never plans: its one player is in the run the moment they join.
       config: this.training ? { ...config, dummies: true, training: true, planSeconds: 0 } : config,
       random: Math.random,

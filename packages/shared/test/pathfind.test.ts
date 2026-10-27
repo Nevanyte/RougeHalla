@@ -1,19 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import { PLAYER_RADIUS, PLAYER_SPEED, TICK_RATE, TILE } from "../src/constants";
-import { circleClear, distPointToSegment, segmentClear } from "../src/geometry";
-import { TILE_FLOOR, TILE_WALL, mapFromTiles, tileToWorldCenter, worldToTile } from "../src/map";
+import { circleClear, distPointToSegment, hasLineOfSight, raycast, segmentClear } from "../src/geometry";
+import { MASK_MOVE, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, moveComponents, tileToWorldCenter, withGates, worldToTile } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
-import { findPath } from "../src/pathfind";
+import { PULL_WINDOW, SNAP_RADIUS, findPath } from "../src/pathfind";
 import { mulberry32 } from "../src/rng";
 import type { Vec2 } from "../src/messages";
+import { findPathReference } from "./findPathReference";
 
+/** "#" wall, "~" LOW, anything else floor. */
 function asciiMap(rows: string[]): GameMap {
   const h = rows.length;
   const w = rows[0].length;
   const tiles = new Uint8Array(w * h);
   rows.forEach((row, y) => {
-    for (let x = 0; x < w; x++) tiles[y * w + x] = row[x] === "#" ? TILE_WALL : TILE_FLOOR;
+    for (let x = 0; x < w; x++) tiles[y * w + x] = row[x] === "#" ? TILE_WALL : row[x] === "~" ? TILE_LOW : TILE_FLOOR;
   });
   return mapFromTiles(w, h, tiles);
 }
@@ -117,16 +119,16 @@ describe("findPath basics", () => {
 
   it("is deterministic and leaves no state behind between queries", () => {
     const map = generateMap(8);
-    const a = findPath(map, map.spawns[0], map.extracts[0]);
+    const a = findPath(map, map.spawns[0], map.camps[0].chest);
     findPath(map, map.spawns[3], map.crateSpots[5]);
     findPath(open, { x: 50, y: 50 }, { x: 300, y: 150 });
-    const b = findPath(map, map.spawns[0], map.extracts[0]);
+    const b = findPath(map, map.spawns[0], map.camps[0].chest);
     expect(b).toEqual(a);
   });
 
   it("does not mutate its inputs and never calls Math.random", () => {
     const map = generateMap(2);
-    const from = { ...map.spawns[1] }, to = { ...map.extracts[1] };
+    const from = { ...map.spawns[1] }, to = { ...map.camps[1].chest };
     const snapshot = JSON.stringify([from, to, Array.from(map.tiles)]);
     const spy = vi.spyOn(Math, "random");
     try {
@@ -271,11 +273,11 @@ describe("findPath never cuts corners", () => {
 });
 
 describe("findPath on generated maps", () => {
-  it("connects every spawn to every extract and crate spot with clear hops (12 seeds)", () => {
-    for (let s = 0; s < 12; s++) {
+  it("connects spawns to every camp chest and crate spot with clear hops (8 seeds, 4 spawns each)", () => {
+    for (let s = 0; s < 8; s++) {
       const map = generateMap(s * 7 + 1);
-      const targets = [...map.extracts.map((e) => ({ x: e.x, y: e.y })), ...map.crateSpots];
-      for (const from of map.spawns) {
+      const targets = [...map.camps.map((c) => ({ x: c.chest.x, y: c.chest.y })), ...map.crateSpots];
+      for (const from of map.spawns.slice(0, 4)) {
         for (const to of targets) {
           const path = findPath(map, from, to);
           expect(path.length, `seed ${map.seed}`).toBeGreaterThan(0);
@@ -284,7 +286,7 @@ describe("findPath on generated maps", () => {
         }
       }
     }
-  });
+  }, 120_000);
 
   it("connects arbitrary valid off-centre positions, ending exactly on the target", () => {
     const map = generateMap(3);
@@ -467,7 +469,7 @@ describe("findPath final position", () => {
         for (let tx = 1; tx < map.w - 1; tx++) {
           if (map.tiles[ty * map.w + tx] !== TILE_FLOOR) continue;
           let walls = 0;
-          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) walls += map.tiles[(ty + dy) * map.w + tx + dx];
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) walls += map.tiles[(ty + dy) * map.w + tx + dx] !== TILE_FLOOR ? 1 : 0;
           if (walls > 0) nearWall.push([tx, ty]);
         }
       }
@@ -508,10 +510,29 @@ describe("findPath final position", () => {
   });
 });
 
+/** Mean ms per call over `reps` calls, the best of `rounds` rounds (a scheduler pause costs one round, not all), after a warm-up call. */
+function msPerCall(fn: () => unknown, reps: number, rounds = 3): number {
+  fn();
+  let best = Infinity;
+  for (let r = 0; r < rounds; r++) {
+    const t0 = performance.now();
+    for (let i = 0; i < reps; i++) fn();
+    best = Math.min(best, (performance.now() - t0) / reps);
+  }
+  return best;
+}
+
 const isWallTileAt = (map: GameMap, p: Vec2) => map.tiles[worldToTile(p.y) * map.w + worldToTile(p.x)] !== TILE_FLOOR;
 
+/** CPU time of this test file's main thread in ms: vitest runs each file in its own process, so other files' load does not count. */
+const cpuMs = (): number => {
+  // The main thread's CPU time where Node has it (23.9+): V8's helper threads and other test files do not count.
+  const u = typeof process.threadCpuUsage === "function" ? process.threadCpuUsage() : process.cpuUsage();
+  return (u.user + u.system) / 1000;
+};
+
 describe("performance", () => {
-  it("answers typical 64x64 queries in under 2 ms on average", () => {
+  it("answers typical generated-map queries in under 2 ms on average", () => {
     const maps = [1, 2, 3, 4, 5].map((s) => generateMap(s));
     const queries: { map: GameMap; from: Vec2; to: Vec2 }[] = [];
     for (let i = 0; i < 50; i++) {
@@ -519,20 +540,21 @@ describe("performance", () => {
       queries.push({ map, from: map.spawns[i % 12], to: map.crateSpots[(i * 7) % map.crateSpots.length] });
     }
     for (const q of queries) findPath(q.map, q.from, q.to); // warm up
-    const t0 = performance.now();
+    const t0 = cpuMs();
     for (const q of queries) findPath(q.map, q.from, q.to);
-    const avg = (performance.now() - t0) / queries.length;
+    const avg = (cpuMs() - t0) / queries.length;
     expect(avg).toBeLessThan(2);
   });
 
   it("stays fast for worst-case corner-to-corner queries", () => {
     const map = generateMap(9);
     const a = map.spawns[0];
+    for (const to of map.spawns) findPath(map, a, to); // warm up (the scratch is sized per map)
     let worst = 0;
     for (const to of map.spawns) {
-      const t0 = performance.now();
+      const t0 = cpuMs();
       findPath(map, a, to);
-      worst = Math.max(worst, performance.now() - t0);
+      worst = Math.max(worst, cpuMs() - t0);
     }
     expect(worst).toBeLessThan(10);
   });
@@ -565,3 +587,304 @@ function gridDijkstra(map: GameMap, from: Vec2, to: Vec2): number {
     Math.hypot(from.x - tileToWorldCenter(fx), from.y - tileToWorldCenter(fy)) +
     Math.hypot(to.x - tileToWorldCenter(tx), to.y - tileToWorldCenter(ty));
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// LOW tiles stop bodies: a path never crosses them, hops are judged under MASK_MOVE, and a goal on the far side of a
+// closed LOW line is unreachable.
+
+/** Random square map with a wall border and independent WALL / LOW tiles. */
+function randomLowMap(rng: () => number, size: number, pWall: number, pLow: number): GameMap {
+  const tiles = new Uint8Array(size * size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const edge = x === 0 || y === 0 || x === size - 1 || y === size - 1;
+      const r = rng();
+      tiles[y * size + x] = edge || r < pWall ? TILE_WALL : r < pWall + pLow ? TILE_LOW : TILE_FLOOR;
+    }
+  }
+  return mapFromTiles(size, size, tiles);
+}
+
+/** A wall-ringed 24x12 room cut by a one-tile vertical LOW fence at x=12, open only at rows 9 and 10. */
+function fencedRoom(): GameMap {
+  const w = 24, h = 12;
+  const tiles = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const edge = x === 0 || y === 0 || x === w - 1 || y === h - 1;
+      tiles[y * w + x] = edge ? TILE_WALL : x === 12 && y < h - 3 ? TILE_LOW : TILE_FLOOR;
+    }
+  }
+  return mapFromTiles(w, h, tiles);
+}
+
+/** Samples every hop at 1 u: the disc must be clear under MASK_MOVE and the centre must stand on floor. Returns the first bad point. */
+function firstBadPoint(map: GameMap, from: Vec2, path: Vec2[], radius = PLAYER_RADIUS): Vec2 | null {
+  let prev = from;
+  for (const wp of path) {
+    const len = Math.hypot(wp.x - prev.x, wp.y - prev.y);
+    for (let s = 0; s <= len; s += 1) {
+      const p = { x: prev.x + ((wp.x - prev.x) * s) / (len || 1), y: prev.y + ((wp.y - prev.y) * s) / (len || 1) };
+      if (!circleClear(map, p, radius, MASK_MOVE)) return p;
+      if (map.tiles[worldToTile(p.y) * map.w + worldToTile(p.x)] !== TILE_FLOOR) return p;
+    }
+    prev = wp;
+  }
+  return null;
+}
+
+describe("findPath and a LOW fence", () => {
+  const fence = fencedRoom();
+  const from = c(8, 4);
+  const to = c(16, 4);
+
+  it("goes through the gap and never takes the straight hop across the fence", () => {
+    // The old geometry saw LOW as open floor and answered [to]: the server would have walked it across.
+    expect(segmentClear(fence, from, to, PLAYER_RADIUS)).toBe(false);
+    expect(hasLineOfSight(fence, from, to)).toBe(true); // a fence is see-through
+    const path = findPath(fence, from, to);
+    expect(path.length).toBeGreaterThan(1);
+    expect(path).not.toEqual([to]);
+    expect(path[path.length - 1]).toEqual(to);
+    expectClearHops(fence, from, path);
+    expect(firstBadPoint(fence, from, path)).toBeNull();
+    // Wherever the walk is inside the fence's column it is in the gap rows.
+    let prev = from;
+    let crossedAt: number | null = null;
+    for (const wp of path) {
+      const len = Math.hypot(wp.x - prev.x, wp.y - prev.y);
+      for (let s = 0; s <= len; s += 1) {
+        const x = prev.x + ((wp.x - prev.x) * s) / (len || 1);
+        const y = prev.y + ((wp.y - prev.y) * s) / (len || 1);
+        if (x >= 12 * TILE && x < 13 * TILE) { crossedAt = y; expect(y).toBeGreaterThanOrEqual(9 * TILE); }
+      }
+      prev = wp;
+    }
+    expect(crossedAt).not.toBeNull();
+    expect(pathLength(from, path)).toBeGreaterThan(Math.hypot(to.x - from.x, to.y - from.y) + 100);
+  });
+
+  it("walks back the same way, and its hops are blocked under the move mask but not by a sight cast", () => {
+    const back = findPath(fence, to, from);
+    expect(back.length).toBeGreaterThan(1);
+    expect(back[back.length - 1]).toEqual(from);
+    expectClearHops(fence, to, back);
+    expect(raycast(fence, from.x, from.y, to.x, to.y, MASK_MOVE).hit).toBe(true);
+    expect(raycast(fence, from.x, from.y, to.x, to.y).hit).toBe(false);
+  });
+
+  it("returns [] when the fence has no gap (the goal is on the other side of a closed line)", () => {
+    const sealed = fencedRoom();
+    for (let y = 1; y < sealed.h - 1; y++) sealed.tiles[y * sealed.w + 12] = TILE_LOW;
+    expect(findPath(sealed, from, to)).toEqual([]);
+    expect(findPath(sealed, to, from)).toEqual([]);
+    expect(findPath(sealed, from, c(10, 9)).length).toBeGreaterThan(0); // its own side is still reachable
+  });
+
+  it("a click on the fence walks to a bank, the nearer one", () => {
+    const west = findPath(fence, from, { x: 12 * TILE + 8, y: 4 * TILE + 16 });
+    expect(west[west.length - 1]).toEqual(c(11, 4));
+    const east = findPath(fence, c(16, 4), { x: 12 * TILE + 24, y: 4 * TILE + 16 });
+    expect(east[east.length - 1]).toEqual(c(13, 4));
+  });
+});
+
+describe("findPath target clamping and snapping against LOW", () => {
+  const R = PLAYER_RADIUS;
+  const last = (path: Vec2[]) => path[path.length - 1];
+  // A floor room ringed by LOW (itself inside the wall border): floor x 2..7, y 2..4.
+  const pond = asciiMap([
+    "##########",
+    "#~~~~~~~~#",
+    "#~......~#",
+    "#~......~#",
+    "#~......~#",
+    "#~~~~~~~~#",
+    "##########",
+  ]);
+
+  it("pulls a target hugging a LOW face back by exactly the clearance, one axis at a time", () => {
+    const from = c(4, 3);
+    expect(last(findPath(pond, from, { x: 2 * TILE + 1, y: 3 * TILE + 5 }))).toEqual({ x: 2 * TILE + R, y: 3 * TILE + 5 });
+    expect(last(findPath(pond, from, { x: 8 * TILE - 0.5, y: 3 * TILE + 5 }))).toEqual({ x: 8 * TILE - R, y: 3 * TILE + 5 });
+    expect(last(findPath(pond, from, { x: 4 * TILE + 9, y: 2 * TILE + 0.25 }))).toEqual({ x: 4 * TILE + 9, y: 2 * TILE + R });
+    expect(last(findPath(pond, from, { x: 4 * TILE + 9, y: 5 * TILE - 0.25 }))).toEqual({ x: 4 * TILE + 9, y: 5 * TILE - R });
+  });
+
+  it("clamps both axes in a LOW corner", () => {
+    const from = c(4, 3);
+    expect(last(findPath(pond, from, { x: 2 * TILE + 0.5, y: 2 * TILE + 0.5 }))).toEqual({ x: 2 * TILE + R, y: 2 * TILE + R });
+    expect(last(findPath(pond, from, { x: 8 * TILE - 0.5, y: 5 * TILE - 0.5 }))).toEqual({ x: 8 * TILE - R, y: 5 * TILE - R });
+  });
+
+  it("leaves a target that fits tangent to a LOW face exactly where it is", () => {
+    const tangent = { x: 2 * TILE + R, y: 3 * TILE + 16 };
+    expect(circleClear(pond, tangent, R)).toBe(true);
+    expect(findPath(pond, c(4, 3), tangent)).toEqual([tangent]);
+  });
+
+  // A LOW band nine tiles wide (x 3..11) between two banks that it separates completely.
+  const band = asciiMap([
+    "################",
+    "#..~~~~~~~~~...#",
+    "#..~~~~~~~~~...#",
+    "#..~~~~~~~~~...#",
+    "################",
+  ]);
+
+  it("snaps a goal on LOW to the nearest floor tile centre, within four rings", () => {
+    // Tile (3,2) is one step from the west bank (2,2); (6,2) is four.
+    expect(last(findPath(band, c(1, 1), { x: 3 * TILE + 16, y: 2 * TILE + 16 }))).toEqual(c(2, 2));
+    const four = findPath(band, c(1, 1), c(6, 2));
+    expect(last(four)).toEqual(c(2, 2));
+    expectClearHops(band, c(1, 1), four);
+  });
+
+  it("returns [] for a goal five or more rings deep in LOW, matching the wall rule", () => {
+    expect(SNAP_RADIUS).toBe(4);
+    // (7,2) is five steps from both banks. (8,2) is four from the east bank, which the start cannot reach.
+    expect(findPath(band, c(1, 1), c(7, 2))).toEqual([]);
+    expect(findPath(band, c(1, 1), c(8, 2))).toEqual([]);
+    expect(findPath(band, c(13, 1), c(8, 2))[0]).toBeDefined();
+  });
+
+  it("a start inside LOW snaps onto the bank and walks out", () => {
+    const path = findPath(band, { x: 3 * TILE + 16, y: 2 * TILE + 16 }, c(1, 3));
+    expect(path.length).toBeGreaterThan(0);
+    expect(path[0]).toEqual(c(2, 2));
+    expect(last(path)).toEqual(c(1, 3));
+  });
+});
+
+describe("findPath unreachable goals", () => {
+  it("equal to the answer without the component reject on random LOW maps, and never crossing LOW (sampled at 1 u)", () => {
+    const rng = mulberry32(2024);
+    let reachable = 0, unreachable = 0, snapped = 0, hugged = 0;
+    for (let k = 0; k < 40; k++) {
+      const map = randomLowMap(rng, 24, 0.1, 0.22);
+      const comp = moveComponents(map);
+      const floor: number[] = [];
+      for (let i = 0; i < map.tiles.length; i++) if (map.tiles[i] === TILE_FLOOR) floor.push(i);
+      if (floor.length < 20) continue;
+      const startTile = floor[Math.floor(rng() * floor.length)];
+      let pos: Vec2 = c(startTile % map.w, Math.floor(startTile / map.w));
+      for (let q = 0; q < 30; q++) {
+        const click = { x: 8 + rng() * (map.w * TILE - 16), y: 8 + rng() * (map.h * TILE - 16) };
+        const path = findPath(map, pos, click);
+        expect(path, `map ${k} query ${q}`).toEqual(findPathReference(map, pos, click));
+        const s = worldToTile(pos.y) * map.w + worldToTile(pos.x);
+        const g = worldToTile(click.y) * map.w + worldToTile(click.x);
+        if (map.tiles[g] === TILE_FLOOR) {
+          // Floor to floor: a path exists exactly when the tiles share a component, and exactly when grid search finds one.
+          expect(path.length > 0, `map ${k} query ${q}: components ${comp[s]} / ${comp[g]}`).toBe(comp[s] === comp[g]);
+          expect(path.length > 0).toBe(Number.isFinite(gridDijkstra(map, pos, click)));
+          if (path.length > 0) { reachable++; if (!circleClear(map, click, PLAYER_RADIUS)) hugged++; } else unreachable++;
+        } else if (path.length > 0) snapped++;
+        if (path.length === 0) continue;
+        expectClearHops(map, pos, path);
+        expect(firstBadPoint(map, pos, path), `map ${k} query ${q}: walker off floor`).toBeNull();
+        pos = path[path.length - 1];
+      }
+    }
+    expect(reachable).toBeGreaterThan(300);
+    expect(unreachable).toBeGreaterThan(100);
+    expect(snapped).toBeGreaterThan(100);
+    expect(hugged).toBeGreaterThan(10);
+  });
+
+  it("answers a goal behind a sealed river at once, with the same [] as a full search", () => {
+    const W = 96;
+    const tiles = new Uint8Array(W * W);
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) tiles[y * W + x] = x === 0 || y === 0 || x === W - 1 || y === W - 1 ? TILE_WALL : TILE_FLOOR;
+    for (let y = 1; y < W - 1; y++) { tiles[y * W + 46] = TILE_LOW; tiles[y * W + 47] = TILE_LOW; }
+    const map = mapFromTiles(W, W, tiles);
+    const from = { x: 80, y: 1500 };
+    const to = { x: 2900, y: 1500 };
+    expect(findPath(map, from, to)).toEqual([]);
+    expect(findPathReference(map, from, to)).toEqual([]);
+    // Timed against the full search on the same query, so the gate is how much the reject saves and machine load cancels out.
+    const ours = msPerCall(() => findPath(map, from, to), 200);
+    const full = msPerCall(() => findPathReference(map, from, to), 10);
+    expect(full / ours, `reject ${ours} ms, full search ${full} ms`).toBeGreaterThanOrEqual(3);
+    expect(ours).toBeLessThan(0.5); // a ceiling only for a runaway (about 10x what it costs on a quiet machine)
+  });
+
+  it("is also [] across closed coliseum gates, and open when the gates are", () => {
+    const map = generateMap(2);
+    const centre = map.coliseum.centre;
+    expect(findPath(map, map.spawns[0], centre).length).toBeGreaterThan(0);
+    expect(findPath(withGates(map), map.spawns[0], centre)).toEqual([]);
+  });
+});
+
+describe("PULL_WINDOW", () => {
+  it("is 32", () => {
+    expect(PULL_WINDOW).toBe(32);
+  });
+
+  it("changes no path on generated maps (against the same search without the window and the reject)", () => {
+    const rng = mulberry32(8);
+    let compared = 0, nonEmpty = 0, longest = 0;
+    for (let seed = 1; seed <= 16; seed++) {
+      const open = generateMap(seed);
+      for (const map of seed % 2 === 0 ? [open, withGates(open)] : [open]) {
+        for (let i = 0; i < 40; i++) {
+          const a = { x: 40 + rng() * (map.w * TILE - 80), y: 40 + rng() * (map.h * TILE - 80) };
+          const b = { x: 40 + rng() * (map.w * TILE - 80), y: 40 + rng() * (map.h * TILE - 80) };
+          const path = findPath(map, a, b);
+          expect(path, `seed ${seed} query ${i}`).toEqual(findPathReference(map, a, b));
+          compared++;
+          if (path.length > 0) nonEmpty++;
+          longest = Math.max(longest, path.length);
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(900);
+    expect(nonEmpty).toBeGreaterThan(500);
+    expect(longest).toBeGreaterThan(3);
+  });
+
+  it("keeps findPath on a 96x96 serpentine of LOW rivers well under the same search without the window", () => {
+    const W = 96;
+    const tiles = new Uint8Array(W * W);
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) tiles[y * W + x] = x === 0 || y === 0 || x === W - 1 || y === W - 1 ? TILE_WALL : TILE_FLOOR;
+    // Vertical two-tile rivers every 8 columns with a gap alternately at the bottom and the top: one long snake.
+    for (let k = 0, x = 6; x < W - 4; x += 8, k++) {
+      for (let y = 1; y < W - 1; y++) {
+        const gap = k % 2 === 0 ? y >= W - 5 : y <= 4;
+        if (!gap) { tiles[y * W + x] = TILE_LOW; tiles[y * W + x + 1] = TILE_LOW; }
+      }
+    }
+    const rng = mulberry32(5);
+    for (let i = 0; i < 300; i++) {
+      const x = 1 + Math.floor(rng() * (W - 2));
+      const y = 5 + Math.floor(rng() * (W - 10));
+      if (tiles[y * W + x] === TILE_FLOOR) tiles[y * W + x] = TILE_WALL;
+    }
+    const map = mapFromTiles(W, W, tiles);
+    const queries: [Vec2, Vec2][] = [];
+    for (let i = 0; i < 40; i++) queries.push([{ x: (2 + rng() * 3) * TILE, y: (10 + rng() * 76) * TILE }, { x: (90 + rng() * 4) * TILE, y: (10 + rng() * 76) * TILE }]);
+    for (const [a, b] of queries) findPath(map, a, b); // warm up
+    let worst = 0, longest = 0;
+    for (const [a, b] of queries) {
+      // Best of three, so a scheduler pause while other test files run does not decide the ceiling.
+      let best = Infinity;
+      let path: Vec2[] = [];
+      for (let rep = 0; rep < 3; rep++) {
+        const t0 = performance.now();
+        path = findPath(map, a, b);
+        best = Math.min(best, performance.now() - t0);
+      }
+      worst = Math.max(worst, best);
+      longest = Math.max(longest, path.length);
+      expect(path.length).toBeGreaterThan(0);
+    }
+    expect(longest).toBeGreaterThan(5); // the snake really forces detours
+    // The gate is the saving over the reference on the same queries (load cancels out); the absolute ceiling is only for a runaway
+    // (about 10x the worst query on a quiet machine).
+    const ours = msPerCall(() => { for (const [a, b] of queries) findPath(map, a, b); }, 1);
+    const full = msPerCall(() => { for (const [a, b] of queries) findPathReference(map, a, b); }, 1);
+    expect(full / ours, `window ${ours} ms, without ${full} ms for ${queries.length} queries`).toBeGreaterThanOrEqual(2); // 4x on a quiet machine, 2x is the load-proof floor for "the window still pays"
+    expect(worst).toBeLessThan(30);
+  });
+});

@@ -25,7 +25,7 @@ export function walkLength(from: Vec2, points: readonly Vec2[]): number {
 /**
  * Walking distance (world units) from each `map.spawnPool` entry to the coliseum centre over the map as generated (gates
  * open), by the shared pathfinder: the same number on the server and every client. Infinity for a spawn with no path.
- * Cached per map object (about 15 path searches on a wedge map, a few ms in all).
+ * Cached per map object (24-32 path searches on a zone map, about 4 ms in all: the server's map worker primes it, see primeSpawnWalks).
  */
 export function spawnWalks(map: GameMap): readonly number[] {
   let out = walksCache.get(map);
@@ -38,6 +38,19 @@ export function spawnWalks(map: GameMap): readonly number[] {
     walksCache.set(map, out);
   }
   return out;
+}
+
+/**
+ * Hands `map` the walks `spawnWalks` would compute, worked out elsewhere: the server's map worker computes them right
+ * after certifying and ships them with the map, so the room's first planning tick (the deal) never runs the 30 path
+ * searches on the event loop. Only a list with one finite-or-infinite number per pool spawn is taken, and never over walks
+ * already cached; returns whether it was taken. The caller vouches that they are this map's own.
+ */
+export function primeSpawnWalks(map: GameMap, walks: readonly number[]): boolean {
+  if (walksCache.has(map) || !Array.isArray(walks) || walks.length !== map.spawnPool.length) return false;
+  for (const v of walks) if (typeof v !== "number" || Number.isNaN(v) || v < 0) return false;
+  walksCache.set(map, walks.slice());
+  return true;
 }
 
 /** Seconds a walk of `distance` takes at the base PLAYER_SPEED (the planning screen's ETA). */

@@ -1,5 +1,5 @@
 // Camp rosters and the public camp state (ROGUELIKE_PLAN D5, D16; 3.3). At world build, before anyone joins, each map camp
-// gets its mono-type roster, rolled ONLY from world.rewardRandom (never world.random, so loot rolls and the wedge sim's
+// gets its mono-type roster, rolled ONLY from world.rewardRandom (never world.random, so loot rolls and the sim's
 // draws are what they were, and never from the public seed, so a client cannot read a camp's type off the map). The result
 // is published as `RaidState.camps`, one CampState per `map.camps` entry at the same index; geometry stays seed-derived.
 // Mobs themselves still appear at `raidStarted` (mobLife.spawnRegionalMobs reads the roster), and the planning screen reads

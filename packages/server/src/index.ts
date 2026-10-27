@@ -8,6 +8,7 @@ import {
   type LeaderboardResponse, type ProfileDTO, type ProfileResponse, type ShopError, type ShopErrorCode, type ShopResponse,
 } from "@raid/shared";
 import { loadConfig, type ServerConfig } from "./config";
+import { MAP_POOL_TARGET, MapPool } from "./mapPool";
 import {
   JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore, type ShopOutcome,
 } from "./persistence/ProfileStore";
@@ -145,10 +146,12 @@ const getOnly: RequestHandler = (req, res, next) => {
   res.status(405).json({ error: "method not allowed" });
 };
 
-export function createServer(config: ServerConfig = loadConfig()) {
+export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool } = {}) {
   const store: ProfileStore = new JsonProfileStore(config.stashFile);
   const profiles = new ActiveProfiles();
-  RaidRoom.ctx = { config, store, profiles };
+  // Warmed here, before the first room can ask: the main thread's lane tables (for a fallback) and the worker's queue.
+  const maps = (opts.maps ?? new MapPool({ target: config.mapPoolSize ?? MAP_POOL_TARGET })).start();
+  RaidRoom.ctx = { config, store, profiles, maps };
   allowProfileTokenInPreflight();
   const server = defineServer({
     transport: new WebSocketTransport(),
@@ -250,12 +253,15 @@ export function createServer(config: ServerConfig = loadConfig()) {
   });
   // Runs after every room is disposed (their onLeave handlers have settled), also on SIGINT/SIGTERM. The final flush,
   // then the profile file's lock goes, so the next server (a deploy, a tsx-watch restart) can take the file.
+  // The profiles go first: the pool's stop() is bounded, but nothing about a worker thread should ever sit in front of
+  // the final flush.
   server.onShutdown(async () => {
     try {
       await store.close();
     } catch (err) {
       console.error("[server] could not flush the profiles on shutdown:", err);
     }
+    await maps.stop();
   });
   if (config.latencyMs > 0) server.simulateLatency(config.latencyMs);
 
@@ -264,16 +270,20 @@ export function createServer(config: ServerConfig = loadConfig()) {
     try {
       await server.gracefullyShutdown(false);
     } finally {
-      await store.close();
+      try {
+        await store.close();
+      } finally {
+        await maps.stop();
+      }
     }
   }
-  return Object.assign(server, { store, profiles, stop });
+  return Object.assign(server, { store, profiles, maps, stop });
 }
 
 export type RaidServer = ReturnType<typeof createServer>;
 
-export async function startServer(config: ServerConfig = loadConfig()) {
-  const server = createServer(config);
+export async function startServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool } = {}) {
+  const server = createServer(config, opts);
   await server.listen(config.port);
   return server;
 }

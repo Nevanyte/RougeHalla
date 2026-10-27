@@ -1,7 +1,9 @@
 // The H help card: every control in one table (HELP_SECTIONS), drawn as keycaps. It is a real overlay, but the game keeps
 // running behind it, so it closes with H, Esc, its button or a click outside the card. The keys themselves are Chrome's,
 // and so is the stylesheet (chrome.css).
+import { MAP_STYLERS } from "@raid/shared";
 import { el } from "./dom";
+import { renderGround } from "./groundLegend";
 import { keycap } from "./keycap";
 
 /** Where a control works. The card lists the current place first. */
@@ -51,6 +53,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["Click"], action: "On the map: add a route stop; on a stop: take it out" },
       { keys: ["Tab"], action: "Move between the options and buttons" },
       { keys: ["Arrow keys"], action: "Move between the map's markers" },
+      { keys: ["Page Up", "Page Down"], action: "Jump to the previous or next zone's camps" },
       { keys: ["Enter"], action: "Press the focused button (Ready, a spawn, a camp)" },
       { keys: ["Delete"], action: "Take out the focused route stop" },
     ],
@@ -85,9 +88,16 @@ export function isMouseLabel(label: string): boolean {
   return /click/i.test(label);
 }
 
+/** The Ground legend documents terrain that exists only on a styled map, so the card carries it only while the zone stylers are on. */
+export function groundLegendVisible(): boolean {
+  return MAP_STYLERS;
+}
+
 export interface HelpOverlayOptions {
   /** Called when the card asks to close itself (its button, a click outside). */
   onClose?: () => void;
+  /** Whether the card carries the Ground legend. Defaults to `groundLegendVisible()`; a test passes it to cover both states. */
+  ground?: boolean;
 }
 
 export class HelpOverlay {
@@ -96,6 +106,8 @@ export class HelpOverlay {
   private readonly card = el("div", "help-card");
   private readonly closeButton = el("button", "help-close", "×");
   private readonly sections = new Map<HelpScope, HTMLElement>();
+  /** The Ground legend (what each terrain kind does): after the controls, and only when the stylers are on (else null). */
+  private readonly ground: HTMLElement | null;
 
   constructor(private readonly options: HelpOverlayOptions = {}) {
     const head = el("div", "help-head");
@@ -106,6 +118,7 @@ export class HelpOverlay {
     this.closeButton.addEventListener("click", () => this.requestClose());
     head.append(title, this.closeButton);
 
+    this.ground = (options.ground ?? groundLegendVisible()) ? renderGround() : null;
     this.card.setAttribute("role", "dialog");
     this.card.setAttribute("aria-modal", "true");
     this.card.setAttribute("aria-labelledby", "help-title");
@@ -117,6 +130,7 @@ export class HelpOverlay {
       this.sections.set(section.id, node);
       body.append(node);
     }
+    if (this.ground) body.append(this.ground);
     this.card.append(body, el("p", "help-foot", "Press H or Esc to close. Settings are behind the gear button."));
 
     this.element.append(this.card);
@@ -132,6 +146,7 @@ export class HelpOverlay {
   /** `context`: where the player is, so those controls come first. */
   open(context: HelpScope = "run"): void {
     helpSectionOrder(context).forEach((id, i) => { this.sections.get(id)!.style.order = String(i); });
+    if (this.ground) this.ground.style.order = String(this.sections.size);
     this.element.hidden = false;
     this.card.focus();
   }

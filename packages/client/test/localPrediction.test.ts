@@ -4,8 +4,9 @@
 import { describe, expect, it } from "vitest";
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
-  EFFECT_SILENCED, EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, PLAYER_SPEED,
-  scaleWindup, SIG_CHILLED, skillRows, SWIFT_BOOTS_PAUSE_MS, TILE_FLOOR, TILE_WALL, WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx,
+  EFFECT_SILENCED, EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, MOVE_MULT_FLOOR,
+  PLAYER_SPEED, scaleWindup, SIG_CHILLED, skillRows, SWIFT_BOOTS_PAUSE_MS, TERRAIN_BOG, TERRAIN_ICE, TILE, TILE_FLOOR, TILE_WALL,
+  WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
 import { LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalFighter, type OtherFighter, type SentCast } from "../src/net/localPrediction";
@@ -621,5 +622,147 @@ describe("inTeleportGrace (the server refuses every cast that reaches it within 
     expect(inTeleportGrace(60_000, 60_000)).toBe(true);
     expect(inTeleportGrace(60_000, 60_000 + CAST_TELEPORT_GRACE_MS - 1)).toBe(true);
     expect(inTeleportGrace(60_000, 60_000 + CAST_TELEPORT_GRACE_MS)).toBe(false);
+  });
+});
+
+describe("the ground under the model (bog slows the walk, ice lets it slide)", () => {
+  const W = 20;
+  const H = 12;
+  /** A walled room; (3, 3) is bog, (6, 3) ice, (9, 3) bog, (12, 3) ice; everything else plain. */
+  function ground(): GameMap {
+    const tiles = new Uint8Array(W * H).fill(TILE_FLOOR);
+    for (let x = 0; x < W; x++) { tiles[x] = TILE_WALL; tiles[(H - 1) * W + x] = TILE_WALL; }
+    for (let y = 0; y < H; y++) { tiles[y * W] = TILE_WALL; tiles[y * W + W - 1] = TILE_WALL; }
+    const terrain = new Uint8Array(W * H);
+    terrain[3 * W + 3] = TERRAIN_BOG;
+    terrain[3 * W + 6] = TERRAIN_ICE;
+    terrain[3 * W + 9] = TERRAIN_BOG;
+    terrain[3 * W + 12] = TERRAIN_ICE;
+    return mapFromTiles(W, H, tiles, 0, terrain);
+  }
+  const centre = (tx: number, ty: number) => ({ x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 });
+  const BOG = centre(3, 3);
+  const ICE = centre(6, 3);
+  const FLOOR = centre(4, 5);
+  /** A prediction whose model stands at `at` (the synced position of the fighter is whatever `fighter({x, y})` says). */
+  const modelAt = (at: { x: number; y: number }): LocalPrediction => {
+    const p = new LocalPrediction();
+    p.motion.observe({ x: at.x, y: at.y, t: 0, moveSeq: 0 }, 0);
+    return p;
+  };
+  const map = ground();
+  const BOG_MULT = 0.7;
+
+  describe("bog is read where the MODEL stands, not where the last patch has the fighter", () => {
+    it("the model on bog: 0.7 (the synced position elsewhere); the model on plain ground beside a synced bog position: 1", () => {
+      expect(modelAt(BOG).speedMult(0, fighter({ ...FLOOR }), [], map)).toBe(BOG_MULT);
+      expect(modelAt(FLOOR).speedMult(0, fighter({ ...BOG }), [], map)).toBe(1);
+    });
+
+    it("multiplies with the speed mirror and the chill, and a kill's burst is no longer part of it", () => {
+      const p = modelAt(BOG);
+      const MIRROR = 1.37;
+      const me = mirrored({ speed: MIRROR }, { sig: SIG_CHILLED, ...FLOOR });
+      expect(p.speedMult(0, mirrored({ speed: MIRROR }, { ...FLOOR }), [], map)).toBeCloseTo(MIRROR * BOG_MULT, 12);
+      expect(p.speedMult(0, me, [other({ x: FLOOR.x + 10, y: FLOOR.y })], map)).toBeCloseTo(MIRROR * CHILL_MOVE_MULT * BOG_MULT, 12);
+      p.noteFx({ kind: "death", id: "foe", x: 0, y: 0, by: ME, t: 10_000 }, ME, me); // a kill moves nothing now
+      expect(p.speedMult(10_100, me, [other({ x: FLOOR.x + 10, y: FLOOR.y })], map)).toBeCloseTo(MIRROR * CHILL_MOVE_MULT * BOG_MULT, 12);
+      expect(p.speedMult(10_500, me, [], map)).toBeCloseTo(MIRROR * BOG_MULT, 12); // nobody chills
+    });
+
+    it("Plague is at home in the bog: it gets 1, and the speed mirror is all there is", () => {
+      const p = modelAt(BOG);
+      expect(p.speedMult(0, fighter({ faction: "plague", ...FLOOR }), [], map)).toBe(1);
+      expect(p.speedMult(0, mirrored({ speed: 1.37 }, { faction: "plague", ...FLOOR }), [], map)).toBe(1.37);
+    });
+
+    it("plain and ice ground do not slow; no map is plain ground", () => {
+      expect(modelAt(FLOOR).speedMult(0, fighter(), [], map)).toBe(1);
+      expect(modelAt(ICE).speedMult(0, fighter(), [], map)).toBe(1);
+      expect(modelAt(BOG).speedMult(0, fighter(), [], null)).toBe(1);
+      expect(modelAt(BOG).speedMult(0, fighter(), [])).toBe(1);
+    });
+
+    it("the product is floored as the server floors it: never under MOVE_MULT_FLOOR while above 0, and a 0 stays 0", () => {
+      const p = modelAt(BOG);
+      expect(MOVE_MULT_FLOOR).toBe(0.35);
+      // 0.5 (a slow in the mirror) x 0.7 (chill) x 0.7 (bog) = 0.245: floored.
+      const slow = fighter({ speedMult: encodeMult(0.5), sig: SIG_CHILLED, ...FLOOR });
+      expect(p.speedMult(0, slow, [other({ x: FLOOR.x + 10, y: FLOOR.y })], map)).toBe(MOVE_MULT_FLOOR);
+      // The floor needs no bog: 0.4 x 0.7 = 0.28 on plain ground.
+      expect(modelAt(FLOOR).speedMult(0, mirrored({ speed: 0.4 }, { sig: SIG_CHILLED }), [other()], map)).toBe(MOVE_MULT_FLOOR);
+      expect(modelAt(FLOOR).speedMult(0, mirrored({ speed: 0.4 }, { sig: SIG_CHILLED }), [other()])).toBe(MOVE_MULT_FLOOR);
+      // At and above it, nothing changes (0.49 is the chill in the bog).
+      expect(p.speedMult(0, fighter({ sig: SIG_CHILLED, ...FLOOR }), [other({ x: FLOOR.x + 10, y: FLOOR.y })], map)).toBeCloseTo(CHILL_MOVE_MULT * BOG_MULT, 12);
+      expect(modelAt(FLOOR).speedMult(0, mirrored({ speed: 0.35 }), [], map)).toBe(0.35);
+      // A zero (not a slow: a stopped fighter) is not lifted.
+      expect(modelAt(FLOOR).speedMult(0, fighter({ speedMult: 0 }), [], map)).toBe(0);
+    });
+
+    it("frameInput carries it, judged at the model's position: the same fighter is slowed on the bog and not beside it", () => {
+      expect(modelAt(BOG).frameInput(0, true, fighter({ ...FLOOR }), [], false, map).speedMult).toBe(BOG_MULT);
+      expect(modelAt(FLOOR).frameInput(0, true, fighter({ ...BOG }), [], false, map).speedMult).toBe(1);
+    });
+  });
+
+  describe("slipAt, the traction handed to the motion", () => {
+    const TRACTION = (PLAYER_SPEED * 1000) / 400;
+
+    it("is 425 on ice for a fighter that does not grip it, and 0 off ice", () => {
+      const p = new LocalPrediction();
+      const input = p.frameInput(0, true, fighter({ faction: "plague" }), [], false, map);
+      expect(input.slipAt).toBeTypeOf("function");
+      expect(input.slipAt!(ICE.x, ICE.y)).toBe(TRACTION);
+      expect(input.slipAt!(centre(12, 3).x, centre(12, 3).y)).toBe(TRACTION);
+      expect(input.slipAt!(FLOOR.x, FLOOR.y)).toBe(0);
+      expect(input.slipAt!(BOG.x, BOG.y)).toBe(0);
+      expect(input.slipAt!(-50, -50)).toBe(0); // off the map
+      expect(input.map).toBe(map);
+    });
+
+    it("is 0 on ice too for Frost, whose home it is", () => {
+      const input = new LocalPrediction().frameInput(0, true, fighter({ faction: "frost" }), [], false, map);
+      expect(input.slipAt).toBeTypeOf("function");
+      expect(input.slipAt!(ICE.x, ICE.y)).toBe(0);
+      expect(input.slipAt!(FLOOR.x, FLOOR.y)).toBe(0);
+    });
+
+    it("every other faction slides", () => {
+      for (const faction of ["fire", "sentenced", "plague", "holy"]) {
+        const input = new LocalPrediction().frameInput(0, true, fighter({ faction }), [], false, map);
+        expect(input.slipAt!(ICE.x, ICE.y), faction).toBe(TRACTION);
+      }
+    });
+
+    it("is absent on a map with no ice, with no map, and with no fighter: nothing for the motion to do", () => {
+      const p = new LocalPrediction();
+      const bogOnly = mapFromTiles(W, H, ground().tiles, 0, Uint8Array.from(ground().terrain, (k) => (k === TERRAIN_ICE ? 0 : k)));
+      expect(p.frameInput(0, true, fighter(), [], false, bogOnly).slipAt).toBeUndefined();
+      expect(p.frameInput(0, true, fighter(), [], false, null).slipAt).toBeUndefined();
+      expect(p.frameInput(0, true, fighter(), [], false).slipAt).toBeUndefined();
+      expect(p.frameInput(0, true, undefined, [], false, map).slipAt).toBeUndefined();
+      expect(p.frameInput(0, true, fighter(), [], false, bogOnly).map).toBeUndefined();
+      expect(p.frameInput(0, true, fighter(), [], false, mapFromTiles(W, H, ground().tiles)).slipAt).toBeUndefined();
+    });
+
+    it("is one function per map and faction (a frame allocates none), and follows a change of either", () => {
+      const p = new LocalPrediction();
+      const a = p.frameInput(0, true, fighter({ faction: "fire" }), [], false, map).slipAt;
+      expect(p.frameInput(16, true, fighter({ faction: "fire" }), [], false, map).slipAt).toBe(a);
+      const b = p.frameInput(32, true, fighter({ faction: "frost" }), [], false, map).slipAt;
+      expect(b).not.toBe(a);
+      expect(b!(ICE.x, ICE.y)).toBe(0);
+      const other = ground();
+      const c = p.frameInput(48, true, fighter({ faction: "frost" }), [], false, other).slipAt;
+      expect(c).not.toBe(b);
+      p.reset();
+      expect(p.frameInput(64, true, fighter({ faction: "fire" }), [], false, map).slipAt).not.toBe(a);
+    });
+
+    it("a frame input with a map and no hazards still equals today's, field for field", () => {
+      const flat = mapFromTiles(W, H, ground().tiles);
+      const p = new LocalPrediction();
+      expect(p.frameInput(0, true, fighter(), [], true, flat)).toEqual({ alive: true, speedMult: 1, rooted: false, aiming: true });
+    });
   });
 });
