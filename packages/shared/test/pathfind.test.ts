@@ -4,7 +4,7 @@ import { circleClear, distPointToSegment, hasLineOfSight, raycast, segmentClear 
 import { MASK_MOVE, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, moveComponents, tileToWorldCenter, withGates, worldToTile } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
-import { PULL_WINDOW, SNAP_RADIUS, findPath } from "../src/pathfind";
+import { PULL_WINDOW, SNAP_RADIUS, findPath, pathLength as walkLength } from "../src/pathfind";
 import { mulberry32 } from "../src/rng";
 import type { Vec2 } from "../src/messages";
 import { findPathReference } from "./findPathReference";
@@ -890,5 +890,31 @@ describe("PULL_WINDOW", () => {
     const full = msPerCall(() => { for (const [a, b] of queries) findPathReference(map, a, b); }, 1);
     expect(full / ours, `window ${ours} ms, without ${full} ms for ${queries.length} queries`).toBeGreaterThanOrEqual(2); // 4x on a quiet machine, 2x is the load-proof floor for "the window still pays"
     expect(worst).toBeLessThan(30);
+  });
+});
+
+describe("pathLength (the generator's spawn gate and the planning walks use it)", () => {
+  it("sums the segment lengths from `from` through the waypoints, with Math.sqrt: 0 for no waypoints, 3-4-5 triangles exact", () => {
+    expect(walkLength({ x: 5, y: 5 }, [])).toBe(0);
+    expect(walkLength({ x: 0, y: 0 }, [{ x: 3, y: 4 }])).toBe(5);
+    expect(walkLength({ x: 0, y: 0 }, [{ x: 3, y: 4 }, { x: 3, y: 4 }, { x: 6, y: 8 }])).toBe(10);
+    const path = findPath(generateMap(1), { x: tileToWorldCenter(10), y: tileToWorldCenter(10) }, { x: tileToWorldCenter(60), y: tileToWorldCenter(40) });
+    expect(walkLength({ x: tileToWorldCenter(10), y: tileToWorldCenter(10) }, path)).toBeCloseTo(pathLength({ x: tileToWorldCenter(10), y: tileToWorldCenter(10) }, path), 6);
+  });
+
+  it("never calls Math.hypot (nor another engine-approximated function) in findPath, raycast, segmentClear or distPointToSegment on a generated map", () => {
+    const m = generateMap(4);
+    const spies = (["hypot", "pow", "exp", "log", "sin", "cos", "atan2"] as const).map((n) => vi.spyOn(Math, n));
+    try {
+      for (const p of m.spawnPool.slice(0, 6)) {
+        findPath(m, p, m.coliseum.centre);
+        raycast(m, p.x, p.y, m.coliseum.centre.x, m.coliseum.centre.y);
+        segmentClear(m, p, m.coliseum.centre, PLAYER_RADIUS);
+        distPointToSegment(p.x, p.y, 0, 0, m.coliseum.centre.x, m.coliseum.centre.y);
+      }
+      expect(spies.map((sp) => sp.mock.calls.length)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    } finally {
+      for (const sp of spies) sp.mockRestore();
+    }
   });
 });

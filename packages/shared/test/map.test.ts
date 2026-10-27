@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { TILE } from "../src/constants";
 import { hasLineOfSight } from "../src/geometry";
 import {
+  FEATURE_JOBS,
+  FEATURE_KINDS,
   MASK_MELEE,
   MASK_MOVE,
   MASK_SIGHT,
@@ -89,6 +91,25 @@ describe("mapFromTiles", () => {
     expect(m.territoryGrid).not.toBe(m.regionGrid);
     expect(m.camps).toEqual([]);
     expect(m.spawnPool).toEqual([]);
+  });
+
+  it("fills the zone-shape fields with empty values: no features, an all-zero featureGrid of its own", () => {
+    const m = mapFromTiles(5, 4, new Uint8Array(5 * 4));
+    expect(m.features).toEqual([]);
+    expect(m.featureGrid).toBeInstanceOf(Uint8Array);
+    expect(m.featureGrid.length).toBe(20);
+    expect(Array.from(m.featureGrid).every((v) => v === 0)).toBe(true);
+    expect(m.featureGrid).not.toBe(m.territoryGrid);
+    const other = mapFromTiles(5, 4, new Uint8Array(5 * 4));
+    m.featureGrid[3] = 1;
+    m.features.push({ kind: "infill", variant: "", zone: "fire", jobs: ["seal"], ax: 3, ay: 0, p: [], bbox: { x: 3, y: 0, w: 1, h: 1 }, tiles: 1 });
+    expect(other.featureGrid[3]).toBe(0);
+    expect(other.features).toEqual([]);
+  });
+
+  it("pins the feature tables (append only: the client's art, the hash and the certifier key on these)", () => {
+    expect([...FEATURE_KINDS]).toEqual(["landmark", "crater", "lavaRiver", "fenceRow", "gallows", "barrow", "mere", "headland", "spire", "causeway", "hall", "infill"]);
+    expect([...FEATURE_JOBS]).toEqual(["landmark", "pen", "crossing", "lane", "fork", "lee", "choke", "cover", "rest", "seal"]);
   });
 
   it("keeps the seed it is given", () => {

@@ -27,6 +27,34 @@ function stat(v: number[]): Stats {
 }
 
 const api: Record<string, unknown> = { map, seed, mode };
+
+/**
+ * The map worker as the page runs it (net/mapWorker.ts's module worker): the warm-up (layout tables and a throwaway attempt), then
+ * `runs` requests for (seed, attempt), each with the worker's own time for the attempt (`ms`) and the round trip. The difference is
+ * the structured clone of the reply (its five layers are transferred, the features and props are cloned) and the queueing.
+ */
+api.workerBench = async (wseed = seed, attempt = 0, runs = 3): Promise<unknown> => {
+  const { spawnMapWorker } = await import("../../src/net/mapWorker");
+  const w = spawnMapWorker();
+  if (!w) return { error: "no Worker" };
+  const next = (): Promise<{ kind: string; ms?: number; layoutMs?: number; attemptMs?: number; map?: GameMap }> => new Promise((r) => { w.onmessage = (e) => r(e.data as never); });
+  const t0 = performance.now();
+  const pw = next();
+  w.postMessage({ kind: "warm" });
+  const warm = await pw;
+  const warmTotal = performance.now() - t0;
+  const out: Array<{ total: number; workerMs: number; cloneMs: number }> = [];
+  for (let i = 0; i < runs; i++) {
+    const t = performance.now();
+    const p = next();
+    w.postMessage({ kind: "map", id: i, seed: wseed, attempt });
+    const msg = await p;
+    const total = performance.now() - t;
+    out.push({ total, workerMs: msg.ms ?? 0, cloneMs: total - (msg.ms ?? 0) });
+  }
+  w.terminate();
+  return { warm: { layoutMs: warm.layoutMs, attemptMs: warm.attemptMs, total: warmTotal }, runs: out };
+};
 (window as unknown as { __zoneart: Record<string, unknown> }).__zoneart = api;
 
 if (mode === "game") {

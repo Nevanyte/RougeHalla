@@ -9,7 +9,7 @@
 // lays the Images over each other as a GPU does at a fractional camera zoom (bilinear, with and without multisampling). Controls
 // paint the same walls the way the bake did before each fix, to show the check can see the seam.
 import { describe, expect, it } from "vitest";
-import { REGION_FACTIONS, REGION_IDS, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, type GameMap } from "@raid/shared";
+import { REGION_FACTIONS, REGION_IDS, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, type FeatureKind, type GameMap } from "@raid/shared";
 import { CHUNK_TILES, ClipPen, SnapPen, makeContext, paintStrip, planStrips, wallInfoAt, wallJoinsEast, type BakeContext } from "../src/render/zoneArt/bake";
 import { MapView } from "../src/render/MapView";
 import { ZONE_PALETTE } from "../src/render/zoneArt/palette";
@@ -691,5 +691,109 @@ describe("what a step must not touch", () => {
         for (const phase of PHASES) expect(worstHole(renderPremult(layers, windowOver(x0, y0, x1, y1, zoom, phase, msaa))), `${mode}, zoom ${zoom}, ${msaa}, ${phase}`).toBeLessThan(HOLE);
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// The zone shapes' wall looks (render/zoneArt/featureArt.ts, featureStyle.ts) draw on the same footprint and faces as the zone's own
+// wall, so the seam work above must hold for them too: no floor through a row boundary, whatever mark a look adds. A crater's rim is
+// the one look that changes an edge (its lift is jittered: one tile in eight 5 px lower, two in eight 3 px lower), so it is held to
+// the same standard where its rows differ: a lower tile under a higher one shows the higher one's south face, never the floor.
+
+/** [look, zone, feature kind, landmark variant]: one case per wall look the art has. */
+const LOOK_CASES: ReadonlyArray<readonly [string, Zone, FeatureKind, string]> = [
+  ["rim", "fire", "crater", ""], ["mound", "plague", "barrow", ""], ["pier", "holy", "hall", ""], ["shard", "frost", "headland", ""],
+  ["gallows", "sentenced", "gallows", ""], ["forge", "fire", "landmark", "forge"], ["guardHouse", "sentenced", "landmark", "guardHouse"],
+  ["burrow", "plague", "landmark", "burrow"], ["watchtower", "frost", "landmark", "watchtower"], ["shrine", "holy", "landmark", "shrine"],
+];
+
+/** `wallMap` with its walls owned by one feature of `kind` (the crater's p is [camp, radius4, breaches]). */
+function featureWallMap(zone: Zone, kind: FeatureKind, variant: string, walls: readonly Rect[], seed = 3): GameMap {
+  const map = wallMap(zone, walls);
+  (map as { seed: number }).seed = seed;
+  map.features = [{ kind, variant, zone, jobs: [], ax: 10, ay: 5, p: kind === "crater" ? [0, 24, 0] : kind === "barrow" ? [16, 0, 0, 1] : [], bbox: { x: 0, y: 0, w: map.w, h: map.h }, tiles: 0 }];
+  for (const [x0, y0, rw, rh] of walls) for (let y = y0; y < y0 + rh; y++) for (let x = x0; x < x0 + rw; x++) map.featureGrid[y * map.w + x] = 1;
+  return map;
+}
+
+describe.each(LOOK_CASES.filter(([name]) => name !== "rim"))("a stacked %s wall (a feature look), pixel by pixel", (name, zone, kind, variant) => {
+  it.each(Object.entries(STACKS))("leaves no floor through a row boundary in a %s stack, at any camera phase", (_n, stack) => {
+    const map = featureWallMap(zone, kind, variant, [stack]);
+    expect(wallInfoAt(makeContext(map), stack[0], stack[1]).look, name).toBe(name);
+    const win = stackWindow(map, stack);
+    for (const mode of MODES) {
+      const layers = bakedLayers(map, mode);
+      for (const [zoom, msaa] of CONFIGS) {
+        for (const phase of PHASES) {
+          const picture = renderPremult(layers, windowOver(win.x0, win.y0, win.x1, win.y1, zoom, phase, msaa));
+          expect(worstHole(picture), `${mode} fill, zoom ${zoom}, multisampling ${msaa}, phase ${phase}`).toBeLessThan(HOLE);
+        }
+      }
+    }
+  });
+
+  it("puts every edge of a stack's tiles on a texel line, like the zone's own wall", () => {
+    const map = featureWallMap(zone, kind, variant, [STACKS["3 x 3"]!]);
+    const ctx = makeContext(map);
+    const [tx, ty, w, h] = STACKS["3 x 3"]!;
+    for (const s of planStrips(map).strips) {
+      if (s.ty < ty || s.ty >= ty + h) continue;
+      const pen = new ShapePen();
+      paintStrip(pen, ctx, s);
+      for (const sh of pen.shapes) {
+        if (sh.line) continue;
+        const ys = sh.poly.map((p) => p[1]);
+        const xs = sh.poly.map((p) => p[0]);
+        if (Math.max(...xs) - s.px + s.x <= tx * TILE || Math.min(...xs) - s.px + s.x >= (tx + w) * TILE) continue;
+        for (const v of [Math.min(...ys), Math.max(...ys)]) expect(Math.abs(v - Math.round(v)), `${name} row ${s.ty}`).toBeLessThan(1e-9);
+      }
+    }
+  });
+});
+
+describe("a crater rim's broken crown, pixel by pixel", () => {
+  /** The first seed (from 1) at which the lifts of the tiles of `rects` are all one wall high: the jitter leaves them level. */
+  function levelSeed(rects: readonly Rect[]): number {
+    for (let seed = 1; seed < 5000; seed++) {
+      const ctx = makeContext(featureWallMap("fire", "crater", "", rects, seed));
+      const all = rects.every(([tx, ty, w, h]) => {
+        for (let y = ty; y < ty + h; y++) for (let x = tx; x < tx + w; x++) if (wallInfoAt(ctx, x, y).lift !== 14) return false;
+        return true;
+      });
+      if (all) return seed;
+    }
+    throw new Error("no seed keeps the stack level");
+  }
+
+  it("leaves no floor through a row boundary of a 3 x 3 rim whose tiles stand level", () => {
+    const stack = STACKS["3 x 3"]!;
+    const map = featureWallMap("fire", "crater", "", [stack], levelSeed([stack]));
+    expect(wallInfoAt(makeContext(map), stack[0], stack[1]).look).toBe("rim");
+    const win = stackWindow(map, stack);
+    for (const mode of MODES) {
+      const layers = bakedLayers(map, mode);
+      for (const [zoom, msaa] of CONFIGS) {
+        for (const phase of PHASES) expect(worstHole(renderPremult(layers, windowOver(win.x0, win.y0, win.x1, win.y1, zoom, phase, msaa))), `${mode}, zoom ${zoom}, ${msaa}, ${phase}`).toBeLessThan(HOLE);
+      }
+    }
+  });
+
+  it("shows the higher tile's south face, never the floor, where a lower rim stone stands under a higher one (a column of four, many jitters)", () => {
+    const column: Rect = [9, 3, 1, 4];
+    let steps = 0;
+    for (let seed = 1; seed <= 24; seed++) {
+      const map = featureWallMap("fire", "crater", "", [column], seed);
+      const ctx = makeContext(map);
+      const lifts = [3, 4, 5, 6].map((y) => wallInfoAt(ctx, 9, y).lift);
+      for (let k = 0; k < 3; k++) if (lifts[k + 1]! < lifts[k]!) steps++;
+      // Over the column's whole height, from the first top face to the last one's foot: every pixel of the window is wall.
+      const x0 = 9 * TILE + 8, x1 = 10 * TILE - 8, y0 = 3 * TILE_H - lifts[0]! + 3, y1 = 7 * TILE_H - lifts[3]! - 3;
+      const layers = bakedLayers(map, "area");
+      for (const [zoom, msaa] of [[1.37, true], [2, false]] as const) {
+        for (const phase of [0, 0.29, 0.71]) expect(worstHole(renderPremult(layers, windowOver(x0, y0, x1, y1, zoom, phase, msaa))), `seed ${seed} lifts ${lifts}, zoom ${zoom}, ${phase}`).toBeLessThan(HOLE);
+      }
+    }
+    // The premise: some of the jitters put a lower stone under a higher one.
+    expect(steps).toBeGreaterThan(5);
   });
 });

@@ -1193,7 +1193,7 @@ export interface BotRunnerApi<I> {
 
 /** Ids of server-filled bots: "~" never appears in a Colyseus session id, so the two can never collide. */
 export const BOT_ID_PREFIX = "bot~";
-/** findPath calls all the bots of one room may make per tick (about 0.1 ms each on the old 64x64 maps, docs/BOTS.md 1; not re-measured at 96x96). */
+/** findPath calls all the bots of one room may make per tick (about 0.1 ms each on the old 64x64 maps, docs/BOTS.md 1; camp to camp on the 136x136 zone-shapes maps 0.12 ms on average, 0.18 at the 90th percentile, zone-shapes phase B). */
 export const BOT_PATH_BUDGET_PER_TICK = 8;
 
 /** config.ts `bots` (env names in docs/BOTS.md 7.3). */

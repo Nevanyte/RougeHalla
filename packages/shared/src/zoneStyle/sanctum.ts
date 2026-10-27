@@ -41,8 +41,9 @@ const HALL_MIN_PIERS = 4;
 /** Score of a centre candidate: 8 per pier that fits whole, minus the distance to the pole in tiles, plus a bonus on the shrine line. */
 const PIER_SCORE = 8;
 const LINE_BONUS = 4;
-/** Route-guard measurements a zone may spend (contract 3.9: at most 6; one is kept for the record after the piers stand). */
-const STRETCH_TRIES = 5;
+/** Route-guard measurements a zone may spend (contract 3.9: at most 6): up to 4 while thinning, one for the corridor fallback, one for the record. */
+const STRETCH_TRIES = 4;
+const STRETCH_BUDGET = 6;
 /** A shrine's box centre lies `R + SHRINE_GAP` out from the hall centre, or further by `SHRINE_EXTRAS` (cheapest first, see hallLandmarks). */
 const SHRINE_GAP = 4;
 const SHRINE_EXTRAS: readonly number[] = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, -2, -4, -6, -8, -10, -12];
@@ -177,7 +178,7 @@ function lineOfShrines(c: BaseCtx): ShrineLine {
  * than HALL_MIN_PIERS piers fit anywhere. The windows come from two passes over the zone's box (a 3x3 AND per tile), so a candidate
  * costs 32 lookups.
  */
-export function scanCentre(c: BaseCtx, isOpen: (i: number) => boolean, axis: 0 | 1, r: number, line: ShrineLine): Scan {
+function scanCentre(c: BaseCtx, isOpen: (i: number) => boolean, axis: 0 | 1, r: number, line: ShrineLine): Scan {
   const { w, h, mask, tiles, hard, zone } = c;
   const n = w * h;
   const bb = zone.bbox;
@@ -261,7 +262,7 @@ function shrineSpot(cx: number, cy: number, k: number, d: number): { x0: number;
  * on the axis: a zone is a wedge or an L about 60 tiles across, rarely deep enough on its axis for a hall and two shrines (2 of 60
  * seeds keep the three-slot rule).
  */
-export function hallLandmarks(c: LandmarkCtx): void {
+function hallLandmarks(c: LandmarkCtx): void {
   const axis = hallAxis(c.zone), r = hallRadius(c.zone.painted);
   const est = scanCentre(c, c.open, axis, r, null);
   const ax = est.x, ay = est.y; // the pole when no hall fits
@@ -401,9 +402,9 @@ function hallShape(c: ShapeCtx): HypostylePlan {
   for (const corner of kept) if (c.tiles[corner] === TILE_WALL) plan.piers.push(corner + w + 1);
   if (plan.piers.length !== kept.length) {
     // The guard refused a pier (a territory's floor would have been cut): the record says what stands.
-    const rec = c.zoneFeatures().find((f) => f.kind === "hall");
+    const rec = c.zoneFeatures().filter((f) => f.kind === "hall").pop();
     try { if (rec) rec.p[3] = plan.piers.length; } catch { /* a read-only log keeps the count the guard was asked for */ }
-    if (guard !== null && guard.members.length > 0) { stretch = guard.worstStretch(); measures++; }
+    if (guard !== null && guard.members.length > 0 && measures < STRETCH_BUDGET) { stretch = guard.worstStretch(); measures++; }
   }
   plan.stretch = stretch;
   plan.measures = measures;

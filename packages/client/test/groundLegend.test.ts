@@ -7,7 +7,8 @@ import {
   TILE_WALL, mapFromTiles, type GameMap,
 } from "@raid/shared";
 import { HELP_SECTIONS, HelpOverlay, groundLegendVisible } from "../src/ui/helpOverlay";
-import { groundLegend, renderGround } from "../src/ui/groundLegend";
+import { groundLegend, renderGround, shapeLegend } from "../src/ui/groundLegend";
+import { COLOR_FEATURE_WALL } from "../src/ui/mapPainter";
 import { Minimap } from "../src/ui/minimap";
 import { setView } from "../src/view/viewState";
 import { computeLayout } from "../src/view/viewport";
@@ -193,7 +194,7 @@ describe("the Ground legend", () => {
     installChromeDom();
     const section = fake(renderGround());
     expect(section.byClass("help-section-title")[0]!.textContent).toBe("Ground");
-    const terms = section.byClass("help-ground-term");
+    const terms = section.byClass("help-ground-term").filter((t) => !t.hasClass("help-shape-term"));
     expect(terms).toHaveLength(entries.length);
     entries.forEach((e, i) => {
       const swatch = terms[i]!.byClass("ground-swatch")[0]!;
@@ -202,6 +203,26 @@ describe("the Ground legend", () => {
       expect(terms[i]!.byClass("help-ground-name")[0]!.textContent).toBe(e.name);
     });
     expect(section.allText).toContain(entries[0]!.effect);
+  });
+
+  it("lists the shapes of the land after the terrain: five of them, each in the colour the maps paint its walls in, and each with a way past it", () => {
+    installChromeDom();
+    const shapes = shapeLegend();
+    expect(shapes.map((e) => e.key)).toEqual(["crater", "barrow", "hall", "headland", "landmark"]);
+    for (const e of shapes) {
+      expect(e.effect.length).toBeGreaterThan(30);
+      expect(e.color).toBe(COLOR_FEATURE_WALL[e.key as "crater"]);
+    }
+    expect(new Set(shapes.map((e) => e.color)).size).toBe(5);
+    const section = fake(renderGround());
+    const terms = section.byClass("help-shape-term");
+    expect(terms).toHaveLength(5);
+    shapes.forEach((e, i) => {
+      expect(terms[i]!.byClass("help-ground-name")[0]!.textContent).toBe(e.name);
+      expect(terms[i]!.byClass("ground-swatch")[0]!.getAttribute("aria-hidden")).toBe("true");
+    });
+    expect(section.byClass("help-ground-sub")[0]!.textContent).toBe("Shapes of the land");
+    expect(section.allText).toContain(shapes[0]!.effect);
   });
 
   it("is in the help card after the controls, whichever place is first, when the card carries it", () => {

@@ -17,8 +17,9 @@ import { zoneStylerHook } from "../src/zoneStyle";
 import { hashSeed, mulberry32 } from "../src/rng";
 import {
   CAMP_GAP_TILES, CAMPS_PER_ZONE as CERT_CAMPS, ELITES_PER_ZONE as CERT_ELITES, ELITE_MIN_SEP_TILES, MAP_SIZE, RING_CONTACT_MIN as CERT_F,
-  SLIVER_MAX as CERT_S, TERRITORY_RADIUS_TILES, certifyMap, demoStyleHook,
+  SLIVER_MAX as CERT_S, TERRITORY_RADIUS_TILES, certifyMap, decorProblems, demoStyleHook, strictZoneCodes,
 } from "./mapCertify";
+import { pinsApply } from "./mapCertifyShards";
 import { PINNED_MAPS, PINNED_PLAIN } from "./mapPins";
 
 const seeds = (n: number, from = 0) => Array.from({ length: n }, (_, i) => from + i);
@@ -40,17 +41,21 @@ describe("API", () => {
     expect([mapFor(0).w, mapFor(0).h]).toEqual([MAP_SIZE, MAP_SIZE]);
     expect([CAMPS_PER_ZONE, ELITES_PER_ZONE, ELITE_MIN_SEP, CAMP_GAP, TERRITORY_RADIUS_MAX, RING_CONTACT_MIN, SLIVER_MAX, MAX_ATTEMPTS])
       .toEqual([CERT_CAMPS, CERT_ELITES, ELITE_MIN_SEP_TILES, CAMP_GAP_TILES, TERRITORY_RADIUS_TILES, CERT_F, CERT_S, 16]);
-    // Phase A of the zone-shape rework: the old stylers write tiles without features, so the shape gates are off.
-    expect(SHAPE_GATES).toBe(false);
+    // The shape gates: off while the phase A stylers write tiles no feature owns, on from phase C (one constant in mapgen.ts); the
+    // certifier's strict group follows it, and the tests marked "shape gates" below run when it is on.
+    expect(typeof SHAPE_GATES).toBe("boolean");
+    expect(strictZoneCodes(true, undefined)).toEqual(SHAPE_GATES ? [1, 2, 3, 4, 5] : []);
   });
 
   it("generateMap(seed) is the first attempt that certifies; generateMap(seed, attempt), tryAttempt and certifiedMap rebuild it; every earlier attempt fails again", () => {
-    // Seeds 0..39 hold several that need a retry (see mapPins.ts); the rebuilds run on every 4th seed and on those.
+    // Seeds 0..39 and, while the pins describe the registered stylers, six seeds the pins say needed a retry; the rebuilds run on every
+    // 4th seed and on those.
     let retried = 0;
-    for (const s of seeds(40)) {
+    const retriedPinned = PINNED_MAPS.map((p) => p.split(":")).filter((p) => p[1] !== "0").map((p) => Number(p[0])).filter((s) => s >= 40).slice(0, 6);
+    for (const s of pinsApply() ? [...seeds(40), ...retriedPinned] : seeds(40)) {
       const m = mapFor(s);
       expect(m.seed).toBe(s);
-      expect(String(m.attempt), `seed ${s}`).toBe(pinned(s)[1]);
+      if (pinsApply()) expect(String(m.attempt), `seed ${s}`).toBe(pinned(s)[1]);
       if (s % 4 !== 0 && m.attempt === 0) continue;
       expect(generateMap(s, m.attempt), `seed ${s}`).toEqual(m);
       expect(tryAttempt(s, m.attempt), `seed ${s}`).toEqual(m);
@@ -62,7 +67,7 @@ describe("API", () => {
       }
     }
     // Most seeds certify first time and a few need a retry: the field carries the index, not a constant.
-    expect(retried).toBeGreaterThan(0);
+    if (pinsApply()) expect(retried).toBeGreaterThan(0);
   }, HEAVY_MS);
 
   it("rejects an attempt that is not an integer >= 0", () => {
@@ -125,7 +130,7 @@ describe("API", () => {
 });
 
 describe("determinism", () => {
-  it("rebuilds 50 seeds byte for byte from a fresh module load, as pinned in another process", async () => {
+  it.skipIf(!pinsApply())("rebuilds 50 seeds byte for byte from a fresh module load, as pinned in another process", async () => {
     vi.resetModules();
     const fresh = await import("../src/mapgen");
     for (const s of seeds(50)) {
@@ -137,7 +142,7 @@ describe("determinism", () => {
     }
   }, HEAVY_MS);
 
-  it("rebuilds 25 seeds byte for byte with the stylers off, as pinned in another process (the plain generator is still the plain generator)", () => {
+  it.skipIf(!pinsApply())("rebuilds 25 seeds byte for byte with the stylers off, as pinned in another process (the plain generator is still the plain generator)", () => {
     for (const s of seeds(25)) {
       const m = generateMap(s, undefined, { styleZones: null });
       expect(`${s}:${m.attempt}:${mapHash(m)}`, `seed ${s}`).toBe(PINNED_PLAIN[s]);
@@ -406,9 +411,13 @@ describe("styler hook", () => {
     }
   });
 
-  it("gates the shapes when asked: the phase A stylers write tiles no feature owns, so SHAPE_GATES on fails their attempts as breaches", () => {
+  it("gates the shapes when asked: a wall no feature owns fails the attempt as a breach (A:styleBreach) with the gates on, and stands with them off", () => {
+    // A hook that writes one wall tile and records no feature: the old stylers did this on every tile, whatever they were.
+    const rogue: ZoneStyleHook = (st) => { st.tiles[st.zone.findIndex((z, i) => z > 0 && st.protect[i] === 0 && st.tiles[i] === TILE_FLOOR)] = TILE_WALL; };
     const before = MAPGEN_FAILS["A:styleBreach"] ?? 0;
-    expect(tryAttempt(2, 0, { shapeGates: true })).toBeNull();
+    expect(tryAttempt(2, 0, { styleZones: rogue, shapeGates: true })).toBeNull();
+    expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
+    expect(tryAttempt(2, 0, { styleZones: rogue, shapeGates: false })).not.toBeNull();
     expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
     // With no style hook the zones hold only the landmarks and the nets' infill: nothing for the ownership rule to refuse.
     const plain = tryAttempt(2, 0, { styleZones: null, shapeGates: true });
@@ -422,8 +431,9 @@ describe("styler hook", () => {
     };
     expect(tryAttempt(2, 0, { landmarks: rogue })).toBeNull();
     expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
-    // A landmark hook that records nothing and writes nothing changes nothing (phase A: no styler has a landmark yet).
-    expect(mapHash(tryAttempt(2, 0, { landmarks: () => {} })!)).toBe(mapHash(tryAttempt(2, 0)!));
+    // A landmark hook that records nothing and writes nothing changes nothing: it is the same as no landmark hook at all.
+    const noop = tryAttempt(2, 0, { landmarks: () => {} }), none = tryAttempt(2, 0, { landmarks: null });
+    expect(noop === null ? null : mapHash(noop)).toBe(none === null ? null : mapHash(none));
   });
 
   it("protects every spawn-pool 3x3 from the stylers and leaves no floor hazard in a member's 5x5", () => {
@@ -461,5 +471,50 @@ describe("styler hook", () => {
       }
     }
     expect(low, "the stylers laid low ground").toBeGreaterThan(0);
+  }, HEAVY_MS);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// From phase C (SHAPE_GATES on). Written now, skipped until the gates are on.
+describe.runIf(SHAPE_GATES)("the shape gates (contract 6.1)", () => {
+  it("certifies the game's maps strictly: every zone WALL, LOW and floor hazard owned by a feature of its zone, no wall piece under 6 tiles (40 seeds)", () => {
+    for (const s of seeds(40)) {
+      const r = certifyMap(mapFor(s), { zone: true, strict: true });
+      expect(r.stats.strictZones, `seed ${s}`).toEqual([1, 2, 3, 4, 5]);
+      expect(r.failures, `seed ${s}`).toEqual([]);
+    }
+  }, HEAVY_MS);
+
+  it("keeps the landmarks whatever the style hook is: the plain generator's zones still have them, and every landmark is one feature and one building", () => {
+    let withLandmarks = 0;
+    for (const s of seeds(20, 1)) {
+      const m = generateMap(s, undefined, { styleZones: null });
+      const landmarks = m.features.filter((f) => f.kind === "landmark");
+      expect(m.buildings.length, `seed ${s}`).toBe(landmarks.length);
+      expect(certifyMap(m, { strict: true }).failures, `seed ${s}`).toEqual([]);
+      if (landmarks.length >= 5) withLandmarks++;
+    }
+    expect(withLandmarks, "maps with a landmark in most zones").toBeGreaterThanOrEqual(18);
+  }, HEAVY_MS);
+
+  it("builds the same features with decor off: the features and the featureGrid come from the shape and landmark streams (30 seeds)", () => {
+    for (const s of seeds(30, 400)) {
+      const on = mapFor(s), off = generateMap(s, on.attempt, { decor: false });
+      expect(decorProblems(on, off), `seed ${s}`).toEqual([]);
+      expect(on.features.length, `seed ${s}: the shapes are there`).toBeGreaterThan(5);
+    }
+  }, HEAVY_MS);
+
+  it("holds at most 250 features, one infill per zone at most and landmarks first, on every map of 40 seeds", () => {
+    for (const s of seeds(40)) {
+      const m = mapFor(s);
+      expect(m.features.length, `seed ${s}`).toBeLessThanOrEqual(250);
+      for (const f of REGION_FACTIONS) {
+        const own = m.features.filter((q) => q.zone === f);
+        expect(own.filter((q) => q.kind === "infill").length, `seed ${s} ${f}`).toBeLessThanOrEqual(1);
+        const firstShape = own.findIndex((q) => q.kind !== "landmark");
+        if (firstShape >= 0) expect(own.slice(firstShape).some((q) => q.kind === "landmark"), `seed ${s} ${f}: a landmark after a shape`).toBe(false);
+      }
+    }
   }, HEAVY_MS);
 });

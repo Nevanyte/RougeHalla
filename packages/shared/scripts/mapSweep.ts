@@ -4,7 +4,7 @@
 // styler: default = what the game builds (the zone stylers); none = the plain generator; zone = the zone stylers whatever the flag; demo = the demo hook.
 // strict: the shape gates' checks (ownership, wall pieces, tile classes, sizes, overlaps). auto (default) follows the generator's SHAPE_GATES; 1 forces
 // them on for every zone, 0 off, a faction list for those zones only.
-// decor=N: every Nth seed is also built with decor off and must equal the decorated map in every hashed layer (0 = never; default 10).
+// decor=N: every seed that is a multiple of N is also built with decor off and must equal the decorated map in every hashed layer (0 = never; default 10).
 // Every seed's pool map (certifiedMap) gets every per-map check. stdout is ONE JSON line (shardable: run several ranges in parallel, then `merge=`):
 // scalars are totals or maxima, arrays hold one value per seed (per pool member for the walk arrays), and `zones[faction][measure]` holds the report
 // measure of every seed (the names of ZONE_MEASURE_VALUES). The readable table (per-zone matrix, window breaches, hard checks) goes to stderr by default.
@@ -29,7 +29,10 @@ interface Sweep {
   strict: string;
   decorEvery: number;
   discarded: number[];
+  /** The first FAILED_KEEP failures ("seed N: check: why"), the total and the count per check. */
   failed: string[];
+  failedTotal: number;
+  failedKinds: Record<string, number>;
   decorBad: string[];
   attempts: number[];
   pool: number[];
@@ -57,8 +60,11 @@ interface Sweep {
   fails: Record<string, number>;
 }
 
+const FAILED_KEEP = 300;
+const kindOf = (f: string): string => f.replace(/^seed -?\d+: /, "").split(": ").slice(0, 2).join(": ").slice(0, 110);
+
 const empty = (): Sweep => ({
-  from: 0, count: 0, styler: "default", strict: "auto", decorEvery: 0, discarded: [], failed: [], decorBad: [], attempts: [], pool: [], walkPath: [], rocks: [],
+  from: 0, count: 0, styler: "default", strict: "auto", decorEvery: 0, discarded: [], failed: [], failedTotal: 0, failedKinds: {}, decorBad: [], attempts: [], pool: [], walkPath: [], rocks: [],
   features: [], featureKinds: {}, hazardsOnWalks: [], hazardTiles: [], themePresent: [0, 0, 0, 0, 0], floorShareMax: 0, minContact: 1e9, maxSliver: 0, walk57Max: 0,
   radiusMax: 0, leashShareMin: 1, measured: 0, zones: Object.fromEntries(REGION_FACTIONS.map((f) => [f, {}])), ms: { generate: 0, certify: 0 }, notes: {}, fails: {},
 });
@@ -94,7 +100,12 @@ function run(args: string[]): Sweep {
     out.attempts.push(m.attempt);
     const r = certifyMap(m, mode);
     out.ms.certify += performance.now() - t1;
-    for (const f of r.failures) out.failed.push(`seed ${s}: ${f}`);
+    for (const f of r.failures) {
+      if (out.failed.length < FAILED_KEEP) out.failed.push(`seed ${s}: ${f}`);
+      out.failedTotal++;
+      const k = kindOf(f);
+      out.failedKinds[k] = (out.failedKinds[k] ?? 0) + 1;
+    }
     const st = r.stats;
     out.hazardTiles.push(...st.hazardExposure);
     out.hazardsOnWalks.push(...st.hazardsOnWalks);
@@ -117,8 +128,14 @@ function run(args: string[]): Sweep {
         for (const [name, f] of Object.entries(ZONE_MEASURE_VALUES)) (row[name] ??= []).push(round(f(z)));
       });
     }
-    if (decorEvery > 0 && (s - from) % decorEvery === 0) {
+    if (decorEvery > 0 && s % decorEvery === 0) {
+      // The decor-off build repeats the attempts: its failure counters are not the sweep's.
+      const fails = { ...MAPGEN_FAILS }, notes = { ...MAPGEN_NOTES };
       const off = certifiedMap(s, { ...options, decor: false });
+      for (const k of Object.keys(MAPGEN_FAILS)) delete MAPGEN_FAILS[k];
+      for (const k of Object.keys(MAPGEN_NOTES)) delete MAPGEN_NOTES[k];
+      Object.assign(MAPGEN_FAILS, fails);
+      Object.assign(MAPGEN_NOTES, notes);
       const bad = off ? decorProblems(m, off) : ["no map with decor off"];
       for (const b of bad) out.decorBad.push(`seed ${s}: ${b}`);
     }
@@ -140,7 +157,9 @@ function merge(parts: Sweep[]): Sweep {
   for (const p of parts) {
     out.count += p.count;
     out.discarded.push(...p.discarded);
-    out.failed.push(...p.failed);
+    out.failed.push(...p.failed.slice(0, Math.max(0, FAILED_KEEP - out.failed.length)));
+    out.failedTotal += p.failedTotal;
+    for (const [k, v] of Object.entries(p.failedKinds)) out.failedKinds[k] = (out.failedKinds[k] ?? 0) + v;
     out.decorBad.push(...p.decorBad);
     for (const k of ["attempts", "pool", "walkPath", "rocks", "features", "hazardsOnWalks", "hazardTiles"] as const) out[k].push(...p[k]);
     p.themePresent.forEach((v, i) => { out.themePresent[i] += v; });
@@ -171,7 +190,9 @@ function renderTable(o: Sweep): string {
   L.push(`mapSweep seeds ${o.from}..${o.from + o.count - 1} (${o.count}), styler=${o.styler}, strict=${o.strict}, ${maps} maps, certify ${(o.ms.certify / Math.max(1, maps)).toFixed(0)} ms and generate ${(o.ms.generate / Math.max(1, maps)).toFixed(0)} ms per map`);
   L.push("");
   L.push("HARD (a failure rejects the map)");
-  L.push(`  failures ${o.failed.length}${o.failed.length ? "   <-- FAIL" : ""}${o.failed.slice(0, 8).map((f) => `\n    ${f}`).join("")}`);
+  L.push(`  failures ${o.failedTotal}${o.failedTotal ? "   <-- FAIL" : ""}`);
+  for (const [k, v] of Object.entries(o.failedKinds).sort((a, b) => b[1] - a[1]).slice(0, 12)) L.push(`    ${String(v).padStart(5)} x ${k}`);
+  for (const f of o.failed.slice(0, 4)) L.push(`    e.g. ${f.slice(0, 230)}`);
   L.push(`  decor on/off mismatches ${o.decorBad.length}${o.decorBad.slice(0, 4).map((f) => `\n    ${f}`).join("")}`);
   L.push(`  findPath walk ratio max ${Math.max(0, ...o.walkPath).toFixed(3)} (hard <= 1.2), p90 ${pct(o.walkPath, 0.9).toFixed(3)} (report <= ${T.walkRatioP90}); BFS 5/7 max ${o.walk57Max.toFixed(3)} (report only)`);
   L.push(`  hazards on member walks max ${Math.max(0, ...o.hazardsOnWalks)} (hard <= 8), p90 ${pct(o.hazardsOnWalks, 0.9)} (report <= ${T.hazardsP90})`);
@@ -180,7 +201,7 @@ function renderTable(o: Sweep): string {
   L.push("REPORT thresholds (across the sweep)");
   const aps = maps ? 1 + mean(o.attempts) : 0;
   L.push(`  attempts per seed ${aps.toFixed(3)} (<= ${T.attemptsPerSeed})${aps > T.attemptsPerSeed ? " !" : ""}; discarded ${o.discarded.length} (${T.discards})${o.discarded.length > T.discards ? " !" : ""}${o.discarded.length ? ` [${o.discarded.slice(0, 10).join(",")}]` : ""}`);
-  L.push(`  theme present on ${o.themePresent.map((n, i) => `${THEME_NAME[i]} ${n}/${maps}`).join(", ")}`);
+  L.push(`  theme present on ${o.themePresent.map((n, i) => `${THEME_NAME[i]} ${n}/${maps}${n < maps ? " !" : ""}`).join(", ")}`);
   const kinds = CERT_FEATURE_KINDS.filter((k) => o.featureKinds[k]).map((k) => `${k} ${(o.featureKinds[k] / Math.max(1, maps)).toFixed(2)}`);
   L.push(`  features per map ${kinds.length ? kinds.join(", ") : "none"} (total ${mean(o.features).toFixed(1)}, max ${Math.max(0, ...o.features)}); wall tiles per map ${mean(o.rocks).toFixed(0)}`);
   if (Object.keys(o.fails).length) L.push(`  attempt failures ${Object.entries(o.fails).map(([k, v]) => `${k} ${v}`).join(", ")}`);

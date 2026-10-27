@@ -159,6 +159,11 @@ export interface GallowsRowsPlan {
   /** worstStretch() at the end (permille; 1000 when the zone has no members) and whether the safety net had to open anything. */
   stretch: number;
   repaired: number;
+  /** Fence tiles the plan gave up before writing (the detour rule on the finished rows), and which. */
+  planned: number;
+  dropped: number[];
+  /** Fence tiles the detour relax gave back (a pair across them would walk more than the cap round). */
+  relaxed: number;
   /** route-guard checks spent (worstStretch calls). */
   checks: number;
   /** Rows whose fence the repair gave back entirely (they stay recorded, owning gate floor only). */
@@ -168,7 +173,7 @@ export interface GallowsRowsPlan {
 }
 
 const EMPTY_PLAN = (): GallowsRowsPlan => ({
-  axis: 0, sLo: 0, tLo: 0, baseRows: [], rows: [], gallows: [], square: null, corridorOpened: 0, stretch: 1000, repaired: 0, checks: 0, emptyRows: 0, houses: 0,
+  axis: 0, sLo: 0, tLo: 0, baseRows: [], rows: [], gallows: [], square: null, corridorOpened: 0, stretch: 1000, repaired: 0, planned: 0, dropped: [], relaxed: 0, checks: 0, emptyRows: 0, houses: 0,
 });
 
 /** The doubled-coordinate squared distance between a stamp's box centre and the point (px2, py2) (both doubled tile coordinates). */
@@ -197,13 +202,17 @@ function inOneTerritory(c: LandmarkCtx, s: Stamp): boolean {
 
 /** The Rows' landmark pass: guard houses, whole or not at all (contract 4.2 step 9). */
 function landmarkRows(c: LandmarkCtx): void {
+  const PROF = (globalThis as any).GAL_PROF as Record<string, number> | undefined;
+  let tp = PROF ? performance.now() : 0;
+  const mark = (k: string): void => { if (PROF) { const t = performance.now(); PROF[k] = (PROF[k] ?? 0) + t - tp; tp = t; } };
   const want = Math.min(LANDMARKS_PER_ZONE, Math.round(areaScale(c.zone.painted)));
   if (want < 1) return;
   const pole = c.zone.pole;
   const px2 = 2 * pole.x + 1, py2 = 2 * pole.y + 1;
   const before = c.zoneFeatures().length;
   const FAR = 1e12;
-  bestLandmark(c, GUARD_HOUSE, (s) => -boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, px2, py2) - (inOneTerritory(c, s) ? 0 : FAR));
+  bestLandmark(c, GUARD_HOUSE, (s) => { const t0 = PROF ? performance.now() : 0; const r = -boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, px2, py2) - (inOneTerritory(c, s) ? 0 : FAR); if (PROF) PROF.lmScore = (PROF.lmScore ?? 0) + performance.now() - t0; return r; });
+  mark('lm1');
   if (want < 2) return;
   const placed = c.zoneFeatures().slice(before).filter((f) => f.kind === "landmark");
   const first = placed.length > 0 ? placed[0].bbox : null;
@@ -218,30 +227,18 @@ function landmarkRows(c: LandmarkCtx): void {
     if (first && boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, 2 * first.x + first.w, 2 * first.y + first.h) < sep2) sc -= FAR;
     return sc;
   });
+  mark('lm2');
 }
 
 /** Route-guard checks a zone may spend (contract 3.9: at most 6). */
 const ROUTE_CHECKS_MAX = 6;
 
 /**
- * Gives back the fence tiles of the plan's rows that lie within Chebyshev `radius` of a tile of `band`, then every fence piece left
- * under ROW_MIN_PIECE tiles (8-connected, across all rows). A row it would empty keeps all its fence (a recorded row owns at least
- * one fence tile). Returns the tiles released. The tiles stay owned by their row (a gate is owned floor); the plan's rows lose them.
+ * The fence tiles of `rel`'s complement that sit in 8-connected pieces under ROW_MIN_PIECE tiles, added to `rel` (the plan's rows'
+ * tiles, all rows together).
  */
-function openAround(c: ShapeCtx, plan: GallowsRowsPlan, band: readonly number[], radius: number): number {
+function addSmallPieces(c: ShapeCtx, plan: GallowsRowsPlan, rel: Set<number>): void {
   const { w, h } = c;
-  const near = new Set<number>();
-  for (const b of band) {
-    const bx = b % w, by = (b - bx) / w;
-    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
-      const x = bx + dx, y = by + dy;
-      if (x >= 0 && y >= 0 && x < w && y < h) near.add(y * w + x);
-    }
-  }
-  const rel = new Set<number>();
-  for (const row of plan.rows) for (const i of row.tiles) if (near.has(i)) rel.add(i);
-  if (rel.size === 0) return 0;
-  // fence pieces under ROW_MIN_PIECE (8-connected over the rows' remaining fence)
   const live = new Set<number>();
   for (const row of plan.rows) for (const i of row.tiles) if (!rel.has(i)) live.add(i);
   const seen = new Set<number>();
@@ -260,9 +257,17 @@ function openAround(c: ShapeCtx, plan: GallowsRowsPlan, band: readonly number[],
     }
     if (comp.length < ROW_MIN_PIECE) for (const i of comp) rel.add(i);
   }
-  for (const row of plan.rows) {
-    if (row.tiles.length > 0 && row.tiles.every((i) => rel.has(i))) for (const i of row.tiles) rel.delete(i);
-  }
+}
+
+/**
+ * Gives back the fence tiles `rel` and every fence piece left under ROW_MIN_PIECE tiles; with `keepRows` a row it would empty keeps
+ * all its fence (a recorded row owns at least one fence tile). Returns the tiles released. The tiles stay owned by their row (a gate is owned
+ * floor); the plan's rows lose them.
+ */
+function giveBack(c: ShapeCtx, plan: GallowsRowsPlan, rel: Set<number>, keepRows: boolean): number {
+  if (rel.size === 0) return 0;
+  addSmallPieces(c, plan, rel);
+  if (keepRows) for (const row of plan.rows) if (row.tiles.length > 0 && row.tiles.every((i) => rel.has(i))) for (const i of row.tiles) rel.delete(i);
   let released = 0;
   for (const i of [...rel].sort((p, q) => p - q)) if (c.release(i)) released++;
   for (const row of plan.rows) {
@@ -272,8 +277,186 @@ function openAround(c: ShapeCtx, plan: GallowsRowsPlan, band: readonly number[],
   return released;
 }
 
+/** Opens the rows' fence within Chebyshev `radius` of a tile of `band` (a pool member's corridor), then the pieces that leaves. */
+function openAround(c: ShapeCtx, plan: GallowsRowsPlan, band: readonly number[], radius: number): number {
+  const { w, h } = c;
+  const near = new Set<number>();
+  for (const b of band) {
+    const bx = b % w, by = (b - bx) / w;
+    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      const x = bx + dx, y = by + dy;
+      if (x >= 0 && y >= 0 && x < w && y < h) near.add(y * w + x);
+    }
+  }
+  const rel = new Set<number>();
+  for (const row of plan.rows) for (const i of row.tiles) if (near.has(i)) rel.add(i);
+  return giveBack(c, plan, rel, true);
+}
+
+/**
+ * Later fence tiles of a row can close the way round an earlier one (a tile was only checked when it went down, with the rest of its
+ * row still open), and a jog adds a step: looks at the finished rows once more and gives back every fence tile that now forces a pair
+ * of floor tiles across it more than the detour cap, up to three rounds. Returns the tiles given back.
+ */
+function relaxRows(c: ShapeCtx, plan: GallowsRowsPlan, holes: readonly number[]): number {
+  if (holes.length === 0) return 0;
+  const { w, h } = c;
+  // only the fence near a tile that did not stand can differ from the plan
+  const near = new Set<number>();
+  for (const g of holes) {
+    const gx = g % w, gy = (g - gx) / w;
+    for (let dy = -DETOUR_REACH; dy <= DETOUR_REACH; dy++) for (let dx = -DETOUR_REACH; dx <= DETOUR_REACH; dx++) {
+      const nx = gx + dx, ny = gy + dy;
+      if (nx >= 0 && ny >= 0 && nx < w && ny < h) near.add(ny * w + nx);
+    }
+  }
+  let total = 0;
+  for (let round = 0; round < 3; round++) {
+    const rel = new Set<number>();
+    for (const row of plan.rows) for (const i of row.tiles) if (near.has(i) && c.tiles[i] === TILE_LOW && !c.fenceDetourOk(i)) rel.add(i);
+    const n = giveBack(c, plan, rel, false);
+    if (n === 0) break;
+    total += n;
+  }
+  return total;
+}
+
+/**
+ * The detour rule on a grid of your own: does every pair of floor tiles k = 1..3 steps either side of fence tile `i` (along its row or
+ * column) still walk to each other within 2k + cap steps, with `i` taken as solid (4-connected FLOOR of the zone)? The guard's
+ * detourOk, on `tiles` (a scratch copy with the planned fence marked), so a row is checked as it will finally stand. The usual
+ * answer needs no search: walk along the fence line to the first tile that is not fence and cross there (an L: 2d + 2k steps), and
+ * only a pair whose L is blocked (a jog, a wall, a second fence) is searched, breadth-first.
+ */
+function detourHolds(tiles: Uint8Array, mask: Uint8Array, w: number, h: number, i: number, cap: number, seen: Int32Array, queue: Int32Array, depth: Int16Array, stampRef: { n: number }): boolean {
+  const x = i % w, y = (i - x) / w;
+  for (let pass = 0; pass < 2; pass++) {
+    const step = pass === 0 ? w : 1;
+    // the fence line runs the other way: `along` is one tile along it
+    const along = pass === 0 ? 1 : w;
+    for (let k = 1; k <= 3; k++) {
+      if (pass === 0 ? y - k < 0 || y + k >= h : x - k < 0 || x + k >= w) break;
+      const a = i - k * step, b = i + k * step;
+      if (tiles[a] !== TILE_FLOOR || tiles[b] !== TILE_FLOOR || !mask[a] || !mask[b]) break;
+      const limit = 2 * k + cap;
+      // the L: along the line either way to the first tile that is not fence, then across at that tile
+      let ok = false;
+      for (let dir = -1; dir <= 1 && !ok; dir += 2) {
+        for (let d = 1; 2 * d + 2 * k <= limit; d++) {
+          const g = i + dir * d * along;
+          const gx = pass === 0 ? x + dir * d : x, gy = pass === 0 ? y : y + dir * d;
+          if (gx < 0 || gy < 0 || gx >= w || gy >= h) break;
+          if (tiles[g] === TILE_LOW) continue;
+          // g is the first tile off the fence line; the crossing column is g's: g - k*step .. g + k*step must all be floor in the zone
+          if (tiles[g] !== TILE_FLOOR || !mask[g]) break;
+          let clear = true;
+          for (let q = -k; q <= k && clear; q++) { const t = g + q * step; if (tiles[t] !== TILE_FLOOR || !mask[t]) clear = false; }
+          // and the way along the two sides back to a and b is the line itself: tiles at lateral -k / +k from i to g
+          for (let q = 1; q <= d && clear; q++) {
+            const ta = a + dir * q * along, tb = b + dir * q * along;
+            if (tiles[ta] !== TILE_FLOOR || !mask[ta] || tiles[tb] !== TILE_FLOOR || !mask[tb]) clear = false;
+          }
+          if (clear) ok = true;
+          break;
+        }
+      }
+      if (ok) continue;
+      const stamp = ++stampRef.n;
+      let head = 0, tail = 0, found = false;
+      queue[tail++] = a;
+      seen[a] = stamp;
+      depth[a] = 0;
+      while (head < tail) {
+        const cur = queue[head++];
+        if (cur === b) { found = true; break; }
+        if (depth[cur] >= limit) continue;
+        const cx = cur % w, cy = (cur - cx) / w;
+        for (let e = 0; e < 4; e++) {
+          const nx = cx + (e === 1 ? 1 : e === 3 ? -1 : 0), ny = cy + (e === 0 ? -1 : e === 2 ? 1 : 0);
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const j = ny * w + nx;
+          if (j === i || seen[j] === stamp || tiles[j] !== TILE_FLOOR || !mask[j]) continue;
+          seen[j] = stamp;
+          depth[j] = depth[cur] + 1;
+          queue[tail++] = j;
+        }
+      }
+      if (!found) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The planned fence of all rows as it will stand: marks it on a scratch copy of the tiles and gives up every tile that would force a
+ * pair across it more than the detour cap round (rounds of: check, drop, drop the pieces under ROW_MIN_PIECE), so no row is written
+ * only to be taken back. `rows` are edited in place.
+ */
+function planDetours(c: ShapeCtx, rows: ReadonlyArray<{ blocks: number[]; posts: Set<number> }>, cap: number, out?: number[]): number {
+  const { w, h } = c;
+  const n = w * h;
+  const sim = c.tiles.slice() as Uint8Array;
+  for (const r of rows) for (const i of r.blocks) sim[i] = TILE_LOW;
+  const seen = new Int32Array(n), queue = new Int32Array(n), depth = new Int16Array(n), stampRef = { n: 0 };
+  let dropped = 0;
+  // later rounds look only at the fence near what the last round took
+  let recheck: Set<number> | null = null;
+  for (let round = 0; round < 4; round++) {
+    const bad: number[] = [];
+    for (const r of rows) {
+      for (const i of r.blocks) {
+        if (sim[i] !== TILE_LOW || (recheck !== null && !recheck.has(i))) continue;
+        if (!detourHolds(sim, c.mask, w, h, i, cap, seen, queue, depth, stampRef)) bad.push(i);
+      }
+    }
+    for (const i of bad) sim[i] = TILE_FLOOR;
+    // pieces under ROW_MIN_PIECE (8-connected over the planned fence)
+    const gone: number[] = bad.slice();
+    for (const r of rows) {
+      for (const start of r.blocks) {
+        if (sim[start] !== TILE_LOW) continue;
+        const comp = [start];
+        const stamp = ++stampRef.n;
+        seen[start] = stamp;
+        for (let head = 0; head < comp.length && comp.length < ROW_MIN_PIECE; head++) {
+          const x = comp[head] % w, y = (comp[head] - x) / w;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+            const j = ny * w + nx;
+            if (sim[j] === TILE_LOW && seen[j] !== stamp && c.mask[j]) { seen[j] = stamp; comp.push(j); }
+          }
+        }
+        if (comp.length < ROW_MIN_PIECE) for (const i of comp) { sim[i] = TILE_FLOOR; gone.push(i); }
+      }
+    }
+    dropped += gone.length;
+    if (gone.length === 0) break;
+    recheck = new Set<number>();
+    for (const g of gone) {
+      const gx = g % w, gy = (g - gx) / w;
+      for (let dy = -DETOUR_REACH; dy <= DETOUR_REACH; dy++) for (let dx = -DETOUR_REACH; dx <= DETOUR_REACH; dx++) {
+        const nx = gx + dx, ny = gy + dy;
+        if (nx >= 0 && ny >= 0 && nx < w && ny < h) recheck.add(ny * w + nx);
+      }
+    }
+  }
+  for (const r of rows) {
+    if (out) for (const i of r.blocks) if (sim[i] !== TILE_LOW) out.push(i);
+    r.blocks = r.blocks.filter((i) => sim[i] === TILE_LOW);
+    for (const i of [...r.posts]) if (sim[i] !== TILE_LOW) r.posts.delete(i);
+  }
+  return dropped;
+}
+
+/** How far (Chebyshev, tiles) a removed fence tile can change another tile's detour: a pair is 3 apart and a way round at most 10 long. */
+const DETOUR_REACH = 14;
+
 /** The Rows' shape pass. */
 function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
+  const PROF = (globalThis as any).GAL_PROF as Record<string, number> | undefined;
+  let tp = PROF ? performance.now() : 0;
+  const mark = (k: string): void => { if (PROF) { const t = performance.now(); PROF[k] = (PROF[k] ?? 0) + t - tp; tp = t; } };
   const plan = EMPTY_PLAN();
   const { w, h } = c;
   const bb = c.zone.bbox;
@@ -305,6 +488,7 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     return ss >= 0 && tt >= 0 && ss < nS && tt < nT && okG[tt * nS + ss] === 1;
   };
 
+  mark('grid');
   // 2. Row positions: a line is worth its open runs of >= 8 tiles, less a bias; rows 7-9 apart.
   const value = new Int32Array(nT);
   for (let tt = 0; tt < nT; tt++) {
@@ -317,6 +501,7 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
   }
   const base = viterbiRows(value, tLo, d.gapMin, d.gapMax, d.gapTarget, d.gapPenalty);
   plan.baseRows = base;
+  mark('rowpos');
   if (base.length === 0) return plan;
 
   // 3. The square: the 9-tile window between two neighbouring base rows nearest the centroid, blocked tiles costing.
@@ -373,6 +558,7 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     }
   }
   plan.square = win;
+  mark('square');
 
   // 4. Row paths, runs, gates.
   interface RowPlan { index: number; phase: number; t0: number; blocks: number[]; posts: Set<number>; gates: number[] }
@@ -386,19 +572,26 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     entryS.length = 0;
     entryI.length = 0;
     let prevT = -1;
-    const flush = (): void => {
+    // The tile that stopped the run before this one (-1: the box edge). A fence that ends against a wall or the zone's edge has
+    // no way round at that end, so it stops a tile short; one that ends at a halo, a corridor or the rim can be walked round.
+    let stopTile = -1, startClosed = true;
+    const closed = (i: number): boolean => i < 0 || !c.mask[i] || c.tiles[i] !== TILE_FLOOR;
+    const flush = (endTile: number): void => {
       const len = entryS.length;
       if (len > 0 && entryS[len - 1] - entryS[0] + 1 >= d.minRun) {
         // segments: maximal stretches of fence between gates, windows and the run's ends
         let seg: number[] = [];
-        let startFlank = false, prevGate = false;
-        const closeSeg = (endFlank: boolean): void => {
+        let startFlank = false, prevGate = false, cutStart = startClosed;
+        const closeSeg = (endFlank: boolean, cutEnd: boolean): void => {
+          if (cutStart) seg.shift();
+          if (cutEnd) seg.pop();
           if (seg.length >= ROW_MIN_PIECE) {
             for (const i of seg) rp.blocks.push(i);
             if (startFlank) rp.posts.add(seg[0]);
             if (endFlank) rp.posts.add(seg[seg.length - 1]);
           }
           seg = [];
+          cutStart = false;
         };
         for (let e = 0; e < len; e++) {
           const s = entryS[e], i = entryI[e];
@@ -406,16 +599,16 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
           const skip = win !== null && (r === win.k || r === win.k + 1) && s >= sLo + win.s && s < sLo + win.s + SQUARE_WINDOW;
           if (gate) {
             rp.gates.push(i);
-            closeSeg(true);
+            closeSeg(true, false);
           } else if (skip) {
-            closeSeg(false);
+            closeSeg(false, false);
           } else {
             if (seg.length === 0) startFlank = prevGate;
             seg.push(i);
           }
           prevGate = gate;
         }
-        closeSeg(false);
+        closeSeg(false, closed(endTile));
       }
       entryS.length = 0;
       entryI.length = 0;
@@ -424,29 +617,35 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     for (let k = 0; k < nS; k++) {
       const s = sLo + k, t = t0 + path[k];
       if (okAt(s, t)) {
+        if (entryS.length === 0) startClosed = closed(stopTile);
         if (entryS.length > 0 && t !== prevT && okAt(s - 1, t)) { entryS.push(s - 1); entryI.push(idx(s - 1, t)); }
         entryS.push(s);
         entryI.push(idx(s, t));
         prevT = t;
       } else {
-        if (corridor !== null && t >= tLo && t < tLo + nT) {
-          // a tile the corridor alone closed (not the guard's other rules)
-          const i = idx(s, t);
-          if (corridor[i] === 1 && c.open(i)) corridorOpened++;
-        }
-        flush();
+        const here = t >= tLo && t < tLo + nT ? idx(s, t) : -1;
+        if (corridor !== null && here >= 0 && corridor[here] === 1 && c.open(here)) corridorOpened++;
+        flush(here);
+        stopTile = here;
       }
     }
-    flush();
+    flush(-1);
     rowPlans.push(rp);
   }
   plan.corridorOpened = corridorOpened;
+  mark('paths');
 
+  // The fence as it will finally stand must keep the detour rule: take back the tiles that would break it before anything is written.
+  plan.planned = planDetours(c, rowPlans, c.caps.fenceDetour, plan.dropped);
+
+  mark('planDetours');
   // Gates are reserved before any row is written (a later blocker never closes one).
   for (const rp of rowPlans) if (rp.blocks.length >= ROW_MIN_PIECE) for (const i of rp.gates) c.reserve(i);
 
   // 6. Write: one fenceRow feature per row.
   const { tiles } = c;
+  /** Planned tiles that did not stand (the guard refused them, or the trim took them back): the only places the plan's checks can be off. */
+  const holes: number[] = [];
   for (const rp of rowPlans) {
     if (rp.blocks.length < ROW_MIN_PIECE) continue;
     const first = rp.blocks[0];
@@ -454,12 +653,17 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
       kind: "fenceRow", jobs: ["lane"], anchor: [first % w, (first - (first % w)) / w], params: [plan.axis, rp.index, rp.phase],
       blocks: rp.blocks.map((i) => [i, "fence"] as const), mode: "trim", minPiece: ROW_MIN_PIECE,
     });
-    if (!placed) continue;
+    if (!placed) { for (const i of rp.blocks) holes.push(i); continue; }
+    if (placed.refused > 0) for (const i of rp.blocks) if (tiles[i] !== TILE_LOW) holes.push(i);
     plan.rows.push({
       axis: plan.axis, index: rp.index, phase: rp.phase, t0: rp.t0, tiles: placed.written.slice(),
       posts: [...rp.posts].filter((i) => tiles[i] === TILE_LOW).sort((p, q) => p - q), gates: rp.gates,
     });
   }
+
+  mark('write');
+  plan.relaxed = relaxRows(c, plan, holes);
+  mark('relax');
 
   // 5. The route guard: the "open" mode already kept every corridor clear (one check is the safety net); "repair" opens the worst
   //    member's corridor, the fence tiles on it and then near it, until the stretch is under the threshold.
@@ -480,6 +684,7 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     }
     plan.stretch = st;
   }
+  mark('route');
   plan.emptyRows = plan.rows.filter((r) => r.tiles.length === 0).length;
   plan.houses = c.zoneFeatures().filter((f) => f.kind === "landmark" && f.variant === GUARD_HOUSE.key).length;
   return plan;

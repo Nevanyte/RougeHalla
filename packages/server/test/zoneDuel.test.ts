@@ -246,6 +246,17 @@ describe("the Rows condition", () => {
     expect(Object.keys(rowsReport({ setupList: setupList.slice(0, 1), hold: 0.01, variants: true }).stats)).toHaveLength(5);
   });
 
+  it("repeats the setups with other seeds on request, in the same order in every arena", () => {
+    const setupList = [{ across: 6, lateral: 4, angle: 0.3, furtherIs: "fire" as const }];
+    const report = rowsReport({ setupList, hold: 0.01, seedsPerSetup: 3 });
+    expect(report.stats.rows!.n).toBe(3);
+    expect(report.stats.open!.n).toBe(3);
+    expect(report.text.join("\n")).toContain("3 seeds per setup");
+    const seeds = report.stats.rows!.outcomes.map((o) => o.result.spec.seed);
+    expect(new Set(seeds).size).toBe(3);
+    expect(report.stats.open!.outcomes.map((o) => o.result.spec.seed)).toEqual(seeds);
+  });
+
   it("proposes the first mitigation that holds, in the contract's order: gate spacing, gate width, row count", () => {
     expect(proposeMitigation({ rows10: 0.4, rows4w: 0.6, rows6: 0.7 })).toBe("rows4w");
     expect(proposeMitigation({ rows10: 0.5, rows4w: 0.9, rows6: 0.9 })).toBe("rows10");
@@ -350,14 +361,14 @@ describe("a duel on a ready map, at explicit starts", () => {
 
 describe("the zone duel CLI", () => {
   it("parses its options and refuses a bad one", () => {
-    const cli = parseZoneArgs(["--source", "both", "--variants", "--seeds", "3-5", "--pairs", "4", "--zone", "fire,holy", "--edge", "fire>sentenced,holy>fire", "--cap", "60", "--pair-kind", "obstructed", "--shooter", "orbwalk", "--rows-setups", "quick", "--quiet"]);
-    expect(cli).toMatchObject({ source: "both", variants: true, seeds: [3, 4, 5], pairs: 4, zones: ["fire", "holy"], cap: 60, pairKind: "obstructed", shooter: "orbwalk", rowsSetups: "quick", quiet: true });
+    const cli = parseZoneArgs(["--source", "both", "--variants", "--seeds", "3-5", "--pairs", "4", "--zone", "fire,holy", "--edge", "fire>sentenced,holy>fire", "--cap", "60", "--pair-kind", "obstructed", "--shooter", "orbwalk", "--rows-setups", "quick", "--rows-seeds", "3", "--quiet"]);
+    expect(cli).toMatchObject({ source: "both", variants: true, seeds: [3, 4, 5], pairs: 4, zones: ["fire", "holy"], cap: 60, pairKind: "obstructed", shooter: "orbwalk", rowsSetups: "quick", rowsSeeds: 3, quiet: true });
     expect(cli.edges).toEqual([["fire", "sentenced"], ["holy", "fire"]]);
     expect(parseZoneArgs(["--seeds", "2"]).seeds).toEqual([1, 2]);
     expect(parseZoneArgs(["--seeds", "7,9"]).seeds).toEqual([7, 9]);
     expect(parseZoneArgs([]).source).toBe("rows");
     expect(parseZoneArgs(["--shooter", "lock"]).shooter).toBeUndefined();
-    for (const bad of [["--source", "elsewhere"], ["--seeds", "0"], ["--zone", "nowhere"], ["--edge", "sentenced>fire"], ["--cap", "-1"], ["--wat"], ["--pairs"]]) {
+    for (const bad of [["--source", "elsewhere"], ["--seeds", "0"], ["--zone", "nowhere"], ["--edge", "sentenced>fire"], ["--cap", "-1"], ["--wat"], ["--pairs"], ["--rows-seeds", "0"]]) {
       expect(() => parseZoneArgs(bad), bad.join(" ")).toThrow();
     }
     expect(runZoneCli(["--help"])).toContain("harness:zones");

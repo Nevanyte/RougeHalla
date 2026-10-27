@@ -18,10 +18,11 @@
 // The wet side is the noise coin of the contract unless the other flank keeps more bog off the corridors. Integers throughout:
 // + - * /, sqrt, floor, round and the kit's integer geometry.
 //
-// Deviation from contract 4.3 step 5 (route guard), measured in the WP3 report: a barrow may not stand on a spawn walk's own line
-// (the middle row of a corridor, `coreOf`) and may clip at most CLIP_MAX tiles of it; it may overlap the corridor's fringe. Keeping
-// barrows off the whole 3-wide corridor, as written, leaves 6.0 barrows a zone (the corridors of 5-7 members cover a quarter of it and
-// every road crosses one); with this rule the walks stretch by 0.3% on average and never above 1.3%.
+// Deviation from contract 4.3 step 5 (route guard), measured over 200 seeds: a barrow may not stand on a spawn walk's own line (the
+// middle row of a corridor, `coreOf`) and may clip at most CLIP_MAX tiles of it; it may overlap the corridor's fringe. Keeping every
+// barrow off the whole 3-wide corridor, as written, leaves 6.1 barrows a zone and 20% of the seeds at 8 or more (the corridors of 5-7
+// members cover a quarter of the zone and every road crosses one); with this rule it is 8.4 and 72%, and the route guard's worst
+// stretch stays at 1000-1028 permille (the limit is 1030). A barrow also stands 2 tiles beyond its radius from every pool member.
 import { TILE_FLOOR, TILE_WALL } from "../map";
 import { areaScale, LANDMARKS_PER_ZONE } from "./scale";
 import { campNodes, dirIndex16, discOffsets, gabrielEdges, noiseQ, segDist2 } from "./features";
@@ -155,17 +156,15 @@ function landmark(c: LandmarkCtx): void {
 function placeBurrow(c: LandmarkCtx, road: Road): boolean {
   const { a, dx, dy, len } = road;
   const rot = Math.abs(dx) >= Math.abs(dy) ? 0 : 1;
-  const mirror0 = noiseQ(c, a.x, a.y, 1, 401) < 512;
+  const mirror = noiseQ(c, a.x, a.y, 1, 401) < 512;
   for (const tp of BURROW_T) {
     for (const off of BURROW_ACROSS) {
       const cx = Math.round(a.x + (dx * tp) / 1000 - (dy * off) / len);
       const cy = Math.round(a.y + (dy * tp) / 1000 + (dx * off) / len);
-      for (let m = 0; m < 2; m++) {
-        const mirror = m === 0 ? mirror0 : !mirror0;
-        const s = stampTemplate(BURROW, cx - 4, cy - 4, rot, mirror, c.w, c.h);
-        if (!s || !stampFits(c, s)) continue;
-        if (placeLandmark(c, BURROW, s, rot, mirror)) return true;
-      }
+      // the mirror image has the same walls and floor, only its crate nooks swap: one stamp per centre is enough
+      const s = stampTemplate(BURROW, cx - 4, cy - 4, rot, mirror, c.w, c.h);
+      if (!s || !stampFits(c, s)) continue;
+      if (placeLandmark(c, BURROW, s, rot, mirror)) return true;
     }
   }
   return false;
@@ -234,16 +233,6 @@ interface BarrowSite {
   readonly crescent: number[];
 }
 
-/** A tile's rock jitter in quarter tiles (-3..3) for barrow `k`, cached in `jit` (-128 = not asked yet): 1.3 tiles x (noise - 0.5). */
-function jitterOf(c: BaseCtx, jit: Int8Array, i: number, x: number, y: number, k: number): number {
-  let v = jit[i];
-  if (v === -128) {
-    v = Math.round(((noiseQ(c, x, y, 4, 310 + k) - 512) * 13) / 2560);
-    jit[i] = v;
-  }
-  return v;
-}
-
 /**
  * The noisy disc of a barrow: a tile is rock when 16 d^2 <= (radius4 + jitter4)^2. With `keys` given, pushes the rock (squared
  * distance, tile) for the centre-out order. With `core` given, counts the rock tiles standing on it and stops once it passes `limit`.
@@ -258,13 +247,50 @@ function rockScan(c: BaseCtx, jit: Int8Array, cx: number, cy: number, r4: number
       if (x < 0 || x >= w) continue;
       const i = y * w + x;
       const ex = x - cx, ey = y - cy;
-      const rr = r4 + jitterOf(c, jit, i, x, y, k);
+      let jv = jit[i];
+      if (jv === -128) { jv = Math.round(((noiseQ(c, x, y, 4, 310 + k) - 512) * 13) / 2560); jit[i] = jv; }
+      const rr = r4 + jv;
       if (rr <= 0 || 16 * (ex * ex + ey * ey) > rr * rr) continue;
       if (core !== null && core[i] === 1 && ++hits > limit) return hits;
       if (keys !== null) keys.push((ex * ex + ey * ey) * 1048576 + i);
     }
   }
   return hits;
+}
+
+const FLAT_DISCS = new Map<number, Int8Array>();
+/** discOffsets(r4) as one flat array, dx and dy alternating (the hot loops walk it without taking tuples apart). */
+function flatDisc(r4: number): Int8Array {
+  let out = FLAT_DISCS.get(r4);
+  if (!out) {
+    const list = discOffsets(r4);
+    out = new Int8Array(2 * list.length);
+    list.forEach(([ox, oy], q) => { out![2 * q] = ox; out![2 * q + 1] = oy; });
+    FLAT_DISCS.set(r4, out);
+  }
+  return out;
+}
+
+/**
+ * Is the rock of a barrow at (cx, cy) on at most `limit` tiles of `core`? Exact, with two shortcuts that need no noise: the disc of
+ * radius r4 - 3 is rock whatever the jitter (more core tiles in it than the limit: no), and so is nothing outside the disc of r4 + 3
+ * (no more core tiles in it than the limit: yes). Only a disc in between is scanned tile by tile.
+ */
+function clipsWithin(c: BaseCtx, jit: Int8Array, core: Uint8Array, cx: number, cy: number, r4: number, k: number, limit: number): boolean {
+  const { w, h } = c;
+  let sure = 0;
+  const inner = flatDisc(r4 - 3);
+  for (let q = 0; q < inner.length; q += 2) {
+    const x = cx + inner[q], y = cy + inner[q + 1];
+    if (x >= 0 && y >= 0 && x < w && y < h && core[y * w + x] === 1 && ++sure > limit) return false;
+  }
+  let possible = 0;
+  const outer = flatDisc(r4 + 3);
+  for (let q = 0; q < outer.length; q += 2) {
+    const x = cx + outer[q], y = cy + outer[q + 1];
+    if (x >= 0 && y >= 0 && x < w && y < h && core[y * w + x] === 1) possible++;
+  }
+  return possible <= limit || rockScan(c, jit, cx, cy, r4, k, null, core, limit) <= limit;
 }
 
 /** The rock of a barrow, centre-out (by squared distance, then tile index). */
@@ -325,7 +351,8 @@ interface Cand { readonly score: number; readonly order: number; readonly cx: nu
 function candidatesFor(g: Ground, road: Road, r4: number, padA: number, padB: number): Cand[] {
   const { a, dx, dy, len } = road;
   const { w, h } = g.c;
-  const disc = discOffsets(r4);
+  const disc = flatDisc(r4);
+  const count = disc.length / 2;
   const mem = g.members;
   const out: Cand[] = [];
   let order = 0;
@@ -339,12 +366,17 @@ function candidatesFor(g: Ground, road: Road, r4: number, padA: number, padB: nu
       let near = false;
       for (let q = 0; q < mem.length && !near; q += 2) near = 16 * ((mem[q] - cx) * (mem[q] - cx) + (mem[q + 1] - cy) * (mem[q + 1] - cy)) <= (r4 + MEMBER_GAP4) * (r4 + MEMBER_GAP4);
       if (near) continue;
-      let ok = 0;
-      for (const [ox, oy] of disc) {
-        const x = cx + ox, y = cy + oy;
+      // the score needs `need` free tiles of the disc: give up on the candidate as soon as too many are not free
+      const penalty = 20 * Math.abs(off) + Math.floor(Math.abs(tp - 500) / 5);
+      const need = Math.ceil(((ACCEPT_PERMILLE + penalty) * count) / 1000);
+      let spare = count - need, ok = 0;
+      for (let q = 0; q < disc.length; q += 2) {
+        const x = cx + disc[q], y = cy + disc[q + 1];
         if (x >= 0 && y >= 0 && x < w && y < h && freeAt(g, y * w + x)) ok++;
+        else if (--spare < 0) break;
       }
-      const score = Math.floor((1000 * ok) / disc.length) - 20 * Math.abs(off) - Math.floor(Math.abs(tp - 500) / 5);
+      if (spare < 0) continue;
+      const score = Math.floor((1000 * ok) / count) - penalty;
       if (score >= ACCEPT_PERMILLE) out.push({ score, order, cx, cy });
     }
   }
@@ -373,7 +405,7 @@ function siteOf(g: Ground, road: Road, k: number): BarrowSite | null {
       const r4 = radii[q];
       const list = (lists[q] ??= candidatesFor(g, road, r4, padA, padB));
       for (const cand of list) {
-        if (rockScan(c, jit, cand.cx, cand.cy, r4, k, null, g.core, clipMax) > clipMax) continue;
+        if (!clipsWithin(c, jit, g.core, cand.cx, cand.cy, r4, k, clipMax)) continue;
         // the wet flank: the noise picks a side, and the other one wins when more of its crescent can stay bog
         let wet: 1 | -1 = noiseQ(c, cand.cx, cand.cy, 1, 301) < 512 ? 1 : -1;
         let crescent = crescentOf(g, cand.cx, cand.cy, r4, dx, dy, wet);

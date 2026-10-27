@@ -48,10 +48,14 @@ const LOOP_RATIO = 1.8, LOOP_MAX_LEN = 30;
 /** Ford length in path steps, the spacing between fords, and the closer spacing of corridor fords. */
 const FORD_STEPS = 4, FORD_SPACING = 9;
 /** Fords closer than this many steps become one (up to FORD_MAX_LEN steps long); the river keeps about one ford per FORD_PER_STEPS steps. */
-const FORD_MERGE = 6, FORD_MAX_LEN = 14, FORD_PER_STEPS = 16;
+const FORD_MERGE = 4, FORD_MAX_LEN = 12, FORD_PER_STEPS = 16;
 const RIVER_MIN_STEPS = 12;
-/** The river spans 2 x this many tiles x lenScale along the zone (21 x 1.44 = 30 each side at 136). */
-const RIVER_HALF_PER_LEN = 21;
+/** The river spans 2 x this many tiles x lenScale along the zone (31 x 1.44 = 45 each side at 136). */
+const RIVER_HALF_PER_LEN = 31;
+/** The window score counts this many steps of ford per route or corridor, and stops rewarding lava past this many tiles. */
+const FORD_SCORE_STEPS = 5, LAVA_SCORE_CAP = 110;
+/** The river's depth, as a share of the zone's depth, among which the least crossed by spawn corridors is taken. */
+const RIVER_DEPTHS: readonly number[] = [0.35, 0.45, 0.55, 0.65];
 const SECOND_TILE_Q = 716;
 const FORGE_DISC = 12;
 /** A forge keeps this many tiles from a crater's radius (R_est + margin from every camp centre). */
@@ -486,49 +490,72 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
       if (l > lHi) lHi = l;
     }
   }
-  if (usable.length < 60) return;
-  const dR = dLo + (dHi - dLo) * (0.4 + 0.2 * rng());
-  // The river is a stretch of RIVER_HALF tiles either side of the lateral position where the most routes cross its depth: the
-  // camp graph's edges that straddle dR and the spawn members' corridors (a strip zone is 100 tiles across: a full-width river
-  // would hold 250 lava tiles, twice the window of contract 4.1).
+  if (usable.length < 60) { if ((globalThis as any).__dbg) console.log('river: usable', usable.length); return; }
+  // The river is a stretch of 2 x half tiles of the zone (a strip zone is 100 tiles across: a full-width river would hold 250
+  // lava tiles, twice the window of contract 4.1). Where it lies: the camp graph's routes that straddle its depth want a ford
+  // (they are why the river is there); a spawn member's corridor that crosses it wants one too, and each of those cuts the river
+  // into shorter pieces (contract 3.9), so the depth and the window hold the most routes and the fewest corridors, from four
+  // depths between 35% and 65% of the zone's (contract 4.1: 40-60%).
   const half = Math.max(8, Math.round(RIVER_HALF_PER_LEN * lenScale(c.zone.painted)));
-  const lats: number[] = [];
-  for (const [ea, eb] of edges) {
-    const A = nodes[ea], B = nodes[eb];
-    const da = depthAt(F, A.x + 0.5, A.y + 0.5) - dR, db = depthAt(F, B.x + 0.5, B.y + 0.5) - dR;
-    if (da === db || (da < 0) === (db < 0)) continue;
-    const t = da / (da - db), la = latAt(F, A.x + 0.5, A.y + 0.5), lb = latAt(F, B.x + 0.5, B.y + 0.5);
-    lats.push(la + t * (lb - la));
-  }
-  if (G) {
-    for (let m = 0; m < G.members.length; m++) {
-      let sum = 0, cnt = 0;
-      for (const t of G.corridorOf(m)) {
-        const x = t % w, y = (t - x) / w;
-        if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dR) < 1) { sum += latAt(F, x + 0.5, y + 0.5); cnt++; }
+  const depthJitter = rng();
+  let best: { score: number; dR: number; latA: number; latB: number } | null = null;
+  for (let q = 0; q < RIVER_DEPTHS.length; q++) {
+    const dq = dLo + (dHi - dLo) * (RIVER_DEPTHS[q] + 0.03 * depthJitter);
+    const routeLats: number[] = [], corridorLats: number[] = [];
+    for (const [ea, eb] of edges) {
+      const A = nodes[ea], B = nodes[eb];
+      const da = depthAt(F, A.x + 0.5, A.y + 0.5) - dq, db = depthAt(F, B.x + 0.5, B.y + 0.5) - dq;
+      if (da === db || (da < 0) === (db < 0)) continue;
+      const t = da / (da - db), la = latAt(F, A.x + 0.5, A.y + 0.5), lb = latAt(F, B.x + 0.5, B.y + 0.5);
+      routeLats.push(la + t * (lb - la));
+    }
+    if (G) {
+      for (let m = 0; m < G.members.length; m++) {
+        let sum = 0, cnt = 0;
+        for (const t of G.corridorOf(m)) {
+          const x = t % w, y = (t - x) / w;
+          if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dq) < 1.2) { sum += latAt(F, x + 0.5, y + 0.5); cnt++; }
+        }
+        if (cnt > 0) corridorLats.push(sum / cnt);
       }
-      if (cnt > 0) lats.push(sum / cnt);
+    }
+    // the lateral ground the river can follow at this depth: bins of 2 tiles with usable ground within 2 tiles of the depth
+    let bandLo = Infinity, bandHi = -Infinity;
+    for (const i of usable) {
+      const x = i % w, y = (i - x) / w;
+      if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dq) > 2) continue;
+      const l = latAt(F, x + 0.5, y + 0.5);
+      if (l < bandLo) bandLo = l;
+      if (l > bandHi) bandHi = l;
+    }
+    if (bandLo > bandHi) continue;
+    const nBins = Math.floor((bandHi - bandLo) / 2) + 1;
+    const cover = new Uint8Array(nBins);
+    for (const i of usable) {
+      const x = i % w, y = (i - x) / w;
+      if (Math.abs(depthAt(F, x + 0.5, y + 0.5) - dq) > 2) continue;
+      cover[Math.floor((latAt(F, x + 0.5, y + 0.5) - bandLo) / 2)] = 1;
+    }
+    const mid = routeLats.length > 0 ? routeLats.slice().sort((p1, p2) => p1 - p2)[routeLats.length >> 1] : (bandLo + bandHi) / 2;
+    const span = 2 * half;
+    const fits = bandHi - bandLo - 4 >= span;
+    for (let lc = fits ? bandLo + 2 + half : (bandLo + bandHi) / 2; lc <= (fits ? bandHi - 2 - half : (bandLo + bandHi) / 2) + 1e-9; lc += 2) {
+      const a0 = fits ? lc - half : bandLo + 2, b0 = fits ? lc + half : bandHi - 2;
+      // every bin of the window has ground (a hole in the zone would send the river the long way round)
+      let gaps = 0;
+      for (let bn = Math.max(0, Math.floor((a0 - bandLo) / 2)); bn <= Math.min(nBins - 1, Math.floor((b0 - bandLo) / 2)); bn++) if (!cover[bn]) gaps++;
+      let nE = 0, nC = 0;
+      for (const l of routeLats) if (l >= a0 && l <= b0) nE++;
+      for (const l of corridorLats) if (l >= a0 && l <= b0) nC++;
+      // the lava the window would hold (a square of 2.3 tiles a step, five steps of ford per route and per corridor), capped
+      const lava = 2.3 * (1.1 * (b0 - a0) - FORD_SCORE_STEPS * Math.max(2, Math.min(nE, 3) + nC));
+      const sc = Math.min(lava, LAVA_SCORE_CAP) + 4 * Math.min(nE, 3) - 40 * gaps - Math.abs(lc - mid) * 0.01 - Math.abs(RIVER_DEPTHS[q] - 0.5) * 8;
+      if (!best || sc > best.score) best = { score: sc, dR: dq, latA: a0, latB: b0 };
     }
   }
-  lats.sort((p, q) => p - q);
-  let lC = (lLo + lHi) / 2;
-  if (lats.length > 0) {
-    let bi = 0, bn = 0;
-    for (let i = 0; i < lats.length; i++) {
-      let nIn = 0;
-      for (let j = i; j < lats.length && lats[j] <= lats[i] + 2 * half; j++) nIn++;
-      if (nIn > bn) { bn = nIn; bi = i; }
-    }
-    let last = bi;
-    while (last + 1 < lats.length && lats[last + 1] <= lats[bi] + 2 * half) last++;
-    lC = (lats[bi] + lats[last]) / 2;
-  }
-  let latA = lLo + 2, latB = lHi - 2;
-  if (lLo + 2 + half <= lHi - 2 - half) {
-    lC = lC < lLo + 2 + half ? lLo + 2 + half : lC > lHi - 2 - half ? lHi - 2 - half : lC;
-    latA = lC - half;
-    latB = lC + half;
-  }
+  if (!best) return;
+  const { dR, latA, latB } = best;
+  const lC = (latA + latB) / 2;
   const nearestTo = (d: number, l: number): number => {
     const px = F.cx + d * F.ux + l * F.vx, py = F.cy + d * F.uy + l * F.vy;
     let best = -1, bd = Infinity;
@@ -541,7 +568,7 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
   };
   const a = nearestTo(dR, latA);
   const b = nearestTo(dR + (rng() - 0.5) * 12, latB);
-  if (a < 0 || b < 0 || a === b) return;
+  if (a < 0 || b < 0 || a === b) { if ((globalThis as any).__dbg) console.log('river: endpoints', a, b); return; }
   // noisy cheapest path: +400 inside any crater (radius + 2.5), +8 per tile of depth off dR, ground the static rules refuse, corridor tiles
   const crater2 = mine.map((_, q) => (r4s[q] / 4 + 2.5) * (r4s[q] / 4 + 2.5));
   const cost = (j: number): number => {
@@ -558,9 +585,10 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
     return add;
   };
   const path = noisyPath(c, a, b, 11, cost);
-  if ((globalThis as any).__dbg) console.log('river dR', dR.toFixed(1), 'half', half, 'lats', lats.map((x) => x.toFixed(1)).join(','), 'lC', lC.toFixed(1), 'lat', latA.toFixed(1), latB.toFixed(1), 'ext', dLo.toFixed(1), dHi.toFixed(1), lLo.toFixed(1), lHi.toFixed(1), 'a', a % w, Math.floor(a / w), 'b', b % w, Math.floor(b / w), 'len', path.length);
+  if ((globalThis as any).__dbg) console.log('river dR', dR.toFixed(1), 'half', half, 'lC', lC.toFixed(1), 'lat', latA.toFixed(1), latB.toFixed(1), 'ext', dLo.toFixed(1), dHi.toFixed(1), lLo.toFixed(1), lHi.toFixed(1), 'a', a % w, Math.floor(a / w), 'b', b % w, Math.floor(b / w), 'len', path.length);
   const len = path.length;
-  if (len < RIVER_MIN_STEPS) return;
+  (globalThis as any).__lastPath = path;
+  if (len < RIVER_MIN_STEPS) { if ((globalThis as any).__dbg) console.log('river: short path', len); return; }
   // widths and the 2x2 / 3x3 square each step would stamp
   const wd = new Uint8Array(len);
   const sq: number[][] = [];
@@ -594,7 +622,7 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
     const tiles: number[] = [];
     for (let s = 0; s < len; s++) {
       if (inFord[s]) continue;
-      for (const t of sq[s]) if (mark[t] === 0) { mark[t] = 1; tiles.push(t); }
+      for (const t of sq[s]) if (mark[t] === 0) { mark[t] = 1; if (c.open(t)) tiles.push(t); }
     }
     return { tiles, keepOut };
   };
@@ -658,7 +686,8 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
     if (apart(k, 6)) fords = normalize([...fords, around(k)]);
   }
   const bl = blocksFor(fords);
-  if (bl.tiles.length < 12) return;
+  if ((globalThis as any).__dbg) console.log('river fords', JSON.stringify(fords), 'len', len, 'blocks', bl.tiles.length, 'keepOut', bl.keepOut.length, 'members', G ? G.members.length : -1);
+  if (bl.tiles.length < 12) { if ((globalThis as any).__dbg) console.log('river: few blocks', bl.tiles.length); return; }
   let widthSum = 0, widthN = 0;
   for (let s = 0; s < len; s++) {
     let inside = false;
@@ -676,7 +705,7 @@ function placeRiver(c: ShapeCtx, mine: readonly CampInfo[], r4s: readonly number
     floor: bl.keepOut,
     mode: "trim",
   });
-  if (!placed) return;
+  if (!placed) { if ((globalThis as any).__dbg) console.log('river: placeFeature refused', bl.tiles.length, 'blocks'); return; }
   plan.riverPath = path;
   plan.fords = fordTiles;
   plan.lava = placed.written.slice();

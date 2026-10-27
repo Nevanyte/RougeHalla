@@ -26,9 +26,14 @@ const ZONE_CODE = REGION_FACTIONS.indexOf(FACTION) + 1;
 // ------------------------------------------------------------------------------------------------ the generator, one new styler
 interface Sink { plan: GallowsRowsPlan | null; results: StyleResult[] }
 
-/** The test-local hook: this zone gets `styler`, every other zone its registry (phase A) styler. */
-function hooks(styler: ZoneStyler<any>, sink?: Sink, others: Partial<Record<RegionFaction, ZoneStyler<any>>> = {}): { styleZones: ZoneStyleHook; landmarks: LandmarkHook } {
+/**
+ * The test-local hook: this zone gets `styler`, every other zone its registry styler (the phase A ones today). `others` replaces
+ * other zones' styler in the STYLE pass only (the landmark pass keeps the registry's, so the pool and the protect the style pass
+ * sees are the same either way); `record` receives the tiles and terrain right after the style pass.
+ */
+function hooks(styler: ZoneStyler<any>, sink?: Sink, others: Partial<Record<RegionFaction, ZoneStyler<any>>> = {}, record?: (st: { tiles: Uint8Array; terrain: Uint8Array }) => void, landmarkStyler: ZoneStyler<any> = styler): { styleZones: ZoneStyleHook; landmarks: LandmarkHook } {
   const stylers = { ...others, [FACTION]: styler } as Partial<Record<RegionFaction, ZoneStyler<any>>>;
+  const landmarkStylers = { [FACTION]: landmarkStyler } as Partial<Record<RegionFaction, ZoneStyler<any>>>;
   return {
     styleZones: (st) => {
       const results = styleZones({
@@ -40,8 +45,9 @@ function hooks(styler: ZoneStyler<any>, sink?: Sink, others: Partial<Record<Regi
         sink.results = results;
         sink.plan = (results.find((r) => r.faction === FACTION)?.plan as GallowsRowsPlan | undefined) ?? null;
       }
+      record?.({ tiles: st.tiles.slice(), terrain: st.terrain.slice() });
     },
-    landmarks: (st: LandmarkState) => { styleLandmarks(st, { stylers }); },
+    landmarks: (st: LandmarkState) => { styleLandmarks(st, { stylers: landmarkStylers }); },
   };
 }
 
@@ -442,29 +448,35 @@ describe("the Rows on the generator's maps (30 seeds, only this styler new)", ()
     expect(twoHouses).toBeGreaterThan(SEEDS.length / 2);
   }, HEAVY_MS);
 
-  it("is the same map with decor off, and with the other zones' stylers swapped for no-ops in the Gallows zone (zone isolation)", () => {
+  it("is the same map with decor off, and styles its zone alone: the other zones' stylers swapped for no-ops leave the Gallows zone byte-identical after the pass, and a no-op Gallows leaves the other zones so", () => {
     const noop = (faction: RegionFaction): ZoneStyler<unknown> => ({ id: "scorch", faction, version: 0, shape: () => null });
+    const afterStyle = (s: number, attempt: number, styler: ZoneStyler<any>, others: Partial<Record<RegionFaction, ZoneStyler<any>>>): { tiles: Uint8Array; terrain: Uint8Array } => {
+      let rec: { tiles: Uint8Array; terrain: Uint8Array } | null = null;
+      // the landmark pass is always the Rows' (the pool and the protect the style pass sees stay the same)
+      try { generateMap(s, attempt, { ...hooks(styler, undefined, others, (r) => { rec = r; }, gallowsRows), shapeGates: false }); } catch { /* a later stage may refuse a map with unstyled zones */ }
+      if (!rec) throw new Error(`seed ${s}: the style pass did not run`);
+      return rec;
+    };
     for (const s of [2, 7, 13, 21]) {
       const { map } = mapOf(s);
       const plain = generateMap(s, undefined, { ...hooks(gallowsRows), shapeGates: false, decor: false });
       expect(mapHash(plain), `seed ${s} decor off`).toBe(mapHash(map));
-      // the other four zones styled by nothing: the Gallows zone must come out byte-identical (the attempt and the pool are the
-      // same: the landmark pass is the Gallows' alone)
+      const mask = (i: number): boolean => map.regionGrid[i] === ZONE_CODE;
       const others: Partial<Record<RegionFaction, ZoneStyler<any>>> = {};
       for (const f of REGION_FACTIONS) if (f !== FACTION) others[f] = noop(f);
-      const solo = generateMap(s, map.attempt, { ...hooks(gallowsRows, undefined, others), shapeGates: false });
-      for (let i = 0; i < map.tiles.length; i++) {
-        if (map.regionGrid[i] !== ZONE_CODE) continue;
-        if (map.tiles[i] !== solo.tiles[i] || map.terrain[i] !== solo.terrain[i]) {
-          throw new Error(`seed ${s}: tile ${i} of the Gallows zone depends on another zone's styler`);
+      const full = afterStyle(s, map.attempt, gallowsRows, {});
+      const solo = afterStyle(s, map.attempt, gallowsRows, others);
+      const gone = afterStyle(s, map.attempt, noop(FACTION), {});
+      let styled = 0;
+      for (let i = 0; i < full.tiles.length; i++) {
+        if (mask(i)) {
+          if (full.tiles[i] !== solo.tiles[i] || full.terrain[i] !== solo.terrain[i]) throw new Error(`seed ${s}: tile ${i} of the Gallows zone depends on another zone's styler`);
+          if (full.tiles[i] !== gone.tiles[i]) styled++;
+        } else if (full.tiles[i] !== gone.tiles[i] || full.terrain[i] !== gone.terrain[i]) {
+          throw new Error(`seed ${s}: tile ${i} outside the Gallows zone depends on the Gallows styler`);
         }
       }
-      // and the other way round: with the Gallows styler a no-op the other zones are untouched
-      const without = generateMap(s, map.attempt, { ...hooks(noop(FACTION)), shapeGates: false });
-      for (let i = 0; i < map.tiles.length; i++) {
-        if (map.regionGrid[i] === ZONE_CODE || map.regionGrid[i] === 0) continue;
-        if (map.tiles[i] !== without.tiles[i]) throw new Error(`seed ${s}: tile ${i} outside the Gallows zone depends on the Gallows styler`);
-      }
+      expect(styled, `seed ${s}: the Gallows really changed its zone`).toBeGreaterThan(100);
     }
   }, HEAVY_MS);
 

@@ -5,6 +5,7 @@ import {
   FACTIONS, TERRAINS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TILE_LOW,
   isFactionId, type TerrainSpec,
 } from "@raid/shared";
+import { COLOR_FEATURE_WALL } from "./mapPainter";
 import { el } from "./dom";
 import "./groundLegend.css";
 
@@ -46,6 +47,30 @@ export function groundLegend(): GroundEntry[] {
   });
 }
 
+export interface ShapeEntry {
+  /** The feature kind it is about (map.features[].kind), and the colour the map screens paint its walls in (the swatch). */
+  key: string;
+  name: string;
+  effect: string;
+  color: string;
+}
+
+/**
+ * The shapes of the land (zone-shapes contract 4): what the named features on the map are and what they ask of you. Walls are walls
+ * (they stop walking, shots and sight); the words say how to get past or through each, and the swatch is the colour the minimap and
+ * the map screens paint that feature's walls in, so the legend and the maps agree.
+ */
+export function shapeLegend(): ShapeEntry[] {
+  const wall = (kind: keyof typeof COLOR_FEATURE_WALL): string => COLOR_FEATURE_WALL[kind] ?? "#9aa3ad";
+  return [
+    { key: "crater", name: "Crater", effect: "A ring of rock round a camp. It stops walking, shots and sight: go in by the gaps in the ring", color: wall("crater") },
+    { key: "barrow", name: "Barrow", effect: "A mound of rock between camps: go round it (the bog on one side is slow) or through the tunnel some have", color: wall("barrow") },
+    { key: "hall", name: "Pillared hall", effect: "Square piers in a grid: they stop shots and sight, the aisles between them are open, and the light at its heart heals", color: wall("hall") },
+    { key: "headland", name: "Ice headland", effect: "Shards of ice on a frozen lake's shore: cover from shots, and the shore itself is plain ground beside the slippery ice", color: wall("headland") },
+    { key: "landmark", name: "Ruined building", effect: "A walled room with doorways (a forge, a guard house, a burrow, a watchtower or a shrine): shelter, and weapon crates inside", color: wall("landmark") },
+  ];
+}
+
 /** The help card's Ground section. */
 export function renderGround(): HTMLElement {
   const node = el("section", "help-section help-ground");
@@ -59,5 +84,16 @@ export function renderGround(): HTMLElement {
     list.append(term, el("dd", "help-action", entry.effect));
   }
   node.append(list);
+  node.append(el("h4", "help-ground-sub", "Shapes of the land"));
+  const shapes = el("dl", "help-list help-ground-list help-shape-list");
+  for (const entry of shapeLegend()) {
+    const term = el("dt", "help-ground-term help-shape-term");
+    const swatch = el("span", `ground-swatch ground-swatch-shape-${entry.key}`);
+    swatch.setAttribute?.("aria-hidden", "true");
+    swatch.style?.setProperty?.("background", entry.color);
+    term.append(swatch, el("span", "help-ground-name", entry.name));
+    shapes.append(term, el("dd", "help-action", entry.effect));
+  }
+  node.append(shapes);
   return node;
 }

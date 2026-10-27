@@ -472,7 +472,8 @@ export function certifyMap(m: GameMap, copts: CertifyOptions = {}): { failures: 
     const seen = new Set<number>();
     for (const q of findPath(m, p, m.coliseum.centre)) {
       len += Math.sqrt((q.x - ax) * (q.x - ax) + (q.y - ay) * (q.y - ay));
-      const steps = Math.ceil(Math.sqrt((q.x - ax) * (q.x - ax) + (q.y - ay) * (q.y - ay)) / 4);
+      // One sample per world unit (1/32 of a tile): a tile the polyline only grazes by less than that is missed, the generator's DDA does not.
+      const steps = Math.ceil(Math.sqrt((q.x - ax) * (q.x - ax) + (q.y - ay) * (q.y - ay)));
       for (let k = 0; k <= steps; k++) {
         const t = Math.floor((ay + ((q.y - ay) * k) / Math.max(1, steps)) / TILE) * W + Math.floor((ax + ((q.x - ax) * k) / Math.max(1, steps)) / TILE);
         const kind = m.terrain[t];
