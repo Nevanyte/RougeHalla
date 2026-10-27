@@ -1,6 +1,5 @@
-// How a bot treats a camp's shared chest (roguelike R5): bots/chestHunt.ts (pure: which option, pick or walk or nothing). The
-// brain has no chest module yet (docs/BOTS.md 8), so BotClient no longer carries the policy out (the tests that drove it through
-// a fake room, and the one against the real server, went with the old BotClient); the module that adopts chestHunt.ts brings its own.
+// How a bot treats a camp's shared chest (roguelike R5): bots/chestHunt.ts (pure: which option, pick or walk or nothing). The brain's
+// chests module adopts it (test/bots/chestsModule.test.ts has the module, perception's rule for what a chest shows, and whole games).
 import { describe, expect, it } from "vitest";
 import { CHEST_RANGE, CHEST_SECONDS, PLAYER_SPEED, TILE, type Vec2 } from "@raid/shared";
 import {

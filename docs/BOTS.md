@@ -598,18 +598,43 @@ Wishes feature (`ext` fx and `extras.wish`).
 | Module | Percept extras | Behaviour |
 |---|---|---|
 | `wishes` (and R6 `skills`, same code for the q/e slots) | `wish`, `skills`, `effects`, `fields`; `ext` cast, castLand, castEnd, status | Builds the contract's `CastSituation` from the percept: me (hp share, effect bits, hit within 1.5 s), foe (the goal's target if visible), threat (the nearest visible enemy, "chasing" = velocity toward me with cos > 0.7 and closing). Calls the shared `decideCast` and emits a `cast` intent, timed as a reaction to the stimulus or a step. Never while casting, before `readyAt`, or (for units) on an untargetable foe. Memory turns `castLand` by X into `wishSeenAt`/`wishReadyGuess`. Built: see below |
-| `planning` (R3) | `plan` (private message) | Reads for 2-4 s (Hard) or 4-8 s (Easy) of `PLAN_SECONDS` 12. Scores both spawns by `mobShare` of their nearest camps (the R3 brief) + `spawn|…` bias, picks a boon by bias, sends `plan {spawn, boon, ready}` |
-| `chests` (R5, relics R7) | `camps`, `chests` (options only within `CHEST_RANGE − 8` with line of sight, as the panel shows) | A cleared camp's chest within reach becomes a goal; the Opportunist rushes chests others are clearing. Reads for 1.5-4 s (half that when contested), picks by `skill|…`/`relic|…` bias + knowledge, skips by the D12 rule |
+| `planning` (R3, built) | `plan` (private message, read from the percept's events) | See below |
+| `chests` (R5, built; relics R7) | `camps`, `chests` (place and expiry map-wide, as the minimap draws them; the cards only within `CHEST_RANGE − 8` with line of sight, as the panel shows) | See below |
 | `hazards` (zone terrain) | Map hazard data (seed-derived) | Penalises flee, kite and hold points in hazards; a reflex "step out" when standing in a damaging one |
 
-**Stand-ins until the planning and chest modules land.** R3 (planning) and R5 (camps, chests) are merged but the modules for them
-are not built. `detectFeatures` reports `planning`, `chests`, `camps` and `relics` true on the merged schema (`plan` and `choose` in
-`CLIENT_MESSAGE_TYPES`, `RaidState.camps`, `PlayerState.build`), and no module acts on them. So that planning cannot stall a room, each
-driver presses Ready for its bots: `BotManager.pressReady` (in-process) and `BotClient.pressReady` (network) send `plan {ready: true}`
-once per bot, 1 to 3 s into the phase, through the adapter (marked `TODO(planning module)`); the server places a bot that picked
-nothing as it would a human who did not. The deal reaches the brain as a private `plan` message (the Room routes a bot's to
-`bots.onPrivate`), unread. The brain's frames run only in `active`. The old BotClient's chest and spawn logic survives as pure code
-for the modules to adopt: `chestHunt.ts` (which option, when to walk) and `mobHunt.ts`' `planSpawnScore`/`planPick`.
+**Planning (built, `modules/planning.ts`).** `detectFeatures` reports `planning` true on the merged schema (`plan` in
+`CLIENT_MESSAGE_TYPES`). The deal reaches the brain as a private `plan` message (the Room routes a bot's to `bots.onPrivate`), and
+both drivers run a bot's frames in `planning` as well as `active` (its status is still the lobby's there). `Brain.tick` has a planning
+branch with no goal and no tactics: only the modules' `intents` run, and the humanizer releases clicks for a lobby-status player in that
+phase. The module, as a person at the planning screen:
+- **Reads first.** Nothing for 2-4 s (Hard), 3-6 s (Normal) or 4-8 s (Easy) after the deal arrives, scaled down for a window shorter than
+  `PLAN_SECONDS` and never more than 55% of it; the clicks themselves get the humanizer's step delay and hesitation.
+- **Picks a spawn** by `planSpawnScore` (the matchup of the two camps nearest each, `mobHunt.ts`) plus the `spawn|<faction>|<zone>` bias,
+  through the tier's softmax and lapse (`pickOption`), so Hard takes the better one nearly always and Easy sometimes the worse.
+  Only the free options (`taken`); with none free it skips the pick. A pick the next message does not show is sent again after 400 ms
+  plus the tier's reaction, up to 3 times, and for the other spawn when the first was taken meanwhile.
+- **A boon** (R7: `boons` is empty today) by the `boon|<faction>|<id>` bias through the same softmax, after the spawn.
+- **Ready** a last look after the choices stood (Hard 0.3-0.8 s, Normal 0.5-1.4 s, Easy 0.8-2.2 s), and in any case before the last
+  `min(2.5 s, 30% of the window)`. With no deal at all it presses Ready about a second in. A bot that never readies is covered by the
+  server's planning timer, which places it on its first free option.
+The write side of the `spawn|…`/`boon|…` keys (recording the choice for the stats file) waits for an intent-level `choice` field:
+a module cannot call `recordChoice` today.
+
+**Chests (built, `modules/chests.ts`).** `perception.ts` fills `extras.chests` for every reward chest in the state (the minimap draws each
+one wherever it stands, with its seconds left) and `extras.camps` from `RaidState.camps`. `options` is null, and `takenBy` empty, unless the
+bot is alive within `CHEST_RANGE − CHEST_PANEL_SLACK` of the chest with a clear line (the rule of `ui/chestMath.ts` `pickReward`); another
+player's pick reads "?". The module reuses `chestHunt.ts` (`ChestHunter` for the walk, `chooseOption` for the card):
+- **Walk.** A module goal `chests/{chest}` offered when the hunt would walk (reachable in the chest's remaining life at 85% of speed, only
+  a chest within twelve tiles while fighting or with an awake mob within 220 u, none while fleeing or below `fleeHp`), scored at
+  `0.9 × (0.25 + 0.75 × persona.loot)`, plus a crowd bonus (`× persona.thirdParty`) when another player stands within 3 pick ranges of the
+  chest, plus up to 0.2 for nearness, capped at 0.84 (a committed fight, 0.85, is never left for one). The walk decision never reads a
+  card: from afar every chest is "a skill". Tiers that do not path (Easy) walk a straight line × 1.3. A walk that gains less than 24 u in
+  3 s of walking is given up.
+- **Pick.** In reach, a `choose` for the best free card the bot can use, else a skip, goes out whatever the bot is doing, once per chest
+  (a card lost to a faster hand is asked for again on another, 3 at most, inside 4 s), timed as the humanizer times a reading reaction to
+  the panel opening (Hard is quick, Easy slow). A bot that has walked out of reach by the click time clicks nothing. It waits out a stun or a
+  cast, and the goal keeps it at the chest until the pick shows.
+- It keeps its own record of the skills it took (the HUD's passives row) to leave a card it holds at rank 2.
 
 **Adopting `decideCast` (built).** Wishes is merged, so `brain/modules/wishes.ts` calls the shared `decideCast` / `hidesCaster`
 (`bots/abilityPolicy.ts`, pure and shared-only) directly: the one import outside the brain's folder, allowed for that file alone

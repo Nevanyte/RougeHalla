@@ -150,7 +150,7 @@ export function createHeadlessRoom(opts: HeadlessRoomOptions): HeadlessRoom {
           if (manager.isBot(ev.id)) manager.onToast(ev.id, `+${ev.amount} GV (${GV_TOAST[ev.reason]})`);
           break;
         case "plan":
-          // A planning module will read the deal; for now it is only kept (and the stand-in presses ready).
+          // The bot's own deal (the planning module reads it from its next frame).
           if (manager.isBot(ev.to)) manager.onPrivate(ev.to, "plan", ev.plan);
           break;
         case "planningStarted":

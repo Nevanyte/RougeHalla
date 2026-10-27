@@ -4,10 +4,10 @@
 // the whole brain (`assertBlind(run, ...)` with a `run` that returns the commands), so a leak anywhere downstream fails the
 // same way. Plain states here satisfy perception's StateLike; toSchemaState builds the real schema objects from one.
 import {
-  FACTION_IDS, hasLineOfSight, INTERACT_RANGE, isWeaponId, mulberry32, packFx, WEAPON_IDS,
+  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, FACTION_IDS, hasLineOfSight, INTERACT_RANGE, isWeaponId, mulberry32, packFx, SKILL_IDS, WEAPON_IDS,
   type FxBatch, type FxEvent, type GameMap, type ProjectileLaunch, type Rng, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { ContainerState, ItemState, MobState, PlayerState, RaidState } from "@raid/shared/schema";
+import { CampState, ContainerState, ItemState, MobState, PlayerState, RaidState } from "@raid/shared/schema";
 import { createBrain } from "../../src/bots/brain/brain";
 import { createFrameRing } from "../../src/bots/brain/frames";
 import { enabledModules } from "../../src/bots/brain/modules";
@@ -19,7 +19,7 @@ import {
   type Brain, type BrainFactory, type ComposeConfig, type Features, type FeatureModule, type Goal, type MemoryView, type MinimapView,
   type Percept, type PersonaId, type TierId, type TimedCommand,
 } from "../../src/bots/brain/types";
-import { features as featureSet, NO_LEARNING, testMap } from "./fixtures";
+import { CORE_MESSAGES, features as featureSet, NO_LEARNING, testMap } from "./fixtures";
 
 // ============================================================================================================ plain states
 
@@ -42,7 +42,12 @@ export interface PlainMob {
 }
 
 export interface PlainItem { uid: string; def: string }
-export interface PlainContainer { id: string; kind: string; x: number; y: number; label: string; items: PlainItem[] }
+export interface PlainContainer {
+  id: string; kind: string; x: number; y: number; label: string; items: PlainItem[];
+  /** A camp's reward chest (kind "reward"): when it vanishes, its cards, who took each ("" free) and who has picked. */
+  camp?: number; expiresAt?: number; options?: string[]; takenBy?: string[]; pickers?: string[];
+}
+export interface PlainCamp { type: string; reward: string; alive: number; state: number }
 
 export interface PlainState {
   phase: string; seed: number; serverTime: number; tick: number; lobbyEndsAt: number; raidStartedAt: number; minPlayers: number;
@@ -52,6 +57,8 @@ export interface PlainState {
   mobs: Map<string, PlainMob>;
   containers: Map<string, PlainContainer>;
   roster: string[];
+  /** RaidState.camps, one per map camp. */
+  camps?: PlainCamp[];
 }
 
 export function plainPlayer(over: Partial<PlainPlayer> = {}): PlainPlayer {
@@ -119,6 +126,11 @@ export function toSchemaState(p: PlainState): RaidState {
     cs.x = src.x;
     cs.y = src.y;
     cs.label = src.label;
+    cs.camp = src.camp ?? 0;
+    cs.expiresAt = src.expiresAt ?? 0;
+    for (const o of src.options ?? []) cs.options.push(o);
+    for (const o of src.takenBy ?? []) cs.takenBy.push(o);
+    for (const o of src.pickers ?? []) cs.pickers.push(o);
     for (const it of src.items) {
       const item = new ItemState();
       item.uid = it.uid;
@@ -128,6 +140,11 @@ export function toSchemaState(p: PlainState): RaidState {
     s.containers.set(id, cs);
   }
   for (const id of p.roster) s.roster.push(id);
+  for (const src of p.camps ?? []) {
+    const cs = new CampState();
+    Object.assign(cs, src);
+    s.camps.push(cs);
+  }
   return s;
 }
 
@@ -159,6 +176,8 @@ export interface ScenarioRoles {
   farContainers: string[];
   /** On screen, out of interact range all along. */
   shutChests: string[];
+  /** Reward chests (R5) out of pick range all along, one on screen and one far: their cards are shut to the bot. */
+  rewardChests?: string[];
   /** Players named by an announcement (a death, a bounty) somewhere in the run. */
   announced: string[];
 }
@@ -269,7 +288,7 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   const roles: ScenarioRoles = {
     onscreenPlayers: ["p1", "p2", "p3"], onscreenMobs: ["m1", "m2"], farPlayers: ["f1", "f2", "f3"], farMobs: ["fm1", "fm2", "fm3", "fe1"],
     ringPlayers: ["r1"], ringMobs: ["rm1"], hidden: statusEffects ? ["h1"] : [], farContainers: ["fc1", "fc2", "fc3"],
-    shutChests: ["c1", "c3"], announced: [],
+    shutChests: ["c1", "c3"], rewardChests: ["rc1", "rc2"], announced: [],
   };
   const playerIds = ["me", ...roles.onscreenPlayers, ...roles.farPlayers, ...roles.ringPlayers, ...roles.hidden, ...(statusEffects ? ["u1"] : [])];
   const mobIds = [...roles.onscreenMobs, ...roles.farMobs, ...roles.ringMobs];
@@ -331,6 +350,21 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
     containers.push(plainContainer({ id, kind: pick(rng, ["chest", "body", "ground"]), x: p.x, y: p.y, label: `Far_${id}`, items: [{ uid: `u_${id}`, def: randomWeapon(rng) }] }));
   }
 
+  // Reward chests (R5): the minimap shows every one wherever it stands, so their places and expiry are public; their cards show only
+  // within pick range and in sight. Two out of range all along (one on screen, one far) for the perturbations; one in reach of every
+  // self (if the walls allow a spot) for the brain to pick at. A stream of their own, so the scenario above is the one it always was.
+  const crng = mulberry32(seed * 104729 + 7);
+  const cards = (): string[] => Array.from({ length: 3 }, () => pick(crng, SKILL_IDS));
+  const reward = (id: string, at: Vec2): PlainContainer =>
+    plainContainer({
+      id, kind: "reward", x: at.x, y: at.y, camp: 1 + Math.floor(crng() * 5), expiresAt: T0 + CHEST_SECONDS * 1000 + 40_000,
+      options: cards(), takenBy: ["", "", ""], pickers: [],
+    });
+  containers.push(reward("rc1", onscreenFar(crng, start, selves, CHEST_RANGE + WANDER + 20)));
+  containers.push(reward("rc2", farPoint(crng, map, selves, SLACK + 40)));
+  const pickSpot = inReach(map, selves, CHEST_RANGE - CHEST_PANEL_SLACK - 8);
+  if (pickSpot) containers.push({ ...reward("rc3", pickSpot), expiresAt: T0 + 60_000 });
+
   // Off-screen news: a far player dies (announced by name), a far player's bounty rises.
   const deathFrame = opts.quiet ? -1 : 3 + Math.floor(rng() * Math.max(4, Math.floor(n * 0.4)));
   const bountyFrame = opts.quiet ? -1 : 2 + Math.floor(rng() * Math.max(6, Math.floor(n * 0.6)));
@@ -341,7 +375,7 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   let projSeq = 0;
   const flying: Array<{ id: string; from: string; endsAt: number }> = [];
   for (let k = 0; k < n; k++) {
-    const state = plainState({ serverTime: t(k), tick: 2000 + k, seed: map.seed });
+    const state = plainState({ serverTime: t(k), tick: 2000 + k, seed: map.seed, camps: map.camps.map((c, i) => ({ type: "emberImp", reward: "", alive: 2 + (i % 3), state: i % 3 })) });
     // The bot's own HUD changes too: a lock it holds now and then, a cooldown that runs, and hp that drains (so it flees).
     const life = n > 1 ? k / (n - 1) : 0;
     state.players.set("me", {
@@ -404,24 +438,25 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
     }
     frames.push({ state, events, launches, toasts });
   }
-  return { seed, map, selfId: "me", features: featureSet({ statusEffects }), frames, roles };
+  const features = featureSet({ statusEffects, chests: true, camps: true, messageTypes: [...CORE_MESSAGES, "choose"] });
+  return { seed, map, selfId: "me", features, frames, roles };
 }
 
-/** A spot on screen in every frame and out of interact range of every self. */
-function onscreenFar(rng: Rng, start: Vec2, selves: readonly Vec2[]): { x: number; y: number } {
+/** A spot on screen in every frame and farther than `min` (default: out of interact range) from every self. */
+function onscreenFar(rng: Rng, start: Vec2, selves: readonly Vec2[], min = INTERACT_RANGE + 30): { x: number; y: number } {
   for (;;) {
     const p = { x: Math.round(start.x + range(rng, -(HALF_W - 150), HALF_W - 150)), y: Math.round(start.y + range(rng, -(HALF_H - 150), HALF_H - 150)) };
-    if (selves.every((s) => Math.hypot(p.x - s.x, p.y - s.y) > INTERACT_RANGE + 30)) return p;
+    if (selves.every((s) => Math.hypot(p.x - s.x, p.y - s.y) > min)) return p;
   }
 }
 
-/** A spot within interact range and sight of every self (near the middle of its walk), if the walls allow one. */
-function inReach(map: GameMap, selves: readonly Vec2[]): Vec2 | null {
+/** A spot within `reach` (default: interact range) and sight of every self (near the middle of its walk), if the walls allow one. */
+function inReach(map: GameMap, selves: readonly Vec2[], reach = INTERACT_RANGE): Vec2 | null {
   const cx = selves.reduce((a, s) => a + s.x, 0) / selves.length, cy = selves.reduce((a, s) => a + s.y, 0) / selves.length;
   for (const r of [0, 8, 16]) {
     for (let a = 0; a < 16; a++) {
       const p = { x: Math.round(cx + Math.cos((a / 16) * 2 * Math.PI) * r), y: Math.round(cy + Math.sin((a / 16) * 2 * Math.PI) * r) };
-      if (selves.every((s) => Math.hypot(p.x - s.x, p.y - s.y) <= INTERACT_RANGE - 4 && hasLineOfSight(map, s, p))) return p;
+      if (selves.every((s) => Math.hypot(p.x - s.x, p.y - s.y) <= reach - 4 && hasLineOfSight(map, s, p))) return p;
     }
   }
   return null;
@@ -577,7 +612,8 @@ export const PERTURBATIONS: readonly Perturbation[] = [
     apply(s, rng) {
       const selves = selvesOf(s);
       const moved = new Map<string, Vec2>(s.roles.farContainers.map((id) => [id, farPoint(rng, s.map, selves)]));
-      const kinds = new Map<string, string>(s.roles.farContainers.map((id) => [id, pick(rng, ["chest", "body", "ground", "reward"])]));
+      // Not "reward": the minimap draws every reward chest and its seconds, so that kind is public wherever it stands.
+      const kinds = new Map<string, string>(s.roles.farContainers.map((id) => [id, pick(rng, ["chest", "body", "ground"])]));
       for (const f of s.frames) {
         for (const id of s.roles.farContainers) {
           const c = f.state.containers.get(id)!;
@@ -596,6 +632,26 @@ export const PERTURBATIONS: readonly Perturbation[] = [
         for (const id of s.roles.shutChests) {
           const c = f.state.containers.get(id)!;
           if (c.items.length > 0 && isWeaponId(c.items[0]!.def)) c.items[0]!.def = swaps.get(id)!;
+        }
+      }
+    },
+  },
+  {
+    name: "reward chests out of pick range: their cards, who took which, who picked, which camp",
+    apply(s, rng) {
+      const ids = s.roles.rewardChests ?? [];
+      const who = ["", "p1", "p2", "f1", "f3"];
+      const cards = new Map(ids.map((id) => [id, Array.from({ length: 3 }, () => pick(rng, SKILL_IDS))]));
+      const taken = new Map(ids.map((id) => [id, Array.from({ length: 3 }, () => pick(rng, who))]));
+      const pickers = new Map(ids.map((id) => [id, who.slice(1).filter(() => chance(rng, 0.5))]));
+      const camp = new Map(ids.map((id) => [id, 1 + Math.floor(rng() * 5)]));
+      for (const f of s.frames) {
+        for (const id of ids) {
+          const c = f.state.containers.get(id)!;
+          c.options = cards.get(id)!;
+          c.takenBy = taken.get(id)!;
+          c.pickers = pickers.get(id)!;
+          c.camp = camp.get(id)!;
         }
       }
     },

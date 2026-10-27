@@ -2,8 +2,8 @@
 // joins an arena lobby on a server with BOTS_FILL_TO=4. The bots arrive in the last seconds of the countdown, flagged `bot`, play the
 // run out against the clock (short patience and sudden death), and leave no trace in persistence: no profile for any of their names,
 // nothing banked for them, the human's result and record free of anything they earned or lost. The run is planned first (the live
-// server's planning phase): the human presses ready at once, and each bot does too, 1 to 3 s in (the adapter's stand-in until the
-// brain has a planning module), so the phase ends well before its timer. Their learning file is written
+// server's planning phase): the human presses ready at once, and each bot reads its deal, picks a spawn and presses ready (the brain's
+// planning module: a second or more in, and always before the timer). Their learning file is written
 // next to the profile file. A training room never gets any. Every `fxs` batch is read by the human's own copy of the roster
 // with no tuple dropped, and nothing logged an error.
 import fs from "node:fs";
@@ -28,7 +28,7 @@ type ClientRoom = Room<any, RaidState>;
 const LOBBY_SECONDS = 5;
 const ARRIVAL_SECONDS = 4;
 const FILL_TO = 4;
-/** The planning phase's timer: far longer than the 1 to 3 s the bots take to press ready, so the phase ends because they did. */
+/** The planning phase's timer: the bots read the deal for a good part of it (scaled down from the live 12 s) and press ready before it ends. */
 const PLAN_SECONDS = 8;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -195,11 +195,11 @@ describe("fill bots in a real arena room", () => {
       expect(planning, "the run was planned first").toBeDefined();
       expect(planning.wall).toBeGreaterThanOrEqual(LOBBY_SECONDS * 1000 - 250);
       expect(planning).toMatchObject({ players: FILL_TO, bots: FILL_TO - 1 });
-      // ...then planning: every bot pressed ready (the last to do so ended the phase in its tick, so the first sample of the run
-      // is the one that shows it; `planReady` is not reset when the run starts), and that, not the timer, ended it.
+      // ...then planning: every bot read its deal, picked and pressed ready (`planReady` is not reset when the run starts, so the first
+      // sample of the run shows it), none later than the timer: the module presses ready before the window's last 30% at the latest.
       const started = samples.find((s) => s.phase === "active")!;
-      expect(started.wall - planning.wall, "planning ended before its timer").toBeLessThan(PLAN_SECONDS * 1000 - 1500);
-      expect(started.wall - planning.wall, "the bots took a second or more to press ready").toBeGreaterThanOrEqual(900);
+      expect(started.wall - planning.wall, "planning ended within its timer").toBeLessThan(PLAN_SECONDS * 1000 + 300);
+      expect(started.wall - planning.wall, "the bots took a second or more to read, pick and press ready").toBeGreaterThanOrEqual(1200);
       expect(started.botsReady, "every bot was ready").toBe(FILL_TO - 1);
       expect(started).toMatchObject({ players: FILL_TO, bots: FILL_TO - 1 });
       expect(world.state.players.size).toBe(FILL_TO);

@@ -296,6 +296,11 @@ export const createBrain: BrainFactory = (cfg: BrainConfig): Brain => {
       if (!alive || p.hud.phase !== "active") {
         stillSince = null;
         lastPos = null;
+        // The planning screen has no goal and no tactics: only the modules act (the planning module reads the deal and answers it).
+        if (p.hud.phase === "planning") {
+          const intents = mods.flatMap((m) => m.intents?.(ctx, { kind: "idle" }) ?? []);
+          if (intents.length > 0) humanizer.submit(intents, ctx);
+        }
         return flush(humanizer.release(ctx));
       }
 

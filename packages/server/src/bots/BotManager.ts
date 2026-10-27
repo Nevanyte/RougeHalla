@@ -41,9 +41,6 @@ const ARRIVAL_END_MARGIN_MS = 1000;
 const MAX_BUFFERED = 32;
 /** A bot's undelivered commands. The humanizer's rate cap keeps this a handful; the limit is only a backstop. */
 const MAX_QUEUED = 256;
-/** TODO(planning module): until the brain has one, a bot presses Ready this long (ms) into the planning phase, uniform in the range. */
-const PLAN_READY_MIN_MS = 1000;
-const PLAN_READY_MAX_MS = 3000;
 
 export interface BotManagerDeps {
   /** The learning store (null = learning off: a bot reads NO_BIAS and nothing is recorded). */
@@ -99,9 +96,6 @@ interface Seat {
   privates: PrivateMessage[];
   ended: boolean;
   failed: boolean;
-  /** TODO(planning module): when this bot presses Ready (server ms; 0 = not drawn yet) and whether it has. */
-  readyAt: number;
-  readySent: boolean;
 }
 
 /** A 32-bit seed for one stream: the seed mixed with a tag (a murmur finaliser), so no two streams of a manager march in step. */
@@ -138,8 +132,6 @@ export class BotManager {
   /** Fill decisions and the delay line's jitter: two streams, so the latency setting never changes who arrives. */
   private readonly fillRng: Rng;
   private readonly lineRng: Rng;
-  /** The planning stand-in's draws: a stream of its own, so adding it moved no other draw. */
-  private readonly planRng: Rng;
   private readonly features: Features;
   private readonly budget = createPathBudget();
   private readonly makeBrain: BrainFactory;
@@ -161,7 +153,6 @@ export class BotManager {
     this.target = Math.min(MAX_PLAYERS, Math.max(0, Math.floor(cfg.fillTo)));
     this.fillRng = mulberry32(mix(deps.seed, 0));
     this.lineRng = mulberry32(mix(deps.seed, 1));
-    this.planRng = mulberry32(mix(deps.seed, 2));
     this.features = deps.features ?? detectFeatures({
       state: world.state, player: new PlayerState(), map: world.map, messageTypes: CLIENT_MESSAGE_TYPES,
     });
@@ -318,7 +309,7 @@ export class BotManager {
       features: this.features,
       tier,
     });
-    return { spec, runner, line, toasts: [], privates: [], ended: false, failed: false, readyAt: 0, readySent: false };
+    return { spec, runner, line, toasts: [], privates: [], ended: false, failed: false };
   }
 
   /**
@@ -365,11 +356,12 @@ export class BotManager {
     if (this.disposed) return;
     this.budget.startTick();
     const state = this.world.state;
-    if (state.phase === "planning") this.pressReady();
-    if (state.phase !== "active") return;
+    // The planning screen is a phase of its own: a bot's frames run in it too, while its status is still the lobby's.
+    const planning = state.phase === "planning";
+    if (state.phase !== "active" && !planning) return;
     for (const seat of this.seats.values()) {
       if (seat.ended || seat.failed) continue;
-      if (state.players.get(seat.spec.id)?.status !== "alive") continue;
+      if (state.players.get(seat.spec.id)?.status !== (planning ? "lobby" : "alive")) continue;
       const input: PerceptionInput = {
         state,
         fxs: batches,
@@ -387,26 +379,6 @@ export class BotManager {
         this.stats.errors++;
         console.error(`[bots] ${seat.spec.name} (${seat.spec.id}) stopped acting:`, err);
       }
-    }
-  }
-
-  /**
-   * TODO(planning module): the stand-in for a bot's planning. The brain has no planning module yet (docs/BOTS.md 8: it will read
-   * the private `plan` deal, weigh the nearest camps and pick a spawn and a boon), so each bot only presses Ready, `plan {ready}`,
-   * 1 to 3 s into the phase through the same delay line as any click, as a person who takes what they are dealt would. Without it
-   * the room waits out the whole planning timer for them, and the server places a player who never picked on its first free spawn.
-   */
-  private pressReady(): void {
-    const now = this.world.state.serverTime;
-    for (const seat of this.seats.values()) {
-      if (seat.ended || seat.failed || seat.readySent) continue;
-      if (seat.readyAt === 0) {
-        seat.readyAt = now + PLAN_READY_MIN_MS + Math.round(this.planRng() * (PLAN_READY_MAX_MS - PLAN_READY_MIN_MS));
-        continue;
-      }
-      if (now < seat.readyAt) continue;
-      seat.readySent = true;
-      this.deliver(seat.line, { type: "plan", msg: { ready: true } }, now);
     }
   }
 

@@ -9,15 +9,17 @@
 // state.roster with unpackFx/unpackLaunches, exactly as RaidScene does.
 import * as shared from "@raid/shared";
 import {
-  abilityInSlot, buffPower, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight, hpBarFractions, INTERACT_RANGE, isDot,
+  abilityInSlot, buffPower, CHEST_PANEL_SLACK, CHEST_RANGE, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight,
+  hpBarFractions, INTERACT_RANGE, isDot,
   isFactionId, isWeaponId, TELEPORT_IMMUNITY_MS, unpackFx, unpackLaunches, WEAPONS, withGates,
   type FactionId, type FxBatch, type GameMap, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import {
   BOT_VIEW, FRAME_MARGIN, HP_QUANT, MINIMAP_QUANT, MINIMAP_REFRESH_MS, WORLD_RENDER_DELAY_MS,
-  type ContainerSeen, type Features, type FieldView, type FighterId, type FighterSeen, type Frame, type HudView, type MinimapMob,
-  type MinimapView, type MobSeen, type ObservedEvent, type Perceive, type PerceptExtras, type ProjectileView, type SelfView, type WishView,
+  type CampView, type ContainerSeen, type Features, type FieldView, type FighterId, type FighterSeen, type Frame, type HudView, type MinimapMob,
+  type MinimapView, type MobSeen, type ObservedEvent, type Perceive, type PerceptExtras, type ProjectileView, type RewardChestView,
+  type SelfView, type WishView,
 } from "./types";
 
 // ============================================================================================================ input shapes
@@ -89,6 +91,19 @@ export interface ContainerLike {
   readonly y: number;
   readonly label: string;
   readonly items: ListLike<ItemLike>;
+  /** A camp's shared chest (kind "reward", R5): when it vanishes, its cards, who took each, and who has picked. Absent on a server without them. */
+  readonly expiresAt?: number;
+  readonly options?: ListLike<string>;
+  readonly takenBy?: ListLike<string>;
+  readonly pickers?: ListLike<string>;
+}
+
+/** A RaidState.camps entry (R5). */
+export interface CampLike {
+  readonly type: string;
+  readonly reward: string;
+  readonly alive: number;
+  readonly state: number;
 }
 
 /** A Wishes FieldState (kind and ability are indices into shared FIELD_KINDS / ABILITY_IDS there). */
@@ -124,6 +139,8 @@ export interface StateLike {
   /** Only to decode the fx batches; never copied into a Frame. */
   readonly roster: ArrayLike<string>;
   readonly fields?: KeyedLike<FieldLike>;
+  /** One per map camp, in `map.camps` order (R5). */
+  readonly camps?: ArrayLike<CampLike>;
 }
 
 /** Compile-time proof that the server's (and the SDK's decoded) RaidState is a StateLike. */
@@ -645,6 +662,8 @@ export const perceive: Perceive<PerceptionInput> = (input, ctx) => {
   const wish = ctx.features.wishes && me ? wishView(me) : null;
   if (wish) extras.wish = wish;
   if (ctx.features.fields && state.fields) extras.fields = seeFields(state.fields, seen, sx, sy);
+  if (ctx.features.chests) extras.chests = seeChests(state, ctx.map, self, selfId);
+  if (ctx.features.camps && state.camps) extras.camps = seeCamps(state.camps, ctx.map);
 
   return { t, self, hud, fighters, mobs: mobList, containers, projectiles, minimap, events, immediate, extras };
 };
@@ -712,6 +731,43 @@ function seeContainers(state: StateLike, map: GameMap, self: SelfView, near: (x:
     });
   }
   out.sort(byId);
+  return out;
+}
+
+/** Whether a list holds `v`. */
+function listHas(list: ListLike<string> | undefined, v: string): boolean {
+  for (let i = 0; list && i < list.length; i++) if (list.at(i) === v) return true;
+  return false;
+}
+
+/**
+ * The reward chests as the client shows them (ui/minimap.ts, ui/chestPanel.ts). Every chest that is up is a gold blip on the
+ * minimap with its seconds left, wherever it stands, so its place and expiry are known map-wide. Its cards, and which are taken,
+ * show only while the panel is open: within CHEST_RANGE less CHEST_PANEL_SLACK of the bot's latest server position and in sight
+ * (ui/chestMath.ts `pickReward`). Another player's pick is "?" here, whoever made it: the bot needs only to know it is gone.
+ */
+function seeChests(state: StateLike, map: GameMap, self: SelfView, selfId: FighterId): RewardChestView[] {
+  const sight = state.gatesLocked ? withGates(map) : map;
+  const out: RewardChestView[] = [];
+  for (const [id, c] of state.containers) {
+    if (c.kind !== "reward") continue;
+    const x = f32(c.x), y = f32(c.y);
+    const open = self.status === "alive" && Math.hypot(self.x - x, self.y - y) <= CHEST_RANGE - CHEST_PANEL_SLACK && hasLineOfSight(sight, self, { x, y });
+    const options: string[] | null = open ? Array.from({ length: c.options?.length ?? 0 }, (_, i) => c.options!.at(i) ?? "") : null;
+    const takenBy = options === null ? [] : options.map((_, i) => { const by = c.takenBy?.at(i) ?? ""; return by === "" || by === selfId ? by : "?"; });
+    out.push({ id, x, y, expiresAt: u32(c.expiresAt ?? 0), options, takenBy, picked: listHas(c.pickers, selfId) });
+  }
+  out.sort(byId);
+  return out;
+}
+
+/** RaidState.camps as the minimap and the planning screen mark them: what each camp is, how many of it live, and its state. */
+function seeCamps(camps: ArrayLike<CampLike>, map: GameMap): CampView[] {
+  const out: CampView[] = [];
+  for (let i = 0; i < camps.length; i++) {
+    const c = camps[i];
+    if (c) out.push({ index: i, id: map.camps[i]?.id ?? `camp${i}`, type: c.type, reward: c.reward, alive: c.alive, state: c.state === 1 || c.state === 2 ? c.state : 0 });
+  }
   return out;
 }
 

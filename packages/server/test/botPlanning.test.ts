@@ -1,8 +1,10 @@
-// Fill bots in the planning phase (roguelike R3 meets docs/BOTS.md 8). The brain has no planning module yet, so BotManager presses
-// Ready for each bot, 1 to 3 s into the phase, through the delay line a click takes (TODO(planning module)); these tests pin that
-// stand-in, so the room never waits out the planning timer for bots, and the humans-only win-bonus gate across planning leavers.
+// Fill bots in the planning phase (roguelike R3 meets docs/BOTS.md 8). The brain's planning module reads the private deal, picks a
+// spawn and presses Ready through the delay line a click takes (test/bots/planningModule.test.ts has its rules; here the whole room):
+// the room never waits out the planning timer for bots, a human who never presses Ready is waited for alone, and the humans-only
+// win-bonus gate holds across planning leavers.
 import { describe, expect, it } from "vitest";
 import { mulberry32, TICK_MS } from "@raid/shared";
+import { PLAN_RULES } from "../src/bots/brain/modules/planning";
 import { BOT_FILL_DEFAULTS } from "../src/bots/brain/types";
 import { createHeadlessRoom } from "../src/bots/tournament/headlessRoom";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -38,24 +40,26 @@ function readyTimes(room: ReturnType<typeof planningRoom>): { times: Map<string,
 }
 
 describe("fill bots in planning", () => {
-  it("each presses ready once, 1 to 3 s in (plus the uplink), so the phase ends long before its timer", () => {
+  it("each reads the deal, picks a spawn and presses ready, so the phase ends before its timer", () => {
     const room = planningRoom(6, 6);
     const { times, planMs, sentAtStart } = readyTimes(room);
     expect(room.world.state.phase).toBe("active");
     expect([...times.keys()].sort()).toEqual(room.seats.map((s) => s.id).sort());
     const latency = BOT_FILL_DEFAULTS.latencyMs + BOT_FILL_DEFAULTS.jitterMs;
     for (const [id, ms] of times) {
-      expect(ms, `${id} pressed ready too early`).toBeGreaterThanOrEqual(1000 - TICK_MS);
-      expect(ms, `${id} pressed ready too late`).toBeLessThanOrEqual(3000 + latency + 3 * TICK_MS);
+      // No sooner than the quickest reading of the quickest tier (Hard, 2 s), and inside the window with room to spare.
+      expect(ms, `${id} pressed ready too early`).toBeGreaterThanOrEqual(PLAN_RULES.read.hard[0] - TICK_MS);
+      expect(ms, `${id} pressed ready too late`).toBeLessThanOrEqual(PLAN_SECONDS * 1000 - 500 + latency);
     }
     // They do not all press it in the same tick: each draws its own time.
     expect(new Set(times.values()).size).toBeGreaterThan(1);
-    // The last one to be ready ended the phase, and it sent exactly one message each, none refused.
+    // The last one to be ready ended the phase; each sent a spawn pick and a ready, none refused.
     expect(planMs).toBeLessThanOrEqual(Math.max(...times.values()) + TICK_MS);
-    expect(planMs).toBeLessThan(PLAN_SECONDS * 1000 - 5000);
-    expect(sentAtStart).toBe(6);
+    expect(planMs).toBeLessThan(PLAN_SECONDS * 1000);
+    expect(sentAtStart).toBe(12);
     expect(room.manager.stats.refused).toBe(0);
     expect(room.manager.stats.errors).toBe(0);
+    for (const seat of room.seats) expect(room.world.planning!.deals.get(seat.id)!.pick, `${seat.id} picked`).not.toBe(-1);
   });
 
   it("replays exactly: the same seed presses ready at the same times", () => {

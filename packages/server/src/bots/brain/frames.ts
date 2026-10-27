@@ -459,7 +459,7 @@ function namesFighter(frame: Frame, id: string): boolean {
   return findById(frame.fighters, id) !== undefined || findById(frame.mobs, id) !== undefined;
 }
 
-/** The extras of the latest patch, cut to the window: effect bits of what is drawn, areas on screen, chests on screen. */
+/** The extras of the latest patch, cut to the window: effect bits of what is drawn, areas on screen. Chests are not: the minimap draws them all. */
 function windowExtras(
   ex: PerceptExtras, view: View, fighters: readonly FighterView[], mobs: readonly MobView[], self: SelfView,
 ): PerceptExtras {
@@ -481,6 +481,5 @@ function windowExtras(
       .filter((f) => fieldInView(view.cx, view.cy, f))
       .map((f) => (f.owner === null || view.visible.has(f.owner) ? f : { ...f, owner: null }));
   }
-  if (ex.chests) out.chests = ex.chests.filter((c) => inView(view.cx, view.cy, c.x, c.y));
   return out;
 }

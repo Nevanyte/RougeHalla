@@ -306,7 +306,13 @@ export function createHumanizer(cfg: HumanizerConfig): HumanizerImpl {
         return { cmd: { type: "cast", msg: { slot: i.slot, x: at.x, y: at.y } }, spent: true };
       }
       case "plan": return { cmd: { type: "plan", msg: i.msg }, spent: true };
-      case "choose": return { cmd: { type: "choose", msg: i.msg }, spent: true };
+      case "choose": {
+        // The chest panel takes clicks only while it is open: a bot that has walked out of reach (or whose chest is gone) since it
+        // meant to pick clicks nothing.
+        const chests = p.extras.chests;
+        if (chests && chests.find((c) => c.id === i.msg.chest)?.options == null) return NOT_SENT;
+        return { cmd: { type: "choose", msg: i.msg }, spent: true };
+      }
     }
   }
 
@@ -341,8 +347,9 @@ export function createHumanizer(cfg: HumanizerConfig): HumanizerImpl {
 
   function release(ctx: BrainContext): readonly TimedCommand[] {
     const now = ctx.p.now;
-    // A person who is down clicks nothing, and what they meant to do is moot by the time they are up.
-    if (ctx.p.self.status !== "alive") {
+    // A person who is down clicks nothing, and what they meant to do is moot by the time they are up. (On the planning screen the
+    // player is still in the lobby's status, and clicks.)
+    if (ctx.p.self.status !== "alive" && ctx.p.hud.phase !== "planning") {
       pending.clear();
       return [];
     }

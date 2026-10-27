@@ -14,12 +14,12 @@
 // player can also die to a mob (killedBy is then the mob's name), and the fx that name a mob are not players' hits or
 // deaths. The bots cast their faction's Wish (the lock is 5 s here): its fx name players and the faction's own ability, none comes
 // before the lock is over, each bot casts it once (again only after the arena's teleport refunded a cast), and in the long run
-// some bot's Wish lands. A camp the run clears drops its shared chest (`campCleared`, then a reward container for CHEST_SECONDS);
-// the bots do not walk to chests yet (the brain has no chest module: docs/BOTS.md 8), so only the server's side of the fx is
-// checked (one `chestTaken` per picker per chest, by a player, with an option the chest has). Every bot decodes every `fxs` batch
-// it receives against its own copy of the roster (what a real client has), and none of them loses a tuple. Every run is planned first (the live server's planning phase): each bot is dealt its two spawns
-// in a private `plan` message and presses ready (the adapter's stand-in until the brain has a planning module: BotClient `plan`),
-// so the server hands out the spawns it left over. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
+// some bot's Wish lands. A camp the run clears drops its shared chest (`campCleared`, then a reward container for CHEST_SECONDS):
+// the bots walk to it and take a card (or skip) with one `choose` per chest, so whenever a camp was cleared some bot must have taken
+// an option from some chest (`chestTaken`), and no player picks twice at one chest. Every bot decodes every `fxs` batch it receives
+// against its own copy of the roster (what a real client has), and none of them loses a tuple. Every run is planned first (the live
+// server's planning phase): each bot is dealt its two spawns in a private `plan` message, reads them, takes one and presses ready (the
+// brain's planning module), so the server hands out the spawns it left over. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
 // that the arena teleports them into the coliseum before anyone has died, after which they must keep landing hits.
 import fs from "node:fs";
 import net from "node:net";
@@ -123,9 +123,10 @@ interface Timers { patienceSeconds: number; suddenDeathSeconds: number }
 
 /**
  * What a run must also show beyond the books (which are always checked): a kill by a bot, a signature hit by a bot, a mob killed
- * by a bot, a Wish cast by a bot that took effect (a `castLand`).
+ * by a bot, a Wish cast by a bot that took effect (a `castLand`), and a chest option taken by a bot (asked only of a run in which
+ * some camp was cleared: a clear is the bots' to make or not, and nothing is owed to a camp nobody emptied).
  */
-interface Wanted { expectKill?: boolean; expectSignature?: boolean; expectMobKill?: boolean; expectWish?: boolean }
+interface Wanted { expectKill?: boolean; expectSignature?: boolean; expectMobKill?: boolean; expectWish?: boolean; expectChest?: boolean }
 
 /** What one client's `fxs` messages came to when read the way the client reads them. */
 interface Decoding { batches: number; tuples: number; decoded: number; dropped: Array<{ t: number; tuple: unknown; unresolved: boolean }> }
@@ -150,15 +151,15 @@ interface Played {
   bots: BotClient[]; players: number[]; fx: TimedFx[]; sessions: ReadonlySet<string>;
   /** What the run showed, for playUntil: kills by the bots, signature hits dealt by them, mobs they killed, Wishes that landed. */
   kills: number; signatureHits: number; mobKills: number; wishLands: number;
-  /** Camps the run cleared (by anyone). */
-  campClears: number;
+  /** Camps the run cleared (by anyone), and the chest options (skips not counted) the bots took. */
+  campClears: number; chestPicks: number;
 }
 
 /** Plays one run on a fresh server (and fresh profiles) and checks everything that must hold, whoever wins. */
 async function playRun(
   prefix: string, lineup: readonly FactionId[], timers: Timers, want: Wanted = {},
 ): Promise<Played> {
-  const { expectKill = false, expectSignature = false, expectMobKill = false, expectWish = false } = want;
+  const { expectKill = false, expectSignature = false, expectMobKill = false, expectWish = false, expectChest = false } = want;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-e2e-"));
   const profileFile = path.join(dir, "data", "stash.json");
   const port = await freePort();
@@ -345,9 +346,11 @@ async function playRun(
     for (const i of players) expect(bots[i]!.stats.maxStallMs, `${names[i]} stood still for ${bots[i]!.stats.maxStallMs} ms`).toBeLessThan(MAX_STALL_MS);
     expect(fx.some((f) => f.kind === "hit" && isPlayer(f.by)), "no bot ever hit anything").toBe(true);
 
-    // --- the chests: a cleared camp drops a shared chest. The bots have no chest module yet, so what is checked is the server's side
-    // of it in the stream: one `chestTaken` per picker per chest, by a player, with an option index the chest has. (Uncovered until
-    // the brain's chest module lands: that a bot walks to a chest and takes an option.)
+    // --- the chests: a cleared camp drops a shared chest, the bots walk to it and take a card (or skip), once each. A chest is the
+    // server's: one `chestTaken` per picker per chest, an option index the chest has, and no more picks than bots. What is asked of the
+    // bots is that nobody picks twice, that no bot sends more `choose` than it has picks (a card lost to a faster hand is asked for
+    // again, so a few more are fine) and that, when a camp was cleared, one of them took a card; never a count (who reaches a chest in
+    // its 15 s is up to the bots).
     const campClears = fx.filter((f) => f.kind === "campCleared").length;
     const chestFx = fx.flatMap((f) => (f.kind === "chestTaken" ? [f] : []));
     expect(new Set(chestFx.map((f) => `${f.chest}/${f.by}`)).size, "a player picked twice at one chest").toBe(chestFx.length);
@@ -355,7 +358,14 @@ async function playRun(
       expect(isPlayer(f.by), `chestTaken by ${f.by}, who is no bot`).toBe(true);
       expect(f.option, `chestTaken option ${f.option}`).toBeGreaterThanOrEqual(-1);
     }
-    console.log(`[e2e] chests: ${campClears} camps cleared, ${chestFx.length} chestTaken fx`);
+    const botChestPicks = chestFx.filter((f) => f.option >= 0).length;
+    for (const [i, bot] of bots.entries()) {
+      const mine = chestFx.filter((f) => f.by === bot.sessionId).length;
+      expect(bot.sent.choose, `${names[i]} sent fewer choose messages than it had picks`).toBeGreaterThanOrEqual(mine);
+      expect(bot.sent.choose, `${names[i]} sent ${bot.sent.choose} choose messages for ${mine} picks`).toBeLessThanOrEqual(mine + 4);
+    }
+    console.log(`[e2e] chests: ${campClears} camps cleared, ${botChestPicks} options taken and ${chestFx.length - botChestPicks} skips by the bots (${sent("choose")} chooses)`);
+    if (expectChest && campClears > 0) expect(botChestPicks, `${campClears} camps cleared and no bot took a chest option`).toBeGreaterThanOrEqual(1);
 
     // --- the signatures fired: damage over time and backlash are `hit` fx with a `sig`, and each was dealt by a fighter (a
     // player, or a mob of a region's faction) of the faction that owns that signature. What is asked of the bots is that
@@ -550,7 +560,9 @@ async function playRun(
     stopped = true;
     expect(fatal).toEqual([]);
     expect(errorSpy.mock.calls).toEqual([]);
-    return { bots, players, fx, sessions, kills: totalKills, signatureHits: botSigHits, mobKills, wishLands, campClears };
+    return {
+      bots, players, fx, sessions, kills: totalKills, signatureHits: botSigHits, mobKills, wishLands, campClears, chestPicks: botChestPicks,
+    };
   } finally {
     broadcastSpy.mockRestore();
     try {
@@ -578,6 +590,8 @@ async function playUntil(prefix: string, lineup: readonly FactionId[], timers: T
       ...(want.expectSignature && played.signatureHits === 0 ? ["a signature hit by a bot"] : []),
       ...(want.expectMobKill && played.mobKills === 0 ? ["a mob killed by a bot"] : []),
       ...(want.expectWish && played.wishLands === 0 ? ["a Wish landed by a bot"] : []),
+      // Only a run that cleared a camp owes a chest taken (the shared chest drops from the clear, for 15 s).
+      ...(want.expectChest && played.campClears > 0 && played.chestPicks === 0 ? ["a chest option taken by a bot"] : []),
     ];
     if (last || missing.length === 0) {
       console.log(`[e2e] ${prefix}: the evidence took ${attempt} attempt${attempt === 1 ? "" : "s"} (at most ${RUN_ATTEMPTS} are allowed)`);
@@ -599,7 +613,7 @@ describe("headless bots hunt through a full run", () => {
     // the books and not a body count.
     await playUntil(
       "e2ebot", SIGNATURE_LINEUP, { patienceSeconds: 30, suddenDeathSeconds: 10 },
-      { expectKill: true, expectSignature: true, expectMobKill: true, expectWish: true },
+      { expectKill: true, expectSignature: true, expectMobKill: true, expectWish: true, expectChest: true },
     );
   }, 450_000);
 

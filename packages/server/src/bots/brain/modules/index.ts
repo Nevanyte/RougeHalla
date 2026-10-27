@@ -3,6 +3,8 @@
 // that needs a symbol the branch may lack reads it off Features, PerceptExtras and `ext` events. The modules that are built are
 // registered at the bottom of this file, so every caller of `enabledModules` gets them without naming them.
 import type { CastPolicy, FeatureModule, Features } from "../types";
+import { chestsModule } from "./chests";
+import { planningModule } from "./planning";
 import { wishesModule } from "./wishes";
 
 const modules = new Map<string, FeatureModule>();
@@ -39,3 +41,5 @@ export function resetModules(): void {
 }
 
 registerModule(wishesModule);
+registerModule(planningModule);
+registerModule(chestsModule);

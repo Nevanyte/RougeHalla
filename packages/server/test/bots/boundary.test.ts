@@ -1,6 +1,6 @@
 // The brain's boundary, statically (docs/BOTS.md 3.7, types.ts "Import rules"): every file under bots/brain/ and
 // bots/mobHunt.ts imports only @raid/shared, its siblings and ../mobHunt (perception.ts alone may `import type` the
-// schema; modules/wishes.ts alone may also import ../../abilityPolicy), and reads no clock, no Math.random, no timers and no `process`. bots/learning/ (the stats file) may use the
+// schema; modules/wishes.ts alone may also import ../../abilityPolicy and modules/chests.ts ../../chestHunt), and reads no clock, no Math.random, no timers and no `process`. bots/learning/ (the stats file) may use the
 // disk, but never the profile store, the sim or the rooms, and the profile store never reaches into bots/.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -18,6 +18,9 @@ const PERCEPTION = path.join(BRAIN, "perception.ts");
 // bots/brain/ that a brain file may import, and only the Wishes module may.
 const WISHES = path.join(BRAIN, "modules", "wishes.ts");
 const ABILITY_POLICY = path.join(BOTS, "abilityPolicy.ts");
+// The chests module reuses the pure chest hunt (which card, when to walk, when to give up), shared-only like the cast policy.
+const CHESTS = path.join(BRAIN, "modules", "chests.ts");
+const CHEST_HUNT = path.join(BOTS, "chestHunt.ts");
 
 function tsFiles(dir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -141,6 +144,7 @@ function brainViolations(file: string, src: string): string[] {
     if (imp.spec.startsWith(".")) {
       const target = resolve(file, imp.spec);
       if (file === WISHES && target === ABILITY_POLICY) continue;
+      if (file === CHESTS && target === CHEST_HUNT) continue;
       if (!inside(BRAIN, target) && target !== MOBHUNT) bad.push(`imports ${imp.spec} (${rel(target)}): outside bots/brain/ and ../mobHunt`);
       continue;
     }
@@ -241,8 +245,17 @@ describe("the boundary scanner itself", () => {
     ]);
   });
 
-  it("the cast policy itself imports only @raid/shared, so the exception cannot reach the sim, the rooms or Colyseus", () => {
-    const bad = importsOf(strip(readFileSync(ABILITY_POLICY, "utf8")).code).filter((imp) => imp.spec !== "@raid/shared");
-    expect(bad).toEqual([]);
+  it("lets modules/chests.ts import the pure chest hunt, and nobody else", () => {
+    const hunt = "import { ChestHunter } from \"../../chestHunt\";";
+    expect(brainViolations(CHESTS, hunt)).toEqual([]);
+    expect(brainViolations(WISHES, hunt)).toEqual(["imports ../../chestHunt (bots/chestHunt.ts): outside bots/brain/ and ../mobHunt"]);
+    expect(brainViolations(path.join(BRAIN, "modules", "planning.ts"), hunt)).toEqual(["imports ../../chestHunt (bots/chestHunt.ts): outside bots/brain/ and ../mobHunt"]);
+  });
+
+  it("the cast policy and the chest hunt import only @raid/shared, so the exceptions cannot reach the sim, the rooms or Colyseus", () => {
+    for (const file of [ABILITY_POLICY, CHEST_HUNT]) {
+      const bad = importsOf(strip(readFileSync(file, "utf8")).code).filter((imp) => imp.spec !== "@raid/shared");
+      expect(bad, rel(file)).toEqual([]);
+    }
   });
 });
