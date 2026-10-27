@@ -107,6 +107,23 @@ describe("the weapon bar's scaling line and tooltip", () => {
     expect(tip.textContent).toContain("empty weapon slot fights with them");
   });
 
+  it("hints F at a quest giver: a weapon in reach wins, then a quest item, then the giver", () => {
+    const { bar } = setup();
+    const hint = (bar as unknown as { hint: FakeEl }).hint;
+    const label = (bar as unknown as { hintLabel: FakeEl }).hintLabel;
+    bar.update(me("sword", ""), 0, 0, null);
+    expect(hint.hidden).toBe(true);
+    bar.update(me("sword", ""), 0, 0, null, "", "talk to Ashmother Vela");
+    expect(hint.hidden).toBe(false);
+    expect(label.textContent).toBe("talk to Ashmother Vela");
+    bar.update(me("sword", ""), 0, 0, null, "Blight Blooms", "talk to Ashmother Vela");
+    expect(label.textContent).toBe("take Blight Blooms");
+    bar.update(me("sword", ""), 0, 0, "axe", "Blight Blooms", "talk to Ashmother Vela");
+    expect(label.textContent).toBe("take Axe");
+    bar.update(me("sword", ""), 0, 0, null);
+    expect(hint.hidden).toBe(true);
+  });
+
   it("never takes the pointer and stops listening when destroyed", () => {
     const { dom, bar, root, row, slots } = setup();
     bar.update(me("sword", ""), 0, 0, null);

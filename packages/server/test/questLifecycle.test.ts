@@ -10,6 +10,7 @@ import { hurtMob, placeMob } from "../src/sim/mobLife";
 import { offerQuest, type QuestRuntime } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
 import { chainHook, type LedgerEntry, type SimConfig, type SimEvent, type World } from "../src/sim/world";
+import { accept } from "./support/questRig";
 
 const GIVER = { x: 6 * TILE, y: 6 * TILE };
 
@@ -40,7 +41,9 @@ function closeRolledRoster(world: World): void {
 }
 
 function offer(world: World, id: string, known = true): QuestRuntime {
-  return offerQuest(world, questDefById(id)!, known, { at: GIVER });
+  const qt = offerQuest(world, questDefById(id)!, known, { at: GIVER });
+  accept(world, qt);
+  return qt;
 }
 
 function run(world: World, ticks: number): SimEvent[] {

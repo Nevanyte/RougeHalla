@@ -16,7 +16,7 @@
 //     end of the baseline, and the farmer carries on.
 import {
   CARD_TIER_RATE, cardDef, cardLive, cardPower, FACTION_IDS, findPath, hasLineOfSight, INTERACT_RANGE, isEliteCamp, isFactionId,
-  isWeaponId, PLAYER_RADIUS, PLAYER_SPEED, questDefById, segmentClear, TARGET_RANGE, TILE,
+  isWeaponId, PLAYER_RADIUS, PLAYER_SPEED, QUEST_ACCEPT_RANGE, questDefById, segmentClear, TARGET_RANGE, TILE,
   type CampDef, type CardCounts, type FactionId, type QuestDef, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState, QuestState } from "@raid/shared/schema";
@@ -302,6 +302,9 @@ function giverTarget(q: QuestDecisionView): Target {
   return { key: `giver:${q.id}`, at: q.s };
 }
 
+/** Nothing counts for a player before they accepted at the giver, so every policy walks there and sends `questAccept` first. */
+const acceptedBy = (q: QuestDecisionView, playerId: string): boolean => q.s.accepted.get(playerId) === true;
+
 function nearestQuestItem(world: World, p: PlayerState, q: QuestDecisionView): Target | null {
   const suffix = `:${q.id}`;
   let best: { id: string; at: Vec2; d: number } | null = null;
@@ -434,7 +437,10 @@ function mixedQuest(world: World, playerId: string, p: PlayerState, mem: PolicyM
   let best: { q: QuestDecisionView; rate: number; d: number } | null = null;
   for (const q of visibleQuests(world, playerId)) {
     if ((mem.skipQuests.get(q.id) ?? 0) > now) continue;
-    const seconds = distance(p, estimatePoint(world, playerId, p, q)) / PLAYER_SPEED + q.def.objSec;
+    const at = estimatePoint(world, playerId, p, q);
+    // An offer not yet accepted costs the detour through its giver.
+    const walk = acceptedBy(q, playerId) ? distance(p, at) : distance(p, q.s) + distance(q.s, at);
+    const seconds = walk / PLAYER_SPEED + q.def.objSec;
     const rate = seconds > 0 ? questRewardPower(p, q) / seconds : 0;
     const d = distance(p, q.s);
     if (rate > farmRate && (!best || rate > best.rate || (rate === best.rate && d < best.d))) best = { q, rate, d };
@@ -599,12 +605,24 @@ export function driveQuestPolicy(
   } else if (policy === "farm-only" || world.state.gatesLocked) {
     q = null;
   }
-  const target = q ? questTarget(world, playerId, p, mem, q) : null;
-  if (q && !target) {
+  const objective = q ? questTarget(world, playerId, p, mem, q) : null;
+  if (q && !objective) {
     mem.skipQuests.set(q.id, now + 20_000);
     clearQuest(mem);
   }
-  if (!target) { farm(world, playerId, p, rt, mem); return; }
+  if (!objective) { farm(world, playerId, p, rt, mem); return; }
+  let target = objective;
+  if (q && !acceptedBy(q, playerId)) {
+    // Within the accept range (a margin inside it: the server checks its own position) it asks once per 250 ms until the set lists it.
+    if (distance(p, q.s) <= QUEST_ACCEPT_RANGE - 4) {
+      if (now - mem.pickupAt >= 250) {
+        enqueueClientMessage(rt.inputs, "questAccept", { quest: q.id });
+        mem.pickupAt = now;
+      }
+      return;
+    }
+    target = giverTarget(q);
+  }
   if (target.container && distance(p, target.at) <= INTERACT_RANGE - 4) {
     if (now - mem.pickupAt >= 250) {
       enqueueClientMessage(rt.inputs, "pickup", { containerId: target.container });

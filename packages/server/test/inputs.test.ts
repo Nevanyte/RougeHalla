@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CLIENT_MESSAGE_TYPES, WORLD_H, WORLD_W, type ClientMessageType } from "@raid/shared";
 import {
-  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePlan, parsePoint, parseSeq,
+  InputQueue, MAX_ACTIONS_PER_TICK, enqueueClientMessage, parseAngle, parseId, parsePlan, parsePoint, parseQuestAccept, parseSeq,
   type ActionCommand,
 } from "../src/sim/inputs";
 
@@ -883,6 +883,22 @@ describe("enqueueClientMessage", () => {
     });
   });
 
+  describe("parseQuestAccept", () => {
+    it("takes a quest id and nothing else", () => {
+      expect(parseQuestAccept({ quest: "quest7" })).toEqual({ kind: "questAccept", quest: "quest7" });
+      expect(parseQuestAccept({ quest: "quest7", extra: 1 })).toEqual({ kind: "questAccept", quest: "quest7" });
+    });
+    it.each([null, undefined, 5, "quest7", [], {}, { quest: 3 }, { quest: "" }, { quest: "x".repeat(200) }, { quest: null }, { quest: {} }])(
+      "refuses %j", (msg) => { expect(parseQuestAccept(msg)).toBeNull(); },
+    );
+    it("is queued as one action, and a refused one is not", () => {
+      const q = new InputQueue();
+      expect(enqueueClientMessage(q, "questAccept", { quest: "quest7" })).toBe(true);
+      expect(enqueueClientMessage(q, "questAccept", { quest: 7 })).toBe(false);
+      expect(q.actions).toEqual([{ kind: "questAccept", quest: "quest7" }]);
+    });
+  });
+
   describe("the message contract", () => {
     // Typed over every client message: adding a message type breaks this until it has a valid example.
     const VALID: Record<ClientMessageType, unknown> = {
@@ -897,6 +913,7 @@ describe("enqueueClientMessage", () => {
       plan: { spawn: 1, ready: true },
       cast: { slot: "wish", x: 100, y: 100 },
       choose: { chest: "c1", pick: -1 },
+      questAccept: { quest: "quest3" },
       train: { cmd: "card", id: "ad1", count: 3 },
     };
 

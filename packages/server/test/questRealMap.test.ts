@@ -7,6 +7,7 @@ import { handlePickup } from "../src/sim/loot";
 import type { QuestRuntime } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
 import type { SimConfig, SimEvent, World } from "../src/sim/world";
+import { acceptAtGiver } from "./support/questRig";
 
 // A real zone-shapes map (136x136, themed zones, a coliseum with gates), a real roster rolled by the room's own flow, the real
 // pickup and turn-in rules. Hazards are off so a test that stands a player on a token cannot be burned out of it.
@@ -64,7 +65,9 @@ describe("a quest through its whole life on a generated map", () => {
     expect(world.state.quests.get(qt.id)?.status).toBe("open");
     expect(world.state.unknownQuests).toBeGreaterThan(0);
 
-    // Collected: ordinary pickups, counted for the picker alone.
+    // Accepted at the giver (the real message), then collected: ordinary pickups, counted for the picker alone.
+    expect(acceptAtGiver(world, qt)).toBe(true);
+    expect(qt.s.accepted.get("p1")).toBeUndefined();
     for (let i = 0; i < qt.def.count; i++) take(world, qt.containers[0]!);
     expect(qt.s.progress.get("p0")).toBe(qt.def.count);
     expect(qt.s.progress.get("p1") ?? 0).toBe(0);
@@ -135,6 +138,7 @@ describe("a quest through its whole life on a generated map", () => {
     const hidden = [...world.quests!.quests.values()].filter((q) => !q.published);
     expect(hidden.length).toBeGreaterThan(0);
 
+    expect(acceptAtGiver(world, qt)).toBe(true);
     take(world, qt.containers[0]!);
     expect(qt.s.carrier).toBe("p0");
     expect(world.quests!.carried.get("p0")).toBe(qt.id);

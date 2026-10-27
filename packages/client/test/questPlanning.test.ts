@@ -31,6 +31,18 @@ describe("PlanningQuests", () => {
     expect(dom.ui.byClass("pl-questmark")).toHaveLength(1);
   });
 
+  it("says to accept at the giver in the run, and only when there is an offer to accept", () => {
+    const dom = installPlanningDom();
+    const view = new PlanningQuests();
+    dom.ui.append(asEl(view.element), asEl(view.markers));
+    view.setMap(mapFromTiles(8, 8, new Uint8Array(64).fill(TILE_FLOOR)));
+    view.update({ mode: "planning", serverNow: 5_000, localId: "me", quests, hiddenQuests: 0 });
+    expect(dom.ui.byClass("pl-quest-accept")[0]?.textContent).toMatch(/accept at the giver in the run/i);
+    const none = { forEach: () => {} };
+    view.update({ mode: "planning", serverNow: 5_000, localId: "me", quests: none, hiddenQuests: 0 });
+    expect(dom.ui.byClass("pl-quest-accept")).toHaveLength(0);
+  });
+
   it("stays hidden outside planning", () => {
     installPlanningDom();
     const view = new PlanningQuests();

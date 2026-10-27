@@ -1,15 +1,17 @@
 import {
-  cardTitle, hasLineOfSight, placeQuests, QUEST_ITEM_PREFIX, QUEST_REVEAL_HEAD_START_MS, QUEST_REVEAL_RADIUS,
-  QUEST_TURN_IN_RANGE, questRewardCard, selectQuests, type MobTypeId, type QuestDef, type Vec2,
+  cardTitle, hasLineOfSight, placeQuests, QUEST_ACCEPT_RANGE, QUEST_ITEM_PREFIX, QUEST_REFUSAL, QUEST_REVEAL_HEAD_START_MS,
+  QUEST_REVEAL_RADIUS, QUEST_TURN_IN_RANGE, questAcceptedText, questAcceptFirstText, questRewardCard, selectQuests,
+  type MobTypeId, type QuestDef, type Vec2,
 } from "@raid/shared";
 import { QuestState, type ContainerState, type PlayerState } from "@raid/shared/schema";
 import { awardQuestGv } from "./arena";
 import { grantCard } from "./chests";
-import { combatant, type Combatant } from "./combatant";
+import { combatant, standing as fighterStanding, type Combatant } from "./combatant";
 import { feedOfPlayer } from "./feed";
 import { addContainer, forgetBirth } from "./loot";
 import { addMob } from "./mobs";
-import { chainHook, collisionMap, emit, nextId, tieRank, type PlayerRuntime, type World } from "./world";
+import { actionBlocked } from "./status";
+import { chainHook, collisionMap, emit, nextId, tieRank, type ActionHandler, type PlayerRuntime, type World } from "./world";
 
 export { QUEST_REVEAL_HEAD_START_MS } from "@raid/shared";
 
@@ -57,6 +59,9 @@ function announce(world: World, text: string): void {
  * kills and deaths, pickups, the finder of a hidden giver, the turn-in, the early-closure supply count.
  */
 const takesPart = (rt: PlayerRuntime | undefined): rt is PlayerRuntime => !!rt && !rt.bot;
+
+/** Whether this player accepted the offer at its giver: nothing counts for them before (kills, tokens, the parcel, the turn-in). */
+const accepted = (qt: QuestRuntime, playerId: string): boolean => qt.s.accepted.get(playerId) === true;
 
 function runtime(world: World): QuestsRuntime {
   return world.quests ?? (world.quests = { quests: new Map(), carried: new Map(), recheck: false, onQuestPickup });
@@ -144,7 +149,9 @@ function onQuestPickup(world: World, c: Extract<Combatant, { kind: "player" }>, 
   const item = box.items.at(0);
   if (!q || !item || !item.def.startsWith(QUEST_ITEM_PREFIX) || !takesPart(c.rt)) return false;
   const qt = q.quests.get(item.def.slice(QUEST_ITEM_PREFIX.length));
-  if (!qt || !qt.published || qt.s.status !== "open") { toast(world, c.id, "That quest is over"); return true; }
+  if (!qt || !qt.published || qt.s.status !== "open") { toast(world, c.id, QUEST_REFUSAL.over); return true; }
+  // The item stays where it lies: the refusal uses nothing up.
+  if (!accepted(qt, c.id)) { toast(world, c.id, questAcceptFirstText(qt.def)); return true; }
   if (qt.def.kind === "fetch") {
     if (q.carried.has(c.id)) { toast(world, c.id, "you can carry one quest item"); return true; }
     if (qt.s.carrier !== "") return true;
@@ -168,6 +175,35 @@ function onQuestPickup(world: World, c: Extract<Combatant, { kind: "player" }>, 
   return true;
 }
 
+/**
+ * `questAccept` (an action, so within a tick accepts resolve in the shuffled actionOrder like a pickup). Checked in this order,
+ * each refusal a private toast that changes nothing:
+ *   a standing human in an active run (a fill bot, or anyone else, is ignored silently) ......... silent
+ *   not stunned or casting (status.ts actionBlocked, as for a pickup) ............................ "Can't do that now"
+ *   the offer exists, is published and open, and its giver stands (an unpublished id gets the same
+ *   answer as a made-up one, so probing ids learns nothing) ....................................... "That quest is over"
+ *   the SERVER position within QUEST_ACCEPT_RANGE of the giver ................................... "Too far away"
+ *   with line of sight on collisionMap(world) .................................................... "Can't reach that"
+ *   not accepted yet ............................................................................. "You already accepted that quest"
+ * Success records the player in the public `accepted` set (progress counts from now, never backwards) and tells them.
+ */
+export const handleQuestAccept: ActionHandler = (world, c, cmd) => {
+  const q = world.quests;
+  if (cmd.kind !== "questAccept" || c.kind !== "player" || !q || world.state.phase !== "active" || !fighterStanding(c) || !takesPart(c.rt)) return;
+  if (actionBlocked(world, c)) { toast(world, c.id, QUEST_REFUSAL.busy); return; }
+  const qt = q.quests.get(cmd.quest);
+  if (!qt || !qt.published || qt.s.status !== "open" || qt.npcId === "" || !world.state.mobs.has(qt.npcId)) {
+    toast(world, c.id, QUEST_REFUSAL.over);
+    return;
+  }
+  const p = c.s;
+  if (Math.hypot(p.x - qt.s.x, p.y - qt.s.y) > QUEST_ACCEPT_RANGE) { toast(world, c.id, QUEST_REFUSAL.far); return; }
+  if (!hasLineOfSight(collisionMap(world), p, qt.s)) { toast(world, c.id, QUEST_REFUSAL.blocked); return; }
+  if (accepted(qt, c.id)) { toast(world, c.id, QUEST_REFUSAL.already); return; }
+  qt.s.accepted.set(c.id, true);
+  toast(world, c.id, questAcceptedText(qt.def));
+};
+
 function removeBox(world: World, qt: QuestRuntime, box: ContainerState): void {
   world.state.containers.delete(box.id);
   forgetBirth(world, box.id);
@@ -190,7 +226,7 @@ function onMobKilled(
   if (!p || p.status !== "alive") return;
   for (const qt of q.quests.values()) {
     const def = qt.def;
-    if (!qt.published || qt.s.status !== "open" || def.kind !== "kill" || def.players) continue;
+    if (!qt.published || qt.s.status !== "open" || def.kind !== "kill" || def.players || !accepted(qt, killer.id)) continue;
     if (def.elite && !mob.elite) continue;
     if (def.tour) {
       let seen = qt.tours.get(killer.id);
@@ -211,7 +247,7 @@ function onPlayerKilled(world: World, killer: PlayerRuntime, victim: PlayerRunti
   const p = world.state.players.get(killer.id);
   if (!p || p.status !== "alive") return;
   for (const qt of q.quests.values()) {
-    if (qt.published && qt.s.status === "open" && qt.def.kind === "kill" && qt.def.players) bump(qt, killer.id, 1);
+    if (qt.published && qt.s.status === "open" && qt.def.kind === "kill" && qt.def.players && accepted(qt, killer.id)) bump(qt, killer.id, 1);
   }
 }
 
@@ -236,6 +272,7 @@ const standing = (p: PlayerState, rt: PlayerRuntime | undefined): rt is PlayerRu
   p.status === "alive" && takesPart(rt) && !rt.down && !rt.resolved;
 
 function ready(qt: QuestRuntime, playerId: string): boolean {
+  if (!accepted(qt, playerId)) return false;
   if (qt.def.kind === "fetch") return qt.s.carrier === playerId;
   return (qt.s.progress.get(playerId) ?? 0) >= qt.def.count;
 }
@@ -447,6 +484,7 @@ function raidStarted(world: World): void {
 
 export function install(world: World): void {
   if (!world.config.quests || world.config.training) return;
+  world.actions.questAccept = handleQuestAccept;
   chainHook(world, "planningStarted", spawnQuests);
   chainHook(world, "raidStarted", raidStarted);
   chainHook(world, "mobKilled", onMobKilled);

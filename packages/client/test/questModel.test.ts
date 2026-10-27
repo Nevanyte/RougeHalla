@@ -6,7 +6,7 @@ function quest(over: Partial<QuestStateLike> = {}): QuestStateLike {
   const progress = new Map<string, number>([["me", 1]]);
   return {
     id: "q1", def: "cull-fire", x: 100, y: 200, status: "open", doneBy: "", expiresAt: 65_000,
-    carrier: "", progress, ...over,
+    carrier: "", progress, accepted: new Map([["me", true]]), ...over,
   };
 }
 
@@ -205,5 +205,50 @@ describe("quest minimap model", () => {
 
   it("does not leak an unknown giver", () => {
     expect(questMinimapBlips(quests([quest({ known: false })]), boxes([]), "me", { x: 0, y: 0 }, new Map(), null)).toEqual([]);
+  });
+});
+
+describe("the accept state in rows and on the minimap", () => {
+  const boxes = (rows: QuestContainerLike[]) => ({
+    forEach(cb: (c: QuestContainerLike, id: string) => void) { for (const c of rows) cb(c, c.id); },
+  });
+  const none = new Map<string, boolean>();
+
+  it("marks each open row Accepted or Not accepted with the giver to talk to, and says what to do in planning", () => {
+    const yes = questRows(quests([quest()]), "me", 5_000)[0]!;
+    expect(yes).toMatchObject({ accepted: true, acceptance: "Accepted" });
+    const no = questRows(quests([quest({ accepted: none })]), "me", 5_000)[0]!;
+    expect(no).toMatchObject({ accepted: false, acceptance: "Not accepted: talk to Ashmother Vela" });
+    // Only the local player's accept counts, and a preview (no set at all) is not accepted.
+    expect(questRows(quests([quest({ accepted: new Map([["remote", true]]) })]), "me", 5_000)[0]!.accepted).toBe(false);
+    expect(questRows(quests([quest({ accepted: undefined })]), "me", 5_000)[0]!.accepted).toBe(false);
+    expect(questRows(quests([quest({ accepted: none })]), "me", 5_000, "", true)[0]!.acceptance).toBe("Accept at the giver in the run");
+    // A closed row has no acceptance line; the status stays the row's own word.
+    expect(questRows(quests([quest({ status: "expired" })]), "me", 5_000)[0]!.acceptance).toBe("");
+    expect(no.status).toBe("Open");
+  });
+
+  it("gives every giver blip its accepted flag, solid for a held offer", () => {
+    const data = questMinimapBlips(
+      quests([quest({ id: "a" }), quest({ id: "b", x: 500, y: 500, accepted: none })]), boxes([]), "me", undefined, new Map(), null,
+    );
+    expect(data.filter((b) => b.role === "giver").map((b) => b.accepted)).toEqual([true, false]);
+  });
+
+  it("points the one objective at the nearest open giver while nothing is accepted", () => {
+    const far = quest({ id: "far", def: "bloom-plague", x: 900, y: 900, accepted: none });
+    const near = quest({ id: "near", def: "tithe-holy", x: 200, y: 100, accepted: none });
+    // Items of an offer that has not been accepted are not what to walk to: the giver is.
+    const items = [container({ id: "i", x: 110, y: 100, items: [{ def: "quest:far" }] })];
+    const data = questMinimapBlips(quests([far, near]), boxes(items), "me", { x: 100, y: 100 }, new Map(), null);
+    expect(data.filter((b) => b.role === "objective")).toEqual([{ role: "objective", kind: "collect", x: 200, y: 100 }]);
+  });
+
+  it("points at an accepted offer's objective even when an unaccepted giver is nearer", () => {
+    const held = quest({ id: "held", def: "bloom-plague", x: 900, y: 900 });
+    const open = quest({ id: "open", def: "tithe-holy", x: 120, y: 100, accepted: none });
+    const items = [container({ id: "i", x: 700, y: 100, items: [{ def: "quest:held" }] })];
+    const data = questMinimapBlips(quests([held, open]), boxes(items), "me", { x: 100, y: 100 }, new Map(), null);
+    expect(data.filter((b) => b.role === "objective")).toEqual([{ role: "objective", kind: "collect", x: 700, y: 100 }]);
   });
 });

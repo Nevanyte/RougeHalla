@@ -37,4 +37,8 @@
 .quest-log-objective { margin: 5px 0; font-size: 12px; }
 .quest-log-progress { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 11px; }
 .quest-log-status { color: var(--quest-color); text-align: right; }
+/* Accepted or not, in words (a held offer is solid, one still to accept is dashed: never by hue alone). */
+.quest-log-accept { margin-bottom: 4px; padding: 1px 6px; width: fit-content; font-size: 11px; font-weight: 600; border-radius: 4px; }
+.quest-log-accept.yes { color: var(--ok-text, #a5d6a7); border: 1px solid var(--ok-line, #43a047); }
+.quest-log-accept.no { color: var(--warn, #ffcc80); border: 1px dashed var(--warn, #ffcc80); }
 .quest-log-rumoured { margin-top: 10px; }

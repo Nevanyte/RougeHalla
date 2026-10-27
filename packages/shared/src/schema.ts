@@ -226,8 +226,10 @@ export const QuestState = schema({
   expiresAt: t.number().default(0),
   /** Player id carrying this fetch quest's parcel, "" while it lies on the ground. */
   carrier: t.string().default(""),
-  /** Objective progress per player id (kills or tokens, capped at the def's count). */
+  /** Objective progress per player id (kills or tokens, capped at the def's count). Only an accepting player's progress counts. */
   progress: t.map("float32"),
+  /** Player ids that accepted this offer at its giver (`questAccept`); public, like `progress`. Nothing counts for a player not in it. */
+  accepted: t.map("boolean"),
 }, "QuestState");
 export type QuestState = SchemaType<typeof QuestState>;
 

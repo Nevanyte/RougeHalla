@@ -30,6 +30,29 @@ describe("QuestView", () => {
     view.destroy();
   });
 
+  it("marks an offer not yet accepted with a bright \"!\" and one the player holds with a dim \"?\"", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new QuestView(scene);
+    const quest = (accepted: Map<string, boolean>): QuestStateLike => ({
+      id: "q1", def: "cull-fire", x: 100, y: 200, status: "open", doneBy: "", expiresAt: 1000, carrier: "", progress: new Map(), accepted,
+    });
+    const at = (q: QuestStateLike) => frame({ quests: { forEach(cb: (q: QuestStateLike, id: string) => void) { cb(q, q.id); } }, positions: new Map(), players: { get: () => undefined } });
+    view.update(at(quest(new Map())));
+    const giver = ofKind("container")[0]!.args[2] as Array<{ state: Record<string, unknown>; calls: Array<[string, unknown[]]> }>;
+    expect(giver[2]!.state.text).toBe("!");
+    expect(giver[2]!.state.alpha).toBe(1);
+    view.update(at(quest(new Map([["me", true]]))));
+    expect(giver[2]!.state.text).toBe("?");
+    expect(giver[2]!.state.alpha).toBe(0.6);
+    // Another player's accept does not change the local mark, and an unchanged frame writes nothing more.
+    const writes = giver[2]!.calls.filter(([n]) => n === "setText").length;
+    view.update(at(quest(new Map([["me", true], ["remote", true]]))));
+    expect(giver[2]!.calls.filter(([n]) => n === "setText")).toHaveLength(writes);
+    view.update(at(quest(new Map([["remote", true]]))));
+    expect(giver[2]!.state.text).toBe("!");
+    view.destroy();
+  });
+
   it("shows the turn-in hint only for a finished local objective at the giver", () => {
     const { scene, ofKind } = fakeScene();
     const view = new QuestView(scene);

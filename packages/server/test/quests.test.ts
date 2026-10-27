@@ -13,7 +13,7 @@ import { hurtMob, placeMob } from "../src/sim/mobLife";
 import { offerQuest, type QuestRuntime } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, SimConfig, World } from "../src/sim/world";
-import { rig } from "./support/questRig";
+import { accept, rig } from "./support/questRig";
 
 const NAMES = ["alice", "bob", "carol"];
 
@@ -73,10 +73,12 @@ const RT = (w: World, i: number) => w.players.get(`p${i}`)!;
 
 const GIVER: Vec2 = { x: 6 * TILE, y: 6 * TILE };
 
-function offer(w: World, defId: string, extra: { tokens?: Vec2[]; parcel?: Vec2; known?: boolean; at?: Vec2 } = {}): QuestRuntime {
+function offer(w: World, defId: string, extra: { tokens?: Vec2[]; parcel?: Vec2; known?: boolean; at?: Vec2; accepted?: boolean } = {}): QuestRuntime {
   const def = questDefById(defId);
   if (!def) throw new Error(`unknown quest ${defId}`);
-  return offerQuest(w, def, extra.known ?? true, { at: extra.at ?? GIVER, tokens: extra.tokens, parcel: extra.parcel });
+  const qt = offerQuest(w, def, extra.known ?? true, { at: extra.at ?? GIVER, tokens: extra.tokens, parcel: extra.parcel });
+  if (extra.accepted !== false) accept(w, qt);
+  return qt;
 }
 
 const entry = (victim: string, by: string, raw: number): LedgerEntry => ({
