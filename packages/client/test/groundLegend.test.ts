@@ -3,10 +3,10 @@
 // are fakes (test/fakes.ts, test/chromeDom.ts); no colour literal is pinned beyond "this kind differs from that one".
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  TERRAINS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TILE_FLOOR, TILE_LOW,
+  MAP_STYLERS, TERRAINS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TILE_FLOOR, TILE_LOW,
   TILE_WALL, mapFromTiles, type GameMap,
 } from "@raid/shared";
-import { HelpOverlay } from "../src/ui/helpOverlay";
+import { HELP_SECTIONS, HelpOverlay, groundLegendVisible } from "../src/ui/helpOverlay";
 import { groundLegend, renderGround } from "../src/ui/groundLegend";
 import { Minimap } from "../src/ui/minimap";
 import { setView } from "../src/view/viewState";
@@ -204,9 +204,9 @@ describe("the Ground legend", () => {
     expect(section.allText).toContain(entries[0]!.effect);
   });
 
-  it("is in the help card after the controls, whichever place is first", () => {
+  it("is in the help card after the controls, whichever place is first, when the card carries it", () => {
     const { doc } = installChromeDom();
-    const help = new HelpOverlay();
+    const help = new HelpOverlay({ ground: true });
     const root = fake(help.element);
     doc.ui.append(root);
     expect(root.byClass("help-ground")).toHaveLength(1);
@@ -217,5 +217,47 @@ describe("the Ground legend", () => {
     for (const s of sections.filter((s) => s !== ground)) expect(Number(s.style.order)).toBeLessThan(Number(ground.style.order));
     help.open("run");
     expect(Number(ground.style.order)).toBe(sections.length - 1);
+  });
+
+  it("is left out of the help card when it is told not to carry it: the controls alone, as before the stylers", () => {
+    const { doc } = installChromeDom();
+    const help = new HelpOverlay({ ground: false });
+    const root = fake(help.element);
+    doc.ui.append(root);
+    expect(root.byClass("help-ground")).toHaveLength(0);
+    expect(root.byClass("help-section")).toHaveLength(HELP_SECTIONS.length);
+    expect(root.allText).not.toMatch(/Ground|Embers|Bog|Crevasse/);
+    help.open("hub");
+    help.open("run");
+    expect(help.isOpen).toBe(true);
+  });
+
+  it("follows MAP_STYLERS by default: no Ground legend while the zone stylers are off", () => {
+    expect(MAP_STYLERS).toBe(false);
+    expect(groundLegendVisible()).toBe(false);
+    const { doc } = installChromeDom();
+    const help = new HelpOverlay();
+    const root = fake(help.element);
+    doc.ui.append(root);
+    expect(root.byClass("help-ground")).toHaveLength(0);
+    expect(root.byClass("help-section")).toHaveLength(HELP_SECTIONS.length);
+  });
+
+  it("follows MAP_STYLERS by default: the Ground legend is in the card once the flag is on", async () => {
+    vi.resetModules();
+    vi.doMock("@raid/shared", async (importOriginal) => ({ ...(await importOriginal<typeof import("@raid/shared")>()), MAP_STYLERS: true }));
+    try {
+      const fresh = await import("../src/ui/helpOverlay");
+      expect(fresh.groundLegendVisible()).toBe(true);
+      const { doc } = installChromeDom();
+      const help = new fresh.HelpOverlay();
+      const root = fake(help.element);
+      doc.ui.append(root);
+      expect(root.byClass("help-ground")).toHaveLength(1);
+      expect(root.byClass("help-section")).toHaveLength(HELP_SECTIONS.length + 1);
+    } finally {
+      vi.doUnmock("@raid/shared");
+      vi.resetModules();
+    }
   });
 });
