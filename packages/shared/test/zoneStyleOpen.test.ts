@@ -1,16 +1,20 @@
 // The stylers on OPEN ground, the habitat they were designed for (part D: a 96x96 zone map before cover, five zones of about
 // 1500 tiles): here the footprint bands of part D 3 apply. The finished-map fixtures (zoneStyleZones.test.ts) measure the same
 // recipes on the ground a wedge map leaves them. Also size-freedom (any grid size), the rim margin and the 8% budget.
-import { describe, expect, it } from "vitest";
+// THIS IS THE PERMANENT SUITE: the synthetic fixture (zoneStyleOpen.ts) needs no wedge, extraction or adapter data, so the pinned
+// output, zone isolation, determinism, decor and Math-purity checks at the end of this file keep working when the zone generator
+// replaces the wedge (zoneStyleMaps.test.ts and zoneStyleZones.test.ts, which run on the dev adapter, are deleted then).
+import { describe, expect, it, vi } from "vitest";
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, worldToTile } from "../src/map";
+import type { RegionFaction } from "../src/map";
 import {
   TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, validateTerrain,
 } from "../src/terrain";
 import { walkDistances } from "../src/gridTopology";
-import { ZONE_PROP_KINDS, styleZones } from "../src/zoneStyle";
-import type { GallowsPlan, SanctumPlan, ScorchPlan, StyleResult, WarrenPlan } from "../src/zoneStyle";
+import { ZONE_PROP_KINDS, ZONE_STYLERS, styleZones } from "../src/zoneStyle";
+import type { GallowsPlan, RimePlan, SanctumPlan, ScorchPlan, StyleResult, WarrenPlan, ZoneStyler } from "../src/zoneStyle";
 import { chamfer, floorComponents } from "../src/zoneStyle/kit";
-import { fenceStraightViolations } from "./zoneStyleChecks";
+import { fenceStraightViolations, yardOpenings } from "./zoneStyleChecks";
 import { openFixture } from "./zoneStyleOpen";
 import type { OpenFixture } from "./zoneStyleOpen";
 
@@ -84,7 +88,7 @@ describe("every zone on open ground", () => {
       const map = mapFromTiles(w, h, st.tiles.slice(), s, st.terrain.slice());
       map.props = st.props.slice();
       // a hand-built map has no regions: T1-T5, T9 and T10 apply
-      expect(validateTerrain(map, { styled: true, propKinds: ZONE_PROP_KINDS }), `seed ${s}`).toEqual([]);
+      expect(validateTerrain(map, { styled: true }), `seed ${s}`).toEqual([]); // the default prop table is the real one
     }
   }, HEAVY_MS);
 
@@ -174,6 +178,7 @@ describe("Gallows on open ground (part D 3: WALL 3.3%, FENCE 2.6%)", () => {
       for (const yd of plan.yards) {
         for (const t of yd.doorTiles) expect(st.tiles[t], `seed ${s}: a yard door was closed`).toBe(TILE_FLOOR);
         expect(yd.doorTiles.length, `seed ${s}`).toBeGreaterThanOrEqual(4);
+        expect(yardOpenings(st.tiles, w, yd.rect), `seed ${s}: yard ${JSON.stringify(yd.rect)} openings`).toBeGreaterThanOrEqual(2);
       }
       // detours: floor tiles next to a fence against the same tiles with the fences taken away
       const opened = st.tiles.slice();
@@ -280,6 +285,7 @@ describe("Rime on open ground (part D 3: WALL 3.7%, CREVASSE 0.5%, ICE 18%)", ()
         const x = i % w, y = (i - x) / w;
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) expect(st.tiles[(y + dy) * w + x + dx], `seed ${s}: ice at ${x},${y}`).toBe(TILE_FLOOR);
       }
+      for (const sh of (r.results[3].plan as RimePlan).shelves) for (const i of sh.walls) expect(st.tiles[i], `seed ${s}: a shelf wall`).toBe(TILE_WALL);
     }
     console.info(`[open rime] ICE ${mean(ice).toFixed(2)}% WALL ${mean(wall).toFixed(2)}% CREVASSE ${mean(low).toFixed(2)}%`);
     expect(mean(ice)).toBeGreaterThanOrEqual(15);
@@ -338,4 +344,125 @@ describe("Sanctum on open ground (part D 3: WALL 2.7%, LIGHT 1.4%)", () => {
     expect(structures).toBeGreaterThanOrEqual(40);
     expect(shafts).toBeGreaterThanOrEqual(20);
   }, HEAVY_MS);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// The checks that outlive the dev adapter: pinned output, zone isolation, determinism, decor and Math purity, all on the fixture.
+
+const FACTION_INDEX: Record<RegionFaction, number> = { fire: 0, sentenced: 1, plague: 2, frost: 3, holy: 4 };
+
+/** A 32-bit FNV-1a of the zone's tiles and terrain (row-major, the zone's own tiles only). */
+function openZoneHash(r: Run, faction: RegionFaction): number {
+  const zone = FACTION_INDEX[faction] + 1;
+  const { st, w, h } = r.f;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < w * h; i++) {
+    if (st.zone[i] !== zone) continue;
+    hash = Math.imul(hash ^ st.tiles[i], 0x01000193) >>> 0;
+    hash = Math.imul(hash ^ st.terrain[i], 0x01000193) >>> 0;
+  }
+  return hash;
+}
+
+// 8 pairs, every zone at least once, on the synthetic fixture of the seed (openFixture's geometry is part of the input: changing the
+// fixture moves every pin). After a deliberate change to a styler, read the new values off the failing assertion, paste them here
+// and bump the styler's `version`.
+const OPEN_PINNED: Array<[number, RegionFaction, number]> = [
+  [1, "fire", 4096451231], [2, "fire", 779071877], [3, "sentenced", 1689526337], [4, "sentenced", 3417527168],
+  [5, "plague", 2362090306], [6, "plague", 3152801347], [7, "frost", 1860200574], [8, "holy", 1135868384],
+];
+
+describe("the stylers on the open fixture, beyond the dev adapter", () => {
+  it("pins the output of eight (seed, zone) pairs, named by each styler's version", () => {
+    const got = OPEN_PINNED.map(([seed, faction]) => `${faction} v${ZONE_STYLERS[faction].version} seed ${seed}: ${openZoneHash(run(seed), faction)}`);
+    expect(got).toEqual(OPEN_PINNED.map(([seed, faction, h]) => `${faction} v${ZONE_STYLERS[faction].version} seed ${seed}: ${h}`));
+  }, HEAVY_MS);
+
+  it("styles a zone alone: a no-op styler for one zone leaves every other zone byte-identical, and that zone untouched (isolation)", () => {
+    const noop = (faction: RegionFaction): ZoneStyler<unknown> => ({ id: ZONE_STYLERS[faction].id, faction, version: 0, shape: () => null });
+    for (const s of SEEDS.slice(0, 8)) {
+      const full = run(s).f;
+      for (const faction of REGION_FACTIONS) {
+        const f = openFixture(s);
+        styleZones(f.st, { stylers: { [faction]: noop(faction) } });
+        const zone = FACTION_INDEX[faction] + 1;
+        for (let i = 0; i < f.w * f.h; i++) {
+          if (f.st.zone[i] === zone) {
+            expect(f.st.tiles[i], `seed ${s} ${faction}: the no-op zone changed`).toBe(f.tiles0[i]);
+            expect(f.st.terrain[i], `seed ${s} ${faction}: the no-op zone got a kind`).toBe(0);
+          } else {
+            expect(f.st.tiles[i], `seed ${s}: dropping ${faction} changed tile ${i}`).toBe(full.st.tiles[i]);
+            expect(f.st.terrain[i], `seed ${s}: dropping ${faction} changed terrain ${i}`).toBe(full.st.terrain[i]);
+          }
+        }
+      }
+    }
+  }, HEAVY_MS);
+
+  it("is deterministic: styling the same fixture twice gives byte-equal tiles, terrain and props, whatever the seed", () => {
+    for (const s of [0, 1, 7, 99, 123456789, 2 ** 31]) {
+      const a = openFixture(s), b = openFixture(s);
+      styleZones(a.st);
+      styleZones(b.st);
+      expect(Buffer.from(a.st.tiles).equals(Buffer.from(b.st.tiles)), `seed ${s}: tiles`).toBe(true);
+      expect(Buffer.from(a.st.terrain).equals(Buffer.from(b.st.terrain)), `seed ${s}: terrain`).toBe(true);
+      expect(a.st.props, `seed ${s}: props`).toEqual(b.st.props);
+    }
+  }, HEAVY_MS);
+
+  it("decides props by hashes, not by the rng: swapping the props pass or turning decor off leaves tiles and terrain byte-equal", () => {
+    const other: ZoneStyler<unknown> = {
+      ...ZONE_STYLERS.holy,
+      props: (c) => { for (let i = 0; i < c.w * c.h; i++) if (c.mask[i] && c.tiles[i] === TILE_FLOOR && c.noise.hash(i % c.w, Math.floor(i / c.w), 77) < 0.5) c.prop(19, i % c.w, Math.floor(i / c.w), 0); },
+    };
+    for (const s of SEEDS.slice(0, 6)) {
+      const { f } = run(s);
+      const swapped = openFixture(s), bare = openFixture(s);
+      styleZones(swapped.st, { stylers: { holy: other } });
+      styleZones(bare.st, { decor: false });
+      expect(Buffer.from(swapped.st.tiles).equals(Buffer.from(f.st.tiles)), `seed ${s}`).toBe(true);
+      expect(Buffer.from(swapped.st.terrain).equals(Buffer.from(f.st.terrain)), `seed ${s}`).toBe(true);
+      expect(Buffer.from(bare.st.tiles).equals(Buffer.from(f.st.tiles)), `seed ${s}`).toBe(true);
+      expect(Buffer.from(bare.st.terrain).equals(Buffer.from(f.st.terrain)), `seed ${s}`).toBe(true);
+      expect(bare.st.props.length).toBe(0);
+      expect(swapped.st.props.length, `seed ${s}: the swapped pass changed the props`).not.toBe(f.st.props.length);
+    }
+  }, HEAVY_MS);
+
+  it("carries at most 8% of a zone's tiles in props per zone", () => {
+    for (const s of SEEDS) {
+      const { f } = run(s);
+      const per = [0, 0, 0, 0, 0, 0];
+      for (const p of f.st.props) per[f.st.zone[worldToTile(p.y) * f.w + worldToTile(p.x)]]++;
+      for (let z = 1; z <= 5; z++) {
+        let painted = 0;
+        for (let i = 0; i < f.w * f.h; i++) if (f.st.zone[i] === z) painted++;
+        expect(per[z], `seed ${s} zone ${z}`).toBeLessThanOrEqual(Math.floor(0.08 * painted));
+      }
+      expect(per[0], `seed ${s}: a prop outside every zone`).toBe(0);
+    }
+  }, HEAVY_MS);
+
+  it("never calls Math.random or an engine-approximated Math function while styling (client and server may run different engines)", async () => {
+    const names = ["random", "sin", "cos", "tan", "atan", "atan2", "hypot", "pow", "exp", "log", "cbrt"] as const;
+    // The fixtures are test scaffolding (they use Math.sin and cos): build them before the spies.
+    const fixtures = [90_000, 90_001, 90_002, 90_003].map((s) => openFixture(s));
+    const spies = names.map((n) => vi.spyOn(Math, n));
+    const calls: Record<string, number> = {};
+    try {
+      // a fresh copy of the modules, so their setup (tables, registries) runs under the spies too
+      vi.resetModules();
+      const sty = await import("../src/zoneStyle");
+      const topo = await import("../src/gridTopology");
+      expect(topo.SIMPLE.length).toBe(256);
+      for (const f of fixtures) {
+        sty.styleZones(f.st);
+        expect(f.st.props.length).toBeGreaterThan(0);
+      }
+      names.forEach((n, i) => { calls[`Math.${n}`] = spies[i].mock.calls.length; });
+    } finally {
+      for (const sp of spies) sp.mockRestore();
+    }
+    expect(calls).toEqual(Object.fromEntries(names.map((n) => [`Math.${n}`, 0])));
+  }, 60_000);
 });

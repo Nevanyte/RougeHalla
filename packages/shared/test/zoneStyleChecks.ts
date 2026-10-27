@@ -34,3 +34,24 @@ export function fenceStraightViolations(tiles: Uint8Array, terrain: Uint8Array, 
   return bad;
 }
 
+
+/**
+ * Openings of a fenced yard: maximal runs of walkable ring tiles with floor just inside and just outside (1 when the whole ring
+ * is open). `rect` is the yard's outer rectangle in tiles.
+ */
+export function yardOpenings(tiles: Uint8Array, w: number, rect: { x: number; y: number; w: number; h: number }): number {
+  const r = rect;
+  const ring: Array<[number, number]> = [];
+  for (let x = r.x; x < r.x + r.w; x++) ring.push([x, r.y]);
+  for (let y = r.y + 1; y < r.y + r.h; y++) ring.push([r.x + r.w - 1, y]);
+  for (let x = r.x + r.w - 2; x >= r.x; x--) ring.push([x, r.y + r.h - 1]);
+  for (let y = r.y + r.h - 2; y > r.y; y--) ring.push([r.x, y]);
+  const open = ring.map(([x, y]) => {
+    if (tiles[y * w + x] !== TILE_FLOOR) return false;
+    const inside = (x - r.x === 0 ? 1 : x - r.x === r.w - 1 ? -1 : 0), dy = (y - r.y === 0 ? 1 : y - r.y === r.h - 1 ? -1 : 0);
+    return tiles[(y + dy) * w + x + inside] === TILE_FLOOR && tiles[(y - dy) * w + x - inside] === TILE_FLOOR;
+  });
+  let runs = 0;
+  for (let k = 0; k < open.length; k++) if (open[k] && !open[(k + open.length - 1) % open.length]) runs++;
+  return open.every(Boolean) ? 1 : runs;
+}

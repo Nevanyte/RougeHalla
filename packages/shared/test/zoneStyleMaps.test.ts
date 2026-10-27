@@ -1,3 +1,6 @@
+// DEV-ADAPTER SUITE: delete this file when the zone generator's styler hook lands (it needs the wedge generator, `extracts`,
+// `regions[].mobCamps` and zoneStyle/finishedMap.ts, all of which go). Its permanent counterparts are zoneStyleOpen.test.ts (the
+// synthetic fixture: pinned output, isolation, determinism, decor, Math purity) and the generator's own certification (T1..T11).
 // Property tests of styled finished wedge maps (the dev adapter): every guarantee of a finished map must survive the stylers.
 // 200 maps are generated and styled once and shared. The sight-lane checks count LOW as open (zoneStyleLanes.ts).
 import { describe, expect, it } from "vitest";

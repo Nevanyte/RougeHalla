@@ -1,3 +1,7 @@
+// DEV-ADAPTER SUITE: delete this file when the zone generator's styler hook lands (it runs the stylers on wedge maps through
+// zoneStyle/finishedMap.ts, which goes with the wedge). Its pinned hashes, zone isolation, determinism, decor and Math-purity
+// checks are repeated on the synthetic open fixture in zoneStyleOpen.test.ts, which stays; the per-zone structure checks there
+// are the permanent ones too.
 // The five stylers on 40 styled finished wedge maps: footprints, the structures each recipe promises, the pinned output, zone
 // isolation, and the Math spy. Footprint bands are NOT part D's: those were measured on a map with open ground (the R1 spike,
 // styler before cover), where a zone of 1710 tiles had 70% of its floor free. A finished wedge map has zones of about 680 tiles,

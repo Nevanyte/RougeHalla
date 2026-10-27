@@ -1,4 +1,6 @@
-// DEV ADAPTER (retired when the zone generator's own styler hook lands): applies the zone stylers to a FINISHED wedge map, after
+// DEV ADAPTER (retired when the zone generator's own styler hook lands; DELETE this file, gameMapBuild.ts and the suites that run on it:
+// zoneStyleMaps.test.ts, zoneStyleZones.test.ts and terrain.test.ts's "styled finished maps" case. The permanent coverage is
+// zoneStyleOpen.test.ts on the synthetic fixture): applies the zone stylers to a FINISHED wedge map, after
 // cover. Sound by construction: it only turns FLOOR into WALL or LOW (never opens a wall), a LOW tile leaves every sight lane
 // unchanged (LOW is open for sight) and a wall only cuts lanes, so the certified 480 u bound, the spawn screens and the
 // single floor component all survive; everything the generator keeps clear is protected.
