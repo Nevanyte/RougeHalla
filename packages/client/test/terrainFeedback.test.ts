@@ -1,6 +1,7 @@
 // What a fighter on a hazard shows (render/zoneArt/terrainFeedback.ts, ui/terrainChips.ts, the Hud's chip row, propsView.ts): the
 // four states derived from the shared map and a faction (`surfaceAt` -> chips), the home-ground note, the combat memory behind
 // "resting", the effects at the feet on a fake scene, and the props plan. No new wire: everything comes from the map.
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FACTION_IDS, TERRAINS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, TILE, TILE_FLOOR,
@@ -208,6 +209,29 @@ describe("GroundFeedback", () => {
     expect(g.statesOf("m", e.x, e.y, "frost", 5000, 10, 10, false).burning).toBe(true);
     g.setMap(strip());
     expect(g.statesOf("a", p.x, p.y, "fire", 5000, 50, 100, true).resting).toBe(true); // the memory went with the old map
+  });
+});
+
+describe("the combat memory does not outgrow the roster", () => {
+  it("GroundFeedback.forget drops a fighter's combat and heal marks", () => {
+    const g = new GroundFeedback();
+    g.setMap(strip());
+    g.combat.note({ kind: "hit", id: "victim", by: "attacker", t: 1000 } as never);
+    g.combat.note({ kind: "heal", id: "healed", t: 1000 } as never);
+    expect(g.combat.inCombat("victim", 1500)).toBe(true);
+    expect(g.combat.inCombat("attacker", 1500)).toBe(true);
+    expect(g.combat.healing("healed", 1500)).toBe(true);
+    g.forget("victim");
+    g.forget("healed");
+    expect(g.combat.inCombat("victim", 1500)).toBe(false);
+    expect(g.combat.healing("healed", 1500)).toBe(false);
+    expect(g.combat.inCombat("attacker", 1500)).toBe(true); // the others stay
+  });
+
+  it("RaidScene forgets a player and a mob in the same step that drops its view", () => {
+    const src = readFileSync(new URL("../src/scenes/RaidScene.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/this\.views\.delete\(id\);[^\n]*this\.ground\.forget\(id\)/);
+    expect(src).toMatch(/this\.mobViews\.delete\(id\);[^\n]*this\.ground\.forget\(id\)/);
   });
 });
 

@@ -387,7 +387,7 @@ export class RaidScene extends Phaser.Scene {
       if (id === this.room.sessionId) this.cameras.main.centerOn(projX(this.peek?.x ?? this.tmp.x), projY(this.peek?.y ?? this.tmp.y));
     });
     for (const [id, view] of this.views) {
-      if (!seen.has(id)) { view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); this.inHand.delete(id); }
+      if (!seen.has(id)) { view.destroy(); this.views.delete(id); this.rendered.delete(id); this.deaths.delete(id); this.inHand.delete(id); this.ground.forget(id); }
     }
     const seenMobs = new Set<string>();
     state.mobs.forEach((m, id) => {
@@ -400,7 +400,7 @@ export class RaidScene extends Phaser.Scene {
       view.update(this.tmp.x, this.tmp.y, m, renderT, patchT, signatures, ground);
     });
     for (const [id, view] of this.mobViews) {
-      if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); }
+      if (!seenMobs.has(id)) { view.destroy(); this.mobViews.delete(id); this.rendered.delete(id); this.ground.forget(id); }
     }
     this.projectiles.update(renderT);
     this.fieldView.update(state.fields, renderT, now, (id) => this.rendered.get(id), this.room.sessionId);

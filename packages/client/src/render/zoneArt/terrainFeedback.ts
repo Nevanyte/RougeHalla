@@ -169,6 +169,11 @@ export class GroundFeedback {
     this.combat.clear();
   }
 
+  /** A fighter left the scene: its combat and heal marks go with it, so the memory never outgrows the roster. */
+  forget(id: string): void {
+    this.combat.forget(id);
+  }
+
   /** True when the map has any hazard terrain at all: with none, every frame is the empty one and nothing draws. */
   get active(): boolean {
     return this.hazards;
@@ -194,6 +199,11 @@ const FLAME_INNER = 0xffca28;
 const GOLD_RING = 0xffd54f;
 const RIPPLE = TERRAIN_PALETTE.bog.surface;
 const SKID = TERRAIN_PALETTE.ice.highlight;
+
+/** Whether the states show anything at the feet (before the juice scale): a view makes its FeetFx only when this first holds. */
+export function showsFeet(s: TerrainStates): boolean {
+  return s.burning || s.slowed || s.sliding || s.resting;
+}
 
 /**
  * The effects at a fighter's feet: flames while burning, ripples in a bog, a skid streak on ice, a gold ring while resting (Holy's
@@ -238,7 +248,7 @@ export class FeetFx {
   update(states: TerrainStates, x: number, y: number, nowMs: number): void {
     const speed = this.track(x, y, nowMs);
     const flash = juiceScale("flash");
-    const any = flash > 0 && (states.burning || states.slowed || states.sliding || states.resting);
+    const any = flash > 0 && showsFeet(states);
     if (!any) {
       this.hide();
       return;

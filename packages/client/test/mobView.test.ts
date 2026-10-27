@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { EFFECT_DOT, EFFECT_STUNNED } from "@raid/shared";
 import type { MobState } from "@raid/shared/schema";
 import { MobView } from "../src/render/MobView";
+import { NO_STATES, type TerrainStates } from "../src/render/zoneArt/terrainFeedback";
 import { fakeScene, type FakeObject } from "./fakes";
 
 /** Matches `scene.add.container(0, 0, [...])` in MobView's constructor. */
@@ -179,5 +180,33 @@ describe("MobView status marks", () => {
     frame(mob(stunned), 1000, 1000);
     frame(mob(stunned), 1450, 1450);
     expect(status.calls).toEqual([]);
+  });
+});
+
+describe("MobView feet effects", () => {
+  const burning: TerrainStates = { ...NO_STATES, kind: 4, burning: true };
+
+  it("makes no Graphics for them until the mob first stands on a hazard, then once", () => {
+    const { scene, ofKind } = fakeScene();
+    const view = new MobView(scene);
+    const made = ofKind("graphics").length;
+    for (let i = 0; i < 3; i++) view.update(0, 0, mob(), 1000 + i, 1000 + i);
+    view.update(0, 0, mob({ status: "dead", hp: 0 }), 5000, 5000); // faded out: hides a feet effect that was never made
+    expect(ofKind("graphics")).toHaveLength(made);
+    view.update(0, 0, mob(), 6000, 6000, false, burning);
+    expect(ofKind("graphics")).toHaveLength(made + 1);
+    view.update(0, 0, mob(), 6050, 6050, false, burning);
+    expect(ofKind("graphics")).toHaveLength(made + 1);
+    const feet = ofKind("graphics")[made]!;
+    expect(feet.state.visible).toBe(true);
+    view.update(0, 0, mob(), 6100, 6100);
+    expect(feet.state.visible).toBe(false);
+    view.destroy();
+    expect(feet.calls.some(([n]) => n === "destroy")).toBe(true);
+  });
+
+  it("destroys cleanly when it never made them", () => {
+    const { view } = setup();
+    expect(() => view.destroy()).not.toThrow();
   });
 });

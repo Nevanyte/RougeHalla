@@ -7,7 +7,7 @@ import { FigureJuice, type DustSink } from "./FigureJuice";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
 import { StatusArt } from "./StatusArt";
-import { FeetFx, NO_STATES, type TerrainStates } from "./zoneArt/terrainFeedback";
+import { FeetFx, NO_STATES, showsFeet, type TerrainStates } from "./zoneArt/terrainFeedback";
 
 const HIT_FLASH_MS = 120;
 /** A mob's hp is far larger than a player's, so its bar is wider to match its weight on screen; an elite's wider still. */
@@ -40,8 +40,8 @@ export class MobView {
   private readonly art: FighterArt;
   private readonly signatures: SignatureArt;
   private readonly status: StatusArt;
-  /** The ground under it (flames, ripples, a skid streak): a scene object one depth under the container. */
-  private readonly feet: FeetFx;
+  /** The ground under it (flames, ripples, a skid streak): a scene object one depth under the container, made the first time it has something to show. */
+  private feet: FeetFx | null = null;
   private readonly flashing: BodyFlash;
   /** What the elite marks and name were last set for. */
   private elite = false;
@@ -54,7 +54,7 @@ export class MobView {
   private readonly fig: FigureJuice;
   readonly cues: FigureJuice["pose"];
 
-  constructor(scene: Phaser.Scene, puffs?: DustSink) {
+  constructor(private readonly scene: Phaser.Scene, puffs?: DustSink) {
     const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
     // Two gold rings on the ground, flattened like every ground shape; drawn once, shown for elites.
     this.eliteRing = scene.add.graphics().setVisible(false);
@@ -63,7 +63,6 @@ export class MobView {
     this.art = new FighterArt(scene);
     this.signatures = new SignatureArt(scene, HP_BAR_W / 2);
     this.status = new StatusArt(scene, HP_BAR_W / 2);
-    this.feet = new FeetFx(scene);
     this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor("")).setStrokeStyle(2, 0x111111, 0.8);
     this.flashing = new BodyFlash(this.body, factionColor(""));
     this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
@@ -98,7 +97,7 @@ export class MobView {
     if (fade <= 0) {
       this.fig.reset();
       this.status.reset();
-      this.feet.hide();
+      this.feet?.hide();
       return;
     }
     if (fade !== this.fade) {
@@ -115,7 +114,8 @@ export class MobView {
 
     this.signatures.update(m.sig, m.brand, signatures);
     this.status.update(m.effects | 0, performance.now());
-    this.feet.update(ground, x, y, performance.now());
+    if (this.feet === null && showsFeet(ground)) this.feet = new FeetFx(this.scene);
+    this.feet?.update(ground, x, y, performance.now());
     // On the same clock as the fade: the state is dead ~INTERP_DELAY_MS before the body goes, and the bar and name stay until it does.
     const dying = this.diedAt >= 0 && renderT >= this.diedAt;
     // The dummy keeps its bar and name on. A regional mob shows its bar when hurt or fighting (its cooldown is running or a
@@ -141,7 +141,8 @@ export class MobView {
 
   destroy(): void {
     this.root.destroy();
-    this.feet.destroy();
+    this.feet?.destroy();
+    this.feet = null;
   }
 
   /** 1 while alive; for a mob the state calls dead, how much of it is left (0..1) as the fade plays out in render time. */
