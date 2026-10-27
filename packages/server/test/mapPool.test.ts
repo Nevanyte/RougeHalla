@@ -5,6 +5,8 @@
 //     sends a map that is not what it claims (never served; a worker that keeps doing it is restarted with the crash
 //     backoff), the restart backoff, the spawn walks that ride with a map, training's copies of recent maps, and a
 //     stop() that a stalled terminate cannot hold up;
+//   - the hang watchdog (a worker that owes replies and sends nothing for `hangMs` is terminated and restarted like a
+//     crash), mostly on fake timeouts so every window is exact;
 //   - rooms on a real server: a burst of arena rooms each gets its own certified map, published as (seed, attempt,
 //     mapHash), a burst of training rooms takes at most one, a server whose worker never comes up still builds every
 //     room, and the profiles are flushed before the pool is stopped.
@@ -14,7 +16,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import type { Worker } from "node:worker_threads";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client, type Room } from "@colyseus/sdk";
 import {
   certifiedMap, generateMap, mapHashU32, MAX_ATTEMPTS, ROOM_NAME, spawnWalks, TRAINING_ROOM_NAME, tryAttempt, type GameMap, type JoinOptions,
@@ -24,7 +26,7 @@ import { roomMap } from "../src/bots/BotClient";
 import { loadConfig } from "../src/config";
 import { startServer, type RaidServer } from "../src/index";
 import {
-  MAP_FALLBACK_SEEDS, MAP_POOL_REFILL_AT, MAP_POOL_TARGET, MAP_RECENT_KEEP, MAP_REJECT_LIMIT, MapPool, SERVER_MAPGEN, spawnMapWorker,
+  MAP_FALLBACK_SEEDS, MAP_POOL_REFILL_AT, MAP_POOL_TARGET, MAP_RECENT_KEEP, MAP_REJECT_LIMIT, MAP_WORKER_HANG_MS, MapPool, SERVER_MAPGEN, spawnMapWorker,
   type MapWorkerLike, type MapWorkerReply, type MapWorkerRequest,
 } from "../src/mapPool";
 
@@ -491,6 +493,304 @@ describe("the map pool's rules", () => {
     await waiting;
     await sleep(60);
     expect(spawns).toBe(1);
+  });
+});
+
+// ================================================================= the hang watchdog
+
+describe("the map pool's hang watchdog", () => {
+  let base: GameMap;
+  beforeAll(() => {
+    base = certifiedMap(5, SERVER_MAPGEN)!;
+  });
+  // Only the timeouts are faked: FakeWorker's setImmediate and whenFilled's promises stay real, so a `certifies` worker
+  // still answers on a later turn while the test moves the clock by hand.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A reply that passes the arrival check, whatever seed was asked for (the pool does not match a reply to its request). */
+  const goodMap = (): MapWorkerReply => ({ kind: "map", seed: base.seed, attempt: base.attempt, hash: mapHashU32(base), map: structuredClone(base), ms: 0 });
+  /** Spawns FakeWorkers that never answer, remembering each. */
+  const silentWorkers = (into: FakeWorker[]) => () => { const w = new FakeWorker(); into.push(w); return w; };
+  const hangLines = (warns: string[]) => warns.map((l) => Number(/restarting in (\d+) ms/.exec(l)?.[1]));
+
+  it("has a named default, well above a cold worker's first map", () => {
+    expect(MAP_WORKER_HANG_MS).toBe(5000);
+    const w = new FakeWorker();
+    const pool = new MapPool({ target: 2, warmMain: false, ...quiet, spawnWorker: () => w }).start();
+    vi.advanceTimersByTime(MAP_WORKER_HANG_MS - 1);
+    expect(w.terminated).toBe(false);
+    vi.advanceTimersByTime(1);
+    expect(w.terminated).toBe(true);
+    expect(pool.stats.hangs).toBe(1);
+  });
+
+  it("terminates a worker that never replies, exactly hangMs after its first request, and logs it as a death", async () => {
+    const warns: string[] = [];
+    const w = new FakeWorker();
+    const pool = new MapPool({
+      target: 3, nextSeed: counter(1600), warmMain: false, hangMs: 1000, restartMs: 10_000, log: () => {}, warn: (l) => warns.push(l),
+      spawnWorker: () => w,
+    }).start();
+    expect(vi.getTimerCount()).toBe(1); // three requests, one timer
+    vi.advanceTimersByTime(999);
+    expect(w.terminated).toBe(false);
+    expect(pool.workerUp).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(w.terminated).toBe(true);
+    expect(pool.workerUp).toBe(false);
+    expect(pool.stats).toMatchObject({ hangs: 1, crashes: 1 });
+    expect(warns).toEqual(["[maps] map worker hung: no map in 1000 ms with 3 on the way; restarting in 10000 ms (rooms certify on the main thread until then)"]);
+    expect(vi.getTimerCount()).toBe(1); // the restart's; the watchdog is gone
+    await pool.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("covers the gap with the fallback exactly as for a crash, and serves the restarted worker's maps", async () => {
+    const workers: FakeWorker[] = [];
+    const lines: string[] = [];
+    const pool = new MapPool({
+      target: 2, refillAt: 1, nextSeed: counter(1650), warmMain: false, hangMs: 1000, restartMs: 200, log: (l) => lines.push(l), warn: () => {},
+      spawnWorker: () => { const w = new FakeWorker(workers.length === 0 ? undefined : certifies); workers.push(w); return w; },
+    }).start();
+    // Stuck: the queue stays empty and a room's map is certified here.
+    expectCertifiedPair(pool.take());
+    expect(lines.some((l) => l.includes("pool empty (2 on the way)"))).toBe(true);
+    vi.advanceTimersByTime(1000);
+    expect(workers[0]!.terminated).toBe(true);
+    // Hung and not yet restarted: the same fallback as a crashed worker's gap.
+    expectCertifiedPair(pool.take());
+    expect(lines.some((l) => l.includes("pool empty (worker down)"))).toBe(true);
+    expect(pool.stats).toMatchObject({ fallbacks: 2, served: 0, hangs: 1 });
+    vi.advanceTimersByTime(200);
+    expect(workers).toHaveLength(2);
+    await pool.whenFilled(2);
+    // The new worker's seeds (the stuck one had 1650 and 1651, the fallbacks 1652 and 1653) come out of the queue.
+    expect(pool.take().seed).toBe(1654);
+    expect(pool.stats).toMatchObject({ served: 1, fallbacks: 2, hangs: 1, crashes: 1 });
+    await pool.stop();
+  });
+
+  it("never restarts a worker that is slow but answering: every reply restarts the clock", async () => {
+    // A serial worker at 600 ms a map against a 1000 ms limit: the fourth request waits 2400 ms in all, but no silence passes 600.
+    let asked = 0;
+    const workers: FakeWorker[] = [];
+    const pool = new MapPool({
+      target: 4, refillAt: 3, nextSeed: counter(1700), warmMain: false, hangMs: 1000, ...quiet,
+      spawnWorker: () => {
+        const w = new FakeWorker((_req, fw) => { setTimeout(() => fw.reply(goodMap()), 600 * ++asked); });
+        workers.push(w);
+        return w;
+      },
+    }).start();
+    vi.advanceTimersByTime(2400);
+    expect(pool.size).toBe(4);
+    expect(pool.stats).toMatchObject({ hangs: 0, crashes: 0 });
+    expect(workers).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0); // idle again
+    await pool.stop();
+  });
+
+  it("measures from the last reply: a worker that answers two and then goes quiet is caught hangMs later", async () => {
+    let asked = 0;
+    const warns: string[] = [];
+    const pool = new MapPool({
+      target: 4, refillAt: 3, nextSeed: counter(1750), warmMain: false, hangMs: 1000, log: () => {}, warn: (l) => warns.push(l),
+      spawnWorker: () => new FakeWorker((_req, fw) => { if (++asked <= 2) setTimeout(() => fw.reply(goodMap()), 600 * asked); }),
+    }).start();
+    vi.advanceTimersByTime(1200); // replies at 600 and 1200, two requests still owed
+    expect(pool.size).toBe(2);
+    vi.advanceTimersByTime(999);
+    expect(pool.stats.hangs).toBe(0);
+    vi.advanceTimersByTime(1); // 1000 ms after the last reply, 2200 after the first request
+    expect(pool.stats.hangs).toBe(1);
+    expect(warns[0]).toMatch(/hung: no map in 1000 ms with 2 on the way/);
+    // The maps it did send stay good: they are still served.
+    expect(pool.take().seed).toBe(base.seed);
+    await pool.stop();
+  });
+
+  it("a worker's ready message counts as a sign of life, so a slow start is not a hang", async () => {
+    const w = new FakeWorker();
+    const pool = new MapPool({ target: 2, nextSeed: counter(1790), warmMain: false, hangMs: 1000, ...quiet, spawnWorker: () => w }).start();
+    vi.advanceTimersByTime(900);
+    w.reply({ kind: "ready", warmMs: 880 });
+    vi.advanceTimersByTime(900); // 1800 ms after the request, 900 after ready
+    expect(pool.stats.hangs).toBe(0);
+    vi.advanceTimersByTime(100);
+    expect(pool.stats.hangs).toBe(1);
+    await pool.stop();
+  });
+
+  it("asking for more while requests are out does not move the clock", async () => {
+    let asked = 0;
+    const warns: string[] = [];
+    const pool = new MapPool({
+      target: 3, refillAt: 2, nextSeed: counter(1800), warmMain: false, hangMs: 1000, log: () => {}, warn: (l) => warns.push(l),
+      // Only the first request is ever answered (at 100 ms).
+      spawnWorker: () => new FakeWorker((_req, fw) => { if (++asked === 1) setTimeout(() => fw.reply(goodMap()), 100); }),
+    }).start();
+    vi.advanceTimersByTime(100); // one map in, two requests still owed: the clock restarted here
+    expect(pool.size).toBe(1);
+    vi.advanceTimersByTime(400);
+    pool.take(); // the queue is empty and the worker owes two: it is asked for one more
+    expect(asked).toBe(4);
+    expect(vi.getTimerCount()).toBe(1); // still the one timer
+    vi.advanceTimersByTime(599);
+    expect(pool.stats.hangs).toBe(0);
+    vi.advanceTimersByTime(1); // 1000 ms after the reply: the newer request did not buy time
+    expect(pool.stats.hangs).toBe(1);
+    expect(warns[0]).toMatch(/with 3 on the way/);
+    await pool.stop();
+  });
+
+  it("holds no timer while idle or with no worker, and one per worker while requests are out", async () => {
+    const none = new MapPool({ target: 0, nextSeed: counter(1850), ...quiet }).start();
+    none.take();
+    expect(vi.getTimerCount()).toBe(0);
+
+    const w = new FakeWorker(certifies);
+    const pool = new MapPool({ target: 4, refillAt: 3, nextSeed: counter(1860), warmMain: false, hangMs: 1000, ...quiet, spawnWorker: () => w }).start();
+    expect(vi.getTimerCount()).toBe(1); // four requests, one timer
+    await pool.whenFilled();
+    expect(vi.getTimerCount()).toBe(0); // the last reply stopped it
+    vi.advanceTimersByTime(60_000);
+    expect(w.terminated).toBe(false);
+    expect(pool.stats).toMatchObject({ hangs: 0, crashes: 0 });
+    pool.take(); // down to the refill mark: one request goes out
+    expect(vi.getTimerCount()).toBe(1);
+    pool.take(); // another while the first is out: still one timer
+    expect(vi.getTimerCount()).toBe(1);
+    await pool.whenFilled();
+    expect(vi.getTimerCount()).toBe(0);
+    await pool.stop();
+  });
+
+  it("stop() clears a pending watchdog: no restart afterwards and no handle left", async () => {
+    let spawns = 0;
+    const w = new FakeWorker();
+    const pool = new MapPool({
+      target: 2, warmMain: false, hangMs: 1000, restartMs: 10, ...quiet, spawnWorker: () => { spawns++; return w; },
+    }).start();
+    expect(vi.getTimerCount()).toBe(1);
+    await pool.stop();
+    expect(w.terminated).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(60_000);
+    expect(pool.stats).toMatchObject({ hangs: 0, crashes: 0 });
+    expect(spawns).toBe(1);
+  });
+
+  it("a worker that dies on its own takes its watchdog with it, and its replacement gets a clock of its own", async () => {
+    const workers: FakeWorker[] = [];
+    const pool = new MapPool({
+      target: 2, warmMain: false, hangMs: 1000, restartMs: 50, ...quiet, spawnWorker: silentWorkers(workers),
+    }).start();
+    vi.advanceTimersByTime(600);
+    workers[0]!.emit("exit", 1);
+    expect(pool.stats).toMatchObject({ crashes: 1, hangs: 0 });
+    expect(vi.getTimerCount()).toBe(1); // the restart's, not a hang's
+    vi.advanceTimersByTime(50);
+    expect(workers).toHaveLength(2);
+    expect(vi.getTimerCount()).toBe(1); // the new worker's
+    vi.advanceTimersByTime(999);
+    expect(pool.stats.hangs).toBe(0); // 1000 ms after its own first request, not after the old worker's
+    vi.advanceTimersByTime(1);
+    expect(pool.stats).toMatchObject({ crashes: 2, hangs: 1 });
+    await pool.stop();
+  });
+
+  it("ignores everything the terminated worker still says, and its late exit is not a second death", async () => {
+    const workers: FakeWorker[] = [];
+    const pool = new MapPool({
+      target: 2, refillAt: 1, nextSeed: counter(1900), warmMain: false, hangMs: 1000, restartMs: 50, ...quiet, spawnWorker: silentWorkers(workers),
+    }).start();
+    vi.advanceTimersByTime(1000);
+    expect(workers[0]!.terminated).toBe(true);
+    vi.advanceTimersByTime(50);
+    const [stale, current] = [workers[0]!, workers[1]!];
+    expect(current.posted).toHaveLength(2);
+    vi.advanceTimersByTime(500); // half-way through the new worker's clock
+    // The hung worker wakes up and talks: none of it is queued, counted, answered with a request or taken as a sign of life.
+    stale.reply(goodMap());
+    stale.reply({ kind: "discard", seed: 1, ms: 0 });
+    stale.reply({ kind: "error", seed: 2, message: "late" });
+    stale.reply({ kind: "ready", warmMs: 1 });
+    stale.emit("error", new Error("late"));
+    stale.emit("exit", 1);
+    await new Promise((r) => setImmediate(r)); // its own terminate() exit
+    expect(pool.size).toBe(0);
+    expect(pool.stats).toMatchObject({ served: 0, rejected: 0, discards: 0, crashes: 1, hangs: 1 });
+    expect(current.posted).toHaveLength(2); // a stale reply read as the current worker's would have refilled
+    expect(current.terminated).toBe(false);
+    expect(pool.workerUp).toBe(true);
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(499);
+    expect(pool.stats.hangs).toBe(1);
+    vi.advanceTimersByTime(1); // the current worker's clock ran from its own start; the stale reply did not restart it
+    expect(pool.stats).toMatchObject({ crashes: 2, hangs: 2 });
+    await pool.stop();
+  });
+
+  it("repeated hangs back off like crashes, and a good map starts the backoff over", async () => {
+    const warns: string[] = [];
+    const workers: FakeWorker[] = [];
+    const pool = new MapPool({
+      target: 1, refillAt: 0, nextSeed: counter(1950), warmMain: false, hangMs: 50, restartMs: 100, restartMaxMs: 400,
+      log: () => {}, warn: (l) => warns.push(l),
+      spawnWorker: () => {
+        // Workers 1 to 4 never answer. The 5th answers its first request and then goes quiet.
+        let asked = 0;
+        const w = new FakeWorker((_req, fw) => { if (workers.length === 5 && ++asked === 1) setTimeout(() => fw.reply(goodMap()), 10); });
+        workers.push(w);
+        return w;
+      },
+    }).start();
+    const runUntil = (done: () => boolean) => { for (let ms = 0; !done() && ms < 20_000; ms += 10) vi.advanceTimersByTime(10); };
+    runUntil(() => workers.length === 5);
+    expect(hangLines(warns)).toEqual([100, 200, 400, 400]); // doubled, then held at restartMaxMs
+    expect(pool.stats).toMatchObject({ hangs: 4, crashes: 4 });
+    vi.advanceTimersByTime(10);
+    expect(pool.size).toBe(1); // a good map arrived: the streak is forgotten
+    pool.take(); // asks again; the worker is quiet now
+    runUntil(() => pool.stats.hangs === 5);
+    expect(hangLines(warns)).toEqual([100, 200, 400, 400, 100]);
+    expect(warns.every((l) => l.includes("map worker hung: no map in 50 ms with 1 on the way"))).toBe(true);
+    await pool.stop();
+  });
+
+  it("(real timers) terminates a worker that never replies, restarts it, and serves the new worker's maps; the timer holds nothing open", async () => {
+    vi.useRealTimers();
+    const refTimers = () => process.getActiveResourcesInfo().filter((r) => r === "Timeout").length;
+    const before = refTimers();
+    const probe = setTimeout(() => {}, 1000); // the count does see a timer that keeps the process alive
+    expect(refTimers()).toBe(before + 1);
+    clearTimeout(probe);
+
+    const workers: FakeWorker[] = [];
+    const warns: string[] = [];
+    const pool = new MapPool({
+      target: 2, refillAt: 1, nextSeed: counter(2000), warmMain: false, hangMs: 40, restartMs: 20, log: () => {}, warn: (l) => warns.push(l),
+      spawnWorker: () => { const w = new FakeWorker(workers.length === 0 ? undefined : certifies); workers.push(w); return w; },
+    }).start();
+    expect(refTimers()).toBe(before); // a watchdog is pending, and it is unreffed
+    expectCertifiedPair(pool.take()); // meanwhile a room still gets a map
+    await until(() => pool.stats.hangs === 1, "the hang");
+    expect(workers[0]!.terminated).toBe(true);
+    expect(warns[0]).toMatch(/map worker hung: no map in 40 ms with 2 on the way; restarting in 20 ms/);
+    await pool.whenFilled(2);
+    expect(workers).toHaveLength(2);
+    expect(pool.workerUp).toBe(true);
+    const served = pool.take();
+    expect(served.seed).toBe(2003); // the stuck worker had 2000 and 2001, the fallback 2002
+    expectCertifiedPair(served);
+    expect(pool.stats).toMatchObject({ served: 1, fallbacks: 1, hangs: 1, crashes: 1 });
+    await pool.stop();
+    expect(refTimers()).toBeLessThanOrEqual(before); // (a timer left over from an earlier test may have run out meanwhile)
   });
 });
 

@@ -12,7 +12,9 @@
 // An empty queue (a burst, a worker that is down or still warming) falls back to one synchronous `certifiedMap` on the
 // main thread, logged. A worker that crashes is restarted with backoff and never takes a room down: the fallback covers
 // the gap. A worker that keeps sending maps that fail the arrival check is treated as a crash too (restarted with the same
-// backoff), so a broken one cannot spin a core and fill the log.
+// backoff), so a broken one cannot spin a core and fill the log. So is one that HANGS: a worker that sends nothing for
+// MAP_WORKER_HANG_MS while requests are on the way is terminated without waiting for it and restarted the same way, so a
+// stuck thread cannot leave every room on the fallback until the process restarts.
 //
 // Training rooms do not need a map of their own: takeForTraining() serves a copy of one of the last few maps handed out,
 // so a burst of training entries drains the pool by at most one map (and a pool that is down certifies at most one).
@@ -37,6 +39,12 @@ export const MAP_RECENT_KEEP = 4;
 export const MAP_REJECT_LIMIT = 3;
 /** How long stop() waits for the worker thread to end before it lets go of it (a stalled terminate must not hold the shutdown). */
 export const MAP_WORKER_STOP_MS = 2_000;
+/**
+ * A worker that sends nothing for this long while it owes a reply is hung: terminated and restarted like a crash. The clock runs
+ * from the oldest unanswered request or the worker's last message, whichever is later, so a slow worker that keeps answering never
+ * trips it. A map takes about 35 ms (a cold worker's first about 250 ms), so this is 20x the worst wait a healthy one shows.
+ */
+export const MAP_WORKER_HANG_MS = 5_000;
 
 /** Where a room gets its map. Synchronous, so onAuth/onJoin stay synchronous. */
 export interface MapSource {
@@ -89,6 +97,8 @@ export interface MapPoolOptions {
   restartMaxMs?: number;
   /** How long stop() waits for the worker to terminate (MAP_WORKER_STOP_MS). */
   stopTimeoutMs?: number;
+  /** How long a worker may owe a reply and send nothing before it counts as hung (MAP_WORKER_HANG_MS). */
+  hangMs?: number;
   log?: (line: string) => void;
   /** Worker deaths (console.error by default). */
   warn?: (line: string) => void;
@@ -101,8 +111,10 @@ export interface MapPoolStats {
   fallbacks: number;
   /** Seeds that certified in no attempt (worker and fallback). */
   discards: number;
-  /** Worker deaths (crash, error exit, generator error, failed spawn). */
+  /** Worker deaths (crash, error exit, generator error, failed spawn, hang). */
   crashes: number;
+  /** Of those, workers terminated for answering nothing within `hangMs` while requests were on the way. */
+  hangs: number;
   /** Maps from the worker that failed the arrival check (never served). */
   rejected: number;
   /** Training rooms given a copy of a recent map instead of a pool map. */
@@ -127,7 +139,7 @@ export function spawnMapWorker(): MapWorkerLike {
 export class MapPool implements MapSource {
   readonly target: number;
   readonly refillAt: number;
-  readonly stats: MapPoolStats = { served: 0, fallbacks: 0, discards: 0, crashes: 0, rejected: 0, reused: 0, fallbackMs: 0 };
+  readonly stats: MapPoolStats = { served: 0, fallbacks: 0, discards: 0, crashes: 0, hangs: 0, rejected: 0, reused: 0, fallbackMs: 0 };
   private readonly queue: GameMap[] = [];
   /**
    * The last MAP_RECENT_KEEP maps handed out by take(), oldest first. Only ever copied from (the maps are read-only, map.ts),
@@ -143,6 +155,8 @@ export class MapPool implements MapSource {
   /** Maps in a row from the current worker that failed the arrival check. */
   private rejectStreak = 0;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The hang watchdog's one timer: set only while the current worker owes a reply (watch()). */
+  private hangTimer: ReturnType<typeof setTimeout> | null = null;
   private started = false;
   private mainWarmMs = 0;
   private stopped = false;
@@ -154,6 +168,7 @@ export class MapPool implements MapSource {
   private readonly restartMs: number;
   private readonly restartMaxMs: number;
   private readonly stopTimeoutMs: number;
+  private readonly hangMs: number;
   private readonly log: (line: string) => void;
   private readonly warn: (line: string) => void;
 
@@ -167,6 +182,7 @@ export class MapPool implements MapSource {
     this.restartMs = opts.restartMs ?? MAP_WORKER_RESTART_MS;
     this.restartMaxMs = opts.restartMaxMs ?? MAP_WORKER_RESTART_MAX_MS;
     this.stopTimeoutMs = opts.stopTimeoutMs ?? MAP_WORKER_STOP_MS;
+    this.hangMs = opts.hangMs ?? MAP_WORKER_HANG_MS;
     this.log = opts.log ?? ((line) => console.log(line));
     this.warn = opts.warn ?? ((line) => console.error(line));
   }
@@ -235,6 +251,7 @@ export class MapPool implements MapSource {
     this.stopped = true;
     if (this.restartTimer) clearTimeout(this.restartTimer);
     this.restartTimer = null;
+    this.unwatch();
     const w = this.worker;
     this.worker = null;
     this.inFlight = 0;
@@ -325,9 +342,11 @@ export class MapPool implements MapSource {
     switch (msg.kind) {
       case "ready":
         this.log(`[maps] map worker ready: lane tables in ${msg.warmMs.toFixed(0)} ms (main thread: ${this.mainWarmMs.toFixed(0)} ms)`);
+        this.watch(); // alive: a slow start is not a hang
         return;
       case "map": {
         this.inFlight = Math.max(0, this.inFlight - 1);
+        this.watch();
         const map = msg.map;
         // The structured clone is trusted no further than its hash: a map that does not match what the worker certified
         // (or is not the pair it claims) is never served.
@@ -355,6 +374,7 @@ export class MapPool implements MapSource {
       }
       case "discard":
         this.inFlight = Math.max(0, this.inFlight - 1);
+        this.watch();
         this.stats.discards++;
         this.log(`[maps] seed ${msg.seed} certified in no attempt (${msg.ms.toFixed(0)} ms): discarded`);
         this.refill();
@@ -372,10 +392,35 @@ export class MapPool implements MapSource {
     if (!w || this.stopped) return;
     const have = this.queue.length + this.inFlight;
     if (!force && have > this.refillAt) return;
+    const idle = this.inFlight === 0;
     for (let n = have; n < this.target; n++) {
       this.inFlight++;
       w.postMessage({ kind: "make", seed: this.nextSeed() });
     }
+    // The clock starts with the oldest unanswered request: asking for more while others are out must not move it.
+    if (idle && this.inFlight > 0) this.watch();
+  }
+
+  /**
+   * Restarts the hang clock for the current worker, or stops it when nothing is owed (an idle pool holds no timer). Called on
+   * every message the worker sends, so the limit is measured from its last sign of life. Unreffed: it never holds the process open.
+   */
+  private watch(): void {
+    this.unwatch();
+    const w = this.worker;
+    if (!w || this.stopped || this.inFlight === 0) return;
+    this.hangTimer = setTimeout(() => {
+      this.hangTimer = null;
+      this.stats.hangs++;
+      this.workerDied(w, `hung: no map in ${this.hangMs} ms with ${this.inFlight} on the way`);
+      this.discard(w); // not waited for: a thread that does not answer may not end either
+    }, this.hangMs);
+    this.hangTimer.unref?.();
+  }
+
+  private unwatch(): void {
+    if (this.hangTimer) clearTimeout(this.hangTimer);
+    this.hangTimer = null;
   }
 
   private wake(): void {
@@ -390,6 +435,7 @@ export class MapPool implements MapSource {
     if (w !== null && w !== this.worker) return;
     this.worker = null;
     this.inFlight = 0;
+    this.unwatch();
     if (this.stopped) return;
     this.stats.crashes++;
     const delay = Math.min(this.restartMaxMs, this.restartMs * 2 ** Math.min(this.crashStreak, 16));
