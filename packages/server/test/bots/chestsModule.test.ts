@@ -15,8 +15,9 @@ import { CHEST_RULES, chestsModule } from "../../src/bots/brain/modules/chests";
 import { perceive, type PerceptionInput, type StateLike } from "../../src/bots/brain/perception";
 import {
   BOT_FILL_DEFAULTS, TIERS,
+  PERSONA_IDS, PERSONAS,
   type BrainConfig, type Command, type FighterView, type Goal, type Intent, type MemoryView, type MobMemory, type PersonaId, type RewardChestView,
-  type Stimulus, type TierId, type TimedCommand,
+  type SelfView, type Stimulus, type TierId, type TimedCommand,
 } from "../../src/bots/brain/types";
 import { createHeadlessRoom } from "../../src/bots/tournament/headlessRoom";
 import { chestSpot, rewardChests } from "../../src/sim/chests";
@@ -79,6 +80,9 @@ interface Scene {
   stimuli?: Stimulus[];
   inColiseum?: boolean;
   at?: Vec2;
+  /** The cards the bot holds (the percept's `build`: its own cards row) and the weapons it carries. */
+  build?: Record<string, number>;
+  weapons?: SelfView["weapons"];
 }
 
 function mobMemory(over: Partial<MobMemory> = {}): MobMemory {
@@ -90,7 +94,7 @@ function scene(s: Scene = {}): ReturnType<typeof makeCtx> {
   const now = s.now ?? NOW;
   const base = emptyMemory();
   const mem: MemoryView = { ...base, stimuli: s.stimuli ?? [], mobs: new Map((s.mobs ?? []).map((m) => [m.id, m])) };
-  const self = { ...ME, ...(s.at ?? {}), hp: s.hp ?? 100 };
+  const self = { ...ME, ...(s.at ?? {}), hp: s.hp ?? 100, ...(s.build ? { build: s.build } : {}), ...(s.weapons ? { weapons: s.weapons } : {}) };
   return makeCtx({
     cfg, mem, rng: rngs(cfg.seed), engaged: s.engaged ?? false,
     p: percept({
@@ -234,9 +238,41 @@ describe("the pick: one choose per chest, within reach, whatever the bot is doin
     const list = intentsOf({ chests: [chest("rc1", 40)] });
     expect(list).toHaveLength(1);
     const pick = chooses(list)[0]!;
-    expect(pick.msg).toEqual({ chest: "rc1", pick: chooseOption(CARDS, ["", "", ""], { faction: "fire", weapons: ["sword", null], build: null }) });
+    expect(pick.msg).toEqual({ chest: "rc1", pick: chooseOption(CARDS, ["", "", ""], { faction: "fire", weapons: ["sword", null], slot: 0, risk: PERSONAS.farmer.risk, build: {} }) });
     expect(pick.priority).toBe(1);
     expect(pick.timing).toEqual({ kind: "react", stimulus: { kind: "chestUp", at: NOW, subject: "rc1", central: true } });
+  });
+
+  it("takes the card its persona's risk allows: the same three cards, three kinds of persona, three picks", () => {
+    const options = ["witness", "raceToZero", "hereComesTheBoom"];
+    const pickOf = (persona: PersonaId): number => {
+      const list = chooses(intentsOf({ cfg: cfgFor("hard", persona), chests: [chest("rc1", 40, { options })] }));
+      expect(list, persona).toHaveLength(1);
+      return (list[0]!.msg as { pick: number }).pick;
+    };
+    expect(Object.fromEntries(PERSONA_IDS.map((id) => [id, pickOf(id)]))).toEqual({ farmer: 0, hunter: 1, opportunist: 2, cautious: 0 });
+    // The module hands the chooser the persona's own number, not a default.
+    for (const id of PERSONA_IDS) {
+      const cfg = cfgFor("hard", id);
+      const list = chooses(intentsOf({ cfg, chests: [chest("rc1", 40, { options })] }));
+      expect((list[0]!.msg as { pick: number }).pick).toBe(chooseOption(options, ["", "", ""], { faction: "fire", weapons: ["sword", null], build: {}, slot: 0, risk: PERSONAS[id].risk }));
+    }
+  });
+
+  it("reads what it holds from its own cards row, a quest's card included: a conditional whose base came from a quest is taken", () => {
+    const options = ["witness", "bloodthirst", "armor1"];
+    const none = chooses(intentsOf({ chests: [chest("rc1", 40, { options })] }));
+    expect((none[0]!.msg as { pick: number }).pick).not.toBe(1); // no leech card: Bloodthirst is refused
+    const held = chooses(intentsOf({ chests: [chest("rc2", 40, { options })], build: { leech2: 1 } }));
+    expect((held[0]!.msg as { pick: number }).pick).toBe(1);
+  });
+
+  it("fits the card to the weapon in hand, not to the first slot", () => {
+    const options = ["ap1", "ad1", "vitality1"];
+    const sword = chooses(intentsOf({ chests: [chest("rc1", 40, { options })] }));
+    expect((sword[0]!.msg as { pick: number }).pick).toBe(1);
+    const wand = chooses(intentsOf({ chests: [chest("rc2", 40, { options })], weapons: ["wand", null] }));
+    expect((wand[0]!.msg as { pick: number }).pick).toBe(0);
   });
 
   it("whatever it is doing: fighting, farming, fleeing, walking somewhere else", () => {

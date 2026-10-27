@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CARD_IDS, cardDef, cardLive, CHEST_OPTIONS, CHEST_SECONDS, circleClear, decodeFlat, decodeMult, FACTIONS, GV_SKIP, hasLineOfSight,
-  MOB_TYPES, mobFaction, mobTypeById, mobWeapon, mulberry32, PLAYER_RADIUS, REGION_FACTIONS, TICK_MS, TILE, TRAIN_CAMP_SIZE,
+  MOB_TYPES, mobTypeById, mobTypeFaction, mobTypeWeapon, mulberry32, PLAYER_RADIUS, REGION_FACTIONS, TICK_MS, TILE, TRAIN_CAMP_SIZE,
   TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MAX_CHESTS, TRAIN_MAX_MOBS, TRAIN_MAX_MOBS_SPAWNED, TRAIN_SPAWN_GAP_MS,
   WIRE_IDENTITY_MIRRORS, type FactionId, type FxEvent, type MobTypeId,
 } from "@raid/shared";
@@ -21,6 +21,7 @@ import { planPath } from "../src/sim/movement";
 import { addPlayer, startRaid, step } from "../src/sim/step";
 import { handleTrain, installTraining, PRACTICE_CAMP_FIRST } from "../src/sim/training";
 import type { SimConfig, SimEvent, World } from "../src/sim/world";
+import { withNotLive } from "./support/notLive";
 
 const BASE: SimConfig = {
   minPlayers: 8, lobbySeconds: 120, fillSeconds: 0, patienceSeconds: 2, patienceMinSeconds: 2, suddenDeathSeconds: 2,
@@ -121,7 +122,7 @@ describe("the `train` message at the door", () => {
     ]) expect(parseTrain(bad), JSON.stringify(bad)).toBeNull();
   });
 
-  it("camp: any of the 20 mob types, nothing else", () => {
+  it("camp: any of the 30 mob types, nothing else", () => {
     for (const t of MOB_TYPES) expect(parseTrain({ cmd: "camp", id: t.id }), t.id).toEqual({ kind: "train", cmd: "camp", id: t.id });
     for (const bad of [{ cmd: "camp" }, { cmd: "camp", id: "fire" }, { cmd: "camp", id: "Wyrmling" }, { cmd: "camp", id: 1 }, { cmd: "camp", id: "ad1" }]) {
       expect(parseTrain(bad), JSON.stringify(bad)).toBeNull();
@@ -255,9 +256,11 @@ describe("train card", () => {
     expect(ok).toBe("Attack Damage III x1: +33 attack damage");
     const [unique] = toasts(train(world, { cmd: "card", id: "glassCannon" }));
     expect(unique).toBe("Glass Cannon: +35% damage, -25% max health.");
-    const [pending] = toasts(train(world, { cmd: "card", id: "overkill" }));
-    expect(pending).toMatch(/^Overkill: .*\(not live yet: no effect\)$/);
-    expect(cardLive("overkill")).toBe(false);
+    withNotLive(["overkill"], () => {
+      const [pending] = toasts(train(world, { cmd: "card", id: "overkill" }));
+      expect(pending).toMatch(/^Overkill: .*\(not live yet: no effect\)$/);
+      expect(cardLive("overkill")).toBe(false);
+    });
     expect(toasts(train(world, { cmd: "card", id: "ad3", count: 0 }))).toEqual(["Attack Damage III removed"]);
   });
 
@@ -317,11 +320,13 @@ describe("train card", () => {
   it("sets a card whose machinery is not live yet, which does nothing, and says so in its toast", () => {
     const world = trainingWorld("fire");
     const p = me(world);
-    expect(cardDef("tankEngine")!.ready).toBe("b");
-    const [note] = toasts(train(world, { cmd: "card", id: "tankEngine" }));
-    expect(p.build.get("tankEngine")).toBe(1);
-    expect(note).toMatch(/Tank Engine.*not live yet: no effect/);
-    expect([p.asMult, p.speedMult, p.armorBonus, p.maxHp]).toEqual([IDENTITY.asMult, IDENTITY.speedMult, 0, baseHp("fire")]);
+    withNotLive(["tankEngine"], () => {
+      expect(cardDef("tankEngine")!.ready).toBe("b");
+      const [note] = toasts(train(world, { cmd: "card", id: "tankEngine" }));
+      expect(p.build.get("tankEngine")).toBe(1);
+      expect(note).toMatch(/Tank Engine.*not live yet: no effect/);
+      expect([p.asMult, p.speedMult, p.armorBonus, p.maxHp]).toEqual([IDENTITY.asMult, IDENTITY.speedMult, 0, baseHp("fire")]);
+    });
   });
 });
 
@@ -344,8 +349,8 @@ describe("train camp", () => {
     const tiles = new Set<string>();
     for (const [id, m] of mobs) {
       expect(m).toMatchObject({
-        kind: "mob", name: "Ember Imp", type: "emberImp", faction: "fire", weapon0: mobWeapon("fire"), status: "alive",
-        maxHp: mobFaction("fire", false, mobScale(false)).hp,
+        kind: "mob", name: "Ember Imp", type: "emberImp", faction: "fire", weapon0: mobTypeWeapon("fire", "emberImp"), status: "alive",
+        maxHp: mobTypeFaction("fire", false, "emberImp", mobScale(false)).hp,
       });
       expect(m.hp).toBe(m.maxHp);
       expect(circleClear(world.map, m, PLAYER_RADIUS), `${id} on free floor`).toBe(true);
@@ -365,7 +370,7 @@ describe("train camp", () => {
     expect(world.state.camps.length).toBe(0);
   });
 
-  it("an elite type is a lone elite; every one of the 20 types spawns as its row says, in its zone", () => {
+  it("an elite type is a lone elite; every one of the 30 types spawns as its row says, in its zone", () => {
     for (const t of MOB_TYPES) {
       const world = trainingWorld(REGION_FACTIONS[0]);
       train(world, { cmd: "camp", id: t.id });
@@ -373,12 +378,13 @@ describe("train camp", () => {
       expect(mobs.length, t.id).toBe(t.elite ? 1 : TRAIN_CAMP_SIZE);
       for (const [id, m] of mobs) {
         expect(m, t.id).toMatchObject({ kind: t.elite ? "elite" : "mob", type: t.id, name: t.name, faction: t.zone });
-        expect(m.maxHp, t.id).toBe(mobFaction(t.zone, t.elite, mobScale(t.elite)).hp);
+        expect(m.maxHp, t.id).toBe(mobTypeFaction(t.zone, t.elite, t.id, mobScale(t.elite)).hp);
+        expect(m.weapon0, t.id).toBe(t.weapon);
         expect(world.mobs.get(id)!.brain, t.id).toMatchObject({ region: t.zone, elite: t.elite });
       }
     }
-    expect(ELITE_TYPES).toHaveLength(5);
-    expect(NORMAL_TYPES).toHaveLength(15);
+    expect(ELITE_TYPES).toHaveLength(10);
+    expect(NORMAL_TYPES).toHaveLength(20);
   });
 
   it("a second camp takes another camp number, away from the first one's tiles", () => {
@@ -537,7 +543,7 @@ describe("train chest", () => {
 
   it("offers the options it is given, in that order, live or not (a toast flags the ones that are not)", () => {
     const world = trainingWorld("holy");
-    const [note] = toasts(train(world, { cmd: "chest", options: ["fleet1", "overkill"] }));
+    const [note] = withNotLive(["overkill"], () => toasts(train(world, { cmd: "chest", options: ["fleet1", "overkill"] })));
     const [chest] = rewardChests(world);
     expect([...chest!.options]).toEqual(["fleet1", "overkill"]);
     expect([...chest!.takenBy]).toEqual(["", ""]);
@@ -718,7 +724,7 @@ describe("the console never makes the training room record anything", () => {
 // A short reminder of what the tests above depend on staying true.
 describe("the console's contract", () => {
   it("every mob type and every card is reachable by id, and the catalogs' sizes are what the client's pickers show", () => {
-    expect(MOB_TYPES).toHaveLength(20);
+    expect(MOB_TYPES).toHaveLength(30);
     expect(CARD_IDS).toHaveLength(75);
     expect(mobTypeById("wyrmling" satisfies MobTypeId)?.elite).toBe(true);
   });

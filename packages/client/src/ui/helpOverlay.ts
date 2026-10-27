@@ -1,7 +1,12 @@
-// The H help card: every control in one table (HELP_SECTIONS), drawn as keycaps. It is a real overlay, but the game keeps
-// running behind it, so it closes with H, Esc, its button or a click outside the card. The keys themselves are Chrome's,
-// and so is the stylesheet (chrome.css).
-import { MAP_STYLERS } from "@raid/shared";
+// The H help card: two pages. "Controls" is every control in one table (HELP_SECTIONS), drawn as keycaps; "Mechanics" is the glossary
+// behind the cards' tags and the numbers (damage types, damage over time, on-hit, AD and AP, card power and the PvP factor, what each
+// faction's signature and each weapon is), read from shared/glossary.ts so a chip on a card and this page word a term the same way.
+// It is a real overlay, but the game keeps running behind it, so it closes with H, Esc, its button or a click outside the card. The
+// keys themselves are Chrome's, and so is the stylesheet (chrome.css).
+import {
+  DAMAGE_TYPE_LINE, FACTIONS, GLOSSARY, MAP_STYLERS, PVP_FMAX, SIGNATURE_TAGS, WEAPONS, WEAPON_TAGS, pvpFactor, tagLabel,
+} from "@raid/shared";
+import { factorText, weaponScalingText } from "./buildModel";
 import { el } from "./dom";
 import { renderGround } from "./groundLegend";
 import { keycap } from "./keycap";
@@ -80,6 +85,75 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
   },
 ];
 
+// ----------------------------------------------------------------------------------------------------------- the Mechanics page
+
+export type HelpPage = "controls" | "mechanics";
+
+export interface MechanicsEntry {
+  /** The term: "Damage over time", "Fire: Burn", "Sword". */
+  term: string;
+  text: string;
+}
+
+export interface MechanicsSection {
+  id: "terms" | "power" | "signatures" | "weapons";
+  title: string;
+  /** One line before the entries. */
+  intro?: string;
+  entries: readonly MechanicsEntry[];
+}
+
+/**
+ * The Mechanics page as data: the glossary terms (AD, AP and every tag), what card power and the PvP factor are, what each faction's
+ * signature is made of (SIGNATURE_TAGS) and what each weapon scales with and does (WEAPON_TAGS). Pure; the page draws it.
+ */
+export function mechanicsSections(): MechanicsSection[] {
+  const power = (p: number): string => `${factorText(pvpFactor(p))} at power ${p}`;
+  return [
+    {
+      id: "terms",
+      title: "Damage and terms",
+      intro: DAMAGE_TYPE_LINE,
+      entries: GLOSSARY.map((g) => ({ term: g.term, text: g.text })),
+    },
+    {
+      id: "power",
+      title: "Cards, power and the PvP factor",
+      entries: [
+        {
+          term: "Card power",
+          text: "Every card has a tier, I to III. Your card power P is the sum of the tiers of the cards you hold, once per copy. It is the only thing that grows your damage to other players.",
+        },
+        {
+          term: "PvP factor",
+          text: `Your damage to other players is multiplied by ${power(0)}, ${power(2)}, ${power(6)}, ${power(10)}, and tops out at ${factorText(PVP_FMAX)}. Mobs, Wishes and the arena's burn are not scaled.`,
+        },
+        {
+          term: "Chests",
+          text: "A cleared camp's chest offers three cards, one pick each, first come first served. A base card deepens a stat, a conditional card needs a base you hold, an augment has a rule and often a cost.",
+        },
+      ],
+    },
+    {
+      id: "signatures",
+      title: "Faction signatures",
+      entries: SIGNATURE_TAGS.map((row) => ({
+        term: `${FACTIONS[row.faction].displayName}: ${row.signature}`,
+        text: row.tags.map(tagLabel).join(", "),
+      })),
+    },
+    {
+      id: "weapons",
+      title: "Weapons",
+      intro: "Each point of a stat a weapon scales with adds that much damage a second at base attack speed.",
+      entries: WEAPON_TAGS.map((row) => ({
+        term: WEAPONS[row.weapon].name,
+        text: `Scales with ${weaponScalingText(row.weapon)}. ${row.tags.map(tagLabel).join(", ")}. ${row.note}`,
+      })),
+    },
+  ];
+}
+
 /** Section ids in display order: where the player is first (planning follows the run it leads into), the general controls last. */
 export function helpSectionOrder(context: HelpScope): HelpScope[] {
   return context === "hub" ? ["hub", "run", "planning", "anywhere"] : ["run", "planning", "hub", "anywhere"];
@@ -109,30 +183,47 @@ export class HelpOverlay {
   private readonly sections = new Map<HelpScope, HTMLElement>();
   /** The Ground legend (what each terrain kind does): after the controls, and only when the stylers are on (else null). */
   private readonly ground: HTMLElement | null;
+  /** The two pages' bodies and the tabs that switch between them. */
+  private readonly controlsPage = el("div", "help-body");
+  private readonly mechanicsPage = el("div", "help-body help-mechanics");
+  private readonly tabs = new Map<HelpPage, HTMLButtonElement>();
+  private current: HelpPage = "controls";
 
   constructor(private readonly options: HelpOverlayOptions = {}) {
     const head = el("div", "help-head");
-    const title = el("h2", "help-title", "Controls");
+    const title = el("h2", "help-title", "Help");
     title.id = "help-title";
     this.closeButton.type = "button";
     this.closeButton.setAttribute("aria-label", "Close help");
     this.closeButton.addEventListener("click", () => this.requestClose());
     head.append(title, this.closeButton);
+    const tabBar = el("div", "help-tabs");
+    tabBar.setAttribute("role", "tablist");
+    for (const [page, label] of [["controls", "Controls"], ["mechanics", "Mechanics"]] as const) {
+      const tab = el("button", "help-tab", label);
+      tab.type = "button";
+      tab.setAttribute("role", "tab");
+      tab.addEventListener("click", () => this.showPage(page));
+      this.tabs.set(page, tab);
+      tabBar.append(tab);
+    }
 
     this.ground = (options.ground ?? groundLegendVisible()) ? renderGround() : null;
     this.card.setAttribute("role", "dialog");
     this.card.setAttribute("aria-modal", "true");
     this.card.setAttribute("aria-labelledby", "help-title");
     this.card.tabIndex = -1;
-    this.card.append(head);
-    const body = el("div", "help-body");
+    this.card.append(head, tabBar);
+    const body = this.controlsPage;
     for (const section of HELP_SECTIONS) {
       const node = renderSection(section);
       this.sections.set(section.id, node);
       body.append(node);
     }
     if (this.ground) body.append(this.ground);
-    this.card.append(body, el("p", "help-foot", "Press H or Esc to close. Settings are behind the gear button."));
+    for (const section of mechanicsSections()) this.mechanicsPage.append(renderMechanics(section));
+    this.card.append(body, this.mechanicsPage, el("p", "help-foot", "Press H or Esc to close. Settings are behind the gear button."));
+    this.showPage("controls");
 
     this.element.append(this.card);
     this.element.hidden = true;
@@ -144,12 +235,29 @@ export class HelpOverlay {
     return !this.element.hidden;
   }
 
-  /** `context`: where the player is, so those controls come first. */
-  open(context: HelpScope = "run"): void {
+  /** The page showing now. */
+  get page(): HelpPage {
+    return this.current;
+  }
+
+  /** `context`: where the player is, so those controls come first. `page`: Controls (the default) or Mechanics. */
+  open(context: HelpScope = "run", page: HelpPage = "controls"): void {
     helpSectionOrder(context).forEach((id, i) => { this.sections.get(id)!.style.order = String(i); });
     if (this.ground) this.ground.style.order = String(this.sections.size);
+    this.showPage(page);
     this.element.hidden = false;
     this.card.focus();
+  }
+
+  /** Switches the card to a page; the tab of the page shown is the selected one. */
+  showPage(page: HelpPage): void {
+    this.current = page;
+    this.controlsPage.hidden = page !== "controls";
+    this.mechanicsPage.hidden = page !== "mechanics";
+    for (const [id, tab] of this.tabs) {
+      tab.setAttribute("aria-selected", String(id === page));
+      tab.classList.toggle("active", id === page);
+    }
   }
 
   close(): void {
@@ -180,6 +288,16 @@ function renderSection(section: HelpSection): HTMLElement {
     });
     list.append(keys, el("dd", "help-action", binding.action));
   }
+  node.append(list);
+  return node;
+}
+
+function renderMechanics(section: MechanicsSection): HTMLElement {
+  const node = el("section", `help-mech-section help-mech-${section.id}`);
+  node.append(el("h3", "help-section-title", section.title));
+  if (section.intro) node.append(el("p", "help-mech-intro", section.intro));
+  const list = el("dl", "help-mech-list");
+  for (const entry of section.entries) list.append(el("dt", "help-mech-term", entry.term), el("dd", "help-mech-text", entry.text));
   node.append(list);
   return node;
 }

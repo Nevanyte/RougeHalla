@@ -2,9 +2,9 @@
 // shows, what each card is and whether it can be picked, when everything greys out, and what the status line says. Nothing
 // here is ever sent: the server decides every pick; this only avoids offering one it would refuse.
 import {
-  CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, FACTIONS, TICK_MS, cardDef, cardOptionView, cardTitle, countIn,
-  hasLineOfSight, isEliteCamp, tierRoman,
-  type CampDef, type CardCounts, type CardKind, type CardOptionView, type GameMap, type Vec2,
+  CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, FACTIONS, TAG_GLOSSARY, TICK_MS, cardDef, cardOptionView, cardTitle,
+  countIn, hasLineOfSight, isEliteCamp, tagLabel, tierRoman,
+  type CampDef, type CardCounts, type CardKind, type CardOptionView, type GameMap, type MechanicTag, type Vec2,
 } from "@raid/shared";
 
 /** The panel's keys, as KeyboardEvent.code. Number-row and numpad digits do the same. */
@@ -217,6 +217,41 @@ export function cardKindLabel(kind: CardKind): string {
 export function kindLine(view: CardOptionView | null): string {
   if (view === null) return "";
   return view.why.text === "" ? cardKindLabel(view.kind) : `${cardKindLabel(view.kind)} · ${view.why.text}`;
+}
+
+/**
+ * The rarity frame an augment wears (BALANCE_CONTRACT 9): tier 1 plain, tier 2 silver, tier 3 gold. A base card and a conditional have
+ * no frame (their tier badge is all they need); null for them and for an unknown card.
+ */
+export type RarityFrame = "plain" | "silver" | "gold";
+
+export function rarityFrame(view: Pick<CardOptionView, "kind" | "tier"> | null): RarityFrame | null {
+  if (view === null || view.kind !== "augment") return null;
+  return view.tier >= 3 ? "gold" : view.tier === 2 ? "silver" : "plain";
+}
+
+/** A tag chip on a card: the label it shows and the glossary line a hover or a tap reveals. */
+export interface TagChip {
+  tag: MechanicTag;
+  label: string;
+  /** "Damage over time: Damage that ticks while you stay engaged ...". */
+  gloss: string;
+}
+
+/** The chips of a card's tags, in the card's order; none for an unknown card or a card with no tags. */
+export function tagChips(view: Pick<CardOptionView, "tags"> | null): TagChip[] {
+  return view === null ? [] : view.tags.map((tag) => ({ tag, label: tagLabel(tag), gloss: `${tagLabel(tag)}: ${TAG_GLOSSARY[tag].text}` }));
+}
+
+/**
+ * The hover text of a whole card on the panel: its name and tier, why it is offered, what it does, and the glossary line of each tag.
+ * One string with a line per part (the card's `title` attribute; the panel's own gloss strip shows the line of one chip).
+ */
+export function cardTitleAttr(view: CardOptionView | null, stateLine: string): string {
+  if (view === null) return stateLine;
+  const lines = [`${view.title} (tier ${tierRoman(view.tier)})`, kindLine(view), view.text, ...tagChips(view).map((t) => t.gloss)];
+  if (stateLine !== "") lines.push(stateLine);
+  return lines.filter((l) => l !== "").join("\n");
 }
 
 /** The state line of a card ("" for a free one). */

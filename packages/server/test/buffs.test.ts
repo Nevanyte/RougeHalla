@@ -6,7 +6,7 @@
 // (BALANCE_CONTRACT 3.6): what is tested here is that a kill gives GV and a weapon and no stat.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, decodeMult, eliteTypeOf, encodeMult, FACTIONS, GV_KILL, mapFromTiles,
+  attackInterval, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, decodeMult, elitesOf, encodeMult, FACTIONS, GV_KILL, mapFromTiles,
   mobRewardMultiplier, mobWeapon, mulberry32, pacedFaction, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, weaponTimings, WEAPONS,
   type FactionId, type FxEvent, type GameMap, type MobTypeId,
 } from "@raid/shared";
@@ -261,7 +261,7 @@ describe("a kill gives no stat", () => {
     P(w, 0).weapon0 = mobWeapon("fire"); // so the mob's weapon is not dropped: this is about the stat
     w.events = [];
     killMobBy(w, "fire", false);
-    killMobBy(w, "fire", true, eliteTypeOf("fire").id);
+    killMobBy(w, "fire", true, elitesOf("fire")[0]!.id);
     expect(P(w, 0).build.size).toBe(0);
     expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([835, 835]);
     expect([P(w, 0).asMult, P(w, 0).speedMult, P(w, 0).windupMult, P(w, 0).armorBonus, P(w, 0).shieldBonus, P(w, 0).adBonus, P(w, 0).apBonus])
@@ -287,7 +287,7 @@ describe("a kill gives no stat", () => {
     const untouched = startRun(2);
     P(killed, 0).weapon0 = mobWeapon("fire"); // so the mob's weapon is not dropped
     killMobBy(killed, "fire", false);
-    killMobBy(killed, "fire", true, eliteTypeOf("fire").id);
+    killMobBy(killed, "fire", true, elitesOf("fire")[0]!.id);
     const next = (w: World): number[] => [w.random(), w.random(), w.random()];
     expect(next(killed)).toEqual(next(untouched));
   });

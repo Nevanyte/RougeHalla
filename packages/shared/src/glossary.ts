@@ -1,10 +1,11 @@
 // The glossary behind the cards' tags (BALANCE_CONTRACT 4.5): the tooltip chips, the help overlay's Mechanics page and the card panel
 // all word a tag the same way, from here. Pure data. The card texts themselves never name a faction, weapon, mob or Wish; this file
 // is where the damage types and the signature and weapon tags are explained, so a player can learn what a chip means.
+import { AXE_SHRED_ARMOR, AXE_SHRED_CAP, AXE_SHRED_MS, WAND_SPLASH_RADIUS, WAND_SPLASH_SHARE } from "./constants";
 import type { FactionId } from "./factions";
 import type { MechanicTag } from "./cards";
 import type { SignatureKind } from "./signatures";
-import type { WeaponId } from "./weapons";
+import { WEAPONS, type WeaponId } from "./weapons";
 
 export interface GlossaryEntry {
   /** The term as the chip and the page show it. */
@@ -129,12 +130,18 @@ export interface WeaponTagRow {
 }
 
 export const WEAPON_TAGS: readonly WeaponTagRow[] = [
-  { weapon: "sword", tags: ["physical", "onHit"], note: "Staggers its target." },
-  { weapon: "axe", tags: ["physical", "onHit"], note: "Heavy swings that root their wielder for a moment." },
+  { weapon: "sword", tags: ["physical", "onHit"], note: `Staggers its target. Its on-hit effects land ${WEAPONS.sword.onHitPower}x as hard.` },
+  {
+    weapon: "axe", tags: ["physical", "onHit"],
+    note: `Heavy swings that root their wielder for a moment. Each hit shreds ${AXE_SHRED_ARMOR} armor for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}.`,
+  },
   { weapon: "bow", tags: ["physical"], note: "Arrows fly straight and can be dodged." },
-  { weapon: "wand", tags: ["magic", "area"], note: "Balls can delete arrows; most of its damage scales with AP." },
+  {
+    weapon: "wand", tags: ["magic", "area"],
+    note: `Balls can delete arrows and splash ${Math.round(WAND_SPLASH_SHARE * 100)}% of their damage onto other enemies within ${WAND_SPLASH_RADIUS} u; most of its damage scales with AP.`,
+  },
   { weapon: "shield", tags: ["block", "returned"], note: "Bashes, blocks in front, ripostes and reflects arrows." },
-  { weapon: "fists", tags: ["onHit"], note: "The fastest hands; an empty weapon slot fights with them." },
+  { weapon: "fists", tags: ["onHit"], note: `The fastest hands; an empty weapon slot fights with them. Their on-hit effects land ${WEAPONS.fists.onHitPower}x as hard.` },
 ];
 
 /** The mechanics page's lines about damage types, in one place for the help overlay. */

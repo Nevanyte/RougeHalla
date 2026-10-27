@@ -1,5 +1,6 @@
 import {
-  FACTIONS, QUEST_ITEM_PREFIX, QUEST_TURN_IN_RANGE, questDefById, questRewardText,
+  FACTIONS, QUEST_ITEM_PREFIX, QUEST_TURN_IN_RANGE, cardText, cardTitle, questDefById, questRewardCard, questRewardText, rewardCurve,
+  QUEST_FEED_BRAKE,
   type GameMap, type QuestDef, type QuestKind, type QuestRevealMessage,
 } from "@raid/shared";
 
@@ -128,8 +129,29 @@ function numberText(value: number): string {
   return String(Math.round(value * 10) / 10);
 }
 
-export function questReward(def: QuestDef): string {
-  return questRewardText(def);
+/**
+ * What a quest pays, in words. With the player's feed (shared feedScore of their kills) the card is the one the server will actually
+ * grant (questRewardCard: a tier lower once the mob reward curve at their feed has fallen under QUEST_FEED_BRAKE), and a lowered one
+ * says so; without it (the planning screen: nobody has fed yet) the nominal card. "Haste II (+16% attack speed) and 10 GV".
+ */
+export function questReward(def: QuestDef, feed?: number): string {
+  const nominal = questRewardText(def);
+  if (feed === undefined || !Number.isFinite(feed)) return nominal;
+  const card = questRewardCard(def, feed);
+  if (card === def.reward.card) return nominal;
+  const title = cardTitle(card);
+  return title === "" ? nominal : `${title} (${cardText(card)}) and ${def.reward.gv} GV. A tier lower, as you are far ahead`;
+}
+
+/** The feed above which a quest's card is paid a tier lower (the mob reward curve falls under QUEST_FEED_BRAKE there). */
+export function questBrakeFeed(): number {
+  let lo = 0;
+  let hi = 100;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (rewardCurve(mid) < QUEST_FEED_BRAKE) hi = mid; else lo = mid;
+  }
+  return hi;
 }
 
 export function questObjective(def: QuestDef): string {
@@ -149,7 +171,7 @@ export function questReady(quest: QuestStateLike, def: QuestDef, localId: string
 }
 
 export function questRows(
-  quests: QuestCollection, localId: string, serverNow: number, localName = "", planning = false,
+  quests: QuestCollection, localId: string, serverNow: number, localName = "", planning = false, feed?: number,
 ): QuestRow[] {
   const rows: QuestRow[] = [];
   quests.forEach((quest) => {
@@ -169,7 +191,7 @@ export function questRows(
     rows.push({
       id: quest.id, def, quest, objective: questObjective(def), progress,
       time: closed ? "" : formatQuestTime(planning ? def.expiresAtSec * 1000 : quest.expiresAt - serverNow),
-      reward: questReward(def), status, ready, expired, closed,
+      reward: questReward(def, feed), status, ready, expired, closed,
     });
   });
   const group = (row: QuestRow): number => !row.closed ? 0 : row.quest.status === "done" ? 1 : 2;

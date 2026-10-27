@@ -136,6 +136,23 @@ describe("fx codec: round trip", () => {
     );
   });
 
+  it("carries a critical strike in the hit's flags (+64): no extra element, whatever the weapon and signature", () => {
+    for (const weapon of [null, "sword", "fists", "wand"] as const) {
+      for (const sig of [undefined, "burn", "mark"] as const) {
+        const fx: FxEvent = { kind: "hit", id: "a", by: "b", amount: 7.5, weapon, ...(sig ? { sig } : {}), crit: true };
+        expect(roundTrip(fx), `${weapon} ${sig}`).toEqual({ ...fx, t: T });
+        expect(packFx([fx], T).l[0], `${weapon} ${sig}`).toHaveLength(5);
+      }
+    }
+    // A crit with an ability still carries the ability code as the fifth element.
+    const withAbility: FxEvent = { kind: "hit", id: "a", by: "b", amount: 3, weapon: null, ability: "blaze", crit: true };
+    expect(roundTrip(withAbility)).toEqual({ ...withAbility, t: T });
+    // A plain hit never decodes as a crit, and `crit: false` is the same as leaving it off.
+    expect(roundTrip({ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe" })).not.toHaveProperty("crit");
+    expect(packFx([{ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe" }], T).l[0]![4]).toBe(5);
+    expect(packFx([{ kind: "hit", id: "a", by: "b", amount: 5, weapon: "axe", crit: true }], T).l[0]![4]).toBe(5 + 64);
+  });
+
   it("skips a hit whose signature code is unknown rather than dropping the signature silently", () => {
     expect(unpackFx({ t: T, l: [[2, "a", "b", 50, 99]] }, NONE)).toEqual([]);
   });
@@ -225,7 +242,7 @@ describe("fx codec: bad input is skipped, not thrown on", () => {
       [0, "a", 1, 100],                    // windup, missing ms
       [0, "a", 77, 100, 200],              // windup, unknown weapon
       [0, "a", 1, "x", 200],               // windup, angle is a string
-      [2, "a", "b", 10, 77],               // hit, unknown weapon (and signature)
+      [2, "a", "b", 10, 177],              // hit, unknown weapon (and signature), even past the critical-strike flag
       [2, "a", "b", 10, -1],               // hit, negative flags
       [2, "a", "b", 10, 1.5],              // hit, fractional flags
       [2, 7, "b", 10, 1],                  // hit, id is a roster index the roster does not have

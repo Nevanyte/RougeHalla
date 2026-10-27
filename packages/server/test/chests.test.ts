@@ -23,6 +23,7 @@ import { modRowsOf } from "../src/sim/mods";
 import { addStatus } from "../src/sim/status";
 import { actionOrder, addPlayer, step } from "../src/sim/step";
 import type { LedgerEntry, SimEvent, World } from "../src/sim/world";
+import { withNotLive } from "./support/notLive";
 
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 
@@ -853,10 +854,12 @@ describe("grantCard", () => {
   });
 
   it("a card that waits for its hook can be held (a test's, the console's) but folds nothing", () => {
-    const w = run();
-    expect(grantCard(w, me(w), "overkill")).toBe(1);
-    expect(P(w, 0).build.get("overkill")).toBe(1);
-    expect(modRowsOf(P(w, 0))).toEqual([]);
+    withNotLive(["overkill"], () => {
+      const w = run();
+      expect(grantCard(w, me(w), "overkill")).toBe(1);
+      expect(P(w, 0).build.get("overkill")).toBe(1);
+      expect(modRowsOf(P(w, 0))).toEqual([]);
+    });
   });
 });
 

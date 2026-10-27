@@ -2,7 +2,10 @@
 // open / close behaviour on the fake DOM.
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HELP_SECTIONS, HelpOverlay, helpSectionOrder, isMouseLabel } from "../src/ui/helpOverlay";
+import {
+  DAMAGE_TYPE_LINE, FACTIONS, GLOSSARY, MECHANIC_TAGS, PVP_FMAX, SIGNATURE_TAGS, STAT_GLOSSARY, TAG_GLOSSARY, WEAPONS, WEAPON_TAGS, pvpFactor,
+} from "@raid/shared";
+import { HELP_SECTIONS, HelpOverlay, helpSectionOrder, isMouseLabel, mechanicsSections } from "../src/ui/helpOverlay";
 import { fake, installChromeDom } from "./chromeDom";
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -193,5 +196,131 @@ describe("HelpOverlay", () => {
     expect(help.contains(root.byClass("help-close")[0]! as never)).toBe(true);
     expect(help.contains(doc.body as never)).toBe(false);
     expect(help.contains(null)).toBe(false);
+  });
+});
+
+describe("the Mechanics page (data)", () => {
+  const sections = mechanicsSections();
+  const by = (id: string) => sections.find((x) => x.id === id)!;
+
+  it("has the glossary terms, the power and PvP lines, the signatures and the weapons, in that order", () => {
+    expect(sections.map((x) => x.id)).toEqual(["terms", "power", "signatures", "weapons"]);
+    for (const x of sections) {
+      expect(x.title.length).toBeGreaterThan(3);
+      expect(x.entries.length).toBeGreaterThan(0);
+      for (const e of x.entries) {
+        expect(e.term.trim(), x.id).not.toBe("");
+        expect(e.text.trim(), `${x.id}/${e.term}`).not.toBe("");
+      }
+    }
+  });
+
+  it("lists AD and AP and every tag of the glossary, worded as the cards' chips word them, with the damage-type line first", () => {
+    const terms = by("terms");
+    expect(terms.intro).toBe(DAMAGE_TYPE_LINE);
+    expect(terms.entries).toEqual(GLOSSARY.map((g) => ({ term: g.term, text: g.text })));
+    const names = terms.entries.map((e) => e.term);
+    for (const needed of ["AD", "AP", "Physical", "Magic", "True", "Damage over time", "On-hit", "Returned", "Block", "Slow", "Heal", "Ramping", "Execute", "Critical strike", "Area"]) {
+      expect(names, needed).toContain(needed);
+    }
+    expect(terms.entries.find((e) => e.term === "AD")!.text).toBe(STAT_GLOSSARY.ad.text);
+    for (const tag of MECHANIC_TAGS) expect(terms.entries.find((e) => e.term === TAG_GLOSSARY[tag].term)?.text, tag).toBe(TAG_GLOSSARY[tag].text);
+  });
+
+  it("states card power and the PvP factor with the real numbers", () => {
+    const power = by("power").entries;
+    expect(power.map((e) => e.term)).toEqual(["Card power", "PvP factor", "Chests"]);
+    const pvp = power[1]!.text;
+    expect(pvp).toContain(`x${pvpFactor(0).toFixed(2)} at power 0`);
+    expect(pvp).toContain(`x${pvpFactor(6).toFixed(2)} at power 6`);
+    expect(pvp).toContain(`tops out at x${PVP_FMAX.toFixed(2)}`);
+    expect(pvp).toContain("x0.75 at power 0");
+    expect(power[0]!.text).toMatch(/sum of the tiers/);
+  });
+
+  it("lists each signature with its tags (the owner's table: burn magic over time, backlash physical returned, the mark true ramping...)", () => {
+    const sig = by("signatures").entries;
+    expect(sig).toHaveLength(SIGNATURE_TAGS.length);
+    const text = (term: string) => sig.find((e) => e.term === term)!.text;
+    expect(text(`${FACTIONS.fire.displayName}: Burn`)).toBe("Magic, Damage over time");
+    expect(text(`${FACTIONS.fire.displayName}: Backlash`)).toBe("Physical, Returned");
+    expect(text(`${FACTIONS.sentenced.displayName}: Mark`)).toBe("True, Ramping, Damage over time");
+    expect(text(`${FACTIONS.plague.displayName}: Disease and execute`)).toBe("Magic, Damage over time, Execute");
+    expect(text(`${FACTIONS.frost.displayName}: Chill`)).toBe("Slow");
+    expect(text(`${FACTIONS.holy.displayName}: Lifesteal`)).toBe("Heal");
+    // The Holy faction is shown to players as Demon Blood.
+    expect(sig.some((e) => e.term.startsWith("Demon Blood:"))).toBe(true);
+  });
+
+  it("lists each weapon with what it scales with and what it does, from the weapon table", () => {
+    const rows = by("weapons").entries;
+    expect(rows.map((e) => e.term)).toEqual(WEAPON_TAGS.map((r) => WEAPONS[r.weapon].name));
+    expect(rows.find((e) => e.term === "Wand")!.text).toContain("Scales with AP 1.2 + AD 0.3");
+    expect(rows.find((e) => e.term === "Sword")!.text).toContain("Scales with AD 1.0");
+    expect(rows.find((e) => e.term === "Fists")!.text).toContain("Scales with AD 0.6 + AP 0.6");
+    for (const row of WEAPON_TAGS) expect(rows.find((e) => e.term === WEAPONS[row.weapon].name)!.text).toContain(row.note);
+  });
+});
+
+describe("the Mechanics page (the card)", () => {
+  function setup() {
+    const { doc } = installChromeDom();
+    const help = new HelpOverlay({});
+    const root = fake(help.element);
+    doc.ui.append(root);
+    return { help, doc, root };
+  }
+
+  it("is a second page behind a tab: Controls first, Mechanics on click, each tab marking the page shown", () => {
+    const { help, root } = setup();
+    const [controlsTab, mechanicsTab] = root.byClass("help-tab");
+    expect([controlsTab!.textContent, mechanicsTab!.textContent]).toEqual(["Controls", "Mechanics"]);
+    expect(controlsTab!.getAttribute("role")).toBe("tab");
+    expect(root.byClass("help-tabs")[0]!.getAttribute("role")).toBe("tablist");
+    const [controls, mechanics] = root.byClass("help-body");
+    help.open();
+    expect(help.page).toBe("controls");
+    expect([controls!.hidden, mechanics!.hidden]).toEqual([false, true]);
+    expect(controlsTab!.getAttribute("aria-selected")).toBe("true");
+    expect(mechanicsTab!.getAttribute("aria-selected")).toBe("false");
+    mechanicsTab!.click();
+    expect(help.page).toBe("mechanics");
+    expect([controls!.hidden, mechanics!.hidden]).toEqual([true, false]);
+    expect(mechanicsTab!.getAttribute("aria-selected")).toBe("true");
+    controlsTab!.click();
+    expect(help.page).toBe("controls");
+  });
+
+  it("opens on the page it is asked for, and on Controls by default (a reopened card does not keep Mechanics)", () => {
+    const { help } = setup();
+    help.open("hub", "mechanics");
+    expect(help.page).toBe("mechanics");
+    help.close();
+    help.open();
+    expect(help.page).toBe("controls");
+  });
+
+  it("draws every term and its definition on the Mechanics page, with no keycaps among them", () => {
+    const { root } = setup();
+    const page = root.byClass("help-mechanics")[0]!;
+    const text = page.allText;
+    for (const x of mechanicsSections()) {
+      expect(text).toContain(x.title);
+      for (const e of x.entries) {
+        expect(text).toContain(e.term);
+        expect(text).toContain(e.text);
+      }
+    }
+    expect(page.find((e) => e.tagName === "KBD")).toHaveLength(0);
+    expect(page.byClass("help-mech-section")).toHaveLength(4);
+    // The controls table still has exactly its keycaps (the Mechanics page adds none).
+    expect(root.find((e) => e.tagName === "KBD")).toHaveLength(HELP_SECTIONS.flatMap((s) => s.bindings).reduce((n, b) => n + b.keys.length, 0));
+  });
+
+  it("keeps the controls sections the groundLegend and chrome tests count: the Mechanics sections use their own class", () => {
+    const { doc } = installChromeDom();
+    const root = fake(new HelpOverlay({ ground: false }).element);
+    doc.ui.append(root);
+    expect(root.byClass("help-section")).toHaveLength(HELP_SECTIONS.length);
   });
 });

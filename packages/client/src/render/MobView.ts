@@ -2,9 +2,10 @@ import Phaser from "phaser";
 import { PLAYER_RADIUS, Y_SCALE } from "@raid/shared";
 import type { MobState } from "@raid/shared/schema";
 import { ELITE_COLOR } from "../ui/buffTheme";
-import { around, bakedImage, pixelImage, scaledPart, type Region } from "./bake";
+import { around, bakedImage, pixelImage, placeBake, scaledPart, swapBake, type Region } from "./bake";
 import { BodyDisc, BodyFlash, FighterArt, HpBar, factionColor, shadowImage } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
+import { roleMarkOf, type RoleGlyph, type RoleMark } from "./mobRole";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
 import { SignatureArt } from "./SignatureArt";
 import { StatusArt } from "./StatusArt";
@@ -31,16 +32,24 @@ const ELITE_RING_REGION: Region = { x0: -ELITE_RING_W / 2 - 3, y0: -ELITE_RING_W
 const STAR_REGION: Region = around(10);
 const RIM_NORMAL = { width: 2, color: 0x111111, alpha: 0.8 } as const;
 const RIM_ELITE = { width: 3, color: ELITE_COLOR, alpha: 1 } as const;
+/** The role glyph's bake: on the disc, so it is as wide as the body. */
+const ROLE_REGION: Region = around(PLAYER_RADIUS + 1);
 
 /**
  * A neutral fighter drawn like a player without the player-only marks: the training dummy (grey, bar and name always on),
  * a regional mob (its faction's colour; the bar shows only once it is hurt or fighting, the name stays faint until then)
  * and an elite (the same, plus a gold ring on the ground, a gold-rimmed body, a star over the name and a gold name).
+ * A regional mob's TYPE adds a role mark on the disc (mobRole.ts): small dots for a swarm, a chevron for a skirmisher, an inner ring
+ * for a caster, a thick rim for a brute.
  */
 export class MobView {
   private readonly root: Phaser.GameObjects.Container;
   private readonly body: BodyDisc;
   private readonly nose: Phaser.GameObjects.Image;
+  /** The role glyph over the disc (empty for a grunt); its bake is swapped when the type changes. */
+  private readonly roleGlyph: Phaser.GameObjects.Image;
+  private role: RoleMark = roleMarkOf("");
+  private roleType = "";
   private readonly hpBar: HpBar;
   private readonly label: Phaser.GameObjects.Text;
   private readonly eliteRing: Phaser.GameObjects.Image;
@@ -75,6 +84,8 @@ export class MobView {
     this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), RIM_NORMAL);
     this.body.image.setPosition(0, -BODY_LIFT);
     this.flashing = new BodyFlash(this.body, factionColor(""));
+    this.roleGlyph = pixelImage(scene).setPosition(0, -BODY_LIFT).setVisible(false);
+    placeBake(this.roleGlyph, ROLE_REGION);
     this.nose = pixelImage(scene).setOrigin(0, 0.5).setPosition(0, -BODY_LIFT).setDisplaySize(PLAYER_RADIUS, 4).setTint(0x111111).setAlpha(0.8);
     this.hpBar = new HpBar(scene);
     this.label = scene.add.text(0, LABEL_Y, "", {
@@ -86,11 +97,12 @@ export class MobView {
       g.fillPath().strokePath();
     }).setVisible(false);
     this.root = scene.add.container(0, 0, [
-      shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body.image, this.nose, this.art.held, this.signatures.aura,
+      shadow, this.eliteRing, this.signatures.ground, this.art.ground, this.body.image, this.roleGlyph, this.nose, this.art.held, this.signatures.aura,
       this.hpBar.root, this.label, this.eliteStar, this.status.g,
     ]);
     this.fig = new FigureJuice([
-      { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: this.nose, y0: -BODY_LIFT, scaled: false },
+      { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.roleGlyph), y0: -BODY_LIFT, scaled: true },
+      { obj: this.nose, y0: -BODY_LIFT, scaled: false },
       { obj: this.art.held, y0: -BODY_LIFT, scaled: false }, { obj: this.signatures.aura, y0: 0, scaled: false },
     ], this.art, puffs);
     this.cues = this.fig.pose;
@@ -115,6 +127,7 @@ export class MobView {
       this.fade = fade;
       this.root.setAlpha(fade).setScale(1 - (1 - fade) * (1 - DEATH_SHRINK));
     }
+    this.setRole(m.type ?? "");
     this.setElite(m.kind === "elite");
     this.flashing.setColor(factionColor(m.faction));
     this.root.setPosition(projX(x), projY(y));
@@ -122,6 +135,7 @@ export class MobView {
     this.fig.frame(x, y, m.facing, renderT, performance.now()); // juice: before the art, which reads the weapon's turn
     const weapon = this.art.update(m, renderT, patchT);
     this.nose.setVisible(weapon === null).setRotation(screenAngle(m.facing));
+    if (this.role.glyph === "chevron") this.roleGlyph.setRotation(screenAngle(m.facing));
 
     this.signatures.update(m.sig, m.brand, signatures);
     this.status.update(m.effects | 0, performance.now());
@@ -167,15 +181,50 @@ export class MobView {
     return Math.max(0, Math.min(1, 1 - (renderT - this.diedAt) / DEATH_MS));
   }
 
+  /** The role mark of the mob's type: its glyph on the disc, and a brute's thick rim (kept apart from the elite's gold). */
+  private setRole(type: string): void {
+    if (type === this.roleType) return;
+    this.roleType = type;
+    this.role = roleMarkOf(type);
+    const glyph = this.role.glyph;
+    this.roleGlyph.setVisible(glyph !== "none").setRotation(0);
+    if (glyph !== "none") swapBake(this.roleGlyph, this.scene, `role:${glyph}`, ROLE_REGION, (g) => drawGlyph(g, glyph));
+    this.applyRim();
+  }
+
+  private applyRim(): void {
+    const base = this.elite ? RIM_ELITE : RIM_NORMAL;
+    this.body.setRim(Math.max(base.width, this.role.rim), base.color, base.alpha);
+  }
+
   private setElite(elite: boolean): void {
     if (elite === this.elite) return;
     this.elite = elite;
     this.eliteRing.setVisible(elite);
-    const rim = elite ? RIM_ELITE : RIM_NORMAL;
-    this.body.setRim(rim.width, rim.color, rim.alpha);
+    this.applyRim();
     this.label.setColor(elite ? ELITE_LABEL_COLOR : LABEL_COLOR).setFontStyle(elite ? "bold" : "").setFontSize(elite ? 12 : 11);
     // Clear of the name's top edge; the bar and name sit where every mob's do.
     this.eliteStar.setPosition(0, LABEL_Y - 23);
+  }
+}
+
+/** The role glyph, white over a dark outline so it reads on any zone colour; drawn once per glyph into a shared bake. */
+function drawGlyph(g: Phaser.GameObjects.Graphics, glyph: Exclude<RoleGlyph, "none">): void {
+  const stroke = (w: number, color: number, a: number) => g.lineStyle(w, color, a);
+  if (glyph === "dots") {
+    for (const [x, y] of [[-4, -2.5], [4, -2.5], [0, 3.5]] as const) {
+      g.fillStyle(0x111111, 0.7).fillCircle(x, y, 2.6);
+      g.fillStyle(0xffffff, 0.95).fillCircle(x, y, 1.7);
+    }
+  } else if (glyph === "ring") {
+    stroke(3.2, 0x111111, 0.6).strokeCircle(0, 0, PLAYER_RADIUS * 0.55);
+    stroke(1.6, 0xffffff, 0.95).strokeCircle(0, 0, PLAYER_RADIUS * 0.55);
+  } else {
+    // A chevron pointing along +x (rotated to the mob's facing each frame).
+    g.beginPath().moveTo(-3.5, -5).lineTo(3, 0).lineTo(-3.5, 5);
+    stroke(3.4, 0x111111, 0.6).strokePath();
+    g.beginPath().moveTo(-3.5, -5).lineTo(3, 0).lineTo(-3.5, 5);
+    stroke(1.8, 0xffffff, 0.95).strokePath();
   }
 }
 

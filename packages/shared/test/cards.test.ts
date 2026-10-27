@@ -5,7 +5,7 @@ import {
   ABILITIES, AUGMENT_IDS, BASE_STAT_IDS, BASE_TITLES, baseCardId, baseCount, CARD_IDS, CARD_TIERS, cardBlock, cardDef, cardLive,
   cardOptionView, cardPower, CARDS, cardsOfKind, cardText, cardTierOf, cardTitle, CHEST_CONDITIONAL_CHANCE, CHEST_REFUSAL,
   CHEST_REFUSALS, CHEST_TIER_ODDS, conditionalPool, CONDITIONAL_IDS, countIn, FACTIONS, FACTION_IDS, GLOSSARY, isCardId, isChestRefusal,
-  isPhaseAEffect, LIVE_CARD_READY, MECHANIC_TAGS, MOB_TYPES, mulberry32, needsRefusal, ownedCards, ownsBase, QUEST_DEFS, rollChestOptions,
+  LIVE_CARD_READY, MECHANIC_TAGS, MOB_TYPES, mulberry32, needsRefusal, ownedCards, ownsBase, QUEST_DEFS, rollChestOptions,
   SIGNATURE_TAGS, tierRoman, TAG_GLOSSARY, WEAPON_TAGS, WEAPONS, whyOffered, augmentPool,
   type CardCounts, type CardDef, type CardId, type CardTier,
 } from "../src/index";
@@ -26,18 +26,14 @@ describe("the catalog", () => {
     expect(isCardId(7)).toBe(false);
   });
 
-  it("launches 58 cards (24 base, 9 conditional, 25 augments) and holds 17 back as catalog data for the hook agent", () => {
+  it("has all 75 cards live: the phase-B hooks landed, so no card is held back as catalog data", () => {
     const live = CARDS.filter((c) => cardLive(c));
     expect(LIVE_CARD_READY).toEqual(["a"]);
-    expect(live).toHaveLength(58);
+    expect(live).toHaveLength(75);
     expect(cardsOfKind("base", { liveOnly: true })).toHaveLength(24);
-    expect(cardsOfKind("conditional", { liveOnly: true })).toHaveLength(9);
-    expect(cardsOfKind("augment", { liveOnly: true })).toHaveLength(25);
-    expect(CARDS.filter((c) => c.ready === "b").map((c) => c.id).sort()).toEqual([
-      "adrenaline", "bestOffense", "cruelWounds", "eyeForAnEye", "festeringArcana", "firstImpressions", "gambler", "hemorrhage",
-      "overkill", "plantYourFeet", "pocketSand", "rhythm", "spikedShell", "tankEngine", "thirdTimesTheCharm", "tunnelVision",
-      "wishfulThinking",
-    ].sort());
+    expect(cardsOfKind("conditional", { liveOnly: true })).toHaveLength(11);
+    expect(cardsOfKind("augment", { liveOnly: true })).toHaveLength(40);
+    expect(CARDS.filter((c) => c.ready === "b").map((c) => c.id)).toEqual([]);
   });
 
   it("gives every card a tier of 1-3, a title, a text and tags from the mechanic list", () => {
@@ -98,20 +94,30 @@ describe("the catalog", () => {
     for (const c of cardsOfKind("augment")) expect(c.requires, c.id).toBeUndefined();
   });
 
-  it("makes every phase-A card's rows phase-A kinds, and gives every phase-B card its hook and no rows", () => {
-    for (const c of CARDS) {
-      if (c.ready === "a") {
-        for (const e of c.effects) expect(isPhaseAEffect(e), `${c.id} ${JSON.stringify(e)}`).toBe(true);
-        for (const rows of Object.values(c.byFaction ?? {})) for (const e of rows ?? []) expect(isPhaseAEffect(e), c.id).toBe(true);
-        expect(c.effects.length, c.id).toBeGreaterThan(0);
-      } else {
-        expect(c.effects, c.id).toEqual([]);
-        expect(c.hook, c.id).toBeTruthy();
-      }
-    }
-    // Fists of Fury is live for its attack speed and waits for the on-hit pipeline for the rest.
-    expect(cardDef("fistsOfFury")!.hook).toBeTruthy();
-    expect(cardLive("fistsOfFury")).toBe(true);
+  it("gives every card rows (a live card with none would do nothing), and the phase-B cards the rows their hooks read", () => {
+    for (const c of CARDS) expect(c.effects.length, c.id).toBeGreaterThan(0);
+    const flags = (id: string): string[] => cardDef(id)!.effects.flatMap((e) => (e.k === "flag" ? [e.flag] : []));
+    expect(flags("festeringArcana")).toEqual(["festering"]);
+    expect(flags("cruelWounds")).toEqual(["dotCrit"]);
+    expect(flags("gambler")).toEqual(["gambler"]);
+    expect(flags("thirdTimesTheCharm")).toEqual(["thirdCharm"]);
+    expect(flags("eyeForAnEye")).toEqual(["eyeForAnEye"]);
+    expect(flags("bestOffense")).toEqual(["blockHits"]);
+    expect(flags("plantYourFeet")).toEqual(["plantFeet"]);
+    expect(flags("fistsOfFury")).toEqual(["twiceUnarmed"]);
+    // Rhythm: a third of a critical strike per attack on the accumulator, so every 3rd attack crits; Cruel Wounds: +20%.
+    expect(cardDef("rhythm")!.effects).toEqual([{ k: "stat", stat: "critChance", v: 1 / 3 }]);
+    expect(cardDef("cruelWounds")!.effects[0]).toEqual({ k: "stat", stat: "critChance", v: 0.2 });
+    expect(cardDef("tunnelVision")!.effects).toEqual([{ k: "scale", src: "streak", per: 0.04, step: 1, cap: 0.4 }]);
+    expect(cardDef("firstImpressions")!.effects).toEqual([{ k: "vs", test: "streak", arg: 0, v: 0.4 }]);
+    expect(cardDef("hemorrhage")!.effects).toEqual([{ k: "onHit", status: "dot", per: 0.1, cap: 1, ms: 2000 }]);
+    const triggers = (id: string): Array<[string, string]> => cardDef(id)!.effects.flatMap((e) => (e.k === "trigger" ? [[e.on, e.do.do] as [string, string]] : []));
+    expect(triggers("overkill")).toEqual([["kill", "splash"]]);
+    expect(triggers("tankEngine")).toEqual([["block", "fortify"]]);
+    expect(triggers("pocketSand")).toEqual([["block", "status"]]);
+    expect(triggers("adrenaline")).toEqual([["hitTaken", "boost"]]);
+    expect(triggers("spikedShell")).toEqual([["hitTaken", "return"]]);
+    expect(triggers("wishfulThinking")).toEqual([["hit", "cooldown"]]);
   });
 
   it("keeps each base's tiers in ratio: T2 about 1.75 x T1 (1.6-1.9) and T3 about 2.75 x T1 (2.5-3.0)", () => {
@@ -306,15 +312,15 @@ describe("the chest roll (4.8)", () => {
     expect(conditionalPool([a, { ad1: 1 }]).map((c) => c.id).sort()).toEqual(["bloodthirst", "juggernaut", "secondSkin", "spellsword"]);
     expect(conditionalPool([]).map((c) => c.id)).toEqual([]);
     for (const o of rolls({ pickers: [a, b] })) expect(o).not.toContain("bloodthirst");
-    // Phase-B conditionals never make the pool, whatever the pickers own.
+    // All eleven conditionals are live now (Festering Arcana and Rhythm landed with the phase-B hooks).
     const everything: CardCounts = Object.fromEntries(BASE_STAT_IDS.map((s) => [`${s}1`, 1]));
     const all = conditionalPool([everything]).map((c) => c.id);
-    expect(all).toHaveLength(9);
-    expect(all).not.toContain("festeringArcana");
-    expect(all).not.toContain("rhythm");
+    expect(all).toHaveLength(11);
+    expect(all).toContain("festeringArcana");
+    expect(all).toContain("rhythm");
   });
 
-  it("never offers an augment every eligible picker holds, nor a card that waits for a hook", () => {
+  it("never offers an augment every eligible picker holds, nor a card that is not live", () => {
     const hold: CardCounts = Object.fromEntries(AUGMENT_IDS.filter((id) => cardLive(id)).filter((id) => id !== "witness").map((id) => [id, 1]));
     for (const o of rolls({ pickers: [hold, hold] }, 600)) expect(cardDef(o[2]!)!.id).toBe("witness");
     for (const o of rolls({ pickers: [hold] }, 600)) expect(o[2]).toBe("witness");

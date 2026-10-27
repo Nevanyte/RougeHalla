@@ -144,9 +144,10 @@ export type FxEvent =
   /**
    * `id` took `amount` (after armor and shield). `by` is the attacker's id, or null for the arena. `sig`: signature
    * damage, either Fire's backlash on one swing of `id`, or DOT_FX_MS worth of damage over time (burn, disease, mark).
-   * `ability`: the ability that dealt it (weapon null); a dot ability's hits come in chunks like a signature's.
+   * `ability`: the ability that dealt it (weapon null); a dot ability's hits come in chunks like a signature's. A hit with no
+   * weapon, signature or ability is a bleed (a card's damage over time), also in chunks. `crit`: a critical strike (1.5x).
    */
-  | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null; sig?: SignatureKind; ability?: AbilityId }
+  | { kind: "hit"; id: string; by: string | null; amount: number; weapon: WeaponId | null; sig?: SignatureKind; ability?: AbilityId; crit?: true }
   /**
    * `id`'s shield negated a hit by `by`'s weapon (a sword hit also ripostes: a `hit` on `by` follows). `passive`: the
    * blocked hit was not an attack of `by`'s own (an arrow `by` reflected).

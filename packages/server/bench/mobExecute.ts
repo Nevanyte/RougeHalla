@@ -12,13 +12,17 @@
 //
 //   npx tsx bench/mobExecute.ts                       the 25% hp table (zone x player faction) and the A13 verdict
 //   npx tsx bench/mobExecute.ts --all                 also: full hp, 50% hp, a 4-mob camp at 40% hp, an elite at full hp
-//   options: --hp 0.25  --mobs 1  --elite  --cap 120 (seconds)  --json FILE
+//   npx tsx bench/mobExecute.ts --types               the same table once per mob type of the kind (4 normal, 2 elite) instead of pooled
+//   options: --hp 0.25  --mobs 1  --elite  --cap 120 (seconds)  --json FILE  --grunt (no type: the plain zone faction, the numbers before roles)
+//
+// A cell pools the zone's types by default (the mean seconds over its four normal types, or its two elites): the roles change
+// a mob's hp and damage, so a zone's number is the mix of its types. A camp is mono-type, so a pooled cell is the average camp.
 //
 // A13 reads two ratios, both Plague-zone time over the median of the other four zones' times: per player faction (each
 // column of the table) and pooled (the Plague row's median over the median of all twenty cells of the other rows). A cell
 // that outlived the cap counts as the cap.
 import { writeFileSync } from "node:fs";
-import { FACTION_IDS, mulberry32, TICK_MS, TILE, type FactionId, type Vec2 } from "@raid/shared";
+import { elitesOf, FACTION_IDS, mulberry32, normalTypesOf, TICK_MS, TILE, type FactionId, type MobTypeId, type Vec2 } from "@raid/shared";
 import { buildArena } from "../src/harness/duel";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -40,6 +44,8 @@ export interface ExecuteSpec {
   /** How many mobs attack (the first is the elite when `elite`). */
   mobs: number;
   elite: boolean;
+  /** The mob type: every mob of a normal camp, or the elite when `elite`. Omitted = a mob without a type (the plain zone faction, a grunt's numbers). */
+  type?: MobTypeId;
   /** Give up after this many seconds. */
   capS: number;
 }
@@ -73,7 +79,10 @@ export function runMobExecute(spec: ExecuteSpec): ExecuteResult {
   for (let i = 0; i < spec.mobs; i++) {
     const a = Math.PI + (i / Math.max(1, spec.mobs)) * Math.PI * 2 * 0.75 - 0.4;
     const at = { x: start.x + Math.cos(a) * 70, y: start.y + Math.sin(a) * 70 };
-    ids.push(placeMob(world, { region: spec.zone, elite: spec.elite && i === 0, at, facing: Math.atan2(start.y - at.y, start.x - at.x) }));
+    const elite = spec.elite && i === 0;
+    // An elite camp's mates are the zone's first normal type; the elite is `type`.
+    const type = spec.type === undefined ? undefined : elite || !spec.elite ? spec.type : normalTypesOf(spec.zone)[0]!.id;
+    ids.push(placeMob(world, { region: spec.zone, elite, type, at, facing: Math.atan2(start.y - at.y, start.x - at.x) }));
   }
   for (const id of ids) {
     const m = combatant(world, id)!;
@@ -114,16 +123,22 @@ export interface ExecuteTable {
   pooled: number;
 }
 
-export function executeTable(base: Omit<ExecuteSpec, "zone" | "player">): ExecuteTable {
+/**
+ * The table of `base` (the spec without zone and player). `pool`: "types" (the default) averages a zone's cell over its types
+ * (four normal, two elite), "none" runs the plain zone faction (what the benchmark measured before roles), or a MobTypeId
+ * runs that one type in every zone it belongs to (the other zones fall back to the plain faction).
+ */
+export function executeTable(base: Omit<ExecuteSpec, "zone" | "player">, pool: "types" | "none" | MobTypeId = "types"): ExecuteTable {
   const secs = {} as ExecuteTable["secs"];
   const capped = {} as ExecuteTable["capped"];
   for (const zone of FACTION_IDS) {
     secs[zone] = {} as Record<FactionId, number>;
     capped[zone] = {} as Record<FactionId, boolean>;
+    const types: Array<MobTypeId | undefined> = pool === "types" ? (base.elite ? elitesOf(zone) : normalTypesOf(zone)).map((t) => t.id) : pool === "none" ? [undefined] : [pool];
     for (const player of FACTION_IDS) {
-      const r = runMobExecute({ ...base, zone, player });
-      secs[zone][player] = r.ttk ?? base.capS;
-      capped[zone][player] = r.ttk === null;
+      const rs = types.map((type) => runMobExecute({ ...base, zone, player, type }));
+      secs[zone][player] = rs.reduce((sum, r) => sum + (r.ttk ?? base.capS), 0) / rs.length;
+      capped[zone][player] = rs.every((r) => r.ttk === null);
     }
   }
   const others = FACTION_IDS.filter((z) => z !== "plague");
@@ -168,11 +183,19 @@ function main(): void {
       { hpFrac: value("hp", 0.25), mobs: value("mobs", 1), elite: flag("elite"), capS },
     ]];
   for (const [title, spec] of sets) {
-    const t = executeTable(spec);
+    if (flag("types")) {
+      for (const type of [...new Set(FACTION_IDS.flatMap((z) => (spec.elite ? elitesOf(z) : normalTypesOf(z)).map((x) => x.id)))]) {
+        const t = executeTable(spec, type);
+        out[`${title} [${type}]`] = t;
+        printTable(`${title} [${type}] (only its zone's row is this type)`, t);
+      }
+      continue;
+    }
+    const t = executeTable(spec, flag("grunt") ? "none" : "types");
     out[title] = t;
-    printTable(title, t);
+    printTable(title + (flag("grunt") ? " (no type)" : " (mean over the zone's types)"), t);
   }
-  const a13 = Object.entries(out).find(([title]) => title.includes("(A13)"));
+  const a13 = Object.entries(out).find(([title]) => title.includes("(A13)") && !title.includes("["));
   if (a13) {
     const [, t] = a13;
     const worst = Math.min(...FACTION_IDS.map((pf) => t.byPlayer[pf]));

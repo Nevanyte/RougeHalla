@@ -35,8 +35,10 @@ const HOME = tile(16, 16);
 const FAR = { x: HOME.x + MOB_LEASH_RADIUS + 16, y: HOME.y };
 /** Hp that no scenario can exhaust. */
 const BIG_HP = 1e6;
+// The signatures are measured on the weapons' damage alone: no armor shred from the axes (an axe mob would take armor off the player
+// its backlash hits), no wand splash.
 const CONFIG: SimConfig = {
-  minPlayers: 1, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9, suddenDeathSeconds: 1e9,
+  minPlayers: 1, lobbySeconds: 0, fillSeconds: 0, patienceSeconds: 1e9, patienceMinSeconds: 1e9, suddenDeathSeconds: 1e9, weaponSpecials: false,
 };
 
 function openMap(): GameMap {
@@ -701,10 +703,13 @@ describe("an idle mob", () => {
   });
 });
 
-// The fights below use a Holy player: it has no damage over time, so (unlike a Plague's execute) nothing kills a hurt mob.
+// The fights below use a Holy player: it has no damage over time, so (unlike a Plague's execute) nothing kills a hurt mob. It
+// fights on FISTS (an empty hand, how a run starts): since the faction sheet of the balance pass (Holy's hit 65 -> 96) one axe
+// swing removes more than the 600 hp these fixtures leave the Fire mob, which then died inside the first second, so the mob
+// the fixtures want (hurt, alive, engaged, away from home) never existed. Fists keep it alive through the whole script.
 describe("the coliseum teleport", () => {
   it("puts living mobs back on their camp spot at full hp, idle, with no signature target", () => {
-    const rig = makeRig({ player: "holy", weapon: "axe", mob: "fire", mobMaxHp: 1000, mobHp: 600 });
+    const rig = makeRig({ player: "holy", weapon: null, mob: "fire", mobMaxHp: 1000, mobHp: 600 });
     const { world } = rig;
     // A second mob, far away and hurt, that nobody fights.
     const holyAt = tile(6, 26);
@@ -773,7 +778,7 @@ describe("a mob's regeneration goes through heal()", () => {
   };
 
   it("a returning mob heals only HEAL_LOCKOUT_SECONDS after it last dealt or took damage, without heal fx, and is whole at home", () => {
-    const rig = makeRig({ player: "holy", weapon: "axe", mob: "fire", mobMaxHp: 1000, mobHp: 600 });
+    const rig = makeRig({ player: "holy", weapon: null, mob: "fire", mobMaxHp: 1000, mobHp: 600 });
     hold(rig);
     wake(rig);
     const fight = run(rig, 40);
@@ -817,7 +822,7 @@ describe("a mob's regeneration goes through heal()", () => {
   });
 
   it("a returning mob that reaches its camp inside the lockout is whole on arrival all the same", () => {
-    const rig = makeRig({ player: "holy", weapon: "axe", mob: "fire", mobMaxHp: 1000, mobHp: 600 });
+    const rig = makeRig({ player: "holy", weapon: null, mob: "fire", mobMaxHp: 1000, mobHp: 600 });
     hold(rig);
     wake(rig);
     const fight = run(rig, 40);

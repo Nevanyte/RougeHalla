@@ -3,7 +3,7 @@
 // glossary line of each tag, found by hit-testing the pointer (the row never takes it); and its place in the Hud.
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CARDS, TAG_GLOSSARY, cardDef, tagLabel } from "@raid/shared";
+import { CARDS, STAT_GLOSSARY, TAG_GLOSSARY, cardDef, tagLabel } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { CARDS_LABEL, CARD_TIP_ON, CardsRow, cardTip, countTag } from "../src/ui/cardsRow";
 import { Hud } from "../src/ui/hud";
@@ -129,9 +129,31 @@ describe("cardTip", () => {
     expect(cardTip(cardDef("haste2")!, 2).split("\n")[0]).toBe("Haste II (Base, tier II, x2)");
   });
 
-  it("says when a card's machinery is not in yet", () => {
-    expect(cardTip(cardDef("rhythm")!, 1).split("\n").at(-1)).toBe("Not live yet: it does nothing.");
+  it("says when a card's machinery is not in yet (a phase b card), and says nothing for a live one", () => {
+    const waiting = { ...cardDef("rhythm")!, ready: "b" as const };
+    expect(cardTip(waiting, 1).split("\n").at(-1)).toBe("Not live yet: it does nothing.");
+    expect(cardTip({ ...cardDef("rhythm")!, ready: "a" as const }, 1)).not.toContain("Not live yet");
     expect(cardTip(cardDef("haste2")!, 1)).not.toContain("Not live yet");
+  });
+
+  it("sums a base's cards in the tooltip of any of them, once two or more are held, and names AD and AP for their cards", () => {
+    const build = { ad1: 2, ad2: 1, ad3: 1, haste1: 1 };
+    const lines = cardTip(cardDef("ad2")!, 1, build).split("\n");
+    expect(lines).toContain("All your Attack Damage cards: +78 attack damage (I x2, II, III)");
+    expect(lines).toContain("AD: " + STAT_GLOSSARY.ad.text);
+    expect(cardTip(cardDef("haste1")!, 1, build)).not.toContain("All your");
+    expect(cardTip(cardDef("haste1")!, 1, { haste1: 1, haste3: 1 })).toContain("All your Haste cards: +34% attack speed (I, III)");
+    expect(cardTip(cardDef("ap1")!, 1, { ap1: 1 }).split("\n")).toContain("AP: " + STAT_GLOSSARY.ap.text);
+    // An augment has no base to sum.
+    expect(cardTip(cardDef("wellspring")!, 1, build)).not.toContain("All your");
+  });
+
+  it("repaints a chip's tooltip when another tier of its base arrives, though its own count did not change", () => {
+    const { row, chips, tip } = setup();
+    row.update({ ad1: 1 }, true);
+    expect(tip(chips()[0]!)).not.toContain("All your");
+    row.update({ ad1: 1, ad2: 1 }, true);
+    expect(tip(chips()[0]!)).toContain("All your Attack Damage cards: +33 attack damage (I, II)");
   });
 });
 
@@ -264,10 +286,10 @@ describe("in the Hud", () => {
     expect(cards.hidden).toBe(true);
   });
 
-  it("takes its listeners with it when the HUD is destroyed", () => {
+  it("takes its listeners with it when the HUD is destroyed (the cards row's and the build strip's)", () => {
     const dom = installFakeDom();
     const hud = new Hud();
-    expect(dom.win.listenerCount("pointermove")).toBe(1);
+    expect(dom.win.listenerCount("pointermove")).toBe(2);
     hud.destroy();
     expect(dom.win.listenerCount("pointermove")).toBe(0);
   });

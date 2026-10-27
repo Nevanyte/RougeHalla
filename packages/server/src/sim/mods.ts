@@ -73,6 +73,8 @@ interface Build {
   vs: EffectOf<"vs">[];
   scales: EffectOf<"scale">[];
   triggers: OwnedTrigger[];
+  /** onHit rows (Hemorrhage, later relics): sim/onHit.ts applies them when a hit lands. */
+  onHits: EffectOf<"onHit">[];
   /** Some `while` row is a `fightTime` one, so the fight clock is kept for this player. */
   usesFight: boolean;
   /** Some `scale` row grows with the camps cleared; `camps` is the count as of the last tick (PlayerRuntime.campsCleared). */
@@ -130,7 +132,7 @@ function addRow(b: Build, e: Effect, key: string): void {
       if (e.src === "campsCleared") b.usesCamps = true;
       break;
     case "trigger": b.triggers.push({ key, row: e }); break;
-    case "onHit": break; // R4b: statuses on hit (they need the status runtime, so none reaches here yet)
+    case "onHit": b.onHits.push(e); break; // applied by sim/onHit.ts, from the hitLanded hook
     default: assertNever(e, "effect kind");
   }
 }
@@ -147,7 +149,7 @@ function baseHpOf(p: PlayerState): number {
  */
 function buildOf(p: PlayerState): Build {
   const b: Build = {
-    rows: [], whiles: [], holds: 0, holding: NO_HOLDS, vs: [], scales: [], triggers: [], usesFight: false, usesCamps: false, camps: 0,
+    rows: [], whiles: [], holds: 0, holding: NO_HOLDS, vs: [], scales: [], triggers: [], onHits: [], usesFight: false, usesCamps: false, camps: 0,
     folded: EMPTY_FOLDED, sums: EMPTY_SUMS,
   };
   const owns = (id: string): boolean => countIn(p.build, id) > 0 || ownsBase(p.build, id as BaseStatId);
@@ -389,7 +391,8 @@ export function bonusMaxHpOf(s: FighterState): number {
 /** The stats a weapon hit scales with (shared WeaponScaling), read from the mirrors and the max hp: what packetFor feeds shared scalingDamage. */
 export function scalingStatsOf(s: FighterState): ScalingStats {
   const def = defenseBonusOf(s);
-  return { ad: adOf(s), ap: apOf(s), bonusMaxHp: bonusMaxHpOf(s), bonusDefense: def.armor + def.shield };
+  // The armor mirror dips below 0 under the axe's shred; a weapon scales with bonus armor a fighter HAS, never with a debuff.
+  return { ad: adOf(s), ap: apOf(s), bonusMaxHp: bonusMaxHpOf(s), bonusDefense: Math.max(0, def.armor) + def.shield };
 }
 
 /** Every mirror of a fighter, decoded (the identity for a fighter nothing modifies). */
@@ -409,6 +412,20 @@ function foldedOf(s: FighterState): Readonly<Folded> {
 /** The fighter's folded stat sums as of its last fold, conversions and caps included (all zero for a fighter with no rows: every mob today). */
 export function statSumsOf(s: FighterState): Readonly<StatSums> {
   return caches.get(s)?.build?.sums ?? EMPTY_SUMS;
+}
+
+/** Max health a card has earned outright, on top of the rows (Tank Engine: sim/cardHooks.ts), by player. */
+const flatMaxHp = new WeakMap<FighterState, number>();
+
+/** Sets the max health `s` has earned outside the rows; the caller syncs max hp (sim/buffs.ts syncMaxHp) after. */
+export function setFlatMaxHp(s: FighterState, points: number): void {
+  if (points > 0) flatMaxHp.set(s, points);
+  else flatMaxHp.delete(s);
+}
+
+/** The max health earned outside the rows (0 for none). */
+export function flatMaxHpOf(s: FighterState): number {
+  return flatMaxHp.get(s) ?? 0;
 }
 
 /** Its max hp multiplier from the rows: 1 + the maxHp sum, never below MAX_HP_FLOOR_SHARE (G8: half the faction's). */
@@ -503,6 +520,13 @@ export function triggersOf(s: FighterState): readonly OwnedTrigger[] {
   return caches.get(s)?.build?.triggers ?? [];
 }
 
+const NO_ON_HITS: readonly EffectOf<"onHit">[] = [];
+
+/** The `onHit` rows the fighter owns (a card's on-hit status: Hemorrhage's bleed). */
+export function onHitsOf(s: FighterState): readonly EffectOf<"onHit">[] {
+  return caches.get(s)?.build?.onHits ?? NO_ON_HITS;
+}
+
 /** True for a fighter with any damage row (stat damage, vs or scale): the ledger skips the rest. */
 function hasDamageRows(b: Build | null | undefined): b is Build {
   return !!b && (b.sums.damage !== 0 || b.vs.length > 0 || b.scales.length > 0);
@@ -525,9 +549,13 @@ export interface VsProbe {
   higherPower?(): boolean;
   /** The victim is a player, not a mob or a dummy (Big Game Hunter's `playerAbove`). */
   player?(): boolean;
+  /** The victim is rooted (a root status). */
+  rooted?(): boolean;
+  /** The hits the attacker has landed in a row on the victim before this one (Tunnel Vision, First Impressions): 0 for a new target. */
+  streak?(): number;
 }
 
-/** Does a `vs` row's test hold against a victim at hp fraction `victimFrac`? (rooted and streak need R4b / phase B.) */
+/** Does a `vs` row's test hold against a victim at hp fraction `victimFrac`? (A test that needs the world is the probe's.) */
 function vsHolds(e: EffectOf<"vs">, victimFrac: number, probe: VsProbe | undefined): boolean {
   switch (e.test) {
     case "hpAbove": return victimFrac > e.arg;
@@ -538,9 +566,9 @@ function vsHolds(e: EffectOf<"vs">, victimFrac: number, probe: VsProbe | undefin
     case "elite": return probe?.elite?.() ?? false;
     case "higherPower": return probe?.higherPower?.() ?? false;
     case "playerAbove": return victimFrac > e.arg && (probe?.player?.() ?? false);
-    case "rooted":
-    case "streak":
-      return false;
+    case "rooted": return probe?.rooted?.() ?? false;
+    // Holds while the hits already landed in a row on this target are `arg` or fewer: arg 0 is the first hit on a new target.
+    case "streak": return probe?.streak !== undefined && probe.streak() <= e.arg;
     default: return assertNever(e.test, "vs test");
   }
 }
@@ -570,9 +598,11 @@ export function outgoingKindOf(e: Pick<LedgerEntry, "sig" | "dot" | "passive" | 
  * `kind`) never passes OUTGOING_ROW_CAP, so Boom's x2.5 leaves no room for a damage row and Glass Cannon on a plain hit stops at x2.5.
  * The ledger calls it for every entry before any victim of the pass takes damage, so both hp
  * fractions (and what `probe` answers) are as the pass began, and skips ability entries (flat power) and the arena's
- * burn. 1 for a fighter with no damage rows (every mob today). `kind` defaults to "other"; the ledger names it per entry.
+ * burn. 1 for a fighter with no damage rows (every mob today). `kind` defaults to "other"; the ledger names it per entry. `baked` is
+ * the multiplier the entry's packet already carries beyond the fighter's own mult of its kind (a critical strike's 1.5, Plant Your
+ * Feet's 1.25): it shares G1's cap with them, so the rows give way to it instead of going past x2.5.
  */
-export function outgoingMult(attacker: FighterState, victimFrac: number, probe?: VsProbe, kind: OutgoingKind = "other"): number {
+export function outgoingMult(attacker: FighterState, victimFrac: number, probe?: VsProbe, kind: OutgoingKind = "other", baked = 1): number {
   const b = caches.get(attacker)?.build;
   if (!hasDamageRows(b)) return 1;
   let sum = b.sums.damage;
@@ -582,6 +612,8 @@ export function outgoingMult(attacker: FighterState, victimFrac: number, probe?:
     let bonus = 0;
     if (e.src === "campsCleared") {
       bonus = e.per * Math.floor(b.camps / e.step + 1e-9);
+    } else if (e.src === "streak") {
+      bonus = e.per * Math.floor((probe?.streak?.() ?? 0) / e.step + 1e-9);
     } else if (attacker.maxHp > 0) {
       const missing = Math.max(0, 1 - attacker.hp / attacker.maxHp);
       // Stepped: +per for every whole step of missing hp (a hair of float slack so exactly 20% missing is two steps).
@@ -590,7 +622,7 @@ export function outgoingMult(attacker: FighterState, victimFrac: number, probe?:
     sum += e.cap !== undefined && bonus > e.cap ? e.cap : bonus;
   }
   const m = b.folded.mults;
-  const own = kind === "hit" ? m.hit : kind === "dot" ? m.dot : kind === "returned" ? m.returned : 1;
+  const own = (kind === "hit" ? m.hit : kind === "dot" ? m.dot : kind === "returned" ? m.returned : 1) * (baked > 0 ? baked : 1);
   const ceiling = own > 1 ? OUTGOING_ROW_CAP / own : OUTGOING_ROW_CAP;
   return Math.max(0, Math.min(1 + sum, ceiling));
 }

@@ -11,6 +11,8 @@ export interface QuestLogFrame {
   hidden: number;
   localId: string;
   localName?: string;
+  /** The local player's feed (shared feedScore): a quest's card is paid a tier lower once it is high. Absent: the nominal card, with a note. */
+  feed?: number;
   serverNow: number;
   /** The overlay's laid-out size (`--ui-w` x `--ui-h`). */
   ui?: UiSize;
@@ -91,8 +93,8 @@ export class QuestLog {
       }
       return;
     }
-    const rows = questRows(frame.quests, frame.localId, frame.serverNow, frame.localName, frame.phase === "planning");
-    const signature = rows.map((r) => `${r.id}|${r.time}|${r.progress}|${r.status}`).join("|") + `|${frame.hidden}`;
+    const rows = questRows(frame.quests, frame.localId, frame.serverNow, frame.localName, frame.phase === "planning", frame.feed);
+    const signature = rows.map((r) => `${r.id}|${r.time}|${r.progress}|${r.status}|${r.reward}`).join("|") + `|${frame.hidden}`;
     if (signature === this.signature) return;
     this.signature = signature;
     this.list.replaceChildren(...(rows.length > 0 ? rows.map(rowElement) : [el("p", "quest-log-empty", "No quests revealed yet.")]));

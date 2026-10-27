@@ -4,11 +4,13 @@
 //
 // Contract (the spine; the track fills the bodies in):
 //   - Spawning, once per run in `raidStarted` and only when SimConfig.mobs is set: for every camp of map.camps, one mob per
-//     camp spot, in map order. The camp's `eliteSpot` holds the zone's one elite (kind "elite", the zone's elite type); every
-//     other spot is kind "mob" of the camp's type, the roster rolled at world build (sim/camps.ts, state.camps). A mob's
-//     state: faction = the zone id, weapon0 = the zone's weapon, type = its MobTypeId, camp = the camp's index + 1, name = the
-//     type's MOB_TYPES name, hp/maxHp = mobFaction(region, elite).hp (hp is not paced), status "alive", facing toward the
-//     camp centre. Its runtime gets a MobBrain (mode "idle", home = the spot) and a staggered `phase`. Ids come from addMob
+//     camp spot, in map order. The camp's `eliteSpot` holds the camp's elite (kind "elite", CampState.elite: the k-th elite
+//     camp of a zone has the zone's k-th elite type); every other spot is kind "mob" of the camp's type, the roster rolled at
+//     world build (sim/camps.ts, state.camps). A mob's state: faction = the zone id, type = its MobTypeId, weapon0 = the TYPE's
+//     weapon (a caster shoots; what a kill drops), camp = the camp's index + 1, name = the type's MOB_TYPES name,
+//     hp/maxHp = mobTypeFaction(region, elite, type).hp (the zone faction x k x the role's hpMult; hp is not paced), status
+//     "alive", facing toward the camp centre. The role's damage multiplier lives in combatant.factionOf and its speed in
+//     mobRoleMove below; nothing else about a mob depends on its type. Its runtime gets a MobBrain (mode "idle", home = the spot) and a staggered `phase`. Ids come from addMob
 //     (mobs.ts), so they are unique and the order is deterministic for a map. killMob counts the camp's `alive` down.
 //   - hurtMob(world, c, amounts, entries) is the ledger's way down for a regional mob (ledger.ts calls it instead of
 //     damageMob when kind != "dummy"). `amounts[i]` is the mitigated damage of `entries[i]`. It removes the hp (never
@@ -32,8 +34,8 @@
 //     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
 import {
-  campMobs, eliteTypeOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobFaction, mobName, mobTypeById, mobWeapon,
-  normalTypesOf, WEAPONS, type FactionId, type MobTypeId, type Vec2,
+  campMobs, elitesOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobName, mobTypeById, mobTypeFaction, mobTypeIn,
+  mobTypeWeapon, normalTypesOf, WEAPONS, type FactionId, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
 import { campEngaged, campMobDied, ensureRosters } from "./camps";
@@ -50,28 +52,30 @@ import { chainHook, emit, payLater, tieRank, type LedgerEntry, type World } from
 export type MobCombatant = Extract<Combatant, { kind: "mob" }>;
 
 /**
- * Adds one regional mob of `region` resting at `at`: state (kind, name, faction, weapon, hp from mobFaction) and runtime
+ * Adds one regional mob of `region` resting at `at`: state (kind, name, faction, weapon, hp from mobTypeFaction) and runtime
  * (a fresh MobBrain). The camp spawner and the tests both go through this. Returns its id.
- * `type` (a MobTypeId, MobState.type) names it by its MOB_TYPES row instead of the region's two-name table, and `camp` (the
- * camp's 0-based index in map.camps; stored +1 in MobState.camp) links it to its CampState. Both are optional: a mob placed
- * without them has no camp, and `mobTypeOf` gives it the region's default type.
+ * `type` (a MobTypeId, MobState.type) names it by its MOB_TYPES row instead of the region's two-name table, gives it the type's
+ * weapon and its role's hp (damage and speed follow from MobState.type in combatant.factionOf and the move modifier below), and
+ * `camp` (the camp's 0-based index in map.camps; stored +1 in MobState.camp) links it to its CampState. Both are optional: a
+ * mob placed without them has no camp, carries the region's weapon with a grunt's numbers, and `mobTypeOf` gives it the
+ * region's default type. A type of another region is ignored for the numbers and the weapon (it only names the mob).
  */
 export function placeMob(
   world: World, o: { region: FactionId; elite: boolean; at: Vec2; facing?: number; type?: MobTypeId; camp?: number },
 ): string {
   const id = addMob(world, {
     kind: o.elite ? "elite" : "mob", name: (o.type !== undefined ? mobTypeById(o.type)?.name : undefined) ?? mobName(o.region, o.elite),
-    at: o.at, facing: o.facing, hp: mobFaction(o.region, o.elite, mobScale(o.elite)).hp,
-    faction: o.region, weapon: mobWeapon(o.region), type: o.type, camp: o.camp !== undefined ? o.camp + 1 : undefined,
+    at: o.at, facing: o.facing, hp: mobTypeFaction(o.region, o.elite, o.type, mobScale(o.elite)).hp,
+    faction: o.region, weapon: mobTypeWeapon(o.region, o.type), type: o.type, camp: o.camp !== undefined ? o.camp + 1 : undefined,
   });
   world.mobs.get(id)!.brain = newBrain(o.region, o.elite, o.at, o.facing ?? 0, (world.idCounter * 137) % MOB_REPATH_MS);
   return id;
 }
 
 /**
- * Places every camp's mobs, one per spot of `map.camps`, in map order: the zone's elite at the camp's elite spot, the camp's
- * published type (state.camps, rolled by sim/camps.ts) everywhere else, and each camp's `alive` set to what stands there.
- * A no-op for a map without camps (a hand-built test map).
+ * Places every camp's mobs, one per spot of `map.camps`, in map order: the camp's published elite (CampState.elite) at its
+ * elite spot, the camp's published type (state.camps, rolled by sim/camps.ts) everywhere else, and each camp's `alive` set to
+ * what stands there. A no-op for a map without camps (a hand-built test map).
  */
 export function spawnRegionalMobs(world: World): void {
   // A training world (sim/training.ts) has its dummies and nothing else: mobs would pay GV and feed that nothing records.
@@ -80,8 +84,9 @@ export function spawnRegionalMobs(world: World): void {
   ensureRosters(world);
   world.map.camps.forEach((camp, ci) => {
     const published = world.state.camps[ci]!;
-    const campType = mobTypeById(published.type)?.id ?? normalTypesOf(camp.zone)[0]!.id;
-    const roster = campMobs(camp, campType);
+    const campType = mobTypeIn(camp.zone, published.type)?.id ?? normalTypesOf(camp.zone)[0]!.id;
+    const eliteType = mobTypeIn(camp.zone, published.elite)?.id;
+    const roster = campMobs(camp, campType, eliteType);
     camp.spots.forEach((spot, i) => {
       placeMob(world, {
         region: camp.zone, elite: roster[i]!.elite, type: roster[i]!.type, camp: ci, at: spot,
@@ -192,13 +197,13 @@ export function killMob(
 }
 
 /**
- * The mob's type: MobState.type when it names one, else (a mob placed before rosters assign types) the zone's elite type
- * for an elite and its first normal type for any other.
+ * The mob's type: MobState.type when it names one, else (a mob placed before rosters assign types) the zone's first elite
+ * type for an elite and its first normal type for any other.
  */
 export function mobTypeOf(type: string, region: FactionId, elite: boolean): MobTypeId {
   const t = mobTypeById(type);
   if (t) return t.id;
-  return elite ? eliteTypeOf(region).id : normalTypesOf(region)[0]!.id;
+  return elite ? elitesOf(region)[0]!.id : normalTypesOf(region)[0]!.id;
 }
 
 function payMobKill(world: World, killerId: string, region: FactionId, elite: boolean, type: MobTypeId, camp: number, weapon: string, at: Vec2, m: number): void {
@@ -276,8 +281,18 @@ function resetAllMobs(world: World): void {
   }
 }
 
+/**
+ * world.moveModifiers entry: a regional mob walks at its type's role speed (swarm and skirmisher faster than a player, brute
+ * slower; shared MOB_ROLE_DEFS). A player, a dummy, a quest giver and a mob without a type of its region walk at 1.
+ */
+export function mobRoleMove(_world: World, c: Combatant): number {
+  if (c.kind !== "mob" || c.s.type === "") return 1;
+  return mobTypeIn(c.s.faction as FactionId, c.s.type)?.moveMult ?? 1;
+}
+
 export function install(world: World): void {
   world.systems.push(reapMobs);
+  world.moveModifiers.push(mobRoleMove);
   if (world.config.mobs) chainHook(world, "raidStarted", spawnRegionalMobs);
   chainHook(world, "teleported", resetAllMobs);
 }

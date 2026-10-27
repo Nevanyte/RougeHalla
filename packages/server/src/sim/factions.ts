@@ -58,21 +58,23 @@
 // systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
   AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
-  diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
+  CRIT_MULT, diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS, FESTERING_AP_SHARE,
+  FESTERING_TICK_MS, FESTERING_TICKS,
   engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, isDot, lifestealFraction, lifestealTotal,
   markDps, markShare, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS,
   type DamageShares, type FactionSpec, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
 import { grantBarrier } from "./buffs";
+import { rollDotCrit } from "./cardState";
 import {
   activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { pvpScale, recordHit } from "./ledger";
 import {
-  apOf, dotMultOf, executeBandOf, healTakenMultOf, lifestealDotOf, lifestealMultOf, lifestealRowsOf, lingerMultOf, markRateOf, returnedMultOf,
-  slowResistOf, triggersOf,
+  apOf, dotMultOf, executeBandOf, hasFlag, healTakenMultOf, lifestealDotOf, lifestealMultOf, lifestealRowsOf, lingerMultOf, markRateOf,
+  returnedMultOf, slowResistOf, triggersOf,
 } from "./mods";
-import { healFactor } from "./status";
+import { addStatus, healFactor } from "./status";
 import { chainHook, collisionMap, emit, payLater, tieRank, type PendingAction, type World } from "./world";
 
 /** One fighter's signature state. Times are server ms. */
@@ -99,6 +101,8 @@ export interface SigFighter {
   seenAction: PendingAction | null;
   /** A stagger pauses this fighter's damage over time until then (see staggerPause). */
   dotPausedUntil: number;
+  /** The target this fighter's damage-over-time signature was running on when the last damage phase ended (null: none): Festering Arcana starts when it stops. */
+  engagedOn?: string | null;
 }
 
 export interface FactionsRuntime {
@@ -134,7 +138,7 @@ function newRuntime(): FactionsRuntime {
 function newFighter(): SigFighter {
   return {
     target: null, inReach: false, engaged: false, reachAt: -Infinity, contactAt: -Infinity, markElapsed: 0, hpFrac: 1,
-    combatAt: -Infinity, chill: 1, chillers: [], seenAction: null, dotPausedUntil: 0,
+    combatAt: -Infinity, chill: 1, chillers: [], seenAction: null, dotPausedUntil: 0, engagedOn: null,
   };
 }
 
@@ -266,7 +270,8 @@ function contactsOf(world: World, byId: Map<string, Combatant>): { out: Map<stri
   };
   for (const e of world.combat.ledger) {
     const raw = e.packet.raw * e.scale;
-    if (e.sig || e.ability !== undefined || !(raw > 0)) continue;
+    // A signature's, an ability's or a card's damage over time (a bleed, Festering Arcana's tail) is no trade: it cannot keep a pair engaged.
+    if (e.sig || e.ability !== undefined || e.dot === true || !(raw > 0)) continue;
     add(e.by.id, e.victim, raw, e.passive === true || (e.projectile !== undefined && e.weapon === "shield"));
   }
   // A blocked swing or arrow never reaches the ledger, but the attack met its target.
@@ -329,6 +334,10 @@ function signatureDamage(world: World, dtMs: number): void {
     const spec = factionOf(c.s);
     const weapon = activeWeapon(c.s);
     const t = f.engaged && f.target !== null ? byId.get(f.target) : undefined;
+    // Festering Arcana: the damage over time this fighter was running on someone has just stopped (out of reach, forgotten, a new target...).
+    const was = f.engagedOn ?? null;
+    f.engagedOn = spec && weapon && t && dealsDot(spec) ? t.id : null;
+    if (was !== null && was !== f.engagedOn && spec) festerEnd(world, c, was, byId);
     if (spec && weapon && t) {
       const bm = bonusMultiplier(weapon);
       // This tick's damage over time covers (now - dt, now]; a stagger pause takes out whatever share of it overlaps.
@@ -353,6 +362,22 @@ function signatureDamage(world: World, dtMs: number): void {
     // DUEL_PACE: damage times f and the ramp times f squared leave an equal-power fight's outcome alone.
     if (f.inReach && f.engaged) f.markElapsed += dt * markRateOf(c.s) * (f.target !== null ? pvpScale(world, c.id, f.target) : 1);
   }
+}
+
+/**
+ * Festering Arcana: a fighter's damage-over-time signature just stopped running on `from`. If it stands and the fighter has the card
+ * and some AP, a `dot` status of magic damage keeps ticking on it: FESTERING_TICKS ticks, one every FESTERING_TICK_MS, each
+ * FESTERING_AP_SHARE of the fighter's AP (a status dps of that per tick time). A second ending refreshes it, never doubles it.
+ */
+function festerEnd(world: World, c: Combatant, from: string, byId: ReadonlyMap<string, Combatant>): void {
+  if (!hasFlag(c.s, "festering")) return;
+  const ap = apOf(c.s);
+  const target = byId.get(from);
+  if (!(ap > 0) || !target || evading(target)) return;
+  addStatus(world, target, {
+    kind: "dot", source: { id: c.id, name: c.s.name }, ms: FESTERING_TICKS * FESTERING_TICK_MS, tag: "festering",
+    value: (ap * FESTERING_AP_SHARE * 1000) / FESTERING_TICK_MS, data: { shares: AP_DOT_SHARES },
+  }, { quiet: true });
 }
 
 /** Seconds between this fighter's attacks right now, the chill included (0 without a faction or a weapon). */
@@ -400,9 +425,12 @@ function bonus(
   // The owner's cards: damage over time (Boom, Slow Burn) and Fire's backlash (Boom) are products on the signature's amount.
   raw *= sig === "backlash" ? returnedMultOf(c.s) : dotMultOf(c.s);
   if (!(raw > 0)) return;
+  // Cruel Wounds: a damage-over-time tick can critically strike (one roll for all of the player's ticks this tick; a backlash is no tick).
+  const crit = sig !== "backlash" && rollDotCrit(world, c);
   // Each signature deals its own damage type, whatever the faction's weapon hits are (SIGNATURE_SHARES, BALANCE_CONTRACT 5.2).
   recordHit(world, {
-    victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...shares }, weapon, stagger: false, sig,
+    victim: t.id, by: { id: c.id, name: c.s.name },
+    packet: crit ? { raw: raw * CRIT_MULT, ...shares, crit: true, mult: CRIT_MULT } : { raw, ...shares }, weapon, stagger: false, sig,
   });
 }
 

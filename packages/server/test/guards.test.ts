@@ -10,15 +10,17 @@ import {
   BARRIER_DECAY_SHARE_PER_SECOND, BARRIER_MAX_SHARE, barrierCap, CONVERT_AD_AP_CAP, CRIT_CHANCE_MAX, CRIT_MULT, clampBarrier,
   decayBarrier, encodeFlat, FACTIONS, foldedMaxHp, HP_RACE_CAP, hpRaceMult, lifestealFraction, lifestealShare, lifestealTotal, LIFESTEAL_MAX,
   LS_CAP, MAX_HP_FLOOR_SHARE, MOVE_BONUS_CAP, mitigateShares, OUTGOING_ROW_CAP, PLAYER_SPEED, PVP_DOT_CAP_SHARE, PVP_HIT_CAP_SHARE, pvpFactor,
-  SIG_CHILLED, TICK_MS, type Effect,
+  SIG_CHILLED, TICK_MS, cardDef, type Effect,
 } from "@raid/shared";
 import { syncMaxHp } from "../src/sim/buffs";
 import { combatant } from "../src/sim/combatant";
-import { applyLedger } from "../src/sim/ledger";
+import { rollAttackCrit } from "../src/sim/cardState";
+import { applyLedger, recordHit } from "../src/sim/ledger";
 import { placeMob } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import {
-  critChanceOf, lifestealMultOf, lifestealRowsOf, outgoingKindOf, outgoingMult, setExtraRows, speedMultOf, type OutgoingKind, type VsProbe,
+  critChanceOf, lifestealMultOf, lifestealRowsOf, outgoingKindOf, outgoingMult, setExtraRows, speedMultOf, wishCooldownMultOf, type OutgoingKind,
+  type VsProbe,
 } from "../src/sim/mods";
 import { addStatus } from "../src/sim/status";
 import { hit, inStep, MAGIC, pvpArena, P, RT, tick, TRUE, type HitOpts } from "./support/pvpRig";
@@ -591,5 +593,118 @@ describe("G4 from a card: the `hpRace` mult row is the source, not only the test
     hit(w, "v", "a", 100);
     applyLedger(w);
     expect(P(w, "v").hp).toBeCloseTo(HOLY_HP - 150, 9);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// The phase-B hooks under the guards (agent A4): a critical strike and Plant Your Feet's damage are baked into the packet and share
+// G1's cap with the rows, the crit accumulator never beats G12's 50%, a bleed or a returned hit is a player-to-player entry like any other
+// (G2, G3), and no hook moves a Wish's cooldown but Wishful Thinking (G13).
+
+describe("G1 with a critical strike or Plant Your Feet baked into the packet", () => {
+  /** What a hit of base raw 100, baked into `packet` by a crit (x1.5) or the like, takes off an armor-free Holy from an attacker with `list` for rows. */
+  const lostWith = (list: Effect[], baked: number, crit: boolean): number => {
+    const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+    rows(w, "a", list);
+    recordHit(w, {
+      victim: "v", by: { id: "a", name: "A" }, packet: { raw: 100 * baked, phys: 1, magic: 0, true: 0, mult: baked, ...(crit ? { crit: true } : {}) },
+      weapon: "axe", stagger: false,
+    });
+    applyLedger(w);
+    return HOLY_HP - P(w, "v").hp;
+  };
+
+  it("a crit leaves the rows room for x2.5 / 1.5: the whole hit stays at x2.5 of the plain one", () => {
+    expect(lostWith([dmg(1.2)], 1.5, true)).toBeCloseTo(250, 9); // 150 x (2.5 / 1.5), not 150 x 2.2 = 330
+    expect(lostWith([dmg(0.3)], 1.5, true)).toBeCloseTo(195, 9); // under the cap: 150 x 1.3
+    expect(lostWith([dmg(1.2)], 1, false)).toBeCloseTo(220, 9); // no crit: the rows get their x2.2
+  });
+
+  it("Boom's x2.5 hit mult and a crit together are x2.5 in all: the rows give way to both", () => {
+    // The packet Boom's holder records already carries its x2.5 (packetFor) and the crit its x1.5: 100 x 2.5 x 1.5 = 375 raw, 1.5 baked beyond `hit`.
+    const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+    rows(w, "a", [dmg(0.5), mult("hit", 2.5)]);
+    recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw: 375, phys: 1, magic: 0, true: 0, mult: 1.5, crit: true }, weapon: "axe", stagger: false });
+    applyLedger(w);
+    // x2.5 / (2.5 x 1.5) on the rows: 375 x 0.667 = 250, the cap's x2.5 of the plain 100 and not the 3.75 the product asks for.
+    expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(250, 9);
+  });
+
+  it("Plant Your Feet's x1.25 is a baked multiplier too", () => {
+    expect(lostWith([dmg(1.2)], 1.25, false)).toBeCloseTo(250, 9);
+  });
+
+  it("outgoingMult takes the baked multiplier as its fifth argument, 1 by default", () => {
+    const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+    rows(w, "a", [dmg(1.2)]);
+    expect(outgoingMult(P(w, "a"), 1, undefined, "hit")).toBeCloseTo(2.2, 12);
+    expect(outgoingMult(P(w, "a"), 1, undefined, "hit", 1.5)).toBeCloseTo(2.5 / 1.5, 12);
+    expect(outgoingMult(P(w, "a"), 1, undefined, "hit", 0)).toBeCloseTo(2.2, 12); // a bad value is no multiplier
+  });
+
+  it("Tunnel Vision's streak rows and a Glass Cannon's stat row share the cap like any other damage row", () => {
+    const w = pvpArena([{ id: "a", faction: "fire" }, { id: "v", faction: "holy" }], { pvpRules: false });
+    rows(w, "a", [dmg(1.5), { k: "scale", src: "streak", per: 0.04, step: 1, cap: 0.4 }]);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 10 })).toBe(2.5);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 3 })).toBeCloseTo(2.5, 12); // 1 + 1.5 + 0.12 = 2.62
+    rows(w, "a", [dmg(0.5), { k: "scale", src: "streak", per: 0.04, step: 1, cap: 0.4 }]);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 3 })).toBeCloseTo(1.62, 12);
+    expect(outgoingMult(P(w, "a"), 1, { streak: () => 40 })).toBeCloseTo(1.9, 12); // the row's own cap of +40%
+    expect(outgoingMult(P(w, "a"), 1)).toBeCloseTo(1.5, 12); // no probe: no streak
+  });
+});
+
+describe("G12: the accumulator", () => {
+  it("never crits more often than the chance, and a chance past 50% is held to it", () => {
+    for (const [chance, per1000] of [[1 / 3, 333], [0.2, 200], [0.5, 500], [0.9, 500], [0.05, 50]] as const) {
+      const w = pvpArena([{ id: "a", faction: "holy", weapon: "sword" }, { id: "v", faction: "fire" }], { pvpRules: false });
+      rows(w, "a", [{ k: "stat", stat: "critChance", v: chance }]);
+      let crits = 0;
+      for (let i = 0; i < 1000; i++) if (rollAttackCrit(combatant(w, "a")!)) crits++;
+      expect(Math.abs(crits - per1000), `chance ${chance}`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("is deterministic: the same chance crits on the same attacks, and a fighter with none (or a mob) never does", () => {
+    const seq = (): boolean[] => {
+      const w = pvpArena([{ id: "a", faction: "holy", weapon: "sword" }, { id: "v", faction: "fire" }], { pvpRules: false });
+      rows(w, "a", [{ k: "stat", stat: "critChance", v: 0.3 }]);
+      return Array.from({ length: 30 }, () => rollAttackCrit(combatant(w, "a")!));
+    };
+    expect(seq()).toEqual(seq());
+    const w = pvpArena([{ id: "a", faction: "holy", weapon: "sword" }, { id: "v", faction: "fire" }], { pvpRules: false });
+    expect(Array.from({ length: 20 }, () => rollAttackCrit(combatant(w, "a")!)).some(Boolean)).toBe(false);
+    const mob = addMob(w, { kind: "dummy", name: "Warden", at: { x: 900, y: 320 } });
+    expect(rollAttackCrit(combatant(w, mob)!)).toBe(false);
+  });
+});
+
+describe("the hooks' damage is player-to-player damage like any other (G2, G3)", () => {
+  it("a bleed counts in G3's per-second budget with the rest of its source's damage over time", () => {
+    const w = pvpArena([{ id: "a", faction: "fire", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
+    addStatus(w, combatant(w, "v")!, { kind: "dot", source: { id: "a", name: "A" }, ms: 5000, tag: "bleed:1", value: 1_000_000, data: { shares: { phys: 1, magic: 0, true: 0 } } }, { quiet: true });
+    const before = P(w, "v").hp;
+    tick(w);
+    const budget = PVP_DOT_CAP_SHARE * P(w, "v").maxHp * DT;
+    expect(before - P(w, "v").hp).toBeCloseTo(budget, 6);
+  });
+
+  it("Spiked Shell's returned damage and an Overkill splash are capped to 35% of the victim's max hp, as a hit", () => {
+    const w = pvpArena([{ id: "a", faction: "fire", build: { ad3: 5 } }, { id: "v", faction: "holy" }]);
+    inStep(w, () => { recordHit(w, { victim: "v", by: { id: "a", name: "A" }, packet: { raw: 1_000_000, phys: 1, magic: 0, true: 0 }, weapon: "axe", stagger: false, passive: true, final: true, derived: true }); });
+    expect(HOLY_HP - P(w, "v").hp).toBeCloseTo(PVP_HIT_CAP_SHARE * HOLY_HP, 6);
+  });
+});
+
+describe("G13: Wishes stay flat but for Arcane Overload and Wishful Thinking", () => {
+  it("no phase-B card moves a Wish's cooldown multiplier", () => {
+    const w = pvpArena([{ id: "a", faction: "holy" }, { id: "v", faction: "fire" }], { pvpRules: false });
+    const everyHook = ["festeringArcana", "rhythm", "overkill", "tankEngine", "pocketSand", "gambler", "adrenaline", "cruelWounds", "thirdTimesTheCharm",
+      "eyeForAnEye", "bestOffense", "tunnelVision", "firstImpressions", "plantYourFeet", "wishfulThinking", "hemorrhage", "spikedShell"];
+    for (const id of everyHook) {
+      const def = cardDef(id)!;
+      for (const row of def.effects) expect(row.k === "mult" && row.key === "wishCooldown", `${id} ${JSON.stringify(row)}`).toBe(false);
+    }
+    expect(wishCooldownMultOf(P(w, "a"))).toBe(1);
   });
 });

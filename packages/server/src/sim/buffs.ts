@@ -13,7 +13,7 @@
 import { FACTIONS, isFactionId } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import type { Combatant, FighterState } from "./combatant";
-import { asMultOf, maxHpMultOf, speedMultOf } from "./mods";
+import { asMultOf, flatMaxHpOf, maxHpMultOf, speedMultOf } from "./mods";
 import type { BoostRuntime, PlayerRuntime, World } from "./world";
 
 /** Multiplier on the fighter's attack speed: the decoded `asMult` mirror (1 for a mob or without cards). */
@@ -37,7 +37,8 @@ export function baseMaxHp(p: PlayerState): number {
  * it; a dead player is not healed.
  */
 export function syncMaxHp(p: PlayerState): void {
-  const max = baseMaxHp(p) * maxHpMultOf(p);
+  // The faction's hp times the rows' multiplier, plus what Tank Engine has earned outright (G8: at most TANK_ENGINE_CAP).
+  const max = baseMaxHp(p) * maxHpMultOf(p) + flatMaxHpOf(p);
   const delta = max - p.maxHp;
   if (Math.abs(delta) < 1e-9) return;
   p.maxHp = max;

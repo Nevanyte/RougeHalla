@@ -3,8 +3,8 @@
 // anything about how a mob fights, only about what happens to it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  eliteTypeOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles,
-  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById,
+  elitesOf, FACTION_IDS, GV_ELITE, GV_MOB, GV_MOB_CAP, INTERACT_RANGE, mapFromTiles,
+  MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, MOB_TYPES, mobFaction, mobRewardMultiplier, mobTypeById, mobTypeFaction, mobTypeWeapon,
   mobWeapon, mitigateShares, mulberry32, normalTypesOf, pacedFaction, REGION_WEAPONS, rewardCurve, SWAP_SECONDS, TICK_MS, TILE, WEAPONS,
   type FactionId, type FxEvent, type MobTypeId, type Vec2,
 } from "@raid/shared";
@@ -18,7 +18,7 @@ import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { aggro, resetMob } from "../src/sim/mobAI";
 import {
-  hurtMob, install, killMob, placeMob, reapMobs, spawnRegionalMobs, type MobCombatant,
+  hurtMob, install, killMob, mobRoleMove, placeMob, reapMobs, spawnRegionalMobs, type MobCombatant,
 } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import { addPlayer, step } from "../src/sim/step";
@@ -81,7 +81,7 @@ function spawn(w: World, region: FactionId = "fire", elite = false, at: Vec2 = {
 }
 
 /** The type a mob placed without one pays in: its zone's first normal type, or its elite type (mobLife.ts mobTypeOf). */
-const defaultType = (region: FactionId, elite: boolean): MobTypeId => (elite ? eliteTypeOf(region) : normalTypesOf(region)[0]!).id;
+const defaultType = (region: FactionId, elite: boolean): MobTypeId => (elite ? elitesOf(region)[0]! : normalTypesOf(region)[0]!).id;
 
 /** The cards a player holds, as a plain record of counts by id: a mob kill gives none (the per-kill buffs are gone). */
 const held = (p: PlayerState): Record<string, number> => Object.fromEntries(p.build);
@@ -135,8 +135,99 @@ function setFeed(w: World, i: number, kills: number, mobKills = 0): void {
   P(w, i).mobKills = mobKills;
 }
 
+describe("a mob type's weapon and role (shared mobs.ts MOB_TYPES)", () => {
+  const OTHER: Record<string, string> = { sword: "bow", bow: "sword", wand: "axe", axe: "wand", shield: "sword" };
+
+  it("places every one of the 30 types with its own weapon, its role's hp and the type's name, in its zone", () => {
+    const w = makeBare();
+    for (const t of MOB_TYPES) {
+      const m = spawn(w, t.zone, t.elite, { x: 200, y: 200 }, t.id);
+      expect(m.s.weapon0, t.id).toBe(t.weapon);
+      expect(m.s.name, t.id).toBe(t.name);
+      expect(m.s.type, t.id).toBe(t.id);
+      expect(m.s.faction, t.id).toBe(t.zone);
+      expect(m.s.maxHp, t.id).toBeCloseTo(mobFaction(t.zone, t.elite).hp * t.hpMult, 3);
+      expect(m.s.hp, t.id).toBe(m.s.maxHp);
+    }
+  });
+
+  it("fights as the faction scaled by its role: the hit and every damage number times dmgMult (paced), the rest of the sheet untouched", () => {
+    const w = makeBare();
+    for (const t of MOB_TYPES) {
+      const spec = factionOf(spawn(w, t.zone, t.elite, { x: 200, y: 200 }, t.id).s)!;
+      const grunt = factionOf(spawn(w, t.zone, t.elite, { x: 220, y: 200 }).s)!;
+      expect(spec.hit, t.id).toBeCloseTo(grunt.hit * t.dmgMult, 9);
+      for (const key of Object.keys(grunt.params)) {
+        const damage = ["burn", "backlash", "plague", "execute", "mark_ramp", "mark_cap"].includes(key);
+        expect(spec.params[key], `${t.id} ${key}`).toBeCloseTo(damage ? grunt.params[key]! * t.dmgMult : grunt.params[key]!, 9);
+      }
+      expect([spec.armor, spec.shield, spec.rate], t.id).toEqual([grunt.armor, grunt.shield, grunt.rate]);
+      expect(spec.hp, t.id).toBeCloseTo(grunt.hp * t.hpMult, 9);
+    }
+  });
+
+  it("falls back to the plain zone faction for a mob with no type or a type of another zone", () => {
+    const w = makeBare();
+    const plain = factionOf(spawn(w, "frost", false, { x: 200, y: 200 }).s)!;
+    const foreign = spawn(w, "frost", false, { x: 220, y: 200 }, "emberImp");
+    expect(factionOf(foreign.s)).toBe(plain);
+    expect(foreign.s.weapon0).toBe(mobWeapon("frost"));
+    expect(foreign.s.maxHp).toBeCloseTo(mobFaction("frost", false).hp, 3);
+    expect(mobRoleMove(w, foreign)).toBe(1);
+    expect(mobRoleMove(w, spawn(w, "frost", false, { x: 240, y: 200 }))).toBe(1);
+  });
+
+  it("walks at the role's speed: a modifier of the step loop that is 1 for players, dummies and untyped mobs", () => {
+    const w = makeBare();
+    expect(w.moveModifiers).toContain(mobRoleMove);
+    for (const t of MOB_TYPES) expect(mobRoleMove(w, spawn(w, t.zone, t.elite, { x: 200, y: 200 }, t.id)), t.id).toBe(t.moveMult);
+    expect(mobRoleMove(w, combatant(w, "p0")!)).toBe(1);
+    const dummy = combatant(w, addMob(w, { kind: "dummy", name: "Dummy", at: { x: 300, y: 300 } }))!;
+    expect(mobRoleMove(w, dummy)).toBe(1);
+    expect(mobRoleMove(w, spawn(w, "fire", false, { x: 260, y: 200 }, "cinderHound"))).toBeGreaterThan(1);
+    expect(mobRoleMove(w, spawn(w, "fire", false, { x: 280, y: 200 }, "magmaBrute"))).toBeLessThan(1);
+  });
+
+  it("drops the TYPE's weapon as a loose weapon at its feet when the killer holds neither slot's type (all 30 types)", () => {
+    for (const t of MOB_TYPES) {
+      const w = makeBare();
+      P(w, 0).weapon0 = OTHER[t.weapon]!;
+      P(w, 0).weapon1 = "";
+      const m = spawn(w, t.zone, t.elite, { x: P(w, 0).x + 8, y: P(w, 0).y }, t.id);
+      const before = new Set(w.state.containers.keys());
+      hurt(w, m, ["p0", m.s.hp]);
+      const created = [...w.state.containers.keys()].filter((id) => !before.has(id));
+      expect(created, t.id).toHaveLength(1);
+      expect(w.state.containers.get(created[0]!)!.items.map((it) => it.def), t.id).toEqual([t.weapon]);
+    }
+  });
+
+  it("arms an empty-handed killer with the type's weapon, not the zone's (a Flame Caller arms a wand in the axe zone)", () => {
+    for (const id of ["flameCaller", "pardoner", "gaoler", "poxBehemoth", "frostbowSentry", "zealot", "archon"] as const) {
+      const t = mobTypeById(id)!;
+      expect(t.weapon, id).not.toBe(mobWeapon(t.zone));
+      const w = makeBare();
+      const m = spawn(w, t.zone, t.elite, { x: P(w, 0).x + 8, y: P(w, 0).y }, t.id);
+      hurt(w, m, ["p0", m.s.hp]);
+      expect([P(w, 0).weapon0, P(w, 0).weapon1], id).toEqual([t.weapon, ""]);
+      expect(w.events.filter((e) => e.type === "toast"), id).toEqual([{ type: "toast", to: "p0", text: `Armed: ${WEAPONS[t.weapon].name}` }]);
+    }
+  });
+
+  it("a mob that dies with no credited killer still drops its type's weapon where it fell", () => {
+    const w = makeBare();
+    const m = spawn(w, "fire", false, { x: 400, y: 400 }, "flameCaller");
+    const before = w.state.containers.size;
+    killMob(w, m, [], []);
+    for (const pay of w.combat.payouts) pay();
+    const box = [...w.state.containers.values()].at(-1)!;
+    expect(w.state.containers.size).toBe(before + 1);
+    expect(box.items.map((it) => it.def)).toEqual(["wand"]);
+  });
+});
+
 describe("spawnRegionalMobs", () => {
-  it.each(SEEDS)("seed %i: one mob per camp spot, in map order, with the camp's weapon, faction, name and hp", (seed) => {
+  it.each(SEEDS)("seed %i: one mob per camp spot, in map order, with the type's weapon, faction, name and role hp", (seed) => {
     const w = makeRun({ seed });
     const expected = w.map.regions.flatMap((r) => r.mobCamps.flatMap((camp) =>
       camp.spots.map((spot, i) => ({ camp, spot, elite: camp.elite && i === 0 }))));
@@ -147,15 +238,16 @@ describe("spawnRegionalMobs", () => {
     const mobs = allMobs(w);
     expected.forEach(({ camp, spot, elite }, i) => {
       const { s, rt } = mobs[i]!;
-      const hp = mobFaction(camp.region, elite).hp;
+      const hp = mobTypeFaction(camp.region, elite, s.type).hp;
       expect(s.kind).toBe(elite ? "elite" : "mob");
       // A roster mob is named by its MOB_TYPES row (sim/camps.ts), a type of its own zone, elite only at the elite spot.
       expect(s.name).toBe(mobTypeById(s.type)!.name);
       expect(mobTypeById(s.type)!.zone).toBe(camp.region);
       expect(mobTypeById(s.type)!.elite).toBe(elite);
       expect(s.faction).toBe(camp.region);
-      expect(s.weapon0).toBe(camp.weapon);
-      expect(s.weapon0).toBe(REGION_WEAPONS[camp.region]);
+      // Each mob carries its TYPE's weapon (shared mobs.ts): the zone's default weapon is only for a mob placed without a type.
+      expect(s.weapon0).toBe(mobTypeById(s.type)!.weapon);
+      expect(mobTypeWeapon(camp.region, s.type)).toBe(mobTypeById(s.type)!.weapon);
       expect({ x: s.x, y: s.y }).toEqual(spot);
       expect(s.hp).toBe(hp);
       expect(s.maxHp).toBe(hp);
@@ -170,22 +262,30 @@ describe("spawnRegionalMobs", () => {
     expect(new Set(mobs.map((m) => m.rt.brain!.phase)).size).toBeGreaterThan(1); // staggered, not all on one tick
   });
 
-  it.each(SEEDS)("seed %i: exactly one elite per region, the first spot of the elite camp; its camp-mates are normal mobs", (seed) => {
+  it.each(SEEDS)("seed %i: one elite per elite camp, at the camp's elite spot, of the type the camp publishes; its camp-mates are normal mobs", (seed) => {
     const w = makeRun({ seed });
     for (const region of w.map.regions) {
       const mine = allMobs(w).filter((m) => m.rt.brain!.region === region.id);
       const elites = mine.filter((m) => m.s.kind === "elite");
-      expect(elites, region.id).toHaveLength(1);
-      const eliteCamp = region.mobCamps.filter((c) => c.elite);
-      expect(eliteCamp).toHaveLength(1);
-      expect({ x: elites[0]!.s.x, y: elites[0]!.s.y }).toEqual(eliteCamp[0]!.spots[0]);
-      expect(elites[0]!.s.hp).toBe(mobFaction(region.id, true).hp);
-      expect(elites[0]!.s.hp).toBeGreaterThan(mobFaction(region.id, false).hp);
-      for (const spot of eliteCamp[0]!.spots.slice(1)) {
-        const mate = mine.find((m) => m.s.x === spot.x && m.s.y === spot.y)!;
-        expect(mate.s.kind).toBe("mob");
-        expect(mate.s.maxHp).toBe(mobFaction(region.id, false).hp);
-      }
+      const eliteCamps = w.map.camps.flatMap((c, ci) => (c.zone === region.id && c.eliteSpot >= 0 ? [ci] : []));
+      expect(eliteCamps.length, region.id).toBeGreaterThan(0);
+      expect(elites, region.id).toHaveLength(eliteCamps.length);
+      eliteCamps.forEach((ci, k) => {
+        const camp = w.map.camps[ci]!;
+        const e = elites.find((m) => m.s.camp === ci + 1)!;
+        expect({ x: e.s.x, y: e.s.y }).toEqual(camp.spots[camp.eliteSpot]);
+        expect(e.s.type).toBe(w.state.camps[ci]!.elite);
+        expect(e.s.type).toBe(elitesOf(region.id)[k % 2]!.id);
+        expect(e.s.hp).toBe(mobTypeFaction(region.id, true, e.s.type).hp);
+        const normalHp = mobFaction(region.id, false).hp * mobTypeById(w.state.camps[ci]!.type)!.hpMult;
+        camp.spots.forEach((spot, i) => {
+          if (i === camp.eliteSpot) return;
+          const mate = mine.find((m) => m.s.x === spot.x && m.s.y === spot.y)!;
+          expect(mate.s.kind).toBe("mob");
+          expect(mate.s.type).toBe(w.state.camps[ci]!.type);
+          expect(mate.s.maxHp).toBeCloseTo(normalHp, 3);
+        });
+      });
     }
     expect(FACTION_IDS.every((f) => allMobs(w).some((m) => m.s.kind === "elite" && m.s.faction === f))).toBe(true);
   });

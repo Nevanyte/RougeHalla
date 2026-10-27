@@ -549,29 +549,35 @@ for (const base of BASE_STAT_IDS) {
   for (const tier of CARD_TIERS) RIGS[baseCardId(base, tier)] = baseRig(base, tier);
 }
 
-const LIVE: CardId[] = CARDS.filter((c) => cardLive(c)).map((c) => c.id);
+/**
+ * The 17 cards of the balance pass's phase B (crit, streaks, the on-hit pipeline, blocks, returned damage, the DoT extension, stillness,
+ * Overkill, Gambler, Adrenaline, Wishful Thinking...): their machinery is in sim/cardHooks.ts, sim/onHit.ts and sim/cardState.ts and their
+ * rigs are in cardHooks.test.ts, which runs the real fight each one changes. The 58 cards of phase A keep their rigs here.
+ */
+const PHASE_B: readonly CardId[] = [
+  "festeringArcana", "rhythm", "overkill", "tankEngine", "pocketSand", "gambler", "adrenaline", "cruelWounds", "thirdTimesTheCharm",
+  "eyeForAnEye", "bestOffense", "tunnelVision", "firstImpressions", "plantYourFeet", "wishfulThinking", "hemorrhage", "spikedShell",
+];
+const LIVE: CardId[] = CARDS.filter((c) => cardLive(c) && !PHASE_B.includes(c.id)).map((c) => c.id);
 
 describe("every live card does what its text says", () => {
-  it("has a rig for every live card, and none for a card that is not live", () => {
+  it("has a rig for every phase-A card (the phase-B cards' rigs are cardHooks.test.ts's), and every card is live", () => {
     expect(Object.keys(RIGS).sort()).toEqual([...LIVE].sort());
     expect(LIVE).toHaveLength(58);
+    expect(CARDS.filter((c) => cardLive(c))).toHaveLength(75);
+    for (const id of PHASE_B) expect(cardLive(id), id).toBe(true);
   });
   for (const id of LIVE) it(`${id}: ${cardText(id)}`, () => RIGS[id]!());
 });
 
-describe("a card that is not live stays inert", () => {
-  const WAITING = CARDS.filter((c) => !cardLive(c));
-
-  it("a phase-B card can be held (a test's or the console's grant) and folds nothing", () => {
-    expect(WAITING).toHaveLength(17);
-    for (const card of WAITING) {
+describe("no card waits for a hook any more", () => {
+  it("every card in the catalog is live, so a chest may roll any of them and the sim folds their rows", () => {
+    expect(CARDS.filter((c) => !cardLive(c))).toEqual([]);
+    for (const id of PHASE_B) {
       const w = startRun(["frost", "fire"]);
-      hold(w, 0, card.id);
-      expect(P(w, 0).build.get(card.id), card.id).toBe(1);
-      // Only the base card a conditional needs is in the rows; the waiting card itself adds none.
-      const rows = modRowsOf(P(w, 0));
-      const baseRows = card.requires ? modRowsOf((() => { const b = startRun(["frost", "fire"]); hold(b, 0, `${card.requires}1`); return P(b, 0); })()) : [];
-      expect(rows, card.id).toEqual(baseRows);
+      hold(w, 0, id);
+      expect(P(w, 0).build.get(id), id).toBe(1);
+      expect(modRowsOf(P(w, 0)).length, id).toBeGreaterThan(0);
     }
   });
 

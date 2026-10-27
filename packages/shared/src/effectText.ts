@@ -1,6 +1,5 @@
 // Effect rows in words (BALANCE_CONTRACT 4.6): "+5% damage", "attack speed x0.5". The card catalog writes its own player-facing texts
 // (cards.ts); these are for tooltips of crafted rows (relics later), the training console and the tests. Pure.
-import { DUEL_PACE } from "./constants";
 import { isFlatStat, visitEffect, type Effect, type EffectOf, type MultKey, type StatKey } from "./effects";
 import { healOverTimeSpanMs } from "./rules";
 
@@ -70,6 +69,22 @@ function signed(v: number, s: string): string {
   return v < 0 ? `-${s}` : `+${s}`;
 }
 
+/** A `flag` row in words. */
+function flagWords(flag: EffectOf<"flag">["flag"]): string {
+  switch (flag) {
+    case "lockSecondSlot": return "Your second weapon slot is locked";
+    case "noCrit": return "Your hits can never critically strike";
+    case "dotCrit": return "Your damage over time can critically strike";
+    case "gambler": return "Each hit has a chance to deal double damage and the same chance to deal half";
+    case "thirdCharm": return "Every 3rd hit on the same target applies its on-hit effects once more";
+    case "eyeForAnEye": return "Damage you return to attackers applies your on-hit effects";
+    case "twiceUnarmed": return "Your on-hit effects apply twice while unarmed";
+    case "blockHits": return "Your blocks count as hits";
+    case "plantFeet": return "After standing still, your next attack has more range and damage";
+    case "festering": return "Your magic damage over time keeps ticking after it ends";
+  }
+}
+
 /** One row in words, numbers as given (already scaled): "+5% damage". */
 export function effectText(e: Effect): string {
   return visitEffect<string>(e, {
@@ -86,7 +101,7 @@ export function effectText(e: Effect): string {
         case "hpBelow": return `${amount} to targets below ${pct(r.arg)}% HP`;
         case "slowed": return `${amount} to slowed or chilled targets`;
         case "rooted": return `${amount} to rooted targets`;
-        case "streak": return `${amount} to a target you have kept hitting for ${pts(r.arg)} s`;
+        case "streak": return r.arg === 0 ? `${amount} on your first hit on a target` : `${amount} on your first ${pts(r.arg + 1)} hits on a target`;
         case "thirdParty": return `${amount} to targets fighting someone else`;
         case "higherFeed": return `${amount} to targets with a higher feed`;
         case "elite": return `${amount} to elite monsters`;
@@ -96,6 +111,7 @@ export function effectText(e: Effect): string {
     },
     scale: (r) => {
       const upTo = r.cap === undefined ? "" : ` (up to +${pct(r.cap)}%)`;
+      if (r.src === "streak") return `+${pct(r.per)}% damage per hit in a row on the same target${upTo}`;
       return r.src === "campsCleared"
         ? `+${pct(r.per)}% damage for every camp you helped clear${upTo}`
         : `+${pct(r.per)}% damage per ${pct(r.step)}% HP missing${upTo}`;
@@ -119,14 +135,19 @@ export function effectText(e: Effect): string {
         case "slowMove": return `Your hits slow movement ${pct(r.per)}% for ${s} s (up to ${pct(r.cap)}%)`;
         case "slowAttack": return `Your hits slow attacks ${pct(r.per)}% for ${s} s (up to ${pct(r.cap)}%)`;
         case "antiHeal": return `Your hits cut healing ${pct(r.per)}% for ${s} s (up to ${pct(r.cap)}%)`;
-        case "dot": return `Your hits deal ${pts(r.per * DUEL_PACE)} damage/s for ${s} s`;
+        // A bleed is a share of the hit; every other status of an on-hit row keeps its strength per hit.
+        case "dot": return `Your physical hits make the target bleed for ${pct(r.per)}% of the hit over ${s} s`;
       }
     },
     convert: (r) => r.cap === undefined ? convertWords(r) : `${convertWords(r)} (up to ${pts(isFlatStat(r.to) ? r.cap : r.cap * 100)}${isFlatStat(r.to) ? "" : "%"})`,
     mult: (r) => `${multWord(r.key)} x${pts(r.v)}`,
-    flag: (r) => r.flag === "lockSecondSlot" ? "Your second weapon slot is locked" : "Your hits can never critically strike",
+    flag: (r) => flagWords(r.flag),
     trigger: (r) => {
-      const when = r.on === "hpBelow" ? `Below ${pct(r.arg)}% HP` : r.on === "kill" ? "On a kill" : "When hit";
+      const when = r.on === "hpBelow" ? `Below ${pct(r.arg)}% HP`
+        : r.on === "kill" ? "On a kill"
+        : r.on === "hit" ? "On each hit you land"
+        : r.on === "block" ? "On each block"
+        : r.arg > 0 ? `When a hit takes ${pct(r.arg)}% of your max HP` : "When hit";
       const once = r.once ? (r.rearm === "teleport" ? " (once, and again after each teleport)" : " (once per run)") : "";
       const a = r.do;
       switch (a.do) {
@@ -135,6 +156,10 @@ export function effectText(e: Effect): string {
         case "status": return `${when}: ${a.status} for ${pts(a.ms / 1000)} s${once}`;
         case "cleanse": return `${when}: cleanse${once}`;
         case "cooldown": return `${when}: cooldowns ${pts(a.ms / 1000)} s shorter${once}`;
+        case "boost": return `${when}: +${pct(a.as)}% attack speed and +${pct(a.move)}% move speed for ${pts(a.ms / 1000)} s${once}`;
+        case "return": return `${when}: ${pct(a.share)}% of the damage dealt comes back as physical damage${a.melee ? " (melee only)" : ""}${once}`;
+        case "fortify": return `${when}: +1 max HP per ${pts(1 / a.per)} damage prevented (up to +${pts(a.cap)})${once}`;
+        case "splash": return `${when}: the damage beyond it splashes onto the nearest enemy within ${pts(a.radius)} u${once}`;
       }
     },
   });

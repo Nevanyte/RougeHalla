@@ -106,7 +106,8 @@ describe("effectText", () => {
     expect(effectText(vs("hpBelow", 0.3))).toBe("+10% damage to targets below 30% HP");
     expect(effectText(vs("slowed"))).toBe("+10% damage to slowed or chilled targets");
     expect(effectText(vs("rooted"))).toBe("+10% damage to rooted targets");
-    expect(effectText(vs("streak", 3))).toBe("+10% damage to a target you have kept hitting for 3 s");
+    expect(effectText(vs("streak", 3))).toBe("+10% damage on your first 4 hits on a target");
+    expect(effectText(vs("streak", 0))).toBe("+10% damage on your first hit on a target");
     expect(effectText(vs("thirdParty"))).toBe("+10% damage to targets fighting someone else");
     expect(effectText(vs("higherFeed"))).toBe("+10% damage to targets with a higher feed");
   });

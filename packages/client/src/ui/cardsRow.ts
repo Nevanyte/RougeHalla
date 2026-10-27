@@ -3,7 +3,8 @@
 // "x2". Pointing at a chip shows what the card does and the glossary line of each of its tags. The row never takes the pointer (a
 // right-click move and a left-click lock under it must reach the canvas, and the aim keeps streaming), so the tooltip is found by
 // hit-testing the pointer against the chips' rectangles, not by :hover. Hidden while nothing is held.
-import { TAG_GLOSSARY, cardLive, ownedCards, tagLabel, tierRoman, type CardCounts, type CardDef } from "@raid/shared";
+import { STAT_GLOSSARY, TAG_GLOSSARY, cardLive, ownedCards, tagLabel, tierRoman, type CardCounts, type CardDef } from "@raid/shared";
+import { baseSummary } from "./buildModel";
 import { cardKindLabel } from "./chestMath";
 import "./cardsRow.css";
 import { el } from "./dom";
@@ -21,14 +22,21 @@ export function countTag(count: number): string {
  * A card's tooltip, one line each:
  *   Haste II (Base, tier II, x2)
  *   +16% attack speed
- *   Damage over time: Damage that ticks ...     one line per tag
- *   Not live yet: it does nothing.              only for a card whose machinery is not in
+ *   All your Haste cards: +41% attack speed (I, II x2)   a base card, once the player holds two or more cards of its base
+ *   AD: Attack damage: adds ...                           the stat the Attack Damage and Ability Power cards add
+ *   Damage over time: Damage that ticks ...               one line per tag
+ *   Not live yet: it does nothing.                        only for a card whose machinery is not in
  */
-export function cardTip(def: CardDef, count: number): string {
+export function cardTip(def: CardDef, count: number, build?: CardCounts | null): string {
   const lines = [
     `${def.title} (${cardKindLabel(def.kind)}, tier ${tierRoman(def.tier)}${count > 1 ? `, ${countTag(count)}` : ""})`,
     def.text,
   ];
+  if (def.base !== undefined) {
+    const summary = baseSummary(build, def.base);
+    if (summary !== "") lines.push(summary);
+    if (def.base === "ad" || def.base === "ap") lines.push(`${STAT_GLOSSARY[def.base].term}: ${STAT_GLOSSARY[def.base].text}`);
+  }
   for (const tag of def.tags) lines.push(`${tagLabel(tag)}: ${TAG_GLOSSARY[tag].text}`);
   if (!cardLive(def)) lines.push("Not live yet: it does nothing.");
   return lines.join("\n");
@@ -38,8 +46,9 @@ interface Chip {
   root: HTMLElement;
   count: HTMLElement;
   tip: HTMLElement;
-  /** The count it was painted for. */
+  /** The count and tooltip it was painted for. */
   shown: number;
+  shownTip: string;
 }
 
 interface ChipRect { left: number; top: number; right: number; bottom: number }
@@ -100,7 +109,7 @@ export class CardsRow {
     if (sig === this.sig) return;
     this.sig = sig;
     this.held = owned.length;
-    this.shownChips = owned.map((o) => this.paint(o.def, o.count));
+    this.shownChips = owned.map((o) => this.paint(o.def, o.count, build));
     this.list.replaceChildren(...this.shownChips.map((c) => c.root));
     this.root.hidden = owned.length === 0;
     this.rectsDirty = true;
@@ -119,21 +128,25 @@ export class CardsRow {
     this.root.remove();
   }
 
-  /** The chip of a card, made on first use; its count and tooltip are rewritten when the count changed. */
-  private paint(def: CardDef, count: number): Chip {
+  /** The chip of a card, made on first use; its count and tooltip are rewritten when either changed (a base's summary reads its other tiers). */
+  private paint(def: CardDef, count: number, build: CardCounts | null | undefined): Chip {
     let chip = this.made.get(def.id);
     if (!chip) {
       const root = el("div", `cards-chip ${def.kind}`);
       const countEl = el("span", "cards-count");
       const tip = el("div", "cards-tip");
       root.append(el("span", "cards-name", def.title), countEl, tip);
-      chip = { root, count: countEl, tip, shown: 0 };
+      chip = { root, count: countEl, tip, shown: 0, shownTip: "" };
       this.made.set(def.id, chip);
     }
     if (chip.shown !== count) {
       chip.shown = count;
       chip.count.textContent = count > 1 ? countTag(count) : "";
-      chip.tip.textContent = cardTip(def, count);
+    }
+    const tip = cardTip(def, count, build);
+    if (tip !== chip.shownTip) {
+      chip.shownTip = tip;
+      chip.tip.textContent = tip;
     }
     // A tooltip must not outlive its chip's place in the list: the class goes with the chip when it is rebuilt.
     chip.root.classList.toggle(CARD_TIP_ON, false);

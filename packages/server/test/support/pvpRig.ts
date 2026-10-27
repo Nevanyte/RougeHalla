@@ -41,14 +41,24 @@ export const P = (world: World, id: string) => world.state.players.get(id)!;
 export const RT = (world: World, id: string) => world.players.get(id)!;
 
 /** An active run (the first step starts it) of these fighters, side by side, with the PvP rules on. */
-export function pvpArena(fighters: readonly RigFighter[], opts: { pvpRules?: boolean; signatures?: boolean } = {}): World {
+export function pvpArena(
+  fighters: readonly RigFighter[],
+  opts: {
+    pvpRules?: boolean; signatures?: boolean;
+    /** The seed of `world.random` (it keys the secret order salt, so another seed is another action order and another tie-break). Default 12. */
+    randomSeed?: number;
+    /** The reward salt (it keys the hashed rolls). Absent: derived from the order salt, as in every other test world. */
+    rewardSalt?: readonly number[];
+  } = {},
+): World {
   const world = createGameWorld({
     seed: 11,
     config: {
       minPlayers: fighters.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600,
       suddenDeathSeconds: 3600, ...(opts.pvpRules === false ? { pvpRules: false } : {}),
     },
-    random: mulberry32(12),
+    random: mulberry32(opts.randomSeed ?? 12),
+    ...(opts.rewardSalt ? { rewardSalt: opts.rewardSalt } : {}),
   }, { signatures: opts.signatures === true });
   world.map = openMap();
   for (const f of fighters) {

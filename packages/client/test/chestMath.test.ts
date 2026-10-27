@@ -2,11 +2,13 @@
 // is and may be, and what the status line says.
 import { describe, expect, it } from "vitest";
 import {
-  CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, mapFromTiles, skipText,
+  CARDS, CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, FACTIONS, MECHANIC_TAGS, TAG_GLOSSARY, TICK_MS, TILE, TILE_FLOOR,
+  TILE_WALL, WEAPONS, cardOptionView, mapFromTiles, skipText,
 } from "@raid/shared";
 import {
   ChestMemory, DEFAULT_RTT_MS, chestPickLine, PANEL_CLOSE_RANGE, PANEL_RANGE, campLabel, rttFromOrderDelay, usableRtt, formatCountdown, greyAtMs, hasPicked, inPanelRange, isGreyed, myPick, optionCards, pickReward,
-  cardKindLabel, kindLine, pickLine, readReward, stateText, statusText, takenIndex, tierBadge, timeShare, trueServerNow, type Reward, type RewardSource,
+  cardKindLabel, cardTitleAttr, kindLine, pickLine, rarityFrame, readReward, stateText, statusText, tagChips, takenIndex, tierBadge, timeShare,
+  trueServerNow, type Reward, type RewardSource,
 } from "../src/ui/chestMath";
 
 const source = (over: Partial<RewardSource> = {}): RewardSource => ({
@@ -327,5 +329,58 @@ describe("the feed lines", () => {
     expect(pickLine(-1, undefined, 0)).toBe("You skipped the chest");
     expect(pickLine(0, "fromTheFuture", 1)).toBeUndefined();
     expect(pickLine(0, undefined, 0)).toBeUndefined();
+  });
+});
+
+describe("a card's face on the panel", () => {
+  const view = (id: string, build: Record<string, number> = {}) => cardOptionView(id, build);
+
+  it("frames an augment by its tier (plain, silver, gold) and gives a base card or a conditional no frame", () => {
+    expect(rarityFrame(view("machineGun"))).toBe("silver"); // tier 2
+    expect(rarityFrame(view("slowBurn"))).toBe("plain"); // tier 1
+    expect(rarityFrame(view("hereComesTheBoom"))).toBe("gold"); // tier 3
+    expect(rarityFrame(view("raceToZero"))).toBe("gold");
+    expect(rarityFrame(view("ad3"))).toBeNull();
+    expect(rarityFrame(view("bloodthirst"))).toBeNull();
+    expect(rarityFrame(null)).toBeNull();
+  });
+
+  it("derives the frame from the tier of every augment in the catalog", () => {
+    for (const c of CARDS.filter((x) => x.kind === "augment")) {
+      expect(rarityFrame(view(c.id)), c.id).toBe(c.tier === 3 ? "gold" : c.tier === 2 ? "silver" : "plain");
+    }
+  });
+
+  it("makes a chip per tag with its label and the glossary line a hover shows", () => {
+    const chips = tagChips(view("hereComesTheBoom"));
+    expect(chips.map((c) => c.tag)).toEqual(["dot", "returned"]);
+    expect(chips.map((c) => c.label)).toEqual(["Damage over time", "Returned"]);
+    expect(chips[0]!.gloss).toBe(`Damage over time: ${TAG_GLOSSARY.dot.text}`);
+    expect(tagChips(view("haste1"))).toEqual([]);
+    expect(tagChips(null)).toEqual([]);
+  });
+
+  it("words the whole card for a hover: name and tier, kind and reason, text, then the glossary of each tag", () => {
+    const lines = cardTitleAttr(view("bloodthirst", {}), "Needs Leech").split("\n");
+    expect(lines[0]).toBe("Bloodthirst (tier II)");
+    expect(lines[1]).toBe("Conditional · Needs Leech");
+    expect(lines[2]).toBe(CARDS.find((c) => c.id === "bloodthirst")!.text);
+    expect(lines).toContain(`Heal: ${TAG_GLOSSARY.heal.text}`);
+    expect(lines.at(-1)).toBe("Needs Leech");
+    expect(cardTitleAttr(null, "Not in this version of the game")).toBe("Not in this version of the game");
+  });
+
+  it("names every tag in the glossary, so no chip is ever without a line", () => {
+    for (const tag of MECHANIC_TAGS) expect(TAG_GLOSSARY[tag].text.length, tag).toBeGreaterThan(5);
+  });
+
+  it("never shows a faction or weapon name in a card's text or the reason it is offered (a title may: Fists of Fury; the glossary may say a shield)", () => {
+    const names = [...Object.values(FACTIONS).flatMap((f) => [f.name, f.displayName]), ...Object.values(WEAPONS).map((w) => w.name)];
+    const word = new RegExp(`\\b(${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
+    for (const c of CARDS) {
+      const v = view(c.id)!;
+      const shown = [v.text, v.why.text].join("\n");
+      expect(shown, c.id).not.toMatch(word);
+    }
   });
 });

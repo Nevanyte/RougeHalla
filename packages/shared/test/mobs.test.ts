@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  duel, ELITE_K, eliteTypeOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_TYPES,
-  mobTypeById, mobTypesOf, normalTypesOf,
+  ABILITIES, CARDS, duel, ELITE_K, eliteTypeOf, elitesOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_K, MOB_ROLE_DEFS, MOB_ROLES, MOB_TYPES,
+  mobTypeById, mobTypeFaction, mobTypeIn, mobTypesOf, mobTypeWeapon, normalTypesOf, QUEST_DEFS,
   mobFaction, mobName, mobWeapon, pacedFaction, REGION_WEAPONS, scaledFaction, SIGNATURE_WEAPONS, WEAPON_IDS, WEAPONS,
-  type FactionId, type FactionSpec, type MobKind, type MobTypeDef, type MobTypeId, type WeaponId,
+  type FactionId, type FactionSpec, type MobKind, type MobRole, type MobTypeDef, type MobTypeId, type WeaponId,
 } from "../src/index";
 import * as shared from "../src/index";
 
@@ -267,19 +267,35 @@ describe("the k guess: a starting player against a regional mob, 25 matchups", (
   });
 });
 
-describe("MOB_TYPES (the roguelike roster, data only)", () => {
-  const SPEC: Record<FactionId, { normals: [string, string][]; elite: [string, string] }> = {
-    fire: { normals: [["emberImp", "Ember Imp"], ["cinderHound", "Cinder Hound"], ["magmaBrute", "Magma Brute"]], elite: ["wyrmling", "Wyrmling"] },
-    sentenced: { normals: [["bailiff", "Bailiff"], ["chainWarden", "Chain Warden"], ["inquisitor", "Inquisitor"]], elite: ["executioner", "Executioner"] },
-    plague: { normals: [["plagueRat", "Plague Rat"], ["bloatfly", "Bloatfly"], ["rotMonk", "Rot Monk"]], elite: ["ratOgre", "Rat Ogre"] },
-    frost: { normals: [["frostWisp", "Frost Wisp"], ["iceGolem", "Ice Golem"], ["rimeStalker", "Rime Stalker"]], elite: ["glacialWarden", "Glacial Warden"] },
-    holy: { normals: [["acolyte", "Acolyte"], ["seraphShard", "Seraph Shard"], ["penitent", "Penitent"]], elite: ["bloodSaint", "Blood Saint"] },
+describe("MOB_TYPES (the roguelike roster: 30 types, six per zone, with roles and weapons)", () => {
+  /** Balance contract 6.3, row by row: [id, name, role, weapon]. */
+  const SPEC: Record<FactionId, { normals: [string, string, MobRole, WeaponId][]; elites: [string, string, MobRole, WeaponId][] }> = {
+    fire: {
+      normals: [["emberImp", "Ember Imp", "swarm", "axe"], ["cinderHound", "Cinder Hound", "skirmisher", "axe"], ["magmaBrute", "Magma Brute", "brute", "axe"], ["flameCaller", "Flame Caller", "caster", "wand"]],
+      elites: [["wyrmling", "Wyrmling", "grunt", "axe"], ["ashDrake", "Ash Drake", "caster", "wand"]],
+    },
+    sentenced: {
+      normals: [["bailiff", "Bailiff", "grunt", "sword"], ["chainWarden", "Chain Warden", "brute", "sword"], ["inquisitor", "Inquisitor", "skirmisher", "sword"], ["pardoner", "Pardoner", "caster", "bow"]],
+      elites: [["executioner", "Executioner", "grunt", "sword"], ["gaoler", "Gaoler", "brute", "shield"]],
+    },
+    plague: {
+      normals: [["plagueRat", "Plague Rat", "swarm", "bow"], ["bloatfly", "Bloatfly", "skirmisher", "bow"], ["rotMonk", "Rot Monk", "grunt", "bow"], ["miasmaWitch", "Miasma Witch", "caster", "wand"]],
+      elites: [["ratOgre", "Rat Ogre", "brute", "bow"], ["poxBehemoth", "Pox Behemoth", "brute", "axe"]],
+    },
+    frost: {
+      normals: [["frostWisp", "Frost Wisp", "swarm", "shield"], ["iceGolem", "Ice Golem", "brute", "shield"], ["rimeStalker", "Rime Stalker", "skirmisher", "shield"], ["frostbowSentry", "Frostbow Sentry", "caster", "bow"]],
+      elites: [["glacialWarden", "Glacial Warden", "grunt", "shield"], ["avalancheTroll", "Avalanche Troll", "brute", "axe"]],
+    },
+    holy: {
+      normals: [["acolyte", "Acolyte", "grunt", "wand"], ["seraphShard", "Seraph Shard", "swarm", "wand"], ["penitent", "Penitent", "skirmisher", "wand"], ["zealot", "Zealot", "brute", "sword"]],
+      elites: [["bloodSaint", "Blood Saint", "grunt", "wand"], ["archon", "Archon", "skirmisher", "sword"]],
+    },
   };
 
-  it("has 20 types with unique ids and unique, non-empty, trimmed names", () => {
-    expect(MOB_TYPES).toHaveLength(20);
-    expect(new Set(MOB_TYPES.map((t) => t.id)).size).toBe(20);
-    expect(new Set(MOB_TYPES.map((t) => t.name)).size).toBe(20);
+  it("has 30 types with unique ids and unique, non-empty, trimmed names", () => {
+    expect(MOB_TYPES).toHaveLength(30);
+    expect(new Set(MOB_TYPES.map((t) => t.id)).size).toBe(30);
+    expect(new Set(MOB_TYPES.map((t) => t.name)).size).toBe(30);
     for (const t of MOB_TYPES) {
       expect(t.id.length, t.id).toBeGreaterThan(0);
       expect(t.name.length, t.id).toBeGreaterThan(0);
@@ -287,33 +303,33 @@ describe("MOB_TYPES (the roguelike roster, data only)", () => {
     }
   });
 
-  it("has four types per zone: three normals and exactly one elite, in zone order", () => {
+  it("has six types per zone: four normals, then exactly two elites, in zone order", () => {
     for (const zone of REGIONS) {
       const ofZone = MOB_TYPES.filter((t) => t.zone === zone);
-      expect(ofZone, zone).toHaveLength(4);
-      expect(ofZone.filter((t) => t.elite), zone).toHaveLength(1);
-      expect(ofZone.filter((t) => !t.elite), zone).toHaveLength(3);
-      expect(ofZone[3].elite, `${zone}: the elite is last`).toBe(true);
+      expect(ofZone, zone).toHaveLength(6);
+      expect(ofZone.filter((t) => t.elite), zone).toHaveLength(2);
+      expect(ofZone.filter((t) => !t.elite), zone).toHaveLength(4);
+      expect(ofZone.map((t) => t.elite), `${zone}: normals first, the two elites last`).toEqual([false, false, false, false, true, true]);
     }
-    expect(MOB_TYPES.map((t) => t.zone)).toEqual(REGIONS.flatMap((z) => [z, z, z, z]));
+    expect(MOB_TYPES.map((t) => t.zone)).toEqual(REGIONS.flatMap((z) => [z, z, z, z, z, z]));
   });
 
-  it("is the contract's roster: the ids and names of the plan, zone by zone", () => {
+  it("is the contract's roster: the ids, names, roles and weapons of 6.3, zone by zone", () => {
     for (const zone of REGIONS) {
       const spec = SPEC[zone];
-      expect(normalTypesOf(zone).map((t) => [t.id, t.name]), zone).toEqual(spec.normals);
-      const elite = eliteTypeOf(zone);
-      expect([elite.id, elite.name], zone).toEqual(spec.elite);
-      expect(elite.elite).toBe(true);
+      expect(normalTypesOf(zone).map((t) => [t.id, t.name, t.role, t.weapon]), zone).toEqual(spec.normals);
+      expect(elitesOf(zone).map((t) => [t.id, t.name, t.role, t.weapon]), zone).toEqual(spec.elites);
+      for (const e of elitesOf(zone)) expect(e.elite).toBe(true);
     }
   });
 
-  it("looks types up: mobTypesOf, normalTypesOf, eliteTypeOf, mobTypeById", () => {
+  it("looks types up: mobTypesOf, normalTypesOf, elitesOf, eliteTypeOf (the first elite), mobTypeById", () => {
     for (const zone of REGIONS) {
-      expect(mobTypesOf(zone), zone).toEqual([...normalTypesOf(zone), eliteTypeOf(zone)]);
-      expect(normalTypesOf(zone), zone).toHaveLength(3);
+      expect(mobTypesOf(zone), zone).toEqual([...normalTypesOf(zone), ...elitesOf(zone)]);
+      expect(normalTypesOf(zone), zone).toHaveLength(4);
+      expect(elitesOf(zone), zone).toHaveLength(2);
       for (const t of mobTypesOf(zone)) expect(t.zone).toBe(zone);
-      expect(eliteTypeOf(zone).zone).toBe(zone);
+      expect(eliteTypeOf(zone), zone).toBe(elitesOf(zone)[0]);
     }
   });
 
@@ -341,6 +357,139 @@ describe("MOB_TYPES (the roguelike roster, data only)", () => {
     expect(shared.mobTypeById).toBe(mobTypeById);
     expect(shared.mobTypesOf).toBe(mobTypesOf);
     expect(shared.normalTypesOf).toBe(normalTypesOf);
+    expect(shared.elitesOf).toBe(elitesOf);
     expect(shared.eliteTypeOf).toBe(eliteTypeOf);
+    expect(shared.mobTypeFaction).toBe(mobTypeFaction);
+  });
+
+  it("names no type after a quest, a Wish, a card, a faction, a weapon or a region's two-name fallback", () => {
+    const reserved = new Set<string>([
+      ...QUEST_DEFS.map((q) => q.name), ...Object.values(ABILITIES).map((a) => a.name), ...CARDS.map((c) => c.title),
+      ...FACTION_IDS.flatMap((f) => [FACTIONS[f].name, FACTIONS[f].displayName, mobName(f, false), mobName(f, true)]), ...Object.values(WEAPONS).map((w) => w.name),
+    ].map((n) => n.toLowerCase()));
+    for (const t of MOB_TYPES) expect(reserved.has(t.name.toLowerCase()), `${t.id}: "${t.name}"`).toBe(false);
+  });
+});
+
+describe("mob roles (balance contract 6.3)", () => {
+  it("has the five roles with the contract's multipliers and behaviour tags", () => {
+    expect(MOB_ROLES).toEqual(["grunt", "swarm", "brute", "skirmisher", "caster"]);
+    const row = (r: MobRole) => [MOB_ROLE_DEFS[r].hpMult, MOB_ROLE_DEFS[r].dmgMult, MOB_ROLE_DEFS[r].moveMult];
+    // Brute is tuned below the contract's provisional 1.5 / 0.85 (bench/campDuel.ts --types: at 1.5 no starter on the zone weapon
+    // cleared the Pox Behemoth camp); the others are the contract's numbers.
+    expect(row("grunt")).toEqual([1, 1, 1]);
+    expect(row("swarm")).toEqual([0.7, 0.9, 1.1]);
+    expect(row("brute")).toEqual([1.4, 0.8, 0.9]);
+    expect(row("skirmisher")).toEqual([0.85, 1.1, 1.15]);
+    expect(row("caster")).toEqual([0.75, 1.2, 1]);
+    expect(MOB_ROLE_DEFS.swarm.tags).toEqual(["fast", "fragile"]);
+    expect(MOB_ROLE_DEFS.brute.tags).toEqual(["tanky"]);
+    expect(MOB_ROLE_DEFS.skirmisher.tags).toEqual(["chases"]);
+    expect(MOB_ROLE_DEFS.caster.tags).toEqual(["ranged"]);
+    expect(MOB_ROLE_DEFS.grunt.tags).toEqual([]);
+    for (const r of MOB_ROLES) expect(MOB_ROLE_DEFS[r].id).toBe(r);
+  });
+
+  it("copies the role's numbers onto every type, so a consumer needs only the type", () => {
+    for (const t of MOB_TYPES) {
+      const r = MOB_ROLE_DEFS[t.role];
+      expect([t.hpMult, t.dmgMult, t.moveMult, t.tags], t.id).toEqual([r.hpMult, r.dmgMult, r.moveMult, r.tags]);
+    }
+  });
+
+  it("gives four zones one caster among their normals (a ranged weapon), and Holy none: its wand carriers all shoot already", () => {
+    for (const zone of REGIONS) {
+      const casters = normalTypesOf(zone).filter((t) => t.role === "caster");
+      expect(casters, zone).toHaveLength(zone === "holy" ? 0 : 1);
+    }
+    for (const t of MOB_TYPES.filter((x) => x.role === "caster")) expect(["bow", "wand"], t.id).toContain(t.weapon);
+  });
+
+  it("gives every zone a skirmisher among its normals and four different roles, and no swarm among the elites", () => {
+    for (const zone of REGIONS) {
+      const roles = new Set(normalTypesOf(zone).map((t) => t.role));
+      expect(roles.has("skirmisher"), zone).toBe(true);
+      expect(roles.size, zone).toBe(4);
+    }
+    expect(MOB_TYPES.filter((t) => t.elite && t.role === "swarm")).toHaveLength(0);
+  });
+
+  it("makes every weapon drop in at least two zones, and every zone drop two or three weapon kinds", () => {
+    const zonesOf = new Map<WeaponId, Set<FactionId>>();
+    for (const t of MOB_TYPES) {
+      if (!zonesOf.has(t.weapon)) zonesOf.set(t.weapon, new Set());
+      zonesOf.get(t.weapon)!.add(t.zone);
+    }
+    for (const w of WEAPON_IDS) expect(zonesOf.get(w)?.size ?? 0, w).toBeGreaterThanOrEqual(2);
+    for (const zone of REGIONS) {
+      const kinds = new Set(mobTypesOf(zone).map((t) => t.weapon));
+      expect(kinds.size, zone).toBeGreaterThanOrEqual(2);
+      expect(kinds.size, zone).toBeLessThanOrEqual(3);
+      // The zone's default weapon (REGION_WEAPONS) stays among them: a mob placed without a type carries it.
+      expect(kinds.has(mobWeapon(zone)), zone).toBe(true);
+    }
+  });
+});
+
+describe("mobTypeFaction and mobTypeWeapon (a type on top of the zone faction)", () => {
+  it("is exactly mobFaction for a grunt, a missing type and a type of another zone", () => {
+    for (const zone of REGIONS) {
+      for (const elite of [false, true]) {
+        expect(mobTypeFaction(zone, elite), zone).toEqual(mobFaction(zone, elite));
+        expect(mobTypeFaction(zone, elite, "nope"), zone).toEqual(mobFaction(zone, elite));
+        expect(mobTypeFaction(zone, elite, ""), zone).toEqual(mobFaction(zone, elite));
+      }
+    }
+    expect(mobTypeFaction("holy", false, "bailiff")).toEqual(mobFaction("holy", false)); // a grunt, and of another zone anyway
+    expect(mobTypeFaction("holy", false, "emberImp")).toEqual(mobFaction("holy", false)); // a swarm of another zone: ignored
+    expect(mobTypeFaction("fire", true, "wyrmling")).toEqual(mobFaction("fire", true));
+  });
+
+  it("multiplies hp by hpMult and the hit and every point-damage param by dmgMult, and leaves the rest", () => {
+    for (const t of MOB_TYPES) {
+      const base = mobFaction(t.zone, t.elite);
+      const spec = mobTypeFaction(t.zone, t.elite, t.id);
+      expect(spec.hp, t.id).toBeCloseTo(base.hp * t.hpMult, 9);
+      expect(spec.hit, t.id).toBeCloseTo(base.hit * t.dmgMult, 9);
+      for (const key of Object.keys(base.params)) {
+        const want = DAMAGE_PARAMS.includes(key) ? base.params[key]! * t.dmgMult : base.params[key]!;
+        expect(spec.params[key], `${t.id} ${key}`).toBeCloseTo(want, 9);
+      }
+      expect([spec.armor, spec.shield, spec.rate, spec.phys, spec.trueShare, spec.id], t.id).toEqual([base.armor, base.shield, base.rate, base.phys, base.trueShare, base.id]);
+    }
+  });
+
+  it("takes the sweep's k like mobFaction, and does not touch the shared tables", () => {
+    const before = JSON.stringify(FACTIONS);
+    const spec = mobTypeFaction("plague", false, "miasmaWitch", 0.5);
+    expect(spec.hp).toBeCloseTo(FACTIONS.plague.hp * 0.5 * 0.75, 9);
+    expect(spec.params.execute).toBeCloseTo(FACTIONS.plague.params.execute! * 0.25 * 1.2, 9);
+    expect(JSON.stringify(FACTIONS)).toBe(before);
+    expect(mobTypeFaction("plague", false, "miasmaWitch").params).not.toBe(mobFaction("plague", false).params);
+  });
+
+  it("gives a swarm less hp than a grunt and a brute more, and a caster the hardest hit and a swarm the softest", () => {
+    expect(mobTypeFaction("plague", false, "plagueRat").hp).toBeLessThan(mobFaction("plague", false).hp);
+    expect(mobTypeFaction("frost", false, "iceGolem").hp).toBeGreaterThan(mobFaction("frost", false).hp);
+    const hit = (id: MobTypeId) => mobTypeFaction(mobTypeById(id)!.zone, false, id).hit;
+    expect(hit("miasmaWitch")).toBeGreaterThan(hit("bloatfly"));
+    expect(hit("bloatfly")).toBeGreaterThan(hit("rotMonk"));
+    expect(hit("rotMonk")).toBeGreaterThan(hit("plagueRat"));
+  });
+
+  it("carries the type's weapon, and the region's default for a missing type or one of another region", () => {
+    for (const t of MOB_TYPES) expect(mobTypeWeapon(t.zone, t.id), t.id).toBe(t.weapon);
+    for (const zone of REGIONS) {
+      expect(mobTypeWeapon(zone), zone).toBe(mobWeapon(zone));
+      expect(mobTypeWeapon(zone, "nope"), zone).toBe(mobWeapon(zone));
+    }
+    expect(mobTypeWeapon("sentenced", "flameCaller")).toBe("sword"); // a Fire type in a Sentenced mob: ignored
+  });
+
+  it("answers mobTypeIn only for a type of that zone", () => {
+    expect(mobTypeIn("fire", "emberImp")?.id).toBe("emberImp");
+    expect(mobTypeIn("holy", "emberImp")).toBeUndefined();
+    expect(mobTypeIn("fire", undefined)).toBeUndefined();
+    expect(mobTypeIn("fire", "")).toBeUndefined();
   });
 });

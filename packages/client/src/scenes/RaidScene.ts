@@ -2,7 +2,7 @@
 import Phaser from "phaser";
 import {
   abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS,
-  countIn, hasLineOfSight, isAbilityDot, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
+  countIn, feedScore, hasLineOfSight, isAbilityDot, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
   type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
@@ -33,7 +33,7 @@ import { WishFx } from "../render/WishFx";
 import { GroundFeedback, NO_STATES, type TerrainStates } from "../render/zoneArt/terrainFeedback";
 import { LockDisplay, pickTarget, targetable, unitCastDenial, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
-import { readCampStates, readCampTypes } from "../ui/campInfo";
+import { readCampElites, readCampStates, readCampTypes } from "../ui/campInfo";
 import { campLabel, ChestMemory, chestPickLine, rttFromOrderDelay, trueServerNow } from "../ui/chestMath";
 import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
@@ -482,7 +482,7 @@ export class RaidScene extends Phaser.Scene {
     });
     this.questLog.update({
       phase: state.phase, training: state.training === true, quests: questData.quests, hidden: questData.hidden,
-      localId: this.room.sessionId, localName: me?.name, serverNow,
+      localId: this.room.sessionId, localName: me?.name, serverNow, feed: me ? feedScore(me.kills, me.mobKills) : undefined,
       ui: { w: currentView().uiW, h: currentView().uiH }, plate: () => this.hud.plate,
     });
 
@@ -533,6 +533,7 @@ export class RaidScene extends Phaser.Scene {
     view.update({
       mode, serverNow, endsAt: state.planEndsAt, meReady: me?.planReady === true, players,
       campTypes: readCampTypes(state, this.mapView?.map.camps.length ?? 0),
+      campElites: readCampElites(state, this.mapView?.map.camps.length ?? 0),
       campStates: this.campStates,
       local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
       quests: questData.quests, hiddenQuests: questData.hidden, localId: this.room.sessionId,

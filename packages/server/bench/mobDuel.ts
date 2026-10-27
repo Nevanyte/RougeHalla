@@ -1,16 +1,20 @@
 // How strong is a regional mob in the REAL sim? A player on a weapon (FISTS by default: an empty hand, which is how every run
 // starts; `--weapon sig` gives the old view, its faction's signature weapon) meets ONE
-// mob of a region (the region's weapon, hp and damage scaled by k = MOB_K, or ELITE_K for an elite) on an open floor, and the
+// mob of a region (a mob TYPE of the region: its weapon, and its role's hp and damage on top of the faction scaled by k = MOB_K,
+// or ELITE_K for an elite; seed s takes the zone's normal type (s - 1) mod 4 and its elite (s - 1) mod 2, so a cell of 4+ seeds
+// pools every type; `--types` prints one row per type) on an open floor, and the
 // fight is played to the end through step(): the weapon state machines, the ledger, the signature systems, mobAI.thinkMobs
 // and settle(). The player is driven by the shared weapon policy `decide`, exactly like harness/duel.ts (the bots click their foe instead: bots/brain/tactics.ts).
 //
-//   npx tsx bench/mobDuel.ts                       shipped MOB_K / ELITE_K: the 5x5 tables (normal and elite), 3 seeds
+//   npx tsx bench/mobDuel.ts                       shipped MOB_K / ELITE_K: the 5x5 tables (normal and elite), 4 seeds (one per normal type)
 //   npx tsx bench/mobDuel.ts --sweep               the k sweep (normal 0.20..0.60, elite 0.50..0.90), one summary row per k
 //   npx tsx bench/mobDuel.ts --reference           the continuous duel() reference (before the weapon layer and signatures)
 //   npx tsx bench/mobDuel.ts --weapons             the player on fists and on each of the 5 weapons (weapon-edge variants)
+//   npx tsx bench/mobDuel.ts --types               one row per mob type (30) against each player faction: win% / mean hp left % / seconds to kill
+//                                                  (balance contract A11: normal types >= 23 of 25 pairings and mean hp >= 75%, elites >= 18 of 25)
 //   npx tsx bench/mobDuel.ts --one fire:holy [--elite] [--k 0.4] [--seed 2] [--weapon sword] [--trace]
 //   --weapon <id>|sig  (every mode) the starter's weapon: fists (default), one of the five, or sig = SIGNATURE_WEAPONS[faction]
-//   options: --seeds N (3)  --wake hit|aggro (hit)  --cap SECONDS (60)  --k X  --elite-k X  --json FILE
+//   options: --seeds N (4)  --wake hit|aggro (hit)  --cap SECONDS (60)  --k X  --elite-k X  --json FILE
 //            --style policy|stand (policy)  --leash U (what-if, emulated)  --mobs-stand (what-if: ranged mobs don't back away)
 //            --sweep takes --leashes a,b,c  --ks a,b  --eks a,b
 //
@@ -30,8 +34,9 @@
 import { writeFileSync } from "node:fs";
 import {
   ALL_WEAPON_IDS, decide, duel, ELITE_K, FACTION_IDS, FACTIONS, FISTS, hasLineOfSight, INTERP_DELAY_MS, isFactionId, isRanged, isWeaponId, MOB_K,
-  MOB_LEASH_RADIUS, mulberry32, PLAYER_RADIUS, POLICIES, reachMask, REGION_WEAPONS, mobFaction, segmentClear, SIGNATURE_WEAPONS, TICK_MS,
-  TILE, WEAPONS, type FactionId, type FactionSpec, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
+  MOB_LEASH_RADIUS, MOB_TYPES, mulberry32, PLAYER_RADIUS, POLICIES, reachMask, mobTypeFaction, mobTypeWeapon, normalTypesOf, elitesOf, segmentClear,
+  SIGNATURE_WEAPONS, TICK_MS, TILE, WEAPONS, type FactionId, type FactionSpec, type MobTypeId, type PolicyInput, type SpacingPolicy, type Vec2,
+  type WeaponId,
 } from "@raid/shared";
 import { buildArena } from "../src/harness/duel";
 import { activeWeapon, combatant, setMobScalesForHarness, timingsOf, type Combatant } from "../src/sim/combatant";
@@ -58,6 +63,8 @@ export interface MobDuelSpec {
   /** The mob's region: its faction (scaled) and its weapon. */
   region: FactionId;
   elite: boolean;
+  /** The mob's type (its weapon, role and name); the zone's type for `seed` (see typeForSeed) when left out. */
+  type?: MobTypeId;
   /** The scale for this kind of mob (MOB_K for a normal one, ELITE_K for an elite) when left out. */
   k?: number;
   seed: number;
@@ -138,6 +145,12 @@ export function variantOf(seed: number, distance: number): Variant {
   const jitter = (rng() - 0.5) * 40;
   const delayTicks = Math.floor(rng() * 4);
   return { angle, distance: distance + jitter, delayTicks, facing: (["toward", "side", "away"] as const)[Math.abs(seed) % 3]! };
+}
+
+/** The zone's normal type (seed - 1) mod 4, or its elite type (seed - 1) mod 2: so a cell of 4 seeds meets every normal type once. */
+export function typeForSeed(region: FactionId, elite: boolean, seed: number): MobTypeId {
+  const pool = elite ? elitesOf(region) : normalTypesOf(region);
+  return pool[(((seed - 1) % pool.length) + pool.length) % pool.length]!.id;
 }
 
 /** The player's brain: the weapon policy, fed what a client sees (the render-time view), sending its inputs like a socket. */
@@ -253,7 +266,8 @@ export function runMobDuel(spec: MobDuelSpec): MobDuelResult {
     step(world, TICK_MS); // lobby -> active (no mobs: config.mobs is off, the one below is placed by hand)
     if (world.state.phase !== "active") throw new Error("mobDuel: the run did not start");
 
-    const mobId = placeMob(world, { region: spec.region, elite: spec.elite, at: home, facing: mobFacing });
+    const type = spec.type ?? typeForSeed(spec.region, spec.elite, spec.seed);
+    const mobId = placeMob(world, { region: spec.region, elite: spec.elite, type, at: home, facing: mobFacing });
     const mob = combatant(world, mobId);
     if (!mob || mob.kind !== "mob" || !mob.rt.brain) throw new Error("mobDuel: no mob placed");
     const prt = world.players.get(PLAYER_ID)!;
@@ -325,7 +339,7 @@ export function runMobDuel(spec: MobDuelSpec): MobDuelResult {
     const seconds = (world.state.serverTime - t0) / 1000;
     const standing = p.status === "alive" && world.state.phase === "active";
     return {
-      spec: { ...spec, weapon, wake, style, k: spec.k ?? (kind === "elite" ? ELITE_K : MOB_K) },
+      spec: { ...spec, type, weapon, wake, style, k: spec.k ?? (kind === "elite" ? ELITE_K : MOB_K) },
       outcome,
       seconds,
       hpLeft: standing ? Math.max(0, p.hp) / p.maxHp : 0,
@@ -403,7 +417,7 @@ export interface GridOpts {
 
 /** The 25 pairings (player faction x mob region), `seeds` duels each. */
 export function runGrid(o: GridOpts): Grid {
-  const seeds = o.seeds ?? 3;
+  const seeds = o.seeds ?? 4;
   const k = o.k ?? (o.elite ? ELITE_K : MOB_K);
   const cells = {} as Grid["cells"];
   for (const player of FACTION_IDS) {
@@ -520,12 +534,12 @@ function foldDps(spec: FactionSpec, m: number): FactionSpec {
  * The old continuous reference: player on the plain faction sheet against the mob at scale k; `fold` multiplies in each side's
  * weapon dpsMult (the player's is `weapon`'s, fists by default).
  */
-export function referenceDuel(player: FactionId, region: FactionId, k: number, fold: boolean, weapon: WeaponId = FISTS): { won: boolean; left: number } {
+export function referenceDuel(player: FactionId, region: FactionId, k: number, fold: boolean, weapon: WeaponId = FISTS, type?: MobTypeId): { won: boolean; left: number } {
   let a = FACTIONS[player];
-  let b = mobFaction(region, false, k); // scaledFaction, with the execute at k squared like the sim's mobs
+  let b = mobTypeFaction(region, false, type, k); // scaledFaction, the execute at k squared like the sim's mobs, the type's role on top
   if (fold) {
     a = foldDps(a, WEAPONS[weapon].dpsMult);
-    b = foldDps(b, WEAPONS[REGION_WEAPONS[region]].dpsMult);
+    b = foldDps(b, WEAPONS[mobTypeWeapon(region, type)].dpsMult);
   }
   const r = duel(a, b);
   return { won: r.winner === 0, left: r.winner === 0 ? r.hpA / a.hp : 0 };
@@ -547,12 +561,16 @@ export function referenceTable(k: number, fold: boolean): { text: string; wins: 
   return { text, wins, mean: lefts.reduce((a, b) => a + b, 0) / lefts.length, worst: Math.min(...lefts) };
 }
 
-/** Real sim minus the dpsMult-folded continuous reference, in points of hp left (LOSS = 0 on both sides), per pairing. */
+/** Real sim minus the dpsMult-folded continuous reference (of the same types the seeds met), in points of hp left (LOSS = 0 on both sides), per pairing. */
 export function compareTable(g: Grid): string {
   const rows = FACTION_IDS.map((p) => {
     const cells = FACTION_IDS.map((r) => {
-      const ref = referenceDuel(p, r, g.k, true, g.weaponOf(p));
-      const d = Math.round((g.cells[p][r].stats.mean - (ref.won ? ref.left : 0)) * 100);
+      let refMean = 0;
+      for (let seed = 1; seed <= g.seeds; seed++) {
+        const ref = referenceDuel(p, r, g.k, true, g.weaponOf(p), typeForSeed(r, g.elite, seed));
+        refMean += (ref.won ? ref.left : 0) / g.seeds;
+      }
+      const d = Math.round((g.cells[p][r].stats.mean - refMean) * 100);
       return d > 0 ? `+${d}` : String(d);
     });
     return `| ${p} | ${cells.join(" | ")} |`;
@@ -589,7 +607,7 @@ function parseFlags(argv: string[]): { flags: Map<string, string>; bools: Set<st
 
 function main(): void {
   const { flags, bools } = parseFlags(process.argv.slice(2));
-  const seeds = flags.has("--seeds") ? Number(flags.get("--seeds")) : 3;
+  const seeds = flags.has("--seeds") ? Number(flags.get("--seeds")) : 4;
   const wake = (flags.get("--wake") ?? "hit") as Wake;
   if (wake !== "hit" && wake !== "aggro") throw new Error(`--wake takes hit or aggro, not "${wake}"`);
   const capSeconds = flags.has("--cap") ? Number(flags.get("--cap")) : undefined;
@@ -656,6 +674,30 @@ function main(): void {
       for (const k of list("--eks", ELITE_SWEEP)) { const g = gridOf(true, k, undefined, l); const t = `leash ${l}: ${summaryLine(g)}`; lines.push(t); log(t); }
     }
     print(`k sweep (wake=${wake}, ${seeds} seeds)`, lines.join("\n"));
+    return;
+  }
+
+  if (bools.has("--types")) {
+    // One row per mob type, one column per player faction (on `--weapon`, fists by default): `seeds` duels each.
+    const weapon = weaponFlag;
+    const rows: string[] = [];
+    let normalWins = 0, normalPairs = 0, normalMean = 0, eliteWins = 0, elitePairs = 0;
+    for (const t of MOB_TYPES) {
+      const cells = FACTION_IDS.map((player) => {
+        const rs: MobDuelResult[] = [];
+        for (let seed = 1; seed <= seeds; seed++) {
+          rs.push(runMobDuel({ player, region: t.zone, elite: t.elite, type: t.id, seed, wake, style, capSeconds, weapon: weapon?.(player), leash, mobRetreat }));
+        }
+        const c = cellStats(rs);
+        if (t.elite) { elitePairs++; if (c.winRate >= 0.5) eliteWins++; } else { normalPairs++; normalMean += c.mean; if (c.winRate >= 0.9) normalWins++; }
+        return `${pct(c.winRate)}/${pct(c.mean)}/${Number.isNaN(c.killSeconds) ? "-" : c.killSeconds.toFixed(1)}s`;
+      });
+      rows.push(`| ${t.name}${t.elite ? " (elite)" : ""} (${t.role}, ${t.weapon}) | ${cells.join(" | ")} |`);
+      log(`${t.id} done`);
+    }
+    print(`per type (wake=${wake}, style=${style}, ${seeds} seeds): win% / mean hp left % / mean seconds wake to kill`,
+      [`| type \\ player | ${FACTION_IDS.join(" | ")} |`, `|---|${FACTION_IDS.map(() => "---").join("|")}|`, ...rows].join("\n"));
+    console.log(`\nnormal types: ${normalWins}/${normalPairs} pairings won in >= 90% of duels, mean hp left ${pct(normalMean / normalPairs)}%; elites: ${eliteWins}/${elitePairs} pairings won in >= half`);
     return;
   }
 

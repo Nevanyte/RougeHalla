@@ -14,7 +14,10 @@
 //               from the sums as they stood before it (a conversion never feeds another), max hp already synced.
 //   mult        a multiplier that is not a sum: rows of one key multiply (attack speed after its cap, the hit, a damage-over-time
 //               or returned-damage tick, AP, a Wish's cooldown, a Race to 0's ceiling).
-//   flag        a yes/no rule (the second weapon slot is locked; a fighter's hits never critically strike).
+//   flag        a yes/no rule (the second weapon slot is locked; a fighter's hits never critically strike) and, since the balance
+//               pass's phase B, the rules that need machinery rather than a number: sim/cardHooks.ts, sim/onHit.ts and the weapon,
+//               melee and ledger code read them (`dotCrit`, `gambler`, `thirdCharm`, `eyeForAnEye`, `twiceUnarmed`, `blockHits`,
+//               `plantFeet`, `festering`).
 // Every row may carry `requires`: it is active only while the fighter owns every one of those ids (a synergy).
 // Numbers: `v` on a stat row is a fraction (0.1 = +10%, -0.08 = -8%); on a flat row and on a `while` row whose stat is
 // armor or shield it is points of that stat. Durations end in `ms`.
@@ -64,9 +67,10 @@ export type VsTest =
 
 /**
  * What a `scale` row grows with: +`per` of its bonus for every `step` of the source (stepped, so it rarely patches), up to
- * the row's `cap` where it has one. `campsCleared` counts the camps this fighter helped clear this run (Pack Leader).
+ * the row's `cap` where it has one. `campsCleared` counts the camps this fighter helped clear this run (Pack Leader); `streak`
+ * counts the hits it has landed in a row on the target of this hit, before this one (Tunnel Vision).
  */
-export type ScaleSource = "ownMissingHp" | "campsCleared";
+export type ScaleSource = "ownMissingHp" | "campsCleared" | "streak";
 
 /**
  * Conditions a `while` row holds under (`arg` is the threshold, `ms` how long it lasts after the event where one applies).
@@ -77,10 +81,18 @@ export type ScaleSource = "ownMissingHp" | "campsCleared";
  */
 export type WhileCond = "chasingLock" | "hpBelow" | "afterCast" | "notShooting" | "unarmed" | "fightTime";
 
-/** Events a `trigger` row fires on (`arg` is the hp threshold for hpBelow). */
-export type TriggerOn = "hpBelow" | "kill" | "hitTaken";
+/**
+ * Events a `trigger` row fires on. `arg` is the hp threshold for hpBelow, and for hitTaken the share of max hp one hit must take
+ * off (0: any hit); `hit` is a weapon hit the fighter lands, `block` a block it makes (its shield stopped part of a hit),
+ * `kill` a killing blow it lands.
+ */
+export type TriggerOn = "hpBelow" | "kill" | "hitTaken" | "hit" | "block";
 
-/** The statuses an `onHit` row may apply. */
+/**
+ * The statuses an `onHit` row may apply (sim/onHit.ts). For a slow or an anti-heal `per` is the strength each hit adds, up to `cap`;
+ * for `dot` (a bleed) `per` is the share of the hit's physical damage dealt over `ms` (each hit its own bleed; `cap` is unused).
+ * Every hit's `per` is multiplied by the weapon's on-hit power and the number of times its on-hit effects apply.
+ */
 export type OnHitStatus = Extract<StatusKind, "slowMove" | "slowAttack" | "antiHeal" | "dot">;
 
 /**
@@ -94,7 +106,16 @@ export type TriggerAction =
   /** `ms` (roguelike R5, Second Wind): paid in round(ms / HEAL_OVER_TIME_STEP_MS) equal steps, the first at once, so it spans one step less than `ms` (rules.ts healOverTimeSpanMs). */
   | { do: "heal"; share: number; ignoreLockout?: boolean; ms?: number }
   | { do: "barrier"; share: number; ms: number }
-  | { do: "cooldown"; ms: number };
+  /** `hit`: its Wish's cooldown is `ms` shorter (Wishful Thinking), within WISHFUL_BUDGET_MS a WISHFUL_WINDOW_MS and never under WISHFUL_FLOOR_SHARE of itself. */
+  | { do: "cooldown"; ms: number }
+  /** `hitTaken`: attack speed and move speed x(1 + as) and x(1 + move) for `ms`, through the stat mirrors (Adrenaline). */
+  | { do: "boost"; as: number; move: number; ms: number }
+  /** `hitTaken`: a `share` of the damage the hit dealt goes back to the attacker as physical damage (Spiked Shell); `melee`: only a melee hit does. */
+  | { do: "return"; share: number; melee?: true }
+  /** `block`: 1 max health per 1 / `per` damage the block prevented, up to `cap` in all (Tank Engine). */
+  | { do: "fortify"; per: number; cap: number }
+  /** `kill`: the damage beyond the kill splashes onto the nearest enemy within `radius` (Overkill). */
+  | { do: "splash"; radius: number };
 
 /** What a `convert` row reads. `bonusAttackSpeed` and `bonusMoveSpeed` are fractions (0.1 = +10%), `ad` points, `maxHp` the max hp itself. */
 export type ConvertFrom = "ad" | "maxHp" | "bonusAttackSpeed" | "bonusMoveSpeed";
@@ -116,9 +137,23 @@ export type ConvertTo = Exclude<StatKey, "maxHp">;
 export type MultKey = "asPost" | "hit" | "dot" | "returned" | "ap" | "wishCooldown" | "hpRace" | "linger";
 export const MULT_KEYS: readonly MultKey[] = ["asPost", "hit", "dot", "returned", "ap", "wishCooldown", "hpRace", "linger"];
 
-/** The yes/no rules a `flag` row sets. */
-export type EffectFlag = "lockSecondSlot" | "noCrit";
-export const EFFECT_FLAGS: readonly EffectFlag[] = ["lockSecondSlot", "noCrit"];
+/**
+ * The yes/no rules a `flag` row sets.
+ *   lockSecondSlot, noCrit   the second weapon slot is locked (Committed); the fighter's hits never critically strike (Thick Skull)
+ *   dotCrit        its damage over time can critically strike (Cruel Wounds; the chance is the fighter's `critChance`)
+ *   gambler        each of its hits rolls double or half damage (Gambler)
+ *   thirdCharm     every 3rd hit in a row on one target applies its on-hit effects once more (Third Time's the Charm)
+ *   eyeForAnEye    the damage it returns to attackers applies its on-hit effects (Eye for an Eye)
+ *   twiceUnarmed   its on-hit effects apply twice while its hand is empty (Fists of Fury)
+ *   blockHits      its blocks count as hits (Best Offense)
+ *   plantFeet      after standing still PLANT_FEET_MS its next attack has more range and damage (Plant Your Feet)
+ *   festering      its magic damage over time keeps ticking after it ends (Festering Arcana)
+ */
+export type EffectFlag =
+  | "lockSecondSlot" | "noCrit" | "dotCrit" | "gambler" | "thirdCharm" | "eyeForAnEye" | "twiceUnarmed" | "blockHits" | "plantFeet" | "festering";
+export const EFFECT_FLAGS: readonly EffectFlag[] = [
+  "lockSecondSlot", "noCrit", "dotCrit", "gambler", "thirdCharm", "eyeForAnEye", "twiceUnarmed", "blockHits", "plantFeet", "festering",
+];
 
 /** Fields every row may carry. */
 interface EffectCommon {
@@ -226,8 +261,12 @@ export function scaleEffect(e: Effect, k: number): Effect {
         case "heal": return { ...r, do: { ...a, share: a.share * k } };
         case "barrier": return { ...r, do: { ...a, share: a.share * k } };
         case "status": return a.value === undefined ? r : { ...r, do: { ...a, value: a.value * k } };
+        case "return": return { ...r, do: { ...a, share: a.share * k } };
+        case "boost": return { ...r, do: { ...a, as: a.as * k, move: a.move * k } };
         case "cleanse":
         case "cooldown":
+        case "fortify":
+        case "splash":
           return r;
       }
     },

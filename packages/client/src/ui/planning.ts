@@ -15,7 +15,7 @@ import { ORDER_EXPIRE_MS } from "../net/localMotion";
 import { settings as appSettings, type Settings, type SettingsStore } from "../settings";
 import { currentView, onViewChange } from "../view/viewState";
 import type { ViewLayout } from "../view/viewport";
-import { campTypeInfo } from "./campInfo";
+import { campMobsText, campTypeInfo } from "./campInfo";
 import { el, uiRoot } from "./dom";
 import {
   CROWN_CLIP_PATH, ZONE_PATTERN, paintCrates, paintMapBase, paintPlayer, paintRoute, zoneClipPath, zoneColor,
@@ -60,6 +60,8 @@ export interface PlanningFrame {
   players: readonly PlanningPlayer[];
   /** RaidState.camps[i].type for every camp, "" where unknown. */
   campTypes: readonly string[];
+  /** RaidState.camps[i].elite for every camp: the elite type of an elite camp, "" for any other (or where unknown). Absent: none. */
+  campElites?: readonly string[];
   /**
    * RaidState.camps[i].state for every camp (0 idle, 1 engaged, 2 cleared): a cleared camp is crossed out; an engaged one only
    * means somebody fought there once (the state never goes back), so it is marked as disturbed, not as a fight under way.
@@ -608,9 +610,9 @@ export class PlanningView {
     if (!marker) return "";
     const { camp } = marker;
     const me = this.myFaction(frame);
-    const info = campTypeInfo(frame?.campTypes[i]);
+    const info = campTypeInfo(frame?.campTypes[i], frame?.campElites?.[i]);
     const parts = [campTitle(camp)];
-    if (info) parts.push(info.name);
+    if (info) parts.push(campMobsText(info));
     const state = frame?.campStates?.[i] ?? 0;
     if (state === 2) parts.push("Cleared");
     else if (state === 1) parts.push("Someone has fought here"); // history: the state is sticky, not a live fight

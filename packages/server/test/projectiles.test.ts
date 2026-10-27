@@ -1488,9 +1488,10 @@ describe("swing interceptions", () => {
 
   it("only touches the ledger entries of the ball it was handed", () => {
     // Two balls reach two different bodies in the same tick; only the first is halved.
+    // The two bodies stand farther apart than the wand's splash reaches (each ball would otherwise also splash the other body).
     const w = arena([
-      mage({ x: 200, y: 300 }), { ...mage({ x: 200, y: 340 }), id: "mage2" },
-      { id: "frostA", at: { x: 500, y: 300 }, faction: "frost", facing: 0 }, { id: "frostB", at: { x: 500, y: 340 }, faction: "frost", facing: 0 },
+      mage({ x: 200, y: 300 }), { ...mage({ x: 200, y: 420 }), id: "mage2" },
+      { id: "frostA", at: { x: 500, y: 300 }, faction: "frost", facing: 0 }, { id: "frostB", at: { x: 500, y: 420 }, faction: "frost", facing: 0 },
     ]);
     castBalls(w, [{ id: "mage", a: 0 }, { id: "mage2", a: 0 }]);
     const [a, b] = [...w.projectiles.values()];

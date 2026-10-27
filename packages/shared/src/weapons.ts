@@ -8,6 +8,9 @@
 //   per hit   = faction.rate x faction.hit x dpsMult x asMult x interval
 // Attack speed past the floor therefore turns into damage per hit. Windups scale with the interval, so a fast cadence
 // is never rooted for good.
+import {
+  AXE_SHRED_ARMOR, AXE_SHRED_CAP, AXE_SHRED_MS, FISTS_ON_HIT_POWER, SWORD_ON_HIT_POWER, WAND_SPLASH_RADIUS, WAND_SPLASH_SHARE,
+} from "./constants";
 import type { FactionId, FactionSpec } from "./factions";
 
 export type WeaponId = "sword" | "bow" | "wand" | "shield" | "axe" | "fists";
@@ -41,6 +44,15 @@ export interface WeaponScaling {
   def?: number;
 }
 
+/**
+ * What a weapon does besides its damage (BALANCE_CONTRACT 3.3), server-side rules read from here:
+ *   shred   each hit takes `armor` off its target for `ms`, stacking up to `cap` (an on-hit effect: sim/onHit.ts)
+ *   splash  a ball's impact also hits every other enemy within `radius` for `share` of the ball's damage (sim/projectiles.ts)
+ */
+export type WeaponSpecial =
+  | { kind: "shred"; armor: number; ms: number; cap: number }
+  | { kind: "splash"; share: number; radius: number };
+
 export interface WeaponSpec {
   id: WeaponId;
   name: string;
@@ -59,35 +71,44 @@ export interface WeaponSpec {
   dpsMult: number;
   /** Per point of AD, AP, bonus max hp and bonus defense (BALANCE_CONTRACT 3.3): the cards' power reaches a hit through this. */
   scaling: Readonly<WeaponScaling>;
+  /** How hard the weapon makes the on-hit effects of its hits land (a card's bleed, slow or shred are this many times as strong): the sword 1.5, fists 1.2, the rest 1. */
+  onHitPower: number;
+  special?: WeaponSpecial;
   shape: ArcShape | ProjectileShape;
 }
 
 export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
   sword: {
     id: "sword", name: "Sword", color: 0xcfd8dc, boost: 1.15, floor: 0.25, dpsMult: 0.75, scaling: { ad: 1.0 },
+    onHitPower: SWORD_ON_HIT_POWER,
     shape: { kind: "arc", reach: 64, halfArc: Math.PI / 4 },
   },
   bow: {
     id: "bow", name: "Bow", color: 0xa1887f, boost: 0.95, floor: 0.25, dpsMult: 0.8, scaling: { ad: 0.9 },
+    onHitPower: 1,
     shape: { kind: "projectile", projectile: "arrow", speed: 900, range: 240 },
   },
   wand: {
     id: "wand", name: "Wand", color: 0xce93d8, boost: 0.65, floor: 0.3, dpsMult: 0.8, scaling: { ad: 0.3, ap: 1.2 },
+    onHitPower: 1, special: { kind: "splash", share: WAND_SPLASH_SHARE, radius: WAND_SPLASH_RADIUS },
     shape: { kind: "projectile", projectile: "ball", speed: 380, range: 220 },
   },
   // The bash; the block cone (SHIELD_HALF_ARC) is always up while the shield is in hand.
   shield: {
     id: "shield", name: "Shield", color: 0x90a4ae, boost: 0.6, floor: 0.3, dpsMult: 0.75, scaling: { ap: 0.3, def: 0.4 },
+    onHitPower: 1,
     shape: { kind: "arc", reach: 44, halfArc: Math.PI / 3 },
   },
   axe: {
     id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.77, scaling: { ad: 1.2, hp: 0.02 },
+    onHitPower: 1, special: { kind: "shred", armor: AXE_SHRED_ARMOR, ms: AXE_SHRED_MS, cap: AXE_SHRED_CAP },
     shape: { kind: "arc", reach: 60, halfArc: Math.PI / 2 },
   },
   // What an empty hand fights with: the shortest melee reach and the fastest cadence, at 0.60 of a faction's weapon dps
   // (arming is worth x1.25-1.33). It pierces shields, never staggers and has no tie to the loop (WEAPON_BEATS).
   fists: {
     id: "fists", name: "Fists", color: 0xffcc80, boost: 1.5, floor: 0.2, dpsMult: 0.6, scaling: { ad: 0.6, ap: 0.6 },
+    onHitPower: FISTS_ON_HIT_POWER,
     shape: { kind: "arc", reach: 40, halfArc: Math.PI / 3 },
   },
 };

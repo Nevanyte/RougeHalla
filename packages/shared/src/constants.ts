@@ -178,6 +178,44 @@ export const AP_DOT_RATIO = 0.6;
 /** A fighter is "in a fight" (the `fightTime` condition) from its first landed or taken hit until this long passes with none. */
 export const FIGHT_GAP_SECONDS = 3;
 
+// The phase-B cards' hooks (balance pass, BALANCE_CONTRACT 4.4 / 4.6, agent A4): the numbers a card's text states live in its rows
+// (cards.ts); these are the rules around them.
+/** A crit accumulator fires when it reaches 1 (minus this, so three adds of 1/3 are a crit despite float error). */
+export const CRIT_EPSILON = 1e-9;
+/** Streaks (Tunnel Vision, First Impressions, Third Time's the Charm): the memory of "the same target" ends after this long without a hit on it. */
+export const STREAK_GAP_SECONDS = FIGHT_GAP_SECONDS;
+/** Plant Your Feet: standing still this long arms the next attack, which then has this much more range and damage. */
+export const PLANT_FEET_MS = 1000;
+export const PLANT_FEET_BONUS = 0.25;
+/** Wishful Thinking (G13): at most this much cooldown is shaved in any window of this length, and the cooldown never drops under this share of itself. */
+export const WISHFUL_BUDGET_MS = 30_000;
+export const WISHFUL_WINDOW_MS = 60_000;
+export const WISHFUL_FLOOR_SHARE = 0.5;
+/** Festering Arcana: this many extra ticks, one every FESTERING_TICK_MS, each FESTERING_AP_SHARE of the owner's AP as magic damage. */
+export const FESTERING_TICKS = 4;
+export const FESTERING_TICK_MS = 1000;
+export const FESTERING_AP_SHARE = 1 / 8;
+/** Gambler: a hit has this chance to deal double (and the same chance to deal half) damage. */
+export const GAMBLER_CHANCE = 0.15;
+export const GAMBLER_UP = 2;
+export const GAMBLER_DOWN = 0.5;
+/** Overkill: the damage beyond a kill splashes onto the nearest enemy within this many units of the victim. */
+export const OVERKILL_RADIUS = 200;
+/** G8: Tank Engine gives at most this much max health in all. */
+export const TANK_ENGINE_CAP = 250;
+
+// Weapon specials (BALANCE_CONTRACT 3.3). The axe shreds armor, the wand splashes, the sword's and fists' on-hit effects hit harder.
+/** Axe: each hit takes this much armor off its target for AXE_SHRED_MS, stacking up to AXE_SHRED_CAP (the target's armor never goes below 0). */
+export const AXE_SHRED_ARMOR = 8;
+export const AXE_SHRED_MS = 3000;
+export const AXE_SHRED_CAP = 24;
+/** Wand: the ball's impact also hits every other enemy within this many units for this share of the ball's damage. */
+export const WAND_SPLASH_SHARE = 0.3;
+export const WAND_SPLASH_RADIUS = 48;
+/** On-hit power: how hard a weapon makes the on-hit effects of its hits (a bleed, a slow, a shred) land. 1 for every other weapon. */
+export const SWORD_ON_HIT_POWER = 1.5;
+export const FISTS_ON_HIT_POWER = 1.2;
+
 // Combat (Phase 9). Weapon numbers and the faction x weapon formula live in weapons.ts; the rules between weapons
 // (blocks, reflections, interceptions, stagger) in interactions.ts.
 /** Duel pace k: every faction damage number is multiplied by k (Sentenced's mark ramp by k squared), hp is not. */

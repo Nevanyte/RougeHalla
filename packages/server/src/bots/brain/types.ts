@@ -239,28 +239,34 @@ export interface PersonaParams {
   readonly eliteAppetite: number;
   /** Inside the coliseum before sudden death: 0 holds the ring's edge and waits, 1 opens fights. */
   readonly coliseum: number;
+  /**
+   * What it takes from a chest when a card gives something up for its power (balance pass, BALANCE_CONTRACT 9; chestHunt.ts cardScore):
+   * an augment is worth +1 to +3 by this, a trade-off augment (Here Comes the Boom, Machine Gun...) only from 0.5, and the two that
+   * can kill their owner (A Race to 0, Glass Cannon) only above 0.7.
+   */
+  readonly risk: number;
 }
 
 export const PERSONAS: Readonly<Record<PersonaId, PersonaParams>> = {
   farmer: {
     id: "farmer", pve: 1, pvp: 0.3, loot: 0.7, bounty: 0.2, thirdParty: 0.2, engageEdge: 1.3, bountyCaution: 0.5,
     fleeHp: 0.4, reengageHp: 0.75, kite: 0.4, chaseGiveUpMs: 4000, mobKillGoal: 9, playerThreat: 250, eliteAppetite: 0.8,
-    coliseum: 0.3,
+    coliseum: 0.3, risk: 0.3,
   },
   hunter: {
     id: "hunter", pve: 0.35, pvp: 1, loot: 0.3, bounty: 1, thirdParty: 0.5, engageEdge: 0.3, bountyCaution: 0,
     fleeHp: 0.2, reengageHp: 0.5, kite: 0.2, chaseGiveUpMs: 9000, mobKillGoal: 3, playerThreat: 400, eliteAppetite: 0.3,
-    coliseum: 1,
+    coliseum: 1, risk: 0.85,
   },
   opportunist: {
     id: "opportunist", pve: 0.6, pvp: 0.7, loot: 1, bounty: 0.6, thirdParty: 1, engageEdge: 0.8, bountyCaution: 0.3,
     fleeHp: 0.35, reengageHp: 0.7, kite: 0.5, chaseGiveUpMs: 5000, mobKillGoal: 6, playerThreat: 300, eliteAppetite: 0.5,
-    coliseum: 0.5,
+    coliseum: 0.5, risk: 0.6,
   },
   cautious: {
     id: "cautious", pve: 0.7, pvp: 0.4, loot: 0.5, bounty: 0.2, thirdParty: 0.4, engageEdge: 1.6, bountyCaution: 0.6,
     fleeHp: 0.55, reengageHp: 0.9, kite: 1, chaseGiveUpMs: 3000, mobKillGoal: 7, playerThreat: 320, eliteAppetite: 0.4,
-    coliseum: 0.2,
+    coliseum: 0.2, risk: 0.15,
   },
 };
 
@@ -339,6 +345,8 @@ export interface SelfView {
   readonly brand: number;
   /** The build's card power (shared cardPower: the sum of tier x count over the cards the HUD's build strip shows). */
   readonly power: number;
+  /** The cards it holds, id -> count: what its own cards row shows (a quest's card included). Absent in a scene that does not set it. */
+  readonly build?: Readonly<Record<string, number>>;
   /** Decoded stat mirrors (shared mods.ts decodeMult): the HUD's attack and move speed. */
   readonly asMult: number;
   /** The windup mirror, decoded (what shared mirrorTimings reads; absent: 1). */

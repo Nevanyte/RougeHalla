@@ -7,7 +7,7 @@ import {
 } from "@raid/shared";
 import { TrainingBar } from "../src/ui/trainingBar";
 import {
-  cardGroups, cardHint, cardLabel, mobTypeGroups, mobTypeLabel, TrainingConsole, trainMessages, zoneLabel,
+  cardGroups, cardHint, cardLabel, mobTypeGroups, mobTypeHint, mobTypeLabel, TrainingConsole, trainMessages, zoneLabel,
 } from "../src/ui/trainingConsole";
 import { installUiDom, type UiEl } from "./uiDom";
 
@@ -42,14 +42,27 @@ function mount(): { console: TrainingConsole; sent: TrainMessage[]; root: UiEl; 
 const btn = (root: UiEl, name: string): UiEl => root.byClass(`train-btn-${name}`)!;
 
 describe("what the console offers", () => {
-  it("lists the 20 mob types by zone, in zone order, each zone's three normals and then its elite", () => {
+  it("lists the 30 mob types by zone, in zone order, each zone's four normals and then its two elites", () => {
     const groups = mobTypeGroups();
     expect(groups.map((g) => g.label)).toEqual(REGION_FACTIONS.map(zoneLabel));
-    expect(groups.map((g) => g.items.length)).toEqual([4, 4, 4, 4, 4]);
+    expect(groups.map((g) => g.items.length)).toEqual([6, 6, 6, 6, 6]);
     expect(groups.flatMap((g) => g.items.map((t) => t.id))).toEqual(MOB_TYPES.map((t) => t.id));
-    for (const g of groups) expect(g.items.map((t) => t.elite)).toEqual([false, false, false, true]);
-    expect(mobTypeLabel(MOB_TYPES[3]!)).toBe("Wyrmling (elite)");
-    expect(mobTypeLabel(MOB_TYPES[0]!)).toBe("Ember Imp");
+    for (const g of groups) expect(g.items.map((t) => t.elite)).toEqual([false, false, false, false, true, true]);
+  });
+
+  it("words a mob type with its role and the weapon it carries, an elite as such", () => {
+    const type = (id: string) => MOB_TYPES.find((t) => t.id === id)!;
+    expect(mobTypeLabel(type("emberImp"))).toBe("Ember Imp (swarm, axe)");
+    expect(mobTypeLabel(type("wyrmling"))).toBe("Wyrmling (elite, grunt, axe)");
+    expect(mobTypeLabel(type("flameCaller"))).toBe("Flame Caller (caster, wand)");
+    expect(mobTypeLabel(type("gaoler"))).toBe("Gaoler (elite, brute, shield)");
+    expect(mobTypeHint(type("emberImp"))).toBe("Ember Imp, a mob of the Fire zone. Fast and fragile. Carries an axe, which a kill can drop.");
+    expect(mobTypeHint(type("bailiff"))).toContain("Carries a sword, which a kill can drop.");
+    expect(mobTypeHint(type("archon"))).toContain("an elite of the Demon Blood zone");
+    for (const t of MOB_TYPES) {
+      expect(mobTypeLabel(t), t.id).toContain(t.name);
+      expect(mobTypeHint(t), t.id).toContain(t.name);
+    }
   });
 
   it("lists the 75 cards by kind: the 24 base cards, the 11 conditionals, the 40 augments, each once, in catalog order", () => {
@@ -66,8 +79,8 @@ describe("what the console offers", () => {
   it("marks a card the server does not apply yet, and no other", () => {
     const rhythm = CARDS.find((c) => c.id === "rhythm")!;
     const haste = CARDS.find((c) => c.id === "haste2")!;
-    expect(cardLive(rhythm)).toBe(false);
-    expect(cardLabel(rhythm)).toBe("Rhythm (not live yet)");
+    expect(cardLabel({ ...rhythm, ready: "b" })).toBe("Rhythm (not live yet)");
+    expect(cardLabel({ ...rhythm, ready: "a" })).toBe("Rhythm");
     expect(cardLabel(haste)).toBe("Haste II");
     expect(CARDS.filter((c) => cardLabel(c).endsWith("(not live yet)")).map((c) => c.id)).toEqual(CARDS.filter((c) => !cardLive(c)).map((c) => c.id));
   });
@@ -77,7 +90,8 @@ describe("what the console offers", () => {
     expect(cardHint("haste2", 3)).toBe("Haste II (Base, tier II) +16% attack speed. Held x3.");
     expect(cardHint("wellspring", 3)).not.toContain("Held"); // a one-per-player card is held once
     expect(cardHint("bloodthirst", 1)).toContain("Needs a Leech card first.");
-    expect(cardHint("rhythm", 1)).toMatch(/Not live yet: it is set but does nothing\.$/);
+    for (const waiting of CARDS.filter((c) => !cardLive(c))) expect(cardHint(waiting.id, 1), waiting.id).toMatch(/Not live yet: it is set but does nothing\.$/);
+    expect(cardHint("rhythm", 1)).toContain("Tags: Critical strike (H, Mechanics page).");
     expect(cardHint("haste2", 0)).toBe("Haste II (Base, tier II) taken off.");
     expect(cardHint("nope", 1)).toBe("");
   });
@@ -91,7 +105,7 @@ describe("what the console offers", () => {
 });
 
 describe("the pickers", () => {
-  it("the mob type picker holds the 20 types in five zone groups, each with its name and zone for a tooltip", () => {
+  it("the mob type picker holds the 30 types in five zone groups, each with its role, weapon and zone for a tooltip", () => {
     const { root } = mount();
     const select = root.byClass("train-mob")!;
     const groups = select.children.filter((c): c is UiEl => typeof c !== "string");
@@ -101,7 +115,7 @@ describe("the pickers", () => {
     expect(options.map(valueOf)).toEqual(MOB_TYPES.map((t) => t.id));
     expect(options.map((o) => o.text)).toEqual(MOB_TYPES.map(mobTypeLabel));
     for (const [i, o] of options.entries()) {
-      expect((o as unknown as { title: string }).title).toBe(`${MOB_TYPES[i]!.name} (${zoneLabel(MOB_TYPES[i]!.zone)})`);
+      expect((o as unknown as { title: string }).title).toBe(mobTypeHint(MOB_TYPES[i]!));
     }
     expect(select.getAttribute("aria-label")).toBe("Mob type");
   });
@@ -216,7 +230,7 @@ describe("the messages the buttons send", () => {
         expect(m.count).toBeLessThanOrEqual(known.get(m.id)!.unique ? 1 : TRAIN_MAX_CARD_COUNT);
       } else if (m.cmd === "chest") { expect(m.options).toHaveLength(1); expect(known.has(m.options![0]!)).toBe(true); }
     }
-    expect(sent.length).toBe(20 + 75 * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
+    expect(sent.length).toBe(MOB_TYPES.length + 75 * (TRAIN_CARD_COUNT_CHOICES.length + 1 + 1));
   });
 
   it("the message builders are the one place that makes the shapes", () => {

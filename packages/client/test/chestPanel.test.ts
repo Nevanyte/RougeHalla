@@ -4,7 +4,8 @@
 // once, and reports what the server refused. Time is a number the test moves.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  CHEST_GREY_MS, CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_REFUSALS, TILE, TILE_FLOOR, TILE_WALL, generateMap, mapFromTiles, skipText,
+  CHEST_GREY_MS, CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_REFUSALS, TAG_GLOSSARY, TILE, TILE_FLOOR, TILE_WALL, generateMap, mapFromTiles,
+  skipText,
   type ClientMessages, type GameMap,
 } from "@raid/shared";
 import { SettingsStore } from "../src/settings";
@@ -357,6 +358,91 @@ describe("what it shows", () => {
     for (let i = 0; i < 10; i++) r.frame(1000 + i);
     expect(name.textWrites).toBe(writes);
     expect(status.textWrites).toBe(statusWrites);
+  });
+});
+
+describe("tags, rarity and the glossary", () => {
+  const BOOM = ["hereComesTheBoom", "machineGun", "slowBurn"] as const;
+  const tagsOf = (c: FEl): FEl[] => c.byClass("cp-tag");
+
+  it("shows a chip per tag on each card, with the tag's name", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    expect(r.cards().map((c) => tagsOf(c).map((t) => t.textContent))).toEqual([
+      ["Damage over time", "Returned"], ["On-hit"], ["Damage over time"],
+    ]);
+    // A card with no tags has no chip row.
+    const plain = setup({ chests: [["c1", chest({ options: ["haste2", "armor1", "ad1"] })]] });
+    plain.frame();
+    expect(tagsOf(plain.cards()[0]!)).toEqual([]);
+    expect(plain.cards()[0]!.byClass("cp-tags")[0]!.hidden).toBe(true);
+    expect(tagsOf(plain.cards()[1]!).map((t) => t.textContent)).toEqual(["Physical"]);
+  });
+
+  it("frames an augment by its tier and flairs it; a base card has neither", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    const [gold, silver, plain] = r.cards() as [FEl, FEl, FEl];
+    expect(gold.hasClass("rarity-gold")).toBe(true);
+    expect(silver.hasClass("rarity-silver")).toBe(true);
+    expect(plain.hasClass("rarity-plain")).toBe(true);
+    expect(gold.byClass("cp-flair")[0]!.hidden).toBe(false);
+    expect(gold.byClass("cp-flair")[0]!.textContent).not.toBe("");
+    const base = setup({ chests: [["c1", chest({ options: ["haste2", "ad3", "armor1"] })]] });
+    base.frame();
+    for (const c of base.cards()) {
+      expect(c.className).not.toMatch(/rarity-/);
+      expect(c.byClass("cp-flair")[0]!.hidden).toBe(true);
+    }
+  });
+
+  it("puts the glossary line of a hovered chip in the status line, and the usual line back when the pointer leaves", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    const chip = tagsOf(r.cards()[0]!)[0]!;
+    chip.dispatch("pointerenter");
+    expect(r.state()).toBe(`Damage over time: ${TAG_GLOSSARY.dot.text}`);
+    chip.dispatch("pointerleave");
+    expect(r.state()).toMatch(/One pick per chest/);
+  });
+
+  it("a tap on a chip shows its line and does not pick the card", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.clock.now = 5000;
+    r.frame();
+    const chip = tagsOf(r.cards()[0]!)[1]!;
+    const e = chip.dispatch("click", { detail: 1 });
+    expect(e.propagationStopped).toBe(true);
+    expect(r.sent).toEqual([]);
+    expect(r.state()).toBe(`Returned: ${TAG_GLOSSARY.returned.text}`);
+  });
+
+  it("an urgent line wins over the glossary: a refusal or a result is not hidden by a hover", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.clock.now = 5000;
+    r.frame();
+    tagsOf(r.cards()[0]!)[0]!.dispatch("pointerenter");
+    expect(r.state()).toMatch(/Damage over time:/);
+    r.panel.pick(1);
+    expect(r.state()).toBe("Sending your pick...");
+  });
+
+  it("the card's own hover text names the card, why it is offered, its text and each tag's glossary line", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    const lines = r.cards()[0]!.title.split("\n");
+    expect(lines[0]).toBe("Here Comes the Boom (tier III)");
+    expect(lines[1]).toBe("Augment");
+    expect(lines).toContain(`Returned: ${TAG_GLOSSARY.returned.text}`);
+  });
+
+  it("repainting a card (a pick elsewhere) drops the glossary line a hover had put up", () => {
+    const r = setup({ chests: [["c1", chest({ options: [...BOOM] })]] });
+    r.frame();
+    tagsOf(r.cards()[0]!)[0]!.dispatch("pointerenter");
+    r.chests.set("c1", chest({ options: [...BOOM], takenBy: ["bob", "", ""], pickers: ["bob"] }));
+    r.frame();
+    expect(r.state()).toMatch(/One pick per chest/);
   });
 });
 

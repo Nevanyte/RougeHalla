@@ -240,7 +240,9 @@ function updateActive(world: World, dtMs: number): void {
   const now = s.serverTime;
   const dt = dtMs / 1000;
   markTickStart(world);
-  world.combat.ledger = [];
+  // The entries cards queued last tick (returned damage, Overkill's splash) open this tick's ledger.
+  world.combat.ledger = world.combat.deferred;
+  world.combat.deferred = [];
   world.combat.melee = [];
   world.combat.spawns = [];
   world.combat.landed = [];

@@ -3,7 +3,8 @@ import {
   ALL_WEAPON_IDS, attackInterval, backlashPerSwing, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, DUEL_PACE, FACTION_IDS, FACTIONS,
   FISTS, FISTS_WINDUP, isLoopWeapon, isRanged, isWeaponId, MAX_SIGHT_CORRIDOR, pacedFaction, PLAYER_RADIUS, RANGED_HIT_REACH,
   RANGED_SLACK, SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS, WAND_WINDUP, WAND_WINDUP_SHARE, weaponEdge, weaponTimings,
-  type FactionId, type WeaponId,
+  AXE_SHRED_ARMOR, AXE_SHRED_CAP, AXE_SHRED_MS, FISTS_ON_HIT_POWER, STATUS_RULES, SWORD_ON_HIT_POWER, WAND_SPLASH_RADIUS, WAND_SPLASH_SHARE,
+  WEAPON_TAGS, type FactionId, type WeaponId,
 } from "../src/index";
 
 /**
@@ -208,6 +209,39 @@ describe("fists (what an empty hand fights with)", () => {
       expect(damagePerHit(faction, "fists"), id).toBeCloseTo(faction.rate * faction.hit * 0.6 * interval, 9);
       expect(backlashPerSwing(200, faction, "fists"), id).toBeCloseTo(80, 9);
     }
+  });
+});
+
+describe("the weapon specials (BALANCE_CONTRACT 3.3) and their tags", () => {
+  it("the axe shreds 8 armor per hit for 3 s up to 24, the wand splashes 30% within 48 u, nothing else has a special", () => {
+    expect(WEAPONS.axe.special).toEqual({ kind: "shred", armor: AXE_SHRED_ARMOR, ms: AXE_SHRED_MS, cap: AXE_SHRED_CAP });
+    expect([AXE_SHRED_ARMOR, AXE_SHRED_MS, AXE_SHRED_CAP]).toEqual([8, 3000, 24]);
+    expect(WEAPONS.wand.special).toEqual({ kind: "splash", share: WAND_SPLASH_SHARE, radius: WAND_SPLASH_RADIUS });
+    expect([WAND_SPLASH_SHARE, WAND_SPLASH_RADIUS]).toEqual([0.3, 48]);
+    for (const w of ["sword", "bow", "shield", "fists"] as const) expect(WEAPONS[w].special, w).toBeUndefined();
+    // The cap is three hits' worth, and the shred status is capped by the same number in the status table.
+    expect(AXE_SHRED_CAP).toBe(3 * AXE_SHRED_ARMOR);
+    expect(STATUS_RULES.shred).toMatchObject({ cap: AXE_SHRED_CAP, maxMs: AXE_SHRED_MS });
+  });
+
+  it("on-hit power: the sword 1.5, fists 1.2, every other weapon 1", () => {
+    expect(Object.fromEntries(ALL_WEAPON_IDS.map((w) => [w, WEAPONS[w].onHitPower]))).toEqual({
+      sword: SWORD_ON_HIT_POWER, bow: 1, wand: 1, shield: 1, axe: 1, fists: FISTS_ON_HIT_POWER,
+    });
+    expect([SWORD_ON_HIT_POWER, FISTS_ON_HIT_POWER]).toEqual([1.5, 1.2]);
+  });
+
+  it("the glossary's weapon tags carry the specials, from the same numbers", () => {
+    const note = (w: WeaponId): string => WEAPON_TAGS.find((r) => r.weapon === w)!.note;
+    expect(note("axe")).toContain(`${AXE_SHRED_ARMOR} armor for ${AXE_SHRED_MS / 1000} s, up to ${AXE_SHRED_CAP}`);
+    expect(note("wand")).toContain("30%");
+    expect(note("wand")).toContain(`${WAND_SPLASH_RADIUS} u`);
+    expect(note("sword")).toContain("1.5x");
+    expect(note("fists")).toContain("1.2x");
+    expect(WEAPON_TAGS.find((r) => r.weapon === "sword")!.tags).toContain("onHit");
+    expect(WEAPON_TAGS.find((r) => r.weapon === "axe")!.tags).toContain("onHit");
+    expect(WEAPON_TAGS.find((r) => r.weapon === "wand")!.tags).toContain("area");
+    expect(WEAPON_TAGS.find((r) => r.weapon === "fists")!.tags).toContain("onHit");
   });
 });
 

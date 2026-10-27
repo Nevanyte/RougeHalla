@@ -9,6 +9,7 @@ import {
 } from "../src/harness/questBench";
 import { liveCardPower } from "../src/harness/questBenchPolicy";
 import { buildQuestBenchReport, farmBaselineSummary } from "../src/harness/questBenchReport";
+import { withNotLive } from "./support/notLive";
 
 function timeline(over: Partial<PowerTimeline>): PowerTimeline {
   return {
@@ -101,14 +102,16 @@ describe("quest benchmark", () => {
   });
 
   it("reads simulation build maps and leaves the cards that wait for a hook out of live power", () => {
-    const waiting = CARDS.find((def) => def.ready === "b")!;
     const live = CARDS.find((def) => def.ready === "a")!;
-    expect(waiting).toBeDefined();
-    expect(liveCardPower({ [waiting.id]: 3 })).toBe(0);
-    const p = new PlayerState();
-    p.build.set(live.id, 3);
-    p.build.set(waiting.id, 3);
-    expect(liveCardPower(p.build)).toBe(cardPower({ [live.id]: 3 }));
-    expect(liveCardPower(p.build)).toBe(3 * cardDef(live.id)!.tier);
+    const waiting = CARDS.find((def) => def.ready === "a" && def.id !== live.id)!;
+    withNotLive([waiting.id], () => {
+      expect(waiting.ready).toBe("b");
+      expect(liveCardPower({ [waiting.id]: 3 })).toBe(0);
+      const p = new PlayerState();
+      p.build.set(live.id, 3);
+      p.build.set(waiting.id, 3);
+      expect(liveCardPower(p.build)).toBe(cardPower({ [live.id]: 3 }));
+      expect(liveCardPower(p.build)).toBe(3 * cardDef(live.id)!.tier);
+    });
   });
 });

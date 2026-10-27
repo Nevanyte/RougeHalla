@@ -1,0 +1,55 @@
+/* The build strip (ui/buildHud.ts): in the HUD plate under the cards row, nine small cells in a grid (AD, AP, armor, MR, attack speed,
+   move, leech, power, PvP). Click-through all the way down, like the cards row: it sits over the world at the top left, so a right-click
+   move or a left-click lock under it must reach the canvas. The tooltips are therefore not :hover: buildHud.ts hit-tests the pointer
+   against the cells' rectangles and sets .tip-on on the cell. */
+.hud-build { margin-top: 4px; width: 256px; max-width: 100%; pointer-events: none; }
+.build-label { margin-bottom: 2px; font-size: 10px; line-height: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+.build-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; pointer-events: none; }
+.build-cell {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 1px 5px;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+  color: var(--text-soft);
+  background: rgba(0, 0, 0, 0.28);
+  border-left: 3px solid var(--muted);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.build-name { overflow: hidden; text-overflow: ellipsis; color: var(--dim); }
+.build-value { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
+.build-cell.dim .build-value { font-weight: 500; color: var(--muted); }
+/* The two numbers that decide a fight with another player stand out from the stat cells: a gold edge, the factor in gold. */
+.build-cell.build-power, .build-cell.build-pvp { border-left-color: var(--gold); }
+.build-cell.build-pvp .build-value { color: var(--gold); }
+.build-cell.build-pvp.dim .build-value { color: var(--accent-dim); }
+
+.build-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(var(--ui-w, 800px) * 0.34);
+  padding: 6px 8px;
+  white-space: normal;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line-hi);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+}
+.build-cell.tip-on .build-tip { display: block; }
+/* The last column's tips would run off the plate to the right: open them leftwards. */
+.build-cell:nth-child(3n) .build-tip { left: auto; right: 0; }

@@ -277,7 +277,10 @@ describe("personas order the goals (docs/BOTS.md 5)", () => {
     const hungry = farmOf("farmer", { mobs: [mobMem("m1", 400)] });
     const fed = farmOf("farmer", { mobs: [mobMem("m1", 400)], self: { kills: 6, mobKills: 2 } });
     expect(fed).toBeLessThan(hungry - 0.2);
-    const elite = { mobs: [mobMem("m1", 400, { kind: "elite" })] };
+    // A "normal" tier bot asks 0.8 of its hp kept (matchupShare) for an elite, or only the "sure" share (0.4) once it holds the cards
+    // (MOB_HUNT.eliteSurePower). The balance pass's compressed sheet moved Fire against the Sentenced elite from 0.93 to 0.73, so with no
+    // cards this bot no longer farms one at all (no candidate: the quotient below was NaN). The scene gives it the cards instead.
+    const elite = { mobs: [mobMem("m1", 400, { kind: "elite" })], self: { power: MOB_HUNT.eliteSurePower } };
     const normal = { mobs: [mobMem("m1", 400)] };
     expect(farmOf("farmer", elite) / farmOf("farmer", normal)).toBeGreaterThan(farmOf("hunter", elite) / farmOf("hunter", normal));
   });

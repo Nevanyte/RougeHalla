@@ -297,6 +297,19 @@ describe("both drivers perceive the same", () => {
     }
   });
 
+  it("hands the bot its own cards as a plain record, with the power they make (what its cards row and build strip show)", () => {
+    const s = buildScenario(21, { statusEffects: false });
+    const input = scenarioInputs(s)[0]!;
+    const plain = input.state as PlainState;
+    plain.players.get("me")!.build = new Map([["ad2", 2], ["leech1", 1], ["gone", 0]]);
+    const f = perceive({ ...input, state: plain }, { selfId: "me", map: s.map, features: s.features, lastMinimap: null });
+    expect(f.self.build).toEqual({ ad2: 2, leech1: 1 }); // a zero count is not held
+    expect(f.self.power).toBe(5); // tier II twice and tier I once
+    const server = toSchemaState(plain);
+    const g = perceive({ ...input, state: server }, { selfId: "me", map: s.map, features: s.features, lastMinimap: null });
+    expect(g.self.build).toEqual(f.self.build);
+  });
+
   it("a real run: the server's state and a decoded client's give identical Frames and Percepts, tick by tick", () => {
     let uid = 0;
     const w = createGameWorld({

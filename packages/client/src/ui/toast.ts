@@ -6,6 +6,14 @@ import { el, uiRoot } from "./dom";
 /** "buff": the local player's own gains (amber; the name predates the cards), "error": something failed (red), "ok": it worked (green). Plain toasts have none. */
 export type ToastTone = "buff" | "error" | "ok";
 
+/** The server's lines that are the local player's own gain: a weapon armed, a camp's heal, a quest's card, GV. They read amber. */
+const GAIN_LINES: readonly RegExp[] = [/^Armed: /, /^Camp cleared: \+/, /^Quest complete: /, /^\+\d+ GV\b/];
+
+/** The tone a server toast is drawn in: "buff" (amber) for the player's own gains, else none. */
+export function toastTone(text: string): ToastTone | undefined {
+  return GAIN_LINES.some((r) => r.test(text)) ? "buff" : undefined;
+}
+
 const MAX_VISIBLE = 3;
 /** How long a toast stays fully visible before it starts to fade. */
 export const HOLD_MS = 1800;

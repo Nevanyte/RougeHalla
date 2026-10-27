@@ -10,13 +10,14 @@
 // name (cards.test.ts enforces it), so the same line reads right for every build; the glossary (glossary.ts) explains the tags.
 //
 // `ready` says when a card's machinery exists. Only the LIVE ones (LIVE_CARD_READY: "a") are rolled into chests and applied by the
-// sim. A phase "b" card is catalog data (title, text, tags, the `hook` it waits for) with no effects: agent A4's hooks (crit, streak
-// memory, on-hit pipeline, block-as-hit, returned damage, DoT extension...) turn it on by filling `effects` and flipping `ready`.
-// Some phase "a" cards also read a number whose consumer lives in the combat files (heal(), the ledger's DoT and returned damage,
-// lifesteal totals): their rows are final and the sim reads them through sim/mods.ts; GAME_DESIGN 12 lists which.
+// sim; all 75 are live now. The phase-B cards (crit, streaks, the on-hit pipeline, blocks, returned damage, the DoT extension...) are
+// rows like the rest: a stat, a flag or a trigger the hooks of sim/cardHooks.ts, sim/onHit.ts and the combat files read (the `hook`
+// field survives only as a note for a card whose machinery is not data). Some cards also read a number whose consumer lives in the
+// combat files (heal(), the ledger's DoT and returned damage, lifesteal totals): the sim reads them through sim/mods.ts;
+// GAME_DESIGN 12 lists which.
 //
 // Power: `cardPower(build)` = the sum over owned cards of tier x count; the PvP factor (rules.ts pvpFactor) reads it.
-import { SWIFT_BOOTS_PAUSE_MS } from "./constants";
+import { OVERKILL_RADIUS, SWIFT_BOOTS_PAUSE_MS, TANK_ENGINE_CAP } from "./constants";
 import type { Effect } from "./effects";
 import type { FactionId } from "./factions";
 
@@ -58,7 +59,7 @@ export type AugmentCardId = (typeof AUGMENT_IDS)[number];
 
 export type CardId = BaseCardId | ConditionalCardId | AugmentCardId;
 
-/** "a": its machinery exists and chests roll it; "b": catalog data until agent A4's hook lands (never offered). */
+/** "a": its machinery exists and chests roll it; "b": catalog data until its hook lands (never offered; no card is "b" any more). */
 export type CardReady = "a" | "b";
 export const LIVE_CARD_READY: readonly CardReady[] = ["a"];
 
@@ -77,12 +78,12 @@ export interface CardDef {
   requires?: BaseStatId;
   /** Conditionals and augments are one per player; base cards stack. */
   unique: boolean;
-  /** The rows (folded by sim/mods.ts). Empty for a phase "b" card until its hook lands. */
+  /** The rows (folded by sim/mods.ts). Empty only for a phase "b" card, of which there are none now. */
   effects: readonly Effect[];
   /** Rows that REPLACE `effects` for a fighter of that faction (Pestilence: an execute faction widens its execute instead). */
   byFaction?: Partial<Record<FactionId, readonly Effect[]>>;
   ready: CardReady;
-  /** A phase "b" card: the machinery it waits for (documentation for the hook agent; nothing reads it). */
+  /** A phase "b" card: the machinery it waits for (documentation; nothing reads it). */
   hook?: string;
 }
 
@@ -213,14 +214,16 @@ const CONDITIONALS: readonly CardDef[] = [
     effects: [{ k: "stat", stat: "maxHp", v: 0.18 }],
   }),
   conditional({
-    id: "festeringArcana", title: "Festering Arcana", requires: "ap", tags: ["magic", "dot"], ready: "b",
+    id: "festeringArcana", title: "Festering Arcana", requires: "ap", tags: ["magic", "dot"], ready: "a",
     text: "Your magic damage over time keeps ticking 4 more times after it ends, each tick 1/8 of your AP.",
-    effects: [], hook: "DoT extension: a `dot` status started at disengage (4 ticks of AP/8)",
+    // sim/factions.ts starts a `dot` status (FESTERING_TICKS ticks of FESTERING_AP_SHARE x AP, a tick a second) when a damage-over-time signature disengages.
+    effects: [{ k: "flag", flag: "festering" }],
   }),
   conditional({
-    id: "rhythm", title: "Rhythm", requires: "haste", tags: ["crit"], ready: "b",
+    id: "rhythm", title: "Rhythm", requires: "haste", tags: ["crit"], ready: "a",
     text: "Every 3rd attack is a critical strike.",
-    effects: [], hook: "crit accumulator (deterministic, G12): every 3rd attack of a fighter crits",
+    // A third of a crit per attack on the deterministic accumulator (sim/cardState.ts): the 3rd attack reaches 1 and crits.
+    effects: [{ k: "stat", stat: "critChance", v: 1 / 3 }],
   }),
 ];
 
@@ -278,29 +281,29 @@ const AUGMENTS: readonly CardDef[] = [
   augment({
     id: "fistsOfFury", title: "Fists of Fury", tier: 2, tags: ["onHit"], ready: "a",
     text: "While unarmed: +40% attack speed (counts toward the cap), and your on-hit effects apply twice.",
-    // The attack speed is live; "on-hit effects apply twice" waits for the on-hit pipeline (phase B).
-    effects: [{ k: "while", cond: "unarmed", arg: 0, stat: "attackSpeed", v: 0.4 }],
-    hook: "on-hit pipeline (R4b): an unarmed fighter's on-hit effects apply twice",
+    // The attack speed is a `while` row; the on-hit part is a flag the on-hit pipeline reads (sim/onHit.ts).
+    effects: [{ k: "while", cond: "unarmed", arg: 0, stat: "attackSpeed", v: 0.4 }, { k: "flag", flag: "twiceUnarmed" }],
   }),
   augment({
-    id: "overkill", title: "Overkill", tier: 2, tags: ["area"], ready: "b",
+    id: "overkill", title: "Overkill", tier: 2, tags: ["area"], ready: "a",
     text: "Damage beyond a kill splashes onto the nearest enemy within 200 u.",
-    effects: [], hook: "after-pass splash: the overkill of a killing blow queued to the next tick's ledger",
+    effects: [{ k: "trigger", on: "kill", arg: 0, do: { do: "splash", radius: OVERKILL_RADIUS } }],
   }),
   augment({
-    id: "tankEngine", title: "Tank Engine", tier: 2, tags: ["block"], ready: "b",
+    id: "tankEngine", title: "Tank Engine", tier: 2, tags: ["block"], ready: "a",
     text: "Permanently gain 1 max health for every 4 damage your blocks prevent (up to +250).",
-    effects: [], hook: "block accounting: a per-run tally of blocked damage feeding a capped max-health bonus (G8, +250)",
+    effects: [{ k: "trigger", on: "block", arg: 0, do: { do: "fortify", per: 0.25, cap: TANK_ENGINE_CAP } }],
   }),
   augment({
-    id: "pocketSand", title: "Pocket Sand", tier: 1, tags: ["block", "slow"], ready: "b",
+    id: "pocketSand", title: "Pocket Sand", tier: 1, tags: ["block", "slow"], ready: "a",
     text: "Your blocks slow the attacker by 30% for 1 s.",
-    effects: [], hook: "status on block: a slowMove status applied to the attacker",
+    effects: [{ k: "trigger", on: "block", arg: 0, do: { do: "status", to: "target", status: "slowMove", ms: 1000, value: 0.3 } }],
   }),
   augment({
-    id: "gambler", title: "Gambler", tier: 1, tags: ["crit"], ready: "b",
+    id: "gambler", title: "Gambler", tier: 1, tags: ["crit"], ready: "a",
     text: "Each hit has a 15% chance to deal double damage and a 15% chance to deal half.",
-    effects: [], hook: "hashed roll (salted from rewardSalt, keyed by tick/attacker/victim/entry: order-free)",
+    // The roll is a hash of a secret salt, the tick, the attacker, the victim and the entry's place (sim/cardState.ts gamblerFactor): no order decides it.
+    effects: [{ k: "flag", flag: "gambler" }],
   }),
   augment({
     id: "slowStarter", title: "Slow Starter", tier: 2, tags: [], ready: "a",
@@ -324,9 +327,9 @@ const AUGMENTS: readonly CardDef[] = [
     effects: [{ k: "scale", src: "campsCleared", per: 0.03, step: 1, cap: 0.24 }],
   }),
   augment({
-    id: "adrenaline", title: "Adrenaline", tier: 2, tags: [], ready: "b",
+    id: "adrenaline", title: "Adrenaline", tier: 2, tags: [], ready: "a",
     text: "After losing 10% or more of your max health in one hit: +40% move and attack speed for 2 s.",
-    effects: [], hook: "trigger hitTaken: a haste status plus an attack-speed bonus for 2 s",
+    effects: [{ k: "trigger", on: "hitTaken", arg: 0.1, do: { do: "boost", as: 0.4, move: 0.4, ms: 2000 } }],
   }),
   augment({
     id: "raceToZero", title: "A Race to 0", tier: 3, tags: [], ready: "a",
@@ -334,24 +337,24 @@ const AUGMENTS: readonly CardDef[] = [
     effects: [{ k: "mult", key: "hpRace", v: 2.5 }],
   }),
   augment({
-    id: "cruelWounds", title: "Cruel Wounds", tier: 2, tags: ["crit", "dot"], ready: "b",
+    id: "cruelWounds", title: "Cruel Wounds", tier: 2, tags: ["crit", "dot"], ready: "a",
     text: "Your damage over time can critically strike (+20% critical strike chance).",
-    effects: [], hook: "crit on a DoT tick (G12 accumulator) and +20% critical strike chance",
+    effects: [{ k: "stat", stat: "critChance", v: 0.2 }, { k: "flag", flag: "dotCrit" }],
   }),
   augment({
-    id: "thirdTimesTheCharm", title: "Third Time's the Charm", tier: 2, tags: ["onHit"], ready: "b",
+    id: "thirdTimesTheCharm", title: "Third Time's the Charm", tier: 2, tags: ["onHit"], ready: "a",
     text: "Every 3rd hit on the same target applies its on-hit effects twice.",
-    effects: [], hook: "per-target streak memory + the on-hit pipeline",
+    effects: [{ k: "flag", flag: "thirdCharm" }],
   }),
   augment({
-    id: "eyeForAnEye", title: "Eye for an Eye", tier: 2, tags: ["onHit", "returned"], ready: "b",
+    id: "eyeForAnEye", title: "Eye for an Eye", tier: 2, tags: ["onHit", "returned"], ready: "a",
     text: "Damage you return to attackers applies your on-hit effects.",
-    effects: [], hook: "returned damage through the on-hit pipeline",
+    effects: [{ k: "flag", flag: "eyeForAnEye" }],
   }),
   augment({
-    id: "bestOffense", title: "Best Offense", tier: 1, tags: ["block"], ready: "b",
+    id: "bestOffense", title: "Best Offense", tier: 1, tags: ["block"], ready: "a",
     text: "Your blocks count as hits.",
-    effects: [], hook: "block-as-hit: a block fires hitLanded-style on-hit effects",
+    effects: [{ k: "flag", flag: "blockHits" }],
   }),
   augment({
     id: "sittingDucks", title: "Sitting Ducks", tier: 2, tags: ["slow"], ready: "a",
@@ -359,29 +362,31 @@ const AUGMENTS: readonly CardDef[] = [
     effects: [{ k: "vs", test: "slowed", arg: 0, v: 0.12 }],
   }),
   augment({
-    id: "tunnelVision", title: "Tunnel Vision", tier: 2, tags: ["ramping"], ready: "b",
+    id: "tunnelVision", title: "Tunnel Vision", tier: 2, tags: ["ramping"], ready: "a",
     text: "+4% damage per hit on the same target, up to 10 stacks; switching targets resets it.",
-    effects: [], hook: "per-target streak memory (10 stacks of +4%)",
+    effects: [{ k: "scale", src: "streak", per: 0.04, step: 1, cap: 0.4 }],
   }),
   augment({
-    id: "firstImpressions", title: "First Impressions", tier: 1, tags: [], ready: "b",
+    id: "firstImpressions", title: "First Impressions", tier: 1, tags: [], ready: "a",
     text: "Your first hit on a new target deals +40% damage.",
-    effects: [], hook: "per-target streak memory (first hit on a target)",
+    // The `streak` test holds while the hits already landed in a row on this target are `arg` or fewer: 0 is the first one.
+    effects: [{ k: "vs", test: "streak", arg: 0, v: 0.4 }],
   }),
   augment({
-    id: "plantYourFeet", title: "Plant Your Feet", tier: 2, tags: [], ready: "b",
+    id: "plantYourFeet", title: "Plant Your Feet", tier: 2, tags: [], ready: "a",
     text: "After standing still for 1 s, your next attack has +25% range and damage.",
-    effects: [], hook: "stillness clock (1 s) and a range/damage bonus on the next attack",
+    effects: [{ k: "flag", flag: "plantFeet" }],
   }),
   augment({
-    id: "wishfulThinking", title: "Wishful Thinking", tier: 2, tags: ["wish"], ready: "b",
+    id: "wishfulThinking", title: "Wishful Thinking", tier: 2, tags: ["wish"], ready: "a",
     text: "Each hit you land shortens your Wish's cooldown by 1 s (at most 30 s a minute).",
-    effects: [], hook: "hitLanded: Wish cooldown reduction, at most 30 s a minute and never below half the base cooldown (G13)",
+    // G13: sim/cardHooks.ts keeps it to WISHFUL_BUDGET_MS in any WISHFUL_WINDOW_MS and never under half the cooldown.
+    effects: [{ k: "trigger", on: "hit", arg: 0, do: { do: "cooldown", ms: 1000 } }],
   }),
   augment({
-    id: "hemorrhage", title: "Hemorrhage", tier: 1, tags: ["onHit", "dot", "physical"], ready: "b",
+    id: "hemorrhage", title: "Hemorrhage", tier: 1, tags: ["onHit", "dot", "physical"], ready: "a",
     text: "Your physical hits make the target bleed for 10% of the hit over 2 s.",
-    effects: [], hook: "on-hit dot status (the R4b pipeline)",
+    effects: [{ k: "onHit", status: "dot", per: 0.1, cap: 1, ms: 2000 }],
   }),
   augment({
     id: "ironWill", title: "Iron Will", tier: 1, tags: ["slow"], ready: "a",
@@ -389,9 +394,9 @@ const AUGMENTS: readonly CardDef[] = [
     effects: [{ k: "stat", stat: "slowResist", v: 0.4 }],
   }),
   augment({
-    id: "spikedShell", title: "Spiked Shell", tier: 2, tags: ["returned", "physical"], ready: "b",
+    id: "spikedShell", title: "Spiked Shell", tier: 2, tags: ["returned", "physical"], ready: "a",
     text: "Melee attackers take 15% of the damage they deal to you back as physical damage.",
-    effects: [], hook: "returned damage: a passive ledger entry from the victim of a melee hit",
+    effects: [{ k: "trigger", on: "hitTaken", arg: 0, do: { do: "return", share: 0.15, melee: true } }],
   }),
   augment({
     id: "gatheringStorm", title: "Gathering Storm", tier: 2, tags: ["ramping"], ready: "a",
@@ -558,28 +563,6 @@ export function cardPower(build: CardCounts | null | undefined): number {
   if (typeof forEach === "function") (build as { forEach(cb: (count: number, id: string) => void): void }).forEach(add);
   else for (const [id, count] of Object.entries(build as Record<string, number>)) add(count, id);
   return p;
-}
-
-// ----------------------------------------------------------------------------------------------------------- phase A / B
-
-/**
- * Does the row only use machinery that exists (phase A)? Phase B's: `onHit` rows (the R4b pipeline), a critical strike chance, the
- * `rooted` and `streak` tests, the `afterCast` condition and the `kill` and `hitTaken` triggers.
- */
-export function isPhaseAEffect(e: Effect): boolean {
-  switch (e.k) {
-    case "onHit": return false;
-    case "stat": return e.stat !== "critChance";
-    case "vs": return e.test !== "rooted" && e.test !== "streak";
-    case "while": return e.cond !== "afterCast" && e.stat !== "critChance";
-    case "trigger": return e.on === "hpBelow";
-    case "flat":
-    case "scale":
-    case "convert":
-    case "mult":
-    case "flag":
-      return true;
-  }
 }
 
 // ------------------------------------------------------------------------------------------------------------ why offered

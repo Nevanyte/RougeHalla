@@ -14,13 +14,14 @@
 // back as its `toast` (noteToast) into the status line. The server decides everything: this only sends `choose`.
 import {
   CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_SECONDS, isChestRefusal, skipText,
-  type CampDef, type CardCounts, type ClientMessages, type GameMap,
+  type CampDef, type CardCounts, type CardOptionView, type ClientMessages, type GameMap,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../net/localMotion";
 import { settings as appSettings, type Settings, type SettingsStore } from "../settings";
 import {
-  CHEST_FOCUS_KEY, DEFAULT_RTT_MS, formatCountdown, isGreyed, kindLine, myPick, optionCards, pickReward, readReward, stateText,
-  statusText, tierBadge, timeShare, trueServerNow, usableRtt, type OptionCard, type PanelTarget, type Reward, type RewardSource,
+  CHEST_FOCUS_KEY, DEFAULT_RTT_MS, cardTitleAttr, formatCountdown, isGreyed, kindLine, myPick, optionCards, pickReward, rarityFrame, readReward,
+  stateText, statusText, tagChips, tierBadge, timeShare, trueServerNow, usableRtt, type OptionCard, type PanelTarget, type Reward,
+  type RewardSource,
 } from "./chestMath";
 import { isTypingTarget } from "./chrome";
 import "./chestPanel.css";
@@ -103,9 +104,13 @@ export interface ChestPanelOptions {
 interface Card {
   root: HTMLButtonElement;
   name: HTMLElement;
+  /** The augment's rarity glyph before its name (empty for a base card and a conditional). */
+  flair: HTMLElement;
   tier: HTMLElement;
   kind: HTMLElement;
   text: HTMLElement;
+  /** The tag chips; a hover or a tap on one puts its glossary line in the status line. */
+  tags: HTMLElement;
   state: HTMLElement;
   /** What the card shows now, so a frame that changes nothing writes nothing. */
   sig: string;
@@ -142,6 +147,8 @@ export class ChestPanel {
   private current: PanelTarget | null = null;
   private currentCards: OptionCard[] = [];
   private greyed = false;
+  /** The glossary line of the tag chip under the pointer; the status line shows it while it has nothing urgent to say. */
+  private gloss: string | null = null;
   /** A pick on its way: the chest, the option (-1 = skip) and the local time it was sent. */
   private pending: { chest: string; pick: number; at: number } | null = null;
   /** When the panel last opened (the local clock): a mouse click in its first moments is ignored. */
@@ -246,20 +253,25 @@ export class ChestPanel {
     root.type = "button";
     root.tabIndex = -1;
     const name = el("span", "cp-name");
+    const flair = el("span", "cp-flair");
+    flair.setAttribute("aria-hidden", "true");
     const tier = el("span", "cp-tier");
     const kind = el("span", "cp-kind");
     const text = el("span", "cp-text");
+    const tags = el("span", "cp-tags");
+    // The card's own label already names the tags; the chips are for the pointer.
+    tags.setAttribute("aria-hidden", "true");
     const state = el("span", "cp-state");
     const top = el("span", "cp-card-top");
-    top.append(keycap(String(index + 1), "cp-key"), name, tier);
-    root.append(top, kind, text, state);
+    top.append(keycap(String(index + 1), "cp-key"), flair, name, tier);
+    root.append(top, kind, text, tags, state);
     root.addEventListener("click", (e) => this.onButton(e, root, () => this.pick(index)));
     // A right-click is a walk order: on a card it must not open the browser's menu instead.
     root.addEventListener("contextmenu", (e: Event) => e.preventDefault());
     // Focus leaving the panel from a button (a Tab past the last one) takes the buttons out of the Tab order again.
     root.addEventListener("focusout", this.onFocusOut);
     root.hidden = true;
-    const card: Card = { root, name, tier, kind, text, state, sig: "" };
+    const card: Card = { root, name, flair, tier, kind, text, tags, state, sig: "" };
     this.cards.push(card);
     this.list.append(root);
     return card;
@@ -408,7 +420,8 @@ export class ChestPanel {
     }
 
     const mine = picked ? myPick(reward, me.id, me.build) : null;
-    const status = statusText({
+    const idle = !picked && this.pending === null && this.refused === null && !this.greyed;
+    const status = idle && this.gloss !== null ? this.gloss : statusText({
       picked: picked ? mine ?? "skip" : null,
       pending: this.pending !== null,
       refused: this.refused,
@@ -456,18 +469,51 @@ export class ChestPanel {
     const kind = kindLine(view);
     const stateLine = sending ? "Sending..." : stateText(state, () => taker || undefined);
     card.name.textContent = name;
+    const rarity = rarityFrame(view);
+    card.flair.textContent = rarity === "gold" ? "\u2726" : rarity === "silver" ? "\u25C6" : rarity === "plain" ? "\u25C7" : "";
+    card.flair.hidden = rarity === null;
     card.tier.textContent = badge;
     card.tier.hidden = badge === "";
     card.kind.textContent = kind;
     card.text.textContent = view?.text ?? "";
+    this.paintTags(card, view);
     card.state.textContent = stateLine;
     card.state.hidden = stateLine === "";
-    card.root.className = `cp-card ${state.kind}${data.pickable ? "" : " off"}${this.greyed ? " greyed" : ""}${sending ? " sending" : ""}`;
+    card.root.className = `cp-card ${state.kind}${rarity === null ? "" : ` rarity-${rarity}`}${data.pickable ? "" : " off"}${this.greyed ? " greyed" : ""}${sending ? " sending" : ""}`;
     card.root.disabled = !data.pickable;
     card.root.setAttribute("aria-disabled", String(!data.pickable));
     const label = [`${index + 1}. ${name}`, badge && `Tier ${badge}`, kind, view?.text, stateLine].filter(Boolean).join(". ");
     card.root.setAttribute("aria-label", label);
-    card.root.title = label;
+    card.root.title = cardTitleAttr(view, stateLine);
+  }
+
+  /**
+   * The card's tag chips. A hover (mouse) or a tap on one shows its glossary line in the status line; a tap on a chip does not pick the
+   * card (it is part of the card's button, so the click is stopped here). A chip leaves nothing behind when its card is repainted.
+   */
+  private paintTags(card: Card, view: CardOptionView | null): void {
+    const chips = tagChips(view).map((t) => {
+      const chip = el("span", `cp-tag tag-${t.tag}`, t.label);
+      chip.addEventListener("pointerenter", () => this.setGloss(t.gloss));
+      chip.addEventListener("pointerleave", () => this.setGloss(null));
+      chip.addEventListener("click", (e: Event) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.setGloss(t.gloss);
+      });
+      return chip;
+    });
+    card.tags.replaceChildren(...chips);
+    card.tags.hidden = chips.length === 0;
+    // A repainted card drops the chip the gloss was for (render() writes the status line right after the cards).
+    this.gloss = null;
+  }
+
+  /** The glossary line a tag chip is showing in the status line now (null: none). */
+  private setGloss(text: string | null): void {
+    if (text === this.gloss) return;
+    this.gloss = text;
+    this.refresh();
   }
 
   // -------------------------------------------------------------------------------------------------------------- picks

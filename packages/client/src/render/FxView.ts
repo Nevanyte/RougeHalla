@@ -108,6 +108,9 @@ const DOT_COLORS: Readonly<Record<SignatureKind, string>> = {
   backlash: "#ff7043",
 };
 const DOT_NUMBER_SIZE = 11;
+/** A card's bleed arrives like a signature's damage over time (a hit with no weapon, signature or ability), in blood red. A critical strike's number is bigger. */
+const BLEED_COLOR = "#e53935";
+const CRIT_EXTRA_SIZE = 5;
 /** The backlash flame's layers, outer to inner: size relative to the tongue, and colour. */
 const FLAME_LAYERS: ReadonlyArray<readonly [number, number]> = [[1, 0xff5722], [0.62, 0xffc107]];
 /** A heal under this is not drawn: Holy's lifesteal pays in fractions on most ticks. */
@@ -479,7 +482,7 @@ export class FxView {
 
   private hit(fx: FxOf<"hit">, now: number): void {
     if (fx.id === this.host.localId) this.host.localHit?.(fx);
-    const dot = isDot(fx.sig) || isAbilityDot(fx.ability);
+    const dot = isDot(fx.sig) || isAbilityDot(fx.ability) || (fx.weapon === null && fx.sig === undefined && fx.ability === undefined);
     // Damage over time is a steady drip, not a blow: no body flash for it.
     if (!dot) this.host.view(fx.id)?.flash();
     // Fire's backlash: the swinger (`id`) is scorched by its own swing.
@@ -497,15 +500,15 @@ export class FxView {
       amount = Math.round(fx.amount);
       if (amount < 1) return;
       // A signature's colour, else the ability's own (a burning trail is orange).
-      color = fx.sig ? DOT_COLORS[fx.sig] : cssColor(fx.ability ? ABILITIES[fx.ability]?.color ?? 0xffffff : 0xffffff);
+      color = fx.sig ? DOT_COLORS[fx.sig] : fx.ability ? cssColor(ABILITIES[fx.ability]?.color ?? 0xffffff) : BLEED_COLOR;
       size = DOT_NUMBER_SIZE;
     } else {
       color = fx.id === this.host.localId ? HIT_ON_ME : fx.by === this.host.localId ? HIT_BY_ME : HIT_OTHERS;
-      size = 13 + Math.min(7, Math.floor(amount / 40));
+      size = 13 + Math.min(7, Math.floor(amount / 40)) + (fx.crit ? CRIT_EXTRA_SIZE : 0);
     }
     const lane = this.lane++ % HIT_LANES;
     const text = this.acquireText(color, size);
-    text.setText(String(amount)).setDepth(DEPTH_FX_TEXT).setPosition(projX(pos.x), projY(pos.y, HIT_START_HEIGHT));
+    text.setText(fx.crit && !dot ? `${amount}!` : String(amount)).setDepth(DEPTH_FX_TEXT).setPosition(projX(pos.x), projY(pos.y, HIT_START_HEIGHT));
     this.active.push({
       kind: "number", g: null, text, start: now, duration: HIT_NUMBER_MS, id: fx.id, x: pos.x, y: pos.y,
       a: (lane - (HIT_LANES - 1) / 2) * HIT_LANE_PX,

@@ -12,8 +12,8 @@
 //   - A target with a shield in hand (activeWeapon === "shield") whose front faces the attacker
 //     (onShieldFront(targetPos, target.facing, origin), both sampled positions, the holder's current facing):
 //     shieldOutcome({ melee: weapon }): "pierce" (axe, fists) is a normal hit; "block" (a bash) and "riposte" (sword) are
-//     blocked IN PART (balance pass): SHIELD_BLOCK_SHARE of the packet is stopped, the rest goes through as a normal hit with
-//     no stagger. A riposte also records riposteShare() of the BLOCKED part on the attacker, by the holder, weapon "shield",
+//     blocked IN PART (balance pass): SHIELD_BLOCK_SHARE of the packet is stopped (the `blocked` hook hears of it: Tank Engine, Pocket Sand,
+//     Best Offense), the rest goes through as a normal hit with no stagger. A riposte also records riposteShare() of the BLOCKED part on the attacker, by the holder, weapon "shield",
 //     no stagger, `passive: true` (it is no attack of the holder's own: sim/factions.ts lets it set a target only for a
 //     holder that has none). Blocked hits emit { kind: "block", id: holder, by: attacker, weapon } and never stagger.
 //   - A normal hit is recordHit({ victim, by: { id, name }, packet: req.packet, weapon, stagger: staggers({ melee }) }).
@@ -55,7 +55,8 @@ export function resolveMelee(world: World): void {
     for (const target of bodies) {
       if (target.id === attacker.id) continue;
       const at = positionAt(target.rt, target.s, req.rewindT);
-      if (!inArc(origin, req.a, shape.reach, shape.halfArc, at, PLAYER_RADIUS)) continue;
+      // Plant Your Feet: an armed swing reaches rangeMult times as far.
+      if (!inArc(origin, req.a, shape.reach * (req.rangeMult ?? 1), shape.halfArc, at, PLAYER_RADIUS)) continue;
       if (raycast(map, origin.x, origin.y, at.x, at.y, reach).hit) continue;
       land(world, req, attacker, target, origin, at);
     }
@@ -73,6 +74,8 @@ function land(world: World, req: MeleeRequest, attacker: Combatant, target: Comb
     const outcome = shieldOutcome({ melee: req.weapon });
     if (outcome === "block" || outcome === "riposte") {
       emit(world, { type: "fx", fx: { kind: "block", id: target.id, by: attacker.id, weapon: req.weapon } });
+      // The cards that answer a block (Tank Engine, Pocket Sand, Best Offense); this phase is outside the ledger pass, so what they apply counts at once.
+      world.hooks.blocked?.(world, target, attacker, { ...req.packet, raw: req.packet.raw * SHIELD_BLOCK_SHARE }, true);
       if (outcome === "riposte") {
         recordHit(world, {
           victim: attacker.id, by: { id: target.id, name: target.s.name },

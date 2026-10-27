@@ -10,7 +10,7 @@
 // back to idle, and cleared is for good: camps never respawn, and the coliseum teleport (which puts LIVING mobs back on their
 // spots) leaves a cleared camp cleared. The clear is paid after the ledger pass that killed the last member (payLater): the
 // `campCleared` fx, then the `campCleared` hook, where sim/chests.ts drops the camp's shared chest. `reward` stays "" (R7).
-import { rollCampTypes } from "@raid/shared";
+import { rollCampElites, rollCampTypes } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
 import { payCampHeal } from "./campHeal";
 import { emit, payLater, type World } from "./world";
@@ -22,16 +22,20 @@ export const CAMP_CLEARED = 2;
 
 /**
  * Rolls every camp's roster and replaces `state.camps` with it: one CampState per `map.camps` entry, `type` the camp's
- * normal mob type, `alive` its spot count (one mob per spot), `reward` "" and `state` 0. Draws only from `world.rewardRandom`
- * (zones in first-seen order, see rollCampTypes). A map without camps (a hand-built test map) publishes none.
+ * normal mob type, `elite` its elite's type ("" for a camp without an elite spot), `alive` its spot count (one mob per
+ * spot), `reward` "" and `state` 0. Draws only from `world.rewardRandom` (zones in first-seen order, seven draws each, see
+ * rollCampTypes); the elites are a function of the camp order (rollCampElites) and draw nothing. A map without camps (a
+ * hand-built test map) publishes none.
  */
 export function rollRosters(world: World): void {
   const camps = world.map.camps;
   const types = rollCampTypes(camps.map((c) => c.zone), world.rewardRandom);
+  const elites = rollCampElites(camps);
   world.state.camps.clear();
   camps.forEach((camp, i) => {
     const s = new CampState();
     s.type = types[i]!;
+    s.elite = elites[i]!;
     s.reward = "";
     s.alive = camp.spots.length;
     s.state = 0;

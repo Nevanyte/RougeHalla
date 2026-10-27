@@ -136,7 +136,7 @@ export type MobState = SchemaType<typeof MobState>;
  * seed-derived. Rosters are rolled server-side (world.rewardRandom) and published here at world build.
  */
 export const CampState = schema({
-  /** MobTypeId of the camp's normal mobs (an elite camp's elite is its zone's elite type). */
+  /** MobTypeId of the camp's normal mobs. */
   type: t.string().default(""),
   /**
    * "" | "?" | "skills" | "relic" | "cursed": what clearing it gives ("?" hides it until the first damage, R7). Left "" in R5:
@@ -150,6 +150,8 @@ export const CampState = schema({
    * can read it), 2 cleared (every member died: the camp never respawns, and stays cleared through the coliseum teleport).
    */
   state: t.uint8().default(0),
+  /** MobTypeId of the camp's elite (the one standing at its `eliteSpot`), "" for a camp without an elite (balance contract 6.4). */
+  elite: t.string().default(""),
 }, "CampState");
 export type CampState = SchemaType<typeof CampState>;
 

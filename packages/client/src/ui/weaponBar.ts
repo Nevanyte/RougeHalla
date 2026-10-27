@@ -1,16 +1,23 @@
 // Bottom-center weapon bar: the two slots (weapon, key, which one is in hand), the shared attack cooldown sweeping over
 // them, and a hint line when a weapon is within reach. The keys are drawn as keycaps (1, 2, Q, F). It only reflects the
 // synced state; the keys themselves are the scene's. Other HUD modules dock into its slot row (`dock`): the Wish slot.
+// Each slot names what its weapon scales with ("AD 1.0", "AP 1.2 + AD 0.3": WeaponSpec.scaling) under its name, and pointing at a
+// slot shows the weapon's tooltip (its scaling, tags and what it does beyond them: ui/buildModel.ts weaponTipText). The bar never
+// takes the pointer, so the slot under it is found by its rectangle (rectTips.ts).
 import { FISTS, WEAPONS, isWeaponId, type WeaponId } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import "./weaponBar.css";
+import { weaponScalingText, weaponTipText } from "./buildModel";
 import { cssColor, el, uiRoot } from "./dom";
 import { keycap } from "./keycap";
+import { RectTips } from "./rectTips";
 
 interface Slot {
   root: HTMLElement;
   swatch: HTMLElement;
   name: HTMLElement;
+  /** What the weapon scales with, small, under the name. */
+  scale: HTMLElement;
   /** The cooldown wipe: a dark wedge that shrinks clockwise as the cooldown runs out. */
   sweep: HTMLElement;
 }
@@ -37,6 +44,10 @@ export class WeaponBar {
   private readonly root = el("div", "weapon-bar");
   private readonly row = el("div", "wb-row");
   private readonly hint = el("div", "wb-hint");
+  /** The tooltip of the slot under the pointer, above the bar. */
+  private readonly tip = el("div", "wb-tip");
+  private readonly tipTexts: string[] = ["", ""];
+  private readonly tips: RectTips;
   private readonly hintLabel = el("span", "wb-hint-text");
   private readonly slots: Slot[] = [];
   /** Starts as a value no real signature can equal so the first update always renders. */
@@ -56,10 +67,11 @@ export class WeaponBar {
       const root = el("div", "wb-slot empty");
       const swatch = el("span", "wb-swatch");
       const name = el("span", "wb-name");
+      const scale = el("span", "wb-scale");
       const sweep = el("span", "wb-sweep");
       sweep.hidden = true;
-      root.append(keycap(String(i + 1), "wb-key"), swatch, name, sweep);
-      this.slots.push({ root, swatch, name, sweep });
+      root.append(keycap(String(i + 1), "wb-key"), swatch, name, scale, sweep);
+      this.slots.push({ root, swatch, name, scale, sweep });
       row.append(root);
       if (i === 0) {
         const swap = el("span", "wb-swap");
@@ -69,9 +81,23 @@ export class WeaponBar {
     }
     this.hint.append(keycap("F"), this.hintLabel);
     this.hint.hidden = true;
-    this.root.append(this.hint, row);
+    this.tip.hidden = true;
+    this.root.append(this.tip, this.hint, row);
     this.root.hidden = true;
     uiRoot().append(this.root);
+    this.tips = new RectTips({
+      container: () => this.row,
+      items: () => this.slots.map((s) => s.root),
+      active: () => !this.root.hidden,
+      onChange: (i) => this.showTip(i),
+    });
+  }
+
+  /** The tooltip of slot `i` (0 or 1), or none for -1. */
+  private showTip(i: number): void {
+    const text = i >= 0 ? this.tipTexts[i] ?? "" : "";
+    this.tip.textContent = text;
+    this.tip.hidden = text === "";
   }
 
   /** Another HUD module's element (an ability slot), docked at the right end of the slot row: it hides and scales with the bar. */
@@ -104,7 +130,12 @@ export class WeaponBar {
         // An empty slot is fists (what the hand fights with): dimmed, with a dashed swatch, but named.
         slot.swatch.style.background = w ? cssColor(WEAPONS[w].color) : "";
         slot.name.textContent = WEAPONS[w ?? FISTS].name;
+        slot.scale.textContent = weaponScalingText(w ?? FISTS);
+        this.tipTexts[i] = weaponTipText(w ?? FISTS);
       });
+      // The tooltip on show belongs to the weapon that was in the slot: the next pointer move shows the new one.
+      this.tips.reset();
+      this.showTip(-1);
     }
 
     const hand = weaponOf(me.slot === 1 ? me.weapon1 : me.weapon0);
@@ -141,6 +172,7 @@ export class WeaponBar {
   }
 
   destroy(): void {
+    this.tips.destroy();
     this.root.remove();
   }
 }

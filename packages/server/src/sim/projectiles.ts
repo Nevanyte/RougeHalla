@@ -95,7 +95,7 @@ export function spawnProjectiles(world: World): void {
     const from = req.origin ?? owner.s;
     launch(world, {
       kind: req.kind, weapon: req.weapon, owner: owner.id, ownerName: owner.s.name, x: from.x, y: from.y,
-      vx: Math.cos(req.a) * shape.speed, vy: Math.sin(req.a) * shape.speed, t: now, range: shape.range, packet: req.packet,
+      vx: Math.cos(req.a) * shape.speed, vy: Math.sin(req.a) * shape.speed, t: now, range: shape.range * (req.rangeMult ?? 1), packet: req.packet,
     });
   }
 }
@@ -238,9 +238,13 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         emit(world, { type: "fx", fx: pr.weapon === "shield" ? { ...block, passive: true } : block });
         if (pr.reflections >= MAX_ARROW_REFLECTIONS) {
           endProjectile(world, pr, hit.x, hit.y, "blocked");
+          const shooter = combatant(world, pr.owner);
+          if (shooter) world.hooks.blocked?.(world, hit.c, shooter, pr.packet, false);
           continue;
         }
         endProjectile(world, pr, hit.x, hit.y, "reflected");
+        const shooter = combatant(world, pr.owner);
+        if (shooter) world.hooks.blocked?.(world, hit.c, shooter, { ...pr.packet, raw: pr.packet.raw * ARROW_REFLECT_SHARE }, false);
         // The shield returns only ARROW_REFLECT_SHARE of the arrow; the holder takes the rest as a normal hit (balance pass).
         recordHit(world, {
           victim: hit.c.id, by: { id: pr.owner, name: pr.ownerName }, packet: { ...pr.packet, raw: pr.packet.raw * (1 - ARROW_REFLECT_SHARE) },
@@ -262,8 +266,34 @@ export function sweepProjectiles(world: World, dtMs: number): void {
         victim: hit.c.id, by: { id: pr.owner, name: pr.ownerName }, packet: pr.packet, weapon: pr.weapon,
         projectile: pr.id, stagger: false,
       });
+      splashFrom(world, pr, hit.c, bodies, t, map);
       endProjectile(world, pr, hit.x, hit.y, "hit");
     }
+  }
+}
+
+/**
+ * The wand's special (WEAPONS.wand.special, BALANCE_CONTRACT 3.3): a ball that hit `primary` also hits every OTHER enemy within the
+ * splash radius of it, for the splash share of the ball's damage. One ledger entry each, `derived` (a follow-on, not a hit of its own
+ * for the cards) and carrying the ball's id, so a swing that halves or destroys the ball this tick scales the splash with it. The
+ * primary is never hit twice, a mob's ball never reaches another mob (mobs never hurt each other), and a wall stops the splash.
+ */
+function splashFrom(
+  world: World, pr: ProjectileRuntime, primary: Combatant, bodies: readonly Combatant[], t: number, map: ReturnType<typeof collisionMap>,
+): void {
+  const special = WEAPONS[pr.weapon].special;
+  if (!special || special.kind !== "splash" || pr.kind !== "ball" || world.config.weaponSpecials === false) return;
+  const centre = positionAt(primary.rt, primary.s, t);
+  const mobShot = world.mobs.has(pr.owner);
+  for (const c of bodies) {
+    if (c.id === pr.owner || c.id === primary.id || isEvading(c) || isQuestGiver(c) || (mobShot && c.kind === "mob")) continue;
+    const at = positionAt(c.rt, c.s, t);
+    if (Math.hypot(at.x - centre.x, at.y - centre.y) > special.radius) continue;
+    if (raycast(map, centre.x, centre.y, at.x, at.y).hit) continue;
+    recordHit(world, {
+      victim: c.id, by: { id: pr.owner, name: pr.ownerName }, packet: pr.packet, weapon: pr.weapon, projectile: pr.id, stagger: false,
+      scale: special.share, derived: true,
+    });
   }
 }
 

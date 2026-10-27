@@ -8,8 +8,9 @@
 // because a focused select blocks the game's keys (RaidScene.isTyping) and Phaser's canvas never takes the focus back by itself.
 // The panel is click-through like the rest of the bar: only the buttons and the selects take the pointer.
 import {
-  BASE_TITLES, CARDS, FACTIONS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT,
-  cardDef, cardLive, isFactionId, tierRoman, type CardDef, type CardKind, type MobTypeDef, type TrainMessage,
+  BASE_TITLES, CARDS, FACTIONS, MOB_ROLE_DEFS, MOB_TYPES, REGION_FACTIONS, TRAIN_CARD_COUNT_CHOICES, TRAIN_DEFAULT_CARD_COUNT,
+  TRAIN_MAX_CARD_COUNT, WEAPONS, cardDef, cardLive, isFactionId, tagLabel, tierRoman,
+  type CardDef, type CardKind, type MobTypeDef, type TrainMessage,
 } from "@raid/shared";
 import { cardKindLabel } from "./chestMath";
 import { el } from "./dom";
@@ -26,7 +27,7 @@ export function zoneLabel(zone: string): string {
   return `${isFactionId(zone) ? FACTIONS[zone].displayName : zone} zone`;
 }
 
-/** The 20 mob types grouped by zone (zone order, each zone's three normals then its elite): the camp picker. */
+/** The 30 mob types grouped by zone (zone order, each zone's four normals then its two elites): the camp picker. */
 export function mobTypeGroups(): Array<ConsoleGroup<MobTypeDef>> {
   return REGION_FACTIONS.map((zone) => ({ label: zoneLabel(zone), items: MOB_TYPES.filter((t) => t.zone === zone) }));
 }
@@ -40,9 +41,16 @@ export function cardGroups(): Array<ConsoleGroup<CardDef>> {
   return CARD_GROUPS.map(({ kind, label }) => ({ label, items: CARDS.filter((c) => c.kind === kind) }));
 }
 
-/** A mob type's option text: its name, "(elite)" for a zone's elite. */
+/** A mob type's option text: its name, "elite" for a zone's elite, its role and the weapon it carries ("Ember Imp (swarm, axe)"). */
 export function mobTypeLabel(t: MobTypeDef): string {
-  return t.elite ? `${t.name} (elite)` : t.name;
+  const role = MOB_ROLE_DEFS[t.role].label.toLowerCase();
+  return `${t.name} (${t.elite ? "elite, " : ""}${role}, ${WEAPONS[t.weapon].name.toLowerCase()})`;
+}
+
+/** What a mob type is, for its option's tooltip: the zone, the role's line and the weapon a kill drops. */
+export function mobTypeHint(t: MobTypeDef): string {
+  const weapon = WEAPONS[t.weapon].name.toLowerCase();
+  return `${t.name}, ${t.elite ? "an elite of the " : "a mob of the "}${zoneLabel(t.zone)}. ${MOB_ROLE_DEFS[t.role].blurb} Carries ${/^[aeiou]/.test(weapon) ? "an" : "a"} ${weapon}, which a kill can drop.`;
 }
 
 /** A card's option text: its title, "(not live yet)" while the server does not apply it. */
@@ -59,8 +67,9 @@ export function cardHint(id: string, count: number): string {
   const text = /[.!?]$/.test(def.text) ? def.text : `${def.text}.`;
   const copies = !def.unique && count > 1 ? ` Held x${count}.` : "";
   const needs = def.requires ? ` Needs a ${BASE_TITLES[def.requires]} card first.` : "";
+  const tags = def.tags.length > 0 ? ` Tags: ${def.tags.map(tagLabel).join(", ")} (H, Mechanics page).` : "";
   const note = cardLive(def) ? "" : " Not live yet: it is set but does nothing.";
-  return `${head} ${text}${copies}${needs}${note}`;
+  return `${head} ${text}${copies}${needs}${tags}${note}`;
 }
 
 /** The messages the buttons send, one function each so the shapes are in one place. */
@@ -105,7 +114,7 @@ export class TrainingConsole {
 
     this.toggle.type = "button";
     this.toggle.textContent = "Console";
-    this.toggle.title = "Practice console: set cards, spawn a camp, drop a chest";
+    this.toggle.title = "Practice console: set cards, spawn a camp (its clear heals you), drop a card chest";
     this.toggle.setAttribute("aria-expanded", "false");
     this.toggle.setAttribute("aria-controls", panelId);
     this.toggle.addEventListener("click", (ev) => { this.setOpen(!this.opened); this.releaseFocus(ev, this.toggle); });
@@ -116,7 +125,7 @@ export class TrainingConsole {
 
     this.panel.append(
       this.title("Camps"),
-      this.row("Mob type", this.mobSelect, this.button("train-btn-camp", "Spawn camp", "A practice camp of this mob type near you: it pays nothing", () => this.spawnCamp())),
+      this.row("Mob type", this.mobSelect, this.button("train-btn-camp", "Spawn camp", "A practice camp of this mob type near you: no GV and no drops, but clearing it gives the camp-clear heal", () => this.spawnCamp())),
       this.title("Cards and chests"),
       this.row("Card", this.cardSelect),
       this.row("Copies", this.countSelect, this.button("train-btn-card", "Set card", "Set how many copies of this card you hold", () => this.setCard())),
@@ -220,7 +229,7 @@ export class TrainingConsole {
     for (const g of mobTypeGroups()) {
       const group = el("optgroup");
       group.label = g.label;
-      for (const t of g.items) group.append(this.option(t.id, mobTypeLabel(t), `${t.name} (${zoneLabel(t.zone)})`));
+      for (const t of g.items) group.append(this.option(t.id, mobTypeLabel(t), mobTypeHint(t)));
       this.mobSelect.append(group);
     }
     this.mobSelect.value = MOB_TYPES[0]!.id;

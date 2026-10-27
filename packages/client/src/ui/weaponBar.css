@@ -32,7 +32,7 @@
   position: relative;
   box-sizing: border-box;
   width: 104px;
-  height: 64px;
+  height: 76px;
   padding: 6px 4px 5px;
   display: flex;
   flex-direction: column;
@@ -71,6 +71,41 @@
   font-size: 11px;
   line-height: 14px;
 }
+/* What the weapon scales with, small, under its name (WeaponSpec.scaling). */
+.wb-scale {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 11px;
+  letter-spacing: 0.02em;
+  color: #8d99a6;
+}
+.wb-slot.active .wb-scale { color: #c9b97a; }
+/* The tooltip of the slot under the pointer: above the bar, over the world, never under the pointer (the bar is click-through). */
+.wb-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(var(--ui-w, 800px) * 0.5);
+  padding: 6px 8px;
+  white-space: pre-line;
+  color: #e6e9ed;
+  font-size: 12px;
+  line-height: 16px;
+  background: rgba(20, 24, 30, 0.97);
+  border: 1px solid #4a5563;
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.wb-tip[hidden] { display: none; }
 /* Between the slots: the swap key, with a small caption drawn by CSS. */
 .wb-swap {
   display: flex;

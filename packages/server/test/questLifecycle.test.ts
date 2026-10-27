@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  generateMap, mapFromTiles, mulberry32, normalTypesOf, questDefById, eliteTypeOf, TICK_MS, TILE,
+  generateMap, mapFromTiles, mulberry32, normalTypesOf, questDefById, elitesOf, TICK_MS, TILE,
   type FactionId, type GameMap,
 } from "@raid/shared";
 import { teleportToColiseum } from "../src/sim/arena";
@@ -222,7 +222,7 @@ describe("the mobKilled payload", () => {
   it("names the elite type, its zone, its camp index and the elite flag for an elite of a camp", () => {
     const world = makeRun();
     const seen = recorded(world);
-    const type = eliteTypeOf("frost").id;
+    const type = elitesOf("frost")[0]!.id;
 
     slay(world, placeMob(world, { region: "frost", elite: true, type, camp: 7, at: AT }));
 

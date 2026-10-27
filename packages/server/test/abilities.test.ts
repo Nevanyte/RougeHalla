@@ -1563,7 +1563,7 @@ describe("the generic damage-over-time ticker", () => {
     { faction: "plague", at: near(1000, 500), hp: 1000 },
   ]);
 
-  it("a dot status from a source that is not an ability ticks as true damage with no weapon and no per-tick fx", () => {
+  it("a dot status from a source that is not an ability ticks as true damage with no weapon and no per-tick fx (a card's bleed is reported in chunks)", () => {
     const world = duo();
     afflict(world, "p1", "dot", SEC, { source: src("p0"), tag: "relic", value: 40 });
     const landed: Array<Record<string, unknown>> = [];
@@ -1576,7 +1576,12 @@ describe("the generic damage-over-time ticker", () => {
     expect(P(world, 1).hp).toBeCloseTo(1000 - 19 * 2, 9);
     for (const h of landed) expect(h).toMatchObject({ victim: "p1", by: "p0", weapon: null, dot: true });
     for (const h of landed) expect(h.ability).toBeUndefined();
-    expect(fxOf("hit")).toEqual([]);
+    // Not one `hit` fx a tick: the damage of such a status arrives as a chunk every DOT_FX_MS (sim/cardHooks.ts), with no weapon, signature or ability.
+    const hits = fxOf("hit");
+    expect(hits.length).toBeLessThan(5);
+    for (const h of hits) expect(h).toMatchObject({ id: "p1", by: "p0", weapon: null });
+    for (const h of hits) expect(h).not.toHaveProperty("ability");
+    expect(hits.reduce((n, h) => n + (h as { amount: number }).amount, 0)).toBeGreaterThan(30);
     expect(P(world, 1).effects & EFFECT_DOT).toBe(0);
   });
 

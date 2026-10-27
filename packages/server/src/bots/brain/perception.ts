@@ -300,6 +300,13 @@ export function detectFeatures(probe: FeatureProbe): Features {
 
 // ================================================================================================================ perceive
 
+/** The synced build map (id -> count) as a plain record; what the bot's own cards row shows. */
+function buildRecord(build: PlayerLike["build"]): Record<string, number> {
+  const out: Record<string, number> = {};
+  build?.forEach((count, id) => { if (count > 0) out[id] = count; });
+  return out;
+}
+
 function selfView(id: FighterId, p: PlayerLike): SelfView {
   return {
     id,
@@ -321,6 +328,7 @@ function selfView(id: FighterId, p: PlayerLike): SelfView {
     sig: p.sig,
     brand: p.brand,
     power: cardPower(p.build),
+    build: buildRecord(p.build),
     asMult: decodeMult(p.asMult),
     windupMult: p.windupMult === undefined ? 1 : decodeMult(p.windupMult),
     speedMult: decodeMult(p.speedMult),

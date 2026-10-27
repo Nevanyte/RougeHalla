@@ -14,7 +14,7 @@
 //           also wins on power, as 4.7 reading 6 says it should).
 //   Output  per build and faction: the holder's win % (a draw or cap counts half), the median and minimum kill time (seconds from the
 //           first landed hit to the end of a finished duel, whoever won it) and, last, the A14 lines. A build that holds a card with
-//           no effect yet (a phase-B card, or a rule with nothing to act on) says so: its numbers are the rest of the build.
+//           no effect in a duel (a card that is not live, or a rule with nothing to act on) says so: its numbers are the rest of the build.
 import { writeFileSync } from "node:fs";
 import {
   cardDef, cardPower, FACTION_IDS, pvpFactor, SIGNATURE_WEAPONS, type CardId, type FactionId,
@@ -53,22 +53,40 @@ const BUILDS: readonly Build[] = [
   { name: "Coup de Grace + AD III", extra: ["coupDeGrace", "ad3"] },
   { name: "Big Game Hunter + Sitting Ducks", extra: ["bigGameHunter", "sittingDucks"] },
   { name: "Slow Burn + Siphon + Leech III", extra: ["slowBurn", "siphon", "leech3"] },
+  // The phase-B hooks (agent A4): crits, streaks, the on-hit pipeline, the gamble and the returned damage, stacked as far as a chest allows.
+  { name: "Rhythm + Cruel Wounds + Haste III + AD III", extra: ["haste3", "rhythm", "cruelWounds", "ad3"] },
+  { name: "Boom + Haste III + Rhythm", extra: ["hereComesTheBoom", "haste3", "rhythm"] },
+  { name: "Gambler + Glass Cannon + AD III", extra: ["gambler", "glassCannon", "ad3"] },
+  { name: "Boom + Gambler + AD III", extra: ["hereComesTheBoom", "gambler", "ad3"] },
+  { name: "Tunnel Vision + First Impressions + AD III", extra: ["tunnelVision", "firstImpressions", "ad3"] },
+  { name: "Glass Cannon + Tunnel Vision + Coup de Grace + AD III", extra: ["glassCannon", "tunnelVision", "coupDeGrace", "ad3"] },
+  { name: "Hemorrhage + Third Time + Eye + Haste III", extra: ["hemorrhage", "thirdTimesTheCharm", "eyeForAnEye", "haste3"] },
+  { name: "Machine Gun + Hemorrhage + Third Time + Fists of Fury", extra: ["machineGun", "hemorrhage", "thirdTimesTheCharm", "fistsOfFury"] },
+  { name: "Plant Your Feet + AD III", extra: ["plantYourFeet", "ad3"] },
+  { name: "Spiked Shell + Armor III + Vitality III", extra: ["spikedShell", "armor3", "vitality3"] },
+  { name: "Adrenaline + Haste III + Fleet III", extra: ["adrenaline", "haste3", "fleet3"] },
+  { name: "Overkill + Boom + AD III", extra: ["overkill", "hereComesTheBoom", "ad3"] },
+  { name: "Festering Arcana + AP III + Slow Burn", extra: ["ap3", "festeringArcana", "slowBurn"] },
+  { name: "Race + Rhythm + Cruel Wounds + Haste III", extra: ["raceToZero", "haste3", "rhythm", "cruelWounds"] },
 ];
 
 /**
- * What a card in a build does not do yet. Every live (phase A) card's readers are wired into the combat code; what is left is a part
- * that has nothing to act on, and the phase-B cards (`ready: "b"`, empty effects until A4's hooks land: crit, streaks, on-hit pipeline,
- * block as a hit, returned damage, DoT extension, stillness), which this bench can already be asked about with `--card` and which then
- * measure the kit alone.
+ * What a card in a build does not do (yet). Every card of the catalog is live since the phase-B hooks landed (agent A4); a card that
+ * is not live, or a rule with nothing to act on in a duel (Overkill and Wishful Thinking need a third fighter or a Wish in play, Tank
+ * Engine and Pocket Sand a shield), says so here and its numbers are the rest of the build.
  */
 const INERT: Readonly<Partial<Record<CardId, string>>> = {
-  thickSkull: "its no-crit rule is inert until crits exist (phase B)",
+  overkill: "splashes only onto a third fighter: nothing to act on in a duel",
+  wishfulThinking: "shortens a Wish that no duel casts",
+  tankEngine: "grows only from blocks (a shield on the holder)",
+  pocketSand: "slows only on a block (a shield on the holder)",
+  bestOffense: "counts only blocks (a shield on the holder)",
 };
 
 function note(extra: readonly CardId[]): string {
   const parts = extra.flatMap((id) => {
     if (INERT[id]) return [`${id}: ${INERT[id]}`];
-    return cardDef(id)?.ready === "b" ? [`${id}: phase B, no effect yet (${cardDef(id)?.hook ?? "hook"})`] : [];
+    return cardDef(id)?.ready === "b" ? [`${id}: not live, no effect (${cardDef(id)?.hook ?? "hook"})`] : [];
   });
   return parts.join("; ");
 }

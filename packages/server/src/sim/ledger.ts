@@ -27,20 +27,26 @@
 //   The cards' readers (BALANCE_CONTRACT 4.6). Each entry is named by outgoingKindOf (a weapon hit, a damage-over-time tick, returned
 //     damage), so G1's cap shares the row multiplier with the attacker's own `hit`, `dot` or `returned` mult; and the `vs` tests that need
 //     the world (slowed, elite, higherPower) are answered by sim/vsProbe.ts, beside the ones here.
+//   The phase-B cards (agent A4). A critical strike is baked into its packet by the weapon phase (sim/weapons.ts land) and a damage-
+//     over-time tick (sim/factions.ts, sim/abilities.ts), flagged `crit`, and G1's cap counts it (the packet's `mult`, outgoingMult's
+//     `baked`). Gambler's double-or-half is a hashed roll per entry (sim/cardState.ts gamblerFactor), outside the cap. A `final` entry
+//     (returned damage, Overkill's splash) already carries its multipliers and is only mitigated. Cards queue entries for the NEXT tick's
+//     ledger with deferHit; `hitLanded` carries the on-hit effects (sim/onHit.ts) and the triggers, and `overkilled` the splash.
 //   The caps (G2, G3), after mitigation in applyVictim: no player-to-player hit (not a damage-over-time tick) takes more than
 //     PVP_HIT_CAP_SHARE of the victim's max hp, and one source's damage over time on one player no more than
 //     PVP_DOT_CAP_SHARE of it per second (a budget per tick). They bound what a stack of cards can do in one blow.
 import { cardPower, hpRaceMult, isDot, mitigateShares, PVP_DOT_CAP_SHARE, PVP_HIT_CAP_SHARE, pvpFactor, TICK_MS } from "@raid/shared";
 import { applyHits, type Attacker, type Hit } from "./arena";
+import { gamblerFactor } from "./cardState";
 import { combatant, defenseOf, standing } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
-import { hpRaceCapOf as hpRaceCapFromRows, outgoingKindOf, outgoingMult, type VsProbe } from "./mods";
+import { hasFlag, hpRaceCapOf as hpRaceCapFromRows, outgoingKindOf, outgoingMult, type VsProbe } from "./mods";
 import { damageFactor } from "./status";
 import { stagger } from "./weapons";
 import { feedOfPlayer, lobbyMedianFeed } from "./feed";
 import { vsExtras } from "./vsProbe";
-import { emit, type DamageSource, type LandedHit, type LedgerEntry, type World } from "./world";
+import { emit, type DamageSource, type LandedHit, type LedgerEntry, type OverkillHit, type World } from "./world";
 
 /**
  * Records a hit landing this tick. Returns the entry, so the melee phase can still scale a projectile's hit. Mobs never
@@ -54,6 +60,17 @@ export function recordHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?
   // A mob that lands a hit on a player has not tired of the fight (its give-up timer counts what it deals, not what it takes).
   const brain = world.mobs.get(e.by.id)?.brain;
   if (brain && entry.scale > 0 && world.players.has(e.victim)) brain.lastCombatAt = world.state.serverTime;
+  return entry;
+}
+
+/**
+ * Queues an entry for the NEXT tick's ledger (step.ts starts that ledger with it): damage a card answers a pass with (Spiked Shell's
+ * returned damage, Overkill's splash) cannot join the pass it answers, whose victims and multipliers were fixed when it began.
+ */
+export function deferHit(world: World, e: Omit<LedgerEntry, "scale"> & { scale?: number }): LedgerEntry {
+  const mobOnMob = world.mobs.has(e.by.id) && world.mobs.has(e.victim);
+  const entry: LedgerEntry = { ...e, scale: mobOnMob ? 0 : e.scale ?? 1 };
+  world.combat.deferred.push(entry);
   return entry;
 }
 
@@ -178,14 +195,30 @@ interface Outgoing {
 function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
   const mult = new Map<LedgerEntry, number>();
   const race = new Map<LedgerEntry, number>();
+  /** How many entries of each attacker on each victim came before this one: Gambler's roll is keyed by it, never by the ledger's own order. */
+  const placeOf = new Map<string, number>();
   for (const e of ledger) {
     // Ability power is flat (the Wishes' D12): a Wish's damage and its DoT chunks never read the caster's buffs.
     if (e.arena || e.ability !== undefined || !(e.scale > 0)) continue;
+    // Already multiplied (returned damage, Overkill's splash): only the damage it takes at low health under a Race to 0 still applies.
+    if (e.final) {
+      const taken = hpRaceOf(world, e.victim);
+      if (taken !== 1) mult.set(e, taken);
+      continue;
+    }
     const by = world.state.players.get(e.by.id) ?? world.state.mobs.get(e.by.id);
     if (!by) continue;
     const dealt = hpRaceOf(world, e.by.id);
-    const m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim), outgoingKindOf(e))
+    const kind = outgoingKindOf(e);
+    let m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim), kind, e.packet.mult)
       * pvpScale(world, e.by.id, e.victim) * dealt * hpRaceOf(world, e.victim);
+    // Gambler: a weapon hit rolls double or half (after G1's cap, which only the card rows and the baked multipliers share).
+    if (kind === "hit" && hasFlag(by, "gambler")) {
+      const key = `${e.by.id}|${e.victim}`;
+      const place = placeOf.get(key) ?? 0;
+      placeOf.set(key, place + 1);
+      m *= gamblerFactor(world, e, place);
+    }
     if (dealt !== 1) race.set(e, dealt);
     if (m !== 1) mult.set(e, m);
   }
@@ -222,9 +255,11 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outg
   const def = defenseOf(c.s);
   // Before mitigation: the attacker's outgoing rows (`out`, read as the pass began), then damageFactor (Trial's zone), the one
   // place a status changes the damage of every source. The arena's own burn is no one's hit.
+  const raws: number[] = [];
   const amounts = entries.map((e) => {
-    if (!(e.scale > 0)) return 0;
+    if (!(e.scale > 0)) { raws.push(0); return 0; }
     const raw = e.packet.raw * e.scale * (out.mult.get(e) ?? 1) * (e.arena ? 1 : damageFactor(world, e.by.id, id));
+    raws.push(raw);
     return mitigateShares(raw, e.packet, def);
   });
   if (c.kind === "player") capPvp(world, c.s.maxHp, entries, amounts);
@@ -261,17 +296,31 @@ function applyVictim(world: World, id: string, entries: LedgerEntry[], out: Outg
     const landed: LandedHit = { victim: id, by: e.by.id, amount: amount * landedShare, weapon: e.weapon, sig: e.sig };
     if (e.ability !== undefined) landed.ability = e.ability;
     if (e.dot) landed.dot = true;
+    if (e.packet.crit) landed.crit = true;
+    if (e.passive) landed.passive = true;
+    if (e.derived) landed.derived = true;
     const race = out.race.get(e);
     if (race !== undefined) landed.race = race;
     world.combat.landed.push(landed);
-    // Damage over time is reported in chunks (sim/factions.ts, sim/abilities.ts).
+    // Damage over time is reported in chunks (sim/factions.ts, sim/abilities.ts, sim/cardHooks.ts).
     if (!(isDot(e.sig) || e.dot)) {
       const fx = { kind: "hit" as const, id, by: e.by.id, amount, weapon: e.weapon };
       const named = e.sig ? { ...fx, sig: e.sig } : fx;
-      emit(world, { type: "fx", fx: e.ability !== undefined ? { ...named, ability: e.ability } : named });
+      const full = e.ability !== undefined ? { ...named, ability: e.ability } : named;
+      emit(world, { type: "fx", fx: e.packet.crit ? { ...full, crit: true as const } : full });
     }
     // After the victim took the damage and its hit fx went out (on-hit effects: R4b; see WorldHooks.hitLanded). DoT entries too.
     hitLanded?.(world, e, amount);
   });
   if (standing(c) && entries.some((e, i) => e.stagger && amounts[i]! > 0)) stagger(world, c);
+  // The pass killed it with damage to spare (what a barrier swallowed was never aimed at its hp): cards answer that (Overkill).
+  if (!standing(c) && world.hooks.overkilled) {
+    const absorbed = c.kind === "player" ? Math.max(0, barrierBefore - c.s.barrier) : 0;
+    const overkill = total - absorbed - applied;
+    if (overkill > 1e-9) {
+      const hits: OverkillHit[] = [];
+      entries.forEach((e, i) => { if (amounts[i]! > 0 && !e.arena) hits.push({ entry: e, amount: amounts[i]!, raw: raws[i]! }); });
+      world.hooks.overkilled(world, c, hits, overkill, total);
+    }
+  }
 }

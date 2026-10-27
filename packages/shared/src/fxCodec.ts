@@ -27,7 +27,8 @@
 //
 // Tuple layouts ([0] is always the kind code; `W` = weapon code, null where the type allows null):
 //   windup   [by, W, a, ms]                 swing    [by, W, x, y, a]
-//   hit      [id, by|null, amount, flags, AB?]   (flags = W+1 (0: none), plus (SIG+1) x HIT_RADIX when a signature dealt it;
+//   hit      [id, by|null, amount, flags, AB?]   (flags = W+1 (0: none), plus (SIG+1) x HIT_RADIX when a signature dealt it,
+//                                            plus 64 for a critical strike;
 //                                            AB: the ability code, only for a hit an ability dealt, which has no weapon. A
 //                                            reader that predates it ignores the fifth field)
 //   block    [id, by, W, passive?]          (passive: 1; left off when false)
@@ -97,8 +98,10 @@ const DEFAULT_RANGE: Readonly<Record<ProjectileKind, number>> = {
 /** `+ 0` turns a -0 (what rounding a tiny negative gives) into 0, which msgpack and equality checks treat alike. */
 const enc = (v: number, scale: number): number => Math.round(v * scale) + 0;
 
-/** hit `flags` = weapon (0..WEAPON.name.length, 0 = none) + HIT_RADIX x signature (0 = none): one byte for both. */
+/** hit `flags` = weapon (0..WEAPON.name.length, 0 = none) + HIT_RADIX x signature (0 = none), plus HIT_CRIT for a critical strike: one byte for all three. */
 const HIT_RADIX = WEAPON.name.length + 1;
+/** Added to a hit's flags for a critical strike. Above any weapon + signature value (7 x (signatures + 1) stays under 64 while there are fewer than 9). */
+const HIT_CRIT = 64;
 
 /** What `packFx` needs besides the events. */
 export interface PackOptions {
@@ -158,7 +161,8 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
     case "windup": return [KC.windup, fx.by, WEAPON.code[fx.weapon], enc(fx.a, ANGLE), enc(fx.ms, MS)];
     case "swing": return [KC.swing, fx.by, WEAPON.code[fx.weapon], enc(fx.x, POS), enc(fx.y, POS), enc(fx.a, ANGLE)];
     case "hit": {
-      const flags = (fx.weapon == null ? 0 : WEAPON.code[fx.weapon] + 1) + (fx.sig === undefined ? 0 : (SIG.code[fx.sig] + 1) * HIT_RADIX);
+      const flags = (fx.weapon == null ? 0 : WEAPON.code[fx.weapon] + 1) + (fx.sig === undefined ? 0 : (SIG.code[fx.sig] + 1) * HIT_RADIX)
+        + (fx.crit === true ? HIT_CRIT : 0);
       const tuple: FxTuple = [KC.hit, fx.id, fx.by ?? null, enc(fx.amount, AMOUNT), flags];
       if (fx.ability !== undefined) tuple.push(ABILITY.code[fx.ability]);
       return tuple;
@@ -283,8 +287,10 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
         : null;
     }
     case "hit": {
-      const id = str(tuple[1], names), by = strOrNull(tuple[2], names), amount = dec(tuple[3], AMOUNT), flags = tuple[4];
-      if (id === undefined || by === undefined || amount === undefined || typeof flags !== "number" || !(flags >= 0)) return null;
+      const id = str(tuple[1], names), by = strOrNull(tuple[2], names), amount = dec(tuple[3], AMOUNT), raw = tuple[4];
+      if (id === undefined || by === undefined || amount === undefined || typeof raw !== "number" || !(raw >= 0)) return null;
+      const crit = raw >= HIT_CRIT;
+      const flags = crit ? raw - HIT_CRIT : raw;
       const w = flags % HIT_RADIX, code = Math.floor(flags / HIT_RADIX);
       const weapon = w === 0 ? null : WEAPON.name[w - 1];
       if (weapon === undefined) return null;
@@ -296,6 +302,7 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
       const hit: Extract<FxEvent, { kind: "hit" }> = { kind, id, by, amount, weapon };
       if (sig !== undefined) hit.sig = sig;
       if (ability !== undefined) hit.ability = ability;
+      if (crit) hit.crit = true;
       return hit;
     }
     case "block": {

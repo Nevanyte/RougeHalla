@@ -63,6 +63,12 @@ export interface SimConfig {
    * `duelScale` still applies. A run never turns it off.
    */
   pvpRules?: boolean;
+  /**
+   * The weapons' specials (BALANCE_CONTRACT 3.3: the axe's armor shred, the wand's splash): true (the default) applies them, false
+   * leaves every weapon with its damage alone. For the parity runs against testing/realtime.py (sim/harness/factionCycle.ts), which
+   * models neither. A run never turns it off.
+   */
+  weaponSpecials?: boolean;
 }
 
 /**
@@ -71,11 +77,11 @@ export interface SimConfig {
  * is aimed again at that fighter, if still standing, when it lands or leaves (sim/weapons.ts).
  */
 export type PendingAction =
-  | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; target?: string }
+  | { kind: "swing"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; target?: string; rangeMult?: number }
   /** `origin`: where the caster's client drew it when the cast began; the ball leaves from there, along `a`. */
-  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2; target?: string }
+  | { kind: "cast"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2; target?: string; rangeMult?: number }
   /** The bow's fixed draw: the same as a cast, except that a stagger does not interrupt it (9.1) and `drawStartedAt` is synced. */
-  | { kind: "draw"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2; target?: string };
+  | { kind: "draw"; weapon: WeaponId; startedAt: number; landsAt: number; a: number; packet: DamagePacket; origin: Vec2; target?: string; rangeMult?: number };
 
 /**
  * A fighter's weapon state machine (sim/weapons.ts). The slots, the one in hand, the cooldown end (`readyAt`) and the
@@ -242,6 +248,37 @@ export interface PlayerRuntime extends CombatRuntime {
   campsCleared?: number;
   /** Heals spread over time still to come (Second Wind; sim/factions.ts healOverTime). Created on first use. */
   hots?: HealOverTime[];
+  /** What the phase-B cards remember about this player (sim/cardState.ts). Created on first use. */
+  cards?: CardRuntime;
+}
+
+/**
+ * The phase-B cards' per-player memory (balance pass; sim/cardState.ts reads it, sim/cardHooks.ts writes most of it). Nothing here is
+ * synced: the stats it earns go through the mirrors (Adrenaline's boost, Tank Engine's max health) and the Wish cooldown.
+ */
+export interface CardRuntime {
+  /** Crit accumulators (G12): each weapon attack adds the crit chance and crits on reaching 1; damage-over-time ticks have one of their own. */
+  critAcc: number;
+  critAccDot: number;
+  /** The tick whose damage-over-time ticks the last `dotCrit` roll belongs to: one tick's ticks all crit or none do. */
+  dotRollTick: number;
+  dotCrit: boolean;
+  /** The target of the current hit streak, the hits in a row it has taken from this player and when the last landed (server ms). */
+  streak: { target: string; count: number; last: number } | null;
+  /** Plant Your Feet: where the player stood at the last check, and when it was last seen moving (server ms). */
+  stillX: number;
+  stillY: number;
+  stillSince: number;
+  /** Tank Engine: the damage its blocks prevented so far and the max health that has earned (never above TANK_ENGINE_CAP). */
+  prevented: number;
+  tankHp: number;
+  /** Adrenaline: attack and move speed multipliers (above 1) until `boostUntil`. */
+  boostUntil: number;
+  boostAs: number;
+  boostMove: number;
+  /** Wishful Thinking: when the Wish was last cast and how long its cooldown was, and the cooldown shaved off it lately (server ms, ms). */
+  wishCast: { at: number; cooldownMs: number } | null;
+  trims: Array<{ at: number; ms: number }>;
 }
 
 /** The rest of a heal spread over time: `left` more steps of `amount`, the next at server ms `next`. */
@@ -302,8 +339,12 @@ export interface MobBrain {
   lastAim: number;
 }
 
-/** One hit's damage before mitigation: the raw amount and the attacker's damage shares. */
-export interface DamagePacket extends DamageShares { raw: number }
+/**
+ * One hit's damage before mitigation: the raw amount and the attacker's damage shares. `crit` marks a critical strike (its `raw`
+ * already carries CRIT_MULT; the hit fx says so), and `mult` the multipliers baked into `raw` beyond the fighter's own `hit` mult
+ * (a crit's CRIT_MULT, Plant Your Feet's bonus), which G1's row cap counts (sim/ledger.ts outgoingMults).
+ */
+export interface DamagePacket extends DamageShares { raw: number; crit?: boolean; mult?: number }
 
 /** Who dealt a ledger entry: a combatant id, and the name to credit if they are gone by the time it lands. */
 export interface DamageSource { id: string; name: string }
@@ -340,6 +381,13 @@ export interface LedgerEntry {
    * not counted as combat, so `weapon` is never read.
    */
   arena?: boolean;
+  /**
+   * A follow-on of another hit (a wand ball's splash, Overkill's): not a hit of its own for the cards' on-hit effects, streaks and
+   * Wishful Thinking, and it sets off none of their triggers, so a card's damage never answers itself without end.
+   */
+  derived?: boolean;
+  /** Its packet already carries every outgoing multiplier (the attacker's rows, the PvP factor, a Race to 0): the ledger only mitigates it. */
+  final?: boolean;
 }
 
 /** A ledger entry that took hp off its victim this tick (applyLedger), for systems that react to damage. */
@@ -357,6 +405,11 @@ export interface LandedHit {
    * lifesteal reads amount / race.
    */
   race?: number;
+  /** A critical strike (the entry's packet was one). */
+  crit?: boolean;
+  /** The entry was passive (damage returned to an attacker: a riposte, a reflected arrow, Spiked Shell) or a follow-on (`derived`). */
+  passive?: boolean;
+  derived?: boolean;
 }
 
 /** A swing whose windup ended this tick (resolved in the melee phase). */
@@ -368,6 +421,8 @@ export interface MeleeRequest {
   /** Server time the attacker's client was drawing when the swing landed: attacker and targets are sampled there. */
   rewindT: number;
   packet: DamagePacket;
+  /** Plant Your Feet: the swing reaches this many times as far. */
+  rangeMult?: number;
 }
 
 /** A projectile loosed this tick (the bow when its draw ends, the wand when its cast ends); spawned after the sweep. */
@@ -382,6 +437,8 @@ export interface SpawnRequest {
    * client measured `a` from. Defaults to the shooter's present position.
    */
   origin?: Vec2;
+  /** Plant Your Feet: the shot flies this many times as far. */
+  rangeMult?: number;
 }
 
 /**
@@ -445,6 +502,11 @@ export interface CombatScratch {
   campWakes: Array<{ camp: number; target: string }>;
   /** The lobby's median feed as it stood before the pass (null outside one): every mob reward in the pass reads this one. */
   medianFeed: number | null;
+  /**
+   * Entries cards queue for the NEXT tick's ledger (Spiked Shell's returned damage, Overkill's splash: sim/ledger.ts deferHit). The
+   * next tick's ledger starts with them (step.ts), so they land in a pass of their own, from the state as that pass began.
+   */
+  deferred: LedgerEntry[];
   /**
    * Harness seam (balance pass, BALANCE_CONTRACT 1.1): a fighter's PvP outgoing damage is multiplied by its entry (the noise
    * model and the flip bisection of the benches), next to the PvP factor in sim/ledger.ts. It also scales the mark's clock, as
@@ -542,6 +604,9 @@ export interface ModContribution {
  */
 export type ModSource = (world: World, c: Combatant) => ModContribution | null;
 
+/** One entry of a pass that landed on a victim the pass killed: what it dealt, and its raw damage after the outgoing multipliers (before the victim's mitigation). */
+export interface OverkillHit { entry: LedgerEntry; amount: number; raw: number }
+
 export interface WorldHooks {
   /** A player went down (died/mia) with their run gear still on them. Default: discard it. */
   dropBody(world: World, p: PlayerState): void;
@@ -589,6 +654,17 @@ export interface WorldHooks {
    * do with payLater), never from what earlier victims of the same pass changed, or the ledger's order would matter.
    */
   hitLanded?(world: World, entry: LedgerEntry, applied: number): void;
+  /**
+   * `holder`'s shield just stopped part of a hit by `attacker` (sim/melee.ts: a sword or bash on its front; sim/projectiles.ts: an
+   * arrow it reflected). `prevented` is the part of the hit the block took off it (its raw damage, before armor, with the hit's damage
+   * shares), `melee` whether it was a swing. Outside the ledger pass (the melee and sweep phases), so a status it applies counts at once.
+   */
+  blocked?(world: World, holder: Combatant, attacker: Combatant, prevented: DamagePacket, melee: boolean): void;
+  /**
+   * The pass killed `victim` and `overkill` of the damage it took was beyond what it had (sim/ledger.ts applyVictim, once per
+   * killed victim, in the pass): `hits` are the entries that landed on it. Decide from the arguments and pay with payLater.
+   */
+  overkilled?(world: World, victim: Combatant, hits: readonly OverkillHit[], overkill: number, total: number): void;
   /**
    * The arena's own damage (an `arena` entry: sudden death, terrain) just took `hp` off `victim` (applyLedger, after the victim's
    * damage): the hp it actually removed, not what it asked for. Armor, teleport immunity, a kill barrier, Last Stand's floor and
@@ -640,6 +716,12 @@ export interface World {
    * also keys tieRank, whose outcomes a client can observe (see CLAUDE.md), so it is not secret enough to roll rewards from.
    */
   rewardRandom: () => number;
+  /**
+   * Four secret words for rolls that must not depend on any order (Gambler's hit rolls: sim/cardState.ts gamblerFactor hashes them
+   * with the tick, the attacker, the victim and the entry's place). Mixed from the reward salt under a tag of their own, so they are
+   * neither the stream's state nor anything a client holds; a test world derives them like the rest.
+   */
+  hashSalt: Uint32Array;
   /**
    * The quests' own 128-bit stream (rosters and every giver, token and parcel position): quest code draws only from it,
    * never from `rewardRandom` or `random`, so switching quests on or off moves neither. The Room seeds it from its own
@@ -739,10 +821,11 @@ export function createWorld(opts: {
     players: new Map(),
     mobs: new Map(),
     projectiles: new Map(),
-    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], campWakes: [], medianFeed: null },
+    combat: { ledger: [], melee: [], spawns: [], swept: [], rank: new Map(), landed: [], collecting: false, payouts: [], campWakes: [], medianFeed: null, deferred: [] },
     random: opts.random,
     orderSalt,
     rewardRandom: rewardStream(rewardSalt),
+    hashSalt: Uint32Array.from(mixedSalt(rewardSalt, 0x47414d42)), // "GAMB"
     questRandom: rewardStream(opts.questSalt ?? questSaltFrom(rewardSalt)),
     events: [],
     stepping: false,
@@ -797,6 +880,11 @@ function saltWords(seed: number | readonly number[]): Uint32Array {
  * stays 128 bits in, 128 bits out (every step is a bijection of its own lane given the others).
  */
 function questSaltFrom(seed: number | readonly number[]): number[] {
+  return mixedSalt(seed, 0x51554553); // "QUES"
+}
+
+/** The same mixing under another tag: four lanes, each output word depending on all four input words. */
+function mixedSalt(seed: number | readonly number[], tag: number): number[] {
   const fmix = (x: number): number => {
     let h = x >>> 0;
     h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
@@ -805,7 +893,7 @@ function questSaltFrom(seed: number | readonly number[]): number[] {
   };
   const rotl = (x: number, k: number): number => ((x << k) | (x >>> (32 - k))) >>> 0;
   const words = saltWords(seed);
-  const lane = Array.from(words, (w, i) => (w ^ 0x51554553 ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0); // "QUES"
+  const lane = Array.from(words, (w, i) => (w ^ tag ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0);
   for (let round = 0; round < 3; round++) {
     for (let i = 0; i < 4; i++) {
       lane[i] = fmix((lane[i]! + (lane[(i + 1) & 3]! ^ rotl(lane[(i + 2) & 3]!, 7 + 5 * i))) >>> 0);
@@ -835,13 +923,45 @@ export function rewardStream(seed: number | readonly number[]): () => number {
   return next;
 }
 
+/**
+ * A number in [0, 1) that depends only on the world's secret `hashSalt` and the integers and strings given (a fixed hash, murmur3's
+ * finalizer over each part): the same parts always give the same number, whatever order they are asked in. For rolls that must not
+ * move with processing order (sim/cardState.ts gamblerFactor).
+ */
+export function saltedUnit(world: World, ...parts: ReadonlyArray<number | string>): number {
+  const fmix = (x: number): number => {
+    let h = x >>> 0;
+    h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+    return (h ^ (h >>> 16)) >>> 0;
+  };
+  const salt = world.hashSalt;
+  let h = salt[0]!;
+  let i = 1;
+  const eat = (n: number): void => {
+    h = fmix((h ^ n) + Math.imul(salt[i & 3]!, 0x9e3779b1)) >>> 0;
+    i++;
+  };
+  for (const part of parts) {
+    if (typeof part === "number") eat(part | 0);
+    else {
+      for (let k = 0; k < part.length; k++) eat(part.charCodeAt(k));
+      eat(part.length);
+    }
+  }
+  // One last pass through all four words so the output depends on every one of them, however few parts were given.
+  for (let k = 0; k < 4; k++) eat(salt[k]!);
+  return fmix(h) / 4294967296;
+}
+
 export function emit(world: World, ev: SimEvent): void {
   world.events.push(ev);
 }
 
 type ChainableHook =
   | "teleported" | "lobbyClosing" | "planningStarted" | "raidStarted" | "weaponSwapped" | "bountyClaimed" | "hitLanded" | "hurt" | "arenaHurt"
-  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled";
+  | "fighterOut" | "runEnded" | "attackStarted" | "statusApplied" | "staggered" | "campCleared" | "mobKilled" | "playerKilled"
+  | "blocked" | "overkilled";
 
 /** Adds a hook that runs after whatever was already installed for it. */
 export function chainHook<K extends ChainableHook>(world: World, key: K, fn: NonNullable<WorldHooks[K]>): void {

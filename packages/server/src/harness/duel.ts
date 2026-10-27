@@ -71,6 +71,8 @@ export interface DuelSpec {
   speedMult?: readonly [number | undefined, number | undefined];
   /** The PvP rules (the factor and the caps) on (the default, as in a run) or off (a duel that isolates the damage law; see SimConfig.pvpRules). */
   pvpRules?: boolean;
+  /** The weapon specials (the axe's shred, the wand's splash) on (the default) or off (the parity runs against realtime.py, which models neither); see SimConfig.weaponSpecials. */
+  weaponSpecials?: boolean;
   /**
    * Fighter 0 / fighter 1's PvP outgoing-damage multiplier (the benches' noise model and flip bisection): fills
    * `world.combat.duelScale`, which sim/ledger.ts multiplies in next to the PvP factor (and the mark's clock follows it).
@@ -304,6 +306,7 @@ export function runDuel(spec: DuelSpec): DuelResult {
     config: {
       minPlayers: 2, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER_SECONDS, patienceMinSeconds: NEVER_SECONDS,
       suddenDeathSeconds: NEVER_SECONDS, ...(spec.pvpRules === false ? { pvpRules: false } : {}),
+      ...(spec.weaponSpecials === false ? { weaponSpecials: false } : {}),
     },
   }, { signatures: spec.signatures ?? false });
   // The world builds a map from its seed (about 15 ms, unused here); the duel's hand-built arena replaces it.

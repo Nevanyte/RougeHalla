@@ -1,7 +1,9 @@
 // How hard is a whole camp in the REAL sim (roguelike R4a, ROGUELIKE_PLAN R4a, R5 and 6)? A starting player (one faction, one
-// weapon, no buffs, no second weapon) meets one mono-type camp of a zone on an open floor: a normal camp (`--size` normals of
-// the zone's first type, 4 by default: the generator's camps hold 3 to 5, about 4) or the zone's elite camp (its elite and
-// `--size` - 1 normals, so the same number of mobs). It fights through the target
+// weapon, no cards, no second weapon) meets one mono-type camp of a zone on an open floor: a normal camp (`--size` normals of
+// one of the zone's four normal types, 4 by default: the generator's camps hold 3 to 5, about 4) or an elite camp (one of the
+// zone's two elites and `--size` - 1 normals, so the same number of mobs). Unless a type is named (`--types` sweeps them), seed s
+// takes the zone's normal type (s - 1) mod 4 and its elite (s - 1) mod 2, so any 4 consecutive seeds cover every type and a
+// cell pools them. It fights through the target
 // lock, the game client's way: it clicks the nearest standing mob, and when that one dies, the next. Three pulls:
 //   camp    the camp as shipped since R5: the mobs are placed WITH their camp (MobState.camp, and a published CampState), all
 //           idle on their spots; the player walks up and its first landed hit wakes every member at once through
@@ -21,6 +23,10 @@
 //   npx tsx bench/campDuel.ts                 each faction on FISTS (an empty hand, how a run starts), every zone, normal and elite, all three pulls
 //   npx tsx bench/campDuel.ts --weapon sig    the old view: each faction on its signature weapon (or --weapon <id> for one weapon for all)
 //   npx tsx bench/campDuel.ts --weapons       each faction on fists and on each of the five weapons
+//   npx tsx bench/campDuel.ts --types         one row per mob type (30), one column per player faction on fists (--weapon zone: on the type's
+//                                             zone weapon, --weapon own: on the type's own weapon), the camp pull, `--seeds` runs each, and the
+//                                             gates of balance contract 6.3: every normal type's 4-mob camp cleared in >= 80% of its runs on
+//                                             fists, every elite type's camp cleared by at least one starter on its zone's weapon
 //   npx tsx bench/campDuel.ts --map           the camp pull on the real thing: seed s builds the zone-styled map of seed s, the camp is one of
 //                                             the zone's camps there (the elite camp for the elite rows), with its real territory leash, its
 //                                             clearing, its walls and hazards, and the player starts ~10 tiles out on walkable ground
@@ -29,8 +35,9 @@
 //            --sweep takes --ks a,b,c (0.45,0.40,..)  --eks a,b (the elite scale, 0.65)  --sizes a,b,c (--size)
 import { writeFileSync } from "node:fs";
 import {
-  circleClear, eliteTypeOf, ELITE_K, FACTION_IDS, findPath, generateMap, MOB_K, mulberry32, normalTypesOf, PLAYER_RADIUS, SIGNATURE_WEAPONS, TICK_MS, TILE, ALL_WEAPON_IDS, FISTS, isWeaponId, type CampDef,
-  type FactionId, type GameMap, type MobTypeId, type Vec2, type WeaponId,
+  circleClear, elitesOf, ELITE_K, FACTION_IDS, findPath, generateMap, MOB_K, MOB_TYPES, mulberry32, normalTypesOf, PLAYER_RADIUS,
+  REGION_WEAPONS, SIGNATURE_WEAPONS, TICK_MS, TILE, ALL_WEAPON_IDS, FISTS, isWeaponId, type CampDef,
+  type FactionId, type GameMap, type MobTypeDef, type MobTypeId, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
 import { buildArena } from "../src/harness/duel";
@@ -53,6 +60,10 @@ export interface CampDuelSpec {
   elite: boolean;
   pull: Pull;
   seed: number;
+  /** The camp's normal type (the mates of an elite camp): the zone's normal type (seed - 1) mod 4 when left out. */
+  type?: MobTypeId;
+  /** An elite camp's elite: the zone's elite (seed - 1) mod 2 when left out. */
+  eliteType?: MobTypeId;
   /** Mobs in a camp, 4 by default (a generated camp holds 3 to 5): normals in a normal camp, the elite and `size - 1` normals in an elite camp. */
   size?: number;
   /** The camp has a territory (true, as on a generated map) or none, so its mobs keep the 9-tile circle (false). */
@@ -123,10 +134,13 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
   const cap = spec.capSeconds ?? 90;
   const weapon = spec.weapon ?? FISTS;
   const v = variantOf(spec.seed, 320);
-  const normal: MobTypeId = normalTypesOf(spec.zone)[0]!.id;
+  const normals = normalTypesOf(spec.zone);
+  const elites = elitesOf(spec.zone);
+  const normal: MobTypeId = spec.type ?? normals[(spec.seed - 1 + 4 * normals.length) % normals.length]!.id;
+  const eliteType: MobTypeId = spec.eliteType ?? elites[(spec.seed - 1 + 4 * elites.length) % elites.length]!.id;
   const size = Math.max(spec.elite ? 2 : 1, spec.size ?? CAMP_SIZE);
   const roster: Array<{ type: MobTypeId; elite: boolean }> = spec.elite
-    ? [{ type: eliteTypeOf(spec.zone).id, elite: true }, ...Array.from({ length: size - 1 }, () => ({ type: normal, elite: false }))]
+    ? [{ type: eliteType, elite: true }, ...Array.from({ length: size - 1 }, () => ({ type: normal, elite: false }))]
     : Array.from({ length: size }, () => ({ type: normal, elite: false }));
   let home: Vec2 = { x: CENTER, y: CENTER };
   let start: Vec2 = { x: CENTER + Math.cos(v.angle) * v.distance, y: CENTER + Math.sin(v.angle) * v.distance };
@@ -174,6 +188,7 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
   if (asCamp) {
     const published = new CampState();
     published.type = roster[roster.length - 1]!.type;
+    published.elite = spec.elite ? eliteType : "";
     published.reward = "";
     published.alive = roster.length;
     published.state = 0;
@@ -182,6 +197,7 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
       ensureRosters(world);
       const mine = world.state.camps[campRef]!;
       mine.type = published.type;
+      mine.elite = published.elite;
       mine.alive = roster.length;
       mine.state = 0;
     } else {
@@ -304,6 +320,83 @@ function clearCounts(rows: ReadonlyArray<{ player: FactionId; weapon: WeaponId }
   return { all, half, total };
 }
 
+/** The weapon a --types row's player holds: fists, the type's zone weapon (`zone`) or the type's own weapon (`own`). */
+type TypesWeapon = "fists" | "zone" | "own";
+function typesStarter(mode: TypesWeapon, t: MobTypeDef): WeaponId {
+  return mode === "fists" ? FISTS : mode === "zone" ? REGION_WEAPONS[t.zone] : t.weapon;
+}
+
+/** What `typesReport` found: the clears of every type, and the two gates of balance contract 6.3. */
+export interface TypesVerdict {
+  /** Per type: camps cleared of the runs made (every player faction x `seeds`). */
+  clears: Array<{ id: MobTypeId; elite: boolean; cleared: number; runs: number }>;
+  /** Normal types cleared in under GATE_NORMAL of their runs. */
+  normalFails: MobTypeId[];
+  /** Elite types no faction on the zone's weapon cleared in at least half its runs. */
+  eliteFails: MobTypeId[];
+  ok: boolean;
+}
+
+/** The normal-type gate: a 4-mob camp of any normal type is cleared in at least this share of its runs (20 of 25) by starters on fists. */
+export const GATE_NORMAL = 0.8;
+
+/**
+ * Per mob type (balance contract 6.3): the camp pull of a 4-mob camp of the type (a normal type: four of it; an elite type: the
+ * elite and three normals of the zone, the type cycling with the seed) against each player faction, `seeds` runs each. Prints
+ * one row per type with the clears per faction (unless `quiet`), then the two gates: every normal type cleared in >= GATE_NORMAL of
+ * its runs on the chosen weapon (fists by default), every elite type cleared by at least one faction on its zone's weapon.
+ * The report never fails a process; test/campTypes.test.ts holds the gates.
+ */
+export function typesReport(o: { seeds: number; size: number; cap: number; territory?: boolean; onMap?: boolean; weapon: TypesWeapon; log?: boolean; quiet?: boolean }): TypesVerdict {
+  interface Row { t: MobTypeDef; cells: CampDuelResult[][]; cleared: number; runs: number }
+  const play = (t: MobTypeDef, weapon: (t: MobTypeDef) => WeaponId): Row => {
+    const cells = FACTION_IDS.map((player) => {
+      const rs: CampDuelResult[] = [];
+      for (let seed = 1; seed <= o.seeds; seed++) {
+        rs.push(runCampDuel({
+          player, weapon: weapon(t), zone: t.zone, elite: t.elite, pull: "camp", seed, size: o.size, territory: o.territory, onMap: o.onMap, capSeconds: o.cap,
+          ...(t.elite ? { eliteType: t.id } : { type: t.id }),
+        }));
+      }
+      return rs;
+    });
+    const flat = cells.flat();
+    return { t, cells, cleared: flat.filter((r) => r.outcome === "cleared").length, runs: flat.length };
+  };
+  const rows: Row[] = [];
+  for (const t of MOB_TYPES) {
+    rows.push(play(t, (x) => typesStarter(o.weapon, x)));
+    if (o.log) process.stderr.write(`${t.id} done\n`);
+  }
+  const say = (line: string): void => { if (!o.quiet) console.log(line); };
+  const cellText = (rs: readonly CampDuelResult[]): string => {
+    const c = cellOf(rs);
+    return `${c.cleared}/${c.n} ${Number.isNaN(c.clear) ? "-" : `${c.clear.toFixed(1)}s`} ${pct(c.hp)}%`;
+  };
+  say(`\n## per type: camp pull, ${o.size}-mob camp, players on ${o.weapon === "fists" ? "FISTS" : o.weapon === "zone" ? "the type's zone weapon" : "the type's own weapon"}; cell = cleared/${o.seeds} · seconds to clear · mean hp left %`);
+  say(`| type (role, weapon) | cleared | ${FACTION_IDS.join(" | ")} |`);
+  say(`|---|---|${FACTION_IDS.map(() => "---").join("|")}|`);
+  for (const r of rows) say(`| ${r.t.name}${r.t.elite ? " (elite)" : ""} (${r.t.role}, ${r.t.weapon}) | ${r.cleared}/${r.runs} | ${r.cells.map(cellText).join(" | ")} |`);
+  const normalFails = rows.filter((r) => !r.t.elite && r.cleared < r.runs * GATE_NORMAL);
+  say(`\nnormal-type gate (>= ${Math.round(GATE_NORMAL * 100)}% of runs cleared${o.weapon === "fists" ? " on fists" : ""}): ${normalFails.length === 0 ? "PASS" : `FAIL ${normalFails.map((r) => `${r.t.id} ${r.cleared}/${r.runs}`).join(", ")}`}`);
+  // The elite gate always means the zone's weapon, whichever weapon the table was played with (a second pass when it is not).
+  const eliteRows = o.weapon === "zone" ? rows.filter((r) => r.t.elite) : MOB_TYPES.filter((t) => t.elite).map((t) => play(t, (x) => REGION_WEAPONS[x.zone]));
+  if (o.weapon !== "zone") {
+    say(`\n## elite camps on the zone's weapon (${FACTION_IDS.join(", ")} as the player); a faction clears when it wins at least half its runs`);
+    say(`| elite type (zone weapon) | ${FACTION_IDS.join(" | ")} |`);
+    say(`|---|${FACTION_IDS.map(() => "---").join("|")}|`);
+    for (const r of eliteRows) say(`| ${r.t.name} (${REGION_WEAPONS[r.t.zone]}) | ${r.cells.map(cellText).join(" | ")} |`);
+  }
+  const eliteFails = eliteRows.filter((r) => !r.cells.some((rs) => rs.filter((x) => x.outcome === "cleared").length * 2 >= rs.length));
+  say(`\nelite-type gate (cleared by at least one faction on the zone's weapon): ${eliteFails.length === 0 ? "PASS" : `FAIL ${eliteFails.map((r) => r.t.id).join(", ")}`}`);
+  return {
+    clears: rows.map((r) => ({ id: r.t.id, elite: r.t.elite, cleared: r.cleared, runs: r.runs })),
+    normalFails: normalFails.map((r) => r.t.id),
+    eliteFails: eliteFails.map((r) => r.t.id),
+    ok: normalFails.length === 0 && eliteFails.length === 0,
+  };
+}
+
 function parseList(v: string | undefined, fallback: number[]): number[] {
   return v === undefined ? fallback : v.split(",").map(Number);
 }
@@ -317,7 +410,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const allWeapons = process.argv.includes("--weapons");
   const pulls = (arg("--pulls")?.split(",") ?? ALL_PULLS) as readonly Pull[];
   const weaponFlag = arg("--weapon");
-  if (weaponFlag !== undefined && weaponFlag !== "sig" && !isWeaponId(weaponFlag)) throw new Error(`unknown weapon "${weaponFlag}" (an id, or sig for the signature weapons)`);
+  const typesMode = process.argv.includes("--types");
+  if (weaponFlag !== undefined && weaponFlag !== "sig" && !isWeaponId(weaponFlag) && !(typesMode && (weaponFlag === "zone" || weaponFlag === "own"))) {
+    throw new Error(`unknown weapon "${weaponFlag}" (an id, or sig for the signature weapons; zone and own with --types)`);
+  }
   const starter = (player: FactionId): WeaponId => (weaponFlag === undefined ? FISTS : weaponFlag === "sig" ? SIGNATURE_WEAPONS[player] : weaponFlag as WeaponId);
   const rows = FACTION_IDS.flatMap((player) =>
     (allWeapons ? ALL_WEAPON_IDS : [starter(player)]).map((weapon) => ({ player, weapon })));
@@ -346,7 +442,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     return { all, cells };
   };
 
-  if (process.argv.includes("--sweep")) {
+  if (process.argv.includes("--types")) {
+    const mode = (weaponFlag ?? "fists") as string;
+    if (mode !== "fists" && mode !== "zone" && mode !== "own") throw new Error(`--types takes --weapon fists|zone|own (got "${mode}")`);
+    typesReport({ seeds: Number(arg("--seeds") ?? 5), size, cap, territory, onMap, weapon: mode, log: true });
+  } else if (process.argv.includes("--sweep")) {
     const ks = parseList(arg("--ks"), [0.45, 0.4, 0.35, 0.3, 0.25, 0.2]);
     const eks = parseList(arg("--eks"), [ELITE_K]);
     const sizes = parseList(arg("--sizes"), [size]);

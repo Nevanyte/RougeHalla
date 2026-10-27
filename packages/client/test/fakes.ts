@@ -212,6 +212,7 @@ export class FakeEl extends FakeTarget {
     contains: (name: string): boolean => this.classes.has(name),
   };
   removed = false;
+  readonly attrs = new Map<string, string>();
   private ctx: FakeObject | null = null;
 
   constructor(readonly tag: string) {
@@ -219,6 +220,8 @@ export class FakeEl extends FakeTarget {
     this.bubbleTo = bubbleRoot;
   }
 
+  setAttribute(name: string, value: string): void { this.attrs.set(name, String(value)); }
+  getAttribute(name: string): string | null { return this.attrs.get(name) ?? null; }
   append(...nodes: Array<FakeEl | string>): void { this.children.push(...nodes); }
   replaceChildren(...nodes: Array<FakeEl | string>): void { this.children = [...nodes]; }
   remove(): void { this.removed = true; }

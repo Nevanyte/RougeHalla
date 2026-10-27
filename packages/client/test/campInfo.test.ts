@@ -1,22 +1,60 @@
 // What the planning screen says of a camp's mobs (ui/campInfo.ts): read defensively from the roster, so a state with no camps yet,
 // or a type from newer content, never throws.
 import { describe, expect, it } from "vitest";
-import { MOB_TYPES } from "@raid/shared";
-import { campTypeInfo, readCampStates, readCampTypes } from "../src/ui/campInfo";
+import { MOB_ROLE_DEFS, MOB_TYPES, WEAPONS } from "@raid/shared";
+import { campMobsText, campTypeInfo, readCampElites, readCampStates, readCampTypes } from "../src/ui/campInfo";
 
 describe("campTypeInfo", () => {
-  it("names a known type", () => {
-    expect(campTypeInfo("rotMonk")).toEqual({ name: "Rot Monk" });
+  it("names a known type with its role and the weapon it drops", () => {
+    expect(campTypeInfo("rotMonk")).toEqual({ name: "Rot Monk", role: "Grunt", blurb: "Plain fighter.", weapon: "Bow" });
+    expect(campTypeInfo("flameCaller")).toEqual({ name: "Flame Caller", role: "Caster", blurb: "Shoots from range.", weapon: "Wand" });
+  });
+
+  it("names the camp's elite too, when the room says one", () => {
+    expect(campTypeInfo("emberImp", "ashDrake")).toEqual({
+      name: "Ember Imp", role: "Swarm", blurb: "Fast and fragile.", weapon: "Axe",
+      elite: { name: "Ash Drake", role: "Caster", blurb: "Shoots from range.", weapon: "Wand" },
+    });
+    expect(campTypeInfo("emberImp", "")?.elite).toBeUndefined();
+    expect(campTypeInfo("emberImp", undefined)?.elite).toBeUndefined();
   });
 
   it("is null while the room does not say, and shows an unknown id as it is", () => {
     expect(campTypeInfo("")).toBeNull();
     expect(campTypeInfo(undefined)).toBeNull();
-    expect(campTypeInfo("someNewMob")).toEqual({ name: "someNewMob" });
+    expect(campTypeInfo("", "wyrmling")).toBeNull();
+    expect(campTypeInfo("someNewMob")).toEqual({ name: "someNewMob", role: "", blurb: "", weapon: "" });
+    expect(campTypeInfo("emberImp", "someNewElite")?.elite).toEqual({ name: "someNewElite", role: "", blurb: "", weapon: "" });
   });
 
-  it("knows every mob type of the roster", () => {
-    for (const t of MOB_TYPES) expect(campTypeInfo(t.id)?.name).toBe(t.name);
+  it("knows every mob type of the roster, with its role label and weapon name", () => {
+    for (const t of MOB_TYPES) {
+      const info = campTypeInfo(t.id)!;
+      expect(info.name).toBe(t.name);
+      expect(info.role).toBe(MOB_ROLE_DEFS[t.role].label);
+      expect(info.weapon).toBe(WEAPONS[t.weapon].name);
+    }
+  });
+});
+
+describe("campMobsText", () => {
+  it("says the type, its role and what it drops, with the right article, and no buff", () => {
+    expect(campMobsText(campTypeInfo("emberImp")!)).toBe("Ember Imp (Swarm: fast and fragile), drops an Axe");
+    expect(campMobsText(campTypeInfo("pardoner")!)).toBe("Pardoner (Caster: shoots from range), drops a Bow");
+    expect(campMobsText(campTypeInfo("gaoler")!)).toBe("Gaoler (Brute: slow and tough), drops a Shield");
+  });
+
+  it("adds the elite of an elite camp", () => {
+    expect(campMobsText(campTypeInfo("bailiff", "gaoler")!)).toBe("Bailiff (Grunt: plain fighter), drops a Sword. Elite: Gaoler (Brute: slow and tough), drops a Shield");
+  });
+
+  it("is just the id for a type this build does not know", () => {
+    expect(campMobsText(campTypeInfo("someNewMob")!)).toBe("someNewMob");
+    expect(campMobsText(campTypeInfo("emberImp", "someNewElite")!)).toBe("Ember Imp (Swarm: fast and fragile), drops an Axe. Elite: someNewElite");
+  });
+
+  it("never names a stat or a buff for any type", () => {
+    for (const t of MOB_TYPES) expect(campMobsText(campTypeInfo(t.id, t.elite ? t.id : undefined)!), t.id).not.toMatch(/buff|stack|\+\d/i);
   });
 });
 
@@ -28,6 +66,14 @@ describe("readCampTypes", () => {
     expect(readCampTypes({ camps: [{ type: "emberImp" }, { type: 5 }, {}] }, 4)).toEqual(["emberImp", "", "", ""]);
     expect(readCampTypes({ camps: { 0: { type: "bailiff" }, length: 1 } }, 2)).toEqual(["bailiff", ""]);
     expect(readCampTypes({}, 0)).toEqual([]);
+  });
+});
+
+describe("readCampElites", () => {
+  it("reads state.camps[i].elite with optional access: nothing, a short list, a value that is not a string", () => {
+    expect(readCampElites({}, 2)).toEqual(["", ""]);
+    expect(readCampElites(undefined, 1)).toEqual([""]);
+    expect(readCampElites({ camps: [{ elite: "wyrmling" }, { elite: 3 }, {}, { elite: "" }] }, 5)).toEqual(["wyrmling", "", "", "", ""]);
   });
 });
 

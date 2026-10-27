@@ -77,7 +77,7 @@ describe("the Effect union", () => {
   it("StatusKind mirrors Wishes' union exactly, and onHit applies only the four on-hit statuses", () => {
     const wishes: Equals<StatusKind,
       "stun" | "root" | "silence" | "slowMove" | "slowAttack" | "antiHeal" | "dot" | "invulnerable" | "untargetable" | "hidden"
-      | "zoned" | "deathFloor" | "haste"> = true;
+      | "zoned" | "deathFloor" | "haste" | "shred"> = true;
     const onHit: Equals<OnHitStatus, "slowMove" | "slowAttack" | "antiHeal" | "dot"> = true;
     expect([wishes, onHit]).toEqual([true, true]);
     // @ts-expect-error chill stays Frost's signature, not a status
@@ -94,8 +94,12 @@ describe("the Effect union", () => {
       { do: "heal", share: 0.2, ignoreLockout: true },
       { do: "barrier", share: 0.2, ms: 4000 },
       { do: "cooldown", ms: 2000 },
+      { do: "boost", as: 0.4, move: 0.4, ms: 2000 },
+      { do: "return", share: 0.15, melee: true },
+      { do: "fortify", per: 0.25, cap: 250 },
+      { do: "splash", radius: 200 },
     ];
-    expect(actions.map((a) => a.do)).toEqual(["status", "cleanse", "heal", "barrier", "cooldown"]);
+    expect(actions.map((a) => a.do)).toEqual(["status", "cleanse", "heal", "barrier", "cooldown", "boost", "return", "fortify", "splash"]);
   });
 
   it("the stat keys: fractions for EffectStat, points for FlatStat", () => {

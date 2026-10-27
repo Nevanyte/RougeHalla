@@ -103,6 +103,14 @@ export class FEl {
     }
   }
 
+  /** Takes every child out and puts `nodes` in their place (the real DOM's replaceChildren). */
+  replaceChildren(...nodes: Array<FEl | string>): void {
+    for (const c of this.children) c.parent = null;
+    this.children = [];
+    this.text = "";
+    this.append(...nodes);
+  }
+
   remove(): void {
     this.removed = true;
     this.parent?.children.splice(this.parent.children.indexOf(this), 1);
