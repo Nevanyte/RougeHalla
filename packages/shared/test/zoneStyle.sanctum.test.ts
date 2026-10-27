@@ -538,14 +538,18 @@ describe("the styler on generated maps (seeds 0-49, the holy zone new, the other
     }
   }, HEAVY_MS);
 
-  it("the shrines: placed whole on at least 90% of the seeds (and two on most), doors true, nook inside, outside the camps' clearings, crates have nooks", () => {
-    let withOne = 0, withTwo = 0;
+  it("the shrines: placed whole on at least 90% of the seeds (and two on most), doors true, outside the camps' clearings, and the crates take their nooks", () => {
+    let withOne = 0, withTwo = 0, withCrate = 0;
     for (const s of SEEDS) {
       const { map: m } = holyMap(s);
       const shrines = m.features.filter((f) => f.zone === HOLY && f.kind === "landmark");
       expect(shrines.length).toBeLessThanOrEqual(LANDMARKS_PER_ZONE);
       if (shrines.length >= 1) withOne++;
       if (shrines.length === 2) withTwo++;
+      // a crate stands on one of a shrine's nooks (the generator tries them first)
+      const nooks = new Set<number>();
+      for (const f of shrines) for (const i of stampTemplate(SHRINE, f.ax, f.ay, f.p[0] as 0 | 1 | 2 | 3, f.p[1] === 1, m.w, m.h)!.nooks) nooks.add(i);
+      if (m.crateSpots.some((c) => nooks.has(Math.floor(c.y / TILE) * m.w + Math.floor(c.x / TILE)))) withCrate++;
       for (const f of shrines) {
         expect(f.variant).toBe("shrine");
         expect(f.jobs).toEqual(["landmark", "rest"]);
@@ -566,9 +570,10 @@ describe("the styler on generated maps (seeds 0-49, the holy zone new, the other
         }
       }
     }
-    console.info(`[sanctum] shrines: at least one on ${withOne} of ${SEEDS.length} seeds, two on ${withTwo}`);
+    console.info(`[sanctum] shrines: at least one on ${withOne} of ${SEEDS.length} seeds, two on ${withTwo}, a crate in a nook on ${withCrate}`);
     expect(withOne).toBeGreaterThanOrEqual(Math.ceil(0.9 * SEEDS.length));
     expect(withTwo).toBeGreaterThanOrEqual(Math.ceil(0.6 * SEEDS.length));
+    expect(withCrate).toBeGreaterThanOrEqual(Math.ceil(0.6 * withOne));
   }, HEAVY_MS);
 
   it("meets the acceptance windows of contract 4.5 (means over the 50 seeds): piers 18-30 and at least 14 on 95%, walls 200-330, light 60-100, rays at bow range 60-74%, blocked pairs >= 10%, camp stretch <= 1.10", () => {

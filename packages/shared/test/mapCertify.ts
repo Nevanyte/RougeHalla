@@ -842,6 +842,12 @@ export function walkSegment(w: number, ax: number, ay: number, bx: number, by: n
   return false;
 }
 
+/** How two tiles see each other: a wall between their centres (the sim's raycast under MASK_SIGHT hits), else only LOW ground, else clear. */
+export function classifyPair(m: GameMap, ax: number, ay: number, bx: number, by: number): "wall" | "low" | "clear" {
+  if (raycast(m, tileToWorldCenter(ax), tileToWorldCenter(ay), tileToWorldCenter(bx), tileToWorldCenter(by), MASK_SIGHT).hit) return "wall";
+  return walkSegment(m.w, ax, ay, bx, by, (i) => (m.tiles[i] & TILE_LOW) !== 0) ? "low" : "clear";
+}
+
 /**
  * The engagement pairs of zone `code` (the zone's index in REGION_FACTIONS is `zoneIndex`): a fixed LCG seeded 12345 + 7 * zoneIndex
  * draws a zone FLOOR tile A, then an offset (dx, dy) in [-7, 7]^2; the pair (A, B = A + offset) counts when B is a zone FLOOR tile and
@@ -855,7 +861,6 @@ export function engagementPairs(m: GameMap, code: number, zoneIndex: number): Pa
   if (cells.length === 0) return { draws, pairs, wallBlocked: 0, lowSeparated: 0, clear: 0 };
   // The low bits of a power-of-two LCG are weak: every draw uses bits 8 and up.
   const draw = (n: number): number => { s = lcgNext(s); return (s >>> 8) % n; };
-  const lowAt = (i: number): boolean => (m.tiles[i] & TILE_LOW) !== 0;
   while (draws < PAIR_DRAWS && pairs < PAIR_TARGET) {
     draws++;
     const a = cells[draw(cells.length)], dx = draw(15) - 7, dy = draw(15) - 7;
@@ -866,8 +871,9 @@ export function engagementPairs(m: GameMap, code: number, zoneIndex: number): Pa
     const b = by * W + bx;
     if (m.regionGrid[b] !== code || m.tiles[b] !== TILE_FLOOR) continue;
     pairs++;
-    if (raycast(m, tileToWorldCenter(ax), tileToWorldCenter(ay), tileToWorldCenter(bx), tileToWorldCenter(by), MASK_SIGHT).hit) wall++;
-    else if (walkSegment(W, ax, ay, bx, by, lowAt)) low++;
+    const c = classifyPair(m, ax, ay, bx, by);
+    if (c === "wall") wall++;
+    else if (c === "low") low++;
   }
   return { draws, pairs, wallBlocked: pairs ? wall / pairs : 0, lowSeparated: pairs ? low / pairs : 0, clear: pairs ? (pairs - wall - low) / pairs : 0 };
 }
@@ -1026,6 +1032,8 @@ export const FEATURE_CHECKS = {
   size: "features: a wall or LOW feature owns at least 6 such tiles (strict)",
   overlap: "features: no feature puts a wall or LOW tile on a camp clearing, halo or spawn pad (owned floor may: a crater bowl, a hall aisle) (strict)",
   jobs: "features: a feature's jobs are the ones its kind may carry (strict)",
+  whole: "features: a gallows is one 3x3 block and every pier of a hall is a 3x3 block (strict)",
+  params: "features: a feature's params follow contract 2.6 for its kind (strict)",
   pieces: "pieces: no zone WALL 8-piece has fewer than 6 tiles, so no single tile (strict)",
 } as const;
 
@@ -1077,7 +1085,7 @@ export function featureProblems(m: GameMap, strict: readonly number[] = []): str
     if (!kindSet.has(f.kind)) add("table", `kind${k}`, `${id} has a kind outside the table`);
     if (zoneIdx(f) < 0) add("table", `zone${k}`, `${id} names no zone`);
     if (!Array.isArray(f.jobs) || f.jobs.length < 1 || f.jobs.length > 2 || new Set(f.jobs).size !== f.jobs.length || f.jobs.some((j) => !jobSet.has(j))) add("table", `jobs${k}`, `${id} needs one or two distinct jobs from the table`);
-    const variantOk = f.kind === "landmark" ? f.variant in LANDMARK_ZONE : f.variant === "";
+    const variantOk = f.kind === "landmark" ? Object.prototype.hasOwnProperty.call(LANDMARK_ZONE, f.variant) : f.variant === "";
     if (!variantOk) add("table", `variant${k}`, `${id} has variant "${f.variant}"`);
     if (!Array.isArray(f.p) || f.p.some((v) => !Number.isInteger(v))) add("table", `p${k}`, `${id} has params that are not integers`);
     if (!Number.isInteger(f.ax) || !Number.isInteger(f.ay) || f.ax < 0 || f.ay < 0 || f.ax >= W || f.ay >= H) add("table", `anchor${k}`, `${id} has an anchor off the map`);
@@ -1122,7 +1130,7 @@ export function featureProblems(m: GameMap, strict: readonly number[] = []): str
   }
   for (const { f, k } of landmarks) {
     const id = `landmark ${k} (${f.variant})`, code = zoneCodeOf(f.zone as RegionFaction), b = f.bbox;
-    if (LANDMARK_ZONE[f.variant] !== undefined && LANDMARK_ZONE[f.variant] !== f.zone) add("landmark", `d${k}`, `${id} is a ${LANDMARK_ZONE[f.variant]} design in the ${f.zone} zone`);
+    if (Object.prototype.hasOwnProperty.call(LANDMARK_ZONE, f.variant) && LANDMARK_ZONE[f.variant] !== f.zone) add("landmark", `d${k}`, `${id} is a ${LANDMARK_ZONE[f.variant]} design in the ${f.zone} zone`);
     if (!b || b.x < 1 || b.y < 1 || b.x + b.w > W - 1 || b.y + b.h > H - 1) { add("landmark", `m${k}`, `${id} has no room for its margin`); continue; }
     let margin = true;
     for (let y = b.y - 1; y <= b.y + b.h && margin; y++) for (let x = b.x - 1; x <= b.x + b.w; x++) if (m.regionGrid[y * W + x] !== code) { margin = false; break; }
@@ -1160,6 +1168,7 @@ export function featureProblems(m: GameMap, strict: readonly number[] = []): str
 
   // ---- Strict: the shape gates ----
   let unowned = 0, firstUnowned = -1, unownedHazard = 0, firstHazard = -1;
+  const wallTiles: number[][] = [], iceOwned = new Array<number>(F.length + 1).fill(0);
   for (let i = 0; i < N; i++) {
     const code = m.regionGrid[i];
     if (!strictSet.has(code)) continue;
@@ -1170,6 +1179,8 @@ export function featureProblems(m: GameMap, strict: readonly number[] = []): str
     const f = F[v - 1], kind = f.kind as CertFeatureKind;
     if (!kindSet.has(kind)) continue;
     const writes = KIND_WRITES[kind];
+    if (t === TILE_WALL && (kind === "gallows" || kind === "hall")) (wallTiles[v] ??= []).push(i);
+    if (m.terrain[i] === TERRAIN_ICE) iceOwned[v]++;
     if ((t === TILE_WALL && !writes.wall) || (t === TILE_LOW && !writes.low)) add("kindTiles", `c${v}`, `feature ${v - 1} (${kind}) owns a ${t === TILE_WALL ? "WALL" : "LOW"} tile at ${where(i)}`);
     const want = KIND_TERRAIN[kind];
     if (t === TILE_LOW && want !== undefined && m.terrain[i] !== want) add("kindTiles", `t${v}`, `feature ${v - 1} (${kind}) has a LOW tile of terrain ${m.terrain[i]} at ${where(i)}`);
@@ -1183,6 +1194,36 @@ export function featureProblems(m: GameMap, strict: readonly number[] = []): str
     if ((writes.wall || writes.low) && kind !== "infill" && walls[k + 1] < PIECE_MIN) add("size", `s${k}`, `feature ${k} (${kind}) owns ${walls[k + 1]} wall or LOW tiles`);
     if (kind === "landmark" && !f.jobs.includes("landmark")) add("jobs", `l${k}`, `landmark ${k} does not name the job "landmark"`);
     if (f.jobs.some((j) => !KIND_JOBS[kind].includes(j))) add("jobs", `j${k}`, `feature ${k} (${kind}) carries jobs ${f.jobs.join("+")}`);
+
+    // Whole features: a gallows is one 3x3 block of wall, a hall's walls are 3x3 piers (each one whole, or not there at all).
+    const tiles = wallTiles[k + 1] ?? [];
+    if (kind === "gallows" || kind === "hall") {
+      const set = new Set(tiles);
+      const ps = pieces(W, H, (i) => set.has(i), true);
+      const sq = new Array<boolean>(ps.sizes.length).fill(true);
+      const lo = ps.sizes.map(() => [W, H, -1, -1]);
+      for (const i of tiles) { const l = ps.label[i], x = i % W, y = (i - x) / W, b = lo[l]; b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); }
+      ps.sizes.forEach((n, l) => { sq[l] = n === 9 && lo[l][2] - lo[l][0] === 2 && lo[l][3] - lo[l][1] === 2; });
+      if (kind === "gallows" && !(ps.sizes.length === 1 && sq[0])) add("whole", `g${k}`, `gallows ${k} is ${ps.sizes.length} pieces of ${ps.sizes.join("+")} wall tiles`);
+      if (kind === "hall" && (ps.sizes.length === 0 || sq.some((q) => !q))) add("whole", `h${k}`, `hall ${k} has pieces of ${ps.sizes.join(",")} wall tiles, not all 3x3 piers`);
+    }
+
+    // Params (contract 2.6).
+    const p = f.p, bad = (why: string): void => add("params", `p${k}`, `${kind} ${k}: ${why}`);
+    if (kind === "landmark") { if (p.length < 3 || p[0] < 0 || p[0] > 3 || (p[1] !== 0 && p[1] !== 1)) bad(`params ${p.slice(0, 2).join(",")} are not [rot 0-3, mirror 0/1, doors...]`); else if (p.slice(3).some((d, j) => d <= p[2 + j])) bad("door tiles are not ascending"); }
+    else if (kind === "crater") {
+      const camp = m.camps[p[0]];
+      if (p.length < 3 || p[2] !== p.length - 3 || !camp || camp.zone !== f.zone) bad(`[camp ${p[0]}, radius4 ${p[1]}, breaches ${p[2]}, ...] needs a camp of its own zone and one direction per breach`);
+      else if (p.slice(3).some((d) => d < 0 || d > 15)) bad("a breach direction outside 0..15");
+    } else if (kind === "lavaRiver") { if (p.length < 2 || p[1] !== p.length - 2 || p[0] < 1) bad(`[width2 ${p[0]}, fords ${p[1]}, ...] needs one tile per ford`); }
+    else if (kind === "fenceRow") { if (p.length !== 3 || (p[0] !== 0 && p[0] !== 1)) bad("not [axis 0/1, rowIndex, phase]"); }
+    else if (kind === "barrow") {
+      if (p.length !== 4 || (p[1] !== 0 && p[1] !== 1) || p[2] < 0 || p[2] > 15 || (p[3] !== -1 && p[3] !== 1)) bad("not [radius4, tunnel 0/1, dir16, wetSide -1/+1]");
+      else if ((p[1] === 1) !== f.jobs.includes("choke")) bad("a tunnel barrow carries the job choke, and only a tunnel barrow does");
+    } else if (kind === "mere") { if (p.length !== 2 || p[1] !== iceOwned[k + 1]) bad(`[lake ${p[0]}, ice ${p[1]}] but the lake owns ${iceOwned[k + 1]} ICE tiles`); }
+    else if (kind === "headland") { if (p.length !== 1 || p[0] < 0 || p[0] > 15) bad("not [dir16]"); }
+    else if (kind === "hall") { if (p.length !== 5 || (p[0] !== 0 && p[0] !== 1) || p[1] !== 6) bad("not [axis 0/1, pitch 6, radius, piers, lightBays]"); }
+    else if ((kind === "gallows" || kind === "spire" || kind === "causeway" || kind === "infill") && p.length !== 0) bad("takes no params");
   });
   return out;
 }

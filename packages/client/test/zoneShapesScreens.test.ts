@@ -6,8 +6,8 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  FACTION_IDS, REGION_FACTIONS, TERRAIN_FENCE, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, WORLD_H, WORLD_W, generateMap, isEliteCamp, mapFromTiles, regionAt,
-  type CampDef, type GameMap, type MapFeature,
+  FACTION_IDS, REGION_FACTIONS, TERRAIN_FENCE, TILE, TILE_LOW, TILE_WALL, generateMap, isEliteCamp, mapFromTiles, regionAt,
+  type GameMap, type MapFeature,
 } from "@raid/shared";
 import {
   COLOR_FEATURE_WALL, COLOR_WALL, paintCamps, paintMapBase, type PaintCtx,
@@ -17,7 +17,7 @@ import { mapSpan, minimapBacking, minimapSize } from "../src/ui/minimapMath";
 import {
   campBoxes, campMarkerPx, crowdedChips, fullMapSize, glyphScale, labelSizePx, placeLabels, planningMapSize, previewMapSize, type CampSpot,
 } from "../src/ui/planningMath";
-import { DEFAULT_SETTINGS, SettingsStore } from "../src/settings";
+import { SettingsStore } from "../src/settings";
 import { PlanningView, type PlanningFrame } from "../src/ui/planning";
 import { RouteState } from "../src/ui/route";
 import { setView } from "../src/view/viewState";
@@ -317,13 +317,10 @@ describe("the planning view with 40 camps", () => {
     const { camps } = open();
     expect(camps).toHaveLength(40);
     expect(camps.filter((c) => c.classList.contains("elite"))).toHaveLength(10);
-    expect(DEFAULT_SETTINGS.textScale).toBeGreaterThan(0);
     // Every camp is reachable by name: its label says its zone, its number and whether it is an elite.
     const labels = camps.map((c) => c.getAttribute("aria-label") ?? "");
     for (const zone of ["Fire", "Sentenced", "Plague", "Frost", "Demon Blood"]) expect(labels.filter((l) => l.startsWith(`${zone} camp`))).toHaveLength(8);
     expect(labels.filter((l) => l.includes("(elite)"))).toHaveLength(10);
-    expect(TILE_FLOOR).toBe(0);
-    expect(WORLD_W).toBe(WORLD_H);
   });
 });
 
@@ -343,6 +340,3 @@ describe("the minimap's size at 136 x 136", () => {
     expect(minimapBacking(240, 1.5, 2)).toBe(720);
   });
 });
-
-// A camp as the map's data names it, for a reader of the tests above: zone, centre in world units, an elite spot or not.
-export type _Camp = Pick<CampDef, "zone" | "x" | "y" | "eliteSpot">;

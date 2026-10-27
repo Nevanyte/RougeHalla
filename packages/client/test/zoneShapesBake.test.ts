@@ -102,8 +102,13 @@ describe("the texture budget at 136 x 136", () => {
       last = scale;
     }
     expect(chooseFloorScale(map, 1)).toBe(0.5);
-    // The old 48 MB budget would have sent a 136 map's floors down to 0.625 or less: that is why it is 64 now.
-    expect(chooseFloorScale(map, 48 * MB)).toBeLessThan(0.75);
+  });
+
+  it("needed the 64 MB: a map with the shapes' many strips (the Rows along y) is over the old 48 MB at the 0.75 floor and bakes at 0.625 there", () => {
+    const heavy = SYNTH.map((m) => ({ m, bytes: planBytes(planFloor(m, 0.75), planStrips(m).pages) })).sort((a, b) => b.bytes - a.bytes)[0]!;
+    expect(heavy.bytes).toBeGreaterThan(48 * MB);
+    expect(chooseFloorScale(heavy.m, 48 * MB)).toBeLessThan(0.75);
+    expect(chooseFloorScale(heavy.m, 64 * MB)).toBe(0.75);
   });
 });
 

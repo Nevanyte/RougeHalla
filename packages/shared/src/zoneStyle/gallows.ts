@@ -16,24 +16,29 @@ import type { LandmarkCtx, PropCtx, RouteGuard, ShapeCtx, ZoneStyler } from "./t
 // ====================================================================================================================
 // THE ROWS (zone-shapes contract 4.2, WP2): long fenced lanes toward the coliseum; you see and shoot across everything, you cross
 // only at staggered gates. Fences (TILE_LOW + TERRAIN_FENCE) stop bodies and melee swings but not sight or shots, so Sentenced's bow
-// shoots across a row while a melee chaser walks to a gate (at most about 10 extra tiles: inside the guard's fenceDetour cap).
+// shoots across a row while a melee chaser walks to a gate (at most 10 extra tiles: the guard's fenceDetour cap).
 //
-// Recipe, in the order it runs (shape pass; every wall and fence goes through placeFeature, whole or trimmed, no single tiles):
+// The shape pass, in order (every wall and fence goes through placeFeature, whole or trimmed; no single tiles, no piece under 6):
 //   1. axis: v = zone centroid - coliseum centre; rows run along x (s = x, t = y) when |vx| >= |vy|, else along y;
 //   2. row positions: the lateral t of each row, a 1-D Viterbi (viterbiRows) over the open runs of >= 8 tiles per line, rows 7-9 apart;
 //   3. the square: between two neighbouring rows, the 9-tile window nearest the zone's centroid (blocked tiles cost) is left open on
-//      both bounding rows, and the 3x3 wall gallows stands in it ("gallows" feature, whole);
+//      both bounding rows, and the 3x3 wall gallows stands in it (a "gallows" feature, whole). It is placed before the rows are
+//      traced, so a row's path sees it (the contract lists it after the paths);
 //   4. row paths: a second Viterbi per row (viterbiPath, 7 lateral states) follows the open ground by one-tile jogs; open stretches of
-//      >= 10 positions become fence, gates (gallowsGateOpen) are left out: 3 tiles every 12, the phase alternating 2 / 8 row to row,
-//      by true modulo over the whole row, so every fence tile lies within 5 tiles of a gate (detour <= 10 = the cap);
-//   5. the route guard: a pool member's baseline corridor is never fenced (it is treated like a blocked tile), so a member's walk to
-//      the coliseum is not stretched by a row; one worstStretch() at the end is the safety net;
-//   6. each row is one "fenceRow" feature (trim: fence pieces under 6 tiles are given back; job "lane"), p = [axis, rowIndex, phase].
+//      >= 10 positions become fence except at the gates (gallowsGateOpen: 3 tiles every 12, the phase alternating 2 / 8 row to row,
+//      by true modulo over the whole row), so every fence tile lies within 5 tiles of a gate: a detour of at most 10 = the cap.
+//      A stretch of fence under 6 tiles is dropped, and a fence that would end against a wall or the zone's edge stops a tile short;
+//   5. detours: the planned fence is marked on a scratch copy of the tiles and every tile that would force a pair across it more than
+//      the cap round is given up before anything is written (jogs, houses and halos make a few); one row is one feature after that;
+//   6. write: each row is one "fenceRow" feature (trim; job "lane"), p = [axis, rowIndex, phase]; gate tiles are reserved first;
+//   7. route guard (`route` dial): "repair" (default) opens the fence on the worst pool member's corridor, then near it, and checks
+//      again, until no member's walk is stretched past ROUTE_STRETCH_MAX (at most 6 checks); "open" never fences a corridor tile (the
+//      stretch stays at 1000, less fence); "none" is for ablations.
 // Landmark: the guard house (GUARD_HOUSE), up to LANDMARKS_PER_ZONE per zone, the first nearest the zone's pole, the second nearest the
-// front door and >= 14 tiles from the first.
+// front door and >= 14 tiles from the first; a house across a camp territory's boundary is scored last (it can cut the territory).
 //
-// The default styler is `gallowsRows`; `makeGallows(dials)` builds one with other dials (the zone duel harness and the ablations).
-// The registry still holds the phase A styler below (`gallows`) until WP7 swaps it in phase C (see the note at LEGACY).
+// `gallowsRows` is the styler; `makeGallows(dials)` builds one with other dials (ablations, WP8's variants). The registry still holds
+// the phase A styler (`gallows`, at the end of this file) until the swap in phase C (see LEGACY).
 // ====================================================================================================================
 
 /** Gate rule dials (contract 4.2 step 4; WP8's zone duel harness builds its "rows" arena from the same constants and `gallowsGateOpen`). */
@@ -202,17 +207,13 @@ function inOneTerritory(c: LandmarkCtx, s: Stamp): boolean {
 
 /** The Rows' landmark pass: guard houses, whole or not at all (contract 4.2 step 9). */
 function landmarkRows(c: LandmarkCtx): void {
-  const PROF = (globalThis as any).GAL_PROF as Record<string, number> | undefined;
-  let tp = PROF ? performance.now() : 0;
-  const mark = (k: string): void => { if (PROF) { const t = performance.now(); PROF[k] = (PROF[k] ?? 0) + t - tp; tp = t; } };
   const want = Math.min(LANDMARKS_PER_ZONE, Math.round(areaScale(c.zone.painted)));
   if (want < 1) return;
   const pole = c.zone.pole;
   const px2 = 2 * pole.x + 1, py2 = 2 * pole.y + 1;
   const before = c.zoneFeatures().length;
   const FAR = 1e12;
-  bestLandmark(c, GUARD_HOUSE, (s) => { const t0 = PROF ? performance.now() : 0; const r = -boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, px2, py2) - (inOneTerritory(c, s) ? 0 : FAR); if (PROF) PROF.lmScore = (PROF.lmScore ?? 0) + performance.now() - t0; return r; });
-  mark('lm1');
+  bestLandmark(c, GUARD_HOUSE, (s) => -boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, px2, py2) - (inOneTerritory(c, s) ? 0 : FAR));
   if (want < 2) return;
   const placed = c.zoneFeatures().slice(before).filter((f) => f.kind === "landmark");
   const first = placed.length > 0 ? placed[0].bbox : null;
@@ -227,7 +228,6 @@ function landmarkRows(c: LandmarkCtx): void {
     if (first && boxDist2(s.bbox.x, s.bbox.y, s.bbox.w, s.bbox.h, 2 * first.x + first.w, 2 * first.y + first.h) < sep2) sc -= FAR;
     return sc;
   });
-  mark('lm2');
 }
 
 /** Route-guard checks a zone may spend (contract 3.9: at most 6). */
@@ -454,9 +454,6 @@ const DETOUR_REACH = 14;
 
 /** The Rows' shape pass. */
 function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
-  const PROF = (globalThis as any).GAL_PROF as Record<string, number> | undefined;
-  let tp = PROF ? performance.now() : 0;
-  const mark = (k: string): void => { if (PROF) { const t = performance.now(); PROF[k] = (PROF[k] ?? 0) + t - tp; tp = t; } };
   const plan = EMPTY_PLAN();
   const { w, h } = c;
   const bb = c.zone.bbox;
@@ -488,7 +485,6 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     return ss >= 0 && tt >= 0 && ss < nS && tt < nT && okG[tt * nS + ss] === 1;
   };
 
-  mark('grid');
   // 2. Row positions: a line is worth its open runs of >= 8 tiles, less a bias; rows 7-9 apart.
   const value = new Int32Array(nT);
   for (let tt = 0; tt < nT; tt++) {
@@ -501,7 +497,6 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
   }
   const base = viterbiRows(value, tLo, d.gapMin, d.gapMax, d.gapTarget, d.gapPenalty);
   plan.baseRows = base;
-  mark('rowpos');
   if (base.length === 0) return plan;
 
   // 3. The square: the 9-tile window between two neighbouring base rows nearest the centroid, blocked tiles costing.
@@ -516,16 +511,22 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     }
     const cxi = Math.round(2 * c.zone.centroid.x), cyi = Math.round(2 * c.zone.centroid.y);
     const cs2 = horizontal ? cxi : cyi, ct2 = horizontal ? cyi : cxi;
+    // the SQUARE_TRIES best windows, ascending by (score, k, s): a small insertion list, no sort of all of them
     const cands: Array<{ score: number; k: number; s: number }> = [];
     for (let k = 0; k + 1 < base.length; k++) {
       const t0 = Math.max(0, base[k] - 1 - tLo), t1 = Math.min(nT - 1, base[k + 1] + 1 - tLo);
+      const dt = base[k] + base[k + 1] + 1 - ct2;
       for (let ss = 0; ss + SQUARE_WINDOW <= nS; ss++) {
         const blocked = blockedSum[(t1 + 1) * stride + ss + SQUARE_WINDOW] - blockedSum[t0 * stride + ss + SQUARE_WINDOW] - blockedSum[(t1 + 1) * stride + ss] + blockedSum[t0 * stride + ss];
-        const ds = 2 * (sLo + ss) + SQUARE_WINDOW - cs2, dt = base[k] + base[k + 1] + 1 - ct2;
-        cands.push({ score: isqrt(ds * ds + dt * dt) + 6 * blocked, k, s: ss });
+        const ds = 2 * (sLo + ss) + SQUARE_WINDOW - cs2;
+        const score = isqrt(ds * ds + dt * dt) + 6 * blocked;
+        if (cands.length === SQUARE_TRIES && score >= cands[SQUARE_TRIES - 1].score) continue; // ties keep the earlier (lower k, then s)
+        let at = cands.length;
+        while (at > 0 && cands[at - 1].score > score) at--;
+        cands.splice(at, 0, { score, k, s: ss });
+        if (cands.length > SQUARE_TRIES) cands.pop();
       }
     }
-    cands.sort((a, b) => a.score - b.score || a.k - b.k || a.s - b.s);
     /** The gallows at the first fitting offset of the window (k, ss), in the prototype's order; its tiles, or null. */
     const stand = (k: number, ss: number): number[] | null => {
       const mid = Math.round((base[k] + base[k + 1]) / 2);
@@ -558,7 +559,6 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     }
   }
   plan.square = win;
-  mark('square');
 
   // 4. Row paths, runs, gates.
   interface RowPlan { index: number; phase: number; t0: number; blocks: number[]; posts: Set<number>; gates: number[] }
@@ -633,12 +633,10 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     rowPlans.push(rp);
   }
   plan.corridorOpened = corridorOpened;
-  mark('paths');
 
   // The fence as it will finally stand must keep the detour rule: take back the tiles that would break it before anything is written.
   plan.planned = planDetours(c, rowPlans, c.caps.fenceDetour, plan.dropped);
 
-  mark('planDetours');
   // Gates are reserved before any row is written (a later blocker never closes one).
   for (const rp of rowPlans) if (rp.blocks.length >= ROW_MIN_PIECE) for (const i of rp.gates) c.reserve(i);
 
@@ -661,9 +659,7 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     });
   }
 
-  mark('write');
   plan.relaxed = relaxRows(c, plan, holes);
-  mark('relax');
 
   // 5. The route guard: the "open" mode already kept every corridor clear (one check is the safety net); "repair" opens the worst
   //    member's corridor, the fence tiles on it and then near it, until the stretch is under the threshold.
@@ -684,7 +680,6 @@ function shapeRows(c: ShapeCtx, d: GallowsDials): GallowsRowsPlan {
     }
     plan.stretch = st;
   }
-  mark('route');
   plan.emptyRows = plan.rows.filter((r) => r.tiles.length === 0).length;
   plan.houses = c.zoneFeatures().filter((f) => f.kind === "landmark" && f.variant === GUARD_HOUSE.key).length;
   return plan;
@@ -736,7 +731,9 @@ function propsRows(c: PropCtx, plan: GallowsRowsPlan): void {
 
 /** Builds a Rows styler with other dials (the default is `gallowsRows`). */
 export function makeGallows(dials: Partial<GallowsDials> = {}): ZoneStyler<GallowsRowsPlan> {
-  const d: GallowsDials = { ...GALLOWS_DIALS, ...dials };
+  // another period keeps the half-period stagger between neighbouring rows (period 10: phases 2 and 7) unless phases are given
+  const phases = dials.phases ?? (dials.period !== undefined ? [GATE_PHASES[0], GATE_PHASES[0] + Math.floor(dials.period / 2)] : GATE_PHASES);
+  const d: GallowsDials = { ...GALLOWS_DIALS, ...dials, phases };
   return {
     id: "gallows",
     faction: "sentenced",

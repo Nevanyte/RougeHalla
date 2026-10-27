@@ -254,13 +254,30 @@ function shrineSpot(cx: number, cy: number, k: number, d: number): { x0: number;
   return horizontal ? { x0: sx - 3, y0: sy - 4, rot } : { x0: sx - 4, y0: sy - 3, rot };
 }
 
+/** Shrine slots (DIR16 direction, extra distance), cheapest first, for a wanted direction `want` (and its opposite end when `both`). */
+const SLOT_ORDERS = new Map<number, ReadonlyArray<readonly [number, number]>>();
+function slotOrder(want: number, both: boolean): ReadonlyArray<readonly [number, number]> {
+  const key = want * 2 + (both ? 1 : 0);
+  let out = SLOT_ORDERS.get(key);
+  if (out) return out;
+  const slots: Array<{ cost: number; k: number; extra: number }> = [];
+  for (let k = 0; k < 16; k++) {
+    const sep = both ? Math.min(dirSep16(k, want), dirSep16(k, (want + 8) & 15)) : dirSep16(k, want);
+    for (const extra of SHRINE_EXTRAS) slots.push({ cost: SHRINE_TURN_COST * sep + (extra >= 0 ? extra : -SHRINE_INWARD_COST * extra), k, extra });
+  }
+  slots.sort((a, b) => a.cost - b.cost || a.k - b.k || a.extra - b.extra);
+  out = slots.map((s) => [s.k, s.extra] as const);
+  SLOT_ORDERS.set(key, out);
+  return out;
+}
+
 /**
  * The landmark pass (contract 4.5.8): up to two shrines round the hall's estimated centre (the scan of step 3 on the static rules,
  * no corridors yet), doors toward it. The first goes to an end of the hall's axis, `R + 4` out, else 2 further, then 2 more (the
  * contract), else the cheapest slot that fits; the second to the opposite side. A slot costs 3 per 22.5 degrees off the wanted
  * direction plus its distance beyond `R + 4` (3 per tile inside it). Deviation from the contract, which tries only the three slots
- * on the axis: a zone is a wedge or an L about 60 tiles across, rarely deep enough on its axis for a hall and two shrines (2 of 60
- * seeds keep the three-slot rule).
+ * on the axis: a zone is a wedge or an L about 60 tiles across, rarely deep enough on its axis for a hall and two shrines (the
+ * three-slot rule left 1 seed in 3 without a shrine).
  */
 function hallLandmarks(c: LandmarkCtx): void {
   const axis = hallAxis(c.zone), r = hallRadius(c.zone.painted);
@@ -268,17 +285,11 @@ function hallLandmarks(c: LandmarkCtx): void {
   const ax = est.x, ay = est.y; // the pole when no hall fits
   const bb = c.zone.bbox, bw1 = bb.w + 1;
   const want = Math.max(1, Math.min(LANDMARKS_PER_ZONE, Math.round(areaScale(c.zone.painted))));
-  const uDir = axis === 0 ? 0 : 4;
   let first = -1;
   for (let n = 0; n < want; n++) {
-    const slots: Array<{ cost: number; k: number; d: number }> = [];
-    for (let k = 0; k < 16; k++) {
-      const sep = n === 0 ? Math.min(dirSep16(k, uDir), dirSep16(k, uDir + 8)) : dirSep16(k, (first + 8) & 15);
-      for (const extra of SHRINE_EXTRAS) slots.push({ cost: SHRINE_TURN_COST * sep + (extra >= 0 ? extra : -SHRINE_INWARD_COST * extra), k, d: r + SHRINE_GAP + extra });
-    }
-    slots.sort((a, b) => a.cost - b.cost || a.k - b.k || a.d - b.d);
-    for (const slot of slots) {
-      const spot = shrineSpot(ax, ay, slot.k, slot.d);
+    const slots = n === 0 ? slotOrder(axis === 0 ? 0 : 4, true) : slotOrder((first + 8) & 15, false);
+    for (const [k, extra] of slots) {
+      const spot = shrineSpot(ax, ay, k, r + SHRINE_GAP + extra);
       // cheap reject: the whole box must be unprotected zone FLOOR (summed-area table of the tiles that are not)
       const sw = spot.rot & 1 ? 7 : 9, sh = spot.rot & 1 ? 9 : 7;
       const rx = spot.x0 - bb.x, ry = spot.y0 - bb.y;
@@ -286,7 +297,7 @@ function hallLandmarks(c: LandmarkCtx): void {
       if (est.bad[(ry + sh) * bw1 + rx + sw] - est.bad[ry * bw1 + rx + sw] - est.bad[(ry + sh) * bw1 + rx] + est.bad[ry * bw1 + rx] !== 0) continue;
       const stamp = stampTemplate(SHRINE, spot.x0, spot.y0, spot.rot, false, c.w, c.h);
       if (stamp === null || !stampFits(c, stamp) || placeLandmark(c, SHRINE, stamp, spot.rot, false) === null) continue;
-      if (n === 0) first = slot.k;
+      if (n === 0) first = k;
       break;
     }
   }
@@ -435,15 +446,16 @@ function hallProps(c: PropCtx, plan: HypostylePlan): void {
       if (c.noise.hash(x, y, 5) < 0.05) c.prop(PROP.stained_glass, x, y, variant(x, y));
     }
   }
-  // a shrine: the altar on its middle light cell, a brazier at each end of the back row, banners on the back wall
+  // a shrine: the altar on its middle light cell, a brazier either side of the middle of the back row, banners on the back wall
+  // (all clear of the 3x3 a crate takes in a nook, which the generator keeps props off)
   for (const s of shrineStamps(c)) {
     const put = (kind: number, i: number | undefined): void => { if (i !== undefined) c.prop(kind, i % w, (i - (i % w)) / w, variant(i % w, (i - (i % w)) / w)); };
     put(PROP.altar, s.lights[4]);
-    put(PROP.brazier, s.floor[0]);
-    put(PROP.brazier, s.floor[4]);
-    put(PROP.banner_red, s.walls[2]);
+    put(PROP.brazier, s.floor[1]);
+    put(PROP.brazier, s.floor[3]);
+    put(PROP.banner_red, s.walls[3]);
     put(PROP.banner_red, s.walls[4]);
-    put(PROP.banner_red, s.walls[6]);
+    put(PROP.banner_red, s.walls[5]);
   }
 }
 

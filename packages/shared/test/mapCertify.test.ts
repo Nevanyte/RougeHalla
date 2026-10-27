@@ -12,7 +12,7 @@ import { findPath } from "../src/pathfind";
 import { TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA } from "../src/terrain";
 import {
   BOW_TILES, CERT_FEATURE_JOBS, CERT_FEATURE_KINDS, FEATURE_CHECKS, LANDMARK_ZONE, PAIR_DRAWS, PAIR_TARGET, RAY_DIRECTIONS, ZONE_MEASURE_VALUES,
-  ZONE_WINDOWS, campGraph, campGraphNodes, certifyMap, cyclomaticNumber, decorProblems, engagementPairs, featureProblems, gabriel, judgeWindow, lcgNext,
+  ZONE_WINDOWS, campGraph, campGraphNodes, certifyMap, classifyPair, cyclomaticNumber, decorProblems, engagementPairs, featureProblems, gabriel, judgeWindow, lcgNext,
   pieceProblems, pieceStats, pieces, rayLengthsAt, rayProfile, strictZoneCodes, walkSegment, zoneMeasures,
 } from "./mapCertify";
 
@@ -221,6 +221,89 @@ describe("engagement pairs", () => {
   });
 });
 
+describe("the measures against a brute-force march on a generated map", () => {
+  const m = generateMap(1);
+  const W = m.w;
+  const at = (x: number, y: number): number => m.tiles[Math.floor(y) * W + Math.floor(x)];
+
+  it("gives ray lengths a fine march agrees with (the 45-degree rays through tile corners may stop earlier, by the sim's rule)", () => {
+    let checked = 0, off = 0;
+    for (let i = 0; i < W * m.h && checked < 60; i += 131) {
+      const x = i % W, y = (i - x) / W;
+      if (m.regionGrid[i] < 1 || m.regionGrid[i] > 5 || m.tiles[i] !== TILE_FLOOR) continue;
+      checked++;
+      const lens = rayLengthsAt(m, x, y);
+      for (let k = 0; k < RAY_DIRECTIONS; k++) {
+        const c = Math.cos((k * 2 * Math.PI) / RAY_DIRECTIONS), s = Math.sin((k * 2 * Math.PI) / RAY_DIRECTIONS);
+        let t = 0;
+        while (t < 40 && at(x + 0.5 + c * t, y + 0.5 + s * t) !== TILE_WALL) t += 0.01;
+        // A ray at exactly 45 degrees from a tile centre runs through every tile corner, and the sim's rule is that a corner enters both
+        // neighbours: such a ray may stop earlier than the march (never later); every other ray agrees with the march.
+        if (k % 6 === 3) { if (lens[k] > Math.min(40, t) + 0.03) off++; } else if (Math.abs(Math.min(40, t) - lens[k]) > 0.03) off++;
+      }
+    }
+    expect(checked).toBe(60);
+    expect(off, "rays that disagree with the march").toBeLessThanOrEqual(3);
+  });
+
+  it("classifies pairs as a fine march along the segment does (wall, else LOW, else clear)", () => {
+    let checked = 0, agree = 0, walls = 0, lows = 0;
+    for (let i = 0; i < W * m.h && checked < 400; i += 37) {
+      const ax = i % W, ay = (i - ax) / W;
+      if (m.tiles[i] !== TILE_FLOOR || m.regionGrid[i] < 1 || m.regionGrid[i] > 5) continue;
+      for (const [dx, dy] of [[5, 2], [-4, 5], [3, -6], [-6, -1]]) {
+        const bx = ax + dx, by = ay + dy, j = by * W + bx;
+        if (m.tiles[j] !== TILE_FLOOR) continue;
+        checked++;
+        let sawWall = false, sawLow = false;
+        for (let t = 0; t <= 1; t += 0.002) {
+          const v = at(ax + 0.5 + (bx - ax) * t, ay + 0.5 + (by - ay) * t);
+          if (v === TILE_WALL) sawWall = true;
+          else if (v === TILE_LOW) sawLow = true;
+        }
+        const want = sawWall ? "wall" : sawLow ? "low" : "clear";
+        const got = classifyPair(m, ax, ay, bx, by);
+        if (got === want) agree++;
+        if (got === "wall") walls++;
+        if (got === "low") lows++;
+      }
+    }
+    expect(checked).toBeGreaterThan(300);
+    expect(agree / checked).toBeGreaterThan(0.97);
+    expect(walls + lows, "the map has something to classify").toBeGreaterThan(5);
+  });
+
+  it("finds each zone's front door on the ring road's far side: ring distance 5 to 7, the qualifying tile nearest the zone's centroid", () => {
+    const ring = new Uint8Array(W * m.h).fill(99);
+    for (let i = 0; i < W * m.h; i++) {
+      if (m.regionGrid[i] !== REGION_COLISEUM) continue;
+      const x = i % W, y = (i - x) / W;
+      for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
+        const j = (y + dy) * W + x + dx;
+        if (j >= 0 && j < ring.length) ring[j] = Math.min(ring[j], Math.max(Math.abs(dx), Math.abs(dy)));
+      }
+    }
+    for (const f of REGION_FACTIONS) {
+      const door = campGraphNodes(m, f).find((n) => n.kind === "door");
+      expect(door, f).toBeDefined();
+      const code = REGION_FACTIONS.indexOf(f) + 1;
+      let n = 0, cx = 0, cy = 0;
+      for (let i = 0; i < W * m.h; i++) if (m.regionGrid[i] === code) { n++; cx += (i % W) + 0.5; cy += Math.floor(i / W) + 0.5; }
+      cx /= n; cy /= n;
+      let best = Infinity;
+      for (let i = 0; i < W * m.h; i++) {
+        if (m.regionGrid[i] !== code || m.tiles[i] !== TILE_FLOOR || ring[i] < 5 || ring[i] > 7) continue;
+        best = Math.min(best, ((i % W) + 0.5 - cx) ** 2 + (Math.floor(i / W) + 0.5 - cy) ** 2);
+      }
+      const d = door!, di = d.y * W + d.x;
+      expect(m.regionGrid[di], f).toBe(code);
+      expect(ring[di], f).toBeGreaterThanOrEqual(5);
+      expect(ring[di], f).toBeLessThanOrEqual(7);
+      expect((d.x + 0.5 - cx) ** 2 + (d.y + 0.5 - cy) ** 2, f).toBeCloseTo(best, 9);
+    }
+  });
+});
+
 // ---- Pieces -------------------------------------------------------------------------------------------------------------------
 
 describe("pieces", () => {
@@ -409,12 +492,25 @@ function setTile(m: GameMap, x: number, y: number, tile: number, terrain = 0): n
   m.terrain[i] = terrain;
   return i;
 }
+/** Params that follow contract 2.6 for a kind (a crater of camp 0, a river with no ford, a barrow without tunnel, a mere counting its ICE...). */
+function defaultParams(m: GameMap, kind: MapFeature["kind"], tiles: number[], jobs?: MapFeature["jobs"]): number[] {
+  switch (kind) {
+    case "crater": return [0, 24, 2, 0, 8];
+    case "lavaRiver": return [2, 0];
+    case "fenceRow": return [0, 0, 2];
+    case "barrow": return [10, jobs?.includes("choke") ? 1 : 0, 0, 1];
+    case "mere": return [0, tiles.filter((i) => m.terrain[i] === TERRAIN_ICE).length];
+    case "headland": return [3];
+    case "hall": return [0, 6, 13, 1, 0];
+    default: return [];
+  }
+}
 /** Records a feature that owns `tiles`: featureGrid, bbox and tile count filled the way the generator does. */
 function own(m: GameMap, kind: MapFeature["kind"], zone: RegionFaction, tiles: number[], extra: Partial<MapFeature> = {}): number {
   const xs = tiles.map((i) => i % m.w), ys = tiles.map((i) => Math.floor(i / m.w));
   const f: MapFeature = {
     kind, variant: "", zone, jobs: [kind === "crater" ? "pen" : kind === "infill" ? "seal" : kind === "lavaRiver" ? "crossing" : kind === "fenceRow" ? "lane" : kind === "landmark" ? "landmark" : "cover"],
-    ax: xs[0], ay: ys[0], p: [], bbox: { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs) + 1, h: Math.max(...ys) - Math.min(...ys) + 1 },
+    ax: xs[0], ay: ys[0], p: defaultParams(m, kind, tiles, extra.jobs), bbox: { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs) + 1, h: Math.max(...ys) - Math.min(...ys) + 1 },
     tiles: tiles.length, ...extra,
   };
   m.features.push(f);
@@ -704,13 +800,65 @@ describe("feature checks (strict: the shape gates)", () => {
     expect(featureProblems(ok, [1])).toEqual([]);
   });
 
+  it("flags a gallows that is not one 3x3 block, and a hall pier that is not whole", () => {
+    const ok = featureMap();
+    own(ok, "gallows", "fire", block(ok, 5, 5, 7, 7), { jobs: ["landmark"] });
+    own(ok, "hall", "fire", [...block(ok, 12, 12, 14, 14), ...block(ok, 18, 12, 20, 14)], { jobs: ["cover", "rest"], p: [0, 6, 13, 2, 0] });
+    expect(featureProblems(ok, [1])).toEqual([]);
+    const two = featureMap();
+    own(two, "gallows", "fire", [...block(two, 5, 5, 7, 7), ...block(two, 12, 5, 14, 7)], { jobs: ["landmark"] });
+    expect(hasCheck(featureProblems(two, [1]), "whole")).toBe(true);
+    const ell = featureMap();
+    own(ell, "gallows", "fire", block(ell, 5, 5, 7, 7).slice(0, 8), { jobs: ["landmark"] });
+    expect(hasCheck(featureProblems(ell, [1]), "whole")).toBe(true);
+    const half = featureMap();
+    own(half, "hall", "fire", [...block(half, 12, 12, 14, 14), ...block(half, 18, 12, 20, 13)], { jobs: ["cover", "rest"] });
+    expect(hasCheck(featureProblems(half, [1]), "whole")).toBe(true);
+    const touching = featureMap();
+    own(touching, "hall", "fire", [...block(touching, 12, 12, 14, 14), ...block(touching, 15, 15, 17, 17)], { jobs: ["cover", "rest"] });
+    expect(hasCheck(featureProblems(touching, [1]), "whole")).toBe(true);
+  });
+
+  it("flags params that break contract 2.6: a landmark's rotation, a crater's camp and breaches, a river's fords, a fence row, a barrow's tunnel, a mere's ice, a headland, a hall, a gallows", () => {
+    const cases: Array<[string, MapFeature["kind"], MapFeature["jobs"], number[], (m: GameMap) => void]> = [
+      ["crater of a camp of another zone", "crater", ["pen"], [0, 24, 2, 0, 8], (m) => { m.camps = [camp("holy", 30, 30)]; }],
+      ["crater with a camp that is not there", "crater", ["pen"], [7, 24, 2, 0, 8], () => {}],
+      ["crater whose breach count is not its directions", "crater", ["pen"], [0, 24, 3, 0, 8], () => {}],
+      ["crater breach direction 16", "crater", ["pen"], [0, 24, 2, 0, 16], () => {}],
+      ["river whose ford count is not its fords", "lavaRiver", ["crossing"], [2, 2, 100], () => {}],
+      ["fence row with the wrong length", "fenceRow", ["lane"], [0, 0], () => {}],
+      ["fence row on axis 2", "fenceRow", ["lane"], [2, 0, 2], () => {}],
+      ["barrow with a tunnel and no choke job", "barrow", ["fork"], [10, 1, 0, 1], () => {}],
+      ["barrow with a choke job and no tunnel", "barrow", ["fork", "choke"], [10, 0, 0, 1], () => {}],
+      ["barrow wet on side 0", "barrow", ["fork"], [10, 0, 0, 0], () => {}],
+      ["mere counting ICE it does not own", "mere", ["crossing"], [0, 5], () => {}],
+      ["headland facing direction 16", "headland", ["lee"], [16], () => {}],
+      ["hall with a pitch of 5", "hall", ["cover", "rest"], [0, 5, 13, 1, 0], () => {}],
+      ["gallows with params", "gallows", ["landmark"], [1], () => {}],
+    ];
+    for (const [what, kind, jobs, p, prep] of cases) {
+      const m = featureMap();
+      prep(m);
+      const tiles = kind === "gallows" || kind === "hall" ? block(m, 5, 5, 7, 7) : kind === "lavaRiver" || kind === "fenceRow" ? block(m, 5, 5, 10, 5, TILE_LOW, kind === "lavaRiver" ? TERRAIN_LAVA : TERRAIN_FENCE) : kind === "mere" ? [10 * 40 + 10] : block(m, 5, 5, 10, 5);
+      own(m, kind, "fire", tiles, { jobs, p });
+      expect(hasCheck(featureProblems(m, [1]), "params"), what).toBe(true);
+    }
+    // Landmarks: rotation 4, mirror 2, door tiles not ascending.
+    for (const edit of [(f: MapFeature) => { f.p[0] = 4; }, (f: MapFeature) => { f.p[1] = 2; }, (f: MapFeature) => { f.p = [f.p[0], f.p[1], f.p[3], f.p[2], ...f.p.slice(4)]; }]) {
+      const m = forgeMap();
+      edit(m.features[0]);
+      expect(hasCheck(featureProblems(m, [1]), "params")).toBe(true);
+    }
+    expect(hasCheck(featureProblems(forgeMap(), [1]), "params")).toBe(false);
+  });
+
   it("accepts a clean strict zone with every kind of feature", () => {
     const m = featureMap();
     own(m, "crater", "fire", block(m, 3, 3, 8, 3), { jobs: ["pen"] });
     own(m, "lavaRiver", "fire", block(m, 3, 6, 8, 6, TILE_LOW, TERRAIN_LAVA), { jobs: ["crossing"] });
     own(m, "fenceRow", "fire", block(m, 3, 9, 8, 9, TILE_LOW, TERRAIN_FENCE), { jobs: ["lane"] });
-    own(m, "mere", "fire", [12 * 40 + 3, 12 * 40 + 4], { jobs: ["crossing"] });
     m.terrain[12 * 40 + 3] = TERRAIN_ICE;
+    own(m, "mere", "fire", [12 * 40 + 3, 12 * 40 + 4], { jobs: ["crossing"] });
     own(m, "infill", "fire", block(m, 3, 15, 8, 15), { jobs: ["seal"] });
     expect(featureProblems(m, [1])).toEqual([]);
     expect(pieceProblems(m, [1])).toEqual([]);
@@ -981,7 +1129,7 @@ describe("the strict group through certifyMap", () => {
     const m = base();
     const i = quiet(m, 3), x = i % m.w, y = Math.floor(i / m.w);
     const tiles = block(m, x, y, x + 2, y + 1);
-    own(m, "crater", "plague", tiles, { jobs: ["pen"], ax: x, ay: y });
+    own(m, "crater", "plague", tiles, { jobs: ["pen"], ax: x, ay: y, p: [m.camps.findIndex((c) => c.zone === "plague"), 24, 2, 0, 8] });
     expect(shapeFailures(m, { zone: true, strict: true })).toEqual([]);
     m.featureGrid[tiles[0]] = 0;
     m.features[0].tiles--;

@@ -371,7 +371,8 @@ export function drawFloorLook(g: Pen, look: FloorLook, s: FloorSpot): void {
     }
     case "guardHouse": {
       const k = SHAPE_PALETTE.guardHouse;
-      g.fillStyle(k.floor, 0.3).fillRect(x, y, TILE_W, TILE_H);
+      g.fillStyle(k.floor, 0.4).fillRect(x, y, TILE_W, TILE_H);
+      g.fillStyle(0xffffff, 0.08).fillRect(x, y, TILE_W, TILE_H);
       g.fillStyle(k.mortar, 0.7).fillRect(x, y + TILE_H - 1, TILE_W, 1).fillRect(x + ((s.ty & 1) === 0 ? 0 : 16), y, 1, TILE_H);
       wallShade(g, s, 0.25);
       break;
@@ -387,7 +388,7 @@ export function drawFloorLook(g: Pen, look: FloorLook, s: FloorSpot): void {
     }
     case "watchtower": {
       const k = SHAPE_PALETTE.watchtower;
-      g.fillStyle(k.floor, 0.3).fillRect(x, y, TILE_W, TILE_H);
+      g.fillStyle(k.floor, 0.4).fillRect(x, y, TILE_W, TILE_H);
       g.fillStyle(k.ice, 0.22).fillRect(x, y + TILE_H - 1, TILE_W, 1).fillRect(x + TILE_W - 1, y, 1, TILE_H);
       if (bits(h, 2, 2) === 0) g.lineStyle(1, k.ice, 0.5).lineBetween(x + 6, y + TILE_H - 4, x + 20, y + 5);
       wallShade(g, s, 0.25);
@@ -396,7 +397,7 @@ export function drawFloorLook(g: Pen, look: FloorLook, s: FloorSpot): void {
     case "shrine": {
       // Marble underfoot: a pale checker with a gold joint.
       const k = SHAPE_PALETTE.shrine;
-      g.fillStyle(((s.tx + s.ty) & 1) === 0 ? 0xf2ecd8 : 0xcdc29f, ((s.tx + s.ty) & 1) === 0 ? 0.3 : 0.22).fillRect(x, y, TILE_W, TILE_H);
+      g.fillStyle(((s.tx + s.ty) & 1) === 0 ? 0xf2ecd8 : 0xcdc29f, ((s.tx + s.ty) & 1) === 0 ? 0.55 : 0.4).fillRect(x, y, TILE_W, TILE_H);
       g.fillStyle(k.gold, 0.3).fillRect(x, y + TILE_H - 1, TILE_W, 1).fillRect(x + TILE_W - 1, y, 1, TILE_H);
       wallShade(g, s, 0.2);
       break;

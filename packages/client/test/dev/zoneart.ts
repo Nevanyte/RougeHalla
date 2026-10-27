@@ -26,6 +26,19 @@ function stat(v: number[]): Stats {
   return { n: v.length, avg: v.reduce((a, b) => a + b, 0) / Math.max(1, v.length), p50: at(0.5), p95: at(0.95), p99: at(0.99), max: s[s.length - 1] ?? 0 };
 }
 
+/**
+ * Where the camera looks for `focus=<zone>` (the screenshots): the zone's signature shape (a crater, a fence row, a barrow, a mere, the
+ * hall), else its pole. In tiles.
+ */
+function focusOf(m: GameMap, zone: string): { x: number; y: number } {
+  const kind = { fire: "crater", sentenced: "fenceRow", plague: "barrow", frost: "mere", holy: "hall" }[zone];
+  const f = m.features.find((g) => g.zone === zone && g.kind === kind) ?? m.features.find((g) => g.zone === zone && g.kind !== "infill");
+  if (f) return { x: f.bbox.x + f.bbox.w / 2, y: f.bbox.y + f.bbox.h / 2 };
+  const pole = m.regions.find((r) => r.id === zone)?.pole;
+  return pole ? { x: pole.x / TILE, y: pole.y / TILE } : { x: m.w / 2, y: m.h / 2 };
+}
+const focus = q.get("focus") ? focusOf(map, q.get("focus")!) : null;
+
 const api: Record<string, unknown> = { map, seed, mode };
 
 /**
@@ -67,7 +80,7 @@ if (mode === "game") {
       this.view = new MapView(this, map);
       const bakeMs = performance.now() - t0;
       this.me = this.add.circle(0, 0, 12, 0x69f0ae).setStrokeStyle(2, 0x0b0e11).setDepth(1e5);
-      this.go(Number(q.get("cx") ?? 68), Number(q.get("cy") ?? 68));
+      this.go(Number(q.get("cx") ?? focus?.x ?? 68), Number(q.get("cy") ?? focus?.y ?? 68));
       const z = q.get("zoom");
       if (z) this.cameras.main.setZoom(Number(z));
       api.bakeCtorMs = bakeMs;

@@ -228,6 +228,8 @@ interface BarrowSite {
   readonly cx: number;
   readonly cy: number;
   readonly wet: 1 | -1;
+  /** Squared distance (tiles) from the centre to the road's line: the tunnel goes to the barrows nearest their road. */
+  readonly off2: number;
   /** The rock's tiles, centre-out. */
   readonly rock: number[];
   readonly crescent: number[];
@@ -411,7 +413,8 @@ function siteOf(g: Ground, road: Road, k: number): BarrowSite | null {
         let crescent = crescentOf(g, cand.cx, cand.cy, r4, dx, dy, wet);
         const other = crescentOf(g, cand.cx, cand.cy, r4, dx, dy, -wet);
         if (other.length > crescent.length) { crescent = other; wet = wet === 1 ? -1 : 1; }
-        return { road, k, r4, cx: cand.cx, cy: cand.cy, wet, rock: rockOf(c, jit, cand.cx, cand.cy, r4, k), crescent };
+        const cross = (cand.cx - road.a.x) * dy - (cand.cy - road.a.y) * dx;
+        return { road, k, r4, cx: cand.cx, cy: cand.cy, wet, off2: (cross * cross) / d2, rock: rockOf(c, jit, cand.cx, cand.cy, r4, k), crescent };
       }
     }
   }
@@ -483,8 +486,8 @@ function shape(c: ShapeCtx): WarrenPlan {
     for (const i of site.crescent) g.seen[i] = 2;
   }
 
-  // 2. Write: the tunnel barrows first (the largest radii, then the longest roads), then the rest, each as a trim feature.
-  const bigFirst = sites.map((_, i) => i).filter((i) => sites[i].r4 >= R4_TUNNEL).sort((p, q) => sites[q].r4 - sites[p].r4 || sites[q].road.d2 - sites[p].road.d2 || p - q);
+  // 2. Write: the tunnel barrows first (the largest radii, the nearest their road among equals), then the rest, each as a trim feature.
+  const bigFirst = sites.map((_, i) => i).filter((i) => sites[i].r4 >= R4_TUNNEL).sort((p, q) => sites[q].r4 - sites[p].r4 || sites[p].off2 - sites[q].off2 || sites[q].road.d2 - sites[p].road.d2 || p - q);
   let tunnelsLeft = tunnelsMax;
   const done = new Uint8Array(sites.length);
   const roadOf = new Map<WarrenBarrow, Road>();
