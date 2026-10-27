@@ -218,7 +218,7 @@ describe("createWorld / addPlayer", () => {
       });
     });
     expect(joined.slice(0, 5).map((p) => p.faction)).toEqual(["fire", "sentenced", "plague", "frost", "holy"]);
-    expect(joined.slice(0, 5).map((p) => p.hp)).toEqual([500, 700, 1000, 1750, 1450]);
+    expect(joined.slice(0, 5).map((p) => p.hp)).toEqual([835, 800, 1375, 1200, 1400]);
     expect(joined.map((p) => [p.weapon0, p.weapon1, p.slot])).toEqual(joined.map(() => ["", "", 0]));
   });
 
@@ -696,8 +696,8 @@ describe("raid spawns", () => {
     expect(w.state.phase).toBe("active");
     expect(rtA.weapon).toEqual(newWeaponRuntime());
     expect([a.readyAt, a.drawStartedAt]).toEqual([0, 0]);
-    expect(a).toMatchObject({ faction: "fire", hp: 500, weapon0: "", weapon1: "", slot: 0 });
-    expect(b).toMatchObject({ faction: "sentenced", hp: 700, weapon0: "", weapon1: "", slot: 0 });
+    expect(a).toMatchObject({ faction: "fire", hp: 835, weapon0: "", weapon1: "", slot: 0 });
+    expect(b).toMatchObject({ faction: "sentenced", hp: 800, weapon0: "", weapon1: "", slot: 0 });
   });
 
   it("re-spawns players onto map spawns wherever they stood in the lobby", () => {
@@ -1514,7 +1514,8 @@ describe("end of a run", () => {
      * is the per-tick shuffle, and the seed picks it; the outcome must not depend on it.
      */
     function mutualKill(seed: number, hpA: number, hpB: number) {
-      const world = makeWorld({ minPlayers: 2 }, 1234, mulberry32(seed));
+      // PvP rules off: the 10,000-raw "lethal blow" would be cut to 35% of the victim's hp by the per-hit cap (G2).
+      const world = makeWorld({ minPlayers: 2, pvpRules: false }, 1234, mulberry32(seed));
       const a = addPlayer(world, "a", "alice");
       const b = addPlayer(world, "b", "bob");
       step(world, TICK_MS);
@@ -1557,7 +1558,7 @@ describe("end of a run", () => {
 
     it("an exact tie in hp fraction is a draw", () => {
       for (const seed of SEEDS) {
-        const { world, events } = mutualKill(seed, 250, 350); // 250/500 = 350/700
+        const { world, events } = mutualKill(seed, 417.5, 400); // 417.5/835 = 400/800
         const results = ofType(events, "resolved");
         expect(results.map((e) => [e.result.outcome, e.result.place])).toEqual([["draw", 1], ["draw", 1]]);
         expect(world.state.winner).toBe("");

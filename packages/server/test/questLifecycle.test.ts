@@ -144,7 +144,7 @@ describe("quest lifecycle", () => {
     expect(world.state.unknownQuests).toBe(0);
     expect(world.state.mobs.has(npcId)).toBe(false);
     expect(world.players.get("p0")!.gv.quest).toBe(0);
-    expect(world.state.players.get("p0")!.buffs.size).toBe(0);
+    expect(world.state.players.get("p0")!.build.size).toBe(0);
 
     const p = world.state.players.get("p0")!;
     p.x = hidden.s.x;
@@ -192,7 +192,7 @@ describe("quest lifecycle", () => {
     expect(published.s.status).toBe("expired");
     expect(world.quests!.quests.has(hidden.id)).toBe(false);
     expect(world.players.get("p0")!.gv.quest).toBe(0);
-    expect(world.state.players.get("p0")!.buffs.size).toBe(0);
+    expect(world.state.players.get("p0")!.build.size).toBe(0);
     expect(toasts(world.events)).toEqual([]);
   });
 

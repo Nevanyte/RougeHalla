@@ -7,10 +7,9 @@
 //   positions (x, y, x0, y0)    whole units
 //   angles (a)                  hundredths of a radian
 //   hit and heal amounts        tenths
-//   buff stacks and total       thousandths
 //   windup ms, projEnd t0       whole ms (the batch `t` stays exact)
 //   cast ms, status ms          whole ms
-// Weapons, projectile kinds, end reasons, signatures, buffs, abilities, status kinds and cast-end reasons travel as
+// Weapons, projectile kinds, end reasons, signatures, abilities, status kinds and cast-end reasons travel as
 // indices into the tables below (abilities and status kinds are the order of ABILITY_IDS and STATUS_KINDS). They are wire
 // format: client and server ship together, so a table may grow at its end but must never be reordered.
 //
@@ -38,7 +37,7 @@
 //                                            reflected at once): a client that has the launch needs none of them, so `packFx`
 //                                            leaves them off for ids in `announced`, and they decode as x, y and the batch t)
 //   death    [id, x, y, by|null]            heal     [id, amount]
-//   bounty   [id, name, bounty]             buff     [id, B, stacks, total]   (B = buff code, the BUFF table)
+//   bounty   [id, name, bounty]
 //   victory  [id|null, name|null, draw 0|1]
 //   cast     [by, AB, ms, target|null, x, y]        castEnd  [by, AB, reason]
 //   castLand [by, AB, target|null, x, y, x2?, y2?]  (x2 and y2 together, only for a blink: its landing)
@@ -46,18 +45,17 @@
 //   campCleared [camp]                      (the camp's index in map.camps)
 //   chestTaken  [chest, by, option]         (chest: the reward container's id, a string; option -1 = a skip)
 //   campHeal [id, camp, amount]             (camp: its index in map.camps; amount hp x 10, like heal)
-// Kind 11 was `combo` (the kill combos, retired in roguelike R4a): never emitted and never reused; a client reading one
-// drops it (onDrop).
+// Kind 10 was `buff` (the per-kill buffs, retired in the balance pass) and kind 11 `combo` (the kill combos, retired in roguelike
+// R4a): never emitted and never reused; a client reading one drops it (onDrop).
 // Adding a field to an FxEvent means adding it to its tuple here (and to the round-trip test).
 import { ABILITY_IDS, type AbilityId, type CastEndReason } from "./abilities";
-import type { BuffId } from "./buffs";
 import type { SignatureKind } from "./signatures";
 import type { FxBatch, FxEvent, FxTuple, ProjectileEnd, ProjectileLaunch, TimedFx } from "./messages";
 import { STATUS_KINDS, type StatusKind } from "./status";
 import { WEAPONS, type ProjectileKind, type WeaponId } from "./weapons";
 
 /** Units per integer step on the wire: an angle of 1.5707 is sent as 157 and decodes to 1.57. */
-export const FX_SCALE = { pos: 1, angle: 100, amount: 10, stacks: 1000, ms: 1, flight: 10 } as const;
+export const FX_SCALE = { pos: 1, angle: 100, amount: 10, ms: 1, flight: 10 } as const;
 
 interface Table<K extends string> {
   readonly code: Readonly<Record<K, number>>;
@@ -71,8 +69,8 @@ function table<K extends string>(code: Readonly<Record<K, number>>): Table<K> {
   return { code, name };
 }
 
-/** "combo" stays in the table only to hold its code (11) forever: nothing packs it, and unpacking it yields nothing. */
-const KIND = table<FxEvent["kind"] | "combo">({
+/** "buff" and "combo" stay in the table only to hold their codes (10, 11) forever: nothing packs them, and unpacking one yields nothing. */
+const KIND = table<FxEvent["kind"] | "buff" | "combo">({
   windup: 0, swing: 1, hit: 2, block: 3, stagger: 4, projEnd: 5, death: 6, heal: 7, teleport: 8, bounty: 9, buff: 10, combo: 11,
   victory: 12, cancel: 13, cast: 14, castLand: 15, castEnd: 16, status: 17, campCleared: 18, chestTaken: 19, campHeal: 20,
 });
@@ -80,14 +78,6 @@ const WEAPON = table<WeaponId>({ sword: 0, bow: 1, wand: 2, shield: 3, axe: 4, f
 const PROJECTILE = table<ProjectileKind>({ arrow: 0, ball: 1 });
 const END = table<ProjectileEnd>({ hit: 0, wall: 1, range: 2, reflected: 3, deleted: 4, destroyed: 5, cleared: 6, blocked: 7 });
 const SIG = table<SignatureKind>({ burn: 0, backlash: 1, disease: 2, mark: 3 });
-/** Every BuffId (the compiler checks), in MOB_TYPES order. Grow at the end only. */
-const BUFF = table<BuffId>({
-  emberImp: 0, cinderHound: 1, magmaBrute: 2, wyrmling: 3,
-  bailiff: 4, chainWarden: 5, inquisitor: 6, executioner: 7,
-  plagueRat: 8, bloatfly: 9, rotMonk: 10, ratOgre: 11,
-  frostWisp: 12, iceGolem: 13, rimeStalker: 14, glacialWarden: 15,
-  acolyte: 16, seraphShard: 17, penitent: 18, bloodSaint: 19,
-});
 /** A list's members by position: a new ability or status kind is a new code at the end of its list. */
 const indexed = <K extends string>(list: readonly K[]): Readonly<Record<K, number>> =>
   Object.fromEntries(list.map((k, i) => [k, i])) as Record<K, number>;
@@ -96,7 +86,7 @@ const STATUS = table<StatusKind>(indexed(STATUS_KINDS));
 const CAST_END = table<CastEndReason>({ fizzle: 0, interrupted: 1, cancelled: 2 });
 
 const KC = KIND.code;
-const { pos: POS, angle: ANGLE, amount: AMOUNT, stacks: STACKS, ms: MS, flight: FLIGHT } = FX_SCALE;
+const { pos: POS, angle: ANGLE, amount: AMOUNT, ms: MS, flight: FLIGHT } = FX_SCALE;
 
 /** How far each kind of projectile flies unless something shortened it: what a launch tuple leaves out. */
 const DEFAULT_RANGE: Readonly<Record<ProjectileKind, number>> = {
@@ -189,7 +179,6 @@ function packOne(fx: FxEvent, announced: ReadonlySet<string> | undefined): FxTup
     case "heal": return [KC.heal, fx.id, enc(fx.amount, AMOUNT)];
     case "teleport": return [KC.teleport];
     case "bounty": return [KC.bounty, fx.id, fx.name, Math.round(fx.bounty) + 0];
-    case "buff": return [KC.buff, fx.id, BUFF.code[fx.buff], enc(fx.stacks, STACKS), enc(fx.total, STACKS)];
     case "victory": return [KC.victory, fx.id ?? null, fx.name ?? null, fx.draw ? 1 : 0];
     case "cast": return [KC.cast, fx.by, ABILITY.code[fx.ability], enc(fx.ms, MS), fx.target ?? null, enc(fx.x, POS), enc(fx.y, POS)];
     case "castLand": {
@@ -347,13 +336,7 @@ function unpackOne(tuple: unknown, names: Names, t: number): FxEvent | null {
       const id = str(tuple[1], names), name = str(tuple[2], names), bounty = dec(tuple[3], 1);
       return id !== undefined && name !== undefined && bounty !== undefined ? { kind, id, name, bounty } : null;
     }
-    case "buff": {
-      const id = str(tuple[1], names), buff = pick(BUFF, tuple[2]), stacks = dec(tuple[3], STACKS), total = dec(tuple[4], STACKS);
-      return id !== undefined && buff !== undefined && stacks !== undefined && total !== undefined
-        ? { kind, id, buff, stacks, total }
-        : null;
-    }
-    // "combo" (retired) and unknown codes fall through to null: onDrop hears of them.
+    // "buff" and "combo" (retired) and unknown codes fall through to null: onDrop hears of them.
     case "victory": {
       const id = strOrNull(tuple[1], names), name = strOrNull(tuple[2], names), draw = flag(tuple[3]);
       return id !== undefined && name !== undefined && draw !== undefined ? { kind, id, name, draw } : null;

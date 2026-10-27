@@ -28,6 +28,19 @@ export interface ArcShape { kind: "arc"; reach: number; halfArc: number }
 /** A projectile flying straight at `speed` (u/s) until it has covered `range` (u). */
 export interface ProjectileShape { kind: "projectile"; projectile: ProjectileKind; speed: number; range: number }
 
+/**
+ * What a weapon hit adds per point of each stat the fighter has (BALANCE_CONTRACT 3.3), in points of raw damage per second at
+ * base attack speed. `ad` and `ap` are the attack damage and ability power mirrors (adBonus, apBonus), `hp` the bonus max hp
+ * (max hp over the faction's), `def` the bonus armor plus the bonus magic resist. The ad, hp and def parts are physical damage,
+ * the ap part magic. A missing key is 0.
+ */
+export interface WeaponScaling {
+  ad?: number;
+  ap?: number;
+  hp?: number;
+  def?: number;
+}
+
 export interface WeaponSpec {
   id: WeaponId;
   name: string;
@@ -44,35 +57,37 @@ export interface WeaponSpec {
    * ones are maxima for the kiting check (testing/test_kite.py); see testing/TUNING_9_1.md.
    */
   dpsMult: number;
+  /** Per point of AD, AP, bonus max hp and bonus defense (BALANCE_CONTRACT 3.3): the cards' power reaches a hit through this. */
+  scaling: Readonly<WeaponScaling>;
   shape: ArcShape | ProjectileShape;
 }
 
 export const WEAPONS: Readonly<Record<WeaponId, WeaponSpec>> = {
   sword: {
-    id: "sword", name: "Sword", color: 0xcfd8dc, boost: 1.15, floor: 0.25, dpsMult: 0.75,
+    id: "sword", name: "Sword", color: 0xcfd8dc, boost: 1.15, floor: 0.25, dpsMult: 0.75, scaling: { ad: 1.0 },
     shape: { kind: "arc", reach: 64, halfArc: Math.PI / 4 },
   },
   bow: {
-    id: "bow", name: "Bow", color: 0xa1887f, boost: 0.95, floor: 0.25, dpsMult: 0.8,
+    id: "bow", name: "Bow", color: 0xa1887f, boost: 0.95, floor: 0.25, dpsMult: 0.8, scaling: { ad: 0.9 },
     shape: { kind: "projectile", projectile: "arrow", speed: 900, range: 240 },
   },
   wand: {
-    id: "wand", name: "Wand", color: 0xce93d8, boost: 0.65, floor: 0.3, dpsMult: 0.8,
+    id: "wand", name: "Wand", color: 0xce93d8, boost: 0.65, floor: 0.3, dpsMult: 0.8, scaling: { ad: 0.3, ap: 1.2 },
     shape: { kind: "projectile", projectile: "ball", speed: 380, range: 220 },
   },
   // The bash; the block cone (SHIELD_HALF_ARC) is always up while the shield is in hand.
   shield: {
-    id: "shield", name: "Shield", color: 0x90a4ae, boost: 0.6, floor: 0.3, dpsMult: 0.75,
+    id: "shield", name: "Shield", color: 0x90a4ae, boost: 0.6, floor: 0.3, dpsMult: 0.75, scaling: { ap: 0.3, def: 0.4 },
     shape: { kind: "arc", reach: 44, halfArc: Math.PI / 3 },
   },
   axe: {
-    id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.77,
+    id: "axe", name: "Axe", color: 0xef9a9a, boost: 0.4, floor: 0.35, dpsMult: 0.77, scaling: { ad: 1.2, hp: 0.02 },
     shape: { kind: "arc", reach: 60, halfArc: Math.PI / 2 },
   },
   // What an empty hand fights with: the shortest melee reach and the fastest cadence, at 0.60 of a faction's weapon dps
   // (arming is worth x1.25-1.33). It pierces shields, never staggers and has no tie to the loop (WEAPON_BEATS).
   fists: {
-    id: "fists", name: "Fists", color: 0xffcc80, boost: 1.5, floor: 0.2, dpsMult: 0.6,
+    id: "fists", name: "Fists", color: 0xffcc80, boost: 1.5, floor: 0.2, dpsMult: 0.6, scaling: { ad: 0.6, ap: 0.6 },
     shape: { kind: "arc", reach: 40, halfArc: Math.PI / 3 },
   },
 };
@@ -130,6 +145,33 @@ export function attackInterval(f: Pick<FactionSpec, "rate">, w: WeaponId, asMult
  */
 export function damagePerHit(f: Pick<FactionSpec, "rate" | "hit">, w: WeaponId, asMult = 1): number {
   return f.rate * f.hit * WEAPONS[w].dpsMult * asMult * attackInterval(f, w, asMult);
+}
+
+/** The stats a weapon hit scales with (WeaponScaling), as the fighter has them. */
+export interface ScalingStats {
+  /** The adBonus mirror. */
+  ad: number;
+  /** The apBonus mirror. */
+  ap: number;
+  /** Max hp over the faction's (0 at the faction's own hp). */
+  bonusMaxHp: number;
+  /** The armorBonus plus the shieldBonus mirrors. */
+  bonusDefense: number;
+}
+
+/**
+ * What a hit of `w` at attack speed `asMult` (and so interval `interval`) adds on top of damagePerHit for the stats `s`:
+ * (scaling.ad x AD + scaling.hp x bonus max hp + scaling.def x bonus defense) physical, scaling.ap x AP magic, each times
+ * asMult x interval. At base speed that is the scaling's points per second times the interval; attack speed multiplies the
+ * dps, and an interval at its floor turns the surplus into bigger hits, exactly as damagePerHit does for the faction's part.
+ */
+export function scalingDamage(w: WeaponId, s: ScalingStats, asMult: number, interval: number): { phys: number; magic: number } {
+  const sc = WEAPONS[w].scaling;
+  const per = asMult * interval;
+  return {
+    phys: ((sc.ad ?? 0) * s.ad + (sc.hp ?? 0) * s.bonusMaxHp + (sc.def ?? 0) * s.bonusDefense) * per,
+    magic: (sc.ap ?? 0) * s.ap * per,
+  };
 }
 
 /**

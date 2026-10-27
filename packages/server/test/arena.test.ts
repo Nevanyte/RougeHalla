@@ -13,7 +13,6 @@ import {
   applyDamage, applyHits, awardGv, beginRun, coliseumSpots, creditMobKill, downPlayer, markDropped, markReconnected, markTickStart,
   patienceMs, suddenDeath, suddenDeathShare, unbankedGv, type Attacker, type Hit,
 } from "../src/sim/arena";
-import { grantBuff } from "../src/sim/buffs";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -34,7 +33,7 @@ function makeConfig(cfg: Partial<SimConfig> = {}): SimConfig {
   const patienceSeconds = cfg.patienceSeconds ?? 2;
   return {
     minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds, patienceMinSeconds: patienceSeconds,
-    suddenDeathSeconds: 1, ...cfg,
+    suddenDeathSeconds: 1, pvpRules: false, ...cfg, // the PvP caps would turn these tests' one-hit kills into slower ones
   };
 }
 
@@ -1415,42 +1414,38 @@ describe("sudden death", () => {
     }
 
     /**
-     * Fire p0 (500 hp, so the first burn is 0.5) with `hp` left kills a full-hp p1, a bountied player holding 6 stacks of
-     * Ice Golem (max hp). What that kill pays would save p0 from the burn: half of those stacks (3), which raise max hp
-     * and bring the hp gained with it. (The kill barrier of the old combos is gone; nothing else pays a barrier yet.)
+     * Fire p0 (835 hp, so the first burn is 0.835) with `hp` left kills a full-hp p1, a bountied player. The kill's spoils (its
+     * GV and the bounty) are paid after the pass, from the state before it: nothing it pays could save p0 from the burn (since the
+     * balance pass a kill pays no stat and no barrier at all; the pass-order rule is the arena's, and this pins it).
      */
     function standoff(hp: number): World {
       const w = startRun(2, { suddenDeathSeconds: 2 }, { game: true });
       runTo(w, FIRST_BURN - TICK_MS);
       expect(w.state).toMatchObject({ gatesLocked: true, suddenDeathAt: 4050 });
       P(w, 0).hp = hp;
-      grantBuff(w, P(w, 1), RT(w, 1), "iceGolem", 6);
       P(w, 1).kills = 3;
-      P(w, 1).bounty = 10; // p0 claims it, with 3 of those hp stacks
+      P(w, 1).bounty = 10; // p0 claims it
       lethalHit(w, 0, 1);
       return w;
     }
 
-    it("pays the bounty after the burn: the control, with hp to spare, does get the stacks", () => {
+    it("pays the bounty after the burn: the control, with hp to spare, wins and is paid", () => {
       const w = standoff(100);
       tick(w);
       expect(P(w, 1).status).toBe("dead");
       expect(P(w, 0).status).toBe("alive");
-      expect(P(w, 0).buffs.get("iceGolem")).toBe(3);
-      expect(P(w, 0).maxHp).toBeGreaterThan(500);
-      expect(P(w, 0).hp).toBeGreaterThan(100);
-      expect(P(w, 0).hp).toBeCloseTo(100 - 0.5 + (P(w, 0).maxHp - 500), 9); // the burn landed first; the hp gained came with the max hp
+      expect(RT(w, 0).gv.bounty).toBe(10);
+      expect(P(w, 0).hp).toBeCloseTo(100 - FACTIONS.fire.hp * 0.001, 9); // the burn landed, and nothing the kill paid healed or raised anything
       expect(w.state).toMatchObject({ phase: "ended", winner: "alice" });
     });
 
-    it("a killer the burn would kill without the bounty its kill wins goes down with its victim", () => {
+    it("a killer the burn kills goes down with its victim: the kill pays nothing that could save it", () => {
       const w = standoff(0.25);
       const events = tick(w);
       expect(P(w, 1).status).toBe("dead"); // the hit it started still lands
       expect(P(w, 0).status).toBe("dead");
       expect(P(w, 0).barrier).toBe(0);
-      expect(P(w, 0).maxHp).toBe(500);
-      expect(P(w, 0).buffs.get("iceGolem") ?? 0).toBe(0); // the transfer reached nobody standing
+      expect(P(w, 0).maxHp).toBe(FACTIONS.fire.hp);
       expect(RT(w, 0).killedBy).toBe(SUDDEN_DEATH_KILLER);
       expect(resultsOf(events)[idOf(0)]).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER });
       // Both went down in the same tick: the higher hp fraction at its start wins, not whoever's kill paid out.
@@ -2049,7 +2044,8 @@ describe("Glorious Victory", () => {
     if (!melees.has(seed)) melees.set(seed, playMelee(seed));
     return melees.get(seed)!;
   };
-  const SEEDS = Array.from({ length: 60 }, (_, i) => i + 1);
+  // Seed 68 is a draw on the compressed faction sheet (the first 60 reach none now: a draw needs both falling in one tick on exactly equal hp fractions).
+  const SEEDS = [...Array.from({ length: 60 }, (_, i) => i + 1), 68];
   const hunts = new Map<number, Melee>();
   const huntFor = (seed: number): Melee => {
     if (!hunts.has(seed)) hunts.set(seed, playMelee(seed, true));

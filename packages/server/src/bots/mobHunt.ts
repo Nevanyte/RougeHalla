@@ -12,7 +12,7 @@
 //      focusBudgetMs of the bot's time. The target is the best of the alive mobs within reach of a path it can walk: one the
 //      bot's faction beats in a duel (matchupShare), that a carried weapon works on (not useless) and that does not fight
 //      from range (those back off out of their leash), nearest first, favouring a weapon edge, a weapon type we lack, and a
-//      mob no other player is nearer to; elites wait for stacks or full hp.
+//      mob no other player is nearer to; elites wait for card power or full hp.
 //   5. A target is dropped (and left alone for a while) when it never gets hurt: it went home (a mob walking home is
 //      untouchable and shows no flag, but its hp rises), the attacks are not landing, or the chase is taking too long.
 import {
@@ -55,17 +55,17 @@ export interface MobHuntConfig {
   maxCandidates: number;
   /** No new mob fight below this hp share. */
   startMinHp: number;
-  /** Elites need this many stacks (total) or this hp share. */
-  eliteMinStacks: number;
+  /** Elites need this much card power (shared cardPower: the sum of tier x count) or this hp share. */
+  eliteMinPower: number;
   eliteFullHp: number;
   /**
    * The share of its hp the bot's faction keeps in a straight duel with the mob (matchupShare) must reach this to take the mob
-   * on: mobMinShare for a normal mob, eliteMinShare for an elite (eliteSureShare when the bot holds eliteSureStacks stacks).
+   * on: mobMinShare for a normal mob, eliteMinShare for an elite (eliteSureShare when the bot holds eliteSurePower card power).
    */
   mobMinShare: number;
   eliteMinShare: number;
   eliteSureShare: number;
-  eliteSureStacks: number;
+  eliteSurePower: number;
   /** Below this hp share, on a mob with an awake one within retreatClear, the bot runs for retreatMinMs to retreatMaxMs, then stays off mobs for retreatBanMs. */
   retreatHp: number;
   retreatClear: number;
@@ -100,12 +100,12 @@ export const MOB_HUNT: Readonly<MobHuntConfig> = {
   walkSlack: 1.25,
   maxCandidates: 6,
   startMinHp: 0.5,
-  eliteMinStacks: 1,
+  eliteMinPower: 4,
   eliteFullHp: 0.9,
   mobMinShare: 0.5,
   eliteMinShare: 0.6,
   eliteSureShare: 0.4,
-  eliteSureStacks: 3,
+  eliteSurePower: 6,
   retreatHp: 0.35,
   retreatClear: 320,
   retreatMinMs: 1500,
@@ -210,8 +210,8 @@ export interface HuntSelf {
   maxHp: number;
   /** The carried weapons (both slots; null = empty). */
   weapons: readonly (WeaponId | null)[];
-  /** The buffs' power in stacks at the quoted value (shared buffs.ts buffPower: 3 for one buff at 3 stacks). */
-  stacks: number;
+  /** The bot's card power (shared cards.ts cardPower: the sum of tier x count over its build). */
+  power: number;
   /** The server's count of mobs this bot killed. */
   mobKills: number;
 }
@@ -418,9 +418,9 @@ export class MobHunter {
       if (!isRegionalKind(m.kind) || m.status !== "alive") continue;
       const d = dist(m, self);
       if (d > reach || this.isBanned(id, now) || this.tracker.returning(id, now)) continue;
-      if (m.kind === "elite" && !(self.stacks >= c.eliteMinStacks || hpFrac >= c.eliteFullHp)) continue;
+      if (m.kind === "elite" && !(self.power >= c.eliteMinPower || hpFrac >= c.eliteFullHp)) continue;
       const share = self.faction !== null && isFactionId(m.faction) ? matchupShare(self.faction, m.faction, m.kind === "elite") : 0.7;
-      const need = m.kind !== "elite" ? c.mobMinShare : self.stacks >= c.eliteSureStacks ? c.eliteSureShare : c.eliteMinShare;
+      const need = m.kind !== "elite" ? c.mobMinShare : self.power >= c.eliteSurePower ? c.eliteSureShare : c.eliteMinShare;
       if (share < need) continue; // this faction loses to it, or wins too narrowly (Fire against Holy mobs, anyone against the wrong elite)
       const theirs = mobWeapon(m);
       const edge = theirs === null ? 0 : bestEdge(self.weapons, theirs);

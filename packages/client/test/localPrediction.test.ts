@@ -1,11 +1,11 @@
 // What the client knows about its own fighter's speed and roots (net/localPrediction.ts): the synced stat mirrors in wire form
-// (thousandths), the chill, and the axe's root. Nothing here reads the buff stacks or any kill: what a buff does reaches the
+// (thousandths), the chill, and the axe's root. Nothing here reads the cards held or any kill: what a card does reaches the
 // client only through the mirrors the server folds it into.
 import { describe, expect, it } from "vitest";
 import {
   attackInterval, CAST_TELEPORT_GRACE_MS, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, decodeMult, EFFECT_CASTING, EFFECT_HASTE, EFFECT_ROOTED,
   EFFECT_SILENCED, EFFECT_STUNNED, encodeMult, FACTIONS, hasteMultiplier, LAST_STAND_SPEED_BONUS, mapFromTiles, MOVE_MULT_FLOOR,
-  PLAYER_SPEED, scaleWindup, SIG_CHILLED, skillRows, SWIFT_BOOTS_PAUSE_MS, TERRAIN_BOG, TERRAIN_ICE, TILE, TILE_FLOOR, TILE_WALL,
+  PLAYER_SPEED, scaleWindup, SIG_CHILLED, cardRows, SWIFT_BOOTS_PAUSE_MS, TERRAIN_BOG, TERRAIN_ICE, TILE, TILE_FLOOR, TILE_WALL,
   WIRE_IDENTITY_MIRRORS, weaponTimings, type GameMap, type TimedFx,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../src/net/localMotion";
@@ -59,15 +59,14 @@ describe("walk speed", () => {
     expect(p.speedMult(0, mirrored({ speed: 1.37 }), [])).toBe(decodeMult(1370));
   });
 
-  it("reads the speed mirror and nothing else: the other mirrors, buffs held and a kill do not move it", () => {
+  it("reads the speed mirror and nothing else: the other mirrors, cards held and a kill do not move it", () => {
     const base = p.speedMult(0, mirrored({ speed: 1.1 }), []);
     expect(p.speedMult(0, mirrored({ speed: 1.1, as: 1.6, windup: 0.5 }), [])).toBe(base);
-    // A fighter's buffs map (the state carries one) is not part of what the prediction is told.
-    const held = { ...mirrored({ speed: 1.1 }), buffs: new Map([["cinderHound", 9], ["plagueRat", 9]]) } as LocalFighter;
+    // A fighter's cards (the state carries them) are not part of what the prediction is told.
+    const held = { ...mirrored({ speed: 1.1 }), build: new Map([["fleet3", 9], ["haste2", 9]]) } as LocalFighter;
     expect(p.speedMult(0, held, [])).toBe(base);
     const q = new LocalPrediction();
     q.noteFx({ kind: "death", id: "foe", x: 0, y: 0, by: ME, t: 10_000 }, ME, held);
-    q.noteFx({ kind: "buff", id: ME, buff: "cinderHound", stacks: 1.1, total: 9, t: 10_000 }, ME, held);
     expect(q.speedMult(0, held, [])).toBe(base);
   });
 
@@ -81,15 +80,15 @@ describe("walk speed", () => {
     expect(p.speedMult(0, chilled, [])).toBe(1);
   });
 
-  it("Swift Boots: the walk is the mirror through the pause after a shot, which the server writes as 1.06 -> 1 -> 1.06 (rank 1)", () => {
+  it("Fleet: the walk is the mirror through the pause after a shot, which the server writes as 1.06 -> 1 -> 1.06 (Fleet I)", () => {
     // Owner ruling "No boost while shooting": the server turns the bonus off while a bow or wand attack winds up and for
     // SWIFT_BOOTS_PAUSE_MS after the shot, by patching `speedMult` (sim/mods.ts `notShooting`). The client knows no rule of its own:
     // it decodes whichever value the latest patch carries, on and off, exactly as the sim's movement multiplies it.
-    for (const rank of [1, 2] as const) {
-      const row = skillRows("swiftBoots", rank)[0]!;
+    for (const id of ["fleet1", "fleet2", "fleet3"] as const) {
+      const row = cardRows(id)[0]!;
       expect(row).toMatchObject({ k: "while", cond: "notShooting", ms: SWIFT_BOOTS_PAUSE_MS });
       const on = decodeMult(encodeMult(1 + (row.k === "while" ? row.v : 0)));
-      expect([1.06, 1.1]).toContain(on);
+      expect([1.06, 1.1, 1.15]).toContain(on);
       const sequence = [encodeMult(on), encodeMult(1), encodeMult(1), encodeMult(on)];
       const seen = sequence.map((wire) => p.speedMult(0, fighter({ speedMult: wire }), []));
       expect(seen).toEqual([on, 1, 1, on]);
@@ -187,8 +186,8 @@ describe("the axe's root", () => {
       }
     });
 
-    it("reads the mirrors, not the buffs held", () => {
-      const held = { ...fighter({ faction: "sentenced" }), buffs: new Map([["plagueRat", 7]]) } as LocalFighter;
+    it("reads the mirrors, not the cards held", () => {
+      const held = { ...fighter({ faction: "sentenced" }), build: new Map([["haste3", 7]]) } as LocalFighter;
       const plain = timings("sentenced", 1, 1);
       expect(rootSpan(held, 10_000, plain.windup * 1000).to).toBe(Math.ceil(plain.root * 1000));
     });

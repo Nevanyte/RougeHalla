@@ -1,6 +1,5 @@
-// A skill pool's mark: a zone's own marker shape (the one its camps and buffs wear) in the zone's colour, a plain disc for the
-// neutral pool. Used by the chest panel's cards and the passives row, so a skill's zone is told by shape and by words, not by
-// hue alone.
+// A pool's mark: a zone's own marker shape (the one its camps wear) in the zone's colour, a plain disc for the neutral pool. Used
+// by the chest panel's header, so a camp's zone is told by shape and by words, not by hue alone.
 import { isFactionId } from "@raid/shared";
 import { zoneClipPath, zoneColor } from "./mapPainter";
 

@@ -1,8 +1,8 @@
 // Validated, per-player input buffering. Message handlers only call `parse*` + `push*`;
 // the sim drains the queue at the start of each fixed step.
 import {
-  isAbilitySlot, isBuffId, isSkillId, mobTypeById, TRAIN_CMDS, TRAIN_DEFAULT_RANK, TRAIN_DEFAULT_STACKS, TRAIN_MAX_CHEST_OPTIONS,
-  TRAIN_MAX_STACKS, SKILL_MAX_RANK, WORLD_H, WORLD_W, wrapAngle, type AbilitySlot, type BuffId, type MobTypeId, type SkillId,
+  isAbilitySlot, isCardId, mobTypeById, TRAIN_CMDS, TRAIN_DEFAULT_CARD_COUNT, TRAIN_MAX_CARD_COUNT, TRAIN_MAX_CHEST_OPTIONS,
+  WORLD_H, WORLD_W, wrapAngle, type AbilitySlot, type CardId, type MobTypeId,
   type TrainCmd, type Vec2,
 } from "@raid/shared";
 
@@ -35,14 +35,13 @@ export type ActionCommand =
   | TrainCommand;
 
 /**
- * A validated `train` input. `buff`: the stacks to SET (0..TRAIN_MAX_STACKS). `passive`: the rank to set (0 removes). `camp`:
- * the mob type. `chest`: the skill ids to offer, empty for three random live ones.
+ * A validated `train` input. `card`: the copies of that card to SET (0..TRAIN_MAX_CARD_COUNT; 0 removes). `camp`: the mob type.
+ * `chest`: the card ids to offer, empty for a rolled one.
  */
 export type TrainCommand =
-  | { kind: "train"; cmd: "buff"; id: BuffId; amount: number }
-  | { kind: "train"; cmd: "passive"; id: SkillId; rank: 0 | 1 | 2 }
+  | { kind: "train"; cmd: "card"; id: CardId; count: number }
   | { kind: "train"; cmd: "camp"; id: MobTypeId }
-  | { kind: "train"; cmd: "chest"; options: SkillId[] }
+  | { kind: "train"; cmd: "chest"; options: CardId[] }
   | { kind: "train"; cmd: "clear" };
 
 /** A `choose` input: a reward container id and an option index (-1 = skip). */
@@ -158,32 +157,23 @@ export function parseChoose(msg: unknown): ChooseCommand | null {
 }
 
 /**
- * A `train` message, or null: `cmd` one of TRAIN_CMDS, then per command: `buff` a known buff id and an `amount` that is a finite
- * number (clamped to 0..TRAIN_MAX_STACKS; absent = TRAIN_DEFAULT_STACKS); `passive` a known skill id and a `rank` that is
- * exactly 0, 1 or SKILL_MAX_RANK (absent = TRAIN_DEFAULT_RANK); `camp` a known mob type; `chest` an `options` array of
- * 1..TRAIN_MAX_CHEST_OPTIONS distinct known skill ids, or absent or empty for the server's random pick; `clear` nothing.
- * Anything else is refused whole. Unknown extra fields are ignored.
+ * A `train` message, or null: `cmd` one of TRAIN_CMDS, then per command: `card` a known card id and a `count` that is a finite
+ * number (clamped to 0..TRAIN_MAX_CARD_COUNT and floored; absent = TRAIN_DEFAULT_CARD_COUNT); `camp` a known mob type; `chest` an
+ * `options` array of 1..TRAIN_MAX_CHEST_OPTIONS distinct known card ids, or absent or empty for the server's rolled pick; `clear`
+ * nothing. Anything else is refused whole. Unknown extra fields are ignored.
  */
 export function parseTrain(msg: unknown): TrainCommand | null {
   if (!isRecord(msg)) return null;
   const cmd = msg.cmd;
   if (typeof cmd !== "string" || !(TRAIN_CMDS as readonly string[]).includes(cmd)) return null;
   switch (cmd as TrainCmd) {
-    case "buff": {
+    case "card": {
       const id = msg.id;
-      if (!isBuffId(id)) return null;
-      const raw = msg.amount;
+      if (!isCardId(id)) return null;
+      const raw = msg.count;
       if (raw !== undefined && (typeof raw !== "number" || !Number.isFinite(raw))) return null;
-      const amount = raw === undefined ? TRAIN_DEFAULT_STACKS : Math.min(TRAIN_MAX_STACKS, Math.max(0, raw));
-      return { kind: "train", cmd: "buff", id, amount: amount + 0 };
-    }
-    case "passive": {
-      const id = msg.id;
-      if (!isSkillId(id)) return null;
-      const raw = msg.rank;
-      const rank = raw === undefined ? TRAIN_DEFAULT_RANK : raw;
-      if (rank !== 0 && rank !== 1 && rank !== SKILL_MAX_RANK) return null;
-      return { kind: "train", cmd: "passive", id, rank: rank as 0 | 1 | 2 };
+      const count = raw === undefined ? TRAIN_DEFAULT_CARD_COUNT : Math.min(TRAIN_MAX_CARD_COUNT, Math.max(0, Math.floor(raw)));
+      return { kind: "train", cmd: "card", id, count: count + 0 };
     }
     case "camp": {
       const id = msg.id;
@@ -195,9 +185,9 @@ export function parseTrain(msg: unknown): TrainCommand | null {
       const raw = msg.options;
       if (raw === undefined) return { kind: "train", cmd: "chest", options: [] };
       if (!Array.isArray(raw) || raw.length > TRAIN_MAX_CHEST_OPTIONS) return null;
-      const options: SkillId[] = [];
+      const options: CardId[] = [];
       for (const id of raw) {
-        if (!isSkillId(id) || options.includes(id)) return null;
+        if (!isCardId(id) || options.includes(id)) return null;
         options.push(id);
       }
       return { kind: "train", cmd: "chest", options };

@@ -1,12 +1,12 @@
 import {
-  hasLineOfSight, placeQuests, QUEST_ITEM_PREFIX, QUEST_REVEAL_HEAD_START_MS, QUEST_REVEAL_RADIUS,
-  QUEST_TURN_IN_RANGE, selectQuests, type MobTypeId, type QuestDef, type Vec2,
+  cardTitle, hasLineOfSight, placeQuests, QUEST_ITEM_PREFIX, QUEST_REVEAL_HEAD_START_MS, QUEST_REVEAL_RADIUS,
+  QUEST_TURN_IN_RANGE, questRewardCard, selectQuests, type MobTypeId, type QuestDef, type Vec2,
 } from "@raid/shared";
 import { QuestState, type ContainerState, type PlayerState } from "@raid/shared/schema";
 import { awardQuestGv } from "./arena";
-import { grantBuff } from "./buffs";
-import type { Combatant } from "./combatant";
-import { mobRewardFor } from "./feed";
+import { grantCard } from "./chests";
+import { combatant, type Combatant } from "./combatant";
+import { feedOfPlayer } from "./feed";
 import { addContainer, forgetBirth } from "./loot";
 import { addMob } from "./mobs";
 import { chainHook, collisionMap, emit, nextId, tieRank, type PlayerRuntime, type World } from "./world";
@@ -271,7 +271,12 @@ function completeQuest(world: World, qt: QuestRuntime, playerId: string): void {
   qt.s.doneBy = p.name;
   retire(world, qt);
   awardQuestGv(world, p, rt, qt.def.reward.gv);
-  grantBuff(world, p, rt, qt.def.reward.buff, qt.def.reward.stacks * mobRewardFor(world, p, rt));
+  // The card: the quest's nominal one, a tier lower once the finisher's feed has braked the mob reward curve (shared questRewardCard).
+  const card = questRewardCard(qt.def, feedOfPlayer(p, rt));
+  const c = combatant(world, playerId);
+  if (c?.kind === "player" && grantCard(world, c, card) !== null) {
+    emit(world, { type: "toast", to: playerId, text: `Quest complete: ${cardTitle(card)}` });
+  }
   announce(world, `${p.name} completed quest: ${qt.def.name}`);
 }
 

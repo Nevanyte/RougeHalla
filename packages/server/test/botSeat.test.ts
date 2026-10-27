@@ -1,13 +1,12 @@
 // A server-filled bot in the sim (docs/BOTS.md): the identity flag it carries and the anti-farming rules that follow from
 // it. A bot is a normal player in every way the fight can see (spawns, immunity, results, the patience timer), but
-//   a. killing it pays no kill GV and no bounty GV, while the kill still counts in the run (kills, the buff transfer
-//      and the hooks) but not on the killer's bounty ladder (a bounty built on bots would be cashable by an alt);
+//   a. killing it pays no kill GV and no bounty GV, while the kill still counts in the run (kills and the hooks) but not on the killer's bounty ladder (a bounty built on bots would be cashable by an alt);
 //   b. a RunResult's `kills` (what the Room records as stats) leaves its kills out;
 //   c. the win bonus counts human starters and human opponents only;
 //   d. its own result is flagged, so the Room drops it (test/botRoom.test.ts runs that part through a real Room).
 import { describe, expect, it } from "vitest";
 import {
-  bountyFor, bountyStacks, GV_KILL, GV_WIN, mulberry32, TICK_MS, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, type RunResult,
+  bountyFor, GV_KILL, GV_WIN, mulberry32, TICK_MS, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, type RunResult,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { applyDamage, type Attacker } from "../src/sim/arena";
@@ -128,14 +127,14 @@ describe("killing a bot", () => {
     expect(RT(w, "h0").botKills ?? 0).toBe(0);
   });
 
-  it("a bot's bounty is not paid, but its stacks still move to the killer", () => {
+  it("a bot's bounty is not paid, and no card moves to the killer either (a kill gives no stat)", () => {
     const w = startRun(2, 5);
     P(w, "b0").bounty = 90;
-    P(w, "b0").buffs.set("emberImp", 4);
+    P(w, "b0").build.set("ad2", 2);
     slay(w, "h0", "b0");
     expect(RT(w, "h0").gv.bounty).toBe(0);
     expect(ofType(w.events, "gv").filter((e) => e.reason === "bounty")).toEqual([]);
-    expect(P(w, "h0").buffs.get("emberImp")).toBeCloseTo(bountyStacks(4), 6); // the bountyClaimed hook ran
+    expect(P(w, "h0").build.size).toBe(0);
   });
 
   it("three bot kills put no bounty on the killer, though the run counts them", () => {

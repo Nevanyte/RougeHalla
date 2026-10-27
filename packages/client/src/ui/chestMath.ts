@@ -2,9 +2,9 @@
 // shows, what each card is and whether it can be picked, when everything greys out, and what the status line says. Nothing
 // here is ever sent: the server decides every pick; this only avoids offering one it would refuse.
 import {
-  CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, FACTIONS, TICK_MS, chestOptionView, hasLineOfSight, isEliteCamp,
-  rankIn, skillDef, skillText,
-  type BuildRanks, type CampDef, type ChestOptionView, type GameMap, type Vec2,
+  CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, FACTIONS, TICK_MS, cardDef, cardOptionView, cardTitle, countIn,
+  hasLineOfSight, isEliteCamp, tierRoman,
+  type CampDef, type CardCounts, type CardKind, type CardOptionView, type GameMap, type Vec2,
 } from "@raid/shared";
 
 /** The panel's keys, as KeyboardEvent.code. Number-row and numpad digits do the same. */
@@ -165,8 +165,8 @@ export type OptionState =
   | { kind: "mine" }
   /** Another player took it (`by` is their id). */
   | { kind: "taken"; by: string }
-  /** This player holds it at its top rank. */
-  | { kind: "maxed" }
+  /** This player cannot take it: it needs a card they lack ("Needs Leech") or is a one-per-player card they hold ("Already yours"). */
+  | { kind: "blocked"; text: string }
   /** An id this build does not know (newer server content): shown, never offered. */
   | { kind: "unknown" };
 
@@ -174,7 +174,7 @@ export interface OptionCard {
   index: number;
   id: string;
   /** Null for an unknown id. */
-  view: ChestOptionView | null;
+  view: CardOptionView | null;
   state: OptionState;
   /** A click or a key may send this pick. */
   pickable: boolean;
@@ -182,8 +182,7 @@ export interface OptionCard {
 
 export interface CardContext {
   myId: string;
-  build: BuildRanks | null | undefined;
-  faction: string | undefined;
+  build: CardCounts | null | undefined;
   /** Nothing is offered: every option is greyed (about to vanish) or this player already picked. */
   closed: boolean;
 }
@@ -192,29 +191,32 @@ export interface CardContext {
 export function optionCards(reward: Reward, ctx: CardContext): OptionCard[] {
   return reward.options.map((id, index) => {
     const by = reward.takenBy[index] ?? "";
-    let view = chestOptionView(id, ctx.build, ctx.faction);
-    if (view !== null && by === ctx.myId) {
-      // Their own pick shows the rank they hold now, not the next one the build would offer.
-      const held = Math.max(1, rankIn(ctx.build, id));
-      view = { ...view, rank: held, text: skillText(id, held, ctx.faction), maxed: held >= 2 };
-    }
+    const view = cardOptionView(id, ctx.build);
     const state: OptionState = view === null ? { kind: "unknown" }
       : by === ctx.myId ? { kind: "mine" }
       : by !== "" ? { kind: "taken", by }
-      : view.maxed ? { kind: "maxed" }
+      : view.blocked !== null ? { kind: "blocked", text: view.blocked.text }
       : { kind: "free" };
     return { index, id, view, state, pickable: state.kind === "free" && !ctx.closed };
   });
 }
 
-/** "Rank 2" badge text for a card, or "" for a first rank. Only a skill the player already holds shows it. */
-export function rankBadge(view: ChestOptionView | null): string {
-  return view !== null && view.rank >= 2 ? "Rank 2" : "";
+/** The tier badge of a card: "I", "II" or "III"; "" for an unknown card. */
+export function tierBadge(view: CardOptionView | null): string {
+  return view === null ? "" : tierRoman(view.tier);
 }
 
-/** The card's pool as words: "Fire", "Neutral". A zone is its faction's display name. */
-export function poolName(pool: string, factionName: (zone: string) => string): string {
-  return pool === "neutral" ? "Neutral" : factionName(pool);
+const KIND_LABEL: Readonly<Record<CardKind, string>> = { base: "Base", conditional: "Conditional", augment: "Augment" };
+
+/** "Base", "Conditional", "Augment". */
+export function cardKindLabel(kind: CardKind): string {
+  return KIND_LABEL[kind];
+}
+
+/** The line under a card's name: its kind and why it is on the panel for this picker ("Base · Deepens your Attack Damage", "Augment"). */
+export function kindLine(view: CardOptionView | null): string {
+  if (view === null) return "";
+  return view.why.text === "" ? cardKindLabel(view.kind) : `${cardKindLabel(view.kind)} · ${view.why.text}`;
 }
 
 /** The state line of a card ("" for a free one). */
@@ -223,7 +225,7 @@ export function stateText(state: OptionState, nameOf: (id: string) => string | u
     case "free": return "";
     case "mine": return "You took this";
     case "taken": return `Taken by ${nameOf(state.by) ?? "another player"}`;
-    case "maxed": return "Maxed: you have it at rank 2";
+    case "blocked": return state.text;
     case "unknown": return "Not in this version of the game";
   }
 }
@@ -231,8 +233,8 @@ export function stateText(state: OptionState, nameOf: (id: string) => string | u
 // --------------------------------------------------------------------------------------------------------------- status
 
 export interface StatusInput {
-  /** This player's result in the state: an option name (rank after the pick), "skip", or null (no pick yet). */
-  picked: { skill: string; rank: number } | "skip" | null;
+  /** This player's result in the state: the card taken (and how many of it they hold now), "skip", or null (no pick yet). */
+  picked: { card: string; count: number } | "skip" | null;
   /** A pick is on its way to the server. */
   pending: boolean;
   /** The server said no (its toast), or the pick was never confirmed. */
@@ -246,8 +248,7 @@ export interface StatusInput {
 export function statusText(s: StatusInput): string {
   if (s.picked === "skip") return "You skipped this chest.";
   if (s.picked) {
-    const name = skillDef(s.picked.skill)?.name ?? s.picked.skill;
-    return `You took ${name}${s.picked.rank >= 2 ? " (rank 2)" : ""}.`;
+    return `${tookText(s.picked.card, s.picked.count)}.`;
   }
   if (s.pending) return "Sending your pick...";
   if (s.refused) return `${s.refused}${/[.!?]$/.test(s.refused) ? "" : "."}`;
@@ -256,11 +257,11 @@ export function statusText(s: StatusInput): string {
   return "One pick per chest, first come first served. A skip counts as your pick.";
 }
 
-/** The skill a player took at a chest: its id and the rank they hold now, or null for a skip or no pick. */
-export function myPick(reward: Reward, myId: string, build: BuildRanks | null | undefined): { skill: string; rank: number } | null {
+/** The card a player took at a chest: its id and how many of it they hold now, or null for a skip or no pick. */
+export function myPick(reward: Reward, myId: string, build: CardCounts | null | undefined): { card: string; count: number } | null {
   const i = takenIndex(reward, myId);
   const id = i >= 0 ? reward.options[i] : undefined;
-  return id === undefined ? null : { skill: id, rank: rankIn(build, id) };
+  return id === undefined ? null : { card: id, count: countIn(build, id) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------- feed lines
@@ -268,7 +269,7 @@ export function myPick(reward: Reward, myId: string, build: BuildRanks | null | 
 /**
  * What the scene remembers of each reward chest's options for a few seconds after it has left the state. The `chestTaken` fx is
  * played in render time, 100 ms behind the state, so a pick in a chest's last instants arrives when the chest container is
- * already gone, and its line ("You took Whetstone") would have nothing to name the skill from.
+ * already gone, and its line ("You took Haste II") would have nothing to name the card from.
  */
 export class ChestMemory {
   /** How long a chest is remembered after it was last seen (ms): the fx delay plus plenty. */
@@ -287,7 +288,7 @@ export class ChestMemory {
     for (const [id, e] of this.seen) if (now - e.at > ChestMemory.KEEP_MS) this.seen.delete(id);
   }
 
-  /** The skill at card `index` of a chest seen earlier, or undefined. */
+  /** The card id at option `index` of a chest seen earlier, or undefined. */
   option(id: string, index: number): string | undefined {
     return this.seen.get(id)?.options[index];
   }
@@ -302,25 +303,29 @@ export function campLabel(camp: Pick<CampDef, "zone" | "eliteSpot"> | undefined)
   return camp ? `${FACTIONS[camp.zone].displayName} ${isEliteCamp(camp) ? "elite " : ""}camp` : undefined;
 }
 
+/** "You took Haste II", with " (x2)" once a base card is held more than once. */
+function tookText(card: string, held: number): string {
+  return `You took ${cardTitle(card) || card}${held > 1 ? ` (x${held})` : ""}`;
+}
+
 /**
- * The local player's own pick as a line: "You took Whetstone" (with "(rank 2)" once they hold it at the top), "You skipped the
- * chest" for a skip (`option` -1), and undefined for a pick of a skill this build does not know.
+ * The local player's own pick as a line: "You took Haste II" (with " (x2)" once they hold a base card more than once), "You skipped
+ * the chest" for a skip (`option` -1), and undefined for a pick of a card this build does not know.
  */
-export function pickLine(option: number, skill: string | undefined, rankHeld: number): string | undefined {
+export function pickLine(option: number, card: string | undefined, held: number): string | undefined {
   if (option < 0) return "You skipped the chest";
-  const def = skill === undefined ? undefined : skillDef(skill);
-  return def ? `You took ${def.name}${rankHeld >= 2 ? " (rank 2)" : ""}` : undefined;
+  return card !== undefined && cardDef(card) !== undefined ? tookText(card, held) : undefined;
 }
 
 /**
  * The line for the local player's own `chestTaken` fx. `live` is the chest's options in the state now (undefined once the chest
- * has left it: a pick in its last instants is played after the chest is gone), `memory` what was seen of it, `rankOf` the rank
- * the player holds of a skill now.
+ * has left it: a pick in its last instants is played after the chest is gone), `memory` what was seen of it, `countOf` how many
+ * of a card the player holds now.
  */
 export function chestPickLine(
-  chest: string, option: number, live: ArrayLike<string> | undefined, memory: ChestMemory, rankOf: (skill: string) => number,
+  chest: string, option: number, live: ArrayLike<string> | undefined, memory: ChestMemory, countOf: (card: string) => number,
 ): string | undefined {
   if (option < 0) return pickLine(option, undefined, 0);
   const id = live ? Array.from(live)[option] : memory.option(chest, option);
-  return pickLine(option, id, id ? rankOf(id) : 0);
+  return pickLine(option, id, id ? countOf(id) : 0);
 }

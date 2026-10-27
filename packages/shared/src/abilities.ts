@@ -2,7 +2,7 @@
 // cast pipeline (sim/abilities.ts) reads it, the client draws and predicts from it. ONE id space covers Wishes and the Q/E
 // skills a later phase adds. A Wish is the faction's once-a-run ability (key D); its numbers are free to change, the
 // framework's names, signatures and wire layouts are the stable API (append only).
-import { TARGET_SNAP_RADIUS, TRAINING_WISH_COOLDOWN_SECONDS, WISH_COOLDOWN_SECONDS } from "./constants";
+import { TARGET_SNAP_RADIUS, TRAINING_WISH_COOLDOWN_SECONDS, WISH_COOLDOWN_MULT_MIN, WISH_COOLDOWN_SECONDS } from "./constants";
 import { isFactionId, type FactionId } from "./factions";
 import type { CleanseClass, StatusKind } from "./status";
 
@@ -257,14 +257,20 @@ export function setSlotReadyAt(p: SlotTimes, slot: AbilitySlot, at: number): voi
 
 /**
  * The ONE cooldown funnel. Training: a Wish takes TRAINING_WISH_COOLDOWN_SECONDS. A flat def ignores `reduction` (a def that
- * is not flat takes it, clamped to 0..0.5).
+ * is not flat takes it, clamped to 0..0.5). `wishCooldownMult` is the one card-level exception to "Wishes are flat" (G13: Arcane
+ * Overload's `wishCooldown` mult, x2; the folded product, never below WISH_COOLDOWN_MULT_MIN): it multiplies a Wish's cooldown,
+ * flat or not, and nothing else's.
  */
-export function abilityCooldownMs(def: AbilityDef, rank: number, ctx: { training?: boolean; reduction?: number }): number {
+export function abilityCooldownMs(
+  def: AbilityDef, rank: number, ctx: { training?: boolean; reduction?: number; wishCooldownMult?: number },
+): number {
   if (ctx.training && def.kind === "wish") return TRAINING_WISH_COOLDOWN_SECONDS * 1000;
   const base = rankOf(def, rank).cooldownMs;
-  if (def.flat) return base;
+  const mult = def.kind === "wish" && ctx.wishCooldownMult !== undefined && ctx.wishCooldownMult > 0
+    ? Math.max(WISH_COOLDOWN_MULT_MIN, ctx.wishCooldownMult) : 1;
+  if (def.flat) return mult === 1 ? base : Math.round(base * mult);
   const reduction = Math.min(Math.max(ctx.reduction ?? 0, 0), 0.5);
-  return Math.round(base * (1 - reduction));
+  return Math.round(base * (1 - reduction) * mult);
 }
 
 /** 1 + bonus / max(baseMult, 0.05): adds `bonus` x the base speed on top of whatever `baseMult` already scales it by. */

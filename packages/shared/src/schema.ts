@@ -53,31 +53,29 @@ export const PlayerState = schema({
   brand: t.uint8().default(0),
   /** Mobs killed this run (feed = kills + FEED_MOB_KILL_WEIGHT x this; it sets the mob reward curve; the bounty ignores mobs). */
   mobKills: t.uint16().default(0),
-  // --- Buffs and stat mirrors (roguelike R4a; shared/buffs.ts, sim/buffs.ts, sim/mods.ts) ---
-  /**
-   * Buff stacks held, keyed by BuffId (a mob type id, shared/buffs.ts): real numbers, since a kill's grant is scaled by the
-   * reward curve and a bounty moves half of each. An entry appears with the first stacks of that buff and is never removed
-   * during the run. What they give follows buffs.ts (buffRows); the mirrors below carry what a client needs exactly.
-   */
-  buffs: t.map("float32"),
+  // --- Stat mirrors (roguelike R4a; shared/mods.ts, sim/mods.ts) ---
   /**
    * In wire form: the server's sim/mods.ts folds them and simulates with exactly these values (D22). Read them through
    * decodeMirrors (or decodeMult / decodeFlat) in shared/mods.ts, never raw. The multipliers are uint16 thousandths
    * (1000 = x1); the flat bonuses int16 tenths of a point. The defaults are the identity, and a mirror patches only when its
-   * quantized value changes, so a fighter nothing buffs never patches them.
+   * quantized value changes, so a fighter nothing modifies never patches them.
    */
   asMult: t.uint16().default(1000),
   windupMult: t.uint16().default(1000),
   speedMult: t.uint16().default(1000),
   armorBonus: t.int16().default(0),
   shieldBonus: t.int16().default(0),
-  // --- end of the buffs and stat mirrors ---
+  /** Attack damage and ability power (balance pass, BALANCE_CONTRACT 3.3): int16 tenths of a point like the two above, written only by recomputeMods. */
+  adBonus: t.int16().default(0),
+  apBonus: t.int16().default(0),
+  // --- end of the stat mirrors ---
 
   /**
-   * The run's build (roguelike R5; ROGUELIKE_PLAN 3.8): skill id (shared/skills.ts SkillId) -> rank (1 or 2), from the camps'
-   * shared chests. An entry appears with the first pick of that skill and is never removed during the run; R7 adds relics,
-   * curses and boons. What it gives folds through sim/mods.ts like the buffs (the mirrors above carry what a client needs).
-   * Read it through shared/skills.ts rankIn (which also takes undefined or a plain record).
+   * The run's cards (balance pass; shared/cards.ts): card id -> how many, from the camps' shared chests and quests. A base card
+   * stacks ("ad2" held twice is 2); a conditional or an augment is held once. An entry appears with the first copy of that card and
+   * is never removed during the run. What the cards give folds through sim/mods.ts (the mirrors above carry what a client needs);
+   * cards.ts cardPower(build) is the power the PvP factor reads. Read it through cards.ts countIn (which also takes undefined or a
+   * plain record).
    */
   build: t.map("uint8"),
 
@@ -123,7 +121,7 @@ export const MobState = schema({
   readyAt: t.uint32().default(0),
   sig: t.uint8().default(0),
   brand: t.uint8().default(0),
-  /** A regional mob's type (MobTypeId, shared/mobs.ts MOB_TYPES): its skin and the buff it gives; "" for a dummy. */
+  /** A regional mob's type (MobTypeId, shared/mobs.ts MOB_TYPES): its skin and its name; "" for a dummy. */
   type: t.string().default(""),
   /** The camp it belongs to: its index in map.camps (and RaidState.camps) + 1; 0 = none (a dummy). */
   camp: t.uint8().default(0),

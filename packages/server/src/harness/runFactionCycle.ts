@@ -283,9 +283,7 @@ function printComparison(o: Options, report: Report, ref: RefReport, source: str
     );
   }
   console.log("Deltas are harness minus realtime.py (rate, worst and mean in percentage points).");
-  console.log(
-    "Median t can differ where Holy loses: realtime.py applies Holy's same-tick lifesteal with the killing blow, the sim applies damage first.",
-  );
+  console.log("realtime.py orders damage before the heal as the sim does (a fighter the tick's damage takes to 0 is dead), so even Holy's fights agree.");
 
   const agree = diffs.filter((d) => d.problems.length === 0).length;
   const pairsTotal = diffs.reduce((s, d) => s + d.cell.pairs.length, 0);

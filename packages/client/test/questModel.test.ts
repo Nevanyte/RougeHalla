@@ -20,12 +20,12 @@ function container(over: Partial<QuestContainerLike> = {}): QuestContainerLike {
 }
 
 describe("quest presentation model", () => {
-  it("formats the public rows with objective, local progress, timer, real buff reward and status", () => {
+  it("formats the public rows with objective, local progress, timer, card reward and status", () => {
     const rows = questRows(quests([quest()]), "me", 5_000);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       objective: "Kill 3 mobs in Fire", progress: "1 / 3", time: "1:00", status: "Open",
-      reward: "7 Ember Imp stacks · 10 GV",
+      reward: "Attack Damage II (+21 attack damage) and 10 GV",
     });
   });
 
@@ -111,8 +111,8 @@ describe("quest presentation model", () => {
     expect([...store.keys()]).toEqual(["q2"]);
   });
 
-  it("uses the new buff id for reward text", () => {
-    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toBe("5.5 Cinder Hound stacks · 8 GV");
+  it("words the reward as its card (title and text) and the GV, whatever the quest kind", () => {
+    expect(questReward(questRows(quests([quest({ def: "banner-fire" })]), "me", 0)[0]!.def)).toBe("Fleet II (+10% move speed (off while shooting)) and 8 GV");
   });
 });
 

@@ -2,8 +2,8 @@
 // PlayerView and MobView, which pass the synced fields and read nothing else; everything here is cosmetic.
 import Phaser from "phaser";
 import {
-  FACTIONS, FISTS, GOLD_COLOR, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, WIRE_IDENTITY_MIRRORS, Y_SCALE, attackInterval, decodeMult, hpBarFractions,
-  isFactionId, isWeaponId, scaleWindup, weaponTimings, type WeaponId,
+  FACTIONS, FISTS, GOLD_COLOR, PLAYER_RADIUS, SHIELD_HALF_ARC, WEAPONS, WIRE_IDENTITY_MIRRORS, Y_SCALE, decodeMult, hpBarFractions,
+  isFactionId, isWeaponId, mirrorTimings, type WeaponId,
 } from "@raid/shared";
 import { BARRIER_COLOR } from "../ui/buffTheme";
 import { bakeScale, around, bakedImage, ensureBake, pixelImage, placeBake, swapBake, type Region } from "./bake";
@@ -148,9 +148,10 @@ const HELD_SCALE = 1.15;
 const DRAW_PUSH_SLACK_MS = 100;
 
 /**
- * Seconds a bow takes to loose (the server's own formula, timingsOf: the interval shrinks with the attack-speed mirror
- * `asMult`, the windup is a share of it up to a cap, and the windup mirror `windupMult` then scales it through scaleWindup),
- * or 0 without a faction. Both mirrors are the wire form (thousandths), as the state carries them; an absent one is the
+ * Seconds a bow takes to loose (the server's own formula, timingsOf, which is shared mirrorTimings: the interval shrinks with the
+ * attack-speed mirror `asMult`, the windup is a share of it up to a cap but never below its value at base speed (G9, the kite
+ * lever: a bow that is faster than base keeps its pull, so a share-limited bow draws as long as the server holds it), and the windup
+ * mirror `windupMult` then scales it through scaleWindup), or 0 without a faction. Both mirrors are the wire form (thousandths), as the state carries them; an absent one is the
  * identity. The draw is fixed now, so full pull is the whole windup. A mob's faction is scaled down in hp and damage only,
  * so its rate, and with it the draw, is the plain faction's, with no mirrors.
  */
@@ -158,8 +159,7 @@ export function fullDrawSeconds(
   faction: string, asMult: number = WIRE_IDENTITY_MIRRORS.asMult, windupMult: number = WIRE_IDENTITY_MIRRORS.windupMult,
 ): number {
   if (!isFactionId(faction)) return 0;
-  const timings = weaponTimings("bow", attackInterval(FACTIONS[faction], "bow", decodeMult(asMult)));
-  return scaleWindup(timings, decodeMult(windupMult)).windup;
+  return mirrorTimings(FACTIONS[faction], "bow", decodeMult(asMult), decodeMult(windupMult)).windup;
 }
 
 /** One start of a draw as the server had it, and the server time of the patch that first showed it. */

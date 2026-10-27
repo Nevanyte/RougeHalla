@@ -17,7 +17,7 @@
 //   - Training rooms heal too. A practice camp (sim/training.ts) has no CampState and no `campCleared` hook run; camps.ts hands
 //     its last mob's death to payCampHeal directly, keyed by MobState.camp - 1 (100 or more, never a map camp).
 import { CAMP_HEAL_RANGE, campHealAmount, territoryAt, type Vec2 } from "@raid/shared";
-import { combatant, standing } from "./combatant";
+import { combatant, standing, type Combatant } from "./combatant";
 import { heal } from "./factions";
 import { chainHook, emit, type LedgerEntry, type World } from "./world";
 
@@ -74,16 +74,33 @@ function nearCamp(world: World, camp: number, centre: Vec2 | null, at: Vec2): bo
 }
 
 /**
+ * The players who count for camp `camp`'s clear: every contributor (campContribOf) who is a standing player of the run inside the
+ * camp's territory or within CAMP_HEAL_RANGE of its centre. The heal pays them, Pack Leader counts the camp for them, and the camp's
+ * chest offers conditional cards and augments by what they own (sim/chests.ts). Valid inside the `campCleared` chain up to this
+ * module's link; empty for a camp nobody damaged.
+ */
+export function eligibleContributors(world: World, camp: number): Array<Extract<Combatant, { kind: "player" }>> {
+  const contrib = world.campContrib?.get(camp);
+  if (!contrib) return [];
+  const centre = campCentre(world, camp);
+  const out: Array<Extract<Combatant, { kind: "player" }>> = [];
+  for (const id of contrib) {
+    const c = combatant(world, id);
+    if (!c || c.kind !== "player" || !standing(c) || !nearCamp(world, camp, centre, c.s)) continue;
+    out.push(c);
+  }
+  return out;
+}
+
+/**
  * Pays the clear of camp `camp`: heals and tells every eligible contributor, counts the camp for each (PlayerRuntime.campsCleared,
  * even for a player already at full hp), and forgets the camp's contributors. A no-op for a camp nobody damaged.
  */
 export function payCampHeal(world: World, camp: number): void {
   const contrib = world.campContrib?.get(camp);
   if (!contrib) return;
-  const centre = campCentre(world, camp);
-  for (const id of contrib) {
-    const c = combatant(world, id);
-    if (!c || c.kind !== "player" || !standing(c) || !nearCamp(world, camp, centre, c.s)) continue;
+  for (const c of eligibleContributors(world, camp)) {
+    const id = c.id;
     c.rt.campsCleared = (c.rt.campsCleared ?? 0) + 1;
     const gained = heal(world, c, campHealAmount(c.s.hp, c.s.maxHp), { ignoreLockout: true, quiet: true });
     if (!(gained > 0)) continue;

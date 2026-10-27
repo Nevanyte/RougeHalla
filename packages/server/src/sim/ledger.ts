@@ -22,7 +22,11 @@
 //     duelScale. Pass-start state again (a build changes only in the inputs phase), so no order decides it. The mark's clock
 //     (sim/factions.ts) runs at the same factor, so equal-power fights keep their outcome and only their pace changes.
 //   A Race to 0 (G4). A holder's entries are multiplied by 1 / its hp fraction as the pass began (up to HP_RACE_CAP), as are
-//     the entries it takes. The extra damage it DEALS feeds no lifesteal: a landed hit carries the multiplier (`race`).
+//     the entries it takes. The extra damage it DEALS feeds no lifesteal: a landed hit carries the multiplier (`race`). The ceiling is
+//     the card's folded `hpRace` row (sim/mods.ts hpRaceCapOf); `combat.hpRace` is a test seam that names one for a fighter.
+//   The cards' readers (BALANCE_CONTRACT 4.6). Each entry is named by outgoingKindOf (a weapon hit, a damage-over-time tick, returned
+//     damage), so G1's cap shares the row multiplier with the attacker's own `hit`, `dot` or `returned` mult; and the `vs` tests that need
+//     the world (slowed, elite, higherPower) are answered by sim/vsProbe.ts, beside the ones here.
 //   The caps (G2, G3), after mitigation in applyVictim: no player-to-player hit (not a damage-over-time tick) takes more than
 //     PVP_HIT_CAP_SHARE of the victim's max hp, and one source's damage over time on one player no more than
 //     PVP_DOT_CAP_SHARE of it per second (a budget per tick). They bound what a stack of cards can do in one blow.
@@ -31,10 +35,11 @@ import { applyHits, type Attacker, type Hit } from "./arena";
 import { combatant, defenseOf, standing } from "./combatant";
 import { hurtMob } from "./mobLife";
 import { damageMob } from "./mobs";
-import { outgoingMult, type VsProbe } from "./mods";
+import { hpRaceCapOf as hpRaceCapFromRows, outgoingKindOf, outgoingMult, type VsProbe } from "./mods";
 import { damageFactor } from "./status";
 import { stagger } from "./weapons";
 import { feedOfPlayer, lobbyMedianFeed } from "./feed";
+import { vsExtras } from "./vsProbe";
 import { emit, type DamageSource, type LandedHit, type LedgerEntry, type World } from "./world";
 
 /**
@@ -110,6 +115,8 @@ function hpFrac(world: World, id: string): number {
  *   higherFeed  both are players and the victim's feed (kills + a quarter per mob kill) is above the attacker's.
  *   thirdParty  the victim's target lock, a mob victim's fight target, or its signature target (the last enemy it hit,
  *               sim/factions.ts) names someone other than the attacker.
+ *   slowed, elite, higherPower  (sim/vsProbe.ts vsExtras) the victim is chilled or under a move slow, is an elite mob, or is a
+ *               player with more card power than the attacker.
  */
 function vsProbe(world: World, by: string, victim: string): VsProbe {
   return {
@@ -127,6 +134,7 @@ function vsProbe(world: World, by: string, victim: string): VsProbe {
       const sig = world.factions?.fighters.get(victim)?.target ?? null;
       return other(lock) || other(fight) || other(sig);
     },
+    ...vsExtras(world, by, victim),
   };
 }
 
@@ -142,10 +150,15 @@ export function pvpScale(world: World, by: string, victim: string): number {
   return noise === undefined ? f : f * noise;
 }
 
-/** The ceiling of a Race to 0 holder's multiplier (G4), or 0 for a fighter that holds none (see CombatScratch.hpRace). */
+/**
+ * The ceiling of a Race to 0 holder's multiplier (G4), or 0 for a fighter that holds none: the card's folded `mult` row `hpRace`
+ * (sim/mods.ts hpRaceCapOf, the production source), unless the test seam `combat.hpRace` names one for the fighter (see CombatScratch.hpRace).
+ */
 function hpRaceCapOf(world: World, id: string): number {
-  // TODO(cards, agent A3): the card's folded `mult` row `hpRace` (sim/mods.ts) is the production source; `combat.hpRace` stays the override.
-  return world.combat.hpRace?.get(id) ?? 0;
+  const forced = world.combat.hpRace?.get(id);
+  if (forced !== undefined) return forced;
+  const s = world.state.players.get(id) ?? world.state.mobs.get(id);
+  return s ? hpRaceCapFromRows(s) : 0;
 }
 
 /** hp-fraction multiplier of the Race to 0 `id` holds (1 for everyone else), from the hp as the pass began. */
@@ -171,7 +184,7 @@ function outgoingMults(world: World, ledger: readonly LedgerEntry[]): Outgoing {
     const by = world.state.players.get(e.by.id) ?? world.state.mobs.get(e.by.id);
     if (!by) continue;
     const dealt = hpRaceOf(world, e.by.id);
-    const m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim))
+    const m = outgoingMult(by, hpFrac(world, e.victim), vsProbe(world, e.by.id, e.victim), outgoingKindOf(e))
       * pvpScale(world, e.by.id, e.victim) * dealt * hpRaceOf(world, e.victim);
     if (dealt !== 1) race.set(e, dealt);
     if (m !== 1) mult.set(e, m);

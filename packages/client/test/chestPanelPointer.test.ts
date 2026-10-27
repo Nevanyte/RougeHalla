@@ -1,7 +1,7 @@
 // The chest panel never takes the canvas' clicks (ui/chestPanel.css, chestPanel.ts): a left-click locks a target and a right-click
 // walks, panel or no panel, so the root and the box are click-through and only the cards and Skip take the pointer. No handler is
 // put on anything else, no pointer is ever captured, and nothing in the panel stops or cancels an event it does not own. The
-// stylesheet is checked as text, like the build strip's, and the script by what it registers on a fake DOM.
+// stylesheet is checked as text, like the cards row's, and the script by what it registers on a fake DOM.
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SettingsStore } from "../src/settings";
@@ -12,7 +12,7 @@ const css = readFileSync(new URL("../src/ui/chestPanel.css", import.meta.url), "
 const source = readFileSync(new URL("../src/ui/chestPanel.ts", import.meta.url), "utf8");
 const style = readFileSync(new URL("../src/style.css", import.meta.url), "utf8");
 const planningCss = readFileSync(new URL("../src/ui/planning.css", import.meta.url), "utf8");
-const buffsCss = readFileSync(new URL("../src/ui/buffsHud.css", import.meta.url), "utf8");
+const cardsCss = readFileSync(new URL("../src/ui/cardsRow.css", import.meta.url), "utf8");
 const chromeCss = readFileSync(new URL("../src/ui/chrome.css", import.meta.url), "utf8");
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -71,13 +71,13 @@ describe("the stylesheet", () => {
 
   it("tells a card nobody can take by words and a line, not by grey alone", () => {
     expect(rule(css, ".cp-card.taken .cp-name")).toMatch(/line-through/);
-    expect(rule(css, ".cp-card.maxed, .cp-card.unknown")).toMatch(/dashed/);
+    expect(rule(css, ".cp-card.blocked, .cp-card.unknown")).toMatch(/dashed/);
   });
 
-  it("sits on the ladder: above the build tooltip, under the map screens, the toasts and the chrome", () => {
+  it("sits on the ladder: above the cards row's tooltip, under the map screens, the toasts and the chrome", () => {
     const z = (from: string, s: string): number => Number(/z-index:\s*(\d+)/.exec(rule(from, s))![1]);
     const panel = z(css, "#ui > .chest-panel");
-    expect(panel).toBeGreaterThan(z(buffsCss, ".buff-tip"));
+    expect(panel).toBeGreaterThan(z(cardsCss, ".cards-tip"));
     expect(panel).toBeLessThan(z(planningCss, "#ui > .planning"));
     expect(panel).toBeLessThan(z(style, ".toasts"));
     expect(panel).toBeLessThan(z(chromeCss, "#ui > .chrome"));

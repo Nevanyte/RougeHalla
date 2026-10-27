@@ -2,12 +2,12 @@
 // leave it printing an empty report forever. The smoke test runs it end to end at the smallest size and fails when the
 // quest runtime is not seen, no quest is offered, no row is produced or a lobby errors.
 import { describe, expect, it } from "vitest";
-import { BUFFS, buffPower, FACTION_IDS } from "@raid/shared";
+import { cardDef, cardPower, CARDS, FACTION_IDS } from "@raid/shared";
 import { PlayerState } from "@raid/shared/schema";
 import {
   farmSecondsForGain, kaplanMeierMedian, marginalTimeToGain, runQuestBench, timeToGain, type PowerTimeline,
 } from "../src/harness/questBench";
-import { liveBuffPower } from "../src/harness/questBenchPolicy";
+import { liveCardPower } from "../src/harness/questBenchPolicy";
 import { buildQuestBenchReport, farmBaselineSummary } from "../src/harness/questBenchReport";
 
 function timeline(over: Partial<PowerTimeline>): PowerTimeline {
@@ -39,7 +39,7 @@ describe("quest benchmark", () => {
     // The definitions a reader needs, so a saved report cannot be misread: the direction of the ratio, the target, the power rule.
     expect(report).toContain("BELOW 1");
     expect(report).toContain("1.0-1.35");
-    expect(report).toContain("buffDef(id).needs");
+    expect(report).toContain("live card power");
     expect(report).toContain("Farm-only baseline");
     expect(report).toContain("Harness failures\n\nNone.");
   }, 90_000);
@@ -100,14 +100,15 @@ describe("quest benchmark", () => {
     expect(summary).toMatchObject({ runs: 3, survived: 1, died: 1, stalled: 1, medianEnd: 120, medianKills: 10 });
   });
 
-  it("reads simulation buff maps and excludes status-dependent buffs from live power", () => {
-    const conditional = BUFFS.find((def) => def.needs);
-    const live = BUFFS.find((def) => !def.needs)!;
-    expect(conditional).toBeDefined();
-    expect(liveBuffPower({ [conditional!.id]: 3 })).toBe(0);
+  it("reads simulation build maps and leaves the cards that wait for a hook out of live power", () => {
+    const waiting = CARDS.find((def) => def.ready === "b")!;
+    const live = CARDS.find((def) => def.ready === "a")!;
+    expect(waiting).toBeDefined();
+    expect(liveCardPower({ [waiting.id]: 3 })).toBe(0);
     const p = new PlayerState();
-    p.buffs.set(live.id, 3);
-    p.buffs.set(conditional!.id, 3);
-    expect(liveBuffPower(p.buffs)).toBe(buffPower({ [live.id]: 3 }));
+    p.build.set(live.id, 3);
+    p.build.set(waiting.id, 3);
+    expect(liveCardPower(p.build)).toBe(cardPower({ [live.id]: 3 }));
+    expect(liveCardPower(p.build)).toBe(3 * cardDef(live.id)!.tier);
   });
 });

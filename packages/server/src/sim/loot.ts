@@ -13,6 +13,7 @@ import {
 } from "@raid/shared";
 import { ContainerState, ItemState, type PlayerState } from "@raid/shared/schema";
 import { setSlot, slotItem } from "./combatant";
+import { hasFlag } from "./mods";
 import { rollChestWeapon, rollGroundWeapon } from "./lootTables";
 import { actionBlocked } from "./status";
 import { weaponChanged } from "./weapons";
@@ -130,7 +131,9 @@ export const handlePickup: ActionHandler = (world, c, cmd) => {
   box.items.splice(0, 1);
   const hand: 0 | 1 = p.slot === 1 ? 1 : 0;
   // A free slot: the hand's own if it is empty (the weapon is then taken up at once), else the other one (the hand stays).
-  const free = slotItem(p, hand) === null ? hand : slotItem(p, 0) === null ? 0 : slotItem(p, 1) === null ? 1 : null;
+  // (A fighter whose second slot is locked, Committed, never takes a weapon into it unless it is the hand already.)
+  const second = hasFlag(p, "lockSecondSlot");
+  const free = slotItem(p, hand) === null ? hand : slotItem(p, 0) === null ? 0 : slotItem(p, 1) === null && !second ? 1 : null;
   if (free !== null) {
     setSlot(p, free, def);
     if (free === hand) weaponChanged(world, c);

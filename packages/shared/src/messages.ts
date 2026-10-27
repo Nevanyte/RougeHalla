@@ -1,6 +1,5 @@
 // Wire contracts. Client→server messages are inputs only; the server decides outcomes.
 import type { AbilityId, AbilitySlot, CastEndReason } from "./abilities";
-import type { BuffId } from "./buffs";
 import type { FactionId } from "./factions";
 import type { SignatureKind } from "./signatures";
 import type { StatusKind } from "./status";
@@ -100,16 +99,15 @@ export interface ClientMessages {
 }
 
 /**
- * One practice-console command. `buff`: set the stacks held of that mob type's buff to `amount` (default TRAIN_DEFAULT_STACKS,
- * clamped to 0..TRAIN_MAX_STACKS; 0 removes it). `passive`: set that skill's rank (0 removes it, 1, 2; default 1; a skill whose
- * machinery is not live yet is set but does nothing, and the reply toast says so). `camp`: spawn a practice camp of that mob
- * type near the player (3 mobs of a normal type, one elite for an elite type). `chest`: drop a reward chest about two tiles
- * away with these skill ids as its options (1 to CHEST_OPTIONS, no duplicates), or three random live ones for the player's
- * faction when `options` is empty or absent. `clear`: remove every buff, passive, practice mob and reward chest.
+ * One practice-console command. `card`: set how many of that card the player holds to `count` (default TRAIN_DEFAULT_CARD_COUNT,
+ * clamped to 0..TRAIN_MAX_CARD_COUNT; 0 removes it; a unique card is held once at most; a conditional needs its base card, else
+ * the reply toast says so; a card whose machinery is not live yet is set but does nothing, and the toast says so). `camp`: spawn
+ * a practice camp of that mob type near the player (3 mobs of a normal type, one elite for an elite type). `chest`: drop a reward
+ * chest about two tiles away with these card ids as its options (1 to CHEST_OPTIONS, no duplicates), or three rolled ones for a
+ * normal camp when `options` is empty or absent. `clear`: remove every card, practice mob and reward chest.
  */
 export type TrainMessage =
-  | { cmd: "buff"; id: string; amount?: number }
-  | { cmd: "passive"; id: string; rank?: number }
+  | { cmd: "card"; id: string; count?: number }
   | { cmd: "camp"; id: string }
   | { cmd: "chest"; options?: string[] }
   | { cmd: "clear" };
@@ -174,9 +172,8 @@ export type FxEvent =
   | { kind: "teleport" }
   /** A player's bounty rose: "<name> is on a rampage — bounty N GV". At most one per player per BOUNTY_ANNOUNCE_MS; a rise held back goes out when the window ends. */
   | { kind: "bounty"; id: string; name: string; bounty: number }
-  /** `id` gained buff stacks (a mob kill or a bounty): `stacks` of `buff` (a BuffId), and the new total. */
-  | { kind: "buff"; id: string; buff: BuffId; stacks: number; total: number }
-  // "combo" (wire code 11) is retired with the kill combos (roguelike R4a): never emitted, its code never reused.
+  // "buff" (wire code 10) is retired with the per-kill buffs (balance pass 3.6) and "combo" (code 11) with the kill combos (R4a):
+  // never emitted, their codes never reused.
   /** The run is over. `id`/`name` are the winner's; both null with `draw` for a draw, and without it when nobody won (a solo run, or everyone left). */
   | { kind: "victory"; id: string | null; name: string | null; draw: boolean }
   /**

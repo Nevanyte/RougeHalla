@@ -15,9 +15,9 @@
 //     longest stand-still in 15 solo runs was 8 s. A farmer that makes no kill for 75 s is flagged `stalledAt`, which the bench reports as a censored
 //     end of the baseline, and the farmer carries on.
 import {
-  ELITE_BUFF_STACKS, FACTION_IDS, findPath, hasLineOfSight, INTERACT_RANGE, isFactionId, isWeaponId,
-  MOB_BUFF_STACKS, PLAYER_RADIUS, PLAYER_SPEED, questDefById, segmentClear, stacksIn, TARGET_RANGE, TILE,
-  BUFFS, buffPower, type BuffStacks, type CampDef, type FactionId, type QuestDef, type Vec2,
+  CARD_TIER_RATE, cardDef, cardLive, cardPower, FACTION_IDS, findPath, hasLineOfSight, INTERACT_RANGE, isEliteCamp, isFactionId,
+  isWeaponId, PLAYER_RADIUS, PLAYER_SPEED, questDefById, segmentClear, TARGET_RANGE, TILE,
+  type CampDef, type CardCounts, type FactionId, type QuestDef, type Vec2,
 } from "@raid/shared";
 import type { MobState, PlayerState, QuestState } from "@raid/shared/schema";
 import { runCampDuel } from "../../bench/campDuel";
@@ -26,15 +26,20 @@ import { pathLength, retreatPoint } from "../bots/mobHunt";
 import { enqueueClientMessage } from "../sim/inputs";
 import { collisionMap, type PlayerRuntime, type World } from "../sim/world";
 
-/** Power from buffs that apply without a status runtime (`needs` unset); policy valuation and the report use only this. */
-export function liveBuffPower(stacks: BuffStacks | null | undefined): number {
-  let sum = 0;
-  for (const def of BUFFS) {
-    const value = stacksIn(stacks, def.id);
-    if (!def.needs && value > 0) sum += buffPower({ [def.id]: value });
-  }
-  return sum;
+/** Power of the cards that apply (the live ones: a card waiting for its hook counts for nothing); policy valuation and the report use only this. */
+export function liveCardPower(build: CardCounts | null | undefined): number {
+  const live: Record<string, number> = {};
+  const add = (count: number, id: string): void => {
+    if (count > 0 && cardLive(id)) live[id] = count;
+  };
+  const forEach = (build as { forEach?: unknown } | null | undefined)?.forEach;
+  if (typeof forEach === "function") (build as { forEach(cb: (count: number, id: string) => void): void }).forEach(add);
+  else if (build) for (const [id, count] of Object.entries(build as Record<string, number>)) add(count, id);
+  return cardPower(live);
 }
+
+/** Tier points of an elite camp's chest on average (BALANCE_CONTRACT 8.3): the 10/60/30 odds on one base card and one augment. */
+const ELITE_CHEST_TIER_RATE = 2.2;
 
 export type QuestPolicyId = "farm-only" | "quest-greedy" | "mixed";
 export const QUEST_POLICY_IDS: readonly QuestPolicyId[] = ["farm-only", "quest-greedy", "mixed"];
@@ -225,7 +230,7 @@ function campViews(world: World, p: PlayerState): CampView[] {
     else groups.set(m.camp, [m]);
   }
   const faction = isFactionId(p.faction) ? p.faction : null;
-  const power = liveBuffPower(p.buffs);
+  const power = liveCardPower(p.build);
   const out: CampView[] = [];
   for (const [camp, mobs] of groups) {
     const def = world.map.camps[camp - 1];
@@ -279,16 +284,8 @@ function campValueRate(world: World, p: PlayerState, mem: PolicyMemory): number 
   const now = world.state.serverTime;
   const view = affordableCamp(campViews(world, p), mem, hp, now);
   if (!view) return 0;
-  const grants = new Map<string, number>();
-  for (const m of view.mobs) {
-    if (!m.type) continue;
-    grants.set(m.type, (grants.get(m.type) ?? 0) + (m.kind === "elite" ? ELITE_BUFF_STACKS : MOB_BUFF_STACKS));
-  }
-  let value = 0;
-  for (const [id, stacks] of grants) {
-    const before = stacksIn(p.buffs, id);
-    value += liveBuffPower({ [id]: before + stacks }) - liveBuffPower({ [id]: before });
-  }
+  // What the camp's chest is worth: its average tier points, one pick (BALANCE_CONTRACT 8.3).
+  const value = isEliteCamp(view.camp) ? ELITE_CHEST_TIER_RATE : CARD_TIER_RATE;
   const seconds = view.d / PLAYER_SPEED + 12 * view.mobs.length;
   return seconds > 0 ? value / seconds : 0;
 }
@@ -393,12 +390,10 @@ function questTarget(
   return questItem(world, p, mem, q);
 }
 
-/** Live power the nominal reward adds to this player (the server's catch-up and the feed brake are not priced in). */
-export function questRewardPower(p: PlayerState, q: QuestDecisionView): number {
-  const id = q.def.reward.buff;
-  if (!id) return 0;
-  const before = stacksIn(p.buffs, id);
-  return liveBuffPower({ [id]: before + q.def.reward.stacks }) - liveBuffPower({ [id]: before });
+/** Live power the nominal reward adds to this player: its card's tier (the server's feed brake is not priced in). */
+export function questRewardPower(_p: PlayerState, q: QuestDecisionView): number {
+  const def = cardDef(q.def.reward.card);
+  return def && cardLive(def) ? def.tier : 0;
 }
 
 function nearestQuest(world: World, p: PlayerState, mem: PolicyMemory, playerId: string): QuestDecisionView | null {

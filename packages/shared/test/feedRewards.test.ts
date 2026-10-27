@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  BOUNTY_STACK_SHARE, bountyFor, bountyStacks, BUFF_PLATEAU, BUFF_REF_STACKS, BUFF_S0, BUFF_W, buffCurve, buffRowsOf, buffScale,
-  buffText, CATCHUP_GAP, CATCHUP_MULT, catchUpMultiplier, effectsText, effectText, feedScore, GV_WIN, LIFESTEAL_MAX, LS_CAP,
-  median, mobRewardMultiplier, mulberry32, REWARD_FLOOR, REWARD_MID, REWARD_WIDTH, rewardCurve, scaleEffect, stacksIn,
+  bountyFor, CATCHUP_GAP, CATCHUP_MULT, catchUpMultiplier, effectsText, effectText, feedScore, GV_WIN, LIFESTEAL_MAX, LS_CAP,
+  median, mobRewardMultiplier, mulberry32, REWARD_FLOOR, REWARD_MID, REWARD_WIDTH, rewardCurve, scaleEffect,
   type Effect,
 } from "../src/index";
 import * as shared from "../src/index";
-import { PlayerState } from "../src/schema";
 
 /** GAME_DESIGN 12.3: [feed, mob reward multiplier]. */
 const REWARD_TABLE: Array<[number, number]> = [
@@ -16,118 +14,21 @@ const REWARD_TABLE: Array<[number, number]> = [
 /** GAME_DESIGN 12.4: [feed, bounty GV]. */
 const BOUNTY_TABLE: Array<[number, number]> = [[3, 10], [4, 28], [5, 52], [6, 80], [7, 112], [8, 147], [10, 226]];
 
-describe("the tunables the buff formulas read", () => {
+describe("the tunables the feed formulas read", () => {
   it("are the design numbers", () => {
-    expect([BUFF_S0, BUFF_W, BUFF_REF_STACKS]).toEqual([3, 1, 3]);
-    expect([LS_CAP, LIFESTEAL_MAX]).toEqual([0.25, 1]);
+    expect([LS_CAP, LIFESTEAL_MAX]).toEqual([0.25, 0.85]); // G5 (balance pass): the whole lifesteal share stops at 0.85, was Holy's own 1
     expect([REWARD_FLOOR, REWARD_MID, REWARD_WIDTH]).toEqual([0.3, 5, 1.5]);
-    expect([CATCHUP_GAP, CATCHUP_MULT, BOUNTY_STACK_SHARE]).toEqual([2, 1.25, 0.5]);
+    expect([CATCHUP_GAP, CATCHUP_MULT]).toEqual([2, 1.25]);
   });
 
-  it("are reachable from the shared index, with the formulas", () => {
-    expect(shared.buffScale).toBe(buffScale);
-    expect(shared.buffRows).toBeTypeOf("function");
-    expect(shared.rewardCurve).toBe(rewardCurve);
-    expect(shared.BUFFS).toHaveLength(20);
-  });
-
-  it("no longer export the three-stat stacks, the combos or the region roll", () => {
-    for (const gone of ["buffBonus", "buffMultiplier", "BUFF_STATS", "COMBOS", "comboTier", "killEffects", "REGION_BUFF", "rollBuffStat"]) {
+  it("no longer export the per-kill buffs, the three-stat stacks, the combos or the region roll", () => {
+    for (const gone of [
+      "buffBonus", "buffMultiplier", "BUFF_STATS", "COMBOS", "comboTier", "killEffects", "REGION_BUFF", "rollBuffStat",
+      "BUFFS", "BUFF_IDS", "buffScale", "buffRows", "buffText", "stacksIn", "bountyStacks", "BOUNTY_STACK_SHARE", "MOB_BUFF_STACKS",
+      "ELITE_BUFF_STACKS", "mobBuffStacks", "feedView", "buffViews",
+    ]) {
       expect(gone in shared, gone).toBe(false);
     }
-  });
-});
-
-// The curve's own numbers (S(x), 0.16x at 1 stack ... 2.1x plateau) are pinned in buffsRoguelike.test.ts; these are its
-// shape, which the three-stat bonus used to be tested for.
-describe("the S-curve", () => {
-  it("is exactly 0 at 0 stacks, and for negative, NaN and -Infinity stacks", () => {
-    for (const n of [0, -0, -1, -0.5, -1000, Number.NEGATIVE_INFINITY, Number.NaN]) {
-      expect(buffCurve(n), `curve ${n}`).toBe(0);
-      expect(buffScale(n), `scale ${n}`).toBe(0);
-    }
-  });
-
-  it("is S(n) / S(3): 1 at the quoted 3 stacks, whatever the buff", () => {
-    expect(buffScale(BUFF_REF_STACKS)).toBe(1);
-    for (const n of [0.5, 1, 2, 4, 5.5, 9]) expect(buffScale(n), `${n}`).toBeCloseTo(buffCurve(n) / buffCurve(3), 12);
-    expect(BUFF_PLATEAU).toBeCloseTo(buffCurve(1e6) / buffCurve(3), 12);
-  });
-
-  it("grows from the very first sliver of a stack", () => {
-    expect(buffCurve(1e-6)).toBeGreaterThan(0);
-    expect(buffScale(1e-6)).toBeGreaterThan(0);
-  });
-
-  it("strictly increases with stacks, fractions included", () => {
-    let last = 0;
-    for (let n = 0.25; n <= 20; n += 0.25) {
-      const k = buffScale(n);
-      expect(k, `${n}`).toBeGreaterThan(last);
-      last = k;
-    }
-  });
-
-  it("stays below the plateau and flattens out towards it", () => {
-    for (const n of [1, 3, 5, 8, 12, 20]) expect(buffScale(n), `${n}`).toBeLessThan(BUFF_PLATEAU);
-    for (const n of [50, 1000, Number.POSITIVE_INFINITY]) expect(buffScale(n), `${n}`).toBeLessThanOrEqual(BUFF_PLATEAU);
-    // 30 more stacks after 8 add well under a hundredth of a quoted value.
-    expect(buffScale(38) - buffScale(8)).toBeLessThan(0.02);
-    expect(buffScale(38)).toBeGreaterThan(0.99 * BUFF_PLATEAU);
-  });
-
-  it("spikes in the middle: the biggest per-stack gain is between 2 and 4 stacks", () => {
-    const gains = Array.from({ length: 9 }, (_, n) => buffScale(n + 1) - buffScale(n));
-    const best = Math.max(...gains);
-    const at = gains.indexOf(best);
-    expect([2, 3], `gains ${gains.map((g) => g.toFixed(3)).join(" ")}`).toContain(at);
-    // 2->3 and 3->4 beat the first stack by a wide margin and the 5th stack too.
-    expect(gains[2]).toBeGreaterThan(2 * gains[0]!);
-    expect(gains[3]).toBeGreaterThan(2 * gains[0]!);
-    expect(gains[3]).toBeGreaterThan(gains[4]!);
-    expect(gains[1]).toBeLessThan(gains[2]!);
-  });
-
-  it("also peaks inside (2, 4) when stacks are fractional", () => {
-    let best = 0;
-    let bestAt = 0;
-    for (let n = 0; n < 10; n += 0.05) {
-      const g = buffScale(n + 0.05) - buffScale(n);
-      if (g > best) { best = g; bestAt = n; }
-    }
-    expect(bestAt).toBeGreaterThan(2);
-    expect(bestAt).toBeLessThan(4);
-  });
-});
-
-describe("stacksIn", () => {
-  it("reads a Map, a plain record and a player's synced buffs map", () => {
-    const p = new PlayerState();
-    p.buffs.set("emberImp", 2.5);
-    expect(stacksIn(p.buffs, "emberImp")).toBe(2.5);
-    expect(stacksIn(new Map([["emberImp", 2.5]]), "emberImp")).toBe(2.5);
-    expect(stacksIn({ emberImp: 2.5 }, "emberImp")).toBe(2.5);
-  });
-
-  it("is 0 for none held, an id that is not there and no map at all (a state from a server without buffs)", () => {
-    expect(stacksIn(null, "emberImp")).toBe(0);
-    expect(stacksIn(undefined, "emberImp")).toBe(0);
-    expect(stacksIn(new PlayerState().buffs, "emberImp")).toBe(0);
-    expect(stacksIn({}, "emberImp")).toBe(0);
-    expect(stacksIn(new Map<string, number>(), "emberImp")).toBe(0);
-  });
-
-  it("is 0 for a bad value: zero, negative, NaN, text, and names an Object has", () => {
-    const bad = { zero: 0, neg: -2, nan: Number.NaN, text: "3" as unknown as number };
-    for (const id of Object.keys(bad)) expect(stacksIn(bad, id), id).toBe(0);
-    for (const id of ["constructor", "toString", "__proto__", "hasOwnProperty"]) expect(stacksIn({}, id), id).toBe(0);
-  });
-});
-
-describe("buffRowsOf for ids and stacks it cannot give rows for", () => {
-  it("is empty for an unknown id and for no, negative or NaN stacks", () => {
-    expect(buffRowsOf("nope", 3)).toEqual([]);
-    for (const n of [0, -1, Number.NaN]) expect(buffRowsOf("emberImp", n), `${n}`).toEqual([]);
   });
 });
 
@@ -178,9 +79,9 @@ describe("scaleEffect", () => {
     expect(row).toEqual({ k: "stat", stat: "damage", v: 0.1, requires: ["glassFang"], needs: "status" });
   });
 
-  it("makes a row's numbers 0 at 0 stacks (buffText of nothing held reads +0%)", () => {
+  it("makes a row's numbers 0 at a scale of 0", () => {
     expect(scaleEffect({ k: "stat", stat: "damage", v: 0.05 }, 0)).toEqual({ k: "stat", stat: "damage", v: 0 });
-    expect(buffText("emberImp", 0)).toBe("+0% damage");
+    expect(effectText(scaleEffect({ k: "stat", stat: "damage", v: 0.05 }, 0))).toBe("+0% damage");
   });
 });
 
@@ -228,7 +129,7 @@ describe("effectText", () => {
     expect(effectText({ k: "trigger", on: "kill", arg: 0, do: { do: "status", to: "self", status: "haste", ms: 1500 } })).toBe("On a kill: haste for 1.5 s");
   });
 
-  it("joins a buff's rows with 'and'", () => {
+  it("joins a card's rows with 'and'", () => {
     const rows: Effect[] = [{ k: "stat", stat: "maxHp", v: 0.03 }, { k: "flat", stat: "shield", v: 10 }];
     expect(effectsText(rows)).toBe("+3% max HP and +10 magic resist");
     expect(effectsText([])).toBe("");
@@ -360,20 +261,6 @@ describe("mobRewardMultiplier", () => {
 
   it("never drops below the floor", () => {
     for (let feed = 0; feed <= 40; feed += 2) expect(mobRewardMultiplier(feed, feed + 10)).toBeGreaterThanOrEqual(REWARD_FLOOR);
-  });
-});
-
-describe("bountyStacks", () => {
-  it("is half the victim's stacks of one buff, fractions and all", () => {
-    expect(bountyStacks(0)).toBe(0);
-    expect(bountyStacks(4)).toBe(2);
-    expect(bountyStacks(3)).toBe(1.5);
-    expect(bountyStacks(1.3)).toBeCloseTo(0.65, 12);
-    expect(bountyStacks(7.25)).toBe(3.625);
-  });
-
-  it("splits a victim's stacks exactly in two", () => {
-    for (const n of [0.5, 1, 2.7, 3, 5, 11.1]) expect(n - bountyStacks(n)).toBeCloseTo(bountyStacks(n), 12);
   });
 });
 

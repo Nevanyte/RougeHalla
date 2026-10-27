@@ -280,7 +280,7 @@ describe("both drivers perceive the same", () => {
         const plain = input.state as PlainState;
         for (const p of plain.players.values()) {
           p.x += 0.123456789; p.y -= 0.987654321; p.hp -= 0.3333; p.readyAt += 0.77; p.drawStartedAt += 0.5; p.immuneUntil += 0.25;
-          p.buffs.set("emberImp", (p.buffs.get("emberImp") ?? 0) + 0.1234567);
+          p.build.set("ad1", (p.build.get("ad1") ?? 0) + 1);
         }
         for (const m of plain.mobs.values()) { m.x += 0.31415926; m.hp -= 0.2718281; }
         const server = toSchemaState(plain);
@@ -499,7 +499,7 @@ describe("which fx a bot observes (docs/BOTS.md 3.4)", () => {
   const at = (k: number, events: FxEvent[]): Spec => ({ state: world(others), events: k === 2 ? events : [] });
   const seen = (events: FxEvent[]): ObservedEvent[] => allEvents(run(10, (k) => at(k, events)));
 
-  it("windup, swing, stagger, cancel, heal, buff: only when the subject is drawn, or is the bot", () => {
+  it("windup, swing, stagger, cancel, heal: only when the subject is drawn, or is the bot", () => {
     const evs = seen([
       { kind: "windup", by: "on", weapon: "axe", a: 1, ms: 250 },
       { kind: "windup", by: "off", weapon: "axe", a: 1, ms: 250 },
@@ -509,14 +509,11 @@ describe("which fx a bot observes (docs/BOTS.md 3.4)", () => {
       { kind: "stagger", id: "on" }, { kind: "stagger", id: "off" },
       { kind: "cancel", id: "me" }, { kind: "cancel", id: "near" },
       { kind: "heal", id: "on", amount: 7.6 }, { kind: "heal", id: "on", amount: 0.4 }, { kind: "heal", id: "off", amount: 7 },
-      { kind: "buff", id: "on", buff: "emberImp", stacks: 0.734, total: 2.5 }, { kind: "buff", id: "me", buff: "emberImp", stacks: 0.734, total: 2.5 },
-      { kind: "buff", id: "off", buff: "plagueRat", stacks: 1, total: 1 },
     ]);
     const brief = evs.map((e) => `${e.kind}:${"by" in e ? e.by : "id" in e ? e.id : ""}`);
-    expect(brief).toEqual(["windup:on", "swing:mon", "stagger:on", "cancel:me", "heal:on", "buff:on", "buff:me"]);
-    // Numbers as drawn: a whole heal, someone else's buff as "+0.7" with no total, the bot's own exact.
+    expect(brief).toEqual(["windup:on", "swing:mon", "stagger:on", "cancel:me", "heal:on"]);
+    // Numbers as drawn: a whole heal.
     expect(evs.find((e) => e.kind === "heal")).toMatchObject({ amount: 8 });
-    expect(evs.filter((e) => e.kind === "buff")).toMatchObject([{ id: "on", stacks: 0.7, total: -1 }, { id: "me", stacks: 0.734, total: 2.5 }]);
   });
 
   it("hit and block: when the victim is drawn (or is the bot); the attacker only when it is drawn too", () => {

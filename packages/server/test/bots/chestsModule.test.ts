@@ -32,7 +32,7 @@ const CHEST_FEATURES = features({ messageTypes: ["move", "stop", "target", "aim"
 const IDLE: Goal = { kind: "idle" };
 const NOW = 200_000;
 const PICK = CHEST_HUNT.pickRange;
-const CARDS = ["whetstone", "swiftBoots", "thickHide"] as const;
+const CARDS = ["vitality1", "armor1", "ad2"] as const;
 
 /** The longest straight, walkable run of the cave-like test map that is at least this long (u). */
 const RUN = 410;
@@ -175,8 +175,8 @@ describe("what a bot sees of a reward chest (perception)", () => {
   it("a down bot reads no cards; and the cards of one chest do not leak into another", () => {
     const f = view([reward("c", 30)], { status: "dead" });
     expect(f.extras.chests![0]).toMatchObject({ options: null, takenBy: [] });
-    const g = view([reward("a", 30, { options: ["whetstone", "a", "b"] }), reward("b", 60, { options: ["c", "d", "swiftBoots"] })]);
-    expect(g.extras.chests!.map((c) => c.options)).toEqual([["whetstone", "a", "b"], ["c", "d", "swiftBoots"]]);
+    const g = view([reward("a", 30, { options: ["vitality1", "a", "b"] }), reward("b", 60, { options: ["c", "d", "armor1"] })]);
+    expect(g.extras.chests!.map((c) => c.options)).toEqual([["vitality1", "a", "b"], ["c", "d", "armor1"]]);
   });
 
   it("another player's pick is a '?', its own is its id; picked says whether the bot has picked (a skip counts), in range or not", () => {
@@ -279,15 +279,24 @@ describe("the pick: one choose per chest, within reach, whatever the bot is doin
     expect(intentsOf({ cfg, now: NOW + CHEST_RULES.askWindowMs + 100, chests: [chest("rc1", 40, { takenBy: ["?", "?", ""] })] })).toEqual([]);
   });
 
-  it("leaves a card the bot holds at the top rank, and keeps count of what it took (the HUD's own record)", () => {
+  it("leaves a unique card the bot holds, and keeps count of what it took (the HUD's own record)", () => {
     const cfg = cfgFor();
     const mine = (id: string, cards: string[], took: number) =>
       chest(id, 40, { options: cards, takenBy: ["", "", ""].map((_, i) => (i === took ? "me" : "")), picked: true });
-    // Two chests it took whetstone at: the third offers it again, but it holds it at rank 2.
-    intentsOf({ cfg, now: NOW, chests: [mine("a", ["whetstone", "x", "y"], 0)] });
-    intentsOf({ cfg, now: NOW + 50, chests: [mine("a", ["whetstone", "x", "y"], 0), mine("b", ["whetstone", "swiftBoots", "y"], 0)] });
-    const list = chooses(intentsOf({ cfg, now: NOW + 100, chests: [chest("c", 40, { options: ["whetstone", "swiftBoots", "thickHide"] })] }));
-    expect(list[0]!.msg.pick, "whetstone is maxed").not.toBe(0);
+    // It took Witness at one chest: the next offers it again, but a unique card is held once.
+    intentsOf({ cfg, now: NOW, chests: [mine("a", ["witness", "x", "y"], 0)] });
+    const list = chooses(intentsOf({ cfg, now: NOW + 100, chests: [chest("c", 40, { options: ["witness", "bountyHunter", "glassCannon"] })] }));
+    expect(list[0]!.msg.pick, "Witness is held").toBe(1);
+  });
+
+  it("takes a base card again however often it holds it (it stacks)", () => {
+    const cfg = cfgFor();
+    const mine = (id: string) => chest(id, 40, { options: ["ad1", "x", "y"], takenBy: ["me", "", ""], picked: true });
+    intentsOf({ cfg, now: NOW, chests: [mine("a")] });
+    intentsOf({ cfg, now: NOW + 50, chests: [mine("a"), mine("b")] });
+    intentsOf({ cfg, now: NOW + 80, chests: [mine("a"), mine("b"), mine("c")] });
+    const list = chooses(intentsOf({ cfg, now: NOW + 100, chests: [chest("d", 40, { options: ["ad1", "vitality1", "armor1"] })] }));
+    expect(list[0]!.msg.pick, "Attack Damage I a fourth time, still the best").toBe(0);
   });
 
   it("is silent about a chest whose cards are shut, one it has picked at, one about to vanish, and out of the run", () => {

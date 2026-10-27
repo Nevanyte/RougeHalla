@@ -13,14 +13,15 @@
 // The cooldown carries its remainder: an attack from a trigger already down when the cooldown ended counts from that
 // moment (at most one tick back), so cadences are not rounded up to the 50 ms tick grid, as in realtime.py.
 import {
-  ATTACK_BUFFER_MS, damagePerHit, damageShares, leadAim, MAX_REWIND_MS, moveMultiplier, staggerImmuneUntil, swapReadyAt,
-  TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
+  ATTACK_BUFFER_MS, attackInterval, damagePerHit, damageShares, leadAim, MAX_REWIND_MS, moveMultiplier, scalingDamage,
+  staggerImmuneUntil, swapReadyAt, TICK_MS, WEAPONS, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import { attackSpeedMult } from "./buffs";
 import {
   activeWeapon, combatant, factionOf, handIsEmpty, hostile, isEvading, slotItem, slotWeapon, standing, standingCombatants, timingsOf,
   type Combatant,
 } from "./combatant";
+import { hasFlag, hitMultOf, scalingStatsOf } from "./mods";
 import { positionAt, velocityOf } from "./movement";
 import { actionBlocked, isStunned, isUntargetable } from "./status";
 import {
@@ -86,11 +87,30 @@ export function dropLock(c: Combatant): boolean {
   return true;
 }
 
-/** The raw damage packet of a hit with `weapon` in this fighter's hands. */
+/**
+ * The raw damage packet of a hit with `weapon` in this fighter's hands: the faction's own hit (damagePerHit, with its shares)
+ * plus what the weapon scales the fighter's AD, AP, bonus max hp and bonus defense into (BALANCE_CONTRACT 3.3, shared
+ * scalingDamage: the ad, hp and def parts physical, the ap part magic, each times asMult x interval), all times the fighter's `hit`
+ * mult (Boom, Machine Gun). One packet, its shares blended, so the ledger is unchanged. A fighter with no AD, AP, bonus hp or
+ * defense and no `hit` mult gets exactly the faction's packet.
+ */
 export function packetFor(c: Combatant, weapon: WeaponId): DamagePacket {
   const f = factionOf(c.s);
   if (!f) return { raw: 0, phys: 1, magic: 0, true: 0 };
-  return { raw: damagePerHit(f, weapon, attackSpeedMult(c.s)), ...damageShares(f) };
+  const as = attackSpeedMult(c.s);
+  const base = damagePerHit(f, weapon, as);
+  const shares = damageShares(f);
+  const hit = hitMultOf(c.s);
+  const { phys, magic } = scalingDamage(weapon, scalingStatsOf(c.s), as, attackInterval(f, weapon, as));
+  if (phys === 0 && magic === 0) return { raw: hit === 1 ? base : base * hit, ...shares };
+  const total = base + phys + magic;
+  if (!(total > 0)) return { raw: 0, ...shares };
+  return {
+    raw: total * hit,
+    phys: (base * shares.phys + phys) / total,
+    magic: (base * shares.magic + magic) / total,
+    true: (base * shares.true) / total,
+  };
 }
 
 /** The fighter now aims at `a`: the shield faces it, the next attack goes there, and walking no longer turns it. */
@@ -134,6 +154,7 @@ export const handleSwap: ActionHandler = (world, c, cmd) => {
   const target = cmd.slot ?? (c.s.slot === 0 ? 1 : 0);
   // An empty slot is fists, so swapping to one is fine; two empty slots are the same hand, and swapping costs the swap time.
   if (target === c.s.slot || slotWeapon(c.s, target) === null) return;
+  if (target === 1 && hasFlag(c.s, "lockSecondSlot")) return; // Committed: the second slot is not used
   if (slotItem(c.s, target) === null && handIsEmpty(c.s)) return;
   c.s.slot = target;
   weaponChanged(world, c);
@@ -229,6 +250,12 @@ export function updateWeapons(world: World): void {
   for (const c of standingCombatants(world)) stepWeapon(world, c);
 }
 
+/**
+ * A cooldown or a windup that ends exactly on a tick (an interval of 2/3 s lands three swings on 2.000 s) is due on that tick, whichever way
+ * float noise in the carried times falls (testing/realtime.py's EPS, 1e-9 s): otherwise a swing slips a whole tick on some sums.
+ */
+const TIE_EPS_MS = 1e-6;
+
 function stepWeapon(world: World, c: Combatant): void {
   const now = world.state.serverTime;
   const w = c.rt.weapon;
@@ -238,9 +265,9 @@ function stepWeapon(world: World, c: Combatant): void {
     if (w.action) cancelAction(world, c);
     return;
   }
-  if (w.action && now >= w.action.landsAt) land(world, c, w.action);
+  if (w.action && now + TIE_EPS_MS >= w.action.landsAt) land(world, c, w.action);
   const wants = w.held || now <= w.bufferedUntil;
-  if (!w.action && wants && now + READY_EPS_MS >= c.s.readyAt && !actionBlocked(world, c)) startAttack(world, c, weapon, tm);
+  if (!w.action && wants && now + TIE_EPS_MS >= c.s.readyAt && !actionBlocked(world, c)) startAttack(world, c, weapon, tm);
 }
 
 /**

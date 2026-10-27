@@ -2,7 +2,7 @@
 // Both carry the same fighter fields in their synced state (x, y, facing, hp, faction, weapon slots, readyAt, ...)
 // and a CombatRuntime; what differs is how they go down (arena.ts for players, mobs.ts for mobs).
 import {
-  attackInterval, ELITE_K, FACTIONS, FISTS, isFactionId, isRegionalKind, isWeaponId, MOB_K, mobFaction, pacedFaction, scaleWindup, weaponTimings,
+  ELITE_K, FACTIONS, FISTS, isFactionId, isRegionalKind, isWeaponId, mirrorTimings, MOB_K, mobFaction, pacedFaction,
   type FactionId, type FactionSpec, type Vec2, type WeaponId, type WeaponTimings,
 } from "@raid/shared";
 import type { MobState, PlayerState } from "@raid/shared/schema";
@@ -96,10 +96,10 @@ export function setSlot(s: FighterState, slot: 0 | 1, w: WeaponId | null): void 
   else s.weapon1 = item;
 }
 
-/** Rhythm of `w` in this fighter's hands (the asMult and windupMult mirrors applied), or null without a faction. */
+/** Rhythm of `w` in this fighter's hands (the asMult and windupMult mirrors applied; a ranged windup never under its base-speed value, G9), or null without a faction. */
 export function timingsOf(s: FighterState, w: WeaponId): WeaponTimings | null {
   const f = factionOf(s);
-  return f ? scaleWindup(weaponTimings(w, attackInterval(f, w, attackSpeedMult(s))), windupMultOf(s)) : null;
+  return f ? mirrorTimings(f, w, attackSpeedMult(s), windupMultOf(s)) : null;
 }
 
 /**

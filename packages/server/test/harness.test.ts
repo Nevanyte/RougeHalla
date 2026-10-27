@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FACTION_IDS, isRanged, POLICIES, WEAPON_BEATS, WEAPON_IDS, type FactionId, type WeaponId } from "@raid/shared";
+import { ALL_WEAPON_IDS, FACTION_IDS, isRanged, POLICIES, WEAPON_BEATS, WEAPON_IDS, type FactionId, type WeaponId } from "@raid/shared";
 import { runDuel, type DuelResult } from "../src/harness/duel";
 import { KITE_STYLES, kitingReport } from "../src/harness/kiting";
 import { edgeName, hasGrid, spacingFor, stylesOf, WEAVES, type Cell, type Edge, type Setup } from "../src/harness/matrix";
@@ -45,7 +45,7 @@ describe("weapon duel harness", () => {
 
   it("matches the realtime.py interval, per-hit and backlash numbers to 1e-9", () => {
     const parity = parityReport();
-    expect(parity.rows).toHaveLength(FACTION_IDS.length * 5);
+    expect(parity.rows).toHaveLength(FACTION_IDS.length * ALL_WEAPON_IDS.length); // the five loop weapons and fists
     expect(parity.maxIntervalDiff).toBeLessThan(1e-9);
     expect(parity.maxPerHitDiff).toBeLessThan(1e-9);
     expect(parity.maxBacklashDiff).toBeLessThan(1e-9);

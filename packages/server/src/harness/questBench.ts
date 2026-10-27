@@ -4,7 +4,7 @@ import { createGameWorld } from "../sim/gameplay";
 import { addPlayer, step } from "../sim/step";
 import type { SimConfig, World } from "../sim/world";
 import {
-  driveQuestPolicy, liveBuffPower, newPolicyMemory, QUEST_SITE_RADIUS, QUEST_POLICY_IDS,
+  driveQuestPolicy, liveCardPower, newPolicyMemory, QUEST_SITE_RADIUS, QUEST_POLICY_IDS,
   type PolicyMemory, type QuestPolicyId,
 } from "./questBenchPolicy";
 
@@ -24,9 +24,9 @@ export interface QuestCompletionSample {
   seconds: number;
   /** The quest's own seconds: first selection by the player who finished it to the turn-in; null when that player never chose it (finished by passing kills, or by a rival's race). */
   costSeconds: number | null;
-  buffBefore: number;
-  buffAfter: number;
-  buffGain: number;
+  powerBefore: number;
+  powerAfter: number;
+  powerGain: number;
 }
 
 /** A policy choosing a quest for the first time (one per player and quest: a re-pick after a detour is not a new attempt). */
@@ -175,8 +175,8 @@ export function runQuestLobby(
   const startedAt = world.state.raidStartedAt;
   for (const [id, p] of world.state.players) {
     memories.set(id, newPolicyMemory(p, world.state.serverTime));
-    timelines.set(id, { seconds: [0], power: [liveBuffPower(p.buffs)] });
-    previousPower.set(id, liveBuffPower(p.buffs));
+    timelines.set(id, { seconds: [0], power: [liveCardPower(p.build)] });
+    previousPower.set(id, liveCardPower(p.build));
     previousStatus.set(id, p.status);
     previousTargets.set(id, p.attackTarget);
     selectedQuests.set(id, null);
@@ -201,7 +201,7 @@ export function runQuestLobby(
       const p = world.state.players.get(id)!;
       previousTargets.set(id, p.attackTarget);
       previousStatus.set(id, p.status);
-      previousPower.set(id, liveBuffPower(p.buffs));
+      previousPower.set(id, liveCardPower(p.build));
     }
     for (const [id, rt] of world.mobs) previousMobModes.set(id, rt.brain?.mode ?? "");
 
@@ -214,7 +214,7 @@ export function runQuestLobby(
       if (offer.counted || q.s.status !== "done") continue;
       offer.counted = true;
       const player = [...world.state.players.entries()].find(([, p]) => p.name === q.s.doneBy);
-      const after = player ? liveBuffPower(player[1].buffs) : 0;
+      const after = player ? liveCardPower(player[1].build) : 0;
       const before = player ? previousPower.get(player[0]) ?? after : after;
       const startedQuestAt = player ? attemptedAt.get(`${player[0]}:${q.def.id}`) : undefined;
       observation.completions.push({
@@ -224,9 +224,9 @@ export function runQuestLobby(
         seed,
         seconds: elapsed,
         costSeconds: startedQuestAt === undefined ? null : elapsed - startedQuestAt,
-        buffBefore: before,
-        buffAfter: after,
-        buffGain: after - before,
+        powerBefore: before,
+        powerAfter: after,
+        powerGain: after - before,
       });
     }
     for (const [id, p] of world.state.players) {
@@ -240,7 +240,7 @@ export function runQuestLobby(
       let sample = Math.floor(timeline.seconds[timeline.seconds.length - 1]!) + 1;
       while (elapsed >= sample) {
         timeline.seconds.push(sample);
-        timeline.power.push(liveBuffPower(p.buffs));
+        timeline.power.push(liveCardPower(p.build));
         sample++;
       }
     }
@@ -264,7 +264,7 @@ export function runQuestLobby(
     const timeline = timelines.get(id)!;
     if (timeline.seconds[timeline.seconds.length - 1] !== finalSeconds) {
       timeline.seconds.push(finalSeconds);
-      timeline.power.push(liveBuffPower(p.buffs));
+      timeline.power.push(liveCardPower(p.build));
     }
     const died = diedAt.get(id);
     const stalledMs = memories.get(id)!.stalledAt;

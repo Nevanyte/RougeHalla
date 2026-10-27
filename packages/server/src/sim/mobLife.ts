@@ -1,5 +1,5 @@
 // A regional mob's life (GAME_DESIGN 11): it is placed at its camp when the run starts, takes damage through the ledger
-// (hurtMob), dies once (killMob: GV, a buff, its weapon), lies there MOB_CORPSE_MS and is removed. The AI that moves it
+// (hurtMob), dies once (killMob: GV, its weapon), lies there MOB_CORPSE_MS and is removed. The AI that moves it
 // and decides its attacks is mobAI.ts. A training dummy (kind "dummy") is not handled here: see mobs.ts.
 //
 // Contract (the spine; the track fills the bodies in):
@@ -23,20 +23,19 @@
 //       1. creditMobKill (arena.ts): mob GV (x m, GV_MOB / GV_ELITE, capped) and the feed, where m is the reward
 //          multiplier read INSIDE the pass (every feed is still its tick-start value there, so the order kills are paid
 //          in never changes it);
-//       2. the buff of the mob's type (MobState.type; mobTypeOf) x mobBuffStacks(elite) x m stacks, through grantBuff;
-//       3. the mob's weapon: straight into the hand of a killer who is standing with an empty hand (it arms them, with a
+//       2. the mob's weapon: straight into the hand of a killer who is standing with an empty hand (it arms them, with a
 //          toast, and nothing drops); otherwise dropped as a loose weapon at its feet (loot.ts dropWeapon), unless the killer
 //          already holds that weapon type in either slot. A mob that carries fists (no item) drops nothing;
-//       4. the chainable mobKilled hook (quest objectives).
+//       3. the chainable mobKilled hook (quest objectives).
+//     A kill gives no stat (the per-kill buffs went with the balance pass): power comes from the camps' chests and quests only.
 //   - System `reapMobs`: a corpse older than MOB_CORPSE_MS leaves the state and world.mobs; an idle or returning mob below
 //     full hp heals through heal() (3 s out-of-combat lockout, no fx); a mob walking home is whole when it arrives.
 //   - On `teleported` every regional mob drops its fight (mobAI.resetMob), because everyone alive just left the map.
 import {
-  campMobs, eliteTypeOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobBuffStacks, mobFaction, mobName, mobTypeById, mobWeapon,
+  campMobs, eliteTypeOf, FISTS, isWeaponId, MOB_CORPSE_MS, MOB_REGEN_SECONDS, MOB_REPATH_MS, mobFaction, mobName, mobTypeById, mobWeapon,
   normalTypesOf, WEAPONS, type FactionId, type MobTypeId, type Vec2,
 } from "@raid/shared";
 import { creditMobKill } from "./arena";
-import { grantBuff } from "./buffs";
 import { campEngaged, campMobDied, ensureRosters } from "./camps";
 import { noteCampContributors } from "./campHeal";
 import { combatant, handIsEmpty, isQuestGiver, mobScale, setSlot, standing, type Combatant } from "./combatant";
@@ -123,7 +122,7 @@ export function hurtMob(world: World, c: MobCombatant, amounts: readonly number[
 /**
  * The mob dies this tick. The kill goes to the player who did it the most damage over the whole fight (what each did
  * since it last rested, plus this pass's hits; an exact tie goes to the lower tick rank) among those still in the run,
- * with the death fx naming them; with none it simply falls, and its weapon still drops. The spoils (GV and feed, a buff,
+ * with the death fx naming them; with none it simply falls, and its weapon still drops. The spoils (GV and feed,
  * the weapon) are paid once every victim of the pass has taken their damage (payLater), so they cannot
  * decide who survives it. A player who went down in the same pass still gets the GV and the feed, like any other kill GV.
  * `hpBefore` is the hp the mob had when this pass reached it: the pass's hits count for the hp they removed, so the
@@ -203,7 +202,7 @@ export function mobTypeOf(type: string, region: FactionId, elite: boolean): MobT
 }
 
 function payMobKill(world: World, killerId: string, region: FactionId, elite: boolean, type: MobTypeId, camp: number, weapon: string, at: Vec2, m: number): void {
-  // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed, buff or drop, so a
+  // A training world's practice mobs (sim/training.ts, the console's `camp`) pay nothing: no GV, feed or drop, so a
   // practice kill never changes the build the player set up.
   if (world.config.training) return;
   const p = world.state.players.get(killerId);
@@ -213,7 +212,6 @@ function payMobKill(world: World, killerId: string, region: FactionId, elite: bo
     return;
   }
   creditMobKill(world, p, rt, elite, m);
-  grantBuff(world, p, rt, type, mobBuffStacks(elite) * m);
   if (weapon !== "") awardMobWeapon(world, killerId, weapon, at);
   world.hooks.mobKilled?.(world, rt, { type, zone: region, camp, elite });
 }

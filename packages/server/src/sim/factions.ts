@@ -30,6 +30,17 @@
 //              paid with the pass, the rest by the `healOverTime` system, each through heal() with ignoreLockout. Its rank 2
 //              re-arms at every coliseum teleport (`rearm: "teleport"`: the once-key is forgotten in the teleport hook).
 //   Pestilence (a Plague owner) the execute runs below executeBandOf (0.5 + its executeBand rows) instead of half hp.
+// Cards (balance pass, BALANCE_CONTRACT 3.3 and 4.6; the rows fold in sim/mods.ts) act here as well:
+//   dot, returned   `bonus` multiplies each damage-over-time tick (burn, disease, the mark) by dotMultOf and Fire's backlash by returnedMultOf
+//                   (Boom x1.25 both, Slow Burn x0.7 the first).
+//   AP              every running damage-over-time signature adds AP_DOT_RATIO x the owner's AP as magic damage per second while engaged: a
+//                   second ledger entry with the same `sig`, so the DoT caps, the fx chunks and lifesteal see it as the same damage.
+//   linger          Slow Burn: a DoT signature stays engaged lingerMultOf times ENGAGE_LINGER_SECONDS after the target leaves reach (still
+//                   bounded by the trade window, ENGAGE_TRADE_SECONDS since the last hit or block).
+//   lifestealMult, lifestealDot   Bloodthirst doubles the capped rows, Siphon adds a share for damage over time (shared lifestealTotal, G5).
+//   healTaken       heal() multiplies every heal but lifesteal by healTakenMultOf (Wellspring, Vampiric Pact).
+//   slowResist      Iron Will: the chill's attack-rate cut and move slow are weaker by that share (resistSlow), as are slowMove and
+//                   slowAttack statuses (sim/status.ts) and the bog (sim/terrainEffects.ts).
 // With signatures off (createGameWorld's `signatures: false`) none of these run.
 // Every bonus is raw damage x bonusMultiplier(the owner's weapon in hand), mitigated with the owner's damage shares. It
 // joins this tick's ledger (beforeDamage), so it lands at the same moment as the tick's hits and no order decides.
@@ -46,18 +57,21 @@
 // ... → beforeDamage (contacts from this tick's hits and blocks, reach, signature damage into the ledger) → ledger →
 // systems (lifesteal, the combat clock, the chill for the coming tick, visuals, damage-over-time fx).
 import {
-  attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
+  AP_DOT_RATIO, attackInterval, backlashPerSwing, bonusMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier,
   diseaseDps, DOT_FX_MS, ENGAGE_LINGER_SECONDS, ENGAGE_TRADE_SECONDS, ENGAGE_TRADE_SLACK_SECONDS,
-  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, isDot, lifestealFraction, lifestealShare, markDps, markShare,
-  reachMask, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS, type FactionSpec,
-  SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
+  engageRange, HEAL_LOCKOUT_SECONDS, HEAL_OVER_TIME_STEP_MS, healOverTimeSteps, hasLineOfSight, isDot, lifestealFraction, lifestealTotal,
+  markDps, markShare, reachMask, resistSlow, SIG_BURNING, SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, staggerImmuneUntil, TARGET_FORGET_SECONDS,
+  type DamageShares, type FactionSpec, SIGNATURE_SHARES, type SignatureKind, type TriggerAction, type WeaponId,
 } from "@raid/shared";
 import { grantBarrier } from "./buffs";
 import {
   activeWeapon, allCombatants, combatant, factionOf, isEvading, standing, standingCombatants, timingsOf, type Combatant,
 } from "./combatant";
 import { pvpScale, recordHit } from "./ledger";
-import { executeBandOf, lifestealRowsOf, markRateOf, triggersOf } from "./mods";
+import {
+  apOf, dotMultOf, executeBandOf, healTakenMultOf, lifestealDotOf, lifestealMultOf, lifestealRowsOf, lingerMultOf, markRateOf, returnedMultOf,
+  slowResistOf, triggersOf,
+} from "./mods";
 import { healFactor } from "./status";
 import { chainHook, collisionMap, emit, payLater, tieRank, type PendingAction, type World } from "./world";
 
@@ -306,7 +320,7 @@ function signatureDamage(world: World, dtMs: number): void {
     const weapon = activeWeapon(c.s);
     f.inReach = d <= engageRange(weapon) && hasLineOfSight(map, c.s, t.s, reachMask(weapon));
     if (f.inReach) f.reachAt = now;
-    f.engaged = now - f.reachAt <= ENGAGE_LINGER_SECONDS * 1000 + 1e-6
+    f.engaged = now - f.reachAt <= lingerMs(c) + 1e-6
       && now - f.contactAt <= tradeWindowMs(world, c, t) + 1e-6;
   }
 
@@ -319,11 +333,14 @@ function signatureDamage(world: World, dtMs: number): void {
       const bm = bonusMultiplier(weapon);
       // This tick's damage over time covers (now - dt, now]; a stagger pause takes out whatever share of it overlaps.
       const pausedMs = Math.min(dtMs, Math.max(0, f.dotPausedUntil - (now - dtMs)));
-      const dot = bm * (dtMs - pausedMs) / 1000;
+      const secs = (dtMs - pausedMs) / 1000;
+      const dot = bm * secs;
       const foeFrac = sigOf(world, t.id).hpFrac;
-      bonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot);
-      bonus(world, c, spec, weapon, t, "disease", diseaseDps(spec, foeFrac, executeBandOf(c.s)) * dot);
-      bonus(world, c, spec, weapon, t, "mark", markDps(spec, f.markElapsed) * dot);
+      // AP is flat power in points a second: no weapon multiplier, but the stagger pause takes out its share of the tick too.
+      const apDot = AP_DOT_RATIO * apOf(c.s) * secs;
+      dotBonus(world, c, spec, weapon, t, "burn", burnDps(spec) * dot, apDot);
+      dotBonus(world, c, spec, weapon, t, "disease", diseaseDps(spec, foeFrac, executeBandOf(c.s)) * dot, apDot);
+      dotBonus(world, c, spec, weapon, t, "mark", markDps(spec, f.markElapsed) * dot, apDot);
       const foe = factionOf(t.s);
       if (spec.mechanic === "dragonslayer" && foe) {
         for (const a of rt.attacks) {
@@ -351,13 +368,41 @@ function tradeWindowMs(world: World, a: Combatant, b: Combatant): number {
   return Math.max(ENGAGE_TRADE_SECONDS, slowest + ENGAGE_TRADE_SLACK_SECONDS) * 1000;
 }
 
+/** How long (ms) a fighter stays engaged after its target leaves reach: ENGAGE_LINGER_SECONDS, longer by Slow Burn's `linger` for a damage-over-time signature. */
+function lingerMs(c: Combatant): number {
+  return ENGAGE_LINGER_SECONDS * 1000 * (dealsDot(factionOf(c.s)) ? lingerMultOf(c.s) : 1);
+}
+
+/** The faction's signature deals damage over time (Fire's burn, Plague's disease, Sentenced's mark): Slow Burn's linger means nothing to a Frost or a Holy. */
+function dealsDot(spec: FactionSpec | null | undefined): boolean {
+  return !!spec && (spec.mechanic === "dragonslayer" || spec.mechanic === "rat_king" || spec.mechanic === "marked");
+}
+
+/** The magic damage of AP on a damage-over-time signature (BALANCE_CONTRACT 3.3), whatever type the signature itself deals. */
+const AP_DOT_SHARES: DamageShares = { phys: 0, magic: 1, true: 0 };
+
+/**
+ * One damage-over-time signature's tick: its own amount `raw`, and while it runs (`raw` above 0: the mark only after its ramp
+ * began) the owner's AP as magic damage `apRaw` under the same `sig`.
+ */
+function dotBonus(
+  world: World, c: Combatant, spec: FactionSpec, weapon: WeaponId, t: Combatant, sig: SignatureKind, raw: number, apRaw: number,
+): void {
+  if (!(raw > 0)) return;
+  bonus(world, c, spec, weapon, t, sig, raw);
+  if (apRaw > 0) bonus(world, c, spec, weapon, t, sig, apRaw, AP_DOT_SHARES);
+}
+
 function bonus(
   world: World, c: Combatant, spec: FactionSpec, weapon: WeaponId, t: Combatant, sig: SignatureKind, raw: number,
+  shares: DamageShares = SIGNATURE_SHARES[sig],
 ): void {
+  // The owner's cards: damage over time (Boom, Slow Burn) and Fire's backlash (Boom) are products on the signature's amount.
+  raw *= sig === "backlash" ? returnedMultOf(c.s) : dotMultOf(c.s);
   if (!(raw > 0)) return;
   // Each signature deals its own damage type, whatever the faction's weapon hits are (SIGNATURE_SHARES, BALANCE_CONTRACT 5.2).
   recordHit(world, {
-    victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...SIGNATURE_SHARES[sig] }, weapon, stagger: false, sig,
+    victim: t.id, by: { id: c.id, name: c.s.name }, packet: { raw, ...shares }, weapon, stagger: false, sig,
   });
 }
 
@@ -369,11 +414,15 @@ function afterDamage(world: World, dtMs: number): void {
   const byId = new Map(fighters.map((c) => [c.id, c]));
 
   const dealt = new Map<string, number>();
+  /** The part of `dealt` that was damage over time (Siphon heals more of it). */
+  const dealtDot = new Map<string, number>();
   for (const h of world.combat.landed) {
     if (byId.has(h.victim)) sigOf(world, h.victim).combatAt = now;
     if (byId.has(h.by)) sigOf(world, h.by).combatAt = now;
     // A Race to 0 holder's extra damage feeds no lifesteal (G4): it reads the amount without the multiplier.
-    dealt.set(h.by, (dealt.get(h.by) ?? 0) + h.amount / (h.race ?? 1));
+    const fed = h.amount / (h.race ?? 1);
+    dealt.set(h.by, (dealt.get(h.by) ?? 0) + fed);
+    if (isDot(h.sig) || h.dot === true) dealtDot.set(h.by, (dealtDot.get(h.by) ?? 0) + fed);
     if (isDot(h.sig)) {
       const key = `${h.victim}|${h.by}|${h.sig}`;
       const acc = rt.dot.get(key);
@@ -386,8 +435,14 @@ function afterDamage(world: World, dtMs: number): void {
     if (!c) continue;
     const spec = factionOf(c.s);
     const own = spec?.sustain ? lifestealFraction(spec, sigOf(world, id).hpFrac) : 0;
-    const share = lifestealShare(own, lifestealRowsOf(c.s));
-    if (share > 0) heal(world, c, amount * share, { lifesteal: true });
+    // Holy's own share and the rows' (Bloodthirst doubling them), and for damage over time Siphon's share on top (G5).
+    const rows = lifestealRowsOf(c.s);
+    const mult = lifestealMultOf(c.s);
+    const share = lifestealTotal(own, rows, mult, 0);
+    const onDot = lifestealDotOf(c.s);
+    const dot = onDot > 0 ? dealtDot.get(id) ?? 0 : 0;
+    const gain = (amount - dot) * share + dot * lifestealTotal(own, rows, mult, onDot);
+    if (gain > 0) heal(world, c, gain, { lifesteal: true });
   }
 
   staggerPause(world, fighters);
@@ -471,6 +526,8 @@ function updateChill(world: World, fighters: Combatant[], byId: Map<string, Comb
     const from = chillers.get(c.id);
     let m = 1;
     if (from) for (const id of from) m = Math.min(m, chillOf(byId.get(id)!));
+    // Iron Will: the cut to the attack rate is weaker by the share resisted (so a chilled fighter is still chilled unless it resists it all).
+    m = resistSlow(m, slowResistOf(c.s));
     f.chill = m;
     f.chillers = from ? [...from] : [];
     if (m < 1) {
@@ -494,7 +551,7 @@ function chillMoveMultiplier(world: World, c: Combatant): number {
   for (const id of f.chillers) {
     const frost = combatant(world, id);
     if (frost && standing(frost) && Math.hypot(frost.s.x - c.s.x, frost.s.y - c.s.y) <= CHILL_MOVE_RADIUS) {
-      return CHILL_MOVE_MULT;
+      return resistSlow(CHILL_MOVE_MULT, slowResistOf(c.s));
     }
   }
   return 1;
@@ -541,7 +598,8 @@ function onWeaponSwapped(world: World, c: Combatant): void {
  * Heals a standing fighter by up to `amount` (never past max hp) and emits a `heal` fx. Heals other than lifesteal are
  * refused within HEAL_LOCKOUT_SECONDS of the fighter last dealing or taking damage, unless `ignoreLockout` (Blood Saint's
  * trigger; Last Stand's payback, which comes right after the damage it answers), which skips that lockout and nothing else.
- * An anti-heal status scales every heal, lifesteal included (healFactor). `quiet` sends no fx (a mob's regeneration heals
+ * An anti-heal status scales every heal, lifesteal included (healFactor); the fighter's `healTaken` cards scale every heal but lifesteal
+ * (healTakenMultOf: 1.25 with Wellspring, 0 with Vampiric Pact). `quiet` sends no fx (a mob's regeneration heals
  * every tick, which would be a heal number every tick). Returns the hp gained.
  */
 export function heal(
@@ -552,6 +610,8 @@ export function heal(
   const f = world.factions?.fighters.get(c.id);
   if (!opts.lifesteal && !opts.ignoreLockout && f && now - f.combatAt < HEAL_LOCKOUT_SECONDS * 1000) return 0;
   amount *= healFactor(world, c);
+  // Healing received is stronger or weaker by the fighter's cards (Wellspring, Vampiric Pact); lifesteal is exempt.
+  if (!opts.lifesteal) amount *= healTakenMultOf(c.s);
   if (!(amount > 0)) return 0;
   const before = c.s.hp;
   c.s.hp = Math.min(c.s.maxHp, c.s.hp + amount);

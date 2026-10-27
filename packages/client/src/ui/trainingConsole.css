@@ -54,7 +54,7 @@
   border-radius: var(--radius-sm);
 }
 .train-select:hover { border-color: var(--dim); }
-.train-stacks, .train-rank { flex: 0 0 96px; }
+.train-count { flex: 0 0 96px; }
 
 .train-btn { padding: 3px 9px; font-size: 12px; white-space: nowrap; }
 .train-btn-clear { border-color: var(--danger-line); color: var(--danger-text); }

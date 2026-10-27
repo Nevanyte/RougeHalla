@@ -1,4 +1,5 @@
-// What a headless bot does about a cleared camp's shared chest (ROGUELIKE_PLAN R5: D1-D3, CHEST_* in shared/constants.ts).
+// What a headless bot does about a cleared camp's shared chest (ROGUELIKE_PLAN R5: D1-D3, CHEST_* in shared/constants.ts; the cards
+// of the balance pass, BALANCE_CONTRACT 9: the chooser below is the first, persona-free version; agent A6 gives it the persona's risk).
 // Pure, like mobHunt.ts: it reads a snapshot (the bot, the reward containers in the state, the clock) and answers "pick now",
 // "walk to this chest" or "nothing". BotClient executes the answer: one `choose` message, or a `move`. Nothing here touches a
 // socket or a clock of its own.
@@ -22,8 +23,8 @@
 //      it again a moment later) neither resets the count nor adds to it.
 //   4. A chest that has expired, or is gone from the state, is simply not in the input any more.
 import {
-  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, nextRank, PLAYER_SPEED, skillDef, skillRows, TICK_MS, TILE,
-  type BuildRanks, type Effect, type SkillDef, type Vec2, type WeaponId,
+  CHEST_PANEL_SLACK, CHEST_RANGE, CHEST_SECONDS, cardBlock, cardDef, ownsBase, PLAYER_SPEED, TICK_MS, TILE,
+  type CardCounts, type CardDef, type Vec2, type WeaponId,
 } from "@raid/shared";
 
 /** The part of a state.containers entry the hunt reads: a kind "reward" container (ContainerState). */
@@ -34,7 +35,7 @@ export interface ChestLike {
   y: number;
   /** Server time (ms, the clock of `state.serverTime`) it vanishes. */
   expiresAt: number;
-  /** SkillIds in card order, and who took each ("" = free), and everyone who has made their pick or skipped. */
+  /** Card ids in card order, and who took each ("" = free), and everyone who has made their pick or skipped. */
   options: Iterable<string>;
   takenBy: Iterable<string>;
   pickers: Iterable<string>;
@@ -91,8 +92,8 @@ export interface ChestSelf {
   faction: string;
   /** The carried weapons (both slots; null = empty). */
   weapons: readonly (WeaponId | null)[];
-  /** The skills it holds (PlayerState.build): a pick of one at the top rank is not possible. */
-  build: BuildRanks | null;
+  /** The cards it holds (PlayerState.build, id -> count): a conditional without its base, or a unique card already held, cannot be picked. */
+  build: CardCounts | null;
 }
 
 export interface ChestInput {
@@ -125,43 +126,47 @@ export type ChestDecision =
 const NONE: ChestDecision = { kind: "none" };
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
 
-/** The effect rows' worth to a fighter, in points: damage, attack speed and hp are what a duel is made of. */
-function rowScore(e: Effect): number {
-  switch (e.k) {
-    case "stat":
-      return e.stat === "damage" || e.stat === "attackSpeed" || e.stat === "maxHp" || e.stat === "executeBand" ? 3 : 1;
-    case "flat": return 1.5;
-    case "trigger": return 2;
-    default: return 1.5;
+/** Weapons whose hits scale with attack damage (AD) and those that scale with ability power (AP): shared WeaponSpec.scaling. */
+const AD_WEAPONS: readonly (WeaponId | null)[] = ["sword", "axe", "bow", "fists"];
+const AP_WEAPONS: readonly (WeaponId | null)[] = ["wand", "fists"];
+
+/** Does the card give up something for its power (a negative stat row, a multiplier below 1, a rule)? The persona-free chooser steers clear. */
+function costs(def: CardDef): boolean {
+  return def.effects.some((e) => (e.k === "stat" && e.v < 0) || (e.k === "mult" && e.v < 1) || e.k === "flag");
+}
+
+/** Does a base card suit what the bot carries? AD on an AD weapon, AP on a wand (or fists), armor and magic resist on a shield. */
+function baseFit(def: CardDef, weapons: readonly (WeaponId | null)[]): number {
+  const held = weapons.filter((w) => w !== null);
+  const any = (list: readonly (WeaponId | null)[]): boolean => held.length === 0 ? list.includes("fists") : held.some((w) => list.includes(w));
+  switch (def.base) {
+    case "ad": return any(AD_WEAPONS) ? 1 : -0.5;
+    case "ap": return any(AP_WEAPONS) ? 1 : -1;
+    case "armor":
+    case "mr": return held.includes("shield") ? 1 : 0;
+    default: return 0;
   }
 }
 
-/** Does a skill suit what the bot carries? A skill that names only weapons (Quickdraw's sword, axe and shield: it shortens melee windups only) and none is held does not. */
-function fits(def: SkillDef, weapons: readonly (WeaponId | null)[]): boolean {
-  const named = def.worksWith as readonly string[];
-  const only = named.filter((t) => t === "sword" || t === "bow" || t === "wand" || t === "shield" || t === "axe");
-  if (only.length === 0 || only.length < named.length) return true; // it names no weapon, or something broader as well
-  return only.some((t) => weapons.includes(t as WeaponId));
-}
-
 /**
- * How much a free option is worth to this bot (higher is better): the skill's own zone is its faction's pool (+4), what its
- * rows do for a fight (damage, attack speed and max hp most), a rank 2 upgrade a little, and a skill that needs a weapon the bot
- * does not hold is held back. An id the catalog does not know (newer server content) scores 0: still takeable.
+ * How much a free option is worth to this bot (higher is better): a base card deepening a stat it owns +3 (a new stat +1.5) and its
+ * tier, plus a fit with the weapon in hand; a conditional whose base it owns +4 and its tier; an augment its tier and +2, minus 3 when
+ * it gives something up (Glass Cannon, Here Comes the Boom...). A card it cannot take (a conditional without its base, a unique card it
+ * holds) scores -Infinity, and an id the catalog does not know (newer server content) scores 0: still takeable.
  */
 export function optionScore(id: string, self: Pick<ChestSelf, "faction" | "weapons" | "build">): number {
-  const def = skillDef(id);
-  const next = nextRank(self.build, id);
-  if (!def || next === null) return 0;
-  let score = def.pool === self.faction ? 4 : 0;
-  for (const row of skillRows(id, next, self.faction)) score += rowScore(row);
-  if (next === 2) score += 0.5;
-  if (!fits(def, self.weapons)) score -= 3;
-  return score;
+  const def = cardDef(id);
+  if (!def) return 0;
+  if (cardBlock(id, self.build)) return -Infinity;
+  switch (def.kind) {
+    case "base": return (ownsBase(self.build, def.base!) ? 3 : 1.5) + def.tier + baseFit(def, self.weapons);
+    case "conditional": return 4 + def.tier;
+    case "augment": return def.tier + 2 - (costs(def) ? 3 : 0);
+  }
 }
 
 /**
- * The index of the option to take: the best-scoring free one the bot can use (not taken by someone, not held at the top rank),
+ * The index of the option to take: the best-scoring free one the bot can use (not taken by someone, not refused to it by its build),
  * the first of equals; -1 when there is none (skip).
  */
 export function chooseOption(
@@ -173,8 +178,8 @@ export function chooseOption(
   let bestScore = -Infinity;
   for (let i = 0; i < ids.length; i++) {
     if ((taken[i] ?? "") !== "") continue;
-    if (nextRank(self.build, ids[i]!) === null) continue;
     const score = optionScore(ids[i]!, self);
+    if (score === -Infinity) continue;
     if (score > bestScore) { best = i; bestScore = score; }
   }
   return best;

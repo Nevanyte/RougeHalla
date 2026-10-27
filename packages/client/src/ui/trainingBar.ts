@@ -50,8 +50,6 @@ export class LeaveLatch {
 export interface TrainingBarOptions {
   /** Sends a `train` message to the room; without it the bar has no console. */
   send?: SendTrain;
-  /** The local player's faction, for the console's passive wording. */
-  faction?: () => string | undefined;
 }
 
 export class TrainingBar {
@@ -87,7 +85,7 @@ export class TrainingBar {
     this.leaveButton.hidden = !this.latch.armed;
 
     this.practice = opts.send
-      ? new TrainingConsole(opts.send, { faction: opts.faction, onToggle: () => this.applyPhase(true) })
+      ? new TrainingConsole(opts.send, { onToggle: () => this.applyPhase(true) })
       : null;
     this.root.append(this.tips);
     if (this.practice) this.root.append(this.practice.root);

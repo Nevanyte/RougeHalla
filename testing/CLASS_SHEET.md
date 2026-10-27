@@ -1,6 +1,8 @@
 # RPSLS Combat System: Design Sheet
 
-Five powers, one rulebook, zero matchup rules. Every counter below comes from the same six laws applied to different numbers, and every signature mechanic is *felt*: remove it and matchups visibly flip. All values sit on a design grid (HP in 50s, rates in 0.05s, damage in 5s, armor/shield in 25s, damage shares in 10%s).
+Five powers, one rulebook, zero matchup rules. Every counter below comes from the same six laws applied to different numbers, and every signature mechanic is *felt*: remove it and matchups visibly flip. Rates and damage shares sit on the original design grid (rates in 0.05s, shares in 10%s); since the balance pass the HP, hit, armor, shield and signature numbers do not (see the next note).
+
+**Revision note (balance pass).** The sheet below is the compressed one of docs/ and testing/TUNING_BALANCE.md (BALANCE_CONTRACT 5.2). The old sheet was a clean five-cycle in which the favourite won every duel with 27-77% of its health left (the loser's time-to-kill ratio r ran 1.35 to 6.1); a favourite that always wins is not a matchup, it is a wall. The numbers were moved, by search over the whole sheet and checked in the real sim, so that every edge leaves its winner **10-35% hp** (r 1.12-1.54) and wins **60-70% of even duels once play noise is in** (each fighter's damage times exp(0.45 Z): P(favourite) = Phi(ln r / 0.636)). The laws (section 1) and the matrix shape do not change; the signature **damage types** do (decision D6): burn and disease are magic, Fire's backlash physical, the mark true, whatever the faction's own shares are (`engine.PowerSpec.sig_types`). The identity test still holds (section 4: the recorded numbers are the new sheet's). The tables in sections 4, 5 and 6 are regenerated; the class cards in section 3 describe the identities, which are unchanged.
 
 **Revision note (v3).** Fire and Frost now attack faster with lighter hits: Fire 0.3 to 0.6/s at 150 damage (was 305, base DPS 92 to 90), Frost 0.3 to 0.45/s at 90 damage (was 135, DPS unchanged), and Fire's backlash drops from 210 to 200. Sentenced, Plague and Holy, and every HP, share, armor and shield number, are unchanged, so the laws (section 1) and the multiplier matrix (section 5) do not move. Weapons are a % boost on these base rates (see docs/GAME_DESIGN.md section 10). The cost: Frost's faster swings feed Fire's backlash, so Frost over Fire is closer (winner keeps 49%, was 59%). It still does not flip.
 
@@ -19,11 +21,13 @@ A signature mechanic is a function of *(own parameters, universal state)* and no
 
 | Power | Role | HP | Attack rate | Hit | Base DPS | Damage mix (phys / magic / true) | Armor | Shield |
 |---|---|---|---|---|---|---|---|---|
-| Fire | Glass-cannon duelist | 500 (Very low) | 0.6/s (Low) | 150 | 90 (Very high) | 0% / 100% / 0% | 0 | 125 |
-| Sentenced | Patient executioner | 700 (Low) | 0.9/s (Mid) | 5 | 4 (Very low) | 0% / 100% / 0% | 100 | 50 |
-| Plague | Attrition swarm | 1000 (Mid) | 1.85/s (Very high) | 20 | 37 (Low) | 80% / 20% / 0% | 200 | 0 |
-| Frost | Control bruiser | 1750 (Very high) | 0.45/s (Very low) | 90 | 40 (Mid) | 90% / 10% / 0% | 100 | 100 |
-| Holy | Sustain juggernaut | 1450 (High) | 0.95/s (High) | 65 | 62 (High) | 100% / 0% / 0% | 0 | 250 |
+| Fire | Glass-cannon duelist | 835 (Mid) | 0.6/s (Low) | 100 | 60 (High) | 0% / 100% / 0% | 0 | 45 |
+| Sentenced | Patient executioner | 800 (Mid) | 0.9/s (Mid) | 10 | 9 (Very low) | 0% / 100% / 0% | 125 | 210 |
+| Plague | Attrition swarm | 1375 (High) | 1.85/s (Very high) | 20 | 37 (Low) | 80% / 20% / 0% | 190 | 0 |
+| Frost | Control bruiser | 1200 (Mid) | 0.45/s (Very low) | 175 | 79 (High) | 90% / 10% / 0% | 20 | 190 |
+| Holy | Sustain juggernaut | 1400 (High) | 0.95/s (High) | 96 | 91 (Very high) | 100% / 0% / 0% | 0 | 250 |
+
+Signature numbers (raw per second unless noted; paced x2, the mark ramp x4): Fire burn 18 (magic), backlash 145 (physical, per second of the foe's attack rate); Sentenced mark ramp 17.5/s up to a cap of 72 (true; full in 4.1 s, 2.1 s paced); Plague disease 43 (magic) plus an execute of 415 below half hp; Frost slow 0.52 (attack rate x0.48; move x0.7 inside 100 u); Holy lifesteal 10% + 80% of its missing health, capped at 75%.
 
 ## 3. Class cards
 
@@ -80,15 +84,15 @@ Rule: a *main* signature must flip at least one of the owner's four required edg
 
 | Power | Remove | Edges that flip | Largest margin shift |
 |---|---|---|---|
-| Fire | Remove burn and backlash | Fire > Sentenced, Fire > Plague | 131 points |
-| Fire | Remove backlash only (sub) | Fire > Sentenced, Fire > Plague | 127 points |
-| Sentenced | Remove the mark | Sentenced > Plague, Sentenced > Frost | 152 points |
-| Sentenced | Mark appears at full strength (no ramp) (sub) | none | 70 points |
-| Plague | Remove the execute | Plague > Frost | 43 points |
-| Plague | Remove the flat disease (sub) | Plague > Frost | 114 points |
-| Frost | Remove the slow | Frost > Holy | 103 points |
-| Holy | Remove lifesteal | Holy > Sentenced | 30 points |
-| Holy | Flat lifesteal (no missing-health scaling) (sub) | none | 19 points |
+| Fire | Remove burn and backlash | Fire > Sentenced, Fire > Plague | 97 points |
+| Fire | Remove backlash only (sub) | Fire > Sentenced, Fire > Plague | 88 points |
+| Sentenced | Remove the mark | Sentenced > Plague, Sentenced > Frost | 119 points |
+| Sentenced | Mark appears at full strength (no ramp) (sub) | none | 17.7 points |
+| Plague | Remove the execute | Plague > Frost, Plague > Holy | 31 points |
+| Plague | Remove the flat disease (sub) | Plague > Frost, Plague > Holy | 78 points |
+| Frost | Remove the slow | Frost > Holy | 68 points |
+| Holy | Remove lifesteal | Holy > Fire | 26 points |
+| Holy | Flat lifesteal (no missing-health scaling) (sub) | none | 20.2 points |
 
 ## 5. Emergent damage multipliers (how much of a packet survives)
 
@@ -96,34 +100,36 @@ Row attacks column. This is the *whole* interaction layer: no table is stored, i
 
 | attacker \ defender | Fire | Sentenced | Plague | Frost | Holy |
 |---|---|---|---|---|---|
-| **Fire** | - | 0.67 | 1.00 | 0.50 | 0.29 |
-| **Sentenced** | 0.44 | - | 1.00 | 0.50 | 0.29 |
-| **Plague** | 0.89 | 0.53 | - | 0.50 | 0.86 |
-| **Frost** | 0.94 | 0.52 | 0.40 | - | 0.93 |
-| **Holy** | 1.00 | 0.50 | 0.33 | 0.50 | - |
+| **Fire** | - | 0.32 | 1.00 | 0.34 | 0.29 |
+| **Sentenced** | 0.69 | - | 1.00 | 0.34 | 0.29 |
+| **Plague** | 0.94 | 0.42 | - | 0.74 | 0.86 |
+| **Frost** | 0.97 | 0.43 | 0.41 | - | 0.93 |
+| **Holy** | 1.00 | 0.44 | 0.34 | 0.83 | - |
+
+(Weapon hits, by the attacker's own shares. A signature part uses its own type: burn and disease are magic, the backlash physical, the mark true: the column of the defender's shield, armor or neither.)
 
 ## 6. Matchup results (verified by simulation)
 
 | Winner | Loser | Fight length | Winner HP left |
 |---|---|---|---|
-| Fire | Sentenced | 3.7s | 77% |
-| Fire | Plague | 2.1s | 71% |
-| Sentenced | Plague | 7.4s | 56% |
-| Sentenced | Frost | 16.6s | 51% |
-| Plague | Frost | 37.0s | 40% |
-| Plague | Holy | 15.8s | 67% |
-| Frost | Holy | 52.3s | 63% |
-| Frost | Fire | 13.1s | 49% |
-| Holy | Fire | 8.1s | 69% |
-| Holy | Sentenced | 22.7s | 27% |
+| Fire | Sentenced | 9.6s | 28% |
+| Fire | Plague | 8.1s | 34% |
+| Sentenced | Plague | 18.8s | 19% |
+| Sentenced | Frost | 18.3s | 22% |
+| Plague | Frost | 32.2s | 24% |
+| Plague | Holy | 35.0s | 20% |
+| Frost | Holy | 25.8s | 22% |
+| Frost | Fire | 10.9s | 36% |
+| Holy | Fire | 9.2s | 22% |
+| Holy | Sentenced | 19.7s | 27% |
 
-Tightest edge: Holy over Sentenced, winner keeps 27%. Longest fight: Frost over Holy, 52s. Every winner finishes with at least a quarter of its health.
+Closest edge: Sentenced over Plague, winner keeps 19%. Widest: Frost over Fire, 36%. Longest fight: Plague over Holy, 35s (k = 1, the sheet's own pace; the game fights at k = 2, half as long). Every winner finishes with 19-36% of its health: `python3 testing/matchup_band.py` prints the band.
 
 ## 7. Scaling and tuning
 
 **Power level.** `scaled(spec, k)` multiplies HP and every point-damage number by `k`; ratios (rates, shares, armor, shield, slow, lifesteal) are untouched. The graph is invariant under `k`, tested from 0.25x to 20x.
 
-**Tuning knobs.** Measured, not guessed: each knob was moved +-25% and the change in the winner's remaining HP was recorded (points of winner HP; one point = 1% of its max HP).
+**Tuning knobs.** (Measured on the pre-balance-pass sheet; the order of magnitude holds, the exact points do not.) Measured, not guessed: each knob was moved +-25% and the change in the winner's remaining HP was recorded (points of winner HP; one point = 1% of its max HP).
 No single +-25% change to any knob in this table flips an edge, so the design has slack. The core stats have one exception: Holy's hit or attack rate at -25% flips Holy > Sentenced.
 
 | Knob | Moves most | Points (per +-25%) |
@@ -146,7 +152,7 @@ The last two rows move a power's attack rate by +-25% and its hit the opposite w
 
 A knob with a small slider effect can still be decisive as a threshold. Holy's lifesteal numbers and Plague's execute move margins only a few points when nudged, yet removing lifesteal flips Holy over Sentenced and removing the execute flips Plague over Frost (section 4). Use the identity test, not the slider table, to judge whether a signature still matters.
 
-**Known soft spot.** Fire's burn (10 per second) is nearly cosmetic: its backlash does the work, and removing backlash alone flips both of Fire's wins. If you want burn to matter, raise it and retune; the identity test will tell you when it has an effect.
+**Known soft spot.** (Pre-balance-pass; burn is now 18 and typed magic.) Fire's burn (10 per second) is nearly cosmetic: its backlash does the work, and removing backlash alone flips both of Fire's wins. If you want burn to matter, raise it and retune; the identity test will tell you when it has an effect.
 
 Largest structural lever: the damage shares and armor/shield values, because they set the whole multiplier matrix in section 5.
 
@@ -154,6 +160,6 @@ Largest structural lever: the damage shares and armor/shield values, because the
 
 ## 8. Verification
 
-`python3 test_rpsls.py` runs: the exact 10-edge graph at dt = 0.01, 0.005, 0.002, 0.001; each power beats exactly two; invariance under power scaling (0.25x to 20x); invariance under renaming and reordering powers; robustness to random jitter on every numeric field (+-5% and +-10%); an AST audit that the engine names no power and compares no names; and the nine identity tests from section 4.
+`python3 test_rpsls.py` runs: the exact 10-edge graph at dt = 0.01, 0.005, 0.002, 0.001; each power beats exactly two; invariance under power scaling (0.25x to 20x); invariance under renaming and reordering powers; robustness to random jitter on every numeric field (+-3% every time, +-5% in 28 of 30 draws; +-10% is reported only, because the compressed edges sit inside it by definition); an AST audit that the engine names no power and compares no names; and the nine identity tests from section 4.
 
 **Limits.** These results cover 1v1 duels at equal level in the continuous simulator (`engine.py`); group fights, items, cooldowns and level mismatches are not modeled there. Weapons and attack cadence are checked separately by the 20 Hz weapon-duel harness (`python3 realtime_report.py`, needs numpy; see docs/GAME_DESIGN.md section 17), which sweeps every first-swing timing and HP and attack-speed buffs. Group fights are not modeled anywhere. Fight lengths are long in places (Frost over Holy, Plague over Frost), which suits an attrition-style game but may want a damage or HP pass if you want faster duels.

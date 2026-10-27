@@ -18,7 +18,7 @@ import { aggro, resetMob } from "../src/sim/mobAI";
 import { hurtMob, placeMob, type MobCombatant } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import { advanceAlongPath, planPath, regripPath, tickVelocity, walkFighter } from "../src/sim/movement";
-import { recomputeMods, speedMultOf } from "../src/sim/mods";
+import { recomputeMods, setExtraRows, speedMultOf } from "../src/sim/mods";
 import { addPlayer, startRaid, step } from "../src/sim/step";
 import { applyBog, LIGHT_FX_MS, slipAccelOf, surfaceOf, TERRAIN_SOURCE } from "../src/sim/terrainEffects";
 import { installTraining } from "../src/sim/training";
@@ -483,6 +483,16 @@ describe("bog slow", () => {
     expect(buff).toBeCloseTo(1.2, 3);
     const moved = walkOneSecond(world, "p0");
     expect(moved).toBeCloseTo(PLAYER_SPEED * 0.7 * buff, 6);
+  });
+
+  it("Iron Will (slowResist) makes the bog a weaker slow: 40% resist walks at 0.82 instead of 0.7", () => {
+    const world = bogWorld([{ faction: "fire", at: at(3, 10) }, { faction: "fire", at: at(3, 24) }]);
+    setExtraRows(world, combatant(world, "p0")!, [{ k: "stat", stat: "slowResist", v: 0.4 }]);
+    const moved = walkOneSecond(world, "p0");
+    expect(moved).toBeCloseTo(PLAYER_SPEED * 0.82, 6);
+    expect(applyBog(world, combatant(world, "p0")!)).toBeCloseTo(0.82, 12);
+    // a fighter without the card still walks at 0.7
+    expect(applyBog(world, combatant(world, "p1")!)).toBeCloseTo(0.7, 12);
   });
 
   it("a centre on plain ground beside bog walks at full speed, and slows the tick it is on bog", () => {

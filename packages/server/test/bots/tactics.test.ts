@@ -3,7 +3,7 @@
 // rules; and the dispatch of the world goals. Everything runs on plain-data contexts from fixtures.ts, seeded, with no clock.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, FACTIONS, hasLineOfSight, lockSpacing, mapFromTiles, mulberry32, pacedFaction, TARGET_RANGE, TILE,
+  attackInterval, FACTIONS, hasLineOfSight, lockSpacing, mapFromTiles, mirrorTimings, mulberry32, pacedFaction, TARGET_RANGE, TILE,
   type GameMap, type Rng, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { createTactics, channelOf } from "../../src/bots/brain/tactics";
@@ -1063,5 +1063,39 @@ describe("the numbers under the cycle", () => {
     expect(bow.intervalMs).toBeCloseTo(attackInterval(spec, "bow") * 1000, 6);
     expect(bow.windupMs).toBeLessThanOrEqual(600);
     expect(bow.windupMs).toBeGreaterThan(0);
+  });
+
+  // The bots' timings are shared mirrorTimings, the function the server's timingsOf and the client's bow pull read: a ranged windup
+  // is the anti-kiting lever and never goes below its value at base speed, however fast the fighter is (G9).
+  it("a faster bot's ranged windup stays at its base-speed value, and the cooldown still shrinks", () => {
+    for (const faction of ["fire", "sentenced", "plague", "frost", "holy"] as const) {
+      for (const weapon of ["bow", "wand"] as const) {
+        const base = ownTimings(selfView({ faction, asMult: 1 }), weapon)!;
+        for (const asMult of [1.05, 1.25, 1.6]) {
+          const fast = ownTimings(selfView({ faction, asMult }), weapon)!;
+          expect(fast.windupMs, `${faction} ${weapon} x${asMult}`).toBeCloseTo(base.windupMs, 9);
+          expect(fast.intervalMs, `${faction} ${weapon} x${asMult}`).toBeLessThan(base.intervalMs);
+        }
+      }
+    }
+  });
+
+  it("is mirrorTimings for every faction, weapon and mirror, and a melee windup follows the windup mirror", () => {
+    for (const faction of ["fire", "sentenced", "plague", "frost", "holy"] as const) {
+      const spec = pacedFaction(FACTIONS[faction]);
+      for (const weapon of ["sword", "axe", "bow", "wand", "shield"] as const) {
+        for (const [asMult, windupMult] of [[1, 1], [1.4, 1], [0.8, 1], [1.2, 0.5], [1, 1.2]] as const) {
+          const t = mirrorTimings(spec, weapon, asMult, windupMult);
+          const own = ownTimings(selfView({ faction, asMult, windupMult }), weapon)!;
+          expect(own.intervalMs, `${faction} ${weapon} ${asMult}/${windupMult}`).toBeCloseTo(t.interval * 1000, 9);
+          expect(own.windupMs, `${faction} ${weapon} ${asMult}/${windupMult}`).toBeCloseTo(t.windup * 1000, 9);
+        }
+      }
+    }
+    // Quickdraw halves a sword's windup and leaves a bow's alone
+    expect(ownTimings(selfView({ faction: "fire", windupMult: 0.5 }), "sword")!.windupMs)
+      .toBeLessThan(ownTimings(selfView({ faction: "fire" }), "sword")!.windupMs);
+    expect(ownTimings(selfView({ faction: "fire", windupMult: 0.5 }), "bow")!.windupMs)
+      .toBe(ownTimings(selfView({ faction: "fire" }), "bow")!.windupMs);
   });
 });

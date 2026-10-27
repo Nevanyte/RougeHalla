@@ -1303,7 +1303,7 @@ describe("stagger", () => {
     expect(stagger(world, C(world))).toBe(true);
     expect(RT(world).weapon.action).toBeNull();
     expect(P(world).readyAt).toBe(ready);
-    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + 500);
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + STAGGER_IMMUNITY_SECONDS * 1000);
     expect(world.events.some((e) => e.type === "fx" && e.fx.kind === "stagger" && e.fx.id === "p0")).toBe(true);
     run(world, 10);
     expect(landed).toHaveLength(0);
@@ -1362,7 +1362,8 @@ describe("stagger", () => {
   });
 
   it("is ignored for STAGGER_IMMUNITY_SECONDS after a stagger, then works again", () => {
-    expect(STAGGER_IMMUNITY_SECONDS).toBe(0.5);
+    expect(STAGGER_IMMUNITY_SECONDS).toBe(1.2);
+    const imm = STAGGER_IMMUNITY_SECONDS * 1000;
     const world = startRun();
     arm(world, 0, "frost", "sword");
     expect(stagger(world, C(world))).toBe(true);
@@ -1372,12 +1373,12 @@ describe("stagger", () => {
     expect(RT(world).weapon.action).not.toBeNull();
     expect(stagger(world, C(world))).toBe(false); // immune: the swing is not cancelled
     expect(RT(world).weapon.action).not.toBeNull();
-    runTo(world, first + 450);
+    runTo(world, first + imm - TICK_MS);
     expect(stagger(world, C(world))).toBe(false);
-    expect(RT(world).weapon.staggerImmuneUntil).toBe(first + 500);
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(first + imm);
     tick(world);
     expect(stagger(world, C(world))).toBe(true);
-    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + 500);
+    expect(RT(world).weapon.staggerImmuneUntil).toBe(T(world) + imm);
     tick(world);
     // The swing had landed by then, so none of the three found a windup to cancel: no marks (see the next test).
     expect(fxOf("stagger")).toHaveLength(0);
@@ -1392,7 +1393,7 @@ describe("stagger", () => {
     tick(bow);
     expect(RT(bow).weapon.action?.kind).toBe("draw");
     expect(stagger(bow, C(bow))).toBe(true); // still starts the immunity ...
-    expect(RT(bow).weapon.staggerImmuneUntil).toBe(T(bow) + 500);
+    expect(RT(bow).weapon.staggerImmuneUntil).toBe(T(bow) + STAGGER_IMMUNITY_SECONDS * 1000);
     expect(marks(bow)).toBe(0); // ... but nothing was interrupted, so there is no mark
 
     const idle = startRun();

@@ -1,5 +1,5 @@
 import {
-  FACTIONS, QUEST_ITEM_PREFIX, QUEST_TURN_IN_RANGE, buffDef, questDefById,
+  FACTIONS, QUEST_ITEM_PREFIX, QUEST_TURN_IN_RANGE, questDefById, questRewardText,
   type GameMap, type QuestDef, type QuestKind, type QuestRevealMessage,
 } from "@raid/shared";
 
@@ -129,10 +129,7 @@ function numberText(value: number): string {
 }
 
 export function questReward(def: QuestDef): string {
-  const reward = def.reward as QuestDef["reward"] & { buff?: string; stat?: string };
-  const buff = typeof reward.buff === "string" ? buffDef(reward.buff) : undefined;
-  const what = buff?.name ?? (reward.stat === "attackSpeed" ? "attack speed" : reward.stat === "moveSpeed" ? "move speed" : reward.stat === "hp" ? "max hp" : "buff");
-  return `${numberText(reward.stacks)} ${what} stacks · ${numberText(reward.gv)} GV`;
+  return questRewardText(def);
 }
 
 export function questObjective(def: QuestDef): string {

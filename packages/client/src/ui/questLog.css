@@ -1,5 +1,5 @@
 /* The J quest log (ui/questLog.ts). Its box comes from ui/questLogLayout.ts through the four custom properties below: under the
-   HUD plate's measured bottom edge (the plate grows with the buff strip), clear of the weapon bar. The fallbacks only matter
+   HUD plate's measured bottom edge (the plate grows with the cards row), clear of the weapon bar. The fallbacks only matter
    for the frame before the first placement, and the log is hidden then. z-index ladder (chest panel 8, planning screen 10,
    toasts 15, chrome 20): above the planning screen so J works there, under the toasts and the chrome. */
 #ui > .quest-log {

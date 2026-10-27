@@ -14,7 +14,7 @@
 //     randomness comes from the seeded streams in BrainRngs, so a headless tournament replays exactly.
 import {
   INTERP_DELAY_MS, Y_SCALE,
-  type BuffId, type ClientMessages, type FactionId, type GameMap, type ProjectileEnd, type ProjectileKind,
+  type ClientMessages, type FactionId, type GameMap, type ProjectileEnd, type ProjectileKind,
   type Rng, type RunOutcome, type RunResult, type SignatureKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 
@@ -116,7 +116,7 @@ export interface TierParams {
   readonly wary: number;
   /**
    * Mob farming is paid for in hp (a starter loses about 20% of it on each of its first two kills and gets no hp back): the matchup
-   * share a normal mob and an elite need (mobHunt's `mobMinShare` / `eliteMinShare`; an elite is also taken with three stacks at
+   * share a normal mob and an elite need (mobHunt's `mobMinShare` / `eliteMinShare`; an elite is also taken with six card power at
    * 0.4), and the hp share below which no new mob fight is opened.
    */
   readonly caution: { readonly mobShare: number; readonly eliteShare: number; readonly startHp: number };
@@ -337,10 +337,12 @@ export interface SelfView {
   readonly immuneUntil: ServerMs;
   readonly sig: number;
   readonly brand: number;
-  /** The build strip's power in stacks at the quoted value (shared buffPower over the buffs the HUD shows: 3 for one buff at 3 stacks). */
-  readonly stacks: number;
+  /** The build's card power (shared cardPower: the sum of tier x count over the cards the HUD's build strip shows). */
+  readonly power: number;
   /** Decoded stat mirrors (shared mods.ts decodeMult): the HUD's attack and move speed. */
   readonly asMult: number;
+  /** The windup mirror, decoded (what shared mirrorTimings reads; absent: 1). */
+  readonly windupMult?: number;
   readonly speedMult: number;
   readonly kills: number;
   readonly mobKills: number;
@@ -516,7 +518,6 @@ export type ObservedEvent = EventBase & (
   /** A player's death is announced by name everywhere ("X was killed"); `at` and `by` only when it happened on screen. */
   | { readonly kind: "death"; readonly id: FighterId; readonly name: string; readonly by: FighterId | null; readonly mob: boolean }
   | { readonly kind: "heal"; readonly id: FighterId; readonly amount: number }
-  | { readonly kind: "buff"; readonly id: FighterId; readonly buff: BuffId; readonly stacks: number; readonly total: number }
   | { readonly kind: "teleport" }
   | { readonly kind: "bounty"; readonly id: FighterId; readonly name: string; readonly bounty: number }
   | { readonly kind: "victory"; readonly id: FighterId | null; readonly name: string | null; readonly draw: boolean }

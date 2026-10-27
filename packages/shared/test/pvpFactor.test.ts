@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  cardPower, cardTierOf, HP_RACE_CAP, hpRaceMult, PVP_F0, PVP_FMAX, PVP_P0, pvpFactor, SIGNATURE_SHARES,
-} from "../src/index";
+import { HP_RACE_CAP, hpRaceMult, PVP_F0, PVP_FMAX, PVP_P0, pvpFactor, SIGNATURE_SHARES } from "../src/index";
 
 describe("pvpFactor", () => {
   it("is the contract's curve: 0.75 + 2.25 (1 - exp(-P / 6))", () => {
@@ -25,29 +23,6 @@ describe("pvpFactor", () => {
 
   it("gains half of its growth by P 4: the snowball brake", () => {
     expect(pvpFactor(4)).toBeGreaterThan((PVP_F0 + PVP_FMAX) / 2 - 0.1);
-  });
-});
-
-describe("cardPower", () => {
-  it("is the sum of tier x count over the cards (a base card stacks)", () => {
-    expect(cardPower({})).toBe(0);
-    expect(cardPower(null)).toBe(0);
-    expect(cardPower(undefined)).toBe(0);
-    expect(cardPower({ ad1: 1 })).toBe(1);
-    expect(cardPower({ ad2: 2, haste1: 1 })).toBe(5);
-    expect(cardPower({ ad3: 1, ap3: 1, armor1: 3 })).toBe(9);
-  });
-
-  it("reads a Map or a MapSchema the same way (anything with forEach(count, id))", () => {
-    expect(cardPower(new Map([["ad2", 2], ["vitality1", 1]]))).toBe(5);
-  });
-
-  it("counts a card it does not know (today's passives, an augment) as tier 1 per rank, and nothing for a count of 0", () => {
-    expect(cardTierOf("whetstone")).toBe(1);
-    expect(cardTierOf("hereComesTheBoom")).toBe(1);
-    expect(cardTierOf("ad3")).toBe(3);
-    expect(cardTierOf("fleet2")).toBe(2);
-    expect(cardPower({ whetstone: 2, ad3: 0 })).toBe(2);
   });
 });
 

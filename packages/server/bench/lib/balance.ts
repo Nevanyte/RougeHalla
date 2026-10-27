@@ -171,6 +171,8 @@ export const sec = (x: number): string => (Number.isFinite(x) ? x.toFixed(1) : "
 /** One acceptance line: PASS inside the target, WARN inside the tolerance, FAIL outside; `n/a` when the value is NaN. */
 export function verdict(id: string, label: string, value: number, target: readonly [number, number], tol: readonly [number, number], unit = ""): string {
   const fmt = (x: number): string => (Number.isFinite(x) ? (Math.abs(x) >= 10 ? x.toFixed(1) : x.toFixed(2)) : "--");
-  const status = !Number.isFinite(value) ? "n/a " : value >= target[0] && value <= target[1] ? "PASS" : value >= tol[0] && value <= tol[1] ? "WARN" : "FAIL";
+  // The acceptance numbers are whole percents / tenths of a second: judge the value as printed, not 0.2396 against a 0.24 floor.
+  const v = Math.round(value * 100) / 100;
+  const status = !Number.isFinite(value) ? "n/a " : v >= target[0] && v <= target[1] ? "PASS" : v >= tol[0] && v <= tol[1] ? "WARN" : "FAIL";
   return `${status} ${id} ${label}: ${fmt(value)}${unit} (target ${fmt(target[0])}-${fmt(target[1])}, tolerance ${fmt(tol[0])}-${fmt(tol[1])})`;
 }

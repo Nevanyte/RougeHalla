@@ -90,7 +90,7 @@ const revealsTo = (events: readonly SimEvent[]): string[] => events.flatMap((e) 
 const nobodyProgressed = (qt: QuestRuntime): boolean => qt.s.progress.size === 0;
 
 describe("a player kill (A Head for a Head)", () => {
-  it("is not advanced, and pays no GV or buff, when a human kills a fill bot", () => {
+  it("is not advanced, and pays no GV or card, when a human kills a fill bot", () => {
     const w = makeRun();
     const hh = offer(w, "headhunter");
     place(w, "p0", GIVER);
@@ -103,7 +103,7 @@ describe("a player kill (A Head for a Head)", () => {
     const events = step(w, TICK_MS);
     expect(hh.s.status).toBe("open");
     expect(RT(w, "p0").gv.quest).toBe(0);
-    expect(P(w, "p0").buffs.get(hh.def.reward.buff) ?? 0).toBe(0);
+    expect(P(w, "p0").build.get(hh.def.reward.card) ?? 0).toBe(0);
     expect(events.some((e) => e.type === "gv" && e.reason === "quest")).toBe(false);
   });
 
@@ -197,7 +197,7 @@ describe("tokens and parcels", () => {
     expect(qt.s.status).toBe("done");
     expect(qt.s.doneBy).toBe("alice");
     expect(RT(w, "b0").gv.quest).toBe(0);
-    expect(P(w, "b0").buffs.get(qt.def.reward.buff) ?? 0).toBe(0);
+    expect(P(w, "b0").build.get(qt.def.reward.card) ?? 0).toBe(0);
   });
 
   it("a bot alone at the giver with a finished objective leaves the offer open", () => {

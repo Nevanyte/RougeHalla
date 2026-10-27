@@ -3,7 +3,7 @@
 // fails it.
 import { describe, expect, it } from "vitest";
 import {
-  assertNever, buffDef, buffRows, buffScale, decodeFlat, decodeMirrors, decodeMult, EFFECT_KINDS, EFFECT_KINDS_COMPLETE,
+  assertNever, cardRows, decodeFlat, decodeMirrors, decodeMult, EFFECT_KINDS, EFFECT_KINDS_COMPLETE,
   EFFECT_STATS, encodeFlat, encodeMirrors, encodeMult, FLAT_STATS, FLAT_WIRE_PER_POINT, foldStatRows, IDENTITY_MIRRORS,
   isFlatStat, MIRROR_FIELDS, MOD_MULT_MAX, MOD_MULT_MIN, mirrorsFromSums, MULT_WIRE_PER_UNIT, requirementsMet, visitEffect,
   WIRE_IDENTITY_MIRRORS, zeroSums,
@@ -22,6 +22,9 @@ const ROWS: Effect[] = [
   { k: "while", cond: "hpBelow", arg: 0.3, stat: "attackSpeed", v: 0.25 },
   { k: "onHit", status: "slowAttack", per: 0.03, cap: 0.15, ms: 2000 },
   { k: "trigger", on: "hpBelow", arg: 0.3, once: true, do: { do: "heal", share: 0.1, ignoreLockout: true } },
+  { k: "convert", from: "ad", to: "armor", per: 0.25 },
+  { k: "mult", key: "hit", v: 2.5 },
+  { k: "flag", flag: "noCrit" },
 ];
 
 describe("the Effect union", () => {
@@ -37,26 +40,33 @@ describe("the Effect union", () => {
     const visitor: EffectVisitor<string> = {
       stat: (e) => `stat:${e.stat}`, flat: (e) => `flat:${e.stat}`, vs: (e) => `vs:${e.test}`, scale: (e) => `scale:${e.src}`,
       while: (e) => `while:${e.cond}`, onHit: (e) => `onHit:${e.status}`, trigger: (e) => `trigger:${e.on}`,
+      convert: (e) => `convert:${e.from}>${e.to}`, mult: (e) => `mult:${e.key}`, flag: (e) => `flag:${e.flag}`,
     };
     expect(ROWS.map((r) => visitEffect(r, visitor))).toEqual([
       "stat:attackSpeed", "flat:armor", "vs:slowed", "scale:ownMissingHp", "while:hpBelow", "onHit:slowAttack", "trigger:hpBelow",
+      "convert:ad>armor", "mult:hit", "flag:noCrit",
     ]);
     // @ts-expect-error a visitor without the trigger case does not compile
-    const partial: EffectVisitor<number> = { stat: () => 0, flat: () => 0, vs: () => 0, scale: () => 0, while: () => 0, onHit: () => 0 };
+    const partial: EffectVisitor<number> = {
+      stat: () => 0, flat: () => 0, vs: () => 0, scale: () => 0, while: () => 0, onHit: () => 0, convert: () => 0, mult: () => 0, flag: () => 0,
+    };
+    // @ts-expect-error nor one without the balance pass's convert, mult or flag
+    const partial2: EffectVisitor<number> = { stat: () => 0, flat: () => 0, vs: () => 0, scale: () => 0, while: () => 0, onHit: () => 0, trigger: () => 0 };
+    expect(partial2).toBeDefined();
     expect(partial).toBeDefined();
   });
 
   it("an exhaustive switch needs every case before assertNever compiles; at runtime assertNever throws", () => {
     const describeKind = (e: Effect): number => {
       switch (e.k) {
-        case "stat": case "flat": case "vs": case "scale": case "while": case "onHit": case "trigger": return 1;
+        case "stat": case "flat": case "vs": case "scale": case "while": case "onHit": case "trigger": case "convert": case "mult": case "flag": return 1;
         default: return assertNever(e, "effect kind");
       }
     };
     expect(ROWS.map(describeKind)).toEqual(ROWS.map(() => 1));
     const missing = (e: Effect): number => {
       switch (e.k) {
-        case "stat": case "flat": case "vs": case "scale": case "while": case "onHit": return 1;
+        case "stat": case "flat": case "vs": case "scale": case "while": case "onHit": case "convert": case "mult": case "flag": return 1;
         // @ts-expect-error the trigger case is missing, so `e` is not `never` here
         default: return assertNever(e);
       }
@@ -89,11 +99,14 @@ describe("the Effect union", () => {
   });
 
   it("the stat keys: fractions for EffectStat, points for FlatStat", () => {
-    expect(EFFECT_STATS).toHaveLength(11);
-    expect(FLAT_STATS).toEqual(["armor", "shield"]);
+    expect(EFFECT_STATS).toHaveLength(16);
+    expect(EFFECT_STATS).toEqual(expect.arrayContaining(["slowResist", "lifestealMult", "lifestealDot", "critChance", "healBarrier"]));
+    expect(FLAT_STATS).toEqual(["armor", "shield", "ad", "ap"]);
     const all: StatKey[] = [...EFFECT_STATS, ...FLAT_STATS];
-    expect(all.filter(isFlatStat)).toEqual(["armor", "shield"]);
+    expect(all.filter(isFlatStat)).toEqual(["armor", "shield", "ad", "ap"]);
     expect(Object.keys(zeroSums()).sort()).toEqual([...all].sort());
+    // lifestealMult is a product: its identity is 1 (the rest are 0).
+    expect(Object.entries(zeroSums()).filter(([, v]) => v !== 0)).toEqual([["lifestealMult", 1]]);
   });
 
   it("requires: a row is on only while every listed id is owned", () => {
@@ -133,47 +146,43 @@ describe("foldStatRows", () => {
     expect(foldStatRows(rows, { holds: () => true, owns: () => true })).toEqual({ ...zeroSums(), attackSpeed: 0.25, armor: 4, windup: -0.08 });
   });
 
-  // The quoted numbers are read from the catalog, so a retune is a data edit; what is pinned here is the fold and the wire.
-  const quotedV = (id: string, i = 0): number => (buffDef(id)!.effects[i] as { v: number }).v;
+  // The numbers are read from the card catalog, so a retune is a data edit; what is pinned here is the fold and the wire.
+  const quotedV = (id: string, i = 0): number => (cardRows(id)[i] as { v: number }).v;
 
-  it("a buff's rows at n stacks fold to 1 + quoted x S(n) / S(3), to the thousandth on the wire", () => {
-    const rat = quotedV("plagueRat"); // attack speed
-    const hound = quotedV("cinderHound"); // move speed, but only while chasing a lock
-    expect(rat).toBe(0.08);
-    expect(hound).toBe(0.1);
-    for (const n of [0, 0.3, 1.1, 2.5, 3, 5, 8.25]) {
-      const rows = buffRows({ plagueRat: n, cinderHound: n });
+  it("Haste and Fleet cards' rows fold to 1 + their number, to the thousandth on the wire; Fleet only while not shooting", () => {
+    const haste = quotedV("haste2"); // attack speed
+    const fleet = quotedV("fleet2"); // move speed, off while shooting
+    expect(haste).toBe(0.16);
+    expect(fleet).toBe(0.1);
+    for (const n of [0, 1, 2, 5]) {
+      const rows = Array.from({ length: n }, () => [...cardRows("haste2"), ...cardRows("fleet2")]).flat();
       const idle = encodeMirrors(mirrorsFromSums(foldStatRows(rows)));
-      const chasing = encodeMirrors(mirrorsFromSums(foldStatRows(rows, { holds: (e) => e.cond === "chasingLock" })));
-      const k = buffScale(n);
-      expect(Math.abs(decodeMult(idle.asMult) - (1 + rat * k)), `${n} attack speed`).toBeLessThanOrEqual(0.5 / MULT_WIRE_PER_UNIT + 1e-12);
-      expect(Math.abs(decodeMult(chasing.asMult) - (1 + rat * k)), `${n} attack speed while chasing`).toBeLessThanOrEqual(0.5 / MULT_WIRE_PER_UNIT + 1e-12);
-      expect(decodeMult(idle.speedMult), `${n} speed without a lock`).toBe(1);
-      expect(Math.abs(decodeMult(chasing.speedMult) - (1 + hound * k)), `${n} speed chasing`).toBeLessThanOrEqual(0.5 / MULT_WIRE_PER_UNIT + 1e-12);
+      const walking = encodeMirrors(mirrorsFromSums(foldStatRows(rows, { holds: (e) => e.cond === "notShooting" })));
+      expect(Math.abs(decodeMult(idle.asMult) - (1 + haste * n)), `${n} attack speed`).toBeLessThanOrEqual(0.5 / MULT_WIRE_PER_UNIT + 1e-12);
+      expect(decodeMult(idle.speedMult), `${n} speed while shooting`).toBe(1);
+      expect(Math.abs(decodeMult(walking.speedMult) - (1 + fleet * n)), `${n} speed walking`).toBeLessThanOrEqual(0.5 / MULT_WIRE_PER_UNIT + 1e-12);
     }
   });
 
-  it("a buff's flat rows fold to points: Rime Stalker's armor and Magma Brute's magic resist, in tenths on the wire", () => {
-    const armor = quotedV("rimeStalker");
-    const brute = quotedV("magmaBrute", 1); // magic resist
-    const bruteHp = quotedV("magmaBrute", 0);
-    const shard = quotedV("seraphShard");
-    expect([armor, brute, bruteHp, shard]).toEqual([20, 20, 0.06, 16]);
-    const sums = foldStatRows(buffRows({ rimeStalker: 3, magmaBrute: 3 }));
-    expect(sums).toMatchObject({ armor, shield: brute, maxHp: bruteHp });
+  it("flat card rows fold to points: Armor and Magic Resist, in tenths on the wire; Attack Damage and Ability Power too", () => {
+    const armor = quotedV("armor2");
+    const mr = quotedV("mr3");
+    expect([armor, mr]).toEqual([26, 41]);
+    const sums = foldStatRows([...cardRows("armor2"), ...cardRows("mr3"), ...cardRows("ad1"), ...cardRows("ap2")]);
+    expect(sums).toMatchObject({ armor, shield: mr, ad: 12, ap: 21 });
     const wire = encodeMirrors(mirrorsFromSums(sums));
-    expect([wire.armorBonus, wire.shieldBonus]).toEqual([Math.round(armor * FLAT_WIRE_PER_POINT), Math.round(brute * FLAT_WIRE_PER_POINT)]);
-    // Two sources of one key add: Seraph Shard's magic resist joins Magma Brute's.
-    expect(foldStatRows(buffRows({ magmaBrute: 3, seraphShard: 3 })).shield).toBe(brute + shard);
+    expect([wire.armorBonus, wire.shieldBonus, wire.adBonus, wire.apBonus]).toEqual([260, 410, 120, 210]);
+    // Two cards of one key add: a second Armor II doubles it.
+    expect(foldStatRows([...cardRows("armor2"), ...cardRows("armor2")]).armor).toBe(2 * armor);
   });
 });
 
 describe("the mirror codec", () => {
   it("the identity: defaults on PlayerState, an empty fold, and decoding them", () => {
-    expect(MIRROR_FIELDS).toEqual(["asMult", "windupMult", "speedMult", "armorBonus", "shieldBonus"]);
-    expect(IDENTITY_MIRRORS).toEqual({ asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0 });
+    expect(MIRROR_FIELDS).toEqual(["asMult", "windupMult", "speedMult", "armorBonus", "shieldBonus", "adBonus", "apBonus"]);
+    expect(IDENTITY_MIRRORS).toEqual({ asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0, adBonus: 0, apBonus: 0 });
     // The multipliers are uint16 thousandths on the state: a default PlayerState holds 1000, which decodes to 1.
-    expect(WIRE_IDENTITY_MIRRORS).toEqual({ asMult: 1000, windupMult: 1000, speedMult: 1000, armorBonus: 0, shieldBonus: 0 });
+    expect(WIRE_IDENTITY_MIRRORS).toEqual({ asMult: 1000, windupMult: 1000, speedMult: 1000, armorBonus: 0, shieldBonus: 0, adBonus: 0, apBonus: 0 });
     const p = new PlayerState();
     expect(MIRROR_FIELDS.map((f) => p[f])).toEqual(MIRROR_FIELDS.map((f) => WIRE_IDENTITY_MIRRORS[f]));
     expect(decodeMirrors(p)).toEqual(IDENTITY_MIRRORS);
@@ -182,7 +191,7 @@ describe("the mirror codec", () => {
 
   it("multipliers: whole thousandths, clamped to [MOD_MULT_MIN, MOD_MULT_MAX] on the wire, non-finite as 1", () => {
     expect(MULT_WIRE_PER_UNIT).toBe(1000);
-    for (const x of [1, 0.8, 1.235, 1 + 0.04 * buffScale(3.3)]) {
+    for (const x of [1, 0.8, 1.235, 1.04656]) {
       const wire = encodeMult(x);
       expect(Number.isInteger(wire), `${x}`).toBe(true);
       expect(wire, `${x}`).toBe(Math.round(x * 1000));
@@ -213,8 +222,8 @@ describe("the mirror codec", () => {
   });
 
   it("decodeMirrors decodes every field of the wire form", () => {
-    const wire = encodeMirrors({ asMult: 0.75, windupMult: 1.12, speedMult: 1.3, armorBonus: 12.3, shieldBonus: -4 });
-    expect(wire).toEqual({ asMult: 750, windupMult: 1120, speedMult: 1300, armorBonus: 123, shieldBonus: -40 });
-    expect(decodeMirrors(wire)).toEqual({ asMult: 0.75, windupMult: 1.12, speedMult: 1.3, armorBonus: 12.3, shieldBonus: -4 });
+    const wire = encodeMirrors({ asMult: 0.75, windupMult: 1.12, speedMult: 1.3, armorBonus: 12.3, shieldBonus: -4, adBonus: 33, apBonus: 7.86 });
+    expect(wire).toEqual({ asMult: 750, windupMult: 1120, speedMult: 1300, armorBonus: 123, shieldBonus: -40, adBonus: 330, apBonus: 79 });
+    expect(decodeMirrors(wire)).toEqual({ asMult: 0.75, windupMult: 1.12, speedMult: 1.3, armorBonus: 12.3, shieldBonus: -4, adBonus: 33, apBonus: 7.9 });
   });
 });

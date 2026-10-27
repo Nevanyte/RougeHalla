@@ -1,15 +1,15 @@
-// Swift Boots, owner ruling "No boost while shooting" (testing/TUNING_ROGUE.md section 7.5): its move-speed bonus (x1.06 at rank 1,
-// x1.10 at rank 2) is OFF from the moment a bow or wand attack starts until SWIFT_BOOTS_PAUSE_MS after the shot leaves, and on
+// The Fleet cards (Swift Boots' rule, owner ruling "No boost while shooting", testing/TUNING_ROGUE.md section 7.5): the move-speed bonus (x1.06
+// Fleet I, x1.10 Fleet II) is OFF from the moment a bow or wand attack starts until SWIFT_BOOTS_PAUSE_MS after the shot leaves, and on
 // otherwise, for walking, chasing and melee. It is a stepped `while notShooting` row, so the `speedMult` mirror (the only thing
 // the client's prediction reads) patches when the window opens and when it closes, and the walk the sim simulates is exactly the
 // multiplier the mirror carries.
 import { describe, expect, it } from "vitest";
 import {
-  decodeMult, encodeMult, mapFromTiles, mulberry32, PLAYER_SPEED, skillRows, skillText, SWIFT_BOOTS_PAUSE_MS, TICK_MS, TILE,
-  TILE_FLOOR, TILE_WALL, type FactionId, type GameMap, type SkillId, type WeaponId,
+  cardRows, cardText, decodeMult, encodeMult, mapFromTiles, mulberry32, PLAYER_SPEED, SWIFT_BOOTS_PAUSE_MS, TICK_MS, TILE,
+  TILE_FLOOR, TILE_WALL, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { grantSkill } from "../src/sim/chests";
+import { grantCard } from "../src/sim/chests";
 import { runDuel } from "../src/harness/duel";
 import { combatant, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -29,7 +29,7 @@ function openMap(): GameMap {
   return { ...mapFromTiles(W_TILES, H_TILES, tiles), spawns };
 }
 
-/** p0 of `faction` holding Swift Boots at `rank` in an active run, p1 a bystander parked far away (out of every line of fire). */
+/** p0 of `faction` holding Fleet I (rank 1) or II (rank 2) in an active run, p1 a bystander parked far away (out of every line of fire). */
 function startRun(faction: FactionId, rank: 0 | 1 | 2): World {
   const world = createGameWorld({
     config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
@@ -43,14 +43,14 @@ function startRun(faction: FactionId, rank: 0 | 1 | 2): World {
   const p1 = world.state.players.get("p1")!;
   p1.x = tileCentre(36);
   p1.y = tileCentre(3);
-  for (let r = 1; r <= rank; r++) expect(grantSkill(world, C(world), "swiftBoots" as SkillId)).toBe(r);
+  if (rank > 0) expect(grantCard(world, C(world), `fleet${rank}`)).toBe(1);
   return world;
 }
 
 const P = (w: World): PlayerState => w.state.players.get("p0")!;
 const RT = (w: World) => w.players.get("p0")!;
 const C = (w: World): Extract<Combatant, { kind: "player" }> => combatant(w, "p0")! as Extract<Combatant, { kind: "player" }>;
-const ON = (rank: 1 | 2): number => encodeMult(1 + skillRows("swiftBoots", rank).map((e) => (e.k === "while" ? e.v : 0))[0]!);
+const ON = (rank: 1 | 2): number => encodeMult(1 + cardRows(`fleet${rank}`).map((e) => (e.k === "while" ? e.v : 0))[0]!);
 const OFF = encodeMult(1);
 
 function arm(w: World, weapon: WeaponId): void {
@@ -66,16 +66,16 @@ function press(w: World): void {
   enqueueClientMessage(RT(w).inputs, "release", { a: 0 });
 }
 
-describe("Swift Boots' rows", () => {
+describe("the Fleet cards' rows", () => {
   it("are a `notShooting` while row of +6% / +10% move speed with the pause, and say so on the card", () => {
     expect(SWIFT_BOOTS_PAUSE_MS).toBeGreaterThan(0);
-    expect(skillRows("swiftBoots", 1)).toEqual([{ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.06, ms: SWIFT_BOOTS_PAUSE_MS }]);
-    expect(skillRows("swiftBoots", 2)).toEqual([{ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.1, ms: SWIFT_BOOTS_PAUSE_MS }]);
-    expect(skillText("swiftBoots", 1)).toBe(`+6% move speed, but not while you shoot or for ${SWIFT_BOOTS_PAUSE_MS / 1000} s after a bow or wand shot`);
+    expect(cardRows("fleet1")).toEqual([{ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.06, ms: SWIFT_BOOTS_PAUSE_MS }]);
+    expect(cardRows("fleet2")).toEqual([{ k: "while", cond: "notShooting", arg: 0, stat: "moveSpeed", v: 0.1, ms: SWIFT_BOOTS_PAUSE_MS }]);
+    expect(cardText("fleet1")).toBe("+6% move speed (off while shooting)");
   });
 });
 
-describe("the boots' bonus around a bow or wand shot", () => {
+describe("the Fleet bonus around a bow or wand shot", () => {
   for (const rank of [1, 2] as const) {
     for (const [weapon, faction] of [["bow", "frost"], ["wand", "fire"]] as const) {
       it(`${weapon}, rank ${rank}: on at rest, off from the tick the attack starts, back on exactly the pause after the shot left`, () => {
@@ -189,17 +189,17 @@ describe("the walk is the mirror, tick by tick", () => {
   });
 });
 
-describe("the harness measures the shipped passive", () => {
-  it("--shooter-skill swiftBoots grants the real rank, so the pause is part of every kiting measurement", () => {
+describe("the harness measures the shipped card", () => {
+  it("--shooter-cards fleet2 grants the real card, so the pause is part of every kiting measurement", () => {
     let seen = 0;
     runDuel({
       faction: "fire", weapons: ["sword", "wand"], distance: 200, capSeconds: 4, seed: 3,
-      skills: [undefined, [{ id: "swiftBoots" as SkillId, rank: 2 }]],
+      cards: [undefined, ["fleet2"]],
       locks: [false, true],
       onTick: (world) => {
         const shooter = world.state.players.get("f1")!;
         const chaser = world.state.players.get("f0")!;
-        expect(shooter.build.get("swiftBoots")).toBe(2);
+        expect(shooter.build.get("fleet2")).toBe(1);
         expect(chaser.speedMult).toBe(1000);
         const shooting = world.players.get("f1")!.weapon.action !== null;
         if (shooting) { expect(shooter.speedMult).toBe(1000); seen++; }

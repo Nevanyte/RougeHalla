@@ -1,9 +1,14 @@
 // Pure arena formulas shared by the sim, the client and the tests.
 import {
-  BOUNTY_EXPONENT, BOUNTY_FREE_KILLS, BOUNTY_SCALE, CAMP_HEAL_HI, CAMP_HEAL_LO, CAMP_HEAL_MID, CAMP_HEAL_WIDTH, FEED_MOB_KILL_WEIGHT,
-  HP_RACE_CAP, PATIENCE_FULL_ALIVE, PATIENCE_MIN_ALIVE, PVP_F0, PVP_FMAX, PVP_P0, SUDDEN_DEATH_RAMP_FRACTION,
+  BOUNTY_EXPONENT, BOUNTY_FREE_KILLS, BOUNTY_SCALE, CAMP_HEAL_HI, CAMP_HEAL_LO, CAMP_HEAL_MID, CAMP_HEAL_WIDTH, CATCHUP_GAP,
+  CATCHUP_MULT, FEED_MOB_KILL_WEIGHT, HEAL_OVER_TIME_STEP_MS, HP_RACE_CAP, LIFESTEAL_MAX, LS_CAP, PATIENCE_FULL_ALIVE,
+  PATIENCE_MIN_ALIVE, PVP_F0, PVP_FMAX, PVP_P0, REWARD_FLOOR, REWARD_MID, REWARD_WIDTH, SUDDEN_DEATH_RAMP_FRACTION,
   SUDDEN_DEATH_START_FRACTION,
 } from "./constants";
+
+export function sigmoid(x: number): number {
+  return 1 / (1 + Math.exp(-x));
+}
 
 /** Feed score of a run so far: how "fed" a player is. */
 export function feedScore(playerKills: number, mobKills: number): number {
@@ -12,7 +17,7 @@ export function feedScore(playerKills: number, mobKills: number): number {
 
 /**
  * Whole GV paid to whoever kills a player who has killed `playerKills` players; 0 until that passes BOUNTY_FREE_KILLS.
- * Only player kills count: mob kills feed the buffs and the mob reward curve (feedScore) but never the bounty.
+ * Only player kills count: mob kills feed the mob reward curve (feedScore) but never the bounty.
  */
 export function bountyFor(playerKills: number): number {
   const over = playerKills - BOUNTY_FREE_KILLS;
@@ -46,38 +51,7 @@ export function campHealAmount(hp: number, maxHp: number): number {
   return missing * f;
 }
 
-// ---- Card power and the PvP factor (balance pass, BALANCE_CONTRACT 3.4 / 4.6 G4) ----
-
-/** A run's cards as the sim holds them: id -> count (PlayerState.build, a MapSchema or a Map), or a plain record. */
-export type PowerBuild = { forEach(cb: (count: number, id: string) => void): void } | Readonly<Record<string, number>>;
-
-/** The base-stat card ids ("ad2": the stat, then the tier) of the contract's catalog (BALANCE_CONTRACT 4.2). */
-const BASE_CARD_TIER = /^(ad|ap|haste|vitality|armor|mr|leech|fleet)([123])$/;
-
-/**
- * A card's tier, 1-3. STUB until the card catalog lands (shared/cards.ts, agent A3): the base-stat ids carry their tier in
- * their last digit and every other id (the passives of today's build, a conditional, an augment) counts as tier 1. Swap this
- * body for the catalog lookup and `cardPower` follows.
- */
-export function cardTierOf(id: string): 1 | 2 | 3 {
-  const m = BASE_CARD_TIER.exec(id);
-  return m ? (Number(m[2]) as 1 | 2 | 3) : 1;
-}
-
-/**
- * A fighter's card power P: the sum over its cards of tier x count (a base card stacks, so Attack Damage II twice is 4).
- * The PvP factor reads it. Pure; an empty or missing build is 0.
- */
-export function cardPower(build: PowerBuild | null | undefined): number {
-  if (!build) return 0;
-  let p = 0;
-  const add = (count: number, id: string): void => {
-    if (count > 0) p += cardTierOf(id) * count;
-  };
-  if (typeof (build as { forEach?: unknown }).forEach === "function") (build as Exclude<PowerBuild, Readonly<Record<string, number>>>).forEach(add);
-  else for (const [id, count] of Object.entries(build)) add(count, id);
-  return p;
-}
+// ---- The PvP factor (balance pass, BALANCE_CONTRACT 3.4 / 4.6 G4). Card power itself is cards.ts cardPower (the catalog's tiers). ----
 
 /**
  * The PvP factor: the multiplier on every player-to-player damage entry of an attacker with card power `power`, and on the
@@ -97,4 +71,49 @@ export function hpRaceMult(hpFrac: number, cap: number = HP_RACE_CAP): number {
   const ceiling = Math.min(cap, HP_RACE_CAP);
   if (!(hpFrac > 0)) return Math.max(1, ceiling);
   return Math.min(Math.max(1 / hpFrac, 1), Math.max(1, ceiling));
+}
+
+// ---- The feed's rewards: the mob reward curve and the catch-up (they scale mob GV and quest cards; no stat comes from a kill) ----
+
+/** The mob reward curve: near 1 while hungry, falling sharply around a feed of REWARD_MID, never below REWARD_FLOOR. */
+export function rewardCurve(feed: number): number {
+  return REWARD_FLOOR + (1 - REWARD_FLOOR) * (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH));
+}
+
+/** Median of the values (the mean of the two middle ones for an even count); 0 for none. */
+export function median(values: readonly number[]): number {
+  if (values.length === 0) return 0;
+  const s = [...values].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 === 1 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+}
+
+/** CATCHUP_MULT for a feed more than CATCHUP_GAP below the lobby median, else 1. */
+export function catchUpMultiplier(feed: number, medianFeed: number): number {
+  return feed < medianFeed - CATCHUP_GAP ? CATCHUP_MULT : 1;
+}
+
+/** What a mob's GV is multiplied by for a player with this feed in a lobby with this median feed. */
+export function mobRewardMultiplier(feed: number, medianFeed: number): number {
+  return rewardCurve(feed) * catchUpMultiplier(feed, medianFeed);
+}
+
+/**
+ * The share of the damage it lands a fighter heals: its faction's own lifesteal (Holy's, `own`) plus what its `lifesteal` rows add
+ * (`rows`, capped at LS_CAP), never more than LIFESTEAL_MAX in all. (shared/mods.ts lifestealTotal is the card engine's form, with
+ * Bloodthirst's multiplier and Siphon's damage-over-time share.)
+ */
+export function lifestealShare(own: number, rows: number): number {
+  const fromRows = rows > 0 ? Math.min(LS_CAP, rows) : 0;
+  return Math.min(LIFESTEAL_MAX, (own > 0 ? own : 0) + fromRows);
+}
+
+/** How many equal steps a heal over time of nominal length `ms` is paid in, the first at once (Second Wind's 2000 is four). */
+export function healOverTimeSteps(ms: number): number {
+  return Math.max(1, Math.round(ms / HEAL_OVER_TIME_STEP_MS));
+}
+
+/** From its first step to its last: what a heal over time really spans, and what its text says (four steps 500 ms apart: 1.5 s). */
+export function healOverTimeSpanMs(ms: number): number {
+  return (healOverTimeSteps(ms) - 1) * HEAL_OVER_TIME_STEP_MS;
 }

@@ -25,7 +25,7 @@ import { displace } from "./displace";
 import { heal } from "./factions";
 import { abilitiesRt, addField, fieldsOf, onTrail, removeField, removeFieldsWhere } from "./fields";
 import { recordHit } from "./ledger";
-import { recomputeMods } from "./mods";
+import { recomputeMods, wishCooldownMultOf } from "./mods";
 import {
   addStatus, attackSlowFactor, castBlocked, cleanse, isUntargetable, refreshEffects, removeStatuses, reveal,
   statusesOf, statusMoveMultiplier,
@@ -150,7 +150,7 @@ export const handleCast: ActionHandler = (world, c, cmd) => {
   }
 
   const prevReadyAt = slotReadyAt(c.s, cmd.slot);
-  setSlotReadyAt(c.s, cmd.slot, now + abilityCooldownMs(def, rank, { training: world.config.training === true }));
+  setSlotReadyAt(c.s, cmd.slot, now + abilityCooldownMs(def, rank, { training: world.config.training === true, wishCooldownMult: wishCooldownMultOf(c.s) }));
   const cast: CastRuntime = {
     ability: def.id, rank, slot: cmd.slot, startedAt: now, landsAt: now + r.castMs, target: target ? target.id : null, point,
     landing: null, prevReadyAt, lagMs: Math.min(MAX_REWIND_MS, Math.max(TICK_MS, now - (cmd.t ?? now))),

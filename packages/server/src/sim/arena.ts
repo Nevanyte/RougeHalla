@@ -19,7 +19,7 @@
 //     players (so a second callsign can't feed someone wins). Bots count for neither: the gate reads human starters
 //     and human opponents (docs/BOTS.md). All of it banks when the player's result is emitted (the Room persists
 //     `resolved` events, except a bot's).
-//   - Bounty: a player's bounty follows their kills of players who are not bots (bountyFor; mob kills feed the buffs and the mob reward curve, never the bounty, and neither do bot kills) and is announced (throttled) whenever it rises;
+//   - Bounty: a player's bounty follows their kills of players who are not bots (bountyFor; mob kills feed the mob reward curve, never the bounty, and neither do bot kills) and is announced (throttled) whenever it rises;
 //     whoever kills them is paid it on top of the kill GV. Leaving within KILL_CREDIT_SECONDS of a hit from another
 //     player is that player's kill, so leaving can't dodge a bounty.
 // This module never touches the store, sockets or the Room.
@@ -180,14 +180,13 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
   by.p.kills += 1;
   // A bot's death pays no GV, kill or bounty, and the kill does not climb the killer's bounty ladder (updateBounty reads
   // kills - botKills: else a human could wear a bounty built on bots and have an alt cash it). It still counts in the run
-  // (PlayerState.kills and the HUD, the stack transfer and the combos), but a RunResult's `kills` leaves it out.
+  // (PlayerState.kills and the HUD), but a RunResult's `kills` leaves it out.
   if (rtv.bot) by.rt.botKills = (by.rt.botKills ?? 0) + 1;
   else awardGv(world, by.p, by.rt, "kill");
   if (bounty > 0) {
     if (!rtv.bot) credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
   }
-  // After the bounty hook (half the victim's buffs already moved).
   world.hooks.playerKilled?.(world, by.rt, rtv, rtv.down?.outcome ?? "died");
   updateBounty(world, by.p, by.rt);
 }
@@ -253,7 +252,7 @@ export function awardQuestGv(world: World, p: PlayerState, rt: PlayerRuntime, am
 
 /**
  * A mob kill: pays mob GV at `mult`, the reward the player's feed earns (read before this kill is counted; the caller
- * passes it so the GV and the buff drop of one kill use the same number), and then counts toward the feed score.
+ * passes it so the GV and the drop of one kill use the same number), and then counts toward the feed score.
  * Returns the GV paid.
  */
 export function creditMobKill(
@@ -378,7 +377,7 @@ function resolve(
  * standing player loses a share of max hp per second that grows by SUDDEN_DEATH_RAMP_FRACTION each whole second.
  * Only whole ticks after `suddenDeathAt` burn (it is set on the tick grid), so the ramp is the same at any tick rate.
  * The burn is a ledger entry (all true damage, from SUDDEN_DEATH_KILLER, credited to nobody), so it lands in the same
- * pass as the tick's hits and no spoils won by a kill in that pass (bounty buffs, the max hp they bring) can save anyone from it.
+ * pass as the tick's hits and no spoils won by a kill in that pass (a bounty, the heal it could bring) can save anyone from it.
  */
 export function suddenDeath(world: World, dtMs: number): void {
   const s = world.state;

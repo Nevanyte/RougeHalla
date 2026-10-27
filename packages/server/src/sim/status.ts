@@ -13,12 +13,12 @@
 // done by sim/abilities.ts, which is told through the `statusApplied` hook. Expiry (removing an instance whose `until` has
 // passed) is that module's job too; every reader here ignores an instance past its `until`, so nothing depends on when.
 import {
-  EFFECT_CASTING, hasteMultiplier, SIG_CHILLED, STATUS_RULES, TICK_MS, type AbilityId, type CleanseClass,
+  EFFECT_CASTING, hasteMultiplier, resistSlow, SIG_CHILLED, STATUS_RULES, TICK_MS, type AbilityId, type CleanseClass,
   type StatusKind,
 } from "@raid/shared";
 import { moveSpeedMult } from "./buffs";
 import { isQuestGiver, standing, type Combatant } from "./combatant";
-import { recomputeMods } from "./mods";
+import { recomputeMods, slowResistOf } from "./mods";
 import { emit, payLater, type DamageSource, type StatusInstance, type World } from "./world";
 
 export interface StatusApply {
@@ -288,9 +288,12 @@ export function healFactor(world: World, c: Combatant): number {
   return 1 - statusValue(world, c, "antiHeal");
 }
 
-/** 1 − slowAttack (capped). Not applied here: sim/abilities.ts registers it as a mod source, so the asMult mirror folds it in (D22). */
+/**
+ * 1 − slowAttack (capped), the victim's slowResist (Iron Will) taken off the cut. Not applied here: sim/abilities.ts registers it as a
+ * mod source, so the asMult mirror folds it in (D22).
+ */
 export function attackSlowFactor(world: World, c: Combatant): number {
-  return 1 - statusValue(world, c, "slowAttack");
+  return resistSlow(1 - statusValue(world, c, "slowAttack"), slowResistOf(c.s));
 }
 
 /**
@@ -307,7 +310,8 @@ export function statusMoveMultiplier(world: World, c: Combatant): number {
   const slow = valueOf(world, list ?? NONE, "slowMove");
   const haste = valueOf(world, list ?? NONE, "haste");
   if (slow === 0 && haste === 0) return 1;
-  return (1 - slow) * (haste > 0 ? hasteMultiplier(moveSpeedMult(world, c), haste) : 1);
+  // Iron Will (slowResist) cuts the slow's strength, not the haste.
+  return resistSlow(1 - slow, slowResistOf(c.s)) * (haste > 0 ? hasteMultiplier(moveSpeedMult(world, c), haste) : 1);
 }
 
 /**

@@ -1,24 +1,22 @@
-// Buffs on the server (sim/buffs.ts and the hunks it feeds in arena.ts, combatant.ts, weapons.ts): the stat multipliers a
-// buff's rows reach the sim through (the quantized mirrors), max hp, granting, the barrier, the bounty transfer, the mob
-// kill's grant and the real attack/move formulas. The catalog and its maths are tested in
-// packages/shared/test/buffsRoguelike.test.ts, and one rig per buff row in buffRows.test.ts; this is the part that touches
-// the sim around them. The kill combos (speed bursts, the kill shield, the cooldown reset) are gone with the three stat
-// stacks (R4a): there is no test of them, and a kill that crosses 3 or 5 stacks announces nothing but the buff itself.
+// What the cards leave on a player's body (sim/buffs.ts and the hunks it feeds in arena.ts, combatant.ts, weapons.ts; the module keeps
+// its name from the per-kill buffs it once held): the stat multipliers a card's rows reach the sim through (the quantized mirrors),
+// max hp, the barrier, what a kill does NOT give any more and the real attack/move formulas. The catalog is tested in
+// packages/shared/test/cards.test.ts, one rig per card row in buffRows.test.ts and the fold in mods.test.ts; granting a card is
+// chests.test.ts. The per-kill buffs (grantBuff, the bounty's stack transfer, a mob kill's grant) are gone with the balance pass
+// (BALANCE_CONTRACT 3.6): what is tested here is that a kill gives GV and a weapon and no stat.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, BOUNTY_STACK_SHARE, BOW_WINDUP, BOW_WINDUP_SHARE, BUFF_IDS, buffScale, damagePerHit, decodeMult,
-  ELITE_BUFF_STACKS, eliteTypeOf, encodeMult, FACTIONS, GV_KILL, mapFromTiles, MOB_BUFF_STACKS, mobRewardMultiplier, mobWeapon,
-  mulberry32, pacedFaction, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, weaponTimings, WEAPONS, type BuffId,
-  type FactionId, type FxEvent, type GameMap,
+  attackInterval, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, decodeMult, eliteTypeOf, encodeMult, FACTIONS, GV_KILL, mapFromTiles,
+  mobRewardMultiplier, mobWeapon, mulberry32, pacedFaction, PLAYER_SPEED, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, weaponTimings, WEAPONS,
+  type FactionId, type FxEvent, type GameMap, type MobTypeId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { applyDamage, applyHits, suddenDeath, type Attacker } from "../src/sim/arena";
 import {
-  absorbShield, attackSpeedMult, baseMaxHp, buffsOf, expireBoosts, grantBarrier, grantBuff, install as installBuffs,
-  moveSpeedMult, syncMaxHp, transferBuffs,
+  absorbShield, attackSpeedMult, baseMaxHp, expireBoosts, grantBarrier, install as installBuffs, moveSpeedMult, syncMaxHp,
 } from "../src/sim/buffs";
+import { grantCard } from "../src/sim/chests";
 import { combatant, timingsOf, type Combatant } from "../src/sim/combatant";
-import { feedOfPlayer, lobbyMedianFeed } from "../src/sim/feed";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
@@ -32,8 +30,8 @@ import { quoted } from "./support/quoted";
 
 type Fx<K extends FxEvent["kind"]> = Extract<FxEvent, { kind: K }>;
 
-// The default faction of the n-th joiner: p0 Fire (500 hp), p1 Sentenced (700), p2 Plague (1000), p3 Frost (1750), p4 Holy
-// (1450), then round again.
+// The default faction of the n-th joiner: p0 Fire (835 hp), p1 Sentenced (800), p2 Plague (1375), p3 Frost (1200), p4 Holy (1400), then
+// round again.
 const NAMES = ["alice", "bob", "carol", "dave", "erin", "frank", "gina", "hank"];
 const idOf = (i: number): string => `p${i}`;
 
@@ -79,12 +77,16 @@ function kill(world: World, victim: number, source: Attacker | string = "test"):
   return applyDamage(world, p, RT(world, victim), p.hp + p.barrier + 1000, source);
 }
 
-const grant = (world: World, i: number, id: BuffId, n: number): void => grantBuff(world, P(world, i), RT(world, i), id, n);
+/** Gives player `i` `count` copies of a card through the chest's own grant (the rows are re-folded and max hp comes along). */
+const grant = (world: World, i: number, id: string, count = 1): void => {
+  for (let k = 0; k < count; k++) grantCard(world, cOf(world, i) as Extract<Combatant, { kind: "player" }>, id);
+};
 
-/** Sets stacks straight on the state (no fx), the way a test wants them: the rows are re-folded and max hp comes along. */
-function setBuffs(world: World, i: number, buffs: Partial<Record<BuffId, number>>): void {
+/** Sets the build straight on the state, the way a test wants it: the rows are re-folded and max hp comes along. */
+function setCards(world: World, i: number, cards: Record<string, number>): void {
   const p = P(world, i);
-  for (const [id, n] of Object.entries(buffs)) p.buffs.set(id, n);
+  p.build.clear();
+  for (const [id, n] of Object.entries(cards)) p.build.set(id, n);
   recomputeMods(world, cOf(world, i));
   syncMaxHp(p);
 }
@@ -96,73 +98,56 @@ function slay(world: World, i: number, victims: number[]): void {
 
 /** The wire value of a folded multiplier: what the sim reads back (decoded) is what a client decodes (D22). */
 const sim = (x: number): number => decodeMult(encodeMult(x));
-const AS_Q = quoted("plagueRat"); // attack speed
-const MS_Q = quoted("cinderHound"); // move speed, while chasing a lock
-const ICE_Q = quoted("iceGolem"); // max hp
-const BRUTE_HP_Q = quoted("magmaBrute", 0); // max hp
-const BRUTE_MR_Q = quoted("magmaBrute", 1); // magic resist, in points
-const AS = (stacks: number): number => 1 + AS_Q * buffScale(stacks);
-const MS = (stacks: number): number => 1 + MS_Q * buffScale(stacks);
-const HP_ICE = (stacks: number): number => 1 + ICE_Q * buffScale(stacks);
+const HASTE = [0, quoted("haste1"), quoted("haste2"), quoted("haste3")]; // attack speed per tier
+const FLEET = [0, quoted("fleet1"), quoted("fleet2"), quoted("fleet3")]; // move speed per tier, off while shooting
+const VIT = [0, quoted("vitality1"), quoted("vitality2"), quoted("vitality3")]; // max hp per tier
+const HEARTY = quoted("hearty");
 
 describe("the multipliers", () => {
-  it("attackSpeedMult and moveSpeedMult are 1 for a player without buffs", () => {
+  it("attackSpeedMult and moveSpeedMult are 1 for a player without cards", () => {
     const w = startRun(2);
     expect(attackSpeedMult(P(w, 0))).toBe(1);
     expect(moveSpeedMult(w, cOf(w, 0))).toBe(1);
   });
 
-  it("attackSpeedMult and moveSpeedMult are 1 for a mob state of any kind, and a mob holds no buffs", () => {
+  it("attackSpeedMult and moveSpeedMult are 1 for a mob state of any kind, and a mob holds no cards", () => {
     const w = startRun(2);
     for (const kind of ["dummy", "mob", "elite"] as const) {
       const id = addMob(w, { kind, name: kind, faction: kind === "dummy" ? undefined : "fire", at: { x: P(w, 0).x, y: P(w, 0).y } });
       const m = w.state.mobs.get(id)!;
       expect(attackSpeedMult(m), kind).toBe(1);
       expect(moveSpeedMult(w, combatant(w, id)!), kind).toBe(1);
-      expect(buffsOf(m), kind).toEqual(new Map());
+      expect("build" in m, kind).toBe(false);
     }
   });
 
-  it("buffsOf lists the buffs a player holds above 0 stacks, in catalog order whatever order they were gained in", () => {
+  it("attackSpeedMult is the Haste cards' rows added up, and no other base card moves it", () => {
     const w = startRun(2);
-    expect(buffsOf(P(w, 0))).toEqual(new Map());
-    P(w, 0).buffs.set("iceGolem", 1);
-    P(w, 0).buffs.set("emberImp", 2.5);
-    P(w, 0).buffs.set("plagueRat", 0);
-    P(w, 0).buffs.set("wyrmling", 4);
-    const owned = buffsOf(P(w, 0));
-    expect([...owned]).toEqual([["emberImp", 2.5], ["wyrmling", 4], ["iceGolem", 1]]);
-    expect(BUFF_IDS.indexOf("emberImp")).toBeLessThan(BUFF_IDS.indexOf("wyrmling"));
-    expect(BUFF_IDS.indexOf("wyrmling")).toBeLessThan(BUFF_IDS.indexOf("iceGolem"));
-  });
-
-  it("attackSpeedMult is the attack-speed buff's row at its stacks, and no other buff moves it", () => {
-    const w = startRun(2);
-    for (const other of ["iceGolem", "cinderHound", "magmaBrute", "emberImp", "rimeStalker"] as const) grant(w, 0, other, 8);
+    for (const other of ["vitality3", "fleet3", "armor3", "mr3", "ad3", "ap3", "leech3"]) grant(w, 0, other, 2);
     expect(attackSpeedMult(P(w, 0))).toBe(1);
-    for (const n of [0.5, 1, 2, 3, 4, 5, 8]) {
+    for (const [cards, want] of [
+      [{ haste1: 1 }, 1 + HASTE[1]!], [{ haste2: 1 }, 1 + HASTE[2]!], [{ haste3: 1 }, 1 + HASTE[3]!],
+      [{ haste1: 2 }, 1 + 2 * HASTE[1]!], [{ haste2: 1, haste1: 1 }, 1 + HASTE[2]! + HASTE[1]!],
+    ] as const) {
       const v = startRun(2);
-      grant(v, 0, "plagueRat", n);
-      expect(attackSpeedMult(P(v, 0)), `${n} stacks`).toBe(sim(AS(n)));
+      setCards(v, 0, cards);
+      expect(attackSpeedMult(P(v, 0)), JSON.stringify(cards)).toBe(sim(want));
     }
-    // The quoted number at 3 stacks, then the S-curve's slow plateau (never past 2.1x the quote).
+    // The rows are capped at x1.5 (AS_MULT_CAP): three Haste III cards are +75% asked, +50% given.
     const v = startRun(2);
-    grant(v, 0, "plagueRat", 3);
-    expect(attackSpeedMult(P(v, 0))).toBe(sim(1 + AS_Q));
-    grant(v, 0, "plagueRat", 50);
-    expect(attackSpeedMult(P(v, 0))).toBeLessThan(1 + AS_Q * 2.2);
+    grant(v, 0, "haste3", 3);
+    expect(attackSpeedMult(P(v, 0))).toBe(1.5);
   });
 
-  it("moveSpeedMult is the move-speed buff's row (its quoted value at 3 stacks) only while the player chases a lock", () => {
+  it("moveSpeedMult is the Fleet cards' rows (off while the player shoots), and no other base card moves it", () => {
     const w = startRun(2);
-    for (const other of ["plagueRat", "iceGolem", "magmaBrute"] as const) grant(w, 0, other, 8);
+    for (const other of ["haste3", "vitality3", "armor3", "ad3"]) grant(w, 0, other, 2);
     expect(moveSpeedMult(w, cOf(w, 0))).toBe(1);
-    RT(w, 0).weapon.lock = "p1"; // the row's condition (sim/mods.ts holdsNow), read when the rows are folded
-    grant(w, 0, "cinderHound", 3);
-    expect(moveSpeedMult(w, cOf(w, 0))).toBe(sim(1 + MS_Q));
-    expect(moveSpeedMult(w, cOf(w, 0))).toBe(sim(MS(3)));
-    // The condition is read once a tick (the step loop's updateMods), so a lock that ends shows by the end of its tick.
-    RT(w, 0).weapon.lock = null;
+    grant(w, 0, "fleet2");
+    expect(moveSpeedMult(w, cOf(w, 0))).toBe(sim(1 + FLEET[2]!));
+    // Fleet's rule (Swift Boots'): it is off from a shot's start until its pause after the shot. The condition is read once a tick
+    // (the step loop's updateMods), so a shot just taken shows by the end of its tick.
+    RT(w, 0).weapon.lastShotAt = w.state.serverTime;
     tick(w);
     expect(moveSpeedMult(w, cOf(w, 0))).toBe(1);
   });
@@ -172,40 +157,40 @@ describe("syncMaxHp", () => {
   it("max hp is the faction's hp times the maxHp rows, and a full bar stays full", () => {
     const w = startRun(5);
     for (let i = 0; i < 5; i++) {
-      const base = [500, 700, 1000, 1750, 1450][i]!;
+      const base = [835, 800, 1375, 1200, 1400][i]!;
       const p = P(w, i);
       expect(baseMaxHp(p), `p${i}`).toBe(base);
-      setBuffs(w, i, { iceGolem: 3 });
-      expect(p.maxHp, `p${i}`).toBeCloseTo(base * (1 + ICE_Q), 9);
+      setCards(w, i, { vitality2: 1 });
+      expect(p.maxHp, `p${i}`).toBeCloseTo(base * (1 + VIT[2]!), 9);
       expect(p.hp, `p${i}`).toBeCloseTo(p.maxHp, 9);
     }
-    expect(Math.round((P(w, 0).maxHp / 500 - 1) * 100)).toBe(Math.round(ICE_Q * 100)); // the quoted % at 3 stacks
+    expect(Math.round((P(w, 0).maxHp / 835 - 1) * 100)).toBe(Math.round(VIT[2]! * 100)); // the card's percent
   });
 
-  it("maxHp rows of different buffs add: Ice Golem and Magma Brute at 3 stacks are the sum of their quoted percents", () => {
+  it("maxHp rows of different cards add: Vitality III and Hearty are the sum of their percents", () => {
     const w = startRun(2);
-    setBuffs(w, 0, { iceGolem: 3, magmaBrute: 3 });
-    expect(P(w, 0).maxHp).toBeCloseTo(500 * (1 + ICE_Q + BRUTE_HP_Q), 9);
+    setCards(w, 0, { vitality3: 1, hearty: 1 });
+    expect(P(w, 0).maxHp).toBeCloseTo(835 * (1 + VIT[3]! + HEARTY), 9);
     expect(P(w, 0).hp).toBeCloseTo(P(w, 0).maxHp, 9);
   });
 
   it("hp rises by the same delta, so the missing hp is kept", () => {
     const w = startRun(2);
     const p = P(w, 0);
-    p.hp = 200; // 300 missing out of 500
-    setBuffs(w, 0, { iceGolem: 4 });
-    expect(p.maxHp).toBeCloseTo(500 * HP_ICE(4), 9);
-    expect(p.maxHp - p.hp).toBeCloseTo(300, 9);
-    expect(p.hp).toBeCloseTo(200 + (p.maxHp - 500), 9);
+    p.hp = 200; // 635 missing out of 835
+    setCards(w, 0, { vitality3: 1 });
+    expect(p.maxHp).toBeCloseTo(835 * (1 + VIT[3]!), 9);
+    expect(p.maxHp - p.hp).toBeCloseTo(635, 9);
+    expect(p.hp).toBeCloseTo(200 + (p.maxHp - 835), 9);
   });
 
-  it("a further stack adds only the new delta", () => {
+  it("a further card adds only the new delta", () => {
     const w = startRun(2);
     const p = P(w, 1);
-    setBuffs(w, 1, { iceGolem: 2 });
+    setCards(w, 1, { vitality2: 1 });
     p.hp = 400;
     const maxBefore = p.maxHp;
-    setBuffs(w, 1, { iceGolem: 3 });
+    setCards(w, 1, { vitality2: 1, vitality3: 1 });
     expect(p.hp).toBeCloseTo(400 + (p.maxHp - maxBefore), 9);
   });
 
@@ -214,16 +199,16 @@ describe("syncMaxHp", () => {
     kill(w, 0, attacker(w, 1));
     expect(P(w, 0).hp).toBe(0);
     expect(P(w, 0).status).toBe("dead");
-    setBuffs(w, 0, { iceGolem: 5 });
+    setCards(w, 0, { vitality3: 1 });
     expect(P(w, 0).hp).toBe(0);
-    expect(P(w, 0).maxHp).toBeCloseTo(500 * HP_ICE(5), 9);
+    expect(P(w, 0).maxHp).toBeCloseTo(835 * (1 + VIT[3]!), 9);
   });
 
   it("is idempotent", () => {
     const w = startRun(2);
     const p = P(w, 0);
     p.hp = 250;
-    setBuffs(w, 0, { iceGolem: 3.7 });
+    setCards(w, 0, { vitality3: 1, vitality1: 1 });
     const after = { max: p.maxHp, hp: p.hp };
     for (let i = 0; i < 3; i++) syncMaxHp(p);
     expect({ max: p.maxHp, hp: p.hp }).toEqual(after);
@@ -232,132 +217,37 @@ describe("syncMaxHp", () => {
   it("derives from the faction rather than compounding on the current max hp, and clamps hp when the max falls", () => {
     const w = startRun(2);
     const p = P(w, 0);
-    setBuffs(w, 0, { iceGolem: 3 });
-    expect(p.hp).toBeGreaterThan(500);
-    p.buffs.delete("iceGolem");
+    setCards(w, 0, { vitality3: 1 });
+    expect(p.hp).toBeGreaterThan(835);
+    p.build.delete("vitality3");
     recomputeMods(w, cOf(w, 0));
     syncMaxHp(p);
-    expect(p.maxHp).toBe(500);
-    expect(p.hp).toBe(500);
+    expect(p.maxHp).toBe(835);
+    expect(p.hp).toBe(835);
   });
 
-  it("does nothing for no buffs", () => {
+  it("does nothing for no cards", () => {
     const w = startRun(2);
     const p = P(w, 0);
     p.hp = 123;
     syncMaxHp(p);
-    expect([p.maxHp, p.hp]).toEqual([500, 123]);
+    expect([p.maxHp, p.hp]).toEqual([835, 123]);
   });
 
-  it("a buff with no maxHp row (Plague Rat, Cinder Hound, Magma Brute's shield alone) leaves max hp and hp as they were", () => {
+  it("a card with no maxHp row (Haste, Fleet, Armor) leaves max hp and hp as they were", () => {
     const w = startRun(2);
     P(w, 0).hp = 300;
-    grant(w, 0, "plagueRat", 4);
-    grant(w, 0, "cinderHound", 4);
-    grant(w, 0, "rimeStalker", 4);
-    expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([500, 300]);
+    grant(w, 0, "haste3", 2);
+    grant(w, 0, "fleet3");
+    grant(w, 0, "armor3");
+    expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([835, 300]);
   });
 });
 
-describe("grantBuff", () => {
-  it.each(["emberImp", "plagueRat", "iceGolem"] as const)("adds %s stacks, with a buff fx carrying the buff, the amount and the new total", (id) => {
-    const w = startRun(2);
-    w.events = [];
-    grant(w, 0, id, 1.5);
-    grant(w, 0, id, 0.25);
-    expect(P(w, 0).buffs.get(id)).toBeCloseTo(1.75, 9);
-    expect(fxOf(w.events, "buff")).toEqual([
-      { kind: "buff", id: idOf(0), buff: id, stacks: 1.5, total: 1.5 },
-      { kind: "buff", id: idOf(0), buff: id, stacks: 0.25, total: 1.75 },
-    ]);
-    // No other buff is touched, and nobody else's buffs.
-    expect([...buffsOf(P(w, 0)).keys()]).toEqual([id]);
-    expect(buffsOf(P(w, 1)).size).toBe(0);
-  });
-
-  it("a max hp buff changes max hp and brings the hp with it; the others leave both alone", () => {
-    const w = startRun(2);
-    grant(w, 0, "plagueRat", 4);
-    grant(w, 0, "cinderHound", 4);
-    expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([500, 500]);
-    P(w, 0).hp = 300;
-    grant(w, 0, "iceGolem", 3);
-    const max = 500 * (1 + ICE_Q);
-    expect(P(w, 0).maxHp).toBeCloseTo(max, 9);
-    expect(P(w, 0).hp).toBeCloseTo(300 + (max - 500), 9);
-  });
-
-  it("re-folds the mirrors in the same call, so the attack changes in the tick of the grant", () => {
-    const w = startRun(2);
-    const before = timingsOf(P(w, 0), "axe")!.interval;
-    grant(w, 0, "plagueRat", 3);
-    expect(P(w, 0).asMult).toBe(encodeMult(1 + AS_Q));
-    expect(timingsOf(P(w, 0), "axe")!.interval).toBeCloseTo(before / sim(1 + AS_Q), 9);
-  });
-
-  it("crossing 3 or 5 stacks announces nothing but the buff fx (the kill combos are gone)", () => {
-    const w = startRun(2);
-    w.events = [];
-    for (let i = 0; i < 6; i++) grant(w, 0, "plagueRat", 1); // totals 1..6
-    expect(w.events.map((e) => (e.type === "fx" ? e.fx.kind : e.type))).toEqual(Array(6).fill("buff"));
-    expect(fxOf(w.events, "buff").map((fx) => fx.total)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(P(w, 0).barrier).toBe(0);
-    expect(RT(w, 0).boost).toBeUndefined();
-  });
-
-  it("counts fractions that add up to 3: 1.5 + 1.5 and 2.9 + 0.1 both reach the quoted attack speed", () => {
-    const w = startRun(3);
-    grant(w, 0, "plagueRat", 1.5);
-    expect(P(w, 0).asMult).toBe(encodeMult(AS(1.5)));
-    expect(P(w, 0).asMult).toBeLessThan(encodeMult(1 + AS_Q));
-    grant(w, 0, "plagueRat", 1.5);
-    expect(P(w, 0).buffs.get("plagueRat")).toBe(3);
-    expect(P(w, 0).asMult).toBe(encodeMult(1 + AS_Q));
-    grant(w, 1, "plagueRat", 2.9);
-    grant(w, 1, "plagueRat", 0.1);
-    expect(P(w, 1).buffs.get("plagueRat")).toBeCloseTo(3, 12);
-    expect(P(w, 1).asMult).toBe(encodeMult(1 + AS_Q));
-  });
-
-  it("is ignored for a player whose result is out", () => {
-    const w = startRun(3);
-    RT(w, 0).resolved = true;
-    w.events = [];
-    grant(w, 0, "iceGolem", 4);
-    expect(buffsOf(P(w, 0)).size).toBe(0);
-    expect(P(w, 0).maxHp).toBe(500);
-    expect(w.events).toEqual([]);
-  });
-
-  it("is ignored for a player who is not alive: dead with the result out, left (mia), or downed this tick and unresolved", () => {
-    const w = startRun(4);
-    kill(w, 0, attacker(w, 1)); // dead, result out
-    const p2 = P(w, 2);
-    const rt2 = RT(w, 2);
-    removePlayer(w, idOf(2)); // mia, gone from the state
-    P(w, 3).status = "dead"; // as in the middle of a tick
-    w.events = [];
-    grant(w, 0, "plagueRat", 4);
-    grantBuff(w, p2, rt2, "plagueRat", 4);
-    grant(w, 3, "cinderHound", 4);
-    expect([P(w, 0).buffs.size, p2.buffs.size, P(w, 3).buffs.size]).toEqual([0, 0, 0]);
-    expect(w.events).toEqual([]);
-  });
-
-  it.each([0, -1, -0.5, NaN])("is ignored for an amount of %s", (amount) => {
-    const w = startRun(2);
-    grant(w, 0, "iceGolem", 2);
-    w.events = [];
-    grant(w, 0, "iceGolem", amount);
-    expect(P(w, 0).buffs.get("iceGolem")).toBe(2);
-    expect(w.events).toEqual([]);
-  });
-});
-
-describe("a mob kill grants the buff of its type", () => {
+describe("a kill gives no stat", () => {
   /** p`killer` kills a mob of `region` of this `type` (an elite when `elite`): the hit is recorded and the mob killed at once. */
-  function killMobBy(w: World, region: FactionId, elite: boolean, type: BuffId, killer = 0): void {
-    const id = placeMob(w, { region, elite, type, at: { x: P(w, killer).x + 40, y: P(w, killer).y } });
+  function killMobBy(w: World, region: FactionId, elite: boolean, type?: MobTypeId, killer = 0): void {
+    const id = placeMob(w, { region, elite, ...(type ? { type } : {}), at: { x: P(w, killer).x + 40, y: P(w, killer).y } });
     const mob = combatant(w, id) as MobCombatant;
     const entry = recordHit(w, {
       victim: id, by: { id: idOf(killer), name: NAMES[killer]! }, packet: { raw: 1, phys: 0, magic: 1, true: 0 }, weapon: "sword", stagger: false,
@@ -366,61 +256,38 @@ describe("a mob kill grants the buff of its type", () => {
     killMob(w, mob, [entry], [mob.s.hp]);
   }
 
-  it("a normal mob gives MOB_BUFF_STACKS x the reward multiplier of its own type, and max hp follows", () => {
+  it("a mob kill pays GV and counts toward the feed, and leaves the build, max hp and every mirror as they were", () => {
     const w = startRun(2);
-    const m = mobRewardMultiplier(0, 0);
-    expect(m).toBeLessThan(1); // the curve is under 1 even for a hungry killer
+    P(w, 0).weapon0 = mobWeapon("fire"); // so the mob's weapon is not dropped: this is about the stat
     w.events = [];
-    killMobBy(w, "fire", false, "magmaBrute");
-    const got = MOB_BUFF_STACKS * m;
-    expect([...buffsOf(P(w, 0)).keys()]).toEqual(["magmaBrute"]);
-    expect(P(w, 0).buffs.get("magmaBrute")).toBeCloseTo(got, 12);
-    expect(fxOf(w.events, "buff")).toEqual([{ kind: "buff", id: idOf(0), buff: "magmaBrute", stacks: P(w, 0).buffs.get("magmaBrute"), total: P(w, 0).buffs.get("magmaBrute") }]);
-    expect(P(w, 0).maxHp).toBeCloseTo(FACTIONS.fire.hp * (1 + BRUTE_HP_Q * buffScale(got)), 9);
-    expect(P(w, 0).shieldBonus).toBe(Math.round(BRUTE_MR_Q * buffScale(got) * 10)); // tenths of a point
+    killMobBy(w, "fire", false);
+    killMobBy(w, "fire", true, eliteTypeOf("fire").id);
+    expect(P(w, 0).build.size).toBe(0);
+    expect([P(w, 0).maxHp, P(w, 0).hp]).toEqual([835, 835]);
+    expect([P(w, 0).asMult, P(w, 0).speedMult, P(w, 0).windupMult, P(w, 0).armorBonus, P(w, 0).shieldBonus, P(w, 0).adBonus, P(w, 0).apBonus])
+      .toEqual([1000, 1000, 1000, 0, 0, 0, 0]);
+    expect(RT(w, 0).mobKills).toBe(2);
+    expect(RT(w, 0).gv.mobs).toBeGreaterThan(0);
+    // The retired buff fx (wire kind 10) is never emitted.
+    expect(w.events.filter((e) => e.type === "fx").map((e) => (e as { fx: { kind: string } }).fx.kind)).not.toContain("buff");
   });
 
-  it("an elite gives ELITE_BUFF_STACKS (3.1) x the multiplier, of the zone's elite type, so about the quoted 3 stacks in one kill", () => {
-    expect(ELITE_BUFF_STACKS).toBe(3.1);
-    const w = startRun(2);
-    const type = eliteTypeOf("fire").id;
-    killMobBy(w, "fire", true, type);
-    const got = ELITE_BUFF_STACKS * mobRewardMultiplier(0, 0);
-    expect(P(w, 0).buffs.get(type)).toBeCloseTo(got, 12);
-    expect(got).toBeGreaterThan(2.9);
-    expect(got).toBeLessThan(3.1);
-  });
-
-  it("the grant shrinks as the killer's feed grows (the reward curve) and is not affected by the buffs already held", () => {
+  it("the reward curve still scales the mob's GV with the killer's feed", () => {
     const hungry = startRun(2);
-    killMobBy(hungry, "fire", false, "emberImp");
+    killMobBy(hungry, "fire", false);
     const fed = startRun(2);
     P(fed, 0).kills = 12;
-    const m = mobRewardMultiplier(feedOfPlayer(P(fed, 0), RT(fed, 0)), lobbyMedianFeed(fed));
-    grant(fed, 0, "emberImp", 2); // what it holds does not change what the next kill pays
-    killMobBy(fed, "fire", false, "emberImp");
-    expect(m).toBeLessThan(0.31);
-    expect(P(fed, 0).buffs.get("emberImp")! - 2).toBeCloseTo(MOB_BUFF_STACKS * m, 12);
-    expect(P(fed, 0).buffs.get("emberImp")! - 2).toBeLessThan(P(hungry, 0).buffs.get("emberImp")!);
+    killMobBy(fed, "fire", false);
+    expect(mobRewardMultiplier(12, 0)).toBeLessThan(0.31);
+    expect(RT(fed, 0).gv.mobs).toBeLessThanOrEqual(RT(hungry, 0).gv.mobs);
   });
 
-  it("a mob placed without a type pays the zone's default buff (its first normal type; an elite its elite type)", () => {
-    const w = startRun(2);
-    const id = placeMob(w, { region: "plague", elite: false, at: { x: P(w, 0).x + 40, y: P(w, 0).y } });
-    const mob = combatant(w, id) as MobCombatant;
-    const entry = recordHit(w, { victim: id, by: { id: idOf(0), name: "alice" }, packet: { raw: 1, phys: 0, magic: 1, true: 0 }, weapon: "sword", stagger: false });
-    w.combat.ledger = [];
-    killMob(w, mob, [entry], [mob.s.hp]);
-    expect([...buffsOf(P(w, 0)).keys()]).toEqual(["plagueRat"]);
-  });
-
-  it("draws nothing from world.random (the grant is no longer rolled): the loot stream is where an untouched world's is", () => {
+  it("draws nothing from world.random: the loot stream is where an untouched world's is", () => {
     const killed = startRun(2);
     const untouched = startRun(2);
-    P(killed, 0).weapon0 = mobWeapon("fire"); // so the mob's weapon is not dropped: this is about the buff
-    killMobBy(killed, "fire", false, "emberImp");
+    P(killed, 0).weapon0 = mobWeapon("fire"); // so the mob's weapon is not dropped
+    killMobBy(killed, "fire", false);
     killMobBy(killed, "fire", true, eliteTypeOf("fire").id);
-    expect(buffsOf(P(killed, 0)).size).toBe(2);
     const next = (w: World): number[] => [w.random(), w.random(), w.random()];
     expect(next(killed)).toEqual(next(untouched));
   });
@@ -455,7 +322,7 @@ describe("the barrier", () => {
     P(w, 1).barrier = 100;
     w.events = [];
     expect(applyDamage(w, P(w, 1), RT(w, 1), 40, attacker(w, 0))).toBe(0);
-    expect(P(w, 1).hp).toBe(700);
+    expect(P(w, 1).hp).toBe(800);
     expect(P(w, 1).barrier).toBe(60);
     expect(P(w, 1).status).toBe("alive");
     expect(w.events).toEqual([]);
@@ -469,7 +336,7 @@ describe("the barrier", () => {
     const w = startRun(3);
     P(w, 1).barrier = 30;
     expect(applyDamage(w, P(w, 1), RT(w, 1), 100, attacker(w, 0))).toBe(70);
-    expect(P(w, 1).hp).toBe(630);
+    expect(P(w, 1).hp).toBe(730);
     expect(P(w, 1).barrier).toBe(0);
   });
 
@@ -477,7 +344,7 @@ describe("the barrier", () => {
     const w = startRun(3);
     P(w, 1).barrier = 80;
     expect(applyDamage(w, P(w, 1), RT(w, 1), 80, attacker(w, 0))).toBe(0);
-    expect(P(w, 1).hp).toBe(700);
+    expect(P(w, 1).hp).toBe(800);
     expect(P(w, 1).barrier).toBe(0);
   });
 
@@ -504,7 +371,7 @@ describe("the barrier", () => {
     const w = startRun(3);
     P(w, 1).barrier = 100;
     w.events = [];
-    applyDamage(w, P(w, 1), RT(w, 1), 100 + 700 + 1, attacker(w, 0));
+    applyDamage(w, P(w, 1), RT(w, 1), 100 + 800 + 1, attacker(w, 0));
     expect(P(w, 1).status).toBe("dead");
     expect(P(w, 0).kills).toBe(1);
     expect(RT(w, 0).gv.kills).toBe(GV_KILL);
@@ -517,7 +384,7 @@ describe("the barrier", () => {
     w.events = [];
     const removed = applyHits(w, P(w, 2), RT(w, 2), [{ amount: 40, source: attacker(w, 0) }, { amount: 30, source: attacker(w, 1) }]);
     expect(removed).toBe(20);
-    expect(P(w, 2).hp).toBe(980);
+    expect(P(w, 2).hp).toBe(1355);
     expect(P(w, 2).barrier).toBe(0);
     expect([...RT(w, 0).damaged]).toEqual([idOf(2)]);
     expect([...RT(w, 1).damaged]).toEqual([idOf(2)]);
@@ -544,7 +411,7 @@ describe("the barrier", () => {
     expect([P(w, 2).barrier, RT(w, 2).boost]).toEqual([0, undefined]);
   });
 
-  it("the buffs system sets the barrier to 0 in the tick that reaches shieldUntil, and not before", () => {
+  it("the system sets the barrier to 0 in the tick that reaches shieldUntil, and not before", () => {
     const w = startRun(3);
     const until = w.state.serverTime + 5000;
     grantBarrier(P(w, 0), RT(w, 0), 75, until);
@@ -577,162 +444,98 @@ describe("the barrier", () => {
     s.suddenDeathAt = s.serverTime - TICK_MS; // the tick being simulated began exactly at suddenDeathAt
     suddenDeath(w, TICK_MS);
     applyLedger(w);
-    const burn = 0.02 * (TICK_MS / 1000) * 500; // SUDDEN_DEATH_START_FRACTION x dt x max hp
+    const burn = 0.02 * (TICK_MS / 1000) * 835; // SUDDEN_DEATH_START_FRACTION x dt x max hp
     expect(P(w, 0).barrier).toBeCloseTo(10 - burn, 9);
-    expect(P(w, 0).hp).toBe(500);
-    expect(P(w, 1).hp).toBeCloseTo(700 - 0.02 * (TICK_MS / 1000) * 700, 9); // the unshielded one loses hp
+    expect(P(w, 0).hp).toBe(835);
+    expect(P(w, 1).hp).toBeCloseTo(800 - 0.02 * (TICK_MS / 1000) * 800, 9); // the unshielded one loses hp
     expect(P(w, 0).status).toBe("alive");
     expect(RT(w, 0).killedBy).toBeNull();
   });
 });
 
-describe("the bounty moves half of each of the victim's buffs to the killer", () => {
-  /** p0 has `victims` kills (3 puts a bounty on them) and these buffs; p4 is the killer. */
-  function bountied(buffs: Partial<Record<BuffId, number>>, victims = [1, 2, 3]): World {
+describe("a player kill moves no stat", () => {
+  /** p0 has `victims` kills (3 puts a bounty on them) and these cards; p4 is the killer. */
+  function bountied(cards: Record<string, number>, victims = [1, 2, 3]): World {
     const w = startRun(6);
     slay(w, 0, victims);
-    setBuffs(w, 0, buffs);
+    setCards(w, 0, cards);
     w.events = [];
     return w;
   }
-  const noBuffs = (w: World, i: number): void => expect(buffsOf(P(w, i)).size).toBe(0);
 
-  it("a killer who kills a bountied victim gets exactly 50% of each of their buffs, with a buff fx per buff", () => {
-    const w = bountied({ iceGolem: 4, plagueRat: 2.5, emberImp: 1 });
+  it("a killer who kills a bountied victim is paid the kill and the bounty in GV, and takes none of their cards", () => {
+    const w = bountied({ vitality3: 2, haste2: 1, hereComesTheBoom: 1 });
     expect(P(w, 0).bounty).toBe(10);
-    expect(BOUNTY_STACK_SHARE).toBe(0.5);
     kill(w, 0, attacker(w, 4));
-    // Catalog order (emberImp, plagueRat, iceGolem), the stacks halved.
-    expect([...buffsOf(P(w, 4))]).toEqual([["emberImp", 0.5], ["plagueRat", 1.25], ["iceGolem", 2]]);
-    expect(fxOf(w.events, "buff")).toEqual([
-      { kind: "buff", id: idOf(4), buff: "emberImp", stacks: 0.5, total: 0.5 },
-      { kind: "buff", id: idOf(4), buff: "plagueRat", stacks: 1.25, total: 1.25 },
-      { kind: "buff", id: idOf(4), buff: "iceGolem", stacks: 2, total: 2 },
-    ]);
-    // The bounty GV came with it.
+    expect(P(w, 4).build.size).toBe(0);
+    expect(P(w, 4).maxHp).toBe(1400);
+    expect(P(w, 4).asMult).toBe(1000);
     expect(RT(w, 4).gv).toEqual({ kills: GV_KILL, mobs: 0, bounty: 10, quest: 0 });
   });
 
-  it("max hp follows the hp buff gained, and the killer's hp rises by the same delta", () => {
-    const w = bountied({ iceGolem: 4 });
-    P(w, 4).hp = 1000; // Holy, 1450 max, wounded
-    kill(w, 0, attacker(w, 4));
-    const max = 1450 * HP_ICE(2);
-    expect(P(w, 4).maxHp).toBeCloseTo(max, 9);
-    expect(P(w, 4).hp).toBeCloseTo(1000 + (max - 1450), 9);
-  });
-
-  it("the killer's mirrors are re-folded by the transfer, so the buffs it won are in its attack at once", () => {
-    const w = bountied({ plagueRat: 6 });
-    expect(P(w, 4).asMult).toBe(1000);
-    kill(w, 0, attacker(w, 4));
-    expect(P(w, 4).buffs.get("plagueRat")).toBe(3);
-    expect(P(w, 4).asMult).toBe(encodeMult(1 + AS_Q));
-  });
-
-  it("adds to what the killer already holds", () => {
-    const w = bountied({ plagueRat: 3 });
-    grant(w, 4, "plagueRat", 1);
-    w.events = [];
-    kill(w, 0, attacker(w, 4));
-    expect(P(w, 4).buffs.get("plagueRat")).toBe(2.5);
-    expect(fxOf(w.events, "buff")).toEqual([{ kind: "buff", id: idOf(4), buff: "plagueRat", stacks: 1.5, total: 2.5 }]);
-  });
-
-  it("a buff the victim has none of sends no fx", () => {
-    const w = bountied({ cinderHound: 2 });
-    kill(w, 0, attacker(w, 4));
-    expect(fxOf(w.events, "buff").map((fx) => fx.buff)).toEqual(["cinderHound"]);
-  });
-
-  it("a victim without a bounty transfers nothing, and a kill no longer gives a barrier or a burst", () => {
-    const w = bountied({ iceGolem: 6, plagueRat: 6, emberImp: 6 }, [1, 2]); // 2 kills: feed 2, no bounty
+  it("a victim without a bounty pays no bounty and gives nothing else either, and a kill gives no barrier or burst", () => {
+    const w = bountied({ vitality3: 2, haste3: 2 }, [1, 2]); // 2 kills: feed 2, no bounty
     expect(P(w, 0).bounty).toBe(0);
-    setBuffs(w, 4, { iceGolem: 5, plagueRat: 5 }); // the killer's own stacks (once 3 and 5 made a combo)
-    const held = [...buffsOf(P(w, 4))];
+    setCards(w, 4, { vitality2: 1, haste2: 1 });
+    const held = [...P(w, 4).build.entries()];
     const maxHp = P(w, 4).maxHp;
-    w.events = [];
     kill(w, 0, attacker(w, 4));
-    expect([...buffsOf(P(w, 4))]).toEqual(held);
+    expect([...P(w, 4).build.entries()]).toEqual(held);
     expect(P(w, 4).maxHp).toBe(maxHp);
     expect(P(w, 4).barrier).toBe(0);
     expect(RT(w, 4).boost).toBeUndefined();
-    expect(fxOf(w.events, "buff")).toEqual([]);
     expect(RT(w, 4).gv.bounty).toBe(0);
   });
 
-  it("a victim killed by something that is not a player transfers nothing", () => {
-    const w = bountied({ iceGolem: 6, plagueRat: 6 });
-    kill(w, 0, "test");
-    noBuffs(w, 4);
-    expect(fxOf(w.events, "buff")).toEqual([]);
-  });
-
-  it("a bountied victim who leaves right after a hit passes their buffs on too (a credited leave)", () => {
-    const w = bountied({ plagueRat: 4 });
+  it("a bountied victim who leaves right after a hit still pays the credited rival the bounty (a credited leave), and no cards", () => {
+    const w = bountied({ haste3: 2 });
     applyDamage(w, P(w, 0), RT(w, 0), 1, attacker(w, 4));
     removePlayer(w, idOf(0));
-    expect(P(w, 4).buffs.get("plagueRat")).toBe(2);
+    expect(P(w, 4).build.size).toBe(0);
     expect(RT(w, 4).gv.bounty).toBe(10);
   });
 
   it("a bountied victim who leaves without having been hit pays nobody", () => {
-    const w = bountied({ plagueRat: 4 });
+    const w = bountied({ haste3: 2 });
     removePlayer(w, idOf(0));
-    noBuffs(w, 4);
+    expect(P(w, 4).build.size).toBe(0);
+    expect(RT(w, 4).gv.bounty).toBe(0);
   });
 
-  it("transferBuffs called directly moves half of each buff and ignores a missing player", () => {
-    const w = bountied({ iceGolem: 2, plagueRat: 4, emberImp: 6 });
-    transferBuffs(w, RT(w, 4), RT(w, 0));
-    expect([...buffsOf(P(w, 4))]).toEqual([["emberImp", 3], ["plagueRat", 2], ["iceGolem", 1]]);
-    expect([...buffsOf(P(w, 0))]).toEqual([["emberImp", 6], ["plagueRat", 4], ["iceGolem", 2]]); // a copy of half, not a move: the victim is dead anyway
-    const gone = RT(w, 0);
-    removePlayer(w, idOf(0));
-    transferBuffs(w, RT(w, 4), gone); // the victim is gone from the state: nothing to read
-    expect([...buffsOf(P(w, 4))]).toEqual([["emberImp", 3], ["plagueRat", 2], ["iceGolem", 1]]);
-  });
-
-  it("a killer who went down in the same tick still collects the GV but is past receiving buffs", () => {
-    const w = bountied({ iceGolem: 4 });
+  it("a killer who went down in the same tick still collects the GV", () => {
+    const w = bountied({ vitality3: 1 });
     // p4 is downed (hp 0 and status dead) but unresolved, as in the middle of a tick; then its blow kills p0.
     P(w, 4).status = "dead";
     P(w, 4).hp = 0;
     kill(w, 0, attacker(w, 4));
-    noBuffs(w, 4);
+    expect(P(w, 4).build.size).toBe(0);
     expect(RT(w, 4).gv.bounty).toBe(10);
   });
 });
 
 describe("the hooks chain onto whatever was installed before", () => {
-  it("runs a previous bountyClaimed and playerKilled first, and the buffs are already moved when the previous playerKilled runs", () => {
+  it("installing the module keeps a previous bountyClaimed and playerKilled, and registers its system and move modifier", () => {
     const seed = 99;
     const w = createWorld({ seed, config: makeConfig(6), random: mulberry32(seed) });
     for (let i = 0; i < 6; i++) addPlayer(w, idOf(i), NAMES[i]!);
     step(w, TICK_MS);
     const log: string[] = [];
     w.hooks.bountyClaimed = (_w, killer, victim, bounty) => { log.push(`claimed ${killer.id}<-${victim.id} ${bounty}`); };
-    w.hooks.playerKilled = (world, killer) => {
-      const k = world.state.players.get(killer.id)!;
-      log.push(`killed ${killer.id} plagueRat=${k.buffs.get("plagueRat")} asMult=${k.asMult}`);
-    };
+    w.hooks.playerKilled = (_w, killer, victim) => { log.push(`killed ${killer.id}<-${victim.id}`); };
     installBuffs(w);
     expect(w.systems).toContain(expireBoosts);
     expect(w.moveModifiers).toContain(moveSpeedMult);
     slay(w, 0, [1, 2, 3]);
-    setBuffs(w, 0, { plagueRat: 6 });
     log.length = 0;
     kill(w, 0, attacker(w, 4));
-    // The previous claimed hook runs, then the transfer (half of 6), then the previous killed hook, which sees the stacks and
-    // the re-folded mirror already.
-    expect(log).toEqual([`claimed ${idOf(4)}<-${idOf(0)} 10`, `killed ${idOf(4)} plagueRat=3 asMult=${encodeMult(1 + AS_Q)}`]);
+    expect(log).toEqual([`claimed ${idOf(4)}<-${idOf(0)} 10`, `killed ${idOf(4)}<-${idOf(0)}`]);
   });
 });
 
 describe("attack speed through the real formulas", () => {
   const paced = (faction: "plague" | "frost") => pacedFaction(FACTIONS[faction]);
 
-  it("with no buffs the interval and damage per hit are the paced faction's", () => {
+  it("with no cards the interval and damage per hit are the paced faction's", () => {
     const w = startRun(4);
     P(w, 2).weapon0 = "sword"; // Plague
     const t = timingsOf(P(w, 2), "sword")!;
@@ -740,16 +543,16 @@ describe("attack speed through the real formulas", () => {
     expect(packetFor(cOf(w, 2), "sword").raw).toBe(damagePerHit(paced("plague"), "sword", 1));
   });
 
-  it("Frost on the axe is far above its floor: the buff shrinks the interval and damage per hit stays", () => {
+  it("Frost on the axe is far above its floor: the cards shrink the interval and damage per hit stays", () => {
     const w = startRun(4);
     const p = P(w, 3);
     p.weapon0 = "axe";
     const before = timingsOf(p, "axe")!;
     const rawBefore = packetFor(cOf(w, 3), "axe").raw;
     expect(before.interval).toBeGreaterThan(1.5); // 1 / (0.45 x 1.4)
-    grant(w, 3, "plagueRat", 6);
+    grant(w, 3, "haste3", 2);
     const m = decodeMult(p.asMult);
-    expect(m).toBe(sim(AS(6)));
+    expect(m).toBe(sim(1 + 2 * HASTE[3]!));
     expect(m).toBeGreaterThan(1.06);
     const after = timingsOf(p, "axe")!;
     expect(after.interval).toBeCloseTo(before.interval / m, 9);
@@ -760,7 +563,7 @@ describe("attack speed through the real formulas", () => {
     expect(packetFor(cOf(w, 3), "axe").raw).toBeCloseTo(damagePerHit(paced("frost"), "axe", m), 9);
   });
 
-  it("Plague on the sword sits just above the 0.25 s floor: the first stacks are damage per hit, not speed", () => {
+  it("Plague on the sword sits just above the 0.25 s floor: the first cards are damage per hit, not speed", () => {
     const w = startRun(4);
     const p = P(w, 2);
     p.weapon0 = "sword";
@@ -768,7 +571,7 @@ describe("attack speed through the real formulas", () => {
     const rawBefore = packetFor(cOf(w, 2), "sword").raw;
     expect(before.interval).toBeGreaterThan(WEAPONS.sword.floor);
     expect(before.interval).toBeLessThan(0.2515);
-    grant(w, 2, "plagueRat", 6);
+    grant(w, 2, "haste3", 2);
     const m = decodeMult(p.asMult);
     expect(m).toBeGreaterThan(1.06);
     const after = timingsOf(p, "sword")!;
@@ -777,47 +580,50 @@ describe("attack speed through the real formulas", () => {
     const raw = packetFor(cOf(w, 2), "sword").raw;
     expect(raw).toBeCloseTo(damagePerHit(paced("plague"), "sword", m), 9);
     expect(raw).toBeGreaterThan(rawBefore * (1 + 0.9 * (m - 1))); // nearly the full bonus turned into damage
-    expect(raw / after.interval).toBeGreaterThan((rawBefore / before.interval) * (1 + 0.9 * (m - 1))); // so dps rises with the stacks
-    // More stacks, more damage per hit, the interval stays on the floor.
-    grant(w, 2, "plagueRat", 6);
-    expect(timingsOf(p, "sword")!.interval).toBe(WEAPONS.sword.floor);
-    expect(packetFor(cOf(w, 2), "sword").raw).toBeGreaterThan(raw);
+    expect(raw / after.interval).toBeGreaterThan((rawBefore / before.interval) * (1 + 0.9 * (m - 1))); // so dps rises with the cards
+    // More cards, more damage per hit up to the attack-speed cap, the interval stays on the floor.
+    const lessRaw = raw;
+    setCards(w, 2, { haste1: 1 });
+    expect(packetFor(cOf(w, 2), "sword").raw).toBeLessThan(lessRaw);
+    expect(timingsOf(p, "sword")!.interval).toBeGreaterThanOrEqual(WEAPONS.sword.floor);
   });
 
-  it("the bow's interval and draw shrink with the buff: the draw is the 0.6 s cap until 92% of the interval is shorter", () => {
+  it("the bow's interval shrinks with the cards; the draw is the 0.6 s cap until 92% of the interval is shorter, and never goes under its base-speed value (G9)", () => {
     const w = startRun(4);
     const fire = P(w, 0);
     fire.weapon0 = "bow";
     const before = timingsOf(fire, "bow")!;
     expect(before.interval).toBeCloseTo(1 / (0.6 * 1.95), 9); // Fire's rate 0.6, the bow's boost 0.95
     expect(before.windup).toBe(BOW_WINDUP); // 0.92 x 0.855 s is past the 0.6 s cap: the draw is the cap
-    grant(w, 0, "plagueRat", 3);
+    grant(w, 0, "haste3");
     const m = decodeMult(fire.asMult);
-    expect(m).toBe(sim(1 + AS_Q));
+    expect(m).toBe(sim(1 + HASTE[3]!));
     const after = timingsOf(fire, "bow")!;
     expect(after.interval).toBeCloseTo(before.interval / m, 9);
-    expect(after.windup).toBe(BOW_WINDUP); // 0.92 x 0.822 s is still past it
-    // Plague's bow starts 0.277 s: the draw is 92% of the interval, so it shrinks with it. A few stacks leave it above the
-    // 0.25 s floor, where the interval and the draw both follow the multiplier; the buff's best (x2.1 the quote) takes it
-    // to the floor, where the interval holds and the rest of the speed is damage per hit (as the sword's test above).
+    expect(after.windup).toBe(BOW_WINDUP); // 0.92 x 0.68 s is still past it
+    // Plague's bow starts 0.277 s: the draw is 92% of the interval at base speed. A small card leaves the interval above the
+    // 0.25 s floor, where it follows the multiplier; Haste III takes it to the floor, where the interval holds and the rest of
+    // the speed is damage per hit (as the sword's test above). The DRAW does not follow: a ranged windup is the anti-kiting
+    // lever, so since the balance pass (G9, shared mirrorTimings) attack speed never cuts it below its base-speed value
+    // (before it was 92% of the shrinking interval).
     const plague = P(w, 2);
     plague.weapon0 = "bow";
     const plagueBefore = timingsOf(plague, "bow")!;
     expect(plagueBefore.interval).toBeGreaterThan(WEAPONS.bow.floor);
     expect(plagueBefore.windup).toBeCloseTo(BOW_WINDUP_SHARE * plagueBefore.interval, 9);
-    expect(plagueBefore.interval / sim(AS(3))).toBeGreaterThan(WEAPONS.bow.floor); // 3 stacks: no floor binds
-    expect(plagueBefore.interval / sim(AS(8))).toBeLessThan(WEAPONS.bow.floor); // 8 stacks: the floor binds
-    for (const stacks of [3, 8]) {
+    expect(plagueBefore.interval / sim(1 + HASTE[1]!)).toBeGreaterThan(WEAPONS.bow.floor); // Haste I: no floor binds
+    expect(plagueBefore.interval / sim(1 + HASTE[3]!)).toBeLessThan(WEAPONS.bow.floor); // Haste III: the floor binds
+    for (const id of ["haste1", "haste3"]) {
       const v = startRun(4);
-      grant(v, 2, "plagueRat", stacks);
+      grant(v, 2, id);
       const pv = P(v, 2);
       pv.weapon0 = "bow";
       const t = timingsOf(pv, "bow")!;
       const mv = decodeMult(pv.asMult);
-      expect(t.interval, `${stacks} stacks`).toBeCloseTo(Math.max(WEAPONS.bow.floor, plagueBefore.interval / mv), 9);
-      expect(t.interval, `${stacks} stacks`).toBeGreaterThanOrEqual(WEAPONS.bow.floor);
-      expect(t.windup, `${stacks} stacks`).toBeCloseTo(BOW_WINDUP_SHARE * t.interval, 9);
-      expect(t.windup, `${stacks} stacks`).toBeLessThan(plagueBefore.windup);
+      expect(t.interval, id).toBeCloseTo(Math.max(WEAPONS.bow.floor, plagueBefore.interval / mv), 9);
+      expect(t.interval, id).toBeGreaterThanOrEqual(WEAPONS.bow.floor);
+      expect(BOW_WINDUP_SHARE * t.interval, id).toBeLessThan(plagueBefore.windup); // what the old share-of-interval draw would be
+      expect(t.windup, id).toBe(plagueBefore.windup);
     }
   });
 
@@ -834,22 +640,15 @@ describe("attack speed through the real formulas", () => {
 const effectiveMove = (w: World, c: Combatant): number => w.moveModifiers.reduce((m, mod) => m * mod(w, c), moveMultiplierOf(w, c));
 
 describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
-  /** p0 holds a lock on p1 (the row of Cinder Hound holds while it does) and `stacks` of the buff. */
-  function chasing(stacks: number): World {
+  it("Fleet is a registered moveModifier of a game world, not a part of moveMultiplierOf", () => {
     const w = startRun(2);
-    RT(w, 0).weapon.lock = "p1";
-    if (stacks > 0) grant(w, 0, "cinderHound", stacks);
-    return w;
-  }
-
-  it("move-speed buffs are a registered moveModifier of a game world, not a part of moveMultiplierOf", () => {
-    const w = chasing(3);
+    grant(w, 0, "fleet2");
     expect(w.moveModifiers).toContain(moveSpeedMult);
     expect(moveMultiplierOf(w, cOf(w, 0))).toBe(1);
-    expect(effectiveMove(w, cOf(w, 0))).toBe(sim(1 + MS_Q));
+    expect(effectiveMove(w, cOf(w, 0))).toBe(sim(1 + FLEET[2]!));
   });
 
-  it("a buffed player really walks farther per tick (the step loop applies the modifier)", () => {
+  it("a player with a Fleet card really walks farther per tick (the step loop applies the modifier)", () => {
     // An open floor, so the chase is a straight line, with the target far enough to be walked towards for several ticks.
     const W = 40;
     const H = 20;
@@ -858,14 +657,13 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
     for (let ty = 0; ty < H; ty++) { tiles[ty * W] = TILE_WALL; tiles[ty * W + W - 1] = TILE_WALL; }
     const spawns = Array.from({ length: 8 }, (_, i) => ({ x: TILE * (3 + 3 * i) + TILE / 2, y: TILE * 10 + TILE / 2 }));
     const map: GameMap = { ...mapFromTiles(W, H, tiles), spawns };
-    // Distance walked in the 4th tick of a chase of a target 14 tiles away: the lock is taken on tick 1 and the mirror
-    // follows it by the end of that tick (the condition is read once a tick), so by tick 3 the walk is at its pace.
-    const run = (stacks: number): number => {
+    // Distance walked in the 4th tick of a chase of a target 14 tiles away.
+    const run = (fleet: boolean): number => {
       const world = createGameWorld({ config: makeConfig(2), random: mulberry32(8), map });
       addPlayer(world, "p0", "alice");
       addPlayer(world, "p1", "bob");
       step(world, TICK_MS);
-      if (stacks > 0) grantBuff(world, P(world, 0), RT(world, 0), "cinderHound", stacks);
+      if (fleet) grant(world, 0, "fleet2");
       const a = P(world, 0);
       const b = P(world, 1);
       a.x = TILE * 3 + TILE / 2; a.y = TILE * 10 + TILE / 2;
@@ -880,9 +678,9 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
       tick(world);
       return a.x - x0;
     };
-    const plain = run(0);
+    const plain = run(false);
     expect(plain).toBeCloseTo(PLAYER_SPEED * (TICK_MS / 1000), 6);
-    expect(run(3) / plain).toBeCloseTo(sim(1 + MS_Q), 6);
+    expect(run(true) / plain).toBeCloseTo(sim(1 + FLEET[2]!), 6);
   });
 
   it("is 1 with nothing on", () => {
@@ -890,16 +688,18 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
     expect(effectiveMove(w, cOf(w, 0))).toBe(1);
   });
 
-  it("includes the move-speed buff while the player holds a lock, and not without one", () => {
-    const w = chasing(3);
-    expect(effectiveMove(w, cOf(w, 0))).toBe(sim(MS(3)));
-    const idle = startRun(2);
-    grant(idle, 0, "cinderHound", 3);
-    expect(effectiveMove(idle, cOf(idle, 0))).toBe(1);
+  it("includes the Fleet bonus while the player is not shooting, and not for a shooter (a bow or wand shot pauses it)", () => {
+    const w = startRun(2);
+    grant(w, 0, "fleet3");
+    expect(effectiveMove(w, cOf(w, 0))).toBe(sim(1 + FLEET[3]!));
+    RT(w, 0).weapon.lastShotAt = w.state.serverTime;
+    tick(w);
+    expect(effectiveMove(w, cOf(w, 0))).toBe(1);
   });
 
-  it("is 0 while rooted whatever the buffs say", () => {
-    const w = chasing(8);
+  it("is 0 while rooted whatever the cards say", () => {
+    const w = startRun(2);
+    grant(w, 0, "fleet3", 3);
     expect(effectiveMove(w, cOf(w, 0))).toBeGreaterThan(1);
     RT(w, 0).weapon.rootUntil = w.state.serverTime + 100;
     expect(effectiveMove(w, cOf(w, 0))).toBe(0);
@@ -907,9 +707,10 @@ describe("the move factor (moveMultiplierOf and world.moveModifiers)", () => {
     expect(effectiveMove(w, cOf(w, 0))).toBeGreaterThan(1);
   });
 
-  it("is 0 while an attack winds up, whatever the buffs say", () => {
-    const w = chasing(3);
-    expect(effectiveMove(w, cOf(w, 0))).toBe(sim(MS(3)));
+  it("is 0 while an attack winds up, whatever the cards say", () => {
+    const w = startRun(2);
+    grant(w, 0, "fleet2");
+    expect(effectiveMove(w, cOf(w, 0))).toBe(sim(1 + FLEET[2]!));
     RT(w, 0).weapon.action = {
       kind: "cast", weapon: "wand", startedAt: w.state.serverTime, landsAt: w.state.serverTime + 100, a: 0,
       packet: { raw: 1, phys: 0, magic: 1, true: 0 }, origin: { x: 0, y: 0 },

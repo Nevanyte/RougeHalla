@@ -1,5 +1,10 @@
 """Which bow and wand windups hold the kiting guarantee? (the controls rework; test_kite.py's check, swept)
 
+NOTE (balance pass): test_kite.py now judges a perfect orb-walker by the noise model (r_kite >= 0.78: it wins at most 65%). This
+sweep keeps the controls rework's stricter OLD measure, the weakest melee tolerance over the orb-walk free fire (margin >= 1), as
+a stress test of the windup lever: on the compressed sheet the tolerance is 0 in many cells (the favourite's edge is thin by
+design), so a "STOLEN" count here is no longer the gate; read the shares at which the margin stops falling as the lever's shape.
+
     python3 testing/kite_windup_sweep.py        (needs numpy, like realtime.py; about 10 s)
 
 A ranged weapon's windup is min(cap, share x interval) seconds (realtime.windup, shared/weapons.ts BOW_WINDUP /

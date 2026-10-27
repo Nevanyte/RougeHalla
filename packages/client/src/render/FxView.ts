@@ -4,11 +4,10 @@
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
 import {
-  ABILITIES, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffDef, formatGain, isAbilityDot, isDot,
+  ABILITIES, PLAYER_RADIUS, WEAPONS, Y_SCALE, isAbilityDot, isDot,
   type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx,
 } from "@raid/shared";
-import { ELITE_COLOR, buffColor } from "../ui/buffTheme";
-import { buffNewsText, type BuffNews } from "../ui/buffTip";
+import { ELITE_COLOR } from "../ui/buffTheme";
 import { cssColor } from "../ui/dom";
 import type { ToastTone } from "../ui/toast";
 import type { FigureCues } from "./figurePose";
@@ -30,8 +29,6 @@ const DECAL_MS = 2000;
 const HEAL_MS = 800;
 const FLOAT_MS = 1100;
 const RING_MS = 380;
-/** The ring a gain of buff stacks draws on its fighter, in body radii at its widest. */
-const BUFF_RING_SIZE = 1.9;
 const HIT_NUMBER_MS = 700;
 const STAGGER_MS = 500;
 const FLAME_MS = 380;
@@ -88,10 +85,10 @@ const DECAL_HOLD = 0.25;
 const HEAL_START_HEIGHT = BODY_LIFT + PLAYER_RADIUS + 38;
 const HEAL_RISE = 28;
 const HIT_START_HEIGHT = BODY_LIFT + PLAYER_RADIUS + 20;
-/** Other players' buff news floats above the heal numbers' lane. */
+/** A short line floating over a fighter starts above the heal numbers' lane. */
 const FLOAT_START_HEIGHT = HEAL_START_HEIGHT + 14;
 const FLOAT_RISE = 22;
-/** Floats that follow one another (several buffs gained in one frame) stack this many pixels apart, over this many lanes. */
+/** Floats that follow one another stack this many pixels apart, over this many lanes. */
 const FLOAT_LANES = 3;
 const FLOAT_LANE_PX = 13;
 const HIT_RISE = 34;
@@ -142,13 +139,13 @@ export interface FxHost {
   /** Where camp `camp` (its index in map.camps) is centred, for the heal ring; undefined for one the map does not have (a practice camp). */
   campCentre?(camp: number): { x: number; y: number } | undefined;
   /**
-   * The local player's own pick at reward chest `chest` as a line ("You took Whetstone", "You skipped the chest"); `option` is
+   * The local player's own pick at reward chest `chest` as a line ("You took Haste II", "You skipped the chest"); `option` is
    * the index into the chest's options, or -1 for a skip. Undefined when the chest is not known any more.
    */
   chestPick?(chest: string, option: number): string | undefined;
   /**
    * Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!".
-   * `tone` marks the local player's buff news.
+   * `tone` colours it ("ok" for the local player's own good news).
    */
   announce?(text: string, tone?: ToastTone): void;
   /** A cast, its landing or end, or a status (WishFx draws them): handed over at render time, with the clock `now` effects run on. */
@@ -227,12 +224,6 @@ export class FxView {
   /** Live impact and dust effects, capped so a crowd fight stays cheap. */
   private impacts = 0;
   private dusts = 0;
-  /**
-   * The local player's buff news of this update(), told as one line when it ends (flushNews). A bounty kill moves a share of
-   * every buff its victim held: a line each in one frame would fill the toast stack and push the rest out of it.
-   */
-  private newsBuffs: BuffNews[] = [];
-
   constructor(private readonly scene: Phaser.Scene, private readonly host: FxHost) {}
 
   /** Called for every `fx` message as it arrives; nothing is drawn until update() finds it due. */
@@ -315,7 +306,6 @@ export class FxView {
     this.synced = clockSynced;
     this.drain(this.pending, renderT, now, clockSynced);
     this.drain(this.launches, renderT, now, clockSynced);
-    this.flushNews();
     this.advance(now);
   }
 
@@ -336,7 +326,6 @@ export class FxView {
     this.destroyed = true;
     this.pending.length = 0;
     this.launches.length = 0;
-    this.newsBuffs.length = 0;
     for (const e of this.active) { e.g?.destroy(); e.text?.destroy(); }
     this.active.length = 0;
     this.impacts = 0;
@@ -411,9 +400,6 @@ export class FxView {
         if (name && bounty > 0) this.host.announce?.(`${name} is on a rampage — bounty ${bounty} GV`);
         break;
       }
-      case "buff":
-        this.buff(fx, now);
-        break;
       case "campCleared": {
         // Its shared chest drops at once (ContainerView plays the drop cue); everyone hears which camp fell.
         const label = this.host.campLabel?.(fx.camp);
@@ -686,33 +672,6 @@ export class FxView {
     if (!name) return;
     const killer = fx.by ? this.host.name(fx.by) : undefined;
     this.host.announce?.(killer ? `${name} was slain by ${killer}` : `${name} was slain`);
-  }
-
-  /**
-   * Stacks of a mob type's buff gained: a ring in the buff's zone colour on the fighter (everyone sees whose zone it came
-   * from), a toast for the local player, a small floating line over anyone else.
-   */
-  private buff(fx: FxOf<"buff">, now: number): void {
-    if (!(fx.stacks > 0)) return;
-    const color = buffColor(fx.buff);
-    this.ring(fx.id, color, BUFF_RING_SIZE, now);
-    if (fx.id === this.host.localId) {
-      this.newsBuffs.push({ buff: fx.buff, gained: fx.stacks, total: fx.total });
-      return;
-    }
-    this.floatText(fx.id, `+${formatGain(fx.stacks)} ${buffDef(fx.buff)?.name ?? fx.buff}`, cssColor(color), now);
-  }
-
-  /**
-   * Tells the local player what update() collected: one line. A single buff keeps its own wording ("Ember Imp +1.1 (3.2): +5.4%
-   * damage"); several (a bounty kill) are listed, a buff gained twice summed (buffNewsText).
-   */
-  private flushNews(): void {
-    const buffs = this.newsBuffs;
-    if (buffs.length === 0) return;
-    this.newsBuffs = [];
-    if (!this.host.announce) return;
-    this.host.announce(buffNewsText(buffs), "buff");
   }
 
   /** A ring around the fighter that grows to `size` body radii while it fades. */

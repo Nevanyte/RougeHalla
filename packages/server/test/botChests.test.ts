@@ -7,58 +7,68 @@ import {
 } from "../src/bots/chestHunt";
 
 const ME = "me";
+/** Three base cards: for a Fire sword bot with no build, Attack Damage II (index 2) is the best (tier II, its weapon's stat). */
+const OPTIONS = ["vitality1", "armor1", "ad2"];
 const FIRE_SWORD: Pick<ChestSelf, "faction" | "weapons" | "build"> = { faction: "fire", weapons: ["sword", null], build: null };
 
 // ---------------------------------------------------------------------------------------------------------------- the options
 
 describe("which chest option a bot takes", () => {
   it("is the first free one it can use when nothing sets them apart", () => {
-    // Witness and Bounty Hunter are both a +damage rider for a Fire bot: the same worth, so the first stands.
+    // Witness and Bounty Hunter are both a tier I augment with a damage rider: the same worth, so the first stands.
     expect(optionScore("witness", FIRE_SWORD)).toBe(optionScore("bountyHunter", FIRE_SWORD));
     expect(chooseOption(["witness", "bountyHunter"], ["", ""], FIRE_SWORD)).toBe(0);
     expect(chooseOption(["bountyHunter", "witness"], ["", ""], FIRE_SWORD)).toBe(0);
   });
 
-  it("passes over an option somebody took and one it holds at the top rank", () => {
-    const build = { thickHide: 2 };
-    expect(chooseOption(["thickHide", "whetstone", "swiftBoots"], ["", "", ""], { ...FIRE_SWORD, build })).toBe(1);
-    expect(chooseOption(["whetstone", "swiftBoots"], ["other", ""], FIRE_SWORD)).toBe(1);
-    expect(chooseOption(["whetstone", "swiftBoots", "thickHide"], ["a", "b", "c"], FIRE_SWORD), "all taken").toBe(-1);
-    expect(chooseOption(["whetstone", "swiftBoots"], ["", ""], { ...FIRE_SWORD, build: { whetstone: 2, swiftBoots: 2 } }), "all maxed").toBe(-1);
+  it("passes over an option somebody took, a card it cannot take and one it already holds", () => {
+    // A conditional card needs a base card of its stat (Bloodthirst: leech), a unique card is held once.
+    expect(chooseOption(["bloodthirst", "witness", "ad1"], ["", "", ""], FIRE_SWORD), "no leech card: Bloodthirst is refused").not.toBe(0);
+    expect(chooseOption(["witness", "ad1"], ["", ""], { ...FIRE_SWORD, build: { witness: 1 } }), "Witness is held").toBe(1);
+    expect(chooseOption(["ad2", "vitality1"], ["other", ""], FIRE_SWORD)).toBe(1);
+    expect(chooseOption(["ad1", "ad2", "vitality1"], ["a", "b", "c"], FIRE_SWORD), "all taken").toBe(-1);
+    expect(chooseOption(["bloodthirst", "secondSkin", "hearty"], ["", "", ""], FIRE_SWORD), "all refused").toBe(-1);
+    expect(chooseOption(["witness", "bountyHunter"], ["", ""], { ...FIRE_SWORD, build: { witness: 1, bountyHunter: 1 } }), "all held").toBe(-1);
     expect(chooseOption([], [], FIRE_SWORD), "an empty chest").toBe(-1);
   });
 
-  it("takes a skill it holds at rank 1 (that gives rank 2), and counts the upgrade a little", () => {
-    const build = new Map([["whetstone", 1]]);
-    expect(chooseOption(["whetstone"], [""], { ...FIRE_SWORD, build })).toBe(0);
-    expect(optionScore("whetstone", { ...FIRE_SWORD, build })).toBeGreaterThan(optionScore("whetstone", FIRE_SWORD));
+  it("takes a base card it already holds again: it stacks, and a stat it holds counts for more than a new one", () => {
+    expect(chooseOption(["ad1"], [""], { ...FIRE_SWORD, build: { ad1: 3 } }), "never maxed").toBe(0);
+    expect(optionScore("ad1", { ...FIRE_SWORD, build: { ad2: 1 } })).toBeGreaterThan(optionScore("ad1", FIRE_SWORD));
+    expect(optionScore("vitality2", FIRE_SWORD)).toBeGreaterThan(optionScore("vitality1", FIRE_SWORD)); // the higher tier is worth more
   });
 
-  it("prefers its own faction's skill and the fight stats (damage, attack speed, hp) to the walking ones", () => {
-    // Fire has no live passive until R4b: a Plague bot's own pool (Pestilence) beats the neutrals.
-    const plague = { faction: "plague", weapons: ["bow", null] as const, build: null };
-    expect(chooseOption(["whetstone", "pestilence", "swiftBoots"], ["", "", ""], plague)).toBe(1);
-    expect(optionScore("whetstone", FIRE_SWORD)).toBeGreaterThan(optionScore("swiftBoots", FIRE_SWORD));
-    expect(chooseOption(["swiftBoots", "whetstone"], ["", ""], FIRE_SWORD)).toBe(1);
+  it("takes a conditional card it can use ahead of a plain augment, and a stat it can build on ahead of a new one", () => {
+    const leech = { ...FIRE_SWORD, build: { leech1: 1 } };
+    expect(optionScore("bloodthirst", FIRE_SWORD)).toBe(-Infinity);
+    expect(optionScore("bloodthirst", leech)).toBeGreaterThan(optionScore("witness", leech));
+    expect(chooseOption(["witness", "bloodthirst"], ["", ""], leech)).toBe(1);
+    expect(chooseOption(["vitality1", "ad1"], ["", ""], { ...FIRE_SWORD, build: { vitality1: 1 } }), "deepen the stat it holds").toBe(0);
   });
 
-  it("holds back a skill that needs a weapon it does not carry", () => {
-    // Quickdraw is for the melee weapons (sword, axe, shield: a bow or wand windup never shortens): a wand bot scores it 3 below a sword or axe bot.
+  it("prefers the stat that suits its weapon, and holds back a card that gives something up", () => {
+    // Ability power is for the wand (and fists); attack damage for the sword, axe and bow.
     const wand = { ...FIRE_SWORD, weapons: ["wand", null] as const };
-    expect(optionScore("quickdraw", FIRE_SWORD) - optionScore("quickdraw", wand)).toBe(3);
-    expect(optionScore("quickdraw", { ...FIRE_SWORD, weapons: ["axe", null] })).toBe(optionScore("quickdraw", FIRE_SWORD));
-    expect(chooseOption(["quickdraw", "whetstone"], ["", ""], wand)).toBe(1);
+    expect(optionScore("ap1", wand)).toBeGreaterThan(optionScore("ap1", FIRE_SWORD));
+    expect(optionScore("ad1", FIRE_SWORD)).toBeGreaterThan(optionScore("ad1", wand));
+    expect(optionScore("ad1", { ...FIRE_SWORD, weapons: ["axe", null] })).toBe(optionScore("ad1", FIRE_SWORD));
+    expect(chooseOption(["ap1", "ad1"], ["", ""], wand)).toBe(0);
+    expect(chooseOption(["ap1", "ad1"], ["", ""], FIRE_SWORD)).toBe(1);
+    // Armor is for a shield; Glass Cannon trades defence for damage and the persona-free chooser steers clear of such a card.
+    const shield = { ...FIRE_SWORD, weapons: ["shield", null] as const };
+    expect(optionScore("armor1", shield)).toBeGreaterThan(optionScore("armor1", FIRE_SWORD));
+    expect(optionScore("glassCannon", FIRE_SWORD)).toBeLessThan(optionScore("witness", FIRE_SWORD));
   });
 
   it("is a pure function of what it is given: the same chest, the same answer, nothing changed", () => {
-    const options = ["swiftBoots", "thickHide", "whetstone"];
+    const options = ["vitality1", "ad2", "witness"];
     const taken = ["", "", ""];
-    const build = { whetstone: 1 };
+    const build = { ad1: 1 };
     const first = chooseOption(options, taken, { ...FIRE_SWORD, build });
     for (let i = 0; i < 5; i++) expect(chooseOption(options, taken, { ...FIRE_SWORD, build })).toBe(first);
-    expect(options).toEqual(["swiftBoots", "thickHide", "whetstone"]);
+    expect(options).toEqual(["vitality1", "ad2", "witness"]);
     expect(taken).toEqual(["", "", ""]);
-    expect(build).toEqual({ whetstone: 1 });
+    expect(build).toEqual({ ad1: 1 });
   });
 
   it("still takes an id the catalog does not know (newer server content)", () => {
@@ -79,7 +89,7 @@ const BORN_AT_FIRST_LOOK = SERVER + 50 + CHEST_SECONDS * 1000;
 function chest(id: string, x: number, y: number, o: Partial<ChestLike> = {}): ChestLike {
   return {
     id, kind: "reward", x, y, expiresAt: SERVER - OLD + CHEST_SECONDS * 1000,
-    options: ["whetstone", "swiftBoots", "thickHide"], takenBy: ["", "", ""], pickers: [], ...o,
+    options: OPTIONS, takenBy: ["", "", ""], pickers: [], ...o,
   };
 }
 
@@ -117,7 +127,7 @@ describe("the chest hunt", () => {
   it("picks once at a chest in range with sight, and never asks for it again", () => {
     const s = new Scene();
     s.chests = [chest("c1", 60, 0)];
-    expect(s.step()).toMatchObject({ kind: "pick", chest: "c1", option: 2 }); // thick hide: hp and both resists
+    expect(s.step()).toMatchObject({ kind: "pick", chest: "c1", option: 2 }); // Attack Damage II
     for (let i = 0; i < 20; i++) expect(s.step()).toEqual({ kind: "none" });
     expect(s.hunter.tried("c1")).toBe(true);
   });
@@ -132,15 +142,15 @@ describe("the chest hunt", () => {
     expect(far.step().kind, "just past it: walk closer").toBe("walk");
   });
 
-  it("skips when every option is taken or maxed", () => {
+  it("skips when every option is taken or refused to it", () => {
     const taken = new Scene();
     taken.chests = [chest("c1", 40, 0, { takenBy: ["a", "b", "c"] })];
     expect(taken.step()).toMatchObject({ kind: "pick", chest: "c1", option: -1 });
 
-    const maxed = new Scene();
-    maxed.self = { ...maxed.self, build: { whetstone: 2, swiftBoots: 2, thickHide: 2 } };
-    maxed.chests = [chest("c1", 40, 0)];
-    expect(maxed.step()).toMatchObject({ kind: "pick", chest: "c1", option: -1 });
+    // Conditional cards without their base card are refused by the server: nothing usable is a skip.
+    const refused = new Scene();
+    refused.chests = [chest("c1", 40, 0, { options: ["bloodthirst", "secondSkin", "hearty"] })];
+    expect(refused.step()).toMatchObject({ kind: "pick", chest: "c1", option: -1 });
   });
 
   it("takes the free option when the others are gone", () => {
@@ -208,7 +218,7 @@ describe("the chest hunt", () => {
       const base = chest(id, x, 0);
       return {
         ...base,
-        get options() { reads++; return ["whetstone", "swiftBoots", "thickHide"]; },
+        get options() { reads++; return OPTIONS; },
         get takenBy() { reads++; return ["", "", ""]; },
       };
     };
@@ -354,7 +364,7 @@ describe("the chest hunt and a chest's birth hold", () => {
     const s = new Scene();
     s.chests = [{
       ...chest("c1", 60, 0, { expiresAt: BORN_AT_FIRST_LOOK }),
-      get options() { reads++; return ["whetstone", "swiftBoots", "thickHide"]; },
+      get options() { reads++; return OPTIONS; },
     }];
     // The looks at ages 0, 50 and 100 ms wait...
     expect([s.step().kind, s.step().kind, s.step().kind]).toEqual(["none", "none", "none"]);

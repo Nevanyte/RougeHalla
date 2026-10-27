@@ -1,5 +1,9 @@
 """How much can a buff on the SHOOTER add before the kiting guarantee breaks? (roguelike R4a; test_kite.py's check, swept)
 
+NOTE (balance pass): test_kite.py now judges a perfect orb-walker by the noise model (r_kite >= 0.78), and the sweep below still
+uses the controls rework's OLD measure (the weakest melee tolerance over the orb-walk free fire, margin >= 1), which the compressed
+sheet's thin edges no longer meet in many cells at no buff at all: use it for the shape of the curve, not as a gate.
+
     python3 testing/kite_buff_sweep.py [--jobs N]        (needs numpy, like realtime.py; about 30 s on 8 cores)
 
 test_kite.py's 20 cells (faction edge x bow / wand: the weakest melee weapon's tolerance over the orb-walk free-fire time,

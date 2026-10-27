@@ -7,7 +7,6 @@ import {
   type ClientMessages, type GameMap, type PlanMessage,
 } from "@raid/shared";
 import { DEFAULT_SETTINGS, SettingsStore } from "../src/settings";
-import { counterBuffs } from "../src/ui/campInfo";
 import { describeMatchup, formatEta } from "../src/ui/planningMath";
 import { PlanningView, campTitle, planningModeFor, type PlanningFrame, type PlanningMode } from "../src/ui/planning";
 import { MAX_WAYPOINTS } from "../src/ui/planningMath";
@@ -358,25 +357,6 @@ describe("who is here, and what counters them", () => {
     const items = people.byClass("pl-person");
     expect(items.map((i) => i.classList.contains("ready"))).toEqual([false, false, true]);
     expect(items[0]!.classList.contains("me")).toBe(true);
-  });
-
-  it("names the buffs that counter the other factions present, with where they are won", () => {
-    const { open, q } = setup();
-    open();
-    const hint = q("pl-hint");
-    expect(hint.hidden).toBe(false);
-    const want = counterBuffs(["holy", "fire"]);
-    expect(want.length).toBeGreaterThan(0);
-    for (const h of want) {
-      expect(hint.textContent).toContain(`Against ${FACTIONS[h.faction].displayName}:`);
-      for (const b of h.buffs) expect(hint.textContent).toContain(`${b.name} (${FACTIONS[b.zone].displayName})`);
-    }
-  });
-
-  it("shows no hint when nobody else is here", () => {
-    const { open, q } = setup();
-    open(plan(), { players: [{ faction: "plague", ready: false, me: true }] });
-    expect(q("pl-hint").hidden).toBe(true);
   });
 });
 

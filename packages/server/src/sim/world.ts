@@ -252,7 +252,7 @@ export interface HealOverTime {
   ignoreLockout: boolean;
 }
 
-/** Server-only timers behind a player's buffs. Times are server ms. */
+/** Server-only timers behind a player's barrier. Times are server ms. */
 export interface BoostRuntime {
   /** When the kill barrier (PlayerState.barrier) ends. */
   shieldUntil: number;
@@ -432,7 +432,7 @@ export interface CombatScratch {
    */
   rank: Map<string, number>;
   /**
-   * True while applyLedger applies damage. Rewards for kills (GV, a bounty, buffs, a trigger's heal) are queued in `payouts` and
+   * True while applyLedger applies damage. Rewards for kills (GV, a bounty, a trigger's heal) are queued in `payouts` and
    * paid once every victim has taken their damage (payLater), so who is left standing never depends on the order victims
    * happen to be processed in.
    */
@@ -560,7 +560,7 @@ export interface WorldHooks {
    * it: weapons cancel every action, projectiles clear every flight.
    */
   teleported?(world: World): void;
-  /** `killer` just claimed `victim`'s bounty (already paid). sim/buffs.ts moves half of each of the victim's buffs here. */
+  /** `killer` just claimed `victim`'s bounty (already paid). No module consumes it since the balance pass: a player kill pays GV and the bounty's GV, never a stat. */
   bountyClaimed?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, bounty: number): void;
   /** A player just killed another player (kill GV and bounty paid); quest objectives chain here. */
   playerKilled?(world: World, killer: PlayerRuntime, victim: PlayerRuntime, outcome: "died" | "mia"): void;

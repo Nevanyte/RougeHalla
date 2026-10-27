@@ -12,6 +12,7 @@ import {
   TILE_FLOOR, TILE_WALL, TRAINING_WISH_COOLDOWN_SECONDS, TRIAL_CAST_MS, TRIAL_DEALT_MULT, TRIAL_EXIT_STUN_MS, TRIAL_MS, TRIAL_RADIUS,
   TARGET_RANGE, TRIAL_RANGE, TRIAL_TAKEN_MULT, WISH_COOLDOWN_SECONDS, WISH_LOCK_SECONDS, wishOf,
   ABILITY_IDS, type AbilityId, type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
+  STAGGER_IMMUNITY_SECONDS,
 } from "@raid/shared";
 import { loadConfig } from "../src/config";
 import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../src/sim/step";
@@ -19,7 +20,8 @@ import { applyDamage, markDropped, markReconnected } from "../src/sim/arena";
 import {
   abilityDotFx, armWishes, cancelCast, clearAll, clearFighter, handleCast, statusDamage, updateAbilities, validUnitTarget,
 } from "../src/sim/abilities";
-import { grantBuff, moveSpeedMult } from "../src/sim/buffs";
+import { moveSpeedMult } from "../src/sim/buffs";
+import { grantCard } from "../src/sim/chests";
 import { combatant, defenseOf, type Combatant } from "../src/sim/combatant";
 import { heal, noteContact } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -233,12 +235,12 @@ describe("the cast input: acceptance", () => {
     expect(castFx()).toEqual([]);
   });
 
-  it("casting never touches the weapon cooldown, and attack-speed buffs never stretch a cast or its cooldown", () => {
+  it("casting never touches the weapon cooldown, and attack-speed cards never stretch a cast or its cooldown", () => {
     const world = arena([{ faction: "holy", at: ME }, { faction: "fire", at: FOE }]);
     const p = P(world);
     p.readyAt = T(world) + 777;
-    grantBuff(world, p, RT(world), "plagueRat", 4);
-    grantBuff(world, p, RT(world), "iceGolem", 4);
+    grantCard(world, combatant(world, "p0") as Extract<Combatant, { kind: "player" }>, "haste3");
+    grantCard(world, combatant(world, "p0") as Extract<Combatant, { kind: "player" }>, "vitality3");
     expect(p.asMult).toBeGreaterThan(1000);
     cast(world, 0);
     tick(world);
@@ -246,7 +248,7 @@ describe("the cast input: acceptance", () => {
     expect(p.wishReadyAt).toBe(T(world) + WISH_COOLDOWN_SECONDS * SEC);
 
     const frost = arena([{ faction: "frost", at: ME }, { faction: "fire", at: FOE }]);
-    grantBuff(frost, P(frost), RT(frost), "plagueRat", 4);
+    grantCard(frost, combatant(frost, "p0") as Extract<Combatant, { kind: "player" }>, "haste3");
     cast(frost, 0, { target: 1 });
     tick(frost);
     expect(RT(frost).cast!.landsAt - RT(frost).cast!.startedAt).toBe(FREEZE_CAST_MS);
@@ -1458,7 +1460,7 @@ describe("Last Stand (Holy)", () => {
     expect(fxOf("heal").at(-1)!.amount).toBeCloseTo(0.5 * 0.3 * 500, 9);
   });
 
-  it("runs 30% of base speed faster, on top of buffs and not multiplied by them, until it ends", () => {
+  it("runs 30% of base speed faster, on top of cards and not multiplied by them, until it ends", () => {
     const world = trio({}, 1000);
     const landAt = standLast(world);
     walkTo(world, 0, 1100, 320);
@@ -2215,7 +2217,7 @@ describe("a hit on a fighter held at the Last Stand floor still lands", () => {
     expect(P(world).hp).toBe(1);
     expect(first.fx.filter((f) => f.kind === "hit")).toHaveLength(1);
     expect(calls).toEqual([expect.closeTo(500, 9)]);
-    runFor(world, 600); // past the stagger immunity that hit started
+    runFor(world, STAGGER_IMMUNITY_SECONDS * 1000 + 100); // past the stagger immunity that hit started
     send(world, 0, "attack", { a: 0 });
     tick(world);
     expect(W(world).action).not.toBeNull();

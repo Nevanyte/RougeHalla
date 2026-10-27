@@ -14,7 +14,7 @@
 // The camp has a territory as on a generated map (ROGUELIKE_PLAN D15, a disc of TERRITORY_TILES around it, about the median
 // territory of 330 tiles): the `camp` pull's mobs leash to it within min(radius, 12 tiles) of their spots, not the 9-tile
 // circle of a hand-built map (`--no-territory` for that one). `single` and `group` place their mobs without a camp, so they
-// keep the circle. The kills pay as in a run (GV, the type's buff stacks), so the buffs a camp gives already help with its
+// keep the circle. The kills pay as in a run (GV and the mob's weapon; a kill gives no stat since the balance pass), so nothing a camp gives helps with its
 // last mobs.
 // It reports time to clear (from the first mob waking to the last death) and hp left; a report, never a gate.
 //
@@ -35,7 +35,6 @@ import {
 import { CampState } from "@raid/shared/schema";
 import { buildArena } from "../src/harness/duel";
 import { ensureRosters } from "../src/sim/camps";
-import { buffsOf } from "../src/sim/buffs";
 import { combatant, setMobScalesForHarness } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -77,8 +76,6 @@ export interface CampDuelResult {
   /** The player's hp share at the end (0 when it fell), and the lowest it reached. */
   hpLeft: number;
   minHp: number;
-  /** Buff stacks the camp paid, summed over the buffs. */
-  stacks: number;
   /** Mobs awake on the tick the first one woke (the camp pull must show all of them there, the single pull one). */
   awakeAtFirstWake: number;
 }
@@ -240,9 +237,6 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
     if (p.status !== "alive" || world.state.phase !== "active") { outcome = "lost"; break; }
     if (ids.every((id) => !alive(id))) { outcome = "cleared"; break; }
   }
-  // Pay what the last kill queued (payLater runs inside the step, so nothing is left), then read the build.
-  let stacks = 0;
-  for (const n of buffsOf(p).values()) stacks += n;
   return {
     spec: { ...spec, weapon },
     outcome,
@@ -251,14 +245,13 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
     clearSeconds: outcome === "cleared" && wokeAt !== null ? (lastDeath - wokeAt) / 1000 : null,
     hpLeft: outcome === "lost" ? 0 : Math.max(0, p.hp) / p.maxHp,
     minHp,
-    stacks,
     awakeAtFirstWake,
   };
 }
 
 // ------------------------------------------------------------------------------------------------------------- report
 
-interface Cell { n: number; cleared: number; lost: number; timeouts: number; clear: number; hp: number; stacks: number }
+interface Cell { n: number; cleared: number; lost: number; timeouts: number; clear: number; hp: number }
 
 function cellOf(rs: readonly CampDuelResult[]): Cell {
   const cleared = rs.filter((r) => r.outcome === "cleared");
@@ -270,7 +263,6 @@ function cellOf(rs: readonly CampDuelResult[]): Cell {
     timeouts: rs.filter((r) => r.outcome === "timeout").length,
     clear: mean(cleared.map((r) => r.clearSeconds ?? 0)),
     hp: mean(rs.map((r) => r.hpLeft)),
-    stacks: mean(rs.map((r) => r.stacks)),
   };
 }
 

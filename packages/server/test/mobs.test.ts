@@ -242,17 +242,17 @@ describe("a dummy in a fight", () => {
     expect(ofType(events, "gv")).toEqual([]);
   });
 
-  it("reflects the arrow with a shield facing it: the dummy is untouched and the arrow flies back at the shooter", () => {
+  it("reflects the arrow with a shield facing it: the dummy takes the part it did not return and the reflected arrow flies back at the shooter", () => {
     const { world, p, dummy } = range("shield");
     const events = shoot(world);
     expect(fxOf(events, "projEnd").map((e) => e.reason)).toEqual(["reflected", "hit"]);
     expect(fxOf(events, "block")).toMatchObject([{ id: dummy, by: idOf(0), weapon: "bow" }]);
-    expect(mobOf(world, dummy).hp).toBe(DUMMY_HP);
-    expect(world.mobs.get(dummy)!.lastHitAt).toBe(0);
+    expect(mobOf(world, dummy).hp).toBeLessThan(DUMMY_HP); // 1 - ARROW_REFLECT_SHARE of the arrow gets through
     // The reflected arrow is the dummy's, and it lands on the archer.
     const hits = fxOf(events, "hit");
-    expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ id: idOf(0), by: dummy, weapon: "shield" });
+    expect(hits).toHaveLength(2);
+    expect(hits).toContainEqual(expect.objectContaining({ id: dummy, by: idOf(0), weapon: "bow" }));
+    expect(hits).toContainEqual(expect.objectContaining({ id: idOf(0), by: dummy, weapon: "shield" }));
     expect(p.hp).toBeLessThan(p.maxHp);
     expect(world.projectiles.size).toBe(0);
   });

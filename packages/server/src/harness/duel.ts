@@ -14,11 +14,9 @@
 import {
   circleClear, FACTIONS, hasLineOfSight, INTERP_DELAY_MS, isRanged, mapFromTiles, mulberry32, PLAYER_RADIUS, reachMask,
   segmentClear, TICK_MS, TILE, TILE_WALL, decide,
-  type BuffId, type FactionId, type GameMap, type PolicyInput, type SkillId, type SpacingPolicy, type Vec2, type WeaponId,
+  type FactionId, type GameMap, type PolicyInput, type SpacingPolicy, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { grantBuff } from "../sim/buffs";
-import * as chests from "../sim/chests";
-import { grantSkill } from "../sim/chests";
+import { grantCard } from "../sim/chests";
 import { activeWeapon, combatant, timingsOf, type Combatant } from "../sim/combatant";
 import { recomputeMods } from "../sim/mods";
 import { createGameWorld } from "../sim/gameplay";
@@ -57,26 +55,19 @@ export interface DuelSpec {
   spacing?: readonly [SpacingPolicy | undefined, SpacingPolicy | undefined];
   /** Fighter 0 / fighter 1 plays by locking the other (the target lock): `target` once, again whenever it is not locked; no aim, move or trigger. */
   locks?: readonly [boolean, boolean];
-  /** Buffs fighter 0 / fighter 1 holds from the duel's first tick (grantBuff, so its mirrors fold as in a run). */
-  buffs?: readonly [readonly BuffGrant[] | undefined, readonly BuffGrant[] | undefined];
-  /**
-   * Passives fighter 0 / fighter 1 holds from the duel's first tick, through the chest's own grant (grantSkill: the build, the rows
-   * folded as in a run), so the measurement is of the shipped rule. A rank 2 is two grants.
-   */
-  skills?: readonly [readonly SkillGrant[] | undefined, readonly SkillGrant[] | undefined];
   /**
    * Cards fighter 0 / fighter 1 holds from the duel's first tick (BALANCE_CONTRACT 1.3's kits), through the chest's own `grantCard`
-   * so the shipped rule is measured. TODO(cards, agent A3): `grantCard` lands with the card catalog; until it exists a duel that asks
-   * for cards throws (a kit's minute 0 holds none, so the minute-0 benches run today).
+   * (the build, the rows folded as in a run), so the shipped rule is measured. A card id twice is two copies (a base card stacks);
+   * a conditional whose base is not granted before it, or a unique card twice, is refused by grantCard and held by no one.
    */
   cards?: readonly [readonly string[] | undefined, readonly string[] | undefined];
   /** Fighter 0 / fighter 1 starts at this fraction of its max hp (the farm-then-fight bench: a mob kill leaves about 94%). */
   startHp?: readonly [number | undefined, number | undefined];
-  /** An attack-speed multiplier for fighter 0 / fighter 1 on top of its buffs: a registered mod source (world.modSources). */
+  /** An attack-speed multiplier for fighter 0 / fighter 1 on top of its cards: a registered mod source (world.modSources). */
   asMult?: readonly [number | undefined, number | undefined];
   /** A bare windup multiplier for fighter 0 / fighter 1, from the same mod source (a scan of Quickdraw's numbers): scaleWindup shortens melee windups only. */
   windupMult?: readonly [number | undefined, number | undefined];
-  /** A bare move-speed multiplier for fighter 0 / fighter 1, from the same mod source: no Swift Boots pause (`skills` is the shipped passive). */
+  /** A bare move-speed multiplier for fighter 0 / fighter 1, from the same mod source: no Fleet pause after a shot (a `fleet` card is the shipped rule). */
   speedMult?: readonly [number | undefined, number | undefined];
   /** The PvP rules (the factor and the caps) on (the default, as in a run) or off (a duel that isolates the damage law; see SimConfig.pvpRules). */
   pvpRules?: boolean;
@@ -95,24 +86,16 @@ export interface DuelSpec {
   onTick?: (world: World, tick: number, events: readonly SimEvent[]) => void;
 }
 
-/** Stacks of one buff a duel fighter starts with. */
-export interface BuffGrant { id: BuffId; stacks: number }
-
-/** A passive a duel fighter starts with, at `rank` (1 or 2). */
-export interface SkillGrant { id: SkillId; rank: 1 | 2 }
-
 /**
- * What one fighter of a duel holds beyond its faction and weapon: buff stacks, passives through the chest's own grant (`skills`,
- * so the shipped rule is measured) and bare mod-source multipliers for scans (no Swift Boots pause, no Quickdraw rank). Fighter 0
- * and fighter 1 of a duel each hold one.
+ * What one fighter of a duel holds beyond its faction and weapon: cards through the chest's own grant (`cards`, so the shipped rule
+ * is measured) and bare mod-source multipliers for scans (no Fleet pause, no Quickdraw). Fighter 0 and fighter 1 of a duel each hold one.
  */
-export interface FighterKit { buffs?: readonly BuffGrant[]; skills?: readonly SkillGrant[]; asMult?: number; windupMult?: number; speedMult?: number }
+export interface FighterKit { cards?: readonly string[]; asMult?: number; windupMult?: number; speedMult?: number }
 
 /** The DuelSpec fields that give fighter 0 `first` and fighter 1 `second`. */
-export function kitFields(first: FighterKit | undefined, second: FighterKit | undefined): Pick<DuelSpec, "buffs" | "skills" | "asMult" | "windupMult" | "speedMult"> {
+export function kitFields(first: FighterKit | undefined, second: FighterKit | undefined): Pick<DuelSpec, "cards" | "asMult" | "windupMult" | "speedMult"> {
   return {
-    buffs: [first?.buffs, second?.buffs],
-    skills: [first?.skills, second?.skills],
+    cards: [first?.cards, second?.cards],
     asMult: [first?.asMult, second?.asMult],
     windupMult: [first?.windupMult, second?.windupMult],
     speedMult: [first?.speedMult, second?.speedMult],
@@ -363,20 +346,12 @@ export function runDuel(spec: DuelSpec): DuelResult {
     });
   }
   for (let i = 0; i < 2; i++) {
-    const grants = spec.buffs?.[i] ?? [];
-    const passives = spec.skills?.[i] ?? [];
     const cards = spec.cards?.[i] ?? [];
-    if (grants.length === 0 && passives.length === 0 && cards.length === 0 && extra(i) === null) continue;
+    if (cards.length === 0 && extra(i) === null) continue;
     const p = world.state.players.get(IDS[i]!)!;
     const rt = world.players.get(IDS[i]!)!;
-    for (const g of grants) grantBuff(world, p, rt, g.id, g.stacks);
     const me = combatant(world, IDS[i]!) as Extract<Combatant, { kind: "player" }>;
-    for (const g of passives) for (let r = 1; r <= g.rank; r++) grantSkill(world, me, g.id);
-    if (cards.length > 0) {
-      const grantCard = (chests as unknown as Record<string, unknown>)["grantCard"] as ((w: World, c: Combatant, id: string) => unknown) | undefined;
-      if (!grantCard) throw new Error("DuelSpec.cards needs sim/chests grantCard, which lands with the card catalog (agent A3)");
-      for (const id of cards) grantCard(world, me, id);
-    }
+    for (const id of cards) grantCard(world, me, id);
     recomputeMods(world, { kind: "player", id: IDS[i]!, s: p, rt });
   }
   spec.startHp?.forEach((frac, i) => {

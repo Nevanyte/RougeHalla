@@ -12,7 +12,7 @@ The K1 rules are deliberately small:
 | --- | --- |
 | Roster | `QUEST_COUNT = 10`, with at least two kill, two collect and two fetch offers; `QUEST_KNOWN_COUNT = 5`. |
 | Timing | Each def has its own fixed `expiresAtSec`, from 150 to 300 seconds of active play. Planning does not advance it. |
-| Rewards | A real `BuffId`, nominal stacks scaled by `mobRewardFor(world, player, runtime)` (the mob feed brake and catch-up), plus fixed GV from a separate per-run pot capped by `QUEST_GV_CAP = 24`. |
+| Rewards | One card (`QuestDef.reward.card`, a base card of tier I-III by the quest's time, one tier lower for a fed player), granted through the chest's own `grantCard`, plus fixed GV from a separate per-run pot capped by `QUEST_GV_CAP = 24`. |
 | Competition | Per-player progress, one global winner per offer, automatic turn-in at the giver. There is no per-player completion cap. |
 | Hidden offers | Unknown offers stay server-side. The finder gets a private reveal four seconds before the offer enters synced state for everyone. |
 | Items | Collect tokens advance progress on pickup. A fetch parcel has one public carrier at a time, and a player can carry only one parcel. |
@@ -50,7 +50,7 @@ Every def in `QUEST_DEFS` supplies its display text, objective `count`, objectiv
 - **The Grand Tour** requires a mob kill in each of three different zones; server runtime keeps the visited-zone set and syncs its size as progress.
 - **A Head for a Head** requires a player kill and uses the `playerKilled` hook with the victim and outcome. Only a victim outcome of `died` advances it; an MIA departure does not, even if ordinary kill/bounty rules credit a recent attacker. A fill bot is neither killer nor victim here: killing one advances nothing and pays nothing, and a bot's kill of a human advances nothing. Its small reward is intentional because the kill, bounty and removal of a rival already pay.
 
-Mob objectives are fed by the chainable `mobKilled` hook, which `payMobKill` calls once the kill's spoils are paid (after the buff grant and the drop, inside the deferred payout). Its payload is `{ type, zone, camp, elite }`: the mob-type id, its zone, its camp's index in `map.camps` (-1 for a mob placed with no camp) and whether it was an elite. A practice mob in a training room never reaches it (practice kills pay nothing, and quests are never installed there). Quest handlers chain rather than replace other hooks and never decide kill credit; a killer who is no longer standing when the payout runs gets no progress.
+Mob objectives are fed by the chainable `mobKilled` hook, which `payMobKill` calls once the kill's spoils are paid (after the drop, inside the deferred payout). Its payload is `{ type, zone, camp, elite }`: the mob-type id, its zone, its camp's index in `map.camps` (-1 for a mob placed with no camp) and whether it was an elite. A practice mob in a training room never reaches it (practice kills pay nothing, and quests are never installed there). Quest handlers chain rather than replace other hooks and never decide kill credit; a killer who is no longer standing when the payout runs gets no progress.
 
 **Early closure.** Camps never respawn, so the mobs standing now are all the kills a kill offer will ever get. The chained `campCleared` hook does not close anything itself: it only sets a re-check flag, because it runs before the clearing kill's own `mobKilled` and would close an offer that kill has just finished. `questSystem` evaluates the flag after the ledger pass (`closeImpossible`). An open kill offer (not the player-kill one) closes only when no standing player could still finish it: each standing player either already has the whole objective (only the turn-in is left) or the live regional mobs the offer counts still cover what they lack (the offer's zone, any elite for Worth the Walk, zones not yet visited for the Grand Tour). A dead or departed player's progress counts for nothing, and with nobody standing nothing closes. Hidden offers are not checked here (section 2): one that is already impossible when it goes public is checked once then and closes like any public offer. Fill bots do not count as a player who could still finish an offer.
 
@@ -70,7 +70,7 @@ Displacement and concealment do not silently complete or destroy a delivery duri
 
 ### Pickup
 
-The server never chooses between containers. `pickup { containerId }` acts on exactly the id the client sent, if the player is not stunned or casting and stands within `INTERACT_RANGE` (56 u) of it by the server's position with a clear line on the movement mask. A quest item is then refused, and left where it lies, when its quest is not open and published ("That quest is over"), when the player already carries any parcel ("you can carry one quest item"), when the parcel is already carried by someone else, or (tokens) when the player's progress is already at the count. A camp's skill chest is never taken this way (`choose` is its input).
+The server never chooses between containers. `pickup { containerId }` acts on exactly the id the client sent, if the player is not stunned or casting and stands within `INTERACT_RANGE` (56 u) of it by the server's position with a clear line on the movement mask. A quest item is then refused, and left where it lies, when its quest is not open and published ("That quest is over"), when the player already carries any parcel ("you can carry one quest item"), when the parcel is already carried by someone else, or (tokens) when the player's progress is already at the count. A camp's card chest is never taken this way (`choose` is its input).
 
 The client's F pick (`render/interact.ts`: `nearestContainer`, `questItemEligible`) mirrors those cases from the synced state and never offers a quest item the server would refuse, so an unusable item cannot shadow a weapon lying next to it. It always skips them, with or without a weapon in reach, and with no quest context (a caller that passes none) every quest item is skipped.
 
@@ -84,11 +84,13 @@ The quest system is a `world.systems` entry after mob AI and before the final st
 
 ### Rewards
 
-Every def has an explicit `farZone`, and `QuestDef.reward.buff` names a real `BuffId` whose `buffDef(...).zone` is that far zone. Multi-zone and any-zone objectives therefore state their reward zone explicitly too. The old generic hp/attack-speed/move-speed stack rewards are gone. Completion pays `reward.stacks * mobRewardFor(world, player, runtime)` through `grantBuff`, so quest rewards receive exactly the mob feed brake and lobby-median catch-up and immediately refold the player's stat mirrors.
+Every def has an explicit `farZone` (it places the far end of the route) and `QuestDef.reward = { card, gv }`: one **base card** (`ad2`, `haste1`, `vitality2`... GAME_DESIGN 8.10, `shared/src/cards.ts`) and fixed GV. The old per-kill buffs are gone, and so is the stack arithmetic that paid them.
 
-`buffPower` values the resulting build, rather than treating different buffs as interchangeable stats. The feed-scaled stack grant still follows the buff S-curve, and a player already holding that buff gets the marginal increase, not a flat quoted bonus. There are no quest heals in K1.
+The card's tier is the quest's time, in camps. `questTierPoints(objSec, travelSec) = (objSec + TRAVEL_RATE_SHARE x travelSec) / CAMP_SECONDS x CARD_TIER_RATE x STACK_PREMIUM`: the seconds the quest costs (travel counted at 40%, because the route can incidentally farm), over the 48 s of a camp, times the 1.35 tier points a normal camp's chest gives on average, times the 15% risk premium (the walker is the gank target). The nominal tier is that value rounded into 1-3 (`questTier`), and **a player-kill quest (`players`) is capped at tier I**: its objective already pays a kill, a bounty and a rival's removal. The catalog test holds every def to its stated `card`.
 
-Quest GV is fixed by the def and paid through `awardQuestGv`. It has a separate per-run pot capped at **24 GV** (`QUEST_GV_CAP`), independent of `GV_MOB_CAP`; completions after the pot is exhausted can still pay their buff. Results show the `quest` breakdown row separately from kills, mobs, bounty and the win bonus.
+Completion pays in this order: the GV (`awardQuestGv`, below), then the card through `grantCard(world, combatant, questRewardCard(def, feed))`, then the toast `Quest complete: <Card title>`. `questRewardCard` is the **feed brake**: a player whose mob reward curve at their feed (`rewardCurve(feedOfPlayer)`) is below `QUEST_FEED_BRAKE` (0.65, the curve at a feed of 5) gets the card one tier lower, never below tier I. The catch-up needs no rule of its own: a player behind the lobby median is not braked. The card is a base card, so it always stacks and `grantCard` never refuses it. The planning screen and the quest log show the nominal card (`questRewardText`, from the card's own `cardText`); a fed player is paid one tier less than the line says. There are no quest heals.
+
+Quest GV is fixed by the def and paid through `awardQuestGv`. It has a separate per-run pot capped at **24 GV** (`QUEST_GV_CAP`), independent of `GV_MOB_CAP`; completions after the pot is exhausted still pay their card. Results show the `quest` breakdown row separately from kills, mobs, bounty and the win bonus.
 
 ### Placement
 
@@ -114,7 +116,7 @@ Placement reads only the map contract: `camps` (zone, centre, clearing radius, m
 
 ### Browser UI
 
-- **J** toggles the scrolling quest log in planning and in the active phase (`questLogAvailable`; training is active, and there it opens with `No quests in practice`). It ignores J while a text field has the focus or a `[role=dialog]` (the help or settings card) does. The log is placed live by `ui/questLogLayout.ts` (`placeQuestLog`, pure): its top is the measured bottom of the HUD plate (`Hud.plate`: status, vitals, buff strip, passives, arena lines) plus 8 px, so it never covers the coliseum countdown or the buff and passive strips however tall the strip grows; its width is 34% of the overlay width clamped to 260..370 px; its height stops short of the weapon-bar reserve (108 px from the bottom) and it scrolls. It reads `--ui-w` and `--ui-h`, not the window. Rows are grouped open first, then done, then expired; a closed row (done, or expired by the server's word or by the clock) gets a `closed` class, shows no timer and is dimmed, and leaves when the server removes it after the grace period. Unrevealed offers contribute only to the rumour count, which excludes a preview the finder already holds.
+- **J** toggles the scrolling quest log in planning and in the active phase (`questLogAvailable`; training is active, and there it opens with `No quests in practice`). It ignores J while a text field has the focus or a `[role=dialog]` (the help or settings card) does. The log is placed live by `ui/questLogLayout.ts` (`placeQuestLog`, pure): its top is the measured bottom of the HUD plate (`Hud.plate`: status, vitals, the cards row, arena lines) plus 8 px, so it never covers the coliseum countdown or the cards row however tall it grows; its width is 34% of the overlay width clamped to 260..370 px; its height stops short of the weapon-bar reserve (108 px from the bottom) and it scrolls. It reads `--ui-w` and `--ui-h`, not the window. Rows are grouped open first, then done, then expired; a closed row (done, or expired by the server's word or by the clock) gets a `closed` class, shows no timer and is dimmed, and leaves when the server removes it after the grace period. Unrevealed offers contribute only to the rumour count, which excludes a preview the finder already holds.
 - The world view gives open givers a distinct NPC shape and `!`, gives tokens and parcels distinct shapes, and marks a parcel carrier. Closed offers leave no phantom giver or open-offer marker.
 - The minimap shows open givers and exact carrier positions, but only one objective marker: the current objective nearest the local player (the ready turn-in point, a visible item or a kill region).
 - Lifecycle toasts name the finder when a reveal becomes public, announce completion and public expiry, and report parcels dropped or stolen. The server sends the completion once, to everyone, and batches the expiries of one tick into one line, so the completer gets one completion toast and the +GV toast stays visible in the three-slot stack. The client folds them too (`ui/questToasts.ts`, in front of the toast stack): expiry lines that arrive within 150 ms become one line, and a completer's second line for the same offer within 2 s (a private "Quest complete" next to the public one) is dropped. The one-item refusal says exactly `you can carry one quest item`. A nearby open giver shows a turn-in hint when the local objective is ready.
@@ -126,60 +128,50 @@ These are design calculations, **not measured completion times or a questBench r
 
 Assumptions:
 
-1. One normal mob costs 12 seconds all-in (`FARM_SECONDS_PER_MOB`), including fighting, walking and recovery.
+1. One normal mob costs 12 seconds all-in (`FARM_SECONDS_PER_MOB`), including fighting, walking and recovery; a camp of four costs `CAMP_SECONDS = 48`.
 2. Only 40% of pure quest travel is charged as lost farm time (`TRAVEL_RATE_SHARE = 0.4`), because the route can incidentally farm and loot.
-3. The buff target includes a 15% risk premium (`STACK_PREMIUM = 1.15`). GV has no risk premium.
-4. The reference recipient starts with no buffs and the farm benchmark accumulates one buff type. Define `P(n) = 3 × buffScale(n)`, which is `buffPower` for `n` stacks of one buff on that empty build.
-5. The main worksheet evaluates feed 0: `rewardCurve(0) = 0.975888`. Both the benchmark and quest grant use that curve; quest GV does not. The separate GV cap does not change the per-offer arithmetic below.
-6. `buffPower` is a common rough yardstick, not a claim that every buff is equally useful to every faction or build. With buffs already held, use the actual marginal delta: `buffPower(after) − buffPower(before)`; the empty-build table does not predict that delta.
+3. A camp's chest gives 1.35 tier points on average (`CARD_TIER_RATE`: 70/25/5 base tiers, balance contract 4.8). The reward carries a 15% risk premium (`STACK_PREMIUM = 1.15`). GV has no risk premium.
+4. A card's tier is its power: a tier-II card is worth two tier points, and the PvP factor reads `cardPower` (the sum of tier x count), so a tier is the one yardstick for quests, chests and farming. Different stats are not equally good for every faction or weapon; the tier is a rough common measure, not a claim of equal value.
+5. The feed brake lowers the paid tier by one for a fed player (`rewardCurve < 0.65`), so a quest keeps paying a hungry player in full and pays a leader less.
 
-For a def, the old time model first produces nominal parity stacks and GV:
+For a def:
 
 ```text
-effective seconds = objSec + 0.4 × travelSec
-parityStacks      = effective seconds × (1.1 / 12) × 1.15
-parityGv          = effective seconds × (2 / 12)
-paid stacks(feed) = reward.stacks × rewardCurve(feed)
-paid power(feed)  = P(paid stacks(feed))
-parity power(feed)= P(parityStacks × rewardCurve(feed))
+effective seconds = objSec + 0.4 x travelSec
+tier points       = effective seconds / 48 x 1.35 x 1.15
+nominal tier      = clamp(round(tier points), 1, 3), and 1 for the player-kill quest
+parityGv          = effective seconds x (2 / 12)
+paid card(feed)   = the nominal card, one tier lower when rewardCurve(feed) < 0.65 (never below I)
 ```
 
-At feed 0, the resulting worksheet is:
+The twenty offers (`packages/shared/src/quests.ts`; the last column is nominal GV / parity GV):
 
-| Offer | Reward `BuffId` | Obj s | Travel s | Nominal stacks | Paid stacks | Paid power | Parity power | GV / parity GV |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Cinder Cull | `emberImp` | 36 | 60 | 7 | 6.83 | 6.17 | 6.05 | 10 / 10.0 |
-| Break the Chains | `executioner` | 36 | 60 | 7 | 6.83 | 6.17 | 6.05 | 10 / 10.0 |
-| Plague Purge | `plagueRat` | 36 | 60 | 7 | 6.83 | 6.17 | 6.05 | 10 / 10.0 |
-| Thaw the Watch | `iceGolem` | 36 | 75 | 7.5 | 7.32 | 6.23 | 6.17 | 11 / 11.0 |
-| Worth the Walk | `wyrmling` | 20 | 60 | 5 | 4.88 | 5.44 | 5.13 | 7 / 7.3 |
-| A Head for a Head | `executioner` | 30 | 60 | 3 | 2.93 | 2.88 | 5.84 | 5 / 9.0 |
-| The Grand Tour | `cinderHound` | 36 | 100 | 8.5 | 8.30 | 6.28 | 6.26 | 13 / 12.7 |
-| Blight Blooms | `plagueRat` | 15 | 75 | 5 | 4.88 | 5.44 | 5.23 | 8 / 7.5 |
-| Shards of the Watch | `rimeStalker` | 15 | 75 | 5 | 4.88 | 5.44 | 5.23 | 8 / 7.5 |
-| Ashcaps | `magmaBrute` | 15 | 75 | 5 | 4.88 | 5.44 | 5.23 | 8 / 7.5 |
-| Loose Links | `bailiff` | 15 | 75 | 5 | 4.88 | 5.44 | 5.23 | 8 / 7.5 |
-| The Tithe | `penitent` | 15 | 75 | 5 | 4.88 | 5.44 | 5.23 | 8 / 7.5 |
-| The Quartermaster's Cache | `plagueRat` | 20 | 90 | 6.5 | 6.34 | 6.09 | 5.92 | 10 / 9.3 |
-| Offerings at the Edge | `iceGolem` | 25 | 110 | 8 | 7.81 | 6.26 | 6.21 | 12 / 11.5 |
-| The Ember Banner | `cinderHound` | 8 | 100 | 5.5 | 5.37 | 5.75 | 5.48 | 8 / 8.0 |
-| The Frozen Standard | `iceGolem` | 8 | 100 | 5.5 | 5.37 | 5.75 | 5.48 | 8 / 8.0 |
-| The Physician's Satchel | `plagueRat` | 8 | 100 | 5.5 | 5.37 | 5.75 | 5.48 | 8 / 8.0 |
-| The Warden's Seal | `executioner` | 8 | 100 | 5.5 | 5.37 | 5.75 | 5.48 | 8 / 8.0 |
-| The Reliquary | `acolyte` | 8 | 100 | 5.5 | 5.37 | 5.75 | 5.48 | 8 / 8.0 |
-| The Long Haul | `plagueRat` | 8 | 150 | 8 | 7.81 | 6.26 | 6.19 | 12 / 11.3 |
+| Offer | Reward card | Obj s | Travel s | Tier points | Nominal tier | Card at feed 5+ | GV / parity GV |
+| --- | --- | ---: | ---: | ---: | ---: | --- | ---: |
+| Cinder Cull | Attack Damage II (`ad2`) | 36 | 60 | 1.94 | 2 | Attack Damage I | 10 / 10.0 |
+| Break the Chains | Attack Damage II (`ad2`) | 36 | 60 | 1.94 | 2 | Attack Damage I | 10 / 10.0 |
+| Plague Purge | Haste II (`haste2`) | 36 | 60 | 1.94 | 2 | Haste I | 10 / 10.0 |
+| Thaw the Watch | Vitality II (`vitality2`) | 36 | 75 | 2.13 | 2 | Vitality I | 11 / 11.0 |
+| Worth the Walk | Ability Power I (`ap1`) | 20 | 60 | 1.42 | 1 | Ability Power I | 7 / 7.3 |
+| A Head for a Head | Attack Damage I (`ad1`) | 30 | 60 | 1.75 | 1 | Attack Damage I | 5 / 9.0 |
+| The Grand Tour | Fleet II (`fleet2`) | 36 | 100 | 2.46 | 2 | Fleet I | 13 / 12.7 |
+| Blight Blooms | Haste I (`haste1`) | 15 | 75 | 1.46 | 1 | Haste I | 8 / 7.5 |
+| Shards of the Watch | Armor I (`armor1`) | 15 | 75 | 1.46 | 1 | Armor I | 8 / 7.5 |
+| Ashcaps | Magic Resist I (`mr1`) | 15 | 75 | 1.46 | 1 | Magic Resist I | 8 / 7.5 |
+| Loose Links | Ability Power I (`ap1`) | 15 | 75 | 1.46 | 1 | Ability Power I | 8 / 7.5 |
+| The Tithe | Ability Power I (`ap1`) | 15 | 75 | 1.46 | 1 | Ability Power I | 8 / 7.5 |
+| The Quartermaster's Cache | Haste II (`haste2`) | 20 | 90 | 1.81 | 2 | Haste I | 10 / 9.3 |
+| Offerings at the Edge | Vitality II (`vitality2`) | 25 | 110 | 2.23 | 2 | Vitality I | 12 / 11.5 |
+| The Ember Banner | Fleet II (`fleet2`) | 8 | 100 | 1.55 | 2 | Fleet I | 8 / 8.0 |
+| The Frozen Standard | Vitality II (`vitality2`) | 8 | 100 | 1.55 | 2 | Vitality I | 8 / 8.0 |
+| The Physician's Satchel | Haste II (`haste2`) | 8 | 100 | 1.55 | 2 | Haste I | 8 / 8.0 |
+| The Warden's Seal | Attack Damage II (`ad2`) | 8 | 100 | 1.55 | 2 | Attack Damage I | 8 / 8.0 |
+| The Reliquary | Leech II (`leech2`) | 8 | 100 | 1.55 | 2 | Leech I | 8 / 8.0 |
+| The Long Haul | Haste II (`haste2`) | 8 | 150 | 2.20 | 2 | Haste I | 12 / 11.3 |
 
-Headhunter is the deliberate low outlier, at about 0.49 times buff parity, because its objective already has a player-kill payout. The other offers are roughly 1.00–1.06 times empty-build buff parity under these assumptions. Their nominal GV remains near time parity, subject to the 24 GV run cap.
+Headhunter (A Head for a Head) is the deliberate low outlier: its objective already has a player-kill payout, so it pays tier I and 5 GV against a parity of 9. The Ember Banner family of eight-second fetches round up to tier II on their long walk; their GV sits at parity.
 
-The feed brake matters nonlinearly. For a nominal seven-stack reward on an empty build:
-
-| Feed | `rewardCurve` | Paid stacks | `buffPower` after |
-| ---: | ---: | ---: | ---: |
-| 0 | 0.976 | 6.83 | 6.17 |
-| 5 | 0.650 | 4.55 | 5.15 |
-| 10 | 0.324 | 2.27 | 1.84 |
-
-This worksheet does not establish that questing wins real runs. Travel danger, contested pickups, different buff values, camp rosters, existing builds and deaths need larger headless samples and broader browser playtests.
+This worksheet does not establish that questing wins real runs. Travel danger, contested pickups, which stat a card is, camp rosters, existing builds and deaths need larger headless samples and broader browser playtests.
 
 ### questBench: usage and report
 
@@ -193,7 +185,7 @@ npm run questbench -w @raid/server -- --seeds 6 --players 8
 
 The defaults are three generated-map seeds and five seats per policy (one per faction); `--seeds N` uses seeds 1..N and `--players N` accepts 2..8. `--quick` uses one seed, five seats and a 120-second cap instead of the normal 300 seconds. Solo seats rotate factions as well as mixed-lobby seats. The default run took 26-28 s of wall time. The printed header defines every metric.
 
-- **Live power** is `buffPower` with every buff whose definition has `needs` excluded. Those catalog rows do not currently apply in combat and must not inflate quest rewards, farm references, timelines or policy valuations.
+- **Live power** is `cardPower` (the sum of tier x count) over the cards that are live in the sim (`cardLive`; a phase-B card with no effect yet is excluded, so it cannot inflate quest rewards, farm references, timelines or policy valuations). A card is its tier in power; the fields in the report are `powerBefore`, `powerAfter` and `powerGain`. A chest in the farm baseline is worth the expected tier of its pick (`ELITE_CHEST_TIER_RATE` for an elite camp).
 - **Completion rate** is completions by the player who chose the quest divided by attempts (quests the policy actually took, one per player and quest), not by every offered lobby. Completion-only times and nearby deaths/fights remain separate observations; site events can overlap. A kill-a-player quest is marked † and skipped in solo seats (only the mixed lobby can attempt it).
 - **Ratio** is `quest's own seconds / farm-only seconds needed to reach the same live-power gain`. **BELOW 1 means the quest is faster than farming (too generous), above 1 that it costs more; the target band is 1.0-1.35.** The quest's own cost is the time from the player's first choice of the quest to the turn-in (the walk to it is charged, farming before the choice is not), not total raid elapsed time. A completion by a player who never chose the quest has no cost and is left out. This is an opportunity-cost estimate, not a paired counterfactual.
 - **Marginal** is the same ratio with the farm time measured from the moment each farm run reached the power the player already had before the quest, because a quest done late in a build gains its delta where the S-curve and the camps are different. It needs three farm runs that got that far. The two agree for a quest done from nothing.
@@ -223,7 +215,7 @@ Per quest the report includes done/attempts, the seeds covered, completion-only 
 
 The Quartermaster's Cache gains almost nothing (a power delta of 0.05) and shows "no Δ" instead of a ratio. Read against the 1.0-1.35 band: the Long Haul is below 1 (faster than farming); Ember Banner, Ashcaps, Loose Links, Frozen Standard, Shards of the Watch and the Reliquary sit inside it; the Grand Tour, The Tithe, Blight Blooms, Break the Chains, A Head for a Head and Thaw the Watch sit above it. These are one small run, so none of it is a finding yet.
 
-**Reward balance was not retuned in this round.** The nominal reward stacks are the original ones: eight defs pay 6.5 to 8.5 stacks, every def pays the buff of one static far zone, and Plague Rat pays five defs. The numbers above are measurements for the owner's tuning, not a tuning.
+**Reward balance was not retuned in this round, and the measurements above predate the cards.** They were taken against the per-kill buffs that the balance pass removed (their ratios were in buff power, with nominal stacks of 6.5 to 8.5 per offer). Quests now pay a card whose tier is the time-parity formula in section 5, so those ratios must be measured again with `questBench` before any is quoted. The numbers above are history, kept for the shape of the table, not for the values.
 
 ## 6. Browser verification
 
@@ -232,7 +224,7 @@ A two-tab Chromium check was run on the first quest build, before the R2 maps an
 - Both planning screens showing five known quests and `+5 rumoured`.
 - The **J** quest log, quest world drawing and minimap markers.
 - Three hidden quests revealed through the scouting/head-start flow.
-- **Offerings at the Edge** completed using real movement and **F** pickup inputs, including its buff and GV reward and both clients' completed row.
+- **Offerings at the Edge** completed using real movement and **F** pickup inputs, including its buff and GV reward (the buff has since become a card) and both clients' completed row.
 
 No screenshots of it are kept in the repository. Live Swarm/carrier was not separately exercised in it, and it is not evidence for the private stream, placement, lifecycle, J layout, toast folding, F eligibility or training behaviour.
 

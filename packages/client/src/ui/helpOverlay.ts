@@ -38,7 +38,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
       { keys: ["D"], action: "Cast your faction's Wish (5 min cooldown, 5 s in training)" },
       { keys: ["J"], action: "Show or hide the quest log" },
       { keys: ["C"], action: "Chest panel: take the keyboard, or give it back" },
-      { keys: ["1", "2", "3"], action: "Chest panel (after C): take that skill" },
+      { keys: ["1", "2", "3"], action: "Chest panel (after C): take that card" },
       { keys: ["0"], action: "Chest panel (after C): skip the chest" },
       { keys: ["Hold Tab"], action: "Show the whole map and your route" },
       { keys: ["Right-click"], action: "On the minimap: move there" },

@@ -1146,7 +1146,7 @@ describe("blocks", () => {
     events.flatMap((e) => (e.type === "fx" && e.fx.kind === "block" && e.fx.id === id ? [e.fx] : []));
 
   it.each([["shield"], ["sword"]] as const)(
-    "an idle Frost mob wakes onto the player whose %s hit it blocked, though nothing damaged it",
+    "an idle Frost mob wakes onto the player whose %s hit it blocked in part (the block is contact, and the rest of the hit lands)",
     (weapon) => {
       const { rig, mob } = frostRig(weapon);
       enqueueClientMessage(rig.world.players.get("p0")!.inputs, "attack", { a: Math.PI });
@@ -1158,18 +1158,17 @@ describe("blocks", () => {
       }
       expect(blocked).toHaveLength(1);
       expect(blocked[0]).toMatchObject({ id: mob.id, by: "p0", weapon });
-      // The block fx and the wake are in the same tick, with the mob still whole.
+      // The block fx and the wake are in the same tick; a shield stops only SHIELD_BLOCK_SHARE of the hit, so the mob is hurt too.
       expect(brain(mob).mode).toBe("fight");
       expect(brain(mob).target).toBe("p0");
-      expect(mob.s.hp).toBe(mob.s.maxHp);
-      expect(hitsOn(rig.events, mob.id)).toEqual([]);
+      expect(mob.s.hp).toBeLessThan(mob.s.maxHp);
       // It fights back: it goes on to bash the player (a shield facing it blocks the bash).
       const events = run(rig, 40);
       expect(hitsOn(events, "p0").some((h) => h.by === mob.id) || blocksOn(events, "p0").some((b) => b.by === mob.id)).toBe(true);
     },
   );
 
-  it("an idle Frost mob wakes onto the archer whose arrow it reflected", () => {
+  it("an idle Frost mob wakes onto the archer whose arrow it reflected (in part)", () => {
     const { rig, mob } = frostRig("bow", 160);
     const inputs = rig.world.players.get("p0")!.inputs;
     let blocked: ReturnType<typeof blocksOn> = [];
@@ -1187,7 +1186,7 @@ describe("blocks", () => {
     expect(events.some((e) => e.type === "fx" && e.fx.kind === "projEnd" && e.fx.reason === "reflected")).toBe(true);
     expect(brain(mob).mode).toBe("fight");
     expect(brain(mob).target).toBe("p0");
-    expect(mob.s.hp).toBe(mob.s.maxHp);
+    expect(mob.s.hp).toBeLessThan(mob.s.maxHp); // the part of the arrow the shield does not return hits the mob
     // The reflected arrow is the mob's own shot and finds the archer.
     const later = run(rig, 20);
     expect(hitsOn(later, "p0").some((h) => h.by === mob.id && h.weapon === "shield")).toBe(true);

@@ -7,7 +7,7 @@ import {
   TILE_WALL, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import { updateAbilities } from "../src/sim/abilities";
-import { grantBuff } from "../src/sim/buffs";
+import { grantCard } from "../src/sim/chests";
 import { activeWeapon, combatant, timingsOf } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
@@ -91,7 +91,7 @@ describe("a slowAttack status and the attack-speed mirror", () => {
   });
 });
 
-describe("the attack slow, the buffs and AS_MULT_CAP (R4a's mirrors)", () => {
+describe("the attack slow, the cards and AS_MULT_CAP (R4a's mirrors)", () => {
   it("a 20% slow lowers the mirror and the weapon's interval; its removal restores both; the cap binds on the product", () => {
     const w = run();
     const a = combatant(w, "a")!;
@@ -109,8 +109,8 @@ describe("the attack slow, the buffs and AS_MULT_CAP (R4a's mirrors)", () => {
     removeStatuses(w, a, (st) => st.kind === "slowAttack");
     expect(p.asMult).toBe(1000);
     expect(interval()).toBe(plain);
-    // A buff and a source past the cap: the slow multiplies the uncapped product first, then the cap clamps the total.
-    grantBuff(w, p, w.players.get("a")!, "plagueRat", 3);
+    // A card and a source past the cap: the slow multiplies the uncapped product first, then the cap clamps the total.
+    grantCard(w, a as Extract<typeof a, { kind: "player" }>, "haste2");
     const buffed = decodeMult(p.asMult);
     expect(buffed).toBeGreaterThan(1);
     w.modSources.push((_w, c) => (c.id === "a" ? { asMult: 2 } : null));

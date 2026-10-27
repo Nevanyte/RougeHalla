@@ -220,6 +220,7 @@ export class FakeEl extends FakeTarget {
   }
 
   append(...nodes: Array<FakeEl | string>): void { this.children.push(...nodes); }
+  replaceChildren(...nodes: Array<FakeEl | string>): void { this.children = [...nodes]; }
   remove(): void { this.removed = true; }
   getContext(): FakeObject { return (this.ctx ??= fakeObject("ctx")); }
   getBoundingClientRect(): { left: number; top: number; width: number; height: number; right: number; bottom: number } {

@@ -1,12 +1,12 @@
 // In-run DOM overlay: the lobby countdown or the run line (players standing, GV, your bounty), the arena timers (coliseum
 // teleport → locked gates → sudden death), player vitals (faction and hp), the teleport-immunity hint and the
-// "you died" line. A training room shows none of the run's lines: its banner, your faction, weapon and hp. The build strip
-// (a chip per buff held) and the feed line are buffsHud.ts, placed under the vitals.
+// "you died" line. A training room shows none of the run's lines: its banner, your faction, weapon and hp. The cards row
+// (a chip per card held) is cardsRow.ts, placed under the vitals.
 import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { winnerLabel } from "../render/displayName";
 import type { TerrainStates } from "../render/zoneArt/terrainFeedback";
-import { BuffsHud } from "./buffsHud";
+import { CardsRow } from "./cardsRow";
 import { cssColor, el, uiRoot } from "./dom";
 import { TerrainChips } from "./terrainChips";
 
@@ -92,7 +92,7 @@ export class Hud {
   private readonly vitalsName = el("span");
   private readonly vitalsFaction = el("span", "hud-faction");
   private readonly vitalsHp = el("span");
-  private readonly buffs = new BuffsHud();
+  private readonly cards = new CardsRow();
   /** The ground under the local fighter: BURNING, SLOWED, ICE, RESTING and the home-ground note. */
   private readonly terrain = new TerrainChips();
   private readonly arenaLine = el("div", "hud-arena");
@@ -118,7 +118,7 @@ export class Hud {
     this.status.append(this.statusText, this.bountyTag);
     this.bountyTag.hidden = true;
     this.vitals.append(this.vitalsName, this.vitalsFaction, this.vitalsHp);
-    this.root.append(this.status, this.vitals, this.buffs.root, this.terrain.root, this.arenaLine, this.arenaHint);
+    this.root.append(this.status, this.vitals, this.cards.root, this.terrain.root, this.arenaLine, this.arenaHint);
     this.center.append(this.suddenDeath, this.immuneLine);
     this.arenaLine.hidden = true;
     this.arenaHint.hidden = true;
@@ -129,7 +129,7 @@ export class Hud {
   }
 
   /**
-   * The HUD plate's box (status, vitals, buff strip, passives, arena lines) in the unscaled #ui coordinate system, for overlays
+   * The HUD plate's box (status, vitals, cards row, arena lines) in the unscaled #ui coordinate system, for overlays
    * docked beside or beneath it (the J quest log). Reads layout: call it only when something needs it.
    */
   get plate(): { left: number; top: number; right: number; bottom: number } {
@@ -201,7 +201,7 @@ export class Hud {
       this.vitalsHp.textContent = vitalsHpText(me, training, barrier);
     }
 
-    this.buffs.update(state, me);
+    this.cards.update(me?.build, me?.status === "alive");
     this.updateArena(state, serverNow);
     const immune = !training && me?.status === "alive" && state.phase === "active" && serverNow < me.immuneUntil;
     if (this.immuneLine.hidden === immune) this.immuneLine.hidden = !immune;
@@ -256,7 +256,7 @@ export class Hud {
   }
 
   destroy(): void {
-    this.buffs.destroy();
+    this.cards.destroy();
     this.terrain.destroy();
     this.root.remove();
     this.center.remove();

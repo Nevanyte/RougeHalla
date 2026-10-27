@@ -4,7 +4,7 @@
 // TARGET_REPATH_MS). The machine may be busy (other tests run in parallel, and on a shared one the process is preempted in
 // the middle of a step), so the best of five attempts counts (one attempt is a second of play) and each is judged by the
 // smaller of its wall-clock and its CPU time (gateMs): a real regression raises both, in every attempt.
-// The third case is R4a's gate: every buff at 4 stacks on all 8 players (the fold in sim/mods.ts and updateMods run for
+// The third case is R4a's gate: every live card held by all 8 players (the fold in sim/mods.ts and updateMods run for
 // every fighter).
 //
 // With fill bots (docs/BOTS.md 9.2) the gates read the whole Room tick of a human-less 8-bot lineup (beforeStep + step +
@@ -48,8 +48,8 @@ describe("tick budget", () => {
     expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);
 
-  it("the same with every buff at 4 stacks on all 8 players (R4a's gate)", () => {
-    const r = bestOfFive({ buffs: true });
+  it("the same with every live card held on all 8 players (R4a's gate)", () => {
+    const r = bestOfFive({ cards: true });
     expect(r.mobs).toBeGreaterThanOrEqual(72);
     expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
     expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);

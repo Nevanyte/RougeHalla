@@ -1,21 +1,18 @@
-// What the planning screen says of a camp's mobs and of the buffs that answer the factions present (ui/campInfo.ts): read
-// defensively from the roster and the buff catalog, so a state with no camps yet, or a type from newer content, never throws.
+// What the planning screen says of a camp's mobs (ui/campInfo.ts): read defensively from the roster, so a state with no camps yet,
+// or a type from newer content, never throws.
 import { describe, expect, it } from "vitest";
-import { FACTIONS, MOB_TYPES, buffsCountering, buffText, type FactionId } from "@raid/shared";
-import { campTypeInfo, counterBuffs, counterHintLines, readCampTypes } from "../src/ui/campInfo";
+import { MOB_TYPES } from "@raid/shared";
+import { campTypeInfo, readCampStates, readCampTypes } from "../src/ui/campInfo";
 
 describe("campTypeInfo", () => {
-  it("names a known type and gives its buff line", () => {
-    const info = campTypeInfo("rotMonk");
-    expect(info?.name).toBe("Rot Monk");
-    expect(info?.buff).toBe(buffText("rotMonk"));
-    expect(info?.buff.length).toBeGreaterThan(0);
+  it("names a known type", () => {
+    expect(campTypeInfo("rotMonk")).toEqual({ name: "Rot Monk" });
   });
 
   it("is null while the room does not say, and shows an unknown id as it is", () => {
     expect(campTypeInfo("")).toBeNull();
     expect(campTypeInfo(undefined)).toBeNull();
-    expect(campTypeInfo("someNewMob")).toEqual({ name: "someNewMob", buff: "" });
+    expect(campTypeInfo("someNewMob")).toEqual({ name: "someNewMob" });
   });
 
   it("knows every mob type of the roster", () => {
@@ -34,27 +31,9 @@ describe("readCampTypes", () => {
   });
 });
 
-describe("counterBuffs", () => {
-  it("lists, for each faction present, the buffs whose counters name it, at most three, once per faction", () => {
-    const hints = counterBuffs(["holy", "fire", "holy", "plague"]);
-    expect(hints.map((h) => h.faction)).toEqual(["holy", "fire", "plague"].filter((f) => buffsCountering(f as FactionId).length > 0));
-    for (const h of hints) {
-      expect(h.buffs.length).toBeGreaterThan(0);
-      expect(h.buffs.length).toBeLessThanOrEqual(3);
-      for (const b of h.buffs) expect(buffsCountering(h.faction).map((d) => d.id)).toContain(b.id);
-    }
-    expect(counterBuffs(["holy"], 1)[0]!.buffs).toHaveLength(1);
-  });
-
-  it("ignores factions that are not factions, and says nothing when no buff counters one", () => {
-    expect(counterBuffs(["nobody", "", "coliseum"])).toEqual([]);
-    expect(counterBuffs([])).toEqual([]);
-  });
-
-  it("writes one line per faction with the zone each buff is won in", () => {
-    const lines = counterHintLines(counterBuffs(["holy"]));
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatch(/^Against Demon Blood: /);
-    for (const b of counterBuffs(["holy"])[0]!.buffs) expect(lines[0]).toContain(`${b.name} (${FACTIONS[b.zone].displayName})`);
+describe("readCampStates", () => {
+  it("reads state.camps[i].state as 0 idle, 1 engaged, 2 cleared, and 0 for anything else", () => {
+    expect(readCampStates({}, 2)).toEqual([0, 0]);
+    expect(readCampStates({ camps: [{ state: 1 }, { state: 2 }, { state: 7 }, {}] }, 4)).toEqual([1, 2, 0, 0]);
   });
 });

@@ -6,20 +6,19 @@
 // damageFactor (Trial's zone) multiplies in after the rows, just as order-free.
 import { describe, expect, it } from "vitest";
 import {
-  BUFFS, buffScale, damageShares, FACTIONS, mapFromTiles, mitigateShares, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
-  TILE_WALL, type BuffId, type FactionId, type GameMap,
+  damageShares, FACTIONS, mapFromTiles, mitigateShares, mulberry32, pacedFaction, TICK_MS, TILE, TILE_FLOOR,
+  TILE_WALL, type Effect, type FactionId, type GameMap,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { grantBuff } from "../src/sim/buffs";
 import { combatant, defenseOf, type Combatant } from "../src/sim/combatant";
 import { noteContact } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { addMob } from "../src/sim/mobs";
+import { setExtraRows } from "../src/sim/mods";
 import { addStatus } from "../src/sim/status";
 import { addPlayer, step } from "../src/sim/step";
 import { chainHook, type LedgerEntry, type World } from "../src/sim/world";
-import { quoted } from "./support/quoted";
 
 const W_TILES = 40;
 const H_TILES = 20;
@@ -45,7 +44,17 @@ function startRun(factions: FactionId[], signatures = false): World {
 
 const P = (w: World, id: string): PlayerState => w.state.players.get(id)!;
 const paced = (id: FactionId) => pacedFaction(FACTIONS[id]);
-const grant = (w: World, id: string, buff: BuffId, n: number): void => grantBuff(w, P(w, id), w.players.get(id)!, buff, n);
+
+// The rows these tests are about, crafted (setExtraRows) so that they test the ledger's rule and not a card's number: a flat damage row,
+// a vs row below / above an hp share, a scale row that grows with the owner's missing hp, and a trigger.
+const EMBER: Effect = { k: "stat", stat: "damage", v: 0.15 };
+const EXECUTE: Effect = { k: "vs", test: "hpBelow", arg: 0.3, v: 0.3 };
+const WYRM: Effect = { k: "vs", test: "hpAbove", arg: 0.7, v: 0.2 };
+const OGRE: Effect = { k: "vs", test: "hpBelow", arg: 0.5, v: 0.16 };
+const PENITENT: Effect = { k: "scale", src: "ownMissingHp", per: 0.03, step: 0.1 };
+const PENITENT_PER = 0.03;
+/** Gives p`id` these rows (replacing any it had): folded at once, like a card's. */
+const own = (w: World, id: string, ...rows: Effect[]): void => setExtraRows(w, combatant(w, id)!, rows);
 
 // ------------------------------------------------------------------------------------------------- the order-free pass
 
@@ -58,14 +67,11 @@ type Hit = { by: string; victim: string; raw: number; sig?: "burn" | "mark" };
  */
 function buildPass(): { w: World; dummy: string } {
   const w = startRun(FACTIONS_OF);
-  grant(w, "p0", "emberImp", 4);
-  grant(w, "p0", "executioner", 3);
-  grant(w, "p0", "wyrmling", 2.5);
-  grant(w, "p1", "penitent", 6);
-  grant(w, "p1", "ratOgre", 3.3);
-  grant(w, "p2", "executioner", 1.2);
-  grant(w, "p3", "wyrmling", 5);
-  grant(w, "p4", "emberImp", 3);
+  own(w, "p0", EMBER, EXECUTE, WYRM);
+  own(w, "p1", PENITENT, OGRE);
+  own(w, "p2", EXECUTE);
+  own(w, "p3", WYRM);
+  own(w, "p4", EMBER);
   const hp: Record<string, number> = { p0: 0.95, p1: 0.62, p2: 0.32, p3: 0.71, p4: 0.51 };
   for (const [id, frac] of Object.entries(hp)) {
     P(w, id).maxHp = 1e4;
@@ -130,16 +136,16 @@ describe("the outgoing multiplier keeps the ledger order-free", () => {
     }
   });
 
-  it("each multiplier reads the pass's starting hp: a victim taken under 30% by the pass gets no executioner bonus in it", () => {
+  it("each multiplier reads the pass's starting hp: a victim taken under 30% by the pass gets no below-30% bonus in it", () => {
     const { w } = buildPass();
     const before = P(w, "p2").hp;
     for (const h of hits("none").filter((x) => x.victim === "p2")) record(w, h);
     applyLedger(w);
     const def = defenseOf(P(w, "p2"));
-    // p0: Ember Imp (4 stacks) only; p2 is at 32%, so neither Executioner (below 30) nor Wyrmling (above 70) applies.
-    const p0Mult = 1 + quoted("emberImp") * buffScale(4);
-    // p1 at 62%: 3 whole 10% steps of missing hp for Penitent, plus Rat Ogre (p2 is below 50%); the rows add.
-    const p1Mult = 1 + quoted("penitent") * buffScale(6) * 3 + quoted("ratOgre") * buffScale(3.3);
+    // p0: the damage row only; p2 is at 32%, so neither the below-30% row nor the above-70% row applies.
+    const p0Mult = 1 + 0.15;
+    // p1 at 62%: 3 whole 10% steps of missing hp for the scale row, plus the below-50% row (p2 is below 50%); the rows add.
+    const p1Mult = 1 + PENITENT_PER * 3 + 0.16;
     const want = 2 * mitigateShares(300 * p0Mult, damageShares(paced("fire")), def)
       + mitigateShares(200 * p1Mult, damageShares(paced("holy")), def);
     expect(before - P(w, "p2").hp).toBeCloseTo(want, 9);
@@ -148,13 +154,13 @@ describe("the outgoing multiplier keeps the ledger order-free", () => {
     const hp2 = P(w, "p2").hp;
     record(w, { by: "p0", victim: "p2", raw: 100 });
     applyLedger(w);
-    const exec = 1 + quoted("emberImp") * buffScale(4) + quoted("executioner") * buffScale(3);
+    const exec = 1 + 0.15 + 0.3;
     expect(hp2 - P(w, "p2").hp).toBeCloseTo(mitigateShares(100 * exec, damageShares(paced("fire")), def), 9);
   });
 
   it("never multiplies the arena's own burn", () => {
     const w = startRun(["fire", "frost"]);
-    grant(w, "p0", "emberImp", 6);
+    own(w, "p0", EMBER);
     P(w, "p1").maxHp = 1e4;
     P(w, "p1").hp = 9000;
     recordHit(w, { victim: "p1", by: { id: "p0", name: "x" }, packet: { raw: 100, phys: 0, magic: 0, true: 1 }, weapon: "sword", stagger: false, arena: true });
@@ -169,8 +175,8 @@ describe("the outgoing multiplier keeps the ledger order-free", () => {
     const TRUE = { phys: 0, magic: 0, true: 1 } as const;
     const setup = (): World => {
       const w = startRun(["fire", "holy"]);
-      grant(w, "p0", "penitent", 6);
-      grant(w, "p1", "penitent", 6);
+      own(w, "p0", PENITENT);
+      own(w, "p1", PENITENT);
       for (const [id, hp] of [["p0", 6010], ["p1", 5010]] as const) {
         P(w, id).maxHp = 1e4;
         P(w, id).hp = hp; // 39.9% and 49.9% missing: three and four whole steps; one hit each takes the other across the next
@@ -180,7 +186,7 @@ describe("the outgoing multiplier keeps the ledger order-free", () => {
     const entry = (w: World, by: string, victim: string, raw: number): void => {
       recordHit(w, { victim, by: { id: by, name: P(w, by).name }, packet: { raw, ...TRUE }, weapon: "sword", stagger: false });
     };
-    const hitFor = (steps: number) => 1 + quoted("penitent") * buffScale(6) * steps;
+    const hitFor = (steps: number) => 1 + PENITENT_PER * steps;
     const runOrder = (order: ReadonlyArray<readonly [string, string, number]>): [number, number] => {
       const w = setup();
       for (const [by, victim, raw] of order) entry(w, by, victim, raw);
@@ -200,14 +206,13 @@ describe("the outgoing multiplier keeps the ledger order-free", () => {
 // ------------------------------------------------------------------------------------------- Trial's zone and the rows
 
 /**
- * Fire p0 stands in Holy p1's Trial (it deals x0.8; it takes x1.2 from p1), with Ember Imp and Wyrmling (vs hp above 70%);
- * p1 has Ember Imp; Plague p2 has nothing. p1 starts at 72%, so p0's hit alone takes it under 70%: the vs row still holds.
+ * Fire p0 stands in Holy p1's Trial (it deals x0.8; it takes x1.2 from p1), with a damage row and a vs-above-70% row;
+ * p1 has the damage row; Plague p2 has nothing. p1 starts at 72%, so p0's hit alone takes it under 70%: the vs row still holds.
  */
 function trialPass(): World {
   const w = startRun(["fire", "holy", "plague"]);
-  grant(w, "p0", "emberImp", 3);
-  grant(w, "p0", "wyrmling", 3);
-  grant(w, "p1", "emberImp", 3);
+  own(w, "p0", EMBER, WYRM);
+  own(w, "p1", EMBER);
   for (const [id, frac] of [["p0", 0.9], ["p1", 0.72], ["p2", 0.9]] as const) {
     P(w, id).maxHp = 1e4;
     P(w, id).hp = 1e4 * frac;
@@ -233,8 +238,8 @@ describe("Trial's damageFactor and the outgoing rows", () => {
     const def = { p0: defenseOf(P(w, "p0")), p1: defenseOf(P(w, "p1")), p2: defenseOf(P(w, "p2")) };
     for (const h of TRIAL_HITS) record(w, h);
     applyLedger(w);
-    const ember = quoted("emberImp");
-    const p0Rows = 1 + ember + quoted("wyrmling"); // rows in the damage key add; Wyrmling reads p1 at 72%, p2 at 90%
+    const ember = 0.15;
+    const p0Rows = 1 + ember + 0.2; // rows in the damage key add; the above-70% row reads p1 at 72%, p2 at 90%
     const fire = damageShares(paced("fire"));
     const holy = damageShares(paced("holy"));
     const plague = damageShares(paced("plague"));
@@ -271,10 +276,7 @@ describe("a Wish's ability damage is flat power: the damage rows never multiply 
   function buffed(withBuffs = true): World {
     const w = startRun(["fire", "frost", "plague"]);
     if (withBuffs) {
-      grant(w, "p0", "emberImp", 4);
-      grant(w, "p0", "executioner", 3);
-      grant(w, "p0", "penitent", 6);
-      grant(w, "p0", "wyrmling", 2.5);
+      own(w, "p0", EMBER, EXECUTE, PENITENT, WYRM);
     }
     for (const [id, frac] of [["p0", 0.55], ["p1", 0.25], ["p2", 0.25]] as const) {
       P(w, id).maxHp = 1e4;
@@ -282,8 +284,7 @@ describe("a Wish's ability damage is flat power: the damage rows never multiply 
     }
     return w;
   }
-  const rowsFor = (): number => 1 + quoted("emberImp") * buffScale(4) + quoted("executioner") * buffScale(3)
-    + quoted("penitent") * buffScale(6) * 4; // p0 at 55%: four whole 10% steps missing; p1 and p2 are under 30%
+  const rowsFor = (): number => 1 + 0.15 + 0.3 + PENITENT_PER * 4; // p0 at 55%: four whole 10% steps missing; p1 and p2 are under 30%
 
   it("an ability hit and a Blaze Step trail tick deal their raw damage; the same caster's weapon hit in the same pass gets the rows", () => {
     const w = buffed();
@@ -330,7 +331,7 @@ describe("a Wish's ability damage is flat power: the damage rows never multiply 
     const p0 = { id: "p0", name: P(w, "p0").name };
     const p1 = { id: "p1", name: P(w, "p1").name };
     const before = { p0: P(w, "p0").hp, p2: P(w, "p2").hp };
-    // p0 (Ember Imp + Wyrmling, zoned: deals x0.8) burns p2; p1 (Ember Imp, the zone's caster) burns p0 (x1.2 from the caster).
+    // p0 (damage and above-70% rows, zoned: deals x0.8) burns p2; p1 (damage row, the zone's caster) burns p0 (x1.2 from the caster).
     recordHit(w, { victim: "p2", by: p0, packet: { raw: 100, ...TRUE }, weapon: null, ability: "blaze", dot: true, stagger: false });
     recordHit(w, { victim: "p0", by: p1, packet: { raw: 100, ...TRUE }, weapon: null, ability: "blaze", dot: true, stagger: false });
     applyLedger(w);
@@ -341,8 +342,8 @@ describe("a Wish's ability damage is flat power: the damage rows never multiply 
 
 // ------------------------------------------------------------------------------------------------ signature damage
 
-/** A Sentenced (bow) p0 engaged with a Frost p1 for `ticks` steps, with `n` Ember Imp stacks: the mark damage it landed. */
-function markDamage(n: number, ticks: number): number {
+/** A Sentenced (bow) p0 engaged with a Frost p1 for `ticks` steps, with a damage row of `v` (none for 0): the mark damage it landed. */
+function markDamage(v: number, ticks: number): number {
   const w = startRun(["sentenced", "frost"], true);
   for (const id of ["p0", "p1"]) {
     P(w, id).maxHp = 1e7;
@@ -353,7 +354,7 @@ function markDamage(n: number, ticks: number): number {
   P(w, "p0").x = 300; P(w, "p0").y = 330;
   P(w, "p1").x = 420; P(w, "p1").y = 330;
   for (const id of ["p0", "p1"]) w.players.get(id)!.history = [{ t: w.state.serverTime, x: P(w, id).x, y: P(w, id).y }];
-  if (n > 0) grant(w, "p0", "emberImp", n);
+  if (v > 0) own(w, "p0", { k: "stat", stat: "damage", v });
   noteContact(w, "p0", "p1");
   let mark = 0;
   for (let i = 0; i < ticks; i++) {
@@ -364,10 +365,10 @@ function markDamage(n: number, ticks: number): number {
 }
 
 describe("signature damage takes the multiplier too", () => {
-  it("a Sentenced player's Ember Imp buff raises its mark damage by exactly the buff", () => {
+  it("a Sentenced player's damage row raises its mark damage by exactly the row", () => {
     const plain = markDamage(0, 30);
     expect(plain).toBeGreaterThan(0);
-    for (const n of [3, 5.5]) expect(markDamage(n, 30) / plain).toBeCloseTo(1 + quoted("emberImp") * buffScale(n), 9);
+    for (const v of [0.1, 0.35]) expect(markDamage(v, 30) / plain).toBeCloseTo(1 + v, 9);
   });
 });
 
@@ -401,14 +402,11 @@ describe("the hurt hook", () => {
     expect(seen).toEqual([[500, 250, 100]]);
   });
 
-  it("Blood Saint's trigger, when its row is not `once`, fires only for a pass that takes the owner across 30%: not one held at the floor", () => {
-    const row = BUFFS.find((b) => b.id === "bloodSaint")!.effects[0] as { once?: boolean };
-    const wasOnce = row.once;
-    row.once = false;
-    try {
+  it("a hpBelow trigger that is not `once` fires only for a pass that takes the owner across 30%: not one held at the floor", () => {
+    {
       const run = (hp: number, floor: boolean, raw: number): number => {
         const w = startRun(["frost", "fire"], true);
-        grant(w, "p0", "bloodSaint", 3);
+        own(w, "p0", { k: "trigger", on: "hpBelow", arg: 0.3, do: { do: "heal", share: 0.2, ignoreLockout: true } });
         P(w, "p0").maxHp = 1000;
         P(w, "p0").hp = hp;
         if (floor) {
@@ -425,8 +423,6 @@ describe("the hurt hook", () => {
       expect(run(250, true, 500)).toBe(100); // already under 30%, held at the floor by a big hit: still no trigger
       expect(run(400, false, 200)).toBeCloseTo(200 + heal, 6); // 40% -> 20%: crossed
       expect(run(400, true, 500)).toBeCloseTo(100 + heal, 6); // 40% -> the floor: crossed
-    } finally {
-      row.once = wasOnce;
     }
   });
 });

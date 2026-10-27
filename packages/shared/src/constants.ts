@@ -136,7 +136,7 @@ export const BOUNTY_EXPONENT = 1.5;
 
 // Power and the PvP factor (balance pass, BALANCE_CONTRACT 3.4 / 4.6). Every player-to-player ledger entry (a weapon hit, a
 // signature's damage; not a Wish, not the arena, never a mob) is multiplied by pvpFactor(P), P the attacker's card power
-// (rules.ts cardPower): f(P) = PVP_F0 + (PVP_FMAX - PVP_F0) x (1 - exp(-P / PVP_P0)). Equal-power fights keep their outcome
+// (cards.ts cardPower): f(P) = PVP_F0 + (PVP_FMAX - PVP_F0) x (1 - exp(-P / PVP_P0)). Equal-power fights keep their outcome
 // (the mark's clock runs at the same factor, so it is a PvP-only DUEL_PACE); a fed player kills a fresh one many times sooner.
 // f(0) 0.75, f(1) 1.10, f(2) 1.39, f(3) 1.64, f(5) 2.02, f(6) 2.17, f(10) 2.58, f(15) 2.82.
 export const PVP_F0 = 0.75;
@@ -148,6 +148,35 @@ export const PVP_HIT_CAP_SHARE = 0.35;
 export const PVP_DOT_CAP_SHARE = 0.15;
 /** G4: A Race to 0 multiplies the damage its holder deals and takes by 1 / hp fraction, but never by more than this. */
 export const HP_RACE_CAP = 2.5;
+
+// The card engine's caps (balance pass, BALANCE_CONTRACT 3.2 / 3.3 / 4.6: guards G1 and G5-G13). Every number a stack of cards
+// could otherwise push without bound is one of these; shared/mods.ts folds with them and sim/mods.ts reads them.
+/** G1: the damage rows an entry carries (1 + the damage sum, with its `vs` and `scale` rows) times the `hit`, `dot` or `returned` mult of its kind never pass this. */
+export const OUTGOING_ROW_CAP = 2.5;
+/** G6: a barrier (Second Skin) never holds more than this share of max hp... */
+export const BARRIER_MAX_SHARE = 0.25;
+/** ...and loses this share of max hp every second. */
+export const BARRIER_DECAY_SHARE_PER_SECOND = 0.05;
+/** G7: bonus armor and bonus magic resist (cards, conversions, sources together) stop here. */
+export const BONUS_DEFENSE_CAP = 200;
+/** G8: max hp never falls below this share of the faction's (Glass Cannon's -25% is the card that asks for less). */
+export const MAX_HP_FLOOR_SHARE = 0.5;
+/** G10: the move-speed bonus of the rows (cards, conversions) stops here (+30%); a slow below it is untouched. */
+export const MOVE_BONUS_CAP = 0.3;
+/** G11: the AD and the AP that conversions give (Spellsword, Big Brain, Arcane Tempo...) are each at most this, a conversion never feeding another. */
+export const CONVERT_AD_AP_CAP = 60;
+/** G12: critical strike chance stops here, and a critical strike deals this multiple of the hit. */
+export const CRIT_CHANCE_MAX = 0.5;
+export const CRIT_MULT = 1.5;
+/** G9: the `asPost` mults (Boom x0.5, Machine Gun x2) multiply AFTER the attack-speed cap and are held to this range, so attack speed ends at 0.5 to 3.0 of base. */
+export const AS_POST_MIN = 0.5;
+export const AS_POST_MAX = 2;
+/** G13: Wishes are flat; the only card that moves their cooldown (Arcane Overload x2) is a `wishCooldown` mult, and none takes it under this share. */
+export const WISH_COOLDOWN_MULT_MIN = 0.5;
+/** 3.3: every running damage-over-time signature (burn, disease, the mark) adds this much of the owner's AP as magic damage per second. */
+export const AP_DOT_RATIO = 0.6;
+/** A fighter is "in a fight" (the `fightTime` condition) from its first landed or taken hit until this long passes with none. */
+export const FIGHT_GAP_SECONDS = 3;
 
 // Combat (Phase 9). Weapon numbers and the faction x weapon formula live in weapons.ts; the rules between weapons
 // (blocks, reflections, interceptions, stagger) in interactions.ts.
@@ -167,18 +196,22 @@ export const BALL_AFTER_ARROW = 0.7;
 export const SHIELD_HALF_ARC = Math.PI / 3;
 /**
  * A frontal sword or bash hit on a raised shield is blocked only in part (balance pass, BALANCE_CONTRACT 5.5): this share of
- * it is stopped, the rest (1 - this) goes through as a normal hit with no stagger. It ends the shield's "never hurt" matchups
- * (Shield > Sword 96% -> 80%) and the shield-mirror stalemate (two shields used to block every bash). Provisional: the loop
- * is tuned against the weapon-edge target (A7).
+ * it is stopped, the rest (1 - this) goes through as a normal hit with no stagger (a blocked hit never staggers, which is what
+ * keeps the shield's edge over the sword). It ends the shield's "never hurt" matchups and the shield-mirror stalemate (two shields
+ * used to block every bash). Tuned against the weapon-edge target (A7, testing/TUNING_BALANCE.md): the contract's first value was
+ * 0.35 (Shield > Sword 80% pooled at minute 0, and the shield-only faction set lost Holy > Fire and Holy > Sentenced outright:
+ * every share of a hit a shield stops is taken off the hit-only factions' damage and not off the damage-over-time factions').
+ * At 0.10 Shield > Sword is 64%, every edge of the shield-only set holds (hp left 11-36%). Provisional.
  */
-export const SHIELD_BLOCK_SHARE = 0.35;
+export const SHIELD_BLOCK_SHARE = 0.10;
 /** The riposte: this share of the BLOCKED part of a sword hit (SHIELD_BLOCK_SHARE of it) is dealt back to the swordsman. */
 export const RIPOSTE_SHARE = 0.5;
 /**
  * An arrow that meets a raised shield is reflected carrying only this share of its damage; the holder takes the rest
- * (1 - this) as a normal hit (balance pass, BALANCE_CONTRACT 5.5). Provisional.
+ * (1 - this) as a normal hit (balance pass, BALANCE_CONTRACT 5.5; 0.35 in the contract, 0.25 after the A7 sweep: Shield > Bow
+ * 80% -> 73% pooled). Provisional.
  */
-export const ARROW_REFLECT_SHARE = 0.35;
+export const ARROW_REFLECT_SHARE = 0.25;
 /**
  * An arrow is reflected at most this many times; the next shield front just blocks it. Two shields face to face at
  * contact range would otherwise bounce one forever (each reflection starts inside the other's reach).
@@ -239,38 +272,36 @@ export const CAST_TELEPORT_GRACE_MS = 300;
 export const DUMMY_HP = 5000;
 export const DUMMY_RESET_SECONDS = 3;
 
-// Buffs and the feed curve (roguelike R4a: per-mob-type buffs, GAME_DESIGN 12). The maths is in buffs.ts.
-/** The S-curve's midpoint (stacks) and width: S(x) = sigmoid((x - BUFF_S0) / BUFF_W) - sigmoid(-BUFF_S0 / BUFF_W). */
-export const BUFF_S0 = 3;
-export const BUFF_W = 1;
-/** A buff's quoted numbers are its value at this many stacks (D6): value(n) = quoted x S(n) / S(BUFF_REF_STACKS). */
-export const BUFF_REF_STACKS = 3;
+// The feed curve (GAME_DESIGN 12): the mob reward curve and the catch-up scale a mob's GV and a quest's card tier. A kill gives no stat
+// since the balance pass (BALANCE_CONTRACT 3.6): every point of stat power is a card from a camp's chest or a quest (shared/cards.ts).
 /**
- * The most lifesteal `lifesteal` effect rows give a fighter, summed over every row (Acolyte's buff, later relics), any
+ * The most lifesteal `lifesteal` effect rows give a fighter, summed over every row (Leech cards, later relics), any
  * faction. Holy's own lifesteal comes on top, and the total never exceeds LIFESTEAL_MAX.
  */
 export const LS_CAP = 0.25;
-/** Holy's own cap (factions.ts ls_cap): lifesteal above 100% of the damage stalls Holy against Holy. */
-export const LIFESTEAL_MAX = 1;
+/**
+ * G5: the whole lifesteal share (Holy's own plus the rows, `lifestealMult` and `lifestealDot` included) stops here (was 1, Holy's
+ * own cap: lifesteal above 100% of the damage stalls Holy against Holy). The rows alone are held to LS_CAP before Bloodthirst's x2.
+ */
+export const LIFESTEAL_MAX = 0.85;
 /**
  * The attack-speed multiplier (the `asMult` mirror) from every source together never exceeds this (League's approach: one
  * cap on the total, slows apply below it). Owner ruling: x1.5, the most at which the real sim still holds all 20 kiting
  * cells against an unbuffed melee counter (harness --kiting-only; Plague > Frost is down to 2% hp there, and attack speed
  * alone first flips a faction counter at x1.65). testing/test_kite.py's model only holds to x1.25 (it fails from x1.3, 6
  * cells at x1.5, and in a tick-alignment dip at x1.08-1.105 the real sim does not show): the owner accepted that the model
- * no longer holds at the cap. Buffs alone never reach it (Plague Rat's plateau is x1.17); it binds once sources stack
- * (R5/R6 passives, skills, relics). testing/TUNING_ROGUE.md.
+ * no longer holds at the cap. Card rows reach it only by stacking several Haste cards; it binds once sources stack
+ * (cards, skills, relics). testing/TUNING_ROGUE.md. The balance pass's `asPost` mults (Here Comes the Boom x0.5,
+ * Machine Gun x2) multiply AFTER this cap (AS_POST_MIN..AS_POST_MAX), so the mirror ends between 0.5 and 3.0.
  */
 export const AS_MULT_CAP = 1.5;
-/** Mob rewards (GV and buff stacks) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
+/** Mob rewards (GV; a quest's card tier) are x REWARD_FLOOR + (1 - REWARD_FLOOR) x (1 - sigmoid((feed - REWARD_MID) / REWARD_WIDTH)). */
 export const REWARD_FLOOR = 0.3;
 export const REWARD_MID = 5;
 export const REWARD_WIDTH = 1.5;
 /** Anyone with a feed more than CATCHUP_GAP below the lobby median gets mob rewards x CATCHUP_MULT. */
 export const CATCHUP_GAP = 2;
 export const CATCHUP_MULT = 1.25;
-/** Killing a bountied player moves this share of their buff stacks, buff by buff, to the killer. */
-export const BOUNTY_STACK_SHARE = 0.5;
 /** A rampage announcement for one player goes out at most this often (ms); a rise held back goes out when the window ends. */
 export const BOUNTY_ANNOUNCE_MS = 10_000;
 
@@ -302,14 +333,6 @@ export const MOB_REPATH_MS = 500;
 export const MOB_AIM_DEADBAND = (2 * Math.PI) / 180;
 /** A dead mob stays in the state this long (ms) so every client sees it fall. */
 export const MOB_CORPSE_MS = 1500;
-/**
- * Stacks of its type's buff a mob gives its killer before the reward curve (m = rewardCurve x catch-up). A little over a
- * whole stack, because the curve is at most 0.976: three hungry kills of one camp (3 x 1.1 x ~0.97 = 3.2) then reach the
- * quoted value (3 stacks). An elite gives about the full quoted value on its own (3.1 x ~0.97 = 3.0).
- */
-export const MOB_BUFF_STACKS = 1.1;
-export const ELITE_BUFF_STACKS = 3.1;
-
 // Camps and their shared chests (roguelike R5, ROGUELIKE_PLAN 3.3, D1-D3, D12, D24). The rules are in shared/rewards.ts
 // and server sim/chests.ts.
 /** A cleared camp's chest vanishes this long after it drops (D1), never extended; also at the coliseum teleport. */
@@ -332,6 +355,16 @@ export const CHEST_PANEL_CLICK_GUARD_MS = 250;
 export const CHEST_GREY_MS = 50;
 /** A chest offers this many options (D6). */
 export const CHEST_OPTIONS = 3;
+/**
+ * The tier odds of a chest's cards in percent, T1 / T2 / T3 (BALANCE_CONTRACT 4.8): the base card and the augment of a normal camp's
+ * chest, and both of an elite camp's. A conditional is always tier 2.
+ */
+export const CHEST_TIER_ODDS = {
+  normal: { base: [70, 25, 5], augment: [50, 45, 5] },
+  elite: { base: [10, 60, 30], augment: [10, 60, 30] },
+} as const;
+/** The chance that a chest's second card is a conditional (when a picker owns the base of one it could offer); else it is a second base card. */
+export const CHEST_CONDITIONAL_CHANCE = 0.5;
 /** A skip heals this share of max hp when the heal lockout allows it (D12)... */
 export const SKIP_HEAL_SHARE = 0.15;
 /** ...and pays this much GV when it heals nothing (in combat, or at full hp); it counts against GV_MOB_CAP. */

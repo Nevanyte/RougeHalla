@@ -9,7 +9,7 @@ Bots quest through the same public state and inputs as a human client. This is a
 Read the ordinary room state and shared catalog:
 
 - `RaidState.quests`: visible offers by id. An entry is initially known or already revealed; hidden offers have no placeholder entries.
-- `QuestState.def`: key into `QUEST_DEFS` / `questDefById`. The def provides `kind`, `name`, `text`, objective `count`, `region` and other objective data, `farZone`, nominal `reward.stacks`, `reward.gv`, and `reward.buff` (the real `BuffId`). Validate the buff's zone against `farZone`; do not value it as a retired generic stat.
+- `QuestState.def`: key into `QUEST_DEFS` / `questDefById`. The def provides `kind`, `name`, `text`, objective `count`, `region` and other objective data, `farZone`, `reward.gv` and `reward.card` (a base `CardId`: `cardTierOf(card)` is its worth in card power, and a fed player is paid one tier lower, `questRewardCard`). Value the card by its tier, not by a zone.
 - `QuestState.x`, `.y`: the giver's world position. The giver also has a synced `MobState` of kind `quest`; never send a combat `target` for it. The giver exists only while its offer is open.
 - `QuestState.progress`: map from player id to public kill/collect progress. Compare the bot's own id with the def's `count`; rival progress is public too.
 - `QuestState.expiresAt`: absolute server-time deadline in ms. Compare it with `RaidState.serverTime`, not local wall time. When an offer closes early (done, or closed unpaid) the server clamps it to the close time.

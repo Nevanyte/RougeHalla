@@ -1,7 +1,7 @@
 // The regional mob catalog (GAME_DESIGN 11): what a mob of each region is. Pure and shared, so the sim, the client
 // (names, health bars) and the tests agree. A mob fights as its region's faction scaled down (scaledFaction), with the
 // region's weapon, through the same combat code as a player; the sim paces it (DUEL_PACE) like any faction.
-import { ELITE_K, ELITE_BUFF_STACKS, MOB_BUFF_STACKS, MOB_K, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
+import { ELITE_K, MOB_K, MOB_LEASH_CAP, MOB_LEASH_RADIUS } from "./constants";
 import { FACTIONS, scaledFaction, type FactionId, type FactionSpec } from "./factions";
 import { REGION_WEAPONS, worldToTile, type GameMap } from "./map";
 import type { Vec2 } from "./messages";
@@ -35,11 +35,6 @@ export function mobWeapon(region: FactionId): WeaponId {
   return REGION_WEAPONS[region];
 }
 
-/** Buff stacks the mob drops before the reward curve. */
-export function mobBuffStacks(elite: boolean): number {
-  return elite ? ELITE_BUFF_STACKS : MOB_BUFF_STACKS;
-}
-
 const NAMES: Readonly<Record<FactionId, readonly [string, string]>> = {
   fire: ["Cinderling", "Ember Warlord"],
   sentenced: ["Convict", "Warden"],
@@ -54,7 +49,7 @@ export function mobName(region: FactionId, elite: boolean): string {
 
 // --- The roster (ROGUELIKE_PLAN 3.4): 20 mob types ---------------------------------------------------------------------
 // Every type of a zone fights as its zone's faction with the zone's weapon (REGION_WEAPONS), scaled by MOB_K / ELITE_K
-// like any regional mob: types of one zone differ only by skin and by the buff they drop (shared/buffs.ts). Camps are
+// like any regional mob: types of one zone differ only by name and skin (a kill pays GV and a weapon, never a stat). Camps are
 // mono-type (shared/rosters.ts, server sim/camps.ts); a mob's name comes from here, `mobName` above is the fallback for
 // a mob placed without a type.
 

@@ -1,4 +1,4 @@
-// The camp chest panel (roguelike R5): a cleared camp's shared chest offers three skills for 15 seconds, one pick each, first
+// The camp chest panel (roguelike R5): a cleared camp's shared chest offers three cards for 15 seconds, one pick each, first
 // come first served. The panel is a non-modal card docked at the right edge, off the fight's centre. It opens by itself
 // while a live chest is within reach of the LATEST SERVER position of the local player (never the predicted one, so it never
 // offers a pick the server would refuse for range), shows the chest's contents only then, and closes when the player walks
@@ -13,14 +13,14 @@
 // leaves it alone, ui/mapHold.ts). The digits are the panel's ONLY while it has focus, so the weapon keys work as ever otherwise. Every option greys out RTT/2 + CHEST_GREY_MS before the chest expires, and a pick the server refuses comes
 // back as its `toast` (noteToast) into the status line. The server decides everything: this only sends `choose`.
 import {
-  CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_SECONDS, FACTIONS, isChestRefusal, isFactionId, skipText,
-  type BuildRanks, type CampDef, type ClientMessages, type FactionId, type GameMap,
+  CHEST_OPTIONS, CHEST_PANEL_CLICK_GUARD_MS, CHEST_SECONDS, isChestRefusal, skipText,
+  type CampDef, type CardCounts, type ClientMessages, type GameMap,
 } from "@raid/shared";
 import { ORDER_EXPIRE_MS } from "../net/localMotion";
 import { settings as appSettings, type Settings, type SettingsStore } from "../settings";
 import {
-  CHEST_FOCUS_KEY, DEFAULT_RTT_MS, formatCountdown, isGreyed, myPick, optionCards, pickReward, poolName, rankBadge, readReward,
-  stateText, statusText, timeShare, trueServerNow, usableRtt, type OptionCard, type PanelTarget, type Reward, type RewardSource,
+  CHEST_FOCUS_KEY, DEFAULT_RTT_MS, formatCountdown, isGreyed, kindLine, myPick, optionCards, pickReward, readReward, stateText,
+  statusText, tierBadge, timeShare, trueServerNow, usableRtt, type OptionCard, type PanelTarget, type Reward, type RewardSource,
 } from "./chestMath";
 import { isTypingTarget } from "./chrome";
 import "./chestPanel.css";
@@ -67,8 +67,7 @@ export interface ChestPanelMe {
   x: number;
   y: number;
   alive: boolean;
-  faction: string;
-  build: BuildRanks | null | undefined;
+  build: CardCounts | null | undefined;
 }
 
 /** What the scene hands the panel each frame. */
@@ -103,17 +102,14 @@ export interface ChestPanelOptions {
 
 interface Card {
   root: HTMLButtonElement;
-  glyph: HTMLElement;
   name: HTMLElement;
-  rank: HTMLElement;
-  pool: HTMLElement;
+  tier: HTMLElement;
+  kind: HTMLElement;
   text: HTMLElement;
   state: HTMLElement;
   /** What the card shows now, so a frame that changes nothing writes nothing. */
   sig: string;
 }
-
-const zoneName = (zone: string): string => (isFactionId(zone) ? FACTIONS[zone].displayName : zone);
 
 export class ChestPanel {
   /** The panel's root: put in #ui at construction, hidden while no chest is in reach. */
@@ -224,7 +220,7 @@ export class ChestPanel {
     this.head.append(this.headGlyph, this.title, this.timer);
     this.bar.setAttribute("aria-hidden", "true");
     this.list.setAttribute("role", "group");
-    this.list.setAttribute("aria-label", "Skills in the chest");
+    this.list.setAttribute("aria-label", "Cards in the chest");
 
     this.skipButton.type = "button";
     this.skipButton.tabIndex = -1;
@@ -249,23 +245,21 @@ export class ChestPanel {
     const root = el("button", "cp-card");
     root.type = "button";
     root.tabIndex = -1;
-    const glyph = el("span", "cp-glyph");
-    glyph.setAttribute("aria-hidden", "true");
     const name = el("span", "cp-name");
-    const rank = el("span", "cp-rank");
-    const pool = el("span", "cp-pool");
+    const tier = el("span", "cp-tier");
+    const kind = el("span", "cp-kind");
     const text = el("span", "cp-text");
     const state = el("span", "cp-state");
     const top = el("span", "cp-card-top");
-    top.append(keycap(String(index + 1), "cp-key"), glyph, name, rank);
-    root.append(top, pool, text, state);
+    top.append(keycap(String(index + 1), "cp-key"), name, tier);
+    root.append(top, kind, text, state);
     root.addEventListener("click", (e) => this.onButton(e, root, () => this.pick(index)));
     // A right-click is a walk order: on a card it must not open the browser's menu instead.
     root.addEventListener("contextmenu", (e: Event) => e.preventDefault());
     // Focus leaving the panel from a button (a Tab past the last one) takes the buttons out of the Tab order again.
     root.addEventListener("focusout", this.onFocusOut);
     root.hidden = true;
-    const card: Card = { root, glyph, name, rank, pool, text, state, sig: "" };
+    const card: Card = { root, name, tier, kind, text, state, sig: "" };
     this.cards.push(card);
     this.list.append(root);
     return card;
@@ -383,7 +377,7 @@ export class ChestPanel {
     this.shownId = reward.id;
 
     const closed = picked || this.greyed || this.pending !== null;
-    const cards = optionCards(reward, { myId: me.id, build: me.build, faction: me.faction, closed });
+    const cards = optionCards(reward, { myId: me.id, build: me.build, closed });
     this.currentCards = cards;
     while (this.cards.length < cards.length) this.addCard();
     this.cards.forEach((card, i) => this.paintCard(card, cards[i] ?? null, frame, i));
@@ -453,27 +447,25 @@ export class ChestPanel {
     const { view, state } = data;
     const taker = state.kind === "taken" ? frame.nameOf(state.by) ?? "" : "";
     const sending = this.pending?.pick === index;
-    const sig = `${data.id}|${view?.rank ?? 0}|${view?.text ?? ""}|${state.kind}|${taker}|${data.pickable}|${this.greyed}|${sending}`;
+    const sig = `${data.id}|${view?.why.text ?? ""}|${view?.blocked?.text ?? ""}|${state.kind}|${taker}|${data.pickable}|${this.greyed}|${sending}`;
     if (sig === card.sig) return;
     card.sig = sig;
     card.root.hidden = false;
-    const name = view?.name ?? "Unknown skill";
-    const badge = rankBadge(view);
-    const pool = view ? poolName(view.pool, zoneName) : "";
+    const name = view?.title ?? "Unknown card";
+    const badge = tierBadge(view);
+    const kind = kindLine(view);
     const stateLine = sending ? "Sending..." : stateText(state, () => taker || undefined);
     card.name.textContent = name;
-    card.rank.textContent = badge;
-    card.rank.hidden = badge === "";
-    card.pool.textContent = pool;
+    card.tier.textContent = badge;
+    card.tier.hidden = badge === "";
+    card.kind.textContent = kind;
     card.text.textContent = view?.text ?? "";
     card.state.textContent = stateLine;
     card.state.hidden = stateLine === "";
-    if (view) setPoolGlyph(card.glyph, view.pool);
-    card.glyph.hidden = !view;
     card.root.className = `cp-card ${state.kind}${data.pickable ? "" : " off"}${this.greyed ? " greyed" : ""}${sending ? " sending" : ""}`;
     card.root.disabled = !data.pickable;
     card.root.setAttribute("aria-disabled", String(!data.pickable));
-    const label = [`${index + 1}. ${name}`, badge, pool, view?.text, stateLine].filter(Boolean).join(". ");
+    const label = [`${index + 1}. ${name}`, badge && `Tier ${badge}`, kind, view?.text, stateLine].filter(Boolean).join(". ");
     card.root.setAttribute("aria-label", label);
     card.root.title = label;
   }

@@ -5,20 +5,20 @@ import {
   CHEST_GREY_MS, CHEST_PANEL_HYSTERESIS, CHEST_PANEL_SLACK, CHEST_RANGE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, mapFromTiles, skipText,
 } from "@raid/shared";
 import {
-  ChestMemory, DEFAULT_RTT_MS, chestPickLine, PANEL_CLOSE_RANGE, PANEL_RANGE, campLabel, rttFromOrderDelay, usableRtt, formatCountdown, greyAtMs, hasPicked, inPanelRange, isGreyed, myPick, optionCards, pickReward, poolName, rankBadge,
-  pickLine, readReward, stateText, statusText, takenIndex, timeShare, trueServerNow, type Reward, type RewardSource,
+  ChestMemory, DEFAULT_RTT_MS, chestPickLine, PANEL_CLOSE_RANGE, PANEL_RANGE, campLabel, rttFromOrderDelay, usableRtt, formatCountdown, greyAtMs, hasPicked, inPanelRange, isGreyed, myPick, optionCards, pickReward,
+  cardKindLabel, kindLine, pickLine, readReward, stateText, statusText, takenIndex, tierBadge, timeShare, trueServerNow, type Reward, type RewardSource,
 } from "../src/ui/chestMath";
 
 const source = (over: Partial<RewardSource> = {}): RewardSource => ({
-  kind: "reward", x: 500, y: 500, camp: 2, expiresAt: 20_000, options: ["pestilence", "whetstone", "swiftBoots"],
+  kind: "reward", x: 500, y: 500, camp: 2, expiresAt: 20_000, options: ["haste2", "bloodthirst", "wellspring"],
   takenBy: ["", "", ""], pickers: [], ...over,
 });
 const reward = (over: Partial<Reward> = {}): Reward => ({ ...readReward(source(), "c1")!, ...over });
 
 describe("readReward", () => {
   it("copies a reward container out of the state, and refuses every other kind", () => {
-    const r = readReward(source({ options: { length: 2, 0: "whetstone", 1: "swiftBoots", [Symbol.iterator]: Array.prototype[Symbol.iterator] } as never }), "c1");
-    expect(r).toMatchObject({ id: "c1", x: 500, y: 500, camp: 2, expiresAt: 20_000, options: ["whetstone", "swiftBoots"] });
+    const r = readReward(source({ options: { length: 2, 0: "ad1", 1: "haste2", [Symbol.iterator]: Array.prototype[Symbol.iterator] } as never }), "c1");
+    expect(r).toMatchObject({ id: "c1", x: 500, y: 500, camp: 2, expiresAt: 20_000, options: ["ad1", "haste2"] });
     for (const kind of ["chest", "ground", "body"]) expect(readReward(source({ kind }), "x")).toBeNull();
   });
 
@@ -90,13 +90,13 @@ describe("the round trip the chest's clock uses", () => {
 describe("ChestMemory", () => {
   it("keeps a chest's options for a few seconds after it was last seen, and forgets it then", () => {
     const m = new ChestMemory();
-    m.note("c1", ["whetstone", "swiftBoots", "thickHide"], 1000);
-    expect(m.option("c1", 1)).toBe("swiftBoots");
+    m.note("c1", ["ad1", "haste2", "armor1"], 1000);
+    expect(m.option("c1", 1)).toBe("haste2");
     expect(m.option("c1", 3)).toBeUndefined();
     expect(m.option("c2", 0)).toBeUndefined();
     m.forget(1000 + ChestMemory.KEEP_MS);
     expect(m.size).toBe(1);
-    m.note("c1", ["whetstone", "swiftBoots", "thickHide"], 4000); // seen again: the clock restarts
+    m.note("c1", ["ad1", "haste2", "armor1"], 4000); // seen again: the clock restarts
     m.forget(4000 + ChestMemory.KEEP_MS);
     expect(m.size).toBe(1);
     m.forget(4000 + ChestMemory.KEEP_MS + 1);
@@ -105,30 +105,30 @@ describe("ChestMemory", () => {
   });
 
   it("copies the options (a schema array changes under it)", () => {
-    const live = ["whetstone", "swiftBoots"];
+    const live = ["ad1", "haste2"];
     const m = new ChestMemory();
     m.note("c1", live, 0);
     live.length = 0;
-    expect(m.option("c1", 0)).toBe("whetstone");
+    expect(m.option("c1", 0)).toBe("ad1");
   });
 });
 
 describe("chestPickLine: the local player's own pick as a line", () => {
-  const rank = (held: Record<string, number>) => (skill: string): number => held[skill] ?? 0;
-  it("names the skill from the chest in the state, and from memory when the chest left it first", () => {
+  const held = (counts: Record<string, number>) => (card: string): number => counts[card] ?? 0;
+  it("names the card from the chest in the state, and from memory when the chest left it first", () => {
     const m = new ChestMemory();
-    m.note("c1", ["pestilence", "whetstone", "swiftBoots"], 0);
-    const live = ["pestilence", "whetstone", "swiftBoots"];
-    expect(chestPickLine("c1", 1, live, m, rank({ whetstone: 1 }))).toBe("You took Whetstone");
-    expect(chestPickLine("c1", 1, live, m, rank({ whetstone: 2 }))).toBe("You took Whetstone (rank 2)");
+    m.note("c1", ["haste2", "bloodthirst", "wellspring"], 0);
+    const live = ["haste2", "bloodthirst", "wellspring"];
+    expect(chestPickLine("c1", 0, live, m, held({ haste2: 1 }))).toBe("You took Haste II");
+    expect(chestPickLine("c1", 0, live, m, held({ haste2: 2 }))).toBe("You took Haste II (x2)");
     // A pick in the chest's last ~100 ms is played after the chest has gone: the memory still has its cards.
-    expect(chestPickLine("c1", 2, undefined, m, rank({ swiftBoots: 1 }))).toBe("You took Swift Boots");
-    expect(chestPickLine("c1", 2, undefined, new ChestMemory(), rank({}))).toBeUndefined(); // never seen: no line, no crash
-    expect(chestPickLine("c1", 7, undefined, m, rank({}))).toBeUndefined();
+    expect(chestPickLine("c1", 2, undefined, m, held({ wellspring: 1 }))).toBe("You took Wellspring");
+    expect(chestPickLine("c1", 2, undefined, new ChestMemory(), held({}))).toBeUndefined(); // never seen: no line, no crash
+    expect(chestPickLine("c1", 7, undefined, m, held({}))).toBeUndefined();
   });
 
   it("a skip needs neither the chest nor the memory", () => {
-    expect(chestPickLine("gone", -1, undefined, new ChestMemory(), rank({}))).toBe("You skipped the chest");
+    expect(chestPickLine("gone", -1, undefined, new ChestMemory(), held({}))).toBe("You skipped the chest");
   });
 });
 
@@ -223,37 +223,55 @@ describe("picks of a chest", () => {
 });
 
 describe("optionCards", () => {
-  const ctx = { myId: "me", build: {} as Record<string, number>, faction: "plague", closed: false };
+  const ctx = { myId: "me", build: {} as Record<string, number>, closed: false };
 
-  it("offers a free card, a rank-2 offer for a skill held at rank 1, and a held-at-2 skill as maxed", () => {
-    const cards = optionCards(reward(), { ...ctx, build: { whetstone: 1, swiftBoots: 2 } });
-    expect(cards.map((c) => c.state.kind)).toEqual(["free", "free", "maxed"]);
-    expect(cards.map((c) => c.pickable)).toEqual([true, true, false]);
-    expect(cards[0]!.view).toMatchObject({ name: "Pestilence", rank: 1 });
-    expect(cards[1]!.view).toMatchObject({ name: "Whetstone", rank: 2, maxed: false });
-    expect(rankBadge(cards[0]!.view)).toBe("");
-    expect(rankBadge(cards[1]!.view)).toBe("Rank 2");
+  it("offers a base card and an augment, and greys a conditional whose base the picker lacks, saying what it needs", () => {
+    const cards = optionCards(reward(), ctx);
+    expect(cards.map((c) => c.state.kind)).toEqual(["free", "blocked", "free"]);
+    expect(cards.map((c) => c.pickable)).toEqual([true, false, true]);
+    expect(cards[1]!.state).toEqual({ kind: "blocked", text: "Needs Leech" });
+    expect(stateText(cards[1]!.state, () => undefined)).toBe("Needs Leech");
+    expect(cards[0]!.view).toMatchObject({ id: "haste2", title: "Haste II", tier: 2, kind: "base", held: 0 });
   });
 
-  it("words a skill for the picker's faction (Pestilence is a different line for Plague)", () => {
-    const plague = optionCards(reward(), { ...ctx, faction: "plague" })[0]!.view!;
-    const fire = optionCards(reward(), { ...ctx, faction: "fire" })[0]!.view!;
-    expect(plague.text).not.toBe(fire.text);
+  it("offers the conditional once the picker holds its base at any tier", () => {
+    const cards = optionCards(reward(), { ...ctx, build: { leech3: 1 } });
+    expect(cards[1]!.state.kind).toBe("free");
+    expect(cards[1]!.pickable).toBe(true);
+    expect(cards[1]!.view!.why).toMatchObject({ code: "synergy", has: true, text: "You have Leech" });
   });
 
-  it("marks what other players took, with who, and what this player took", () => {
+  it("greys a one-per-player card the picker already holds as Already yours, while a base card stays pickable at any count", () => {
+    const cards = optionCards(reward(), { ...ctx, build: { haste2: 2, wellspring: 1, leech1: 1 } });
+    expect(cards.map((c) => c.state.kind)).toEqual(["free", "free", "blocked"]);
+    expect(cards[2]!.state).toEqual({ kind: "blocked", text: "Already yours" });
+    expect(cards[2]!.pickable).toBe(false);
+    expect(cards[0]!.view).toMatchObject({ held: 2 });
+    expect(cards[0]!.view!.why).toMatchObject({ code: "deepens" });
+  });
+
+  it("badges the tier in roman numerals and names the kind and the reason it was offered", () => {
+    const cards = optionCards(reward({ options: ["ad1", "ad3", "bloodthirst", "wellspring"], takenBy: ["", "", "", ""] }), ctx);
+    expect(cards.map((c) => tierBadge(c.view))).toEqual(["I", "III", "II", "I"]);
+    expect(tierBadge(null)).toBe("");
+    expect(cards.map((c) => kindLine(c.view))).toEqual(["Base · New", "Base · New", "Conditional · Needs Leech", "Augment"]);
+    expect(kindLine(null)).toBe("");
+    expect([cardKindLabel("base"), cardKindLabel("conditional"), cardKindLabel("augment")]).toEqual(["Base", "Conditional", "Augment"]);
+  });
+
+  it("marks what other players took, with who, and what this player took (a taken card is never also 'blocked')", () => {
     const r = reward({ takenBy: ["bob", "me", ""], pickers: ["bob", "me"] });
-    const cards = optionCards(r, { ...ctx, build: { whetstone: 1 }, closed: true });
+    const cards = optionCards(r, { ...ctx, build: { haste2: 1, bloodthirst: 1 }, closed: true });
     expect(cards.map((c) => c.state)).toEqual([{ kind: "taken", by: "bob" }, { kind: "mine" }, { kind: "free" }]);
-    // Their own pick reads at the rank they hold now, not the next one.
-    expect(cards[1]!.view).toMatchObject({ rank: 1, maxed: false });
+    // Their own pick reads as held now, not as one they cannot take.
+    expect(cards[1]!.view).toMatchObject({ held: 1 });
     expect(stateText(cards[0]!.state, (id) => (id === "bob" ? "Bob" : undefined))).toBe("Taken by Bob");
     expect(stateText(cards[0]!.state, () => undefined)).toBe("Taken by another player");
     expect(stateText(cards[1]!.state, () => undefined)).toBe("You took this");
   });
 
   it("offers nothing once the chest is closed to this player (picked, or about to vanish), whatever is free", () => {
-    const cards = optionCards(reward(), { ...ctx, closed: true });
+    const cards = optionCards(reward(), { ...ctx, build: { leech1: 1 }, closed: true });
     expect(cards.every((c) => !c.pickable)).toBe(true);
     expect(cards.map((c) => c.state.kind)).toEqual(["free", "free", "free"]);
   });
@@ -263,21 +281,16 @@ describe("optionCards", () => {
     expect(cards[0]).toMatchObject({ view: null, state: { kind: "unknown" }, pickable: false });
     expect(stateText(cards[0]!.state, () => undefined)).toMatch(/not in this version/i);
   });
-
-  it("names a pool: a zone by its faction's name, the neutral pool as Neutral", () => {
-    const name = (z: string) => z.toUpperCase();
-    expect(poolName("neutral", name)).toBe("Neutral");
-    expect(poolName("fire", name)).toBe("FIRE");
-  });
 });
 
 describe("statusText", () => {
   const base = { picked: null, pending: false, refused: null, greyed: false, anyPickable: true };
 
-  it("says what the pick was, with the rank held", () => {
+  it("says what the pick was, with the count held once a base card is held more than once", () => {
     expect(statusText({ ...base, picked: "skip" })).toBe("You skipped this chest.");
-    expect(statusText({ ...base, picked: { skill: "whetstone", rank: 1 } })).toBe("You took Whetstone.");
-    expect(statusText({ ...base, picked: { skill: "whetstone", rank: 2 } })).toBe("You took Whetstone (rank 2).");
+    expect(statusText({ ...base, picked: { card: "haste2", count: 1 } })).toBe("You took Haste II.");
+    expect(statusText({ ...base, picked: { card: "haste2", count: 2 } })).toBe("You took Haste II (x2).");
+    expect(statusText({ ...base, picked: { card: "wellspring", count: 1 } })).toBe("You took Wellspring.");
   });
 
   it("puts a result first, then a pick on its way, then a refusal, then the chest about to vanish, then the rest", () => {
@@ -289,8 +302,9 @@ describe("statusText", () => {
     expect(statusText(base)).toMatch(/One pick per chest/);
   });
 
-  it("finds the skill a player took, at the rank they hold", () => {
-    expect(myPick(reward({ takenBy: ["", "me", ""] }), "me", { whetstone: 2 })).toEqual({ skill: "whetstone", rank: 2 });
+  it("finds the card a player took, and how many of it they hold", () => {
+    expect(myPick(reward({ takenBy: ["", "me", ""] }), "me", { bloodthirst: 1 })).toEqual({ card: "bloodthirst", count: 1 });
+    expect(myPick(reward({ takenBy: ["me", "", ""] }), "me", new Map([["haste2", 3]]))).toEqual({ card: "haste2", count: 3 });
     expect(myPick(reward(), "me", {})).toBeNull();
   });
 
@@ -307,9 +321,9 @@ describe("the feed lines", () => {
     expect(campLabel(undefined)).toBeUndefined();
   });
 
-  it("tells a pick as 'You took ...' with the rank held, a skip as one, and a skill this build lacks as nothing", () => {
-    expect(pickLine(1, "whetstone", 1)).toBe("You took Whetstone");
-    expect(pickLine(1, "whetstone", 2)).toBe("You took Whetstone (rank 2)");
+  it("tells a pick as 'You took ...' with the count held, a skip as one, and a card this build lacks as nothing", () => {
+    expect(pickLine(1, "haste2", 1)).toBe("You took Haste II");
+    expect(pickLine(1, "haste2", 2)).toBe("You took Haste II (x2)");
     expect(pickLine(-1, undefined, 0)).toBe("You skipped the chest");
     expect(pickLine(0, "fromTheFuture", 1)).toBeUndefined();
     expect(pickLine(0, undefined, 0)).toBeUndefined();

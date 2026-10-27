@@ -30,7 +30,7 @@ export function lobbyMedianFeed(world: World): number {
   return median(feeds);
 }
 
-/** What a mob kill by this player pays now (GV and buff stacks both): the reward curve at their feed, times the catch-up. */
+/** What a mob kill by this player pays now (its GV): the reward curve at their feed, times the catch-up. */
 export function mobRewardFor(world: World, p: PlayerState, rt: PlayerRuntime): number {
   return mobRewardMultiplier(feedOfPlayer(p, rt), lobbyMedianFeed(world));
 }

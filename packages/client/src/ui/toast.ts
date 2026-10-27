@@ -1,9 +1,9 @@
 // Short server messages ("Too far away", "Nothing to take") stacked bottom-center above the weapon bar, the local
-// player's buff news, and the client's own error and confirmation lines (a tone only changes how a toast is
+// player's own news, and the client's own error and confirmation lines (a tone only changes how a toast is
 // drawn and how long it stays).
 import { el, uiRoot } from "./dom";
 
-/** "buff": buffs gained, "error": something failed (red), "ok": it worked (green). Plain toasts have none. */
+/** "buff": the local player's own gains (amber; the name predates the cards), "error": something failed (red), "ok": it worked (green). Plain toasts have none. */
 export type ToastTone = "buff" | "error" | "ok";
 
 const MAX_VISIBLE = 3;

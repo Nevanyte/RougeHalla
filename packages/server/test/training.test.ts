@@ -1259,7 +1259,7 @@ describe("the training room (live)", () => {
   });
 
   describe("the practice console (`train`)", () => {
-    it("a training room applies it: buffs, a camp and a chest reach the client's state, the reply toasts come back, and nothing is recorded", async () => {
+    it("a training room applies it: cards, a camp and a chest reach the client's state, the reply toasts come back, and nothing is recorded", async () => {
       const who = await claim();
       const before = snapshot(who);
       const recordRun = vi.spyOn(server.store, "recordRun");
@@ -1267,26 +1267,26 @@ describe("the training room (live)", () => {
       const p = await startTraining(who);
       const myState = () => p.room.state.players.get(sessionOf(p))!;
 
-      p.room.send("train", { cmd: "buff", id: "plagueRat", amount: 3 });
-      await until(() => myState().buffs.get("plagueRat") === 3, "the buff in the client's state");
-      await until(() => p.toasts.some((t) => /^Plague Rat 3 stacks: /.test(t)), "the reply toast");
+      p.room.send("train", { cmd: "card", id: "haste2", count: 3 });
+      await until(() => myState().build.get("haste2") === 3, "the cards in the client's state");
+      await until(() => p.toasts.some((t) => /^Haste II x3: /.test(t)), "the reply toast");
       expect(myState().asMult).toBe(worldOf(p).state.players.get(sessionOf(p))!.asMult);
       expect(myState().asMult).toBeGreaterThan(1000); // the mirror the client reads is folded
 
-      p.room.send("train", { cmd: "passive", id: "thickHide", rank: 2 });
-      await until(() => myState().build.get("thickHide") === 2, "the passive in the client's state");
+      p.room.send("train", { cmd: "card", id: "armor2" });
+      await until(() => myState().build.get("armor2") === 1, "the second card in the client's state");
 
       p.room.send("train", { cmd: "camp", id: "bailiff" });
       await until(() => [...p.room.state.mobs.values()].filter((m) => m.type === "bailiff").length === 3, "a camp of three Bailiffs");
 
-      p.room.send("train", { cmd: "chest", options: ["whetstone", "witness"] });
+      p.room.send("train", { cmd: "chest", options: ["haste1", "witness"] });
       await until(() => [...p.room.state.containers.values()].some((c) => c.kind === "reward"), "the chest in the client's state");
       const chest = [...p.room.state.containers.values()].find((c) => c.kind === "reward")!;
-      expect([...chest.options]).toEqual(["whetstone", "witness"]);
+      expect([...chest.options]).toEqual(["haste1", "witness"]);
       expect(chest.expiresAt).toBeGreaterThan(p.room.state.serverTime);
 
       p.room.send("train", { cmd: "clear" });
-      await until(() => myState().buffs.size === 0 && myState().build.size === 0, "the build to be cleared");
+      await until(() => myState().build.size === 0, "the build to be cleared");
       await until(() => [...p.room.state.mobs.values()].every((m) => m.kind === "dummy"), "the practice mobs to be gone");
       await until(() => ![...p.room.state.containers.values()].some((c) => c.kind === "reward"), "the chest to be gone");
 
@@ -1301,8 +1301,8 @@ describe("the training room (live)", () => {
       const p = await startTraining(await claim());
       const handler = vi.fn();
       worldOf(p).actions.train = handler;
-      p.room.send("train", { cmd: "buff", id: "nope" });
-      p.room.send("train", { cmd: "passive", id: "whetstone", rank: 9 });
+      p.room.send("train", { cmd: "card", id: "nope" });
+      p.room.send("train", { cmd: "buff", id: "emberImp", amount: 3 });
       p.room.send("train", "clear");
       p.room.send("train", { cmd: "clear" });
       await until(() => handler.mock.calls.length >= 1, "the one good message");
@@ -1319,12 +1319,12 @@ describe("the training room (live)", () => {
       worldOf(p).actions.train = handler;
       const mobs = worldOf(p).state.mobs.size; // an arena run has its camps' mobs
       const containers = worldOf(p).state.containers.size;
-      for (const msg of [{ cmd: "buff", id: "emberImp", amount: 12 }, { cmd: "camp", id: "emberImp" }, { cmd: "chest" }, { cmd: "clear" }]) {
+      for (const msg of [{ cmd: "card", id: "armor2", count: 9 }, { cmd: "camp", id: "emberImp" }, { cmd: "chest" }, { cmd: "clear" }]) {
         p.room.send("train", msg);
       }
       await sleep(500);
       expect(handler).not.toHaveBeenCalled();
-      expect(serverPlayer(p).buffs.size).toBe(0);
+      expect(serverPlayer(p).build.size).toBe(0);
       expect(worldOf(p).state.mobs.size).toBe(mobs);
       expect(worldOf(p).state.containers.size).toBe(containers);
       expect(p.toasts.filter((text) => !text.startsWith("Quest discovered:"))).toEqual([]);
@@ -1425,7 +1425,7 @@ describe("the training room (live)", () => {
           expect(p.left, `still in the room after ${(i + 1) * 0.3} s`).toBe(false);
         }
         // Now only refused ones: the room closes as if the player had gone quiet.
-        const junk: unknown[] = [{ cmd: "buff", id: "nope" }, { cmd: "passive", id: "whetstone", rank: 9 }, { cmd: "camp" }, {}, null, "clear"];
+        const junk: unknown[] = [{ cmd: "card", id: "nope" }, { cmd: "buff", id: "emberImp" }, { cmd: "camp" }, {}, null, "clear"];
         const deadline = Date.now() + 6000;
         while (!p.left && Date.now() < deadline) {
           for (const msg of junk) p.room.send("train", msg);

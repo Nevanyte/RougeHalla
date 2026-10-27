@@ -1,7 +1,7 @@
 // Budget check for the Phase 11 tick: a headless 8-player run with the map's regional mobs (20 camps of 3 to 5, about 80,
 // roguelike R2), eight players fighting at eight camps, arrows and balls in the air, mobs chasing and retreating.
 // Reports the cost of one `step()`.
-//   npx tsx packages/server/bench/stepBench.ts                       (from the repo root; --buffs, --stress, --quests)
+//   npx tsx packages/server/bench/stepBench.ts                       (from the repo root; --cards, --stress, --quests)
 //   npx tsx packages/server/bench/stepBench.ts --bots 8              8 in-process fill bots instead of the scripted players
 // Flags: --seed N, --ticks N (measured, default 1200), --warmup N, --mobs N; with --bots also --tier easy|normal|hard (every bot),
 // --coliseum (the endgame: all eight sealed in), --clock cpu|wall (default wall) and --repeat N (min / median / max over N runs).
@@ -24,15 +24,15 @@
 // searches make them spike) are left out of the gated numbers and reported on their own. A bots run is on the one clock
 // `--clock` names.
 import {
-  BUFF_IDS, generateMap, mulberry32, TARGET_REPATH_MS, TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE_FLOOR,
+  CARDS, cardLive, generateMap, mulberry32, TARGET_REPATH_MS, TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_ICE, TERRAIN_LIGHT, TICK_MS, TILE_FLOOR,
   type CampDef, type FactionId, type GameMap, type Vec2,
 } from "@raid/shared";
 import { BOT_FILL_DEFAULTS, TIER_IDS, type TierId } from "../src/bots/brain/types";
 import type { BotManagerStats } from "../src/bots/BotManager";
 import { createHeadlessRoom, HEADLESS_CONFIG } from "../src/bots/tournament/headlessRoom";
-import { grantBuff } from "../src/sim/buffs";
+import { grantCard } from "../src/sim/chests";
 import { aggro } from "../src/sim/mobAI";
-import { combatant } from "../src/sim/combatant";
+import { combatant, type Combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { placeMob } from "../src/sim/mobLife";
@@ -68,8 +68,8 @@ export interface BenchOptions {
   clock?: "wall" | "cpu";
   /** The endgame: the patience timer (10 s) sends everyone into the locked coliseum, where they fight each other with no mob awake. */
   coliseum?: boolean;
-  /** Every player starts with 4 stacks of every buff (roguelike R4a's gate: all buffs on 8 players). `--buffs` on the CLI. */
-  buffs?: boolean;
+  /** Every player starts holding every live card once (R4a's gate, now the card build: the fold in sim/mods.ts with all its rows on 8 players). `--cards` on the CLI. */
+  cards?: boolean;
   /** Quest offers, givers and items (the shipped default, off here unless asked). `--quests` on the CLI; with `--bots` too (the bots do not take quests). */
   quests?: boolean;
   /** The pathfinder's worst case: every camp woken every second, players re-locking every TARGET_REPATH_MS (see the header). `--stress` on the CLI. */
@@ -283,8 +283,11 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   for (let i = 0; i < players; i++) addPlayer(world, `p${i}`, NAMES[i]!);
   step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("the bench run did not start");
-  if (opts.buffs) {
-    for (const [id, rt] of world.players) for (const b of BUFF_IDS) grantBuff(world, world.state.players.get(id)!, rt, b, 4);
+  if (opts.cards) {
+    for (const id of world.players.keys()) {
+      const c = combatant(world, id) as Extract<Combatant, { kind: "player" }>;
+      for (const def of CARDS) if (cardLive(def)) grantCard(world, c, def.id);
+    }
   }
 
   const camps = allCamps(world);
@@ -583,7 +586,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = argsOf(process.argv.slice(2));
   const botTier = args.tier as TierId | undefined;
   if (botTier !== undefined && !TIER_IDS.includes(botTier)) throw new Error(`--tier takes ${TIER_IDS.join(" | ")}`);
-  const buffs = args.buffs !== undefined;
+  const cards = args.cards !== undefined;
   const opts: BenchOptions = {
     ...(args.seed !== undefined ? { seed: Number(args.seed) } : {}),
     ...(args.ticks !== undefined ? { ticks: Number(args.ticks) } : {}),
@@ -592,7 +595,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ...(args.bots !== undefined ? { bots: Number(args.bots) } : {}),
     ...(botTier ? { botTier } : {}),
     ...(args.coliseum !== undefined ? { coliseum: true } : {}),
-    ...(buffs ? { buffs: true } : {}),
+    ...(cards ? { cards: true } : {}),
     ...(args.stress !== undefined ? { stress: true } : {}),
     ...(args.quests !== undefined ? { quests: true } : {}),
     ...(args.clock === "cpu" || args.clock === "wall" ? { clock: args.clock } : {}),
@@ -626,8 +629,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!runs[0]!.bots) {
     // The terrain variant: a hazard on every fourth floor tile, against the same map with the effects off.
     const quests = opts.quests === true;
-    const heavy = runStepBench({ terrain: "heavy", buffs, quests });
-    const control = runStepBench({ terrain: "heavy", hazards: false, buffs, quests });
+    const heavy = runStepBench({ terrain: "heavy", cards, quests });
+    const control = runStepBench({ terrain: "heavy", hazards: false, cards, quests });
     show("terrain (every 4th tile a hazard): ", heavy);
     show("terrain map, effects off (control):  ", control);
     const s = heavy.hazardSeconds;

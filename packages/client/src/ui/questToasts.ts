@@ -1,5 +1,5 @@
 // Quest lifecycle toasts, folded before they reach the 3-slot toast stack (ui/toast.ts drops the OLDEST when a fourth comes, and
-// a turn-in already brings the "+N GV (quest)" line and the buff news): the server announces a completion once, to everyone,
+// a turn-in already brings the "+N GV (quest)" line and the card news): the server announces a completion once, to everyone,
 // and batches the offers that close in one tick into one line, and this is the client's own guard on both, so a second line
 // for the same event (an older server's private "Quest complete" next to the public announcement, or several expiry lines in
 // one burst) never evicts the GV toast. Pure apart from the timer, which a test injects.

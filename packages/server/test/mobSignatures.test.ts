@@ -1,19 +1,19 @@
 // Regional mobs fight with their region's Phase 10 signature, at mob strength, and the Phase 11 seams into the signature
 // layer hold: the evade rule (a returning mob has no target and takes/deals no signature damage), the teleport reset,
-// regeneration through heal(), lifesteal on a mob that dies to a big hit, and the move-speed buff next to Frost's slow.
+// regeneration through heal(), lifesteal on a mob that dies to a big hit, and the move-speed card next to Frost's slow.
 // Everything runs through the real step() loop and the real mob AI on a small open map; the only stand-ins are `aggro`
 // (to wake a mob without a hit) and a few fixtures noted where they are used.
 import { describe, expect, it } from "vitest";
 import {
-  backlashPerSwing, bonusMultiplier, buffRowsOf, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
+  backlashPerSwing, bonusMultiplier, burnDps, cardRows, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
   damageShares, decodeMult, diseaseDps, DOT_FX_MS, encodeMult, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markDps,
   ELITE_K, MOB_K, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, mitigateShares, mobFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
-  SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, TARGET_FORGET_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
-  type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
+  SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, SIGNATURE_SHARES, TARGET_FORGET_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
+  type DamageShares, type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { grantBuff } from "../src/sim/buffs";
-import { combatant } from "../src/sim/combatant";
+import { grantCard } from "../src/sim/chests";
+import { combatant, type Combatant } from "../src/sim/combatant";
 import { signatureState, targetOf } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -61,12 +61,16 @@ const ELITE_SPEC = Object.fromEntries(
   Object.keys(FACTIONS).map((id) => [id, pacedFaction(mobFaction(id as FactionId, true))]),
 ) as Record<FactionId, FactionSpec>;
 
-/** What `raw` of a mob of `region`'s signature does to a player of faction `victim`: the mob's shares against its defense. */
-const onPlayer = (region: FactionId, victim: FactionId, raw: number): number =>
-  mitigateShares(raw, damageShares(MOB_SPEC[region]), PLAYER_SPEC[victim]);
+/** The signature each damage-over-time faction runs (Fire's other one, the backlash, is named where it is meant). */
+const MAIN_SIG: Partial<Record<FactionId, SignatureKind>> = { fire: "burn", plague: "disease", sentenced: "mark" };
+const sharesOf = (owner: FactionId, spec: FactionSpec, sig: SignatureKind | undefined): DamageShares =>
+  sig ? SIGNATURE_SHARES[sig] : damageShares(spec);
+/** What `raw` of a mob of `region`'s signature does to a player of faction `victim`: the signature's own damage type against its defense. */
+const onPlayer = (region: FactionId, victim: FactionId, raw: number, sig: SignatureKind | undefined = MAIN_SIG[region]): number =>
+  mitigateShares(raw, sharesOf(region, MOB_SPEC[region], sig), PLAYER_SPEC[victim]);
 /** ...and what `raw` of a player's signature does to a mob of `region`. */
-const onMob = (owner: FactionId, region: FactionId, raw: number): number =>
-  mitigateShares(raw, damageShares(PLAYER_SPEC[owner]), MOB_SPEC[region]);
+const onMob = (owner: FactionId, region: FactionId, raw: number, sig: SignatureKind | undefined = MAIN_SIG[owner]): number =>
+  mitigateShares(raw, sharesOf(owner, PLAYER_SPEC[owner], sig), MOB_SPEC[region]);
 
 interface Rig {
   world: World;
@@ -261,7 +265,7 @@ describe("a regional mob fights with its region's signature at mob strength", ()
 
     it("answers each swing of the player with backlash, a sig \"backlash\" hit fx by the mob", () => {
       const { rig, logs } = fight();
-      const expected = onPlayer("fire", "plague", backlashPerSwing(MOB_SPEC.fire.params.backlash!, PLAYER_SPEC.plague, "axe") * bonusMultiplier("axe"));
+      const expected = onPlayer("fire", "plague", backlashPerSwing(MOB_SPEC.fire.params.backlash!, PLAYER_SPEC.plague, "axe") * bonusMultiplier("axe"), "backlash");
       const swings = logs.filter((l) => fxOf(l.events, "swing").some((s) => s.by === "p"));
       expect(swings.length).toBeGreaterThanOrEqual(3);
       for (const log of logs) {
@@ -421,22 +425,22 @@ describe("a regional mob fights with its region's signature at mob strength", ()
       const free = fight(false);
       // The slow is not a damage number, so a mob's chill is the full-strength one.
       const slow = chillMultiplier(MOB_SPEC.frost);
-      expect(slow).toBeCloseTo(0.4, 12);
+      expect(slow).toBeCloseTo(0.48, 12);
       expect(slow).toBe(chillMultiplier(PLAYER_SPEC.frost));
       const sig = signatureState(chilled.rig.world, "p")!;
       expect(sig.chill).toBeCloseTo(slow, 12);
       expect(sig.chillers).toEqual([chilled.rig.mob.id]);
       expect(chilled.rig.p.sig & SIG_CHILLED).toBeTruthy();
       expect(signatureState(free.rig.world, "p")?.chill ?? 1).toBe(1);
-      // Swings after the chill took hold: one every interval / 0.4 instead of every interval.
+      // Swings after the chill took hold: one every interval / 0.48 instead of every interval.
       const late = (w: readonly number[]): number[] => w.filter((t) => t >= 1500);
       expect(late(chilled.windups).length).toBeGreaterThanOrEqual(6);
       const gapFree = meanGap(late(free.windups));
       const gapChilled = meanGap(late(chilled.windups));
       expect(gapFree).toBeGreaterThan(0.24);
       expect(gapFree).toBeLessThan(0.27);
-      expect(gapChilled / gapFree).toBeGreaterThan(2.3);
-      expect(gapChilled / gapFree).toBeLessThan(2.7);
+      expect(gapChilled / gapFree).toBeGreaterThan(1 / 0.48 - 0.15);
+      expect(gapChilled / gapFree).toBeLessThan(1 / 0.48 + 0.15);
     });
   });
 
@@ -523,9 +527,9 @@ describe("a player's signature works on a mob like on a player", () => {
       expect(diseases[0]!.amount).toBeCloseTo(onMob("plague", "fire", diseaseDps(PLAYER_SPEC.plague, fracs[i]!) * bonusMultiplier("axe") * DT), 9);
     });
     expect(engaged).toBeGreaterThan(50);
-    // The execute part is in: well above what the plain disease would be at full hp.
+    // The execute part is in: well above what the plain disease would be at full hp (the compressed sheet's execute roughly doubles it at 40%).
     const first = rig.landed.find((h) => h.sig === "disease")!;
-    expect(first.amount).toBeGreaterThan(5 * onMob("plague", "fire", diseaseDps(PLAYER_SPEC.plague, 1) * bonusMultiplier("axe") * DT));
+    expect(first.amount).toBeGreaterThan(1.5 * onMob("plague", "fire", diseaseDps(PLAYER_SPEC.plague, 1) * bonusMultiplier("axe") * DT));
     expect(rig.mob.s.sig & SIG_DISEASED).toBeTruthy();
     expect(rig.mob.s.sig & SIG_EXECUTE).toBeTruthy();
   });
@@ -896,9 +900,9 @@ describe("lifesteal on mobs", () => {
     expect(landed[0]!.amount).toBeCloseTo(5, 9);
     expect(rig.mob.s.status).toBe("dead");
     expect(fxOf(log.events, "death").map((d) => [d.id, d.by])).toEqual([[id, "p"]]);
-    // ...so the heal is that, at half hp (lifestealFraction 0.875), and a small part of what the whole swing would feed.
+    // ...so the heal is that, at half hp (lifestealFraction 0.1 + 0.8 x 0.5 = 0.5), and a small part of what the whole swing would feed.
     const fraction = lifestealFraction(PLAYER_SPEC.holy, 0.5);
-    expect(fraction).toBeCloseTo(0.875, 12);
+    expect(fraction).toBeCloseTo(0.5, 12);
     expect(healed(log, "p")).toBeCloseTo(5 * fraction, 9);
     expect(healed(log, "p")).toBeLessThan(0.2 * SWING * fraction);
   });
@@ -928,16 +932,14 @@ describe("lifesteal on mobs", () => {
   });
 });
 
-describe("a move-speed buff meets Frost's chill", () => {
-  // The only move-speed buff is Cinder Hound's, and it holds only while its owner chases a locked target. So the walk
-  // away from the Frost mob is a chase: the player locks a decoy mob (an idle Fire mob, far down the walk) and the lock
-  // walks it there. The buff's mirror follows the lock one tick late (sim/mods.ts updateMods), so each run spends one
-  // tick before it measures.
+describe("a move-speed card meets Frost's chill", () => {
+  // The only move-speed card is Fleet (off while its owner shoots, which a sword player never does). The walk away from the Frost mob
+  // is a chase: the player locks a decoy mob (an idle Fire mob, far down the walk) and the lock walks it there.
   const DECOY_AT = { x: HOME.x - 400, y: HOME.y };
   /** How far (u) the player walks in each of the first ticks of a chase of the decoy, away from a Frost mob it is engaged with. */
-  const strides = (o: { stacks: number; frost: boolean }): { steps: number[]; worstGap: number; rig: Rig } => {
+  const strides = (o: { fleet: boolean; frost: boolean }): { steps: number[]; worstGap: number; rig: Rig } => {
     const rig = makeRig({ player: "plague", weapon: "sword", mob: "frost", mobAt: o.frost ? HOME : tile(28, 28), mobFacing: Math.PI });
-    if (o.stacks > 0) grantBuff(rig.world, rig.p, rig.prt, "cinderHound", o.stacks);
+    if (o.fleet) grantCard(rig.world, combatant(rig.world, "p") as Extract<Combatant, { kind: "player" }>, "fleet3");
     const decoy = combatant(rig.world, placeMob(rig.world, { region: "fire", elite: false, at: DECOY_AT, facing: 0 })) as MobCombatant;
     if (o.frost) {
       wake(rig);
@@ -946,12 +948,12 @@ describe("a move-speed buff meets Frost's chill", () => {
       expect(signatureState(rig.world, "p")!.chill).toBeLessThan(1);
     }
     send(rig, "target", { id: decoy.id });
-    tick(rig); // the lock starts, and the buff's condition holds from the end of this tick
+    tick(rig); // the lock starts
     expect(rig.p.attackTarget).toBe(decoy.id);
     const steps: number[] = [];
     let worstGap = 0;
-    // 8 ticks: the player starts about 37 u from the mob and walks away at the buff x the chill (about 7 u a tick at 6
-    // stacks), so it is about 87 u off by the last tick, inside CHILL_MOVE_RADIUS (100). Ten ticks would walk it out.
+    // 8 ticks: the player starts about 37 u from the mob and walks away at the card x the chill (about 7 u a tick), so it is about
+    // 87 u off by the last tick, inside CHILL_MOVE_RADIUS (100). Ten ticks would walk it out.
     for (let i = 0; i < 8; i++) {
       const from = { x: rig.p.x, y: rig.p.y };
       worstGap = Math.max(worstGap, Math.hypot(rig.mob.s.x - rig.p.x, rig.mob.s.y - rig.p.y));
@@ -963,36 +965,35 @@ describe("a move-speed buff meets Frost's chill", () => {
   };
   const BASE = PLAYER_SPEED * DT;
 
-  it("walks at the buff's multiplier x CHILL_MOVE_MULT of the base speed inside the chill radius (both are move modifiers)", () => {
-    const stacks = 6;
-    // What the wire carries: the row at these stacks, rounded to thousandths (the sim walks with exactly this).
-    const row = buffRowsOf("cinderHound", stacks)[0]!;
-    if (row.k !== "while") throw new Error("Cinder Hound's row is a while row");
-    const buff = decodeMult(encodeMult(1 + row.v));
-    expect(buff).toBeGreaterThan(1.05);
-    const plain = strides({ stacks: 0, frost: false });
-    const buffed = strides({ stacks, frost: false });
-    const chilled = strides({ stacks: 0, frost: true });
-    const both = strides({ stacks, frost: true });
+  it("walks at the card's multiplier x CHILL_MOVE_MULT of the base speed inside the chill radius (both are move modifiers)", () => {
+    // What the wire carries: the row, rounded to thousandths (the sim walks with exactly this).
+    const row = cardRows("fleet3")[0]!;
+    if (row.k !== "while") throw new Error("Fleet's row is a while row");
+    const card = decodeMult(encodeMult(1 + row.v));
+    expect(card).toBeGreaterThan(1.05);
+    const plain = strides({ fleet: false, frost: false });
+    const fast = strides({ fleet: true, frost: false });
+    const chilled = strides({ fleet: false, frost: true });
+    const both = strides({ fleet: true, frost: true });
     // Each effect on its own...
     for (const d of plain.steps) expect(d).toBeCloseTo(BASE, 9);
-    for (const d of buffed.steps) expect(d).toBeCloseTo(BASE * buff, 9);
+    for (const d of fast.steps) expect(d).toBeCloseTo(BASE * card, 9);
     for (const d of chilled.steps) expect(d).toBeCloseTo(BASE * CHILL_MOVE_MULT, 9);
     // ...and together they multiply, while the mob is within CHILL_MOVE_RADIUS the whole time.
     expect(both.worstGap).toBeLessThan(CHILL_MOVE_RADIUS);
-    for (const d of both.steps) expect(d).toBeCloseTo(BASE * buff * CHILL_MOVE_MULT, 9);
+    for (const d of both.steps) expect(d).toBeCloseTo(BASE * card * CHILL_MOVE_MULT, 9);
     expect(both.rig.world.moveModifiers.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("the buff does nothing while its owner is not chasing a lock: a plain walk is at the base speed, chilled or not", () => {
+  it("the card works on a plain walk too (it is no chase buff any more): a walk is at the card's speed, chilled or not", () => {
     const rig = makeRig({ player: "plague", weapon: "sword", mob: "frost", mobAt: tile(28, 28), mobFacing: Math.PI });
-    grantBuff(rig.world, rig.p, rig.prt, "cinderHound", 6);
+    grantCard(rig.world, combatant(rig.world, "p") as Extract<Combatant, { kind: "player" }>, "fleet3");
     send(rig, "move", { x: HOME.x - 400, y: HOME.y });
     tick(rig);
     for (let i = 0; i < 6; i++) {
       const from = { x: rig.p.x, y: rig.p.y };
       tick(rig);
-      expect(Math.hypot(rig.p.x - from.x, rig.p.y - from.y)).toBeCloseTo(BASE, 9);
+      expect(Math.hypot(rig.p.x - from.x, rig.p.y - from.y)).toBeCloseTo(BASE * decodeMult(encodeMult(1.15)), 9);
     }
   });
 });
@@ -1009,7 +1010,7 @@ describe("a player's Frost chill and damage over time on a mob", () => {
       left.push(rig.mob.s.readyAt - rig.world.state.serverTime);
     }
     const slow = chillMultiplier(PLAYER_SPEC.frost);
-    expect(slow).toBeCloseTo(0.4, 12);
+    expect(slow).toBeCloseTo(0.48, 12);
     const started = logs.findIndex((l) => fxOf(l.events, "windup").some((w) => w.by === rig.mob.id));
     expect(started).toBeGreaterThanOrEqual(0);
     // A few ticks after the swing began (past the correction for a swing started this tick), over a stretch of 8 ticks.

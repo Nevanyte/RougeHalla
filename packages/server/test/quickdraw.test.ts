@@ -2,14 +2,16 @@
 // and the axe's windups (and the axe's root with its windup) and NEVER a ranged one. The ranged windups are the anti-kiting
 // lever, so a bow or wand attack with Quickdraw is the same attack without it. Windups are tick-quantized (an attack lands on the
 // first 50 ms tick at or after start + windup, never in the tick it started in), so the numbers are sized to remove whole ticks:
-// the sword and the bash 2 -> 1 at both ranks, the Fire/Frost axe 5 -> 3 -> 2 and its root 10 -> 5 -> 3.
+// the sword and the bash 2 -> 1 at both ranks, the Fire/Frost axe 5 -> 3 -> 2 and its root 10 -> 5 -> 3. Since the balance pass Quickdraw is
+// a card (one copy, -50% windup, the old rank 1); "rank 2" below is that card plus a second halving from a mod source (what a future relic
+// could add), so the tick arithmetic of the deeper cut stays pinned.
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, BOW_WINDUP, decodeMult, encodeMult, FACTION_IDS, FACTIONS, mapFromTiles, mulberry32, pacedFaction, skillRows,
-  TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WAND_WINDUP, weaponTimings, type FactionId, type GameMap, type SkillId, type WeaponId,
+  attackInterval, BOW_WINDUP, cardRows, decodeMult, encodeMult, FACTION_IDS, FACTIONS, mapFromTiles, mulberry32, pacedFaction,
+  TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WAND_WINDUP, weaponTimings, type FactionId, type GameMap, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
-import { grantSkill } from "../src/sim/chests";
+import { grantCard } from "../src/sim/chests";
 import { runDuel } from "../src/harness/duel";
 import { shooterBuffText } from "../src/harness/kiting";
 import { combatant, timingsOf, type Combatant } from "../src/sim/combatant";
@@ -50,7 +52,11 @@ const P = (w: World): PlayerState => w.state.players.get("p0")!;
 const C = (w: World): Extract<Combatant, { kind: "player" }> => combatant(w, "p0")! as Extract<Combatant, { kind: "player" }>;
 
 function quickdraw(w: World, rank: 0 | 1 | 2): void {
-  for (let r = 1; r <= rank; r++) expect(grantSkill(w, C(w), "quickdraw" as SkillId)).toBe(r);
+  if (rank >= 1) expect(grantCard(w, C(w), "quickdraw")).toBe(1);
+  if (rank === 2) {
+    w.modSources.push(() => ({ windupMult: 0.5 }));
+    recomputeMods(w, C(w));
+  }
 }
 
 /** Holds `weapon`, presses once, and returns the recorded windup (ms) and the ticks the sim took to land it and to free the walk. */
@@ -79,9 +85,8 @@ function attackOf(w: World, weapon: WeaponId): { windupMs: number; landTicks: nu
 const ticksOf = (cut: number | undefined): number | undefined => (cut === undefined ? undefined : Math.ceil(cut - 1e-9));
 
 describe("Quickdraw's rows", () => {
-  it("are -50% (rank 1) and -75% (rank 2) windup, on the melee weapons the card names", () => {
-    expect(skillRows("quickdraw", 1)).toEqual([{ k: "stat", stat: "windup", v: -0.5 }]);
-    expect(skillRows("quickdraw", 2)).toEqual([{ k: "stat", stat: "windup", v: -0.75 }]);
+  it("are -50% windup, on the melee weapons (the card's text says melee windups)", () => {
+    expect(cardRows("quickdraw")).toEqual([{ k: "stat", stat: "windup", v: -0.5 }]);
   });
 });
 
@@ -229,15 +234,15 @@ describe("the melee windups, in ticks (an attack starting on the tick grid)", ()
 });
 
 describe("the harness's Quickdraw options", () => {
-  it("--chaser-skill / --shooter-skill grant the real passive; a bare multiplier is a mod source; the shooter's ranged windups do not move", () => {
+  it("--chaser-cards / --shooter-cards grant the real card; a bare multiplier is a mod source; the shooter's ranged windups do not move", () => {
     let seen = false;
     runDuel({
       faction: "fire", weapons: ["sword", "bow"], distance: 200, capSeconds: 1, seed: 3,
-      skills: [[{ id: "quickdraw" as SkillId, rank: 2 }], [{ id: "quickdraw" as SkillId, rank: 1 }]],
+      cards: [["quickdraw"], ["quickdraw"]], windupMult: [0.5, undefined],
       onTick: (world) => {
         const chaser = world.state.players.get("f0")!;
         const shooter = world.state.players.get("f1")!;
-        expect(chaser.build.get("quickdraw")).toBe(2);
+        expect(chaser.build.get("quickdraw")).toBe(1);
         expect(shooter.build.get("quickdraw")).toBe(1);
         expect(chaser.windupMult).toBe(encodeMult(0.25));
         expect(shooter.windupMult).toBe(encodeMult(0.5));
@@ -262,8 +267,7 @@ describe("the harness's Quickdraw options", () => {
 
   it("names a fighter's kit in the report header", () => {
     expect(shooterBuffText({ windupMult: 0.5 })).toBe("windup x0.5");
-    expect(shooterBuffText({ skills: [{ id: "quickdraw" as SkillId, rank: 2 }, { id: "swiftBoots" as SkillId, rank: 1 }] }))
-      .toBe("quickdraw rank 2, swiftBoots rank 1");
+    expect(shooterBuffText({ cards: ["quickdraw", "fleet1"] })).toBe("quickdraw, fleet1");
     expect(shooterBuffText({ asMult: 1.5, windupMult: 0.5, speedMult: 1.06 })).toBe("attack speed x1.5, windup x0.5, move speed x1.06");
     expect(shooterBuffText({ windupMult: 1, speedMult: 1 })).toBe("none");
   });

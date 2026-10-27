@@ -6,7 +6,7 @@
 // A move given while the bot's own locked attack is winding up CANCELS that attack (no swing, ball or arrow). So nothing here
 // walks until the shot has left: the orb-walk waits for the launch, and a juke is timed to just after the other fighter's.
 import {
-  attackInterval, BOW_WINDUP, FACTIONS, pacedFaction, PLAYER_RADIUS, PLAYER_SPEED, RANGED_HIT_REACH, weaponTimings,
+  BOW_WINDUP, FACTIONS, mirrorTimings, pacedFaction, PLAYER_RADIUS, PLAYER_SPEED, RANGED_HIT_REACH,
   type FactionId, type FactionSpec, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { retreatPoint } from "../../mobHunt";
@@ -37,10 +37,13 @@ function paced(f: FactionId): FactionSpec {
   return spec;
 }
 
-/** The bot's own attack rhythm (ms): the cooldown and the windup the sim computes for it, or null while it has no faction. */
+/**
+ * The bot's own attack rhythm (ms): the cooldown and the windup the sim computes for it (shared mirrorTimings, the function the
+ * server's timingsOf and the client's bow pull read: a ranged windup is never cut by attack speed, G9), or null while it has no faction.
+ */
 export function ownTimings(self: SelfView, weapon: WeaponId): { readonly intervalMs: number; readonly windupMs: number } | null {
   if (self.faction === null) return null;
-  const t = weaponTimings(weapon, attackInterval(paced(self.faction), weapon, self.asMult));
+  const t = mirrorTimings(paced(self.faction), weapon, self.asMult, self.windupMult ?? 1);
   return { intervalMs: t.interval * 1000, windupMs: t.windup * 1000 };
 }
 
@@ -306,7 +309,8 @@ function shots(ctx: BrainContext): Shot[] {
   const out: Shot[] = [];
   for (const f of [...p.fighters, ...p.mobs]) {
     if (f.status !== "alive" || f.inHand !== "bow" || f.drawStartedAt <= 0) continue;
-    const windup = f.faction ? weaponTimings("bow", attackInterval(paced(f.faction), "bow")).windup : BOW_WINDUP;
+    // Another fighter's mirrors are not drawn: its pull is read at base speed, which no ranged fighter's is ever shorter than (G9).
+    const windup = f.faction ? mirrorTimings(paced(f.faction), "bow", 1, 1).windup : BOW_WINDUP;
     out.push({ key: `${f.id}@${f.drawStartedAt}`, by: f.id, x: f.x, y: f.y, aim: f.facing, releaseAt: f.drawStartedAt + windup * 1000 });
   }
   for (const e of p.events) {
