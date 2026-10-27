@@ -11,15 +11,19 @@
 //   a bot             nothing, ever (sim bots have no client, profile or seat; settle() drops their results, and only the
 //                     bot manager's learning store hears of them)
 import { randomBytes, randomInt } from "node:crypto";
-import { ErrorCode, Room, ServerError, type Client } from "@colyseus/core";
+import { ErrorCode, Room, ServerError, type AuthContext, type Client } from "@colyseus/core";
 import {
   CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
-  type FactionId, type FxBatch, type FxEvent, type GvReason, type JoinOptions, type RunResult, type ServerMessages,
+  type FactionId, type FxBatch, type FxEvent, type GvReason, type JoinOptions, type RoomMode, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { BotManager } from "../bots/BotManager";
 import type { BotStatsStoreApi } from "../bots/brain/types";
 import type { ServerConfig } from "../config";
+import { addressOfContext } from "../guards/clientIp";
+import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, type PasscodeGate } from "../guards/passcode";
+import type { RoomCounter } from "../guards/roomCounter";
+import { TokenBucket } from "../guards/tokenBucket";
 import type { MapSource } from "../mapPool";
 import type { ProfileStore } from "../persistence/ProfileStore";
 import { markDropped, markReconnected } from "../sim/arena";
@@ -107,6 +111,10 @@ export interface RoomContext {
   config: ServerConfig;
   store: ProfileStore;
   profiles: ActiveProfiles;
+  /** Rooms alive now, per mode, against MAX_ARENA_ROOMS / MAX_TRAINING_ROOMS. */
+  rooms: RoomCounter;
+  /** The passcode check, shared with the profile route so that a guesser's wrong tries are counted on both doors. */
+  passcodeGate: PasscodeGate;
   /** Certified maps, taken synchronously at a room's first join (mapPool.ts). */
   maps: MapSource;
   /** What the fill bots learn across runs (docs/BOTS.md 6.2): process-wide, its own file, never the profile store. Null = learning off. */
@@ -137,6 +145,12 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
   return profile;
 }
 
+/** What a creation refused for the room cap says (net/errors.ts matches "server is full"). */
+const SERVER_FULL = "the server is full: too many rooms are open right now";
+
+/** Every client message but `aim` is an order that spends the sender's budget (aim streams at up to 20 Hz and is its own, cheap, thing). */
+const FREE_MESSAGE_TYPE = "aim";
+
 const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip" };
 
 export class RaidRoom extends Room<{ state: RaidState }> {
@@ -151,8 +165,13 @@ export class RaidRoom extends Room<{ state: RaidState }> {
    * phase check and the profile registry claim. (Core logs at startup that the instance onAuth "will be ignored"; with a
    * `true` result it is not.)
    */
-  static async onAuth(_token: string, options: Partial<JoinOptions> | undefined): Promise<boolean> {
-    const { store, profiles } = RaidRoom.ctx;
+  static async onAuth(_token: string, options: Partial<JoinOptions> | undefined, context?: AuthContext): Promise<boolean> {
+    const { store, profiles, passcodeGate } = RaidRoom.ctx;
+    // First: the passcode gates the whole door, so a refusal says nothing about profiles or rooms. Reconnections never get here.
+    // Wrong guesses are counted per address (the one index.ts stamped on the request, never a header the caller wrote) and an
+    // address past its limit gets 429 without its guess being looked at.
+    const verdict = passcodeGate.check(options?.passcode, addressOfContext(context), Date.now());
+    if (!verdict.ok) throw verdict.blocked ? new ServerError(429, PASSCODE_THROTTLED) : refuse(PASSCODE_REQUIRED);
     const profile = checkCredentials(options, store);
     if (profiles.isActive(profile)) throw refuse("profile already in a raid");
     if (profiles.hasUnjoinedRoom(profile)) throw refuse("a room was just opened for this profile; join it or try again in a few seconds");
@@ -190,6 +209,12 @@ export class RaidRoom extends Room<{ state: RaidState }> {
 
   /** A training room (mode "training"): private, one player, nothing recorded (sim/training.ts). Fixed at creation. */
   private training = false;
+  /** The mode this room was counted under in ctx.rooms; null when it was refused or has been given back (see onCreate and onDispose). */
+  private counted: RoomMode | null = null;
+  /** Each player's order budget (a token bucket), made on its first order. */
+  private readonly budgets = new Map<string, TokenBucket>();
+  /** Orders dropped for being over a budget, in this room: for the log and for the tests. */
+  refusedOrders = 0;
   /** When the last input arrived (training's idle limit). */
   private lastInputAt = Date.now();
 
@@ -204,8 +229,14 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   }
 
   onCreate(options?: Partial<JoinOptions>) {
-    const { config, profiles } = RaidRoom.ctx;
+    const { config, profiles, rooms } = RaidRoom.ctx;
     this.training = options?.mode === "training";
+    // Joining a room that exists never gets here: matchmaking creates one only when there is no open room to join. Counted
+    // before anything else, and only on success, so that onDispose (which core also runs for a creation that threw) gives
+    // back exactly what was taken.
+    const mode: RoomMode = this.training ? "training" : "arena";
+    if (!rooms.tryOpen(mode)) throw new ServerError(ErrorCode.MATCHMAKE_UNHANDLED, SERVER_FULL);
+    this.counted = mode;
     // A room nobody joins gets nothing more: the world, and its map from the pool, come with the first join (buildWorld).
     const opener = options?.profile;
     if (typeof opener === "string" && PROFILE_RE.test(opener)) {
@@ -225,8 +256,12 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     for (const type of CLIENT_MESSAGE_TYPES) {
       this.onMessage(type, (client: Client, msg: unknown) => {
         const rt = this.built?.players.get(client.sessionId);
+        if (!rt) return;
+        // A guard at the network edge, not a rule of the game: an order over the sender's budget is dropped before the sim
+        // sees it and, like junk, is not presence.
+        if (type !== FREE_MESSAGE_TYPE && !this.orderAllowed(client.sessionId)) return;
         // Only an input that was accepted counts as presence: junk would otherwise keep an abandoned training room open for good.
-        if (rt && enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) this.lastInputAt = Date.now();
+        if (enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) this.lastInputAt = Date.now();
       });
     }
     this.setTimestep((elapsed) => this.tick(elapsed), TICK_MS);
@@ -267,6 +302,21 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // Core describes the state to the client after onJoin returns, so this is early enough.
     this.state = world.state;
     return world;
+  }
+
+  /** Spends one token of the player's order budget (ORDER_BURST, ORDER_PER_SECOND); false when it is empty. A budget of 0 is off. */
+  private orderAllowed(sessionId: string): boolean {
+    const { orderBurst, orderPerSecond } = RaidRoom.ctx.config;
+    if (orderBurst <= 0 || orderPerSecond <= 0) return true;
+    const now = Date.now();
+    let bucket = this.budgets.get(sessionId);
+    if (!bucket) this.budgets.set(sessionId, (bucket = new TokenBucket(orderBurst, orderPerSecond, now)));
+    if (bucket.take(now)) return true;
+    if (this.refusedOrders++ === 0) {
+      const who = this.seats.get(sessionId)?.profile ?? sessionId;
+      console.warn(`[raid ${this.roomId}] ${who} is sending orders faster than ${orderPerSecond} a second: dropping the excess`);
+    }
+    return false;
   }
 
   private ownerKey(sessionId: string): string {
@@ -376,6 +426,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const seat = this.seats.get(sessionId);
     // Deleting the seat first is what keeps a second onLeave/onDispose from paying out again.
     this.seats.delete(sessionId);
+    this.budgets.delete(sessionId);
     if (this.training) {
       // Walking out of a practice room is not leaving a run: no MIA, no result, nothing banked.
       abandonPlayer(this.world, sessionId);
@@ -396,8 +447,11 @@ export class RaidRoom extends Room<{ state: RaidState }> {
 
   /** Safety net: onLeave normally empties `seats`; this keeps a leak from locking a profile out for good. */
   onDispose() {
-    const { profiles } = RaidRoom.ctx;
+    const { profiles, rooms } = RaidRoom.ctx;
     this.bots?.dispose();
+    // Whatever else happens below, the room's place under the cap is given back, once, and only if it was ever taken.
+    if (this.counted) rooms.close(this.counted);
+    this.counted = null;
     if (this.opener) profiles.forgetRoom(this.opener, this.roomId);
     for (const [sessionId, seat] of this.seats) {
       if (this.world.state.players.get(sessionId)?.status === "alive") {

@@ -98,6 +98,8 @@ export interface BandwidthOptions {
   onPatch?: (bytes: number) => void;
   /** Called with every fx batch that is counted, and the bytes it cost (message and ws header). */
   onBatch?: (batch: FxBatch, bytes: number) => void;
+  /** Called with the bytes of every counted frame, `kind` "patch" or "fx" (no ws header; the view is only valid during the call): for compression.ts. */
+  onFrame?: (kind: "patch" | "fx", frame: Uint8Array) => void;
 }
 
 export interface BandwidthResult {
@@ -499,6 +501,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
       const frame = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", batch);
       const bytes = frame.length + wsHeader(frame.length);
       opts.onBatch?.(batch, bytes);
+      opts.onFrame?.("fx", frame);
       fxBytes += bytes;
       fxFrames++;
       // Each tuple's own share: the frame with only it, minus the frame with nothing.
@@ -527,6 +530,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
         patchBytes += frame.length + wsHeader(frame.length);
         patchFrames++;
         opts.onPatch?.(frame.length + wsHeader(frame.length));
+        opts.onFrame?.("patch", frame);
       }
     } else if (measuring) opts.onPatch?.(0);
     encoder.discardChanges();

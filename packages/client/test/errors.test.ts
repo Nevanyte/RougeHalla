@@ -30,6 +30,25 @@ describe("friendlyError: the server's join refusals", () => {
     expect(friendlyError(sdkError("profile already in a run", 525))).toBe(CALLSIGN_BUSY_MESSAGE);
   });
 
+  it("a missing or wrong playtest passcode reads as a plain instruction, never the raw text", () => {
+    const text = friendlyError(sdkError("this playtest needs a passcode", 525));
+    expect(text).toMatch(/needs a passcode.*open the link your host sent/i);
+    expect(text).not.toContain("this playtest needs");
+  });
+
+  it("too many wrong passcodes reads as a wait, not as a missing passcode", () => {
+    const text = friendlyError(sdkError("too many wrong passcodes from this connection: wait a minute and try again", 429));
+    expect(text).toMatch(/too many wrong passcodes.*wait a minute/i);
+    expect(text).not.toContain("this connection");
+    expect(text).not.toBe(friendlyError(sdkError("this playtest needs a passcode", 525)));
+  });
+
+  it("a creation refused for the room cap reads as a full server", () => {
+    const text = friendlyError(sdkError("the server is full: too many rooms are open right now", 523));
+    expect(text).toMatch(/server is full.*try again in a few minutes/i);
+    expect(text).not.toContain("too many rooms");
+  });
+
   it("an auth failure with no recognised reason still reads plainly", () => {
     expect(friendlyError(sdkError("onAuth failed", 525))).toMatch(/wouldn't let you in/i);
   });

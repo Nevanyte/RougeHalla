@@ -5,7 +5,8 @@ import {
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
 import { BARRIER_COLOR } from "../ui/buffTheme";
-import { BodyFlash, FighterArt, HpBar, factionColor, heldWeapon, type FighterFields } from "./FighterArt";
+import { around, bakedImage, ensureBake, pixelImage, placeBake, scaledPart, type Region } from "./bake";
+import { BodyDisc, BodyFlash, FighterArt, HpBar, factionColor, heldWeapon, shadowImage, type FighterFields } from "./FighterArt";
 import { FigureJuice, type DustSink } from "./FigureJuice";
 import { displayName } from "./displayName";
 import { BODY_LIFT, depthFor, projX, projY, screenAngle } from "./projection";
@@ -40,12 +41,21 @@ const CROWN_FULL_BOUNTY = 150;
  */
 const SKIN_CORE_RADIUS = PLAYER_RADIUS * 0.55;
 
+/** The local player's ring on the ground, as baked: its drawing's own coordinates around the feet. */
+const LOCAL_RING_W = PLAYER_RADIUS * 2.9;
+const LOCAL_RING_REGION: Region = { x0: -LOCAL_RING_W / 2 - 3, y0: -LOCAL_RING_W * Y_SCALE / 2 - 3, x1: LOCAL_RING_W / 2 + 3, y1: LOCAL_RING_W * Y_SCALE / 2 + 3 };
+/** The default rim of a fighter's body: dark, or white on the local player. */
+const RIM_DEFAULT = { width: 2, color: 0x111111, alpha: 0.8 } as const;
+const RIM_LOCAL = { width: 2, color: LOCAL_MARK, alpha: 0.95 } as const;
+
 /** The viewer's own fighter is drawn this faint while it is hidden (a Swarm); a hidden remote fighter is not drawn at all. */
 const HIDDEN_LOCAL_ALPHA = 0.45;
 
 /** The Wish icon beside the name: its box, the gap to the name, and the name's own bottom edge (see the label below). */
 const WISH_ICON_SIZE = 10;
 const WISH_ICON_GAP = 3;
+/** The icon's drawing is baked around its own centre, once per Wish and ready state. */
+const WISH_ICON_REGION: Region = around(WISH_ICON_SIZE / 2 + 2);
 const LABEL_Y = -BODY_LIFT - PLAYER_RADIUS - 18;
 
 /** The title hangs under the feet, clear of everything above the head: the shadow ellipse ends 0.55 * PLAYER_RADIUS below. */
@@ -69,9 +79,9 @@ function mixColor(a: number, b: number, t: number): number {
  */
 export class PlayerView {
   private readonly root: Phaser.GameObjects.Container;
-  private readonly body: Phaser.GameObjects.Arc;
-  private readonly core: Phaser.GameObjects.Arc;
-  private readonly nose: Phaser.GameObjects.Rectangle;
+  private readonly body: BodyDisc;
+  private readonly core: BodyDisc;
+  private readonly nose: Phaser.GameObjects.Image;
   private readonly hpBar: HpBar;
   private readonly barrierRing: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
@@ -86,7 +96,7 @@ export class PlayerView {
   /** The ground under it: flames, ripples, a skid streak, a resting ring. A scene object one depth under the container, not a child. Made the first time it has something to show, so a map without hazards (and the hub) allocates none. */
   private feet: FeetFx | null = null;
   /** The faction's Wish, drawn small to the left of the name: coloured while its cooldown is over, grey before. */
-  private readonly wishIcon: Phaser.GameObjects.Graphics;
+  private readonly wishIcon: Phaser.GameObjects.Image;
   /** What the icon was last drawn for (ability, ready, name: the name sets where it sits); "" = none. */
   private wishKey = "";
   /** The container's alpha as last set (1, or HIDDEN_LOCAL_ALPHA for the local fighter while hidden). */
@@ -114,20 +124,24 @@ export class PlayerView {
   readonly cues: FigureJuice["pose"];
 
   constructor(private readonly scene: Phaser.Scene, readonly isLocal: boolean, puffs?: DustSink) {
-    const shadow = scene.add.ellipse(0, 0, PLAYER_RADIUS * 2.2, PLAYER_RADIUS * 1.1, 0x000000, 0.35);
+    const shadow = shadowImage(scene);
     // Local player: a ring around the feet, so it stays recognisable whatever its faction colour is.
-    const mark = scene.add.graphics().setVisible(isLocal);
-    mark.lineStyle(2, LOCAL_MARK, 0.9).strokeEllipse(0, 0, PLAYER_RADIUS * 2.9, PLAYER_RADIUS * 2.9 * Y_SCALE);
+    const mark = bakedImage(scene, "ring:local", LOCAL_RING_REGION, (g) => {
+      g.lineStyle(2, LOCAL_MARK, 0.9).strokeEllipse(0, 0, LOCAL_RING_W, LOCAL_RING_W * Y_SCALE);
+    }).setVisible(isLocal);
     this.art = new FighterArt(scene);
     this.signatures = new SignatureArt(scene);
     this.status = new StatusArt(scene);
-    this.wishIcon = scene.add.graphics().setVisible(false);
+    this.wishIcon = pixelImage(scene).setVisible(false);
+    placeBake(this.wishIcon, WISH_ICON_REGION);
     this.goldHalo = scene.add.graphics().setVisible(false);
-    this.body = scene.add.circle(0, -BODY_LIFT, PLAYER_RADIUS, factionColor(""));
-    this.core = scene.add.circle(0, -BODY_LIFT, SKIN_CORE_RADIUS, 0xffffff).setVisible(false);
+    this.body = new BodyDisc(scene, PLAYER_RADIUS, factionColor(""), this.isLocal ? RIM_LOCAL : RIM_DEFAULT);
+    this.body.image.setPosition(0, -BODY_LIFT);
+    this.core = new BodyDisc(scene, SKIN_CORE_RADIUS, 0xffffff);
+    this.core.image.setPosition(0, -BODY_LIFT).setVisible(false);
     this.flashing = new BodyFlash(this.body, factionColor(""));
     // Shows the facing while nothing is in hand.
-    this.nose = scene.add.rectangle(0, -BODY_LIFT, PLAYER_RADIUS, 4, 0x111111, 0.8).setOrigin(0, 0.5);
+    this.nose = pixelImage(scene).setOrigin(0, 0.5).setPosition(0, -BODY_LIFT).setDisplaySize(PLAYER_RADIUS, 4).setTint(0x111111).setAlpha(0.8);
     this.hpBar = new HpBar(scene);
     this.barrierRing = scene.add.graphics();
     this.shieldRing = scene.add.graphics();
@@ -151,12 +165,12 @@ export class PlayerView {
     }).setOrigin(0.5, 0).setVisible(false);
     this.setStroke(null, false);
     this.root = scene.add.container(0, 0, [
-      shadow, mark, this.signatures.ground, this.goldHalo, this.art.ground, this.body, this.barrierRing, this.core, this.nose,
-      this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.g, this.label, this.crown, this.crownLabel, this.title,
+      shadow, mark, this.signatures.ground, this.goldHalo, this.art.ground, this.body.image, this.barrierRing, this.core.image, this.nose,
+      this.art.held, this.signatures.aura, this.shieldRing, this.hpBar.root, this.label, this.crown, this.crownLabel, this.title,
       this.status.g, this.wishIcon,
     ]);
     this.fig = new FigureJuice([
-      { obj: this.body, y0: -BODY_LIFT, scaled: true }, { obj: this.core, y0: -BODY_LIFT, scaled: true },
+      { obj: scaledPart(this.body.image), y0: -BODY_LIFT, scaled: true }, { obj: scaledPart(this.core.image), y0: -BODY_LIFT, scaled: true },
       { obj: this.goldHalo, y0: 0, scaled: true }, { obj: this.barrierRing, y0: 0, scaled: true },
       { obj: this.shieldRing, y0: 0, scaled: true }, { obj: this.nose, y0: -BODY_LIFT, scaled: false },
       { obj: this.art.held, y0: -BODY_LIFT, scaled: false }, { obj: this.signatures.aura, y0: 0, scaled: false },
@@ -275,8 +289,12 @@ export class PlayerView {
     const look = unpackLook(word);
     this.look = look;
 
-    if (look.skin) this.core.setFillStyle(look.skin.color).setVisible(true);
-    else this.core.setVisible(false);
+    if (look.skin) {
+      this.core.setFill(look.skin.color);
+      this.core.image.setVisible(true);
+    } else {
+      this.core.image.setVisible(false);
+    }
 
     if (look.title) this.title.setText(look.title.text).setColor(cssColor(look.title.color)).setVisible(true);
     else this.title.setVisible(false);
@@ -292,11 +310,11 @@ export class PlayerView {
   /** The body's rim: the equipped outline, else the default (white on the local player). `gold` shifts it toward gold. */
   private setStroke(outline: Look["outline"] | null, gold: boolean): void {
     if (outline) {
-      this.body.setStrokeStyle(outline.width, gold ? mixColor(outline.color, GOLD_COLOR, GOLD_OUTLINE_MIX) : outline.color, 1);
+      this.body.setRim(outline.width, gold ? mixColor(outline.color, GOLD_COLOR, GOLD_OUTLINE_MIX) : outline.color, 1);
     } else if (gold) {
-      this.body.setStrokeStyle(2.5, GOLD_EDGE, 1);
+      this.body.setRim(2.5, GOLD_EDGE, 1);
     } else {
-      this.body.setStrokeStyle(2, this.isLocal ? LOCAL_MARK : 0x111111, this.isLocal ? 0.95 : 0.8);
+      this.body.setRim(2, this.isLocal ? LOCAL_MARK : 0x111111, this.isLocal ? 0.95 : 0.8);
     }
   }
 
@@ -330,12 +348,15 @@ export class PlayerView {
     const key = def ? `${def.id}|${ready ? 1 : 0}|${p.name}` : "";
     if (key === this.wishKey) return;
     this.wishKey = key;
-    const g = this.wishIcon.clear();
-    g.setVisible(def !== null);
+    this.wishIcon.setVisible(def !== null);
     if (!def) return;
+    const texture = ensureBake(this.scene, `wish:${def.id}:${ready ? 1 : 0}`, WISH_ICON_REGION, (g) => {
+      drawAbilityIcon(g, def, 0, 0, WISH_ICON_SIZE, ready);
+    });
+    if (this.wishIcon.texture.key !== texture) this.wishIcon.setTexture(texture);
     // Left of the name's left edge (Phaser's text width once set; a fake or a font not yet measured falls back to an estimate).
     const width = typeof this.label.width === "number" && this.label.width > 0 ? this.label.width : p.name.length * 6;
-    drawAbilityIcon(g, def, -width / 2 - WISH_ICON_GAP - WISH_ICON_SIZE / 2, LABEL_Y - 6.5, WISH_ICON_SIZE, ready);
+    this.wishIcon.setPosition(-width / 2 - WISH_ICON_GAP - WISH_ICON_SIZE / 2, LABEL_Y - 6.5);
   }
 
   /** Draws the barrier bubble at `strength` (0..1: barrierStrength, a barrier against BARRIER_FULL_SHARE of max hp); 0 clears it. A no-op while the step is unchanged. */

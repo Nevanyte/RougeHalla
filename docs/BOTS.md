@@ -587,6 +587,14 @@ Tests that start a Room pass `BOTS_FILL_TO: "0"` to `loadConfig` (e2e, room, met
 their lobbies stay as they are. With the default on, `npm run bots -- 3` on a dev server also gets 3 fill bots; set
 `BOTS_FILL_TO=0` to avoid it.
 
+**The hosting guards (playtest, CLAUDE.md "Hosting guards sit at the network edge").** A fill bot passes none of them and counts in none: the
+room caps (`MAX_*_ROOMS`) count rooms, never players, and `maxClients` counts clients, so a lobby of one human and bots is open
+to the next human (the newest bot yields at `MAX_PLAYERS`, `RaidRoom.onJoin`); the new-callsign caps and the passcode gate sit on
+the profile route and the static `onAuth`, which a bot never reaches (it has no profile, token or address); the order budget is
+spent in the Room's message handler for a real client's message, while a bot's command goes from `BotManager.beforeStep` straight to
+`enqueueClientMessage` (its own pace is the humanizer's cap, 60-170 APM), so it neither spends a bucket nor is refused for one.
+`test/botGuards.test.ts` runs all of that on a real server with every guard on.
+
 ---
 
 ## 8. The feature seam
