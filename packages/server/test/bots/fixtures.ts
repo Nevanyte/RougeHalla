@@ -41,7 +41,7 @@ export function selfView(over: Partial<SelfView> = {}): SelfView {
   return {
     id: "me", name: "Me", x: at.x, y: at.y, facing: 0, status: "alive", hp: 100, maxHp: 100, barrier: 0, faction: "fire",
     weapons: ["axe", null], slot: 0, attackTarget: null, drawStartedAt: 0, readyAt: 0, immuneUntil: 0, sig: 0, brand: 0,
-    stacks: { hp: 0, attackSpeed: 0, moveSpeed: 0 }, asMult: 1, speedMult: 1, kills: 0, mobKills: 0,
+    stacks: 0, asMult: 1, speedMult: 1, kills: 0, mobKills: 0,
     gv: 0, bounty: 0, moveSeq: 0, ...over,
   };
 }

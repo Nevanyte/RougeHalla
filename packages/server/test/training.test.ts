@@ -533,6 +533,8 @@ describe("the training room (live)", () => {
       fillSeconds: 0,
       lobbySeconds: 120,
       ...SHORT,
+      planSeconds: 0, // an arena run here starts straight from the lobby, as it did before planning
+      firstPatienceSeconds: 0,
       latencyMs: 0,
       stashFile: profileFile,
     });
@@ -1256,6 +1258,79 @@ describe("the training room (live)", () => {
     });
   });
 
+  describe("the practice console (`train`)", () => {
+    it("a training room applies it: buffs, a camp and a chest reach the client's state, the reply toasts come back, and nothing is recorded", async () => {
+      const who = await claim();
+      const before = snapshot(who);
+      const recordRun = vi.spyOn(server.store, "recordRun");
+      const bankGv = vi.spyOn(server.store, "bankGv");
+      const p = await startTraining(who);
+      const myState = () => p.room.state.players.get(sessionOf(p))!;
+
+      p.room.send("train", { cmd: "buff", id: "plagueRat", amount: 3 });
+      await until(() => myState().buffs.get("plagueRat") === 3, "the buff in the client's state");
+      await until(() => p.toasts.some((t) => /^Plague Rat 3 stacks: /.test(t)), "the reply toast");
+      expect(myState().asMult).toBe(worldOf(p).state.players.get(sessionOf(p))!.asMult);
+      expect(myState().asMult).toBeGreaterThan(1000); // the mirror the client reads is folded
+
+      p.room.send("train", { cmd: "passive", id: "thickHide", rank: 2 });
+      await until(() => myState().build.get("thickHide") === 2, "the passive in the client's state");
+
+      p.room.send("train", { cmd: "camp", id: "bailiff" });
+      await until(() => [...p.room.state.mobs.values()].filter((m) => m.type === "bailiff").length === 3, "a camp of three Bailiffs");
+
+      p.room.send("train", { cmd: "chest", options: ["whetstone", "witness"] });
+      await until(() => [...p.room.state.containers.values()].some((c) => c.kind === "reward"), "the chest in the client's state");
+      const chest = [...p.room.state.containers.values()].find((c) => c.kind === "reward")!;
+      expect([...chest.options]).toEqual(["whetstone", "witness"]);
+      expect(chest.expiresAt).toBeGreaterThan(p.room.state.serverTime);
+
+      p.room.send("train", { cmd: "clear" });
+      await until(() => myState().buffs.size === 0 && myState().build.size === 0, "the build to be cleared");
+      await until(() => [...p.room.state.mobs.values()].every((m) => m.kind === "dummy"), "the practice mobs to be gone");
+      await until(() => ![...p.room.state.containers.values()].some((c) => c.kind === "reward"), "the chest to be gone");
+
+      await leave(p);
+      await until(() => !isActive(who), "the profile to be released", 2000);
+      expect(recordRun).not.toHaveBeenCalled();
+      expect(bankGv).not.toHaveBeenCalled();
+      expect(snapshot(who)).toBe(before);
+    });
+
+    it("a training room's door passes a good message on to the sim and drops a bad one", async () => {
+      const p = await startTraining(await claim());
+      const handler = vi.fn();
+      worldOf(p).actions.train = handler;
+      p.room.send("train", { cmd: "buff", id: "nope" });
+      p.room.send("train", { cmd: "passive", id: "whetstone", rank: 9 });
+      p.room.send("train", "clear");
+      p.room.send("train", { cmd: "clear" });
+      await until(() => handler.mock.calls.length >= 1, "the one good message");
+      await sleep(200);
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler.mock.calls[0]![2]).toEqual({ kind: "train", cmd: "clear" });
+    });
+
+    it("an arena room never queues it: with a handler installed by hand, a running arena player's message still never reaches it", async () => {
+      const p = await createArena(await claim(), 1);
+      await until(() => worldOf(p).state.phase === "active" && serverPlayer(p)?.status === "alive", "the arena run to start");
+      expect(serverRoom(p).training).toBe(false);
+      const handler = vi.fn();
+      worldOf(p).actions.train = handler;
+      const mobs = worldOf(p).state.mobs.size; // an arena run has its camps' mobs
+      const containers = worldOf(p).state.containers.size;
+      for (const msg of [{ cmd: "buff", id: "emberImp", amount: 12 }, { cmd: "camp", id: "emberImp" }, { cmd: "chest" }, { cmd: "clear" }]) {
+        p.room.send("train", msg);
+      }
+      await sleep(500);
+      expect(handler).not.toHaveBeenCalled();
+      expect(serverPlayer(p).buffs.size).toBe(0);
+      expect(worldOf(p).state.mobs.size).toBe(mobs);
+      expect(worldOf(p).state.containers.size).toBe(containers);
+      expect(p.toasts).toEqual([]);
+    });
+  });
+
   describe("the idle limit", () => {
     /** Training rooms read the limit when they are created, so a test sets it before making one. Returns the undo. */
     function idleLimit(seconds: number): () => void {
@@ -1333,6 +1408,30 @@ describe("the training room (live)", () => {
           await sleep(100);
         }
         expect(p.left, "the room to close although junk kept arriving").toBe(true);
+        await until(() => !isActive(who), "the profile to be released", 2000);
+      } finally {
+        restore();
+      }
+    });
+
+    it("counts an accepted `train` as presence and a refused one as nothing", async () => {
+      const restore = idleLimit(1);
+      try {
+        const who = await claim();
+        const p = await startTraining(who);
+        for (let i = 0; i < 9; i++) { // 2.7 s: more than two limits, kept open by the console alone
+          p.room.send("train", { cmd: "clear" });
+          await sleep(300);
+          expect(p.left, `still in the room after ${(i + 1) * 0.3} s`).toBe(false);
+        }
+        // Now only refused ones: the room closes as if the player had gone quiet.
+        const junk: unknown[] = [{ cmd: "buff", id: "nope" }, { cmd: "passive", id: "whetstone", rank: 9 }, { cmd: "camp" }, {}, null, "clear"];
+        const deadline = Date.now() + 6000;
+        while (!p.left && Date.now() < deadline) {
+          for (const msg of junk) p.room.send("train", msg);
+          await sleep(100);
+        }
+        expect(p.left, "the room to close although refused console messages kept arriving").toBe(true);
         await until(() => !isActive(who), "the profile to be released", 2000);
       } finally {
         restore();

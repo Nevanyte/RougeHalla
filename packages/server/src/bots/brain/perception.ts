@@ -9,7 +9,7 @@
 // state.roster with unpackFx/unpackLaunches, exactly as RaidScene does.
 import * as shared from "@raid/shared";
 import {
-  abilityInSlot, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight, hpBarFractions, INTERACT_RANGE, isDot,
+  abilityInSlot, buffPower, CLIENT_MESSAGE_TYPES, decodeMult, EFFECT_CASTING, FACTION_IDS, hasLineOfSight, hpBarFractions, INTERACT_RANGE, isDot,
   isFactionId, isWeaponId, TELEPORT_IMMUNITY_MS, unpackFx, unpackLaunches, WEAPONS, withGates,
   type FactionId, type FxBatch, type GameMap, type RunResult, type TimedFx, type Vec2, type WeaponId,
 } from "@raid/shared";
@@ -66,9 +66,8 @@ export interface PlayerLike extends FighterLike {
   readonly mobKills: number;
   readonly gv: number;
   readonly moveSeq: number;
-  readonly stacksHp: number;
-  readonly stacksAs: number;
-  readonly stacksMs: number;
+  /** The buffs held by mob type (the build strip's chips). Optional: a server that predates them leaves it out. */
+  readonly buffs?: { get(id: string): number | undefined };
   readonly asMult: number;
   readonly speedMult: number;
   /** The Wish's ready time (server ms, 0 = ready): the weapon bar's cooldown widget shows it. Read for the bot itself only. */
@@ -293,7 +292,7 @@ function selfView(id: FighterId, p: PlayerLike): SelfView {
     immuneUntil: u32(p.immuneUntil),
     sig: p.sig,
     brand: p.brand,
-    stacks: { hp: f32(p.stacksHp), attackSpeed: f32(p.stacksAs), moveSpeed: f32(p.stacksMs) },
+    stacks: buildPower(p.buffs),
     asMult: decodeMult(p.asMult),
     speedMult: decodeMult(p.speedMult),
     kills: p.kills,
@@ -304,12 +303,21 @@ function selfView(id: FighterId, p: PlayerLike): SelfView {
   };
 }
 
+/**
+ * The build strip's power (shared buffPower: 3 for one buff at 3 stacks) over the stacks as the wire carries them (float32), so
+ * the server's doubles and a client's decoded values give the same number.
+ */
+function buildPower(buffs: PlayerLike["buffs"]): number {
+  if (buffs === undefined) return 0;
+  return f32(buffPower({ get: (id) => { const n = buffs.get(id); return n === undefined ? undefined : f32(n); } }));
+}
+
 /** The bot is not in the state (not joined yet, or gone): a placeholder that sees nothing of its own. */
 function absentSelf(id: FighterId): SelfView {
   return {
     id, name: "", x: 0, y: 0, facing: 0, status: "mia", hp: 0, maxHp: 0, barrier: 0, faction: null, weapons: [null, null], slot: 0,
     attackTarget: null, drawStartedAt: 0, readyAt: 0, immuneUntil: 0, sig: 0, brand: 0,
-    stacks: { hp: 0, attackSpeed: 0, moveSpeed: 0 }, asMult: 1, speedMult: 1, kills: 0, mobKills: 0, gv: 0, bounty: 0, moveSeq: 0,
+    stacks: 0, asMult: 1, speedMult: 1, kills: 0, mobKills: 0, gv: 0, bounty: 0, moveSeq: 0,
   };
 }
 
@@ -376,7 +384,7 @@ interface Seen {
 }
 
 const KNOWN_FX: ReadonlySet<string> = new Set([
-  "windup", "swing", "hit", "block", "stagger", "cancel", "projEnd", "death", "heal", "teleport", "bounty", "buff", "combo", "victory",
+  "windup", "swing", "hit", "block", "stagger", "cancel", "projEnd", "death", "heal", "teleport", "bounty", "buff", "victory",
 ]);
 
 /** A fighter the bot can see in this frame (itself, or drawn in the box), and where. */
@@ -461,13 +469,9 @@ function observe(fx: TimedFx, s: Seen): ObservedEvent | null {
       // Over someone else only "+1.1 Attack speed" floats up: their total is never drawn (-1 = unknown).
       const mine = fx.id === s.selfId;
       return {
-        kind: "buff", t, at, id: fx.id, stat: fx.stat,
+        kind: "buff", t, at, id: fx.id, buff: fx.buff,
         stacks: mine ? fx.stacks : Math.round(fx.stacks * 10) / 10, total: mine ? fx.total : -1,
       };
-    }
-    case "combo": {
-      const at = seenAt(s, fx.id);
-      return at ? { kind: "combo", t, at, id: fx.id, combo: fx.combo, proc: fx.proc } : null;
     }
     case "victory":
       return { kind: "victory", t, at: null, id: fx.id, name: fx.name, draw: fx.draw };

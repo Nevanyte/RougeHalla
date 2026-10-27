@@ -1,7 +1,7 @@
 // In-run DOM overlay: the lobby countdown or the run line (players standing, GV, your bounty), the arena timers (coliseum
 // teleport → locked gates → sudden death), player vitals (faction and hp), the teleport-immunity hint and the
-// "you died" line. A training room shows none of the run's lines: its banner, your faction, weapon and hp. The buff stacks,
-// combo progress and feed line are buffsHud.ts, placed under the vitals.
+// "you died" line. A training room shows none of the run's lines: its banner, your faction, weapon and hp. The build strip
+// (a chip per buff held) and the feed line are buffsHud.ts, placed under the vitals.
 import { FACTIONS, WEAPONS, hpText, isFactionId, isWeaponId } from "@raid/shared";
 import type { PlayerState, RaidState } from "@raid/shared/schema";
 import { winnerLabel } from "../render/displayName";
@@ -29,6 +29,8 @@ export interface StatusInput {
   winner: string;
   /** The local player's run GV, or null while they are not in the state. */
   gv: number | null;
+  /** Server time the planning phase ends (RaidState.planEndsAt); absent or 0 when it has no end to show. */
+  planEndsAt?: number;
 }
 
 /** The first HUD line. Training has no lobby, no standing count and no GV, so it never shows them. */
@@ -36,6 +38,9 @@ export function statusLine(s: StatusInput, serverNow: number): string {
   if (s.training) return TRAINING_BANNER;
   if (s.phase === "lobby") {
     return `Waiting for players ${s.playerCount}/${s.minPlayers} — run starts in ${fmtSeconds(s.lobbyEndsAt - serverNow)}`;
+  }
+  if (s.phase === "planning") {
+    return s.planEndsAt ? `Planning ${fmtSeconds(s.planEndsAt - serverNow)}` : "Planning";
   }
   if (s.phase === "active") {
     // startedWith, not the player count: leavers (including the dead going back to the hub) drop out of state.players.
@@ -53,7 +58,7 @@ export interface VitalsInput {
   weapon0: string;
   weapon1: string;
   slot: number;
-  /** The kill barrier still held (0 or absent: none). */
+  /** The barrier still held (0 or absent: none). */
   barrier?: number;
 }
 
@@ -149,6 +154,7 @@ export class Hud {
     const status = statusLine({
       training, phase: state.phase, playerCount: state.players.size, minPlayers: state.minPlayers,
       lobbyEndsAt: state.lobbyEndsAt, alive, startedWith: state.startedWith, winner: winnerLabel(state.winner, state.players), gv: me ? me.gv : null,
+      planEndsAt: state.planEndsAt,
     }, serverNow);
     if (status !== this.lastStatus) { this.statusText.textContent = status; this.lastStatus = status; }
 
@@ -160,7 +166,7 @@ export class Hud {
       this.bountyTag.hidden = bounty === 0;
     }
 
-    // The kill barrier (hp the hp combos absorb) reads after the hp: "HP 400/500 +75 shield".
+    // The barrier (hp it absorbs) reads after the hp: "HP 400/500 +75 barrier".
     const barrier = me && me.status === "alive" && me.barrier > 0 ? Math.ceil(me.barrier) : 0;
     let key = "";
     if (me) {

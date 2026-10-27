@@ -17,6 +17,7 @@ import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { moveSpeedMult } from "../src/sim/buffs";
+import { recomputeMods } from "../src/sim/mods";
 import { placeMob } from "../src/sim/mobLife";
 import { abandonPlayer, addPlayer, removePlayer, step } from "../src/sim/step";
 import {
@@ -699,12 +700,13 @@ describe("movement: statusMoveMultiplier", () => {
     expect(statusMoveMultiplier(w, C(w, "a"))).toBeCloseTo(1 - STATUS_RULES.slowMove.cap!, 12);
   });
 
-  it("haste ADDS value x PLAYER_SPEED to whatever the move-speed stacks give (D12), rather than multiplying it", () => {
+  it("haste ADDS value x PLAYER_SPEED to whatever the speed mirror gives (D12), rather than multiplying it", () => {
     const w = arena();
     const a = C(w, "a");
     apply(w, "a", "a", "haste", 5000, { value: 0.3 });
     expect(moveSpeedMult(w, a) * statusMoveMultiplier(w, a)).toBeCloseTo(1.3, 12);
-    P(w, "a").stacksMs = 2;
+    w.modSources.push((_w, c) => (c.id === "a" ? { speedMult: 1.2 } : null));
+    recomputeMods(w, a);
     const base = moveSpeedMult(w, a);
     expect(base).toBeGreaterThan(1);
     expect(base * statusMoveMultiplier(w, a)).toBeCloseTo(base + 0.3, 12);

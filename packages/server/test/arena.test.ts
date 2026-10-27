@@ -13,6 +13,7 @@ import {
   applyDamage, applyHits, awardGv, beginRun, coliseumSpots, creditMobKill, downPlayer, markDropped, markReconnected, markTickStart,
   patienceMs, suddenDeath, suddenDeathShare, unbankedGv, type Attacker, type Hit,
 } from "../src/sim/arena";
+import { grantBuff } from "../src/sim/buffs";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -1122,7 +1123,7 @@ describe("simultaneous last deaths", () => {
     expect(results).toMatchObject({ p0: { outcome: "won", place: 1 }, p1: { outcome: "died", place: 2 } });
   });
 
-  it("the kill barrier is hp for the tie too: 10 hp and a barrier of 200 beats 50 hp when both fall in one tick", () => {
+  it("a barrier is hp for the tie too: 10 hp and a barrier of 200 beats 50 hp when both fall in one tick", () => {
     for (const swap of [false, true]) {
       const w = startRun(2, {}, { hp: 100 });
       const [shielded, bare] = swap ? [1, 0] : [0, 1];
@@ -1413,58 +1414,47 @@ describe("sudden death", () => {
     }
 
     /**
-     * Fire p0 (500 hp, so the first burn is 0.5) with `hp` left kills a full-hp p1 in the first burning tick. What that kill
-     * pays would save p0 from the burn: a kill barrier (hp stacks) or, from a bountied victim, half of its hp stacks.
+     * Fire p0 (500 hp, so the first burn is 0.5) with `hp` left kills a full-hp p1, a bountied player holding 6 stacks of
+     * Ice Golem (max hp). What that kill pays would save p0 from the burn: half of those stacks (3), which raise max hp
+     * and bring the hp gained with it. (The kill barrier of the old combos is gone; nothing else pays a barrier yet.)
      */
-    function standoff(spoils: "barrier" | "bounty", hp: number): World {
+    function standoff(hp: number): World {
       const w = startRun(2, { suddenDeathSeconds: 2 }, { game: true });
       runTo(w, FIRST_BURN - TICK_MS);
       expect(w.state).toMatchObject({ gatesLocked: true, suddenDeathAt: 4050 });
       P(w, 0).hp = hp;
-      if (spoils === "barrier") {
-        P(w, 0).stacksHp = 3; // the kill shield combo: 15% of max hp
-      } else {
-        P(w, 1).stacksHp = 6;
-        P(w, 1).kills = 3;
-        P(w, 1).bounty = 10; // p0 claims it, with 3 of those hp stacks
-      }
+      grantBuff(w, P(w, 1), RT(w, 1), "iceGolem", 6);
+      P(w, 1).kills = 3;
+      P(w, 1).bounty = 10; // p0 claims it, with 3 of those hp stacks
       lethalHit(w, 0, 1);
       return w;
     }
 
-    it("pays the kill after the burn: the control, with hp to spare, does get the barrier", () => {
-      const w = standoff("barrier", 100);
+    it("pays the bounty after the burn: the control, with hp to spare, does get the stacks", () => {
+      const w = standoff(100);
       tick(w);
       expect(P(w, 1).status).toBe("dead");
       expect(P(w, 0).status).toBe("alive");
-      expect(P(w, 0).hp).toBeCloseTo(100 - 0.5, 9);
-      expect(P(w, 0).barrier).toBeCloseTo(0.15 * 500, 9);
+      expect(P(w, 0).buffs.get("iceGolem")).toBe(3);
+      expect(P(w, 0).maxHp).toBeGreaterThan(500);
+      expect(P(w, 0).hp).toBeGreaterThan(100);
+      expect(P(w, 0).hp).toBeCloseTo(100 - 0.5 + (P(w, 0).maxHp - 500), 9); // the burn landed first; the hp gained came with the max hp
       expect(w.state).toMatchObject({ phase: "ended", winner: "alice" });
     });
 
-    it("pays the bounty after the burn: the control, with hp to spare, does get the stacks", () => {
-      const w = standoff("bounty", 100);
-      tick(w);
-      expect(P(w, 1).status).toBe("dead");
-      expect(P(w, 0).stacksHp).toBe(3);
-      expect(P(w, 0).maxHp).toBeGreaterThan(500);
-      expect(P(w, 0).hp).toBeGreaterThan(100);
+    it("a killer the burn would kill without the bounty its kill wins goes down with its victim", () => {
+      const w = standoff(0.25);
+      const events = tick(w);
+      expect(P(w, 1).status).toBe("dead"); // the hit it started still lands
+      expect(P(w, 0).status).toBe("dead");
+      expect(P(w, 0).barrier).toBe(0);
+      expect(P(w, 0).maxHp).toBe(500);
+      expect(P(w, 0).buffs.get("iceGolem") ?? 0).toBe(0); // the transfer reached nobody standing
+      expect(RT(w, 0).killedBy).toBe(SUDDEN_DEATH_KILLER);
+      expect(resultsOf(events)[idOf(0)]).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER });
+      // Both went down in the same tick: the higher hp fraction at its start wins, not whoever's kill paid out.
+      expect(w.state).toMatchObject({ phase: "ended", winner: "bob" });
     });
-
-    it.each(["barrier", "bounty"] as const)(
-      "a killer the burn would kill without the %s its kill wins goes down with its victim", (spoils) => {
-        const w = standoff(spoils, 0.25);
-        const events = tick(w);
-        expect(P(w, 1).status).toBe("dead"); // the hit it started still lands
-        expect(P(w, 0).status).toBe("dead");
-        expect(P(w, 0).barrier).toBe(0);
-        expect(P(w, 0).maxHp).toBe(500);
-        expect(RT(w, 0).killedBy).toBe(SUDDEN_DEATH_KILLER);
-        expect(resultsOf(events)[idOf(0)]).toMatchObject({ outcome: "died", killedBy: SUDDEN_DEATH_KILLER });
-        // Both went down in the same tick: the higher hp fraction at its start wins, not whoever's kill paid out.
-        expect(w.state).toMatchObject({ phase: "ended", winner: "bob" });
-      },
-    );
 
     it("is credited to nobody, but a rival whose hit is in the lethal pass takes the kill", () => {
       const w = startRun(3, { suddenDeathSeconds: 2 });

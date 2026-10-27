@@ -1,20 +1,21 @@
 // Renders interpolated state and turns mouse/keyboard into input messages. No game rules here.
 import Phaser from "phaser";
 import {
-  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, generateMap, hasLineOfSight, isAbilityDot, rankOf,
-  slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates, type AbilityDef, type AbilitySlot, type FxBatch, type GameMap,
-  type RunResult, type Vec2,
+  abilityInSlot, AIM_STALE_MS, angleBetween, blinkLanding, CAST_RANGE_SLACK, CHEST_RANGE, CHEST_SECONDS, generateMap,
+  hasLineOfSight, isAbilityDot, rankIn, rankOf, slotReadyAt, TARGET_RANGE, unpackFx, unpackLaunches, withGates,
+  type AbilityDef, type AbilitySlot, type FxBatch, type GameMap, type RunResult, type ServerMessages, type Vec2,
 } from "@raid/shared";
 import type { ContainerState, PlayerState, RaidState } from "@raid/shared/schema";
 import { sendInput, type RaidRoom } from "../net/connection";
 import { dropWarner, type FxInbox } from "../net/fxInbox";
+import type { PlanInbox } from "../net/planInbox";
 import { EntityInterpolator } from "../net/interpolation";
 import { clampToWorld, JUMP_ORDER_EXPIRE_MS, ORDER_EXPIRE_MS } from "../net/localMotion";
 import {
   LocalPrediction, castUnanswered, inTeleportGrace, localDrawSource, type LocalDrawSource, type OtherFighter,
 } from "../net/localPrediction";
 import { ContainerHighlight } from "../render/ContainerHighlight";
-import { ContainerView } from "../render/ContainerView";
+import { ContainerView, TIMER_TEXT_REACH } from "../render/ContainerView";
 import { displayName } from "../render/displayName";
 import { FieldView } from "../render/FieldView";
 import { FX_FUTURE_SLACK_MS, FxView } from "../render/FxView";
@@ -30,13 +31,21 @@ import { isHiddenRemote, visiblePosition } from "../render/visibility";
 import { WishFx } from "../render/WishFx";
 import { LockDisplay, pickTarget, targetable, unitCastDenial, type TargetCandidate } from "../render/targeting";
 import { AbilitySlotView, CooldownTracker, abilitySlotModel, castDenial, type AbilitySlotInput } from "../ui/abilitySlot";
+import { readCampStates, readCampTypes } from "../ui/campInfo";
+import { campLabel, ChestMemory, chestPickLine, rttFromOrderDelay, trueServerNow } from "../ui/chestMath";
+import { ChestPanel, type ChestPanelFrame, type ChestPanelMe } from "../ui/chestPanel";
 import { isTypingTarget } from "../ui/chrome";
 import { Hud } from "../ui/hud";
+import { MapHold, mapHoldAllowed } from "../ui/mapHold";
+import type { ChestBlip } from "../ui/mapPainter";
 import { Minimap } from "../ui/minimap";
+import { PlanningView, planningModeFor, type PlanningPlayer } from "../ui/planning";
+import { RouteState } from "../ui/route";
 import { ScreenFeedback, matchupTarget, suddenDeathLoss } from "../ui/screenFeedback";
 import type { ToastTone } from "../ui/toast";
 import { TrainingBar } from "../ui/trainingBar";
 import { WeaponBar } from "../ui/weaponBar";
+import { getSettings, onSettingsChange } from "../settings";
 import { screenToWorld } from "../view/viewport";
 
 export interface RaidSceneData {
@@ -49,6 +58,8 @@ export interface RaidSceneData {
   resultsVisible?: () => boolean;
   /** Only for a training room: takes the player back to the hub. It is called at most once. */
   leaveTraining?: () => void;
+  /** The room's private `plan` messages, held since the join (main.ts) so a deal that beat this scene is not lost. Omitted: no deal is shown. */
+  plan?: PlanInbox;
 }
 
 /** Right-button hold re-sends the move target at most this often. */
@@ -83,6 +94,29 @@ export class RaidScene extends Phaser.Scene {
   private highlight!: ContainerHighlight;
   private rings!: TargetRings;
   private minimap!: Minimap;
+  /** The lobby preview, the planning screen and the hold-Tab map (ui/planning.ts); built with the map, null before. */
+  private planning: PlanningView | null = null;
+  /** The route drawn on the planning screen (never sent): the minimap and the hold-Tab map read it. */
+  private route!: RouteState;
+  /** A cleared camp's shared chest: opens by itself in reach of the latest SERVER position (ui/chestPanel.ts). */
+  private chestPanel: ChestPanel | null = null;
+  /** The options of the reward chests seen lately, for the local pick's line when the chest has already left the state. */
+  private chestMemory = new ChestMemory();
+  private unbindToast: (() => void) | null = null;
+  /** Scratch for the chest panel's frame and the minimap's chest blips and camp states (refilled every frame). */
+  private readonly chestMe: ChestPanelMe = { id: "", x: 0, y: 0, alive: false, faction: "", build: null };
+  private readonly blips: ChestBlip[] = [];
+  private readonly campStates: number[] = [];
+  private readonly mapHold = new MapHold(
+    () => mapHoldAllowed(this.room.state, this.resultsVisible?.() === true),
+    () => { /* read each frame (update) */ },
+  );
+  private unbindMapHold: (() => void) | null = null;
+  private unbindPlan: (() => void) | null = null;
+  private unbindSettings: (() => void) | null = null;
+  /** The route's version the minimap was last given, and whether this run's start was set from where the player stands. */
+  private lastRouteVersion = -1;
+  private runStarted = false;
   private hud!: Hud;
   private weaponBar!: WeaponBar;
   /** The Wish slot (key D), docked in the weapon bar, and what gives its cooldown a length: the server syncs only when it ends. */
@@ -219,7 +253,28 @@ export class RaidScene extends Phaser.Scene {
       onPeek: (x, y) => { this.peek = { x, y }; },
       onPeekEnd: () => { this.peek = null; },
     });
+    this.route = new RouteState(this.training ? null : this.room.roomId);
+    this.lastRouteVersion = -1;
+    this.runStarted = false;
+    this.planning?.destroy();
+    this.planning = null;
+    this.minimap.setShowRoute(getSettings().showRoute);
+    this.unbindSettings = onSettingsChange((s) => this.minimap.setShowRoute(s.showRoute));
+    this.chestPanel?.destroy();
+    this.chestMemory = new ChestMemory();
+    this.chestPanel = new ChestPanel({
+      send: (msg) => sendInput(this.room, "choose", msg),
+      // What is sent while the socket reconnects is dropped (net/connection.ts): the panel must not show it as sent.
+      canSend: () => !this.room.reconnection?.isReconnecting,
+      // The prediction's order delay runs up to a tick short of a round trip: the grey-out margin and the chest's clock read it plus a tick.
+      rtt: () => rttFromOrderDelay(this.predict.motion.delay),
+    });
+    // A refused pick comes back as the server's toast ("Already taken", "Too far away"): the panel's status line says why.
+    this.unbindToast?.();
+    this.unbindToast = this.room.onMessage("toast", (t: ServerMessages["toast"]) => { this.chestPanel?.noteToast(t.text); });
     this.buildMap(this.room.state.seed);
+    this.unbindPlan = data.plan?.attach((m) => this.planning?.setPlan(m)) ?? null;
+    this.unbindMapHold = this.mapHold.bind();
     this.highlight = new ContainerHighlight(this);
     this.rings = new TargetRings(this);
     this.projectiles = new ProjectileView(this);
@@ -237,6 +292,8 @@ export class RaidScene extends Phaser.Scene {
         return p ? displayName(p) : this.room.state.mobs.get(id)?.name;
       },
       mobKind: (id) => this.room.state.mobs.get(id)?.kind,
+      campLabel: (camp) => this.campLabel(camp),
+      chestPick: (chest, option) => this.chestPick(chest, option),
       projectileEnded: (id) => this.projectiles.finish(id),
       // At render time with the flash and the number, not on arrival (~INTERP_DELAY_MS earlier): damageFlash judges the hit against max hp.
       // A burn tick from an ability (Blaze Step's trail) is a drip: no vignette.
@@ -305,7 +362,12 @@ export class RaidScene extends Phaser.Scene {
 
     const now = performance.now();
     // Not read in create(): tolerate the flag arriving with a later patch.
-    if (state.training && !this.trainingBar) this.trainingBar = new TrainingBar(this.leaveTraining);
+    if (state.training && !this.trainingBar) {
+      this.trainingBar = new TrainingBar(this.leaveTraining, {
+        send: (msg) => sendInput(this.room, "train", msg),
+        faction: () => this.room.state.players.get(this.room.sessionId)?.faction,
+      });
+    }
     this.trainingBar?.update(now);
     // The one place render time is read: it consumes the clock's pending patch, so everything else this frame
     // (fx playback, input timestamps between frames) reuses these values.
@@ -377,7 +439,9 @@ export class RaidScene extends Phaser.Scene {
     // Line of sight (pickup) follows the server's walls, closed gates included. mapView.map stays the open map.
     const sightMap = gatesLocked && map ? withGates(map) : map;
     this.nearest = me?.status === "alive" && sightMap ? nearestContainer(state.containers, sightMap, me) : null;
-    this.syncContainers(state);
+    const chestNow = trueServerNow(serverNow, rttFromOrderDelay(this.predict.motion.delay));
+    this.syncContainers(state, chestNow, now);
+    this.updateChestPanel(state, me, sightMap ?? null, serverNow);
 
     // After the camera is centred and the drawn positions are set: the cursor's ground point and the aim angle derive from them.
     this.updateTargets(me, now);
@@ -391,6 +455,9 @@ export class RaidScene extends Phaser.Scene {
 
     // Redraws only when the player's dot (or the gates) actually changed.
     this.minimap.setMobs(state.mobs);
+    this.minimap.setChests(this.blips);
+    this.fillCampStates(state, map?.camps.length ?? 0);
+    this.minimap.setCampStates(this.campStates);
     const cam = this.cameras.main;
     this.minimap.update(now, this.rendered.get(this.room.sessionId), me?.status === "alive" || me?.status === "lobby", {
       x: cam.scrollX + cam.width / 2,
@@ -401,6 +468,51 @@ export class RaidScene extends Phaser.Scene {
     this.hud.update(state, me, serverNow);
     this.weaponBar.update(me, patchT, serverNow, this.nearest ? containerWeapon(this.nearest) : null);
     this.updateWishSlot(me, state, serverNow, now);
+    this.updatePlanning(state, me, serverNow);
+    this.trackRoute(state, me);
+  }
+
+  /** The map screens: the lobby's preview, planning, the held-Tab map. Hidden (and free of the pointer) in every other phase. */
+  private updatePlanning(state: RaidState, me: PlayerState | undefined, serverNow: number): void {
+    const view = this.planning;
+    if (!view) return;
+    const mode = planningModeFor(state.phase, { training: state.training === true, held: this.mapHold.held });
+    if (mode === "hidden") {
+      view.hide();
+      return;
+    }
+    const players: PlanningPlayer[] = [];
+    state.players.forEach((p, id) => { players.push({ faction: p.faction, ready: p.planReady, me: id === this.room.sessionId }); });
+    const at = this.rendered.get(this.room.sessionId);
+    view.update({
+      mode, serverNow, endsAt: state.planEndsAt, meReady: me?.planReady === true, players,
+      campTypes: readCampTypes(state, this.mapView?.map.camps.length ?? 0),
+      campStates: this.campStates,
+      local: mode === "map" && at ? { x: at.x, y: at.y, alive: me?.status === "alive" } : null,
+    });
+  }
+
+  /**
+   * Once the run is on: the route starts where the player stands, the next stop moves on as stops are reached, and the minimap
+   * is handed what is still ahead (only when it changed). Before the run it clears the minimap's route.
+   */
+  private trackRoute(state: RaidState, me: PlayerState | undefined): void {
+    const map = this.mapView?.map;
+    if (!map) return;
+    if (state.phase !== "active" || state.training === true || !me) {
+      if (this.lastRouteVersion !== -2) { this.minimap.setRoute(null); this.lastRouteVersion = -2; }
+      return;
+    }
+    if (!this.runStarted) {
+      // The spawn the server gave (the pick, or the default), not the one the screen showed: the walk starts where the player is.
+      this.runStarted = true;
+      this.route.restart();
+      this.route.setStart({ x: me.x, y: me.y });
+    }
+    if (me.status === "alive") this.route.advance({ x: me.x, y: me.y });
+    if (this.route.version === this.lastRouteVersion) return;
+    this.lastRouteVersion = this.route.version;
+    this.minimap.setRoute(this.route.ahead(map));
   }
 
   /** Writes where fighter `id` is drawn this frame into `tmp` and `rendered` (the latest patch while it has no history yet). */
@@ -519,15 +631,26 @@ export class RaidScene extends Phaser.Scene {
     this.fx.dropWindups(this.room.sessionId, c, now);
   }
 
-  private syncContainers(state: RaidState): void {
+  private syncContainers(state: RaidState, chestNow: number, now: number): void {
     const seen = new Set<string>();
+    this.blips.length = 0;
+    const me = this.rendered.get(this.room.sessionId);
     state.containers.forEach((c, id) => {
       seen.add(id);
       let view = this.containerViews.get(id);
       if (!view) { view = new ContainerView(this); this.containerViews.set(id, view); }
       view.update(c);
       view.setHidden(this.bodyPending(c));
+      if (c.kind === "reward") {
+        this.chestMemory.note(id, c.options, now);
+        // The chest's clock: its ring drains and its seconds show, against the server's time now (not render time).
+        const left = (c.expiresAt - chestNow) / 1000;
+        const near = me !== undefined && Math.hypot(me.x - c.x, me.y - c.y) <= CHEST_RANGE * TIMER_TEXT_REACH;
+        view.setTimer(c, Math.min(CHEST_SECONDS, left), near, now);
+        if (left > 0) this.blips.push({ x: c.x, y: c.y, left });
+      }
     });
+    this.chestMemory.forget(now);
     const nearestId = this.nearest?.id;
     for (const [id, view] of this.containerViews) {
       if (!seen.has(id)) { view.destroy(); this.containerViews.delete(id); continue; }
@@ -535,6 +658,54 @@ export class RaidScene extends Phaser.Scene {
     }
     if (this.nearest) this.highlight.show(this.nearest.x, this.nearest.y);
     else this.highlight.hide();
+  }
+
+  /** The chest panel's frame: the latest SERVER position of the local player (never the predicted one), the chests in the state. */
+  private updateChestPanel(state: RaidState, me: PlayerState | undefined, sight: GameMap | null, serverNow: number): void {
+    const panel = this.chestPanel;
+    if (!panel) return;
+    let local: ChestPanelMe | null = null;
+    if (me) {
+      local = this.chestMe;
+      local.id = this.room.sessionId;
+      local.x = me.x;
+      local.y = me.y;
+      local.alive = me.status === "alive";
+      local.faction = me.faction;
+      local.build = me.build;
+    }
+    this.chestFrame.active = state.phase === "active";
+    this.chestFrame.serverNow = serverNow;
+    this.chestFrame.me = local;
+    this.chestFrame.containers = state.containers;
+    this.chestFrame.sight = sight;
+    panel.update(this.chestFrame);
+  }
+
+  private readonly chestFrame: ChestPanelFrame = {
+    active: false, serverNow: 0, me: null, containers: { forEach: () => {} },
+    nameOf: (id) => this.room?.state.players.get(id)?.name, sight: null,
+  };
+
+  /** RaidState.camps[i].state of each camp into `campStates` (0 idle, 1 engaged, 2 cleared). */
+  private fillCampStates(state: RaidState, count: number): void {
+    const out = this.campStates;
+    out.length = count;
+    const states = readCampStates(state, count);
+    for (let i = 0; i < count; i++) out[i] = states[i]!;
+  }
+
+  /** "Fire camp" / "Fire elite camp" for the clear line of camp `index` of the map. */
+  private campLabel(index: number): string | undefined {
+    return campLabel(this.mapView?.map.camps[index]);
+  }
+
+  /** The local player's own pick at a reward chest, as a line: what they took (at the rank they hold now), or a skip. */
+  private chestPick(chest: string, option: number): string | undefined {
+    // The chest may be gone from the state already (the fx plays 100 ms late, and a pick in its last instants lands with it).
+    const live = option >= 0 ? this.room.state.containers.get(chest)?.options : undefined;
+    const build = this.room.state.players.get(this.room.sessionId)?.build;
+    return chestPickLine(chest, option, live, this.chestMemory, (skill) => rankIn(build, skill));
   }
 
   /** Remembers a death that FxView will play later, so the victim stays on screen until then (see `deaths`). */
@@ -581,7 +752,7 @@ export class RaidScene extends Phaser.Scene {
 
   /** A walk to a ground point, from a ground click or the minimap: one path, so the prediction (orderMove) covers both. */
   private moveTo(target: { x: number; y: number }, showMarker: boolean): void {
-    if (this.beforeTeleport()) return;
+    if (this.beforeTeleport() || this.frozenWorld) return;
     this.orderMove("move", target);
     if (import.meta.env.DEV && showMarker) {
       const me = this.rendered.get(this.room.sessionId);
@@ -676,7 +847,7 @@ export class RaidScene extends Phaser.Scene {
 
   /** A left click: lock the fighter nearest the cursor (within TARGET_SNAP_RADIUS). A click on empty ground does nothing. */
   private sendTarget(pointer: Phaser.Input.Pointer): void {
-    if (this.beforeTeleport() || !this.localAlive()) return;
+    if (this.beforeTeleport() || this.frozenWorld || !this.localAlive()) return;
     const id = pickTarget(this.cursorGround(pointer), this.targetCandidates());
     if (id === null) return;
     sendInput(this.room, "target", { id });
@@ -722,7 +893,8 @@ export class RaidScene extends Phaser.Scene {
     const me = state.players.get(this.room.sessionId);
     const entry = me ? abilityInSlot(me, slot) : null;
     const view = this.slotView(slot);
-    if (!me || !entry || !view || this.beforeTeleport()) return;
+    // Planning freezes the world (the server drops everything but `plan` then), like every other order path.
+    if (!me || !entry || !view || this.beforeTeleport() || this.frozenWorld) return;
     const { def, rank } = entry;
     const r = rankOf(def, rank);
     const t = r.targeting;
@@ -843,13 +1015,21 @@ export class RaidScene extends Phaser.Scene {
   /** Once per frame: streams the aim. The shield faces the cursor while nothing is locked; the server ignores it while one is. */
   private streamAim(me: PlayerState | undefined, now: number): void {
     // isOver: the last pointer position is stale (and meaningless) while the cursor is over a DOM panel.
-    if (me?.status !== "alive" || !this.aimKnown || this.beforeTeleport() || !this.input.isOver || this.peek) return;
+    if (me?.status !== "alive" || !this.aimKnown || this.beforeTeleport() || this.frozenWorld || !this.input.isOver || this.peek) return;
     const a = this.cursorAngle(this.input.activePointer);
     if (a === null || now - this.lastAimSentAt < AIM_SEND_MS) return;
     const turned = this.lastAimSent === null || angleBetween(a, this.lastAimSent) > AIM_MIN_DELTA;
     if (!turned && now - this.lastAimSentAt < AIM_KEEPALIVE_MS) return;
     sendInput(this.room, "aim", { a });
     this.noteAimSent(a);
+  }
+
+  /**
+   * The planning phase: nobody moves, fights or is hurt, so nothing is ordered or predicted and the cursor is not aimed. The
+   * planning screen (ui/planning.ts) has the pointer and the keys; Tab belongs to it too (the hold-Tab map is for the run).
+   */
+  private get frozenWorld(): boolean {
+    return this.room.state.phase === "planning";
   }
 
   /** This room is a training room (nothing recorded, no results). Read from the state, so it follows the server. */
@@ -890,6 +1070,8 @@ export class RaidScene extends Phaser.Scene {
       this.trainingBar?.leave();
       return;
     }
+    // Planning freezes the world: no stop, swap or pickup is ordered (the keys belong to the planning screen).
+    if (this.frozenWorld) return;
     // Physical keys (e.code), not the produced character, so shortcuts keep working on non-Latin layouts.
     if (e.code === "KeyS") {
       this.orderMove("stop");
@@ -916,6 +1098,17 @@ export class RaidScene extends Phaser.Scene {
     const map = generateMap(seed);
     this.mapView = new MapView(this, map);
     this.minimap.setMap(map);
+    this.chestPanel?.setMap(map);
+    // The map screens are built once per room; a new seed (never within a room) repaints them.
+    if (this.planning) this.planning.setMap(map);
+    else {
+      this.planning = new PlanningView({
+        map, route: this.route, send: (msg) => sendInput(this.room, "plan", msg),
+        // What is sent while the socket reconnects is dropped (net/connection.ts): the screen must not show it as done.
+        canSend: () => !this.room.reconnection?.isReconnecting,
+      });
+    }
+    this.lastRouteVersion = -1;
   }
 
   private onFxBatch(batch: FxBatch): void {
@@ -965,6 +1158,18 @@ export class RaidScene extends Phaser.Scene {
     this.highlight.destroy();
     this.rings.destroy();
     this.minimap.destroy();
+    this.unbindPlan?.();
+    this.unbindPlan = null;
+    this.unbindToast?.();
+    this.unbindToast = null;
+    this.chestPanel?.destroy();
+    this.chestPanel = null;
+    this.unbindMapHold?.();
+    this.unbindMapHold = null;
+    this.unbindSettings?.();
+    this.unbindSettings = null;
+    this.planning?.destroy();
+    this.planning = null;
     this.peek = null;
     this.rendered.clear();
     this.deaths.clear();

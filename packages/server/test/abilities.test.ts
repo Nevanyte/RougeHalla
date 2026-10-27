@@ -19,13 +19,14 @@ import { applyDamage, markDropped, markReconnected } from "../src/sim/arena";
 import {
   abilityDotFx, armWishes, cancelCast, clearAll, clearFighter, handleCast, statusDamage, updateAbilities, validUnitTarget,
 } from "../src/sim/abilities";
-import { moveSpeedMult } from "../src/sim/buffs";
+import { grantBuff, moveSpeedMult } from "../src/sim/buffs";
 import { combatant, defenseOf, type Combatant } from "../src/sim/combatant";
 import { heal, noteContact } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
 import { applyLedger, recordHit } from "../src/sim/ledger";
 import { aggro } from "../src/sim/mobAI";
+import { recomputeMods } from "../src/sim/mods";
 import { placeMob } from "../src/sim/mobLife";
 import { addMob } from "../src/sim/mobs";
 import { positionAt } from "../src/sim/movement";
@@ -236,16 +237,16 @@ describe("the cast input: acceptance", () => {
     const world = arena([{ faction: "holy", at: ME }, { faction: "fire", at: FOE }]);
     const p = P(world);
     p.readyAt = T(world) + 777;
-    p.stacksAs = 4;
-    p.stacksHp = 4;
-    p.stacksMs = 4;
+    grantBuff(world, p, RT(world), "plagueRat", 4);
+    grantBuff(world, p, RT(world), "iceGolem", 4);
+    expect(p.asMult).toBeGreaterThan(1000);
     cast(world, 0);
     tick(world);
     expect(p.readyAt).toBe(T(world) - TICK_MS + 777);
     expect(p.wishReadyAt).toBe(T(world) + WISH_COOLDOWN_SECONDS * SEC);
 
     const frost = arena([{ faction: "frost", at: ME }, { faction: "fire", at: FOE }]);
-    P(frost).stacksAs = 4;
+    grantBuff(frost, P(frost), RT(frost), "plagueRat", 4);
     cast(frost, 0, { target: 1 });
     tick(frost);
     expect(RT(frost).cast!.landsAt - RT(frost).cast!.startedAt).toBe(FREEZE_CAST_MS);
@@ -1249,6 +1250,24 @@ describe("Blaze Step (Fire)", () => {
       expect(fxOf("status")).toHaveLength(1);
     });
 
+    it("what is left of a chunk is reported when the run ends", () => {
+      const world = trio();
+      place(world, "p1", near(450, 320));
+      blaze(world, near(900));
+      run(world, 3);
+      expect(fxOf("hit")).toEqual([]);
+      const lost = 1000 - P(world, 1).hp;
+      expect(lost).toBeGreaterThan(0);
+      removePlayer(world, "p2");
+      removePlayer(world, "p1");
+      tick(world);
+      expect(world.state.phase).toBe("ended");
+      const chunks = fxOf("hit");
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]).toMatchObject({ id: "p1", by: "p0", weapon: null, ability: "blaze" });
+      expect(chunks[0]!.amount).toBeCloseTo(lost, 6);
+    });
+
     it("standing on the trail keeps it burning: the burn runs out BLAZE_BURN_MS after the trail ends", () => {
       const world = trio();
       place(world, "p1", near(450, 320));
@@ -1450,7 +1469,9 @@ describe("Last Stand (Holy)", () => {
     expect(P(world, 1).x - x0[1]!).toBeCloseTo(10 * STEP, 6);
 
     const buffed = trio({}, 1000);
-    P(buffed).stacksMs = 3;
+    // A faster walk from the speed mirror (whatever feeds it: a source here, as a status or a skill would).
+    buffed.modSources.push((_w, c) => (c.id === C(buffed).id ? { speedMult: 1.2 } : null));
+    recomputeMods(buffed, C(buffed));
     const m = moveSpeedMult(buffed, C(buffed));
     expect(m).toBeGreaterThan(1);
     standLast(buffed);

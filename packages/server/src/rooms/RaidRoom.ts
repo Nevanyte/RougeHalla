@@ -6,6 +6,8 @@
 //   "resolved"        recordRun(outcome, kills, gv.total)   once per player and run, whatever the outcome
 //   server shutdown   bankGv(unbanked run GV)               the run is void: no run is recorded
 //   leave in lobby    nothing
+//   leave in planning recordRun(mia, 0 kills, 0 GV), as a leave in the run: planning is part of the run (a dropped client's
+//                     seat is held, as in the run, and goes MIA when the grace runs out). A shutdown voids it instead.
 //   a bot             nothing, ever (sim bots have no client, profile or seat; settle() drops their results, and only the
 //                     bot manager's learning store hears of them)
 import { randomBytes, randomInt } from "node:crypto";
@@ -22,6 +24,7 @@ import type { ProfileStore } from "../persistence/ProfileStore";
 import { markDropped, markReconnected } from "../sim/arena";
 import { createGameWorld } from "../sim/gameplay";
 import { enqueueClientMessage } from "../sim/inputs";
+import { planFor } from "../sim/planning";
 import { abandonPlayer, addPlayer, removePlayer, startRaid, step } from "../sim/step";
 import { installTraining } from "../sim/training";
 import type { SimEvent, World } from "../sim/world";
@@ -131,7 +134,7 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
   return profile;
 }
 
-const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty" };
+const GV_TOAST: Record<GvReason, string> = { kill: "kill", mob: "mob", elite: "elite", bounty: "bounty", skip: "chest skip" };
 
 export class RaidRoom extends Room<{ state: RaidState }> {
   /** Set once by createServer(); rooms are constructed by the matchmaker. */
@@ -223,7 +226,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
       this.onMessage(type, (client: Client, msg: unknown) => {
         const rt = this.built?.players.get(client.sessionId);
         // Only an input that was accepted counts as presence: junk would otherwise keep an abandoned training room open for good.
-        if (rt && enqueueClientMessage(rt.inputs, type, msg)) this.lastInputAt = Date.now();
+        if (rt && enqueueClientMessage(rt.inputs, type, msg, { training: this.training })) this.lastInputAt = Date.now();
       });
     }
     this.setTimestep((elapsed) => this.tick(elapsed), TICK_MS);
@@ -237,7 +240,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const { config } = RaidRoom.ctx;
     const world = createGameWorld({
       seed: this.seed,
-      config: this.training ? { ...config, dummies: true, training: true } : config,
+      // Training never plans: its one player is in the run the moment they join.
+      config: this.training ? { ...config, dummies: true, training: true, planSeconds: 0 } : config,
       random: Math.random,
       // The reward stream's own secret: never the public seed, and not orderSalt, which tie outcomes can leak (world.ts).
       rewardSalt: Array.from(new Uint32Array(randomBytes(16).buffer, 0, 4)),
@@ -308,6 +312,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // Nothing to hold in the lobby: a ghost would count toward minPlayers and could be spawned into
     // the raid unable to act. Not allowing reconnection makes core call onLeave right away. Once the run
     // is on, the seat is held (and the player stays alive, and hittable) so a blip doesn't cost them.
+    // Planning holds it too: the room is locked by then, so a blip would otherwise cost the whole run (a dropped
+    // player keeps their pick, or is given the default at the end, and does not hold up the early start). If the grace
+    // runs out before the run starts, onLeave counts it as any leave in planning: MIA.
     // A training room has nothing to hold either: the shipped client leaves with a non-consented close, which lands here, and a
     // hold would keep the profile locked for the whole grace period after the player has gone back to the hub.
     if (!this.built || this.built.state.phase === "lobby" || this.training) return;
@@ -321,7 +328,17 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     markReconnected(this.world, client.sessionId);
     const result = this.pendingResults.get(client.sessionId);
     if (result) client.send("result", result);
+    this.sendPlan(client);
     this.sendInFlight(client);
+  }
+
+  /**
+   * The player's private planning deal, for a client that reconnects during planning: it is in no synced state, so the
+   * full state cannot tell it. Held back by core until that state is out, like sendInFlight's batch.
+   */
+  private sendPlan(client: Client) {
+    const plan = planFor(this.world, client.sessionId);
+    if (plan) client.send("plan", plan satisfies ServerMessages["plan"]);
   }
 
   /**
@@ -355,8 +372,9 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     if (this.training) {
       // Walking out of a practice room is not leaving a run: no MIA, no result, nothing banked.
       abandonPlayer(this.world, sessionId);
-    } else if (seat && this.shuttingDown && this.world.state.players.get(sessionId)?.status === "alive") {
-      // A void run leaves no trace (no MIA result, no body, no recorded run), but what was earned is paid.
+    } else if (seat && this.shuttingDown && (this.world.state.players.get(sessionId)?.status === "alive" || this.world.state.phase === "planning")) {
+      // A void run leaves no trace (no MIA result, no body, no recorded run), but what was earned is paid. A run still
+      // in planning is one too: a restart must not cost every player a loss.
       this.bankVoided(seat.profile, abandonPlayer(this.world, sessionId));
     } else {
       removePlayer(this.world, sessionId);
@@ -445,8 +463,14 @@ export class RaidRoom extends Room<{ state: RaidState }> {
         case "gv":
           this.toastTo(ev.id, `+${ev.amount} GV (${GV_TOAST[ev.reason]})`);
           break;
+        case "planningStarted":
         case "raidStarted":
           void this.lock();
+          break;
+        case "plan":
+          // A bot has no client: its deal goes into its next frame (a planning module will read it).
+          if (this.bots?.isBot(ev.to)) this.bots.onPrivate(ev.to, "plan", ev.plan);
+          else this.sendTo(ev.to, "plan", ev.plan);
           break;
         case "raidEnded":
           this.clock.setTimeout(() => void this.disconnect(), ENDED_LINGER_SECONDS * 1000);

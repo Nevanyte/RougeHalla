@@ -54,7 +54,8 @@ function rig(opts: BotOptions = {}): Rig {
   const { home, foe } = openingFor(map, FOE_DISTANCE);
   const state = plainState({ seed: SEED, serverTime: 100_000, raidStartedAt: 60_000 });
   state.players.set("me", plainPlayer({ name: "me", x: home.x, y: home.y, weapon0: "sword" }));
-  state.players.set("foe", plainPlayer({ name: "foe", x: foe.x, y: foe.y, weapon0: "sword" }));
+  // Hurt (40%): an even fight is one a Hard hunter weighs and turns down (BOTS_TUNING.md), so the foe has to look worth taking.
+  state.players.set("foe", plainPlayer({ name: "foe", x: foe.x, y: foe.y, weapon0: "sword", hp: 200 }));
   const sent: Rig["sent"] = [];
   const handlers = new Map<string, Handler>();
   const patches: Handler[] = [];

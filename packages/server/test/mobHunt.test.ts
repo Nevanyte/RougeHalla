@@ -214,13 +214,16 @@ describe("who to farm", () => {
   });
 
   it("does not take on a faction it loses to or only just beats", () => {
-    // Sentenced keeps 37% against a Fire mob in the duel table: below mobMinShare. Plague keeps 58%.
-    expect(matchupShare("sentenced", "fire", false)).toBeLessThan(MOB_HUNT.mobMinShare);
-    expect(matchupShare("plague", "fire", false)).toBeGreaterThan(MOB_HUNT.mobMinShare);
-    const sentenced = new Scene().add("axe", mob("fire", 200, 0));
+    // Sentenced keeps less against a Fire mob in the duel table than Plague does. mobMinShare (0.5) sat between them while MOB_K was
+    // 0.45; the owner's ruling lowered it to 0.22 and every normal mob is a clear win now, so the bar is set between the two here.
+    const sentencedShare = matchupShare("sentenced", "fire", false);
+    const plagueShare = matchupShare("plague", "fire", false);
+    expect(sentencedShare).toBeLessThan(plagueShare);
+    const mobMinShare = (sentencedShare + plagueShare) / 2;
+    const sentenced = new Scene({ mobMinShare }).add("axe", mob("fire", 200, 0));
     sentenced.self = { ...ME, faction: "sentenced", weapons: ["bow", null] };
     expect(sentenced.step()).toMatchObject({ kind: "player" });
-    const plague = new Scene().add("axe", mob("fire", 200, 0));
+    const plague = new Scene({ mobMinShare }).add("axe", mob("fire", 200, 0));
     plague.self = { ...ME, faction: "plague", weapons: ["bow", null] };
     expect(plague.step()).toMatchObject({ kind: "mob", id: "axe" });
   });

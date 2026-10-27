@@ -409,7 +409,10 @@ describe("orders carry the client's seq", () => {
 
   it("wraps after 255 orders", () => {
     const r = rig("hard", "hunter", { seed: 21 });
-    const cmds = play(r, new Stage(false, 8), 12_000);
+    // The stage never heals: a bot that lost a fight lies low for the rest of the run and stops walking, so it is kept whole here
+    // (this test is about the numbering, not about when a hurt bot gives up).
+    const stage = new Stage(false, 8);
+    const cmds = play(r, stage, 12_000, () => { stage.hp = 100; });
     const seqs = cmds.filter((c) => c.tc.cmd.type === "move" || c.tc.cmd.type === "stop").map((c) => (c.tc.cmd.msg as { seq: number }).seq);
     expect(seqs.length).toBeGreaterThan(300);
     seqs.forEach((q, k) => expect(q).toBe((k % 255) + 1));

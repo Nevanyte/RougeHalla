@@ -27,7 +27,10 @@ export interface PlainPlayer {
   name: string; look: number; bot: boolean; x: number; y: number; facing: number; hp: number; maxHp: number; status: string;
   faction: string; weapon0: string; weapon1: string; slot: number; moveSeq: number; attackTarget: string; drawStartedAt: number;
   readyAt: number; kills: number; gv: number; bounty: number; immuneUntil: number; sig: number; brand: number; mobKills: number;
-  stacksHp: number; stacksAs: number; stacksMs: number; asMult: number; windupMult: number; speedMult: number; armorBonus: number;
+  /** Buff stacks by mob type (the build strip): only the bot's own are ever read. */
+  buffs: Map<string, number>;
+  /** The stat mirrors in their wire form: multipliers are uint16 thousandths (1000 = x1), flats int16 tenths. */
+  asMult: number; windupMult: number; speedMult: number; armorBonus: number;
   shieldBonus: number; barrier: number;
   /** Wishes' EFFECT_* bits: only set when a test plays a branch with status effects. */
   effects?: number;
@@ -55,7 +58,7 @@ export function plainPlayer(over: Partial<PlainPlayer> = {}): PlainPlayer {
   return {
     name: "P", look: 0, bot: false, x: 0, y: 0, facing: 0, hp: 500, maxHp: 500, status: "alive", faction: "fire", weapon0: "axe",
     weapon1: "", slot: 0, moveSeq: 0, attackTarget: "", drawStartedAt: 0, readyAt: 0, kills: 0, gv: 0, bounty: 0, immuneUntil: 0, sig: 0,
-    brand: 0, mobKills: 0, stacksHp: 0, stacksAs: 0, stacksMs: 0, asMult: 1, windupMult: 1, speedMult: 1, armorBonus: 0, shieldBonus: 0,
+    brand: 0, mobKills: 0, buffs: new Map(), asMult: 1000, windupMult: 1000, speedMult: 1000, armorBonus: 0, shieldBonus: 0,
     barrier: 0, ...over,
   };
 }
@@ -97,9 +100,10 @@ export function toSchemaState(p: PlainState): RaidState {
   s.winner = p.winner;
   s.training = p.training;
   for (const [id, src] of p.players) {
-    const { effects: _effects, ...fields } = src;
+    const { effects: _effects, buffs, ...fields } = src;
     const ps = new PlayerState();
     Object.assign(ps, fields);
+    for (const [buff, stacks] of buffs) ps.buffs.set(buff, stacks);
     s.players.set(id, ps);
   }
   for (const [id, src] of p.mobs) {
@@ -208,6 +212,11 @@ function ringPoint(rng: Rng, self: Vec2): Vec2 {
 
 const randomWeapon = (rng: Rng): WeaponId => pick(rng, WEAPON_IDS);
 
+/** Three buffs held at random stacks (up to `max`): what a player's build strip shows, and nothing a bot may read of another. */
+function randomBuffs(rng: Rng, max: number): Map<string, number> {
+  return new Map([["emberImp", range(rng, 0, max)], ["plagueRat", range(rng, 0, max)], ["cinderHound", range(rng, 0, max)]]);
+}
+
 function randomPlayer(rng: Rng, name: string, at: Vec2, t: number): PlainPlayer {
   const maxHp = Math.round(range(rng, 380, 720));
   const slot = chance(rng, 0.3) ? 1 : 0;
@@ -217,8 +226,8 @@ function randomPlayer(rng: Rng, name: string, at: Vec2, t: number): PlainPlayer 
     moveSeq: Math.floor(rng() * 256), attackTarget: chance(rng, 0.4) ? "me" : "", drawStartedAt: chance(rng, 0.3) ? t - 120 : 0,
     readyAt: t + Math.round(range(rng, -300, 900)), kills: Math.floor(rng() * 4), gv: Math.floor(rng() * 90),
     bounty: chance(rng, 0.25) ? 10 * Math.floor(1 + rng() * 4) : 0, immuneUntil: chance(rng, 0.2) ? t + 800 : 0,
-    sig: Math.floor(rng() * 16), brand: 5 * Math.floor(rng() * 6), mobKills: Math.floor(rng() * 9), stacksHp: range(rng, 0, 4),
-    stacksAs: range(rng, 0, 4), stacksMs: range(rng, 0, 4), asMult: range(rng, 1, 1.4), speedMult: range(rng, 1, 1.3),
+    sig: Math.floor(rng() * 16), brand: 5 * Math.floor(rng() * 6), mobKills: Math.floor(rng() * 9),
+    buffs: randomBuffs(rng, 4), asMult: Math.round(range(rng, 1000, 1400)), speedMult: Math.round(range(rng, 1000, 1300)),
     barrier: chance(rng, 0.2) ? range(rng, 10, 120) : 0, look: Math.floor(rng() * 1e6), bot: chance(rng, 0.5),
   });
 }
@@ -296,7 +305,7 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
   }
   const me = plainPlayer({
     name: `Self_${seed}`, x: start.x, y: start.y, faction: pick(rng, FACTION_IDS), weapon0: randomWeapon(rng), weapon1: randomWeapon(rng),
-    hp: 420, maxHp: 500, stacksHp: 1.25, stacksAs: 0.5, kills: 1, gv: 12, asMult: 1.1, readyAt: T0 + 300, attackTarget: "p1", bot: true,
+    hp: 420, maxHp: 500, buffs: new Map([["emberImp", 1.25], ["plagueRat", 0.5]]), kills: 1, gv: 12, asMult: 1100, readyAt: T0 + 300, attackTarget: "p1", bot: true,
   });
   if (statusEffects) {
     base.get("h1")!.effects = 256;
@@ -366,9 +375,8 @@ export function buildScenario(seed: number, opts: ScenarioOptions = {}): Scenari
     if (chance(rng, 0.3)) events.push({ kind: "hit", id: "p3", by: "p2", amount: 4.2, weapon: null, sig: "burn" });
     if (chance(rng, 0.2)) events.push({ kind: "block", id: "p3", by: "f3", weapon: "bow" });
     if (chance(rng, 0.3)) events.push({ kind: "heal", id: "p2", amount: pick(rng, [0.4, 6.3]) });
-    if (chance(rng, 0.2)) events.push({ kind: "buff", id: "p1", stat: "attackSpeed", stacks: 0.734, total: 2.41 });
-    if (chance(rng, 0.2)) events.push({ kind: "buff", id: "me", stat: "hp", stacks: 0.5, total: 1.75 });
-    if (chance(rng, 0.15)) events.push({ kind: "combo", id: "p3", combo: "dash", proc: true });
+    if (chance(rng, 0.2)) events.push({ kind: "buff", id: "p1", buff: "plagueRat", stacks: 0.734, total: 2.41 });
+    if (chance(rng, 0.2)) events.push({ kind: "buff", id: "me", buff: "emberImp", stacks: 0.5, total: 1.75 });
     if (chance(rng, 0.15)) events.push({ kind: "stagger", id: "m1" });
     if (chance(rng, 0.15)) events.push({ kind: "cancel", id: "p1" });
     if (statusEffects && chance(rng, 0.5)) events.push({ kind: "windup", by: "h1", weapon: "wand", a: 0.5, ms: 400 });
@@ -549,11 +557,11 @@ export const PERTURBATIONS: readonly Perturbation[] = [
         for (const id of [...s.roles.onscreenPlayers, ...(s.roles.hidden.length > 0 ? ["u1"] : [])]) {
           const p = f.state.players.get(id)!;
           if (p.slot === 1) p.weapon0 = randomWeapon(rng); else p.weapon1 = chance(rng, 0.2) ? "" : randomWeapon(rng);
-          p.stacksHp = range(rng, 0, 9); p.stacksAs = range(rng, 0, 9); p.stacksMs = range(rng, 0, 9);
+          p.buffs = randomBuffs(rng, 9);
           p.kills = Math.floor(rng() * 9); p.gv = Math.floor(rng() * 500); p.mobKills = Math.floor(rng() * 30);
           p.readyAt = Math.round(range(rng, 0, 300_000)); p.attackTarget = pick(rng, ["", "me", "p2", "m1", "f1"]);
           p.moveSeq = Math.floor(rng() * 256); p.look = Math.floor(rng() * 2 ** 31);
-          p.asMult = range(rng, 0.5, 2); p.windupMult = range(rng, 0.5, 2); p.speedMult = range(rng, 0.5, 2);
+          p.asMult = Math.round(range(rng, 500, 2000)); p.windupMult = Math.round(range(rng, 500, 2000)); p.speedMult = Math.round(range(rng, 500, 2000));
           p.armorBonus = Math.round(range(rng, -50, 50)); p.shieldBonus = Math.round(range(rng, -50, 50));
         }
         for (const id of s.roles.onscreenMobs) {
@@ -612,8 +620,7 @@ export const PERTURBATIONS: readonly Perturbation[] = [
           { kind: "hit", id: subject(), by: null, amount: 3, weapon: null, sig: "disease" },
           { kind: "block", id: subject(), by: subject(), weapon: "sword" },
           { kind: "heal", id: subject(), amount: 9 },
-          { kind: "buff", id: subject(), stat: "moveSpeed", stacks: 1.1, total: 3.3 },
-          { kind: "combo", id: subject(), combo: "frenzy", proc: false },
+          { kind: "buff", id: subject(), buff: "cinderHound", stacks: 1.1, total: 3.3 },
           { kind: "stagger", id: subject() },
           { kind: "cancel", id: subject() },
           { kind: "death", id: pick(rng, ["fm1", "fm2", "fm3"]), ...farPoint(rng, s.map, [selves[k]!]), by: subject() },
@@ -647,7 +654,6 @@ export const PERTURBATIONS: readonly Perturbation[] = [
             { kind: "windup", by: id, weapon: "wand", a: range(rng, -3, 3), ms: 400 },
             { kind: "swing", by: id, weapon: "sword", x: p.x, y: p.y, a: 0 },
             { kind: "heal", id, amount: 12 },
-            { kind: "combo", id, combo: "dash", proc: true },
           );
         }
         for (let i = f.events.length - 1; i >= 0; i--) {

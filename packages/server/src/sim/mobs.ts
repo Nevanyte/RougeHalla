@@ -25,6 +25,10 @@ export interface MobSpec {
   hp?: number;
   /** In hand; a dummy never attacks, but a shield in hand still blocks and reflects. */
   weapon?: WeaponId;
+  /** A regional mob's MobTypeId (MobState.type); omitted for a dummy and for a mob placed without a roster. */
+  type?: string;
+  /** Written as is to MobState.camp: its camp's index in map.camps + 1 (placeMob converts); omitted = 0, no camp. */
+  camp?: number;
 }
 
 /** Adds a mob to the state and its runtime; returns its id. */
@@ -40,6 +44,8 @@ export function addMob(world: World, spec: MobSpec): string {
   m.hp = m.maxHp = spec.hp ?? DUMMY_HP;
   m.status = "alive";
   m.weapon0 = spec.weapon ?? "";
+  m.type = spec.type ?? "";
+  m.camp = spec.camp ?? 0;
   world.state.mobs.set(id, m);
   world.mobs.set(id, {
     id, inputs: new InputQueue(), path: [], history: [{ t: world.state.serverTime, x: m.x, y: m.y }],

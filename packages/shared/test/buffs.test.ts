@@ -1,21 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  activeCombos, BOUNTY_STACK_SHARE, bountyFor, bountyStacks, BUFF_BMAX_ATTACK_SPEED, BUFF_BMAX_HP, BUFF_BMAX_MOVE_SPEED,
-  BUFF_S0, BUFF_STATS, BUFF_W, buffBonus, buffMultiplier, CATCHUP_GAP, CATCHUP_MULT, catchUpMultiplier, COMBO_TIER1_STACKS,
-  COMBO_TIER2_STACKS, comboFor, comboProgress, COMBOS, comboTier, FACTION_IDS, feedScore, GV_WIN, killEffects, median,
-  mobRewardMultiplier, MOB_PRIMARY_BUFF_SHARE, mulberry32, REGION_BUFF, REWARD_FLOOR, REWARD_MID, REWARD_WIDTH, rewardCurve,
-  rollBuffStat, zeroStacks, type BuffStat, type FactionId, type Stacks,
+  BOUNTY_STACK_SHARE, bountyFor, bountyStacks, BUFF_PLATEAU, BUFF_REF_STACKS, BUFF_S0, BUFF_W, buffCurve, buffRowsOf, buffScale,
+  buffText, CATCHUP_GAP, CATCHUP_MULT, catchUpMultiplier, effectsText, effectText, feedScore, GV_WIN, LIFESTEAL_MAX, LS_CAP,
+  median, mobRewardMultiplier, mulberry32, REWARD_FLOOR, REWARD_MID, REWARD_WIDTH, rewardCurve, scaleEffect, stacksIn,
+  type Effect,
 } from "../src/index";
 import * as shared from "../src/index";
-
-const BMAX: Record<BuffStat, number> = { hp: 0.7, attackSpeed: 0.5, moveSpeed: 0.3 };
-
-/** GAME_DESIGN 12.2, in percentage points: [stacks, max hp, attack speed, move speed]. The 8 row is "8+, about". */
-const BONUS_TABLE: Array<[number, number, number, number]> = [
-  [1, 5, 4, 2], [2, 16, 11, 7], [3, 32, 23, 14], [4, 48, 34, 21], [5, 58, 42, 25], [6, 63, 45, 27], [8, 66, 47, 28],
-];
-/** The table is rounded to whole percent, so allow a bit over half a point. */
-const TABLE_TOLERANCE_PP = 0.6;
+import { PlayerState } from "../src/schema";
 
 /** GAME_DESIGN 12.3: [feed, mob reward multiplier]. */
 const REWARD_TABLE: Array<[number, number]> = [
@@ -25,390 +16,220 @@ const REWARD_TABLE: Array<[number, number]> = [
 /** GAME_DESIGN 12.4: [feed, bounty GV]. */
 const BOUNTY_TABLE: Array<[number, number]> = [[3, 10], [4, 28], [5, 52], [6, 80], [7, 112], [8, 147], [10, 226]];
 
-const stacksOf = (hp = 0, attackSpeed = 0, moveSpeed = 0): Stacks => ({ hp, attackSpeed, moveSpeed });
-
 describe("the tunables the buff formulas read", () => {
   it("are the design numbers", () => {
-    expect([BUFF_BMAX_HP, BUFF_BMAX_ATTACK_SPEED, BUFF_BMAX_MOVE_SPEED]).toEqual([0.7, 0.5, 0.3]);
-    expect([BUFF_S0, BUFF_W]).toEqual([3, 1]);
-    expect([COMBO_TIER1_STACKS, COMBO_TIER2_STACKS]).toEqual([3, 5]);
+    expect([BUFF_S0, BUFF_W, BUFF_REF_STACKS]).toEqual([3, 1, 3]);
+    expect([LS_CAP, LIFESTEAL_MAX]).toEqual([0.25, 1]);
     expect([REWARD_FLOOR, REWARD_MID, REWARD_WIDTH]).toEqual([0.3, 5, 1.5]);
-    expect([CATCHUP_GAP, CATCHUP_MULT, BOUNTY_STACK_SHARE, MOB_PRIMARY_BUFF_SHARE]).toEqual([2, 1.25, 0.5, 0.6]);
+    expect([CATCHUP_GAP, CATCHUP_MULT, BOUNTY_STACK_SHARE]).toEqual([2, 1.25, 0.5]);
   });
 
   it("are reachable from the shared index, with the formulas", () => {
-    expect(shared.buffBonus).toBe(buffBonus);
+    expect(shared.buffScale).toBe(buffScale);
+    expect(shared.buffRows).toBeTypeOf("function");
     expect(shared.rewardCurve).toBe(rewardCurve);
-    expect(shared.killEffects).toBe(killEffects);
-    expect(BUFF_STATS).toEqual(["hp", "attackSpeed", "moveSpeed"]);
+    expect(shared.BUFFS).toHaveLength(20);
+  });
+
+  it("no longer export the three-stat stacks, the combos or the region roll", () => {
+    for (const gone of ["buffBonus", "buffMultiplier", "BUFF_STATS", "COMBOS", "comboTier", "killEffects", "REGION_BUFF", "rollBuffStat"]) {
+      expect(gone in shared, gone).toBe(false);
+    }
   });
 });
 
-describe("buffBonus against the GAME_DESIGN 12.2 table", () => {
-  const stats: Array<[BuffStat, number]> = [["hp", 1], ["attackSpeed", 2], ["moveSpeed", 3]];
-
-  it.each(stats)("%s matches every row within 0.6 percentage points", (stat, column) => {
-    for (const row of BONUS_TABLE) {
-      const want = row[column]!;
-      const got = buffBonus(stat, row[0]) * 100;
-      expect(Math.abs(got - want), `${stat} x${row[0]}: ${got.toFixed(2)} vs ${want}`).toBeLessThanOrEqual(TABLE_TOLERANCE_PP);
+// The curve's own numbers (S(x), 0.16x at 1 stack ... 2.1x plateau) are pinned in buffsRoguelike.test.ts; these are its
+// shape, which the three-stat bonus used to be tested for.
+describe("the S-curve", () => {
+  it("is exactly 0 at 0 stacks, and for negative, NaN and -Infinity stacks", () => {
+    for (const n of [0, -0, -1, -0.5, -1000, Number.NEGATIVE_INFINITY, Number.NaN]) {
+      expect(buffCurve(n), `curve ${n}`).toBe(0);
+      expect(buffScale(n), `scale ${n}`).toBe(0);
     }
   });
 
-  it("is exactly 0 at 0 stacks, and for negative, NaN and -Infinity stacks", () => {
-    for (const stat of BUFF_STATS) {
-      for (const n of [0, -0, -1, -0.5, -1000, Number.NEGATIVE_INFINITY, Number.NaN]) {
-        expect(buffBonus(stat, n), `${stat} ${n}`).toBe(0);
-      }
-    }
+  it("is S(n) / S(3): 1 at the quoted 3 stacks, whatever the buff", () => {
+    expect(buffScale(BUFF_REF_STACKS)).toBe(1);
+    for (const n of [0.5, 1, 2, 4, 5.5, 9]) expect(buffScale(n), `${n}`).toBeCloseTo(buffCurve(n) / buffCurve(3), 12);
+    expect(BUFF_PLATEAU).toBeCloseTo(buffCurve(1e6) / buffCurve(3), 12);
   });
 
   it("grows from the very first sliver of a stack", () => {
-    for (const stat of BUFF_STATS) expect(buffBonus(stat, 1e-6)).toBeGreaterThan(0);
+    expect(buffCurve(1e-6)).toBeGreaterThan(0);
+    expect(buffScale(1e-6)).toBeGreaterThan(0);
   });
 
   it("strictly increases with stacks, fractions included", () => {
-    for (const stat of BUFF_STATS) {
-      let last = 0;
-      for (let n = 0.25; n <= 20; n += 0.25) {
-        const b = buffBonus(stat, n);
-        expect(b, `${stat} ${n}`).toBeGreaterThan(last);
-        last = b;
-      }
+    let last = 0;
+    for (let n = 0.25; n <= 20; n += 0.25) {
+      const k = buffScale(n);
+      expect(k, `${n}`).toBeGreaterThan(last);
+      last = k;
     }
   });
 
-  it("stays below Bmax forever and flattens out towards a plateau", () => {
-    for (const stat of BUFF_STATS) {
-      for (const n of [1, 3, 5, 8, 12, 20, 50, 1000, Number.POSITIVE_INFINITY]) {
-        expect(buffBonus(stat, n), `${stat} ${n}`).toBeLessThan(BMAX[stat]);
-      }
-      // At 8 stacks the table already says "about", and 30 more stacks add under a point.
-      expect(buffBonus(stat, 38) - buffBonus(stat, 8)).toBeLessThan(0.01);
-      expect(buffBonus(stat, 38)).toBeGreaterThan(0.94 * BMAX[stat]);
-    }
-  });
-
-  // The curve is shifted down by sigmoid(-S0 / W) so that 0 stacks is 0, which also pulls the plateau to 95.3% of Bmax
-  // (66.7 / 47.6 / 28.6): "about" the 8+ row of the design, but not Bmax itself.
-  it("has its plateau (the 8+ row) at about +66% / +47% / +28%, within a point", () => {
-    expect(Math.abs(buffBonus("hp", 50) * 100 - 66)).toBeLessThan(1);
-    expect(Math.abs(buffBonus("attackSpeed", 50) * 100 - 47)).toBeLessThan(1);
-    expect(Math.abs(buffBonus("moveSpeed", 50) * 100 - 28)).toBeLessThan(1);
-    const shift = 1 / (1 + Math.exp(BUFF_S0 / BUFF_W));
-    for (const stat of BUFF_STATS) expect(buffBonus(stat, 50)).toBeCloseTo(BMAX[stat] * (1 - shift), 9);
-  });
-
-  it("orders the stats hp > attack speed > move speed at every stack count", () => {
-    for (let n = 0.5; n <= 12; n += 0.5) {
-      expect(buffBonus("hp", n)).toBeGreaterThan(buffBonus("attackSpeed", n));
-      expect(buffBonus("attackSpeed", n)).toBeGreaterThan(buffBonus("moveSpeed", n));
-    }
+  it("stays below the plateau and flattens out towards it", () => {
+    for (const n of [1, 3, 5, 8, 12, 20]) expect(buffScale(n), `${n}`).toBeLessThan(BUFF_PLATEAU);
+    for (const n of [50, 1000, Number.POSITIVE_INFINITY]) expect(buffScale(n), `${n}`).toBeLessThanOrEqual(BUFF_PLATEAU);
+    // 30 more stacks after 8 add well under a hundredth of a quoted value.
+    expect(buffScale(38) - buffScale(8)).toBeLessThan(0.02);
+    expect(buffScale(38)).toBeGreaterThan(0.99 * BUFF_PLATEAU);
   });
 
   it("spikes in the middle: the biggest per-stack gain is between 2 and 4 stacks", () => {
-    for (const stat of BUFF_STATS) {
-      const gains = Array.from({ length: 9 }, (_, n) => buffBonus(stat, n + 1) - buffBonus(stat, n));
-      const best = Math.max(...gains);
-      const at = gains.indexOf(best);
-      expect([2, 3], `${stat}: gains ${gains.map((g) => g.toFixed(3)).join(" ")}`).toContain(at);
-      // 2->3 and 3->4 beat the first stack by a wide margin and the 5th stack too.
-      expect(gains[2]).toBeGreaterThan(2 * gains[0]!);
-      expect(gains[3]).toBeGreaterThan(2 * gains[0]!);
-      expect(gains[3]).toBeGreaterThan(gains[4]!);
-      expect(gains[1]).toBeLessThan(gains[2]!);
-    }
+    const gains = Array.from({ length: 9 }, (_, n) => buffScale(n + 1) - buffScale(n));
+    const best = Math.max(...gains);
+    const at = gains.indexOf(best);
+    expect([2, 3], `gains ${gains.map((g) => g.toFixed(3)).join(" ")}`).toContain(at);
+    // 2->3 and 3->4 beat the first stack by a wide margin and the 5th stack too.
+    expect(gains[2]).toBeGreaterThan(2 * gains[0]!);
+    expect(gains[3]).toBeGreaterThan(2 * gains[0]!);
+    expect(gains[3]).toBeGreaterThan(gains[4]!);
+    expect(gains[1]).toBeLessThan(gains[2]!);
   });
 
   it("also peaks inside (2, 4) when stacks are fractional", () => {
-    for (const stat of BUFF_STATS) {
-      let best = 0;
-      let bestAt = 0;
-      for (let n = 0; n < 10; n += 0.05) {
-        const g = buffBonus(stat, n + 0.05) - buffBonus(stat, n);
-        if (g > best) { best = g; bestAt = n; }
-      }
-      expect(bestAt).toBeGreaterThan(2);
-      expect(bestAt).toBeLessThan(4);
+    let best = 0;
+    let bestAt = 0;
+    for (let n = 0; n < 10; n += 0.05) {
+      const g = buffScale(n + 0.05) - buffScale(n);
+      if (g > best) { best = g; bestAt = n; }
     }
+    expect(bestAt).toBeGreaterThan(2);
+    expect(bestAt).toBeLessThan(4);
   });
 });
 
-describe("buffMultiplier", () => {
-  it("is 1 plus the bonus, and exactly 1 without stacks", () => {
-    for (const stat of BUFF_STATS) {
-      expect(buffMultiplier(stat, 0)).toBe(1);
-      expect(buffMultiplier(stat, -2)).toBe(1);
-      expect(buffMultiplier(stat, Number.NaN)).toBe(1);
-      for (const n of [0.5, 1, 2, 3, 3.7, 5, 8, 20]) expect(buffMultiplier(stat, n), `${stat} ${n}`).toBe(1 + buffBonus(stat, n));
-    }
+describe("stacksIn", () => {
+  it("reads a Map, a plain record and a player's synced buffs map", () => {
+    const p = new PlayerState();
+    p.buffs.set("emberImp", 2.5);
+    expect(stacksIn(p.buffs, "emberImp")).toBe(2.5);
+    expect(stacksIn(new Map([["emberImp", 2.5]]), "emberImp")).toBe(2.5);
+    expect(stacksIn({ emberImp: 2.5 }, "emberImp")).toBe(2.5);
   });
 
-  it("reads as the table's percentages (3 stacks of hp: x1.32, of attack speed: x1.23, of move speed: x1.14)", () => {
-    expect(buffMultiplier("hp", 3)).toBeCloseTo(1.32, 2);
-    expect(buffMultiplier("attackSpeed", 3)).toBeCloseTo(1.23, 2);
-    expect(buffMultiplier("moveSpeed", 3)).toBeCloseTo(1.14, 2);
+  it("is 0 for none held, an id that is not there and no map at all (a state from a server without buffs)", () => {
+    expect(stacksIn(null, "emberImp")).toBe(0);
+    expect(stacksIn(undefined, "emberImp")).toBe(0);
+    expect(stacksIn(new PlayerState().buffs, "emberImp")).toBe(0);
+    expect(stacksIn({}, "emberImp")).toBe(0);
+    expect(stacksIn(new Map<string, number>(), "emberImp")).toBe(0);
   });
 
-  it("strictly increases with stacks", () => {
-    for (const stat of BUFF_STATS) {
-      let last = 1;
-      for (let n = 0.5; n <= 15; n += 0.5) {
-        const m = buffMultiplier(stat, n);
-        expect(m, `${stat} ${n}`).toBeGreaterThan(last);
-        last = m;
-      }
-    }
+  it("is 0 for a bad value: zero, negative, NaN, text, and names an Object has", () => {
+    const bad = { zero: 0, neg: -2, nan: Number.NaN, text: "3" as unknown as number };
+    for (const id of Object.keys(bad)) expect(stacksIn(bad, id), id).toBe(0);
+    for (const id of ["constructor", "toString", "__proto__", "hasOwnProperty"]) expect(stacksIn({}, id), id).toBe(0);
   });
 });
 
-describe("comboTier", () => {
-  it("is 0 below 3 stacks, 1 from 3, 2 from 5", () => {
-    const cases: Array<[number, 0 | 1 | 2]> = [
-      [0, 0], [1, 0], [2, 0], [2.5, 0], [2.999, 0], [3, 1], [3.001, 1], [4, 1], [4.999, 1], [5, 2], [5.001, 2], [6, 2], [8, 2], [100, 2],
+describe("buffRowsOf for ids and stacks it cannot give rows for", () => {
+  it("is empty for an unknown id and for no, negative or NaN stacks", () => {
+    expect(buffRowsOf("nope", 3)).toEqual([]);
+    for (const n of [0, -1, Number.NaN]) expect(buffRowsOf("emberImp", n), `${n}`).toEqual([]);
+  });
+});
+
+describe("scaleEffect", () => {
+  const rows: Array<[string, Effect, Effect]> = [
+    ["stat", { k: "stat", stat: "attackSpeed", v: 0.1 }, { k: "stat", stat: "attackSpeed", v: 0.2 }],
+    ["flat", { k: "flat", stat: "armor", v: 10 }, { k: "flat", stat: "armor", v: 20 }],
+    ["vs", { k: "vs", test: "hpBelow", arg: 0.3, v: 0.15 }, { k: "vs", test: "hpBelow", arg: 0.3, v: 0.3 }],
+    [
+      "while", { k: "while", cond: "chasingLock", arg: 0, stat: "moveSpeed", v: 0.05, ms: 800 },
+      { k: "while", cond: "chasingLock", arg: 0, stat: "moveSpeed", v: 0.1, ms: 800 },
+    ],
+    ["scale", { k: "scale", src: "ownMissingHp", per: 0.01, step: 0.1 }, { k: "scale", src: "ownMissingHp", per: 0.02, step: 0.1 }],
+    [
+      "onHit", { k: "onHit", status: "dot", per: 2, cap: 1, ms: 3000, needs: "status" },
+      { k: "onHit", status: "dot", per: 4, cap: 1, ms: 3000, needs: "status" },
+    ],
+    [
+      "trigger heal", { k: "trigger", on: "hpBelow", arg: 0.3, once: true, do: { do: "heal", share: 0.1, ignoreLockout: true } },
+      { k: "trigger", on: "hpBelow", arg: 0.3, once: true, do: { do: "heal", share: 0.2, ignoreLockout: true } },
+    ],
+    [
+      "trigger barrier", { k: "trigger", on: "kill", arg: 0, do: { do: "barrier", share: 0.1, ms: 4000 } },
+      { k: "trigger", on: "kill", arg: 0, do: { do: "barrier", share: 0.2, ms: 4000 } },
+    ],
+    [
+      "trigger status", { k: "trigger", on: "hitTaken", arg: 0, do: { do: "status", to: "target", status: "slowAttack", ms: 1000, value: 0.1 } },
+      { k: "trigger", on: "hitTaken", arg: 0, do: { do: "status", to: "target", status: "slowAttack", ms: 1000, value: 0.2 } },
+    ],
+  ];
+
+  it.each(rows)("doubles a %s row's numbers and nothing else", (_kind, row, doubled) => {
+    expect(scaleEffect(row, 2)).toEqual(doubled);
+  });
+
+  it("leaves a status trigger with no value, a cleanse and a cooldown as they are", () => {
+    const unchanged: Effect[] = [
+      { k: "trigger", on: "kill", arg: 0, do: { do: "status", to: "self", status: "haste", ms: 2000 } },
+      { k: "trigger", on: "hpBelow", arg: 0.3, do: { do: "cleanse", to: "self", classes: ["soft"] } },
+      { k: "trigger", on: "kill", arg: 0, do: { do: "cooldown", ms: 2000 } },
     ];
-    for (const [stacks, tier] of cases) expect(comboTier(stacks), `stacks ${stacks}`).toBe(tier);
+    for (const row of unchanged) expect(scaleEffect(row, 3)).toEqual(row);
   });
 
-  it("counts 1.5 + 1.5 as 3 and 2.999 as 2", () => {
-    expect(comboTier(1.5 + 1.5)).toBe(1);
-    expect(comboTier(2.999)).toBe(0);
-    expect(comboTier(2.5 + 2.5)).toBe(2);
-    expect(comboTier(2.4999 + 2.5)).toBe(1);
+  it("keeps a row's `requires` and `needs`, and never changes the row it was given", () => {
+    const row: Effect = { k: "stat", stat: "damage", v: 0.1, requires: ["glassFang"], needs: "status" };
+    expect(scaleEffect(row, 0.5)).toEqual({ k: "stat", stat: "damage", v: 0.05, requires: ["glassFang"], needs: "status" });
+    expect(row).toEqual({ k: "stat", stat: "damage", v: 0.1, requires: ["glassFang"], needs: "status" });
   });
 
-  it("forgives the float error of stacks gained a sliver at a time", () => {
-    let s = 0;
-    for (let i = 0; i < 10; i++) s += 0.3;
-    expect(s).toBeLessThan(3); // the sum really is short of 3 in floating point
-    expect(comboTier(s)).toBe(1);
-    let t = 0;
-    for (let i = 0; i < 50; i++) t += 0.1;
-    expect(t).toBeLessThan(5);
-    expect(comboTier(t)).toBe(2);
-    expect(comboTier(3 - 1e-9)).toBe(1);
-    expect(comboTier(5 - 1e-9)).toBe(2);
-    expect(comboTier(3 - 1e-4)).toBe(0);
-    expect(comboTier(5 - 1e-4)).toBe(1);
-  });
-
-  it("is 0 for negative and NaN stacks, 2 for infinite", () => {
-    for (const n of [-1, -100, Number.NEGATIVE_INFINITY, Number.NaN]) expect(comboTier(n), `${n}`).toBe(0);
-    expect(comboTier(Number.POSITIVE_INFINITY)).toBe(2);
-  });
-
-  it("never falls as stacks grow", () => {
-    let last = 0;
-    for (let n = -1; n <= 10; n += 0.01) {
-      const tier = comboTier(n);
-      expect(tier, `stacks ${n}`).toBeGreaterThanOrEqual(last);
-      last = tier;
-    }
+  it("makes a row's numbers 0 at 0 stacks (buffText of nothing held reads +0%)", () => {
+    expect(scaleEffect({ k: "stat", stat: "damage", v: 0.05 }, 0)).toEqual({ k: "stat", stat: "damage", v: 0 });
+    expect(buffText("emberImp", 0)).toBe("+0% damage");
   });
 });
 
-describe("comboProgress", () => {
-  it("reports the stacks held, the tier reached and what the next tier needs", () => {
-    expect(comboProgress(0)).toEqual({ stacks: 0, tier: 0, next: COMBO_TIER1_STACKS });
-    expect(comboProgress(2.5)).toEqual({ stacks: 2.5, tier: 0, next: 3 });
-    expect(comboProgress(3)).toEqual({ stacks: 3, tier: 1, next: COMBO_TIER2_STACKS });
-    expect(comboProgress(4.9)).toEqual({ stacks: 4.9, tier: 1, next: 5 });
-    expect(comboProgress(5)).toEqual({ stacks: 5, tier: 2, next: null });
-    expect(comboProgress(12)).toEqual({ stacks: 12, tier: 2, next: null });
+describe("effectText", () => {
+  it("writes a stat row with its sign: fractions as percent, one decimal at most", () => {
+    expect(effectText({ k: "stat", stat: "damageTaken", v: -0.1 })).toBe("-10% damage taken");
+    expect(effectText({ k: "stat", stat: "windup", v: -0.08 })).toBe("-8% windup time");
+    expect(effectText({ k: "stat", stat: "healTaken", v: 0.0539 })).toBe("+5.4% healing taken");
+    expect(effectText({ k: "stat", stat: "cooldown", v: -0.2 })).toBe("-20% cooldown time");
+    expect(effectText({ k: "stat", stat: "maxHp", v: 0.03 })).toBe("+3% max HP");
   });
 
-  it("agrees with comboTier, and the next tier is always strictly more stacks than held", () => {
-    for (let n = 0; n <= 8; n += 0.125) {
-      const p = comboProgress(n);
-      expect(p.tier).toBe(comboTier(n));
-      if (p.next !== null) expect(p.next, `stacks ${n}`).toBeGreaterThan(n - 1e-6);
-    }
-  });
-});
-
-describe("COMBOS", () => {
-  it("has exactly one spec per (stat, tier)", () => {
-    expect(COMBOS).toHaveLength(6);
-    for (const stat of BUFF_STATS) {
-      for (const tier of [1, 2] as const) {
-        expect(COMBOS.filter((c) => c.stat === stat && c.tier === tier), `${stat} tier ${tier}`).toHaveLength(1);
-      }
-    }
-    expect(new Set(COMBOS.map((c) => c.id)).size).toBe(6);
-    expect(new Set(COMBOS.map((c) => c.name)).size).toBe(6);
-    for (const c of COMBOS) {
-      expect(c.name.length).toBeGreaterThan(0);
-      expect(c.text.length).toBeGreaterThan(0);
-    }
+  it("writes a flat row in points, a minus for a loss", () => {
+    expect(effectText({ k: "flat", stat: "armor", v: -4 })).toBe("-4 armor");
+    expect(effectText({ k: "flat", stat: "shield", v: 7.5 })).toBe("+7.5 magic resist");
+    expect(effectText({ k: "flat", stat: "shield", v: 10.84 })).toBe("+10.8 magic resist");
   });
 
-  it("follows the design sheet at 3 stacks: attack speed is a dash on kill, hp is a shield on kill", () => {
-    const dash = COMBOS.find((c) => c.stat === "attackSpeed" && c.tier === 1)!;
-    expect(dash.id).toBe("dash");
-    expect(dash.onKill.bursts).toHaveLength(1);
-    expect(dash.onKill.bursts[0]!.mult).toBeGreaterThan(1);
-    expect(dash.onKill.shield).toBeNull();
-    const shield = COMBOS.find((c) => c.stat === "hp" && c.tier === 1)!;
-    expect(shield.id).toBe("shield");
-    expect(shield.onKill.shield).not.toBeNull();
-    expect(shield.onKill.bursts).toEqual([]);
+  it("writes every vs test", () => {
+    const vs = (test: Extract<Effect, { k: "vs" }>["test"], arg = 0): Effect => ({ k: "vs", test, arg, v: 0.1 });
+    expect(effectText(vs("hpAbove", 0.7))).toBe("+10% damage to targets above 70% HP");
+    expect(effectText(vs("hpBelow", 0.3))).toBe("+10% damage to targets below 30% HP");
+    expect(effectText(vs("slowed"))).toBe("+10% damage to slowed or chilled targets");
+    expect(effectText(vs("rooted"))).toBe("+10% damage to rooted targets");
+    expect(effectText(vs("streak", 3))).toBe("+10% damage to a target you have kept hitting for 3 s");
+    expect(effectText(vs("thirdParty"))).toBe("+10% damage to targets fighting someone else");
+    expect(effectText(vs("higherFeed"))).toBe("+10% damage to targets with a higher feed");
   });
 
-  it("has the tier-2 attack speed combo repeat tier 1's burst and add the cooldown reset", () => {
-    const t1 = COMBOS.find((c) => c.stat === "attackSpeed" && c.tier === 1)!;
-    const t2 = COMBOS.find((c) => c.stat === "attackSpeed" && c.tier === 2)!;
-    expect(t2.onKill.bursts).toEqual(t1.onKill.bursts);
-    expect(t1.onKill.resetCooldown).toBe(false);
-    expect(t2.onKill.resetCooldown).toBe(true);
+  it("writes every while condition, points for armor and shield", () => {
+    expect(effectText({ k: "while", cond: "chasingLock", arg: 0, stat: "moveSpeed", v: 0.05 })).toBe("+5% move speed while chasing your target");
+    expect(effectText({ k: "while", cond: "hpBelow", arg: 0.3, stat: "attackSpeed", v: 0.25 })).toBe("+25% attack speed while below 30% HP");
+    expect(effectText({ k: "while", cond: "afterCast", arg: 0, stat: "armor", v: 4, ms: 2500 })).toBe("+4 armor for 2.5 s after a cast");
+    expect(effectText({ k: "while", cond: "hpBelow", arg: 0.5, stat: "shield", v: -2 })).toBe("-2 magic resist while below 50% HP");
   });
 
-  it("makes every tier-2 combo at least as strong as its tier 1, since it replaces it", () => {
-    for (const stat of BUFF_STATS) {
-      const t1 = COMBOS.find((c) => c.stat === stat && c.tier === 1)!.onKill;
-      const t2 = COMBOS.find((c) => c.stat === stat && c.tier === 2)!.onKill;
-      expect(t2.bursts.length, stat).toBeGreaterThanOrEqual(t1.bursts.length);
-      t1.bursts.forEach((b, i) => {
-        expect(t2.bursts[i]!.mult, `${stat} burst ${i} speed`).toBeGreaterThanOrEqual(b.mult);
-        expect(t2.bursts[i]!.ms, `${stat} burst ${i} duration`).toBeGreaterThanOrEqual(b.ms);
-      });
-      if (t1.shield) {
-        expect(t2.shield).not.toBeNull();
-        expect(t2.shield!.share).toBeGreaterThanOrEqual(t1.shield.share);
-        expect(t2.shield!.ms).toBeGreaterThanOrEqual(t1.shield.ms);
-      }
-      if (t1.resetCooldown) expect(t2.resetCooldown).toBe(true);
-    }
+  it("writes every trigger action and event, 'once per run' only for a once row", () => {
+    expect(effectText({ k: "trigger", on: "kill", arg: 0, do: { do: "heal", share: 0.05 } })).toBe("On a kill: heal 5% of max HP");
+    expect(effectText({ k: "trigger", on: "hitTaken", arg: 0, once: true, do: { do: "barrier", share: 0.2, ms: 4000 } }))
+      .toBe("When hit: a barrier of 20% of max HP for 4 s (once per run)");
+    expect(effectText({ k: "trigger", on: "hpBelow", arg: 0.3, do: { do: "cleanse", to: "self", classes: ["soft"] } })).toBe("Below 30% HP: cleanse");
+    expect(effectText({ k: "trigger", on: "kill", arg: 0, do: { do: "cooldown", ms: 2000 } })).toBe("On a kill: cooldowns 2 s shorter");
+    expect(effectText({ k: "trigger", on: "kill", arg: 0, do: { do: "status", to: "self", status: "haste", ms: 1500 } })).toBe("On a kill: haste for 1.5 s");
   });
 
-  it("doubles the hp shield at tier 2 ('the kill shield doubles')", () => {
-    const t1 = COMBOS.find((c) => c.stat === "hp" && c.tier === 1)!.onKill.shield!;
-    const t2 = COMBOS.find((c) => c.stat === "hp" && c.tier === 2)!.onKill.shield!;
-    expect(t2.share).toBeCloseTo(2 * t1.share, 12);
-  });
-
-  // Phase 11 guesses the owner has to confirm (contract, "Guesses to report" 3): pinned so a retune is a deliberate edit.
-  it("has the contract's numbers", () => {
-    const by = (id: string) => COMBOS.find((c) => c.id === id)!;
-    expect(by("dash").onKill).toEqual({ bursts: [{ mult: 2.5, ms: 400 }], shield: null, resetCooldown: false });
-    expect(by("cascade").onKill).toEqual({ bursts: [{ mult: 2.5, ms: 400 }], shield: null, resetCooldown: true });
-    expect(by("shield").onKill).toEqual({ bursts: [], shield: { share: 0.15, ms: 5000 }, resetCooldown: false });
-    expect(by("bulwark").onKill).toEqual({ bursts: [], shield: { share: 0.3, ms: 8000 }, resetCooldown: false });
-    expect(by("bloodrush").onKill).toEqual({ bursts: [{ mult: 1.5, ms: 3000 }], shield: null, resetCooldown: false });
-    expect(by("frenzy").onKill).toEqual({ bursts: [{ mult: 1.8, ms: 5000 }], shield: null, resetCooldown: false });
-  });
-});
-
-describe("comboFor and activeCombos", () => {
-  it("returns no combo below 3 stacks, the tier-1 combo from 3 and the tier-2 combo from 5", () => {
-    for (const stat of BUFF_STATS) {
-      expect(comboFor(stat, 0)).toBeNull();
-      expect(comboFor(stat, 2.999)).toBeNull();
-      expect(comboFor(stat, -4)).toBeNull();
-      expect(comboFor(stat, Number.NaN)).toBeNull();
-      for (const n of [3, 3.5, 4.999]) {
-        const c = comboFor(stat, n);
-        expect(c, `${stat} ${n}`).toMatchObject({ stat, tier: 1 });
-      }
-      for (const n of [5, 6, 40]) {
-        const c = comboFor(stat, n);
-        expect(c, `${stat} ${n}`).toMatchObject({ stat, tier: 2 });
-      }
-    }
-    expect(comboFor("attackSpeed", 3)!.id).toBe("dash");
-    expect(comboFor("attackSpeed", 5)!.id).toBe("cascade");
-    expect(comboFor("hp", 3)!.id).toBe("shield");
-    expect(comboFor("hp", 5)!.id).toBe("bulwark");
-    expect(comboFor("moveSpeed", 3)!.id).toBe("bloodrush");
-    expect(comboFor("moveSpeed", 5)!.id).toBe("frenzy");
-  });
-
-  it("picks the highest tier only, so a tier-2 stat never also lists its tier-1 combo", () => {
-    expect(activeCombos(stacksOf(8, 0, 0)).map((c) => c.id)).toEqual(["bulwark"]);
-  });
-
-  it("lists no combo for fresh stacks", () => {
-    expect(activeCombos(zeroStacks())).toEqual([]);
-    expect(activeCombos(stacksOf(2.9, 2.9, 2.9))).toEqual([]);
-  });
-
-  it("lists one combo per stat, in hp, attack speed, move speed order", () => {
-    expect(activeCombos(stacksOf(3, 5, 2.9)).map((c) => c.id)).toEqual(["shield", "cascade"]);
-    expect(activeCombos(stacksOf(3, 3, 3)).map((c) => c.id)).toEqual(["shield", "dash", "bloodrush"]);
-    expect(activeCombos(stacksOf(5, 5, 5)).map((c) => c.id)).toEqual(["bulwark", "cascade", "frenzy"]);
-  });
-
-  it("never lists two combos for one stat, over 300 random sets of stacks", () => {
-    const rng = mulberry32(11);
-    for (let i = 0; i < 300; i++) {
-      const s = stacksOf(rng() * 8, rng() * 8, rng() * 8);
-      const combos = activeCombos(s);
-      expect(new Set(combos.map((c) => c.stat)).size).toBe(combos.length);
-      for (const c of combos) expect(c.tier).toBe(comboTier(s[c.stat]));
-      expect(combos.length).toBe(BUFF_STATS.filter((stat) => comboTier(s[stat]) > 0).length);
-    }
-  });
-});
-
-describe("killEffects", () => {
-  const nothing = { bursts: [], shield: null, resetCooldown: false };
-
-  it("is nothing below 3 stacks of every stat", () => {
-    expect(killEffects(zeroStacks())).toEqual(nothing);
-    expect(killEffects(stacksOf(2.99, 2.99, 2.99))).toEqual(nothing);
-    expect(killEffects(stacksOf(-3, Number.NaN, 0))).toEqual(nothing);
-  });
-
-  it("gives each stat's combo alone", () => {
-    expect(killEffects(stacksOf(0, 3, 0))).toEqual({ bursts: [{ mult: 2.5, ms: 400 }], shield: null, resetCooldown: false });
-    expect(killEffects(stacksOf(3, 0, 0))).toEqual({ bursts: [], shield: { share: 0.15, ms: 5000 }, resetCooldown: false });
-    expect(killEffects(stacksOf(0, 0, 3))).toEqual({ bursts: [{ mult: 1.5, ms: 3000 }], shield: null, resetCooldown: false });
-  });
-
-  it("resets the attack cooldown on the cascade only", () => {
-    expect(killEffects(stacksOf(0, 3, 0)).resetCooldown).toBe(false);
-    expect(killEffects(stacksOf(0, 4.99, 0)).resetCooldown).toBe(false);
-    expect(killEffects(stacksOf(0, 5, 0)).resetCooldown).toBe(true);
-    expect(killEffects(stacksOf(5, 2.9, 5)).resetCooldown).toBe(false);
-  });
-
-  it("upgrades a stat's effects at tier 2 instead of adding to tier 1's", () => {
-    expect(killEffects(stacksOf(5, 0, 0)).shield).toEqual({ share: 0.3, ms: 8000 });
-    expect(killEffects(stacksOf(0, 0, 5)).bursts).toEqual([{ mult: 1.8, ms: 5000 }]);
-    expect(killEffects(stacksOf(0, 5, 0)).bursts).toEqual([{ mult: 2.5, ms: 400 }]);
-  });
-
-  it("merges stat by stat: bursts concatenate, the shield and the reset come from their own stat", () => {
-    const three = killEffects(stacksOf(3, 3, 3));
-    expect(three.bursts).toEqual([{ mult: 2.5, ms: 400 }, { mult: 1.5, ms: 3000 }]);
-    expect(three.shield).toEqual({ share: 0.15, ms: 5000 });
-    expect(three.resetCooldown).toBe(false);
-    const five = killEffects(stacksOf(5, 5, 5));
-    expect(five.bursts).toEqual([{ mult: 2.5, ms: 400 }, { mult: 1.8, ms: 5000 }]);
-    expect(five.shield).toEqual({ share: 0.3, ms: 8000 });
-    expect(five.resetCooldown).toBe(true);
-    const mixed = killEffects(stacksOf(5, 3, 0));
-    expect(mixed.bursts).toEqual([{ mult: 2.5, ms: 400 }]);
-    expect(mixed.shield).toEqual({ share: 0.3, ms: 8000 });
-  });
-
-  it("equals the union of the active combos' effects", () => {
-    const rng = mulberry32(5);
-    for (let i = 0; i < 200; i++) {
-      const s = stacksOf(rng() * 7, rng() * 7, rng() * 7);
-      const combos = activeCombos(s);
-      const fx = killEffects(s);
-      expect(fx.bursts).toEqual(combos.flatMap((c) => c.onKill.bursts));
-      expect(fx.resetCooldown).toBe(combos.some((c) => c.onKill.resetCooldown));
-      const shares = combos.flatMap((c) => (c.onKill.shield ? [c.onKill.shield.share] : []));
-      expect(fx.shield?.share ?? null).toBe(shares.length ? Math.max(...shares) : null);
-    }
-  });
-
-  it("hands out a fresh bursts list, so a caller cannot change the catalog through it", () => {
-    const a = killEffects(stacksOf(0, 5, 5));
-    a.bursts.length = 0;
-    a.bursts.push({ mult: 99, ms: 1 });
-    expect(killEffects(stacksOf(0, 5, 5)).bursts).toEqual([{ mult: 2.5, ms: 400 }, { mult: 1.8, ms: 5000 }]);
+  it("joins a buff's rows with 'and'", () => {
+    const rows: Effect[] = [{ k: "stat", stat: "maxHp", v: 0.03 }, { k: "flat", stat: "shield", v: 10 }];
+    expect(effectsText(rows)).toBe("+3% max HP and +10 magic resist");
+    expect(effectsText([])).toBe("");
   });
 });
 
@@ -541,7 +362,7 @@ describe("mobRewardMultiplier", () => {
 });
 
 describe("bountyStacks", () => {
-  it("is half the victim's stacks, fractions and all", () => {
+  it("is half the victim's stacks of one buff, fractions and all", () => {
     expect(bountyStacks(0)).toBe(0);
     expect(bountyStacks(4)).toBe(2);
     expect(bountyStacks(3)).toBe(1.5);
@@ -551,88 +372,6 @@ describe("bountyStacks", () => {
 
   it("splits a victim's stacks exactly in two", () => {
     for (const n of [0.5, 1, 2.7, 3, 5, 11.1]) expect(n - bountyStacks(n)).toBeCloseTo(bountyStacks(n), 12);
-  });
-});
-
-describe("REGION_BUFF", () => {
-  it("has an entry for every faction, and each entry is a buff stat", () => {
-    expect(Object.keys(REGION_BUFF).sort()).toEqual([...FACTION_IDS].sort());
-    for (const id of FACTION_IDS) expect(BUFF_STATS).toContain(REGION_BUFF[id]);
-  });
-
-  it("is the contract's map, and every stat is some region's own", () => {
-    expect(REGION_BUFF).toEqual({ fire: "attackSpeed", sentenced: "moveSpeed", plague: "hp", frost: "hp", holy: "attackSpeed" });
-    expect(new Set(Object.values(REGION_BUFF))).toEqual(new Set(BUFF_STATS));
-  });
-});
-
-describe("rollBuffStat", () => {
-  it("consumes exactly one random() call", () => {
-    for (const region of FACTION_IDS) {
-      for (const r of [0, 0.3, 0.59, 0.6, 0.7, 0.9, 0.999999]) {
-        let calls = 0;
-        rollBuffStat(region, () => { calls++; return r; });
-        expect(calls, `${region} r ${r}`).toBe(1);
-      }
-    }
-    const rng = mulberry32(1);
-    let calls = 0;
-    const counted = () => { calls++; return rng(); };
-    for (let i = 0; i < 25; i++) rollBuffStat("holy", counted);
-    expect(calls).toBe(25);
-  });
-
-  it("gives the region's own stat for r < 0.6", () => {
-    for (const region of FACTION_IDS) {
-      for (const r of [0, 0.01, 0.3, 0.5, 0.59, 0.5999999]) {
-        expect(rollBuffStat(region, () => r), `${region} r ${r}`).toBe(REGION_BUFF[region]);
-      }
-    }
-  });
-
-  it("gives the two other stats for the rest of the range, in equal halves", () => {
-    for (const region of FACTION_IDS) {
-      const own = REGION_BUFF[region];
-      const lowerHalf = [0.6, 0.65, 0.7, 0.79].map((r) => rollBuffStat(region, () => r));
-      const upperHalf = [0.81, 0.9, 0.95, 0.999999].map((r) => rollBuffStat(region, () => r));
-      expect(new Set(lowerHalf).size, `${region} lower half`).toBe(1);
-      expect(new Set(upperHalf).size, `${region} upper half`).toBe(1);
-      expect(lowerHalf[0], region).not.toBe(own);
-      expect(upperHalf[0], region).not.toBe(own);
-      expect(lowerHalf[0], region).not.toBe(upperHalf[0]);
-      expect(new Set([own, lowerHalf[0], upperHalf[0]]), region).toEqual(new Set(BUFF_STATS));
-    }
-  });
-
-  it("is deterministic for a seed", () => {
-    const run = (seed: number) => {
-      const rng = mulberry32(seed);
-      return Array.from({ length: 50 }, () => rollBuffStat("plague", rng));
-    };
-    expect(run(8)).toEqual(run(8));
-    expect(run(8)).not.toEqual(run(9));
-  });
-
-  it("is close to 60 / 20 / 20 for every region over 10000 seeded draws", () => {
-    const N = 10_000;
-    FACTION_IDS.forEach((region, i) => {
-      const rng = mulberry32(1000 + i);
-      const counts: Record<BuffStat, number> = { hp: 0, attackSpeed: 0, moveSpeed: 0 };
-      for (let n = 0; n < N; n++) counts[rollBuffStat(region, rng)]++;
-      const own = REGION_BUFF[region];
-      expect(Math.abs(counts[own] / N - 0.6), `${region} own`).toBeLessThan(0.03);
-      for (const stat of BUFF_STATS.filter((s) => s !== own)) {
-        expect(Math.abs(counts[stat] / N - 0.2), `${region} ${stat}`).toBeLessThan(0.03);
-      }
-    });
-  });
-
-  it("is a stat the game knows, for any random() inside [0, 1)", () => {
-    const rng = mulberry32(77);
-    for (let i = 0; i < 500; i++) {
-      const region: FactionId = FACTION_IDS[i % FACTION_IDS.length]!;
-      expect(BUFF_STATS).toContain(rollBuffStat(region, rng));
-    }
   });
 });
 

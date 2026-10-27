@@ -14,8 +14,12 @@
 // player can also die to a mob (killedBy is then the mob's name), and the fx that name a mob are not players' hits or
 // deaths. The bots cast their faction's Wish (the lock is 5 s here): its fx name players and the faction's own ability, none comes
 // before the lock is over, each bot casts it once (again only after the arena's teleport refunded a cast), and in the long run
-// some bot's Wish lands. Every bot decodes every `fxs` batch it receives against its own copy of the roster (what a real client has), and
-// none of them loses a tuple. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
+// some bot's Wish lands. A camp the run clears drops its shared chest (`campCleared`, then a reward container for CHEST_SECONDS);
+// the bots do not walk to chests yet (the brain has no chest module: docs/BOTS.md 8), so only the server's side of the fx is
+// checked (one `chestTaken` per picker per chest, by a player, with an option the chest has). Every bot decodes every `fxs` batch
+// it receives against its own copy of the roster (what a real client has), and none of them loses a tuple. Every run is planned first (the live server's planning phase): each bot is dealt its two spawns
+// in a private `plan` message and presses ready (the adapter's stand-in until the brain has a planning module: BotClient `plan`),
+// so the server hands out the spawns it left over. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
 // that the arena teleports them into the coliseum before anyone has died, after which they must keep landing hits.
 import fs from "node:fs";
 import net from "node:net";
@@ -24,7 +28,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from "vitest";
 import { matchMaker, Room } from "@colyseus/core";
 import {
-  CATCHUP_MULT, GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, rewardCurve, ROOM_NAME,
+  CATCHUP_MULT, GV_ELITE, GV_KILL, GV_MOB_CAP, GV_WIN, MOB_TYPES, mobName, monthKey, PROFILE_TOKEN_HEADER, REGION_FACTIONS, rewardCurve, ROOM_NAME,
   SIGNATURE_WEAPONS, SUDDEN_DEATH_KILLER, TELEPORT_IMMUNITY_MS, unpackFx, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, WISHES,
   type FactionId, type FxBatch, type ProfileResponse, type RunOutcome, type RunResult, type SignatureKind, type TimedFx,
 } from "@raid/shared";
@@ -62,7 +66,10 @@ const WISH_LOCK_SECONDS = 5;
 const QUIT_AFTER_MS = 1_000;
 const OUTCOMES: readonly RunOutcome[] = ["won", "draw", "died", "mia"];
 /** What `killedBy` says when a mob dealt the killing blow: the mob's name, from the shared catalog. */
-const MOB_NAMES: ReadonlySet<string> = new Set(REGION_FACTIONS.flatMap((r) => [mobName(r, false), mobName(r, true)]));
+const MOB_NAMES: ReadonlySet<string> = new Set([
+  ...MOB_TYPES.map((t) => t.name),
+  ...REGION_FACTIONS.flatMap((r) => [mobName(r, false), mobName(r, true)]),
+]);
 /** No bot may stand still without attacking, drawing or fetching a weapon for longer than this (ms): it would be stuck on a target it cannot reach. */
 const MAX_STALL_MS = 8_000;
 /**
@@ -143,6 +150,8 @@ interface Played {
   bots: BotClient[]; players: number[]; fx: TimedFx[]; sessions: ReadonlySet<string>;
   /** What the run showed, for playUntil: kills by the bots, signature hits dealt by them, mobs they killed, Wishes that landed. */
   kills: number; signatureHits: number; mobKills: number; wishLands: number;
+  /** Camps the run cleared (by anyone). */
+  campClears: number;
 }
 
 /** Plays one run on a fresh server (and fresh profiles) and checks everything that must hold, whoever wins. */
@@ -162,6 +171,9 @@ async function playRun(
     minPlayers: BOTS,
     fillSeconds: 0,
     lobbySeconds: 30, // the run starts the moment the 4th bot joins (fillSeconds 0); this only keeps a slow machine from splitting them
+    // The live server's planning phase (PLAN_SECONDS from loadConfig): the bots take a dealt spawn and press ready, so it
+    // ends as soon as all four have. The first patience timer scales like the others, so `timers` sets the run's pace.
+    firstPatienceSeconds: 0,
     ...timers,
     wishLockSeconds: WISH_LOCK_SECONDS,
     patienceMinSeconds: timers.patienceSeconds, // flat: the run's pace shouldn't depend on how many are still standing
@@ -195,7 +207,9 @@ async function playRun(
     const url = `http://127.0.0.1:${port}`;
     const names = Array.from({ length: BOTS }, (_, i) => `${prefix}${i + 1}`);
     const bots = names.map((_, i) => new BotClient({
-      timeoutMs: 90_000,
+      // A death restarts the flat 30 s patience timer, so a long run with three survivors can pass a minute and a half (1 in 22 runs
+      // after the merge, with planning's few seconds on top); the test's own limit (450 s for two attempts) still bounds it.
+      timeoutMs: 150_000,
       verbose: !!process.env.E2E_VERBOSE,
       faction: lineup[i],
       tier: BOT_TIER,
@@ -253,6 +267,13 @@ async function playRun(
       }
     }
 
+    // --- the run was planned: every bot, the quitter too, was dealt its two spawns in a private `plan` message and pressed ready
+    expect(loadConfig({}).planSeconds, "the live config plans").toBeGreaterThan(0);
+    for (const [i, bot] of bots.entries()) {
+      expect(bot.plansSeen, `${names[i]} was never dealt a plan`).toBeGreaterThanOrEqual(1);
+      expect(bot.sent.plan, `${names[i]} never answered its plan`).toBeGreaterThanOrEqual(1);
+    }
+
     // --- the quitter left on purpose and got no result (the server had dropped it before settling it)
     expect(runs[QUITTER]!.error, `${names[QUITTER]} failed`).toBeUndefined();
     expect(runs[QUITTER]!.abandoned, `${names[QUITTER]} never reached ${QUIT_AFTER_MS} ms into the run, so it never quit`).toBe(true);
@@ -283,8 +304,8 @@ async function playRun(
     const sent = (type: keyof BotClient["sent"]) => sum(bots.map((b) => b.sent[type]));
     const mobKills = sum(bots.map((b) => mobDeathBy(b.sessionId)));
     console.log(
-      `[e2e] seed ${bots[0]!.seed} ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}(${lineup[i]})=${results.get(i)?.outcome ?? "quit"}`).join(" ")}`
-      + ` (sent ${sent("target")} targets, ${sent("move")} moves, ${sent("swap")} swaps, ${sent("pickup")} pickups;`
+      `[e2e] seed ${bots[0]!.seed} ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}(${lineup[i]})=${results.get(i)?.outcome ?? "quit"}${results.get(i)?.killedBy ? ` by ${results.get(i)!.killedBy}` : ""}`).join(" ")}`
+      + ` (sent ${sent("target")} targets, ${sent("move")} moves, ${sent("swap")} swaps, ${sent("pickup")} pickups, ${sent("plan")} plans, ${sent("choose")} chooses;`
       + ` ${mobKills} mobs killed: ${bots.map((b) => mobDeathBy(b.sessionId)).join("/")}; longest stall ${Math.max(...players.map((i) => bots[i]!.stats.maxStallMs)) | 0} ms)`,
     );
 
@@ -323,6 +344,18 @@ async function playRun(
     // weapon fetch) stays short, whatever it was chasing.
     for (const i of players) expect(bots[i]!.stats.maxStallMs, `${names[i]} stood still for ${bots[i]!.stats.maxStallMs} ms`).toBeLessThan(MAX_STALL_MS);
     expect(fx.some((f) => f.kind === "hit" && isPlayer(f.by)), "no bot ever hit anything").toBe(true);
+
+    // --- the chests: a cleared camp drops a shared chest. The bots have no chest module yet, so what is checked is the server's side
+    // of it in the stream: one `chestTaken` per picker per chest, by a player, with an option index the chest has. (Uncovered until
+    // the brain's chest module lands: that a bot walks to a chest and takes an option.)
+    const campClears = fx.filter((f) => f.kind === "campCleared").length;
+    const chestFx = fx.flatMap((f) => (f.kind === "chestTaken" ? [f] : []));
+    expect(new Set(chestFx.map((f) => `${f.chest}/${f.by}`)).size, "a player picked twice at one chest").toBe(chestFx.length);
+    for (const f of chestFx) {
+      expect(isPlayer(f.by), `chestTaken by ${f.by}, who is no bot`).toBe(true);
+      expect(f.option, `chestTaken option ${f.option}`).toBeGreaterThanOrEqual(-1);
+    }
+    console.log(`[e2e] chests: ${campClears} camps cleared, ${chestFx.length} chestTaken fx`);
 
     // --- the signatures fired: damage over time and backlash are `hit` fx with a `sig`, and each was dealt by a fighter (a
     // player, or a mob of a region's faction) of the faction that owns that signature. What is asked of the bots is that
@@ -517,7 +550,7 @@ async function playRun(
     stopped = true;
     expect(fatal).toEqual([]);
     expect(errorSpy.mock.calls).toEqual([]);
-    return { bots, players, fx, sessions, kills: totalKills, signatureHits: botSigHits, mobKills, wishLands };
+    return { bots, players, fx, sessions, kills: totalKills, signatureHits: botSigHits, mobKills, wishLands, campClears };
   } finally {
     broadcastSpy.mockRestore();
     try {
@@ -564,7 +597,10 @@ describe("headless bots hunt through a full run", () => {
     // them really fighting, the run shows a kill by a bot (expectKill) and the signatures that go with it (expectSignature).
     // Who dies of what is not fixed: a player kill, a mob or sudden death can each take a bot, which is why the test asserts
     // the books and not a body count.
-    await playUntil("e2ebot", SIGNATURE_LINEUP, { patienceSeconds: 30, suddenDeathSeconds: 10 }, { expectKill: true, expectSignature: true, expectMobKill: true, expectWish: true });
+    await playUntil(
+      "e2ebot", SIGNATURE_LINEUP, { patienceSeconds: 30, suddenDeathSeconds: 10 },
+      { expectKill: true, expectSignature: true, expectMobKill: true, expectWish: true },
+    );
   }, 450_000);
 
   it("teleports everyone into the coliseum and the bots keep hunting there", async () => {

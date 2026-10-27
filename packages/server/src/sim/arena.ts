@@ -24,7 +24,7 @@
 //     player is that player's kill, so leaving can't dodge a bounty.
 // This module never touches the store, sockets or the Room.
 import {
-  bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_WIN,
+  bountyFor, COLISEUM_RING_RADIUS, circleClear, findPath, GV_ELITE, GV_KILL, GV_MOB, GV_MOB_CAP, GV_SKIP, GV_WIN,
   KILL_CREDIT_SECONDS, patienceSecondsFor, WIN_BONUS_MIN_OPPONENTS, WIN_BONUS_MIN_PLAYERS, PLAYER_RADIUS, SUDDEN_DEATH_KILLER, suddenDeathShare, TELEPORT_IMMUNITY_MS, TILE,
   tileToWorldCenter, worldToTile, type GameMap, type GvBreakdown, type GvReason, type RunOutcome, type RunResult,
   type Vec2,
@@ -63,13 +63,19 @@ export function patienceMs(world: World, alive: number): number {
 /** Called by startRaid once players are placed. */
 export function beginRun(world: World): void {
   const s = world.state;
-  world.arena.startedWith = s.players.size;
-  world.arena.startedHumans = [...world.players.values()].filter((rt) => !rt.bot).length;
-  s.startedWith = s.players.size;
+  // Whoever left during planning still started: they went MIA (missInPlanning), as a leave in the run does, and the gate on
+  // the win bonus and the "lone survivor wins" rule see the same count they would have seen a moment later.
+  const starters = Math.max(s.players.size, world.planning?.starters ?? 0);
+  world.arena.startedWith = starters;
+  const humans = [...world.players.values()].filter((rt) => !rt.bot).length;
+  world.arena.startedHumans = Math.max(humans, world.planning?.startedHumans ?? 0);
+  s.startedWith = starters;
   world.arena.downedThisTick = [];
   world.arena.downsBetweenTicks = 0;
   world.arena.voided = false;
-  s.patienceEndsAt = s.serverTime + patienceMs(world, s.players.size);
+  // Decision 10: the first timer can be flat (firstPatienceSeconds); every timer after a death scales (settle).
+  const first = world.config.firstPatienceSeconds;
+  s.patienceEndsAt = s.serverTime + (first !== undefined && first > 0 ? first * 1000 : patienceMs(world, s.players.size));
   s.inColiseum = false;
   s.gatesLocked = false;
   s.suddenDeathAt = 0;
@@ -84,7 +90,7 @@ export function markTickStart(world: World): void {
   world.arena.bountyAtTickStart.clear();
   for (const [id, p] of world.state.players) {
     const rt = world.players.get(id);
-    // The kill barrier is hp for every hit, so it counts here too: effective hp over max hp.
+    // A barrier is hp for every hit, so it counts here too: effective hp over max hp.
     if (rt) rt.hpFracAtTickStart = p.maxHp > 0 ? (p.hp + p.barrier) / p.maxHp : 0;
     world.arena.bountyAtTickStart.set(id, p.bounty);
   }
@@ -129,7 +135,7 @@ export function applyHits(world: World, victim: PlayerState, rtv: PlayerRuntime,
   }
   if (!top) return 0;
   if (topRival) rtv.lastHit = { by: topRival.source.rt.id, at: world.state.serverTime };
-  // A kill shield (the hp combos) takes its share first; a hit it swallows whole neither hurts nor kills.
+  // A barrier (none since the kill combos went; R6's skills) takes its share first; a hit it swallows whole neither hurts nor kills.
   total = absorbShield(victim, total);
   if (!(total > 0)) return 0;
   const before = victim.hp;
@@ -181,7 +187,7 @@ function creditKill(world: World, by: Attacker, victim: PlayerState, rtv: Player
     if (!rtv.bot) credit(world, by.p, by.rt, "bounty", bounty);
     world.hooks.bountyClaimed?.(world, by.rt, rtv, bounty);
   }
-  // After the bounty hook, so stacks just won count toward the combos this kill sets off.
+  // After the bounty hook (half the victim's buffs already moved).
   world.hooks.playerKilled?.(world, by.rt);
   updateBounty(world, by.p, by.rt);
 }
@@ -218,11 +224,21 @@ export function awardGv(world: World, p: PlayerState, rt: PlayerRuntime, reason:
   return credit(world, p, rt, reason, amount);
 }
 
+/**
+ * A chest skip that healed nothing (roguelike R5, D12): GV_SKIP GV, counted with the mob GV and so stopped by GV_MOB_CAP
+ * like it. Returns the GV paid (0 once the cap is reached, for a player whose result is out, or in a training room).
+ */
+export function awardSkipGv(world: World, p: PlayerState, rt: PlayerRuntime): number {
+  // The training room records nothing (practice kills pay none either): no GV, so no "+3 GV" toast.
+  if (world.config.training) return 0;
+  return credit(world, p, rt, "skip", Math.min(GV_SKIP, Math.max(0, GV_MOB_CAP - rt.gv.mobs)));
+}
+
 function credit(world: World, p: PlayerState, rt: PlayerRuntime, reason: Exclude<GvReason, "win">, amount: number): number {
   if (rt.resolved || amount <= 0) return 0;
   if (reason === "kill") rt.gv.kills += amount;
   else if (reason === "bounty") rt.gv.bounty += amount;
-  else rt.gv.mobs += amount;
+  else rt.gv.mobs += amount; // mob, elite and a chest skip: one pot under GV_MOB_CAP
   p.gv = rt.gv.kills + rt.gv.mobs + rt.gv.bounty;
   emit(world, { type: "gv", id: rt.id, amount, reason });
   return amount;
@@ -257,7 +273,9 @@ function updateBounty(world: World, p: PlayerState, rt: PlayerRuntime): void {
 /** The Room lost this player's connection and holds the seat for a reconnect (they stay in the fight meanwhile). */
 export function markDropped(world: World, id: string): void {
   const rt = world.players.get(id);
-  if (rt && rt.droppedAt === null && world.state.phase === "active") rt.droppedAt = world.state.serverTime;
+  // During planning too: a dropped player does not hold up the early start (sim/planning.ts everyoneReady).
+  const held = world.state.phase === "active" || world.state.phase === "planning";
+  if (rt && rt.droppedAt === null && held) rt.droppedAt = world.state.serverTime;
   // A press that arrived just before the socket closed would hold the trigger for the whole grace.
   rt?.inputs.drain();
   releaseHeld(world, id);
@@ -305,6 +323,20 @@ export function downPlayer(world: World, p: PlayerState, rt: PlayerRuntime, outc
   resolve(world, p, rt, outcome, alivePlayers(world).length + 1, 0);
 }
 
+/**
+ * A player leaves during the planning phase: MIA, as a leave in the run is, so it costs them what that costs (a run and a
+ * death in their stats) and nothing can be got for free by leaving to see the deal and queueing again. Their result goes out
+ * at once. Nothing else follows from the run: no body (nothing was brought in), no kill credit (nobody can have hit them), no
+ * GV, and no settle (it does not run in planning). Called by removePlayer before it deletes them, so `place` counts the
+ * players still in the room: the first of eight to leave is 8th, as the first to go MIA in a run of eight is.
+ */
+export function missInPlanning(world: World, p: PlayerState, rt: PlayerRuntime): void {
+  if (rt.resolved) return;
+  rt.down = { outcome: "mia" };
+  rt.path = [];
+  resolve(world, p, rt, "mia", world.state.players.size, 0);
+}
+
 function resolve(
   world: World, p: PlayerState, rt: PlayerRuntime, outcome: RunOutcome, place: number, win: number, winBonusWithheld = false,
 ): void {
@@ -336,7 +368,7 @@ function resolve(
  * standing player loses a share of max hp per second that grows by SUDDEN_DEATH_RAMP_FRACTION each whole second.
  * Only whole ticks after `suddenDeathAt` burn (it is set on the tick grid), so the ramp is the same at any tick rate.
  * The burn is a ledger entry (all true damage, from SUDDEN_DEATH_KILLER, credited to nobody), so it lands in the same
- * pass as the tick's hits and no spoils won by a kill in that pass (a kill barrier, bounty stacks) can save anyone from it.
+ * pass as the tick's hits and no spoils won by a kill in that pass (bounty buffs, the max hp they bring) can save anyone from it.
  */
 export function suddenDeath(world: World, dtMs: number): void {
   const s = world.state;

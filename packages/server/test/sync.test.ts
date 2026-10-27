@@ -7,13 +7,13 @@
 import { describe, expect, it } from "vitest";
 import { Decoder, Encoder, Reflection } from "@colyseus/schema";
 import {
-  buffRows, CLIENT_MESSAGE_TYPES, damageShares, DUMMY_HP, DUMMY_RESET_SECONDS, FACTIONS, GV_KILL, mulberry32, raycast, SIGNATURE_WEAPONS,
-  stacksOfPlayer, SWAP_SECONDS, TICK_MS, unpackFx, unpackLaunches, type FxEvent, type ProjectileLaunch, type TimedFx, type Vec2,
+  buffViews, CLIENT_MESSAGE_TYPES, damageShares, decodeMult, DUMMY_HP, DUMMY_RESET_SECONDS, FACTIONS, GV_KILL, mulberry32, raycast,
+  SIGNATURE_WEAPONS, SWAP_SECONDS, TICK_MS, unpackFx, unpackLaunches, type FxEvent, type ProjectileLaunch, type TimedFx, type Vec2,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { applyDamage } from "../src/sim/arena";
-import { grantStacks, onKill } from "../src/sim/buffs";
+import { grantBarrier, grantBuff } from "../src/sim/buffs";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -63,7 +63,8 @@ function snapshot(state: RaidState) {
   const players = [...state.players]
     .map(([key, p]) => ({
       key, name: p.name, bot: p.bot, ...fighter(p), status: p.status, kills: p.kills, gv: p.gv, bounty: p.bounty, immuneUntil: u32(p.immuneUntil),
-      mobKills: p.mobKills, stacksHp: f32(p.stacksHp), stacksAs: f32(p.stacksAs), stacksMs: f32(p.stacksMs), barrier: f32(p.barrier),
+      mobKills: p.mobKills, buffs: [...p.buffs].map(([id, n]) => [id, f32(n)] as const).sort(([a], [b]) => a.localeCompare(b)),
+      barrier: f32(p.barrier),
       // The stat mirrors are exact on the wire: the client decodes the very value the sim used.
       asMult: p.asMult, windupMult: p.windupMult, speedMult: p.speedMult, armorBonus: p.armorBonus, shieldBonus: p.shieldBonus,
     }))
@@ -317,7 +318,7 @@ describe("schema round trip", () => {
     expect(snapshot(client)).toEqual(snapshot(world.state));
   });
 
-  it("decodes the buff stacks, the kill barrier and the mob kills, and the HUD reads the decoded stacks as the player earned them", () => {
+  it("decodes the buffs map, the stat mirrors, the barrier and the mob kills, and the HUD reads the decoded stacks as the player earned them", () => {
     const world = makeWorld(41, 2);
     addPlayer(world, "a", "alice");
     addPlayer(world, "b", "bob");
@@ -326,27 +327,47 @@ describe("schema round trip", () => {
     const tick = () => { step(world, TICK_MS); wire.flush(); };
     tick(); // the run starts
     const [p, rt] = [world.state.players.get("a")!, world.players.get("a")!];
-    // 1.1 is what a mob drops; 3.4 hp stacks unlock the shield combo, and a kill then wraps the player in a barrier.
-    grantStacks(world, p, rt, "attackSpeed", 1.1);
-    grantStacks(world, p, rt, "moveSpeed", 0.7);
-    grantStacks(world, p, rt, "hp", 3.4);
-    onKill(world, p, rt);
+    expect(client.players.get("a")!.buffs.size).toBe(0);
+    const baseMaxHp = p.maxHp;
+    // 1.1 is what a mob drops; the map entries are added by the first grant of each buff.
+    grantBuff(world, p, rt, "emberImp", 1.1); // damage: no mirror
+    grantBuff(world, p, rt, "cinderHound", 0.7); // move speed while chasing a lock: the speedMult mirror stays 1
+    grantBuff(world, p, rt, "plagueRat", 3.4); // attack speed: the asMult mirror
+    grantBuff(world, p, rt, "iceGolem", 3.4); // max hp, and the hp that comes with it
+    grantBarrier(p, rt, 40, world.state.serverTime + 5000);
     p.mobKills = 300; // more than a byte holds
-    expect(p.barrier).toBeGreaterThan(0);
+    expect(p.barrier).toBe(40);
+    expect(p.asMult).toBeGreaterThan(1000);
+    expect(p.maxHp).toBeGreaterThan(baseMaxHp); // grown by the Ice Golem rows
     tick();
 
     const mine = client.players.get("a")!;
     expect(mine.mobKills).toBe(300);
     expect(mine.barrier).toBeCloseTo(p.barrier, 3);
-    expect([mine.stacksHp, mine.stacksAs, mine.stacksMs].map((v) => +v.toFixed(4))).toEqual([3.4, 1.1, 0.7]);
+    expect(mine.maxHp).toBeCloseTo(p.maxHp, 3);
+    expect(mine.maxHp).toBeGreaterThan(baseMaxHp);
+    expect(mine.asMult).toBe(p.asMult); // the mirrors are exact on the wire: the client decodes the value the sim used
+    expect(decodeMult(mine.asMult)).toBeGreaterThan(1);
+    expect(mine.speedMult).toBe(1000);
+    expect([...mine.buffs].map(([id, n]) => [id, +n.toFixed(4)]).sort(([x], [y]) => String(x).localeCompare(String(y)))).toEqual([
+      ["cinderHound", 0.7], ["emberImp", 1.1], ["iceGolem", 3.4], ["plagueRat", 3.4],
+    ]);
     expect(snapshot(client)).toEqual(snapshot(world.state));
     expect(snapshot(connect(wire.encoder).state)).toEqual(snapshot(world.state)); // and a client joining now
-    // What the HUD shows is read off the decoded player: 1.1 stays 1.1 (a narrower field would read 1.0) and 3.4 hp stacks is the combo.
-    const rows = buffRows(stacksOfPlayer(mine));
-    expect(rows.map((r) => r.stacksText)).toEqual(["3.4", "1.1", "0.7"]);
-    expect(rows.map((r) => r.combo?.id ?? null)).toEqual(["shield", null, null]);
+    // What the HUD shows is read off the decoded player: 1.1 stays 1.1 (a narrower field would read 1.0), in catalog order.
+    const rows = buffViews(mine.buffs);
+    expect(rows.map((r) => [r.id, r.stacksText])).toEqual([["emberImp", "1.1"], ["cinderHound", "0.7"], ["plagueRat", "3.4"], ["iceGolem", "3.4"]]);
+
+    // A later grant of a buff already held patches its entry in place (a map entry changes, nothing is added).
+    grantBuff(world, p, rt, "emberImp", 1.1);
+    tick();
+    expect(mine.buffs.size).toBe(4);
+    expect(mine.buffs.get("emberImp")!).toBeCloseTo(2.2, 5);
+    expect(snapshot(client)).toEqual(snapshot(world.state));
+    expect(buffViews(mine.buffs).find((r) => r.id === "emberImp")!.stacksText).toBe("2.2");
     // The other player is untouched.
-    expect(client.players.get("b")!).toMatchObject({ mobKills: 0, stacksHp: 0, stacksAs: 0, stacksMs: 0, barrier: 0 });
+    expect(client.players.get("b")!).toMatchObject({ mobKills: 0, barrier: 0, asMult: 1000, speedMult: 1000, windupMult: 1000 });
+    expect(client.players.get("b")!.buffs.size).toBe(0);
   });
 
   it("decodes a teleport and sudden death: gates, coliseum, immunity and the timers", () => {
@@ -749,9 +770,13 @@ describe("schema round trip", () => {
     const inputs = world.players.get("a")!.inputs;
     const valid: Record<(typeof CLIENT_MESSAGE_TYPES)[number], unknown> = {
       move: { x: 100, y: 100 }, stop: {}, target: { id: "p1" }, aim: { a: 1 }, attack: { a: 1 }, release: { a: 1 }, swap: {}, pickup: { containerId: "c1" },
+      plan: { ready: true },
       cast: { slot: "wish", x: 100, y: 100 },
+      choose: { chest: "c1", pick: 0 }, train: { cmd: "clear" },
     };
-    for (const type of CLIENT_MESSAGE_TYPES) expect(enqueueClientMessage(inputs, type, valid[type]), type).toBe(true);
+    // The arena world takes every type but the practice console's.
+    for (const type of CLIENT_MESSAGE_TYPES) expect(enqueueClientMessage(inputs, type, valid[type]), type).toBe(type !== "train");
+    expect(enqueueClientMessage(inputs, "train", valid.train, { training: true })).toBe(true);
     for (const type of ["take", "drop", "use", "teleport"]) expect(enqueueClientMessage(inputs, type, { uid: "x", containerId: "c1" }), type).toBe(false);
   });
 });

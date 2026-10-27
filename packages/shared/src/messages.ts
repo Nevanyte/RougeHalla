@@ -1,6 +1,6 @@
 // Wire contracts. Client→server messages are inputs only; the server decides outcomes.
 import type { AbilityId, AbilitySlot, CastEndReason } from "./abilities";
-import type { BuffStat, ComboId } from "./buffs";
+import type { BuffId } from "./buffs";
 import type { FactionId } from "./factions";
 import type { SignatureKind } from "./signatures";
 import type { StatusKind } from "./status";
@@ -8,7 +8,12 @@ import type { ProjectileKind, WeaponId } from "./weapons";
 
 export interface Vec2 { x: number; y: number }
 
-export type RaidPhase = "lobby" | "active" | "ended";
+/**
+ * "planning" (roguelike R3) sits between the lobby and the run when the server's planSeconds is above 0: the room is locked,
+ * each player is dealt two spawns in a private `plan` message and picks one; nobody moves, fights or is hurt. It ends at
+ * `RaidState.planEndsAt`, or as soon as every connected player is ready (`PlayerState.planReady`), and then the run starts.
+ */
+export type RaidPhase = "lobby" | "planning" | "active" | "ended";
 /**
  * A lone survivor wins and stays "alive" (state.winner names them). A winner decided between players who went down in
  * the same last tick, and everyone in a draw, are "dead".
@@ -16,9 +21,10 @@ export type RaidPhase = "lobby" | "active" | "ended";
 export type PlayerStatus = "lobby" | "alive" | "dead" | "mia";
 /**
  * A chest holds one weapon and stays (opened) once emptied; a ground weapon vanishes when taken; a body holds what a
- * fallen player carried.
+ * fallen player carried. A "reward" (roguelike R5) is a cleared camp's shared skill chest: no items, its options in the
+ * container's `options`/`takenBy`/`pickers`, taken with `choose` (never `pickup`), gone at `expiresAt`.
  */
-export type ContainerKind = "chest" | "ground" | "body";
+export type ContainerKind = "chest" | "ground" | "body" | "reward";
 
 /**
  * Client -> server. Keys are the Colyseus message types. Angles are radians on the ground plane, measured from where
@@ -62,15 +68,55 @@ export interface ClientMessages {
   /** Take a weapon from a chest, the ground or a body in reach (F). With both slots full, the one in hand is dropped. */
   pickup: { containerId: string };
   /**
+   * The planning screen (phase "planning" only; dropped in any other phase). `spawn` and `boon` are indexes into the two
+   * options of the player's own private `plan` message (0 or 1, nothing else); at least one field must be there. The
+   * first player to pick a spawn holds it, and everyone else who was dealt it is told it is taken. Picking the other option
+   * lets go of the first. `ready: true` latches (false changes nothing) and freezes the picks; the run starts early once
+   * every connected player is ready.
+   */
+  plan: { spawn?: 0 | 1; boon?: 0 | 1; ready?: boolean };
+  /**
    * Cast the ability in `slot` ("wish" = the faction's Wish, key D; "q"/"e" arrive with skills). (x, y): the cursor's ground
    * point (clamped like `move`; the point or direction, ignored by self casts). `id`: a unit target. `t`: render time (clamped;
    * unused until skills rewind). `seq`: as for `move`, echoed in moveSeq (sent with a blink). Refused silently, at no cost,
    * unless ready, standing, not stunned/silenced (or rooted, for some), not already casting, and the target is valid.
    */
   cast: { slot: AbilitySlot; x: number; y: number; id?: string; t?: number; seq?: number };
+  /**
+   * A cleared camp's shared chest (roguelike R5; a container of kind "reward"): take option `pick` (an index into its
+   * `options`), or skip it with -1. One pick per player per chest, a skip included; first come first served (within a tick,
+   * the server's shuffled order decides). Refused, with a toast and no pick used, when the picker is not standing, is
+   * farther than CHEST_RANGE from the chest (the SERVER's position) or has no line of sight to it, has already picked here,
+   * the chest is gone or expired, the option is taken, or it is a skill the picker holds at its top rank. `replace` is
+   * reserved for R6's skill slots: parsed, accepted, and ignored until then.
+   */
+  choose: { chest: string; pick: number; replace?: 0 | 1 };
+  /**
+   * The training room's practice console (shared/training.ts, server sim/training.ts). Dropped (and not counted as presence)
+   * unless the room is a training room, so an arena client can never use it. Nothing it does is recorded or paid.
+   */
+  train: TrainMessage;
 }
+
+/**
+ * One practice-console command. `buff`: set the stacks held of that mob type's buff to `amount` (default TRAIN_DEFAULT_STACKS,
+ * clamped to 0..TRAIN_MAX_STACKS; 0 removes it). `passive`: set that skill's rank (0 removes it, 1, 2; default 1; a skill whose
+ * machinery is not live yet is set but does nothing, and the reply toast says so). `camp`: spawn a practice camp of that mob
+ * type near the player (3 mobs of a normal type, one elite for an elite type). `chest`: drop a reward chest about two tiles
+ * away with these skill ids as its options (1 to CHEST_OPTIONS, no duplicates), or three random live ones for the player's
+ * faction when `options` is empty or absent. `clear`: remove every buff, passive, practice mob and reward chest.
+ */
+export type TrainMessage =
+  | { cmd: "buff"; id: string; amount?: number }
+  | { cmd: "passive"; id: string; rank?: number }
+  | { cmd: "camp"; id: string }
+  | { cmd: "chest"; options?: string[] }
+  | { cmd: "clear" };
+
 export type ClientMessageType = keyof ClientMessages;
-export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "cast"];
+export const CLIENT_MESSAGE_TYPES: readonly ClientMessageType[] = [
+  "move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train",
+];
 
 /** Why a projectile stopped (a `projEnd` fx). */
 export type ProjectileEnd =
@@ -127,10 +173,9 @@ export type FxEvent =
   | { kind: "teleport" }
   /** A player's bounty rose: "<name> is on a rampage — bounty N GV". At most one per player per BOUNTY_ANNOUNCE_MS; a rise held back goes out when the window ends. */
   | { kind: "bounty"; id: string; name: string; bounty: number }
-  /** `id` gained buff stacks (a mob drop or a bounty): `stacks` of `stat`, and the new total. */
-  | { kind: "buff"; id: string; stat: BuffStat; stacks: number; total: number }
-  /** `id` reached a combo tier (`proc` false) or a kill set it off (`proc` true). */
-  | { kind: "combo"; id: string; combo: ComboId; proc: boolean }
+  /** `id` gained buff stacks (a mob kill or a bounty): `stacks` of `buff` (a BuffId), and the new total. */
+  | { kind: "buff"; id: string; buff: BuffId; stacks: number; total: number }
+  // "combo" (wire code 11) is retired with the kill combos (roguelike R4a): never emitted, its code never reused.
   /** The run is over. `id`/`name` are the winner's; both null with `draw` for a draw, and without it when nobody won (a solo run, or everyone left). */
   | { kind: "victory"; id: string | null; name: string | null; draw: boolean }
   /**
@@ -143,15 +188,23 @@ export type FxEvent =
   /** A begun cast ended unlanded: it fizzled at its landing, a status interrupted it, or the arena cancelled it. */
   | { kind: "castEnd"; by: string; ability: AbilityId; reason: CastEndReason }
   /** A status instance was newly applied to `id` (not on a refresh or an expiry), lasting `ms` from the batch's `t`; `by` is its source. */
-  | { kind: "status"; id: string; status: StatusKind; ms: number; by: string | null };
+  | { kind: "status"; id: string; status: StatusKind; ms: number; by: string | null }
+  /** Camp `camp` (its index in map.camps and RaidState.camps) was cleared this tick: its shared chest drops at once. */
+  | { kind: "campCleared"; camp: number }
+  /** `by` made their pick at the reward container `chest`: option index `option` (into its `options`), or -1 for a skip. */
+  | { kind: "chestTaken"; chest: string; by: string; option: number };
 
 /** How one player's run ended. `won` and `draw` only happen in a contested run (two or more starters). */
 export type RunOutcome = "won" | "draw" | "died" | "mia";
 
 /** Why GV was credited during a run (a `gv` event). The win bonus is not one: it is decided when the run resolves. */
-export type GvReason = "kill" | "mob" | "elite" | "bounty";
+/** "skip": a chest skip that healed nothing (D12); it counts with the mob GV, under GV_MOB_CAP. */
+export type GvReason = "kill" | "mob" | "elite" | "bounty" | "skip";
 
-/** GV a run paid out. `bounty` is from killing bountied players. `total` is what was banked: kills + mobs + bounty + win. */
+/**
+ * GV a run paid out. `bounty` is from killing bountied players; `mobs` includes chest skips' GV (both under GV_MOB_CAP).
+ * `total` is what was banked: kills + mobs + bounty + win.
+ */
 export interface GvBreakdown { kills: number; mobs: number; bounty: number; win: number; total: number }
 
 export interface ItemDTO { uid: string; def: string }
@@ -219,11 +272,36 @@ export interface ProjectileLaunch {
   range: number;
 }
 
+/**
+ * One player's planning deal (roguelike R3), sent to that player only: when planning starts, again whenever anything in it
+ * changes (an option of theirs taken or freed by someone else, their own pick), and on a reconnect during planning. Nothing
+ * of it is in the synced state. The latest message replaces the earlier ones.
+ */
+export interface PlanMessage {
+  /** Server time planning ends (the same as RaidState.planEndsAt; it can end sooner when everyone is ready). */
+  endsAt: number;
+  /**
+   * The two spawns dealt, as indexes into `generateMap(seed).spawnPool`: both at about the same walking distance from the
+   * coliseum centre (planning.ts `spawnWalks`) and in different zones where the pool allows. -1 only on a map with no spawn pool.
+   */
+  spawns: [number, number];
+  /** That option is held by another player's pick (never set for the player's own pick). */
+  taken: [boolean, boolean];
+  /** The player's own spawn pick (an index into `spawns`), or -1 for none yet. */
+  pick: -1 | 0 | 1;
+  /** The start boons dealt (BoonId); empty until roguelike R7. */
+  boons: string[];
+  /** The player's own boon pick, or -1. */
+  boon: -1 | 0 | 1;
+}
+
 /** Server → client. */
 export interface ServerMessages {
   fxs: FxBatch;
   toast: { text: string };
   result: RunResult;
+  /** Private: only the player it is dealt to receives it (see PlanMessage). */
+  plan: PlanMessage;
 }
 
 /**

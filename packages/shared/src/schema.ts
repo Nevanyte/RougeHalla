@@ -53,27 +53,41 @@ export const PlayerState = schema({
   brand: t.uint8().default(0),
   /** Mobs killed this run (feed = kills + FEED_MOB_KILL_WEIGHT x this; it sets the mob reward curve; the bounty ignores mobs). */
   mobKills: t.uint16().default(0),
-  /** Buff stacks per stat (real numbers: mob drops scale with the reward curve). The bonuses follow buffs.ts. */
-  stacksHp: t.float32().default(0),
-  stacksAs: t.float32().default(0),
-  stacksMs: t.float32().default(0),
-
-  // --- Stat mirrors (roguelike R0, sim/mods.ts) ---
+  // --- Buffs and stat mirrors (roguelike R4a; shared/buffs.ts, sim/buffs.ts, sim/mods.ts) ---
   /**
-   * In wire form: the server's sim/mods.ts folds them and simulates with exactly these values. Read them through
-   * decodeMirrors (or decodeMult / decodeFlat) in shared/mods.ts, never raw. The multipliers are float64, the very double
-   * the sim uses; the flat bonuses are int16 tenths of a point. The defaults are the identity, so a fighter nothing buffs
-   * never patches them.
+   * Buff stacks held, keyed by BuffId (a mob type id, shared/buffs.ts): real numbers, since a kill's grant is scaled by the
+   * reward curve and a bounty moves half of each. An entry appears with the first stacks of that buff and is never removed
+   * during the run. What they give follows buffs.ts (buffRows); the mirrors below carry what a client needs exactly.
    */
-  asMult: t.float64().default(1),
-  windupMult: t.float64().default(1),
-  speedMult: t.float64().default(1),
+  buffs: t.map("float32"),
+  /**
+   * In wire form: the server's sim/mods.ts folds them and simulates with exactly these values (D22). Read them through
+   * decodeMirrors (or decodeMult / decodeFlat) in shared/mods.ts, never raw. The multipliers are uint16 thousandths
+   * (1000 = x1); the flat bonuses int16 tenths of a point. The defaults are the identity, and a mirror patches only when its
+   * quantized value changes, so a fighter nothing buffs never patches them.
+   */
+  asMult: t.uint16().default(1000),
+  windupMult: t.uint16().default(1000),
+  speedMult: t.uint16().default(1000),
   armorBonus: t.int16().default(0),
   shieldBonus: t.int16().default(0),
-  // --- end of the stat mirrors ---
+  // --- end of the buffs and stat mirrors ---
 
-  /** Hp the kill barrier (the hp combos) still absorbs; 0 = none. Not the faction's magic `shield` stat. */
+  /**
+   * The run's build (roguelike R5; ROGUELIKE_PLAN 3.8): skill id (shared/skills.ts SkillId) -> rank (1 or 2), from the camps'
+   * shared chests. An entry appears with the first pick of that skill and is never removed during the run; R7 adds relics,
+   * curses and boons. What it gives folds through sim/mods.ts like the buffs (the mirrors above carry what a client needs).
+   * Read it through shared/skills.ts rankIn (which also takes undefined or a plain record).
+   */
+  build: t.map("uint8"),
+
+  /** Hp a barrier still absorbs; 0 = none (no source since the kill combos went; R6 skills add one). Not the faction's magic `shield` stat. */
   barrier: t.float32().default(0),
+
+  // --- Planning (roguelike R3, sim/planning.ts) ---
+  /** The player pressed Ready on the planning screen (a latch). Only meaningful while phase is "planning"; the deal itself is private. */
+  planReady: t.boolean().default(false),
+  // --- end of planning ---
   /** Active statuses as EFFECT_* bits (status.ts): crowd control, slows, hidden, casting... For prediction, targeting and art. */
   effects: t.uint16().default(0),
   /** Server time each ability slot is ready again (0 = ready), read and written through slotReadyAt / setSlotReadyAt (abilities.ts). */
@@ -109,11 +123,37 @@ export const MobState = schema({
   readyAt: t.uint32().default(0),
   sig: t.uint8().default(0),
   brand: t.uint8().default(0),
+  /** A regional mob's type (MobTypeId, shared/mobs.ts MOB_TYPES): its skin and the buff it gives; "" for a dummy. */
+  type: t.string().default(""),
+  /** The camp it belongs to: its index in map.camps (and RaidState.camps) + 1; 0 = none (a dummy). */
+  camp: t.uint8().default(0),
   /** EFFECT_* bits, as on PlayerState. */
   effects: t.uint16().default(0),
   displaceSeq: t.uint8().default(0),
 }, "MobState");
 export type MobState = SchemaType<typeof MobState>;
+
+/**
+ * One camp's public runtime (roguelike R4a/R5), at the same index as its CampDef in `map.camps`; the geometry stays
+ * seed-derived. Rosters are rolled server-side (world.rewardRandom) and published here at world build.
+ */
+export const CampState = schema({
+  /** MobTypeId of the camp's normal mobs (an elite camp's elite is its zone's elite type). */
+  type: t.string().default(""),
+  /**
+   * "" | "?" | "skills" | "relic" | "cursed": what clearing it gives ("?" hides it until the first damage, R7). Left "" in R5:
+   * every camp, elite ones included (D8), drops a skill chest until R7 sets the kinds.
+   */
+  reward: t.string().default(""),
+  /** Mobs of the camp still alive. */
+  alive: t.uint8().default(0),
+  /**
+   * 0 idle (nobody has hurt a member yet), 1 engaged (a member has taken damage: it never goes back to 0, so R7's "?" reveal
+   * can read it), 2 cleared (every member died: the camp never respawns, and stays cleared through the coliseum teleport).
+   */
+  state: t.uint8().default(0),
+}, "CampState");
+export type CampState = SchemaType<typeof CampState>;
 
 /**
  * An area of the ability framework (a Trial's zone, a Swarm's cloud, a Blaze Step's trail). The server sets an entry once and
@@ -150,6 +190,19 @@ export const ContainerState = schema({
   y: t.number().default(0),
   label: t.string().default(""),
   items: t.array(ItemState),
+  // --- A camp's shared chest (kind "reward"; roguelike R5, sim/chests.ts). Unused (0 and empty) on every other kind. The
+  // three empty arrays on each weapon container cost ~0.15-0.25 KB/s per client (they push every later ref id, players and
+  // mobs, past one varint byte); `.optional()` on them would win it back (a Known TODO). ---
+  /** The camp it dropped for: its index in map.camps (and RaidState.camps) + 1; 0 = none. */
+  camp: t.uint8().default(0),
+  /** Server time it vanishes (dropped + CHEST_SECONDS); a pick at or after it is refused. */
+  expiresAt: t.uint32().default(0),
+  /** The options, as SkillIds (shared/skills.ts), in card order. Public by design (D17): the UI shows them only in range. */
+  options: t.array("string"),
+  /** Parallel to `options`: "" while free, else the id of the player who took it. */
+  takenBy: t.array("string"),
+  /** Every player who has made their one pick here, an option or a skip, in the order they made it. */
+  pickers: t.array("string"),
 }, "ContainerState");
 export type ContainerState = SchemaType<typeof ContainerState>;
 
@@ -189,5 +242,12 @@ export const RaidState = schema({
    * appends, through FxChannel.
    */
   roster: t.array("string"),
+  /**
+   * Server time the planning phase ends (roguelike R3; it can end sooner when every connected player is ready). Set when
+   * planning starts, 0 outside it. The dealt spawns, picks and taken flags are never synced: they go in private `plan` messages.
+   */
+  planEndsAt: t.uint32().default(0),
+  /** One per map camp, in `map.camps` order (roguelike R4a; filled at world build by the camps track, empty until then). */
+  camps: t.array(CampState),
 }, "RaidState");
 export type RaidState = SchemaType<typeof RaidState>;

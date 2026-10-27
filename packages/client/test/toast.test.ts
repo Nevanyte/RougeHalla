@@ -23,10 +23,9 @@ describe("toast tones", () => {
     expect(shown().map((n) => n.className)).toEqual(["toast"]);
   });
 
-  it("adds the tone as a class: buff, combo, error and ok", () => {
-    for (const tone of ["buff", "combo", "error", "ok"] as const) toasts.show(`news ${tone}`, tone);
-    // MAX_VISIBLE is 3, so the oldest went; the rest keep their class.
-    expect(shown().map((n) => n.className)).toEqual(["toast combo", "toast error", "toast ok"]);
+  it("adds the tone as a class: buff, error and ok", () => {
+    for (const tone of ["buff", "error", "ok"] as const) toasts.show(`news ${tone}`, tone);
+    expect(shown().map((n) => n.className)).toEqual(["toast buff", "toast error", "toast ok"]);
   });
 
   it("an error toast outlasts a plain one, and an ok toast sits between", () => {

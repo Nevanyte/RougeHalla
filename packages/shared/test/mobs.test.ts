@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  comboTier, duel, ELITE_BUFF_STACKS, ELITE_K, eliteTypeOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_BUFF_STACKS, MOB_K, MOB_TYPES,
+  BUFF_REF_STACKS, buffScale, duel, ELITE_BUFF_STACKS, ELITE_K, eliteTypeOf, FACTION_IDS, FACTIONS, isRegionalKind, isWeaponId, MOB_BUFF_STACKS, MOB_K, MOB_TYPES,
   mobBuffStacks, mobTypeById, mobTypesOf, normalTypesOf, rewardCurve,
   mobFaction, mobName, mobWeapon, pacedFaction, REGION_WEAPONS, scaledFaction, SIGNATURE_WEAPONS, WEAPON_IDS, WEAPONS,
   type FactionId, type FactionSpec, type MobKind, type MobTypeDef, type MobTypeId, type WeaponId,
@@ -14,8 +14,8 @@ const DAMAGE_PARAMS = ["burn", "backlash", "plague", "execute", "mark_ramp", "ma
 
 describe("the tunables the mob catalog reads", () => {
   it("are the contract's numbers", () => {
-    expect([MOB_K, ELITE_K]).toEqual([0.45, 0.65]);
-    expect([MOB_BUFF_STACKS, ELITE_BUFF_STACKS]).toEqual([1.1, 2.2]);
+    expect([MOB_K, ELITE_K]).toEqual([0.22, 0.65]);
+    expect([MOB_BUFF_STACKS, ELITE_BUFF_STACKS]).toEqual([1.1, 3.1]);
   });
 
   it("are reachable from the shared index, with the catalog", () => {
@@ -82,12 +82,12 @@ describe("mobFaction", () => {
     expect(mobFaction("holy", true).params).toEqual(FACTIONS.holy.params);
   });
 
-  it("has concrete numbers: a Fire mob is 225 hp and a 67.5 hit, a Plague elite 650 hp", () => {
-    expect(mobFaction("fire", false).hp).toBeCloseTo(225, 9);
-    expect(mobFaction("fire", false).hit).toBeCloseTo(67.5, 9);
-    expect(mobFaction("fire", false).params.burn).toBeCloseTo(4.5, 9);
+  it("has concrete numbers: a Fire mob is 110 hp and a 33 hit, a Plague elite 650 hp", () => {
+    expect(mobFaction("fire", false).hp).toBeCloseTo(110, 9);
+    expect(mobFaction("fire", false).hit).toBeCloseTo(33, 9);
+    expect(mobFaction("fire", false).params.burn).toBeCloseTo(2.2, 9);
     expect(mobFaction("plague", true).hp).toBeCloseTo(650, 9);
-    expect(mobFaction("sentenced", false).params.mark_cap).toBeCloseTo(275 * 0.45, 9);
+    expect(mobFaction("sentenced", false).params.mark_cap).toBeCloseTo(275 * MOB_K, 9);
   });
 
   it("makes every mob weaker than the player's faction and every elite strictly stronger than the normal mob", () => {
@@ -167,18 +167,24 @@ describe("mobName", () => {
 });
 
 describe("mobBuffStacks", () => {
-  it("three hungry drops of one stat reach the first combo (the reward curve never exceeds 0.976)", () => {
+  it("three hungry kills of one camp reach the quoted value (the reward curve never exceeds 0.976)", () => {
     const feeds = [0, 0.25, 0.5];
     const stacks = feeds.reduce((sum, f) => sum + mobBuffStacks(false) * rewardCurve(f), 0);
-    expect(stacks).toBeGreaterThanOrEqual(3);
-    expect(comboTier(stacks)).toBe(1);
+    expect(stacks).toBeGreaterThanOrEqual(BUFF_REF_STACKS);
+    expect(buffScale(stacks)).toBeGreaterThanOrEqual(1);
   });
 
-  it("is MOB_BUFF_STACKS for a mob and ELITE_BUFF_STACKS for an elite: 1.1 and 2.2", () => {
+  it("gives an elite's buff its quoted value in one hungry kill (3.1 x 0.976 is a little over 3 stacks)", () => {
+    const stacks = mobBuffStacks(true) * rewardCurve(0);
+    expect(stacks).toBeGreaterThanOrEqual(BUFF_REF_STACKS);
+    expect(buffScale(stacks)).toBeCloseTo(1, 1);
+  });
+
+  it("is MOB_BUFF_STACKS for a mob and ELITE_BUFF_STACKS for an elite: 1.1 and 3.1", () => {
     expect(mobBuffStacks(false)).toBe(MOB_BUFF_STACKS);
     expect(mobBuffStacks(true)).toBe(ELITE_BUFF_STACKS);
     expect(mobBuffStacks(false)).toBe(1.1);
-    expect(mobBuffStacks(true)).toBe(2.2);
+    expect(mobBuffStacks(true)).toBe(3.1);
   });
 
   it("pays an elite more than a mob", () => {
@@ -186,7 +192,7 @@ describe("mobBuffStacks", () => {
   });
 });
 
-// THE k GUESS (contract, "Guesses to report" 1). MOB_K = 0.45 and ELITE_K = 0.65 are the owner-pending values. The fixed
+// THE k GUESS (contract, "Guesses to report" 1). MOB_K = 0.22 (0.45 before the owner's "weaker mobs" ruling, which R5's camp-wide aggro called for: bench/campDuel.ts) and ELITE_K = 0.65 are the owner-pending values. The fixed
 // target they were picked for: a starting player (its faction with its signature weapon) beats the normal mob of every
 // region (each with that region's weapon) and keeps most of its hp, while an elite is a real fight that the faction which
 // counters the player can win. This runs the reference duel on all 25 starting matchups and fails if a retune breaks that.

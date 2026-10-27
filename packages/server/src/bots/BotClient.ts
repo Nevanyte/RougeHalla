@@ -90,6 +90,9 @@ const MAX_SENDS_PER_SECOND = 90;
 const STALL_LOG_STEP_MS = 1500;
 /** Private messages kept for the next frame, at most. */
 const MAX_PRIVATES = 64;
+/** TODO(planning module): until the brain has one, the bot presses Ready this long (ms) into the planning phase, uniform in the range. */
+const PLAN_READY_MIN_MS = 1000;
+const PLAN_READY_MAX_MS = 3000;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
@@ -122,7 +125,11 @@ export class BotClient {
   /** `teleport` fx seen: how many times the arena moved everyone into the coliseum. */
   teleports = 0;
   /** Inputs sent so far, by message type. */
-  readonly sent: Record<ClientMessageType, number> = { move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, cast: 0 };
+  readonly sent: Record<ClientMessageType, number> = {
+    move: 0, stop: 0, target: 0, aim: 0, attack: 0, release: 0, swap: 0, pickup: 0, plan: 0, cast: 0, choose: 0, train: 0,
+  };
+  /** Private `plan` deals received (the server deals every player in the planning phase; the tests read it). */
+  plansSeen = 0;
 
   private profile = "";
   private room!: ClientRoom;
@@ -148,6 +155,11 @@ export class BotClient {
   /** Times of the messages sent in the last second. */
   private sendTimes: number[] = [];
   private stallLogged = 0;
+  /** TODO(planning module): the planning stand-in's draw (its own stream), when it presses Ready (Date.now, 0 = not drawn) and whether it has. */
+  private planRng: () => number = () => 0.5;
+  private canPlan = false;
+  private planReadyAt = 0;
+  private planReadySent = false;
 
   constructor(private readonly opts: BotOptions = {}) {
     this.done = new Promise((resolve) => { this.settle = resolve; });
@@ -249,6 +261,7 @@ export class BotClient {
     });
     // Messages a later branch adds (a planning offer, a reveal) reach the brain untouched.
     room.onMessage("*", (type: string | number, msg: unknown) => {
+      if (type === "plan") this.plansSeen++;
       if (this.finished || this.privateBuf.length >= MAX_PRIVATES) return;
       this.privateBuf.push({ type: String(type), msg });
     });
@@ -267,6 +280,8 @@ export class BotClient {
     const persona = PERSONAS[this.opts.persona ?? PERSONA_IDS[Math.floor(mulberry32(seed ^ 0x9e3779b9)() * PERSONA_IDS.length)]!];
     const store = this.opts.statsFile ? statsStore(this.opts.statsFile) : null;
     this.store = store;
+    this.planRng = mulberry32(seed ^ 0x51ed270b);
+    this.canPlan = features.planning;
 
     const paths = createPathService(map, this.budget);
     const brain = createBrain({
@@ -300,6 +315,7 @@ export class BotClient {
         this.finish(null);
         return;
       }
+      if (s.phase === "planning") this.pressReady();
       const input: PerceptionInput = {
         state: s,
         ...(this.fxBuf.length > 0 ? { fxs: this.fxBuf } : {}),
@@ -315,6 +331,23 @@ export class BotClient {
     } catch (err) {
       this.finish(null, `brain crashed: ${err instanceof Error ? err.stack : err}`);
     }
+  }
+
+  /**
+   * TODO(planning module): the stand-in for the bot's planning. The brain has no planning module yet (docs/BOTS.md 8), so the bot
+   * only presses Ready, `plan {ready}`, 1 to 3 s into the phase, as a person who takes what they are dealt would; the server places
+   * a player who never picked on its first free spawn. The deal itself reaches the brain as a private message, unread.
+   */
+  private pressReady(): void {
+    if (this.planReadySent || !this.canPlan) return;
+    const now = Date.now();
+    if (this.planReadyAt === 0) {
+      this.planReadyAt = now + PLAN_READY_MIN_MS + Math.round(this.planRng() * (PLAN_READY_MAX_MS - PLAN_READY_MIN_MS));
+      return;
+    }
+    if (now < this.planReadyAt) return;
+    this.planReadySent = true;
+    this.sendCommand({ type: "plan", msg: { ready: true } });
   }
 
   /** The network adapter's send: now, through the SDK, under the message guard. False when refused. */

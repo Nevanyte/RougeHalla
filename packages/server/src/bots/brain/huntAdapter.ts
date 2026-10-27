@@ -126,7 +126,7 @@ export function createHuntAdapter(cfg: BrainConfig, opts: HuntAdapterOptions = {
       now: p.now,
       self: {
         faction: me.faction, x: me.x, y: me.y, hp: me.hp, maxHp: me.maxHp, weapons: me.weapons,
-        stacks: me.stacks.hp + me.stacks.attackSpeed + me.stacks.moveSpeed, mobKills: me.mobKills,
+        stacks: me.stacks, mobKills: me.mobKills,
       },
       playerDistance: nearest,
       players,

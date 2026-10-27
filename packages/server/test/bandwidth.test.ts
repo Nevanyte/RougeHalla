@@ -18,7 +18,7 @@ const heavy = () => run("heavy", { camps: HEAVY_CAMPS });
 const botsOpts = { bots: BOTS_SCENARIO_BOTS, camps: BOTS_SCENARIO_CAMPS };
 
 describe("bandwidth budget (per client, ws payload)", () => {
-  // Seed 1 measures 6.9 KB/s with about 18 mobs fighting (6.9 to 8.2 over seeds 1 to 5, 732 and 2547; 13 to 19 fighting).
+  // Seed 1 measures 7.68 KB/s on the R5 tree (7.02 with about 19 mobs fighting, 7.0 to 8.0 over seeds 1 to 7, before R5).
   it("typical: 4 camps fought by 2 players each, 60 mobs: under 20 KB/s", () => {
     const r = typical();
     expect(r.mobs).toBeGreaterThanOrEqual(58); // topped up to 60 every tick; the last tick's kills are replaced in the next
@@ -26,7 +26,8 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
-  // Seed 1 measures 10.2 KB/s with about 32 mobs fighting (10.2 to 11.9 over the seven seeds, 30 to 37 fighting).
+  // Seed 1 measures 11.71 KB/s on the R5 tree (10.13 with about 32 mobs fighting, 10.1 to 12.3 over seeds 1 to 7, before R5). The
+  // plan's 16.5 KB/s target for this case is a report-only figure; the budget asserted here is the 20 KB/s one.
   it("heavy: 8 camps fought by 1 player each, 60 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
@@ -66,7 +67,7 @@ describe("bandwidth budget (per client, ws payload)", () => {
   });
 
   // 7 fill bots (BotManager, in a headless room: the Room's tick order) and one driven client at a camp (docs/BOTS.md 9.2).
-  // Seed 1 measures about 3 KB/s with 2 to 3 mobs fighting (2.7 to 4.9 over seeds 1 to 5, 732 and 2547, up to 10 fighting). It sits
+  // Seed 1 measures about 3.9 KB/s on the R5 tree with about 6 mobs fighting (3 KB/s with 2 to 3 fighting before it). It sits
   // below the typical load because the bots send inputs only, never `aim`, so far fewer patches carry a `facing`, and they fight
   // each other and the mobs a camp at a time instead of waking every mob of a camp every 3 s.
   it("bots: 7 fill bots and a client at one camp, 60 mobs: under 20 KB/s", () => {
@@ -95,6 +96,14 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.patchFramesPerSecond).toBeGreaterThan(19);
     expect(r.fxFramesPerSecond).toBeLessThanOrEqual(20.5);
     expect(r.totalKBps).toBeGreaterThan(1);
+  });
+
+  // Roguelike R5: seed 1 measures 7.16 KB/s against 6.87 for the same run without them (5 chests up, each picked and skipped).
+  it("5 camp chests up the whole time, on the typical load: under 20 KB/s, under 1 KB/s more than without them", () => {
+    const r = run("chests", { camps: TYPICAL_CAMPS, chests: 5 });
+    expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
+    expect(r.totalKBps - typical().totalKBps).toBeLessThan(1);
+    expect(r.fxByKind.chestTaken!.frames).toBeGreaterThan(10);
   });
 
   it("is deterministic for a seed", () => {

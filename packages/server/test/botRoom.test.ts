@@ -63,6 +63,8 @@ beforeAll(async () => {
     minPlayers: 2,
     fillSeconds: 0,
     lobbySeconds: 120,
+    planSeconds: 0, // today's flow: the run starts straight from the lobby (e2eFill.test.ts plays the planning phase with bots)
+    firstPatienceSeconds: 0,
     patienceSeconds: 120,
     patienceMinSeconds: 120,
     suddenDeathSeconds: 120,

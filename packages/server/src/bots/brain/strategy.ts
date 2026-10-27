@@ -4,9 +4,9 @@
 // HYSTERESIS. Stateful per bot: the avoid list and chase timers of the pursuit-ring breaker, the exclusions after a failure,
 // and the mob hunt (huntAdapter.ts). Pure otherwise: time is the percept's, randomness is `ctx.rng.decide` and `.lapse`.
 import {
-  COMBO_TIER1_STACKS, COMBO_TIER2_STACKS, REGION_BUFF, REGION_WEAPONS, SIGNATURE_WEAPONS, TARGET_RANGE, TILE, feedScore,
+  REGION_WEAPONS, SIGNATURE_WEAPONS, TARGET_RANGE, TILE, feedScore,
   isRanged, rewardCurve, sigmoid,
-  type BuffStat, type Vec2, type WeaponId,
+  type Vec2, type WeaponId,
 } from "@raid/shared";
 import { bestEdge, type MobHuntStats } from "../mobHunt";
 import { createHuntAdapter, wantsMobs, type HuntAdapter } from "./huntAdapter";
@@ -610,7 +610,8 @@ class StrategyImpl implements Strategy {
 
   /**
    * Camps to walk to when no mob is in reach (docs/BOTS.md 2.7): the nearest `horizon` camps, by walking distance for the tiers
-   * that path, weighed by the bot's own belief about the matchup and by whether the camp's drops feed the combo it is stacking.
+   * that path, weighed by the bot's own belief about the matchup. (The kill combos are gone with the per-type buffs, so a camp is
+   * no longer worth more for feeding the stat the bot was stacking; which buff a camp's mobs give is for a later pass to weigh.)
    */
   private camps(ctx: BrainContext): Cand[] {
     const { p, mem, cfg, know } = ctx;
@@ -618,7 +619,6 @@ class StrategyImpl implements Strategy {
     const persona = cfg.persona;
     if (me.faction === null || me.mobKills >= persona.mobKillGoal) return [];
     if (me.maxHp > 0 && me.hp / me.maxHp < Math.max(0.5, persona.fleeHp + 0.05)) return [];
-    const stat = stackingStat(me.stacks);
     const first = !mem.choices.some((k) => k.startsWith("opener|"));
     const near = cfg.map.camps
       .map((camp) => ({ camp, d: dist(me, camp) }))
@@ -641,8 +641,7 @@ class StrategyImpl implements Strategy {
         if (w === null) continue;
         walk = w.dist;
       }
-      const buff = stat !== null && REGION_BUFF[camp.zone] === stat ? 0.1 : 0;
-      const value = 0.3 + 0.4 * share + buff + 0.25 * (1 - Math.min(1, walk / MAP_SPAN));
+      const value = 0.3 + 0.4 * share + 0.25 * (1 - Math.min(1, walk / MAP_SPAN));
       let u = persona.pve * CAMP_ROAM_FACTOR * value;
       if (elite) u *= 0.55 + 0.45 * persona.eliteAppetite;
       if (cm?.contestedAt != null && p.now - cm.contestedAt < 20_000) u *= 0.7;
@@ -769,19 +768,6 @@ function dedupe(cands: readonly Cand[]): Cand[] {
     if (!old || c.utility > old.utility) best.set(c.key, c);
   }
   return [...best.values()];
-}
-
-/** The stat the bot is stacking toward a combo: the fullest one still under the 3-stack combo, else under the 5-stack one. */
-function stackingStat(stacks: Readonly<Record<BuffStat, number>>): BuffStat | null {
-  let best: BuffStat | null = null;
-  for (const [lo, hi] of [[0, COMBO_TIER1_STACKS], [COMBO_TIER1_STACKS, COMBO_TIER2_STACKS]] as const) {
-    for (const s of ["hp", "attackSpeed", "moveSpeed"] as const) {
-      const v = stacks[s];
-      if (v > lo && v < hi && (best === null || v > stacks[best])) best = s;
-    }
-    if (best !== null) return best;
-  }
-  return null;
 }
 
 /** Where a fighter or mob is, as far as the bot knows: on screen, else remembered. */

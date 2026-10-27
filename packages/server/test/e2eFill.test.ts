@@ -1,7 +1,9 @@
 // Fill bots through the real server (docs/BOTS.md 9.2): one human, an SDK client with a profile claimed over HTTP like the menu does,
 // joins an arena lobby on a server with BOTS_FILL_TO=4. The bots arrive in the last seconds of the countdown, flagged `bot`, play the
 // run out against the clock (short patience and sudden death), and leave no trace in persistence: no profile for any of their names,
-// nothing banked for them, the human's result and record free of anything they earned or lost. Their learning file is written
+// nothing banked for them, the human's result and record free of anything they earned or lost. The run is planned first (the live
+// server's planning phase): the human presses ready at once, and each bot does too, 1 to 3 s in (the adapter's stand-in until the
+// brain has a planning module), so the phase ends well before its timer. Their learning file is written
 // next to the profile file. A training room never gets any. Every `fxs` batch is read by the human's own copy of the roster
 // with no tuple dropped, and nothing logged an error.
 import fs from "node:fs";
@@ -26,6 +28,8 @@ type ClientRoom = Room<any, RaidState>;
 const LOBBY_SECONDS = 5;
 const ARRIVAL_SECONDS = 4;
 const FILL_TO = 4;
+/** The planning phase's timer: far longer than the 1 to 3 s the bots take to press ready, so the phase ends because they did. */
+const PLAN_SECONDS = 8;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -78,6 +82,8 @@ beforeAll(async () => {
     fillSeconds: 5,
     lobbySeconds: LOBBY_SECONDS,
     // Nobody has to die for the run to end: the arena teleports the survivors together, and sudden death burns them down.
+    planSeconds: PLAN_SECONDS,
+    firstPatienceSeconds: 0, // the first timer scales like the others, so patienceSeconds below is the run's pace
     patienceSeconds: 6,
     patienceMinSeconds: 6,
     suddenDeathSeconds: 3,
@@ -129,16 +135,23 @@ describe("fill bots in a real arena room", () => {
     });
 
     // What the lobby looked like from the human's seat, whenever it changed.
-    interface Sample { t: number; wall: number; phase: string; players: number; bots: number; endsAt: number }
+    interface Sample { t: number; wall: number; phase: string; players: number; bots: number; endsAt: number; botsReady: number }
     const samples: Sample[] = [];
+    let readySent = false;
     const sample = (): void => {
       const s = room.state;
       if (!s?.players) return;
       let bots = 0;
-      for (const p of s.players.values()) if (p.bot) bots++;
+      let botsReady = 0;
+      for (const p of s.players.values()) if (p.bot) { bots++; if (p.planReady) botsReady++; }
       const last = samples[samples.length - 1];
-      if (!last || last.phase !== s.phase || last.players !== s.players.size || last.bots !== bots) {
-        samples.push({ t: s.serverTime, wall: Date.now() - joinedAt, phase: s.phase, players: s.players.size, bots, endsAt: s.lobbyEndsAt });
+      if (!last || last.phase !== s.phase || last.players !== s.players.size || last.bots !== bots || last.botsReady !== botsReady) {
+        samples.push({ t: s.serverTime, wall: Date.now() - joinedAt, phase: s.phase, players: s.players.size, bots, endsAt: s.lobbyEndsAt, botsReady });
+      }
+      // The human takes what it is dealt and presses ready, as soon as there is something to press it in.
+      if (s.phase === "planning" && !readySent) {
+        readySent = true;
+        room.send("plan", { ready: true });
       }
     };
     const watcher = setInterval(sample, 10);
@@ -167,7 +180,7 @@ describe("fill bots in a real arena room", () => {
       expect(server.botStats, "the process's learning store").not.toBeNull();
 
       // --- the lobby: alone for a while, then 3 bots one after another, flagged, inside the arrival window
-      await until(() => samples.some((s) => s.phase === "active"), "the run to start", (LOBBY_SECONDS + 8) * 1000);
+      await until(() => samples.some((s) => s.phase === "active"), "the run to start", (LOBBY_SECONDS + PLAN_SECONDS + 4) * 1000);
       expect(samples[0]).toMatchObject({ phase: "lobby", players: 1, bots: 0 });
       const lobby = samples.filter((s) => s.phase === "lobby");
       const counts = lobby.map((s) => s.bots);
@@ -178,8 +191,16 @@ describe("fill bots in a real arena room", () => {
       expect(endsAt - firstBot.t, "no bot before the arrival window").toBeLessThanOrEqual(ARRIVAL_SECONDS * 1000 + 150);
       expect(firstBot.wall, "and none at the very start of the countdown").toBeGreaterThan(300);
       // The countdown ran its course: bots did not shorten it, and a lone human still waited the whole of it.
+      const planning = samples.find((s) => s.phase === "planning")!;
+      expect(planning, "the run was planned first").toBeDefined();
+      expect(planning.wall).toBeGreaterThanOrEqual(LOBBY_SECONDS * 1000 - 250);
+      expect(planning).toMatchObject({ players: FILL_TO, bots: FILL_TO - 1 });
+      // ...then planning: every bot pressed ready (the last to do so ended the phase in its tick, so the first sample of the run
+      // is the one that shows it; `planReady` is not reset when the run starts), and that, not the timer, ended it.
       const started = samples.find((s) => s.phase === "active")!;
-      expect(started.wall).toBeGreaterThanOrEqual(LOBBY_SECONDS * 1000 - 250);
+      expect(started.wall - planning.wall, "planning ended before its timer").toBeLessThan(PLAN_SECONDS * 1000 - 1500);
+      expect(started.wall - planning.wall, "the bots took a second or more to press ready").toBeGreaterThanOrEqual(900);
+      expect(started.botsReady, "every bot was ready").toBe(FILL_TO - 1);
       expect(started).toMatchObject({ players: FILL_TO, bots: FILL_TO - 1 });
       expect(world.state.players.size).toBe(FILL_TO);
 

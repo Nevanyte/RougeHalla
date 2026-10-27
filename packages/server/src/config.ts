@@ -1,8 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  LOBBY_FILL_SECONDS, LOBBY_SECONDS, MAX_PLAYERS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS, SERVER_PORT,
-  SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS, WISH_LOCK_SECONDS,
+  FIRST_PATIENCE_SECONDS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MAX_PLAYERS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS,
+  PATIENCE_SECONDS, PLAN_SECONDS, SERVER_PORT, SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS, WISH_LOCK_SECONDS,
 } from "@raid/shared";
 import {
   BOT_FILL_DEFAULTS, PERSONA_IDS, TIER_IDS, type BotFillConfig,
@@ -97,5 +97,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     // On by default: a mob rests at every camp spot when a run starts (the headless bots fight them too). MOBS=0 or MOBS=false turns them off.
     mobs: env.MOBS !== "0" && env.MOBS !== "false",
     bots: parseBots(env),
+    // The live server plans (roguelike R3); PLAN_SECONDS=0 starts runs straight from the lobby. Training rooms never plan.
+    planSeconds: Math.max(0, num(env.PLAN_SECONDS, PLAN_SECONDS)),
+    // Decision 10: the first timer is flat. FIRST_PATIENCE_SECONDS=0 scales it with the players like every later one.
+    // A dev who sets only PATIENCE_SECONDS (to shorten a run) gets that as the flat first timer too, not 300 s.
+    firstPatienceSeconds: Math.max(
+      0, num(env.FIRST_PATIENCE_SECONDS, env.PATIENCE_SECONDS !== undefined ? patienceSeconds : FIRST_PATIENCE_SECONDS),
+    ),
   };
 }

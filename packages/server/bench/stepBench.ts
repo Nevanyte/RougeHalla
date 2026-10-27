@@ -1,6 +1,7 @@
 // Budget check for the Phase 11 tick: a headless 8-player run with 60 regional mobs, most players fighting mobs near
 // their camps, arrows and balls in the air, mobs chasing and retreating. Reports the cost of one `step()`.
 //   npx tsx packages/server/bench/stepBench.ts                       (from the repo root)
+//   npx tsx packages/server/bench/stepBench.ts --buffs               every player starts with 4 stacks of every buff (R4a's gate)
 //   npx tsx packages/server/bench/stepBench.ts --bots 8              8 in-process fill bots instead of the scripted players
 // Flags: --seed N, --ticks N (measured, default 1200), --warmup N, --mobs N; with --bots also --tier easy|normal|hard (every bot),
 // --coliseum (the endgame: all eight sealed in), --clock cpu|wall (default wall) and --repeat N (min / median / max over N runs).
@@ -14,10 +15,11 @@
 //   afterPatch  every bot's frame: perceive, compose, memory, strategy, tactics, humanizer
 // The bots' share is beforeStep + afterPatch. The first `warmup` ticks (200 with bots: JIT warm-up and the first path
 // searches make them spike) are left out of the gated numbers and reported on their own.
-import { TICK_MS, mulberry32, type FactionId, type MobCampDef, type Vec2 } from "@raid/shared";
+import { BUFF_IDS, TICK_MS, mulberry32, type FactionId, type MobCampDef, type Vec2 } from "@raid/shared";
 import { BOT_FILL_DEFAULTS, TIER_IDS, type TierId } from "../src/bots/brain/types";
 import type { BotManagerStats } from "../src/bots/BotManager";
 import { createHeadlessRoom, HEADLESS_CONFIG } from "../src/bots/tournament/headlessRoom";
+import { grantBuff } from "../src/sim/buffs";
 import { aggro } from "../src/sim/mobAI";
 import { combatant } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -54,6 +56,8 @@ export interface BenchOptions {
   clock?: "wall" | "cpu";
   /** The endgame: the patience timer (10 s) sends everyone into the locked coliseum, where they fight each other with no mob awake. */
   coliseum?: boolean;
+  /** Every player starts with 4 stacks of every buff (roguelike R4a's gate: all buffs on 8 players). `--buffs` on the CLI. */
+  buffs?: boolean;
 }
 
 /** Milliseconds per tick (or per stretch of it). */
@@ -156,6 +160,9 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   for (let i = 0; i < players; i++) addPlayer(world, `p${i}`, NAMES[i]!);
   step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("the bench run did not start");
+  if (opts.buffs) {
+    for (const [id, rt] of world.players) for (const b of BUFF_IDS) grantBuff(world, world.state.players.get(id)!, rt, b, 4);
+  }
 
   const camps = allCamps(world);
   const cursor = { i: 0 };
@@ -390,6 +397,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ...(args.bots !== undefined ? { bots: Number(args.bots) } : {}),
     ...(botTier ? { botTier } : {}),
     ...(args.coliseum !== undefined ? { coliseum: true } : {}),
+    ...(args.buffs !== undefined ? { buffs: true } : {}),
     ...(args.clock === "cpu" || args.clock === "wall" ? { clock: args.clock } : {}),
   };
   const repeat = Math.max(1, Number(args.repeat ?? 1));

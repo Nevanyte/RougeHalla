@@ -14,7 +14,7 @@
 //     randomness comes from the seeded streams in BrainRngs, so a headless tournament replays exactly.
 import {
   INTERP_DELAY_MS, Y_SCALE,
-  type BuffStat, type ClientMessages, type ComboId, type FactionId, type GameMap, type ProjectileEnd, type ProjectileKind,
+  type BuffId, type ClientMessages, type FactionId, type GameMap, type ProjectileEnd, type ProjectileKind,
   type Rng, type RunOutcome, type RunResult, type SignatureKind, type Vec2, type WeaponId,
 } from "@raid/shared";
 
@@ -337,7 +337,8 @@ export interface SelfView {
   readonly immuneUntil: ServerMs;
   readonly sig: number;
   readonly brand: number;
-  readonly stacks: Readonly<Record<BuffStat, number>>;
+  /** The build strip's power in stacks at the quoted value (shared buffPower over the buffs the HUD shows: 3 for one buff at 3 stacks). */
+  readonly stacks: number;
   /** Decoded stat mirrors (shared mods.ts decodeMult): the HUD's attack and move speed. */
   readonly asMult: number;
   readonly speedMult: number;
@@ -515,8 +516,7 @@ export type ObservedEvent = EventBase & (
   /** A player's death is announced by name everywhere ("X was killed"); `at` and `by` only when it happened on screen. */
   | { readonly kind: "death"; readonly id: FighterId; readonly name: string; readonly by: FighterId | null; readonly mob: boolean }
   | { readonly kind: "heal"; readonly id: FighterId; readonly amount: number }
-  | { readonly kind: "buff"; readonly id: FighterId; readonly stat: BuffStat; readonly stacks: number; readonly total: number }
-  | { readonly kind: "combo"; readonly id: FighterId; readonly combo: ComboId; readonly proc: boolean }
+  | { readonly kind: "buff"; readonly id: FighterId; readonly buff: BuffId; readonly stacks: number; readonly total: number }
   | { readonly kind: "teleport" }
   | { readonly kind: "bounty"; readonly id: FighterId; readonly name: string; readonly bounty: number }
   | { readonly kind: "victory"; readonly id: FighterId | null; readonly name: string | null; readonly draw: boolean }

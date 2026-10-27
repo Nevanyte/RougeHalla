@@ -5,13 +5,14 @@
 // (to wake a mob without a hit) and a few fixtures noted where they are used.
 import { describe, expect, it } from "vitest";
 import {
-  backlashPerSwing, bonusMultiplier, buffMultiplier, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
-  damageShares, diseaseDps, DOT_FX_MS, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markDps,
+  backlashPerSwing, bonusMultiplier, buffRowsOf, burnDps, CHILL_MOVE_MULT, CHILL_MOVE_RADIUS, chillMultiplier, damagePerHit,
+  damageShares, decodeMult, diseaseDps, DOT_FX_MS, encodeMult, FACTIONS, HEAL_LOCKOUT_SECONDS, lifestealFraction, mapFromTiles, markDps,
   ELITE_K, MOB_K, MOB_LEASH_RADIUS, MOB_REGEN_SECONDS, mitigateShares, mobFaction, mulberry32, pacedFaction, PLAYER_SPEED, SIG_BURNING,
   SIG_CHILLED, SIG_DISEASED, SIG_EXECUTE, TARGET_FORGET_SECONDS, TICK_MS, TILE, TILE_FLOOR, TILE_WALL,
   type FactionId, type FactionSpec, type FxEvent, type GameMap, type SignatureKind, type WeaponId,
 } from "@raid/shared";
 import type { PlayerState } from "@raid/shared/schema";
+import { grantBuff } from "../src/sim/buffs";
 import { combatant } from "../src/sim/combatant";
 import { signatureState, targetOf } from "../src/sim/factions";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -926,33 +927,47 @@ describe("lifesteal on mobs", () => {
 });
 
 describe("a move-speed buff meets Frost's chill", () => {
-  /** How far (u) the player walks in each of the first ticks of a straight walk away from a Frost mob it is engaged with. */
+  // The only move-speed buff is Cinder Hound's, and it holds only while its owner chases a locked target. So the walk
+  // away from the Frost mob is a chase: the player locks a decoy mob (an idle Fire mob, far down the walk) and the lock
+  // walks it there. The buff's mirror follows the lock one tick late (sim/mods.ts updateMods), so each run spends one
+  // tick before it measures.
+  const DECOY_AT = { x: HOME.x - 400, y: HOME.y };
+  /** How far (u) the player walks in each of the first ticks of a chase of the decoy, away from a Frost mob it is engaged with. */
   const strides = (o: { stacks: number; frost: boolean }): { steps: number[]; worstGap: number; rig: Rig } => {
-    const rig = makeRig({ player: "plague", weapon: null, mob: "frost", mobAt: o.frost ? HOME : tile(28, 28), mobFacing: Math.PI });
-    rig.p.stacksMs = o.stacks;
+    const rig = makeRig({ player: "plague", weapon: "sword", mob: "frost", mobAt: o.frost ? HOME : tile(28, 28), mobFacing: Math.PI });
+    if (o.stacks > 0) grantBuff(rig.world, rig.p, rig.prt, "cinderHound", o.stacks);
+    const decoy = combatant(rig.world, placeMob(rig.world, { region: "fire", elite: false, at: DECOY_AT, facing: 0 })) as MobCombatant;
     if (o.frost) {
       wake(rig);
       // Until the mob's bash has landed and the pair is engaged (the chill is on from the tick after).
       for (let i = 0; i < 40 && !((signatureState(rig.world, "p")?.chill ?? 1) < 1); i++) tick(rig);
       expect(signatureState(rig.world, "p")!.chill).toBeLessThan(1);
     }
-    send(rig, "move", { x: HOME.x - 400, y: HOME.y });
+    send(rig, "target", { id: decoy.id });
+    tick(rig); // the lock starts, and the buff's condition holds from the end of this tick
+    expect(rig.p.attackTarget).toBe(decoy.id);
     const steps: number[] = [];
     let worstGap = 0;
-    for (let i = 0; i < 10; i++) {
+    // 8 ticks: the player starts about 37 u from the mob and walks away at the buff x the chill (about 7 u a tick at 6
+    // stacks), so it is about 87 u off by the last tick, inside CHILL_MOVE_RADIUS (100). Ten ticks would walk it out.
+    for (let i = 0; i < 8; i++) {
       const from = { x: rig.p.x, y: rig.p.y };
       worstGap = Math.max(worstGap, Math.hypot(rig.mob.s.x - rig.p.x, rig.mob.s.y - rig.p.y));
       tick(rig);
       steps.push(Math.hypot(rig.p.x - from.x, rig.p.y - from.y));
     }
+    expect(rig.p.attackTarget).toBe(decoy.id); // still chasing, never in reach of the decoy: no swing rooted it
     return { steps, worstGap, rig };
   };
   const BASE = PLAYER_SPEED * DT;
 
   it("walks at the buff's multiplier x CHILL_MOVE_MULT of the base speed inside the chill radius (both are move modifiers)", () => {
-    const stacks = 5;
-    const buff = buffMultiplier("moveSpeed", stacks);
-    expect(buff).toBeGreaterThan(1.2);
+    const stacks = 6;
+    // What the wire carries: the row at these stacks, rounded to thousandths (the sim walks with exactly this).
+    const row = buffRowsOf("cinderHound", stacks)[0]!;
+    if (row.k !== "while") throw new Error("Cinder Hound's row is a while row");
+    const buff = decodeMult(encodeMult(1 + row.v));
+    expect(buff).toBeGreaterThan(1.05);
     const plain = strides({ stacks: 0, frost: false });
     const buffed = strides({ stacks, frost: false });
     const chilled = strides({ stacks: 0, frost: true });
@@ -965,6 +980,18 @@ describe("a move-speed buff meets Frost's chill", () => {
     expect(both.worstGap).toBeLessThan(CHILL_MOVE_RADIUS);
     for (const d of both.steps) expect(d).toBeCloseTo(BASE * buff * CHILL_MOVE_MULT, 9);
     expect(both.rig.world.moveModifiers.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("the buff does nothing while its owner is not chasing a lock: a plain walk is at the base speed, chilled or not", () => {
+    const rig = makeRig({ player: "plague", weapon: "sword", mob: "frost", mobAt: tile(28, 28), mobFacing: Math.PI });
+    grantBuff(rig.world, rig.p, rig.prt, "cinderHound", 6);
+    send(rig, "move", { x: HOME.x - 400, y: HOME.y });
+    tick(rig);
+    for (let i = 0; i < 6; i++) {
+      const from = { x: rig.p.x, y: rig.p.y };
+      tick(rig);
+      expect(Math.hypot(rig.p.x - from.x, rig.p.y - from.y)).toBeCloseTo(BASE, 9);
+    }
   });
 });
 

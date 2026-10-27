@@ -4,10 +4,11 @@
 // outlives the scene, and finished effects hand their Graphics/Text back to a small pool instead of being re-created.
 import Phaser from "phaser";
 import {
-  ABILITIES, BUFF_LABELS, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffToast, comboById, comboToast, formatGain, isAbilityDot, isDot,
-  type ComboSpec, type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx,
+  ABILITIES, PLAYER_RADIUS, WEAPONS, Y_SCALE, buffDef, formatGain, isAbilityDot, isDot,
+  type ProjectileEnd, type ProjectileLaunch, type SignatureKind, type TimedFx,
 } from "@raid/shared";
-import { ELITE_COLOR, STAT_COLOR } from "../ui/buffTheme";
+import { ELITE_COLOR, buffColor } from "../ui/buffTheme";
+import { buffNewsText, type BuffNews } from "../ui/buffTip";
 import { cssColor } from "../ui/dom";
 import type { ToastTone } from "../ui/toast";
 import type { FigureCues } from "./figurePose";
@@ -29,6 +30,8 @@ const DECAL_MS = 2000;
 const HEAL_MS = 800;
 const FLOAT_MS = 1100;
 const RING_MS = 380;
+/** The ring a gain of buff stacks draws on its fighter, in body radii at its widest. */
+const BUFF_RING_SIZE = 1.9;
 const HIT_NUMBER_MS = 700;
 const STAGGER_MS = 500;
 const FLAME_MS = 380;
@@ -74,10 +77,10 @@ const DECAL_HOLD = 0.25;
 const HEAL_START_HEIGHT = BODY_LIFT + PLAYER_RADIUS + 38;
 const HEAL_RISE = 28;
 const HIT_START_HEIGHT = BODY_LIFT + PLAYER_RADIUS + 20;
-/** Other players' buff and combo news floats above the heal numbers' lane. */
+/** Other players' buff news floats above the heal numbers' lane. */
 const FLOAT_START_HEIGHT = HEAL_START_HEIGHT + 14;
 const FLOAT_RISE = 22;
-/** Floats that follow one another (a drop and the combo it unlocks) stack this many pixels apart, over this many lanes. */
+/** Floats that follow one another (several buffs gained in one frame) stack this many pixels apart, over this many lanes. */
 const FLOAT_LANES = 3;
 const FLOAT_LANE_PX = 13;
 const HIT_RISE = 34;
@@ -89,7 +92,6 @@ const HIT_OTHERS = "#cfd8dc";
 const HIT_BY_ME = "#ffd54f";
 const HIT_ON_ME = "#ff5252";
 const HEAL_COLOR = "#81f78b";
-const COMBO_FLOAT_COLOR = "#ffe082";
 /** Signature damage over time arrives as one small number per 500 ms chunk, in the signature's colour. */
 const DOT_COLORS: Readonly<Record<SignatureKind, string>> = {
   burn: "#ffa040",
@@ -124,9 +126,16 @@ export interface FxHost {
   localHurt?(fx: FxOf<"hit">): void;
   /** The fighter drawn nearest ground point (x, y) within `within` units, if any: whoever an arrow or a ball left from. */
   nearestFighter?(x: number, y: number, within: number): string | undefined;
+  /** A camp as a phrase for its clear line ("Plague camp", "Fire elite camp"); `camp` is its index in map.camps. Undefined for an unknown one. */
+  campLabel?(camp: number): string | undefined;
+  /**
+   * The local player's own pick at reward chest `chest` as a line ("You took Whetstone", "You skipped the chest"); `option` is
+   * the index into the chest's options, or -1 for a skip. Undefined when the chest is not known any more.
+   */
+  chestPick?(chest: string, option: number): string | undefined;
   /**
    * Optional sink for short text such as "<name> was killed", "<name> is on a rampage — bounty N GV" or "To the coliseum!".
-   * `tone` marks the local player's buff and combo news.
+   * `tone` marks the local player's buff news.
    */
   announce?(text: string, tone?: ToastTone): void;
   /** A cast, its landing or end, or a status (WishFx draws them): handed over at render time, with the clock `now` effects run on. */
@@ -204,12 +213,10 @@ export class FxView {
   private impacts = 0;
   private dusts = 0;
   /**
-   * The local player's buff and combo news of this update(), told as one line each when it ends (flushNews). A bounty kill
-   * grants every stat in turn and unlocks combos with it: six lines in one frame would fill the toast stack and push the
-   * combo unlocks out of it.
+   * The local player's buff news of this update(), told as one line when it ends (flushNews). A bounty kill moves a share of
+   * every buff its victim held: a line each in one frame would fill the toast stack and push the rest out of it.
    */
-  private newsBuffs: Array<{ stat: string; gained: number; total: number }> = [];
-  private newsCombos: ComboSpec[] = [];
+  private newsBuffs: BuffNews[] = [];
 
   constructor(private readonly scene: Phaser.Scene, private readonly host: FxHost) {}
 
@@ -315,7 +322,6 @@ export class FxView {
     this.pending.length = 0;
     this.launches.length = 0;
     this.newsBuffs.length = 0;
-    this.newsCombos.length = 0;
     for (const e of this.active) { e.g?.destroy(); e.text?.destroy(); }
     this.active.length = 0;
     this.impacts = 0;
@@ -393,9 +399,19 @@ export class FxView {
       case "buff":
         this.buff(fx, now);
         break;
-      case "combo":
-        this.combo(fx, now);
+      case "campCleared": {
+        // Its shared chest drops at once (ContainerView plays the drop cue); everyone hears which camp fell.
+        const label = this.host.campLabel?.(fx.camp);
+        if (label) this.host.announce?.(`${label} cleared`);
         break;
+      }
+      case "chestTaken": {
+        // Everyone's picks show in the chest panel's cards; the local player's own is told as a line.
+        if (fx.by !== this.host.localId) break;
+        const line = this.host.chestPick?.(fx.chest, fx.option);
+        if (line) this.host.announce?.(line, "ok");
+        break;
+      }
       case "victory":
         if (fx.name) this.host.announce?.(`${(fx.id && this.host.name(fx.id)) || fx.name} is victorious`);
         else if (fx.draw) this.host.announce?.("Draw");
@@ -635,62 +651,31 @@ export class FxView {
     this.host.announce?.(killer ? `${name} was slain by ${killer}` : `${name} was slain`);
   }
 
-  /** Stacks gained: a toast for the local player, a small floating line over anyone else. */
+  /**
+   * Stacks of a mob type's buff gained: a ring in the buff's zone colour on the fighter (everyone sees whose zone it came
+   * from), a toast for the local player, a small floating line over anyone else.
+   */
   private buff(fx: FxOf<"buff">, now: number): void {
     if (!(fx.stacks > 0)) return;
+    const color = buffColor(fx.buff);
+    this.ring(fx.id, color, BUFF_RING_SIZE, now);
     if (fx.id === this.host.localId) {
-      this.newsBuffs.push({ stat: fx.stat, gained: fx.stacks, total: fx.total });
+      this.newsBuffs.push({ buff: fx.buff, gained: fx.stacks, total: fx.total });
       return;
     }
-    const color = (STAT_COLOR as Readonly<Record<string, number>>)[fx.stat];
-    const label = (BUFF_LABELS as Readonly<Record<string, string>>)[fx.stat] ?? fx.stat;
-    if (color !== undefined) this.floatText(fx.id, `+${formatGain(fx.stacks)} ${label}`, cssColor(color), now);
+    this.floatText(fx.id, `+${formatGain(fx.stacks)} ${buffDef(fx.buff)?.name ?? fx.buff}`, cssColor(color), now);
   }
 
   /**
-   * A combo tier reached (`proc` false) or set off by a kill (`proc` true). The local player is told by a toast for a new
-   * combo; everyone sees a ring on the fighter, in the stat's colour, bigger for the second tier.
-   */
-  private combo(fx: FxOf<"combo">, now: number): void {
-    const spec = comboById(fx.combo);
-    if (!spec) return;
-    const color = STAT_COLOR[spec.stat];
-    if (fx.proc) {
-      this.ring(fx.id, color, spec.tier === 2 ? 2.4 : 2, now);
-      return;
-    }
-    this.ring(fx.id, color, 3.2, now);
-    if (fx.id === this.host.localId) this.newsCombos.push(spec);
-    else this.floatText(fx.id, `${spec.name}!`, COMBO_FLOAT_COLOR, now);
-  }
-
-  /**
-   * Tells the local player what update() collected: one buff line and one combo line, in that order so the combo unlock is the
-   * newest toast. One event keeps its own wording ("+1.1 Attack speed (3.2)", "Combo unlocked: Dash on kill"); several are
-   * listed, a stat gained twice summed.
+   * Tells the local player what update() collected: one line. A single buff keeps its own wording ("Ember Imp +1.1 (3.2): +5.4%
+   * damage"); several (a bounty kill) are listed, a buff gained twice summed (buffNewsText).
    */
   private flushNews(): void {
     const buffs = this.newsBuffs;
-    const combos = this.newsCombos;
-    if (buffs.length === 0 && combos.length === 0) return;
+    if (buffs.length === 0) return;
     this.newsBuffs = [];
-    this.newsCombos = [];
     if (!this.host.announce) return;
-    if (buffs.length > 0) {
-      const byStat = new Map<string, { stat: string; gained: number; total: number }>();
-      for (const b of buffs) {
-        const sum = byStat.get(b.stat);
-        if (sum) { sum.gained += b.gained; sum.total = b.total; } else byStat.set(b.stat, { ...b });
-      }
-      const sums = [...byStat.values()];
-      const text = sums.length === 1
-        ? buffToast(sums[0]!.stat, sums[0]!.gained, sums[0]!.total)
-        : sums.map((b) => `+${formatGain(b.gained)} ${(BUFF_LABELS as Readonly<Record<string, string>>)[b.stat] ?? b.stat}`).join(", ");
-      this.host.announce(text, "buff");
-    }
-    if (combos.length > 0) {
-      this.host.announce(combos.length === 1 ? comboToast(combos[0]!) : `Combos unlocked: ${combos.map((c) => c.name).join(", ")}`, "combo");
-    }
+    this.host.announce(buffNewsText(buffs), "buff");
   }
 
   /** A ring around the fighter that grows to `size` body radii while it fades. */

@@ -188,7 +188,8 @@ afar, which second weapon to pick up, which camps to route through.
 hp share falls first, `rules.ts:31`) with chance `knowledge`. It knows the 45 s Wish lock and the 300 s cooldown the same way.
 
 **Routes.** Easy picks the nearest of 3 camps by straight line. Hard compares 10 by walking distance, weighs the matchup
-share, and prefers camps whose `REGION_BUFF` matches the stat it is stacking toward a 3-stack combo (`buffs.ts:176`).
+share. (It used to prefer camps whose `REGION_BUFF` matched the stat it was stacking toward a 3-stack combo; the combos are gone with
+the per-mob-type buffs of R4a, and weighing which buff a camp's mobs give is for a later pass.)
 
 ### 2.8 Why Hard is beatable
 
@@ -242,7 +243,7 @@ are legitimately "awake" and "cleared".
 
 | Field | Source | Limit |
 |---|---|---|
-| `self` | `players[selfId]`: position, facing, status, hp, maxHp, barrier, faction, both weapons, slot, attackTarget, drawStartedAt, readyAt, immuneUntil, sig, brand, stacks, mirrors (`decodeMirrors`), kills, mobKills, gv, bounty, moveSeq | Exact: the HUD shows it (buff rows, bars, lock ring) |
+| `self` | `players[selfId]`: position, facing, status, hp, maxHp, barrier, faction, both weapons, slot, attackTarget, drawStartedAt, readyAt, immuneUntil, sig, brand, stacks (the build strip's power: shared `buffPower` over the buffs held, in stacks at the quoted value), mirrors (`decodeMirrors`), kills, mobKills, gv, bounty, moveSeq | Exact: the HUD shows it (buff rows, bars, lock ring) |
 | `hud` | `RaidState` phase, training, lobbyEndsAt, raidStartedAt, patienceEndsAt, suddenDeathAt, inColiseum, gatesLocked, startedWith, minPlayers, winner; `alive` counts all players alive | Exact (`ui/hud.ts:146-150` counts the whole room) |
 | `fighters[]` | Other players on screen: name, bot, position, facing, status, hp share, barrier share, faction, **weapon in hand only** (`FighterArt.ts:35-37`), drawStartedAt (the pull), bounty (the crown, `PlayerView.ts:209`), immune, sig, brand, targetable | Window. Hp at 5% steps (a bar, not a number). Never `weapon1`, stacks, kills, gv, readyAt, attackTarget, mirrors, moveSeq or look |
 | `fighters[]` (computed) | `vx`, `vy` from frames 100 ms apart; `dist`; `los`; `tint` (the UI's hue); `central` | 0 velocity if not on screen in both frames |
@@ -265,7 +266,7 @@ are legitimately "awake" and "cleared".
 
 | Fx | Observed when | Masked |
 |---|---|---|
-| windup, swing, cancel, stagger, heal, buff, combo | The subject (`by`/`id`) is on screen, or it is self | – |
+| windup, swing, cancel, stagger, heal, buff | The subject (`by`/`id`) is on screen, or it is self | – |
 | hit, block | The victim is on screen, or the victim is self | `by` is null unless the attacker is visible |
 | projEnd | Its (x, y) is on screen | – |
 | death of a player | Always: the "X was killed" announcement (`FxView.ts:359-369`) | `at` and `by` only when on screen |
@@ -600,6 +601,15 @@ Wishes feature (`ext` fx and `extras.wish`).
 | `planning` (R3) | `plan` (private message) | Reads for 2-4 s (Hard) or 4-8 s (Easy) of `PLAN_SECONDS` 12. Scores both spawns by `mobShare` of their nearest camps (the R3 brief) + `spawn|…` bias, picks a boon by bias, sends `plan {spawn, boon, ready}` |
 | `chests` (R5, relics R7) | `camps`, `chests` (options only within `CHEST_RANGE − 8` with line of sight, as the panel shows) | A cleared camp's chest within reach becomes a goal; the Opportunist rushes chests others are clearing. Reads for 1.5-4 s (half that when contested), picks by `skill|…`/`relic|…` bias + knowledge, skips by the D12 rule |
 | `hazards` (zone terrain) | Map hazard data (seed-derived) | Penalises flee, kite and hold points in hazards; a reflex "step out" when standing in a damaging one |
+
+**Stand-ins until the planning and chest modules land.** R3 (planning) and R5 (camps, chests) are merged but the modules for them
+are not built. `detectFeatures` reports `planning`, `chests`, `camps` and `relics` true on the merged schema (`plan` and `choose` in
+`CLIENT_MESSAGE_TYPES`, `RaidState.camps`, `PlayerState.build`), and no module acts on them. So that planning cannot stall a room, each
+driver presses Ready for its bots: `BotManager.pressReady` (in-process) and `BotClient.pressReady` (network) send `plan {ready: true}`
+once per bot, 1 to 3 s into the phase, through the adapter (marked `TODO(planning module)`); the server places a bot that picked
+nothing as it would a human who did not. The deal reaches the brain as a private `plan` message (the Room routes a bot's to
+`bots.onPrivate`), unread. The brain's frames run only in `active`. The old BotClient's chest and spawn logic survives as pure code
+for the modules to adopt: `chestHunt.ts` (which option, when to walk) and `mobHunt.ts`' `planSpawnScore`/`planPick`.
 
 **Adopting `decideCast` (built).** Wishes is merged, so `brain/modules/wishes.ts` calls the shared `decideCast` / `hidesCaster`
 (`bots/abilityPolicy.ts`, pure and shared-only) directly: the one import outside the brain's folder, allowed for that file alone

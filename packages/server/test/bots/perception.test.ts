@@ -143,7 +143,7 @@ const offBox = (self: Vec2, p: Vec2) =>
 
 describe("perception reads only what the client draws", () => {
   const OTHER_NEVER = [
-    "stacksHp", "stacksAs", "stacksMs", "kills", "gv", "readyAt", "attackTarget", "moveSeq", "look", "mobKills", "asMult", "windupMult",
+    "buffs", "kills", "gv", "readyAt", "attackTarget", "moveSeq", "look", "mobKills", "asMult", "windupMult",
     "speedMult", "armorBonus", "shieldBonus",
   ];
 
@@ -280,7 +280,7 @@ describe("both drivers perceive the same", () => {
         const plain = input.state as PlainState;
         for (const p of plain.players.values()) {
           p.x += 0.123456789; p.y -= 0.987654321; p.hp -= 0.3333; p.readyAt += 0.77; p.drawStartedAt += 0.5; p.immuneUntil += 0.25;
-          p.stacksHp += 0.1234567;
+          p.buffs.set("emberImp", (p.buffs.get("emberImp") ?? 0) + 0.1234567);
         }
         for (const m of plain.mobs.values()) { m.x += 0.31415926; m.hp -= 0.2718281; }
         const server = toSchemaState(plain);
@@ -354,10 +354,11 @@ describe("both drivers perceive the same", () => {
     const client = decodedCopy(server);
     for (const [state, player] of [[server, new PlayerState()], [client, client.players.get("me")!]] as const) {
       const f = detectFeatures({ state, player, map: testMap() });
-      // The merged schema: the Wish, the status bits and the areas exist; the Q/E fields are in the schema but no ability fills them.
+      // The merged schema: the Wish, the status bits, the areas, planning (`plan`), the camps and chests (`choose`) and the build
+      // (relics) exist; the Q/E fields are in the schema but no ability fills them. (Detected, not yet used: no module acts on them.)
       expect(f).toEqual(featureSet({
-        messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "cast"],
-        wishes: true, statusEffects: true, fields: true, skills: false,
+        messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan", "cast", "choose", "train"],
+        wishes: true, statusEffects: true, fields: true, skills: false, planning: true, chests: true, camps: true, relics: true,
       }));
       expect("barrier" in player).toBe(true);
       expect("wishReadyAt" in player).toBe(true);
@@ -493,7 +494,7 @@ describe("which fx a bot observes (docs/BOTS.md 3.4)", () => {
   const at = (k: number, events: FxEvent[]): Spec => ({ state: world(others), events: k === 2 ? events : [] });
   const seen = (events: FxEvent[]): ObservedEvent[] => allEvents(run(10, (k) => at(k, events)));
 
-  it("windup, swing, stagger, cancel, heal, buff, combo: only when the subject is drawn, or is the bot", () => {
+  it("windup, swing, stagger, cancel, heal, buff: only when the subject is drawn, or is the bot", () => {
     const evs = seen([
       { kind: "windup", by: "on", weapon: "axe", a: 1, ms: 250 },
       { kind: "windup", by: "off", weapon: "axe", a: 1, ms: 250 },
@@ -503,11 +504,11 @@ describe("which fx a bot observes (docs/BOTS.md 3.4)", () => {
       { kind: "stagger", id: "on" }, { kind: "stagger", id: "off" },
       { kind: "cancel", id: "me" }, { kind: "cancel", id: "near" },
       { kind: "heal", id: "on", amount: 7.6 }, { kind: "heal", id: "on", amount: 0.4 }, { kind: "heal", id: "off", amount: 7 },
-      { kind: "buff", id: "on", stat: "hp", stacks: 0.734, total: 2.5 }, { kind: "buff", id: "me", stat: "hp", stacks: 0.734, total: 2.5 },
-      { kind: "combo", id: "off", combo: "dash", proc: true }, { kind: "combo", id: "me", combo: "dash", proc: false },
+      { kind: "buff", id: "on", buff: "emberImp", stacks: 0.734, total: 2.5 }, { kind: "buff", id: "me", buff: "emberImp", stacks: 0.734, total: 2.5 },
+      { kind: "buff", id: "off", buff: "plagueRat", stacks: 1, total: 1 },
     ]);
     const brief = evs.map((e) => `${e.kind}:${"by" in e ? e.by : "id" in e ? e.id : ""}`);
-    expect(brief).toEqual(["windup:on", "swing:mon", "stagger:on", "cancel:me", "heal:on", "buff:on", "buff:me", "combo:me"]);
+    expect(brief).toEqual(["windup:on", "swing:mon", "stagger:on", "cancel:me", "heal:on", "buff:on", "buff:me"]);
     // Numbers as drawn: a whole heal, someone else's buff as "+0.7" with no total, the bot's own exact.
     expect(evs.find((e) => e.kind === "heal")).toMatchObject({ amount: 8 });
     expect(evs.filter((e) => e.kind === "buff")).toMatchObject([{ id: "on", stacks: 0.7, total: -1 }, { id: "me", stacks: 0.734, total: 2.5 }]);
