@@ -9,6 +9,7 @@ R2 (generator track) built the R1 design (`docs/R1_GENERATOR_NOTE.md`) for real,
 | d5e83bb | step 3: speed work (same maps), the ruin-pocket fix, the 1000-seed sweep script |
 | e53febb | merge of the zone-terrain foundation (cffb414): R2 moved onto its masks, terrain layer and the single-pass style hook |
 | 9f94318 | merge of R0/R3/R4a (eafcc87) |
+| fa7cf35, 30b8df5 | ZT-6: the zone stylers wired into the generator's hook, the themes on (section 6) |
 
 This note says what differs from the R1 note and why, the parameters finally used, and the measured numbers. The R1 note
 stays the design reference for everything not listed here.
@@ -23,9 +24,9 @@ stays the design reference for everything not listed here.
 - `cover.ts`: lane tables anchored at `LATTICE_ORIGIN` (the coliseum centre less (32, 32)), `placeCover` with the
   territory guard, `walkDistances`, `enforceConnectivity`, `longestLane`. Sight reads `MASK_SIGHT`, connectivity
   `MASK_MOVE` (map.ts).
-- `styler.ts`: the zone style hook types (`ZoneStyleHook`, `StyleState`, `StyleCamp`), `ZONE_STYLE_HOOK` (null in R2),
-  `STYLE_STREAM` (0 shape, 1 decor, 2 surface) and `styleRng(seed, attempt, zone, stream)`, a placeholder whose seed
-  becomes zone terrain's `hashSeed` in one line.
+- `styler.ts`: the zone style hook types (`ZoneStyleHook`, `StyleState`, `StyleCamp`), `ZONE_STYLE_HOOK` (the zone stylers'
+  adapter while `MAP_STYLERS` is on, null when it is off), `STYLE_STREAM` (0 shape, 1 decor, 2 surface) and
+  `styleRng(seed, attempt, zone, stream)` = `mulberry32(hashSeed(...))` (shared/rng.ts). `zoneStyle/hook.ts` is the adapter.
 - `mapgen.ts`: the attempt pipeline and the public API.
 
 Public API (re-exported by `@raid/shared`):
@@ -38,9 +39,11 @@ Public API (re-exported by `@raid/shared`):
 - `mapHash(map)`: 32-bit FNV-1a, 8 hex digits, over the gameplay layers: seed, attempt, size, tiles, terrain, regionGrid,
   territoryGrid, camps, spawn pool, regions (pole, area, spawns, crates), ruins, spawns, crates and ground spots. Props are
   left out (cosmetic): `generateMap(seed, attempt, { decor: false })`, the server's and the bots' build, hashes the same.
+- `options.styleZones: null` builds the plain map with no stylers (the `styler=none` of the scripts and the plain pins).
 - Constants: `SIGHT_LATTICE`, `LATTICE_ORIGIN`, `CAMPS_PER_ZONE` 4, `CAMP_GAP` 9, `TERRITORY_RADIUS_MAX` 30,
   `RING_CONTACT_MIN` 24, `SLIVER_MAX` 100.
-- Bench hooks: `MAPGEN_FAILS` (failures by reason), `MAPGEN_PROFILE` (per-stage time, off by default).
+- Bench hooks: `MAPGEN_FAILS` (failures by reason), `MAPGEN_NOTES` (ice cleared and frozen, rezoned pieces), `MAPGEN_PROFILE`
+  (per-stage time, off by default), `STYLER_STATS` (the styler passes' ms, blocked and refused tiles).
 
 `GameMap` (map.ts) as it stands: `tiles` (FLOOR / WALL / LOW), `terrain`, `props`, `regionGrid` (every tile off the border
 is a zone or the coliseum; no ridges), `attempt`, `territoryGrid` (1 + camp index; a zone's territories partition all its
@@ -50,9 +53,10 @@ painted tiles), `camps` (4 per zone, REGION_FACTIONS order), `spawnPool` (24-32,
 shared read `anchor`).
 
 Scripts: `printMap.ts <seed> [attempt]` (zones, territory edges, camps, chests, crates, the pool, low ground);
-`mapBench.ts [n] [from=] [yard=]` (cost per raw seed, attempts, failures, stage times, a load yardstick);
-`mapSweep.ts <n> [from=] [styler=demo]` (the independent certifier on every seed, plus exact strips, discs, the findPath
-walking ratio and hazard exposure); `pinMaps.ts` (re-pins `test/mapPins.ts`).
+`mapBench.ts [n] [from=] [styler=] [yard=]` (cost per raw seed, attempts, failures, notes, stage times, a load yardstick);
+`mapSweep.ts <n> [from=] [styler=default|none|zone|demo]` (the independent certifier on every seed, plus exact strips, discs,
+the findPath walking ratio, hazard exposure and the themes' presence); `pinMaps.ts` (re-pins `test/mapPins.ts`: themed and
+plain); `printZone.ts <seed> [zone]` (a zone as ASCII).
 
 ## 2. What differs from the R1 note, and why
 
@@ -83,12 +87,13 @@ walking ratio and hazard exposure); `pinMaps.ts` (re-pins `test/mapPins.ts`).
 6. **The style hook follows the zone-terrain contract.** One pass with the whole zone grid (`StyleState`: w, h, seed,
    attempt, tiles, terrain, props, zone, zoneFaction, protect, territoryGrid, camps `{site, r, territory}`, keepLow),
    replacing R1's per-zone callback. Rules:
-   - the generator checks the tiles and terrain written against the contract and throws on a breach;
+   - the generator checks the tiles and terrain written against the contract and fails the attempt on a breach
+     (`A:styleBreach`; it threw before ZT-6, which would have crashed a room);
    - spawn-pool members (5x5), crates (3x3) and ground spots need tiles with no terrain;
    - a floor kind under any wall is cleared, while a LOW kind under a rock stays (as decor);
    - props whose tile changed class are dropped;
    - `validateTerrain(map, { styled: true })` gates a styled attempt.
-   R2 ships no hook; the default maps have no LOW tiles, no terrain and no props.
+   R2 shipped no hook; ZT-6 wired it (section 6). With `styleZones: null` a map has no LOW tiles, no terrain and no props.
 7. **Masks.** After the merge of cffb414, `cover.ts`, the territory repair and the certifier read `MASK_SIGHT` for
    lanes, cones and the spawn screen, and `MASK_MOVE` for connectivity, sealing, the ring road, the guard and walking
    distances. Probes restore the byte they saved (contract 0.2 b), so a probed LOW tile never comes back as floor.
@@ -123,13 +128,13 @@ scaled by area, the four lattices, the anchor, `strayMax` 40.
 | clearing | radius 2.5; halo = clearing + 1; 3-5 spots; chest at the centre; elite at spot 0 | zones.ts, mapgen.ts |
 | ruins | 0-2 per zone, 7-9 a side, margin 2 in one zone, 2 from clearings, gap 2 | mapgen.ts |
 | rock chunks | 34-69 (64x64 density scaled by area) | mapgen.ts |
-| spawn pool | 24-32 members, 4+ zones, 0.5-0.95 R0, 7 tiles from camps when picked (guarantee 5), separation 5; picked at ±4.5%, certified at ±8% | mapgen.ts |
+| spawn pool | 24-32 members, 4+ zones, 0.5-0.95 R0, 7 tiles from camps when picked (guarantee 5), separation 5; picked BEFORE the stylers at ±4.5% (up to 40), trimmed to 32 after the cover, certified at ±8% | mapgen.ts |
 | crates | 3-4 per zone against a wall | mapgen.ts |
 | cover | pre-lattices 8:2 and 16:1, coarse 32:0.5, fine 48:0.25 (certifying), target 14.98 tiles | cover.ts |
 | floor share | max/min <= 1.15 | mapgen.ts |
 | attempts | 16 for a pool; stream `seed + attempt * 0x9e3779b1` | mapgen.ts |
 
-## 4. Measured
+## 4. Measured (the plain generator, before ZT-6; section 6 has the themed numbers)
 
 Node 25.8 on an Apple M5 Pro (6 Super + 12 Performance cores), shared with other agents (load average 9-19). Each
 number comes with the 64x64 wedge generator run in the same windows as a yardstick (R1's quiet-machine yardstick: 18.4 ms).
@@ -202,8 +207,98 @@ one findPath tier on 147 of 200 maps.
 
 - The client side was not re-measured: R1's cold Chrome attempt (85 ms, 67 ms with a warm-up attempt) predates the
   30% speed-up. The pool, the worker and the `mapHash` mismatch path belong to the pool and client tracks.
-- `styleRng` is a placeholder for zone terrain's `hashSeed(seed, attempt, zoneIndex, stream)` (shared/rng.ts); the swap
-  is one line and changes every styled map.
-- Rock density is about 1880 wall tiles per map in the zones, with ruins and chunks included; zone-terrain's tall
-  walls are the lever to bring it down.
+- `styleRng` is `hashSeed`'s stream since ZT-6 (every styled map moved then).
+- Rock density is about 2040 wall tiles per map in the zones with the stylers on (1880 without): the stylers' walls did
+  not bring it down.
 - Lane tables: 44 MB per process (4 tables, Float64 edges).
+
+## 6. ZT-6: the zone stylers at the hook, the themes on
+
+ZT-6 (zone terrain's integration, `fa7cf35` and `30b8df5`) called `styleZones` from the hook, turned `MAP_STYLERS` on, deleted the
+dev adapter (`zoneStyle/finishedMap.ts`, `gameMapBuild.ts`, the wedge suites) and re-pinned the maps. Every map the pool, the bots and
+the clients build is themed: Scorch lava, embers and obsidian; Gallows fences and cell blocks; Warren bog and tunnels; Rime ice shelves
+and crevasses; Sanctum colonnades and light shafts. All five themes are on every one of 1000 swept maps (a test asks 90% of 200).
+
+**The adapter** (`zoneStyle/hook.ts`). R2's `StyleState` and zone terrain's `ZoneStyleState` differ in four small ways, and the adapter
+maps them: `territoryGrid` (always there) is the stylers' `territory` (null on a synthetic fixture); `decor` is a state field here and an
+option of `styleZones`; the hook returns nothing where `styleZones` returns a `StyleResult[]` (kept as telemetry in `STYLER_STATS`); and
+`camps[].r` is in tiles on both sides (`CAMP_R`), so it passes unchanged. The generator's `protect` is the stylers' `hard`; it adds no
+`noBlock`/`noProp`. The stylers' own state type is renamed `ZoneStyleState`, so the shared barrel has one `StyleState` (the generator's).
+`styleRng` is `mulberry32(hashSeed(seed, attempt, zone, stream))`: the one stream function.
+
+**What changed in the generator, and why** (each one measured on `mapBench`, attempts per seed and failures by reason):
+1. *The spawn pool is picked before the stylers.* After them, their walls and hazards left 1090 candidates against 2425 on the plain
+   map, the pool came out at 19-23 against a minimum of 24 on a third of the attempts (2.4 attempts a seed against 1.1); the cover
+   then shifts a spawn's walking distance by 3% to 100%, so even a full pool lost members. Now the pool is picked on the open ground (up to 40 members within 4.5% of
+   a contour), its 3x3s are `protect`ed from the stylers, hazards are cleared from its 5x5s afterwards (T8) and, after the cover and the
+   territory repair, the longest run within 8% is kept and trimmed to 32 from its extremes. (Picking it after the coarse cover failed
+   96% of seeds: the cover leaves too few plain 3x3s.) The contract wanted the hook first, to measure the contour on styled ground;
+   the post-cover check is the same certificate, so nothing weaker is certified.
+2. *A styler breach fails the attempt* (`A:styleBreach`, never seen on a swept seed) instead of throwing.
+3. *ICE.* Contract 0.11's first choice, keeping rocks off the ICE's neighbourhood, makes 70% of attempts fail (the cover cannot cut a
+   lane through a lake: `A:coverPre`). Keeping them off as a last resort (`soft` ground) worked but, because the cover's last-resort
+   level skips the territory guard, split the Rime's territories and cost 1.34 attempts per seed (a variant that kept the guard:
+   1.22). So the cover ignores ICE; a rock clears the ICE on its 8 neighbours (`clearIceBesideSolid`, the second choice), and the
+   Rime then freezes every clear tile it has left (`freezeClearGround`). The result is about 41 ICE tiles a map (13 that survive and 28
+   frozen), 3% of the Rime's floor, where the recipe laid about 280: the 480 u cap puts a rock in nearly every 3x3 of the Rime. See
+   CLAUDE.md Known TODOs for the levers.
+4. *The territory repair walls up small cut-off pieces* (at most `WALL_UP_MAX` 120 tiles, holding no crate, pool member, camp ground
+   or ruin, and not a bridge: the floor stays one piece) instead of giving them to another zone; a piece of at most 40 tiles that
+   cannot be walled still changes zone, its hazards cleared (T6), and fails the attempt if it holds low ground (`A:rezoneLow`). The
+   area balance no longer aborts when a trade gets stuck (the 8-tile spread check judges the result), and trades make partial
+   progress. These took `A:areaPost` from 19% of the themed attempts that reached the repair (21 of 109) to 2.2% of all of them (24 of 1104), and from about 5% to 2.1% on the plain generator.
+5. *Zone floor.* The cover keeps a zone's floor locally connected (`guardOK` checks the zone as well as the territory) and the
+   generator checks that each zone's floor is one 4-connected piece (`A:zoneFloorSplit`); the certifier checks it too.
+6. *The walking contour is judged after the repair*, which can wall up floor: a pool that had passed the 8% check before the repair
+   failed the independent certifier's at 1.23 once a wall moved a walk.
+7. Decor stays off spawns, crates and ground spots; a `validateTerrain` failure fails the attempt (`A:terrain`, about 1 in 1000).
+
+**Tests.** `mapStyler.test.ts` (the demo hook, with its ice back: a 6x6 sheet on plain floor), `zoneStyleGen.test.ts` (each theme's
+terrain on 90% of 200 seeds, every kind in its home zone, `validateTerrain` clean on 200 maps, the styler's net never used, the adapter
+equal to a direct `styleZones` call, zone isolation: a no-op styler in one zone leaves the others byte-identical), the hook tests in
+`mapgen.test.ts` (a breach fails the attempt; no LOW tile ends as floor; the pool's 3x3s are plain and its 5x5s hazard-free; the
+`decor: false` guard over 60 seeds of the game's own hook; `styleRng` is `hashSeed`'s), the pins (`PINNED_MAPS` themed, recorded in
+another process; `PINNED_PLAIN` for `styleZones: null`), and the certifier's `styler=zone` mode.
+
+**Measured** (Node 25.8, Apple M5 Pro, shared machine at load 8-9; the plain generator was run in the same windows):
+
+| 1000 seeds (0..999) | mean | p50 | p90 | p99 | max | attempts per seed | certified at attempt 0/1/2 | discarded |
+|---|---|---|---|---|---|---|---|---|
+| themed | 39.7 ms | 34.7 | 57.7 | 96.4 | 219.8 | 1.104 | 904 / 88 / 8 | 0 |
+| plain (`styler=none`) | 30.6 ms | 27.9 | 36.0 | 64.9 | 101.8 | 1.056 | 950 / 44 / 6 | 0 |
+| themed, a second window (load 11-13) | 44.6 ms | 41.1 | 62.8 | 103.3 | 179.1 | 1.104 | 904 / 88 / 8 | 0 |
+| plain, the same window | 32.0 ms | 27.8 | 43.9 | 80.4 | 97.1 | 1.056 | 950 / 44 / 6 | 0 |
+
+An interleaved run of the plain generator as the yardstick read 31.9 ms mean and 72.6 p99 over 300 maps while the themed one read the
+39.7 and 96.4 above (35.9 and 89.3 against 44.6 and 103.3 in the second window): the themed generator costs about 1.25 to 1.4 times the
+plain one. The targets (mean 40 ms, p99 120 on a quiet machine) are met at both loads; scaled by the R2 doc's 0.75 for a quiet
+machine the means are about 30-33 ms. Extra attempts over the plain generator: +4.5% (the contract asked for 2%: see CLAUDE.md Known TODOs for where
+they come from). The styler stage costs 5.8 ms per attempt (5.4 ms per call; the gate is 8). Time per attempt by stage, in ms:
+zones 5.68, ruins 0.31, spawn pool 1.11, styler 5.77, crates 0.65, pre-lattices 3.43, coarse 5.78, fine 10.61, post 1.25,
+records 1.06. The cost gate (`mapgen.perf.test.ts`) is 60 ms scaled with the stylers and 45 without; it reads 50-58 ms and 36 ms.
+Failures per 1104 attempts (themed; plain per 1056): pool after the cover 15 (2), zone floor split 13 (2), territory radius 15 (3),
+area 24 (22), stray piece 15 (10), crate in a rezoned piece 10 (9), fine cover 9 (6), `A:rezoneLow` 1, `A:rezoneRuin` 2 (2).
+
+**Certification** (the independent certifier in `styler=zone` mode: every plain check plus `validateTerrain` T1-T11, each zone's
+floor 4-connected, every kind in its home zone, ICE with plain floor on all eight sides, no kind on a spawn 3x3, no hazard on a
+spawn 5x5 or a ground spot's 3x3, no kind on a crate 3x3 or a camp clearing + halo):
+
+| sweep | seeds | failures | discarded | lane max | exact strip max | disc max | floor share max | walk ratio BFS 5/7 | findPath walk ratio mean / p90 / max |
+|---|---|---|---|---|---|---|---|---|---|
+| default (themed) | 0..499 | 0 | 0 | 479.4 u | 465.1 u | 454.0 u | 1.143 | 1.174 | 1.169 / 1.181 / 1.189 |
+| default (themed) | 500..999 | 0 | 0 | 479.4 u | 462.7 u | 454.0 u | 1.146 | 1.174 | 1.171 / 1.186 / 1.200 |
+| default (themed), a fresh range | 40000..40199 | 0 | 0 | 479.4 u | 464.4 u | 441.8 u | 1.143 | 1.174 | 1.163 / 1.181 / 1.182 |
+
+The 480 u cap is certified with the stylers' walls counted (a wall cuts a lane, LOW does not: sight reads `MASK_SIGHT`). The sealed
+coliseum lane is 418 u, ring contact at least 29, slivers at most 100, territory radius at most 30.0 tiles, the pool 24-32. The
+independent certifier found no failure and no discard. Themes present (lava, fence, bog, ice, light): on every map of all three
+sweeps. Mean tiles of each kind per map: lava 62, ember 68, fence 49, bog 97, ice 41 (crevasse 20), light 18; rock tiles 2037.
+Hazard exposure (report only, contract 0.8): 35% of pool members cross at least one terrain tile on their walk to the centre; mean
+1.4 over all members, p90 5, max 24.
+
+**Determinism.** The pins were recorded by `scripts/pinMaps.ts` in its own process and are compared in the shards and in a fresh-module
+rebuild (50 seeds); the Math spy runs through a generation with the stylers on. In headless Chrome 155, five seeds (5:1, 123:0,
+777:1, 40010:0 and 2^32 + 5:1) built with decor on in the page hash exactly as Node's `decor: false` build does, and a room served by
+the server's pool worker reported a `mapHash` equal to Node's rebuild of its (seed, attempt). The client bakes a themed map in 59 ms
+(36 floor chunks, 576 strips, 3 pages, 45.2 MB of the 48 MB budget, 612 images) and draws at 144 fps (p99 frame 8.7 ms) walking from
+the Scorch into the Gallows in the browser pane.
