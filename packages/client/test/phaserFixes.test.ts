@@ -1,6 +1,22 @@
 // render/phaserFixes.ts: the Phaser 4.2.1 renderer workaround. Phaser is not loaded: a fake batch handler stands in for its own.
 import { describe, expect, it, vi } from "vitest";
-import { applyPhaserFixes, coerceLightingFlag } from "../src/render/phaserFixes";
+import { MSAA_MAX_PIXELS, applyPhaserFixes, coerceLightingFlag, wantsMsaa } from "../src/render/phaserFixes";
+
+describe("wantsMsaa", () => {
+  it("keeps the multisampling on a 1x screen at any window size, and on a dense screen up to the pixel limit", () => {
+    expect(wantsMsaa(2560 * 1233, 1)).toBe(true);
+    expect(wantsMsaa(2560 * 1440, 1)).toBe(true);
+    expect(wantsMsaa(3440 * 1440, 1)).toBe(true);
+    expect(wantsMsaa(MSAA_MAX_PIXELS, 2)).toBe(true);
+    expect(wantsMsaa(2560 * 1440, 2)).toBe(true);
+  });
+
+  it("drops it on a dense screen past the pixel limit (a Retina 1440x900 window is 2880x1800)", () => {
+    expect(wantsMsaa(2880 * 1800, 2)).toBe(false);
+    expect(wantsMsaa(MSAA_MAX_PIXELS + 1, 1.5)).toBe(false);
+    expect(wantsMsaa(2880 * 1800, 1.25)).toBe(true);
+  });
+});
 
 function batch() {
   const seen: Array<[unknown, unknown]> = [];

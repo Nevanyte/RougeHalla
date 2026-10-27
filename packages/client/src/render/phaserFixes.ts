@@ -22,6 +22,17 @@ export function coerceLightingFlag(batch: Partial<LightingAwareBatch> | undefine
   return true;
 }
 
+/**
+ * Whether the canvas should be multisampled (Phaser's `antialiasGL`, fixed when the context is made). A 4x multisampled target costs
+ * GPU time in proportion to its pixels: a busy arena held 144 fps at 2560x1233 and dropped to 124-131 at 2880x1800 (a 1440x900 window
+ * on a Retina screen), and held 140+ there without it. A dense screen needs the multisampling least, its pixels being half the size.
+ * So it is dropped only for a canvas over `MSAA_MAX_PIXELS` on a screen of at least 1.5 device pixels per CSS pixel.
+ */
+export const MSAA_MAX_PIXELS = 4.2e6;
+export function wantsMsaa(devicePixels: number, devicePixelRatio: number): boolean {
+  return !(devicePixels > MSAA_MAX_PIXELS && devicePixelRatio >= 1.5);
+}
+
 interface RenderNodesLike {
   getNode?(name: string): Partial<LightingAwareBatch> | undefined;
 }
