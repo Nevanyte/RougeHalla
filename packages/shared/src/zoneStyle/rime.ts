@@ -210,46 +210,53 @@ function memberWays(mouths: ReadonlyArray<[number, number]>, mx: number, my: num
  * The clearance, thirds of a tile: min(dCamp - 17, dEdge - 12, dRing - 17, dSpawn - 11, dLandmark - 9) with every distance a 3-4
  * chamfer. It is ONE chamfer pass pair whose sources start at minus their margin (a minimum of margin-shifted distances is a
  * chamfer from sources that start at the shifts). Tiles outside the zone are sources at -12, so they read negative.
+ *
+ * Only the zone's box grown by 3 tiles is computed (the rest reads 0 and is never looked at): a source beyond the window lies more
+ * than 5 thirds past the zone's rim, and the rim's own tiles (sources at -12) always bind first, so the result is the whole grid's.
  */
 function clearanceField(c: BaseCtx, withSpawns: boolean, corridor: Uint8Array | null = null): Int32Array {
   const { w, h, mask } = c;
-  const n = w * h;
-  const d = new Int32Array(n);
-  for (let i = 0; i < n; i++) d[i] = mask[i] === 1 ? BIG : -MARGIN_EDGE;
+  const zb = c.zone.bbox;
+  const x0 = Math.max(0, zb.x - 3), y0 = Math.max(0, zb.y - 3), x1 = Math.min(w - 1, zb.x + zb.w + 2), y1 = Math.min(h - 1, zb.y + zb.h + 2);
+  const d = new Int32Array(w * h);
   const fl = fixedLayout();
-  if (fl.ring.length === n) for (let i = 0; i < n; i++) if (fl.ring[i] === 1 && d[i] > -MARGIN_RING) d[i] = -MARGIN_RING;
-  for (const i of zoneCamps(c)) if (d[i] > -MARGIN_CAMP) d[i] = -MARGIN_CAMP;
-  if (withSpawns) for (const i of c.spawns) if (d[i] > -MARGIN_SPAWN) d[i] = -MARGIN_SPAWN;
-  const b = c.zone.bbox;
-  for (let y = b.y; y < b.y + b.h; y++) {
-    for (let x = b.x; x < b.x + b.w; x++) {
+  const ring = fl.ring.length === w * h ? fl.ring : null;
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
       const i = y * w + x;
-      if (mask[i] === 1 && d[i] > -MARGIN_LANDMARK && c.isOwned(i)) d[i] = -MARGIN_LANDMARK;
-      if (corridor !== null && corridor[i] === 1 && d[i] > -MARGIN_CORRIDOR) d[i] = -MARGIN_CORRIDOR;
-    }
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x;
-      let v = d[i];
-      if (x > 0 && d[i - 1] + 3 < v) v = d[i - 1] + 3;
-      if (y > 0) {
-        if (d[i - w] + 3 < v) v = d[i - w] + 3;
-        if (x > 0 && d[i - w - 1] + 4 < v) v = d[i - w - 1] + 4;
-        if (x < w - 1 && d[i - w + 1] + 4 < v) v = d[i - w + 1] + 4;
+      let v = mask[i] === 1 ? BIG : -MARGIN_EDGE;
+      if (ring !== null && ring[i] === 1 && v > -MARGIN_RING) v = -MARGIN_RING;
+      if (mask[i] === 1) {
+        if (v > -MARGIN_LANDMARK && c.isOwned(i)) v = -MARGIN_LANDMARK;
+        if (corridor !== null && corridor[i] === 1 && v > -MARGIN_CORRIDOR) v = -MARGIN_CORRIDOR;
       }
       d[i] = v;
     }
   }
-  for (let y = h - 1; y >= 0; y--) {
-    for (let x = w - 1; x >= 0; x--) {
+  for (const i of zoneCamps(c)) if (d[i] > -MARGIN_CAMP) d[i] = -MARGIN_CAMP;
+  if (withSpawns) for (const i of c.spawns) if (d[i] > -MARGIN_SPAWN) d[i] = -MARGIN_SPAWN;
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
       const i = y * w + x;
       let v = d[i];
-      if (x < w - 1 && d[i + 1] + 3 < v) v = d[i + 1] + 3;
-      if (y < h - 1) {
+      if (x > x0 && d[i - 1] + 3 < v) v = d[i - 1] + 3;
+      if (y > y0) {
+        if (d[i - w] + 3 < v) v = d[i - w] + 3;
+        if (x > x0 && d[i - w - 1] + 4 < v) v = d[i - w - 1] + 4;
+        if (x < x1 && d[i - w + 1] + 4 < v) v = d[i - w + 1] + 4;
+      }
+      d[i] = v;
+    }
+  }
+  for (let y = y1; y >= y0; y--) {
+    for (let x = x1; x >= x0; x--) {
+      const i = y * w + x;
+      let v = d[i];
+      if (x < x1 && d[i + 1] + 3 < v) v = d[i + 1] + 3;
+      if (y < y1) {
         if (d[i + w] + 3 < v) v = d[i + w] + 3;
-        if (x < w - 1 && d[i + w + 1] + 4 < v) v = d[i + w + 1] + 4;
-        if (x > 0 && d[i + w - 1] + 4 < v) v = d[i + w - 1] + 4;
+        if (x < x1 && d[i + w + 1] + 4 < v) v = d[i + w + 1] + 4;
+        if (x > x0 && d[i + w - 1] + 4 < v) v = d[i + w - 1] + 4;
       }
       d[i] = v;
     }
@@ -462,7 +469,8 @@ function placeTower(c: LandmarkCtx, tx: number, ty: number, vertical: boolean): 
       sat[(y + 1) * (ww + 1) + x + 1] = sat[y * (ww + 1) + x + 1] + sat[(y + 1) * (ww + 1) + x] - sat[y * (ww + 1) + x] + (free ? 0 : 1);
     }
   }
-  const cand: Array<{ s: number; x0: number; y0: number; o: number }> = [];
+  // candidates packed into one sortable number: squared distance (with the axis penalty), then origin row, column and orientation
+  const keys: number[] = [];
   for (let o = 0; o < 8; o++) {
     const rot = o & 3;
     const bw = (rot & 1) === 0 ? 8 : 7, bh = (rot & 1) === 0 ? 7 : 8;
@@ -475,15 +483,16 @@ function placeTower(c: LandmarkCtx, tx: number, ty: number, vertical: boolean): 
         const bad = sat[(ry + bh) * (ww + 1) + rx + bw] - sat[ry * (ww + 1) + rx + bw] - sat[(ry + bh) * (ww + 1) + rx] + sat[ry * (ww + 1) + rx];
         if (bad > 4) continue;
         const dx2 = 2 * x0 + bw - (2 * tx + 1), dy2 = 2 * y0 + bh - (2 * ty + 1);
-        cand.push({ s: dx2 * dx2 + dy2 * dy2 + penalty, x0, y0, o });
+        keys.push((dx2 * dx2 + dy2 * dy2 + penalty) * 524288 + (y0 * 256 + x0) * 8 + o);
       }
     }
   }
-  cand.sort((a, b) => a.s - b.s || a.y0 - b.y0 || a.x0 - b.x0 || a.o - b.o);
+  const order = Float64Array.from(keys).sort();
   let tried = 0;
-  for (const k of cand) {
-    const rot = (k.o & 3) as 0 | 1 | 2 | 3, mirror = k.o >= 4;
-    const st = stampTemplate(WATCHTOWER, k.x0, k.y0, rot, mirror, w, h);
+  for (const key of order) {
+    const low = key % 524288, o = low % 8, xy = (low - o) / 8, x0 = xy % 256, y0 = (xy - x0) / 256;
+    const rot = (o & 3) as 0 | 1 | 2 | 3, mirror = o >= 4;
+    const st = stampTemplate(WATCHTOWER, x0, y0, rot, mirror, w, h);
     if (!st || !stampFits(c, st)) continue;
     if (placeLandmark(c, WATCHTOWER, st, rot, mirror)) return;
     if (++tried >= 6) return;
