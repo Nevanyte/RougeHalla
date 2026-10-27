@@ -8,11 +8,11 @@
 //   leave in lobby    nothing
 //   leave in planning recordRun(mia, 0 kills, 0 GV), as a leave in the run: planning is part of the run (a dropped client's
 //                     seat is held, as in the run, and goes MIA when the grace runs out). A shutdown voids it instead.
-import { randomBytes, randomInt } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { ErrorCode, Room, ServerError, type AuthContext, type Client } from "@colyseus/core";
 import {
-  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, TICK_MS, packLook,
-  type FactionId, type FxEvent, type GameMap, type GvReason, type JoinOptions, type RoomMode, type RunResult, type ServerMessages,
+  CLIENT_MESSAGE_TYPES, ENDED_LINGER_SECONDS, isFactionId, MAX_PLAYERS, PROFILE_RE, RECONNECT_SECONDS, spawnWalks, TICK_MS, packLook,
+  type FactionId, type FxEvent, type GvReason, type JoinOptions, type RoomMode, type RunResult, type ServerMessages,
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import type { ServerConfig } from "../config";
@@ -20,7 +20,7 @@ import { addressOfContext } from "../guards/clientIp";
 import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, type PasscodeGate } from "../guards/passcode";
 import type { RoomCounter } from "../guards/roomCounter";
 import { TokenBucket } from "../guards/tokenBucket";
-import { generateMapAsync } from "../mapService";
+import type { MapSource } from "../mapPool";
 import type { ProfileStore } from "../persistence/ProfileStore";
 import { markDropped, markReconnected } from "../sim/arena";
 import { createGameWorld } from "../sim/gameplay";
@@ -111,6 +111,8 @@ export interface RoomContext {
   rooms: RoomCounter;
   /** The passcode check, shared with the profile route so that a guesser's wrong tries are counted on both doors. */
   passcodeGate: PasscodeGate;
+  /** Certified maps, taken synchronously at a room's first join (mapPool.ts). */
+  maps: MapSource;
 }
 
 /** What onAuth hands to onJoin via `client.auth`. */
@@ -139,7 +141,6 @@ function checkCredentials(options: Partial<JoinOptions> | undefined, store: Prof
 
 /** What a creation refused for the room cap says (net/errors.ts matches "server is full"). */
 const SERVER_FULL = "the server is full: too many rooms are open right now";
-const ROOM_CLOSED_WHILE_CREATING = "the room closed while its map was being made: try again";
 
 /** Every client message but `aim` is an order that spends the sender's budget (aim streams at up to 20 Hz and is its own, cheap, thing). */
 const FREE_MESSAGE_TYPE = "aim";
@@ -178,12 +179,8 @@ export class RaidRoom extends Room<{ state: RaidState }> {
    */
   maxMessagesPerSecond = 100;
 
-  /** Built on the first join (buildWorld): the map is the one real cost of a room, and a room nobody joins never pays it. */
+  /** Built on the first join (buildWorld), with a map from the pool: a room nobody joins never takes one. */
   private built: World | undefined;
-  /** Picked at creation so that the map does not depend on when the first player arrives. */
-  private seed = 0;
-  /** The seed's map, generated off the event loop in onCreate (mapService.ts); the world is built from it on the first join. */
-  private map: GameMap | undefined;
   /** The profile that asked for this room, until a player joins it (or the room is disposed). */
   private opener: string | null = null;
   private accumulator = 0;
@@ -208,8 +205,6 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   private training = false;
   /** The mode this room was counted under in ctx.rooms; null when it was refused or has been given back (see onCreate and onDispose). */
   private counted: RoomMode | null = null;
-  /** Set by onDispose: a room that was disposed while onCreate was still waiting for its map must not be listed (see onCreate). */
-  private disposed = false;
   /** Each player's order budget (a token bucket), made on its first order. */
   private readonly budgets = new Map<string, TokenBucket>();
   /** Orders dropped for being over a budget, in this room: for the log and for the tests. */
@@ -222,7 +217,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     return this.built;
   }
 
-  async onCreate(options?: Partial<JoinOptions>) {
+  onCreate(options?: Partial<JoinOptions>) {
     const { config, profiles, rooms } = RaidRoom.ctx;
     this.training = options?.mode === "training";
     // Joining a room that exists never gets here: matchmaking creates one only when there is no open room to join. Counted
@@ -231,8 +226,7 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     const mode: RoomMode = this.training ? "training" : "arena";
     if (!rooms.tryOpen(mode)) throw new ServerError(ErrorCode.MATCHMAKE_UNHANDLED, SERVER_FULL);
     this.counted = mode;
-    // All that a room nobody joins gets, until the map at the end: the world is built on the first join (buildWorld).
-    this.seed = randomInt(0, 2 ** 31);
+    // A room nobody joins gets nothing more: the world, and its map from the pool, come with the first join (buildWorld).
     const opener = options?.profile;
     if (typeof opener === "string" && PROFILE_RE.test(opener)) {
       this.opener = opener;
@@ -264,22 +258,19 @@ export class RaidRoom extends Room<{ state: RaidState }> {
     // exactly the latest tick. Must come after setTimestep (otherwise core installs its own
     // clock-tick interval, which skews `elapsed`).
     this.patchRate = 0;
-    // Last, so what the room registers above (the opener, the timestep) is in place before this waits. The map is what a room
-    // costs: generating it inline stalled every other room for 20-80 ms (mapService.ts). No world exists until the first join,
-    // and tick() ignores a room without one.
-    this.map = await generateMapAsync(this.seed);
-    // Core arms this room's auto-dispose timer (the seat reservation window) before onCreate runs, and a room nobody has a seat
-    // in yet is disposed when it fires: onDispose ran during the await above, the clock and the timestep are cleared, and core
-    // would still list the room once this returns. A room that is not alive is refused instead (its place under the cap was given
-    // back in onDispose, exactly once, and core's own discard of a failed creation finds nothing left to dispose).
-    if (this.disposed) throw new ServerError(ErrorCode.MATCHMAKE_UNHANDLED, ROOM_CLOSED_WHILE_CREATING);
   }
 
   private buildWorld(): World {
-    const { config } = RaidRoom.ctx;
+    const { config, maps } = RaidRoom.ctx;
+    // Synchronous: a certified map made ahead on the pool's worker (an empty pool certifies one here, logged). A training
+    // room needs no seed of its own: it gets a copy of a recent map, so a burst of practice rooms does not drain the pool.
+    const map = this.training ? maps.takeForTraining() : maps.take();
+    // The planning deal reads the spawn walks (a pooled map arrives with them; a map certified here does not). Worked out now,
+    // as the room is built, so no later tick pays for them: the planning start is a tick with every player in it.
+    if (!this.training) spawnWalks(map);
     const world = createGameWorld({
-      seed: this.seed,
-      map: this.map,
+      // The seed is the map's own (createWorld): what is published always rebuilds this map.
+      map,
       // Training never plans: its one player is in the run the moment they join.
       config: this.training ? { ...config, dummies: true, training: true, planSeconds: 0 } : config,
       random: Math.random,
@@ -435,7 +426,6 @@ export class RaidRoom extends Room<{ state: RaidState }> {
   /** Safety net: onLeave normally empties `seats`; this keeps a leak from locking a profile out for good. */
   onDispose() {
     const { profiles, rooms } = RaidRoom.ctx;
-    this.disposed = true;
     // Whatever else happens below, the room's place under the cap is given back, once, and only if it was ever taken.
     if (this.counted) rooms.close(this.counted);
     this.counted = null;

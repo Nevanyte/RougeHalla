@@ -35,7 +35,6 @@ function openMap(): GameMap {
 /** Two players in an active run: p0 of `faction` (the one under test), p1 a Frost bystander out of range. */
 function startRun(faction: FactionId): World {
   const world = createGameWorld({
-    seed: 5,
     config: { minPlayers: 2, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
     random: mulberry32(6),
     map: openMap(),

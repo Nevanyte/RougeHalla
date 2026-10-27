@@ -45,8 +45,16 @@
 // `displaceSeq`: that is our own blink, and its error is the (small) difference between the two landings, absorbed like any
 // other. A changed `displaceSeq` with no blink of ours behind it is a displacement the server did on its own (a pull, a knock):
 // the model, its history and the drawn fighter all move by what the server says, and a walk in hand is planned again from there.
+//
+// Ice. On slippery ground (`FrameInput.slipAt` > 0 under the model) the server does not walk the path exactly: the fighter keeps
+// a velocity and turns it toward the walk by the traction (shared/walk.ts). The model runs the same `slipWalk` there, carrying
+// the velocity it walked onto the ice with; leaving the ice it grips again and plans the walk again if the slide carried it off
+// the line (`regrip`). The rebase stays position-only: both sides integrate the same dynamics, so the model's velocity is already
+// the server's, and a velocity correction destabilised it at a 120 ms round trip. Off ice, with no slide in hand, none of this
+// runs and the walk is exactly what it was.
 import {
-  findPath, PLAYER_RADIUS, PLAYER_SPEED, segmentClear, TELEPORT_DISTANCE, TICK_MS, WORLD_H, WORLD_W, type GameMap, type Vec2,
+  findPath, newSlip, PLAYER_RADIUS, PLAYER_SPEED, regrip, segmentClear, SLIP_REPLAN_MS, slipWalk, TELEPORT_DISTANCE, TICK_MS, WORLD_H, WORLD_W,
+  type GameMap, type SlipState, type Vec2,
 } from "@raid/shared";
 
 export type MotionMode = "predict" | "follow";
@@ -76,6 +84,10 @@ export interface FrameInput {
   rooted: boolean;
   /** The cursor's aim is streaming, so the server's facing follows the cursor, not the walk. */
   aiming: boolean;
+  /** The slide traction (u/s^2) under a point for this fighter: 0 off ice and for a faction that grips it (Frost). Absent: no ice. */
+  slipAt?: (x: number, y: number) => number;
+  /** The walls the server collides with now (the gated copy while the gates are locked), for the slide; absent: the map of the last order. */
+  map?: GameMap;
 }
 
 /** An error up to here (world units) is absorbed smoothly; beyond it the fighter snaps to the server's position. */
@@ -88,6 +100,10 @@ export const VISUAL_SNAP_DISTANCE = 1.5 * SNAP_DISTANCE;
  * of walking, 8.5 u, and corrects itself in one sample; a speed the client missed adds a few units per sample, in the same direction.)
  */
 export const DIVERGE_ERR = 6;
+/** The same, while the model slides and for SLIP_GRACE_MS after: two near-identical paths stay 6 to 10 u apart on ice for longer than a few patches. */
+export const DIVERGE_ERR_SLIP = 16;
+/** After the model leaves ice the server may still be sliding to its grip: the slide's divergence rule holds this long (ms). */
+export const SLIP_GRACE_MS = 500;
 export const DIVERGE_PATCHES = 3;
 /** Rebase corrections smaller than this are ignored while the fighter moves, and (nearly) exact ones at rest. */
 export const REBASE_DEADZONE = 0.5;
@@ -242,6 +258,15 @@ export class LocalMotion {
   private hope = 0;
   private resume: { goal: Vec2; map: GameMap } | null = null;
   private readonly scratch: Vec2 = { x: 0, y: 0 };
+  /** The model's slide while it is on ice (null: it walks its path exactly), and the model's own velocity over the last frame (u/s). */
+  private slip: SlipState | null = null;
+  private lvx = 0;
+  private lvy = 0;
+  /** The client time until which the slide's divergence rule still holds after the model left the ice. */
+  private slidUntil = -Infinity;
+  /** The traction lookup and the map of the last frame, kept for the places that start a slide between frames. */
+  private slipAt: ((x: number, y: number) => number) | null = null;
+  private frameMap: GameMap | null = null;
 
   get ready(): boolean { return this._ready; }
   get mode(): MotionMode { return this._mode; }
@@ -257,6 +282,8 @@ export class LocalMotion {
   get predicted(): Readonly<Vec2> { return this.sim; }
   /** Whether the model is walking a path this frame. */
   get walking(): boolean { return this.moved; }
+  /** The model's slide velocity (u/s) while it is on ice, else null: the feet effects read it. */
+  get slipVelocity(): Readonly<Vec2> | null { return this.slip ? { x: this.slip.vx, y: this.slip.vy } : null; }
 
   /** Forgets everything (a new scene). */
   reset(): void {
@@ -282,6 +309,12 @@ export class LocalMotion {
     this.expiredJumps.length = 0;
     this.hope = 0;
     this.resume = null;
+    this.slip = null;
+    this.lvx = 0;
+    this.lvy = 0;
+    this.slidUntil = -Infinity;
+    this.slipAt = null;
+    this.frameMap = null;
   }
 
   /**
@@ -305,6 +338,9 @@ export class LocalMotion {
     this.path = [];
     this.goal = null;
     this.moved = false;
+    this.slip = null;
+    this.lvx = 0;
+    this.lvy = 0;
     this.orders.length = 0;
     this.expiredJumps.length = 0;
   }
@@ -337,6 +373,8 @@ export class LocalMotion {
       this.sim.x = origin.x;
       this.sim.y = origin.y;
       this._mode = "predict";
+      // The server has been sliding on with the chase's velocity: the model carries it from the new origin.
+      this.slip = this.slideFrom(origin.x, origin.y, map);
     } else if (!this.moved) {
       timing = kind === "move";
     } else if (kind === "move" && this.path.length > 0) {
@@ -381,6 +419,10 @@ export class LocalMotion {
     this.path = [];
     this.goal = null;
     this.moved = false;
+    // The server's displace() clears the slide: a blink never carries one.
+    this.slip = null;
+    this.lvx = 0;
+    this.lvy = 0;
     // The model is at its landing from `c` on: `simAt` must not carry a later time along the walk it just left.
     this.c = c;
     const by = { x: landing.x - origin.x, y: landing.y - origin.y };
@@ -441,7 +483,8 @@ export class LocalMotion {
     const cut = s.t >= this.cutAt;
     if (cut) this.cutAt = Infinity;
     if (jumped || cut || !this.alive) {
-      this.snapTo(s);
+      // A jump is not a velocity: nothing slides on from it.
+      this.snapTo(s, false, false);
       if (s.locked === true && this.alive) this._mode = "follow";
       return;
     }
@@ -524,17 +567,34 @@ export class LocalMotion {
     this.expireOrders(c);
     this.aiming = input.aiming;
     this.alive = input.alive;
+    this.slipAt = input.slipAt ?? null;
+    this.frameMap = input.slipAt ? input.map ?? null : null;
     if (!input.alive) {
-      this.snapTo(auth);
+      this.snapTo(auth, false, false);
       this.c = c;
       this.record(c);
       this.draw();
       return;
     }
+    const x0 = this.sim.x, y0 = this.sim.y;
     if (this._mode === "predict") {
       this.speed = PLAYER_SPEED * Math.max(0, input.speedMult) * (input.rooted ? 0 : 1);
       this.moved = false;
-      if (this.path.length > 0 && this.speed > 0 && dt > 0) {
+      const slipAt = this.slipAt;
+      const map = this.frameMap ?? this.goalMap;
+      // Off the ice the fighter grips again: the walk it slid off is planned again from here if its next leg is not clear.
+      if (this.slip !== null && !(slipAt !== null && slipAt(this.sim.x, this.sim.y) > 0)) {
+        this.slip = null;
+        this.slidUntil = c + SLIP_GRACE_MS;
+        if (map) this.path = regrip(map, this.sim, this.path);
+      }
+      if (slipAt !== null && map && dt > 0 && slipAt(this.sim.x, this.sim.y) > 0) {
+        const slip = (this.slip ??= newSlip(this.sim.x, this.sim.y, this.lvx, this.lvy));
+        // The clock only runs back when it resynchronises: a stuck slide's next plan is never further off than one interval.
+        if (slip.replanAt > c + SLIP_REPLAN_MS) slip.replanAt = c;
+        const r = slipWalk(map, this.sim, slip, this.path, dt, this.speed, slipAt, c, PLAYER_RADIUS);
+        this.moved = r.moved > 1e-9;
+      } else if (this.path.length > 0 && this.speed > 0 && dt > 0) {
         const reached = walkAlong(this.sim, this.path, (this.speed * dt) / 1000, this.scratch);
         this.moved = Math.hypot(this.scratch.x - this.sim.x, this.scratch.y - this.sim.y) > 1e-9;
         this.sim.x = this.scratch.x;
@@ -544,6 +604,11 @@ export class LocalMotion {
     } else {
       this.followPos(c, this.sim);
       this.moved = Math.hypot(this.vx, this.vy) > 5;
+    }
+    // What the model carries onto ice, if the next frame finds it there.
+    if (dt > 0) {
+      this.lvx = ((this.sim.x - x0) / dt) * 1000;
+      this.lvy = ((this.sim.y - y0) / dt) * 1000;
     }
     this.decay(dt);
     this.c = c;
@@ -606,6 +671,8 @@ export class LocalMotion {
     this.path = [];
     this.goal = null;
     this.moved = false;
+    // The server's chase is followed, not modelled: no slide of ours.
+    this.slip = null;
     this.followPos(c, this.sim);
     this.visual.x += was.x - this.sim.x;
     this.visual.y += was.y - this.sim.y;
@@ -620,6 +687,8 @@ export class LocalMotion {
     this.path = [];
     this.goal = null;
     this.moved = false;
+    // A lock that ends on ice leaves the server sliding to a stop with the chase's velocity, and the model slides with it.
+    this.slip = this.slideFrom(this.sim.x, this.sim.y);
     const r = this.resume;
     this.hope = 0;
     this.resume = null;
@@ -644,7 +713,7 @@ export class LocalMotion {
    * Sit where the server has the fighter and forget the orders in flight. A snap that reconciles a walk (`replan`) plans its
    * destination again from there and carries on; the others (a death, a teleport, the lobby) stand.
    */
-  private snapTo(at: { x: number; y: number }, replan = false): void {
+  private snapTo(at: { x: number; y: number }, replan = false, carry = true): void {
     const goal = replan && this.path.length > 0 ? this.goal : null;
     const map = this.goalMap;
     this.sim.x = at.x;
@@ -655,6 +724,12 @@ export class LocalMotion {
     this.goal = null;
     this._mode = "predict";
     this.moved = false;
+    // The server is sliding where it stands if the sample says it moves on ice: the model takes the sample's velocity.
+    this.slip = carry ? this.slideFrom(at.x, at.y) : null;
+    if (!carry) {
+      this.lvx = 0;
+      this.lvy = 0;
+    }
     this.hope = 0;
     this.resume = null;
     this.off = 0;
@@ -730,6 +805,10 @@ export class LocalMotion {
       p.y += ey;
     }
     this.off = 0;
+    // The server's displace() cleared the slide: it starts again from rest.
+    this.slip = null;
+    this.lvx = 0;
+    this.lvy = 0;
     const goal = this.path.length > 0 ? this.goal : null;
     this.path = [];
     this.goal = null;
@@ -743,10 +822,28 @@ export class LocalMotion {
     }
   }
 
+  /**
+   * A slide that starts at (x, y) with the server's sampled velocity, when that is slippery ground, the server is moving and the
+   * model has a map to collide with; else null. The model's own last-frame velocity becomes the sample's too, so a slide that
+   * starts on the next frame carries the same.
+   */
+  private slideFrom(x: number, y: number, map: GameMap | null = this.frameMap ?? this.goalMap): SlipState | null {
+    this.lvx = this.vx;
+    this.lvy = this.vy;
+    const at = this.slipAt;
+    return at !== null && map !== null && (this.vx !== 0 || this.vy !== 0) && at(x, y) > 0 ? newSlip(x, y, this.vx, this.vy) : null;
+  }
+
   /** The model at client time `t`: from the history, or carried on along the path for a time not yet reached (a negative delay). */
   private simAt(t: number): Vec2 | null {
     const h = this.history;
     if (t >= this.c) {
+      if (this.slip) {
+        // A slide is carried on straight by its velocity (only a negative delay and enterFollow's look-ahead ask).
+        this.scratch.x = this.sim.x + (this.slip.vx * (t - this.c)) / 1000;
+        this.scratch.y = this.sim.y + (this.slip.vy * (t - this.c)) / 1000;
+        return this.scratch;
+      }
       walkAlong(this.sim, this.path, (this.speed * (t - this.c)) / 1000, this.scratch);
       return this.scratch;
     }
@@ -804,12 +901,19 @@ export class LocalMotion {
    * model stands (and is pulled to the samples) instead of running away from them.
    */
   private noteDivergence(err: number): void {
-    this.off = err > DIVERGE_ERR ? this.off + 1 : 0;
+    // On ice, and just after: two near-identical paths stay several units apart for longer than a few patches.
+    const icy = this.slip !== null || this.c < this.slidUntil;
+    this.off = err > (icy ? DIVERGE_ERR_SLIP : DIVERGE_ERR) ? this.off + 1 : 0;
     if (this.off < DIVERGE_PATCHES || this.path.length === 0) return;
     const speed = Math.hypot(this.vx, this.vy);
+    const heading = (hx: number, hy: number): number => {
+      const h = Math.hypot(hx, hy);
+      return speed > 5 && h > 1e-6 ? (this.vx * hx + this.vy * hy) / (speed * h) : -1;
+    };
     const t = this.path[0]!;
-    const hx = t.x - this.sim.x, hy = t.y - this.sim.y;
-    const along = speed > 5 && Math.hypot(hx, hy) > 1e-6 ? (this.vx * hx + this.vy * hy) / (speed * Math.hypot(hx, hy)) : -1;
+    let along = heading(t.x - this.sim.x, t.y - this.sim.y);
+    // A sliding model goes where its velocity says, which a fresh turn has not yet pointed at the next waypoint.
+    if (this.slip) along = Math.max(along, heading(this.slip.vx, this.slip.vy));
     if (along > 0.7) return;
     this.path = [];
     this.goal = null;

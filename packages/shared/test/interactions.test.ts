@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  angleBetween, ballDeletesArrow, BALL_ARROW_RADIUS, bestSlot, decide, inArc, leadAim, moveMultiplier,
-  onShieldFront, PLAYER_RADIUS, POLICIES, projectileOnShieldFront, reflectVelocity, riposteShare,
+  angleBetween, ballDeletesArrow, BALL_ARROW_RADIUS, bestSlot, decide, inArc, leadAim, MASK_MELEE, MASK_SIGHT, moveMultiplier,
+  onShieldFront, PLAYER_RADIUS, POLICIES, projectileOnShieldFront, reachMask, reflectVelocity, riposteShare,
   RIPOSTE_SHARE, SHIELD_HALF_ARC, shieldOutcome, STAGGER_IMMUNITY_SECONDS, staggerImmuneUntil, staggers, SWAP_SECONDS,
   swapReadyAt, swingVsBall, SWORD_BALL_SCALE, WEAPON_IDS, WEAPONS, wrapAngle, type HitSource,
   type MoveState, type PolicyInput, type Vec2, type WeaponId,
@@ -583,5 +583,17 @@ describe("bestSlot", () => {
         expect(bestSlot([counter, loser], 1, theirs), `${counter} against ${theirs}`).toBe(0);
       }
     }
+  });
+});
+
+describe("reachMask", () => {
+  it("stops an arc (melee) weapon at walls and LOW, and a projectile weapon or an empty hand at walls alone", () => {
+    for (const w of ["sword", "axe", "shield"] as const) expect(reachMask(w), w).toBe(MASK_MELEE);
+    for (const w of ["bow", "wand"] as const) expect(reachMask(w), w).toBe(MASK_SIGHT);
+    expect(reachMask(null)).toBe(MASK_SIGHT);
+  });
+
+  it("follows the weapon's shape, not a list: every arc weapon gets the melee mask and every projectile weapon the sight mask", () => {
+    for (const w of WEAPON_IDS) expect(reachMask(w), w).toBe(WEAPONS[w].shape.kind === "arc" ? MASK_MELEE : MASK_SIGHT);
   });
 });

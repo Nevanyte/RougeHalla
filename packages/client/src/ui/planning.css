@@ -206,6 +206,10 @@ html[data-ui-narrow] .pl-side { width: var(--pl-size, 320px); }
   border: 1px solid var(--line-hi, #4a5563);
 }
 .pl-camp .pl-chip { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 1px; pointer-events: none; }
+/* A chip that would sit on another mark stays hidden until its own camp is hovered or focused (planning.ts relayout). */
+.pl-camp .pl-chip.crowded { display: none; }
+.pl-camp:hover, .pl-camp:focus-visible { z-index: 4; }
+.pl-camp:hover .pl-chip.crowded, .pl-camp:focus-visible .pl-chip.crowded { display: inline-block; }
 .tone-good { color: #b9f6ca; border-color: var(--ok-line, #43a047); }
 .tone-even { color: #ffe082; border-color: var(--accent-line, #6b5a1e); }
 .tone-risky { color: #ffcc80; border-color: var(--warn-line, #ffb74d); border-style: dashed; }

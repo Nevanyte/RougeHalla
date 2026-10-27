@@ -107,7 +107,7 @@ export function fakeScene(extra: Record<string, unknown> = {}) {
   const make = {
     graphics: () => {
       const g = fakeObject("graphics");
-      // Phaser's Graphics keeps what it draws as a flat array of numbers (see render/mapBake.ts).
+      // Phaser's Graphics keeps what it draws as a flat array of numbers.
       g.commandBuffer = [];
       g.calls.length = 0; // that assignment is set-up, not drawing
       return new Proxy(g, {

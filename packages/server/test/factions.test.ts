@@ -82,7 +82,7 @@ const hpOf = (world: World, id: string): number => P(world, id).hp;
 
 /** A started run (first step done) with every fighter placed, armed and healthy. */
 function makeWorld(fighters: Fighter[], walls: ReadonlyArray<readonly [number, number]> = []): World {
-  const world = createGameWorld({ seed: 1, config: CONFIG, random: mulberry32(1), map: openMap(walls) });
+  const world = createGameWorld({ config: CONFIG, random: mulberry32(1), map: openMap(walls) });
   for (const f of fighters) addPlayer(world, f.id, f.id.toUpperCase(), { faction: f.faction });
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");

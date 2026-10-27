@@ -14,6 +14,20 @@ export function mulberry32(seed: number): Rng {
   };
 }
 
+/**
+ * One uint32 for an independent stream of a generator: `mulberry32(hashSeed(seed, attempt, zoneIndex, stream))`. Integer
+ * mixing only (Math.imul, xor, shifts), so no engine can disagree on it, and each input reaches every output bit. Inputs
+ * are coerced like `>>> 0` does for mulberry32 (seed 2^32 + 5 equals seed 5).
+ */
+export function hashSeed(seed: number, attempt: number, zoneIndex: number, stream: number): number {
+  let h = Math.imul(seed | 0, 0x9e3779b1) ^ 0x5bd1e995;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) ^ Math.imul(attempt | 0, 0x27d4eb2d);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) ^ Math.imul(zoneIndex | 0, 0x165667b1);
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) ^ Math.imul(stream | 0, 0x9e3779b1);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
 /** Integer in [min, maxExclusive). */
 export function randInt(rng: Rng, min: number, maxExclusive: number): number {
   return min + Math.floor(rng() * (maxExclusive - min));

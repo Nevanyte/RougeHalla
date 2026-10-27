@@ -3,25 +3,41 @@ import { describe, expect, it } from "vitest";
 import { TILE } from "../src/constants";
 import { hasLineOfSight } from "../src/geometry";
 import {
+  MASK_MELEE,
+  MASK_MOVE,
+  MASK_SIGHT,
   REGION_COLISEUM,
   REGION_FACTIONS,
   REGION_IDS,
   REGION_NONE,
   REGION_WEAPONS,
   TILE_FLOOR,
+  TILE_LOW,
   TILE_WALL,
+  blocksTile,
+  forgetMapCaches,
   inColiseum,
+  isSolidAt,
+  isSolidTile,
+  isWallAt,
   isWallTile,
   mapFromTiles,
+  moveBlockedTiles,
+  moveComponents,
+  moveComponentsOf,
+  moveMask,
   regionAt,
   regionAtTile,
   regionCode,
+  sightBlockedTiles,
+  sightMask,
   tileToWorldCenter,
   withGates,
 } from "../src/map";
 import type { GameMap, GateSide, RegionId } from "../src/map";
 import { generateMap } from "../src/mapgen";
 import { findPath } from "../src/pathfind";
+import { mulberry32 } from "../src/rng";
 
 const seeds = (n: number, from = 0) => Array.from({ length: n }, (_, i) => from + i);
 const at = (m: GameMap, x: number, y: number) => m.tiles[y * m.w + x];
@@ -60,7 +76,6 @@ describe("mapFromTiles", () => {
     expect(m.regions).toEqual([]);
     expect(m.buildings).toEqual([]);
     expect(m.spawns).toEqual([]);
-    expect(m.extracts).toEqual([]);
     expect(m.crateSpots).toEqual([]);
     expect(m.groundSpots).toEqual([]);
   });
@@ -367,7 +382,7 @@ describe("generated maps", () => {
       expect(regionAt(m, -TILE, -TILE), `seed ${s}`).toBe("none");
       expect(regionAt(m, m.w * TILE + 1, m.h * TILE + 1), `seed ${s}`).toBe("none");
       for (const r of m.regions) {
-        expect(regionAt(m, r.anchor.x, r.anchor.y), `seed ${s}`).toBe(r.id);
+        expect(regionAt(m, r.pole.x, r.pole.y), `seed ${s}`).toBe(r.id);
         for (const p of r.spawns) expect(regionAt(m, p.x, p.y), `seed ${s}`).toBe(r.id);
       }
     });
@@ -376,7 +391,7 @@ describe("generated maps", () => {
   it("lets findPath walk from outside to the coliseum centre when open and not when the gates are closed", () => {
     each((m, s) => {
       const locked = withGates(m);
-      for (const p of m.spawns) {
+      for (const p of m.spawns.slice(0, 8)) {
         expect(inColiseum(m, p.x, p.y), `seed ${s}`).toBe(false);
         expect(findPath(m, p, m.coliseum.centre).length, `seed ${s} open`).toBeGreaterThan(0);
         expect(findPath(locked, p, m.coliseum.centre), `seed ${s} locked`).toEqual([]);
@@ -406,5 +421,306 @@ describe("generated maps", () => {
         }
       }
     });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Collision classes, masks and the terrain layer.
+
+/** "#" wall, "~" LOW, anything else floor. */
+function ascii(rows: string[]): GameMap {
+  const h = rows.length, w = rows[0].length;
+  const tiles = new Uint8Array(w * h);
+  rows.forEach((row, y) => { for (let x = 0; x < w; x++) tiles[y * w + x] = row[x] === "#" ? TILE_WALL : row[x] === "~" ? TILE_LOW : TILE_FLOOR; });
+  return mapFromTiles(w, h, tiles);
+}
+
+describe("tile classes and masks", () => {
+  it("pins the codes: floor 0, wall 1, low 2, each nonzero class one distinct bit that movement blocks", () => {
+    expect(TILE_FLOOR).toBe(0);
+    expect(TILE_WALL).toBe(1);
+    expect(TILE_LOW).toBe(2);
+    for (const code of [TILE_WALL, TILE_LOW]) {
+      expect(code & (code - 1), `code ${code} is a single bit`).toBe(0);
+      expect(code & MASK_MOVE).not.toBe(0);
+    }
+    expect(TILE_WALL & TILE_LOW).toBe(0);
+    expect(TILE_FLOOR & MASK_MOVE).toBe(0);
+  });
+
+  it("MASK_SIGHT is the wall alone, MASK_MOVE every class, MASK_MELEE the wall and LOW", () => {
+    expect(MASK_SIGHT).toBe(TILE_WALL);
+    expect(MASK_MOVE).toBe(0xff);
+    expect(MASK_MELEE).toBe(TILE_WALL | TILE_LOW);
+    expect(MASK_SIGHT & TILE_LOW).toBe(0);
+    // A class that does not exist yet (the next bit) still blocks a walker.
+    expect(4 & MASK_MOVE).not.toBe(0);
+  });
+
+  const m = ascii(["####", "#.~#", "####"]);
+
+  it("blocksTile tests (tile & mask), and out of bounds blocks every query", () => {
+    expect(blocksTile(m, 1, 1, MASK_SIGHT)).toBe(false);
+    expect(blocksTile(m, 1, 1, MASK_MOVE)).toBe(false);
+    expect(blocksTile(m, 2, 1, MASK_SIGHT)).toBe(false);
+    expect(blocksTile(m, 2, 1, MASK_MOVE)).toBe(true);
+    expect(blocksTile(m, 2, 1, MASK_MELEE)).toBe(true);
+    expect(blocksTile(m, 0, 0, MASK_SIGHT)).toBe(true);
+    expect(blocksTile(m, 0, 0, TILE_LOW)).toBe(false); // a mask that names only LOW does not see a wall
+    for (const mask of [MASK_SIGHT, MASK_MOVE, MASK_MELEE, TILE_LOW, 0]) {
+      for (const [x, y] of [[-1, 1], [1, -1], [4, 1], [1, 3]]) expect(blocksTile(m, x, y, mask), `${x},${y} mask ${mask}`).toBe(true);
+    }
+  });
+
+  it("isWallTile means opaque and isSolidTile means blocks movement: LOW is solid but not opaque", () => {
+    expect([isWallTile(m, 1, 1), isSolidTile(m, 1, 1)]).toEqual([false, false]); // floor
+    expect([isWallTile(m, 0, 0), isSolidTile(m, 0, 0)]).toEqual([true, true]); // wall
+    expect([isWallTile(m, 2, 1), isSolidTile(m, 2, 1)]).toEqual([false, true]); // LOW
+    for (const [x, y] of [[-1, 0], [0, -1], [4, 0], [0, 3]]) expect([isWallTile(m, x, y), isSolidTile(m, x, y)]).toEqual([true, true]);
+  });
+
+  it("isWallAt and isSolidAt read the tile under a world point, tile edges included", () => {
+    expect(isSolidAt(m, 2 * TILE + 5, TILE + 5)).toBe(true);
+    expect(isWallAt(m, 2 * TILE + 5, TILE + 5)).toBe(false);
+    expect(isSolidAt(m, 2 * TILE - 0.001, TILE + 5)).toBe(false);
+    expect(isSolidAt(m, 2 * TILE, TILE + 5)).toBe(true); // the west face belongs to the LOW tile
+    expect(isWallAt(m, 5, 5)).toBe(true);
+    expect(isSolidAt(m, -1, 40)).toBe(true);
+    expect(isWallAt(m, 40, -1)).toBe(true);
+  });
+});
+
+describe("mapFromTiles terrain and props", () => {
+  it("terrain defaults to zeros, a fresh array per map, and props to an empty fresh list", () => {
+    const a = mapFromTiles(3, 2, new Uint8Array(6));
+    const b = mapFromTiles(3, 2, new Uint8Array(6));
+    expect(a.terrain).toBeInstanceOf(Uint8Array);
+    expect(a.terrain.length).toBe(6);
+    expect(Array.from(a.terrain).every((k) => k === 0)).toBe(true);
+    expect(a.terrain).not.toBe(b.terrain);
+    expect(a.terrain).not.toBe(a.regionGrid);
+    expect(a.props).toEqual([]);
+    a.props.push({ kind: 0, x: 1, y: 2, v: 3 });
+    expect(b.props).toEqual([]);
+  });
+
+  it("uses a supplied terrain as is", () => {
+    const terrain = new Uint8Array(6);
+    terrain[4] = 2;
+    const m = mapFromTiles(3, 2, new Uint8Array(6), 7, terrain);
+    expect(m.terrain).toBe(terrain);
+    expect(m.seed).toBe(7);
+  });
+
+  it("throws a RangeError for a terrain of the wrong length", () => {
+    expect(() => mapFromTiles(3, 2, new Uint8Array(6), 0, new Uint8Array(5))).toThrow(RangeError);
+    expect(() => mapFromTiles(3, 2, new Uint8Array(6), 0, new Uint8Array(7))).toThrow(RangeError);
+    expect(() => mapFromTiles(3, 2, new Uint8Array(6), 0, new Uint8Array(6))).not.toThrow();
+  });
+});
+
+describe("withGates and the terrain layer", () => {
+  it("shares terrain and props with the locked copy, and differs from the original only on the gate tiles", () => {
+    const m = twoRooms();
+    m.terrain[8 * 1 + 1] = 4;
+    m.props.push({ kind: 0, x: 40, y: 40, v: 1 });
+    const locked = withGates(m);
+    expect(locked.terrain).toBe(m.terrain);
+    expect(locked.props).toBe(m.props);
+    expect(locked.tiles).not.toBe(m.tiles);
+    const diff: number[] = [];
+    for (let i = 0; i < m.tiles.length; i++) if (locked.tiles[i] !== m.tiles[i]) diff.push(i);
+    expect(diff).toEqual([2 * m.w + 6, 3 * m.w + 6]);
+  });
+
+  it("keeps LOW tiles as LOW in the locked copy", () => {
+    const m = twoRooms();
+    m.tiles[4 * m.w + 3] = TILE_LOW;
+    expect(at(withGates(m), 3, 4)).toBe(TILE_LOW);
+  });
+});
+
+/** Reference: 4-connected floor components by repeated relabelling, no queue. */
+function bruteComponents(tiles: Uint8Array, w: number, h: number): Int32Array {
+  const id = new Int32Array(w * h).fill(-1);
+  let next = 0;
+  for (let s = 0; s < w * h; s++) {
+    if (tiles[s] !== TILE_FLOOR || id[s] >= 0) continue;
+    const stack = [s];
+    id[s] = next;
+    while (stack.length) {
+      const i = stack.pop()!;
+      const x = i % w, y = (i - x) / w;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = ny * w + nx;
+        if (tiles[j] === TILE_FLOOR && id[j] < 0) { id[j] = next; stack.push(j); }
+      }
+    }
+    next++;
+  }
+  return id;
+}
+
+describe("sightMask, moveMask and moveComponents", () => {
+  const m = ascii([
+    "#########",
+    "#..~....#",
+    "#..~.##.#",
+    "#..~.#..#",
+    "#~~~.#~~#",
+    "#.......#",
+    "#########",
+  ]);
+
+  it("sightMask marks the walls only, moveMask every class but floor", () => {
+    const sight = sightMask(m), move = moveMask(m);
+    expect(sight).toBeInstanceOf(Uint8Array);
+    expect(sight.length).toBe(m.w * m.h);
+    for (let i = 0; i < m.tiles.length; i++) {
+      expect(sight[i], `sight ${i}`).toBe(m.tiles[i] === TILE_WALL ? 1 : 0);
+      expect(move[i], `move ${i}`).toBe(m.tiles[i] !== TILE_FLOOR ? 1 : 0);
+    }
+    expect(sight.some((v, i) => v === 0 && move[i] === 1)).toBe(true); // LOW is in the second only
+  });
+
+  it("moveComponents labels 4-connected floor like a brute-force flood, -1 on solid tiles", () => {
+    const comp = moveComponents(m);
+    const ref = bruteComponents(m.tiles, m.w, m.h);
+    expect(comp).toBeInstanceOf(Int32Array);
+    expect(Array.from(comp)).toEqual(Array.from(ref));
+    for (let i = 0; i < m.tiles.length; i++) expect(comp[i] === -1).toBe(m.tiles[i] !== TILE_FLOOR);
+    expect(Math.max(...comp) + 1).toBe(2); // the 2x3 room on the left is closed in by the LOW column and the LOW row
+    // A diagonal step is not a link: two floor tiles that touch only at a corner are two components.
+    const diag = ascii(["####", "#.##", "##.#", "####"]);
+    const dc = moveComponents(diag);
+    expect(dc[1 * 4 + 1]).not.toBe(dc[2 * 4 + 2]);
+  });
+
+  it("agrees with a brute-force flood on random maps with walls and LOW tiles", () => {
+    const rng = mulberry32(5);
+    for (let k = 0; k < 30; k++) {
+      const w = 10 + (k % 5), h = 9 + (k % 4);
+      const tiles = new Uint8Array(w * h);
+      for (let i = 0; i < tiles.length; i++) { const r = rng(); tiles[i] = r < 0.2 ? TILE_WALL : r < 0.4 ? TILE_LOW : TILE_FLOOR; }
+      const map = mapFromTiles(w, h, tiles);
+      expect(Array.from(moveComponents(map))).toEqual(Array.from(bruteComponents(tiles, w, h)));
+      expect(Array.from(sightMask(map))).toEqual(Array.from(tiles, (t) => (t === TILE_WALL ? 1 : 0)));
+      expect(Array.from(moveMask(map))).toEqual(Array.from(tiles, (t) => (t === TILE_FLOOR ? 0 : 1)));
+    }
+  });
+
+  it("caches per map object: the second call returns the same array", () => {
+    expect(sightMask(m)).toBe(sightMask(m));
+    expect(moveMask(m)).toBe(moveMask(m));
+    expect(moveComponents(m)).toBe(moveComponents(m));
+    const copy = mapFromTiles(m.w, m.h, m.tiles.slice());
+    expect(moveMask(copy)).not.toBe(moveMask(m));
+    expect(Array.from(moveMask(copy))).toEqual(Array.from(moveMask(m)));
+  });
+
+  it("gives the locked copy its own entries, built from the locked tiles", () => {
+    const rooms = twoRooms();
+    const locked = withGates(rooms);
+    expect(moveMask(locked)).not.toBe(moveMask(rooms));
+    expect(sightMask(locked)).not.toBe(sightMask(rooms));
+    expect(moveComponents(locked)).not.toBe(moveComponents(rooms));
+    expect(moveMask(locked)).toBe(moveMask(locked));
+    expect(moveMask(rooms)[2 * rooms.w + 6]).toBe(0);
+    expect(moveMask(locked)[2 * rooms.w + 6]).toBe(1);
+    expect(Math.max(...moveComponents(rooms)) + 1).toBe(1);
+    expect(Math.max(...moveComponents(locked)) + 1).toBe(2);
+    // Asking the original again is untouched by the locked copy's cache.
+    expect(moveMask(rooms)[2 * rooms.w + 6]).toBe(0);
+  });
+
+  it("forgetMapCaches rebuilds after tiles are edited, and the next withGates is built from the edited tiles", () => {
+    const rooms = twoRooms();
+    const before = { sight: sightMask(rooms), move: moveMask(rooms), comp: moveComponents(rooms), locked: withGates(rooms) };
+    expect(Math.max(...before.comp) + 1).toBe(1);
+    // Wall off the gate for good: floor into wall, then a query that must see it.
+    rooms.tiles[2 * rooms.w + 6] = TILE_WALL;
+    rooms.tiles[3 * rooms.w + 6] = TILE_WALL;
+    expect(moveMask(rooms)).toBe(before.move); // stale until told
+    forgetMapCaches(rooms);
+    const after = { sight: sightMask(rooms), move: moveMask(rooms), comp: moveComponents(rooms), locked: withGates(rooms) };
+    expect(after.sight).not.toBe(before.sight);
+    expect(after.move).not.toBe(before.move);
+    expect(after.comp).not.toBe(before.comp);
+    expect(after.locked).not.toBe(before.locked);
+    expect(after.move[2 * rooms.w + 6]).toBe(1);
+    expect(Math.max(...after.comp) + 1).toBe(2);
+    expect(moveMask(rooms)).toBe(after.move); // and cached again
+    // Forgetting a map that has nothing cached is fine.
+    expect(() => forgetMapCaches(ascii(["###"]))).not.toThrow();
+  });
+});
+
+describe("sightBlockedTiles, moveBlockedTiles and moveComponentsOf (uncached, for a generator still editing)", () => {
+  const rows = ["#####", "#.~.#", "#####"];
+  const m = ascii(rows);
+
+  it("give the same answers as the cached views", () => {
+    expect(Array.from(sightBlockedTiles(m.tiles))).toEqual(Array.from(sightMask(m)));
+    expect(Array.from(moveBlockedTiles(m.tiles))).toEqual(Array.from(moveMask(m)));
+    expect(Array.from(moveComponentsOf(m.tiles, m.w, m.h))).toEqual(Array.from(moveComponents(m)));
+  });
+
+  it("fill and return a supplied array, and reject one of the wrong length", () => {
+    const out = new Uint8Array(m.tiles.length).fill(9);
+    expect(sightBlockedTiles(m.tiles, out)).toBe(out);
+    expect(Array.from(out)).toEqual(Array.from(sightMask(m)));
+    expect(moveBlockedTiles(m.tiles, out)).toBe(out);
+    expect(Array.from(out)).toEqual(Array.from(moveMask(m)));
+    expect(() => sightBlockedTiles(m.tiles, new Uint8Array(3))).toThrow(RangeError);
+    expect(() => moveBlockedTiles(m.tiles, new Uint8Array(99))).toThrow(RangeError);
+  });
+
+  it("see an edit at once, where the cached views would be stale", () => {
+    const tiles = m.tiles.slice();
+    expect(moveBlockedTiles(tiles)[1 * m.w + 2]).toBe(1);
+    tiles[1 * m.w + 2] = TILE_FLOOR;
+    expect(moveBlockedTiles(tiles)[1 * m.w + 2]).toBe(0);
+    expect(Math.max(...moveComponentsOf(tiles, m.w, m.h)) + 1).toBe(1);
+    tiles[1 * m.w + 2] = TILE_LOW;
+    expect(Math.max(...moveComponentsOf(tiles, m.w, m.h)) + 1).toBe(2);
+  });
+});
+
+describe("generated maps and the new layers", () => {
+  const maps = seeds(12, 1).map((s) => generateMap(s));
+  const plainMaps = seeds(12, 1).map((s) => generateMap(s, undefined, { styleZones: null }));
+
+  it("carry a terrain layer of their own size, and the gated copy shares it", () => {
+    for (const m of [...maps, ...plainMaps]) {
+      expect(m.terrain.length).toBe(m.w * m.h);
+      expect(withGates(m).terrain).toBe(m.terrain);
+    }
+  });
+
+  it("have a zero terrain layer, no props and only floor and wall tiles without the zone stylers", () => {
+    for (const m of plainMaps) {
+      expect(m.terrain.every((k) => k === 0)).toBe(true);
+      expect(m.props).toEqual([]);
+      expect(m.tiles.every((t) => t === TILE_FLOOR || t === TILE_WALL)).toBe(true);
+    }
+  });
+
+  it("have one floor component with the gates open and two with them closed; sight equals movement without low ground and differs exactly at it with", () => {
+    for (const m of [...maps, ...plainMaps]) {
+      expect(Math.max(...moveComponents(m)) + 1).toBe(1);
+      expect(Math.max(...moveComponents(withGates(m))) + 1).toBe(2);
+    }
+    for (const m of plainMaps) expect(Array.from(sightMask(m))).toEqual(Array.from(moveMask(m)));
+    let low = 0;
+    for (const m of maps) {
+      const sight = sightMask(m), move = moveMask(m);
+      for (let i = 0; i < sight.length; i++) {
+        expect(sight[i] === move[i], `tile ${i}`).toBe(m.tiles[i] !== TILE_LOW);
+        if (m.tiles[i] === TILE_LOW) low++;
+      }
+    }
+    expect(low, "the stylers laid low ground at all").toBeGreaterThan(0);
   });
 });

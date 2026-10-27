@@ -796,7 +796,7 @@ describe("effects bits", () => {
 
 describe("fields", () => {
   const rawWorld = (): World => createWorld({
-    seed: 3, config: { minPlayers: 2, lobbySeconds: 1, fillSeconds: 1, patienceSeconds: 1, patienceMinSeconds: 1, suddenDeathSeconds: 1 },
+    config: { minPlayers: 2, lobbySeconds: 1, fillSeconds: 1, patienceSeconds: 1, patienceMinSeconds: 1, suddenDeathSeconds: 1 },
     random: mulberry32(1), map: openMap(),
   });
   const base = (w: World) => ({

@@ -1,74 +1,79 @@
-// ASCII dump of generateMap(seed): `npx tsx packages/shared/scripts/printMap.ts 1234`
-import { generateMap, longestLane } from "../src/mapgen";
-import { REGION_FACTIONS, TILE_WALL, regionAtTile, withGates, worldToTile } from "../src/map";
+// ASCII dump of generateMap(seed[, attempt]): `npx tsx packages/shared/scripts/printMap.ts 1234 [attempt]`
+// Zones, territories, camps, chests, crates and the spawn pool.
+import { MAX_SIGHT_CORRIDOR, TILE } from "../src/constants";
+import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, regionAtTile, withGates, worldToTile } from "../src/map";
 import type { RegionId } from "../src/map";
+import { generateMap, longestLane, mapHash } from "../src/mapgen";
+import { TERRAIN_CREVASSE, TERRAIN_FENCE, TERRAIN_LAVA } from "../src/terrain";
 
 const seed = Number(process.argv[2] ?? 1);
-const map = generateMap(seed);
+const map = process.argv[3] === undefined ? generateMap(seed) : generateMap(seed, Number(process.argv[3]));
+const W = map.w;
 
-const FLOOR_CH: Record<RegionId, string> = {
-  none: "?", fire: "f", sentenced: "s", plague: "p", frost: "i", holy: "h", coliseum: ".",
-};
-const gateTiles = new Set(map.coliseum.gates.flatMap((g) => g.tiles.map((t) => t.y * map.w + t.x)));
+const FLOOR_CH: Record<RegionId, string> = { none: "?", fire: "f", sentenced: "s", plague: "p", frost: "i", holy: "h", coliseum: "." };
+// A LOW tile is drawn by its terrain kind; a kindless one (a hand-built barrier) is "L".
+const LOW_CH: Record<number, string> = { [TERRAIN_LAVA]: "~", [TERRAIN_FENCE]: "|", [TERRAIN_CREVASSE]: ":" };
+const gateTiles = new Set(map.coliseum.gates.flatMap((g) => g.tiles.map((t) => t.y * W + t.x)));
+const inRuin = (x: number, y: number) => map.buildings.some((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
 
 const grid: string[][] = [];
 for (let y = 0; y < map.h; y++) {
   const row: string[] = [];
-  for (let x = 0; x < map.w; x++) {
-    const wall = map.tiles[y * map.w + x] === TILE_WALL;
-    const region = regionAtTile(map, x, y);
-    const border = x === 0 || y === 0 || x === map.w - 1 || y === map.h - 1;
-    row.push(
-      gateTiles.has(y * map.w + x) ? "=" :
-      wall ? (region === "none" && !border ? "%" : "#") :
-      FLOOR_CH[region],
-    );
+  for (let x = 0; x < W; x++) {
+    const i = y * W + x, t = map.tiles[i], region = regionAtTile(map, x, y);
+    let ch: string;
+    if (gateTiles.has(i)) ch = "=";
+    else if (t === TILE_WALL) ch = region === "none" || region === "coliseum" || inRuin(x, y) ? "#" : "o";
+    else if (t === TILE_LOW) ch = LOW_CH[map.terrain[i]] ?? "L";
+    else {
+      ch = FLOOR_CH[region];
+      // Upper case: a floor tile on its territory's edge (a neighbour in another territory of the same zone).
+      const T = map.territoryGrid[i];
+      for (const d of [-1, 1, -W, W]) {
+        const u = map.territoryGrid[i + d];
+        if (T && u && u !== T && map.regionGrid[i + d] === map.regionGrid[i]) { ch = ch.toUpperCase(); break; }
+      }
+    }
+    row.push(ch);
   }
   grid.push(row);
 }
-const mark = (p: { x: number; y: number }, ch: string) => {
-  grid[worldToTile(p.y)][worldToTile(p.x)] = ch;
-};
-for (const region of map.regions) {
-  region.chestSpots.forEach((p) => mark(p, "C"));
-  for (const camp of region.mobCamps) camp.spots.forEach((p) => mark(p, "m"));
+const mark = (p: { x: number; y: number }, ch: string) => { grid[worldToTile(p.y)][worldToTile(p.x)] = ch; };
+map.groundSpots.forEach((p) => mark(p, "g"));
+map.crateSpots.forEach((p) => mark(p, "C"));
+for (const c of map.camps) {
+  c.spots.forEach((p) => mark(p, "m"));
+  mark(c.chest, c.eliteSpot >= 0 ? "E" : "M");
 }
-for (const region of map.regions) for (const camp of region.mobCamps) mark(camp, camp.elite ? "E" : "M");
-// The camp's reward chest tile: usually the camp centre itself (then M/E stands for both), else it gets its own K.
-for (const c of map.camps) if (c.chest.x !== c.x || c.chest.y !== c.y) mark(c.chest, "K");
 map.coliseum.innerSpawns.forEach((p) => mark(p, "T"));
-map.extracts.forEach((e) => mark(e, "X"));
-map.spawns.forEach((p) => mark(p, "S"));
+map.spawnPool.forEach((p) => mark(p, "S"));
 
-// Walls inside a faction region and outside the ruins are rocks (obstacles and cover). The generator holds the longest
-// sight corridor over all floor, gates open, to SIGHT_LATTICE.target tiles on its lattice (MAX_SIGHT_CORRIDOR for a
-// free strip SIGHT_CORRIDOR_WIDTH wide at any angle).
-let rocks = 0, openTiles = 0;
+let rocks = 0, open = 0, low = 0;
 for (let y = 0; y < map.h; y++) {
-  for (let x = 0; x < map.w; x++) {
-    const region = regionAtTile(map, x, y);
+  for (let x = 0; x < W; x++) {
+    const region = regionAtTile(map, x, y), t = map.tiles[y * W + x];
     if (region === "none" || region === "coliseum") continue;
-    if (map.tiles[y * map.w + x] !== TILE_WALL) openTiles++;
-    else if (!map.buildings.some((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h)) rocks++;
+    if (t === TILE_LOW) low++;
+    if (t !== TILE_WALL) open++;
+    else if (!inRuin(x, y)) rocks++;
   }
 }
 console.log(
-  `seed ${seed}: ${map.buildings.length} ruins, ${map.spawns.length} spawns, ${map.crateSpots.length} chests, ${map.groundSpots.length} ground spots, ` +
-  `${rocks} rock tiles (${((100 * rocks) / (rocks + openTiles)).toFixed(0)}% of the faction land), longest lattice lane ${longestLane(map).toFixed(0)} u (${longestLane(withGates(map)).toFixed(0)} u with the gates closed)`,
+  `seed ${seed}, attempt ${map.attempt}, ${W}x${map.h}, mapHash ${mapHash(map)}: ${map.camps.length} camps, ${map.spawnPool.length} spawns in the pool ` +
+  `(${new Set(map.spawnPool.map((s) => s.zone)).size} zones), ${map.buildings.length} ruins, ${map.crateSpots.length} crates, ${map.groundSpots.length} ground spots, ` +
+  `${rocks} rock tiles (${((100 * rocks) / (rocks + open)).toFixed(0)}% of the zones), ${low} low tiles; longest lattice lane ${longestLane(map).toFixed(0)} u ` +
+  `(${longestLane(withGates(map)).toFixed(0)} u gates closed; cap ${MAX_SIGHT_CORRIDOR})`,
 );
-console.log("legend: # wall  % ridge wall  = gate  . coliseum floor  f/s/p/i/h fire/sentenced/plague/frost/holy floor");
-console.log("        S player spawn  T inner spawn  C chest  M camp  E elite camp  m camp spot  K camp reward chest off the camp centre  X extract");
-console.log(`  camp chests: ${map.camps.map((c) => `${c.id}(${worldToTile(c.chest.x)},${worldToTile(c.chest.y)})`).join(" ")}  [attempt ${map.attempt}]`);
-for (const e of map.extracts) console.log(`  ${e.id} ${e.name} at tile (${worldToTile(e.x)}, ${worldToTile(e.y)})`);
-for (const faction of REGION_FACTIONS) {
-  const r = map.regions.find((g) => g.id === faction)!;
+console.log("legend: f s p i h zone floor (UPPER: on a territory edge)  o rock  # wall/ruin/border  ~ lava  | fence  : crevasse  L other low ground  = gate  . coliseum floor  T inner spawn");
+console.log("        M camp (its chest tile)  E elite camp  m mob spot  C crate  g ground spot  S spawn pool member");
+for (const f of REGION_FACTIONS) {
+  const r = map.regions.find((g) => g.id === f)!, code = REGION_FACTIONS.indexOf(f) + 1;
   let floor = 0;
-  for (let y = 0; y < map.h; y++) {
-    for (let x = 0; x < map.w; x++) if (map.tiles[y * map.w + x] !== TILE_WALL && regionAtTile(map, x, y) === faction) floor++;
-  }
+  for (let i = 0; i < map.tiles.length; i++) if (map.regionGrid[i] === code && map.tiles[i] === TILE_FLOOR) floor++;
+  const camps = map.camps.filter((c) => c.zone === f);
   console.log(
-    `  ${faction.padEnd(9)} floor ${String(floor).padStart(4)}  spawns ${r.spawns.length}  chests ${r.chestSpots.length}  ` +
-    `camps ${r.mobCamps.length} (${r.mobCamps.map((c) => c.id + (c.elite ? "*" : "")).join(" ")})`,
+    `  ${f.padEnd(9)} painted ${r.area}  floor ${floor}  pole (${worldToTile(r.pole.x)},${worldToTile(r.pole.y)})  spawns ${r.spawns.length}  crates ${r.chestSpots.length}  ` +
+    `camps ${camps.map((c) => `${c.id}${c.eliteSpot >= 0 ? "*" : ""}@(${worldToTile(c.x)},${worldToTile(c.y)}) ${c.spots.length} mobs, territory ${c.area} tiles r ${(c.radius / TILE).toFixed(1)}`).join("; ")}`,
   );
 }
 console.log(grid.map((r) => r.join("")).join("\n"));

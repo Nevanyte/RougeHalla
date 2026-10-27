@@ -4,6 +4,7 @@ import {
   FIRST_PATIENCE_SECONDS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS,
   PLAN_SECONDS, SERVER_PORT, SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS, WISH_LOCK_SECONDS,
 } from "@raid/shared";
+import { MAP_POOL_TARGET } from "./mapPool";
 import type { SimConfig } from "./sim/world";
 
 export interface ServerConfig extends SimConfig {
@@ -49,6 +50,11 @@ export interface ServerConfig extends SimConfig {
   /** One profile's shop and wardrobe request budget, the same kind of bucket (SHOP_BURST, SHOP_PER_SECOND; 0 = no limit). */
   shopBurst: number;
   shopPerSecond: number;
+  /**
+   * Certified maps the pool keeps ready (MAP_POOL; mapPool.ts MAP_POOL_TARGET when unset). 0 runs no map worker: every
+   * room certifies its map on the main thread. Optional so a hand-written config keeps the default.
+   */
+  mapPoolSize?: number;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -130,6 +136,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     orderPerSecond: limit(env.ORDER_PER_SECOND, DEFAULT_ORDER_PER_SECOND),
     shopBurst: limit(env.SHOP_BURST, whenHosting(DEFAULT_SHOP_BURST)),
     shopPerSecond: limit(env.SHOP_PER_SECOND, whenHosting(DEFAULT_SHOP_PER_SECOND)),
+    mapPoolSize: Math.max(0, Math.floor(num(env.MAP_POOL, MAP_POOL_TARGET))),
     minPlayers: num(env.MIN_PLAYERS, MIN_PLAYERS_TO_START),
     lobbySeconds: num(env.LOBBY_SECONDS, LOBBY_SECONDS),
     fillSeconds: num(env.FILL_SECONDS, LOBBY_FILL_SECONDS),

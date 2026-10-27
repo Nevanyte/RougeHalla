@@ -108,7 +108,7 @@ function place(world: World, id: string, x: number, y: number): void {
 }
 
 function makeRig(o: RigOptions): Rig {
-  const world = createGameWorld({ seed: 1, config: CONFIG, random: mulberry32(1), map: openMap() });
+  const world = createGameWorld({ config: CONFIG, random: mulberry32(1), map: openMap() });
   addPlayer(world, "p", "P", { faction: o.player });
   step(world, TICK_MS);
   expect(world.state.phase).toBe("active");

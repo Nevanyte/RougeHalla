@@ -4,12 +4,13 @@
 // clock reads a patch's server time when the patch arrives, as ServerClock does: c = now - downlink.
 import { describe, expect, it } from "vitest";
 import {
-  findPath, mapFromTiles, mulberry32, PLAYER_RADIUS, PLAYER_SPEED, TELEPORT_DISTANCE, TICK_MS, TILE, TILE_FLOOR, TILE_WALL, WORLD_H, WORLD_W, withGates,
+  circleClear, findPath, mapFromTiles, mulberry32, newSlip, PLAYER_RADIUS, PLAYER_SPEED, slipWalk, TELEPORT_DISTANCE, TERRAIN_FENCE, TICK_MS, TILE,
+  TILE_FLOOR, TILE_LOW, TILE_WALL, WORLD_H, WORLD_W, withGates, worldToTile,
   type GameMap, type Vec2,
 } from "@raid/shared";
 import {
-  clampToWorld, CORRECT_SPEED_MOVING_MAX, DELAY_MAX_MS, JUMP_ORDER_EXPIRE_MS, LocalMotion, ORDER_EXPIRE_MS, REBASE_DEADZONE, SNAP_DISTANCE,
-  VISUAL_SNAP_DISTANCE, seqAcked, type FrameInput,
+  clampToWorld, CORRECT_SPEED_MOVING_MAX, DELAY_MAX_MS, DIVERGE_ERR, DIVERGE_ERR_SLIP, JUMP_ORDER_EXPIRE_MS, LocalMotion, ORDER_EXPIRE_MS,
+  REBASE_DEADZONE, SLIP_GRACE_MS, SNAP_DISTANCE, VISUAL_SNAP_DISTANCE, seqAcked, type FrameInput,
 } from "../src/net/localMotion";
 
 const W = 60;
@@ -21,6 +22,13 @@ function arena(walls: ReadonlyArray<readonly [number, number]> = []): GameMap {
   for (let y = 0; y < H; y++) { tiles[y * W] = TILE_WALL; tiles[y * W + W - 1] = TILE_WALL; }
   for (const [x, y] of walls) tiles[y * W + x] = TILE_WALL;
   return mapFromTiles(W, H, tiles);
+}
+/** The same room with `low` (tile coordinates) as LOW fence tiles: they stop bodies, and the terrain layer says which kind. */
+function fenced(low: ReadonlyArray<readonly [number, number]>): GameMap {
+  const base = arena();
+  const terrain = new Uint8Array(W * H);
+  for (const [x, y] of low) { base.tiles[y * W + x] = TILE_LOW; terrain[y * W + x] = TERRAIN_FENCE; }
+  return mapFromTiles(W, H, base.tiles, 0, terrain);
 }
 const centre = (tx: number, ty: number): Vec2 => ({ x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 });
 const dist = (a: Vec2, b: Vec2): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -311,6 +319,33 @@ describe("a move", () => {
       expect(dist(r.motion.drawn, r.server), `${up}/${down} arrive`).toBeLessThan(0.2);
       expect(dist(r.server, centre(20, 6))).toBeLessThan(0.5);
     }
+  });
+});
+
+describe("a move across a LOW fence", () => {
+  // A fence at column 20, rows 3..16 (x 640..672); the gap is rows 17..28.
+  const fence = Array.from({ length: 14 }, (_, i): [number, number] => [20, 3 + i]);
+
+  it("plans round the end of the fence, as the server does, and never puts the model or the drawn centre on it", () => {
+    const map = fenced(fence);
+    const r = new Rig({ map });
+    r.run(200);
+    const to = centre(30, 10);
+    expect(findPath(map, r.server, to, PLAYER_RADIUS).length).toBeGreaterThan(1); // the straight hop is not clear: it must go round
+    r.move(to);
+    let maxY = 0;
+    const bad: string[] = [];
+    for (let i = 0; i < 600; i++) {
+      r.run(FRAME_MS);
+      maxY = Math.max(maxY, r.motion.predicted.y);
+      if (!circleClear(map, r.motion.predicted, PLAYER_RADIUS)) bad.push(`model ${i}`);
+      const d = r.motion.drawn;
+      if (map.tiles[worldToTile(d.y) * W + worldToTile(d.x)] === TILE_LOW) bad.push(`drawn ${i}`);
+    }
+    expect(bad).toEqual([]);
+    expect(maxY).toBeGreaterThan(17 * TILE); // through the gap
+    expect(dist(r.server, to)).toBeLessThan(0.5);
+    expect(dist(r.motion.drawn, r.server)).toBeLessThan(0.1);
   });
 });
 
@@ -1694,5 +1729,452 @@ describe("an echo that names a later order acks the blink before it", () => {
     expect(r.motion.orderPending(seq % 255 + 1)).toBe(false);
     r.run(400);
     expect(r.motion.orderPending(seq)).toBe(false);
+  });
+});
+
+
+describe("ice: the model slides where the server slides", () => {
+  /** Traction 425 everywhere: 400 ms from rest to PLAYER_SPEED, 34 u to stop. */
+  const ICE: FrameInput = { ...ALIVE, slipAt: () => 425 };
+  const ACCEL = 425;
+  const STOP = (PLAYER_SPEED * PLAYER_SPEED) / (2 * ACCEL);
+
+  /** A model standing at (x, y), ready on ice, having given no order. */
+  function onIce(x = 300, y = 300, input: FrameInput = ICE): LocalMotion {
+    const m = new LocalMotion();
+    m.observe({ x, y, t: 0, moveSeq: 0 }, 0);
+    m.frame(0, FRAME_MS, input);
+    return m;
+  }
+  /** Runs frames of FRAME_MS from client time `from`, `n` of them; returns the clock after the last. */
+  function frames(m: LocalMotion, from: number, n: number, input: FrameInput = ICE): number {
+    let c = from;
+    for (let i = 0; i < n; i++) { c += FRAME_MS; m.frame(c, FRAME_MS, input); }
+    return c;
+  }
+
+  it("with the traction at 425 everywhere, the first 100 ms of a move are the shared slipWalk's, not a plain walk", () => {
+    const map = arena();
+    const m = onIce();
+    const goal = { x: 900, y: 300 };
+    m.order("move", 1, 0, goal, map);
+    const p = { x: 300, y: 300 };
+    const slip = newSlip(300, 300, 0, 0);
+    const path = findPath(map, p, goal, PLAYER_RADIUS);
+    let c = 0;
+    for (let i = 0; i < 6; i++) {
+      c += FRAME_MS;
+      m.frame(c, FRAME_MS, ICE);
+      slipWalk(map, p, slip, path, FRAME_MS, PLAYER_SPEED, () => ACCEL, c, PLAYER_RADIUS);
+      expect(m.predicted.x).toBe(p.x);
+      expect(m.predicted.y).toBe(p.y);
+    }
+    // A start from rest on ice: 1/2 a t^2 = 2.1 u in 100 ms, against 17 u of a walk that is at full speed at once.
+    expect(m.drawn.x - 300).toBeCloseTo(0.5 * ACCEL * 0.1 * 0.1, 0);
+    expect(m.drawn.x - 300).toBeLessThan(4);
+    expect(m.slipVelocity!.x).toBeCloseTo(ACCEL * 0.1, 5);
+  });
+
+  it("a stop at full speed slides 34 u and then rests", () => {
+    const m = onIce();
+    m.order("move", 1, 0, { x: 1700, y: 300 }, arena());
+    let c = frames(m, 0, 60); // 1 s: at full speed since 400 ms
+    expect(m.slipVelocity!.x).toBeCloseTo(PLAYER_SPEED, 6);
+    const at = m.predicted.x;
+    m.order("stop", 2, c, undefined, arena());
+    c = frames(m, c, 60);
+    expect(m.predicted.x - at).toBeCloseTo(STOP, 1);
+    expect(STOP).toBeCloseTo(34, 0);
+    expect(m.slipVelocity!.x).toBe(0);
+    expect(m.walking).toBe(false);
+    const rest = m.predicted.x;
+    frames(m, c, 5);
+    expect(m.predicted.x).toBe(rest);
+  });
+
+  it("a turn at full speed swings wide and comes back on line: the velocity is carried through a new order", () => {
+    const m = onIce();
+    m.order("move", 1, 0, { x: 1700, y: 300 }, arena());
+    let c = frames(m, 0, 60);
+    const here = { x: m.predicted.x, y: m.predicted.y };
+    m.order("move", 2, c, { x: here.x, y: 700 }, arena()); // straight back-turn: 90 degrees
+    c = frames(m, c, 30);
+    // Half a second on, it has still gone on east a good way (a plain walk would be walking south by now).
+    expect(m.predicted.x - here.x).toBeGreaterThan(25);
+    expect(m.predicted.y - here.y).toBeGreaterThan(5);
+  });
+
+  it("walking onto ice keeps its speed: the slide starts from the velocity the model walked at, not from rest", () => {
+    const map = arena();
+    const edge = 600;
+    const input: FrameInput = { ...ALIVE, slipAt: (x) => (x >= edge ? ACCEL : 0) };
+    const m = onIce(300, 300, input);
+    m.order("move", 1, 0, { x: 1500, y: 300 }, map);
+    let c = 0;
+    for (let i = 0; i < 300 && m.predicted.x < edge + 1; i++) { c += FRAME_MS; m.frame(c, FRAME_MS, input); }
+    expect(m.predicted.x).toBeGreaterThan(edge);
+    c += FRAME_MS;
+    m.frame(c, FRAME_MS, input);
+    expect(m.slipVelocity!.x).toBeCloseTo(PLAYER_SPEED, 6);
+    const x = m.predicted.x;
+    c = frames(m, c, 1, input);
+    expect(m.predicted.x - x).toBeCloseTo(PLAYER_SPEED * (FRAME_MS / 1000), 1);
+  });
+
+  it("leaving the ice grips at once: the slide is gone, the walk goes on exactly", () => {
+    const edge = 600;
+    const input: FrameInput = { ...ALIVE, slipAt: (x) => (x < edge ? ACCEL : 0) };
+    const m = onIce(300, 300, input);
+    m.order("move", 1, 0, { x: 1500, y: 300 }, arena());
+    let c = 0;
+    for (let i = 0; i < 300 && m.predicted.x <= edge; i++) { c += FRAME_MS; m.frame(c, FRAME_MS, input); }
+    c += FRAME_MS;
+    m.frame(c, FRAME_MS, input);
+    expect(m.slipVelocity).toBeNull();
+    const x = m.predicted.x;
+    c += FRAME_MS;
+    m.frame(c, FRAME_MS, input);
+    expect(m.predicted.x - x).toBeCloseTo(PLAYER_SPEED * (FRAME_MS / 1000), 6);
+  });
+
+  it("leaving the ice plans the walk again when the slide left its next leg blocked (here: the gates locked behind the order)", () => {
+    // The order was planned on the open map, straight east; by the time the model grips the gates are walls across that line.
+    const open = arena();
+    const gate = [8, 9, 10, 11].map((y) => ({ x: 30, y }));
+    open.coliseum.gates.push({ side: "w", tiles: gate, x: 30 * TILE + 16, y: 10 * TILE });
+    const locked = withGates(open);
+    const input: FrameInput = { ...ALIVE, slipAt: (x) => (x < 600 ? ACCEL : 0), map: locked };
+    const m = onIce(300, 300, input);
+    m.order("move", 1, 0, { x: 1500, y: 300 }, open);
+    let c = 0;
+    const inside: number[] = [];
+    let aside = 0;
+    for (let i = 0; i < 400; i++) {
+      c += FRAME_MS;
+      m.frame(c, FRAME_MS, input);
+      if (!circleClear(locked, m.predicted, PLAYER_RADIUS)) inside.push(i);
+      aside = Math.max(aside, Math.abs(m.predicted.y - 300));
+    }
+    expect(m.predicted.x).toBeGreaterThan(1100); // 6.7 s: past the wall
+    expect(inside).toEqual([]);
+    expect(aside).toBeGreaterThan(40); // it went round
+  });
+
+  it("a rooted fighter is planted on ice: the slide stops at once, and the walk starts again from rest", () => {
+    const m = onIce();
+    m.order("move", 1, 0, { x: 1700, y: 300 }, arena());
+    let c = frames(m, 0, 45);
+    expect(m.slipVelocity!.x).toBeGreaterThan(100);
+    const rooted: FrameInput = { ...ICE, rooted: true };
+    c = frames(m, c, 1, rooted);
+    const x = m.predicted.x;
+    expect(m.slipVelocity!.x).toBe(0);
+    c = frames(m, c, 10, rooted);
+    expect(m.predicted.x).toBe(x);
+    frames(m, c, 3);
+    expect(m.predicted.x - x).toBeLessThan(2); // accelerating from rest, not at full speed
+  });
+
+  it("after cut() the next frame does not move: no walk, and no slide carried across the teleport", () => {
+    const m = onIce();
+    m.order("move", 1, 0, { x: 1700, y: 300 }, arena());
+    const c = frames(m, 0, 45);
+    expect(m.walking).toBe(true);
+    const at = { x: m.predicted.x, y: m.predicted.y };
+    m.cut(100);
+    m.frame(c + FRAME_MS, FRAME_MS, ICE);
+    expect(m.predicted).toEqual(at);
+    expect(m.walking).toBe(false);
+    const v = m.slipVelocity;
+    expect(v === null || (v.x === 0 && v.y === 0)).toBe(true);
+    m.frame(c + 2 * FRAME_MS, FRAME_MS, ICE);
+    expect(m.predicted).toEqual(at);
+  });
+
+  it("a blink drops the slide: the model stands where it lands, however fast it was sliding", () => {
+    const m = onIce();
+    m.order("move", 1, 0, { x: 1700, y: 300 }, arena());
+    const c = frames(m, 0, 45);
+    m.blink(2, c, { x: 900, y: 500 });
+    const v0 = m.slipVelocity;
+    expect(v0).toBeNull();
+    m.frame(c + FRAME_MS, FRAME_MS, ICE);
+    expect(m.predicted).toEqual({ x: 900, y: 500 });
+    expect(m.slipVelocity).toEqual({ x: 0, y: 0 });
+  });
+
+  it("a displacement the client did not order drops it too, and the server's pull is taken with no slide of the old velocity", () => {
+    const map = arena();
+    const m = onIce();
+    m.order("move", 1, 0, { x: 1700, y: 300 }, map);
+    let c = frames(m, 0, 45);
+    m.observe({ x: 330, y: 300, t: 50, moveSeq: 1, displaceSeq: 0 }, c);
+    c = frames(m, c, 3);
+    expect(m.slipVelocity!.x).toBeGreaterThan(100);
+    m.observe({ x: 330, y: 400, t: 100, moveSeq: 1, displaceSeq: 1 }, c);
+    const v = m.slipVelocity;
+    expect(v === null || (v.x === 0 && v.y === 0)).toBe(true);
+  });
+
+  describe("a snap or a hand-over takes the server's velocity, when the server is sliding on ice", () => {
+    /** A model on ice with a walk in hand, whose server samples run east at 170 u/s: 8.5 u per 50 ms tick. */
+    function sliding(input: FrameInput = ICE): { m: LocalMotion; c: number } {
+      const m = onIce(300, 300, input);
+      m.order("move", 1, 0, { x: 1700, y: 300 }, arena());
+      let c = frames(m, 0, 6, input);
+      m.observe({ x: 308.5, y: 300, t: 50, moveSeq: 1, displaceSeq: 0 }, c);
+      c = frames(m, c, 3, input);
+      m.observe({ x: 317, y: 300, t: 100, moveSeq: 1, displaceSeq: 0 }, c);
+      return { m, c };
+    }
+
+    it("snapTo (here a refused blink: the server answers with the echo alone and is where it was)", () => {
+      const { m, c } = sliding();
+      m.blink(2, c, { x: 700, y: 300 });
+      m.observe({ x: 325.5, y: 300, t: 150, moveSeq: 2, displaceSeq: 0 }, c + 50);
+      expect(m.slipVelocity!.x).toBeCloseTo(PLAYER_SPEED, 6);
+      expect(m.slipVelocity!.y).toBeCloseTo(0, 6);
+      expect(m.predicted.x).toBeCloseTo(325.5, 6);
+    });
+
+    it("the same sample on ground that grips: nothing slides on from it", () => {
+      const grip: FrameInput = { ...ALIVE, slipAt: () => 0 };
+      const { m, c } = sliding(grip);
+      m.blink(2, c, { x: 700, y: 300 });
+      m.observe({ x: 325.5, y: 300, t: 150, moveSeq: 2, displaceSeq: 0 }, c + 50);
+      expect(m.slipVelocity).toBeNull();
+      expect(m.predicted.x).toBeCloseTo(325.5, 6);
+    });
+
+    it("a teleport's jump is not a velocity: a snap from a cut or a jump slides on from nothing", () => {
+      const { m, c } = sliding();
+      m.cut(150);
+      m.observe({ x: 325.5, y: 300, t: 150, moveSeq: 1, displaceSeq: 0 }, c + 50); // 8.5 u: a plausible-looking 'speed'
+      expect(m.slipVelocity).toBeNull();
+      const far = sliding().m;
+      far.observe({ x: 1500, y: 700, t: 150, moveSeq: 1, displaceSeq: 0 }, 400); // 1200 u in 50 ms
+      expect(far.slipVelocity).toBeNull();
+    });
+
+    it("leaveFollow: a lock that ends on ice leaves the server sliding to a stop, and the model slides with it, 34 u", () => {
+      const map = arena();
+      const input: FrameInput = { ...ICE, map };
+      const m = new LocalMotion();
+      m.observe({ x: 300, y: 300, t: 0, moveSeq: 0, locked: true }, 0);
+      expect(m.mode).toBe("follow");
+      m.frame(0, FRAME_MS, input);
+      m.observe({ x: 308.5, y: 300, t: 50, moveSeq: 0, locked: true }, 60);
+      m.frame(70, FRAME_MS, input);
+      m.observe({ x: 317, y: 300, t: 100, moveSeq: 0, locked: false }, 110); // the lock is over; the server's last velocity is 170 east
+      expect(m.mode).toBe("predict");
+      expect(m.slipVelocity!.x).toBeCloseTo(PLAYER_SPEED, 6);
+      const at = m.predicted.x;
+      frames(m, 110, 60, input);
+      expect(m.predicted.x - at).toBeCloseTo(STOP, 1);
+      expect(m.slipVelocity!.x).toBe(0);
+    });
+
+    it("leaveFollow with no velocity (the server standing) or on ground that grips slides nowhere", () => {
+      const map = arena();
+      for (const [slipAt, vx] of [[() => 425, 0], [() => 0, 8.5]] as const) {
+        const input: FrameInput = { ...ALIVE, slipAt, map };
+        const m = new LocalMotion();
+        m.observe({ x: 300, y: 300, t: 0, moveSeq: 0, locked: true }, 0);
+        m.frame(0, FRAME_MS, input);
+        m.observe({ x: 300 + vx, y: 300, t: 50, moveSeq: 0, locked: true }, 60);
+        m.observe({ x: 300 + 2 * vx, y: 300, t: 100, moveSeq: 0, locked: false }, 110);
+        expect(m.mode).toBe("predict");
+        const v = m.slipVelocity;
+        expect(v === null || (v.x === 0 && v.y === 0)).toBe(true);
+        const at = m.predicted.x;
+        frames(m, 110, 10, input);
+        expect(m.predicted.x).toBe(at);
+      }
+    });
+
+    it("an order from follow carries the chase's velocity: the model goes on at speed and turns by the traction", () => {
+      const map = arena();
+      const input: FrameInput = { ...ICE, map };
+      const m = new LocalMotion();
+      m.observe({ x: 300, y: 300, t: 0, moveSeq: 0, locked: true }, 0);
+      m.frame(0, FRAME_MS, input);
+      m.observe({ x: 308.5, y: 300, t: 50, moveSeq: 0, locked: true }, 60);
+      m.frame(70, FRAME_MS, input);
+      m.order("move", 1, 80, { x: 300, y: 700 }, map); // turn round to the south at full speed
+      expect(m.mode).toBe("predict");
+      expect(m.slipVelocity!.x).toBeCloseTo(PLAYER_SPEED, 6);
+      const x = m.predicted.x;
+      frames(m, 80, 12, input);
+      expect(m.predicted.x - x).toBeGreaterThan(20); // it carries on east before it can turn
+    });
+
+    it("the map of the frame is the one the slide collides with (the gated copy), and it is enough with no order ever given", () => {
+      const map = arena();
+      const input: FrameInput = { ...ICE, map };
+      const m = new LocalMotion();
+      m.observe({ x: 300, y: 300, t: 0, moveSeq: 0, locked: true }, 0);
+      m.frame(0, FRAME_MS, input);
+      m.observe({ x: 308.5, y: 300, t: 50, moveSeq: 0, locked: true }, 60);
+      m.observe({ x: 317, y: 300, t: 100, moveSeq: 0, locked: false }, 110);
+      expect(m.slipVelocity!.x).toBeCloseTo(PLAYER_SPEED, 6);
+      // And without it (no order, no map in the frame) the model has nothing to collide on: it stands.
+      const bare = new LocalMotion();
+      bare.observe({ x: 300, y: 300, t: 0, moveSeq: 0, locked: true }, 0);
+      bare.frame(0, FRAME_MS, ICE);
+      bare.observe({ x: 308.5, y: 300, t: 50, moveSeq: 0, locked: true }, 60);
+      bare.observe({ x: 317, y: 300, t: 100, moveSeq: 0, locked: false }, 110);
+      expect(bare.slipVelocity).toBeNull();
+    });
+  });
+
+  it("ground that grips (traction 0 everywhere) changes nothing: a long random run draws the same fighter, frame for frame, as with no ice term", () => {
+    for (const o of [{ up: 30, down: 30, jitter: 10 }, { up: 90, down: 70, jitter: 40 }]) {
+      for (let seed = 1; seed <= 4; seed++) {
+        const play = (input: FrameInput): Rig => {
+          const rnd = mulberry32(seed);
+          const r = new Rig(o);
+          r.input = input;
+          r.run(300);
+          for (let i = 0; i < 25; i++) {
+            const roll = rnd();
+            const to = { x: 100 + rnd() * (W * TILE - 200), y: 100 + rnd() * (H * TILE - 200) };
+            if (roll < 0.6) r.move(to);
+            else if (roll < 0.75) r.stop();
+            else if (roll < 0.9) r.target(to);
+            else r.blink(to);
+            r.run(150 + rnd() * 700);
+          }
+          r.stop();
+          r.run(2500);
+          return r;
+        };
+        const plain = play({ ...ALIVE });
+        const grip = play({ ...ALIVE, slipAt: () => 0 });
+        const tag = `${JSON.stringify(o)} seed ${seed}`;
+        expect(grip.drawnLog.length, tag).toBe(plain.drawnLog.length);
+        expect(grip.drawnLog, tag).toEqual(plain.drawnLog);
+        expect(grip.offsetLog, tag).toEqual(plain.offsetLog);
+        expect(grip.motion.slipVelocity, tag).toBeNull();
+      }
+    }
+  });
+
+  describe("the divergence rule: DIVERGE_ERR_SLIP while sliding and for SLIP_GRACE_MS after", () => {
+    it("the constants", () => {
+      expect(DIVERGE_ERR_SLIP).toBe(16);
+      expect(SLIP_GRACE_MS).toBe(500);
+      expect(DIVERGE_ERR_SLIP).toBeGreaterThan(DIVERGE_ERR);
+    });
+
+    // A rebase puts the model on the server's sample, so a server that stands while the model walks on shows an error of the
+    // model's advance since the last sample: 8.5 u per 50 ms at PLAYER_SPEED, 19.8 u per 117 ms.
+    const THREE = 3 * FRAME_MS;
+    const SEVEN = 7 * FRAME_MS;
+
+    /** A model at full speed east on `input`'s ground, its order acked (delay 0), the clock at `c`. */
+    function fullSpeed(input: FrameInput): { m: LocalMotion; c: number } {
+      const m = onIce(300, 300, input);
+      m.order("move", 1, 0, { x: 1700, y: 300 }, arena());
+      m.observe({ x: 300, y: 300, t: 50, moveSeq: 1 }, 0);
+      return { m, c: frames(m, 0, 40, input) };
+    }
+    /** `n` samples `gap` ms apart from a server that stands at (x, 300), the model walking on between them. Returns the clock. */
+    function standingSamples(m: LocalMotion, c: number, x: number, n: number, gap: number, input: FrameInput): number {
+      for (let i = 0; i < n; i++) {
+        c = frames(m, c, Math.round(gap / FRAME_MS), input);
+        m.observe({ x, y: 300, t: c, moveSeq: 1 }, c);
+      }
+      return c;
+    }
+    /** Whether the model still walks a second after the samples (it was dropped if it has come to rest). */
+    const keepsWalking = (m: LocalMotion, c: number, input: FrameInput): boolean => {
+      frames(m, c, 60, input);
+      return m.walking;
+    };
+
+    it("on ice, three samples 8.5 u off from a standing server keep the walk; off ice that is a divergence and drops it", () => {
+      const grip: FrameInput = { ...ALIVE };
+      for (const [name, input, kept] of [["ice", ICE, true], ["floor", grip, false]] as const) {
+        const { m, c } = fullSpeed(input);
+        m.observe({ x: m.predicted.x, y: 300, t: c, moveSeq: 1 }, c); // the server is where the model is, and stands
+        const x = m.predicted.x;
+        const end = standingSamples(m, c, x, 3, THREE, input);
+        expect(keepsWalking(m, end, input), name).toBe(kept);
+      }
+    });
+
+    it("on ice, three samples 20 u off from a standing server drop it", () => {
+      const { m, c } = fullSpeed(ICE);
+      m.observe({ x: m.predicted.x, y: 300, t: c, moveSeq: 1 }, c);
+      const end = standingSamples(m, c, m.predicted.x, 3, SEVEN, ICE);
+      expect(keepsWalking(m, end, ICE)).toBe(false);
+    });
+
+    it("on ice, samples more than DIVERGE_ERR_SLIP off from a server moving along the slide velocity keep the walk, though that is not toward the next waypoint", () => {
+      // A slow slide (traction 100) keeps its velocity through a turn: the next waypoint is north, the slide still goes east.
+      const input: FrameInput = { ...ALIVE, slipAt: (x) => (x >= 600 ? 100 : 0) };
+      const m = onIce(300, 300, input);
+      const map = arena();
+      m.order("move", 1, 0, { x: 1700, y: 300 }, map);
+      m.observe({ x: 300, y: 300, t: 50, moveSeq: 1 }, 0);
+      let c = 0;
+      for (let i = 0; i < 400 && m.predicted.x < 700; i++) {
+        c += FRAME_MS;
+        m.frame(c, FRAME_MS, input);
+        if (i % 3 === 2) m.observe({ x: m.predicted.x, y: 300, t: c, moveSeq: 1 }, c); // the server is where the model is
+      }
+      expect(m.slipVelocity!.x).toBeCloseTo(PLAYER_SPEED, 3); // on the slow ice at the speed it walked in at
+      m.order("move", 2, c, { x: m.predicted.x, y: 100 }, map);
+      m.observe({ x: m.predicted.x, y: 300, t: c + 50, moveSeq: 2 }, c); // acked: the delay is 0
+      // The server crawls east at 10 u/s; the model runs on at about 150 east, more than DIVERGE_ERR_SLIP further than it per 150 ms.
+      const errs: number[] = [];
+      const mm = m as unknown as { noteDivergence(e: number): void };
+      const nd = mm.noteDivergence.bind(m);
+      mm.noteDivergence = (e) => { errs.push(e); nd(e); };
+      let sx = m.predicted.x;
+      for (let i = 0; i < 3; i++) {
+        c = frames(m, c, 9, input);
+        sx += (10 * 9 * FRAME_MS) / 1000;
+        m.observe({ x: sx, y: 300, t: c, moveSeq: 2 }, c);
+      }
+      expect(errs.length).toBe(3);
+      for (const e of errs) expect(e).toBeGreaterThan(DIVERGE_ERR_SLIP); // each sample counts as off
+      expect(m.slipVelocity!.y).toBeLessThan(-5); // it has begun to turn north, and is going east still
+      expect(m.slipVelocity!.x).toBeGreaterThan(120);
+      const y0 = m.predicted.y;
+      frames(m, c, 90, input);
+      expect(m.predicted.y).toBeLessThan(y0 - 40); // the walk north went on
+    });
+
+    it("after leaving the ice the slide's tolerance holds for SLIP_GRACE_MS, then today's rule is back", () => {
+      const edge = 700;
+      const input: FrameInput = { ...ALIVE, slipAt: (x) => (x < edge ? 425 : 0) };
+      const m = onIce(300, 300, input);
+      m.order("move", 1, 0, { x: 1700, y: 300 }, arena());
+      m.observe({ x: 300, y: 300, t: 50, moveSeq: 1 }, 0);
+      let c = 0;
+      for (let i = 0; i < 400 && m.predicted.x <= edge; i++) { c += FRAME_MS; m.frame(c, FRAME_MS, input); }
+      c = frames(m, c, 1, input); // the frame that finds it off the ice
+      expect(m.slipVelocity).toBeNull();
+      const left = c;
+      // Inside the grace: 8.5 u errors from a standing server are not divergences.
+      m.observe({ x: m.predicted.x, y: 300, t: c, moveSeq: 1 }, c);
+      c = standingSamples(m, c, m.predicted.x, 3, THREE, input);
+      expect(c - left).toBeLessThan(SLIP_GRACE_MS);
+      // Past it: the same errors are.
+      c = frames(m, c, 25, input);
+      expect(c - left).toBeGreaterThan(SLIP_GRACE_MS);
+      m.observe({ x: m.predicted.x, y: 300, t: c, moveSeq: 1 }, c);
+      c = standingSamples(m, c, m.predicted.x, 3, THREE, input);
+      expect(keepsWalking(m, c, input)).toBe(false);
+    });
+
+    it("the grace is what kept the walk: the same samples without it (a model that never slid) drop it", () => {
+      const grip: FrameInput = { ...ALIVE };
+      const { m, c } = fullSpeed(grip);
+      m.observe({ x: m.predicted.x, y: 300, t: c, moveSeq: 1 }, c);
+      const end = standingSamples(m, c, m.predicted.x, 3, THREE, grip);
+      expect(keepsWalking(m, end, grip)).toBe(false);
+    });
   });
 });

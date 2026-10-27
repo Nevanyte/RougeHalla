@@ -1,5 +1,5 @@
-// Budget check for the Phase 11 wire: bytes per second one client receives with 8 players and 60 mobs, most of the
-// mobs awake and fighting. Headless, no sockets: it runs the real sim and encodes what RaidRoom would send.
+// Budget check for the Phase 11 wire: bytes per second one client receives with 8 players and the map's 80 or so mobs
+// (20 camps of 3 to 5, roguelike R2), as many of them awake and fighting as 8 players can pull. Headless, no sockets: it runs the real sim and encodes what RaidRoom would send.
 //   npx tsx bench/bandwidth.ts                 (from packages/server; seed=N ticks=N override the defaults)
 // test/bandwidth.test.ts runs the same scenarios against the gate (under 20 KB/s per client).
 //
@@ -17,17 +17,18 @@
 // The initial full-state sync a joiner gets is reported but is not part of the rate.
 //
 // The load is the worst case for bytes: players are driven like clients (aim every tick, the weapon policy `decide`
-// against the nearest live mob, a strafe `move` every 600 ms) and never die; the 60 mobs are spread evenly over the
-// camps (about 4.6 each), those of an occupied camp are woken every 3 s, and a dead mob is replaced at its camp so the
-// load stays level for as long as the run lasts. Results are deterministic for a seed (nothing here reads the clock or
-// Math.random).
+// against the nearest live mob, a strafe `move` every 600 ms) and never die; the mobs are the map's own camps (map.camps,
+// one mob per spot), every mob of an occupied camp is woken every WAKE_TICKS (the whole camp turns on whoever stands
+// there: the camp aggro of ROGUELIKE_PLAN D24, which sim/mobAI.ts has since R5), and a dead mob is replaced at the
+// camp with the fewest so the load stays level for as long as the run lasts. Results are deterministic for a seed
+// (nothing here reads the clock or Math.random).
 // `chests` (roguelike R5) keeps that many camp chests up through the measurement on top of the ones the fights drop: each
 // is rolled like a real one, picked by a player at 3 s and skipped by another at 6 s, and replaced once it expires.
 import { getMessageBytes, Protocol } from "@colyseus/core";
 import { Encoder } from "@colyseus/schema";
 import {
-  CHEST_SECONDS, circleClear, decide, inArc, mulberry32, PLAYER_RADIUS, raycast, staggers, TICK_MS, TILE, TILE_FLOOR, tileToWorldCenter,
-  WEAPONS, type FactionId, type FxBatch, type FxEvent, type MobCampDef, type Vec2,
+  CHEST_SECONDS, circleClear, decide, generateMap, hasLineOfSight, inArc, mulberry32, PLAYER_RADIUS, raycast, reachMask, staggers, TICK_MS,
+  TILE, TILE_FLOOR, tileToWorldCenter, WEAPONS, type CampDef, type FactionId, type FxBatch, type FxEvent, type Vec2,
 } from "@raid/shared";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { teleportToColiseum } from "../src/sim/arena";
@@ -41,7 +42,7 @@ import { positionAt } from "../src/sim/movement";
 import { addPlayer, step } from "../src/sim/step";
 import { collisionMap, emit, type MeleeRequest, type SimConfig, type World } from "../src/sim/world";
 
-/** The gate: ws payload KiB per second, per client, with 8 players and 60 mobs. */
+/** The gate: ws payload KiB per second, per client, with 8 players and the map's ~80 mobs. */
 export const BANDWIDTH_BUDGET_KBPS = 20;
 
 /**
@@ -60,11 +61,11 @@ export const HEAVY_CAMPS = 8;
 export interface BandwidthOptions {
   seed?: number;
   players?: number;
-  /** Mobs kept in the state: the map's own camp mobs, then more next to camp spots. 0 = none, and the sim runs with mobs off. */
+  /** Mobs kept in the state: the map's own camp mobs (one per camp spot, about 80), then more next to camp spots when it holds fewer. 0 = none, and the sim runs with mobs off. */
   mobs?: number;
   /**
-   * Camps the players stand at (spread over the regions, players spread evenly over them); every mob of those camps is
-   * woken every 3 s. 0 = the coliseum endgame: the players are teleported in, the gates lock, they fight each other and
+   * Camps the players stand at (spread over the zones, players spread evenly over them); every mob of those camps is
+   * woken every WAKE_TICKS. 0 = the coliseum endgame: the players are teleported in, the gates lock, they fight each other and
    * every mob rests at its camp, so none is ever awake (nothing outside the walls can be hit).
    */
   camps?: number;
@@ -128,10 +129,13 @@ function config(players: number, mobs: boolean): SimConfig {
   };
 }
 
-interface Camp { region: FactionId; camp: MobCampDef }
+/** Ticks between the wake-ups of an occupied camp: every mob of it turns on the player standing there (a mob already fighting just gains threat). */
+const WAKE_TICKS = 10;
+
+interface Camp { region: FactionId; camp: CampDef }
 
 function allCamps(world: World): Camp[] {
-  return world.map.regions.flatMap((r) => r.mobCamps.map((camp) => ({ region: r.id as FactionId, camp })));
+  return world.map.camps.map((camp) => ({ region: camp.zone, camp }));
 }
 
 function freeFloorNear(world: World, at: Vec2, rMin: number, rMax: number, rnd: () => number): Vec2 | null {
@@ -166,25 +170,16 @@ interface Driver {
 
 /**
  * Adds mobs next to camp spots until there are `target`, each to the camp holding the fewest (the first camp in map order
- * on a tie). The map's own camps hold about 38 mobs, so the other 22 make every camp about 4.6 strong, whichever camps the
- * players stand at, and a camp that lost a mob is refilled at once: the load does not drain away as the run goes on.
+ * on a tie; a mob belongs to the camp whose reference it carries, `MobState.camp`). A camp that lost a mob is refilled at
+ * once, so the load does not drain away as the run goes on. The replacement stands 12 to 24 u off a spot, inside the
+ * clearing and so inside the camp's territory, and carries the camp's reference: it leashes like the shipped mobs.
  */
 function topUp(world: World, d: Driver, target: number): void {
   if (world.mobs.size >= target || d.camps.length === 0) return;
   const count = d.camps.map(() => 0);
-  for (const rt of world.mobs.values()) {
-    if (!rt.brain) continue;
-    const home = rt.brain.home;
-    let best = 0;
-    let bestD = Infinity;
-    d.camps.forEach(({ camp }, i) => {
-      const dd = Math.hypot(home.x - camp.x, home.y - camp.y);
-      if (dd < bestD) {
-        bestD = dd;
-        best = i;
-      }
-    });
-    count[best]!++;
+  for (const [id, rt] of world.mobs) {
+    const ref = world.state.mobs.get(id)?.camp ?? 0;
+    if (rt.brain && ref >= 1 && ref <= count.length) count[ref - 1]!++;
   }
   while (world.mobs.size < target) {
     let ci = 0;
@@ -196,6 +191,7 @@ function topUp(world: World, d: Driver, target: number): void {
     const spot = camp.spots[d.cursor++ % camp.spots.length]!;
     placeMob(world, {
       region, elite: false, at: freeFloorNear(world, spot, 12, 24, d.placeRnd) ?? spot, facing: Math.atan2(camp.y - spot.y, camp.x - spot.x),
+      camp: ci,
     });
   }
 }
@@ -209,7 +205,7 @@ function policyFor(world: World, c: Combatant, target: Combatant) {
   const tpos = { x: target.s.x, y: target.s.y };
   const before = positionAt(target.rt, target.s, now - 100);
   const vel = { x: (tpos.x - before.x) * 10, y: (tpos.y - before.y) * 10 };
-  const los = !raycast(collisionMap(world), c.s.x, c.s.y, tpos.x, tpos.y).hit;
+  const los = hasLineOfSight(collisionMap(world), c.s, tpos, reachMask(weapon));
   return decide({
     self: { x: c.s.x, y: c.s.y }, target: tpos, targetVel: vel, los, weapon, ready: now >= c.s.readyAt, windup: tm?.windup ?? 0,
   });
@@ -261,14 +257,12 @@ function drivePlayers(world: World, d: Driver, mobsWanted: number, strafeMs: num
       q.pushMove({ kind: "move", x: target.s.x + Math.cos(a) * r, y: target.s.y + Math.sin(a) * r });
     }
   }
-  // Every 3 s the mobs of each occupied camp turn on the player standing there (a mob already fighting just gains threat).
-  if (d.ticks % 60 === 1) {
+  // Whole camps wake: every mob of an occupied camp turns on the player standing there.
+  if (d.ticks % WAKE_TICKS === 1) {
     for (const [pid, ci] of d.campOf) {
-      const camp = d.camps[ci]!.camp;
       for (const [mid, m] of world.state.mobs) {
         const rt = world.mobs.get(mid);
-        if (m.status !== "alive" || !rt?.brain) continue;
-        if (Math.hypot(rt.brain.home.x - camp.x, rt.brain.home.y - camp.y) > camp.r + 24) continue;
+        if (m.status !== "alive" || !rt?.brain || m.camp !== ci + 1) continue;
         aggro(world, { kind: "mob", id: mid, s: m, rt }, pid, 1);
       }
     }
@@ -308,7 +302,7 @@ function installMeleeStandIn(world: World): void {
           if (b.id === att.id || b.s.status !== "alive") continue;
           const p = positionAt(b.rt, b.s, req.rewindT);
           if (!inArc(origin, req.a, shape.reach, shape.halfArc, p, PLAYER_RADIUS)) continue;
-          if (raycast(map, origin.x, origin.y, p.x, p.y).hit) continue;
+          if (raycast(map, origin.x, origin.y, p.x, p.y, reachMask(req.weapon)).hit) continue;
           recordHit(w, {
             victim: b.id, by: { id: att.id, name: att.s.name }, packet: req.packet, weapon: req.weapon,
             stagger: staggers({ melee: req.weapon }),
@@ -364,7 +358,6 @@ function keepChests(world: World, d: Driver, wanted: number): void {
 export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const seed = opts.seed ?? 1;
   const playerCount = opts.players ?? 8;
-  const mobsWanted = opts.mobs ?? 60;
   const camps = opts.camps ?? TYPICAL_CAMPS;
   const ticks = opts.ticks ?? 1200;
   const warmup = opts.warmup ?? 200;
@@ -372,8 +365,10 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const chestsWanted = opts.chests ?? 0;
 
   let uid = 0;
+  const map = generateMap(seed);
+  const mobsWanted = opts.mobs ?? map.camps.reduce((n, c) => n + c.spots.length, 0);
   const world = createGameWorld({
-    seed, config: config(playerCount, mobsWanted > 0), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`,
+    seed, config: config(playerCount, mobsWanted > 0), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
   });
   // What the room's SchemaSerializer does in `reset(state)`, before anyone joins.
   const encoder = new Encoder(world.state);
@@ -542,7 +537,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`per client, ws payload (gate: under ${BANDWIDTH_BUDGET_KBPS} KB/s)`);
   show(`typical (${TYPICAL_CAMPS} camps, 2 players each)`, { camps: TYPICAL_CAMPS });
   show(`heavy   (${HEAVY_CAMPS} camps, 1 player each)`, { camps: HEAVY_CAMPS });
-  show("idle    (60 mobs, none awake)", { camps: 0 });
+  show("idle    (the map's mobs, none awake)", { camps: 0 });
   show(`chests  (typical, and 5 camp chests up)`, { camps: TYPICAL_CAMPS, chests: 5 });
   show("no mobs (players only)", { camps: 0, mobs: 0 });
 }

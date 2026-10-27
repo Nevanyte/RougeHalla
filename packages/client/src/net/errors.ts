@@ -20,6 +20,8 @@ export const CALLSIGN_BUSY_MESSAGE =
   "That callsign is still in a run (another tab, or your last run is still closing). Try again in a few seconds, or use another callsign.";
 export const JOIN_CLOSED_MESSAGE = "The connection closed before you could join. Please try again.";
 export const JOIN_SLOW_MESSAGE = "Joining is taking too long. Check your connection and try again.";
+/** The room's map hash differs from the one this client built (net/roomMap.ts): the page is out of date with the server. */
+export const MAP_MISMATCH_MESSAGE = "This raid's map did not match your client. Please reload.";
 
 /** WebSocket close codes (1xxx) and Colyseus's own (4xxx), as the SDK reports them. */
 const CLOSE_NORMAL = new Set([1000, 1001, 4000]);

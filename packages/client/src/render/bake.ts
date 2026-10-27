@@ -36,8 +36,7 @@ let density: number | null = null;
 /**
  * Texels per world pixel of every fighter, ring, chest and icon texture, for the whole page session: BAKE_SCALE, or denser where
  * this screen can zoom past 2. Fixed at first use (the hub bakes its avatar at boot) because a texture keeps the density it was
- * baked at, and the views size their Images from it; a window dragged to a denser screen later keeps it (the map's walls follow
- * the camera, see mapBake.ts).
+ * baked at, and the views size their Images from it; a window dragged to a denser screen later keeps it.
  */
 export function bakeScale(): number {
   return (density ??= bakeScaleFor(reachableZoom()));

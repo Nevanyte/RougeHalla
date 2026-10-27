@@ -17,7 +17,7 @@ import { PASSCODE_REQUIRED, PASSCODE_THROTTLED, PasscodeGate } from "./guards/pa
 import { RoomCounter } from "./guards/roomCounter";
 import { KeyedTokenBuckets } from "./guards/tokenBucket";
 import { NewProfileLimiter } from "./guards/windowLimiter";
-import { closeMapWorker, warmMapWorker } from "./mapService";
+import { MAP_POOL_TARGET, MapPool } from "./mapPool";
 import { installNetSim, netSimEnabled, type NetSimParams } from "./net/netSim";
 import {
   JsonProfileStore, ProfileForbiddenError, type ProfileRecord, type ProfileStore, type ShopOutcome,
@@ -236,12 +236,14 @@ function installNetSimUnlessHosting(sim: NetSimParams, config: ServerConfig): ((
   return installNetSim(sim);
 }
 
-export function createServer(config: ServerConfig = loadConfig()) {
+export function createServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool } = {}) {
   const store: ProfileStore = new JsonProfileStore(config.stashFile);
   const profiles = new ActiveProfiles();
+  // Warmed here, before the first room can ask: the main thread's lane tables (for a fallback) and the worker's queue.
+  const maps = (opts.maps ?? new MapPool({ target: config.mapPoolSize ?? MAP_POOL_TARGET })).start();
   const rooms = new RoomCounter({ arena: config.maxArenaRooms, training: config.maxTrainingRooms });
   const passcodeGate = new PasscodeGate(config.passcode, config.passcodeFailsPerMinute, config.passcodeFailsPerMinuteAll);
-  RaidRoom.ctx = { config, store, profiles, rooms, passcodeGate };
+  RaidRoom.ctx = { config, store, profiles, rooms, passcodeGate, maps };
   configureCors(config);
   const newProfiles = new NewProfileLimiter(config.maxNewProfilesPerHour, config.maxNewProfilesPerIpPerHour, HOUR_MS);
   const shopBuckets = new KeyedTokenBuckets(config.shopBurst, config.shopPerSecond);
@@ -377,12 +379,15 @@ export function createServer(config: ServerConfig = loadConfig()) {
   });
   // Runs after every room is disposed (their onLeave handlers have settled), also on SIGINT/SIGTERM. The final flush,
   // then the profile file's lock goes, so the next server (a deploy, a tsx-watch restart) can take the file.
+  // The profiles go first: the pool's stop() is bounded, but nothing about a worker thread should ever sit in front of
+  // the final flush.
   server.onShutdown(async () => {
     try {
       await store.close();
     } catch (err) {
       console.error("[server] could not flush the profiles on shutdown:", err);
     }
+    await maps.stop();
   });
   // Our own model (net/netSim.ts) replaces Colyseus's fixed delay. Core also reads COLYSEUS_LATENCY itself when the server
   // starts listening and would stack its delay on ours, so the variable is taken out of the environment here.
@@ -398,18 +403,20 @@ export function createServer(config: ServerConfig = loadConfig()) {
       await server.gracefullyShutdown(false);
     } finally {
       uninstallNetSim?.();
-      await closeMapWorker();
-      await store.close();
+      try {
+        await store.close();
+      } finally {
+        await maps.stop();
+      }
     }
   }
-  return Object.assign(server, { store, profiles, rooms, stop });
+  return Object.assign(server, { store, profiles, rooms, maps, stop });
 }
 
 export type RaidServer = ReturnType<typeof createServer>;
 
-export async function startServer(config: ServerConfig = loadConfig()) {
-  const server = createServer(config);
-  warmMapWorker();
+export async function startServer(config: ServerConfig = loadConfig(), opts: { maps?: MapPool } = {}) {
+  const server = createServer(config, opts);
   await server.listen(config.port);
   return server;
 }

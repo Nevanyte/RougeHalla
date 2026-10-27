@@ -1,7 +1,7 @@
 // How hard is a whole camp in the REAL sim (roguelike R4a, ROGUELIKE_PLAN R4a, R5 and 6)? A starting player (one faction, one
 // weapon, no buffs, no second weapon) meets one mono-type camp of a zone on an open floor: a normal camp (`--size` normals of
-// the zone's first type, 3 by default; the zone maps' camps hold 3 to 5, about 4 on average) or the zone's elite camp (its
-// elite and `--size` - 1 normals, so the same number of mobs). It fights through the target
+// the zone's first type, 4 by default: the generator's camps hold 3 to 5, about 4) or the zone's elite camp (its elite and
+// `--size` - 1 normals, so the same number of mobs). It fights through the target
 // lock, the game client's way: it clicks the nearest standing mob, and when that one dies, the next. Three pulls:
 //   camp    the camp as shipped since R5: the mobs are placed WITH their camp (MobState.camp, and a published CampState), all
 //           idle on their spots; the player walks up and its first landed hit wakes every member at once through
@@ -11,22 +11,29 @@
 //           happens between them;
 //   group   a stress case, harder than a real pull: every mob is woken by hand at tick 0 (no camp), so the camp walks at the
 //           player from the start and gets the first strike, which D24 never allows a ranged player.
-// The kills pay as in a run (GV, the type's buff stacks), so the buffs a camp gives already help with its last mobs.
+// The camp has a territory as on a generated map (ROGUELIKE_PLAN D15, a disc of TERRITORY_TILES around it, about the median
+// territory of 330 tiles): the `camp` pull's mobs leash to it within min(radius, 12 tiles) of their spots, not the 9-tile
+// circle of a hand-built map (`--no-territory` for that one). `single` and `group` place their mobs without a camp, so they
+// keep the circle. The kills pay as in a run (GV, the type's buff stacks), so the buffs a camp gives already help with its
+// last mobs.
 // It reports time to clear (from the first mob waking to the last death) and hp left; a report, never a gate.
 //
 //   npx tsx bench/campDuel.ts                 each faction on its signature weapon, every zone, normal and elite, all three pulls
 //   npx tsx bench/campDuel.ts --weapons       each faction on each of the five weapons
-//   npx tsx bench/campDuel.ts --sweep         the k sweep: one summary row per (camp size, MOB_K, ELITE_K), a column per camp kind and pull
-//   options: --seeds N (3)  --size N (3)  --cap SECONDS (90)  --json FILE  --pulls camp,single,group
+//   npx tsx bench/campDuel.ts --map           the camp pull on the real thing: seed s builds the zone-styled map of seed s, the camp is one of
+//                                             the zone's camps there (the elite camp for the elite rows), with its real territory leash, its
+//                                             clearing, its walls and hazards, and the player starts ~10 tiles out on walkable ground
+//   options: --seeds N (3)  --size N (4)  --cap SECONDS (90)  --no-territory  --json FILE  --pulls camp,single,group
 //            --k X  --elite-k X (a what-if scale, through setMobScalesForHarness; MOB_K and ELITE_K when left out)
 //            --sweep takes --ks a,b,c (0.45,0.40,..)  --eks a,b (the elite scale, 0.65)  --sizes a,b,c (--size)
 import { writeFileSync } from "node:fs";
 import {
-  eliteTypeOf, ELITE_K, FACTION_IDS, MOB_K, mulberry32, normalTypesOf, SIGNATURE_WEAPONS, TICK_MS, TILE, WEAPON_IDS, type FactionId,
-  type MobTypeId, type Vec2, type WeaponId,
+  circleClear, eliteTypeOf, ELITE_K, FACTION_IDS, findPath, generateMap, MOB_K, mulberry32, normalTypesOf, PLAYER_RADIUS, SIGNATURE_WEAPONS, TICK_MS, TILE, WEAPON_IDS, type CampDef,
+  type FactionId, type GameMap, type MobTypeId, type Vec2, type WeaponId,
 } from "@raid/shared";
 import { CampState } from "@raid/shared/schema";
 import { buildArena } from "../src/harness/duel";
+import { ensureRosters } from "../src/sim/camps";
 import { buffsOf } from "../src/sim/buffs";
 import { combatant, setMobScalesForHarness } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
@@ -46,8 +53,12 @@ export interface CampDuelSpec {
   elite: boolean;
   pull: Pull;
   seed: number;
-  /** Mobs in the camp, 3 by default: that many normals, or (an elite camp) the elite and size - 1 normals. */
+  /** Mobs in a camp, 4 by default (a generated camp holds 3 to 5): normals in a normal camp, the elite and `size - 1` normals in an elite camp. */
   size?: number;
+  /** The camp has a territory (true, as on a generated map) or none, so its mobs keep the 9-tile circle (false). */
+  territory?: boolean;
+  /** Play on `generateMap(seed)` (the game's themed map), at one of the zone's real camps, instead of on an open floor with a disc territory. The camp pull only. */
+  onMap?: boolean;
   capSeconds?: number;
   /** What-if scales for this duel (normal mob, elite); MOB_K and ELITE_K when left out. Always put back. */
   k?: number;
@@ -72,10 +83,32 @@ export interface CampDuelResult {
 }
 
 const ARENA_TILES = 40;
+/** The territory's radius in tiles: a disc of about 346 tiles, the median generated territory (333) within a few percent. */
+const TERRITORY_TILES = 10.5;
+/** A camp's mobs, as many as a generated camp's median. */
+export const CAMP_SIZE = 4;
 const CENTER = (ARENA_TILES * TILE) / 2;
 const NEVER = 1_000_000;
 const RING = 48;
 const PLAYER_ID = "p";
+
+/** The arena with the camp's territory (a disc around `home`, camp 1 in territoryGrid) unless the spec turns it off. */
+function withTerritory(map: GameMap, spec: CampDuelSpec, home: Vec2): GameMap {
+  if (spec.territory === false) return map;
+  let area = 0;
+  for (let ty = 0; ty < map.h; ty++) {
+    for (let tx = 0; tx < map.w; tx++) {
+      if (Math.hypot((tx + 0.5) * TILE - home.x, (ty + 0.5) * TILE - home.y) > TERRITORY_TILES * TILE) continue;
+      map.territoryGrid[ty * map.w + tx] = 1;
+      area++;
+    }
+  }
+  const camp: CampDef = {
+    id: `${spec.zone}-1`, zone: spec.zone, x: home.x, y: home.y, r: 2.5 * TILE, spots: [home], eliteSpot: spec.elite ? 0 : -1, chest: home,
+    area, radius: TERRITORY_TILES * TILE,
+  };
+  return { ...map, camps: [camp] };
+}
 
 export function runCampDuel(spec: CampDuelSpec): CampDuelResult {
   // The what-if scales reach the sim through setMobScalesForHarness, set before placeMob builds the hp; always put back.
@@ -93,20 +126,43 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
   const weapon = spec.weapon ?? SIGNATURE_WEAPONS[spec.player];
   const v = variantOf(spec.seed, 320);
   const normal: MobTypeId = normalTypesOf(spec.zone)[0]!.id;
-  const size = Math.max(spec.elite ? 2 : 1, spec.size ?? 3);
+  const size = Math.max(spec.elite ? 2 : 1, spec.size ?? CAMP_SIZE);
   const roster: Array<{ type: MobTypeId; elite: boolean }> = spec.elite
     ? [{ type: eliteTypeOf(spec.zone).id, elite: true }, ...Array.from({ length: size - 1 }, () => ({ type: normal, elite: false }))]
     : Array.from({ length: size }, () => ({ type: normal, elite: false }));
-  const home: Vec2 = { x: CENTER, y: CENTER };
-  const start: Vec2 = { x: CENTER + Math.cos(v.angle) * v.distance, y: CENTER + Math.sin(v.angle) * v.distance };
+  let home: Vec2 = { x: CENTER, y: CENTER };
+  let start: Vec2 = { x: CENTER + Math.cos(v.angle) * v.distance, y: CENTER + Math.sin(v.angle) * v.distance };
+  let map: GameMap;
+  let campRef = 0;
+  if (spec.onMap) {
+    // The real thing: the zone's camp on the game's own map. Normal rows take the zone's non-elite camp number `seed` (mod 3), elite rows its elite camp.
+    map = generateMap(spec.seed);
+    const camps = map.camps.map((c, i) => ({ c, i })).filter((e) => e.c.zone === spec.zone && (e.c.eliteSpot >= 0) === spec.elite);
+    const pickCamp = camps[spec.seed % camps.length]!;
+    campRef = pickCamp.i;
+    home = { x: pickCamp.c.x, y: pickCamp.c.y };
+    // The player walks in from ~10 tiles out, on the nearest walkable ground to that ring that has a path to the camp.
+    let found: Vec2 | null = null;
+    for (let ring = 0; ring < 6 && !found; ring++) {
+      for (let k = 0; k < 16 && !found; k++) {
+        const a = v.angle + (k * Math.PI * 2) / 16, d = v.distance + ring * 32;
+        const at = { x: home.x + Math.cos(a) * d, y: home.y + Math.sin(a) * d };
+        if (circleClear(map, at, PLAYER_RADIUS) && findPath(map, at, home).length > 0) found = at;
+      }
+    }
+    if (!found) throw new Error(`campDuel --map: no way in to ${pickCamp.c.id} of seed ${spec.seed}`);
+    start = found;
+    map = { ...map, spawns: [start] };
+  } else {
+    map = withTerritory({ ...buildArena("open", [home, start], spec.seed), spawns: [start] }, spec, home);
+  }
 
   const world = createGameWorld({
-    seed: spec.seed,
     random: mulberry32(spec.seed + 1),
     config: {
       minPlayers: 1, lobbySeconds: 1, fillSeconds: 0, patienceSeconds: NEVER, patienceMinSeconds: NEVER, suddenDeathSeconds: NEVER, mobs: false,
     },
-    map: { ...buildArena("open", [home, start], spec.seed), spawns: [start] },
+    map,
   }, { signatures: true });
   const p = addPlayer(world, PLAYER_ID, PLAYER_ID, { faction: spec.player });
   p.weapon0 = weapon;
@@ -115,7 +171,7 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
   if (world.state.phase !== "active") throw new Error("campDuel: the run did not start");
 
   // The camp pull places the mobs WITH their camp and publishes its CampState (index 0), so the first damage to any member
-  // engages it and wakes the rest through mobAI.aggro, as in a run. The arena has no map camps, so no chest drops on a clear.
+  // engages it and wakes the rest through mobAI.aggro, as in a run (and leashes them to its territory, map camp 0).
   const asCamp = spec.pull === "camp";
   if (asCamp) {
     const published = new CampState();
@@ -123,13 +179,22 @@ function duelAt(spec: CampDuelSpec): CampDuelResult {
     published.reward = "";
     published.alive = roster.length;
     published.state = 0;
-    world.state.camps.push(published);
+    if (spec.onMap) {
+      // The map's twenty camps are published by their own rosters; this camp's entry says what the duel fights.
+      ensureRosters(world);
+      const mine = world.state.camps[campRef]!;
+      mine.type = published.type;
+      mine.alive = roster.length;
+      mine.state = 0;
+    } else {
+      world.state.camps.push(published);
+    }
   }
   const ids = roster.map((m, i) => {
     const a = (i / roster.length) * Math.PI * 2 + v.angle + Math.PI;
     const at = roster.length === 1 ? home : { x: home.x + Math.cos(a) * RING, y: home.y + Math.sin(a) * RING };
     return placeMob(world, {
-      region: spec.zone, elite: m.elite, type: m.type, at, facing: Math.atan2(home.y - at.y, home.x - at.x), camp: asCamp ? 0 : undefined,
+      region: spec.zone, elite: m.elite, type: m.type, at, facing: Math.atan2(home.y - at.y, home.x - at.x), camp: asCamp ? campRef : undefined,
     });
   });
   p.x = start.x;
@@ -252,7 +317,9 @@ function parseList(v: string | undefined, fallback: number[]): number[] {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const seeds = Number(arg("--seeds") ?? 3);
-  const size = Number(arg("--size") ?? 3);
+  const size = Number(arg("--size") ?? CAMP_SIZE);
+  const territory = process.argv.includes("--no-territory") ? false : undefined;
+  const onMap = process.argv.includes("--map") ? true : undefined;
   const cap = Number(arg("--cap") ?? 90);
   const allWeapons = process.argv.includes("--weapons");
   const pulls = (arg("--pulls")?.split(",") ?? ALL_PULLS) as readonly Pull[];
@@ -271,7 +338,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
           for (const pull of which) {
             const rs: CampDuelResult[] = [];
             for (let seed = 1; seed <= seeds; seed++) {
-              rs.push(runCampDuel({ player: r.player, weapon: r.weapon, zone, elite, pull, seed, size: campSize, capSeconds: cap, k, eliteK }));
+              rs.push(runCampDuel({ player: r.player, weapon: r.weapon, zone, elite, pull, seed, size: campSize, territory, onMap, capSeconds: cap, k, eliteK }));
             }
             all.push(...rs);
             cells.set(key(r, zone, elite, pull), cellOf(rs));
@@ -307,7 +374,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const k = arg("--k") === undefined ? undefined : Number(arg("--k"));
     const eliteK = arg("--elite-k") === undefined ? undefined : Number(arg("--elite-k"));
     const { all, cells } = runAll(k, eliteK, [false, true], pulls, size, true);
-    console.log(`MOB_K ${k ?? MOB_K}, ELITE_K ${eliteK ?? ELITE_K}, camp size ${size}, ${seeds} seeds`);
+    console.log(`MOB_K ${k ?? MOB_K}, ELITE_K ${eliteK ?? ELITE_K}, camp size ${size}, ${seeds} seeds${onMap ? ", on the game's maps (seed s builds the map of seed s)" : ""}`);
     for (const elite of [false, true]) {
       for (const pull of pulls) {
         const what = elite ? `elite camp (elite + ${size - 1} normals)` : `normal camp (${size} normals)`;

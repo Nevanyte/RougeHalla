@@ -38,7 +38,6 @@ function openMap(): GameMap {
 
 function startRun(factions: FactionId[], opts: { signatures?: boolean } = {}): World {
   const world = createGameWorld({
-    seed: 5,
     config: { minPlayers: factions.length, lobbySeconds: 15, fillSeconds: 0, patienceSeconds: 3600, patienceMinSeconds: 3600, suddenDeathSeconds: 3600 },
     random: mulberry32(6),
     map: openMap(),

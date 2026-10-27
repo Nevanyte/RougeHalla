@@ -116,7 +116,7 @@ describe("campMobs", () => {
   });
 });
 
-describe("D5 on generated wedge maps (seeds 0..199)", () => {
+describe("D5 on generated zone maps (seeds 0..199)", () => {
   it("every zone's camps follow the rules, with mono-type camps and one elite", () => {
     let twoCamp = 0;
     let threeCamp = 0;
@@ -153,7 +153,8 @@ describe("D5 on generated wedge maps (seeds 0..199)", () => {
         expect(elites, `seed ${seed} ${zone}`).toBe(1);
       }
     }
-    expect(twoCamp + threeCamp).toBeGreaterThan(900); // the wedge maps: 2 or 3 camps per zone
-    expect(fourCamp).toBe(0);
+    // The zone maps (R2): four camps in every zone, so one normal type repeats in each.
+    expect(twoCamp + threeCamp).toBe(0);
+    expect(fourCamp).toBe(200 * FACTION_IDS.length);
   }, 180_000); // 200 maps through the generator
 });
