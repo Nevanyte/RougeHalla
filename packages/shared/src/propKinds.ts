@@ -41,4 +41,17 @@ export const PROP_KINDS: readonly PropKindSpec[] = [
   { key: "candelabra", on: TILE_FLOOR, home: "holy" },
   { key: "rubble", on: TILE_FLOOR, home: "holy" },
   { key: "stained_glass", on: TILE_FLOOR, home: "holy" },
+  // The zone shapes (zone-shapes contract 7.5), appended in this order: the stylers place them, the client draws them.
+  { key: "crater_lip", on: TILE_WALL, home: "fire" },
+  { key: "anvil", on: TILE_FLOOR, home: "fire" },
+  { key: "slag_heap", on: TILE_FLOOR, home: "fire" },
+  { key: "gate_post", on: TILE_LOW, home: "sentenced" },
+  { key: "stocks", on: TILE_FLOOR, home: "sentenced" },
+  { key: "tunnel_beam", on: TILE_WALL, home: "plague" },
+  { key: "burrow_rubble", on: TILE_FLOOR, home: "plague" },
+  { key: "reed", on: TILE_FLOOR, home: "plague" },
+  { key: "tower_frost", on: TILE_WALL, home: "frost" },
+  { key: "ice_crack", on: TILE_FLOOR, home: "frost" },
+  { key: "altar", on: TILE_FLOOR, home: "holy" },
+  { key: "brazier", on: TILE_FLOOR, home: "holy" },
 ];

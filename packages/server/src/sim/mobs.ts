@@ -135,7 +135,7 @@ export function spawnTraining(world: World): void {
       return at ? claim(at) : null;
     };
 
-    // A dummy is for shooting at, so it prefers a tile the spawn can see; a spawn boxed in by ruins takes one around the corner.
+    // A dummy is for shooting at, so it prefers a tile the spawn can see; a spawn with a wall in front of it takes one around the corner.
     const visible = (at: Vec2): boolean => hasLineOfSight(map, from, at);
     const dummySpot = (): Vec2 | null => nearest(visible) ?? nearest(() => true);
     const facing = (at: Vec2): number => Math.atan2(from.y - at.y, from.x - at.x);

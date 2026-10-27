@@ -7,8 +7,9 @@
 import {
   FACTIONS, FACTION_IDS, REGION_IDS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA,
   TERRAIN_LIGHT, TILE, TILE_FLOOR, TILE_LOW, isWallTile,
-  type CampDef, type FactionId, type GameMap, type RegionId, type Vec2,
+  type CampDef, type FactionId, type FeatureKind, type GameMap, type RegionId, type Vec2,
 } from "@raid/shared";
+import { floorLookOf } from "../render/zoneArt/featureArt";
 import { cssColor } from "./dom";
 
 export const COLOR_BG = "rgba(20, 24, 30, 0.8)";
@@ -30,7 +31,7 @@ export const COLOR_REGION: Record<RegionId, string | null> = {
 const COLOR_LOW_DEFAULT = "#7a808b";
 const COLOR_LOW: Readonly<Record<number, string>> = {
   [TERRAIN_LAVA]: "#ff5a1f",
-  [TERRAIN_FENCE]: "#b9b0d6",
+  [TERRAIN_FENCE]: "#f1ecff",
   [TERRAIN_CREVASSE]: "#0a1626",
 };
 const COLOR_CREVASSE_EDGE = "#4aa3df";
@@ -40,6 +41,37 @@ const COLOR_HAZARD: Readonly<Record<number, string>> = {
   [TERRAIN_BOG]: "rgba(95, 143, 58, 0.55)",
   [TERRAIN_ICE]: "rgba(191, 233, 255, 0.55)",
   [TERRAIN_LIGHT]: "rgba(255, 243, 176, 0.7)",
+};
+/**
+ * The walls of a named feature (zone-shapes contract 7.5) on the map screens, so the shapes read at a glance and not only as grey
+ * lines: a crater's rim warm, a barrow's mound moss, the hall's piers gold, a headland or spire pale ice, the gallows timber, a
+ * landmark's walls white. Walls with no feature (the border, the coliseum, a net's infill) stay COLOR_WALL.
+ */
+export const COLOR_FEATURE_WALL: Readonly<Partial<Record<FeatureKind, string>>> = {
+  crater: "#e0a98c",
+  barrow: "#b9d394",
+  hall: "#f3dd8c",
+  headland: "#e6f6ff",
+  spire: "#e6f6ff",
+  gallows: "#b99a72",
+  landmark: "#ffffff",
+};
+/**
+ * The floor a feature owns, as a tint over the zone's colour and hatch: a crater's bowl darkens (so each ring reads as a pen), a
+ * tunnel is near black, the hall's aisles are warm, a lake's shore and a causeway pale, a landmark's inside bright. Keyed by the
+ * feature's floor look (render/zoneArt/featureArt.ts).
+ */
+const COLOR_FEATURE_FLOOR: Readonly<Record<string, string>> = {
+  bowl: "rgba(0, 0, 0, 0.26)",
+  tunnel: "rgba(0, 0, 0, 0.5)",
+  hall: "rgba(255, 224, 130, 0.14)",
+  shore: "rgba(220, 244, 255, 0.28)",
+  causeway: "rgba(255, 255, 255, 0.55)",
+  forge: "rgba(255, 255, 255, 0.16)",
+  guardHouse: "rgba(255, 255, 255, 0.16)",
+  burrow: "rgba(255, 255, 255, 0.16)",
+  watchtower: "rgba(255, 255, 255, 0.16)",
+  shrine: "rgba(255, 255, 255, 0.16)",
 };
 export const COLOR_OUTLINE = "#0b0e11";
 export const COLOR_CROWN = "#ffd54f";
@@ -146,6 +178,35 @@ function eachRun(values: ArrayLike<number>, fn: (start: number, end: number, val
     if (i < values.length && values[i] === values[start]) continue;
     if (values[start]! >= 0) fn(start, i, values[start]!);
     start = i;
+  }
+}
+
+/**
+ * The floor the map's features own, as runs of one tint per row (rounded outward like the walls'): drawn after the hazards and before
+ * the hatch and the walls. A map with no features makes no call here.
+ */
+function paintFeatureFloors(g: PaintCtx, map: GameMap, tile: number): void {
+  if (map.features.length === 0) return;
+  const tints = map.features.map((f) => COLOR_FEATURE_FLOOR[floorLookOf(f)] ?? "");
+  const classes: number[] = new Array(map.w);
+  for (let ty = 0; ty < map.h; ty++) {
+    const top = Math.floor(ty * tile);
+    const bottom = Math.ceil((ty + 1) * tile);
+    let any = false;
+    for (let tx = 0; tx < map.w; tx++) {
+      const i = ty * map.w + tx;
+      const f = map.featureGrid[i]!;
+      // A lake's ice already has its own tint; the shore and causeway are the lake's owned floor that has none.
+      const c = f !== 0 && map.tiles[i] === TILE_FLOOR && tints[f - 1] !== "" && !(map.terrain[i] === TERRAIN_ICE) ? f - 1 : -1;
+      classes[tx] = c;
+      any ||= c >= 0;
+    }
+    if (!any) continue;
+    eachRun(classes, (start, end, c) => {
+      const left = Math.floor(start * tile);
+      g.fillStyle = tints[c]!;
+      g.fillRect(left, top, Math.ceil(end * tile) - left, bottom - top);
+    });
   }
 }
 
@@ -337,6 +398,7 @@ export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k:
   // The ground: floor hazards (ember, bog, ice, light) as faint tints over the zone colour, so the zone's hatch stays readable on
   // them; LOW tiles (lava, fence, crevasse) below, after the hatch. A barrier that is not drawn is an invisible wall to the player.
   paintHazards(g, map, tile);
+  paintFeatureFloors(g, map, tile);
 
   if (opts.patterns) {
     // The pattern tile is anchored to the context's origin, so a hatch line continues across runs and rows.
@@ -360,6 +422,10 @@ export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k:
 
   // Horizontal runs of wall tiles per row; edges are rounded outward so neighbouring rows leave no hairline gaps.
   g.fillStyle = COLOR_WALL;
+  if (map.features.length > 0) {
+    paintFeatureWalls(g, map, tile);
+    return;
+  }
   for (let ty = 0; ty < map.h; ty++) {
     const top = Math.floor(ty * tile);
     const bottom = Math.ceil((ty + 1) * tile);
@@ -373,6 +439,34 @@ export function paintMapBase(g: PaintCtx, map: GameMap, w: number, h: number, k:
         start = -1;
       }
     }
+  }
+}
+
+/**
+ * The walls of a map that has features: horizontal runs per row like the plain pass, split where the colour changes (a wall of a
+ * feature takes its kind's colour, COLOR_FEATURE_WALL; any other wall COLOR_WALL).
+ */
+function paintFeatureWalls(g: PaintCtx, map: GameMap, tile: number): void {
+  const colours = map.features.map((f) => COLOR_FEATURE_WALL[f.kind] ?? COLOR_WALL);
+  const palette = [COLOR_WALL, ...new Set(colours.filter((c) => c !== COLOR_WALL))];
+  const classOf = colours.map((c) => palette.indexOf(c));
+  const row: number[] = new Array(map.w);
+  for (let ty = 0; ty < map.h; ty++) {
+    const top = Math.floor(ty * tile);
+    const bottom = Math.ceil((ty + 1) * tile);
+    let any = false;
+    for (let tx = 0; tx < map.w; tx++) {
+      const wall = isWallTile(map, tx, ty);
+      const f = wall ? map.featureGrid[ty * map.w + tx]! : 0;
+      row[tx] = wall ? (f === 0 ? 0 : classOf[f - 1] ?? 0) : -1;
+      any ||= wall;
+    }
+    if (!any) continue;
+    eachRun(row, (start, end, c) => {
+      const left = Math.floor(start * tile);
+      g.fillStyle = palette[c]!;
+      g.fillRect(left, top, Math.ceil(end * tile) - left, bottom - top);
+    });
   }
 }
 

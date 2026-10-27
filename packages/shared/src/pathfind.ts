@@ -17,12 +17,13 @@ export const SNAP_RADIUS = 4;
 /**
  * How many candidates past the anchor string pulling looks at (a performance cap; it never makes a hop invalid, since
  * every accepted hop passes segmentClear and the next candidate always passes). At 96x96 with long detours the pull
- * was 85% of findPath's cost; the mapgen's sight certificate keeps every straight hop to well under 32 tiles, so the
- * paths on generated maps are the same as without the cap. On hand-built maps with long open sight lines the window can
- * reshape a small share of the paths (still valid, at most about 8% longer); relaxing MAX_SIGHT_CORRIDOR means
- * measuring it again.
+ * was 85% of findPath's cost. A window shorter than a straight hop splits it, so the path comes out a little longer: the open
+ * 136x136 maps (zone-shapes contract 7.1: 40 maps, 2000 pairs each) had 11.1% of paths over 1% longer than unbounded at 32, 4.2% at
+ * 48, 1.3% at 64 and 0.06% at 96 (max 1.062), for 7.5% more cost per path at p99 than 32 (and 3% more per stepBench --stress tick);
+ * 96 is the smallest window with at most 0.5% of paths over 1% longer. The generator certifies the spawn walks with findPath, so
+ * changing it re-pins every map.
  */
-export const PULL_WINDOW = 32;
+export const PULL_WINDOW = 96;
 
 interface Scratch {
   n: number;
@@ -193,6 +194,19 @@ function clampClear(map: GameMap, p: Vec2, gx: number, gy: number, radius: numbe
   if (isSolidTile(map, gx, gy + 1)) y = Math.min(y, y0 + TILE - radius);
   const clamped = { x, y };
   return circleClear(map, clamped, radius) ? clamped : { x: tileToWorldCenter(gx), y: tileToWorldCenter(gy) };
+}
+
+/** Length of a walk from `from` through `points` (findPath's waypoints, which leave `from` out): the sum of Math.sqrt(dx*dx + dy*dy). */
+export function pathLength(from: Vec2, points: readonly Vec2[]): number {
+  let total = 0;
+  let ax = from.x, ay = from.y;
+  for (const p of points) {
+    const dx = p.x - ax, dy = p.y - ay;
+    total += Math.sqrt(dx * dx + dy * dy);
+    ax = p.x;
+    ay = p.y;
+  }
+  return total;
 }
 
 /**

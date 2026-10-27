@@ -7,25 +7,18 @@ import { duel, FACTIONS, type FactionId } from "./factions";
 import type { CampDef, GameMap } from "./map";
 import type { Vec2 } from "./messages";
 import { mobFaction } from "./mobs";
-import { findPath } from "./pathfind";
+import { findPath, pathLength } from "./pathfind";
 
 const walksCache = new WeakMap<GameMap, readonly number[]>();
 
-/** Length of a walk from `from` through `points` (findPath's waypoints, which leave `from` out). */
-export function walkLength(from: Vec2, points: readonly Vec2[]): number {
-  let total = 0;
-  let at = from;
-  for (const p of points) {
-    total += Math.hypot(p.x - at.x, p.y - at.y);
-    at = p;
-  }
-  return total;
-}
+/** Length of a walk from `from` through `points` (findPath's waypoints, which leave `from` out): pathfind.ts `pathLength`. */
+export const walkLength: (from: Vec2, points: readonly Vec2[]) => number = pathLength;
 
 /**
  * Walking distance (world units) from each `map.spawnPool` entry to the coliseum centre over the map as generated (gates
  * open), by the shared pathfinder: the same number on the server and every client. Infinity for a spawn with no path.
- * Cached per map object (24-32 path searches on a zone map, about 4 ms in all: the server's map worker primes it, see primeSpawnWalks).
+ * Cached per map object (24-32 path searches on a zone map, about 4 ms in all). The generator certifies exactly these walks (its spawn
+ * gate) and primes them into the map it returns (primeSpawnWalks), so this is free on a generated map.
  */
 export function spawnWalks(map: GameMap): readonly number[] {
   let out = walksCache.get(map);

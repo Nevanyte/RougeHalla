@@ -1,4 +1,4 @@
-// The map worker (started by net/mapWorker.ts): the 44 MB of lane tables and every room's map are built here, never on
+// The map worker (started by net/mapWorker.ts): the layout tables and every room's map are built here, never on
 // the page's thread, so the hub and the loading screen keep animating while they are.
 import { generateMap, tryAttempt, warmMapgen } from "@raid/shared";
 import { mapTransferables, type MapWorkerIn, type MapWorkerOut } from "./mapWorkerProtocol";
@@ -19,7 +19,7 @@ scope.onmessage = (e) => {
     warmMapgen();
     const t1 = performance.now();
     tryAttempt(WARM_SEED, 0);
-    scope.postMessage({ kind: "warm", tablesMs: t1 - t0, attemptMs: performance.now() - t1 }, []);
+    scope.postMessage({ kind: "warm", layoutMs: t1 - t0, attemptMs: performance.now() - t1 }, []);
     return;
   }
   if (msg.kind !== "map") return;

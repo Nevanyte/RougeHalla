@@ -1,4 +1,4 @@
-// The Phase 11 tick budget (docs/GAME_DESIGN.md 17): with 8 players and the map's mobs (20 camps, about 80 on a zone map) a
+// The Phase 11 tick budget (docs/GAME_DESIGN.md 17): with 8 players and the map's mobs (40 camps, about 170 on a zone-shapes map) a
 // step() averages under 5 ms and its 99th percentile stays under 15 ms. The scenarios are bench/stepBench.ts: eight
 // players at eight camps, and the pathfinder's worst case (every camp woken every second, players re-locking every
 // TARGET_REPATH_MS). The machine may be busy (other tests run in parallel, and on a shared one the process is preempted in
@@ -30,27 +30,27 @@ function bestOfFive(opts: BenchOptions): BenchResult {
 }
 
 describe("tick budget", () => {
-  it("8 players and the map's ~80 mobs: step() averages under 5 ms with a p99 under 15 ms", () => {
+  it("8 players and the map's ~170 mobs: step() averages under 5 ms with a p99 under 15 ms", () => {
     const r = bestOfFive({});
     // A mob that dies is replaced the next tick, and its corpse leaves the state 1.5 s after it fell: the count dips by a few.
-    expect(r.mobs).toBeGreaterThanOrEqual(72);
+    expect(r.mobs).toBeGreaterThanOrEqual(150);
     expect(r.avgFighting).toBeGreaterThan(8);
     expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
     expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);
 
-  it("the pathfinder's worst case (most of the 80 mobs awake and repathing, 8 players re-locking every 250 ms): the same budget", () => {
+  it("the pathfinder's worst case (most of the ~170 mobs awake and repathing, 8 players re-locking every 250 ms): the same budget", () => {
     const r = bestOfFive({ stress: true });
-    expect(r.mobs).toBeGreaterThanOrEqual(72);
-    // Loaded: most mobs are chasing or walking home at any moment (measured about 70 awake, 50 fighting).
-    expect(r.avgAwake).toBeGreaterThan(40);
+    expect(r.mobs).toBeGreaterThanOrEqual(150);
+    // Loaded: most mobs are chasing or walking home at any moment (measured about 150 awake, 85 fighting of 172 on seed 1; about 70 and 50 of 80 on the R2 maps).
+    expect(r.avgAwake).toBeGreaterThan(80);
     expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
     expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);
 
   it("the same with every buff at 4 stacks on all 8 players (R4a's gate)", () => {
     const r = bestOfFive({ buffs: true });
-    expect(r.mobs).toBeGreaterThanOrEqual(72);
+    expect(r.mobs).toBeGreaterThanOrEqual(150);
     expect(gateMs(r).avg).toBeLessThan(AVG_BUDGET_MS);
     expect(gateMs(r).p99).toBeLessThan(P99_BUDGET_MS);
   }, 120_000);
@@ -103,7 +103,7 @@ describe("tick budget with in-process bots (docs/BOTS.md 9.2)", () => {
   const BOTS = 8;
   const TICKS = 1000;
   // The drawn mix; the costliest tier alone; and the endgame, where all eight see each other in the sealed coliseum (about twice
-  // the cost of the field: every bot perceives every other, and nothing else is in view to skip). The map's own mobs (about 80).
+  // the cost of the field: every bot perceives every other, and nothing else is in view to skip). The map's own mobs (about 170).
   const scenarios: Array<{ name: string; opts: BenchOptions }> = [
     { name: "8 bots (tiers drawn), the map's mobs", opts: { seed: 1 } },
     { name: "8 hard bots, the map's mobs", opts: { seed: 3, botTier: "hard" } },
@@ -116,7 +116,7 @@ describe("tick budget with in-process bots (docs/BOTS.md 9.2)", () => {
     // The gates would also pass for a run in which nothing happens, so the scenario is checked to be a loaded one.
     expect(b.bots).toBe(BOTS);
     expect(b.aliveBots).toBe(BOTS);
-    expect(last.mobs).toBeGreaterThanOrEqual(72);
+    expect(last.mobs).toBeGreaterThanOrEqual(150);
     expect(b.manager.errors).toBe(0);
     expect(b.manager.refused).toBe(0);
     expect(b.manager.sent).toBeGreaterThan(40);

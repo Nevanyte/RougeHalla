@@ -20,10 +20,14 @@ const T0 = 100_000;
 const IDLE: Goal = { kind: "idle" };
 const PLAN_FEATURES = features({ messageTypes: ["move", "stop", "target", "aim", "attack", "release", "swap", "pickup", "plan"], planning: true });
 
-/** On the test map for a fire bot with a sword: spawn 11 is a fine start (score 1.98), spawn 3 a poor one (0.27). */
-const GOOD = 11;
-const POOR = 3;
+/**
+ * On the test map (seed 7, 136x136) for a fire bot with a sword: the best start of the pool and the poorest, found from planSpawnScore itself so
+ * the picks follow the map whenever its pins move (phase A: spawn 15 scored 1.98 and spawn 5 0.27).
+ */
 const FIRE_SWORD = { faction: "fire" as const, weapons: ["sword", null] as const };
+const POOL_SCORES = testMap().spawnPool.map((_, i) => planSpawnScore(testMap(), i, "fire", "sword"));
+const GOOD = POOL_SCORES.indexOf(Math.max(...POOL_SCORES));
+const POOR = POOL_SCORES.indexOf(Math.min(...POOL_SCORES));
 
 /** The private `plan` message (shared PlanMessage) as the server sends it. */
 interface Msg { endsAt: number; spawns: [number, number]; taken: [boolean, boolean]; pick: number; boons: string[]; boon: number }

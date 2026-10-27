@@ -702,7 +702,7 @@ describe("schema round trip", () => {
 
       if (tick === 30) {
         // One scripted shot, so an arrow is in the air at the end of a step whatever the fuzz's random aims did: the fuzz
-        // stands players next to containers, and on a 96 x 96 zone map those are often tucked against a wall (seed 1: no
+        // stands players next to containers, and on a zone map those are often tucked against a wall (seed 1: no
         // arrow ever outlived its step). Carol, alive until tick 60, stands on a spawn, which is open on every side, and
         // looses along the longest open line.
         const carol = world.state.players.get("c")!;

@@ -8,7 +8,7 @@ import type { QuestRuntime } from "../src/sim/quests";
 import { addPlayer, step } from "../src/sim/step";
 import type { SimConfig, SimEvent, World } from "../src/sim/world";
 
-// A real R2 map (96x96, themed zones, a coliseum with gates), a real roster rolled by the room's own flow, the real
+// A real zone-shapes map (136x136, themed zones, a coliseum with gates), a real roster rolled by the room's own flow, the real
 // pickup and turn-in rules. Hazards are off so a test that stands a player on a token cannot be burned out of it.
 const MAP = generateMap(7);
 

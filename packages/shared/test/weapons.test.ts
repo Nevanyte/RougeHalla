@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  attackInterval, backlashPerSwing, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, DUEL_PACE, FACTION_IDS, FACTIONS, MAX_SIGHT_CORRIDOR,
+  attackInterval, backlashPerSwing, BOW_WINDUP, BOW_WINDUP_SHARE, damagePerHit, DUEL_PACE, FACTION_IDS, FACTIONS,
   pacedFaction, PLAYER_RADIUS, RANGED_HIT_REACH, RANGED_SLACK, SIGNATURE_WEAPONS, WEAPON_BEATS, WEAPON_IDS, WEAPONS,
   WAND_WINDUP, WAND_WINDUP_SHARE, weaponEdge, weaponTimings, type FactionId, type WeaponId,
 } from "../src/index";
@@ -134,9 +134,10 @@ describe("the weapon table (GAME_DESIGN 9.1)", () => {
     expect(WEAPONS.axe.dpsMult).toBeGreaterThanOrEqual(WEAPONS.shield.dpsMult);
     expect(wand.dpsMult).toBeGreaterThanOrEqual(WEAPONS.shield.dpsMult);
     if (bow.shape.kind !== "projectile" || wand.shape.kind !== "projectile") throw new Error("projectile");
-    expect(bow.shape.range).toBeLessThanOrEqual(MAX_SIGHT_CORRIDOR);
+    // The ranges are the anti-kiting lever the maps no longer cap (the 480 u sight cap is gone): the bow's stays 7.5 tiles.
+    expect(bow.shape.range).toBe(240);
     expect(wand.shape.range).toBeLessThan(bow.shape.range);
-    // Projectile bodies stay within what the spawn screens assume (RANGED_HIT_REACH).
+    // Projectile bodies are RANGED_HIT_REACH wide.
     expect(PLAYER_RADIUS + RANGED_SLACK).toBe(RANGED_HIT_REACH);
   });
 

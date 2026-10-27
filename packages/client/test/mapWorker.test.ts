@@ -117,8 +117,8 @@ describe("the map loader with its worker", () => {
     expect(w.received.map((m) => m.kind)).toEqual(["warm", "map"]);
     expect(map).toEqual(ref(GOOD.seed, GOOD.attempt));
     expect(mapHashU32(map)).toBe(mapHashU32(ref(GOOD.seed, GOOD.attempt)));
-    // The warm reply moves nothing; the map's four layers are moved, not copied.
-    expect(w.transfers.map((t) => t.length)).toEqual([0, 4]);
+    // The warm reply moves nothing; the map's five 136 x 136 layers (tiles, terrain, regionGrid, territoryGrid, featureGrid) are moved, not copied.
+    expect(w.transfers.map((t) => t.length)).toEqual([0, 5]);
     expect(await loader.mapFor(GOOD.seed, GOOD.attempt)).toBe(map);
     expect(w.received).toHaveLength(2);
   });
@@ -255,11 +255,13 @@ describe("the map loader with its worker", () => {
 
   it("moves only buffers that one layer owns whole", () => {
     const map = structuredClone(ref(GOOD.seed, GOOD.attempt));
-    expect(mapTransferables(map)).toHaveLength(4);
+    expect(mapTransferables(map)).toHaveLength(5);
+    expect(mapTransferables(map)).toContain(map.featureGrid.buffer);
     const shared = new Uint8Array(map.tiles.length * 2);
     map.terrain = shared.subarray(0, map.tiles.length);
     map.regionGrid = shared.subarray(map.tiles.length);
     map.territoryGrid = map.tiles;
+    map.featureGrid = map.tiles;
     expect(mapTransferables(map)).toEqual([map.tiles.buffer]);
   });
 });

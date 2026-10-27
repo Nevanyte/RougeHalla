@@ -1,6 +1,6 @@
 // The brain's pathfinding (docs/BOTS.md 1, change 6): shared `findPath` behind a per-tick budget and a short cache. One budget
-// is shared by every bot of a room (BOT_PATH_BUDGET_PER_TICK searches a tick, about 0.3 ms each camp to camp on a 96x96 zone map,
-// 0.1 ms on the old 64x64 one; about 6% of a game's walk answers are over budget), so eight bots thinking at once cannot add up
+// is shared by every bot of a room (BOT_PATH_BUDGET_PER_TICK searches a tick, about 0.12 ms each camp to camp on a 136x136 zone-shapes map;
+// about 6% of a game's walk answers are over budget), so eight bots thinking at once cannot add up
 // to a long step. A search that does not fit the budget is answered with the straight line x 1.3
 // (`exact: false`), or, when the same trip was worked out not long ago, with that answer: a walking distance to a camp barely
 // moves, and a distance that flips between "A* says 410" and "line says 560" from one think to the next makes goals flap.

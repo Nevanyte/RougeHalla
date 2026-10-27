@@ -1,7 +1,8 @@
 // The room's map, built off the page's thread (ROGUELIKE_PLAN D20, R2 step 8). The map is never synced: the state says
-// (seed, attempt), and every client runs exactly that one attempt of the shared generator. Its lane tables (44 MB) and
-// the attempt itself (about 85 ms cold, 40 warm) would freeze the page, so a Web Worker does both:
-//   - at app boot, once the hub is up (warmWhenIdle), it builds the tables and runs one throwaway attempt (about 130 ms);
+// (seed, attempt), and every client runs exactly that one attempt of the shared generator. The attempt (a 136 x 136 map: about 60-90
+// ms in Chrome once warm, more cold) would freeze the page, so a Web Worker runs it:
+//   - at app boot, once the hub is up (warmWhenIdle), it builds the layout tables (a few ms) and runs one throwaway attempt, so the
+//     first real map meets a warm JIT;
 //   - when a room is joined, mapFor(seed, attempt) asks it for that map, which comes back with its tile layers moved,
 //     not copied.
 // Where there is no worker (tests, an old browser, a worker that failed to load, crashed, sent a message the page could not
@@ -20,7 +21,7 @@ export interface MapWorkerHandle {
   terminate(): void;
 }
 
-/** A request the worker has not answered by then marks it failed (a cold attempt takes ~0.1 s; a stalled worker never answers). */
+/** A request the worker has not answered by then marks it failed (a cold attempt takes ~0.1-0.2 s; a stalled worker never answers). */
 export const REQUEST_TIMEOUT_MS = 5_000;
 
 export interface MapLoaderOptions {
@@ -156,7 +157,7 @@ export class MapLoader {
   private onReply(w: MapWorkerHandle, msg: MapWorkerOut): void {
     if (w !== this.worker) return;
     if (msg.kind === "warm") {
-      if (import.meta.env?.DEV) console.debug(`[maps] worker warm: lane tables ${msg.tablesMs.toFixed(0)} ms, warm-up attempt ${msg.attemptMs.toFixed(0)} ms`);
+      if (import.meta.env?.DEV) console.debug(`[maps] worker warm: layout ${msg.layoutMs.toFixed(0)} ms, warm-up attempt ${msg.attemptMs.toFixed(0)} ms`);
       return;
     }
     const p = this.pending.get(msg.id);

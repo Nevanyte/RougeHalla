@@ -117,10 +117,10 @@ describe("campMobs", () => {
 });
 
 describe("D5 on generated zone maps (seeds 0..199)", () => {
-  it("every zone's camps follow the rules, with mono-type camps and one elite", () => {
+  it("every zone's camps follow the rules, with mono-type camps and one elite per elite camp (two per zone)", () => {
     let twoCamp = 0;
     let threeCamp = 0;
-    let fourCamp = 0;
+    let eightCamp = 0;
     for (let seed = 0; seed < 200; seed++) {
       const map = generateMap(seed);
       const types = rollCampTypes(map.camps.map((c) => c.zone), mulberry32(seed * 7 + 1));
@@ -130,10 +130,10 @@ describe("D5 on generated zone maps (seeds 0..199)", () => {
         const zoneTypes = idx.map((i) => types[i]!);
         for (const t of zoneTypes) expect(normalIds(zone), `seed ${seed} ${zone}`).toContain(t);
         if (idx.length <= 3) expect(new Set(zoneTypes).size, `seed ${seed} ${zone}`).toBe(idx.length);
-        else expect([...counts(zoneTypes).values()].sort(), `seed ${seed} ${zone}`).toEqual([1, 1, 2]);
+        else expect(counts(zoneTypes).size, `seed ${seed} ${zone}`).toBe(3); // every normal type at least once, then repeats
         if (idx.length === 2) twoCamp++;
         else if (idx.length === 3) threeCamp++;
-        else if (idx.length === 4) fourCamp++;
+        else if (idx.length === 8) eightCamp++;
 
         let elites = 0;
         for (const i of idx) {
@@ -150,11 +150,11 @@ describe("D5 on generated zone maps (seeds 0..199)", () => {
             }
           });
         }
-        expect(elites, `seed ${seed} ${zone}`).toBe(1);
+        expect(elites, `seed ${seed} ${zone}`).toBe(2);
       }
     }
-    // The zone maps (R2): four camps in every zone, so one normal type repeats in each.
+    // The zone maps (zone-shapes 0.1.2): eight camps in every zone, two of them elite, so the normal types repeat.
     expect(twoCamp + threeCamp).toBe(0);
-    expect(fourCamp).toBe(200 * FACTION_IDS.length);
+    expect(eightCamp).toBe(200 * FACTION_IDS.length);
   }, 180_000); // 200 maps through the generator
 });

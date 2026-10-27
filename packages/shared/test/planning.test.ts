@@ -5,6 +5,7 @@ import {
   campMatchup, duel, FACTION_IDS, FACTIONS, findPath, generateMap, isEliteCamp, matchupShare, mobFaction, nearestCamps,
   PLAN_WALK_TOLERANCE, PLAYER_SPEED, primeSpawnWalks, sameTier, spawnWalks, tierRatio, walkLength, walkSeconds,
 } from "../src/index";
+import type { GameMap } from "../src/index";
 
 describe("spawnWalks", () => {
   it("is the shared pathfinder's walk from every pool spawn to the coliseum centre, gates open, cached per map", () => {
@@ -22,9 +23,17 @@ describe("spawnWalks", () => {
     expect(spawnWalks(generateMap(7))).toEqual(walks); // deterministic: the client computes the same numbers
   });
 
+  it("the generator primes the walks it certified: spawnWalks on a generated map answers from the cache, the same numbers a computation gives", () => {
+    const m = generateMap(7);
+    expect(primeSpawnWalks(m, spawnWalks(m).map((w) => w + 1))).toBe(false); // already primed by the generator's spawn gate
+    expect(spawnWalks(m)).toEqual(spawnWalks(structuredClone(m))); // a copy has no cache: it computes, and agrees
+  });
+
   it("primeSpawnWalks hands a map walks computed elsewhere: taken once, only one number per pool spawn, never over the cache", () => {
-    const worked = spawnWalks(generateMap(7)); // what a worker thread would compute and ship
-    const fresh = generateMap(7);
+    // A structured clone (what a worker thread posts) carries no cached walks: these are the maps the pool primes.
+    const gen = (): GameMap => structuredClone(generateMap(7));
+    const worked = spawnWalks(gen()); // what a worker thread would compute and ship
+    const fresh = gen();
     expect(primeSpawnWalks(fresh, worked)).toBe(true);
     // The cache now answers (a copy: the shipped list is the sender's), with the same numbers a computation gives.
     expect(spawnWalks(fresh)).toEqual(worked);
@@ -34,12 +43,12 @@ describe("spawnWalks", () => {
     expect(spawnWalks(fresh)).toEqual(worked);
 
     for (const bad of [worked.slice(1), [...worked, 1], worked.map(() => Number.NaN), worked.map((_, i) => (i === 0 ? -5 : 1)), "walks" as never]) {
-      const map = generateMap(7);
+      const map = gen();
       expect(primeSpawnWalks(map, bad)).toBe(false);
       expect(spawnWalks(map)).toEqual(worked); // refused: it computes its own
     }
     // Infinity (a spawn with no path) is a legal walk.
-    const open = generateMap(7);
+    const open = gen();
     expect(primeSpawnWalks(open, worked.map((w, i) => (i === 0 ? Infinity : w)))).toBe(true);
     expect(spawnWalks(open)[0]).toBe(Infinity);
   });

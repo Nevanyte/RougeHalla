@@ -101,14 +101,14 @@ export interface MobCampDef {
   r: number;
   /** Rest positions, one per mob: distinct floor tile centres inside the clearing. */
   spots: Vec2[];
-  /** Exactly one camp per region is elite (its CampDef has an eliteSpot). */
+  /** Exactly two camps per region are elite (their CampDefs have an eliteSpot). */
   elite: boolean;
   /** What every mob of this camp carries: REGION_WEAPONS[region]. */
   weapon: RegionWeapon;
 }
 
 /**
- * A camp (ROGUELIKE_PLAN 3.2). Four per zone, one of them elite; camp centres are at least 9 tiles apart map-wide. The
+ * A camp (ROGUELIKE_PLAN 3.2). Eight per zone, two of them elite; camp centres are at least 9 tiles apart map-wide. The
  * camp sits at the pole of its territory (`territoryGrid`), the part of its zone nearer to it than to the zone's other
  * camps by path cost; the territory is the leash area.
  */
@@ -123,7 +123,10 @@ export interface CampDef {
   r: number;
   /** 3-5 mob rest positions, distinct floor tile centres in the clearing, never the chest tile. */
   spots: Vec2[];
-  /** -1, or the index in `spots` of the elite's rest position: 0 on the zone's elite camp (the spot nearest the centre). */
+  /**
+   * -1, or the index in `spots` of the elite's rest position: 0 on exactly two camps per zone, the zone's elite camps (the two
+   * farthest from the coliseum centre, at least 16 tiles apart when possible); spot 0 of an elite camp is its spot nearest the centre.
+   */
   eliteSpot: number;
   /** The reward chest's tile centre: the clearing's centre tile, which no spot takes. */
   chest: Vec2;
@@ -136,7 +139,7 @@ export interface CampDef {
 export interface FactionRegionDef {
   id: RegionFaction;
   /**
-   * The zone's pole: its walkable floor tile outside ruins farthest (by a 5/7 chamfer) from every other zone, the border
+   * The zone's pole: its walkable floor tile outside landmark boxes farthest (by a 5/7 chamfer) from every other zone, the border
    * and the coliseum. A floor tile centre, for the zone's label.
    */
   pole: Vec2;
@@ -144,10 +147,40 @@ export interface FactionRegionDef {
   area: number;
   /** View of `GameMap.spawnPool`: the members in this zone, in pool order. */
   spawns: Vec2[];
-  /** Weapon crate spots of the zone (floor tile centres against a wall), 3-4 per zone. */
+  /** Weapon crate spots of the zone (floor tile centres against a wall), 4-6 per zone. */
   chestSpots: Vec2[];
   /** View of `GameMap.camps`: this zone's camps as MobCampDefs, in camp order. */
   mobCamps: MobCampDef[];
+}
+
+/** Feature kinds (zone-shapes contract 2.5). Append only: the client's art, the hash and the certifier key on these. */
+export const FEATURE_KINDS = ["landmark", "crater", "lavaRiver", "fenceRow", "gallows", "barrow", "mere", "headland", "spire",
+  "causeway", "hall", "infill"] as const;
+export type FeatureKind = (typeof FEATURE_KINDS)[number];
+/** What a feature is for (one or two per feature). Append only. */
+export const FEATURE_JOBS = ["landmark", "pen", "crossing", "lane", "fork", "lee", "choke", "cover", "rest", "seal"] as const;
+export type FeatureJob = (typeof FEATURE_JOBS)[number];
+
+/**
+ * A named piece of a zone's shape (a crater, a fence row, a landmark, ...): every zone WALL and LOW tile belongs to one (with
+ * SHAPE_GATES), and so do the floor tiles it declares (a crater's bowl, a tunnel, a landmark's interior). Generated, hashed, read-only.
+ */
+export interface MapFeature {
+  kind: FeatureKind;
+  /** Landmark design key ("forge" | "guardHouse" | "burrow" | "watchtower" | "shrine"), else "". */
+  variant: string;
+  zone: RegionFaction;
+  /** One or two jobs. */
+  jobs: FeatureJob[];
+  /** Anchor tile (integers): a crater's camp centre, a landmark's template origin, a row's first tile, a lake's seed. */
+  ax: number;
+  ay: number;
+  /** Kind-specific integers (contract 2.6): crater [campIndex into map.camps, radius4, breachCount, ...breachDir16], mere [lakeIndex, iceTiles], ... */
+  p: number[];
+  /** Bounding box of the tiles it owns. */
+  bbox: TileRect;
+  /** Tiles whose featureGrid value names it. */
+  tiles: number;
 }
 
 /** Cosmetic decor, never read by the sim. `kind` indexes PROP_KINDS (terrain.ts), `v` is the art variant 0..255. */
@@ -200,19 +233,23 @@ export interface GameMap {
   /** Every camp of the map, in REGION_FACTIONS order, then camp index. Empty on hand-built maps. `regions[].mobCamps` stays as a view. */
   camps: CampDef[];
   /**
-   * Candidate player starts, 24-32 tile centres with a clear 3x3 of floor, each tagged with its zone: all within 8% of
-   * one walking distance to the coliseum centre, at least 5 tiles apart and from every camp centre, and screened so no
-   * member can shoot another within MAX_SIGHT_CORRIDOR.
+   * Candidate player starts, 24-32 tile centres with a clear 3x3 of floor, each tagged with its zone, in at least 4 zones: at
+   * least 10 tiles apart unless a wall blocks the line between them (never under 5), at least 5 tiles from every camp centre,
+   * and their findPath walks to the coliseum centre within 1.2 max/min.
    */
   spawnPool: { x: number; y: number; zone: FactionId }[];
-  /** Ruins (footprints including their walls), for floor shading and loot placement. */
+  /** Landmarks' bounding boxes (walls included), for floor shading and loot placement (the field kept its pre-landmark name). */
   buildings: TileRect[];
   /** View of `spawnPool`: the members interleaved zone by zone (REGION_FACTIONS order), so the first five are in five zones when every zone has one. */
   spawns: Vec2[];
   /** Weapon crate spots: every region's `chestSpots`, flattened in REGION_FACTIONS order. */
   crateSpots: Vec2[];
-  /** Scattered weapon spots on open floor outside ruins, camp clearings and the coliseum. */
+  /** Scattered weapon spots on open floor outside landmarks, camp clearings and the coliseum. */
   groundSpots: Vec2[];
+  /** The zones' features (contract 2.5): by zone in REGION_FACTIONS order; within a zone landmarks, shape features, then its infill. */
+  features: MapFeature[];
+  /** Row-major w*h: 0 = no feature, else 1 + index into `features`. Every zone WALL and LOW tile has one (SHAPE_GATES). */
+  featureGrid: Uint8Array;
 }
 
 export function tileIndex(map: GameMap, tx: number, ty: number): number {
@@ -420,5 +457,7 @@ export function mapFromTiles(w: number, h: number, tiles: Uint8Array, seed = 0, 
     spawns: [],
     crateSpots: [],
     groundSpots: [],
+    features: [],
+    featureGrid: new Uint8Array(w * h),
   };
 }

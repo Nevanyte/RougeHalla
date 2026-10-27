@@ -64,4 +64,4 @@ async function run(label: string, o: BandwidthOptions): Promise<void> {
 
 await run(`typical (${TYPICAL_CAMPS} camps)`, { camps: TYPICAL_CAMPS });
 await run(`heavy   (${HEAVY_CAMPS} camps)`, { camps: HEAVY_CAMPS });
-await run("idle    (60 mobs asleep)", { camps: 0 });
+await run("idle    (the map's mobs asleep)", { camps: 0 });

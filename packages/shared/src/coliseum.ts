@@ -3,7 +3,7 @@
 // painted set (every tile a zone may own). The coliseum is fixed (ROGUELIKE_PLAN D2), so all of it is built once per
 // process and only read afterwards; generateMap copies what a map hands out.
 import { MAP_TILES_H, MAP_TILES_W, MAX_PLAYERS } from "./constants";
-import { TWO_PI, detCos, detSin } from "./cover";
+import { TWO_PI, detCos, detSin } from "./detMath";
 import { tileToWorldCenter } from "./map";
 import type { GateDef, GateSide, TilePt, TileRect } from "./map";
 
@@ -25,14 +25,9 @@ const INNER_SPAWN_R = 5.5;
 /**
  * The coliseum's pillar layouts: tiles of the 64x64 map (whose centre was (32, 32)), each copied by `turns` equal turns
  * about the centre (4: quarter turns, 2: half turns), twenty single-tile pillars in all, used as listed or transposed.
- * Found offline by searching sets of turn orbits that keep the arena clear where it must stay clear. With the gates
- * open, a sight line can run from outside through a gate and across the arena, so the lattice lanes through coliseum
- * floor, gate tiles and the first four tiles in front of each gate (ground the cover pass may not touch) must be cut
- * to the lane target by pillars alone. No set of four quarter-turn orbits does it; of the five-orbit sets only the first
- * layout below (and its transpose) does; the others are half-turn layouts found by annealing. Each keeps the longest of
- * those lanes at 437 to 470 u, the centre tile, the inner spawns' 3x3 and the lanes inside the gates clear, and the
- * sealed floor in one piece. On a bigger map they are shifted with the centre, and the sight lattice is anchored with
- * them (cover.ts LATTICE_ORIGIN), so they stay certified.
+ * Found offline (for the retired 480 u sight cap) by searching sets of turn orbits that cut every lane through the arena, the
+ * gates and the ground in front of them; each keeps the centre tile, the inner spawns' 3x3 and the lanes inside the gates clear,
+ * and the sealed floor in one piece. On a bigger map they are shifted with the centre (CX - 32 must stay an integer).
  */
 const PILLAR_LAYOUTS: readonly { turns: number; gens: readonly (readonly [number, number])[] }[] = [
   { turns: 4, gens: [[27, 27], [28, 28], [29, 29], [31, 29], [32, 30]] },
@@ -55,7 +50,7 @@ export interface FixedLayout {
   gates: readonly GateDef[];
   /** The strip inside each gate, gate wide and LANE_DEPTH deep: kept free of pillars. */
   laneIn: Uint8Array;
-  /** The strip outside each gate, one tile wider on each side and LANE_DEPTH deep: always floor, never a rock. */
+  /** The strip outside each gate, one tile wider on each side and LANE_DEPTH deep: always floor (protected, never walled). */
   laneOut: readonly TilePt[];
   innerTiles: readonly TilePt[];
   /** The 8 pillar variants (each layout as listed, then transposed), as masks. */

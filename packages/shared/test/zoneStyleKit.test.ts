@@ -1,11 +1,10 @@
-// The styler toolkit: noise, tile geometry, distance fields, flow paths, LOW run breaking and the connectivity safety net.
+// The styler toolkit: noise, tile geometry, distance fields, flow paths and the connectivity safety net.
 import { describe, expect, it } from "vitest";
 import { TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
 import { mulberry32 } from "../src/rng";
-import { TERRAIN_LAVA } from "../src/terrain";
 import {
-  breakLowRuns, chamfer, DIR8, flowPath, floorComponents, hash2, largestFreeRect, lineTiles, longestRunOf, makeNoise, nearHard,
-  pickOpen, pickTile, placeRing, repairConnectivity, ringTiles, shuffle, sideDoors, steer, vnoise,
+  chamfer, flowPath, floorComponents, hash2, largestFreeRect, lineTiles, makeNoise, nearHard,
+  pickTile, placeRing, repairConnectivity, ringTiles, shuffle, sideDoors, vnoise,
 } from "../src/zoneStyle/kit";
 import { rig } from "./zoneStyleRig";
 
@@ -193,7 +192,7 @@ describe("flowPath", () => {
 });
 
 describe("zone helpers", () => {
-  it("nearHard sees protected tiles within a Chebyshev radius, pickTile and pickOpen draw only from allowed tiles, steer follows open ground", () => {
+  it("nearHard sees protected tiles within a Chebyshev radius, pickTile draws only from allowed tiles", () => {
     const r = rig([
       "#########",
       "#.......#",
@@ -205,59 +204,11 @@ describe("zone helpers", () => {
     expect(nearHard(r.shape, 3, 1, 1)).toBe(true);
     expect(nearHard(r.shape, 1, 4, 1)).toBe(false);
     expect(nearHard(r.shape, 1, 4, 3)).toBe(true);
-    const rng = r.shape.rng;
     for (let t = 0; t < 50; t++) {
       const p = pickTile(r.shape, 60);
       expect(p).not.toBeNull();
       expect(r.rt.init.hard[r.at(p![0], p![1])]).toBe(0);
-      expect(r.shape.open(r.at(...pickOpen(r.shape)!))).toBe(true);
     }
-    void rng;
-    // an open tile picker returns nothing on a zone with no room
-    const none = rig(["###", "#,#", "###"]);
-    expect(pickOpen(none.shape)).toBeNull();
-    // steer: straight when open, turns when not, -1 when boxed in
-    const s = rig([
-      "#######",
-      "#.....#",
-      "#.....#",
-      "#.....#",
-      "#######",
-    ]);
-    expect(steer(s.shape, 1, 2, 0, true)).toBe(0); // east is open
-    expect(steer(s.shape, 5, 2, 0, true)).toBe(2); // east and both diagonals are the wall: it turns a quarter, south first
-    expect(steer(s.shape, 5, 2, 0, false)).toBe(6); // the other bias turns north
-    const turn = steer(s.shape, 5, 2, 1, true);
-    expect(turn).toBe(2); // from heading 1 (SE) the south-east tile is a wall, so the next try is south
-    const dirs = DIR8[turn];
-    expect(s.shape.open(s.at(5 + dirs[0], 2 + dirs[1]))).toBe(true);
-    const dead = rig(["#####", "#...#", "#####"]);
-    expect(steer(dead.shape, 3, 1, 0, true)).toBe(-1); // the end of a corridor: boxed in
-  });
-});
-
-describe("breakLowRuns", () => {
-  it("breaks every straight LOW run over 12 into pillars (the LOW kind stays) and leaves shorter runs alone", () => {
-    const w = 40;
-    const rows = ["#".repeat(w)];
-    for (let y = 1; y <= 6; y++) rows.push("#" + ".".repeat(w - 2) + "#");
-    rows.push("#".repeat(w));
-    const r = rig(rows);
-    for (let x = 2; x <= 33; x++) { r.tiles[r.at(x, 3)] = TILE_LOW; r.terrain[r.at(x, 3)] = TERRAIN_LAVA; } // 32 long
-    for (let y = 1; y <= 5; y++) { r.tiles[r.at(36, y)] = TILE_LOW; r.terrain[r.at(36, y)] = TERRAIN_LAVA; } // 5 long: left alone
-    const before = Array.from(r.tiles);
-    const placed = breakLowRuns(r.shape, 12);
-    expect(placed).toBeGreaterThanOrEqual(2);
-    // no straight LOW run is longer than 12
-    expect(longestRunOf(r.tiles, w, 8, TILE_LOW)).toBeLessThanOrEqual(12);
-    // the pillars are walls that kept the lava kind
-    let pillars = 0;
-    for (let x = 2; x <= 33; x++) if (r.tiles[r.at(x, 3)] === TILE_WALL) { pillars++; expect(r.terrain[r.at(x, 3)]).toBe(TERRAIN_LAVA); }
-    expect(pillars).toBe(placed);
-    // the short run is untouched
-    for (let y = 1; y <= 5; y++) expect(r.tiles[r.at(36, y)]).toBe(before[r.at(36, y)]);
-    // idempotent
-    expect(breakLowRuns(r.shape, 12)).toBe(0);
   });
 });
 
@@ -328,7 +279,6 @@ describe("the guard on random organic zones (200 masks)", () => {
         const q = rng();
         r.shape.block(r.at(x, y), q < 0.45 ? "wall" : q < 0.7 ? "fence" : q < 0.85 ? "lava" : "crevasse");
       }
-      breakLowRuns(r.shape, 12);
       written += r.rt.walls + r.rt.lows; refused += r.rt.refused; joins += r.rt.joinUsed;
       expect(floorComponents(r.tiles, w, h).sizes.length, `mask ${seed}`).toBeLessThanOrEqual(comps);
       for (let i = 0; i < w * h; i++) {

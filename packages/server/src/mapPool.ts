@@ -2,10 +2,10 @@
 // join never runs the generator on the event loop. Process infrastructure, outside sim/: the sim only ever receives a
 // finished map (createWorld({ map })).
 //
-// One worker per process (mapWorker.ts) holds its own lane tables and certifies fresh crypto-random seeds with
+// One worker per process (mapWorker.ts) holds its own warm layout tables and certifies fresh crypto-random seeds with
 // `certifiedMap`, one request per map, so it works only while the queue is short: an idle server costs nothing. A
-// certified map comes back whole by structured clone (about 52 KB serialized, 85 KB in memory, 0.2 ms to clone), so the
-// main thread never generates a map it was handed, together with its spawn walks (spawnWalks, 4 ms of path searches the
+// certified map comes back whole by structured clone (about 110 KB at 136x136, 0.4 ms to clone), so the
+// main thread never generates a map it was handed, together with its spawn walks (spawnWalks, the generator's certified walks the
 // planning deal needs: primed into the map's cache on arrival, so no tick pays for them). Its hash is checked again on
 // arrival: what the pool serves is exactly the certified (seed, attempt) a client rebuilds with `generateMap(seed, attempt)`.
 //
@@ -42,7 +42,7 @@ export const MAP_WORKER_STOP_MS = 2_000;
 /**
  * A worker that sends nothing for this long while it owes a reply is hung: terminated and restarted like a crash. The clock runs
  * from the oldest unanswered request or the worker's last message, whichever is later, so a slow worker that keeps answering never
- * trips it. A map takes about 35 ms (a cold worker's first about 250 ms), so this is 20x the worst wait a healthy one shows.
+ * trips it. A map takes about 45 ms at 136x136 (a cold worker's first about 250 ms), so this is far past the worst wait a healthy one shows.
  */
 export const MAP_WORKER_HANG_MS = 5_000;
 
@@ -91,7 +91,7 @@ export interface MapPoolOptions {
   nextSeed?: () => number;
   /** The in-process certification (certifiedMap with SERVER_MAPGEN by default). */
   certify?: (seed: number) => GameMap | null;
-  /** Builds the main thread's lane tables at start, so a fallback is not cold (default true). */
+  /** Builds the main thread's layout tables at start, so a fallback is not cold (default true). */
   warmMain?: boolean;
   restartMs?: number;
   restartMaxMs?: number;
@@ -212,7 +212,7 @@ export class MapPool implements MapSource {
 
   /**
    * A certified map, synchronously: the oldest in the queue, else one certified here and now (logged: it blocks the
-   * event loop for about 35 ms, 75-120 at p99). Throws only if MAP_FALLBACK_SEEDS fresh seeds in a row all fail.
+   * event loop for about 45 ms, about 120 at p99). Throws only if MAP_FALLBACK_SEEDS fresh seeds in a row all fail.
    */
   take(): GameMap {
     const map = this.queue.shift();
@@ -341,7 +341,7 @@ export class MapPool implements MapSource {
     if (w !== this.worker) return;
     switch (msg.kind) {
       case "ready":
-        this.log(`[maps] map worker ready: lane tables in ${msg.warmMs.toFixed(0)} ms (main thread: ${this.mainWarmMs.toFixed(0)} ms)`);
+        this.log(`[maps] map worker ready: layout tables in ${msg.warmMs.toFixed(0)} ms (main thread: ${this.mainWarmMs.toFixed(0)} ms)`);
         this.watch(); // alive: a slow start is not a hang
         return;
       case "map": {

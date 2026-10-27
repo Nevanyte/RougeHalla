@@ -122,11 +122,15 @@ describe("chest blips", () => {
     expect(argsOf(ctx, "drawImage").length).toBe(before);
   });
 
-  it("draws at most 32, and keeps a drawn blip off the camps' own marks (they are separate calls)", () => {
+  it("draws at most 48 (a chest per cleared camp, 40 camps), and keeps a drawn blip off the camps' own marks (they are separate calls)", () => {
     const { minimap, ctx, paint } = setup(true);
     minimap.setChests(Array.from({ length: 40 }, (_, i) => ({ x: 100 + i * 40, y: 700, left: 5 })));
     paint();
-    expect(argsOf(ctx, "fillText")).toHaveLength(32);
+    expect(argsOf(ctx, "fillText")).toHaveLength(40);
+    ctx.calls.length = 0;
+    minimap.setChests(Array.from({ length: 60 }, (_, i) => ({ x: 100 + i * 40, y: 700, left: 5 })));
+    paint();
+    expect(argsOf(ctx, "fillText")).toHaveLength(48);
   });
 
   it("draws the blips over the camps and under the player", () => {

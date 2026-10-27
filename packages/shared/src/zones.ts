@@ -12,7 +12,7 @@
 // + - * / sqrt floor min max. The callers own the rng stream; the order of draws is part of every map.
 import { MAP_TILES_H, MAP_TILES_W } from "./constants";
 import { CX, CY, RING_ROAD, fixedLayout } from "./coliseum";
-import { NB4 as COVER_NB4, RING_OFF as COVER_RING_OFF, SIMPLE as COVER_SIMPLE } from "./cover";
+import { NB4 as OPS_NB4, RING_OFF as OPS_RING_OFF, SIMPLE as OPS_SIMPLE } from "./gridOps";
 import { MASK_MOVE as MOVE_MASK, TILE_WALL as WALL_TILE } from "./map";
 import { randInt as rngInt } from "./rng";
 import type { Rng } from "./rng";
@@ -24,18 +24,22 @@ const R0 = Math.min(W, H) / 2;
 export const ZONES = 5;
 // Hot loops read module-level copies of these imports: under a test runner's module system (vitest) every use of an
 // import is a property read on the module object, which cost this code about a third of its time.
-const NB4 = COVER_NB4, RING_OFF = COVER_RING_OFF, SIMPLE = COVER_SIMPLE, MASK_MOVE = MOVE_MASK, TILE_WALL = WALL_TILE, randInt = rngInt;
+const NB4 = OPS_NB4, RING_OFF = OPS_RING_OFF, SIMPLE = OPS_SIMPLE, MASK_MOVE = MOVE_MASK, TILE_WALL = WALL_TILE, randInt = rngInt;
 
 
-/** Ring-road tiles each zone must own (F): a frontage of at least 8 tiles along the 3-deep road. The road has 252, a fair share is 50. */
+/** Ring-road tiles each zone must own (F): a frontage of at least 8 tiles along the 3-deep road. The road has 252 (it is fixed), a fair share is 50. */
 export const RING_CONTACT_MIN = 24;
 /** Sliver tiles allowed per zone (S): tiles more than 2.5 from every point a 2.5-radius disc fits in the zone. */
 export const SLIVER_MAX = 100;
 /** Painted areas of the five zones: max - min. */
 export const AREA_TOLERANCE = 8;
-/** Camps per zone; one of them is the elite camp. */
-export const CAMPS_PER_ZONE = 4;
-/** Camp centres keep this far apart map-wide (tiles): a camp halo is protected ground, so two closer would form a lane no rock could cut. */
+/** Camps per zone (zone-shapes contract 0.1.2); ELITES_PER_ZONE of them are elite camps. */
+export const CAMPS_PER_ZONE = 8;
+/** Elite camps per zone: the zone's camp farthest from the coliseum centre, and the next farthest at least ELITE_MIN_SEP from it. */
+export const ELITES_PER_ZONE = 2;
+/** Tiles the second elite camp keeps from the first when any camp of the zone can (else the zone's second farthest is elite). */
+export const ELITE_MIN_SEP = 16;
+/** Camp centres keep this far apart map-wide (tiles). Measured at 136x136 with 8 camps per zone: same-zone neighbours 11.7-44 tiles apart (p50 19.2). */
 export const CAMP_GAP = 9;
 /**
  * Farthest territory floor tile from its camp (tiles): a territory is the camp's leash area, and a long thin arm of a
@@ -55,7 +59,7 @@ const COST_AMP = 36;
 /** Ring arcs: the least tiles an arc gets, and the tiles trimmed off each end of it before the zone pre-claims it. */
 const ARC_MIN = 36;
 const ARC_TRIM = 6;
-/** Zone seeds lie in this annulus (fractions of R0): 26 to 43 tiles from the centre at 96x96. */
+/** Zone seeds lie in this annulus (fractions of R0): 37 to 61 tiles from the centre at 136x136. */
 const ANNULUS_LO = 0.55;
 const ANNULUS_HI = 0.9;
 /** Best-candidate sampling: candidates drawn per zone seed and per camp site. */
@@ -95,10 +99,13 @@ const CORE_DT = 15;
  */
 const HALO_DT = 20;
 
+/** Tile coordinates by index (d2i's tables: a division per call cost the camp stage a third of its time at 136x136). */
+const TX = new Int32Array(N), TY = new Int32Array(N);
+for (let i = 0; i < N; i++) { TX[i] = i % W; TY[i] = (i - (i % W)) / W; }
 /** Squared distance between two tiles, by index. */
 export const d2i = (a: number, b: number): number => {
-  const ax = a % W, ay = (a - ax) / W, bx = b % W, by = (b - bx) / W;
-  return (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
+  const dx = TX[a] - TX[b], dy = TY[a] - TY[b];
+  return dx * dx + dy * dy;
 };
 
 /** Failed stages and attempts by reason ("A:" marks a failed attempt, the rest are stage retries), for the bench; never read by the generator. */
@@ -155,6 +162,11 @@ function zoneLayout(): ZoneLayout {
   return ZL;
 }
 
+/** Builds the zone layout tables once (the generator's warm-up). */
+export function warmZoneLayout(): void {
+  zoneLayout();
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Integer tools.
 
@@ -164,7 +176,7 @@ export function pseudoAngle(dx: number, dy: number): number {
   return dx < 0 ? 2 - dy / (-dx - dy) : 3 + dx / (dx - dy);
 }
 
-/** Value noise 0..255: two octaves (cells of 24 and 9 tiles at 96x96, weights 2:1) of bilinear lattice noise, integer arithmetic only. */
+/** Value noise 0..255: two octaves (cells of 34 and 13 tiles at 136x136, weights 2:1) of bilinear lattice noise, integer arithmetic only. */
 function valueNoise(rng: Rng, out: Int32Array): void {
   const octave = (cell: number, weight: number): void => {
     const gw = Math.floor(W / cell) + 2;
@@ -278,8 +290,8 @@ class Heap {
     return r;
   }
 }
-/** Heap keys are cost * KEY + tile (tile < 9216 at 96x96; path costs stay far below 2^31 / KEY). */
-const KEY = 16384;
+/** Heap keys are cost * KEY + tile (tile < 18496 at 136x136; path costs stay far below 2^31 / KEY = 65536). */
+const KEY = 32768;
 const growHeaps: Heap[] = [];
 for (let z = 0; z <= ZONES; z++) growHeaps.push(new Heap(4096));
 
@@ -536,7 +548,7 @@ function bestCandidates(rng: Rng, cands: ArrayLike<number>, k: number, m: number
   return out;
 }
 
-/** The quota of each zone: the painted tiles split as evenly as integers allow (zones 1 and 2 take the remainder at 96x96). */
+/** The quota of each zone: the painted tiles split as evenly as integers allow (the first zones take the remainder). */
 function quotas(total: number): Int32Array {
   const q = new Int32Array(ZONES + 1);
   for (let z = 1; z <= ZONES; z++) q[z] = Math.floor(total / ZONES) + (z <= total % ZONES ? 1 : 0);
@@ -750,22 +762,24 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
       }
       const k = CAMPS_PER_ZONE;
       // Seeds for coverage (k-center): the first by best-candidate sampling, each next one at the open site nearest the
-      // zone tile farthest from the seeds so far, so no part of the zone is left far from every camp.
+      // zone tile farthest from the seeds so far, so no part of the zone is left far from every camp. Each tile's distance to
+      // the nearest seed and each site's spacing are kept up to date as seeds are added (the same answers as a full rescan).
       let at = bestCandidates(rng, sites, 1, CAMP_CANDIDATES, placed, gap2);
+      const minD = new Int32Array(Zt.length).fill(1 << 30);
+      const spaced = clear.slice();
+      let seen = 0;
       while (at.length > 0 && at.length < k) {
-        let far = -1, farD = -1;
-        for (let q = 0; q < Zt.length; q++) {
-          let md = 1 << 30;
-          for (const o of at) md = Math.min(md, d2i(o, Zt[q]));
-          if (md > farD) { farD = md; far = Zt[q]; }
+        for (; seen < at.length; seen++) {
+          const o = at[seen];
+          for (let q = 0; q < Zt.length; q++) { const d = d2i(o, Zt[q]); if (d < minD[q]) minD[q] = d; }
+          for (let q = 0; q < sites.length; q++) if (spaced[q] && d2i(o, sites[q]) < gap2) spaced[q] = 0;
         }
+        let far = -1, farD = -1;
+        for (let q = 0; q < Zt.length; q++) if (minD[q] > farD) { farD = minD[q]; far = Zt[q]; }
         let next = -1, nextD = 1 << 30;
         for (let q = 0; q < sites.length; q++) {
+          if (!spaced[q]) continue;
           const c = sites[q];
-          if (!clear[q]) continue;
-          let spaced = true;
-          for (const o of at) if (d2i(o, c) < gap2) { spaced = false; break; }
-          if (!spaced) continue;
           const d = d2i(c, far);
           if (d < nextD) { nextD = d; next = c; }
         }
@@ -846,13 +860,18 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
         placed.push(site);
         camps.push({ zone: z, site, elite: false, spots: [] });
       }
-      // The elite camp is the zone's camp farthest from the centre.
-      let elite = base, eliteD = -1;
-      for (let c = base; c < camps.length; c++) {
-        const d = d2i(camps[c].site, CY * W + CX);
-        if (d > eliteD) { eliteD = d; elite = c; }
-      }
-      camps[elite].elite = true;
+      // The elite camps: the zone's camp farthest from the centre, then the next farthest at least ELITE_MIN_SEP from it (else the
+      // second farthest). Ties go to the earlier camp.
+      const byFar: number[] = [];
+      for (let c = base; c < camps.length; c++) byFar.push(c);
+      const centre = CY * W + CX;
+      byFar.sort((a, b) => d2i(camps[b].site, centre) - d2i(camps[a].site, centre) || a - b);
+      const first = byFar[0];
+      let second = -1;
+      for (let k = 1; k < byFar.length && second < 0; k++) if (d2i(camps[byFar[k]].site, camps[first].site) >= ELITE_MIN_SEP * ELITE_MIN_SEP) second = byFar[k];
+      if (second < 0) { second = byFar[1]; note("eliteNear"); }
+      camps[first].elite = true;
+      camps[second].elite = true;
       for (let q = 0; q < Zt.length; q++) territoryGrid[Zt[q]] = base + terr[Zt[q]];
     }
     if (!ok) continue;
@@ -862,8 +881,8 @@ export function placeCamps(rng: Rng, part: ZonePartition): CampLayout | null {
 }
 
 /**
- * After the cover: each territory's floor must be one 4-connected piece holding its camp. A floor piece cut off (by a
- * ruin wall, a styler wall or a rock) joins the same-zone territory whose floor it touches most. A piece that touches
+ * After the stylers and the nets: each territory's floor must be one 4-connected piece holding its camp. A floor piece cut off (by
+ * a landmark wall or a styler wall) joins the same-zone territory whose floor it touches most. A piece that touches
  * only other zones' floor, of at most STRAY_MAX tiles, is walled up when it holds nothing in `keepOpen` and the rest of the
  * floor stays one piece without it (the zone keeps its painted area: nothing changes zone); otherwise it changes zone;
  * bits of its old zone's painted area that this cuts

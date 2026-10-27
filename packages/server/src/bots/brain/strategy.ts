@@ -105,7 +105,7 @@ const PATROL_REVISIT_MS = 45_000;
 const PATROL_AGE_FULL_MS = 120_000;
 const ARRIVED = 96;
 const HOLD_SAFE = 260;
-/** A walk is scored against the map's own width (the old 2000 u was a 64 x 64 map; a 96 x 96 one is 3072 u a side). */
+/** A walk is scored against the map's own width (the old 2000 u was a 64 x 64 map; the 136 x 136 zone-shapes one is 4352 u a side). */
 const mapSpan = (map: { readonly w: number }): number => map.w * TILE;
 const EXCLUDE_FAILED_MS = 5000;
 const EXCLUDE_DONE_MS = 1500;

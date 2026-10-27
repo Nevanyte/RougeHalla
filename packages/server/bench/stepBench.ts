@@ -1,5 +1,6 @@
-// Budget check for the Phase 11 tick: a headless 8-player run with the map's regional mobs (20 camps of 3 to 5, about 80,
-// roguelike R2), eight players fighting at eight camps, arrows and balls in the air, mobs chasing and retreating.
+// Budget check for the Phase 11 tick: a headless 8-player run with the map's regional mobs (zone-shapes maps: 40 camps of 3 to 5,
+// about 170; the roguelike R2 maps had 20 and about 80), eight players fighting at eight camps spread over the zones, arrows and
+// balls in the air, mobs chasing and retreating.
 // Reports the cost of one `step()`.
 //   npx tsx packages/server/bench/stepBench.ts                       (from the repo root; --buffs, --stress, --quests)
 //   npx tsx packages/server/bench/stepBench.ts --bots 8              8 in-process fill bots instead of the scripted players
@@ -10,7 +11,7 @@
 // test/terrainPerf.test.ts).
 //
 // `--stress` is the worst case for the pathfinder: every mob of every camp is woken onto its nearest player once a second
-// (a camp chasing for 12 tiles, giving up, walking home and waking again, so most of the 80 are in motion and repathing
+// (a camp chasing for 12 tiles, giving up, walking home and waking again, so most of the mobs are in motion and repathing
 // every MOB_REPATH_MS), and the players play like clients with the target lock: a `target` order every TARGET_REPATH_MS,
 // alternating between their two nearest mobs, so every order is a lock change. test/pathLoad.test.ts counts the searches.
 //
@@ -206,6 +207,11 @@ function timePass(list: Array<(w: World, dtMs: number) => void>, name: string, a
 
 interface BenchCamp { region: FactionId; camp: CampDef }
 
+/** The camp player `i` of `players` fights at: evenly spread over the map's camps (every 2nd of 20, every 5th of 40), so every zone's terrain is in the run. */
+export function benchCampIndex(i: number, players: number, camps: number): number {
+  return (i * Math.max(1, Math.floor(camps / Math.max(1, players)))) % camps;
+}
+
 function allCamps(world: World): BenchCamp[] {
   return world.map.camps.map((camp) => ({ region: camp.zone, camp }));
 }
@@ -294,7 +300,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   // One player per camp, a little way out from the camp so mobs are in reach when they wake.
   const ids = [...world.players.keys()];
   ids.forEach((id, i) => {
-    const camp = camps[(i * 2) % camps.length]!.camp;
+    const camp = camps[benchCampIndex(i, ids.length, camps.length)]!.camp;
     const p = world.state.players.get(id)!;
     p.x = camp.x - 70;
     p.y = camp.y;
@@ -311,7 +317,7 @@ export function runStepBench(opts: BenchOptions = {}): BenchResult {
   const ticks = opts.ticks ?? 1200;
 
   const stress = opts.stress === true;
-  const campOf = new Map(ids.map((id, i) => [id, (i * 2) % camps.length]));
+  const campOf = new Map(ids.map((id, i) => [id, benchCampIndex(i, ids.length, camps.length)]));
 
   for (let n = 0; n < warmup + ticks; n++) {
     topUp(world, targetMobs, camps, cursor);

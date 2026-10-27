@@ -398,7 +398,8 @@ describe("props", () => {
   const prop = (key: string, over: Partial<PropSpot> = {}): PropSpot => ({ key, x: 300, y: 300, v: 5, lift: WALL_HEIGHT, ...over });
 
   it("sorts every catalogued kind into the floor, a wall face or an emitter list, with no overlap between floor and wall", () => {
-    for (const k of ZONE_PROP_KINDS) expect(FLAT_PROPS.has(k.key) || WALL_PROPS.has(k.key)).toBe(true);
+    // Every kind of the table has art: the twelve the zone shapes appended (featureStyle.ts) included.
+    for (const k of ZONE_PROP_KINDS) expect(FLAT_PROPS.has(k.key) || WALL_PROPS.has(k.key), k.key).toBe(true);
     for (const k of FLAT_PROPS) expect(WALL_PROPS.has(k)).toBe(false);
     for (const k of EMITTER_PROPS) expect(FLAT_PROPS.has(k)).toBe(true);
     for (const k of [...FLAT_PROPS, ...WALL_PROPS]) expect(ZONE_PROP_KINDS.some((p) => p.key === k)).toBe(true);

@@ -4,7 +4,7 @@ import { circleClear, distPointToSegment, hasLineOfSight, raycast, segmentClear 
 import { MASK_MOVE, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, moveComponents, tileToWorldCenter, withGates, worldToTile } from "../src/map";
 import type { GameMap } from "../src/map";
 import { generateMap } from "../src/mapgen";
-import { PULL_WINDOW, SNAP_RADIUS, findPath } from "../src/pathfind";
+import { PULL_WINDOW, SNAP_RADIUS, findPath, pathLength as walkLength } from "../src/pathfind";
 import { mulberry32 } from "../src/rng";
 import type { Vec2 } from "../src/messages";
 import { findPathReference } from "./findPathReference";
@@ -818,23 +818,25 @@ describe("findPath unreachable goals", () => {
 });
 
 describe("PULL_WINDOW", () => {
-  it("is 32", () => {
-    expect(PULL_WINDOW).toBe(32);
+  it("is 96 (zone-shapes contract 7.1, measured on the open 136x136 maps)", () => {
+    expect(PULL_WINDOW).toBe(96);
   });
 
-  it("changes no path on generated maps (against the same search without the window and the reject)", () => {
+  it("lengthens at most 0.5% of paths on generated maps by more than 1% (against the same search without the window and the reject)", () => {
     const rng = mulberry32(8);
-    let compared = 0, nonEmpty = 0, longest = 0;
+    let compared = 0, nonEmpty = 0, longest = 0, longer = 0, same = 0;
     for (let seed = 1; seed <= 16; seed++) {
       const open = generateMap(seed);
       for (const map of seed % 2 === 0 ? [open, withGates(open)] : [open]) {
         for (let i = 0; i < 40; i++) {
           const a = { x: 40 + rng() * (map.w * TILE - 80), y: 40 + rng() * (map.h * TILE - 80) };
           const b = { x: 40 + rng() * (map.w * TILE - 80), y: 40 + rng() * (map.h * TILE - 80) };
-          const path = findPath(map, a, b);
-          expect(path, `seed ${seed} query ${i}`).toEqual(findPathReference(map, a, b));
+          const path = findPath(map, a, b), ref = findPathReference(map, a, b);
+          expect(path.length === 0, `seed ${seed} query ${i}: reachability`).toBe(ref.length === 0);
           compared++;
           if (path.length > 0) nonEmpty++;
+          if (JSON.stringify(path) === JSON.stringify(ref)) same++;
+          if (pathLength(a, path) > 1.01 * pathLength(a, ref)) longer++;
           longest = Math.max(longest, path.length);
         }
       }
@@ -842,6 +844,8 @@ describe("PULL_WINDOW", () => {
     expect(compared).toBeGreaterThan(900);
     expect(nonEmpty).toBeGreaterThan(500);
     expect(longest).toBeGreaterThan(3);
+    expect(longer, `${longer} of ${compared} paths over 1% longer`).toBeLessThanOrEqual(Math.floor(0.005 * compared));
+    expect(same, "nearly every path is the unwindowed one").toBeGreaterThan(0.95 * compared);
   });
 
   it("keeps findPath on a 96x96 serpentine of LOW rivers well under the same search without the window", () => {
@@ -886,5 +890,31 @@ describe("PULL_WINDOW", () => {
     const full = msPerCall(() => { for (const [a, b] of queries) findPathReference(map, a, b); }, 1);
     expect(full / ours, `window ${ours} ms, without ${full} ms for ${queries.length} queries`).toBeGreaterThanOrEqual(2); // 4x on a quiet machine, 2x is the load-proof floor for "the window still pays"
     expect(worst).toBeLessThan(30);
+  });
+});
+
+describe("pathLength (the generator's spawn gate and the planning walks use it)", () => {
+  it("sums the segment lengths from `from` through the waypoints, with Math.sqrt: 0 for no waypoints, 3-4-5 triangles exact", () => {
+    expect(walkLength({ x: 5, y: 5 }, [])).toBe(0);
+    expect(walkLength({ x: 0, y: 0 }, [{ x: 3, y: 4 }])).toBe(5);
+    expect(walkLength({ x: 0, y: 0 }, [{ x: 3, y: 4 }, { x: 3, y: 4 }, { x: 6, y: 8 }])).toBe(10);
+    const path = findPath(generateMap(1), { x: tileToWorldCenter(10), y: tileToWorldCenter(10) }, { x: tileToWorldCenter(60), y: tileToWorldCenter(40) });
+    expect(walkLength({ x: tileToWorldCenter(10), y: tileToWorldCenter(10) }, path)).toBeCloseTo(pathLength({ x: tileToWorldCenter(10), y: tileToWorldCenter(10) }, path), 6);
+  });
+
+  it("never calls Math.hypot (nor another engine-approximated function) in findPath, raycast, segmentClear or distPointToSegment on a generated map", () => {
+    const m = generateMap(4);
+    const spies = (["hypot", "pow", "exp", "log", "sin", "cos", "atan2"] as const).map((n) => vi.spyOn(Math, n));
+    try {
+      for (const p of m.spawnPool.slice(0, 6)) {
+        findPath(m, p, m.coliseum.centre);
+        raycast(m, p.x, p.y, m.coliseum.centre.x, m.coliseum.centre.y);
+        segmentClear(m, p, m.coliseum.centre, PLAYER_RADIUS);
+        distPointToSegment(p.x, p.y, 0, 0, m.coliseum.centre.x, m.coliseum.centre.y);
+      }
+      expect(spies.map((sp) => sp.mock.calls.length)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    } finally {
+      for (const sp of spies) sp.mockRestore();
+    }
   });
 });

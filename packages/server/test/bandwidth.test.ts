@@ -1,5 +1,5 @@
-// The Phase 11 bandwidth budget (docs/GAME_DESIGN.md 17): with 8 players and the map's mobs (20 camps, about 80 mobs on a
-// zone map) one client receives under 20 KB/s (ws payload, patches plus fx). The scenarios are in bench/bandwidth.ts and
+// The Phase 11 bandwidth budget (docs/GAME_DESIGN.md 17): with 8 players and the map's mobs (40 camps, about 170 mobs on a
+// zone-shapes map) one client receives under 20 KB/s (ws payload, patches plus fx). The scenarios are in bench/bandwidth.ts and
 // are placed from `map.camps`; bytes do not depend on timing, so a busy machine cannot make these flaky: the result only
 // moves when the sim, the schema, the fx or the map change.
 import { describe, expect, it } from "vitest";
@@ -21,9 +21,9 @@ const botsOpts = { bots: BOTS_SCENARIO_BOTS, camps: BOTS_SCENARIO_CAMPS };
 describe("bandwidth budget (per client, ws payload)", () => {
   // Seed 1 measures 6.2 KB/s with about 9 mobs fighting (6.1 to 7.1 over seeds 1 to 5, 732 and 2547; the R2 + R5 tree:
   // camp-wide aggro and MOB_K 0.22).
-  it("typical: 4 camps fought by 2 players each, the map's ~80 mobs: under 20 KB/s", () => {
+  it("typical: 4 camps fought by 2 players each, the map's ~170 mobs: under 20 KB/s", () => {
     const r = typical();
-    expect(r.mobs).toBeGreaterThanOrEqual(72); // the map's own camps, topped up to that every tick; the last tick's kills are replaced in the next
+    expect(r.mobs).toBeGreaterThanOrEqual(140); // the map's own camps, topped up to that every tick; the last tick's kills are replaced in the next
     expect(r.avgFighting).toBeGreaterThan(5);
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
@@ -31,7 +31,7 @@ describe("bandwidth budget (per client, ws payload)", () => {
   // Seed 1 measures 9.4 KB/s with about 21 mobs fighting (8.9 to 10.6 over the seven seeds, 19.6 to 25.1 fighting): eight
   // whole camps of 3 to 5 woken every half second, the most 8 players can pull. (Before R5's MOB_K 0.22 halved a mob's hp,
   // 9.1 to 10.8 with 22 to 28 fighting; on the old 64 x 64 wedge maps, with 60 mobs at 4.6 a camp, 14.1 to 16.3 with up to 37.)
-  it("heavy: 8 camps fought by 1 player each, the map's ~80 mobs: under 20 KB/s", () => {
+  it("heavy: 8 camps fought by 1 player each, the map's ~170 mobs: under 20 KB/s", () => {
     expect(heavy().totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
 
@@ -47,7 +47,7 @@ describe("bandwidth budget (per client, ws payload)", () => {
   // The gate above would also pass for a run in which nothing happens, so this one makes sure the heavy run is loaded.
   it("heavy: the scenario is loaded (so the gate above is about bytes, not about a broken run)", () => {
     const r = heavy();
-    expect(r.mobs).toBeGreaterThanOrEqual(72); // the map's own, topped up to that every tick; the last tick's kills are replaced in the next
+    expect(r.mobs).toBeGreaterThanOrEqual(140); // the map's own, topped up to that every tick; the last tick's kills are replaced in the next
     expect(r.avgFighting).toBeGreaterThan(20);
     expect(r.avgFighting).toBeGreaterThan(typical().avgFighting);
     expect(r.patchFramesPerSecond).toBeGreaterThan(19);
@@ -60,21 +60,22 @@ describe("bandwidth budget (per client, ws payload)", () => {
     expect(r.totalKBps).toBeGreaterThan(typical().totalKBps);
   });
 
-  it("idle mobs cost nothing: the map's ~80 resting mobs add under 0.1 KB/s of patches to the players alone", () => {
-    // Both runs: the coliseum endgame, 8 players sealed in fighting each other, so no mob can be hit and woken.
+  it("idle mobs cost nothing: the map's ~160 resting mobs add under 0.1 KB/s per 80 mobs of patches to the players alone", () => {
+    // Both runs: the coliseum endgame, 8 players sealed in fighting each other, so no mob can be hit and woken. The zone shapes'
+    // maps (136x136, 40 camps) hold about 160 mobs, twice the R2 maps' 80: the bound scales with them (0.145 KB/s measured for 166).
     const alone = run("alone", { mobs: 0, camps: 0 });
     const withMobs = run("idle", { camps: 0 });
-    expect(withMobs.mobs).toBeGreaterThanOrEqual(72);
+    expect(withMobs.mobs).toBeGreaterThanOrEqual(140);
     expect(withMobs.avgAwake).toBe(0);
     expect(alone.patchKBps).toBeGreaterThan(1);
-    expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan(0.1);
+    expect(withMobs.patchKBps - alone.patchKBps).toBeLessThan((0.1 * withMobs.mobs) / 80);
   });
 
   // 7 fill bots (BotManager, in a headless room: the Room's tick order) and one driven client at a camp (docs/BOTS.md 9.2).
   // Seed 1 measures 4.10 KB/s on the zone maps with about 6 mobs fighting (seed 732: 4.41; about 3.9 on the R5 tree's 64 x 64
   // wedge maps with 60 mobs). It sits below the typical load because the bots send inputs only, never `aim`, so far fewer patches
   // carry a `facing`, and they fight each other and the mobs a camp at a time instead of waking every mob of a camp every half second.
-  it("bots: 7 fill bots and a client at one camp, the map's ~80 mobs: under 20 KB/s", () => {
+  it("bots: 7 fill bots and a client at one camp, the map's ~170 mobs: under 20 KB/s", () => {
     const r = run("bots", botsOpts);
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
   });
@@ -95,7 +96,7 @@ describe("bandwidth budget (per client, ws payload)", () => {
     // One frame per bot per patch from the raid's start (the first few wait for the frame ring to fill), and they acted.
     expect(r.bots!.manager.frames).toBeGreaterThan(BOTS_SCENARIO_BOTS * (200 + 1200) * 0.95);
     expect(r.bots!.manager.sent).toBeGreaterThan(50);
-    expect(r.mobs).toBeGreaterThanOrEqual(72);
+    expect(r.mobs).toBeGreaterThanOrEqual(140);
     expect(r.avgFighting).toBeGreaterThan(0.5);
     expect(r.patchFramesPerSecond).toBeGreaterThan(19);
     expect(r.fxFramesPerSecond).toBeLessThanOrEqual(20.5);
@@ -104,12 +105,20 @@ describe("bandwidth budget (per client, ws payload)", () => {
 
   // Roguelike R5: seed 1 measures 6.15 KB/s against 6.21 for the same run without them (5 chests up, each picked and skipped;
   // the chests move the fights, so it can come out lower: 6.0 to 7.0 over the seven seeds).
-  it("5 camp chests up the whole time, on the typical load: under 20 KB/s, under 1 KB/s more than without them", () => {
+  // On the 136 x 136 maps one seed's difference is noise of up to a KB/s either way (the chests move the fights: -1.1 to +1.2 over
+  // seeds 1 to 5 and 732 while other zone shapes were landing), so the cost of the chests is judged on three seeds together.
+  it("5 camp chests up the whole time, on the typical load: under 20 KB/s, under 1 KB/s more than without them on average", () => {
     const r = run("chests", { camps: TYPICAL_CAMPS, chests: 5 });
     expect(r.totalKBps).toBeLessThan(BANDWIDTH_BUDGET_KBPS);
-    expect(r.totalKBps - typical().totalKBps).toBeLessThan(1);
     expect(r.fxByKind.chestTaken!.frames).toBeGreaterThan(10);
-  });
+    const diffs = [1, 2, 3].map((seed) => {
+      const withChests = run(`chests${seed}`, { camps: TYPICAL_CAMPS, chests: 5, seed });
+      const without = run(`typical${seed}`, { camps: TYPICAL_CAMPS, seed });
+      return withChests.totalKBps - without.totalKBps;
+    });
+    expect(diffs.reduce((a, b) => a + b, 0) / diffs.length).toBeLessThan(1);
+    for (const d of diffs) expect(d).toBeLessThan(2);
+  }, 120_000);
 
   // Quests (the shipped default, off in the benches unless asked): seed 1 measures 6.84 KB/s typical against 6.52 without them
   // and 10.55 heavy against 10.91 (the fights differ a little: the bench players never target a giver), and a joiner's first

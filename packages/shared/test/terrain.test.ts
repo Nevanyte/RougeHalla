@@ -91,8 +91,12 @@ describe("the terrain catalog", () => {
 
   it("owns the real prop table: the stylers' own array, ids append only", () => {
     expect(PROP_KINDS).toBe(ZONE_PROP_KINDS);
-    expect(PROP_KINDS).toHaveLength(22);
+    expect(PROP_KINDS).toHaveLength(34);
     expect(PROP_KINDS.map((k) => k.key).slice(0, 5)).toEqual(["ember_vent", "glow_crack", "basalt_shard", "ash_drift", "banner"]);
+    // The zone shapes' kinds, appended in the contract's order (zone-shapes contract 7.5).
+    expect(PROP_KINDS.map((k) => k.key).slice(22)).toEqual([
+      "crater_lip", "anvil", "slag_heap", "gate_post", "stocks", "tunnel_beam", "burrow_rubble", "reed", "tower_frost", "ice_crack", "altar", "brazier",
+    ]);
     expect(PROP_KINDS[ZONE_PROP.stained_glass]).toMatchObject({ key: "stained_glass", home: "holy" });
     expect(new Set(PROP_KINDS.map((k) => k.key)).size).toBe(PROP_KINDS.length);
     for (const k of PROP_KINDS) expect([TILE_FLOOR, TILE_LOW, TILE_WALL], k.key).toContain(k.on);

@@ -2,22 +2,24 @@
 // mapgen.cert.<k>.test.ts (the checkers in mapCertify.ts), the styler hook's in mapStyler.test.ts, the cost gate in
 // mapgen.perf.test.ts.
 import { describe, expect, it, vi } from "vitest";
-import { MAP_TILES_H, MAP_TILES_W, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, SIGHT_CORRIDOR_WIDTH, TILE } from "../src/constants";
-import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, tileToWorldCenter, withGates } from "../src/map";
-import type { GameMap, TilePt } from "../src/map";
+import { MAP_TILES_H, MAP_TILES_W, TILE } from "../src/constants";
+import { MASK_SIGHT, REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
+import type { GameMap } from "../src/map";
 import {
-  CAMP_GAP, CAMPS_PER_ZONE, LATTICE_ORIGIN, MAPGEN_FAILS, MAX_ATTEMPTS, RING_CONTACT_MIN, SIGHT_LATTICE, SLIVER_MAX, TERRITORY_RADIUS_MAX, ZONE_STYLE_HOOK, styleRng,
-  certifiedMap, generateMap, longestLane, mapHash, tryAttempt,
+  CAMP_GAP, CAMPS_PER_ZONE, ELITES_PER_ZONE, ELITE_MIN_SEP, MAPGEN_FAILS, MAX_ATTEMPTS, RING_CONTACT_MIN, SHAPE_GATES, SLIVER_MAX, TERRITORY_RADIUS_MAX,
+  ZONE_STYLE_HOOK, styleRng, certifiedMap, gateSpawnWalks, generateMap, mapHash, tryAttempt,
 } from "../src/mapgen";
-import type { ZoneStyleHook } from "../src/mapgen";
+import type { MapgenOptions, ZoneStyleHook } from "../src/mapgen";
+import { raycast } from "../src/geometry";
+import { findPath } from "../src/pathfind";
 import { PROP_KINDS, TERRAINS, TERRAIN_LAVA } from "../src/terrain";
 import { zoneStylerHook } from "../src/zoneStyle";
-import { hashSeed, mulberry32, randInt } from "../src/rng";
-import { WEAPONS } from "../src/weapons";
+import { hashSeed, mulberry32 } from "../src/rng";
 import {
-  CAMP_GAP_TILES, LATTICE, LATTICE_ANCHOR, MAP_SIZE, RING_CONTACT_MIN as CERT_F, SLIVER_MAX as CERT_S, TERRITORY_RADIUS_TILES, certifyMap, demoStyleHook,
-  dist, fatLane, firstOpenSlope, hittableAim,
+  CAMP_GAP_TILES, CAMPS_PER_ZONE as CERT_CAMPS, ELITES_PER_ZONE as CERT_ELITES, ELITE_MIN_SEP_TILES, MAP_SIZE, RING_CONTACT_MIN as CERT_F,
+  SLIVER_MAX as CERT_S, TERRITORY_RADIUS_TILES, certifyMap, decorProblems, demoStyleHook, strictZoneCodes,
 } from "./mapCertify";
+import { pinsApply } from "./mapCertifyShards";
 import { PINNED_MAPS, PINNED_PLAIN } from "./mapPins";
 
 const seeds = (n: number, from = 0) => Array.from({ length: n }, (_, i) => from + i);
@@ -32,24 +34,28 @@ function mapFor(seed: number): GameMap {
 const pinned = (s: number) => PINNED_MAPS[s].split(":");
 /** The certifier in `styler=zone` mode: what the game's maps (the zone stylers on) must pass. */
 const certifyZone = (m: GameMap) => certifyMap(m, { zone: true });
-const inRuin = (m: GameMap, i: number) => m.buildings.some((b) => i % m.w >= b.x && i % m.w < b.x + b.w && Math.floor(i / m.w) >= b.y && Math.floor(i / m.w) < b.y + b.h);
 
 describe("API", () => {
-  it("is 96x96 and exports the numbers it certifies, which match the contract's", () => {
+  it("is 136x136 and exports the numbers it certifies, which match the contract's", () => {
     expect([MAP_TILES_W, MAP_TILES_H]).toEqual([MAP_SIZE, MAP_SIZE]);
     expect([mapFor(0).w, mapFor(0).h]).toEqual([MAP_SIZE, MAP_SIZE]);
-    expect(SIGHT_LATTICE).toEqual({ dirs: LATTICE.dirs, step: LATTICE.step, target: LATTICE.target });
-    expect(LATTICE_ORIGIN).toEqual([LATTICE_ANCHOR, LATTICE_ANCHOR]);
-    expect([CAMPS_PER_ZONE, CAMP_GAP, TERRITORY_RADIUS_MAX, RING_CONTACT_MIN, SLIVER_MAX, MAX_ATTEMPTS]).toEqual([4, CAMP_GAP_TILES, TERRITORY_RADIUS_TILES, CERT_F, CERT_S, 16]);
+    expect([CAMPS_PER_ZONE, ELITES_PER_ZONE, ELITE_MIN_SEP, CAMP_GAP, TERRITORY_RADIUS_MAX, RING_CONTACT_MIN, SLIVER_MAX, MAX_ATTEMPTS])
+      .toEqual([CERT_CAMPS, CERT_ELITES, ELITE_MIN_SEP_TILES, CAMP_GAP_TILES, TERRITORY_RADIUS_TILES, CERT_F, CERT_S, 16]);
+    // The shape gates: off while the phase A stylers write tiles no feature owns, on from phase C (one constant in mapgen.ts); the
+    // certifier's strict group follows it, and the tests marked "shape gates" below run when it is on.
+    expect(typeof SHAPE_GATES).toBe("boolean");
+    expect(strictZoneCodes(true, undefined)).toEqual(SHAPE_GATES ? [1, 2, 3, 4, 5] : []);
   });
 
   it("generateMap(seed) is the first attempt that certifies; generateMap(seed, attempt), tryAttempt and certifiedMap rebuild it; every earlier attempt fails again", () => {
-    // Seeds 0..39 hold several that need a retry (see mapPins.ts); the rebuilds run on every 4th seed and on those.
+    // Seeds 0..39 and, while the pins describe the registered stylers, six seeds the pins say needed a retry; the rebuilds run on every
+    // 4th seed and on those.
     let retried = 0;
-    for (const s of seeds(40)) {
+    const retriedPinned = PINNED_MAPS.map((p) => p.split(":")).filter((p) => p[1] !== "0").map((p) => Number(p[0])).filter((s) => s >= 40).slice(0, 6);
+    for (const s of pinsApply() ? [...seeds(40), ...retriedPinned] : seeds(40)) {
       const m = mapFor(s);
       expect(m.seed).toBe(s);
-      expect(String(m.attempt), `seed ${s}`).toBe(pinned(s)[1]);
+      if (pinsApply()) expect(String(m.attempt), `seed ${s}`).toBe(pinned(s)[1]);
       if (s % 4 !== 0 && m.attempt === 0) continue;
       expect(generateMap(s, m.attempt), `seed ${s}`).toEqual(m);
       expect(tryAttempt(s, m.attempt), `seed ${s}`).toEqual(m);
@@ -61,7 +67,7 @@ describe("API", () => {
       }
     }
     // Most seeds certify first time and a few need a retry: the field carries the index, not a constant.
-    expect(retried).toBeGreaterThan(0);
+    if (pinsApply()) expect(retried).toBeGreaterThan(0);
   }, HEAVY_MS);
 
   it("rejects an attempt that is not an integer >= 0", () => {
@@ -124,7 +130,7 @@ describe("API", () => {
 });
 
 describe("determinism", () => {
-  it("rebuilds 50 seeds byte for byte from a fresh module load, as pinned in another process", async () => {
+  it.skipIf(!pinsApply())("rebuilds 50 seeds byte for byte from a fresh module load, as pinned in another process", async () => {
     vi.resetModules();
     const fresh = await import("../src/mapgen");
     for (const s of seeds(50)) {
@@ -136,14 +142,14 @@ describe("determinism", () => {
     }
   }, HEAVY_MS);
 
-  it("rebuilds 25 seeds byte for byte with the stylers off, as pinned in another process (the plain generator is still the plain generator)", () => {
+  it.skipIf(!pinsApply())("rebuilds 25 seeds byte for byte with the stylers off, as pinned in another process (the plain generator is still the plain generator)", () => {
     for (const s of seeds(25)) {
       const m = generateMap(s, undefined, { styleZones: null });
       expect(`${s}:${m.attempt}:${mapHash(m)}`, `seed ${s}`).toBe(PINNED_PLAIN[s]);
     }
   }, HEAVY_MS);
 
-  it("never calls Math.random or an engine-approximated Math function, module setup, the zone stylers and lane tables included", async () => {
+  it("never calls Math.random or an engine-approximated Math function: module setup, the zone stylers, the landmarks and findPath included", async () => {
     // ECMAScript lets these differ in the last bit between engines; Math.sqrt is exact and allowed.
     const names = [
       "random", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
@@ -152,12 +158,15 @@ describe("determinism", () => {
     const spies = names.map((n) => vi.spyOn(Math, n));
     const calls: Record<string, number> = {};
     try {
-      // A fresh copy of the modules, so their module-level tables and lazily built lane tables are built under the spies.
+      // A fresh copy of the modules, so their module-level tables and lazily built tables are built under the spies.
       vi.resetModules();
       const fresh = await import("../src/mapgen");
       for (const s of seeds(10, 70_000)) fresh.generateMap(s);
-      fresh.longestLane(fresh.generateMap(70_010));
       fresh.mapHash(fresh.generateMap(70_011));
+      // findPath (the spawn gate's walks) and its geometry, on a map built under the spies.
+      const pf = await import("../src/pathfind");
+      const m = fresh.generateMap(70_012);
+      for (const p of m.spawnPool) pf.findPath(m, p, m.coliseum.centre);
       names.forEach((n, i) => { calls[`Math.${n}`] = spies[i].mock.calls.length; });
     } finally {
       for (const sp of spies) sp.mockRestore();
@@ -189,7 +198,12 @@ describe("determinism", () => {
       ["region pole", (m) => { m.regions[2].pole.y += TILE; }],
       ["crate", (m) => { m.crateSpots[0].x += TILE; }],
       ["ground spot", (m) => { m.groundSpots.pop(); }],
-      ["ruin", (m) => { m.buildings.push({ x: 1, y: 1, w: 7, h: 7 }); }],
+      ["landmark box", (m) => { m.buildings.push({ x: 1, y: 1, w: 7, h: 7 }); }],
+      ["featureGrid byte", (m) => { m.featureGrid[400] ^= 1; }],
+      ["feature param", (m) => {
+        if (m.features.length > 0) m.features[0].p.push(1);
+        else m.features.push({ kind: "infill", variant: "", zone: "fire", jobs: ["seal"], ax: 1, ay: 1, p: [], bbox: { x: 1, y: 1, w: 1, h: 1 }, tiles: 0 });
+      }],
     ];
     for (const [what, edit] of edits) {
       const m = structuredClone(base);
@@ -200,17 +214,26 @@ describe("determinism", () => {
 });
 
 describe("the certifier", () => {
-  it("catches broken maps: open ground without rocks, an unsealed arena, a walled clearing, a split territory", () => {
+  it("catches broken maps: two members in sight under 10 tiles apart, an unsealed arena, a walled clearing, a split territory", () => {
     const base = mapFor(1);
     expect(certifyZone(base).failures).toEqual([]);
     const names = (m: GameMap) => certifyZone(m).failures.map((f) => f.split(": ").slice(0, 2).join(": "));
     {
-      // No rocks: lanes run long and pool members can shoot each other.
+      // A pool member moved 6-8 tiles from another, with a clear line between them.
       const m = structuredClone(base);
-      for (let i = 0; i < m.tiles.length; i++) if (m.regionGrid[i] >= 1 && m.regionGrid[i] <= 5 && m.tiles[i] === TILE_WALL && !inRuin(m, i)) m.tiles[i] = TILE_FLOOR;
-      const got = names(m);
-      expect(got).toContain("sight: every lattice lane (48 dirs, 1/4-tile lines, anchored at the coliseum) <= 14.98 tiles, gates open");
-      expect(got).toContain("spawns: no member can shoot another within 480 u, both ways (raycast fan and exact cone)");
+      const a = m.spawnPool[0], W = m.w;
+      let moved = false;
+      for (let r = 6; r <= 8 && !moved; r++) {
+        for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) {
+          const tx = Math.floor(a.x / TILE) + dx, ty = Math.floor(a.y / TILE) + dy, x = tx * TILE + TILE / 2, y = ty * TILE + TILE / 2;
+          if (m.tiles[ty * W + tx] !== TILE_FLOOR || raycast(m, a.x, a.y, x, y, MASK_SIGHT).hit) continue;
+          m.spawnPool[1] = { ...m.spawnPool[1], x, y };
+          moved = true;
+          break;
+        }
+      }
+      expect(moved).toBe(true);
+      expect(names(m)).toContain("spawns: members under 10 tiles apart have a wall on the line between them");
     }
     {
       // A hole in the arena's wall ring beside a gate.
@@ -232,72 +255,86 @@ describe("the certifier", () => {
     }
   });
 
-  it("agrees with itself: the exact cone never calls a cone shut when a raycast aim gets through (12 seeds)", () => {
-    // The pool screen passes when nothing can hit, which says nothing about whether the checkers can see a hit. So run
-    // them on arbitrary pairs of clear floor points 5-9 tiles apart, where plenty of cones are open.
-    const rng = mulberry32(8_001);
-    let pairs = 0, open = 0, shut = 0, alarms = 0;
-    const contradictions: string[] = [];
-    for (const s of seeds(12)) {
-      const m = mapFor(s);
-      const spots: TilePt[] = [];
-      const clear = (x: number, y: number) => {
-        for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (m.tiles[(y + j) * m.w + x + i] !== TILE_FLOOR) return false;
-        return true;
-      };
-      for (let ty = 2; ty < m.h - 2; ty++) for (let tx = 2; tx < m.w - 2; tx++) if (clear(tx, ty)) spots.push({ x: tx, y: ty });
-      const isSpot = new Set(spots.map((p) => p.y * m.w + p.x));
-      for (let n = 0; n < 600; n++) {
-        const t = spots[randInt(rng, 0, spots.length)];
-        const ang = rng() * 2 * Math.PI, len = 5 + rng() * 4;
-        const u = { x: Math.round(t.x + Math.cos(ang) * len), y: Math.round(t.y + Math.sin(ang) * len) };
-        if (!isSpot.has(u.y * m.w + u.x)) continue;
-        const a = { x: tileToWorldCenter(t.x), y: tileToWorldCenter(t.y) }, b = { x: tileToWorldCenter(u.x), y: tileToWorldCenter(u.y) };
-        if (dist(a, b) < 5 * TILE) continue;
-        pairs++;
-        const fan = hittableAim(m, a, b, RANGED_HIT_REACH), exact = firstOpenSlope(m, a, b, RANGED_HIT_REACH);
-        if (fan !== null) open++; else shut++;
-        if (fan !== null && exact === null) contradictions.push(`seed ${s}: ${a.x},${a.y} to ${b.x},${b.y}`);
-        if (fan === null && exact !== null) alarms++;
-      }
-    }
-    expect(contradictions.slice(0, 5)).toEqual([]);
-    expect(alarms, `${alarms} of ${pairs} pairs`).toBeLessThanOrEqual(pairs * 0.02);
-    expect(open, "no open cone to find").toBeGreaterThanOrEqual(50);
-    expect(shut, "no shut cone to find").toBeGreaterThanOrEqual(50);
-  }, HEAVY_MS);
-
-  it("pins the corridor constants: MAX_SIGHT_CORRIDOR covers every projectile's range, SIGHT_CORRIDOR_WIDTH one tile", () => {
-    expect(MAX_SIGHT_CORRIDOR).toBe(480);
-    for (const w of [WEAPONS.bow, WEAPONS.wand]) {
-      if (w.shape.kind !== "projectile") throw new Error("projectile");
-      expect(w.shape.range).toBeLessThanOrEqual(MAX_SIGHT_CORRIDOR);
-    }
-    expect(SIGHT_CORRIDOR_WIDTH).toBe(32);
-  });
-
-  it("covers every angle: the lattice's direction gap and lane bound keep any strip of the corridor width under 480 u", () => {
-    // A strip of width W and length l at angle theta lies within delta = pi / (2 * dirs) of a lattice direction. Inside
-    // it sits a strip in that direction of width 2 * step (so it holds a whole lattice lane) and length
-    // min((W - 2 * step * cos(delta)) / sin(delta), (l - 2 * step * sin(delta)) / cos(delta)). If every lattice lane is
-    // at most `target`, the first term must not be the smaller one, and then l <= cos(delta) * target + 2 * step * sin(delta).
-    // The anchor shifts every line of a direction by the same offset, so it changes nothing here.
-    const { dirs, step, target } = SIGHT_LATTICE;
-    const Wt = SIGHT_CORRIDOR_WIDTH / TILE, L = MAX_SIGHT_CORRIDOR / TILE, delta = Math.PI / (2 * dirs);
-    expect(Math.sin(delta)).toBeLessThanOrEqual((Wt - 2 * step) / target);
-    const bound = Math.cos(delta) * target + 2 * step * Math.sin(delta);
-    expect(bound).toBeLessThan(L);
-  });
-
-  it("agrees with the generator's own lane measure, longestLane (20 seeds, gates open and closed)", () => {
+  it("certifies the spawn gate's numbers on every map: findPath ratio <= 1.2 and at most 8 floor-hazard tiles on each walk (20 seeds)", () => {
     for (const s of seeds(20)) {
-      for (const m of [mapFor(s), withGates(mapFor(s))]) {
-        const open = new Uint8Array(m.w * m.h);
-        for (let i = 0; i < open.length; i++) open[i] = m.tiles[i] !== TILE_WALL && m.regionGrid[i] !== 0 ? 1 : 0;
-        expect(longestLane(m), `seed ${s}`).toBeCloseTo(fatLane(open, m.w, m.h, LATTICE.dirs, LATTICE.step, LATTICE_ANCHOR, LATTICE_ANCHOR) * TILE, 3);
-      }
+      const st = certifyZone(mapFor(s)).stats;
+      expect(st.walkRatioPath, `seed ${s}`).toBeLessThanOrEqual(1.2);
+      expect(Math.max(...st.hazardsOnWalks), `seed ${s}`).toBeLessThanOrEqual(8);
+      expect(st.pool, `seed ${s}`).toBeGreaterThanOrEqual(24);
     }
   }, HEAVY_MS);
+});
+
+describe("the spawn gate's drop rule (gateSpawnWalks, contract 2.3)", () => {
+  // The numbers are the contract's, written out on purpose: max/min walk 1.2, at most 8 floor-hazard tiles on a walk, a pool of at least 24 over at least 4 zones.
+  const T0 = 1000;
+  const zones = (n: number) => (t: number) => (t - T0) % n;
+  /** `n` members whose walks run base..base+6 (ratio 1.1 at 60, in no sorted order); `edit` overrides single members. */
+  const pool = (n: number, edit: { base?: number; walk?: Record<number, number>; hazard?: Record<number, number> } = {}) => ({
+    pool: Array.from({ length: n }, (_, k) => T0 + k),
+    walks: Array.from({ length: n }, (_, k) => edit.walk?.[k] ?? (edit.base ?? 60) + ((k * 5) % 7)),
+    hazards: Array.from({ length: n }, (_, k) => edit.hazard?.[k] ?? 0),
+  });
+  const run = (p: ReturnType<typeof pool>, zoneCount = 6) => gateSpawnWalks(p.pool, p.walks, p.hazards, zones(zoneCount));
+  const all = (n: number, ...without: number[]) => Array.from({ length: n }, (_, k) => k).filter((k) => !without.includes(k));
+  const fails = () => MAPGEN_FAILS["A:spawnRatio"] ?? 0;
+
+  it("keeps every member, in pick order, when the ratio is within 1.2 (1.18 stays, whatever the order of the walks)", () => {
+    expect(run(pool(30))).toEqual(all(30));
+    expect(run(pool(30, { walk: { 7: 70.8 } }))).toEqual(all(30)); // 70.8 / 60 = 1.18
+  });
+
+  it("drops one extreme long walk, and only it (1.33 is over 1.2 and under 1.5)", () => {
+    expect(run(pool(30, { walk: { 11: 80 } }))).toEqual(all(30, 11));
+  });
+
+  it("drops one extreme short walk, and only it", () => {
+    // the others run 80..86; one member walks 40: dropping the longest would leave 2.1, dropping the shortest 1.08
+    expect(run(pool(30, { base: 80, walk: { 4: 40 } }))).toEqual(all(30, 4));
+  });
+
+  it("drops both ends when both are extreme, the one that leaves the smaller ratio first", () => {
+    expect(run(pool(30, { walk: { 3: 30, 20: 120 } }))).toEqual(all(30, 3, 20));
+  });
+
+  it("drops members over 8 hazard tiles before any ratio drop, and keeps one at exactly 8", () => {
+    const hz = run(pool(30, { hazard: { 2: 9, 9: 8, 15: 40 } }));
+    expect(hz).toEqual(all(30, 2, 15)); // a mid-range walk with 9 goes though the ratio holds; 8 stays
+    // hazard drops and a ratio drop add up: the extreme walk has no hazards, the other member has 9
+    expect(run(pool(30, { walk: { 11: 80 }, hazard: { 5: 9 } }))).toEqual(all(30, 5, 11));
+  });
+
+  it("fails the attempt (counted as A:spawnRatio) when the hazard drops leave fewer than 24, and passes at 24", () => {
+    const before = fails();
+    expect(run(pool(26, { hazard: { 0: 9, 1: 9, 2: 9 } }))).toBeNull(); // 23 left
+    expect(fails()).toBe(before + 1);
+    expect(run(pool(26, { hazard: { 0: 9, 1: 9 } }))).toEqual(all(26, 0, 1)); // 24 left
+    expect(fails()).toBe(before + 1);
+  });
+
+  it("will not drop below 24 for the ratio: 25 members with one extreme pass at 24, 24 members with one extreme fail", () => {
+    const before = fails();
+    expect(run(pool(25, { walk: { 6: 100 } }))).toEqual(all(25, 6));
+    expect(fails()).toBe(before);
+    expect(run(pool(24, { walk: { 6: 100 } }))).toBeNull();
+    expect(fails()).toBe(before + 1);
+    // two extremes need two drops: 25 would have to go to 23
+    expect(run(pool(25, { walk: { 6: 100, 7: 30 } }))).toBeNull();
+    expect(fails()).toBe(before + 2);
+  });
+
+  it("fails when the members left cover fewer than 4 zones, including when the drop itself removes the fourth", () => {
+    const before = fails();
+    expect(run(pool(30), 3)).toBeNull();
+    expect(run(pool(30), 4)).toEqual(all(30));
+    // 25 members in three zones and member 25 alone in a fourth: dropping it (the long walk) leaves three zones
+    const p = pool(26, { walk: { 25: 100 } });
+    const zoneOf = (t: number) => (t - T0 === 25 ? 3 : (t - T0) % 3);
+    expect(gateSpawnWalks(p.pool, p.walks, p.hazards, zoneOf)).toBeNull(); // the long walk is the only member of the fourth zone
+    expect(fails()).toBe(before + 2);
+    const q = pool(26, { walk: { 25: 63 } });
+    expect(gateSpawnWalks(q.pool, q.walks, q.hazards, zoneOf)).toEqual(all(26));
+  });
 });
 
 describe("styler hook", () => {
@@ -342,7 +379,13 @@ describe("styler hook", () => {
       expect([...st.zoneFaction].sort()).toEqual([...REGION_FACTIONS].sort());
       const sizes = [1, 2, 3, 4, 5].map((z) => st.zone.reduce((a, v) => a + (v === z ? 1 : 0), 0));
       expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(8);
-      expect(st.camps.length).toBe(20);
+      expect(st.camps.length).toBe(40);
+      expect(st.camps.filter((c) => c.elite).length).toBe(10);
+      expect(st.spawns.length).toBeGreaterThanOrEqual(24);
+      for (const t of st.spawns) { expect(st.protect[t]).toBe(1); expect(st.centreWalk[t]).toBeGreaterThan(0); }
+      expect(st.centreWalk.length).toBe(MAP_SIZE * MAP_SIZE);
+      expect(st.featureOwner.length).toBe(MAP_SIZE * MAP_SIZE);
+      expect(Array.isArray(st.features)).toBe(true);
       st.camps.forEach((c, i) => {
         expect(c.territory).toBe(i + 1);
         expect(st.territoryGrid[c.site]).toBe(c.territory);
@@ -371,8 +414,9 @@ describe("styler hook", () => {
     let withProps = 0;
     withPropKind(() => {
       for (const s of seeds(4)) {
-        const on = generateMap(s, undefined, { styleZones: hook });
-        const off = generateMap(s, on.attempt, { styleZones: hook, decor: false });
+        // The demo hook writes tiles without features: it runs with the shape gates off (contract 6.3).
+        const on = generateMap(s, undefined, { styleZones: hook, shapeGates: false });
+        const off = generateMap(s, on.attempt, { styleZones: hook, decor: false, shapeGates: false });
         // Not vacuous: the decor stream really put props on the decorated map.
         if (on.props.length > 0) withProps++;
         expect(on.props.length, `seed ${s}`).toBeGreaterThan(0);
@@ -411,7 +455,7 @@ describe("styler hook", () => {
 
   it("a prop changes nothing the hash reads: add, move or drop the props of a map that has some", () => {
     withPropKind(() => {
-      const base = generateMap(1, undefined, { styleZones: demoStyleHook });
+      const base = generateMap(1, undefined, { styleZones: demoStyleHook, shapeGates: false });
       expect(base.props.length).toBeGreaterThan(0);
       const h = mapHash(base);
       const more = structuredClone(base);
@@ -439,6 +483,31 @@ describe("styler hook", () => {
     }
   });
 
+  it("gates the shapes when asked: a wall no feature owns fails the attempt as a breach (A:styleBreach) with the gates on, and stands with them off", () => {
+    // A hook that writes one wall tile and records no feature: the old stylers did this on every tile, whatever they were.
+    const rogue: ZoneStyleHook = (st) => { st.tiles[st.zone.findIndex((z, i) => z > 0 && st.protect[i] === 0 && st.tiles[i] === TILE_FLOOR)] = TILE_WALL; };
+    const before = MAPGEN_FAILS["A:styleBreach"] ?? 0;
+    expect(tryAttempt(2, 0, { styleZones: rogue, shapeGates: true })).toBeNull();
+    expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
+    expect(tryAttempt(2, 0, { styleZones: rogue, shapeGates: false })).not.toBeNull();
+    expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
+    // With no style hook the zones hold only the landmarks and the nets' infill: nothing for the ownership rule to refuse.
+    const plain = tryAttempt(2, 0, { styleZones: null, shapeGates: true });
+    if (plain) for (let i = 0; i < plain.tiles.length; i++) if (plain.regionGrid[i] >= 1 && plain.regionGrid[i] <= 5 && plain.tiles[i] !== TILE_FLOOR) expect(plain.featureGrid[i]).not.toBe(0);
+  });
+
+  it("checks the landmark stage's contract: a wall no landmark of the zone owns fails the attempt (A:styleBreach), and the log is in the map", () => {
+    const before = MAPGEN_FAILS["A:styleBreach"] ?? 0;
+    const rogue = (st: Parameters<NonNullable<MapgenOptions["landmarks"]>>[0]): void => {
+      st.tiles[st.zone.findIndex((z, i) => z > 0 && st.protect[i] === 0 && st.tiles[i] === TILE_FLOOR)] = TILE_WALL;
+    };
+    expect(tryAttempt(2, 0, { landmarks: rogue })).toBeNull();
+    expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
+    // A landmark hook that records nothing and writes nothing changes nothing: it is the same as no landmark hook at all.
+    const noop = tryAttempt(2, 0, { landmarks: () => {} }), none = tryAttempt(2, 0, { landmarks: null });
+    expect(noop === null ? null : mapHash(noop)).toBe(none === null ? null : mapHash(none));
+  });
+
   it("protects every spawn-pool 3x3 from the stylers and leaves no floor hazard in a member's 5x5", () => {
     // The pool is picked before the stylers: the hook is told its 3x3s as protected ground, then hazards are cleared from the 5x5s.
     for (const s of seeds(8, 20)) {
@@ -456,8 +525,8 @@ describe("styler hook", () => {
     }
   });
 
-  it("never lets a LOW tile end as floor, and keeps a floor hazard off every wall (the cover may rock low ground, whose kind then stays as decor)", () => {
-    let low = 0, rocked = 0;
+  it("never lets a LOW tile end as floor, and keeps a floor hazard off every wall (a wall on low ground keeps its kind, as decor)", () => {
+    let low = 0;
     for (const s of seeds(12, 30)) {
       const m = mapFor(s);
       let seen: Uint8Array | null = null;
@@ -467,13 +536,57 @@ describe("styler hook", () => {
         if (seen![i] === TILE_LOW) {
           low++;
           expect(m.tiles[i], `seed ${s} tile ${i}`).not.toBe(TILE_FLOOR);
-          if (m.tiles[i] === TILE_WALL) { rocked++; expect(m.terrain[i], `seed ${s}: a rock on low ground keeps its kind`).not.toBe(0); }
+          if (m.tiles[i] === TILE_WALL) expect(m.terrain[i], `seed ${s}: a wall on low ground keeps its kind`).not.toBe(0);
         }
         const k = m.terrain[i];
         if (k !== 0 && TERRAINS[k].tile === TILE_FLOOR) expect(m.tiles[i], `seed ${s} hazard under a wall at ${i}`).toBe(TILE_FLOOR);
       }
     }
     expect(low, "the stylers laid low ground").toBeGreaterThan(0);
-    expect(rocked, "the cover stood a rock on low ground at least once").toBeGreaterThan(0);
+  }, HEAVY_MS);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// From phase C (SHAPE_GATES on). Written now, skipped until the gates are on.
+describe.runIf(SHAPE_GATES)("the shape gates (contract 6.1)", () => {
+  it("certifies the game's maps strictly: every zone WALL, LOW and floor hazard owned by a feature of its zone, no wall piece under 6 tiles (40 seeds)", () => {
+    for (const s of seeds(40)) {
+      const r = certifyMap(mapFor(s), { zone: true, strict: true });
+      expect(r.stats.strictZones, `seed ${s}`).toEqual([1, 2, 3, 4, 5]);
+      expect(r.failures, `seed ${s}`).toEqual([]);
+    }
+  }, HEAVY_MS);
+
+  it("keeps the landmarks whatever the style hook is: the plain generator's zones still have them, and every landmark is one feature and one building", () => {
+    let withLandmarks = 0;
+    for (const s of seeds(20, 1)) {
+      const m = generateMap(s, undefined, { styleZones: null });
+      const landmarks = m.features.filter((f) => f.kind === "landmark");
+      expect(m.buildings.length, `seed ${s}`).toBe(landmarks.length);
+      expect(certifyMap(m, { strict: true }).failures, `seed ${s}`).toEqual([]);
+      if (landmarks.length >= 5) withLandmarks++;
+    }
+    expect(withLandmarks, "maps with a landmark in most zones").toBeGreaterThanOrEqual(18);
+  }, HEAVY_MS);
+
+  it("builds the same features with decor off: the features and the featureGrid come from the shape and landmark streams (30 seeds)", () => {
+    for (const s of seeds(30, 400)) {
+      const on = mapFor(s), off = generateMap(s, on.attempt, { decor: false });
+      expect(decorProblems(on, off), `seed ${s}`).toEqual([]);
+      expect(on.features.length, `seed ${s}: the shapes are there`).toBeGreaterThan(5);
+    }
+  }, HEAVY_MS);
+
+  it("holds at most 250 features, one infill per zone at most and landmarks first, on every map of 40 seeds", () => {
+    for (const s of seeds(40)) {
+      const m = mapFor(s);
+      expect(m.features.length, `seed ${s}`).toBeLessThanOrEqual(250);
+      for (const f of REGION_FACTIONS) {
+        const own = m.features.filter((q) => q.zone === f);
+        expect(own.filter((q) => q.kind === "infill").length, `seed ${s} ${f}`).toBeLessThanOrEqual(1);
+        const firstShape = own.findIndex((q) => q.kind !== "landmark");
+        if (firstShape >= 0) expect(own.slice(firstShape).some((q) => q.kind === "landmark"), `seed ${s} ${f}: a landmark after a shape`).toBe(false);
+      }
+    }
   }, HEAVY_MS);
 });

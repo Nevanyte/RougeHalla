@@ -36,7 +36,7 @@ function room(w: number, h: number, rects: ReadonlyArray<readonly [number, numbe
 
 const styled = (seed: number): GameMap => generateMap(seed);
 
-/** A big map made by tiling a real styled one, with a wall border: for the 96x96 sizing the zone art is budgeted for. */
+/** A square map of side `n` made by tiling a real styled one, with a wall border: for the sizes other than the generated 136x136. */
 function tiled(m: GameMap, n: number): GameMap {
   const mk = (src: Uint8Array): Uint8Array => {
     const o = new Uint8Array(n * n);
@@ -54,9 +54,15 @@ describe("hasZoneArt", () => {
     expect(hasZoneArt(room(12, 10, [[3, 3, 2, 1, TILE_LOW, TERRAIN_LAVA]]))).toBe(false);
     expect(hasZoneArt(styled(1))).toBe(true);
   });
-  it("needs regions and some terrain or props: a plain generated map takes the plain way", () => {
+  it("needs regions and some terrain, props or named features: a plain generated map without features takes the plain way", () => {
+    // The plain generator keeps the landmarks (the zone stylers' own), so the feature-free map is that one with its features taken off.
     const plain = generateMap(1, undefined, { styleZones: null });
-    expect(hasZoneArt(plain)).toBe(false);
+    const bare: GameMap = { ...plain, features: [], featureGrid: new Uint8Array(plain.w * plain.h) };
+    expect(hasZoneArt(bare)).toBe(false);
+    // A feature that dresses a tile (a landmark, a crater) is art; a net's infill alone is not.
+    const feature = (kind: "landmark" | "infill"): GameMap => ({ ...bare, features: [{ kind, variant: "", zone: "fire", jobs: ["seal"], ax: 0, ay: 0, p: [], bbox: { x: 0, y: 0, w: 1, h: 1 }, tiles: 1 }] });
+    expect(hasZoneArt(feature("landmark"))).toBe(true);
+    expect(hasZoneArt(feature("infill"))).toBe(false);
     expect(hasZoneArt(room(12, 10, [[3, 3, 2, 1, TILE_LOW, TERRAIN_LAVA]], true))).toBe(true);
     expect(hasZoneArt(room(12, 10, [], true))).toBe(false);
   });
@@ -119,7 +125,8 @@ describe("the plan", () => {
       for (const c of chunks) {
         expect(c.tw % 2).toBe(0);
         expect(c.th % 2).toBe(0);
-        expect(c.w).toBeGreaterThanOrEqual(CHUNK_TILES * TILE);
+        // A full chunk, or the last partial one of a map whose side is not a whole number of chunks (136 = 8.5 chunks).
+        expect(c.w).toBeGreaterThanOrEqual(Math.min(CHUNK_TILES, m.w - c.tx0) * TILE);
         for (let ty = c.ty0; ty < Math.min(m.h, c.ty0 + CHUNK_TILES); ty++) for (let tx = c.tx0; tx < Math.min(m.w, c.tx0 + CHUNK_TILES); tx++) owner[ty * m.w + tx]++;
       }
       // Every tile that is not plain wall is in a chunk.
@@ -214,16 +221,16 @@ describe("the plan", () => {
   });
 
   it("keeps a 64x64 map inside the texture budget at full scale, and bakes a bigger one at a lower floor scale so it fits", () => {
-    // The generated maps are 96x96 since R2: the 64x64 case is the top-left window of a real styled one.
+    // The generated maps are 136x136 since the zone shapes: the 64x64 case is the top-left window of a real styled one.
     const small = tiled(maps[0]!, 64);
     expect(chooseFloorScale(small)).toBe(1);
     expect(planBytes(planFloor(small, 1), planStrips(small).pages)).toBeLessThanOrEqual(TEXTURE_BUDGET_BYTES);
-    for (const big of [maps[0]!, tiled(small, 96)]) {
+    for (const big of [maps[0]!, tiled(small, maps[0]!.w)]) {
       const scale = chooseFloorScale(big);
       expect(FLOOR_SCALES).toContain(scale);
       expect(scale).toBeLessThan(1);
       const pages = planStrips(big).pages;
-      // A real 96x96 zone map and one tiled from the 64x64 window both fit, at a lower floor scale.
+      // A real 136x136 zone map and one tiled from the 64x64 window both fit, at a lower floor scale.
       expect(planBytes(planFloor(big, scale), pages) <= TEXTURE_BUDGET_BYTES).toBe(true);
       expect(chooseFloorScale(big, 1)).toBe(FLOOR_SCALES[FLOOR_SCALES.length - 1]);
     }
@@ -262,13 +269,14 @@ describe("what the painters draw", () => {
       const g = new RecordPen();
       paintFloorChunk(g, ctx, c);
       expect(g.ops.length).toBeGreaterThan(c.w / 4);
-      // A prop may brush the edge by up to 28 px: on the zone maps (seed 1) a prop on a chunk's first column reaches 27.5 px
-      // to its left (20 px was enough on the first styled maps); the texture clips what lies beyond.
+      // A prop may brush the edge by up to 32 px: on the zone maps (seed 1) a prop on a chunk's first column reaches 27.5 px
+      // to its left (20 px was enough on the first styled maps), and with the landmarks' interiors open to props (phase C) a tall
+      // one reaches 31 px above a chunk's top row; the texture clips what lies beyond.
       for (const [x0, y0, x1, y1] of g.extents()) {
-        expect(x0).toBeGreaterThanOrEqual(-28);
-        expect(y0).toBeGreaterThanOrEqual(-28);
-        expect(x1).toBeLessThanOrEqual(c.w + TILE + 28);
-        expect(y1).toBeLessThanOrEqual(c.h + TILE_H + 28);
+        expect(x0).toBeGreaterThanOrEqual(-32);
+        expect(y0).toBeGreaterThanOrEqual(-32);
+        expect(x1).toBeLessThanOrEqual(c.w + TILE + 32);
+        expect(y1).toBeLessThanOrEqual(c.h + TILE_H + 32);
       }
     }
   });
@@ -343,7 +351,7 @@ describe("bakeZoneArt on a fake scene", () => {
     const m = styled(1);
     const s = bakeScene();
     const art = bakeZoneArt(s.scene, m);
-    // A 96x96 map bakes its floors at the scale that fits the budget (below 1).
+    // A generated 136x136 map bakes its floors at the scale that fits the budget (below 1).
     const floors = planFloor(m, chooseFloorScale(m));
     const { strips, pages } = planStrips(m);
     expect(art.stats.floorChunks).toBe(floors.length);
@@ -376,7 +384,10 @@ describe("bakeZoneArt on a fake scene", () => {
   });
 
   it("adds the strip images in strip order, whatever page each is on: equal depths draw in that order, so a join copy lies under the next strip", () => {
-    const m = styled(1);
+    // A styled room dense with short walls: its strips need several pages (a 136x136 zone map's fit on one since the cover is gone).
+    const rects: Array<readonly [number, number, number, number, number, number?]> = [[10, 10, 3, 1, TILE_LOW, TERRAIN_LAVA]];
+    for (let y = 4; y < 132; y += 4) for (let x = 4; x < 130; x += 5) rects.push([x, y, 2, 1, TILE_WALL]);
+    const m = room(136, 136, rects, true);
     const s = bakeScene();
     bakeZoneArt(s.scene, m);
     const { strips, pages } = planStrips(m);
@@ -462,11 +473,12 @@ describe("MapView paths", () => {
 
   it("draws the zone borders over the baked floor: dashed strips of the border's thickness, a Graphics per floor chunk that has some", () => {
     const s = bakeScene();
-    const view = new MapView(s.scene, styled(1));
+    const m = styled(1);
+    const view = new MapView(s.scene, m);
     expect(view.bakeStats).not.toBeNull();
     const borders = s.graphics.filter((g) => g.state.depth === -1e6 + 1);
     expect(borders.length).toBeGreaterThan(0);
-    const chunks = Math.ceil(96 / CHUNK_ROWS_MV) * Math.ceil(96 / CHUNK_COLS_MV);
+    const chunks = Math.ceil(m.h / CHUNK_ROWS_MV) * Math.ceil(m.w / CHUNK_COLS_MV);
     expect(borders.length).toBeLessThan(chunks);
     for (const g of borders) {
       const rects = argsOf(g, "fillRect") as number[][];
@@ -483,8 +495,9 @@ describe("MapView paths", () => {
     console.warn = () => {};
     try {
       const s = bakeScene({ noTextures: true });
-      new MapView(s.scene, styled(1));
-      const chunks = Math.ceil(96 / CHUNK_ROWS_MV) * Math.ceil(96 / CHUNK_COLS_MV);
+      const m = styled(1);
+      new MapView(s.scene, m);
+      const chunks = Math.ceil(m.h / CHUNK_ROWS_MV) * Math.ceil(m.w / CHUNK_COLS_MV);
       expect(s.graphics.filter((g) => g.state.depth === -1e6 + 1)).toHaveLength(chunks);
     } finally {
       console.warn = warn;

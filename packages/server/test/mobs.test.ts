@@ -52,7 +52,7 @@ function started(world: World): World {
   return world;
 }
 
-/** A walled hall of open floor with no ruins: shots and walks go exactly where a test says. Spawns are tile coordinates. */
+/** A walled hall of open floor with no inner walls: shots and walks go exactly where a test says. Spawns are tile coordinates. */
 function hall(w: number, h: number, spawns: Array<[number, number]>, open?: (tx: number, ty: number) => boolean): GameMap {
   const tiles = new Uint8Array(w * h);
   for (let ty = 0; ty < h; ty++) {

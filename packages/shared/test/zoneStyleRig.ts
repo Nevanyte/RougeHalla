@@ -40,13 +40,14 @@ export function rig(rows: string[], opts: { caps?: Partial<StyleCaps>; territory
   });
   const territory = opts.territory ? Uint8Array.from(opts.territory.join("").split("").map(Number)) : null;
   // no rim, no budget, and the detour caps off unless a test asks for them
-  const caps: StyleCaps = { ...ZONE_STYLE_CAPS, rimTiles: 0, footprintPct: 100, fenceDetour: 1000, wallDetour: 1000, ...opts.caps };
+  const caps: StyleCaps = { ...ZONE_STYLE_CAPS, rimTiles: 0, footprintPct: 100, fenceDetour: 1000, ...opts.caps };
   const edgeDist = chamfer(mask, w, h);
   const info = zoneInfoOf(1, "fire", mask, tiles, edgeDist, w, h);
   const noBlock = hard.slice();
   const rt = new ZoneRuntime({
     w, h, seed: 1, attempt: 0, info, mask, hard, noBlock, noProp: hard, tiles, terrain, props: [], edgeDist, territory, camps: [], caps,
     scratch: makeScratch(n), wrote: new Uint8Array(n), propKinds: opts.propKinds ?? [],
+    features: [], featureOwner: new Uint16Array(n), spawns: [], centreWalk: null,
   });
   return { rt, shape: shapeCtx(rt), surf: surfaceCtx(rt), tiles, terrain, w, h, at: (x, y) => y * w + x };
 }

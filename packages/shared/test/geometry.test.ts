@@ -747,6 +747,8 @@ describe("identity golden on wall-only maps", () => {
   }
 
   it("gives the same 5000 raycasts, 5000 disc tests, 5000 swept tests and 500 paths as the code before LOW", () => {
-    expect(identityHashes()).toEqual({ raycast: 3600333401, circle: 4243701605, segment: 4055928901, path: 894344229 });
+    // The raycast hash moved once, with Math.hypot -> Math.sqrt (zone-shapes contract 0.1.5): its `dist` changes in the last bit
+    // on some rays (3600333401 before). The disc tests, the swept tests and the paths did not change.
+    expect(identityHashes()).toEqual({ raycast: 2334095253, circle: 4243701605, segment: 4055928901, path: 894344229 });
   });
 });

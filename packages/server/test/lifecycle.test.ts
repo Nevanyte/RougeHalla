@@ -833,7 +833,8 @@ describe("movement during a raid", () => {
     ];
     for (const [target, corner] of corners) {
       enqueueClientMessage(rt.inputs, "move", target);
-      walk(world, 600);
+      // Long enough to cross the map corner to corner (136x136 tiles: about 6200 u at PLAYER_SPEED, plus the way round walls).
+      walk(world, 1200);
       expect(rt.path).toEqual([]);
       expect(p.x).toBeGreaterThanOrEqual(PLAYER_RADIUS);
       expect(p.x).toBeLessThanOrEqual(WORLD_W - PLAYER_RADIUS);

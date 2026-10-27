@@ -1,13 +1,13 @@
 // The decor props of a styled map (map.props, cosmetic; the sim never reads them): which of them are painted into the baked art
 // (flat decals into a floor chunk, wall details into a wall strip's face) and which also animate (an emitter: embers rise from a
-// vent, spores from a bubble, sparkles from frost). Static props cost nothing per frame; only emitters are drawn live, by
+// vent, spores from a bubble, sparkles from frost, golden motes from a brazier). Static props cost nothing per frame; only emitters are drawn live, by
 // TerrainFx, and only the few in the camera rect. Pure.
 import { ZONE_PROP_KINDS, worldToTile, type GameMap, type MapProp } from "@raid/shared";
 import { EMITTER_PROPS, FLAT_PROPS, WALL_PROPS } from "./zoneStyle";
 
 /** The particle kind each emitting prop sends. */
-export type PropEmission = "ember" | "spore" | "frost";
-export const PROP_EMISSION: Readonly<Record<string, PropEmission>> = { ember_vent: "ember", bubble: "spore", frost_sparkle: "frost" };
+export type PropEmission = "ember" | "spore" | "frost" | "mote";
+export const PROP_EMISSION: Readonly<Record<string, PropEmission>> = { ember_vent: "ember", bubble: "spore", frost_sparkle: "frost", brazier: "mote" };
 
 export interface PropPlan {
   /** Painted into a floor chunk. */

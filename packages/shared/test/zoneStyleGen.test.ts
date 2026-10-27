@@ -1,14 +1,16 @@
 // The zone stylers at the generator's hook (ZT-6): what the five themes put on the game's real maps, that a zone is styled alone, that
 // the hook adapter is a plain mapping onto styleZones, and that ICE, hazards and low ground keep the generator's promises. The
 // stylers' own guards, pinned output and isolation on a synthetic open fixture are zoneStyleOpen.test.ts; the certification of
-// the maps themselves (validateTerrain, the sight cap, connectivity) is mapgen.cert.<k>.test.ts in the certifier's `styler=zone` mode.
+// the maps themselves (validateTerrain, ownership, wall pieces, connectivity, the spawn walks) is mapgen.cert.<k>.test.ts in the
+// certifier's `styler=zone` mode. The last describe runs only from the day the shape gates are on (SHAPE_GATES, phase C): the five
+// shapes and the landmarks must really be on the game's maps (section 4's presence windows).
 import { describe, expect, it } from "vitest";
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
 import type { GameMap, RegionFaction } from "../src/map";
-import { MAPGEN_FAILS, MAPGEN_NOTES, certifiedMap, generateMap } from "../src/mapgen";
+import { MAPGEN_FAILS, MAPGEN_NOTES, SHAPE_GATES, certifiedMap, generateMap } from "../src/mapgen";
 import type { ZoneStyleHook } from "../src/mapgen";
 import {
-  TERRAINS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, validateTerrain,
+  TERRAINS, TERRAIN_BOG, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, validateTerrain,
 } from "../src/terrain";
 import { STYLER_STATS, resetStylerStats, styleZones, zoneStylerHook } from "../src/zoneStyle";
 import type { ZoneStyler } from "../src/zoneStyle";
@@ -36,7 +38,8 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
     { zone: "fire", name: "Scorch: lava and the embers on its banks", kinds: [TERRAIN_LAVA, TERRAIN_EMBER] },
     { zone: "sentenced", name: "Gallows: fences", kinds: [TERRAIN_FENCE] },
     { zone: "plague", name: "Warren: bog", kinds: [TERRAIN_BOG] },
-    { zone: "frost", name: "Rime: ice lakes and crevasses", kinds: [TERRAIN_ICE, TERRAIN_CREVASSE] },
+    // The Mere has no crevasses (the old Rime's): ice on the lakes is its terrain.
+    { zone: "frost", name: "Rime: the Mere's ice", kinds: [TERRAIN_ICE] },
     { zone: "holy", name: "Sanctum: shafts of light", kinds: [TERRAIN_LIGHT] },
   ];
 
@@ -59,11 +62,11 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
         expect(REGION_FACTIONS[m.regionGrid[i] - 1], `seed ${s} tile ${i} (${TERRAINS[k].key})`).toBe(TERRAINS[k].home);
       }
     }
-    // Colonnades: the Sanctum is the zone with the most freestanding wall tiles per painted tile after the stylers (pillar rows).
+    // Colonnades: the Sanctum's pillar rows stand as walls (the old styler under the new caps: about 80-90 on seed 1).
     let walls = 0;
     const m = mapFor(1), code = REGION_FACTIONS.indexOf("holy") + 1;
     for (let i = 0; i < m.tiles.length; i++) if (m.regionGrid[i] === code && m.tiles[i] === TILE_WALL) walls++;
-    expect(walls).toBeGreaterThan(100);
+    expect(walls).toBeGreaterThan(50);
   }, HEAVY_MS);
 
   it("certifies every one of them with validateTerrain (T1-T11, spawn 5x5 and ground spots hazard-free), and its themes are visible: low ground on all of them", () => {
@@ -76,7 +79,7 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
     expect(MAPGEN_FAILS["A:styleBreach"] ?? 0).toBe(0);
   }, HEAVY_MS);
 
-  it("never needs the styler's connectivity net; the cover's rocks clear the ICE beside them and the Rime freezes over what is left clear", () => {
+  it("never needs the styler's connectivity net, and keeps its ICE: no freezing of clear ground (deleted with the cover), the ICE net clears next to nothing", () => {
     resetStylerStats();
     for (const k of Object.keys(MAPGEN_NOTES)) delete MAPGEN_NOTES[k];
     let ice = 0, attempts = 0;
@@ -87,12 +90,12 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
     }
     expect(STYLER_STATS.calls).toBeGreaterThanOrEqual(attempts);
     expect(STYLER_STATS.repaired, "a write that left the zone's floor cut: the guards keep it at 0").toBe(0);
-    expect(ice / 60, "ice tiles per map left after the cover").toBeGreaterThan(20);
-    // Not vacuous: the cover does stand rocks in lakes, and the net does clear the ice beside them.
-    expect(MAPGEN_NOTES["iceCleared"] ?? 0).toBeGreaterThan(0);
-    expect(MAPGEN_NOTES["iceFrozen"] ?? 0).toBeGreaterThan(0);
+    expect(ice / 60, "ice tiles per map").toBeGreaterThan(20);
+    // The guard keeps blockers off ICE's neighbours, so only a nets wall can stand beside ICE (expected about 0; noted, never failing).
+    expect(MAPGEN_NOTES["iceCleared"] ?? 0).toBeLessThanOrEqual(60);
+    expect(MAPGEN_NOTES["iceFrozen"]).toBeUndefined();
     // A report, not a gate (the bench is): the styler pass costs a few ms per attempt.
-    console.info(`[styler] ${(STYLER_STATS.ms / Math.max(1, STYLER_STATS.calls)).toFixed(2)} ms per attempt over ${STYLER_STATS.calls} attempts; ice ${(ice / 60).toFixed(0)} tiles per map; cleared beside rocks ${MAPGEN_NOTES["iceCleared"]} in all`);
+    console.info(`[styler] ${(STYLER_STATS.ms / Math.max(1, STYLER_STATS.calls)).toFixed(2)} ms per attempt over ${STYLER_STATS.calls} attempts; ice ${(ice / 60).toFixed(0)} tiles per map; cleared beside walls ${MAPGEN_NOTES["iceCleared"] ?? 0} in all`);
   }, HEAVY_MS);
 });
 
@@ -107,14 +110,16 @@ describe("the hook adapter and zone isolation at the generator's hook", () => {
       const hook: ZoneStyleHook = (st) => {
         const direct = {
           w: st.w, h: st.h, seed: st.seed, attempt: st.attempt, tiles: st.tiles.slice(), terrain: st.terrain.slice(), props: [] as typeof st.props,
-          zone: st.zone, zoneFaction: st.zoneFaction, protect: st.protect, territory: st.territoryGrid, camps: st.camps, keepLow: new Uint8Array(st.tiles.length),
+          zone: st.zone, zoneFaction: st.zoneFaction, protect: st.protect, territory: st.territoryGrid, camps: st.camps,
+          spawns: st.spawns, centreWalk: st.centreWalk, features: st.features.slice(), featureOwner: st.featureOwner.slice(),
         };
         styleZones(direct, { decor: st.decor });
         zoneStylerHook(st);
         expect(Buffer.from(st.tiles).equals(Buffer.from(direct.tiles)), `seed ${s} tiles`).toBe(true);
         expect(Buffer.from(st.terrain).equals(Buffer.from(direct.terrain)), `seed ${s} terrain`).toBe(true);
         expect(st.props, `seed ${s} props`).toEqual(direct.props);
-        expect(st.keepLow.every((v) => v === 0), `seed ${s}: keepLow stays empty`).toBe(true);
+        expect(st.features, `seed ${s} features`).toEqual(direct.features);
+        expect(Buffer.from(st.featureOwner).equals(Buffer.from(direct.featureOwner)), `seed ${s} featureOwner`).toBe(true);
         checked++;
       };
       generateMap(s, m.attempt, { styleZones: hook });
@@ -132,7 +137,8 @@ describe("the hook adapter and zone isolation at the generator's hook", () => {
           const before = st.tiles.slice();
           styleZones({
             w: st.w, h: st.h, seed: st.seed, attempt: st.attempt, tiles: st.tiles, terrain: st.terrain, props: st.props, zone: st.zone,
-            zoneFaction: st.zoneFaction, protect: st.protect, territory: st.territoryGrid, camps: st.camps, keepLow: st.keepLow,
+            zoneFaction: st.zoneFaction, protect: st.protect, territory: st.territoryGrid, camps: st.camps,
+            spawns: st.spawns, centreWalk: st.centreWalk, features: st.features, featureOwner: st.featureOwner,
           }, { decor: st.decor, stylers });
           out = { tiles: st.tiles.slice(), terrain: st.terrain.slice(), zone: st.zone.slice(), before };
         };
@@ -165,3 +171,42 @@ describe("the hook adapter and zone isolation at the generator's hook", () => {
 function tryAttemptQuiet(seed: number, attempt: number, hook: ZoneStyleHook): void {
   try { generateMap(seed, attempt, { styleZones: hook }); } catch { /* a styler-less zone may fail a later check */ }
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// From phase C (SHAPE_GATES on): the five shapes are really on the game's maps, by feature kind (contract 4, acceptance windows of
+// presence). The windows of counts, rays and pairs are the certifier's report (mapSweep), not asserted here.
+describe.runIf(SHAPE_GATES)("the five shapes and the landmarks on the game's maps (200 seeds)", () => {
+  const SHAPES: { zone: RegionFaction; kinds: string[]; share: number; landmark: string; landmarkShare: number }[] = [
+    { zone: "fire", kinds: ["crater", "lavaRiver"], share: 0.95, landmark: "forge", landmarkShare: 0.9 },
+    { zone: "sentenced", kinds: ["fenceRow"], share: 0.95, landmark: "guardHouse", landmarkShare: 0.98 },
+    { zone: "plague", kinds: ["barrow"], share: 0.95, landmark: "burrow", landmarkShare: 0.9 },
+    { zone: "frost", kinds: ["mere", "headland"], share: 0.95, landmark: "watchtower", landmarkShare: 0.9 },
+    { zone: "holy", kinds: ["hall"], share: 0.95, landmark: "shrine", landmarkShare: 0.9 },
+  ];
+  for (const sh of SHAPES) {
+    it(`${sh.zone}: ${sh.kinds.join(" and ")} on at least ${sh.share * 100}% of the maps, a ${sh.landmark} on at least ${sh.landmarkShare * 100}%`, () => {
+      const kinds = sh.kinds.map(() => 0);
+      let landmark = 0;
+      for (const s of SEEDS) {
+        const own = mapFor(s).features.filter((f) => f.zone === sh.zone);
+        sh.kinds.forEach((k, i) => { if (own.some((f) => f.kind === k)) kinds[i]++; });
+        if (own.some((f) => f.kind === "landmark" && f.variant === sh.landmark)) landmark++;
+      }
+      sh.kinds.forEach((k, i) => expect(kinds[i], `${k} in ${kinds[i]} of ${SEEDS.length} maps`).toBeGreaterThanOrEqual(sh.share * SEEDS.length));
+      expect(landmark, `${sh.landmark} in ${landmark} of ${SEEDS.length} maps`).toBeGreaterThanOrEqual(sh.landmarkShare * SEEDS.length);
+    }, HEAVY_MS);
+  }
+
+  it("owns every zone wall and LOW tile, keeps no wall piece under 6 tiles, and records at most 250 features, on every map", () => {
+    for (const s of SEEDS) {
+      const m = mapFor(s);
+      expect(m.features.length, `seed ${s}`).toBeLessThanOrEqual(250);
+      for (let i = 0; i < m.tiles.length; i++) if (m.regionGrid[i] >= 1 && m.regionGrid[i] <= 5 && m.tiles[i] !== TILE_FLOOR) expect(m.featureGrid[i], `seed ${s} tile ${i}`).not.toBe(0);
+    }
+    // The generator refuses what the gate forbids: a hook that writes a wall no feature owns breaches (A:styleBreach), gates on or not.
+    const before = MAPGEN_FAILS["A:styleBreach"] ?? 0;
+    const rogue: ZoneStyleHook = (st) => { st.tiles[st.zone.findIndex((z, i) => z > 0 && st.protect[i] === 0 && st.tiles[i] === TILE_FLOOR)] = TILE_WALL; };
+    expect(() => generateMap(2, 0, { styleZones: rogue })).toThrow(/does not certify/);
+    expect(MAPGEN_FAILS["A:styleBreach"]).toBe(before + 1);
+  }, HEAVY_MS);
+});

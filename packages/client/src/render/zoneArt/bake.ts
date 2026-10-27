@@ -1,10 +1,12 @@
-// Bakes a styled map's ground and walls into textures once (part D 7.1). At 96x96 the old way (about 64 Graphics objects that Phaser
-// replays every frame, with richer art on top) is the budget risk; this paints the art once and the scene then draws a few dozen
-// images:
-//   * floor chunks: 16x16 tiles each, one texture per chunk (the zone floor, terrain tiles, flat props, the ruins' shade);
+// Bakes a styled map's ground and walls into textures once (part D 7.1). At 136x136 the old way (about 100 Graphics objects that
+// Phaser replays every frame, with richer art on top) is the budget risk; this paints the art once and the scene then draws a few
+// hundred images (about 650-750 strips and 81 floor chunks, under the 1200 scene children the plan allows):
+//   * floor chunks: 16x16 tiles each, one texture per chunk (the zone floor, terrain tiles, flat props, the landmarks' shade, the
+//     feature floors: a crater's ash bowl, a tunnel, the hall's paving, a shore, a landmark's interior);
 //   * wall strips: one image per tile row and chunk column holding a wall or a fence (trimmed to the tiles it covers), packed into
 //     a few atlas pages so the images share a texture. Each strip sits at the depth of its row's south edge, so fighters y-sort
-//     against walls as they did before.
+//     against walls as they did before. A wall that belongs to a named feature (crater rim, barrow mound, pier, landmark masonry,
+//     headland shard) is dressed by its look (featureArt.ts, featureStyle.ts) on the same footprint and faces, so the seams below hold.
 //   * seams: a wall several rows tall is one strip per row, and a wall wider than a chunk is one strip per chunk column, so their
 //     faces meet between Images. A wall tile's art is drawn through a SnapPen (every edge on a texel line), a top face reaches one
 //     texel into the wall row under it (or the part of a front face a lower wall leaves open), and a strip that ends at a chunk edge
@@ -13,16 +15,19 @@
 // through a command buffer: `texture.draw(graphics)` then `texture.render()`.
 import Phaser from "phaser";
 import {
-  REGION_IDS, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_LAVA, TILE, TILE_LOW, TILE_WALL, Y_SCALE, ZONE_PROP_KINDS,
+  REGION_IDS, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TILE, TILE_FLOOR, TILE_LOW, TILE_WALL, Y_SCALE,
+  ZONE_PROP_KINDS,
   type GameMap, type MapProp,
 } from "@raid/shared";
 import { depthFor } from "../projection";
 import { planProps } from "./propsView";
+import { FLOOR_LOOKS, WALL_LOOKS, planFeatureLooks, type FeatureLooks } from "./featureArt";
+import { drawFloorLook, type FloorSpot } from "./featureStyle";
 import { NEUTRAL_PALETTE, ZONE_PALETTE, isZoneKey, type ZoneKey } from "./palette";
 import {
   EDGE_E, EDGE_N, EDGE_S, EDGE_W, FLAT_PROPS, LOW_HEIGHT, SHARD_HEIGHT, TILE_H, TILE_W, WALL_HEIGHT, WALL_PROPS,
   drawFenceTile, drawFlatProp, drawFloorTile, drawTerrainFloor, drawWallProp, drawWallTile, hashTile, isFlatTerrain, terrainFamily,
-  type Pen, type PropSpot, type TileSpot, type WallInfo, type WallStyle,
+  type Pen, type PropSpot, type TileSpot, type WallInfo, type WallLook, type WallStyle,
 } from "./zoneStyle";
 
 /** Tiles per floor chunk side. */
@@ -39,10 +44,11 @@ export const DEPTH_FLOOR_FX = -9e5;
 
 // ------------------------------------------------------------------------------------------------------------------ plan: tiles
 
-/** Whether a map has zone art to bake: a generated map (it has regions) that carries terrain or props. */
+/** Whether a map has zone art to bake: a generated map (it has regions) that carries terrain, props or named features (a net's infill is no art). */
 export function hasZoneArt(map: GameMap): boolean {
   if (map.regions.length === 0) return false;
   if (map.props.length > 0) return true;
+  if (map.features.some((f) => f.kind !== "infill")) return true;
   const t = map.terrain;
   for (let i = 0; i < t.length; i++) if (t[i] !== 0) return true;
   return false;
@@ -101,7 +107,7 @@ function wallAt(map: GameMap, tx: number, ty: number): boolean {
 
 /**
  * How each wall tile is drawn (WS_*): a pillar if it keeps a LOW kind; a lone rock when no wall touches it; a segment when it is part of
- * a straight run of three or more single stones (D 7.6: the cover pass lays rows of rocks, drawn as one low wall, not as stones); else
+ * a straight run of three or more single stones (a thin line of stones reads as one low wall, not as stones); else
  * a mass. 0 for a tile that is not a wall.
  */
 export function wallStyles(map: GameMap): Uint8Array {
@@ -329,10 +335,14 @@ export function planStrips(map: GameMap, kinds?: Pick<BakeContext, "styles" | "z
   return { strips, pages };
 }
 
-/** The texture memory the zone art may take at 1x (RGBA8): D 7.1's budget. A bigger map bakes its floors at a lower scale to fit. */
-export const TEXTURE_BUDGET_BYTES = 48 * 1024 * 1024;
+/**
+ * The texture memory the zone art may take (RGBA8): 64 MB since the map grew to 136 x 136 (zone-shapes contract 7.5). The floor alone
+ * is 64.9 MB at scale 1 there (81 chunks of 17 x 17 tiles, 4352 x 3482 px of picture and the overlap), 36.7 MB at 0.75, and the wall
+ * pages take 10-15 MB, so a map bakes its floors at 0.75 and fits with room to spare; a bigger map bakes them lower.
+ */
+export const TEXTURE_BUDGET_BYTES = 64 * 1024 * 1024;
 /** The scales a floor may be baked at, best first. */
-export const FLOOR_SCALES: readonly number[] = [1, 0.75, 0.5];
+export const FLOOR_SCALES: readonly number[] = [1, 0.75, 0.625, 0.5];
 
 /**
  * The best floor scale whose chunks and the wall pages fit `budget`; the smallest if none does (walls stay at 1x: they carry the
@@ -364,13 +374,15 @@ export interface BakeContext {
   flatProps: Array<{ prop: MapProp; key: string }>;
   /** The tiles of the coliseum's gates: floor in the map and so not baked, drawn by MapView as wall rows at the exact y while closed. */
   gates: ReadonlySet<number>;
+  /** The looks the map's named features give their tiles (featureArt.ts); all zero on a map with no features. */
+  looks: FeatureLooks;
 }
 
 export function makeContext(map: GameMap): BakeContext {
   const plan = planProps(map);
   const gates = new Set<number>();
   for (const gate of map.coliseum.gates) for (const t of gate.tiles) gates.add(t.y * map.w + t.x);
-  return { map, zones: zoneGrid(map), styles: wallStyles(map), wallProps: plan.wall, flatProps: plan.flat, gates };
+  return { map, zones: zoneGrid(map), styles: wallStyles(map), wallProps: plan.wall, flatProps: plan.flat, gates, looks: planFeatureLooks(map) };
 }
 
 /** A zone to paint a tile with when it has none (the coliseum ring, a neutral wall): the plain grey cell stone. */
@@ -381,10 +393,11 @@ function tileSeedHash(map: GameMap, tx: number, ty: number): number {
   return hashTile(tx, ty, map.seed);
 }
 
-/** Paints one floor chunk: every tile's ground, the ruins' shade, then the flat props. */
+/** Paints one floor chunk: every tile's ground, the landmark buildings' shade, then the flat props. */
 export function paintFloorChunk(g: Pen, ctx: BakeContext, c: FloorChunk): void {
-  const { map, zones } = ctx;
+  const { map, zones, looks } = ctx;
   const spot: TileSpot = { x: 0, y: 0, tx: 0, ty: 0, hash: 0, open: 0 };
+  const fspot: FloorSpot = { x: 0, y: 0, tx: 0, ty: 0, hash: 0, open: 0, dist: 0, radius: 0 };
   for (let ty = c.ty0; ty <= c.ty1; ty++) {
     for (let tx = c.tx0; tx <= c.tx1; tx++) {
       const i = ty * map.w + tx;
@@ -416,9 +429,24 @@ export function paintFloorChunk(g: Pen, ctx: BakeContext, c: FloorChunk): void {
         const inColiseum = REGION_IDS[map.regionGrid[i]] === "coliseum";
         g.fillStyle(inColiseum ? NEUTRAL_PALETTE.coliseumFloor : NEUTRAL_PALETTE.floor, 1).fillRect(spot.x, spot.y, TILE_W, TILE_H);
       }
+      // A feature's floor: a crater's ash bowl, a tunnel, the hall's paving, a shore, a landmark's interior. A surface kind (ember, bog,
+      // ice, light) keeps its own art, except under a doorway sill or a ford's slabs, which sit on whatever lies there.
+      const fl = looks.floor[i]!;
+      if (fl !== 0 && tile === TILE_FLOOR) {
+        const look = FLOOR_LOOKS[fl]!;
+        if (look === "door" || look === "ford" || !isFlatTerrain(kind)) {
+          const shape = looks.shapes[map.featureGrid[i]! - 1];
+          fspot.x = spot.x; fspot.y = spot.y; fspot.tx = tx; fspot.ty = ty; fspot.hash = spot.hash;
+          fspot.open = look === "shore" ? sidesWhere(map, tx, ty, (nx, ny) => nx >= 0 && ny >= 0 && nx < map.w && ny < map.h && map.terrain[ny * map.w + nx] === TERRAIN_ICE)
+            : sidesWhere(map, tx, ty, (nx, ny) => wallAt(map, nx, ny));
+          fspot.dist = shape ? Math.sqrt((tx + 0.5 - shape.cx) ** 2 + (ty + 0.5 - shape.cy) ** 2) : 0;
+          fspot.radius = shape ? shape.r : 0;
+          drawFloorLook(g, look, fspot);
+        }
+      }
     }
   }
-  // Ruins read as indoors in every zone.
+  // A landmark building's box reads as indoors in every zone.
   g.fillStyle(NEUTRAL_PALETTE.indoor, NEUTRAL_PALETTE.indoorAlpha);
   for (const b of map.buildings) {
     const x0 = Math.max(b.x, c.tx0), x1 = Math.min(b.x + b.w, c.tx1 + 1);
@@ -439,24 +467,57 @@ export function paintFloorChunk(g: Pen, ctx: BakeContext, c: FloorChunk): void {
   }
 }
 
-/** The lift of the wall tile with index `i`: a Rime rock or run of stones is a shard, everything else a full wall. */
-function liftAt(kinds: Pick<BakeContext, "styles" | "zones">, i: number): number {
-  const style = kinds.styles[i];
-  return kinds.zones[i] === "frost" && (style === WS_ROCK || style === WS_SEGMENT) ? SHARD_HEIGHT : WALL_HEIGHT;
+/** The side of a tile (its 4-neighbours) bits of EDGE_* where the neighbour is `test`. */
+function sidesWhere(map: GameMap, tx: number, ty: number, test: (nx: number, ny: number) => boolean): number {
+  return (test(tx, ty - 1) ? EDGE_N : 0) | (test(tx + 1, ty) ? EDGE_E : 0) | (test(tx, ty + 1) ? EDGE_S : 0) | (test(tx - 1, ty) ? EDGE_W : 0);
 }
 
-/** The wall info of a tile: its style, lift and which sides show a face. */
+/**
+ * The lift of the wall tile with index `i`: a Rime rock or run of stones, and a headland's or spire's facets, are shards; a crater's
+ * rim is broken (one tile in four stands lower, one in eight lower still: the jitter of its crown), everything else a full wall.
+ */
+function liftAt(ctx: BakeContext, i: number): number {
+  const style = ctx.styles[i];
+  const look = WALL_LOOKS[ctx.looks.wall[i]!] ?? "plain";
+  const flat = style === WS_MASS || style === WS_SEGMENT;
+  if (flat && look === "shard") return SHARD_HEIGHT;
+  if (ctx.zones[i] === "frost" && (style === WS_ROCK || style === WS_SEGMENT)) return SHARD_HEIGHT;
+  if (flat && look === "rim") {
+    const j = hashTile(i % ctx.map.w, Math.floor(i / ctx.map.w), ctx.map.seed + 7) >>> 8 & 7;
+    return j === 0 ? WALL_HEIGHT - 5 : j <= 2 ? WALL_HEIGHT - 3 : WALL_HEIGHT;
+  }
+  return WALL_HEIGHT;
+}
+
+/** The sides of a crater-rim tile that face the camp's centre (both, near a diagonal). */
+export function inwardSides(dx: number, dy: number): number {
+  const ax = Math.abs(dx), ay = Math.abs(dy), m = Math.max(ax, ay);
+  if (m === 0) return 0;
+  return (ax > 0.38 * m ? (dx > 0 ? EDGE_E : EDGE_W) : 0) | (ay > 0.38 * m ? (dy > 0 ? EDGE_S : EDGE_N) : 0);
+}
+
+/** The wall info of a tile: its style, lift and which sides show a face; and the feature look it wears, with what that look reads of its feature. */
 export function wallInfoAt(ctx: BakeContext, tx: number, ty: number): WallInfo {
   const { map } = ctx;
   const i = ty * map.w + tx;
   const style = ctx.styles[i];
-  return {
+  const info: WallInfo = {
     style: WS_NAMES[style] ?? "mass",
     lift: liftAt(ctx, i),
     open: wallOpen(map, tx, ty),
     front: ty + 1 >= map.h || map.tiles[(ty + 1) * map.w + tx] !== TILE_WALL,
     pillarKind: style === WS_PILLAR ? map.terrain[i] : 0,
   };
+  // A feature look dresses a mass or a run of stones; a lone rock and a pillar keep their own art (and the seams never join them).
+  const code = ctx.looks.wall[i]!;
+  if (code !== 0 && (style === WS_MASS || style === WS_SEGMENT)) {
+    const look: WallLook = WALL_LOOKS[code]!;
+    info.look = look;
+    const shape = ctx.looks.shapes[map.featureGrid[i]! - 1];
+    if (shape && look === "rim") info.inward = inwardSides(shape.cx - (tx + 0.5), shape.cy - (ty + 0.5));
+    else if (shape && look === "mound") info.dome = Math.max(0, 1 - Math.sqrt((tx + 0.5 - shape.cx) ** 2 + (ty + 0.5 - shape.cy) ** 2) / Math.max(1, shape.r));
+  }
+  return info;
 }
 
 // ------------------------------------------------------------------------------------------------------------------ seams

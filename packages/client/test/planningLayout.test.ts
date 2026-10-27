@@ -1,5 +1,6 @@
-// What fits on a 96 x 96 map's small screens (ui/planningMath.ts): the chips of crowded camps hide, the zone names move off the
-// camps, and Page Down jumps between zones. Pure, on hand-made camps; the DOM side is in planning.test.ts.
+// What fits on a map's small screens (ui/planningMath.ts): the chips of crowded camps hide, the zone names move off the
+// camps, and Page Down jumps between zones. Pure, on hand-made camps (the scatters are 20 camps at least 9/96 of the size apart,
+// a layout of the older 96 x 96 map, not the 40 of a zone-shapes one); the DOM side is in planning.test.ts.
 import { describe, expect, it } from "vitest";
 import {
   campBoxes, campMarkerPx, chipSizePx, crowdedChips, glyphScale, labelSizePx, placeLabels, zoneJump, type CampSpot, type PxBox,

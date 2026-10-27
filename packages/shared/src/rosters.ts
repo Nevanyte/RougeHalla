@@ -1,7 +1,7 @@
 // Camp rosters (ROGUELIKE_PLAN D5): which mob type stands in which camp. Pure: the caller supplies the random stream, and the
 // SERVER hands in `world.rewardRandom`, never `world.random` and never anything derived from the public seed (D16), so a
-// client cannot read a camp's type off the map. Every camp is mono-type: its normal mobs share one type, and the zone's one
-// elite stands at the elite spot of the elite camp (the rest of that camp is its normal type).
+// client cannot read a camp's type off the map. Every camp is mono-type: its normal mobs share one type, and the zone's elite
+// type stands at the elite spot of each of its elite camps (two a zone; the rest of such a camp is its normal type).
 import type { CampDef } from "./map";
 import type { FactionId } from "./factions";
 import { eliteTypeOf, normalTypesOf, type MobTypeId } from "./mobs";
@@ -11,7 +11,7 @@ import { pick, shuffle, type Rng } from "./rng";
  * The normal types of `campCount` camps of one zone, in camp order. The zone's three normal types are shuffled (Fisher-Yates,
  * two draws) and handed out in that order, so no type repeats while camps last: a 3-camp zone has each type once, a 2-camp
  * zone (a hand-built map) one type absent, a 1-camp zone one. Every camp past the third takes one more draw to repeat one of the
- * three. Nothing is drawn for a zone with no camps.
+ * three (a zone-shapes zone has 8 camps: each type once, then five repeats). Nothing is drawn for a zone with no camps.
  */
 export function rollZoneTypes(zone: FactionId, campCount: number, rng: Rng): MobTypeId[] {
   if (!(campCount > 0)) return [];
