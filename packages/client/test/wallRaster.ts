@@ -1,8 +1,9 @@
 // A tiny software renderer for the baked walls, just enough of a Canvas 2D texture and of a GPU quad batch to see a seam without a
 // browser (no dependency; wallSeams.test.ts uses it). The parts:
-//  - `ShapePen`: a Pen (render/zoneArt/zoneStyle.ts) that keeps the filled shapes a strip paints, in order. Strokes, circles and
-//    ellipses are not kept (a rim, a crack or a window bar is a detail, and the tests look away from them), and a rounded rectangle
-//    is kept square (its corners lie outside every window the tests look at).
+//  - `ShapePen`: a Pen (render/zoneArt/zoneStyle.ts) that keeps the filled shapes a strip paints, in order, and a horizontal or
+//    vertical line as the rectangle of its stroke (a rim; a ClipPen paints the lines it cuts the same way, so a copy compares equal).
+//    Other strokes, circles and ellipses are not kept (a crack or a window bar is a detail, and the tests look away from them), and
+//    a rounded rectangle is kept square (its corners lie outside every window the tests look at).
 //  - `paintFrame`: a strip's shapes painted into the texels of its frame. `area` is the anti-aliasing of Canvas 2D (exact coverage of
 //    a rectangle, source-over, premultiplied), where an edge inside a texel leaves it partly covered; `centre` is a GPU's aliased
 //    fill, where a texel is covered when its centre is inside.
@@ -17,6 +18,8 @@ export interface Shape {
   readonly poly: readonly Pt[];
   readonly color: number;
   readonly alpha: number;
+  /** The rectangle of a stroke (a rim or a drip), not a filled shape: details, which are not snapped to the texel grid. */
+  readonly line?: true;
 }
 
 export class ShapePen implements Pen {
@@ -24,16 +27,22 @@ export class ShapePen implements Pen {
   private color = 0;
   private alpha = 1;
   private path: Pt[] | null = null;
+  private stroke: readonly [width: number, color: number, alpha: number] = [1, 0, 1];
 
   fillStyle(color: number, alpha = 1): this { this.color = color; this.alpha = alpha; return this; }
-  lineStyle(): this { return this; }
+  lineStyle(width: number, color: number, alpha = 1): this { this.stroke = [width, color, alpha]; return this; }
   fillRect(x: number, y: number, w: number, h: number): this {
     this.shapes.push({ poly: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], color: this.color, alpha: this.alpha });
     return this;
   }
   strokeRect(): this { return this; }
   fillRoundedRect(x: number, y: number, w: number, h: number): this { return this.fillRect(x, y, w, h); }
-  lineBetween(): this { return this; }
+  lineBetween(x1: number, y1: number, x2: number, y2: number): this {
+    const [width, color, alpha] = this.stroke;
+    const [xa, xb, ya, yb] = y1 === y2 ? [Math.min(x1, x2), Math.max(x1, x2), y1 - width / 2, y1 + width / 2] : x1 === x2 ? [x1 - width / 2, x1 + width / 2, Math.min(y1, y2), Math.max(y1, y2)] : [0, 0, 0, 0];
+    if (xb > xa && yb > ya) this.shapes.push({ poly: [[xa, ya], [xb, ya], [xb, yb], [xa, yb]], color, alpha, line: true });
+    return this;
+  }
   fillCircle(): this { return this; }
   strokeCircle(): this { return this; }
   fillEllipse(): this { return this; }

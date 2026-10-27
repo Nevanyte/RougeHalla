@@ -5,8 +5,10 @@
 //   * wall strips: one image per tile row and chunk column holding a wall or a fence (trimmed to the tiles it covers), packed into
 //     a few atlas pages so the images share a texture. Each strip sits at the depth of its row's south edge, so fighters y-sort
 //     against walls as they did before.
-//   * seams: a wall several rows tall is one strip per row, and their top faces meet between texels. A wall tile's art is drawn
-//     through a SnapPen (every edge on a texel line) and a top face reaches one texel into the wall row under it; see "seams" below.
+//   * seams: a wall several rows tall is one strip per row, and a wall wider than a chunk is one strip per chunk column, so their
+//     faces meet between Images. A wall tile's art is drawn through a SnapPen (every edge on a texel line), a top face reaches one
+//     texel into the wall row under it (or the part of a front face a lower wall leaves open), and a strip that ends at a chunk edge
+//     against another wall carries one texel of that wall's first column; see "seams" below.
 // The plan (which chunks, which strips, where) is pure and tested; only `bakeZoneArt` touches Phaser. Phaser 4 draws into a texture
 // through a command buffer: `texture.draw(graphics)` then `texture.render()`.
 import Phaser from "phaser";
@@ -238,6 +240,11 @@ export interface StripPlan {
   ty: number;
   tx0: number;
   tx1: number;
+  /**
+   * The strip ends at a chunk edge against a wall of the next chunk (`wallJoinsEast`), so its frame reaches one texel past tile `tx1`
+   * with that wall's first column (see "seams"): `w` is then two texels wider, the second of them empty (widths stay even).
+   */
+  east: boolean;
   /** The image's top-left in projected pixels. */
   x: number;
   y: number;
@@ -254,11 +261,24 @@ export interface StripPlan {
 }
 
 /**
- * The strips of a map: for each tile row and chunk column, the span from the first to the last tile that is a wall or a fence, if any.
- * They are packed onto pages PAGE_W wide (at most PAGE_MAX_H tall) in shelves of one height, widest first and each into the first shelf
- * with room, which wastes only a few percent of a page; the list stays in row order.
+ * Whether the wall tile (tx, ty) and the one east of it make a join the bake must keep opaque: both are a mass or a segment (a rock
+ * has no neighbour, a pillar is a shaft inside its tile and a fence is not a wall), whatever their lifts.
  */
-export function planStrips(map: GameMap): { strips: StripPlan[]; pages: Array<{ w: number; h: number }> } {
+export function wallJoinsEast(map: GameMap, kinds: Pick<BakeContext, "styles" | "zones">, tx: number, ty: number): boolean {
+  if (tx < 0 || ty < 0 || tx + 1 >= map.w || ty >= map.h) return false;
+  const i = ty * map.w + tx;
+  const flat = (k: number): boolean => map.tiles[k] === TILE_WALL && (kinds.styles[k] === WS_MASS || kinds.styles[k] === WS_SEGMENT);
+  return flat(i) && flat(i + 1);
+}
+
+/**
+ * The strips of a map: for each tile row and chunk column, the span from the first to the last tile that is a wall or a fence, if any.
+ * A strip whose last tile ends its chunk against a wall of the next chunk (`wallJoinsEast`) is two texels wider, for the join's sake.
+ * They are packed onto pages PAGE_W wide (at most PAGE_MAX_H tall) in shelves of one height, widest first and each into the first shelf
+ * with room, which wastes only a few percent of a page; the list stays in row order. `kinds` is the wall styles and zones of
+ * the map when the caller has them (a BakeContext does); otherwise they are made when the first chunk edge needs them.
+ */
+export function planStrips(map: GameMap, kinds?: Pick<BakeContext, "styles" | "zones">): { strips: StripPlan[]; pages: Array<{ w: number; h: number }> } {
   const strips: StripPlan[] = [];
   const cols = Math.ceil(map.w / CHUNK_TILES);
   for (let ty = 0; ty < map.h; ty++) {
@@ -275,7 +295,12 @@ export function planStrips(map: GameMap): { strips: StripPlan[]; pages: Array<{ 
         }
       }
       if (a < 0) continue;
-      strips.push({ ty, tx0: a, tx1: b, x: a * TILE_W, y: top, w: even((b - a + 1) * TILE_W), h, oy, depth: depthFor((ty + 1) * TILE), page: 0, px: 0, py: 0 });
+      let east = false;
+      if (b === (c + 1) * CHUNK_TILES - 1 && map.tiles[ty * map.w + b] === TILE_WALL) {
+        kinds ??= { styles: wallStyles(map), zones: zoneGrid(map) };
+        east = wallJoinsEast(map, kinds, b, ty);
+      }
+      strips.push({ ty, tx0: a, tx1: b, east, x: a * TILE_W, y: top, w: even((b - a + 1) * TILE_W + (east ? 1 : 0)), h, oy, depth: depthFor((ty + 1) * TILE), page: 0, px: 0, py: 0 });
     }
   }
   if (strips.length === 0) return { strips, pages: [] };
@@ -313,8 +338,8 @@ export const FLOOR_SCALES: readonly number[] = [1, 0.75, 0.5];
  * The best floor scale whose chunks and the wall pages fit `budget`; the smallest if none does (walls stay at 1x: they carry the
  * silhouettes, and the floors are the quiet part of the picture).
  */
-export function chooseFloorScale(map: GameMap, budget = TEXTURE_BUDGET_BYTES): number {
-  const { pages } = planStrips(map);
+export function chooseFloorScale(map: GameMap, budget = TEXTURE_BUDGET_BYTES, kinds?: Pick<BakeContext, "styles" | "zones">): number {
+  const { pages } = planStrips(map, kinds);
   for (const s of FLOOR_SCALES) if (planBytes(planFloor(map, s), pages) <= budget) return s;
   return FLOOR_SCALES[FLOOR_SCALES.length - 1]!;
 }
@@ -414,16 +439,20 @@ export function paintFloorChunk(g: Pen, ctx: BakeContext, c: FloorChunk): void {
   }
 }
 
+/** The lift of the wall tile with index `i`: a Rime rock or run of stones is a shard, everything else a full wall. */
+function liftAt(kinds: Pick<BakeContext, "styles" | "zones">, i: number): number {
+  const style = kinds.styles[i];
+  return kinds.zones[i] === "frost" && (style === WS_ROCK || style === WS_SEGMENT) ? SHARD_HEIGHT : WALL_HEIGHT;
+}
+
 /** The wall info of a tile: its style, lift and which sides show a face. */
 export function wallInfoAt(ctx: BakeContext, tx: number, ty: number): WallInfo {
   const { map } = ctx;
   const i = ty * map.w + tx;
   const style = ctx.styles[i];
-  const zone = ctx.zones[i];
-  const shard = zone === "frost" && (style === WS_ROCK || style === WS_SEGMENT);
   return {
     style: WS_NAMES[style] ?? "mass",
-    lift: shard ? SHARD_HEIGHT : WALL_HEIGHT,
+    lift: liftAt(ctx, i),
     open: wallOpen(map, tx, ty),
     front: ty + 1 >= map.h || map.tiles[(ty + 1) * map.w + tx] !== TILE_WALL,
     pillarKind: style === WS_PILLAR ? map.terrain[i] : 0,
@@ -445,7 +474,18 @@ export function wallInfoAt(ctx: BakeContext, tx: number, ty: number): WallInfo {
 // face reaches ONE texel into the wall row below it, which draws over the extension and so only supplies cover where the filter
 // ramps. Never over a front face: where the tile below is not a wall the edge is real, and the front face starts there. (3) A closed
 // gate is not baked (MapView draws it as a row of its own at the exact y, and the open gate is floor), so where a gate meets a wall
-// row, the rounding must not leave a gap between the two: see closeSeams.
+// row, the rounding must not leave a gap between the two: see closeSeams. (4) A wall tile over a LOWER wall (a mass over a Rime
+// shard) has no front face, but its top face ends 4 px above the shard's: the rows between are its south face, which the shard
+// leaves open. closeSeams draws their first rows (the real front art, clipped), plus one texel under the shard's first row.
+// The strips of a row are also cut at every chunk column, and two Images abut at an integer x the same way (the Image's edge texels
+// blend with the empty page padding under the filter: up to half the floor showing through, at the 15|16, 31|32, ... tile columns).
+// (5) A strip that ends at a chunk edge against another wall carries ONE texel of that wall's first column (`copyNextColumn`: the
+// next tile's art, clipped to the column by a ClipPen, so it is that texel and not an imitation of it: a facet, a rim, a front face's
+// bands). The two Images overlap there, and the next one is drawn over the first (bakeZoneArt adds the images in strip order, and
+// equal depths keep it), so only the half texel where the filter ramps the next Image's left edge shows the copy under it.
+// Draw order is part of this. Within a row a chunk column draws over its west neighbour (above); and a lower row draws over the row
+// above it (a strip's depth is its row's south edge), which is how a taller wall south of a shorter one (a mass under a shard) covers
+// the shard's last 4 px with its own top face and leaves no gap, and why the step in (4) needs no more than its first rows.
 
 /** Rounds to a texel line of the wall pages. */
 const snap = (v: number): number => Math.round(v);
@@ -517,16 +557,139 @@ export class SnapPen implements Pen {
   }
 }
 
+type Pt = readonly [x: number, y: number];
+
+/** The part of a polygon on one side of the axis-aligned line `p[axis] = edge` (Sutherland-Hodgman); an infinite edge keeps it all. */
+function clipSide(poly: readonly Pt[], axis: 0 | 1, edge: number, keepAbove: boolean): Pt[] {
+  const inside = (p: Pt): boolean => (keepAbove ? p[axis] >= edge : p[axis] <= edge);
+  const out: Pt[] = [];
+  for (let k = 0; k < poly.length; k++) {
+    const a = poly[k]!, b = poly[(k + 1) % poly.length]!;
+    const ia = inside(a), ib = inside(b);
+    if (ia) out.push(a);
+    if (ia !== ib) {
+      const t = (edge - a[axis]) / (b[axis] - a[axis]);
+      out.push(axis === 0 ? [edge, a[1] + (b[1] - a[1]) * t] : [a[0] + (b[0] - a[0]) * t, edge]);
+    }
+  }
+  return out;
+}
+
+/** The area of a polygon (shoelace). */
+function polygonArea(poly: readonly Pt[]): number {
+  let a = 0;
+  for (let k = 0; k < poly.length; k++) {
+    const [x1, y1] = poly[k]!, [x2, y2] = poly[(k + 1) % poly.length]!;
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) / 2;
+}
+
 /**
- * The one texel strips of a mass or segment wall tile's top colour that close the seams its snapped top face leaves; `spot.y` is the
- * tile's footprint in the page. They are drawn after the tile, on the tile's own columns.
- *   * A wall row under it (no front face) that starts at the same line: the top face reaches one texel into it. A pillar or a
- *     shorter shard under it starts elsewhere, and the extension would be a stray line, so those get none.
+ * A Pen that lets through only what falls inside the rectangle x0 <= x <= x1, y0 <= y <= y1 (infinite bounds allowed): rectangles
+ * (rounded ones as plain rectangles: a wall tile's rounded corners are on open sides, not in a column of a joined wall), triangles
+ * and filled paths cut to it, and horizontal and vertical lines cut to it. Strokes, circles, ellipses and slanted lines are details
+ * inside a tile and are dropped. It draws a part of what a wall tile would paint: the column of a join (`copyNextColumn`) and the
+ * first rows of a front face (`closeSeams`' step).
+ *
+ * Phaser draws no path polygon that is only one texel wide (a fill path of 10 to 11 shows nothing, and a short line likewise), and
+ * the columns this pen cuts are one texel wide. So a cut shape is painted as rectangles: a line as the rectangle of its stroke, a
+ * polygon that is a rectangle as a rectangle, and a thin one (a facet's edge across the column, on the texel grid) as one rectangle a
+ * texel row high, its alpha scaled by the part of the texel the polygon covers. A wide polygon is a path.
+ */
+export class ClipPen implements Pen {
+  private path: Pt[] | null = null;
+  private fill: readonly [color: number, alpha: number] = [0, 1];
+  private stroke: readonly [width: number, color: number, alpha: number] = [1, 0, 1];
+
+  constructor(private readonly g: Pen, private readonly x0: number, private readonly y0: number, private readonly x1: number, private readonly y1: number) {}
+
+  fillStyle(color: number, alpha = 1): this { this.fill = [color, alpha]; this.g.fillStyle(color, alpha); return this; }
+  lineStyle(width: number, color: number, alpha = 1): this { this.stroke = [width, color, alpha]; this.g.lineStyle(width, color, alpha); return this; }
+  fillRect(x: number, y: number, w: number, h: number): this { return this.paint(x, y, w, h, this.fill[0], this.fill[1]); }
+  fillRoundedRect(x: number, y: number, w: number, h: number): this { return this.fillRect(x, y, w, h); }
+  strokeRect(): this { return this; }
+  lineBetween(x1: number, y1: number, x2: number, y2: number): this {
+    const [width, color, alpha] = this.stroke;
+    if (y1 === y2) return this.paint(Math.min(x1, x2), y1 - width / 2, Math.abs(x2 - x1), width, color, alpha);
+    if (x1 === x2) return this.paint(x1 - width / 2, Math.min(y1, y2), width, Math.abs(y2 - y1), color, alpha);
+    return this;
+  }
+  fillCircle(): this { return this; }
+  strokeCircle(): this { return this; }
+  fillEllipse(): this { return this; }
+  strokeEllipse(): this { return this; }
+  fillTriangle(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number): this {
+    this.fillPolygon([[x1, y1], [x2, y2], [x3, y3]]);
+    return this;
+  }
+  beginPath(): this { this.path = []; return this; }
+  moveTo(x: number, y: number): this { this.path?.push([x, y]); return this; }
+  lineTo(x: number, y: number): this { this.path?.push([x, y]); return this; }
+  closePath(): this { return this; }
+  fillPath(): this {
+    const path = this.path;
+    this.path = null;
+    if (path) this.fillPolygon(path);
+    return this;
+  }
+  strokePath(): this { this.path = null; return this; }
+
+  /** The rectangle cut to the bounds, filled in a colour of its own; the pen's fill style is back as it was after. */
+  private paint(x: number, y: number, w: number, h: number, color: number, alpha: number): this {
+    const ax = Math.max(x, this.x0), bx = Math.min(x + w, this.x1);
+    const ay = Math.max(y, this.y0), by = Math.min(y + h, this.y1);
+    if (bx > ax && by > ay) {
+      const [fc, fa] = this.fill;
+      if (color !== fc || alpha !== fa) this.g.fillStyle(color, alpha);
+      this.g.fillRect(ax, ay, bx - ax, by - ay);
+      if (color !== fc || alpha !== fa) this.g.fillStyle(fc, fa);
+    }
+    return this;
+  }
+
+  private fillPolygon(poly: readonly Pt[]): void {
+    let p = clipSide(poly, 0, this.x0, true);
+    p = clipSide(p, 0, this.x1, false);
+    p = clipSide(p, 1, this.y0, true);
+    p = clipSide(p, 1, this.y1, false);
+    if (p.length < 3) return;
+    const area = polygonArea(p);
+    if (area < 1e-6) return;
+    const minX = Math.min(...p.map((q) => q[0])), maxX = Math.max(...p.map((q) => q[0]));
+    const minY = Math.min(...p.map((q) => q[1])), maxY = Math.max(...p.map((q) => q[1]));
+    const [color, alpha] = this.fill;
+    if (Math.abs(area - (maxX - minX) * (maxY - minY)) < 1e-6) {
+      this.paint(minX, minY, maxX - minX, maxY - minY, color, alpha);
+    } else if (maxX - minX <= 1 + 1e-9) {
+      const col = Math.floor(minX + 1e-9);
+      for (let row = Math.floor(minY); row < Math.ceil(maxY); row++) {
+        const covered = polygonArea(clipSide(clipSide(p, 1, row, true), 1, row + 1, false));
+        if (covered > 1e-3) this.paint(col, row, 1, 1, color, alpha * Math.min(1, covered));
+      }
+    } else {
+      this.g.beginPath().moveTo(p[0]![0], p[0]![1]);
+      for (let k = 1; k < p.length; k++) this.g.lineTo(p[k]![0], p[k]![1]);
+      this.g.closePath().fillPath();
+    }
+  }
+}
+
+/**
+ * What closes the seams of a mass or segment wall tile; `spot.y` is the tile's footprint in the page. All of it is drawn after the
+ * tile, on the tile's own columns.
+ *   * A wall row under it (no front face) that starts at the same line: the top face reaches one texel into it. A pillar under it
+ *     starts elsewhere, and the extension would be a stray line, so it gets none.
+ *   * A LOWER wall row under it (a Rime shard under a mass: the top face of the shard starts `lift - below.lift` px below the
+ *     mass's ends): those px are the mass's south face, which the shard leaves open, so the first rows of the front face are drawn
+ *     there (the tile's own front art, clipped to them) and one texel more, under the shard's first row, for the filter's ramp. The
+ *     shard's row is drawn over the rest. A TALLER row under it needs nothing: its top face starts above this one's end and covers it.
  *   * A closed gate under it (the gate row is drawn at the exact y, over this tile's front face): when its edge was rounded UP into
  *     the gate nothing is open, but rounded down the first row of the front face would show between the top face and the gate's
  *     top, a dark line, so the top face takes that row.
  *   * A closed gate above it (the gate row ends at the exact y, under this tile's top face): rounded down into the gate nothing is
  *     open; rounded up, a sliver of floor would show between them, so the top face takes the row above.
+ * `g` is the page's pen (or a clip of it).
  */
 function closeSeams(g: Pen, ctx: BakeContext, spot: TileSpot, info: WallInfo, zone: ZoneKey): void {
   const { map } = ctx;
@@ -538,10 +701,32 @@ function closeSeams(g: Pen, ctx: BakeContext, spot: TileSpot, info: WallInfo, zo
   if (!info.front) {
     const below = wallInfoAt(ctx, tx, ty + 1);
     if (below.style !== "pillar" && below.lift === info.lift) strip(snap(bottom));
+    else if (below.style !== "pillar" && below.lift < info.lift) {
+      const clip = new ClipPen(g, spot.x, snap(bottom), spot.x + TILE_W, snap(spot.y + TILE_H - below.lift) + 1);
+      drawWallTile(new SnapPen(clip), zone, spot, { ...info, front: true });
+    }
   } else if (ty + 1 < map.h && ctx.gates.has((ty + 1) * map.w + tx) && snap(bottom) < bottom - SNAP_EPS) {
     strip(snap(bottom));
   }
   if (ty > 0 && ctx.gates.has((ty - 1) * map.w + tx) && snap(top) > top + SNAP_EPS) strip(snap(top) - 1);
+}
+
+/**
+ * The texel one past the right edge of the wall tile at `spot`, in the strip's frame: the first column of the wall tile east of it,
+ * drawn the way that tile draws it (art and seams, through a SnapPen) and clipped to the column. It is for a strip that ends at a
+ * chunk edge (`StripPlan.east`); the wall east of it is the next strip, whose left edge would otherwise blend with the empty page
+ * padding and leave up to half the floor showing at the join.
+ */
+function copyNextColumn(g: Pen, ctx: BakeContext, spot: TileSpot): void {
+  const { map } = ctx;
+  const tx = spot.tx + 1;
+  const info = wallInfoAt(ctx, tx, spot.ty);
+  const zone = ctx.zones[spot.ty * map.w + tx] ?? NEUTRAL_WALL_ZONE;
+  const x = spot.x + TILE_W;
+  const column = new ClipPen(g, x, -Infinity, x + 1, Infinity);
+  const next: TileSpot = { x, y: spot.y, tx, ty: spot.ty, hash: tileSeedHash(map, tx, spot.ty), open: info.open };
+  drawWallTile(new SnapPen(column), zone, next, info);
+  closeSeams(column, ctx, next, info, zone);
 }
 
 /** Paints one strip into its place on a page: `g` is the page's Graphics, the strip sits at (s.px, s.py). */
@@ -568,6 +753,7 @@ export function paintStrip(g: Pen, ctx: BakeContext, s: StripPlan): void {
       if (info.style === "mass" || info.style === "segment") {
         drawWallTile(snapped, zone, spot, info);
         closeSeams(g, ctx, spot, info, zone);
+        if (s.east && tx === s.tx1) copyNextColumn(g, ctx, spot);
       } else drawWallTile(g, zone, spot, info);
     } else {
       spot.open = fenceOpen(map, tx, s.ty);
@@ -658,8 +844,8 @@ let bakeSerial = 0;
  */
 export function bakeZoneArt(scene: Phaser.Scene, map: GameMap, ctx: BakeContext = makeContext(map), budget = TEXTURE_BUDGET_BYTES): BakedArt {
   const t0 = performance.now();
-  const floors = planFloor(map, chooseFloorScale(map, budget));
-  const { strips, pages } = planStrips(map);
+  const floors = planFloor(map, chooseFloorScale(map, budget, ctx));
+  const { strips, pages } = planStrips(map, ctx);
   const prefix = `zoneart${bakeSerial++}`;
   const art = new BakedArt(scene, {
     ms: 0, floorChunks: floors.length, strips: strips.length, pages: pages.length, textureBytes: planBytes(floors, pages), images: 0,
@@ -682,23 +868,31 @@ export function bakeZoneArt(scene: Phaser.Scene, map: GameMap, ctx: BakeContext 
       if (!art.probe) art.probe = { key, x: 0, y: 0 };
     }
     g.setScale(1);
+    // The strips' frames are cut page by page, but the images are added in strip order (row by row, a chunk column after its west
+    // neighbour): equal depths draw in the order they were added, and a strip's join copy (`StripPlan.east`) is under the next one.
+    const cut: Array<{ key: string; frame: string }> = new Array(strips.length);
     for (let p = 0; p < pages.length; p++) {
       const key = `${prefix}s${p}`;
       const dt = scene.textures.addDynamicTexture(key, pages[p]!.w, pages[p]!.h);
       if (!dt) throw new Error(`zone art: no dynamic texture for ${key}`);
       art.addTexture(key);
       g.clear();
-      const onPage = strips.filter((s) => s.page === p);
-      for (const s of onPage) paintStrip(g, ctx, s);
+      const onPage: number[] = [];
+      strips.forEach((s, k) => { if (s.page === p) onPage.push(k); });
+      for (const k of onPage) paintStrip(g, ctx, strips[k]!);
       dt.draw(g);
       dt.render();
-      onPage.forEach((s, n) => {
+      onPage.forEach((k, n) => {
+        const s = strips[k]!;
         const frame = `s${n}`;
         dt.add(frame, 0, s.px, s.py, s.w, s.h);
-        const image = scene.add.image(s.x, s.y, key, frame).setOrigin(0, 0).setDepth(s.depth);
-        art.addImage(image, s.x, s.y, s.x + s.w, s.y + s.h);
+        cut[k] = { key, frame };
       });
     }
+    strips.forEach((s, k) => {
+      const image = scene.add.image(s.x, s.y, cut[k]!.key, cut[k]!.frame).setOrigin(0, 0).setDepth(s.depth);
+      art.addImage(image, s.x, s.y, s.x + s.w, s.y + s.h);
+    });
   } catch (e) {
     g.destroy();
     art.destroy();
