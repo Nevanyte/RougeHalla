@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL } from "../src/map";
 import type { GameMap, RegionFaction } from "../src/map";
-import { MAPGEN_NOTES, certifiedMap, generateMap } from "../src/mapgen";
+import { MAPGEN_FAILS, MAPGEN_NOTES, certifiedMap, generateMap } from "../src/mapgen";
 import type { ZoneStyleHook } from "../src/mapgen";
 import {
   TERRAINS, TERRAIN_BOG, TERRAIN_CREVASSE, TERRAIN_EMBER, TERRAIN_FENCE, TERRAIN_ICE, TERRAIN_LAVA, TERRAIN_LIGHT, validateTerrain,
@@ -72,9 +72,11 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
       expect(validateTerrain(m, { styled: true }), `seed ${s}`).toEqual([]);
       expect(m.tiles.some((t) => t === TILE_LOW), `seed ${s} low ground`).toBe(true);
     }
+    // The stylers never broke the hook's contract on any attempt of these 200 seeds (a breach is a styler bug, not a retry).
+    expect(MAPGEN_FAILS["A:styleBreach"] ?? 0).toBe(0);
   }, HEAVY_MS);
 
-  it("never needs the styler's connectivity net, and the generator's net for ICE beside a rock clears only a part of the lakes", () => {
+  it("never needs the styler's connectivity net; the cover's rocks clear the ICE beside them and the Rime freezes over what is left clear", () => {
     resetStylerStats();
     for (const k of Object.keys(MAPGEN_NOTES)) delete MAPGEN_NOTES[k];
     let ice = 0, attempts = 0;
@@ -88,6 +90,7 @@ describe("the five themes on the generator's maps (200 seeds)", () => {
     expect(ice / 60, "ice tiles per map left after the cover").toBeGreaterThan(20);
     // Not vacuous: the cover does stand rocks in lakes, and the net does clear the ice beside them.
     expect(MAPGEN_NOTES["iceCleared"] ?? 0).toBeGreaterThan(0);
+    expect(MAPGEN_NOTES["iceFrozen"] ?? 0).toBeGreaterThan(0);
     // A report, not a gate (the bench is): the styler pass costs a few ms per attempt.
     console.info(`[styler] ${(STYLER_STATS.ms / Math.max(1, STYLER_STATS.calls)).toFixed(2)} ms per attempt over ${STYLER_STATS.calls} attempts; ice ${(ice / 60).toFixed(0)} tiles per map; cleared beside rocks ${MAPGEN_NOTES["iceCleared"]} in all`);
   }, HEAVY_MS);

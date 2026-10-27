@@ -1,9 +1,8 @@
 // The stylers on OPEN ground, the habitat they were designed for (part D: a 96x96 zone map before cover, five zones of about
-// 1500 tiles): here the footprint bands of part D 3 apply. The finished-map fixtures (zoneStyleZones.test.ts) measure the same
-// recipes on the ground a wedge map leaves them. Also size-freedom (any grid size), the rim margin and the 8% budget.
-// THIS IS THE PERMANENT SUITE: the synthetic fixture (zoneStyleOpen.ts) needs no wedge, extraction or adapter data, so the pinned
-// output, zone isolation, determinism, decor and Math-purity checks at the end of this file keep working when the zone generator
-// replaces the wedge (zoneStyleMaps.test.ts and zoneStyleZones.test.ts, which run on the dev adapter, are deleted then).
+// 1500 tiles): here the footprint bands of part D 3 apply. zoneStyleGen.test.ts measures the same recipes on the ground the zone
+// generator leaves them. Also size-freedom (any grid size), the rim margin and the 8% budget.
+// The synthetic fixture (zoneStyleOpen.ts) needs no generator data, so the pinned output, zone isolation, determinism, decor and
+// Math-purity checks at the end of this file hold the stylers apart from the generator (the dev adapter and its wedge suites are gone).
 import { describe, expect, it, vi } from "vitest";
 import { REGION_FACTIONS, TILE_FLOOR, TILE_LOW, TILE_WALL, mapFromTiles, worldToTile } from "../src/map";
 import type { RegionFaction } from "../src/map";

@@ -241,7 +241,7 @@ describe("what the painters draw", () => {
       paintFloorChunk(g, ctx, c);
       expect(g.ops.length).toBeGreaterThan(c.w / 4);
       // A prop may brush the edge by up to 28 px: on the zone maps (seed 1) a prop on a chunk's first column reaches 27.5 px
-      // to its left (20 px was enough on the wedge maps); the texture clips what lies beyond.
+      // to its left (20 px was enough on the first styled maps); the texture clips what lies beyond.
       for (const [x0, y0, x1, y1] of g.extents()) {
         expect(x0).toBeGreaterThanOrEqual(-28);
         expect(y0).toBeGreaterThanOrEqual(-28);

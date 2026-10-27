@@ -170,19 +170,19 @@ describe("createWorld / addPlayer", () => {
   });
 
   it("publishes the seed of the map it is given, so (seed, attempt) always rebuilds that map; a seed that disagrees throws", () => {
-    // Seed 32 certifies at attempt 1 (shared/test/mapPins.ts): a published seed alone would rebuild another map.
-    const map = certifiedMap(32, { decor: false })!;
-    expect(map.attempt).toBe(1);
+    // The first seed that certifies at attempt 1 (several of the first dozen do, see shared/test/mapPins.ts): a published seed alone would rebuild another map.
+    let seed = 0, map = certifiedMap(seed, { decor: false })!;
+    while (map.attempt !== 1) map = certifiedMap(++seed, { decor: false })!;
     const cfg = makeConfig();
     const w = createWorld({ map, config: cfg, random: mulberry32(1) });
-    expect(w.state.seed).toBe(32);
+    expect(w.state.seed).toBe(seed);
     expect(w.state.attempt).toBe(1);
     expect(w.state.mapHash).toBe(mapHashU32(map));
     expect(generateMap(w.state.seed, w.state.attempt, { decor: false })).toEqual(w.map);
     // Spelling the same seed out is fine (as unsigned, like the state's); another one is a bug, not a choice.
-    expect(createWorld({ seed: 32, map, config: cfg, random: mulberry32(1) }).state.seed).toBe(32);
-    expect(createGameWorld({ seed: 32 + 2 ** 32, map, config: cfg, random: mulberry32(1) }).state.seed).toBe(32);
-    expect(() => createWorld({ seed: 33, map, config: cfg, random: mulberry32(1) })).toThrow(/seed 33 does not match the map's seed 32/);
+    expect(createWorld({ seed, map, config: cfg, random: mulberry32(1) }).state.seed).toBe(seed);
+    expect(createGameWorld({ seed: seed + 2 ** 32, map, config: cfg, random: mulberry32(1) }).state.seed).toBe(seed);
+    expect(() => createWorld({ seed: seed + 1, map, config: cfg, random: mulberry32(1) })).toThrow(new RegExp(`seed ${seed + 1} does not match the map's seed ${seed}`));
     expect(() => createGameWorld({ seed: 1234, map, config: cfg, random: mulberry32(1) })).toThrow(/does not match the map's seed/);
     // Without a map the seed is needed, and builds the map as ever.
     expect(() => createWorld({ config: cfg, random: mulberry32(1) })).toThrow(/needs a seed or a map/);

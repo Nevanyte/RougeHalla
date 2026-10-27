@@ -123,7 +123,7 @@ export function territoryAt(map: GameMap, p: Vec2): number {
 /**
  * The reach of a territory leash (ROGUELIKE_PLAN D15) of a mob of camp `campRef` (MobState.camp: index in `map.camps` + 1)
  * resting at `home`: min(camp.radius, MOB_LEASH_CAP) in world units, or 0 when it has none. Territory leashes need a camp
- * that exists, has territory (`area`) and holds the mob's own spot; anything else (no camp, a wedge or hand-built map whose
+ * that exists, has territory (`area`) and holds the mob's own spot; anything else (no camp, a hand-built map whose
  * `territoryGrid` is all zero, a mob a test put outside its camp) keeps the circle of MOB_LEASH_RADIUS.
  */
 export function territoryLeash(map: GameMap, campRef: number, home: Vec2): number {

@@ -1,6 +1,6 @@
 // An independent certifier for generated maps: every guarantee of the map contract (map.ts) and the R2 gates
 // (ROGUELIKE_PLAN R2), checked from the GameMap alone with checkers written apart from the generator (ports of the R1
-// certifier and of the wedge-era mapgen tests). It never reads the generator's bookkeeping: the contract's numbers are
+// certifier and of the mapgen tests of the 64x64 generator it replaced). It never reads the generator's bookkeeping: the contract's numbers are
 // written out here. Movement and sight go through the masks of map.ts: walkable is `(tile & MASK_MOVE) === 0` (TILE_LOW
 // blocks it), see-through is `(tile & MASK_SIGHT) === 0` (TILE_LOW lets sight through).
 import { MAX_PLAYERS, MAX_SIGHT_CORRIDOR, RANGED_HIT_REACH, TILE } from "../src/constants";

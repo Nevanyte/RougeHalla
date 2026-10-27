@@ -245,7 +245,7 @@ export const ELITE_K = 0.65;
 /**
  * A mob gives up the chase when it leaves its leash, or has not dealt damage for MOB_GIVE_UP_SECONDS (damage it takes does not extend the fight).
  * The leash of a mob of a generated camp is the camp's territory inside MOB_LEASH_CAP (mobs.ts `leashOk`, ROGUELIKE_PLAN D15);
- * this circle around its spot is the leash of a mob with no territory (a wedge or hand-built map, a test's mob).
+ * this circle around its spot is the leash of a mob with no territory (a hand-built map, a test's mob).
  */
 export const MOB_LEASH_RADIUS = 9 * TILE;
 /** The most a territory leash reaches from the mob's spot: min(camp.radius, this). Generated camps measure a radius of 10.8 to 30 tiles (7 of 3000 under 12 over seeds 1-150), so the cap binds on almost all of them, unless the territory's edge comes first. */

@@ -64,7 +64,7 @@ export interface PlanningRuntime {
 /** A candidate pair of pool spawns (i < j) and how they compare. */
 interface Pair { i: number; j: number; tier: boolean; sameZone: boolean; ratio: number }
 
-/** Most DFS steps one disjoint-pairs search may take before it gives up (the pool is 15 on wedge maps: it never comes close). */
+/** Most DFS steps one disjoint-pairs search may take before it gives up (the pool is 24 to 32: it never comes close). */
 const SEARCH_BUDGET = 20_000;
 /** The same for each try at leaving one particular spawn over (up to one try per spawn of the pool). */
 const SPARE_BUDGET = 1_500;

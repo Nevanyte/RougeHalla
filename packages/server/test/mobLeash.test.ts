@@ -13,7 +13,7 @@ import type { SimConfig, World } from "../src/sim/world";
 
 // The territory leash (ROGUELIKE_PLAN D15, mobAI.ts): a mob of a camp with a territory gives up when it leaves the camp's
 // cells of `map.territoryGrid` or goes farther than min(camp.radius, MOB_LEASH_CAP) from its spot; a mob with no territory
-// (a wedge or hand-built map, no camp) keeps the circle of MOB_LEASH_RADIUS. The rig is the one of mobAI.test.ts in small:
+// (a hand-built map, no camp) keeps the circle of MOB_LEASH_RADIUS. The rig is the one of mobAI.test.ts in small:
 // an open hand-built arena, passive players with huge hp, and the AI woken by `aggro`.
 
 const TILES = 64;
@@ -175,7 +175,7 @@ describe("the territory leash", () => {
     expect(giveUpAt).not.toBeNull();
   });
 
-  it("keeps the 9-tile circle when the map has no territory at all (a wedge or hand-built map)", () => {
+  it("keeps the 9-tile circle when the map has no territory at all (a hand-built map)", () => {
     for (const map of [arena(), { ...arena(), camps: campMap(SMALL, 20).camps }]) {
       // Both have a territoryGrid of zeros: with or without a CampDef listed, the mob's camp holds no cells.
       const rig = makeRig(map, "sentenced");

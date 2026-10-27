@@ -1,6 +1,6 @@
 // Scorch (fire): volcanic badlands. Jagged obsidian ridges with 2-3 tile passes, one meandering lava river with fords and an
 // ember bank, two basalt pillar fields, open ash. The ridge passes and the fords are the chokepoints; Fire is exempt from
-// the embers. Parameters are part D 4.1's, scaled down to the zone's size (a wedge zone is a third of an R1 zone).
+// the embers. Parameters are part D 4.1's, scaled down for a zone smaller than 1710 tiles (see scale.ts).
 import { TILE_FLOOR, TILE_LOW, TILE_WALL } from "../map";
 import { TERRAIN_EMBER, TERRAIN_LAVA, TERRAIN_NONE } from "../terrain";
 import { breakLowRuns, chance, DIR8, flowPath, low, pickOpen, roomOf, steer, wall } from "./kit";

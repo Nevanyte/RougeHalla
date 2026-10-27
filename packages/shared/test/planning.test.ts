@@ -44,7 +44,7 @@ describe("spawnWalks", () => {
     expect(spawnWalks(open)[0]).toBe(Infinity);
   });
 
-  it("every spawn of a wedge map reaches the centre, and most have a partner in their tier in another zone", () => {
+  it("every spawn of a generated map reaches the centre, and most have a partner in their tier in another zone", () => {
     let isolated = 0;
     for (let seed = 1; seed <= 20; seed++) {
       const map = generateMap(seed);

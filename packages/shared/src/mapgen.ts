@@ -410,18 +410,16 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
 
   const keepLow = new Uint8Array(N), terrain = new Uint8Array(N);
   let props: MapProp[] = [];
-  if (hook) {
-    const breach = applyStyleHook(seed, attempt, hook, decor, order, zone, territoryGrid, camps, ruinNear1, poolHalo, tiles, terrain, props, keepLow);
+  let laidIce = false;
+  const protect = hook ? styleProtect(camps, ruinNear1, poolHalo) : null;
+  if (hook && protect) {
+    const breach = applyStyleHook(seed, attempt, hook, decor, order, zone, territoryGrid, camps, protect, tiles, terrain, props, keepLow);
     lap("styler");
     if (breach !== null) return failed("A:styleBreach");
     // T8: no hazard (a floor kind) in a spawn's 5x5; low ground such as lava or a fence may stand there.
     for (let i = 0; i < N; i++) if (pool5[i] && terrain[i] !== TERRAIN_NONE && TERRAINS[terrain[i]].tile === TILE_FLOOR) terrain[i] = TERRAIN_NONE;
+    laidIce = terrain.includes(TERRAIN_ICE);
   }
-  // ICE keeps one tile of clear ground around it (validateTerrain T11): no rock chunk stands on a tile that touches ICE and the
-  // cover takes one only as a last resort; where a rock lands, the ICE around it goes (clearIceBesideSolid). Nothing is
-  // marked on an unstyled map.
-  const iceNear = new Uint8Array(N);
-  if (hook) for (let i = 0; i < N; i++) if (terrain[i] === TERRAIN_ICE) markRect(iceNear, cell(i), 1);
   // A floor kind does not survive under a wall (a rock, a walled-up pocket); a LOW kind does, as decor (terrain.ts T3).
   const clearBuried = (): void => {
     if (!hook) return;
@@ -432,7 +430,7 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
     // Rock chunks (1-2 by 1-3 tiles), with a tile of air around each, off the ring road + 1, ruins + 1, camp halos and
     // anything that is not floor.
     const bad = new Uint8Array(N);
-    for (let i = 0; i < N; i++) if (distFp[i] <= RING_ROAD + 1 || ruinNear1[i] || pool5[i] || iceNear[i] || tiles[i] !== TILE_FLOOR) bad[i] = 1;
+    for (let i = 0; i < N; i++) if (distFp[i] <= RING_ROAD + 1 || ruinNear1[i] || pool5[i] || tiles[i] !== TILE_FLOOR) bad[i] = 1;
     for (const c of camps) for (const [ox, oy] of CAMP_HALO) bad[c.site + oy * W + ox] = 1;
     const target = randInt(rng, CHUNKS_LO, CHUNKS_HI);
     let placed = 0;
@@ -530,7 +528,6 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   for (const c of allCrates) { markRect(soft, cell(c), 1); prot[c] = 1; }
   for (const g of gapTiles) { prot[g.y * W + g.x] = 1; for (const d of NB4) prot[g.y * W + g.x + d] = 1; }
   for (let i = 0; i < N; i++) if (keepLow[i] && tiles[i] === TILE_LOW) prot[i] = 1;
-  for (let i = 0; i < N; i++) if (iceNear[i] && !prot[i]) soft[i] = 1;
   // A ruin takes a few rocks inside as furniture, never so many that less than 62% of the interior is open (index 0 is
   // "not in a ruin" and absorbs the bookkeeping for every other tile).
   const ruinOf = new Uint8Array(N), ruinQuota: number[] = [0], ruinBox: number[] = [0, 0, 0, 0];
@@ -657,9 +654,17 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
   // terrain layer checked (terrain.ts) before the map is handed out.
   if (hook) {
     clearBuried();
-    // T11's net: ICE beside a wall (a rock the cover had to stand beside the lake, a walled-up pocket) goes back to plain ground.
+    // ICE keeps one tile of clear ground around it (validateTerrain T11), and the cover wants its rocks wherever its lanes need them,
+    // lakes included (keeping rocks off the ICE, even as a last resort, made the Rime's territories split and one attempt in three
+    // fail): the ICE beside a wall, a rock or a walled-up pocket goes back to plain ground here. Rocks clear the ICE on their 8 neighbours.
     const cleared = clearIceBesideSolid(tiles, terrain);
     if (cleared > 0) note("iceCleared", cleared);
+    // The Rime (when the stylers laid ice at all) freezes over on the ground the cover left. Spawns (5x5), crates (3x3) and everything the stylers may not touch stay clear (T8).
+    const forbid = protect!.slice();
+    for (let i = 0; i < N; i++) if (pool5[i]) forbid[i] = 1;
+    for (const c of allCrates) markRect(forbid, cell(c), 1);
+    const frozen = laidIce ? freezeClearGround(tiles, terrain, zone, order.indexOf("frost") + 1, forbid) : 0;
+    if (frozen > 0) note("iceFrozen", frozen);
     props = props.filter((pr) => {
       const tx = Math.floor(pr.x / TILE), ty = Math.floor(pr.y / TILE), spec = PROP_KINDS[pr.kind];
       return spec !== undefined && tx >= 0 && ty >= 0 && tx < W && ty < H && tiles[ty * W + tx] === spec.on;
@@ -690,15 +695,10 @@ function buildMap(seed: number, attempt: number, hook: ZoneStyleHook | null, dec
 }
 
 /**
- * Runs the zone style hook once on the ground as it stands after the ruins, and checks it kept to the contract
- * (styler.ts): only floor turned to wall or low ground, terrain kinds on their class of tile, both only on painted tiles
- * outside the protected ones (the spawn pool's 3x3s, `poolHalo`, among them). Returns what the first breach was, or null
- * when the hook kept to it: a breach fails the attempt (and the tests assert none ever happens), it never crashes a room.
+ * The ground the stylers may not touch (styler.ts `protect`): the border, the coliseum, the ring road and one tile beyond, the gate lanes and
+ * one tile around them, the camp halos (clearing + 1), the ruins + 1, the 4x4 map corners and the spawn pool's 3x3s (`poolHalo`).
  */
-function applyStyleHook(
-  seed: number, attempt: number, hook: ZoneStyleHook, decor: boolean, order: readonly RegionFaction[], zone: Uint8Array, territoryGrid: Uint8Array,
-  camps: readonly CampSite[], ruinNear1: Uint8Array, poolHalo: Uint8Array, tiles: Uint8Array, terrain: Uint8Array, props: MapProp[], keepLow: Uint8Array,
-): string | null {
+function styleProtect(camps: readonly CampSite[], ruinNear1: Uint8Array, poolHalo: Uint8Array): Uint8Array {
   const F = fixedLayout();
   const protect = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (F.border[i] || F.fp[i] || F.distFp[i] <= RING_ROAD + 1 || ruinNear1[i] || poolHalo[i]) protect[i] = 1;
@@ -709,6 +709,19 @@ function applyStyleHook(
       for (const [cx, cy] of [[x, y], [W - 1 - x, y], [x, H - 1 - y], [W - 1 - x, H - 1 - y]]) protect[cy * W + cx] = 1;
     }
   }
+  return protect;
+}
+
+/**
+ * Runs the zone style hook once on the ground as it stands after the ruins, and checks it kept to the contract
+ * (styler.ts): only floor turned to wall or low ground, terrain kinds on their class of tile, both only on painted tiles
+ * outside the protected ones (`protect`, the spawn pool's 3x3s among them). Returns what the first breach was, or null
+ * when the hook kept to it: a breach fails the attempt (and the tests assert none ever happens), it never crashes a room.
+ */
+function applyStyleHook(
+  seed: number, attempt: number, hook: ZoneStyleHook, decor: boolean, order: readonly RegionFaction[], zone: Uint8Array, territoryGrid: Uint8Array,
+  camps: readonly CampSite[], protect: Uint8Array, tiles: Uint8Array, terrain: Uint8Array, props: MapProp[], keepLow: Uint8Array,
+): string | null {
   const before = tiles.slice();
   const styleCamps: StyleCamp[] = camps.map((c, i) => ({ site: c.site, r: CAMP_R, territory: i + 1 }));
   hook({ w: W, h: H, seed, attempt, decor, tiles, terrain, props, zone, zoneFaction: order, protect, territoryGrid, camps: styleCamps, keepLow });
@@ -722,6 +735,24 @@ function applyStyleHook(
     if (!spec || !zone[i] || protect[i] || !(spec.tile === t || (spec.tile === TILE_LOW && t === TILE_WALL))) return breach(i, `terrain ${k} on tile ${t}`);
   }
   return null;
+}
+
+/**
+ * The Rime freezes over on the ground the cover left: every floor tile of the zone that can take ICE (plain floor on all eight sides, outside
+ * `forbid`, no other kind) becomes ICE. The stylers lay lakes and glaze before the cover, but the cover stands its rocks in the open and each
+ * takes the ice around it; only about 3% of the Rime's floor is left with a clear 3x3 (the 480 u sight cap puts a rock in nearly every 3x3), so
+ * the ice that is left is all of that ground. No random draw. Returns the tiles added.
+ */
+function freezeClearGround(tiles: Uint8Array, terrain: Uint8Array, zone: Uint8Array, z: number, forbid: Uint8Array): number {
+  if (z <= 0) return 0;
+  let added = 0;
+  for (let i = 0; i < N; i++) {
+    if (zone[i] !== z || tiles[i] !== TILE_FLOOR || forbid[i] || terrain[i] !== TERRAIN_NONE) continue;
+    let ok = true;
+    for (let q = 0; q < 8 && ok; q++) ok = tiles[i + RING_DY[q] * W + RING_DX[q]] === TILE_FLOOR;
+    if (ok) { terrain[i] = TERRAIN_ICE; added++; }
+  }
+  return added;
 }
 
 /** A copy of the zone grid to compare after the territory repair (only a styled map has terrain to fix up). */

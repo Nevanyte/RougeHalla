@@ -330,7 +330,7 @@ export function pickOpen(c: ShapeCtx, ok: (x: number, y: number) => boolean = ()
 
 /**
  * How much of the zone a blocker could land on: open tiles over painted tiles. About 0.7 on open ground (the recipes' habitat,
- * a zone before cover) and 0.13 on a finished wedge map (22% rock, then the protect list). The recipes size their footprints
+ * a zone before cover) and about 0.13 on the ground the generator hands the stylers (the protect list, then the spawn pool's 3x3s). The recipes size their footprints
  * as a share of the ZONE, so they ask for the same amount of wall wherever and take what the ground allows.
  */
 export function roomOf(c: ShapeCtx): number {

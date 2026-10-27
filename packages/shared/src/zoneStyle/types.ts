@@ -9,7 +9,7 @@ export type BlockKind = "wall" | "lava" | "fence" | "crevasse";
 export type SurfaceKind = "ember" | "bog" | "ice" | "light";
 
 export interface ZoneInfo {
-  /** The generator's zone index 1..5: the stream key (REGION_FACTIONS order on wedge maps). */
+  /** The generator's zone index 1..5: the stream key (this attempt's zone order: the generator shuffles the factions). */
   readonly index: number;
   readonly faction: RegionFaction;
   /** Tiles in the zone, and FLOOR among them when the pass starts. */
