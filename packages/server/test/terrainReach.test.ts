@@ -6,14 +6,13 @@
 // The worlds are hand-built rooms (test/terrainWorld.ts) with real inputs, ledger and phases. `MASK_MELEE` is one constant
 // in the shared map module; the "flip" cases prove it is the only thing that decides melee's reach, by making reachMask
 // answer MASK_SIGHT for every weapon through a mock (the constant itself is never edited); the mock also records the weapon
-// each call was made for, to show the bot reads the reach of the weapon in hand. findPath is wrapped to count the path
-// searches an order costs.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// each call was made for. findPath is wrapped to count the path searches an order costs. (The old scripted BotClient's
+// attack-ready test was checked here too; the brain-driven bots do not read reachMask yet: CLAUDE.md, Known TODOs.)
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   circleClear, moveComponents, mulberry32, PLAYER_RADIUS, POLICIES, TERRAIN_LAVA, TICK_MS, TILE, TILE_LOW, worldToTile,
   type FactionId, type FxEvent, type GameMap, type Vec2, type WeaponId,
 } from "@raid/shared";
-import { BotClient } from "../src/bots/BotClient";
 import { combatant, standingCombatants } from "../src/sim/combatant";
 import { createGameWorld } from "../src/sim/gameplay";
 import { enqueueClientMessage } from "../src/sim/inputs";
@@ -538,7 +537,7 @@ describe("a lock on a target sealed in by LOW", () => {
 
 // ---- the other readers of the reach mask: a mob's line of sight and a bot's attack-ready test ---------------------------
 
-describe("mob and bot reach follow reachMask", () => {
+describe("mob reach follows reachMask", () => {
   const TILES = 64;
   const HOME = tileCentre(32, 32);
   /** A fence at column 34 (x 1088..1120) from row 2 to row 57: the only way round is rows 58..62, far past the leash. */
@@ -584,54 +583,5 @@ describe("mob and bot reach follow reachMask", () => {
     expect(flipped.firstSwing).not.toBeNull();
     expect(flipped.firstSwing!.tick).toBeLessThanOrEqual(6);
     expect(flipped.firstSwing!.walked).toBeLessThan(20);
-  });
-
-  describe("a bot", () => {
-    beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(100_000); });
-    afterEach(() => { vi.useRealTimers(); });
-
-    interface Hands { weapon0: string; weapon1: string; slot: number }
-
-    /** A bot 56 u from its locked foe across a one-tile fence, holding `hands`; whether it counts itself as attacking after one think. */
-    function attacking(hands: Hands): boolean {
-      const base = { status: "alive", weapon0: "sword", weapon1: "", slot: 0, attackTarget: "" };
-      const west = westOf(25, 300);
-      const me = {
-        ...base, ...hands, ...west, attackTarget: "foe", faction: "fire", hp: 500, maxHp: 500, stacksHp: 0, stacksAs: 0, stacksMs: 0,
-        mobKills: 0, drawStartedAt: 0, readyAt: 0,
-      };
-      const foe = { ...base, ...eastOf(25, 300) };
-      const players = new Map([["me", me], ["foe", foe]]);
-      const b = new BotClient() as unknown as { room: unknown; map: unknown; attacking: boolean; think(): void };
-      b.map = roomMap(60, 20, { low: vertical(25, 1, 18) });
-      b.room = {
-        sessionId: "me",
-        send: () => {},
-        state: {
-          phase: "active", serverTime: 0, raidStartedAt: 0, inColiseum: false, gatesLocked: false, players,
-          mobs: new Map(), containers: new Map(),
-        },
-      };
-      mode.reachCalls.length = 0;
-      b.think();
-      return b.attacking;
-    }
-
-    it.each([
-      ["slot 0", { weapon0: "sword", weapon1: "", slot: 0 }],
-      ["slot 1 (the active weapon, not the first)", { weapon0: "", weapon1: "sword", slot: 1 }],
-    ] as const)("a sword in %s is not attacking across the fence, and is with reach read as sight; reach is asked for the sword", (_, hands) => {
-      expect(attacking(hands)).toBe(false);
-      expect(mode.reachCalls).toContain("sword");
-      expect(mode.reachCalls).not.toContain("bow");
-      mode.reachIsSight = true;
-      expect(attacking(hands)).toBe(true);
-    });
-
-    it("a bow is attacking across the fence (a shot flies over it), with reach asked for the bow", () => {
-      expect(attacking({ weapon0: "bow", weapon1: "", slot: 0 })).toBe(true);
-      expect(mode.reachCalls).toContain("bow");
-      expect(mode.reachCalls).not.toContain("sword");
-    });
   });
 });

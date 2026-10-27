@@ -63,7 +63,7 @@ beforeAll(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "raid-planning-"));
   port = await freePort();
   server = await startServer({
-    ...loadConfig({}),
+    ...loadConfig({ BOTS_FILL_TO: "0" }), // the server's own bot fill off: these rooms hold the clients and nobody else
     port,
     minPlayers: 2,
     fillSeconds: 0,

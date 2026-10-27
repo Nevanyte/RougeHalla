@@ -59,6 +59,8 @@ export interface PlanningRuntime {
   report: DealReport;
   /** Players in the room when planning began, leavers included: what startedWith is (beginRun) however many leave in planning. */
   starters: number;
+  /** Of them, the humans (bots are not): what arena.startedHumans is, the same way. */
+  startedHumans: number;
 }
 
 /** A candidate pair of pool spawns (i < j) and how they compare. */
@@ -87,7 +89,8 @@ export function startPlanning(world: World): void {
   const { pairs, report } = dealSpawns(world, ids.length);
   const deals = new Map<string, PlanDeal>();
   ids.forEach((id, k) => deals.set(id, { spawns: pairs[k] ?? [-1, -1], pick: -1, boons: [], boon: -1, sent: "" }));
-  world.planning = { deals, holders: new Map(), report, starters: ids.length };
+  const startedHumans = ids.filter((id) => !world.players.get(id)?.bot).length;
+  world.planning = { deals, holders: new Map(), report, starters: ids.length, startedHumans };
   // Known from here on, not only from the run's start: a result for a player who leaves in planning reports the starters.
   world.arena.startedWith = ids.length;
   world.hooks.planningStarted?.(world);

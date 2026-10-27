@@ -7,7 +7,6 @@ import {
   campMatchup, FIRST_PATIENCE_SECONDS, generateMap, GV_WIN, MAX_PLAYERS, mapFromTiles, mulberry32, nearestCamps, PLAN_SECONDS, REGION_WEAPONS,
   sameTier, spawnWalks, TICK_MS, TILE, TILE_WALL, WISH_LOCK_SECONDS, type FactionId, type GameMap, type PlanMessage,
 } from "@raid/shared";
-import { BotClient } from "../src/bots/BotClient";
 import { PLAN_CAMPS, planPick, planSpawnScore, useless } from "../src/bots/mobHunt";
 import { loadConfig } from "../src/config";
 import { applyDamage, markDropped, markReconnected, patienceMs } from "../src/sim/arena";
@@ -820,32 +819,6 @@ describe("the bots' planning", () => {
     // The score is the matchup of the PLAN_CAMPS nearest camps (a weapon useless against a camp's counts a quarter).
     const camps = nearestCamps(map, map.spawnPool[hi]!, PLAN_CAMPS);
     expect(scores[hi]).toBeCloseTo(camps.reduce((s, c) => s + campMatchup("holy", c) * (useless("sword", REGION_WEAPONS[c.zone]) ? 0.25 : 1), 0), 12);
-  });
-
-  it("a bot in planning picks its better spawn, waits for the server to confirm it, then presses ready, once", () => {
-    const map = generateMap(92);
-    const sent: Array<[string, unknown]> = [];
-    const b = new BotClient() as unknown as {
-      room: unknown; map: GameMap; plan: PlanMessage | null; think(): void; sent: Record<string, number>;
-    };
-    const me = { faction: "plague", weapon0: "bow", weapon1: "", slot: 0, status: "lobby" };
-    const state = { phase: "planning", players: new Map([["me", me]]) };
-    b.room = { sessionId: "me", state, send: (type: string, msg: unknown) => sent.push([type, msg]) };
-    b.map = map;
-    b.think();
-    expect(sent).toEqual([]); // no deal yet, and not long enough to give up on one
-    const scores = map.spawnPool.map((_, k) => planSpawnScore(map, k, "plague", "bow"));
-    const best = scores.indexOf(Math.max(...scores));
-    const other = best === 0 ? 1 : 0;
-    b.plan = { endsAt: 0, spawns: [other, best], taken: [false, false], pick: -1, boons: [], boon: -1 };
-    b.think();
-    b.think(); // inside PLAN_RESEND_MS: not sent again
-    expect(sent).toEqual([["plan", { spawn: 1 }]]);
-    b.plan = { ...b.plan, pick: 1 };
-    b.think();
-    b.think();
-    expect(sent).toEqual([["plan", { spawn: 1 }], ["plan", { ready: true }]]);
-    expect(b.sent.plan).toBe(2);
   });
 });
 

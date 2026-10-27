@@ -1,9 +1,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  FIRST_PATIENCE_SECONDS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS, PATIENCE_SECONDS,
-  PLAN_SECONDS, SERVER_PORT, SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS, WISH_LOCK_SECONDS,
+  FIRST_PATIENCE_SECONDS, LOBBY_FILL_SECONDS, LOBBY_SECONDS, MAX_PLAYERS, MIN_PLAYERS_TO_START, PATIENCE_MIN_SECONDS,
+  PATIENCE_SECONDS, PLAN_SECONDS, SERVER_PORT, SUDDEN_DEATH_SECONDS, TRAINING_IDLE_SECONDS, WISH_LOCK_SECONDS,
 } from "@raid/shared";
+import {
+  BOT_FILL_DEFAULTS, PERSONA_IDS, TIER_IDS, type BotFillConfig,
+} from "./bots/brain/types";
 import { MAP_POOL_TARGET } from "./mapPool";
 import type { SimConfig } from "./sim/world";
 
@@ -55,6 +58,8 @@ export interface ServerConfig extends SimConfig {
    * room certifies its map on the main thread. Optional so a hand-written config keeps the default.
    */
   mapPoolSize?: number;
+  /** Fill bots for arena lobbies (BOTS_* env, docs/BOTS.md 7.3); `fillTo` 0 turns them off. */
+  bots: BotFillConfig;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -95,6 +100,53 @@ const DEFAULT_SHOP_PER_SECOND = 3;
 function num(v: string | undefined, fallback: number): number {
   const n = v === undefined || v === "" ? NaN : Number(v);
   return Number.isFinite(n) ? n : fallback;
+}
+
+/** A non-negative number: a bad value falls back, a negative one is 0. */
+function nonNegative(v: string | undefined, fallback: number): number {
+  return Math.max(0, num(v, fallback));
+}
+
+/**
+ * "name:weight,name:weight" over `ids`. Weights are relative (not normalised). A name with no weight counts 1; a name
+ * that is unknown, or a weight that is not a number, is ignored; a negative weight is 0; a name given twice keeps its
+ * last weight; a listed set with nothing above 0 (or an unset/empty value) is the default mix.
+ */
+export function parseMix<K extends string>(
+  raw: string | undefined, ids: readonly K[], fallback: Readonly<Record<K, number>>,
+): Record<K, number> {
+  const given = new Map<K, number>();
+  for (const part of (raw ?? "").split(",")) {
+    const [name, weight, ...extra] = part.split(":").map((x) => x.trim());
+    const id = ids.find((k) => k === name?.toLowerCase());
+    if (id === undefined || extra.length > 0) continue;
+    const w = weight === undefined ? 1 : weight === "" ? NaN : Number(weight);
+    if (Number.isFinite(w)) given.set(id, Math.max(0, w));
+  }
+  const mix = {} as Record<K, number>;
+  let total = 0;
+  for (const id of ids) {
+    mix[id] = given.get(id) ?? 0;
+    total += mix[id];
+  }
+  return total > 0 ? mix : { ...fallback };
+}
+
+function parseBots(env: NodeJS.ProcessEnv): BotFillConfig {
+  const d = BOT_FILL_DEFAULTS;
+  const statsFile = env.BOT_STATS_FILE?.trim();
+  return {
+    fillTo: Math.min(MAX_PLAYERS, Math.round(nonNegative(env.BOTS_FILL_TO, d.fillTo))),
+    arrivalSeconds: nonNegative(env.BOTS_ARRIVAL_SECONDS, d.arrivalSeconds),
+    tierMix: parseMix(env.BOTS_TIER_MIX, TIER_IDS, d.tierMix),
+    personaMix: parseMix(env.BOTS_PERSONA_MIX, PERSONA_IDS, d.personaMix),
+    latencyMs: nonNegative(env.BOTS_LATENCY_MS, d.latencyMs),
+    jitterMs: nonNegative(env.BOTS_JITTER_MS, d.jitterMs),
+    // Unset: next to the profile file. "off": no learning (the empty path). Anything else is the file.
+    statsFile: !statsFile ? d.statsFile : statsFile.toLowerCase() === "off" ? "" : statsFile,
+    seed: env.BOTS_SEED === undefined || env.BOTS_SEED.trim() === "" || !Number.isFinite(Number(env.BOTS_SEED))
+      ? d.seed : Math.trunc(Number(env.BOTS_SEED)) >>> 0,
+  };
 }
 
 /** A non-negative number: a negative or non-numeric value falls back (0 is meaningful: "no limit"). */
@@ -152,6 +204,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     mobs: env.MOBS !== "0" && env.MOBS !== "false",
     // On by default outside training; QUESTS=0 or QUESTS=false turns the roster off.
     quests: env.QUESTS !== "0" && env.QUESTS !== "false",
+    bots: parseBots(env),
     // The live server plans (roguelike R3); PLAN_SECONDS=0 starts runs straight from the lobby. Training rooms never plan.
     planSeconds: Math.max(0, num(env.PLAN_SECONDS, PLAN_SECONDS)),
     // Decision 10: the first timer is flat. FIRST_PATIENCE_SECONDS=0 scales it with the players like every later one.

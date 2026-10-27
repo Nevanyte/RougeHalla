@@ -326,6 +326,25 @@ describe("PlayerView bow draw", () => {
   });
 });
 
+describe("PlayerView nameplate", () => {
+  /** The nameplate is the first text the view makes; its last setText is what is drawn. */
+  function plate(over: Partial<Record<keyof PlayerState, unknown>>): unknown {
+    const { scene, ofKind } = fakeScene();
+    const view = new PlayerView(scene, false);
+    view.update(0, 0, player(over), 1000, 1000);
+    return ofKind("text")[0]!.state.text;
+  }
+
+  it("shows a person's name as it is", () => {
+    expect(plate({})).toBe("Ann");
+    expect(plate({ bot: false })).toBe("Ann");
+  });
+
+  it("tags a server-filled bot", () => {
+    expect(plate({ name: "Grimbold", bot: true })).toBe("[BOT] Grimbold");
+  });
+});
+
 describe("PlayerView feet effects", () => {
   const burning: TerrainStates = { ...NO_STATES, kind: 4, burning: true };
   const homeOnly: TerrainStates = { ...NO_STATES, kind: 4, home: true };

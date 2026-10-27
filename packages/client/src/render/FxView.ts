@@ -397,7 +397,7 @@ export class FxView {
       case "bounty": {
         // The server only sends it when the bounty rose, but a malformed event must not announce a nonsense line.
         const bounty = Math.round(fx.bounty);
-        const name = fx.name || this.host.name(fx.id);
+        const name = this.host.name(fx.id) || fx.name;
         if (name && bounty > 0) this.host.announce?.(`${name} is on a rampage — bounty ${bounty} GV`);
         break;
       }
@@ -418,7 +418,7 @@ export class FxView {
         break;
       }
       case "victory":
-        if (fx.name) this.host.announce?.(`${fx.name} is victorious`);
+        if (fx.name) this.host.announce?.(`${(fx.id && this.host.name(fx.id)) || fx.name} is victorious`);
         else if (fx.draw) this.host.announce?.("Draw");
         break;
       case "cast":

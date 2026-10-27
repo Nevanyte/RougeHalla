@@ -165,6 +165,28 @@ describe("the plan", () => {
     }
   });
 
+  it("makes a strip two texels wider exactly where its last tile ends a chunk against a mass or a segment of the next one (the join copy)", () => {
+    let joins = 0;
+    for (const m of maps) {
+      const styles = wallStyles(m);
+      const { strips } = planStrips(m);
+      const flat = (k: number): boolean => m.tiles[k] === TILE_WALL && (styles[k] === WS_MASS || styles[k] === WS_SEGMENT);
+      for (const s of strips) {
+        const why = `row ${s.ty}, tiles ${s.tx0}-${s.tx1}`;
+        const i = s.ty * m.w + s.tx1;
+        const expected = (s.tx1 + 1) % CHUNK_TILES === 0 && s.tx1 + 1 < m.w && flat(i) && flat(i + 1);
+        expect(s.east, why).toBe(expected);
+        expect(s.w, why).toBe((s.tx1 - s.tx0 + 1) * TILE + (expected ? 2 : 0));
+        if (!expected) continue;
+        joins++;
+        // The wall it joins is the first tile of the next chunk column's strip in the same row.
+        expect(strips.some((t) => t.ty === s.ty && t.tx0 === s.tx1 + 1), why).toBe(true);
+      }
+    }
+    // The generated maps have about 45 rows of wall across a chunk edge each.
+    expect(joins).toBeGreaterThan(60);
+  });
+
   it("packs the strips into pages without overlap, inside the page, with padding", () => {
     for (const m of [...maps, tiled(maps[0]!, 96)]) {
       const { strips, pages } = planStrips(m);
@@ -351,6 +373,19 @@ describe("bakeZoneArt on a fake scene", () => {
     for (const im of stripImages) expect(wanted.has(key(im.args[0] as number, im.args[1] as number, im.state.depth as number))).toBe(true);
     const frames = [...s.textures.values()].flatMap((t) => t.calls.filter(([n]) => n === "add"));
     expect(frames).toHaveLength(strips.length);
+  });
+
+  it("adds the strip images in strip order, whatever page each is on: equal depths draw in that order, so a join copy lies under the next strip", () => {
+    const m = styled(1);
+    const s = bakeScene();
+    bakeZoneArt(s.scene, m);
+    const { strips, pages } = planStrips(m);
+    // The premise: the pack is not in strip order (it puts the widest first), so adding the images page by page would reorder them.
+    expect(pages.length).toBeGreaterThan(1);
+    const pageOrder = [...strips.keys()].sort((p, q) => strips[p]!.page - strips[q]!.page || p - q);
+    expect(pageOrder).not.toEqual([...strips.keys()]);
+    const stripImages = s.images.filter((i) => i.args.length === 4);
+    expect(stripImages.map((im) => [im.args[0], im.args[1], im.state.depth])).toEqual(strips.map((st) => [st.x, st.y, st.depth]));
   });
 
   it("scales a floor chunk's drawing and its image to match when the map is too big for the budget", () => {

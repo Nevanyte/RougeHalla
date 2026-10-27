@@ -10,6 +10,8 @@ import {
   TRAINING_ROOM_NAME, monthKey,
   type LeaderboardResponse, type ProfileDTO, type ProfileResponse, type ShopError, type ShopErrorCode, type ShopResponse,
 } from "@raid/shared";
+import type { BotStatsStoreApi } from "./bots/brain/types";
+import { createBotStatsStore } from "./bots/learning/BotStatsStore";
 import { loadConfig, type ServerConfig } from "./config";
 import { clientAddress, stampClientAddress } from "./guards/clientIp";
 import { corsOrigin } from "./guards/cors";
@@ -218,6 +220,23 @@ const getOnly: RequestHandler = (req, res, next) => {
 };
 
 /**
+ * What the fill bots learn across runs (docs/BOTS.md 6.2): one store for the process, in its own file next to the profile file
+ * (BOT_STATS_FILE moves it, "off" turns it off). None when there are no fill bots to learn. It is told never to use the profile
+ * file, and a problem with it costs the bots their memory, never the server.
+ */
+function createBotStats(config: ServerConfig): BotStatsStoreApi | null {
+  const { fillTo, statsFile } = config.bots;
+  if (fillTo <= 0 || statsFile === "") return null;
+  const file = statsFile ?? path.join(path.dirname(config.stashFile), "bot-stats.json");
+  try {
+    return createBotStatsStore(file, { forbid: [config.stashFile] });
+  } catch (err) {
+    console.error("[server] the bots will not learn:", err);
+    return null;
+  }
+}
+
+/**
  * The simulator delays and drops every connection, so a server on a public link (sameOriginOnly) refuses to install it:
  * a variable left in the host's shell would slow every friend. ALLOW_NETSIM_WHEN_HOSTING=1 is the explicit override. Either way
  * the log says what happened, once.
@@ -241,9 +260,10 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
   const profiles = new ActiveProfiles();
   // Warmed here, before the first room can ask: the main thread's lane tables (for a fallback) and the worker's queue.
   const maps = (opts.maps ?? new MapPool({ target: config.mapPoolSize ?? MAP_POOL_TARGET })).start();
+  const botStats = createBotStats(config);
   const rooms = new RoomCounter({ arena: config.maxArenaRooms, training: config.maxTrainingRooms });
   const passcodeGate = new PasscodeGate(config.passcode, config.passcodeFailsPerMinute, config.passcodeFailsPerMinuteAll);
-  RaidRoom.ctx = { config, store, profiles, rooms, passcodeGate, maps };
+  RaidRoom.ctx = { config, store, profiles, rooms, passcodeGate, maps, botStats };
   configureCors(config);
   const newProfiles = new NewProfileLimiter(config.maxNewProfilesPerHour, config.maxNewProfilesPerIpPerHour, HOUR_MS);
   const shopBuckets = new KeyedTokenBuckets(config.shopBurst, config.shopPerSecond);
@@ -387,6 +407,7 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
     } catch (err) {
       console.error("[server] could not flush the profiles on shutdown:", err);
     }
+    botStats?.close();
     await maps.stop();
   });
   // Our own model (net/netSim.ts) replaces Colyseus's fixed delay. Core also reads COLYSEUS_LATENCY itself when the server
@@ -405,12 +426,13 @@ export function createServer(config: ServerConfig = loadConfig(), opts: { maps?:
       uninstallNetSim?.();
       try {
         await store.close();
+        botStats?.close();
       } finally {
         await maps.stop();
       }
     }
   }
-  return Object.assign(server, { store, profiles, rooms, maps, stop });
+  return Object.assign(server, { store, profiles, rooms, maps, botStats, stop });
 }
 
 export type RaidServer = ReturnType<typeof createServer>;

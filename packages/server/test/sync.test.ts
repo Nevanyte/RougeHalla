@@ -62,7 +62,7 @@ function snapshot(state: RaidState) {
   const byKey = (a: { key: string }, b: { key: string }) => a.key.localeCompare(b.key);
   const players = [...state.players]
     .map(([key, p]) => ({
-      key, name: p.name, ...fighter(p), status: p.status, kills: p.kills, gv: p.gv, bounty: p.bounty, immuneUntil: u32(p.immuneUntil),
+      key, name: p.name, bot: p.bot, ...fighter(p), status: p.status, kills: p.kills, gv: p.gv, bounty: p.bounty, immuneUntil: u32(p.immuneUntil),
       mobKills: p.mobKills, buffs: [...p.buffs].map(([id, n]) => [id, f32(n)] as const).sort(([a], [b]) => a.localeCompare(b)),
       barrier: f32(p.barrier),
       // The stat mirrors are exact on the wire: the client decodes the very value the sim used.
@@ -290,6 +290,32 @@ describe("schema round trip", () => {
     expect(client.winner).toBe("erin");
     expect(snapshot(client)).toEqual(snapshot(world.state));
     expect(snapshot(connect(wire.encoder).state)).toEqual(snapshot(world.state)); // and so does a client joining now
+  });
+
+  it("decodes the bot flag: a bot's seat is marked for every client, one that joins later included, and a bot's kill pays no GV on the wire", () => {
+    const world = makeWorld(61, 2); // minPlayers counts humans only: the two bots do not help the lobby start
+    addPlayer(world, "a", "alice");
+    addPlayer(world, "b", "Botley", { bot: true });
+    addPlayer(world, "c", "carol");
+    addPlayer(world, "d", "Botsworth", { bot: true });
+    const wire = new Wire(world);
+    const client = wire.join();
+    const tick = () => { step(world, TICK_MS); wire.flush(); };
+    const flags = (state: RaidState) => Object.fromEntries([...state.players].map(([id, p]) => [id, p.bot]));
+
+    expect(flags(client)).toEqual({ a: false, b: true, c: false, d: true });
+    tick(); // the run starts: the flag is fixed when the seat is created and never changes
+    expect(flags(client)).toEqual({ a: false, b: true, c: false, d: true });
+
+    slay(world, "a", "b");
+    tick();
+    expect([client.players.get("a")!.kills, client.players.get("a")!.gv]).toEqual([1, 0]); // counted, not paid
+    slay(world, "a", "c");
+    tick();
+    expect([client.players.get("a")!.kills, client.players.get("a")!.gv]).toEqual([2, GV_KILL]);
+    expect(flags(client)).toEqual({ a: false, b: true, c: false, d: true });
+    expect(flags(connect(wire.encoder).state)).toEqual({ a: false, b: true, c: false, d: true });
+    expect(snapshot(client)).toEqual(snapshot(world.state));
   });
 
   it("decodes the buffs map, the stat mirrors, the barrier and the mob kills, and the HUD reads the decoded stacks as the player earned them", () => {

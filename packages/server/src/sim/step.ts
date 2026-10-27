@@ -23,9 +23,11 @@ import { emit, newWeaponRuntime, type SimEvent, type World } from "./world";
  * Joins the lobby with a faction (`faction`, picked in the hub; else a round-robin default over join order), its hp, and
  * its signature weapon in the first slot. Nothing else is brought in from outside the run except `look`, the packed
  * cosmetics word (cosmetics.ts) the Room worked out from the profile: it is shown to everyone and changes nothing else.
+ * `bot`: a server-filled bot (no client, no profile, no seat); `profile` is then only its display name. It plays like any
+ * other player, but its result is never recorded and killing it pays no GV (arena.ts, docs/BOTS.md).
  */
 export function addPlayer(
-  world: World, id: string, profile: string, opts: { faction?: FactionId | null; look?: number } = {},
+  world: World, id: string, profile: string, opts: { faction?: FactionId | null; look?: number; bot?: boolean } = {},
 ): PlayerState {
   const s = world.state;
   const p = new PlayerState();
@@ -33,6 +35,7 @@ export function addPlayer(
   const faction = opts.faction ?? defaultFaction(joinIndex);
   p.name = profile;
   p.look = (opts.look ?? 0) >>> 0;
+  p.bot = opts.bot === true;
   p.faction = faction;
   p.hp = FACTIONS[faction].hp;
   p.maxHp = FACTIONS[faction].hp;
@@ -50,6 +53,7 @@ export function addPlayer(
   world.players.set(id, {
     id,
     profile,
+    ...(p.bot ? { bot: true as const } : {}),
     inputs: new InputQueue(),
     path: [],
     history: [],
@@ -157,10 +161,14 @@ function updateLobby(world: World): void {
   for (const rt of world.players.values()) rt.inputs.drain();
   const n = s.players.size;
   if (n === 0) return;
-  if (n >= world.config.minPlayers) {
+  // Server-filled bots never shorten a human's countdown (docs/BOTS.md 7.2): only humans count towards minPlayers.
+  let humans = 0;
+  for (const rt of world.players.values()) if (!rt.bot) humans++;
+  if (humans >= world.config.minPlayers) {
     s.lobbyEndsAt = Math.min(s.lobbyEndsAt, s.serverTime + world.config.fillSeconds * 1000);
   }
   if (n >= MAX_PLAYERS || s.serverTime >= s.lobbyEndsAt) {
+    world.hooks.lobbyClosing?.(world);
     if (planningEnabled(world)) startPlanning(world);
     else startRaid(world);
   }

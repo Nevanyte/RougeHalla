@@ -15,10 +15,11 @@
 // deaths. The bots cast their faction's Wish (the lock is 5 s here): its fx name players and the faction's own ability, none comes
 // before the lock is over, each bot casts it once (again only after the arena's teleport refunded a cast), and in the long run
 // some bot's Wish lands. A camp the run clears drops its shared chest (`campCleared`, then a reward container for CHEST_SECONDS):
-// whenever one was cleared, a bot must have taken an option from some chest (`chestTaken`), and no bot ever sent `choose` twice
-// for one chest. Every bot decodes every `fxs` batch it receives against its own copy of the roster (what a real client has), and
-// none of them loses a tuple. Every run is planned first (the live server's planning phase): each bot is dealt its two spawns
-// in a private `plan` message, takes one and presses ready. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
+// the bots walk to it and take a card (or skip) with one `choose` per chest, so whenever a camp was cleared some bot must have taken
+// an option from some chest (`chestTaken`), and no player picks twice at one chest. Every bot decodes every `fxs` batch it receives
+// against its own copy of the roster (what a real client has), and none of them loses a tuple. Every run is planned first (the live
+// server's planning phase): each bot is dealt its two spawns in a private `plan` message, reads them, takes one and presses ready (the
+// brain's planning module), so the server hands out the spawns it left over. The run is played twice: with a patience long enough for the bots to farm mobs and meet, and with one so short
 // that the arena teleports them into the coliseum before anyone has died, after which they must keep landing hits.
 import fs from "node:fs";
 import net from "node:net";
@@ -33,6 +34,7 @@ import {
 } from "@raid/shared";
 import type { RaidState } from "@raid/shared/schema";
 import { BotClient, type BotRun } from "../src/bots/BotClient";
+import type { PersonaId } from "../src/bots/brain/types";
 import { loadConfig } from "../src/config";
 import { startServer, type RaidServer } from "../src/index";
 import type { ProfileRecord } from "../src/persistence/ProfileStore";
@@ -49,6 +51,13 @@ const QUITTER = 1;
  */
 const SIGNATURE_LINEUP: readonly FactionId[] = ["fire", "holy", "plague", "sentenced"];
 const CONTROL_LINEUP: readonly FactionId[] = ["frost", "sentenced", "fire", "holy"];
+/**
+ * The brain each bot plays with: Hard (the quickest hands) and a hunter, a farmer, a hunter and an opportunist, so that kills and
+ * mob kills keep their odds (BOTS.md 9.2). The quitter (index 1) leaves a second in, so its persona is the one that does not
+ * matter, and the farmer, who is what the mob kills lean on, takes a seat that stays.
+ */
+const BOT_TIER = "hard";
+const BOT_PERSONAS: readonly PersonaId[] = ["hunter", "hunter", "farmer", "opportunist"];
 /** Which faction a signature belongs to: its `hit` fx are always dealt by that faction's players. */
 const SIGNATURE_OWNER: Readonly<Record<SignatureKind, FactionId>> = { burn: "fire", backlash: "fire", disease: "plague", mark: "sentenced" };
 /** How long every Wish stays locked after the run starts here (the server's default is 45 s: too long for a run of this length). */
@@ -117,9 +126,7 @@ interface Timers { patienceSeconds: number; suddenDeathSeconds: number }
  * by a bot, a Wish cast by a bot that took effect (a `castLand`), and a chest option taken by a bot (asked only of a run in which
  * some camp was cleared: a clear is the bots' to make or not, and nothing is owed to a camp nobody emptied).
  */
-interface Wanted {
-  expectKill?: boolean; expectSignature?: boolean; expectMobKill?: boolean; expectWish?: boolean; expectChest?: boolean;
-}
+interface Wanted { expectKill?: boolean; expectSignature?: boolean; expectMobKill?: boolean; expectWish?: boolean; expectChest?: boolean }
 
 /** What one client's `fxs` messages came to when read the way the client reads them. */
 interface Decoding { batches: number; tuples: number; decoded: number; dropped: Array<{ t: number; tuple: unknown; unresolved: boolean }> }
@@ -157,7 +164,7 @@ async function playRun(
   const profileFile = path.join(dir, "data", "stash.json");
   const port = await freePort();
   const server: RaidServer = await startServer({
-    ...loadConfig({}),
+    ...loadConfig({ BOTS_FILL_TO: "0" }),
     mobs: true, // the default; spelled out because this run is about them
     port,
     stashFile: profileFile,
@@ -201,9 +208,13 @@ async function playRun(
     const url = `http://127.0.0.1:${port}`;
     const names = Array.from({ length: BOTS }, (_, i) => `${prefix}${i + 1}`);
     const bots = names.map((_, i) => new BotClient({
-      timeoutMs: 90_000,
+      // A death restarts the flat 30 s patience timer, so a long run with three survivors can pass a minute and a half (1 in 22 runs
+      // after the merge, with planning's few seconds on top); the test's own limit (450 s for two attempts) still bounds it.
+      timeoutMs: 150_000,
       verbose: !!process.env.E2E_VERBOSE,
       faction: lineup[i],
+      tier: BOT_TIER,
+      persona: BOT_PERSONAS[i],
       ...(i === QUITTER ? { abandonAfterMs: QUIT_AFTER_MS } : {}),
     }));
     const players = names.map((_, i) => i).filter((i) => i !== QUITTER);
@@ -294,9 +305,9 @@ async function playRun(
     const sent = (type: keyof BotClient["sent"]) => sum(bots.map((b) => b.sent[type]));
     const mobKills = sum(bots.map((b) => mobDeathBy(b.sessionId)));
     console.log(
-      `[e2e] seed ${bots[0]!.seed} ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}(${lineup[i]})=${results.get(i)?.outcome ?? "quit"}`).join(" ")}`
-      + ` (sent ${sent("target")} targets, ${sent("move")} moves, ${sent("swap")} swaps, ${sent("pickup")} pickups, ${sent("choose")} chooses;`
-      + ` ${mobKills} mobs killed: ${bots.map((b) => mobDeathBy(b.sessionId)).join("/")})`,
+      `[e2e] seed ${bots[0]!.seed} ${seconds.toFixed(1)}s ${names.map((n, i) => `${n}(${lineup[i]})=${results.get(i)?.outcome ?? "quit"}${results.get(i)?.killedBy ? ` by ${results.get(i)!.killedBy}` : ""}`).join(" ")}`
+      + ` (sent ${sent("target")} targets, ${sent("move")} moves, ${sent("swap")} swaps, ${sent("pickup")} pickups, ${sent("plan")} plans, ${sent("choose")} chooses;`
+      + ` ${mobKills} mobs killed: ${bots.map((b) => mobDeathBy(b.sessionId)).join("/")}; longest stall ${Math.max(...players.map((i) => bots[i]!.stats.maxStallMs)) | 0} ms)`,
     );
 
     // --- the run ended: one winner in first place, or a draw in which everyone tied shares first place
@@ -335,10 +346,11 @@ async function playRun(
     for (const i of players) expect(bots[i]!.stats.maxStallMs, `${names[i]} stood still for ${bots[i]!.stats.maxStallMs} ms`).toBeLessThan(MAX_STALL_MS);
     expect(fx.some((f) => f.kind === "hit" && isPlayer(f.by)), "no bot ever hit anything").toBe(true);
 
-    // --- the chests: a cleared camp drops a shared chest, the bots walk to it and take an option (or skip), once each. A chest is
-    // the server's: one `chestTaken` per picker per chest, an option index the chest has, and no more picks than bots. What is asked
-    // of the bots is that nobody asks twice (`choose` once per chest per bot) and that, when a camp was cleared, one of them
-    // opened a chest; never a count (who reaches a chest in its 15 s is up to the bots).
+    // --- the chests: a cleared camp drops a shared chest, the bots walk to it and take a card (or skip), once each. A chest is the
+    // server's: one `chestTaken` per picker per chest, an option index the chest has, and no more picks than bots. What is asked of the
+    // bots is that nobody picks twice, that no bot sends more `choose` than it has picks (a card lost to a faster hand is asked for
+    // again, so a few more are fine) and that, when a camp was cleared, one of them took a card; never a count (who reaches a chest in
+    // its 15 s is up to the bots).
     const campClears = fx.filter((f) => f.kind === "campCleared").length;
     const chestFx = fx.flatMap((f) => (f.kind === "chestTaken" ? [f] : []));
     expect(new Set(chestFx.map((f) => `${f.chest}/${f.by}`)).size, "a player picked twice at one chest").toBe(chestFx.length);
@@ -347,19 +359,12 @@ async function playRun(
       expect(f.option, `chestTaken option ${f.option}`).toBeGreaterThanOrEqual(-1);
     }
     const botChestPicks = chestFx.filter((f) => f.option >= 0).length;
-    const botChestSkips = chestFx.length - botChestPicks;
     for (const [i, bot] of bots.entries()) {
-      const choices = [...bot.chestChoices.values()];
-      expect(Math.max(0, ...choices), `${names[i]} sent choose twice for one chest`).toBeLessThanOrEqual(1);
-      expect(sum(choices), `${names[i]} choose messages against its chests`).toBe(bot.sent.choose);
-      const stats = bot.chestStats;
-      expect(stats.tried, `${names[i]} tried`).toBe(bot.sent.choose);
-      const mine = chestFx.filter((f) => f.by === bot.sessionId);
-      expect(stats.taken, `${names[i]} counts more taken chests than the server paid`).toBeLessThanOrEqual(mine.filter((f) => f.option >= 0).length);
-      expect(stats.skipped, `${names[i]} counts more skips than the server paid`).toBeLessThanOrEqual(mine.filter((f) => f.option < 0).length);
-      expect(mine.length, `${names[i]} has more picks than chests it asked at`).toBeLessThanOrEqual(bot.sent.choose);
+      const mine = chestFx.filter((f) => f.by === bot.sessionId).length;
+      expect(bot.sent.choose, `${names[i]} sent fewer choose messages than it had picks`).toBeGreaterThanOrEqual(mine);
+      expect(bot.sent.choose, `${names[i]} sent ${bot.sent.choose} choose messages for ${mine} picks`).toBeLessThanOrEqual(mine + 4);
     }
-    console.log(`[e2e] chests: ${campClears} camps cleared, ${botChestPicks} options taken and ${botChestSkips} skips by the bots (${sent("choose")} chooses)`);
+    console.log(`[e2e] chests: ${campClears} camps cleared, ${botChestPicks} options taken and ${chestFx.length - botChestPicks} skips by the bots (${sent("choose")} chooses)`);
     if (expectChest && campClears > 0) expect(botChestPicks, `${campClears} camps cleared and no bot took a chest option`).toBeGreaterThanOrEqual(1);
 
     // --- the signatures fired: damage over time and backlash are `hit` fx with a `sig`, and each was dealt by a fighter (a

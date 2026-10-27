@@ -16,6 +16,12 @@
 //   not counted: the budget is ws payload (the owner may want the wire number too; it adds about 52 B per frame).
 // The initial full-state sync a joiner gets is reported but is not part of the rate.
 //
+// The "bots" scenario (`bots: 7`, docs/BOTS.md 9.2) seats 7 fill bots through the BotManager of a headless room
+// (bots/tournament/headlessRoom.ts, the Room's own tick order) and drives the 8th seat like a client, which is the measured
+// one. Every client receives the same bytes (no StateView), so the measured client is any of the eight. The bots play for
+// themselves (they send inputs only, never `aim`, so they patch `facing` far less than clients do); a bot below half its hp is
+// healed, as the driven players are, so the load stays level.
+//
 // The load is the worst case for bytes: players are driven like clients (aim every tick, the weapon policy `decide`
 // against the nearest live mob, a strafe `move` every 600 ms) and never die; the mobs are the map's own camps (map.camps,
 // one mob per spot), every mob of an occupied camp is woken every WAKE_TICKS (the whole camp turns on whoever stands
@@ -30,6 +36,9 @@ import {
   CHEST_SECONDS, circleClear, decide, generateMap, hasLineOfSight, inArc, mulberry32, PLAYER_RADIUS, raycast, reachMask, staggers, TICK_MS,
   TILE, TILE_FLOOR, tileToWorldCenter, WEAPONS, type CampDef, type FactionId, type FxBatch, type FxEvent, type Vec2,
 } from "@raid/shared";
+import { BOT_FILL_DEFAULTS, type TierId } from "../src/bots/brain/types";
+import type { BotManagerStats } from "../src/bots/BotManager";
+import { createHeadlessRoom, type HeadlessRoom } from "../src/bots/tournament/headlessRoom";
 import { FxChannel } from "../src/rooms/FxChannel";
 import { teleportToColiseum } from "../src/sim/arena";
 import { grantSkill, rewardChests, rollChest } from "../src/sim/chests";
@@ -57,10 +66,17 @@ export const MELEE_STAND_IN = false;
 /** The typical load: 4 camps occupied, two players at each. The heavy load: 8 camps, one player at each. */
 export const TYPICAL_CAMPS = 4;
 export const HEAVY_CAMPS = 8;
+/** The bots scenario: fill bots among the 8 players (the rest are driven like clients), and the camps those clients fight at. */
+export const BOTS_SCENARIO_BOTS = 7;
+export const BOTS_SCENARIO_CAMPS = 1;
 
 export interface BandwidthOptions {
   seed?: number;
   players?: number;
+  /** How many of the `players` are fill bots seated by a BotManager (at most players - 1: one driven client stays). 0: all driven. */
+  bots?: number;
+  /** Fixes every bot's tier; absent: drawn from the fill config's mix. */
+  botTier?: TierId;
   /** Mobs kept in the state: the map's own camp mobs (one per camp spot, about 80), then more next to camp spots when it holds fewer. 0 = none, and the sim runs with mobs off. */
   mobs?: number;
   /**
@@ -76,7 +92,7 @@ export interface BandwidthOptions {
   strafeMs?: number;
   /** Camp chests (R5) kept up at all times besides the ones the fights drop: each picked at 3 s, skipped at 6 s, replaced when it expires. */
   chests?: number;
-  /** Quest offers, givers and items. Off by default; `quests=1` on the CLI. */
+  /** Quest offers, givers and items (the shipped default, off here unless asked). `quests=1` on the CLI. */
   quests?: boolean;
   /** Called after every measured step, before the patch is encoded: for analysis scripts that look at what changed. */
   probe?: (world: World) => void;
@@ -108,6 +124,8 @@ export interface BandwidthResult {
   quests: number;
   /** The first full-state sync a joiner gets (protocol byte and ws header included). Not part of the rates. */
   initialSyncBytes: number;
+  /** Set when the run had fill bots: what the manager did over the whole run, and how many bots were still standing. */
+  bots?: { count: number; aliveAtEnd: number; manager: BotManagerStats };
   /** fx bytes by kind, for finding what to shrink: each tuple's share of its frame; "launch" are the projectiles. "(batch)" is what is left: ws header, message type, `t`. */
   fxByKind: Record<string, { frames: number; bytes: number }>;
 }
@@ -133,6 +151,7 @@ function config(players: number, mobs: boolean, quests: boolean): SimConfig {
   };
 }
 
+/** A camp mob, not a quest giver (quests add `kind: "quest"` mobs to world.mobs; the bench fights and counts camp mobs only). */
 const isRegionalMob = (m: { kind: string }): boolean => m.kind === "mob" || m.kind === "elite";
 
 /** Ticks between the wake-ups of an occupied camp: every mob of it turns on the player standing there (a mob already fighting just gains threat). */
@@ -159,7 +178,10 @@ function freeFloorNear(world: World, at: Vec2, rMin: number, rMax: number, rnd: 
 }
 
 interface Driver {
+  /** The players driven like clients. */
   ids: string[];
+  /** Fill bots: healed like the driven players, otherwise left to themselves. */
+  botIds: string[];
   camps: Camp[];
   /** Player id -> the index in `camps` it stands at. Empty when nobody is near a camp. */
   campOf: Map<string, number>;
@@ -185,8 +207,8 @@ function topUp(world: World, d: Driver, target: number): void {
   const count = d.camps.map(() => 0);
   let total = 0;
   for (const [id, rt] of world.mobs) {
-    const m = world.state.mobs.get(id)!;
-    if (!isRegionalMob(m)) continue;
+    const m = world.state.mobs.get(id);
+    if (!m || !isRegionalMob(m)) continue;
     total++;
     if (rt.brain && m.camp >= 1 && m.camp <= count.length) count[m.camp - 1]!++;
   }
@@ -234,11 +256,8 @@ function nearestTarget(world: World, d: Driver, pid: string): Combatant | null {
       bestId = id;
     }
   };
-  if (d.campOf.has(pid)) {
-    for (const [mid, m] of world.state.mobs) if (isRegionalMob(m)) consider(mid, m);
-  } else {
-    for (const [oid, o] of world.state.players) if (oid !== pid) consider(oid, o);
-  }
+  if (d.campOf.has(pid)) for (const [mid, m] of world.state.mobs) { if (isRegionalMob(m)) consider(mid, m); }
+  else for (const [oid, o] of world.state.players) if (oid !== pid) consider(oid, o);
   return bestId === null ? null : combatant(world, bestId);
 }
 
@@ -247,6 +266,10 @@ function drivePlayers(world: World, d: Driver, mobsWanted: number, strafeMs: num
   const now = world.state.serverTime;
   d.ticks++;
   if (mobsWanted > 0) topUp(world, d, mobsWanted);
+  for (const bid of d.botIds) {
+    const b = world.state.players.get(bid);
+    if (b && b.status === "alive" && b.hp < b.maxHp * 0.5) b.hp = b.maxHp;
+  }
   for (const pid of d.ids) {
     const c = combatant(world, pid);
     if (!c || c.s.status !== "alive") continue;
@@ -371,33 +394,53 @@ function keepChests(world: World, d: Driver, wanted: number): void {
 export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   const seed = opts.seed ?? 1;
   const playerCount = opts.players ?? 8;
+  const botCount = Math.min(playerCount - 1, Math.max(0, Math.floor(opts.bots ?? 0)));
   const camps = opts.camps ?? TYPICAL_CAMPS;
   const ticks = opts.ticks ?? 1200;
   const warmup = opts.warmup ?? 200;
   const strafeMs = opts.strafeMs ?? 600;
   const chestsWanted = opts.chests ?? 0;
+  const questsOn = opts.quests === true;
 
   let uid = 0;
   const map = generateMap(seed);
   const mobsWanted = opts.mobs ?? map.camps.reduce((n, c) => n + c.spots.length, 0);
-  const world = createGameWorld({
-    seed, config: config(playerCount, mobsWanted > 0, opts.quests === true), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
-  });
+  // With fill bots the world is a headless room's (the Room's tick order, the manager's delay lines); otherwise the bare sim.
+  let room: HeadlessRoom | null = null;
+  let world: World;
+  if (botCount > 0) {
+    room = createHeadlessRoom({
+      seed, map, config: config(playerCount, mobsWanted > 0, questsOn), bots: { ...BOT_FILL_DEFAULTS, fillTo: playerCount },
+    });
+    world = room.world;
+  } else {
+    world = createGameWorld({
+      seed, config: config(playerCount, mobsWanted > 0, questsOn), random: mulberry32(seed + 1), newItemUid: () => `L${++uid}`, map,
+    });
+  }
   // What the room's SchemaSerializer does in `reset(state)`, before anyone joins.
   const encoder = new Encoder(world.state);
 
   const rnd = mulberry32(seed * 7 + 3);
   const ids: string[] = [];
-  for (let i = 0; i < playerCount; i++) {
+  const botIds: string[] = [];
+  for (let i = 0; i < playerCount - botCount; i++) {
     const id = sessionId(rnd);
     ids.push(id);
     addPlayer(world, id, `Player${i + 1}x`);
   }
-  step(world, TICK_MS);
+  // The bots take the seats the clients left, and the raid starts with the next tick (a full lobby does not wait).
+  for (let i = 0; i < botCount; i++) {
+    const spec = room!.manager.addBot(opts.botTier ? { tier: opts.botTier } : {});
+    if (spec === null) throw new Error("the bandwidth lobby has no seat for a bot");
+    botIds.push(spec.id);
+  }
+  if (room) room.tick();
+  else step(world, TICK_MS);
   if (world.state.phase !== "active") throw new Error("the bandwidth run did not start");
 
   const driver: Driver = {
-    ids, camps: allCamps(world), campOf: new Map(), strafeAt: new Map(), rnd,
+    ids, botIds, camps: allCamps(world), campOf: new Map(), strafeAt: new Map(), rnd,
     placeRnd: mulberry32(seed * 13 + 5), cursor: 0, ticks: 0, chestCursor: 0,
   };
   if (camps > 0 && mobsWanted > 0) {
@@ -433,18 +476,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     });
   } else {
     topUp(world, driver, mobsWanted);
-    if (camps === 0) {
-      teleportToColiseum(world);
-      // The north gate's inner lane is clear in every pillar variant: two rows give all eight players line of sight.
-      const gate = world.map.coliseum.gates[0]!;
-      ids.forEach((pid, i) => {
-        const tile = gate.tiles[i % gate.tiles.length]!;
-        const p = world.state.players.get(pid)!;
-        p.x = tileToWorldCenter(tile.x);
-        p.y = tileToWorldCenter(tile.y + 1 + Math.floor(i / gate.tiles.length));
-        world.players.get(pid)!.history = [{ t: world.state.serverTime, x: p.x, y: p.y }];
-      });
-    }
+    if (camps === 0) teleportToColiseum(world);
   }
   if (MELEE_STAND_IN) installMeleeStandIn(world);
 
@@ -463,19 +495,20 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
   let awake = 0;
   let projectiles = 0;
   const fxByKind: Record<string, { frames: number; bytes: number }> = {};
-  const channel = new FxChannel();
+  const channel = room ? room.channel : new FxChannel();
 
   for (let n = 0; n < warmup + ticks; n++) {
     drivePlayers(world, driver, mobsWanted, strafeMs);
     if (chestsWanted > 0) keepChests(world, driver, chestsWanted);
-    const events = step(world, TICK_MS);
+    const events = room ? room.tick() : step(world, TICK_MS);
     const measuring = n >= warmup;
 
     // RaidRoom.handleEvents broadcasts the step's fx (and the projectiles it loosed) as one message, then broadcastPatch()
     // sends the patch. The channel runs for every step, measured or not: it remembers which projectiles it announced.
+    // (A headless room's tick has done the batch, the roster and the bots' frames already, in that order.)
     const fxs: FxEvent[] = [];
     for (const ev of events) if (ev.type === "fx") fxs.push(ev.fx);
-    const batch = channel.batch(fxs, world.state.serverTime, world.projectiles);
+    const batch = room ? room.lastBatch : channel.batch(fxs, world.state.serverTime, world.projectiles);
     if (measuring && batch) {
       const frame = getMessageBytes.raw(Protocol.ROOM_DATA, "fxs", batch);
       const bytes = frame.length + wsHeader(frame.length);
@@ -501,7 +534,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
       rest.bytes += bytes - attributed;
     }
     if (measuring) opts.probe?.(world);
-    channel.extendRoster(world.state);
+    if (!room) channel.extendRoster(world.state);
     if (encoder.hasChanges) {
       encoder.sharedBuffer[0] = Protocol.ROOM_STATE_PATCH;
       const frame = encoder.encode({ offset: 1 });
@@ -513,7 +546,7 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
       }
     } else if (measuring) opts.onPatch?.(0);
     encoder.discardChanges();
-    channel.rosterSent();
+    if (!room) channel.rosterSent();
 
     if (!measuring) continue;
     projectiles += world.projectiles.size;
@@ -540,6 +573,15 @@ export function runBandwidth(opts: BandwidthOptions = {}): BandwidthResult {
     quests: world.state.quests.size,
     initialSyncBytes,
     fxByKind,
+    ...(room
+      ? {
+        bots: {
+          count: botCount,
+          aliveAtEnd: botIds.filter((id) => world.state.players.get(id)?.status === "alive").length,
+          manager: { ...room.manager.stats },
+        },
+      }
+      : {}),
   };
 }
 
@@ -557,6 +599,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       `  total ${f(r.totalKBps)} KB/s = patch ${f(r.patchKBps)} (${r.patchFramesPerSecond.toFixed(0)} frames/s)` +
       ` + fx ${f(r.fxKBps)} (${r.fxFramesPerSecond.toFixed(0)} frames/s)   joiner's first sync ${(r.initialSyncBytes / KIB).toFixed(1)} KB`,
     );
+    if (r.bots) {
+      const m = r.bots.manager;
+      console.log(`  ${r.bots.count} fill bots (${r.bots.aliveAtEnd} alive at the end): ${m.frames} frames, ${m.sent} commands sent, ${m.refused} refused, ${m.errors} errors`);
+    }
     const top = Object.entries(r.fxByKind).sort((a, b) => b[1].bytes - a[1].bytes).slice(0, 5);
     console.log(`  fx by kind: ${top.map(([k, v]) => `${k} ${f(v.bytes / r.seconds / KIB)} KB/s (${(v.frames / r.seconds).toFixed(1)}/s)`).join(", ")}`);
   };
@@ -566,4 +612,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   show("idle    (the map's mobs, none awake)", { camps: 0 });
   show(`chests  (typical, and 5 camp chests up)`, { camps: TYPICAL_CAMPS, chests: 5 });
   show("no mobs (players only)", { camps: 0, mobs: 0 });
+  show(`bots    (${BOTS_SCENARIO_BOTS} fill bots + 1 client at ${BOTS_SCENARIO_CAMPS} camp)`, { bots: BOTS_SCENARIO_BOTS, camps: BOTS_SCENARIO_CAMPS });
 }
