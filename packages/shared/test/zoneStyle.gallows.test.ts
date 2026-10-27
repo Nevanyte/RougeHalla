@@ -334,19 +334,22 @@ describe("the Rows on an open fixture", () => {
     expect(Buffer.from(a.terrain).equals(Buffer.from(c.terrain))).toBe(true);
   });
 
-  it("builds a styler with other dials: period 10 and gate width 4 move the gates, fewer squares leave the rows whole", () => {
-    const tilesOf = (styler: ZoneStyler<any>): { tiles: Uint8Array; gallows: number } => {
+  it("builds a styler with other dials: period 10 (phases 2 and 7) and gate width 4 move the gates, no square leaves the rows whole", () => {
+    const run = (styler: ZoneStyler<any>): { tiles: Uint8Array; plan: GallowsRowsPlan } => {
       const f = fixture(120, 100, 50, 8, 114, 66);
       styleLandmarks(f.lm, { stylers: { [FACTION]: styler } });
       const r = styleZones(f.st, { stylers: { [FACTION]: styler } });
-      return { tiles: f.st.tiles, gallows: (r[0].plan as GallowsRowsPlan).gallows.length };
+      return { tiles: f.st.tiles, plan: r[0].plan as GallowsRowsPlan };
     };
-    const base = tilesOf(gallowsRows);
-    const p10 = tilesOf(makeGallows({ period: 10 })), w4 = tilesOf(makeGallows({ width: 4 })), none = tilesOf(makeGallows({ squares: 0 }));
+    const base = run(gallowsRows);
+    const p10 = run(makeGallows({ period: 10 })), w4 = run(makeGallows({ width: 4 })), none = run(makeGallows({ squares: 0 }));
     expect(Buffer.from(p10.tiles).equals(Buffer.from(base.tiles))).toBe(false);
     expect(Buffer.from(w4.tiles).equals(Buffer.from(base.tiles))).toBe(false);
-    expect(none.gallows).toBe(0);
-    expect(base.gallows).toBe(9);
+    expect(none.plan.gallows.length).toBe(0);
+    expect(base.plan.gallows.length).toBe(9);
+    expect(new Set(p10.plan.rows.map((r) => r.phase))).toEqual(new Set([2, 7]));
+    for (const row of p10.plan.rows) for (const i of row.tiles) expect(gallowsGateOpen(i % 120 - p10.plan.sLo, row.phase, 10, 3)).toBe(false);
+    for (const row of w4.plan.rows) for (const i of row.tiles) expect(gallowsGateOpen(i % 120 - w4.plan.sLo, row.phase, 12, 4)).toBe(false);
   });
 });
 

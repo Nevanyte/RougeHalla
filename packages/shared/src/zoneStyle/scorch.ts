@@ -448,9 +448,7 @@ function placeCraters(c: ShapeCtx, mine: readonly CampInfo[], r4s: number[], nod
       }
     }
     const __c: any = (globalThis as any).__cnt;
-    if (__c && rim.length < RIM_MIN && ras.blocked(r4) < 100 && __c.dbgN < 6) { __c.dbgN++; console.log('SHORT camp', camp.index, camp.x, camp.y, 'r4', r4, 'beams', JSON.stringify(beams), 'raw', ras.rim(r4, beams).length, 'rawNoBeams', ras.rim(r4, []).length, 'blocked', ras.blocked(r4));
-      const pic = (tl: number[]) => { const set = new Set(tl); const rows: string[] = []; for (let dy = -9; dy <= 9; dy++) { let r = ''; for (let dx = -9; dx <= 9; dx++) r += dx === 0 && dy === 0 ? 'C' : set.has((camp.y + dy) * c.w + camp.x + dx) ? '#' : '.'; rows.push(r); } return rows.join('\n'); };
-      console.log(pic(ras.rim(r4, beams))); console.log('kept'); console.log(pic(rim)); }
+    if (__c && rim.length < RIM_MIN) { const raw = ras.rim(r4, beams); __c.dropped.push([camp.index, r4, ras.blocked(r4), beams.length, raw.length, rim.length, camp.elite ? 1 : 0]); }
     if (__c) { __c.total++; if (rim.length < RIM_MIN) { __c.short++; __c.shortBeams[beams.length] = (__c.shortBeams[beams.length] ?? 0) + 1; __c.shortOpen.push(1000 - ras.blocked(r4)); } }
     if (rim.length < RIM_MIN) continue;
     const dirs = beams.map((b) => dirIndex16(b[0], b[1]));
